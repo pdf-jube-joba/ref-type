@@ -1,0 +1,35 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import topology.Topology[Carrier := Open.Carrier U] \as SourceTopology;
+\import topology.Topology[Carrier := N.Point] \as TargetTopology;
+\import topology.Topology[Carrier := Reals.Multivariable[n := n].Point] \as Ambient;
+\import Ambient.Subspace[S := U.points] \as Subspace;
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as Euclidean;
+\import Open.Topology[] \as OpenTopology;
+\import topology.Continuity[A := Open.Carrier U, B := N.Point] \as Continuity;
+\definition data: Maps.Data := Maps.Data { apply := f };
+\module Patch(i: I);
+\definition continuous: Maps.Continuous data := \fun (W: \Pow N.Point)(openW: TargetTopology.IsOpenIn N.space W) =>
+  SourceTopology.openOfNeighborhoods source.space (Continuity.Preimage f W) (\block {
+    \fun (a: Open.Carrier U)(member: \In[N.Point] W (f a)) \then
+    \takefrom i: \Cast[I] ({ i: I \where \In[Reals.Multivariable[n := n].Point] ((domains i).points) a }) \by covers a \then
+    \return Logic.existsIntro[\Pow (Open.Carrier U), { V: \Pow (Open.Carrier U) \where SourceTopology.OpenNeighborhood[source.space, a, Continuity.Preimage f W, V] }]
+      (Patch[i := i].neighborhood W) (SourceTopology.OpenNeighborhood[source.space, a, Continuity.Preimage f W, Patch[i := i].neighborhood W] {
+        open := Patch[i := i].open W openW,
+        contains := Patch[i := i].contains W a (\bysub(I, { i: I \where \In[Reals.Multivariable[n := n].Point] ((domains i).points) a }, i)) member,
+        within := Patch[i := i].within W,
+      })
+  });
+\definition continuousMap: Maps.ContinuousMap := \into[Maps.Data](data, { data: Maps.Data \where Maps.Continuous data }) \by { continuous };
+\import SmallAtlas.Of[f := continuousMap] \as Check;
+\module Coordinates(right: TargetCharts.Chart, rightMember: \In[TargetCharts.Chart] N.atlas.charts right);
+\definition small: Check.InSmallAtlas := \fun (left: SmallAtlas.SourceChart)(right: SmallAtlas.TargetChart) =>
+  \idelim Source.standard = left \with l: SourceCharts.Chart => Maps.Coordinates[f := continuousMap, left := l, right := right].Smooth \by {
+    base: Coordinates[right := right, rightMember := \bysub(TargetCharts.Chart, N.atlas.charts, right)].regular,
+    equality: sym!{SourceCharts.Chart} _ _ (\bysub(SourceCharts.Chart, Source.atlas.charts, left))
+  };
+\definition value: Maps.Map := Check.value small;
+\definition apply: Maps.apply value = f := \refl(f);

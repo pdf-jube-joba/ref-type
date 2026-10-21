@@ -1,0 +1,64 @@
+\import std.Data[].FinSet[] \as Fin;
+\definition lineDimension: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\import calculus.Real[].Multivariable[n := lineDimension].Open[] \as LineOpen;
+\import LineOpen.Whole[] \as Whole;
+\import manifolds.Dimension[n := lineDimension].Examples[].Euclidean[].Subspace[U := LineOpen.whole] \as Euclidean;
+\import manifolds.Dimension[n := lineDimension].Smooth[] \as LineModel;
+\definition line: LineModel.Manifold := Euclidean.smoothManifold;
+\definition time[t: Reals.Real]: line.Point := Whole.point (\fun (i: Fin.Fin lineDimension) => t);
+\definition timeCoordinates: \forall (x: line.Point) -> time (x (Fin.zero N.Nat^::zero)) = x := \block {
+  \fun (x: line.Point) \then
+  \let point: topological_algebra.Euclidean[].Dimension[n := lineDimension].Point := x \then
+  \let constant: topological_algebra.Euclidean[].Dimension[n := lineDimension].Point := time (x (Fin.zero N.Nat^::zero)) \then
+  \return \axiom:funext(constant, point, \fun (j: Fin.Fin lineDimension) => sym!{Reals.Real} _ _
+    (congr!{{Fin.Fin lineDimension} Reals.Real} point _ _ (Fin.singletonValue j)))
+};
+\import manifolds.SmoothMap[n := lineDimension, m := n].Between[M := line, N := manifold] \as Curves;
+\structure Data: \Set := {
+  map: Curves.Map,
+};
+\structure Laws[data: Data]: \Prop := {
+  atZero: Curves.apply data.map (time Reals.zero) = one,
+  addition: \forall (s, t: Reals.Real) -> Curves.apply data.map (time (Reals.add s t)) =
+    mul (Curves.apply data.map (time s)) (Curves.apply data.map (time t)),
+};
+\definition OneParameter: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+\definition dataEta: \forall (f: Data) -> Data::# (f.map) = f := \induction (f: Data) \return Data::# (f.map) = f \with {
+  | # : \fun (map: Curves.Map) => \refl(Data::# map)
+};
+\definition ext: \forall (f, g: OneParameter) -> f.map = g.map -> f = g := \fun (f, g: OneParameter)(same: _) => trans!{Data} _ _ _
+  (sym!{Data} _ _ (dataEta f)) (trans!{Data} _ _ _ (congr!{{Curves.Map} Data} Data::# _ _ same) (dataEta g));
+\import manifolds.Tangent[n := lineDimension].On[M := line].At[x := time Reals.zero] \as Source;
+\import manifolds.Dimension[n := lineDimension].Chart[M := line.Point, space := line.space] \as Charts;
+\import manifolds.Dimension[n := lineDimension].Atlas[M := line.Point, space := line.space] \as Atlases;
+\definition chart: Source.Chart := \into[Charts.Chart](Euclidean.standard, Source.Chart) \by {
+  Source.ChartLaws[Euclidean.standard] {
+    member := Atlases.includedInSaturation Euclidean.atlas Euclidean.standard (\refl(Euclidean.standard)),
+    contains := \refl(time Reals.zero),
+  }
+};
+\definition unitVelocity: Source.Vector := Source.classOf chart (time Reals.one);
+\definition sourceChart: Source.Chart := chart;
+\import calculus.Real[].Multivariable[n := lineDimension].Space[].Def[] \as TimeCoordinates;
+\import calculus.Real[].Multivariable[n := lineDimension].Space[].Prop[] \as TimeLaws;
+\import Source.Coordinate[chart := chart] \as SourceCoordinates;
+\definition unitVector: line.Point := Whole.point (TimeCoordinates.basis (Fin.zero N.Nat^::zero));
+\definition unitCoordinates: SourceCoordinates.decode unitVelocity = unitVector := \block {
+  \let unit: topological_algebra.Euclidean[].Dimension[n := lineDimension].Point := time Reals.one \then
+  \let basis: unit = unitVector := \axiom:funext(unit, TimeCoordinates.basis (Fin.zero N.Nat^::zero), \fun (j: Fin.Fin lineDimension) => sym!{Reals.Real} _ _
+    (trans!{Reals.Real} _ _ _ (congr!{{Fin.Fin lineDimension} Reals.Real} (TimeCoordinates.basis (Fin.zero N.Nat^::zero)) _ _ (Fin.singletonValue j))
+      (TimeLaws.replaceSame TimeCoordinates.origin (Fin.zero N.Nat^::zero) Reals.one))) \then
+  \return trans!{{topological_algebra.Euclidean[].Dimension[n := lineDimension].Point}} _ _ _ (SourceCoordinates.decodeEncode unit) basis
+};
+\module Of(f: OneParameter);
+\definition generator[f: OneParameter]: TangentAtOne := Of[f := f].velocity;
+\definition WithGenerator[v: TangentAtOne]: \Set := \Cast[OneParameter] ({ f: OneParameter \where generator f = v });
+\structure Integration: \Set := {
+  flow: TangentAtOne -> OneParameter,
+  generates: \forall (v: TangentAtOne) -> generator (flow v) = v,
+};
+\definition exp[integration: Integration][v: TangentAtOne]: Point := Curves.apply (integration.flow v).map (time Reals.one);
+\definition flowLaw: \forall (integration: Integration)(v: TangentAtOne)(s, t: Reals.Real) ->
+  Curves.apply (integration.flow v).map (time (Reals.add s t)) =
+    mul (Curves.apply (integration.flow v).map (time s)) (Curves.apply (integration.flow v).map (time t)) :=
+  \fun (integration: Integration)(v: TangentAtOne) => (integration.flow v).addition;

@@ -1,0 +1,30 @@
+\import Maps.Coordinates[f := i, left := c, right := EuclideanManifold.standard] \as Coordinates;
+\import calculus.Maps[n := n, m := ambientDimension] \as Calculus;
+\definition regular: Coordinates.Smooth := (\bysub(Maps.ContinuousMap, { f: Maps.ContinuousMap \where Maps.Chartwise f }, i))
+  c EuclideanManifold.standard (\bysub(Charts.Chart, M.atlas.charts, c))
+  (AmbientAtlases.includedInSaturation EuclideanManifold.atlas EuclideanManifold.standard (\refl(EuclideanManifold.standard)));
+\definition coordinateMap: Calculus.Map Coordinates.domain EuclideanManifold.standard.image := Coordinates.map regular;
+\definition domain: Open.OpenSet := Coordinates.domain;
+\definition included: Open.Included domain c.image := \fun (u: BaseCoordinates.Point)(member: _) =>
+  Coordinates.inLeftImage (\into[BaseCoordinates.Point](u, domain.points) \by { member });
+\import manifolds.ChartRestriction[n := n].On[M := M].At[c := c, U := domain, included := included] \as Restricted;
+\definition chart: Chart := Restricted.chart;
+\import Spaces.Linear[V := SourceVectors.Vector, W := E.Vector, source := SourceVectors.space, target := E.space] \as Matrices;
+\definition matrix[u: Open.Carrier domain]: Matrices.Map := Calculus.Differential[U := domain, V := EuclideanManifold.standard.image, f := coordinateMap, a := u].value;
+\import calculus.MatrixFamily[d := n, p := n, q := ambientDimension] \as Matrix;
+\definition matrixRegular: Matrix.Regular domain matrix := \fun (a: Fin.Fin ambientDimension)(b: Fin.Fin n) =>
+  Calculus.FixedDifferential[U := domain, V := EuclideanManifold.standard.image, f := coordinateMap, v := SourceVectors.basis b].smooth a;
+\module At(u: Open.Carrier domain);
+\import calculus.GramSchmidt[d := n, q := ambientDimension].On[U := domain] \as GramSchmidt;
+\import GramSchmidt.Rank[p := n] \as Rank;
+\definition injective: Rank.Injective matrix := \fun (u: Open.Carrier domain) => At[u := u].injective;
+\module With(factors: Rank.Factors[matrix]);
+\definition wholeIncluded: Open.Included c.image domain := \fun (u: BaseCoordinates.Point)(member: _) =>
+  Coordinates.intro (\into[BaseCoordinates.Point](u, c.image.points) \by { member }) (\refl(Maps.apply i (Charts.point c (\into[BaseCoordinates.Point](u, c.image.points) \by { member }))));
+\definition fullInput[u: Open.Carrier c.image]: Open.Carrier domain := Open.inclusion c.image domain wholeIncluded u;
+\definition fullMatrix[u: Open.Carrier c.image]: Matrices.Map := matrix (fullInput u);
+\definition fullRegular: Matrix.Regular c.image fullMatrix := Matrix.restrict c.image domain wholeIncluded matrix matrixRegular;
+\import tangent_bundles.Dimension[n := n].On[M := M] \as TangentBundle;
+\definition fullComparison: \forall (u: Open.Carrier c.image)(v: SourceVectors.Vector) ->
+  (\parent.At[x := Charts.point c u].differential).apply (TangentBundle.Frames[].At[c := c, x := Charts.point c u].isomorphism.backward.apply v) = (fullMatrix u).apply v :=
+  \fun (u: Open.Carrier c.image)(v: SourceVectors.Vector) => sym!{{E.Vector}} _ _ (At[u := fullInput u].backwardComparison v);

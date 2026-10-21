@@ -16,3 +16,5 @@
 
 各パッケージの名前は、配置とは別に `ref.toml` の `name` で定まる。
 例えば `singular/cohomology` は `singular_cohomology`、`homotopy` は `algebraic_topology` として参照する。
+
+基本群と被覆については [fundamental](fundamental/README.md) と [coverings](coverings/README.md) を参照する。

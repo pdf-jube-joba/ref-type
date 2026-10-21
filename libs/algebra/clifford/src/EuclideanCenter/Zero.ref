@@ -1,0 +1,37 @@
+\import \parent.Dimension[n := N.Nat^::zero] \as D;
+\import \root.Euclidean[n := N.Nat^::zero] \as E;
+\import \root.Field[K := R.Real, field := Scalars.field].On[V := E.Vector, space := E.space].Of[form := E.form] \as Algebra;
+\import Algebra.Relations[] \as Relations;
+\import Algebra.Induction[P := (\fun (x: E.Carrier) => \exists D.Scalar x)] \as Induction;
+\definition witness[a: R.Real][x: E.Carrier][same: E.scalar a = x]: \exists D.Scalar x :=
+  \exact(\into[R.Real](a, D.Scalar x) \by { same }, D.Scalar x);
+\definition represents[x: E.Carrier][a: D.Scalar x]: E.scalar a = x := \bysub(R.Real, { a: R.Real \where E.scalar a = x }, a);
+\definition vectorsZero: \forall (v: E.Vector) -> v = E.space.zero := \fun (v: E.Vector) => \axiom:funext(v, E.space.zero,
+  \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim (v i = E.space.zero i) (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)));
+\definition closed: Induction.Closed := Induction.Closed {
+  scalar := \fun (a: R.Real) => witness a (E.scalar a) (\refl(E.scalar a)),
+  vector := \fun (v: E.Vector) => witness R.zero (E.iota v) (sym!{E.Carrier} _ _
+    (trans!{E.Carrier} _ _ _ (congr!{E.Vector E.Carrier} E.iota _ _ (vectorsZero v)) Algebra.injection.preservesZero)),
+  addition := \block {
+    \fun (x, y: E.Carrier)(left: \exists D.Scalar x)(right: \exists D.Scalar y) \then
+    \takefrom a: D.Scalar x \by left \then
+    \takefrom b: D.Scalar y \by right \then
+    \return witness (R.add a b) (Algebra.add x y) (trans!{E.Carrier} _ _ _ (Relations.scalarAdd a b)
+      (congr2!{E.Carrier E.Carrier E.Carrier} Algebra.add _ _ _ _ (represents x a) (represents y b)))
+  },
+  negative := \block {
+    \fun (x: E.Carrier)(previous: \exists D.Scalar x) \then
+    \takefrom a: D.Scalar x \by previous \then
+    \return witness (R.neg a) (Algebra.neg x) (trans!{E.Carrier} _ _ _ (Relations.scalarNeg a)
+      (congr!{E.Carrier E.Carrier} Algebra.neg _ _ (represents x a)))
+  },
+  multiplication := \block {
+    \fun (x, y: E.Carrier)(left: \exists D.Scalar x)(right: \exists D.Scalar y) \then
+    \takefrom a: D.Scalar x \by left \then
+    \takefrom b: D.Scalar y \by right \then
+    \return witness (R.mul a b) (Algebra.mul x y) (trans!{E.Carrier} _ _ _ (Relations.scalarMul a b)
+      (congr2!{E.Carrier E.Carrier E.Carrier} Algebra.mul _ _ _ _ (represents x a) (represents y b)))
+  },
+};
+\definition all: \forall (x: E.Carrier) -> \exists D.Scalar x := Induction.all closed;
+\definition law: D.Law := \fun (x: E.Carrier)(central: D.Twisted x) => all x;

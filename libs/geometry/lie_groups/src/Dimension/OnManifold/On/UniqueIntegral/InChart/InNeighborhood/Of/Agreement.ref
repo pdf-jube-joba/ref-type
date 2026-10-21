@@ -1,0 +1,39 @@
+\import manifolds.SmoothMap[n := Types.lineDimension, m := n].Between[M := Types.line, N := manifold] \as Curves;
+\import manifolds.Dimension[n := n].Chart[M := manifold.Point, space := manifold.space] \as Charts;
+\import calculus.Maps[n := Types.lineDimension, m := n] \as Maps;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import topological_algebra.Euclidean[].Dimension[n := n] \as Vectors;
+\definition left[t: Reals.Real]: Point := Curves.apply f.map (Types.time t);
+\definition right[t: Reals.Real]: Point := Curves.apply g.map (Types.time t);
+\definition agreementBound: R.Le radius data.agreement.radius := Distance.minLeft data.agreement.radius (Distance.min data.leftRadius data.rightRadius);
+\definition localAgreement: \forall (t: Reals.Real) -> R.Lt (Bounds.abs t) radius -> left t = right t := \block {
+  \fun (t: Reals.Real)(small: _) \then
+  \let leftPoint: calculus.Real[].Multivariable[n := Types.lineDimension].Open[].Carrier Left.domain := LeftCurve.parameter t (leftLower t small) (leftUpper t small) \then
+  \let rightPoint: calculus.Real[].Multivariable[n := Types.lineDimension].Open[].Carrier Right.domain := RightCurve.parameter t (rightLower t small) (rightUpper t small) \then
+  \let localEquality: Left.value t = Right.value t := data.agreement.agrees t
+    (R.leLtTrans _ _ _ (Arithmetic.negAntitone radius data.agreement.radius agreementBound) (lower t small))
+    (R.ltLeTrans _ _ _ (upper t small) agreementBound) \then
+  \let same: Maps.apply Left.domain chart.image Left.map leftPoint = Maps.apply Right.domain chart.image Right.map rightPoint :=
+    trans!{Vectors.Point} _ _ _ (sym!{Vectors.Point} _ _ (Left.valueAt leftPoint))
+      (trans!{Vectors.Point} _ _ _ localEquality (Right.valueAt rightPoint)) \then
+  \return trans!{Point} _ _ _ (sym!{Point} _ _ (Left.returnsPoint leftPoint))
+    (trans!{Point} _ _ _ (congr!{{Open.Carrier chart.image} Point} (\fun (x: Open.Carrier chart.image) => Charts.point chart x) _ _ same)
+      (Right.returnsPoint rightPoint))
+};
+\import \root.LocalHom[G := Point, group := group] \as Local;
+\definition local: Local.LocalHom := Local.LocalHom {
+  radius := \into[Reals.Real](radius, { r: Reals.Real \where R.Lt Reals.zero r }) \by { positive },
+  value := left, atZero := f.atZero,
+  addition := \fun (s, t: Reals.Real)(smallS: _)(smallT: _)(smallSum: _) => f.addition s t,
+};
+\import Local.On[f := local] \as Extended;
+\import Extended.Uniqueness[h := left, addition := f.addition, localAgreement := (\fun (t: Reals.Real)(small: R.Lt (Bounds.abs t) radius) => \refl(left t))] \as LeftExtension;
+\definition rightAgreement: \forall (t: Reals.Real) -> R.Lt (Bounds.abs t) radius -> right t = left t :=
+  \fun (t: Reals.Real)(small: _) => sym!{Point} _ _ (localAgreement t small);
+\import Extended.Uniqueness[h := right, addition := g.addition, localAgreement := rightAgreement] \as RightExtension;
+\definition realEquality: left = right := trans!{{Reals.Real -> Point}} _ _ _ LeftExtension.equal (sym!{{Reals.Real -> Point}} _ _ RightExtension.equal);
+\definition pointwise: \forall (x: Types.line.Point) -> Curves.apply f.map x = Curves.apply g.map x := \fun (x: Types.line.Point) =>
+  trans!{Point} _ _ _ (congr!{{Types.line.Point} Point} (Curves.apply f.map) _ _ (sym!{{Types.line.Point}} _ _ (Types.timeCoordinates x)))
+    (trans!{Point} _ _ _ (congr!{{Reals.Real -> Point} Point} (\fun (h: Reals.Real -> Point) => h (x (std.Data[].FinSet[].zero std.Data[].Nat[].Nat^::zero))) _ _ realEquality)
+      (congr!{{Types.line.Point} Point} (Curves.apply g.map) _ _ (Types.timeCoordinates x)));
+\definition equal: f = g := Types.ext f g (Curves.ext f.map g.map (\axiom:funext(Curves.apply f.map, Curves.apply g.map, pointwise)));

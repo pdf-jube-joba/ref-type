@@ -1,0 +1,30 @@
+\import algebraic_topology.Interval[] \as I;
+\import I.Halves[] \as Halves;
+\import topology.Continuity[A := I.Carrier, B := A] \as Continuous;
+\import topology.Continuity[A := I.Carrier, B := I.Carrier] \as Parameters;
+\import topology.Composition[A := I.Carrier, B := I.Carrier, C := A] \as Compose;
+\import \root.Paths[A := A, source := source] \as Paths;
+\import Paths.Concatenation[] \as Join;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition Carrier: \Set := \Cast[I.Carrier -> A] ({ p: I.Carrier -> A \where Continuous.Continuous I.topology source p });
+\definition continuous[p: Carrier]: Continuous.Continuous I.topology source p := \bysub(I.Carrier -> A, Carrier, p);
+\definition forget[x, y: A][p: Paths.Path x y]: Carrier := \into[I.Carrier -> A](p, Carrier) \by { (Paths.laws x y p).continuous };
+\definition asPath[p: Carrier]: Paths.Path (p I.start) (p I.end) := \into[Paths.Function](p, Paths.Path (p I.start) (p I.end)) \by {
+  Paths.Laws[p I.start, p I.end, p] { continuous := continuous p, start := \refl(p I.start), end := \refl(p I.end) }
+};
+\definition reparam[p: Carrier][f: I.Carrier -> I.Carrier][fc: Parameters.Continuous I.topology I.topology f]: Carrier :=
+  \into[I.Carrier -> A](\fun (t: I.Carrier) => p (f t), Carrier) \by { Compose.composeContinuous I.topology I.topology source f p fc (continuous p) };
+\definition first[p: Carrier]: Carrier := reparam p Halves.lower Halves.lowerContinuous;
+\definition second[p: Carrier]: Carrier := reparam p Halves.upper Halves.upperContinuous;
+\definition firstJoin: \forall (x, y, z: A)(p: Paths.Path x y)(q: Paths.Path y z) -> first (forget x z (Join.concatenate x y z p q)) = forget x y p :=
+  \fun (x, y, z: A)(p: _)(q: _) => \axiom:funext(first (forget x z (Join.concatenate x y z p q)), forget x y p,
+    \fun (t: I.Carrier) => Join.onLower x y z p q t);
+\definition secondJoin: \forall (x, y, z: A)(p: Paths.Path x y)(q: Paths.Path y z) -> second (forget x z (Join.concatenate x y z p q)) = forget y z q :=
+  \fun (x, y, z: A)(p: _)(q: _) => \axiom:funext(second (forget x z (Join.concatenate x y z p q)), forget y z q,
+    \fun (t: I.Carrier) => Join.onUpper x y z p q t);
+\module Squares;
+\definition extensional: \forall (p, q: Carrier) -> (\forall (t: I.Carrier) -> p t = q t) -> p = q :=
+  \fun (p, q: Carrier)(same: _) => \axiom:funext(p, q, same);

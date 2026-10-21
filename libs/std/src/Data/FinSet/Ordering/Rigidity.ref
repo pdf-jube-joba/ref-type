@@ -1,0 +1,29 @@
+/* A strictly increasing self-map of a finite ordered set is the identity. */
+\import N.Order[].Prop[] \as NaturalOrder;
+\import std.Logic[].Order[] \as OrderCases;
+\definition Endomorphism[n: N.Nat^]: \Set := \Cast[Fin n -> Fin n]
+  ({ f: Fin n -> Fin n \where Increasing n n f });
+\definition ordered[n: N.Nat^][f: Endomorphism n]: Increasing n n f := \bysub(Fin n -> Fin n,
+  { f: Fin n -> Fin n \where Increasing n n f }, f);
+\definition injective: \forall (n: N.Nat^)(f: Endomorphism n) -> Injective n n f := \fun (n: N.Nat^)(f: Endomorphism n)(i, j: Fin n)(same: f i = f j) =>
+  (\induction (comparison: NaturalOrder.Trichotomy i j) \return i = j \with {
+    | less: \fun (less: NL.Lt i j) => Logic.falseElim (i = j) (NL.ltIrrefl (f i)
+      (\idelim f j = f i \with k: Fin n => NL.Lt (f i) k \by {
+        base: ordered n f i j less, equality: sym!{{Fin n}} _ _ same
+      }))
+    | equal: \fun (equal: i = j) => equal
+    | greater: \fun (less: NL.Lt j i) => Logic.falseElim (i = j) (NL.ltIrrefl (f j)
+      (\idelim f i = f j \with k: Fin n => NL.Lt (f j) k \by {
+        base: ordered n f j i less, equality: same
+      }))
+  }) (NaturalOrder.trichotomy i j);
+\definition Law[n: N.Nat^]: \Prop := \forall (f: Endomorphism n) -> f = (\fun (i: Fin n) => i);
+\module Step(n: N.Nat^, f: Endomorphism (N.Nat^::succ n));
+\definition rigid: \forall (n: N.Nat^) -> Law n := \induction (n: N.Nat^) \return Law n \with {
+  | zero: \fun (f: Endomorphism N.Nat^::zero) => \block {
+    \let raw: Fin N.Nat^::zero -> Fin N.Nat^::zero := f \then
+    \return \axiom:funext(raw, (\fun (i: Fin N.Nat^::zero) => i),
+      \fun (i: Fin N.Nat^::zero) => Logic.falseElim _ (zeroImpossible i (bound N.Nat^::zero i)))
+  }
+  | succ: \fun (n: N.Nat^)(previous: Law n)(f: Endomorphism (N.Nat^::succ n)) => Step[n := n, f := f].law previous
+};

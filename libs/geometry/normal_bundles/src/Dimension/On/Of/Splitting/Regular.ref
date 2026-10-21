@@ -1,0 +1,23 @@
+\import Spaces.CoordinateSum[n := n, m := k] \as Coordinates;
+\definition tangent: SourceVectors.Vector := Coordinates.left (E.basis b);
+\definition normal: NormalVectors.Vector := Coordinates.right (E.basis b);
+\import \parent.\parent.InChart[c := patch.chart] \as Derivative;
+\definition formula: \forall (u: Open.Carrier patch.chart.image) -> (Morphism.matrix patch u).apply (E.basis b) a =
+  R.add ((Derivative.fullMatrix u).apply tangent a) ((patch.decode (Charts.point patch.chart u)).apply normal a) :=
+  \fun (u: Open.Carrier patch.chart.image) => congr!{{E.Vector} {R.Real}} (\fun (w: E.Vector) => w a) _ _
+    (congr!{{E.Vector} {E.Vector}} (\fun (w: E.Vector) => E.space.add w ((patch.decode (Charts.point patch.chart u)).apply normal)) _ _ (Derivative.fullComparison u tangent));
+\definition smooth: Open.Smooth[].SmoothOn patch.chart.image (\fun (u: Open.Carrier patch.chart.image) => (Morphism.matrix patch u).apply (E.basis b) a) :=
+  \idelim
+    (\fun (u: Open.Carrier patch.chart.image) => R.add ((Derivative.fullMatrix u).apply tangent a) ((patch.decode (Charts.point patch.chart u)).apply normal a)) =
+    (\fun (u: Open.Carrier patch.chart.image) => (Morphism.matrix patch u).apply (E.basis b) a)
+    \with f: Open.ScalarFunction patch.chart.image => Open.Smooth[].SmoothOn patch.chart.image f \by {
+      base: Open.Smooth[].Operations[].addSmooth patch.chart.image
+        (\fun (u: Open.Carrier patch.chart.image) => (Derivative.fullMatrix u).apply tangent a)
+        (\fun (u: Open.Carrier patch.chart.image) => (patch.decode (Charts.point patch.chart u)).apply normal a)
+        (calculus.MatrixFamily[d := n, p := n, q := ambientDimension].evaluate patch.chart.image Derivative.fullMatrix Derivative.fullRegular tangent a)
+        (DecodeMatrix.evaluate patch.chart.image (\fun (u: Open.Carrier patch.chart.image) => patch.decode (Charts.point patch.chart u)) patch.decodeSmooth normal a),
+      equality: \axiom:funext(
+        (\fun (u: Open.Carrier patch.chart.image) => R.add ((Derivative.fullMatrix u).apply tangent a) ((patch.decode (Charts.point patch.chart u)).apply normal a)),
+        (\fun (u: Open.Carrier patch.chart.image) => (Morphism.matrix patch u).apply (E.basis b) a),
+        \fun (u: Open.Carrier patch.chart.image) => sym!{{R.Real}} _ _ (formula u))
+    };

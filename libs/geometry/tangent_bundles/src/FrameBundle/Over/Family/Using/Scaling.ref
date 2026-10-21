@@ -1,0 +1,29 @@
+\import \parent.Build[changes := changes] \as BaseConstruction;
+\import manifolds.Dimension[n := dimension].Smooth[] \as TotalModel;
+\definition manifold: TotalModel.Manifold := BaseConstruction.manifold;
+\import Spaces.CoordinateLine[] \as Line;
+\definition one: N.Nat^ := Line.one;
+\definition scalarSpace[x: M.Point]: Spaces.VectorSpace Real.Real := Spaces.scalarSpace;
+\import \parent.Sum[s := one, G := \fun (x: M.Point) => Real.Real, otherSpace := scalarSpace,
+  otherFrame := \fun (i: I)(x: Charts.LocalPoint (chart i)) => Line.isomorphism] \as Extended;
+\import \root.FrameBundle[n := n, r := one].Over[M := M].Family[F := \fun (x: M.Point) => Real.Real, space := scalarSpace].Using[I := I, data := Extended.otherData] \as Trivial;
+\module TrivialChange(i, j: I);
+\definition trivialChanges: Trivial.Changes := \fun (i, j: I)(a, b: Fin.Fin one) => TrivialChange[i := i, j := j].smooth a b;
+\import Extended.Build[firstChanges := changes, secondChanges := trivialChanges] \as ExtendedConstruction;
+\import \root.FrameBundle[n := n, r := Extended.rank].Over[M := M].Family[F := Extended.Fiber, space := Extended.fiberSpace] \as ExtendedFamily;
+\import ExtendedFamily.Using[I := I, data := Extended.sumData] \as ExtendedAtlas;
+\import ExtendedAtlas.Build[changes := ExtendedConstruction.changes] \as ExtendedManifold;
+\definition sourceDimension: N.Nat^ := calculus.Blocks[n := n, m := Extended.rank].dimension;
+\import manifolds.Dimension[n := sourceDimension].Smooth[] \as DomainModel;
+\definition domainManifold: DomainModel.Manifold := ExtendedManifold.manifold;
+\definition Domain: \Set := ExtendedFamily.Point;
+\definition apply[p: Domain]: Point := include p.base ((space p.base).smul
+  (std.Data[].Pair[].second (F p.base) Real.Real p.vector) (std.Data[].Pair[].first (F p.base) Real.Real p.vector));
+\definition make[a: Real.Real][x: M.Point][v: F x]: Domain := ExtendedFamily.include x (std.Data[].Pair[].pair (F x) Real.Real v a);
+\import ExtendedManifold.Plots[m := dimension].Into[N := manifold] \as Plot;
+\module Local(i: I);
+\definition maps[i: I]: Plot.LocalMap i := Local[i := i].map;
+\definition agrees: Plot.Agreement apply maps := \fun (i: I)(u: calculus.Real[].Multivariable[n := sourceDimension].Open[].Carrier ExtendedAtlas.InChart[i := i].image) => Local[i := i].agrees u;
+\import Plot.Of[f := apply, maps := maps, agrees := agrees] \as Construct;
+\import manifolds.SmoothMap[n := sourceDimension, m := dimension].Between[M := domainManifold, N := manifold] \as Maps;
+\definition smoothMap: Maps.Map := Construct.map;

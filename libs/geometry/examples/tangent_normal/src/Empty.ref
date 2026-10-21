@@ -1,0 +1,28 @@
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import manifolds.Dimension[n := n].Examples[].Empty[] \as Empty;
+\import manifolds.Dimension[n := n].Smooth[] \as Model;
+\definition M: Model.Manifold := Empty.smoothManifold;
+\import normal_bundles.Dimension[n := n, k := k] \as Dimension;
+\import manifolds.SmoothMap[n := n, m := Dimension.ambientDimension].Between[M := M, N := Dimension.ambient] \as Maps;
+\import topology.Topology[Carrier := M.Point] \as Topology;
+\import linear_algebra.Euclidean[n := Dimension.ambientDimension] \as Ambient;
+\definition data: Maps.Data := Maps.Data { apply := \fun (x: M.Point) => Ambient.space.zero };
+\definition continuous: Maps.ContinuousMap := \into[Maps.Data](data, { f: Maps.Data \where Maps.Continuous f }) \by {
+  \fun (U: \Pow Dimension.ambient.Point)(open: _) => Topology.discreteOpen (topology.Continuity[A := M.Point, B := Dimension.ambient.Point].Preimage data.apply U)
+};
+\import manifolds.Dimension[n := n].Chart[M := M.Point, space := M.space] \as Charts;
+\import manifolds.Dimension[n := Dimension.ambientDimension].Chart[M := Dimension.ambient.Point, space := Dimension.ambient.space] \as TargetCharts;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\module Local(left: Charts.Chart, right: TargetCharts.Chart);
+\definition map: Maps.Map := \into[Maps.ContinuousMap](continuous, { f: Maps.ContinuousMap \where Maps.Chartwise f }) \by {
+  \fun (left: Charts.Chart)(right: TargetCharts.Chart)(member: _)(other: _) => Local[left := left, right := right].smooth
+};
+\import manifolds.Immersion[n := n, m := Dimension.ambientDimension].Between[M := M, N := Dimension.ambient] \as Immersions;
+\definition immersion: Immersions.Immersion := \into[Maps.Map](map, Immersions.Immersion) \by {
+  \fun (x: M.Point) => Logic.falseElim _ (Empty.impossible x)
+};
+\import tangent_bundles.Dimension[n := n].On[M := M] \as Tangent;
+\import Dimension.On[M := M].Of[i := immersion] \as Normal;
+\definition tangentEmpty: \forall (p: Tangent.Point) -> Logic.False := \fun (p: Tangent.Point) => Empty.impossible p.base;
+\definition normalEmpty: \forall (p: Normal.Point) -> Logic.False := \fun (p: Normal.Point) => Empty.impossible p.base;

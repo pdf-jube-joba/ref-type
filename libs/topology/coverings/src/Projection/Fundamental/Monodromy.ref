@@ -1,0 +1,96 @@
+\import \root.Projection[E := E, B := B, total := total, base := base, projection := projection].Transport[] \as Raw;
+\import Raw.Groupoid[covering := covering] \as Transport;
+\import Raw.Action[covering := covering, b := projection e] \as Action;
+\import \root.Projection[E := E, B := B, total := total, base := base, projection := projection].Lifting[] \as Lifting;
+\import Lifting.Uniqueness[] \as Uniqueness;
+\import fundamental_groups.Paths[A := B, source := base] \as BasePaths;
+\import algebraic_topology.Interval[] \as Interval;
+\import std.Logic[].Proposition[] \as Logic;
+\definition point: Fiber (projection e) := \into[E](e, Fiber (projection e)) \by { \refl(projection e) };
+\definition Image[g: Target.Carrier]: \Prop := \exists ( a: Source.Carrier \where induced covering a = g );
+\definition Fixed[g: Target.Carrier]: \Prop := Action.move g point = point;
+\definition projectedLoopFixes: \forall (f: Paths.Path e e) -> Raw.along covering (projection e) (projection e) (Mapping.apply projection covering.continuous e e f) point = point := \block {
+  \fun (f: Paths.Path e e) \then
+  \let p: BasePaths.Path (projection e) (projection e) := Mapping.apply projection covering.continuous e e f \then
+  \let lift: Lifting.PathLift (projection e) (projection e) p point := \into[Interval.Carrier -> E](f, Lifting.PathLift (projection e) (projection e) p point) \by {
+    Lifting.PathLiftLaws[projection e, projection e, p, point, f] {
+      continuous := (Paths.laws e e f).continuous,
+      projects := \fun (t: Interval.Carrier) => \refl(projection (f t)),
+      starts := (Paths.laws e e f).start,
+    }
+  } \then
+  \return trans!{E} _ _ _ (congr!{{Interval.Carrier -> E} E} (\fun (h: Interval.Carrier -> E) => h Interval.end) _ _
+    (Uniqueness.pathLiftUnique covering (projection e) (projection e) p point (Raw.lift covering (projection e) (projection e) p point) lift))
+    (Paths.laws e e f).end
+};
+\definition fixesImage: \forall (a: Source.Carrier) -> Fixed (induced covering a) :=
+  Classes.induction (\fun (a: Source.Carrier) => Fixed (induced covering a))
+    (\fun (f: Paths.Path e e) => trans!{E} _ _ _
+      (congr!{Target.Carrier E} (\fun (g: Target.Carrier) => Action.move g point) _ _ (Native.onClass projection covering.continuous e e f))
+      (trans!{E} _ _ _ (Transport.onClass (projection e) (projection e) (Mapping.apply projection covering.continuous e e f) point) (projectedLoopFixes f)));
+\definition imageFixes: \forall (g: Target.Carrier) -> Image g -> Fixed g := \block {
+  \fun (g: Target.Carrier)(image: Image g) \then
+  \takefrom a: \Cast[Source.Carrier] ({ a: Source.Carrier \where induced covering a = g }) \by image \then
+  \return \idelim induced covering a = g \with h: Target.Carrier => Fixed h
+    \by { base: fixesImage a, equality: \bysub(Source.Carrier, { a: Source.Carrier \where induced covering a = g }, a) }
+};
+\definition fixedInImage: \forall (g: Target.Carrier) -> Fixed g -> Image g :=
+  TargetClasses.induction (\fun (g: Target.Carrier) => Fixed g -> Image g) (\block {
+    \fun (p: BasePaths.Path (projection e) (projection e))(fixed: Fixed (Target.class p)) \then
+    \let lift: Lifting.PathLift (projection e) (projection e) p point := Raw.lift covering (projection e) (projection e) p point \then
+    \let closes: lift Interval.end = e := trans!{E} _ _ _ (sym!{E} _ _ (Transport.onClass (projection e) (projection e) p point)) fixed \then
+    \let loop: Paths.Path e e := \into[Paths.Function](lift, Paths.Path e e) \by {
+      Paths.Laws[e, e, lift] {
+        continuous := (Lifting.pathLaws _ _ p point lift).continuous,
+        start := (Lifting.pathLaws _ _ p point lift).starts,
+        end := closes,
+      }
+    } \then
+    \let projectedEquals: Mapping.apply projection covering.continuous e e loop = p :=
+      \axiom:funext((Mapping.apply projection covering.continuous e e loop), p, (Lifting.pathLaws (projection e) (projection e) p point lift).projects) \then
+    \return Logic.existsIntro[Source.Carrier, { a: Source.Carrier \where induced covering a = Target.class p }] (Source.class loop)
+      (trans!{Target.Carrier} _ _ _ (Native.onClass projection covering.continuous e e loop)
+        (TargetClasses.sameClass (Mapping.apply projection covering.continuous e e loop) p
+          (BasePaths.homotopicOfEqual (projection e) (projection e) (Mapping.apply projection covering.continuous e e loop) p projectedEquals)))
+  });
+\definition imageStabilizer: \forall (g: Target.Carrier) -> Logic.PropEquiv[Image g, Fixed g] :=
+  \fun (g: Target.Carrier) => Logic.PropEquiv[Image g, Fixed g] { ltr := imageFixes g, rtl := fixedInImage g };
+\import algebra.Noncommutative[G := Target.Carrier, group := Target.group] \as Group;
+\definition image: Group.Subgroup := Action.stabilizer point;
+\definition imageMembership: \forall (g: Target.Carrier) -> Logic.PropEquiv[\In[Target.Carrier] image g, Image g] :=
+  \fun (g: Target.Carrier) => Logic.PropEquiv[_, _] { ltr := fixedInImage g, rtl := imageFixes g };
+\import Group.Actions[S := Fiber (projection e)] \as FiberActions;
+\import topology.Composition[A := Interval.Carrier, B := E, C := B] \as Compose;
+\definition connectedTransitive: Paths.PathConnected -> FiberActions.Transitive Action.action := \block {
+  \fun (connected: Paths.PathConnected)(u, v: Fiber (projection e)) \then
+  \takefrom f: Paths.Path u v \by connected u v \then
+  \let p: BasePaths.Path (projection e) (projection e) := \into[BasePaths.Function](\fun (t: Interval.Carrier) => projection (f t), BasePaths.Path (projection e) (projection e)) \by {
+    BasePaths.Laws[projection e, projection e, \fun (t: Interval.Carrier) => projection (f t)] {
+      continuous := Compose.composeContinuous Interval.topology total base f projection (Paths.laws u v f).continuous covering.continuous,
+      start := trans!{B} _ _ _ (congr!{E B} projection _ _ (Paths.laws u v f).start) (projectsTo (projection e) u),
+      end := trans!{B} _ _ _ (congr!{E B} projection _ _ (Paths.laws u v f).end) (projectsTo (projection e) v),
+    }
+  } \then
+  \let lifted: Lifting.PathLift (projection e) (projection e) p u := \into[Interval.Carrier -> E](f, Lifting.PathLift (projection e) (projection e) p u) \by {
+    Lifting.PathLiftLaws[projection e, projection e, p, u, f] {
+      continuous := (Paths.laws u v f).continuous,
+      projects := \fun (t: Interval.Carrier) => \refl(projection (f t)),
+      starts := (Paths.laws u v f).start,
+    }
+  } \then
+  \return Logic.existsIntro[Target.Carrier, { a: Target.Carrier \where Action.move a u = v }] (Target.class p)
+    (trans!{E} _ _ _ (Transport.onClass (projection e) (projection e) p u)
+      (trans!{E} _ _ _ (congr!{{Interval.Carrier -> E} E} (\fun (h: Interval.Carrier -> E) => h Interval.end) _ _
+        (Uniqueness.pathLiftUnique covering (projection e) (projection e) p u (Raw.lift covering (projection e) (projection e) p u) lifted)) (Paths.laws u v f).end))
+};
+\import FiberActions.At[act := Action.action, point := point] \as Classification;
+\definition Cosets: \Set := Group.Cosets[H := image].Carrier;
+\definition orbit: Cosets -> Fiber (projection e) := Classification.orbit;
+\definition orbitInjective: \forall (a, b: Cosets) -> orbit a = orbit b -> a = b := Classification.injective;
+\definition orbitSurjective: Paths.PathConnected -> \forall (s: Fiber (projection e)) -> \exists ( q: Cosets \where orbit q = s ) :=
+  \fun (connected: Paths.PathConnected) => Classification.surjective (connectedTransitive connected);
+\definition inverseOrbit[connected: Paths.PathConnected][s: Fiber (projection e)]: Cosets := Classification.backward (connectedTransitive connected) s;
+\definition orbitRightInverse: \forall (connected: Paths.PathConnected)(s: Fiber (projection e)) -> orbit (inverseOrbit connected s) = s :=
+  \fun (connected: Paths.PathConnected) => Classification.orbitRightInverse (connectedTransitive connected);
+\definition orbitLeftInverse: \forall (connected: Paths.PathConnected)(q: Cosets) -> inverseOrbit connected (orbit q) = q :=
+  \fun (connected: Paths.PathConnected) => Classification.orbitLeftInverse (connectedTransitive connected);

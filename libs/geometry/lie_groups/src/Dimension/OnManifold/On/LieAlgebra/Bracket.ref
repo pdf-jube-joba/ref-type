@@ -1,0 +1,24 @@
+
+\definition cross[a, b, c, d: Reals.Real]: Reals.add (Reals.add a b) (Reals.add c d) = Reals.add (Reals.add a d) (Reals.add b c) :=
+  trans!{Reals.Real} _ _ _ (RealSum.four a b c d)
+    (trans!{Reals.Real} _ _ _ (congr!{Reals.Real Reals.Real} (Reals.add (Reals.add a c)) _ _ (Arithmetic.addComm b d))
+      (trans!{Reals.Real} _ _ _ (RealSum.four a c d b) (congr!{Reals.Real Reals.Real} (Reals.add (Reals.add a d)) _ _ (Arithmetic.addComm c b))));
+\definition cancelMixed[a, b, c, d, e, h: Reals.Real]:
+  Reals.sub (Reals.add (Reals.add a b) (Reals.add c d)) (Reals.add (Reals.add e c) (Reals.add b h)) = Reals.add (Reals.sub a e) (Reals.sub d h) :=
+  trans!{Reals.Real} _ _ _ (congr2!{Reals.Real Reals.Real Reals.Real} Reals.sub _ _ _ _ (cross a b c d)
+    (trans!{Reals.Real} _ _ _ (cross e c b h) (congr!{Reals.Real Reals.Real} (Reals.add (Reals.add e h)) _ _ (Arithmetic.addComm c b))))
+    (trans!{Reals.Real} _ _ _ (RealSum.differenceAdd (Reals.add a d) (Reals.add b c) (Reals.add e h) (Reals.add b c))
+      (trans!{Reals.Real} _ _ _ (congr!{Reals.Real Reals.Real} (Reals.add (Reals.sub (Reals.add a d) (Reals.add e h))) _ _ (Arithmetic.subSelf (Reals.add b c)))
+        (trans!{Reals.Real} _ _ _ (Arithmetic.addZeroRight _) (RealSum.differenceAdd a d e h))));
+\module Expansion(f, g: Functions.Function);
+\definition leibniz: \forall (f, g: Functions.Function) -> (Commutator.bracket D E).apply (Functions.product f g) = Functions.space.add
+  (Functions.product ((Commutator.bracket D E).apply f) g) (Functions.product f ((Commutator.bracket D E).apply g)) :=
+  \fun (f, g: Functions.Function) => Expansion[f := f, g := g].law;
+\definition invariant: \forall (g: Point)(f: Functions.Function) -> (Commutator.bracket D E).apply (Functions.pull g f) = Functions.pull g ((Commutator.bracket D E).apply f) :=
+  \fun (g: Point)(f: Functions.Function) => trans!{{Functions.Function}} _ _ _ (bracketApply D E (Functions.pull g f))
+    (trans!{{Functions.Function}} _ _ _ (congr2!{{Functions.Function} {Functions.Function} {Functions.Function}} Sum.difference _ _ _ _
+      (trans!{{Functions.Function}} _ _ _ (congr!{{Functions.Function} {Functions.Function}} D.apply _ _ (right.invariant g f)) (left.invariant g (E.apply f)))
+      (trans!{{Functions.Function}} _ _ _ (congr!{{Functions.Function} {Functions.Function}} E.apply _ _ (left.invariant g f)) (right.invariant g (D.apply f))))
+      (trans!{{Functions.Function}} _ _ _ (sym!{{Functions.Function}} _ _ (pullDifference g (D.apply (E.apply f)) (E.apply (D.apply f))))
+        (congr!{{Functions.Function} {Functions.Function}} (Functions.pull g) _ _ (sym!{{Functions.Function}} _ _ (bracketApply D E f)))));
+\definition laws: Condition[Commutator.bracket D E] := Condition[Commutator.bracket D E] { leibniz := leibniz, invariant := invariant };

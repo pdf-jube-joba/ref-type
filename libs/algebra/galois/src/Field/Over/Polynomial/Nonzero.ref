@@ -1,0 +1,29 @@
+\import std.Data[].Nat[].Basic[].Prop[] \as Nat;
+\import \parent.AbstractEvaluation[] \as Evaluation;
+\import galois.Field[].Over[K := K, field := field].Arithmetic[] \as Arithmetic;
+\import algebra.Group[].Of[Carrier := K, group := Rings.additiveGroup K Arithmetic.underlyingRing] \as Sum;
+\definition allCoefficients: \forall (p: Coefficients) -> Over (\fun (x: K) => Logic.True) p :=
+  \induction (p: Coefficients) \return Over (\fun (x: K) => Logic.True) p \with {
+    | nil: Logic.True::intro
+    | cons: \fun (a: K)(tail: Coefficients)(previous: _) => Logic.And[_, _]::# Logic.True::intro previous
+  };
+/* If P were identically zero, the positive monic polynomial 1 + X P
+ * would have no root. This avoids an unnecessary infinitude hypothesis. */
+\definition monic: AlgebraicallyClosed (\fun (x: K) => Logic.True) ->
+  \forall (p: Coefficients) -> Logic.Not (asPolynomial p = Abstract.zero) := \block {
+  \fun (closed: AlgebraicallyClosed (\fun (x: K) => Logic.True))(p: Coefficients)(impossible: _) \then
+  \let q: Coefficients := Lists.List[K]::cons one p \then
+  \takefrom x: \Cast[K] ({ x: K \where Logic.And[Logic.True, monicEvaluate q x = zero] })
+    \by closed q (allCoefficients q) (Nat.succNeZero (degree p)) \then
+  \let root: Logic.And[Logic.True, monicEvaluate q x = zero] :=
+    \bysub(K, { x: K \where Logic.And[Logic.True, monicEvaluate q x = zero] }, x) \then
+  \let evaluatedZero: monicEvaluate p x = zero := eq_reason!{{monicEvaluate p x}
+    "=" {Evaluation.apply x (asPolynomial p)} "by" {sym!{K} _ _ (Evaluation.agrees p x)}
+    "=" {Evaluation.apply x Abstract.zero} "by" {congr!{Abstract.Carrier K} (Evaluation.apply x) _ _ impossible}
+    "=" zero "by" {(Evaluation.homomorphism x).zero}} \then
+  \return Arithmetic.oneNonzero (eq_reason!{one
+    "=" {add one zero} "by" {sym!{K} _ _ (Sum.zeroRight one)}
+    "=" {add one (mul x zero)} "by" {congr!{K K} (add one) _ _ (sym!{K} _ _ (field.ring.ring.semiring.zeroAbsorbsRight x))}
+    "=" {monicEvaluate q x} "by" {congr!{K K} (\fun (v: K) => add one (mul x v)) _ _ (sym!{K} _ _ evaluatedZero)}
+    "=" zero "by" {root.right}})
+};

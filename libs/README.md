@@ -28,11 +28,15 @@
 | 配置 | パッケージ | 内容 |
 | --- | --- | --- |
 | [algebra/basic](algebra/basic/README.md) | `algebra` | 準同型、群完成、商、多項式環 |
+| [algebra/galois](algebra/galois/README.md) | `galois` | 体拡大、最小多項式、自己同型の延長、ガロア接続、根号・作図可能性、有理数の代数閉包の定義 |
+| [algebra/quintic](algebra/quintic/README.md) | `quintic` | 一般5次方程式の根号非可解性と作図不可能性 |
 | [algebra/module_theory](algebra/module_theory/README.md) | `module_theory` | 環上の加群、自由加群、直和、テンソル積、完全列 |
 | [algebra/commutative_algebra](algebra/commutative_algebra/README.md) | `commutative_algebra` | Hom とテンソル積、射影性、有限自由加群の行列 |
 | [algebra/integer_matrices](algebra/integer_matrices/README.md) | `integer_matrices` | 整数行列の演算、Smith 標準形と変換行列 |
 | [algebra/finitely_generated_modules](algebra/finitely_generated_modules/README.md) | `finitely_generated_modules` | 整数の核・像・部分加群の基底、巡回加群、体上の有限次元部分空間 |
 | [algebra/linear_algebra](algebra/linear_algebra/README.md) | `linear_algebra` | 体上の線形代数、多重線形・外代数、実数・複素数への具体化 |
+| [algebra/lie_algebras](algebra/lie_algebras/README.md) | `lie_algebras` | リー代数、随伴表現、交換子、部分リー代数、自己準同型代数 |
+| [algebra/clifford](algebra/clifford/README.md) | `clifford` | クリフォード代数の商構成と普遍性、Pin・Spin と複素拡張の群構造 |
 | [algebra/homological/chain_complexes](algebra/homological/chain_complexes/README.md) | `chain_complexes` | 自然数・整数次数の複体、ホモロジー、写像・ホモトピー・複体の圏 |
 | [algebra/homological/double_complexes](algebra/homological/double_complexes/README.md) | `double_complexes` | 非負鎖複体、二重複体、total、比較の完全性と符号付き交換 |
 | [algebra/homological/resolutions](algebra/homological/resolutions/README.md) | `resolutions` | 射影分解、比較定理、Hom・テンソル複体、二重 total による分解比較 |
@@ -46,6 +50,7 @@
 | 配置 | パッケージ | 内容 |
 | --- | --- | --- |
 | [analysis/calculus](analysis/calculus/README.md) | `calculus` | 極限、平均値定理、多変数微分、滑らかな写像 |
+| [analysis/functional](analysis/functional/README.md) | `functional_analysis` | 実ノルム空間・Hilbert 空間、Arzelà–Ascoli・Riesz 表現・Hahn–Banach・開写像定理、コンパクト台、\(L^p\)・弱微分・Sobolev 空間の定義 |
 | [analysis/integration](analysis/integration/README.md) | `integration` | リーマン積分、L¹ 完備化によるルベーグ積分 |
 
 ## 幾何
@@ -53,6 +58,10 @@
 | 配置 | パッケージ | 内容 |
 | --- | --- | --- |
 | [geometry/manifolds](geometry/manifolds/README.md) | `manifolds` | アトラス、滑らかな写像、接空間と微分 |
+| [geometry/tangent_bundles](geometry/tangent_bundles/README.md) | `tangent_bundles` | 接束の全空間、接写像、関手則、滑らかなファイバー演算 |
+| [geometry/normal_bundles](geometry/normal_bundles/README.md) | `normal_bundles` | はめ込みの法束、局所正規直交枠、直和分解、底空間変更と安定化 |
+| [geometry/examples/tangent_normal](geometry/examples/tangent_normal/README.md) | `tangent_normal` | ユークリッド接束、座標包含、放物線、退化次数の利用例 |
+| [geometry/lie_groups](geometry/lie_groups/README.md) | `lie_groups` | リー群・リー代数、随伴微分・指数写像、O・SO・Pin・Spin と複素拡張のリー群構造 |
 | [geometry/euclidean_forms](geometry/euclidean_forms/README.md) | `euclidean_forms` | 局所微分形式、外積・外微分、座標表示、引き戻し |
 | [geometry/differential_forms](geometry/differential_forms/README.md) | `differential_forms` | 大域微分形式、貼り合わせ、引き戻し、De Rham コホモロジー |
 
@@ -67,6 +76,8 @@
 | [topology/constructions](topology/constructions/README.md) | `topological_constructions` | 積、商、直和、貼り合わせ、compact-open 位相 |
 | [topology/algebra](topology/algebra/README.md) | `topological_algebra` | 位相的代数、座標空間・行列位相、連続性判定 |
 | [topology/homotopy](topology/homotopy/README.md) | `algebraic_topology` | ホモトピー、基点付き商、mapping cone、有限 CW 対、標準単体の座標 |
+| [topology/fundamental](topology/fundamental/README.md) | `fundamental_groups` | 基本亜群・基本群、融合積の van Kampen の定理、単連結性 |
+| [topology/coverings](topology/coverings/README.md) | `covering_spaces` | 被覆の持ち上げ、部分群・共役類による分類、普遍被覆と deck 変換 |
 | [topology/singular/cohomology](topology/singular/cohomology/README.md) | `singular_cohomology` | 特異鎖・余鎖、相対・被約理論、ホモトピー不変性、道成分と可縮空間 |
 | [topology/singular/subdivision](topology/singular/subdivision/README.md) | `singular_subdivision` | 重心細分、小鎖、開被覆と部分空間の比較 |
 | [topology/singular/products](topology/singular/products/README.md) | `singular_products` | 特異余鎖とコホモロジーのカップ積、Leibniz 則、単位・結合・自然性 |

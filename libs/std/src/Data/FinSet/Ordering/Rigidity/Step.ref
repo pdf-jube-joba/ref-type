@@ -1,0 +1,43 @@
+\definition HasZero: \Prop := \exists ( i: Fin (N.Nat^::succ n) \where f i = zero n );
+\import \parent.\parent.Reduction[k := N.Nat^::succ n, n := n, f := f] \as FullReduction;
+\definition avoids: Logic.Not HasZero -> FullReduction.AvoidsZero := \fun (none: _)(i: _)(same: _) =>
+  none (Logic.existsIntro[Fin (N.Nat^::succ n), { j: Fin (N.Nat^::succ n) \where f j = zero n }] i same);
+\definition hasZero: HasZero := either!{{(Classical.excludedMiddle HasZero)} HasZero
+  {\fun (exists: HasZero) => exists}
+  {\fun (none: Logic.Not HasZero) => Logic.falseElim HasZero (Pigeonhole.noInjection n (N.Nat^::succ n) (NaturalOrder.ltSelfSucc n)
+    (FullReduction.lower (avoids none)) (FullReduction.injective (avoids none) (injective (N.Nat^::succ n) f)))}
+};
+\definition tail[i: Fin n]: Fin (N.Nat^::succ n) := f (succ n i);
+\definition tailAvoids: \forall (i: Fin n) -> Logic.Not (tail i = zero n) := \fun (i: Fin n)(same: tail i = zero n) =>
+  zeroImpossible (f (zero n)) (\idelim tail i = zero n \with j: Fin (N.Nat^::succ n) => NL.Lt (f (zero n)) j \by {
+    base: ordered (N.Nat^::succ n) f (zero n) (succ n i) (\refl(B.Bool^::true)), equality: same
+  });
+\definition head: f (zero n) = zero n := \block {
+  \takefrom i: \Cast[Fin (N.Nat^::succ n)] ({ i: Fin (N.Nat^::succ n) \where f i = zero n }) \by hasZero \then
+  \let split: \forall (j: Fin (N.Nat^::succ n)) -> f j = zero n -> f (zero n) = zero n := cases n
+    (\fun (j: Fin (N.Nat^::succ n)) => f j = zero n -> f (zero n) = zero n)
+    (\fun (same: _) => same)
+    (\fun (j: Fin n)(same: _) => Logic.falseElim (f (zero n) = zero n) (tailAvoids j same)) \then
+  \return split i (\bysub(Fin (N.Nat^::succ n), { i: Fin (N.Nat^::succ n) \where f i = zero n }, i))
+};
+\import \parent.\parent.Reduction[k := n, n := n, f := tail] \as Reduction;
+\definition lowerIncreasing: Increasing n n (Reduction.lower tailAvoids) := \fun (i, j: Fin n)(less: NL.Lt i j) =>
+  \idelim tail i = succ n (Reduction.lower tailAvoids i) \with a: Fin (N.Nat^::succ n) => NL.Lt a (succ n (Reduction.lower tailAvoids j)) \by {
+    base: \idelim tail j = succ n (Reduction.lower tailAvoids j) \with b: Fin (N.Nat^::succ n) => NL.Lt (tail i) b \by {
+      base: ordered (N.Nat^::succ n) f (succ n i) (succ n j) (NL.ltSuccSucc i j less),
+      equality: sym!{{Fin (N.Nat^::succ n)}} _ _ (Reduction.successor tailAvoids j)
+    },
+    equality: sym!{{Fin (N.Nat^::succ n)}} _ _ (Reduction.successor tailAvoids i)
+  };
+\definition lower: Endomorphism n := \into[Fin n -> Fin n](Reduction.lower tailAvoids,
+  { g: Fin n -> Fin n \where Increasing n n g }) \by { lowerIncreasing };
+\definition law: Law n -> f = (\fun (i: Fin (N.Nat^::succ n)) => i) := \block {
+  \fun (previous: Law n) \then
+  \let same: lower = (\fun (i: Fin n) => i) := previous lower \then
+  \let raw: Fin (N.Nat^::succ n) -> Fin (N.Nat^::succ n) := f \then
+  \return \axiom:funext(raw, (\fun (i: Fin (N.Nat^::succ n)) => i), cases n
+    (\fun (i: Fin (N.Nat^::succ n)) => f i = i) head (\fun (i: Fin n) => trans!{{Fin (N.Nat^::succ n)}} _ _ _
+      (sym!{{Fin (N.Nat^::succ n)}} _ _ (Reduction.successor tailAvoids i))
+      (congr!{{Fin n} {Fin (N.Nat^::succ n)}} (succ n) _ _
+        (congr!{{Fin n -> Fin n} {Fin n}} (\fun (g: Fin n -> Fin n) => g i) _ _ same))))
+};

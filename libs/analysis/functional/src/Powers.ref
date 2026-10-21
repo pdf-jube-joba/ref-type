@@ -1,0 +1,32 @@
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\definition natural: N.Nat^ -> Real.Real := \induction (n: N.Nat^) \return Real.Real \with {
+  | zero: Real.zero
+  | succ: \fun (n: N.Nat^) (previous: Real.Real) => Real.add previous Real.one
+};
+\definition power[a: Real.Real]: N.Nat^ -> Real.Real := \induction (n: N.Nat^) \return Real.Real \with {
+  | zero: Real.one
+  | succ: \fun (n: N.Nat^) (previous: Real.Real) => Real.mul a previous
+};
+/* Rational comparisons characterize a^p without selecting a root. */
+\structure Increasing[a, p, y: Real.Real]: \Prop := {
+  lower: \forall (m, n: N.Nat^) -> R.Le (natural m) (Real.mul p (natural (N.Nat^::succ n))) ->
+    R.Le (power a m) (power y (N.Nat^::succ n)),
+  upper: \forall (m, n: N.Nat^) -> R.Le (Real.mul p (natural (N.Nat^::succ n))) (natural m) ->
+    R.Le (power y (N.Nat^::succ n)) (power a m),
+};
+\structure Decreasing[a, p, y: Real.Real]: \Prop := {
+  lower: \forall (m, n: N.Nat^) -> R.Le (natural m) (Real.mul p (natural (N.Nat^::succ n))) ->
+    R.Le (power y (N.Nat^::succ n)) (power a m),
+  upper: \forall (m, n: N.Nat^) -> R.Le (Real.mul p (natural (N.Nat^::succ n))) (natural m) ->
+    R.Le (power a m) (power y (N.Nat^::succ n)),
+};
+\structure PositivePower[a, p, y: Real.Real]: \Prop := {
+  nonnegative: R.Le Real.zero y,
+  atZero: a = Real.zero -> y = Real.zero,
+  increasing: R.Lt Real.zero a -> R.Le Real.one a -> Increasing[a, p, y],
+  decreasing: R.Lt Real.zero a -> R.Le a Real.one -> Decreasing[a, p, y],
+};
+\definition Exponent: \Set := \Cast[Real.Real] ({ p: Real.Real \where R.Le Real.one p });

@@ -1,0 +1,104 @@
+\import galois.Field[].Over[K := K, field := field].Arithmetic[] \as Arithmetic;
+\import std.Data[].Nat[].Basic[].Prop[] \as Nat;
+\import std.Data[].Nat[].Order[].Prop[] \as Order;
+\import std.Logic[].Classical[] \as Classical;
+\structure NonzeroForm[S: K -> \Prop, p: Coefficients] := {
+  leading: K,
+  leadingNonzero: Logic.Not (leading = zero),
+  leadingMember: S leading,
+  coefficients: Coefficients,
+  over: Over S coefficients,
+  bound: Nat.Lt (degree coefficients) (Lists.length K p),
+  factorization: asPolynomial p = Abstract.mul (Abstract.constant leading) (Monic.asPolynomial coefficients),
+};
+\definition AllZero[p: Coefficients]: \Prop := Over (\fun (a: K) => a = zero) p;
+\definition zeroLaw: \forall (p: Coefficients) -> AllZero p -> asPolynomial p = Abstract.zero :=
+  \induction (p: Coefficients) \return AllZero p -> asPolynomial p = Abstract.zero \with {
+    | nil: \fun (all: _) => \refl(Abstract.zero)
+    | cons: \fun (a: K)(tail: Coefficients)(previous: _)(all: Logic.And[a = zero, AllZero tail]) =>
+      eq_reason!{{asPolynomial (Lists.List[K]::cons a tail)}
+        "=" {Abstract.add Abstract.zero (Abstract.mul Abstract.X Abstract.zero)}
+        "by" {congr2!{Abstract.Carrier Abstract.Carrier Abstract.Carrier} Abstract.add _ _ _ _
+          (congr!{K Abstract.Carrier} Abstract.constant _ _ all.left)
+          (congr!{Abstract.Carrier Abstract.Carrier} (Abstract.mul Abstract.X) _ _ (previous all.right))}
+        "=" {Abstract.add Abstract.zero Abstract.zero}
+        "by" {congr!{Abstract.Carrier Abstract.Carrier} (Abstract.add Abstract.zero) _ _ (ring.semiring.zeroAbsorbsRight Abstract.X)}
+        "=" {Abstract.zero} "by" {Sum.zeroLeft Abstract.zero}}
+  };
+\definition NormalForm[S: K -> \Prop][p: Coefficients]: \Prop := Logic.Or[AllZero p, \exists NonzeroForm[S, p]];
+\definition constantRatio: \forall (a, b: K) -> Logic.Not (b = zero) ->
+  Abstract.mul (Abstract.constant b) (Abstract.constant (mul a (inv b))) = Abstract.constant a :=
+  \fun (a, b: K)(hb: _) => trans!{Abstract.Carrier} _ _ _
+    (sym!{Abstract.Carrier} _ _ (coefficientLaws.mul b (mul a (inv b))))
+    (congr!{K Abstract.Carrier} Abstract.constant _ _ (Arithmetic.recoverScalar a b hb));
+\definition normalize: \forall (S: K -> \Prop) -> Subfields.Closed[S] -> \forall (p: Coefficients) -> Over S p -> NormalForm S p :=
+  \fun (S: K -> \Prop)(closed: Subfields.Closed[S]) =>
+    \induction (p: Coefficients) \return Over S p -> NormalForm S p \with {
+      | nil: \fun (over: Logic.True) => Logic.Or[AllZero Lists.List[K]::nil, \exists NonzeroForm[S, Lists.List[K]::nil]]::left Logic.True::intro
+      | cons: \fun (a: K)(tail: Coefficients)(previous: Over S tail -> NormalForm S tail)(over: Logic.And[S a, Over S tail]) =>
+        Logic.orElim (AllZero tail) (\exists NonzeroForm[S, tail]) (NormalForm S (Lists.List[K]::cons a tail)) (previous over.right)
+          (\fun (tailAllZero: AllZero tail) => (\fun (tailZero: asPolynomial tail = Abstract.zero) => Logic.orElim (a = zero) (Logic.Not (a = zero)) (NormalForm S (Lists.List[K]::cons a tail)) (Classical.excludedMiddle (a = zero))
+            (\fun (aZero: a = zero) => Logic.Or[AllZero (Lists.List[K]::cons a tail), \exists NonzeroForm[S, Lists.List[K]::cons a tail]]::left
+              (Logic.And[_, _]::# aZero tailAllZero))
+            (\fun (nonzero: Logic.Not (a = zero)) => Logic.Or[AllZero (Lists.List[K]::cons a tail), \exists NonzeroForm[S, Lists.List[K]::cons a tail]]::right (\exact(NonzeroForm[S, Lists.List[K]::cons a tail] {
+              leading := a, leadingNonzero := nonzero, leadingMember := over.left,
+              coefficients := Lists.List[K]::nil, over := Logic.True::intro,
+              bound := Order.zeroLtSucc (Lists.length K tail),
+              factorization := eq_reason!{{asPolynomial (Lists.List[K]::cons a tail)}
+                "=" {Abstract.add (Abstract.constant a) (Abstract.mul Abstract.X Abstract.zero)}
+                "by" {congr!{Abstract.Carrier Abstract.Carrier} (\fun (u: Abstract.Carrier) => Abstract.add (Abstract.constant a) (Abstract.mul Abstract.X u)) _ _ tailZero}
+                "=" {Abstract.add (Abstract.constant a) Abstract.zero}
+                "by" {congr!{Abstract.Carrier Abstract.Carrier} (Abstract.add (Abstract.constant a)) _ _ (ring.semiring.zeroAbsorbsRight Abstract.X)}
+                "=" {Abstract.constant a} "by" {Sum.zeroRight (Abstract.constant a)}
+                "=" {Abstract.mul (Abstract.constant a) Abstract.one} "by" {sym!{Abstract.Carrier} _ _ (Product.zeroRight (Abstract.constant a))}},
+            }, NonzeroForm[S, Lists.List[K]::cons a tail])))) (zeroLaw tail tailAllZero))
+          (\block {
+            \fun (nonzero: \exists NonzeroForm[S, tail]) \then
+            \takefrom f: NonzeroForm[S, tail] \by nonzero \then
+            \return Logic.Or[AllZero (Lists.List[K]::cons a tail), \exists NonzeroForm[S, Lists.List[K]::cons a tail]]::right (\exact(NonzeroForm[S, Lists.List[K]::cons a tail] {
+              leading := f.leading, leadingNonzero := f.leadingNonzero, leadingMember := f.leadingMember,
+              coefficients := Lists.List[K]::cons (mul a (inv f.leading)) f.coefficients,
+              over := Logic.And[_, _]::# (closed.mul a (inv f.leading) over.left (closed.inv f.leading f.leadingMember)) f.over,
+              bound := Nat.ltSuccSucc (degree f.coefficients) (Lists.length K tail) f.bound,
+              factorization := eq_reason!{{asPolynomial (Lists.List[K]::cons a tail)}
+                "=" {Abstract.add (Abstract.constant a) (Abstract.mul Abstract.X (Abstract.mul (Abstract.constant f.leading) (Monic.asPolynomial f.coefficients)))}
+                "by" {congr!{Abstract.Carrier Abstract.Carrier} (\fun (u: Abstract.Carrier) => Abstract.add (Abstract.constant a) (Abstract.mul Abstract.X u)) _ _ f.factorization}
+                "=" {Abstract.add (Abstract.constant a) (Abstract.mul (Abstract.constant f.leading) (Abstract.mul Abstract.X (Monic.asPolynomial f.coefficients)))}
+                "by" {congr!{Abstract.Carrier Abstract.Carrier} (Abstract.add (Abstract.constant a)) _ _ (Product.swap Abstract.X (Abstract.constant f.leading) (Monic.asPolynomial f.coefficients))}
+                "=" {Abstract.add (Abstract.mul (Abstract.constant f.leading) (Abstract.constant (mul a (inv f.leading))))
+                  (Abstract.mul (Abstract.constant f.leading) (Abstract.mul Abstract.X (Monic.asPolynomial f.coefficients)))}
+                "by" {congr!{Abstract.Carrier Abstract.Carrier} (\fun (u: Abstract.Carrier) => Abstract.add u (Abstract.mul (Abstract.constant f.leading) (Abstract.mul Abstract.X (Monic.asPolynomial f.coefficients)))) _ _
+                  (sym!{Abstract.Carrier} _ _ (constantRatio a f.leading f.leadingNonzero))}
+                "=" {Abstract.mul (Abstract.constant f.leading) (Monic.asPolynomial (Lists.List[K]::cons (mul a (inv f.leading)) f.coefficients))}
+                "by" {sym!{Abstract.Carrier} _ _ (ring.semiring.leftDistributive (Abstract.constant f.leading)
+                  (Abstract.constant (mul a (inv f.leading))) (Abstract.mul Abstract.X (Monic.asPolynomial f.coefficients))) }},
+            }, NonzeroForm[S, Lists.List[K]::cons a tail]))
+          })
+    };
+\import galois.Field[].Over[K := K, field := field].Polynomial[].Nonzero[] \as Nonzero;
+\definition cancelScalar: \forall (b: K) -> Logic.Not (b = zero) -> \forall (p: Abstract.Carrier) ->
+  Abstract.mul (Abstract.constant b) p = Abstract.zero -> p = Abstract.zero :=
+  \fun (b: K)(nonzero: _)(p: Abstract.Carrier)(same: _) => eq_reason!{p
+    "=" {Abstract.mul Abstract.one p} "by" {sym!{Abstract.Carrier} _ _ (Product.zeroLeft p)}
+    "=" {Abstract.mul (Abstract.constant (mul (inv b) b)) p}
+    "by" {congr!{Abstract.Carrier Abstract.Carrier} (\fun (u: Abstract.Carrier) => Abstract.mul u p) _ _
+      (congr!{K Abstract.Carrier} Abstract.constant _ _ (sym!{K} _ _ (inverseLaw b nonzero)))}
+    "=" {Abstract.mul (Abstract.mul (Abstract.constant (inv b)) (Abstract.constant b)) p}
+    "by" {congr!{Abstract.Carrier Abstract.Carrier} (\fun (u: Abstract.Carrier) => Abstract.mul u p) _ _ (coefficientLaws.mul (inv b) b)}
+    "=" {Abstract.mul (Abstract.constant (inv b)) (Abstract.mul (Abstract.constant b) p)}
+    "by" {Product.assoc (Abstract.constant (inv b)) (Abstract.constant b) p}
+    "=" {Abstract.mul (Abstract.constant (inv b)) Abstract.zero}
+    "by" {congr!{Abstract.Carrier Abstract.Carrier} (Abstract.mul (Abstract.constant (inv b))) _ _ same}
+    "=" {Abstract.zero} "by" {ring.semiring.zeroAbsorbsRight (Abstract.constant (inv b))}};
+\definition zeroCoefficients: AlgebraicallyClosed (\fun (x: K) => Logic.True) ->
+  \forall (p: Coefficients) -> asPolynomial p = Abstract.zero -> AllZero p :=
+  \fun (closed: _)(p: Coefficients)(same: _) => Logic.orElim (AllZero p) (\exists NonzeroForm[\fun (x: K) => Logic.True, p]) (AllZero p)
+    (normalize (\fun (x: K) => Logic.True) (Subfields.laws Subfields.whole) p (Nonzero.allCoefficients p))
+    (\fun (all: AllZero p) => all)
+    (\block {
+      \fun (nonzero: \exists NonzeroForm[\fun (x: K) => Logic.True, p]) \then
+      \takefrom f: NonzeroForm[\fun (x: K) => Logic.True, p] \by nonzero \then
+      \return Logic.falseElim (AllZero p) (Nonzero.monic closed f.coefficients
+        (cancelScalar f.leading f.leadingNonzero (Monic.asPolynomial f.coefficients)
+          (trans!{Abstract.Carrier} _ _ _ (sym!{Abstract.Carrier} _ _ f.factorization) same)))
+    });

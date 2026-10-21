@@ -1,0 +1,60 @@
+\definition column: Vector := A.apply Split.first;
+\definition firstNonzero: Logic.Not (Split.first = Higher.space.zero) := \fun (same: _) =>
+  R.Inverse[].positiveNonzero R.one R.Estimates[].Product[].onePositive
+    (trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ Split.firstHead) (congr!{{Higher.Vector} {R.Real}} Split.head _ _ same));
+\definition columnNonzero: Logic.Not (column = space.zero) := \fun (same: _) => firstNonzero
+  (injective Split.first Higher.space.zero (trans!{Vector} _ _ _ same (sym!{Vector} _ _ A.preservesZero)));
+\definition positiveColumn: \Cast[Vector] ({ v: Vector \where Order.Lt R.zero (squared v) }) :=
+  \into[Vector](column, { v: Vector \where Order.Lt R.zero (squared v) }) \by { positive column columnNonzero };
+\import \root.Euclidean[n := n].Normalization[v := positiveColumn] \as Normalize;
+\import \root.Euclidean[n := n].OnProjection[P := identityProjection] \as Identity;
+\definition unit: Identity.UnitIn := Identity.UnitIn {
+  vector := Normalize.normalized, norm := Normalize.unitNorm, fixed := \refl(Normalize.normalized),
+};
+\import Identity.Unit[u := unit] \as Unit;
+\definition normal: Projection := Unit.reduced;
+\import HigherMaps.Composition[U := Source.Vector, domain := Source.space] \as Restrict;
+\definition tailMap: Maps.Map := Restrict.compose A Split.embedding;
+\import End.Composition[U := Source.Vector, domain := Source.space] \as Project;
+\definition residual: Maps.Map := Project.compose normal.map tailMap;
+\definition joinFormula: \forall (a: R.Real)(v: Source.Vector) -> A.apply (Split.join a v) = space.add (space.smul a column) (tailMap.apply v) :=
+  \fun (a: R.Real)(v: Source.Vector) => trans!{Vector} _ _ _
+    (congr!{{Higher.Vector} Vector} A.apply _ _ (sym!{{Higher.Vector}} _ _ (Split.decompose (Split.join a v))))
+    (trans!{Vector} _ _ _ (A.preservesAdd _ _)
+      (congr2!{Vector Vector Vector} space.add _ _ _ _
+        (trans!{Vector} _ _ _ (A.preservesScale _ _) (congr!{{R.Real} Vector} (\fun (b: R.Real) => space.smul b column) _ _ (Split.joinHead a v)))
+        (congr!{{Source.Vector} Vector} tailMap.apply _ _ (Split.joinTail a v))));
+\definition columnFormula: column = space.smul Normalize.length unit.vector := sym!{Vector} _ _
+  (trans!{Vector} _ _ _ (sym!{Vector} _ _ (space.scalarAssoc Normalize.length Normalize.factor column))
+    (trans!{Vector} _ _ _ (congr!{{R.Real} Vector} (\fun (a: R.Real) => space.smul a column) _ _
+      (trans!{{R.Real}} _ _ _ (Spaces.mulComm Normalize.length Normalize.factor) Normalize.inverseLength)) (space.scalarOne column)));
+\import Spaces.Linear[V := Source.Vector, W := R.Real, source := Source.space, target := Spaces.scalarSpace] \as Rows;
+\definition row: Rows.Map := Rows.Map {
+  apply := \fun (v: Source.Vector) => dot unit.vector (tailMap.apply v),
+  preservesAdd := \fun (v, w: Source.Vector) => trans!{{R.Real}} _ _ _
+    (congr!{Vector {R.Real}} (dot unit.vector) _ _ (tailMap.preservesAdd v w)) (form.addRight unit.vector (tailMap.apply v) (tailMap.apply w)),
+  preservesScale := \fun (a: R.Real)(v: Source.Vector) => trans!{{R.Real}} _ _ _
+    (congr!{Vector {R.Real}} (dot unit.vector) _ _ (tailMap.preservesScale a v)) (form.scaleRight a unit.vector (tailMap.apply v)),
+};
+\definition lift[v: Source.Vector]: Higher.Vector := Split.join (R.neg (R.mul Normalize.factor (row.apply v))) v;
+\definition cancelFactor: \forall (a: R.Real) -> R.mul (R.neg (R.mul Normalize.factor a)) Normalize.length = R.neg a :=
+  \fun (a: R.Real) => trans!{{R.Real}} _ _ _ (Arithmetic.fieldMulNegLeft (R.mul Normalize.factor a) Normalize.length)
+    (congr!{{R.Real} {R.Real}} R.neg _ _
+      (trans!{{R.Real}} _ _ _ (trans!{{R.Real}} _ _ _ (Arithmetic.fieldMulAssoc Normalize.factor a Normalize.length) (Scalars.mulSwap Normalize.factor a Normalize.length))
+        (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (R.mul a) _ _ Normalize.inverseLength) (Spaces.mulOneRight a))));
+\definition liftFormula: \forall (v: Source.Vector) -> A.apply (lift v) = residual.apply v :=
+  \fun (v: Source.Vector) => trans!{Vector} _ _ _ (joinFormula _ v)
+    (\axiom:funext((space.add (space.smul (R.neg (R.mul Normalize.factor (row.apply v))) column) (tailMap.apply v)), residual.apply v,
+      \fun (j: Fin.Fin n) => trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (\fun (a: R.Real) => R.add a (tailMap.apply v j)) _ _
+        (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (R.mul (R.neg (R.mul Normalize.factor (row.apply v)))) _ _
+          (congr!{Vector {R.Real}} (\fun (w: Vector) => w j) _ _ columnFormula))
+          (trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ (Arithmetic.fieldMulAssoc (R.neg (R.mul Normalize.factor (row.apply v))) Normalize.length (unit.vector j)))
+            (congr!{{R.Real} {R.Real}} (\fun (a: R.Real) => R.mul a (unit.vector j)) _ _ (cancelFactor (row.apply v))))))
+        (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (\fun (a: R.Real) => R.add a (tailMap.apply v j)) _ _
+          (Arithmetic.fieldMulNegLeft (row.apply v) (unit.vector j))) (Arithmetic.addComm (R.neg (R.mul (row.apply v) (unit.vector j))) (tailMap.apply v j)))));
+\definition residualInjective: Injective residual := \fun (v, w: Source.Vector)(same: _) => trans!{{Source.Vector}} _ _ _
+  (sym!{{Source.Vector}} _ _ (Split.joinTail _ v))
+  (trans!{{Source.Vector}} _ _ _ (congr!{{Higher.Vector} {Source.Vector}} Split.tail _ _
+    (injective (lift v) (lift w) (trans!{Vector} _ _ _ (liftFormula v)
+      (trans!{Vector} _ _ _ same (sym!{Vector} _ _ (liftFormula w)))))) (Split.joinTail _ w));
+\module With(previous: Factorization[residual]);

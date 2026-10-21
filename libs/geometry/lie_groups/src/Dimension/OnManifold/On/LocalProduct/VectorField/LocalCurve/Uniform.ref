@@ -1,0 +1,34 @@
+/* Uniform time and product neighborhoods for the local multiplication law. */
+\import ODE.Extension[neighborhood := regularity] \as Extension;
+\import ODE.NearZero[solution := solution] \as NearZero;
+\import real.Analysis[].Distance[] \as Distance;
+\import real.Analysis[].Estimates[] \as Estimates;
+\import Estimates.Product[] \as ProductBounds;
+\definition target: Open.OpenSet := OpenTopology.ofOpen (Metrics.Ball Norm.metric origin Extension.radius)
+  (MetricTopology.ballOpenIn Norm.metric origin Extension.radius);
+\import Calculus.Preimage[U := Joint.domain, W := chart.image, V := target, f := joint] \as ProductDomain;
+\import topological_algebra.Euclidean[].Dimension[n := dimension] \as ParametersSpace;
+\import ParametersSpace.Norm[] \as ParametersNorm;
+\definition containsBase: \In[ParametersSpace.Point] ProductDomain.domain.points basePoint := ProductDomain.intro basePoint
+  (\idelim origin = Joint.apply basePoint \with x: Vectors.Point => \In[Vectors.Point] target.points x \by {
+    base: Metrics.ballCenter Norm.metric origin Extension.radius Extension.radiusPositive,
+    equality: sym!{Vectors.Point} _ _ atBase
+  });
+\definition ProductRadius: \Set := \Cast[Reals.Real]
+  ({ r: Reals.Real \where JointOpen.BallInside[ProductDomain.domain.points, basePoint, r] });
+\definition productRadiusExists: \exists ProductRadius := ProductDomain.domain.open basePoint containsBase;
+\definition bound[r: ProductRadius]: Reals.Real := Distance.min (Reals.mul Reals.half r) Extension.radius;
+\definition boundPositive: \forall (r: ProductRadius) -> R.Lt Reals.zero (bound r) := \fun (r: ProductRadius) =>
+  ProductBounds.minPositive _ _ (Estimates.halfOfPositive r (\bysub(Reals.Real,
+    { r: Reals.Real \where JointOpen.BallInside[ProductDomain.domain.points, basePoint, r] }, r)).positive) Extension.radiusPositive;
+\structure Parameters: \Set := {
+  productRadius: ProductRadius,
+  curveRadius: \Cast[Reals.Real] ({ r: Reals.Real \where NearZero.Radius[bound productRadius, r] }),
+};
+\definition parametersExist: \exists Parameters := \block {
+  \takefrom productRadius: ProductRadius \by productRadiusExists \then
+  \takefrom curveRadius: \Cast[Reals.Real] ({ r: Reals.Real \where NearZero.Radius[bound productRadius, r] })
+    \by NearZero.existsRadius (bound productRadius) (boundPositive productRadius) \then
+  \return \exact(Parameters { productRadius := productRadius, curveRadius := curveRadius }, Parameters)
+};
+\module On(parameters: Parameters);

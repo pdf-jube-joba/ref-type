@@ -1,0 +1,61 @@
+/* Reversion is inversion on the Euclidean Pin group. */
+\import Clifford.Pin[] \as Pin;
+\import Clifford.Reversion[] \as Reverse;
+\import Clifford.Relations[] \as Relations;
+\import algebra.Groups[].Units[A := Carrier, ring := ring] \as Units;
+\import algebra.Groups[].On[G := Units.Unit, group := Units.group] \as Ambient;
+\import std.Alg[].Ring[] \as Ring;
+\import std.Logic[].Proposition[] \as Logic;
+\use Logic.either;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import Order.Order[] \as Comparisons;
+\import Order.Arithmetic[].Prop[] \as Arithmetic;
+\import R.Estimates[] \as Estimates;
+\import R.SquareRoot[] \as Roots;
+\import \root.EuclideanFaithfulness[] \as Faithfulness;
+\definition predicate: \Pow Units.Unit := { g: Units.Unit \where Reverse.map g.value = g.inverse };
+\definition closed: Ambient.Closed[predicate] := Ambient.Closed[predicate] {
+  one := Reverse.laws.one,
+  mul := \fun (g, h: Units.Unit)(left: Reverse.map g.value = g.inverse)(right: Reverse.map h.value = h.inverse) =>
+    trans!{Carrier} _ _ _ (Reverse.laws.mul g.value h.value) (congr2!{Carrier Carrier Carrier} Clifford.mul _ _ _ _ right left),
+  inv := \fun (g: Units.Unit)(member: Reverse.map g.value = g.inverse) => Units.inverseEqual (Reverse.unit g) (Units.inverse g) member,
+};
+\definition negativeImpossible[v: Pin.Negative]: Logic.False := \block {
+  \let nonnegative: Order.Le R.zero (Clifford.quadratic v) := Sums.nonnegative n (\fun (i: Fin.Fin n) => R.mul (v i) (v i))
+    (\fun (i: Fin.Fin n) => Scalars.squareNonnegative (v i)) \then
+  \let impossible: Order.Le R.zero (R.neg R.one) := Order.leReplaceRight _ _ _
+    (\bysub(Vector, { v: Vector \where Clifford.quadratic v = R.neg R.one }, v)) nonnegative \then
+  \return Order.ltNotLeReverse (R.neg R.one) R.zero (Arithmetic.negativeNegOfPositive R.one Estimates.Product[].onePositive) impossible
+};
+\definition onVectorGenerator: \forall (g: Units.Unit) -> Pin.VectorGenerator g -> \In[Units.Unit] predicate g :=
+  \induction (g: Units.Unit)(generator: Pin.VectorGenerator g) \return \In[Units.Unit] predicate g \with {
+    | positive: \fun (v: Pin.Positive) => Reverse.onVector v
+    | negative: \fun (v: Pin.Negative) => Logic.falseElim (\In[Units.Unit] predicate (Pin.negative v)) (negativeImpossible v)
+  };
+\definition onGenerator: \forall (g: Units.Unit) -> Pin.Generator g -> \In[Units.Unit] predicate g :=
+  \induction (g: Units.Unit)(generator: Pin.Generator g) \return \In[Units.Unit] predicate g \with {
+    | sign: trans!{Carrier} _ _ _ (Reverse.onNegative Clifford.one) (congr!{Carrier Carrier} Clifford.neg _ _ Reverse.laws.one)
+    | vector: onVectorGenerator
+  };
+\definition norm: \forall (g: Pin.Pin) -> Reverse.map g.value = g.inverse := \fun (g: Pin.Pin) =>
+  (\bysub(Units.Unit, Pin.predicate, g)) predicate closed onGenerator;
+\definition scalarSquare: \forall (g: Pin.Pin)(a: R.Real) -> scalar a = g.value -> R.mul a a = R.one :=
+  \fun (g: Pin.Pin)(a: R.Real)(same: scalar a = g.value) => (Faithfulness.faithful n).scalarInjective (R.mul a a) R.one
+    (trans!{Carrier} _ _ _ (Relations.scalarMul a a)
+      (trans!{Carrier} _ _ _ (congr2!{Carrier Carrier Carrier} Clifford.mul _ _ _ _
+        (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (Reverse.onScalar a))
+          (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} Reverse.map _ _ same) (norm g))) same) g.left));
+\definition negativeNonnegative: \forall (a: R.Real) -> Order.Le a R.zero -> Order.Le R.zero (R.neg a) :=
+  \fun (a: R.Real)(nonpositive: _) => Order.leReplaceLeft (R.neg R.zero) R.zero (R.neg a) Arithmetic.negZero
+    (Arithmetic.negAntitone a R.zero nonpositive);
+\definition squareOne: \forall (a: R.Real) -> R.mul a a = R.one -> Logic.Or[a = R.one, a = R.neg R.one] :=
+  \fun (a: R.Real)(square: _) => either!{{(Comparisons.leTotal R.zero a)} {Logic.Or[a = R.one, a = R.neg R.one]}
+    {\fun (nonnegative: _) => Logic.Or[_, _]::left (Roots.squaresInjective a R.one nonnegative Arithmetic.oneNonnegative
+      (trans!{R.Real} _ _ _ square (sym!{R.Real} _ _ (Arithmetic.fieldMulOneLeft R.one))))}
+    {\fun (nonpositive: _) => Logic.Or[_, _]::right (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (Arithmetic.negInvolutive a))
+      (congr!{R.Real R.Real} R.neg _ _ (Roots.squaresInjective (R.neg a) R.one (negativeNonnegative a nonpositive) Arithmetic.oneNonnegative
+        (trans!{R.Real} _ _ _ (Arithmetic.fieldMulNegBoth a a)
+          (trans!{R.Real} _ _ _ square (sym!{R.Real} _ _ (Arithmetic.fieldMulOneLeft R.one)))))))}
+  };
+\definition scalarSign: \forall (g: Pin.Pin)(a: R.Real) -> scalar a = g.value -> Logic.Or[a = R.one, a = R.neg R.one] :=
+  \fun (g: Pin.Pin)(a: R.Real)(same: _) => squareOne a (scalarSquare g a same);

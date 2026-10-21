@@ -1,0 +1,32 @@
+\definition combine: \forall (f, g: Interval.Carrier -> Interval.Carrier) -> Property (Intervals.left f) g -> Property (Intervals.right f) g -> Property f g := \block {
+  \fun (f, g: _)(left: _)(right: _)(fc: _)(gc: _)(initial: _)(ic: _)(ip: _) \then
+  \takefrom l: Lift (trace (Intervals.left f) g) initial \by left (Intervals.leftContinuous f fc) gc initial ic
+    (\fun (s: Interval.Carrier) => trans!{B} _ _ _ (ip s)
+      (congr!{Interval.Carrier B} (\fun (t: Interval.Carrier) => family (Square.at (f t) (g s))) _ _ (sym!{Interval.Carrier} _ _ Halves.lowerStart))) \then
+  \let top: Interval.Carrier -> E := \fun (s: Interval.Carrier) => l (Square.at Interval.end s) \then
+  \let topContinuous: Continuous.Continuous Interval.topology total top := Slices.composeContinuous Interval.topology (Square.topology Interval.topology) total
+    (\fun (s: Interval.Carrier) => Square.at Interval.end s) l (Square.atContinuous Interval.topology Interval.end) (laws _ _ l).continuous \then
+  \takefrom r: Lift (trace (Intervals.right f) g) top \by right (Intervals.rightContinuous f fc) gc top topContinuous
+    (\fun (s: Interval.Carrier) => trans!{B} _ _ _ ((laws _ _ l).projects (Square.at Interval.end s))
+      (congr!{Interval.Carrier B} (\fun (t: Interval.Carrier) => family (Square.at (f t) (g s))) _ _
+        (trans!{Interval.Carrier} _ _ _ Halves.lowerEnd (sym!{Interval.Carrier} _ _ Halves.upperStart)))) \then
+  \let compatible: Glue.Compatible l r := \fun (s: Interval.Carrier) => sym!{E} _ _ ((laws _ _ r).starts s) \then
+  \let lift: Lift (trace f g) initial := \into[Square.Carrier -> E](Glue.join l r (laws _ _ l).continuous (laws _ _ r).continuous compatible, Lift (trace f g) initial) \by {
+    Laws[trace f g, initial, Glue.join l r (laws _ _ l).continuous (laws _ _ r).continuous compatible] {
+      continuous := Glue.continuous l r (laws _ _ l).continuous (laws _ _ r).continuous compatible,
+      starts := \fun (s: Interval.Carrier) => trans!{E} _ _ _ (Glue.atStart l r (laws _ _ l).continuous (laws _ _ r).continuous compatible s) ((laws _ _ l).starts s),
+      projects := PairLaws.induction
+        (\fun (q: Square.Carrier) => projection (Glue.join l r (laws _ _ l).continuous (laws _ _ r).continuous compatible q) = trace f g q)
+        (\fun (t, s: Interval.Carrier) => either!{{(Glue.covered t)} {_}
+        {\fun (member: _) => trans!{B} _ _ _
+          (congr!{E B} projection _ _ (Glue.onLeft l r (laws _ _ l).continuous (laws _ _ r).continuous compatible t s member))
+          (trans!{B} _ _ _ ((laws _ _ l).projects (Square.at (Glue.leftTime t member) s))
+            (congr!{Interval.Carrier B} (\fun (t: Interval.Carrier) => family (Square.at (f t) (g s) )) _ _ (Glue.undoLeft t member)))}
+        {\fun (member: _) => trans!{B} _ _ _
+          (congr!{E B} projection _ _ (Glue.onRight l r (laws _ _ l).continuous (laws _ _ r).continuous compatible t s member))
+          (trans!{B} _ _ _ ((laws _ _ r).projects (Square.at (Glue.rightTime t member) s))
+            (congr!{Interval.Carrier B} (\fun (t: Interval.Carrier) => family (Square.at (f t) (g s) )) _ _ (Glue.undoRight t member)))}})
+    }
+  } \then
+  \return \exact(lift, Lift (trace f g) initial)
+};

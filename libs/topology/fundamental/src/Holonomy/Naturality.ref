@@ -1,0 +1,42 @@
+\import algebraic_topology.Interval[] \as I;
+\import \root.Groupoid[A := B, source := target] \as TargetGroupoid;
+\import Gr.Maps[B := B, target := target] \as Map;
+\import Paths.Maps[B := B, target := target] \as PathMap;
+\import \root.Paths[A := B, source := target] \as TargetPaths;
+\import \root.UnbasedPaths[A := B, source := target] \as TargetRaw;
+\import \root.Bridges[A := B, source := target, basepoint := f b].Along[bridges := targetBridges] \as TargetBridge;
+\import \root.Holonomy[A := B, source := target, b := f b, G := G, group := group, bridges := targetBridges, hom := targetHom] \as TargetHolonomy;
+\definition BridgeCompatibility: \Prop := \forall (x: A)(t: I.Carrier) -> f (bridges x t) = targetBridges (f x) t;
+\definition Compatible: \Prop := \forall (a: Fundamental.Carrier) -> hom a = targetHom (Map.map f continuous b b a);
+\definition bridgeArrow: BridgeCompatibility -> \forall (x: A) -> Map.map f continuous b x (Bridge.arrow x) = TargetBridge.arrow (f x) :=
+  \fun (agrees: _)(x: A) => trans!{{TargetGroupoid.Arrow (f b) (f x)}} _ _ _ (Map.onClass f continuous b x (bridges x))
+    (TargetPaths.Between[x := f b, y := f x].sameClass _ _
+      (TargetPaths.homotopicOfEqual (f b) (f x) (PathMap.apply f continuous b x (bridges x)) (targetBridges (f x))
+        (\axiom:funext(PathMap.apply f continuous b x (bridges x), (\into[TargetPaths.Function](targetBridges (f x), TargetPaths.Path (f b) (f x)) \by {
+          TargetPaths.laws (f b) (f x) (targetBridges (f x)) }), agrees x))));
+\definition loop: BridgeCompatibility -> \forall (x, y: A)(p: Gr.Arrow x y) ->
+  Map.map f continuous b b (Bridge.loop x y p) = TargetBridge.loop (f x) (f y) (Map.map f continuous x y p) :=
+  \fun (agrees: _)(x, y: A)(p: _) => eq_reason!{{Map.map f continuous b b (Bridge.loop x y p)}
+    "=" {TargetGroupoid.compose (f b) (f y) (f b) (Map.map f continuous b y (Gr.compose b x y (Bridge.arrow x) p))
+      (Map.map f continuous y b (Gr.inverse b y (Bridge.arrow y)))} "by" {Map.preservesComposition f continuous b y b (Gr.compose b x y (Bridge.arrow x) p) (Gr.inverse b y (Bridge.arrow y))}
+    "=" {TargetGroupoid.compose (f b) (f y) (f b)
+      (TargetGroupoid.compose (f b) (f x) (f y) (Map.map f continuous b x (Bridge.arrow x)) (Map.map f continuous x y p))
+      (TargetGroupoid.inverse (f b) (f y) (Map.map f continuous b y (Bridge.arrow y)))} "by" {
+      congr2!{{TargetGroupoid.Arrow (f b) (f y)} {TargetGroupoid.Arrow (f y) (f b)} {TargetGroupoid.Arrow (f b) (f b)}}
+        (TargetGroupoid.compose (f b) (f y) (f b)) _ _ _ _
+        (Map.preservesComposition f continuous b x y (Bridge.arrow x) p) (Map.preservesInverse f continuous b y (Bridge.arrow y))}
+    "=" {TargetBridge.loop (f x) (f y) (Map.map f continuous x y p)} "by" {
+      congr2!{{TargetGroupoid.Arrow (f b) (f x)} {TargetGroupoid.Arrow (f b) (f y)} {TargetGroupoid.Arrow (f b) (f b)}}
+        (\fun (a: TargetGroupoid.Arrow (f b) (f x))(beta: TargetGroupoid.Arrow (f b) (f y)) => TargetGroupoid.compose (f b) (f y) (f b)
+          (TargetGroupoid.compose (f b) (f x) (f y) a (Map.map f continuous x y p)) (TargetGroupoid.inverse (f b) (f y) beta)) _ _ _ _
+        (bridgeArrow agrees x) (bridgeArrow agrees y)}};
+\definition raw[p: Raw.Carrier]: TargetRaw.Carrier := TargetRaw.forget (f (p I.start)) (f (p I.end)) (PathMap.apply f continuous (p I.start) (p I.end) (Raw.asPath p));
+\definition value: BridgeCompatibility -> Compatible -> \forall (p: Raw.Carrier) -> TargetHolonomy.value (raw p) = value p :=
+  \fun (bridgesAgree: _)(homAgree: _)(p: Raw.Carrier) => trans!{G} _ _ _
+    (TargetHolonomy.valueOnPath (f (p I.start)) (f (p I.end)) (PathMap.apply f continuous (p I.start) (p I.end) (Raw.asPath p)))
+    (trans!{G} _ _ _
+      (congr!{{TargetGroupoid.Arrow (f (p I.start)) (f (p I.end))} G} (TargetHolonomy.onArrow (f (p I.start)) (f (p I.end))) _ _
+        (sym!{{TargetGroupoid.Arrow (f (p I.start)) (f (p I.end))}} _ _ (Map.onClass f continuous (p I.start) (p I.end) (Raw.asPath p))))
+      (trans!{G} _ _ _
+        (congr!{{TargetGroupoid.Arrow (f b) (f b)} G} targetHom _ _ (sym!{{TargetGroupoid.Arrow (f b) (f b)}} _ _ (loop bridgesAgree (p I.start) (p I.end) (Gr.class _ _ (Raw.asPath p)))))
+        (sym!{G} _ _ (homAgree (Bridge.loop (p I.start) (p I.end) (Gr.class _ _ (Raw.asPath p)))))));

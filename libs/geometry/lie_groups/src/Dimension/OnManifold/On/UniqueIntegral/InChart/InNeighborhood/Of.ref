@@ -1,0 +1,24 @@
+\import LeftField.On[radius := data.leftRadius] \as LeftCurve;
+\import RightField.On[radius := data.rightRadius] \as RightCurve;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Arithmetic;
+\import real.Analysis[].Distance[] \as Distance;
+\import real.Analysis[].Estimates[] \as Estimates;
+\import Estimates.Product[] \as Bounds;
+\definition radius: Reals.Real := Distance.min data.agreement.radius (Distance.min data.leftRadius data.rightRadius);
+\definition positive: R.Lt Reals.zero radius := Bounds.minPositive _ _
+  (\bysub(Reals.Real, { r: Reals.Real \where R.Lt Reals.zero r }, data.agreement.radius))
+  (Bounds.minPositive _ _ LeftCurve.ball.positive
+    RightCurve.ball.positive);
+\definition leftRadius: R.Le radius data.leftRadius := R.leTrans _ _ _ (Distance.minRight data.agreement.radius (Distance.min data.leftRadius data.rightRadius)) (Distance.minLeft data.leftRadius data.rightRadius);
+\definition rightRadius: R.Le radius data.rightRadius := R.leTrans _ _ _ (Distance.minRight data.agreement.radius (Distance.min data.leftRadius data.rightRadius)) (Distance.minRight data.leftRadius data.rightRadius);
+\definition lower[t: Reals.Real]: R.Lt (Bounds.abs t) radius -> R.Lt (Reals.neg radius) t := \fun (small: _) =>
+  R.ltReplaceLeft (Reals.sub Reals.zero radius) (Reals.neg radius) t (Arithmetic.addZeroLeft (Reals.neg radius)) (Distance.distanceLtLower Reals.zero t radius small);
+\definition upper[t: Reals.Real]: R.Lt (Bounds.abs t) radius -> R.Lt t radius := \fun (small: _) =>
+  R.ltReplaceRight t (Reals.add Reals.zero radius) radius (Arithmetic.addZeroLeft radius) (Distance.distanceLtUpper Reals.zero t radius small);
+\definition leftLower[t: Reals.Real][small: R.Lt (Bounds.abs t) radius]: R.Lt (Reals.neg data.leftRadius) t := R.leLtTrans _ _ _ (Arithmetic.negAntitone radius data.leftRadius leftRadius) (lower t small);
+\definition leftUpper[t: Reals.Real][small: R.Lt (Bounds.abs t) radius]: R.Lt t data.leftRadius := R.ltLeTrans _ _ _ (upper t small) leftRadius;
+\definition rightLower[t: Reals.Real][small: R.Lt (Bounds.abs t) radius]: R.Lt (Reals.neg data.rightRadius) t := R.leLtTrans _ _ _ (Arithmetic.negAntitone radius data.rightRadius rightRadius) (lower t small);
+\definition rightUpper[t: Reals.Real][small: R.Lt (Bounds.abs t) radius]: R.Lt t data.rightRadius := R.ltLeTrans _ _ _ (upper t small) rightRadius;
+\module Agreement;
+\definition equal: f = g := Agreement[].equal;

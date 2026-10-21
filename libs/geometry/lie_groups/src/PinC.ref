@@ -1,0 +1,26 @@
+
+\import std.Data[].Nat[] \as N;
+\import real.Analysis[] \as R;
+\import R.Algebra[] \as Scalars;
+\import \root.Euclidean[n := n] \as E;
+\import clifford.Field[K := R.Real, field := Scalars.field].On[V := E.Vector, space := E.space].Of[form := E.form] \as Clifford;
+\import Clifford.Pin[] \as Pins;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+
+\import algebra.Hom[A := E.Pin, B := E.Pin] \as Maps;
+\import algebra.Groups[].Units[A := E.CliffordAlgebra, ring := Clifford.ring] \as Units;
+\definition identity[g: E.Pin]: E.Pin := g;
+\definition embedding: Maps.GroupMap E.pinGroup E.pinGroup := \into[E.Pin -> E.Pin](identity, Maps.GroupMap E.pinGroup E.pinGroup) \by {
+  Maps.MonoidLaws[_, _, identity] { unit := Units.ext _ _ (\refl(Clifford.one)), operation := \fun (g, h: E.Pin) => Units.ext _ _ (\refl(Clifford.mul g.value h.value)) }
+};
+\definition injective: \forall (g, h: E.Pin) -> embedding g = embedding h -> g = h := \fun (g, h: E.Pin)(same: _) => same;
+\definition compatible: embedding Pins.pinInvolution.element = Pins.sign := \refl(Pins.sign);
+\import \root.ComplexGroup[n := n].Over[G := E.Pin, group := E.pinGroup, embedding := embedding, injective := injective, sign := Pins.pinInvolution, compatible := compatible] \as Extension;
+\import E.PinAtlas[] \as Base;
+\import Extension.Base[dimension := Base.dimension].On[previous := \root.PinAtlas[].atlasData n] \as Construction;
+\definition dimension: N.Nat^ := calculus.Blocks[n := \root.CircleGeometry[].one, m := Base.dimension].dimension;
+\import manifolds.Dimension[n := dimension].Smooth[] \as Model;
+\definition manifold: Model.Manifold := Construction.manifold;
+\definition lieGroup: \root.Dimension[n := dimension].OnManifold[M := manifold].LieGroup := Construction.lieGroup;
+\definition underlyingGroup: std.Alg[].Alg[].Group[E.PinC] := lieGroup;

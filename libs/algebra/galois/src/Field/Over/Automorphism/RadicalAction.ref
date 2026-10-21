@@ -1,0 +1,131 @@
+\import \parent.Permutations[] \as Actions;
+\import Actions.Derived[S := S] \as Group;
+\import galois.Permutation[X := K] \as Perm;
+\import Perm.Relative[H := Actions.Over S] \as Relative;
+\import \parent.Kummer[] \as Kummer;
+\import \parent.\parent.Generation[] \as Generation;
+\import \parent.\parent.Subfield[] \as Subfields;
+\import std.Data[].Nat[].Basic[].Def[] \as Nat;
+\definition Fixed[n: N.Nat^][x: K]: \Prop := \forall (p: Perm.Permutation) -> Group.stage n p -> p.apply x = x;
+\definition EventuallyFixed[x: K]: \Prop := \exists \Cast[N.Nat^] ({ n: N.Nat^ \where Fixed n x });
+\definition fixedAtLeft: \forall (n, k: N.Nat^)(x: K) -> Fixed n x -> Fixed (Nat.add n k) x :=
+  \fun (n, k: N.Nat^)(x: K)(fixed: _)(p: Perm.Permutation)(hp: _) => fixed p (Relative.atAddLeft (Actions.subgroup S) n k p hp);
+\definition fixedAtRight: \forall (n, k: N.Nat^)(x: K) -> Fixed k x -> Fixed (Nat.add n k) x :=
+  \fun (n, k: N.Nat^)(x: K)(fixed: _)(p: Perm.Permutation)(hp: _) => fixed p (Relative.atAddRight (Actions.subgroup S) n k p hp);
+\definition baseFixed: \forall (x: K) -> S x -> Fixed N.Nat^::zero x := \block {
+  \fun (x: K)(hx: _)(p: Perm.Permutation)(hp: _) \then
+  \takefrom f: Actions.Realization[S, p] \by hp \then
+  \return trans!{K} _ _ _ (sym!{K} _ _ (f.action x)) (f.fixes x hx)
+};
+\definition fixedSubfield: \forall (n: N.Nat^) -> Subfields.Closed[Fixed n] :=
+  \fun (n: N.Nat^) => Subfields.Closed[Fixed n] {
+    zero := \block {
+      \fun (p: Perm.Permutation)(hp: _) \then
+      \takefrom f: Actions.Realization[S, p] \by Group.inGroup n p hp \then
+      \return trans!{K} _ _ _ (sym!{K} _ _ (f.action zero)) f.automorphism.map.preservesZero
+    },
+    one := \block {
+      \fun (p: Perm.Permutation)(hp: _) \then
+      \takefrom f: Actions.Realization[S, p] \by Group.inGroup n p hp \then
+      \return trans!{K} _ _ _ (sym!{K} _ _ (f.action one)) f.automorphism.map.preservesOne
+    },
+    add := \block {
+      \fun (x, y: K)(hx: _)(hy: _)(p: Perm.Permutation)(hp: _) \then
+      \takefrom f: Actions.Realization[S, p] \by Group.inGroup n p hp \then
+      \return eq_reason!{{p.apply (add x y)}
+        "=" {f.automorphism.map.apply (add x y)} "by" {sym!{K} _ _ (f.action (add x y))}
+        "=" {add (f.automorphism.map.apply x) (f.automorphism.map.apply y)} "by" {f.automorphism.map.preservesAdd x y}
+        "=" {add x y} "by" {congr2!{K K K} add _ _ _ _
+          (trans!{K} _ _ _ (f.action x) (hx p hp)) (trans!{K} _ _ _ (f.action y) (hy p hp))}}
+    },
+    neg := \block {
+      \fun (x: K)(hx: _)(p: Perm.Permutation)(hp: _) \then
+      \takefrom f: Actions.Realization[S, p] \by Group.inGroup n p hp \then
+      \return eq_reason!{{p.apply (neg x)}
+        "=" {f.automorphism.map.apply (neg x)} "by" {sym!{K} _ _ (f.action (neg x))}
+        "=" {neg (f.automorphism.map.apply x)} "by" {f.automorphism.map.preservesNeg x}
+        "=" {neg x} "by" {congr!{K K} neg _ _ (trans!{K} _ _ _ (f.action x) (hx p hp))}}
+    },
+    mul := \block {
+      \fun (x, y: K)(hx: _)(hy: _)(p: Perm.Permutation)(hp: _) \then
+      \takefrom f: Actions.Realization[S, p] \by Group.inGroup n p hp \then
+      \return eq_reason!{{p.apply (mul x y)}
+        "=" {f.automorphism.map.apply (mul x y)} "by" {sym!{K} _ _ (f.action (mul x y))}
+        "=" {mul (f.automorphism.map.apply x) (f.automorphism.map.apply y)} "by" {f.automorphism.map.preservesMul x y}
+        "=" {mul x y} "by" {congr2!{K K K} mul _ _ _ _
+          (trans!{K} _ _ _ (f.action x) (hx p hp)) (trans!{K} _ _ _ (f.action y) (hy p hp))}}
+    },
+    inv := \block {
+      \fun (x: K)(hx: _)(p: Perm.Permutation)(hp: _) \then
+      \takefrom f: Actions.Realization[S, p] \by Group.inGroup n p hp \then
+      \return eq_reason!{{p.apply (inv x)}
+        "=" {f.automorphism.map.apply (inv x)} "by" {sym!{K} _ _ (f.action (inv x))}
+        "=" {inv (f.automorphism.map.apply x)} "by" {f.automorphism.map.preservesInv x}
+        "=" {inv x} "by" {congr!{K K} inv _ _ (trans!{K} _ _ _ (f.action x) (hx p hp))}}
+    },
+  };
+\definition eventuallySubfield: Subfields.Closed[EventuallyFixed] := Subfields.Closed[EventuallyFixed] {
+  zero := Logic.existsIntro[N.Nat^, { n: N.Nat^ \where Fixed n zero }] N.Nat^::zero (fixedSubfield N.Nat^::zero).zero,
+  one := Logic.existsIntro[N.Nat^, { n: N.Nat^ \where Fixed n one }] N.Nat^::zero (fixedSubfield N.Nat^::zero).one,
+  add := \block {
+    \fun (x, y: K)(hx: _)(hy: _) \then
+    \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Fixed n x }) \by hx \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Fixed k y }) \by hy \then
+    \return Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Fixed j (add x y) }] (Nat.add n k)
+      ((fixedSubfield (Nat.add n k)).add x y
+        (fixedAtLeft n k x (\bysub(N.Nat^, { j: N.Nat^ \where Fixed j x }, n)))
+        (fixedAtRight n k y (\bysub(N.Nat^, { j: N.Nat^ \where Fixed j y }, k))))
+  },
+  neg := \block {
+    \fun (x: K)(hx: _) \then
+    \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Fixed n x }) \by hx \then
+    \return Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Fixed j (neg x) }] n
+      ((fixedSubfield n).neg x (\bysub(N.Nat^, { j: N.Nat^ \where Fixed j x }, n)))
+  },
+  mul := \block {
+    \fun (x, y: K)(hx: _)(hy: _) \then
+    \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Fixed n x }) \by hx \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Fixed k y }) \by hy \then
+    \return Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Fixed j (mul x y) }] (Nat.add n k)
+      ((fixedSubfield (Nat.add n k)).mul x y
+        (fixedAtLeft n k x (\bysub(N.Nat^, { j: N.Nat^ \where Fixed j x }, n)))
+        (fixedAtRight n k y (\bysub(N.Nat^, { j: N.Nat^ \where Fixed j y }, k))))
+  },
+  inv := \block {
+    \fun (x: K)(hx: _) \then
+    \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Fixed n x }) \by hx \then
+    \return Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Fixed j (inv x) }] n
+      ((fixedSubfield n).inv x (\bysub(N.Nat^, { j: N.Nat^ \where Fixed j x }, n)))
+  },
+};
+\definition UnityInBase: \Prop := \forall (n: N.Nat^)(z: K) -> power z (N.Nat^::succ (N.Nat^::succ n)) = one -> S z;
+\definition fixedRoot: UnityInBase -> \forall (n, m: N.Nat^)(x: K) ->
+  Fixed n (power x (N.Nat^::succ (N.Nat^::succ m))) -> Fixed (N.Nat^::succ n) x :=
+  \fun (unity: UnityInBase)(n, m: N.Nat^)(x: K)(fixed: _)(p: Perm.Permutation)(hp: _) =>
+    hp (Relative.FixesPoint x) (Relative.stabilizer x) (\block {
+      \fun (q: Perm.Permutation)(hq: Perm.Commutators (Group.stage n) q) \then
+      \takefrom comm: Perm.CommutatorWitness[Group.stage n, q] \by hq \then
+      \takefrom f: Actions.Realization[S, comm.left] \by Group.inGroup n comm.left comm.leftMember \then
+      \takefrom g: Actions.Realization[S, comm.right] \by Group.inGroup n comm.right comm.rightMember \then
+      \let nf: Kummer.FixesPower f.automorphism x (N.Nat^::succ (N.Nat^::succ m)) :=
+        trans!{K} _ _ _ (f.action _) (fixed comm.left comm.leftMember) \then
+      \let ng: Kummer.FixesPower g.automorphism x (N.Nat^::succ (N.Nat^::succ m)) :=
+        trans!{K} _ _ _ (g.action _) (fixed comm.right comm.rightMember) \then
+      \return (Relative.stabilizer x).extensional _ q
+        (Perm.equalTrans _ _ _ (Perm.commutatorCongruent _ _ _ _ f.action g.action) comm.value)
+        (Kummer.commutatorFixes f.automorphism g.automorphism (N.Nat^::succ (N.Nat^::succ m)) x
+          (\fun (z: K)(hz: _) => f.fixes z (unity m z hz))
+          (\fun (z: K)(hz: _) => g.fixes z (unity m z hz)) nf ng)
+    });
+\definition radicalEventuallyFixed: UnityInBase -> \forall (x: K) -> Generation.Radical S x -> EventuallyFixed x :=
+  \fun (unity: UnityInBase)(x: K)(radical: _) => radical EventuallyFixed
+    (Generation.RadicalClosed[EventuallyFixed] {
+      subfield := eventuallySubfield,
+      root := \block {
+        \fun (m: N.Nat^)(x: K)(hx: _) \then
+        \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Fixed n (power x (N.Nat^::succ (N.Nat^::succ m))) }) \by hx \then
+        \return Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Fixed j x }] (N.Nat^::succ n)
+          (fixedRoot unity n m x (\bysub(N.Nat^, { j: N.Nat^ \where Fixed j (power x (N.Nat^::succ (N.Nat^::succ m))) }, n)))
+      },
+    })
+    (\fun (a: K)(ha: _) => Logic.existsIntro[N.Nat^, { n: N.Nat^ \where Fixed n a }] N.Nat^::zero (baseFixed a ha));

@@ -1,0 +1,35 @@
+\definition input[x: source.Point]: SourceOpen.Carrier SourceOpen.whole := \into[source.Point](x, SourceOpen.whole.points) \by { \refl(x) };
+\definition apply[x: source.Point]: target.Point := Calculus.apply SourceOpen.whole TargetOpen.whole f (input x);
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as SourceTopology;
+\import topological_algebra.Euclidean[].Dimension[n := m].Topology[] \as TargetTopology;
+\import topology.Maps[A := source.Point, B := source.Point].Identity[] \as Identity;
+\import topology.Continuity[A := source.Point, B := source.Point].Corestriction[S := SourceOpen.whole.points] \as IntoOpen;
+\definition inputContinuous: topology.Continuity[A := source.Point, B := SourceOpen.Carrier SourceOpen.whole].Continuous source.space
+  (SourceOpen.Topology[].Of[U := SourceOpen.whole].topology) input := IntoOpen.corestrictContinuous source.space SourceTopology.topology input (Identity.continuous source.space);
+\import Calculus.Topology[U := SourceOpen.whole, V := TargetOpen.whole] \as LocalTopology;
+\import topology.Composition[A := source.Point, B := SourceOpen.Carrier SourceOpen.whole, C := TargetOpen.Carrier TargetOpen.whole] \as FirstComposition;
+\definition rangeContinuous: topology.Continuity[A := source.Point, B := TargetOpen.Carrier TargetOpen.whole].Continuous source.space
+  (TargetOpen.Topology[].Of[U := TargetOpen.whole].topology) (\fun (x: source.Point) => Calculus.apply SourceOpen.whole TargetOpen.whole f (input x)) :=
+  FirstComposition.composeContinuous source.space (SourceOpen.Topology[].Of[U := SourceOpen.whole].topology) (TargetOpen.Topology[].Of[U := TargetOpen.whole].topology)
+    input (Calculus.apply SourceOpen.whole TargetOpen.whole f) inputContinuous (LocalTopology.continuous f);
+\import topology.Continuity[A := TargetOpen.Carrier TargetOpen.whole, B := target.Point].Corestriction[S := TargetOpen.whole.points] \as Inclusion;
+\import topology.Composition[A := source.Point, B := TargetOpen.Carrier TargetOpen.whole, C := target.Point] \as SecondComposition;
+\definition data: Maps.Data := Maps.Data { apply := apply };
+\definition continuous: Maps.ContinuousMap := \into[Maps.Data](data, { f: Maps.Data \where Maps.Continuous f }) \by {
+  SecondComposition.composeContinuous source.space (TargetOpen.Topology[].Of[U := TargetOpen.whole].topology) target.space
+    (\fun (x: source.Point) => Calculus.apply SourceOpen.whole TargetOpen.whole f (input x)) (\fun (y: TargetOpen.Carrier TargetOpen.whole) => y)
+    rangeContinuous (Inclusion.inclusionContinuous target.space)
+};
+\import Maps.Coordinates[f := continuous, left := Source.standard, right := Target.standard] \as Coordinates;
+\definition included: SourceOpen.Included Coordinates.domain SourceOpen.whole := \fun (x: source.Point)(member: _) => \refl(x);
+\definition standardSmooth: Coordinates.Smooth := \fun (i: std.Data[].FinSet[].Fin m) => SourceOpen.Restriction[].localSmooth Coordinates.domain SourceOpen.whole included
+  (\fun (x: SourceOpen.Carrier SourceOpen.whole) => Calculus.apply SourceOpen.whole TargetOpen.whole f x i) (f.smooth i);
+\import SmallAtlas.Of[f := continuous] \as Check;
+\definition small: Check.InSmallAtlas := \fun (left: SmallAtlas.SourceChart)(right: SmallAtlas.TargetChart) =>
+  \idelim Source.standard = left \with l: SourceCharts.Chart => Maps.Coordinates[f := continuous, left := l, right := right].Smooth \by {
+    base: \idelim Target.standard = right \with r: TargetCharts.Chart => Maps.Coordinates[f := continuous, left := Source.standard, right := r].Smooth \by {
+      base: standardSmooth, equality: sym!{{TargetCharts.Chart}} _ _ (\bysub(TargetCharts.Chart, targetAtlas.charts, right))
+    }, equality: sym!{{SourceCharts.Chart}} _ _ (\bysub(SourceCharts.Chart, sourceAtlas.charts, left))
+  };
+\definition map: Maps.Map := Check.value small;
+\module At(x: source.Point);

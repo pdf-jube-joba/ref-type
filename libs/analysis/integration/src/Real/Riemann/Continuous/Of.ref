@@ -1,0 +1,62 @@
+\definition continuous: IsContinuous f := \bysub(Real -> Real, { f: Real -> Real \where IsContinuous f }, f);
+\definition endpoint: Point := \into[Real](a, Line.ClosedInterval a b) \by { Logic.And[_, _]::# (R.leRefl a) interval.ordered };
+\definition absolute[x: Point]: Real := distance zero (f x);
+\definition absoluteContinuous: Functions.Continuous topology absolute := Lattice.absoluteContinuous topology (restrict f) continuous;
+\definition bounded: Integral.Bounded f := \block {
+  \let nonempty: \exists \Cast[Point] Local.Whole := Logic.existsIntro[Point, Local.Whole] endpoint (\refl(endpoint)) \then
+  \takefrom c: \Cast[Point] ({ c: Point \where Extrema.Maximum[Local.Whole, absolute, c] }) \by Extrema.maximum topology Local.Whole absolute nonempty compact absoluteContinuous \then
+  \let maximum: Extrema.Maximum[Local.Whole, absolute, c] := \bysub(Point, { c: Point \where Extrema.Maximum[Local.Whole, absolute, c] }, c) \then
+  \return Logic.existsIntro[Real, { bound: Real \where \forall (x: Real) -> R.Le a x -> R.Le x b -> R.Le (distance (f x) zero) bound }] (absolute c)
+    (\fun (x: Real)(ax: _)(xb: _) => R.leReplaceLeft (distance zero (f x)) (distance (f x) zero) (absolute c) (Metric.distanceSymmetric zero (f x))
+      (maximum.upper (\into[Real](x, Line.ClosedInterval a b) \by { Logic.And[_, _]::# ax xb }) (\refl(x))))
+};
+\definition metricContinuous: Maps.Continuous (MetricTopology.topology metric) Line.topology (restrict f) :=
+  \idelim topology = MetricTopology.topology metric \with t: Local.Topology => Maps.Continuous t Line.topology (restrict f) \by {
+    base: continuous, equality: sym!{Local.Topology} _ _ (Submetric.topology NumericMetric.metric)
+  };
+\definition uniform: Uniform.UniformlyContinuous metric NumericMetric.metric (restrict f) :=
+  Uniform.compactUniformlyContinuous metric NumericMetric.metric metricCompact (restrict f) metricContinuous;
+\definition asUniform: UniformIntegrals.Function := UniformIntegrals.Function {
+  function := f, bounded := bounded,
+  uniform := \fun (epsilon: Real)(positive: _) => \block {
+    \takefrom delta: \Cast[Real] ({ delta: Real \where Uniform.Radius[metric, NumericMetric.metric, restrict f, epsilon, delta] }) \by uniform epsilon positive \then
+    \let radius: Uniform.Radius[metric, NumericMetric.metric, restrict f, epsilon, delta] := \bysub(Real,
+      { delta: Real \where Uniform.Radius[metric, NumericMetric.metric, restrict f, epsilon, delta] }, delta) \then
+    \return Logic.existsIntro[Real, { delta: Real \where UniformIntegrals.Radius[f, epsilon, delta] }] delta
+      (UniformIntegrals.Radius[f, epsilon, delta] {
+        positive := radius.positive,
+        oscillation := \fun (x, y: Real)(ax: _)(xb: _)(ay: _)(yb: _)(near: _) => Order.leOfLt _ _
+          (radius.close
+            (\into[Real](x, Line.ClosedInterval a b) \by { Logic.And[_, _]::# ax xb })
+            (\into[Real](y, Line.ClosedInterval a b) \by { Logic.And[_, _]::# ay yb }) near),
+      })
+  },
+};
+\import UniformIntegrals.Of[f := asUniform] \as Constructed;
+\definition value: Real := Constructed.value;
+\definition hasIntegral: Integral.HasIntegral[f, value] := Constructed.hasIntegral;
+\definition integral: Integral.Function := Constructed.integral;
+\definition primitive: Real -> Real := Constructed.primitive;
+\definition primitiveLeft: primitive a = zero := Constructed.primitiveLeft;
+\definition primitiveRight: primitive b = value := Constructed.primitiveRight;
+\import Constructed.Fundamental[] \as Fundamental;
+\import calculus.Real[].Derivative[].Def[] \as Derivatives;
+\definition fundamentalTheorem: \forall (x: Real) -> R.Lt a x -> R.Lt x b -> Derivatives.HasDerivativeAt primitive x (f x) := Fundamental.derivative;
+\import Metrics.Lipschitz[B := Real].Between[metric := metric, other := NumericMetric.metric] \as Lipschitz;
+\definition primitiveContinuous: IsContinuous primitive := \block {
+  \takefrom bound: \Cast[Real] ({ bound: Real \where \forall (x: Real) -> R.Le a x -> R.Le x b -> R.Le (distance (f x) zero) bound }) \by bounded \then
+  \let pointwise: \forall (x: Real) -> R.Le a x -> R.Le x b -> R.Le (distance (f x) zero) bound :=
+    \bysub(Real, { bound: Real \where \forall (x: Real) -> R.Le a x -> R.Le x b -> R.Le (distance (f x) zero) bound }, bound) \then
+  \let nonnegative: R.Le zero bound := R.leTrans zero (distance (f a) zero) bound (Metric.distanceNonnegative (f a) zero) (pointwise a (R.leRefl a) interval.ordered) \then
+  \let continuous: Maps.Continuous (MetricTopology.topology metric) Line.topology (restrict primitive) :=
+    Lipschitz.continuous (restrict primitive) bound (\fun (x, y: Point) => \block {
+      \let hx: Logic.And[R.Le a x, R.Le x b] := \bysub(Real, Line.ClosedInterval a b, x) \then
+      \let hy: Logic.And[R.Le a y, R.Le y b] := \bysub(Real, Line.ClosedInterval a b, y) \then
+      \return R.leReplaceRight _ (mul (distance x y) bound) (mul bound (distance x y)) (Laws.fieldMulComm (distance x y) bound)
+        (Fundamental.lipschitz y x bound hy.left hy.right hx.left hx.right nonnegative pointwise)
+    }) \then
+  \return \idelim MetricTopology.topology metric = topology \with source: Local.Topology => Maps.Continuous source Line.topology (restrict primitive) \by {
+    base: continuous, equality: Submetric.topology NumericMetric.metric
+  }
+};
+\module Uniqueness(g: Real -> Real);

@@ -1,0 +1,99 @@
+\structure Extends[F: Family]: \Prop := {
+  filter: FilterLaws[F],
+  initial: Included seed F,
+};
+\definition Partial: \Set := \Cast[Family] ({ F: Family \where Extends[F] });
+\definition extension[F: Partial]: Extends[F] := \bysub(Family, { F: Family \where Extends[F] }, F);
+\definition le[F, G: Partial]: \Prop := Included F G;
+\import \root.Order[].Maximality[A := Partial, le := le] \as Zorn;
+\definition underlying[F: Partial]: Family := F;
+\definition ordering: Relations.Ordering[Partial, le] := Relations.Ordering[Partial, le] {
+  refl := \fun (F: Partial) (S: \Pow A) (member: Member F S) => member,
+  antisym := \fun (F, G: Partial) (fg: Included F G) (gf: Included G F) => \axiom:setext(underlying F, underlying G, fg, gf),
+  trans := \fun (F, G, H: Partial) (fg: Included F G) (gh: Included G H) (S: \Pow A) (member: Member F S) => gh S (fg S member),
+};
+\definition Union[C: \Pow Partial]: Family := { S: \Pow A \where Logic.Or[Member seed S,
+  \exists ( F: Partial \where Logic.And[\In[Partial] C F, Member F S] )] };
+\definition initial[C: \Pow Partial]: Included seed (Union C) := \fun (S: \Pow A) (member: Member seed S) => Logic.Or[_, _]::left member;
+\definition included[C: \Pow Partial, F: Partial]: \In[Partial] C F -> Included F (Union C) :=
+  \fun (inC: \In[Partial] C F) (S: \Pow A) (member: Member F S) => Logic.Or[_, _]::right
+    (Logic.existsIntro[Partial, { G: Partial \where Logic.And[\In[Partial] C G, Member G S] }] F (Logic.And[_, _]::# inC member));
+\definition elim[C: \Pow Partial, S: \Pow A, P: \Prop]: (Member seed S -> P) ->
+  (\forall (F: Partial) -> \In[Partial] C F -> Member F S -> P) -> Member (Union C) S -> P :=
+  \fun (base: Member seed S -> P) (step: \forall (F: Partial) -> \In[Partial] C F -> Member F S -> P) (member: Member (Union C) S) =>
+    either!{member P {base} {\block {
+      \fun (exists: \exists ( F: Partial \where Logic.And[\In[Partial] C F, Member F S] )) \then
+      \takefrom F: \Cast[Partial] ({ F: Partial \where Logic.And[\In[Partial] C F, Member F S] }) \by exists \then
+      \let data: Logic.And[\In[Partial] C F, Member F S] := \bysub(Partial, { F: Partial \where Logic.And[\In[Partial] C F, Member F S] }, F) \then
+      \return step F (data.left) (data.right)
+    }}};
+\structure Joint[C: \Pow Partial, S, U: \Pow A, F: Family]: \Prop := {
+  first: Member F S,
+  second: Member F U,
+  filter: FilterLaws[F],
+  included: Included F (Union C),
+};
+\definition joint: \forall (C: \Pow Partial) -> Zorn.Chain C -> \forall (S, U: \Pow A) -> Member (Union C) S -> Member (Union C) U ->
+  \exists ( F: Family \where Joint[C, S, U, F] ) :=
+  \fun (C: \Pow Partial) (chain: Zorn.Chain C) (S, U: \Pow A) (ms: Member (Union C) S) (mu: Member (Union C) U) =>
+    elim C S (\exists ( F: Family \where Joint[C, S, U, F] ))
+      (\fun (ss: Member seed S) => elim C U (\exists ( F: Family \where Joint[C, S, U, F] ))
+        (\fun (su: Member seed U) => Logic.existsIntro[Family, { F: Family \where Joint[C, S, U, F] }] seed
+          (Joint[C, S, U, seed] { first := ss, second := su, filter := laws seed, included := initial C }))
+        (\fun (F: Partial) (inF: \In[Partial] C F) (fu: Member F U) => Logic.existsIntro[Family, { G: Family \where Joint[C, S, U, G] }] F
+          (Joint[C, S, U, F] { first := (extension F).initial S ss, second := fu, filter := (extension F).filter, included := included C F inF })) mu)
+      (\fun (F: Partial) (inF: \In[Partial] C F) (fs: Member F S) => elim C U (\exists ( G: Family \where Joint[C, S, U, G] ))
+        (\fun (su: Member seed U) => Logic.existsIntro[Family, { G: Family \where Joint[C, S, U, G] }] F
+          (Joint[C, S, U, F] { first := fs, second := (extension F).initial U su, filter := (extension F).filter, included := included C F inF }))
+        (\fun (G: Partial) (inG: \In[Partial] C G) (gu: Member G U) => either!{{(chain F G inF inG)} {\exists ( H: Family \where Joint[C, S, U, H] )}
+          {\fun (fg: Included F G) => Logic.existsIntro[Family, { H: Family \where Joint[C, S, U, H] }] G
+            (Joint[C, S, U, G] { first := fg S fs, second := gu, filter := (extension G).filter, included := included C G inG })}
+          {\fun (gf: Included G F) => Logic.existsIntro[Family, { H: Family \where Joint[C, S, U, H] }] F
+            (Joint[C, S, U, F] { first := fs, second := gf U gu, filter := (extension F).filter, included := included C F inF })}
+        }) mu) ms;
+\definition unionFilter: \forall (C: \Pow Partial) -> Zorn.Chain C -> FilterLaws[Union C] :=
+  \fun (C: \Pow Partial) (chain: Zorn.Chain C) => FilterLaws[Union C] {
+    whole := initial C T.Whole (laws seed).whole,
+    intersection := \block {
+      \fun (S, U: \Pow A) (ms: Member (Union C) S) (mu: Member (Union C) U) \then
+      \takefrom F: \Cast[Family] ({ F: Family \where Joint[C, S, U, F] }) \by joint C chain S U ms mu \then
+      \let j: Joint[C, S, U, F] := \bysub(Family, { F: Family \where Joint[C, S, U, F] }, F) \then
+      \return j.included (T.Intersection S U) (j.filter.intersection S U (j.first) (j.second))
+    },
+    upward := \fun (S, U: \Pow A) (member: Member (Union C) S) (subset: T.Subset S U) => elim C S (Member (Union C) U)
+      (\fun (member: Member seed S) => initial C U ((laws seed).upward S U member subset))
+      (\fun (F: Partial) (inF: \In[Partial] C F) (member: Member F S) => included C F inF U ((extension F).filter.upward S U member subset)) member,
+    proper := \fun (S: \Pow A) => elim C S (\exists \Cast[A] S) ((laws seed).proper S)
+      (\fun (F: Partial) (inF: \In[Partial] C F) => (extension F).filter.proper S),
+  };
+\definition maximalExists: \exists ( F: Partial \where Zorn.Maximal F ) := Zorn.zorn ordering (\block {
+  \fun (C: \Pow Partial) (chain: Zorn.Chain C) \then
+  \let F: Partial := \into[Family](Union C, { F: Family \where Extends[F] }) \by { Extends[Union C] { filter := unionFilter C chain, initial := initial C } } \then
+  \return Logic.existsIntro[Partial, { F: Partial \where Zorn.UpperBound C F }] F (included C)
+});
+\module Adjoin(F: Partial, S: \Pow A);
+\definition maximalDichotomy: \forall (F: Partial) -> Zorn.Maximal F -> \forall (S: \Pow A) -> Logic.Or[Member F S, Member F (T.Complement S)] :=
+  \fun (F: Partial) (maximal: Zorn.Maximal F) (S: \Pow A) => either!{{(Classical.excludedMiddle (Member F S))} {Logic.Or[Member F S, Member F (T.Complement S)]}
+    {Logic.Or[Member F S, Member F (T.Complement S)]::left}
+    {\fun (absent: Logic.Not (Member F S)) => Logic.Or[Member F S, Member F (T.Complement S)]::right (\block {
+      \enough _ \by { byContradiction (Member F (T.Complement S)) } \then
+      \fun (complementAbsent: Logic.Not (Member F (T.Complement S))) \then
+      \let G: Partial := \into[Family](Adjoin[F := F, S := S].Generated, { G: Family \where Extends[G] }) \by {
+        Extends[Adjoin[F := F, S := S].Generated] {
+          filter := Adjoin[F := F, S := S].filter complementAbsent,
+          initial := \fun (U: \Pow A) (member: Member seed U) => Adjoin[F := F, S := S].extends U ((extension F).initial U member),
+        }
+      } \then
+      \return absent (\idelim G = F \with H: Partial => Member H S \by {
+        base: Adjoin[F := F, S := S].contains,
+        equality: sym!{Partial} _ _ (maximal G (Adjoin[F := F, S := S].extends))
+      })
+    })}};
+\definition ultrafilterExists: \exists ( F: Ultrafilter \where Included seed F ) := \block {
+  \takefrom F: \Cast[Partial] ({ F: Partial \where Zorn.Maximal F }) \by maximalExists \then
+  \let filter: Filter := \into[Family](F, { F: Family \where FilterLaws[F] }) \by { (extension F).filter } \then
+  \let ultra: Ultrafilter := \into[Filter](filter, { F: Filter \where Disjunction F }) \by {
+    maximalDichotomy F (\bysub(Partial, { F: Partial \where Zorn.Maximal F }, F))
+  } \then
+  \return Logic.existsIntro[Ultrafilter, { F: Ultrafilter \where Included seed F }] ultra ((extension F).initial)
+};

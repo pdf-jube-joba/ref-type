@@ -1,0 +1,180 @@
+\import \root.Normed[V := Real.Real, space := Linear.scalarSpace] \as RealNormed;
+\definition realNorm: RealNormed.Norm := RealNormed.Norm {
+  norm := Product.abs,
+  nonnegative := Product.absNonnegative,
+  zero := Distance.distanceSelf Real.zero,
+  definite := \fun (x: Real.Real) (zero: Product.abs x = Real.zero) => sym!{Real.Real} _ _ (Distance.distanceSeparated Real.zero x zero),
+  triangle := \fun (a, b: Real.Real) => R.leReplace _ _ _ _
+    (Distance.distanceSymmetric (Real.add a b) Real.zero)
+    (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Distance.distanceSymmetric a Real.zero) (Distance.distanceSymmetric b Real.zero))
+    (Estimates.distanceAddZero a b),
+  homogeneous := Product.absProduct,
+};
+\import \parent.\parent.Operators[W := Real.Real, target := Linear.scalarSpace, norm := norm, targetNorm := realNorm] \as Operators;
+\import \root.Metric[Carrier := Real.Real] \as RealSequences;
+\import \parent.Quadratic[inner := inner] \as Q;
+\import Q.Minimization[] \as Min;
+\import Real.Inverse[] \as Inverse;
+\import std.Logic[].Classical[] \as Classical;
+\definition Functional: \Set := Operators.Map;
+\definition Level[f: Functional]: \Pow V := { x: V \where f.apply x = Real.one };
+\definition distanceLaw[a, b: Real.Real]: (RealNormed.metric realNorm).distance a b = Real.distance a b :=
+  trans!{Real.Real} _ _ _ (Distance.distanceSymmetric Real.zero (Real.sub a b)) (Estimates.distanceDifference a b);
+\definition imageConverges: \forall (f: Functional) (s: N.Nat^ -> V) (x: V) -> Sequences.Converges (metric norm) s x ->
+  ScalarSequences.Converges (\fun (n: N.Nat^) => f.apply (s n)) (f.apply x) := \block {
+  \fun (f: Functional) (s: N.Nat^ -> V) (x: V) (converges: Sequences.Converges (metric norm) s x) (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where RealSequences.LimitControl (RealNormed.metric realNorm) (\fun (n: N.Nat^) => f.apply (s n)) (f.apply x) epsilon k })
+    \by Operators.mapsConvergent f s x converges epsilon positive \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where ScalarSequences.LimitControl (\fun (n: N.Nat^) => f.apply (s n)) (f.apply x) epsilon k }] k
+    (\fun (n: N.Nat^) (later: N.Basic[].Prop[].Le k n) => R.ltReplaceLeft _ _ epsilon (distanceLaw (f.apply (s n)) (f.apply x))
+      ((\bysub(N.Nat^, { k: N.Nat^ \where RealSequences.LimitControl (RealNormed.metric realNorm) (\fun (n: N.Nat^) => f.apply (s n)) (f.apply x) epsilon k }, k)) n later))
+};
+\definition levelClosed: \forall (f: Functional) -> Min.Closed (Level f) := \block {
+  \fun (f: Functional) (s: N.Nat^ -> V) (x: V) (members: \forall (n: N.Nat^) -> \In[V] (Level f) (s n)) (converges: Sequences.Converges (metric norm) s x) \then
+  \let constant: ScalarSequences.Converges (\fun (n: N.Nat^) => f.apply (s n)) Real.one :=
+    \idelim (\fun (_: N.Nat^) => Real.one) = (\fun (n: N.Nat^) => f.apply (s n))
+      \with sequence: (N.Nat^ -> Real.Real) => ScalarSequences.Converges sequence Real.one \by {
+        base: ScalarSequences.constantConverges Real.one,
+        equality: \axiom:funext((\fun (_: N.Nat^) => Real.one), (\fun (n: N.Nat^) => f.apply (s n)), \fun (n: N.Nat^) => sym!{Real.Real} _ _ (members n))
+      } \then
+  \return ScalarSequences.limitUnique (\fun (n: N.Nat^) => f.apply (s n)) (f.apply x) Real.one (imageConverges f s x converges) constant
+};
+\definition levelMidpoint: \forall (f: Functional) -> Min.MidpointClosed (Level f) :=
+  \fun (f: Functional) (x, y: V) (fx: f.apply x = Real.one) (fy: f.apply y = Real.one) => eq_reason!{
+    {f.apply (Q.midpoint x y)}
+    "=" {Real.mul Real.half (f.apply (space.add x y))} "by" {f.preservesScale Real.half (space.add x y)}
+    "=" {Real.mul Real.half (Real.add (f.apply x) (f.apply y))} "by" {congr!{Real.Real Real.Real} (Real.mul Real.half) _ _ (f.preservesAdd x y)}
+    "=" {Real.mul Real.half (Real.add Real.one Real.one)} "by" {congr!{Real.Real Real.Real} (Real.mul Real.half) _ _ (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ fx fy)}
+    "=" {Real.add (Real.mul Real.half Real.one) (Real.mul Real.half Real.one)} "by" {Laws.fieldMulAdd Real.half Real.one Real.one}
+    "=" {Real.one} "by" {Estimates.halfTwice Real.one}
+  };
+\definition energyScale[a: Real.Real] [x: V]: Q.energy (space.smul a x) = Real.mul a (Real.mul a (Q.energy x)) :=
+  trans!{Real.Real} _ _ _ (Inner.scaleLeft inner a x (space.smul a x))
+    (congr!{Real.Real Real.Real} (Real.mul a) _ _ (inner.scaleRight a x x));
+\definition subtractNonpositive[a, b: Real.Real]: R.Le a (Real.sub a b) -> R.Le b Real.zero :=
+  \fun (bound: R.Le a (Real.sub a b)) => Laws.leAddCancelRight b Real.zero a
+    (R.leReplace (Real.add a b) (Real.add b a) a (Real.add Real.zero a) (Laws.addComm a b) (sym!{Real.Real} _ _ (Laws.addZeroLeft a))
+      (R.leReplaceRight _ (Real.add (Real.sub a b) b) a (Distance.subAddCancel a b)
+        (Laws.addMonotoneRight a (Real.sub a b) b bound)));
+
+\definition coefficientCancel[a, h: Real.Real]: Logic.Not (a = Real.zero) -> Real.mul (Real.mul (Laws.fieldInv a) h) a = h :=
+  \fun (nonzero: Logic.Not (a = Real.zero)) => trans!{Real.Real} _ _ _ (Laws.fieldMulAssoc (Laws.fieldInv a) h a)
+    (trans!{Real.Real} _ _ _ (Algebra.mulSwap (Laws.fieldInv a) h a)
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul h) _ _ (Laws.fieldInverseNonzero a nonzero)) (Algebra.mulOneRight h)));
+\definition inverseCancel[a, r: Real.Real]: Logic.Not (a = Real.zero) -> Real.mul a (Real.mul (Laws.fieldInv a) r) = r :=
+  \fun (nonzero: Logic.Not (a = Real.zero)) => trans!{Real.Real} _ _ _ (Laws.fieldMulComm a (Real.mul (Laws.fieldInv a) r))
+    (coefficientCancel a r nonzero);
+\definition subtractDouble[a, b: Real.Real]: Real.sub (Real.add a b) (Real.add b b) = Real.sub a b := eq_reason!{
+  {Real.sub (Real.add a b) (Real.add b b)}
+  "=" {Real.add (Real.add a b) (Real.add (Real.neg b) (Real.neg b))} "by" {congr!{Real.Real Real.Real} (Real.add (Real.add a b)) _ _ (Laws.negAdd b b)}
+  "=" {Real.add (Real.add (Real.add a b) (Real.neg b)) (Real.neg b)} "by" {sym!{Real.Real} _ _ (Laws.addAssoc (Real.add a b) (Real.neg b) (Real.neg b))}
+  "=" {Real.sub a b} "by" {congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add r (Real.neg b)) _ _ (Laws.addNegCancelRight b a)}
+};
+\definition minimumOrthogonal: \forall (f: Functional) (u: V) -> Min.Minimum[Level f, u] ->
+  \forall (k: V) -> f.apply k = Real.zero -> inner.inner u k = Real.zero :=
+  \fun (f: Functional) (u: V) (minimum: Min.Minimum[Level f, u]) (k: V) (inKernel: f.apply k = Real.zero) =>
+    Logic.orElim _ _ _ (Classical.excludedMiddle (Q.energy k = Real.zero))
+      (\fun (zero: Q.energy k = Real.zero) =>
+        trans!{Real.Real} _ _ _ (congr!{V Real.Real} (inner.inner u) _ _ (inner.definite k zero)) (inner.zeroRight u))
+      (\block {
+        \fun (nonzero: Logic.Not (Q.energy k = Real.zero)) \then
+        \let a: Real.Real := Q.energy k \then
+        \let h: Real.Real := inner.inner u k \then
+        \let b: Real.Real := Real.mul (Laws.fieldInv a) h \then
+        \let q: Real.Real := Real.mul (Laws.fieldInv a) (Real.mul h h) \then
+        \let ap: R.Lt Real.zero a := Order.ltOfLeNotEq Real.zero a (inner.nonnegative k)
+          (\fun (zero: Real.zero = a) => nonzero (sym!{Real.Real} _ _ zero)) \then
+        \let cross: inner.inner u (space.smul b k) = q :=
+          trans!{Real.Real} _ _ _ (inner.scaleRight b u k) (Laws.fieldMulAssoc (Laws.fieldInv a) h h) \then
+        \let energy: Q.energy (space.smul b k) = q :=
+          trans!{Real.Real} _ _ _ (energyScale b k)
+            (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul b) _ _ (coefficientCancel a h nonzero))
+              (Laws.fieldMulAssoc (Laws.fieldInv a) h h)) \then
+        \let candidate: V := sub u (space.smul b k) \then
+        \let candidateMember: \In[V] (Level f) candidate := eq_reason!{
+          {f.apply candidate}
+          "=" {Real.sub (f.apply u) (f.apply (space.smul b k))} "by" {Operators.preservesSub f u (space.smul b k)}
+          "=" {Real.sub (f.apply u) (Real.mul b (f.apply k))} "by" {congr!{Real.Real Real.Real} (Real.sub (f.apply u)) _ _ (f.preservesScale b k)}
+          "=" {Real.sub Real.one (Real.mul b Real.zero)} "by" {congr2!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _ (minimum.member) (congr!{Real.Real Real.Real} (Real.mul b) _ _ inKernel)}
+          "=" {Real.sub Real.one Real.zero} "by" {congr!{Real.Real Real.Real} (Real.sub Real.one) _ _ (Laws.fieldMulZeroRight b)}
+          "=" {Real.one} "by" {Laws.subZeroRight Real.one}
+        } \then
+        \let candidateEnergy: Q.energy candidate = Real.sub (Q.energy u) q :=
+          trans!{Real.Real} _ _ _ (Q.difference u (space.smul b k))
+            (trans!{Real.Real} _ _ _
+              (congr2!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _
+                (congr!{Real.Real Real.Real} (Real.add (Q.energy u)) _ _ energy)
+                (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ cross cross))
+              (subtractDouble (Q.energy u) q)) \then
+        \let nonpositive: R.Le q Real.zero := subtractNonpositive (Q.energy u) q
+          (R.leReplaceRight _ (Q.energy candidate) _ candidateEnergy (minimum.least candidate candidateMember)) \then
+        \let zero: q = Real.zero := R.leAntisym q Real.zero nonpositive
+          (Laws.fieldMulNonnegative (Laws.fieldInv a) (Real.mul h h) (Order.leOfLt _ _ (Product.invPositive a ap)) (Algebra.squareNonnegative h)) \then
+        \return Algebra.squareZero h (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (inverseCancel a (Real.mul h h) nonzero))
+          (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul a) _ _ zero) (Laws.fieldMulZeroRight a)))
+      });
+
+\definition riesz: Hilbert[inner] -> \forall (f: Functional) -> \exists ( y: V \where Represents inner (f.apply) y ) :=
+  \fun (hilbert: Hilbert[inner]) (f: Functional) =>
+    Logic.orElim _ _ _ (Classical.excludedMiddle (\exists ( a: V \where Logic.Not (f.apply a = Real.zero) )))
+      (\block {
+        \fun (nonzero: \exists ( a: V \where Logic.Not (f.apply a = Real.zero) )) \then
+        \takefrom a: \Cast[V] ({ a: V \where Logic.Not (f.apply a = Real.zero) }) \by nonzero \then
+        \let fa: Logic.Not (f.apply a = Real.zero) := \bysub(V, { a: V \where Logic.Not (f.apply a = Real.zero) }, a) \then
+        \let normalized: V := space.smul (Laws.fieldInv (f.apply a)) a \then
+        \let normalizedMember: \In[V] (Level f) normalized :=
+          trans!{Real.Real} _ _ _ (f.preservesScale (Laws.fieldInv (f.apply a)) a) (Laws.fieldInverseNonzero (f.apply a) fa) \then
+        \takefrom u: \Cast[V] ({ u: V \where Min.Minimum[Level f, u] })
+          \by Min.minimumExists hilbert (Level f) (Logic.existsIntro[V, Level f] normalized normalizedMember) (levelClosed f) (levelMidpoint f) \then
+        \let minimum: Min.Minimum[Level f, u] := \bysub(V, { u: V \where Min.Minimum[Level f, u] }, u) \then
+        \let nonzeroEnergy: Logic.Not (Q.energy u = Real.zero) :=
+          \fun (zero: Q.energy u = Real.zero) => Laws.zeroNeOne (eq_reason!{
+            {Real.zero} "=" {f.apply (space.zero)} "by" {sym!{Real.Real} _ _ (f.preservesZero)}
+            "=" {f.apply u} "by" {congr!{V Real.Real} (f.apply) _ _ (sym!{V} _ _ (inner.definite u zero))}
+            "=" {Real.one} "by" {minimum.member}
+          }) \then
+        \let vector: V := space.smul (Laws.fieldInv (Q.energy u)) u \then
+        \return Logic.existsIntro[V, { y: V \where Represents inner (f.apply) y }] vector (\block {
+          \fun (x: V) \then
+          \let k: V := sub x (space.smul (f.apply x) u) \then
+          \let kernel: f.apply k = Real.zero := eq_reason!{
+            {f.apply k}
+            "=" {Real.sub (f.apply x) (f.apply (space.smul (f.apply x) u))} "by" {Operators.preservesSub f x (space.smul (f.apply x) u)}
+            "=" {Real.sub (f.apply x) (Real.mul (f.apply x) (f.apply u))} "by" {congr!{Real.Real Real.Real} (Real.sub (f.apply x)) _ _ (f.preservesScale (f.apply x) u)}
+            "=" {Real.sub (f.apply x) (Real.mul (f.apply x) Real.one)} "by" {congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.sub (f.apply x) (Real.mul (f.apply x) v)) _ _ (minimum.member)}
+            "=" {Real.sub (f.apply x) (f.apply x)} "by" {congr!{Real.Real Real.Real} (Real.sub (f.apply x)) _ _ (Algebra.mulOneRight (f.apply x))}
+            "=" {Real.zero} "by" {Laws.subSelf (f.apply x)}
+          } \then
+          \let difference: Real.sub (inner.inner u x) (Real.mul (f.apply x) (Q.energy u)) = Real.zero :=
+            trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (eq_reason!{
+              {inner.inner u k}
+              "=" {Real.add (inner.inner u x) (inner.inner u (space.neg (space.smul (f.apply x) u)))} "by" {inner.addRight u x (space.neg (space.smul (f.apply x) u))}
+              "=" {Real.sub (inner.inner u x) (inner.inner u (space.smul (f.apply x) u))} "by" {congr!{Real.Real Real.Real} (Real.add (inner.inner u x)) _ _ (Q.negativeRight u (space.smul (f.apply x) u))}
+              "=" {Real.sub (inner.inner u x) (Real.mul (f.apply x) (Q.energy u))} "by" {congr!{Real.Real Real.Real} (Real.sub (inner.inner u x)) _ _ (inner.scaleRight (f.apply x) u u)}
+            })) (minimumOrthogonal f u minimum k kernel) \then
+          \return sym!{Real.Real} _ _ (eq_reason!{
+            {inner.inner vector x}
+            "=" {Real.mul (Laws.fieldInv (Q.energy u)) (inner.inner u x)} "by" {Inner.scaleLeft inner (Laws.fieldInv (Q.energy u)) u x}
+            "=" {Real.mul (Laws.fieldInv (Q.energy u)) (Real.mul (f.apply x) (Q.energy u))} "by" {congr!{Real.Real Real.Real} (Real.mul (Laws.fieldInv (Q.energy u))) _ _ (Distance.subZeroEq _ _ difference)}
+            "=" {Real.mul (f.apply x) (Real.mul (Laws.fieldInv (Q.energy u)) (Q.energy u))} "by" {Algebra.mulSwap (Laws.fieldInv (Q.energy u)) (f.apply x) (Q.energy u)}
+            "=" {Real.mul (f.apply x) Real.one} "by" {congr!{Real.Real Real.Real} (Real.mul (f.apply x)) _ _ (Laws.fieldInverseNonzero (Q.energy u) nonzeroEnergy)}
+            "=" {f.apply x} "by" {Algebra.mulOneRight (f.apply x)}
+          })
+        })
+      })
+      (\fun (zero: Logic.Not (\exists ( a: V \where Logic.Not (f.apply a = Real.zero) ))) =>
+        Logic.existsIntro[V, { y: V \where Represents inner (f.apply) y }] (space.zero) (\fun (x: V) =>
+          trans!{Real.Real} _ _ _
+            (Order.byContradiction (f.apply x = Real.zero) (\fun (nonzero: Logic.Not (f.apply x = Real.zero)) =>
+              zero (Logic.existsIntro[V, { a: V \where Logic.Not (f.apply a = Real.zero) }] x nonzero)))
+            (sym!{Real.Real} _ _ ((Inner.asBilinear inner).zeroLeft x))));
+\definition Vector[hilbert: Hilbert[inner]] [f: Functional]: \Set := \Cast[V] ({ y: V \where Represents inner (f.apply) y });
+\definition vectorUnique: \forall (hilbert: Hilbert[inner]) (f: Functional) (y, z: Vector hilbert f) -> y = z :=
+  \fun (hilbert: Hilbert[inner]) (f: Functional) (y, z: Vector hilbert f) =>
+    representingVectorUnique inner (f.apply) y z (\bysub(V, { y: V \where Represents inner (f.apply) y }, y))
+      (\bysub(V, { z: V \where Represents inner (f.apply) z }, z));
+\definition vector[hilbert: Hilbert[inner]] [f: Functional]: V :=
+  \choice Vector hilbert f \by { existence: riesz hilbert f, uniqueness: vectorUnique hilbert f };
+\definition vectorLaw: \forall (hilbert: Hilbert[inner]) (f: Functional) -> Represents inner (f.apply) (vector hilbert f) :=
+  \fun (hilbert: Hilbert[inner]) (f: Functional) => \bysub(V, { y: V \where Represents inner (f.apply) y },
+    \choice Vector hilbert f \by { existence: riesz hilbert f, uniqueness: vectorUnique hilbert f });

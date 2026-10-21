@@ -1,0 +1,77 @@
+\import std.Set[].Extension[A := K, B := K, domain := splittingField] \as Forward;
+\import std.Set[].Extension[A := K, B := K, domain := splittingField] \as Backward;
+\import Subfields.Of[S := splittingField] \as Source;
+\import Subfields.Of[S := splittingField] \as Range;
+\definition restrictedForward[z: Source.Carrier]: K := map.forward z;
+\definition restrictedBackward[w: Range.Carrier]: K := map.backward w;
+\definition forward: K -> K := Forward.extend restrictedForward F.zero;
+\definition backward: K -> K := Backward.extend restrictedBackward F.zero;
+\definition forwardLaw: \forall (z: Source.Carrier) -> forward z = restrictedForward z := Forward.inside restrictedForward F.zero;
+\definition backwardLaw: \forall (w: Range.Carrier) -> backward w = restrictedBackward w := Backward.inside restrictedBackward F.zero;
+\definition exists: EquivalentKernels -> \exists Initial := \block {
+  \fun (kernels: EquivalentKernels) \then
+  \let isomorphism: Partial.Isomorphism := Partial.Isomorphism {
+  domain := splittingField, range := splittingField, forward := forward, backward := backward,
+  image := \fun (z: K)(member: _) => \idelim restrictedForward (\into[K](z, splittingField) \by { member }) = forward z
+    \with w: K => Subfields.Member splittingField w \by {
+      base: Range.member (map.forward (\into[K](z, splittingField) \by { member })),
+      equality: sym!{K} _ _ (forwardLaw (\into[K](z, splittingField) \by { member }))
+    },
+  preimage := \fun (w: K)(member: _) => \idelim restrictedBackward (\into[K](w, splittingField) \by { member }) = backward w
+    \with z: K => Subfields.Member splittingField z \by {
+      base: Source.member (map.backward (\into[K](w, splittingField) \by { member })),
+      equality: sym!{K} _ _ (backwardLaw (\into[K](w, splittingField) \by { member }))
+    },
+  left := \fun (z: K)(member: _) => eq_reason!{{backward (forward z)}
+    "=" {backward (restrictedForward (\into[K](z, splittingField) \by { member }))}
+    "by" {congr!{K K} backward _ _ (forwardLaw (\into[K](z, splittingField) \by { member }))}
+    "=" {restrictedBackward (map.forward (\into[K](z, splittingField) \by { member }))}
+    "by" {backwardLaw (map.forward (\into[K](z, splittingField) \by { member }))}
+    "=" z "by" {congr!{Source.Carrier K} Source.forget _ _ (leftInverse kernels map (\into[K](z, splittingField) \by { member }))}},
+  right := \fun (w: K)(member: _) => eq_reason!{{forward (backward w)}
+    "=" {forward (restrictedBackward (\into[K](w, splittingField) \by { member }))}
+    "by" {congr!{K K} forward _ _ (backwardLaw (\into[K](w, splittingField) \by { member }))}
+    "=" {restrictedForward (map.backward (\into[K](w, splittingField) \by { member }))}
+    "by" {forwardLaw (map.backward (\into[K](w, splittingField) \by { member }))}
+    "=" w "by" {congr!{Range.Carrier K} Range.forget _ _ (rightInverse kernels map (\into[K](w, splittingField) \by { member }))}},
+  hom := Partial.Hom[splittingField, forward] {
+    zero := trans!{K} _ _ _ (forwardLaw Source.subZero)
+      (congr!{Range.Carrier K} Range.forget _ _ (preservesZero kernels map)),
+    one := trans!{K} _ _ _ (forwardLaw Source.subOne)
+      (congr!{Range.Carrier K} Range.forget _ _ (preservesOne kernels map)),
+    add := \fun (z, v: K)(hz: _)(hv: _) => eq_reason!{{forward (F.add z v)}
+      "=" {restrictedForward (Source.subAdd (\into[K](z, splittingField) \by { hz }) (\into[K](v, splittingField) \by { hv }))}
+      "by" {forwardLaw (Source.subAdd (\into[K](z, splittingField) \by { hz }) (\into[K](v, splittingField) \by { hv }))}
+      "=" {F.add (restrictedForward (\into[K](z, splittingField) \by { hz })) (restrictedForward (\into[K](v, splittingField) \by { hv }))}
+      "by" {congr!{Range.Carrier K} Range.forget _ _ (preservesAdd kernels map (\into[K](z, splittingField) \by { hz }) (\into[K](v, splittingField) \by { hv }))}
+      "=" {F.add (forward z) (forward v)} "by" {congr2!{K K K} F.add _ _ _ _
+        (sym!{K} _ _ (forwardLaw (\into[K](z, splittingField) \by { hz }))) (sym!{K} _ _ (forwardLaw (\into[K](v, splittingField) \by { hv })))}},
+    neg := \fun (z: K)(hz: _) => eq_reason!{{forward (F.neg z)}
+      "=" {restrictedForward (Source.subNeg (\into[K](z, splittingField) \by { hz }))}
+      "by" {forwardLaw (Source.subNeg (\into[K](z, splittingField) \by { hz }))}
+      "=" {F.neg (restrictedForward (\into[K](z, splittingField) \by { hz }))}
+      "by" {congr!{Range.Carrier K} Range.forget _ _ (preservesNeg kernels map (\into[K](z, splittingField) \by { hz }))}
+      "=" {F.neg (forward z)} "by" {congr!{K K} F.neg _ _ (sym!{K} _ _ (forwardLaw (\into[K](z, splittingField) \by { hz })))}},
+    mul := \fun (z, v: K)(hz: _)(hv: _) => eq_reason!{{forward (F.mul z v)}
+      "=" {restrictedForward (Source.subMul (\into[K](z, splittingField) \by { hz }) (\into[K](v, splittingField) \by { hv }))}
+      "by" {forwardLaw (Source.subMul (\into[K](z, splittingField) \by { hz }) (\into[K](v, splittingField) \by { hv }))}
+      "=" {F.mul (restrictedForward (\into[K](z, splittingField) \by { hz })) (restrictedForward (\into[K](v, splittingField) \by { hv }))}
+      "by" {congr!{Range.Carrier K} Range.forget _ _ (preservesMul kernels map (\into[K](z, splittingField) \by { hz }) (\into[K](v, splittingField) \by { hv }))}
+      "=" {F.mul (forward z) (forward v)} "by" {congr2!{K K K} F.mul _ _ _ _
+        (sym!{K} _ _ (forwardLaw (\into[K](z, splittingField) \by { hz }))) (sym!{K} _ _ (forwardLaw (\into[K](v, splittingField) \by { hv })))}},
+    inv := \fun (z: K)(hz: _) => eq_reason!{{forward (F.inv z)}
+      "=" {restrictedForward (Source.subInv (\into[K](z, splittingField) \by { hz }))}
+      "by" {forwardLaw (Source.subInv (\into[K](z, splittingField) \by { hz }))}
+      "=" {F.inv (restrictedForward (\into[K](z, splittingField) \by { hz }))}
+      "by" {congr!{Range.Carrier K} Range.forget _ _ (preservesInv kernels map (\into[K](z, splittingField) \by { hz }))}
+      "=" {F.inv (forward z)} "by" {congr!{K K} F.inv _ _ (sym!{K} _ _ (forwardLaw (\into[K](z, splittingField) \by { hz })))}},
+  },
+} \then
+  \return \exact(Initial {
+    isomorphism := isomorphism, domain := \refl(splittingField), range := \refl(splittingField),
+    constants := \fun (z: K)(member: _) => trans!{K} _ _ _ (forwardLaw (sourceConstant (\into[K](z, constants) \by { member })))
+      (congr!{Range.Carrier K} Range.forget _ _ (onConstants kernels map (\into[K](z, constants) \by { member }))),
+    roots := \fun (i: Quintic.Five) => trans!{K} _ _ _ (forwardLaw (sourceRoot i))
+      (congr!{Range.Carrier K} Range.forget _ _ (onRoots kernels map i)),
+  }, Initial)
+};

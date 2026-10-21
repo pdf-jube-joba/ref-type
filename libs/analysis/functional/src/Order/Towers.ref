@@ -1,0 +1,182 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\use Logic.either;
+
+\definition Mem[S: \Pow A] [x: A]: \Prop := \In[A] S x;
+\definition Included[S, T: \Pow A]: \Prop := \forall (x: A) -> Mem S x -> Mem T x;
+\definition Empty: \Pow A := { x: A \where Logic.False };
+\definition Chain[F: \Pow (\Pow A)]: \Prop :=
+  \forall (S, T: \Pow A) -> \In[\Pow A] F S -> \In[\Pow A] F T -> Logic.Or[Included S T, Included T S];
+\definition Union[F: \Pow (\Pow A)]: \Pow A :=
+  { x: A \where \exists ( S: \Pow A \where Logic.And[\In[\Pow A] F S, Mem S x] ) };
+\definition emptyIncluded: \forall (S: \Pow A) -> Included Empty S :=
+  \fun (S: _) (x: _) (impossible: _) => Logic.falseElim (Mem S x) impossible;
+\definition reflexive: \forall (S: \Pow A) -> Included S S := \fun (S: _) (x: _) (member: _) => member;
+\definition transitive: \forall (S, T, U: \Pow A) -> Included S T -> Included T U -> Included S U :=
+  \fun (S, T, U: _) (st: _) (tu: _) (x: _) (member: _) => tu x (st x member);
+\definition antisymmetric: \forall (S, T: \Pow A) -> Included S T -> Included T S -> S = T :=
+  \fun (S, T: _) (st: _) (ts: _) => \axiom:setext(S, T, st, ts);
+\definition unionIntro[F: \Pow (\Pow A)] [S: \Pow A]:
+  \In[\Pow A] F S -> Included S (Union F) :=
+  \fun (inF: _) (x: _) (member: _) =>
+    Logic.existsIntro[\Pow A, { T: \Pow A \where Logic.And[\In[\Pow A] F T, Mem T x] }] S (Logic.And[_, _]::# inF member);
+\definition unionElim[F: \Pow (\Pow A)] [x: A] [P: \Prop]:
+  (\forall (S: \Pow A) -> \In[\Pow A] F S -> Mem S x -> P) -> Mem (Union F) x -> P := \block {
+  \fun (step: _) (member: _) \then
+  \takefrom S: \Cast[\Pow A] ({ S: \Pow A \where Logic.And[\In[\Pow A] F S, Mem S x] }) \by member \then
+  \let data: Logic.And[\In[\Pow A] F S, Mem S x] := \bysub(\Pow A, { S: \Pow A \where Logic.And[\In[\Pow A] F S, Mem S x] }, S) \then
+  \return step S (data.left) (data.right)
+};
+\definition unionLeast[F: \Pow (\Pow A)] [S: \Pow A]:
+  (\forall (T: \Pow A) -> \In[\Pow A] F T -> Included T S) -> Included (Union F) S :=
+  \fun (bound: _) (x: _) => unionElim F x (Mem S x) (\fun (T: _) (member: _) => bound T member x);
+\definition Inflationary: \Prop := \forall (S: \Pow A) -> Included S (advance S);
+\structure Tower[F: \Pow (\Pow A)]: \Prop := {
+  empty: \In[\Pow A] F Empty,
+  successor: \forall (S: \Pow A) -> \In[\Pow A] F S -> \In[\Pow A] F (advance S),
+  union: \forall (C: \Pow (\Pow A)) -> Chain C ->
+    (\forall (S: \Pow A) -> \In[\Pow A] C S -> \In[\Pow A] F S) -> \In[\Pow A] F (Union C),
+};
+\definition Generated: \Pow (\Pow A) :=
+  { S: \Pow A \where \forall (F: \Pow (\Pow A)) -> Tower[F] -> \In[\Pow A] F S };
+\definition generatedTower: Tower[Generated] := Tower[Generated] {
+  empty := \fun (F: _) (tower: Tower[F]) => tower.empty,
+  successor := \fun (S: _) (member: _) (F: _) (tower: Tower[F]) => tower.successor S (member F tower),
+  union := \fun (C: _) (chain: _) (included: _) (F: _) (tower: Tower[F]) =>
+    tower.union C chain (\fun (S: _) (member: _) => included S member F tower),
+};
+\definition induction[P: \Pow A -> \Prop]:
+  P Empty -> (\forall (S: \Pow A) -> \In[\Pow A] Generated S -> P S -> P (advance S)) ->
+  (\forall (C: \Pow (\Pow A)) -> Chain C ->
+    (\forall (S: \Pow A) -> \In[\Pow A] C S -> Logic.And[\In[\Pow A] Generated S, P S]) -> P (Union C)) ->
+  \forall (S: \Pow A) -> \In[\Pow A] Generated S -> P S := \block {
+  \fun (empty: _) (successor: _) (union: _) (S: _) (generated: _) \then
+  \let F: \Pow (\Pow A) := { T: \Pow A \where Logic.And[\In[\Pow A] Generated T, P T] } \then
+  \let tower: Tower[F] := Tower[F] {
+    empty := Logic.And[_, _]::# (generatedTower.empty) empty,
+    successor := \fun (T: _) (member: Logic.And[\In[\Pow A] Generated T, P T]) =>
+      Logic.And[_, _]::# (generatedTower.successor T (member.left)) (successor T (member.left) (member.right)),
+    union := \fun (C: _) (chain: _) (members: _) =>
+      Logic.And[_, _]::# (generatedTower.union C chain (\fun (T: _) (member: _) => (members T member).left))
+        (union C chain members),
+  } \then
+  \return (generated F tower).right
+};
+
+\definition Admissible[S: \Pow A]: \Prop :=
+  \forall (T: \Pow A) -> \In[\Pow A] Generated T -> Included T S -> Logic.Not (T = S) -> Included (advance T) S;
+\definition Dichotomy[S: \Pow A]: \Prop :=
+  \forall (T: \Pow A) -> \In[\Pow A] Generated T -> Logic.Or[Included T S, Included (advance S) T];
+
+
+\structure Above[C: \Pow (\Pow A), S, T: \Pow A]: \Prop := {
+  member: \In[\Pow A] C T,
+  included: Included (advance S) T,
+};
+
+\definition dichotomySuccessor: Inflationary -> \forall (S: \Pow A) -> Admissible S ->
+  \forall (T: \Pow A) -> \In[\Pow A] Generated T ->
+  Logic.Or[Included T S, Included (advance S) T] ->
+  Logic.Or[Included (advance T) S, Included (advance S) (advance T)] :=
+  \fun (inflationary: Inflationary) (S: \Pow A) (admissible: Admissible S)
+    (T: \Pow A) (generated: \In[\Pow A] Generated T) (dichotomy: Logic.Or[Included T S, Included (advance S) T]) =>
+    either!{dichotomy {Logic.Or[Included (advance T) S, Included (advance S) (advance T)]}
+      {\fun (below: Included T S) => either!{{(Classical.excludedMiddle (T = S))} {Logic.Or[Included (advance T) S, Included (advance S) (advance T)]}
+        {\fun (same: T = S) => Logic.Or[Included (advance T) S, Included (advance S) (advance T)]::right
+          (\idelim S = T \with U: \Pow A => Included (advance S) (advance U)
+            \by { base: reflexive (advance S), equality: sym!{\Pow A} T S same })}
+        {\fun (different: Logic.Not (T = S)) => Logic.Or[Included (advance T) S, Included (advance S) (advance T)]::left
+          (admissible T generated below different)}
+      }}
+      {\fun (above: Included (advance S) T) => Logic.Or[Included (advance T) S, Included (advance S) (advance T)]::right
+        (transitive (advance S) T (advance T) above (inflationary T))}
+    };
+\definition dichotomyUnion: \forall (S: \Pow A) (C: \Pow (\Pow A)) ->
+  (\forall (T: \Pow A) -> \In[\Pow A] C T -> Logic.Or[Included T S, Included (advance S) T]) ->
+  Logic.Or[Included (Union C) S, Included (advance S) (Union C)] :=
+  \fun (S: \Pow A) (C: \Pow (\Pow A))
+    (members: \forall (T: \Pow A) -> \In[\Pow A] C T -> Logic.Or[Included T S, Included (advance S) T]) =>
+    either!{{(Classical.excludedMiddle (\exists ( T: \Pow A \where Above[C, S, T] )))} {Logic.Or[Included (Union C) S, Included (advance S) (Union C)]}
+      {\block {
+        \fun (exists: \exists ( T: \Pow A \where Above[C, S, T] )) \then
+        \takefrom T: \Cast[\Pow A] ({ T: \Pow A \where Above[C, S, T] }) \by exists \then
+        \let data: Above[C, S, T] := \bysub(\Pow A, { T: \Pow A \where Above[C, S, T] }, T) \then
+        \return Logic.Or[Included (Union C) S, Included (advance S) (Union C)]::right
+          (transitive (advance S) T (Union C) (data.included) (unionIntro C T (data.member)))
+      }}
+      {\fun (none: Logic.Not (\exists ( T: \Pow A \where Above[C, S, T] ))) =>
+        Logic.Or[Included (Union C) S, Included (advance S) (Union C)]::left (unionLeast C S
+          (\fun (T: \Pow A) (member: \In[\Pow A] C T) => either!{{(members T member)} {Included T S}
+            {\fun (below: Included T S) => below}
+            {\fun (above: Included (advance S) T) => Logic.falseElim (Included T S)
+              (none (Logic.existsIntro[\Pow A, { U: \Pow A \where Above[C, S, U] }] T
+                (Above[C, S, T] { member := member, included := above })))}
+          }))}
+    };
+\definition admissibleDichotomy: Inflationary -> \forall (S: \Pow A) -> Admissible S -> Dichotomy S :=
+  \fun (inflationary: Inflationary) (S: \Pow A) (admissible: Admissible S) =>
+    induction (\fun (T: \Pow A) => Logic.Or[Included T S, Included (advance S) T])
+      (Logic.Or[Included Empty S, Included (advance S) Empty]::left (emptyIncluded S))
+      (dichotomySuccessor inflationary S admissible)
+      (\fun (C: \Pow (\Pow A)) (chain: Chain C)
+        (members: \forall (T: \Pow A) -> \In[\Pow A] C T -> Logic.And[\In[\Pow A] Generated T, Logic.Or[Included T S, Included (advance S) T]]) =>
+        dichotomyUnion S C (\fun (T: \Pow A) (member: \In[\Pow A] C T) => (members T member).right));
+\structure Escapes[C: \Pow (\Pow A), T, S: \Pow A]: \Prop := {
+  member: \In[\Pow A] C S,
+  outside: Logic.Not (Included S T),
+};
+\definition allAdmissible: Inflationary -> \forall (S: \Pow A) -> \In[\Pow A] Generated S -> Admissible S :=
+  \fun (inflationary: _) => induction Admissible
+    (\fun (T: _) (generated: _) (included: _) (different: _) =>
+      Logic.falseElim (Included (advance T) Empty) (different (antisymmetric T Empty included (emptyIncluded T))))
+    (\fun (S: _) (generated: _) (admissible: _) (T: _) (inGenerated: _) (below: _) (different: _) =>
+      either!{{(admissibleDichotomy inflationary S admissible T inGenerated)} _
+        {\fun (ts: Included T S) => either!{{(Classical.excludedMiddle (T = S))} _
+          {\fun (same: _) => \idelim S = T \with U: \Pow A => Included (advance U) (advance S)
+            \by { base: reflexive (advance S), equality: sym!{\Pow A} _ _ same }}
+          {\fun (unequal: _) => transitive _ _ _ (admissible T inGenerated ts unequal) (inflationary S)}
+        }}
+        {\fun (st: Included (advance S) T) => Logic.falseElim (Included (advance T) (advance S))
+          (different (antisymmetric T (advance S) below st))}
+      })
+    (\block {
+      \fun (C: \Pow (\Pow A)) (chain: Chain C) (members: \forall (S: \Pow A) -> \In[\Pow A] C S -> Logic.And[\In[\Pow A] Generated S, Admissible S]) (T: \Pow A) (generated: \In[\Pow A] Generated T) (below: Included T (Union C)) (different: Logic.Not (T = Union C)) \then
+      \let exists: \exists ( S: \Pow A \where Escapes[C, T, S] ) :=
+        Logic.orElim _ _ _ (Classical.excludedMiddle (\exists ( S: \Pow A \where Escapes[C, T, S] )))
+          (\fun (found: _) => found)
+          (\fun (none: _) => Logic.falseElim _ (different (antisymmetric T (Union C) below
+            (unionLeast C T (\fun (S: _) (member: _) =>
+              Logic.orElim _ _ _ (Classical.excludedMiddle (Included S T))
+                (\fun (included: _) => included)
+                (\fun (outside: _) => Logic.falseElim _
+                  (none (Logic.existsIntro[\Pow A, { S: \Pow A \where Escapes[C, T, S] }] S
+                    (Escapes[C, T, S] { member := member, outside := outside }))))))))) \then
+      \takefrom S: \Cast[\Pow A] ({ S: \Pow A \where Escapes[C, T, S] }) \by exists \then
+      \let data: Escapes[C, T, S] := \bysub(\Pow A, { S: \Pow A \where Escapes[C, T, S] }, S) \then
+      \let admissible: Admissible S := (members S (data.member)).right \then
+      \return either!{{(admissibleDichotomy inflationary S admissible T generated)} _
+        {\fun (ts: Included T S) => transitive _ _ _
+          (admissible T generated ts (\fun (same: T = S) => data.outside
+            (\idelim T = S \with U: \Pow A => Included U T \by { base: reflexive T, equality: same })))
+          (unionIntro C S (data.member))}
+        {\fun (st: Included (advance S) T) => Logic.falseElim _
+          (data.outside (transitive _ _ _ (inflationary S) st))}
+      }
+    });
+\definition generatedChain: Inflationary -> Chain Generated :=
+  \fun (inflationary: Inflationary) (S, T: \Pow A) (inS: \In[\Pow A] Generated S) (inT: \In[\Pow A] Generated T) =>
+    either!{{(admissibleDichotomy inflationary S (allAdmissible inflationary S inS) T inT)} _
+      {\fun (ts: Included T S) => Logic.Or[Included S T, Included T S]::right ts}
+      {\fun (st: Included (advance S) T) => Logic.Or[Included S T, Included T S]::left (transitive S (advance S) T (inflationary S) st)}
+    };
+\definition largest: \Pow A := Union Generated;
+\definition largestGenerated: Inflationary -> \In[\Pow A] Generated largest :=
+  \fun (inflationary: _) => generatedTower.union Generated (generatedChain inflationary)
+    (\fun (S: _) (member: _) => member);
+\definition fixed: Inflationary -> advance largest = largest :=
+  \fun (inflationary: _) => antisymmetric (advance largest) largest
+    (unionIntro Generated (advance largest) (generatedTower.successor largest (largestGenerated inflationary)))
+    (inflationary largest);

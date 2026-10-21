@@ -1,0 +1,32 @@
+\import \root.PathAction[E := E, B := B, base := base, projection := projection].Realization[action := action].At[basis := basis, inhabited := inhabited].Agreement[] \as Agreement;
+\import topology.Maps[A := I.Carrier, B := B] \as Maps;
+\import topology.Continuity[A := I.Carrier, B := B].Covers[] \as Covers;
+\import topology.Continuity[A := I.Carrier, B := I.Carrier] \as Parameters;
+\import topology.Maps[A := I.Carrier, B := I.Carrier].Identity[] \as Identity;
+\import I.Subdivision[] \as Subdivision;
+\definition family: \Pow (\Pow B) := { U: \Pow B \where Neighborhoods.Good[U] };
+\definition cover: Base.IsOpenCover[base, family, Base.Whole] := Base.IsOpenCover[base, family, Base.Whole] {
+  open := \fun (U: \Pow B)(good: Neighborhoods.Good[U]) => good.open,
+  covers := \block {
+    \fun (x: B)(_: _) \then
+    \takefrom U: \Cast[\Pow B] ({ U: \Pow B \where Neighborhoods.Refinement[x, Base.Whole, U] }) \by basis Base.Whole (Base.topologyLaws base).wholeOpen x (\refl(x)) \then
+    \let data: Neighborhoods.Refinement[x, Base.Whole, U] := \bysub(\Pow B, { U: \Pow B \where Neighborhoods.Refinement[x, Base.Whole, U] }, U) \then
+    \return Base.unionMemberOf family U x data.good data.contains
+  },
+};
+\import Subdivision.Cover[family := Maps.PullbackFamily p family] \as Fine;
+\definition Property[f: I.Carrier -> I.Carrier]: \Prop := \forall (fc: Parameters.Continuous I.topology I.topology f) -> Agrees (Raw.reparam p f fc);
+\definition combineParameter: \forall (f: I.Carrier -> I.Carrier) -> Property (Subdivision.left f) -> Property (Subdivision.right f) -> Property f :=
+  \fun (f: _)(left: _)(right: _)(fc: _) => combine (Raw.reparam p f fc)
+    (left (Subdivision.leftContinuous f fc)) (right (Subdivision.rightContinuous f fc));
+\definition local: \forall (f: I.Carrier -> I.Carrier) -> Parameters.Continuous I.topology I.topology f ->
+  \forall (V: \Pow I.Carrier) -> \In[\Pow I.Carrier] (Maps.PullbackFamily p family) V -> Fine.Within f V -> Property f :=
+  \fun (f: _)(fc: _)(V: _)(member: _)(within: _)(continuous: _) => Maps.pullbackElim p family V (Agrees (Raw.reparam p f continuous))
+    (\fun (U: \Pow B)(good: Neighborhoods.Good[U])(same: _) => Agreement.Local[U := U, good := good].agrees (Raw.reparam p f continuous)
+      (\fun (t: I.Carrier) => \idelim V = Maps.Preimage p U \with W: \Pow I.Carrier => \In[I.Carrier] W (f t)
+        \by { base: within t, equality: same })) member;
+\definition agrees: Agrees p := \idelim Raw.reparam p (\fun (t: I.Carrier) => t) (Identity.continuous I.topology) = p
+  \with q: Raw.Carrier => Agrees q \by {
+    base: Fine.localToGlobal (Covers.pullback I.topology base p (Raw.continuous p) family cover) Property combineParameter local (Identity.continuous I.topology),
+    equality: \axiom:funext(Raw.reparam p (\fun (t: I.Carrier) => t) (Identity.continuous I.topology), p, \fun (t: I.Carrier) => \refl(p t))
+  };

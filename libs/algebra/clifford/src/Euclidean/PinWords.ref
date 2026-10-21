@@ -1,0 +1,58 @@
+/* Euclidean Pin elements are words in positive unit vectors and scalar signs. */
+\import Clifford.Pin[] \as Pin;
+\import \parent.PinNorm[] \as Norm;
+\import algebra.Groups[].Units[A := Carrier, ring := ring] \as Units;
+\import algebra.Groups[].On[G := Units.Unit, group := Units.group] \as Operations;
+\import std.Logic[].Proposition[] \as Logic;
+\inductive Word: \forall (g: Units.Unit) -> \Prop :=
+  | one: Word Units.unit
+  | sign: \forall (g: Units.Unit) -> Word g -> Word (Units.product Units.minusOne g)
+  | vector: \forall (v: Pin.Positive)(g: Units.Unit) -> Word g -> Word (Units.product (Pin.positive v) g);
+\definition transport[g, h: Units.Unit][same: g = h]: Word g -> Word h := \fun (word: Word g) =>
+  \idelim g = h \with k: Units.Unit => Word k \by { base: word, equality: same };
+\definition signWord: Word Units.minusOne := transport (Units.product Units.minusOne Units.unit) Units.minusOne
+  (Operations.oneRight Units.minusOne) (Word::sign Units.unit Word::one);
+\definition vectorWord[v: Pin.Positive]: Word (Pin.positive v) := transport (Units.product (Pin.positive v) Units.unit) (Pin.positive v)
+  (Operations.oneRight (Pin.positive v)) (Word::vector v Units.unit Word::one);
+\definition multiply: \forall (g: Units.Unit) -> Word g -> \forall (h: Units.Unit) -> Word h -> Word (Units.product g h) :=
+  \induction (g: Units.Unit)(word: Word g) \return \forall (h: Units.Unit) -> Word h -> Word (Units.product g h) \with {
+    | one: \fun (h: Units.Unit)(right: Word h) => transport h (Units.product Units.unit h) (sym!{{Units.Unit}} _ _ (Operations.oneLeft h)) right
+    | sign: \fun (g: Units.Unit)(word: Word g)(previous: \forall (h: Units.Unit) -> Word h -> Word (Units.product g h))(h: Units.Unit)(right: Word h) =>
+      transport (Units.product Units.minusOne (Units.product g h)) (Units.product (Units.product Units.minusOne g) h)
+        (sym!{{Units.Unit}} _ _ (Operations.assoc Units.minusOne g h)) (Word::sign (Units.product g h) (previous h right))
+    | vector: \fun (v: Pin.Positive)(g: Units.Unit)(word: Word g)(previous: \forall (h: Units.Unit) -> Word h -> Word (Units.product g h))(h: Units.Unit)(right: Word h) =>
+      transport (Units.product (Pin.positive v) (Units.product g h)) (Units.product (Units.product (Pin.positive v) g) h)
+        (sym!{{Units.Unit}} _ _ (Operations.assoc (Pin.positive v) g h)) (Word::vector v (Units.product g h) (previous h right))
+  };
+\definition signInverse: Units.inverse Units.minusOne = Units.minusOne := Units.ext _ _ (\refl(Clifford.neg Clifford.one));
+\definition vectorInverse[v: Pin.Positive]: Units.inverse (Pin.positive v) = Pin.positive v := Units.ext _ _ (\refl(Clifford.iota v));
+\definition inverse: \forall (g: Units.Unit) -> Word g -> Word (Units.inverse g) :=
+  \induction (g: Units.Unit)(word: Word g) \return Word (Units.inverse g) \with {
+    | one: transport Units.unit (Units.inverse Units.unit) (sym!{{Units.Unit}} _ _ Operations.invOne) Word::one
+    | sign: \fun (g: Units.Unit)(word: Word g)(previous: Word (Units.inverse g)) =>
+      transport (Units.product (Units.inverse g) Units.minusOne) (Units.inverse (Units.product Units.minusOne g))
+        (sym!{{Units.Unit}} _ _ (trans!{{Units.Unit}} _ _ _ (Operations.invMul Units.minusOne g)
+          (congr!{{Units.Unit} {Units.Unit}} (Units.product (Units.inverse g)) _ _ signInverse)))
+        (multiply (Units.inverse g) previous Units.minusOne signWord)
+    | vector: \fun (v: Pin.Positive)(g: Units.Unit)(word: Word g)(previous: Word (Units.inverse g)) =>
+      transport (Units.product (Units.inverse g) (Pin.positive v)) (Units.inverse (Units.product (Pin.positive v) g))
+        (sym!{{Units.Unit}} _ _ (trans!{{Units.Unit}} _ _ _ (Operations.invMul (Pin.positive v) g)
+          (congr!{{Units.Unit} {Units.Unit}} (Units.product (Units.inverse g)) _ _ (vectorInverse v))))
+        (multiply (Units.inverse g) previous (Pin.positive v) (vectorWord v))
+  };
+\definition predicate: \Pow Units.Unit := { g: Units.Unit \where Word g };
+\definition closed: Operations.Closed[predicate] := Operations.Closed[predicate] {
+  one := Word::one, mul := \fun (g, h: Units.Unit)(left: Word g)(right: Word h) => multiply g left h right, inv := inverse
+};
+\definition onVector: \forall (g: Units.Unit) -> Pin.VectorGenerator g -> Word g :=
+  \induction (g: Units.Unit)(generator: Pin.VectorGenerator g) \return Word g \with {
+    | positive: vectorWord
+    | negative: \fun (v: Pin.Negative) => Logic.falseElim (Word (Pin.negative v)) (Norm.negativeImpossible v)
+  };
+\definition onGenerator: \forall (g: Units.Unit) -> Pin.Generator g -> Word g :=
+  \induction (g: Units.Unit)(generator: Pin.Generator g) \return Word g \with {
+    | sign: signWord
+    | vector: onVector
+  };
+\definition all: \forall (g: Pin.Pin) -> Word g := \fun (g: Pin.Pin) => (\bysub(Units.Unit, Pin.predicate, g)) predicate closed onGenerator;
+\module Parity;

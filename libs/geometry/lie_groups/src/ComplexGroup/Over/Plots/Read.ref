@@ -1,0 +1,17 @@
+
+\import \parent.Square[U := U, f := \fun (x: Open.Carrier U) => f x, regular := regular] \as Base;
+\definition heightFunction[x: Open.Carrier U]: R.Real := height (f x);
+\definition heightData: Smooth.SmoothFunction U := \into[Open.ScalarFunction U](heightFunction, Smooth.SmoothFunction U) \by { Base.heightSmooth };
+\definition heightNonzero: \forall (x: Open.Carrier U) -> Logic.Not (heightFunction x = R.zero) := \fun (x: Open.Carrier U) => nonzero (f x);
+\import Smooth.Reciprocal[U := U, f := heightData, nonzero := heightNonzero] \as InverseHeight;
+\definition parameters[x: Open.Carrier U]: Fin.Fin Phase.one -> R.Real := parameter (f x);
+\definition parameterSmooth: \forall (i: Fin.Fin Phase.one) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => parameters x i) :=
+  \fun (i: Fin.Fin Phase.one) => Functions.mulSmooth U InverseHeight.value _ InverseHeight.smooth Base.imaginarySmooth;
+\import Phase.Plots[d := d].Phase[U := U, s := parameters, regular := parameterSmooth] \as Root;
+\definition projected[x: Open.Carrier U]: E.Carrier := Faithful.projection (root (f x)) (Rep.image (f x));
+\definition projectedPlot: CliffordPlots.Plot U projected := (Calculus.operations n U).addition _ _
+  (scale U (\fun (x: Open.Carrier U) => C.re (root (f x))) _ Root.real (real U (\fun (x: Open.Carrier U) => f x) regular))
+  (scale U (\fun (x: Open.Carrier U) => C.im (root (f x))) _ Root.imaginary (imaginary U (\fun (x: Open.Carrier U) => f x) regular));
+\definition value[x: Open.Carrier U]: G := fiber (f x);
+\definition plot: BasePlot U value := CliffordPlots.congruent U projected (\fun (x: Open.Carrier U) => Rep.value (value x))
+  (\fun (x: Open.Carrier U) => sym!{E.Carrier} _ _ (fiberValue (f x))) projectedPlot;

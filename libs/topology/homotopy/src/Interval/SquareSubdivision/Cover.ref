@@ -1,0 +1,79 @@
+\import topology.Maps[A := Carrier, B := Carrier].Identity[] \as Identity;
+\definition Within[f, g: Function][U: \Pow Square.Carrier]: \Prop := \forall (s, t: Carrier) -> \In[Square.Carrier] U (Square.at (f s) (g t));
+\definition small: \forall (delta: Real.Real) -> Compactness.LebesgueRadius[metric, family, delta] ->
+  \forall (f, g: Function)(r: Real.Real) -> R.Le Real.zero r -> Subdivision.Lipschitz f r -> Subdivision.Lipschitz g r -> R.Lt r delta ->
+  \exists ( U: \Pow Square.Carrier \where Logic.And[\In[\Pow Square.Carrier] family U, Within f g U] ) := \block {
+  \fun (delta: Real.Real)(lebesgue: _)(f, g: Function)(r: Real.Real)(positive: _)(fl: _)(gl: _)(bound: _) \then
+  \takefrom U: \Cast[\Pow Square.Carrier] ({ U: \Pow Square.Carrier \where Logic.And[\In[\Pow Square.Carrier] family U, SquareSpace.Subset (Metrics.Ball metric (Square.at (f start) (g start)) delta) U] })
+    \by lebesgue.smallBalls (Square.at (f start) (g start)) \then
+  \let data: Logic.And[\In[\Pow Square.Carrier] family U, SquareSpace.Subset (Metrics.Ball metric (Square.at (f start) (g start)) delta) U] :=
+    \bysub(\Pow Square.Carrier, { U: \Pow Square.Carrier \where Logic.And[\In[\Pow Square.Carrier] family U, SquareSpace.Subset (Metrics.Ball metric (Square.at (f start) (g start)) delta) U] }, U) \then
+  \return Logic.existsIntro[\Pow Square.Carrier, { U: \Pow Square.Carrier \where Logic.And[\In[\Pow Square.Carrier] family U, Within f g U] }] U
+    (Logic.And[_, _]::# data.left (\fun (s, t: Carrier) => data.right (Square.at (f s) (g t))
+      (R.leLtTrans _ r delta (Distance.maxLeast _ _ r (Subdivision.initialDistance f r positive fl s) (Subdivision.initialDistance g r positive gl t)) bound)))
+};
+\definition allSmall: \forall (P: Function -> Function -> \Prop)(delta: Real.Real) -> Compactness.LebesgueRadius[metric, family, delta] ->
+  (\forall (f, g: Function) -> Maps.Continuous topology topology f -> Maps.Continuous topology topology g ->
+    \forall (U: \Pow Square.Carrier) -> \In[\Pow Square.Carrier] family U -> Within f g U -> P f g) ->
+  \forall (n: N.Nat^)(f, g: Function)(r: Real.Real) -> Maps.Continuous topology topology f -> Maps.Continuous topology topology g ->
+    R.Le Real.zero r -> Subdivision.Lipschitz f r -> Subdivision.Lipschitz g r -> R.Lt (Real.mul r (Power.value n)) delta -> Subdivided P n f g :=
+  \fun (P: _)(delta: Real.Real)(lebesgue: _)(local: _) => \induction (n: N.Nat^) \return
+    (\forall (f, g: Function)(r: Real.Real) -> Maps.Continuous topology topology f -> Maps.Continuous topology topology g ->
+      R.Le Real.zero r -> Subdivision.Lipschitz f r -> Subdivision.Lipschitz g r -> R.Lt (Real.mul r (Power.value n)) delta -> Subdivided P n f g) \with {
+    | zero: \block {
+      \fun (f, g: Function)(r: Real.Real)(fc: _)(gc: _)(positive: _)(fl: _)(gl: _)(bound: _) \then
+      \takefrom U: \Cast[\Pow Square.Carrier] ({ U: \Pow Square.Carrier \where Logic.And[\In[\Pow Square.Carrier] family U, Within f g U] })
+        \by small delta lebesgue f g r positive fl gl (R.ltReplaceLeft _ r delta (Algebra.mulOneRight r) bound) \then
+      \let data: Logic.And[\In[\Pow Square.Carrier] family U, Within f g U] :=
+        \bysub(\Pow Square.Carrier, { U: \Pow Square.Carrier \where Logic.And[\In[\Pow Square.Carrier] family U, Within f g U] }, U) \then
+      \return local f g fc gc U data.left data.right
+    }
+    | succ: \fun (n: N.Nat^)(previous: \forall (f, g: Function)(r: Real.Real) -> Maps.Continuous topology topology f -> Maps.Continuous topology topology g ->
+        R.Le Real.zero r -> Subdivision.Lipschitz f r -> Subdivision.Lipschitz g r -> R.Lt (Real.mul r (Power.value n)) delta -> Subdivided P n f g)
+      (f, g: Function)(r: Real.Real)(fc: _)(gc: _)(positive: _)(fl: _)(gl: _)(bound: _) =>
+      Logic.And[_, _]::# (Logic.And[_, _]::#
+        (previous (Subdivision.left f) (Subdivision.left g) (Subdivision.coefficient r)
+          (Subdivision.leftContinuous f fc) (Subdivision.leftContinuous g gc) (Subdivision.positiveCoefficient r positive)
+          (Subdivision.leftLipschitz f r positive fl) (Subdivision.leftLipschitz g r positive gl)
+          (R.ltReplaceLeft _ _ delta (sym!{Real.Real} _ _ (Laws.fieldMulAssoc r Real.half (Power.value n))) bound))
+        (previous (Subdivision.left f) (Subdivision.right g) (Subdivision.coefficient r)
+          (Subdivision.leftContinuous f fc) (Subdivision.rightContinuous g gc) (Subdivision.positiveCoefficient r positive)
+          (Subdivision.leftLipschitz f r positive fl) (Subdivision.rightLipschitz g r positive gl)
+          (R.ltReplaceLeft _ _ delta (sym!{Real.Real} _ _ (Laws.fieldMulAssoc r Real.half (Power.value n))) bound)))
+        (Logic.And[_, _]::#
+        (previous (Subdivision.right f) (Subdivision.left g) (Subdivision.coefficient r)
+          (Subdivision.rightContinuous f fc) (Subdivision.leftContinuous g gc) (Subdivision.positiveCoefficient r positive)
+          (Subdivision.rightLipschitz f r positive fl) (Subdivision.leftLipschitz g r positive gl)
+          (R.ltReplaceLeft _ _ delta (sym!{Real.Real} _ _ (Laws.fieldMulAssoc r Real.half (Power.value n))) bound))
+        (previous (Subdivision.right f) (Subdivision.right g) (Subdivision.coefficient r)
+          (Subdivision.rightContinuous f fc) (Subdivision.rightContinuous g gc) (Subdivision.positiveCoefficient r positive)
+          (Subdivision.rightLipschitz f r positive fl) (Subdivision.rightLipschitz g r positive gl)
+          (R.ltReplaceLeft _ _ delta (sym!{Real.Real} _ _ (Laws.fieldMulAssoc r Real.half (Power.value n))) bound)))
+  };
+\definition localToGlobal: SquareSpace.IsOpenCover[Square.topology topology, family, SquareSpace.Whole] ->
+  \forall (P: Function -> Function -> \Prop) ->
+  (\forall (f, g: Function) -> P (Subdivision.left f) g -> P (Subdivision.right f) g -> P f g) ->
+  (\forall (f, g: Function) -> P f (Subdivision.left g) -> P f (Subdivision.right g) -> P f g) ->
+  (\forall (f, g: Function) -> Maps.Continuous topology topology f -> Maps.Continuous topology topology g ->
+    \forall (U: \Pow Square.Carrier) -> \In[\Pow Square.Carrier] family U -> Within f g U -> P f g) ->
+  P (\fun (t: Carrier) => t) (\fun (t: Carrier) => t) := \block {
+  \fun (cover: _)(P: _)(horizontal: _)(vertical: _)(local: _) \then
+  \let metricCover: SquareSpace.IsOpenCover[MetricTopology.topology metric, family, SquareSpace.Whole] :=
+    \idelim Square.topology topology = MetricTopology.topology metric \with t: SquareSpace.Topology => SquareSpace.IsOpenCover[t, family, SquareSpace.Whole]
+      \by { base: cover, equality: sym!{SquareSpace.Topology} _ _ metricTopology } \then
+  \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where Compactness.LebesgueRadius[metric, family, delta] })
+    \by Compactness.lebesgue metric metricCompact family metricCover \then
+  \let lebesgue: Compactness.LebesgueRadius[metric, family, delta] :=
+    \bysub(Real.Real, { delta: Real.Real \where Compactness.LebesgueRadius[metric, family, delta] }, delta) \then
+  \let halfBelowOne: R.Lt Real.half Real.one := R.ltReplaceLeft _ Real.half Real.one (Algebra.mulOneRight Real.half)
+    (Estimates.halfStrict Real.one (R.Order[].ltOfLeNotEq Real.zero Real.one Laws.oneNonnegative Laws.zeroNeOne)) \then
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where R.Lt (Power.value n) delta })
+    \by Power.eventual Estimates.halfNonnegative halfBelowOne delta lebesgue.positive \then
+  \let unitLipschitz: Subdivision.Lipschitz (\fun (t: Carrier) => t) Real.one :=
+    \fun (s, t: Carrier) => R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Laws.fieldMulOneLeft (Real.distance s t))) (R.leRefl (Real.distance s t)) \then
+  \return recover P horizontal vertical n (\fun (t: Carrier) => t) (\fun (t: Carrier) => t)
+    (allSmall P delta lebesgue local n (\fun (t: Carrier) => t) (\fun (t: Carrier) => t) Real.one
+      (Identity.continuous topology) (Identity.continuous topology) Laws.oneNonnegative unitLipschitz unitLipschitz
+      (R.ltReplaceLeft _ _ delta (sym!{Real.Real} _ _ (Laws.fieldMulOneLeft (Power.value n)))
+        (\bysub(N.Nat^, { n: N.Nat^ \where R.Lt (Power.value n) delta }, n))))
+};

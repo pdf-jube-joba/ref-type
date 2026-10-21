@@ -1,0 +1,46 @@
+\import algebra.FreeAssociativeRing[].Over[R := K, coefficients := coefficients, Variables := V] \as Free;
+\definition quadratic[v: V]: K := form.form v v;
+\inductive Relation: \forall (x, y: Free.Expression) -> \Prop :=
+  | zero: Relation (Free.Expression::variable space.zero) Free.zeroExpr
+  | addition: \forall (x, y: V) -> Relation (Free.Expression::variable (space.add x y)) (Free.Expression::sum (Free.Expression::variable x) (Free.Expression::variable y))
+  | scalar: \forall (a: K)(x: V) -> Relation (Free.Expression::variable (space.smul a x)) (Free.Expression::product (Free.Expression::constant a) (Free.Expression::variable x))
+  | square: \forall (x: V) -> Relation (Free.Expression::product (Free.Expression::variable x) (Free.Expression::variable x)) (Free.Expression::constant (quadratic x));
+\import Free.Presentation[relations := Relation] \as Presented;
+\import algebra.Quotient[A := Free.Expression, relation := Presented.Equivalent] \as Quotient;
+\definition Carrier: \Set := Presented.Carrier;
+\definition ring: Ring.Ring[Carrier] := Presented.ring;
+\definition vectorSpace: Linear.VectorSpace Carrier := Presented.space;
+\definition algebra: Ring.RingAlgebra[K, Carrier, coefficients] := Presented.algebra;
+\definition zero: Carrier := Presented.zero;
+\definition one: Carrier := Presented.one;
+\definition add: Carrier -> Carrier -> Carrier := Presented.add;
+\definition neg: Carrier -> Carrier := Presented.neg;
+\definition mul: Carrier -> Carrier -> Carrier := Presented.mul;
+\definition scale: K -> Carrier -> Carrier := Presented.scale;
+\definition scalar: K -> Carrier := Presented.constant;
+\definition iota: V -> Carrier := Presented.variable;
+\import algebra.Hom[A := K, B := Carrier] \as Coefficients;
+\definition scalarMap: Coefficients.RingMap Linear.ring ring := Presented.coefficientMap;
+\definition scalarCentral: \forall (a: K)(x: Carrier) -> mul (scalar a) x = mul x (scalar a) := Presented.central;
+\definition relationEquality: \forall (x, y: Free.Expression) -> Relation x y -> Presented.class x = Presented.class y :=
+  \fun (x, y: Free.Expression)(r: Relation x y) => Quotient.classRelated Presented.equivalence x y (Presented.relationIncluded x y r);
+\import Linear.Linear[V := V, W := Carrier, source := space, target := vectorSpace] \as Maps;
+\definition injection: Maps.Map := Maps.Map {
+  apply := iota,
+  preservesAdd := \fun (x, y: V) => trans!{Carrier} _ _ _ (relationEquality _ _ (Relation::addition x y))
+    (sym!{Carrier} _ _ (Presented.addClass (Free.Expression::variable x) (Free.Expression::variable y))),
+  preservesScale := \fun (a: K)(x: V) => trans!{Carrier} _ _ _ (relationEquality _ _ (Relation::scalar a x))
+    (sym!{Carrier} _ _ (Presented.mulClass (Free.Expression::constant a) (Free.Expression::variable x))),
+};
+\definition cliffordRelation: \forall (v: V) -> mul (iota v) (iota v) = scalar (quadratic v) :=
+  \fun (v: V) => trans!{Carrier} _ _ _ (Presented.mulClass (Free.Expression::variable v) (Free.Expression::variable v))
+    (relationEquality _ _ (Relation::square v));
+\import lie_algebras.Field[K := K, field := field].Associative[A := Carrier, algebra := algebra] \as Commutator;
+\definition commutatorLieAlgebra: lie_algebras.Field[K := K, field := field].LieAlgebra Carrier vectorSpace := Commutator.lie;
+\module Universal(A: \Set, target: Ring.Ring[A]);
+\module Relations;
+\module Grading;
+\module Pin;
+\module Induction(P: Carrier -> \Prop);
+\module HomExt(A: \Set, target: Ring.Ring[A]);
+\module Reversion;

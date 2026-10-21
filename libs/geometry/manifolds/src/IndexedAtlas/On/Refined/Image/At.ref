@@ -1,0 +1,22 @@
+\import \parent.\parent.\parent.\parent.Read[d := n].On[p := patch i, U := (patch j).image, f := point j, a := a] \as Reads;
+\module WithLift(witness: Reads.Witness);
+\definition neighborhood: \In[A] (Image i W) (point j a) -> \exists ( V: \Pow (Parameter j) \where
+  Source.OpenNeighborhood[parameterTopology j, a, Pullback j (Image i W), V] ) := \block {
+  \fun (member: _) \then
+  \takefrom y: \Cast[Parameter i] ({ y: Parameter i \where Logic.And[\In[Parameter i] W y, point i y = point j a] }) \by member \then
+  \let evidence: Logic.And[\In[Parameter i] W y, point i y = point j a] := \bysub(Parameter i,
+    { y: Parameter i \where Logic.And[\In[Parameter i] W y, point i y = point j a] }, y) \then
+  \let inPatch: \In[A] ((patch i).domain) (point j a) := \idelim point i y = point j a
+    \with x: A => \In[A] ((patch i).domain) x \by {
+      base: \bysub(A, (patch i).domain, (patch i).point y), equality: evidence.right
+    } \then
+  \takefrom witness: Reads.Witness \by transitions i j a inPatch \then
+  \let localPoint: Open.Carrier witness.domain := \into[std.Data[].FinSet[].Fin n -> real.Analysis[].Real](a, witness.domain.points) \by { witness.contains } \then
+  \let read: Parameter i := calculus.Maps[n := n, m := n].apply witness.domain (patch i).image witness.lift localPoint \then
+  \let same: read = y := pointInjective (patch i) read y
+    (trans!{A} _ _ _ (witness.agrees localPoint) (sym!{A} _ _ evidence.right)) \then
+  \let readInW: \In[Parameter i] W read := \idelim y = read \with x: Parameter i => \In[Parameter i] W x \by {
+    base: evidence.left, equality: sym!{{Parameter i}} _ _ same
+  } \then
+  \return WithLift[witness := witness].neighborhood readInW
+};

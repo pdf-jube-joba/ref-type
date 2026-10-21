@@ -1,0 +1,31 @@
+\import \parent.Positive[x := f a, positive := positive a] \as Center;
+\definition denominator[x: Real]: Real := add (value f x) (value f a);
+\definition denominatorPositive: \forall (x: Real) -> R.Lt zero (denominator x) := \fun (x: Real) =>
+  R.ltLeTrans zero (value f x) (denominator x) (\parent.Positive[x := f x, positive := positive x].rootPositive)
+    (Algebra.leAddRight (value f x) (value f a) (Root.nonnegative (f a)));
+\definition nonzero: \forall (x: Real) -> Logic.Not (denominator x = zero) := \fun (x: Real) => Inverse.positiveNonzero (denominator x) (denominatorPositive x);
+\definition difference[x: Real]: sub (value f x) (value f a) = mul (inv (denominator x)) (sub (f x) (f a)) := \block {
+  \let equation: mul (sub (value f x) (value f a)) (denominator x) = sub (f x) (f a) :=
+    trans!{Real} _ _ _ (Root.differenceOfSquares (value f a) (value f x))
+      (congr2!{Real Real Real} sub _ _ _ _ (\parent.Positive[x := f x, positive := positive x].square) Center.square) \then
+  \return sym!{Real} _ _ (trans!{Real} _ _ _
+    (congr!{Real Real} (mul (inv (denominator x))) _ _ (sym!{Real} _ _ equation))
+    (trans!{Real} _ _ _ (Algebra.mulSwap (inv (denominator x)) (sub (value f x) (value f a)) (denominator x))
+      (trans!{Real} _ _ _ (congr!{Real Real} (mul (sub (value f x) (value f a))) _ _ (Laws.fieldInverseNonzero (denominator x) (nonzero x)))
+        (Algebra.mulOneRight (sub (value f x) (value f a))))))
+};
+\definition slope: \forall (x: Real) -> Derivatives.slope (value f) a x = mul (inv (denominator x)) (Derivatives.slope f a x) :=
+  \fun (x: Real) => trans!{Real} _ _ _ (congr!{Real Real} (\fun (y: Real) => mul y (inv (sub x a))) _ _ (difference x))
+    (Laws.fieldMulAssoc (inv (denominator x)) (sub (f x) (f a)) (inv (sub x a)));
+\definition derivative: \forall (d: Real) -> Derivatives.HasDerivativeAt f a d -> Derivatives.HasDerivativeAt (value f) a (mul (factor f a) d) := \block {
+  \fun (d: Real)(derivativeF: _) \then
+  \let continuousValue: Limits.ContinuousAt (value f) a := continuous f a (DerivativeOperations.continuousOfDerivative f a d derivativeF) \then
+  \let continuousDenominator: Limits.ContinuousAt denominator a := LimitOperations.addContinuous (value f) (constant (value f a)) a continuousValue (LimitLaws.constantLimit (value f a) a) \then
+  \let continuousInverse: Limits.ContinuousAt (\fun (x: Real) => inv (denominator x)) a := Reciprocal.continuous denominator nonzero a continuousDenominator \then
+  \return \idelim mul (inv (denominator a)) d = mul (factor f a) d \with e: Real => Derivatives.HasDerivativeAt (value f) a e \by {
+    base: LimitLaws.congruentLimit (\fun (x: Real) => mul (inv (denominator x)) (Derivatives.slope f a x)) (Derivatives.slope (value f) a)
+      (\fun (x: Real) => sym!{Real} _ _ (slope x)) a (mul (inv (denominator a)) d)
+      (LimitOperations.mulLimit (\fun (x: Real) => inv (denominator x)) (Derivatives.slope f a) a (inv (denominator a)) d continuousInverse derivativeF),
+    equality: congr!{Real Real} (\fun (y: Real) => mul y d) _ _ Center.inverseSum
+  }
+};

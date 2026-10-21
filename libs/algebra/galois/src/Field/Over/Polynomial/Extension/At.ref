@@ -1,0 +1,172 @@
+\import algebra.Group[].Of[Carrier := Abstract.Carrier, group := Rings.additiveGroup Abstract.Carrier Raw.ring] \as PolynomialSum;
+\import Abstract.Universal[K := L, target := Fields.fieldAsCommutativeRing L target] \as Universal;
+\import Into.At[coefficients := Maps.ringMap embedding, x := x] \as Evaluation;
+\definition value: Coefficients -> L := Evaluation.value;
+\definition monicValue: Coefficients -> L := Evaluation.monicValue;
+\structure Root: \Set := {
+  coefficients: Coefficients,
+  positive: Positive coefficients,
+  root: monicValue coefficients = Target.zero,
+};
+\definition Algebraic: \Prop := \exists Root;
+\structure Minimal: \Set := {
+  polynomial: Root,
+  least: \forall (q: Root) -> Nat.Le (degree polynomial.coefficients) (degree q.coefficients),
+};
+\definition minimalExists: Algebraic -> \exists Minimal := \block {
+  \fun (algebraic: Algebraic) \then
+  \let HasDegree: N.Nat^ -> \Prop := \fun (n: N.Nat^) => \exists \Cast[Root] ({ q: Root \where degree q.coefficients = n }) \then
+  \takefrom initial: Root \by algebraic \then
+  \let someDegree: \exists ( n: N.Nat^ \where HasDegree n ) :=
+    Logic.existsIntro[N.Nat^, { n: N.Nat^ \where HasDegree n }] (degree initial.coefficients)
+      (Logic.existsIntro[Root, { q: Root \where degree q.coefficients = degree initial.coefficients }] initial (\refl(degree initial.coefficients))) \then
+  \takefrom least: Induction.LeastValue HasDegree \by Induction.leastExists HasDegree someDegree \then
+  \let laws: Induction.LeastLaws[HasDegree, least] := \bysub(N.Nat^, Induction.LeastValue HasDegree, least) \then
+  \takefrom q: \Cast[Root] ({ q: Root \where degree q.coefficients = least }) \by laws.member \then
+  \return \exact(Minimal {
+    polynomial := q,
+    least := \fun (r: Root) => \idelim least = degree q.coefficients \with n: N.Nat^ => Nat.Le n (degree r.coefficients) \by {
+      base: laws.least (degree r.coefficients)
+        (Logic.existsIntro[Root, { q: Root \where degree q.coefficients = degree r.coefficients }] r (\refl(degree r.coefficients))),
+      equality: sym!{N.Nat^} _ _ (\bysub(Root, { q: Root \where degree q.coefficients = least }, q))
+    },
+  }, Minimal)
+};
+\definition rootPositive: \forall (p: Coefficients) -> monicValue p = Target.zero -> Positive p :=
+  \induction (p: Coefficients) \return monicValue p = Target.zero -> Positive p \with {
+    | nil: \fun (impossible: _) => Logic.falseElim _ (Arithmetic.oneNonzero impossible)
+    | cons: \fun (a: K)(tail: Coefficients)(unused: _)(root: _) => Nat.succNeZero (degree tail)
+  };
+\import Raw.Normalization[] \as Normalization;
+\structure Smaller[p: Coefficients]: \Set := {
+  polynomial: Root,
+  bound: Nat.Lt (degree polynomial.coefficients) (Lists.length K p),
+};
+\definition normalizeRoot: \forall (p: Coefficients) -> value p = Target.zero ->
+  Logic.Or[Normalization.AllZero p, \exists Smaller[p]] :=
+  \fun (p: Coefficients)(root: _) =>
+    Logic.orElim (Normalization.AllZero p) (\exists Normalization.NonzeroForm[\fun (a: K) => Logic.True, p])
+      (Logic.Or[Normalization.AllZero p, \exists Smaller[p]])
+      (Normalization.normalize (\fun (a: K) => Logic.True) (Subfields.laws Subfields.whole) p (Nonzero.allCoefficients p))
+      (Logic.Or[_, _]::left)
+      (\block {
+        \fun (nonzero: _) \then
+        \takefrom f: Normalization.NonzeroForm[\fun (a: K) => Logic.True, p] \by nonzero \then
+        \let productZero: Target.mul (embedding.apply f.leading) (monicValue f.coefficients) = Target.zero := eq_reason!{
+          {Target.mul (embedding.apply f.leading) (monicValue f.coefficients)}
+          "=" {Target.mul (Evaluation.apply (Abstract.constant f.leading)) (Evaluation.apply (asPolynomial f.coefficients))}
+          "by" {congr2!{L L L} Target.mul _ _ _ _
+            (sym!{L} _ _ (Universal.constants (Maps.ringMap embedding) x f.leading))
+            (sym!{L} _ _ (Evaluation.monicAgrees f.coefficients))}
+          "=" {Evaluation.apply (Abstract.mul (Abstract.constant f.leading) (asPolynomial f.coefficients))}
+          "by" {sym!{L} _ _ (Evaluation.laws.mul (Abstract.constant f.leading) (asPolynomial f.coefficients))}
+          "=" {Evaluation.apply (Raw.asPolynomial p)}
+          "by" {congr!{Abstract.Carrier L} Evaluation.apply _ _ (sym!{Abstract.Carrier} _ _ f.factorization)}
+          "=" {value p} "by" {Evaluation.rawAgrees p}
+          "=" {Target.zero} "by" root} \then
+        \let monicRoot: monicValue f.coefficients = Target.zero :=
+          Arithmetic.cancelLeft (embedding.apply f.leading) (monicValue f.coefficients) Target.zero
+            (Maps.nonzeroImage embedding f.leading f.leadingNonzero)
+            (trans!{L} _ _ _ productZero (sym!{L} _ _ (target.ring.ring.semiring.zeroAbsorbsRight (embedding.apply f.leading)))) \then
+        \return Logic.Or[Normalization.AllZero p, \exists Smaller[p]]::right (\exact(Smaller[p] {
+          polynomial := Root { coefficients := f.coefficients, positive := rootPositive f.coefficients monicRoot, root := monicRoot },
+          bound := f.bound,
+        }, Smaller[p]))
+      });
+\definition smallKernel: \forall (minimal: Minimal)(p: Coefficients) ->
+  Nat.Le (Lists.length K p) (degree minimal.polynomial.coefficients) -> value p = Target.zero -> Normalization.AllZero p :=
+  \fun (minimal: Minimal)(p: Coefficients)(bound: _)(root: _) =>
+    Logic.orElim (Normalization.AllZero p) (\exists Smaller[p]) (Normalization.AllZero p) (normalizeRoot p root)
+      (\fun (all: _) => all)
+      (\block {
+        \fun (smaller: _) \then
+        \takefrom q: Smaller[p] \by smaller \then
+        \return Logic.falseElim (Normalization.AllZero p)
+          (Nat.ltIrrefl (degree minimal.polynomial.coefficients)
+            (Nat.leLtTrans _ _ _ (minimal.least q.polynomial) (Nat.ltLeTrans _ _ _ q.bound bound)))
+      });
+\import Raw.Division[] \as Division;
+\import algebra.Group[].Of[Carrier := L, group := Rings.additiveGroup L Arithmetic.underlyingRing] \as TargetSum;
+\definition remainderRoot: \forall (minimal: Minimal)(p: Coefficients)(quotient, remainder: Coefficients) ->
+  Raw.asPolynomial p = Abstract.add (Abstract.mul (asPolynomial minimal.polynomial.coefficients) (Raw.asPolynomial quotient)) (Raw.asPolynomial remainder) ->
+  value p = Target.zero -> value remainder = Target.zero :=
+  \fun (minimal: Minimal)(p: Coefficients)(quotient, remainder: Coefficients)(equation: _)(root: _) => eq_reason!{{value remainder}
+    "=" {Target.add (Target.mul Target.zero (value quotient)) (value remainder)}
+    "by" {sym!{L} _ _ (trans!{L} _ _ _
+      (congr!{L L} (\fun (v: L) => Target.add v (value remainder)) _ _ (target.ring.ring.semiring.zeroAbsorbsLeft (value quotient))) (TargetSum.zeroLeft _))}
+    "=" {Target.add (Target.mul (monicValue minimal.polynomial.coefficients) (value quotient)) (value remainder)}
+    "by" {congr!{L L} (\fun (v: L) => Target.add (Target.mul v (value quotient)) (value remainder)) _ _ (sym!{L} _ _ minimal.polynomial.root)}
+    "=" {Target.add (Target.mul (Evaluation.apply (asPolynomial minimal.polynomial.coefficients)) (Evaluation.apply (Raw.asPolynomial quotient)))
+      (Evaluation.apply (Raw.asPolynomial remainder))}
+    "by" {congr2!{L L L} Target.add _ _ _ _
+      (congr2!{L L L} Target.mul _ _ _ _ (sym!{L} _ _ (Evaluation.monicAgrees minimal.polynomial.coefficients)) (sym!{L} _ _ (Evaluation.rawAgrees quotient)))
+      (sym!{L} _ _ (Evaluation.rawAgrees remainder))}
+    "=" {Evaluation.apply (Abstract.add (Abstract.mul (asPolynomial minimal.polynomial.coefficients) (Raw.asPolynomial quotient)) (Raw.asPolynomial remainder))}
+    "by" {trans!{L} _ _ _
+      (congr!{L L} (\fun (v: L) => Target.add v (Evaluation.apply (Raw.asPolynomial remainder))) _ _
+        (sym!{L} _ _ (Evaluation.laws.mul (asPolynomial minimal.polynomial.coefficients) (Raw.asPolynomial quotient))))
+      (sym!{L} _ _ (Evaluation.laws.add (Abstract.mul (asPolynomial minimal.polynomial.coefficients) (Raw.asPolynomial quotient)) (Raw.asPolynomial remainder)))}
+    "=" {Evaluation.apply (Raw.asPolynomial p)} "by" {congr!{Abstract.Carrier L} Evaluation.apply _ _ (sym!{Abstract.Carrier} _ _ equation)}
+    "=" {value p} "by" {Evaluation.rawAgrees p}
+    "=" {Target.zero} "by" root};
+\structure Divides[minimal: Minimal, p: Coefficients]: \Set := {
+  quotient: Coefficients,
+  bound: Nat.Le (Lists.length K quotient) (std.Data[].Nat[].Basic[].Def[].sub (Lists.length K p) (degree minimal.polynomial.coefficients)),
+  equation: Raw.asPolynomial p = Abstract.mul (asPolynomial minimal.polynomial.coefficients) (Raw.asPolynomial quotient),
+};
+\definition divides: \forall (minimal: Minimal)(p: Coefficients) -> value p = Target.zero -> \exists Divides[minimal, p] := \block {
+  \fun (minimal: Minimal)(p: Coefficients)(root: _) \then
+  \takefrom division: Division.Result[\fun (a: K) => Logic.True, p, minimal.polynomial.coefficients] \by
+    Division.exists (\fun (a: K) => Logic.True) (Subfields.laws Subfields.whole) minimal.polynomial.coefficients (Nonzero.allCoefficients minimal.polynomial.coefficients) p (Nonzero.allCoefficients p) \then
+  \let remainderZero: Raw.asPolynomial division.remainder = Abstract.zero := Normalization.zeroLaw division.remainder
+    (smallKernel minimal division.remainder division.bound (remainderRoot minimal p division.quotient division.remainder division.equation root)) \then
+  \return \exact(Divides[minimal, p] {
+    quotient := division.quotient, bound := division.quotientBound,
+    equation := trans!{Abstract.Carrier} _ _ _ division.equation
+      (trans!{Abstract.Carrier} _ _ _
+        (congr!{Abstract.Carrier Abstract.Carrier} (Abstract.add (Abstract.mul (asPolynomial minimal.polynomial.coefficients) (Raw.asPolynomial division.quotient))) _ _ remainderZero)
+        (PolynomialSum.zeroRight _)),
+  }, Divides[minimal, p])
+};
+\module Comparison(M: \Set, output: Fields.Field[M]);
+\definition constantCoefficients[a: K]: Coefficients := Lists.List[K]::cons a Lists.List[K]::nil;
+\definition constantValue: \forall (a: K) -> value (constantCoefficients a) = embedding.apply a :=
+  \fun (a: K) => trans!{L} _ _ _
+    (congr!{L L} (Target.add (embedding.apply a)) _ _ (target.ring.ring.semiring.zeroAbsorbsRight x)) (TargetSum.zeroRight _);
+\definition plusValue: \forall (p, q: Coefficients) -> value (Raw.plus p q) = Target.add (value p) (value q) :=
+  \fun (p, q: Coefficients) => eq_reason!{{value (Raw.plus p q)}
+    "=" {Evaluation.apply (Raw.asPolynomial (Raw.plus p q))} "by" {sym!{L} _ _ (Evaluation.rawAgrees (Raw.plus p q))}
+    "=" {Evaluation.apply (Abstract.add (Raw.asPolynomial p) (Raw.asPolynomial q))}
+    "by" {congr!{Abstract.Carrier L} Evaluation.apply _ _ (Raw.plusLaw p q)}
+    "=" {Target.add (Evaluation.apply (Raw.asPolynomial p)) (Evaluation.apply (Raw.asPolynomial q))}
+    "by" {Evaluation.laws.add (Raw.asPolynomial p) (Raw.asPolynomial q)}
+    "=" {Target.add (value p) (value q)} "by" {congr2!{L L L} Target.add _ _ _ _ (Evaluation.rawAgrees p) (Evaluation.rawAgrees q)}};
+\definition timesValue: \forall (p, q: Coefficients) -> value (Raw.times p q) = Target.mul (value p) (value q) :=
+  \fun (p, q: Coefficients) => eq_reason!{{value (Raw.times p q)}
+    "=" {Evaluation.apply (Raw.asPolynomial (Raw.times p q))} "by" {sym!{L} _ _ (Evaluation.rawAgrees (Raw.times p q))}
+    "=" {Evaluation.apply (Abstract.mul (Raw.asPolynomial p) (Raw.asPolynomial q))}
+    "by" {congr!{Abstract.Carrier L} Evaluation.apply _ _ (Raw.timesLaw p q)}
+    "=" {Target.mul (Evaluation.apply (Raw.asPolynomial p)) (Evaluation.apply (Raw.asPolynomial q))}
+    "by" {Evaluation.laws.mul (Raw.asPolynomial p) (Raw.asPolynomial q)}
+    "=" {Target.mul (value p) (value q)} "by" {congr2!{L L L} Target.mul _ _ _ _ (Evaluation.rawAgrees p) (Evaluation.rawAgrees q)}};
+\definition scaleValue: \forall (a: K)(p: Coefficients) -> value (Raw.scale a p) = Target.mul (embedding.apply a) (value p) :=
+  \fun (a: K)(p: Coefficients) => eq_reason!{{value (Raw.scale a p)}
+    "=" {Evaluation.apply (Raw.asPolynomial (Raw.scale a p))} "by" {sym!{L} _ _ (Evaluation.rawAgrees (Raw.scale a p))}
+    "=" {Evaluation.apply (Abstract.mul (Abstract.constant a) (Raw.asPolynomial p))}
+    "by" {congr!{Abstract.Carrier L} Evaluation.apply _ _ (Raw.scaleLaw a p)}
+    "=" {Target.mul (Evaluation.apply (Abstract.constant a)) (Evaluation.apply (Raw.asPolynomial p))}
+    "by" {Evaluation.laws.mul (Abstract.constant a) (Raw.asPolynomial p)}
+    "=" {Target.mul (embedding.apply a) (value p)} "by" {congr2!{L L L} Target.mul _ _ _ _ (Universal.constants (Maps.ringMap embedding) x a) (Evaluation.rawAgrees p)}};
+\definition negativeValue: \forall (p: Coefficients) -> value (Raw.scale (neg one) p) = Target.neg (value p) :=
+  \fun (p: Coefficients) => trans!{L} _ _ _ (scaleValue (neg one) p)
+    (trans!{L} _ _ _ (congr!{L L} (\fun (a: L) => Target.mul a (value p)) _ _
+      (trans!{L} _ _ _ (embedding.preservesNeg one) (congr!{L L} Target.neg _ _ embedding.preservesOne)))
+      (Arithmetic.negOneMul (value p)));
+\definition variableCoefficients: Coefficients := Lists.List[K]::cons zero (constantCoefficients one);
+\import algebra.Monoid[].Of[Carrier := L, monoid := Arithmetic.multiplicative] \as TargetProduct;
+\definition variableValue: value variableCoefficients = x := eq_reason!{{value variableCoefficients}
+  "=" {Target.add Target.zero (Target.mul x (value (constantCoefficients one)))}
+  "by" {congr!{L L} (\fun (a: L) => Target.add a (Target.mul x (value (constantCoefficients one)))) _ _ embedding.preservesZero}
+  "=" {Target.mul x (value (constantCoefficients one))} "by" {TargetSum.zeroLeft _}
+  "=" {Target.mul x Target.one} "by" {congr!{L L} (Target.mul x) _ _ (trans!{L} _ _ _ (constantValue one) embedding.preservesOne)}
+  "=" x "by" {TargetProduct.zeroRight x}};

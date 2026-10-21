@@ -133,3 +133,6 @@ Program 側の型関連操作は計算を返すので、結果を `\bind` で受
 `Logic.Termination.Results` は、各遷移で保つ状態の性質から反復の返却値の性質を証明する。
 `Data.Nat.Iteration.Program[A := T]` は実行用の型上の反復を、`Data.Nat.Find` と `Find.Grid` は一次元・二次元の有限探索を提供する。
 探索結果の範囲と条件、および探索が空の場合の全称的な条件不成立を証明している。
+
+
+`Data.FinSet.elementsLength` は標準有限添字の列挙の長さが添字の大きさに等しいことを示す。

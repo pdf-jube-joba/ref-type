@@ -1,0 +1,16 @@
+\import std.Data[].Nat[].Basic[].Def[] \as NatOp;
+\import std.Data[].Nat[].Order[].Prop[] \as Order;
+\definition subLe: \forall (d, n: N.Nat^) -> Nat.Le (NatOp.sub n d) n :=
+  \induction (d: N.Nat^) \return \forall (n: N.Nat^) -> Nat.Le (NatOp.sub n d) n \with {
+    | zero: Nat.leRefl
+    | succ: \fun (d: N.Nat^)(previous: _) =>
+      \induction (n: N.Nat^) \return Nat.Le (NatOp.sub n (N.Nat^::succ d)) n \with {
+        | zero: Nat.leRefl N.Nat^::zero
+        | succ: \fun (n: N.Nat^)(unused: _) => Nat.leTrans _ _ _ (previous n) (Nat.leSelfSucc n)
+      }
+  };
+\definition subPositive: \forall (d, n: N.Nat^) -> Logic.Not (d = N.Nat^::zero) -> Nat.Le (NatOp.sub (N.Nat^::succ n) d) n :=
+  \induction (d: N.Nat^) \return \forall (n: N.Nat^) -> Logic.Not (d = N.Nat^::zero) -> Nat.Le (NatOp.sub (N.Nat^::succ n) d) n \with {
+    | zero: \fun (n: N.Nat^)(impossible: _) => Logic.falseElim _ (impossible (\refl(N.Nat^::zero)))
+    | succ: \fun (d: N.Nat^)(unused: _)(n: N.Nat^)(positive: _) => subLe d n
+  };

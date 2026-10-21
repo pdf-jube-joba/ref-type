@@ -1,0 +1,29 @@
+\import \parent.Frames[] \as Frames;
+\import \root.FrameBundle[n := n, r := n].Over[M := M].Family[F := Tangent.Vector, space := \fun (x: M.Point) => Tangent.space x] \as Family;
+\import Family.Using[I := Chart, data := Frames.framesData] \as Framed;
+\import Framed.Build[changes := Frames.changes] \as Construct;
+\definition OtherPoint: \Set := Family.Point;
+\definition otherManifold: TotalModel.Manifold := Construct.manifold;
+\definition to[p: Point]: OtherPoint := Family.include p.base p.vector;
+\definition from[p: OtherPoint]: Point := include p.base p.vector;
+\import \parent.Plots[m := dimension].Into[N := otherManifold] \as ForwardPlots;
+\import Construct.Plots[m := dimension].Into[N := manifold] \as BackwardPlots;
+\module ForwardLocal(c: Chart);
+\module BackwardLocal(c: Chart);
+\definition forwardFamily[c: Chart]: ForwardPlots.LocalMap c := ForwardLocal[c := c].map;
+\definition backwardFamily[c: Chart]: BackwardPlots.LocalMap c := BackwardLocal[c := c].map;
+\definition forwardAgreement: ForwardPlots.Agreement to forwardFamily :=
+  \fun (c: Chart)(u: TotalOpen.Carrier \parent.InChart[chart := c].image) => \refl(to (\parent.InChart[chart := c].point u));
+\definition backwardAgreement: BackwardPlots.Agreement from backwardFamily :=
+  \fun (c: Chart)(u: TotalOpen.Carrier Framed.InChart[i := c].image) => \refl(from (Framed.InChart[i := c].point u));
+\import ForwardPlots.Of[f := to, maps := forwardFamily, agrees := forwardAgreement] \as Forward;
+\import BackwardPlots.Of[f := from, maps := backwardFamily, agrees := backwardAgreement] \as Backward;
+\import manifolds.SmoothMap[n := dimension, m := dimension].Between[M := manifold, N := otherManifold] \as ForwardMaps;
+\import manifolds.SmoothMap[n := dimension, m := dimension].Between[M := otherManifold, N := manifold] \as BackwardMaps;
+\definition forwardMap: ForwardMaps.Map := Forward.map;
+\definition backwardMap: BackwardMaps.Map := Backward.map;
+\import manifolds.Diffeomorphism[n := dimension, m := dimension].Between[M := manifold, N := otherManifold] \as Diffeomorphisms;
+\definition diffeomorphism: Diffeomorphisms.Diffeomorphism := Diffeomorphisms.Diffeomorphism {
+  forward := forwardMap, backward := backwardMap,
+  leftInverse := eta, rightInverse := Family.eta,
+};

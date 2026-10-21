@@ -1,0 +1,21 @@
+\import Paths.Squares[] \as Edges;
+\definition WithinSquare[F: Edges.Family][U: \Pow A]: \Prop := \forall (q: Square.Carrier) -> \In[A] U (F q);
+\definition bottomSmall[F: Edges.Family][U: \Pow A][member: \In[\Pow A] family U][within: WithinSquare F U]: Small (Edges.bottom F) :=
+  Logic.existsIntro[\Pow A, { V: \Pow A \where Logic.And[\In[\Pow A] family V, Within (Edges.bottom F) V] }] U
+    (Logic.And[_, _]::# member (\fun (t: I.Carrier) => within (Square.at t I.start)));
+\definition rightSmall[F: Edges.Family][U: \Pow A][member: \In[\Pow A] family U][within: WithinSquare F U]: Small (Edges.right F) :=
+  Logic.existsIntro[\Pow A, { V: \Pow A \where Logic.And[\In[\Pow A] family V, Within (Edges.right F) V] }] U
+    (Logic.And[_, _]::# member (\fun (t: I.Carrier) => within (Square.at I.end t)));
+\definition leftSmall[F: Edges.Family][U: \Pow A][member: \In[\Pow A] family U][within: WithinSquare F U]: Small (Edges.left F) :=
+  Logic.existsIntro[\Pow A, { V: \Pow A \where Logic.And[\In[\Pow A] family V, Within (Edges.left F) V] }] U
+    (Logic.And[_, _]::# member (\fun (t: I.Carrier) => within (Square.at I.start t)));
+\definition topSmall[F: Edges.Family][U: \Pow A][member: \In[\Pow A] family U][within: WithinSquare F U]: Small (Edges.top F) :=
+  Logic.existsIntro[\Pow A, { V: \Pow A \where Logic.And[\In[\Pow A] family V, Within (Edges.top F) V] }] U
+    (Logic.And[_, _]::# member (\fun (t: I.Carrier) => within (Square.at t I.end)));
+\definition LocalLaw: \Prop := \forall (F: Edges.Family)(U: \Pow A)(member: \In[\Pow A] family U)(within: WithinSquare F U) ->
+  Group.mul (localValue (Edges.bottom F) (bottomSmall F U member within)) (localValue (Edges.right F) (rightSmall F U member within)) =
+  Group.mul (localValue (Edges.left F) (leftSmall F U member within)) (localValue (Edges.top F) (topSmall F U member within));
+\module Along(cover: Space.IsOpenCover[source, family, Space.Whole], local: LocalLaw, F: Edges.Family);
+\definition commutes: \forall (cover: Space.IsOpenCover[source, family, Space.Whole])(local: LocalLaw)(F: Edges.Family) ->
+  Group.mul (value cover (Edges.bottom F)) (value cover (Edges.right F)) = Group.mul (value cover (Edges.left F)) (value cover (Edges.top F)) :=
+  \fun (cover: _)(local: _)(F: _) => Along[cover := cover, local := local, F := F].commutes;

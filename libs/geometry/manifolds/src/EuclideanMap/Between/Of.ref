@@ -1,0 +1,23 @@
+\import Calculus.Topology[U := U, V := V] \as Topology;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\definition data: Maps.Data := Maps.Data { apply := Calculus.apply U V f };
+\definition continuous: Maps.ContinuousMap := \into[Maps.Data](data, { data: Maps.Data \where Maps.Continuous data }) \by { Topology.continuous f };
+\import Maps.Coordinates[f := continuous, left := Source.standard, right := Target.standard] \as Coordinates;
+\import SourceOpen.Restriction[] \as Restriction;
+\definition included: SourceOpen.Included Coordinates.domain U := \fun (x: topological_algebra.Euclidean[].Dimension[n := n].Point)(member: _) =>
+  Coordinates.inLeftImage (\into[topological_algebra.Euclidean[].Dimension[n := n].Point](x, Coordinates.domain.points) \by { member });
+\definition standardSmooth: Coordinates.Smooth := \fun (i: std.Data[].FinSet[].Fin m) => Restriction.localSmooth Coordinates.domain U included
+  (\fun (x: SourceOpen.Carrier U) => Calculus.apply U V f x i) (f.smooth i);
+\import \root.Dimension[n := n].Chart[M := source.Point, space := source.space] \as SourceCharts;
+\import \root.Dimension[n := m].Chart[M := target.Point, space := target.space] \as TargetCharts;
+\import SmallAtlas.Of[f := continuous] \as Check;
+\definition small: Check.InSmallAtlas := \fun (left: SmallAtlas.SourceChart)(right: SmallAtlas.TargetChart) =>
+  \idelim Source.standard = left \with l: SourceCharts.Chart => Maps.Coordinates[f := continuous, left := l, right := right].Smooth \by {
+    base: \idelim Target.standard = right \with r: TargetCharts.Chart => Maps.Coordinates[f := continuous, left := Source.standard, right := r].Smooth \by {
+      base: standardSmooth,
+      equality: sym!{TargetCharts.Chart} _ _ (\bysub(TargetCharts.Chart, targetAtlas.charts, right))
+    },
+    equality: sym!{SourceCharts.Chart} _ _ (\bysub(SourceCharts.Chart, sourceAtlas.charts, left))
+  };
+\definition value: Maps.Map := Check.value small;

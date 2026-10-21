@@ -1,0 +1,43 @@
+\import calculus.Real[].MeanValue[].Interval[a := Scalars.zero, b := t].Estimate[] \as Forward;
+\import calculus.Real[].MeanValue[].Interval[a := t, b := Scalars.zero].Estimate[] \as Backward;
+\definition bounds: Logic.And[R.Le left t, R.Le t right] := \bysub(Real, Line.ClosedInterval left right, t);
+\definition ForwardTime: \Set := \Cast[Real] (Line.ClosedInterval Scalars.zero t);
+\definition BackwardTime: \Set := \Cast[Real] (Line.ClosedInterval t Scalars.zero);
+\definition forward[p: ForwardTime]: Time := \into[Real](p, Line.ClosedInterval left right) \by {
+  Logic.And[_, _]::# (R.leTrans left Scalars.zero p leftNonpositive (\bysub(Real, Line.ClosedInterval Scalars.zero t, p)).left)
+    (R.leTrans p t right (\bysub(Real, Line.ClosedInterval Scalars.zero t, p)).right bounds.right)
+};
+\definition backward[p: BackwardTime]: Time := \into[Real](p, Line.ClosedInterval left right) \by {
+  Logic.And[_, _]::# (R.leTrans left t p bounds.left (\bysub(Real, Line.ClosedInterval t Scalars.zero, p)).left)
+    (R.leTrans p Scalars.zero right (\bysub(Real, Line.ClosedInterval t Scalars.zero, p)).right rightNonnegative)
+};
+\definition error[a, b: Real]: Scalars.sub (Scalars.sub (f b) (f a)) (Scalars.mul Scalars.zero (Scalars.sub b a)) = Scalars.sub (f b) (f a) :=
+  trans!{Real} _ _ _ (congr!{Real Real} (Scalars.sub (Scalars.sub (f b) (f a))) _ _ (Laws.fieldMulZeroLeft (Scalars.sub b a))) (Laws.subZeroRight (Scalars.sub (f b) (f a)));
+\definition forwardBound: R.Lt Scalars.zero t -> R.Le (Scalars.distance (f t) (f Scalars.zero)) (Scalars.mul field.bound (Scalars.distance t Scalars.zero)) :=
+  \fun (positive: _) => R.leReplaceLeft
+    (Scalars.distance (Scalars.sub (Scalars.sub (f t) (f Scalars.zero)) (Scalars.mul Scalars.zero (Scalars.sub t Scalars.zero))) Scalars.zero)
+    (Scalars.distance (f t) (f Scalars.zero)) (Scalars.mul field.bound (Scalars.distance t Scalars.zero))
+    (trans!{Real} _ _ _ (congr!{Real Real} (\fun (s: Real) => Scalars.distance s Scalars.zero) _ _ (error Scalars.zero t)) (Estimates.distanceDifference (f t) (f Scalars.zero)))
+    (Forward.increment f d Scalars.zero field.bound positive (\fun (p: ForwardTime) => candidate.derivative (forward p) i)
+      (\fun (p: Real)(inside: _) => derivativeBound p));
+\definition backwardBound: R.Lt t Scalars.zero -> R.Le (Scalars.distance (f t) (f Scalars.zero)) (Scalars.mul field.bound (Scalars.distance t Scalars.zero)) :=
+  \fun (negative: _) => R.leReplace
+    (Scalars.distance (Scalars.sub (Scalars.sub (f Scalars.zero) (f t)) (Scalars.mul Scalars.zero (Scalars.sub Scalars.zero t))) Scalars.zero)
+    (Scalars.distance (f t) (f Scalars.zero)) (Scalars.mul field.bound (Scalars.distance Scalars.zero t)) (Scalars.mul field.bound (Scalars.distance t Scalars.zero))
+    (trans!{Real} _ _ _ (congr!{Real Real} (\fun (s: Real) => Scalars.distance s Scalars.zero) _ _ (error t Scalars.zero))
+      (trans!{Real} _ _ _ (Estimates.distanceDifference (f Scalars.zero) (f t)) (Distance.distanceSymmetric (f Scalars.zero) (f t))))
+    (congr!{Real Real} (Scalars.mul field.bound) _ _ (Distance.distanceSymmetric Scalars.zero t))
+    (Backward.increment f d Scalars.zero field.bound negative (\fun (p: BackwardTime) => candidate.derivative (backward p) i)
+      (\fun (p: Real)(inside: _) => derivativeBound p));
+\use Logic.either;
+\definition bound: R.Le (Scalars.distance (f t) (f Scalars.zero)) (Scalars.mul field.bound (Scalars.distance t Scalars.zero)) :=
+  either!{{(Order.ltTrichotomy Scalars.zero t)} {R.Le (Scalars.distance (f t) (f Scalars.zero)) (Scalars.mul field.bound (Scalars.distance t Scalars.zero))}
+    {forwardBound}
+    {\fun (other: Logic.Or[Scalars.zero = t, R.Lt t Scalars.zero]) => either!{other
+      {R.Le (Scalars.distance (f t) (f Scalars.zero)) (Scalars.mul field.bound (Scalars.distance t Scalars.zero))}
+      {\fun (same: Scalars.zero = t) => R.leReplaceLeft Scalars.zero (Scalars.distance (f t) (f Scalars.zero)) (Scalars.mul field.bound (Scalars.distance t Scalars.zero))
+        (sym!{Real} _ _ (trans!{Real} _ _ _ (congr!{Real Real} (\fun (s: Real) => Scalars.distance (f s) (f Scalars.zero)) _ _ (sym!{Real} _ _ same)) (Distance.distanceSelf (f Scalars.zero))))
+        (Laws.fieldMulNonnegative field.bound (Scalars.distance t Scalars.zero) boundNonnegative (Distance.distanceNonnegative t Scalars.zero))}
+      {backwardBound}
+    }}
+  };

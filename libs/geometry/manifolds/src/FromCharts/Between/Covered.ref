@@ -1,0 +1,30 @@
+\definition charts: \Pow SourceCharts.Chart := { c: SourceCharts.Chart \where \exists ( i: I \where chart i = c ) };
+\definition member: \forall (c: SourceCharts.Chart) -> \In[SourceCharts.Chart] charts c -> \In[SourceCharts.Chart] M.atlas.charts c := \block {
+  \fun (c: SourceCharts.Chart)(member: _) \then
+  \takefrom i: \Cast[I] ({ i: I \where chart i = c }) \by member \then
+  \return \idelim chart i = c \with d: SourceCharts.Chart => \In[SourceCharts.Chart] M.atlas.charts d \by {
+    base: \bysub(SourceCharts.Chart, M.atlas.charts, chart i), equality: \bysub(I, { i: I \where chart i = c }, i)
+  }
+};
+\definition atlas: SourceAtlases.Atlas := SourceAtlases.Atlas {
+  charts := charts,
+  covers := \block {
+    \fun (x: M.Point) \then
+    \takefrom i: \Cast[I] ({ i: I \where SourceCharts.Contains (chart i) x }) \by covers x \then
+    \return Logic.existsIntro[SourceCharts.Chart, { c: SourceCharts.Chart \where Logic.And[\In[SourceCharts.Chart] charts c, SourceCharts.Contains c x] }] (chart i)
+      (Logic.And[_, _]::# (Logic.existsIntro[I, { j: I \where chart j = chart i }] i (\refl(chart i)))
+        (\bysub(I, { i: I \where SourceCharts.Contains (chart i) x }, i)))
+  },
+  compatible := \fun (c, d: SourceCharts.Chart)(left: _)(right: _) => M.atlas.compatible c d (member c left) (member d right),
+};
+\definition source: Small.SourceAtlas := \into[SourceAtlases.Atlas](atlas, Small.SourceAtlas) \by { member };
+\import \parent.Using[source := source] \as Using;
+\definition selected[i: I]: Using.SourceChart := \into[SourceCharts.Chart](chart i, source.charts) \by {
+  Logic.existsIntro[I, { j: I \where chart j = chart i }] i (\refl(chart i))
+};
+\definition exhaustive: \forall (c: Using.SourceChart) -> \exists ( i: I \where selected i = c ) := \fun (c: Using.SourceChart) =>
+  \bysub(SourceCharts.Chart, source.charts, c);
+\import Using.Indexed[I := I, chart := selected, exhaustive := exhaustive] \as Indexed;
+\definition Family: \Set := Indexed.IndexedFamily;
+\definition Agreement[f: Function][maps: Family]: \Prop := Indexed.IndexedAgreement f maps;
+\module Of(f: Function, maps: Family, agrees: Agreement f maps);

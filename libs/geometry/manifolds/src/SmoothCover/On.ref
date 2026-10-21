@@ -1,0 +1,28 @@
+/* Smooth maps into a manifold glue over an open cover of a Euclidean domain. */
+\import \root.Dimension[n := n].Examples[].Euclidean[].Subspace[U := U] \as Source;
+\import \root.Dimension[n := n].Smooth[] \as SourceModel;
+\definition source: SourceModel.Manifold := Source.smoothManifold;
+\import \root.SmoothMap[n := n, m := m].Between[M := source, N := N] \as Maps;
+\import \root.Dimension[n := n].Chart[M := source.Point, space := source.space] \as SourceCharts;
+\import \root.Dimension[n := m].Chart[M := N.Point, space := N.space] \as TargetCharts;
+\import \root.Dimension[n := n].Atlas[M := source.Point, space := source.space] \as SourceAtlases;
+\import \root.Dimension[n := m].Atlas[M := N.Point, space := N.space] \as TargetAtlases;
+\import \root.SmallAtlasSmoothMap[n := n, m := m].Between[M := source, N := N] \as Small;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\definition sourceAtlas: Small.SourceAtlas := \into[SourceAtlases.Atlas](Source.atlas, Small.SourceAtlas) \by {
+  \fun (c: SourceCharts.Chart)(member: _) => SourceAtlases.includedInSaturation Source.atlas c member
+};
+\definition targetAtlas: Small.TargetAtlas := \into[TargetAtlases.Atlas](N.atlas, Small.TargetAtlas) \by {
+  \fun (c: TargetCharts.Chart)(member: \In[TargetCharts.Chart] N.atlas.charts c) => member
+};
+\import Small.On[source := sourceAtlas, target := targetAtlas] \as SmallAtlas;
+\definition localManifold[i: I]: SourceModel.Manifold := \root.Dimension[n := n].Examples[].Euclidean[].Subspace[U := domains i].smoothManifold;
+\definition LocalMap[i: I]: \Set := \root.SmoothMap[n := n, m := m].Between[M := localManifold i, N := N].Map;
+\definition Family: \Set := \forall (i: I) -> LocalMap i;
+\definition Function: \Set := Open.Carrier U -> N.Point;
+\definition Inclusions: \Prop := \forall (i: I) -> Open.Included (domains i) U;
+\definition Covers: \Prop := \forall (a: Open.Carrier U) -> \exists ( i: I \where \In[Reals.Multivariable[n := n].Point] ((domains i).points) a );
+\definition Agreement[f: Function][maps: Family][included: Inclusions]: \Prop := \forall (i: I)(x: Open.Carrier (domains i)) ->
+  f (Open.inclusion (domains i) U (included i) x) = \root.SmoothMap[n := n, m := m].Between[M := localManifold i, N := N].apply (maps i) x;
+\module Of(f: Function, maps: Family, included: Inclusions, agrees: Agreement f maps included, covers: Covers);

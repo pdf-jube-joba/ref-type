@@ -1,0 +1,30 @@
+\import std.Data[].FinSet[] \as Fin;
+\import Spaces.Multilinear[V := V, space := space] \as Multilinear;
+\import Multilinear.Alternating[] \as Alternating;
+\definition TopForm: \Set := Alternating.Form n;
+\definition Arguments: \Set := Fin.Fin n -> V;
+\definition transformed[g: Units.Unit][v: Arguments]: Arguments := \fun (i: Fin.Fin n) => g.value.apply (v i);
+\definition PreservesVolume[g: Units.Unit]: \Prop := \forall (omega: TopForm)(v: Arguments) -> omega (transformed g v) = omega v;
+\definition volumePredicate: \Pow Units.Unit := { g: Units.Unit \where PreservesVolume g };
+\definition volumeClosed: GeneralLinear.Closed[volumePredicate] := GeneralLinear.Closed[volumePredicate] {
+  one := \fun (omega: TopForm)(v: Arguments) => congr!{Arguments R.Real} omega _ _
+    (\axiom:funext(transformed Units.unit v, v, \fun (i: Fin.Fin n) => \refl(v i))),
+  mul := \fun (g, h: Units.Unit)(hg: PreservesVolume g)(hh: PreservesVolume h)(omega: TopForm)(v: Arguments) =>
+    trans!{R.Real} _ _ _ (hg omega (transformed h v)) (hh omega v),
+  inv := \fun (g: Units.Unit)(hg: PreservesVolume g)(omega: TopForm)(v: Arguments) =>
+    trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (hg omega (transformed (Units.inverse g) v)))
+      (congr!{Arguments R.Real} omega _ _ (\axiom:funext(transformed g (transformed (Units.inverse g) v), v,
+        \fun (i: Fin.Fin n) => rightInverse g (v i)))),
+};
+\import algebra.Groups[].On[G := O, group := group] \as OrthogonalGroup;
+\definition subset: \Pow O := { g: O \where PreservesVolume g };
+\definition subsetClosed: OrthogonalGroup.Closed[subset] := OrthogonalGroup.Closed[subset] {
+  one := volumeClosed.one,
+  mul := \fun (g, h: O)(left: PreservesVolume g)(right: PreservesVolume h) => volumeClosed.mul g h left right,
+  inv := \fun (g: O)(preserves: PreservesVolume g) => volumeClosed.inv g preserves,
+};
+\import OrthogonalGroup.Subgroup[S := subset, closed := subsetClosed] \as Special;
+\definition SO: \Set := Special.Carrier;
+\definition group: std.Alg[].Alg[].Group[SO] := Special.group;
+\definition inclusion[g: SO]: O := g;
+\definition preservesVolume: \forall (g: SO) -> PreservesVolume g := \fun (g: SO) => \bysub(O, subset, g);

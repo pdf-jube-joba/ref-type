@@ -1,0 +1,21 @@
+\definition first[x, y: A][p: Path x y]: Path x (p Interval.middle) :=
+  \into[Function](\fun (t: Interval.Carrier) => p (Halves.lower t), Path x (p Interval.middle)) \by {
+    Laws[x, p Interval.middle, \fun (t: Interval.Carrier) => p (Halves.lower t)] {
+      continuous := Composition.composeContinuous Interval.topology Interval.topology source Halves.lower p Halves.lowerContinuous (laws x y p).continuous,
+      start := trans!{A} _ _ _ (congr!{Interval.Carrier A} p _ _ Halves.lowerStart) (laws x y p).start,
+      end := congr!{Interval.Carrier A} p _ _ Halves.lowerEnd,
+    }
+  };
+\definition second[x, y: A][p: Path x y]: Path (p Interval.middle) y :=
+  \into[Function](\fun (t: Interval.Carrier) => p (Halves.upper t), Path (p Interval.middle) y) \by {
+    Laws[p Interval.middle, y, \fun (t: Interval.Carrier) => p (Halves.upper t)] {
+      continuous := Composition.composeContinuous Interval.topology Interval.topology source Halves.upper p Halves.upperContinuous (laws x y p).continuous,
+      start := congr!{Interval.Carrier A} p _ _ Halves.upperStart,
+      end := trans!{A} _ _ _ (congr!{Interval.Carrier A} p _ _ Halves.upperEnd) (laws x y p).end,
+    }
+  };
+\definition equality: \forall (x, y: A)(p: Path x y) -> concatenate x (p Interval.middle) y (first x y p) (second x y p) = p :=
+  \fun (x, y: A)(p: _) => sym!{Function} _ _
+    (extensional x (p Interval.middle) y (first x y p) (second x y p) p
+      (\fun (t: Interval.Carrier)(member: _) => congr!{Interval.Carrier A} p t (Halves.lower (leftTime t member)) (sym!{Interval.Carrier} _ _ (undoLeft t member)))
+      (\fun (t: Interval.Carrier)(member: _) => congr!{Interval.Carrier A} p t (Halves.upper (rightTime t member)) (sym!{Interval.Carrier} _ _ (undoRight t member))));

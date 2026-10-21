@@ -1,0 +1,35 @@
+\import calculus.Maps[n := n, m := n] \as Maps;
+\import Maps.Topology[U := witness.domain, V := (patch i).image] \as LiftTopology;
+\import Ambient.Subspace[S := witness.domain.points] \as LiftDomain;
+\import topology.Topology[Carrier := Open.Carrier witness.domain] \as LiftSpace;
+\definition localPoint: Open.Carrier witness.domain := \into[std.Data[].FinSet[].Fin n -> real.Analysis[].Real](a, witness.domain.points) \by { witness.contains };
+\definition preimage: \Pow (Open.Carrier witness.domain) :=
+  { x: Open.Carrier witness.domain \where \In[Parameter i] W (Maps.apply witness.domain (patch i).image witness.lift x) };
+\definition preimageOpen: LiftSpace.IsOpenIn (LiftDomain.topology Euclidean.topology) preimage := LiftTopology.continuous witness.lift W openW;
+\definition neighborhood: \In[Parameter i] W (Maps.apply witness.domain (patch i).image witness.lift localPoint) ->
+  \exists ( V: \Pow (Parameter j) \where Source.OpenNeighborhood[parameterTopology j, a, Pullback j (Image i W), V] ) :=
+  \fun (readInW: _) => LiftDomain.openTraceElim Euclidean.topology preimage
+    (\exists ( V: \Pow (Parameter j) \where Source.OpenNeighborhood[parameterTopology j, a, Pullback j (Image i W), V] )) (\block {
+      \fun (V: \Pow (std.Data[].FinSet[].Fin n -> real.Analysis[].Real))(openV: _)(same: preimage = LiftDomain.Trace V) \then
+      \let insideV: Ambient.Member V a := \idelim preimage = LiftDomain.Trace V
+        \with T: \Pow (Open.Carrier witness.domain) => \In[Open.Carrier witness.domain] T localPoint \by {
+          base: readInW, equality: same
+        } \then
+      \let neighborhood: \Pow (Parameter j) := SourceSubspace.Trace (Ambient.Intersection witness.domain.points V) \then
+      \return Logic.existsIntro[\Pow (Parameter j), { T: \Pow (Parameter j) \where
+        Source.OpenNeighborhood[parameterTopology j, a, Pullback j (Image i W), T] }] neighborhood
+        (Source.OpenNeighborhood[parameterTopology j, a, Pullback j (Image i W), neighborhood] {
+          open := SourceSubspace.traceOpen Euclidean.topology (Ambient.Intersection witness.domain.points V)
+            ((Ambient.topologyLaws Euclidean.topology).intersectionOpen witness.domain.points V (OpenTopology.open witness.domain) openV),
+          contains := Logic.And[_, _]::# witness.contains insideV,
+          within := \block {
+            \fun (x: Parameter j)(inside: Logic.And[\In[std.Data[].FinSet[].Fin n -> real.Analysis[].Real] witness.domain.points x, Ambient.Member V x]) \then
+            \let local: Open.Carrier witness.domain := \into[std.Data[].FinSet[].Fin n -> real.Analysis[].Real](x, witness.domain.points) \by { inside.left } \then
+            \let readInW: \In[Open.Carrier witness.domain] preimage local := \idelim LiftDomain.Trace V = preimage
+              \with T: \Pow (Open.Carrier witness.domain) => \In[Open.Carrier witness.domain] T local \by {
+                base: inside.right, equality: sym!{\Pow (Open.Carrier witness.domain)} _ _ same
+              } \then
+            \return containsImage x (Maps.apply witness.domain (patch i).image witness.lift local) readInW (witness.agrees local)
+          },
+        })
+    }) (LiftDomain.openRepresentation Euclidean.topology preimage preimageOpen);

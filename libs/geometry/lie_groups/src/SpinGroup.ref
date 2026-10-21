@@ -1,0 +1,80 @@
+/* Spin is the open even subgroup of the Euclidean Pin Lie group. */
+\import std.Data[].Nat[] \as N;
+\import real.Analysis[] \as R;
+\import R.Algebra[] \as Scalars;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Logic.either;
+\import \root.Euclidean[n := n] \as E;
+\import E.PinAtlas[] \as Atlas;
+\import E.PinCoordinates[] \as Coordinates;
+\import clifford.Field[K := R.Real, field := Scalars.field].On[V := E.Vector, space := E.space].Of[form := E.form] \as Clifford;
+\import Clifford.Pin[] \as Pin;
+\import Pin.Grading[] \as Grading;
+\import clifford.Euclidean[n := n].PinWords[].Parity[] \as Parity;
+\import algebra.Groups[].On[G := E.Pin, group := E.pinGroup] \as Group;
+\import algebra.Groups[].Units[A := E.CliffordAlgebra, ring := Clifford.ring] \as Units;
+\import linear_algebra.Field[].Space[K := R.Real, field := Scalars.field].Laws[V := E.CliffordAlgebra, space := Clifford.vectorSpace] \as Vectors;
+\import topology.Topology[Carrier := E.Pin] \as Space;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Arithmetic;
+\definition dimension: N.Nat^ := Atlas.dimension;
+\definition data: Atlas.Data := \root.PinAtlas[].atlasData n;
+\import \root.CoefficientAtlas[G := E.Pin, I := Coordinates.Index, n := dimension, coefficient := Coordinates.coefficient, ext := Coordinates.ext] \as Frontend;
+\import Frontend.On[data := data] \as Geometry;
+\definition grading[g: E.Pin]: E.Pin := Grading.map g;
+\definition negative[g: E.Pin]: E.Pin := Group.mul Pin.sign g;
+\definition difference[i: Coordinates.Index][g: E.Pin]: R.Real := R.sub (Coordinates.coefficient i (grading g)) (Coordinates.coefficient i (negative g));
+\definition region[i: Coordinates.Index]: \Pow E.Pin := { g: E.Pin \where Logic.Not (difference i g = R.zero) };
+\module Coefficient(i: Coordinates.Index);
+\definition nonzeroEven: \forall (i: Coordinates.Index)(g: E.Pin) -> Logic.Not (difference i g = R.zero) -> \In[E.Pin] Pin.evenSubset g :=
+  \fun (i: Coordinates.Index)(g: E.Pin)(nonzero: _) => either!{{(Parity.parity g (clifford.Euclidean[n := n].PinWords[].all g))} {\In[E.Pin] Pin.evenSubset g}
+    {\fun (even: Parity.Even g) => even}
+    {\fun (odd: \exists Parity.Odd[g]) => \block {
+      \takefrom w: Parity.Odd[g] \by odd \then
+      \let same: grading g = negative g := Units.ext (grading g) (negative g)
+        (trans!{E.CliffordAlgebra} _ _ _ (Parity.oddNegative g w) (sym!{E.CliffordAlgebra} _ _ (Grading.minusValue g))) \then
+      \return Logic.falseElim (\In[E.Pin] Pin.evenSubset g) (nonzero (trans!{R.Real} _ _ _
+        (congr!{{E.Pin} R.Real} (\fun (h: E.Pin) => R.sub (Coordinates.coefficient i h) (Coordinates.coefficient i (negative g))) _ _ same)
+        (Arithmetic.subSelf (Coordinates.coefficient i (negative g)))))
+    }}
+  };
+\module At(g: E.Pin, even: \In[E.Pin] Pin.evenSubset g);
+\definition open: Space.IsOpenIn Geometry.topology Pin.evenSubset := Space.openOfNeighborhoods Geometry.topology Pin.evenSubset (\block {
+  \fun (g: E.Pin)(even: \In[E.Pin] Pin.evenSubset g) \then
+  \takefrom w: Geometry.Separates[grading g, negative g] \by Geometry.separates (grading g) (negative g) (At[g := g, even := even].different) \then
+  \return Logic.existsIntro[\Pow E.Pin, { U: \Pow E.Pin \where Space.OpenNeighborhood[Geometry.topology, g, Pin.evenSubset, U] }] (region w.index)
+    (Space.OpenNeighborhood[Geometry.topology, g, Pin.evenSubset, region w.index] {
+      open := Coefficient[i := w.index].open,
+      contains := \fun (zero: _) => w.different (R.Distance[].subZeroEq _ _ zero),
+      within := \fun (h: E.Pin)(nonzero: _) => nonzeroEven w.index h nonzero,
+    })
+});
+\import manifolds.Dimension[n := dimension].Chart[M := E.Pin, space := Geometry.topology] \as Charts;
+\definition subset: Charts.OpenSubset := \into[\Pow E.Pin](Pin.evenSubset, Charts.OpenSubset) \by { open };
+\import \root.Dimension[n := dimension].OnManifold[M := Geometry.manifold].On[G := \root.PinAtlas[].Dimension[n := n].lieGroup] \as Ambient;
+\import Ambient.OpenSubgroup[U := subset, closed := Pin.evenSubsetClosed] \as Construction;
+\import manifolds.Dimension[n := dimension].Smooth[] \as Model;
+\definition manifold: Model.Manifold := Construction.submanifold;
+\import \root.Dimension[n := dimension].OnManifold[M := manifold] \as Groups;
+\definition lieGroup: Groups.LieGroup := Construction.lieGroup;
+\definition underlyingGroup: std.Alg[].Alg[].Group[E.Spin] := lieGroup;
+
+/* The restricted scalar-coordinate atlas is also used by Spin^c. */
+\import Geometry.Restriction[U := subset] \as Restricted;
+\definition spinCoefficient[i: Coordinates.Index][g: E.Spin]: R.Real := Coordinates.coefficient i g;
+\definition spinExt: \forall (g, h: E.Spin) -> (\forall (i: Coordinates.Index) -> spinCoefficient i g = spinCoefficient i h) -> g = h :=
+  \fun (g, h: E.Spin)(same: _) => Coordinates.ext g h same;
+\import \root.CoefficientAtlas[G := E.Spin, I := Coordinates.Index, n := dimension, coefficient := spinCoefficient, ext := spinExt] \as SpinCoordinates;
+\definition atlasData: SpinCoordinates.Data := Restricted.atlasData;
+\import algebra.Hom[A := E.Spin, B := E.Pin] \as Inclusion;
+\definition embedding: Inclusion.GroupMap E.spinGroup E.pinGroup := \into[E.Spin -> E.Pin](Pin.inclusion, Inclusion.GroupMap E.spinGroup E.pinGroup) \by {
+  Inclusion.MonoidLaws[_, _, Pin.inclusion] {
+    unit := Units.ext _ _ (\refl(Clifford.one)),
+    operation := \fun (g, h: E.Spin) => Units.ext _ _ (\refl(Clifford.mul g.value h.value)),
+  }
+};
+\definition embeddingInjective: \forall (g, h: E.Spin) -> embedding g = embedding h -> g = h := \fun (g, h: E.Spin)(same: _) => same;
+\definition compatible: embedding Pin.spinInvolution.element = Pin.pinInvolution.element := \refl(Pin.inclusion Pin.spinSign);

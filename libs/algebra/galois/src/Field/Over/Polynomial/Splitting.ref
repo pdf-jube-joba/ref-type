@@ -1,0 +1,101 @@
+\import \parent.Raw[].Deflation[] \as Deflation;
+\import std.Data[].Nat[].Induction[] \as Induction;
+\import std.Data[].Nat[].Basic[].Prop[] \as Nat;
+\definition splitsOverClosed: \forall (S: K -> \Prop) -> Subfields.Closed[S] -> AlgebraicallyClosed S ->
+  \forall (p: Coefficients) -> Over S p -> Splits S p :=
+  \fun (S: _)(closed: Subfields.Closed[S])(algebraicallyClosed: AlgebraicallyClosed S) =>
+    \block {
+      \let byDegree: \forall (n: N.Nat^)(p: Coefficients) -> degree p = n -> Over S p -> Splits S p :=
+        Induction.strong
+          (\fun (n: N.Nat^) => \forall (p: Coefficients) -> degree p = n -> Over S p -> Splits S p)
+          (\fun (n: N.Nat^)(previous: _) =>
+            \induction (p: Coefficients) \return degree p = n -> Over S p -> Splits S p \with {
+              | nil: \fun (same: _)(over: _) => \exact(Splitting[S, Lists.List[K]::nil] {
+                roots := Lists.List[K]::nil, over := Logic.True::intro, degree := \refl(N.Nat^::zero), factorization := \refl(Abstract.one),
+              }, Splitting[S, Lists.List[K]::nil])
+              | cons: \block {
+                \fun (b: K)(tail: Coefficients)(unused: _)(same: _)(over: _) \then
+                \let p: Coefficients := Lists.List[K]::cons b tail \then
+                \let positive: Positive p := Nat.succNeZero (degree tail) \then
+                \takefrom a: \Cast[K] ({ a: K \where Logic.And[S a, monicEvaluate p a = zero] })
+                  \by algebraicallyClosed p over positive \then
+                \let root: Logic.And[S a, monicEvaluate p a = zero] := \bysub(K, { a: K \where Logic.And[S a, monicEvaluate p a = zero] }, a) \then
+                \let less: Nat.Lt (degree (Deflation.synthetic a p)) n :=
+                  \idelim degree p = n \with m: N.Nat^ => Nat.Lt (degree (Deflation.synthetic a p)) m
+                    \by { base: Deflation.smaller a p positive, equality: same } \then
+                \takefrom splitting: Splitting[S, Deflation.synthetic a p]
+                  \by previous (degree (Deflation.synthetic a p)) less (Deflation.synthetic a p) (\refl(degree (Deflation.synthetic a p)))
+                    (Deflation.syntheticOver S closed a root.left p over) \then
+                \return \exact(Splitting[S, p] {
+                  roots := Lists.List[K]::cons a splitting.roots,
+                  over := Logic.And[_, _]::# root.left splitting.over,
+                  degree := trans!{N.Nat^} _ _ _ (congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _ splitting.degree) (Deflation.syntheticLength a p positive),
+                  factorization := trans!{Abstract.Carrier} _ _ _ (Deflation.factorAtRoot a p positive root.right)
+                    (congr!{Abstract.Carrier Abstract.Carrier} (Abstract.mul (linearFactor a)) _ _ splitting.factorization),
+                }, Splitting[S, p])
+              }
+            }) \then
+      \return \fun (p: Coefficients) => byDegree (degree p) p (\refl(degree p))
+    };
+\import \parent.AbstractEvaluation[] \as Evaluation;
+\import Abstract.Universal[K := K, target := coefficientRing] \as Universal;
+\import galois.Field[].Over[K := K, field := field].Arithmetic[] \as Arithmetic;
+\import algebra.Group[].Of[Carrier := K, group := Rings.additiveGroup K Arithmetic.underlyingRing] \as Sum;
+\definition linearValue: \forall (a, x: K) -> Evaluation.apply x (linearFactor a) = add x (neg a) :=
+  \fun (a, x: K) => trans!{K} _ _ _ ((Evaluation.homomorphism x).add Abstract.X (Abstract.constant (neg a)))
+    (congr2!{K K K} add _ _ _ _ (Universal.variable Evaluation.identity x) (Universal.constants Evaluation.identity x (neg a)));
+\definition factorsRoot: \forall (S: K -> \Prop)(xs: Coefficients) -> Over S xs ->
+  \forall (x: K) -> Evaluation.apply x (factors xs) = zero -> S x :=
+  \fun (S: _) => \induction (xs: Coefficients) \return Over S xs -> \forall (x: K) -> Evaluation.apply x (factors xs) = zero -> S x \with {
+    | nil: \fun (over: _)(x: K)(root: _) => Logic.falseElim (S x)
+      (field.nontrivial (sym!{K} _ _ (trans!{K} _ _ _ (sym!{K} _ _ (Evaluation.homomorphism x).one) root)))
+    | cons: \fun (a: K)(tail: Coefficients)(previous: _)(over: Logic.And[S a, Over S tail])(x: K)(root: _) =>
+      Logic.orElim (add x (neg a) = zero) (Evaluation.apply x (factors tail) = zero) (S x)
+        (Arithmetic.zeroProduct (add x (neg a)) (Evaluation.apply x (factors tail))
+          (eq_reason!{{mul (add x (neg a)) (Evaluation.apply x (factors tail))}
+            "=" {mul (Evaluation.apply x (linearFactor a)) (Evaluation.apply x (factors tail))}
+            "by" {congr!{K K} (\fun (u: K) => mul u (Evaluation.apply x (factors tail))) _ _ (sym!{K} _ _ (linearValue a x))}
+            "=" {Evaluation.apply x (factors (Lists.List[K]::cons a tail))}
+            "by" {sym!{K} _ _ ((Evaluation.homomorphism x).mul (linearFactor a) (factors tail))}
+            "=" zero "by" root}))
+        (\fun (same: _) => \idelim a = x \with y: K => S y \by { base: over.left, equality: sym!{K} _ _ (Arithmetic.differenceZero x a same) })
+        (previous over.right x)
+  };
+\definition rootInBase: \forall (S: K -> \Prop)(p: Coefficients) -> Splits S p -> \forall (x: K) -> monicEvaluate p x = zero -> S x := \block {
+  \fun (S: _)(p: Coefficients)(splits: _)(x: K)(root: _) \then
+  \takefrom splitting: Splitting[S, p] \by splits \then
+  \return factorsRoot S splitting.roots splitting.over x
+    (eq_reason!{{Evaluation.apply x (factors splitting.roots)}
+      "=" {Evaluation.apply x (asPolynomial p)} "by" {congr!{Abstract.Carrier K} (Evaluation.apply x) _ _ (sym!{Abstract.Carrier} _ _ splitting.factorization)}
+      "=" {monicEvaluate p x} "by" {Evaluation.agrees p x}
+      "=" zero "by" root})
+};
+\definition zeros: N.Nat^ -> Coefficients := \induction (n: N.Nat^) \return Coefficients \with {
+  | zero: Lists.List[K]::nil
+  | succ: \fun (n: N.Nat^)(previous: Coefficients) => Lists.List[K]::cons zero previous
+};
+\definition zerosValue: \forall (n: N.Nat^)(x: K) -> monicEvaluate (zeros n) x = power x n :=
+  \induction (n: N.Nat^) \return \forall (x: K) -> monicEvaluate (zeros n) x = power x n \with {
+    | zero: \fun (x: K) => \refl(one)
+    | succ: \fun (n: N.Nat^)(previous: _)(x: K) => trans!{K} _ _ _ (Sum.zeroLeft (mul x (monicEvaluate (zeros n) x)))
+      (congr!{K K} (mul x) _ _ (previous x))
+  };
+\definition zerosOver: \forall (S: K -> \Prop) -> S zero -> \forall (n: N.Nat^) -> Over S (zeros n) :=
+  \fun (S: _)(hz: _) => \induction (n: N.Nat^) \return Over S (zeros n) \with {
+    | zero: Logic.True::intro
+    | succ: \fun (n: N.Nat^)(previous: _) => Logic.And[_, _]::# hz previous
+  };
+\definition unityCoefficients[n: N.Nat^]: Coefficients := Lists.List[K]::cons (neg one) (zeros (N.Nat^::succ n));
+\definition unityIsRoot: \forall (n: N.Nat^)(z: K) -> power z (N.Nat^::succ (N.Nat^::succ n)) = one -> monicEvaluate (unityCoefficients n) z = zero :=
+  \fun (n: N.Nat^)(z: K)(unity: _) => eq_reason!{{monicEvaluate (unityCoefficients n) z}
+    "=" {add (neg one) (power z (N.Nat^::succ (N.Nat^::succ n)))}
+    "by" {congr!{K K} (\fun (u: K) => add (neg one) (mul z u)) _ _ (zerosValue (N.Nat^::succ n) z)}
+    "=" {add (neg one) one} "by" {congr!{K K} (add (neg one)) _ _ unity}
+    "=" zero "by" {field.ring.ring.additiveInverse one}};
+\definition unityInClosedSubfield: \forall (S: K -> \Prop) -> Subfields.Closed[S] -> AlgebraicallyClosed S ->
+  \forall (n: N.Nat^)(z: K) -> power z (N.Nat^::succ (N.Nat^::succ n)) = one -> S z :=
+  \fun (S: _)(closed: Subfields.Closed[S])(algebraicallyClosed: AlgebraicallyClosed S)(n: N.Nat^)(z: K)(unity: _) =>
+    rootInBase S (unityCoefficients n)
+      (splitsOverClosed S closed algebraicallyClosed (unityCoefficients n)
+        (Logic.And[_, _]::# (closed.neg one closed.one) (zerosOver S closed.zero (N.Nat^::succ n))))
+      z (unityIsRoot n z unity);

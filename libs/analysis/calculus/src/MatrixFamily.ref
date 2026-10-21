@@ -1,0 +1,36 @@
+/* Smoothness of linear maps in fixed finite coordinates. */
+\import real.Analysis[] \as R;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import linear_algebra.Euclidean[n := p] \as Source;
+\import linear_algebra.Euclidean[n := q] \as Target;
+\import linear_algebra.Field[].Space[K := R.Real, field := R.Algebra[].field] \as Spaces;
+\import Spaces.Linear[V := Source.Vector, W := Target.Vector, source := Source.space, target := Target.space] \as Maps;
+\import \root.Real[].Multivariable[n := d].Open[] \as Open;
+\import Open.Smooth[] \as Smooth;
+\import Smooth.Operations[] \as Operations;
+\import Smooth.Sums[] \as Sums;
+\import R.FiniteSums[].Linear[] \as Finite;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition VectorSmooth[U: Open.OpenSet][v: Open.Carrier U -> Target.Vector]: \Prop :=
+  \forall (i: Fin.Fin q) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => v x i);
+\definition Regular[U: Open.OpenSet][A: Open.Carrier U -> Maps.Map]: \Prop :=
+  \forall (i: Fin.Fin q)(j: Fin.Fin p) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => (A x).apply (Source.basis j) i);
+\module Action(U: Open.OpenSet, A: Open.Carrier U -> Maps.Map, regular: Regular U A, v: Open.Carrier U -> Source.Vector,
+  smooth: \forall (i: Fin.Fin p) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => v x i));
+\definition action: \forall (U: Open.OpenSet)(A: Open.Carrier U -> Maps.Map) -> Regular U A ->
+  \forall (v: Open.Carrier U -> Source.Vector) -> (\forall (i: Fin.Fin p) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => v x i)) ->
+  VectorSmooth U (\fun (x: Open.Carrier U) => (A x).apply (v x)) :=
+  \fun (U: Open.OpenSet)(A: Open.Carrier U -> Maps.Map)(regular: Regular U A)(v: Open.Carrier U -> Source.Vector)(smooth: _) =>
+    Action[U := U, A := A, regular := regular, v := v, smooth := smooth].smooth;
+\definition evaluate: \forall (U: Open.OpenSet)(A: Open.Carrier U -> Maps.Map) -> Regular U A -> \forall (v: Source.Vector) ->
+  VectorSmooth U (\fun (x: Open.Carrier U) => (A x).apply v) := \fun (U: Open.OpenSet)(A: Open.Carrier U -> Maps.Map)(regular: Regular U A)(v: Source.Vector) =>
+    action U A regular (\fun (x: Open.Carrier U) => v) (\fun (i: Fin.Fin p) => Operations.constantSmooth U (v i));
+\definition restrict: \forall (U, V: Open.OpenSet)(included: Open.Included U V)(A: Open.Carrier V -> Maps.Map) -> Regular V A ->
+  Regular U (\fun (x: Open.Carrier U) => A (Open.inclusion U V included x)) :=
+  \fun (U, V: Open.OpenSet)(included: Open.Included U V)(A: Open.Carrier V -> Maps.Map)(regular: Regular V A)(i: Fin.Fin q)(j: Fin.Fin p) =>
+    Open.Restriction[].localSmooth U V included (\fun (x: Open.Carrier V) => (A x).apply (Source.basis j) i) (regular i j);
+\module Lift(U: Open.OpenSet, A: Open.Carrier U -> Maps.Map, regular: Regular U A);

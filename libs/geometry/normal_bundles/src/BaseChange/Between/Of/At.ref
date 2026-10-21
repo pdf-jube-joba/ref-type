@@ -1,0 +1,29 @@
+\import Source.At[x := x] \as SourceFiber;
+\import Target.At[x := BaseMaps.apply h.forward x] \as TargetFiber;
+\import manifolds.DiffeomorphismDifferential[n := n, m := n].Between[M := Mprime, N := M].Of[d := h].At[x := x] \as Derivative;
+\import manifolds.DifferentialComposition[n := n, m := n, l := ambientDimension].Between[M := Mprime, N := M, P := ambient].Of[f := h.forward, g := i].At[x := x] \as Chain;
+\import manifolds.Tangent[n := ambientDimension].On[M := ambient].At[x := AmbientMaps.apply i (BaseMaps.apply h.forward x)] \as AmbientTangent;
+\import AmbientTangent.ChartIsomorphism[chart := TargetFiber.chart] \as Coordinates;
+\definition chain: \forall (v: SourceTangent.Vector x) -> SourceFiber.differential.apply v = TargetFiber.differential.apply (Derivative.isomorphism.forward.apply v) :=
+  \fun (v: SourceTangent.Vector x) => congr!{{AmbientTangent.Vector} {E.Vector}} Coordinates.forward.apply _ _ (Chain.pointwise v);
+\import Spaces.Isomorphism[V := SourceTangent.Vector x, W := TargetTangent.Vector (BaseMaps.apply h.forward x), source := SourceTangent.space x, target := TargetTangent.space (BaseMaps.apply h.forward x)] \as DerivativeIsomorphisms;
+\definition push[w: Source.Fiber x]: Target.Fiber (BaseMaps.apply h.forward x) := \into[E.Vector](w, TargetFiber.subspace.carrier) \by {
+  \fun (v: TargetTangent.Vector (BaseMaps.apply h.forward x)) => trans!{{R.Real}} _ _ _
+    (congr!{{E.Vector} {R.Real}} (E.dot w) _ _ (sym!{{E.Vector}} _ _ (trans!{{E.Vector}} _ _ _ (chain (Derivative.isomorphism.backward.apply v))
+      (congr!{{TargetTangent.Vector (BaseMaps.apply h.forward x)} {E.Vector}} TargetFiber.differential.apply _ _ ((DerivativeIsomorphisms.laws Derivative.isomorphism).rightInverse v)))))
+    ((\bysub(E.Vector, SourceFiber.subspace.carrier, w)) (Derivative.isomorphism.backward.apply v))
+};
+\definition pull[w: Target.Fiber (BaseMaps.apply h.forward x)]: Source.Fiber x := \into[E.Vector](w, SourceFiber.subspace.carrier) \by {
+  \fun (v: SourceTangent.Vector x) => trans!{{R.Real}} _ _ _ (congr!{{E.Vector} {R.Real}} (E.dot w) _ _ (chain v))
+    ((\bysub(E.Vector, TargetFiber.subspace.carrier, w)) (Derivative.isomorphism.forward.apply v))
+};
+\import Spaces.Linear[V := Source.Fiber x, W := Target.Fiber (BaseMaps.apply h.forward x), source := Source.fiberSpace x, target := Target.fiberSpace (BaseMaps.apply h.forward x)] \as Forward;
+\import Spaces.Linear[V := Target.Fiber (BaseMaps.apply h.forward x), W := Source.Fiber x, source := Target.fiberSpace (BaseMaps.apply h.forward x), target := Source.fiberSpace x] \as Backward;
+\definition forward: Forward.Map := Forward.Map { apply := push,
+  preservesAdd := \fun (v, w: Source.Fiber x) => \refl(E.space.add v w), preservesScale := \fun (a: R.Real)(w: Source.Fiber x) => \refl(E.space.smul a w) };
+\definition backward: Backward.Map := Backward.Map { apply := pull,
+  preservesAdd := \fun (v, w: Target.Fiber (BaseMaps.apply h.forward x)) => \refl(E.space.add v w), preservesScale := \fun (a: R.Real)(w: Target.Fiber (BaseMaps.apply h.forward x)) => \refl(E.space.smul a w) };
+\import Spaces.Isomorphism[V := Source.Fiber x, W := Target.Fiber (BaseMaps.apply h.forward x), source := Source.fiberSpace x, target := Target.fiberSpace (BaseMaps.apply h.forward x)] \as Isomorphisms;
+\definition isomorphism: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := forward, backward := backward, leftInverse := \fun (v: Source.Fiber x) => \refl(v), rightInverse := \fun (w: Target.Fiber (BaseMaps.apply h.forward x)) => \refl(w),
+};

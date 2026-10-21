@@ -1,0 +1,31 @@
+\import FirstMaps.Coordinates[f := f, left := c, right := First.standard] \as F;
+\import SecondMaps.Coordinates[f := g, left := c, right := Second.standard] \as G;
+\definition firstIncluded: Open.Included c.image F.domain := \fun (u: calculus.Real[].Multivariable[n := p].Point)(inside: _) =>
+  F.intro (\into[calculus.Real[].Multivariable[n := p].Point](u, c.image.points) \by { inside }) (\refl(FirstMaps.apply f (Charts.point c (\into[calculus.Real[].Multivariable[n := p].Point](u, c.image.points) \by { inside }))));
+\definition secondIncluded: Open.Included c.image G.domain := \fun (u: calculus.Real[].Multivariable[n := p].Point)(inside: _) =>
+  G.intro (\into[calculus.Real[].Multivariable[n := p].Point](u, c.image.points) \by { inside }) (\refl(SecondMaps.apply g (Charts.point c (\into[calculus.Real[].Multivariable[n := p].Point](u, c.image.points) \by { inside }))));
+\import calculus.Maps[n := p, m := n] \as FirstCalculus;
+\import calculus.Maps[n := p, m := m] \as SecondCalculus;
+\import calculus.Maps[n := p, m := dimension] \as Result;
+\definition firstMap: FirstCalculus.Map F.domain FirstOpen.whole := F.map
+  ((\bysub(FirstMaps.ContinuousMap, { f: FirstMaps.ContinuousMap \where FirstMaps.Chartwise f }, f)) c First.standard (\bysub(Charts.Chart, X.atlas.charts, c))
+    (FirstAtlas.includedInSaturation First.atlas First.standard (\refl(First.standard))));
+\definition secondMap: SecondCalculus.Map G.domain SecondOpen.whole := G.map
+  ((\bysub(SecondMaps.ContinuousMap, { f: SecondMaps.ContinuousMap \where SecondMaps.Chartwise f }, g)) c Second.standard (\bysub(Charts.Chart, X.atlas.charts, c))
+    (SecondAtlas.includedInSaturation Second.atlas Second.standard (\refl(Second.standard))));
+\definition first: FirstCalculus.Map c.image FirstOpen.whole := FirstCalculus.Restriction[U := c.image, V := F.domain, W := FirstOpen.whole].input firstIncluded firstMap;
+\definition second: SecondCalculus.Map c.image SecondOpen.whole := SecondCalculus.Restriction[U := c.image, V := G.domain, W := SecondOpen.whole].input secondIncluded secondMap;
+\import Blocks.Pair[d := p].On[U := c.image, V := FirstOpen.whole, W := SecondOpen.whole, f := first, g := second] \as Pair;
+\import Blocks.On[U := FirstOpen.whole, V := SecondOpen.whole] \as Product;
+\definition inside: \forall (u: Open.Carrier c.image) -> \In[calculus.Real[].Multivariable[n := dimension].Point] TargetOpen.whole.points (Result.apply c.image Product.domain Pair.map u) :=
+  \fun (u: Open.Carrier c.image) => \refl(Result.apply c.image Product.domain Pair.map u);
+\definition coordinateMap: Result.Map c.image TargetOpen.whole := Result.Corestriction[U := c.image, V := Product.domain, W := TargetOpen.whole, f := Pair.map, inside := inside].map;
+\import \root.EuclideanMap[n := p, m := dimension].Between[U := c.image, V := TargetOpen.whole] \as CoordinateMaps;
+\import \root.Dimension[n := dimension].Atlas[M := target.Point, space := target.space] \as TargetAtlas;
+\import \root.Dimension[n := dimension].Chart[M := target.Point, space := target.space] \as TargetCharts;
+\definition standard: \Cast[TargetCharts.Chart] target.atlas.charts := \into[TargetCharts.Chart](Target.standard, target.atlas.charts) \by {
+  TargetAtlas.includedInSaturation Target.atlas Target.standard (\refl(Target.standard))
+};
+\import \root.ChartMap[n := dimension].On[M := target].At[chart := standard] \as Parametrization;
+\import \root.Composition[n := p, m := dimension, l := dimension].Between[M := CoordinateMaps.source, N := CoordinateMaps.target, P := target] \as Compose;
+\definition map: Plots.LocalMap c := Compose.compose (CoordinateMaps.map coordinateMap) Parametrization.map;

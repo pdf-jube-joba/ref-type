@@ -1,0 +1,194 @@
+\import \parent.Fractions[] \as FractionRelation;
+\import Subfields.Of[S := splittingField] \as Source;
+\import Subfields.Of[S := splittingField] \as Range;
+\definition SourceSeed: K -> \Prop := Seed;
+\definition RangeSeed: K -> \Prop := Seed;
+\definition sourceConstant[a: Base.Carrier]: Source.Carrier := \into[K](a, splittingField) \by { containsConstant a (Base.member a) };
+\definition sourceRoot[i: Quintic.Five]: Source.Carrier := \into[K](roots i, splittingField) \by { containsRoot i };
+\definition constantRelated: \forall (a: Base.Carrier) -> FractionRelation.Related (Base.forget a) (Base.forget a) :=
+  \fun (a: Base.Carrier) => FractionRelation.expressionRelated (Free.Expression::constant a);
+\definition rootRelated: \forall (i: Quintic.Five) -> FractionRelation.Related (roots i) (roots (p.apply i)) :=
+  \fun (i: Quintic.Five) => FractionRelation.expressionRelated (Free.Expression::variable i);
+\definition SourceValue[z: K]: \Set := \Cast[K] ({ w: K \where Logic.And[Subfields.Member splittingField w, FractionRelation.Related z w] });
+\definition RangeValue[w: K]: \Set := \Cast[K] ({ z: K \where Logic.And[Subfields.Member splittingField z, FractionRelation.Related z w] });
+\definition Domain[z: K]: \Prop := \exists SourceValue z;
+\definition Image[w: K]: \Prop := \exists RangeValue w;
+\definition domainClosed: EquivalentKernels -> Subfields.Closed[Domain] :=
+  \fun (kernels: EquivalentKernels) => Subfields.Closed[Domain] {
+    zero := Logic.existsIntro[K, { w: K \where Logic.And[Subfields.Member splittingField w, FractionRelation.Related F.zero w] }] F.zero
+      (Logic.And[_, _]::# (Subfields.laws splittingField).zero FractionRelation.zeroRelated),
+    one := Logic.existsIntro[K, { w: K \where Logic.And[Subfields.Member splittingField w, FractionRelation.Related F.one w] }] F.one
+      (Logic.And[_, _]::# (Subfields.laws splittingField).one FractionRelation.oneRelated),
+    add := \block {
+      \fun (z, v: K)(hz: _)(hv: _) \then
+      \takefrom w: SourceValue z \by hz \then
+      \takefrom t: SourceValue v \by hv \then
+      \let left: Logic.And[Subfields.Member splittingField w, FractionRelation.Related z w] := \bysub(K, { w: K \where Logic.And[Subfields.Member splittingField w, FractionRelation.Related z w] }, w) \then
+      \let right: Logic.And[Subfields.Member splittingField t, FractionRelation.Related v t] := \bysub(K, { t: K \where Logic.And[Subfields.Member splittingField t, FractionRelation.Related v t] }, t) \then
+      \return Logic.existsIntro[K, { u: K \where Logic.And[Subfields.Member splittingField u, FractionRelation.Related (F.add z v) u] }] (F.add w t)
+        (Logic.And[_, _]::# ((Subfields.laws splittingField).add w t left.left right.left) (FractionRelation.addRelated z v w t left.right right.right))
+    },
+    neg := \block {
+      \fun (z: K)(hz: _) \then
+      \takefrom w: SourceValue z \by hz \then
+      \let law: Logic.And[Subfields.Member splittingField w, FractionRelation.Related z w] := \bysub(K, { w: K \where Logic.And[Subfields.Member splittingField w, FractionRelation.Related z w] }, w) \then
+      \return Logic.existsIntro[K, { u: K \where Logic.And[Subfields.Member splittingField u, FractionRelation.Related (F.neg z) u] }] (F.neg w)
+        (Logic.And[_, _]::# ((Subfields.laws splittingField).neg w law.left) (FractionRelation.negRelated z w law.right))
+    },
+    mul := \block {
+      \fun (z, v: K)(hz: _)(hv: _) \then
+      \takefrom w: SourceValue z \by hz \then
+      \takefrom t: SourceValue v \by hv \then
+      \let left: Logic.And[Subfields.Member splittingField w, FractionRelation.Related z w] := \bysub(K, { w: K \where Logic.And[Subfields.Member splittingField w, FractionRelation.Related z w] }, w) \then
+      \let right: Logic.And[Subfields.Member splittingField t, FractionRelation.Related v t] := \bysub(K, { t: K \where Logic.And[Subfields.Member splittingField t, FractionRelation.Related v t] }, t) \then
+      \return Logic.existsIntro[K, { u: K \where Logic.And[Subfields.Member splittingField u, FractionRelation.Related (F.mul z v) u] }] (F.mul w t)
+        (Logic.And[_, _]::# ((Subfields.laws splittingField).mul w t left.left right.left) (FractionRelation.mulRelated z v w t left.right right.right))
+    },
+    inv := \block {
+      \fun (z: K)(hz: _) \then
+      \takefrom w: SourceValue z \by hz \then
+      \let law: Logic.And[Subfields.Member splittingField w, FractionRelation.Related z w] := \bysub(K, { w: K \where Logic.And[Subfields.Member splittingField w, FractionRelation.Related z w] }, w) \then
+      \return Logic.existsIntro[K, { u: K \where Logic.And[Subfields.Member splittingField u, FractionRelation.Related (F.inv z) u] }] (F.inv w)
+        (Logic.And[_, _]::# ((Subfields.laws splittingField).inv w law.left) (FractionRelation.invRelated kernels z w law.right))
+    },
+  };
+\definition imageClosed: EquivalentKernels -> Subfields.Closed[Image] :=
+  \fun (kernels: EquivalentKernels) => Subfields.Closed[Image] {
+    zero := Logic.existsIntro[K, { z: K \where Logic.And[Subfields.Member splittingField z, FractionRelation.Related z F.zero] }] F.zero
+      (Logic.And[_, _]::# (Subfields.laws splittingField).zero FractionRelation.zeroRelated),
+    one := Logic.existsIntro[K, { z: K \where Logic.And[Subfields.Member splittingField z, FractionRelation.Related z F.one] }] F.one
+      (Logic.And[_, _]::# (Subfields.laws splittingField).one FractionRelation.oneRelated),
+    add := \block {
+      \fun (w, t: K)(hw: _)(ht: _) \then
+      \takefrom z: RangeValue w \by hw \then
+      \takefrom v: RangeValue t \by ht \then
+      \let left: Logic.And[Subfields.Member splittingField z, FractionRelation.Related z w] := \bysub(K, { z: K \where Logic.And[Subfields.Member splittingField z, FractionRelation.Related z w] }, z) \then
+      \let right: Logic.And[Subfields.Member splittingField v, FractionRelation.Related v t] := \bysub(K, { v: K \where Logic.And[Subfields.Member splittingField v, FractionRelation.Related v t] }, v) \then
+      \return Logic.existsIntro[K, { u: K \where Logic.And[Subfields.Member splittingField u, FractionRelation.Related u (F.add w t)] }] (F.add z v)
+        (Logic.And[_, _]::# ((Subfields.laws splittingField).add z v left.left right.left) (FractionRelation.addRelated z v w t left.right right.right))
+    },
+    neg := \block {
+      \fun (w: K)(hw: _) \then
+      \takefrom z: RangeValue w \by hw \then
+      \let law: Logic.And[Subfields.Member splittingField z, FractionRelation.Related z w] := \bysub(K, { z: K \where Logic.And[Subfields.Member splittingField z, FractionRelation.Related z w] }, z) \then
+      \return Logic.existsIntro[K, { u: K \where Logic.And[Subfields.Member splittingField u, FractionRelation.Related u (F.neg w)] }] (F.neg z)
+        (Logic.And[_, _]::# ((Subfields.laws splittingField).neg z law.left) (FractionRelation.negRelated z w law.right))
+    },
+    mul := \block {
+      \fun (w, t: K)(hw: _)(ht: _) \then
+      \takefrom z: RangeValue w \by hw \then
+      \takefrom v: RangeValue t \by ht \then
+      \let left: Logic.And[Subfields.Member splittingField z, FractionRelation.Related z w] := \bysub(K, { z: K \where Logic.And[Subfields.Member splittingField z, FractionRelation.Related z w] }, z) \then
+      \let right: Logic.And[Subfields.Member splittingField v, FractionRelation.Related v t] := \bysub(K, { v: K \where Logic.And[Subfields.Member splittingField v, FractionRelation.Related v t] }, v) \then
+      \return Logic.existsIntro[K, { u: K \where Logic.And[Subfields.Member splittingField u, FractionRelation.Related u (F.mul w t)] }] (F.mul z v)
+        (Logic.And[_, _]::# ((Subfields.laws splittingField).mul z v left.left right.left) (FractionRelation.mulRelated z v w t left.right right.right))
+    },
+    inv := \block {
+      \fun (w: K)(hw: _) \then
+      \takefrom z: RangeValue w \by hw \then
+      \let law: Logic.And[Subfields.Member splittingField z, FractionRelation.Related z w] := \bysub(K, { z: K \where Logic.And[Subfields.Member splittingField z, FractionRelation.Related z w] }, z) \then
+      \return Logic.existsIntro[K, { u: K \where Logic.And[Subfields.Member splittingField u, FractionRelation.Related u (F.inv w)] }] (F.inv z)
+        (Logic.And[_, _]::# ((Subfields.laws splittingField).inv z law.left) (FractionRelation.invRelated kernels z w law.right))
+    },
+  };
+\definition seedDomain: Subfields.Included SourceSeed Domain :=
+  \fun (z: K)(seed: SourceSeed z) => Logic.orElim _ _ _ seed
+    (\fun (constant: Subfields.Member constants z) =>
+      Logic.existsIntro[K, { w: K \where Logic.And[Subfields.Member splittingField w, FractionRelation.Related z w] }] z
+        (Logic.And[_, _]::# (containsConstant z constant) (constantRelated (\into[K](z, constants) \by { constant }))))
+    (\block {
+      \fun (root: _) \then
+      \takefrom i: \Cast[Quintic.Five] ({ i: Quintic.Five \where roots i = z }) \by root \then
+      \return \idelim roots i = z \with t: K => Domain t \by {
+        base: Logic.existsIntro[K, { w: K \where Logic.And[Subfields.Member splittingField w, FractionRelation.Related (roots i) w] }] (roots (p.apply i))
+          (Logic.And[_, _]::# (containsRoot (p.apply i)) (rootRelated i)),
+        equality: \bysub(Quintic.Five, { i: Quintic.Five \where roots i = z }, i)
+      }
+    });
+\definition seedImage: Subfields.Included RangeSeed Image :=
+  \fun (w: K)(seed: RangeSeed w) => Logic.orElim _ _ _ seed
+    (\fun (constant: Subfields.Member constants w) =>
+      Logic.existsIntro[K, { z: K \where Logic.And[Subfields.Member splittingField z, FractionRelation.Related z w] }] w
+        (Logic.And[_, _]::# (containsConstant w constant) (constantRelated (\into[K](w, constants) \by { constant }))))
+    (\block {
+      \fun (root: _) \then
+      \takefrom i: \Cast[Quintic.Five] ({ i: Quintic.Five \where roots i = w }) \by root \then
+      \return \idelim roots i = w \with t: K => Image t \by {
+        base: Logic.existsIntro[K, { z: K \where Logic.And[Subfields.Member splittingField z, FractionRelation.Related z (roots i)] }] (roots (p.backward i))
+          (Logic.And[_, _]::# (containsRoot (p.backward i))
+            (\idelim roots (p.apply (p.backward i)) = roots i \with t: K => FractionRelation.Related (roots (p.backward i)) t
+              \by { base: rootRelated (p.backward i), equality: congr!{Quintic.Five K} roots _ _ (p.rightInverse i) })),
+        equality: \bysub(Quintic.Five, { i: Quintic.Five \where roots i = w }, i)
+      }
+    });
+\definition sourceTotal: EquivalentKernels -> \forall (z: Source.Carrier) -> Domain z :=
+  \fun (kernels: EquivalentKernels)(z: Source.Carrier) => (Source.member z) Domain (domainClosed kernels) seedDomain;
+\definition rangeTotal: EquivalentKernels -> \forall (w: Range.Carrier) -> Image w :=
+  \fun (kernels: EquivalentKernels)(w: Range.Carrier) => (Range.member w) Image (imageClosed kernels) seedImage;
+\structure Map: \Set := {
+  forward: Source.Carrier -> Range.Carrier,
+  backward: Range.Carrier -> Source.Carrier,
+  relatedForward: \forall (z: Source.Carrier) -> FractionRelation.Related z (forward z),
+  relatedBackward: \forall (w: Range.Carrier) -> FractionRelation.Related (backward w) w,
+};
+\definition existsMap: EquivalentKernels -> \exists Map := \block {
+  \fun (kernels: EquivalentKernels) \then
+  \takefrom forward: (\forall (z: Source.Carrier) -> SourceValue z) \by
+    \axiom:classicalIndefiniteChoice(Source.Carrier, (\fun (z: Source.Carrier) => SourceValue z), sourceTotal kernels) \then
+  \takefrom backward: (\forall (w: Range.Carrier) -> RangeValue w) \by
+    \axiom:classicalIndefiniteChoice(Range.Carrier, (\fun (w: Range.Carrier) => RangeValue w), rangeTotal kernels) \then
+  \return \exact(Map {
+    forward := \fun (z: Source.Carrier) => \into[K](forward z, splittingField) \by {
+      (\bysub(K, { w: K \where Logic.And[Subfields.Member splittingField w, FractionRelation.Related z w] }, forward z)).left
+    },
+    backward := \fun (w: Range.Carrier) => \into[K](backward w, splittingField) \by {
+      (\bysub(K, { z: K \where Logic.And[Subfields.Member splittingField z, FractionRelation.Related z w] }, backward w)).left
+    },
+    relatedForward := \fun (z: Source.Carrier) => (\bysub(K, { w: K \where Logic.And[Subfields.Member splittingField w, FractionRelation.Related z w] }, forward z)).right,
+    relatedBackward := \fun (w: Range.Carrier) => (\bysub(K, { z: K \where Logic.And[Subfields.Member splittingField z, FractionRelation.Related z w] }, backward w)).right,
+  }, Map)
+};
+\definition leftInverse: EquivalentKernels -> \forall (map: Map)(z: Source.Carrier) -> map.backward (map.forward z) = z :=
+  \fun (kernels: EquivalentKernels)(map: Map)(z: Source.Carrier) =>
+    FractionRelation.sourceUnique kernels (map.backward (map.forward z)) z (map.forward z) (map.relatedBackward (map.forward z)) (map.relatedForward z);
+\definition rightInverse: EquivalentKernels -> \forall (map: Map)(w: Range.Carrier) -> map.forward (map.backward w) = w :=
+  \fun (kernels: EquivalentKernels)(map: Map)(w: Range.Carrier) =>
+    FractionRelation.targetUnique kernels (map.backward w) (map.forward (map.backward w)) w (map.relatedForward (map.backward w)) (map.relatedBackward w);
+\definition preservesZero: EquivalentKernels -> \forall (map: Map) -> map.forward Source.subZero = Range.subZero :=
+  \fun (kernels: EquivalentKernels)(map: Map) =>
+    FractionRelation.targetUnique kernels F.zero (map.forward Source.subZero) F.zero (map.relatedForward Source.subZero) FractionRelation.zeroRelated;
+\definition preservesOne: EquivalentKernels -> \forall (map: Map) -> map.forward Source.subOne = Range.subOne :=
+  \fun (kernels: EquivalentKernels)(map: Map) =>
+    FractionRelation.targetUnique kernels F.one (map.forward Source.subOne) F.one (map.relatedForward Source.subOne) FractionRelation.oneRelated;
+\definition preservesAdd: EquivalentKernels -> \forall (map: Map)(z, v: Source.Carrier) -> map.forward (Source.subAdd z v) = Range.subAdd (map.forward z) (map.forward v) :=
+  \fun (kernels: EquivalentKernels)(map: Map)(z, v: Source.Carrier) => FractionRelation.targetUnique kernels (F.add z v) _ _
+    (map.relatedForward (Source.subAdd z v)) (FractionRelation.addRelated z v (map.forward z) (map.forward v) (map.relatedForward z) (map.relatedForward v));
+\definition preservesNeg: EquivalentKernels -> \forall (map: Map)(z: Source.Carrier) -> map.forward (Source.subNeg z) = Range.subNeg (map.forward z) :=
+  \fun (kernels: EquivalentKernels)(map: Map)(z: Source.Carrier) => FractionRelation.targetUnique kernels (F.neg z) _ _
+    (map.relatedForward (Source.subNeg z)) (FractionRelation.negRelated z (map.forward z) (map.relatedForward z));
+\definition preservesMul: EquivalentKernels -> \forall (map: Map)(z, v: Source.Carrier) -> map.forward (Source.subMul z v) = Range.subMul (map.forward z) (map.forward v) :=
+  \fun (kernels: EquivalentKernels)(map: Map)(z, v: Source.Carrier) => FractionRelation.targetUnique kernels (F.mul z v) _ _
+    (map.relatedForward (Source.subMul z v)) (FractionRelation.mulRelated z v (map.forward z) (map.forward v) (map.relatedForward z) (map.relatedForward v));
+\definition preservesInv: EquivalentKernels -> \forall (map: Map)(z: Source.Carrier) -> map.forward (Source.subInv z) = Range.subInv (map.forward z) :=
+  \fun (kernels: EquivalentKernels)(map: Map)(z: Source.Carrier) => FractionRelation.targetUnique kernels (F.inv z) _ _
+    (map.relatedForward (Source.subInv z)) (FractionRelation.invRelated kernels z (map.forward z) (map.relatedForward z));
+\definition onConstants: EquivalentKernels -> \forall (map: Map)(a: Base.Carrier) -> map.forward (sourceConstant a) = sourceConstant a :=
+  \fun (kernels: EquivalentKernels)(map: Map)(a: Base.Carrier) => FractionRelation.targetUnique kernels a _ _
+    (map.relatedForward (sourceConstant a)) (constantRelated a);
+\definition onRoots: EquivalentKernels -> \forall (map: Map)(i: Quintic.Five) -> map.forward (sourceRoot i) = sourceRoot (p.apply i) :=
+  \fun (kernels: EquivalentKernels)(map: Map)(i: Quintic.Five) => FractionRelation.targetUnique kernels (roots i) _ _
+    (map.relatedForward (sourceRoot i)) (rootRelated i);
+\import F.Partial[] \as Partial;
+\structure Initial: \Set := {
+  isomorphism: Partial.Isomorphism,
+  domain: isomorphism.domain = splittingField,
+  range: isomorphism.range = splittingField,
+  constants: \forall (z: K) -> Subfields.Member constants z -> isomorphism.forward z = z,
+  roots: \forall (i: Quintic.Five) -> isomorphism.forward (roots i) = roots (p.apply i),
+};
+\module Selected(map: Map);
+\definition initialExists: Independent -> \exists Initial := \block {
+  \fun (independent: Independent) \then
+  \takefrom map: Map \by existsMap (kernels independent) \then
+  \return Selected[map := map].exists (kernels independent)
+};

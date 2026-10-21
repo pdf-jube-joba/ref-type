@@ -1,0 +1,65 @@
+\import \parent.Subfield[] \as Subfields;
+
+/* A root step of exponent n+2 includes square roots and excludes exponent zero. */
+\structure RadicalClosed[S: K -> \Prop]: \Prop := {
+  subfield: Subfields.Closed[S],
+  root: \forall (n: N.Nat^)(x: K) -> S (power x (N.Nat^::succ (N.Nat^::succ n))) -> S x,
+};
+\structure QuadraticClosed[S: K -> \Prop]: \Prop := {
+  subfield: Subfields.Closed[S],
+  root: \forall (x: K) -> S (square x) -> S x,
+};
+\definition Radical[S: K -> \Prop][x: K]: \Prop :=
+  \forall (T: K -> \Prop) -> RadicalClosed[T] -> Subfields.Included S T -> T x;
+\definition Constructible[S: K -> \Prop][x: K]: \Prop :=
+  \forall (T: K -> \Prop) -> QuadraticClosed[T] -> Subfields.Included S T -> T x;
+\definition radicalContains: \forall (S: K -> \Prop)(x: K) -> S x -> Radical S x :=
+  \fun (S: _)(x: K)(hx: _)(T: _)(closed: _)(included: _) => included x hx;
+\definition constructibleContains: \forall (S: K -> \Prop)(x: K) -> S x -> Constructible S x :=
+  \fun (S: _)(x: K)(hx: _)(T: _)(closed: _)(included: _) => included x hx;
+\definition radicalSubfield[S: K -> \Prop]: Subfields.Subfield :=
+  \into[\Pow K]({ x: K \where Radical S x }, Subfields.Subfield) \by {
+    Subfields.Closed[Radical S] {
+      zero := \fun (T: _)(closed: _)(included: _) => closed.subfield.zero,
+      one := \fun (T: _)(closed: _)(included: _) => closed.subfield.one,
+      add := \fun (x, y: K)(hx: _)(hy: _)(T: _)(closed: _)(included: _) =>
+        closed.subfield.add x y (hx T closed included) (hy T closed included),
+      neg := \fun (x: K)(hx: _)(T: _)(closed: _)(included: _) => closed.subfield.neg x (hx T closed included),
+      mul := \fun (x, y: K)(hx: _)(hy: _)(T: _)(closed: _)(included: _) =>
+        closed.subfield.mul x y (hx T closed included) (hy T closed included),
+      inv := \fun (x: K)(hx: _)(T: _)(closed: _)(included: _) => closed.subfield.inv x (hx T closed included),
+    }
+  };
+\definition constructibleSubfield[S: K -> \Prop]: Subfields.Subfield :=
+  \into[\Pow K]({ x: K \where Constructible S x }, Subfields.Subfield) \by {
+    Subfields.Closed[Constructible S] {
+      zero := \fun (T: _)(closed: _)(included: _) => closed.subfield.zero,
+      one := \fun (T: _)(closed: _)(included: _) => closed.subfield.one,
+      add := \fun (x, y: K)(hx: _)(hy: _)(T: _)(closed: _)(included: _) =>
+        closed.subfield.add x y (hx T closed included) (hy T closed included),
+      neg := \fun (x: K)(hx: _)(T: _)(closed: _)(included: _) => closed.subfield.neg x (hx T closed included),
+      mul := \fun (x, y: K)(hx: _)(hy: _)(T: _)(closed: _)(included: _) =>
+        closed.subfield.mul x y (hx T closed included) (hy T closed included),
+      inv := \fun (x: K)(hx: _)(T: _)(closed: _)(included: _) => closed.subfield.inv x (hx T closed included),
+    }
+  };
+\definition radicalRoot: \forall (S: K -> \Prop)(n: N.Nat^)(x: K) ->
+  Radical S (power x (N.Nat^::succ (N.Nat^::succ n))) -> Radical S x :=
+  \fun (S: _)(n: _)(x: K)(hx: _)(T: _)(closed: _)(included: _) => closed.root n x (hx T closed included);
+\definition constructibleRoot: \forall (S: K -> \Prop)(x: K) -> Constructible S (square x) -> Constructible S x :=
+  \fun (S: _)(x: K)(hx: _)(T: _)(closed: _)(included: _) => closed.root x (hx T closed included);
+\definition quadraticFromRadical: \forall (T: K -> \Prop) -> RadicalClosed[T] -> QuadraticClosed[T] :=
+  \fun (T: _)(closed: _) => QuadraticClosed[T] {
+    subfield := closed.subfield,
+    root := \fun (x: K)(hx: _) => closed.root N.Nat^::zero x
+      (\idelim square x = power x two \with y: K => T y
+        \by { base: hx, equality: sym!{K} _ _ (squarePower x) }),
+  };
+\definition constructibleIsRadical: \forall (S: K -> \Prop)(x: K) -> Constructible S x -> Radical S x :=
+  \fun (S: _)(x: K)(hx: _)(T: _)(closed: _)(included: _) => hx T (quadraticFromRadical T closed) included;
+\definition radicalLeast: \forall (S, T: K -> \Prop) -> RadicalClosed[T] -> Subfields.Included S T -> Subfields.Included (Radical S) T :=
+  \fun (S, T: _)(closed: _)(included: _)(x: K)(hx: _) => hx T closed included;
+\definition constructibleLeast: \forall (S, T: K -> \Prop) -> QuadraticClosed[T] -> Subfields.Included S T -> Subfields.Included (Constructible S) T :=
+  \fun (S, T: _)(closed: _)(included: _)(x: K)(hx: _) => hx T closed included;
+\module Construction;
+\module RadicalExpression;

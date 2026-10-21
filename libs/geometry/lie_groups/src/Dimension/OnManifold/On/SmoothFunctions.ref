@@ -1,0 +1,33 @@
+/* Smooth scalar functions, tested against all smooth Euclidean plots. */
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import Spaces.Coordinates[I := Point] \as Functions;
+\definition Raw: \Set := Point -> Reals.Real;
+\module Plots(k: N.Nat^);
+\definition Regular[f: Raw]: \Prop := \forall (k: N.Nat^) -> Plots[k := k].Regular f;
+\import Spaces.Subspace[V := Raw, space := Functions.space] \as Subspaces;
+\definition subspace: Subspaces.Subspace := Subspaces.Subspace {
+  carrier := { f: Raw \where Regular f },
+  containsZero := \fun (k: N.Nat^) => Plots[k := k].constant Reals.zero,
+  closedAdd := \fun (f, g: Raw)(left: Regular f)(right: Regular g)(k: N.Nat^) => Plots[k := k].addition f g (left k) (right k),
+  closedScale := \fun (a: Reals.Real)(f: Raw)(regular: Regular f)(k: N.Nat^) => Plots[k := k].scalar a f (regular k),
+};
+\import Subspaces.Of[subspace := subspace] \as Subspace;
+\definition Function: \Set := Subspace.Carrier;
+\definition space: Spaces.VectorSpace Function := Subspace.induced;
+\definition regular[f: Function]: Regular f := \bysub(Raw, subspace.carrier, f);
+\definition ext: \forall (f, g: Function) -> (\forall (x: Point) -> f x = g x) -> f = g :=
+  \fun (f, g: Function)(same: _) => \axiom:funext(f, g, same);
+\definition constant[c: Reals.Real]: Function := \into[Raw]((\fun (x: Point) => c), subspace.carrier) \by { \fun (k: N.Nat^) => Plots[k := k].constant c };
+\definition product[f, g: Function]: Function := \into[Raw]((\fun (x: Point) => Reals.mul (f x) (g x)), subspace.carrier) \by {
+  \fun (k: N.Nat^) => Plots[k := k].multiplication f g (regular f k) (regular g k)
+};
+\definition left[g: Point]: Maps.Map := Regularity.map (\fun (x: Point) => mul g x) (productSmooth (\fun (x: Point) => g) (\fun (x: Point) => x)
+  (Regularity.Constant[c := g].smooth) identitySmooth);
+\definition leftApply: \forall (g, x: Point) -> Maps.apply (left g) x = mul g x := \fun (g, x: Point) =>
+  congr!{{Point -> Point} Point} (\fun (f: Point -> Point) => f x) _ _ (Regularity.applyChosen (\fun (x: Point) => mul g x)
+    (productSmooth (\fun (x: Point) => g) (\fun (x: Point) => x) (Regularity.Constant[c := g].smooth) identitySmooth));
+\module Pullback(map: Maps.Map);
+\definition pull[g: Point][f: Function]: Function := Pullback[map := left g].value f;
+\definition pullApply: \forall (g: Point)(f: Function)(x: Point) -> pull g f x = f (mul g x) :=
+  \fun (g: Point)(f: Function)(x: Point) => congr!{Point Reals.Real} f _ _ (leftApply g x);

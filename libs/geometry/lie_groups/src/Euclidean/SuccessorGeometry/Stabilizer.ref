@@ -1,0 +1,36 @@
+\import lie_algebras.Field[K := R.Real, field := Scalars.field].Endomorphisms[V := Vector, space := space] \as End;
+\import algebra.Groups[].Units[A := End.Carrier, ring := End.ring] \as Units;
+\import Spaces.Linear[V := Next.Vector, W := Next.Vector, source := Next.space, target := Next.space].Composition[U := Vector, domain := space] \as Middle;
+\import Projections.Composition[U := Vector, domain := space] \as Final;
+\import \parent.Embedding[] \as Embed;
+\definition forward: End.Carrier := Final.compose projection (Middle.compose g.value Embed.map);
+\definition backward: End.Carrier := Final.compose projection (Middle.compose g.inverse Embed.map);
+\definition inverseFixes: NextOrthogonal.action (NextOperations.inv g) first = first := trans!{Next.Vector} _ _ _
+  (sym!{Next.Vector} _ _ (congr!{Next.Vector Next.Vector} g.inverse.apply _ _ fixes)) (NextOrthogonal.leftInverse g first);
+\definition forwardHead[x: Vector]: head (g.value.apply (embed x)) = R.zero := trans!{R.Real} _ _ _ (headInvariant g fixes (embed x)) (embedHead x);
+\definition backwardHead[x: Vector]: head (g.inverse.apply (embed x)) = R.zero := trans!{R.Real} _ _ _
+  (headInvariant (NextOperations.inv g) inverseFixes (embed x)) (embedHead x);
+\definition forwardImage[x: Vector]: embed (forward.apply x) = g.value.apply (embed x) := recover (g.value.apply (embed x)) (forwardHead x);
+\definition backwardImage[x: Vector]: embed (backward.apply x) = g.inverse.apply (embed x) := recover (g.inverse.apply (embed x)) (backwardHead x);
+\definition backwardForward: \forall (x: Vector) -> backward.apply (forward.apply x) = x := \fun (x: Vector) => trans!{Vector} _ _ _
+  (congr!{Next.Vector Vector} (\fun (y: Next.Vector) => tail (g.inverse.apply y)) _ _ (forwardImage x))
+  (trans!{Vector} _ _ _ (congr!{Next.Vector Vector} tail _ _ (NextOrthogonal.leftInverse g (embed x))) (embedTail x));
+\definition forwardBackward: \forall (x: Vector) -> forward.apply (backward.apply x) = x := \fun (x: Vector) => trans!{Vector} _ _ _
+  (congr!{Next.Vector Vector} (\fun (y: Next.Vector) => tail (g.value.apply y)) _ _ (backwardImage x))
+  (trans!{Vector} _ _ _ (congr!{Next.Vector Vector} tail _ _ (NextOrthogonal.rightInverse g (embed x))) (embedTail x));
+\definition unit: Units.Unit := Units.Unit {
+  value := forward, inverse := backward,
+  left := End.ext (End.mul backward forward) End.one backwardForward,
+  right := End.ext (End.mul forward backward) End.one forwardBackward,
+};
+\definition preserves: \forall (x, y: Vector) -> dot (forward.apply x) (forward.apply y) = dot x y := \fun (x, y: Vector) =>
+  trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (embeddedDot (forward.apply x) (forward.apply y)))
+    (trans!{R.Real} _ _ _ (congr2!{Next.Vector Next.Vector R.Real} Next.dot _ _ _ _ (forwardImage x) (forwardImage y))
+      (trans!{R.Real} _ _ _ (NextOrthogonal.preserves g (embed x) (embed y)) (embeddedDot x y)));
+\definition orthogonal: O := \into[Units.Unit](unit, Orthogonal.predicate) \by { preserves };
+\definition reconstruct: \forall (x: Next.Vector) -> g.value.apply x = Next.space.add (Next.space.smul (head x) first) (embed (forward.apply (tail x))) :=
+  \fun (x: Next.Vector) => trans!{Next.Vector} _ _ _ (congr!{Next.Vector Next.Vector} g.value.apply _ _ (sym!{Next.Vector} _ _ (decompose x)))
+    (trans!{Next.Vector} _ _ _ (g.value.preservesAdd (Next.space.smul (head x) first) (embed (tail x)))
+      (congr2!{Next.Vector Next.Vector Next.Vector} Next.space.add _ _ _ _
+        (trans!{Next.Vector} _ _ _ (g.value.preservesScale (head x) first) (congr!{Next.Vector Next.Vector} (Next.space.smul (head x)) _ _ fixes))
+        (sym!{Next.Vector} _ _ (forwardImage (tail x)))));

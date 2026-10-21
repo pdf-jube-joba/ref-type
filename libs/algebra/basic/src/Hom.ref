@@ -35,6 +35,21 @@
 \module Composition(C: \Set) {
   \import algebra.Hom[A := B, B := C] \as After;
   \import algebra.Hom[A := A, B := C] \as Result;
+  \definition semiring[source: Alg.Semiring[A]] [middle: Alg.Semiring[B]] [target: Alg.Semiring[C]]
+    [f: SemiringMap source middle] [g: After.SemiringMap middle target]: Result.SemiringMap source target :=
+    \into[A -> C]((\fun (x: A) => g (f x)), Result.SemiringMap source target) \by {
+      Result.SemiringLaws[source, target, (\fun (x: A) => g (f x))] {
+        zero := trans!{C} _ _ _ (congr!{B C} g _ _ (semiringLaws source middle f).zero) (After.semiringLaws middle target g).zero,
+        one := trans!{C} _ _ _ (congr!{B C} g _ _ (semiringLaws source middle f).one) (After.semiringLaws middle target g).one,
+        add := \fun (x, y: A) => trans!{C} _ _ _ (congr!{B C} g _ _ ((semiringLaws source middle f).add x y))
+          ((After.semiringLaws middle target g).add (f x) (f y)),
+        mul := \fun (x, y: A) => trans!{C} _ _ _ (congr!{B C} g _ _ ((semiringLaws source middle f).mul x y))
+          ((After.semiringLaws middle target g).mul (f x) (f y)),
+      }
+    };
+  \definition ring[source: Ring.Ring[A]] [middle: Ring.Ring[B]] [target: Ring.Ring[C]]
+    [f: RingMap source middle] [g: After.RingMap middle target]: Result.RingMap source target :=
+    semiring (Ring.ringAsSemiring A source) (Ring.ringAsSemiring B middle) (Ring.ringAsSemiring C target) f g;
   \definition monoid[source: Monoid.Monoid[A]] [middle: Monoid.Monoid[B]] [target: Monoid.Monoid[C]]
     [f: MonoidMap source middle] [g: After.MonoidMap middle target]: Result.MonoidMap source target :=
     \into[A -> C](\fun (x: _) => g (f x), Result.MonoidMap source target) \by {
@@ -45,4 +60,10 @@
           ((After.monoidLaws middle target g).operation (f x) (f y)),
       }
     };
+  \definition groupMap[source: Alg.Group[A]][middle: Alg.Group[B]][target: Alg.Group[C]]
+    [f: GroupMap source middle][g: After.GroupMap middle target]: Result.GroupMap source target :=
+    monoid
+      (\into[Monoid.MonoidData[A]](Alg.groupMonoid A source, Monoid.Monoid[A]) \by { source.monoid })
+      (\into[Monoid.MonoidData[B]](Alg.groupMonoid B middle, Monoid.Monoid[B]) \by { middle.monoid })
+      (\into[Monoid.MonoidData[C]](Alg.groupMonoid C target, Monoid.Monoid[C]) \by { target.monoid }) f g;
 }

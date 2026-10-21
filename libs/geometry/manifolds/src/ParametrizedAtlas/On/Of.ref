@@ -1,0 +1,30 @@
+\import \root.Dimension[n := n].Chart[M := A, space := topology] \as Charts;
+\import \root.Dimension[n := n].Topological[] \as Topological;
+\module At(i: N.Nat^);
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as Euclidean;
+\import topological_algebra.Euclidean[].Dimension[n := n].Countability[] \as EuclideanBasis;
+\import topology.Topology[Carrier := std.Data[].FinSet[].Fin n -> real.Analysis[].Real] \as Ambient;
+\import N.Pair[].Def[] \as Pair;
+\import N.Pair[].Enumeration[] \as Pairs;
+\definition LocalBasis[i: N.Nat^]: \Set := \Cast[N.Nat^ -> \Pow (Parameter i)]
+  ({ b: N.Nat^ -> \Pow (Parameter i) \where topology.Topology[Carrier := Parameter i].IsCountableBasis[parameterTopology i, b] });
+\definition basisExists: \forall (i: N.Nat^) -> \exists LocalBasis i := \fun (i: N.Nat^) =>
+  Ambient.Subspace[S := (patch i).image.points].Properties[].secondCountable Euclidean.topology EuclideanBasis.secondCountable;
+\module Bases(bases: \forall (i: N.Nat^) -> LocalBasis i);
+\definition secondCountable: Space.IsSecondCountable topology := \block {
+  \takefrom bases: (\forall (i: N.Nat^) -> LocalBasis i) \by \axiom:classicalIndefiniteChoice(N.Nat^,
+    (\fun (i: N.Nat^) => LocalBasis i), basisExists) \then
+  \return Bases[bases := bases].secondCountable
+};
+\definition chart[i: N.Nat^]: Charts.Chart := At[i := i].chart;
+\definition charts: \Pow Charts.Chart := { c: Charts.Chart \where \exists ( i: N.Nat^ \where c = chart i ) };
+\import \root.Dimension[n := n].Atlas[M := A, space := topology] \as Atlases;
+\definition Covers: \forall (x: A) -> \exists ( c: Charts.Chart \where Logic.And[\In[Charts.Chart] charts c, Charts.Contains c x] ) := \block {
+  \fun (x: A) \then
+  \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where \In[A] ((patch i).domain) x }) \by family.covers x \then
+  \return Logic.existsIntro[Charts.Chart, { c: Charts.Chart \where Logic.And[\In[Charts.Chart] charts c, Charts.Contains c x] }] (chart i)
+    (Logic.And[_, _]::# (Logic.existsIntro[N.Nat^, { j: N.Nat^ \where chart i = chart j }] i (\refl(chart i)))
+      (\bysub(N.Nat^, { i: N.Nat^ \where \In[A] ((patch i).domain) x }, i)))
+};
+\definition SmoothChanges: \Prop := \forall (i, j: N.Nat^) -> Atlases.Compatible (chart i) (chart j);
+\module Smooth(changes: SmoothChanges);

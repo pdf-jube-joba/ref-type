@@ -2,6 +2,7 @@
 \import \parent.Estimates[] \as Estimates;
 \import Estimates.Product[] \as Bounds;
 \import \parent.SquareRoot[] \as Root;
+\use Logic.either;
 \definition inverseUnique: \forall (x, y: Real) -> Logic.Not (x = zero) -> mul y x = one -> y = Laws.fieldInv x :=
   \fun (x, y: _) (nonzero: _) (equal: _) => eq_reason!{
     y "=" {mul y one} "by" {sym!{Real} _ _ (Algebra.mulOneRight y)}
@@ -95,3 +96,36 @@
         (Order.ltOfLeNotEq zero (neg x) (Laws.nonnegativeNegOfNegative x negative)
           (\fun (equal: zero = neg x) => negNonzero x xn (sym!{Real} _ _ equal))) rp
         (R.ltReplaceLeft (distance x y) (distance (neg x) (neg y)) (radius (neg x) r) (sym!{Real} _ _ (Bounds.distanceNeg x y)) near));
+\definition difference: \forall (x, y: Real) -> Logic.Not (x = zero) -> Logic.Not (y = zero) ->
+  sub (Laws.fieldInv x) (Laws.fieldInv y) = mul (mul (Laws.fieldInv x) (Laws.fieldInv y)) (sub y x) :=
+  \fun (x, y: Real)(xn: _)(yn: _) => sym!{Real} _ _ (trans!{Real} _ _ _
+    (Algebra.mulSub (mul (Laws.fieldInv x) (Laws.fieldInv y)) y x)
+    (congr2!{Real Real Real} sub _ _ _ _ (inverseProduct x y yn)
+      (trans!{Real} _ _ _ (congr!{Real Real} (\fun (c: Real) => mul c x) _ _ (Laws.fieldMulComm (Laws.fieldInv x) (Laws.fieldInv y)))
+        (inverseProduct y x xn))));
+\structure ContinuityRadius[x, epsilon, radius: Real]: \Prop := {
+  positive: R.Lt zero radius,
+  estimate: \forall (y: Real) -> Logic.Not (y = zero) -> R.Lt (distance x y) radius ->
+    R.Lt (distance (Laws.fieldInv x) (Laws.fieldInv y)) epsilon,
+};
+\definition continuity: \forall (x, epsilon: Real) -> Logic.Not (x = zero) -> R.Lt zero epsilon ->
+  \exists ( r: Real \where ContinuityRadius[x, epsilon, r] ) := \fun (x, epsilon: Real)(nonzero: _)(ep: _) =>
+  either!{{(Order.ltTrichotomy zero x)} {\exists ( r: Real \where ContinuityRadius[x, epsilon, r] )}
+    {\fun (xp: _) => Logic.existsIntro[Real, { r: Real \where ContinuityRadius[x, epsilon, r] }] (radius x epsilon)
+      (ContinuityRadius[x, epsilon, radius x epsilon] {
+        positive := radiusPositive x epsilon xp ep,
+        estimate := \fun (y: Real)(_: _)(near: _) => inverseNear x y epsilon xp ep near,
+      })}
+    {\fun (other: _) => either!{other {\exists ( r: Real \where ContinuityRadius[x, epsilon, r] )}
+      {\fun (zeroValue: zero = x) => Logic.falseElim _ (nonzero (sym!{Real} _ _ zeroValue))}
+      {\fun (negative: R.Lt x zero) => \block {
+        \let positive: R.Lt zero (neg x) := Order.ltOfLeNotEq zero (neg x) (Laws.nonnegativeNegOfNegative x negative)
+          (\fun (same: zero = neg x) => negNonzero x nonzero (sym!{Real} _ _ same)) \then
+        \return Logic.existsIntro[Real, { r: Real \where ContinuityRadius[x, epsilon, r] }] (radius (neg x) epsilon)
+          (ContinuityRadius[x, epsilon, radius (neg x) epsilon] {
+            positive := radiusPositive (neg x) epsilon positive ep,
+            estimate := \fun (y: Real)(yn: _)(near: _) => inverseNearNegative x y epsilon negative nonzero yn ep near,
+          })
+      }}
+    }}
+  };

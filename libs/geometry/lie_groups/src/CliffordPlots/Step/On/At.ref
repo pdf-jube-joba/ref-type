@@ -1,0 +1,35 @@
+\definition lower: Lower.Laws[U] := previous U;
+\definition Family: \Set := Open.Carrier U -> E.Carrier;
+\definition UpperFamily: \Set := Open.Carrier U -> Next.Carrier;
+\definition assembled[f, g: Family][x: Open.Carrier U]: Next.Carrier := Normal.value (f x) (g x);
+\module Assembly(f, g: Family) {
+  \import \parent.\parent.\parent.Components[U := U, f := assembled f g] \as Parts;
+  \definition plot: Lower.Plot U f -> Lower.Plot U g -> Upper.Plot U (assembled f g) :=
+    \fun (left: Lower.Plot U f)(right: Lower.Plot U g) => Parts.join
+      (Lower.congruent U f Parts.left (\fun (x: Open.Carrier U) => sym!{E.Carrier} _ _ (Recovery.leftValue (f x) (g x))) left)
+      (Lower.congruent U g Parts.right (\fun (x: Open.Carrier U) => sym!{E.Carrier} _ _ (Recovery.rightValue (f x) (g x))) right);
+}
+\definition transfer[f, g: Family][h: UpperFamily][same: \forall (x: Open.Carrier U) -> Normal.value (f x) (g x) = h x]:
+  Lower.Plot U f -> Lower.Plot U g -> Upper.Plot U h := \fun (left: Lower.Plot U f)(right: Lower.Plot U g) =>
+    Upper.congruent U (assembled f g) h same (Assembly[f := f, g := g].plot left right);
+\module Unary(f: UpperFamily, regular: Upper.Plot U f);
+\module Binary(f, g: UpperFamily, left: Upper.Plot U f, right: Upper.Plot U g);
+\definition laws: Upper.Laws[U] := Upper.Laws[U] {
+  constant := \fun (a: Next.Carrier) => transfer (\fun (x: Open.Carrier U) => Recovery.left a) (\fun (x: Open.Carrier U) => Recovery.right a)
+    (\fun (x: Open.Carrier U) => a) (\fun (x: Open.Carrier U) => Spanning.recover a) (lower.constant (Recovery.left a)) (lower.constant (Recovery.right a)),
+  addition := \fun (f, g: UpperFamily)(left: Upper.Plot U f)(right: Upper.Plot U g) => Binary[f := f, g := g, left := left, right := right].addition,
+  negative := \fun (f: UpperFamily)(regular: Upper.Plot U f) => Unary[f := f, regular := regular].negative,
+  multiplication := \fun (f, g: UpperFamily)(left: Upper.Plot U f)(right: Upper.Plot U g) => Binary[f := f, g := g, left := left, right := right].multiplication,
+  grading := \fun (f: UpperFamily)(regular: Upper.Plot U f) => Unary[f := f, regular := regular].grading,
+  reversion := \fun (f: UpperFamily)(regular: Upper.Plot U f) => Unary[f := f, regular := regular].reversion,
+  scalar := \fun (f: Open.ScalarFunction U)(regular: Smooth.SmoothOn U f) => transfer
+    (\fun (x: Open.Carrier U) => E.scalar (f x)) (\fun (x: Open.Carrier U) => Algebra.zero)
+    (\fun (x: Open.Carrier U) => Next.scalar (f x)) (\fun (x: Open.Carrier U) => Operations.scalar (f x))
+    (lower.scalar f regular) (lower.constant Algebra.zero),
+  vector := \fun (f: Open.Carrier U -> Next.Vector)(regular: Upper.Values U f) => transfer
+    (\fun (x: Open.Carrier U) => E.iota (E.Successor[].tail (f x)))
+    (\fun (x: Open.Carrier U) => E.scalar (E.Successor[].head (f x)))
+    (\fun (x: Open.Carrier U) => Next.iota (f x)) (\fun (x: Open.Carrier U) => Operations.vector (f x))
+    (lower.vector (\fun (x: Open.Carrier U) => E.Successor[].tail (f x)) (\fun (i: Fin.Fin n) => regular (Fin.succ n i)))
+    (lower.scalar (\fun (x: Open.Carrier U) => E.Successor[].head (f x)) (regular (Fin.zero n))),
+};

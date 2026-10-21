@@ -1,0 +1,56 @@
+\import \parent.Existence[] \as Existence;
+\import topology.Composition[A := Interval.Carrier, B := Interval.Carrier, C := E] \as Compose;
+\import topology.Composition[A := Interval.Carrier, B := Interval.Carrier, C := B] \as BaseCompose;
+\import Interval.Initial[] \as Initial;
+\module Along(x, y: B, path: BasePaths.Path x y, charts: Existence.ChartFamily, l, r: Interval.Carrier -> E,
+  lc: Continuous.Continuous Interval.topology total l, rc: Continuous.Continuous Interval.topology total r,
+  lp: \forall (t: Interval.Carrier) -> projection (l t) = path t, rp: \forall (t: Interval.Carrier) -> projection (r t) = path t);
+\definition endpoints: Covering -> \forall (x, y: B)(path: BasePaths.Path x y)(l, r: Interval.Carrier -> E) ->
+  Continuous.Continuous Interval.topology total l -> Continuous.Continuous Interval.topology total r ->
+  (\forall (t: Interval.Carrier) -> projection (l t) = path t) -> (\forall (t: Interval.Carrier) -> projection (r t) = path t) ->
+  l Interval.start = r Interval.start -> l Interval.end = r Interval.end := \block {
+  \fun (covering: Covering)(x, y: B)(path: _)(l, r: _)(lc: _)(rc: _)(lp: _)(rp: _)(starts: _) \then
+  \takefrom charts: Existence.ChartFamily \by Existence.chartFamilyExists covering \then
+  \return Along[x := x, y := y, path := path, charts := charts, l := l, r := r, lc := lc, rc := rc, lp := lp, rp := rp].endpoints starts
+};
+\definition prefix[x, y: B][path: BasePaths.Path x y][t: Interval.Carrier]: BasePaths.Path x (path t) :=
+  \into[BasePaths.Function](\fun (s: Interval.Carrier) => path (Initial.curve t s), BasePaths.Path x (path t)) \by {
+    BasePaths.Laws[x, path t, \fun (s: Interval.Carrier) => path (Initial.curve t s)] {
+      continuous := BaseCompose.composeContinuous Interval.topology Interval.topology base (Initial.curve t) path (Initial.continuous t) (BasePaths.laws x y path).continuous,
+      start := trans!{B} _ _ _ (congr!{Interval.Carrier B} path _ _ (Initial.atStart t)) (BasePaths.laws x y path).start,
+      end := congr!{Interval.Carrier B} path _ _ (Initial.atEnd t),
+    }
+  };
+\definition pathLiftUnique: Covering -> \forall (x, y: B)(path: BasePaths.Path x y)(start: Fiber x)(l, r: PathLift x y path start) -> l = r :=
+  \fun (covering: Covering)(x, y: B)(path: _)(start: _)(l, r: _) => \axiom:funext(l, r, \block {
+    \fun (t: Interval.Carrier) \then
+    \let lc: Continuous.Continuous Interval.topology total (\fun (s: Interval.Carrier) => l (Initial.curve t s)) :=
+      Compose.composeContinuous Interval.topology Interval.topology total (Initial.curve t) l (Initial.continuous t) (pathLaws x y path start l).continuous \then
+    \let rc: Continuous.Continuous Interval.topology total (\fun (s: Interval.Carrier) => r (Initial.curve t s)) :=
+      Compose.composeContinuous Interval.topology Interval.topology total (Initial.curve t) r (Initial.continuous t) (pathLaws x y path start r).continuous \then
+    \let sameStart: l (Initial.curve t Interval.start) = r (Initial.curve t Interval.start) :=
+      trans!{E} _ _ _ (congr!{Interval.Carrier E} l _ _ (Initial.atStart t))
+        (trans!{E} _ _ _ (pathLaws x y path start l).starts
+          (trans!{E} _ _ _ (sym!{E} _ _ (pathLaws x y path start r).starts)
+            (congr!{Interval.Carrier E} r _ _ (sym!{Interval.Carrier} _ _ (Initial.atStart t))))) \then
+    \let sameEnd: l (Initial.curve t Interval.end) = r (Initial.curve t Interval.end) :=
+      endpoints covering x (path t) (prefix x y path t) (\fun (s: Interval.Carrier) => l (Initial.curve t s)) (\fun (s: Interval.Carrier) => r (Initial.curve t s)) lc rc
+        (\fun (s: Interval.Carrier) => (pathLaws x y path start l).projects (Initial.curve t s))
+        (\fun (s: Interval.Carrier) => (pathLaws x y path start r).projects (Initial.curve t s)) sameStart \then
+    \return trans!{E} _ _ _ (congr!{Interval.Carrier E} l _ _ (sym!{Interval.Carrier} _ _ (Initial.atEnd t)))
+      (trans!{E} _ _ _ sameEnd (congr!{Interval.Carrier E} r _ _ (Initial.atEnd t)))
+  });
+\definition functionsUnique: Covering -> \forall (x, y: B)(path: BasePaths.Path x y)(l, r: Interval.Carrier -> E) ->
+  Continuous.Continuous Interval.topology total l -> Continuous.Continuous Interval.topology total r ->
+  (\forall (t: Interval.Carrier) -> projection (l t) = path t) -> (\forall (t: Interval.Carrier) -> projection (r t) = path t) ->
+  l Interval.start = r Interval.start -> l = r := \block {
+  \fun (covering: Covering)(x, y: B)(path: _)(l, r: _)(lc: _)(rc: _)(lp: _)(rp: _)(starts: _) \then
+  \let start: Fiber x := \into[E](l Interval.start, Fiber x) \by { trans!{B} _ _ _ (lp Interval.start) (BasePaths.laws x y path).start } \then
+  \let first: PathLift x y path start := \into[Interval.Carrier -> E](l, PathLift x y path start) \by {
+    PathLiftLaws[x, y, path, start, l] { continuous := lc, projects := lp, starts := \refl(l Interval.start) }
+  } \then
+  \let second: PathLift x y path start := \into[Interval.Carrier -> E](r, PathLift x y path start) \by {
+    PathLiftLaws[x, y, path, start, r] { continuous := rc, projects := rp, starts := sym!{E} _ _ starts }
+  } \then
+  \return pathLiftUnique covering x y path start first second
+};

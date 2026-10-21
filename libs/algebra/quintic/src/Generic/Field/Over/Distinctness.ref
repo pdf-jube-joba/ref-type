@@ -1,0 +1,38 @@
+\import std.Logic[].Classical[] \as Classical;
+\import BaseField.Automorphism[] \as BaseAut;
+\import BaseField.Morphism[L := Base.Carrier, target := Base.subfield] \as Maps;
+\import Polynomial.Universal[K := Base.Carrier, target := Fields.fieldAsCommutativeRing Base.Carrier Base.subfield] \as Test;
+\import BaseField.Arithmetic[] \as Arithmetic;
+\import algebra.Group[].Of[Carrier := K, group := Rings.additiveGroup K (Rings.commutativeRingAsRing K (Fields.fieldAsCommutativeRing K field))] \as AmbientSum;
+\definition identity: Test.CoefficientMap := Maps.ringMap BaseAut.identityMap;
+\module At(j: Quintic.Five) {
+  \module At(i: Quintic.Five) {
+    \import std.Logic[].Classical[].Cases[A := Base.Carrier, P := i = j] \as Cases;
+    \definition value: Base.Carrier := Cases.select Base.subOne Base.subZero;
+    \definition atSame: i = j -> value = Base.subOne := Cases.whenTrue Base.subOne Base.subZero;
+    \definition atDifferent: Logic.Not (i = j) -> value = Base.subZero := Cases.whenFalse Base.subOne Base.subZero;
+  }
+  \definition indicator[i: Quintic.Five]: Base.Carrier := At[i := i].value;
+  \definition self: indicator j = Base.subOne := At[i := j].atSame (\refl(j));
+}
+\definition independentImpliesDistinct: Independent -> Distinct :=
+  \fun (independent: Independent)(i, j: Quintic.Five)(same: roots i = roots j) =>
+    Logic.orElim _ _ _ (Classical.excludedMiddle (i = j))
+      (\fun (equal: i = j) => equal)
+      (\block {
+        \fun (different: Logic.Not (i = j)) \then
+        \let e: Free.Expression := Free.Expression::sum (Free.Expression::variable i) (Free.Expression::negative (Free.Expression::variable j)) \then
+        \let root: evaluate roots e = F.zero := trans!{K} _ _ _
+          (congr!{K K} (\fun (a: K) => F.add a (F.neg (roots j))) _ _ same) (AmbientSum.inverseRight (roots j)) \then
+        \let equivalent: Polynomial.Equivalent e Free.zeroExpr := independent e root \then
+        \let indicator: Quintic.Five -> Base.Carrier := \fun (k: Quintic.Five) => At[j := j].At[i := k].value \then
+        \let tested: Test.evaluate identity indicator e = Test.evaluate identity indicator Free.zeroExpr :=
+          equivalent (Test.EvaluationRelation identity indicator) (Test.evaluationRules identity indicator)
+            (\fun (a, b: Free.Expression)(impossible: Logic.False) => Logic.falseElim _ impossible) \then
+        \let zero: BaseField.add BaseField.zero (BaseField.neg BaseField.one) = BaseField.zero :=
+          trans!{Base.Carrier} _ _ _
+            (congr2!{Base.Carrier Base.Carrier Base.Carrier} BaseField.add _ _ _ _
+              (sym!{Base.Carrier} _ _ (At[j := j].At[i := i].atDifferent different))
+              (congr!{Base.Carrier Base.Carrier} BaseField.neg _ _ (sym!{Base.Carrier} _ _ At[j := j].self))) tested \then
+        \return Logic.falseElim (i = j) (Base.subfield.nontrivial (Arithmetic.differenceZero BaseField.zero BaseField.one zero))
+      });

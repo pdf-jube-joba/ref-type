@@ -1,0 +1,64 @@
+\import \root.Paths[A := A, source := source] \as Paths;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason;
+\definition Arrow[x, y: A]: \Set := Paths.Between[x := x, y := y].Carrier;
+\definition class[x, y: A]: Paths.Path x y -> Arrow x y := Paths.Between[x := x, y := y].class;
+\definition identity[x: A]: Arrow x x := class x x (Paths.constant x);
+\definition compose[x, y, z: A]: Arrow x y -> Arrow y z -> Arrow x z := Paths.Concatenation[].Classes[x := x, y := y, z := z].compose;
+\definition inverse[x, y: A]: Arrow x y -> Arrow y x := Paths.ReverseHomotopy[].Between[x := x, y := y].inverse;
+\module At(x, y, z, w: A);
+\definition leftIdentity: \forall (x, y: A)(f: Arrow x y) -> compose x x y (identity x) f = f :=
+  \fun (x, y: A) => At[x := x, y := y, z := y, w := y].leftIdentity;
+\definition rightIdentity: \forall (x, y: A)(f: Arrow x y) -> compose x y y f (identity y) = f :=
+  \fun (x, y: A) => At[x := x, y := y, z := y, w := y].rightIdentity;
+\definition rightInverse: \forall (x, y: A)(f: Arrow x y) -> compose x y x f (inverse x y f) = identity x :=
+  \fun (x, y: A) => At[x := x, y := y, z := y, w := y].rightInverse;
+\definition leftInverse: \forall (x, y: A)(f: Arrow x y) -> compose y x y (inverse x y f) f = identity y :=
+  \fun (x, y: A) => At[x := x, y := y, z := y, w := y].leftInverse;
+\definition associative: \forall (x, y, z, w: A)(f: Arrow x y)(g: Arrow y z)(h: Arrow z w) ->
+  compose x z w (compose x y z f g) h = compose x y w f (compose y z w g h) :=
+  \fun (x, y, z, w: A) => At[x := x, y := y, z := z, w := w].associative;
+\module Maps(B: \Set, target: topology.Topology[Carrier := B].Topology);
+\definition inverseIdentity: \forall (x: A) -> inverse x x (identity x) = identity x :=
+  \fun (x: A) => trans!{{Arrow x x}} _ _ _ (sym!{{Arrow x x}} _ _ (leftIdentity x x (inverse x x (identity x)))) (rightInverse x x (identity x));
+\definition cancelMiddle: \forall (s, t, u, v: A)(a: Arrow s t)(b: Arrow u t)(c: Arrow t v) ->
+  compose s u v (compose s t u a (inverse u t b)) (compose u t v b c) = compose s t v a c :=
+  \fun (s, t, u, v: A)(a: _)(b: _)(c: _) => eq_reason!{
+    {compose s u v (compose s t u a (inverse u t b)) (compose u t v b c)}
+    "=" {compose s t v a (compose t u v (inverse u t b) (compose u t v b c))} "by" {associative s t u v a (inverse u t b) (compose u t v b c)}
+    "=" {compose s t v a (compose t t v (compose t u t (inverse u t b) b) c)} "by" {
+      congr!{{Arrow t v} {Arrow s v}} (compose s t v a) _ _ (sym!{{Arrow t v}} _ _ (associative t u t v (inverse u t b) b c))}
+    "=" {compose s t v a (compose t t v (identity t) c)} "by" {
+      congr!{{Arrow t t} {Arrow s v}} (\fun (p: Arrow t t) => compose s t v a (compose t t v p c)) _ _ (leftInverse u t b)}
+    "=" {compose s t v a c} "by" {congr!{{Arrow t v} {Arrow s v}} (compose s t v a) _ _ (leftIdentity t v c)}};
+\definition cancelLeft: \forall (x, y, z: A)(f: Arrow x y)(g, h: Arrow y z) -> compose x y z f g = compose x y z f h -> g = h :=
+  \fun (x, y, z: A)(f: _)(g, h: _)(same: _) => eq_reason!{g
+    "=" {compose y y z (identity y) g} "by" {sym!{{Arrow y z}} _ _ (leftIdentity y z g)}
+    "=" {compose y y z (compose y x y (inverse x y f) f) g} "by" {
+      congr!{{Arrow y y} {Arrow y z}} (\fun (p: Arrow y y) => compose y y z p g) _ _ (sym!{{Arrow y y}} _ _ (leftInverse x y f))}
+    "=" {compose y x z (inverse x y f) (compose x y z f g)} "by" {associative y x y z (inverse x y f) f g}
+    "=" {compose y x z (inverse x y f) (compose x y z f h)} "by" {congr!{{Arrow x z} {Arrow y z}} (compose y x z (inverse x y f)) _ _ same}
+    "=" {compose y y z (compose y x y (inverse x y f) f) h} "by" {sym!{{Arrow y z}} _ _ (associative y x y z (inverse x y f) f h)}
+    "=" {compose y y z (identity y) h} "by" {congr!{{Arrow y y} {Arrow y z}} (\fun (p: Arrow y y) => compose y y z p h) _ _ (leftInverse x y f)}
+    "=" h "by" {leftIdentity y z h}};
+\definition equalOfLoop: \forall (x, y: A)(p, q: Arrow x y) -> compose x y x p (inverse x y q) = identity x -> p = q :=
+  \fun (x, y: A)(p, q: _)(same: _) => eq_reason!{p
+    "=" {compose x y y p (identity y)} "by" {sym!{{Arrow x y}} _ _ (rightIdentity x y p)}
+    "=" {compose x y y p (compose y x y (inverse x y q) q)} "by" {
+      congr!{{Arrow y y} {Arrow x y}} (compose x y y p) _ _ (sym!{{Arrow y y}} _ _ (leftInverse x y q))}
+    "=" {compose x x y (compose x y x p (inverse x y q)) q} "by" {sym!{{Arrow x y}} _ _ (associative x y x y p (inverse x y q) q)}
+    "=" {compose x x y (identity x) q} "by" {congr!{{Arrow x x} {Arrow x y}} (\fun (f: Arrow x x) => compose x x y f q) _ _ same}
+    "=" q "by" {leftIdentity x y q}};
+\module Squares;
+\definition cancelRight: \forall (x, y, z: A)(f: Arrow y z)(g, h: Arrow x y) -> compose x y z g f = compose x y z h f -> g = h :=
+  \fun (x, y, z: A)(f: _)(g, h: _)(same: _) => eq_reason!{g
+    "=" {compose x y y g (identity y)} "by" {sym!{{Arrow x y}} _ _ (rightIdentity x y g)}
+    "=" {compose x y y g (compose y z y f (inverse y z f))} "by" {congr!{{Arrow y y} {Arrow x y}} (compose x y y g) _ _ (sym!{{Arrow y y}} _ _ (rightInverse y z f))}
+    "=" {compose x z y (compose x y z g f) (inverse y z f)} "by" {sym!{{Arrow x y}} _ _ (associative x y z y g f (inverse y z f))}
+    "=" {compose x z y (compose x y z h f) (inverse y z f)} "by" {congr!{{Arrow x z} {Arrow x y}} (\fun (p: Arrow x z) => compose x z y p (inverse y z f)) _ _ same}
+    "=" {compose x y y h (compose y z y f (inverse y z f))} "by" {associative x y z y h f (inverse y z f)}
+    "=" {compose x y y h (identity y)} "by" {congr!{{Arrow y y} {Arrow x y}} (compose x y y h) _ _ (rightInverse y z f)}
+    "=" h "by" {rightIdentity x y h}};

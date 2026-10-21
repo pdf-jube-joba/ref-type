@@ -1,0 +1,40 @@
+\import linear_algebra.Euclidean[n := p] \as Source;
+\import linear_algebra.Euclidean[n := N.Nat^::succ p] \as HigherSource;
+\import Source.Successor[] \as Split;
+\import Target.Gram[k := p].Step[] \as GramStep;
+\import Spaces.Linear[V := Source.Vector, W := Target.Vector, source := Source.space, target := Target.space] \as LowerMaps;
+\import \root.MatrixFamily[d := d, p := N.Nat^::succ p, q := q] \as HigherMatrix;
+\import \root.MatrixFamily[d := d, p := p, q := q] \as LowerMatrix;
+\import \root.MatrixFamily[d := d, p := p, q := p] \as Square;
+\import \root.SmoothCoordinates[d := d, q := q].On[U := U] \as Vectors;
+\import \root.SmoothCoordinates[d := d, q := p].On[U := U] \as SourceVectors;
+\module At(x: Open.Carrier U);
+\definition column[x: Open.Carrier U]: Target.Vector := (A x).apply Split.first;
+\definition columnRegular: Vectors.Regular column := HigherMatrix.evaluate U A regular Split.first;
+\definition squared[x: Open.Carrier U]: R.Real := Target.squared (column x);
+\definition squaredSmooth: Smooth.SmoothOn U squared := Vectors.dot column column columnRegular columnRegular;
+\definition positiveSquared: \forall (x: Open.Carrier U) -> Order.Lt R.zero (squared x) := \fun (x: Open.Carrier U) => At[x := x].positive;
+\definition squaredFunction: Smooth.SmoothFunction U := \into[Open.ScalarFunction U](squared, Smooth.SmoothFunction U) \by { squaredSmooth };
+\import Smooth.SquareRoot[U := U, f := squaredFunction, positive := positiveSquared] \as Root;
+\definition lengthFunction: Smooth.SmoothFunction U := \into[Open.ScalarFunction U](Root.value, Smooth.SmoothFunction U) \by { Root.smooth };
+\definition lengthNonzero: \forall (x: Open.Carrier U) -> Logic.Not (lengthFunction x = R.zero) := \fun (x: Open.Carrier U) => At[x := x].lengthNonzero;
+\import Smooth.Reciprocal[U := U, f := lengthFunction, nonzero := lengthNonzero] \as Inverse;
+\definition unit[x: Open.Carrier U]: Target.Vector := At[x := x].unit;
+\definition unitRegular: Vectors.Regular unit := \fun (i: Fin.Fin q) => Operations.mulSmooth U Inverse.value
+  (\fun (x: Open.Carrier U) => column x i) Inverse.smooth (columnRegular i);
+\definition tail[x: Open.Carrier U]: LowerMaps.Map := At[x := x].tailMap;
+\definition tailRegular: LowerMatrix.Regular U tail := \fun (i: Fin.Fin q)(j: Fin.Fin p) => HigherMatrix.evaluate U A regular (Split.embedding.apply (Source.basis j)) i;
+\definition residual: Lower.Family := \fun (x: Open.Carrier U) => At[x := x].residual;
+\definition residualRegular: Lower.Regular residual := \fun (i: Fin.Fin q)(j: Fin.Fin p) => Operations.subSmooth U
+  (\fun (x: Open.Carrier U) => (tail x).apply (Source.basis j) i)
+  (\fun (x: Open.Carrier U) => R.mul (Target.dot (unit x) ((tail x).apply (Source.basis j))) (unit x i))
+  (tailRegular i j)
+  (Operations.mulSmooth U (\fun (x: Open.Carrier U) => Target.dot (unit x) ((tail x).apply (Source.basis j)))
+    (\fun (x: Open.Carrier U) => unit x i)
+    (Vectors.dot unit (\fun (x: Open.Carrier U) => (tail x).apply (Source.basis j)) unitRegular (LowerMatrix.evaluate U tail tailRegular (Source.basis j))) (unitRegular i));
+\definition residualInjective: Lower.Injective residual := \fun (x: Open.Carrier U) => At[x := x].residualInjective;
+\module With(prior: Lower.Factors[residual]);
+\definition exists: \exists Higher.Factors[A] := \block {
+  \takefrom prior: Lower.Factors[residual] \by previous residual residualRegular residualInjective \then
+  \return \exact(With[prior := prior].factors, Higher.Factors[A])
+};

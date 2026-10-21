@@ -1,0 +1,54 @@
+\import \parent.Splitting[] \as Split;
+\import Split.Retraction[] \as Retraction;
+\import tangent_bundles.Trivial[n := n, r := ambientDimension].On[M := M].Covered[I := Local,
+  chart := \fun (patch: Local) => patch.chart, covers := covers] \as Trivial;
+\import Trivial.Topology[] \as Product;
+\import std.Data[].Pair[] \as Pair;
+\definition ProductPoint: \Set := Product.ProductPoint;
+\definition productTopology: topology.Structures[].Topology[ProductPoint] := Product.productTopology;
+\definition inclusion[p: Point]: ProductPoint := Pair.pair M.Point E.Vector p.base p.vector;
+\import manifolds.SmoothMap[n := ambientDimension, m := Split.dimension].Between[M := manifold, N := Split.productManifold] \as IncludeMaps;
+\import manifolds.SmoothMap[n := Split.dimension, m := ambientDimension].Between[M := Split.productManifold, N := manifold] \as RetractMaps;
+\definition retraction[p: ProductPoint]: Point := RetractMaps.apply Retraction.retraction (Product.backward p);
+\import topology.Composition[A := Point, B := Split.ProductPoint, C := ProductPoint] \as IncludeComposition;
+\import topology.Composition[A := ProductPoint, B := Split.ProductPoint, C := Point] \as RetractComposition;
+\definition pairInclusion[p: Point]: ProductPoint := Product.forward (IncludeMaps.apply Retraction.inclusion p);
+\definition pairEquality: pairInclusion = inclusion := \axiom:funext(pairInclusion, inclusion, \fun (p: Point) =>
+  congr!{{Split.ProductPoint} ProductPoint} Product.forward _ _ (Retraction.inclusionFormula p));
+\definition inclusionContinuous: topology.Continuity[A := Point, B := ProductPoint].Continuous manifold.space productTopology inclusion :=
+  \idelim pairInclusion = inclusion \with f: (Point -> ProductPoint) => topology.Continuity[A := Point, B := ProductPoint].Continuous manifold.space productTopology f \by {
+    base: IncludeComposition.composeContinuous manifold.space Split.productManifold.space productTopology (IncludeMaps.apply Retraction.inclusion) Product.forward
+      (\bysub(IncludeMaps.Data, { f: IncludeMaps.Data \where IncludeMaps.Continuous f }, Retraction.inclusion)) Product.forwardContinuous,
+    equality: pairEquality
+  };
+\definition retractionContinuous: topology.Continuity[A := ProductPoint, B := Point].Continuous productTopology manifold.space retraction :=
+  RetractComposition.composeContinuous productTopology Split.productManifold.space manifold.space Product.backward (RetractMaps.apply Retraction.retraction) Product.backwardContinuous
+    (\bysub(RetractMaps.Data, { f: RetractMaps.Data \where RetractMaps.Continuous f }, Retraction.retraction));
+\definition retracts: \forall (p: Point) -> retraction (inclusion p) = p := Retraction.retracts;
+\import topology.Retract[A := Point, B := ProductPoint].On[source := manifold.space, target := productTopology, inclusion := inclusion, retraction := retraction] \as Embedding;
+\definition image: \Pow ProductPoint := Embedding.image;
+\definition explicitNormals: \Pow ProductPoint := { p: ProductPoint \where \forall (v: Tangent.Vector (Pair.first M.Point E.Vector p)) ->
+  E.dot (Pair.second M.Point E.Vector p) (\parent.At[x := Pair.first M.Point E.Vector p].differential.apply v) = R.zero };
+\definition imageEquality: image = explicitNormals := \axiom:setext(image, explicitNormals,
+  \block {
+    \fun (p: ProductPoint)(member: _) \then
+    \takefrom q: \Cast[Point] ({ q: Point \where inclusion q = p }) \by member \then
+    \return \idelim inclusion q = p \with z: ProductPoint => \In[ProductPoint] explicitNormals z \by {
+      base: orthogonal q, equality: \bysub(Point, { q: Point \where inclusion q = p }, q)
+    }
+  },
+  \fun (p: ProductPoint)(member: _) => Logic.existsIntro[Point, { q: Point \where inclusion q = p }]
+    (include (Pair.first M.Point E.Vector p) (\into[E.Vector](Pair.second M.Point E.Vector p, (\parent.At[x := Pair.first M.Point E.Vector p].subspace).carrier) \by { member }))
+    (Pair.Prop[A := M.Point, B := E.Vector].eta p));
+\definition homeomorphism: topology.Homeomorphism[A := Point, B := Embedding.Image].Homeomorphism[manifold.space,
+  topology.Topology[Carrier := ProductPoint].Subspace[S := image].topology productTopology] :=
+  Embedding.homeomorphism inclusionContinuous retractionContinuous retracts;
+\definition explicitHomeomorphism: topology.Homeomorphism[A := Point, B := \Cast[ProductPoint] explicitNormals].Homeomorphism[manifold.space,
+  topology.Topology[Carrier := ProductPoint].Subspace[S := explicitNormals].topology productTopology] :=
+  \idelim image = explicitNormals \with S: \Pow ProductPoint => topology.Homeomorphism[A := Point, B := \Cast[ProductPoint] S].Homeomorphism[manifold.space,
+    topology.Topology[Carrier := ProductPoint].Subspace[S := S].topology productTopology] \by { base: homeomorphism, equality: imageEquality };
+\definition injective: \forall (p, q: Point) -> inclusion p = inclusion q -> p = q :=
+  \fun (p, q: Point)(same: _) => trans!{Point} _ _ _ (sym!{Point} _ _ (retracts p))
+    (trans!{Point} _ _ _ (congr!{ProductPoint Point} retraction _ _ same) (retracts q));
+\definition ext: \forall (p, q: Point) -> p.base = q.base -> ambientVector p = ambientVector q -> p = q :=
+  \fun (p, q: Point)(base: _)(vector: _) => injective p q (Pair.Prop[A := M.Point, B := E.Vector].ext (inclusion p) (inclusion q) base vector);

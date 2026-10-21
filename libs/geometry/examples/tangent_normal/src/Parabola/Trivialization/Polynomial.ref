@@ -1,0 +1,29 @@
+\import AmbientOpen.Smooth[].Operations[] \as Operations;
+\import Fin.Sum[m := one, n := one] \as Indices;
+\import calculus.Maps[n := two, m := one] \as ScalarMaps;
+\definition t[u: AmbientOpen.Carrier AmbientOpen.whole]: R.Real := Blocks.left u z;
+\definition a[u: AmbientOpen.Carrier AmbientOpen.whole]: R.Real := Blocks.right u z;
+\definition regularT: AmbientOpen.Smooth[].SmoothOn AmbientOpen.whole t := AmbientOpen.Examples[].projectionSmooth AmbientOpen.whole (Indices.left z);
+\definition regularA: AmbientOpen.Smooth[].SmoothOn AmbientOpen.whole a := AmbientOpen.Examples[].projectionSmooth AmbientOpen.whole (Indices.right z);
+\definition first[u: AmbientOpen.Carrier AmbientOpen.whole]: E.Vector := Line.forward.apply (R.mul (a u) (R.neg (twice (t u))));
+\definition data: ScalarMaps.Data[AmbientOpen.whole, Open.whole] := ScalarMaps.Data[AmbientOpen.whole, Open.whole] {
+  apply := \fun (u: AmbientOpen.Carrier AmbientOpen.whole) => \into[E.Vector](first u, Open.whole.points) \by { \refl(first u) }
+};
+\definition firstMap: ScalarMaps.Map AmbientOpen.whole Open.whole := \into[ScalarMaps.Data[AmbientOpen.whole, Open.whole]](data,
+  { f: ScalarMaps.Data[AmbientOpen.whole, Open.whole] \where ScalarMaps.Laws[AmbientOpen.whole, Open.whole, f] }) \by {
+  ScalarMaps.Laws[AmbientOpen.whole, Open.whole, data] { smooth := \fun (i: Fin.Fin one) => Operations.mulSmooth AmbientOpen.whole a
+    (\fun (u: AmbientOpen.Carrier AmbientOpen.whole) => R.neg (twice (t u))) regularA
+    (Operations.negSmooth AmbientOpen.whole (\fun (u: AmbientOpen.Carrier AmbientOpen.whole) => twice (t u))
+      (Operations.addSmooth AmbientOpen.whole t t regularT regularT)) }
+};
+\import calculus.LinearMap[n := two, m := one].On[U := AmbientOpen.whole, L := Blocks.rightMap] \as Right;
+\import calculus.Blocks[n := one, m := one].Pair[d := two].On[U := AmbientOpen.whole, V := Open.whole, W := Open.whole, f := firstMap, g := Right.map] \as Pair;
+\import calculus.Maps[n := two, m := two] \as Calculus;
+\definition result: Calculus.Data[AmbientOpen.whole, AmbientOpen.whole] := Calculus.Data[AmbientOpen.whole, AmbientOpen.whole] {
+  apply := \fun (u: AmbientOpen.Carrier AmbientOpen.whole) => \into[A.Vector](Pair.value u, AmbientOpen.whole.points) \by { \refl(Pair.value u) }
+};
+\definition calculusMap: Calculus.Map AmbientOpen.whole AmbientOpen.whole := \into[Calculus.Data[AmbientOpen.whole, AmbientOpen.whole]](result,
+  { f: Calculus.Data[AmbientOpen.whole, AmbientOpen.whole] \where Calculus.Laws[AmbientOpen.whole, AmbientOpen.whole, f] }) \by {
+    Calculus.Laws[AmbientOpen.whole, AmbientOpen.whole, result] { smooth := Pair.smooth }
+  };
+\definition map: manifolds.SmoothMap[n := two, m := two].Between[M := ambient, N := ambient].Map := manifolds.EuclideanGlobal[n := two, m := two].Of[f := calculusMap].map;

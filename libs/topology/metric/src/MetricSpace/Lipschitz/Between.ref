@@ -1,0 +1,45 @@
+\import \parent.\parent.Topology[] \as SourceTopology;
+\import Other.Functions[X := Carrier, metric := other] \as Functions;
+\import \parent.\parent.Compactness[].Uniform[B := B] \as Uniform;
+\import real.Analysis[] \as RealNumbers;
+\import RealNumbers.Estimates[] \as Estimates;
+\import Estimates.Product[] \as Product;
+\import RealNumbers.Distance[] \as Distance;
+\definition Bound[f: Carrier -> B][coefficient: R.Real]: \Prop := \forall (x, y: Carrier) ->
+  R.Le (other.distance (f x) (f y)) (RealLaws.fieldMul coefficient (metric.distance x y));
+\definition uniformlyContinuous[f: Carrier -> B][coefficient: R.Real]: Bound f coefficient -> Uniform.UniformlyContinuous metric other f := \block {
+  \fun (bounded: Bound f coefficient)(epsilon: R.Real)(positive: _) \then
+  \let c: R.Real := Product.coefficient coefficient Real.zero \then
+  \let cp: R.Lt Real.zero c := Product.coefficientPositive coefficient Real.zero \then
+  \let cBound: R.Le coefficient c := R.leTrans coefficient (Product.abs coefficient) c
+    (R.leReplaceRight coefficient (Distance.max (Real.neg coefficient) coefficient) (Product.abs coefficient)
+      (sym!{R.Real} _ _ (Product.absExpression coefficient)) (Distance.maxRight (Real.neg coefficient) coefficient))
+    (Product.coefficientFirst coefficient Real.zero) \then
+  \let delta: R.Real := Product.radius c epsilon \then
+  \return Logic.existsIntro[R.Real, { delta: R.Real \where Uniform.Radius[metric, other, f, epsilon, delta] }] delta
+    (Uniform.Radius[metric, other, f, epsilon, delta] {
+      positive := Product.radiusPositive c epsilon cp positive,
+      close := \fun (x, y: Carrier)(near: _) => R.leLtTrans _ _ _
+        (R.leTrans _ _ _ (bounded x y)
+          (R.leTrans _ _ _
+            (R.leReplace (RealLaws.fieldMul (metric.distance x y) coefficient) (RealLaws.fieldMul coefficient (metric.distance x y))
+              (RealLaws.fieldMul (metric.distance x y) c) (RealLaws.fieldMul c (metric.distance x y))
+              (RealLaws.fieldMulComm (metric.distance x y) coefficient) (RealLaws.fieldMulComm (metric.distance x y) c)
+              (Estimates.mulMonotone (metric.distance x y) coefficient c (metric.nonnegative x y) cBound))
+            (Estimates.mulMonotone c (metric.distance x y) delta (Order.leOfLt Real.zero c cp) (Order.leOfLt _ _ near))))
+        (Product.radiusSmall c epsilon cp positive),
+    })
+};
+\definition continuous[f: Carrier -> B][coefficient: R.Real]: Bound f coefficient -> Functions.Continuous (SourceTopology.topology metric) f := \block {
+  \fun (bounded: Bound f coefficient) \then
+  \enough _ \by { Functions.continuousOfLocal (SourceTopology.topology metric) f } \then
+  \fun (x: Carrier)(epsilon: R.Real)(positive: _) \then
+  \takefrom delta: \Cast[R.Real] ({ delta: R.Real \where Uniform.Radius[metric, other, f, epsilon, delta] }) \by uniformlyContinuous f coefficient bounded epsilon positive \then
+  \let radius: Uniform.Radius[metric, other, f, epsilon, delta] := \bysub(R.Real, { delta: R.Real \where Uniform.Radius[metric, other, f, epsilon, delta] }, delta) \then
+  \return Logic.existsIntro[\Pow Carrier, { U: \Pow Carrier \where T.OpenNeighborhood[SourceTopology.topology metric, x, Functions.Small f x epsilon, U] }]
+    (Ball metric x delta) (T.OpenNeighborhood[SourceTopology.topology metric, x, Functions.Small f x epsilon, Ball metric x delta] {
+      open := SourceTopology.ballOpenIn metric x delta,
+      contains := ballCenter metric x delta radius.positive,
+      within := \fun (y: Carrier)(near: T.Member (Ball metric x delta) y) => radius.close x y near,
+    })
+};

@@ -1,0 +1,37 @@
+\import topology.Topology[Carrier := A] \as T;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Logic[].Rel[] \as Relations;
+\use Equality.sym;
+\use Logic.either;
+\definition byContradiction[P: \Prop]: (Logic.Not P -> Logic.False) -> P :=
+  \fun (proof: Logic.Not P -> Logic.False) => either!{{(Classical.excludedMiddle P)} P {\fun (p: P) => p} {\fun (np: Logic.Not P) => Logic.falseElim P (proof np)}};
+\definition Family: \Set := \Pow (\Pow A);
+\definition Member[F: Family, S: \Pow A]: \Prop := \In[\Pow A] F S;
+\definition Included[F, G: Family]: \Prop := \forall (S: \Pow A) -> Member F S -> Member G S;
+\structure FilterLaws[F: Family]: \Prop := {
+  whole: Member F T.Whole,
+  intersection: \forall (S, U: \Pow A) -> Member F S -> Member F U -> Member F (T.Intersection S U),
+  upward: \forall (S, U: \Pow A) -> Member F S -> T.Subset S U -> Member F U,
+  proper: \forall (S: \Pow A) -> Member F S -> \exists \Cast[A] S,
+};
+\definition Filter: \Set := \Cast[Family] ({ F: Family \where FilterLaws[F] });
+\definition laws[F: Filter]: FilterLaws[F] := \bysub(Family, { F: Family \where FilterLaws[F] }, F);
+\definition Disjunction[F: Filter]: \Prop := \forall (S: \Pow A) -> Logic.Or[Member F S, Member F (T.Complement S)];
+\definition Ultrafilter: \Set := \Cast[Filter] ({ F: Filter \where Disjunction F });
+\definition dichotomy[F: Ultrafilter]: Disjunction F := \bysub(Filter, { F: Filter \where Disjunction F }, F);
+\definition incompatible: \forall (F: Filter) (S: \Pow A) -> Member F S -> Member F (T.Complement S) -> Logic.False := \block {
+  \fun (F: Filter) (S: \Pow A) (member: Member F S) (outside: Member F (T.Complement S)) \then
+  \takefrom x: \Cast[A] (T.Intersection S (T.Complement S)) \by (laws F).proper _ ((laws F).intersection S (T.Complement S) member outside) \then
+  \let both: Logic.And[T.Member S x, Logic.Not (T.Member S x)] := \bysub(A, T.Intersection S (T.Complement S), x) \then
+  \return both.right (both.left)
+};
+\module Extension(seed: Filter);
+\definition ultrafilterExtension: \forall (seed: Filter) -> \exists ( F: Ultrafilter \where Included seed F ) :=
+  \fun (seed: Filter) => Extension[seed := seed].ultrafilterExists;
+\definition complementMember: \forall (F: Ultrafilter) (S: \Pow A) -> Logic.Not (Member F S) -> Member F (T.Complement S) :=
+  \fun (F: Ultrafilter) (S: \Pow A) (absent: Logic.Not (Member F S)) => either!{{(dichotomy F S)} {Member F (T.Complement S)}
+    {\fun (member: Member F S) => Logic.falseElim _ (absent member)} {\fun (member: Member F (T.Complement S)) => member}};
+\module Mapping(B: \Set, map: A -> B);
+\module Compactness(topology: T.Topology);

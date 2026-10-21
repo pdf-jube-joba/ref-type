@@ -1,0 +1,27 @@
+/* Restrict a coefficient atlas to an open subset of its carrier. */
+\definition Carrier: \Set := \Cast[G] U;
+\definition component[i: I][g: Carrier]: R.Real := coefficient i g;
+\definition extensionality: \forall (g, h: Carrier) -> (\forall (i: I) -> component i g = component i h) -> g = h :=
+  \fun (g, h: Carrier)(same: _) => ext g h same;
+\import \root.CoefficientAtlas[G := Carrier, I := I, n := dimension, coefficient := component, ext := extensionality] \as Target;
+\import manifolds.ParametrizedAtlas[n := dimension, A := Carrier] \as TargetCoordinates;
+\import calculus.Real[].Multivariable[n := dimension].Open[] \as Open;
+\import Open.Topology[] \as OpenTopology;
+\import topology.Topology[Carrier := calculus.Real[].Multivariable[n := dimension].Point] \as Points;
+\import topological_algebra.Euclidean[].Dimension[n := dimension].Topology[] \as Euclidean;
+\module Patch(k: N.Nat^);
+\definition family: TargetCoordinates.Family := TargetCoordinates.Family {
+  patch := \fun (k: N.Nat^) => Patch[k := k].patch,
+  covers := \block {
+    \fun (g: Carrier) \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \In[G] (data.family.patch k).domain g }) \by data.family.covers g \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \In[Carrier] (Patch[k := k].patch).domain g }] k
+      (\bysub(N.Nat^, { k: N.Nat^ \where \In[G] (data.family.patch k).domain g }, k))
+  },
+};
+\module Reads(d: N.Nat^);
+\definition atlasData: Target.Data := Target.Data {
+  family := family,
+  parametrizations := \fun (k: N.Nat^) => Patch[k := k].plot,
+  readings := \fun (d: N.Nat^) => Reads[d := d].regular,
+};

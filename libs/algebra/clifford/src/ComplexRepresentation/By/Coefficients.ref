@@ -1,0 +1,20 @@
+/* Real and imaginary scalar coordinates of a complex extension. */
+\import std.Data[].Sum[] \as Either;
+\import \parent.Faithful[] \as Faithful;
+\definition Index: \Set := Either.Sum[Coordinates.Index n, Coordinates.Index n];
+\definition real[i: Coordinates.Index n]: Index := Either.Sum[Coordinates.Index n, Coordinates.Index n]::inl i;
+\definition imaginary[i: Coordinates.Index n]: Index := Either.Sum[Coordinates.Index n, Coordinates.Index n]::inr i;
+\definition coefficient: Index -> Extension.Carrier -> R.Real := \induction (i: Index) \return Extension.Carrier -> R.Real \with {
+  | inl: \fun (i: Coordinates.Index n)(x: Extension.Carrier) => (Coordinates.coordinates n).read (first (image x)) i
+  | inr: \fun (i: Coordinates.Index n)(x: Extension.Carrier) => (Coordinates.coordinates n).read (second (image x)) i
+};
+\definition ext: \forall (x, y: Extension.Carrier) -> (\forall (i: Index) -> coefficient i x = coefficient i y) -> x = y := \block {
+  \fun (x, y: Extension.Carrier)(same: _) \then
+  \let firstSame: first (image x) = first (image y) := Coordinates.injective n _ _
+    (\axiom:funext((Coordinates.coordinates n).read (first (image x)), (Coordinates.coordinates n).read (first (image y)),
+      \fun (i: Coordinates.Index n) => same (real i))) \then
+  \let secondSame: second (image x) = second (image y) := Coordinates.injective n _ _
+    (\axiom:funext((Coordinates.coordinates n).read (second (image x)), (Coordinates.coordinates n).read (second (image y)),
+      \fun (i: Coordinates.Index n) => same (imaginary i))) \then
+  \return Faithful.imageInjective x y (Pairs.ext (image x) (image y) firstSame secondSame)
+};

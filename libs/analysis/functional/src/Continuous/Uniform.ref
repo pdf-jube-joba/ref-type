@@ -1,0 +1,78 @@
+\import topology.Topology[Carrier := Function] \as Space;
+\definition Near[f, g: Function, epsilon: Real.Real]: \Prop := \forall (x: A) -> R.Lt (Real.distance (f x) (g x)) epsilon;
+\structure Neighborhood[U: \Pow Function, f: Function, r: Real.Real]: \Prop := {
+  positive: R.Lt Real.zero r,
+  included: \forall (g: Function) -> Near f g r -> Space.Member U g,
+};
+\definition Open[U: \Pow Function]: \Prop := \forall (f: Function) -> Space.Member U f ->
+  \exists ( r: Real.Real \where Neighborhood[U, f, r] );
+\definition data: Space.TopologyData := Space.TopologyData {
+  openSets := { U: \Pow Function \where Open U },
+};
+\definition topology: Space.Topology := \into[Space.TopologyData](data, { data: Space.TopologyData \where Space.TopologyLaws[data] }) \by {
+  Space.TopologyLaws[data] {
+    emptyOpen := \fun (f: Function) (empty: Logic.False) => Logic.falseElim _ empty,
+    wholeOpen := \fun (f: Function) (member: f = f) => Logic.existsIntro[Real.Real, { r: Real.Real \where Neighborhood[Space.Whole, f, r] }] Real.one
+      (Neighborhood[Space.Whole, f, Real.one] { positive := Product.onePositive, included := \fun (g: Function) (near: Near f g Real.one) => \refl(g) }),
+    unionOpen := \block {
+      \fun (family: \Pow (\Pow Function)) (open: \forall (U: \Pow Function) -> Space.FamilyMember family U -> Open U) (f: Function) (member: Space.Member (Space.Union family) f) \then
+      \return Space.unionMemberElim family f (\exists ( r: Real.Real \where Neighborhood[Space.Union family, f, r] )) (\block {
+        \fun (U: \Pow Function) (inFamily: Space.FamilyMember family U) (inU: Space.Member U f) \then
+        \takefrom r: \Cast[Real.Real] ({ r: Real.Real \where Neighborhood[U, f, r] }) \by open U inFamily f inU \then
+        \let n: Neighborhood[U, f, r] := \bysub(Real.Real, { r: Real.Real \where Neighborhood[U, f, r] }, r) \then
+        \return Logic.existsIntro[Real.Real, { r: Real.Real \where Neighborhood[Space.Union family, f, r] }] r
+          (Neighborhood[Space.Union family, f, r] { positive := n.positive,
+            included := \fun (g: Function) (near: Near f g r) => Space.unionMemberOf family U g inFamily (n.included g near) })
+      }) member
+    },
+    intersectionOpen := \block {
+      \fun (U, V: \Pow Function) (uo: Open U) (vo: Open V) (f: Function) (member: Space.Member (Space.Intersection U V) f) \then
+      \takefrom r: \Cast[Real.Real] ({ r: Real.Real \where Neighborhood[U, f, r] }) \by uo f (member.left) \then
+      \takefrom s: \Cast[Real.Real] ({ s: Real.Real \where Neighborhood[V, f, s] }) \by vo f (member.right) \then
+      \let u: Neighborhood[U, f, r] := \bysub(Real.Real, { r: Real.Real \where Neighborhood[U, f, r] }, r) \then
+      \let v: Neighborhood[V, f, s] := \bysub(Real.Real, { s: Real.Real \where Neighborhood[V, f, s] }, s) \then
+      \let t: Real.Real := Distance.min r s \then
+      \return Logic.existsIntro[Real.Real, { t: Real.Real \where Neighborhood[Space.Intersection U V, f, t] }] t
+        (Neighborhood[Space.Intersection U V, f, t] { positive := Product.minPositive r s (u.positive) (v.positive),
+          included := \fun (g: Function) (near: Near f g t) => Logic.And[_, _]::#
+            (u.included g (\fun (x: A) => R.ltLeTrans _ t r (near x) (Distance.minLeft r s)))
+            (v.included g (\fun (x: A) => R.ltLeTrans _ t s (near x) (Distance.minRight r s))) })
+    },
+  }
+};
+\structure BallWitness[f, g: Function, r, delta: Real.Real]: \Prop := {
+  positive: R.Lt Real.zero delta,
+  included: \forall (h: Function) -> Near g h delta -> Near f h r,
+};
+\definition Ball[f: Function, r: Real.Real]: \Pow Function := { g: Function \where \exists ( delta: Real.Real \where BallWitness[f, g, r, delta] ) };
+\definition selfNear: \forall (f: Function) (r: Real.Real) -> R.Lt Real.zero r -> Near f f r :=
+  \fun (f: Function) (r: Real.Real) (positive: R.Lt Real.zero r) (x: A) => R.ltReplaceLeft Real.zero (Real.distance (f x) (f x)) r
+    (sym!{Real.Real} _ _ (Distance.distanceSelf (f x))) positive;
+\definition ballCenter: \forall (f: Function) (r: Real.Real) -> R.Lt Real.zero r -> Space.Member (Ball f r) f :=
+  \fun (f: Function) (r: Real.Real) (positive: R.Lt Real.zero r) => Logic.existsIntro[Real.Real, { delta: Real.Real \where BallWitness[f, f, r, delta] }] r
+    (BallWitness[f, f, r, r] { positive := positive, included := \fun (h: Function) (near: Near f h r) => near });
+\definition ballNear: \forall (f, g: Function) (r: Real.Real) -> Space.Member (Ball f r) g -> Near f g r := \block {
+  \fun (f, g: Function) (r: Real.Real) (member: Space.Member (Ball f r) g) \then
+  \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where BallWitness[f, g, r, delta] }) \by member \then
+  \let witness: BallWitness[f, g, r, delta] := \bysub(Real.Real, { delta: Real.Real \where BallWitness[f, g, r, delta] }, delta) \then
+  \return witness.included g (selfNear g delta (witness.positive))
+};
+\definition ballOpen: \forall (f: Function) (r: Real.Real) -> Space.IsOpenIn topology (Ball f r) := \block {
+  \fun (f: Function) (r: Real.Real) (g: Function) (member: Space.Member (Ball f r) g) \then
+  \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where BallWitness[f, g, r, delta] }) \by member \then
+  \let witness: BallWitness[f, g, r, delta] := \bysub(Real.Real, { delta: Real.Real \where BallWitness[f, g, r, delta] }, delta) \then
+  \let epsilon: Real.Real := Real.mul Real.half delta \then
+  \return Logic.existsIntro[Real.Real, { epsilon: Real.Real \where Neighborhood[Ball f r, g, epsilon] }] epsilon
+    (Neighborhood[Ball f r, g, epsilon] {
+      positive := E.halfOfPositive delta (witness.positive),
+      included := \fun (h: Function) (near: Near g h epsilon) => Logic.existsIntro[Real.Real, { s: Real.Real \where BallWitness[f, h, r, s] }] epsilon
+        (BallWitness[f, h, r, epsilon] {
+          positive := E.halfOfPositive delta (witness.positive),
+          included := \fun (k: Function) (close: Near h k epsilon) => witness.included k
+            (\fun (x: A) => R.leLtTrans _ (Real.add (Real.distance (g x) (h x)) (Real.distance (h x) (k x))) delta
+              (Distance.distanceTriangle (g x) (h x) (k x))
+              (R.ltReplaceRight _ (Real.add epsilon epsilon) delta (E.halfTwice delta)
+                (E.addLt _ _ epsilon epsilon (near x) (close x)))),
+        }),
+    })
+};

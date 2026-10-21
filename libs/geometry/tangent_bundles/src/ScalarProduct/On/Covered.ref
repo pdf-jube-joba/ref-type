@@ -1,0 +1,26 @@
+\definition local[i: I]: Family.Local := Family.Local { chart := chart i, frame := \fun (x: Charts.LocalPoint (chart i)) => Line.isomorphism };
+\definition data: Family.Data[I] := Family.Data[I] { local := local, covers := covers };
+\import Family.Using[I := I, data := data] \as Atlas;
+\definition changes: Atlas.Changes := \fun (i, j: I)(a, b: Fin.Fin one) => Open.Smooth[].Operations[].constantSmooth
+  Charts.Transition[left := chart i, right := chart j].domain (Line.forward.apply (Line.backward.apply (E.basis b)) a);
+\import Atlas.Build[changes := changes] \as Construct;
+\definition manifold: TotalModels.Manifold := Construct.manifold;
+\import Trivial.Covered[I := I, chart := chart, covers := covers] \as Product;
+\import Atlas.Morphism[s := one, G := \fun (x: M.Point) => E.Vector, otherSpace := \fun (x: M.Point) => E.space,
+  otherFrame := \fun (i: I)(x: Charts.LocalPoint (chart i)) => Trivial.identity, field := \fun (x: M.Point) => Line.forward] \as Morphism;
+\module Regular(i: I, a, b: Fin.Fin one);
+\definition regular: Morphism.Regular := \fun (i: I)(a, b: Fin.Fin one) => Regular[i := i, a := a, b := b].smooth;
+\definition backward[x: M.Point]: Spaces.Linear[V := E.Vector, W := R.Real, source := E.space, target := Spaces.scalarSpace].Map := Line.backward;
+\import Morphism.Reverse[backward := backward] \as Backward;
+\definition left: Backward.Left := \fun (x: M.Point)(a: R.Real) => (Spaces.Isomorphism[V := R.Real, W := E.Vector, source := Spaces.scalarSpace, target := E.space].laws Line.isomorphism).leftInverse a;
+\definition right: Backward.Right := \fun (x: M.Point)(v: E.Vector) => (Spaces.Isomorphism[V := R.Real, W := E.Vector, source := Spaces.scalarSpace, target := E.space].laws Line.isomorphism).rightInverse v;
+\definition inverseRegular: Backward.Regular := \fun (i: I) => calculus.InverseFamily[d := n, r := one].regular (chart i).image (Morphism.matrix i) (Backward.matrix i)
+  (Backward.left left i) (Backward.right right i) (regular i);
+\import Morphism.Build[firstChanges := changes, secondChanges := Product.changes, regular := regular] \as Forward;
+\import Forward.Inverse[backward := backward, inverseRegular := inverseRegular, left := left, right := right] \as Inverse;
+\definition forward: manifolds.SmoothMap[n := dimension, m := dimension].Between[M := manifold, N := Product.manifold].Map := Forward.map;
+\definition inverse: manifolds.SmoothMap[n := dimension, m := dimension].Between[M := Product.manifold, N := manifold].Map := Inverse.map;
+\definition diffeomorphism: manifolds.Diffeomorphism[n := dimension, m := dimension].Between[M := manifold, N := Product.manifold].Diffeomorphism := Inverse.diffeomorphism;
+\module Pairing(p: N.Nat^);
+\module Projection;
+\module Vector;

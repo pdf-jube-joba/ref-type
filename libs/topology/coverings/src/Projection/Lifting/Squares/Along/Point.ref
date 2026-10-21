@@ -1,0 +1,58 @@
+\definition combine: \forall (f, g: Interval.Carrier -> Interval.Carrier) -> Property f (Intervals.left g) -> Property f (Intervals.right g) -> Property f g := \block {
+  \fun (f, g: _)(left: _)(right: _)(fc: _)(gc: _)(initial: _)(ic: _)(ip: _) \then
+  \let il: Interval.Carrier -> E := \fun (s: Interval.Carrier) => initial (Halves.lower s) \then
+  \let ir: Interval.Carrier -> E := \fun (s: Interval.Carrier) => initial (Halves.upper s) \then
+  \takefrom l: Lift (trace f (Intervals.left g)) il \by left fc (Intervals.leftContinuous g gc) il
+    (InitialCompose.composeContinuous Interval.topology Interval.topology total Halves.lower initial Halves.lowerContinuous ic)
+    (\fun (s: Interval.Carrier) => ip (Halves.lower s)) \then
+  \takefrom r: Lift (trace f (Intervals.right g)) ir \by right fc (Intervals.rightContinuous g gc) ir
+    (InitialCompose.composeContinuous Interval.topology Interval.topology total Halves.upper initial Halves.upperContinuous ic)
+    (\fun (s: Interval.Carrier) => ip (Halves.upper s)) \then
+  \let middle: BasePaths.Path (trace f g (Square.at Interval.start Interval.middle)) (trace f g (Square.at Interval.end Interval.middle)) :=
+    \into[BasePaths.Function](\fun (t: Interval.Carrier) => trace f g (Square.at t Interval.middle),
+      BasePaths.Path (trace f g (Square.at Interval.start Interval.middle)) (trace f g (Square.at Interval.end Interval.middle))) \by {
+      BasePaths.Laws[trace f g (Square.at Interval.start Interval.middle), trace f g (Square.at Interval.end Interval.middle), \fun (t: Interval.Carrier) => trace f g (Square.at t Interval.middle)] {
+        continuous := BaseSlices.composeContinuous Interval.topology (Square.topology Interval.topology) base (pointSlice Interval.middle) (trace f g)
+          (pointSliceContinuous Interval.middle) (traceContinuous f g fc gc),
+        start := \refl(trace f g (Square.at Interval.start Interval.middle)), end := \refl(trace f g (Square.at Interval.end Interval.middle)),
+      }
+    } \then
+  \let leftEdge: Interval.Carrier -> E := \fun (t: Interval.Carrier) => l (Square.at t Interval.end) \then
+  \let rightEdge: Interval.Carrier -> E := \fun (t: Interval.Carrier) => r (Square.at t Interval.start) \then
+  \let sameEdges: leftEdge = rightEdge := Uniqueness.functionsUnique covering _ _ middle leftEdge rightEdge
+    (Slices.composeContinuous Interval.topology (Square.topology Interval.topology) total (pointSlice Interval.end) l (pointSliceContinuous Interval.end) (laws _ _ l).continuous)
+    (Slices.composeContinuous Interval.topology (Square.topology Interval.topology) total (pointSlice Interval.start) r (pointSliceContinuous Interval.start) (laws _ _ r).continuous)
+    (\fun (t: Interval.Carrier) => trans!{B} _ _ _ ((laws _ _ l).projects (Square.at t Interval.end))
+      (congr!{Interval.Carrier B} (\fun (s: Interval.Carrier) => family (Square.at (f t) (g s))) _ _ Halves.lowerEnd))
+    (\fun (t: Interval.Carrier) => trans!{B} _ _ _ ((laws _ _ r).projects (Square.at t Interval.start))
+      (congr!{Interval.Carrier B} (\fun (s: Interval.Carrier) => family (Square.at (f t) (g s))) _ _ Halves.upperStart))
+    (trans!{E} _ _ _ ((laws _ _ l).starts Interval.end)
+      (trans!{E} _ _ _ (congr!{Interval.Carrier E} initial _ _
+        (trans!{Interval.Carrier} _ _ _ Halves.lowerEnd (sym!{Interval.Carrier} _ _ Halves.upperStart)))
+        (sym!{E} _ _ ((laws _ _ r).starts Interval.start)))) \then
+  \let compatible: Glue.Compatible (Glue.flipped l) (Glue.flipped r) :=
+    \fun (t: Interval.Carrier) => congr!{{Interval.Carrier -> E} E} (\fun (e: Interval.Carrier -> E) => e t) leftEdge rightEdge sameEdges \then
+  \let lc: Glue.IsContinuous (Glue.flipped l) := Glue.flipContinuous l (laws _ _ l).continuous \then
+  \let rc: Glue.IsContinuous (Glue.flipped r) := Glue.flipContinuous r (laws _ _ r).continuous \then
+  \let joined: Square.Carrier -> E := Glue.join (Glue.flipped l) (Glue.flipped r) lc rc compatible \then
+  \let lifted: Lift (trace f g) initial := \into[Square.Carrier -> E](Glue.flipped joined, Lift (trace f g) initial) \by {
+    Laws[trace f g, initial, Glue.flipped joined] {
+      continuous := Glue.flipContinuous joined (Glue.continuous (Glue.flipped l) (Glue.flipped r) lc rc compatible),
+      starts := \fun (s: Interval.Carrier) => either!{{(Glue.covered s)} {_}
+        {\fun (member: _) => trans!{E} _ _ _ (Glue.onLeft (Glue.flipped l) (Glue.flipped r) lc rc compatible s Interval.start member)
+          (trans!{E} _ _ _ ((laws _ _ l).starts (Glue.leftTime s member)) (congr!{Interval.Carrier E} initial _ _ (Glue.undoLeft s member)))}
+        {\fun (member: _) => trans!{E} _ _ _ (Glue.onRight (Glue.flipped l) (Glue.flipped r) lc rc compatible s Interval.start member)
+          (trans!{E} _ _ _ ((laws _ _ r).starts (Glue.rightTime s member)) (congr!{Interval.Carrier E} initial _ _ (Glue.undoRight s member)))}},
+      projects := \fun (q: Square.Carrier) => either!{{(Glue.covered (Square.point q))} {_}
+        {\fun (member: _) => trans!{B} _ _ _
+          (congr!{E B} projection _ _ (Glue.onLeft (Glue.flipped l) (Glue.flipped r) lc rc compatible (Square.point q) (Square.time q) member))
+          (trans!{B} _ _ _ ((laws _ _ l).projects (Square.at (Square.time q) (Glue.leftTime (Square.point q) member)))
+            (congr!{Interval.Carrier B} (\fun (s: Interval.Carrier) => family (Square.at (f (Square.time q)) (g s))) _ _ (Glue.undoLeft (Square.point q) member)))}
+        {\fun (member: _) => trans!{B} _ _ _
+          (congr!{E B} projection _ _ (Glue.onRight (Glue.flipped l) (Glue.flipped r) lc rc compatible (Square.point q) (Square.time q) member))
+          (trans!{B} _ _ _ ((laws _ _ r).projects (Square.at (Square.time q) (Glue.rightTime (Square.point q) member)))
+            (congr!{Interval.Carrier B} (\fun (s: Interval.Carrier) => family (Square.at (f (Square.time q)) (g s))) _ _ (Glue.undoRight (Square.point q) member)))}}
+    }
+  } \then
+  \return \exact(lifted, Lift (trace f g) initial)
+};

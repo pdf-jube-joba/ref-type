@@ -1,0 +1,52 @@
+\import real.Analysis[].Geometric[q := half] \as Geometric;
+\import real.Analysis[].Algebra[] \as Algebra;
+\definition width[n: N.Nat^][a, b: Real]: Real := mul (sub b a) (Geometric.value n);
+\definition leftHalf: \forall (a, b: Real) -> sub (midpoint a b) a = mul half (sub b a) :=
+  \fun (a, b: Real) => trans!{Real} _ _ _
+    (congr!{Real Real} (\fun (x: Real) => sub x a) _ _ (Laws.addComm a (mul half (sub b a))))
+    (Laws.addNegCancelRight a (mul half (sub b a)));
+\definition rightHalf: \forall (a, b: Real) -> sub b (midpoint a b) = mul half (sub b a) :=
+  \fun (a, b: Real) => Laws.addCancelRight (sub b (midpoint a b)) (mul half (sub b a)) (mul half (sub b a)) (eq_reason!{
+    {add (sub b (midpoint a b)) (mul half (sub b a))}
+    "=" {add (sub b (midpoint a b)) (sub (midpoint a b) a)} "by" {congr!{Real Real} (add (sub b (midpoint a b))) _ _ (sym!{Real} _ _ (leftHalf a b))}
+    "=" {sub b a} "by" {Metric.subTriangle b (midpoint a b) a}
+    "=" {add (mul half (sub b a)) (mul half (sub b a))} "by" {sym!{Real} _ _ (E.halfTwice (sub b a))}
+  });
+\definition leftWidth: \forall (n: N.Nat^)(a, b: Real) -> width n a (midpoint a b) = width (N.Nat^::succ n) a b :=
+  \fun (n: N.Nat^)(a, b: Real) => trans!{Real} _ _ _
+    (congr!{Real Real} (\fun (x: Real) => mul x (Geometric.value n)) _ _ (leftHalf a b))
+    (trans!{Real} _ _ _ (congr!{Real Real} (\fun (x: Real) => mul x (Geometric.value n)) _ _ (Laws.fieldMulComm half (sub b a)))
+      (Laws.fieldMulAssoc (sub b a) half (Geometric.value n)));
+\definition rightWidth: \forall (n: N.Nat^)(a, b: Real) -> width n (midpoint a b) b = width (N.Nat^::succ n) a b :=
+  \fun (n: N.Nat^)(a, b: Real) => trans!{Real} _ _ _
+    (congr!{Real Real} (\fun (x: Real) => mul x (Geometric.value n)) _ _ (rightHalf a b))
+    (trans!{Real} _ _ _ (congr!{Real Real} (\fun (x: Real) => mul x (Geometric.value n)) _ _ (Laws.fieldMulComm half (sub b a)))
+      (Laws.fieldMulAssoc (sub b a) half (Geometric.value n)));
+\definition Fine[tags: Tags][a, b, delta: Real]: \Prop :=
+  \induction (tags: Tags) \return Real -> Real -> \Prop \with {
+    | tag: \fun (x, a, b: Real) => R.Lt (sub b a) delta
+    | split: \fun (left: Tags)(leftFine: Real -> Real -> \Prop)(right: Tags)(rightFine: Real -> Real -> \Prop)(a, b: Real) =>
+      Logic.And[leftFine a (midpoint a b), rightFine (midpoint a b) b]
+  } tags a b;
+\definition canonicalFine: \forall (n: N.Nat^)(a, b, delta: Real) -> R.Lt (width n a b) delta -> Fine (leftTags n a b) a b delta :=
+  \induction (n: N.Nat^) \return \forall (a, b, delta: Real) -> R.Lt (width n a b) delta -> Fine (leftTags n a b) a b delta \with {
+    | zero: \fun (a, b, delta: Real)(small: _) => R.ltReplaceLeft (mul (sub b a) one) (sub b a) delta (Algebra.mulOneRight (sub b a)) small
+    | succ: \fun (n: N.Nat^)(previous: _)(a, b, delta: Real)(small: _) => Logic.And[_, _]::#
+      (previous a (midpoint a b) delta (R.ltReplaceLeft (width (N.Nat^::succ n) a b) (width n a (midpoint a b)) delta (sym!{Real} _ _ (leftWidth n a b)) small))
+      (previous (midpoint a b) b delta (R.ltReplaceLeft (width (N.Nat^::succ n) a b) (width n (midpoint a b) b) delta (sym!{Real} _ _ (rightWidth n a b)) small))
+  };
+\import real.Analysis[].Estimates[].Product[] \as Product;
+\definition halfBelowOne: R.Lt half one := R.ltReplaceLeft (mul half one) half one (Algebra.mulOneRight half) (E.halfStrict one Product.onePositive);
+\definition arbitrarilyFine: \forall (a, b, delta: Real) -> R.Le a b -> R.Lt zero delta -> \exists ( n: N.Nat^ \where R.Lt (width n a b) delta ) :=
+  \fun (a, b, delta: Real)(ordered: R.Le a b)(positive: R.Lt zero delta) =>
+    Geometric.scaledEventual E.halfNonnegative halfBelowOne (sub b a) delta (Metric.subNonnegative b a ordered) positive;
+\definition fineEventually: \forall (a, b, delta: Real) -> R.Le a b -> R.Lt zero delta ->
+  \exists ( k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> Fine (leftTags n a b) a b delta ) := \block {
+  \fun (a, b, delta: Real)(ordered: _)(positive: _) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where R.Lt (width k a b) delta }) \by arbitrarilyFine a b delta ordered positive \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> Fine (leftTags n a b) a b delta }] k
+    (\fun (n: N.Nat^)(later: _) => canonicalFine n a b delta (R.leLtTrans _ _ _
+      (E.mulMonotone (sub b a) (Geometric.value n) (Geometric.value k) (Metric.subNonnegative b a ordered)
+        (Geometric.antitone E.halfNonnegative (Order.leOfLt half one halfBelowOne) n k later))
+      (\bysub(N.Nat^, { k: N.Nat^ \where R.Lt (width k a b) delta }, k))))
+};

@@ -1,0 +1,17 @@
+\import \parent.NormalProjection[] \as Projection;
+\import \parent.NormalInclusion[] \as Inclusion;
+\import manifolds.Composition[n := ambientDimension, m := dimension, l := dimension].Between[M := normalManifold, N := manifold, P := productManifold] \as IncludeComposition;
+\import manifolds.Composition[n := dimension, m := dimension, l := ambientDimension].Between[M := productManifold, N := manifold, P := normalManifold] \as RetractComposition;
+\definition inclusion: manifolds.SmoothMap[n := ambientDimension, m := dimension].Between[M := normalManifold, N := productManifold].Map := IncludeComposition.compose Inclusion.map Construct.map;
+\definition retraction: manifolds.SmoothMap[n := dimension, m := ambientDimension].Between[M := productManifold, N := normalManifold].Map := RetractComposition.compose Inverse.map Projection.map;
+\definition include[p: Family.Point]: ProductPoint := Product.include p.base p.vector;
+\definition inclusionFormula: \forall (p: Family.Point) -> manifolds.SmoothMap[n := ambientDimension, m := dimension].Between[M := normalManifold, N := productManifold].apply inclusion p = include p :=
+  \fun (p: Family.Point) => congr!{{E.Vector} ProductPoint} (Product.include p.base) _ _
+    (trans!{{E.Vector}} _ _ _ (congr!{{E.Vector} {E.Vector}} (\fun (v: E.Vector) => E.space.add v p.vector) _ _ (\parent.\parent.At[x := p.base].differential).preservesZero)
+      (Spaces.Laws[V := E.Vector, space := E.space].zeroLeft p.vector));
+\definition retracts: \forall (p: Family.Point) -> manifolds.SmoothMap[n := dimension, m := ambientDimension].Between[M := productManifold, N := normalManifold].apply retraction (include p) = p :=
+  \fun (p: Family.Point) => trans!{{Family.Point}} _ _ _
+    (congr!{Point {Family.Point}} Projection.apply _ _
+      (trans!{Point} _ _ _ (congr!{ProductPoint Point} inverse _ _ (sym!{ProductPoint} _ _ (inclusionFormula p)))
+        ((manifolds.Diffeomorphism[n := dimension, m := dimension].Between[M := manifold, N := productManifold].laws diffeomorphism).leftInverse (Inclusion.apply p))))
+    (Family.eta p);

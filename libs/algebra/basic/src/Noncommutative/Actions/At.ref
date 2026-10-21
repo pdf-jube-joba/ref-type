@@ -1,0 +1,52 @@
+\definition subgroup: Subgroup := stabilizer act point;
+\import \parent.\parent.Cosets[H := subgroup] \as Cosets;
+\import Cosets.Mapping[S := S] \as Descent;
+\definition onGroup[a: G]: S := act a point;
+\definition respects: Descent.Respects onGroup := \block {
+  \fun (a, b: G)(related: Cosets.Related a b) \then
+  \takefrom h: \Cast[\Cast[G] subgroup] ({ h: \Cast[G] subgroup \where mul h a = b }) \by related \then
+  \let ha: mul h a = b := \bysub(\Cast[G] subgroup, { h: \Cast[G] subgroup \where mul h a = b }, h) \then
+  \return sym!{S} _ _ (trans!{S} _ _ _ (congr!{G S} onGroup _ _ (sym!{G} _ _ ha))
+    (trans!{S} _ _ _ ((laws act).compose h a point) (congr!{S S} (act a) _ _ (\bysub(G, subgroup, h)))))
+};
+\definition orbit: Cosets.Carrier -> S := Descent.descend onGroup respects;
+\definition onClass: \forall (a: G) -> orbit (Cosets.class a) = act a point := Descent.onClass onGroup respects;
+\definition relatedOfSameValue: \forall (a, b: G) -> act a point = act b point -> Cosets.Related a b :=
+  \fun (a, b: G)(same: _) => Logic.existsIntro[\Cast[G] subgroup, { u: \Cast[G] subgroup \where mul u a = b }]
+    (\into[G](mul b (inv a), subgroup) \by {
+      trans!{S} _ _ _ ((laws act).compose b (inv a) point)
+        (trans!{S} _ _ _ (congr!{S S} (act (inv a)) _ _ (sym!{S} _ _ same)) (inverse act a point))
+    })
+    (trans!{G} _ _ _ (associative b (inv a) a)
+      (trans!{G} _ _ _ (congr!{G G} (mul b) _ _ (leftInverse a)) (rightIdentity b)));
+\definition injective: \forall (u, v: Cosets.Carrier) -> orbit u = orbit v -> u = v :=
+  Cosets.induction (\fun (u: Cosets.Carrier) => \forall (v: Cosets.Carrier) -> orbit u = orbit v -> u = v)
+    (\fun (a: G) => Cosets.induction (\fun (v: Cosets.Carrier) => orbit (Cosets.class a) = orbit v -> Cosets.class a = v)
+      (\fun (b: G)(same: _) => Cosets.sameClass a b
+        (relatedOfSameValue a b (trans!{S} _ _ _ (sym!{S} _ _ (onClass a)) (trans!{S} _ _ _ same (onClass b))))));
+\definition surjective: Transitive act -> \forall (s: S) -> \exists ( q: Cosets.Carrier \where orbit q = s ) := \block {
+  \fun (transitive: Transitive act)(s: S) \then
+  \takefrom a: \Cast[G] ({ a: G \where act a point = s }) \by transitive point s \then
+  \return Logic.existsIntro[Cosets.Carrier, { q: Cosets.Carrier \where orbit q = s }] (Cosets.class a)
+    (trans!{S} _ _ _ (onClass a) (\bysub(G, { a: G \where act a point = s }, a)))
+};
+\import Cosets.Action[] \as CosetAction;
+\definition equivariant: \forall (a: G)(q: Cosets.Carrier) -> orbit (CosetAction.apply a q) = act a (orbit q) :=
+  \fun (a: G) => Cosets.induction (\fun (q: Cosets.Carrier) => orbit (CosetAction.apply a q) = act a (orbit q))
+    (\fun (g: G) => eq_reason!{{orbit (CosetAction.apply a (Cosets.class g))}
+      "=" {orbit (Cosets.class (mul g a))} "by" {congr!{{Cosets.Carrier} S} orbit _ _ (CosetAction.onClass a g)}
+      "=" {act (mul g a) point} "by" {onClass (mul g a)}
+      "=" {act a (act g point)} "by" {(laws act).compose g a point}
+      "=" {act a (orbit (Cosets.class g))} "by" {congr!{S S} (act a) _ _ (sym!{S} _ _ (onClass g))}});
+\definition InverseValue[s: S]: \Set := \Cast[Cosets.Carrier] ({ q: Cosets.Carrier \where orbit q = s });
+\definition inverseExists: Transitive act -> \forall (s: S) -> \exists InverseValue s :=
+  \fun (transitive: Transitive act) => surjective transitive;
+\definition inverseUnique: \forall (s: S)(u, v: InverseValue s) -> u = v :=
+  \fun (s: S)(u, v: InverseValue s) => injective u v (trans!{S} _ _ _
+    (\bysub(Cosets.Carrier, InverseValue s, u)) (sym!{S} _ _ (\bysub(Cosets.Carrier, InverseValue s, v))));
+\definition backward[transitive: Transitive act][s: S]: InverseValue s :=
+  \choice InverseValue s \by { existence: inverseExists transitive s, uniqueness: inverseUnique s };
+\definition orbitRightInverse: \forall (transitive: Transitive act)(s: S) -> orbit (backward transitive s) = s :=
+  \fun (transitive: Transitive act)(s: S) => \bysub(Cosets.Carrier, InverseValue s, backward transitive s);
+\definition orbitLeftInverse: \forall (transitive: Transitive act)(q: Cosets.Carrier) -> backward transitive (orbit q) = q :=
+  \fun (transitive: Transitive act)(q: Cosets.Carrier) => injective (backward transitive (orbit q)) q (orbitRightInverse transitive (orbit q));

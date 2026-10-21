@@ -1,0 +1,32 @@
+/* Differentiation of the positive square root. */
+\import \parent.Def[] \as Derivatives;
+\import \parent.Operations[] \as DerivativeOperations;
+\import \parent.Reciprocal[] \as Reciprocal;
+\import \parent.\parent.Limit[].Def[] \as Limits;
+\import \parent.\parent.Limit[].Operations[] \as LimitOperations;
+\import real.Analysis[] \as Analysis;
+\import Analysis.SquareRoot[] \as Root;
+\import Analysis.Inverse[] \as Inverse;
+\import Analysis.Algebra[] \as Algebra;
+\import Analysis.Estimates[] \as Estimates;
+\import Estimates.Product[] \as Product;
+\import R.Order[] \as Order;
+\use Equality.congr2;
+\module Positive(x: Real, positive: R.Lt zero x);
+\definition value[f: Real -> Real][x: Real]: Real := Root.sqrt (f x);
+\definition continuous: \forall (f: Real -> Real)(a: Real) -> Limits.ContinuousAt f a -> Limits.ContinuousAt (value f) a := \block {
+  \fun (f: Real -> Real)(a: Real)(continuousF: _)(epsilon: Real)(positive: _) \then
+  \let squarePositive: R.Lt zero (mul epsilon epsilon) := Product.mulPositive epsilon epsilon positive positive \then
+  \takefrom delta: \Cast[Real] ({ delta: Real \where Limits.Control[f, a, f a, mul epsilon epsilon, delta] }) \by continuousF (mul epsilon epsilon) squarePositive \then
+  \let control: Limits.Control[f, a, f a, mul epsilon epsilon, delta] := \bysub(Real, { delta: Real \where Limits.Control[f, a, f a, mul epsilon epsilon, delta] }, delta) \then
+  \return Logic.existsIntro[Real, { delta: Real \where Limits.Control[value f, a, value f a, epsilon, delta] }] delta
+    (Limits.Control[value f, a, value f a, epsilon, delta] {
+      positive := control.positive,
+      estimate := \fun (x: Real)(different: _)(near: _) => Root.rootsNear (f x) (f a) epsilon positive (control.estimate x different near),
+    })
+};
+\definition factor[f: Real -> Real][a: Real]: Real := mul (mul Analysis.half (value f a)) (inv (f a));
+\module At(f: Real -> Real, positive: \forall (x: Real) -> R.Lt zero (f x), a: Real);
+\definition derivative: \forall (f: Real -> Real) -> (\forall (x: Real) -> R.Lt zero (f x)) -> \forall (a, d: Real) ->
+  Derivatives.HasDerivativeAt f a d -> Derivatives.HasDerivativeAt (value f) a (mul (factor f a) d) :=
+  \fun (f: Real -> Real)(positive: _)(a, d: Real) => At[f := f, positive := positive, a := a].derivative d;

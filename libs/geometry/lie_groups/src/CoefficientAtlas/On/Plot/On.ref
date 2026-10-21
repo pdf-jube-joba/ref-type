@@ -1,0 +1,24 @@
+/* A smooth matrix family is locally a smooth map through an atlas chart. */
+\structure Patch: \Set := {
+  center: Open.Carrier U,
+  index: N.Nat^,
+  witness: Coordinates.Read[d := d].On[p := data.family.patch index, U := U, f := f, a := center].Witness,
+};
+\definition domains[p: Patch]: Open.OpenSet := p.witness.domain;
+\import manifolds.SmoothCover[n := d, m := dimension].On[U := U, N := manifold, I := Patch, domains := domains] \as Cover;
+\module Local(p: Patch);
+\definition maps[p: Patch]: Cover.LocalMap p := Local[p := p].map;
+\definition included: Cover.Inclusions := \fun (p: Patch) => p.witness.included;
+\definition agreement: Cover.Agreement f maps included := \fun (p: Patch)(x: Open.Carrier (domains p)) =>
+  sym!{G} _ _ (p.witness.agrees x);
+\definition covers: Cover.Covers := \block {
+  \fun (a: Open.Carrier U) \then
+  \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where \In[G] ((data.family.patch i).domain) (f a) }) \by data.family.covers (f a) \then
+  \takefrom witness: Coordinates.Read[d := d].On[p := data.family.patch i, U := U, f := f, a := a].Witness
+    \by data.readings d U f regular i a (\bysub(N.Nat^, { i: N.Nat^ \where \In[G] ((data.family.patch i).domain) (f a) }, i)) \then
+  \let p: Patch := Patch { center := a, index := i, witness := witness } \then
+  \return Logic.existsIntro[Patch, { p: Patch \where \In[calculus.Real[].Multivariable[n := d].Point] ((domains p).points) a }] p witness.contains
+};
+\import Cover.Of[f := f, maps := maps, included := included, agrees := agreement, covers := covers] \as Glued;
+\definition map: manifolds.SmoothMap[n := d, m := dimension].Between[M := Cover.source, N := manifold].Map := Glued.value;
+\definition apply: manifolds.SmoothMap[n := d, m := dimension].Between[M := Cover.source, N := manifold].apply map = f := Glued.apply;

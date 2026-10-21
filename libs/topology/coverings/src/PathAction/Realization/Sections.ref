@@ -1,0 +1,44 @@
+\import \root.PathAction[E := E, B := B, base := base, projection := projection].Local[action := action, U := U, good := good] \as Local;
+\import Base.Subspace[S := U] \as Under;
+\import topology.Topology[Carrier := Under.CarrierSet] \as Sub;
+\import topology.Continuity[A := Under.CarrierSet, B := E] \as Maps;
+\import \parent.Topology[] \as Top;
+\definition section[y: Under.CarrierSet]: Fiber y := Local.move x y inX (\bysub(B, U, y)) e;
+\definition reach: \forall (y: Under.CarrierSet) -> Reach U x e y (section y) := \block {
+  \fun (y: Under.CarrierSet) \then
+  \takefrom p: Neighborhoods.Path U x y \by good.connected x y inX (\bysub(B, U, y)) \then
+  \return Logic.existsIntro[Neighborhoods.Path U x y, { p: Neighborhoods.Path U x y \where action.move x y (G.class x y p) e = section y }] p
+    (sym!{E} _ _ (Local.onPath x y inX (\bysub(B, U, y)) e p))
+};
+\definition inSheet: \forall (y: Under.CarrierSet) -> Total.Member (Sheet U x e) (section y) :=
+  \fun (y: _) => memberOfReach U x y e (section y) (reach y);
+\definition equalsSection: \forall (y: Under.CarrierSet)(f: Fiber y) -> Total.Member (Sheet U x e) f -> section y = f :=
+  \fun (y: _)(f: _)(member: _) => reachElim U x y e f (section y = f)
+    (\fun (p: _)(same: _) => trans!{E} _ _ _ (Local.onPath x y inX (\bysub(B, U, y)) e p) same)
+    (reachOfMember U x y e f member);
+\definition continuous: \forall (basis: Neighborhoods.GoodBasis) -> Maps.Continuous (Under.topology base) (Top.topology basis) section :=
+  \fun (basis: _)(W: \Pow E)(open: Top.Open W) => Sub.openOfNeighborhoods (Under.topology base) (Maps.Preimage section W) (\block {
+    \fun (y: Under.CarrierSet)(member: Total.Member W (section y)) \then
+    \takefrom V: \Cast[\Pow B] ({ V: \Pow B \where Top.Neighborhood[y, section y, W, V] }) \by open y (section y) member \then
+    \let v: Top.Neighborhood[y, section y, W, V] := \bysub(\Pow B, { V: \Pow B \where Top.Neighborhood[y, section y, W, V] }, V) \then
+    \takefrom R: \Cast[\Pow B] ({ R: \Pow B \where Neighborhoods.Refinement[y, Base.Intersection U V, R] }) \by
+      basis (Base.Intersection U V) ((Base.topologyLaws base).intersectionOpen U V good.open v.good.open) y (Logic.And[_, _]::# (\bysub(B, U, y)) v.contains) \then
+    \let r: Neighborhoods.Refinement[y, Base.Intersection U V, R] := \bysub(\Pow B, { R: \Pow B \where Neighborhoods.Refinement[y, Base.Intersection U V, R] }, R) \then
+    \return Logic.existsIntro[\Pow Under.CarrierSet, { S: \Pow Under.CarrierSet \where Sub.OpenNeighborhood[Under.topology base, y, Maps.Preimage section W, S] }]
+      (Under.Trace R) (Sub.OpenNeighborhood[Under.topology base, y, Maps.Preimage section W, Under.Trace R] {
+        open := Under.traceOpen base R r.good.open,
+        contains := r.contains,
+        within := \block {
+          \fun (z: Under.CarrierSet)(inR: Base.Member R z) \then
+          \takefrom p: Neighborhoods.Path R y z \by r.good.connected y z r.contains inR \then
+          \let inU: Base.Member U z := (r.subset z inR).left \then
+          \let pathU: Neighborhoods.Path U y z := Neighborhoods.restrict R U (\fun (a: B)(h: _) => (r.subset a h).left) y z p \then
+          \let pathV: Neighborhoods.Path V y z := Neighborhoods.restrict R V (\fun (a: B)(h: _) => (r.subset a h).right) y z p \then
+          \let same: action.move y z (G.class y z pathV) (section y) = section z :=
+            sym!{E} _ _ (trans!{E} _ _ _ (Local.compose x y z inX (\bysub(B, U, y)) inU e)
+              (Local.onPath y z (\bysub(B, U, y)) inU (section y) pathU)) \then
+          \return v.subset (section z) (memberOfReach V y z (section y) (section z)
+            (Logic.existsIntro[Neighborhoods.Path V y z, { q: Neighborhoods.Path V y z \where action.move y z (G.class y z q) (section y) = section z }] pathV same))
+        },
+      })
+  });

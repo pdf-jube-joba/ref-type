@@ -1,0 +1,42 @@
+/* The dyadic extension of a local homomorphism from the additive real line. */
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as NatOp;
+\import N.Basic[].Prop[] \as Nat;
+\import N.Order[].Prop[] \as NatOrder;
+\import Reals.Geometric[q := Reals.half] \as Geometric;
+\import Reals.Algebra[] \as Algebra;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import Operations.DyadicPower[] \as Powers;
+\definition positive: R.Lt Reals.zero f.radius := \bysub(Reals.Real, { r: Reals.Real \where R.Lt Reals.zero r }, f.radius);
+\definition halfPositive: R.Lt Reals.zero Reals.half := R.ltReplaceRight Reals.zero (Reals.mul Reals.half Reals.one) Reals.half
+  (Algebra.mulOneRight Reals.half) (Estimates.halfOfPositive Reals.one Bounds.onePositive);
+\definition halfNonnegative: R.Le Reals.zero Reals.half := R.Order[].leOfLt _ _ halfPositive;
+\definition halfBelow: R.Lt Reals.half Reals.one := R.ltReplaceLeft (Reals.mul Reals.half Reals.one) Reals.half Reals.one
+  (Algebra.mulOneRight Reals.half) (Estimates.halfStrict Reals.one Bounds.onePositive);
+\definition scale[t: Reals.Real][n: N.Nat^]: Reals.Real := Reals.mul t (Geometric.value n);
+\definition scaleAbsolute: \forall (t: Reals.Real)(n: N.Nat^) -> Bounds.abs (scale t n) = Reals.mul (Bounds.abs t) (Geometric.value n) :=
+  \fun (t: Reals.Real)(n: N.Nat^) => trans!{Reals.Real} _ _ _ (Bounds.absProduct t (Geometric.value n))
+    (congr!{Reals.Real Reals.Real} (Reals.mul (Bounds.abs t)) _ _ (Bounds.absOfNonnegative (Geometric.value n) (Geometric.nonnegative halfNonnegative n)));
+\definition scaleSuccessor: \forall (t: Reals.Real)(n: N.Nat^) -> scale t (N.Nat^::succ n) = Reals.mul Reals.half (scale t n) :=
+  \fun (t: Reals.Real)(n: N.Nat^) => Algebra.mulSwap t Reals.half (Geometric.value n);
+\definition doubleScale: \forall (t: Reals.Real)(n: N.Nat^) -> Reals.add (scale t (N.Nat^::succ n)) (scale t (N.Nat^::succ n)) = scale t n :=
+  \fun (t: Reals.Real)(n: N.Nat^) => trans!{Reals.Real} _ _ _
+    (congr2!{Reals.Real Reals.Real Reals.Real} Reals.add _ _ _ _ (scaleSuccessor t n) (scaleSuccessor t n)) (Estimates.halfTwice (scale t n));
+\definition scaleAddition: \forall (s, t: Reals.Real)(n: N.Nat^) -> scale (Reals.add s t) n = Reals.add (scale s n) (scale t n) :=
+  \fun (s, t: Reals.Real)(n: N.Nat^) => Algebra.mulAddRight s t (Geometric.value n);
+\module At(t: Reals.Real);
+\definition value[t: Reals.Real]: G := At[t := t].value;
+\module Addition(s, t: Reals.Real);
+\definition addition: \forall (s, t: Reals.Real) -> value (Reals.add s t) = Operations.mul (value s) (value t) :=
+  \fun (s, t: Reals.Real) => Addition[s := s, t := t].law;
+\definition agrees: \forall (t: Reals.Real) -> R.Lt (Bounds.abs t) f.radius -> value t = f.value t :=
+  \fun (t: Reals.Real)(small: _) => trans!{G} _ _ _
+    (At[t := t].computes N.Nat^::zero (R.ltReplaceLeft (Bounds.abs t) (Bounds.abs (scale t N.Nat^::zero)) f.radius
+      (sym!{Reals.Real} _ _ (congr!{Reals.Real Reals.Real} Bounds.abs _ _ (Algebra.mulOneRight t))) small))
+    (congr!{Reals.Real G} f.value _ _ (Algebra.mulOneRight t));
+\definition atZero: value Reals.zero = Operations.one := trans!{G} _ _ _
+  (agrees Reals.zero (R.ltReplaceLeft Reals.zero (Bounds.abs Reals.zero) f.radius
+    (sym!{Reals.Real} _ _ (Reals.Distance[].distanceSelf Reals.zero)) positive)) f.atZero;
+\module Uniqueness(h: Reals.Real -> G,
+  addition: \forall (s, t: Reals.Real) -> h (Reals.add s t) = Operations.mul (h s) (h t),
+  localAgreement: \forall (t: Reals.Real) -> R.Lt (Bounds.abs t) f.radius -> h t = f.value t);

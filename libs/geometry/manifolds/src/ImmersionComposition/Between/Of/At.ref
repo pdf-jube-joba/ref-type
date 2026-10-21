@@ -1,0 +1,17 @@
+\import \root.Tangent[n := l].On[M := P] \as Target;
+\import \root.Differential[n := m, m := l].Between[M := N, N := P].At[f := g, x := FirstMaps.apply f x] \as SecondD;
+\import \root.Differential[n := n, m := l].Between[M := M, N := P].At[f := Compose.compose f g, x := x] \as CompositeD;
+\definition C: \Set := Target.Vector (SecondMaps.apply g (FirstMaps.apply f x));
+\definition composite[u: Tangent.Vector x]: C := CompositeD.value.apply u;
+\definition iterated[u: Tangent.Vector x]: C := SecondD.value.apply (FirstD.At[f := f, x := x].value.apply u);
+\definition equality: \forall (u, v: Tangent.Vector x) -> composite u = composite v -> iterated u = iterated v :=
+  \fun (u, v: Tangent.Vector x)(same: _) => trans!{C} (iterated u) (composite u) (iterated v)
+    (sym!{C} (composite u) (iterated u) (Differential.At[x := x].pointwise u))
+    (trans!{C} (composite u) (composite v) (iterated v) same (Differential.At[x := x].pointwise v));
+
+\definition fromFirstEquality: \forall (u, v: Tangent.Vector x) -> FirstD.At[f := f, x := x].value.apply u = FirstD.At[f := f, x := x].value.apply v -> composite u = composite v :=
+  \fun (u, v: Tangent.Vector x)(same: _) => trans!{C} (composite u) (iterated u) (composite v) (Differential.At[x := x].pointwise u)
+    (trans!{C} (iterated u) (iterated v) (composite v)
+      (congr!{{\root.Tangent[n := m].On[M := N].Vector (FirstMaps.apply f x)} C} SecondD.value.apply
+        (FirstD.At[f := f, x := x].value.apply u) (FirstD.At[f := f, x := x].value.apply v) same)
+      (sym!{C} (composite v) (iterated v) (Differential.At[x := x].pointwise v)));

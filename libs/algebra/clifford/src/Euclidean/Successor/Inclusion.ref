@@ -1,0 +1,40 @@
+/* The Clifford homomorphism induced by an isometric coordinate inclusion. */
+\import \parent.Complement[] \as Coordinates;
+\import Clifford.Universal[A := Next.Carrier, target := Next.ring] \as Into;
+\import algebra.Hom[A := R.Real, B := Next.Carrier] \as Coefficients;
+\definition coefficients: \Cast[Coefficients.RingMap Spaces.ring Next.ring]
+  ({ f: Coefficients.RingMap Spaces.ring Next.ring \where \forall (a: R.Real)(x: Next.Carrier) ->
+    Next.ring.mul (f a) x = Next.ring.mul x (f a) }) :=
+  \into[Coefficients.RingMap Spaces.ring Next.ring](NextAlgebra.scalarMap,
+    { f: Coefficients.RingMap Spaces.ring Next.ring \where \forall (a: R.Real)(x: Next.Carrier) ->
+      Next.ring.mul (f a) x = Next.ring.mul x (f a) }) \by { NextAlgebra.scalarCentral };
+\definition vectors[v: Vector]: Next.Carrier := Next.iota (Coordinates.embed v);
+\definition representation: Into.Representation := Into.Representation {
+  coefficients := coefficients, vectors := vectors,
+  zero := trans!{Next.Carrier} _ _ _
+    (congr!{Next.Vector Next.Carrier} Next.iota _ _ Coordinates.linear.preservesZero) NextAlgebra.injection.preservesZero,
+  addition := \fun (v, w: Vector) => trans!{Next.Carrier} _ _ _
+    (congr!{Next.Vector Next.Carrier} Next.iota _ _ (Coordinates.linear.preservesAdd v w))
+    (NextAlgebra.injection.preservesAdd (Coordinates.embed v) (Coordinates.embed w)),
+  scalar := \fun (a: R.Real)(v: Vector) => trans!{Next.Carrier} _ _ _
+    (congr!{Next.Vector Next.Carrier} Next.iota _ _ (Coordinates.linear.preservesScale a v))
+    (NextAlgebra.injection.preservesScale a (Coordinates.embed v)),
+  square := \fun (v: Vector) => trans!{Next.Carrier} _ _ _ (NextAlgebra.cliffordRelation (Coordinates.embed v))
+    (congr!{R.Real Next.Carrier} Next.scalar _ _ (Coordinates.embeddedDot v v)),
+};
+\import algebra.Hom[A := Carrier, B := Next.Carrier] \as Maps;
+\definition map: Maps.RingMap ring Next.ring := Into.extension representation;
+\definition onVector: \forall (v: Vector) -> map (iota v) = vectors v := Into.onVector representation;
+\definition onScalar: \forall (a: R.Real) -> map (scalar a) = Next.scalar a := Into.onScalar representation;
+\definition laws: Maps.SemiringLaws[std.Alg[].Ring[].ringAsSemiring Carrier ring, std.Alg[].Ring[].ringAsSemiring Next.Carrier Next.ring, map] :=
+  Maps.semiringLaws (std.Alg[].Ring[].ringAsSemiring Carrier ring) (std.Alg[].Ring[].ringAsSemiring Next.Carrier Next.ring) map;
+\import algebra.Group[].Of[Carrier := Next.Carrier, group := std.Alg[].Ring[].additiveGroup Next.Carrier Next.ring] \as Sum;
+\import algebra.Group[].Of[Carrier := Carrier, group := std.Alg[].Ring[].additiveGroup Carrier ring] \as LowerSum;
+\definition onNegative: \forall (x: Carrier) -> map (Clifford.neg x) = NextAlgebra.neg (map x) :=
+  \fun (x: Carrier) => Sum.inverseUnique (map x) (map (Clifford.neg x))
+    (trans!{Next.Carrier} _ _ _ (sym!{Next.Carrier} _ _ (laws.add (Clifford.neg x) x))
+      (trans!{Next.Carrier} _ _ _ (congr!{Carrier Next.Carrier} map _ _ (LowerSum.inverseLeft x)) laws.zero));
+\definition onScale: \forall (a: R.Real)(x: Carrier) -> map (Clifford.scale a x) = NextAlgebra.scale a (map x) :=
+  \fun (a: R.Real)(x: Carrier) => trans!{Next.Carrier} _ _ _ (laws.mul (scalar a) x)
+    (congr!{Next.Carrier Next.Carrier} (\fun (y: Next.Carrier) => NextAlgebra.mul y (map x)) _ _ (onScalar a));
+\module Groups;

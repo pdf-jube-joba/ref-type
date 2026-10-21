@@ -1,0 +1,36 @@
+\import Homotopy.Composition[C := Interval.Carrier] \as Precompose;
+\definition family[p: Square.Carrier]: Square.Carrier := Square.at (Square.time p) (Interval.reverse (Square.point p));
+\definition homotopy[x, y: A][f, g: Path x y]
+  [h: Homotopy.RelativeHomotopy[Interval.topology, source, Boundary, f, g]]:
+  Homotopy.RelativeHomotopy[Interval.topology, source, Boundary, reverse x y f, reverse x y g] := \block {
+  \let ordinary: Homotopy.Homotopy[Interval.topology, source, reverse x y f, reverse x y g] :=
+    Precompose.precompose Interval.topology Interval.topology source f g
+      (Homotopy.forgetRelative Interval.topology source Boundary f g h) Interval.reverse Interval.reverseContinuous \then
+  \return \into[Homotopy.Family](ordinary,
+    Homotopy.RelativeHomotopy[Interval.topology, source, Boundary, reverse x y f, reverse x y g]) \by {
+    Homotopy.RelativeLaws[Interval.topology, source, Boundary, reverse x y f, reverse x y g, ordinary] {
+      homotopy := Homotopy.laws Interval.topology source (reverse x y f) (reverse x y g) ordinary,
+      fixed := \fun (s, t: Interval.Carrier)(member: \In[Interval.Carrier] Boundary t) =>
+        (Homotopy.relativeLaws Interval.topology source Boundary f g h).fixed s (Interval.reverse t)
+          (either!{{member} {\In[Interval.Carrier] Boundary (Interval.reverse t)}
+            {\fun (atStart: _) => Logic.Or[_, _]::right (trans!{Interval.Carrier} _ _ _
+              (congr!{Interval.Carrier Interval.Carrier} Interval.reverse _ _ atStart) Interval.reverseStart)}
+            {\fun (atEnd: _) => Logic.Or[_, _]::left (trans!{Interval.Carrier} _ _ _
+              (congr!{Interval.Carrier Interval.Carrier} Interval.reverse _ _ atEnd) Interval.reverseEnd)}}),
+    }
+  }
+};
+\definition respects: \forall (x, y: A)(f, g: Path x y) -> Homotopic x y f g -> Homotopic y x (reverse x y f) (reverse x y g) := \block {
+  \fun (x, y: A)(f, g: Path x y)(related: _) \then
+  \takefrom h: Homotopy.RelativeHomotopy[Interval.topology, source, Boundary, f, g] \by related \then
+  \return \exact(homotopy x y f g h,
+    Homotopy.RelativeHomotopy[Interval.topology, source, Boundary, reverse x y f, reverse x y g])
+};
+\module Between(x, y: A);
+\definition BoundaryReverse: \forall (t: Interval.Carrier) -> \In[Interval.Carrier] Boundary t ->
+  \In[Interval.Carrier] Boundary (Interval.reverse t) :=
+  \fun (t: Interval.Carrier)(member: _) => either!{{member} {\In[Interval.Carrier] Boundary (Interval.reverse t)}
+    {\fun (atStart: _) => Logic.Or[_, _]::right (trans!{Interval.Carrier} _ _ _
+      (congr!{Interval.Carrier Interval.Carrier} Interval.reverse _ _ atStart) Interval.reverseStart)}
+    {\fun (atEnd: _) => Logic.Or[_, _]::left (trans!{Interval.Carrier} _ _ _
+      (congr!{Interval.Carrier Interval.Carrier} Interval.reverse _ _ atEnd) Interval.reverseEnd)}};

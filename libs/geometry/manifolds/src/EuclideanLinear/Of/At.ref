@@ -1,0 +1,17 @@
+\import Full.At[x := x] \as Formula;
+\import \root.Tangent[n := n].On[M := Global.source].At[x := x] \as Domain;
+\import \root.Tangent[n := m].On[M := Global.target].At[x := Maps.apply map x] \as Codomain;
+\import Domain.ChartIsomorphism[chart := Formula.sourceChart] \as SourceCoordinate;
+\import Codomain.ChartIsomorphism[chart := Formula.targetChart] \as TargetCoordinate;
+\import \root.Differential[n := n, m := m].Between[M := Global.source, N := Global.target].At[f := map, x := x] \as Derivative;
+\definition coordinates: \forall (v: Domain.Vector) -> TargetCoordinate.forward.apply (Derivative.value.apply v) = L.apply (SourceCoordinate.forward.apply v) :=
+  \fun (v: Domain.Vector) => trans!{{Target.Vector}} _ _ _ (Formula.coordinates v)
+    (congr!{{Linear.Map} {Target.Vector}} (\fun (A: Linear.Map) => A.apply (SourceCoordinate.forward.apply v)) _ _ (Calculus.differential (Full.input x)));
+\import Spaces.Isomorphism[V := Domain.Vector, W := Source.Vector, source := Domain.space, target := Source.space] \as SourceIsomorphisms;
+\definition injective: Injective -> \forall (v, w: Domain.Vector) -> Derivative.value.apply v = Derivative.value.apply w -> v = w :=
+  \fun (injective: Injective)(v, w: Domain.Vector)(same: _) => SourceIsomorphisms.injective SourceCoordinate.isomorphism v w
+    (injective (SourceCoordinate.forward.apply v) (SourceCoordinate.forward.apply w)
+      (trans!{{Target.Vector}} (L.apply (SourceCoordinate.forward.apply v)) (TargetCoordinate.forward.apply (Derivative.value.apply v)) (L.apply (SourceCoordinate.forward.apply w))
+        (sym!{{Target.Vector}} _ _ (coordinates v))
+        (trans!{{Target.Vector}} (TargetCoordinate.forward.apply (Derivative.value.apply v)) (TargetCoordinate.forward.apply (Derivative.value.apply w)) (L.apply (SourceCoordinate.forward.apply w))
+          (congr!{{Codomain.Vector} {Target.Vector}} TargetCoordinate.forward.apply _ _ same) (coordinates w))));

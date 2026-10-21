@@ -1,0 +1,72 @@
+\import \parent.\parent.Arithmetic[] \as Arithmetic;
+\import algebra.Monoid[].Of[Carrier := K, monoid := Arithmetic.multiplicative] \as Product;
+\import std.Logic[].Classical[] \as Classical;
+\import \parent.Permutations[] \as Permutations;
+\import galois.Permutation[X := K] \as Perm;
+\definition FixesUnity[f: Automorphism][n: N.Nat^]: \Prop :=
+  \forall (z: K) -> power z n = one -> f.map.apply z = z;
+\definition FixesPower[f: Automorphism][x: K][n: N.Nat^]: \Prop := f.map.apply (power x n) = power x n;
+\definition ratio[f: Automorphism][x: K]: K := mul (f.map.apply x) (inv x);
+\definition ratioUnity: \forall (f: Automorphism)(x: K)(n: N.Nat^) -> Logic.Not (x = zero) -> FixesPower f x n -> power (ratio f x) n = one :=
+  \fun (f: Automorphism)(x: K)(n: N.Nat^)(hx: _)(fixed: _) => Arithmetic.ratioPower (f.map.apply x) x n hx
+    (trans!{K} _ _ _ (sym!{K} _ _ (Maps.preservesPower f.map x n)) fixed);
+\definition ratioRecovers: \forall (f: Automorphism)(x: K) -> Logic.Not (x = zero) -> mul (ratio f x) x = f.map.apply x :=
+  \fun (f: Automorphism)(x: K)(hx: _) => eq_reason!{{mul (ratio f x) x}
+    "=" {mul (f.map.apply x) (mul (inv x) x)} "by" {Product.assoc (f.map.apply x) (inv x) x}
+    "=" {mul (f.map.apply x) one} "by" {congr!{K K} (mul (f.map.apply x)) _ _ (inverseLaw x hx)}
+    "=" {f.map.apply x} "by" {Product.zeroRight (f.map.apply x)}};
+\definition commuteNonzero: \forall (f, g: Automorphism)(n: N.Nat^)(x: K) ->
+  Logic.Not (x = zero) -> FixesUnity f n -> FixesUnity g n -> FixesPower f x n -> FixesPower g x n ->
+  f.map.apply (g.map.apply x) = g.map.apply (f.map.apply x) :=
+  \fun (f, g: Automorphism)(n: N.Nat^)(x: K)(hx: _)(fu: _)(gu: _)(fp: _)(gp: _) =>
+    eq_reason!{{f.map.apply (g.map.apply x)}
+      "=" {f.map.apply (mul (ratio g x) x)} "by" {congr!{K K} f.map.apply _ _ (sym!{K} _ _ (ratioRecovers g x hx))}
+      "=" {mul (f.map.apply (ratio g x)) (f.map.apply x)} "by" {f.map.preservesMul (ratio g x) x}
+      "=" {mul (ratio g x) (f.map.apply x)} "by" {congr!{K K} (\fun (z: K) => mul z (f.map.apply x)) _ _ (fu (ratio g x) (ratioUnity g x n hx gp))}
+      "=" {mul (ratio g x) (mul (ratio f x) x)} "by" {congr!{K K} (mul (ratio g x)) _ _ (sym!{K} _ _ (ratioRecovers f x hx))}
+      "=" {mul (ratio f x) (mul (ratio g x) x)} "by" {Product.swap (ratio g x) (ratio f x) x}
+      "=" {mul (ratio f x) (g.map.apply x)} "by" {congr!{K K} (mul (ratio f x)) _ _ (ratioRecovers g x hx)}
+      "=" {mul (g.map.apply (ratio f x)) (g.map.apply x)}
+      "by" {congr!{K K} (\fun (z: K) => mul z (g.map.apply x)) _ _ (sym!{K} _ _ (gu (ratio f x) (ratioUnity f x n hx fp)))}
+      "=" {g.map.apply (mul (ratio f x) x)} "by" {sym!{K} _ _ (g.map.preservesMul (ratio f x) x)}
+      "=" {g.map.apply (f.map.apply x)} "by" {congr!{K K} g.map.apply _ _ (ratioRecovers f x hx)}};
+\definition commuteAt: \forall (f, g: Automorphism)(n: N.Nat^)(x: K) ->
+  FixesUnity f n -> FixesUnity g n -> FixesPower f x n -> FixesPower g x n ->
+  f.map.apply (g.map.apply x) = g.map.apply (f.map.apply x) :=
+  \fun (f, g: Automorphism)(n: N.Nat^)(x: K)(fu: _)(gu: _)(fp: _)(gp: _) =>
+    Logic.orElim _ _ _ (Classical.excludedMiddle (x = zero))
+      (\fun (equal: _) => \idelim zero = x \with y: K => f.map.apply (g.map.apply y) = g.map.apply (f.map.apply y) \by {
+        base: eq_reason!{{f.map.apply (g.map.apply zero)}
+          "=" {f.map.apply zero} "by" {congr!{K K} f.map.apply _ _ g.map.preservesZero}
+          "=" zero "by" {f.map.preservesZero}
+          "=" {g.map.apply zero} "by" {sym!{K} _ _ g.map.preservesZero}
+          "=" {g.map.apply (f.map.apply zero)} "by" {congr!{K K} g.map.apply _ _ (sym!{K} _ _ f.map.preservesZero)}},
+        equality: sym!{K} _ _ equal
+      })
+      (\fun (hx: _) => commuteNonzero f g n x hx fu gu fp gp);
+\definition inverseFixesPower: \forall (f: Automorphism)(x: K)(n: N.Nat^) -> FixesPower f x n -> FixesPower (inverse f) x n :=
+  \fun (f: Automorphism)(x: K)(n: N.Nat^)(fixed: _) => trans!{K} _ _ _
+    (congr!{K K} f.backward _ _ (sym!{K} _ _ fixed)) (f.leftInverse (power x n));
+\definition preservesFiber: \forall (f: Automorphism)(x: K)(n: N.Nat^) -> FixesPower f x n ->
+  \forall (y: K) -> power y n = power x n -> power (f.map.apply y) n = power x n :=
+  \fun (f: Automorphism)(x: K)(n: N.Nat^)(fixed: _)(y: K)(same: _) => eq_reason!{{power (f.map.apply y) n}
+    "=" {f.map.apply (power y n)} "by" {sym!{K} _ _ (Maps.preservesPower f.map y n)}
+    "=" {f.map.apply (power x n)} "by" {congr!{K K} f.map.apply _ _ same}
+    "=" {power x n} "by" fixed};
+\definition fixesEqualPower: \forall (f: Automorphism)(x, y: K)(n: N.Nat^) -> FixesPower f x n ->
+  power y n = power x n -> FixesPower f y n :=
+  \fun (f: Automorphism)(x, y: K)(n: N.Nat^)(fixed: _)(same: _) => eq_reason!{{f.map.apply (power y n)}
+    "=" {f.map.apply (power x n)} "by" {congr!{K K} f.map.apply _ _ same}
+    "=" {power x n} "by" fixed "=" {power y n} "by" {sym!{K} _ _ same}};
+\definition commutatorFixes: \forall (f, g: Automorphism)(n: N.Nat^)(x: K) ->
+  FixesUnity f n -> FixesUnity g n -> FixesPower f x n -> FixesPower g x n ->
+  (Perm.commutator (Permutations.permutation f) (Permutations.permutation g)).apply x = x := \block {
+    \fun (f, g: Automorphism)(n: N.Nat^)(x: K)(fu: _)(gu: _)(fp: _)(gp: _) \then
+    \let y: K := f.backward (g.backward x) \then
+    \let same: power y n = power x n := preservesFiber (inverse f) x n (inverseFixesPower f x n fp) (g.backward x)
+      (preservesFiber (inverse g) x n (inverseFixesPower g x n gp) x (\refl(power x n))) \then
+    \return eq_reason!{{f.map.apply (g.map.apply y)}
+      "=" {g.map.apply (f.map.apply y)} "by" {commuteAt f g n y fu gu (fixesEqualPower f x y n fp same) (fixesEqualPower g x y n gp same)}
+      "=" {g.map.apply (g.backward x)} "by" {congr!{K K} g.map.apply _ _ (f.rightInverse (g.backward x))}
+      "=" x "by" {g.rightInverse x}}
+  };

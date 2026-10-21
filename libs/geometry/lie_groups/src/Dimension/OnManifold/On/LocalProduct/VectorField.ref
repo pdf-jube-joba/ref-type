@@ -1,0 +1,55 @@
+\import topological_algebra.Euclidean[].Dimension[n := n] \as Vectors;
+\import Vectors.Norm[] \as Norm;
+\import metric_spaces.MetricSpace[Carrier := Vectors.Point] \as Metrics;
+\import Metrics.Topology[] \as MetricTopology;
+\import Open.Topology[] \as OpenTopology;
+\import dedekind_reals.DedekindReal[] \as R;
+\definition ball: JointOpen.BallInside[Joint.domain.points, basePoint, neighborhood] :=
+  \bysub(Reals.Real, { radius: Reals.Real \where JointOpen.BallInside[Joint.domain.points, basePoint, radius] }, neighborhood);
+\definition domain: Open.OpenSet := OpenTopology.ofOpen (Metrics.Ball Norm.metric origin neighborhood) (MetricTopology.ballOpenIn Norm.metric origin neighborhood);
+\import Blocks.FixedRight[U := domain, V := Joint.domain, c := origin] \as Slice;
+\definition sliceIncluded: Slice.Included := \fun (x: Open.Carrier domain) => ball.included (Blocks.join x origin)
+  (R.leLtTrans _ _ _ (Blocks.fixedRightDistance x origin origin)
+    (R.ltReplaceLeft (Norm.metric.distance origin x) (Norm.metric.distance x origin) neighborhood (Norm.metric.symmetric origin x)
+      (\bysub(Vectors.Point, domain.points, x))));
+\definition slice: calculus.Maps[n := n, m := dimension].Map domain Joint.domain := Slice.map sliceIncluded;
+\definition jointPoint[x: Open.Carrier domain]: JointOpen.Carrier Joint.domain := Slice.apply sliceIncluded x;
+\definition inChart: Open.Included domain chart.image := \fun (x: Vectors.Point)(member: _) => \block {
+  \let point: Open.Carrier domain := \into[Vectors.Point](x, domain.points) \by { member } \then
+  \let image: Open.Carrier chart.image := Product.leftPoint (Joint.leftCoordinate (jointPoint point)) \then
+  \return \idelim image = x \with p: Vectors.Point => \In[Vectors.Point] chart.image.points p \by {
+    base: \bysub(Vectors.Point, chart.image.points, image), equality: Blocks.leftJoin x origin
+  }
+};
+\definition initial: Open.Carrier domain := \into[Vectors.Point](origin, domain.points) \by { Metrics.ballCenter Norm.metric origin neighborhood ball.positive };
+\import AtOne.Coordinate[chart := chart] \as TangentCoordinates;
+\definition direction: topological_algebra.Euclidean[].Dimension[n := dimension].Point := Blocks.rightLinear.apply (TangentCoordinates.decode v);
+\import JointOpen.Smooth[].Derivative[] \as Partials;
+\definition component[i: std.Data[].FinSet[].Fin n]: Partials.Function Joint.domain := Calculus.coordinateFunction Joint.domain chart.image joint i;
+\import calculus.Maps[n := n, m := dimension].Composition[U := domain, V := Joint.domain, f := slice] \as Compose;
+\definition coefficient[i: std.Data[].FinSet[].Fin n][j: std.Data[].FinSet[].Fin dimension]: Open.ScalarFunction domain :=
+  Compose.scalar (Partials.derivative Joint.domain (component i) j);
+\definition term[i: std.Data[].FinSet[].Fin n][j: std.Data[].FinSet[].Fin dimension]: Open.ScalarFunction domain :=
+  \fun (x: Open.Carrier domain) => Reals.mul (direction j) (coefficient i j x);
+\import Open.Smooth[] \as Smooth;
+\import Smooth.Sums[] \as Sums;
+\import Smooth.Operations[] \as Operations;
+\definition velocity[x: Open.Carrier domain][i: std.Data[].FinSet[].Fin n]: Reals.Real := Sums.sum domain dimension (term i) x;
+\definition smooth: \forall (i: std.Data[].FinSet[].Fin n) -> Smooth.SmoothOn domain (\fun (x: Open.Carrier domain) => velocity x i) :=
+  \fun (i: std.Data[].FinSet[].Fin n) => Sums.smooth domain dimension (term i) (\fun (j: std.Data[].FinSet[].Fin dimension) =>
+    Operations.scaleSmooth domain (direction j) (coefficient i j) (Compose.smooth (Partials.derivative Joint.domain (component i) j)));
+\import Open.Whole[] \as Whole;
+\import calculus.Maps[n := n, m := n] \as Fields;
+\definition field: Fields.Map domain Open.whole := \into[Fields.Data[domain, Open.whole]](Fields.Data[domain, Open.whole] {
+  apply := \fun (x: Open.Carrier domain) => Whole.point (velocity x),
+}, { data: Fields.Data[domain, Open.whole] \where Fields.Laws[domain, Open.whole, data] }) \by {
+  Fields.Laws[domain, Open.whole, Fields.Data[domain, Open.whole]::# (\fun (x: Open.Carrier domain) => Whole.point (velocity x))] { smooth := smooth }
+};
+\import differential_equations.Euclidean[n := n].Smooth[U := domain, field := field, a := initial] \as ODE;
+\definition localExistence: \exists ODE.LocalSolution := ODE.localExistence;
+\module Initial;
+\module At(x: Open.Carrier domain);
+\module Product(g, h, k: Open.Carrier domain,
+  law: Charts.point chart (Open.inclusion domain chart.image inChart k) =
+    mul (Charts.point chart (Open.inclusion domain chart.image inChart g)) (Charts.point chart (Open.inclusion domain chart.image inChart h)));
+\module LocalCurve(solution: ODE.LocalSolution);

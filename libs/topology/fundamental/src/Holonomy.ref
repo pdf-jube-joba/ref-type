@@ -1,0 +1,62 @@
+\import \root.Paths[A := A, source := source] \as Paths;
+\import \root.Groupoid[A := A, source := source] \as Gr;
+\import \root.FundamentalGroup[A := A, source := source, basepoint := b] \as Fundamental;
+\import \root.Bridges[A := A, source := source, basepoint := b].Along[bridges := bridges] \as Bridge;
+\import \root.UnbasedPaths[A := A, source := source] \as Raw;
+\import Raw.Squares[] \as Edges;
+\import Paths.Concatenation[] \as Join;
+\import Join.Splitting[] \as Splitting;
+\import algebra.Noncommutative[G := G, group := group] \as Group;
+\import algebra.Hom[A := Fundamental.Carrier, B := G] \as Hom;
+\import std.Alg[].Monoid[] \as Monoid;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.congr2;
+\use Equality.eq_reason;
+\use Equality.eq_reason_in;
+\definition targetMonoid: Monoid.Monoid[G] := \into[Monoid.MonoidData[G]](Monoid.MonoidData[G]::# group.unit group.op, Monoid.Monoid[G]) \by { group.monoid };
+\definition homLaws: Hom.MonoidLaws[Fundamental.monoid, targetMonoid, hom] := Hom.monoidLaws Fundamental.monoid targetMonoid hom;
+\definition onArrow[x, y: A][p: Gr.Arrow x y]: G := hom (Bridge.loop x y p);
+\definition onPath[x, y: A][p: Paths.Path x y]: G := onArrow x y (Gr.class x y p);
+\import Paths.Observation[C := G, value := onPath] \as Observation;
+\definition value: Raw.Carrier -> G := Observation.unbased;
+\definition valueOnPath: \forall (x, y: A)(p: Paths.Path x y) -> value (Raw.forget x y p) = onPath x y p := Observation.onPath;
+\definition identity: \forall (x: A) -> onArrow x x (Gr.identity x) = Group.one :=
+  \fun (x: A) => trans!{G} _ _ _ (congr!{Fundamental.Carrier G} hom _ _ (Bridge.identity x)) homLaws.unit;
+\definition compose: \forall (x, y, z: A)(p: Gr.Arrow x y)(q: Gr.Arrow y z) ->
+  onArrow x z (Gr.compose x y z p q) = Group.mul (onArrow x y p) (onArrow y z q) :=
+  \fun (x, y, z: A)(p: _)(q: _) => trans!{G} _ _ _ (congr!{Fundamental.Carrier G} hom _ _ (Bridge.compose x y z p q))
+    (homLaws.operation (Bridge.loop x y p) (Bridge.loop y z q));
+\definition composition: \forall (x, y, z: A)(p: Paths.Path x y)(q: Paths.Path y z) ->
+  value (Raw.forget x z (Join.concatenate x y z p q)) = Group.mul (value (Raw.forget x y p)) (value (Raw.forget y z q)) :=
+  \fun (x, y, z: A)(p: _)(q: _) => trans!{G} _ _ _ (valueOnPath x z (Join.concatenate x y z p q))
+    (trans!{G} _ _ _ (congr!{{Gr.Arrow x z} G} (onArrow x z) _ _ (sym!{{Gr.Arrow x z}} _ _ (Join.Classes[x := x, y := y, z := z].onClass p q)))
+      (trans!{G} _ _ _ (compose x y z (Gr.class x y p) (Gr.class y z q))
+        (congr2!{G G G} Group.mul _ _ _ _ (sym!{G} _ _ (valueOnPath x y p)) (sym!{G} _ _ (valueOnPath y z q)))));
+\definition constant: \forall (x: A) -> value (Raw.forget x x (Paths.constant x)) = Group.one :=
+  \fun (x: A) => trans!{G} _ _ _ (valueOnPath x x (Paths.constant x)) (identity x);
+\definition split: \forall (p: Raw.Carrier) -> value p = Group.mul (value (Raw.first p)) (value (Raw.second p)) := \block {
+  \fun (p: Raw.Carrier) \then
+  \let x: A := p algebraic_topology.Interval[].start \then
+  \let y: A := p algebraic_topology.Interval[].end \then
+  \let m: A := p algebraic_topology.Interval[].middle \then
+  \let q: Paths.Path x y := Raw.asPath p \then
+  \let a: Paths.Path x m := Splitting.first x y q \then
+  \let b: Paths.Path m y := Splitting.second x y q \then
+  \return trans!{G} _ _ _
+    (congr!{{Paths.Path x y} G} (\fun (r: Paths.Path x y) => value (Raw.forget x y r)) q (Join.concatenate x m y a b) (sym!{{Paths.Path x y}} _ _ (Splitting.equality x y q)))
+    (composition x m y a b)
+};
+\definition homotopy: \forall (x, y: A)(p, q: Paths.Path x y) -> Paths.Homotopic x y p q -> value (Raw.forget x y p) = value (Raw.forget x y q) :=
+  \fun (x, y: A)(p, q: _)(related: _) => trans!{G} _ _ _ (valueOnPath x y p)
+    (trans!{G} _ _ _ (congr!{{Gr.Arrow x y} G} (onArrow x y) _ _ (Paths.Between[x := x, y := y].sameClass p q related)) (sym!{G} _ _ (valueOnPath x y q)));
+\module Squares;
+\definition onLoop: \forall (p: Paths.Path b b) -> value (Raw.forget b b p) = hom (Fundamental.class p) :=
+  \fun (p: _) => trans!{G} _ _ _ (valueOnPath b b p) (congr!{Fundamental.Carrier G} hom _ _ (Bridge.atBasepoint (Fundamental.class p)));
+\module Naturality(B: \Set, target: topology.Topology[Carrier := B].Topology, f: A -> B,
+  continuous: topology.Continuity[A := A, B := B].Continuous source target f,
+  targetBridges: \root.Bridges[A := B, source := target, basepoint := f b].Family,
+  targetHom: algebra.Hom[A := \root.FundamentalGroup[A := B, source := target, basepoint := f b].Carrier, B := G]
+    .GroupMap (\root.FundamentalGroup[A := B, source := target, basepoint := f b].group) group);

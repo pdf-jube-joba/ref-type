@@ -1,0 +1,61 @@
+\structure Neighborhood[x: B, e: Fiber x, W: \Pow E, U: \Pow B]: \Prop := {
+  good: Neighborhoods.Good[U],
+  contains: Base.Member U x,
+  subset: Total.Subset (Sheet U x e) W,
+};
+\definition Open[W: \Pow E]: \Prop := \forall (x: B)(e: Fiber x) -> Total.Member W e ->
+  \exists ( U: \Pow B \where Neighborhood[x, e, W, U] );
+\definition Raw: Total.TopologyData := Total.TopologyData { openSets := { W: \Pow E \where Open W } };
+\definition laws[basis: Neighborhoods.GoodBasis]: Total.TopologyLaws[Raw] := Total.TopologyLaws[Raw] {
+  emptyOpen := \fun (x: B)(e: Fiber x)(empty: Logic.False) => Logic.falseElim (\exists ( U: \Pow B \where Neighborhood[x, e, Total.Empty, U] )) empty,
+  wholeOpen := \block {
+    \fun (x: B)(e: Fiber x)(_: _) \then
+    \takefrom U: \Cast[\Pow B] ({ U: \Pow B \where Neighborhoods.Refinement[x, Base.Whole, U] })
+      \by basis Base.Whole (Base.topologyLaws base).wholeOpen x (\refl(x)) \then
+    \let data: Neighborhoods.Refinement[x, Base.Whole, U] := \bysub(\Pow B, { U: \Pow B \where Neighborhoods.Refinement[x, Base.Whole, U] }, U) \then
+    \return Logic.existsIntro[\Pow B, { V: \Pow B \where Neighborhood[x, e, Total.Whole, V] }] U
+      (Neighborhood[x, e, Total.Whole, U] { good := data.good, contains := data.contains, subset := \fun (f: E)(_: _) => \refl(f) })
+  },
+  unionOpen := \fun (family: \Pow (\Pow E))(open: \forall (W: \Pow E) -> Total.FamilyMember family W -> Open W)(x: B)(e: Fiber x)(member: _) =>
+    Total.unionMemberElim family e (\exists ( U: \Pow B \where Neighborhood[x, e, Total.Union family, U] ))
+      (\block {
+        \fun (W: \Pow E)(inFamily: _)(inW: _) \then
+        \takefrom U: \Cast[\Pow B] ({ U: \Pow B \where Neighborhood[x, e, W, U] }) \by open W inFamily x e inW \then
+        \let data: Neighborhood[x, e, W, U] := \bysub(\Pow B, { U: \Pow B \where Neighborhood[x, e, W, U] }, U) \then
+        \return Logic.existsIntro[\Pow B, { V: \Pow B \where Neighborhood[x, e, Total.Union family, V] }] U
+          (Neighborhood[x, e, Total.Union family, U] { good := data.good, contains := data.contains,
+            subset := \fun (f: E)(member: _) => Total.unionMemberOf family W f inFamily (data.subset f member) })
+      }) member,
+  intersectionOpen := \block {
+    \fun (W, Z: \Pow E)(wo: Open W)(zo: Open Z)(x: B)(e: Fiber x)(member: Logic.And[Total.Member W e, Total.Member Z e]) \then
+    \takefrom U: \Cast[\Pow B] ({ U: \Pow B \where Neighborhood[x, e, W, U] }) \by wo x e member.left \then
+    \takefrom V: \Cast[\Pow B] ({ V: \Pow B \where Neighborhood[x, e, Z, V] }) \by zo x e member.right \then
+    \let u: Neighborhood[x, e, W, U] := \bysub(\Pow B, { U: \Pow B \where Neighborhood[x, e, W, U] }, U) \then
+    \let v: Neighborhood[x, e, Z, V] := \bysub(\Pow B, { V: \Pow B \where Neighborhood[x, e, Z, V] }, V) \then
+    \takefrom R: \Cast[\Pow B] ({ R: \Pow B \where Neighborhoods.Refinement[x, Base.Intersection U V, R] }) \by
+      basis (Base.Intersection U V) ((Base.topologyLaws base).intersectionOpen U V u.good.open v.good.open) x (Logic.And[_, _]::# u.contains v.contains) \then
+    \let r: Neighborhoods.Refinement[x, Base.Intersection U V, R] := \bysub(\Pow B, { R: \Pow B \where Neighborhoods.Refinement[x, Base.Intersection U V, R] }, R) \then
+    \return Logic.existsIntro[\Pow B, { R: \Pow B \where Neighborhood[x, e, Total.Intersection W Z, R] }] R
+      (Neighborhood[x, e, Total.Intersection W Z, R] { good := r.good, contains := r.contains,
+        subset := \fun (f: E)(member: _) => Logic.And[_, _]::#
+          (u.subset f (sheetRefines R U (\fun (y: B)(inside: _) => (r.subset y inside).left) x e f member))
+          (v.subset f (sheetRefines R V (\fun (y: B)(inside: _) => (r.subset y inside).right) x e f member)) })
+  },
+};
+\definition topology[basis: Neighborhoods.GoodBasis]: Total.Topology := \into[Total.TopologyData](Raw, Total.Topology) \by { laws basis };
+\definition sheetOpen: \forall (basis: Neighborhoods.GoodBasis)(U: \Pow B) -> Neighborhoods.Good[U] -> \forall (x: B)(e: Fiber x) ->
+  Total.IsOpenIn (topology basis) (Sheet U x e) :=
+  \fun (basis: _)(U: _)(good: _)(x: _)(e: _)(y: B)(f: Fiber y)(member: _) => Logic.existsIntro[\Pow B, { V: \Pow B \where Neighborhood[y, f, Sheet U x e, V] }] U
+    (Neighborhood[y, f, Sheet U x e, U] { good := good,
+      contains := reachEnd U x y e f (reachOfMember U x y e f member),
+      subset := \fun (h: E)(reach: _) => reachTrans U x y (projection h) e f h (reachOfMember U x y e f member) reach });
+\import topology.Continuity[A := E, B := B] \as Projection;
+\definition projectionContinuous: \forall (basis: Neighborhoods.GoodBasis) -> Projection.Continuous (topology basis) base projection := \block {
+  \fun (basis: _)(V: \Pow B)(vo: _)(x: B)(e: Fiber x)(inV: Base.Member V (projection e)) \then
+  \let inX: Base.Member V x := \idelim projection e = x \with y: B => Base.Member V y \by { base: inV, equality: projectsTo x e } \then
+  \takefrom U: \Cast[\Pow B] ({ U: \Pow B \where Neighborhoods.Refinement[x, V, U] }) \by basis V vo x inX \then
+  \let data: Neighborhoods.Refinement[x, V, U] := \bysub(\Pow B, { U: \Pow B \where Neighborhoods.Refinement[x, V, U] }, U) \then
+  \return Logic.existsIntro[\Pow B, { U: \Pow B \where Neighborhood[x, e, Projection.Preimage projection V, U] }] U
+    (Neighborhood[x, e, Projection.Preimage projection V, U] { good := data.good, contains := data.contains,
+      subset := \fun (f: E)(member: _) => data.subset (projection f) (reachEnd U x (projection f) e f member) })
+};

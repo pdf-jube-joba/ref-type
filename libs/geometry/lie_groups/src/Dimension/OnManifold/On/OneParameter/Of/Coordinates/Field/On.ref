@@ -1,0 +1,41 @@
+\import differential_equations.Euclidean[n := n] \as Equations;
+\import real.Analysis[].Distance[] \as Distance;
+\definition ball: LineOpen.BallInside[Inside.domain.points, zero, radius] :=
+  \bysub(Reals.Real, { r: Reals.Real \where LineOpen.BallInside[Inside.domain.points, zero, r] }, radius);
+\definition point[t: Reals.Real][lower: R.Lt (Reals.neg radius) t][upper: R.Lt t radius]: LineOpen.Carrier Inside.domain :=
+  \into[Times.Point](TimeCoordinates.replace zero (Fin.zero N.Nat^::zero) t, Inside.domain.points) \by {
+    ball.included (TimeCoordinates.replace zero (Fin.zero N.Nat^::zero) t)
+      (R.ltReplaceLeft (Reals.distance t Reals.zero)
+        (TimeCoordinates.pointDistance (TimeCoordinates.replace zero (Fin.zero N.Nat^::zero) t) zero) radius
+        (sym!{Reals.Real} _ _ (TimeLaws.replaceDistance zero (Fin.zero N.Nat^::zero) t))
+        (Equations.insideDistance t radius lower upper))
+  };
+\definition parameter[t: Reals.Real][lower: R.Lt (Reals.neg radius) t][upper: R.Lt t radius]: LineOpen.Carrier domain := Inside.input (point t lower upper);
+\definition inField: \forall (t: Reals.Real) -> R.Lt (Reals.neg radius) t -> R.Lt t radius -> \In[Vectors.Point] VectorField.domain.points (value t) :=
+  \fun (t: Reals.Real)(lower: _)(upper: _) => \idelim Maps.apply domain chart.image map (Inside.input (point t lower upper)) = value t
+    \with y: Vectors.Point => \In[Vectors.Point] VectorField.domain.points y \by {
+      base: Inside.inTarget (point t lower upper), equality: sym!{Vectors.Point} _ _ (RealCurve.atPoint (Inside.input (point t lower upper)))
+    };
+\definition initialValue: value Reals.zero = VectorField.initial := trans!{Vectors.Point} _ _ _ (RealCurve.atPoint zero) atZero;
+\import calculus.Real[].Derivative[].Def[] \as Derivatives;
+\definition derivative: \forall (t: Reals.Real) -> R.Lt (Reals.neg radius) t -> R.Lt t radius -> \forall (i: Fin.Fin n) ->
+  Derivatives.HasDerivativeAt (\fun (s: Reals.Real) => value s i) t (ODE.extended (value t) i) := \block {
+  \fun (t: Reals.Real)(lower: _)(upper: _)(i: Fin.Fin n) \then
+  \let a: LineOpen.Carrier Inside.domain := point t lower upper \then
+  \let input: LineOpen.Carrier domain := Inside.input a \then
+  \let image: calculus.Real[].Multivariable[n := n].Open[].Carrier VectorField.domain := Inside.output a \then
+  \let actual: ODE.extended (value t) = VectorField.velocity image := trans!{Vectors.Point} _ _ _
+    (congr!{Vectors.Point Vectors.Point} ODE.extended _ _ (RealCurve.atPoint input))
+    (std.Set[].Extension[A := Vectors.Point, B := Vectors.Point, domain := VectorField.domain.points].inside ODE.function
+      topological_algebra.Euclidean[].Dimension[n := n].Def[].origin image) \then
+  \return \idelim Maps.Differential[U := domain, V := chart.image, f := map, a := input].value.apply unitVector i = ODE.extended (value t) i
+    \with d: Reals.Real => Derivatives.HasDerivativeAt (\fun (s: Reals.Real) => value s i) t d \by {
+      base: RealCurve.derivativeAt input i,
+      equality: trans!{Reals.Real} _ _ _ (congr!{Vectors.Point Reals.Real} (\fun (w: Vectors.Point) => w i) _ _ (\parent.At[a := a].law))
+        (sym!{Reals.Real} _ _ (congr!{Vectors.Point Reals.Real} (\fun (w: Vectors.Point) => w i) _ _ actual))
+    }
+};
+\definition solution: ODE.LocalSolution := ODE.LocalSolution {
+  radius := \into[Reals.Real](radius, { r: Reals.Real \where R.Lt Reals.zero r }) \by { ball.positive },
+  value := value, initialValue := initialValue, inside := inField, derivative := derivative,
+};

@@ -1,0 +1,46 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\use Equality.eq_reason;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].List[] \as Lists;
+
+\definition zero: K := field.zero;
+\definition one: K := field.one;
+\definition add: K -> K -> K := field.add;
+\definition neg: K -> K := field.neg;
+\definition mul: K -> K -> K := field.mul;
+\module InverseAt(x: K) {
+  \import std.Logic[].Classical[].Cases[A := K, P := x = zero] \as Cases;
+  \definition value: K := Cases.select zero (field.inv x);
+  \definition atZero: x = zero -> value = zero := Cases.whenTrue zero (field.inv x);
+  \definition atNonzero: Logic.Not (x = zero) -> value = field.inv x := Cases.whenFalse zero (field.inv x);
+}
+\definition inv[x: K]: K := InverseAt[x := x].value;
+\definition invZero: inv zero = zero := InverseAt[x := zero].atZero (\refl(zero));
+\definition inverseLaw: \forall (x: K) -> Logic.Not (x = zero) -> mul (inv x) x = one :=
+  \fun (x: K)(nonzero: _) => trans!{K} _ _ _
+    (congr!{K K} (\fun (y: K) => mul y x) _ _ (InverseAt[x := x].atNonzero nonzero))
+    (field.inverse x nonzero);
+\definition power[x: K]: N.Nat^ -> K :=
+  \induction (n: N.Nat^) \return K \with {
+    | zero: one
+    | succ: \fun (n: N.Nat^)(previous: K) => mul x previous
+  };
+\definition square[x: K]: K := mul x x;
+\definition two: N.Nat^ := N.Nat^::succ (N.Nat^::succ N.Nat^::zero);
+\definition squarePower: \forall (x: K) -> power x two = square x :=
+  \fun (x: K) => congr!{K K} (mul x) _ _
+    ((field.ring.ring.semiring.multiplicative).rightIdentity x);
+
+\module Subfield;
+\module Morphism(L: \Set, target: Fields.Field[L]);
+\module Automorphism;
+\module Correspondence;
+\module Polynomial;
+\module Generation;
+\module Arithmetic;
+\module Partial;

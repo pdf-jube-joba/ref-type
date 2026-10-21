@@ -1,0 +1,25 @@
+\import Source.Around[b := projection e, U := left.neighborhood] \as Left;
+\import Target.Around[b := projection e, U := right.neighborhood] \as Right;
+\import Left.Sheets[chart := left.chart] \as LeftSheet;
+\import Right.Sheets[chart := right.chart] \as RightSheet;
+\import topology.Continuity[A := E, B := B] \as SourceMap;
+\import topology.Continuity[A := F, B := B] \as TargetMap;
+\import Base.Subspace[S := right.neighborhood] \as Under;
+\import Total.Subspace[S := SourceMap.Preimage projection left.neighborhood] \as SourceOver;
+\import Other.Subspace[S := TargetMap.Preimage otherProjection right.neighborhood] \as TargetOver;
+\import topology.Continuity[A := Under.CarrierSet, B := F] \as Sections;
+\definition start: Source.Fiber (projection e) := \into[E](e, Source.Fiber (projection e)) \by { \refl(projection e) };
+\definition image: Target.Fiber (projection e) := fiber m (projection e) start;
+\definition sourcePoint: SourceOver.CarrierSet := \into[E](e, SourceMap.Preimage projection left.neighborhood) \by { left.contains };
+\definition targetPoint: TargetOver.CarrierSet := \into[F](image, TargetMap.Preimage otherProjection right.neighborhood) \by {
+  \idelim projection e = otherProjection image \with x: B => Base.Member right.neighborhood x
+    \by { base: right.contains, equality: sym!{B} _ _ (Target.projectsTo (projection e) image) }
+};
+\definition targetBase: Under.CarrierSet := \into[B](projection e, right.neighborhood) \by { right.contains };
+\definition sheet: Target.Fiber (projection e) := Right.index right.chart targetPoint;
+\definition section: Under.CarrierSet -> F := Right.section right.chart sheet;
+\definition atStart: section targetBase = m.apply e := Right.reconstruct right.chart targetPoint targetBase (Target.projectsTo (projection e) image);
+\module OpenSet(W: \Pow F, wo: Other.IsOpenIn other W, contains: Other.Member W (m.apply e));
+\definition neighborhood: \forall (W: \Pow F) -> Other.IsOpenIn other W -> Other.Member W (m.apply e) ->
+  \exists ( V: \Pow E \where Total.OpenNeighborhood[total, e, Maps.Preimage m.apply W, V] ) :=
+  \fun (W: _)(wo: _)(contains: _) => OpenSet[W := W, wo := wo, contains := contains].neighborhood;

@@ -1,0 +1,24 @@
+\import \root.Smooth[n := n, m := m].Between[M := M, N := N] \as First;
+\import \root.Smooth[n := m, m := l].Between[M := N, N := P] \as Second;
+\import \root.Smooth[n := n, m := l].Between[M := M, N := P] \as Result;
+\import manifolds.SmoothMap[n := n, m := m].Between[M := M, N := N] \as FirstMaps;
+\import manifolds.SmoothMap[n := m, m := l].Between[M := N, N := P] \as SecondMaps;
+\import manifolds.SmoothMap[n := n, m := l].Between[M := M, N := P] \as ResultMaps;
+\import manifolds.Composition[n := n, m := m, l := l].Between[M := M, N := N, P := P] \as Composition;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.congr;
+\definition smooth: \forall (f: M.Point -> N.Point)(g: N.Point -> P.Point) -> First.IsSmooth f -> Second.IsSmooth g ->
+  Result.IsSmooth (\fun (x: M.Point) => g (f x)) := \block {
+  \fun (f: _)(g: _)(left: _)(right: _) \then
+  \let first: FirstMaps.Map := First.map f left \then
+  \let second: SecondMaps.Map := Second.map g right \then
+  \let composed: ResultMaps.Map := Composition.compose first second \then
+  \let same: ResultMaps.apply composed = (\fun (x: M.Point) => g (f x)) := \axiom:funext(ResultMaps.apply composed,
+    (\fun (x: M.Point) => g (f x)), \fun (x: M.Point) => trans!{{P.Point}} _ _ _
+      (congr!{{N.Point -> P.Point} {P.Point}} (\fun (h: N.Point -> P.Point) => h (FirstMaps.apply first x)) _ _ (Second.applyChosen g right))
+      (congr!{{N.Point} {P.Point}} g _ _ (congr!{{M.Point -> N.Point} {N.Point}} (\fun (h: M.Point -> N.Point) => h x) _ _ (First.applyChosen f left)))) \then
+  \return \idelim ResultMaps.apply composed = (\fun (x: M.Point) => g (f x)) \with h: (M.Point -> P.Point) => Result.IsSmooth h \by {
+    base: Result.ofMap composed, equality: same
+  }
+};

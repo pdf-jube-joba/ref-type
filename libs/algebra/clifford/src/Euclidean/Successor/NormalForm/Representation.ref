@@ -1,0 +1,71 @@
+/* Reading the two normal-form coefficients from the block action. */
+\import Spaces.DirectSum[V := Carrier, W := Carrier, left := Clifford.vectorSpace, right := Clifford.vectorSpace] \as Pair;
+\import std.Data[].Pair[].Prop[A := Carrier, B := Carrier] \as Pairs;
+\import lie_algebras.Field[K := R.Real, field := Scalars.field].Endomorphisms[V := Pair.Carrier, space := Pair.space] \as End;
+\import algebra.Hom[A := Carrier, B := Block.Operator] \as Result;
+\definition extensionLaws: Hom.SemiringLaws[Ring.ringAsSemiring Next.Carrier Next.ring, Ring.ringAsSemiring Block.Operator Block.operatorRing, extension] :=
+  Hom.semiringLaws (Ring.ringAsSemiring Next.Carrier Next.ring) (Ring.ringAsSemiring Block.Operator Block.operatorRing) extension;
+\definition composed: Result.RingMap ring Block.operatorRing := \into[Carrier -> Block.Operator]
+  ((\fun (x: Carrier) => extension (Inclusion.map x)), Result.RingMap ring Block.operatorRing) \by {
+    Result.SemiringLaws[Ring.ringAsSemiring Carrier ring, Ring.ringAsSemiring Block.Operator Block.operatorRing, (\fun (x: Carrier) => extension (Inclusion.map x))] {
+      zero := trans!{Block.Operator} _ _ _ (congr!{Next.Carrier Block.Operator} extension _ _ Inclusion.laws.zero) extensionLaws.zero,
+      one := trans!{Block.Operator} _ _ _ (congr!{Next.Carrier Block.Operator} extension _ _ Inclusion.laws.one) extensionLaws.one,
+      add := \fun (a, b: Carrier) => trans!{Block.Operator} _ _ _ (congr!{Next.Carrier Block.Operator} extension _ _ (Inclusion.laws.add a b)) (extensionLaws.add (Inclusion.map a) (Inclusion.map b)),
+      mul := \fun (a, b: Carrier) => trans!{Block.Operator} _ _ _ (congr!{Next.Carrier Block.Operator} extension _ _ (Inclusion.laws.mul a b)) (extensionLaws.mul (Inclusion.map a) (Inclusion.map b)),
+    }
+  };
+\definition composedScalar: \forall (a: R.Real) -> composed (scalar a) = Diagonal.homomorphism (scalar a) := \fun (a: R.Real) =>
+  trans!{Block.Operator} _ _ _ (congr!{Next.Carrier Block.Operator} extension _ _ (Inclusion.onScalar a))
+    (trans!{Block.Operator} _ _ _ (onScalar a) (sym!{Block.Operator} _ _ (Diagonal.onScalar a)));
+\definition composedVector: \forall (v: Vector) -> composed (iota v) = Diagonal.homomorphism (iota v) := \fun (v: Vector) =>
+  trans!{Block.Operator} _ _ _ (congr!{Next.Carrier Block.Operator} extension _ _ (Inclusion.onVector v))
+    (trans!{Block.Operator} _ _ _ (onVector (Coordinates.embed v))
+      (trans!{Block.Operator} _ _ _ (congr2!{Carrier R.Real Block.Operator} Block.map _ _ _ _
+        (congr!{Vector Carrier} iota _ _ (Coordinates.embedTail v)) (Coordinates.embedHead v))
+        (sym!{Block.Operator} _ _ (Diagonal.onVector v))));
+\import Clifford.HomExt[A := Block.Operator, target := Block.operatorRing].Between[h := composed, k := Diagonal.homomorphism] \as Uniqueness;
+\definition same: composed = Diagonal.homomorphism := Uniqueness.ext composedScalar composedVector;
+\definition onLower: \forall (a: Carrier) -> extension (Inclusion.map a) = Diagonal.value a := \fun (a: Carrier) =>
+  congr!{{Result.RingMap ring Block.operatorRing} Block.Operator} (\fun (h: Result.RingMap ring Block.operatorRing) => h a) _ _ same;
+\definition gammaOperator: extension gamma = Block.map Clifford.zero R.one := trans!{Block.Operator} _ _ _ (onVector Coordinates.first)
+  (congr2!{Carrier R.Real Block.Operator} Block.map _ _ _ _
+    (trans!{Carrier} _ _ _ (congr!{Vector Carrier} iota _ _ Coordinates.firstTail) Clifford.injection.preservesZero) Coordinates.firstHead);
+\definition gammaAnchor: (extension gamma).apply Block.anchor = Pair.make Clifford.zero Clifford.one :=
+  trans!{{Pair.Carrier}} _ _ _ (congr!{Block.Operator {Pair.Carrier}} (\fun (f: Block.Operator) => f.apply Block.anchor) _ _ gammaOperator)
+    (trans!{{Pair.Carrier}} _ _ _ (Block.onAnchor Clifford.zero R.one)
+      (Pairs.pairCong _ _ _ _ (\refl(Clifford.zero)) (Clifford.vectorSpace.scalarOne Clifford.one)));
+\definition firstLower: \forall (a: Carrier) -> Pair.first ((extension (Inclusion.map a)).apply Block.anchor) = a :=
+  \fun (a: Carrier) => trans!{Carrier} _ _ _
+    (congr!{Block.Operator Carrier} (\fun (f: Block.Operator) => Pair.first (f.apply Block.anchor)) _ _ (onLower a))
+    (ring.semiring.multiplicative.rightIdentity a);
+\definition secondLower: \forall (a: Carrier) -> Pair.second ((extension (Inclusion.map a)).apply Block.anchor) = Clifford.zero :=
+  \fun (a: Carrier) => trans!{Carrier} _ _ _
+    (congr!{Block.Operator Carrier} (\fun (f: Block.Operator) => Pair.second (f.apply Block.anchor)) _ _ (onLower a))
+    (ring.semiring.zeroAbsorbsRight (Grade.map a));
+\definition productOperator: \forall (b: Carrier) -> extension (NextAlgebra.mul (Inclusion.map b) gamma) = End.mul (Diagonal.value b) (extension gamma) :=
+  \fun (b: Carrier) => trans!{Block.Operator} _ _ _ (extensionLaws.mul (Inclusion.map b) gamma)
+    (congr!{Block.Operator Block.Operator} (\fun (f: Block.Operator) => End.mul f (extension gamma)) _ _ (onLower b));
+\definition firstProduct: \forall (b: Carrier) -> Pair.first ((extension (NextAlgebra.mul (Inclusion.map b) gamma)).apply Block.anchor) = Clifford.zero :=
+  \fun (b: Carrier) => trans!{Carrier} _ _ _
+    (congr!{Block.Operator Carrier} (\fun (f: Block.Operator) => Pair.first (f.apply Block.anchor)) _ _ (productOperator b))
+    (trans!{Carrier} _ _ _
+      (congr!{{Pair.Carrier} Carrier} (\fun (p: Pair.Carrier) => Pair.first ((Diagonal.value b).apply p)) _ _ gammaAnchor)
+      (ring.semiring.zeroAbsorbsRight b));
+\definition secondProduct: \forall (b: Carrier) -> Pair.second ((extension (NextAlgebra.mul (Inclusion.map b) gamma)).apply Block.anchor) = Grade.map b :=
+  \fun (b: Carrier) => trans!{Carrier} _ _ _
+    (congr!{Block.Operator Carrier} (\fun (f: Block.Operator) => Pair.second (f.apply Block.anchor)) _ _ (productOperator b))
+    (trans!{Carrier} _ _ _
+      (congr!{{Pair.Carrier} Carrier} (\fun (p: Pair.Carrier) => Pair.second ((Diagonal.value b).apply p)) _ _ gammaAnchor)
+      (ring.semiring.multiplicative.rightIdentity (Grade.map b)));
+\definition left[x: Next.Carrier]: Carrier := Pair.first ((extension x).apply Block.anchor);
+\definition right[x: Next.Carrier]: Carrier := Grade.map (Pair.second ((extension x).apply Block.anchor));
+\definition leftValue: \forall (a, b: Carrier) -> left (value a b) = a := \fun (a, b: Carrier) =>
+  trans!{Carrier} _ _ _ (congr!{Block.Operator Carrier} (\fun (f: Block.Operator) => Pair.first (f.apply Block.anchor)) _ _ (extensionLaws.add (Inclusion.map a) (NextAlgebra.mul (Inclusion.map b) gamma)))
+    (trans!{Carrier} _ _ _ (congr2!{Carrier Carrier Carrier} Clifford.add _ _ _ _ (firstLower a) (firstProduct b))
+      (Clifford.vectorSpace.additive.group.monoid.rightIdentity a));
+\definition secondValue: \forall (a, b: Carrier) -> Pair.second ((extension (value a b)).apply Block.anchor) = Grade.map b := \fun (a, b: Carrier) =>
+  trans!{Carrier} _ _ _ (congr!{Block.Operator Carrier} (\fun (f: Block.Operator) => Pair.second (f.apply Block.anchor)) _ _ (extensionLaws.add (Inclusion.map a) (NextAlgebra.mul (Inclusion.map b) gamma)))
+    (trans!{Carrier} _ _ _ (congr2!{Carrier Carrier Carrier} Clifford.add _ _ _ _ (secondLower a) (secondProduct b))
+      (Clifford.vectorSpace.additive.group.monoid.leftIdentity (Grade.map b)));
+\definition rightValue: \forall (a, b: Carrier) -> right (value a b) = b := \fun (a, b: Carrier) =>
+  trans!{Carrier} _ _ _ (congr!{Carrier Carrier} Grade.map _ _ (secondValue a b)) (Grade.involutive b);

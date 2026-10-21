@@ -1,0 +1,28 @@
+/* Left-translated versions of the stereographic block chart. */
+\import \parent.Patch[i := i] \as Base;
+\definition image: SourceOpen.OpenSet := Base.image;
+\definition Parameter: \Set := Base.Parameter;
+\definition domain: \Pow Carrier := { g: Carrier \where \In[Carrier] Base.domain (untranslate q g) };
+\definition Point: \Set := UpperCoordinates.Domain domain;
+\definition value[x: Parameter]: Carrier := translate q (Base.value x);
+\definition point[x: Parameter]: Point := \into[Carrier](value x, domain) \by {
+  \idelim Base.value x = untranslate q (value x) \with g: Carrier => \In[Carrier] Base.domain g \by {
+    base: \bysub(Carrier, Base.domain, Base.point x), equality: sym!{{Carrier}} _ _ (undoTranslation q (Base.value x))
+  }
+};
+\definition source[g: Point]: Base.Point := \into[Carrier](untranslate q g, Base.domain) \by { \bysub(Carrier, domain, g) };
+\definition coordinate[g: Point]: Parameter := Base.coordinate (source g);
+\definition pointCoordinate: \forall (g: Point) -> point (coordinate g) = g := \fun (g: Point) =>
+  trans!{{Carrier}} _ _ _ (congr!{{Carrier} {Carrier}} (translate q) _ _ (Base.pointCoordinate (source g))) (translationUndo q g);
+\definition coordinatePoint: \forall (x: Parameter) -> coordinate (point x) = x := \block {
+  \fun (x: Parameter) \then
+  \let same: source (point x) = Base.point x := undoTranslation q (Base.value x) \then
+  \return trans!{Parameter} _ _ _ (congr!{{Base.Point} Parameter} Base.coordinate _ _ same) (Base.coordinatePoint x)
+};
+\definition patch: UpperCoordinates.Patch := UpperCoordinates.Patch {
+  domain := domain, image := image, point := point, coordinate := coordinate,
+  pointCoordinate := pointCoordinate, coordinatePoint := coordinatePoint,
+};
+\import Geometry.Plots[d := fullDimension] \as Plots;
+\definition plot: Plots.Plot image value := Plots.multiplication image (\fun (x: Parameter) => q) Base.value (Plots.constant image q) Base.Smooth[].plot;
+\module Reader(d: N.Nat^);

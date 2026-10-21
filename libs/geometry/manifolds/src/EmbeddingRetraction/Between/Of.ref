@@ -1,0 +1,36 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import std.Logic[].Proposition[] \as Logic;
+\import \root.Immersion[n := n, m := m].Between[M := M, N := N] \as Immersions;
+\import \root.Immersion[n := n, m := n].Between[M := M, N := M] \as SelfImmersions;
+\import \root.SmoothMap[n := n, m := n].Between[M := M, N := M] \as SelfMaps;
+\import \root.Composition[n := n, m := m, l := n].Between[M := M, N := N, P := M] \as Compose;
+\import \root.SelfMap[n := n].Identity[M := M] \as Identity;
+\definition composite: Compose.compose f g = Identity.map := SelfMaps.ext (Compose.compose f g) Identity.map
+  (\axiom:funext((SelfMaps.apply (Compose.compose f g)), (SelfMaps.apply Identity.map), left));
+\definition compositeImmersion: SelfImmersions.IsImmersion (Compose.compose f g) :=
+  \idelim Identity.map = Compose.compose f g \with q: SelfMaps.Map => SelfImmersions.IsImmersion q \by {
+    base: \root.ImmersionIdentity[n := n].On[M := M].immersion,
+    equality: sym!{{SelfMaps.Map}} _ _ composite
+  };
+\definition immersion: Immersions.IsImmersion f := \root.ImmersionComposition[n := n, m := m, l := n].Between[M := M, N := N, P := M].firstOfComposite f g compositeImmersion;
+\definition injective: \forall (x, y: M.Point) -> Forward.apply f x = Forward.apply f y -> x = y :=
+  \fun (x, y: M.Point)(same: _) => trans!{{M.Point}} x (Backward.apply g (Forward.apply f x)) y (sym!{{M.Point}} _ _ (left x))
+    (trans!{{M.Point}} _ _ _ (congr!{{N.Point} {M.Point}} (Backward.apply g) _ _ same) (left y));
+\import topology.Topology[Carrier := M.Point] \as SourceTopology;
+\import topology.Topology[Carrier := N.Point] \as TargetTopology;
+\import topology.Continuity[A := M.Point, B := N.Point] \as F;
+\import topology.Continuity[A := N.Point, B := M.Point] \as G;
+\definition openLift: \forall (S: \Pow M.Point) -> SourceTopology.IsOpenIn M.space S ->
+  \exists ( U: \Pow N.Point \where Logic.And[TargetTopology.IsOpenIn N.space U, F.Preimage (Forward.apply f) U = S] ) :=
+  \fun (S: \Pow M.Point)(open: _) => Logic.existsIntro[\Pow N.Point,
+    { U: \Pow N.Point \where Logic.And[TargetTopology.IsOpenIn N.space U, F.Preimage (Forward.apply f) U = S] }]
+    (G.Preimage (Backward.apply g) S) (Logic.And[_, _]::#
+      ((\bysub(Backward.Data, { h: Backward.Data \where Backward.Continuous h }, g)) S open)
+      (\axiom:setext((F.Preimage (Forward.apply f) (G.Preimage (Backward.apply g) S)), S,
+        \fun (x: M.Point)(member: _) => \idelim Backward.apply g (Forward.apply f x) = x \with y: M.Point => \In[M.Point] S y \by { base: member, equality: left x },
+        \fun (x: M.Point)(member: _) => \idelim x = Backward.apply g (Forward.apply f x) \with y: M.Point => \In[M.Point] S y \by { base: member, equality: sym!{{M.Point}} _ _ (left x) })));
+\definition laws: Immersions.EmbeddingLaws[f] := Immersions.EmbeddingLaws[f] { immersion := immersion, injective := injective, openLift := openLift };
+\definition embedding: Immersions.Embedding := \into[Forward.Map](f, Immersions.Embedding) \by { laws };

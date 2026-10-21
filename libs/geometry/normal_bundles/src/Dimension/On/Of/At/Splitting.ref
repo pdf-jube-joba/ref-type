@@ -1,0 +1,27 @@
+\import Spaces.DirectSum[V := Tangent.Vector x, W := Fiber, left := Tangent.space x, right := space] \as Sum;
+\import Spaces.Linear[V := Sum.Carrier, W := E.Vector, source := Sum.space, target := E.space] \as Linear;
+\import Spaces.Isomorphism[V := Sum.Carrier, W := E.Vector, source := Sum.space, target := E.space] \as Isomorphisms;
+\import Spaces.Laws[V := E.Vector, space := E.space] \as Laws;
+\import std.Data[].Pair[].Prop[A := Tangent.Vector x, B := Fiber] \as Pairs;
+\definition forward: Linear.Map := Linear.Map {
+  apply := \fun (p: Sum.Carrier) => E.space.add (differential.apply (Sum.first p)) (Sum.second p),
+  preservesAdd := \fun (p, q: Sum.Carrier) => trans!{{E.Vector}} _ _ _
+    (congr!{{E.Vector} {E.Vector}} (\fun (v: E.Vector) => E.space.add v (E.space.add (Sum.second p) (Sum.second q))) _ _
+      (differential.preservesAdd (Sum.first p) (Sum.first q)))
+    (Laws.shuffle (differential.apply (Sum.first p)) (differential.apply (Sum.first q)) (Sum.second p) (Sum.second q)),
+  preservesScale := \fun (a: R.Real)(p: Sum.Carrier) => trans!{{E.Vector}} _ _ _
+    (congr!{{E.Vector} {E.Vector}} (\fun (v: E.Vector) => E.space.add v (E.space.smul a (Sum.second p))) _ _ (differential.preservesScale a (Sum.first p)))
+    (sym!{{E.Vector}} _ _ (E.space.vectorAdd a (differential.apply (Sum.first p)) (Sum.second p))),
+};
+\module Kernel(p: Sum.Carrier, same: forward.apply p = E.space.zero);
+\definition zeroKernel: \forall (p: Sum.Carrier) -> forward.apply p = E.space.zero -> p = Sum.space.zero := \fun (p: Sum.Carrier)(same: _) => Kernel[p := p, same := same].zero;
+\definition forwardInjective: \forall (p, q: Sum.Carrier) -> forward.apply p = forward.apply q -> p = q := Linear.injectiveOfZeroKernel forward zeroKernel;
+\import Tangent.At[x := x] \as Intrinsic;
+\module Solve(c: Intrinsic.Chart);
+\definition onto: \forall (w: E.Vector) -> \exists ( p: Sum.Carrier \where forward.apply p = w ) := \block {
+  \fun (w: E.Vector) \then
+  \takefrom c: Intrinsic.Chart \by Intrinsic.chartExists \then
+  \return Solve[c := c].exists w
+};
+\import Isomorphisms.OfBijective[f := forward] \as Inverse;
+\definition isomorphism: Isomorphisms.Isomorphism := Inverse.isomorphism forwardInjective onto;

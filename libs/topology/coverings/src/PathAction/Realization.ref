@@ -1,0 +1,51 @@
+\import algebraic_topology.Interval[] \as I;
+\import Paths.Concatenation[] \as Join;
+\definition point[e: E]: Fiber (projection e) := \into[E](e, Fiber (projection e)) \by { \refl(projection e) };
+\definition Reach[U: \Pow B][x: B][e: Fiber x][y: B][f: E]: \Prop :=
+  \exists ( p: Neighborhoods.Path U x y \where action.move x y (G.class x y p) e = f );
+\definition reachIntro[U: \Pow B][x, y: B][e: Fiber x][p: Neighborhoods.Path U x y]: Reach U x e y (action.move x y (G.class x y p) e) :=
+  Logic.existsIntro[Neighborhoods.Path U x y, { q: Neighborhoods.Path U x y \where action.move x y (G.class x y q) e = action.move x y (G.class x y p) e }] p (\refl(action.move x y (G.class x y p) e));
+\definition reachElim[U: \Pow B][x, y: B][e: Fiber x][f: E][P: \Prop]:
+  (\forall (p: Neighborhoods.Path U x y) -> action.move x y (G.class x y p) e = f -> P) -> Reach U x e y f -> P := \block {
+  \fun (step: _)(reach: _) \then
+  \takefrom p: \Cast[Neighborhoods.Path U x y] ({ p: Neighborhoods.Path U x y \where action.move x y (G.class x y p) e = f }) \by reach \then
+  \return step p (\bysub(Neighborhoods.Path U x y, { p: Neighborhoods.Path U x y \where action.move x y (G.class x y p) e = f }, p))
+};
+\definition reachRefl: \forall (U: \Pow B)(x: B)(member: Base.Member U x)(e: Fiber x) -> Reach U x e x e :=
+  \fun (U: _)(x: _)(member: _)(e: _) => Logic.existsIntro[Neighborhoods.Path U x x, { p: Neighborhoods.Path U x x \where action.move x x (G.class x x p) e = e }]
+    (Neighborhoods.constant U x member) (action.identity x e);
+\definition reachEnd: \forall (U: \Pow B)(x, y: B)(e: Fiber x)(f: E) -> Reach U x e y f -> Base.Member U y :=
+  \fun (U: _)(x, y: _)(e: _)(f: _) => reachElim U x y e f (Base.Member U y)
+    (\fun (p: Neighborhoods.Path U x y)(same: _) => \idelim p I.end = y \with z: B => Base.Member U z
+      \by { base: Neighborhoods.within U x y p I.end, equality: (Paths.laws x y p).end });
+\definition reachRestrict: \forall (U, V: \Pow B) -> Base.Subset U V -> \forall (x, y: B)(e: Fiber x)(f: E) -> Reach U x e y f -> Reach V x e y f :=
+  \fun (U, V: _)(subset: _)(x, y: _)(e: _)(f: _) => reachElim U x y e f (Reach V x e y f)
+    (\fun (p: _)(same: _) => Logic.existsIntro[Neighborhoods.Path V x y, { q: Neighborhoods.Path V x y \where action.move x y (G.class x y q) e = f }]
+      (Neighborhoods.restrict U V subset x y p) same);
+\definition reachTrans: \forall (U: \Pow B)(x, y, z: B)(e: Fiber x)(f: Fiber y)(h: E) -> Reach U x e y f -> Reach U y f z h -> Reach U x e z h :=
+  \fun (U: _)(x, y, z: _)(e: _)(f: _)(h: _)(first: _)(second: _) => reachElim U x y e f (Reach U x e z h)
+    (\fun (p: _)(pe: _) => reachElim U y z f h (Reach U x e z h)
+      (\fun (q: _)(qe: _) => Logic.existsIntro[Neighborhoods.Path U x z, { r: Neighborhoods.Path U x z \where action.move x z (G.class x z r) e = h }]
+        (Neighborhoods.concatenate U x y z p q)
+        (trans!{E} _ _ _
+          (congr!{{G.Arrow x z} E} (\fun (r: G.Arrow x z) => action.move x z r e) _ _ (sym!{{G.Arrow x z}} _ _ (Join.Classes[x := x, y := y, z := z].onClass p q)))
+          (trans!{E} _ _ _ (action.compose x y z (G.class x y p) (G.class y z q) e)
+            (trans!{E} _ _ _ (congr!{{Fiber y} E} (action.move y z (G.class y z q)) _ _ pe) qe)))) second) first;
+\definition Sheet[U: \Pow B][x: B][e: Fiber x]: \Pow E := { f: E \where Reach U x e (projection f) f };
+\definition reachOfMember: \forall (U: \Pow B)(x, y: B)(e: Fiber x)(f: Fiber y) -> Total.Member (Sheet U x e) f -> Reach U x e y f :=
+  \fun (U: _)(x, y: _)(e: _)(f: _)(member: _) => \idelim projection f = y \with z: B => Reach U x e z f
+    \by { base: member, equality: projectsTo y f };
+\definition memberOfReach: \forall (U: \Pow B)(x, y: B)(e: Fiber x)(f: Fiber y) -> Reach U x e y f -> Total.Member (Sheet U x e) f :=
+  \fun (U: _)(x, y: _)(e: _)(f: _)(reach: _) => \idelim y = projection f \with z: B => Reach U x e z f
+    \by { base: reach, equality: sym!{B} _ _ (projectsTo y f) };
+\definition sheetContains: \forall (U: \Pow B)(x: B) -> Base.Member U x -> \forall (e: Fiber x) -> Total.Member (Sheet U x e) e :=
+  \fun (U: _)(x: _)(member: _)(e: _) => memberOfReach U x x e e (reachRefl U x member e);
+\definition sheetRefines: \forall (U, V: \Pow B) -> Base.Subset U V -> \forall (x: B)(e: Fiber x) -> Total.Subset (Sheet U x e) (Sheet V x e) :=
+  \fun (U, V: _)(subset: _)(x: _)(e: _)(f: _)(member: _) => reachRestrict U V subset x (projection f) e f member;
+\module Topology;
+\module Sections(U: \Pow B, good: Neighborhoods.Good[U], x: B, inX: Base.Member U x, e: Fiber x);
+\module Charts(basis: Neighborhoods.GoodBasis, U: \Pow B, good: Neighborhoods.Good[U], x: B, inX: Base.Member U x);
+\module At(basis: Neighborhoods.GoodBasis, inhabited: \forall (b: B) -> \exists Fiber b);
+\definition realizes: \forall (basis: Neighborhoods.GoodBasis) -> (\forall (b: B) -> \exists Fiber b) ->
+  \root.Projection[E := E, B := B, total := Topology[].topology basis, base := base, projection := projection].Covering :=
+  \fun (basis: _)(inhabited: _) => At[basis := basis, inhabited := inhabited].covering;

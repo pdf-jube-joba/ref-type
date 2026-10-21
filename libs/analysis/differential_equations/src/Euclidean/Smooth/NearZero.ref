@@ -1,0 +1,34 @@
+\import calculus.Real[].Derivative[].Operations[] \as DerivativeOperations;
+\import calculus.Real[].Limit[].Def[] \as Limits;
+\import calculus.Real[].Limit[].Operations[] \as LimitOperations;
+\definition solutionPositive: R.Lt Scalars.zero solution.radius := \bysub(Real, { r: Real \where R.Lt Scalars.zero r }, solution.radius);
+\definition f[i: Euclidean.Coordinate][t: Real]: Real := solution.value t i;
+\definition Controls[q: Real]: \Set := \forall (i: Euclidean.Coordinate) -> \Cast[Real]
+  ({ delta: Real \where Limits.Control[f i, Scalars.zero, f i Scalars.zero, q, delta] });
+\definition controlsExist[q: Real]: R.Lt Scalars.zero q -> \exists Controls q := \fun (positive: _) =>
+  \axiom:classicalIndefiniteChoice(Euclidean.Coordinate, (\fun (i: Euclidean.Coordinate) => \Cast[Real]
+    ({ delta: Real \where Limits.Control[f i, Scalars.zero, f i Scalars.zero, q, delta] })),
+    \fun (i: Euclidean.Coordinate) => DerivativeOperations.continuousOfDerivative (f i) Scalars.zero (extended (solution.value Scalars.zero) i)
+      (solution.derivative Scalars.zero (Laws.negativeNegOfPositive solution.radius solutionPositive) solutionPositive i) q positive);
+\structure Radius[q, delta: Real]: \Prop := {
+  positive: R.Lt Scalars.zero delta,
+  estimate: \forall (t: Real) -> R.Lt (Scalars.distance t Scalars.zero) delta -> R.Lt (Norm.metric.distance (solution.value t) a) q,
+};
+\definition existsRadius[q: Real]: R.Lt Scalars.zero q -> \exists ( delta: Real \where Radius[q, delta] ) := \block {
+  \fun (positive: _) \then
+  \takefrom controls: Controls q \by controlsExist q positive \then
+  \let delta: Real := FiniteBounds.minimum n (\fun (i: Euclidean.Coordinate) => controls i) \then
+  \return Logic.existsIntro[Real, { delta: Real \where Radius[q, delta] }] delta (Radius[q, delta] {
+    positive := FiniteBounds.positive n (\fun (i: Euclidean.Coordinate) => controls i)
+      (\fun (i: Euclidean.Coordinate) => (\bysub(Real, { delta: Real \where Limits.Control[f i, Scalars.zero, f i Scalars.zero, q, delta] }, controls i)).positive),
+    estimate := \fun (t: Real)(near: _) => Norm.finiteStrictUpper n (Coordinates.subPoint (solution.value t) a) q positive (\fun (i: Euclidean.Coordinate) => \block {
+      \let control: Limits.Control[f i, Scalars.zero, f i Scalars.zero, q, controls i] :=
+        \bysub(Real, { delta: Real \where Limits.Control[f i, Scalars.zero, f i Scalars.zero, q, delta] }, controls i) \then
+      \return R.ltReplaceLeft (Scalars.distance (f i t) (f i Scalars.zero)) (Scalars.distance (Scalars.sub (solution.value t i) (a i)) Scalars.zero) q
+        (trans!{Real} _ _ _ (congr!{Real Real} (Scalars.distance (f i t)) _ _ (congr!{Vector Real} (\fun (v: Vector) => v i) _ _ solution.initialValue))
+          (sym!{Real} _ _ (Estimates.distanceDifference (solution.value t i) (a i))))
+        (LimitOperations.continuityEstimate (f i) Scalars.zero q (controls i) positive control t
+          (R.ltLeTrans _ delta (controls i) near (FiniteBounds.coordinate n (\fun (i: Euclidean.Coordinate) => controls i) i)))
+    }),
+  })
+};

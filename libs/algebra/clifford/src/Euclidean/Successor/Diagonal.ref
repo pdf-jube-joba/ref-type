@@ -1,0 +1,52 @@
+/* The old algebra acts diagonally, with its grading on the second copy. */
+\import Clifford.Grading[] \as Grade;
+\import Spaces.DirectSum[V := Carrier, W := Carrier, left := Clifford.vectorSpace, right := Clifford.vectorSpace] \as Pair;
+\import std.Data[].Pair[].Prop[A := Carrier, B := Carrier] \as Pairs;
+\import Spaces.Linear[V := Pair.Carrier, W := Carrier, source := Pair.space, target := Clifford.vectorSpace] \as Rows;
+\import Spaces.Linear[V := Carrier, W := Carrier, source := Clifford.vectorSpace, target := Clifford.vectorSpace].Composition[U := Pair.Carrier, domain := Pair.space] \as Compose;
+\import Pair.Universal[U := Pair.Carrier, domain := Pair.space] \as Assemble;
+\import lie_algebras.Field[K := R.Real, field := Scalars.field].Associative[A := Carrier, algebra := algebra] \as Source;
+\import lie_algebras.Field[K := R.Real, field := Scalars.field].Endomorphisms[V := Pair.Carrier, space := Pair.space] \as End;
+\import Spaces.Laws[V := Carrier, space := Clifford.vectorSpace] \as Vectors;
+\import algebra.Group[].Of[Carrier := Carrier, group := std.Alg[].Ring[].additiveGroup Carrier ring] \as Sum;
+\definition value[a: Carrier]: End.Carrier := Assemble.pair (Compose.compose (Source.left a) Block.first) (Compose.compose (Source.left (Grade.map a)) Block.second);
+\definition firstApply[a: Carrier][p: Pair.Carrier]: Pair.first ((value a).apply p) = Clifford.mul a (Pair.first p) := \refl(Clifford.mul a (Pair.first p));
+\definition secondApply[a: Carrier][p: Pair.Carrier]: Pair.second ((value a).apply p) = Clifford.mul (Grade.map a) (Pair.second p) := \refl(Clifford.mul (Grade.map a) (Pair.second p));
+\import std.Alg[].Ring[] \as Ring;
+\import algebra.Hom[A := Carrier, B := End.Carrier] \as Maps;
+\definition atZero: value Clifford.zero = End.zero := End.ext (value Clifford.zero) End.zero
+  (\fun (p: Pair.Carrier) => Pairs.ext _ _ (ring.semiring.zeroAbsorbsLeft (Pair.first p))
+    (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (\fun (a: Carrier) => Clifford.mul a (Pair.second p)) _ _ Grade.laws.zero) (ring.semiring.zeroAbsorbsLeft (Pair.second p))));
+\definition atOne: value Clifford.one = End.one := End.ext (value Clifford.one) End.one
+  (\fun (p: Pair.Carrier) => Pairs.ext _ _ (ring.semiring.multiplicative.leftIdentity (Pair.first p))
+    (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (\fun (a: Carrier) => Clifford.mul a (Pair.second p)) _ _ Grade.laws.one) (ring.semiring.multiplicative.leftIdentity (Pair.second p))));
+\definition addition: \forall (a, b: Carrier) -> value (Clifford.add a b) = End.add (value a) (value b) :=
+  \fun (a, b: Carrier) => End.ext (value (Clifford.add a b)) (End.add (value a) (value b))
+    (\fun (p: Pair.Carrier) => Pairs.ext _ _ (ring.semiring.rightDistributive a b (Pair.first p))
+      (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (\fun (c: Carrier) => Clifford.mul c (Pair.second p)) _ _ (Grade.laws.add a b))
+        (ring.semiring.rightDistributive (Grade.map a) (Grade.map b) (Pair.second p))));
+\definition multiplication: \forall (a, b: Carrier) -> value (Clifford.mul a b) = End.mul (value a) (value b) :=
+  \fun (a, b: Carrier) => End.ext (value (Clifford.mul a b)) (End.mul (value a) (value b))
+    (\fun (p: Pair.Carrier) => Pairs.ext _ _ (ring.semiring.multiplicative.associative a b (Pair.first p))
+      (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (\fun (c: Carrier) => Clifford.mul c (Pair.second p)) _ _ (Grade.laws.mul a b))
+        (ring.semiring.multiplicative.associative (Grade.map a) (Grade.map b) (Pair.second p))));
+\definition homomorphism: Maps.RingMap ring End.ring := \into[Carrier -> End.Carrier](value, Maps.RingMap ring End.ring) \by {
+  Maps.SemiringLaws[Ring.ringAsSemiring Carrier ring, Ring.ringAsSemiring End.Carrier End.ring, value] {
+    zero := atZero, one := atOne, add := addition, mul := multiplication
+  }
+};
+\definition onScalar: \forall (a: R.Real) -> value (scalar a) = Block.scalarMap a :=
+  \fun (a: R.Real) => End.ext (value (scalar a)) (Block.scalarMap a)
+    (\fun (p: Pair.Carrier) => Pairs.ext _ _ (\refl(Clifford.scale a (Pair.first p)))
+      (congr!{Carrier Carrier} (\fun (c: Carrier) => Clifford.mul c (Pair.second p)) _ _ (Grade.onScalar a)));
+\definition onVector: \forall (v: Vector) -> value (iota v) = Block.map (iota v) R.zero :=
+  \fun (v: Vector) => End.ext (value (iota v)) (Block.map (iota v) R.zero)
+    (\fun (p: Pair.Carrier) => Pairs.ext _ _
+      (sym!{Carrier} _ _ (trans!{Carrier} _ _ _ (Block.firstApply (iota v) R.zero p)
+        (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (Clifford.add (Clifford.mul (iota v) (Pair.first p))) _ _ (Vectors.zeroScale (Pair.second p)))
+          (Vectors.zeroRight (Clifford.mul (iota v) (Pair.first p))))))
+      (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (\fun (a: Carrier) => Clifford.mul a (Pair.second p)) _ _ (Grade.onVector v))
+        (trans!{Carrier} _ _ _ (algebra.Groups[].Units[A := Carrier, ring := ring].negMul (iota v) (Pair.second p))
+          (sym!{Carrier} _ _ (trans!{Carrier} _ _ _ (Block.secondApply (iota v) R.zero p)
+            (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (\fun (a: Carrier) => Clifford.add a (Clifford.neg (Clifford.mul (iota v) (Pair.second p)))) _ _ (Vectors.zeroScale (Pair.first p)))
+              (Vectors.zeroLeft (Clifford.neg (Clifford.mul (iota v) (Pair.second p))))))))));

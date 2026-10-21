@@ -1,0 +1,24 @@
+\import std.Logic[].Relation[] \as Equivalences;
+\definition equivalence: Equivalences.Equivalence[Path x y, Homotopic x y] :=
+  Equivalences.Equivalence[Path x y, Homotopic x y] {
+    refl := reflexive x y, sym := symmetric x y, trans := transitive x y,
+  };
+\import std.Set[].Quotient[A := Path x y, Equivalent := Homotopic x y] \as Quotient;
+\definition Carrier: \Set := Quotient.Carrier;
+\definition class: Path x y -> Carrier := Quotient.class;
+\definition sameClass: \forall (f, g: Path x y) -> Homotopic x y f g -> class f = class g :=
+  Quotient.classOfEq equivalence;
+\definition homotopicOfSameClass: \forall (f, g: Path x y) -> class f = class g -> Homotopic x y f g :=
+  Quotient.equivalentOfClassEq equivalence;
+\definition induction[P: Carrier -> \Prop]:
+  (\forall (f: Path x y) -> P (class f)) -> \forall (q: Carrier) -> P q := Quotient.induction P;
+\module Functions(B: \Set) {
+  \import Quotient.Maps[B := B] \as Native;
+  \definition Respects[f: Path x y -> B]: \Prop := Native.Respects f;
+  \definition descend[f: Path x y -> B][respects: Respects f]: Carrier -> B := Native.value equivalence f respects;
+  \definition onClass: \forall (f: Path x y -> B)(respects: Respects f)(p: Path x y) ->
+    descend f respects (class p) = f p := Native.onClass equivalence;
+  \definition unique: \forall (f: Path x y -> B)(respects: Respects f)(g: Carrier -> B) ->
+    (\forall (p: Path x y) -> g (class p) = f p) -> \forall (q: Carrier) -> g q = descend f respects q :=
+    Native.uniqueness equivalence;
+}

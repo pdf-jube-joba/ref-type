@@ -1,0 +1,79 @@
+\import \parent.Subfield[] \as Subfields;
+\import \parent.Automorphism[] \as Aut;
+
+\definition Fixed[H: Aut.Automorphism -> \Prop][x: K]: \Prop :=
+  \forall (f: Aut.Automorphism) -> H f -> f.map.apply x = x;
+\definition Stabilizer[S: K -> \Prop][f: Aut.Automorphism]: \Prop := Aut.Fixes S f;
+\definition fixedField[H: Aut.Automorphism -> \Prop]: Subfields.Subfield :=
+  \into[\Pow K]({ x: K \where Fixed H x }, Subfields.Subfield) \by {
+    Subfields.Closed[Fixed H] {
+      zero := \fun (f: _)(hf: _) => f.map.preservesZero,
+      one := \fun (f: _)(hf: _) => f.map.preservesOne,
+      add := \fun (x, y: K)(hx: _)(hy: _)(f: _)(hf: _) => trans!{K} _ _ _
+        (f.map.preservesAdd x y) (congr2!{K K K} add _ _ _ _ (hx f hf) (hy f hf)),
+      neg := \fun (x: K)(hx: _)(f: _)(hf: _) => trans!{K} _ _ _
+        (f.map.preservesNeg x) (congr!{K K} neg _ _ (hx f hf)),
+      mul := \fun (x, y: K)(hx: _)(hy: _)(f: _)(hf: _) => trans!{K} _ _ _
+        (f.map.preservesMul x y) (congr2!{K K K} mul _ _ _ _ (hx f hf) (hy f hf)),
+      inv := \fun (x: K)(hx: _)(f: _)(hf: _) => trans!{K} _ _ _
+        (f.map.preservesInv x) (congr!{K K} inv _ _ (hx f hf)),
+    }
+  };
+\definition galoisConnection: \forall (S: K -> \Prop)(H: Aut.Automorphism -> \Prop) ->
+  Logic.PropEquiv[Subfields.Included S (Fixed H), \forall (f: Aut.Automorphism) -> H f -> Stabilizer S f] :=
+  \fun (S: K -> \Prop)(H: Aut.Automorphism -> \Prop) => Logic.PropEquiv[
+    Subfields.Included S (Fixed H), \forall (f: Aut.Automorphism) -> H f -> Stabilizer S f] {
+    ltr := \fun (included: _)(f: _)(hf: _)(x: K)(hx: _) => included x hx f hf,
+    rtl := \fun (included: _)(x: K)(hx: _)(f: _)(hf: _) => included f hf x hx,
+  };
+\definition fixedAntitone: \forall (H, J: Aut.Automorphism -> \Prop) ->
+  (\forall (f: Aut.Automorphism) -> H f -> J f) -> Subfields.Included (Fixed J) (Fixed H) :=
+  \fun (H, J: _)(included: _)(x: K)(hx: _)(f: _)(hf: _) => hx f (included f hf);
+\definition stabilizerAntitone: \forall (S, T: K -> \Prop) -> Subfields.Included S T ->
+  \forall (f: Aut.Automorphism) -> Stabilizer T f -> Stabilizer S f :=
+  \fun (S, T: _)(included: _)(f: _)(hf: _)(x: K)(hx: _) => hf x (included x hx);
+\definition doubleFixedContains: \forall (S: K -> \Prop) -> Subfields.Included S (Fixed (Stabilizer S)) :=
+  \fun (S: _)(x: K)(hx: _)(f: _)(hf: _) => hf x hx;
+\definition doubleStabilizerContains: \forall (H: Aut.Automorphism -> \Prop)(f: Aut.Automorphism) ->
+  H f -> Stabilizer (Fixed H) f :=
+  \fun (H: _)(f: _)(hf: _)(x: K)(hx: _) => hx f hf;
+\definition fixedTriple: \forall (H: Aut.Automorphism -> \Prop)(x: K) ->
+  Logic.PropEquiv[Fixed (Stabilizer (Fixed H)) x, Fixed H x] :=
+  \fun (H: Aut.Automorphism -> \Prop)(x: K) => Logic.PropEquiv[
+    Fixed (Stabilizer (Fixed H)) x, Fixed H x] {
+    ltr := \fun (hx: _)(f: Aut.Automorphism)(hf: _) => hx f (doubleStabilizerContains H f hf),
+    rtl := doubleFixedContains (Fixed H) x,
+  };
+\definition stabilizerTriple: \forall (S: K -> \Prop)(f: Aut.Automorphism) ->
+  Logic.PropEquiv[Stabilizer (Fixed (Stabilizer S)) f, Stabilizer S f] :=
+  \fun (S: K -> \Prop)(f: Aut.Automorphism) => Logic.PropEquiv[
+    Stabilizer (Fixed (Stabilizer S)) f, Stabilizer S f] {
+    ltr := stabilizerAntitone S (Fixed (Stabilizer S)) (doubleFixedContains S) f,
+    rtl := doubleStabilizerContains (Stabilizer S) f,
+  };
+\definition GaloisGroup[S: K -> \Prop]: \Set :=
+  \Cast[Aut.Automorphism] ({ f: Aut.Automorphism \where Stabilizer S f });
+\definition stabilizerIdentity: \forall (S: K -> \Prop) -> Stabilizer S Aut.identity :=
+  \fun (S: _)(x: K)(hx: _) => \refl(x);
+\definition stabilizerCompose: \forall (S: K -> \Prop)(f, g: Aut.Automorphism) ->
+  Stabilizer S f -> Stabilizer S g -> Stabilizer S (Aut.compose f g) :=
+  \fun (S: _)(f, g: _)(hf: _)(hg: _)(x: K)(hx: _) => trans!{K} _ _ _
+    (congr!{K K} g.map.apply _ _ (hf x hx)) (hg x hx);
+\definition stabilizerInverse: \forall (S: K -> \Prop)(f: Aut.Automorphism) ->
+  Stabilizer S f -> Stabilizer S (Aut.inverse f) :=
+  \fun (S: _)(f: _)(hf: _)(x: K)(hx: _) => trans!{K} _ _ _
+    (congr!{K K} f.backward _ _ (sym!{K} _ _ (hf x hx))) (f.leftInverse x);
+\definition generatedFixed: \forall (S: K -> \Prop)(f: Aut.Automorphism) ->
+  Logic.PropEquiv[Stabilizer (Subfields.Generated S) f, Stabilizer S f] :=
+  \fun (S: _)(f: _) => Logic.PropEquiv[_, _] {
+    ltr := \fun (hf: _)(x: K)(hx: _) => hf x (Subfields.contains S x hx),
+    rtl := \fun (hf: _)(x: K)(hx: _) =>
+      hx (\fun (y: K) => f.map.apply y = y)
+        (Subfields.Closed[\fun (y: K) => f.map.apply y = y] {
+          zero := f.map.preservesZero, one := f.map.preservesOne,
+          add := \fun (x, y: K)(hx: _)(hy: _) => trans!{K} _ _ _ (f.map.preservesAdd x y) (congr2!{K K K} add _ _ _ _ hx hy),
+          neg := \fun (x: K)(hx: _) => trans!{K} _ _ _ (f.map.preservesNeg x) (congr!{K K} neg _ _ hx),
+          mul := \fun (x, y: K)(hx: _)(hy: _) => trans!{K} _ _ _ (f.map.preservesMul x y) (congr2!{K K K} mul _ _ _ _ hx hy),
+          inv := \fun (x: K)(hx: _) => trans!{K} _ _ _ (f.map.preservesInv x) (congr!{K K} inv _ _ hx),
+        }) hf,
+  };

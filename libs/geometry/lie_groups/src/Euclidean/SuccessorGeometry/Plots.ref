@@ -1,0 +1,26 @@
+\import calculus.Real[].Multivariable[n := d].Open[] \as Open;
+\import Open.Smooth[] \as Smooth;
+\import Smooth.Operations[] \as Functions;
+\import \root.Euclidean[n := n].Plots[d := d] \as BasePlots;
+\import Next.Plots[d := d] \as NextPlots;
+\definition replace: \forall (U: Open.OpenSet)(f, g: Open.ScalarFunction U) ->
+  (\forall (x: Open.Carrier U) -> f x = g x) -> Smooth.SmoothOn U f -> Smooth.SmoothOn U g :=
+  \fun (U: _)(f, g: _)(same: _)(smooth: _) => \idelim f = g \with h: Open.ScalarFunction U => Smooth.SmoothOn U h \by {
+    base: smooth, equality: \axiom:funext(f, g, same)
+  };
+\definition extendValues: \forall (U: Open.OpenSet)(h: Open.ScalarFunction U)(t: Open.Carrier U -> Vector) ->
+  Smooth.SmoothOn U h -> BasePlots.Values U t -> NextPlots.Values U (\fun (x: Open.Carrier U) => Tuples.extend n (h x) (t x)) :=
+  \fun (U: _)(h: _)(t: _)(sh: _)(st: _) => Fin.cases n
+    (\fun (i: Fin.Fin (N.Nat^::succ n)) => Smooth.SmoothOn U (\fun (x: Open.Carrier U) => Tuples.extend n (h x) (t x) i))
+    (replace U h (\fun (x: Open.Carrier U) => Tuples.extend n (h x) (t x) (Fin.zero n))
+      (\fun (x: Open.Carrier U) => sym!{R.Real} _ _ (Tuples.atZero n (h x) (t x))) sh)
+    (\fun (i: Fin.Fin n) => replace U (\fun (x: Open.Carrier U) => t x i)
+      (\fun (x: Open.Carrier U) => Tuples.extend n (h x) (t x) (Fin.succ n i))
+      (\fun (x: Open.Carrier U) => sym!{R.Real} _ _ (Tuples.atSuccessor n (h x) (t x) i)) (st i));
+\module Section(U: Open.OpenSet, s: Open.Carrier U -> Vector, regular: BasePlots.Values U s);
+\definition extension: \forall (U: Open.OpenSet)(f: Open.Carrier U -> O) -> BasePlots.Plot U f ->
+  NextPlots.Plot U (\fun (x: Open.Carrier U) => \parent.Extension[h := f x].orthogonal) :=
+  \fun (U: _)(f: _)(regular: _)(v: Next.Vector) => extendValues U (\fun (x: Open.Carrier U) => head v)
+    (\fun (x: Open.Carrier U) => (f x).value.apply (tail v)) (Functions.constantSmooth U (head v)) (regular (tail v));
+\module Restriction(U: Open.OpenSet, f: Open.Carrier U -> Next.O, regular: NextPlots.Plot U f,
+  fixes: \forall (x: Open.Carrier U) -> NextOrthogonal.action (f x) first = first);

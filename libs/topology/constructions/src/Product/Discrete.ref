@@ -1,0 +1,28 @@
+\import topology.Topology[Carrier := X] \as Target;
+\import topology.Continuity[A := CarrierSet, B := X] \as Maps;
+\import topology.Continuity[A := A, B := X] \as Slices;
+\import \parent.Universal[X := CarrierSet] \as Rectangles;
+\import Pair.Prop[A := A, B := B] \as Pairs;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\use Equality.trans;
+\use Equality.sym;
+\definition continuousOfSlices: \forall (left: Left.Topology)(target: Target.Topology)(f: CarrierSet -> X) ->
+  (\forall (b: B) -> Slices.Continuous left target (\fun (a: A) => f (Pair.pair A B a b))) ->
+  Maps.Continuous (topology left Right.Discrete) target f :=
+  \fun (left: _)(target: _)(f: _)(slices: _)(W: \Pow X)(wo: _) =>
+    ProductSpace.openOfNeighborhoods (topology left Right.Discrete) (Maps.Preimage f W)
+      (Pairs.induction (\fun (q: CarrierSet) => ProductSpace.Member (Maps.Preimage f W) q ->
+        \exists ( V: \Pow CarrierSet \where ProductSpace.OpenNeighborhood[topology left Right.Discrete, q, Maps.Preimage f W, V] ))
+        (\fun (a: A)(b: B)(member: _) => Logic.existsIntro[\Pow CarrierSet, { V: \Pow CarrierSet \where ProductSpace.OpenNeighborhood[topology left Right.Discrete, Pair.pair A B a b, Maps.Preimage f W, V] }]
+          (Rectangle (Slices.Preimage (\fun (z: A) => f (Pair.pair A B z b)) W) (Right.Singleton b))
+          (ProductSpace.OpenNeighborhood[topology left Right.Discrete, Pair.pair A B a b, Maps.Preimage f W,
+            Rectangle (Slices.Preimage (\fun (z: A) => f (Pair.pair A B z b)) W) (Right.Singleton b)] {
+            open := ProductSpace.generatedBasisOpen (Basis left Right.Discrete) _
+              (Rectangles.rectangleBasisMember left Right.Discrete _ _ (slices b W wo) (Right.discreteOpen (Right.Singleton b))),
+            contains := Logic.And[_, _]::# member (\refl(b)),
+            within := Pairs.induction (\fun (q: CarrierSet) => ProductSpace.Member
+              (Rectangle (Slices.Preimage (\fun (z: A) => f (Pair.pair A B z b)) W) (Right.Singleton b)) q -> ProductSpace.Member (Maps.Preimage f W) q)
+              (\fun (c: A)(d: B)(inside: Logic.And[\In[X] W (f (Pair.pair A B c b)), d = b]) => \idelim b = d
+                \with z: B => \In[X] W (f (Pair.pair A B c z)) \by { base: inside.left, equality: sym!{B} d b inside.right }),
+          })));

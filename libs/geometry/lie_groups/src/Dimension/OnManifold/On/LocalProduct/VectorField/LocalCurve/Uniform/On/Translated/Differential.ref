@@ -1,0 +1,29 @@
+\import Composition.At[a := x] \as Chain;
+\import CurveMaps.Differential[U := Interval.domain, V := domain, f := map, a := x] \as OutputD;
+\import CurveMaps.Differential[U := Interval.domain, V := chart.image, f := chartMap, a := x] \as CompositeD;
+\import CurveMaps.Differential[U := Interval.domain, V := Left.domain, f := Input.map, a := x] \as InputD;
+\import calculus.Maps[n := n, m := n].Differential[U := Left.domain, V := chart.image, f := Left.map, a := Input.value x] \as LeftD;
+\import \parent.\parent.\parent.\parent.\parent.Product[g := curve s, h := curve (time x), k := product s (time x), law := productLaw s (time x)] \as Invariance;
+\import calculus.Vector[n := One.dimension, m := n] \as CurveVectors;
+\import calculus.Vector[n := n, m := n] \as Endomorphisms;
+\definition originalPoint: TimeOpen.Carrier One.Interval[left := Reals.neg solution.radius, right := solution.radius].domain :=
+  TimeOpen.inclusion Interval.domain One.Interval[left := Reals.neg solution.radius, right := solution.radius].domain intervalIncluded x;
+\definition inputVelocity: InputD.value.apply CalculusCurve.unit = velocity (curve (time x)) :=
+  trans!{Vectors.Point} _ _ _
+    (congr!{CurveVectors.LinearMap Vectors.Point} (\fun (d: CurveVectors.LinearMap) => d.apply CalculusCurve.unit) _ _ (Input.differential x))
+    (trans!{Vectors.Point} _ _ _
+      (congr!{CurveVectors.LinearMap Vectors.Point} (\fun (d: CurveVectors.LinearMap) => d.apply CalculusCurve.unit) _ _
+        (CurveRestriction.differential intervalIncluded Curve.map x)) (Curve.velocityLaw originalPoint));
+\definition jacobian: OutputD.value.apply CalculusCurve.unit = velocity (product s (time x)) :=
+  trans!{Vectors.Point} _ _ _
+    (congr!{CurveVectors.LinearMap Vectors.Point} (\fun (d: CurveVectors.LinearMap) => d.apply CalculusCurve.unit) _ _ (Output.differential x))
+    (trans!{Vectors.Point} _ _ _
+      (congr!{CurveVectors.LinearMap Vectors.Point} (\fun (d: CurveVectors.LinearMap) => d.apply CalculusCurve.unit) _ _ Chain.jacobian)
+      (trans!{Vectors.Point} _ _ _ (congr!{Vectors.Point Vectors.Point} LeftD.value.apply _ _ inputVelocity) Invariance.equivariance));
+\definition derivative[i: std.Data[].FinSet[].Fin n]: calculus.Real[].Derivative[].Def[].HasDerivativeAt
+  (\fun (t: Reals.Real) => value t i) (x One.index) (velocity (product s (time x)) i) :=
+  \idelim OutputD.value.apply CalculusCurve.unit i = velocity (product s (time x)) i \with d: Reals.Real =>
+    calculus.Real[].Derivative[].Def[].HasDerivativeAt (\fun (t: Reals.Real) => value t i) (x One.index) d \by {
+      base: CalculusCurve.derivativeAt x i,
+      equality: congr!{Vectors.Point Reals.Real} (\fun (v: Vectors.Point) => v i) _ _ jacobian
+    };

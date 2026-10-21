@@ -1,0 +1,19 @@
+\import BaseOpen.Smooth[].Sums[] \as Sums;
+\import BaseOpen.Smooth[].Operations[] \as Operations;
+\definition value[t: BaseOpen.Carrier Base.domain]: Real.Real := (linear t).apply v k;
+\definition term[l: Fin.Fin r][t: BaseOpen.Carrier Base.domain]: Real.Real := Real.mul (v l) (coefficient k l t);
+\module At(t: BaseOpen.Carrier Base.domain) {
+  \definition row: Finite.Map r := Finite.Data[r] {
+    apply := \fun (w: Vectors.Vector) => (linear t).apply w k,
+    additive := \fun (u, w: Vectors.Vector) => congr!{{Vectors.Vector} {Real.Real}} (\fun (x: Vectors.Vector) => x k) _ _ ((linear t).preservesAdd u w),
+    homogeneous := \fun (c: Real.Real)(w: Vectors.Vector) => congr!{{Vectors.Vector} {Real.Real}} (\fun (x: Vectors.Vector) => x k) _ _ ((linear t).preservesScale c w),
+  };
+  \definition expansion: value t = Sums.sum Base.domain r term t := Finite.expansion r row v;
+}
+\definition equality: Sums.sum Base.domain r term = value := \axiom:funext((Sums.sum Base.domain r term), value,
+  \fun (t: BaseOpen.Carrier Base.domain) => sym!{{Real.Real}} _ _ (At[t := t].expansion));
+\definition smooth: Smooth.SmoothOn Base.domain value := \idelim Sums.sum Base.domain r term = value
+  \with f: BaseOpen.ScalarFunction Base.domain => Smooth.SmoothOn Base.domain f \by {
+    base: Sums.smooth Base.domain r term (\fun (l: Fin.Fin r) => Operations.scaleSmooth Base.domain (v l) (coefficient k l) (regular k l)),
+    equality: equality
+  };

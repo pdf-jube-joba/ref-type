@@ -1,0 +1,83 @@
+\import \parent.Topology[] \as Top;
+\import \root.PathAction[E := E, B := B, base := base, projection := projection].Local[action := action, U := U, good := good] \as Local;
+\import \root.PathAction[E := E, B := B, base := base, projection := projection].Realization[action := action] \as Realization;
+\import \root.Projection[E := E, B := B, total := Top.topology basis, base := base, projection := projection] \as Cover;
+\import Cover.Around[b := x, U := U] \as Chart;
+\import Base.Subspace[S := U] \as Under;
+\import topology.Continuity[A := E, B := B] \as Projection;
+\import Total.Subspace[S := Projection.Preimage projection U] \as Over;
+\import topology.Topology[Carrier := Over.CarrierSet] \as OverSpace;
+\import topology.Topology[Carrier := Fiber x] \as FiberSpace;
+\import topological_constructions.Product[A := Under.CarrierSet, B := Fiber x] \as Product;
+\import topology.Homeomorphism[A := Over.CarrierSet, B := Product.CarrierSet] \as Homeomorphism;
+\import std.Data[].Pair[] \as Pair;
+\import Pair.Prop[A := Under.CarrierSet, B := Fiber x] \as Pairs;
+\definition basepoint[f: Over.CarrierSet]: Under.CarrierSet := \into[B](projection f, U) \by { \bysub(E, Projection.Preimage projection U, f) };
+\definition index[f: Over.CarrierSet]: Fiber x := Local.move (projection f) x (\bysub(E, Projection.Preimage projection U, f)) inX (point f);
+\definition forward[f: Over.CarrierSet]: Product.CarrierSet := Pair.pair Under.CarrierSet (Fiber x) (basepoint f) (index f);
+\definition backward[q: Product.CarrierSet]: Over.CarrierSet := \block {
+  \let y: Under.CarrierSet := Pair.first Under.CarrierSet (Fiber x) q \then
+  \let e: Fiber x := Pair.second Under.CarrierSet (Fiber x) q \then
+  \let f: Fiber y := Local.move x y inX (\bysub(B, U, y)) e \then
+  \return \into[E](f, Projection.Preimage projection U) \by { \idelim y = projection f \with z: B => Base.Member U z
+    \by { base: \bysub(B, U, y), equality: sym!{B} _ _ (projectsTo y f) } }
+};
+\definition data: Homeomorphism.Data := Homeomorphism.Data { forward := forward, backward := backward };
+\definition leftInverse: \forall (f: Over.CarrierSet) -> backward (forward f) = f :=
+  \fun (f: Over.CarrierSet) => Local.inverse (projection f) x (\bysub(E, Projection.Preimage projection U, f)) inX (point f);
+\definition rightInverse: \forall (q: Product.CarrierSet) -> forward (backward q) = q :=
+  Pairs.induction (\fun (q: Product.CarrierSet) => forward (backward q) = q) (\block {
+    \fun (y: Under.CarrierSet)(e: Fiber x) \then
+    \let f: Fiber y := Local.move x y inX (\bysub(B, U, y)) e \then
+    \return Pairs.ext _ _ (projectsTo y f)
+      (trans!{E} _ _ _
+        (Local.changeSource (projection f) y x
+          (\bysub(E, Projection.Preimage projection U, backward (Pair.pair Under.CarrierSet (Fiber x) y e)))
+          (\bysub(B, U, y)) inX (point f) f (projectsTo y f) (\refl(f)))
+        (Local.inverse x y inX (\bysub(B, U, y)) e))
+  });
+\definition indexSame: \forall (f, h: Over.CarrierSet) -> Total.Member (Sheet U (projection f) (point f)) h -> index f = index h :=
+  \fun (f, h: Over.CarrierSet)(member: _) => reachElim U (projection f) (projection h) (point f) h (index f = index h)
+    (\fun (p: _)(same: _) => trans!{E} _ _ _
+      (Local.compose (projection f) (projection h) x
+        (\bysub(E, Projection.Preimage projection U, f)) (\bysub(E, Projection.Preimage projection U, h)) inX (point f))
+      (congr!{{Fiber (projection h)} E}
+        (Local.move (projection h) x (\bysub(E, Projection.Preimage projection U, h)) inX)
+        (Local.move (projection f) (projection h) (\bysub(E, Projection.Preimage projection U, f)) (\bysub(E, Projection.Preimage projection U, h)) (point f)) (point h)
+        (trans!{E} _ _ _ (Local.onPath (projection f) (projection h)
+          (\bysub(E, Projection.Preimage projection U, f)) (\bysub(E, Projection.Preimage projection U, h)) (point f) p) same))) member;
+\import topology.Continuity[A := Over.CarrierSet, B := Fiber x] \as IndexMaps;
+\definition indexContinuous: IndexMaps.Continuous (Over.topology (Top.topology basis)) FiberSpace.Discrete index :=
+  \fun (S: \Pow (Fiber x))(_: _) => OverSpace.openOfNeighborhoods (Over.topology (Top.topology basis)) (IndexMaps.Preimage index S)
+    (\fun (f: Over.CarrierSet)(member: _) => Logic.existsIntro[\Pow Over.CarrierSet,
+      { W: \Pow Over.CarrierSet \where OverSpace.OpenNeighborhood[Over.topology (Top.topology basis), f, IndexMaps.Preimage index S, W] }]
+      (Over.Trace (Sheet U (projection f) (point f)))
+      (OverSpace.OpenNeighborhood[Over.topology (Top.topology basis), f, IndexMaps.Preimage index S, Over.Trace (Sheet U (projection f) (point f))] {
+        open := Over.traceOpen (Top.topology basis) (Sheet U (projection f) (point f)) (Top.sheetOpen basis U good (projection f) (point f)),
+        contains := sheetContains U (projection f) (\bysub(E, Projection.Preimage projection U, f)) (point f),
+        within := \fun (h: Over.CarrierSet)(inside: _) => \idelim index f = index h \with s: Fiber x => \In[Fiber x] S s
+          \by { base: member, equality: indexSame f h inside },
+      }));
+\import Projection.Restriction[S := Projection.Preimage projection U] \as Restriction;
+\import topology.Continuity[A := Over.CarrierSet, B := B].Corestriction[S := U] \as Corestriction;
+\import Product.Universal[X := Over.CarrierSet] \as IntoProduct;
+\import Product.Discrete[X := E] \as Slices;
+\import topology.Continuity[A := Product.CarrierSet, B := E].Corestriction[S := Projection.Preimage projection U] \as IntoOver;
+\definition forwardContinuous: topology.Continuity[A := Over.CarrierSet, B := Product.CarrierSet].Continuous
+  (Over.topology (Top.topology basis)) Chart.productTopology forward :=
+  IntoProduct.pairContinuous (Over.topology (Top.topology basis)) (Under.topology base) FiberSpace.Discrete basepoint index
+    (Corestriction.corestrictContinuous (Over.topology (Top.topology basis)) base basepoint
+      (Restriction.restrictContinuous (Top.topology basis) base projection (Top.projectionContinuous basis))) indexContinuous;
+\definition backwardContinuous: topology.Continuity[A := Product.CarrierSet, B := Over.CarrierSet].Continuous
+  Chart.productTopology (Over.topology (Top.topology basis)) backward :=
+  IntoOver.corestrictContinuous Chart.productTopology (Top.topology basis) backward
+    (Slices.continuousOfSlices (Under.topology base) (Top.topology basis) (\fun (q: Product.CarrierSet) => backward q)
+      (\fun (e: Fiber x) => Realization.Sections[U := U, good := good, x := x, inX := inX, e := e].continuous basis));
+\definition chart: Chart.Chart := \into[Homeomorphism.Data](data, Chart.Chart) \by {
+  Chart.ChartLaws[data] {
+    homeomorphism := Homeomorphism.Laws[Over.topology (Top.topology basis), Chart.productTopology, data] {
+      leftInverse := leftInverse, rightInverse := rightInverse, forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
+    },
+    overBase := \fun (f: Over.CarrierSet) => \refl(projection f),
+  }
+};

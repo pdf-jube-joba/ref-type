@@ -1,0 +1,14 @@
+\import \parent.Of[f := f] \as Left;
+\import \parent.Of[f := g] \as Right;
+\module Coordinate(i: Index);
+\import Scalars.Division[].Prefix[] \as Prefix;
+\definition primitiveBound[t, bound: Real]: R.Le Scalars.zero bound ->
+  (\forall (s: Real) -> R.Le a s -> R.Le s b -> R.Le (Norm.metric.distance (f s) (g s)) bound) ->
+  R.Le (Norm.metric.distance (Left.primitive t) (Right.primitive t)) (Scalars.mul (Prefix.weight t a b) bound) :=
+  \fun (nonnegative: _)(pointwise: _) => Norm.finiteUpper n (Coordinates.subPoint (Left.primitive t) (Right.primitive t))
+    (Scalars.mul (Prefix.weight t a b) bound) (Laws.fieldMulNonnegative (Prefix.weight t a b) bound (Prefix.weightNonnegative t a b interval.ordered) nonnegative)
+    (\fun (i: Index) => R.leReplaceLeft (Scalars.distance (Left.primitive t i) (Right.primitive t i))
+      (Scalars.distance (Scalars.sub (Left.primitive t i) (Right.primitive t i)) Scalars.zero) (Scalars.mul (Prefix.weight t a b) bound)
+      (sym!{Real} _ _ (Estimates.distanceDifference (Left.primitive t i) (Right.primitive t i)))
+      (Coordinate[i := i].primitiveBound t bound (\fun (s: Real)(as: _)(sb: _) => R.leTrans _ _ _
+        (Norm.coordinateDistance (f s) (g s) i) (pointwise s as sb))));

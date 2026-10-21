@@ -1,0 +1,65 @@
+\import \parent.Def[] \as Derivatives;
+\import \parent.Operations[] \as DerivativeOperations;
+\import \parent.\parent.Limit[].Def[] \as Limits;
+\import \parent.\parent.Limit[].Operations[] \as LimitOperations;
+\import real.Analysis[].Inverse[] \as Inverse;
+\import real.Analysis[].Algebra[] \as Algebra;
+\use Equality.congr2;
+\definition Nonzero[f: Real -> Real]: \Prop := \forall (x: Real) -> Logic.Not (f x = zero);
+\definition continuous: \forall (f: Real -> Real) -> Nonzero f -> \forall (a: Real) -> Limits.ContinuousAt f a ->
+  Limits.ContinuousAt (\fun (x: Real) => inv (f x)) a := \block {
+  \fun (f: _)(nonzero: _)(a: _)(continuousF: _)(epsilon: Real)(ep: _) \then
+  \takefrom rho: \Cast[Real] ({ r: Real \where Inverse.ContinuityRadius[f a, epsilon, r] }) \by Inverse.continuity (f a) epsilon (nonzero a) ep \then
+  \let inverseControl: Inverse.ContinuityRadius[f a, epsilon, rho] := \bysub(Real, { r: Real \where Inverse.ContinuityRadius[f a, epsilon, r] }, rho) \then
+  \let rp: R.Lt zero rho := inverseControl.positive \then
+  \takefrom delta: \Cast[Real] ({ d: Real \where Limits.Control[f, a, f a, rho, d] }) \by continuousF rho rp \then
+  \let control: Limits.Control[f, a, f a, rho, delta] := \bysub(Real, { d: Real \where Limits.Control[f, a, f a, rho, d] }, delta) \then
+  \return Logic.existsIntro[Real, { d: Real \where Limits.Control[(\fun (x: Real) => inv (f x)), a, inv (f a), epsilon, d] }] delta
+    (Limits.Control[(\fun (x: Real) => inv (f x)), a, inv (f a), epsilon, delta] {
+      positive := control.positive,
+      estimate := \fun (x: Real)(different: _)(near: _) => R.ltReplaceLeft (distance (inv (f a)) (inv (f x))) (distance (inv (f x)) (inv (f a))) epsilon
+        (Metric.distanceSymmetric (inv (f a)) (inv (f x)))
+        (inverseControl.estimate (f x) (nonzero x)
+          (R.ltReplaceLeft (distance (f x) (f a)) (distance (f a) (f x)) rho (Metric.distanceSymmetric (f x) (f a))
+            (control.estimate x different near))),
+    })
+};
+\definition factor[f: Real -> Real][a, x: Real]: Real := Arithmetic.neg (mul (inv (f x)) (inv (f a)));
+\definition slope: \forall (f: Real -> Real) -> Nonzero f -> \forall (a, x: Real) ->
+  Derivatives.slope (\fun (y: Real) => inv (f y)) a x = mul (factor f a x) (Derivatives.slope f a x) := \block {
+  \fun (f: _)(nonzero: _)(a, x: _) \then
+  \let c: Real := mul (inv (f x)) (inv (f a)) \then
+  \let reversed: sub (f a) (f x) = Arithmetic.neg (sub (f x) (f a)) := sym!{Real} _ _ (Algebra.negSub (f x) (f a)) \then
+  \let difference: sub (inv (f x)) (inv (f a)) = mul (Arithmetic.neg c) (sub (f x) (f a)) := eq_reason!{
+    {sub (inv (f x)) (inv (f a))}
+    "=" {mul c (sub (f a) (f x))} "by" {Inverse.difference (f x) (f a)
+      (nonzero x) (nonzero a)}
+    "=" {mul c (Arithmetic.neg (sub (f x) (f a)))} "by" {congr!{Real Real} (mul c) _ _ reversed}
+    "=" {Arithmetic.neg (mul c (sub (f x) (f a)))} "by" {Laws.fieldMulNegRight c (sub (f x) (f a))}
+    "=" {mul (Arithmetic.neg c) (sub (f x) (f a))} "by" {sym!{Real} _ _ (Laws.fieldMulNegLeft c (sub (f x) (f a)))}
+  } \then
+  \return trans!{Real} _ _ _ (congr!{Real Real} (\fun (z: Real) => mul z (inv (sub x a))) _ _ difference)
+    (Laws.fieldMulAssoc (factor f a x) (sub (f x) (f a)) (inv (sub x a)))
+};
+\definition derivative: \forall (f: Real -> Real) -> Nonzero f -> \forall (a, d: Real) -> Derivatives.HasDerivativeAt f a d ->
+  Derivatives.HasDerivativeAt (\fun (x: Real) => inv (f x)) a (mul (factor f a a) d) := \block {
+  \fun (f: _)(nonzero: _)(a, d: _)(derivativeF: _) \then
+  \let inverseLimit: Limits.ContinuousAt (\fun (x: Real) => inv (f x)) a := continuous f nonzero a
+    (DerivativeOperations.continuousOfDerivative f a d derivativeF) \then
+  \let productLimit: Limits.HasLimitAt (\fun (x: Real) => mul (inv (f x)) (inv (f a))) a (mul (inv (f a)) (inv (f a))) :=
+    LimitOperations.mulLimit (\fun (x: Real) => inv (f x)) (constant (inv (f a))) a (inv (f a)) (inv (f a)) inverseLimit
+      (LimitLaws.constantLimit (inv (f a)) a) \then
+  \let factorLimit: Limits.HasLimitAt (factor f a) a (factor f a a) := \idelim
+    mul (Arithmetic.neg one) (mul (inv (f a)) (inv (f a))) = factor f a a \with l: Real => Limits.HasLimitAt (factor f a) a l \by {
+      base: LimitLaws.congruentLimit
+        (\fun (x: Real) => mul (Arithmetic.neg one) (mul (inv (f x)) (inv (f a)))) (factor f a)
+        (\fun (x: Real) => DerivativeOperations.negativeScale (mul (inv (f x)) (inv (f a)))) a
+        (mul (Arithmetic.neg one) (mul (inv (f a)) (inv (f a))))
+        (LimitOperations.mulLimit (constant (Arithmetic.neg one)) (\fun (x: Real) => mul (inv (f x)) (inv (f a))) a
+          (Arithmetic.neg one) (mul (inv (f a)) (inv (f a))) (LimitLaws.constantLimit (Arithmetic.neg one) a) productLimit),
+      equality: DerivativeOperations.negativeScale (mul (inv (f a)) (inv (f a)))
+    } \then
+  \return LimitLaws.congruentLimit (\fun (x: Real) => mul (factor f a x) (Derivatives.slope f a x))
+    (Derivatives.slope (\fun (x: Real) => inv (f x)) a) (\fun (x: Real) => sym!{Real} _ _ (slope f nonzero a x)) a (mul (factor f a a) d)
+    (LimitOperations.mulLimit (factor f a) (Derivatives.slope f a) a (factor f a a) d factorLimit derivativeF)
+};

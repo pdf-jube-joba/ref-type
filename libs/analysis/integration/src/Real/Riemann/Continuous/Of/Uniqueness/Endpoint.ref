@@ -1,0 +1,27 @@
+\import calculus.Real[].MeanValue[].Interval[a := a, b := t] \as MeanValue;
+\import Relative.Restriction[U := Line.ClosedInterval a t] \as Restriction;
+\definition constant: IsContinuous g -> DerivativeLaw -> R.Lt a t -> R.Le t b -> difference t = difference a := \block {
+  \fun (continuous: _)(derivatives: DerivativeLaw)(at: _)(tb: _) \then
+  \let included: \forall (x: Real) -> \In[Real] (Line.ClosedInterval a t) x -> \In[Real] (Line.ClosedInterval a b) x :=
+    \fun (x: Real)(bounds: Logic.And[R.Le a x, R.Le x t]) => Logic.And[_, _]::# bounds.left (R.leTrans x t b bounds.right tb) \then
+  \takefrom c: \Cast[Real] ({ c: Real \where MeanValue.MeanValueResult[difference, c] }) \by MeanValue.meanValue difference at
+    (Restriction.continuous included difference (differenceContinuous continuous))
+    (\fun (c: Real)(inside: MeanValue.Interior c) => Logic.existsIntro[Real, { d: Real \where Derivatives.HasDerivativeAt difference c d }] zero
+      (derivativeZero derivatives c inside.left (R.ltLeTrans c t b inside.right tb))) \then
+  \let witness: MeanValue.MeanValueResult[difference, c] := \bysub(Real, { c: Real \where MeanValue.MeanValueResult[difference, c] }, c) \then
+  \let slopeZero: MeanValue.secant difference = zero := Operations.unique difference c (MeanValue.secant difference) zero witness.derivative
+    (derivativeZero derivatives c witness.interior.left (R.ltLeTrans c t b witness.interior.right tb)) \then
+  \return Metric.subZeroEq (difference t) (difference a) (eq_reason!{
+    {sub (difference t) (difference a)} "=" {mul (MeanValue.secant difference) (sub t a)} "by" {
+      sym!{Real} _ _ (Operations.slopeIncrement difference a t (\fun (same: t = a) => Order.ltNotEq a t at (sym!{Real} _ _ same)))}
+    "=" {mul zero (sub t a)} "by" {congr!{Real Real} (\fun (x: Real) => mul x (sub t a)) _ _ slopeZero}
+    "=" zero "by" {Laws.fieldMulZeroLeft (sub t a)}
+  })
+};
+\definition agrees: IsContinuous g -> DerivativeLaw -> R.Lt a t -> R.Le t b -> g t = add (g a) (primitive t) :=
+  \fun (continuous: _)(derivatives: _)(at: _)(tb: _) => eq_reason!{
+    {g t} "=" {add (difference t) (primitive t)} "by" {sym!{Real} _ _ (Metric.subAddCancel (g t) (primitive t))}
+    "=" {add (difference a) (primitive t)} "by" {congr!{Real Real} (\fun (x: Real) => add x (primitive t)) _ _ (constant continuous derivatives at tb)}
+    "=" {add (g a) (primitive t)} "by" {congr!{Real Real} (\fun (x: Real) => add x (primitive t)) _ _
+      (trans!{Real} _ _ _ (congr!{Real Real} (sub (g a)) _ _ primitiveLeft) (Laws.subZeroRight (g a)))}
+  };

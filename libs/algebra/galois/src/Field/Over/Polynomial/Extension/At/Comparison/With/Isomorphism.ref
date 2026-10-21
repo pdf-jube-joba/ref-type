@@ -1,0 +1,190 @@
+\import \parent.Fractions[] \as Relation;
+\import Target.Subfield[] \as SourceFields;
+\import Output.Subfield[] \as RangeFields;
+\definition SourceSeed[z: L]: \Prop := Logic.Or[\exists ( a: K \where embedding.apply a = z ), z = x];
+\definition RangeSeed[w: M]: \Prop := Logic.Or[\exists ( a: K \where otherEmbedding.apply a = w ), w = y];
+\definition sourceField: SourceFields.Subfield := SourceFields.generated SourceSeed;
+\definition rangeField: RangeFields.Subfield := RangeFields.generated RangeSeed;
+\import SourceFields.Of[S := sourceField] \as Source;
+\import RangeFields.Of[S := rangeField] \as Range;
+\definition sourceConstant[a: K]: Source.Carrier := \into[L](embedding.apply a, sourceField) \by {
+  SourceFields.contains SourceSeed (embedding.apply a)
+    (Logic.Or[_, _]::left (Logic.existsIntro[K, { k: K \where embedding.apply k = embedding.apply a }] a (\refl(embedding.apply a))))
+};
+\definition rangeConstant[a: K]: Range.Carrier := \into[M](otherEmbedding.apply a, rangeField) \by {
+  RangeFields.contains RangeSeed (otherEmbedding.apply a)
+    (Logic.Or[_, _]::left (Logic.existsIntro[K, { k: K \where otherEmbedding.apply k = otherEmbedding.apply a }] a (\refl(otherEmbedding.apply a))))
+};
+\definition sourceVariable: Source.Carrier := \into[L](x, sourceField) \by { SourceFields.contains SourceSeed x (Logic.Or[_, _]::right (\refl(x))) };
+\definition rangeVariable: Range.Carrier := \into[M](y, rangeField) \by { RangeFields.contains RangeSeed y (Logic.Or[_, _]::right (\refl(y))) };
+\definition SourceValue[z: L]: \Set := \Cast[M] ({ w: M \where Logic.And[RangeFields.Member rangeField w, Relation.Related z w] });
+\definition RangeValue[w: M]: \Set := \Cast[L] ({ z: L \where Logic.And[SourceFields.Member sourceField z, Relation.Related z w] });
+\definition Domain[z: L]: \Prop := \exists SourceValue z;
+\definition Image[w: M]: \Prop := \exists RangeValue w;
+\definition domainClosed: EquivalentKernels -> SourceFields.Closed[Domain] :=
+  \fun (kernels: EquivalentKernels) => SourceFields.Closed[Domain] {
+    zero := Logic.existsIntro[M, { w: M \where Logic.And[RangeFields.Member rangeField w, Relation.Related Target.zero w] }] Output.zero
+      (Logic.And[_, _]::# (RangeFields.laws rangeField).zero Relation.zeroRelated),
+    one := Logic.existsIntro[M, { w: M \where Logic.And[RangeFields.Member rangeField w, Relation.Related Target.one w] }] Output.one
+      (Logic.And[_, _]::# (RangeFields.laws rangeField).one Relation.oneRelated),
+    add := \block {
+      \fun (z, v: L)(hz: _)(hv: _) \then
+      \takefrom w: SourceValue z \by hz \then
+      \takefrom t: SourceValue v \by hv \then
+      \let left: Logic.And[RangeFields.Member rangeField w, Relation.Related z w] := \bysub(M, { w: M \where Logic.And[RangeFields.Member rangeField w, Relation.Related z w] }, w) \then
+      \let right: Logic.And[RangeFields.Member rangeField t, Relation.Related v t] := \bysub(M, { t: M \where Logic.And[RangeFields.Member rangeField t, Relation.Related v t] }, t) \then
+      \return Logic.existsIntro[M, { u: M \where Logic.And[RangeFields.Member rangeField u, Relation.Related (Target.add z v) u] }] (Output.add w t)
+        (Logic.And[_, _]::# ((RangeFields.laws rangeField).add w t left.left right.left) (Relation.addRelated z v w t left.right right.right))
+    },
+    neg := \block {
+      \fun (z: L)(hz: _) \then
+      \takefrom w: SourceValue z \by hz \then
+      \let law: Logic.And[RangeFields.Member rangeField w, Relation.Related z w] := \bysub(M, { w: M \where Logic.And[RangeFields.Member rangeField w, Relation.Related z w] }, w) \then
+      \return Logic.existsIntro[M, { u: M \where Logic.And[RangeFields.Member rangeField u, Relation.Related (Target.neg z) u] }] (Output.neg w)
+        (Logic.And[_, _]::# ((RangeFields.laws rangeField).neg w law.left) (Relation.negRelated z w law.right))
+    },
+    mul := \block {
+      \fun (z, v: L)(hz: _)(hv: _) \then
+      \takefrom w: SourceValue z \by hz \then
+      \takefrom t: SourceValue v \by hv \then
+      \let left: Logic.And[RangeFields.Member rangeField w, Relation.Related z w] := \bysub(M, { w: M \where Logic.And[RangeFields.Member rangeField w, Relation.Related z w] }, w) \then
+      \let right: Logic.And[RangeFields.Member rangeField t, Relation.Related v t] := \bysub(M, { t: M \where Logic.And[RangeFields.Member rangeField t, Relation.Related v t] }, t) \then
+      \return Logic.existsIntro[M, { u: M \where Logic.And[RangeFields.Member rangeField u, Relation.Related (Target.mul z v) u] }] (Output.mul w t)
+        (Logic.And[_, _]::# ((RangeFields.laws rangeField).mul w t left.left right.left) (Relation.mulRelated z v w t left.right right.right))
+    },
+    inv := \block {
+      \fun (z: L)(hz: _) \then
+      \takefrom w: SourceValue z \by hz \then
+      \let law: Logic.And[RangeFields.Member rangeField w, Relation.Related z w] := \bysub(M, { w: M \where Logic.And[RangeFields.Member rangeField w, Relation.Related z w] }, w) \then
+      \return Logic.existsIntro[M, { u: M \where Logic.And[RangeFields.Member rangeField u, Relation.Related (Target.inv z) u] }] (Output.inv w)
+        (Logic.And[_, _]::# ((RangeFields.laws rangeField).inv w law.left) (Relation.invRelated kernels z w law.right))
+    },
+  };
+\definition imageClosed: EquivalentKernels -> RangeFields.Closed[Image] :=
+  \fun (kernels: EquivalentKernels) => RangeFields.Closed[Image] {
+    zero := Logic.existsIntro[L, { z: L \where Logic.And[SourceFields.Member sourceField z, Relation.Related z Output.zero] }] Target.zero
+      (Logic.And[_, _]::# (SourceFields.laws sourceField).zero Relation.zeroRelated),
+    one := Logic.existsIntro[L, { z: L \where Logic.And[SourceFields.Member sourceField z, Relation.Related z Output.one] }] Target.one
+      (Logic.And[_, _]::# (SourceFields.laws sourceField).one Relation.oneRelated),
+    add := \block {
+      \fun (w, t: M)(hw: _)(ht: _) \then
+      \takefrom z: RangeValue w \by hw \then
+      \takefrom v: RangeValue t \by ht \then
+      \let left: Logic.And[SourceFields.Member sourceField z, Relation.Related z w] := \bysub(L, { z: L \where Logic.And[SourceFields.Member sourceField z, Relation.Related z w] }, z) \then
+      \let right: Logic.And[SourceFields.Member sourceField v, Relation.Related v t] := \bysub(L, { v: L \where Logic.And[SourceFields.Member sourceField v, Relation.Related v t] }, v) \then
+      \return Logic.existsIntro[L, { u: L \where Logic.And[SourceFields.Member sourceField u, Relation.Related u (Output.add w t)] }] (Target.add z v)
+        (Logic.And[_, _]::# ((SourceFields.laws sourceField).add z v left.left right.left) (Relation.addRelated z v w t left.right right.right))
+    },
+    neg := \block {
+      \fun (w: M)(hw: _) \then
+      \takefrom z: RangeValue w \by hw \then
+      \let law: Logic.And[SourceFields.Member sourceField z, Relation.Related z w] := \bysub(L, { z: L \where Logic.And[SourceFields.Member sourceField z, Relation.Related z w] }, z) \then
+      \return Logic.existsIntro[L, { u: L \where Logic.And[SourceFields.Member sourceField u, Relation.Related u (Output.neg w)] }] (Target.neg z)
+        (Logic.And[_, _]::# ((SourceFields.laws sourceField).neg z law.left) (Relation.negRelated z w law.right))
+    },
+    mul := \block {
+      \fun (w, t: M)(hw: _)(ht: _) \then
+      \takefrom z: RangeValue w \by hw \then
+      \takefrom v: RangeValue t \by ht \then
+      \let left: Logic.And[SourceFields.Member sourceField z, Relation.Related z w] := \bysub(L, { z: L \where Logic.And[SourceFields.Member sourceField z, Relation.Related z w] }, z) \then
+      \let right: Logic.And[SourceFields.Member sourceField v, Relation.Related v t] := \bysub(L, { v: L \where Logic.And[SourceFields.Member sourceField v, Relation.Related v t] }, v) \then
+      \return Logic.existsIntro[L, { u: L \where Logic.And[SourceFields.Member sourceField u, Relation.Related u (Output.mul w t)] }] (Target.mul z v)
+        (Logic.And[_, _]::# ((SourceFields.laws sourceField).mul z v left.left right.left) (Relation.mulRelated z v w t left.right right.right))
+    },
+    inv := \block {
+      \fun (w: M)(hw: _) \then
+      \takefrom z: RangeValue w \by hw \then
+      \let law: Logic.And[SourceFields.Member sourceField z, Relation.Related z w] := \bysub(L, { z: L \where Logic.And[SourceFields.Member sourceField z, Relation.Related z w] }, z) \then
+      \return Logic.existsIntro[L, { u: L \where Logic.And[SourceFields.Member sourceField u, Relation.Related u (Output.inv w)] }] (Target.inv z)
+        (Logic.And[_, _]::# ((SourceFields.laws sourceField).inv z law.left) (Relation.invRelated kernels z w law.right))
+    },
+  };
+\definition seedDomain: SourceFields.Included SourceSeed Domain :=
+  \fun (z: L)(seed: SourceSeed z) => Logic.orElim _ _ _ seed
+    (\block {
+      \fun (constant: _) \then
+      \takefrom a: \Cast[K] ({ a: K \where embedding.apply a = z }) \by constant \then
+      \return \idelim embedding.apply a = z \with t: L => Domain t \by {
+        base: Logic.existsIntro[M, { w: M \where Logic.And[RangeFields.Member rangeField w, Relation.Related (embedding.apply a) w] }] (otherEmbedding.apply a)
+          (Logic.And[_, _]::# (Range.member (rangeConstant a)) (Relation.constantRelated a)),
+        equality: \bysub(K, { a: K \where embedding.apply a = z }, a)
+      }
+    })
+    (\fun (same: z = x) => \idelim x = z \with t: L => Domain t \by {
+      base: Logic.existsIntro[M, { w: M \where Logic.And[RangeFields.Member rangeField w, Relation.Related x w] }] y
+        (Logic.And[_, _]::# (Range.member rangeVariable) Relation.variableRelated),
+      equality: sym!{L} _ _ same
+    });
+\definition seedImage: RangeFields.Included RangeSeed Image :=
+  \fun (w: M)(seed: RangeSeed w) => Logic.orElim _ _ _ seed
+    (\block {
+      \fun (constant: _) \then
+      \takefrom a: \Cast[K] ({ a: K \where otherEmbedding.apply a = w }) \by constant \then
+      \return \idelim otherEmbedding.apply a = w \with t: M => Image t \by {
+        base: Logic.existsIntro[L, { z: L \where Logic.And[SourceFields.Member sourceField z, Relation.Related z (otherEmbedding.apply a)] }] (embedding.apply a)
+          (Logic.And[_, _]::# (Source.member (sourceConstant a)) (Relation.constantRelated a)),
+        equality: \bysub(K, { a: K \where otherEmbedding.apply a = w }, a)
+      }
+    })
+    (\fun (same: w = y) => \idelim y = w \with t: M => Image t \by {
+      base: Logic.existsIntro[L, { z: L \where Logic.And[SourceFields.Member sourceField z, Relation.Related z y] }] x
+        (Logic.And[_, _]::# (Source.member sourceVariable) Relation.variableRelated),
+      equality: sym!{M} _ _ same
+    });
+\definition sourceTotal: EquivalentKernels -> \forall (z: Source.Carrier) -> Domain z :=
+  \fun (kernels: EquivalentKernels)(z: Source.Carrier) => (Source.member z) Domain (domainClosed kernels) seedDomain;
+\definition rangeTotal: EquivalentKernels -> \forall (w: Range.Carrier) -> Image w :=
+  \fun (kernels: EquivalentKernels)(w: Range.Carrier) => (Range.member w) Image (imageClosed kernels) seedImage;
+\structure Map: \Set := {
+  forward: Source.Carrier -> Range.Carrier,
+  backward: Range.Carrier -> Source.Carrier,
+  relatedForward: \forall (z: Source.Carrier) -> Relation.Related z (forward z),
+  relatedBackward: \forall (w: Range.Carrier) -> Relation.Related (backward w) w,
+};
+\definition existsMap: EquivalentKernels -> \exists Map := \block {
+  \fun (kernels: EquivalentKernels) \then
+  \takefrom forward: (\forall (z: Source.Carrier) -> SourceValue z) \by
+    \axiom:classicalIndefiniteChoice(Source.Carrier, (\fun (z: Source.Carrier) => SourceValue z), sourceTotal kernels) \then
+  \takefrom backward: (\forall (w: Range.Carrier) -> RangeValue w) \by
+    \axiom:classicalIndefiniteChoice(Range.Carrier, (\fun (w: Range.Carrier) => RangeValue w), rangeTotal kernels) \then
+  \return \exact(Map {
+    forward := \fun (z: Source.Carrier) => \into[M](forward z, rangeField) \by {
+      (\bysub(M, { w: M \where Logic.And[RangeFields.Member rangeField w, Relation.Related z w] }, forward z)).left
+    },
+    backward := \fun (w: Range.Carrier) => \into[L](backward w, sourceField) \by {
+      (\bysub(L, { z: L \where Logic.And[SourceFields.Member sourceField z, Relation.Related z w] }, backward w)).left
+    },
+    relatedForward := \fun (z: Source.Carrier) => (\bysub(M, { w: M \where Logic.And[RangeFields.Member rangeField w, Relation.Related z w] }, forward z)).right,
+    relatedBackward := \fun (w: Range.Carrier) => (\bysub(L, { z: L \where Logic.And[SourceFields.Member sourceField z, Relation.Related z w] }, backward w)).right,
+  }, Map)
+};
+\definition leftInverse: EquivalentKernels -> \forall (map: Map)(z: Source.Carrier) -> map.backward (map.forward z) = z :=
+  \fun (kernels: EquivalentKernels)(map: Map)(z: Source.Carrier) =>
+    Relation.sourceUnique kernels (map.backward (map.forward z)) z (map.forward z) (map.relatedBackward (map.forward z)) (map.relatedForward z);
+\definition rightInverse: EquivalentKernels -> \forall (map: Map)(w: Range.Carrier) -> map.forward (map.backward w) = w :=
+  \fun (kernels: EquivalentKernels)(map: Map)(w: Range.Carrier) =>
+    Relation.targetUnique kernels (map.backward w) (map.forward (map.backward w)) w (map.relatedForward (map.backward w)) (map.relatedBackward w);
+\definition preservesZero: EquivalentKernels -> \forall (map: Map) -> map.forward Source.subZero = Range.subZero :=
+  \fun (kernels: EquivalentKernels)(map: Map) =>
+    Relation.targetUnique kernels Target.zero (map.forward Source.subZero) Output.zero (map.relatedForward Source.subZero) Relation.zeroRelated;
+\definition preservesOne: EquivalentKernels -> \forall (map: Map) -> map.forward Source.subOne = Range.subOne :=
+  \fun (kernels: EquivalentKernels)(map: Map) =>
+    Relation.targetUnique kernels Target.one (map.forward Source.subOne) Output.one (map.relatedForward Source.subOne) Relation.oneRelated;
+\definition preservesAdd: EquivalentKernels -> \forall (map: Map)(z, v: Source.Carrier) -> map.forward (Source.subAdd z v) = Range.subAdd (map.forward z) (map.forward v) :=
+  \fun (kernels: EquivalentKernels)(map: Map)(z, v: Source.Carrier) => Relation.targetUnique kernels (Target.add z v) _ _
+    (map.relatedForward (Source.subAdd z v)) (Relation.addRelated z v (map.forward z) (map.forward v) (map.relatedForward z) (map.relatedForward v));
+\definition preservesNeg: EquivalentKernels -> \forall (map: Map)(z: Source.Carrier) -> map.forward (Source.subNeg z) = Range.subNeg (map.forward z) :=
+  \fun (kernels: EquivalentKernels)(map: Map)(z: Source.Carrier) => Relation.targetUnique kernels (Target.neg z) _ _
+    (map.relatedForward (Source.subNeg z)) (Relation.negRelated z (map.forward z) (map.relatedForward z));
+\definition preservesMul: EquivalentKernels -> \forall (map: Map)(z, v: Source.Carrier) -> map.forward (Source.subMul z v) = Range.subMul (map.forward z) (map.forward v) :=
+  \fun (kernels: EquivalentKernels)(map: Map)(z, v: Source.Carrier) => Relation.targetUnique kernels (Target.mul z v) _ _
+    (map.relatedForward (Source.subMul z v)) (Relation.mulRelated z v (map.forward z) (map.forward v) (map.relatedForward z) (map.relatedForward v));
+\definition preservesInv: EquivalentKernels -> \forall (map: Map)(z: Source.Carrier) -> map.forward (Source.subInv z) = Range.subInv (map.forward z) :=
+  \fun (kernels: EquivalentKernels)(map: Map)(z: Source.Carrier) => Relation.targetUnique kernels (Target.inv z) _ _
+    (map.relatedForward (Source.subInv z)) (Relation.invRelated kernels z (map.forward z) (map.relatedForward z));
+\definition onConstants: EquivalentKernels -> \forall (map: Map)(a: K) -> map.forward (sourceConstant a) = rangeConstant a :=
+  \fun (kernels: EquivalentKernels)(map: Map)(a: K) => Relation.targetUnique kernels (embedding.apply a) _ _
+    (map.relatedForward (sourceConstant a)) (Relation.constantRelated a);
+\definition onVariable: EquivalentKernels -> \forall (map: Map) -> map.forward sourceVariable = rangeVariable :=
+  \fun (kernels: EquivalentKernels)(map: Map) => Relation.targetUnique kernels x _ _
+    (map.relatedForward sourceVariable) Relation.variableRelated;

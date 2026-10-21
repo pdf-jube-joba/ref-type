@@ -1,0 +1,61 @@
+\import \parent.Closure[enumeration := enumeration, index := index] \as Closure;
+\import \parent.Equation[] \as Equation;
+\import Equation.Symmetry[] \as Symmetry;
+\import \parent.Distinctness[] \as Distinctness;
+\import F.Polynomial[] \as Polynomials;
+\import Polynomials.Splitting[] \as Splitting;
+\import F.Generation[] \as Generation;
+\import F.Automorphism[] \as Automorphisms;
+\import Automorphisms.Permutations[] \as Actions;
+\import Automorphisms.RadicalAction[S := Subfields.Member Equation.coefficientField] \as RadicalAction;
+\import galois.Quintic[].Field[].Over[K := K, field := field, S := Subfields.Member Equation.coefficientField, roots := roots] \as Obstruction;
+\definition coefficientLift: Closure.Conditions -> \forall (p: Permutations.Permutation) -> Equation.Symmetric p -> \exists Obstruction.Lift[p] := \block {
+  \fun (conditions: Closure.Conditions)(p: Permutations.Permutation)(symmetric: Equation.Symmetric p) \then
+  \takefrom lift: Closure.Lift[p] \by Closure.liftExists conditions p \then
+  \return \exact(Obstruction.Lift[p] {
+    permutation := Actions.permutation lift.automorphism,
+    member := Actions.realizes (Subfields.Member Equation.coefficientField) lift.automorphism
+      (Equation.fixesField conditions.closed lift.automorphism p lift.constants lift.roots symmetric),
+    action := lift.roots,
+  }, Obstruction.Lift[p])
+};
+\definition threeLifts: Closure.Conditions -> \exists Obstruction.ThreeLifts := \block {
+  \fun (conditions: Closure.Conditions) \then
+  \takefrom cycle: Obstruction.Lift[Quintic.cycle] \by coefficientLift conditions Quintic.cycle Symmetry.cycle \then
+  \takefrom left: Obstruction.Lift[Quintic.leftConjugator] \by coefficientLift conditions Quintic.leftConjugator Symmetry.leftConjugator \then
+  \takefrom right: Obstruction.Lift[Quintic.rightConjugator] \by coefficientLift conditions Quintic.rightConjugator Symmetry.rightConjugator \then
+  \return \exact(Obstruction.ThreeLifts { cycle := cycle, left := left, right := right }, Obstruction.ThreeLifts)
+};
+\definition unity: Polynomials.AlgebraicallyClosed (Subfields.Member constants) -> RadicalAction.UnityInBase :=
+  \fun (closed: Polynomials.AlgebraicallyClosed (Subfields.Member constants))(n: N.Nat^)(z: K)(root: _) =>
+    Equation.containsConstant z (Splitting.unityInClosedSubfield (Subfields.Member constants) (Subfields.laws constants) closed n z root);
+\definition firstRootNotRadical: Closure.Conditions -> Polynomials.AlgebraicallyClosed (Subfields.Member constants) ->
+  Logic.Not (Generation.Radical (Subfields.Member Equation.coefficientField) (roots Quintic.Five::a)) :=
+  \fun (conditions: Closure.Conditions)(closed: _) => Obstruction.threeLiftsObstruction (threeLifts conditions) (unity closed)
+    (\fun (same: _) => \idelim Quintic.Five::a = Quintic.Five::b \with j: Quintic.Five => Quintic.distinguish j \by {
+      base: Logic.True::intro,
+      equality: Distinctness.independentImpliesDistinct conditions.independent Quintic.Five::a Quintic.Five::b same
+    });
+
+\definition notSolvableByRadicals: Closure.Conditions -> Polynomials.AlgebraicallyClosed (Subfields.Member constants) ->
+  Logic.Not Polynomials.SolvableByRadicals[Subfields.Member Equation.coefficientField, Equation.coefficients] :=
+  \fun (conditions: Closure.Conditions)(closed: _)(solvable: Polynomials.SolvableByRadicals[Subfields.Member Equation.coefficientField, Equation.coefficients]) =>
+    firstRootNotRadical conditions closed (solvable.roots (roots Quintic.Five::a) Equation.firstRoot);
+\definition firstRootNotConstructible: Closure.Conditions -> Polynomials.AlgebraicallyClosed (Subfields.Member constants) ->
+  Logic.Not (Generation.Constructible (Subfields.Member Equation.coefficientField) (roots Quintic.Five::a)) :=
+  \fun (conditions: Closure.Conditions)(closed: _)(constructible: _) => firstRootNotRadical conditions closed
+    (Generation.constructibleIsRadical (Subfields.Member Equation.coefficientField) (roots Quintic.Five::a) constructible);
+\definition notConstructible: Closure.Conditions -> Polynomials.AlgebraicallyClosed (Subfields.Member constants) ->
+  Logic.Not Polynomials.RootConstructible[Subfields.Member Equation.coefficientField, Equation.coefficients] :=
+  \fun (conditions: Closure.Conditions)(closed: _)(constructible: Polynomials.RootConstructible[Subfields.Member Equation.coefficientField, Equation.coefficients]) =>
+    notSolvableByRadicals conditions closed (Polynomials.constructibleRootsAreRadical (Subfields.Member Equation.coefficientField) Equation.coefficients constructible);
+\import Generation.RadicalExpression[] \as RadicalExpression;
+\import Generation.Construction[] \as Construction;
+\definition noRadicalFormula: Closure.Conditions -> Polynomials.AlgebraicallyClosed (Subfields.Member constants) ->
+  Logic.Not (RadicalExpression.Representable (Subfields.Member Equation.coefficientField) (roots Quintic.Five::a)) :=
+  \fun (conditions: Closure.Conditions)(closed: _)(formula: _) => firstRootNotRadical conditions closed
+    ((RadicalExpression.characterization (Subfields.Member Equation.coefficientField) (roots Quintic.Five::a)).rtl formula);
+\definition noConstruction: Closure.Conditions -> Polynomials.AlgebraicallyClosed (Subfields.Member constants) ->
+  Logic.Not (Construction.Representable (Subfields.Member Equation.coefficientField) (roots Quintic.Five::a)) :=
+  \fun (conditions: Closure.Conditions)(closed: _)(construction: _) => firstRootNotConstructible conditions closed
+    ((Construction.characterization (Subfields.Member Equation.coefficientField) (roots Quintic.Five::a)).rtl construction);

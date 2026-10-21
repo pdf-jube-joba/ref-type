@@ -1,0 +1,31 @@
+\import \root.Euclidean[n := n] \as E;
+\import \root.Euclidean[n := N.Nat^::succ n] \as Next;
+\import \parent.Dimension[n := n] \as Lower;
+\import \parent.Dimension[n := N.Nat^::succ n] \as Upper;
+\import \root.Field[K := R.Real, field := Scalars.field].On[V := E.Vector, space := E.space].Of[form := E.form] \as Algebra;
+\import \root.Field[K := R.Real, field := Scalars.field].On[V := Next.Vector, space := Next.space].Of[form := Next.form] \as NextAlgebra;
+\import Algebra.Grading[] \as Grade;
+\import NextAlgebra.Grading[] \as NextGrade;
+\import E.Successor[].NormalForm[] \as Normal;
+\import E.Successor[].Complement[] \as Coordinates;
+\import E.Successor[].Inclusion[] \as Inclusion;
+\import Normal.Representation[] \as Recovery;
+\import Normal.Spanning[] \as Spanning;
+\import Normal.Grading[] \as Grading;
+\import Normal.Operations[] \as Operations;
+\import Spaces.Laws[V := E.Carrier, space := Algebra.vectorSpace] \as Vectors;
+\definition inclusionInjective: \forall (a, b: E.Carrier) -> Inclusion.map a = Inclusion.map b -> a = b :=
+  \fun (a, b: E.Carrier)(same: _) => trans!{E.Carrier} _ _ _ (sym!{E.Carrier} _ _ (Recovery.firstLower a))
+    (trans!{E.Carrier} _ _ _ (congr!{Next.Carrier E.Carrier} Recovery.left _ _ same) (Recovery.firstLower b));
+\module At(x: Next.Carrier, central: Upper.Twisted x);
+\module On(previous: Lower.Law) {
+  \definition law: Upper.Law := \block {
+    \fun (x: Next.Carrier)(central: Upper.Twisted x) \then
+    \takefrom a: Lower.Scalar (\parent.At[x := x, central := central].a) \by previous (\parent.At[x := x, central := central].a) (\parent.At[x := x, central := central].lowerCentral) \then
+    \let same: E.scalar a = \parent.At[x := x, central := central].a := \bysub(R.Real, { a: R.Real \where E.scalar a = \parent.At[x := x, central := central].a }, a) \then
+    \return \exact(\into[R.Real](a, Upper.Scalar x) \by {
+      trans!{Next.Carrier} _ _ _ (sym!{Next.Carrier} _ _ (Inclusion.onScalar a))
+        (trans!{Next.Carrier} _ _ _ (congr!{E.Carrier Next.Carrier} Inclusion.map _ _ same) \parent.At[x := x, central := central].lowerForm)
+    }, Upper.Scalar x)
+  };
+}

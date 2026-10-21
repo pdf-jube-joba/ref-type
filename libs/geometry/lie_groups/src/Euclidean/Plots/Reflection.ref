@@ -1,0 +1,28 @@
+\definition squared[x: Open.Carrier U]: R.Real := dot (v x) (v x);
+\definition squaredSmooth: Smooth.SmoothOn U squared := dotSmooth U (\fun (x: Open.Carrier U) => v x) (\fun (x: Open.Carrier U) => v x) regular regular;
+\definition squaredFunction: Smooth.SmoothFunction U := \into[Open.ScalarFunction U](squared,
+  { f: Open.ScalarFunction U \where Smooth.SmoothOn U f }) \by { squaredSmooth };
+\definition squaredPositive: \forall (x: Open.Carrier U) -> dedekind_reals.DedekindReal[].Lt R.zero (squared x) :=
+  \fun (x: Open.Carrier U) => \bysub(Vector, InnerProduct.Nonzero, v x);
+\definition squaredNonzero: \forall (x: Open.Carrier U) -> std.Logic[].Proposition[].Not (squared x = R.zero) :=
+  \fun (x: Open.Carrier U) => R.Inverse[].positiveNonzero (squared x) (squaredPositive x);
+\import Smooth.Reciprocal[U := U, f := squaredFunction, nonzero := squaredNonzero] \as Reciprocal;
+\definition value[x: Open.Carrier U]: O := InnerProduct.Normalization[v := v x].reflection;
+\definition polar[w: Vector][x: Open.Carrier U]: R.Real := R.add (dot (v x) w) (dot w (v x));
+\definition polarSmooth: \forall (w: Vector) -> Smooth.SmoothOn U (polar w) := \fun (w: Vector) => Functions.addSmooth U
+  (\fun (x: Open.Carrier U) => dot (v x) w) (\fun (x: Open.Carrier U) => dot w (v x))
+  (dotSmooth U (\fun (x: Open.Carrier U) => v x) (\fun (x: Open.Carrier U) => w) regular (constantValues U w))
+  (dotSmooth U (\fun (x: Open.Carrier U) => w) (\fun (x: Open.Carrier U) => v x) (constantValues U w) regular);
+\definition coefficient[w: Vector][x: Open.Carrier U]: R.Real := R.mul (dedekind_reals.DedekindReal[].Arithmetic[].Prop[].fieldInv (squared x)) (polar w x);
+\definition coefficientSmooth: \forall (w: Vector) -> Smooth.SmoothOn U (coefficient w) := \fun (w: Vector) =>
+  Functions.mulSmooth U Reciprocal.value (polar w) Reciprocal.smooth (polarSmooth w);
+\definition plot: Plot U value := \fun (w: Vector)(i: Fin.Fin n) => \idelim
+  (\fun (x: Open.Carrier U) => R.sub (w i) (R.mul (coefficient w x) (v x i))) =
+  (\fun (x: Open.Carrier U) => (value x).value.apply w i)
+  \with h: Open.ScalarFunction U => Smooth.SmoothOn U h \by {
+    base: Functions.subSmooth U (\fun (x: Open.Carrier U) => w i) (\fun (x: Open.Carrier U) => R.mul (coefficient w x) (v x i))
+      (Functions.constantSmooth U (w i)) (Functions.mulSmooth U (coefficient w) (\fun (x: Open.Carrier U) => v x i) (coefficientSmooth w) (regular i)),
+    equality: \axiom:funext((\fun (x: Open.Carrier U) => R.sub (w i) (R.mul (coefficient w x) (v x i))),
+      (\fun (x: Open.Carrier U) => (value x).value.apply w i), \fun (x: Open.Carrier U) =>
+        sym!{R.Real} _ _ (congr!{Vector R.Real} (\fun (u: Vector) => u i) _ _ (InnerProduct.Normalization[v := v x].Formula[].value w)))
+  };

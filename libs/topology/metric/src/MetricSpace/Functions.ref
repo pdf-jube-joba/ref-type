@@ -1,0 +1,29 @@
+\import topology.Topology[Carrier := X] \as Source;
+\import topology.Continuity[A := X, B := Carrier] \as Maps;
+\import \parent.Topology[] \as TargetMetric;
+\definition Continuous[source: Source.Topology][f: X -> Carrier]: \Prop := Maps.Continuous source (TargetMetric.topology metric) f;
+\definition Small[f: X -> Carrier][x: X][radius: R.Real]: \Pow X := { y: X \where R.Lt (metric.distance (f x) (f y)) radius };
+\definition Local[source: Source.Topology][f: X -> Carrier]: \Prop := \forall (x: X)(radius: R.Real) -> R.Lt Real.zero radius ->
+  \exists ( U: \Pow X \where Source.OpenNeighborhood[source, x, Small f x radius, U] );
+\definition continuousOfLocal: \forall (source: Source.Topology)(f: X -> Carrier) -> Local source f -> Continuous source f :=
+  \fun (source: Source.Topology)(f: X -> Carrier)(local: Local source f)(V: \Pow Carrier)(open: T.IsOpenIn (TargetMetric.topology metric) V) =>
+    Source.openOfNeighborhoods source (Maps.Preimage f V) (\block {
+      \fun (x: X)(member: Source.Member (Maps.Preimage f V) x) \then
+      \takefrom r: \Cast[R.Real] (NeighborhoodRadius metric V (f x)) \by open (f x) member \then
+      \let radius: Logic.And[R.Lt Real.zero r, T.Subset (Ball metric (f x) r) V] := \bysub(R.Real, NeighborhoodRadius metric V (f x), r) \then
+      \takefrom U: \Cast[\Pow X] ({ U: \Pow X \where Source.OpenNeighborhood[source, x, Small f x r, U] }) \by local x r radius.left \then
+      \let data: Source.OpenNeighborhood[source, x, Small f x r, U] := \bysub(\Pow X, { U: \Pow X \where Source.OpenNeighborhood[source, x, Small f x r, U] }, U) \then
+      \return Logic.existsIntro[\Pow X, { U: \Pow X \where Source.OpenNeighborhood[source, x, Maps.Preimage f V, U] }] U
+        (Source.OpenNeighborhood[source, x, Maps.Preimage f V, U] {
+          open := data.open, contains := data.contains,
+          within := \fun (y: X)(inside: Source.Member U y) => radius.right (f y) (data.within y inside),
+        })
+    });
+\definition localOfContinuous: \forall (source: Source.Topology)(f: X -> Carrier) -> Continuous source f -> Local source f :=
+  \fun (source: Source.Topology)(f: X -> Carrier)(continuous: Continuous source f)(x: X)(r: R.Real)(positive: R.Lt Real.zero r) =>
+    Logic.existsIntro[\Pow X, { U: \Pow X \where Source.OpenNeighborhood[source, x, Small f x r, U] }] (Small f x r)
+      (Source.OpenNeighborhood[source, x, Small f x r, Small f x r] {
+        open := continuous (Ball metric (f x) r) (TargetMetric.ballOpenIn metric (f x) r),
+        contains := ballCenter metric (f x) r positive,
+        within := \fun (y: X)(member: Source.Member (Small f x r) y) => member,
+      });

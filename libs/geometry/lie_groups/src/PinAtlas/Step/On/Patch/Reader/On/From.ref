@@ -1,0 +1,25 @@
+\import calculus.Maps[n := d, m := n] \as ParameterMaps;
+\definition W: Open.OpenSet := witness.domain;
+\definition input[x: Open.Carrier W]: Open.Carrier D := Open.inclusion W D witness.included x;
+\definition toSource: Open.Included W U := \fun (x: calculus.Real[].Multivariable[n := d].Point)(member: _) =>
+  Region.included x (witness.included x member);
+\definition parameterPoint[x: Open.Carrier W]: LeftOpen.Carrier LeftOpen.whole := \into[E.Vector](parameters (input x), LeftOpen.whole.points) \by {
+  \refl(parameters (input x))
+};
+\definition parameterMap: ParameterMaps.Map W LeftOpen.whole := \into[ParameterMaps.Data[W, LeftOpen.whole]](
+  ParameterMaps.Data[W, LeftOpen.whole] { apply := parameterPoint },
+  { h: ParameterMaps.Data[W, LeftOpen.whole] \where ParameterMaps.Laws[W, LeftOpen.whole, h] }) \by {
+    ParameterMaps.Laws[W, LeftOpen.whole, ParameterMaps.Data[W, LeftOpen.whole]::# parameterPoint] {
+      smooth := \fun (j: Fin.Fin n) => Restriction.localSmooth W D witness.included (\fun (x: Open.Carrier D) => parameters x j) (parameterSmooth j),
+    }
+  };
+\import Blocks.Pair[d := d].On[U := W, V := LeftOpen.whole, W := lower.image, f := parameterMap, g := witness.lift] \as Pair;
+\import calculus.Maps[n := d, m := Lower.dimension] \as LowerMaps;
+\definition agreement: \forall (x: Open.Carrier W) -> UpperCoordinates.value patch (Pair.value x) = f (Open.inclusion W U toSource x) :=
+  \fun (x: Open.Carrier W) => trans!{{Next.Pin}} _ _ _
+    (valueOnJoined (parameterPoint x) (LowerMaps.apply W lower.image witness.lift x))
+    (trans!{{Next.Pin}} _ _ _ (congr!{{E.Pin} {Next.Pin}} (assemble (parameters (input x))) _ _ (witness.agrees x)) (reconstruct (parts (input x))));
+\definition value: Result.Witness := Result.Witness {
+  domain := W, included := toSource, contains := witness.contains,
+  lift := Pair.map, agrees := agreement,
+};

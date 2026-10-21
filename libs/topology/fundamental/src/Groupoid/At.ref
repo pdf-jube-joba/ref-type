@@ -1,0 +1,59 @@
+\import Paths.Between[x := x, y := y] \as XY;
+\import Paths.Between[x := y, y := x] \as YX;
+\import Paths.Between[x := x, y := x] \as XX;
+\import Paths.Between[x := y, y := y] \as YY;
+\import Paths.Between[x := y, y := z] \as YZ;
+\import Paths.Between[x := z, y := w] \as ZW;
+\import Paths.Between[x := x, y := w] \as XW;
+\import Paths.Concatenation[] \as Join;
+\import Join.Classes[x := x, y := y, z := y] \as XYY;
+\import Join.Classes[x := x, y := x, z := y] \as XXY;
+\import Join.Classes[x := x, y := y, z := x] \as XYX;
+\import Join.Classes[x := y, y := x, z := y] \as YXY;
+\import Join.Classes[x := x, y := y, z := z] \as XYZ;
+\import Join.Classes[x := x, y := z, z := w] \as XZW;
+\import Join.Classes[x := y, y := z, z := w] \as YZW;
+\import Join.Classes[x := x, y := y, z := w] \as XYW;
+\import Paths.ReverseHomotopy[].Between[x := x, y := y] \as Reverse;
+\import Paths.GroupoidLaws[] \as Raw;
+\definition rightIdentity: \forall (f: Arrow x y) -> compose x y y f (identity y) = f :=
+  XY.induction (\fun (f: Arrow x y) => compose x y y f (identity y) = f)
+    (\fun (p: Paths.Path x y) => trans!{{Arrow x y}} _ _ _ (XYY.onClass p (Paths.constant y))
+      (XY.sameClass (Join.concatenate x y y p (Paths.constant y)) p (Raw.rightUnit x y p)));
+\definition leftIdentity: \forall (f: Arrow x y) -> compose x x y (identity x) f = f :=
+  XY.induction (\fun (f: Arrow x y) => compose x x y (identity x) f = f)
+    (\fun (p: Paths.Path x y) => trans!{{Arrow x y}} _ _ _ (XXY.onClass (Paths.constant x) p)
+      (XY.sameClass (Join.concatenate x x y (Paths.constant x) p) p (Raw.leftUnit x y p)));
+\definition rightInverse: \forall (f: Arrow x y) -> compose x y x f (inverse x y f) = identity x :=
+  XY.induction (\fun (f: Arrow x y) => compose x y x f (inverse x y f) = identity x)
+    (\fun (p: Paths.Path x y) => eq_reason!{
+      {compose x y x (class x y p) (inverse x y (class x y p))}
+      "=" {compose x y x (class x y p) (class y x (Paths.reverse x y p))} "by" {
+        congr!{{Arrow y x} {Arrow x x}} (compose x y x (class x y p)) _ _ (Reverse.onClass p)}
+      "=" {class x x (Join.concatenate x y x p (Paths.reverse x y p))} "by" {XYX.onClass p (Paths.reverse x y p)}
+      "=" {identity x} "by" {XX.sameClass _ _ (Raw.rightInverse x y p)}});
+\definition leftInverse: \forall (f: Arrow x y) -> compose y x y (inverse x y f) f = identity y :=
+  XY.induction (\fun (f: Arrow x y) => compose y x y (inverse x y f) f = identity y)
+    (\fun (p: Paths.Path x y) => eq_reason!{
+      {compose y x y (inverse x y (class x y p)) (class x y p)}
+      "=" {compose y x y (class y x (Paths.reverse x y p)) (class x y p)} "by" {
+        congr!{{Arrow y x} {Arrow y y}} (\fun (g: Arrow y x) => compose y x y g (class x y p)) _ _ (Reverse.onClass p)}
+      "=" {class y y (Join.concatenate y x y (Paths.reverse x y p) p)} "by" {YXY.onClass (Paths.reverse x y p) p}
+      "=" {identity y} "by" {YY.sameClass _ _ (Raw.leftInverse x y p)}});
+\definition associative: \forall (f: Arrow x y)(g: Arrow y z)(h: Arrow z w) ->
+  compose x z w (compose x y z f g) h = compose x y w f (compose y z w g h) :=
+  XY.induction (\fun (f: Arrow x y) => \forall (g: Arrow y z)(h: Arrow z w) ->
+    compose x z w (compose x y z f g) h = compose x y w f (compose y z w g h))
+    (\fun (p: Paths.Path x y) => YZ.induction (\fun (g: Arrow y z) => \forall (h: Arrow z w) ->
+      compose x z w (compose x y z (class x y p) g) h = compose x y w (class x y p) (compose y z w g h))
+      (\fun (q: Paths.Path y z) => ZW.induction (\fun (h: Arrow z w) =>
+        compose x z w (compose x y z (class x y p) (class y z q)) h = compose x y w (class x y p) (compose y z w (class y z q) h))
+        (\fun (r: Paths.Path z w) => eq_reason!{
+          {compose x z w (compose x y z (class x y p) (class y z q)) (class z w r)}
+          "=" {compose x z w (class x z (Join.concatenate x y z p q)) (class z w r)} "by" {
+            congr!{{Arrow x z} {Arrow x w}} (\fun (f: Arrow x z) => compose x z w f (class z w r)) _ _ (XYZ.onClass p q)}
+          "=" {class x w (Join.concatenate x z w (Join.concatenate x y z p q) r)} "by" {XZW.onClass (Join.concatenate x y z p q) r}
+          "=" {class x w (Join.concatenate x y w p (Join.concatenate y z w q r))} "by" {XW.sameClass _ _ (Raw.associative x y z w p q r)}
+          "=" {compose x y w (class x y p) (class y w (Join.concatenate y z w q r))} "by" {sym!{{Arrow x w}} _ _ (XYW.onClass p (Join.concatenate y z w q r))}
+          "=" {compose x y w (class x y p) (compose y z w (class y z q) (class z w r))} "by" {
+            congr!{{Arrow y w} {Arrow x w}} (compose x y w (class x y p)) _ _ (sym!{{Arrow y w}} _ _ (YZW.onClass q r))}})));

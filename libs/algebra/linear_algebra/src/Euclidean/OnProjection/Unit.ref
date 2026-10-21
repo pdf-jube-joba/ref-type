@@ -1,0 +1,44 @@
+\definition v: Vector := u.vector;
+\definition rankOne: End.Map := End.Map {
+  apply := \fun (w: Vector) => space.smul (dot v w) v,
+  preservesAdd := \fun (x, y: Vector) => trans!{Vector} _ _ _
+    (congr!{{R.Real} Vector} (\fun (a: R.Real) => space.smul a v) _ _ (form.addRight v x y)) (space.scalarAdd (dot v x) (dot v y) v),
+  preservesScale := \fun (a: R.Real)(w: Vector) => trans!{Vector} _ _ _
+    (congr!{{R.Real} Vector} (\fun (a: R.Real) => space.smul a v) _ _ (form.scaleRight a v w)) (space.scalarAssoc a (dot v w) v),
+};
+\definition fixesUnit: rankOne.apply v = v := trans!{Vector} _ _ _
+  (congr!{{R.Real} Vector} (\fun (a: R.Real) => space.smul a v) _ _ u.norm) (space.scalarOne v);
+\definition rankProjection: Projection := Projection {
+  map := rankOne,
+  symmetric := \fun (x, y: Vector) => trans!{{R.Real}} _ _ _ (form.scaleLeft (dot v x) v y)
+    (trans!{{R.Real}} _ _ _ (Spaces.mulComm (dot v x) (dot v y))
+      (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (R.mul (dot v y)) _ _ (symmetric v x))
+        (sym!{{R.Real}} _ _ (form.scaleRight (dot v y) x v)))),
+  idempotent := \fun (w: Vector) => trans!{Vector} _ _ _ (rankOne.preservesScale (dot v w) v)
+    (congr!{Vector Vector} (space.smul (dot v w)) _ _ fixesUnit),
+};
+\definition contained: Subprojection[P, rankProjection] := Subprojection[P, rankProjection] {
+  left := \fun (w: Vector) => trans!{Vector} _ _ _ (P.map.preservesScale (dot v w) v) (congr!{Vector Vector} (space.smul (dot v w)) _ _ u.fixed),
+  right := \fun (w: Vector) => congr!{{R.Real} Vector} (\fun (a: R.Real) => space.smul a v) _ _
+    (trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ (P.symmetric v w)) (congr!{Vector {R.Real}} (\fun (x: Vector) => dot x w) _ _ u.fixed)),
+};
+\import \parent.\parent.ProjectionDifference[P := P, Q := rankProjection, included := contained] \as Reduction;
+\definition reduced: Projection := Reduction.projection;
+\definition annihilates: reduced.map.apply v = space.zero := trans!{Vector} _ _ _
+  (congr2!{Vector Vector Vector} difference _ _ _ _ u.fixed fixesUnit) (differenceSelf v);
+\definition orthogonal: \forall (w: Vector) -> dot v (reduced.map.apply w) = R.zero :=
+  \fun (w: Vector) => trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ (reduced.symmetric v w))
+    (trans!{{R.Real}} _ _ _ (congr!{Vector {R.Real}} (\fun (x: Vector) => dot x w) _ _ annihilates) (form.zeroLeft w));
+\definition rankTrace: trace rankProjection = R.one := trans!{{R.Real}} _ _ _
+  (Sums.congruent n _ (\fun (i: Fin.Fin n) => R.mul (v i) (v i))
+    (\fun (i: Fin.Fin n) => congr!{{R.Real} {R.Real}} (\fun (a: R.Real) => R.mul a (v i)) _ _
+      (trans!{{R.Real}} _ _ _ (symmetric v (basis i)) (dotBasis i v)))) u.norm;
+\definition traceFormula: trace reduced = R.sub (trace P) R.one := trans!{{R.Real}} _ _ _ Reduction.traceFormula
+  (congr!{{R.Real} {R.Real}} (R.sub (trace P)) _ _ rankTrace);
+\definition traceDecrease: \forall (k: N.Nat^) -> trace P = naturalCount (N.Nat^::succ k) -> trace reduced = naturalCount k :=
+  \fun (k: N.Nat^)(same: _) => trans!{{R.Real}} _ _ _ traceFormula
+    (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (\fun (a: R.Real) => R.sub a R.one) _ _ same)
+      (trans!{{R.Real}} _ _ _ (Arithmetic.addAssoc R.one (naturalCount k) (R.neg R.one))
+        (trans!{{R.Real}} _ _ _ (Scalars.addSwap R.one (naturalCount k) (R.neg R.one))
+          (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (R.add (naturalCount k)) _ _ (Arithmetic.addNegRight R.one)) (Arithmetic.addZeroRight (naturalCount k))))));
+\module Resolve(k: N.Nat^);

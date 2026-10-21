@@ -1,0 +1,72 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\import real.Analysis[] \as R;
+\import R.Algebra[] \as Arithmetic;
+\import linear_algebra.Field[].Space[K := R.Real, field := Arithmetic.field] \as Spaces;
+\import linear_algebra.Euclidean[n := n] \as E;
+\import linear_algebra.Euclidean[n := k] \as F;
+\import E.Blocks[m := k] \as Blocks;
+\definition d: N.Nat^ := Blocks.dimension;
+\import linear_algebra.Euclidean[n := d] \as A;
+\import manifolds.Dimension[n := n].Examples[].Euclidean[] \as Source;
+\import manifolds.Dimension[n := d].Examples[].Euclidean[] \as Target;
+\import manifolds.Dimension[n := n].Smooth[] \as SourceModel;
+\import manifolds.Dimension[n := d].Smooth[] \as TargetModel;
+\definition M: SourceModel.Manifold := Source.smoothManifold;
+\definition ambient: TargetModel.Manifold := Target.smoothManifold;
+\import manifolds.EuclideanLinear[n := n, m := d].Of[L := Blocks.inclusion] \as Inclusion;
+\import manifolds.EuclideanLinear[n := d, m := n].Of[L := Blocks.leftMap] \as Projection;
+\import manifolds.EmbeddingRetraction[n := n, m := d].Between[M := M, N := ambient].Of[f := Inclusion.map, g := Projection.map,
+  left := \fun (x: M.Point) => Blocks.leftJoin x F.space.zero] \as Embedding;
+\definition embedding: manifolds.Immersion[n := n, m := d].Between[M := M, N := ambient].Embedding := Embedding.embedding;
+\definition immersion: manifolds.Immersion[n := n, m := d].Between[M := M, N := ambient].Immersion :=
+  manifolds.Immersion[n := n, m := d].Between[M := M, N := ambient].asImmersion embedding;
+\import normal_bundles.Dimension[n := n, k := k].On[M := M].Of[i := immersion] \as Normal;
+\import \root.Euclidean[n := n] \as Base;
+\import tangent_bundles.Dimension[n := n].On[M := M] \as Tangent;
+\import tangent_bundles.Trivial[n := n, r := k].On[M := M] \as TrivialFamily;
+\import TrivialFamily.Covered[I := Base.Chart, chart := \fun (c: Base.Chart) => c, covers := Tangent.data.covers] \as Trivial;
+\import Spaces.Linear[V := F.Vector, W := A.Vector, source := F.space, target := A.space] \as NormalMaps;
+\import Spaces.Laws[V := E.Vector, space := E.space] \as ELaws;
+\definition normalInclusion: NormalMaps.Map := NormalMaps.Map {
+  apply := \fun (v: F.Vector) => Blocks.join E.space.zero v,
+  preservesAdd := \fun (v, w: F.Vector) => trans!{{A.Vector}} _ _ _
+    (congr!{{E.Vector} {A.Vector}} (\fun (z: E.Vector) => Blocks.join z (F.space.add v w)) _ _ (sym!{{E.Vector}} _ _ (ELaws.zeroLeft E.space.zero)))
+    (Blocks.addition E.space.zero E.space.zero v w),
+  preservesScale := \fun (a: R.Real)(v: F.Vector) => trans!{{A.Vector}} _ _ _
+    (congr!{{E.Vector} {A.Vector}} (\fun (z: E.Vector) => Blocks.join z (F.space.smul a v)) _ _ (sym!{{E.Vector}} _ _ (ELaws.scaleZero a)))
+    (Blocks.scalar a E.space.zero v),
+};
+\module At(x: M.Point);
+\import Trivial.Vector[] \as FiberVector;
+\import Normal.Vector[] \as NormalVector;
+\import Normal.Projection[] \as NormalProjection;
+\import tangent_bundles.FrameBundle[n := n, r := k].Over[M := M].Family[F := \fun (x: M.Point) => F.Vector, space := \fun (x: M.Point) => F.space].Using[I := Base.Chart,
+  data := Trivial.data].Build[changes := Trivial.changes].Projection[] \as TrivialProjection;
+\import manifolds.EuclideanLinear[n := k, m := d].Of[L := normalInclusion] \as NormalLinear;
+\import manifolds.Dimension[n := k].Examples[].Euclidean[] \as FiberEuclidean;
+\import manifolds.Composition[n := d, m := k, l := d].Between[M := Trivial.manifold, N := FiberEuclidean.smoothManifold, P := ambient] \as IntoAmbient;
+\definition ambientMap: manifolds.SmoothMap[n := d, m := d].Between[M := Trivial.manifold, N := ambient].Map := IntoAmbient.compose FiberVector.map NormalLinear.map;
+\import Normal.FromAmbient[p := d].From[X := Trivial.manifold].Of[f := TrivialProjection.map, g := ambientMap,
+  normal := \fun (p: TrivialFamily.Point) => At[x := p.base].normal p.vector] \as IntoNormal;
+\import manifolds.EuclideanLinear[n := d, m := k].Of[L := Blocks.rightMap] \as Right;
+\import manifolds.Composition[n := d, m := d, l := k].Between[M := Normal.manifold, N := ambient, P := FiberEuclidean.smoothManifold] \as OutAmbient;
+\definition coefficient: manifolds.SmoothMap[n := d, m := k].Between[M := Normal.manifold, N := FiberEuclidean.smoothManifold].Map := OutAmbient.compose NormalVector.map Right.map;
+\import Trivial.Universal[p := d].From[X := Normal.manifold].Of[f := NormalProjection.map, g := coefficient] \as IntoTrivial;
+\import manifolds.Diffeomorphism[n := d, m := d].Between[M := Trivial.manifold, N := Normal.manifold] \as Diffeomorphisms;
+\definition diffeomorphism: Diffeomorphisms.Diffeomorphism := Diffeomorphisms.Diffeomorphism {
+  forward := IntoNormal.map, backward := IntoTrivial.map,
+  leftInverse := \fun (p: TrivialFamily.Point) => trans!{{TrivialFamily.Point}} _ _ _
+    (congr!{{F.Vector} {TrivialFamily.Point}} (TrivialFamily.include p.base) _ _ (Blocks.rightJoin E.space.zero p.vector))
+    (tangent_bundles.FrameBundle[n := n, r := k].Over[M := M].Family[F := \fun (x: M.Point) => F.Vector, space := \fun (x: M.Point) => F.space].eta p),
+  rightInverse := \fun (p: Normal.Point) => Normal.SubspaceTopology[].ext (IntoNormal.apply (IntoTrivial.apply p)) p (\refl(p.base)) (At[x := p.base].reconstruction p.vector),
+};
+\definition formula: \forall (p: TrivialFamily.Point) -> Normal.ambientVector (IntoNormal.apply p) = Blocks.join E.space.zero p.vector :=
+  \fun (p: TrivialFamily.Point) => \refl(Blocks.join E.space.zero p.vector);
+\module Splitting;

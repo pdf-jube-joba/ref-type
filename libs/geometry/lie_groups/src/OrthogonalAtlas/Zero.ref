@@ -1,0 +1,42 @@
+\import \root.Euclidean[n := N.Nat^::zero] \as E;
+\import E.Atlas[] \as Atlas;
+\import manifolds.ParametrizedAtlas[n := N.Nat^::zero, A := E.O] \as Coordinates;
+\import calculus.Real[].Multivariable[n := N.Nat^::zero].Open[] \as Open;
+\import real.Analysis[] \as R;
+\import lie_algebras.Field[K := R.Real, field := R.Algebra[].field].Endomorphisms[V := E.Vector, space := E.space] \as End;
+\import algebra.Groups[].Units[A := End.Carrier, ring := End.ring] \as Units;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Data[].FinSet[] \as Fin;
+\use Equality.sym;
+\use Equality.trans;
+\definition unique: \forall (g, h: E.O) -> g = h := \fun (g, h: E.O) => Units.ext g h
+  (End.ext g.value h.value (\fun (v: E.Vector) => \axiom:funext(g.value.apply v, h.value.apply v,
+    \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)))));
+\definition points: \Pow E.O := { g: E.O \where g = g };
+\definition empty: Open.Carrier Open.whole := \into[E.Vector]((\fun (i: Fin.Fin N.Nat^::zero) => real.Analysis[].zero), Open.whole.points) \by {
+  \refl(\fun (i: Fin.Fin N.Nat^::zero) => real.Analysis[].zero)
+};
+\definition point[x: Open.Carrier Open.whole]: Coordinates.Domain points := \into[E.O](E.orthogonalGroup.unit, points) \by { \refl(E.orthogonalGroup.unit) };
+\definition coordinate[g: Coordinates.Domain points]: Open.Carrier Open.whole := empty;
+\definition emptyUnique[x: Open.Carrier Open.whole]: empty = x := \block {
+  \let raw: E.Vector := x \then
+  \let zero: E.Vector := empty \then
+  \return \axiom:funext(zero, raw, \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)))
+};
+\definition patch: Coordinates.Patch := Coordinates.Patch {
+  domain := points, image := Open.whole, point := point, coordinate := coordinate,
+  pointCoordinate := \fun (g: Coordinates.Domain points) => unique E.orthogonalGroup.unit g,
+  coordinatePoint := emptyUnique,
+};
+\definition family: Coordinates.Family := Coordinates.Family {
+  patch := \fun (i: N.Nat^) => patch,
+  covers := \fun (g: E.O) => Logic.existsIntro[N.Nat^, { i: N.Nat^ \where \In[E.O] points g }] N.Nat^::zero (\refl(g)),
+};
+\module Reads(d: N.Nat^);
+\definition data: Atlas.Data := Atlas.Data {
+  family := family,
+  parametrizations := \fun (j: N.Nat^)(v: E.Vector)(i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)),
+  readings := \fun (d: N.Nat^) => Reads[d := d].regular,
+};
+\module Lie;

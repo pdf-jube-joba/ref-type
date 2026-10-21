@@ -1,0 +1,141 @@
+\import R.Completeness[] \as Complete;
+\import std.Data[].Nat[].Basic[].Prop[] \as Nat;
+\import \root.ScalarLimits[] \as Limits;
+\import Real.Geometric[q := Real.half] \as Dyadic;
+\import Real.SquareRoot[] \as Root;
+\definition Closed[S: \Pow V]: \Prop :=
+  \forall (s: N.Nat^ -> V) (x: V) -> (\forall (n: N.Nat^) -> \In[V] S (s n)) -> Sequences.Converges (metric norm) s x -> \In[V] S x;
+\definition MidpointClosed[S: \Pow V]: \Prop :=
+  \forall (x, y: V) -> \In[V] S x -> \In[V] S y -> \In[V] S (midpoint x y);
+\definition Values[S: \Pow V]: \Pow Real.Real := { r: Real.Real \where
+  \exists ( x: V \where Logic.And[\In[V] S x, r = energy x] ) };
+\definition valueMember[S: \Pow V] [x: V]: \In[V] S x -> \In[Real.Real] (Values S) (energy x) :=
+  \fun (member: \In[V] S x) => Logic.existsIntro[V, { y: V \where Logic.And[\In[V] S y, energy x = energy y] }] x
+    (Logic.And[_, _]::# member (\refl(energy x)));
+\definition lowerBound[S: \Pow V] [r: Real.Real]:
+  (\forall (x: V) -> \In[V] S x -> R.Le r (energy x)) -> Complete.LowerBound (Values S) r := \block {
+  \fun (bound: \forall (x: V) -> \In[V] S x -> R.Le r (energy x)) (v: Real.Real) (exists: \In[Real.Real] (Values S) v) \then
+  \takefrom x: \Cast[V] ({ x: V \where Logic.And[\In[V] S x, v = energy x] }) \by exists \then
+  \let data: Logic.And[\In[V] S x, v = energy x] := \bysub(V, { x: V \where Logic.And[\In[V] S x, v = energy x] }, x) \then
+  \return R.leReplaceRight r (energy x) v (sym!{Real.Real} _ _ (data.right)) (bound x (data.left))
+};
+\structure Approximation[S: \Pow V, m, epsilon: Real.Real, x: V]: \Prop := {
+  member: \In[V] S x,
+  upper: R.Lt (energy x) (Real.add m epsilon),
+};
+\definition approximate: \forall (S: \Pow V) (m, epsilon: Real.Real) -> Complete.GreatestLowerBound (Values S) m -> R.Lt Real.zero epsilon ->
+  \exists ( x: V \where Approximation[S, m, epsilon, x] ) := \block {
+  \fun (S: \Pow V) (m, epsilon: Real.Real) (infimum: Complete.GreatestLowerBound (Values S) m) (positive: R.Lt Real.zero epsilon) \then
+  \enough _ \by { Order.byContradiction (\exists ( x: V \where Approximation[S, m, epsilon, x] )) } \then
+  \fun (none: Logic.Not (\exists ( x: V \where Approximation[S, m, epsilon, x] ))) \then
+  \let lower: Complete.LowerBound (Values S) (Real.add m epsilon) := lowerBound S (Real.add m epsilon)
+    (\fun (x: V) (member: \In[V] S x) => Order.leOfNotLtReverse (Real.add m epsilon) (energy x)
+      (\fun (less: R.Lt (energy x) (Real.add m epsilon)) => none
+        (Logic.existsIntro[V, { x: V \where Approximation[S, m, epsilon, x] }] x (Approximation[S, m, epsilon, x] { member := member, upper := less })))) \then
+  \return R.ltNotLeReverse m (Real.add m epsilon)
+    (R.ltReplaceLeft (Real.add m Real.zero) m (Real.add m epsilon) (Laws.addZeroRight m) (Laws.ltAddLeft m Real.zero epsilon positive))
+    (infimum.right (Real.add m epsilon) lower)
+};
+\definition quadrupleLe: \forall (a, b: Real.Real) -> R.Le a b -> R.Le (quadruple a) (quadruple b) :=
+  \fun (a, b: Real.Real) (ab: R.Le a b) => Estimates.addLe _ _ _ _ (Estimates.addLe _ _ _ _ ab ab) (Estimates.addLe _ _ _ _ ab ab);
+\definition quadrupleAdd: \forall (a, b: Real.Real) -> quadruple (Real.add a b) = Real.add (quadruple a) (quadruple b) :=
+  \fun (a, b: Real.Real) => trans!{Real.Real} _ _ _
+    (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Algebra.addFour a b a b) (Algebra.addFour a b a b))
+    (Algebra.addFour (Real.add a a) (Real.add b b) (Real.add a a) (Real.add b b));
+\definition quadrupleQuarter: \forall (a: Real.Real) -> quadruple (Real.mul Real.half (Real.mul Real.half a)) = a :=
+  \fun (a: Real.Real) => trans!{Real.Real} _ _ _
+    (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Estimates.halfTwice (Real.mul Real.half a)) (Estimates.halfTwice (Real.mul Real.half a)))
+    (Estimates.halfTwice a);
+\structure Minimum[S: \Pow V, x: V]: \Prop := {
+  member: \In[V] S x,
+  least: \forall (y: V) -> \In[V] S y -> R.Le (energy x) (energy y),
+};
+\module Sequence(S: \Pow V, m: Real.Real, s: N.Nat^ -> V) {
+  \definition Approximates: \Prop := \forall (n: N.Nat^) -> Approximation[S, m, Dyadic.value n, s n];
+  \definition cauchy: Hilbert[inner] -> MidpointClosed S -> Complete.LowerBound (Values S) m -> Approximates -> Sequences.Cauchy (metric norm) s := \block {
+    \fun (hilbert: Hilbert[inner]) (midClosed: MidpointClosed S) (lower: Complete.LowerBound (Values S) m) (approximates: Approximates)
+      (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) \then
+    \let squared: Real.Real := Real.mul epsilon epsilon \then
+    \let delta: Real.Real := Real.mul Real.half (Real.mul Real.half squared) \then
+    \let dp: R.Lt Real.zero delta := Estimates.halfOfPositive (Real.mul Real.half squared)
+      (Estimates.halfOfPositive squared (Product.mulPositive epsilon epsilon positive positive)) \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt (Dyadic.value n) delta }) \by Limits.dyadicSmall delta dp \then
+    \let small: \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt (Dyadic.value n) delta :=
+      \bysub(N.Nat^, { k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt (Dyadic.value n) delta }, k) \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequences.CauchyControl (metric norm) s epsilon k }] k (\block {
+      \fun (i, j: N.Nat^) (ki: Nat.Le k i) (kj: Nat.Le k j) \then
+      \let x: V := s i \then
+      \let y: V := s j \then
+      \let d: Real.Real := (metric norm).distance x y \then
+      \let ei: R.Lt (energy x) (Real.add m delta) := Order.ltTrans _ (Real.add m (Dyadic.value i)) _ ((approximates i).upper)
+        (Laws.ltAddLeft m (Dyadic.value i) delta (small i ki)) \then
+      \let ej: R.Lt (energy y) (Real.add m delta) := Order.ltTrans _ (Real.add m (Dyadic.value j)) _ ((approximates j).upper)
+        (Laws.ltAddLeft m (Dyadic.value j) delta (small j kj)) \then
+      \let midpointBound: R.Le (quadruple m) (energy (space.add x y)) :=
+        R.leReplaceRight _ (quadruple (energy (midpoint x y))) _ (sym!{Real.Real} _ _ (midpointEnergy x y))
+          (quadrupleLe m (energy (midpoint x y))
+            (lower (energy (midpoint x y)) (valueMember S (midpoint x y) (midClosed x y ((approximates i).member) ((approximates j).member))))) \then
+      \let pairUpper: R.Lt (Real.add (Real.mul d d) (quadruple m)) (Real.add squared (quadruple m)) :=
+        R.leLtTrans _ (Real.add (energy (sub x y)) (energy (space.add x y))) _
+          (R.leReplaceLeft (Real.add (energy (sub x y)) (quadruple m)) (Real.add (Real.mul d d) (quadruple m)) _
+            (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.add a (quadruple m)) _ _ (hilbert.normSquared (sub x y)))
+            (Laws.addMonotoneLeft (quadruple m) (energy (space.add x y)) (energy (sub x y)) midpointBound))
+          (ltReplace _ _ _ _
+            (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Laws.addComm (energy (sub x y)) (energy (space.add x y))) (parallelogram x y)))
+            (trans!{Real.Real} _ _ _ (quadrupleAdd m delta)
+              (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.add (quadruple m)) _ _ (quadrupleQuarter squared))
+                (Laws.addComm (quadruple m) squared)))
+            (Estimates.addLt _ _ _ _ (Estimates.addLt _ _ _ _ ei ej) (Estimates.addLt _ _ _ _ ei ej))) \then
+      \let squareSmall: R.Lt (Real.mul d d) squared := Laws.ltAddCancelRight _ _ (quadruple m) pairUpper \then
+      \return Order.byContradiction (R.Lt d epsilon) (\fun (notSmall: Logic.Not (R.Lt d epsilon)) =>
+        R.ltNotLeReverse (Real.mul d d) squared squareSmall
+          (Root.squareMonotone epsilon d (Order.leOfLt _ _ positive) ((metric norm).nonnegative x y)
+            (Order.leOfNotLtReverse epsilon d notSmall)))
+    })
+  };
+  \definition energyLimit: Complete.LowerBound (Values S) m -> Approximates -> ScalarSequences.Converges (\fun (n: N.Nat^) => energy (s n)) m := \block {
+    \fun (lower: Complete.LowerBound (Values S) m) (approximates: Approximates) (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt (Dyadic.value n) epsilon }) \by Limits.dyadicSmall epsilon positive \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where ScalarSequences.LimitControl (\fun (n: N.Nat^) => energy (s n)) m epsilon k }] k (\block {
+      \fun (n: N.Nat^) (later: Nat.Le k n) \then
+      \let r: Real.Real := Dyadic.value n \then
+      \let lo: R.Le (Real.sub m r) (energy (s n)) := R.leTrans _ m _
+        (R.leReplaceRight _ (Real.add m Real.zero) m (Laws.addZeroRight m)
+          (Laws.addMonotoneLeft (Real.neg r) Real.zero m (Product.negNonnegative r (Order.leOfLt _ _ (Limits.dyadicPositive n)))))
+        (lower (energy (s n)) (valueMember S (s n) ((approximates n).member))) \then
+      \return R.leLtTrans _ r epsilon
+        (R.leReplaceLeft (Real.distance m (energy (s n))) (Real.distance (energy (s n)) m) r (Distance.distanceSymmetric m (energy (s n)))
+          (Estimates.distanceLeOfInterval m (energy (s n)) r lo (Order.leOfLt _ _ ((approximates n).upper))))
+        ((\bysub(N.Nat^, { k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt (Dyadic.value n) epsilon }, k)) n later)
+    })
+  };
+}
+\definition minimumExists: Hilbert[inner] -> \forall (S: \Pow V) -> (\exists \Cast[V] S) -> Closed S -> MidpointClosed S ->
+  \exists ( x: V \where Minimum[S, x] ) := \block {
+  \fun (hilbert: Hilbert[inner]) (S: \Pow V) (inhabited: \exists \Cast[V] S) (closed: Closed S) (midClosed: MidpointClosed S) \then
+  \let nonempty: Complete.Nonempty (Values S) := \block {
+    \takefrom x: \Cast[V] S \by inhabited \then
+    \return Logic.existsIntro[Real.Real, Values S] (energy x) (valueMember S x (\bysub(V, S, x)))
+  } \then
+  \takefrom m: \Cast[Real.Real] ({ m: Real.Real \where Complete.GreatestLowerBound (Values S) m })
+    \by Complete.completeBelow (Values S) nonempty
+      (Logic.existsIntro[Real.Real, { r: Real.Real \where Complete.LowerBound (Values S) r }] Real.zero
+        (lowerBound S Real.zero (\fun (x: V) (member: \In[V] S x) => inner.nonnegative x))) \then
+  \let infimum: Complete.GreatestLowerBound (Values S) m := \bysub(Real.Real, { m: Real.Real \where Complete.GreatestLowerBound (Values S) m }, m) \then
+  \takefrom choose: \forall (n: N.Nat^) -> \Cast[V] ({ x: V \where Approximation[S, m, Dyadic.value n, x] })
+    \by \axiom:classicalIndefiniteChoice(N.Nat^, (\fun (n: N.Nat^) => \Cast[V] ({ x: V \where Approximation[S, m, Dyadic.value n, x] })),
+      \fun (n: N.Nat^) => approximate S m (Dyadic.value n) infimum (Limits.dyadicPositive n)) \then
+  \let s: N.Nat^ -> V := \fun (n: N.Nat^) => choose n \then
+  \let approximation: Sequence[S := S, m := m, s := s].Approximates :=
+    \fun (n: N.Nat^) => \bysub(V, { x: V \where Approximation[S, m, Dyadic.value n, x] }, choose n) \then
+  \takefrom x: \Cast[V] ({ x: V \where Sequences.Converges (metric norm) s x })
+    \by hilbert.complete s (Sequence[S := S, m := m, s := s].cauchy hilbert midClosed (infimum.left) approximation) \then
+  \let converges: Sequences.Converges (metric norm) s x := \bysub(V, { x: V \where Sequences.Converges (metric norm) s x }, x) \then
+  \let energyMinimum: energy x = m := ScalarSequences.limitUnique (\fun (n: N.Nat^) => energy (s n)) (energy x) m
+    (energyConverges hilbert s x converges) (Sequence[S := S, m := m, s := s].energyLimit (infimum.left) approximation) \then
+  \return Logic.existsIntro[V, { x: V \where Minimum[S, x] }] x (Minimum[S, x] {
+    member := closed s x (\fun (n: N.Nat^) => (approximation n).member) converges,
+    least := \fun (y: V) (member: \In[V] S y) => R.leReplaceLeft m (energy x) (energy y) (sym!{Real.Real} _ _ energyMinimum)
+      (infimum.left (energy y) (valueMember S y member)),
+  })
+};

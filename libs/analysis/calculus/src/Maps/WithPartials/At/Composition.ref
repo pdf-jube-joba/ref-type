@@ -1,0 +1,19 @@
+\import TargetSmooth.Differential[] \as Outer;
+\import Analysis.Properties[] \as Uniqueness;
+\import Vector.Chain[U := U, V := V, f := f, a := a, d := value, g := h, e := Outer.value V h (f a)] \as Chain;
+\import Analysis.Differential[U := U, f := scalar h, a := a, d := Chain.differential] \as Differential;
+\import real.Analysis[].FiniteSums[] \as FiniteSums;
+\import Reals.Multivariable[n := n].Space[].Def[] \as Coordinates;
+\definition rowPartial[j: Fin.Fin m][i: Fin.Fin n]: PartialLaws -> ContinuousPartials -> (row j).apply (Coordinates.basis i) = p j i a :=
+  \fun (partials: _)(continuous: _) => Uniqueness.partialUnique U (component j) i a ((row j).apply (Coordinates.basis i)) (p j i a)
+    (Analysis.Differential[U := U, f := component j, a := a, d := row j].Partial[i := i].law (rowLaw j partials continuous)) (partials j i a);
+\definition formula[i: Fin.Fin n]: PartialLaws -> ContinuousPartials -> Chain.differential.apply (Coordinates.basis i) = gradient h i a :=
+  \fun (partials: _)(continuous: _) => FiniteSums.congruent m
+    (\fun (j: Fin.Fin m) => Reals.mul (TargetPartials.partial V h j (f a)) ((row j).apply (Coordinates.basis i)))
+    (\fun (j: Fin.Fin m) => Reals.mul (TargetPartials.partial V h j (f a)) (p j i a))
+    (\fun (j: Fin.Fin m) => congr!{Reals.Real Reals.Real} (Reals.mul (TargetPartials.partial V h j (f a))) _ _ (rowPartial j i partials continuous));
+\definition partial[i: Fin.Fin n]: PartialLaws -> ContinuousPartials -> Analysis.HasPartialDerivativeAt U (scalar h) i a (gradient h i a) :=
+  \fun (partials: _)(continuous: _) => \idelim Chain.differential.apply (Coordinates.basis i) = gradient h i a \with d: Reals.Real => Analysis.HasPartialDerivativeAt U (scalar h) i a d \by {
+    base: Differential.Partial[i := i].law (Chain.law (vectorLaw partials continuous) (Outer.law V h (f a))),
+    equality: formula i partials continuous
+  };

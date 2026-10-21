@@ -1,0 +1,79 @@
+\import \root.Interval[] \as I;
+\import I.Halves[] \as Halves;
+\import \root.Cylinder[A := I.Carrier] \as Square;
+\import \root.Homotopy[A := I.Carrier, B := A] \as H;
+\import H.Concatenation[] \as Join;
+\import \root.TimeSubdivision[A := I.Carrier] \as Subdivision;
+\import topological_constructions.Gluing[A := Square.Carrier, B := A].Pasting[F := Subdivision.LeftSet, G := Subdivision.RightSet] \as Pasting;
+\import topology.Continuity[A := Square.Carrier, B := A] \as Continuous;
+\import topology.Composition[A := Square.Carrier, B := Square.Carrier, C := A] \as Compose;
+\import topological_constructions.Product[A := I.Carrier, B := I.Carrier].Universal[X := Square.Carrier] \as Pair;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Logic.either;
+\definition Family: \Set := Square.Carrier -> A;
+\definition IsContinuous[f: Family]: \Prop := Continuous.Continuous (Square.topology I.topology) target f;
+\definition Compatible[f, g: Family]: \Prop := \forall (s: I.Carrier) -> f (Square.at I.end s) = g (Square.at I.start s);
+\definition first[f: Family][continuous: IsContinuous f]: H.Homotopy[I.topology, target, (\fun (s: I.Carrier) => f (Square.at I.start s)), (\fun (s: I.Carrier) => f (Square.at I.end s))] :=
+  \into[H.Family](f, H.Homotopy[I.topology, target, (\fun (s: I.Carrier) => f (Square.at I.start s)), (\fun (s: I.Carrier) => f (Square.at I.end s))]) \by {
+    H.Laws[I.topology, target, (\fun (s: I.Carrier) => f (Square.at I.start s)), (\fun (s: I.Carrier) => f (Square.at I.end s)), f] {
+      continuous := continuous, start := \fun (s: I.Carrier) => \refl(f (Square.at I.start s)), end := \fun (s: I.Carrier) => \refl(f (Square.at I.end s)),
+    }
+  };
+\definition second[f, g: Family][continuous: IsContinuous g][compatible: Compatible f g]:
+  H.Homotopy[I.topology, target, (\fun (s: I.Carrier) => f (Square.at I.end s)), (\fun (s: I.Carrier) => g (Square.at I.end s))] :=
+  \into[H.Family](g, H.Homotopy[I.topology, target, (\fun (s: I.Carrier) => f (Square.at I.end s)), (\fun (s: I.Carrier) => g (Square.at I.end s))]) \by {
+    H.Laws[I.topology, target, (\fun (s: I.Carrier) => f (Square.at I.end s)), (\fun (s: I.Carrier) => g (Square.at I.end s)), g] {
+      continuous := continuous, start := \fun (s: I.Carrier) => sym!{A} _ _ (compatible s), end := \fun (s: I.Carrier) => \refl(g (Square.at I.end s)),
+    }
+  };
+\definition glued[f, g: Family][fc: IsContinuous f][gc: IsContinuous g][compatible: Compatible f g]:
+  H.Homotopy[I.topology, target, (\fun (s: I.Carrier) => f (Square.at I.start s)), (\fun (s: I.Carrier) => g (Square.at I.end s))] :=
+  Join.concatenate I.topology target (\fun (s: I.Carrier) => f (Square.at I.start s))
+    (\fun (s: I.Carrier) => f (Square.at I.end s)) (\fun (s: I.Carrier) => g (Square.at I.end s)) (first f fc) (second f g gc compatible);
+\definition join[f, g: Family][fc: IsContinuous f][gc: IsContinuous g][compatible: Compatible f g]: Family := glued f g fc gc compatible;
+\definition continuous: \forall (f, g: Family)(fc: IsContinuous f)(gc: IsContinuous g)(compatible: Compatible f g) -> IsContinuous (join f g fc gc compatible) :=
+  \fun (f, g: _)(fc: _)(gc: _)(compatible: _) =>
+    (H.laws I.topology target (\fun (s: I.Carrier) => f (Square.at I.start s)) (\fun (s: I.Carrier) => g (Square.at I.end s)) (glued f g fc gc compatible)).continuous;
+\definition Left[t: I.Carrier]: \Prop := \In[Square.Carrier] Subdivision.LeftSet (Square.at t I.start);
+\definition Right[t: I.Carrier]: \Prop := \In[Square.Carrier] Subdivision.RightSet (Square.at t I.start);
+\definition covered: \forall (t: I.Carrier) -> Logic.Or[Left t, Right t] := \fun (t: I.Carrier) => Subdivision.covered (Square.at t I.start);
+\definition leftTime[t: I.Carrier][member: Left t]: I.Carrier := Subdivision.leftTime (\into[Square.Carrier](Square.at t I.start, Subdivision.LeftSet) \by { member });
+\definition rightTime[t: I.Carrier][member: Right t]: I.Carrier := Subdivision.rightTime (\into[Square.Carrier](Square.at t I.start, Subdivision.RightSet) \by { member });
+\definition onLeft: \forall (f, g: Family)(fc: IsContinuous f)(gc: IsContinuous g)(compatible: Compatible f g)(t, s: I.Carrier)(member: Left t) ->
+  join f g fc gc compatible (Square.at t s) = f (Square.at (leftTime t member) s) :=
+  \fun (f, g: _)(fc: _)(gc: _)(compatible: _)(t, s: _)(member: _) => Pasting.onLeft
+    (\fun (r: Subdivision.Left) => first f fc (Subdivision.leftMap r))
+    (\fun (r: Subdivision.Right) => second f g gc compatible (Subdivision.rightMap r)) Subdivision.covered
+    (Join.compatible I.topology target (\fun (s: I.Carrier) => f (Square.at I.start s))
+      (\fun (s: I.Carrier) => f (Square.at I.end s)) (\fun (s: I.Carrier) => g (Square.at I.end s)) (first f fc) (second f g gc compatible))
+    (\into[Square.Carrier](Square.at t s, Subdivision.LeftSet) \by { member });
+\definition onRight: \forall (f, g: Family)(fc: IsContinuous f)(gc: IsContinuous g)(compatible: Compatible f g)(t, s: I.Carrier)(member: Right t) ->
+  join f g fc gc compatible (Square.at t s) = g (Square.at (rightTime t member) s) :=
+  \fun (f, g: _)(fc: _)(gc: _)(compatible: _)(t, s: _)(member: _) => Pasting.onRight
+    (\fun (r: Subdivision.Left) => first f fc (Subdivision.leftMap r))
+    (\fun (r: Subdivision.Right) => second f g gc compatible (Subdivision.rightMap r)) Subdivision.covered
+    (Join.compatible I.topology target (\fun (s: I.Carrier) => f (Square.at I.start s))
+      (\fun (s: I.Carrier) => f (Square.at I.end s)) (\fun (s: I.Carrier) => g (Square.at I.end s)) (first f fc) (second f g gc compatible))
+    (\into[Square.Carrier](Square.at t s, Subdivision.RightSet) \by { member });
+\definition atStart: \forall (f, g: Family)(fc: IsContinuous f)(gc: IsContinuous g)(compatible: Compatible f g)(s: I.Carrier) ->
+  join f g fc gc compatible (Square.at I.start s) = f (Square.at I.start s) :=
+  \fun (f, g: _)(fc: _)(gc: _)(compatible: _) =>
+    (H.laws I.topology target (\fun (s: I.Carrier) => f (Square.at I.start s)) (\fun (s: I.Carrier) => g (Square.at I.end s)) (glued f g fc gc compatible)).start;
+\definition atEnd: \forall (f, g: Family)(fc: IsContinuous f)(gc: IsContinuous g)(compatible: Compatible f g)(s: I.Carrier) ->
+  join f g fc gc compatible (Square.at I.end s) = g (Square.at I.end s) :=
+  \fun (f, g: _)(fc: _)(gc: _)(compatible: _) =>
+    (H.laws I.topology target (\fun (s: I.Carrier) => f (Square.at I.start s)) (\fun (s: I.Carrier) => g (Square.at I.end s)) (glued f g fc gc compatible)).end;
+\definition swap[r: Square.Carrier]: Square.Carrier := Square.at (Square.point r) (Square.time r);
+\definition swapContinuous: topology.Continuity[A := Square.Carrier, B := Square.Carrier].Continuous (Square.topology I.topology) (Square.topology I.topology) swap :=
+  Pair.pairContinuous (Square.topology I.topology) I.topology I.topology Square.point Square.time (Square.pointContinuous I.topology) (Square.timeContinuous I.topology);
+\definition flipped[f: Family]: Family := \fun (r: Square.Carrier) => f (swap r);
+\definition flipContinuous: \forall (f: Family) -> IsContinuous f -> IsContinuous (flipped f) :=
+  \fun (f: Family)(fc: _) => Compose.composeContinuous (Square.topology I.topology) (Square.topology I.topology) target swap f swapContinuous fc;
+\definition undoLeft: \forall (t: I.Carrier)(member: Left t) -> Halves.lower (leftTime t member) = t :=
+  \fun (t: I.Carrier)(member: _) => Halves.undoDouble t (leftTime t member) (\refl(leftTime t member));
+\definition undoRight: \forall (t: I.Carrier)(member: Right t) -> Halves.upper (rightTime t member) = t :=
+  \fun (t: I.Carrier)(member: _) => Halves.undoDoubleMinusOne t (rightTime t member) (\refl(rightTime t member));

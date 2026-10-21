@@ -1,0 +1,31 @@
+\import std.Alg[].Alg[] \as Algebra;
+\import Abstract.Universal[K := K, target := coefficientRing] \as Evaluation;
+\import algebra.Hom[A := K, B := K] \as CoefficientsHom;
+\import algebra.Hom[A := Abstract.Carrier, B := K] \as OutputHom;
+\definition targetRing: Rings.Ring[K] := Rings.commutativeRingAsRing K coefficientRing;
+\definition sourceRing: Rings.Ring[Abstract.Carrier] := Rings.commutativeRingAsRing Abstract.Carrier Abstract.ring;
+\definition targetSemiring: Algebra.Semiring[K] := Rings.ringAsSemiring K targetRing;
+\definition sourceSemiring: Algebra.Semiring[Abstract.Carrier] := Rings.ringAsSemiring Abstract.Carrier sourceRing;
+\definition identity: Evaluation.CoefficientMap := \into[K -> K](\fun (x: K) => x, Evaluation.CoefficientMap) \by {
+  CoefficientsHom.SemiringLaws[targetSemiring, targetSemiring, \fun (x: K) => x] {
+    zero := \refl(zero), one := \refl(one),
+    add := \fun (x, y: K) => \refl(add x y),
+    mul := \fun (x, y: K) => \refl(mul x y),
+  }
+};
+\definition apply[x: K]: Abstract.Carrier -> K := Evaluation.evaluate identity x;
+\definition homomorphism[x: K]: OutputHom.SemiringLaws[sourceSemiring, targetSemiring, apply x] :=
+  OutputHom.semiringLaws sourceSemiring targetSemiring (Evaluation.extension identity x);
+\definition agrees: \forall (p: Coefficients)(x: K) -> apply x (asPolynomial p) = monicEvaluate p x :=
+  \induction (p: Coefficients) \return \forall (x: K) -> apply x (asPolynomial p) = monicEvaluate p x \with {
+    | nil: \fun (x: K) => (homomorphism x).one
+    | cons: \fun (a: K)(tail: Coefficients)(previous: _)(x: K) =>
+      eq_reason!{{apply x (asPolynomial (Lists.List[K]::cons a tail))}
+        "=" {add (apply x (Abstract.constant a)) (apply x (Abstract.mul Abstract.X (asPolynomial tail)))}
+        "by" {(homomorphism x).add (Abstract.constant a) (Abstract.mul Abstract.X (asPolynomial tail))}
+        "=" {add a (mul (apply x Abstract.X) (apply x (asPolynomial tail)))}
+        "by" {congr2!{K K K} add _ _ _ _ (Evaluation.constants identity x a)
+          ((homomorphism x).mul Abstract.X (asPolynomial tail))}
+        "=" {add a (mul x (monicEvaluate tail x))}
+        "by" {congr!{K K} (add a) _ _ (congr2!{K K K} mul _ _ _ _ (Evaluation.variable identity x) (previous x))}}
+  };

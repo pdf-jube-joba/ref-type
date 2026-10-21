@@ -13,6 +13,9 @@
 | `GroupCompletion.Semiring` | 半環の群完成の環構造、半環準同型の環準同型への一意な延長、積の可換性の保存。 |
 | `Exact` | 核・像・完全性、完全性から合成が零になること、可換群準同型の核・像の群構造。 |
 | `FreeCommutativeRing.Over.Presentation` | 係数環と変数・関係から作る可換環の表示と普遍性。 |
+| `FreeAssociativeRing.Over.Presentation` | 中心的な係数を持つ非可換な結合環の表示、結合代数構造と普遍性。 |
+| `Groups.On` | 一般の群の逆元・共役、部分群、生成部分群、直積、中心的な符号元による商。 |
+| `Groups.Units` | 環の可逆元群、逆元の一意性と可逆元の外延性。 |
 | `Polynomial.Over` | 一変数多項式環、係数写像と変数の値で定まる評価準同型とその一意性。 |
 | `LaurentPolynomial.Over` | Laurent 多項式環、可逆元への評価準同型とその一意性。 |
 
@@ -29,3 +32,10 @@
 多項式環と Laurent 多項式環は、式の集合を最小の環合同関係で割って構成する。
 `FreeCommutativeRing` の表示は追加の関係を持つ係数環上の可換環にも利用できる。
 係数列による正規形、次数、体上の除法と互除法は次の実装単位となる。
+
+`Noncommutative` は一般の群、部分群、右作用、安定化部分群、左剰余類の右作用を扱う。
+`Actions.At` は、推移的な右作用と選んだ点の安定化部分群の剰余類作用の間の同変全単射を構成する。
+
+`AmalgamatedProduct` は群の融合積の普遍性と、普遍性を満たす二つの群の標準同型を提供する。
+`Noncommutative.Actions.PointedMaps` は推移的な群作用間の基点付き同変写像を安定化部分群の包含から構成する。
+`GroupTransport` は相互逆な全単射で群構造を移す。

@@ -1,0 +1,38 @@
+\definition addition: \forall (a, b: A)(c, d: K) -> map (algebra.add a b) (Linear.add c d) = End.add (map a c) (map b d) :=
+  \fun (a, b: A)(c, d: K) => End.ext (map (algebra.add a b) (Linear.add c d)) (End.add (map a c) (map b d)) (\block {
+    \fun (p: Pair.Carrier) \then
+    \let x: A := Pair.first p \then
+    \let y: A := Pair.second p \then
+    \return Pairs.ext _ _
+      (trans!{A} _ _ _ (firstApply (algebra.add a b) (Linear.add c d) p)
+        (trans!{A} _ _ _ (congr2!{A A A} algebra.add _ _ _ _ (sourceRing.semiring.rightDistributive a b x) (Source.space.scalarAdd c d y))
+          (Sum.four (algebra.mul a x) (algebra.mul b x) (algebra.smul c y) (algebra.smul d y))))
+      (trans!{A} _ _ _ (secondApply (algebra.add a b) (Linear.add c d) p)
+        (trans!{A} _ _ _ (congr2!{A A A} algebra.add _ _ _ _ (Source.space.scalarAdd c d x)
+          (trans!{A} _ _ _ (congr!{A A} algebra.neg _ _ (sourceRing.semiring.rightDistributive a b y)) (Sum.negAdd (algebra.mul a y) (algebra.mul b y))))
+          (trans!{A} _ _ _ (Sum.four (algebra.smul c x) (algebra.smul d x) (algebra.neg (algebra.mul a y)) (algebra.neg (algebra.mul b y)))
+            (sym!{A} _ _ (congr2!{A A A} algebra.add _ _ _ _ (secondApply a c p) (secondApply b d p))))))
+  });
+\definition scalar: \forall (s: K)(a: A)(c: K) -> map (algebra.smul s a) (Linear.mul s c) = End.scale s (map a c) :=
+  \fun (s: K)(a: A)(c: K) => End.ext (map (algebra.smul s a) (Linear.mul s c)) (End.scale s (map a c)) (\block {
+    \fun (p: Pair.Carrier) \then
+    \let x: A := Pair.first p \then
+    \let y: A := Pair.second p \then
+    \return Pairs.ext _ _
+      (trans!{A} _ _ _ (firstApply (algebra.smul s a) (Linear.mul s c) p)
+        (trans!{A} _ _ _ (congr2!{A A A} algebra.add _ _ _ _ (sym!{A} _ _ (algebra.scalarMulLeft s a x)) (Source.space.scalarAssoc s c y))
+          (sym!{A} _ _ (Source.space.vectorAdd s (algebra.mul a x) (algebra.smul c y)))))
+      (trans!{A} _ _ _ (secondApply (algebra.smul s a) (Linear.mul s c) p)
+        (trans!{A} _ _ _ (congr2!{A A A} algebra.add _ _ _ _ (Source.space.scalarAssoc s c x)
+          (trans!{A} _ _ _ (congr!{A A} algebra.neg _ _ (sym!{A} _ _ (algebra.scalarMulLeft s a y))) (sym!{A} _ _ (Vectors.scaleNegative s (algebra.mul a y)))))
+          (trans!{A} _ _ _ (sym!{A} _ _ (Source.space.vectorAdd s (algebra.smul c x) (algebra.neg (algebra.mul a y))))
+            (congr!{A A} (algebra.smul s) _ _ (sym!{A} _ _ (secondApply a c p))))))
+  });
+\import Linear.DirectSum[V := A, W := K, left := Source.space, right := Linear.scalarSpace] \as Parameters;
+\import Linear.Linear[V := Parameters.Carrier, W := End.Carrier, source := Parameters.space, target := End.vectorSpace] \as LinearMaps;
+\definition linear: LinearMaps.Map := LinearMaps.Map {
+  apply := \fun (p: Parameters.Carrier) => map (Parameters.first p) (Parameters.second p),
+  preservesAdd := \fun (p, q: Parameters.Carrier) => addition (Parameters.first p) (Parameters.first q) (Parameters.second p) (Parameters.second q),
+  preservesScale := \fun (s: K)(p: Parameters.Carrier) => scalar s (Parameters.first p) (Parameters.second p),
+};
+\definition atZero: map algebra.zero Linear.zero = End.zero := linear.preservesZero;

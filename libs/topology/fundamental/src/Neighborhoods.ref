@@ -1,0 +1,54 @@
+\import \root.Paths[A := A, source := source] \as Paths;
+\import \root.Groupoid[A := A, source := source] \as Groupoid;
+\import Paths.Concatenation[] \as Join;
+\import algebraic_topology.Interval[] \as I;
+\import topology.Topology[Carrier := A] \as Space;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Logic.either;
+\definition Within[U: \Pow A][x, y: A][p: Paths.Path x y]: \Prop := \forall (t: I.Carrier) -> Space.Member U (p t);
+\definition Path[U: \Pow A][x, y: A]: \Set := \Cast[Paths.Path x y] ({ p: Paths.Path x y \where Within U x y p });
+\definition within[U: \Pow A][x, y: A][p: Path U x y]: Within U x y p := \bysub(Paths.Path x y, Path U x y, p);
+\definition constant[U: \Pow A][x: A][member: Space.Member U x]: Path U x x :=
+  \into[Paths.Path x x](Paths.constant x, Path U x x) \by { \fun (_: I.Carrier) => member };
+\definition reverse[U: \Pow A][x, y: A][p: Path U x y]: Path U y x :=
+  \into[Paths.Path y x](Paths.reverse x y p, Path U y x) \by { \fun (t: I.Carrier) => within U x y p (I.reverse t) };
+\definition concatenate[U: \Pow A][x, y, z: A][p: Path U x y][q: Path U y z]: Path U x z :=
+  \into[Paths.Path x z](Join.concatenate x y z p q, Path U x z) \by {
+    \fun (t: I.Carrier) => either!{{(Join.covered t)} {Space.Member U (Join.concatenate x y z p q t)}
+      {\fun (left: Join.Left t) => \idelim p (Join.leftTime t left) = Join.concatenate x y z p q t
+        \with a: A => Space.Member U a \by { base: within U x y p (Join.leftTime t left), equality: sym!{A} _ _ (Join.onLeft x y z p q t left) }}
+      {\fun (right: Join.Right t) => \idelim q (Join.rightTime t right) = Join.concatenate x y z p q t
+        \with a: A => Space.Member U a \by { base: within U y z q (Join.rightTime t right), equality: sym!{A} _ _ (Join.onRight x y z p q t right) }}}
+  };
+\definition restrict[U, V: \Pow A][subset: Space.Subset U V][x, y: A][p: Path U x y]: Path V x y :=
+  \into[Paths.Path x y](p, Path V x y) \by { \fun (t: I.Carrier) => subset (p t) (within U x y p t) };
+\structure Good[U: \Pow A]: \Prop := {
+  open: Space.IsOpenIn source U,
+  connected: \forall (x, y: A) -> Space.Member U x -> Space.Member U y -> \exists Path U x y,
+  unique: \forall (x, y: A)(p, q: Path U x y) -> Groupoid.class x y p = Groupoid.class x y q,
+};
+\structure Refinement[x: A, V, U: \Pow A]: \Prop := {
+  good: Good[U],
+  contains: Space.Member U x,
+  subset: Space.Subset U V,
+};
+\definition GoodBasis: \Prop := \forall (V: \Pow A) -> Space.IsOpenIn source V ->
+  \forall (x: A) -> Space.Member V x -> \exists ( U: \Pow A \where Refinement[x, V, U] );
+\structure ConnectedNeighborhood[x: A, V, U: \Pow A]: \Prop := {
+  open: Space.IsOpenIn source U,
+  contains: Space.Member U x,
+  subset: Space.Subset U V,
+  connected: \forall (y, z: A) -> Space.Member U y -> Space.Member U z -> \exists Path U y z,
+};
+\definition LocallyPathConnected: \Prop := \forall (V: \Pow A) -> Space.IsOpenIn source V -> \forall (x: A) -> Space.Member V x ->
+  \exists ( U: \Pow A \where ConnectedNeighborhood[x, V, U] );
+\structure SemilocalNeighborhood[x: A, U: \Pow A]: \Prop := {
+  open: Space.IsOpenIn source U,
+  contains: Space.Member U x,
+  null: \forall (p: Path U x x) -> Groupoid.class x x p = Groupoid.identity x,
+};
+\definition SemilocallySimplyConnected: \Prop := \forall (x: A) -> \exists ( U: \Pow A \where SemilocalNeighborhood[x, U] );
+\module GoodBasisTheorem;
+\definition goodBasis: LocallyPathConnected -> SemilocallySimplyConnected -> GoodBasis := GoodBasisTheorem[].refine;

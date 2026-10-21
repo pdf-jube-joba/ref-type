@@ -1,0 +1,60 @@
+\import Blocks.FixedLeft[U := domain, V := Joint.domain, c := origin] \as Slice;
+\definition included: Slice.Included := \fun (x: Open.Carrier domain) => ball.included (Blocks.join origin x)
+  (R.leLtTrans _ _ _ (Blocks.fixedLeftDistance x origin origin)
+    (R.ltReplaceLeft (Norm.metric.distance origin x) (Norm.metric.distance x origin) neighborhood (Norm.metric.symmetric origin x)
+      (\bysub(Vectors.Point, domain.points, x))));
+\definition slice: calculus.Maps[n := n, m := dimension].Map domain Joint.domain := Slice.map included;
+\import calculus.Maps[n := n, m := dimension].Composition[U := domain, V := Joint.domain, f := slice].After[l := n, W := chart.image, g := joint] \as After;
+\import Fields.Restriction[U := domain, V := chart.image, W := chart.image] \as Inclusion;
+\import calculus.Identity[n := n] \as Identity;
+\definition inclusion: Fields.Map domain chart.image := Inclusion.input inChart (Identity.map chart.image);
+\import algebra.Groups[].On[G := Point, group := group] \as Group;
+\definition pointwise: \forall (x: Open.Carrier domain) -> Fields.apply domain chart.image After.compose x = Fields.apply domain chart.image inclusion x := \block {
+  \fun (x: Open.Carrier domain) \then
+  \let p: JointOpen.Carrier Joint.domain := Slice.apply included x \then
+  \let q: source.Point := Joint.leftCoordinate p \then
+  \let image: Open.Carrier chart.image := Open.inclusion domain chart.image inChart x \then
+  \let leftCoordinate: Product.leftPoint q = origin := Blocks.leftJoin origin x \then
+  \let rightCoordinate: Product.rightPoint q = image := Blocks.rightJoin origin x \then
+  \let leftPoint: Maps.apply left q = one := trans!{Point} _ _ _
+    (congr!{{Open.Carrier chart.image} Point} (\fun (z: Open.Carrier chart.image) => Charts.point chart z) _ _ leftCoordinate)
+    (ChartLaws.pointCoordinate (AtOne.localPoint chart)) \then
+  \let rightPoint: Maps.apply right q = Charts.point chart image := congr!{{Open.Carrier chart.image} Point}
+    (\fun (z: Open.Carrier chart.image) => Charts.point chart z) _ _ rightCoordinate \then
+  \let result: Maps.apply map q = Charts.point chart image := trans!{Point} _ _ _ (apply q)
+    (trans!{Point} _ _ _ (congr2!{Point Point Point} mul _ _ _ _ leftPoint rightPoint) (Group.oneLeft (Charts.point chart image))) \then
+  \return ChartLaws.pointInjective (Joint.apply p) image (trans!{Point} _ _ _ (Joint.returnsPoint p) result)
+};
+\definition equal: After.compose = inclusion := Fields.ext domain chart.image After.compose inclusion (\axiom:funext(Fields.apply domain chart.image After.compose,
+  Fields.apply domain chart.image inclusion, pointwise));
+\import calculus.Vector[n := n, m := n] \as Output;
+\import After.At[a := initial] \as ComposedD;
+\import calculus.Maps[n := n, m := dimension].Differential[U := domain, V := Joint.domain, f := slice, a := initial] \as SliceD;
+\import Slice.At[included := included, a := initial] \as SliceDerivative;
+\import Calculus.Differential[U := Joint.domain, V := chart.image, f := joint, a := basePoint] \as JointD;
+\definition inclusionLaw: Output.HasDifferentialAt domain (\fun (x: Open.Carrier domain) => Fields.apply domain chart.image After.compose x) initial Identity.linear :=
+  \idelim inclusion = After.compose \with f: Fields.Map domain chart.image =>
+    Output.HasDifferentialAt domain (\fun (x: Open.Carrier domain) => Fields.apply domain chart.image f x) initial Identity.linear \by {
+      base: Output.linearDifferential domain Identity.linear initial,
+      equality: sym!{{Fields.Map domain chart.image}} _ _ equal
+    };
+\import Output.Differential[U := domain, f := (\fun (x: Open.Carrier domain) => Fields.apply domain chart.image After.compose x), a := initial, d := ComposedD.candidate] \as Compare;
+\definition candidateIdentity: ComposedD.candidate = Identity.linear := Compare.uniqueness Identity.linear ComposedD.candidateLaw inclusionLaw;
+\definition Parameters: \Set := topological_algebra.Euclidean[].Dimension[n := dimension].Point;
+\definition jacobianDirection: JointD.value.apply direction = TangentCoordinates.decode v := \block {
+  \let w: Vectors.Point := TangentCoordinates.decode v \then
+  \let sliceDirection: SliceD.value.apply w = direction :=
+    congr!{{calculus.Vector[n := n, m := dimension].LinearMap} Parameters}
+      (\fun (d: calculus.Vector[n := n, m := dimension].LinearMap) => d.apply w) _ _ SliceDerivative.law \then
+  \return trans!{Vectors.Point} _ _ _
+    (congr!{Parameters Vectors.Point} (JointD.value.apply) _ _ (sym!{Parameters} _ _ sliceDirection))
+    (congr!{{Output.LinearMap} Vectors.Point} (\fun (d: Output.LinearMap) => d.apply w) _ _ candidateIdentity)
+};
+\import real.Analysis[].FiniteSums[] \as FiniteSums;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Arithmetic;
+\definition atInitial: velocity initial = TangentCoordinates.decode v := \axiom:funext(velocity initial, TangentCoordinates.decode v,
+  \fun (i: std.Data[].FinSet[].Fin n) => trans!{Reals.Real} _ _ _
+    (FiniteSums.congruent dimension (\fun (j: std.Data[].FinSet[].Fin dimension) => Reals.mul (direction j) (coefficient i j initial))
+      (\fun (j: std.Data[].FinSet[].Fin dimension) => Reals.mul (coefficient i j initial) (direction j))
+      (\fun (j: std.Data[].FinSet[].Fin dimension) => Arithmetic.fieldMulComm (direction j) (coefficient i j initial)))
+    (congr!{Vectors.Point Reals.Real} (\fun (w: Vectors.Point) => w i) _ _ jacobianDirection));

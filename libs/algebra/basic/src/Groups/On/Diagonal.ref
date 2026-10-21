@@ -1,0 +1,78 @@
+\import std.Logic[].Relation[] \as Relations;
+\definition z: G := sign.element;
+\definition twist[x: G]: G := mul z x;
+\definition twice: \forall (x: G) -> twist (twist x) = x :=
+  \fun (x: G) => trans!{G} _ _ _ (sym!{G} _ _ (assoc z z x))
+    (trans!{G} _ _ _ (congr!{G G} (\fun (a: G) => mul a x) _ _ sign.square) (oneLeft x));
+\definition twistProductLeft: \forall (x, y: G) -> twist (mul x y) = mul (twist x) y :=
+  \fun (x, y: G) => sym!{G} _ _ (assoc z x y);
+\definition twistProductRight: \forall (x, y: G) -> twist (mul x y) = mul x (twist y) :=
+  \fun (x, y: G) => trans!{G} _ _ _ (twistProductLeft x y)
+    (trans!{G} _ _ _ (congr!{G G} (\fun (a: G) => mul a y) _ _ (sign.central x)) (assoc x z y));
+\definition inverseZ: inv z = z := sym!{G} _ _ (inverseUnique z z sign.square);
+\definition inverseTwist: \forall (x: G) -> inv (twist x) = twist (inv x) :=
+  \fun (x: G) => trans!{G} _ _ _ (invMul z x)
+    (trans!{G} _ _ _ (congr!{G G} (mul (inv x)) _ _ inverseZ) (sym!{G} _ _ (sign.central (inv x))));
+\definition Equivalent[x, y: G]: \Prop := Logic.Or[x = y, twist x = y];
+\definition reflexive: \forall (x: G) -> Equivalent x x := \fun (x: G) => Logic.Or[_, _]::left (\refl(x));
+\definition symmetric: \forall (x, y: G) -> Equivalent x y -> Equivalent y x :=
+  \fun (x, y: G)(related: Equivalent x y) => Logic.orElim _ _ (Equivalent y x) related
+    (\fun (same: x = y) => Logic.Or[_, _]::left (sym!{G} _ _ same))
+    (\fun (same: twist x = y) => Logic.Or[_, _]::right (trans!{G} _ _ _
+      (congr!{G G} twist _ _ (sym!{G} _ _ same)) (twice x)));
+\definition transitive: \forall (x, y, w: G) -> Equivalent x y -> Equivalent y w -> Equivalent x w :=
+  \fun (x, y, w: G)(xy: Equivalent x y)(yw: Equivalent y w) => Logic.orElim _ _ (Equivalent x w) xy
+    (\fun (same: x = y) => \idelim y = x \with a: G => Equivalent a w \by { base: yw, equality: sym!{G} _ _ same })
+    (\fun (same: twist x = y) => Logic.orElim _ _ (Equivalent x w) yw
+      (\fun (equal: y = w) => Logic.Or[_, _]::right (trans!{G} _ _ _ same equal))
+      (\fun (equal: twist y = w) => Logic.Or[_, _]::left (trans!{G} _ _ _ (sym!{G} _ _ (twice x))
+        (trans!{G} _ _ _ (congr!{G G} twist _ _ same) equal))));
+\definition equivalence: Relations.Equivalence[G, Equivalent] := Relations.Equivalence[G, Equivalent] {
+  refl := reflexive, sym := symmetric, trans := transitive,
+};
+\definition multiplyLeft: \forall (x, y, a: G) -> Equivalent x y -> Equivalent (mul x a) (mul y a) :=
+  \fun (x, y, a: G)(related: Equivalent x y) => Logic.orElim _ _ (Equivalent (mul x a) (mul y a)) related
+    (\fun (same: x = y) => Logic.Or[_, _]::left (congr!{G G} (\fun (v: G) => mul v a) _ _ same))
+    (\fun (same: twist x = y) => Logic.Or[_, _]::right (trans!{G} _ _ _ (twistProductLeft x a)
+      (congr!{G G} (\fun (v: G) => mul v a) _ _ same)));
+\definition multiplyRight: \forall (a, x, y: G) -> Equivalent x y -> Equivalent (mul a x) (mul a y) :=
+  \fun (a, x, y: G)(related: Equivalent x y) => Logic.orElim _ _ (Equivalent (mul a x) (mul a y)) related
+    (\fun (same: x = y) => Logic.Or[_, _]::left (congr!{G G} (mul a) _ _ same))
+    (\fun (same: twist x = y) => Logic.Or[_, _]::right (trans!{G} _ _ _ (twistProductRight a x)
+      (congr!{G G} (mul a) _ _ same)));
+\definition mulCong: \forall (x, y, u, v: G) -> Equivalent x y -> Equivalent u v -> Equivalent (mul x u) (mul y v) :=
+  \fun (x, y, u, v: G)(xy: Equivalent x y)(uv: Equivalent u v) => transitive (mul x u) (mul y u) (mul y v)
+    (multiplyLeft x y u xy) (multiplyRight y u v uv);
+\definition invCong: \forall (x, y: G) -> Equivalent x y -> Equivalent (inv x) (inv y) :=
+  \fun (x, y: G)(related: Equivalent x y) => Logic.orElim _ _ (Equivalent (inv x) (inv y)) related
+    (\fun (same: x = y) => Logic.Or[_, _]::left (congr!{G G} inv _ _ same))
+    (\fun (same: twist x = y) => Logic.Or[_, _]::right (trans!{G} _ _ _ (sym!{G} _ _ (inverseTwist x)) (congr!{G G} inv _ _ same)));
+\import std.Set[].Quotient[A := G, Equivalent := Equivalent] \as Q;
+\import algebra.Quotient[A := G, relation := Equivalent] \as Quotient;
+\import Quotient.Operations[] \as Operations;
+\definition Carrier: \Set := Q.Carrier;
+\definition class: G -> Carrier := Q.class;
+\definition unit: Carrier := class one;
+\definition product: Carrier -> Carrier -> Carrier := Operations.binary equivalence mul mulCong;
+\definition inverse: Carrier -> Carrier := Operations.unary equivalence inv invCong;
+\definition classMul: \forall (x, y: G) -> product (class x) (class y) = class (mul x y) := Operations.binaryClass equivalence mul mulCong;
+\definition classInv: \forall (x: G) -> inverse (class x) = class (inv x) := Operations.unaryClass equivalence inv invCong;
+\definition group: Alg.Group[Carrier] := Alg.Group[Carrier] {
+  unit := unit, op := product, inv := inverse,
+  monoid := Monoid.MonoidLaws[Carrier, Monoid.MonoidData[Carrier]::# unit product] {
+    leftIdentity := Operations.leftIdentity equivalence mul mulCong one
+      (\fun (x: G) => Logic.Or[_, _]::left (oneLeft x)),
+    rightIdentity := Operations.rightIdentity equivalence mul mulCong one
+      (\fun (x: G) => Logic.Or[_, _]::left (oneRight x)),
+    associative := Operations.associative equivalence mul mulCong
+      (\fun (x, y, w: G) => Logic.Or[_, _]::left (assoc x y w)),
+  },
+  leftInverse := Operations.inverseLeft equivalence mul mulCong inv invCong one
+    (\fun (x: G) => Logic.Or[_, _]::left (invLeft x)),
+  rightInverse := Q.induction (\fun (x: Carrier) => product x (inverse x) = unit)
+    (\fun (x: G) => trans!{Carrier} _ _ _
+      (congr!{Carrier Carrier} (product (class x)) _ _ (classInv x))
+      (trans!{Carrier} _ _ _ (classMul x (inv x)) (congr!{G Carrier} class _ _ (invRight x)))),
+};
+\definition identifySign: \forall (x: G) -> class (twist x) = class x :=
+  \fun (x: G) => Quotient.classRelated equivalence _ _ (Logic.Or[_, _]::right (twice x));

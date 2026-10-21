@@ -1,0 +1,34 @@
+\import \parent.\parent.DirectSum[V := V, W := W, left := firstSpace, right := secondSpace] \as Sum;
+\import std.Data[].Pair[].Prop[A := V, B := W] \as Pairs;
+\import \parent.\parent.Isomorphism[V := V, W := Left.Vector, source := firstSpace, target := Left.space] \as FirstIso;
+\import \parent.\parent.Isomorphism[V := W, W := Right.Vector, source := secondSpace, target := Right.space] \as SecondIso;
+\import \parent.\parent.Linear[V := Sum.Carrier, W := Total.Vector, source := Sum.space, target := Total.space] \as Forward;
+\import \parent.\parent.Linear[V := Total.Vector, W := Sum.Carrier, source := Total.space, target := Sum.space] \as Backward;
+\import \parent.\parent.Isomorphism[V := Sum.Carrier, W := Total.Vector, source := Sum.space, target := Total.space] \as Isomorphisms;
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (v: Sum.Carrier) => join (first.forward.apply (Sum.first v)) (second.forward.apply (Sum.second v)),
+  preservesAdd := \fun (u, v: Sum.Carrier) => trans!{{Total.Vector}} _ _ _
+    (congr2!{{Left.Vector} {Right.Vector} {Total.Vector}} join _ _ _ _
+      (first.forward.preservesAdd (Sum.first u) (Sum.first v)) (second.forward.preservesAdd (Sum.second u) (Sum.second v)))
+    (addition (first.forward.apply (Sum.first u)) (first.forward.apply (Sum.first v)) (second.forward.apply (Sum.second u)) (second.forward.apply (Sum.second v))),
+  preservesScale := \fun (a: K)(v: Sum.Carrier) => trans!{{Total.Vector}} _ _ _
+    (congr2!{{Left.Vector} {Right.Vector} {Total.Vector}} join _ _ _ _
+      (first.forward.preservesScale a (Sum.first v)) (second.forward.preservesScale a (Sum.second v)))
+    (scalar a (first.forward.apply (Sum.first v)) (second.forward.apply (Sum.second v))),
+};
+\definition backward: Backward.Map := Backward.Map {
+  apply := \fun (v: Total.Vector) => Sum.make (first.backward.apply (left v)) (second.backward.apply (right v)),
+  preservesAdd := \fun (u, v: Total.Vector) => congr2!{V W {Sum.Carrier}} Sum.make _ _ _ _
+    (first.backward.preservesAdd (left u) (left v)) (second.backward.preservesAdd (right u) (right v)),
+  preservesScale := \fun (a: K)(v: Total.Vector) => congr2!{V W {Sum.Carrier}} Sum.make _ _ _ _
+    (first.backward.preservesScale a (left v)) (second.backward.preservesScale a (right v)),
+};
+\definition isomorphism: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := \fun (v: Sum.Carrier) => Pairs.ext (backward.apply (forward.apply v)) v
+    (trans!{V} _ _ _ (congr!{{Left.Vector} V} first.backward.apply _ _ (leftJoin (first.forward.apply (Sum.first v)) (second.forward.apply (Sum.second v)))) ((FirstIso.laws first).leftInverse (Sum.first v)))
+    (trans!{W} _ _ _ (congr!{{Right.Vector} W} second.backward.apply _ _ (rightJoin (first.forward.apply (Sum.first v)) (second.forward.apply (Sum.second v)))) ((SecondIso.laws second).leftInverse (Sum.second v))),
+  rightInverse := \fun (v: Total.Vector) => trans!{{Total.Vector}} _ _ _
+    (congr2!{{Left.Vector} {Right.Vector} {Total.Vector}} join _ _ _ _
+      ((FirstIso.laws first).rightInverse (left v)) ((SecondIso.laws second).rightInverse (right v))) (recover v),
+};

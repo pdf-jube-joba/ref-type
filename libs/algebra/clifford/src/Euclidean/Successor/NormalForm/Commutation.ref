@@ -1,0 +1,85 @@
+/* Moving the first vector past an element of the complementary algebra. */
+\import NextAlgebra.Relations[] \as Relations;
+\definition Property[a: Carrier]: \Prop := NextAlgebra.mul gamma (Inclusion.map a) = NextAlgebra.mul (Inclusion.map (Grade.map a)) gamma;
+\import Clifford.Induction[P := Property] \as Induction;
+\definition scalar: \forall (a: R.Real) -> Property (Clifford.scalar a) := \fun (a: R.Real) =>
+  trans!{Next.Carrier} _ _ _
+    (congr!{Next.Carrier Next.Carrier} (NextAlgebra.mul gamma) _ _ (Inclusion.onScalar a))
+    (trans!{Next.Carrier} _ _ _ (sym!{Next.Carrier} _ _ (NextAlgebra.scalarCentral a gamma))
+      (congr!{Next.Carrier Next.Carrier} (\fun (x: Next.Carrier) => NextAlgebra.mul x gamma) _ _
+        (sym!{Next.Carrier} _ _ (trans!{Next.Carrier} _ _ _
+          (congr!{Carrier Next.Carrier} Inclusion.map _ _ (Grade.onScalar a)) (Inclusion.onScalar a)))));
+\definition polarZero: \forall (v: Vector) -> Relations.polar Coordinates.first (Coordinates.embed v) = R.zero :=
+  \fun (v: Vector) => trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.add _ _ _ _
+    (trans!{R.Real} _ _ _ (Coordinates.firstDot (Coordinates.embed v)) (Coordinates.embedHead v))
+    (trans!{R.Real} _ _ _ (Next.symmetric (Coordinates.embed v) Coordinates.first)
+      (trans!{R.Real} _ _ _ (Coordinates.firstDot (Coordinates.embed v)) (Coordinates.embedHead v)))) (Arithmetic.addZeroLeft R.zero);
+\definition vector: \forall (v: Vector) -> Property (Clifford.iota v) := \block {
+  \fun (v: Vector) \then
+  \let x: Next.Carrier := Next.iota (Coordinates.embed v) \then
+  \let reordered: NextAlgebra.mul gamma x = NextAlgebra.neg (NextAlgebra.mul x gamma) :=
+    trans!{Next.Carrier} _ _ _ (Relations.reordered Coordinates.first (Coordinates.embed v))
+      (trans!{Next.Carrier} _ _ _
+        (congr!{R.Real Next.Carrier} (\fun (a: R.Real) => NextAlgebra.add (Next.scalar a) (NextAlgebra.neg (NextAlgebra.mul x gamma))) _ _ (polarZero v))
+        (Vectors.zeroLeft (NextAlgebra.neg (NextAlgebra.mul x gamma)))) \then
+  \let graded: Inclusion.map (Grade.map (Clifford.iota v)) = NextAlgebra.neg x :=
+    trans!{Next.Carrier} _ _ _ (congr!{Carrier Next.Carrier} Inclusion.map _ _ (Grade.onVector v))
+      (trans!{Next.Carrier} _ _ _ (Inclusion.onNegative (Clifford.iota v))
+        (congr!{Next.Carrier Next.Carrier} NextAlgebra.neg _ _ (Inclusion.onVector v))) \then
+  \return trans!{Next.Carrier} _ _ _ (congr!{Next.Carrier Next.Carrier} (NextAlgebra.mul gamma) _ _ (Inclusion.onVector v))
+    (trans!{Next.Carrier} _ _ _ reordered
+      (sym!{Next.Carrier} _ _ (trans!{Next.Carrier} _ _ _
+        (congr!{Next.Carrier Next.Carrier} (\fun (y: Next.Carrier) => NextAlgebra.mul y gamma) _ _ graded) (Units.negMul x gamma))))
+};
+\definition addition: \forall (a, b: Carrier) -> Property a -> Property b -> Property (Clifford.add a b) :=
+  \fun (a, b: Carrier)(left: Property a)(right: Property b) => eq_reason!{
+    {NextAlgebra.mul gamma (Inclusion.map (Clifford.add a b))}
+    "=" {NextAlgebra.mul gamma (NextAlgebra.add (Inclusion.map a) (Inclusion.map b))} "by" {
+      congr!{Next.Carrier Next.Carrier} (NextAlgebra.mul gamma) _ _ (Inclusion.laws.add a b)}
+    "=" {NextAlgebra.add (NextAlgebra.mul gamma (Inclusion.map a)) (NextAlgebra.mul gamma (Inclusion.map b))} "by" {
+      Next.ring.semiring.leftDistributive gamma (Inclusion.map a) (Inclusion.map b)}
+    "=" {NextAlgebra.add (NextAlgebra.mul (Inclusion.map (Grade.map a)) gamma) (NextAlgebra.mul (Inclusion.map (Grade.map b)) gamma)} "by" {
+      congr2!{Next.Carrier Next.Carrier Next.Carrier} NextAlgebra.add _ _ _ _ left right}
+    "=" {NextAlgebra.mul (NextAlgebra.add (Inclusion.map (Grade.map a)) (Inclusion.map (Grade.map b))) gamma} "by" {
+      sym!{Next.Carrier} _ _ (Next.ring.semiring.rightDistributive (Inclusion.map (Grade.map a)) (Inclusion.map (Grade.map b)) gamma)}
+    "=" {NextAlgebra.mul (Inclusion.map (Grade.map (Clifford.add a b))) gamma} "by" {
+      congr!{Next.Carrier Next.Carrier} (\fun (x: Next.Carrier) => NextAlgebra.mul x gamma) _ _
+        (sym!{Next.Carrier} _ _ (trans!{Next.Carrier} _ _ _
+          (congr!{Carrier Next.Carrier} Inclusion.map _ _ (Grade.laws.add a b)) (Inclusion.laws.add (Grade.map a) (Grade.map b))))}
+  };
+\definition negative: \forall (a: Carrier) -> Property a -> Property (Clifford.neg a) :=
+  \fun (a: Carrier)(previous: Property a) => eq_reason!{
+    {NextAlgebra.mul gamma (Inclusion.map (Clifford.neg a))}
+    "=" {NextAlgebra.mul gamma (NextAlgebra.neg (Inclusion.map a))} "by" {
+      congr!{Next.Carrier Next.Carrier} (NextAlgebra.mul gamma) _ _ (Inclusion.onNegative a)}
+    "=" {NextAlgebra.neg (NextAlgebra.mul gamma (Inclusion.map a))} "by" {Units.mulNeg gamma (Inclusion.map a)}
+    "=" {NextAlgebra.neg (NextAlgebra.mul (Inclusion.map (Grade.map a)) gamma)} "by" {congr!{Next.Carrier Next.Carrier} NextAlgebra.neg _ _ previous}
+    "=" {NextAlgebra.mul (NextAlgebra.neg (Inclusion.map (Grade.map a))) gamma} "by" {sym!{Next.Carrier} _ _ (Units.negMul (Inclusion.map (Grade.map a)) gamma)}
+    "=" {NextAlgebra.mul (Inclusion.map (Grade.map (Clifford.neg a))) gamma} "by" {
+      congr!{Next.Carrier Next.Carrier} (\fun (x: Next.Carrier) => NextAlgebra.mul x gamma) _ _
+        (sym!{Next.Carrier} _ _ (trans!{Next.Carrier} _ _ _
+          (congr!{Carrier Next.Carrier} Inclusion.map _ _ (Grade.onNegative a)) (Inclusion.onNegative (Grade.map a))))}
+  };
+\definition multiplication: \forall (a, b: Carrier) -> Property a -> Property b -> Property (Clifford.mul a b) :=
+  \fun (a, b: Carrier)(left: Property a)(right: Property b) => eq_reason!{
+    {NextAlgebra.mul gamma (Inclusion.map (Clifford.mul a b))}
+    "=" {NextAlgebra.mul gamma (NextAlgebra.mul (Inclusion.map a) (Inclusion.map b))} "by" {
+      congr!{Next.Carrier Next.Carrier} (NextAlgebra.mul gamma) _ _ (Inclusion.laws.mul a b)}
+    "=" {NextAlgebra.mul (NextAlgebra.mul gamma (Inclusion.map a)) (Inclusion.map b)} "by" {
+      sym!{Next.Carrier} _ _ (Next.ring.semiring.multiplicative.associative gamma (Inclusion.map a) (Inclusion.map b))}
+    "=" {NextAlgebra.mul (NextAlgebra.mul (Inclusion.map (Grade.map a)) gamma) (Inclusion.map b)} "by" {
+      congr!{Next.Carrier Next.Carrier} (\fun (x: Next.Carrier) => NextAlgebra.mul x (Inclusion.map b)) _ _ left}
+    "=" {NextAlgebra.mul (Inclusion.map (Grade.map a)) (NextAlgebra.mul gamma (Inclusion.map b))} "by" {
+      Next.ring.semiring.multiplicative.associative (Inclusion.map (Grade.map a)) gamma (Inclusion.map b)}
+    "=" {NextAlgebra.mul (Inclusion.map (Grade.map a)) (NextAlgebra.mul (Inclusion.map (Grade.map b)) gamma)} "by" {
+      congr!{Next.Carrier Next.Carrier} (NextAlgebra.mul (Inclusion.map (Grade.map a))) _ _ right}
+    "=" {NextAlgebra.mul (NextAlgebra.mul (Inclusion.map (Grade.map a)) (Inclusion.map (Grade.map b))) gamma} "by" {
+      sym!{Next.Carrier} _ _ (Next.ring.semiring.multiplicative.associative (Inclusion.map (Grade.map a)) (Inclusion.map (Grade.map b)) gamma)}
+    "=" {NextAlgebra.mul (Inclusion.map (Grade.map (Clifford.mul a b))) gamma} "by" {
+      congr!{Next.Carrier Next.Carrier} (\fun (x: Next.Carrier) => NextAlgebra.mul x gamma) _ _
+        (sym!{Next.Carrier} _ _ (trans!{Next.Carrier} _ _ _
+          (congr!{Carrier Next.Carrier} Inclusion.map _ _ (Grade.laws.mul a b)) (Inclusion.laws.mul (Grade.map a) (Grade.map b))))}
+  };
+\definition all: \forall (a: Carrier) -> Property a := Induction.all (Induction.Closed {
+  scalar := scalar, vector := vector, addition := addition, negative := negative, multiplication := multiplication
+});

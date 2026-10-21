@@ -1,0 +1,55 @@
+\import \parent.Splitting[] \as Splitting;
+\import Spaces.DirectSum[V := Tangent.Vector x, W := Fiber, left := Tangent.space x, right := space] \as Sum;
+\import Spaces.Isomorphism[V := Sum.Carrier, W := E.Vector, source := Sum.space, target := E.space] \as SplittingIsomorphisms;
+\definition splittingLaws: SplittingIsomorphisms.Laws[Splitting.isomorphism] := SplittingIsomorphisms.laws Splitting.isomorphism;
+\import Subspaces.Image[U := Tangent.Vector x, source := Tangent.space x] \as Images;
+\definition image: Subspaces.Subspace := Images.image differential;
+\import Spaces.Quotient[V := E.Vector, space := E.space].Of[S := image] \as Quotient;
+\definition Carrier: \Set := Quotient.Carrier;
+\definition quotientSpace: Spaces.VectorSpace Carrier := Quotient.vectorSpace;
+\import Spaces.Linear[V := E.Vector, W := Fiber, source := E.space, target := space] \as NormalMaps;
+\definition projection: NormalMaps.Map := NormalMaps.Map {
+  apply := \fun (v: E.Vector) => Sum.second (Splitting.isomorphism.backward.apply v),
+  preservesAdd := \fun (v, w: E.Vector) => congr!{{Sum.Carrier} Fiber} Sum.second _ _ (Splitting.isomorphism.backward.preservesAdd v w),
+  preservesScale := \fun (a: R.Real)(v: E.Vector) => congr!{{Sum.Carrier} Fiber} Sum.second _ _ (Splitting.isomorphism.backward.preservesScale a v),
+};
+\definition vanishesDifferential: \forall (v: Tangent.Vector x) -> projection.apply (differential.apply v) = space.zero :=
+  \fun (v: Tangent.Vector x) => congr!{{Sum.Carrier} Fiber} Sum.second _ _ (trans!{{Sum.Carrier}} _ _ _
+    (congr!{{E.Vector} {Sum.Carrier}} Splitting.isomorphism.backward.apply _ _ (sym!{{E.Vector}} _ _ (Spaces.Laws[V := E.Vector, space := E.space].zeroRight (differential.apply v))))
+    (splittingLaws.leftInverse (Sum.make v space.zero)));
+\import Quotient.Universal[U := Fiber, target := space] \as Descent;
+\definition vanishes: Descent.Vanishes projection := \block {
+  \fun (w: E.Vector)(member: _) \then
+  \takefrom v: \Cast[Tangent.Vector x] ({ v: Tangent.Vector x \where differential.apply v = w }) \by member \then
+  \return \idelim differential.apply v = w \with z: E.Vector => projection.apply z = space.zero \by {
+    base: vanishesDifferential v, equality: \bysub(Tangent.Vector x, { v: Tangent.Vector x \where differential.apply v = w }, v)
+  }
+};
+\definition forward: Spaces.Linear[V := Carrier, W := Fiber, source := quotientSpace, target := space].Map := Descent.map projection vanishes;
+\import Spaces.Linear[V := E.Vector, W := Carrier, source := E.space, target := quotientSpace].Composition[U := Fiber, domain := space] \as IncludeClass;
+\definition backward: Spaces.Linear[V := Fiber, W := Carrier, source := space, target := quotientSpace].Map := IncludeClass.compose Quotient.projection Subspace.inclusion;
+\definition normalRetraction: \forall (w: Fiber) -> projection.apply w = w := \fun (w: Fiber) => congr!{{Sum.Carrier} Fiber} Sum.second _ _
+  (trans!{{Sum.Carrier}} _ _ _ (congr!{{E.Vector} {Sum.Carrier}} Splitting.isomorphism.backward.apply _ _
+    (sym!{{E.Vector}} _ _ (trans!{{E.Vector}} _ _ _
+      (congr!{{E.Vector} {E.Vector}} (\fun (v: E.Vector) => E.space.add v w) _ _ differential.preservesZero) (Spaces.Laws[V := E.Vector, space := E.space].zeroLeft w))))
+    (splittingLaws.leftInverse (Sum.make (Tangent.space x).zero w)));
+\definition rightInverse: \forall (w: Fiber) -> forward.apply (backward.apply w) = w := \fun (w: Fiber) => trans!{Fiber} _ _ _ (Descent.onClass projection vanishes w) (normalRetraction w);
+\definition classDifferential: \forall (v: Tangent.Vector x) -> Quotient.class (differential.apply v) = quotientSpace.zero := \fun (v: Tangent.Vector x) =>
+  Quotient.classZero (differential.apply v) (Logic.existsIntro[Tangent.Vector x, { t: Tangent.Vector x \where differential.apply t = differential.apply v }] v (\refl(differential.apply v)));
+\module AtVector(w: E.Vector);
+\definition classProjection: \forall (w: E.Vector) -> Quotient.class w = Quotient.class (projection.apply w) := \fun (w: E.Vector) => AtVector[w := w].equation;
+\import Quotient.Universal[U := Carrier, target := quotientSpace] \as End;
+\definition quotientVanishes: End.Vanishes Quotient.projection := \fun (w: E.Vector)(member: _) => Quotient.classZero w member;
+\definition composite[q: Carrier]: Carrier := backward.apply (forward.apply q);
+\definition compositeClass: \forall (w: E.Vector) -> composite (Quotient.class w) = Quotient.class w := \fun (w: E.Vector) =>
+  trans!{Carrier} _ _ _ (congr!{Fiber Carrier} backward.apply _ _ (Descent.onClass projection vanishes w)) (sym!{Carrier} _ _ (classProjection w));
+\definition inverseEquality: composite = (\fun (q: Carrier) => q) := trans!{{Carrier -> Carrier}} _ _ _
+  (End.unique Quotient.projection quotientVanishes composite compositeClass)
+  (sym!{{Carrier -> Carrier}} _ _ (End.unique Quotient.projection quotientVanishes (\fun (q: Carrier) => q) (\fun (w: E.Vector) => \refl(Quotient.class w))));
+\import Spaces.Isomorphism[V := Carrier, W := Fiber, source := quotientSpace, target := space] \as Isomorphisms;
+\definition isomorphism: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := \fun (q: Carrier) => congr!{{Carrier -> Carrier} Carrier} (\fun (f: Carrier -> Carrier) => f q) _ _ inverseEquality,
+  rightInverse := rightInverse,
+};
+\definition onClass: \forall (w: E.Vector) -> forward.apply (Quotient.class w) = projection.apply w := Descent.onClass projection vanishes;

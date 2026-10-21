@@ -1,0 +1,73 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].Nat[].Order[].Prop[] \as NatOrder;
+\import std.Data[].List[] \as Lists;
+\import Lists.Membership[A := A] \as Membership;
+\import std.Data[].FinSet[] \as Fin;
+\import Fin.FromList[A := A] \as FromList;
+\import Fin.Tuples[A := A] \as Tuples;
+\import Fin.Pigeonhole[] \as Pigeonhole;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\structure Index[x: A, xs: Lists.List[A]]: \Set := {
+  position: Fin.Fin (Lists.length A xs),
+  value: FromList.tuple xs position = x,
+};
+\definition indexExists: \forall (xs: Lists.List[A])(x: A) -> Membership.Occurs x xs -> \exists Index[x, xs] :=
+  \induction (xs: Lists.List[A]) \return \forall (x: A) -> Membership.Occurs x xs -> \exists Index[x, xs] \with {
+    | nil: \fun (x: A)(impossible: Logic.False) => Logic.falseElim (\exists Index[x, Lists.List[A]::nil]) impossible
+    | cons: \fun (head: A)(tail: Lists.List[A])(previous: _)(x: A)(member: _) =>
+      Logic.orElim (x = head) (Membership.Occurs x tail) (\exists Index[x, Lists.List[A]::cons head tail]) member
+        (\fun (same: _) => \exact(Index[x, Lists.List[A]::cons head tail] {
+          position := Fin.zero (Lists.length A tail),
+          value := trans!{A} _ _ _ (Tuples.atZero (Lists.length A tail) head (FromList.tuple tail)) (sym!{A} _ _ same),
+        }, Index[x, Lists.List[A]::cons head tail]))
+        (\block {
+          \fun (old: _) \then
+          \takefrom found: Index[x, tail] \by previous x old \then
+          \return \exact(Index[x, Lists.List[A]::cons head tail] {
+            position := Fin.succ (Lists.length A tail) found.position,
+            value := trans!{A} _ _ _ (Tuples.atSuccessor (Lists.length A tail) head (FromList.tuple tail) found.position) found.value,
+          }, Index[x, Lists.List[A]::cons head tail])
+        })
+  };
+\definition Infinite: \Prop := \forall (xs: Lists.List[A]) -> \exists ( x: A \where Logic.Not (Membership.Occurs x xs) );
+\definition Injective[f: N.Nat^ -> A]: \Prop := \forall (n, m: N.Nat^) -> f n = f m -> n = m;
+\module Against(xs: Lists.List[A]) {
+  \definition size: N.Nat^ := Lists.length A xs;
+  \definition candidates: N.Nat^ := N.Nat^::succ size;
+  \import Fin.Choice[A := Fin.Fin size] \as Choice;
+  \definition existsOutside: \forall (f: N.Nat^ -> A) -> Injective f -> \exists ( x: A \where Logic.Not (Membership.Occurs x xs) ) :=
+    \fun (f: N.Nat^ -> A)(injective: Injective f) =>
+      Logic.orElim _ _ _ (Classical.excludedMiddle (\exists ( x: A \where Logic.Not (Membership.Occurs x xs) )))
+        (\fun (outside: _) => outside)
+        (\block {
+          \fun (none: Logic.Not (\exists ( x: A \where Logic.Not (Membership.Occurs x xs) ))) \then
+          \let listed: \forall (i: Fin.Fin candidates) -> Membership.Occurs (f i) xs :=
+            \fun (i: Fin.Fin candidates) => Logic.orElim _ _ _ (Classical.excludedMiddle (Membership.Occurs (f i) xs))
+              (\fun (member: _) => member)
+              (\fun (outside: _) => Logic.falseElim (Membership.Occurs (f i) xs)
+                (none (Logic.existsIntro[A, { x: A \where Logic.Not (Membership.Occurs x xs) }] (f i) outside))) \then
+          \takefrom table: \Cast[Fin.Fin candidates -> Fin.Fin size]
+            ({ table: Fin.Fin candidates -> Fin.Fin size \where \forall (i: Fin.Fin candidates) -> FromList.tuple xs (table i) = f i })
+            \by Choice.exists candidates (\fun (i: Fin.Fin candidates)(j: Fin.Fin size) => FromList.tuple xs j = f i)
+              (\block {
+                \fun (i: Fin.Fin candidates) \then
+                \takefrom found: Index[f i, xs] \by indexExists xs (f i) (listed i) \then
+                \return Logic.existsIntro[Fin.Fin size, { j: Fin.Fin size \where FromList.tuple xs j = f i }] found.position found.value
+              }) \then
+          \let law: \forall (i: Fin.Fin candidates) -> FromList.tuple xs (table i) = f i :=
+            \bysub(Fin.Fin candidates -> Fin.Fin size,
+              { table: Fin.Fin candidates -> Fin.Fin size \where \forall (i: Fin.Fin candidates) -> FromList.tuple xs (table i) = f i }, table) \then
+          \return Logic.falseElim (\exists ( x: A \where Logic.Not (Membership.Occurs x xs) ))
+            (Pigeonhole.noInjection size candidates (NatOrder.ltSelfSucc size) table
+              (\fun (i, j: Fin.Fin candidates)(same: _) => injective i j
+                (trans!{A} _ _ _ (sym!{A} _ _ (law i))
+                  (trans!{A} _ _ _ (congr!{{Fin.Fin size} A} (FromList.tuple xs) _ _ same) (law j)))))
+        });
+}
+\definition ofNatInjection: \forall (f: N.Nat^ -> A) -> Injective f -> Infinite :=
+  \fun (f: N.Nat^ -> A)(injective: Injective f)(xs: Lists.List[A]) => Against[xs := xs].existsOutside f injective;

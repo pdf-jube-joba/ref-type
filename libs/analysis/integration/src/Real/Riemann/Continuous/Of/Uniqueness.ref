@@ -1,0 +1,23 @@
+\import calculus.Real[].Derivative[].Operations[] \as Operations;
+\import calculus.Real[].Limit[].Topology[].Subset[S := Line.ClosedInterval a b] \as Relative;
+\import metric_spaces.RealFunctions[A := Point] \as ScalarMaps;
+\definition difference[t: Real]: Real := sub (g t) (primitive t);
+\definition differenceContinuous: IsContinuous g -> Relative.ContinuousOn difference :=
+  \fun (continuous: _) => Relative.continuousOfTopological difference
+    (ScalarMaps.subContinuous topology (restrict g) (restrict primitive) continuous primitiveContinuous);
+\definition DerivativeLaw: \Prop := \forall (x: Real) -> R.Lt a x -> R.Lt x b -> Derivatives.HasDerivativeAt g x (f x);
+\definition derivativeZero: DerivativeLaw -> \forall (x: Real) -> R.Lt a x -> R.Lt x b -> Derivatives.HasDerivativeAt difference x zero :=
+  \fun (derivatives: DerivativeLaw)(x: Real)(left: _)(right: _) => \idelim sub (f x) (f x) = zero \with d: Real => Derivatives.HasDerivativeAt difference x d \by {
+    base: Operations.subDerivative g primitive x (f x) (f x) (derivatives x left right) (fundamentalTheorem x left right), equality: Laws.subSelf (f x)
+  };
+\module Endpoint(t: Real);
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition agrees: IsContinuous g -> DerivativeLaw -> \forall (t: Real) -> R.Le a t -> R.Le t b -> g t = add (g a) (primitive t) :=
+  \fun (continuous: _)(derivatives: _)(t: Real)(at: _)(tb: _) => either!{{(Classical.excludedMiddle (t = a))} {g t = add (g a) (primitive t)}
+    {\fun (same: t = a) => \idelim a = t \with x: Real => g x = add (g a) (primitive x) \by {
+      base: sym!{Real} _ _ (trans!{Real} _ _ _ (congr!{Real Real} (add (g a)) _ _ primitiveLeft) (Laws.addZeroRight (g a))), equality: sym!{Real} _ _ same
+    }}
+    {\fun (different: Logic.Not (t = a)) => Endpoint[t := t].agrees continuous derivatives
+      (Order.ltOfLeNotEq a t at (\fun (same: a = t) => different (sym!{Real} _ _ same))) tb}
+  };

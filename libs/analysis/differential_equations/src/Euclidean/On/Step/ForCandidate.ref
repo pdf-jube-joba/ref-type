@@ -1,0 +1,44 @@
+\module Coordinate(i: Euclidean.Coordinate);
+\definition actual: Curve := curve;
+\definition bound: \forall (t: Time) -> R.Le (Norm.metric.distance (candidate.value t) initial) (Scalars.mul field.bound (Scalars.distance t Scalars.zero)) :=
+  \fun (t: Time) => Norm.finiteUpper n (Coordinates.subPoint (candidate.value t) initial) (Scalars.mul field.bound (Scalars.distance t Scalars.zero))
+    (Laws.fieldMulNonnegative field.bound (Scalars.distance t Scalars.zero) boundNonnegative (Distance.distanceNonnegative t Scalars.zero))
+    (\fun (i: Euclidean.Coordinate) => R.leReplaceLeft (Scalars.distance (candidate.value t i) (candidate.value Scalars.zero i))
+      (Scalars.distance (Scalars.sub (candidate.value t i) (initial i)) Scalars.zero) (Scalars.mul field.bound (Scalars.distance t Scalars.zero))
+      (trans!{Real} _ _ _ (congr!{Real Real} (Scalars.distance (candidate.value t i)) _ _
+        (congr!{Vector Real} (\fun (v: Vector) => v i) _ _ candidate.initialValue))
+        (sym!{Real} _ _ (Estimates.distanceDifference (candidate.value t i) (initial i))))
+      (Coordinate[i := i].Interval[t := t].bound));
+\definition within: Ball.Within (\fun (t: Time) => candidate.value t) := \fun (t: Time) => R.leTrans _ _ _
+  (R.leReplaceLeft (Norm.metric.distance (candidate.value t) initial) (Norm.metric.distance initial (candidate.value t)) _ (Norm.metric.symmetric (candidate.value t) initial) (bound t))
+  (R.leTrans _ (Scalars.mul field.bound time) Scalars.one
+    (Estimates.mulMonotone field.bound (Scalars.distance t Scalars.zero) time boundNonnegative (timeDistance t))
+    (R.leReplaceLeft (Scalars.mul time field.bound) (Scalars.mul field.bound time) Scalars.one (Laws.fieldMulComm time field.bound) ballBound));
+\definition continuous: Integrals.IsContinuous candidate.value := Integrals.continuousOfCoordinates candidate.value
+  (\fun (i: Euclidean.Coordinate) => Coordinate[i := i].continuous);
+\definition curve: Curve := \into[Ball.Carrier](\into[Time -> Vector]((\fun (t: Time) => candidate.value t), { y: Time -> Vector \where Ball.Within y }) \by { within }, Curves.predicate) \by { continuous };
+\import calculus.Real[].Derivative[].Operations[] \as Operations;
+\definition equation: Equation curve := \block {
+  \fun (x: Real)(lower: _)(upper: _)(i: Euclidean.Coordinate) \then
+  \let point: Time := \into[Real](x, Line.ClosedInterval left right) \by { Logic.And[_, _]::# (Order.leOfLt _ _ lower) (Order.leOfLt _ _ upper) } \then
+  \let radius: Real := Distance.min (Scalars.sub x left) (Scalars.sub right x) \then
+  \let positive: R.Lt Scalars.zero radius := Product.minPositive (Scalars.sub x left) (Scalars.sub right x) (Product.subPositive x left lower) (Product.subPositive right x upper) \then
+  \let agrees: \forall (s: Real) -> R.Lt (Scalars.distance s x) radius -> candidate.value s i = extend curve s i := \block {
+    \fun (s: Real)(near: _) \then
+    \let reversed: R.Lt (Scalars.distance x s) radius := R.ltReplaceLeft (Scalars.distance s x) (Scalars.distance x s) radius (Distance.distanceSymmetric s x) near \then
+    \let lower: R.Le left s := Order.leOfLt left s (R.ltReplaceLeft (Scalars.sub x (Scalars.sub x left)) left s (Algebra.subSub x left)
+      (Distance.distanceLtLower x s (Scalars.sub x left) (R.ltLeTrans _ radius (Scalars.sub x left) reversed (Distance.minLeft (Scalars.sub x left) (Scalars.sub right x))))) \then
+    \let upper: R.Le s right := Order.leOfLt s right (R.ltReplaceRight s (Scalars.add x (Scalars.sub right x)) right (Estimates.addSubCancel right x)
+      (Distance.distanceLtUpper x s (Scalars.sub right x) (R.ltLeTrans _ radius (Scalars.sub right x) reversed (Distance.minRight (Scalars.sub x left) (Scalars.sub right x))))) \then
+    \let t: Time := \into[Real](s, Line.ClosedInterval left right) \by { Logic.And[_, _]::# lower upper } \then
+    \return congr!{Vector Real} (\fun (v: Vector) => v i) _ _ (sym!{Vector} _ _ (extendIdentity curve t))
+  } \then
+  \return \idelim field.apply (candidate.value x) i = field.apply (extend curve x) i \with d: Real =>
+    Derivatives.HasDerivativeAt (\fun (s: Real) => extend curve s i) x d \by {
+      base: Operations.localDerivative (\fun (s: Real) => candidate.value s i) (\fun (s: Real) => extend curve s i) x (field.apply (candidate.value x) i) radius positive agrees
+        (candidate.derivative point i),
+      equality: congr!{Vector Real} (\fun (v: Vector) => field.apply v i) _ _ (sym!{Vector} _ _ (extendIdentity curve point))
+    }
+};
+\definition equal: curve = actual := solutionUnique curve candidate.initialValue equation;
+\definition agrees: \forall (t: Time) -> candidate.value t = actual t := \fun (t: Time) => congr!{Curve Vector} (\fun (y: Curve) => y t) _ _ equal;

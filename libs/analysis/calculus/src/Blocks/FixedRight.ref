@@ -1,0 +1,14 @@
+\import \root.Maps[n := n, m := dimension] \as Maps;
+\import LeftOpen.Smooth[] \as Smooth;
+\import LeftOpen.Examples[] \as Examples;
+\definition Included: \Prop := \forall (x: LeftOpen.Carrier U) -> \In[Source.Point] V.points (join x c);
+\definition apply[included: Included][x: LeftOpen.Carrier U]: SourceOpen.Carrier V := \into[Source.Point](join x c, V.points) \by { included x };
+\definition smooth[k: Fin.Fin dimension]: Smooth.SmoothOn U (\fun (x: LeftOpen.Carrier U) => join x c k) :=
+  (\induction (s: Indices.Index) \return Smooth.SmoothOn U (\fun (x: LeftOpen.Carrier U) => Tuples.evaluate x c s) \with {
+    | inl: \fun (i: Fin.Fin n) => Examples.projectionSmooth U i
+    | inr: \fun (i: Fin.Fin m) => Examples.constantSmooth U (c i)
+  }) (Indices.split k);
+\definition map[included: Included]: Maps.Map U V := \into[Maps.Data[U, V]](Maps.Data[U, V] { apply := apply included },
+  { data: Maps.Data[U, V] \where Maps.Laws[U, V, data] }) \by {
+    Maps.Laws[U, V, Maps.Data[U, V]::# (apply included)] { smooth := smooth }
+  };

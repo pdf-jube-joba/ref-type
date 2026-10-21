@@ -1,0 +1,81 @@
+\import Interval.SquareSubdivision[] \as Subdivision;
+\import Interval.Subdivision[] \as Intervals;
+\import Interval.Halves[] \as Halves;
+\import topology.Topology[Carrier := Square.Carrier] \as Domain;
+\import topology.Continuity[A := Interval.Carrier, B := Interval.Carrier] \as ParameterMaps;
+\import topological_constructions.Product[A := Interval.Carrier, B := Interval.Carrier].Universal[X := Square.Carrier] \as Pair;
+\import topology.Composition[A := Square.Carrier, B := Interval.Carrier, C := Interval.Carrier] \as Parameters;
+\import topology.Composition[A := Square.Carrier, B := Square.Carrier, C := B] \as BaseCompose;
+\import topology.Composition[A := Square.Carrier, B := Square.Carrier, C := E] \as TotalCompose;
+\import topology.Composition[A := Interval.Carrier, B := Square.Carrier, C := E] \as Slices;
+\import topology.Composition[A := Interval.Carrier, B := Square.Carrier, C := B] \as BaseSlices;
+\import topology.Composition[A := Interval.Carrier, B := Interval.Carrier, C := E] \as InitialCompose;
+\import algebraic_topology.SquareGluing[A := E, target := total] \as Glue;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Logic.either;
+\use Equality.congr;
+\use Equality.sym;
+\use Equality.trans;
+\definition Preimage[b: B]: \Pow Square.Carrier := { r: Square.Carrier \where \In[B] (charts b).neighborhood (family r) };
+\definition neighborhoods: \Pow (\Pow Square.Carrier) :=
+  { U: \Pow Square.Carrier \where \exists ( b: B \where U = Preimage b ) };
+\import Subdivision.Cover[family := neighborhoods] \as Fine;
+\definition cover: Domain.IsOpenCover[Square.topology Interval.topology, neighborhoods, Domain.Whole] := Domain.IsOpenCover[Square.topology Interval.topology, neighborhoods, Domain.Whole] {
+  open := \block {
+    \fun (U: \Pow Square.Carrier)(member: \In[\Pow Square.Carrier] neighborhoods U) \then
+    \takefrom b: \Cast[B] ({ b: B \where U = Preimage b }) \by member \then
+    \return \idelim Preimage b = U \with V: \Pow Square.Carrier => Domain.IsOpenIn (Square.topology Interval.topology) V \by {
+      base: continuous (charts b).neighborhood (charts b).open,
+      equality: sym!{\Pow Square.Carrier} _ _ (\bysub(B, { b: B \where U = Preimage b }, b))
+    }
+  },
+  covers := \fun (r: Square.Carrier)(_ : r = r) => Domain.unionMemberOf neighborhoods (Preimage (family r)) r
+    (Logic.existsIntro[B, { b: B \where Preimage (family r) = Preimage b }] (family r) (\refl(Preimage (family r)))) (charts (family r)).contains,
+};
+\definition parameter[f, g: Interval.Carrier -> Interval.Carrier][r: Square.Carrier]: Square.Carrier := Square.at (f (Square.time r)) (g (Square.point r));
+\definition parameterContinuous: \forall (f, g: Interval.Carrier -> Interval.Carrier) ->
+  ParameterMaps.Continuous Interval.topology Interval.topology f -> ParameterMaps.Continuous Interval.topology Interval.topology g ->
+  topology.Continuity[A := Square.Carrier, B := Square.Carrier].Continuous (Square.topology Interval.topology) (Square.topology Interval.topology) (parameter f g) :=
+  \fun (f, g: _)(fc: _)(gc: _) => Pair.pairContinuous (Square.topology Interval.topology) Interval.topology Interval.topology
+    (\fun (r: Square.Carrier) => f (Square.time r)) (\fun (r: Square.Carrier) => g (Square.point r))
+    (Parameters.composeContinuous (Square.topology Interval.topology) Interval.topology Interval.topology Square.time f (Square.timeContinuous Interval.topology) fc)
+    (Parameters.composeContinuous (Square.topology Interval.topology) Interval.topology Interval.topology Square.point g (Square.pointContinuous Interval.topology) gc);
+\definition trace[f, g: Interval.Carrier -> Interval.Carrier][r: Square.Carrier]: B := family (parameter f g r);
+\definition traceContinuous: \forall (f, g: Interval.Carrier -> Interval.Carrier) ->
+  ParameterMaps.Continuous Interval.topology Interval.topology f -> ParameterMaps.Continuous Interval.topology Interval.topology g ->
+  BaseContinuousSquares.Continuous (Square.topology Interval.topology) base (trace f g) :=
+  \fun (f, g: _)(fc: _)(gc: _) => BaseCompose.composeContinuous (Square.topology Interval.topology) (Square.topology Interval.topology) base (parameter f g) family
+    (parameterContinuous f g fc gc) continuous;
+\definition Property[f, g: Interval.Carrier -> Interval.Carrier]: \Prop :=
+  ParameterMaps.Continuous Interval.topology Interval.topology f -> ParameterMaps.Continuous Interval.topology Interval.topology g ->
+  \forall (initial: Interval.Carrier -> E) -> Continuous.Continuous Interval.topology total initial ->
+  (\forall (s: Interval.Carrier) -> projection (initial s) = trace f g (Square.at Interval.start s)) -> \exists Lift (trace f g) initial;
+\import std.Data[].Pair[].Prop[A := Interval.Carrier, B := Interval.Carrier] \as PairLaws;
+\import topological_constructions.Product[A := Interval.Carrier, B := Interval.Carrier].Universal[X := Interval.Carrier] \as TimePair;
+\import topology.Maps[A := Interval.Carrier, B := Interval.Carrier] \as Constants;
+\import Constants.Identity[] \as Identity;
+\definition pointSlice[u: Interval.Carrier][t: Interval.Carrier]: Square.Carrier := Square.at t u;
+\definition pointSliceContinuous: \forall (u: Interval.Carrier) -> topology.Continuity[A := Interval.Carrier, B := Square.Carrier].Continuous Interval.topology (Square.topology Interval.topology) (pointSlice u) :=
+  \fun (u: Interval.Carrier) => TimePair.pairContinuous Interval.topology Interval.topology Interval.topology
+    (\fun (t: Interval.Carrier) => t) (\fun (_: Interval.Carrier) => u) (Identity.continuous Interval.topology) (Constants.constantContinuous Interval.topology Interval.topology u);
+\module Time;
+\module Point;
+\module Local;
+\definition global: Property (\fun (t: Interval.Carrier) => t) (\fun (t: Interval.Carrier) => t) :=
+  Fine.localToGlobal cover Property Time[].combine Point[].combine Local[].existence;
+\definition existsLift: \forall (initial: Interval.Carrier -> E) -> Continuous.Continuous Interval.topology total initial ->
+  (\forall (s: Interval.Carrier) -> projection (initial s) = family (Square.at Interval.start s)) -> \exists Lift family initial := \block {
+  \fun (initial: _)(ic: _)(ip: _) \then
+  \takefrom lifted: Lift (trace (\fun (t: Interval.Carrier) => t) (\fun (t: Interval.Carrier) => t)) initial
+    \by global (Identity.continuous Interval.topology) (Identity.continuous Interval.topology) initial ic ip \then
+  \let result: Lift family initial := \into[Square.Carrier -> E](lifted, Lift family initial) \by {
+    Laws[family, initial, lifted] {
+      continuous := (laws _ _ lifted).continuous,
+      projects := \fun (q: Square.Carrier) => trans!{B} _ _ _ ((laws _ _ lifted).projects q)
+        (congr!{Square.Carrier B} family _ _ (PairLaws.eta q)),
+      starts := (laws _ _ lifted).starts,
+    }
+  } \then
+  \return \exact(result, Lift family initial)
+};

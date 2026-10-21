@@ -382,7 +382,7 @@ impl Resolver {
         if substitutions.is_empty() {
             return expression;
         }
-        macros::walk_sexp_mut(&mut expression, &mut |node| {
+        macros::walk_sexp_postorder(&mut expression, &mut |node| {
             if let SExp::AccessPath { access, .. }
             | SExp::RecordTypeCtor { access, .. }
             | SExp::ProgramValueReference { access }
@@ -448,7 +448,7 @@ impl Resolver {
         if remapping.is_empty() {
             return expression;
         }
-        macros::walk_sexp_mut(&mut expression, &mut |node| {
+        macros::walk_sexp_postorder(&mut expression, &mut |node| {
             if let SExp::ModuleInstance { path, .. } = node
                 && let ModuleInstantiatePath::FromImport { import_name, calls } = path.as_mut()
                 && let Some(import) = import_name.1.and_then(|id| self.imports.get(&id))

@@ -1,0 +1,133 @@
+\import std.Alg[].Monoid[] \as Monoids;
+\import std.Logic[].Classical[] \as Classical;
+\definition multiplicative: Monoids.CommutativeMonoid[K] := Monoids.CommutativeMonoid[K] {
+  base := Monoids.MonoidData[K]::# one mul,
+  monoid := field.ring.ring.semiring.multiplicative,
+  commutative := field.ring.mulCommutative,
+};
+\import algebra.Monoid[].Of[Carrier := K, monoid := multiplicative] \as Product;
+\definition oneNonzero: Logic.Not (one = zero) := \fun (same: _) => field.nontrivial (sym!{K} _ _ same);
+\definition cancelLeft: \forall (a, b, c: K) -> Logic.Not (a = zero) -> mul a b = mul a c -> b = c :=
+  \fun (a, b, c: K)(nonzero: _)(same: _) => eq_reason!{b
+    "=" {mul one b} "by" {sym!{K} _ _ (Product.zeroLeft b)}
+    "=" {mul (mul (inv a) a) b} "by" {congr!{K K} (\fun (u: K) => mul u b) _ _ (sym!{K} _ _ (inverseLaw a nonzero))}
+    "=" {mul (inv a) (mul a b)} "by" {Product.assoc (inv a) a b}
+    "=" {mul (inv a) (mul a c)} "by" {congr!{K K} (mul (inv a)) _ _ same}
+    "=" {mul (mul (inv a) a) c} "by" {sym!{K} _ _ (Product.assoc (inv a) a c)}
+    "=" {mul one c} "by" {congr!{K K} (\fun (u: K) => mul u c) _ _ (inverseLaw a nonzero)}
+    "=" c "by" {Product.zeroLeft c}};
+\definition cancelRight: \forall (a, b, c: K) -> Logic.Not (a = zero) -> mul b a = mul c a -> b = c :=
+  \fun (a, b, c: K)(nonzero: _)(same: _) => cancelLeft a b c nonzero
+    (eq_reason!{{mul a b} "=" {mul b a} "by" {Product.comm a b}
+      "=" {mul c a} "by" same "=" {mul a c} "by" {Product.comm c a}});
+\definition nonzeroProduct: \forall (a, b: K) -> Logic.Not (a = zero) -> Logic.Not (b = zero) -> Logic.Not (mul a b = zero) :=
+  \fun (a, b: K)(ha: _)(hb: _)(same: _) => hb (cancelLeft a b zero ha
+    (trans!{K} _ _ _ same (sym!{K} _ _ (field.ring.ring.semiring.zeroAbsorbsRight a))));
+\definition zeroProduct: \forall (a, b: K) -> mul a b = zero -> Logic.Or[a = zero, b = zero] :=
+  \fun (a, b: K)(same: _) => Logic.orElim _ _ _ (Classical.excludedMiddle (a = zero))
+    (Logic.Or[_, _]::left)
+    (\fun (ha: _) => Logic.Or[_, _]::right (cancelLeft a b zero ha
+      (trans!{K} _ _ _ same (sym!{K} _ _ (field.ring.ring.semiring.zeroAbsorbsRight a)))));
+\definition inverseRight: \forall (x: K) -> Logic.Not (x = zero) -> mul x (inv x) = one :=
+  \fun (x: K)(hx: _) => trans!{K} _ _ _ (Product.comm x (inv x)) (inverseLaw x hx);
+\definition inverseUnique: \forall (x, y: K) -> Logic.Not (x = zero) -> mul y x = one -> y = inv x :=
+  \fun (x, y: K)(hx: _)(same: _) => cancelRight x y (inv x) hx
+    (trans!{K} _ _ _ same (sym!{K} _ _ (inverseLaw x hx)));
+\definition inverseOne: inv one = one := sym!{K} _ _
+  (inverseUnique one one oneNonzero (Product.zeroLeft one));
+\definition powerOne: \forall (n: N.Nat^) -> power one n = one :=
+  \induction (n: N.Nat^) \return power one n = one \with {
+    | zero: \refl(one)
+    | succ: \fun (n: N.Nat^)(previous: _) => trans!{K} _ _ _ (Product.zeroLeft (power one n)) previous
+  };
+\definition powerMul: \forall (a, b: K)(n: N.Nat^) -> power (mul a b) n = mul (power a n) (power b n) :=
+  \fun (a, b: K) => \induction (n: N.Nat^) \return power (mul a b) n = mul (power a n) (power b n) \with {
+    | zero: sym!{K} _ _ (Product.zeroLeft one)
+    | succ: \fun (n: N.Nat^)(previous: _) => eq_reason!{{power (mul a b) (N.Nat^::succ n)}
+      "=" {mul (mul a b) (mul (power a n) (power b n))} "by" {congr!{K K} (mul (mul a b)) _ _ previous}
+      "=" {mul (mul a (power a n)) (mul b (power b n))} "by" {Product.four a b (power a n) (power b n)}}
+  };
+\definition powerNonzero: \forall (x: K) -> Logic.Not (x = zero) -> \forall (n: N.Nat^) -> Logic.Not (power x n = zero) :=
+  \fun (x: K)(hx: _) => \induction (n: N.Nat^) \return Logic.Not (power x n = zero) \with {
+    | zero: oneNonzero
+    | succ: \fun (n: N.Nat^)(previous: _) => nonzeroProduct x (power x n) hx previous
+  };
+\definition powerInverse: \forall (x: K) -> Logic.Not (x = zero) -> \forall (n: N.Nat^) -> power (inv x) n = inv (power x n) :=
+  \fun (x: K)(hx: _)(n: N.Nat^) => inverseUnique (power x n) (power (inv x) n) (powerNonzero x hx n)
+    (eq_reason!{{mul (power (inv x) n) (power x n)}
+      "=" {power (mul (inv x) x) n} "by" {sym!{K} _ _ (powerMul (inv x) x n)}
+      "=" {power one n} "by" {congr!{K K} (\fun (a: K) => power a n) _ _ (inverseLaw x hx)}
+      "=" one "by" {powerOne n}});
+\definition ratioPower: \forall (x, y: K)(n: N.Nat^) -> Logic.Not (y = zero) -> power x n = power y n -> power (mul x (inv y)) n = one :=
+  \fun (x, y: K)(n: N.Nat^)(hy: _)(same: _) => eq_reason!{{power (mul x (inv y)) n}
+    "=" {mul (power x n) (power (inv y) n)} "by" {powerMul x (inv y) n}
+    "=" {mul (power y n) (inv (power y n))} "by" {congr2!{K K K} mul _ _ _ _ same (powerInverse y hy n)}
+    "=" one "by" {inverseRight (power y n) (powerNonzero y hy n)}};
+\definition recoverScalar: \forall (a, b: K) -> Logic.Not (b = zero) -> mul b (mul a (inv b)) = a :=
+  \fun (a, b: K)(hb: _) => eq_reason!{{mul b (mul a (inv b))}
+    "=" {mul a (mul b (inv b))} "by" {Product.swap b a (inv b)}
+    "=" {mul a one} "by" {congr!{K K} (mul a) _ _ (inverseRight b hb)}
+    "=" a "by" {Product.zeroRight a}};
+\import std.Alg[].Ring[] \as Rings;
+\definition underlyingRing: Rings.Ring[K] := Rings.commutativeRingAsRing K (Fields.fieldAsCommutativeRing K field);
+\import algebra.Group[].Of[Carrier := K, group := Rings.additiveGroup K underlyingRing] \as Sum;
+\definition differenceZero: \forall (x, y: K) -> add x (neg y) = zero -> x = y :=
+  \fun (x, y: K)(same: _) => eq_reason!{x
+    "=" {add (add x (neg y)) y} "by" {sym!{K} _ _ (Sum.addDifference x y)}
+    "=" {add zero y} "by" {congr!{K K} (\fun (u: K) => add u y) _ _ same}
+    "=" y "by" {Sum.zeroLeft y}};
+\definition mulNegRight: \forall (a, b: K) -> mul a (neg b) = neg (mul a b) :=
+  \fun (a, b: K) => Sum.inverseUnique (mul a b) (mul a (neg b))
+    (eq_reason!{{add (mul a (neg b)) (mul a b)}
+      "=" {mul a (add (neg b) b)} "by" {sym!{K} _ _ (field.ring.ring.semiring.leftDistributive a (neg b) b)}
+      "=" {mul a zero} "by" {congr!{K K} (mul a) _ _ (Sum.inverseLeft b)}
+      "=" zero "by" {field.ring.ring.semiring.zeroAbsorbsRight a}});
+\definition mulNegLeft: \forall (a, b: K) -> mul (neg a) b = neg (mul a b) :=
+  \fun (a, b: K) => trans!{K} _ _ _ (Product.comm (neg a) b)
+    (trans!{K} _ _ _ (mulNegRight b a) (congr!{K K} neg _ _ (Product.comm b a)));
+\definition negOneMul: \forall (a: K) -> mul (neg one) a = neg a :=
+  \fun (a: K) => trans!{K} _ _ _ (mulNegLeft one a) (congr!{K K} neg _ _ (Product.zeroLeft a));
+\definition nonzeroInverse: \forall (a: K) -> Logic.Not (a = zero) -> Logic.Not (inv a = zero) :=
+  \fun (a: K)(nonzero: _)(same: _) => oneNonzero (eq_reason!{one
+    "=" {mul (inv a) a} "by" {sym!{K} _ _ (inverseLaw a nonzero)}
+    "=" {mul zero a} "by" {congr!{K K} (\fun (u: K) => mul u a) _ _ same}
+    "=" zero "by" {field.ring.ring.semiring.zeroAbsorbsLeft a}});
+\definition quotientRecovers: \forall (a, b: K) -> Logic.Not (b = zero) -> mul (mul a (inv b)) b = a :=
+  \fun (a, b: K)(nonzero: _) => trans!{K} _ _ _ (Product.comm (mul a (inv b)) b) (recoverScalar a b nonzero);
+\definition productSwapLast: \forall (a, b, c: K) -> mul (mul a b) c = mul (mul a c) b :=
+  \fun (a, b, c: K) => trans!{K} _ _ _ (Product.assoc a b c)
+    (trans!{K} _ _ _ (congr!{K K} (mul a) _ _ (Product.comm b c)) (sym!{K} _ _ (Product.assoc a c b)));
+\definition crossProducts: \forall (z, a, b, c, d: K) -> mul z b = a -> mul z d = c -> mul a d = mul c b :=
+  \fun (z, a, b, c, d: K)(first: _)(second: _) => eq_reason!{{mul a d}
+    "=" {mul (mul z b) d} "by" {congr!{K K} (\fun (u: K) => mul u d) _ _ (sym!{K} _ _ first)}
+    "=" {mul (mul z d) b} "by" {productSwapLast z b d}
+    "=" {mul c b} "by" {congr!{K K} (\fun (u: K) => mul u b) _ _ second}};
+\definition crossCancel: \forall (z, w, a, b, c, d: K) -> Logic.Not (b = zero) -> Logic.Not (d = zero) ->
+  mul z b = a -> mul w d = c -> mul a d = mul c b -> z = w :=
+  \fun (z, w, a, b, c, d: K)(hb: _)(hd: _)(first: _)(second: _)(cross: _) =>
+    cancelRight (mul b d) z w (nonzeroProduct b d hb hd)
+      (eq_reason!{{mul z (mul b d)}
+        "=" {mul (mul z b) d} "by" {sym!{K} _ _ (Product.assoc z b d)}
+        "=" {mul a d} "by" {congr!{K K} (\fun (u: K) => mul u d) _ _ first}
+        "=" {mul c b} "by" cross
+        "=" {mul (mul w d) b} "by" {congr!{K K} (\fun (u: K) => mul u b) _ _ (sym!{K} _ _ second)}
+        "=" {mul (mul w b) d} "by" {productSwapLast w d b}
+        "=" {mul w (mul b d)} "by" {Product.assoc w b d}});
+\definition sumCross: \forall (z, w, a, b, c, d: K) -> mul z b = a -> mul w d = c ->
+  mul (add z w) (mul b d) = add (mul a d) (mul c b) :=
+  \fun (z, w, a, b, c, d: K)(first: _)(second: _) => eq_reason!{{mul (add z w) (mul b d)}
+    "=" {add (mul z (mul b d)) (mul w (mul b d))} "by" {field.ring.ring.semiring.rightDistributive z w (mul b d)}
+    "=" {add (mul (mul z b) d) (mul (mul w d) b)}
+    "by" {congr2!{K K K} add _ _ _ _ (sym!{K} _ _ (Product.assoc z b d))
+      (trans!{K} _ _ _ (sym!{K} _ _ (Product.assoc w b d)) (productSwapLast w b d))}
+    "=" {add (mul a d) (mul c b)} "by" {congr2!{K K K} add _ _ _ _
+      (congr!{K K} (\fun (u: K) => mul u d) _ _ first) (congr!{K K} (\fun (u: K) => mul u b) _ _ second)}};
+\definition productCross: \forall (z, w, a, b, c, d: K) -> mul z b = a -> mul w d = c -> mul (mul z w) (mul b d) = mul a c :=
+  \fun (z, w, a, b, c, d: K)(first: _)(second: _) => trans!{K} _ _ _ (Product.four z w b d)
+    (congr2!{K K K} mul _ _ _ _ first second);
+\definition inverseCross: \forall (z, a, b: K) -> Logic.Not (z = zero) -> mul z b = a -> mul (inv z) a = b :=
+  \fun (z, a, b: K)(nonzero: _)(equation: _) => eq_reason!{{mul (inv z) a}
+    "=" {mul (inv z) (mul z b)} "by" {congr!{K K} (mul (inv z)) _ _ (sym!{K} _ _ equation)}
+    "=" {mul (mul (inv z) z) b} "by" {sym!{K} _ _ (Product.assoc (inv z) z b)}
+    "=" {mul one b} "by" {congr!{K K} (\fun (u: K) => mul u b) _ _ (inverseLaw z nonzero)}
+    "=" b "by" {Product.zeroLeft b}};

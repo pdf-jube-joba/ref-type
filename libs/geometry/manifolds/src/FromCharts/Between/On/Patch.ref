@@ -1,0 +1,29 @@
+\import \root.SmoothMap[n := n, m := m].Between[M := parameterManifold c, N := N] \as LocalMaps;
+\import SourceTopology.Subspace[S := c.domain] \as Subspace;
+\import Subspace.Open[] \as OpenSubspace;
+\import topology.Topology[Carrier := SourceCharts.LocalPoint c] \as LocalTopology;
+\import topology.Homeomorphism[A := SourceCharts.LocalPoint c, B := Open.Carrier c.image] \as Homeomorphisms;
+\import \root.Dimension[n := n].Chart[M := M.Point, space := M.space].Of[chart := c] \as Chart;
+\definition localValue[x: SourceCharts.LocalPoint c]: N.Point := LocalMaps.apply (maps c) (SourceCharts.coordinate c x);
+\definition agreement: \forall (x: SourceCharts.LocalPoint c) -> localValue x = f x := \fun (x: _) => trans!{{N.Point}} _ _ _
+  (agrees c (SourceCharts.coordinate c x)) (congr!{{M.Point} {N.Point}} f _ _ (Chart.pointCoordinate x));
+\definition localPreimage[W: \Pow N.Point]: \Pow (SourceCharts.LocalPoint c) := { x: SourceCharts.LocalPoint c \where \In[N.Point] W (localValue x) };
+\definition neighborhood[W: \Pow N.Point]: \Pow M.Point := OpenSubspace.image (localPreimage W);
+\definition open: \forall (W: \Pow N.Point) -> TargetTopology.IsOpenIn N.space W -> SourceTopology.IsOpenIn M.space (neighborhood W) :=
+  \fun (W: _)(openW: _) => OpenSubspace.imageOpen M.space c.open (localPreimage W)
+    ((Homeomorphisms.laws (SourceCharts.domainTopology c.domain) (SourceCharts.imageTopology c.image) c.coordinates).forwardContinuous
+      ({ x: Open.Carrier c.image \where \In[N.Point] W (LocalMaps.apply (maps c) x) })
+      ((\bysub(LocalMaps.Data, { h: LocalMaps.Data \where LocalMaps.Continuous h }, maps c)) W openW));
+\definition contains: \forall (W: \Pow N.Point)(x: M.Point) -> SourceCharts.Contains c x -> \In[N.Point] W (f x) -> \In[M.Point] (neighborhood W) x :=
+  \fun (W: _)(x: _)(inChart: _)(inW: _) => \block {
+    \let local: SourceCharts.LocalPoint c := \into[M.Point](x, c.domain) \by { inChart } \then
+    \return OpenSubspace.imageMember (localPreimage W) local
+      (\idelim f local = localValue local \with y: N.Point => \In[N.Point] W y \by {
+        base: inW, equality: sym!{{N.Point}} _ _ (agreement local)
+      })
+  };
+\definition within: \forall (W: \Pow N.Point) -> SourceTopology.Subset (neighborhood W) (Continuity.Preimage f W) :=
+  \fun (W: _)(x: _)(member: _) => OpenSubspace.imageElim (localPreimage W) x (\In[N.Point] W (f x))
+    (\fun (y: SourceCharts.LocalPoint c)(inside: _)(same: y = x) => \idelim localValue y = f x \with z: N.Point => \In[N.Point] W z \by {
+      base: inside, equality: trans!{{N.Point}} _ _ _ (agreement y) (congr!{{M.Point} {N.Point}} f _ _ same)
+    }) member;

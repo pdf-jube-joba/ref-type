@@ -1,0 +1,20 @@
+\import clifford.Euclidean[n := n] \as E;
+\import clifford.Field[K := R.Real, field := Scalars.field].On[V := E.Vector, space := E.space].Of[form := E.form] \as Algebra;
+\import Algebra.Grading[] \as Grade;
+\import Algebra.Reversion[] \as Reverse;
+\definition Plot[U: Open.OpenSet][f: Open.Carrier U -> E.Carrier]: \Prop :=
+  \forall (i: Coordinates.Index n) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => (Coordinates.coordinates n).read (f x) i);
+\definition Values[U: Open.OpenSet][f: Open.Carrier U -> E.Vector]: \Prop :=
+  \forall (i: Fin.Fin n) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => f x i);
+\definition congruent[U: Open.OpenSet][f, g: Open.Carrier U -> E.Carrier][same: \forall (x: Open.Carrier U) -> f x = g x]: Plot U f -> Plot U g :=
+  \fun (regular: _) => \idelim f = g \with h: (Open.Carrier U -> E.Carrier) => Plot U h \by { base: regular, equality: \axiom:funext(f, g, same) };
+\structure Laws[U: Open.OpenSet]: \Prop := {
+  constant: \forall (a: E.Carrier) -> Plot U (\fun (x: Open.Carrier U) => a),
+  addition: \forall (f, g: Open.Carrier U -> E.Carrier) -> Plot U f -> Plot U g -> Plot U (\fun (x: Open.Carrier U) => Algebra.add (f x) (g x)),
+  negative: \forall (f: Open.Carrier U -> E.Carrier) -> Plot U f -> Plot U (\fun (x: Open.Carrier U) => Algebra.neg (f x)),
+  multiplication: \forall (f, g: Open.Carrier U -> E.Carrier) -> Plot U f -> Plot U g -> Plot U (\fun (x: Open.Carrier U) => Algebra.mul (f x) (g x)),
+  grading: \forall (f: Open.Carrier U -> E.Carrier) -> Plot U f -> Plot U (\fun (x: Open.Carrier U) => Grade.map (f x)),
+  reversion: \forall (f: Open.Carrier U -> E.Carrier) -> Plot U f -> Plot U (\fun (x: Open.Carrier U) => Reverse.map (f x)),
+  scalar: \forall (f: Open.ScalarFunction U) -> Smooth.SmoothOn U f -> Plot U (\fun (x: Open.Carrier U) => E.scalar (f x)),
+  vector: \forall (f: Open.Carrier U -> E.Vector) -> Values U f -> Plot U (\fun (x: Open.Carrier U) => E.iota (f x)),
+};

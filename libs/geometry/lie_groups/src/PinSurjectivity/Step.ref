@@ -1,0 +1,36 @@
+\import \root.Euclidean[n := n] \as E;
+\import \root.Euclidean[n := N.Nat^::succ n] \as Next;
+\import \parent.Dimension[n := n] \as Lower;
+\import \parent.Dimension[n := N.Nat^::succ n] \as Upper;
+\import E.PinRepresentation[] \as Representation;
+\import Next.PinRepresentation[] \as HigherRepresentation;
+\import E.SuccessorGeometry[] \as Geometry;
+\import \root.OrthogonalAtlas[].Step[n := n] \as Step;
+\import Step.Reflection[] \as Flip;
+\import Step.On[previous := \root.OrthogonalAtlas[].atlasData n] \as Atlas;
+\import algebra.Groups[].On[G := Next.Pin, group := Next.pinGroup] \as Pins;
+\import algebra.Groups[].On[G := Next.O, group := Next.orthogonalGroup] \as Orthogonal;
+\import clifford.Euclidean[n := n].Successor[].Inclusion[].Groups[] \as Inclusion;
+\module Section(s: E.Vector);
+\import HigherRepresentation.PositiveLift[v := Geometry.SphereSection[s := E.space.zero].firstUnit] \as First;
+\definition choice: N.Nat^ -> Next.Pin := \induction (tag: N.Nat^) \return Next.Pin \with {
+  | zero: Pins.one
+  | succ: \fun (tag: N.Nat^)(previous: Next.Pin) => First.element
+};
+\definition choiceImage: \forall (tag: N.Nat^) -> HigherRepresentation.map (choice tag) = Flip.choice tag :=
+  \induction (tag: N.Nat^) \return HigherRepresentation.map (choice tag) = Flip.choice tag \with {
+    | zero: HigherRepresentation.atOne
+    | succ: \fun (tag: N.Nat^)(previous: _) => First.image
+  };
+\module Candidate(g: Next.O, candidate: Atlas.Cover[g := g].Candidate, lift: Lower.Lifts (Step.fiber (Step.asPart (Step.untranslate (Flip.choice candidate.tag) g) candidate.admissible)));
+\module On(previous: Lower.Law) {
+  \definition law: Upper.Law := \block {
+    \fun (g: Next.O) \then
+    \takefrom candidate: Atlas.Cover[g := g].Candidate \by Atlas.Cover[g := g].candidateExists \then
+    \let p: Step.Parts := Step.asPart (Step.untranslate (Flip.choice candidate.tag) g) candidate.admissible \then
+    \takefrom lift: Lower.Lifts (Step.fiber p) \by previous (Step.fiber p) \then
+    \return \exact(\into[Next.Pin](\parent.Candidate[g := g, candidate := candidate, lift := lift].value, Upper.Lifts g) \by {
+      \parent.Candidate[g := g, candidate := candidate, lift := lift].image
+    }, Upper.Lifts g)
+  };
+}
