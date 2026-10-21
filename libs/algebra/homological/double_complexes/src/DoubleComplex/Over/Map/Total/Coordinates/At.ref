@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition U: \Set := D.family.Carrier (i).first (i).second;
 \definition targetSpace: Modules.Space U := D.family.space (i).first (i).second;
 \import Modules.Hom[V := SourceTerm.Carrier, W := U, source := SourceTerm.space, target := targetSpace] \as Maps;
@@ -8,17 +9,19 @@
 \definition rhs: Maps.Map := AfterCoordinate.compose (f (i).first (i).second) SourceCoordinates.At[i := i].map;
 \definition Property[j: Index n]: \Prop := \forall (x: C.family.Carrier (j).first (j).second) ->
   (lhs).apply ((SourceTerm.Component[i := j].injection).apply x) = (rhs).apply ((SourceTerm.Component[i := j].injection).apply x);
-\definition own: Property i := \fun (x: C.family.Carrier (i).first (i).second) => trans!{U} _ _ _
-  (congr!{TargetTerm.Carrier U} (TargetCoordinates.coordinate i) _ _ (Current.onInjection i x))
-  (trans!{U} _ _ _ (TargetCoordinates.own i ((f (i).first (i).second).apply x))
-    (sym!{U} _ _ (congr!{{C.family.Carrier (i).first (i).second} U} ((f (i).first (i).second).apply) _ _ (SourceCoordinates.own i x))));
+\definition own: Property i := \fun (x: C.family.Carrier (i).first (i).second) => eq_reason_in!{U _
+  "=" _ "by" { congr!{TargetTerm.Carrier U} (TargetCoordinates.coordinate i) _ _ (Current.onInjection i x) }
+  "=" _ "by" { TargetCoordinates.own i ((f (i).first (i).second).apply x) }
+  "=" _ "by" { sym!{U} _ _ (congr!{{C.family.Carrier (i).first (i).second} U} ((f (i).first (i).second).apply) _ _ (SourceCoordinates.own i x)) }
+};
 \definition other: \forall (j: Index n) -> Logic.Not (j = i) -> Property j :=
-  \fun (j: Index n)(different: Logic.Not (j = i))(x: C.family.Carrier (j).first (j).second) => trans!{U} _ _ _
-    (trans!{U} _ _ _ (congr!{TargetTerm.Carrier U} (TargetCoordinates.coordinate i) _ _ (Current.onInjection j x))
-      (TargetCoordinates.other j i ((f (j).first (j).second).apply x) different))
-    (sym!{U} _ _ (trans!{U} _ _ _
+  \fun (j: Index n)(different: Logic.Not (j = i))(x: C.family.Carrier (j).first (j).second) => eq_reason_in!{U _
+    "=" _ "by" { congr!{TargetTerm.Carrier U} (TargetCoordinates.coordinate i) _ _ (Current.onInjection j x) }
+    "=" _ "by" { TargetCoordinates.other j i ((f (j).first (j).second).apply x) different }
+    "=" _ "by" { sym!{U} _ _ (trans!{U} _ _ _
       (congr!{{C.family.Carrier (i).first (i).second} U} ((f (i).first (i).second).apply) _ _ (SourceCoordinates.other j i x different))
-      (ComponentMaps.zeroPreserved (f (i).first (i).second))));
+      (ComponentMaps.zeroPreserved (f (i).first (i).second))) }
+  };
 \definition onInjection: \forall (j: Index n) -> Property j := \fun (j: Index n) => Logic.orElim (j = i) (Logic.Not (j = i)) (Property j) (Classical.excludedMiddle (j = i))
   (\fun (same: j = i) => \idelim i = j \with k: Index n => Property k \by { base: own, equality: sym!{{Index n}} _ _ same })
   (other j);

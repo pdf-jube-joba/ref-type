@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Original.Cohomology[].DegreeOne[] \as OriginalOne;
 \definition evaluate[f: EdgeFunctions.Carrier]: Chords.Carrier := Original.evaluateChord (restrictEdge f);
 \import Modules.Hom[V := Original.first.Carrier, W := Chords.Carrier, source := Original.first.space, target := Chords.space].Composition[U := EdgeFunctions.Carrier, domain := EdgeFunctions.space] \as EvaluateComposition;
@@ -13,11 +14,11 @@
 \definition kills: Descent.Vanishes evaluation := \block {
   \fun (x: H1.CycleCarrier)(boundary: _) \then
   \takefrom f: \Cast[VertexFunctions.Carrier] ({ f: VertexFunctions.Carrier \where delta f = x }) \by boundary \then
-  \return trans!{Chords.Carrier} _ _ _
-    (congr!{EdgeFunctions.Carrier Chords.Carrier} evaluate _ _ (sym!{EdgeFunctions.Carrier} _ _ (\bysub(VertexFunctions.Carrier, { f: VertexFunctions.Carrier \where delta f = x }, f))))
-    (trans!{Chords.Carrier} _ _ _
-      (congr!{Original.first.Carrier Chords.Carrier} Original.evaluateChord _ _ (SubdivisionEquations.restrictGradient f))
-      (Original.evaluateChordBoundary (restrictVertex f)))
+  \return eq_reason_in!{Chords.Carrier _
+    "=" _ "by" { congr!{EdgeFunctions.Carrier Chords.Carrier} evaluate _ _ (sym!{EdgeFunctions.Carrier} _ _ (\bysub(VertexFunctions.Carrier, { f: VertexFunctions.Carrier \where delta f = x }, f))) }
+    "=" _ "by" { congr!{Original.first.Carrier Chords.Carrier} Original.evaluateChord _ _ (SubdivisionEquations.restrictGradient f) }
+    "=" _ "by" { Original.evaluateChordBoundary (restrictVertex f) }
+  }
 };
 \definition forward: Modules.Hom[V := H1.Cohomology, W := Chords.Carrier, source := H1.cohomologySpace, target := Chords.space].Map := Descent.descend evaluation kills;
 \definition extension[f: Chords.Carrier]: EdgeFunctions.Carrier := liftEdge (Original.extendChord f);
@@ -31,9 +32,11 @@
 \import Modules.Hom[V := H1.CycleCarrier, W := H1.Cohomology, source := H1.cycleSpace, target := H1.cohomologySpace].Composition[U := Chords.Carrier, domain := Chords.space] \as Composition;
 \definition backward: Modules.Hom[V := Chords.Carrier, W := H1.Cohomology, source := Chords.space, target := H1.cohomologySpace].Map := Composition.compose H1.classLinear include;
 \definition leftInverse[f: Chords.Carrier]: (forward).apply ((backward).apply f) = f :=
-  trans!{Chords.Carrier} _ _ _ (Descent.onClass evaluation kills ((include).apply f))
-    (trans!{Chords.Carrier} _ _ _
-      (congr!{Original.first.Carrier Chords.Carrier} Original.evaluateChord _ _ (SubdivisionEquations.liftRestrictEdge (Original.extendChord f))) (Original.chordRoundtrip f));
+  eq_reason_in!{Chords.Carrier _
+    "=" _ "by" { Descent.onClass evaluation kills ((include).apply f) }
+    "=" _ "by" { congr!{Original.first.Carrier Chords.Carrier} Original.evaluateChord _ _ (SubdivisionEquations.liftRestrictEdge (Original.extendChord f)) }
+    "=" _ "by" { Original.chordRoundtrip f }
+  };
 \definition classReconstruction[f: H1.CycleCarrier]: H1.classOf f = (backward).apply (evaluate f) :=
   H1.classEqual f ((include).apply (evaluate f))
     (Logic.existsIntro[VertexFunctions.Carrier, { g: VertexFunctions.Carrier \where delta g = EdgeFunctions.add f (EdgeFunctions.neg (extension (evaluate f))) }]

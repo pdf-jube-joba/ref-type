@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.At[k := p] \as Left;
 \import \parent.At[k := q] \as Right;
 \import \parent.At[k := Nat.add p q] \as Result;
@@ -18,28 +19,27 @@
 \definition closed: \forall (omega: Form p)(eta: Form q) -> Left.Closed omega -> Right.Closed eta -> Result.Closed (Wedge.apply omega eta) := \block {
   \fun (omega: Form p)(eta: Form q)(leftClosed: Left.Closed omega)(rightClosed: Right.Closed eta) \then
   \let leftZero: Leibniz.left (LeftD.apply omega) eta = Next.zero :=
-    trans!{{Form (N.Nat^::succ (Nat.add p q))}} _ _ _
-      (congr!{{Form (N.Nat^::succ p)} {Form (N.Nat^::succ (Nat.add p q))}}
-        (\fun (alpha: Form (N.Nat^::succ p)) => Leibniz.left alpha eta) (LeftD.apply omega) LeftNext.zero leftClosed)
-      (trans!{{Form (N.Nat^::succ (Nat.add p q))}} _ _ _
-        (congr!{{Form (Nat.add (N.Nat^::succ p) q)} {Form (N.Nat^::succ (Nat.add p q))}}
+    eq_reason_in!{{Form (N.Nat^::succ (Nat.add p q))} _
+      "=" _ "by" { congr!{{Form (N.Nat^::succ p)} {Form (N.Nat^::succ (Nat.add p q))}}
+        (\fun (alpha: Form (N.Nat^::succ p)) => Leibniz.left alpha eta) (LeftD.apply omega) LeftNext.zero leftClosed }
+      "=" _ "by" { congr!{{Form (Nat.add (N.Nat^::succ p) q)} {Form (N.Nat^::succ (Nat.add p q))}}
           (\fun (alpha: Form (Nat.add (N.Nat^::succ p) q)) => Degree.cast alpha Leibniz.degree)
-          (LeftWedge.apply LeftNext.zero eta) LeftResult.zero (LeftWedge.zeroLeft eta))
-        (Degree.zero Leibniz.degree)) \then
+          (LeftWedge.apply LeftNext.zero eta) LeftResult.zero (LeftWedge.zeroLeft eta) }
+      "=" _ "by" { Degree.zero Leibniz.degree }
+    } \then
   \let rightZero: Leibniz.right omega (RightD.apply eta) = Next.zero :=
     trans!{{Form (N.Nat^::succ (Nat.add p q))}} _ _ _
       (congr!{{Form (N.Nat^::succ q)} {Form (N.Nat^::succ (Nat.add p q))}}
         (RightWedge.apply omega) (RightD.apply eta) RightNext.zero rightClosed)
       (RightWedge.zeroRight omega) \then
-  \return trans!{{Form (N.Nat^::succ (Nat.add p q))}} _ _ _
-    (Leibniz.law omega eta)
-    (trans!{{Form (N.Nat^::succ (Nat.add p q))}}
-      _ _ _
-      (congr2!{{Form (N.Nat^::succ (Nat.add p q))} {Form (N.Nat^::succ (Nat.add p q))} {Form (N.Nat^::succ (Nat.add p q))}}
+  \return eq_reason_in!{{Form (N.Nat^::succ (Nat.add p q))} _
+    "=" _ "by" { Leibniz.law omega eta }
+    "=" _ "by" { congr!{{Form (N.Nat^::succ (Nat.add p q))} {Form (N.Nat^::succ (Nat.add p q))} {Form (N.Nat^::succ (Nat.add p q))}}
         Next.plus _ _ _ _ leftZero
         (trans!{{Form (N.Nat^::succ (Nat.add p q))}} _ _ _
           (congr!{{Form (N.Nat^::succ (Nat.add p q))} {Form (N.Nat^::succ (Nat.add p q))}} (Next.scale (Sign.value p))
-            (Leibniz.right omega (RightD.apply eta)) Next.zero rightZero) (NextLaws.scaleZero (Sign.value p))))
-      (NextLaws.zeroLeft Next.zero))
+            (Leibniz.right omega (RightD.apply eta)) Next.zero rightZero) (NextLaws.scaleZero (Sign.value p))) }
+    "=" _ "by" { NextLaws.zeroLeft Next.zero }
+  }
 };
 \module Primitives;

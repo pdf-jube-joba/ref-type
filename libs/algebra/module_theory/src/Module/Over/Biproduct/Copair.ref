@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.Hom[V := V, W := U, source := left, target := target] \as LeftMaps;
 \import \parent.\parent.Hom[V := W, W := U, source := right, target := target] \as RightMaps;
 \import \parent.\parent.Hom[V := Carrier, W := U, source := space, target := target] \as Maps;
@@ -6,10 +7,10 @@
 \definition copair[f: LeftMaps.Map][g: RightMaps.Map]: Maps.Map := Maps.Map {
   apply := \fun (x: Carrier) => target.add (f.apply (first x)) (g.apply (second x)),
   addition := \fun (x, y: Carrier) => trans!{U} _ _ _
-    (congr2!{U U U} (target.add) _ _ _ _ (f.addition (first x) (first y)) (g.addition (second x) (second y)))
+    (congr!{U U U} (target.add) _ _ _ _ (f.addition (first x) (first y)) (g.addition (second x) (second y)))
     (Group.four (f.apply (first x)) (f.apply (first y)) (g.apply (second x)) (g.apply (second y))),
   scalar := \fun (a: R)(x: Carrier) => trans!{U} _ _ _
-    (congr2!{U U U} (target.add) _ _ _ _ (f.scalar a (first x)) (g.scalar a (second x)))
+    (congr!{U U U} (target.add) _ _ _ _ (f.scalar a (first x)) (g.scalar a (second x)))
     (sym!{U} _ _ (target.vectorAdd a (f.apply (first x)) (g.apply (second x)))),
 };
 \definition onLeft: \forall (f: LeftMaps.Map)(g: RightMaps.Map)(x: V) -> (copair f g).apply (firstInjection.apply x) = f.apply x :=
@@ -22,7 +23,8 @@
   (\forall (x: V) -> h.apply (firstInjection.apply x) = f.apply x) ->
   (\forall (x: W) -> h.apply (secondInjection.apply x) = g.apply x) -> h = copair f g :=
   \fun (f: LeftMaps.Map)(g: RightMaps.Map)(h: Maps.Map)(onLeft: _)(onRight: _) => Maps.ext h (copair f g)
-    (\fun (x: Carrier) => trans!{U} _ _ _
-      (congr!{Carrier U} (h.apply) _ _ (sym!{Carrier} _ _ (reconstruction x)))
-      (trans!{U} _ _ _ (h.addition (firstInjection.apply (first x)) (secondInjection.apply (second x)))
-        (congr2!{U U U} (target.add) _ _ _ _ (onLeft (first x)) (onRight (second x)))));
+    (\fun (x: Carrier) => eq_reason_in!{U _
+      "=" _ "by" { congr!{Carrier U} (h.apply) _ _ (sym!{Carrier} _ _ (reconstruction x)) }
+      "=" _ "by" { h.addition (firstInjection.apply (first x)) (secondInjection.apply (second x)) }
+      "=" _ "by" { congr!{U U U} (target.add) _ _ _ _ (onLeft (first x)) (onRight (second x)) }
+    });

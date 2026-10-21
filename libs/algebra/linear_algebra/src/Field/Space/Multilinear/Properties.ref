@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import N.Basic[].Prop[] \as NatLaws;
 \import Bool.ConditionalLaws[A := V] \as Conditional;
 \import \parent.\parent.Laws[V := V, space := space] \as Vectors;
@@ -59,12 +60,12 @@
   update (N.Nat^::succ k) (Tuples.extend k head tail) (Fin.succ k i) value = Tuples.extend k head (update k tail i value) :=
   \fun (k: N.Nat^)(head: V)(tail: Arguments k)(i: Fin.Fin k)(value: V) =>
     Tuples.extensionality k (update (N.Nat^::succ k) (Tuples.extend k head tail) (Fin.succ k i) value) (Tuples.extend k head (update k tail i value))
-      (trans!{V} _ _ _
-        (trans!{V} _ _ _
-          (updateOther (N.Nat^::succ k) (Tuples.extend k head tail) (Fin.succ k i) (Fin.zero k) value
-            (\fun (same: Fin.succ k i = Fin.zero k) => NatLaws.succNeZero (Fin.value k i) same))
-          (Tuples.atZero k head tail))
-        (sym!{V} _ _ (Tuples.atZero k head (update k tail i value))))
+      (eq_reason_in!{V _
+        "=" _ "by" { updateOther (N.Nat^::succ k) (Tuples.extend k head tail) (Fin.succ k i) (Fin.zero k) value
+            (\fun (same: Fin.succ k i = Fin.zero k) => NatLaws.succNeZero (Fin.value k i) same) }
+        "=" _ "by" { Tuples.atZero k head tail }
+        "=" _ "by" { sym!{V} _ _ (Tuples.atZero k head (update k tail i value)) }
+      })
       (\fun (j: Fin.Fin k) => trans!{V} _ _ _
         (Bool.cases (\fun (test: Bool.Bool^) => Bool.ite V test value (Tuples.extend k head tail (Fin.succ k j)) = Bool.ite V test value (tail j))
           (Tuples.atSuccessor k head tail j) (\refl(value)) (Nat.eqb (Fin.value k j) (Fin.value k i)))
@@ -75,7 +76,9 @@
     Tuples.extensionality k (update (N.Nat^::succ k) (Tuples.extend k head tail) (Fin.zero k) value) (Tuples.extend k value tail)
       (trans!{V} _ _ _ (updateSelf (N.Nat^::succ k) (Tuples.extend k head tail) (Fin.zero k) value)
         (sym!{V} _ _ (Tuples.atZero k value tail)))
-      (\fun (i: Fin.Fin k) => trans!{V} _ _ _
-        (updateOther (N.Nat^::succ k) (Tuples.extend k head tail) (Fin.zero k) (Fin.succ k i) value
-          (\fun (same: Fin.zero k = Fin.succ k i) => NatLaws.zeroNeSucc (Fin.value k i) same))
-        (trans!{V} _ _ _ (Tuples.atSuccessor k head tail i) (sym!{V} _ _ (Tuples.atSuccessor k value tail i))));
+      (\fun (i: Fin.Fin k) => eq_reason_in!{V _
+        "=" _ "by" { updateOther (N.Nat^::succ k) (Tuples.extend k head tail) (Fin.zero k) (Fin.succ k i) value
+          (\fun (same: Fin.zero k = Fin.succ k i) => NatLaws.zeroNeSucc (Fin.value k i) same) }
+        "=" _ "by" { Tuples.atSuccessor k head tail i }
+        "=" _ "by" { sym!{V} _ _ (Tuples.atSuccessor k value tail i) }
+      });

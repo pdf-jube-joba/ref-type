@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition n: Nat.Nat^ := Arithmetic.add p q;
 \definition index: Index n := \into[Pair](Pair { first := p, second := q },
   { i: Pair \where Arithmetic.add i.first i.second = n }) \by { \refl(n) };
@@ -45,14 +46,14 @@
     Current.coordinate i (remainder x y) = (C.family.space i.first i.second).zero :=
     \fun (x: Total.Carrier n)(y: C.family.Carrier p (Nat.Nat^::succ q))(above: Above n (Nat.Nat^::succ p) x)
       (bound: Natural.Le (Nat.Nat^::succ p) i.first) =>
-      trans!{{C.family.Carrier i.first i.second}} _ _ _ (coordinate x y)
-        (trans!{{C.family.Carrier i.first i.second}} _ _ _
-          (congr2!{{C.family.Carrier i.first i.second} {C.family.Carrier i.first i.second} {C.family.Carrier i.first i.second}}
-            Group.difference _ _ _ _ (above i bound) (Lift.At[i := i].zero y bound))
-          (trans!{{C.family.Carrier i.first i.second}} _ _ _
-            (congr!{{C.family.Carrier i.first i.second} {C.family.Carrier i.first i.second}}
-              ((C.family.space i.first i.second).add (C.family.space i.first i.second).zero) _ _ Group.negZero)
-            (Group.zeroLeft (C.family.space i.first i.second).zero)));
+      eq_reason_in!{{C.family.Carrier i.first i.second} _
+        "=" _ "by" { coordinate x y }
+        "=" _ "by" { congr!{{C.family.Carrier i.first i.second} {C.family.Carrier i.first i.second} {C.family.Carrier i.first i.second}}
+            Group.difference _ _ _ _ (above i bound) (Lift.At[i := i].zero y bound) }
+        "=" _ "by" { congr!{{C.family.Carrier i.first i.second} {C.family.Carrier i.first i.second}}
+              ((C.family.space i.first i.second).add (C.family.space i.first i.second).zero) _ _ Group.negZero }
+        "=" _ "by" { Group.zeroLeft (C.family.space i.first i.second).zero }
+      };
 }
 \import Modules.Laws[V := C.family.Carrier p q, space := C.family.space p q] \as Vectors;
 \import algebra.Group[].Of[Carrier := C.family.Carrier p q, group := Vectors.additive] \as Group;
@@ -60,12 +61,13 @@
   (C.differential.vertical p q).apply y = Current.coordinate index x ->
   Current.coordinate index (remainder x y) = (C.family.space p q).zero :=
   \fun (x: Total.Carrier n)(y: C.family.Carrier p (Nat.Nat^::succ q))(preimage: _) =>
-    trans!{{C.family.Carrier p q}} _ _ _ (At[i := index].coordinate x y)
-      (trans!{{C.family.Carrier p q}} _ _ _
-        (congr!{{C.family.Carrier p q} {C.family.Carrier p q}}
+    eq_reason_in!{{C.family.Carrier p q} _
+      "=" _ "by" { At[i := index].coordinate x y }
+      "=" _ "by" { congr!{{C.family.Carrier p q} {C.family.Carrier p q}}
           (Group.difference (Current.coordinate index x)) _ _
-          (Lift.atTop (Current.coordinate index x) y preimage))
-        (Group.inverseRight (Current.coordinate index x)));
+          (Lift.atTop (Current.coordinate index x) y preimage) }
+      "=" _ "by" { Group.inverseRight (Current.coordinate index x) }
+    };
 \definition decrease: \forall (x: Total.Carrier n)(y: C.family.Carrier p (Nat.Nat^::succ q)) ->
   Above n (Nat.Nat^::succ p) x -> (C.differential.vertical p q).apply y = Current.coordinate index x ->
   Above n p (remainder x y) :=
@@ -90,10 +92,10 @@
 \definition liftKilled: Concentrated.Vanishes -> \forall (y: C.family.Carrier p (Nat.Nat^::succ q)) ->
   Killed (Nat.Nat^::succ n) (Lift.element y) :=
   \fun (vanishes: Concentrated.Vanishes)(y: C.family.Carrier p (Nat.Nat^::succ q)) =>
-    trans!{TargetTerm.Carrier} _ _ _
-      (Induced.Degree[n := Nat.Nat^::succ n].onInjection Step.verticalIndex ((SourceSign.map p).apply y))
-      (trans!{TargetTerm.Carrier} _ _ _
-        (congr!{{D.family.Carrier p (Nat.Nat^::succ q)} TargetTerm.Carrier}
+    eq_reason_in!{TargetTerm.Carrier _
+      "=" _ "by" { Induced.Degree[n := Nat.Nat^::succ n].onInjection Step.verticalIndex ((SourceSign.map p).apply y) }
+      "=" _ "by" { congr!{{D.family.Carrier p (Nat.Nat^::succ q)} TargetTerm.Carrier}
           ((TargetTerm.Component[i := Step.verticalIndex].injection).apply) _ _
-          (vanishes p q ((f p (Nat.Nat^::succ q)).apply ((SourceSign.map p).apply y))))
-        (TargetInjection.zeroPreserved TargetTerm.Component[i := Step.verticalIndex].injection));
+          (vanishes p q ((f p (Nat.Nat^::succ q)).apply ((SourceSign.map p).apply y))) }
+      "=" _ "by" { TargetInjection.zeroPreserved TargetTerm.Component[i := Step.verticalIndex].injection }
+    };

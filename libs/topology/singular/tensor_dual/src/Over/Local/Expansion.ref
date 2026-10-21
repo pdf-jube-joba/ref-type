@@ -1,13 +1,14 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import VectorSum.Mapping[W := R, target := Modules.scalarModule] \as Evaluation;
 \definition value[f: Left.Carrier][x: V.Carrier]: (f).apply x = ScalarSum.sum Frame.indices (\fun (i: Frame.Index) => mul ((frame.coordinate i).apply x) ((f).apply (frame.basis i))) :=
-  trans!{R} _ _ _
-    (congr!{V.Carrier R} ((f).apply) _ _ (sym!{V.Carrier} _ _ (Frame.decomposition frame x)))
-    (trans!{R} _ _ _
-      (Evaluation.law f Frame.indices (\fun (i: Frame.Index) => (V.space).smul ((frame.coordinate i).apply x) (frame.basis i)))
-      (ScalarSum.congruent Frame.indices
+  eq_reason_in!{R _
+    "=" _ "by" { congr!{V.Carrier R} ((f).apply) _ _ (sym!{V.Carrier} _ _ (Frame.decomposition frame x)) }
+    "=" _ "by" { Evaluation.law f Frame.indices (\fun (i: Frame.Index) => (V.space).smul ((frame.coordinate i).apply x) (frame.basis i)) }
+    "=" _ "by" { ScalarSum.congruent Frame.indices
         (\fun (i: Frame.Index) => (f).apply ((V.space).smul ((frame.coordinate i).apply x) (frame.basis i)))
         (\fun (i: Frame.Index) => mul ((frame.coordinate i).apply x) ((f).apply (frame.basis i)))
-        (\fun (i: Frame.Index) => (f).scalar ((frame.coordinate i).apply x) (frame.basis i))));
+        (\fun (i: Frame.Index) => (f).scalar ((frame.coordinate i).apply x) (frame.basis i)) }
+  };
 \definition evaluation[x: V.Carrier]: Modules.Hom[V := Left.Carrier, W := R, source := Left.space, target := Modules.scalarModule].Map := Modules.Hom[V := Left.Carrier, W := R, source := Left.space, target := Modules.scalarModule].Map {
   apply := \fun (f: Left.Carrier) => (f).apply x,
   addition := \fun (f, g: Left.Carrier) => \refl(add ((f).apply x) ((g).apply x)),
@@ -17,11 +18,11 @@
 \definition dual[f: Left.Carrier]: DualSum.sum Frame.indices (\fun (i: Frame.Index) => (Left.space).smul ((f).apply (frame.basis i)) (frame.coordinate i)) = f :=
   LeftMaps.ext
     (DualSum.sum Frame.indices (\fun (i: Frame.Index) => (Left.space).smul ((f).apply (frame.basis i)) (frame.coordinate i))) f
-    (\fun (x: V.Carrier) => trans!{R} _ _ _
-      (EvaluateDual.law (evaluation x) Frame.indices (\fun (i: Frame.Index) => (Left.space).smul ((f).apply (frame.basis i)) (frame.coordinate i)))
-      (trans!{R} _ _ _
-        (ScalarSum.congruent Frame.indices
+    (\fun (x: V.Carrier) => eq_reason_in!{R _
+      "=" _ "by" { EvaluateDual.law (evaluation x) Frame.indices (\fun (i: Frame.Index) => (Left.space).smul ((f).apply (frame.basis i)) (frame.coordinate i)) }
+      "=" _ "by" { ScalarSum.congruent Frame.indices
           (\fun (i: Frame.Index) => mul ((f).apply (frame.basis i)) ((frame.coordinate i).apply x))
           (\fun (i: Frame.Index) => mul ((frame.coordinate i).apply x) ((f).apply (frame.basis i)))
-          (\fun (i: Frame.Index) => (ring).mulCommutative ((f).apply (frame.basis i)) ((frame.coordinate i).apply x)))
-        (sym!{R} _ _ (value f x))));
+          (\fun (i: Frame.Index) => (ring).mulCommutative ((f).apply (frame.basis i)) ((frame.coordinate i).apply x)) }
+      "=" _ "by" { sym!{R} _ _ (value f x) }
+    });

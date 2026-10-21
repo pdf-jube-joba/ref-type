@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Logic[].Proposition[] \as Existential;
 \import Modules.FiniteCoordinates[n := rank] \as Coefficients;
 \import OriginalCoordinates.Head[rank := rank] \as Head;
@@ -18,21 +19,21 @@
 \definition forward: Maps.Map := Maps.Map {
   apply := point,
   addition := \fun (v, w: Coefficients.Carrier) =>
-    trans!{Matrices.Output} _ _ _
-      (congr!{Matrices.Vector Matrices.Output} (\fun (x: Matrices.Vector) => Base.apply (Matrices.reflect original) (Right.apply right x))
-        (Head.extension (Coefficients.space.add v w)) (Matrices.domain.add (Head.extension v) (Head.extension w)) (HeadLaws.extensionAddition v w))
-      (trans!{Matrices.Output} _ _ _
-        (congr!{Matrices.Vector Matrices.Output} (Base.apply (Matrices.reflect original)) _ _
-          (rightIso.forward.addition (Head.extension v) (Head.extension w)))
-        ((Base.linear (Matrices.reflect original)).addition (Right.apply right (Head.extension v)) (Right.apply right (Head.extension w)))),
+    eq_reason_in!{Matrices.Output _
+      "=" _ "by" { congr!{Matrices.Vector Matrices.Output} (\fun (x: Matrices.Vector) => Base.apply (Matrices.reflect original) (Right.apply right x))
+        (Head.extension (Coefficients.space.add v w)) (Matrices.domain.add (Head.extension v) (Head.extension w)) (HeadLaws.extensionAddition v w) }
+      "=" _ "by" { congr!{Matrices.Vector Matrices.Output} (Base.apply (Matrices.reflect original)) _ _
+          (rightIso.forward.addition (Head.extension v) (Head.extension w)) }
+      "=" _ "by" { (Base.linear (Matrices.reflect original)).addition (Right.apply right (Head.extension v)) (Right.apply right (Head.extension w)) }
+    },
   scalar := \fun (a: I.Int^)(v: Coefficients.Carrier) =>
-    trans!{Matrices.Output} _ _ _
-      (congr!{Matrices.Vector Matrices.Output} (\fun (x: Matrices.Vector) => Base.apply (Matrices.reflect original) (Right.apply right x))
-        (Head.extension (Coefficients.space.smul a v)) (Matrices.domain.smul a (Head.extension v)) (HeadLaws.extensionScalar a v))
-      (trans!{Matrices.Output} _ _ _
-        (congr!{Matrices.Vector Matrices.Output} (Base.apply (Matrices.reflect original)) _ _
-          (rightIso.forward.scalar a (Head.extension v)))
-        ((Base.linear (Matrices.reflect original)).scalar a (Right.apply right (Head.extension v)))),
+    eq_reason_in!{Matrices.Output _
+      "=" _ "by" { congr!{Matrices.Vector Matrices.Output} (\fun (x: Matrices.Vector) => Base.apply (Matrices.reflect original) (Right.apply right x))
+        (Head.extension (Coefficients.space.smul a v)) (Matrices.domain.smul a (Head.extension v)) (HeadLaws.extensionScalar a v) }
+      "=" _ "by" { congr!{Matrices.Vector Matrices.Output} (Base.apply (Matrices.reflect original)) _ _
+          (rightIso.forward.scalar a (Head.extension v)) }
+      "=" _ "by" { (Base.linear (Matrices.reflect original)).scalar a (Right.apply right (Head.extension v)) }
+    },
 };
 \definition rowRank: Bounds.Le rank m := diagonalLaws.rowRank;
 \definition inputIndex[j: Coefficients.Index]: Finite.Fin n := Head.include columnRank j;
@@ -51,16 +52,17 @@
   \axiom:funext(v, w, \fun (j: Coefficients.Index) =>
     Domain.cancellation (Diagonalize.diagonal result j j) (v j) (w j)
       (diagonalLaws.nonzero j (Finite.bound rank j))
-      (trans!{I.Int^} _ _ _
-        (sym!{I.Int^} _ _ (diagonalAt v j))
-        (trans!{I.Int^} _ _ _
-          (congr!{Matrices.Output I.Int^} (\fun (x: Matrices.Output) => x (outputIndex j))
+      (eq_reason_in!{I.Int^ _
+        "=" _ "by" { sym!{I.Int^} _ _ (diagonalAt v j) }
+        "=" _ "by" { congr!{Matrices.Output I.Int^} (\fun (x: Matrices.Output) => x (outputIndex j))
             (Base.apply diagonal (Head.extension v)) (Base.apply diagonal (Head.extension w))
-            (trans!{Matrices.Output} _ _ _ (action (Head.extension v))
-              (trans!{Matrices.Output} _ _ _
-                (congr!{Matrices.Output Matrices.Output} (Left.apply left) (value v) (value w) equal)
-                (sym!{Matrices.Output} _ _ (action (Head.extension w))))))
-          (diagonalAt w j))));
+            (eq_reason_in!{Matrices.Output _
+              "=" _ "by" { action (Head.extension v) }
+              "=" _ "by" { congr!{Matrices.Output Matrices.Output} (Left.apply left) (value v) (value w) equal }
+              "=" _ "by" { sym!{Matrices.Output} _ _ (action (Head.extension w)) }
+            }) }
+        "=" _ "by" { diagonalAt w j }
+      }));
 \import std.Data[].Bool[] \as Bool;
 \definition diagonalRecovery: \forall (v: Matrices.Vector) ->
   Base.apply diagonal (Head.extension (Head.restriction columnRank v)) = Base.apply diagonal v :=
@@ -87,18 +89,19 @@
   \fun (v: Matrices.Vector) => \block {
     \let x: Matrices.Vector := rightIso.backward.apply v \then
     \let equal: Left.apply left (value (Head.restriction columnRank x)) = Left.apply left (Base.apply (Matrices.reflect original) v) :=
-      trans!{Matrices.Output} _ (Base.apply diagonal (Head.extension (Head.restriction columnRank x))) _
-        (sym!{Matrices.Output} _ _ (action (Head.extension (Head.restriction columnRank x))))
-        (trans!{Matrices.Output} _ (Base.apply diagonal x) _ (diagonalRecovery x)
-          (trans!{Matrices.Output} _ _ _ (action x)
-            (congr!{Matrices.Vector Matrices.Output}
+      eq_reason_in!{Matrices.Output _
+        "=" { Base.apply diagonal (Head.extension (Head.restriction columnRank x)) } "by" { sym!{Matrices.Output} _ _ (action (Head.extension (Head.restriction columnRank x))) }
+        "=" { Base.apply diagonal x } "by" { diagonalRecovery x }
+        "=" _ "by" { action x }
+        "=" _ "by" { congr!{Matrices.Vector Matrices.Output}
               (\fun (u: Matrices.Vector) => Left.apply left (Base.apply (Matrices.reflect original) u))
-              (Right.apply right x) v (rightIso.rightInverse v)))) \then
-    \return trans!{Matrices.Output} _ _ _
-      (sym!{Matrices.Output} _ _ (leftIso.leftInverse (value (Head.restriction columnRank x))))
-      (trans!{Matrices.Output} _ _ _
-        (congr!{Matrices.Output Matrices.Output} (leftIso.backward.apply) _ _ equal)
-        (leftIso.leftInverse (Base.apply (Matrices.reflect original) v)))
+              (Right.apply right x) v (rightIso.rightInverse v) }
+      } \then
+    \return eq_reason_in!{Matrices.Output _
+      "=" _ "by" { sym!{Matrices.Output} _ _ (leftIso.leftInverse (value (Head.restriction columnRank x))) }
+      "=" _ "by" { congr!{Matrices.Output Matrices.Output} (leftIso.backward.apply) _ _ equal }
+      "=" _ "by" { leftIso.leftInverse (Base.apply (Matrices.reflect original) v) }
+    }
   };
 \definition onto: Bijective.Onto := \block {
   \fun (y: Carrier) \then

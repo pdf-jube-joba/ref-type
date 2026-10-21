@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Positive[x := f a, positive := positive a] \as Center;
 \definition denominator[x: Real]: Real := add (value f x) (value f a);
 \definition denominatorPositive: \forall (x: Real) -> R.Lt zero (denominator x) := \fun (x: Real) =>
@@ -7,12 +8,13 @@
 \definition difference[x: Real]: sub (value f x) (value f a) = mul (inv (denominator x)) (sub (f x) (f a)) := \block {
   \let equation: mul (sub (value f x) (value f a)) (denominator x) = sub (f x) (f a) :=
     trans!{Real} _ _ _ (Root.differenceOfSquares (value f a) (value f x))
-      (congr2!{Real Real Real} sub _ _ _ _ (\parent.Positive[x := f x, positive := positive x].square) Center.square) \then
-  \return sym!{Real} _ _ (trans!{Real} _ _ _
-    (congr!{Real Real} (mul (inv (denominator x))) _ _ (sym!{Real} _ _ equation))
-    (trans!{Real} _ _ _ (Algebra.mulSwap (inv (denominator x)) (sub (value f x) (value f a)) (denominator x))
-      (trans!{Real} _ _ _ (congr!{Real Real} (mul (sub (value f x) (value f a))) _ _ (Laws.fieldInverseNonzero (denominator x) (nonzero x)))
-        (Algebra.mulOneRight (sub (value f x) (value f a))))))
+      (congr!{Real Real Real} sub _ _ _ _ (\parent.Positive[x := f x, positive := positive x].square) Center.square) \then
+  \return sym!{Real} _ _ (eq_reason_in!{Real _
+    "=" _ "by" { congr!{Real Real} (mul (inv (denominator x))) _ _ (sym!{Real} _ _ equation) }
+    "=" _ "by" { Algebra.mulSwap (inv (denominator x)) (sub (value f x) (value f a)) (denominator x) }
+    "=" _ "by" { congr!{Real Real} (mul (sub (value f x) (value f a))) _ _ (Laws.fieldInverseNonzero (denominator x) (nonzero x)) }
+    "=" _ "by" { Algebra.mulOneRight (sub (value f x) (value f a)) }
+  })
 };
 \definition slope: \forall (x: Real) -> Derivatives.slope (value f) a x = mul (inv (denominator x)) (Derivatives.slope f a x) :=
   \fun (x: Real) => trans!{Real} _ _ _ (congr!{Real Real} (\fun (y: Real) => mul y (inv (sub x a))) _ _ (difference x))

@@ -1,22 +1,26 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Groups.Pointwise[f := Identity.function, g := map (I.Int^::ofNat n), fc := Identity.continuous, gc := continuous (I.Int^::ofNat n)] \as Multiplication;
 \definition functions: \forall (x: Coordinates.Sphere) -> Multiplication.map x = map (I.Int^::ofNat (N.Nat^::succ n)) x :=
   \fun (x: Coordinates.Sphere) => congr!{Circle.Carrier {Coordinates.Sphere}} Coordinates.backward _ _
     (congr!{Circle.Carrier Circle.Carrier} (multiply (Coordinates.forward x)) _ _ (Coordinates.rightInverse (Powers.natural n (Coordinates.forward x))));
 \definition successorInteger: (IntegerRing.ring).add I.One.specification (I.Int^::ofNat n) = I.Int^::ofNat (N.Nat^::succ n) :=
-  trans!{I.Int^} _ _ _
-    (congr!{I.Int^ I.Int^} ((IntegerRing.ring).add I.One.specification) _ _ (I.ofNatAsInteger n))
-    (trans!{I.Int^} _ _ _ (sym!{I.Int^} _ _ (I.integerSuccAsAdd n)) (sym!{I.Int^} _ _ (I.ofNatAsInteger (N.Nat^::succ n))));
+  eq_reason_in!{I.Int^ _
+    "=" _ "by" { congr!{I.Int^ I.Int^} ((IntegerRing.ring).add I.One.specification) _ _ (I.ofNatAsInteger n) }
+    "=" _ "by" { sym!{I.Int^} _ _ (I.integerSuccAsAdd n) }
+    "=" _ "by" { sym!{I.Int^} _ _ (I.ofNatAsInteger (N.Nat^::succ n)) }
+  };
 \definition scaledSum: \forall (q: Carrier) -> (space).add q ((space).smul (I.Int^::ofNat n) q) = (space).smul (I.Int^::ofNat (N.Nat^::succ n)) q :=
-  \fun (q: Carrier) => trans!{Carrier} _ _ _
-    (congr!{Carrier Carrier} (\fun (x: Carrier) => (space).add x ((space).smul (I.Int^::ofNat n) q)) _ _ (sym!{Carrier} _ _ ((space).scalarOne q)))
-    (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ ((space).scalarAdd I.One.specification (I.Int^::ofNat n) q))
-      (congr!{I.Int^ Carrier} (\fun (a: I.Int^) => (space).smul a q) _ _ successorInteger));
+  \fun (q: Carrier) => eq_reason_in!{Carrier _
+    "=" _ "by" { congr!{Carrier Carrier} (\fun (x: Carrier) => (space).add x ((space).smul (I.Int^::ofNat n) q)) _ _ (sym!{Carrier} _ _ ((space).scalarOne q)) }
+    "=" _ "by" { sym!{Carrier} _ _ ((space).scalarAdd I.One.specification (I.Int^::ofNat n) q) }
+    "=" _ "by" { congr!{I.Int^ Carrier} (\fun (a: I.Int^) => (space).smul a q) _ _ successorInteger }
+  };
 \definition law: (\forall (q: Carrier) -> (action (I.Int^::ofNat n)).apply q = (space).smul (I.Int^::ofNat n) q) ->
   \forall (q: Carrier) -> (action (I.Int^::ofNat (N.Nat^::succ n))).apply q = (space).smul (I.Int^::ofNat (N.Nat^::succ n)) q :=
-  \fun (previous: _)(q: Carrier) => trans!{Carrier} _ _ _
-    (sym!{Carrier} _ _ (Groups.functionEquality Multiplication.map (map (I.Int^::ofNat (N.Nat^::succ n)))
-      Multiplication.mapContinuous (continuous (I.Int^::ofNat (N.Nat^::succ n))) functions q))
-    (trans!{Carrier} _ _ _ (Multiplication.law q)
-      (trans!{Carrier} _ _ _
-        (congr2!{Carrier Carrier Carrier} ((space).add) _ _ _ _ (Identity.Coefficients[M := coefficients].At[n := one].cohomologyIdentity q) (previous q))
-        (scaledSum q)));
+  \fun (previous: _)(q: Carrier) => eq_reason_in!{Carrier _
+    "=" _ "by" { sym!{Carrier} _ _ (Groups.functionEquality Multiplication.map (map (I.Int^::ofNat (N.Nat^::succ n)))
+      Multiplication.mapContinuous (continuous (I.Int^::ofNat (N.Nat^::succ n))) functions q) }
+    "=" _ "by" { Multiplication.law q }
+    "=" _ "by" { congr!{Carrier Carrier Carrier} ((space).add) _ _ _ _ (Identity.Coefficients[M := coefficients].At[n := one].cohomologyIdentity q) (previous q) }
+    "=" _ "by" { scaledSum q }
+  };

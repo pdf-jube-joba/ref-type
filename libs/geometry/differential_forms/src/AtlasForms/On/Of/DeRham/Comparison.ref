@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition cochainForward: Forward.Map := forward;
 \definition cochainBackward: Backward.Map := backward;
 \import Complexes.At[C := complex, k := k] \as Source;
@@ -19,24 +20,22 @@
 };
 \definition leftInverse: \forall (h: Source.Cohomology) -> backward.apply (forward.apply h) = h :=
   Source.classInduction (\fun (h: Source.Cohomology) => backward.apply (forward.apply h) = h)
-    (\fun (omega: Source.CycleCarrier) => trans!{{Source.Cohomology}} _
-      (backward.apply (Target.classOf ((ForwardH.cyclesMap cochainForward).apply omega))) _
-      (congr!{{Target.Cohomology} {Source.Cohomology}} (backward.apply) _ _ (ForwardH.onClass cochainForward omega))
-      (trans!{{Source.Cohomology}} _ (Source.classOf ((BackwardH.cyclesMap cochainBackward).apply ((ForwardH.cyclesMap cochainForward).apply omega))) _
-        (BackwardH.onClass cochainBackward ((ForwardH.cyclesMap cochainForward).apply omega))
-        (congr!{{Source.CycleCarrier} {Source.Cohomology}} Source.classOf
+    (\fun (omega: Source.CycleCarrier) => eq_reason_in!{{Source.Cohomology} _
+      "=" { backward.apply (Target.classOf ((ForwardH.cyclesMap cochainForward).apply omega)) } "by" { congr!{{Target.Cohomology} {Source.Cohomology}} (backward.apply) _ _ (ForwardH.onClass cochainForward omega) }
+      "=" { Source.classOf ((BackwardH.cyclesMap cochainBackward).apply ((ForwardH.cyclesMap cochainForward).apply omega)) } "by" { BackwardH.onClass cochainBackward ((ForwardH.cyclesMap cochainForward).apply omega) }
+      "=" _ "by" { congr!{{Source.CycleCarrier} {Source.Cohomology}} Source.classOf
           ((BackwardH.cyclesMap cochainBackward).apply ((ForwardH.cyclesMap cochainForward).apply omega))
-          omega (Forms.leftInverse omega))));
+          omega (Forms.leftInverse omega) }
+    });
 \definition rightInverse: \forall (h: Target.Cohomology) -> forward.apply (backward.apply h) = h :=
   Target.classInduction (\fun (h: Target.Cohomology) => forward.apply (backward.apply h) = h)
-    (\fun (omega: Target.CycleCarrier) => trans!{{Target.Cohomology}} _
-      (forward.apply (Source.classOf ((BackwardH.cyclesMap cochainBackward).apply omega))) _
-      (congr!{{Source.Cohomology} {Target.Cohomology}} (forward.apply) _ _ (BackwardH.onClass cochainBackward omega))
-      (trans!{{Target.Cohomology}} _ (Target.classOf ((ForwardH.cyclesMap cochainForward).apply ((BackwardH.cyclesMap cochainBackward).apply omega))) _
-        (ForwardH.onClass cochainForward ((BackwardH.cyclesMap cochainBackward).apply omega))
-        (congr!{{Target.CycleCarrier} {Target.Cohomology}} Target.classOf
+    (\fun (omega: Target.CycleCarrier) => eq_reason_in!{{Target.Cohomology} _
+      "=" { forward.apply (Source.classOf ((BackwardH.cyclesMap cochainBackward).apply omega)) } "by" { congr!{{Source.Cohomology} {Target.Cohomology}} (forward.apply) _ _ (BackwardH.onClass cochainBackward omega) }
+      "=" { Target.classOf ((ForwardH.cyclesMap cochainForward).apply ((BackwardH.cyclesMap cochainBackward).apply omega)) } "by" { ForwardH.onClass cochainForward ((BackwardH.cyclesMap cochainBackward).apply omega) }
+      "=" _ "by" { congr!{{Target.CycleCarrier} {Target.Cohomology}} Target.classOf
           ((ForwardH.cyclesMap cochainForward).apply ((BackwardH.cyclesMap cochainBackward).apply omega))
-          omega (Forms.rightInverse omega))));
+          omega (Forms.rightInverse omega) }
+    });
 \import Spaces.Isomorphism[V := Source.Cohomology, W := Target.Cohomology, source := Source.cohomologySpace, target := Target.cohomologySpace] \as Isomorphism;
 \definition isomorphism: Isomorphism.Isomorphism := Isomorphism.Isomorphism {
   forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,

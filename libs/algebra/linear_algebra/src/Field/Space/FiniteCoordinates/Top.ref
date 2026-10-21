@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 /* The normalized top exterior form and the determinant of a linear map. */
 \import \parent.Exterior[] \as Exterior;
 \import \parent.\parent.Multilinear[V := Coordinates.Vector, space := Coordinates.space] \as Multilinear;
@@ -24,8 +25,11 @@
         \bysub(Fin.Fin n -> Fin.Fin n, Increasing.Index, indices)
       } \then
     \let identity: raw = identityTuple := Rigidity.rigid n map \then
-    \return trans!{K} _ _ _ (congr!{{Fin.Fin n -> Fin.Fin n} K} (\fun (t: Fin.Fin n -> Fin.Fin n) => f (basisTuple t)) _ _ identity)
-      (trans!{K} _ _ _ same (sym!{K} _ _ (congr!{{Fin.Fin n -> Fin.Fin n} K} (\fun (t: Fin.Fin n -> Fin.Fin n) => g (basisTuple t)) _ _ identity)))
+    \return eq_reason_in!{K _
+      "=" _ "by" { congr!{{Fin.Fin n -> Fin.Fin n} K} (\fun (t: Fin.Fin n -> Fin.Fin n) => f (basisTuple t)) _ _ identity }
+      "=" _ "by" same
+      "=" _ "by" { sym!{K} _ _ (congr!{{Fin.Fin n -> Fin.Fin n} K} (\fun (t: Fin.Fin n -> Fin.Fin n) => g (basisTuple t)) _ _ identity) }
+    }
   });
 \definition reconstruction: \forall (omega: Form) -> omega = Forms.scale (omega basisArguments) volume := \fun (omega: Form) => ext omega _
   (sym!{K} _ _ (trans!{K} _ _ _ (congr!{K K} (mul (omega basisArguments)) _ _ normalized) (mulOneRight (omega basisArguments))));
@@ -49,6 +53,9 @@
 \definition PreservesVolume[f: Linear.Map]: \Prop := \forall (omega: Form)(arguments: Arguments) -> omega (transformed f arguments) = omega arguments;
 \definition preservesIff: \forall (f: Linear.Map) -> Logic.PropEquiv[PreservesVolume f, determinant f = one] := \fun (f: Linear.Map) => Logic.PropEquiv[_, _] {
   ltr := \fun (preserves: PreservesVolume f) => trans!{K} _ _ _ (preserves volume basisArguments) normalized,
-  rtl := \fun (special: determinant f = one)(omega: Form)(arguments: Arguments) => trans!{K} _ _ _ (action f omega arguments)
-    (trans!{K} _ _ _ (congr!{K K} (\fun (c: K) => mul c (omega arguments)) _ _ special) (mulOneLeft (omega arguments))),
+  rtl := \fun (special: determinant f = one)(omega: Form)(arguments: Arguments) => eq_reason_in!{K _
+    "=" _ "by" { action f omega arguments }
+    "=" _ "by" { congr!{K K} (\fun (c: K) => mul c (omega arguments)) _ _ special }
+    "=" _ "by" { mulOneLeft (omega arguments) }
+  },
 };

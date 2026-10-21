@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition Preimage[t: Carrier]: \Pow Carrier := { s: Carrier \where f s = f t };
 \definition family: \Pow (\Pow Carrier) := { V: \Pow Carrier \where \exists ( t: Carrier \where V = Preimage t ) };
 \definition cover: Space.IsOpenCover[topology, family, Space.Whole] := Space.IsOpenCover[topology, family, Space.Whole] {
@@ -15,11 +16,13 @@
 \import Subdivision.Cover[family := family] \as Fine;
 \definition Property[g: Carrier -> Carrier]: \Prop := f (g start) = f (g end);
 \definition combine: \forall (g: Carrier -> Carrier) -> Property (Subdivision.left g) -> Property (Subdivision.right g) -> Property g :=
-  \fun (g: Carrier -> Carrier)(left: _)(right: _) => trans!{B} _ _ _
-    (congr!{Carrier B} (\fun (t: Carrier) => f (g t)) _ _ (sym!{Carrier} _ _ Halves.lowerStart))
-    (trans!{B} _ _ _ left (trans!{B} _ _ _
-      (congr!{Carrier B} (\fun (t: Carrier) => f (g t)) _ _ (trans!{Carrier} _ _ _ Halves.lowerEnd (sym!{Carrier} _ _ Halves.upperStart)))
-      (trans!{B} _ _ _ right (congr!{Carrier B} (\fun (t: Carrier) => f (g t)) _ _ Halves.upperEnd))));
+  \fun (g: Carrier -> Carrier)(left: _)(right: _) => eq_reason_in!{B _
+    "=" _ "by" { congr!{Carrier B} (\fun (t: Carrier) => f (g t)) _ _ (sym!{Carrier} _ _ Halves.lowerStart) }
+    "=" _ "by" left
+    "=" _ "by" { congr!{Carrier B} (\fun (t: Carrier) => f (g t)) _ _ (trans!{Carrier} _ _ _ Halves.lowerEnd (sym!{Carrier} _ _ Halves.upperStart)) }
+    "=" _ "by" right
+    "=" _ "by" { congr!{Carrier B} (\fun (t: Carrier) => f (g t)) _ _ Halves.upperEnd }
+  };
 \definition local: \forall (g: Carrier -> Carrier) -> Maps.Continuous topology topology g ->
   \forall (V: \Pow Carrier) -> \In[\Pow Carrier] family V -> Fine.Within g V -> Property g := \block {
   \fun (g: Carrier -> Carrier)(gc: _)(V: _)(member: _)(within: _) \then

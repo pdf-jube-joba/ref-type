@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Modules.Hom[V := H2.CycleCarrier, W := Z2.Carrier, source := H2.cycleSpace, target := Z2.space] \as Evaluation;
 \definition totalAdd[f, g: Model.Triangles]: Model.total (\fun (t: Triangle) => Arithmetic.add (f t) (g t)) = Arithmetic.add (Model.total f) (Model.total g) :=
   Group.four (f Triangle::upper) (g Triangle::upper) (f Triangle::lower) (g Triangle::lower);
@@ -15,11 +16,11 @@
   \fun (f: H2.CycleCarrier)(boundary: _) \then
   \takefrom g: \Cast[Model.Edges] ({ g: Model.Edges \where Model.deltaOne g = f }) \by boundary \then
   \let equal: Model.deltaOne g = f := \bysub(Model.Edges, { g: Model.Edges \where Model.deltaOne g = f }, g) \then
-  \return trans!{Z2.Carrier} _ _ _
-    (congr!{Model.Triangles Z2.Carrier} (\fun (x: Model.Triangles) => Z2.class (Model.total x)) _ _ (sym!{Model.Triangles} _ _ equal))
-    (trans!{Z2.Carrier} _ _ _
-      (congr!{I.Int^ Z2.Carrier} Z2.class _ _ (trans!{I.Int^} _ _ _ (Model.totalBoundary g) (sym!{I.Int^} _ _ (twice (g Edge::loop)))))
-      (Z2.classMultiple (g Edge::loop)))
+  \return eq_reason_in!{Z2.Carrier _
+    "=" _ "by" { congr!{Model.Triangles Z2.Carrier} (\fun (x: Model.Triangles) => Z2.class (Model.total x)) _ _ (sym!{Model.Triangles} _ _ equal) }
+    "=" _ "by" { congr!{I.Int^ Z2.Carrier} Z2.class _ _ (trans!{I.Int^} _ _ _ (Model.totalBoundary g) (sym!{I.Int^} _ _ (twice (g Edge::loop)))) }
+    "=" _ "by" { Z2.classMultiple (g Edge::loop) }
+  }
 };
 \definition forward: Modules.Hom[V := H2.Cohomology, W := Z2.Carrier, source := H2.cohomologySpace, target := Z2.space].Map := Descent.descend evaluate kills;
 \import Modules.Hom[V := I.Int^, W := H2.CycleCarrier, source := Modules.scalarModule, target := H2.cycleSpace] \as Representatives;
@@ -50,19 +51,23 @@
 \definition backward: Modules.Hom[V := Z2.Carrier, W := H2.Cohomology, source := Z2.space, target := H2.cohomologySpace].Map := ReverseDescent.descend fromInteger killsMultiples;
 \definition onClass[x: I.Int^]: (backward).apply (Z2.class x) = (fromInteger).apply x := ReverseDescent.onClass fromInteger killsMultiples x;
 \definition rightInverseOnClass[x: I.Int^]: (forward).apply ((backward).apply (Z2.class x)) = Z2.class x :=
-  trans!{Z2.Carrier} _ _ _ (congr!{H2.Cohomology Z2.Carrier} ((forward).apply) _ _ (onClass x))
-    (trans!{Z2.Carrier} _ _ _ (Descent.onClass evaluate kills ((represent).apply x)) (congr!{I.Int^ Z2.Carrier} Z2.class _ _ (Group.zeroLeft x)));
+  eq_reason_in!{Z2.Carrier _
+    "=" _ "by" { congr!{H2.Cohomology Z2.Carrier} ((forward).apply) _ _ (onClass x) }
+    "=" _ "by" { Descent.onClass evaluate kills ((represent).apply x) }
+    "=" _ "by" { congr!{I.Int^ Z2.Carrier} Z2.class _ _ (Group.zeroLeft x) }
+  };
 \definition rightInverse: \forall (q: Z2.Carrier) -> (forward).apply ((backward).apply q) = q :=
   Z2.induction (\fun (q: Z2.Carrier) => (forward).apply ((backward).apply q) = q) rightInverseOnClass;
 \definition leftInverse: \forall (h: H2.Cohomology) -> (backward).apply ((forward).apply h) = h :=
   H2.classInduction (\fun (h: H2.Cohomology) => (backward).apply ((forward).apply h) = h)
-    (\fun (f: H2.CycleCarrier) => trans!{H2.Cohomology} _ _ _
-      (congr!{Z2.Carrier H2.Cohomology} ((backward).apply) _ _ (Descent.onClass evaluate kills f))
-      (trans!{H2.Cohomology} _ _ _ (onClass (Model.total f))
-        (sym!{H2.Cohomology} _ _ (H2.classEqual f ((represent).apply (Model.total f))
+    (\fun (f: H2.CycleCarrier) => eq_reason_in!{H2.Cohomology _
+      "=" _ "by" { congr!{Z2.Carrier H2.Cohomology} ((backward).apply) _ _ (Descent.onClass evaluate kills f) }
+      "=" _ "by" { onClass (Model.total f) }
+      "=" _ "by" { sym!{H2.Cohomology} _ _ (H2.classEqual f ((represent).apply (Model.total f))
           (Logic.existsIntro[Model.Edges, { g: Model.Edges \where Model.deltaOne g =
             (Raw.second.space).add f ((Raw.second.space).neg (representative (Model.total f))) }]
-            (Model.edge Arithmetic.zero (f Triangle::upper) Arithmetic.zero) (Model.boundaryDifference f))))));
+            (Model.edge Arithmetic.zero (f Triangle::upper) Arithmetic.zero) (Model.boundaryDifference f))) }
+    });
 \definition isomorphism: Modules.Isomorphism[V := H2.Cohomology, W := Z2.Carrier, source := H2.cohomologySpace, target := Z2.space].Isomorphism :=
   Modules.Isomorphism[V := H2.Cohomology, W := Z2.Carrier, source := H2.cohomologySpace, target := Z2.space].Isomorphism {
     forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
@@ -74,5 +79,8 @@
     (congr!{I.Int^ Z2.Carrier} Z2.class _ _ (Group.zeroLeft Arithmetic.one));
 \definition generatorNonzero: generator = H2.zeroClass -> Logic.False :=
   \fun (same: generator = H2.zeroClass) => BinaryQuotient.generatorNonzero
-    (trans!{Z2.Carrier} _ _ _ (sym!{Z2.Carrier} _ _ generatorCoordinate)
-      (trans!{Z2.Carrier} _ _ _ (congr!{H2.Cohomology Z2.Carrier} ((forward).apply) _ _ same) (ForwardMaps.zeroPreserved forward)));
+    (eq_reason_in!{Z2.Carrier _
+      "=" _ "by" { sym!{Z2.Carrier} _ _ generatorCoordinate }
+      "=" _ "by" { congr!{H2.Cohomology Z2.Carrier} ((forward).apply) _ _ same }
+      "=" _ "by" { ForwardMaps.zeroPreserved forward }
+    });

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Hom[V := V, W := W, source := source, target := target] \as Maps;
 \import \parent.Laws[V := V, space := source] \as Source;
 \import \parent.Laws[V := W, space := target] \as Target;
@@ -38,16 +39,22 @@
 };
 \definition sameClass: \forall (x, y: V) -> f.apply x = f.apply y -> Quotient.class x = Quotient.class y :=
   \fun (x, y: V)(equal: f.apply x = f.apply y) => Quotient.classRelated x y
-    (trans!{W} _ _ _ (Maps.differencePreserved f x y)
-      (trans!{W} _ _ _ (congr!{W W} (\fun (a: W) => TargetGroup.difference a (f.apply y)) _ _ equal) (TargetGroup.inverseRight (f.apply y))));
+    (eq_reason_in!{W _
+      "=" _ "by" { Maps.differencePreserved f x y }
+      "=" _ "by" { congr!{W W} (\fun (a: W) => TargetGroup.difference a (f.apply y)) _ _ equal }
+      "=" _ "by" { TargetGroup.inverseRight (f.apply y) }
+    });
 \definition uniqueness: \forall (y: ImageCarrier)(u, v: Value y) -> u = v := \block {
   \fun (y: ImageCarrier)(u, v: Value y) \then
   \takefrom x: \Cast[V] ({ x: V \where Logic.And[f.apply x = y, Quotient.class x = u] }) \by \bysub(QuotientCarrier, Values y, u) \then
   \takefrom z: \Cast[V] ({ z: V \where Logic.And[f.apply z = y, Quotient.class z = v] }) \by \bysub(QuotientCarrier, Values y, v) \then
   \let xlaw: Logic.And[f.apply x = y, Quotient.class x = u] := \bysub(V, { x: V \where Logic.And[f.apply x = y, Quotient.class x = u] }, x) \then
   \let zlaw: Logic.And[f.apply z = y, Quotient.class z = v] := \bysub(V, { z: V \where Logic.And[f.apply z = y, Quotient.class z = v] }, z) \then
-  \return trans!{QuotientCarrier} _ _ _ (sym!{QuotientCarrier} _ _ (xlaw.right))
-    (trans!{QuotientCarrier} _ _ _ (sameClass x z (trans!{W} _ _ _ (xlaw.left) (sym!{W} _ _ (zlaw.left)))) (zlaw.right))
+  \return eq_reason_in!{QuotientCarrier _
+    "=" _ "by" { sym!{QuotientCarrier} _ _ (xlaw.right) }
+    "=" _ "by" { sameClass x z (trans!{W} _ _ _ (xlaw.left) (sym!{W} _ _ (zlaw.left))) }
+    "=" _ "by" zlaw.right
+  }
 };
 \definition inverse[y: ImageCarrier]: QuotientCarrier := \choice Value y \by { existence: existence y, uniqueness: uniqueness y };
 \definition inverseValue: \forall (y: ImageCarrier)(x: V) -> f.apply x = y -> inverse y = Quotient.class x :=
@@ -65,15 +72,18 @@
     (trans!{W} _ _ _ (onClass x) equal)
 };
 \definition forwardInjective: \forall (q, r: QuotientCarrier) -> forward.apply q = forward.apply r -> q = r :=
-  \fun (q, r: QuotientCarrier)(equal: _) => trans!{QuotientCarrier} _ _ _ (sym!{QuotientCarrier} _ _ (leftInverse q))
-    (trans!{QuotientCarrier} _ _ _ (congr!{ImageCarrier QuotientCarrier} inverse _ _ equal) (leftInverse r));
+  \fun (q, r: QuotientCarrier)(equal: _) => eq_reason_in!{QuotientCarrier _
+    "=" _ "by" { sym!{QuotientCarrier} _ _ (leftInverse q) }
+    "=" _ "by" { congr!{ImageCarrier QuotientCarrier} inverse _ _ equal }
+    "=" _ "by" { leftInverse r }
+  };
 \import \parent.Hom[V := ImageCarrier, W := QuotientCarrier, source := Image.moduleSpace, target := Quotient.moduleSpace] \as Backward;
 \definition backward: Backward.Map := Backward.Map {
   apply := inverse,
   addition := \fun (y, z: ImageCarrier) => forwardInjective _ _
     (trans!{ImageCarrier} _ _ _ (rightInverse (Image.moduleSpace.add y z))
       (sym!{ImageCarrier} _ _ (trans!{ImageCarrier} _ _ _ (forward.addition (inverse y) (inverse z))
-        (congr2!{ImageCarrier ImageCarrier ImageCarrier} (Image.moduleSpace.add) _ _ _ _ (rightInverse y) (rightInverse z))))),
+        (congr!{ImageCarrier ImageCarrier ImageCarrier} (Image.moduleSpace.add) _ _ _ _ (rightInverse y) (rightInverse z))))),
   scalar := \fun (a: R)(y: ImageCarrier) => forwardInjective _ _
     (trans!{ImageCarrier} _ _ _ (rightInverse (Image.moduleSpace.smul a y))
       (sym!{ImageCarrier} _ _ (trans!{ImageCarrier} _ _ _ (forward.scalar a (inverse y))

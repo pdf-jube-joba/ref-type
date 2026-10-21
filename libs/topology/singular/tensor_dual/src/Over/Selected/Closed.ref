@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Modules.Laws[V := R, space := Modules.scalarModule] \as Scalars;
 \import algebra.Group[].Of[Carrier := R, group := Scalars.additive] \as Group;
 \import Product.At[p := p, q := q] \as Differential;
@@ -11,20 +12,20 @@
 \import Modules.Hom[V := VTerm.Carrier, W := R, source := VTerm.space, target := Modules.scalarModule] \as VMaps;
 \definition horizontal[left: ClosedLeft alpha]: HComposition.compose (comparison alpha beta) Differential.horizontal = HMaps.zeroMap :=
   HUniversal.ext (HComposition.compose (comparison alpha beta) Differential.horizontal) HMaps.zeroMap
-    (\fun (x: P.family.Carrier (N.Nat^::succ p))(y: Q.family.Carrier q) => trans!{R} _ _ _
-      (congr!{Term.Carrier R} ((comparison alpha beta).apply) _ _ (Differential.horizontalOnTensor x y))
-      (trans!{R} _ _ _ (Pairing.evaluation alpha beta ((P.differential).apply p x) y)
-        (trans!{R} _ _ _
-          (congr!{R R} (\fun (r: R) => mul r ((beta).apply y)) _ _ (left x))
-          (Scalars.zeroScale ((beta).apply y)))));
+    (\fun (x: P.family.Carrier (N.Nat^::succ p))(y: Q.family.Carrier q) => eq_reason_in!{R _
+      "=" _ "by" { congr!{Term.Carrier R} ((comparison alpha beta).apply) _ _ (Differential.horizontalOnTensor x y) }
+      "=" _ "by" { Pairing.evaluation alpha beta ((P.differential).apply p x) y }
+      "=" _ "by" { congr!{R R} (\fun (r: R) => mul r ((beta).apply y)) _ _ (left x) }
+      "=" _ "by" { Scalars.zeroScale ((beta).apply y) }
+    });
 \definition vertical[right: ClosedRight beta]: VComposition.compose (comparison alpha beta) Differential.vertical = VMaps.zeroMap :=
   VUniversal.ext (VComposition.compose (comparison alpha beta) Differential.vertical) VMaps.zeroMap
-    (\fun (x: P.family.Carrier p)(y: Q.family.Carrier (N.Nat^::succ q)) => trans!{R} _ _ _
-      (congr!{Term.Carrier R} ((comparison alpha beta).apply) _ _ (Differential.verticalOnTensor x y))
-      (trans!{R} _ _ _ (Pairing.evaluation alpha beta x ((Q.differential).apply q y))
-        (trans!{R} _ _ _
-          (congr!{R R} (mul ((alpha).apply x)) _ _ (right y))
-          (Scalars.scaleZero ((alpha).apply x)))));
+    (\fun (x: P.family.Carrier p)(y: Q.family.Carrier (N.Nat^::succ q)) => eq_reason_in!{R _
+      "=" _ "by" { congr!{Term.Carrier R} ((comparison alpha beta).apply) _ _ (Differential.verticalOnTensor x y) }
+      "=" _ "by" { Pairing.evaluation alpha beta x ((Q.differential).apply q y) }
+      "=" _ "by" { congr!{R R} (mul ((alpha).apply x)) _ _ (right y) }
+      "=" _ "by" { Scalars.scaleZero ((alpha).apply x) }
+    });
 \definition hZero[left: ClosedLeft alpha][z: HTerm.Carrier]: (comparison alpha beta).apply ((Differential.horizontal).apply z) = (baseRing).zero :=
   congr!{HMaps.Map R} (\fun (f: HMaps.Map) => (f).apply z) _ _ (horizontal left);
 \definition vZero[right: ClosedRight beta][z: VTerm.Carrier]: (comparison alpha beta).apply ((Differential.vertical).apply z) = (baseRing).zero :=
@@ -33,18 +34,17 @@
 \import Double.Sign[V := R, space := Modules.scalarModule] \as Sign;
 \definition law[left: ClosedLeft alpha][right: ClosedRight beta][z: Total.Carrier (N.Nat^::succ n)]:
   (total alpha beta).apply ((Total.differential).apply n z) = (baseRing).zero :=
-  trans!{R} _ _ _
-    (congr!{Term.Carrier R} ((comparison alpha beta).apply) _ _ (Position.differential z))
-    (trans!{R} _ _ _
-      ((comparison alpha beta).addition
+  eq_reason_in!{R _
+    "=" _ "by" { congr!{Term.Carrier R} ((comparison alpha beta).apply) _ _ (Position.differential z) }
+    "=" _ "by" { (comparison alpha beta).addition
         ((Differential.horizontal).apply (Coordinates.Degree[n := N.Nat^::succ n].coordinate Position.horizontalIndex z))
-        ((Double.Sign[V := Term.Carrier, space := Term.space].map p).apply ((Differential.vertical).apply (Coordinates.Degree[n := N.Nat^::succ n].coordinate Position.verticalIndex z))))
-      (trans!{R} _ _ _
-        (congr2!{R R R} add _ _ _ _
+        ((Double.Sign[V := Term.Carrier, space := Term.space].map p).apply ((Differential.vertical).apply (Coordinates.Degree[n := N.Nat^::succ n].coordinate Position.verticalIndex z))) }
+    "=" _ "by" { congr!{R R R} add _ _ _ _
           (hZero left (Coordinates.Degree[n := N.Nat^::succ n].coordinate Position.horizontalIndex z))
-          (trans!{R} _ _ _
-            (SignMapping.naturality (comparison alpha beta) p ((Differential.vertical).apply (Coordinates.Degree[n := N.Nat^::succ n].coordinate Position.verticalIndex z)))
-            (trans!{R} _ _ _
-              (congr!{R R} ((Sign.map p).apply) _ _ (vZero right (Coordinates.Degree[n := N.Nat^::succ n].coordinate Position.verticalIndex z)))
-              (Modules.Hom[V := R, W := R, source := Modules.scalarModule, target := Modules.scalarModule].zeroPreserved (Sign.map p)))))
-        (Group.zeroLeft ((baseRing).zero))));
+          (eq_reason_in!{R _
+            "=" _ "by" { SignMapping.naturality (comparison alpha beta) p ((Differential.vertical).apply (Coordinates.Degree[n := N.Nat^::succ n].coordinate Position.verticalIndex z)) }
+            "=" _ "by" { congr!{R R} ((Sign.map p).apply) _ _ (vZero right (Coordinates.Degree[n := N.Nat^::succ n].coordinate Position.verticalIndex z)) }
+            "=" _ "by" { Modules.Hom[V := R, W := R, source := Modules.scalarModule, target := Modules.scalarModule].zeroPreserved (Sign.map p) }
+          }) }
+    "=" _ "by" { Group.zeroLeft ((baseRing).zero) }
+  };

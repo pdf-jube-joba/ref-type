@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \root.Real[] \as Reals;
 \import std.Data[].FinSet[] \as Fin;
 \import std.Data[].Nat[] \as N;
@@ -6,7 +7,6 @@
 \use Equality.sym;
 \use Equality.trans;
 \use Equality.congr;
-\use Equality.congr2;
 \import real.Analysis[] \as Arithmetic;
 \import dedekind_reals.DedekindReal[] \as R;
 \import R.Arithmetic[].Prop[] \as Laws;
@@ -33,10 +33,11 @@
     | # : \fun (f: Domain.Point -> Codomain.Point) => \refl(Linear.MapData::# f)
   };
 \definition ext: \forall (d, e: LinearMap) -> d.apply = e.apply -> d = e :=
-  \fun (d, e: LinearMap)(equal: d.apply = e.apply) => trans!{Linear.MapData} d (Linear.MapData::# (d.apply)) e
-    (sym!{Linear.MapData} _ _ (dataEta d))
-    (trans!{Linear.MapData} (Linear.MapData::# (d.apply)) (Linear.MapData::# (e.apply)) e
-      (congr!{{Domain.Point -> Codomain.Point} Linear.MapData} Linear.MapData::# (d.apply) (e.apply) equal) (dataEta e));
+  \fun (d, e: LinearMap)(equal: d.apply = e.apply) => eq_reason_in!{Linear.MapData d
+    "=" { Linear.MapData::# (d.apply) } "by" { sym!{Linear.MapData} _ _ (dataEta d) }
+    "=" { Linear.MapData::# (e.apply) } "by" { congr!{{Domain.Point -> Codomain.Point} Linear.MapData} Linear.MapData::# (d.apply) (e.apply) equal }
+    "=" e "by" { dataEta e }
+  };
 \definition Function[U: Source.OpenSet]: \Set := Source.Carrier U -> Codomain.Point;
 \definition component[U: Source.OpenSet][f: Function U][j: Fin.Fin m]: Source.ScalarFunction U := \fun (x: Source.Carrier U) => f x j;
 \definition row[d: LinearMap][j: Fin.Fin m]: ScalarMaps.LinearMap := ScalarMaps.LinearMap {

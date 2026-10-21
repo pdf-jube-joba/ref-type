@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Chains.Boundary[n := N.Nat^::zero] \as Boundary;
 \import Modules.Alternating[V := Chains.Carrier N.Nat^::zero, space := Chains.space N.Nat^::zero].Mapping[W := coefficients.Carrier, target := coefficients.space] \as Mapping;
 \import Modules.Hom[V := Chains.Carrier Segment.dimension, W := coefficients.Carrier, source := Chains.space Segment.dimension, target := coefficients.space] \as EdgeMaps;
@@ -5,17 +6,20 @@
   \fun (v: coefficients.Carrier) => trans!{coefficients.Carrier} _ _ _ (congr!{coefficients.Carrier coefficients.Carrier} (Values.add v) _ _ Group.negZero) (Group.zeroRight v);
 \definition coboundary: \forall (h: Cochains.Carrier N.Nat^::zero)(sigma: Simplices.Carrier Segment.dimension) ->
   (Cochains.coboundary N.Nat^::zero h).apply (Chains.generator Segment.dimension sigma) = Group.difference (value h (end sigma)) (value h (start sigma)) :=
-  \fun (h: Cochains.Carrier N.Nat^::zero)(sigma: Simplices.Carrier Segment.dimension) => trans!{coefficients.Carrier} _ _ _
-    (congr!{{Chains.Carrier N.Nat^::zero} coefficients.Carrier} ((h).apply) _ _ (Boundary.onGenerator sigma))
-    (trans!{coefficients.Carrier} _ _ _
-      (Mapping.law h Segment.count (\fun (i: Fin.Fin Segment.count) => Chains.generator N.Nat^::zero (Simplices.face N.Nat^::zero i sigma)))
-      (congr2!{coefficients.Carrier coefficients.Carrier coefficients.Carrier} Group.difference _ _ _ _
+  \fun (h: Cochains.Carrier N.Nat^::zero)(sigma: Simplices.Carrier Segment.dimension) => eq_reason_in!{coefficients.Carrier _
+    "=" _ "by" { congr!{{Chains.Carrier N.Nat^::zero} coefficients.Carrier} ((h).apply) _ _ (Boundary.onGenerator sigma) }
+    "=" _ "by" { Mapping.law h Segment.count (\fun (i: Fin.Fin Segment.count) => Chains.generator N.Nat^::zero (Simplices.face N.Nat^::zero i sigma)) }
+    "=" _ "by" { congr!{coefficients.Carrier coefficients.Carrier coefficients.Carrier} Group.difference _ _ _ _
         (valueOnSimplex h (Simplices.face N.Nat^::zero Segment.first sigma))
         (trans!{coefficients.Carrier} _ _ _ (minusZero ((h).apply (Chains.generator N.Nat^::zero (Simplices.face N.Nat^::zero Segment.last sigma))))
-          (valueOnSimplex h (Simplices.face N.Nat^::zero Segment.last sigma)))));
+          (valueOnSimplex h (Simplices.face N.Nat^::zero Segment.last sigma))) }
+  };
 \definition equalOfDifferenceZero: \forall (a, b: coefficients.Carrier) -> Group.difference a b = Values.zero -> a = b :=
-  \fun (a, b: coefficients.Carrier)(zero: _) => trans!{coefficients.Carrier} _ _ _ (sym!{coefficients.Carrier} _ _ (Group.addDifference a b))
-    (trans!{coefficients.Carrier} _ _ _ (congr!{coefficients.Carrier coefficients.Carrier} (\fun (v: coefficients.Carrier) => Values.add v b) _ _ zero) (Group.zeroLeft b));
+  \fun (a, b: coefficients.Carrier)(zero: _) => eq_reason_in!{coefficients.Carrier _
+    "=" _ "by" { sym!{coefficients.Carrier} _ _ (Group.addDifference a b) }
+    "=" _ "by" { congr!{coefficients.Carrier coefficients.Carrier} (\fun (v: coefficients.Carrier) => Values.add v b) _ _ zero }
+    "=" _ "by" { Group.zeroLeft b }
+  };
 \definition closedEqual: \forall (h: H.CycleCarrier)(sigma: Simplices.Carrier Segment.dimension) -> value h (end sigma) = value h (start sigma) :=
   \fun (h: H.CycleCarrier)(sigma: Simplices.Carrier Segment.dimension) => equalOfDifferenceZero _ _
     (trans!{coefficients.Carrier} _ _ _ (sym!{coefficients.Carrier} _ _ (coboundary h sigma))
@@ -24,8 +28,9 @@
 \definition constantOnPaths: \forall (h: H.CycleCarrier)(x, y: A) -> Components.Related x y -> value h x = value h y := \block {
   \fun (h: H.CycleCarrier)(x, y: A)(related: Components.Related x y) \then
   \takefrom p: Components.Path x y \by related \then
-  \return trans!{coefficients.Carrier} _ _ _
-    (congr!{A coefficients.Carrier} (value h) _ _ (sym!{A} _ _ (simplexStart x y p)))
-    (trans!{coefficients.Carrier} _ _ _ (sym!{coefficients.Carrier} _ _ (closedEqual h (simplex x y p)))
-      (congr!{A coefficients.Carrier} (value h) _ _ (simplexEnd x y p)))
+  \return eq_reason_in!{coefficients.Carrier _
+    "=" _ "by" { congr!{A coefficients.Carrier} (value h) _ _ (sym!{A} _ _ (simplexStart x y p)) }
+    "=" _ "by" { sym!{coefficients.Carrier} _ _ (closedEqual h (simplex x y p)) }
+    "=" _ "by" { congr!{A coefficients.Carrier} (value h) _ _ (simplexEnd x y p) }
+  }
 };

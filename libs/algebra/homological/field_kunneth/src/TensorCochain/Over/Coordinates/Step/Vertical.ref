@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition targetIndex: Degrees.Index (Nat.Nat^::succ n) := Total.upVertical n i;
 \definition U: \Set := C.family.Carrier ((i).first) (Nat.Nat^::succ (i).second);
 \definition targetSpace: Modules.Space U := C.family.space ((i).first) (Nat.Nat^::succ (i).second);
@@ -12,17 +13,22 @@
 \definition rhs: Maps.Map := Before.compose original (SC.At[i := i].map);
 \definition lower[k: Degrees.Pair]: Degrees.Pair := Degrees.Pair { first := (k).first, second := Arithmetic.pred (k).second };
 \definition different[j: Degrees.Index n][ne: Logic.Not (j = i)]: Logic.Not (Total.upVertical n j = targetIndex) :=
-  \fun (same: Total.upVertical n j = targetIndex) => ne (trans!{Degrees.Pair} _ _ _ (sym!{Degrees.Pair} _ _ (Degrees.pairRebuild j))
-    (trans!{Degrees.Pair} _ _ _ (congr!{Degrees.Pair Degrees.Pair} lower _ _ same) (Degrees.pairRebuild i)));
+  \fun (same: Total.upVertical n j = targetIndex) => ne (eq_reason_in!{Degrees.Pair _
+    "=" _ "by" { sym!{Degrees.Pair} _ _ (Degrees.pairRebuild j) }
+    "=" _ "by" { congr!{Degrees.Pair Degrees.Pair} lower _ _ same }
+    "=" _ "by" { Degrees.pairRebuild i }
+  });
 \definition Property[j: Degrees.Index n]: \Prop := \forall (x: C.family.Carrier (j).first (j).second) -> (lhs).apply ((Source.Component[i := j].injection).apply x) = (rhs).apply ((Source.Component[i := j].injection).apply x);
-\definition own: Property i := \fun (x: C.family.Carrier (i).first (i).second) => trans!{U} _ _ _
-  (congr!{Target.Carrier U} (TC.coordinate targetIndex) _ _ (Differential.verticalOnInjection i x))
-  (trans!{U} _ _ _ (TC.own targetIndex ((original).apply x))
-    (sym!{U} _ _ (congr!{{C.family.Carrier (i).first (i).second} U} ((original).apply) _ _ (SC.own i x))));
-\definition other[j: Degrees.Index n][ne: Logic.Not (j = i)]: Property j := \fun (x: C.family.Carrier (j).first (j).second) => trans!{U} _ _ _
-  (trans!{U} _ _ _ (congr!{Target.Carrier U} (TC.coordinate targetIndex) _ _ (Differential.verticalOnInjection j x))
-    (TC.other (Total.upVertical n j) targetIndex ((Degrees.Sign[V := C.family.Carrier (j).first (Nat.Nat^::succ (j).second), space := C.family.space (j).first (Nat.Nat^::succ (j).second)].map (j).first).apply ((C.differential.vertical (j).first (j).second).apply x)) (different j ne)))
-  (sym!{U} _ _ (trans!{U} _ _ _ (congr!{{C.family.Carrier (i).first (i).second} U} ((original).apply) _ _ (SC.other j i x ne)) (ComponentMaps.zeroPreserved original)));
+\definition own: Property i := \fun (x: C.family.Carrier (i).first (i).second) => eq_reason_in!{U _
+  "=" _ "by" { congr!{Target.Carrier U} (TC.coordinate targetIndex) _ _ (Differential.verticalOnInjection i x) }
+  "=" _ "by" { TC.own targetIndex ((original).apply x) }
+  "=" _ "by" { sym!{U} _ _ (congr!{{C.family.Carrier (i).first (i).second} U} ((original).apply) _ _ (SC.own i x)) }
+};
+\definition other[j: Degrees.Index n][ne: Logic.Not (j = i)]: Property j := \fun (x: C.family.Carrier (j).first (j).second) => eq_reason_in!{U _
+  "=" _ "by" { congr!{Target.Carrier U} (TC.coordinate targetIndex) _ _ (Differential.verticalOnInjection j x) }
+  "=" _ "by" { TC.other (Total.upVertical n j) targetIndex ((Degrees.Sign[V := C.family.Carrier (j).first (Nat.Nat^::succ (j).second), space := C.family.space (j).first (Nat.Nat^::succ (j).second)].map (j).first).apply ((C.differential.vertical (j).first (j).second).apply x)) (different j ne) }
+  "=" _ "by" { sym!{U} _ _ (trans!{U} _ _ _ (congr!{{C.family.Carrier (i).first (i).second} U} ((original).apply) _ _ (SC.other j i x ne)) (ComponentMaps.zeroPreserved original)) }
+};
 \definition onInjection: \forall (j: Degrees.Index n) -> Property j := \fun (j: Degrees.Index n) => Logic.orElim (j = i) (Logic.Not (j = i)) (Property j) (Classical.excludedMiddle (j = i))
   (\fun (same: j = i) => \idelim i = j \with k: Degrees.Index n => Property k \by { base: own, equality: sym!{Degrees.Pair} _ _ same }) (other j);
 \import Modules.DirectSum[Index := Degrees.Index n, family := Source.family].To[W := U, target := targetSpace] \as Universal;

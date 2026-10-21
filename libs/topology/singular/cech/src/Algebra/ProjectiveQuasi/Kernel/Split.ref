@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \module At(n: N.Nat^) {
   \import \parent.\parent.Degree[n := n] \as Kernel;
   \import Modules.Hom[V := C.family.Carrier n, W := C.family.Carrier n, source := C.family.space n, target := C.family.space n] \as Ambient;
@@ -11,24 +12,25 @@
   \import Modules.Hom[V := C.family.Carrier n, W := D.family.Carrier n, source := C.family.space n, target := D.family.space n] \as Forward;
   \definition ambient: Ambient.Map := Ambient.plus End.identity (Ambient.negative (Compose.compose (s n) (Maps.At[n := n].linear f)));
   \definition killed: \forall (x: C.family.Carrier n) -> (f).apply n ((ambient).apply x) = TargetGroup.zero :=
-    \fun (x: C.family.Carrier n) => trans!{{D.family.Carrier n}} _ _ _
-      (Forward.differencePreserved (Maps.At[n := n].linear f) x ((s n).apply ((f).apply n x)))
-      (trans!{{D.family.Carrier n}} _ _ _
-        (congr!{{D.family.Carrier n} {D.family.Carrier n}} (\fun (v: D.family.Carrier n) => TargetGroup.difference ((f).apply n x) v) _ _ (splits n ((f).apply n x)))
-        (TargetGroup.inverseRight ((f).apply n x)));
+    \fun (x: C.family.Carrier n) => eq_reason_in!{{D.family.Carrier n} _
+      "=" _ "by" { Forward.differencePreserved (Maps.At[n := n].linear f) x ((s n).apply ((f).apply n x)) }
+      "=" _ "by" { congr!{{D.family.Carrier n} {D.family.Carrier n}} (\fun (v: D.family.Carrier n) => TargetGroup.difference ((f).apply n x) v) _ _ (splits n ((f).apply n x)) }
+      "=" _ "by" { TargetGroup.inverseRight ((f).apply n x) }
+    };
   \import Modules.Hom[V := C.family.Carrier n, W := Kernel.Carrier, source := C.family.space n, target := Kernel.space] \as Retractions;
   \definition retraction: Retractions.Map := Retractions.Map {
     apply := \fun (x: C.family.Carrier n) => Kernel.intro ((ambient).apply x) (killed x),
     addition := (ambient).addition, scalar := (ambient).scalar,
   };
   \definition leftInverse: \forall (x: Kernel.Carrier) -> (retraction).apply x = x :=
-    \fun (x: Kernel.Carrier) => trans!{{C.family.Carrier n}} _ _ _
-      (congr!{{C.family.Carrier n} {C.family.Carrier n}} (Group.difference x) _ _
+    \fun (x: Kernel.Carrier) => eq_reason_in!{{C.family.Carrier n} _
+      "=" _ "by" { congr!{{C.family.Carrier n} {C.family.Carrier n}} (Group.difference x) _ _
         (trans!{{C.family.Carrier n}} _ _ _
           (congr!{{D.family.Carrier n} {C.family.Carrier n}} ((s n).apply) _ _ (Kernel.killed x))
-          (SectionMaps.zeroPreserved (s n))))
-      (trans!{{C.family.Carrier n}} _ _ _ (congr!{{C.family.Carrier n} {C.family.Carrier n}} (Group.add x) _ _ Group.negZero)
-        (Group.zeroRight x));
+          (SectionMaps.zeroPreserved (s n))) }
+      "=" _ "by" { congr!{{C.family.Carrier n} {C.family.Carrier n}} (Group.add x) _ _ Group.negZero }
+      "=" _ "by" { Group.zeroRight x }
+    };
   \definition bundle: Modules.Bundle := Modules.Bundle { Carrier := Kernel.Carrier, space := Kernel.space };
   \import Modules.ProjectiveLaws[].Retract[P := bundle,
     Q := Modules.Bundle { Carrier := C.family.Carrier n, space := C.family.space n },

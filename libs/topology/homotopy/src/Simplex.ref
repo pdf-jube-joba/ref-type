@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Data[].Nat[] \as N;
 \import std.Data[].FinSet[] \as Fin;
 \import std.Data[].Option[] \as Option;
@@ -12,7 +13,6 @@
 \use Equality.trans;
 \use Equality.sym;
 \use Equality.congr;
-\use Equality.congr2;
 
 \definition Coordinate[n: N.Nat^]: \Set := Fin.Fin n -> Real.Real;
 \structure Barycentric[n: N.Nat^, x: Coordinate n]: \Prop := {
@@ -29,7 +29,7 @@
 \definition extendSum: \forall (n: N.Nat^)(head: Real.Real)(tail: Coordinate n) ->
   Sums.sum (N.Nat^::succ n) (Tuples.extend n head tail) = Real.add head (Sums.sum n tail) :=
   \fun (n: N.Nat^)(head: Real.Real)(tail: Coordinate n) =>
-    congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+    congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
       (Tuples.atZero n head tail)
       (Sums.congruent n (\fun (i: Fin.Fin n) => Tuples.extend n head tail (Fin.succ n i)) tail
         (Tuples.atSuccessor n head tail));
@@ -105,8 +105,11 @@
   };
 \definition zeroUnique: \forall (x: Carrier N.Nat^::zero) -> x = zeroPoint :=
   \fun (x: Carrier N.Nat^::zero) => \axiom:funext(x, zeroPoint, \fun (i: Fin.Fin (N.Nat^::succ N.Nat^::zero)) =>
-    trans!{Real.Real} _ _ _ (congr!{{Fin.Fin (N.Nat^::succ N.Nat^::zero)} Real.Real} x _ _ (Fin.singletonValue i))
-      (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.addZeroRight (x (Fin.zero N.Nat^::zero)))) (barycentric N.Nat^::zero x).total));
+    eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{{Fin.Fin (N.Nat^::succ N.Nat^::zero)} Real.Real} x _ _ (Fin.singletonValue i) }
+      "=" _ "by" { sym!{Real.Real} _ _ (Laws.addZeroRight (x (Fin.zero N.Nat^::zero))) }
+      "=" _ "by" { (barycentric N.Nat^::zero x).total }
+    });
 \definition lastVertex: \forall (n: N.Nat^) -> Carrier n :=
   \induction (n: N.Nat^) \return Carrier n \with {
     | zero: zeroPoint

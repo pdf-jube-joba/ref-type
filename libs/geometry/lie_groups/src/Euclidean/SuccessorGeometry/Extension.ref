@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Block[f := h.value] \as Forward;
 \import \parent.Block[f := h.inverse] \as Backward;
 \import algebra.Groups[].Units[A := NextEnd.Carrier, ring := NextEnd.ring] \as NextUnits;
@@ -5,33 +6,48 @@
   Tuples.extensionality n (Backward.value (Forward.value x)) x
     (trans!{R.Real} _ _ _ (Backward.headValue (Forward.value x)) (Forward.headValue x))
     (\fun (i: Fin.Fin n) => congr!{Vector R.Real} (\fun (v: Vector) => v i) _ _
-      (trans!{Vector} _ _ _ (Backward.tailValue (Forward.value x))
-        (trans!{Vector} _ _ _ (congr!{Vector Vector} h.inverse.apply _ _ (Forward.tailValue x)) (Orthogonal.leftInverse h (tail x)))));
+      (eq_reason_in!{Vector _
+        "=" _ "by" { Backward.tailValue (Forward.value x) }
+        "=" _ "by" { congr!{Vector Vector} h.inverse.apply _ _ (Forward.tailValue x) }
+        "=" _ "by" { Orthogonal.leftInverse h (tail x) }
+      }));
 \definition forwardBackward: \forall (x: Next.Vector) -> Forward.value (Backward.value x) = x := \fun (x: Next.Vector) =>
   Tuples.extensionality n (Forward.value (Backward.value x)) x
     (trans!{R.Real} _ _ _ (Forward.headValue (Backward.value x)) (Backward.headValue x))
     (\fun (i: Fin.Fin n) => congr!{Vector R.Real} (\fun (v: Vector) => v i) _ _
-      (trans!{Vector} _ _ _ (Forward.tailValue (Backward.value x))
-        (trans!{Vector} _ _ _ (congr!{Vector Vector} h.value.apply _ _ (Backward.tailValue x)) (Orthogonal.rightInverse h (tail x)))));
+      (eq_reason_in!{Vector _
+        "=" _ "by" { Forward.tailValue (Backward.value x) }
+        "=" _ "by" { congr!{Vector Vector} h.value.apply _ _ (Backward.tailValue x) }
+        "=" _ "by" { Orthogonal.rightInverse h (tail x) }
+      }));
 \definition unit: NextUnits.Unit := NextUnits.Unit {
   value := Forward.map, inverse := Backward.map,
   left := NextEnd.ext (NextEnd.mul Backward.map Forward.map) NextEnd.one backwardForward,
   right := NextEnd.ext (NextEnd.mul Forward.map Backward.map) NextEnd.one forwardBackward,
 };
 \definition preserves: \forall (x, y: Next.Vector) -> Next.dot (Forward.value x) (Forward.value y) = Next.dot x y := \fun (x, y: Next.Vector) =>
-  trans!{R.Real} _ _ _ (splitDot (Forward.value x) (Forward.value y))
-    (trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.add _ _ _ _
-      (congr2!{R.Real R.Real R.Real} R.mul _ _ _ _ (Forward.headValue x) (Forward.headValue y))
-      (trans!{R.Real} _ _ _ (congr2!{Vector Vector R.Real} dot _ _ _ _ (Forward.tailValue x) (Forward.tailValue y)) (Orthogonal.preserves h (tail x) (tail y))))
-      (sym!{R.Real} _ _ (splitDot x y)));
+  eq_reason_in!{R.Real _
+    "=" _ "by" { splitDot (Forward.value x) (Forward.value y) }
+    "=" _ "by" { congr!{R.Real R.Real R.Real} R.add _ _ _ _
+      (congr!{R.Real R.Real R.Real} R.mul _ _ _ _ (Forward.headValue x) (Forward.headValue y))
+      (trans!{R.Real} _ _ _ (congr!{Vector Vector R.Real} dot _ _ _ _ (Forward.tailValue x) (Forward.tailValue y)) (Orthogonal.preserves h (tail x) (tail y))) }
+    "=" _ "by" { sym!{R.Real} _ _ (splitDot x y) }
+  };
 \definition orthogonal: Next.O := \into[NextUnits.Unit](unit, NextOrthogonal.predicate) \by { preserves };
 \definition fixes: NextOrthogonal.action orthogonal first = first := Tuples.extensionality n (Forward.value first) first (Forward.headValue first)
-  (\fun (i: Fin.Fin n) => congr!{Vector R.Real} (\fun (v: Vector) => v i) _ _ (trans!{Vector} _ _ _ (Forward.tailValue first)
-    (trans!{Vector} _ _ _ (congr!{Vector Vector} h.value.apply _ _ firstTail)
-      (trans!{Vector} _ _ _ h.value.preservesZero (sym!{Vector} _ _ firstTail)))));
+  (\fun (i: Fin.Fin n) => congr!{Vector R.Real} (\fun (v: Vector) => v i) _ _ (eq_reason_in!{Vector _
+    "=" _ "by" { Forward.tailValue first }
+    "=" _ "by" { congr!{Vector Vector} h.value.apply _ _ firstTail }
+    "=" _ "by" h.value.preservesZero
+    "=" _ "by" { sym!{Vector} _ _ firstTail }
+  }));
 \definition onEmbed: \forall (x: Vector) -> orthogonal.value.apply (embed x) = embed (h.value.apply x) := \fun (x: Vector) =>
   Tuples.extensionality n (orthogonal.value.apply (embed x)) (embed (h.value.apply x))
-    (trans!{R.Real} _ _ _ (Forward.headValue (embed x)) (trans!{R.Real} _ _ _ (embedHead x) (sym!{R.Real} _ _ (embedHead (h.value.apply x)))))
+    (eq_reason_in!{R.Real _
+      "=" _ "by" { Forward.headValue (embed x) }
+      "=" _ "by" { embedHead x }
+      "=" _ "by" { sym!{R.Real} _ _ (embedHead (h.value.apply x)) }
+    })
     (\fun (i: Fin.Fin n) => trans!{R.Real} _ _ _
       (congr!{Vector R.Real} (\fun (v: Vector) => v i) _ _ (trans!{Vector} _ _ _ (Forward.tailValue (embed x)) (congr!{Vector Vector} h.value.apply _ _ (embedTail x))))
       (sym!{R.Real} _ _ (Tuples.atSuccessor n R.zero (h.value.apply x) i)));

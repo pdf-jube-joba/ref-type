@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import IntegerModules.Hom[V := Tensor.Term[p := p, q := q].Carrier, W := R, source := Tensor.Term[p := p, q := q].space, target := integerCoefficients.space].Composition[U := ReverseTerm.Carrier, domain := ReverseTerm.space] \as AfterFlip;
 \import IntegerModules.Hom[V := R, W := R, source := integerCoefficients.space, target := integerCoefficients.space].Composition[U := ReverseTerm.Carrier, domain := ReverseTerm.space] \as AfterSign;
 \import IntegerModules.Hom[V := ReverseTerm.Carrier, W := R, source := ReverseTerm.space, target := integerCoefficients.space] \as Linear;
@@ -5,16 +6,13 @@
 \definition lhs: Linear.Map := AfterFlip.compose (Pairing.map alpha beta) SignedSymmetry.map;
 \definition rhs: Linear.Map := AfterSign.compose (Sign.map exponent) (ReversePairing.map beta alpha);
 \definition onTensor[x: Chains.Carrier q][y: Chains.Carrier p]: (lhs).apply (ReverseTerm.tensor x y) = (rhs).apply (ReverseTerm.tensor x y) :=
-  trans!{R} _ _ _
-    (congr!{{Tensor.Term[p := p, q := q].Carrier} R} ((Pairing.map alpha beta).apply) _ _ (SignedSymmetry.onTensor x y))
-    (trans!{R} _ _ _
-      (SignNaturality.naturality (Pairing.map alpha beta) (Nat.mul q p) (Tensor.Term[p := p, q := q].tensor y x))
-      (trans!{R} _ _ _
-        (congr!{N.Nat^ R} (\fun (t: N.Nat^) => (Sign.map t).apply ((Pairing.map alpha beta).apply (Tensor.Term[p := p, q := q].tensor y x))) _ _ (Natural.mulComm q p))
-        (trans!{R} _ _ _
-          (congr!{R R} ((Sign.map exponent).apply) _ _ (Pairing.onTensor alpha beta y x))
-          (trans!{R} _ _ _
-            (congr!{R R} ((Sign.map exponent).apply) _ _ ((ring).mulCommutative ((alpha).apply y) ((beta).apply x)))
-            (sym!{R} _ _ (congr!{R R} ((Sign.map exponent).apply) _ _ (ReversePairing.onTensor beta alpha x y)))))));
+  eq_reason_in!{R _
+    "=" _ "by" { congr!{{Tensor.Term[p := p, q := q].Carrier} R} ((Pairing.map alpha beta).apply) _ _ (SignedSymmetry.onTensor x y) }
+    "=" _ "by" { SignNaturality.naturality (Pairing.map alpha beta) (Nat.mul q p) (Tensor.Term[p := p, q := q].tensor y x) }
+    "=" _ "by" { congr!{N.Nat^ R} (\fun (t: N.Nat^) => (Sign.map t).apply ((Pairing.map alpha beta).apply (Tensor.Term[p := p, q := q].tensor y x))) _ _ (Natural.mulComm q p) }
+    "=" _ "by" { congr!{R R} ((Sign.map exponent).apply) _ _ (Pairing.onTensor alpha beta y x) }
+    "=" _ "by" { congr!{R R} ((Sign.map exponent).apply) _ _ ((ring).mulCommutative ((alpha).apply y) ((beta).apply x)) }
+    "=" _ "by" { sym!{R} _ _ (congr!{R R} ((Sign.map exponent).apply) _ _ (ReversePairing.onTensor beta alpha x y)) }
+  };
 \definition equation: lhs = rhs := Universal.ext lhs rhs onTensor;
 \definition law[x: ReverseTerm.Carrier]: (lhs).apply x = (rhs).apply x := congr!{Linear.Map R} (\fun (f: Linear.Map) => (f).apply x) _ _ equation;

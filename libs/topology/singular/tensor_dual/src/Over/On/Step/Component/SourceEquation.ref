@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition evaluation[x: TargetTotal.Carrier higher]: Modules.Hom[V := SourceCarrier higher, W := R, source := SourceSpace higher, target := Modules.scalarModule].Map := Modules.Hom[V := SourceCarrier higher, W := R, source := SourceSpace higher, target := Modules.scalarModule].Map {
   apply := \fun (s: SourceCarrier higher) => ((Next.forward).apply s).apply x,
   addition := \fun (s, t: SourceCarrier higher) => congr!{{Target.Carrier higher} R} (\fun (f: Target.Carrier higher) => (f).apply x) _ _ ((Next.forward).addition s t),
@@ -5,28 +6,28 @@
 };
 \definition horizontal[alpha: Left.Carrier p][beta: Right.Carrier q][x: TargetTotal.Carrier higher]:
   (evaluation x).apply ((SourceStep.horizontal).apply ((SourceCurrent.Component[i := i].injection).apply (Term.tensor alpha beta))) = h alpha beta x :=
-  trans!{R} _ _ _
-    (congr!{{SourceCarrier higher} R} ((evaluation x).apply) _ _ (SourceStep.horizontalOnInjection i (Term.tensor alpha beta)))
-    (trans!{R} _ _ _
-      (congr!{HTerm.Carrier R} (\fun (z: HTerm.Carrier) => (evaluation x).apply ((SourceNext.Component[i := horizontalIndex].injection).apply z)) _ _ (Differential.horizontalOnTensor alpha beta))
-      (Next.pure horizontalIndex (Left.apply p alpha) beta x));
+  eq_reason_in!{R _
+    "=" _ "by" { congr!{{SourceCarrier higher} R} ((evaluation x).apply) _ _ (SourceStep.horizontalOnInjection i (Term.tensor alpha beta)) }
+    "=" _ "by" { congr!{HTerm.Carrier R} (\fun (z: HTerm.Carrier) => (evaluation x).apply ((SourceNext.Component[i := horizontalIndex].injection).apply z)) _ _ (Differential.horizontalOnTensor alpha beta) }
+    "=" _ "by" { Next.pure horizontalIndex (Left.apply p alpha) beta x }
+  };
 \import Modules.Hom[V := SourceCarrier higher, W := R, source := SourceSpace higher, target := Modules.scalarModule].Composition[U := VTerm.Carrier, domain := VTerm.space] \as Compose;
 \definition verticalEvaluation[x: TargetTotal.Carrier higher]: Modules.Hom[V := VTerm.Carrier, W := R, source := VTerm.space, target := Modules.scalarModule].Map := Compose.compose (evaluation x) (SourceNext.Component[i := verticalIndex].injection);
 \import Double.Sign[V := VTerm.Carrier, space := VTerm.space] \as Sign;
 \import Sign.Mapping[W := R, target := Modules.scalarModule] \as SignMapping;
 \definition vertical[alpha: Left.Carrier p][beta: Right.Carrier q][x: TargetTotal.Carrier higher]:
   (evaluation x).apply ((SourceStep.vertical).apply ((SourceCurrent.Component[i := i].injection).apply (Term.tensor alpha beta))) = v alpha beta x :=
-  trans!{R} _ _ _
-    (congr!{{SourceCarrier higher} R} ((evaluation x).apply) _ _ (SourceStep.verticalOnInjection i (Term.tensor alpha beta)))
-    (trans!{R} _ _ _
-      (congr!{VTerm.Carrier R}
-        (\fun (z: VTerm.Carrier) => (verticalEvaluation x).apply ((Sign.map p).apply z)) _ _ (Differential.verticalOnTensor alpha beta))
-      (trans!{R} _ _ _ (SignMapping.naturality (verticalEvaluation x) p (VTerm.tensor alpha (Right.apply q beta)))
-        (congr!{R R} ((ScalarSign.map p).apply) _ _ (Next.pure verticalIndex alpha (Right.apply q beta) x))));
+  eq_reason_in!{R _
+    "=" _ "by" { congr!{{SourceCarrier higher} R} ((evaluation x).apply) _ _ (SourceStep.verticalOnInjection i (Term.tensor alpha beta)) }
+    "=" _ "by" { congr!{VTerm.Carrier R}
+        (\fun (z: VTerm.Carrier) => (verticalEvaluation x).apply ((Sign.map p).apply z)) _ _ (Differential.verticalOnTensor alpha beta) }
+    "=" _ "by" { SignMapping.naturality (verticalEvaluation x) p (VTerm.tensor alpha (Right.apply q beta)) }
+    "=" _ "by" { congr!{R R} ((ScalarSign.map p).apply) _ _ (Next.pure verticalIndex alpha (Right.apply q beta) x) }
+  };
 \definition law[alpha: Left.Carrier p][beta: Right.Carrier q][x: TargetTotal.Carrier higher]:
   ((Next.forward).apply ((Source.differential).apply n ((SourceCurrent.Component[i := i].injection).apply (Term.tensor alpha beta)))).apply x = add (h alpha beta x) (v alpha beta x) :=
   trans!{R} _ _ _
     ((evaluation x).addition
       ((SourceStep.horizontal).apply ((SourceCurrent.Component[i := i].injection).apply (Term.tensor alpha beta)))
       ((SourceStep.vertical).apply ((SourceCurrent.Component[i := i].injection).apply (Term.tensor alpha beta))))
-    (congr2!{R R R} add _ _ _ _ (horizontal alpha beta x) (vertical alpha beta x));
+    (congr!{R R R} add _ _ _ _ (horizontal alpha beta x) (vertical alpha beta x));

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Topology[] \as Topological;
 \import \parent.\parent.At[n := one] \as RestrictedClass;
 \import Cochains.At[C := Model.complex, k := one] \as Target;
@@ -17,12 +18,12 @@
 \definition kills: Descent.Vanishes evaluate := \block {
   \fun (h: Target.CycleCarrier)(boundary: _) \then
   \takefrom f: \Cast[Model.Carrier N.Nat^::zero] ({ f: Model.Carrier N.Nat^::zero \where Model.apply N.Nat^::zero f = h }) \by boundary \then
-  \return trans!{coefficients.Carrier} _ _ _
-    (congr!{{Model.Carrier one} coefficients.Carrier} (\fun (x: Model.Carrier one) => Coordinates.evaluate x Edge::loop) _ _
-      (sym!{{Model.Carrier one}} _ _ (\bysub(Model.Carrier N.Nat^::zero, { f: Model.Carrier N.Nat^::zero \where Model.apply N.Nat^::zero f = h }, f))))
-    (trans!{coefficients.Carrier} _ _ _
-      (congr!{Coordinates.FunctionCarrier coefficients.Carrier} (\fun (g: Coordinates.FunctionCarrier) => g Edge::loop) _ _ (Differential.zeroth f))
-      (Group.inverseRight (ZeroCoordinates.evaluate f Vertex::rim)))
+  \return eq_reason_in!{coefficients.Carrier _
+    "=" _ "by" { congr!{{Model.Carrier one} coefficients.Carrier} (\fun (x: Model.Carrier one) => Coordinates.evaluate x Edge::loop) _ _
+      (sym!{{Model.Carrier one}} _ _ (\bysub(Model.Carrier N.Nat^::zero, { f: Model.Carrier N.Nat^::zero \where Model.apply N.Nat^::zero f = h }, f))) }
+    "=" _ "by" { congr!{Coordinates.FunctionCarrier coefficients.Carrier} (\fun (g: Coordinates.FunctionCarrier) => g Edge::loop) _ _ (Differential.zeroth f) }
+    "=" _ "by" { Group.inverseRight (ZeroCoordinates.evaluate f Vertex::rim) }
+  }
 };
 \definition functional: Modules.Hom[V := Target.Cohomology, W := coefficients.Carrier, source := Target.cohomologySpace, target := coefficients.space].Map := Descent.descend evaluate kills;
 \definition onClass[h: Target.CycleCarrier]: (functional).apply (Target.classOf h) = Coordinates.evaluate h Edge::loop := Descent.onClass evaluate kills h;
@@ -32,23 +33,28 @@
 \module With(e: CircleEvaluation.Result) {
   \definition onCycle[h: Source.CycleCarrier]:
     ((e).forward).apply ((Topological.pull).apply (Source.classOf h)) = (functional).apply ((RestrictedClass.induced).apply (Source.classOf h)) :=
-    trans!{coefficients.Carrier} _ _ _
-      (congr!{CircleH.Cohomology coefficients.Carrier} (((e).forward).apply) _ _ (CircleMap.onClass (CirclePull.map Loop.inclusion Loop.continuous Identity.identity) h))
-      (trans!{coefficients.Carrier} _ _ _ (CircleEvaluation.onClass e ((CircleMap.cyclesMap (CirclePull.map Loop.inclusion Loop.continuous Identity.identity)).apply h))
-        (trans!{coefficients.Carrier} _ _ _ (onLoop h)
-          (trans!{coefficients.Carrier} _ _ _ (sym!{coefficients.Carrier} _ _ (onClass (RestrictedClass.cycle h)))
-            (congr!{Target.Cohomology coefficients.Carrier} ((functional).apply) _ _ (sym!{Target.Cohomology} _ _ (RestrictedClass.onClass h))))));
+    eq_reason_in!{coefficients.Carrier _
+      "=" _ "by" { congr!{CircleH.Cohomology coefficients.Carrier} (((e).forward).apply) _ _ (CircleMap.onClass (CirclePull.map Loop.inclusion Loop.continuous Identity.identity) h) }
+      "=" _ "by" { CircleEvaluation.onClass e ((CircleMap.cyclesMap (CirclePull.map Loop.inclusion Loop.continuous Identity.identity)).apply h) }
+      "=" _ "by" { onLoop h }
+      "=" _ "by" { sym!{coefficients.Carrier} _ _ (onClass (RestrictedClass.cycle h)) }
+      "=" _ "by" { congr!{Target.Cohomology coefficients.Carrier} ((functional).apply) _ _ (sym!{Target.Cohomology} _ _ (RestrictedClass.onClass h)) }
+    };
   \definition law: \forall (q: Source.Cohomology) ->
     ((e).forward).apply ((Topological.pull).apply q) = (functional).apply ((RestrictedClass.induced).apply q) :=
     Source.classInduction (\fun (q: Source.Cohomology) => ((e).forward).apply ((Topological.pull).apply q) = (functional).apply ((RestrictedClass.induced).apply q)) onCycle;
   \definition injective[x, y: Source.Cohomology][equal: (RestrictedClass.induced).apply x = (RestrictedClass.induced).apply y]: x = y :=
     Topological.injective x y
-      (trans!{CircleH.Cohomology} _ _ _ (sym!{CircleH.Cohomology} _ _ ((e).leftInverse ((Topological.pull).apply x)))
-        (trans!{CircleH.Cohomology} _ _ _
-          (congr!{coefficients.Carrier CircleH.Cohomology} (((e).backward).apply) _ _
-            (trans!{coefficients.Carrier} _ _ _ (law x)
-              (trans!{coefficients.Carrier} _ _ _ (congr!{Target.Cohomology coefficients.Carrier} ((functional).apply) _ _ equal) (sym!{coefficients.Carrier} _ _ (law y)))))
-          ((e).leftInverse ((Topological.pull).apply y))));
+      (eq_reason_in!{CircleH.Cohomology _
+        "=" _ "by" { sym!{CircleH.Cohomology} _ _ ((e).leftInverse ((Topological.pull).apply x)) }
+        "=" _ "by" { congr!{coefficients.Carrier CircleH.Cohomology} (((e).backward).apply) _ _
+            (eq_reason_in!{coefficients.Carrier _
+              "=" _ "by" { law x }
+              "=" _ "by" { congr!{Target.Cohomology coefficients.Carrier} ((functional).apply) _ _ equal }
+              "=" _ "by" { sym!{coefficients.Carrier} _ _ (law y) }
+            }) }
+        "=" _ "by" { (e).leftInverse ((Topological.pull).apply y) }
+      });
 }
 \definition injective[x, y: Source.Cohomology][equal: (RestrictedClass.induced).apply x = (RestrictedClass.induced).apply y]: x = y := \block {
   \takefrom e: CircleEvaluation.Result \by CircleEvaluation.existence \then

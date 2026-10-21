@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Logic[].Proposition[] \as Logic;
 \import \parent.Of[M := M, N := N, P := P] \as Derived;
 \import resolutions.ResolutionTensor[].Over[R := R, ring := ring].Of[P := N, N := M, Q := P] \as Reversed;
@@ -25,14 +26,14 @@
       (Naturality.commutes Differential.original Coefficient.identity x);
   \definition backwardCommutes: \forall (x: Reversed.Term[n := Nat.Nat^::succ n].Carrier) ->
     Derived.tensorComplex.differential.apply n (Next.backward.apply x) = Current.backward.apply (Reversed.complex.differential.apply n x) :=
-    \fun (x: Reversed.Term[n := Nat.Nat^::succ n].Carrier) => trans!{{Derived.tensorCarrier n}} _ _ _
-      (sym!{{Derived.tensorCarrier n}} _ _ (Current.leftInverse (Derived.tensorComplex.differential.apply n (Next.backward.apply x))))
-      (trans!{{Derived.tensorCarrier n}} _ _ _
-        (congr!{{Reversed.Term[n := n].Carrier} {Derived.tensorCarrier n}} (Current.backward.apply) _ _
-          (sym!{{Reversed.Term[n := n].Carrier}} _ _ (forwardCommutes (Next.backward.apply x))))
-        (congr!{{Reversed.Term[n := Nat.Nat^::succ n].Carrier} {Derived.tensorCarrier n}}
+    \fun (x: Reversed.Term[n := Nat.Nat^::succ n].Carrier) => eq_reason_in!{{Derived.tensorCarrier n} _
+      "=" _ "by" { sym!{{Derived.tensorCarrier n}} _ _ (Current.leftInverse (Derived.tensorComplex.differential.apply n (Next.backward.apply x))) }
+      "=" _ "by" { congr!{{Reversed.Term[n := n].Carrier} {Derived.tensorCarrier n}} (Current.backward.apply) _ _
+          (sym!{{Reversed.Term[n := n].Carrier}} _ _ (forwardCommutes (Next.backward.apply x))) }
+      "=" _ "by" { congr!{{Reversed.Term[n := Nat.Nat^::succ n].Carrier} {Derived.tensorCarrier n}}
           (\fun (y: Reversed.Term[n := Nat.Nat^::succ n].Carrier) => Current.backward.apply (Reversed.complex.differential.apply n y)) _ _
-          (Next.rightInverse x)));
+          (Next.rightInverse x) }
+    };
 }
 \import Chains.Map[C := Derived.tensorComplex, D := Reversed.complex] \as Forward;
 \definition forward: Forward.Map := Forward.Map {
@@ -70,14 +71,14 @@
             (\bysub(Reversed.Term[n := Nat.Nat^::succ n].Carrier, Target.cycles.carrier, y)) \then
         \return Native.boundaryClassZero x (Boundaries.introduce Native.prior x
           (Next.backward.apply z)
-          (trans!{{Derived.tensorCarrier (Nat.Nat^::succ n)}} _ _ _
-            (BoundaryStep.backwardCommutes z)
-            (trans!{{Derived.tensorCarrier (Nat.Nat^::succ n)}} _ _ _
-              (congr!{{Reversed.Term[n := Nat.Nat^::succ n].Carrier} {Derived.tensorCarrier (Nat.Nat^::succ n)}}
+          (eq_reason_in!{{Derived.tensorCarrier (Nat.Nat^::succ n)} _
+            "=" _ "by" { BoundaryStep.backwardCommutes z }
+            "=" _ "by" { congr!{{Reversed.Term[n := Nat.Nat^::succ n].Carrier} {Derived.tensorCarrier (Nat.Nat^::succ n)}}
                 (Current.backward.apply) _ _
                 (\bysub(Reversed.Term[n := Nat.Nat^::succ (Nat.Nat^::succ n)].Carrier,
-                  { z: Reversed.Term[n := Nat.Nat^::succ (Nat.Nat^::succ n)].Carrier \where Reversed.complex.differential.apply (Nat.Nat^::succ n) z = y }, z)))
-              (Current.leftInverse x))))
+                  { z: Reversed.Term[n := Nat.Nat^::succ (Nat.Nat^::succ n)].Carrier \where Reversed.complex.differential.apply (Nat.Nat^::succ n) z = y }, z)) }
+            "=" _ "by" { Current.leftInverse x }
+          }))
       });
   }
   \definition vanishing: Modules.Projective N -> \forall (resolution: Derived.Resolution)(q: H.Carrier) -> q = H.space.zero :=

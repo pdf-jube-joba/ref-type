@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.Degeneracy[n := N.Nat^::succ n] \as Upper;
 \import \parent.\parent.Reindex[m := N.Nat^::succ (N.Nat^::succ n), n := N.Nat^::succ n].Composition[k := n] \as Composition;
 \import \parent.\parent.Reindex[m := N.Nat^::succ (N.Nat^::succ n), n := n] \as Direct;
@@ -13,12 +14,16 @@
 \definition indices: \forall (i, j: Fin.Fin (N.Nat^::succ n)) -> Bounds.Le i j ->
   (\fun (k: Fin.Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n)))) => collapse j (Upper.collapse (Fin.widen (N.Nat^::succ n) i) k)) =
   (\fun (k: Fin.Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n)))) => collapse i (Upper.collapse (Fin.succ (N.Nat^::succ n) j) k)) :=
-  \fun (i, j: Fin.Fin (N.Nat^::succ n))(ordered: _) => trans!{Direct.Function} _ _ _ (precompose (Fin.widen (N.Nat^::succ n) i) (collapse j))
-    (trans!{Direct.Function} _ _ _ (Repetition.pairs n i j (\fun (k: Fin.Fin (N.Nat^::succ n)) => k) ordered)
-      (sym!{Direct.Function} _ _ (precompose (Fin.succ (N.Nat^::succ n) j) (collapse i))));
+  \fun (i, j: Fin.Fin (N.Nat^::succ n))(ordered: _) => eq_reason_in!{Direct.Function _
+    "=" _ "by" { precompose (Fin.widen (N.Nat^::succ n) i) (collapse j) }
+    "=" _ "by" { Repetition.pairs n i j (\fun (k: Fin.Fin (N.Nat^::succ n)) => k) ordered }
+    "=" _ "by" { sym!{Direct.Function} _ _ (precompose (Fin.succ (N.Nat^::succ n) j) (collapse i)) }
+  };
 \definition law: \forall (i, j: Fin.Fin (N.Nat^::succ n))(x: Carrier (N.Nat^::succ (N.Nat^::succ n))) -> Bounds.Le i j ->
   apply j (Upper.apply (Fin.widen (N.Nat^::succ n) i) x) = apply i (Upper.apply (Fin.succ (N.Nat^::succ n) j) x) :=
   \fun (i, j: Fin.Fin (N.Nat^::succ n))(x: Carrier (N.Nat^::succ (N.Nat^::succ n)))(ordered: _) =>
-    trans!{{Carrier n}} _ _ _ (Composition.law (Upper.collapse (Fin.widen (N.Nat^::succ n) i)) (collapse j) x)
-      (trans!{{Carrier n}} _ _ _ (congr!{Direct.Function {Carrier n}} (\fun (f: Direct.Function) => Direct.apply f x) _ _ (indices i j ordered))
-        (sym!{{Carrier n}} _ _ (Composition.law (Upper.collapse (Fin.succ (N.Nat^::succ n) j)) (collapse i) x)));
+    eq_reason_in!{{Carrier n} _
+      "=" _ "by" { Composition.law (Upper.collapse (Fin.widen (N.Nat^::succ n) i)) (collapse j) x }
+      "=" _ "by" { congr!{Direct.Function {Carrier n}} (\fun (f: Direct.Function) => Direct.apply f x) _ _ (indices i j ordered) }
+      "=" _ "by" { sym!{{Carrier n}} _ _ (Composition.law (Upper.collapse (Fin.succ (N.Nat^::succ n) j)) (collapse i) x) }
+    };

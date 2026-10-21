@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Logic[].Classical[] \as Classical;
 \structure Data: \Set := {
   forward: Fin n -> Fin n,
@@ -10,10 +11,11 @@
 \definition Permutation: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
 \definition laws[p: Permutation]: Laws[p] := \bysub(Data, { data: Data \where Laws[data] }, p);
 \definition injective: \forall (p: Permutation)(i, j: Fin n) -> p.forward i = p.forward j -> i = j :=
-  \fun (p: Permutation)(i, j: Fin n)(same: p.forward i = p.forward j) => trans!{{Fin n}} i (p.backward (p.forward i)) j
-    (sym!{{Fin n}} (p.backward (p.forward i)) i ((laws p).leftInverse i))
-    (trans!{{Fin n}} (p.backward (p.forward i)) (p.backward (p.forward j)) j
-      (congr!{{Fin n} {Fin n}} p.backward (p.forward i) (p.forward j) same) ((laws p).leftInverse j));
+  \fun (p: Permutation)(i, j: Fin n)(same: p.forward i = p.forward j) => eq_reason_in!{{Fin n} i
+    "=" { p.backward (p.forward i) } "by" { sym!{{Fin n}} (p.backward (p.forward i)) i ((laws p).leftInverse i) }
+    "=" { p.backward (p.forward j) } "by" { congr!{{Fin n} {Fin n}} p.backward (p.forward i) (p.forward j) same }
+    "=" j "by" { (laws p).leftInverse j }
+  };
 \structure Swap: \Set := {
   first: Fin n,
   second: Fin n,

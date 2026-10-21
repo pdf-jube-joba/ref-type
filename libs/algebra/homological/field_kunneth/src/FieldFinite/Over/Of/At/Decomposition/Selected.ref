@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Modules.Hom[V := Out.target.Carrier, W := Out.source.Carrier, source := Out.target.space, target := Out.source.space].Composition[U := Out.source.Carrier, domain := Out.source.space] \as Compose;
 \import Modules.Hom[V := Out.source.Carrier, W := Out.source.Carrier, source := Out.source.space, target := Out.source.space] \as EndMaps;
 \import Modules.End[V := Out.source.Carrier, space := Out.source.space] \as End;
@@ -7,11 +8,12 @@
 \import algebra.Group[].Of[Carrier := Out.target.Carrier, group := Target.additive] \as Group;
 \definition differentiates: \forall (x: Out.target.Carrier) -> Out.differential.apply (d.outgoing.apply x) = x := d.differentiates;
 \definition closed: \forall (x: Out.source.Carrier) -> Out.differential.apply (cyclePart.apply x) = Out.target.space.zero :=
-  \fun (x: Out.source.Carrier) => trans!{Out.target.Carrier} _ _ _
-    (Differentials.differencePreserved Out.differential x (d.outgoing.apply (Out.differential.apply x)))
-    (trans!{Out.target.Carrier} _ _ _
-      (congr!{Out.target.Carrier Out.target.Carrier} (Group.difference (Out.differential.apply x)) _ _
-        (differentiates (Out.differential.apply x))) (Group.inverseRight (Out.differential.apply x)));
+  \fun (x: Out.source.Carrier) => eq_reason_in!{Out.target.Carrier _
+    "=" _ "by" { Differentials.differencePreserved Out.differential x (d.outgoing.apply (Out.differential.apply x)) }
+    "=" _ "by" { congr!{Out.target.Carrier Out.target.Carrier} (Group.difference (Out.differential.apply x)) _ _
+        (differentiates (Out.differential.apply x)) }
+    "=" _ "by" { Group.inverseRight (Out.differential.apply x) }
+  };
 \import Modules.Hom[V := Out.source.Carrier, W := H.CycleCarrier, source := Out.source.space, target := H.cycleSpace] \as CycleMaps;
 \definition cycles: CycleMaps.Map := CycleMaps.Map {
   apply := \fun (x: Out.source.Carrier) => H.cycle (cyclePart.apply x) (closed x),
@@ -22,13 +24,14 @@
 \import Modules.Of[V := Out.source.Carrier, space := Out.source.space] \as Source;
 \import algebra.Group[].Of[Carrier := Out.source.Carrier, group := Source.additive] \as SourceGroup;
 \definition onCycle: \forall (x: H.CycleCarrier) -> cycles.apply x = x :=
-  \fun (x: H.CycleCarrier) => trans!{Out.source.Carrier} _ _ _
-    (congr!{Out.target.Carrier Out.source.Carrier} (\fun (y: Out.target.Carrier) => SourceGroup.difference x (d.outgoing.apply y))
+  \fun (x: H.CycleCarrier) => eq_reason_in!{Out.source.Carrier _
+    "=" _ "by" { congr!{Out.target.Carrier Out.source.Carrier} (\fun (y: Out.target.Carrier) => SourceGroup.difference x (d.outgoing.apply y))
       (Out.differential.apply x) Out.target.space.zero
-      (\bysub(Out.source.Carrier, H.cycles.carrier, x)))
-    (trans!{Out.source.Carrier} _ _ _
-      (congr!{Out.source.Carrier Out.source.Carrier} (SourceGroup.difference x) _ _ (OutgoingMaps.zeroPreserved d.outgoing))
-      (trans!{Out.source.Carrier} _ _ _ (congr!{Out.source.Carrier Out.source.Carrier} (SourceGroup.add x) _ _ SourceGroup.negZero) (SourceGroup.zeroRight x)));
+      (\bysub(Out.source.Carrier, H.cycles.carrier, x)) }
+    "=" _ "by" { congr!{Out.source.Carrier Out.source.Carrier} (SourceGroup.difference x) _ _ (OutgoingMaps.zeroPreserved d.outgoing) }
+    "=" _ "by" { congr!{Out.source.Carrier Out.source.Carrier} (SourceGroup.add x) _ _ SourceGroup.negZero }
+    "=" _ "by" { SourceGroup.zeroRight x }
+  };
 \import Modules.Hom[V := H.CycleCarrier, W := H.Cohomology, source := H.cycleSpace, target := H.cohomologySpace].Composition[U := Out.source.Carrier, domain := Out.source.space] \as Projection;
 \definition projection: Modules.MapBetween Out.source cohomologyBundle := Projection.compose H.classLinear cycles;
 \import Modules.Hom[V := H.CycleCarrier, W := Out.source.Carrier, source := H.cycleSpace, target := Out.source.space].Composition[U := H.Cohomology, domain := H.cohomologySpace] \as Inclusion;

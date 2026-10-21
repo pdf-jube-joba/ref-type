@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Data[].Nat[] \as N;
 \import N.Basic[].Prop[] \as NatLaws;
 \import std.Arithmetic[].IntAlgebra[].Calculation[] \as Arithmetic;
@@ -8,7 +9,6 @@
 \use Equality.trans;
 \use Equality.sym;
 \use Equality.congr;
-\use Equality.congr2;
 \import Modules.Laws[V := I.Int^, space := Modules.scalarModule] \as Values;
 \import algebra.Group[].Of[Carrier := I.Int^, group := Values.additive] \as Group;
 \definition coefficients: Modules.Bundle := Modules.Bundle { Carrier := I.Int^, space := Modules.scalarModule };
@@ -25,7 +25,7 @@
 \import finitely_generated_modules.IntegerCyclic[d := two] \as Z2;
 \definition twice[x: I.Int^]: Arithmetic.mul two x = Model.double x :=
   trans!{I.Int^} _ _ _ (Products.addMul Arithmetic.one Arithmetic.one x)
-    (congr2!{I.Int^ I.Int^ I.Int^} Arithmetic.add _ _ _ _ (Products.mulOneLeft x) (Products.mulOneLeft x));
+    (congr!{I.Int^ I.Int^ I.Int^} Arithmetic.add _ _ _ _ (Products.mulOneLeft x) (Products.mulOneLeft x));
 \definition magnitude: I.Int^ -> N.Nat^ := \induction (z: I.Int^) \return N.Nat^ \with {
   | ofNat: \fun (n: N.Nat^) => n
   | negSucc: \fun (n: N.Nat^) => n
@@ -33,9 +33,11 @@
 \definition twoNonzero: two = Arithmetic.zero -> Logic.False := \fun (same: two = Arithmetic.zero) =>
   NatLaws.succNeZero firstDegree (congr!{I.Int^ N.Nat^} magnitude _ _ same);
 \definition closedLoop[f: H1.CycleCarrier]: f Edge::loop = Arithmetic.zero := Domain.cancellation two (f Edge::loop) Arithmetic.zero twoNonzero
-  (trans!{I.Int^} _ _ _ (twice (f Edge::loop))
-    (trans!{I.Int^} _ _ _ (Model.closedDouble f (Model.closedCoordinates f (\bysub(Model.Edges, (H1.cycles).carrier, f))))
-      (sym!{I.Int^} _ _ (Products.mulZeroRight two))));
+  (eq_reason_in!{I.Int^ _
+    "=" _ "by" { twice (f Edge::loop) }
+    "=" _ "by" { Model.closedDouble f (Model.closedCoordinates f (\bysub(Model.Edges, (H1.cycles).carrier, f))) }
+    "=" _ "by" { sym!{I.Int^} _ _ (Products.mulZeroRight two) }
+  });
 \definition subtractZero[x: I.Int^]: Group.difference x Group.zero = x :=
   trans!{I.Int^} _ _ _ (congr!{I.Int^ I.Int^} (Group.add x) _ _ Group.negZero) (Group.zeroRight x);
 \definition boundaryPrimitive[f: H1.CycleCarrier]: Model.deltaZero (Model.vertex Arithmetic.zero (f Edge::first)) = f :=
@@ -43,10 +45,11 @@
     (trans!{I.Int^} _ _ _ (Group.inverseRight (f Edge::first)) (sym!{I.Int^} _ _ (closedLoop f)))
     (subtractZero (f Edge::first))
     (trans!{I.Int^} _ _ _ (subtractZero (f Edge::first))
-      (sym!{I.Int^} _ _ (trans!{I.Int^} _ _ _
-        (Model.closedSecond f (Model.closedCoordinates f (\bysub(Model.Edges, (H1.cycles).carrier, f))))
-        (trans!{I.Int^} _ _ _ (congr!{I.Int^ I.Int^} (\fun (x: I.Int^) => Arithmetic.add x (f Edge::first)) _ _ (closedLoop f))
-          (Group.zeroLeft (f Edge::first))))));
+      (sym!{I.Int^} _ _ (eq_reason_in!{I.Int^ _
+        "=" _ "by" { Model.closedSecond f (Model.closedCoordinates f (\bysub(Model.Edges, (H1.cycles).carrier, f))) }
+        "=" _ "by" { congr!{I.Int^ I.Int^} (\fun (x: I.Int^) => Arithmetic.add x (f Edge::first)) _ _ (closedLoop f) }
+        "=" _ "by" { Group.zeroLeft (f Edge::first) }
+      })));
 \definition firstVanishes: \forall (h: H1.Cohomology) -> h = H1.zeroClass :=
   H1.classInduction (\fun (h: H1.Cohomology) => h = H1.zeroClass)
     (\fun (f: H1.CycleCarrier) => H1.boundaryClassZero f

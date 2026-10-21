@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 /* Reversion fixes scalars and vectors and reverses multiplication. */
 \import algebra.OppositeRing[A := Carrier, ring := ring] \as Opposite;
 \import \parent.Relations[] \as Relations;
@@ -30,12 +31,21 @@
 \import \parent.HomExt[A := Carrier, target := Opposite.value] \as Negative;
 \definition onNegative: \forall (x: Carrier) -> map (neg x) = neg (map x) := Negative.onNegative map;
 \definition onScale: \forall (a: K)(x: Carrier) -> map (scale a x) = scale a (map x) :=
-  \fun (a: K)(x: Carrier) => trans!{Carrier} _ _ _ (laws.mul (scalar a) x)
-    (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (mul (map x)) _ _ (onScalar a)) (sym!{Carrier} _ _ (Presented.central a (map x))));
+  \fun (a: K)(x: Carrier) => eq_reason_in!{Carrier _
+    "=" _ "by" { laws.mul (scalar a) x }
+    "=" _ "by" { congr!{Carrier Carrier} (mul (map x)) _ _ (onScalar a) }
+    "=" _ "by" { sym!{Carrier} _ _ (Presented.central a (map x)) }
+  };
 \definition unit[g: Units.Unit]: Units.Unit := Units.Unit {
   value := map g.value, inverse := map g.inverse,
-  left := trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (laws.mul g.value g.inverse))
-    (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} map _ _ g.right) laws.one),
-  right := trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (laws.mul g.inverse g.value))
-    (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} map _ _ g.left) laws.one),
+  left := eq_reason_in!{Carrier _
+    "=" _ "by" { sym!{Carrier} _ _ (laws.mul g.value g.inverse) }
+    "=" _ "by" { congr!{Carrier Carrier} map _ _ g.right }
+    "=" _ "by" laws.one
+  },
+  right := eq_reason_in!{Carrier _
+    "=" _ "by" { sym!{Carrier} _ _ (laws.mul g.inverse g.value) }
+    "=" _ "by" { congr!{Carrier Carrier} map _ _ g.left }
+    "=" _ "by" laws.one
+  },
 };

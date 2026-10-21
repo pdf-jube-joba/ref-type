@@ -1,11 +1,15 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.TensorHomology[A := B] \as Target;
 \import \parent.\parent.Cohomology[A := B] \as TargetCoefficient;
 \import Modules.Of[V := B.Carrier, space := B.space].Submodule[] \as TargetSub;
 \import TargetSub.Kernel[W := B.Carrier, target := B.space] \as TargetKernels;
 \import Modules.Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space] \as CoefficientMaps;
 \definition preserves: \forall (x: Annihilator.Carrier) -> B.space.smul multiplier (u.apply x) = B.space.zero :=
-  \fun (x: Annihilator.Carrier) => trans!{B.Carrier} _ _ _ (sym!{B.Carrier} _ _ (u.scalar multiplier x))
-    (trans!{B.Carrier} _ _ _ (congr!{A.Carrier B.Carrier} (u.apply) _ _ (\bysub(A.Carrier, Kernel.targetKernel.carrier, x))) (CoefficientMaps.zeroPreserved u));
+  \fun (x: Annihilator.Carrier) => eq_reason_in!{B.Carrier _
+    "=" _ "by" { sym!{B.Carrier} _ _ (u.scalar multiplier x) }
+    "=" _ "by" { congr!{A.Carrier B.Carrier} (u.apply) _ _ (\bysub(A.Carrier, Kernel.targetKernel.carrier, x)) }
+    "=" _ "by" { CoefficientMaps.zeroPreserved u }
+  };
 \definition map: Modules.Hom[V := Annihilator.Carrier, W := Target.annihilator.Carrier, source := Annihilator.moduleSpace, target := Target.annihilator.space].Map := Modules.Hom[V := Annihilator.Carrier, W := Target.annihilator.Carrier, source := Annihilator.moduleSpace, target := Target.annihilator.space].Map {
   apply := \fun (x: Annihilator.Carrier) => \into[B.Carrier](u.apply x, (TargetKernels.kernel TargetCoefficient.multiplication).carrier) \by { preserves x },
   addition := \fun (x, y: Annihilator.Carrier) => u.addition x y,
@@ -20,11 +24,12 @@
 \definition after: ValueMaps.Map := After.compose (Target.oneIsomorphism.forward) TensorMap.map;
 \definition before: ValueMaps.Map := Before.compose u (oneIsomorphism.forward);
 \definition equality: after = before := Universal.ext after before
-  (\fun (r: family.Carrier one)(a: A.Carrier) => trans!{B.Carrier} _ _ _
-    (congr!{TargetTensor.Carrier B.Carrier} (Target.oneIsomorphism.forward.apply) _ _ (TensorMap.onTensor r a))
-    (trans!{B.Carrier} _ _ _ (Target.oneOnTensor r (u.apply a))
-      (trans!{B.Carrier} _ _ _ (sym!{B.Carrier} _ _ (u.scalar r a))
-        (congr!{A.Carrier B.Carrier} (u.apply) _ _ (sym!{A.Carrier} _ _ (oneOnTensor r a))))));
+  (\fun (r: family.Carrier one)(a: A.Carrier) => eq_reason_in!{B.Carrier _
+    "=" _ "by" { congr!{TargetTensor.Carrier B.Carrier} (Target.oneIsomorphism.forward.apply) _ _ (TensorMap.onTensor r a) }
+    "=" _ "by" { Target.oneOnTensor r (u.apply a) }
+    "=" _ "by" { sym!{B.Carrier} _ _ (u.scalar r a) }
+    "=" _ "by" { congr!{A.Carrier B.Carrier} (u.apply) _ _ (sym!{A.Carrier} _ _ (oneOnTensor r a)) }
+  });
 \definition valueNaturality: \forall (x: OneTensor.Carrier) ->
   Target.oneIsomorphism.forward.apply (TensorMap.map.apply x) = u.apply (oneIsomorphism.forward.apply x) :=
     \fun (x: OneTensor.Carrier) => congr!{ValueMaps.Map B.Carrier} (\fun (f: ValueMaps.Map) => f.apply x) after before equality;
@@ -33,11 +38,12 @@
 \import derived_functors.Tor[].Over[R := Int.Int^, ring := IntegerRing.commutativeRing].Of[M := Cyclic.bundle, N := B, P := complex] \as TargetDerived;
 \definition onClasses: \forall (x: H.Cycle) ->
   Target.isomorphism.forward.apply ((DerivedMap.map u).apply (H.classOf x)) = map.apply (isomorphism.forward.apply (H.classOf x)) :=
-  \fun (x: H.Cycle) => trans!{B.Carrier} _ _ _
-    (congr!{TargetDerived.Positive[n := Nat.Nat^::zero].Carrier B.Carrier} (\fun (q: TargetDerived.Positive[n := Nat.Nat^::zero].Carrier) => Target.isomorphism.forward.apply q) _ _ (DerivedMap.onClass u x))
-    (trans!{B.Carrier} _ _ _ (Target.onClass ((DerivedMap.cyclesMap u).apply x))
-      (trans!{B.Carrier} _ _ _ (valueNaturality x)
-        (congr!{Annihilator.Carrier B.Carrier} (\fun (a: Annihilator.Carrier) => map.apply a) _ _ (sym!{Annihilator.Carrier} _ _ (onClass x)))));
+  \fun (x: H.Cycle) => eq_reason_in!{B.Carrier _
+    "=" _ "by" { congr!{TargetDerived.Positive[n := Nat.Nat^::zero].Carrier B.Carrier} (\fun (q: TargetDerived.Positive[n := Nat.Nat^::zero].Carrier) => Target.isomorphism.forward.apply q) _ _ (DerivedMap.onClass u x) }
+    "=" _ "by" { Target.onClass ((DerivedMap.cyclesMap u).apply x) }
+    "=" _ "by" { valueNaturality x }
+    "=" _ "by" { congr!{Annihilator.Carrier B.Carrier} (\fun (a: Annihilator.Carrier) => map.apply a) _ _ (sym!{Annihilator.Carrier} _ _ (onClass x)) }
+  };
 \definition naturality: \forall (q: H.Carrier) ->
   Target.isomorphism.forward.apply ((DerivedMap.map u).apply q) = map.apply (isomorphism.forward.apply q) := H.classInduction
     (\fun (q: H.Carrier) => Target.isomorphism.forward.apply ((DerivedMap.map u).apply q) = map.apply (isomorphism.forward.apply q)) onClasses;

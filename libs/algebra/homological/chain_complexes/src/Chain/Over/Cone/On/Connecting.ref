@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.\parent.At[C := C, z := previous k] \as Original;
 \import \parent.\parent.\parent.At[C := D, z := previous k] \as Target;
 \import \parent.\parent.\parent.Map[C := C, D := D].At[k := previous k] \as Given;
@@ -26,13 +27,13 @@
         ((C.family.space (previous (previous k))).neg) _ _ (\bysub(C.family.Carrier (previous k), Original.cycles.carrier, x))) RightGroup.negZero));
 \definition onOriginalCycle: \forall (x: Original.Cycle) ->
   Connecting.connecting.apply (Shift.isomorphism.forward.apply (Original.classOf x)) = (Given.induced f).apply (Original.classOf x) :=
-  \fun (x: Original.Cycle) => trans!{Target.Homology} _ _ _
-    (congr!{{ShiftHomology.Homology} Target.Homology} (Connecting.connecting.apply) _ _ (Shift.onClass x))
-    (trans!{Target.Homology} _ _ _ (Connecting.onClass (Shift.cycleIsomorphism.forward.apply x))
-      (trans!{Target.Homology} _ _ _
-        (Connecting.onLift (Shift.cycleIsomorphism.forward.apply x) (lift x) ((Given.cyclesMap f).apply x)
-          (\refl(x)) (differential x) (Given.preservesCycle f x))
-        (sym!{Target.Homology} _ _ (Given.onClass f x))));
+  \fun (x: Original.Cycle) => eq_reason_in!{Target.Homology _
+    "=" _ "by" { congr!{{ShiftHomology.Homology} Target.Homology} (Connecting.connecting.apply) _ _ (Shift.onClass x) }
+    "=" _ "by" { Connecting.onClass (Shift.cycleIsomorphism.forward.apply x) }
+    "=" _ "by" { Connecting.onLift (Shift.cycleIsomorphism.forward.apply x) (lift x) ((Given.cyclesMap f).apply x)
+          (\refl(x)) (differential x) (Given.preservesCycle f x) }
+    "=" _ "by" { sym!{Target.Homology} _ _ (Given.onClass f x) }
+  };
 \definition natural: \forall (q: Original.Homology) ->
   Connecting.connecting.apply (Shift.isomorphism.forward.apply q) = (Given.induced f).apply q :=
   Original.classInduction (\fun (q: Original.Homology) => Connecting.connecting.apply (Shift.isomorphism.forward.apply q) = (Given.induced f).apply q) onOriginalCycle;
@@ -46,13 +47,16 @@
 \definition injective: Given.Bijective[f] -> \forall (x, y: ShiftHomology.Homology) ->
   Connecting.connecting.apply x = Connecting.connecting.apply y -> x = y :=
   \fun (bijective: Given.Bijective[f])(x, y: ShiftHomology.Homology)(equal: _) =>
-    trans!{ShiftHomology.Homology} x (Shift.isomorphism.forward.apply (Shift.isomorphism.backward.apply x)) y
-      (sym!{ShiftHomology.Homology} _ _ (Shift.isomorphism.rightInverse x))
-      (trans!{ShiftHomology.Homology} _ _ _
-        (congr!{Original.Homology ShiftHomology.Homology} (Shift.isomorphism.forward.apply) _ _
-          (bijective.injective _ _ (trans!{Target.Homology} _ _ _ (sym!{Target.Homology} _ _ (formula x))
-            (trans!{Target.Homology} _ _ _ equal (formula y)))))
-        (Shift.isomorphism.rightInverse y));
+    eq_reason_in!{ShiftHomology.Homology x
+      "=" { Shift.isomorphism.forward.apply (Shift.isomorphism.backward.apply x) } "by" { sym!{ShiftHomology.Homology} _ _ (Shift.isomorphism.rightInverse x) }
+      "=" _ "by" { congr!{Original.Homology ShiftHomology.Homology} (Shift.isomorphism.forward.apply) _ _
+          (bijective.injective _ _ (eq_reason_in!{Target.Homology _
+            "=" _ "by" { sym!{Target.Homology} _ _ (formula x) }
+            "=" _ "by" equal
+            "=" _ "by" { formula y }
+          })) }
+      "=" _ "by" { Shift.isomorphism.rightInverse y }
+    };
 \definition onto: Given.Bijective[f] -> \forall (y: Target.Homology) ->
   \exists ( x: ShiftHomology.Homology \where Connecting.connecting.apply x = y ) := \block {
   \fun (bijective: Given.Bijective[f])(y: Target.Homology) \then
@@ -64,13 +68,16 @@
 \definition originalInjective:
   (\forall (x, y: ShiftHomology.Homology) -> Connecting.connecting.apply x = Connecting.connecting.apply y -> x = y) ->
   \forall (x, y: Original.Homology) -> (Given.induced f).apply x = (Given.induced f).apply y -> x = y :=
-  \fun (injective: _)(x, y: Original.Homology)(equal: _) => trans!{Original.Homology} _ _ _
-    (sym!{Original.Homology} _ _ (Shift.isomorphism.leftInverse x))
-    (trans!{Original.Homology} _ _ _
-      (congr!{ShiftHomology.Homology Original.Homology} (Shift.isomorphism.backward.apply) _ _
-        (injective _ _ (trans!{Target.Homology} _ _ _ (natural x)
-          (trans!{Target.Homology} _ _ _ equal (sym!{Target.Homology} _ _ (natural y))))))
-      (Shift.isomorphism.leftInverse y));
+  \fun (injective: _)(x, y: Original.Homology)(equal: _) => eq_reason_in!{Original.Homology _
+    "=" _ "by" { sym!{Original.Homology} _ _ (Shift.isomorphism.leftInverse x) }
+    "=" _ "by" { congr!{ShiftHomology.Homology Original.Homology} (Shift.isomorphism.backward.apply) _ _
+        (injective _ _ (eq_reason_in!{Target.Homology _
+          "=" _ "by" { natural x }
+          "=" _ "by" equal
+          "=" _ "by" { sym!{Target.Homology} _ _ (natural y) }
+        })) }
+    "=" _ "by" { Shift.isomorphism.leftInverse y }
+  };
 \definition originalOnto:
   (\forall (y: Target.Homology) -> \exists ( x: ShiftHomology.Homology \where Connecting.connecting.apply x = y )) ->
   \forall (y: Target.Homology) -> \exists ( x: Original.Homology \where (Given.induced f).apply x = y ) := \block {

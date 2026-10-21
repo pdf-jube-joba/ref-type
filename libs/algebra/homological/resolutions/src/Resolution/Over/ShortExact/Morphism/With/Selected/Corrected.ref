@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Straighten.With[sections := sections, h := h] \as Straight;
 \definition middle: Chains.Map[C := source.middleComplex, D := target.middleComplex].Map := Straight.middle;
 \definition right: Chains.Map[C := source.rightComplex, D := target.rightComplex].Map := c;
@@ -9,15 +10,14 @@
 \import Resolutions.Comparison[M := source.left, N := target.left, P := source.leftComplex, Q := target.leftComplex, f := f.left] \as LeftComparison;
 \definition augmentedLeft: \forall (splits: Splits sections) -> LeftComparison.Augmented source.leftResolution target.leftResolution (left splits) :=
   \fun (splits: Splits sections)(x: source.leftComplex.family.Carrier Nat.Nat^::zero) => target.sequence.injective _ _
-    (trans!{target.middle.Carrier} _ _ _
-      (sym!{target.middle.Carrier} _ _ (target.leftAugmented ((left splits).apply Nat.Nat^::zero x)))
-      (trans!{target.middle.Carrier} _ _ _
-        (congr!{{target.middleComplex.family.Carrier Nat.Nat^::zero} target.middle.Carrier} (target.middleResolution.augmentation.apply) _ _
-          (sym!{{target.middleComplex.family.Carrier Nat.Nat^::zero}} _ _ ((Straight.diagram splits).left Nat.Nat^::zero x)))
-        (trans!{target.middle.Carrier} _ _ _ (augmentedMiddle (source.chainSequence.inclusion.apply Nat.Nat^::zero x))
-          (trans!{target.middle.Carrier} _ _ _
-            (congr!{source.middle.Carrier target.middle.Carrier} (f.middle.apply) _ _ (source.leftAugmented x))
-            (laws.left (source.leftResolution.augmentation.apply x))))));
+    (eq_reason_in!{target.middle.Carrier _
+      "=" _ "by" { sym!{target.middle.Carrier} _ _ (target.leftAugmented ((left splits).apply Nat.Nat^::zero x)) }
+      "=" _ "by" { congr!{{target.middleComplex.family.Carrier Nat.Nat^::zero} target.middle.Carrier} (target.middleResolution.augmentation.apply) _ _
+          (sym!{{target.middleComplex.family.Carrier Nat.Nat^::zero}} _ _ ((Straight.diagram splits).left Nat.Nat^::zero x)) }
+      "=" _ "by" { augmentedMiddle (source.chainSequence.inclusion.apply Nat.Nat^::zero x) }
+      "=" _ "by" { congr!{source.middle.Carrier target.middle.Carrier} (f.middle.apply) _ _ (source.leftAugmented x) }
+      "=" _ "by" { laws.left (source.leftResolution.augmentation.apply x) }
+    });
 \definition diagram: \forall (splits: Splits sections) -> Chains.ShortExact[A := source.leftComplex, B := source.middleComplex, C := source.rightComplex].Morphism[
   A1 := target.leftComplex, B1 := target.middleComplex, C1 := target.rightComplex].Diagram[
     s := source.chainSequence, t := target.chainSequence, a := left splits, b := middle, c := right].Commutative :=

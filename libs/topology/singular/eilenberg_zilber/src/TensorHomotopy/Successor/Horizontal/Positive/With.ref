@@ -1,12 +1,15 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition rightGenerator: Right.Carrier q := Right.generator q tau;
 \import Modules.Hom[V := Pure.Carrier, W := Total.Carrier (N.Nat^::succ n), source := Pure.space, target := Total.space (N.Nat^::succ n)].Composition[U := Left.Carrier p, domain := Left.space p] \as Compose;
 \definition leftMap: Modules.Hom[V := Left.Carrier p, W := Total.Carrier (N.Nat^::succ n), source := Left.space p, target := Total.space (N.Nat^::succ n)].Map := Compose.compose LowerComponent.map (Pure.leftLinear rightGenerator);
 \definition values[rho: LeftSimplices.Carrier p]: Total.Carrier (N.Nat^::succ n) := LowerComponent.onGenerators rho tau;
 \definition sum: Total.Carrier (N.Nat^::succ n) := Sum.sum (N.Nat^::succ (N.Nat^::succ p)) (\fun (j: Fin.Fin (N.Nat^::succ (N.Nat^::succ p))) => values (LeftSimplices.face p j sigma));
 \definition native: Current.horizontal sigma tau = sum :=
-  trans!{{Total.Carrier (N.Nat^::succ n)}} _ _ _ (Lower.onInjection lowerIndex ((Tensor.At[p := p, q := q].horizontal).apply (Tensor.Term[p := N.Nat^::succ p, q := q].tensor (Left.generator (N.Nat^::succ p) sigma) rightGenerator)))
-    (trans!{{Total.Carrier (N.Nat^::succ n)}} _ _ _ (congr!{Pure.Carrier {Total.Carrier (N.Nat^::succ n)}} ((LowerComponent.map).apply) _ _ (Tensor.At[p := p, q := q].horizontalOnTensor (Left.generator (N.Nat^::succ p) sigma) rightGenerator))
-      (BoundaryImage.law leftMap values (\fun (rho: LeftSimplices.Carrier p) => LowerComponent.generatorLaw rho tau) sigma));
+  eq_reason_in!{{Total.Carrier (N.Nat^::succ n)} _
+    "=" _ "by" { Lower.onInjection lowerIndex ((Tensor.At[p := p, q := q].horizontal).apply (Tensor.Term[p := N.Nat^::succ p, q := q].tensor (Left.generator (N.Nat^::succ p) sigma) rightGenerator)) }
+    "=" _ "by" { congr!{Pure.Carrier {Total.Carrier (N.Nat^::succ n)}} ((LowerComponent.map).apply) _ _ (Tensor.At[p := p, q := q].horizontalOnTensor (Left.generator (N.Nat^::succ p) sigma) rightGenerator) }
+    "=" _ "by" { BoundaryImage.law leftMap values (\fun (rho: LeftSimplices.Carrier p) => LowerComponent.generatorLaw rho tau) sigma }
+  };
 \definition evaluator: Modules.Hom[V := HighModel.Carrier z, W := Total.Carrier (N.Nat^::succ n), source := HighModel.space z, target := Total.space (N.Nat^::succ n)].Map := HigherComponent.evaluationLinear (N.Nat^::succ n) sigma tau;
 \import Modules.Alternating[V := HighModel.Carrier z, space := HighModel.space z].Mapping[W := Total.Carrier (N.Nat^::succ n), target := Total.space (N.Nat^::succ n)] \as Mapping;
 \module Face(j: Fin.Fin (N.Nat^::succ (N.Nat^::succ p))) {
@@ -17,8 +20,10 @@
       (Evaluation.At[p := p, q := q].pointwiseEquality Composition.leftSimplex (LeftSimplices.face p j sigma) Composition.rightSimplex tau (\fun (x: Simplex.Carrier p) => \refl(sigma (Simplex.face p j x))) (\fun (x: Simplex.Carrier q) => \refl(tau x)) (N.Nat^::succ n) LowerComponent.modelValue);
 }
 \definition coordinate: Current.horizontalCoordinate sigma tau = sum :=
-  trans!{{Total.Carrier (N.Nat^::succ n)}} _ _ _ (congr!{{HighModel.Carrier z} {Total.Carrier (N.Nat^::succ n)}} ((evaluator).apply) _ _ (CoordinateBoundary.law (Models.homotopy n)))
-    (trans!{{Total.Carrier (N.Nat^::succ n)}} _ _ _ (congr!{{HighModel.Carrier z} {Total.Carrier (N.Nat^::succ n)}} ((evaluator).apply) _ _ (Faces.onValues LowerComponent.modelValue))
-      (trans!{{Total.Carrier (N.Nat^::succ n)}} _ _ _ (Mapping.law evaluator (N.Nat^::succ (N.Nat^::succ p)) _)
-        (Sum.congruent (N.Nat^::succ (N.Nat^::succ p)) _ _ (\fun (j: Fin.Fin (N.Nat^::succ (N.Nat^::succ p))) => Face[j := j].law))));
+  eq_reason_in!{{Total.Carrier (N.Nat^::succ n)} _
+    "=" _ "by" { congr!{{HighModel.Carrier z} {Total.Carrier (N.Nat^::succ n)}} ((evaluator).apply) _ _ (CoordinateBoundary.law (Models.homotopy n)) }
+    "=" _ "by" { congr!{{HighModel.Carrier z} {Total.Carrier (N.Nat^::succ n)}} ((evaluator).apply) _ _ (Faces.onValues LowerComponent.modelValue) }
+    "=" _ "by" { Mapping.law evaluator (N.Nat^::succ (N.Nat^::succ p)) _ }
+    "=" _ "by" { Sum.congruent (N.Nat^::succ (N.Nat^::succ p)) _ _ (\fun (j: Fin.Fin (N.Nat^::succ (N.Nat^::succ p))) => Face[j := j].law) }
+  };
 \definition law: Current.horizontal sigma tau = Current.horizontalCoordinate sigma tau := trans!{{Total.Carrier (N.Nat^::succ n)}} _ _ _ native (sym!{{Total.Carrier (N.Nat^::succ n)}} _ _ coordinate);

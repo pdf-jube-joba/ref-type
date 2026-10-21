@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Data[].Nat[] \as N;
 \import N.Basic[].Def[] \as Nat;
 \import std.Data[].FinSet[] \as Fin;
@@ -5,7 +6,6 @@
 \use Equality.sym;
 \use Equality.trans;
 \use Equality.congr;
-\use Equality.congr2;
 \import algebraic_topology.Spheres[] \as Spheres;
 \import algebraic_topology.Euclidean[].Dimension[n := n] \as Lower;
 \import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::succ n] \as Ambient;
@@ -22,21 +22,26 @@
   trans!{Real.Real} _ _ _ (squaredNegative Real.one) (Laws.fieldMulOneLeft Real.one);
 \definition head[x: Sphere]: Sphere :=
   \into[Ambient.Coordinate](Split.join (Real.neg (Split.head x)) (Split.tail x), Ambient.Boundary) \by {
-    trans!{Real.Real} _ _ _ (Split.normJoin (Real.neg (Split.head x)) (Split.tail x))
-      (trans!{Real.Real} _ _ _
-        (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add r (Lower.normSquared (Split.tail x))) _ _ (squaredNegative (Split.head x)))
-        (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Split.normSplit x)) (\bysub(Ambient.Coordinate, Ambient.Boundary, x))))
+    eq_reason_in!{Real.Real _
+      "=" _ "by" { Split.normJoin (Real.neg (Split.head x)) (Split.tail x) }
+      "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add r (Lower.normSquared (Split.tail x))) _ _ (squaredNegative (Split.head x)) }
+      "=" _ "by" { sym!{Real.Real} _ _ (Split.normSplit x) }
+      "=" _ "by" { \bysub(Ambient.Coordinate, Ambient.Boundary, x) }
+    }
   };
 \definition tail[x: Sphere]: Sphere :=
   \into[Ambient.Coordinate](Split.join (Split.head x) (Scaling.scale (Real.neg Real.one) (Split.tail x)), Ambient.Boundary) \by {
-    trans!{Real.Real} _ _ _ (Split.normJoin (Split.head x) (Scaling.scale (Real.neg Real.one) (Split.tail x)))
-      (trans!{Real.Real} _ _ _
-        (congr!{Real.Real Real.Real} (Real.add (Real.mul (Split.head x) (Split.head x))) _ _
-          (trans!{Real.Real} _ _ _ (Scaling.normScale (Real.neg Real.one) (Split.tail x))
-            (trans!{Real.Real} _ _ _
-              (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (Lower.normSquared (Split.tail x))) _ _ minusOneSquared)
-              (Laws.fieldMulOneLeft (Lower.normSquared (Split.tail x))))))
-        (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Split.normSplit x)) (\bysub(Ambient.Coordinate, Ambient.Boundary, x))))
+    eq_reason_in!{Real.Real _
+      "=" _ "by" { Split.normJoin (Split.head x) (Scaling.scale (Real.neg Real.one) (Split.tail x)) }
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (Real.mul (Split.head x) (Split.head x))) _ _
+          (eq_reason_in!{Real.Real _
+            "=" _ "by" { Scaling.normScale (Real.neg Real.one) (Split.tail x) }
+            "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (Lower.normSquared (Split.tail x))) _ _ minusOneSquared }
+            "=" _ "by" { Laws.fieldMulOneLeft (Lower.normSquared (Split.tail x)) }
+          }) }
+      "=" _ "by" { sym!{Real.Real} _ _ (Split.normSplit x) }
+      "=" _ "by" { \bysub(Ambient.Coordinate, Ambient.Boundary, x) }
+    }
   };
 \definition headHead: \forall (x: Sphere) -> Split.head (head x) = Real.neg (Split.head x) :=
   \fun (x: Sphere) => Split.headJoin (Real.neg (Split.head x)) (Split.tail x);
@@ -54,14 +59,23 @@
     \fun (i: Lower.Index) => \refl(Real.mul (Real.neg Real.one) (x (Fin.succ n i))));
 \definition factorization: \forall (x: Sphere) -> head (tail x) = Antipodal.apply x :=
   \fun (x: Sphere) => Split.ext (head (tail x)) (Antipodal.apply x)
-    (trans!{Real.Real} _ _ _ (headHead (tail x))
-      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Real.neg _ _ (tailHead x)) (sym!{Real.Real} _ _ (antipodalHead x))))
-    (trans!{Lower.Coordinate} _ _ _ (headTail (tail x))
-      (trans!{Lower.Coordinate} _ _ _ (tailTail x) (sym!{Lower.Coordinate} _ _ (antipodalTail x))));
+    (eq_reason_in!{Real.Real _
+      "=" _ "by" { headHead (tail x) }
+      "=" _ "by" { congr!{Real.Real Real.Real} Real.neg _ _ (tailHead x) }
+      "=" _ "by" { sym!{Real.Real} _ _ (antipodalHead x) }
+    })
+    (eq_reason_in!{Lower.Coordinate _
+      "=" _ "by" { headTail (tail x) }
+      "=" _ "by" { tailTail x }
+      "=" _ "by" { sym!{Lower.Coordinate} _ _ (antipodalTail x) }
+    });
 \definition headInvolution: \forall (x: Sphere) -> head (head x) = x :=
   \fun (x: Sphere) => Split.ext (head (head x)) x
-    (trans!{Real.Real} _ _ _ (headHead (head x))
-      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Real.neg _ _ (headHead x)) (Laws.negInvolutive (Split.head x))))
+    (eq_reason_in!{Real.Real _
+      "=" _ "by" { headHead (head x) }
+      "=" _ "by" { congr!{Real.Real Real.Real} Real.neg _ _ (headHead x) }
+      "=" _ "by" { Laws.negInvolutive (Split.head x) }
+    })
     (trans!{Lower.Coordinate} _ _ _ (headTail (head x)) (headTail x));
 \import metric_spaces.RealLine[] \as Line;
 \import topological_algebra.Coordinates[K := Real.Real, I := Ambient.Index] \as CoordinateTopology;

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Arithmetic[].ExtendedEuclid[].Signed[] \as Signed;
 \import Signed.Division[] \as Division;
 \import N.Basic[].Def[] \as Nat;
@@ -88,10 +89,11 @@
 \import integer_matrices.IntegerMatrix[m := N.Nat^::zero, n := N.Nat^::zero].Search[] \as ZeroTest;
 \definition rowCleared: \forall (k, i: N.Nat^)(a: Runtime^)(history: History^) -> attemptReduced (row k i a history) = B.Bool^::false -> attemptMatrix (row k i a history) i k = Arithmetic.zero :=
   \fun (k, i: N.Nat^)(a: Runtime^)(history: History^)(noSwap: _) =>
-    trans!{I.Int^} (attemptMatrix (row k i a history) i k) (rowMatrix k i a i k) Arithmetic.zero
-      (congr!{Runtime^ I.Int^} (\fun (matrix: Runtime^) => matrix i k) (attemptMatrix (row k i a history)) (rowMatrix k i a) (rowUnchanged k i a history noSwap))
-      (trans!{I.Int^} (rowMatrix k i a i k) (Division.remainder (a i k) (a k k)) Arithmetic.zero (rowRemainder k i a)
-        (ZeroTest.zeroOfTrue (Division.remainder (a i k) (a k k)) (rowNoSwap k i a history noSwap)));
+    eq_reason_in!{I.Int^ { attemptMatrix (row k i a history) i k }
+      "=" { rowMatrix k i a i k } "by" { congr!{Runtime^ I.Int^} (\fun (matrix: Runtime^) => matrix i k) (attemptMatrix (row k i a history)) (rowMatrix k i a) (rowUnchanged k i a history noSwap) }
+      "=" { Division.remainder (a i k) (a k k) } "by" { rowRemainder k i a }
+      "=" Arithmetic.zero "by" { ZeroTest.zeroOfTrue (Division.remainder (a i k) (a k k)) (rowNoSwap k i a history noSwap) }
+    };
 \definition rowPreserved: \forall (k, i: N.Nat^)(a: Runtime^)(history: History^)(r, j: N.Nat^) -> Logic.Not (r = i) -> attemptReduced (row k i a history) = B.Bool^::false -> attemptMatrix (row k i a history) r j = a r j :=
   \fun (k, i: N.Nat^)(a: Runtime^)(history: History^)(r, j: N.Nat^)(different: _)(noSwap: _) =>
     trans!{I.Int^} (attemptMatrix (row k i a history) r j) (rowMatrix k i a r j) (a r j)
@@ -112,10 +114,11 @@
     (I.IsZero.specification (Division.remainder (a k j) (a k k)));
 \definition columnCleared: \forall (k, j: N.Nat^)(a: Runtime^)(history: History^) -> attemptReduced (column k j a history) = B.Bool^::false -> attemptMatrix (column k j a history) k j = Arithmetic.zero :=
   \fun (k, j: N.Nat^)(a: Runtime^)(history: History^)(noSwap: _) =>
-    trans!{I.Int^} (attemptMatrix (column k j a history) k j) (columnMatrix k j a k j) Arithmetic.zero
-      (congr!{Runtime^ I.Int^} (\fun (matrix: Runtime^) => matrix k j) (attemptMatrix (column k j a history)) (columnMatrix k j a) (columnUnchanged k j a history noSwap))
-      (trans!{I.Int^} (columnMatrix k j a k j) (Division.remainder (a k j) (a k k)) Arithmetic.zero (columnRemainder k j a)
-        (ZeroTest.zeroOfTrue (Division.remainder (a k j) (a k k)) (columnNoSwap k j a history noSwap)));
+    eq_reason_in!{I.Int^ { attemptMatrix (column k j a history) k j }
+      "=" { columnMatrix k j a k j } "by" { congr!{Runtime^ I.Int^} (\fun (matrix: Runtime^) => matrix k j) (attemptMatrix (column k j a history)) (columnMatrix k j a) (columnUnchanged k j a history noSwap) }
+      "=" { Division.remainder (a k j) (a k k) } "by" { columnRemainder k j a }
+      "=" Arithmetic.zero "by" { ZeroTest.zeroOfTrue (Division.remainder (a k j) (a k k)) (columnNoSwap k j a history noSwap) }
+    };
 \definition columnPreserved: \forall (k, j: N.Nat^)(a: Runtime^)(history: History^)(r, s: N.Nat^) -> Logic.Not (s = j) -> attemptReduced (column k j a history) = B.Bool^::false -> attemptMatrix (column k j a history) r s = a r s :=
   \fun (k, j: N.Nat^)(a: Runtime^)(history: History^)(r, s: N.Nat^)(different: _)(noSwap: _) =>
     trans!{I.Int^} (attemptMatrix (column k j a history) r s) (columnMatrix k j a r s) (a r s)

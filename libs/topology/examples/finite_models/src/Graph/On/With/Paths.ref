@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition sum[f: ForestEdge -> A.Carrier]: Walk -> A.Carrier := \induction (w: Walk) \return A.Carrier \with {
   | root: \fun (i: Fin.Fin components) => Group.zero
   | step: \fun (w: Walk)(previous: A.Carrier)(e: ForestEdge) => Group.add previous (f e)
@@ -25,15 +26,16 @@
           \let first: sum (\fun (k: ForestEdge) => Group.difference (f (treeTarget k)) (f (graph.parent k))) w = Group.difference (f (graph.parent e)) old :=
             trans!{A.Carrier} _ _ _ (previous (valid).left)
               (congr!{Vertex A.Carrier} (\fun (v: Vertex) => Group.difference (f v) old) _ _ (valid).right) \then
-          \return trans!{A.Carrier} _ _ _
-            (congr!{A.Carrier A.Carrier} (\fun (x: A.Carrier) => Group.add x (Group.difference (f (treeTarget e)) (f (graph.parent e)))) _ _ first)
-            (trans!{A.Carrier} _ _ _ (Group.comm (Group.difference (f (graph.parent e)) old) (Group.difference (f (treeTarget e)) (f (graph.parent e))))
-              (Group.composeDifferences (f (treeTarget e)) (f (graph.parent e)) old))
+          \return eq_reason_in!{A.Carrier _
+            "=" _ "by" { congr!{A.Carrier A.Carrier} (\fun (x: A.Carrier) => Group.add x (Group.difference (f (treeTarget e)) (f (graph.parent e)))) _ _ first }
+            "=" _ "by" { Group.comm (Group.difference (f (graph.parent e)) old) (Group.difference (f (treeTarget e)) (f (graph.parent e))) }
+            "=" _ "by" { Group.composeDifferences (f (treeTarget e)) (f (graph.parent e)) old }
+          }
         }
   };
 \definition zero[f: ForestEdge -> A.Carrier][vanishes: \forall (e: ForestEdge) -> f e = Group.zero]: \forall (w: Walk) -> sum f w = Group.zero :=
   \induction (w: Walk) \return sum f w = Group.zero \with {
     | root: \fun (i: Fin.Fin components) => \refl(Group.zero)
     | step: \fun (w: Walk)(previous: sum f w = Group.zero)(e: ForestEdge) =>
-        trans!{A.Carrier} _ _ _ (congr2!{A.Carrier A.Carrier A.Carrier} Group.add _ _ _ _ previous (vanishes e)) (Group.zeroLeft Group.zero)
+        trans!{A.Carrier} _ _ _ (congr!{A.Carrier A.Carrier A.Carrier} Group.add _ _ _ _ previous (vanishes e)) (Group.zeroLeft Group.zero)
   };

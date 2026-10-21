@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Modules.Biproduct[V := P.family.Carrier (Nat.Nat^::succ n), W := Q.family.Carrier (Nat.Nat^::succ n), left := P.family.space (Nat.Nat^::succ n), right := Q.family.space (Nat.Nat^::succ n)] \as Source;
 \import Modules.Biproduct[V := P.family.Carrier n, W := Q.family.Carrier n, left := P.family.space n, right := Q.family.space n] \as Target;
 \import Modules.Biproduct[V := P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)), W := Q.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)), left := P.family.space (Nat.Nat^::succ (Nat.Nat^::succ n)), right := Q.family.space (Nat.Nat^::succ (Nat.Nat^::succ n))] \as Before;
@@ -18,14 +19,14 @@
 \definition addition: \forall (x, y: Source.Carrier) -> apply (Source.space.add x y) = Target.space.add (apply x) (apply y) :=
   \fun (x, y: Source.Carrier) => Pairs.ext _ _
     (trans!{{P.family.Carrier n}} _ _ _
-      (congr2!{{P.family.Carrier n} {P.family.Carrier n} {P.family.Carrier n}} ((P.family.space n).add) _ _ _ _
+      (congr!{{P.family.Carrier n} {P.family.Carrier n} {P.family.Carrier n}} ((P.family.space n).add) _ _ _ _
         (P.laws.addition n (Source.first x) (Source.first y)) (t.addition n (Source.second x) (Source.second y)))
       (LeftGroup.four (P.differential.apply n (Source.first x)) (P.differential.apply n (Source.first y)) (t.apply n (Source.second x)) (t.apply n (Source.second y))))
     (Q.laws.addition n (Source.second x) (Source.second y));
 \definition scalar: \forall (a: R)(x: Source.Carrier) -> apply (Source.space.smul a x) = Target.space.smul a (apply x) :=
   \fun (a: R)(x: Source.Carrier) => Pairs.ext _ _
     (trans!{{P.family.Carrier n}} _ _ _
-      (congr2!{{P.family.Carrier n} {P.family.Carrier n} {P.family.Carrier n}} ((P.family.space n).add) _ _ _ _
+      (congr!{{P.family.Carrier n} {P.family.Carrier n} {P.family.Carrier n}} ((P.family.space n).add) _ _ _ _
         (P.laws.scalar n a (Source.first x)) (t.scalar n a (Source.second x)))
       (sym!{{P.family.Carrier n}} _ _ ((P.family.space n).vectorAdd a (P.differential.apply n (Source.first x)) (t.apply n (Source.second x)))))
     (Q.laws.scalar n a (Source.second x));
@@ -38,20 +39,19 @@
     (P.differential.apply n ((P.family.space (Nat.Nat^::succ n)).add (P.differential.apply (Nat.Nat^::succ n) p) (t.apply (Nat.Nat^::succ n) q)))
     (t.apply n (Q.differential.apply (Nat.Nat^::succ n) q)) = (P.family.space n).zero :=
   \fun (p: P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)))(q: Q.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) =>
-    trans!{{P.family.Carrier n}} _ _ _
-      (congr!{{P.family.Carrier n} {P.family.Carrier n}}
+    eq_reason_in!{{P.family.Carrier n} _
+      "=" _ "by" { congr!{{P.family.Carrier n} {P.family.Carrier n}}
         (\fun (z: P.family.Carrier n) => (P.family.space n).add z (t.apply n (Q.differential.apply (Nat.Nat^::succ n) q))) _ _
-        (P.laws.addition n (P.differential.apply (Nat.Nat^::succ n) p) (t.apply (Nat.Nat^::succ n) q)))
-      (trans!{{P.family.Carrier n}} _ _ _
-        (congr!{{P.family.Carrier n} {P.family.Carrier n}}
+        (P.laws.addition n (P.differential.apply (Nat.Nat^::succ n) p) (t.apply (Nat.Nat^::succ n) q)) }
+      "=" _ "by" { congr!{{P.family.Carrier n} {P.family.Carrier n}}
           (\fun (z: P.family.Carrier n) => (P.family.space n).add z (t.apply n (Q.differential.apply (Nat.Nat^::succ n) q))) _ _
-          (congr2!{{P.family.Carrier n} {P.family.Carrier n} {P.family.Carrier n}} ((P.family.space n).add) _ _ _ _
-            (P.laws.squareZero n p) (anticommuting q)))
-        (trans!{{P.family.Carrier n}} _ _ _
-          (congr!{{P.family.Carrier n} {P.family.Carrier n}}
+          (congr!{{P.family.Carrier n} {P.family.Carrier n} {P.family.Carrier n}} ((P.family.space n).add) _ _ _ _
+            (P.laws.squareZero n p) (anticommuting q)) }
+      "=" _ "by" { congr!{{P.family.Carrier n} {P.family.Carrier n}}
             (\fun (z: P.family.Carrier n) => (P.family.space n).add z (t.apply n (Q.differential.apply (Nat.Nat^::succ n) q))) _ _
-            (LeftGroup.zeroLeft ((P.family.space n).neg (t.apply n (Q.differential.apply (Nat.Nat^::succ n) q)))))
-          (LeftGroup.inverseLeft (t.apply n (Q.differential.apply (Nat.Nat^::succ n) q)))));
+            (LeftGroup.zeroLeft ((P.family.space n).neg (t.apply n (Q.differential.apply (Nat.Nat^::succ n) q)))) }
+      "=" _ "by" { LeftGroup.inverseLeft (t.apply n (Q.differential.apply (Nat.Nat^::succ n) q)) }
+    };
 \definition squareZero: \forall (x: Before.Carrier) ->
   apply (Source.make
     ((P.family.space (Nat.Nat^::succ n)).add (P.differential.apply (Nat.Nat^::succ n) (Before.first x)) (t.apply (Nat.Nat^::succ n) (Before.second x)))

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition Fiber[t: TargetGenerators]: \Set := \Cast[Generators] ({ s: Generators \where f s = t });
 \structure ValueLaws[t: TargetGenerators, y: Carrier]: \Prop := {
   onImage: \forall (s: Generators) -> f s = t -> y = generator s,
@@ -69,10 +70,12 @@
   \fun (injective: Injective)(onto: Onto)(t: TargetGenerators) \then
   \takefrom s: Fiber t \by onto t \then
   \let same: f s = t := \bysub(Generators, Fiber t, s) \then
-  \return trans!{Destination.Carrier} _ _ _
-    (congr!{TargetGenerators Destination.Carrier} (\fun (b: TargetGenerators) => (push f).apply ((retraction injective).apply (Destination.generator b))) _ _ (sym!{TargetGenerators} _ _ same))
-    (trans!{Destination.Carrier} _ _ _ (congr!{Carrier Destination.Carrier} ((push f).apply) _ _ (generatorLaw injective s))
-      (trans!{Destination.Carrier} _ _ _ (onGenerator f s) (congr!{TargetGenerators Destination.Carrier} Destination.generator _ _ same)))
+  \return eq_reason_in!{Destination.Carrier _
+    "=" _ "by" { congr!{TargetGenerators Destination.Carrier} (\fun (b: TargetGenerators) => (push f).apply ((retraction injective).apply (Destination.generator b))) _ _ (sym!{TargetGenerators} _ _ same) }
+    "=" _ "by" { congr!{Carrier Destination.Carrier} ((push f).apply) _ _ (generatorLaw injective s) }
+    "=" _ "by" { onGenerator f s }
+    "=" _ "by" { congr!{TargetGenerators Destination.Carrier} Destination.generator _ _ same }
+  }
 };
 \definition rightInverse: \forall (injective: Injective) -> Onto -> ForwardComposition.compose (push f) (retraction injective) = TargetIdentity.identity :=
   \fun (injective: Injective)(onto: Onto) => Destination.To[W := Destination.Carrier, target := Destination.space].ext _ _ (rightGenerator injective onto);

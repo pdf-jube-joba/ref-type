@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition Equivalent[x, y: V]: \Prop := Member S (Group.difference x y);
 \import algebra.Quotient[A := V, relation := Equivalent] \as Quotient;
 \import std.Set[].Quotient[A := V, Equivalent := Equivalent] \as Q;
@@ -91,7 +92,7 @@
       "=" {class (add (scale a x) (scale b x))} "by" {congr!{V Carrier} class _ _ (space.scalarAdd a b x)}
       "=" {addClass (class (scale a x)) (class (scale b x))} "by" {sym!{Carrier} _ _ (addOnClass _ _)}
       "=" {addClass (scaleClass a (class x)) (scaleClass b (class x))}
-      "by" {congr2!{Carrier Carrier Carrier} addClass _ _ _ _ (sym!{Carrier} _ _ (scaleOnClass a x)) (sym!{Carrier} _ _ (scaleOnClass b x))}
+      "by" {congr!{Carrier Carrier Carrier} addClass _ _ _ _ (sym!{Carrier} _ _ (scaleOnClass a x)) (sym!{Carrier} _ _ (scaleOnClass b x))}
     }),
   vectorAdd := \fun (a: R) => Q.induction
     (\fun (C: Carrier) => \forall (D: Carrier) -> scaleClass a (addClass C D) = addClass (scaleClass a C) (scaleClass a D))
@@ -103,7 +104,7 @@
         "=" {class (add (scale a x) (scale a y))} "by" {congr!{V Carrier} class _ _ (space.vectorAdd a x y)}
         "=" {addClass (class (scale a x)) (class (scale a y))} "by" {sym!{Carrier} _ _ (addOnClass _ _)}
         "=" {addClass (scaleClass a (class x)) (scaleClass a (class y))}
-        "by" {congr2!{Carrier Carrier Carrier} addClass _ _ _ _ (sym!{Carrier} _ _ (scaleOnClass a x)) (sym!{Carrier} _ _ (scaleOnClass a y))}
+        "by" {congr!{Carrier Carrier Carrier} addClass _ _ _ _ (sym!{Carrier} _ _ (scaleOnClass a x)) (sym!{Carrier} _ _ (scaleOnClass a y))}
       })),
 };
 
@@ -124,9 +125,11 @@
   \definition respects: \forall (f: Maps.Map) -> Vanishes f -> Lift.Respects (f.apply) :=
     \fun (f: Maps.Map)(vanishes: Vanishes f)(x, y: V)(related: Equivalent x y) =>
       TargetGroup.cancelRight (Target.neg (f.apply y)) (f.apply x) (f.apply y)
-        (trans!{W} _ Target.zero _
-          (trans!{W} _ _ _ (sym!{W} _ _ (Maps.differencePreserved f x y)) (vanishes (Group.difference x y) related))
-          (sym!{W} _ _ (TargetGroup.inverseRight (f.apply y))));
+        (eq_reason_in!{W _
+          "=" _ "by" { sym!{W} _ _ (Maps.differencePreserved f x y) }
+          "=" _ "by" { vanishes (Group.difference x y) related }
+          "=" _ "by" { sym!{W} _ _ (TargetGroup.inverseRight (f.apply y)) }
+        });
   \definition descend[f: Maps.Map][vanishes: Vanishes f]: Result.Map := Result.Map {
     apply := Lift.apply equivalence (f.apply) (respects f vanishes),
     addition := Lift.preservesBinary equivalence (f.apply) (respects f vanishes) add additionRespects Target.add (f.addition),

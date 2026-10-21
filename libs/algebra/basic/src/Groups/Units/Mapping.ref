@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.Units[A := B, ring := target] \as Target;
 \import algebra.Hom[A := A, B := B] \as Rings;
 \import std.Alg[].Ring[] \as Ring;
@@ -5,8 +6,16 @@
   Rings.semiringLaws (Ring.ringAsSemiring A ring) (Ring.ringAsSemiring B target) f;
 \definition apply[x: Unit]: Target.Unit := Target.Unit {
   value := f x.value, inverse := f x.inverse,
-  left := trans!{B} _ _ _ (sym!{B} _ _ (laws.mul x.inverse x.value)) (trans!{B} _ _ _ (congr!{A B} f _ _ x.left) laws.one),
-  right := trans!{B} _ _ _ (sym!{B} _ _ (laws.mul x.value x.inverse)) (trans!{B} _ _ _ (congr!{A B} f _ _ x.right) laws.one),
+  left := eq_reason_in!{B _
+    "=" _ "by" { sym!{B} _ _ (laws.mul x.inverse x.value) }
+    "=" _ "by" { congr!{A B} f _ _ x.left }
+    "=" _ "by" laws.one
+  },
+  right := eq_reason_in!{B _
+    "=" _ "by" { sym!{B} _ _ (laws.mul x.value x.inverse) }
+    "=" _ "by" { congr!{A B} f _ _ x.right }
+    "=" _ "by" laws.one
+  },
 };
 \definition atOne: apply unit = Target.unit := Target.ext _ _ laws.one;
 \definition preservesProduct: \forall (x, y: Unit) -> apply (product x y) = Target.product (apply x) (apply y) :=

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.\parent.Evaluation[n := n, k := k] \as CellEvaluation;
 \import \parent.\parent.\parent.Comparison[] \as CellComparison;
 \import \root.SimplexChains[n := k] \as Geometry;
@@ -5,19 +6,21 @@
 \import Modules.Hom[V := Carrier, W := Tuples.Carrier (N.Nat^::succ n), source := space, target := Tuples.space (N.Nat^::succ n)].Composition[U := CellDegree.Carrier, domain := CellDegree.space] \as LiftComposition;
 \import Modules.Free[Generators := Cells.Cell n].To[W := Tuples.Carrier (N.Nat^::succ n), target := Tuples.space (N.Nat^::succ n)] \as CellFree;
 \definition liftEquation: \forall (v: Affine.Vertices)(word: Word) -> LiftComposition.compose (map v) (lift word) = CellEvaluation.map (Iteration.vertices v word) :=
-  \fun (v: Affine.Vertices)(word: Word) => CellFree.ext _ _ (\fun (c: Cells.Cell n) => trans!{{Tuples.Carrier (N.Nat^::succ n)}} _ _ _
-    (congr!{Carrier {Tuples.Carrier (N.Nat^::succ n)}} ((map v).apply) _ _ (liftOnGenerator word c))
-    (trans!{{Tuples.Carrier (N.Nat^::succ n)}} _ _ _ (onGenerator v (Lists.List[Cells.Cell n]::cons c word))
-      (sym!{{Tuples.Carrier (N.Nat^::succ n)}} _ _ (CellEvaluation.onGenerator (Iteration.vertices v word) c))));
+  \fun (v: Affine.Vertices)(word: Word) => CellFree.ext _ _ (\fun (c: Cells.Cell n) => eq_reason_in!{{Tuples.Carrier (N.Nat^::succ n)} _
+    "=" _ "by" { congr!{Carrier {Tuples.Carrier (N.Nat^::succ n)}} ((map v).apply) _ _ (liftOnGenerator word c) }
+    "=" _ "by" { onGenerator v (Lists.List[Cells.Cell n]::cons c word) }
+    "=" _ "by" { sym!{{Tuples.Carrier (N.Nat^::succ n)}} _ _ (CellEvaluation.onGenerator (Iteration.vertices v word) c) }
+  });
 \import Modules.Hom[V := CellDegree.Carrier, W := Tuples.Carrier (N.Nat^::succ n), source := CellDegree.space, target := Tuples.space (N.Nat^::succ n)] \as LiftMaps;
 \definition liftLaw: \forall (v: Affine.Vertices)(word: Word)(x: CellDegree.Carrier) -> (map v).apply ((lift word).apply x) = (CellEvaluation.map (Iteration.vertices v word)).apply x :=
   \fun (v: Affine.Vertices)(word: Word)(x: CellDegree.Carrier) => congr!{LiftMaps.Map {Tuples.Carrier (N.Nat^::succ n)}} (\fun (f: LiftMaps.Map) => (f).apply x) _ _ (liftEquation v word);
 \definition onWord: \forall (v: Affine.Vertices)(word: Word) -> (map v).apply ((step).apply (generator word)) = (Subdivision.map (N.Nat^::succ n)).apply ((map v).apply (generator word)) :=
-  \fun (v: Affine.Vertices)(word: Word) => trans!{{Tuples.Carrier (N.Nat^::succ n)}} _ _ _
-    (congr!{Carrier {Tuples.Carrier (N.Nat^::succ n)}} ((map v).apply) _ _ (stepOnGenerator word))
-    (trans!{{Tuples.Carrier (N.Nat^::succ n)}} _ _ _ (liftLaw v word (chain n))
-      (trans!{{Tuples.Carrier (N.Nat^::succ n)}} _ _ _ (CellComparison.law n k (Iteration.vertices v word))
-        (congr!{{Tuples.Carrier (N.Nat^::succ n)} {Tuples.Carrier (N.Nat^::succ n)}} ((Subdivision.map (N.Nat^::succ n)).apply) _ _ (sym!{{Tuples.Carrier (N.Nat^::succ n)}} _ _ (onGenerator v word)))));
+  \fun (v: Affine.Vertices)(word: Word) => eq_reason_in!{{Tuples.Carrier (N.Nat^::succ n)} _
+    "=" _ "by" { congr!{Carrier {Tuples.Carrier (N.Nat^::succ n)}} ((map v).apply) _ _ (stepOnGenerator word) }
+    "=" _ "by" { liftLaw v word (chain n) }
+    "=" _ "by" { CellComparison.law n k (Iteration.vertices v word) }
+    "=" _ "by" { congr!{{Tuples.Carrier (N.Nat^::succ n)} {Tuples.Carrier (N.Nat^::succ n)}} ((Subdivision.map (N.Nat^::succ n)).apply) _ _ (sym!{{Tuples.Carrier (N.Nat^::succ n)}} _ _ (onGenerator v word)) }
+  };
 \import Modules.Hom[V := Carrier, W := Tuples.Carrier (N.Nat^::succ n), source := space, target := Tuples.space (N.Nat^::succ n)].Composition[U := Carrier, domain := space] \as First;
 \import Modules.Hom[V := Tuples.Carrier (N.Nat^::succ n), W := Tuples.Carrier (N.Nat^::succ n), source := Tuples.space (N.Nat^::succ n), target := Tuples.space (N.Nat^::succ n)].Composition[U := Carrier, domain := space] \as Second;
 \definition equation: \forall (v: Affine.Vertices) -> First.compose (map v) step = Second.compose (Subdivision.map (N.Nat^::succ n)) (map v) := \fun (v: Affine.Vertices) => Extend.ext _ _ (onWord v);

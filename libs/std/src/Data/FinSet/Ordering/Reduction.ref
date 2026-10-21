@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition AvoidsZero: \Prop := \forall (i: Fin k) -> Logic.Not (f i = zero n);
 \definition positive[nonzero: AvoidsZero][i: Fin k]: Nonzero n :=
   \into[Fin (N.Nat^::succ n)](f i, Nonzero n) \by { nonzero i };
@@ -6,10 +7,11 @@
   \fun (nonzero: AvoidsZero)(i: Fin k) => successorPredecessor n (positive nonzero i);
 \definition injective: \forall (nonzero: AvoidsZero) -> Injective k (N.Nat^::succ n) f -> Injective k n (lower nonzero) :=
   \fun (nonzero: AvoidsZero)(injection: Injective k (N.Nat^::succ n) f)(i, j: Fin k)(same: lower nonzero i = lower nonzero j) =>
-    injection i j (trans!{{Fin (N.Nat^::succ n)}} (f i) (succ n (lower nonzero i)) (f j)
-      (sym!{{Fin (N.Nat^::succ n)}} (succ n (lower nonzero i)) (f i) (successor nonzero i))
-      (trans!{{Fin (N.Nat^::succ n)}} (succ n (lower nonzero i)) (succ n (lower nonzero j)) (f j)
-        (congr!{{Fin n} {Fin (N.Nat^::succ n)}} (succ n) (lower nonzero i) (lower nonzero j) same) (successor nonzero j)));
+    injection i j (eq_reason_in!{{Fin (N.Nat^::succ n)} { f i }
+      "=" { succ n (lower nonzero i) } "by" { sym!{{Fin (N.Nat^::succ n)}} (succ n (lower nonzero i)) (f i) (successor nonzero i) }
+      "=" { succ n (lower nonzero j) } "by" { congr!{{Fin n} {Fin (N.Nat^::succ n)}} (succ n) (lower nonzero i) (lower nonzero j) same }
+      "=" { f j } "by" { successor nonzero j }
+    });
 \definition increasing: \forall (nonzero: AvoidsZero)(p: PermutationType k) ->
   Increasing k n (\fun (i: Fin k) => lower nonzero (p.forward i)) ->
   Increasing k (N.Nat^::succ n) (\fun (i: Fin k) => f (p.forward i)) :=

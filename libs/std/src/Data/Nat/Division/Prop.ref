@@ -1,8 +1,8 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Logic[].Equality[] \as Equality;
 \use Equality.sym;
 \use Equality.trans;
 \use Equality.congr;
-\use Equality.congr2;
 \use Equality.transport;
 
 \import std.Data[].Bool[] \as B;
@@ -89,9 +89,11 @@
       \({ Nat^::succ d } "+" ({ Nat^::succ d } "*" q)\) =
         Nat^::succ \(d "+" ({ Nat^::succ d } "*" q)\) :=
       Basic.addSuccLeft d \({ Nat^::succ d } "*" q\) \then
-    \return trans!{Nat^} _ _ _ carryProduct
-      (trans!{Nat^} _ _ _ exposeSuccessor
-        (Op.succCong _ _ (Basic.addComm d \({ Nat^::succ d } "*" q\))))
+    \return eq_reason_in!{Nat^ _
+      "=" _ "by" carryProduct
+      "=" _ "by" exposeSuccessor
+      "=" _ "by" { Op.succCong _ _ (Basic.addComm d \({ Nat^::succ d } "*" q\)) }
+    }
   };
 \definition divModNextValue:
   \forall (b: Nat^) -> \forall (p: NatPairDef.NatPair) ->
@@ -167,7 +169,7 @@
   };
 \definition subCong:
   \forall (a, b, c, d: Nat^) -> a = b -> c = d -> Op.sub a c = Op.sub b d :=
-  congr2!{Nat^ Nat^ Nat^} Op.sub;
+  congr!{Nat^ Nat^ Nat^} Op.sub;
 \definition subAddBoth:
   \forall (c, a, b: Nat^) -> Op.sub \(a "+" c\) \(b "+" c\) = Op.sub a b :=
   \induction (c: Nat^) \return \forall (a, b: Nat^) -> Op.sub \(a "+" c\) \(b "+" c\) = Op.sub a b \with {
@@ -185,9 +187,12 @@
       | zero : (trans!{Nat^} _ _ _ (Basic.subZeroLeft \(d "*" { Nat^::succ b }\))
           (sym!{Nat^} _ _ (congr!{Nat^ Nat^} (Op.mul d) _ _ (Basic.subZeroLeft (Nat^::succ b)))))
       | succ : (\fun (a: Nat^) => \fun (unused: Op.sub \(d "*" a\) \(d "*" { Nat^::succ b }\) = \(d "*" { Op.sub a (Nat^::succ b) }\)) =>
-          trans!{Nat^} _ _ _ (subCong _ _ _ _ (Basic.mulSuccRight d a) (Basic.mulSuccRight d b))
-            (trans!{Nat^} _ _ _ (subCong _ _ _ _ (Basic.addComm d \(d "*" a\)) (Basic.addComm d \(d "*" b\)))
-              (trans!{Nat^} _ _ _ (subAddBoth d \(d "*" a\) \(d "*" b\)) (ih a))))
+          eq_reason_in!{Nat^ _
+            "=" _ "by" { subCong _ _ _ _ (Basic.mulSuccRight d a) (Basic.mulSuccRight d b) }
+            "=" _ "by" { subCong _ _ _ _ (Basic.addComm d \(d "*" a\)) (Basic.addComm d \(d "*" b\)) }
+            "=" _ "by" { subAddBoth d \(d "*" a\) \(d "*" b\) }
+            "=" _ "by" { ih a }
+          })
       })
     };
 \definition dividesSub[d, a, b: Nat^]:

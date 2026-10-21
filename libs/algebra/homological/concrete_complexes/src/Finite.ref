@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Data[].Nat[] \as N;
 \import N.Basic[].Def[] \as Nat;
 \import std.Arithmetic[].Int[] \as I;
@@ -27,7 +28,6 @@
 \use Equality.trans;
 \use Equality.sym;
 \use Equality.congr;
-\use Equality.congr2;
 \import std.Arithmetic[].IntAlgebra[].Ring[] \as IntegerRing;
 \import std.Alg[].Ring[] \as Ring;
 \import module_theory.Module[].Over[R := I.Int^, ring := Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing] \as Modules;
@@ -40,7 +40,7 @@
 \definition nativeProductZero: \forall (i, j: Indices.Fin one) -> Product.reflected Examples.a^ boundary^ i j = I.Int^::ofNat zero :=
   \fun (i, j: Indices.Fin one) => trans!{I.Int^} (Product.reflected Examples.a^ boundary^ i j)
     (Product.reflected Examples.a^ boundary^ (Indices.zero zero) (Indices.zero zero)) (I.Int^::ofNat zero)
-    (congr2!{{Indices.Fin one} {Indices.Fin one} I.Int^} (Product.reflected Examples.a^ boundary^) i (Indices.zero zero) j (Indices.zero zero)
+    (congr!{{Indices.Fin one} {Indices.Fin one} I.Int^} (Product.reflected Examples.a^ boundary^) i (Indices.zero zero) j (Indices.zero zero)
       (Indices.singletonValue i) (Indices.singletonValue j)) (\refl(I.Int^::ofNat zero));
 \definition productZero: Composition.product (\fun (i: Indices.Fin one)(j: Indices.Fin two) => Examples.a^ i j)
   (\fun (i: Indices.Fin two)(j: Indices.Fin one) => boundary^ i j) = ProductMatrix.zero := \block {
@@ -57,14 +57,11 @@
 \definition pairData: Pair.Data := Pair.Data { outgoing := Examples.a^, incoming := boundary^ };
 \definition pairLaws: Pair.Laws[pairData] := Pair.Laws[pairData] {
   squareZero := \fun (v: Modules.FiniteCoordinates[n := one].Carrier) =>
-    trans!{Modules.FiniteCoordinates[n := one].Carrier}
-      (Outgoing.apply (\fun (i: Indices.Fin one)(j: Indices.Fin two) => Examples.a^ i j) (Incoming.apply (\fun (i: Indices.Fin two)(j: Indices.Fin one) => boundary^ i j) v))
-      (ProductMatrix.apply (Composition.product (\fun (i: Indices.Fin one)(j: Indices.Fin two) => Examples.a^ i j) (\fun (i: Indices.Fin two)(j: Indices.Fin one) => boundary^ i j)) v)
-      (Modules.FiniteCoordinates[n := one].space).zero
-      (sym!{Modules.FiniteCoordinates[n := one].Carrier} _ _ (Composition.point (\fun (i: Indices.Fin one)(j: Indices.Fin two) => Examples.a^ i j) (\fun (i: Indices.Fin two)(j: Indices.Fin one) => boundary^ i j) v))
-      (trans!{Modules.FiniteCoordinates[n := one].Carrier} _ _ _
-        (congr!{ProductMatrix.Matrix {Modules.FiniteCoordinates[n := one].Carrier}} (\fun (a: ProductMatrix.Matrix) => ProductMatrix.apply a v) _ _ productZero)
-        (ProductMatrix.zeroAction v)),
+    eq_reason_in!{{ Modules.FiniteCoordinates[n := one].Carrier } { Outgoing.apply (\fun (i: Indices.Fin one)(j: Indices.Fin two) => Examples.a^ i j) (Incoming.apply (\fun (i: Indices.Fin two)(j: Indices.Fin one) => boundary^ i j) v) }
+      "=" { ProductMatrix.apply (Composition.product (\fun (i: Indices.Fin one)(j: Indices.Fin two) => Examples.a^ i j) (\fun (i: Indices.Fin two)(j: Indices.Fin one) => boundary^ i j)) v } "by" { sym!{Modules.FiniteCoordinates[n := one].Carrier} _ _ (Composition.point (\fun (i: Indices.Fin one)(j: Indices.Fin two) => Examples.a^ i j) (\fun (i: Indices.Fin two)(j: Indices.Fin one) => boundary^ i j) v) }
+      "=" _ "by" { congr!{ProductMatrix.Matrix {Modules.FiniteCoordinates[n := one].Carrier}} (\fun (a: ProductMatrix.Matrix) => ProductMatrix.apply a v) _ _ productZero }
+      "=" _ "by" { ProductMatrix.zeroAction v }
+    },
 };
 \definition complex: Pair.Complex := \into[Pair.Data](pairData, { data: Pair.Data \where Pair.Laws[data] }) \by { pairLaws };
 \import Pair.Of[C := complex] \as Homology;

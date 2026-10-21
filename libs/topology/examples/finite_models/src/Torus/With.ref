@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \root.Surface[V := Vertex, E := Edge, T := Triangle].On[surface := object].With[A := A] \as Surface;
 \import Modules.Laws[V := A.Carrier, space := A.space] \as Values;
 \import algebra.Group[].Of[Carrier := A.Carrier, group := Values.additive] \as Group;
@@ -5,7 +6,6 @@
 \use Equality.trans;
 \use Equality.sym;
 \use Equality.congr;
-\use Equality.congr2;
 \definition Edges: \Set := Edge -> A.Carrier;
 \definition Triangles: \Set := Triangle -> A.Carrier;
 \definition edge[a, b, c: A.Carrier]: Edges := \induction (i: Edge) \return A.Carrier \with {
@@ -51,22 +51,26 @@
 \definition total[f: Triangles]: A.Carrier := Group.difference (f Triangle::first) (f Triangle::second);
 \definition totalBoundary[f: Edges]: total (deltaOne f) = Group.zero :=
   trans!{A.Carrier} _ _ _
-    (congr2!{A.Carrier A.Carrier A.Carrier} Group.difference _ _ _ _ (firstBoundary f) (secondBoundary f))
+    (congr!{A.Carrier A.Carrier A.Carrier} Group.difference _ _ _ _ (firstBoundary f) (secondBoundary f))
     (Group.inverseRight (Group.difference (Group.add (f Edge::horizontal) (f Edge::vertical)) (f Edge::diagonal)));
 
 \definition closedDiagonal[f: Edges][closed: deltaOne f = triangle Group.zero Group.zero]: f Edge::diagonal = Group.add (f Edge::horizontal) (f Edge::vertical) :=
   sym!{A.Carrier} _ _
     (Group.cancelRight (Group.neg (f Edge::diagonal)) (Group.add (f Edge::horizontal) (f Edge::vertical)) (f Edge::diagonal)
-      (trans!{A.Carrier} _ _ _
-        (trans!{A.Carrier} _ _ _ (sym!{A.Carrier} _ _ (firstBoundary f))
-          (congr!{Triangles A.Carrier} (\fun (x: Triangles) => x Triangle::first) _ _ closed))
-        (sym!{A.Carrier} _ _ (Group.inverseRight (f Edge::diagonal)))));
+      (eq_reason_in!{A.Carrier _
+        "=" _ "by" { sym!{A.Carrier} _ _ (firstBoundary f) }
+        "=" _ "by" { congr!{Triangles A.Carrier} (\fun (x: Triangles) => x Triangle::first) _ _ closed }
+        "=" _ "by" { sym!{A.Carrier} _ _ (Group.inverseRight (f Edge::diagonal)) }
+      }));
 \definition normal[f: Triangles]: Triangles := triangle (total f) Group.zero;
 \definition diagonalBoundary[x: A.Carrier]: deltaOne (edge x Group.zero Group.zero) = triangle x x :=
   trianglesExt (deltaOne (edge x Group.zero Group.zero)) (triangle x x)
     (trans!{A.Carrier} _ _ _ (congr!{A.Carrier A.Carrier} (\fun (z: A.Carrier) => Group.add z x) _ _ (Group.inverseRight Group.zero)) (Group.zeroLeft x))
-    (trans!{A.Carrier} _ _ _ (Group.zeroRight (Group.difference x Group.zero))
-      (trans!{A.Carrier} _ _ _ (congr!{A.Carrier A.Carrier} (Group.add x) _ _ Group.negZero) (Group.zeroRight x)));
+    (eq_reason_in!{A.Carrier _
+      "=" _ "by" { Group.zeroRight (Group.difference x Group.zero) }
+      "=" _ "by" { congr!{A.Carrier A.Carrier} (Group.add x) _ _ Group.negZero }
+      "=" _ "by" { Group.zeroRight x }
+    });
 \definition boundaryDifference[f: Triangles]: deltaOne (edge (f Triangle::second) Group.zero Group.zero) =
   \fun (t: Triangle) => Group.difference (f t) (normal f t) :=
   trans!{Triangles} _ _ _ (diagonalBoundary (f Triangle::second))

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Cochains.At[C := Native.complex, k := one] \as Source;
 \import Local.DegreeOne[] \as Target;
 \import \root.Surface[V := V, E := E, T := T].On[surface := surface].Simplicial[].Coefficients[A := A].DegreeZero[] \as ZeroCoordinates;
@@ -5,15 +6,17 @@
 \import Modules.Of[V := Matrix.first.Carrier, space := Matrix.first.space].Submodule[].Image[U := Matrix.zeroth.Carrier, source := Matrix.zeroth.space] \as BoundaryImages;
 \import \root.Surface[V := V, E := E, T := T].On[surface := surface].Simplicial[].Coefficients[A := A].DegreeOne[] \as OneCoordinates;
 \definition forwardClosed[phi: Source.CycleCarrier]: Matrix.deltaOne (OneCoordinates.evaluate phi) = (Matrix.second.space).zero :=
-  trans!{TwoCoordinates.FunctionCarrier} _ _ _ (sym!{TwoCoordinates.FunctionCarrier} _ _ (Differentials.first phi))
-    (trans!{TwoCoordinates.FunctionCarrier} _ _ _
-      (congr!{{Native.Carrier two} TwoCoordinates.FunctionCarrier} TwoCoordinates.evaluate _ _ (\bysub(Native.Carrier one, (Source.cycles).carrier, phi)))
-      (Modules.Hom[V := Native.Carrier two, W := TwoCoordinates.FunctionCarrier, source := Native.space two, target := TwoCoordinates.functionSpace].zeroPreserved TwoCoordinates.forward));
+  eq_reason_in!{TwoCoordinates.FunctionCarrier _
+    "=" _ "by" { sym!{TwoCoordinates.FunctionCarrier} _ _ (Differentials.first phi) }
+    "=" _ "by" { congr!{{Native.Carrier two} TwoCoordinates.FunctionCarrier} TwoCoordinates.evaluate _ _ (\bysub(Native.Carrier one, (Source.cycles).carrier, phi)) }
+    "=" _ "by" { Modules.Hom[V := Native.Carrier two, W := TwoCoordinates.FunctionCarrier, source := Native.space two, target := TwoCoordinates.functionSpace].zeroPreserved TwoCoordinates.forward }
+  };
 \definition backwardClosed[f: Target.CycleCarrier]: Native.apply one (OneCoordinates.extend f) = (Native.space two).zero :=
-  trans!{{Native.Carrier two}} _ _ _ (Differentials.inverseFirst f)
-    (trans!{{Native.Carrier two}} _ _ _
-      (congr!{TwoCoordinates.FunctionCarrier {Native.Carrier two}} TwoCoordinates.extend _ _ (\bysub(Matrix.first.Carrier, (Target.cycles).carrier, f)))
-      (Modules.Hom[V := TwoCoordinates.FunctionCarrier, W := Native.Carrier two, source := TwoCoordinates.functionSpace, target := Native.space two].zeroPreserved TwoCoordinates.backward));
+  eq_reason_in!{{Native.Carrier two} _
+    "=" _ "by" { Differentials.inverseFirst f }
+    "=" _ "by" { congr!{TwoCoordinates.FunctionCarrier {Native.Carrier two}} TwoCoordinates.extend _ _ (\bysub(Matrix.first.Carrier, (Target.cycles).carrier, f)) }
+    "=" _ "by" { Modules.Hom[V := TwoCoordinates.FunctionCarrier, W := Native.Carrier two, source := TwoCoordinates.functionSpace, target := Native.space two].zeroPreserved TwoCoordinates.backward }
+  };
 \definition forwardValue[phi: Source.CycleCarrier]: Target.CycleCarrier := Target.cycle (OneCoordinates.evaluate phi) (forwardClosed phi);
 \definition backwardValue[f: Target.CycleCarrier]: Source.CycleCarrier := Source.cycle (OneCoordinates.extend f) (backwardClosed f);
 \definition sourceCycles: Modules.Bundle := Modules.Bundle { Carrier := Source.CycleCarrier, space := Source.cycleSpace };

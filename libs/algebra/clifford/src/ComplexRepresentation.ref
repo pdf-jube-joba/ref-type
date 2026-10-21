@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 /* Faithful complex coefficient representations of diagonal Pin extensions. */
 \import std.Data[].Nat[] \as N;
 \import real.Analysis[] \as R;
@@ -25,7 +26,6 @@
 \use Equality.sym;
 \use Equality.trans;
 \use Equality.congr;
-\use Equality.congr2;
 \use Equality.eq_reason;
 \use Logic.either;
 \definition CarrierPair: \Set := Pair.Times^[E.Carrier, E.Carrier];
@@ -36,15 +36,24 @@
   \fun (a: R.Real)(x: E.Carrier) => trans!{E.Carrier} _ _ _
     (congr!{E.Carrier E.Carrier} (\fun (y: E.Carrier) => Clifford.mul y x) _ _ (Relations.scalarNeg a)) (Units.negMul (Clifford.scalar a) x);
 \definition bothNegative: \forall (a: R.Real)(x: E.Carrier) -> Clifford.scale (R.neg a) (Clifford.neg x) = Clifford.scale a x :=
-  \fun (a: R.Real)(x: E.Carrier) => trans!{E.Carrier} _ _ _ (negativeScalar a (Clifford.neg x))
-    (trans!{E.Carrier} _ _ _ (congr!{E.Carrier E.Carrier} Clifford.neg _ _ (Vectors.scaleNegative a x)) (Sum.negNeg (Clifford.scale a x)));
+  \fun (a: R.Real)(x: E.Carrier) => eq_reason_in!{E.Carrier _
+    "=" _ "by" { negativeScalar a (Clifford.neg x) }
+    "=" _ "by" { congr!{E.Carrier E.Carrier} Clifford.neg _ _ (Vectors.scaleNegative a x) }
+    "=" _ "by" { Sum.negNeg (Clifford.scale a x) }
+  };
 \definition scaleUnit: \forall (a: R.Real)(g: Pins.Pin) -> Clifford.mul (Clifford.scale a g.value) g.inverse = Clifford.scalar a :=
-  \fun (a: R.Real)(g: Pins.Pin) => trans!{E.Carrier} _ _ _ (sym!{E.Carrier} _ _ (Clifford.algebra.scalarMulLeft a g.value g.inverse))
-    (trans!{E.Carrier} _ _ _ (congr!{E.Carrier E.Carrier} (Clifford.scale a) _ _ g.right) (E.ring.semiring.multiplicative.rightIdentity (Clifford.scalar a)));
+  \fun (a: R.Real)(g: Pins.Pin) => eq_reason_in!{E.Carrier _
+    "=" _ "by" { sym!{E.Carrier} _ _ (Clifford.algebra.scalarMulLeft a g.value g.inverse) }
+    "=" _ "by" { congr!{E.Carrier E.Carrier} (Clifford.scale a) _ _ g.right }
+    "=" _ "by" { E.ring.semiring.multiplicative.rightIdentity (Clifford.scalar a) }
+  };
 \definition scaleInjective: \forall (g: Pins.Pin)(a, b: R.Real) -> Clifford.scale a g.value = Clifford.scale b g.value -> a = b :=
   \fun (g: Pins.Pin)(a, b: R.Real)(same: _) => (Faithfulness.faithful n).scalarInjective a b
-    (trans!{E.Carrier} _ _ _ (sym!{E.Carrier} _ _ (scaleUnit a g))
-      (trans!{E.Carrier} _ _ _ (congr!{E.Carrier E.Carrier} (\fun (x: E.Carrier) => Clifford.mul x g.inverse) _ _ same) (scaleUnit b g)));
+    (eq_reason_in!{E.Carrier _
+      "=" _ "by" { sym!{E.Carrier} _ _ (scaleUnit a g) }
+      "=" _ "by" { congr!{E.Carrier E.Carrier} (\fun (x: E.Carrier) => Clifford.mul x g.inverse) _ _ same }
+      "=" _ "by" { scaleUnit b g }
+    });
 \module By(G: \Set, group: std.Alg[].Alg[].Group[G],
   embedding: algebra.Hom[A := G, B := Pins.Pin].GroupMap group Pins.group,
   injective: \forall (g, h: G) -> embedding g = embedding h -> g = h,

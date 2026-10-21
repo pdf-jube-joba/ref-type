@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Forward.At[k := k] \as ForwardMap;
 \import Backward.At[k := k] \as BackwardMap;
 \import \root.PullbackComposition[n := n, m := m, l := n].Between[M := M, N := N, P := M].Of[f := d.forward, g := d.backward].At[k := k] \as SourceLaw;
@@ -7,21 +8,21 @@
 \import SourcePullback.Of[f := SourceIdentity.map].At[k := k] \as SourceIdentityMap;
 \import TargetPullback.Of[f := TargetIdentity.map].At[k := k] \as TargetIdentityMap;
 \definition leftInverse: \forall (omega: TargetForms.Form k) -> BackwardMap.apply (ForwardMap.apply omega) = omega :=
-  \fun (omega: TargetForms.Form k) => trans!{{TargetForms.Form k}} _ (TargetCompositeMap.apply omega) _
-    (sym!{{TargetForms.Form k}} _ _ (TargetLaw.law omega))
-    (trans!{{TargetForms.Form k}} _ (TargetIdentityMap.apply omega) _
-      (congr!{{TargetMaps.Map} {TargetForms.Form k}}
+  \fun (omega: TargetForms.Form k) => eq_reason_in!{{TargetForms.Form k} _
+    "=" { TargetCompositeMap.apply omega } "by" { sym!{{TargetForms.Form k}} _ _ (TargetLaw.law omega) }
+    "=" { TargetIdentityMap.apply omega } "by" { congr!{{TargetMaps.Map} {TargetForms.Form k}}
         (\fun (map: TargetMaps.Map) => TargetPullback.Of[f := map].At[k := k].apply omega)
-        TargetComposite.map TargetIdentity.map targetComposite)
-      (TargetIdentityLaw.At[k := k].law omega));
+        TargetComposite.map TargetIdentity.map targetComposite }
+    "=" _ "by" { TargetIdentityLaw.At[k := k].law omega }
+  };
 \definition rightInverse: \forall (omega: SourceForms.Form k) -> ForwardMap.apply (BackwardMap.apply omega) = omega :=
-  \fun (omega: SourceForms.Form k) => trans!{{SourceForms.Form k}} _ (SourceCompositeMap.apply omega) _
-    (sym!{{SourceForms.Form k}} _ _ (SourceLaw.law omega))
-    (trans!{{SourceForms.Form k}} _ (SourceIdentityMap.apply omega) _
-      (congr!{{SourceMaps.Map} {SourceForms.Form k}}
+  \fun (omega: SourceForms.Form k) => eq_reason_in!{{SourceForms.Form k} _
+    "=" { SourceCompositeMap.apply omega } "by" { sym!{{SourceForms.Form k}} _ _ (SourceLaw.law omega) }
+    "=" { SourceIdentityMap.apply omega } "by" { congr!{{SourceMaps.Map} {SourceForms.Form k}}
         (\fun (map: SourceMaps.Map) => SourcePullback.Of[f := map].At[k := k].apply omega)
-        SourceComposite.map SourceIdentity.map sourceComposite)
-      (SourceIdentityLaw.At[k := k].law omega));
+        SourceComposite.map SourceIdentity.map sourceComposite }
+    "=" _ "by" { SourceIdentityLaw.At[k := k].law omega }
+  };
 \import Spaces.Isomorphism[V := TargetForms.Form k, W := SourceForms.Form k,
   source := TargetForms.At[k := k].space, target := SourceForms.At[k := k].space] \as Isomorphism;
 \definition formsIsomorphism: Isomorphism.Isomorphism := Isomorphism.Isomorphism {
@@ -36,20 +37,20 @@
 \import Complexes.At[C := TargetDeRham.complex, k := k] \as TargetH;
 \definition cohomologyLeftInverse: \forall (h: TargetH.Cohomology) -> BackwardH.apply (ForwardH.apply h) = h :=
   TargetH.classInduction (\fun (h: TargetH.Cohomology) => BackwardH.apply (ForwardH.apply h) = h)
-    (\fun (omega: TargetH.CycleCarrier) => trans!{{TargetH.Cohomology}} _ (BackwardH.apply (SourceH.classOf (ForwardH.cycle omega))) _
-      (congr!{{SourceH.Cohomology} {TargetH.Cohomology}} BackwardH.apply _ _ (ForwardH.onClass omega))
-      (trans!{{TargetH.Cohomology}} _ (TargetH.classOf (BackwardH.cycle (ForwardH.cycle omega))) _
-        (BackwardH.onClass (ForwardH.cycle omega))
-        (congr!{{TargetH.CycleCarrier} {TargetH.Cohomology}} TargetH.classOf
-          (BackwardH.cycle (ForwardH.cycle omega)) omega (leftInverse omega))));
+    (\fun (omega: TargetH.CycleCarrier) => eq_reason_in!{{TargetH.Cohomology} _
+      "=" { BackwardH.apply (SourceH.classOf (ForwardH.cycle omega)) } "by" { congr!{{SourceH.Cohomology} {TargetH.Cohomology}} BackwardH.apply _ _ (ForwardH.onClass omega) }
+      "=" { TargetH.classOf (BackwardH.cycle (ForwardH.cycle omega)) } "by" { BackwardH.onClass (ForwardH.cycle omega) }
+      "=" _ "by" { congr!{{TargetH.CycleCarrier} {TargetH.Cohomology}} TargetH.classOf
+          (BackwardH.cycle (ForwardH.cycle omega)) omega (leftInverse omega) }
+    });
 \definition cohomologyRightInverse: \forall (h: SourceH.Cohomology) -> ForwardH.apply (BackwardH.apply h) = h :=
   SourceH.classInduction (\fun (h: SourceH.Cohomology) => ForwardH.apply (BackwardH.apply h) = h)
-    (\fun (omega: SourceH.CycleCarrier) => trans!{{SourceH.Cohomology}} _ (ForwardH.apply (TargetH.classOf (BackwardH.cycle omega))) _
-      (congr!{{TargetH.Cohomology} {SourceH.Cohomology}} ForwardH.apply _ _ (BackwardH.onClass omega))
-      (trans!{{SourceH.Cohomology}} _ (SourceH.classOf (ForwardH.cycle (BackwardH.cycle omega))) _
-        (ForwardH.onClass (BackwardH.cycle omega))
-        (congr!{{SourceH.CycleCarrier} {SourceH.Cohomology}} SourceH.classOf
-          (ForwardH.cycle (BackwardH.cycle omega)) omega (rightInverse omega))));
+    (\fun (omega: SourceH.CycleCarrier) => eq_reason_in!{{SourceH.Cohomology} _
+      "=" { ForwardH.apply (TargetH.classOf (BackwardH.cycle omega)) } "by" { congr!{{TargetH.Cohomology} {SourceH.Cohomology}} ForwardH.apply _ _ (BackwardH.onClass omega) }
+      "=" { SourceH.classOf (ForwardH.cycle (BackwardH.cycle omega)) } "by" { ForwardH.onClass (BackwardH.cycle omega) }
+      "=" _ "by" { congr!{{SourceH.CycleCarrier} {SourceH.Cohomology}} SourceH.classOf
+          (ForwardH.cycle (BackwardH.cycle omega)) omega (rightInverse omega) }
+    });
 \import Spaces.Isomorphism[V := TargetH.Cohomology, W := SourceH.Cohomology,
   source := TargetH.cohomologySpace, target := SourceH.cohomologySpace] \as CohomologyIsomorphism;
 \definition cohomologyIsomorphism: CohomologyIsomorphism.Isomorphism := CohomologyIsomorphism.Isomorphism {

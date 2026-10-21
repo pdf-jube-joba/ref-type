@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 /* Elementary cancellation and roots of quadratic equations over a field. */
 \import std.Alg[].Field[] \as Fields;
 \import std.Alg[].Ring[] \as Rings;
@@ -7,7 +8,6 @@
 \use Equality.sym;
 \use Equality.trans;
 \use Equality.congr;
-\use Equality.congr2;
 \use Logic.either;
 \definition commutativeRing: Rings.CommutativeRing[K] := Fields.fieldAsCommutativeRing K field;
 \definition ring: Rings.Ring[K] := Rings.commutativeRingAsRing K commutativeRing;
@@ -22,10 +22,13 @@
   \fun (x, y: K)(equal: _) => either!{{(Classical.excludedMiddle (x = zero))} {Logic.Or[x = zero, y = zero]}
     {\fun (zero: _) => Logic.Or[_, _]::left zero}
     {\fun (nonzero: Logic.Not (x = zero)) => Logic.Or[_, _]::right
-      (trans!{K} _ _ _ (sym!{K} _ _ (ring.semiring.multiplicative.leftIdentity y))
-        (trans!{K} _ _ _ (congr!{K K} (\fun (a: K) => mul a y) _ _ (sym!{K} _ _ (field.inverse x nonzero)))
-          (trans!{K} _ _ _ (ring.semiring.multiplicative.associative (field.inv x) x y)
-            (trans!{K} _ _ _ (congr!{K K} (mul (field.inv x)) _ _ equal) (ring.semiring.zeroAbsorbsRight (field.inv x))))))}
+      (eq_reason_in!{K _
+        "=" _ "by" { sym!{K} _ _ (ring.semiring.multiplicative.leftIdentity y) }
+        "=" _ "by" { congr!{K K} (\fun (a: K) => mul a y) _ _ (sym!{K} _ _ (field.inverse x nonzero)) }
+        "=" _ "by" { ring.semiring.multiplicative.associative (field.inv x) x y }
+        "=" _ "by" { congr!{K K} (mul (field.inv x)) _ _ equal }
+        "=" _ "by" { ring.semiring.zeroAbsorbsRight (field.inv x) }
+      })}
   };
 \module Squares(x, y: K, same: mul x x = mul y y);
 \definition sameSquares: \forall (x, y: K) -> mul x x = mul y y -> Logic.Or[x = y, x = neg y] :=

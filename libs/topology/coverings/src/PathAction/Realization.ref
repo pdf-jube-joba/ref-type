@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import algebraic_topology.Interval[] \as I;
 \import Paths.Concatenation[] \as Join;
 \definition point[e: E]: Fiber (projection e) := \into[E](e, Fiber (projection e)) \by { \refl(projection e) };
@@ -27,10 +28,12 @@
     (\fun (p: _)(pe: _) => reachElim U y z f h (Reach U x e z h)
       (\fun (q: _)(qe: _) => Logic.existsIntro[Neighborhoods.Path U x z, { r: Neighborhoods.Path U x z \where action.move x z (G.class x z r) e = h }]
         (Neighborhoods.concatenate U x y z p q)
-        (trans!{E} _ _ _
-          (congr!{{G.Arrow x z} E} (\fun (r: G.Arrow x z) => action.move x z r e) _ _ (sym!{{G.Arrow x z}} _ _ (Join.Classes[x := x, y := y, z := z].onClass p q)))
-          (trans!{E} _ _ _ (action.compose x y z (G.class x y p) (G.class y z q) e)
-            (trans!{E} _ _ _ (congr!{{Fiber y} E} (action.move y z (G.class y z q)) _ _ pe) qe)))) second) first;
+        (eq_reason_in!{E _
+          "=" _ "by" { congr!{{G.Arrow x z} E} (\fun (r: G.Arrow x z) => action.move x z r e) _ _ (sym!{{G.Arrow x z}} _ _ (Join.Classes[x := x, y := y, z := z].onClass p q)) }
+          "=" _ "by" { action.compose x y z (G.class x y p) (G.class y z q) e }
+          "=" _ "by" { congr!{{Fiber y} E} (action.move y z (G.class y z q)) _ _ pe }
+          "=" _ "by" qe
+        })) second) first;
 \definition Sheet[U: \Pow B][x: B][e: Fiber x]: \Pow E := { f: E \where Reach U x e (projection f) f };
 \definition reachOfMember: \forall (U: \Pow B)(x, y: B)(e: Fiber x)(f: Fiber y) -> Total.Member (Sheet U x e) f -> Reach U x e y f :=
   \fun (U: _)(x, y: _)(e: _)(f: _)(member: _) => \idelim projection f = y \with z: B => Reach U x e z f

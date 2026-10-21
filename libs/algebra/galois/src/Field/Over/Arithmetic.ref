@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Alg[].Monoid[] \as Monoids;
 \import std.Logic[].Classical[] \as Classical;
 \definition multiplicative: Monoids.CommutativeMonoid[K] := Monoids.CommutativeMonoid[K] {
@@ -61,7 +62,7 @@
 \definition ratioPower: \forall (x, y: K)(n: N.Nat^) -> Logic.Not (y = zero) -> power x n = power y n -> power (mul x (inv y)) n = one :=
   \fun (x, y: K)(n: N.Nat^)(hy: _)(same: _) => eq_reason!{{power (mul x (inv y)) n}
     "=" {mul (power x n) (power (inv y) n)} "by" {powerMul x (inv y) n}
-    "=" {mul (power y n) (inv (power y n))} "by" {congr2!{K K K} mul _ _ _ _ same (powerInverse y hy n)}
+    "=" {mul (power y n) (inv (power y n))} "by" {congr!{K K K} mul _ _ _ _ same (powerInverse y hy n)}
     "=" one "by" {inverseRight (power y n) (powerNonzero y hy n)}};
 \definition recoverScalar: \forall (a, b: K) -> Logic.Not (b = zero) -> mul b (mul a (inv b)) = a :=
   \fun (a, b: K)(hb: _) => eq_reason!{{mul b (mul a (inv b))}
@@ -83,8 +84,11 @@
       "=" {mul a zero} "by" {congr!{K K} (mul a) _ _ (Sum.inverseLeft b)}
       "=" zero "by" {field.ring.ring.semiring.zeroAbsorbsRight a}});
 \definition mulNegLeft: \forall (a, b: K) -> mul (neg a) b = neg (mul a b) :=
-  \fun (a, b: K) => trans!{K} _ _ _ (Product.comm (neg a) b)
-    (trans!{K} _ _ _ (mulNegRight b a) (congr!{K K} neg _ _ (Product.comm b a)));
+  \fun (a, b: K) => eq_reason_in!{K _
+    "=" _ "by" { Product.comm (neg a) b }
+    "=" _ "by" { mulNegRight b a }
+    "=" _ "by" { congr!{K K} neg _ _ (Product.comm b a) }
+  };
 \definition negOneMul: \forall (a: K) -> mul (neg one) a = neg a :=
   \fun (a: K) => trans!{K} _ _ _ (mulNegLeft one a) (congr!{K K} neg _ _ (Product.zeroLeft a));
 \definition nonzeroInverse: \forall (a: K) -> Logic.Not (a = zero) -> Logic.Not (inv a = zero) :=
@@ -95,8 +99,11 @@
 \definition quotientRecovers: \forall (a, b: K) -> Logic.Not (b = zero) -> mul (mul a (inv b)) b = a :=
   \fun (a, b: K)(nonzero: _) => trans!{K} _ _ _ (Product.comm (mul a (inv b)) b) (recoverScalar a b nonzero);
 \definition productSwapLast: \forall (a, b, c: K) -> mul (mul a b) c = mul (mul a c) b :=
-  \fun (a, b, c: K) => trans!{K} _ _ _ (Product.assoc a b c)
-    (trans!{K} _ _ _ (congr!{K K} (mul a) _ _ (Product.comm b c)) (sym!{K} _ _ (Product.assoc a c b)));
+  \fun (a, b, c: K) => eq_reason_in!{K _
+    "=" _ "by" { Product.assoc a b c }
+    "=" _ "by" { congr!{K K} (mul a) _ _ (Product.comm b c) }
+    "=" _ "by" { sym!{K} _ _ (Product.assoc a c b) }
+  };
 \definition crossProducts: \forall (z, a, b, c, d: K) -> mul z b = a -> mul z d = c -> mul a d = mul c b :=
   \fun (z, a, b, c, d: K)(first: _)(second: _) => eq_reason!{{mul a d}
     "=" {mul (mul z b) d} "by" {congr!{K K} (\fun (u: K) => mul u d) _ _ (sym!{K} _ _ first)}
@@ -118,13 +125,13 @@
   \fun (z, w, a, b, c, d: K)(first: _)(second: _) => eq_reason!{{mul (add z w) (mul b d)}
     "=" {add (mul z (mul b d)) (mul w (mul b d))} "by" {field.ring.ring.semiring.rightDistributive z w (mul b d)}
     "=" {add (mul (mul z b) d) (mul (mul w d) b)}
-    "by" {congr2!{K K K} add _ _ _ _ (sym!{K} _ _ (Product.assoc z b d))
+    "by" {congr!{K K K} add _ _ _ _ (sym!{K} _ _ (Product.assoc z b d))
       (trans!{K} _ _ _ (sym!{K} _ _ (Product.assoc w b d)) (productSwapLast w b d))}
-    "=" {add (mul a d) (mul c b)} "by" {congr2!{K K K} add _ _ _ _
+    "=" {add (mul a d) (mul c b)} "by" {congr!{K K K} add _ _ _ _
       (congr!{K K} (\fun (u: K) => mul u d) _ _ first) (congr!{K K} (\fun (u: K) => mul u b) _ _ second)}};
 \definition productCross: \forall (z, w, a, b, c, d: K) -> mul z b = a -> mul w d = c -> mul (mul z w) (mul b d) = mul a c :=
   \fun (z, w, a, b, c, d: K)(first: _)(second: _) => trans!{K} _ _ _ (Product.four z w b d)
-    (congr2!{K K K} mul _ _ _ _ first second);
+    (congr!{K K K} mul _ _ _ _ first second);
 \definition inverseCross: \forall (z, a, b: K) -> Logic.Not (z = zero) -> mul z b = a -> mul (inv z) a = b :=
   \fun (z, a, b: K)(nonzero: _)(equation: _) => eq_reason!{{mul (inv z) a}
     "=" {mul (inv z) (mul z b)} "by" {congr!{K K} (mul (inv z)) _ _ (sym!{K} _ _ equation)}

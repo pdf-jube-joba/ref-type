@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Contract[k := k] \as Contract;
 \import \parent.Differential[k := k] \as D;
 \import \parent.Differential[k := N.Nat^::succ k] \as NextD;
@@ -24,14 +25,13 @@
     (Functions.product (head arguments j) (Partials.derivative U (coefficient arguments j) i));
 \definition derivative: \forall (i: Fin.Fin m)(arguments: RegularArguments (N.Nat^::succ k)) ->
   Partials.derivative U (variableEvaluation (N.Nat^::succ k) omega arguments) i = Sums.function (Fin.elements n) (derivativeTerm i arguments) :=
-  \fun (i: Fin.Fin m)(arguments: RegularArguments (N.Nat^::succ k)) => trans!{{Functions.Function}}
-    _ _ _
-    (congr!{{Functions.Function} {Functions.Function}} (\fun (h: Functions.Function) => Partials.derivative U h i)
-      (variableEvaluation (N.Nat^::succ k) omega arguments) (Sums.function (Fin.elements n) (term arguments)) (evaluation arguments))
-    (trans!{{Functions.Function}} _ _ _
-      (Sums.derivative i (Fin.elements n) (term arguments))
-      (Sums.congruent (Fin.elements n) (\fun (j: Fin.Fin n) => Partials.derivative U (term arguments j) i) (derivativeTerm i arguments)
-        (\fun (j: Fin.Fin n) => Linear.product i (head arguments j) (coefficient arguments j))));
+  \fun (i: Fin.Fin m)(arguments: RegularArguments (N.Nat^::succ k)) => eq_reason_in!{{Functions.Function} _
+    "=" _ "by" { congr!{{Functions.Function} {Functions.Function}} (\fun (h: Functions.Function) => Partials.derivative U h i)
+      (variableEvaluation (N.Nat^::succ k) omega arguments) (Sums.function (Fin.elements n) (term arguments)) (evaluation arguments) }
+    "=" _ "by" { Sums.derivative i (Fin.elements n) (term arguments) }
+    "=" _ "by" { Sums.congruent (Fin.elements n) (\fun (j: Fin.Fin n) => Partials.derivative U (term arguments j) i) (derivativeTerm i arguments)
+        (\fun (j: Fin.Fin n) => Linear.product i (head arguments j) (coefficient arguments j)) }
+  };
 \import Multilinear.Properties[] \as Updates;
 \definition tailDerivative: \forall (i: Fin.Fin m)(arguments: RegularArguments (N.Nat^::succ k))(x: Source.Carrier U)(slot: Fin.Fin k) ->
   TailD.apply i (Contract.tail arguments) x slot = ArgumentD.apply i arguments x (Fin.succ k slot) :=

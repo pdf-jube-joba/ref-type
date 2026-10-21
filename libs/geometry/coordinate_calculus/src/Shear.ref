@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Data[].Nat[] \as N;
 \import std.Data[].FinSet[] \as Fin;
 \import std.Data[].Option[] \as Option;
@@ -5,7 +6,6 @@
 \use Equality.sym;
 \use Equality.trans;
 \use Equality.congr;
-\use Equality.congr2;
 \definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
 \definition two: N.Nat^ := N.Nat^::succ one;
 \import calculus.Real[] \as R;
@@ -56,38 +56,39 @@
 \definition backwardFirst: \forall (x: Plane.Point) -> backward x first = x first :=
   \fun (x: _) => Tuples.atZero one (x first) (\fun (j: Fin.Fin one) => R.sub (x (Fin.succ one j)) (square x));
 \definition squareForward: \forall (x: Plane.Point) -> square (forward x) = square x :=
-  \fun (x: _) => congr2!{R.Real R.Real R.Real} R.mul (forward x first) (x first) (forward x first) (x first) (forwardFirst x) (forwardFirst x);
+  \fun (x: _) => congr!{R.Real R.Real R.Real} R.mul (forward x first) (x first) (forward x first) (x first) (forwardFirst x) (forwardFirst x);
 \definition squareBackward: \forall (x: Plane.Point) -> square (backward x) = square x :=
-  \fun (x: _) => congr2!{R.Real R.Real R.Real} R.mul (backward x first) (x first) (backward x first) (x first) (backwardFirst x) (backwardFirst x);
+  \fun (x: _) => congr!{R.Real R.Real R.Real} R.mul (backward x first) (x first) (backward x first) (x first) (backwardFirst x) (backwardFirst x);
 \definition cancelAddition: \forall (a, b: R.Real) -> R.sub (R.add a b) b = a :=
-  \fun (a, b: _) => trans!{R.Real} (R.sub (R.add a b) b) (R.add a (R.add b (real.Analysis[].neg b))) a
-    (Laws.addAssoc a b (real.Analysis[].neg b))
-    (trans!{R.Real} (R.add a (R.add b (real.Analysis[].neg b))) (R.add a R.zero) a
-      (congr!{R.Real R.Real} (R.add a) (R.add b (real.Analysis[].neg b)) R.zero (Laws.addNegRight b)) (Laws.addZeroRight a));
+  \fun (a, b: _) => eq_reason_in!{R.Real { R.sub (R.add a b) b }
+    "=" { R.add a (R.add b (real.Analysis[].neg b)) } "by" { Laws.addAssoc a b (real.Analysis[].neg b) }
+    "=" { R.add a R.zero } "by" { congr!{R.Real R.Real} (R.add a) (R.add b (real.Analysis[].neg b)) R.zero (Laws.addNegRight b) }
+    "=" a "by" { Laws.addZeroRight a }
+  };
 \definition leftInverse: \forall (x: Plane.Point) -> backward (forward x) = x :=
   \fun (x: _) => trans!{Plane.Point} _ _ _
-    (congr2!{R.Real {Fin.Fin one -> R.Real} Plane.Point} (Tuples.extend one)
+    (congr!{R.Real {Fin.Fin one -> R.Real} Plane.Point} (Tuples.extend one)
       (forward x first) (x first)
       (\fun (j: Fin.Fin one) => R.sub (forward x (Fin.succ one j)) (square (forward x)))
       (\fun (j: Fin.Fin one) => x (Fin.succ one j))
       (forwardFirst x)
       (\axiom:funext((\fun (j: Fin.Fin one) => R.sub (forward x (Fin.succ one j)) (square (forward x))),
         (\fun (j: Fin.Fin one) => x (Fin.succ one j)), \fun (j: Fin.Fin one) => trans!{R.Real} _ _ _
-          (congr2!{R.Real R.Real R.Real} R.sub
+          (congr!{R.Real R.Real R.Real} R.sub
             (forward x (Fin.succ one j)) (R.add (x (Fin.succ one j)) (square x)) (square (forward x)) (square x)
             (Tuples.atSuccessor one (x first) (\fun (k: Fin.Fin one) => R.add (x (Fin.succ one k)) (square x)) j) (squareForward x))
           (cancelAddition (x (Fin.succ one j)) (square x)))))
     (Tuples.recover one x);
 \definition rightInverse: \forall (x: Plane.Point) -> forward (backward x) = x :=
   \fun (x: _) => trans!{Plane.Point} _ _ _
-    (congr2!{R.Real {Fin.Fin one -> R.Real} Plane.Point} (Tuples.extend one)
+    (congr!{R.Real {Fin.Fin one -> R.Real} Plane.Point} (Tuples.extend one)
       (backward x first) (x first)
       (\fun (j: Fin.Fin one) => R.add (backward x (Fin.succ one j)) (square (backward x)))
       (\fun (j: Fin.Fin one) => x (Fin.succ one j))
       (backwardFirst x)
       (\axiom:funext((\fun (j: Fin.Fin one) => R.add (backward x (Fin.succ one j)) (square (backward x))),
         (\fun (j: Fin.Fin one) => x (Fin.succ one j)), \fun (j: Fin.Fin one) => trans!{R.Real} _ _ _
-          (congr2!{R.Real R.Real R.Real} R.add
+          (congr!{R.Real R.Real R.Real} R.add
             (backward x (Fin.succ one j)) (R.sub (x (Fin.succ one j)) (square x)) (square (backward x)) (square x)
             (Tuples.atSuccessor one (x first) (\fun (k: Fin.Fin one) => R.sub (x (Fin.succ one k)) (square x)) j) (squareBackward x))
           (Metric.subAddCancel (x (Fin.succ one j)) (square x)))))

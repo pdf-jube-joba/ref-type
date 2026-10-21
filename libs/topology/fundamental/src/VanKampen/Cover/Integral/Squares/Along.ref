@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import topology.Maps[A := Square.Carrier, B := A] \as Maps;
 \import topology.Continuity[A := Square.Carrier, B := A].Covers[] \as Covers;
 \import I.SquareSubdivision[] \as Subdivision;
@@ -22,14 +23,14 @@
   \let rightEquation: Group.mul (value cover (Edges.bottom r)) (value cover (Edges.right r)) = Group.mul (value cover (Edges.right l)) (value cover (Edges.top r)) :=
     trans!{G} _ _ _ (right (Intervals.rightContinuous f fc) gc)
       (congr!{G G} (\fun (m: G) => Group.mul m (value cover (Edges.top r))) _ _ (sym!{G} _ _ (congr!{{Paths.Carrier} G} (\fun (p: Paths.Carrier) => value cover p) _ _ middle))) \then
-  \return trans!{G} _ _ _
-    (congr2!{G G G} Group.mul _ _ _ _ (split cover (Edges.bottom whole)) (congr!{{Paths.Carrier} G} (\fun (p: Paths.Carrier) => value cover p) _ _ sameRight))
-    (trans!{G} _ _ _
-      (Group.horizontalRectangle (value cover (Edges.bottom l)) (value cover (Edges.bottom r)) (value cover (Edges.top l)) (value cover (Edges.top r))
-        (value cover (Edges.left l)) (value cover (Edges.right l)) (value cover (Edges.right r)) (left (Intervals.leftContinuous f fc) gc) rightEquation)
-      (congr2!{G G G} Group.mul _ _ _ _
+  \return eq_reason_in!{G _
+    "=" _ "by" { congr!{G G G} Group.mul _ _ _ _ (split cover (Edges.bottom whole)) (congr!{{Paths.Carrier} G} (\fun (p: Paths.Carrier) => value cover p) _ _ sameRight) }
+    "=" _ "by" { Group.horizontalRectangle (value cover (Edges.bottom l)) (value cover (Edges.bottom r)) (value cover (Edges.top l)) (value cover (Edges.top r))
+        (value cover (Edges.left l)) (value cover (Edges.right l)) (value cover (Edges.right r)) (left (Intervals.leftContinuous f fc) gc) rightEquation }
+    "=" _ "by" { congr!{G G G} Group.mul _ _ _ _
         (sym!{G} _ _ (congr!{{Paths.Carrier} G} (\fun (p: Paths.Carrier) => value cover p) _ _ sameLeft))
-        (sym!{G} _ _ (split cover (Edges.top whole)))))
+        (sym!{G} _ _ (split cover (Edges.top whole))) }
+  }
 };
 \definition vertical: \forall (f, g: I.Carrier -> I.Carrier) -> Property f (Intervals.left g) -> Property f (Intervals.right g) -> Property f g := \block {
   \fun (f, g: _)(lower: _)(upper: _)(fc: _)(gc: _) \then
@@ -46,13 +47,13 @@
     trans!{G} _ _ _
       (congr!{G G} (\fun (m: G) => Group.mul m (value cover (Edges.right r))) _ _ (congr!{{Paths.Carrier} G} (\fun (p: Paths.Carrier) => value cover p) _ _ middle))
       (upper fc (Intervals.rightContinuous g gc)) \then
-  \return trans!{G} _ _ _
-    (congr2!{G G G} Group.mul _ _ _ _ (congr!{{Paths.Carrier} G} (\fun (p: Paths.Carrier) => value cover p) _ _ sameBottom) (split cover (Edges.right whole)))
-    (trans!{G} _ _ _
-      (Group.verticalRectangle (value cover (Edges.bottom l)) (value cover (Edges.right l)) (value cover (Edges.right r)) (value cover (Edges.left l)) (value cover (Edges.left r))
-        (value cover (Edges.top r)) (value cover (Edges.top l)) (lower fc (Intervals.leftContinuous g gc)) upperEquation)
-      (congr2!{G G G} Group.mul _ _ _ _ (sym!{G} _ _ (split cover (Edges.left whole)))
-        (sym!{G} _ _ (congr!{{Paths.Carrier} G} (\fun (p: Paths.Carrier) => value cover p) _ _ sameTop))))
+  \return eq_reason_in!{G _
+    "=" _ "by" { congr!{G G G} Group.mul _ _ _ _ (congr!{{Paths.Carrier} G} (\fun (p: Paths.Carrier) => value cover p) _ _ sameBottom) (split cover (Edges.right whole)) }
+    "=" _ "by" { Group.verticalRectangle (value cover (Edges.bottom l)) (value cover (Edges.right l)) (value cover (Edges.right r)) (value cover (Edges.left l)) (value cover (Edges.left r))
+        (value cover (Edges.top r)) (value cover (Edges.top l)) (lower fc (Intervals.leftContinuous g gc)) upperEquation }
+    "=" _ "by" { congr!{G G G} Group.mul _ _ _ _ (sym!{G} _ _ (split cover (Edges.left whole)))
+        (sym!{G} _ _ (congr!{{Paths.Carrier} G} (\fun (p: Paths.Carrier) => value cover p) _ _ sameTop)) }
+  }
 };
 \definition localProperty: \forall (f, g: I.Carrier -> I.Carrier) -> Parameters.Continuous I.topology I.topology f -> Parameters.Continuous I.topology I.topology g ->
   \forall (V: \Pow Square.Carrier) -> \In[\Pow Square.Carrier] (Maps.PullbackFamily F family) V -> FineCover.Within f g V -> Property f g :=
@@ -65,11 +66,12 @@
       \let contained: WithinSquare trace U := \fun (q: Square.Carrier) => \idelim V = Maps.Preimage F U
         \with W: \Pow Square.Carrier => \In[Square.Carrier] W (Edges.parameter f g q)
         \by { base: within (Square.time q) (Square.point q), equality: same } \then
-      \return trans!{G} _ _ _
-        (congr2!{G G G} Group.mul _ _ _ _ (onLocal cover (Edges.bottom trace) (bottomSmall trace U inFamily contained)) (onLocal cover (Edges.right trace) (rightSmall trace U inFamily contained)))
-        (trans!{G} _ _ _ (local trace U inFamily contained)
-          (congr2!{G G G} Group.mul _ _ _ _ (sym!{G} _ _ (onLocal cover (Edges.left trace) (leftSmall trace U inFamily contained)))
-            (sym!{G} _ _ (onLocal cover (Edges.top trace) (topSmall trace U inFamily contained)))))
+      \return eq_reason_in!{G _
+        "=" _ "by" { congr!{G G G} Group.mul _ _ _ _ (onLocal cover (Edges.bottom trace) (bottomSmall trace U inFamily contained)) (onLocal cover (Edges.right trace) (rightSmall trace U inFamily contained)) }
+        "=" _ "by" { local trace U inFamily contained }
+        "=" _ "by" { congr!{G G G} Group.mul _ _ _ _ (sym!{G} _ _ (onLocal cover (Edges.left trace) (leftSmall trace U inFamily contained)))
+            (sym!{G} _ _ (onLocal cover (Edges.top trace) (topSmall trace U inFamily contained))) }
+      }
     }) member;
 \import topology.Maps[A := I.Carrier, B := I.Carrier].Identity[] \as Identity;
 \definition commutes: Group.mul (value cover (Edges.bottom F)) (value cover (Edges.right F)) = Group.mul (value cover (Edges.left F)) (value cover (Edges.top F)) :=

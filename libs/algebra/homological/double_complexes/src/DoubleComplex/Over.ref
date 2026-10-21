@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import module_theory.Module[].Over[R := R, ring := ring] \as Modules;
 \structure Family := {
   Carrier: Nat.Nat^ -> Nat.Nat^ -> \Set,
@@ -40,16 +41,19 @@
   \definition involutive: \forall (n: Nat.Nat^)(x: V) -> (map n).apply ((map n).apply x) = x :=
     \induction (n: Nat.Nat^) \return \forall (x: V) -> (map n).apply ((map n).apply x) = x \with {
       | zero: \fun (x: V) => \refl(x)
-      | succ: \fun (n: Nat.Nat^)(previous: _)(x: V) => trans!{V} _ _ _
-        (congr!{V V} (space.neg) _ _ (Maps.negativePreserved (map n) ((map n).apply x)))
-        (trans!{V} _ _ _ (Group.negNeg ((map n).apply ((map n).apply x))) (previous x))
+      | succ: \fun (n: Nat.Nat^)(previous: _)(x: V) => eq_reason_in!{V _
+        "=" _ "by" { congr!{V V} (space.neg) _ _ (Maps.negativePreserved (map n) ((map n).apply x)) }
+        "=" _ "by" { Group.negNeg ((map n).apply ((map n).apply x)) }
+        "=" _ "by" { previous x }
+      }
     };
   \definition cancelAddition: \forall (a, b: Nat.Nat^)(x: V) ->
     (map (Arithmetic.add a b)).apply ((map a).apply x) = (map b).apply x :=
-    \fun (a, b: Nat.Nat^)(x: V) => trans!{V} _ _ _
-      (congr!{Nat.Nat^ V} (\fun (n: Nat.Nat^) => (map n).apply ((map a).apply x)) _ _ (Natural.addComm a b))
-      (trans!{V} _ _ _ (addition b a ((map a).apply x))
-        (congr!{V V} ((map b).apply) _ _ (involutive a x)));
+    \fun (a, b: Nat.Nat^)(x: V) => eq_reason_in!{V _
+      "=" _ "by" { congr!{Nat.Nat^ V} (\fun (n: Nat.Nat^) => (map n).apply ((map a).apply x)) _ _ (Natural.addComm a b) }
+      "=" _ "by" { addition b a ((map a).apply x) }
+      "=" _ "by" { congr!{V V} ((map b).apply) _ _ (involutive a x) }
+    };
   \module Mapping(W: \Set, target: Modules.Space W) {
     \import \parent.\parent.Sign[V := W, space := target] \as Target;
     \import Modules.Hom[V := V, W := W, source := space, target := target] \as Hom;

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.HomSpace[V := A.Carrier, W := N.Carrier, source := A.space, target := N.space] \as HA;
 \import \parent.\parent.HomSpace[V := B.Carrier, W := N.Carrier, source := B.space, target := N.space] \as HB;
 \import \parent.\parent.HomSpace[V := C.Carrier, W := N.Carrier, source := C.space, target := N.space] \as HC;
@@ -27,9 +28,11 @@
     \fun (c: C.Carrier) \then
     \takefrom b: \Cast[B.Carrier] ({ b: B.Carrier \where sequence.projection.apply b = c }) \by sequence.onto c \then
     \let projected: sequence.projection.apply b = c := \bysub(B.Carrier, { b: B.Carrier \where sequence.projection.apply b = c }, b) \then
-    \return trans!{N.Carrier} _ _ _ (sym!{N.Carrier} _ _ (congr!{C.Carrier N.Carrier} (f.apply) _ _ projected))
-      (trans!{N.Carrier} _ _ _ (congr!{HB.Carrier N.Carrier} (\fun (h: HB.Carrier) => h.apply b) _ _ equal)
-        (congr!{C.Carrier N.Carrier} (g.apply) _ _ projected))
+    \return eq_reason_in!{N.Carrier _
+      "=" _ "by" { sym!{N.Carrier} _ _ (congr!{C.Carrier N.Carrier} (f.apply) _ _ projected) }
+      "=" _ "by" { congr!{HB.Carrier N.Carrier} (\fun (h: HB.Carrier) => h.apply b) _ _ equal }
+      "=" _ "by" { congr!{C.Carrier N.Carrier} (g.apply) _ _ projected }
+    }
   });
 \definition compositeZero: \forall (f: HC.Carrier) -> projection.apply (inclusion.apply f) = HA.space.zero :=
   \fun (f: HC.Carrier) => LeftMaps.ext _ _ (\fun (x: A.Carrier) => trans!{N.Carrier} _ _ _
@@ -72,11 +75,12 @@
       \let vanished: f.apply (Splitting.remainder s b) = N.space.zero := trans!{N.Carrier} _ _ _
         (sym!{N.Carrier} _ _ (congr!{B.Carrier N.Carrier} (f.apply) _ _ represented))
         (congr!{HA.Carrier N.Carrier} (\fun (h: HA.Carrier) => h.apply a) _ _ killed) \then
-      \return trans!{N.Carrier} _ _ _
-        (sym!{N.Carrier} _ _ (NGroup.zeroLeft (f.apply (s.apply (sequence.projection.apply b)))))
-        (trans!{N.Carrier} _ _ _ (congr!{N.Carrier N.Carrier} (\fun (x: N.Carrier) => N.space.add x (f.apply (s.apply (sequence.projection.apply b)))) _ _ (sym!{N.Carrier} _ _ vanished))
-          (trans!{N.Carrier} _ _ _ (sym!{N.Carrier} _ _ (f.addition (Splitting.remainder s b) (s.apply (sequence.projection.apply b))))
-            (congr!{B.Carrier N.Carrier} (f.apply) _ _ (Splitting.reconstruct s b))))
+      \return eq_reason_in!{N.Carrier _
+        "=" _ "by" { sym!{N.Carrier} _ _ (NGroup.zeroLeft (f.apply (s.apply (sequence.projection.apply b)))) }
+        "=" _ "by" { congr!{N.Carrier N.Carrier} (\fun (x: N.Carrier) => N.space.add x (f.apply (s.apply (sequence.projection.apply b)))) _ _ (sym!{N.Carrier} _ _ vanished) }
+        "=" _ "by" { sym!{N.Carrier} _ _ (f.addition (Splitting.remainder s b) (s.apply (sequence.projection.apply b))) }
+        "=" _ "by" { congr!{B.Carrier N.Carrier} (f.apply) _ _ (Splitting.reconstruct s b) }
+      }
     }))
 };
 \definition shortExact[section: Section]: Dual.Sequence := Dual.Sequence {

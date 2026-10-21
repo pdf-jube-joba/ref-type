@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Surjection[n := n] \as Lift;
 \import \parent.Surjection[n := Nat.Nat^::succ n] \as NextLift;
 \import \parent.Factor[n := n] \as Factor;
@@ -20,19 +21,20 @@
   \fun (projective: Modules.Projective P)(x: Source.Carrier)(closed: _) \then
   \let kernel: projection.apply x = CurrentKernel.space.zero := CurrentKernel.injective projective
     (projection.apply x) CurrentKernel.space.zero
-    (trans!{Target.Carrier} _ _ _ (factorPoint x)
-      (trans!{Target.Carrier} _ _ _ closed (sym!{Target.Carrier} _ _ CurrentKernel.zero))) \then
+    (eq_reason_in!{Target.Carrier _
+      "=" _ "by" { factorPoint x }
+      "=" _ "by" closed
+      "=" _ "by" { sym!{Target.Carrier} _ _ CurrentKernel.zero }
+    }) \then
   \takefrom a: \Cast[NextKernel.Carrier] ({ a: NextKernel.Carrier \where NextKernel.inclusion.apply a = x })
     \by Exact.kernelImage x kernel \then
   \takefrom y: \Cast[Before.Carrier] ({ y: Before.Carrier \where NextLift.map.apply y = a }) \by NextLift.onto a \then
   \return Existential.existsIntro[Before.Carrier, { y: Before.Carrier \where complex.differential.apply (Nat.Nat^::succ n) y = x }] y
-    (trans!{Source.Carrier}
-      _ _ _
-      (sym!{Source.Carrier}
-        _ _ (NextFactor.point y))
-      (trans!{Source.Carrier}
-        _ _ _
-        (congr!{NextKernel.Carrier Source.Carrier} (NextKernel.inclusion.apply) (NextLift.map.apply y) a
-          (\bysub(Before.Carrier, { y: Before.Carrier \where NextLift.map.apply y = a }, y)))
-        (\bysub(NextKernel.Carrier, { a: NextKernel.Carrier \where NextKernel.inclusion.apply a = x }, a))))
+    (eq_reason_in!{Source.Carrier _
+      "=" _ "by" { sym!{Source.Carrier}
+        _ _ (NextFactor.point y) }
+      "=" _ "by" { congr!{NextKernel.Carrier Source.Carrier} (NextKernel.inclusion.apply) (NextLift.map.apply y) a
+          (\bysub(Before.Carrier, { y: Before.Carrier \where NextLift.map.apply y = a }, y)) }
+      "=" _ "by" { \bysub(NextKernel.Carrier, { a: NextKernel.Carrier \where NextKernel.inclusion.apply a = x }, a) }
+    })
 };

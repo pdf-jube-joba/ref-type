@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 
 \definition l: N.Nat^ := Lists.length (Vectors.Vector) xs;
 \definition data: Multilinear.Arguments l := SourceList.tuple xs;
@@ -37,18 +38,16 @@
       (TargetList.list l mappedData) mapped mappedList);
 \definition coefficientLaw: \forall (omega: TargetForms.Form k)(i: Fin.Fin n) ->
   Evaluation.Differential[k := l].apply i (Differential.composed omega) x mappedData = coefficients omega i x xs :=
-  \fun (omega: TargetForms.Form k)(i: Fin.Fin n) => trans!{{Reals.Real}}
-    _ _ _
-    (Differential.coefficientDerivative omega mappedData i x)
-    (trans!{{Reals.Real}}
-      _ _ _
-      (sym!{{Reals.Real}} _ _
-        (Enumeration.sumLaw m (\fun (j: Fin.Fin m) => Spaces.mul (ConvertedTargetPartial.apply j (TargetDegree.convert omega) (Maps.apply U V f x) mappedData) (matrix j i x))))
-      (TargetSumLaws.congruent (Fin.elements m)
+  \fun (omega: TargetForms.Form k)(i: Fin.Fin n) => eq_reason_in!{{Reals.Real} _
+    "=" _ "by" { Differential.coefficientDerivative omega mappedData i x }
+    "=" _ "by" { sym!{{Reals.Real}} _ _
+        (Enumeration.sumLaw m (\fun (j: Fin.Fin m) => Spaces.mul (ConvertedTargetPartial.apply j (TargetDegree.convert omega) (Maps.apply U V f x) mappedData) (matrix j i x))) }
+    "=" _ "by" { TargetSumLaws.congruent (Fin.elements m)
         (\fun (j: Fin.Fin m) => Spaces.mul (ConvertedTargetPartial.apply j (TargetDegree.convert omega) (Maps.apply U V f x) mappedData) (matrix j i x))
         (\fun (j: Fin.Fin m) => Spaces.mul (TargetExterior.component k (TargetPartial.apply j omega (Maps.apply U V f x)) mapped) (matrix j i x))
         (\fun (j: Fin.Fin m) => congr!{{Reals.Real} {Reals.Real}} (\fun (a: Reals.Real) => Spaces.mul a (matrix j i x))
-          _ _ (targetLaw omega j))));
+          _ _ (targetLaw omega j)) }
+  };
 \definition slotLaw: \forall (omega: TargetForms.Form k)(i: Fin.Fin n)(slot: Fin.Fin l) ->
   Evaluation.slotTerm l (Differential.composed omega) (Differential.arguments data) i x slot =
     TargetExterior.component k (omega (Maps.apply U V f x)) (Lists.Replace[A := TargetVectors.Vector].apply mapped slot (JacobianPartial.partial i (data slot) x)) :=
@@ -73,10 +72,10 @@
       (Positional.law xs (\fun (v: Vectors.Vector) => JacobianPartial.partial i v x) (TargetExterior.component k (omega (Maps.apply U V f x)))));
 \definition law: \forall (omega: TargetForms.Form k)(i: Fin.Fin n) ->
   Exterior.component k (SourcePartial.apply i (apply k omega) x) xs = Spaces.add (coefficients omega i x xs) (variation omega i x xs) :=
-  \fun (omega: TargetForms.Form k)(i: Fin.Fin n) => trans!{{Reals.Real}}
-    _ _ _
-    (trans!{{Reals.Real}} _ _ _
-      (sourceLaw omega i) (Differential.evaluationDerivative omega data i x))
-    (congr2!{{Reals.Real} {Reals.Real} {Reals.Real}} Spaces.add
+  \fun (omega: TargetForms.Form k)(i: Fin.Fin n) => eq_reason_in!{{Reals.Real} _
+    "=" _ "by" { sourceLaw omega i }
+    "=" _ "by" { Differential.evaluationDerivative omega data i x }
+    "=" _ "by" { congr!{{Reals.Real} {Reals.Real} {Reals.Real}} Spaces.add
       _ _ _ _
-      (coefficientLaw omega i) (variationLaw omega i));
+      (coefficientLaw omega i) (variationLaw omega i) }
+  };

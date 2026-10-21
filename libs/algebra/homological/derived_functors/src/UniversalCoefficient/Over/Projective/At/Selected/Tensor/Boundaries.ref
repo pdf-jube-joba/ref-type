@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.\parent.Presentation[] \as Presentation;
 \import Modules.Tensor[V := Presentation.boundaryBundle.Carrier, W := A.Carrier, left := Presentation.boundaryBundle.space, right := A.space] \as Boundaries;
 \import Modules.Tensor[V := Carrier (next z), W := A.Carrier, left := space (next z), right := A.space] \as NextTensor;
@@ -25,11 +26,12 @@
 \import NextTensor.Universal[U := CurrentTensor.Carrier, target := CurrentTensor.space] \as NextUniversal;
 \definition differentialFactor: IncomingComposition.compose boundaryInclusion incoming = TensorHomology.prior :=
   NextUniversal.ext (IncomingComposition.compose boundaryInclusion incoming) TensorHomology.prior
-    (\fun (x: Carrier (next z))(a: A.Carrier) => trans!{CurrentTensor.Carrier} _ _ _
-      (congr!{Boundaries.Carrier CurrentTensor.Carrier} (boundaryInclusion.apply) _ _
-        (OntoBoundaries.onTensor Incoming.map Coefficient.identity x a))
-      (trans!{CurrentTensor.Carrier} _ _ _ (inclusionOnTensor (Incoming.map.apply x) a)
-        (sym!{CurrentTensor.Carrier} _ _ (NativeTensor.priorOnTensor z x a))));
+    (\fun (x: Carrier (next z))(a: A.Carrier) => eq_reason_in!{CurrentTensor.Carrier _
+      "=" _ "by" { congr!{Boundaries.Carrier CurrentTensor.Carrier} (boundaryInclusion.apply) _ _
+        (OntoBoundaries.onTensor Incoming.map Coefficient.identity x a) }
+      "=" _ "by" { inclusionOnTensor (Incoming.map.apply x) a }
+      "=" _ "by" { sym!{CurrentTensor.Carrier} _ _ (NativeTensor.priorOnTensor z x a) }
+    });
 \definition differentialFactorPoint: \forall (x: NextTensor.Carrier) ->
   inclusion.apply (intoCycles.apply (incoming.apply x)) = TensorHomology.prior.apply x :=
   \fun (x: NextTensor.Carrier) => congr!{Modules.Hom[V := NextTensor.Carrier, W := CurrentTensor.Carrier, source := NextTensor.space, target := CurrentTensor.space].Map CurrentTensor.Carrier}
@@ -41,11 +43,12 @@
   \takefrom x: \Cast[Carrier (next z)] ({ x: Carrier (next z) \where Incoming.map.apply x = b }) \by Incoming.onto b \then
   \return TensorHomology.boundaryClassZero (cycle (intoCycles.apply (Boundaries.tensor b a)))
     (Images.introduce TensorHomology.prior (inclusion.apply (intoCycles.apply (Boundaries.tensor b a))) (NextTensor.tensor x a)
-      (trans!{CurrentTensor.Carrier} _ _ _ (NativeTensor.priorOnTensor z x a)
-        (trans!{CurrentTensor.Carrier} _ _ _
-          (congr!{Presentation.boundaryBundle.Carrier CurrentTensor.Carrier} (\fun (b: Presentation.boundaryBundle.Carrier) => CurrentTensor.tensor b a)
-            (Incoming.map.apply x) b (\bysub(Carrier (next z), { x: Carrier (next z) \where Incoming.map.apply x = b }, x)))
-          (sym!{CurrentTensor.Carrier} _ _ (inclusionOnTensor b a)))))
+      (eq_reason_in!{CurrentTensor.Carrier _
+        "=" _ "by" { NativeTensor.priorOnTensor z x a }
+        "=" _ "by" { congr!{Presentation.boundaryBundle.Carrier CurrentTensor.Carrier} (\fun (b: Presentation.boundaryBundle.Carrier) => CurrentTensor.tensor b a)
+            (Incoming.map.apply x) b (\bysub(Carrier (next z), { x: Carrier (next z) \where Incoming.map.apply x = b }, x)) }
+        "=" _ "by" { sym!{CurrentTensor.Carrier} _ _ (inclusionOnTensor b a) }
+      }))
 };
 \import Modules.Hom[V := CycleTensor.Carrier, W := TensorHomology.Homology, source := CycleTensor.space, target := TensorHomology.homologySpace].Composition[U := Boundaries.Carrier, domain := Boundaries.space] \as Classes;
 \import Modules.Hom[V := Boundaries.Carrier, W := TensorHomology.Homology, source := Boundaries.space, target := TensorHomology.homologySpace] \as Maps;

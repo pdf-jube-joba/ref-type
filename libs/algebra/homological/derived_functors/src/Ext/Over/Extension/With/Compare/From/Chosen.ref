@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Source.Chosen[lift := first] \as First;
 \import Modules.Hom[V := E.Carrier, W := F.Carrier, source := E.space, target := F.space].Composition[U := L.Carrier, domain := L.space] \as Composition;
 \definition map: Modules.MapBetween L F := Composition.compose e.forward first;
@@ -10,9 +11,13 @@
 \import Target.Chosen[lift := lift] \as Second;
 \definition relationEquality: First.relation = Second.relation := RelationMaps.ext First.relation Second.relation
   (\fun (x: K.Carrier) => t.injective (First.relation.apply x) (Second.relation.apply x)
-    (trans!{F.Carrier} _ _ _ (sym!{F.Carrier} _ _ (laws.left (First.relation.apply x)))
-      (trans!{F.Carrier} _ _ _
-        (congr!{E.Carrier F.Carrier} (e.forward.apply) _ _ (First.onKernel x)) (sym!{F.Carrier} _ _ (Second.onKernel x)))));
-\definition classEqual: Source.class = Target.class := trans!{Quotient.Carrier} _ _ _ (Source.onLift first)
-  (trans!{Quotient.Carrier} _ _ _ (congr!{Relations.Carrier Quotient.Carrier} Quotient.class _ _ relationEquality)
-    (sym!{Quotient.Carrier} _ _ (Target.onLift lift)));
+    (eq_reason_in!{F.Carrier _
+      "=" _ "by" { sym!{F.Carrier} _ _ (laws.left (First.relation.apply x)) }
+      "=" _ "by" { congr!{E.Carrier F.Carrier} (e.forward.apply) _ _ (First.onKernel x) }
+      "=" _ "by" { sym!{F.Carrier} _ _ (Second.onKernel x) }
+    }));
+\definition classEqual: Source.class = Target.class := eq_reason_in!{Quotient.Carrier _
+  "=" _ "by" { Source.onLift first }
+  "=" _ "by" { congr!{Relations.Carrier Quotient.Carrier} Quotient.class _ _ relationEquality }
+  "=" _ "by" { sym!{Quotient.Carrier} _ _ (Target.onLift lift) }
+};

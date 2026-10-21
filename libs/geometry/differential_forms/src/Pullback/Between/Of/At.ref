@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import SourceForms.Pointwise[k := k] \as SourcePointwise;
 \import TargetForms.Pointwise[k := k] \as TargetPointwise;
 \import SourceForms.At[k := k] \as Source;
@@ -24,15 +25,14 @@
           \let mapped: Fin.Fin k -> TargetTangent.Vector (Maps.apply f x) :=
             \fun (i: Fin.Fin k) => (manifolds.Differential[n := n, m := m].Between[M := M, N := N].At[f := f, x := x].value).apply (arguments i) \then
           \let eval: SourceForms.PointFamily k -> Reals.Real := \fun (family: SourceForms.PointFamily k) => family x arguments \then
-          \return trans!{{Reals.Real}} _ _ _
-            (trans!{{Reals.Real}} _ (pointwise k (Target.plus omega eta) x arguments) _
-              (congr!{{SourceForms.PointFamily k} {Reals.Real}} eval _ _ (evaluation (Target.plus omega eta)))
-              (TargetPointwise.Algebra[].addition omega eta (Maps.apply f x) mapped))
-            (trans!{{Reals.Real}} _ (Spaces.add (SourcePointwise.value (apply omega) x arguments) (SourcePointwise.value (apply eta) x arguments)) _
-              (congr2!{{Reals.Real} {Reals.Real} {Reals.Real}} Spaces.add _ _ _ _
+          \return eq_reason_in!{{Reals.Real} _
+            "=" { pointwise k (Target.plus omega eta) x arguments } "by" { congr!{{SourceForms.PointFamily k} {Reals.Real}} eval _ _ (evaluation (Target.plus omega eta)) }
+            "=" _ "by" { TargetPointwise.Algebra[].addition omega eta (Maps.apply f x) mapped }
+            "=" { Spaces.add (SourcePointwise.value (apply omega) x arguments) (SourcePointwise.value (apply eta) x arguments) } "by" { congr!{{Reals.Real} {Reals.Real} {Reals.Real}} Spaces.add _ _ _ _
                 (sym!{{Reals.Real}} _ _ (congr!{{SourceForms.PointFamily k} {Reals.Real}} eval _ _ (evaluation omega)))
-                (sym!{{Reals.Real}} _ _ (congr!{{SourceForms.PointFamily k} {Reals.Real}} eval _ _ (evaluation eta))))
-              (sym!{{Reals.Real}} _ _ (SourcePointwise.Algebra[].addition (apply omega) (apply eta) x arguments)))
+                (sym!{{Reals.Real}} _ _ (congr!{{SourceForms.PointFamily k} {Reals.Real}} eval _ _ (evaluation eta))) }
+            "=" _ "by" { sym!{{Reals.Real}} _ _ (SourcePointwise.Algebra[].addition (apply omega) (apply eta) x arguments) }
+          }
         })));
 \definition scalar: \forall (a: Reals.Real)(omega: TargetForms.Form k) -> apply (Target.scale a omega) = Source.scale a (apply omega) :=
   \fun (a: Reals.Real)(omega: TargetForms.Form k) => SourcePointwise.Algebra[].injective (apply (Target.scale a omega)) (Source.scale a (apply omega))
@@ -42,14 +42,13 @@
           \let mapped: Fin.Fin k -> TargetTangent.Vector (Maps.apply f x) :=
             \fun (i: Fin.Fin k) => (manifolds.Differential[n := n, m := m].Between[M := M, N := N].At[f := f, x := x].value).apply (arguments i) \then
           \let eval: SourceForms.PointFamily k -> Reals.Real := \fun (family: SourceForms.PointFamily k) => family x arguments \then
-          \return trans!{{Reals.Real}} _ _ _
-            (trans!{{Reals.Real}} _ (pointwise k (Target.scale a omega) x arguments) _
-              (congr!{{SourceForms.PointFamily k} {Reals.Real}} eval _ _ (evaluation (Target.scale a omega)))
-              (TargetPointwise.Algebra[].scalar a omega (Maps.apply f x) mapped))
-            (trans!{{Reals.Real}} _ (Spaces.mul a (SourcePointwise.value (apply omega) x arguments)) _
-              (congr!{{Reals.Real} {Reals.Real}} (Spaces.mul a) _ _
-                (sym!{{Reals.Real}} _ _ (congr!{{SourceForms.PointFamily k} {Reals.Real}} eval _ _ (evaluation omega))))
-              (sym!{{Reals.Real}} _ _ (SourcePointwise.Algebra[].scalar a (apply omega) x arguments)))
+          \return eq_reason_in!{{Reals.Real} _
+            "=" { pointwise k (Target.scale a omega) x arguments } "by" { congr!{{SourceForms.PointFamily k} {Reals.Real}} eval _ _ (evaluation (Target.scale a omega)) }
+            "=" _ "by" { TargetPointwise.Algebra[].scalar a omega (Maps.apply f x) mapped }
+            "=" { Spaces.mul a (SourcePointwise.value (apply omega) x arguments) } "by" { congr!{{Reals.Real} {Reals.Real}} (Spaces.mul a) _ _
+                (sym!{{Reals.Real}} _ _ (congr!{{SourceForms.PointFamily k} {Reals.Real}} eval _ _ (evaluation omega))) }
+            "=" _ "by" { sym!{{Reals.Real}} _ _ (SourcePointwise.Algebra[].scalar a (apply omega) x arguments) }
+          }
         })));
 \import Spaces.Linear[V := TargetForms.Form k, W := SourceForms.Form k, source := Target.space, target := Source.space] \as Linear;
 \definition map: Linear.Map := Linear.Map { apply := apply, preservesAdd := addition, preservesScale := scalar };

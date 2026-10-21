@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.Mapping[U := U, Z := Z, targetLeft := targetLeft, targetRight := targetRight] \as Original;
 \import \parent.\parent.\parent.Tensor[V := U, W := Z, left := targetLeft, right := targetRight] \as OriginalTarget;
 \import OriginalTarget.Symmetry[] \as TargetSwap;
@@ -10,12 +11,13 @@
 \import \parent.\parent.Universal[U := Final.Carrier, target := Final.space] \as Equality;
 \definition equality: \forall (f: Left.Map)(g: Right.Map) -> Before.compose TargetSwap.forward (Original.map f g) = After.compose (Swapped.map g f) forward :=
   \fun (f: Left.Map)(g: Right.Map) => Equality.ext (Before.compose TargetSwap.forward (Original.map f g)) (After.compose (Swapped.map g f) forward)
-    (\fun (x: V)(y: W) => trans!{Final.Carrier} _ _ _
-      (congr!{OriginalTarget.Carrier Final.Carrier} (TargetSwap.forward.apply) _ _ (Original.onTensor f g x y))
-      (trans!{Final.Carrier} _ _ _ (TargetSwap.onTensor (f.apply x) (g.apply y))
-        (sym!{Final.Carrier} _ _ (trans!{Final.Carrier} _ _ _
+    (\fun (x: V)(y: W) => eq_reason_in!{Final.Carrier _
+      "=" _ "by" { congr!{OriginalTarget.Carrier Final.Carrier} (TargetSwap.forward.apply) _ _ (Original.onTensor f g x y) }
+      "=" _ "by" { TargetSwap.onTensor (f.apply x) (g.apply y) }
+      "=" _ "by" { sym!{Final.Carrier} _ _ (trans!{Final.Carrier} _ _ _
           (congr!{Target.Carrier Final.Carrier} ((Swapped.map g f).apply) _ _ (onTensor x y))
-          (Swapped.onTensor g f y x)))));
+          (Swapped.onTensor g f y x)) }
+    });
 \definition commutes: \forall (f: Left.Map)(g: Right.Map)(x: Carrier) -> TargetSwap.forward.apply ((Original.map f g).apply x) = (Swapped.map g f).apply (forward.apply x) :=
   \fun (f: Left.Map)(g: Right.Map)(x: Carrier) => congr!{{\parent.\parent.\parent.Hom[V := Carrier, W := Final.Carrier, source := space, target := Final.space].Map} Final.Carrier}
     (\fun (h: \parent.\parent.\parent.Hom[V := Carrier, W := Final.Carrier, source := space, target := Final.space].Map) => h.apply x) _ _ (equality f g);

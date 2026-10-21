@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.Right[] \as Normalization;
 \import std.Data[].Nat[].Basic[].Def[] \as Arithmetic;
 \import Doubles.Map[C := Tensor.complex, D := RightTensor.complex].Total[f := RightComparison.map] \as TotalComparison;
@@ -18,10 +19,11 @@
   \import \parent.\parent.RightQuasi[].Column[n := n] \as Column;
   \definition onTensor: \forall (x: P.family.Carrier Nat.Nat^::zero)(y: Q.family.Carrier n) ->
     standardRight.apply n (injection.apply (Source.tensor x y)) = Target.tensor y (p.augmentation.apply x) :=
-    \fun (x: P.family.Carrier Nat.Nat^::zero)(y: Q.family.Carrier n) => trans!{Target.Carrier} _ _ _ (onInjection (Source.tensor x y))
-      (trans!{Target.Carrier} _ _ _
-        (congr!{{RightTensor.Carrier Nat.Nat^::zero n} Target.Carrier} (Normalization.rowForward.apply n) _ _ (RightComparison.Degree[p := Nat.Nat^::zero, q := n].onTensor x y))
-        (Column.normalizationOnTensor (LeftAugmentation.map.apply Nat.Nat^::zero x) y));
+    \fun (x: P.family.Carrier Nat.Nat^::zero)(y: Q.family.Carrier n) => eq_reason_in!{Target.Carrier _
+      "=" _ "by" { onInjection (Source.tensor x y) }
+      "=" _ "by" { congr!{{RightTensor.Carrier Nat.Nat^::zero n} Target.Carrier} (Normalization.rowForward.apply n) _ _ (RightComparison.Degree[p := Nat.Nat^::zero, q := n].onTensor x y) }
+      "=" _ "by" { Column.normalizationOnTensor (LeftAugmentation.map.apply Nat.Nat^::zero x) y }
+    };
 }
 \module Positive(p, q: Nat.Nat^) {
   \definition degree: Nat.Nat^ := Arithmetic.add (Nat.Nat^::succ p) q;
@@ -39,10 +41,11 @@
     \fun (x: Source.Carrier) => congr!{Maps.Map Target.Carrier} (\fun (f: Maps.Map) => f.apply x) _ _ mapZero;
   \import Modules.Hom[V := Target.Carrier, W := RightTotal.Carrier degree, source := Target.space, target := RightTotal.space degree] \as Injections;
   \definition rightZero: \forall (x: Source.Carrier) -> right.apply degree ((Total.Degree[n := degree].Component[i := point].injection).apply x) = (RightTotal.space degree).zero :=
-    \fun (x: Source.Carrier) => trans!{{RightTotal.Carrier degree}} _ _ _ (TotalComparison.Degree[n := degree].onInjection point x)
-      (trans!{{RightTotal.Carrier degree}} _ _ _
-        (congr!{Target.Carrier {RightTotal.Carrier degree}} ((RightTotal.Degree[n := degree].Component[i := point].injection).apply) _ _ (pointZero x))
-        (Injections.zeroPreserved (RightTotal.Degree[n := degree].Component[i := point].injection)));
+    \fun (x: Source.Carrier) => eq_reason_in!{{RightTotal.Carrier degree} _
+      "=" _ "by" { TotalComparison.Degree[n := degree].onInjection point x }
+      "=" _ "by" { congr!{Target.Carrier {RightTotal.Carrier degree}} ((RightTotal.Degree[n := degree].Component[i := point].injection).apply) _ _ (pointZero x) }
+      "=" _ "by" { Injections.zeroPreserved (RightTotal.Degree[n := degree].Component[i := point].injection) }
+    };
   \definition zero: \forall (x: Source.Carrier) -> standardRight.apply degree ((Total.Degree[n := degree].Component[i := point].injection).apply x) = (StandardRight.space degree).zero :=
     \fun (x: Source.Carrier) => trans!{{StandardRight.Carrier degree}} _ _ _
       (congr!{{RightTotal.Carrier degree} {StandardRight.Carrier degree}} (Normalization.standardForward.apply degree) _ _ (rightZero x))

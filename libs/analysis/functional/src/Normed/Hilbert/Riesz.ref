@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \root.Normed[V := Real.Real, space := Linear.scalarSpace] \as RealNormed;
 \definition realNorm: RealNormed.Norm := RealNormed.Norm {
   norm := Product.abs,
@@ -6,7 +7,7 @@
   definite := \fun (x: Real.Real) (zero: Product.abs x = Real.zero) => sym!{Real.Real} _ _ (Distance.distanceSeparated Real.zero x zero),
   triangle := \fun (a, b: Real.Real) => R.leReplace _ _ _ _
     (Distance.distanceSymmetric (Real.add a b) Real.zero)
-    (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Distance.distanceSymmetric a Real.zero) (Distance.distanceSymmetric b Real.zero))
+    (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Distance.distanceSymmetric a Real.zero) (Distance.distanceSymmetric b Real.zero))
     (Estimates.distanceAddZero a b),
   homogeneous := Product.absProduct,
 };
@@ -44,7 +45,7 @@
     {f.apply (Q.midpoint x y)}
     "=" {Real.mul Real.half (f.apply (space.add x y))} "by" {f.preservesScale Real.half (space.add x y)}
     "=" {Real.mul Real.half (Real.add (f.apply x) (f.apply y))} "by" {congr!{Real.Real Real.Real} (Real.mul Real.half) _ _ (f.preservesAdd x y)}
-    "=" {Real.mul Real.half (Real.add Real.one Real.one)} "by" {congr!{Real.Real Real.Real} (Real.mul Real.half) _ _ (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ fx fy)}
+    "=" {Real.mul Real.half (Real.add Real.one Real.one)} "by" {congr!{Real.Real Real.Real} (Real.mul Real.half) _ _ (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ fx fy)}
     "=" {Real.add (Real.mul Real.half Real.one) (Real.mul Real.half Real.one)} "by" {Laws.fieldMulAdd Real.half Real.one Real.one}
     "=" {Real.one} "by" {Estimates.halfTwice Real.one}
   };
@@ -58,9 +59,12 @@
         (Laws.addMonotoneRight a (Real.sub a b) b bound)));
 
 \definition coefficientCancel[a, h: Real.Real]: Logic.Not (a = Real.zero) -> Real.mul (Real.mul (Laws.fieldInv a) h) a = h :=
-  \fun (nonzero: Logic.Not (a = Real.zero)) => trans!{Real.Real} _ _ _ (Laws.fieldMulAssoc (Laws.fieldInv a) h a)
-    (trans!{Real.Real} _ _ _ (Algebra.mulSwap (Laws.fieldInv a) h a)
-      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul h) _ _ (Laws.fieldInverseNonzero a nonzero)) (Algebra.mulOneRight h)));
+  \fun (nonzero: Logic.Not (a = Real.zero)) => eq_reason_in!{Real.Real _
+    "=" _ "by" { Laws.fieldMulAssoc (Laws.fieldInv a) h a }
+    "=" _ "by" { Algebra.mulSwap (Laws.fieldInv a) h a }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul h) _ _ (Laws.fieldInverseNonzero a nonzero) }
+    "=" _ "by" { Algebra.mulOneRight h }
+  };
 \definition inverseCancel[a, r: Real.Real]: Logic.Not (a = Real.zero) -> Real.mul a (Real.mul (Laws.fieldInv a) r) = r :=
   \fun (nonzero: Logic.Not (a = Real.zero)) => trans!{Real.Real} _ _ _ (Laws.fieldMulComm a (Real.mul (Laws.fieldInv a) r))
     (coefficientCancel a r nonzero);
@@ -87,31 +91,37 @@
         \let cross: inner.inner u (space.smul b k) = q :=
           trans!{Real.Real} _ _ _ (inner.scaleRight b u k) (Laws.fieldMulAssoc (Laws.fieldInv a) h h) \then
         \let energy: Q.energy (space.smul b k) = q :=
-          trans!{Real.Real} _ _ _ (energyScale b k)
-            (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul b) _ _ (coefficientCancel a h nonzero))
-              (Laws.fieldMulAssoc (Laws.fieldInv a) h h)) \then
+          eq_reason_in!{Real.Real _
+            "=" _ "by" { energyScale b k }
+            "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul b) _ _ (coefficientCancel a h nonzero) }
+            "=" _ "by" { Laws.fieldMulAssoc (Laws.fieldInv a) h h }
+          } \then
         \let candidate: V := sub u (space.smul b k) \then
         \let candidateMember: \In[V] (Level f) candidate := eq_reason!{
           {f.apply candidate}
           "=" {Real.sub (f.apply u) (f.apply (space.smul b k))} "by" {Operators.preservesSub f u (space.smul b k)}
           "=" {Real.sub (f.apply u) (Real.mul b (f.apply k))} "by" {congr!{Real.Real Real.Real} (Real.sub (f.apply u)) _ _ (f.preservesScale b k)}
-          "=" {Real.sub Real.one (Real.mul b Real.zero)} "by" {congr2!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _ (minimum.member) (congr!{Real.Real Real.Real} (Real.mul b) _ _ inKernel)}
+          "=" {Real.sub Real.one (Real.mul b Real.zero)} "by" {congr!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _ (minimum.member) (congr!{Real.Real Real.Real} (Real.mul b) _ _ inKernel)}
           "=" {Real.sub Real.one Real.zero} "by" {congr!{Real.Real Real.Real} (Real.sub Real.one) _ _ (Laws.fieldMulZeroRight b)}
           "=" {Real.one} "by" {Laws.subZeroRight Real.one}
         } \then
         \let candidateEnergy: Q.energy candidate = Real.sub (Q.energy u) q :=
-          trans!{Real.Real} _ _ _ (Q.difference u (space.smul b k))
-            (trans!{Real.Real} _ _ _
-              (congr2!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _
+          eq_reason_in!{Real.Real _
+            "=" _ "by" { Q.difference u (space.smul b k) }
+            "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _
                 (congr!{Real.Real Real.Real} (Real.add (Q.energy u)) _ _ energy)
-                (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ cross cross))
-              (subtractDouble (Q.energy u) q)) \then
+                (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ cross cross) }
+            "=" _ "by" { subtractDouble (Q.energy u) q }
+          } \then
         \let nonpositive: R.Le q Real.zero := subtractNonpositive (Q.energy u) q
           (R.leReplaceRight _ (Q.energy candidate) _ candidateEnergy (minimum.least candidate candidateMember)) \then
         \let zero: q = Real.zero := R.leAntisym q Real.zero nonpositive
           (Laws.fieldMulNonnegative (Laws.fieldInv a) (Real.mul h h) (Order.leOfLt _ _ (Product.invPositive a ap)) (Algebra.squareNonnegative h)) \then
-        \return Algebra.squareZero h (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (inverseCancel a (Real.mul h h) nonzero))
-          (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul a) _ _ zero) (Laws.fieldMulZeroRight a)))
+        \return Algebra.squareZero h (eq_reason_in!{Real.Real _
+          "=" _ "by" { sym!{Real.Real} _ _ (inverseCancel a (Real.mul h h) nonzero) }
+          "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul a) _ _ zero }
+          "=" _ "by" { Laws.fieldMulZeroRight a }
+        })
       });
 
 \definition riesz: Hilbert[inner] -> \forall (f: Functional) -> \exists ( y: V \where Represents inner (f.apply) y ) :=

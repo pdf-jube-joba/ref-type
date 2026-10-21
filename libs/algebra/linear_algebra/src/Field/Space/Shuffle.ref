@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Data[].Nat[] \as N;
 \import N.Basic[].Def[] \as Nat;
 \import \parent.Sign[] \as Sign;
@@ -65,12 +66,12 @@
   \let weight: K := split.weight \then
   \let left: K := f split.left \then
   \let right: K := g (Lists.List[I]::cons i split.right) \then
-  \return trans!{K} (mul (mul sign weight) (mul left right)) (mul sign (mul weight (mul left right))) (mul weight (mul (mul sign left) right))
-    (mulAssoc sign weight (mul left right))
-    (trans!{K} (mul sign (mul weight (mul left right))) (mul weight (mul sign (mul left right))) (mul weight (mul (mul sign left) right))
-      (Scalars.scaleComm sign weight (mul left right))
-      (congr!{K K} (mul weight) (mul sign (mul left right)) (mul (mul sign left) right)
-        (sym!{K} (mul (mul sign left) right) (mul sign (mul left right)) (mulAssoc sign left right))))
+  \return eq_reason_in!{K { mul (mul sign weight) (mul left right) }
+    "=" { mul sign (mul weight (mul left right)) } "by" { mulAssoc sign weight (mul left right) }
+    "=" { mul weight (mul sign (mul left right)) } "by" { Scalars.scaleComm sign weight (mul left right) }
+    "=" { mul weight (mul (mul sign left) right) } "by" { congr!{K K} (mul weight) (mul sign (mul left right)) (mul (mul sign left) right)
+        (sym!{K} (mul (mul sign left) right) (mul sign (mul left right)) (mulAssoc sign left right)) }
+  }
 };
 \definition atEmpty: \forall (f, g: Function) -> product f g Lists.List[I]::nil = mul (f Lists.List[I]::nil) (g Lists.List[I]::nil) :=
   \fun (f, g: Function) => trans!{K} _ _ _
@@ -87,7 +88,7 @@
       (SumLaws.congruent (partitions xs) (\fun (split: Split) => term f g (insertRight i split)) (term (twist f) (shift i g)) (rightTerm i f g)) \then
   \return trans!{K} _ _ _
       (SumLaws.append left right (term f g))
-      (congr2!{K K K} add (Sums.sum left (term f g)) (product (shift i f) g xs) (Sums.sum right (term f g)) (product (twist f) (shift i g) xs) leftSum rightSum)
+      (congr!{K K K} add (Sums.sum left (term f g)) (product (shift i f) g xs) (Sums.sum right (term f g)) (product (twist f) (shift i g) xs) leftSum rightSum)
 };
 \module Partitions;
 \module Laws;

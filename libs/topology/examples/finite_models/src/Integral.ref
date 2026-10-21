@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Arithmetic[].Int[] \as I;
 \import std.Arithmetic[].IntAlgebra[].Ring[] \as IntegerRing;
 \import std.Logic[].Equality[] \as Equality;
@@ -50,10 +51,11 @@
     [addition: \forall (x, y: A.Carrier) -> f ((A.space).add x y) = (B.space).add (f x) (f y)]:
     f ((A.space).zero) = (B.space).zero :=
     TargetGroup.cancelLeft (f ((A.space).zero)) (f ((A.space).zero)) ((B.space).zero)
-      (trans!{B.Carrier} _ _ _
-        (trans!{B.Carrier} _ _ _ (sym!{B.Carrier} _ _ (addition ((A.space).zero) ((A.space).zero)))
-          (congr!{A.Carrier B.Carrier} f _ _ (SourceGroup.zeroLeft ((A.space).zero))))
-        (sym!{B.Carrier} _ _ (TargetGroup.zeroRight (f ((A.space).zero)))));
+      (eq_reason_in!{B.Carrier _
+        "=" _ "by" { sym!{B.Carrier} _ _ (addition ((A.space).zero) ((A.space).zero)) }
+        "=" _ "by" { congr!{A.Carrier B.Carrier} f _ _ (SourceGroup.zeroLeft ((A.space).zero)) }
+        "=" _ "by" { sym!{B.Carrier} _ _ (TargetGroup.zeroRight (f ((A.space).zero))) }
+      });
   \definition fromAdditive[f: A.Carrier -> B.Carrier]
     [addition: \forall (x, y: A.Carrier) -> f ((A.space).add x y) = (B.space).add (f x) (f y)]: Linear.Map :=
     fromGroup (\into[A.Carrier -> B.Carrier](f, Groups.Map) \by {
@@ -71,6 +73,9 @@
     trans!{B.Carrier} _ _ _ (congr!{I.Int^ B.Carrier} ((f).apply) _ _ (sym!{I.Int^} _ _ (Product.mulOneRight a)))
       ((f).scalar a I.One.specification);
   \definition equal[f, g: Maps.Map][one: (f).apply I.One.specification = (g).apply I.One.specification]: f = g :=
-    Maps.ext f g (\fun (a: I.Int^) => trans!{B.Carrier} _ _ _ (value f a)
-      (trans!{B.Carrier} _ _ _ (congr!{B.Carrier B.Carrier} ((B.space).smul a) _ _ one) (sym!{B.Carrier} _ _ (value g a))));
+    Maps.ext f g (\fun (a: I.Int^) => eq_reason_in!{B.Carrier _
+      "=" _ "by" { value f a }
+      "=" _ "by" { congr!{B.Carrier B.Carrier} ((B.space).smul a) _ _ one }
+      "=" _ "by" { sym!{B.Carrier} _ _ (value g a) }
+    });
 }

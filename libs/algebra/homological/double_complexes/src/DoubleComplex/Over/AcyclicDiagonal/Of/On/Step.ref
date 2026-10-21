@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition k: Nat.Nat^ := Nat.Nat^::succ n;
 \definition z: Degree := degree n;
 \import \parent.Preceding[n := n] \as Earlier;
@@ -8,21 +9,23 @@
 \definition minusZero[x: Carrier k z]: Group.difference x (space k z).zero = x :=
   trans!{{Carrier k z}} _ _ _ (congr!{{Carrier k z} {Carrier k z}} (Values.add x) _ _ Group.negZero) (Group.zeroRight x);
 \definition remainder: (model.operators.transition n z).apply (obstruction n) = (model.operators.transition n z).apply (cells.value n) :=
-  trans!{{Carrier k z}} _ _ _ (Transition.differencePreserved (model.operators.transition n z) (cells.value n) (preceding n))
-    (trans!{{Carrier k z}} _ _ _
-      (congr!{{Carrier k z} {Carrier k z}} (Group.difference ((model.operators.transition n z).apply (cells.value n))) _ _ Earlier.law)
-      (minusZero ((model.operators.transition n z).apply (cells.value n))));
+  eq_reason_in!{{Carrier k z} _
+    "=" _ "by" { Transition.differencePreserved (model.operators.transition n z) (cells.value n) (preceding n) }
+    "=" _ "by" { congr!{{Carrier k z} {Carrier k z}} (Group.difference ((model.operators.transition n z).apply (cells.value n))) _ _ Earlier.law }
+    "=" _ "by" { minusZero ((model.operators.transition n z).apply (cells.value n)) }
+  };
 \definition precedingBoundary: Property n -> (model.operators.boundary k (degree k)).apply (preceding k) = (model.operators.transition n z).apply (cells.value n) :=
-  \fun (previous: Property n) => trans!{{Carrier k z}} _ _ _
-    ((model.laws).commutes n (degree k) (value n))
-    (trans!{{Carrier k z}} _ _ _
-      (congr!{{Carrier n z} {Carrier k z}} ((model.operators.transition n z).apply) _ _ previous) remainder);
+  \fun (previous: Property n) => eq_reason_in!{{Carrier k z} _
+    "=" _ "by" { (model.laws).commutes n (degree k) (value n) }
+    "=" _ "by" { congr!{{Carrier n z} {Carrier k z}} ((model.operators.transition n z).apply) _ _ previous }
+    "=" _ "by" remainder
+  };
 \definition closed: Property n -> (model.operators.boundary k (degree k)).apply (obstruction k) = (space k z).zero :=
-  \fun (previous: Property n) => trans!{{Carrier k z}} _ _ _
-    (Differential.differencePreserved (model.operators.boundary k (degree k)) (cells.value k) (preceding k))
-    (trans!{{Carrier k z}} _ _ _
-      (congr2!{{Carrier k z} {Carrier k z} {Carrier k z}} Group.difference _ _ _ _ (cells.successor n) (precedingBoundary previous))
-      (Group.inverseRight ((model.operators.transition n z).apply (cells.value n))));
+  \fun (previous: Property n) => eq_reason_in!{{Carrier k z} _
+    "=" _ "by" { Differential.differencePreserved (model.operators.boundary k (degree k)) (cells.value k) (preceding k) }
+    "=" _ "by" { congr!{{Carrier k z} {Carrier k z} {Carrier k z}} Group.difference _ _ _ _ (cells.successor n) (precedingBoundary previous) }
+    "=" _ "by" { Group.inverseRight ((model.operators.transition n z).apply (cells.value n)) }
+  };
 \definition law: Property n -> Property k := \fun (previous: Property n) => trans!{{Carrier k (degree k)}} _ _ _
   (congr!{{Carrier k (degree (Nat.Nat^::succ k))} {Carrier k (degree k)}} ((model.operators.boundary k (degree (Nat.Nat^::succ k))).apply) _ _ (recursion k))
   (fillings.boundary k (obstruction k) (closed previous));

@@ -1,12 +1,15 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \root.Two[] \as F;
 \import std.Data[].Bool[] \as Booleans;
 \import std.Logic[].Proposition[] \as Logic;
 \import Modules.Isomorphism[V := V, W := F.Carrier, source := space, target := F.integerSpace] \as Isomorphisms;
 \import Modules.Hom[V := V, W := F.Carrier, source := space, target := F.integerSpace] \as Forward;
 \definition zeroCoordinate[e: Isomorphisms.Isomorphism][x: V][zero: ((e).forward).apply x = F.zero]: x = (space).zero :=
-  trans!{V} _ _ _ (sym!{V} _ _ ((e).leftInverse x))
-    (trans!{V} _ _ _ (congr!{F.Carrier V} (((e).backward).apply) _ _ zero)
-      (Modules.Hom[V := F.Carrier, W := V, source := F.integerSpace, target := space].zeroPreserved (e).backward));
+  eq_reason_in!{V _
+    "=" _ "by" { sym!{V} _ _ ((e).leftInverse x) }
+    "=" _ "by" { congr!{F.Carrier V} (((e).backward).apply) _ _ zero }
+    "=" _ "by" { Modules.Hom[V := F.Carrier, W := V, source := F.integerSpace, target := space].zeroPreserved (e).backward }
+  };
 \definition nonzeroCoordinate[e: Isomorphisms.Isomorphism][x: V][nonzero: x = (space).zero -> Logic.False]:
   ((e).forward).apply x = F.zero -> Logic.False := \fun (zero: _) => nonzero (zeroCoordinate e x zero);
 \definition binaryOne: \forall (x: F.Carrier) -> (x = F.zero -> Logic.False) -> x = F.one :=
@@ -15,7 +18,8 @@
     (\fun (good: F.one = F.zero -> Logic.False) => \refl(F.one));
 \definition coordinateOne[e: Isomorphisms.Isomorphism][x: V][nonzero: x = (space).zero -> Logic.False]: ((e).forward).apply x = F.one := binaryOne _ (nonzeroCoordinate e x nonzero);
 \definition unique[e: Isomorphisms.Isomorphism][x, y: V][first: x = (space).zero -> Logic.False][last: y = (space).zero -> Logic.False]: x = y :=
-  trans!{V} _ _ _ (sym!{V} _ _ ((e).leftInverse x))
-    (trans!{V} _ _ _
-      (congr!{F.Carrier V} (((e).backward).apply) _ _ (trans!{F.Carrier} _ _ _ (coordinateOne e x first) (sym!{F.Carrier} _ _ (coordinateOne e y last))))
-      ((e).leftInverse y));
+  eq_reason_in!{V _
+    "=" _ "by" { sym!{V} _ _ ((e).leftInverse x) }
+    "=" _ "by" { congr!{F.Carrier V} (((e).backward).apply) _ _ (trans!{F.Carrier} _ _ _ (coordinateOne e x first) (sym!{F.Carrier} _ _ (coordinateOne e y last))) }
+    "=" _ "by" { (e).leftInverse y }
+  };

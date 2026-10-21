@@ -1,7 +1,7 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \root.Paths[A := A, source := source].ReverseHomotopy[] \as Reverse;
 \use Equality.trans;
 \use Equality.congr;
-\use Equality.congr2;
 \definition uniqueOnNeighborhood: \forall (x: A)(V, U: \Pow A) -> SemilocalNeighborhood[x, V] -> ConnectedNeighborhood[x, V, U] ->
   \forall (y, z: A)(p, q: Path U y z) -> Groupoid.class y z p = Groupoid.class y z q := \block {
   \fun (x: A)(V, U: \Pow A)(semi: SemilocalNeighborhood[x, V])(local: ConnectedNeighborhood[x, V, U])(y, z: A)(p, q: Path U y z) \then
@@ -14,14 +14,18 @@
   \let b: Path V x z := concatenate V x y z rv qv \then
   \let loop: Path V x x := concatenate V x z x a (reverse V x z b) \then
   \let cancel: Groupoid.compose x z x (Groupoid.class x z a) (Groupoid.inverse x z (Groupoid.class x z b)) = Groupoid.identity x :=
-    trans!{{Groupoid.Arrow x x}} _ _ _
-      (trans!{{Groupoid.Arrow x x}} _ _ _
-        (congr!{{Groupoid.Arrow z x} {Groupoid.Arrow x x}} (Groupoid.compose x z x (Groupoid.class x z a)) _ _ (Reverse.Between[x := x, y := z].onClass b))
-        (Join.Classes[x := x, y := z, z := x].onClass a (Paths.reverse x z b))) (semi.null loop) \then
+    eq_reason_in!{{Groupoid.Arrow x x} _
+      "=" _ "by" { congr!{{Groupoid.Arrow z x} {Groupoid.Arrow x x}} (Groupoid.compose x z x (Groupoid.class x z a)) _ _ (Reverse.Between[x := x, y := z].onClass b) }
+      "=" _ "by" { Join.Classes[x := x, y := z, z := x].onClass a (Paths.reverse x z b) }
+      "=" _ "by" { semi.null loop }
+    } \then
   \let equal: Groupoid.class x z a = Groupoid.class x z b := Groupoid.equalOfLoop x z (Groupoid.class x z a) (Groupoid.class x z b) cancel \then
   \return Groupoid.cancelLeft x y z (Groupoid.class x y r) (Groupoid.class y z p) (Groupoid.class y z q)
-    (trans!{{Groupoid.Arrow x z}} _ _ _ (Join.Classes[x := x, y := y, z := z].onClass r p)
-      (trans!{{Groupoid.Arrow x z}} _ _ _ equal (sym!{{Groupoid.Arrow x z}} _ _ (Join.Classes[x := x, y := y, z := z].onClass r q))))
+    (eq_reason_in!{{Groupoid.Arrow x z} _
+      "=" _ "by" { Join.Classes[x := x, y := y, z := z].onClass r p }
+      "=" _ "by" equal
+      "=" _ "by" { sym!{{Groupoid.Arrow x z}} _ _ (Join.Classes[x := x, y := y, z := z].onClass r q) }
+    })
 };
 \definition refine: LocallyPathConnected -> SemilocallySimplyConnected -> GoodBasis := \block {
   \fun (lpc: _)(semi: _)(W: \Pow A)(wo: _)(x: A)(inW: _) \then

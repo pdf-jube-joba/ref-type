@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition one: A := ring.one;
 \definition mul: A -> A -> A := ring.mul;
 \definition assoc: \forall (x, y, z: A) -> mul (mul x y) z = mul x (mul y z) := ring.semiring.multiplicative.associative;
@@ -28,7 +29,7 @@
 \definition ext: \forall (x, y: Unit) -> x.value = y.value -> x = y :=
   \fun (x, y: Unit)(same: _) => eq_reason!{
     x "=" {Data::# x.value x.inverse} "by" {sym!{Data} _ _ (dataEta x)}
-    "=" {Data::# y.value y.inverse} "by" {congr2!{A A Data} Data::# _ _ _ _ same (inverseEqual x y same)}
+    "=" {Data::# y.value y.inverse} "by" {congr!{A A Data} Data::# _ _ _ _ same (inverseEqual x y same)}
     "=" y "by" {dataEta y}
   };
 \definition unit: Unit := Unit {
@@ -83,8 +84,11 @@
     "=" ring.zero "by" {ring.semiring.zeroAbsorbsLeft y}
   });
 \definition negNegMul: \forall (x, y: A) -> mul (ring.neg x) (ring.neg y) = mul x y :=
-  \fun (x, y: A) => trans!{A} _ _ _ (negMul x (ring.neg y))
-    (trans!{A} _ _ _ (congr!{A A} ring.neg _ _ (mulNeg x y)) (Additive.negNeg (mul x y)));
+  \fun (x, y: A) => eq_reason_in!{A _
+    "=" _ "by" { negMul x (ring.neg y) }
+    "=" _ "by" { congr!{A A} ring.neg _ _ (mulNeg x y) }
+    "=" _ "by" { Additive.negNeg (mul x y) }
+  };
 \definition minusOne: Unit := Unit {
   value := ring.neg one, inverse := ring.neg one,
   left := trans!{A} _ _ _ (negNegMul one one) (oneLeft one),

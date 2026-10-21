@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Chains.At[C := C, z := z] \as H;
 \import Hom.Cohomology[z := z] \as Cohomology;
 \import Modules.Hom[V := H.Cycle, W := A.Carrier, source := H.cycleSpace, target := A.space] \as Restriction;
@@ -31,17 +32,19 @@
   addition := \fun (f, g: Cohomology.Closed) => ValueMaps.ext (evaluate (Cohomology.cycleSpace.add f g)) (Values.space.add (evaluate f) (evaluate g))
     (H.classInduction (\fun (x: H.Homology) => (evaluate (Cohomology.cycleSpace.add f g)).apply x = (Values.space.add (evaluate f) (evaluate g)).apply x)
       (\fun (x: H.Cycle) => trans!{A.Carrier} _ _ _ (onClass (Cohomology.cycleSpace.add f g) x)
-        (sym!{A.Carrier} _ _ (congr2!{A.Carrier A.Carrier A.Carrier} (A.space.add) _ _ _ _ (onClass f x) (onClass g x))))),
+        (sym!{A.Carrier} _ _ (congr!{A.Carrier A.Carrier A.Carrier} (A.space.add) _ _ _ _ (onClass f x) (onClass g x))))),
   scalar := \fun (a: R)(f: Cohomology.Closed) => ValueMaps.ext (evaluate (Cohomology.cycleSpace.smul a f)) (Values.space.smul a (evaluate f))
     (H.classInduction (\fun (x: H.Homology) => (evaluate (Cohomology.cycleSpace.smul a f)).apply x = (Values.space.smul a (evaluate f)).apply x)
       (\fun (x: H.Cycle) => trans!{A.Carrier} _ _ _ (onClass (Cohomology.cycleSpace.smul a f) x)
         (sym!{A.Carrier} _ _ (congr!{A.Carrier A.Carrier} (A.space.smul a) _ _ (onClass f x))))),
 };
 \definition onCoboundary: \forall (g: Hom.Carrier (Degrees.previous z))(x: H.Cycle) -> (Cohomology.prior g).apply x = A.space.zero :=
-  \fun (g: Hom.Carrier (Degrees.previous z))(x: H.Cycle) => trans!{A.Carrier} _ _ _ (Cohomology.priorOnElement g x)
-    (trans!{A.Carrier} _ _ _
-      (congr!{{C.family.Carrier (Degrees.previous z)} A.Carrier} (g.apply) _ _
-        (\bysub(C.family.Carrier z, H.cycles.carrier, x))) (Hom.At[z := Degrees.previous z].zeroPreserved g));
+  \fun (g: Hom.Carrier (Degrees.previous z))(x: H.Cycle) => eq_reason_in!{A.Carrier _
+    "=" _ "by" { Cohomology.priorOnElement g x }
+    "=" _ "by" { congr!{{C.family.Carrier (Degrees.previous z)} A.Carrier} (g.apply) _ _
+        (\bysub(C.family.Carrier z, H.cycles.carrier, x)) }
+    "=" _ "by" { Hom.At[z := Degrees.previous z].zeroPreserved g }
+  };
 \definition evaluationVanishes: \forall (f: Cohomology.Closed) ->
   Modules.Submodule[V := Cohomology.Closed, space := Cohomology.cycleSpace].Member Cohomology.boundariesInside f -> evaluate f = Values.space.zero := \block {
   \fun (f: Cohomology.Closed)(member: _) \then
@@ -49,11 +52,12 @@
     \by Cohomology.boundaryExists f member \then
   \return ValueMaps.ext (evaluate f) (Values.space.zero)
     (H.classInduction (\fun (x: H.Homology) => (evaluate f).apply x = A.space.zero)
-      (\fun (x: H.Cycle) => trans!{A.Carrier} _ _ _ (onClass f x)
-        (trans!{A.Carrier} _ _ _
-          (sym!{A.Carrier} _ _ (congr!{{Hom.Carrier z} A.Carrier} (\fun (h: Hom.Carrier z) => h.apply x) _ _
-            (\bysub(Hom.Carrier (Degrees.previous z), { g: Hom.Carrier (Degrees.previous z) \where Cohomology.prior g = f }, g))))
-          (onCoboundary g x))))
+      (\fun (x: H.Cycle) => eq_reason_in!{A.Carrier _
+        "=" _ "by" { onClass f x }
+        "=" _ "by" { sym!{A.Carrier} _ _ (congr!{{Hom.Carrier z} A.Carrier} (\fun (h: Hom.Carrier z) => h.apply x) _ _
+            (\bysub(Hom.Carrier (Degrees.previous z), { g: Hom.Carrier (Degrees.previous z) \where Cohomology.prior g = f }, g))) }
+        "=" _ "by" { onCoboundary g x }
+      }))
 };
 \import Modules.Of[V := Cohomology.Closed, space := Cohomology.cycleSpace].Submodule[].Quotient[S := Cohomology.boundariesInside].To[W := Values.Carrier, target := Values.space] \as CohomologyDescent;
 \definition map: Modules.Hom[V := Cohomology.Cohomology, W := Values.Carrier, source := Cohomology.cohomologySpace, target := Values.space].Map :=

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Map[C := C, D := D] \as Maps;
 \import \parent.Total[C := C] \as Total;
 \import \parent.Total[C := D] \as Target;
@@ -31,22 +32,27 @@
     (C.differential.vertical p q).apply y = x ->
     (TargetSign.map p).apply ((C.differential.vertical p q).apply ((SourceSign.map p).apply y)) = x :=
     \fun (x: C.family.Carrier p q)(y: C.family.Carrier p (Nat.Nat^::succ q))(preimage: _) =>
-      trans!{{C.family.Carrier p q}} _ _ _
-        (congr!{{C.family.Carrier p q} {C.family.Carrier p q}} ((TargetSign.map p).apply) _ _
-          (NaturalSign.naturality (C.differential.vertical p q) p y))
-        (trans!{{C.family.Carrier p q}} _ _ _
-          (TargetSign.involutive p ((C.differential.vertical p q).apply y)) preimage);
+      eq_reason_in!{{C.family.Carrier p q} _
+        "=" _ "by" { congr!{{C.family.Carrier p q} {C.family.Carrier p q}} ((TargetSign.map p).apply) _ _
+          (NaturalSign.naturality (C.differential.vertical p q) p y) }
+        "=" _ "by" { TargetSign.involutive p ((C.differential.vertical p q).apply y) }
+        "=" _ "by" preimage
+      };
 }
 
 \module Injection(p, q: Nat.Nat^);
 
 \definition indexOfFirst: \forall (n: Nat.Nat^)(i, j: Index n) -> i.first = j.first -> i = j :=
   \fun (n: Nat.Nat^)(i, j: Index n)(equal: i.first = j.first) =>
-    trans!{Pair} _ _ _ (sym!{Pair} _ _ (pairRebuild i))
-      (trans!{Pair} _ _ _
-        (congr2!{Nat.Nat^ Nat.Nat^ Pair} (\fun (p, q: Nat.Nat^) => Pair { first := p, second := q }) _ _ _ _ equal
-          (trans!{Nat.Nat^} _ _ _ (sym!{Nat.Nat^} _ _ (secondDetermined n i))
-            (trans!{Nat.Nat^} _ _ _ (congr!{Nat.Nat^ Nat.Nat^} (Arithmetic.sub n) _ _ equal) (secondDetermined n j))))
-        (pairRebuild j));
+    eq_reason_in!{Pair _
+      "=" _ "by" { sym!{Pair} _ _ (pairRebuild i) }
+      "=" _ "by" { congr!{Nat.Nat^ Nat.Nat^ Pair} (\fun (p, q: Nat.Nat^) => Pair { first := p, second := q }) _ _ _ _ equal
+          (eq_reason_in!{Nat.Nat^ _
+            "=" _ "by" { sym!{Nat.Nat^} _ _ (secondDetermined n i) }
+            "=" _ "by" { congr!{Nat.Nat^ Nat.Nat^} (Arithmetic.sub n) _ _ equal }
+            "=" _ "by" { secondDetermined n j }
+          }) }
+      "=" _ "by" { pairRebuild j }
+    };
 
 \module On(f: Maps.Map);

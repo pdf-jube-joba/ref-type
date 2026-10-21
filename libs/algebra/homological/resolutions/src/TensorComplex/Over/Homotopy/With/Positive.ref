@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Modules.Tensor[V := P.family.Carrier (Nat.Nat^::succ n), W := N.Carrier, left := P.family.space (Nat.Nat^::succ n), right := N.space] \as Generators;
 \import Modules.Tensor[V := Q.family.Carrier (Nat.Nat^::succ n), W := N.Carrier, left := Q.family.space (Nat.Nat^::succ n), right := N.space] \as Result;
 \import Generators.Universal[U := Result.Carrier, target := Result.space] \as Equality;
@@ -10,22 +11,20 @@
 \definition left: Linear.Map := Left.compose (Target.At[n := Nat.Nat^::succ n].differential) (\parent.At[n := Nat.Nat^::succ n].map);
 \definition right: Linear.Map := Right.compose (\parent.At[n := n].map) (Source.At[n := n].differential);
 \definition equation: difference = Linear.plus left right := Equality.ext difference (Linear.plus left right)
-  (\fun (x: P.family.Carrier (Nat.Nat^::succ n))(y: N.Carrier) => trans!{Result.Carrier} _ _ _
-    (congr2!{Result.Carrier Result.Carrier Result.Carrier}
-      (\fun (a, b: Result.Carrier) => Result.space.add a (Result.space.neg b)) _ _ _ _ (Forward.onTensor x y) (Backward.onTensor x y))
-    (trans!{Result.Carrier} _ _ _
-      (sym!{Result.Carrier} _ _ (Result.tensorDifferenceLeft (f.apply (Nat.Nat^::succ n) x) (g.apply (Nat.Nat^::succ n) x) y))
-      (trans!{Result.Carrier} _ _ _
-        (congr!{{Q.family.Carrier (Nat.Nat^::succ n)} Result.Carrier} (\fun (z: Q.family.Carrier (Nat.Nat^::succ n)) => Result.tensor z y) _ _ (h.successorEquation n x))
-        (trans!{Result.Carrier} _ _ _
-          (Result.bilinear.addLeft (Q.differential.apply (Nat.Nat^::succ n) (h.apply (Nat.Nat^::succ n) x)) (h.apply n (P.differential.apply n x)) y)
-          (sym!{Result.Carrier} _ _ (congr2!{Result.Carrier Result.Carrier Result.Carrier} (Result.space.add) _ _ _ _
+  (\fun (x: P.family.Carrier (Nat.Nat^::succ n))(y: N.Carrier) => eq_reason_in!{Result.Carrier _
+    "=" _ "by" { congr!{Result.Carrier Result.Carrier Result.Carrier}
+      (\fun (a, b: Result.Carrier) => Result.space.add a (Result.space.neg b)) _ _ _ _ (Forward.onTensor x y) (Backward.onTensor x y) }
+    "=" _ "by" { sym!{Result.Carrier} _ _ (Result.tensorDifferenceLeft (f.apply (Nat.Nat^::succ n) x) (g.apply (Nat.Nat^::succ n) x) y) }
+    "=" _ "by" { congr!{{Q.family.Carrier (Nat.Nat^::succ n)} Result.Carrier} (\fun (z: Q.family.Carrier (Nat.Nat^::succ n)) => Result.tensor z y) _ _ (h.successorEquation n x) }
+    "=" _ "by" { Result.bilinear.addLeft (Q.differential.apply (Nat.Nat^::succ n) (h.apply (Nat.Nat^::succ n) x)) (h.apply n (P.differential.apply n x)) y }
+    "=" _ "by" { sym!{Result.Carrier} _ _ (congr!{Result.Carrier Result.Carrier Result.Carrier} (Result.space.add) _ _ _ _
             (trans!{Result.Carrier} _ _ _
               (congr!{{Target.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))} Result.Carrier} ((Target.At[n := Nat.Nat^::succ n].differential).apply) _ _ (\parent.At[n := Nat.Nat^::succ n].onTensor x y))
               (Target.At[n := Nat.Nat^::succ n].onTensor (h.apply (Nat.Nat^::succ n) x) y))
             (trans!{Result.Carrier} _ _ _
               (congr!{{Source.Carrier n} Result.Carrier} ((\parent.At[n := n].map).apply) _ _ (Source.At[n := n].onTensor x y))
-              (\parent.At[n := n].onTensor (P.differential.apply n x) y))))))));
+              (\parent.At[n := n].onTensor (P.differential.apply n x) y))) }
+  });
 \definition pointwise: \forall (x: Source.Carrier (Nat.Nat^::succ n)) ->
   (Target.space (Nat.Nat^::succ n)).add (Forward.map.apply x) ((Target.space (Nat.Nat^::succ n)).neg (Backward.map.apply x)) =
     (Target.space (Nat.Nat^::succ n)).add (Target.differential.apply (Nat.Nat^::succ n) ((\parent.At[n := Nat.Nat^::succ n].map).apply x))

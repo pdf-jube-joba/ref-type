@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Data[].Nat[] \as N;
 \import N.Basic[].Def[] \as Nat;
 \import N.Basic[].Prop[] \as NatLaws;
@@ -5,7 +6,6 @@
 \use Equality.sym;
 \use Equality.trans;
 \use Equality.congr;
-\use Equality.congr2;
 \import real.Analysis[] \as R;
 \import linear_algebra.Field[].Space[K := R.Real, field := R.Algebra[].field] \as Spaces;
 \import Spaces.CoordinateLine[] \as Line;
@@ -19,9 +19,11 @@
 \definition sumDimension: N.Nat^ := Append.dimension;
 \import linear_algebra.Euclidean[n := sumDimension] \as Joined;
 \import linear_algebra.Euclidean[n := Line.one] \as Scalar;
-\definition dimensionEquality: sumDimension = newDimension := trans!{N.Nat^} _ (N.Nat^::succ oldDimension) _
-  (trans!{N.Nat^} _ _ _ (NatLaws.addSuccLeft N.Nat^::zero oldDimension) (congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _ (NatLaws.addZeroLeft oldDimension)))
-  (sym!{N.Nat^} _ _ (NatLaws.addSuccLeft k n));
+\definition dimensionEquality: sumDimension = newDimension := eq_reason_in!{N.Nat^ _
+  "=" _ "by" { NatLaws.addSuccLeft N.Nat^::zero oldDimension }
+  "=" _ "by" { congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _ (NatLaws.addZeroLeft oldDimension) }
+  "=" _ "by" { sym!{N.Nat^} _ _ (NatLaws.addSuccLeft k n) }
+};
 \import Joined.Reindex[m := newDimension, same := dimensionEquality] \as Reindex;
 \import Spaces.Linear[V := Joined.Vector, W := NewE.Vector, source := Joined.space, target := NewE.space].Composition[U := OldE.Vector, domain := OldE.space] \as EmbeddingComposition;
 \definition embedding: Spaces.Linear[V := OldE.Vector, W := NewE.Vector, source := OldE.space, target := NewE.space].Map := EmbeddingComposition.compose Reindex.isomorphism.forward Append.inclusion;
@@ -44,12 +46,17 @@
     (congr!{{Scalar.Vector} {Joined.Vector}} (Append.join (first.apply v)) _ _
       ((Spaces.Isomorphism[V := R.Real, W := Scalar.Vector, source := Spaces.scalarSpace, target := Scalar.space].laws Line.isomorphism).rightInverse (last.apply v)))
     (Append.recover (Reindex.isomorphism.backward.apply v)))) ((ReindexIsomorphisms.laws Reindex.isomorphism).rightInverse v);
-\definition embeddingInjective: \forall (v, w: OldE.Vector) -> embedding.apply v = embedding.apply w -> v = w := \fun (v, w: OldE.Vector)(same: _) => trans!{{OldE.Vector}} _ _ _
-  (sym!{{OldE.Vector}} _ _ (firstJoin v R.zero)) (trans!{{OldE.Vector}} _ _ _ (congr!{{NewE.Vector} {OldE.Vector}} first.apply _ _ same) (firstJoin w R.zero));
+\definition embeddingInjective: \forall (v, w: OldE.Vector) -> embedding.apply v = embedding.apply w -> v = w := \fun (v, w: OldE.Vector)(same: _) => eq_reason_in!{{OldE.Vector} _
+  "=" _ "by" { sym!{{OldE.Vector}} _ _ (firstJoin v R.zero) }
+  "=" _ "by" { congr!{{NewE.Vector} {OldE.Vector}} first.apply _ _ same }
+  "=" _ "by" { firstJoin w R.zero }
+};
 \definition orthogonality: \forall (w: NewE.Vector)(v: OldE.Vector) -> NewE.dot w (embedding.apply v) = OldE.dot (first.apply w) v :=
-  \fun (w: NewE.Vector)(v: OldE.Vector) => trans!{{R.Real}} _ _ _
-    (congr!{{NewE.Vector} {R.Real}} (\fun (u: NewE.Vector) => NewE.dot u (embedding.apply v)) _ _ (sym!{{NewE.Vector}} _ _ ((ReindexIsomorphisms.laws Reindex.isomorphism).rightInverse w)))
-    (trans!{{R.Real}} _ _ _ (Reindex.isometry (Reindex.isomorphism.backward.apply w) (Append.inclusion.apply v)) (Append.dotIncluded (Reindex.isomorphism.backward.apply w) v));
+  \fun (w: NewE.Vector)(v: OldE.Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{NewE.Vector} {R.Real}} (\fun (u: NewE.Vector) => NewE.dot u (embedding.apply v)) _ _ (sym!{{NewE.Vector}} _ _ ((ReindexIsomorphisms.laws Reindex.isomorphism).rightInverse w)) }
+    "=" _ "by" { Reindex.isometry (Reindex.isomorphism.backward.apply w) (Append.inclusion.apply v) }
+    "=" _ "by" { Append.dotIncluded (Reindex.isomorphism.backward.apply w) v }
+  };
 \definition joinAddition: \forall (v, w: OldE.Vector)(a, b: R.Real) -> join (OldE.space.add v w) (R.add a b) = NewE.space.add (join v a) (join w b) :=
   \fun (v, w: OldE.Vector)(a, b: R.Real) => trans!{{NewE.Vector}} _ _ _
     (congr!{{Joined.Vector} {NewE.Vector}} Reindex.isomorphism.forward.apply _ _ (trans!{{Joined.Vector}} _ _ _

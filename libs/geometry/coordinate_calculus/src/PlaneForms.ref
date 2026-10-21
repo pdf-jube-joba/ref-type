@@ -1,10 +1,10 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Data[].Nat[] \as N;
 \import std.Data[].FinSet[] \as Fin;
 \import std.Logic[].Equality[] \as Equality;
 \use Equality.sym;
 \use Equality.trans;
 \use Equality.congr;
-\use Equality.congr2;
 \definition zero: N.Nat^ := N.Nat^::zero;
 \definition one: N.Nat^ := N.Nat^::succ zero;
 \definition two: N.Nat^ := N.Nat^::succ one;
@@ -52,22 +52,19 @@
     (Forms.Wedge[p := zero, q := two].zeroRight (FunctionsToForms.apply X.function));
 \import Spaces.Sign[] \as Sign;
 \definition derivative: D1.apply xdy = dxWedgeDy :=
-  trans!{{Forms.Form two}} (D1.apply xdy)
-    (TwoForms.plus (Leibniz.left (D0.apply (FunctionsToForms.apply X.function)) dy)
-      (TwoForms.scale (Sign.value zero) (Leibniz.right (FunctionsToForms.apply X.function) (D1.apply dy)))) dxWedgeDy
-    (Leibniz.law (FunctionsToForms.apply X.function) dy)
-    (trans!{{Forms.Form two}}
-      (TwoForms.plus (Leibniz.left (D0.apply (FunctionsToForms.apply X.function)) dy)
-        (TwoForms.scale (Sign.value zero) (Leibniz.right (FunctionsToForms.apply X.function) (D1.apply dy))))
-      (TwoForms.plus dxWedgeDy TwoForms.zero) dxWedgeDy
-      (congr2!{{Forms.Form two} {Forms.Form two} {Forms.Form two}} TwoForms.plus
+  eq_reason_in!{{Forms.Form two} { D1.apply xdy }
+    "=" { TwoForms.plus (Leibniz.left (D0.apply (FunctionsToForms.apply X.function)) dy)
+      (TwoForms.scale (Sign.value zero) (Leibniz.right (FunctionsToForms.apply X.function) (D1.apply dy))) } "by" { Leibniz.law (FunctionsToForms.apply X.function) dy }
+    "=" { TwoForms.plus dxWedgeDy TwoForms.zero } "by" { congr!{{Forms.Form two} {Forms.Form two} {Forms.Form two}} TwoForms.plus
         (Leibniz.left (D0.apply (FunctionsToForms.apply X.function)) dy) dxWedgeDy
         (TwoForms.scale (Sign.value zero) (Leibniz.right (FunctionsToForms.apply X.function) (D1.apply dy))) TwoForms.zero leftTerm
         (trans!{{Forms.Form two}} (TwoForms.scale (Sign.value zero) (Leibniz.right (FunctionsToForms.apply X.function) (D1.apply dy)))
           (TwoForms.scale (Sign.value zero) TwoForms.zero) TwoForms.zero
           (congr!{{Forms.Form two} {Forms.Form two}} (TwoForms.scale (Sign.value zero))
             (Leibniz.right (FunctionsToForms.apply X.function) (D1.apply dy)) TwoForms.zero rightTerm)
-          (TwoLaws.scaleZero (Sign.value zero)))) (TwoLaws.zeroRight dxWedgeDy));
+          (TwoLaws.scaleZero (Sign.value zero))) }
+    "=" dxWedgeDy "by" { TwoLaws.zeroRight dxWedgeDy }
+  };
 \definition squareZero: D2.apply (D1.apply xdy) = ThreeForms.zero := Forms.Square[k := one].law xdy;
 \definition closed: D2.apply dxWedgeDy = ThreeForms.zero :=
   trans!{{Forms.Form (N.Nat^::succ two)}} (D2.apply dxWedgeDy) (D2.apply (D1.apply xdy)) ThreeForms.zero

@@ -1,15 +1,19 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition Onto: \Prop := \forall (y: B.Carrier) -> \exists ( x: A.Carrier \where q.apply x = y );
 \definition KillsKernel: \Prop := \forall (x: A.Carrier) -> q.apply x = Middle.zero -> f.apply x = Target.zero;
 \definition sameFiber: KillsKernel -> \forall (x, z: A.Carrier) -> q.apply x = q.apply z -> f.apply x = f.apply z :=
   \fun (kills: KillsKernel)(x, z: A.Carrier)(equal: q.apply x = q.apply z) =>
     Group.cancelRight (Target.neg (f.apply z)) (f.apply x) (f.apply z)
-      (trans!{U.Carrier} _ _ _
-        (trans!{U.Carrier} _ _ _ (sym!{U.Carrier} _ _ (Input.differencePreserved f x z))
-          (kills (Source.add x (Source.neg z))
-            (trans!{B.Carrier} _ _ _ (Maps.differencePreserved q x z)
-              (trans!{B.Carrier} _ _ _ (congr!{B.Carrier B.Carrier} (\fun (b: B.Carrier) => MiddleGroup.difference b (q.apply z)) _ _ equal)
-                (MiddleGroup.inverseRight (q.apply z))))))
-        (sym!{U.Carrier} _ _ (Group.inverseRight (f.apply z))));
+      (eq_reason_in!{U.Carrier _
+        "=" _ "by" { sym!{U.Carrier} _ _ (Input.differencePreserved f x z) }
+        "=" _ "by" { kills (Source.add x (Source.neg z))
+            (eq_reason_in!{B.Carrier _
+              "=" _ "by" { Maps.differencePreserved q x z }
+              "=" _ "by" { congr!{B.Carrier B.Carrier} (\fun (b: B.Carrier) => MiddleGroup.difference b (q.apply z)) _ _ equal }
+              "=" _ "by" { MiddleGroup.inverseRight (q.apply z) }
+            }) }
+        "=" _ "by" { sym!{U.Carrier} _ _ (Group.inverseRight (f.apply z)) }
+      });
 \definition Values[y: B.Carrier]: \Pow U.Carrier :=
   { u: U.Carrier \where \exists ( x: A.Carrier \where Logic.And[q.apply x = y, f.apply x = u] ) };
 \definition Value[y: B.Carrier]: \Set := \Cast[U.Carrier] (Values y);
@@ -31,8 +35,11 @@
   \takefrom z: \Cast[A.Carrier] ({ z: A.Carrier \where Logic.And[q.apply z = y, f.apply z = v] }) \by \bysub(U.Carrier, Values y, v) \then
   \let first: Logic.And[q.apply x = y, f.apply x = u] := \bysub(A.Carrier, { x: A.Carrier \where Logic.And[q.apply x = y, f.apply x = u] }, x) \then
   \let second: Logic.And[q.apply z = y, f.apply z = v] := \bysub(A.Carrier, { z: A.Carrier \where Logic.And[q.apply z = y, f.apply z = v] }, z) \then
-  \return trans!{U.Carrier} _ _ _ (sym!{U.Carrier} _ _ (first.right))
-    (trans!{U.Carrier} _ _ _ (sameFiber kills x z (trans!{B.Carrier} _ _ _ (first.left) (sym!{B.Carrier} _ _ (second.left)))) (second.right))
+  \return eq_reason_in!{U.Carrier _
+    "=" _ "by" { sym!{U.Carrier} _ _ (first.right) }
+    "=" _ "by" { sameFiber kills x z (trans!{B.Carrier} _ _ _ (first.left) (sym!{B.Carrier} _ _ (second.left))) }
+    "=" _ "by" second.right
+  }
 };
 \definition value[onto: Onto][kills: KillsKernel][y: B.Carrier]: U.Carrier :=
   \choice Value y \by { existence: existence onto y, uniqueness: uniqueness kills y };
@@ -48,11 +55,11 @@
   \let ew: q.apply w = z := \bysub(A.Carrier, { w: A.Carrier \where q.apply w = z }, w) \then
   \return eq_reason!{{value onto kills (Middle.add y z)}
     "=" {value onto kills (q.apply (Source.add x w))}
-    "by" {congr!{B.Carrier U.Carrier} (value onto kills) _ _ (sym!{B.Carrier} _ _ (trans!{B.Carrier} _ _ _ (q.addition x w) (congr2!{B.Carrier B.Carrier B.Carrier} Middle.add _ _ _ _ ex ew)))}
+    "by" {congr!{B.Carrier U.Carrier} (value onto kills) _ _ (sym!{B.Carrier} _ _ (trans!{B.Carrier} _ _ _ (q.addition x w) (congr!{B.Carrier B.Carrier B.Carrier} Middle.add _ _ _ _ ex ew)))}
     "=" {f.apply (Source.add x w)} "by" {onImage onto kills (Source.add x w)}
     "=" {Target.add (f.apply x) (f.apply w)} "by" {f.addition x w}
     "=" {Target.add (value onto kills y) (value onto kills z)}
-    "by" {congr2!{U.Carrier U.Carrier U.Carrier} Target.add _ _ _ _
+    "by" {congr!{U.Carrier U.Carrier U.Carrier} Target.add _ _ _ _
       (trans!{U.Carrier} _ _ _ (sym!{U.Carrier} _ _ (onImage onto kills x)) (congr!{B.Carrier U.Carrier} (value onto kills) _ _ ex))
       (trans!{U.Carrier} _ _ _ (sym!{U.Carrier} _ _ (onImage onto kills w)) (congr!{B.Carrier U.Carrier} (value onto kills) _ _ ew))}}
 };
@@ -79,7 +86,10 @@
       \fun (y: B.Carrier) \then
       \takefrom x: \Cast[A.Carrier] ({ x: A.Carrier \where q.apply x = y }) \by onto y \then
       \let ex: q.apply x = y := \bysub(A.Carrier, { x: A.Carrier \where q.apply x = y }, x) \then
-      \return trans!{U.Carrier} _ _ _ (congr!{B.Carrier U.Carrier} (h.apply) _ _ (sym!{B.Carrier} _ _ ex))
-        (trans!{U.Carrier} _ _ _ (agrees x)
-          (trans!{U.Carrier} _ _ _ (sym!{U.Carrier} _ _ (onImage onto kills x)) (congr!{B.Carrier U.Carrier} (value onto kills) _ _ ex)))
+      \return eq_reason_in!{U.Carrier _
+        "=" _ "by" { congr!{B.Carrier U.Carrier} (h.apply) _ _ (sym!{B.Carrier} _ _ ex) }
+        "=" _ "by" { agrees x }
+        "=" _ "by" { sym!{U.Carrier} _ _ (onImage onto kills x) }
+        "=" _ "by" { congr!{B.Carrier U.Carrier} (value onto kills) _ _ ex }
+      }
     });

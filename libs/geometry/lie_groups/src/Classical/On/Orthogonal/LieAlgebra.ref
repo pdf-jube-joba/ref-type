@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Spaces.Laws[V := V, space := space] \as Vectors;
 \import Spaces.Laws[V := R.Real, space := Spaces.scalarSpace] \as ScalarLaws;
 \import algebra.Group[].Of[Carrier := R.Real, group := std.Alg[].Ring[].ringModuleAsCommutativeGroup R.Real R.Real Spaces.ring Spaces.scalarSpace] \as Sum;
@@ -23,14 +24,18 @@
   carrier := { A: End.Carrier \where Skew A },
   containsZero := \fun (x, y: V) => trans!{R.Real} _ _ _ (form.zeroLeft y)
     (sym!{R.Real} _ _ (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} R.neg _ _ (form.zeroRight x)) Sum.negZero)),
-  closedAdd := \fun (A, B: End.Carrier)(ha: Skew A)(hb: Skew B)(x, y: V) => trans!{R.Real} _ _ _ (form.addLeft (A.apply x) (B.apply x) y)
-    (trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.add _ _ _ _ (ha x y) (hb x y))
-      (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (Sum.negAdd (form.form x (A.apply y)) (form.form x (B.apply y))))
-        (congr!{R.Real R.Real} R.neg _ _ (sym!{R.Real} _ _ (form.addRight x (A.apply y) (B.apply y)))))),
-  closedScale := \fun (a: R.Real)(A: End.Carrier)(ha: Skew A)(x, y: V) => trans!{R.Real} _ _ _ (form.scaleLeft a (A.apply x) y)
-    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul a) _ _ (ha x y))
-      (trans!{R.Real} _ _ _ (ScalarLaws.scaleNegative a (form.form x (A.apply y)))
-        (congr!{R.Real R.Real} R.neg _ _ (sym!{R.Real} _ _ (form.scaleRight a x (A.apply y)))))),
+  closedAdd := \fun (A, B: End.Carrier)(ha: Skew A)(hb: Skew B)(x, y: V) => eq_reason_in!{R.Real _
+    "=" _ "by" { form.addLeft (A.apply x) (B.apply x) y }
+    "=" _ "by" { congr!{R.Real R.Real R.Real} R.add _ _ _ _ (ha x y) (hb x y) }
+    "=" _ "by" { sym!{R.Real} _ _ (Sum.negAdd (form.form x (A.apply y)) (form.form x (B.apply y))) }
+    "=" _ "by" { congr!{R.Real R.Real} R.neg _ _ (sym!{R.Real} _ _ (form.addRight x (A.apply y) (B.apply y))) }
+  },
+  closedScale := \fun (a: R.Real)(A: End.Carrier)(ha: Skew A)(x, y: V) => eq_reason_in!{R.Real _
+    "=" _ "by" { form.scaleLeft a (A.apply x) y }
+    "=" _ "by" { congr!{R.Real R.Real} (R.mul a) _ _ (ha x y) }
+    "=" _ "by" { ScalarLaws.scaleNegative a (form.form x (A.apply y)) }
+    "=" _ "by" { congr!{R.Real R.Real} R.neg _ _ (sym!{R.Real} _ _ (form.scaleRight a x (A.apply y))) }
+  },
 };
 \import lie_algebras.Field[K := R.Real, field := Scalars.field] \as Lie;
 \import Lie.Associative[A := End.Carrier, algebra := End.algebra] \as Commutator;
@@ -40,11 +45,17 @@
   \fun (A, B: End.Carrier)(x: V) => congr!{V V} (space.add (A.apply (B.apply x))) _ _ (Vectors.minusOneScale (B.apply (A.apply x)));
 \definition doubleSkew: \forall (A, B: End.Carrier) -> Skew A -> Skew B -> \forall (x, y: V) ->
   form.form (A.apply (B.apply x)) y = form.form x (B.apply (A.apply y)) :=
-  \fun (A, B: End.Carrier)(ha: Skew A)(hb: Skew B)(x, y: V) => trans!{R.Real} _ _ _ (ha (B.apply x) y)
-    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} R.neg _ _ (hb x (A.apply y))) (Sum.negNeg _));
+  \fun (A, B: End.Carrier)(ha: Skew A)(hb: Skew B)(x, y: V) => eq_reason_in!{R.Real _
+    "=" _ "by" { ha (B.apply x) y }
+    "=" _ "by" { congr!{R.Real R.Real} R.neg _ _ (hb x (A.apply y)) }
+    "=" _ "by" { Sum.negNeg _ }
+  };
 \definition negateDifference: \forall (a, b: R.Real) -> R.neg (Sum.difference a b) = Sum.difference b a :=
-  \fun (a, b: R.Real) => trans!{R.Real} _ _ _ (Sum.negAdd a (R.neg b))
-    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.add (R.neg a)) _ _ (Sum.negNeg b)) (Sum.comm (R.neg a) b));
+  \fun (a, b: R.Real) => eq_reason_in!{R.Real _
+    "=" _ "by" { Sum.negAdd a (R.neg b) }
+    "=" _ "by" { congr!{R.Real R.Real} (R.add (R.neg a)) _ _ (Sum.negNeg b) }
+    "=" _ "by" { Sum.comm (R.neg a) b }
+  };
 \definition closedBracket: \forall (A, B: End.Carrier) -> Skew A -> Skew B -> Skew (Commutator.bracket A B) :=
   \fun (A, B: End.Carrier)(ha: Skew A)(hb: Skew B)(x, y: V) => eq_reason!{
     {form.form ((Commutator.bracket A B).apply x) y}
@@ -53,7 +64,7 @@
     "=" {Sum.difference (form.form (A.apply (B.apply x)) y) (form.form (B.apply (A.apply x)) y)} "by" {
       mapDifference (right y) (A.apply (B.apply x)) (B.apply (A.apply x))}
     "=" {Sum.difference (form.form x (B.apply (A.apply y))) (form.form x (A.apply (B.apply y)))} "by" {
-      congr2!{R.Real R.Real R.Real} Sum.difference _ _ _ _ (doubleSkew A B ha hb x y) (doubleSkew B A hb ha x y)}
+      congr!{R.Real R.Real R.Real} Sum.difference _ _ _ _ (doubleSkew A B ha hb x y) (doubleSkew B A hb ha x y)}
     "=" {R.neg (Sum.difference (form.form x (A.apply (B.apply y))) (form.form x (B.apply (A.apply y))))} "by" {
       sym!{R.Real} _ _ (negateDifference _ _)}
     "=" {R.neg (form.form x (VectorSum.difference (A.apply (B.apply y)) (B.apply (A.apply y))))} "by" {

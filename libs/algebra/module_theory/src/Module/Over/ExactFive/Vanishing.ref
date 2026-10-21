@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition Trivial: \Prop := \forall (x: C.Carrier) -> x = C.space.zero;
 \import \parent.\parent.Hom[V := B.Carrier, W := C.Carrier, source := B.space, target := C.space] \as Second;
 \import \parent.\parent.Hom[V := C.Carrier, W := D.Carrier, source := C.space, target := D.space] \as Third;
@@ -9,9 +10,11 @@
 \definition lastKernel: Trivial -> \forall (x: D.Carrier) -> sequence.last.apply x = E.space.zero -> x = D.space.zero := \block {
   \fun (trivial: Trivial)(x: D.Carrier)(killed: sequence.last.apply x = E.space.zero) \then
   \takefrom y: \Cast[C.Carrier] ({ y: C.Carrier \where sequence.third.apply y = x }) \by sequence.kernelD x killed \then
-  \return trans!{D.Carrier} x (sequence.third.apply y) D.space.zero
-    (sym!{D.Carrier} _ _ (\bysub(C.Carrier, { y: C.Carrier \where sequence.third.apply y = x }, y)))
-    (trans!{D.Carrier} _ _ _ (congr!{C.Carrier D.Carrier} (sequence.third.apply) _ _ (trivial y)) (Third.zeroPreserved sequence.third))
+  \return eq_reason_in!{D.Carrier x
+    "=" { sequence.third.apply y } "by" { sym!{D.Carrier} _ _ (\bysub(C.Carrier, { y: C.Carrier \where sequence.third.apply y = x }, y)) }
+    "=" _ "by" { congr!{C.Carrier D.Carrier} (sequence.third.apply) _ _ (trivial y) }
+    "=" _ "by" { Third.zeroPreserved sequence.third }
+  }
 };
 \definition lastInjective: Trivial -> Injective D E sequence.last :=
   \fun (trivial: Trivial) => Last.injectiveOfZeroKernel sequence.last (lastKernel trivial);
@@ -21,10 +24,10 @@
     (trans!{E.Carrier} _ _ _ (sequence.zeroD x) (sym!{E.Carrier} _ _ (Last.zeroPreserved sequence.last))) \then
   \takefrom y: \Cast[B.Carrier] ({ y: B.Carrier \where sequence.second.apply y = x }) \by sequence.kernelC x killed \then
   \takefrom a: \Cast[A.Carrier] ({ a: A.Carrier \where sequence.first.apply a = y }) \by onto y \then
-  \return trans!{C.Carrier} x (sequence.second.apply y) C.space.zero
-    (sym!{C.Carrier} _ _ (\bysub(B.Carrier, { y: B.Carrier \where sequence.second.apply y = x }, y)))
-    (trans!{C.Carrier} _ _ _
-      (congr!{B.Carrier C.Carrier} (sequence.second.apply) y (sequence.first.apply a)
-        (sym!{B.Carrier} _ _ (\bysub(A.Carrier, { a: A.Carrier \where sequence.first.apply a = y }, a))))
-      (sequence.zeroB a))
+  \return eq_reason_in!{C.Carrier x
+    "=" { sequence.second.apply y } "by" { sym!{C.Carrier} _ _ (\bysub(B.Carrier, { y: B.Carrier \where sequence.second.apply y = x }, y)) }
+    "=" _ "by" { congr!{B.Carrier C.Carrier} (sequence.second.apply) y (sequence.first.apply a)
+        (sym!{B.Carrier} _ _ (\bysub(A.Carrier, { a: A.Carrier \where sequence.first.apply a = y }, a))) }
+    "=" _ "by" { sequence.zeroB a }
+  }
 };

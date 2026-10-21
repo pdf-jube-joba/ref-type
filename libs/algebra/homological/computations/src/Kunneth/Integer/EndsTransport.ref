@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Modules.ShortExact[A := A, B := B, C := C] \as Source;
 \import Modules.ShortExact[A := L, B := B, C := R] \as Target;
 \import Modules.Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space].Composition[U := L.Carrier, domain := L.space] \as LeftComposition;
@@ -8,10 +9,11 @@
 \definition projection: Modules.MapBetween B R := RightComposition.compose rightIso.forward s.projection;
 \definition injective: Modules.Injective L B inclusion :=
   \fun (x, y: L.Carrier)(equal: inclusion.apply x = inclusion.apply y) =>
-    trans!{L.Carrier} _ _ _ (sym!{L.Carrier} _ _ (leftIso.leftInverse x))
-      (trans!{L.Carrier} _ _ _
-        (congr!{A.Carrier L.Carrier} (leftIso.backward.apply) _ _ (s.injective _ _ equal))
-        (leftIso.leftInverse y));
+    eq_reason_in!{L.Carrier _
+      "=" _ "by" { sym!{L.Carrier} _ _ (leftIso.leftInverse x) }
+      "=" _ "by" { congr!{A.Carrier L.Carrier} (leftIso.backward.apply) _ _ (s.injective _ _ equal) }
+      "=" _ "by" { leftIso.leftInverse y }
+    };
 \definition onto: Modules.Surjective B R projection := \block {
   \fun (z: R.Carrier) \then
   \takefrom y: \Cast[B.Carrier] ({ y: B.Carrier \where s.projection.apply y = rightIso.backward.apply z })
@@ -28,10 +30,11 @@
     (RightMaps.zeroPreserved rightIso.forward);
 \definition originalKernel: \forall (y: B.Carrier) -> projection.apply y = R.space.zero -> s.projection.apply y = C.space.zero :=
   \fun (y: B.Carrier)(equal: projection.apply y = R.space.zero) =>
-    trans!{C.Carrier} _ _ _ (sym!{C.Carrier} _ _ (rightIso.leftInverse (s.projection.apply y)))
-      (trans!{C.Carrier} _ _ _
-        (congr!{R.Carrier C.Carrier} (rightIso.backward.apply) _ _ equal)
-        (Modules.Hom[V := R.Carrier, W := C.Carrier, source := R.space, target := C.space].zeroPreserved rightIso.backward));
+    eq_reason_in!{C.Carrier _
+      "=" _ "by" { sym!{C.Carrier} _ _ (rightIso.leftInverse (s.projection.apply y)) }
+      "=" _ "by" { congr!{R.Carrier C.Carrier} (rightIso.backward.apply) _ _ equal }
+      "=" _ "by" { Modules.Hom[V := R.Carrier, W := C.Carrier, source := R.space, target := C.space].zeroPreserved rightIso.backward }
+    };
 \definition kernelImage: \forall (y: B.Carrier) -> projection.apply y = R.space.zero ->
   \exists ( x: L.Carrier \where inclusion.apply x = y ) := \block {
   \fun (y: B.Carrier)(equal: projection.apply y = R.space.zero) \then

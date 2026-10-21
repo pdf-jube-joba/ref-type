@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 /* Picard integral operator. */
 \definition integrand[t: Real]: Vector := field.apply (extend y t);
 \definition integrandContinuous: Integrals.IsContinuous integrand := \fun (U: \Pow Vector)(open: _) =>
@@ -10,9 +11,12 @@
 \definition initialPlusZero: Coordinates.addPoint initial Coordinates.origin = initial := \axiom:funext(Coordinates.addPoint initial Coordinates.origin, initial,
   \fun (i: Euclidean.Coordinate) => Laws.addZeroRight (initial i));
 \definition distanceFromInitial[t: Real]: Norm.metric.distance initial (value t) = Norm.metric.distance (primitive t) (primitive Scalars.zero) :=
-  trans!{Real} _ _ _ (Norm.metric.symmetric initial (value t))
-    (trans!{Real} _ _ _ (congr!{Vector Real} (Norm.metric.distance (value t)) _ _ (sym!{Vector} _ _ initialPlusZero))
-      (trans!{Real} _ _ _ (Norm.translated initial (increment t) Coordinates.origin) (Norm.difference (primitive t) (primitive Scalars.zero))));
+  eq_reason_in!{Real _
+    "=" _ "by" { Norm.metric.symmetric initial (value t) }
+    "=" _ "by" { congr!{Vector Real} (Norm.metric.distance (value t)) _ _ (sym!{Vector} _ _ initialPlusZero) }
+    "=" _ "by" { Norm.translated initial (increment t) Coordinates.origin }
+    "=" _ "by" { Norm.difference (primitive t) (primitive Scalars.zero) }
+  };
 \definition distanceBound: \forall (t: Time) -> R.Le (Norm.metric.distance initial (value t)) (Scalars.mul (Scalars.distance t Scalars.zero) field.bound) := \fun (t: Time) => \block {
   \let bounds: Logic.And[R.Le left t, R.Le t right] := \bysub(Real, Line.ClosedInterval left right, t) \then
   \return R.leReplaceLeft (Norm.metric.distance (primitive t) (primitive Scalars.zero)) (Norm.metric.distance initial (value t)) (Scalars.mul (Scalars.distance t Scalars.zero) field.bound)

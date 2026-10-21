@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import singular_cohomology.Chains[A := Coordinates.Sphere, source := Coordinates.sphereTopology] \as Chains;
 \import singular_cohomology.Simplices[A := Coordinates.Sphere, source := Coordinates.sphereTopology] \as Simplices;
 \import singular_cohomology.Cochains[A := Coordinates.Sphere, source := Coordinates.sphereTopology].With[coefficients := coefficients] \as Cochains;
@@ -14,12 +15,12 @@
 \import Modules.Free[Generators := Simplices.Carrier N.Nat^::zero].To[W := coefficients.Carrier, target := coefficients.space] \as Free;
 \definition cochain: \forall (k: I.Int^)(h: H.CycleCarrier) -> (pull k).apply N.Nat^::zero h = h :=
   \fun (k: I.Int^)(h: H.CycleCarrier) => Free.ext _ _
-    (\fun (sigma: Simplices.Carrier N.Nat^::zero) => trans!{coefficients.Carrier} _ _ _
-      (Pull.At[n := N.Nat^::zero].onCochain (map k) (continuous k) Coefficient.identity h sigma)
-      (trans!{coefficients.Carrier} _ _ _ (Zero.valueOnSimplex h (Maps.postcompose N.Nat^::zero (map k) (continuous k) sigma))
-        (trans!{coefficients.Carrier} _ _ _
-          (Edges.constantOnPaths h (map k (Zero.point sigma)) (Zero.point sigma) (Connected.connected (map k (Zero.point sigma)) (Zero.point sigma)))
-          (sym!{coefficients.Carrier} _ _ (Zero.valueOnSimplex h sigma)))));
+    (\fun (sigma: Simplices.Carrier N.Nat^::zero) => eq_reason_in!{coefficients.Carrier _
+      "=" _ "by" { Pull.At[n := N.Nat^::zero].onCochain (map k) (continuous k) Coefficient.identity h sigma }
+      "=" _ "by" { Zero.valueOnSimplex h (Maps.postcompose N.Nat^::zero (map k) (continuous k) sigma) }
+      "=" _ "by" { Edges.constantOnPaths h (map k (Zero.point sigma)) (Zero.point sigma) (Connected.connected (map k (Zero.point sigma)) (Zero.point sigma)) }
+      "=" _ "by" { sym!{coefficients.Carrier} _ _ (Zero.valueOnSimplex h sigma) }
+    });
 \definition law: \forall (k: I.Int^)(q: Cochains.cohomology N.Nat^::zero) ->
   (Pull.At[n := N.Nat^::zero].induced (map k) (continuous k) Coefficient.identity).apply q = q :=
   \fun (k: I.Int^) => H.classInduction (\fun (q: H.Cohomology) => (CohomologyMaps.induced (pull k)).apply q = q)

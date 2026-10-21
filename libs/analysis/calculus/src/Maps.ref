@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \root.Real[] \as Reals;
 \import Reals.Multivariable[n := n].Open[] \as Source;
 \import Reals.Multivariable[n := m].Open[] \as Target;
@@ -23,10 +24,11 @@
   };
 \definition ext: \forall (U: SourceOpen)(V: TargetOpen)(f, g: Map U V) -> apply U V f = apply U V g -> f = g :=
   \fun (U: SourceOpen)(V: TargetOpen)(f, g: Map U V)(same: apply U V f = apply U V g) =>
-    trans!{{Data[U, V]}} f (Data[U, V]::# (apply U V f)) g
-      (sym!{{Data[U, V]}} (Data[U, V]::# (apply U V f)) f (dataEta U V f))
-      (trans!{{Data[U, V]}} (Data[U, V]::# (apply U V f)) (Data[U, V]::# (apply U V g)) g
-        (congr!{{Source.Carrier U -> Target.Carrier V} {Data[U, V]}} Data[U, V]::# _ _ same) (dataEta U V g));
+    eq_reason_in!{{Data[U, V]} f
+      "=" { Data[U, V]::# (apply U V f) } "by" { sym!{{Data[U, V]}} (Data[U, V]::# (apply U V f)) f (dataEta U V f) }
+      "=" { Data[U, V]::# (apply U V g) } "by" { congr!{{Source.Carrier U -> Target.Carrier V} {Data[U, V]}} Data[U, V]::# _ _ same }
+      "=" g "by" { dataEta U V g }
+    };
 \import Smooth.Derivative[] \as Partials;
 \definition coordinateFunction[U: SourceOpen][V: TargetOpen][f: Map U V][j: std.Data[].FinSet[].Fin m]: Partials.Function U :=
   \into[Source.ScalarFunction U]((\fun (x: Source.Carrier U) => apply U V f x j),

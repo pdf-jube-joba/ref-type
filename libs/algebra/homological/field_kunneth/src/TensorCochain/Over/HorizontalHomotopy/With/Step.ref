@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition current: Nat.Nat^ := Nat.Nat^::succ n;
 \definition next: Nat.Nat^ := Nat.Nat^::succ current;
 \import Source.Degree[n := current] \as SD;
@@ -72,20 +73,18 @@
     (\fun (i: Source.Index current) => verticalPair i (Degrees.degree current i));
 \definition expanded: \forall (x: SD.Carrier) ->
   TD.space.add (TS.differential.apply (PreviousH.map.apply x)) (NextH.map.apply (SS.differential.apply x)) = difference.apply x :=
-  \fun (x: SD.Carrier) => trans!{TD.Carrier} _ _ _
-    (congr!{TD.Carrier TD.Carrier} (TD.space.add (TS.differential.apply (PreviousH.map.apply x))) _ _
-      (NextH.map.addition (SS.horizontal.apply x) (SS.vertical.apply x)))
-    (trans!{TD.Carrier} _ _ _
-      (Group.four (horizontalAfter.apply x) (verticalAfter.apply x) (horizontalBefore.apply x) (verticalBefore.apply x))
-      (trans!{TD.Carrier} _ _ _
-        (congr!{Maps.Map TD.Carrier} (\fun (m: Maps.Map) => TD.space.add
+  \fun (x: SD.Carrier) => eq_reason_in!{TD.Carrier _
+    "=" _ "by" { congr!{TD.Carrier TD.Carrier} (TD.space.add (TS.differential.apply (PreviousH.map.apply x))) _ _
+      (NextH.map.addition (SS.horizontal.apply x) (SS.vertical.apply x)) }
+    "=" _ "by" { Group.four (horizontalAfter.apply x) (verticalAfter.apply x) (horizontalBefore.apply x) (verticalBefore.apply x) }
+    "=" _ "by" { congr!{Maps.Map TD.Carrier} (\fun (m: Maps.Map) => TD.space.add
           (TD.space.add (horizontalAfter.apply x) (horizontalBefore.apply x))
-          (TD.space.add (verticalAfter.apply x) (m.apply x))) _ _ verticalEquality)
-        (trans!{TD.Carrier} _ _ _
-          (congr!{TD.Carrier TD.Carrier} (TD.space.add (TD.space.add (horizontalAfter.apply x) (horizontalBefore.apply x))) _ _
-            (Group.inverseRight (verticalAfter.apply x)))
-          (trans!{TD.Carrier} _ _ _ (Group.zeroRight (TD.space.add (horizontalAfter.apply x) (horizontalBefore.apply x)))
-            (congr!{Maps.Map TD.Carrier} (\fun (m: Maps.Map) => m.apply x) _ _ (sym!{Maps.Map} _ _ horizontalEquality))))));
+          (TD.space.add (verticalAfter.apply x) (m.apply x))) _ _ verticalEquality }
+    "=" _ "by" { congr!{TD.Carrier TD.Carrier} (TD.space.add (TD.space.add (horizontalAfter.apply x) (horizontalBefore.apply x))) _ _
+            (Group.inverseRight (verticalAfter.apply x)) }
+    "=" _ "by" { Group.zeroRight (TD.space.add (horizontalAfter.apply x) (horizontalBefore.apply x)) }
+    "=" _ "by" { congr!{Maps.Map TD.Carrier} (\fun (m: Maps.Map) => m.apply x) _ _ (sym!{Maps.Map} _ _ horizontalEquality) }
+  };
 \definition equality: \forall (x: SD.Carrier) -> difference.apply x =
   TD.space.add (TS.differential.apply (PreviousH.map.apply x)) (NextH.map.apply (SS.differential.apply x)) :=
   \fun (x: SD.Carrier) => sym!{TD.Carrier} _ _ (expanded x);

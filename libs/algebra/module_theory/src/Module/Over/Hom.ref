@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Laws[V := V, space := source] \as Source;
 \import \parent.Laws[V := W, space := target] \as Target;
 \import algebra.Group[].Of[Carrier := V, group := Source.additive] \as SourceGroup;
@@ -21,14 +22,18 @@
   \fun (f, g: Map)(same: _) => dataExt f g (\axiom:funext(f.apply, g.apply, same));
 \definition zeroPreserved: \forall (f: Map) -> f.apply Source.zero = Target.zero :=
   \fun (f: _) => TargetGroup.cancelLeft (f.apply Source.zero) (f.apply Source.zero) Target.zero
-    (trans!{W} _ _ _
-      (trans!{W} _ _ _ (sym!{W} _ _ (f.addition Source.zero Source.zero))
-        (congr!{V W} (f.apply) _ _ (SourceGroup.zeroLeft Source.zero)))
-      (sym!{W} _ _ (TargetGroup.zeroRight (f.apply Source.zero))));
+    (eq_reason_in!{W _
+      "=" _ "by" { sym!{W} _ _ (f.addition Source.zero Source.zero) }
+      "=" _ "by" { congr!{V W} (f.apply) _ _ (SourceGroup.zeroLeft Source.zero) }
+      "=" _ "by" { sym!{W} _ _ (TargetGroup.zeroRight (f.apply Source.zero)) }
+    });
 \definition negativePreserved: \forall (f: Map)(x: V) -> f.apply (Source.neg x) = Target.neg (f.apply x) :=
   \fun (f: _)(x: _) => TargetGroup.inverseUnique (f.apply x) (f.apply (Source.neg x))
-    (trans!{W} _ _ _ (sym!{W} _ _ (f.addition (Source.neg x) x))
-      (trans!{W} _ _ _ (congr!{V W} (f.apply) _ _ (SourceGroup.inverseLeft x)) (zeroPreserved f)));
+    (eq_reason_in!{W _
+      "=" _ "by" { sym!{W} _ _ (f.addition (Source.neg x) x) }
+      "=" _ "by" { congr!{V W} (f.apply) _ _ (SourceGroup.inverseLeft x) }
+      "=" _ "by" { zeroPreserved f }
+    });
 \definition differencePreserved: \forall (f: Map)(x, y: V) ->
   f.apply (SourceGroup.difference x y) = TargetGroup.difference (f.apply x) (f.apply y) :=
   \fun (f: _)(x, y: _) => trans!{W} _ _ _ (f.addition x (Source.neg y))
@@ -38,15 +43,17 @@
   (\forall (x: V) -> f.apply x = Target.zero -> x = Source.zero) ->
   \forall (x, y: V) -> f.apply x = f.apply y -> x = y :=
   \fun (f: Map)(kernel: \forall (x: V) -> f.apply x = Target.zero -> x = Source.zero)(x, y: V)(equal: f.apply x = f.apply y) =>
-    trans!{V} x (Source.add (SourceGroup.difference x y) y) y
-      (sym!{V} _ _ (SourceGroup.addDifference x y))
-      (trans!{V} _ _ _
-        (congr!{V V} (\fun (v: V) => Source.add v y) _ _
+    eq_reason_in!{V x
+      "=" { Source.add (SourceGroup.difference x y) y } "by" { sym!{V} _ _ (SourceGroup.addDifference x y) }
+      "=" _ "by" { congr!{V V} (\fun (v: V) => Source.add v y) _ _
           (kernel (SourceGroup.difference x y)
-            (trans!{W} _ _ _ (differencePreserved f x y)
-              (trans!{W} _ _ _ (congr!{W W} (\fun (v: W) => TargetGroup.difference v (f.apply y)) _ _ equal)
-                (TargetGroup.inverseRight (f.apply y))))))
-        (SourceGroup.zeroLeft y));
+            (eq_reason_in!{W _
+              "=" _ "by" { differencePreserved f x y }
+              "=" _ "by" { congr!{W W} (\fun (v: W) => TargetGroup.difference v (f.apply y)) _ _ equal }
+              "=" _ "by" { TargetGroup.inverseRight (f.apply y) }
+            })) }
+      "=" _ "by" { SourceGroup.zeroLeft y }
+    };
 
 \definition zeroMap: Map := Map {
   apply := \fun (x: V) => Target.zero,
@@ -56,10 +63,10 @@
 \definition plus[f, g: Map]: Map := Map {
   apply := \fun (x: V) => Target.add (f.apply x) (g.apply x),
   addition := \fun (x, y: V) => trans!{W} _ _ _
-    (congr2!{W W W} Target.add _ _ _ _ (f.addition x y) (g.addition x y))
+    (congr!{W W W} Target.add _ _ _ _ (f.addition x y) (g.addition x y))
     (TargetGroup.four (f.apply x) (f.apply y) (g.apply x) (g.apply y)),
   scalar := \fun (a: R)(x: V) => trans!{W} _ _ _
-    (congr2!{W W W} Target.add _ _ _ _ (f.scalar a x) (g.scalar a x))
+    (congr!{W W W} Target.add _ _ _ _ (f.scalar a x) (g.scalar a x))
     (sym!{W} _ _ (target.vectorAdd a (f.apply x) (g.apply x))),
 };
 \definition negative[f: Map]: Map := Map {

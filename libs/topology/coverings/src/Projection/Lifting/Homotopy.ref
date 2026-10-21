@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Squares[] \as Squares;
 \import \parent.Uniqueness[] \as Uniqueness;
 \import TotalPaths.Maps[B := B, target := base] \as Mapping;
@@ -54,9 +55,11 @@
     (Slices.composeContinuous Interval.topology (Square.topology Interval.topology) total (\fun (s: Interval.Carrier) => Square.at Interval.end s) lifted
       (Square.atContinuous Interval.topology Interval.end) (Squares.laws family initial lifted).continuous)
     (Constants.constantContinuous Interval.topology total y)
-    (\fun (s: Interval.Carrier) => trans!{B} _ _ _ ((Squares.laws family initial lifted).projects (Square.at Interval.end s))
-      (trans!{B} _ _ _ ((BaseHomotopy.relativeLaws Interval.topology base BasePaths.Boundary p q h).fixed s Interval.end (Logic.Or[_, _]::right (\refl(Interval.end))))
-        (BasePaths.laws (projection x) (projection y) p).end))
+    (\fun (s: Interval.Carrier) => eq_reason_in!{B _
+      "=" _ "by" { (Squares.laws family initial lifted).projects (Square.at Interval.end s) }
+      "=" _ "by" { (BaseHomotopy.relativeLaws Interval.topology base BasePaths.Boundary p q h).fixed s Interval.end (Logic.Or[_, _]::right (\refl(Interval.end))) }
+      "=" _ "by" { (BasePaths.laws (projection x) (projection y) p).end }
+    })
     (\fun (_: Interval.Carrier) => \refl(projection y))
     (trans!{E} _ _ _ (congr!{{Interval.Carrier -> E} E} (\fun (k: Interval.Carrier -> E) => k Interval.end) first f firstEquals) (TotalPaths.laws x y f).end) \then
   \let result: TotalHomotopy.RelativeHomotopy[Interval.topology, total, TotalPaths.Boundary, f, g] :=
@@ -68,12 +71,16 @@
           end := \fun (t: Interval.Carrier) => congr!{{Interval.Carrier -> E} E} (\fun (k: Interval.Carrier -> E) => k t) second g secondEquals,
         },
         fixed := \fun (s, t: Interval.Carrier)(boundary: _) => either!{{boundary} {_}
-          {\fun (atStart: _) => trans!{E} _ _ _ (congr!{Interval.Carrier E} (\fun (u: Interval.Carrier) => lifted (Square.at u s)) _ _ atStart)
-            (trans!{E} _ _ _ ((Squares.laws family initial lifted).starts s)
-              (sym!{E} _ _ (trans!{E} _ _ _ (congr!{Interval.Carrier E} f _ _ atStart) (TotalPaths.laws x y f).start)))}
-          {\fun (atEnd: _) => trans!{E} _ _ _ (congr!{Interval.Carrier E} (\fun (u: Interval.Carrier) => lifted (Square.at u s)) _ _ atEnd)
-            (trans!{E} _ _ _ (congr!{{Interval.Carrier -> E} E} (\fun (k: Interval.Carrier -> E) => k s) endFamily (\fun (_: Interval.Carrier) => y) endEquals)
-              (sym!{E} _ _ (trans!{E} _ _ _ (congr!{Interval.Carrier E} f _ _ atEnd) (TotalPaths.laws x y f).end)))}}
+          {\fun (atStart: _) => eq_reason_in!{E _
+            "=" _ "by" { congr!{Interval.Carrier E} (\fun (u: Interval.Carrier) => lifted (Square.at u s)) _ _ atStart }
+            "=" _ "by" { (Squares.laws family initial lifted).starts s }
+            "=" _ "by" { sym!{E} _ _ (trans!{E} _ _ _ (congr!{Interval.Carrier E} f _ _ atStart) (TotalPaths.laws x y f).start) }
+          }}
+          {\fun (atEnd: _) => eq_reason_in!{E _
+            "=" _ "by" { congr!{Interval.Carrier E} (\fun (u: Interval.Carrier) => lifted (Square.at u s)) _ _ atEnd }
+            "=" _ "by" { congr!{{Interval.Carrier -> E} E} (\fun (k: Interval.Carrier -> E) => k s) endFamily (\fun (_: Interval.Carrier) => y) endEquals }
+            "=" _ "by" { sym!{E} _ _ (trans!{E} _ _ _ (congr!{Interval.Carrier E} f _ _ atEnd) (TotalPaths.laws x y f).end) }
+          }}}
       }
     } \then
   \return \exact(result, TotalHomotopy.RelativeHomotopy[Interval.topology, total, TotalPaths.Boundary, f, g])

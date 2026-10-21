@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import algebraic_topology.Simplex[] \as Simplex;
 \import Simplex.At[n := two] \as Domain;
 \import algebraic_topology.Euclidean[].Dimension[n := two] \as Disk;
@@ -15,7 +16,6 @@
 \use Equality.trans;
 \use Equality.sym;
 \use Equality.congr;
-\use Equality.congr2;
 \definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
 \definition centerIndex: Domain.Index := Fin.zero two;
 \definition leftIndex: Domain.Index := Fin.succ two (Fin.zero one);
@@ -28,14 +28,16 @@
 \definition square[x: Domain.CarrierSet]: Complex.Complex := Operations.mul (vector x) (vector x);
 \definition upperCoordinate[x: Domain.CarrierSet]: Disk.Coordinate := Coordinates.ambientBackward (square x);
 \definition vectorNorm[x: Domain.CarrierSet]: Operations.normSq (vector x) = radius x :=
-  congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+  congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
     (Root.squareOfNonnegative (right x) ((Simplex.barycentric two x).nonnegative rightIndex))
     (Root.squareOfNonnegative (left x) ((Simplex.barycentric two x).nonnegative leftIndex));
 \definition normFormula[x: Domain.CarrierSet]: Disk.normSquared (upperCoordinate x) = Real.mul (radius x) (radius x) :=
-  trans!{Real.Real} _ _ _ (Coordinates.normFormula (upperCoordinate x))
-    (trans!{Real.Real} _ _ _ (congr!{Complex.Complex Real.Real} Operations.normSq _ _ (Coordinates.ambientRightInverse (square x)))
-      (trans!{Real.Real} _ _ _ (ComplexLaws.normSqMul (vector x) (vector x))
-        (congr2!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (vectorNorm x) (vectorNorm x))));
+  eq_reason_in!{Real.Real _
+    "=" _ "by" { Coordinates.normFormula (upperCoordinate x) }
+    "=" _ "by" { congr!{Complex.Complex Real.Real} Operations.normSq _ _ (Coordinates.ambientRightInverse (square x)) }
+    "=" _ "by" { ComplexLaws.normSqMul (vector x) (vector x) }
+    "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (vectorNorm x) (vectorNorm x) }
+  };
 \definition total[x: Domain.CarrierSet]: Real.add (center x) (Real.add (left x) (right x)) = Real.one :=
   trans!{Real.Real} _ _ _
     (congr!{Real.Real Real.Real} (Real.add (center x)) _ _

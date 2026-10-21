@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \module At(n: Nat.Nat^) {
   \import \parent.\parent.\parent.At[n := n] \as Source;
   \import Chains.Homology[C := LeftTotal.complex].At[n := n] \as Middle;
@@ -14,11 +15,11 @@
   \import Chains.Map[C := LeftTotal.complex, D := StandardLeft.complex].HomologyAt[n := n] \as NormalizedInduced;
   \import Chains.Map[C := LeftTotal.complex, D := StandardLeft.complex].Composition[B := complex].HomologyAt[n := n] \as StandardComposition;
   \definition normalizedForward: \forall (x: Source.Carrier) -> normalized.forward.apply x = (StandardInduced.induced Comparisons.standardLeft).apply x :=
-    \fun (x: Source.Carrier) => trans!{Standard.Carrier} _ _ _
-      (congr!{Middle.Carrier Standard.Carrier} (((LeftNormalization.Homology[n := n].isomorphism).forward).apply) _ _ (Comparisons.LeftQuasi[].At[n := n].forward x))
-      (trans!{Standard.Carrier} _ _ _
-        (LeftNormalization.Homology[n := n].forward ((Chains.Map[C := complex, D := LeftTotal.complex].HomologyAt[n := n].induced Comparisons.left).apply x))
-        (sym!{Standard.Carrier} _ _ (StandardComposition.composition LeftNormalization.standardForward Comparisons.left x)));
+    \fun (x: Source.Carrier) => eq_reason_in!{Standard.Carrier _
+      "=" _ "by" { congr!{Middle.Carrier Standard.Carrier} (((LeftNormalization.Homology[n := n].isomorphism).forward).apply) _ _ (Comparisons.LeftQuasi[].At[n := n].forward x) }
+      "=" _ "by" { LeftNormalization.Homology[n := n].forward ((Chains.Map[C := complex, D := LeftTotal.complex].HomologyAt[n := n].induced Comparisons.left).apply x) }
+      "=" _ "by" { sym!{Standard.Carrier} _ _ (StandardComposition.composition LeftNormalization.standardForward Comparisons.left x) }
+    };
   \import Chains.Map[C := complex, D := Left.tensorComplex] \as Native;
   \import Chains.Map[C := StandardLeft.complex, D := Left.tensorComplex].Composition[B := complex] \as BridgeComposition;
   \definition comparisonEquality: BridgeComposition.compose (Left.TensorComparison[].forward) Comparisons.standardLeft = leftChainMap :=
@@ -26,12 +27,11 @@
       (\fun (k: Nat.Nat^)(x: complex.family.Carrier k) => \refl(leftChainMap.apply k x));
   \definition forward: \forall (x: Source.Carrier) -> isomorphism.forward.apply x =
     (Native.HomologyAt[n := n].induced leftChainMap).apply x :=
-    \fun (x: Source.Carrier) => trans!{{Left.At[n := n].Carrier}} _ _ _
-      (Left.TensorComparison[].At[n := n].forward (normalized.forward.apply x))
-      (trans!{{Left.At[n := n].Carrier}} _ _ _
-        (congr!{Standard.Carrier {Left.At[n := n].Carrier}}
-          ((Chains.Map[C := StandardLeft.complex, D := Left.tensorComplex].HomologyAt[n := n].induced (Left.TensorComparison[].forward)).apply) _ _ (normalizedForward x))
-        (trans!{{Left.At[n := n].Carrier}} _ _ _
-          (sym!{{Left.At[n := n].Carrier}} _ _ (BridgeComposition.HomologyAt[n := n].composition (Left.TensorComparison[].forward) Comparisons.standardLeft x))
-          (congr!{Native.Map {Left.At[n := n].Carrier}} (\fun (f: Native.Map) => (Native.HomologyAt[n := n].induced f).apply x) _ _ comparisonEquality)));
+    \fun (x: Source.Carrier) => eq_reason_in!{{Left.At[n := n].Carrier} _
+      "=" _ "by" { Left.TensorComparison[].At[n := n].forward (normalized.forward.apply x) }
+      "=" _ "by" { congr!{Standard.Carrier {Left.At[n := n].Carrier}}
+          ((Chains.Map[C := StandardLeft.complex, D := Left.tensorComplex].HomologyAt[n := n].induced (Left.TensorComparison[].forward)).apply) _ _ (normalizedForward x) }
+      "=" _ "by" { sym!{{Left.At[n := n].Carrier}} _ _ (BridgeComposition.HomologyAt[n := n].composition (Left.TensorComparison[].forward) Comparisons.standardLeft x) }
+      "=" _ "by" { congr!{Native.Map {Left.At[n := n].Carrier}} (\fun (f: Native.Map) => (Native.HomologyAt[n := n].induced f).apply x) _ _ comparisonEquality }
+    };
 }

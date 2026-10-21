@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import AmbientTangent.At[x := Maps.apply i x] \as Target;
 \definition chart: Target.Chart := \into[AmbientCharts.Chart](EuclideanManifold.standard, Target.Chart) \by {
   Target.ChartLaws[EuclideanManifold.standard] {
@@ -16,12 +17,16 @@
 \definition subspace: Subspaces.Subspace := Subspaces.Subspace {
   carrier := { w: E.Vector \where \forall (v: Tangent.Vector x) -> E.dot w (differential.apply v) = R.zero },
   containsZero := \fun (v: Tangent.Vector x) => E.form.zeroLeft (differential.apply v),
-  closedAdd := \fun (u, w: E.Vector)(left: _)(right: _)(v: Tangent.Vector x) => trans!{{R.Real}} _ _ _
-    (E.form.addLeft u w (differential.apply v)) (trans!{{R.Real}} _ _ _
-      (congr2!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (left v) (right v)) (Spaces.addZeroLeft R.zero)),
-  closedScale := \fun (a: R.Real)(w: E.Vector)(member: _)(v: Tangent.Vector x) => trans!{{R.Real}} _ _ _
-    (E.form.scaleLeft a w (differential.apply v)) (trans!{{R.Real}} _ _ _
-      (congr!{{R.Real} {R.Real}} (R.mul a) _ _ (member v)) (Spaces.mulZeroRight a)),
+  closedAdd := \fun (u, w: E.Vector)(left: _)(right: _)(v: Tangent.Vector x) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { E.form.addLeft u w (differential.apply v) }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (left v) (right v) }
+    "=" _ "by" { Spaces.addZeroLeft R.zero }
+  },
+  closedScale := \fun (a: R.Real)(w: E.Vector)(member: _)(v: Tangent.Vector x) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { E.form.scaleLeft a w (differential.apply v) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul a) _ _ (member v) }
+    "=" _ "by" { Spaces.mulZeroRight a }
+  },
 };
 \import Subspaces.Of[subspace := subspace] \as Subspace;
 \definition Fiber: \Set := Subspace.Carrier;

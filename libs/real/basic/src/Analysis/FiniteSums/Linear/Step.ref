@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition embed[x: Vector n]: Vector (N.Nat^::succ n) := Tuples.extend n zero x;
 \definition unit: Vector (N.Nat^::succ n) := Tuples.extend n one (origin n);
 \definition headBasis: basis (N.Nat^::succ n) (Fin.zero n) = unit :=
@@ -10,9 +11,9 @@
   \fun (x, y: _) => Tuples.extensionality n _ _
     (trans!{Real} _ _ _ (Tuples.atZero n zero (plus n x y))
       (sym!{Real} _ _ (trans!{Real} _ _ _
-        (congr2!{Real Real Real} add _ _ _ _ (Tuples.atZero n zero x) (Tuples.atZero n zero y)) (Laws.addZeroLeft zero))))
+        (congr!{Real Real Real} add _ _ _ _ (Tuples.atZero n zero x) (Tuples.atZero n zero y)) (Laws.addZeroLeft zero))))
     (\fun (j: Fin.Fin n) => trans!{Real} _ _ _ (Tuples.atSuccessor n zero (plus n x y) j)
-      (sym!{Real} _ _ (congr2!{Real Real Real} add _ _ _ _ (Tuples.atSuccessor n zero x j) (Tuples.atSuccessor n zero y j))));
+      (sym!{Real} _ _ (congr!{Real Real Real} add _ _ _ _ (Tuples.atSuccessor n zero x j) (Tuples.atSuccessor n zero y j))));
 \definition embedScale: \forall (c: Real)(x: Vector n) -> embed (scale n c x) = scale (N.Nat^::succ n) c (embed x) :=
   \fun (c: _)(x: _) => Tuples.extensionality n _ _
     (trans!{Real} _ _ _ (Tuples.atZero n zero (scale n c x))
@@ -30,11 +31,11 @@
   x = plus (N.Nat^::succ n) (scale (N.Nat^::succ n) (x (Fin.zero n)) unit) (embed (\fun (j: Fin.Fin n) => x (Fin.succ n j))) :=
   \fun (x: _) => Tuples.extensionality n _ _
     (sym!{Real} _ _ (trans!{Real} _ _ _
-      (congr2!{Real Real Real} add _ _ _ _
+      (congr!{Real Real Real} add _ _ _ _
         (trans!{Real} _ _ _ (congr!{Real Real} (mul (x (Fin.zero n))) _ _ (Tuples.atZero n one (origin n))) (Algebra.mulOneRight (x (Fin.zero n))))
         (Tuples.atZero n zero (\fun (j: Fin.Fin n) => x (Fin.succ n j)))) (Laws.addZeroRight (x (Fin.zero n)))))
     (\fun (j: Fin.Fin n) => sym!{Real} _ _ (trans!{Real} _ _ _
-      (congr2!{Real Real Real} add _ _ _ _
+      (congr!{Real Real Real} add _ _ _ _
         (trans!{Real} _ _ _ (congr!{Real Real} (mul (x (Fin.zero n))) _ _ (Tuples.atSuccessor n one (origin n) j)) (Laws.fieldMulZeroRight (x (Fin.zero n))))
         (Tuples.atSuccessor n zero (\fun (j: Fin.Fin n) => x (Fin.succ n j)) j)) (Laws.addZeroLeft (x (Fin.succ n j)))));
 \definition expansion: (\forall (f: Map n)(x: Vector n) -> f.apply x = sum n (\fun (i: Fin.Fin n) => mul (x i) (f.apply (basis n i)))) ->
@@ -48,8 +49,10 @@
     trans!{Real} _ _ _ (previous (restriction f) tail)
       (congruent n _ _ (\fun (j: Fin.Fin n) => congr!{Real Real} (mul (x (Fin.succ n j))) _ _
         (sym!{Real} _ _ (congr!{{Vector (N.Nat^::succ n)} Real} (f.apply) _ _ (tailBasis j))))) \then
-  \return trans!{Real} _ _ _ (congr!{{Vector (N.Nat^::succ n)} Real} (f.apply) _ _ (decomposition x))
-    (trans!{Real} _ _ _ (f.additive (scale (N.Nat^::succ n) (x (Fin.zero n)) unit) (embed tail))
-      (trans!{Real} _ _ _ (congr!{Real Real} (\fun (s: Real) => add s (f.apply (embed tail))) _ _ (f.homogeneous (x (Fin.zero n)) unit))
-        (congr2!{Real Real Real} add _ _ _ _ headTerm tailTerms)))
+  \return eq_reason_in!{Real _
+    "=" _ "by" { congr!{{Vector (N.Nat^::succ n)} Real} (f.apply) _ _ (decomposition x) }
+    "=" _ "by" { f.additive (scale (N.Nat^::succ n) (x (Fin.zero n)) unit) (embed tail) }
+    "=" _ "by" { congr!{Real Real} (\fun (s: Real) => add s (f.apply (embed tail))) _ _ (f.homogeneous (x (Fin.zero n)) unit) }
+    "=" _ "by" { congr!{Real Real Real} add _ _ _ _ headTerm tailTerms }
+  }
 };

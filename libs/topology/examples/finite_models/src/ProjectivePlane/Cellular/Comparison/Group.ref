@@ -1,22 +1,29 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Modules.Laws[V := W, space := target] \as Values;
 \import algebra.Group[].Of[Carrier := W, group := Values.additive] \as Group;
 \definition inverseDifference[a, b: W]: Values.neg (Group.difference a b) = Group.difference b a :=
-  trans!{W} _ _ _ (Group.negAdd a (Values.neg b))
-    (trans!{W} _ _ _ (congr!{W W} (Values.add (Values.neg a)) _ _ (Group.negNeg b)) (Group.comm (Values.neg a) b));
+  eq_reason_in!{W _
+    "=" _ "by" { Group.negAdd a (Values.neg b) }
+    "=" _ "by" { congr!{W W} (Values.add (Values.neg a)) _ _ (Group.negNeg b) }
+    "=" _ "by" { Group.comm (Values.neg a) b }
+  };
 \definition triangle[a, b, d: W]: Values.add (Group.difference a d) b = Values.add a (Group.difference b d) :=
   trans!{W} _ _ _ (Group.assoc a (Values.neg d) b) (congr!{W W} (Values.add a) _ _ (Group.comm (Values.neg d) b));
 \definition paired[a, b, d: W]: Values.add (Values.add (Group.difference a d) b) (Values.add (Group.difference a b) d) = Values.add a a :=
-  trans!{W} _ _ _
-    (congr2!{W W W} Values.add _ _ _ _ (triangle a b d) (triangle a d b))
-    (trans!{W} _ _ _ (Group.four a (Group.difference b d) a (Group.difference d b))
-      (trans!{W} _ _ _
-        (congr!{W W} (Values.add (Values.add a a)) _ _ (trans!{W} _ _ _ (Group.composeDifferences b d b) (Group.inverseRight b)))
-        (Group.zeroRight (Values.add a a))));
+  eq_reason_in!{W _
+    "=" _ "by" { congr!{W W W} Values.add _ _ _ _ (triangle a b d) (triangle a d b) }
+    "=" _ "by" { Group.four a (Group.difference b d) a (Group.difference d b) }
+    "=" _ "by" { congr!{W W} (Values.add (Values.add a a)) _ _ (trans!{W} _ _ _ (Group.composeDifferences b d b) (Group.inverseRight b)) }
+    "=" _ "by" { Group.zeroRight (Values.add a a) }
+  };
 \definition twice[a: W]: (target).smul (I.Int^::ofNat two) a = Values.add a a :=
   trans!{W} _ _ _ ((target).scalarAdd I.One.specification I.One.specification a)
-    (congr2!{W W W} Values.add _ _ _ _ ((target).scalarOne a) ((target).scalarOne a));
+    (congr!{W W W} Values.add _ _ _ _ ((target).scalarOne a) ((target).scalarOne a));
 \definition removeLast[a, b, d: W]: Values.add (Values.neg (Values.add (Group.difference a d) b)) b = Group.difference d a :=
-  trans!{W} _ _ _ (congr!{W W} (\fun (x: W) => Values.add x b) _ _ (Group.negAdd (Group.difference a d) b))
-    (trans!{W} _ _ _ (Group.addDifference (Values.neg (Group.difference a d)) b) (inverseDifference a d));
+  eq_reason_in!{W _
+    "=" _ "by" { congr!{W W} (\fun (x: W) => Values.add x b) _ _ (Group.negAdd (Group.difference a d) b) }
+    "=" _ "by" { Group.addDifference (Values.neg (Group.difference a d)) b }
+    "=" _ "by" { inverseDifference a d }
+  };
 
 \definition inverseRight[a: W]: Group.difference a a = Values.zero := Group.inverseRight a;

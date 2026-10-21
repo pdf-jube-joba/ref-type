@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \root.Surface[V := Vertex, E := Edge, T := Triangle].On[surface := object].With[A := A] \as Surface;
 \import Modules.Laws[V := A.Carrier, space := A.space] \as Values;
 \import algebra.Group[].Of[Carrier := A.Carrier, group := Values.additive] \as Group;
@@ -5,7 +6,6 @@
 \use Equality.trans;
 \use Equality.sym;
 \use Equality.congr;
-\use Equality.congr2;
 \definition Vertices: \Set := Vertex -> A.Carrier;
 \definition Edges: \Set := Edge -> A.Carrier;
 \definition Triangles: \Set := Triangle -> A.Carrier;
@@ -60,29 +60,35 @@
   \let d: A.Carrier := f Edge::second \then
   \let middle: Group.add (Group.difference a d) (Group.difference a b) = Group.difference (double a) (Group.add d b) :=
     sym!{A.Carrier} _ _ (Group.differenceAdd a a d b) \then
-  \return trans!{A.Carrier} _ _ _ (Group.four (Group.difference a d) b (Group.difference a b) d)
-    (trans!{A.Carrier} _ _ _
-      (congr!{A.Carrier A.Carrier} (\fun (x: A.Carrier) => Group.add x (Group.add b d)) _ _ middle)
-      (trans!{A.Carrier} _ _ _
-        (congr!{A.Carrier A.Carrier} (Group.add (Group.difference (double a) (Group.add d b))) _ _ (Group.comm b d))
-        (Group.addDifference (double a) (Group.add d b))))
+  \return eq_reason_in!{A.Carrier _
+    "=" _ "by" { Group.four (Group.difference a d) b (Group.difference a b) d }
+    "=" _ "by" { congr!{A.Carrier A.Carrier} (\fun (x: A.Carrier) => Group.add x (Group.add b d)) _ _ middle }
+    "=" _ "by" { congr!{A.Carrier A.Carrier} (Group.add (Group.difference (double a) (Group.add d b))) _ _ (Group.comm b d) }
+    "=" _ "by" { Group.addDifference (double a) (Group.add d b) }
+  }
 };
 
 \definition closedSecond[f: Edges][closed: deltaOne f = triangle Group.zero Group.zero]: f Edge::second = Group.add (f Edge::loop) (f Edge::first) :=
   sym!{A.Carrier} _ _ (Group.cancelRight (Group.neg (f Edge::second)) (Group.add (f Edge::loop) (f Edge::first)) (f Edge::second)
-    (trans!{A.Carrier} _ _ _
-      (trans!{A.Carrier} _ _ _ (sym!{A.Carrier} _ _ (Group.swapLast (f Edge::loop) (Group.neg (f Edge::second)) (f Edge::first)))
-        (congr!{Triangles A.Carrier} (\fun (x: Triangles) => x Triangle::upper) _ _ closed))
-      (sym!{A.Carrier} _ _ (Group.inverseRight (f Edge::second)))));
+    (eq_reason_in!{A.Carrier _
+      "=" _ "by" { sym!{A.Carrier} _ _ (Group.swapLast (f Edge::loop) (Group.neg (f Edge::second)) (f Edge::first)) }
+      "=" _ "by" { congr!{Triangles A.Carrier} (\fun (x: Triangles) => x Triangle::upper) _ _ closed }
+      "=" _ "by" { sym!{A.Carrier} _ _ (Group.inverseRight (f Edge::second)) }
+    }));
 \definition closedDouble[f: Edges][closed: deltaOne f = triangle Group.zero Group.zero]: double (f Edge::loop) = Group.zero :=
-  trans!{A.Carrier} _ _ _ (sym!{A.Carrier} _ _ (totalBoundary f))
-    (trans!{A.Carrier} _ _ _ (congr!{Triangles A.Carrier} total _ _ closed) (Group.zeroLeft Group.zero));
+  eq_reason_in!{A.Carrier _
+    "=" _ "by" { sym!{A.Carrier} _ _ (totalBoundary f) }
+    "=" _ "by" { congr!{Triangles A.Carrier} total _ _ closed }
+    "=" _ "by" { Group.zeroLeft Group.zero }
+  };
 \definition normal[f: Triangles]: Triangles := triangle Group.zero (total f);
 \definition subtractSum[x, y: A.Carrier]: Group.difference x (Group.add x y) = Group.neg y :=
-  trans!{A.Carrier} _ _ _ (congr!{A.Carrier A.Carrier} (Group.add x) _ _ (Group.negAdd x y))
-    (trans!{A.Carrier} _ _ _ (sym!{A.Carrier} _ _ (Group.assoc x (Group.neg x) (Group.neg y)))
-      (trans!{A.Carrier} _ _ _ (congr!{A.Carrier A.Carrier} (\fun (z: A.Carrier) => Group.add z (Group.neg y)) _ _ (Group.inverseRight x))
-        (Group.zeroLeft (Group.neg y))));
+  eq_reason_in!{A.Carrier _
+    "=" _ "by" { congr!{A.Carrier A.Carrier} (Group.add x) _ _ (Group.negAdd x y) }
+    "=" _ "by" { sym!{A.Carrier} _ _ (Group.assoc x (Group.neg x) (Group.neg y)) }
+    "=" _ "by" { congr!{A.Carrier A.Carrier} (\fun (z: A.Carrier) => Group.add z (Group.neg y)) _ _ (Group.inverseRight x) }
+    "=" _ "by" { Group.zeroLeft (Group.neg y) }
+  };
 \definition lowerDifference[f: Triangles]: Group.difference (f Triangle::lower) (total f) = Group.neg (f Triangle::upper) :=
   trans!{A.Carrier} _ _ _
     (congr!{A.Carrier A.Carrier} (\fun (x: A.Carrier) => Group.difference (f Triangle::lower) x) _ _ (Group.comm (f Triangle::upper) (f Triangle::lower)))
@@ -91,9 +97,14 @@
   \fun (t: Triangle) => Group.difference (f t) (normal f t) :=
   trianglesExt (deltaOne (edge Group.zero (f Triangle::upper) Group.zero))
     (\fun (t: Triangle) => Group.difference (f t) (normal f t))
-    (trans!{A.Carrier} _ _ _ (congr!{A.Carrier A.Carrier} (\fun (x: A.Carrier) => Group.add x (f Triangle::upper)) _ _ (Group.inverseRight Group.zero))
-      (trans!{A.Carrier} _ _ _ (Group.zeroLeft (f Triangle::upper))
-        (sym!{A.Carrier} _ _ (trans!{A.Carrier} _ _ _ (congr!{A.Carrier A.Carrier} (Group.add (f Triangle::upper)) _ _ Group.negZero) (Group.zeroRight (f Triangle::upper))))))
-    (trans!{A.Carrier} _ _ _ (Group.zeroRight (Group.difference Group.zero (f Triangle::upper)))
-      (trans!{A.Carrier} _ _ _ (Group.zeroLeft (Group.neg (f Triangle::upper))) (sym!{A.Carrier} _ _ (lowerDifference f))));
+    (eq_reason_in!{A.Carrier _
+      "=" _ "by" { congr!{A.Carrier A.Carrier} (\fun (x: A.Carrier) => Group.add x (f Triangle::upper)) _ _ (Group.inverseRight Group.zero) }
+      "=" _ "by" { Group.zeroLeft (f Triangle::upper) }
+      "=" _ "by" { sym!{A.Carrier} _ _ (trans!{A.Carrier} _ _ _ (congr!{A.Carrier A.Carrier} (Group.add (f Triangle::upper)) _ _ Group.negZero) (Group.zeroRight (f Triangle::upper))) }
+    })
+    (eq_reason_in!{A.Carrier _
+      "=" _ "by" { Group.zeroRight (Group.difference Group.zero (f Triangle::upper)) }
+      "=" _ "by" { Group.zeroLeft (Group.neg (f Triangle::upper)) }
+      "=" _ "by" { sym!{A.Carrier} _ _ (lowerDifference f) }
+    });
 \module Cohomology;

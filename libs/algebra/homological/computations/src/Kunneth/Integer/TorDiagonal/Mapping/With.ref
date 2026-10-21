@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.\parent.TorDiagonal[C := E, D := F, n := n] \as Target;
 \import \parent.\parent.Endpoint[] \as SourceEndpoint;
 \import Target.Endpoint[] \as TargetEndpoint;
@@ -15,11 +16,12 @@
 \definition nativeMap: KernelMaps.Map := KernelMaps.Map {
   apply := \fun (x: SourceBridge.nativeKernelBundle.Carrier) =>
     \into[TargetRight.Homology]((RightHomology.induced SequenceMap.right).apply x, (TargetKernels.kernel TargetDelta.connecting).carrier) \by {
-      trans!{TargetLeft.Homology} _ _ _ (DeltaNaturality.naturality SequenceMap.diagram x)
-        (trans!{TargetLeft.Homology} _ _ _
-          (congr!{SourceLeft.Homology TargetLeft.Homology} ((LeftHomology.induced SequenceMap.left).apply) _ _
-            (\bysub(SourceRight.Homology, (SourceKernels.kernel SourceDelta.connecting).carrier, x)))
-          (LeftLinear.zeroPreserved (LeftHomology.induced SequenceMap.left)))
+      eq_reason_in!{TargetLeft.Homology _
+        "=" _ "by" { DeltaNaturality.naturality SequenceMap.diagram x }
+        "=" _ "by" { congr!{SourceLeft.Homology TargetLeft.Homology} ((LeftHomology.induced SequenceMap.left).apply) _ _
+            (\bysub(SourceRight.Homology, (SourceKernels.kernel SourceDelta.connecting).carrier, x)) }
+        "=" _ "by" { LeftLinear.zeroPreserved (LeftHomology.induced SequenceMap.left) }
+      }
     },
   addition := \fun (x, y: SourceBridge.nativeKernelBundle.Carrier) => (RightHomology.induced SequenceMap.right).addition x y,
   scalar := \fun (a: Integers.Int^)(x: SourceBridge.nativeKernelBundle.Carrier) => (RightHomology.induced SequenceMap.right).scalar a x,
@@ -43,11 +45,11 @@
 \definition naturality: \forall (x: SourceBridge.nativeKernelBundle.Carrier) ->
   TargetEndpoint.isomorphism.forward.apply (nativeMap.apply x) =
     (Maps.torMap f g).apply (SourceEndpoint.isomorphism.forward.apply x) :=
-  \fun (x: SourceBridge.nativeKernelBundle.Carrier) => trans!{TargetTerms.torBundle.Carrier} _ _ _
-    (congr!{SourceBridge.nativeKernelBundle.Carrier TargetTerms.torBundle.Carrier}
+  \fun (x: SourceBridge.nativeKernelBundle.Carrier) => eq_reason_in!{TargetTerms.torBundle.Carrier _
+    "=" _ "by" { congr!{SourceBridge.nativeKernelBundle.Carrier TargetTerms.torBundle.Carrier}
       (\fun (y: SourceBridge.nativeKernelBundle.Carrier) => TargetEndpoint.isomorphism.forward.apply (nativeMap.apply y)) _ _
-      (sym!{SourceBridge.nativeKernelBundle.Carrier} _ _ (SourceEndpoint.forwardIsomorphism.rightInverse x)))
-    (trans!{TargetTerms.torBundle.Carrier} _ _ _
-      (congr!{TargetBridge.nativeKernelBundle.Carrier TargetTerms.torBundle.Carrier} (TargetEndpoint.isomorphism.forward.apply) _ _
-        (forwardNaturality (SourceEndpoint.isomorphism.forward.apply x)))
-      (TargetEndpoint.forwardIsomorphism.leftInverse ((Maps.torMap f g).apply (SourceEndpoint.isomorphism.forward.apply x))));
+      (sym!{SourceBridge.nativeKernelBundle.Carrier} _ _ (SourceEndpoint.forwardIsomorphism.rightInverse x)) }
+    "=" _ "by" { congr!{TargetBridge.nativeKernelBundle.Carrier TargetTerms.torBundle.Carrier} (TargetEndpoint.isomorphism.forward.apply) _ _
+        (forwardNaturality (SourceEndpoint.isomorphism.forward.apply x)) }
+    "=" _ "by" { TargetEndpoint.forwardIsomorphism.leftInverse ((Maps.torMap f g).apply (SourceEndpoint.isomorphism.forward.apply x)) }
+  };

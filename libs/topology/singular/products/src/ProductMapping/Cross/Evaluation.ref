@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import singular_cohomology.Maps[A := Geometry.Carrier, B := Before.CarrierSet, source := Geometry.topology, target := source] \as GeometryMaps;
 \import Complexes.Map[C := Tuples.complex, D := SourceChains.complex].At[n := m] \as SourceLinear;
 \import Complexes.Map[C := Tuples.complex, D := TargetChains.complex].At[n := m] \as TargetLinear;
@@ -6,12 +7,12 @@
 \definition first: Maps.Map := Post.compose (ProductMaps.At[n := m].push (function f) (continuous f)) (SourceLinear.linear (SourceEvaluation.evaluation sigma tau));
 \definition second: Maps.Map := TargetLinear.linear (TargetEvaluation.evaluation (LeftMaps.postcompose p f.leftFunction f.leftContinuous sigma) (RightMaps.postcompose q f.rightFunction f.rightContinuous tau));
 \definition onGenerator[v: Tuples.Tuple (N.Nat^::succ m)]: (first).apply (Tuples.generator (N.Nat^::succ m) v) = (second).apply (Tuples.generator (N.Nat^::succ m) v) :=
-  trans!{{TargetChains.Carrier m}} _ _ _
-    (congr!{{SourceChains.Carrier m} {TargetChains.Carrier m}} ((ProductMaps.At[n := m].push (function f) (continuous f)).apply) _ _ (SourceEvaluation.onGenerator m sigma tau v))
-    (trans!{{TargetChains.Carrier m}} _ _ _
-      (ProductMaps.At[n := m].onGenerator (function f) (continuous f)
-        (GeometryMaps.postcompose m (SourceEvaluation.function sigma tau) (SourceEvaluation.continuous sigma tau) (Geometry.At[m := m].onTuple v)))
-      (sym!{{TargetChains.Carrier m}} _ _ (TargetEvaluation.onGenerator m (LeftMaps.postcompose p f.leftFunction f.leftContinuous sigma) (RightMaps.postcompose q f.rightFunction f.rightContinuous tau) v)));
+  eq_reason_in!{{TargetChains.Carrier m} _
+    "=" _ "by" { congr!{{SourceChains.Carrier m} {TargetChains.Carrier m}} ((ProductMaps.At[n := m].push (function f) (continuous f)).apply) _ _ (SourceEvaluation.onGenerator m sigma tau v) }
+    "=" _ "by" { ProductMaps.At[n := m].onGenerator (function f) (continuous f)
+        (GeometryMaps.postcompose m (SourceEvaluation.function sigma tau) (SourceEvaluation.continuous sigma tau) (Geometry.At[m := m].onTuple v)) }
+    "=" _ "by" { sym!{{TargetChains.Carrier m}} _ _ (TargetEvaluation.onGenerator m (LeftMaps.postcompose p f.leftFunction f.leftContinuous sigma) (RightMaps.postcompose q f.rightFunction f.rightContinuous tau) v) }
+  };
 \import Modules.Free[Generators := Tuples.Tuple (N.Nat^::succ m)].To[W := TargetChains.Carrier m, target := TargetChains.space m] \as Free;
 \definition equation: first = second := Free.ext first second onGenerator;
 \definition law[x: Tuples.Carrier (N.Nat^::succ m)]: (first).apply x = (second).apply x := congr!{Maps.Map {TargetChains.Carrier m}} (\fun (h: Maps.Map) => (h).apply x) _ _ equation;

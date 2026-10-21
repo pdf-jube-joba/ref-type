@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Target.Mapping[U := V, Z := W, targetLeft := left, targetRight := right] \as Reverse;
 \definition forward: Maps.Map := map (leftIso.forward) (rightIso.forward);
 \import \parent.\parent.\parent.Hom[V := Target.Carrier, W := Carrier, source := Target.space, target := space] \as BackwardMaps;
@@ -9,15 +10,17 @@
 \import \parent.\parent.Universal[U := Carrier, target := space] \as LeftEquality;
 \import Target.Universal[U := Target.Carrier, target := Target.space] \as RightEquality;
 \definition leftLaw: LeftCompose.compose backward forward = SourceIdentity.identity :=
-  LeftEquality.ext (LeftCompose.compose backward forward) SourceIdentity.identity (\fun (x: V)(y: W) => trans!{Carrier} _ _ _
-    (congr!{Target.Carrier Carrier} (backward.apply) _ _ (onTensor (leftIso.forward) (rightIso.forward) x y))
-    (trans!{Carrier} _ _ _ (Reverse.onTensor (leftIso.backward) (rightIso.backward) (leftIso.forward.apply x) (rightIso.forward.apply y))
-      (congr2!{V W Carrier} tensor _ _ _ _ (leftIso.leftInverse x) (rightIso.leftInverse y))));
+  LeftEquality.ext (LeftCompose.compose backward forward) SourceIdentity.identity (\fun (x: V)(y: W) => eq_reason_in!{Carrier _
+    "=" _ "by" { congr!{Target.Carrier Carrier} (backward.apply) _ _ (onTensor (leftIso.forward) (rightIso.forward) x y) }
+    "=" _ "by" { Reverse.onTensor (leftIso.backward) (rightIso.backward) (leftIso.forward.apply x) (rightIso.forward.apply y) }
+    "=" _ "by" { congr!{V W Carrier} tensor _ _ _ _ (leftIso.leftInverse x) (rightIso.leftInverse y) }
+  });
 \definition rightLaw: RightCompose.compose forward backward = TargetIdentity.identity :=
-  RightEquality.ext (RightCompose.compose forward backward) TargetIdentity.identity (\fun (x: U)(y: Z) => trans!{Target.Carrier} _ _ _
-    (congr!{Carrier Target.Carrier} (forward.apply) _ _ (Reverse.onTensor (leftIso.backward) (rightIso.backward) x y))
-    (trans!{Target.Carrier} _ _ _ (onTensor (leftIso.forward) (rightIso.forward) (leftIso.backward.apply x) (rightIso.backward.apply y))
-      (congr2!{U Z Target.Carrier} Target.tensor _ _ _ _ (leftIso.rightInverse x) (rightIso.rightInverse y))));
+  RightEquality.ext (RightCompose.compose forward backward) TargetIdentity.identity (\fun (x: U)(y: Z) => eq_reason_in!{Target.Carrier _
+    "=" _ "by" { congr!{Carrier Target.Carrier} (forward.apply) _ _ (Reverse.onTensor (leftIso.backward) (rightIso.backward) x y) }
+    "=" _ "by" { onTensor (leftIso.forward) (rightIso.forward) (leftIso.backward.apply x) (rightIso.backward.apply y) }
+    "=" _ "by" { congr!{U Z Target.Carrier} Target.tensor _ _ _ _ (leftIso.rightInverse x) (rightIso.rightInverse y) }
+  });
 \import \parent.\parent.\parent.Hom[V := Carrier, W := Carrier, source := space, target := space] \as SourceEnd;
 \import \parent.\parent.\parent.Hom[V := Target.Carrier, W := Target.Carrier, source := Target.space, target := Target.space] \as TargetEnd;
 \definition leftInverse: \forall (x: Carrier) -> backward.apply (forward.apply x) = x :=

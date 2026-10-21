@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition z: I.Int^ := I.Int^::ofNat (N.Nat^::succ n);
 \import \parent.Positive[n := N.Nat^::succ n] \as P;
 \import \parent.Positive[n := n] \as Q;
@@ -42,17 +43,17 @@
   \import NS.Component[i := i] \as Injection;
   \definition leftValue[x: NativeTensor.family.Carrier (i).first (i).second]:
     (left).apply ((Injection.injection).apply x) = (ST.space).add ((SignedAt.horizontal).apply x) ((SignedAt.vertical).apply x) :=
-    trans!{ST.Carrier} _ _ _
-      (congr!{NT.Carrier ST.Carrier} ((Q.backward).apply) _ _ (NativeStep.onComponent i x))
-      (trans!{ST.Carrier} _ _ _
-        ((Q.backward).addition ((NativeStep.horizontal (i).first NativeAt.q).apply x) ((NativeStep.vertical (i).second NativeAt.p).apply x))
-        (congr2!{ST.Carrier ST.Carrier ST.Carrier} ((ST.space).add) _ _ _ _
-          (horizontal (i).first NativeAt.q x) (vertical (i).second NativeAt.p x)));
+    eq_reason_in!{ST.Carrier _
+      "=" _ "by" { congr!{NT.Carrier ST.Carrier} ((Q.backward).apply) _ _ (NativeStep.onComponent i x) }
+      "=" _ "by" { (Q.backward).addition ((NativeStep.horizontal (i).first NativeAt.q).apply x) ((NativeStep.vertical (i).second NativeAt.p).apply x) }
+      "=" _ "by" { congr!{ST.Carrier ST.Carrier ST.Carrier} ((ST.space).add) _ _ _ _
+          (horizontal (i).first NativeAt.q x) (vertical (i).second NativeAt.p x) }
+    };
   \definition rightValue[x: NativeTensor.family.Carrier (i).first (i).second]:
     (right).apply ((Injection.injection).apply x) = (ST.space).add ((SignedAt.horizontal).apply x) ((SignedAt.vertical).apply x) :=
     trans!{ST.Carrier} _ _ _
       (congr!{SS.Carrier ST.Carrier} ((SignedStep.differential).apply) _ _ (P.backwardOnInjection i x))
-      (congr2!{ST.Carrier ST.Carrier ST.Carrier} ((ST.space).add) _ _ _ _
+      (congr!{ST.Carrier ST.Carrier ST.Carrier} ((ST.space).add) _ _ _ _
         (SignedStep.horizontalOnInjection j x) (SignedStep.verticalOnInjection j x));
   \definition law[x: NativeTensor.family.Carrier (i).first (i).second]:
     (left).apply ((Injection.injection).apply x) = (right).apply ((Injection.injection).apply x) :=
@@ -63,11 +64,15 @@
 \definition commutes[x: NS.Carrier]: (SignedStep.differential).apply ((P.backward).apply x) = (Q.backward).apply ((NativeStep.differential).apply x) :=
   sym!{ST.Carrier} _ _ (congr!{Maps.Map ST.Carrier} (\fun (f: Maps.Map) => (f).apply x) _ _ equality);
 \definition backwardInjective[a, b: NT.Carrier][equal: (Q.backward).apply a = (Q.backward).apply b]: a = b :=
-  trans!{NT.Carrier} _ _ _ (sym!{NT.Carrier} _ _ (Q.rightInverse a))
-    (trans!{NT.Carrier} _ _ _ (congr!{ST.Carrier NT.Carrier} ((Q.forward).apply) _ _ equal) (Q.rightInverse b));
+  eq_reason_in!{NT.Carrier _
+    "=" _ "by" { sym!{NT.Carrier} _ _ (Q.rightInverse a) }
+    "=" _ "by" { congr!{ST.Carrier NT.Carrier} ((Q.forward).apply) _ _ equal }
+    "=" _ "by" { Q.rightInverse b }
+  };
 \definition forwardCommutes[x: SS.Carrier]: (NativeStep.differential).apply ((P.forward).apply x) = (Q.forward).apply ((SignedStep.differential).apply x) :=
   backwardInjective _ _
-    (trans!{ST.Carrier} _ _ _ (sym!{ST.Carrier} _ _ (commutes ((P.forward).apply x)))
-      (trans!{ST.Carrier} _ _ _
-        (congr!{SS.Carrier ST.Carrier} ((SignedStep.differential).apply) _ _ (P.leftInverse x))
-        (sym!{ST.Carrier} _ _ (Q.leftInverse ((SignedStep.differential).apply x)))));
+    (eq_reason_in!{ST.Carrier _
+      "=" _ "by" { sym!{ST.Carrier} _ _ (commutes ((P.forward).apply x)) }
+      "=" _ "by" { congr!{SS.Carrier ST.Carrier} ((SignedStep.differential).apply) _ _ (P.leftInverse x) }
+      "=" _ "by" { sym!{ST.Carrier} _ _ (Q.leftInverse ((SignedStep.differential).apply x)) }
+    });

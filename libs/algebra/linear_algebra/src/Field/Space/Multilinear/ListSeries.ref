@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.ListArguments[] \as ArgumentsList;
 \import Fin.FromList[A := V] \as TuplesList;
 \import std.Set[] \as Sets;
@@ -20,10 +21,11 @@
     {\fun (equal: Lists.length V xs = k) => trans!{K} _ _ _
       (inside (\fun (arguments: Arguments k) => neg (f arguments)) (\into[Lists.List[V]](xs, ArgumentsList.Degree k) \by { equal }))
       (congr!{K K} neg _ _ (sym!{K} _ _ (inside f (\into[Lists.List[V]](xs, ArgumentsList.Degree k) \by { equal }))))}
-    {\fun (wrong: Logic.Not (Lists.length V xs = k)) => trans!{K} _ zero _
-      (outside (\fun (arguments: Arguments k) => neg (f arguments)) xs wrong)
-      (trans!{K} zero (neg zero) (neg (component f xs)) (sym!{K} (neg zero) zero Sign.negativeZero)
-        (congr!{K K} neg zero (component f xs) (sym!{K} (component f xs) zero (outside f xs wrong))))}
+    {\fun (wrong: Logic.Not (Lists.length V xs = k)) => eq_reason_in!{K _
+      "=" zero "by" { outside (\fun (arguments: Arguments k) => neg (f arguments)) xs wrong }
+      "=" { neg zero } "by" { sym!{K} (neg zero) zero Sign.negativeZero }
+      "=" { neg (component f xs) } "by" { congr!{K K} neg zero (component f xs) (sym!{K} (component f xs) zero (outside f xs wrong)) }
+    }}
   };
 \definition zeroComponent: \forall (xs: Lists.List[V]) -> component (\fun (arguments: Arguments k) => zero) xs = zero :=
   \fun (xs: Lists.List[V]) => either!{{(Classical.excludedMiddle (Lists.length V xs = k))} {
@@ -36,11 +38,12 @@
     component (\fun (arguments: Arguments k) => add (f arguments) (g arguments)) xs = add (component f xs) (component g xs)}
     {\fun (equal: Lists.length V xs = k) => trans!{K} _ _ _
       (inside (\fun (arguments: Arguments k) => add (f arguments) (g arguments)) (\into[Lists.List[V]](xs, ArgumentsList.Degree k) \by { equal }))
-      (congr2!{K K K} add _ _ _ _ (sym!{K} _ _ (inside f (\into[Lists.List[V]](xs, ArgumentsList.Degree k) \by { equal }))) (sym!{K} _ _ (inside g (\into[Lists.List[V]](xs, ArgumentsList.Degree k) \by { equal }))))}
-    {\fun (wrong: Logic.Not (Lists.length V xs = k)) => trans!{K} _ zero _
-      (outside (\fun (arguments: Arguments k) => add (f arguments) (g arguments)) xs wrong)
-      (trans!{K} zero (add zero zero) _ (sym!{K} (add zero zero) zero (addZeroLeft zero))
-        (congr2!{K K K} add _ _ _ _ (sym!{K} _ _ (outside f xs wrong)) (sym!{K} _ _ (outside g xs wrong))))}
+      (congr!{K K K} add _ _ _ _ (sym!{K} _ _ (inside f (\into[Lists.List[V]](xs, ArgumentsList.Degree k) \by { equal }))) (sym!{K} _ _ (inside g (\into[Lists.List[V]](xs, ArgumentsList.Degree k) \by { equal }))))}
+    {\fun (wrong: Logic.Not (Lists.length V xs = k)) => eq_reason_in!{K _
+      "=" zero "by" { outside (\fun (arguments: Arguments k) => add (f arguments) (g arguments)) xs wrong }
+      "=" { add zero zero } "by" { sym!{K} (add zero zero) zero (addZeroLeft zero) }
+      "=" _ "by" { congr!{K K K} add _ _ _ _ (sym!{K} _ _ (outside f xs wrong)) (sym!{K} _ _ (outside g xs wrong)) }
+    }}
   };
 \definition scalar: \forall (a: K)(f: Function k)(xs: Lists.List[V]) -> component (\fun (arguments: Arguments k) => mul a (f arguments)) xs = mul a (component f xs) :=
   \fun (a: K)(f: Function k)(xs: Lists.List[V]) => either!{{(Classical.excludedMiddle (Lists.length V xs = k))} {
@@ -48,9 +51,11 @@
     {\fun (equal: Lists.length V xs = k) => trans!{K} _ _ _
       (inside (\fun (arguments: Arguments k) => mul a (f arguments)) (\into[Lists.List[V]](xs, ArgumentsList.Degree k) \by { equal }))
       (congr!{K K} (mul a) _ _ (sym!{K} _ _ (inside f (\into[Lists.List[V]](xs, ArgumentsList.Degree k) \by { equal }))))}
-    {\fun (wrong: Logic.Not (Lists.length V xs = k)) => trans!{K} _ zero _
-      (outside (\fun (arguments: Arguments k) => mul a (f arguments)) xs wrong)
-      (trans!{K} zero (mul a zero) _ (sym!{K} (mul a zero) zero (mulZeroRight a)) (congr!{K K} (mul a) _ _ (sym!{K} _ _ (outside f xs wrong))))}
+    {\fun (wrong: Logic.Not (Lists.length V xs = k)) => eq_reason_in!{K _
+      "=" zero "by" { outside (\fun (arguments: Arguments k) => mul a (f arguments)) xs wrong }
+      "=" { mul a zero } "by" { sym!{K} (mul a zero) zero (mulZeroRight a) }
+      "=" _ "by" { congr!{K K} (mul a) _ _ (sym!{K} _ _ (outside f xs wrong)) }
+    }}
   };
 \definition onArguments: \forall (f: Function k)(arguments: Arguments k) -> component f (TuplesList.list k arguments) = f arguments :=
   \fun (f: Function k)(arguments: Arguments k) => trans!{K} _ _ _

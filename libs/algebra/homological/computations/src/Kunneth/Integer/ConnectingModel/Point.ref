@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Component[p := p] \as Data;
 \definition q: Degree := Data.q;
 \definition lowerQ: Degree := Data.lowerQ;
@@ -29,33 +30,36 @@
 \definition reindexOnTensor: \forall (b: Term.boundaryCarrier)(y: H.Homology) ->
   sourceReindex.forward.apply ((Source.Injection[i := p].map).apply (Tensor.tensor b y)) =
     (ModelSource.Injection[i := Bounded.previous p].map).apply (transported b y) :=
-  \fun (b: Term.boundaryCarrier)(y: H.Homology) => trans!{ModelSource.Carrier} _ _ _
-    (congr!{Middle.Carrier ModelSource.Carrier} (Shift.isomorphism.forward.apply) _ _ (Reindex.smithOnInjection p (Tensor.tensor b y)))
-    (trans!{ModelSource.Carrier} _ _ _ (Shift.onInjection p (isomorphism.forward.apply (Tensor.tensor b y)))
-      (congr!{{Model.source.Carrier (Bounded.previous p)} ModelSource.Carrier}
-        ((ModelSource.Injection[i := Bounded.previous p].map).apply) _ _ (onTensor b y)));
+  \fun (b: Term.boundaryCarrier)(y: H.Homology) => eq_reason_in!{ModelSource.Carrier _
+    "=" _ "by" { congr!{Middle.Carrier ModelSource.Carrier} (Shift.isomorphism.forward.apply) _ _ (Reindex.smithOnInjection p (Tensor.tensor b y)) }
+    "=" _ "by" { Shift.onInjection p (isomorphism.forward.apply (Tensor.tensor b y)) }
+    "=" _ "by" { congr!{{Model.source.Carrier (Bounded.previous p)} ModelSource.Carrier}
+        ((ModelSource.Injection[i := Bounded.previous p].map).apply) _ _ (onTensor b y) }
+  };
 \definition modelOnTensor: \forall (b: Term.boundaryCarrier)(y: H.Homology) ->
   Model.map.apply (sourceReindex.forward.apply ((Source.Injection[i := p].map).apply (Tensor.tensor b y))) =
     (ModelTarget.Injection[i := Bounded.previous p].map).apply (M.targetTensor b ((HTransport.forward q lowerQ same).apply y)) :=
-  \fun (b: Term.boundaryCarrier)(y: H.Homology) => trans!{ModelTarget.Carrier} _ _ _
-    (congr!{ModelSource.Carrier ModelTarget.Carrier} (Model.map.apply) _ _ (reindexOnTensor b y))
-    (trans!{ModelTarget.Carrier} _ _ _ (Model.onInjection (Bounded.previous p) (transported b y))
-      (congr!{{Model.target.Carrier (Bounded.previous p)} ModelTarget.Carrier}
-        ((ModelTarget.Injection[i := Bounded.previous p].map).apply) _ _ (M.onTensor b ((HTransport.forward q lowerQ same).apply y))));
+  \fun (b: Term.boundaryCarrier)(y: H.Homology) => eq_reason_in!{ModelTarget.Carrier _
+    "=" _ "by" { congr!{ModelSource.Carrier ModelTarget.Carrier} (Model.map.apply) _ _ (reindexOnTensor b y) }
+    "=" _ "by" { Model.onInjection (Bounded.previous p) (transported b y) }
+    "=" _ "by" { congr!{{Model.target.Carrier (Bounded.previous p)} ModelTarget.Carrier}
+        ((ModelTarget.Injection[i := Bounded.previous p].map).apply) _ _ (M.onTensor b ((HTransport.forward q lowerQ same).apply y)) }
+  };
 \definition lowerDegree: Grading.add (Bounded.previous p) q = Bounded.previous k :=
   trans!{Degree} _ _ _ (Grading.previousLeft p q) (congr!{Degree Degree} Bounded.previous _ _ (Grading.complementSum k p));
 \definition onClass: \forall (b: Term.boundaryCarrier)(y: H.Cycle) ->
   Delta.connecting.apply (rightIsomorphism.forward.apply ((Source.Injection[i := p].map).apply (Tensor.tensor b (H.classOf y)))) =
   leftIsomorphism.forward.apply (Model.map.apply (sourceReindex.forward.apply ((Source.Injection[i := p].map).apply (Tensor.tensor b (H.classOf y))))) :=
-  \fun (b: Term.boundaryCarrier)(y: H.Cycle) => trans!{{Chains.At[C := Sequence.left, z := Bounded.previous k].Homology}} _ _ _
-    (congr!{{Chains.At[C := Sequence.right, z := k].Homology} {Chains.At[C := Sequence.left, z := Bounded.previous k].Homology}}
-      (Delta.connecting.apply) _ _ (SourceIso.Generator[p := p].classEquation b y))
-    (trans!{{Chains.At[C := Sequence.left, z := Bounded.previous k].Homology}} _ _ _ (Connecting.onClass b y)
-      (sym!{{Chains.At[C := Sequence.left, z := Bounded.previous k].Homology}} _ _
+  \fun (b: Term.boundaryCarrier)(y: H.Cycle) => eq_reason_in!{{Chains.At[C := Sequence.left, z := Bounded.previous k].Homology} _
+    "=" _ "by" { congr!{{Chains.At[C := Sequence.right, z := k].Homology} {Chains.At[C := Sequence.left, z := Bounded.previous k].Homology}}
+      (Delta.connecting.apply) _ _ (SourceIso.Generator[p := p].classEquation b y) }
+    "=" _ "by" { Connecting.onClass b y }
+    "=" _ "by" { sym!{{Chains.At[C := Sequence.left, z := Bounded.previous k].Homology}} _ _
         (trans!{{Chains.At[C := Sequence.left, z := Bounded.previous k].Homology}} _ _ _
           (congr!{ModelTarget.Carrier {Chains.At[C := Sequence.left, z := Bounded.previous k].Homology}}
             (leftIsomorphism.forward.apply) _ _ (modelOnTensor b (H.classOf y)))
-          (TargetIso.Generator[p := Bounded.previous p].arbitraryClassEquation q lowerDegree (Term.boundaryAsCycle b) y))));
+          (TargetIso.Generator[p := Bounded.previous p].arbitraryClassEquation q lowerDegree (Term.boundaryAsCycle b) y)) }
+  };
 \import Modules.Hom[V := Source.Carrier, W := LH.Homology, source := Source.space, target := LH.homologySpace].Composition[
   U := Tensor.Carrier, domain := Tensor.space] \as Restrict;
 \import Tensor.Universal[U := LH.Homology, target := LH.homologySpace] \as Universal;

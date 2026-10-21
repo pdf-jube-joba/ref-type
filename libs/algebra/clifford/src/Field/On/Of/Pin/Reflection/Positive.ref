@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition value[w: V]: V := space.add w (space.neg (space.smul (Relations.polar v w) v));
 \definition image: \forall (w: V) -> iota (value w) = Sum.difference (iota w) (scale (Relations.polar v w) (iota v)) :=
   \fun (w: V) => trans!{Carrier} _ _ _ (injection.preservesAdd w (space.neg (space.smul (Relations.polar v w) v)))
@@ -7,33 +8,42 @@
   \fun (w: V) \then
   \let squareValue: scale (quadratic v) (iota w) = iota w := trans!{Carrier} _ _ _
     (congr!{K Carrier} (\fun (a: K) => scale a (iota w)) _ _ (\bysub(V, { v: V \where quadratic v = Linear.one }, v))) (vectorSpace.scalarOne (iota w)) \then
-  \return trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (\fun (x: Carrier) => mul (mul x (iota w)) (iota v)) _ _ (Grade.onVector v))
-    (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (\fun (x: Carrier) => mul x (iota v)) _ _ (Units.negMul (iota v) (iota w)))
-      (trans!{Carrier} _ _ _ (Units.negMul (mul (iota v) (iota w)) (iota v))
-        (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} neg _ _ (Relations.triple v w))
-          (trans!{Carrier} _ _ _ (negativeDifference (scale (Relations.polar v w) (iota v)) (scale (quadratic v) (iota w)))
-            (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (\fun (x: Carrier) => Sum.difference x (scale (Relations.polar v w) (iota v))) _ _ squareValue)
-              (sym!{Carrier} _ _ (image w)))))))
+  \return eq_reason_in!{Carrier _
+    "=" _ "by" { congr!{Carrier Carrier} (\fun (x: Carrier) => mul (mul x (iota w)) (iota v)) _ _ (Grade.onVector v) }
+    "=" _ "by" { congr!{Carrier Carrier} (\fun (x: Carrier) => mul x (iota v)) _ _ (Units.negMul (iota v) (iota w)) }
+    "=" _ "by" { Units.negMul (mul (iota v) (iota w)) (iota v) }
+    "=" _ "by" { congr!{Carrier Carrier} neg _ _ (Relations.triple v w) }
+    "=" _ "by" { negativeDifference (scale (Relations.polar v w) (iota v)) (scale (quadratic v) (iota w)) }
+    "=" _ "by" { congr!{Carrier Carrier} (\fun (x: Carrier) => Sum.difference x (scale (Relations.polar v w) (iota v))) _ _ squareValue }
+    "=" _ "by" { sym!{Carrier} _ _ (image w) }
+  }
 };
 \import Units.Conjugation[g := positive v] \as Conjugation;
 \definition negativeAdjoint: \forall (x: Carrier) -> Grade.action (positive v) x = neg (Conjugation.value x) := \fun (x: Carrier) =>
-  trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (\fun (a: Carrier) => mul (mul a x) (iota v)) _ _ (Grade.onVector v))
-    (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (\fun (a: Carrier) => mul a (iota v)) _ _ (Units.negMul (iota v) x))
-      (Units.negMul (mul (iota v) x) (iota v)));
+  eq_reason_in!{Carrier _
+    "=" _ "by" { congr!{Carrier Carrier} (\fun (a: Carrier) => mul (mul a x) (iota v)) _ _ (Grade.onVector v) }
+    "=" _ "by" { congr!{Carrier Carrier} (\fun (a: Carrier) => mul a (iota v)) _ _ (Units.negMul (iota v) x) }
+    "=" _ "by" { Units.negMul (mul (iota v) x) (iota v) }
+  };
 \definition product: \forall (x, y: Carrier) -> mul (Grade.action (positive v) x) (Grade.action (positive v) y) = Conjugation.value (mul x y) :=
-  \fun (x, y: Carrier) => trans!{Carrier} _ _ _ (congr2!{Carrier Carrier Carrier} mul _ _ _ _ (negativeAdjoint x) (negativeAdjoint y))
-    (trans!{Carrier} _ _ _ (Units.negNegMul (Conjugation.value x) (Conjugation.value y)) (sym!{Carrier} _ _ (Conjugation.multiplication x y)));
+  \fun (x, y: Carrier) => eq_reason_in!{Carrier _
+    "=" _ "by" { congr!{Carrier Carrier Carrier} mul _ _ _ _ (negativeAdjoint x) (negativeAdjoint y) }
+    "=" _ "by" { Units.negNegMul (Conjugation.value x) (Conjugation.value y) }
+    "=" _ "by" { sym!{Carrier} _ _ (Conjugation.multiplication x y) }
+  };
 \definition preservesPolar: \forall (x, y: V) -> scalar (Relations.polar (value x) (value y)) = scalar (Relations.polar x y) := \block {
   \fun (x, y: V) \then
   \let a: Carrier := iota x \then
   \let b: Carrier := iota y \then
   \let left: mul (iota (value x)) (iota (value y)) = Conjugation.value (mul a b) := trans!{Carrier} _ _ _
-    (sym!{Carrier} _ _ (congr2!{Carrier Carrier Carrier} mul _ _ _ _ (action x) (action y))) (product a b) \then
+    (sym!{Carrier} _ _ (congr!{Carrier Carrier Carrier} mul _ _ _ _ (action x) (action y))) (product a b) \then
   \let right: mul (iota (value y)) (iota (value x)) = Conjugation.value (mul b a) := trans!{Carrier} _ _ _
-    (sym!{Carrier} _ _ (congr2!{Carrier Carrier Carrier} mul _ _ _ _ (action y) (action x))) (product b a) \then
-  \return trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (Relations.anticommutator (value x) (value y)))
-    (trans!{Carrier} _ _ _ (congr2!{Carrier Carrier Carrier} add _ _ _ _ left right)
-      (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (Conjugation.addition (mul a b) (mul b a)))
-        (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} Conjugation.value _ _ (Relations.anticommutator x y))
-          (Conjugation.central (scalar (Relations.polar x y)) (Presented.central (Relations.polar x y))))))
+    (sym!{Carrier} _ _ (congr!{Carrier Carrier Carrier} mul _ _ _ _ (action y) (action x))) (product b a) \then
+  \return eq_reason_in!{Carrier _
+    "=" _ "by" { sym!{Carrier} _ _ (Relations.anticommutator (value x) (value y)) }
+    "=" _ "by" { congr!{Carrier Carrier Carrier} add _ _ _ _ left right }
+    "=" _ "by" { sym!{Carrier} _ _ (Conjugation.addition (mul a b) (mul b a)) }
+    "=" _ "by" { congr!{Carrier Carrier} Conjugation.value _ _ (Relations.anticommutator x y) }
+    "=" _ "by" { Conjugation.central (scalar (Relations.polar x y)) (Presented.central (Relations.polar x y)) }
+  }
 };

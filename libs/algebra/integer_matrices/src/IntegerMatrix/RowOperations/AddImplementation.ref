@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import N.Basic[].Program[] \as NatPrograms;
 \import N.Basic[].ProgramProp[] \as NatCorrespondence;
 \import B.Choose[A := I.Int] \as Choice;
@@ -25,13 +26,12 @@
   B.ite I.Int^ (NatPrograms.eqb^ i r) (Arithmetic.add (a i j) (Arithmetic.mul c (a s j))) (a i j);
 \definition chosen[a: Runtime^][r, s: N.Nat^][c: I.Int^][i, j: N.Nat^]: I.Int^ := B.ite I.Int^ (NatPrograms.eqb^ i r) (I.Add.program^ (a i j) (I.Mul.program^ c (a s j))) (a i j);
 \definition matches: \forall (a: Runtime^)(r, s: N.Nat^)(c: I.Int^)(i, j: N.Nat^) -> program^ a r s c i j = add a r s c i j :=
-  \fun (a: Runtime^)(r, s: N.Nat^)(c: I.Int^)(i, j: N.Nat^) => trans!{I.Int^} (program^ a r s c i j) (chosen a r s c i j) (add a r s c i j)
-    (Choice.matches (NatPrograms.eqb^ i r) (I.Add.program^ (a i j) (I.Mul.program^ c (a s j))) (a i j))
-    (trans!{I.Int^} (chosen a r s c i j) (multiplied a r s c i j) (add a r s c i j)
-    (congr!{I.Mul.T^ I.Int^} (\fun (f: I.Mul.T^) => B.ite I.Int^ (NatPrograms.eqb^ i r) (I.Add.program^ (a i j) (f c (a s j))) (a i j)) I.Mul.program^ I.Mul.specification I.Mul.coherence)
-    (trans!{I.Int^} (multiplied a r s c i j) (added a r s c i j) (add a r s c i j)
-      (congr!{I.Add.T^ I.Int^} (\fun (f: I.Add.T^) => B.ite I.Int^ (NatPrograms.eqb^ i r) (f (a i j) (Arithmetic.mul c (a s j))) (a i j)) I.Add.program^ I.Add.specification I.Add.coherence)
-      (congr!{NatCorrespondence.Eqb.T^ I.Int^} (\fun (f: NatCorrespondence.Eqb.T^) => B.ite I.Int^ (f i r) (Arithmetic.add (a i j) (Arithmetic.mul c (a s j))) (a i j)) NatCorrespondence.Eqb.program^ NatCorrespondence.Eqb.specification NatCorrespondence.Eqb.coherence)));
+  \fun (a: Runtime^)(r, s: N.Nat^)(c: I.Int^)(i, j: N.Nat^) => eq_reason_in!{I.Int^ { program^ a r s c i j }
+    "=" { chosen a r s c i j } "by" { Choice.matches (NatPrograms.eqb^ i r) (I.Add.program^ (a i j) (I.Mul.program^ c (a s j))) (a i j) }
+    "=" { multiplied a r s c i j } "by" { congr!{I.Mul.T^ I.Int^} (\fun (f: I.Mul.T^) => B.ite I.Int^ (NatPrograms.eqb^ i r) (I.Add.program^ (a i j) (f c (a s j))) (a i j)) I.Mul.program^ I.Mul.specification I.Mul.coherence }
+    "=" { added a r s c i j } "by" { congr!{I.Add.T^ I.Int^} (\fun (f: I.Add.T^) => B.ite I.Int^ (NatPrograms.eqb^ i r) (f (a i j) (Arithmetic.mul c (a s j))) (a i j)) I.Add.program^ I.Add.specification I.Add.coherence }
+    "=" { add a r s c i j } "by" { congr!{NatCorrespondence.Eqb.T^ I.Int^} (\fun (f: NatCorrespondence.Eqb.T^) => B.ite I.Int^ (f i r) (Arithmetic.add (a i j) (Arithmetic.mul c (a s j))) (a i j)) NatCorrespondence.Eqb.program^ NatCorrespondence.Eqb.specification NatCorrespondence.Eqb.coherence }
+  };
 \definition coherence: program^ = add := \axiom:funext(program^, add,
   \fun (a: Runtime^) => \axiom:funext(program^ a, add a,
     \fun (r: N.Nat^) => \axiom:funext(program^ a r, add a r,

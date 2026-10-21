@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Arithmetic[].IntAlgebra[].Ring[] \as IntegerRing;
 \import std.Arithmetic[].IntAlgebra[].Calculation[] \as Arithmetic;
 \import module_theory.Module[].Over[R := I.Int^, ring := IntegerRing.ring] \as Modules;
@@ -15,8 +16,11 @@
 \definition vanishes: Descent.Vanishes reduction := \fun (x: I.Int^)(member: _) =>
   Images.eliminate Z2.multiplication x ((reduction).apply x = zero)
     (\fun (q: I.Int^)(equal: Arithmetic.mul two q = x) =>
-      trans!{Carrier} _ _ _ (congr!{I.Int^ Carrier} ((reduction).apply) _ _ (sym!{I.Int^} _ _ equal))
-        (trans!{Carrier} _ _ _ ((reduction).scalar two q) (doubleZero ((reduction).apply q)))) member;
+      eq_reason_in!{Carrier _
+        "=" _ "by" { congr!{I.Int^ Carrier} ((reduction).apply) _ _ (sym!{I.Int^} _ _ equal) }
+        "=" _ "by" { (reduction).scalar two q }
+        "=" _ "by" { doubleZero ((reduction).apply q) }
+      }) member;
 \definition forward: Modules.Hom[V := Z2.Carrier, W := Carrier, source := Z2.space, target := integerSpace].Map :=
   Descent.descend reduction vanishes;
 \definition onClass[x: I.Int^]: (forward).apply (Z2.class x) = (integerSpace).smul x one := Descent.onClass reduction vanishes x;
@@ -47,10 +51,12 @@
     (trans!{Carrier} _ _ _ (onClass Arithmetic.one) (Integral.scalarOne one));
 \import Modules.Hom[V := Carrier, W := Z2.Carrier, source := integerSpace, target := Z2.space] \as BackwardMaps;
 \definition leftInverseOnClass[x: I.Int^]: (backward).apply ((forward).apply (Z2.class x)) = Z2.class x :=
-  trans!{Z2.Carrier} _ _ _ (congr!{Carrier Z2.Carrier} ((backward).apply) _ _ (onClass x))
-    (trans!{Z2.Carrier} _ _ _ ((backward).scalar x one)
-      (trans!{Z2.Carrier} _ _ _ (Z2.onScalar x Arithmetic.one)
-        (congr!{I.Int^ Z2.Carrier} Z2.class _ _ ((((IntegerRing.ring).semiring).multiplicative).rightIdentity x))));
+  eq_reason_in!{Z2.Carrier _
+    "=" _ "by" { congr!{Carrier Z2.Carrier} ((backward).apply) _ _ (onClass x) }
+    "=" _ "by" { (backward).scalar x one }
+    "=" _ "by" { Z2.onScalar x Arithmetic.one }
+    "=" _ "by" { congr!{I.Int^ Z2.Carrier} Z2.class _ _ ((((IntegerRing.ring).semiring).multiplicative).rightIdentity x) }
+  };
 \definition leftInverse: \forall (q: Z2.Carrier) -> (backward).apply ((forward).apply q) = q :=
   Z2.induction (\fun (q: Z2.Carrier) => (backward).apply ((forward).apply q) = q) leftInverseOnClass;
 \import Modules.Isomorphism[V := Z2.Carrier, W := Carrier, source := Z2.space, target := integerSpace] \as Isomorphisms;
@@ -59,9 +65,11 @@
 };
 \definition generatorNonzero: Z2.class Arithmetic.one = (Z2.space).zero -> Logic.False :=
   \fun (same: Z2.class Arithmetic.one = (Z2.space).zero) => nontrivial
-    (sym!{Carrier} _ _ (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (rightInverse one))
-      (trans!{Carrier} _ _ _ (congr!{Z2.Carrier Carrier} ((forward).apply) _ _ same)
-        (Modules.Hom[V := Z2.Carrier, W := Carrier, source := Z2.space, target := integerSpace].zeroPreserved forward))));
+    (sym!{Carrier} _ _ (eq_reason_in!{Carrier _
+      "=" _ "by" { sym!{Carrier} _ _ (rightInverse one) }
+      "=" _ "by" { congr!{Z2.Carrier Carrier} ((forward).apply) _ _ same }
+      "=" _ "by" { Modules.Hom[V := Z2.Carrier, W := Carrier, source := Z2.space, target := integerSpace].zeroPreserved forward }
+    }));
 \definition reductionMultiplication[x, y: I.Int^]: (reduction).apply (Arithmetic.mul x y) = mul ((reduction).apply x) ((reduction).apply y) :=
   trans!{Carrier} _ _ _ ((integerSpace).scalarAssoc x y one) (scaleMultiply x ((reduction).apply y));
 \module Sequence;

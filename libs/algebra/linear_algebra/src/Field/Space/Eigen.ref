@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Linear[V := V, W := V, source := space, target := space] \as End;
 \import \parent.Laws[V := V, space := space] \as SpaceLaws;
 \import \parent.Subspace[V := V, space := space] \as Subspaces;
@@ -36,8 +37,14 @@
 \definition eigenspace[f: End.Map] [lambda: K]: Subspaces.Subspace := Subspaces.Subspace {
   carrier := Eigenspace f lambda,
   containsZero := trans!{V} _ _ _ (f.preservesZero) (sym!{V} _ _ (SpaceLaws.scaleZero lambda)),
-  closedAdd := \fun (x, y: _) (hx: _) (hy: _) => trans!{V} _ _ _ (f.preservesAdd x y)
-    (trans!{V} _ _ _ (congr2!{V V V} (space.add) _ _ _ _ hx hy) (sym!{V} _ _ (space.vectorAdd lambda x y))),
-  closedScale := \fun (a: _) (x: _) (hx: _) => trans!{V} _ _ _ (f.preservesScale a x)
-    (trans!{V} _ _ _ (congr!{V V} (space.smul a) _ _ hx) (SpaceLaws.scaleComm a lambda x)),
+  closedAdd := \fun (x, y: _) (hx: _) (hy: _) => eq_reason_in!{V _
+    "=" _ "by" { f.preservesAdd x y }
+    "=" _ "by" { congr!{V V V} (space.add) _ _ _ _ hx hy }
+    "=" _ "by" { sym!{V} _ _ (space.vectorAdd lambda x y) }
+  },
+  closedScale := \fun (a: _) (x: _) (hx: _) => eq_reason_in!{V _
+    "=" _ "by" { f.preservesScale a x }
+    "=" _ "by" { congr!{V V} (space.smul a) _ _ hx }
+    "=" _ "by" { SpaceLaws.scaleComm a lambda x }
+  },
 };

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition combine: \forall (f, g: Interval.Carrier -> Interval.Carrier) -> Property f (Intervals.left g) -> Property f (Intervals.right g) -> Property f g := \block {
   \fun (f, g: _)(left: _)(right: _)(fc: _)(gc: _)(initial: _)(ic: _)(ip: _) \then
   \let il: Interval.Carrier -> E := \fun (s: Interval.Carrier) => initial (Halves.lower s) \then
@@ -26,10 +27,12 @@
       (congr!{Interval.Carrier B} (\fun (s: Interval.Carrier) => family (Square.at (f t) (g s))) _ _ Halves.lowerEnd))
     (\fun (t: Interval.Carrier) => trans!{B} _ _ _ ((laws _ _ r).projects (Square.at t Interval.start))
       (congr!{Interval.Carrier B} (\fun (s: Interval.Carrier) => family (Square.at (f t) (g s))) _ _ Halves.upperStart))
-    (trans!{E} _ _ _ ((laws _ _ l).starts Interval.end)
-      (trans!{E} _ _ _ (congr!{Interval.Carrier E} initial _ _
-        (trans!{Interval.Carrier} _ _ _ Halves.lowerEnd (sym!{Interval.Carrier} _ _ Halves.upperStart)))
-        (sym!{E} _ _ ((laws _ _ r).starts Interval.start)))) \then
+    (eq_reason_in!{E _
+      "=" _ "by" { (laws _ _ l).starts Interval.end }
+      "=" _ "by" { congr!{Interval.Carrier E} initial _ _
+        (trans!{Interval.Carrier} _ _ _ Halves.lowerEnd (sym!{Interval.Carrier} _ _ Halves.upperStart)) }
+      "=" _ "by" { sym!{E} _ _ ((laws _ _ r).starts Interval.start) }
+    }) \then
   \let compatible: Glue.Compatible (Glue.flipped l) (Glue.flipped r) :=
     \fun (t: Interval.Carrier) => congr!{{Interval.Carrier -> E} E} (\fun (e: Interval.Carrier -> E) => e t) leftEdge rightEdge sameEdges \then
   \let lc: Glue.IsContinuous (Glue.flipped l) := Glue.flipContinuous l (laws _ _ l).continuous \then
@@ -39,19 +42,27 @@
     Laws[trace f g, initial, Glue.flipped joined] {
       continuous := Glue.flipContinuous joined (Glue.continuous (Glue.flipped l) (Glue.flipped r) lc rc compatible),
       starts := \fun (s: Interval.Carrier) => either!{{(Glue.covered s)} {_}
-        {\fun (member: _) => trans!{E} _ _ _ (Glue.onLeft (Glue.flipped l) (Glue.flipped r) lc rc compatible s Interval.start member)
-          (trans!{E} _ _ _ ((laws _ _ l).starts (Glue.leftTime s member)) (congr!{Interval.Carrier E} initial _ _ (Glue.undoLeft s member)))}
-        {\fun (member: _) => trans!{E} _ _ _ (Glue.onRight (Glue.flipped l) (Glue.flipped r) lc rc compatible s Interval.start member)
-          (trans!{E} _ _ _ ((laws _ _ r).starts (Glue.rightTime s member)) (congr!{Interval.Carrier E} initial _ _ (Glue.undoRight s member)))}},
+        {\fun (member: _) => eq_reason_in!{E _
+          "=" _ "by" { Glue.onLeft (Glue.flipped l) (Glue.flipped r) lc rc compatible s Interval.start member }
+          "=" _ "by" { (laws _ _ l).starts (Glue.leftTime s member) }
+          "=" _ "by" { congr!{Interval.Carrier E} initial _ _ (Glue.undoLeft s member) }
+        }}
+        {\fun (member: _) => eq_reason_in!{E _
+          "=" _ "by" { Glue.onRight (Glue.flipped l) (Glue.flipped r) lc rc compatible s Interval.start member }
+          "=" _ "by" { (laws _ _ r).starts (Glue.rightTime s member) }
+          "=" _ "by" { congr!{Interval.Carrier E} initial _ _ (Glue.undoRight s member) }
+        }}},
       projects := \fun (q: Square.Carrier) => either!{{(Glue.covered (Square.point q))} {_}
-        {\fun (member: _) => trans!{B} _ _ _
-          (congr!{E B} projection _ _ (Glue.onLeft (Glue.flipped l) (Glue.flipped r) lc rc compatible (Square.point q) (Square.time q) member))
-          (trans!{B} _ _ _ ((laws _ _ l).projects (Square.at (Square.time q) (Glue.leftTime (Square.point q) member)))
-            (congr!{Interval.Carrier B} (\fun (s: Interval.Carrier) => family (Square.at (f (Square.time q)) (g s))) _ _ (Glue.undoLeft (Square.point q) member)))}
-        {\fun (member: _) => trans!{B} _ _ _
-          (congr!{E B} projection _ _ (Glue.onRight (Glue.flipped l) (Glue.flipped r) lc rc compatible (Square.point q) (Square.time q) member))
-          (trans!{B} _ _ _ ((laws _ _ r).projects (Square.at (Square.time q) (Glue.rightTime (Square.point q) member)))
-            (congr!{Interval.Carrier B} (\fun (s: Interval.Carrier) => family (Square.at (f (Square.time q)) (g s))) _ _ (Glue.undoRight (Square.point q) member)))}}
+        {\fun (member: _) => eq_reason_in!{B _
+          "=" _ "by" { congr!{E B} projection _ _ (Glue.onLeft (Glue.flipped l) (Glue.flipped r) lc rc compatible (Square.point q) (Square.time q) member) }
+          "=" _ "by" { (laws _ _ l).projects (Square.at (Square.time q) (Glue.leftTime (Square.point q) member)) }
+          "=" _ "by" { congr!{Interval.Carrier B} (\fun (s: Interval.Carrier) => family (Square.at (f (Square.time q)) (g s))) _ _ (Glue.undoLeft (Square.point q) member) }
+        }}
+        {\fun (member: _) => eq_reason_in!{B _
+          "=" _ "by" { congr!{E B} projection _ _ (Glue.onRight (Glue.flipped l) (Glue.flipped r) lc rc compatible (Square.point q) (Square.time q) member) }
+          "=" _ "by" { (laws _ _ r).projects (Square.at (Square.time q) (Glue.rightTime (Square.point q) member)) }
+          "=" _ "by" { congr!{Interval.Carrier B} (\fun (s: Interval.Carrier) => family (Square.at (f (Square.time q)) (g s))) _ _ (Glue.undoRight (Square.point q) member) }
+        }}}
     }
   } \then
   \return \exact(lifted, Lift (trace f g) initial)

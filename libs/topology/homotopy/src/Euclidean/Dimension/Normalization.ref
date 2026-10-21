@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Geometry[] \as Geometry;
 \import \parent.Contraction[] \as Scaling;
 \import Real.Algebra[] \as Algebra;
@@ -9,22 +10,24 @@
 \use Equality.sym;
 \use Equality.trans;
 \use Equality.congr;
-\use Equality.congr2;
 \definition Nonzero: \Set := \Cast[Coordinate] ({ x: Coordinate \where Logic.Not (normSquared x = Real.zero) });
 \definition normNonzero: \forall (x: Nonzero) -> Logic.Not (Geometry.norm x = Real.zero) :=
   \fun (x: Nonzero)(equal: _) => (\bysub(Coordinate, Nonzero, x))
-    (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Geometry.normSquaredOfNorm x))
-      (trans!{Real.Real} _ _ _ (congr2!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ equal equal) (Laws.fieldMulZeroLeft Real.zero)));
+    (eq_reason_in!{Real.Real _
+      "=" _ "by" { sym!{Real.Real} _ _ (Geometry.normSquaredOfNorm x) }
+      "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ equal equal }
+      "=" _ "by" { Laws.fieldMulZeroLeft Real.zero }
+    });
 \definition normalizedSquared: \forall (x: Nonzero) -> normSquared (Scaling.scale (Laws.fieldInv (Geometry.norm x)) x) = Real.one :=
-  \fun (x: Nonzero) => trans!{Real.Real} _ _ _ (Scaling.normScale (Laws.fieldInv (Geometry.norm x)) x)
-    (trans!{Real.Real} _ _ _
-      (congr!{Real.Real Real.Real} (Real.mul (Real.mul (Laws.fieldInv (Geometry.norm x)) (Laws.fieldInv (Geometry.norm x)))) _ _
-        (sym!{Real.Real} _ _ (Geometry.normSquaredOfNorm x)))
-      (trans!{Real.Real} _ _ _ (Algebra.mulFour (Laws.fieldInv (Geometry.norm x)) (Laws.fieldInv (Geometry.norm x)) (Geometry.norm x) (Geometry.norm x))
-        (trans!{Real.Real} _ _ _
-          (congr2!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _
-            (Laws.fieldInverseNonzero (Geometry.norm x) (normNonzero x)) (Laws.fieldInverseNonzero (Geometry.norm x) (normNonzero x)))
-          (Laws.fieldMulOneLeft Real.one))));
+  \fun (x: Nonzero) => eq_reason_in!{Real.Real _
+    "=" _ "by" { Scaling.normScale (Laws.fieldInv (Geometry.norm x)) x }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (Real.mul (Laws.fieldInv (Geometry.norm x)) (Laws.fieldInv (Geometry.norm x)))) _ _
+        (sym!{Real.Real} _ _ (Geometry.normSquaredOfNorm x)) }
+    "=" _ "by" { Algebra.mulFour (Laws.fieldInv (Geometry.norm x)) (Laws.fieldInv (Geometry.norm x)) (Geometry.norm x) (Geometry.norm x) }
+    "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _
+            (Laws.fieldInverseNonzero (Geometry.norm x) (normNonzero x)) (Laws.fieldInverseNonzero (Geometry.norm x) (normNonzero x)) }
+    "=" _ "by" { Laws.fieldMulOneLeft Real.one }
+  };
 \definition normalize[x: Nonzero]: Sphere := \into[Coordinate](Scaling.scale (Laws.fieldInv (Geometry.norm x)) x, Boundary) \by { normalizedSquared x };
 \definition ofSphere[x: Sphere]: Nonzero := \into[Coordinate](x, Nonzero) \by {
   \fun (equal: normSquared x = Real.zero) => Laws.zeroNeOne

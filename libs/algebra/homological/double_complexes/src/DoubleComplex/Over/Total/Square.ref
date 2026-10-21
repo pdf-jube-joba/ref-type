@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Degree[n := n] \as Current;
 \import \parent.Degree[n := Nat.Nat^::succ n] \as Middle;
 \import \parent.Degree[n := Nat.Nat^::succ (Nat.Nat^::succ n)] \as Earlier;
@@ -89,9 +90,11 @@
 \import Modules.Laws[V := Current.Carrier, space := Current.space] \as Vector;
 \import algebra.Group[].Of[Carrier := Current.Carrier, group := Vector.additive] \as Additive;
 \definition negativeZeros: \forall (x, y: Current.Carrier) -> x = Current.space.zero -> y = Current.space.zero -> x = Current.space.neg y :=
-  \fun (x, y: Current.Carrier)(left: x = Current.space.zero)(right: y = Current.space.zero) => trans!{Current.Carrier} x (Current.space.zero) (Current.space.neg y) left
-    (trans!{Current.Carrier} (Current.space.zero) (Current.space.neg Current.space.zero) (Current.space.neg y)
-      (sym!{Current.Carrier} _ _ Additive.negZero) (congr!{Current.Carrier Current.Carrier} (Current.space.neg) _ _ (sym!{Current.Carrier} _ _ right)));
+  \fun (x, y: Current.Carrier)(left: x = Current.space.zero)(right: y = Current.space.zero) => eq_reason_in!{Current.Carrier x
+    "=" Current.space.zero "by" left
+    "=" { Current.space.neg Current.space.zero } "by" { sym!{Current.Carrier} _ _ Additive.negZero }
+    "=" { Current.space.neg y } "by" { congr!{Current.Carrier Current.Carrier} (Current.space.neg) _ _ (sym!{Current.Carrier} _ _ right) }
+  };
 \module CrossZeroColumn(q: Nat.Nat^);
 \module CrossZeroRow(p: Nat.Nat^);
 
@@ -138,21 +141,17 @@
 \definition priorApply: \forall (x: Earlier.Carrier) -> PriorStep.differential.apply x = Middle.space.add (PriorStep.horizontalTotal.apply x) (PriorStep.verticalTotal.apply x) :=
   \fun (x: Earlier.Carrier) => congr!{PriorMaps.Map Middle.Carrier} (\fun (f: PriorMaps.Map) => f.apply x) _ _ PriorStep.asSum;
 \definition zero: \forall (x: Earlier.Carrier) -> NextStep.differential.apply (PriorStep.differential.apply x) = Current.space.zero :=
-  \fun (x: Earlier.Carrier) => trans!{Current.Carrier} _ _ _
-    (congr!{Middle.Carrier Current.Carrier} (NextStep.differential.apply) _ _ (priorApply x))
-    (trans!{Current.Carrier} _ _ _
-      (NextStep.differential.addition (PriorStep.horizontalTotal.apply x) (PriorStep.verticalTotal.apply x))
-      (trans!{Current.Carrier} _ _ _
-        (congr2!{Current.Carrier Current.Carrier Current.Carrier} (Current.space.add) _ _ _ _
-          (nextApply (PriorStep.horizontalTotal.apply x)) (nextApply (PriorStep.verticalTotal.apply x)))
-        (trans!{Current.Carrier} _ _ _
-          (congr2!{Current.Carrier Current.Carrier Current.Carrier} (Current.space.add) _ _ _ _
+  \fun (x: Earlier.Carrier) => eq_reason_in!{Current.Carrier _
+    "=" _ "by" { congr!{Middle.Carrier Current.Carrier} (NextStep.differential.apply) _ _ (priorApply x) }
+    "=" _ "by" { NextStep.differential.addition (PriorStep.horizontalTotal.apply x) (PriorStep.verticalTotal.apply x) }
+    "=" _ "by" { congr!{Current.Carrier Current.Carrier Current.Carrier} (Current.space.add) _ _ _ _
+          (nextApply (PriorStep.horizontalTotal.apply x)) (nextApply (PriorStep.verticalTotal.apply x)) }
+    "=" _ "by" { congr!{Current.Carrier Current.Carrier Current.Carrier} (Current.space.add) _ _ _ _
             (congr!{Current.Carrier Current.Carrier} (\fun (y: Current.Carrier) => Current.space.add y (NextStep.verticalTotal.apply (PriorStep.horizontalTotal.apply x))) _ _ (horizontalSquareZero x))
-            (congr!{Current.Carrier Current.Carrier} (Current.space.add (NextStep.horizontalTotal.apply (PriorStep.verticalTotal.apply x))) _ _ (verticalSquareZero x)))
-          (trans!{Current.Carrier} _ _ _
-            (congr2!{Current.Carrier Current.Carrier Current.Carrier} (Current.space.add) _ _ _ _
+            (congr!{Current.Carrier Current.Carrier} (Current.space.add (NextStep.horizontalTotal.apply (PriorStep.verticalTotal.apply x))) _ _ (verticalSquareZero x)) }
+    "=" _ "by" { congr!{Current.Carrier Current.Carrier Current.Carrier} (Current.space.add) _ _ _ _
               (Additive.zeroLeft (NextStep.verticalTotal.apply (PriorStep.horizontalTotal.apply x)))
-              (Additive.zeroRight (NextStep.horizontalTotal.apply (PriorStep.verticalTotal.apply x))))
-            (trans!{Current.Carrier} _ _ _
-              (congr!{Current.Carrier Current.Carrier} (Current.space.add (NextStep.verticalTotal.apply (PriorStep.horizontalTotal.apply x))) _ _ (crossAntiCommutes x))
-              (Additive.inverseRight (NextStep.verticalTotal.apply (PriorStep.horizontalTotal.apply x))))))));
+              (Additive.zeroRight (NextStep.horizontalTotal.apply (PriorStep.verticalTotal.apply x))) }
+    "=" _ "by" { congr!{Current.Carrier Current.Carrier} (Current.space.add (NextStep.verticalTotal.apply (PriorStep.horizontalTotal.apply x))) _ _ (crossAntiCommutes x) }
+    "=" _ "by" { Additive.inverseRight (NextStep.verticalTotal.apply (PriorStep.horizontalTotal.apply x)) }
+  };

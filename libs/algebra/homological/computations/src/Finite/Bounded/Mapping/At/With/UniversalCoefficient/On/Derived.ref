@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Data[].Nat[] \as ResolutionNaturals;
 \definition resolutionOne: ResolutionNaturals.Nat^ := ResolutionNaturals.Nat^::succ ResolutionNaturals.Nat^::zero;
 \import \root.Finite[].Bounded[].Of[C := C].At[z := previous z].Presentation[] \as P;
@@ -64,14 +65,14 @@
 \definition inclusionNaturality: \forall (x: ED.Carrier) ->
   Codomain.inclusion.apply (map.apply x) = cohomology.apply (Domain.inclusion.apply x) :=
   IH.classInduction (\fun (x: ED.Carrier) => Codomain.inclusion.apply (map.apply x) = cohomology.apply (Domain.inclusion.apply x))
-    (\fun (h: IH.CycleCarrier) => trans!{Codomain.cohomologyBundle.Carrier} _ _ _
-      (congr!{EC.Carrier Codomain.cohomologyBundle.Carrier} (Codomain.inclusion.apply) _ _ (Induced.onClass Mapping.map h))
-      (trans!{Codomain.cohomologyBundle.Carrier} _ _ _ (codomainOnClass ((Induced.cyclesMap Mapping.map).apply h))
-        (trans!{Codomain.cohomologyBundle.Carrier} _ _ _
-          (congr!{CH.Closed Codomain.cohomologyBundle.Carrier} CH.classOf _ _ (closedNaturality h))
-          (sym!{Codomain.cohomologyBundle.Carrier} _ _ (trans!{Codomain.cohomologyBundle.Carrier} _ _ _
+    (\fun (h: IH.CycleCarrier) => eq_reason_in!{Codomain.cohomologyBundle.Carrier _
+      "=" _ "by" { congr!{EC.Carrier Codomain.cohomologyBundle.Carrier} (Codomain.inclusion.apply) _ _ (Induced.onClass Mapping.map h) }
+      "=" _ "by" { codomainOnClass ((Induced.cyclesMap Mapping.map).apply h) }
+      "=" _ "by" { congr!{CH.Closed Codomain.cohomologyBundle.Carrier} CH.classOf _ _ (closedNaturality h) }
+      "=" _ "by" { sym!{Codomain.cohomologyBundle.Carrier} _ _ (trans!{Codomain.cohomologyBundle.Carrier} _ _ _
             (congr!{Domain.cohomologyBundle.Carrier Codomain.cohomologyBundle.Carrier} (cohomology.apply) _ _ (domainOnClass h))
-            (IntegerMap.onClass (Domain.cocycle (ED.forward.apply h))))))));
+            (IntegerMap.onClass (Domain.cocycle (ED.forward.apply h)))) }
+    });
 \definition agrees: map = ext := extUnique map inclusionNaturality;
 \import resolutions.HomComplex[].Over[R := I.Int^, ring := IntegerRing.commutativeRing].On[P := EC.complex, N := A] \as MiddleHom;
 \import Cochains.At[C := MiddleHom.complex, k := resolutionOne] \as MH;
@@ -96,14 +97,14 @@
     ((RawSecondInduced.cyclesMap RawSecond.map).apply ((RawFirstInduced.cyclesMap RawFirst.map).apply h))
     ((Induced.cyclesMap Mapping.map).apply h) (\fun (x: P.boundaryBundle.Carrier) => \refl(u.apply (h.apply (boundaries.apply x))));
 \definition functorOnClass: \forall (h: IH.CycleCarrier) -> functorMap.apply (IH.classOf h) = map.apply (IH.classOf h) :=
-  \fun (h: IH.CycleCarrier) => trans!{OH.Cohomology} _ _ _
-    (congr!{Modules.Hom[V := IH.Cohomology, W := MH.Cohomology, source := IH.cohomologySpace, target := MH.cohomologySpace].Map OH.Cohomology}
-      (\fun (a: Modules.Hom[V := IH.Cohomology, W := MH.Cohomology, source := IH.cohomologySpace, target := MH.cohomologySpace].Map) => (Second.map u).apply (a.apply (IH.classOf h))) _ _ firstAgreement)
-    (trans!{OH.Cohomology} _ _ _
-      (congr!{MH.Cohomology OH.Cohomology} ((Second.map u).apply) _ _ (RawFirstInduced.onClass RawFirst.map h))
-      (trans!{OH.Cohomology} _ _ _ (Second.onClass u ((RawFirstInduced.cyclesMap RawFirst.map).apply h))
-        (trans!{OH.Cohomology} _ _ _ (congr!{OH.CycleCarrier OH.Cohomology} OH.classOf _ _ (representativeComposition h))
-          (sym!{OH.Cohomology} _ _ (Induced.onClass Mapping.map h)))));
+  \fun (h: IH.CycleCarrier) => eq_reason_in!{OH.Cohomology _
+    "=" _ "by" { congr!{Modules.Hom[V := IH.Cohomology, W := MH.Cohomology, source := IH.cohomologySpace, target := MH.cohomologySpace].Map OH.Cohomology}
+      (\fun (a: Modules.Hom[V := IH.Cohomology, W := MH.Cohomology, source := IH.cohomologySpace, target := MH.cohomologySpace].Map) => (Second.map u).apply (a.apply (IH.classOf h))) _ _ firstAgreement }
+    "=" _ "by" { congr!{MH.Cohomology OH.Cohomology} ((Second.map u).apply) _ _ (RawFirstInduced.onClass RawFirst.map h) }
+    "=" _ "by" { Second.onClass u ((RawFirstInduced.cyclesMap RawFirst.map).apply h) }
+    "=" _ "by" { congr!{OH.CycleCarrier OH.Cohomology} OH.classOf _ _ (representativeComposition h) }
+    "=" _ "by" { sym!{OH.Cohomology} _ _ (Induced.onClass Mapping.map h) }
+  };
 \import Modules.Hom[V := ED.Carrier, W := EC.Carrier, source := ED.space, target := EC.space] \as ExtMaps;
 \definition functorAgreement: functorMap = ext := trans!{ExtMaps.Map} _ _ _
   (ExtMaps.ext functorMap map (IH.classInduction (\fun (x: IH.Cohomology) => functorMap.apply x = map.apply x) functorOnClass)) agrees;

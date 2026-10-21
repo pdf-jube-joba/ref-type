@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 /* A Clifford algebra homomorphism is determined on scalars and vectors. */
 \import algebra.Hom[A := Carrier, B := A] \as Hom;
 \import algebra.Group[].Of[Carrier := A, group := Ring.additiveGroup A target] \as TargetSum;
@@ -6,8 +7,11 @@
   Hom.semiringLaws (Ring.ringAsSemiring Carrier ring) (Ring.ringAsSemiring A target) h;
 \definition onNegative: \forall (h: Hom.RingMap ring target)(x: Carrier) -> h (neg x) = target.neg (h x) :=
   \fun (h: Hom.RingMap ring target)(x: Carrier) => TargetSum.inverseUnique (h x) (h (neg x))
-    (trans!{A} _ _ _ (sym!{A} _ _ ((laws h).add (neg x) x))
-      (trans!{A} _ _ _ (congr!{Carrier A} h _ _ (SourceSum.inverseLeft x)) (laws h).zero));
+    (eq_reason_in!{A _
+      "=" _ "by" { sym!{A} _ _ ((laws h).add (neg x) x) }
+      "=" _ "by" { congr!{Carrier A} h _ _ (SourceSum.inverseLeft x) }
+      "=" _ "by" { (laws h).zero }
+    });
 \module Between(h, k: Hom.RingMap ring target) {
   \import \parent.\parent.Induction[P := (\fun (x: Carrier) => h x = k x)] \as Induction;
   \definition ext: (\forall (a: K) -> h (scalar a) = k (scalar a)) ->
@@ -15,12 +19,21 @@
     \fun (coefficients: _)(vectors: _) \then
     \let closed: Induction.Closed := Induction.Closed {
       scalar := coefficients, vector := vectors,
-      addition := \fun (x, y: Carrier)(left: _)(right: _) => trans!{A} _ _ _ ((laws h).add x y)
-        (trans!{A} _ _ _ (congr2!{A A A} target.add _ _ _ _ left right) (sym!{A} _ _ ((laws k).add x y))),
-      negative := \fun (x: Carrier)(same: _) => trans!{A} _ _ _ (onNegative h x)
-        (trans!{A} _ _ _ (congr!{A A} target.neg _ _ same) (sym!{A} _ _ (onNegative k x))),
-      multiplication := \fun (x, y: Carrier)(left: _)(right: _) => trans!{A} _ _ _ ((laws h).mul x y)
-        (trans!{A} _ _ _ (congr2!{A A A} target.mul _ _ _ _ left right) (sym!{A} _ _ ((laws k).mul x y))),
+      addition := \fun (x, y: Carrier)(left: _)(right: _) => eq_reason_in!{A _
+        "=" _ "by" { (laws h).add x y }
+        "=" _ "by" { congr!{A A A} target.add _ _ _ _ left right }
+        "=" _ "by" { sym!{A} _ _ ((laws k).add x y) }
+      },
+      negative := \fun (x: Carrier)(same: _) => eq_reason_in!{A _
+        "=" _ "by" { onNegative h x }
+        "=" _ "by" { congr!{A A} target.neg _ _ same }
+        "=" _ "by" { sym!{A} _ _ (onNegative k x) }
+      },
+      multiplication := \fun (x, y: Carrier)(left: _)(right: _) => eq_reason_in!{A _
+        "=" _ "by" { (laws h).mul x y }
+        "=" _ "by" { congr!{A A A} target.mul _ _ _ _ left right }
+        "=" _ "by" { sym!{A} _ _ ((laws k).mul x y) }
+      },
     } \then
     \return \axiom:funext(h, k, Induction.all closed)
   };

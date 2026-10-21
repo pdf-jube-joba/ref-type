@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import singular_cohomology.Chains[A := Coordinates.Sphere, source := Coordinates.sphereTopology] \as SingularChains;
 \import singular_cohomology.Chains[A := Coordinates.Sphere, source := Coordinates.sphereTopology].Reduced[] \as Augmented;
 \import singular_cohomology.Cochains[A := Coordinates.Sphere, source := Coordinates.sphereTopology].With[coefficients := coefficients] \as Theory;
@@ -35,23 +36,27 @@
   \fun (k: I.Int^) => H.classInduction (\fun (q: H.Cohomology) =>
     (Comparison.forward).apply ((action k).apply q) =
       (NaturalInduced.induced (naturalPull k)).apply ((Comparison.forward).apply q))
-    (\fun (h: H.Closed) => trans!{NaturalH.Cohomology} _ _ _
-      (congr!{H.Cohomology NaturalH.Cohomology} ((Comparison.forward).apply) _ _ (Induced.onClass (pull k) h))
-      (trans!{NaturalH.Cohomology} _ _ _ (Comparison.onIntegerClass ((Induced.cyclesMap (pull k)).apply h))
-        (trans!{NaturalH.Cohomology} _ _ _ (NaturalH.equalClass (leftCycle k h) (rightCycle k h) (onCycle k h))
-          (trans!{NaturalH.Cohomology} _ _ _
-            (sym!{NaturalH.Cohomology} _ _ (NaturalInduced.onClass (naturalPull k) (Comparison.toNatural h)))
-            (congr!{NaturalH.Cohomology NaturalH.Cohomology} ((NaturalInduced.induced (naturalPull k)).apply) _ _
-              (sym!{NaturalH.Cohomology} _ _ (Comparison.onIntegerClass h)))))));
+    (\fun (h: H.Closed) => eq_reason_in!{NaturalH.Cohomology _
+      "=" _ "by" { congr!{H.Cohomology NaturalH.Cohomology} ((Comparison.forward).apply) _ _ (Induced.onClass (pull k) h) }
+      "=" _ "by" { Comparison.onIntegerClass ((Induced.cyclesMap (pull k)).apply h) }
+      "=" _ "by" { NaturalH.equalClass (leftCycle k h) (rightCycle k h) (onCycle k h) }
+      "=" _ "by" { sym!{NaturalH.Cohomology} _ _ (NaturalInduced.onClass (naturalPull k) (Comparison.toNatural h)) }
+      "=" _ "by" { congr!{NaturalH.Cohomology NaturalH.Cohomology} ((NaturalInduced.induced (naturalPull k)).apply) _ _
+              (sym!{NaturalH.Cohomology} _ _ (Comparison.onIntegerClass h)) }
+    });
 \import Modules.Isomorphism[V := H.Cohomology, W := Carrier, source := H.cohomologySpace, target := space] \as Iso;
 \definition injective[e: Iso.Isomorphism][x, y: H.Cohomology]:
   ((e).forward).apply x = ((e).forward).apply y -> x = y :=
-  \fun (same: _) => trans!{H.Cohomology} _ _ _ (sym!{H.Cohomology} _ _ ((e).leftInverse x))
-    (trans!{H.Cohomology} _ _ _
-      (congr!{Carrier H.Cohomology} (((e).backward).apply) _ _ same) ((e).leftInverse y));
+  \fun (same: _) => eq_reason_in!{H.Cohomology _
+    "=" _ "by" { sym!{H.Cohomology} _ _ ((e).leftInverse x) }
+    "=" _ "by" { congr!{Carrier H.Cohomology} (((e).backward).apply) _ _ same }
+    "=" _ "by" { (e).leftInverse y }
+  };
 \import \root.Circle[].Powers[].Actions[coefficients := coefficients] \as Natural;
 \definition integer: \forall (k: I.Int^)(q: H.Cohomology) -> (action k).apply q = (H.cohomologySpace).smul k q :=
   \fun (k: I.Int^)(q: H.Cohomology) => injective Comparison.isomorphism _ _
-    (trans!{Carrier} _ _ _ (naturality k q)
-      (trans!{Carrier} _ _ _ (Natural.integer k ((Comparison.forward).apply q))
-        (sym!{Carrier} _ _ ((Comparison.forward).scalar k q))));
+    (eq_reason_in!{Carrier _
+      "=" _ "by" { naturality k q }
+      "=" _ "by" { Natural.integer k ((Comparison.forward).apply q) }
+      "=" _ "by" { sym!{Carrier} _ _ ((Comparison.forward).scalar k q) }
+    });

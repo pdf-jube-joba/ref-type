@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition sourcePoint: SourceCharts.LocalPoint chart := SourceCharts.point chart (Coordinates.leftCoordinate a);
 \definition targetPoint: TargetCharts.LocalPoint right := Coordinates.point a;
 \definition leftChart: SourceTangent.At[x := sourcePoint].Chart := SourceCoordinates.lift sourcePoint;
@@ -12,14 +13,13 @@
     InCharts.jacobianAt InCharts.point a coordinatePoint;
 \definition derivative: \forall (v: SourceVectors.Vector) ->
   Encode.decode (Differential.value.apply (Decode.encode v)) = (LocalPullback.jacobian a).apply v :=
-  \fun (v: SourceVectors.Vector) => trans!{{TargetVectors.Vector}}
-    _ _ _
-    (Differential.coordinates leftChart rightChart (Decode.encode v))
-    (trans!{{TargetVectors.Vector}} _ (InCharts.jacobian.apply v) _
-      (congr!{{SourceVectors.Vector} {TargetVectors.Vector}} (InCharts.jacobian.apply) _ _ (Decode.decodeEncode v))
-      (congr!{{Spaces.Linear[V := SourceVectors.Vector, W := TargetVectors.Vector, source := SourceVectors.space, target := TargetVectors.space].Map} {TargetVectors.Vector}}
+  \fun (v: SourceVectors.Vector) => eq_reason_in!{{TargetVectors.Vector} _
+    "=" _ "by" { Differential.coordinates leftChart rightChart (Decode.encode v) }
+    "=" { InCharts.jacobian.apply v } "by" { congr!{{SourceVectors.Vector} {TargetVectors.Vector}} (InCharts.jacobian.apply) _ _ (Decode.decodeEncode v) }
+    "=" _ "by" { congr!{{Spaces.Linear[V := SourceVectors.Vector, W := TargetVectors.Vector, source := SourceVectors.space, target := TargetVectors.space].Map} {TargetVectors.Vector}}
         (\fun (d: Spaces.Linear[V := SourceVectors.Vector, W := TargetVectors.Vector, source := SourceVectors.space, target := TargetVectors.space].Map) => d.apply v)
-        InCharts.jacobian (LocalPullback.jacobian a) jacobianEquality));
+        InCharts.jacobian (LocalPullback.jacobian a) jacobianEquality }
+  };
 \definition agreement: \forall (omega: TargetForms.Form k)(arguments: SourceMultilinear.Arguments k) ->
   SourceCoordinates.family (pointwise k omega) (Open.inclusion Coordinates.domain chart.image (included right) a) arguments =
     LocalPullback.apply k (omega right) a arguments :=

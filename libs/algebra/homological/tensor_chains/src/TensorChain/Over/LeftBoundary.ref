@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Logic[].Proposition[] \as Existential;
 \import std.Logic[].Equality[].Transport[A := Degree] \as Transport;
 \definition p: Degree := i.first;
@@ -30,21 +31,22 @@
     (Step.horizontalOnInjection i (Term.tensor a y))
     (congr!{HTerm.Carrier Current.Carrier} (HInclusion.injection.apply) _ _ (Differential.horizontalOnTensor a y));
 \definition vertical: \forall (a: C.family.Carrier p)(y: Right.Cycle) -> Step.vertical.apply (lift a y) = Current.space.zero :=
-  \fun (a: C.family.Carrier p)(y: Right.Cycle) => trans!{Current.Carrier} _ _ _
-    (Step.verticalOnInjection i (Term.tensor a y))
-    (trans!{Current.Carrier} _ _ _
-      (congr!{VTerm.Carrier Current.Carrier} (\fun (v: VTerm.Carrier) => VInclusion.injection.apply ((Sign.map p).apply v)) _ _
-        (trans!{VTerm.Carrier} _ _ _ (Differential.verticalOnTensor a y)
-          (trans!{VTerm.Carrier} _ _ _
-            (congr!{{D.family.Carrier (previous q)} VTerm.Carrier} (VTerm.tensor a) _ _
-              (\bysub(D.family.Carrier q, Right.cycles.carrier, y))) (VTerm.zeroRight a))))
-      (trans!{Current.Carrier} _ _ _
-        (congr!{VTerm.Carrier Current.Carrier} (VInclusion.injection.apply) _ _ (Signs.zeroPreserved (Sign.map p)))
-        (VMaps.zeroPreserved VInclusion.injection)));
+  \fun (a: C.family.Carrier p)(y: Right.Cycle) => eq_reason_in!{Current.Carrier _
+    "=" _ "by" { Step.verticalOnInjection i (Term.tensor a y) }
+    "=" _ "by" { congr!{VTerm.Carrier Current.Carrier} (\fun (v: VTerm.Carrier) => VInclusion.injection.apply ((Sign.map p).apply v)) _ _
+        (eq_reason_in!{VTerm.Carrier _
+          "=" _ "by" { Differential.verticalOnTensor a y }
+          "=" _ "by" { congr!{{D.family.Carrier (previous q)} VTerm.Carrier} (VTerm.tensor a) _ _
+              (\bysub(D.family.Carrier q, Right.cycles.carrier, y)) }
+          "=" _ "by" { VTerm.zeroRight a }
+        }) }
+    "=" _ "by" { congr!{VTerm.Carrier Current.Carrier} (VInclusion.injection.apply) _ _ (Signs.zeroPreserved (Sign.map p)) }
+    "=" _ "by" { VMaps.zeroPreserved VInclusion.injection }
+  };
 \definition value: \forall (a: C.family.Carrier p)(y: Right.Cycle) ->
   Total.differential.apply n (lift a y) = HInclusion.injection.apply (HTerm.tensor (C.differential.apply p a) y) :=
   \fun (a: C.family.Carrier p)(y: Right.Cycle) => trans!{Current.Carrier} _ _ _
-    (congr2!{Current.Carrier Current.Carrier Current.Carrier} (Current.space.add) _ _ _ _ (horizontal a y) (vertical a y))
+    (congr!{Current.Carrier Current.Carrier Current.Carrier} (Current.space.add) _ _ _ _ (horizontal a y) (vertical a y))
     (Group.zeroRight (HInclusion.injection.apply (HTerm.tensor (C.differential.apply p a) y)));
 \definition cycle[a: C.family.Carrier p]: Left.Cycle := Left.cycle (C.differential.apply p a) (C.laws.squareZero p a);
 \import Chains.Prior[C := Total.complex] \as Prior;

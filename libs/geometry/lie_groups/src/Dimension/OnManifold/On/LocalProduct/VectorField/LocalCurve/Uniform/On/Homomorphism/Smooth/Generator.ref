@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import manifolds.Differential[n := One.dimension, m := n].Between[M := OneParameter.line, N := manifold].At[f := map, x := OneParameter.time Reals.zero] \as Differential;
 \import Tangent.At[x := GlobalMaps.apply map (OneParameter.time Reals.zero)] \as Target;
 \definition targetChart: Target.Chart := \into[Charts.Chart](chart, Target.Chart) \by {
@@ -31,8 +32,11 @@
   Open.inclusion domain chart.image inChart (curve (localTime x)) := \block {
   \fun (x: TimeOpen.Carrier common) \then
   \let point: TimeOpen.Carrier ChartMap.domain := TimeOpen.inclusion common ChartMap.domain inCoordinates x \then
-  \return ChartLaws.pointInjective _ _ (trans!{Point} _ _ _ (ChartMap.returnsPoint point)
-    (trans!{Point} _ _ _ (localAgreement (x One.index) (smallBound x)) (chartAgreement (localTime x))))
+  \return ChartLaws.pointInjective _ _ (eq_reason_in!{Point _
+    "=" _ "by" { ChartMap.returnsPoint point }
+    "=" _ "by" { localAgreement (x One.index) (smallBound x) }
+    "=" _ "by" { chartAgreement (localTime x) }
+  })
 };
 \definition atZeroInSmall: \In[TimeVectors.Point] SmallTime.domain.points Coordinates.point := Logic.And[_, _]::#
   (ArithmeticLaws.negativeNegOfPositive ComparisonStep.edge ComparisonStep.edgePositive) ComparisonStep.edgePositive;
@@ -53,16 +57,16 @@
 \import \root.Dimension[n := n].OnManifold[M := manifold].On[G := G].LocalProduct[chart := chart].VectorField[v := v, neighborhood := neighborhood].Initial[] \as InitialValue;
 \definition velocityAtZero: Coordinates.jacobian.apply OriginalCurve.unit = TangentCoordinates.decode v := \block {
   \let same: Curve.curve originalZero = initial := solution.initialValue \then
-  \return trans!{Vectors.Point} _ _ _
-    (congr!{CurveVectors.LinearMap Vectors.Point} (\fun (d: CurveVectors.LinearMap) => d.apply OriginalCurve.unit) _ _
-      (sym!{CurveVectors.LinearMap} _ _ (ChartRestriction.differential inCoordinates Coordinates.coordinateMap zero)))
-    (trans!{Vectors.Point} _ _ _
-      (congr!{CurveVectors.LinearMap Vectors.Point} (\fun (d: CurveVectors.LinearMap) => d.apply OriginalCurve.unit) _ _ sameDerivatives)
-      (trans!{Vectors.Point} _ _ _
-        (congr!{CurveVectors.LinearMap Vectors.Point} (\fun (d: CurveVectors.LinearMap) => d.apply OriginalCurve.unit) _ _
-          (CurveRestriction.differential inOriginal Curve.map zero))
-        (trans!{Vectors.Point} _ _ _ (Curve.velocityLaw originalZero)
-          (trans!{Vectors.Point} _ _ _ (congr!{{Open.Carrier domain} Vectors.Point} velocity _ _ same) InitialValue.atInitial))))
+  \return eq_reason_in!{Vectors.Point _
+    "=" _ "by" { congr!{CurveVectors.LinearMap Vectors.Point} (\fun (d: CurveVectors.LinearMap) => d.apply OriginalCurve.unit) _ _
+      (sym!{CurveVectors.LinearMap} _ _ (ChartRestriction.differential inCoordinates Coordinates.coordinateMap zero)) }
+    "=" _ "by" { congr!{CurveVectors.LinearMap Vectors.Point} (\fun (d: CurveVectors.LinearMap) => d.apply OriginalCurve.unit) _ _ sameDerivatives }
+    "=" _ "by" { congr!{CurveVectors.LinearMap Vectors.Point} (\fun (d: CurveVectors.LinearMap) => d.apply OriginalCurve.unit) _ _
+          (CurveRestriction.differential inOriginal Curve.map zero) }
+    "=" _ "by" { Curve.velocityLaw originalZero }
+    "=" _ "by" { congr!{{Open.Carrier domain} Vectors.Point} velocity _ _ same }
+    "=" _ "by" InitialValue.atInitial
+  }
 };
 \import manifolds.Tangent[n := One.dimension].On[M := OneParameter.line].At[x := OneParameter.time Reals.zero] \as Source;
 \import Source.Coordinate[chart := OneParameter.chart] \as SourceCoordinates;
@@ -78,15 +82,21 @@
   \return trans!{TimeVectors.Point} _ _ _ (SourceCoordinates.decodeEncode unit) basis
 };
 \definition coordinateVelocity: TargetCoordinates.decode (Differential.value.apply OneParameter.unitVelocity) = TangentCoordinates.decode v :=
-  trans!{Vectors.Point} _ _ _ (Differential.coordinates OneParameter.chart targetChart OneParameter.unitVelocity)
-    (trans!{Vectors.Point} _ _ _ (congr!{TimeVectors.Point Vectors.Point} Coordinates.jacobian.apply _ _ unitCoordinates) velocityAtZero);
+  eq_reason_in!{Vectors.Point _
+    "=" _ "by" { Differential.coordinates OneParameter.chart targetChart OneParameter.unitVelocity }
+    "=" _ "by" { congr!{TimeVectors.Point Vectors.Point} Coordinates.jacobian.apply _ _ unitCoordinates }
+    "=" _ "by" velocityAtZero
+  };
 \import Tangent.Transport[x := GlobalMaps.apply map (OneParameter.time Reals.zero), y := one, same := atZero] \as Transport;
 \definition chartEquality: Transport.chart targetChart = chart := Transport.underlying targetChart;
 \definition generatorCoordinates: TangentCoordinates.decode (OneParameter.generator oneParameter) = TangentCoordinates.decode v := \block {
   \let velocity: Tangent.Vector (GlobalMaps.apply map (OneParameter.time Reals.zero)) := Differential.value.apply OneParameter.unitVelocity \then
   \let same: AtOne.Coordinate[chart := Transport.chart targetChart].decode (Transport.vector velocity) = TangentCoordinates.decode (OneParameter.generator oneParameter) :=
     congr!{{AtOne.Chart} Vectors.Point} (\fun (c: AtOne.Chart) => AtOne.Coordinate[chart := c].decode (Transport.vector velocity)) _ _ chartEquality \then
-  \return trans!{Vectors.Point} _ _ _ (sym!{Vectors.Point} _ _ same)
-    (trans!{Vectors.Point} _ _ _ (Transport.coordinates targetChart velocity) coordinateVelocity)
+  \return eq_reason_in!{Vectors.Point _
+    "=" _ "by" { sym!{Vectors.Point} _ _ same }
+    "=" _ "by" { Transport.coordinates targetChart velocity }
+    "=" _ "by" coordinateVelocity
+  }
 };
 \definition generates: OneParameter.generator oneParameter = v := TangentCoordinates.injective _ _ generatorCoordinates;

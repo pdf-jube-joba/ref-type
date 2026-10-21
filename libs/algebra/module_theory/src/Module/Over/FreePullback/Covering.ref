@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \root.Module[].Over[R := R, ring := ring] \as Modules;
 \import \parent.On[square := square] \as Pull;
 \definition leftFunction: Left -> Whole := (square).left;
@@ -31,13 +32,14 @@
 \import Modules.Hom[V := V.Carrier, W := W.Carrier, source := V.space, target := W.space].Composition[U := O.Carrier, domain := O.space] \as RightComposition;
 \definition commutes: LeftComposition.compose (LeftPush.push leftFunction) (TopPush.push topFunction) =
   RightComposition.compose (RightPush.push rightFunction) (BottomPush.push bottomFunction) := O.To[W := W.Carrier, target := W.space].ext _ _
-    (\fun (z: Overlap) => trans!{W.Carrier} _ _ _
-      (trans!{W.Carrier} _ _ _ (congr!{L.Carrier W.Carrier} ((LeftPush.push leftFunction).apply) _ _ (TopPush.onGenerator topFunction z))
-        (LeftPush.onGenerator leftFunction (topFunction z)))
-      (trans!{W.Carrier} _ _ _ (congr!{Whole W.Carrier} W.generator _ _ ((laws square).commutes z))
-        (sym!{W.Carrier} _ _ (trans!{W.Carrier} _ _ _
+    (\fun (z: Overlap) => eq_reason_in!{W.Carrier _
+      "=" _ "by" { congr!{L.Carrier W.Carrier} ((LeftPush.push leftFunction).apply) _ _ (TopPush.onGenerator topFunction z) }
+      "=" _ "by" { LeftPush.onGenerator leftFunction (topFunction z) }
+      "=" _ "by" { congr!{Whole W.Carrier} W.generator _ _ ((laws square).commutes z) }
+      "=" _ "by" { sym!{W.Carrier} _ _ (trans!{W.Carrier} _ _ _
           (congr!{V.Carrier W.Carrier} ((RightPush.push rightFunction).apply) _ _ (BottomPush.onGenerator bottomFunction z))
-          (RightPush.onGenerator rightFunction (bottomFunction z))))));
+          (RightPush.onGenerator rightFunction (bottomFunction z))) }
+    });
 \definition commutesOn: \forall (x: O.Carrier) ->
   (LeftPush.push leftFunction).apply ((TopPush.push topFunction).apply x) =
   (RightPush.push rightFunction).apply ((BottomPush.push bottomFunction).apply x) :=
@@ -56,17 +58,19 @@
 \import Modules.Hom[V := V.Carrier, W := L.Carrier, source := V.space, target := L.space] \as Cross;
 \import Modules.Hom[V := O.Carrier, W := L.Carrier, source := O.space, target := L.space] \as TopMaps;
 \definition zero: \forall (x: O.Carrier) -> (projection).apply ((inclusion).apply x) = (W.space).zero :=
-  \fun (x: O.Carrier) => trans!{W.Carrier} _ _ _
-    (congr!{W.Carrier W.Carrier} (WholeGroup.add ((LeftPush.push leftFunction).apply ((TopPush.push topFunction).apply x))) _ _
-      (RightMaps.negativePreserved (RightPush.push rightFunction) ((BottomPush.push bottomFunction).apply x)))
-    (trans!{W.Carrier} _ _ _
-      (congr!{W.Carrier W.Carrier} (\fun (y: W.Carrier) => WholeGroup.add y (WholeGroup.neg ((RightPush.push rightFunction).apply ((BottomPush.push bottomFunction).apply x)))) _ _ (commutesOn x))
-      (WholeGroup.inverseRight ((RightPush.push rightFunction).apply ((BottomPush.push bottomFunction).apply x))));
+  \fun (x: O.Carrier) => eq_reason_in!{W.Carrier _
+    "=" _ "by" { congr!{W.Carrier W.Carrier} (WholeGroup.add ((LeftPush.push leftFunction).apply ((TopPush.push topFunction).apply x))) _ _
+      (RightMaps.negativePreserved (RightPush.push rightFunction) ((BottomPush.push bottomFunction).apply x)) }
+    "=" _ "by" { congr!{W.Carrier W.Carrier} (\fun (y: W.Carrier) => WholeGroup.add y (WholeGroup.neg ((RightPush.push rightFunction).apply ((BottomPush.push bottomFunction).apply x)))) _ _ (commutesOn x) }
+    "=" _ "by" { WholeGroup.inverseRight ((RightPush.push rightFunction).apply ((BottomPush.push bottomFunction).apply x)) }
+  };
 \definition injective: \forall (x, y: O.Carrier) -> (inclusion).apply x = (inclusion).apply y -> x = y :=
   \fun (x, y: O.Carrier)(same: _) => BottomPush.Injection[f := bottomFunction].injective Pull.bottomInjective x y
-    (trans!{V.Carrier} _ _ _ (sym!{V.Carrier} _ _ (RightGroup.negNeg ((BottomPush.push bottomFunction).apply x)))
-      (trans!{V.Carrier} _ _ _ (congr!{V.Carrier V.Carrier} RightGroup.neg _ _ (congr!{Sum.Carrier V.Carrier} Sum.second _ _ same))
-        (RightGroup.negNeg ((BottomPush.push bottomFunction).apply y))));
+    (eq_reason_in!{V.Carrier _
+      "=" _ "by" { sym!{V.Carrier} _ _ (RightGroup.negNeg ((BottomPush.push bottomFunction).apply x)) }
+      "=" _ "by" { congr!{V.Carrier V.Carrier} RightGroup.neg _ _ (congr!{Sum.Carrier V.Carrier} Sum.second _ _ same) }
+      "=" _ "by" { RightGroup.negNeg ((BottomPush.push bottomFunction).apply y) }
+    });
 \module Retraction;
 \module Kernel;
 \module Surjection;

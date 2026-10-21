@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition sectionOpen: topology.Topology[Carrier := Under.CarrierSet].IsOpenIn (Under.topology base) (Sections.Preimage section W) :=
   Right.sectionContinuous right.chart sheet W wo;
 \definition sectionContains: topology.Topology[Carrier := Under.CarrierSet].Member (Sections.Preimage section W) targetBase :=
@@ -36,19 +37,21 @@
           \fun (t: _) => ((u.subset (p t) (Neighborhoods.within U (projection e) (projection h) p t)).right).left \then
         \let inTarget: \forall (t: algebraic_topology.Interval[].Carrier) -> Base.Member right.neighborhood (p t) :=
           \fun (t: _) => ((u.subset (p t) (Neighborhoods.within U (projection e) (projection h) p t)).right).right \then
-        \let sourceEnd: SourceTransport.along c (projection e) (projection h) p start = h := trans!{E} _ _ _
-          (LeftSheet.along c (projection e) (projection h) p inSource start
-            (\into[B](projection h, left.neighborhood) \by { inLeft }) (\refl(projection h)))
-          (trans!{E} _ _ _
-            (congr!{{Source.Fiber (projection e)} E}
+        \let sourceEnd: SourceTransport.along c (projection e) (projection h) p start = h := eq_reason_in!{E _
+          "=" _ "by" { LeftSheet.along c (projection e) (projection h) p inSource start
+            (\into[B](projection h, left.neighborhood) \by { inLeft }) (\refl(projection h)) }
+          "=" _ "by" { congr!{{Source.Fiber (projection e)} E}
               (\fun (s: Source.Fiber (projection e)) => Left.section left.chart s (\into[B](projection h, left.neighborhood) \by { inLeft })) _ _
-              (sym!{E} _ _ (LeftSheet.sheetIndex (Left.index left.chart sourcePoint) overH inside.right)))
-            (Left.reconstruct left.chart overH (\into[B](projection h, left.neighborhood) \by { inLeft }) (\refl(projection h)))) \then
+              (sym!{E} _ _ (LeftSheet.sheetIndex (Left.index left.chart sourcePoint) overH inside.right)) }
+          "=" _ "by" { Left.reconstruct left.chart overH (\into[B](projection h, left.neighborhood) \by { inLeft }) (\refl(projection h)) }
+        } \then
         \let targetEnd: TargetTransport.along d (projection e) (projection h) p image = section target :=
           RightSheet.along d (projection e) (projection h) p inTarget image target (\refl(projection h)) \then
-        \let same: m.apply h = section target := trans!{F} _ _ _
-          (congr!{E F} m.apply _ _ (sym!{E} _ _ sourceEnd))
-          (trans!{F} _ _ _ (alongCommutes m equivariant (projection e) (projection h) p start) targetEnd) \then
+        \let same: m.apply h = section target := eq_reason_in!{F _
+          "=" _ "by" { congr!{E F} m.apply _ _ (sym!{E} _ _ sourceEnd) }
+          "=" _ "by" { alongCommutes m equivariant (projection e) (projection h) p start }
+          "=" _ "by" targetEnd
+        } \then
         \return \idelim section target = m.apply h \with f: F => Other.Member W f \by { base: member, equality: sym!{F} _ _ same }
       },
     })

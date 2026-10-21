@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition SectionLaw: \Prop := \forall (p: P.Carrier) -> Canonical.augmentation.apply (section.apply p) = p;
 \import Modules.End[V := A.Carrier, space := A.space] \as AEnd;
 \import Modules.End[V := B.Carrier, space := B.space] \as BEnd;
@@ -12,10 +13,11 @@
 \import Source.Universal[U := Source.Carrier, target := Source.space] \as InverseUniversal;
 \definition inverseEquality: SectionLaw -> ComposeInverse.compose retraction embedding = Identity.identity :=
   \fun (law: SectionLaw) => InverseUniversal.ext (ComposeInverse.compose retraction embedding) Identity.identity
-    (\fun (p: P.Carrier)(a: A.Carrier) => trans!{Source.Carrier} _ _ _
-      (congr!{FreeSource.Carrier Source.Carrier} (retraction.apply) _ _ (SourceEmbedding.onTensor section AEnd.identity p a))
-      (trans!{Source.Carrier} _ _ _ (SourceRetraction.onTensor Canonical.augmentation AEnd.identity (section.apply p) a)
-        (congr!{P.Carrier Source.Carrier} (\fun (q: P.Carrier) => Source.tensor q a) _ _ (law p))));
+    (\fun (p: P.Carrier)(a: A.Carrier) => eq_reason_in!{Source.Carrier _
+      "=" _ "by" { congr!{FreeSource.Carrier Source.Carrier} (retraction.apply) _ _ (SourceEmbedding.onTensor section AEnd.identity p a) }
+      "=" _ "by" { SourceRetraction.onTensor Canonical.augmentation AEnd.identity (section.apply p) a }
+      "=" _ "by" { congr!{P.Carrier Source.Carrier} (\fun (q: P.Carrier) => Source.tensor q a) _ _ (law p) }
+    });
 \definition leftInverse: SectionLaw -> \forall (x: Source.Carrier) -> retraction.apply (embedding.apply x) = x :=
   \fun (law: SectionLaw)(x: Source.Carrier) => congr!{{Modules.Hom[V := Source.Carrier, W := Source.Carrier, source := Source.space, target := Source.space].Map} Source.Carrier}
     (\fun (g: Modules.Hom[V := Source.Carrier, W := Source.Carrier, source := Source.space, target := Source.space].Map) => g.apply x) _ _ (inverseEquality law);
@@ -26,23 +28,26 @@
 \import Modules.End[V := Free.Carrier, space := Free.space] \as FreeEnd;
 \definition squareEquality: ViaFree.compose FreeAction.map embedding = ViaTarget.compose targetEmbedding map :=
   SquareUniversal.ext (ViaFree.compose FreeAction.map embedding) (ViaTarget.compose targetEmbedding map)
-    (\fun (p: P.Carrier)(a: A.Carrier) => trans!{FreeTarget.Carrier} _ _ _
-      (congr!{FreeSource.Carrier FreeTarget.Carrier} (FreeAction.map.apply) _ _ (SourceEmbedding.onTensor section AEnd.identity p a))
-      (trans!{FreeTarget.Carrier} _ _ _ (FreeCoefficients.onTensor FreeEnd.identity f (section.apply p) a)
-        (sym!{FreeTarget.Carrier} _ _ (trans!{FreeTarget.Carrier} _ _ _
+    (\fun (p: P.Carrier)(a: A.Carrier) => eq_reason_in!{FreeTarget.Carrier _
+      "=" _ "by" { congr!{FreeSource.Carrier FreeTarget.Carrier} (FreeAction.map.apply) _ _ (SourceEmbedding.onTensor section AEnd.identity p a) }
+      "=" _ "by" { FreeCoefficients.onTensor FreeEnd.identity f (section.apply p) a }
+      "=" _ "by" { sym!{FreeTarget.Carrier} _ _ (trans!{FreeTarget.Carrier} _ _ _
           (congr!{Target.Carrier FreeTarget.Carrier} (targetEmbedding.apply) _ _ (Coefficients.onTensor End.identity f p a))
-          (TargetEmbedding.onTensor section BEnd.identity p (f.apply a))))));
+          (TargetEmbedding.onTensor section BEnd.identity p (f.apply a))) }
+    });
 \definition square: \forall (x: Source.Carrier) -> FreeAction.map.apply (embedding.apply x) = targetEmbedding.apply (map.apply x) :=
   \fun (x: Source.Carrier) => congr!{{Modules.Hom[V := Source.Carrier, W := FreeTarget.Carrier, source := Source.space, target := FreeTarget.space].Map} FreeTarget.Carrier}
     (\fun (g: Modules.Hom[V := Source.Carrier, W := FreeTarget.Carrier, source := Source.space, target := FreeTarget.space].Map) => g.apply x) _ _ squareEquality;
 \definition injective: SectionLaw -> Modules.Injective A B f -> \forall (x, y: Source.Carrier) -> map.apply x = map.apply y -> x = y :=
   \fun (law: SectionLaw)(injection: Modules.Injective A B f)(x, y: Source.Carrier)(equal: map.apply x = map.apply y) =>
-    trans!{Source.Carrier} x (retraction.apply (embedding.apply x)) y
-      (sym!{Source.Carrier} _ _ (leftInverse law x))
-      (trans!{Source.Carrier} _ _ _
-        (congr!{FreeSource.Carrier Source.Carrier} (retraction.apply) _ _
+    eq_reason_in!{Source.Carrier x
+      "=" { retraction.apply (embedding.apply x) } "by" { sym!{Source.Carrier} _ _ (leftInverse law x) }
+      "=" _ "by" { congr!{FreeSource.Carrier Source.Carrier} (retraction.apply) _ _
           (FreeAction.injective injection (embedding.apply x) (embedding.apply y)
-            (trans!{FreeTarget.Carrier} _ _ _ (square x)
-              (trans!{FreeTarget.Carrier} _ _ _ (congr!{Target.Carrier FreeTarget.Carrier} (targetEmbedding.apply) _ _ equal)
-                (sym!{FreeTarget.Carrier} _ _ (square y))))))
-        (leftInverse law y));
+            (eq_reason_in!{FreeTarget.Carrier _
+              "=" _ "by" { square x }
+              "=" _ "by" { congr!{Target.Carrier FreeTarget.Carrier} (targetEmbedding.apply) _ _ equal }
+              "=" _ "by" { sym!{FreeTarget.Carrier} _ _ (square y) }
+            })) }
+      "=" _ "by" { leftInverse law y }
+    };

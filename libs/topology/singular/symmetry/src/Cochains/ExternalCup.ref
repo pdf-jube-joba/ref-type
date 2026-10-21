@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition n: N.Nat^ := Nat.add p q;
 \import \parent.Pairing[p := p, q := q] \as Pairing;
 \import topological_constructions.Product[A := A, B := A] \as Points;
@@ -19,22 +20,23 @@
 \definition left[alpha: Carrier p]: ProductCochains.Carrier p := Projection.apply p first firstContinuous alpha;
 \definition right[beta: Carrier q]: ProductCochains.Carrier q := Projection.apply q second secondContinuous beta;
 \definition coordinate[sigma: ProductSimplices.Carrier n]: Coordinates.Degree[n := n].coordinate Pairing.index ((TotalAW.map).apply n (ProductChains.generator n sigma)) = AW.value sigma :=
-  trans!{AW.Carrier} _ _ _ (TotalAW.Degree[n := n].coordinate Pairing.index (ProductChains.generator n sigma))
-    (trans!{AW.Carrier} _ _ _
-      (congr!{{ProductChains.Carrier n} AW.Carrier} ((AW.map).apply) _ _ (Transport.castRefl ProductChains.Carrier n (ProductChains.generator n sigma)))
-      (AW.onGenerator sigma));
+  eq_reason_in!{AW.Carrier _
+    "=" _ "by" { TotalAW.Degree[n := n].coordinate Pairing.index (ProductChains.generator n sigma) }
+    "=" _ "by" { congr!{{ProductChains.Carrier n} AW.Carrier} ((AW.map).apply) _ _ (Transport.castRefl ProductChains.Carrier n (ProductChains.generator n sigma)) }
+    "=" _ "by" { AW.onGenerator sigma }
+  };
 \import IntegerModules.Hom[V := Total.Carrier n, W := R, source := Total.space n, target := integerCoefficients.space].Composition[U := ProductChains.Carrier n, domain := ProductChains.space n] \as Composition;
 \import Native.Map[C := ProductChains.complex, D := Total.complex].At[n := n] \as Linear;
 \definition pullback[alpha: Carrier p][beta: Carrier q]: ProductCochains.Carrier n := Composition.compose (Pairing.total alpha beta) (Linear.linear TotalAW.map);
 \definition onSimplex[alpha: Carrier p][beta: Carrier q][sigma: ProductSimplices.Carrier n]: (pullback alpha beta).apply (ProductChains.generator n sigma) = (ProductCup.apply (left alpha) (right beta)).apply (ProductChains.generator n sigma) :=
-  trans!{R} _ _ _
-    (congr!{AW.Carrier R} ((Pairing.map alpha beta).apply) _ _ (coordinate sigma))
-    (trans!{R} _ _ _ (Pairing.onTensor alpha beta (Chains.generator p (AW.front sigma)) (Chains.generator q (AW.back sigma)))
-      (trans!{R} _ _ _
-        (congr2!{R R R} ((baseRing).mul) _ _ _ _
+  eq_reason_in!{R _
+    "=" _ "by" { congr!{AW.Carrier R} ((Pairing.map alpha beta).apply) _ _ (coordinate sigma) }
+    "=" _ "by" { Pairing.onTensor alpha beta (Chains.generator p (AW.front sigma)) (Chains.generator q (AW.back sigma)) }
+    "=" _ "by" { congr!{R R R} ((baseRing).mul) _ _ _ _
           (sym!{R} _ _ (Projection.onSimplex p first firstContinuous alpha (Cut.front sigma)))
-          (sym!{R} _ _ (Projection.onSimplex q second secondContinuous beta (Cut.back sigma))))
-        (sym!{R} _ _ (ProductCup.onSimplex (left alpha) (right beta) sigma))));
+          (sym!{R} _ _ (Projection.onSimplex q second secondContinuous beta (Cut.back sigma))) }
+    "=" _ "by" { sym!{R} _ _ (ProductCup.onSimplex (left alpha) (right beta) sigma) }
+  };
 \import IntegerModules.Free[Generators := ProductSimplices.Carrier n].To[W := R, target := integerCoefficients.space] \as Free;
 \definition equation[alpha: Carrier p][beta: Carrier q]: pullback alpha beta = ProductCup.apply (left alpha) (right beta) :=
   Free.ext (pullback alpha beta) (ProductCup.apply (left alpha) (right beta)) (onSimplex alpha beta);

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 /* The old algebra acts diagonally, with its grading on the second copy. */
 \import Clifford.Grading[] \as Grade;
 \import Spaces.DirectSum[V := Carrier, W := Carrier, left := Clifford.vectorSpace, right := Clifford.vectorSpace] \as Pair;
@@ -42,11 +43,17 @@
 \definition onVector: \forall (v: Vector) -> value (iota v) = Block.map (iota v) R.zero :=
   \fun (v: Vector) => End.ext (value (iota v)) (Block.map (iota v) R.zero)
     (\fun (p: Pair.Carrier) => Pairs.ext _ _
-      (sym!{Carrier} _ _ (trans!{Carrier} _ _ _ (Block.firstApply (iota v) R.zero p)
-        (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (Clifford.add (Clifford.mul (iota v) (Pair.first p))) _ _ (Vectors.zeroScale (Pair.second p)))
-          (Vectors.zeroRight (Clifford.mul (iota v) (Pair.first p))))))
-      (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (\fun (a: Carrier) => Clifford.mul a (Pair.second p)) _ _ (Grade.onVector v))
-        (trans!{Carrier} _ _ _ (algebra.Groups[].Units[A := Carrier, ring := ring].negMul (iota v) (Pair.second p))
-          (sym!{Carrier} _ _ (trans!{Carrier} _ _ _ (Block.secondApply (iota v) R.zero p)
-            (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (\fun (a: Carrier) => Clifford.add a (Clifford.neg (Clifford.mul (iota v) (Pair.second p)))) _ _ (Vectors.zeroScale (Pair.first p)))
-              (Vectors.zeroLeft (Clifford.neg (Clifford.mul (iota v) (Pair.second p))))))))));
+      (sym!{Carrier} _ _ (eq_reason_in!{Carrier _
+        "=" _ "by" { Block.firstApply (iota v) R.zero p }
+        "=" _ "by" { congr!{Carrier Carrier} (Clifford.add (Clifford.mul (iota v) (Pair.first p))) _ _ (Vectors.zeroScale (Pair.second p)) }
+        "=" _ "by" { Vectors.zeroRight (Clifford.mul (iota v) (Pair.first p)) }
+      }))
+      (eq_reason_in!{Carrier _
+        "=" _ "by" { congr!{Carrier Carrier} (\fun (a: Carrier) => Clifford.mul a (Pair.second p)) _ _ (Grade.onVector v) }
+        "=" _ "by" { algebra.Groups[].Units[A := Carrier, ring := ring].negMul (iota v) (Pair.second p) }
+        "=" _ "by" { sym!{Carrier} _ _ (eq_reason_in!{Carrier _
+          "=" _ "by" { Block.secondApply (iota v) R.zero p }
+          "=" _ "by" { congr!{Carrier Carrier} (\fun (a: Carrier) => Clifford.add a (Clifford.neg (Clifford.mul (iota v) (Pair.second p)))) _ _ (Vectors.zeroScale (Pair.first p)) }
+          "=" _ "by" { Vectors.zeroLeft (Clifford.neg (Clifford.mul (iota v) (Pair.second p))) }
+        }) }
+      }));

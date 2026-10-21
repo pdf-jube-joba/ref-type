@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Old.At[x := x] \as OldFiber;
 \import Source.At[x := x] \as NewFiber;
 \import manifolds.Differential[n := n, m := oldDimension].Between[M := M, N := OldDimension.ambient].At[f := i, x := x] \as OldD;
@@ -10,20 +11,26 @@
     (congr!{{manifolds.Tangent[n := newDimension].On[M := NewDimension.ambient].Vector (Maps.apply map x)} {NewE.Vector}} NewCoordinate.forward.apply _ _ (Chain.pointwise v))
     (LinearFormula.coordinates (OldD.value.apply v));
 \definition oldNormal[w: Source.Fiber x]: Old.Fiber x := \into[OldE.Vector](first.apply w, OldFiber.subspace.carrier) \by {
-  \fun (v: Tangent.Vector x) => trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ (orthogonality w (OldFiber.differential.apply v)))
-    (trans!{{R.Real}} _ _ _ (congr!{{NewE.Vector} {R.Real}} (NewE.dot w) _ _ (sym!{{NewE.Vector}} _ _ (differential v))) ((\bysub(NewE.Vector, NewFiber.subspace.carrier, w)) v))
+  \fun (v: Tangent.Vector x) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { sym!{{R.Real}} _ _ (orthogonality w (OldFiber.differential.apply v)) }
+    "=" _ "by" { congr!{{NewE.Vector} {R.Real}} (NewE.dot w) _ _ (sym!{{NewE.Vector}} _ _ (differential v)) }
+    "=" _ "by" { (\bysub(NewE.Vector, NewFiber.subspace.carrier, w)) v }
+  }
 };
 \definition newNormal[w: Old.Fiber x][a: R.Real]: Source.Fiber x := \into[NewE.Vector](join w a, NewFiber.subspace.carrier) \by {
-  \fun (v: Tangent.Vector x) => trans!{{R.Real}} _ _ _ (congr!{{NewE.Vector} {R.Real}} (NewE.dot (join w a)) _ _ (differential v))
-    (trans!{{R.Real}} _ _ _ (orthogonality (join w a) (OldFiber.differential.apply v))
-      (trans!{{R.Real}} _ _ _ (congr!{{OldE.Vector} {R.Real}} (\fun (u: OldE.Vector) => OldE.dot u (OldFiber.differential.apply v)) _ _ (firstJoin w a))
-        ((\bysub(OldE.Vector, OldFiber.subspace.carrier, w)) v)))
+  \fun (v: Tangent.Vector x) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{NewE.Vector} {R.Real}} (NewE.dot (join w a)) _ _ (differential v) }
+    "=" _ "by" { orthogonality (join w a) (OldFiber.differential.apply v) }
+    "=" _ "by" { congr!{{OldE.Vector} {R.Real}} (\fun (u: OldE.Vector) => OldE.dot u (OldFiber.differential.apply v)) _ _ (firstJoin w a) }
+    "=" _ "by" { (\bysub(OldE.Vector, OldFiber.subspace.carrier, w)) v }
+  }
 };
 \definition splittingCompatibility: \forall (t: Tangent.Vector x)(w: Old.Fiber x)(a: R.Real) -> NewE.space.add (NewFiber.differential.apply t) (join w a) = join (OldE.space.add (OldFiber.differential.apply t) w) a :=
-  \fun (t: Tangent.Vector x)(w: Old.Fiber x)(a: R.Real) => trans!{{NewE.Vector}} _ _ _
-    (congr!{{NewE.Vector} {NewE.Vector}} (\fun (v: NewE.Vector) => NewE.space.add v (join w a)) _ _ (differential t))
-    (trans!{{NewE.Vector}} _ _ _ (sym!{{NewE.Vector}} _ _ (joinAddition (OldFiber.differential.apply t) w R.zero a))
-      (congr!{{R.Real} {NewE.Vector}} (join (OldE.space.add (OldFiber.differential.apply t) w)) _ _ (Spaces.addZeroLeft a)));
+  \fun (t: Tangent.Vector x)(w: Old.Fiber x)(a: R.Real) => eq_reason_in!{{NewE.Vector} _
+    "=" _ "by" { congr!{{NewE.Vector} {NewE.Vector}} (\fun (v: NewE.Vector) => NewE.space.add v (join w a)) _ _ (differential t) }
+    "=" _ "by" { sym!{{NewE.Vector}} _ _ (joinAddition (OldFiber.differential.apply t) w R.zero a) }
+    "=" _ "by" { congr!{{R.Real} {NewE.Vector}} (join (OldE.space.add (OldFiber.differential.apply t) w)) _ _ (Spaces.addZeroLeft a) }
+  };
 \import Spaces.DirectSum[V := Old.Fiber x, W := R.Real, left := Old.fiberSpace x, right := Spaces.scalarSpace] \as Sum;
 \import std.Data[].Pair[].Prop[A := Old.Fiber x, B := R.Real] \as Pairs;
 \import Spaces.Linear[V := Source.Fiber x, W := Sum.Carrier, source := Source.fiberSpace x, target := Sum.space] \as ToSum;

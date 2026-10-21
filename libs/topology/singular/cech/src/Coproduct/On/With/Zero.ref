@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition degree: N.Nat^ := N.Nat^::zero;
 \import Modules.Laws[V := Carrier degree, space := space degree] \as Values;
 \import algebra.Group[].Of[Carrier := Carrier degree, group := Values.additive] \as Group;
@@ -27,16 +28,15 @@
   \definition onGenerator[s: Local.Simplex degree]:
     (boundary degree).apply ((homotopy degree).apply (generator degree (Generator[degree] { index := i, simplex := s }))) =
       Group.difference (generator degree (Generator[degree] { index := i, simplex := s })) (generator degree (apex i)) :=
-    trans!{{Carrier degree}} _ _ _
-      (congr!{{Carrier (N.Nat^::succ degree)} {Carrier degree}} ((boundary degree).apply) _ _
-        (\parent.\parent.Degree[n := degree].onGenerator (Generator[degree] { index := i, simplex := s })))
-      (trans!{{Carrier degree}} _ _ _ ((Local.inclusion).commutes degree (((contractions).homotopy i degree).apply (Local.generator degree s)))
-        (trans!{{Carrier degree}} _ _ _
-          (congr!{{Local.Carrier degree} {Carrier degree}} ((Local.inclusion).apply degree) _ _ ((contractions).zero i s))
-          (trans!{{Carrier degree}} _ _ _
-            (Included.differencePreserved (Inclusions.At[n := degree].linear Local.inclusion) (Local.generator degree s) (Local.generator degree ((contractions).apex i)))
-            (congr2!{{Carrier degree} {Carrier degree} {Carrier degree}} Group.difference _ _ _ _
-              (Local.onGenerator degree s) (Local.onGenerator degree ((contractions).apex i))))));
+    eq_reason_in!{{Carrier degree} _
+      "=" _ "by" { congr!{{Carrier (N.Nat^::succ degree)} {Carrier degree}} ((boundary degree).apply) _ _
+        (\parent.\parent.Degree[n := degree].onGenerator (Generator[degree] { index := i, simplex := s })) }
+      "=" _ "by" { (Local.inclusion).commutes degree (((contractions).homotopy i degree).apply (Local.generator degree s)) }
+      "=" _ "by" { congr!{{Local.Carrier degree} {Carrier degree}} ((Local.inclusion).apply degree) _ _ ((contractions).zero i s) }
+      "=" _ "by" { Included.differencePreserved (Inclusions.At[n := degree].linear Local.inclusion) (Local.generator degree s) (Local.generator degree ((contractions).apex i)) }
+      "=" _ "by" { congr!{{Carrier degree} {Carrier degree} {Carrier degree}} Group.difference _ _ _ _
+              (Local.onGenerator degree s) (Local.onGenerator degree ((contractions).apex i)) }
+    };
 }
 \definition onGenerator: \forall (s: Generator[degree]) ->
   (boundary degree).apply ((homotopy degree).apply (generator degree s)) = Group.difference (generator degree s) (generator degree (apex (s).index)) :=
@@ -56,11 +56,13 @@
 \import Modules.Hom[V := Augmented.Carrier, W := Carrier degree, source := Augmented.space, target := space degree] \as Centres;
 \definition cycle[x: Carrier degree][reduced: (augmentation).apply x = (Augmented.space).zero]:
   (boundary degree).apply ((homotopy degree).apply x) = x :=
-  trans!{{Carrier degree}} _ _ _ (law x)
-    (trans!{{Carrier degree}} _ _ _
-      (congr!{{Carrier degree} {Carrier degree}} (Group.difference x) _ _
-        (trans!{{Carrier degree}} _ _ _ (congr!{{Augmented.Carrier} {Carrier degree}} ((centre).apply) _ _ reduced) (Centres.zeroPreserved centre)))
-      (trans!{{Carrier degree}} _ _ _ (congr!{{Carrier degree} {Carrier degree}} (Group.add x) _ _ Group.negZero) (Group.zeroRight x)));
+  eq_reason_in!{{Carrier degree} _
+    "=" _ "by" { law x }
+    "=" _ "by" { congr!{{Carrier degree} {Carrier degree}} (Group.difference x) _ _
+        (trans!{{Carrier degree}} _ _ _ (congr!{{Augmented.Carrier} {Carrier degree}} ((centre).apply) _ _ reduced) (Centres.zeroPreserved centre)) }
+    "=" _ "by" { congr!{{Carrier degree} {Carrier degree}} (Group.add x) _ _ Group.negZero }
+    "=" _ "by" { Group.zeroRight x }
+  };
 \import Modules.Hom[V := Carrier degree, W := Augmented.Carrier, source := space degree, target := Augmented.space].Composition[U := Augmented.Carrier, domain := Augmented.space] \as AugmentAfter;
 \import Modules.End[V := Augmented.Carrier, space := Augmented.space] \as ScalarIdentity;
 \import Augmented.To[W := Augmented.Carrier, target := Augmented.space] \as AugmentedTo;

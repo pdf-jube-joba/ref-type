@@ -1,14 +1,15 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition integerMultiplication: Maps.Map := multiplication;
 \definition integerMultiples: Submodules.Submodule := multiples;
 \import Modules.Hom[V := Source.Carrier, W := Source.Carrier, source := Source.space, target := Source.space] \as CoefficientMaps;
 \definition multiplication: CoefficientMaps.Map := CoefficientMaps.Map {
   apply := Source.space.smul d,
   addition := Source.space.vectorAdd d,
-  scalar := \fun (a: I.Int^)(x: Source.Carrier) => trans!{Source.Carrier} _ _ _
-    (sym!{Source.Carrier} _ _ (Source.space.scalarAssoc d a x))
-    (trans!{Source.Carrier} _ _ _
-      (congr!{I.Int^ Source.Carrier} (\fun (r: I.Int^) => Source.space.smul r x) _ _ (IntegerRing.commutativeRing.mulCommutative d a))
-      (Source.space.scalarAssoc a d x)),
+  scalar := \fun (a: I.Int^)(x: Source.Carrier) => eq_reason_in!{Source.Carrier _
+    "=" _ "by" { sym!{Source.Carrier} _ _ (Source.space.scalarAssoc d a x) }
+    "=" _ "by" { congr!{I.Int^ Source.Carrier} (\fun (r: I.Int^) => Source.space.smul r x) _ _ (IntegerRing.commutativeRing.mulCommutative d a) }
+    "=" _ "by" { Source.space.scalarAssoc a d x }
+  },
 };
 \import Modules.Of[V := Source.Carrier, space := Source.space].Submodule[] \as CoefficientSub;
 \import CoefficientSub.Image[U := Source.Carrier, source := Source.space] \as CoefficientImage;
@@ -22,9 +23,11 @@
 \import Q.To[W := Carrier, target := space] \as ForwardDescent;
 \definition forwardVanishes: ForwardDescent.Vanishes map := \fun (x: Source.Carrier)(member: _) =>
   CoefficientImage.eliminate multiplication x (map.apply x = space.zero)
-    (\fun (a: Source.Carrier)(represented: Source.space.smul d a = x) => trans!{Carrier} _ _ _
-      (congr!{Source.Carrier Carrier} (map.apply) _ _ (sym!{Source.Carrier} _ _ represented))
-      (trans!{Carrier} _ _ _ (map.scalar d a) (scalarZero (map.apply a)))) member;
+    (\fun (a: Source.Carrier)(represented: Source.space.smul d a = x) => eq_reason_in!{Carrier _
+      "=" _ "by" { congr!{Source.Carrier Carrier} (map.apply) _ _ (sym!{Source.Carrier} _ _ represented) }
+      "=" _ "by" { map.scalar d a }
+      "=" _ "by" { scalarZero (map.apply a) }
+    }) member;
 \definition forward: Modules.Hom[V := Q.Carrier, W := Carrier, source := Q.moduleSpace, target := space].Map := ForwardDescent.descend map forwardVanishes;
 \definition forwardOnClass: \forall (a: Source.Carrier) -> forward.apply (Q.class a) = map.apply a := ForwardDescent.onClass map forwardVanishes;
 \import Modules.Hom[V := Source.Carrier, W := Q.Carrier, source := Source.space, target := Q.moduleSpace].Composition[U := I.Int^, domain := Modules.scalarModule] \as Compose;
@@ -32,26 +35,29 @@
 \import Submodules.Quotient[S := integerMultiples].To[W := Q.Carrier, target := Q.moduleSpace] \as BackwardDescent;
 \definition backwardVanishes: BackwardDescent.Vanishes rawBackward := \fun (x: I.Int^)(member: _) =>
   Images.eliminate integerMultiplication x (rawBackward.apply x = Q.moduleSpace.zero)
-    (\fun (a: I.Int^)(represented: Arithmetic.mul d a = x) => trans!{Q.Carrier} _ _ _
-      (congr!{I.Int^ Q.Carrier} (rawBackward.apply) _ _ (sym!{I.Int^} _ _ represented))
-      (trans!{Q.Carrier} _ _ _
-        (congr!{Source.Carrier Q.Carrier} Q.class _ _ (sym!{Source.Carrier} _ _ (Source.onScalar d a)))
-        (Q.classZero (Source.space.smul d (Source.class a)) (CoefficientImage.member multiplication (Source.class a))))) member;
+    (\fun (a: I.Int^)(represented: Arithmetic.mul d a = x) => eq_reason_in!{Q.Carrier _
+      "=" _ "by" { congr!{I.Int^ Q.Carrier} (rawBackward.apply) _ _ (sym!{I.Int^} _ _ represented) }
+      "=" _ "by" { congr!{Source.Carrier Q.Carrier} Q.class _ _ (sym!{Source.Carrier} _ _ (Source.onScalar d a)) }
+      "=" _ "by" { Q.classZero (Source.space.smul d (Source.class a)) (CoefficientImage.member multiplication (Source.class a)) }
+    }) member;
 \definition backward: Modules.Hom[V := Carrier, W := Q.Carrier, source := space, target := Q.moduleSpace].Map := BackwardDescent.descend rawBackward backwardVanishes;
 \definition backwardOnClass: \forall (a: I.Int^) -> backward.apply (class a) = Q.class (Source.class a) := BackwardDescent.onClass rawBackward backwardVanishes;
 \definition leftOnClass: \forall (a: Source.Carrier) -> backward.apply (forward.apply (Q.class a)) = Q.class a :=
   Source.induction (\fun (a: Source.Carrier) => backward.apply (forward.apply (Q.class a)) = Q.class a)
-    (\fun (x: I.Int^) => trans!{Q.Carrier} _ _ _
-      (congr!{Carrier Q.Carrier} (backward.apply) _ _ (forwardOnClass (Source.class x)))
-      (trans!{Q.Carrier} _ _ _
-        (congr!{Carrier Q.Carrier} (backward.apply) _ _ (onClass x)) (backwardOnClass x)));
+    (\fun (x: I.Int^) => eq_reason_in!{Q.Carrier _
+      "=" _ "by" { congr!{Carrier Q.Carrier} (backward.apply) _ _ (forwardOnClass (Source.class x)) }
+      "=" _ "by" { congr!{Carrier Q.Carrier} (backward.apply) _ _ (onClass x) }
+      "=" _ "by" { backwardOnClass x }
+    });
 \definition leftInverse: \forall (q: Q.Carrier) -> backward.apply (forward.apply q) = q := Q.induction
   (\fun (q: Q.Carrier) => backward.apply (forward.apply q) = q) leftOnClass;
 \definition rightInverse: \forall (q: Carrier) -> forward.apply (backward.apply q) = q := induction
   (\fun (q: Carrier) => forward.apply (backward.apply q) = q)
-  (\fun (x: I.Int^) => trans!{Carrier} _ _ _
-    (congr!{Q.Carrier Carrier} (forward.apply) _ _ (backwardOnClass x))
-    (trans!{Carrier} _ _ _ (forwardOnClass (Source.class x)) (onClass x)));
+  (\fun (x: I.Int^) => eq_reason_in!{Carrier _
+    "=" _ "by" { congr!{Q.Carrier Carrier} (forward.apply) _ _ (backwardOnClass x) }
+    "=" _ "by" { forwardOnClass (Source.class x) }
+    "=" _ "by" { onClass x }
+  });
 \definition isomorphism: Modules.Isomorphism[V := Q.Carrier, W := Carrier, source := Q.moduleSpace, target := space].Isomorphism := Modules.Isomorphism[V := Q.Carrier, W := Carrier, source := Q.moduleSpace, target := space].Isomorphism {
   forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
 };
