@@ -316,3 +316,14 @@ module 引数は検査時に確定した捕捉引数を明示した式で保持�
 `eq_reason` と同じ省略された carrier の推論では、最後の通常の集合の値に部分集合の型が要求される。
 [22-02-ambient-equality-chain.ref](gaps/22-02-ambient-equality-chain.ref) は carrier を明示する回避例である。
 `std.Logic.Equality.eq_reason_in` と被覆間の写像の一意性の証明にこの形を使う。
+
+<a id="g23"></a>
+
+## G23: マクロ内で等式の項を省略する
+
+同じ capture を等式消去の始点・motive・基底で使うマクロに、`_` で項を渡したい。
+[23-01-macro-hole.ref](gaps/23-01-macro-hole.ref) は、等式の証明と期待型があっても motive の束縛下に未解決の metavariable が残る。
+[23-02-bound-macro-hole.ref](gaps/23-02-bound-macro-hole.ref) は、消去の前に項を lambda の引数として束縛する回避例である。
+
+`std.Logic.Equality.congr` の直接列挙形式では等式の項を明示する。
+型列から合同則を作る形式は項を束縛してから消去するため、`congr!{A B} f _ _ same` のように省略できる。
