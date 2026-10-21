@@ -56,7 +56,7 @@
 `Relative.LongExact` の接続写像は、相対サイクルの持ち上げの境界を部分空間の鎖として読む符号である。
 
 [利用例](../../examples/cohomology/README.md) は、代表余鎖の評価、両微分の二乗の零性、増大、係数付き誘導写像、相対接続写像と空空間の計算を別パッケージで検査する。
-[実装計画](../../../../_plans/math/singular-cohomology.md) は、ホモトピー不変性・切除・有限モデルとの比較・積・具体的な空間の計算までを含む。
+[特異理論の一覧](../README.md) と[具体的な空間の計算](../../examples/finite_models/README.md) に、切除・有限モデルとの比較・積とその利用例をまとめている。
 
 ```sh
 cargo build -p cli
