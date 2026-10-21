@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import N.Basic[].Def[] \as Nat;
 \import \parent.Reduction[] \as Reduction;
 \definition Reducer: \VType := \U(N.Nat -> N.Nat -> Runtime -> History -> Attempt);
@@ -38,9 +39,11 @@
     (\fun (flag: B.Bool^) => attemptReduced current = flag -> flag = B.Bool^::false)
     (\fun (equal: attemptReduced current = B.Bool^::false) => \refl(B.Bool^::false))
     (\fun (equal: attemptReduced current = B.Bool^::true) => Logic.falseElim (B.Bool^::true = B.Bool^::false)
-      (BoolLaws.trueNeFalse (trans!{B.Bool^} B.Bool^::true (attemptReduced current) B.Bool^::false (sym!{B.Bool^} (attemptReduced current) B.Bool^::true equal)
-        (trans!{B.Bool^} (attemptReduced current) (attemptReduced (next reduce k i current)) B.Bool^::false
-          (congr!{Attempt^ B.Bool^} attemptReduced current (next reduce k i current) (sym!{Attempt^} (next reduce k i current) current (stopped reduce k i current equal))) noSwap))))
+      (BoolLaws.trueNeFalse (eq_reason_in!{B.Bool^ { B.Bool^::true }
+        "=" { attemptReduced current } "by" { sym!{B.Bool^} (attemptReduced current) B.Bool^::true equal }
+        "=" { attemptReduced (next reduce k i current) } "by" { congr!{Attempt^ B.Bool^} attemptReduced current (next reduce k i current) (sym!{Attempt^} (next reduce k i current) current (stopped reduce k i current equal)) }
+        "=" { B.Bool^::false } "by" noSwap
+      })))
     (attemptReduced current) (\refl(attemptReduced current));
 \definition passWith[reduce: Reducer^]: N.Nat^ -> N.Nat^ -> Runtime^ -> History^ -> Attempt^ :=
   \induction (count: N.Nat^) \return N.Nat^ -> Runtime^ -> History^ -> Attempt^ \with {

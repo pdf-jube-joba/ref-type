@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import N.Basic[].Def[] \as Op;
 \definition degree: I.Int^ := I.Int^::ofNat k;
 \definition base: N.Nat^ := N.Nat^::succ (N.Nat^::succ k);
@@ -61,22 +62,25 @@
     (FinalMaps.integerPush FinalStage.inclusion FinalStage.continuous) Final.chainMap = chainMap :=
   Functor.law (FinalInclusion.apply Final.bound) (FinalInclusion.continuous Final.bound) FinalStage.inclusion FinalStage.continuous;
 \definition compositeEquation: \forall (q: InitialHomology.Homology) -> ((composite).forward).apply q = (map).apply q :=
-  \fun (q: InitialHomology.Homology) => trans!{AmbientHomology.Homology} _ _ _
-    (congr!{{FinalHomology.Homology} {AmbientHomology.Homology}}
-      ((FinalInduced.induced (FinalMaps.integerPush FinalStage.inclusion FinalStage.continuous)).apply) _ _ (telescopeEquation height q))
-    (trans!{AmbientHomology.Homology} _ _ _
-      (sym!{AmbientHomology.Homology} _ _ (ChainComposition.compositionOnHomology
-        (FinalMaps.integerPush FinalStage.inclusion FinalStage.continuous) Final.chainMap q))
-      (congr!{{Complexes.Map[C := InitialExtension.complex, D := AmbientExtension.complex].Map} {AmbientHomology.Homology}}
-        (\fun (f: Complexes.Map[C := InitialExtension.complex, D := AmbientExtension.complex].Map) => (Induced.induced f).apply q) _ _ factorization));
+  \fun (q: InitialHomology.Homology) => eq_reason_in!{AmbientHomology.Homology _
+    "=" _ "by" { congr!{{FinalHomology.Homology} {AmbientHomology.Homology}}
+      ((FinalInduced.induced (FinalMaps.integerPush FinalStage.inclusion FinalStage.continuous)).apply) _ _ (telescopeEquation height q) }
+    "=" _ "by" { sym!{AmbientHomology.Homology} _ _ (ChainComposition.compositionOnHomology
+        (FinalMaps.integerPush FinalStage.inclusion FinalStage.continuous) Final.chainMap q) }
+    "=" _ "by" { congr!{{Complexes.Map[C := InitialExtension.complex, D := AmbientExtension.complex].Map} {AmbientHomology.Homology}}
+        (\fun (f: Complexes.Map[C := InitialExtension.complex, D := AmbientExtension.complex].Map) => (Induced.induced f).apply q) _ _ factorization }
+  };
 \definition bijective: Induced.Bijective[chainMap] := Induced.Bijective[chainMap] {
-  injective := \fun (q, r: InitialHomology.Homology)(same: _) => trans!{InitialHomology.Homology} _ _ _
-    (sym!{InitialHomology.Homology} _ _ ((composite).leftInverse q))
-    (trans!{InitialHomology.Homology} _ _ _
-      (congr!{AmbientHomology.Homology InitialHomology.Homology} (((composite).backward).apply) _ _
-        (trans!{AmbientHomology.Homology} _ _ _ (compositeEquation q)
-          (trans!{AmbientHomology.Homology} _ _ _ same (sym!{AmbientHomology.Homology} _ _ (compositeEquation r)))))
-      ((composite).leftInverse r)),
+  injective := \fun (q, r: InitialHomology.Homology)(same: _) => eq_reason_in!{InitialHomology.Homology _
+    "=" _ "by" { sym!{InitialHomology.Homology} _ _ ((composite).leftInverse q) }
+    "=" _ "by" { congr!{AmbientHomology.Homology InitialHomology.Homology} (((composite).backward).apply) _ _
+        (eq_reason_in!{AmbientHomology.Homology _
+          "=" _ "by" { compositeEquation q }
+          "=" _ "by" same
+          "=" _ "by" { sym!{AmbientHomology.Homology} _ _ (compositeEquation r) }
+        }) }
+    "=" _ "by" { (composite).leftInverse r }
+  },
   onto := \fun (q: AmbientHomology.Homology) => Logic.existsIntro[InitialHomology.Homology,
     { x: InitialHomology.Homology \where (map).apply x = q }] (((composite).backward).apply q)
       (trans!{AmbientHomology.Homology} _ _ _ (sym!{AmbientHomology.Homology} _ _ (compositeEquation (((composite).backward).apply q)))

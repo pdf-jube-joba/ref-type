@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition Commutes: \Prop := \forall (n: N.Nat^)(x: B.family.Carrier n) -> t.projection.apply n (b.apply n x) = c.apply n (s.projection.apply n x);
 \import double_complexes.NonnegativeChain[].Over[R := R, ring := ring] \as Chains;
 \import Chains.Map[C := A1, D := B1] \as TargetInclusion;
@@ -16,11 +17,11 @@
   \import Sequences.Kernel[sequence := sequence] \as Kernel;
   \definition closed: Commutes -> \forall (x: A.family.Carrier n) ->
     t.projection.apply n (b.apply n (s.inclusion.apply n x)) = (C1.family.space n).zero :=
-    \fun (commutes: Commutes)(x: A.family.Carrier n) => trans!{{C1.family.Carrier n}} _ _ _
-      (commutes n (s.inclusion.apply n x))
-      (trans!{{C1.family.Carrier n}} _ _ _
-        (congr!{{C.family.Carrier n} {C1.family.Carrier n}} (c.apply n) _ _ (s.zero n x))
-        (RightMap.At[n := n].zeroPreserved c));
+    \fun (commutes: Commutes)(x: A.family.Carrier n) => eq_reason_in!{{C1.family.Carrier n} _
+      "=" _ "by" { commutes n (s.inclusion.apply n x) }
+      "=" _ "by" { congr!{{C.family.Carrier n} {C1.family.Carrier n}} (c.apply n) _ _ (s.zero n x) }
+      "=" _ "by" { RightMap.At[n := n].zeroPreserved c }
+    };
   \import Modules.Hom[V := A.family.Carrier n, W := Kernel.Carrier, source := A.family.space n, target := Kernel.space] \as IntoKernel;
   \definition intoKernel[commutes: Commutes]: IntoKernel.Map := IntoKernel.Map {
     apply := \fun (x: A.family.Carrier n) => \into[B1.family.Carrier n](b.apply n (s.inclusion.apply n x), Kernel.kernel.carrier) \by { closed commutes x },
@@ -40,14 +41,13 @@
 \definition chainCommutes: \forall (commutes: Commutes)(n: N.Nat^)(x: A.family.Carrier (N.Nat^::succ n)) ->
   A1.differential.apply n ((Degree[n := N.Nat^::succ n].map commutes).apply x) = (Degree[n := n].map commutes).apply (A.differential.apply n x) :=
   \fun (commutes: Commutes)(n: N.Nat^)(x: A.family.Carrier (N.Nat^::succ n)) => t.injective n _ _
-    (trans!{{B1.family.Carrier n}} _ _ _
-      (sym!{{B1.family.Carrier n}} _ _ (t.inclusion.commutes n ((Degree[n := N.Nat^::succ n].map commutes).apply x)))
-      (trans!{{B1.family.Carrier n}} _ _ _
-        (congr!{{B1.family.Carrier (N.Nat^::succ n)} {B1.family.Carrier n}} (B1.differential.apply n) _ _ (Degree[n := N.Nat^::succ n].onSource commutes x))
-        (trans!{{B1.family.Carrier n}} _ _ _ (b.commutes n (s.inclusion.apply (N.Nat^::succ n) x))
-          (trans!{{B1.family.Carrier n}} _ _ _
-            (congr!{{B.family.Carrier n} {B1.family.Carrier n}} (b.apply n) _ _ (s.inclusion.commutes n x))
-            (sym!{{B1.family.Carrier n}} _ _ (Degree[n := n].onSource commutes (A.differential.apply n x)))))));
+    (eq_reason_in!{{B1.family.Carrier n} _
+      "=" _ "by" { sym!{{B1.family.Carrier n}} _ _ (t.inclusion.commutes n ((Degree[n := N.Nat^::succ n].map commutes).apply x)) }
+      "=" _ "by" { congr!{{B1.family.Carrier (N.Nat^::succ n)} {B1.family.Carrier n}} (B1.differential.apply n) _ _ (Degree[n := N.Nat^::succ n].onSource commutes x) }
+      "=" _ "by" { b.commutes n (s.inclusion.apply (N.Nat^::succ n) x) }
+      "=" _ "by" { congr!{{B.family.Carrier n} {B1.family.Carrier n}} (b.apply n) _ _ (s.inclusion.commutes n x) }
+      "=" _ "by" { sym!{{B1.family.Carrier n}} _ _ (Degree[n := n].onSource commutes (A.differential.apply n x)) }
+    });
 \definition map[commutes: Commutes]: LeftMap.Map := LeftMap.Map {
   apply := \fun (n: N.Nat^) => (Degree[n := n].map commutes).apply,
   addition := \fun (n: N.Nat^) => (Degree[n := n].map commutes).addition,

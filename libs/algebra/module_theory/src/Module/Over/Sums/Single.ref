@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.Coordinates[I := I].Kronecker[] \as Kronecker;
 \import \parent.Prop[] \as Laws;
 \import std.Logic[].Classical[] \as Classical;
@@ -8,7 +9,7 @@
     \forall (f: I -> R) -> sum indices (\fun (j: I) => mul (Kronecker.delta i j) (f j)) = zero \with {
       | nil: \fun (i: I) (outside: _) (f: _) => \refl(zero)
       | cons: \fun (j: I) (tail: Lists.List[I]) (ih: _) (i: I) (outside: _) (f: _) =>
-        trans!{R} _ _ _ (congr2!{R R R} add _ _ _ _
+        trans!{R} _ _ _ (congr!{R R R} add _ _ _ _
           (trans!{R} _ _ _ (congr!{R R} (\fun (a: R) => mul a (f j)) _ _
             (Kronecker.different i j (\fun (equal: i = j) => outside (Logic.Or[_, _]::left equal)))) (mulZeroLeft (f j)))
           (ih i (\fun (member: _) => outside (Logic.Or[_, _]::right member)) f)) (addZeroLeft zero)
@@ -26,16 +27,20 @@
         {\fun (equal: i = j) => \block {
           \let outside: Logic.Not (\In[I] (keys tail) i) := \fun (inTail: _) => fresh
             (\idelim i = j \with k: I => \In[I] (keys tail) k \by { base: inTail, equality: equal }) \then
-          \return trans!{R} _ _ _ (congr2!{R R R} add _ _ _ _
+          \return eq_reason_in!{R _
+            "=" _ "by" { congr!{R R R} add _ _ _ _
             (trans!{R} _ _ _ (congr!{R R} (\fun (a: R) => mul a (f j)) _ _ (Kronecker.equal i j equal)) (mulOneLeft (f j)))
-            (absent tail i outside f)) (trans!{R} _ _ _ (addZeroRight (f j)) (congr!{I R} f _ _ (sym!{I} _ _ equal)))
+            (absent tail i outside f) }
+            "=" _ "by" { addZeroRight (f j) }
+            "=" _ "by" { congr!{I R} f _ _ (sym!{I} _ _ equal) }
+          }
         }}
         {\fun (different: Logic.Not (i = j)) => \block {
           \let inTail: \In[I] (keys tail) i := either!{member {\In[I] (keys tail) i}
             {\fun (equal: _) => Logic.falseElim (\In[I] (keys tail) i) (different equal)}
             {\fun (old: _) => old}
           } \then
-          \return trans!{R} _ _ _ (congr2!{R R R} add _ _ _ _
+          \return trans!{R} _ _ _ (congr!{R R R} add _ _ _ _
             (trans!{R} _ _ _ (congr!{R R} (\fun (a: R) => mul a (f j)) _ _ (Kronecker.different i j different)) (mulZeroLeft (f j)))
             (ih i inTail f)) (addZeroLeft (f i))
         }}

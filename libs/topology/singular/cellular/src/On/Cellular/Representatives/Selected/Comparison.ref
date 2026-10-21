@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition degree: I.Int^ := I.Int^::ofNat k;
 \import \parent.\parent.\parent.\parent.Skeletal[].Cycles[n := k] \as Cycles;
 \import \parent.\parent.\parent.\parent.Skeletal[].Presentation[n := k] \as Presentation;
@@ -59,27 +60,29 @@
   IsoComposition.compose Ambient.isomorphism Presentation.isomorphism;
 \definition onClass: \forall (x: Cell.Cycle) ->
   (Comparison.induced integerMap).apply (Cell.classOf x) = ((isomorphism).forward).apply (Cell.classOf x) :=
-  \fun (x: Cell.Cycle) => trans!{Target.Homology} _ _ _
-    (Comparison.onClass integerMap x)
-    (trans!{Target.Homology} _ _ _
-      (sym!{Target.Homology} _ _ (IntoAmbient.onClass (AmbientMap.integerPush Upper.inclusion Upper.continuous) (localCycle x)))
-      (trans!{Target.Homology} _ _ _ (factorOnHomology (localClass x))
-        (trans!{Target.Homology} _ _ _
-          (congr!{Whole.Homology Target.Homology}
+  \fun (x: Cell.Cycle) => eq_reason_in!{Target.Homology _
+    "=" _ "by" { Comparison.onClass integerMap x }
+    "=" _ "by" { sym!{Target.Homology} _ _ (IntoAmbient.onClass (AmbientMap.integerPush Upper.inclusion Upper.continuous) (localCycle x)) }
+    "=" _ "by" { factorOnHomology (localClass x) }
+    "=" _ "by" { congr!{Whole.Homology Target.Homology}
             (\fun (h: Whole.Homology) => (NextIntoAmbient.induced (NextAmbientMap.integerPush NextUpper.inclusion NextUpper.continuous)).apply
-              ((Included.induced NextLayer.inclusion).apply h)) _ _ (localInverse x))
-          (sym!{Target.Homology} _ _
-            (congr!{Next.Homology Target.Homology} (((Ambient.isomorphism).forward).apply) _ _ (Presentation.onClass x))))));
+              ((Included.induced NextLayer.inclusion).apply h)) _ _ (localInverse x) }
+    "=" _ "by" { sym!{Target.Homology} _ _
+            (congr!{Next.Homology Target.Homology} (((Ambient.isomorphism).forward).apply) _ _ (Presentation.onClass x)) }
+  };
 \definition equation: \forall (q: Cell.Homology) -> (Comparison.induced integerMap).apply q = ((isomorphism).forward).apply q :=
   Cell.classInduction (\fun (q: Cell.Homology) => (Comparison.induced integerMap).apply q = ((isomorphism).forward).apply q) onClass;
 \definition bijective: Comparison.Bijective[integerMap] := Comparison.Bijective[integerMap] {
-  injective := \fun (q, r: Cell.Homology)(same: _) => trans!{Cell.Homology} _ _ _
-    (sym!{Cell.Homology} _ _ ((isomorphism).leftInverse q))
-    (trans!{Cell.Homology} _ _ _
-      (congr!{Target.Homology Cell.Homology} (((isomorphism).backward).apply) _ _
-        (trans!{Target.Homology} _ _ _ (sym!{Target.Homology} _ _ (equation q))
-          (trans!{Target.Homology} _ _ _ same (equation r))))
-      ((isomorphism).leftInverse r)),
+  injective := \fun (q, r: Cell.Homology)(same: _) => eq_reason_in!{Cell.Homology _
+    "=" _ "by" { sym!{Cell.Homology} _ _ ((isomorphism).leftInverse q) }
+    "=" _ "by" { congr!{Target.Homology Cell.Homology} (((isomorphism).backward).apply) _ _
+        (eq_reason_in!{Target.Homology _
+          "=" _ "by" { sym!{Target.Homology} _ _ (equation q) }
+          "=" _ "by" same
+          "=" _ "by" { equation r }
+        }) }
+    "=" _ "by" { (isomorphism).leftInverse r }
+  },
   onto := \fun (q: Target.Homology) => Logic.existsIntro[Cell.Homology, { x: Cell.Homology \where (Comparison.induced integerMap).apply x = q }]
     (((isomorphism).backward).apply q) (trans!{Target.Homology} _ _ _ (equation (((isomorphism).backward).apply q)) ((isomorphism).rightInverse q)),
 };

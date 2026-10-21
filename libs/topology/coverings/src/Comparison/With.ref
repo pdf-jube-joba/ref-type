@@ -1,10 +1,13 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import SourceTransport.Groupoid[covering := c] \as SourceAction;
 \import TargetTransport.Groupoid[covering := d] \as TargetAction;
 \definition alongCommutes: \forall (m: OverMap) -> Equivariant[c, d, m] -> \forall (x, y: B)(p: Paths.Path x y)(e: Source.Fiber x) ->
   m.apply (SourceTransport.along c x y p e) = TargetTransport.along d x y p (fiber m x e) :=
-  \fun (m: _)(equivariant: _)(x, y: _)(p: _)(e: _) => trans!{F} _ _ _
-    (congr!{E F} m.apply _ _ (sym!{E} _ _ (SourceAction.onClass x y p e)))
-    (trans!{F} _ _ _ (equivariant.commutes x y (G.class x y p) e) (TargetAction.onClass x y p (fiber m x e)));
+  \fun (m: _)(equivariant: _)(x, y: _)(p: _)(e: _) => eq_reason_in!{F _
+    "=" _ "by" { congr!{E F} m.apply _ _ (sym!{E} _ _ (SourceAction.onClass x y p e)) }
+    "=" _ "by" { equivariant.commutes x y (G.class x y p) e }
+    "=" _ "by" { TargetAction.onClass x y p (fiber m x e) }
+  };
 \module Along(m: OverMap, equivariant: Equivariant[c, d, m], basis: Neighborhoods.GoodBasis);
 \module Rebasing(b: B, bridges: fundamental_groups.Bridges[A := B, source := base, basepoint := b].Family);
 \import Source.Lifting[] \as SourceLifts;
@@ -33,8 +36,11 @@
   \fun (m: _)(continuous: _) => Equivariant[c, d, m] {
     commutes := \fun (x, y: B) => Paths.Between[x := x, y := y].induction
       (\fun (p: G.Arrow x y) => \forall (e: Source.Fiber x) -> m.apply (SourceAction.move x y p e) = TargetAction.move x y p (fiber m x e))
-      (\fun (p: Paths.Path x y)(e: _) => trans!{F} _ _ _ (congr!{E F} m.apply _ _ (SourceAction.onClass x y p e))
-        (trans!{F} _ _ _ (alongOfContinuous m continuous x y p e) (sym!{F} _ _ (TargetAction.onClass x y p (fiber m x e))))),
+      (\fun (p: Paths.Path x y)(e: _) => eq_reason_in!{F _
+        "=" _ "by" { congr!{E F} m.apply _ _ (SourceAction.onClass x y p e) }
+        "=" _ "by" { alongOfContinuous m continuous x y p e }
+        "=" _ "by" { sym!{F} _ _ (TargetAction.onClass x y p (fiber m x e)) }
+      }),
   };
 \import fundamental_groups.Paths[A := E, source := total] \as TotalPaths;
 \import TotalPaths.Maps[B := B, target := base] \as ProjectPaths;

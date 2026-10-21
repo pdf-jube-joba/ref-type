@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Algebra.Linear[V := V, W := V, source := space, target := space] \as End;
 \structure InnerProductData: \Set := {
   inner: V -> V -> Scalar,
@@ -19,14 +20,20 @@
   \forall (x, y: V) -> h.inner (f.apply x) (f.apply y) = h.inner x y;
 \definition scaleLeft: \forall (h: InnerProduct) -> \forall (a: Scalar) -> \forall (x, y: V) ->
   h.inner (space.smul a x) y = P.fieldMul a (h.inner x y) :=
-  \fun (h: InnerProduct) (a: _) (x, y: _) => trans!{Scalar} _ _ _ (h.symmetric (space.smul a x) y)
-    (trans!{Scalar} _ _ _ (h.scaleRight a y x) (congr!{Scalar Scalar} (P.fieldMul a) _ _ (h.symmetric y x)));
+  \fun (h: InnerProduct) (a: _) (x, y: _) => eq_reason_in!{Scalar _
+    "=" _ "by" { h.symmetric (space.smul a x) y }
+    "=" _ "by" { h.scaleRight a y x }
+    "=" _ "by" { congr!{Scalar Scalar} (P.fieldMul a) _ _ (h.symmetric y x) }
+  };
 \import Algebra.Form[V := V, space := space] \as Forms;
 \definition asBilinear[h: InnerProduct]: Forms.Bilinear := Forms.Bilinear {
   form := h.inner,
   zeroLeft := \fun (x: _) => trans!{Scalar} _ _ _ (h.symmetric (space.zero) x) (h.zeroRight x),
   zeroRight := h.zeroRight,
-  addLeft := \fun (x, y, z: _) => trans!{Scalar} _ _ _ (h.symmetric (space.add x y) z)
-    (trans!{Scalar} _ _ _ (h.addRight z x y) (congr2!{Scalar Scalar Scalar} D.add _ _ _ _ (h.symmetric z x) (h.symmetric z y))),
+  addLeft := \fun (x, y, z: _) => eq_reason_in!{Scalar _
+    "=" _ "by" { h.symmetric (space.add x y) z }
+    "=" _ "by" { h.addRight z x y }
+    "=" _ "by" { congr!{Scalar Scalar Scalar} D.add _ _ _ _ (h.symmetric z x) (h.symmetric z y) }
+  },
   addRight := h.addRight, scaleLeft := scaleLeft h, scaleRight := h.scaleRight,
 };

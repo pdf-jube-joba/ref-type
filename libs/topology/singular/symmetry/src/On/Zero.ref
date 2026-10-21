@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \root.On[A := A, source := source] \as Initial;
 \definition n: N.Nat^ := N.Nat^::zero;
 \import algebraic_topology.Simplex[] \as Simplex;
@@ -7,10 +8,11 @@
 \import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
 \import Modules.Tensor[V := Chains.Carrier n, W := Chains.Carrier n, left := Chains.space n, right := Chains.space n] \as Term;
 \definition cutCoordinate[sigma: ProductSimplices.Carrier n]: Single.coordinate ((AW.map).apply n (ProductChains.generator n sigma)) = Cut.value sigma :=
-  trans!{Cut.Carrier} _ _ _ (AW.Degree[n := n].coordinate Single.index (ProductChains.generator n sigma))
-    (trans!{Cut.Carrier} _ _ _
-      (congr!{{ProductChains.Carrier n} Cut.Carrier} ((Cut.map).apply) _ _ (Transport.castRefl ProductChains.Carrier n (ProductChains.generator n sigma)))
-      (Cut.onGenerator sigma));
+  eq_reason_in!{Cut.Carrier _
+    "=" _ "by" { AW.Degree[n := n].coordinate Single.index (ProductChains.generator n sigma) }
+    "=" _ "by" { congr!{{ProductChains.Carrier n} Cut.Carrier} ((Cut.map).apply) _ _ (Transport.castRefl ProductChains.Carrier n (ProductChains.generator n sigma)) }
+    "=" _ "by" { Cut.onGenerator sigma }
+  };
 \definition productForward[sigma: ProductSimplices.Carrier n]: (AW.map).apply n (ProductChains.generator n sigma) = (Single.inject).apply (Cut.value sigma) :=
   trans!{{Total.Carrier n}} _ _ _ (Single.reconstruct ((AW.map).apply n (ProductChains.generator n sigma)))
     (congr!{Cut.Carrier {Total.Carrier n}} ((Single.inject).apply) _ _ (cutCoordinate sigma));
@@ -22,19 +24,22 @@
   \axiom:funext(Cut.back (productSimplex sigma), sigma, \fun (x: Simplex.Carrier n) => congr!{{Simplex.Carrier n} A} sigma _ _
     (trans!{{Simplex.Carrier n}} _ _ _ (Simplex.zeroUnique _) (sym!{{Simplex.Carrier n}} _ _ (Simplex.zeroUnique x))));
 \definition cut[sigma: Simplices.Carrier n]: Cut.value (productSimplex sigma) = Term.tensor (Chains.generator n sigma) (Chains.generator n sigma) :=
-  congr2!{{Chains.Carrier n} {Chains.Carrier n} Term.Carrier} Term.tensor _ _ _ _
+  congr!{{Chains.Carrier n} {Chains.Carrier n} Term.Carrier} Term.tensor _ _ _ _
     (congr!{{Simplices.Carrier n} {Chains.Carrier n}} (Chains.generator n) _ _ (front sigma))
     (congr!{{Simplices.Carrier n} {Chains.Carrier n}} (Chains.generator n) _ _ (back sigma));
 \definition forwardGenerator[sigma: Simplices.Carrier n]: (forward).apply n (Chains.generator n sigma) = (Single.inject).apply (Term.tensor (Chains.generator n sigma) (Chains.generator n sigma)) :=
-  trans!{{Total.Carrier n}} _ _ _
-    (congr!{{ProductChains.Carrier n} {Total.Carrier n}} ((AW.map).apply n) _ _ (DiagonalMaps.At[n := n].onGenerator diagonal diagonalContinuous sigma))
-    (trans!{{Total.Carrier n}} _ _ _ (productForward (productSimplex sigma))
-      (congr!{Term.Carrier {Total.Carrier n}} ((Single.inject).apply) _ _ (cut sigma)));
+  eq_reason_in!{{Total.Carrier n} _
+    "=" _ "by" { congr!{{ProductChains.Carrier n} {Total.Carrier n}} ((AW.map).apply n) _ _ (DiagonalMaps.At[n := n].onGenerator diagonal diagonalContinuous sigma) }
+    "=" _ "by" { productForward (productSimplex sigma) }
+    "=" _ "by" { congr!{Term.Carrier {Total.Carrier n}} ((Single.inject).apply) _ _ (cut sigma) }
+  };
 \definition same[x: Chains.Carrier n]: (Swap.forward).apply n ((Single.inject).apply (Term.tensor x x)) = (Single.inject).apply (Term.tensor x x) := Swap.Degree[n := n].At[i := Single.index].onTensor x x;
 \definition onGenerator[sigma: Simplices.Carrier n]: (backward).apply n (Chains.generator n sigma) = (forward).apply n (Chains.generator n sigma) :=
-  trans!{{Total.Carrier n}} _ _ _
-    (congr!{{Total.Carrier n} {Total.Carrier n}} ((Swap.forward).apply n) _ _ (forwardGenerator sigma))
-    (trans!{{Total.Carrier n}} _ _ _ (same (Chains.generator n sigma)) (sym!{{Total.Carrier n}} _ _ (forwardGenerator sigma)));
+  eq_reason_in!{{Total.Carrier n} _
+    "=" _ "by" { congr!{{Total.Carrier n} {Total.Carrier n}} ((Swap.forward).apply n) _ _ (forwardGenerator sigma) }
+    "=" _ "by" { same (Chains.generator n sigma) }
+    "=" _ "by" { sym!{{Total.Carrier n}} _ _ (forwardGenerator sigma) }
+  };
 \import Native.Map[C := Chains.complex, D := Total.complex].At[n := n] \as NativeLinear;
 \import Modules.Hom[V := Chains.Carrier n, W := Total.Carrier n, source := Chains.space n, target := Total.space n] \as Linear;
 \import Modules.Free[Generators := Simplices.Carrier n].To[W := Total.Carrier n, target := Total.space n] \as Free;

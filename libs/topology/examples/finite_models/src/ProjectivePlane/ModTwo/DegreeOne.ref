@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Modules.Laws[V := F.Carrier, space := F.integerSpace] \as Values;
 \import algebra.Group[].Of[Carrier := F.Carrier, group := Values.additive] \as Group;
 \import Modules.Hom[V := H1.CycleCarrier, W := F.Carrier, source := H1.cycleSpace, target := F.integerSpace] \as Evaluation;
@@ -37,10 +38,12 @@
   \let b: F.Carrier := f Edge::first \then
   \let sum: f Edge::second = Group.add b a := trans!{F.Carrier} _ _ _
     (Model.closedSecond f (Model.closedCoordinates f (\bysub(Model.Edges, (H1.cycles).carrier, f)))) (F.addCommutative a b) \then
-  \return trans!{F.Carrier} _ _ _
-    (congr!{F.Carrier F.Carrier} (\fun (z: F.Carrier) => Group.difference z a) _ _ sum)
-    (trans!{F.Carrier} _ _ _ (Group.assoc b a (Group.neg a))
-      (trans!{F.Carrier} _ _ _ (congr!{F.Carrier F.Carrier} (Group.add b) _ _ (Group.inverseRight a)) (F.addZeroRight b)))
+  \return eq_reason_in!{F.Carrier _
+    "=" _ "by" { congr!{F.Carrier F.Carrier} (\fun (z: F.Carrier) => Group.difference z a) _ _ sum }
+    "=" _ "by" { Group.assoc b a (Group.neg a) }
+    "=" _ "by" { congr!{F.Carrier F.Carrier} (Group.add b) _ _ (Group.inverseRight a) }
+    "=" _ "by" { F.addZeroRight b }
+  }
 };
 \definition boundaryDifference[f: H1.CycleCarrier]: Model.deltaZero (Model.vertex F.zero (f Edge::first)) =
   (Raw.first.space).add f ((Raw.first.space).neg (representative (f Edge::loop))) :=
@@ -65,5 +68,8 @@
 \import Modules.Hom[V := H1.Cohomology, W := F.Carrier, source := H1.cohomologySpace, target := F.integerSpace] \as ForwardMaps;
 \definition generatorNonzero: generator = H1.zeroClass -> Logic.False :=
   \fun (same: generator = H1.zeroClass) => F.nontrivial
-    (sym!{F.Carrier} _ _ (trans!{F.Carrier} _ _ _ (sym!{F.Carrier} _ _ generatorCoordinate)
-      (trans!{F.Carrier} _ _ _ (congr!{H1.Cohomology F.Carrier} ((forward).apply) _ _ same) (ForwardMaps.zeroPreserved forward))));
+    (sym!{F.Carrier} _ _ (eq_reason_in!{F.Carrier _
+      "=" _ "by" { sym!{F.Carrier} _ _ generatorCoordinate }
+      "=" _ "by" { congr!{H1.Cohomology F.Carrier} ((forward).apply) _ _ same }
+      "=" _ "by" { ForwardMaps.zeroPreserved forward }
+    }));

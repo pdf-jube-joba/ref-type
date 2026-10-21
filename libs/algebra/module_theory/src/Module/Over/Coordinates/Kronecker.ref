@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Logic[].Classical[] \as Classical;
 \use Logic.either;
 \structure ValueLaws[i, j: I, value: R]: \Prop := {
@@ -41,10 +42,14 @@
   };
 \definition central: \forall (i, j: I)(a: R) -> ring.mul a (delta i j) = ring.mul (delta i j) a :=
   \fun (i, j: I)(a: R) => either!{{(Classical.excludedMiddle (i = j))} {ring.mul a (delta i j) = ring.mul (delta i j) a}
-    {\fun (same: _) => trans!{R} _ _ _
-      (trans!{R} _ _ _ (congr!{R R} (ring.mul a) _ _ (equal i j same)) (((ring.semiring).multiplicative).rightIdentity a))
-      (sym!{R} _ _ (trans!{R} _ _ _ (congr!{R R} (\fun (r: R) => ring.mul r a) _ _ (equal i j same)) (((ring.semiring).multiplicative).leftIdentity a)))}
-    {\fun (distinct: _) => trans!{R} _ _ _
-      (trans!{R} _ _ _ (congr!{R R} (ring.mul a) _ _ (different i j distinct)) ((ring.semiring).zeroAbsorbsRight a))
-      (sym!{R} _ _ (trans!{R} _ _ _ (congr!{R R} (\fun (r: R) => ring.mul r a) _ _ (different i j distinct)) ((ring.semiring).zeroAbsorbsLeft a)))}
+    {\fun (same: _) => eq_reason_in!{R _
+      "=" _ "by" { congr!{R R} (ring.mul a) _ _ (equal i j same) }
+      "=" _ "by" { ((ring.semiring).multiplicative).rightIdentity a }
+      "=" _ "by" { sym!{R} _ _ (trans!{R} _ _ _ (congr!{R R} (\fun (r: R) => ring.mul r a) _ _ (equal i j same)) (((ring.semiring).multiplicative).leftIdentity a)) }
+    }}
+    {\fun (distinct: _) => eq_reason_in!{R _
+      "=" _ "by" { congr!{R R} (ring.mul a) _ _ (different i j distinct) }
+      "=" _ "by" { (ring.semiring).zeroAbsorbsRight a }
+      "=" _ "by" { sym!{R} _ _ (trans!{R} _ _ _ (congr!{R R} (\fun (r: R) => ring.mul r a) _ _ (different i j distinct)) ((ring.semiring).zeroAbsorbsLeft a)) }
+    }}
   };

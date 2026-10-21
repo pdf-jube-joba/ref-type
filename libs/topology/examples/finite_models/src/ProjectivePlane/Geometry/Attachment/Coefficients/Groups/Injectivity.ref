@@ -1,18 +1,19 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Modules.Hom[V := first.Carrier, W := coefficients.Carrier, source := first.space, target := coefficients.space] \as Maps;
 \import Modules.Hom[V := coefficients.Carrier, W := BaseH.Cohomology, source := coefficients.space, target := BaseH.cohomologySpace] \as BaseMaps;
 \import Modules.Hom[V := R1.Cohomology, W := first.Carrier, source := R1.cohomologySpace, target := first.space] \as InclusionMaps;
 \definition kernelZero[h: first.Carrier][killed: (restriction).apply h = (coefficients.space).zero]: h = (first.space).zero := \block {
   \let zero: (Restriction.induced Sequence.restriction).apply h = BaseH.zeroClass :=
-    trans!{BaseH.Cohomology} _ _ _
-      (sym!{BaseH.Cohomology} _ _ ((baseOrientation).rightInverse ((Restriction.induced Sequence.restriction).apply h)))
-      (trans!{BaseH.Cohomology} _ _ _
-        (congr!{coefficients.Carrier BaseH.Cohomology} (((baseOrientation).forward).apply) _ _ killed)
-        (BaseMaps.zeroPreserved (baseOrientation).forward)) \then
+    eq_reason_in!{BaseH.Cohomology _
+      "=" _ "by" { sym!{BaseH.Cohomology} _ _ ((baseOrientation).rightInverse ((Restriction.induced Sequence.restriction).apply h)) }
+      "=" _ "by" { congr!{coefficients.Carrier BaseH.Cohomology} (((baseOrientation).forward).apply) _ _ killed }
+      "=" _ "by" { BaseMaps.zeroPreserved (baseOrientation).forward }
+    } \then
   \takefrom a: \Cast[R1.Cohomology] ({ a: R1.Cohomology \where (LowerInclusion.induced Sequence.inclusion).apply a = h }) \by FirstExactness.exactAtB h zero \then
-  \return trans!{first.Carrier} _ _ _
-    (sym!{first.Carrier} _ _ (\bysub(R1.Cohomology, { a: R1.Cohomology \where (LowerInclusion.induced Sequence.inclusion).apply a = h }, a)))
-    (trans!{first.Carrier} _ _ _
-      (congr!{R1.Cohomology first.Carrier} ((LowerInclusion.induced Sequence.inclusion).apply) _ _ (\parent.\parent.RelativeVanishing[].first a))
-      (InclusionMaps.zeroPreserved (LowerInclusion.induced Sequence.inclusion)))
+  \return eq_reason_in!{first.Carrier _
+    "=" _ "by" { sym!{first.Carrier} _ _ (\bysub(R1.Cohomology, { a: R1.Cohomology \where (LowerInclusion.induced Sequence.inclusion).apply a = h }, a)) }
+    "=" _ "by" { congr!{R1.Cohomology first.Carrier} ((LowerInclusion.induced Sequence.inclusion).apply) _ _ (\parent.\parent.RelativeVanishing[].first a) }
+    "=" _ "by" { InclusionMaps.zeroPreserved (LowerInclusion.induced Sequence.inclusion) }
+  }
 };
 \definition law: \forall (x, y: first.Carrier) -> (restriction).apply x = (restriction).apply y -> x = y := Maps.injectiveOfZeroKernel restriction kernelZero;

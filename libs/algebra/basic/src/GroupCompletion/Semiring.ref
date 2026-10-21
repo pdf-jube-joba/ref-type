@@ -1,10 +1,10 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Alg[].Monoid[] \as Monoid;
 \import std.Alg[].Ring[] \as Ring;
 \import std.Logic[].Equality[] \as Equality;
 \use Equality.sym;
 \use Equality.trans;
 \use Equality.congr;
-\use Equality.congr2;
 \use Equality.eq_reason;
 \definition additive: Monoid.CommutativeMonoid[M] := Monoid.CommutativeMonoid[M] {
   base := Monoid.MonoidData[M]::# (semiring.zero) (semiring.add),
@@ -47,7 +47,7 @@
     (\fun (x: C.Difference) => eq_reason!{{scale (semiring.zero) (C.class x)}
       "=" {add (include (semiring.mul (semiring.zero) (C.positive x))) (neg (include (semiring.mul (semiring.zero) (C.negative x))))}
       "by" {scaleClass (semiring.zero) x}
-      "=" {add zero (neg zero)} "by" {congr2!{Carrier Carrier Carrier} G.difference _ _ _ _
+      "=" {add zero (neg zero)} "by" {congr!{Carrier Carrier Carrier} G.difference _ _ _ _
         (congr!{M Carrier} include _ _ (semiring.zeroAbsorbsLeft (C.positive x)))
         (congr!{M Carrier} include _ _ (semiring.zeroAbsorbsLeft (C.negative x)))}
       "=" zero "by" {trans!{Carrier} _ _ _ (G.zeroLeft (neg zero)) G.negZero}});
@@ -59,7 +59,7 @@
       "by" {scaleClass (semiring.add a b) x}
       "=" {G.difference (add (include (semiring.mul a (C.positive x))) (include (semiring.mul b (C.positive x))))
         (add (include (semiring.mul a (C.negative x))) (include (semiring.mul b (C.negative x))))}
-      "by" {congr2!{Carrier Carrier Carrier} G.difference _ _ _ _
+      "by" {congr!{Carrier Carrier Carrier} G.difference _ _ _ _
         (trans!{Carrier} _ _ _ (congr!{M Carrier} include _ _ (semiring.rightDistributive a b (C.positive x)))
           (C.includeAdd (semiring.mul a (C.positive x)) (semiring.mul b (C.positive x))))
         (trans!{Carrier} _ _ _ (congr!{M Carrier} include _ _ (semiring.rightDistributive a b (C.negative x)))
@@ -72,7 +72,7 @@
         (G.four (include (semiring.mul a (C.positive x))) (include (semiring.mul b (C.positive x)))
           (neg (include (semiring.mul a (C.negative x)))) (neg (include (semiring.mul b (C.negative x)))))}
       "=" {add (scale a (C.class x)) (scale b (C.class x))}
-      "by" {congr2!{Carrier Carrier Carrier} add _ _ _ _ (sym!{Carrier} _ _ (scaleClass a x)) (sym!{Carrier} _ _ (scaleClass b x))}});
+      "by" {congr!{Carrier Carrier Carrier} add _ _ _ _ (sym!{Carrier} _ _ (scaleClass a x)) (sym!{Carrier} _ _ (scaleClass b x))}});
 \definition multiplicationInput[y: Carrier]: Universal.Map :=
   \into[M -> Carrier](\fun (a: _) => scale a y, Universal.Map) \by {
     Input.MonoidLaws[Universal.domain, Universal.codomain, (\fun (a: _) => scale a y)] {
@@ -96,16 +96,16 @@
     (\fun (x: C.Difference) (y, z: Carrier) => eq_reason!{{mul (C.class x) (add y z)}
       "=" {G.difference (scale (C.positive x) (add y z)) (scale (C.negative x) (add y z))} "by" {mulClass x (add y z)}
       "=" {G.difference (add (scale (C.positive x) y) (scale (C.positive x) z)) (add (scale (C.negative x) y) (scale (C.negative x) z))}
-      "by" {congr2!{Carrier Carrier Carrier} G.difference _ _ _ _ (scaleAdd (C.positive x) y z) (scaleAdd (C.negative x) y z)}
+      "by" {congr!{Carrier Carrier Carrier} G.difference _ _ _ _ (scaleAdd (C.positive x) y z) (scaleAdd (C.negative x) y z)}
       "=" {add (G.difference (scale (C.positive x) y) (scale (C.negative x) y)) (G.difference (scale (C.positive x) z) (scale (C.negative x) z))}
       "by" {G.differenceAdd (scale (C.positive x) y) (scale (C.positive x) z) (scale (C.negative x) y) (scale (C.negative x) z)}
-      "=" {add (mul (C.class x) y) (mul (C.class x) z)} "by" {congr2!{Carrier Carrier Carrier} add _ _ _ _
+      "=" {add (mul (C.class x) y) (mul (C.class x) z)} "by" {congr!{Carrier Carrier Carrier} add _ _ _ _
         (sym!{Carrier} _ _ (mulClass x y)) (sym!{Carrier} _ _ (mulClass x z))}});
 \definition mulZeroRight: \forall (x: Carrier) -> mul x zero = zero :=
   Q.induction (\fun (x: _) => mul x zero = zero)
     (\fun (x: C.Difference) => eq_reason!{{mul (C.class x) zero}
       "=" {G.difference (scale (C.positive x) zero) (scale (C.negative x) zero)} "by" {mulClass x zero}
-      "=" {G.difference zero zero} "by" {congr2!{Carrier Carrier Carrier} G.difference _ _ _ _ (scaleZero (C.positive x)) (scaleZero (C.negative x))}
+      "=" {G.difference zero zero} "by" {congr!{Carrier Carrier Carrier} G.difference _ _ _ _ (scaleZero (C.positive x)) (scaleZero (C.negative x))}
       "=" zero "by" {G.inverseRight zero}});
 \import algebra.Hom[A := Carrier, B := Carrier] \as Output;
 \definition Endomorphism: \Set := Output.MonoidMap C.asMonoid Universal.codomain;
@@ -156,9 +156,11 @@
 \definition oneRight: \forall (x: Carrier) -> mul x one = x :=
   \fun (x: _) => congr!{{Carrier -> Carrier} Carrier} (\fun (f: _) => f x) _ _
     (Universal.ext (leftMultiply one) identity
-      (\fun (a: _) => trans!{Carrier} _ _ _ (mulIncludes a one)
-        (trans!{Carrier} _ _ _ (scaleIncludes a (semiring.one))
-          (congr!{M Carrier} include _ _ ((semiring.multiplicative).rightIdentity a)))));
+      (\fun (a: _) => eq_reason_in!{Carrier _
+        "=" _ "by" { mulIncludes a one }
+        "=" _ "by" { scaleIncludes a (semiring.one) }
+        "=" _ "by" { congr!{M Carrier} include _ _ ((semiring.multiplicative).rightIdentity a) }
+      }));
 \definition ring: Ring.Ring[Carrier] := Ring.Ring[Carrier] {
   zero := zero, one := one, add := add, neg := neg, mul := mul,
   semiring := Alg.SemiringLaws[Carrier, (Alg.SemiringData[Carrier]::# zero one add mul)] {

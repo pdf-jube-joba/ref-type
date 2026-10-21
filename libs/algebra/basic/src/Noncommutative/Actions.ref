@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \structure Laws[act: G -> S -> S]: \Prop := {
   identity: \forall (s: S) -> act one s = s,
   compose: \forall (a, b: G)(s: S) -> act (mul a b) s = act b (act a s),
@@ -5,14 +6,20 @@
 \definition Action: \Set := \Cast[G -> S -> S] ({ act: G -> S -> S \where Laws[act] });
 \definition laws[act: Action]: Laws[act] := \bysub(G -> S -> S, Action, act);
 \definition inverse: \forall (act: Action)(a: G)(s: S) -> act (inv a) (act a s) = s :=
-  \fun (act: Action)(a: G)(s: S) => trans!{S} _ _ _ (sym!{S} _ _ ((laws act).compose a (inv a) s))
-    (trans!{S} _ _ _ (congr!{G S} (\fun (g: G) => act g s) _ _ (rightInverse a)) ((laws act).identity s));
+  \fun (act: Action)(a: G)(s: S) => eq_reason_in!{S _
+    "=" _ "by" { sym!{S} _ _ ((laws act).compose a (inv a) s) }
+    "=" _ "by" { congr!{G S} (\fun (g: G) => act g s) _ _ (rightInverse a) }
+    "=" _ "by" { (laws act).identity s }
+  };
 \definition Stabilizer[act: Action][s: S]: \Pow G := { a: G \where act a s = s };
 \definition stabilizerLaws: \forall (act: Action)(s: S) -> SubgroupLaws[Stabilizer act s] :=
   \fun (act: Action)(s: S) => SubgroupLaws[Stabilizer act s] {
     one := (laws act).identity s,
-    multiply := \fun (a, b: G)(ha: _)(hb: _) => trans!{S} _ _ _ ((laws act).compose a b s)
-      (trans!{S} _ _ _ (congr!{S S} (act b) _ _ ha) hb),
+    multiply := \fun (a, b: G)(ha: _)(hb: _) => eq_reason_in!{S _
+      "=" _ "by" { (laws act).compose a b s }
+      "=" _ "by" { congr!{S S} (act b) _ _ ha }
+      "=" _ "by" hb
+    },
     inverse := \fun (a: G)(ha: _) => trans!{S} _ _ _ (congr!{S S} (act (inv a)) _ _ (sym!{S} _ _ ha)) (inverse act a s),
   };
 \definition stabilizer[act: Action][s: S]: Subgroup := \into[\Pow G](Stabilizer act s, Subgroup) \by { stabilizerLaws act s };
@@ -20,8 +27,11 @@
 \module At(act: Action, point: S);
 \module PointedMaps(act: Action, point: S, T: \Set, target: \root.Noncommutative[G := G, group := group].Actions[S := T].Action, targetPoint: T);
 \definition oppositeInverse: \forall (act: Action)(a: G)(s: S) -> act a (act (inv a) s) = s :=
-  \fun (act: Action)(a: G)(s: S) => trans!{S} _ _ _ (sym!{S} _ _ ((laws act).compose (inv a) a s))
-    (trans!{S} _ _ _ (congr!{G S} (\fun (g: G) => act g s) _ _ (leftInverse a)) ((laws act).identity s));
+  \fun (act: Action)(a: G)(s: S) => eq_reason_in!{S _
+    "=" _ "by" { sym!{S} _ _ ((laws act).compose (inv a) a s) }
+    "=" _ "by" { congr!{G S} (\fun (g: G) => act g s) _ _ (leftInverse a) }
+    "=" _ "by" { (laws act).identity s }
+  };
 \definition conjugationAction: \forall (act: Action)(a, g: G)(s: S) ->
   act (mul (mul a g) (inv a)) s = act (inv a) (act g (act a s)) :=
   \fun (act: Action)(a, g: G)(s: S) => trans!{S} _ _ _ ((laws act).compose (mul a g) (inv a) s)
@@ -29,8 +39,14 @@
 \definition conjugateStabilizer: \forall (act: Action)(a, g: G)(s: S) ->
   Logic.PropEquiv[act g (act a s) = act a s, act (mul (mul a g) (inv a)) s = s] :=
   \fun (act: Action)(a, g: G)(s: S) => Logic.PropEquiv[_, _] {
-    ltr := \fun (fixed: act g (act a s) = act a s) => trans!{S} _ _ _ (conjugationAction act a g s)
-      (trans!{S} _ _ _ (congr!{S S} (act (inv a)) _ _ fixed) (inverse act a s)),
-    rtl := \fun (fixed: act (mul (mul a g) (inv a)) s = s) => trans!{S} _ _ _ (sym!{S} _ _ (oppositeInverse act a (act g (act a s))))
-      (trans!{S} _ _ _ (congr!{S S} (act a) _ _ (sym!{S} _ _ (conjugationAction act a g s))) (congr!{S S} (act a) _ _ fixed)),
+    ltr := \fun (fixed: act g (act a s) = act a s) => eq_reason_in!{S _
+      "=" _ "by" { conjugationAction act a g s }
+      "=" _ "by" { congr!{S S} (act (inv a)) _ _ fixed }
+      "=" _ "by" { inverse act a s }
+    },
+    rtl := \fun (fixed: act (mul (mul a g) (inv a)) s = s) => eq_reason_in!{S _
+      "=" _ "by" { sym!{S} _ _ (oppositeInverse act a (act g (act a s))) }
+      "=" _ "by" { congr!{S S} (act a) _ _ (sym!{S} _ _ (conjugationAction act a g s)) }
+      "=" _ "by" { congr!{S S} (act a) _ _ fixed }
+    },
   };

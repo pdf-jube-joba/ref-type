@@ -1,27 +1,33 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition first[x: Domain.CarrierSet]: upper x Coordinates.first = Real.sub (right x) (left x) :=
   trans!{Real.Real} _ _ _ (Coordinates.firstBackward (square x))
-    (congr2!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _
+    (congr!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _
       (Root.squareOfNonnegative (right x) ((Simplex.barycentric two x).nonnegative rightIndex))
       (Root.squareOfNonnegative (left x) ((Simplex.barycentric two x).nonnegative leftIndex)));
 \definition second[x: Domain.CarrierSet]: upper x Coordinates.second =
   Real.add (Real.mul (Root.sqrt (right x)) (Root.sqrt (left x))) (Real.mul (Root.sqrt (left x)) (Root.sqrt (right x))) := Coordinates.secondBackward (square x);
 \definition lowerFirst[x: Domain.CarrierSet]: lower x Coordinates.first = Real.neg (Real.sub (right x) (left x)) :=
-  trans!{Real.Real} _ _ _ (Laws.fieldMulNegLeft Real.one (upper x Coordinates.first))
-    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulOneLeft (upper x Coordinates.first)))
-      (congr!{Real.Real Real.Real} Real.neg _ _ (first x)));
+  eq_reason_in!{Real.Real _
+    "=" _ "by" { Laws.fieldMulNegLeft Real.one (upper x Coordinates.first) }
+    "=" _ "by" { congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulOneLeft (upper x Coordinates.first)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} Real.neg _ _ (first x) }
+  };
 \definition lowerSecond[x: Domain.CarrierSet]: lower x Coordinates.second = Real.neg (upper x Coordinates.second) :=
   trans!{Real.Real} _ _ _ (Laws.fieldMulNegLeft Real.one (upper x Coordinates.second))
     (congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulOneLeft (upper x Coordinates.second)));
 \definition boundaryRadius[x: Domain.CarrierSet][onEdge: center x = Real.zero]: radius x = Real.one :=
-  trans!{Real.Real} _ _ _ (Laws.addComm (right x) (left x))
-    (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.addZeroLeft (Real.add (left x) (right x))))
-      (trans!{Real.Real} _ _ _
-        (congr!{Real.Real Real.Real} (\fun (c: Real.Real) => Real.add c (Real.add (left x) (right x))) _ _ (sym!{Real.Real} _ _ onEdge))
-        (total x)));
+  eq_reason_in!{Real.Real _
+    "=" _ "by" { Laws.addComm (right x) (left x) }
+    "=" _ "by" { sym!{Real.Real} _ _ (Laws.addZeroLeft (Real.add (left x) (right x))) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (c: Real.Real) => Real.add c (Real.add (left x) (right x))) _ _ (sym!{Real.Real} _ _ onEdge) }
+    "=" _ "by" { total x }
+  };
 \definition boundaryNorm[x: Domain.CarrierSet][onEdge: center x = Real.zero]: Disk.normSquared (upper x) = Real.one :=
-  trans!{Real.Real} _ _ _ (normFormula x)
-    (trans!{Real.Real} _ _ _ (congr2!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (boundaryRadius x onEdge) (boundaryRadius x onEdge))
-      (Laws.fieldMulOneLeft Real.one));
+  eq_reason_in!{Real.Real _
+    "=" _ "by" { normFormula x }
+    "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (boundaryRadius x onEdge) (boundaryRadius x onEdge) }
+    "=" _ "by" { Laws.fieldMulOneLeft Real.one }
+  };
 \import \root.ProjectivePlane[].Geometry[].Hemisphere[].DiskQuotient[] \as DiskQuotient;
 \import topological_constructions.RelationQuotient[A := Disk.Disk, relation := DiskQuotient.Equivalent] \as Classes;
 \definition boundaryIdentified[x: Domain.CarrierSet][onEdge: center x = Real.zero]: DiskQuotient.projection (lower x) = DiskQuotient.projection (upper x) :=

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 /* Compatibility of the Clifford inclusion with extension of isometries. */
 \use Equality.eq_reason;
 \import \root.Euclidean[n := n].PinRepresentation[] \as Representation;
@@ -33,7 +34,7 @@
   \fun (v: Vector) => eq_reason!{
     {HigherGrade.action lifted (HigherAlgebra.iota (embed v))}
     "=" {HigherAlgebra.mul (HigherAlgebra.mul (Inclusion.map (Clifford.Grading[].map g.value)) (Inclusion.map (Clifford.iota v))) (Inclusion.map g.inverse)} "by" {
-      congr2!{Next.CliffordAlgebra Next.CliffordAlgebra Next.CliffordAlgebra} (\fun (x, y: Next.CliffordAlgebra) => HigherAlgebra.mul (HigherAlgebra.mul x y) (Inclusion.map g.inverse)) _ _ _ _
+      congr!{Next.CliffordAlgebra Next.CliffordAlgebra Next.CliffordAlgebra} (\fun (x, y: Next.CliffordAlgebra) => HigherAlgebra.mul (HigherAlgebra.mul x y) (Inclusion.map g.inverse)) _ _ _ _
         (Grading.onLower g.value) (sym!{Next.CliffordAlgebra} _ _ (Inclusion.onVector v))}
     "=" {Inclusion.map (Clifford.Grading[].action g (Clifford.iota v))} "by" {
       sym!{Next.CliffordAlgebra} _ _ (trans!{Next.CliffordAlgebra} _ _ _ (Inclusion.laws.mul (Clifford.mul (Clifford.Grading[].map g.value) (Clifford.iota v)) g.inverse)
@@ -49,13 +50,17 @@
 \definition sameOnEmbed: \forall (v: Vector) -> image.value.apply (embed v) = Extended.orthogonal.value.apply (embed v) :=
   \fun (v: Vector) => trans!{Next.Vector} _ _ _ (onEmbed v) (sym!{Next.Vector} _ _ (Extended.onEmbed v));
 \definition sameOnVector: \forall (v: Next.Vector) -> image.value.apply v = Extended.orthogonal.value.apply v := \fun (v: Next.Vector) =>
-  trans!{Next.Vector} _ _ _ (congr!{Next.Vector Next.Vector} image.value.apply _ _ (sym!{Next.Vector} _ _ (decompose v)))
-    (trans!{Next.Vector} _ _ _ (image.value.preservesAdd (Next.space.smul (head v) first) (embed (tail v)))
-      (trans!{Next.Vector} _ _ _ (congr2!{Next.Vector Next.Vector Next.Vector} Next.space.add _ _ _ _
-        (trans!{Next.Vector} _ _ _ (image.value.preservesScale (head v) first)
-          (trans!{Next.Vector} _ _ _ (congr!{Next.Vector Next.Vector} (Next.space.smul (head v)) _ _ sameOnFirst)
-            (sym!{Next.Vector} _ _ (Extended.orthogonal.value.preservesScale (head v) first))))
-        (sameOnEmbed (tail v)))
-        (trans!{Next.Vector} _ _ _ (sym!{Next.Vector} _ _ (Extended.orthogonal.value.preservesAdd (Next.space.smul (head v) first) (embed (tail v))))
-          (congr!{Next.Vector Next.Vector} Extended.orthogonal.value.apply _ _ (decompose v)))));
+  eq_reason_in!{Next.Vector _
+    "=" _ "by" { congr!{Next.Vector Next.Vector} image.value.apply _ _ (sym!{Next.Vector} _ _ (decompose v)) }
+    "=" _ "by" { image.value.preservesAdd (Next.space.smul (head v) first) (embed (tail v)) }
+    "=" _ "by" { congr!{Next.Vector Next.Vector Next.Vector} Next.space.add _ _ _ _
+        (eq_reason_in!{Next.Vector _
+          "=" _ "by" { image.value.preservesScale (head v) first }
+          "=" _ "by" { congr!{Next.Vector Next.Vector} (Next.space.smul (head v)) _ _ sameOnFirst }
+          "=" _ "by" { sym!{Next.Vector} _ _ (Extended.orthogonal.value.preservesScale (head v) first) }
+        })
+        (sameOnEmbed (tail v)) }
+    "=" _ "by" { sym!{Next.Vector} _ _ (Extended.orthogonal.value.preservesAdd (Next.space.smul (head v) first) (embed (tail v))) }
+    "=" _ "by" { congr!{Next.Vector Next.Vector} Extended.orthogonal.value.apply _ _ (decompose v) }
+  };
 \definition law: image = Extended.orthogonal := HigherIsometries.ext image Extended.orthogonal (NextEnd.ext image.value Extended.orthogonal.value sameOnVector);

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.Biproduct[V := A.Carrier, W := C.Carrier, left := A.space, right := C.space] \as Sum;
 \import Sum.Copair[U := B.Carrier, target := B.space] \as Copair;
 \import \parent.\parent.Hom[V := C.Carrier, W := B.Carrier, source := C.space, target := B.space] \as Sections;
@@ -10,16 +11,19 @@
 \definition forward[s: Sections.Map]: _ := Copair.copair sequence.inclusion s;
 \definition projection: \forall (s: Sections.Map) -> Section s -> \forall (x: Sum.Carrier) ->
   sequence.projection.apply ((forward s).apply x) = Sum.second x :=
-  \fun (s: Sections.Map)(section: Section s)(x: Sum.Carrier) => trans!{C.Carrier} _ _ _
-    (sequence.projection.addition (sequence.inclusion.apply (Sum.first x)) (s.apply (Sum.second x)))
-    (trans!{C.Carrier} _ _ _
-      (congr2!{C.Carrier C.Carrier C.Carrier} Right.add _ _ _ _ (sequence.zero (Sum.first x)) (section (Sum.second x)))
-      (RightGroup.zeroLeft (Sum.second x)));
+  \fun (s: Sections.Map)(section: Section s)(x: Sum.Carrier) => eq_reason_in!{C.Carrier _
+    "=" _ "by" { sequence.projection.addition (sequence.inclusion.apply (Sum.first x)) (s.apply (Sum.second x)) }
+    "=" _ "by" { congr!{C.Carrier C.Carrier C.Carrier} Right.add _ _ _ _ (sequence.zero (Sum.first x)) (section (Sum.second x)) }
+    "=" _ "by" { RightGroup.zeroLeft (Sum.second x) }
+  };
 \definition injective: \forall (s: Sections.Map) -> Section s -> \forall (x, y: Sum.Carrier) ->
   (forward s).apply x = (forward s).apply y -> x = y := \block {
   \fun (s: Sections.Map)(section: Section s)(x, y: Sum.Carrier)(same: _) \then
-  \let seconds: Sum.second x = Sum.second y := trans!{C.Carrier} _ _ _ (sym!{C.Carrier} _ _ (projection s section x))
-    (trans!{C.Carrier} _ _ _ (congr!{B.Carrier C.Carrier} (sequence.projection.apply) _ _ same) (projection s section y)) \then
+  \let seconds: Sum.second x = Sum.second y := eq_reason_in!{C.Carrier _
+    "=" _ "by" { sym!{C.Carrier} _ _ (projection s section x) }
+    "=" _ "by" { congr!{B.Carrier C.Carrier} (sequence.projection.apply) _ _ same }
+    "=" _ "by" { projection s section y }
+  } \then
   \let inclusions: sequence.inclusion.apply (Sum.first x) = sequence.inclusion.apply (Sum.first y) :=
     MiddleGroup.cancelRight (s.apply (Sum.second x)) (sequence.inclusion.apply (Sum.first x)) (sequence.inclusion.apply (Sum.first y))
       (trans!{B.Carrier} _ _ _ same (congr!{C.Carrier B.Carrier}
@@ -29,16 +33,18 @@
 \definition remainder[s: Sections.Map][y: B.Carrier]: B.Carrier := MiddleGroup.difference y (s.apply (sequence.projection.apply y));
 \definition remainderClosed: \forall (s: Sections.Map) -> Section s -> \forall (y: B.Carrier) ->
   sequence.projection.apply (remainder s y) = Right.zero :=
-  \fun (s: Sections.Map)(section: Section s)(y: B.Carrier) => trans!{C.Carrier} _ _ _
-    (Projection.differencePreserved sequence.projection y (s.apply (sequence.projection.apply y)))
-    (trans!{C.Carrier} _ _ _
-      (congr!{C.Carrier C.Carrier} (\fun (z: C.Carrier) => RightGroup.difference (sequence.projection.apply y) z) _ _
-        (section (sequence.projection.apply y))) (RightGroup.inverseRight (sequence.projection.apply y)));
+  \fun (s: Sections.Map)(section: Section s)(y: B.Carrier) => eq_reason_in!{C.Carrier _
+    "=" _ "by" { Projection.differencePreserved sequence.projection y (s.apply (sequence.projection.apply y)) }
+    "=" _ "by" { congr!{C.Carrier C.Carrier} (\fun (z: C.Carrier) => RightGroup.difference (sequence.projection.apply y) z) _ _
+        (section (sequence.projection.apply y)) }
+    "=" _ "by" { RightGroup.inverseRight (sequence.projection.apply y) }
+  };
 \definition reconstruct: \forall (s: Sections.Map)(y: B.Carrier) -> Middle.add (remainder s y) (s.apply (sequence.projection.apply y)) = y :=
-  \fun (s: Sections.Map)(y: B.Carrier) => trans!{B.Carrier} _ _ _
-    (MiddleGroup.assoc y (Middle.neg (s.apply (sequence.projection.apply y))) (s.apply (sequence.projection.apply y)))
-    (trans!{B.Carrier} _ _ _ (congr!{B.Carrier B.Carrier} (Middle.add y) _ _ (MiddleGroup.inverseLeft (s.apply (sequence.projection.apply y))))
-      (MiddleGroup.zeroRight y));
+  \fun (s: Sections.Map)(y: B.Carrier) => eq_reason_in!{B.Carrier _
+    "=" _ "by" { MiddleGroup.assoc y (Middle.neg (s.apply (sequence.projection.apply y))) (s.apply (sequence.projection.apply y)) }
+    "=" _ "by" { congr!{B.Carrier B.Carrier} (Middle.add y) _ _ (MiddleGroup.inverseLeft (s.apply (sequence.projection.apply y))) }
+    "=" _ "by" { MiddleGroup.zeroRight y }
+  };
 \definition onto: \forall (s: Sections.Map) -> Section s -> \forall (y: B.Carrier) ->
   \exists ( x: Sum.Carrier \where (forward s).apply x = y ) := \block {
   \fun (s: Sections.Map)(section: Section s)(y: B.Carrier) \then

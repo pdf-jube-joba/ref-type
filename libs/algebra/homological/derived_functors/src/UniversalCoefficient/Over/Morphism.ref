@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Chains.Map[C := C, D := D] \as ChainMaps;
 \import Modules.Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space] \as Coefficients;
 \import HomComplex.Integer[P := D, N := A] \as SourceHom;
@@ -42,18 +43,18 @@
     \definition cohomology: Modules.Hom[V := Source.CohomologyCarrier, W := Target.CohomologyCarrier, source := Source.cohomologySpace, target := Target.cohomologySpace].Map := Induced.map;
     \definition onClass: \forall (g: SourceCohomology.Closed)(x: H.Cycle) ->
       (Target.map.apply (cohomology.apply (SourceCohomology.classOf g))).apply (H.classOf x) = u.apply (g.apply (f.apply z x)) :=
-      \fun (g: SourceCohomology.Closed)(x: H.Cycle) => trans!{B.Carrier} _ _ _
-        (congr!{Target.CohomologyCarrier B.Carrier} (\fun (q: Target.CohomologyCarrier) => (Target.map.apply q).apply (H.classOf x)) _ _ (Induced.onClass g))
-        (trans!{B.Carrier} _ _ _
-          (congr!{Target.ValueCarrier B.Carrier} (\fun (v: Target.ValueCarrier) => v.apply (H.classOf x)) _ _ (Target.onCohomologyClass (Induced.cycles.apply g)))
-          (Target.onClass (Induced.cycles.apply g) x));
+      \fun (g: SourceCohomology.Closed)(x: H.Cycle) => eq_reason_in!{B.Carrier _
+        "=" _ "by" { congr!{Target.CohomologyCarrier B.Carrier} (\fun (q: Target.CohomologyCarrier) => (Target.map.apply q).apply (H.classOf x)) _ _ (Induced.onClass g) }
+        "=" _ "by" { congr!{Target.ValueCarrier B.Carrier} (\fun (v: Target.ValueCarrier) => v.apply (H.classOf x)) _ _ (Target.onCohomologyClass (Induced.cycles.apply g)) }
+        "=" _ "by" { Target.onClass (Induced.cycles.apply g) x }
+      };
     \definition valueOnClass: \forall (g: SourceCohomology.Closed)(x: H.Cycle) ->
       (values.apply (Source.map.apply (SourceCohomology.classOf g))).apply (H.classOf x) = u.apply (g.apply (f.apply z x)) :=
-      \fun (g: SourceCohomology.Closed)(x: H.Cycle) => trans!{B.Carrier} _ _ _
-        (congr!{Source.ValueCarrier B.Carrier} (\fun (v: Source.ValueCarrier) => (value v).apply (H.classOf x)) _ _ (Source.onCohomologyClass g))
-        (trans!{B.Carrier} _ _ _
-          (congr!{K.Homology B.Carrier} (\fun (q: K.Homology) => u.apply ((Source.evaluate g).apply q)) _ _ (Homology.onClass f x))
-          (congr!{A.Carrier B.Carrier} (u.apply) _ _ (Source.onClass g ((Homology.cyclesMap f).apply x))));
+      \fun (g: SourceCohomology.Closed)(x: H.Cycle) => eq_reason_in!{B.Carrier _
+        "=" _ "by" { congr!{Source.ValueCarrier B.Carrier} (\fun (v: Source.ValueCarrier) => (value v).apply (H.classOf x)) _ _ (Source.onCohomologyClass g) }
+        "=" _ "by" { congr!{K.Homology B.Carrier} (\fun (q: K.Homology) => u.apply ((Source.evaluate g).apply q)) _ _ (Homology.onClass f x) }
+        "=" _ "by" { congr!{A.Carrier B.Carrier} (u.apply) _ _ (Source.onClass g ((Homology.cyclesMap f).apply x)) }
+      };
     \definition naturality: \forall (q: Source.CohomologyCarrier) -> Target.map.apply (cohomology.apply q) = values.apply (Source.map.apply q) :=
       SourceCohomology.classInduction (\fun (q: Source.CohomologyCarrier) => Target.map.apply (cohomology.apply q) = values.apply (Source.map.apply q))
         (\fun (g: SourceCohomology.Closed) => TargetValues.ext (Target.map.apply (cohomology.apply (SourceCohomology.classOf g))) (values.apply (Source.map.apply (SourceCohomology.classOf g)))

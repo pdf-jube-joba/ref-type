@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Paths.Between[x := x, y := y] \as XY;
 \import Paths.Between[x := y, y := z] \as YZ;
 \import Paths.Concatenation[].Classes[x := x, y := y, z := z] \as JoinClasses;
@@ -6,10 +7,11 @@
   XY.induction (\fun (p: G.Arrow x y) => \forall (q: G.Arrow y z)(e: Fiber x) -> move x z (G.compose x y z p q) e = move y z q (move x y p e))
     (\fun (p: Paths.Path x y) => YZ.induction (\fun (q: G.Arrow y z) => \forall (e: Fiber x) ->
       move x z (G.compose x y z (G.class x y p) q) e = move y z q (move x y (G.class x y p) e))
-      (\fun (q: Paths.Path y z)(e: Fiber x) => trans!{E} _ _ _
-        (congr!{{G.Arrow x z} E} (\fun (a: G.Arrow x z) => move x z a e) _ _ (JoinClasses.onClass p q))
-        (trans!{E} _ _ _ (onClass x z (Join.concatenate x y z p q) e)
-          (trans!{E} _ _ _ (composition covering x y z p q e)
-            (trans!{E} _ _ _ (sym!{E} _ _ (onClass y z q (along covering x y p e)))
-              (congr!{{Fiber y} E} (move y z (G.class y z q)) (along covering x y p e) (move x y (G.class x y p) e)
-                (sym!{E} _ _ (onClass x y p e))))))));
+      (\fun (q: Paths.Path y z)(e: Fiber x) => eq_reason_in!{E _
+        "=" _ "by" { congr!{{G.Arrow x z} E} (\fun (a: G.Arrow x z) => move x z a e) _ _ (JoinClasses.onClass p q) }
+        "=" _ "by" { onClass x z (Join.concatenate x y z p q) e }
+        "=" _ "by" { composition covering x y z p q e }
+        "=" _ "by" { sym!{E} _ _ (onClass y z q (along covering x y p e)) }
+        "=" _ "by" { congr!{{Fiber y} E} (move y z (G.class y z q)) (along covering x y p e) (move x y (G.class x y p) e)
+                (sym!{E} _ _ (onClass x y p e)) }
+      }));

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import calculus.Real[].MeanValue[].Interval[a := Scalars.zero, b := t].Estimate[] \as Forward;
 \import calculus.Real[].MeanValue[].Interval[a := t, b := Scalars.zero].Estimate[] \as Backward;
 \definition bounds: Logic.And[R.Le left t, R.Le t right] := \bysub(Real, Line.ClosedInterval left right, t);
@@ -24,8 +25,11 @@
   \fun (negative: _) => R.leReplace
     (Scalars.distance (Scalars.sub (Scalars.sub (f Scalars.zero) (f t)) (Scalars.mul Scalars.zero (Scalars.sub Scalars.zero t))) Scalars.zero)
     (Scalars.distance (f t) (f Scalars.zero)) (Scalars.mul field.bound (Scalars.distance Scalars.zero t)) (Scalars.mul field.bound (Scalars.distance t Scalars.zero))
-    (trans!{Real} _ _ _ (congr!{Real Real} (\fun (s: Real) => Scalars.distance s Scalars.zero) _ _ (error t Scalars.zero))
-      (trans!{Real} _ _ _ (Estimates.distanceDifference (f Scalars.zero) (f t)) (Distance.distanceSymmetric (f Scalars.zero) (f t))))
+    (eq_reason_in!{Real _
+      "=" _ "by" { congr!{Real Real} (\fun (s: Real) => Scalars.distance s Scalars.zero) _ _ (error t Scalars.zero) }
+      "=" _ "by" { Estimates.distanceDifference (f Scalars.zero) (f t) }
+      "=" _ "by" { Distance.distanceSymmetric (f Scalars.zero) (f t) }
+    })
     (congr!{Real Real} (Scalars.mul field.bound) _ _ (Distance.distanceSymmetric Scalars.zero t))
     (Backward.increment f d Scalars.zero field.bound negative (\fun (p: BackwardTime) => candidate.derivative (backward p) i)
       (\fun (p: Real)(inside: _) => derivativeBound p));

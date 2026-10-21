@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import N.Basic[].Def[] \as Nat;
 \import N.Order[].Prop[] \as Order;
 \definition twist: N.Nat^ -> V -> V := \induction (n: N.Nat^) \return V -> V \with {
@@ -36,9 +37,11 @@
 \definition involution: \forall (n: N.Nat^)(x: V) -> twist n (twist n x) = x :=
   \induction (n: N.Nat^) \return \forall (x: V) -> twist n (twist n x) = x \with {
     | zero: \fun (x: V) => \refl(x)
-    | succ: \fun (n: N.Nat^)(previous: _)(x: V) => trans!{V} _ _ _
-        (congr!{V V} Values.neg _ _ (twistNeg n (twist n x)))
-        (trans!{V} _ _ _ (Group.negNeg (twist n (twist n x))) (previous x))
+    | succ: \fun (n: N.Nat^)(previous: _)(x: V) => eq_reason_in!{V _
+      "=" _ "by" { congr!{V V} Values.neg _ _ (twistNeg n (twist n x)) }
+      "=" _ "by" { Group.negNeg (twist n (twist n x)) }
+      "=" _ "by" { previous x }
+    }
   };
 \definition subtractSum: \forall (x, y, z: V) -> Group.difference x (Values.add y z) = Values.add (Group.difference x y) (Values.neg z) :=
   \fun (x, y, z: V) => trans!{V} _ _ _ (congr!{V V} (Values.add x) _ _ (Group.negAdd y z))

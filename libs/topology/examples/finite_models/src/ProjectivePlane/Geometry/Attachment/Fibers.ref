@@ -1,11 +1,15 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Inverse[] \as Inverse;
 \import real.Analysis[] \as Real;
 \import dedekind_reals.DedekindReal[] \as R;
 \definition characteristic[x, y: Disk.Disk]: Logic.PropEquiv[Attached.characteristic x = Attached.characteristic y, Boundary.BoundaryRelated x y] := Logic.PropEquiv[_, _] {
   ltr := \fun (same: Attached.characteristic x = Attached.characteristic y) => (Boundary.characterizes x y).ltr
     (DiskClasses.equalRelated DiskQuotient.laws x y
-      (trans!{DiskQuotient.Point} _ _ _ (sym!{DiskQuotient.Point} _ _ (forwardOnRight x))
-        (trans!{DiskQuotient.Point} _ _ _ (congr!{Point DiskQuotient.Point} forward _ _ same) (forwardOnRight y)))),
+      (eq_reason_in!{DiskQuotient.Point _
+        "=" _ "by" { sym!{DiskQuotient.Point} _ _ (forwardOnRight x) }
+        "=" _ "by" { congr!{Point DiskQuotient.Point} forward _ _ same }
+        "=" _ "by" { forwardOnRight y }
+      })),
   rtl := \fun (related: Boundary.BoundaryRelated x y) => Inverse.respects x y ((Boundary.characterizes x y).rtl related),
 };
 \definition interiorInjective[x, y: Disk.Disk][interior: R.Lt (Disk.normSquared x) Real.one]
@@ -26,11 +30,17 @@
   (\fun (x: Circle.Sphere) => CircleClasses.induction
     (\fun (y: Circle.Carrier) => left (Circle.class x) = left y -> Circle.class x = y)
     (\fun (y: Circle.Sphere)(same: left (Circle.class x) = left (Circle.class y)) => CircleClasses.relatedEqual Circle.laws x y
-      (boundarySeparates x y (trans!{DiskQuotient.Point} _ _ _ (sym!{DiskQuotient.Point} _ _ (onCircleClass x))
-        (trans!{DiskQuotient.Point} _ _ _ same (onCircleClass y))))));
+      (boundarySeparates x y (eq_reason_in!{DiskQuotient.Point _
+        "=" _ "by" { sym!{DiskQuotient.Point} _ _ (onCircleClass x) }
+        "=" _ "by" same
+        "=" _ "by" { onCircleClass y }
+      }))));
 \definition baseInjective[x, y: Circle.Carrier][same: Attached.inclusion x = Attached.inclusion y]: x = y :=
-  leftInjective x y (trans!{DiskQuotient.Point} _ _ _ (sym!{DiskQuotient.Point} _ _ (forwardOnLeft x))
-    (trans!{DiskQuotient.Point} _ _ _ (congr!{Point DiskQuotient.Point} forward _ _ same) (forwardOnLeft y)));
+  leftInjective x y (eq_reason_in!{DiskQuotient.Point _
+    "=" _ "by" { sym!{DiskQuotient.Point} _ _ (forwardOnLeft x) }
+    "=" _ "by" { congr!{Point DiskQuotient.Point} forward _ _ same }
+    "=" _ "by" { forwardOnLeft y }
+  });
 \definition BaseImage: \Pow Point := { p: Point \where \exists ( x: Circle.Carrier \where Attached.inclusion x = p ) };
 \definition baseMember[x: Circle.Carrier]: \In[Point] BaseImage (Attached.inclusion x) :=
   Logic.existsIntro[Circle.Carrier, { y: Circle.Carrier \where Attached.inclusion y = Attached.inclusion x }] x (\refl(Attached.inclusion x));

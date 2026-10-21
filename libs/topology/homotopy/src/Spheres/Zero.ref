@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Euclidean.Dimension[n := N.Nat^::succ N.Nat^::zero] \as Line;
 \import real.Analysis[] \as Real;
 \import Real.Algebra[] \as Algebra;
@@ -22,8 +23,11 @@
   trans!{Real.Real} _ _ _ (normValue (\fun (_: Line.Index) => Real.one)) (Laws.fieldMulOneLeft Real.one)
 };
 \definition south: Carrier N.Nat^::zero := \into[Line.Coordinate]((\fun (_: Line.Index) => Real.neg Real.one), Line.Boundary) \by {
-  trans!{Real.Real} _ _ _ (normValue (\fun (_: Line.Index) => Real.neg Real.one))
-    (trans!{Real.Real} _ _ _ (Laws.fieldMulNegBoth Real.one Real.one) (Laws.fieldMulOneLeft Real.one))
+  eq_reason_in!{Real.Real _
+    "=" _ "by" { normValue (\fun (_: Line.Index) => Real.neg Real.one) }
+    "=" _ "by" { Laws.fieldMulNegBoth Real.one Real.one }
+    "=" _ "by" { Laws.fieldMulOneLeft Real.one }
+  }
 };
 \definition squareValue: \forall (x: Carrier N.Nat^::zero) -> Real.mul (x index) (x index) = Real.one :=
   \fun (x: Carrier N.Nat^::zero) => trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (normValue x))
@@ -44,13 +48,19 @@
       (trans!{Real.Real} _ _ _ square (sym!{Real.Real} _ _ (Laws.fieldMulOneLeft Real.one))))}
     {\fun (nonpositive: _) => Logic.Or[_, _]::right (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.negInvolutive r))
       (congr!{Real.Real Real.Real} Real.neg _ _ (Root.squaresInjective (Real.neg r) Real.one (negativeNonnegative r nonpositive) Laws.oneNonnegative
-        (trans!{Real.Real} _ _ _ (Laws.fieldMulNegBoth r r)
-          (trans!{Real.Real} _ _ _ square (sym!{Real.Real} _ _ (Laws.fieldMulOneLeft Real.one)))))))}
+        (eq_reason_in!{Real.Real _
+          "=" _ "by" { Laws.fieldMulNegBoth r r }
+          "=" _ "by" square
+          "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulOneLeft Real.one) }
+        }))))}
   };
 \definition ext: \forall (x, y: Carrier N.Nat^::zero) -> x index = y index -> x = y :=
   \fun (x, y: Carrier N.Nat^::zero)(equal: _) => \axiom:funext(x, y,
-    \fun (i: Line.Index) => trans!{Real.Real} _ _ _ (congr!{Line.Index Real.Real} x _ _ (indexUnique i))
-      (trans!{Real.Real} _ _ _ equal (sym!{Real.Real} _ _ (congr!{Line.Index Real.Real} y _ _ (indexUnique i)))));
+    \fun (i: Line.Index) => eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{Line.Index Real.Real} x _ _ (indexUnique i) }
+      "=" _ "by" equal
+      "=" _ "by" { sym!{Real.Real} _ _ (congr!{Line.Index Real.Real} y _ _ (indexUnique i)) }
+    });
 \definition cases: \forall (x: Carrier N.Nat^::zero) -> Logic.Or[x = north, x = south] :=
   \fun (x: Carrier N.Nat^::zero) => either!{{(roots (x index) (squareValue x))} {Logic.Or[x = north, x = south]}
     {\fun (equal: _) => Logic.Or[_, _]::left (ext x north equal)}

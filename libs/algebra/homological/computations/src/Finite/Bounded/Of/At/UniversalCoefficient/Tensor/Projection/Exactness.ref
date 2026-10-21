@@ -1,16 +1,16 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \root.Finite[].Bounded[].Of[C := C].At[z := z].UniversalCoefficient[A := A].Tensor[] \as Source;
 \import Boundaries.Injectivity[] \as Injection;
 \definition onto: \forall (b: Tor.Kernel) -> \exists ( q: TensorHomology.Homology \where map.apply q = b ) := \block {
   \fun (b: Tor.Kernel) \then
   \takefrom x: \Cast[CurrentTensor.Carrier] ({ x: CurrentTensor.Carrier \where Source.projection.apply x = b }) \by Source.sequence.onto b \then
   \let equal: Source.projection.apply x = b := \bysub(CurrentTensor.Carrier, { x: CurrentTensor.Carrier \where Source.projection.apply x = b }, x) \then
-  \let closed: NativeTensor.apply z x = LowerTensor.space.zero := trans!{LowerTensor.Carrier} _ _ _
-    (sym!{LowerTensor.Carrier} _ _ (differentialFactorPoint x))
-    (trans!{LowerTensor.Carrier} _ _ _
-      (congr!{BoundaryTensor.Carrier LowerTensor.Carrier} (\fun (v: BoundaryTensor.Carrier) => lowerInclusion.apply (Tor.kernelDifferential.apply v)) _ _ equal)
-      (trans!{LowerTensor.Carrier} _ _ _
-        (congr!{LowerCycles.Carrier LowerTensor.Carrier} (lowerInclusion.apply) _ _ (Tor.kernelClosed b))
-        (LowerMaps.zeroPreserved lowerInclusion))) \then
+  \let closed: NativeTensor.apply z x = LowerTensor.space.zero := eq_reason_in!{LowerTensor.Carrier _
+    "=" _ "by" { sym!{LowerTensor.Carrier} _ _ (differentialFactorPoint x) }
+    "=" _ "by" { congr!{BoundaryTensor.Carrier LowerTensor.Carrier} (\fun (v: BoundaryTensor.Carrier) => lowerInclusion.apply (Tor.kernelDifferential.apply v)) _ _ equal }
+    "=" _ "by" { congr!{LowerCycles.Carrier LowerTensor.Carrier} (lowerInclusion.apply) _ _ (Tor.kernelClosed b) }
+    "=" _ "by" { LowerMaps.zeroPreserved lowerInclusion }
+  } \then
   \let representative: TensorHomology.Cycle := TensorHomology.cycle x closed \then
   \return Existential.existsIntro[TensorHomology.Homology, { q: TensorHomology.Homology \where map.apply q = b }] (TensorHomology.classOf representative)
     (trans!{Tor.Kernel} _ _ _ (onClass representative) equal)
@@ -22,11 +22,11 @@
   \let representative: Boundaries.map.apply q = TensorHomology.classOf (cycle x) := trans!{TensorHomology.Homology} _ _ _
     (congr!{HomologyTensor.Carrier TensorHomology.Homology} (Boundaries.map.apply) q (Boundaries.projection.apply x) (sym!{HomologyTensor.Carrier} _ _ equal))
     (Boundaries.onCycles x) \then
-  \return trans!{Tor.Kernel}
-    (map.apply (Boundaries.map.apply q)) (map.apply (TensorHomology.classOf (cycle x))) Tor.kernelSpace.zero
-    (congr!{TensorHomology.Homology Tor.Kernel} (map.apply) (Boundaries.map.apply q) (TensorHomology.classOf (cycle x)) representative)
-    (trans!{Tor.Kernel} (map.apply (TensorHomology.classOf (cycle x))) (kernel (cycle x)) Tor.kernelSpace.zero
-      (onClass (cycle x)) (Source.sequence.zero x))
+  \return eq_reason_in!{Tor.Kernel { map.apply (Boundaries.map.apply q) }
+    "=" { map.apply (TensorHomology.classOf (cycle x)) } "by" { congr!{TensorHomology.Homology Tor.Kernel} (map.apply) (Boundaries.map.apply q) (TensorHomology.classOf (cycle x)) representative }
+    "=" { kernel (cycle x) } "by" { onClass (cycle x) }
+    "=" Tor.kernelSpace.zero "by" { Source.sequence.zero x }
+  }
 };
 \definition kernelImage: \forall (q: TensorHomology.Homology) -> map.apply q = Tor.kernelSpace.zero ->
   \exists ( h: HomologyTensor.Carrier \where Boundaries.map.apply h = q ) := \block {
@@ -34,17 +34,20 @@
   \takefrom x: \Cast[TensorHomology.Cycle] ({ x: TensorHomology.Cycle \where TensorHomology.classOf x = q }) \by Quotient.onto q \then
   \let equal: TensorHomology.classOf x = q := \bysub(TensorHomology.Cycle, { x: TensorHomology.Cycle \where TensorHomology.classOf x = q }, x) \then
   \let projectionZero: Source.projection.apply x = BoundaryTensor.space.zero :=
-    trans!{BoundaryTensor.Carrier} _ _ _
-      (congr!{Tor.Kernel BoundaryTensor.Carrier} (\fun (b: Tor.Kernel) => b) (kernel x) (map.apply (TensorHomology.classOf x)) (sym!{Tor.Kernel} _ _ (onClass x)))
-      (trans!{BoundaryTensor.Carrier} _ _ _
-        (congr!{Tor.Kernel BoundaryTensor.Carrier} (\fun (b: Tor.Kernel) => b) _ _
-          (congr!{TensorHomology.Homology Tor.Kernel} (map.apply) _ _ equal)) closed) \then
+    eq_reason_in!{BoundaryTensor.Carrier _
+      "=" _ "by" { congr!{Tor.Kernel BoundaryTensor.Carrier} (\fun (b: Tor.Kernel) => b) (kernel x) (map.apply (TensorHomology.classOf x)) (sym!{Tor.Kernel} _ _ (onClass x)) }
+      "=" _ "by" { congr!{Tor.Kernel BoundaryTensor.Carrier} (\fun (b: Tor.Kernel) => b) _ _
+          (congr!{TensorHomology.Homology Tor.Kernel} (map.apply) _ _ equal) }
+      "=" _ "by" closed
+    } \then
   \takefrom v: \Cast[CycleTensor.Carrier] ({ v: CycleTensor.Carrier \where Source.inclusion.apply v = x }) \by Source.sequence.kernelImage x projectionZero \then
   \return Existential.existsIntro[HomologyTensor.Carrier, { h: HomologyTensor.Carrier \where Boundaries.map.apply h = q }] (Boundaries.projection.apply v)
-    (trans!{TensorHomology.Homology} _ _ _ (Boundaries.onCycles v)
-        (trans!{TensorHomology.Homology} _ _ _
-          (congr!{TensorHomology.Cycle TensorHomology.Homology} TensorHomology.classOf (cycle v) x
-            (\bysub(CycleTensor.Carrier, { v: CycleTensor.Carrier \where Source.inclusion.apply v = x }, v))) equal))
+    (eq_reason_in!{TensorHomology.Homology _
+      "=" _ "by" { Boundaries.onCycles v }
+      "=" _ "by" { congr!{TensorHomology.Cycle TensorHomology.Homology} TensorHomology.classOf (cycle v) x
+            (\bysub(CycleTensor.Carrier, { v: CycleTensor.Carrier \where Source.inclusion.apply v = x }, v)) }
+      "=" _ "by" equal
+    })
 };
 \definition homologyTensorBundle: Modules.Bundle := Modules.Bundle { Carrier := HomologyTensor.Carrier, space := HomologyTensor.space };
 \definition homologyBundle: Modules.Bundle := Modules.Bundle { Carrier := TensorHomology.Homology, space := TensorHomology.homologySpace };

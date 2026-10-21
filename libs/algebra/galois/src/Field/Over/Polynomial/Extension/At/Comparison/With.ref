@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import galois.Field[].Over[K := K, field := field].Polynomial[].Extension[L := M, target := output].At[embedding := otherEmbedding, x := y] \as Other;
 \import OutputInto.At[coefficients := OutputMaps.ringMap otherEmbedding, x := y] \as OtherEvaluation;
 \definition evaluateFactor: \forall (p, q, r: Coefficients) ->
@@ -10,7 +11,7 @@
     "=" {Target.mul (Evaluation.apply (asPolynomial q)) (Evaluation.apply (Raw.asPolynomial r))}
     "by" {Evaluation.laws.mul (asPolynomial q) (Raw.asPolynomial r)}
     "=" {Target.mul (monicValue q) (value r)}
-    "by" {congr2!{L L L} Target.mul _ _ _ _ (Evaluation.monicAgrees q) (Evaluation.rawAgrees r)}};
+    "by" {congr!{L L L} Target.mul _ _ _ _ (Evaluation.monicAgrees q) (Evaluation.rawAgrees r)}};
 \definition otherEvaluateFactor: \forall (p, q, r: Coefficients) ->
   Raw.asPolynomial p = Abstract.mul (asPolynomial q) (Raw.asPolynomial r) ->
   Other.value p = Output.mul (Other.monicValue q) (Other.value r) :=
@@ -21,21 +22,29 @@
     "=" {Output.mul (OtherEvaluation.apply (asPolynomial q)) (OtherEvaluation.apply (Raw.asPolynomial r))}
     "by" {OtherEvaluation.laws.mul (asPolynomial q) (Raw.asPolynomial r)}
     "=" {Output.mul (Other.monicValue q) (Other.value r)}
-    "by" {congr2!{M M M} Output.mul _ _ _ _ (OtherEvaluation.monicAgrees q) (OtherEvaluation.rawAgrees r)}};
+    "by" {congr!{M M M} Output.mul _ _ _ _ (OtherEvaluation.monicAgrees q) (OtherEvaluation.rawAgrees r)}};
 \definition forward: \forall (minimal: Minimal) -> Other.monicValue minimal.polynomial.coefficients = Output.zero ->
   \forall (p: Coefficients) -> value p = Target.zero -> Other.value p = Output.zero := \block {
   \fun (minimal: Minimal)(root: _)(p: Coefficients)(vanishes: _) \then
   \takefrom quotient: Divides[minimal, p] \by divides minimal p vanishes \then
-  \return trans!{M} _ _ _ (otherEvaluateFactor p minimal.polynomial.coefficients quotient.quotient quotient.equation)
-    (trans!{M} _ _ _ (congr!{M M} (\fun (a: M) => Output.mul a (Other.value quotient.quotient)) _ _ root)
-      (output.ring.ring.semiring.zeroAbsorbsLeft (Other.value quotient.quotient)))
+  \return eq_reason_in!{M _
+    "=" _ "by" { otherEvaluateFactor p minimal.polynomial.coefficients quotient.quotient quotient.equation }
+    "=" _ "by" { congr!{M M} (\fun (a: M) => Output.mul a (Other.value quotient.quotient)) _ _ root }
+    "=" _ "by" { output.ring.ring.semiring.zeroAbsorbsLeft (Other.value quotient.quotient) }
+  }
 };
 \definition monicRawValue: \forall (p: Coefficients) -> value (Raw.monic p) = monicValue p :=
-  \fun (p: Coefficients) => trans!{L} _ _ _ (sym!{L} _ _ (Evaluation.rawAgrees (Raw.monic p)))
-    (trans!{L} _ _ _ (congr!{Abstract.Carrier L} Evaluation.apply _ _ (Raw.monicLaw p)) (Evaluation.monicAgrees p));
+  \fun (p: Coefficients) => eq_reason_in!{L _
+    "=" _ "by" { sym!{L} _ _ (Evaluation.rawAgrees (Raw.monic p)) }
+    "=" _ "by" { congr!{Abstract.Carrier L} Evaluation.apply _ _ (Raw.monicLaw p) }
+    "=" _ "by" { Evaluation.monicAgrees p }
+  };
 \definition otherMonicRawValue: \forall (p: Coefficients) -> Other.value (Raw.monic p) = Other.monicValue p :=
-  \fun (p: Coefficients) => trans!{M} _ _ _ (sym!{M} _ _ (OtherEvaluation.rawAgrees (Raw.monic p)))
-    (trans!{M} _ _ _ (congr!{Abstract.Carrier M} OtherEvaluation.apply _ _ (Raw.monicLaw p)) (OtherEvaluation.monicAgrees p));
+  \fun (p: Coefficients) => eq_reason_in!{M _
+    "=" _ "by" { sym!{M} _ _ (OtherEvaluation.rawAgrees (Raw.monic p)) }
+    "=" _ "by" { congr!{Abstract.Carrier M} OtherEvaluation.apply _ _ (Raw.monicLaw p) }
+    "=" _ "by" { OtherEvaluation.monicAgrees p }
+  };
 \structure Matching: \Set := {
   polynomial: Other.Minimal,
   sourceRoot: monicValue polynomial.polynomial.coefficients = Target.zero,
@@ -78,9 +87,11 @@
 \definition backward: \forall (matching: Matching)(p: Coefficients) -> Other.value p = Output.zero -> value p = Target.zero := \block {
   \fun (matching: Matching)(p: Coefficients)(root: _) \then
   \takefrom quotient: Other.Divides[matching.polynomial, p] \by Other.divides matching.polynomial p root \then
-  \return trans!{L} _ _ _ (evaluateFactor p matching.polynomial.polynomial.coefficients quotient.quotient quotient.equation)
-    (trans!{L} _ _ _ (congr!{L L} (\fun (a: L) => Target.mul a (value quotient.quotient)) _ _ matching.sourceRoot)
-      (target.ring.ring.semiring.zeroAbsorbsLeft (value quotient.quotient)))
+  \return eq_reason_in!{L _
+    "=" _ "by" { evaluateFactor p matching.polynomial.polynomial.coefficients quotient.quotient quotient.equation }
+    "=" _ "by" { congr!{L L} (\fun (a: L) => Target.mul a (value quotient.quotient)) _ _ matching.sourceRoot }
+    "=" _ "by" { target.ring.ring.semiring.zeroAbsorbsLeft (value quotient.quotient) }
+  }
 };
 \definition EquivalentKernels: \Prop := \forall (p: Coefficients) -> Logic.PropEquiv[value p = Target.zero, Other.value p = Output.zero];
 \definition kernelEquivalence: Infinite.Infinite -> \forall (minimal: Minimal) ->

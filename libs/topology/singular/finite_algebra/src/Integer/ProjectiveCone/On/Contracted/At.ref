@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition z: I.Int^ := I.Int^::ofNat n;
 \definition next: I.Int^ := Degrees.next z;
 \definition twice: I.Int^ := Degrees.next next;
@@ -112,11 +113,12 @@
 \import algebra.Group[].Of[Carrier := P.family.Carrier z, group := PLaws.additive] \as PGroup;
 \definition sourceBalance[a, b, c: P.family.Carrier z]:
   PGroup.add (PGroup.neg a) (PGroup.add b (PGroup.neg c)) = PGroup.difference b (PGroup.add a c) :=
-  trans!{{P.family.Carrier z}} _ _ _ (sym!{{P.family.Carrier z}} _ _ (PGroup.assoc (PGroup.neg a) b (PGroup.neg c)))
-    (trans!{{P.family.Carrier z}} _ _ _
-      (congr!{{P.family.Carrier z} {P.family.Carrier z}} (\fun (v: P.family.Carrier z) => PGroup.add v (PGroup.neg c)) _ _ (PGroup.comm (PGroup.neg a) b))
-      (trans!{{P.family.Carrier z}} _ _ _ (PGroup.assoc b (PGroup.neg a) (PGroup.neg c))
-        (congr!{{P.family.Carrier z} {P.family.Carrier z}} (PGroup.add b) _ _ (sym!{{P.family.Carrier z}} _ _ (PGroup.negAdd a c)))));
+  eq_reason_in!{{P.family.Carrier z} _
+    "=" _ "by" { sym!{{P.family.Carrier z}} _ _ (PGroup.assoc (PGroup.neg a) b (PGroup.neg c)) }
+    "=" _ "by" { congr!{{P.family.Carrier z} {P.family.Carrier z}} (\fun (v: P.family.Carrier z) => PGroup.add v (PGroup.neg c)) _ _ (PGroup.comm (PGroup.neg a) b) }
+    "=" _ "by" { PGroup.assoc b (PGroup.neg a) (PGroup.neg c) }
+    "=" _ "by" { congr!{{P.family.Carrier z} {P.family.Carrier z}} (PGroup.add b) _ _ (sym!{{P.family.Carrier z}} _ _ (PGroup.negAdd a c)) }
+  };
 \definition sourceEquation[x: P.family.Carrier z]:
   PGroup.difference ((backward).apply ((f).apply z x)) x =
     PGroup.add ((P.differential).apply next ((sourceHomotopy).apply x)) ((lowerBlock).apply ((P.differential).apply z x)) :=
@@ -159,15 +161,18 @@
 \definition targetBalance[a, b, c, x: Q.family.Carrier next]:
   x = QNextGroup.add (QNextGroup.add a b) c ->
   QNextGroup.difference b x = QNextGroup.add (QNextGroup.neg a) (QNextGroup.neg c) :=
-  \fun (equation: _) => trans!{{Q.family.Carrier next}} _ _ _
-    (QNextGroup.balancedDifference b x QNextGroup.zero (QNextGroup.add a c)
+  \fun (equation: _) => eq_reason_in!{{Q.family.Carrier next} _
+    "=" _ "by" { QNextGroup.balancedDifference b x QNextGroup.zero (QNextGroup.add a c)
       (trans!{{Q.family.Carrier next}} _ _ _
-        (sym!{{Q.family.Carrier next}} _ _ (trans!{{Q.family.Carrier next}} _ _ _ equation
-          (trans!{{Q.family.Carrier next}} _ _ _
-            (congr!{{Q.family.Carrier next} {Q.family.Carrier next}} (\fun (v: Q.family.Carrier next) => QNextGroup.add v c) _ _ (QNextGroup.comm a b))
-            (QNextGroup.assoc b a c))))
-        (sym!{{Q.family.Carrier next}} _ _ (QNextGroup.zeroLeft x))))
-    (trans!{{Q.family.Carrier next}} _ _ _ (QNextGroup.zeroLeft (QNextGroup.neg (QNextGroup.add a c))) (QNextGroup.negAdd a c));
+        (sym!{{Q.family.Carrier next}} _ _ (eq_reason_in!{{ Q.family.Carrier next } _
+          "=" _ "by" equation
+          "=" _ "by" { congr!{{Q.family.Carrier next} {Q.family.Carrier next}} (\fun (v: Q.family.Carrier next) => QNextGroup.add v c) _ _ (QNextGroup.comm a b) }
+          "=" _ "by" { QNextGroup.assoc b a c }
+        }))
+        (sym!{{Q.family.Carrier next}} _ _ (QNextGroup.zeroLeft x))) }
+    "=" _ "by" { QNextGroup.zeroLeft (QNextGroup.neg (QNextGroup.add a c)) }
+    "=" _ "by" { QNextGroup.negAdd a c }
+  };
 \definition targetEquation[y: Q.family.Carrier next]:
   QNextGroup.difference ((f).apply next (upperBackward y)) y =
     QNextGroup.add (QNextGroup.neg ((Q.differential).apply twice (upperFirst y)))

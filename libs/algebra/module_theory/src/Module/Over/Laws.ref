@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition additive: Alg.CommutativeGroup[V] := Ring.ringModuleAsCommutativeGroup R V ring space;
 \import algebra.Group[].Of[Carrier := V, group := additive] \as Group;
 \definition zero: V := space.zero;
@@ -7,26 +8,33 @@
 
 \definition scaleZero: \forall (a: R) -> scale a zero = zero :=
   \fun (a: _) => Group.cancelLeft (scale a zero) (scale a zero) zero
-    (trans!{V} _ _ _
-      (trans!{V} _ _ _ (sym!{V} _ _ (space.vectorAdd a zero zero))
-        (congr!{V V} (scale a) _ _ (Group.zeroLeft zero)))
-      (sym!{V} _ _ (Group.zeroRight (scale a zero))));
+    (eq_reason_in!{V _
+      "=" _ "by" { sym!{V} _ _ (space.vectorAdd a zero zero) }
+      "=" _ "by" { congr!{V V} (scale a) _ _ (Group.zeroLeft zero) }
+      "=" _ "by" { sym!{V} _ _ (Group.zeroRight (scale a zero)) }
+    });
 \definition zeroScale: \forall (x: V) -> scale (ring.zero) x = zero :=
   \fun (x: _) => Group.cancelLeft (scale (ring.zero) x) (scale (ring.zero) x) zero
-    (trans!{V} _ _ _
-      (trans!{V} _ _ _ (sym!{V} _ _ (space.scalarAdd (ring.zero) (ring.zero) x))
-        (congr!{R V} (\fun (a: _) => scale a x) _ _ (Scalars.zeroLeft (ring.zero))))
-      (sym!{V} _ _ (Group.zeroRight (scale (ring.zero) x))));
+    (eq_reason_in!{V _
+      "=" _ "by" { sym!{V} _ _ (space.scalarAdd (ring.zero) (ring.zero) x) }
+      "=" _ "by" { congr!{R V} (\fun (a: _) => scale a x) _ _ (Scalars.zeroLeft (ring.zero)) }
+      "=" _ "by" { sym!{V} _ _ (Group.zeroRight (scale (ring.zero) x)) }
+    });
 \definition scaleNeg: \forall (a: R)(x: V) -> scale a (neg x) = neg (scale a x) :=
   \fun (a: _)(x: _) => Group.inverseUnique (scale a x) (scale a (neg x))
-    (trans!{V} _ _ _ (sym!{V} _ _ (space.vectorAdd a (neg x) x))
-      (trans!{V} _ _ _ (congr!{V V} (scale a) _ _ (Group.inverseLeft x)) (scaleZero a)));
+    (eq_reason_in!{V _
+      "=" _ "by" { sym!{V} _ _ (space.vectorAdd a (neg x) x) }
+      "=" _ "by" { congr!{V V} (scale a) _ _ (Group.inverseLeft x) }
+      "=" _ "by" { scaleZero a }
+    });
 \definition negativeOne: \forall (x: V) -> scale (ring.neg (ring.one)) x = neg x :=
   \fun (x: _) => Group.inverseUnique x (scale (ring.neg (ring.one)) x)
-    (trans!{V} _ _ _
-      (congr!{V V} (add (scale (ring.neg (ring.one)) x)) _ _ (sym!{V} _ _ (space.scalarOne x)))
-      (trans!{V} _ _ _ (sym!{V} _ _ (space.scalarAdd (ring.neg (ring.one)) (ring.one) x))
-        (trans!{V} _ _ _ (congr!{R V} (\fun (a: _) => scale a x) _ _ (ring.additiveInverse (ring.one))) (zeroScale x))));
+    (eq_reason_in!{V _
+      "=" _ "by" { congr!{V V} (add (scale (ring.neg (ring.one)) x)) _ _ (sym!{V} _ _ (space.scalarOne x)) }
+      "=" _ "by" { sym!{V} _ _ (space.scalarAdd (ring.neg (ring.one)) (ring.one) x) }
+      "=" _ "by" { congr!{R V} (\fun (a: _) => scale a x) _ _ (ring.additiveInverse (ring.one)) }
+      "=" _ "by" { zeroScale x }
+    });
 \definition scaleDifference: \forall (a: R)(x, y: V) ->
   scale a (Group.difference x y) = Group.difference (scale a x) (scale a y) :=
   \fun (a: _)(x, y: _) => trans!{V} _ _ _ (space.vectorAdd a x (neg y))
@@ -39,5 +47,8 @@
 \definition inverseRight: _ := Group.inverseRight;
 \definition negScalar: \forall (a: R)(x: V) -> scale (ring.neg a) x = neg (scale a x) :=
   \fun (a: R)(x: V) => Group.inverseUnique (scale a x) (scale (ring.neg a) x)
-    (trans!{V} _ _ _ (sym!{V} _ _ (space.scalarAdd (ring.neg a) a x))
-      (trans!{V} _ _ _ (congr!{R V} (\fun (r: R) => scale r x) _ _ (ring.additiveInverse a)) (zeroScale x)));
+    (eq_reason_in!{V _
+      "=" _ "by" { sym!{V} _ _ (space.scalarAdd (ring.neg a) a x) }
+      "=" _ "by" { congr!{R V} (\fun (r: R) => scale r x) _ _ (ring.additiveInverse a) }
+      "=" _ "by" { zeroScale x }
+    });

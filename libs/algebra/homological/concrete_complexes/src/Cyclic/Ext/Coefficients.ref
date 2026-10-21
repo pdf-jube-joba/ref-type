@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Presentation.Cohomology[A := Z2.bundle] \as Source;
 \import Presentation.Cohomology[A := Z4.bundle] \as Target;
 \import Source.Mapping[B := Z4.bundle, u := inclusion] \as InclusionComparison;
@@ -12,21 +13,20 @@
 \definition inclusionQuotientZero: \forall (q: SQ.Carrier) -> InclusionComparison.map.apply q = TQ.moduleSpace.zero := SQ.induction
   (\fun (q: SQ.Carrier) => InclusionComparison.map.apply q = TQ.moduleSpace.zero)
   (Z2.induction (\fun (x: Z2.Carrier) => InclusionComparison.map.apply (SQ.class x) = TQ.moduleSpace.zero)
-    (\fun (r: Int.Int^) => trans!{TQ.Carrier} _ _ _
-      (InclusionComparison.onCoefficientClass (Z2.class r))
-      (trans!{TQ.Carrier} _ _ _
-        (congr!{Z4.Carrier TQ.Carrier} TQ.class _ _ (inclusionOnClass r))
-        (trans!{TQ.Carrier} _ _ _
-          (congr!{Z4.Carrier TQ.Carrier} TQ.class _ _ (sym!{Z4.Carrier} _ _ (Z4.onScalar two r)))
-          (TQ.classZero (Z4.space.smul two (Z4.class r)) (TargetImage.member Target.multiplication (Z4.class r)))))));
+    (\fun (r: Int.Int^) => eq_reason_in!{TQ.Carrier _
+      "=" _ "by" { InclusionComparison.onCoefficientClass (Z2.class r) }
+      "=" _ "by" { congr!{Z4.Carrier TQ.Carrier} TQ.class _ _ (inclusionOnClass r) }
+      "=" _ "by" { congr!{Z4.Carrier TQ.Carrier} TQ.class _ _ (sym!{Z4.Carrier} _ _ (Z4.onScalar two r)) }
+      "=" _ "by" { TQ.classZero (Z4.space.smul two (Z4.class r)) (TargetImage.member Target.multiplication (Z4.class r)) }
+    }));
 \import Modules.Hom[V := TQ.Carrier, W := H.Carrier, source := TQ.moduleSpace, target := H.space] \as BackwardMaps;
 \definition inclusionZero: \forall (q: SH.Carrier) -> (InclusionMap.map inclusion).apply q = H.space.zero :=
-  \fun (q: SH.Carrier) => trans!{H.Carrier} _ _ _
-    (sym!{H.Carrier} _ _ (Target.isomorphism.leftInverse ((InclusionMap.map inclusion).apply q)))
-    (trans!{H.Carrier} _ _ _
-      (congr!{TQ.Carrier H.Carrier} (Target.isomorphism.backward.apply) _ _
-        (trans!{TQ.Carrier} _ _ _ (InclusionComparison.naturality q) (inclusionQuotientZero (Source.isomorphism.forward.apply q))))
-      (BackwardMaps.zeroPreserved Target.isomorphism.backward));
+  \fun (q: SH.Carrier) => eq_reason_in!{H.Carrier _
+    "=" _ "by" { sym!{H.Carrier} _ _ (Target.isomorphism.leftInverse ((InclusionMap.map inclusion).apply q)) }
+    "=" _ "by" { congr!{TQ.Carrier H.Carrier} (Target.isomorphism.backward.apply) _ _
+        (trans!{TQ.Carrier} _ _ _ (InclusionComparison.naturality q) (inclusionQuotientZero (Source.isomorphism.forward.apply q))) }
+    "=" _ "by" { BackwardMaps.zeroPreserved Target.isomorphism.backward }
+  };
 \import Z2.Reduction[k := Arithmetic.one] \as SelfReduction;
 \import SelfReduction.Modulo[] \as SelfModulo;
 \import Projection.Modulo[] \as TargetModulo;
@@ -35,13 +35,13 @@
   SelfModulo.forward.apply (ProjectionComparison.map.apply q) = TargetModulo.forward.apply q := TQ.induction
     (\fun (q: TQ.Carrier) => SelfModulo.forward.apply (ProjectionComparison.map.apply q) = TargetModulo.forward.apply q)
     (Z4.induction (\fun (x: Z4.Carrier) => SelfModulo.forward.apply (ProjectionComparison.map.apply (TQ.class x)) = TargetModulo.forward.apply (TQ.class x))
-      (\fun (r: Int.Int^) => trans!{Z2.Carrier} _ _ _
-        (congr!{SQ.Carrier Z2.Carrier} (SelfModulo.forward.apply) _ _ (ProjectionComparison.onCoefficientClass (Z4.class r)))
-        (trans!{Z2.Carrier} _ _ _ (SelfModulo.forwardOnClass (projection.apply (Z4.class r)))
-          (trans!{Z2.Carrier} _ _ _
-            (congr!{Z2.Carrier Z2.Carrier} (SelfReduction.map.apply) _ _ (projectionOnClass r))
-            (trans!{Z2.Carrier} _ _ _ (SelfReduction.onClass r)
-              (sym!{Z2.Carrier} _ _ (trans!{Z2.Carrier} _ _ _ (TargetModulo.forwardOnClass (Z4.class r)) (projectionOnClass r))))))));
+      (\fun (r: Int.Int^) => eq_reason_in!{Z2.Carrier _
+        "=" _ "by" { congr!{SQ.Carrier Z2.Carrier} (SelfModulo.forward.apply) _ _ (ProjectionComparison.onCoefficientClass (Z4.class r)) }
+        "=" _ "by" { SelfModulo.forwardOnClass (projection.apply (Z4.class r)) }
+        "=" _ "by" { congr!{Z2.Carrier Z2.Carrier} (SelfReduction.map.apply) _ _ (projectionOnClass r) }
+        "=" _ "by" { SelfReduction.onClass r }
+        "=" _ "by" { sym!{Z2.Carrier} _ _ (trans!{Z2.Carrier} _ _ _ (TargetModulo.forwardOnClass (Z4.class r)) (projectionOnClass r)) }
+      }));
 \definition projectionIdentity: \forall (q: H.Carrier) ->
   SourceComputation.isomorphism.forward.apply ((ProjectionMap.map projection).apply q) = isomorphism.forward.apply q :=
     \fun (q: H.Carrier) => trans!{Z2.Carrier} _ _ _

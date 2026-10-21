@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import manifolds.Differential[n := n, m := m].Between[M := M, N := N].At[f := f, x := x] \as FirstD;
 \import manifolds.Differential[n := m, m := l].Between[M := N, N := P].At[f := g, x := FirstMaps.apply f x] \as SecondD;
 \import manifolds.Differential[n := n, m := l].Between[M := M, N := P].At[f := Composition.map, x := x] \as CompositeD;
@@ -6,15 +7,14 @@
   SourcePointwise.value (CompositeMap.apply omega) x arguments = SourcePointwise.value (FirstMap.apply (SecondMap.apply omega)) x arguments := \block {
   \fun (omega: TargetForms.Form k)(arguments: Fin.Fin k -> SourceTangent.Vector x) \then
   \let mapped: Fin.Fin k -> MiddleTangent.Vector (FirstMaps.apply f x) := \fun (i: Fin.Fin k) => FirstD.value.apply (arguments i) \then
-  \return trans!{{Reals.Real}} _ _ _
-    (CompositeMap.formula omega x arguments)
-    (trans!{{Reals.Real}} _ _ _
-      (congr!{{Fin.Fin k -> TargetTangent.Vector (SecondMaps.apply g (FirstMaps.apply f x))} {Reals.Real}}
+  \return eq_reason_in!{{Reals.Real} _
+    "=" _ "by" { CompositeMap.formula omega x arguments }
+    "=" _ "by" { congr!{{Fin.Fin k -> TargetTangent.Vector (SecondMaps.apply g (FirstMaps.apply f x))} {Reals.Real}}
         (TargetPointwise.value omega (SecondMaps.apply g (FirstMaps.apply f x))) _ _
         (\axiom:funext((\fun (i: Fin.Fin k) => CompositeD.value.apply (arguments i)),
           (\fun (i: Fin.Fin k) => SecondD.value.apply (FirstD.value.apply (arguments i))),
-          \fun (i: Fin.Fin k) => Chain.pointwise (arguments i))))
-      (trans!{{Reals.Real}} _ (MiddlePointwise.value (SecondMap.apply omega) (FirstMaps.apply f x) mapped) _
-        (sym!{{Reals.Real}} _ _ (SecondMap.formula omega (FirstMaps.apply f x) mapped))
-        (sym!{{Reals.Real}} _ _ (FirstMap.formula (SecondMap.apply omega) x arguments))))
+          \fun (i: Fin.Fin k) => Chain.pointwise (arguments i))) }
+    "=" { MiddlePointwise.value (SecondMap.apply omega) (FirstMaps.apply f x) mapped } "by" { sym!{{Reals.Real}} _ _ (SecondMap.formula omega (FirstMaps.apply f x) mapped) }
+    "=" _ "by" { sym!{{Reals.Real}} _ _ (FirstMap.formula (SecondMap.apply omega) x arguments) }
+  }
 };

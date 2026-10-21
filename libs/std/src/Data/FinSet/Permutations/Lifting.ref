@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \root.Data[].FinSet[].Permutations[n := N.Nat^::succ n] \as Large;
 \import \root.Data[].FinSet[].Tuples[A := Fin (N.Nat^::succ n)] \as Tuples;
 \definition forward[p: Permutation]: Fin (N.Nat^::succ n) -> Fin (N.Nat^::succ n) :=
@@ -17,20 +18,20 @@
   \fun (p: Permutation) => Tuples.extensionality n (\fun (i: Fin (N.Nat^::succ n)) => backward p (forward p i)) (\fun (i: Fin (N.Nat^::succ n)) => i)
     (trans!{{Fin (N.Nat^::succ n)}} (backward p (forward p (zero n))) (backward p (zero n)) (zero n)
       (congr!{{Fin (N.Nat^::succ n)} {Fin (N.Nat^::succ n)}} (backward p) (forward p (zero n)) (zero n) (forwardZero p)) (backwardZero p))
-    (\fun (i: Fin n) => trans!{{Fin (N.Nat^::succ n)}} (backward p (forward p (succ n i))) (backward p (succ n (p.forward i))) (succ n i)
-      (congr!{{Fin (N.Nat^::succ n)} {Fin (N.Nat^::succ n)}} (backward p) (forward p (succ n i)) (succ n (p.forward i)) (forwardSuccessor p i))
-      (trans!{{Fin (N.Nat^::succ n)}} (backward p (succ n (p.forward i))) (succ n (p.backward (p.forward i))) (succ n i)
-        (backwardSuccessor p (p.forward i))
-        (congr!{{Fin n} {Fin (N.Nat^::succ n)}} (succ n) (p.backward (p.forward i)) i ((laws p).leftInverse i))));
+    (\fun (i: Fin n) => eq_reason_in!{{Fin (N.Nat^::succ n)} { backward p (forward p (succ n i)) }
+      "=" { backward p (succ n (p.forward i)) } "by" { congr!{{Fin (N.Nat^::succ n)} {Fin (N.Nat^::succ n)}} (backward p) (forward p (succ n i)) (succ n (p.forward i)) (forwardSuccessor p i) }
+      "=" { succ n (p.backward (p.forward i)) } "by" { backwardSuccessor p (p.forward i) }
+      "=" { succ n i } "by" { congr!{{Fin n} {Fin (N.Nat^::succ n)}} (succ n) (p.backward (p.forward i)) i ((laws p).leftInverse i) }
+    });
 \definition rightFunction: \forall (p: Permutation) -> (\fun (i: Fin (N.Nat^::succ n)) => forward p (backward p i)) = (\fun (i: Fin (N.Nat^::succ n)) => i) :=
   \fun (p: Permutation) => Tuples.extensionality n (\fun (i: Fin (N.Nat^::succ n)) => forward p (backward p i)) (\fun (i: Fin (N.Nat^::succ n)) => i)
     (trans!{{Fin (N.Nat^::succ n)}} (forward p (backward p (zero n))) (forward p (zero n)) (zero n)
       (congr!{{Fin (N.Nat^::succ n)} {Fin (N.Nat^::succ n)}} (forward p) (backward p (zero n)) (zero n) (backwardZero p)) (forwardZero p))
-    (\fun (i: Fin n) => trans!{{Fin (N.Nat^::succ n)}} (forward p (backward p (succ n i))) (forward p (succ n (p.backward i))) (succ n i)
-      (congr!{{Fin (N.Nat^::succ n)} {Fin (N.Nat^::succ n)}} (forward p) (backward p (succ n i)) (succ n (p.backward i)) (backwardSuccessor p i))
-      (trans!{{Fin (N.Nat^::succ n)}} (forward p (succ n (p.backward i))) (succ n (p.forward (p.backward i))) (succ n i)
-        (forwardSuccessor p (p.backward i))
-        (congr!{{Fin n} {Fin (N.Nat^::succ n)}} (succ n) (p.forward (p.backward i)) i ((laws p).rightInverse i))));
+    (\fun (i: Fin n) => eq_reason_in!{{Fin (N.Nat^::succ n)} { forward p (backward p (succ n i)) }
+      "=" { forward p (succ n (p.backward i)) } "by" { congr!{{Fin (N.Nat^::succ n)} {Fin (N.Nat^::succ n)}} (forward p) (backward p (succ n i)) (succ n (p.backward i)) (backwardSuccessor p i) }
+      "=" { succ n (p.forward (p.backward i)) } "by" { forwardSuccessor p (p.backward i) }
+      "=" { succ n i } "by" { congr!{{Fin n} {Fin (N.Nat^::succ n)}} (succ n) (p.forward (p.backward i)) i ((laws p).rightInverse i) }
+    });
 \definition lift[p: Permutation]: Large.Permutation := \into[Large.Data](data p, { d: Large.Data \where Large.Laws[d] }) \by {
   Large.Laws[data p] {
     leftInverse := \fun (i: Fin (N.Nat^::succ n)) => congr!{{Fin (N.Nat^::succ n) -> Fin (N.Nat^::succ n)} {Fin (N.Nat^::succ n)}}

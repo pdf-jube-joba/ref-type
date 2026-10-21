@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition degree: N.Nat^ := N.Nat^::succ n;
 \import \parent.Shift[n := degree] \as Upper;
 \import \parent.Shift[n := n] \as Lower;
@@ -11,19 +12,20 @@
 \definition upper: Unique -> \forall (sigma: Simplices.Carrier degree) ->
   (Natural.boundary degree).apply ((Upper.map).apply (Natural.generator degree sigma)) =
   Sums.sum (N.Nat^::succ (N.Nat^::succ degree)) (\fun (_: Fin.Fin (N.Nat^::succ (N.Nat^::succ degree))) => value) :=
-  \fun (unique: Unique)(sigma: Simplices.Carrier degree) => trans!{{Natural.Carrier degree}} _ _ _
-    (congr!{{Natural.Carrier (N.Nat^::succ degree)} {Natural.Carrier degree}} ((Natural.boundary degree).apply) _ _ (Upper.onGenerator sigma))
-    (trans!{{Natural.Carrier degree}} _ _ _ (UpperBoundary.onGenerator (simplex (N.Nat^::succ degree)))
-      (Sums.congruent (N.Nat^::succ (N.Nat^::succ degree)) _ _
-        (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ degree))) => generatorUnique unique degree (Simplices.face degree i (simplex (N.Nat^::succ degree))))));
+  \fun (unique: Unique)(sigma: Simplices.Carrier degree) => eq_reason_in!{{Natural.Carrier degree} _
+    "=" _ "by" { congr!{{Natural.Carrier (N.Nat^::succ degree)} {Natural.Carrier degree}} ((Natural.boundary degree).apply) _ _ (Upper.onGenerator sigma) }
+    "=" _ "by" { UpperBoundary.onGenerator (simplex (N.Nat^::succ degree)) }
+    "=" _ "by" { Sums.congruent (N.Nat^::succ (N.Nat^::succ degree)) _ _
+        (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ degree))) => generatorUnique unique degree (Simplices.face degree i (simplex (N.Nat^::succ degree)))) }
+  };
 \definition lower: \forall (sigma: Simplices.Carrier degree) ->
   (Lower.map).apply ((Natural.boundary n).apply (Natural.generator degree sigma)) =
   Sums.sum (N.Nat^::succ degree) (\fun (_: Fin.Fin (N.Nat^::succ degree)) => value) :=
-  \fun (sigma: Simplices.Carrier degree) => trans!{{Natural.Carrier degree}} _ _ _
-    (congr!{{Natural.Carrier n} {Natural.Carrier degree}} ((Lower.map).apply) _ _ (LowerBoundary.onGenerator sigma))
-    (trans!{{Natural.Carrier degree}} _ _ _
-      (Mapping.law Lower.map (N.Nat^::succ degree) (\fun (i: Fin.Fin (N.Nat^::succ degree)) => Natural.generator n (Simplices.face n i sigma)))
-      (Sums.congruent (N.Nat^::succ degree) _ _ (\fun (i: Fin.Fin (N.Nat^::succ degree)) => Lower.onGenerator (Simplices.face n i sigma))));
+  \fun (sigma: Simplices.Carrier degree) => eq_reason_in!{{Natural.Carrier degree} _
+    "=" _ "by" { congr!{{Natural.Carrier n} {Natural.Carrier degree}} ((Lower.map).apply) _ _ (LowerBoundary.onGenerator sigma) }
+    "=" _ "by" { Mapping.law Lower.map (N.Nat^::succ degree) (\fun (i: Fin.Fin (N.Nat^::succ degree)) => Natural.generator n (Simplices.face n i sigma)) }
+    "=" _ "by" { Sums.congruent (N.Nat^::succ degree) _ _ (\fun (i: Fin.Fin (N.Nat^::succ degree)) => Lower.onGenerator (Simplices.face n i sigma)) }
+  };
 \import Modules.Hom[V := Natural.Carrier (N.Nat^::succ degree), W := Natural.Carrier degree, source := Natural.space (N.Nat^::succ degree), target := Natural.space degree]
   .Composition[U := Natural.Carrier degree, domain := Natural.space degree] \as UpperComposition;
 \import Modules.Hom[V := Natural.Carrier n, W := Natural.Carrier degree, source := Natural.space n, target := Natural.space degree]
@@ -32,11 +34,11 @@
 \import Modules.End[V := Natural.Carrier degree, space := Natural.space degree] \as Identity;
 \definition sum: End.Map := End.plus (UpperComposition.compose (Natural.boundary degree) Upper.map) (LowerComposition.compose Lower.map (Natural.boundary n));
 \definition onGenerator: Unique -> \forall (sigma: Simplices.Carrier degree) -> (sum).apply (Natural.generator degree sigma) = Natural.generator degree sigma :=
-  \fun (unique: Unique)(sigma: Simplices.Carrier degree) => trans!{{Natural.Carrier degree}} _ _ _
-    (congr2!{{Natural.Carrier degree} {Natural.Carrier degree} {Natural.Carrier degree}} Values.add _ _ _ _ (upper unique sigma) (lower sigma))
-    (trans!{{Natural.Carrier degree}} _ _ _
-      (Group.addDifference value (Sums.sum (N.Nat^::succ degree) (\fun (_: Fin.Fin (N.Nat^::succ degree)) => value)))
-      (sym!{{Natural.Carrier degree}} _ _ (generatorUnique unique degree sigma)));
+  \fun (unique: Unique)(sigma: Simplices.Carrier degree) => eq_reason_in!{{Natural.Carrier degree} _
+    "=" _ "by" { congr!{{Natural.Carrier degree} {Natural.Carrier degree} {Natural.Carrier degree}} Values.add _ _ _ _ (upper unique sigma) (lower sigma) }
+    "=" _ "by" { Group.addDifference value (Sums.sum (N.Nat^::succ degree) (\fun (_: Fin.Fin (N.Nat^::succ degree)) => value)) }
+    "=" _ "by" { sym!{{Natural.Carrier degree}} _ _ (generatorUnique unique degree sigma) }
+  };
 \import Modules.Free[Generators := Simplices.Carrier degree].To[W := Natural.Carrier degree, target := Natural.space degree] \as Free;
 \definition mapLaw: Unique -> sum = Identity.identity := \fun (unique: Unique) => Free.ext sum Identity.identity (onGenerator unique);
 \definition law: Unique -> \forall (x: Natural.Carrier degree) ->

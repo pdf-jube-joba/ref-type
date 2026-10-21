@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 /* Head and orthogonal-complement coordinates in the next dimension. */
 \import std.Data[].Nat[] \as N;
 \import \root.Euclidean[n := N.Nat^::succ n] \as Next;
@@ -18,24 +19,30 @@
 \definition splitDot: \forall (x, y: Next.Vector) -> Next.dot x y = R.add (R.mul (head x) (head y)) (dot (tail x) (tail y)) :=
   \fun (x, y: Next.Vector) => \refl(Next.dot x y);
 \definition embeddedDot: \forall (x, y: Vector) -> Next.dot (embed x) (embed y) = dot x y := \fun (x, y: Vector) =>
-  trans!{R.Real} _ _ _ (splitDot (embed x) (embed y))
-    (trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.add _ _ _ _
-      (trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.mul _ _ _ _ (embedHead x) (embedHead y)) (Arithmetic.fieldMulZeroLeft R.zero))
-      (congr2!{Vector Vector R.Real} dot _ _ _ _ (embedTail x) (embedTail y))) (Arithmetic.addZeroLeft (dot x y)));
+  eq_reason_in!{R.Real _
+    "=" _ "by" { splitDot (embed x) (embed y) }
+    "=" _ "by" { congr!{R.Real R.Real R.Real} R.add _ _ _ _
+      (trans!{R.Real} _ _ _ (congr!{R.Real R.Real R.Real} R.mul _ _ _ _ (embedHead x) (embedHead y)) (Arithmetic.fieldMulZeroLeft R.zero))
+      (congr!{Vector Vector R.Real} dot _ _ _ _ (embedTail x) (embedTail y)) }
+    "=" _ "by" { Arithmetic.addZeroLeft (dot x y) }
+  };
 \definition firstDot: \forall (x: Next.Vector) -> Next.dot first x = head x := \fun (x: Next.Vector) =>
-  trans!{R.Real} _ _ _ (splitDot first x)
-    (trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.add _ _ _ _
+  eq_reason_in!{R.Real _
+    "=" _ "by" { splitDot first x }
+    "=" _ "by" { congr!{R.Real R.Real R.Real} R.add _ _ _ _
       (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (a: R.Real) => R.mul a (head x)) _ _ firstHead) (Arithmetic.fieldMulOneLeft (head x)))
-      (trans!{R.Real} _ _ _ (congr!{Vector R.Real} (\fun (y: Vector) => dot y (tail x)) _ _ firstTail) (form.zeroLeft (tail x)))) (Arithmetic.addZeroRight (head x)));
+      (trans!{R.Real} _ _ _ (congr!{Vector R.Real} (\fun (y: Vector) => dot y (tail x)) _ _ firstTail) (form.zeroLeft (tail x))) }
+    "=" _ "by" { Arithmetic.addZeroRight (head x) }
+  };
 \definition firstNorm: Next.dot first first = R.one := trans!{R.Real} _ _ _ (firstDot first) firstHead;
 \definition recover[x: Next.Vector]: head x = R.zero -> embed (tail x) = x := \fun (zero: _) => Tuples.extensionality n (embed (tail x)) x
   (trans!{R.Real} _ _ _ (embedHead (tail x)) (sym!{R.Real} _ _ zero)) (\fun (i: Fin.Fin n) => Tuples.atSuccessor n R.zero (tail x) i);
 \definition decompose[x: Next.Vector]: Next.space.add (Next.space.smul (head x) first) (embed (tail x)) = x :=
   Tuples.extensionality n (Next.space.add (Next.space.smul (head x) first) (embed (tail x))) x
-    (trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.add _ _ _ _
+    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real R.Real} R.add _ _ _ _
       (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul (head x)) _ _ firstHead) (Scalars.mulOneRight (head x))) (embedHead (tail x)))
       (Arithmetic.addZeroRight (head x)))
-    (\fun (i: Fin.Fin n) => trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.add _ _ _ _
+    (\fun (i: Fin.Fin n) => trans!{R.Real} _ _ _ (congr!{R.Real R.Real R.Real} R.add _ _ _ _
       (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul (head x)) _ _ (Tuples.atSuccessor n R.one space.zero i)) (Arithmetic.fieldMulZeroRight (head x)))
       (Tuples.atSuccessor n R.zero (tail x) i)) (Arithmetic.addZeroLeft (x (Fin.succ n i))));
 \definition projection: Projections.Map := Projections.Map {
@@ -47,9 +54,12 @@
 \import \root.Classical[].On[V := Next.Vector, space := Next.space].Orthogonal[form := Next.form] \as NextOrthogonal;
 \import algebra.Groups[].On[G := Next.O, group := Next.orthogonalGroup] \as NextOperations;
 \definition headInvariant: \forall (g: Next.O) -> NextOrthogonal.action g first = first -> \forall (x: Next.Vector) -> head (NextOrthogonal.action g x) = head x :=
-  \fun (g: Next.O)(fixes: _)(x: Next.Vector) => trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (firstDot (NextOrthogonal.action g x)))
-    (trans!{R.Real} _ _ _ (congr!{Next.Vector R.Real} (\fun (y: Next.Vector) => Next.dot y (NextOrthogonal.action g x)) _ _ (sym!{Next.Vector} _ _ fixes))
-      (trans!{R.Real} _ _ _ (NextOrthogonal.preserves g first x) (firstDot x)));
+  \fun (g: Next.O)(fixes: _)(x: Next.Vector) => eq_reason_in!{R.Real _
+    "=" _ "by" { sym!{R.Real} _ _ (firstDot (NextOrthogonal.action g x)) }
+    "=" _ "by" { congr!{Next.Vector R.Real} (\fun (y: Next.Vector) => Next.dot y (NextOrthogonal.action g x)) _ _ (sym!{Next.Vector} _ _ fixes) }
+    "=" _ "by" { NextOrthogonal.preserves g first x }
+    "=" _ "by" { firstDot x }
+  };
 \module Stabilizer(g: Next.O, fixes: NextOrthogonal.action g first = first);
 \import lie_algebras.Field[K := R.Real, field := Scalars.field].Endomorphisms[V := Vector, space := space] \as End;
 \import lie_algebras.Field[K := R.Real, field := Scalars.field].Endomorphisms[V := Next.Vector, space := Next.space] \as NextEnd;

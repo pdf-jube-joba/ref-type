@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import singular_cohomology.Maps[A := Geometry.Sphere, B := Geometry.Sphere, source := Spheres.topology (N.Nat^::succ n), target := Spheres.topology (N.Nat^::succ n)] \as Maps;
 \import Native.Map[C := SmallChains.complex, D := WholeChains.complex].ZeroExtension[f := SmallChains.inclusion] \as InclusionExtension;
 \definition reflection: SignedChains.Map[C := WholeExtension.complex, D := WholeExtension.complex].Map := Maps.integerPush Reflection.head Reflection.headContinuous;
@@ -20,11 +21,11 @@
 \definition naturality: \forall (q: SmallH.Homology) ->
   (WholeReflection.induced reflection).apply ((Inclusion.induced InclusionExtension.map).apply q) =
     (Inclusion.induced InclusionExtension.map).apply ((SmallReflection.induced Diagram.rightAction).apply q) :=
-  \fun (q: SmallH.Homology) => trans!{WholeH.Homology} _ _ _
-    (sym!{WholeH.Homology} _ _ (LeftComposition.compositionOnHomology reflection InclusionExtension.map q))
-    (trans!{WholeH.Homology} _ _ _
-      (congr!{InclusionMaps.Map WholeH.Homology} (\fun (f: InclusionMaps.Map) => (Inclusion.induced f).apply q) _ _ square)
-      (RightComposition.compositionOnHomology InclusionExtension.map Diagram.rightAction q));
+  \fun (q: SmallH.Homology) => eq_reason_in!{WholeH.Homology _
+    "=" _ "by" { sym!{WholeH.Homology} _ _ (LeftComposition.compositionOnHomology reflection InclusionExtension.map q) }
+    "=" _ "by" { congr!{InclusionMaps.Map WholeH.Homology} (\fun (f: InclusionMaps.Map) => (Inclusion.induced f).apply q) _ _ square }
+    "=" _ "by" { RightComposition.compositionOnHomology InclusionExtension.map Diagram.rightAction q }
+  };
 \import singular_excision.MayerVietoris[A := Geometry.Sphere].Over[source := Spheres.topology (N.Nat^::succ n)].On[cover := Cover.cover] \as CoverData;
 \import singular_subdivision.OpenCover[A := Geometry.Sphere, source := Spheres.topology (N.Nat^::succ n)].On[cover := CoverData.openCover] \as Covered;
 \import Native.Equivalence[C := SmallChains.complex, D := WholeChains.complex].ZeroExtension[e := Covered.equivalence] \as ChainComparison;
@@ -39,11 +40,11 @@
     \by (Comparison.bijective ChainComparison.equivalence).onto q \then
   \let same: (Inclusion.induced InclusionExtension.map).apply p = q :=
     \bysub(SmallH.Homology, { p: SmallH.Homology \where (Inclusion.induced InclusionExtension.map).apply p = q }, p) \then
-  \return trans!{Carrier} _ _ _
-    (sym!{Carrier} _ _ (congr!{Carrier Carrier} ((action).apply) _ _ same))
-    (trans!{Carrier} _ _ _ (naturality p)
-      (trans!{Carrier} _ _ _
-        (congr!{SmallH.Homology Carrier} ((Inclusion.induced InclusionExtension.map).apply) _ _ (\parent.Small[].action p))
-        (trans!{Carrier} _ _ _ (InclusionLinear.negativePreserved (Inclusion.induced InclusionExtension.map) p)
-          (congr!{Carrier Carrier} ((space).neg) _ _ same))))
+  \return eq_reason_in!{Carrier _
+    "=" _ "by" { sym!{Carrier} _ _ (congr!{Carrier Carrier} ((action).apply) _ _ same) }
+    "=" _ "by" { naturality p }
+    "=" _ "by" { congr!{SmallH.Homology Carrier} ((Inclusion.induced InclusionExtension.map).apply) _ _ (\parent.Small[].action p) }
+    "=" _ "by" { InclusionLinear.negativePreserved (Inclusion.induced InclusionExtension.map) p }
+    "=" _ "by" { congr!{Carrier Carrier} ((space).neg) _ _ same }
+  }
 };

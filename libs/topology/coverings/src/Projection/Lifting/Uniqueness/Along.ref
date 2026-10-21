@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Existence.Along[x := x, y := y, path := path, charts := charts] \as Neighborhoods;
 \import algebraic_topology.Interval[].Subdivision[] \as Subdivision;
 \import algebraic_topology.Interval[].Halves[] \as Halves;
@@ -8,18 +9,21 @@
 \definition Property[f: Interval.Carrier -> Interval.Carrier]: \Prop :=
   l (f Interval.start) = r (f Interval.start) -> l (f Interval.end) = r (f Interval.end);
 \definition combine: \forall (f: Interval.Carrier -> Interval.Carrier) -> Property (Subdivision.left f) -> Property (Subdivision.right f) -> Property f :=
-  \fun (f: _)(left: _)(right: _)(starts: _) => trans!{E} _ _ _
-    (congr!{Interval.Carrier E} (\fun (t: Interval.Carrier) => l (f t)) _ _ (sym!{Interval.Carrier} _ _ Halves.upperEnd))
-    (trans!{E} _ _ _
-      (right (trans!{E} _ _ _
-        (congr!{Interval.Carrier E} (\fun (t: Interval.Carrier) => l (f t)) _ _
-          (trans!{Interval.Carrier} _ _ _ Halves.upperStart (sym!{Interval.Carrier} _ _ Halves.lowerEnd)))
-        (trans!{E} _ _ _
-          (left (trans!{E} _ _ _ (congr!{Interval.Carrier E} (\fun (t: Interval.Carrier) => l (f t)) _ _ Halves.lowerStart)
-            (trans!{E} _ _ _ starts (congr!{Interval.Carrier E} (\fun (t: Interval.Carrier) => r (f t)) _ _ (sym!{Interval.Carrier} _ _ Halves.lowerStart)))))
-          (congr!{Interval.Carrier E} (\fun (t: Interval.Carrier) => r (f t)) _ _
-            (trans!{Interval.Carrier} _ _ _ Halves.lowerEnd (sym!{Interval.Carrier} _ _ Halves.upperStart))))))
-      (congr!{Interval.Carrier E} (\fun (t: Interval.Carrier) => r (f t)) _ _ Halves.upperEnd));
+  \fun (f: _)(left: _)(right: _)(starts: _) => eq_reason_in!{E _
+    "=" _ "by" { congr!{Interval.Carrier E} (\fun (t: Interval.Carrier) => l (f t)) _ _ (sym!{Interval.Carrier} _ _ Halves.upperEnd) }
+    "=" _ "by" { right (eq_reason_in!{E _
+      "=" _ "by" { congr!{Interval.Carrier E} (\fun (t: Interval.Carrier) => l (f t)) _ _
+          (trans!{Interval.Carrier} _ _ _ Halves.upperStart (sym!{Interval.Carrier} _ _ Halves.lowerEnd)) }
+      "=" _ "by" { left (eq_reason_in!{E _
+        "=" _ "by" { congr!{Interval.Carrier E} (\fun (t: Interval.Carrier) => l (f t)) _ _ Halves.lowerStart }
+        "=" _ "by" starts
+        "=" _ "by" { congr!{Interval.Carrier E} (\fun (t: Interval.Carrier) => r (f t)) _ _ (sym!{Interval.Carrier} _ _ Halves.lowerStart) }
+      }) }
+      "=" _ "by" { congr!{Interval.Carrier E} (\fun (t: Interval.Carrier) => r (f t)) _ _
+            (trans!{Interval.Carrier} _ _ _ Halves.lowerEnd (sym!{Interval.Carrier} _ _ Halves.upperStart)) }
+    }) }
+    "=" _ "by" { congr!{Interval.Carrier E} (\fun (t: Interval.Carrier) => r (f t)) _ _ Halves.upperEnd }
+  };
 \definition local: \forall (f: Interval.Carrier -> Interval.Carrier) -> Parameters.Continuous Interval.topology Interval.topology f ->
   \forall (V: \Pow Interval.Carrier) -> \In[\Pow Interval.Carrier] Neighborhoods.family V -> Fine.Within f V -> Property f := \block {
   \fun (f: _)(continuous: _)(V: _)(member: _)(within: _)(starts: _) \then

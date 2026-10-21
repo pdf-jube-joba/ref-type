@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Modules.Of[V := B.Carrier, space := B.space].Submodule[] \as BSub;
 \import BSub.Image[U := A.Carrier, source := A.space] \as Image;
 \definition image: BSub.Submodule := Image.image s.first;
@@ -48,13 +49,17 @@
 \import Modules.Hom[V := B.Carrier, W := C.Carrier, source := B.space, target := C.space] \as G;
 \definition injectiveOnClasses: \forall (b, b1: B.Carrier) -> inclusion.apply (Left.class b) = inclusion.apply (Left.class b1) -> Left.class b = Left.class b1 := \block {
   \fun (b, b1: B.Carrier)(equal: _) \then
-  \let same: s.second.apply b = s.second.apply b1 := trans!{C.Carrier} _ _ _ (sym!{C.Carrier} _ _ (onClass b))
-    (trans!{C.Carrier} _ _ _ equal (onClass b1)) \then
+  \let same: s.second.apply b = s.second.apply b1 := eq_reason_in!{C.Carrier _
+    "=" _ "by" { sym!{C.Carrier} _ _ (onClass b) }
+    "=" _ "by" equal
+    "=" _ "by" { onClass b1 }
+  } \then
   \let killed: s.second.apply (BGroup.difference b b1) = C.space.zero :=
-    trans!{C.Carrier} _ _ _ (G.differencePreserved s.second b b1)
-      (trans!{C.Carrier} _ _ _
-        (congr!{C.Carrier C.Carrier} (\fun (c: C.Carrier) => CGroup.difference c (s.second.apply b1)) _ _ same)
-        (CGroup.inverseRight (s.second.apply b1))) \then
+    eq_reason_in!{C.Carrier _
+      "=" _ "by" { G.differencePreserved s.second b b1 }
+      "=" _ "by" { congr!{C.Carrier C.Carrier} (\fun (c: C.Carrier) => CGroup.difference c (s.second.apply b1)) _ _ same }
+      "=" _ "by" { CGroup.inverseRight (s.second.apply b1) }
+    } \then
   \takefrom a: \Cast[A.Carrier] ({ a: A.Carrier \where s.first.apply a = BGroup.difference b b1 })
     \by s.kernelB (BGroup.difference b b1) killed \then
   \return Left.classRelated b b1

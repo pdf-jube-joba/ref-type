@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition previous: I.Int^ := Degrees.previous z;
 \definition twice: I.Int^ := Degrees.previous previous;
 \import \root.TensorModels[].Fixed[z := z] \as SourceFixed;
@@ -17,10 +18,12 @@
   \import \root.TensorModels[].At[p := (i).first, q := (i).second] \as Model;
   \import Modules.Hom[V := Model.Carrier twice, W := Target.Carrier, source := Model.space twice, target := Target.space] \as Injection;
   \definition law[x: Model.Carrier z]: (lhs).apply ((Source.Component[i := i].injection).apply x) = (Target.space).zero :=
-    trans!{Target.Carrier} _ _ _ (congr!{Middle.Carrier Target.Carrier} ((Final.map).apply) _ _ (Initial.onInjection i x))
-      (trans!{Target.Carrier} _ _ _ (Final.onInjection i ((Model.boundary z).apply x))
-        (trans!{Target.Carrier} _ _ _ (congr!{{Model.Carrier twice} Target.Carrier} ((Target.Component[i := i].injection).apply) _ _ (Model.squareZero z x))
-          (Injection.zeroPreserved (Target.Component[i := i].injection))));
+    eq_reason_in!{Target.Carrier _
+      "=" _ "by" { congr!{Middle.Carrier Target.Carrier} ((Final.map).apply) _ _ (Initial.onInjection i x) }
+      "=" _ "by" { Final.onInjection i ((Model.boundary z).apply x) }
+      "=" _ "by" { congr!{{Model.Carrier twice} Target.Carrier} ((Target.Component[i := i].injection).apply) _ _ (Model.squareZero z x) }
+      "=" _ "by" { Injection.zeroPreserved (Target.Component[i := i].injection) }
+    };
 }
 \import Modules.DirectSum[Index := Double.Index n, family := Source.family].To[W := Target.Carrier, target := Target.space] \as Universal;
 \definition equation: lhs = Linear.zeroMap := Universal.ext lhs Linear.zeroMap (\fun (i: Double.Index n) => At[i := i].law);

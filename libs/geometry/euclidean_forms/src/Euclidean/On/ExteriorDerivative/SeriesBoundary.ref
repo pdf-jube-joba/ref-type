@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Shuffle.Boundary[] \as Boundary;
 \import Boundary.OneCovector[] \as Covectors;
 \import Boundary.Sums[J := Fin.Fin n] \as BoundarySums;
@@ -21,22 +22,19 @@
   BoundarySums.family (Fin.elements n) (\fun (i: Fin.Fin n) => contribution i omega x);
 \definition termLaw: \forall (i: Fin.Fin n)(omega: Form k)(x: Open.Carrier U)(xs: Lists.List[Vectors.Vector]) ->
   Exterior.component next (term i omega x) xs = Boundary.apply (contribution i omega x) xs :=
-  \fun (i: Fin.Fin n)(omega: Form k)(x: Open.Carrier U)(xs: Lists.List[Vectors.Vector]) => trans!{{Reals.Real}}
-    _ _ _
-    (congr!{{Shuffle.Function} {Reals.Real}} (\fun (f: Shuffle.Function) => f xs)
-      (Exterior.component next (term i omega x)) (Shuffle.product (coordinateSeries i x) (Exterior.component k (Partials.apply i omega x))) (termSeries i omega x))
-    (trans!{{Reals.Real}} _ _ _
-      (congr!{{Shuffle.Function} {Reals.Real}} (\fun (f: Shuffle.Function) => Shuffle.product f (Exterior.component k (Partials.apply i omega x)) xs)
-        (coordinateSeries i x) (Covectors.value (\fun (v: Vectors.Vector) => v i)) (coordinateIdentity i x))
-      (Covectors.law xs (\fun (v: Vectors.Vector) => v i) (Exterior.component k (Partials.apply i omega x))));
+  \fun (i: Fin.Fin n)(omega: Form k)(x: Open.Carrier U)(xs: Lists.List[Vectors.Vector]) => eq_reason_in!{{Reals.Real} _
+    "=" _ "by" { congr!{{Shuffle.Function} {Reals.Real}} (\fun (f: Shuffle.Function) => f xs)
+      (Exterior.component next (term i omega x)) (Shuffle.product (coordinateSeries i x) (Exterior.component k (Partials.apply i omega x))) (termSeries i omega x) }
+    "=" _ "by" { congr!{{Shuffle.Function} {Reals.Real}} (\fun (f: Shuffle.Function) => Shuffle.product f (Exterior.component k (Partials.apply i omega x)) xs)
+        (coordinateSeries i x) (Covectors.value (\fun (v: Vectors.Vector) => v i)) (coordinateIdentity i x) }
+    "=" _ "by" { Covectors.law xs (\fun (v: Vectors.Vector) => v i) (Exterior.component k (Partials.apply i omega x)) }
+  };
 \definition law: \forall (omega: Form k)(x: Open.Carrier U)(xs: Lists.List[Vectors.Vector]) ->
   Exterior.component next (apply omega x) xs = Boundary.apply (directional omega x) xs :=
-  \fun (omega: Form k)(x: Open.Carrier U)(xs: Lists.List[Vectors.Vector]) => trans!{{Reals.Real}}
-    _ _ _
-    (Evaluation.componentSum (Fin.elements n) (\fun (i: Fin.Fin n) => term i omega) x xs)
-    (trans!{{Reals.Real}}
-      _ _ _
-      (ScalarLaws.congruent (Fin.elements n) (\fun (i: Fin.Fin n) => Exterior.component next (term i omega x) xs)
-        (\fun (i: Fin.Fin n) => Boundary.apply (contribution i omega x) xs) (\fun (i: Fin.Fin n) => termLaw i omega x xs))
-      (sym!{{Reals.Real}} _ _
-        (BoundarySums.law (Fin.elements n) (\fun (i: Fin.Fin n) => contribution i omega x) xs)));
+  \fun (omega: Form k)(x: Open.Carrier U)(xs: Lists.List[Vectors.Vector]) => eq_reason_in!{{Reals.Real} _
+    "=" _ "by" { Evaluation.componentSum (Fin.elements n) (\fun (i: Fin.Fin n) => term i omega) x xs }
+    "=" _ "by" { ScalarLaws.congruent (Fin.elements n) (\fun (i: Fin.Fin n) => Exterior.component next (term i omega x) xs)
+        (\fun (i: Fin.Fin n) => Boundary.apply (contribution i omega x) xs) (\fun (i: Fin.Fin n) => termLaw i omega x xs) }
+    "=" _ "by" { sym!{{Reals.Real}} _ _
+        (BoundarySums.law (Fin.elements n) (\fun (i: Fin.Fin n) => contribution i omega x) xs) }
+  };

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition laws: Laws[f, g, h] := \bysub(Data, { h: Data \where Laws[f, g, h] }, h);
 \module Degree(n: N.Nat^) {
   \import \parent.\parent.\parent.At[C := C, k := n] \as Source;
@@ -17,12 +18,13 @@
   \import Modules.Hom[V := C.family.Carrier (next N.Nat^::zero), W := D.family.Carrier N.Nat^::zero,
     source := C.family.space (next N.Nat^::zero), target := D.family.space N.Nat^::zero] \as Linear;
   \definition boundary: \forall (x: Cycles N.Nat^::zero) -> IsBoundary N.Nat^::zero x :=
-    \fun (x: Cycles N.Nat^::zero) => trans!{{D.family.Carrier N.Nat^::zero}} _ _ _ (laws.degreeZero x)
-      (trans!{{D.family.Carrier N.Nat^::zero}} _ _ _
-        (congr!{{C.family.Carrier (next N.Nat^::zero)} {D.family.Carrier N.Nat^::zero}} ((h N.Nat^::zero).apply)
+    \fun (x: Cycles N.Nat^::zero) => eq_reason_in!{{D.family.Carrier N.Nat^::zero} _
+      "=" _ "by" { laws.degreeZero x }
+      "=" _ "by" { congr!{{C.family.Carrier (next N.Nat^::zero)} {D.family.Carrier N.Nat^::zero}} ((h N.Nat^::zero).apply)
           (C.differential.apply N.Nat^::zero x) ((C.family.space (next N.Nat^::zero)).zero)
-          (\bysub(C.family.Carrier N.Nat^::zero, Source.cycles.carrier, x)))
-        (Linear.zeroPreserved (h N.Nat^::zero)));
+          (\bysub(C.family.Carrier N.Nat^::zero, Source.cycles.carrier, x)) }
+      "=" _ "by" { Linear.zeroPreserved (h N.Nat^::zero) }
+    };
 }
 \module Positive(n: N.Nat^) {
   \import \parent.Degree[n := next n] \as Term;
@@ -32,18 +34,18 @@
   \import Modules.Laws[V := D.family.Carrier (next n), space := D.family.space (next n)] \as Vector;
   \import algebra.Group[].Of[Carrier := D.family.Carrier (next n), group := Vector.additive] \as Group;
   \definition residual: \forall (x: Cycles (next n)) -> Term.difference x = D.differential.apply n ((h n).apply x) :=
-    \fun (x: Cycles (next n)) => trans!{{D.family.Carrier (next n)}} _ _ _ (laws.positive n x)
-      (trans!{{D.family.Carrier (next n)}} _ _ _
-        (congr!{{C.family.Carrier (next (next n))} {D.family.Carrier (next n)}}
+    \fun (x: Cycles (next n)) => eq_reason_in!{{D.family.Carrier (next n)} _
+      "=" _ "by" { laws.positive n x }
+      "=" _ "by" { congr!{{C.family.Carrier (next (next n))} {D.family.Carrier (next n)}}
           (\fun (z: C.family.Carrier (next (next n))) => (D.family.space (next n)).add
             (D.differential.apply n ((h n).apply x)) ((h (next n)).apply z))
           (C.differential.apply (next n) x) ((C.family.space (next (next n))).zero)
-          (\bysub(C.family.Carrier (next n), Source.cycles.carrier, x)))
-        (trans!{{D.family.Carrier (next n)}} _ _ _
-          (congr!{{D.family.Carrier (next n)} {D.family.Carrier (next n)}}
+          (\bysub(C.family.Carrier (next n), Source.cycles.carrier, x)) }
+      "=" _ "by" { congr!{{D.family.Carrier (next n)} {D.family.Carrier (next n)}}
             ((D.family.space (next n)).add (D.differential.apply n ((h n).apply x))) _ _
-            (Linear.zeroPreserved (h (next n))))
-          (Group.zeroRight (D.differential.apply n ((h n).apply x)))));
+            (Linear.zeroPreserved (h (next n))) }
+      "=" _ "by" { Group.zeroRight (D.differential.apply n ((h n).apply x)) }
+    };
   \definition boundary: \forall (x: Cycles (next n)) -> IsBoundary (next n) x :=
     \fun (x: Cycles (next n)) => Logic.existsIntro[D.family.Carrier n, { y: D.family.Carrier n \where D.differential.apply n y = Term.difference x }] ((h n).apply x)
       (sym!{{D.family.Carrier (next n)}} _ _ (residual x));
@@ -62,8 +64,9 @@
     (Induced.induced f).apply x = (Induced.induced g).apply x :=
     Source.classInduction
       (\fun (x: Source.Cohomology) => (Induced.induced f).apply x = (Induced.induced g).apply x)
-      (\fun (x: Source.CycleCarrier) => trans!{Target.Cohomology} _ _ _ (Induced.onClass f x)
-        (trans!{Target.Cohomology} _ _ _
-          (Target.classEqual ((Induced.cyclesMap f).apply x) ((Induced.cyclesMap g).apply x) (boundary n x))
-          (sym!{Target.Cohomology} _ _ (Induced.onClass g x))));
+      (\fun (x: Source.CycleCarrier) => eq_reason_in!{Target.Cohomology _
+        "=" _ "by" { Induced.onClass f x }
+        "=" _ "by" { Target.classEqual ((Induced.cyclesMap f).apply x) ((Induced.cyclesMap g).apply x) (boundary n x) }
+        "=" _ "by" { sym!{Target.Cohomology} _ _ (Induced.onClass g x) }
+      });
 }

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition t: BaseOpen.Carrier Coordinates.domain := Overlap.leftPoint z;
 \definition w: Source.Vector := SourceBlocks.right z;
 \definition x: M.Point := SourceCharts.point c (Coordinates.leftCoordinate t);
@@ -20,20 +21,22 @@
 \definition differential: calculus.Vector[n := n, m := m].LinearMap := Calculus.Differential[U := Coordinates.domain, V := d.image, f := coordinateMap, a := t].value;
 \definition v: Fiber.Vector := D.value.apply (SourceFiber.encode w);
 \import Fiber.Coordinate[chart := targetChart] \as Decode;
-\definition coordinates: Decode.decode v = differential.apply w := trans!{{Target.Vector}} _ _ _
-  (D.coordinates SourceFiber.tangentChart targetChart (SourceFiber.encode w))
-  (trans!{{Target.Vector}} _ _ _ (congr!{{Source.Vector} {Target.Vector}} LocalD.jacobian.apply _ _ (SourceFiber.decodeEncode w))
-    (congr!{{calculus.Vector[n := n, m := m].LinearMap} {Target.Vector}} (\fun (L: calculus.Vector[n := n, m := m].LinearMap) => L.apply w) _ _ jacobian));
+\definition coordinates: Decode.decode v = differential.apply w := eq_reason_in!{{Target.Vector} _
+  "=" _ "by" { D.coordinates SourceFiber.tangentChart targetChart (SourceFiber.encode w) }
+  "=" _ "by" { congr!{{Source.Vector} {Target.Vector}} LocalD.jacobian.apply _ _ (SourceFiber.decodeEncode w) }
+  "=" _ "by" { congr!{{calculus.Vector[n := n, m := m].LinearMap} {Target.Vector}} (\fun (L: calculus.Vector[n := n, m := m].LinearMap) => L.apply w) _ _ jacobian }
+};
 \definition same: a = b := sym!{{N.Point}} _ _ (TargetCharts.Of[chart := d].pointCoordinate (Coordinates.point t));
 \import manifolds.Tangent[n := m].On[M := N].Transport[x := a, y := b, same := same] \as Move;
 \definition MovedVector: \Set := manifolds.Tangent[n := m].On[M := N].Vector b;
 \definition moved: MovedVector := Move.vector v;
 \definition chartSame: Move.chart targetChart = TargetFiber.tangentChart := Move.underlying targetChart;
-\definition movedCoordinates: TargetFiber.decode moved = differential.apply w := trans!{{Target.Vector}} _ _ _
-  (trans!{{Target.Vector}} _ _ _
-    (congr!{{Move.ChartFamily b} {Target.Vector}} (\fun (e: Move.ChartFamily b) => Move.decode b e moved)
-      TargetFiber.tangentChart (Move.chart targetChart) (sym!{{Move.ChartFamily b}} _ _ chartSame))
-    (Move.coordinates targetChart v)) coordinates;
+\definition movedCoordinates: TargetFiber.decode moved = differential.apply w := eq_reason_in!{{Target.Vector} _
+  "=" _ "by" { congr!{{Move.ChartFamily b} {Target.Vector}} (\fun (e: Move.ChartFamily b) => Move.decode b e moved)
+      TargetFiber.tangentChart (Move.chart targetChart) (sym!{{Move.ChartFamily b}} _ _ chartSame) }
+  "=" _ "by" { Move.coordinates targetChart v }
+  "=" _ "by" coordinates
+};
 \definition vectorEquality: TargetFiber.encode (differential.apply w) = moved := trans!{MovedVector} _ _ _
   (congr!{{Target.Vector} MovedVector} TargetFiber.encode _ _ (sym!{{Target.Vector}} _ _ movedCoordinates)) (TargetFiber.encodeDecode moved);
 \definition targetLeft: TargetBlocks.left (Lift.point z) = Coordinates.apply t := trans!{{Target.Vector}} _ _ _
@@ -44,8 +47,11 @@
   (TargetBlocks.rightJoin (Coordinates.apply t) (differential.apply w));
 \import TargetBlocks.On[U := d.image, V := TargetBaseOpen.whole] \as TargetProduct;
 \definition expansion: TargetCoordinate.point (Lift.point z) = Target.include b (TargetFiber.encode (differential.apply w)) :=
-  congr2!{{TargetBaseOpen.Carrier d.image} {Target.Vector} {Target.Point}} TargetCoordinate.assemble
+  congr!{{TargetBaseOpen.Carrier d.image} {Target.Vector} {Target.Point}} TargetCoordinate.assemble
     (TargetProduct.leftPoint (Lift.point z)) (Coordinates.apply t) (TargetBlocks.right (Lift.point z)) (differential.apply w) targetLeft targetRight;
 \definition agrees: TargetCoordinate.point (Lift.point z) = apply f (SourceCoordinate.point (source z)) :=
-  trans!{{Target.Point}} _ _ _ expansion (trans!{{Target.Point}} _ _ _
-    (congr!{MovedVector {Target.Point}} (Target.include b) _ _ vectorEquality) (Target.includeTransport a b same v));
+  eq_reason_in!{{Target.Point} _
+    "=" _ "by" expansion
+    "=" _ "by" { congr!{MovedVector {Target.Point}} (Target.include b) _ _ vectorEquality }
+    "=" _ "by" { Target.includeTransport a b same v }
+  };

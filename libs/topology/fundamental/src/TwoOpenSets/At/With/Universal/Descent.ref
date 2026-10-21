@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \structure Agrees[p: Cover.SmallPath, g: G]: \Prop := {
   left: \forall (within: LeftPaths.Within p) -> leftValue p within = g,
   right: \forall (within: RightPaths.Within p) -> rightValue p within = g,
@@ -16,15 +17,19 @@
 \definition value[p: Cover.SmallPath]: Value p := \choice Value p \by { existence: existsValue p, uniqueness: uniqueValue p };
 \definition agrees[p: Cover.SmallPath]: Agrees[p, value p] := \bysub(G, Value p, value p);
 \definition leftSplit: \forall (p: Cover.SmallPath) -> LeftPaths.Within p -> value p = Group.mul (value (Cover.firstSmallPath p)) (value (Cover.secondSmallPath p)) :=
-  \fun (p: Cover.SmallPath)(within: _) => trans!{G} _ _ _ (sym!{G} _ _ ((agrees p).left within))
-    (trans!{G} _ _ _ (LeftHolonomy.split (LeftPaths.raw p within))
-      (congr2!{G G G} Group.mul _ _ _ _ ((agrees (Cover.firstSmallPath p)).left (\fun (t: I.Carrier) => within (I.Halves[].lower t)))
-        ((agrees (Cover.secondSmallPath p)).left (\fun (t: I.Carrier) => within (I.Halves[].upper t)))));
+  \fun (p: Cover.SmallPath)(within: _) => eq_reason_in!{G _
+    "=" _ "by" { sym!{G} _ _ ((agrees p).left within) }
+    "=" _ "by" { LeftHolonomy.split (LeftPaths.raw p within) }
+    "=" _ "by" { congr!{G G G} Group.mul _ _ _ _ ((agrees (Cover.firstSmallPath p)).left (\fun (t: I.Carrier) => within (I.Halves[].lower t)))
+        ((agrees (Cover.secondSmallPath p)).left (\fun (t: I.Carrier) => within (I.Halves[].upper t))) }
+  };
 \definition rightSplit: \forall (p: Cover.SmallPath) -> RightPaths.Within p -> value p = Group.mul (value (Cover.firstSmallPath p)) (value (Cover.secondSmallPath p)) :=
-  \fun (p: Cover.SmallPath)(within: _) => trans!{G} _ _ _ (sym!{G} _ _ ((agrees p).right within))
-    (trans!{G} _ _ _ (RightHolonomy.split (RightPaths.raw p within))
-      (congr2!{G G G} Group.mul _ _ _ _ ((agrees (Cover.firstSmallPath p)).right (\fun (t: I.Carrier) => within (I.Halves[].lower t)))
-        ((agrees (Cover.secondSmallPath p)).right (\fun (t: I.Carrier) => within (I.Halves[].upper t)))));
+  \fun (p: Cover.SmallPath)(within: _) => eq_reason_in!{G _
+    "=" _ "by" { sym!{G} _ _ ((agrees p).right within) }
+    "=" _ "by" { RightHolonomy.split (RightPaths.raw p within) }
+    "=" _ "by" { congr!{G G G} Group.mul _ _ _ _ ((agrees (Cover.firstSmallPath p)).right (\fun (t: I.Carrier) => within (I.Halves[].lower t)))
+        ((agrees (Cover.secondSmallPath p)).right (\fun (t: I.Carrier) => within (I.Halves[].upper t))) }
+  };
 \definition data: Cover.LocalData := Cover.LocalData { value := value,
   split := \fun (p: Cover.SmallPath) => either!{{(cases p)} {value p = Group.mul (value (Cover.firstSmallPath p)) (value (Cover.secondSmallPath p))} {leftSplit p} {rightSplit p}} };
 \module Laws;

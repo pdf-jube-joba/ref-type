@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Pair[m := m, n := n, p := p] \as SourcePair;
 \import \parent.Pair[m := p, n := n, p := m] \as TargetPair;
 \import Commutative.Matrix[m := m, n := n] \as A;
@@ -20,9 +21,11 @@
 \definition squareZero: Multiply.product outgoing incoming = Product.zero := Product.Representation[].injective
   (Multiply.product outgoing incoming) Product.zero
   (Maps.ext (Product.linear (Multiply.product outgoing incoming)) (Product.linear Product.zero)
-    (\fun (v: Upper.Carrier) => trans!{Lower.Carrier} _ _ _ (Multiply.point outgoing incoming v)
-      (trans!{Lower.Carrier} _ _ _ ((\bysub(SourcePair.Data, { data: SourcePair.Data \where SourcePair.Laws[data] }, C)).squareZero v)
-        (sym!{Lower.Carrier} (Product.apply Product.zero v) Lower.space.zero (Product.zeroAction v)))));
+    (\fun (v: Upper.Carrier) => eq_reason_in!{Lower.Carrier _
+      "=" _ "by" { Multiply.point outgoing incoming v }
+      "=" _ "by" { (\bysub(SourcePair.Data, { data: SourcePair.Data \where SourcePair.Laws[data] }, C)).squareZero v }
+      "=" _ "by" { sym!{Lower.Carrier} (Product.apply Product.zero v) Lower.space.zero (Product.zeroAction v) }
+    }));
 \definition dualSquareZero: DualMultiply.product (BT.transpose incoming) (AT.transpose outgoing) = DualProduct.zero :=
   trans!{DualProduct.Matrix} _ _ _
     (sym!{DualProduct.Matrix} _ _ (TransposeProduct.product outgoing incoming))
@@ -34,13 +37,12 @@
   incoming := NativeA.Transpose.program^ C.outgoing,
 };
 \definition laws: TargetPair.Laws[data] := TargetPair.Laws[data] {
-  squareZero := \fun (v: Lower.Carrier) => trans!{Upper.Carrier}
-    _ _ _
-    (sym!{Upper.Carrier} _ _ (DualMultiply.point (BT.transpose incoming) (AT.transpose outgoing) v))
-    (trans!{Upper.Carrier} _ _ _
-      (congr!{DualProduct.Matrix Upper.Carrier} (\fun (matrix: DualProduct.Matrix) => DualProduct.apply matrix v)
-        (DualMultiply.product (BT.transpose incoming) (AT.transpose outgoing)) DualProduct.zero dualSquareZero)
-      (DualProduct.zeroAction v)),
+  squareZero := \fun (v: Lower.Carrier) => eq_reason_in!{Upper.Carrier _
+    "=" _ "by" { sym!{Upper.Carrier} _ _ (DualMultiply.point (BT.transpose incoming) (AT.transpose outgoing) v) }
+    "=" _ "by" { congr!{DualProduct.Matrix Upper.Carrier} (\fun (matrix: DualProduct.Matrix) => DualProduct.apply matrix v)
+        (DualMultiply.product (BT.transpose incoming) (AT.transpose outgoing)) DualProduct.zero dualSquareZero }
+    "=" _ "by" { DualProduct.zeroAction v }
+  },
 };
 \definition complex: TargetPair.Complex := \into[TargetPair.Data](data, { data: TargetPair.Data \where TargetPair.Laws[data] }) \by { laws };
 \import TargetPair.Of[C := complex] \as Cohomology;

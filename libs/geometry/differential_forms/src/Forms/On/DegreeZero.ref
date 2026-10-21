@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 
 \import std.Data[].FinSet[] \as Fin;
 \definition zero: N.Nat^ := N.Nat^::zero;
@@ -62,9 +63,11 @@
 };
 
 \definition injective: \forall (f, g: Function) -> apply f = apply g -> f = g :=
-  \fun (f, g: Function)(same: apply f = apply g) => trans!{Function} f (function (apply f)) g
-    (sym!{Function} (function (apply f)) f (leftInverse f))
-    (trans!{Function} (function (apply f)) (function (apply g)) g (congr!{{Form zero} Function} function (apply f) (apply g) same) (leftInverse g));
+  \fun (f, g: Function)(same: apply f = apply g) => eq_reason_in!{Function f
+    "=" { function (apply f) } "by" { sym!{Function} (function (apply f)) f (leftInverse f) }
+    "=" { function (apply g) } "by" { congr!{{Form zero} Function} function (apply f) (apply g) same }
+    "=" g "by" { leftInverse g }
+  };
 \definition backward: Backward.Map := Backward.Map {
   apply := function,
   preservesAdd := \fun (omega, eta: Form zero) => \block {
@@ -73,7 +76,7 @@
     \return injective (function (Forms.plus omega eta)) (plus f g)
       (eq_reason!{
         {apply (function (Forms.plus omega eta))} "=" {Forms.plus omega eta} "by" {rightInverse (Forms.plus omega eta)}
-        "=" {Forms.plus (apply f) (apply g)} "by" {congr2!{{Form zero} {Form zero} {Form zero}} Forms.plus omega (apply f) eta (apply g)
+        "=" {Forms.plus (apply f) (apply g)} "by" {congr!{{Form zero} {Form zero} {Form zero}} Forms.plus omega (apply f) eta (apply g)
           (sym!{{Form zero}} (apply f) omega (rightInverse omega)) (sym!{{Form zero}} (apply g) eta (rightInverse eta))}
         "=" {apply (plus f g)} "by" {sym!{{Form zero}} (apply (plus f g)) (Forms.plus (apply f) (apply g)) (forward.preservesAdd f g)}
       })

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import N.Basic[].Program[] \as NatPrograms;
 \import N.Basic[].ProgramProp[] \as NatCorrespondence;
 \definition T: \VType := \U(N.Nat -> Runtime -> N.Nat -> N.Nat -> B.Bool);
@@ -21,13 +22,12 @@
 \definition stage2[k: N.Nat^][a: Runtime^][i, j: N.Nat^]: B.Bool^ := withOperations B.And.specification B.Neg.specification I.IsZero.program^ NatPrograms.leb^ k a i j;
 \definition stage3[k: N.Nat^][a: Runtime^][i, j: N.Nat^]: B.Bool^ := withOperations B.And.specification B.Neg.specification I.IsZero.specification NatPrograms.leb^ k a i j;
 \definition matches: \forall (k: N.Nat^)(a: Runtime^)(i, j: N.Nat^) -> program^ k a i j = probe k a i j :=
-  \fun (k: N.Nat^)(a: Runtime^)(i, j: N.Nat^) => trans!{B.Bool^} (program^ k a i j) (stage1 k a i j) (probe k a i j)
-    (congr!{B.And.T^ B.Bool^} (\fun (f: B.And.T^) => withOperations f B.Neg.program^ I.IsZero.program^ NatPrograms.leb^ k a i j) B.And.program^ B.And.specification B.And.coherence)
-    (trans!{B.Bool^} (stage1 k a i j) (stage2 k a i j) (probe k a i j)
-    (congr!{B.Neg.T^ B.Bool^} (\fun (f: B.Neg.T^) => withOperations B.And.specification f I.IsZero.program^ NatPrograms.leb^ k a i j) B.Neg.program^ B.Neg.specification B.Neg.coherence)
-    (trans!{B.Bool^} (stage2 k a i j) (stage3 k a i j) (probe k a i j)
-    (congr!{I.IsZero.T^ B.Bool^} (\fun (f: I.IsZero.T^) => withOperations B.And.specification B.Neg.specification f NatPrograms.leb^ k a i j) I.IsZero.program^ I.IsZero.specification I.IsZero.coherence)
-    ((congr!{NatCorrespondence.Leb.T^ B.Bool^} (\fun (f: NatCorrespondence.Leb.T^) => withOperations B.And.specification B.Neg.specification I.IsZero.specification f k a i j) NatPrograms.leb^ Nat.leb NatCorrespondence.Leb.coherence))));
+  \fun (k: N.Nat^)(a: Runtime^)(i, j: N.Nat^) => eq_reason_in!{B.Bool^ { program^ k a i j }
+    "=" { stage1 k a i j } "by" { congr!{B.And.T^ B.Bool^} (\fun (f: B.And.T^) => withOperations f B.Neg.program^ I.IsZero.program^ NatPrograms.leb^ k a i j) B.And.program^ B.And.specification B.And.coherence }
+    "=" { stage2 k a i j } "by" { congr!{B.Neg.T^ B.Bool^} (\fun (f: B.Neg.T^) => withOperations B.And.specification f I.IsZero.program^ NatPrograms.leb^ k a i j) B.Neg.program^ B.Neg.specification B.Neg.coherence }
+    "=" { stage3 k a i j } "by" { congr!{I.IsZero.T^ B.Bool^} (\fun (f: I.IsZero.T^) => withOperations B.And.specification B.Neg.specification f NatPrograms.leb^ k a i j) I.IsZero.program^ I.IsZero.specification I.IsZero.coherence }
+    "=" { probe k a i j } "by" { (congr!{NatCorrespondence.Leb.T^ B.Bool^} (\fun (f: NatCorrespondence.Leb.T^) => withOperations B.And.specification B.Neg.specification I.IsZero.specification f k a i j) NatPrograms.leb^ Nat.leb NatCorrespondence.Leb.coherence) }
+  };
 \definition coherence: program^ = probe := \axiom:funext(program^, probe,
   \fun (k: N.Nat^) => \axiom:funext(program^ k, probe k,
     \fun (a: Runtime^) => \axiom:funext(program^ k a, probe k a,

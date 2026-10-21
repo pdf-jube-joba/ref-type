@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition CompatibleBack: \Prop := \forall (x: B.Carrier) -> TargetSub.Member T x -> SourceSub.Member S (g.apply x);
 \definition LeftInverse: \Prop := \forall (x: A.Carrier) -> g.apply (f.apply x) = x;
 \definition RightInverse: \Prop := \forall (x: B.Carrier) -> f.apply (g.apply x) = x;
@@ -15,14 +16,20 @@
   (backward back).apply ((map compatible).apply q) = q :=
   \fun (compatible: Compatible)(back: CompatibleBack)(inverse: LeftInverse) => Source.induction (\fun (q: Source.Carrier) =>
     (backward back).apply ((map compatible).apply q) = q)
-    (\fun (x: A.Carrier) => trans!{Source.Carrier} _ _ _ (congr!{Target.Carrier Source.Carrier} ((backward back).apply) _ _ (onClass compatible x))
-      (trans!{Source.Carrier} _ _ _ (backOnClass back (f.apply x)) (congr!{A.Carrier Source.Carrier} Source.class _ _ (inverse x))));
+    (\fun (x: A.Carrier) => eq_reason_in!{Source.Carrier _
+      "=" _ "by" { congr!{Target.Carrier Source.Carrier} ((backward back).apply) _ _ (onClass compatible x) }
+      "=" _ "by" { backOnClass back (f.apply x) }
+      "=" _ "by" { congr!{A.Carrier Source.Carrier} Source.class _ _ (inverse x) }
+    });
 \definition right: \forall (compatible: Compatible)(back: CompatibleBack) -> RightInverse -> \forall (q: Target.Carrier) ->
   (map compatible).apply ((backward back).apply q) = q :=
   \fun (compatible: Compatible)(back: CompatibleBack)(inverse: RightInverse) => Target.induction (\fun (q: Target.Carrier) =>
     (map compatible).apply ((backward back).apply q) = q)
-    (\fun (x: B.Carrier) => trans!{Target.Carrier} _ _ _ (congr!{Source.Carrier Target.Carrier} ((map compatible).apply) _ _ (backOnClass back x))
-      (trans!{Target.Carrier} _ _ _ (onClass compatible (g.apply x)) (congr!{B.Carrier Target.Carrier} Target.class _ _ (inverse x))));
+    (\fun (x: B.Carrier) => eq_reason_in!{Target.Carrier _
+      "=" _ "by" { congr!{Source.Carrier Target.Carrier} ((map compatible).apply) _ _ (backOnClass back x) }
+      "=" _ "by" { onClass compatible (g.apply x) }
+      "=" _ "by" { congr!{B.Carrier Target.Carrier} Target.class _ _ (inverse x) }
+    });
 \import \parent.\parent.\parent.Isomorphism[V := Source.Carrier, W := Target.Carrier, source := Source.moduleSpace, target := Target.moduleSpace] \as Iso;
 \definition isomorphism[compatible: Compatible][back: CompatibleBack][leftInverse: LeftInverse][rightInverse: RightInverse]: Iso.Isomorphism := Iso.Isomorphism {
   forward := map compatible, backward := backward back, leftInverse := left compatible back leftInverse, rightInverse := right compatible back rightInverse,

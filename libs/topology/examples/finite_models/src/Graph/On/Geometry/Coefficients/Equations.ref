@@ -1,25 +1,36 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Logic[].Equality[] \as Equality;
 \use Equality.trans;
 \use Equality.sym;
 \use Equality.congr;
-\use Equality.congr2;
 \definition differenceZero[a: A.Carrier]: Group.difference a Values.zero = a :=
   trans!{A.Carrier} _ _ _ (congr!{A.Carrier A.Carrier} (Values.add a) _ _ Group.negZero) (Group.zeroRight a);
 \definition negativeDifference[a, b: A.Carrier]: Values.neg (Group.difference a b) = Group.difference b a :=
-  trans!{A.Carrier} _ _ _ (Group.negAdd a (Values.neg b))
-    (trans!{A.Carrier} _ _ _ (congr!{A.Carrier A.Carrier} (Values.add (Values.neg a)) _ _ (Group.negNeg b)) (Group.comm (Values.neg a) b));
+  eq_reason_in!{A.Carrier _
+    "=" _ "by" { Group.negAdd a (Values.neg b) }
+    "=" _ "by" { congr!{A.Carrier A.Carrier} (Values.add (Values.neg a)) _ _ (Group.negNeg b) }
+    "=" _ "by" { Group.comm (Values.neg a) b }
+  };
 \definition sumSubtractFirst[a, b: A.Carrier]: Group.difference (Values.add a b) a = b :=
-  trans!{A.Carrier} _ _ _ (Group.swapLast a b (Values.neg a))
-    (trans!{A.Carrier} _ _ _ (congr!{A.Carrier A.Carrier} (\fun (x: A.Carrier) => Values.add x b) _ _ (Group.inverseRight a)) (Group.zeroLeft b));
+  eq_reason_in!{A.Carrier _
+    "=" _ "by" { Group.swapLast a b (Values.neg a) }
+    "=" _ "by" { congr!{A.Carrier A.Carrier} (\fun (x: A.Carrier) => Values.add x b) _ _ (Group.inverseRight a) }
+    "=" _ "by" { Group.zeroLeft b }
+  };
 \definition terminalCancellation[a, b, c: A.Carrier]: Group.difference c (Values.neg (Group.difference (Values.add a b) c)) = Values.add a b :=
-  trans!{A.Carrier} _ _ _ (congr!{A.Carrier A.Carrier} (Values.add c) _ _ (Group.negNeg (Group.difference (Values.add a b) c)))
-    (trans!{A.Carrier} _ _ _ (Group.comm c (Group.difference (Values.add a b) c)) (Group.addDifference (Values.add a b) c));
+  eq_reason_in!{A.Carrier _
+    "=" _ "by" { congr!{A.Carrier A.Carrier} (Values.add c) _ _ (Group.negNeg (Group.difference (Values.add a b) c)) }
+    "=" _ "by" { Group.comm c (Group.difference (Values.add a b) c) }
+    "=" _ "by" { Group.addDifference (Values.add a b) c }
+  };
 \definition liftRestrictVertex[f: Original.zeroth.Carrier]: restrictVertex (liftVertex f) = f :=
   \axiom:funext(restrictVertex (liftVertex f), f, \fun (v: Vertex) => \refl(f v));
 \definition liftRestrictEdge[f: Original.first.Carrier]: restrictEdge (liftEdge f) = f :=
-  \axiom:funext(restrictEdge (liftEdge f), f, \fun (e: Edge) => trans!{A.Carrier} _ _ _
-    (congr!{A.Carrier A.Carrier} (\fun (x: A.Carrier) => Group.difference x (Values.neg (f e))) _ _ (Group.zeroLeft Values.zero))
-    (trans!{A.Carrier} _ _ _ (congr!{A.Carrier A.Carrier} (Values.add Values.zero) _ _ (Group.negNeg (f e))) (Group.zeroLeft (f e))));
+  \axiom:funext(restrictEdge (liftEdge f), f, \fun (e: Edge) => eq_reason_in!{A.Carrier _
+    "=" _ "by" { congr!{A.Carrier A.Carrier} (\fun (x: A.Carrier) => Group.difference x (Values.neg (f e))) _ _ (Group.zeroLeft Values.zero) }
+    "=" _ "by" { congr!{A.Carrier A.Carrier} (Values.add Values.zero) _ _ (Group.negNeg (f e)) }
+    "=" _ "by" { Group.zeroLeft (f e) }
+  });
 \definition restrictGradient[f: VertexFunctions.Carrier]: restrictEdge (delta f) = Original.delta (restrictVertex f) :=
   \axiom:funext(restrictEdge (delta f), Original.delta (restrictVertex f), \fun (e: Edge) => trans!{A.Carrier} _ _ _
     (congr!{A.Carrier A.Carrier} (\fun (x: A.Carrier) => Group.difference x (Group.difference (f (Index.secondVertex e)) (f (Index.vertex (target e))))) _ _
@@ -68,16 +79,18 @@
 };
 \definition primitiveGradient[f: EdgeFunctions.Carrier]: delta (VertexFunctions.add (primitive f) (liftVertex (Original.potential (restrictEdge f)))) =
   EdgeFunctions.add f (EdgeFunctions.neg (liftEdge (Original.extendChord (Original.evaluateChord (restrictEdge f))))) :=
-  trans!{EdgeFunctions.Carrier} _ _ _ ((differential).addition (primitive f) (liftVertex (Original.potential (restrictEdge f))))
-    (trans!{EdgeFunctions.Carrier} _ _ _
-      (congr2!{EdgeFunctions.Carrier EdgeFunctions.Carrier EdgeFunctions.Carrier} EdgeFunctions.add _ _ _ _
+  eq_reason_in!{EdgeFunctions.Carrier _
+    "=" _ "by" { (differential).addition (primitive f) (liftVertex (Original.potential (restrictEdge f))) }
+    "=" _ "by" { congr!{EdgeFunctions.Carrier EdgeFunctions.Carrier EdgeFunctions.Carrier} EdgeFunctions.add _ _ _ _
         (edgeHomotopy f)
-        (trans!{EdgeFunctions.Carrier} _ _ _ (liftGradient (Original.potential (restrictEdge f)))
-          (trans!{EdgeFunctions.Carrier} _ _ _
-            (congr!{Original.first.Carrier EdgeFunctions.Carrier} liftEdge _ _ (sym!{Original.first.Carrier} _ _ (Original.reductionEquation (restrictEdge f))))
-            (Modules.Hom[V := Original.first.Carrier, W := EdgeFunctions.Carrier, source := Original.first.space, target := EdgeFunctions.space].differencePreserved edgeInclusion (restrictEdge f) (Original.extendChord (Original.evaluateChord (restrictEdge f)))))))
-      (EdgeFunctions.ext
+        (eq_reason_in!{EdgeFunctions.Carrier _
+          "=" _ "by" { liftGradient (Original.potential (restrictEdge f)) }
+          "=" _ "by" { congr!{Original.first.Carrier EdgeFunctions.Carrier} liftEdge _ _ (sym!{Original.first.Carrier} _ _ (Original.reductionEquation (restrictEdge f))) }
+          "=" _ "by" { Modules.Hom[V := Original.first.Carrier, W := EdgeFunctions.Carrier, source := Original.first.space, target := EdgeFunctions.space].differencePreserved edgeInclusion (restrictEdge f) (Original.extendChord (Original.evaluateChord (restrictEdge f))) }
+        }) }
+    "=" _ "by" { EdgeFunctions.ext
         (EdgeFunctions.add (EdgeFunctions.add f (EdgeFunctions.neg (liftEdge (restrictEdge f))))
           (EdgeFunctions.add (liftEdge (restrictEdge f)) (EdgeFunctions.neg (liftEdge (Original.extendChord (Original.evaluateChord (restrictEdge f)))))))
         (EdgeFunctions.add f (EdgeFunctions.neg (liftEdge (Original.extendChord (Original.evaluateChord (restrictEdge f))))))
-        (\fun (e: Index.Edges) => Group.composeDifferences (f e) (liftEdge (restrictEdge f) e) (liftEdge (Original.extendChord (Original.evaluateChord (restrictEdge f))) e))));
+        (\fun (e: Index.Edges) => Group.composeDifferences (f e) (liftEdge (restrictEdge f) e) (liftEdge (Original.extendChord (Original.evaluateChord (restrictEdge f))) e)) }
+  };

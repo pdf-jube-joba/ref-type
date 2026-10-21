@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Chains.At[C := Left.complex, z := z] \as LeftH;
 \import Chains.At[C := Right.complex, z := z] \as RightH;
 \import Chains.At[C := Sum.complex, z := z] \as SumH;
@@ -21,34 +22,38 @@
 \definition backwardOnClasses: \forall (x: LeftH.Cycle)(y: RightH.Cycle) ->
   (backward).apply (Pair.make (LeftH.classOf x) (RightH.classOf y)) = SumH.classOf (cycles x y) :=
   \fun (x: LeftH.Cycle)(y: RightH.Cycle) => trans!{SumH.Homology} _ _ _
-    (congr2!{SumH.Homology SumH.Homology SumH.Homology} ((SumH.homologySpace).add) _ _ _ _ (L.onClass FirstInjection.map x) (T.onClass SecondInjection.map y))
+    (congr!{SumH.Homology SumH.Homology SumH.Homology} ((SumH.homologySpace).add) _ _ _ _ (L.onClass FirstInjection.map x) (T.onClass SecondInjection.map y))
     (sym!{SumH.Homology} _ _ ((SumH.classLinear).addition ((L.cyclesMap FirstInjection.map).apply x) ((T.cyclesMap SecondInjection.map).apply y)));
 \definition leftInverse: \forall (q: SumH.Homology) -> (backward).apply ((forward).apply q) = q :=
   SumH.classInduction (\fun (q: SumH.Homology) => (backward).apply ((forward).apply q) = q)
-    (\fun (x: SumH.Cycle) => trans!{SumH.Homology} _ _ _
-      (congr!{Pair.Carrier SumH.Homology} ((backward).apply) _ _ (forwardOnClass x))
-      (trans!{SumH.Homology} _ _ _ (backwardOnClasses ((P.cyclesMap FirstProjection.map).apply x) ((Q.cyclesMap SecondProjection.map).apply x))
-        (congr!{SumH.Cycle SumH.Homology} SumH.classOf (cycles ((P.cyclesMap FirstProjection.map).apply x) ((Q.cyclesMap SecondProjection.map).apply x)) x (reconstruction z x))));
+    (\fun (x: SumH.Cycle) => eq_reason_in!{SumH.Homology _
+      "=" _ "by" { congr!{Pair.Carrier SumH.Homology} ((backward).apply) _ _ (forwardOnClass x) }
+      "=" _ "by" { backwardOnClasses ((P.cyclesMap FirstProjection.map).apply x) ((Q.cyclesMap SecondProjection.map).apply x) }
+      "=" _ "by" { congr!{SumH.Cycle SumH.Homology} SumH.classOf (cycles ((P.cyclesMap FirstProjection.map).apply x) ((Q.cyclesMap SecondProjection.map).apply x)) x (reconstruction z x) }
+    });
 \import Modules.Laws[V := Left.Carrier z, space := Left.space z] \as LeftLaws;
 \import algebra.Group[].Of[Carrier := Left.Carrier z, group := LeftLaws.additive] \as LeftGroup;
 \import Modules.Laws[V := Right.Carrier z, space := Right.space z] \as RightLaws;
 \import algebra.Group[].Of[Carrier := Right.Carrier z, group := RightLaws.additive] \as RightGroup;
 \definition firstSum: \forall (x: LeftH.Cycle)(y: RightH.Cycle) -> (FirstProjection.map).apply z (cycles x y) = x :=
-  \fun (x: LeftH.Cycle)(y: RightH.Cycle) => trans!{{Left.Carrier z}} _ _ _
-    ((FirstProjection.map).addition z ((FirstInjection.map).apply z x) ((SecondInjection.map).apply z y))
-    (trans!{{Left.Carrier z}} _ _ _
-      (congr2!{{Left.Carrier z} {Left.Carrier z} {Left.Carrier z}} LeftGroup.add _ _ _ _ (firstRoundtrip z x) (firstCross z y)) (LeftGroup.zeroRight x));
+  \fun (x: LeftH.Cycle)(y: RightH.Cycle) => eq_reason_in!{{Left.Carrier z} _
+    "=" _ "by" { (FirstProjection.map).addition z ((FirstInjection.map).apply z x) ((SecondInjection.map).apply z y) }
+    "=" _ "by" { congr!{{Left.Carrier z} {Left.Carrier z} {Left.Carrier z}} LeftGroup.add _ _ _ _ (firstRoundtrip z x) (firstCross z y) }
+    "=" _ "by" { LeftGroup.zeroRight x }
+  };
 \definition secondSum: \forall (x: LeftH.Cycle)(y: RightH.Cycle) -> (SecondProjection.map).apply z (cycles x y) = y :=
-  \fun (x: LeftH.Cycle)(y: RightH.Cycle) => trans!{{Right.Carrier z}} _ _ _
-    ((SecondProjection.map).addition z ((FirstInjection.map).apply z x) ((SecondInjection.map).apply z y))
-    (trans!{{Right.Carrier z}} _ _ _
-      (congr2!{{Right.Carrier z} {Right.Carrier z} {Right.Carrier z}} RightGroup.add _ _ _ _ (secondCross z x) (secondRoundtrip z y)) (RightGroup.zeroLeft y));
+  \fun (x: LeftH.Cycle)(y: RightH.Cycle) => eq_reason_in!{{Right.Carrier z} _
+    "=" _ "by" { (SecondProjection.map).addition z ((FirstInjection.map).apply z x) ((SecondInjection.map).apply z y) }
+    "=" _ "by" { congr!{{Right.Carrier z} {Right.Carrier z} {Right.Carrier z}} RightGroup.add _ _ _ _ (secondCross z x) (secondRoundtrip z y) }
+    "=" _ "by" { RightGroup.zeroLeft y }
+  };
 \definition rightOnClasses: \forall (x: LeftH.Cycle)(y: RightH.Cycle) ->
   (forward).apply ((backward).apply (Pair.make (LeftH.classOf x) (RightH.classOf y))) = Pair.make (LeftH.classOf x) (RightH.classOf y) :=
-  \fun (x: LeftH.Cycle)(y: RightH.Cycle) => trans!{Pair.Carrier} _ _ _
-    (congr!{SumH.Homology Pair.Carrier} ((forward).apply) _ _ (backwardOnClasses x y))
-    (trans!{Pair.Carrier} _ _ _ (forwardOnClass (cycles x y))
-      (Pairs.ext _ _ (congr!{LeftH.Cycle LeftH.Homology} LeftH.classOf ((P.cyclesMap FirstProjection.map).apply (cycles x y)) x (firstSum x y)) (congr!{RightH.Cycle RightH.Homology} RightH.classOf ((Q.cyclesMap SecondProjection.map).apply (cycles x y)) y (secondSum x y))));
+  \fun (x: LeftH.Cycle)(y: RightH.Cycle) => eq_reason_in!{Pair.Carrier _
+    "=" _ "by" { congr!{SumH.Homology Pair.Carrier} ((forward).apply) _ _ (backwardOnClasses x y) }
+    "=" _ "by" { forwardOnClass (cycles x y) }
+    "=" _ "by" { Pairs.ext _ _ (congr!{LeftH.Cycle LeftH.Homology} LeftH.classOf ((P.cyclesMap FirstProjection.map).apply (cycles x y)) x (firstSum x y)) (congr!{RightH.Cycle RightH.Homology} RightH.classOf ((Q.cyclesMap SecondProjection.map).apply (cycles x y)) y (secondSum x y)) }
+  };
 \definition rightOnPair: \forall (a: LeftH.Homology)(b: RightH.Homology) -> (forward).apply ((backward).apply (Pair.make a b)) = Pair.make a b :=
   LeftH.classInduction (\fun (a: LeftH.Homology) => \forall (b: RightH.Homology) -> (forward).apply ((backward).apply (Pair.make a b)) = Pair.make a b)
     (\fun (x: LeftH.Cycle) => RightH.classInduction (\fun (b: RightH.Homology) => (forward).apply ((backward).apply (Pair.make (LeftH.classOf x) b)) = Pair.make (LeftH.classOf x) b) (rightOnClasses x));

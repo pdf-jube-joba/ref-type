@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import algebra.Group[].Of[Carrier := Abstract.Carrier, group := Rings.additiveGroup Abstract.Carrier Raw.ring] \as PolynomialSum;
 \import Abstract.Universal[K := L, target := Fields.fieldAsCommutativeRing L target] \as Universal;
 \import Into.At[coefficients := Maps.ringMap embedding, x := x] \as Evaluation;
@@ -55,7 +56,7 @@
         \let productZero: Target.mul (embedding.apply f.leading) (monicValue f.coefficients) = Target.zero := eq_reason!{
           {Target.mul (embedding.apply f.leading) (monicValue f.coefficients)}
           "=" {Target.mul (Evaluation.apply (Abstract.constant f.leading)) (Evaluation.apply (asPolynomial f.coefficients))}
-          "by" {congr2!{L L L} Target.mul _ _ _ _
+          "by" {congr!{L L L} Target.mul _ _ _ _
             (sym!{L} _ _ (Universal.constants (Maps.ringMap embedding) x f.leading))
             (sym!{L} _ _ (Evaluation.monicAgrees f.coefficients))}
           "=" {Evaluation.apply (Abstract.mul (Abstract.constant f.leading) (asPolynomial f.coefficients))}
@@ -98,8 +99,8 @@
     "by" {congr!{L L} (\fun (v: L) => Target.add (Target.mul v (value quotient)) (value remainder)) _ _ (sym!{L} _ _ minimal.polynomial.root)}
     "=" {Target.add (Target.mul (Evaluation.apply (asPolynomial minimal.polynomial.coefficients)) (Evaluation.apply (Raw.asPolynomial quotient)))
       (Evaluation.apply (Raw.asPolynomial remainder))}
-    "by" {congr2!{L L L} Target.add _ _ _ _
-      (congr2!{L L L} Target.mul _ _ _ _ (sym!{L} _ _ (Evaluation.monicAgrees minimal.polynomial.coefficients)) (sym!{L} _ _ (Evaluation.rawAgrees quotient)))
+    "by" {congr!{L L L} Target.add _ _ _ _
+      (congr!{L L L} Target.mul _ _ _ _ (sym!{L} _ _ (Evaluation.monicAgrees minimal.polynomial.coefficients)) (sym!{L} _ _ (Evaluation.rawAgrees quotient)))
       (sym!{L} _ _ (Evaluation.rawAgrees remainder))}
     "=" {Evaluation.apply (Abstract.add (Abstract.mul (asPolynomial minimal.polynomial.coefficients) (Raw.asPolynomial quotient)) (Raw.asPolynomial remainder))}
     "by" {trans!{L} _ _ _
@@ -122,10 +123,11 @@
     (smallKernel minimal division.remainder division.bound (remainderRoot minimal p division.quotient division.remainder division.equation root)) \then
   \return \exact(Divides[minimal, p] {
     quotient := division.quotient, bound := division.quotientBound,
-    equation := trans!{Abstract.Carrier} _ _ _ division.equation
-      (trans!{Abstract.Carrier} _ _ _
-        (congr!{Abstract.Carrier Abstract.Carrier} (Abstract.add (Abstract.mul (asPolynomial minimal.polynomial.coefficients) (Raw.asPolynomial division.quotient))) _ _ remainderZero)
-        (PolynomialSum.zeroRight _)),
+    equation := eq_reason_in!{Abstract.Carrier _
+      "=" _ "by" division.equation
+      "=" _ "by" { congr!{Abstract.Carrier Abstract.Carrier} (Abstract.add (Abstract.mul (asPolynomial minimal.polynomial.coefficients) (Raw.asPolynomial division.quotient))) _ _ remainderZero }
+      "=" _ "by" { PolynomialSum.zeroRight _ }
+    },
   }, Divides[minimal, p])
 };
 \module Comparison(M: \Set, output: Fields.Field[M]);
@@ -140,7 +142,7 @@
     "by" {congr!{Abstract.Carrier L} Evaluation.apply _ _ (Raw.plusLaw p q)}
     "=" {Target.add (Evaluation.apply (Raw.asPolynomial p)) (Evaluation.apply (Raw.asPolynomial q))}
     "by" {Evaluation.laws.add (Raw.asPolynomial p) (Raw.asPolynomial q)}
-    "=" {Target.add (value p) (value q)} "by" {congr2!{L L L} Target.add _ _ _ _ (Evaluation.rawAgrees p) (Evaluation.rawAgrees q)}};
+    "=" {Target.add (value p) (value q)} "by" {congr!{L L L} Target.add _ _ _ _ (Evaluation.rawAgrees p) (Evaluation.rawAgrees q)}};
 \definition timesValue: \forall (p, q: Coefficients) -> value (Raw.times p q) = Target.mul (value p) (value q) :=
   \fun (p, q: Coefficients) => eq_reason!{{value (Raw.times p q)}
     "=" {Evaluation.apply (Raw.asPolynomial (Raw.times p q))} "by" {sym!{L} _ _ (Evaluation.rawAgrees (Raw.times p q))}
@@ -148,7 +150,7 @@
     "by" {congr!{Abstract.Carrier L} Evaluation.apply _ _ (Raw.timesLaw p q)}
     "=" {Target.mul (Evaluation.apply (Raw.asPolynomial p)) (Evaluation.apply (Raw.asPolynomial q))}
     "by" {Evaluation.laws.mul (Raw.asPolynomial p) (Raw.asPolynomial q)}
-    "=" {Target.mul (value p) (value q)} "by" {congr2!{L L L} Target.mul _ _ _ _ (Evaluation.rawAgrees p) (Evaluation.rawAgrees q)}};
+    "=" {Target.mul (value p) (value q)} "by" {congr!{L L L} Target.mul _ _ _ _ (Evaluation.rawAgrees p) (Evaluation.rawAgrees q)}};
 \definition scaleValue: \forall (a: K)(p: Coefficients) -> value (Raw.scale a p) = Target.mul (embedding.apply a) (value p) :=
   \fun (a: K)(p: Coefficients) => eq_reason!{{value (Raw.scale a p)}
     "=" {Evaluation.apply (Raw.asPolynomial (Raw.scale a p))} "by" {sym!{L} _ _ (Evaluation.rawAgrees (Raw.scale a p))}
@@ -156,12 +158,14 @@
     "by" {congr!{Abstract.Carrier L} Evaluation.apply _ _ (Raw.scaleLaw a p)}
     "=" {Target.mul (Evaluation.apply (Abstract.constant a)) (Evaluation.apply (Raw.asPolynomial p))}
     "by" {Evaluation.laws.mul (Abstract.constant a) (Raw.asPolynomial p)}
-    "=" {Target.mul (embedding.apply a) (value p)} "by" {congr2!{L L L} Target.mul _ _ _ _ (Universal.constants (Maps.ringMap embedding) x a) (Evaluation.rawAgrees p)}};
+    "=" {Target.mul (embedding.apply a) (value p)} "by" {congr!{L L L} Target.mul _ _ _ _ (Universal.constants (Maps.ringMap embedding) x a) (Evaluation.rawAgrees p)}};
 \definition negativeValue: \forall (p: Coefficients) -> value (Raw.scale (neg one) p) = Target.neg (value p) :=
-  \fun (p: Coefficients) => trans!{L} _ _ _ (scaleValue (neg one) p)
-    (trans!{L} _ _ _ (congr!{L L} (\fun (a: L) => Target.mul a (value p)) _ _
-      (trans!{L} _ _ _ (embedding.preservesNeg one) (congr!{L L} Target.neg _ _ embedding.preservesOne)))
-      (Arithmetic.negOneMul (value p)));
+  \fun (p: Coefficients) => eq_reason_in!{L _
+    "=" _ "by" { scaleValue (neg one) p }
+    "=" _ "by" { congr!{L L} (\fun (a: L) => Target.mul a (value p)) _ _
+      (trans!{L} _ _ _ (embedding.preservesNeg one) (congr!{L L} Target.neg _ _ embedding.preservesOne)) }
+    "=" _ "by" { Arithmetic.negOneMul (value p) }
+  };
 \definition variableCoefficients: Coefficients := Lists.List[K]::cons zero (constantCoefficients one);
 \import algebra.Monoid[].Of[Carrier := L, monoid := Arithmetic.multiplicative] \as TargetProduct;
 \definition variableValue: value variableCoefficients = x := eq_reason!{{value variableCoefficients}

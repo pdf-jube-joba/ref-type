@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \root.Dimension[n := n].On[M := M] \as Source;
 \import \root.Dimension[n := m].On[M := N] \as Target;
 \import \root.Map[n := n, m := m].Between[M := M, N := N] \as Forward;
@@ -25,11 +26,17 @@
   TargetMaps.ext (TargetCompose.compose d.backward d.forward) TargetIdentity.map
     (\axiom:funext((TargetMaps.apply (TargetCompose.compose d.backward d.forward)), (TargetMaps.apply TargetIdentity.map), (Base.laws d).rightInverse));
 \definition leftInverse: \forall (p: Source.Point) -> Backward.apply d.backward (Forward.apply d.forward p) = p :=
-  \fun (p: Source.Point) => trans!{{Source.Point}} _ _ _ (sym!{{Source.Point}} _ _ (SourceComposition.pointwise p))
-    (trans!{{Source.Point}} _ _ _ (congr!{{SourceMaps.Map} {Source.Point}} (\fun (f: SourceMaps.Map) => SourceSelf.apply f p) _ _ sourceIdentity) (SourceTangentIdentity.pointwise p));
+  \fun (p: Source.Point) => eq_reason_in!{{Source.Point} _
+    "=" _ "by" { sym!{{Source.Point}} _ _ (SourceComposition.pointwise p) }
+    "=" _ "by" { congr!{{SourceMaps.Map} {Source.Point}} (\fun (f: SourceMaps.Map) => SourceSelf.apply f p) _ _ sourceIdentity }
+    "=" _ "by" { SourceTangentIdentity.pointwise p }
+  };
 \definition rightInverse: \forall (p: Target.Point) -> Forward.apply d.forward (Backward.apply d.backward p) = p :=
-  \fun (p: Target.Point) => trans!{{Target.Point}} _ _ _ (sym!{{Target.Point}} _ _ (TargetComposition.pointwise p))
-    (trans!{{Target.Point}} _ _ _ (congr!{{TargetMaps.Map} {Target.Point}} (\fun (f: TargetMaps.Map) => TargetSelf.apply f p) _ _ targetIdentity) (TargetTangentIdentity.pointwise p));
+  \fun (p: Target.Point) => eq_reason_in!{{Target.Point} _
+    "=" _ "by" { sym!{{Target.Point}} _ _ (TargetComposition.pointwise p) }
+    "=" _ "by" { congr!{{TargetMaps.Map} {Target.Point}} (\fun (f: TargetMaps.Map) => TargetSelf.apply f p) _ _ targetIdentity }
+    "=" _ "by" { TargetTangentIdentity.pointwise p }
+  };
 \import manifolds.Diffeomorphism[n := Source.dimension, m := Target.dimension].Between[M := Source.manifold, N := Target.manifold] \as Total;
 \definition map: Total.Diffeomorphism := Total.Diffeomorphism {
   forward := Forward.Of[f := d.forward].map, backward := Backward.Of[f := d.backward].map,

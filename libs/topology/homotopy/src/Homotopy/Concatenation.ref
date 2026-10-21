@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import algebraic_topology.TimeSubdivision[A := A] \as Subdivision;
 \import topological_constructions.Gluing[A := Cylinder.Carrier, B := B].Pasting[F := Subdivision.LeftSet, G := Subdivision.RightSet] \as Pasting;
 \import real.Analysis[] \as Real;
@@ -5,15 +6,15 @@
 \import R.Arithmetic[].Prop[] \as ScalarLaws;
 \import Real.Estimates[] \as Estimates;
 \import std.Logic[].Proposition[] \as Logic;
-\use Equality.congr2;
+\use Equality.congr;
 \use Logic.either;
 \definition leftBoundary: \forall (p: Subdivision.Left) -> Cylinder.time p = Interval.middle -> Subdivision.leftTime p = Interval.end :=
   \fun (p: _) (equal: _) => trans!{Real.Real} _ _ _
-    (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ equal equal) Estimates.halfDouble;
+    (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ equal equal) Estimates.halfDouble;
 \definition rightBoundary: \forall (p: Subdivision.Right) -> Cylinder.time p = Interval.middle -> Subdivision.rightTime p = Interval.start :=
   \fun (p: _) (equal: _) => trans!{Real.Real} _ _ _
     (congr!{Real.Real Real.Real} (\fun (t: Real.Real) => Real.sub t Real.one) _ _
-      (trans!{Real.Real} _ _ _ (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ equal equal) Estimates.halfDouble))
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ equal equal) Estimates.halfDouble))
     (ScalarLaws.subSelf Real.one);
 \definition compatible[source: Source.Topology] [target: Target.Topology] [f, g, k: A -> B]
   [h: Homotopy[source, target, f, g]] [j: Homotopy[source, target, g, k]]:
@@ -26,14 +27,14 @@
     (R.leReplaceRight Real.half (Cylinder.time q) (Cylinder.time p) (sym!{Real.Real} _ _ timeEqual)
       (\bysub(Cylinder.Carrier, Subdivision.RightSet, q))) \then
   \let rightMiddle: Cylinder.time q = Interval.middle := trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ timeEqual) boundary \then
-  \return trans!{B} _ _ _
-    (trans!{B} _ _ _
-      (congr!{Interval.Carrier B} (\fun (t: Interval.Carrier) => h (Cylinder.at t (Cylinder.point p))) _ _ (leftBoundary p boundary))
-      ((laws source target f g h).end (Cylinder.point p)))
-    (trans!{B} _ _ _ (congr!{A B} g _ _ (congr!{Cylinder.Carrier A} Cylinder.point _ _ equal))
-      (sym!{B} _ _ (trans!{B} _ _ _
+  \return eq_reason_in!{B _
+    "=" _ "by" { congr!{Interval.Carrier B} (\fun (t: Interval.Carrier) => h (Cylinder.at t (Cylinder.point p))) _ _ (leftBoundary p boundary) }
+    "=" _ "by" { (laws source target f g h).end (Cylinder.point p) }
+    "=" _ "by" { congr!{A B} g _ _ (congr!{Cylinder.Carrier A} Cylinder.point _ _ equal) }
+    "=" _ "by" { sym!{B} _ _ (trans!{B} _ _ _
         (congr!{Interval.Carrier B} (\fun (t: Interval.Carrier) => j (Cylinder.at t (Cylinder.point q))) _ _ (rightBoundary q rightMiddle))
-        ((laws source target g k j).start (Cylinder.point q)))))
+        ((laws source target g k j).start (Cylinder.point q))) }
+  }
 };
 \definition family[source: Source.Topology] [target: Target.Topology] [f, g, k: A -> B]
   [h: Homotopy[source, target, f, g]] [j: Homotopy[source, target, g, k]]: Family :=
@@ -48,21 +49,21 @@
 \definition familyStart: \forall (source: Source.Topology) (target: Target.Topology) (f, g, k: A -> B)
   (h: Homotopy[source, target, f, g]) (j: Homotopy[source, target, g, k]) (x: A) ->
   family source target f g k h j (Cylinder.at Interval.start x) = f x :=
-  \fun (source: _) (target: _) (f, g, k: _) (h: _) (j: _) (x: A) => trans!{B} _ _ _
-    (Pasting.onLeft (\fun (p: Subdivision.Left) => h (Subdivision.leftMap p))
-      (\fun (p: Subdivision.Right) => j (Subdivision.rightMap p)) Subdivision.covered (compatible source target f g k h j) (startPoint x))
-    (trans!{B} _ _ _
-      (congr!{Interval.Carrier B} (\fun (t: Interval.Carrier) => h (Cylinder.at t x)) _ _ (leftStartTime x))
-      ((laws source target f g h).start x));
+  \fun (source: _) (target: _) (f, g, k: _) (h: _) (j: _) (x: A) => eq_reason_in!{B _
+    "=" _ "by" { Pasting.onLeft (\fun (p: Subdivision.Left) => h (Subdivision.leftMap p))
+      (\fun (p: Subdivision.Right) => j (Subdivision.rightMap p)) Subdivision.covered (compatible source target f g k h j) (startPoint x) }
+    "=" _ "by" { congr!{Interval.Carrier B} (\fun (t: Interval.Carrier) => h (Cylinder.at t x)) _ _ (leftStartTime x) }
+    "=" _ "by" { (laws source target f g h).start x }
+  };
 \definition familyEnd: \forall (source: Source.Topology) (target: Target.Topology) (f, g, k: A -> B)
   (h: Homotopy[source, target, f, g]) (j: Homotopy[source, target, g, k]) (x: A) ->
   family source target f g k h j (Cylinder.at Interval.end x) = k x :=
-  \fun (source: _) (target: _) (f, g, k: _) (h: _) (j: _) (x: A) => trans!{B} _ _ _
-    (Pasting.onRight (\fun (p: Subdivision.Left) => h (Subdivision.leftMap p))
-      (\fun (p: Subdivision.Right) => j (Subdivision.rightMap p)) Subdivision.covered (compatible source target f g k h j) (endPoint x))
-    (trans!{B} _ _ _
-      (congr!{Interval.Carrier B} (\fun (t: Interval.Carrier) => j (Cylinder.at t x)) _ _ (rightEndTime x))
-      ((laws source target g k j).end x));
+  \fun (source: _) (target: _) (f, g, k: _) (h: _) (j: _) (x: A) => eq_reason_in!{B _
+    "=" _ "by" { Pasting.onRight (\fun (p: Subdivision.Left) => h (Subdivision.leftMap p))
+      (\fun (p: Subdivision.Right) => j (Subdivision.rightMap p)) Subdivision.covered (compatible source target f g k h j) (endPoint x) }
+    "=" _ "by" { congr!{Interval.Carrier B} (\fun (t: Interval.Carrier) => j (Cylinder.at t x)) _ _ (rightEndTime x) }
+    "=" _ "by" { (laws source target g k j).end x }
+  };
 \definition concatenate[source: Source.Topology] [target: Target.Topology] [f, g, k: A -> B]
   [h: Homotopy[source, target, f, g]] [j: Homotopy[source, target, g, k]]: Homotopy[source, target, f, k] :=
   \into[Family](family source target f g k h j, Homotopy[source, target, f, k]) \by {

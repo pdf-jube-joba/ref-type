@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition n: Nat.Nat^ := Arithmetic.add p q;
 \import Coordinates.Step[p := p, q := q] \as Step;
 \import Coordinates.Degree[n := n] \as Current;
@@ -20,9 +21,9 @@
 \definition atTop: \forall (x: C.family.Carrier p q)(y: C.family.Carrier p (Nat.Nat^::succ q)) ->
   (C.differential.vertical p q).apply y = x -> Current.coordinate Step.targetIndex (boundary y) = x :=
   \fun (x: C.family.Carrier p q)(y: C.family.Carrier p (Nat.Nat^::succ q))(preimage: _) =>
-    trans!{{C.family.Carrier p q}} _ _ _ (Step.differential (element y))
-      (trans!{{C.family.Carrier p q}} _ _ _
-        (congr2!{{C.family.Carrier p q} {C.family.Carrier p q} {C.family.Carrier p q}} ((C.family.space p q).add) _ _ _ _
+    eq_reason_in!{{C.family.Carrier p q} _
+      "=" _ "by" { Step.differential (element y) }
+      "=" _ "by" { congr!{{C.family.Carrier p q} {C.family.Carrier p q} {C.family.Carrier p q}} ((C.family.space p q).add) _ _ _ _
           (trans!{{C.family.Carrier p q}} _ _ _
             (congr!{{C.family.Carrier (Nat.Nat^::succ p) q} {C.family.Carrier p q}} ((C.differential.horizontal p q).apply) _ _
               (Source.other Step.verticalIndex Step.horizontalIndex ((Sign.map p).apply y) firstDifferent))
@@ -32,8 +33,9 @@
               (\fun (a: C.family.Carrier p (Nat.Nat^::succ q)) =>
                 (TargetSign.map p).apply ((C.differential.vertical p q).apply a)) _ _
               (Source.own Step.verticalIndex ((Sign.map p).apply y)))
-            (Vertical.signedPreimage x y preimage)))
-        (Group.zeroLeft x));
+            (Vertical.signedPreimage x y preimage)) }
+      "=" _ "by" { Group.zeroLeft x }
+    };
 \module At(i: Index n) {
   \import Coordinates.StepAt[n := n, i := i] \as Differential;
   \import \parent.\parent.\parent.Sign[V := C.family.Carrier i.first i.second, space := C.family.space i.first i.second] \as TargetSign;
@@ -58,25 +60,26 @@
   \definition zero: \forall (y: C.family.Carrier p (Nat.Nat^::succ q)) -> Natural.Le (Nat.Nat^::succ p) i.first ->
     Current.coordinate i (boundary y) = (C.family.space i.first i.second).zero :=
     \fun (y: C.family.Carrier p (Nat.Nat^::succ q))(above: Natural.Le (Nat.Nat^::succ p) i.first) =>
-      trans!{{C.family.Carrier i.first i.second}} _ _ _ (Differential.differential (element y))
-        (trans!{{C.family.Carrier i.first i.second}} _ _ _
-          (congr2!{{C.family.Carrier i.first i.second} {C.family.Carrier i.first i.second} {C.family.Carrier i.first i.second}}
+      eq_reason_in!{{C.family.Carrier i.first i.second} _
+        "=" _ "by" { Differential.differential (element y) }
+        "=" _ "by" { congr!{{C.family.Carrier i.first i.second} {C.family.Carrier i.first i.second} {C.family.Carrier i.first i.second}}
             ((C.family.space i.first i.second).add) _ _ _ _
             (trans!{{C.family.Carrier i.first i.second}} _ _ _
               (congr!{{C.family.Carrier (Nat.Nat^::succ i.first) i.second} {C.family.Carrier i.first i.second}}
                 ((C.differential.horizontal i.first i.second).apply) _ _
                 (Source.other Step.verticalIndex Differential.horizontalIndex ((Sign.map p).apply y) (differentHorizontal above)))
               (Horizontal.zeroPreserved (C.differential.horizontal i.first i.second)))
-            (trans!{{C.family.Carrier i.first i.second}} _ _ _
-              (congr!{{C.family.Carrier i.first (Nat.Nat^::succ i.second)} {C.family.Carrier i.first i.second}}
+            (eq_reason_in!{{ C.family.Carrier i.first i.second } _
+              "=" _ "by" { congr!{{C.family.Carrier i.first (Nat.Nat^::succ i.second)} {C.family.Carrier i.first i.second}}
                 (\fun (a: C.family.Carrier i.first (Nat.Nat^::succ i.second)) =>
                   (TargetSign.map i.first).apply ((C.differential.vertical i.first i.second).apply a)) _ _
-                (Source.other Step.verticalIndex Differential.verticalIndex ((Sign.map p).apply y) (differentVertical above)))
-              (trans!{{C.family.Carrier i.first i.second}} _ _ _
-                (congr!{{C.family.Carrier i.first i.second} {C.family.Carrier i.first i.second}} ((TargetSign.map i.first).apply) _ _
-                  (Vertical.zeroPreserved (C.differential.vertical i.first i.second)))
-                (Signed.zeroPreserved (TargetSign.map i.first)))))
-          (Group.zeroLeft (C.family.space i.first i.second).zero));
+                (Source.other Step.verticalIndex Differential.verticalIndex ((Sign.map p).apply y) (differentVertical above)) }
+              "=" _ "by" { congr!{{C.family.Carrier i.first i.second} {C.family.Carrier i.first i.second}} ((TargetSign.map i.first).apply) _ _
+                  (Vertical.zeroPreserved (C.differential.vertical i.first i.second)) }
+              "=" _ "by" { Signed.zeroPreserved (TargetSign.map i.first) }
+            }) }
+        "=" _ "by" { Group.zeroLeft (C.family.space i.first i.second).zero }
+      };
 }
 \definition above: \forall (y: C.family.Carrier p (Nat.Nat^::succ q)) -> Above n (Nat.Nat^::succ p) (boundary y) :=
   \fun (y: C.family.Carrier p (Nat.Nat^::succ q))(i: Index n) => At[i := i].zero y;

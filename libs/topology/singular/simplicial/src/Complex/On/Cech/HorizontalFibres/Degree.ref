@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Modules.Hom[V := Coproduct.Carrier n, W := Native.Carrier n, source := Coproduct.space n, target := Native.space n]
   .Composition[U := Native.Carrier n, domain := Native.space n] \as Left;
 \import Modules.Hom[V := Native.Carrier n, W := Coproduct.Carrier n, source := Native.space n, target := Coproduct.space n]
@@ -9,15 +10,17 @@
 \import Modules.Free[Generators := Generator n q].To[W := Native.Carrier n, target := Native.space n] \as SourceFree;
 \import Modules.Free[Generators := Coproduct.Generator[n]].To[W := Coproduct.Carrier n, target := Coproduct.space n] \as TargetFree;
 \definition left: Left.compose (Backward.linear backwardMap) (Forward.linear forwardMap) = Source.identity :=
-  SourceFree.ext _ _ (\fun (s: Generator n q) => trans!{{Native.Carrier n}} _ _ _
-    (congr!{{Coproduct.Carrier n} {Native.Carrier n}} ((backwardMap).apply n) _ _ (Encode.At[n := n].onGenerator forward s))
-    (trans!{{Native.Carrier n}} _ _ _ (Decode.At[n := n].onGenerator backward (encode n s))
-      (congr!{{Generator n q} {Native.Carrier n}} (Native.generator n) _ _ (decodeEncode n s))));
+  SourceFree.ext _ _ (\fun (s: Generator n q) => eq_reason_in!{{Native.Carrier n} _
+    "=" _ "by" { congr!{{Coproduct.Carrier n} {Native.Carrier n}} ((backwardMap).apply n) _ _ (Encode.At[n := n].onGenerator forward s) }
+    "=" _ "by" { Decode.At[n := n].onGenerator backward (encode n s) }
+    "=" _ "by" { congr!{{Generator n q} {Native.Carrier n}} (Native.generator n) _ _ (decodeEncode n s) }
+  });
 \definition right: Right.compose (Forward.linear forwardMap) (Backward.linear backwardMap) = Target.identity :=
-  TargetFree.ext _ _ (\fun (s: Coproduct.Generator[n]) => trans!{{Coproduct.Carrier n}} _ _ _
-    (congr!{{Native.Carrier n} {Coproduct.Carrier n}} ((forwardMap).apply n) _ _ (Decode.At[n := n].onGenerator backward s))
-    (trans!{{Coproduct.Carrier n}} _ _ _ (Encode.At[n := n].onGenerator forward (decode n s))
-      (congr!{{Coproduct.Generator[n]} {Coproduct.Carrier n}} (Coproduct.generator n) _ _ (encodeDecode n s))));
+  TargetFree.ext _ _ (\fun (s: Coproduct.Generator[n]) => eq_reason_in!{{Coproduct.Carrier n} _
+    "=" _ "by" { congr!{{Native.Carrier n} {Coproduct.Carrier n}} ((forwardMap).apply n) _ _ (Decode.At[n := n].onGenerator backward s) }
+    "=" _ "by" { Encode.At[n := n].onGenerator forward (decode n s) }
+    "=" _ "by" { congr!{{Coproduct.Generator[n]} {Coproduct.Carrier n}} (Coproduct.generator n) _ _ (encodeDecode n s) }
+  });
 \definition leftInverse: \forall (x: Native.Carrier n) -> (backwardMap).apply n ((forwardMap).apply n x) = x :=
   \fun (x: Native.Carrier n) => congr!{{Modules.Hom[V := Native.Carrier n, W := Native.Carrier n, source := Native.space n, target := Native.space n].Map} {Native.Carrier n}}
     (\fun (f: Modules.Hom[V := Native.Carrier n, W := Native.Carrier n, source := Native.space n, target := Native.space n].Map) => (f).apply x) _ _ left;

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition degree: I.Int^ := I.Int^::ofNat n;
 \definition upper: I.Int^ := I.Int^::ofNat (N.Nat^::succ n);
 \import \parent.At[z := degree] \as LowerAction;
@@ -26,11 +27,11 @@
 \import Modules.Hom[V := IntersectionH.Cohomology, W := SmallH.Cohomology, source := IntersectionH.cohomologySpace, target := SmallH.cohomologySpace] \as ConnectingLinear;
 \definition onConnecting: \forall (k: I.Int^) -> LowerScalar k -> \forall (q: IntersectionH.Cohomology) ->
   (SmallAction.induced SmallPull.map).apply ((Connecting.connecting).apply q) = (SmallH.cohomologySpace).smul k ((Connecting.connecting).apply q) :=
-  \fun (k: I.Int^)(law: LowerScalar k)(q: IntersectionH.Cohomology) => trans!{SmallH.Cohomology} _ _ _
-    (sym!{SmallH.Cohomology} _ _ (Sequence.At[z := degree].connectingNaturality q))
-    (trans!{SmallH.Cohomology} _ _ _
-      (congr!{IntersectionH.Cohomology SmallH.Cohomology} ((Connecting.connecting).apply) _ _ (LowerAction.scalarAction k law q))
-      ((Connecting.connecting).scalar k q));
+  \fun (k: I.Int^)(law: LowerScalar k)(q: IntersectionH.Cohomology) => eq_reason_in!{SmallH.Cohomology _
+    "=" _ "by" { sym!{SmallH.Cohomology} _ _ (Sequence.At[z := degree].connectingNaturality q) }
+    "=" _ "by" { congr!{IntersectionH.Cohomology SmallH.Cohomology} ((Connecting.connecting).apply) _ _ (LowerAction.scalarAction k law q) }
+    "=" _ "by" { (Connecting.connecting).scalar k q }
+  };
 \import \root.Hemispheres[n := n].With[coefficients := coefficients].Vanishing[] \as Vanishing;
 \definition connectingOnto: \forall (q: SmallH.Cohomology) -> \exists ( p: IntersectionH.Cohomology \where (Connecting.connecting).apply p = q ) :=
   \fun (q: SmallH.Cohomology) => Exactness.exactAtALower q
@@ -39,9 +40,10 @@
   \fun (k: I.Int^)(law: LowerScalar k)(q: SmallH.Cohomology) \then
   \takefrom p: \Cast[IntersectionH.Cohomology] ({ p: IntersectionH.Cohomology \where (Connecting.connecting).apply p = q }) \by connectingOnto q \then
   \let equal: (Connecting.connecting).apply p = q := \bysub(IntersectionH.Cohomology, { p: IntersectionH.Cohomology \where (Connecting.connecting).apply p = q }, p) \then
-  \return trans!{SmallH.Cohomology} _ _ _
-    (sym!{SmallH.Cohomology} _ _ (congr!{SmallH.Cohomology SmallH.Cohomology} ((SmallAction.induced SmallPull.map).apply) _ _ equal))
-    (trans!{SmallH.Cohomology} _ _ _ (onConnecting k law p)
-      (congr!{SmallH.Cohomology SmallH.Cohomology} ((SmallH.cohomologySpace).smul k) _ _ equal))
+  \return eq_reason_in!{SmallH.Cohomology _
+    "=" _ "by" { sym!{SmallH.Cohomology} _ _ (congr!{SmallH.Cohomology SmallH.Cohomology} ((SmallAction.induced SmallPull.map).apply) _ _ equal) }
+    "=" _ "by" { onConnecting k law p }
+    "=" _ "by" { congr!{SmallH.Cohomology SmallH.Cohomology} ((SmallH.cohomologySpace).smul k) _ _ equal }
+  }
 };
 \module Whole;

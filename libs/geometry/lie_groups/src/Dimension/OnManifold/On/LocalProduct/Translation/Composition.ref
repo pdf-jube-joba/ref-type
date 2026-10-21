@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 /* Associativity of coordinate translations on their common open domain. */
 \import \parent.\parent.Translation[g := input h] \as Right;
 \definition gh: Open.Carrier chart.image := CoordinateMaps.apply domain chart.image map h;
@@ -15,10 +16,12 @@
   \let outer: Charts.point chart (CoordinateMaps.apply source chart.image composed x) =
     mul (Charts.point chart g) (Charts.point chart (input second)) := formula second \then
   \let inner: Charts.point chart (input second) = mul (Charts.point chart (input h)) (Charts.point chart (productInput x)) := Right.formula (rightInput x) \then
-  \return trans!{Point} _ _ _ outer (trans!{Point} _ _ _
-    (congr!{Point Point} (mul (Charts.point chart g)) _ _ inner)
-    (trans!{Point} _ _ _ (sym!{Point} _ _ (Operations.assoc (Charts.point chart g) (Charts.point chart (input h)) (Charts.point chart (productInput x))))
-      (congr!{Point Point} (\fun (p: Point) => mul p (Charts.point chart (productInput x))) _ _ (sym!{Point} _ _ (formula h)))))
+  \return eq_reason_in!{Point _
+    "=" _ "by" outer
+    "=" _ "by" { congr!{Point Point} (mul (Charts.point chart g)) _ _ inner }
+    "=" _ "by" { sym!{Point} _ _ (Operations.assoc (Charts.point chart g) (Charts.point chart (input h)) (Charts.point chart (productInput x))) }
+    "=" _ "by" { congr!{Point Point} (\fun (p: Point) => mul p (Charts.point chart (productInput x))) _ _ (sym!{Point} _ _ (formula h)) }
+  }
 };
 \definition included: Open.Included source ProductTranslation.domain := \fun (x: Vectors.Point)(member: _) => \block {
   \let p: Open.Carrier source := \into[Vectors.Point](x, source.points) \by { member } \then
@@ -60,8 +63,11 @@
 \definition equalDerivatives: CompositeD.value = RestrictedD.value :=
   congr!{{CoordinateMaps.Map source chart.image} Linear.LinearMap}
     (\fun (f: CoordinateMaps.Map source chart.image) => CoordinateMaps.Differential[U := source, V := chart.image, f := f, a := initial].value) _ _ equal;
-\definition candidate: Chain.candidate = ProductD.value := trans!{Linear.LinearMap} _ _ _ (sym!{Linear.LinearMap} _ _ Chain.jacobian)
-  (trans!{Linear.LinearMap} _ _ _ equalDerivatives (Restriction.differential included ProductTranslation.map initial));
+\definition candidate: Chain.candidate = ProductD.value := eq_reason_in!{Linear.LinearMap _
+  "=" _ "by" { sym!{Linear.LinearMap} _ _ Chain.jacobian }
+  "=" _ "by" equalDerivatives
+  "=" _ "by" { Restriction.differential included ProductTranslation.map initial }
+};
 \definition pointwise: \forall (w: Vectors.Point) -> LeftD.value.apply (RightD.value.apply w) = ProductD.value.apply w := \block {
   \fun (w: Vectors.Point) \then
   \let outer: OuterD.value.apply = LeftD.value.apply := congr!{Linear.LinearMap {Vectors.Point -> Vectors.Point}}

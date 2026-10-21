@@ -1,17 +1,20 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Modules.Tensor[V := Coordinates.Carrier, W := Coordinates.Carrier, left := Coordinates.space, right := Coordinates.space] \as Native;
 \import I.Math[].Specification[].Prop[].Multiplication[] \as Product;
 \import std.Arithmetic[].IntAlgebra[].Calculation[] \as Arithmetic;
 \import I.Math[].Specification[].Prop[] \as IntegerLaws;
 \import \root.Circle[].Homology[].Unit[] \as VectorUnit;
-\use Equality.congr2;
+\use Equality.congr;
 \definition value[v, w: Coordinates.Carrier]: I.Int^ := Arithmetic.mul (evaluate v) (evaluate w);
 \definition bilinear: Native.BilinearLaws[I.Int^, Modules.scalarModule, value] := Native.BilinearLaws[I.Int^, Modules.scalarModule, value] {
   addLeft := \fun (v, w, u: Coordinates.Carrier) => Product.addMul (evaluate v) (evaluate w) (evaluate u),
   addRight := \fun (v, w, u: Coordinates.Carrier) => Product.mulAdd (evaluate v) (evaluate w) (evaluate u),
   scaleLeft := \fun (a: I.Int^)(v, w: Coordinates.Carrier) => Product.mulAssoc a (evaluate v) (evaluate w),
-  scaleRight := \fun (a: I.Int^)(v, w: Coordinates.Carrier) => trans!{I.Int^} _ _ _ (sym!{I.Int^} _ _ (Product.mulAssoc (evaluate v) a (evaluate w)))
-    (trans!{I.Int^} _ _ _ (congr!{I.Int^ I.Int^} (\fun (b: I.Int^) => Arithmetic.mul b (evaluate w)) _ _ (IntegerLaws.mulComm (evaluate v) a))
-      (Product.mulAssoc a (evaluate v) (evaluate w))),
+  scaleRight := \fun (a: I.Int^)(v, w: Coordinates.Carrier) => eq_reason_in!{I.Int^ _
+    "=" _ "by" { sym!{I.Int^} _ _ (Product.mulAssoc (evaluate v) a (evaluate w)) }
+    "=" _ "by" { congr!{I.Int^ I.Int^} (\fun (b: I.Int^) => Arithmetic.mul b (evaluate w)) _ _ (IntegerLaws.mulComm (evaluate v) a) }
+    "=" _ "by" { Product.mulAssoc a (evaluate v) (evaluate w) }
+  },
 };
 \import Native.Universal[U := I.Int^, target := Modules.scalarModule] \as Forward;
 \definition forward: Modules.Hom[V := Native.Carrier, W := I.Int^, source := Native.space, target := Modules.scalarModule].Map := Forward.map value bilinear;
@@ -28,14 +31,14 @@
 \definition constantScalar[a: I.Int^]: (Coordinates.space).smul a (constant I.One.specification) = constant a :=
   congr!{I.Int^ Coordinates.Carrier} constant _ _ (Product.mulOneRight a);
 \definition leftOnTensor[v, w: Coordinates.Carrier]: (backward).apply ((forward).apply (Native.tensor v w)) = Native.tensor v w :=
-  trans!{Native.Carrier} _ _ _ (congr!{I.Int^ Native.Carrier} inverse _ _ (onTensor v w))
-    (trans!{Native.Carrier} _ _ _
-      (congr!{I.Int^ Native.Carrier} (\fun (a: I.Int^) => Native.tensor (constant a) (constant I.One.specification)) _ _ (IntegerLaws.mulComm (evaluate v) (evaluate w)))
-      (trans!{Native.Carrier} _ _ _ ((Native.bilinear).scaleLeft (evaluate w) (constant (evaluate v)) (constant I.One.specification))
-        (trans!{Native.Carrier} _ _ _ (sym!{Native.Carrier} _ _ ((Native.bilinear).scaleRight (evaluate w) (constant (evaluate v)) (constant I.One.specification)))
-          (trans!{Native.Carrier} _ _ _
-            (congr!{Coordinates.Carrier Native.Carrier} (Native.tensor (constant (evaluate v))) _ _ (constantScalar (evaluate w)))
-            (congr2!{Coordinates.Carrier Coordinates.Carrier Native.Carrier} Native.tensor _ _ _ _ (VectorUnit.leftInverse v) (VectorUnit.leftInverse w))))));
+  eq_reason_in!{Native.Carrier _
+    "=" _ "by" { congr!{I.Int^ Native.Carrier} inverse _ _ (onTensor v w) }
+    "=" _ "by" { congr!{I.Int^ Native.Carrier} (\fun (a: I.Int^) => Native.tensor (constant a) (constant I.One.specification)) _ _ (IntegerLaws.mulComm (evaluate v) (evaluate w)) }
+    "=" _ "by" { (Native.bilinear).scaleLeft (evaluate w) (constant (evaluate v)) (constant I.One.specification) }
+    "=" _ "by" { sym!{Native.Carrier} _ _ ((Native.bilinear).scaleRight (evaluate w) (constant (evaluate v)) (constant I.One.specification)) }
+    "=" _ "by" { congr!{Coordinates.Carrier Native.Carrier} (Native.tensor (constant (evaluate v))) _ _ (constantScalar (evaluate w)) }
+    "=" _ "by" { congr!{Coordinates.Carrier Coordinates.Carrier Native.Carrier} Native.tensor _ _ _ _ (VectorUnit.leftInverse v) (VectorUnit.leftInverse w) }
+  };
 \import Modules.Hom[V := I.Int^, W := Native.Carrier, source := Modules.scalarModule, target := Native.space].Composition[U := Native.Carrier, domain := Native.space] \as Composition;
 \import Modules.End[V := Native.Carrier, space := Native.space] \as End;
 \import Native.Universal[U := Native.Carrier, target := Native.space] \as TensorExtensionality;

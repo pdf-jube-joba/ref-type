@@ -1,10 +1,11 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Lists.Splits[A := Coordinate] \as Splits;
 \import Lists.All[A := Splits.Split] \as All;
 \import \parent.\parent.Analysis[].Operations[] \as Operations;
 \import \parent.\parent.Analysis[].Sums[T := Splits.Split] \as Sum;
 \import real.Analysis[].Sums[T := Splits.Split] \as FiniteSum;
 \import FiniteSum.Mapping[S := Splits.Split] \as SumMap;
-\use Equality.congr2;
+\use Equality.congr;
 \definition term[split: Splits.Split]: ScalarFunction U := Operations.times U (left (split.left)) (right (split.right));
 \definition derivativeTerm[i: Coordinate][split: Splits.Split]: ScalarFunction U := Operations.productDifferential U
   (left (split.left)) (right (split.right))
@@ -12,16 +13,16 @@
 \definition family: PartialFamily U := \fun (directions: Directions) => Sum.sum U (Splits.partitions directions) term;
 \definition step: \forall (i: Coordinate)(directions: Directions) -> family (Directions::cons i directions) = Sum.sum U (Splits.partitions directions) (derivativeTerm i) :=
   \fun (i: _)(directions: _) => \axiom:funext(family (Directions::cons i directions), Sum.sum U (Splits.partitions directions) (derivativeTerm i),
-    \fun (a: Carrier U) => trans!{Real} _ _ _
-      (FiniteSum.append (Lists.map Splits.Split Splits.Split (Splits.insertLeft i) (Splits.partitions directions))
-        (Lists.map Splits.Split Splits.Split (Splits.insertRight i) (Splits.partitions directions)) (\fun (split: Splits.Split) => term split a))
-      (trans!{Real} _ _ _
-        (congr2!{Real Real Real} add _ _ _ _
+    \fun (a: Carrier U) => eq_reason_in!{Real _
+      "=" _ "by" { FiniteSum.append (Lists.map Splits.Split Splits.Split (Splits.insertLeft i) (Splits.partitions directions))
+        (Lists.map Splits.Split Splits.Split (Splits.insertRight i) (Splits.partitions directions)) (\fun (split: Splits.Split) => term split a) }
+      "=" _ "by" { congr!{Real Real Real} add _ _ _ _
           (SumMap.map (Splits.partitions directions) (Splits.insertLeft i) (\fun (split: Splits.Split) => term split a))
-          (SumMap.map (Splits.partitions directions) (Splits.insertRight i) (\fun (split: Splits.Split) => term split a)))
-        (sym!{Real} _ _ (FiniteSum.addition (Splits.partitions directions)
+          (SumMap.map (Splits.partitions directions) (Splits.insertRight i) (\fun (split: Splits.Split) => term split a)) }
+      "=" _ "by" { sym!{Real} _ _ (FiniteSum.addition (Splits.partitions directions)
           (\fun (split: Splits.Split) => term (Splits.insertLeft i split) a)
-          (\fun (split: Splits.Split) => term (Splits.insertRight i split) a)))));
+          (\fun (split: Splits.Split) => term (Splits.insertRight i split) a)) }
+    });
 \module Member(split: Splits.Split, i: Coordinate) {
   \import \parent.\parent.\parent.Analysis[].Product[U := U, f := left (split.left), g := right (split.right), i := i] \as Product;
   \definition partial: \forall (f, g: ScalarFunction U)(k: N.Nat^) -> PartialFamilyLaws[U, f, k, left] -> PartialFamilyLaws[U, g, k, right] ->
@@ -56,7 +57,7 @@
   \fun (f, g: _)(k: _)(lf: _)(lg: _) => trans!{{ScalarFunction U}} _ _ _
     (\axiom:funext(family Directions::nil, Operations.times U (left Directions::nil) (right Directions::nil),
       \fun (a: Carrier U) => Laws.addZeroRight (mul (left Directions::nil a) (right Directions::nil a))))
-    (congr2!{{ScalarFunction U} {ScalarFunction U} {ScalarFunction U}} (Operations.times U)
+    (congr!{{ScalarFunction U} {ScalarFunction U} {ScalarFunction U}} (Operations.times U)
       (left Directions::nil) f (right Directions::nil) g (lf.function) (lg.function));
 \definition laws: \forall (f, g: ScalarFunction U)(k: N.Nat^) -> ContDiffLaws[U, f, k, left] -> ContDiffLaws[U, g, k, right] ->
   ContDiffLaws[U, Operations.times U f g, k, family] :=

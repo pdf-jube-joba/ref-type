@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Algebra[] \as Algebra;
 
 \definition addLe[a, b, c, d: Real]: R.Le a c -> R.Le b d -> R.Le (add a b) (add c d) :=
@@ -29,7 +30,7 @@
   eq_reason!{
     { add (mul half x) (mul half x) }
     "=" { add (mul x half) (mul x half) } "by" {
-      congr2!{Real Real Real} add _ _ _ _ (Laws.fieldMulComm half x) (Laws.fieldMulComm half x) }
+      congr!{Real Real Real} add _ _ _ _ (Laws.fieldMulComm half x) (Laws.fieldMulComm half x) }
     "=" { mul x (add half half) } "by" { sym!{Real} _ _ (Laws.fieldMulAdd x half half) }
     "=" { mul (add half half) x } "by" { Laws.fieldMulComm x (add half half) }
     "=" { mul Op.one x } "by" { congr!{Real Real} (\fun (w: _) => mul w x) _ _ halfDouble }
@@ -68,7 +69,7 @@
 \definition distanceAdd[a, b, c, d: Real]:
   R.Le (distance (add a b) (add c d)) (add (distance a c) (distance b d)) :=
   R.leReplaceLeft _ _ _
-    (sym!{Real} _ _ (congr2!{Real Real Real} Metric.max _ _ _ _ (subAdd a b c d) (subAdd c d a b)))
+    (sym!{Real} _ _ (congr!{Real Real Real} Metric.max _ _ _ _ (subAdd a b c d) (subAdd c d a b)))
     (Metric.maxAdd (sub a c) (sub c a) (sub b d) (sub d b));
 
 \definition distanceMul[w, x, y: Real]: R.Le zero w ->
@@ -190,7 +191,7 @@
           (Laws.addComm (distance p x) (distance x y)) (Metric.distanceTriangle p x y))));
 \module Product;
 \definition distanceDifference: \forall (x, y: Real) -> distance (sub x y) zero = distance x y :=
-  \fun (x, y: Real) => congr2!{Real Real Real} Metric.max _ _ _ _
+  \fun (x, y: Real) => congr!{Real Real Real} Metric.max _ _ _ _
     (Laws.subZeroRight (sub x y))
     (trans!{Real} _ _ _ (Laws.addZeroLeft (neg (sub x y))) (Algebra.negSub x y));
 \definition betweenDistance: \forall (a, b, s: Real) -> R.Le (Metric.min a b) s -> R.Le s (Metric.max a b) -> R.Le (distance s a) (distance b a) := \block {
@@ -210,15 +211,18 @@
   \fun (u, v, a, b, c: Real) => eq_reason!{
     {sub (sub u v) (mul c (sub a b))}
     "=" {sub (neg (sub v u)) (neg (mul c (sub b a)))} "by" {
-      congr2!{Real Real Real} sub _ _ _ _ (sym!{Real} _ _ (Algebra.negSub v u))
+      congr!{Real Real Real} sub _ _ _ _ (sym!{Real} _ _ (Algebra.negSub v u))
         (trans!{Real} _ _ _ (congr!{Real Real} (mul c) _ _ (sym!{Real} _ _ (Algebra.negSub b a))) (Laws.fieldMulNegRight c (sub b a))) }
     "=" {add (neg (sub v u)) (mul c (sub b a))} "by" {Algebra.subNeg (neg (sub v u)) (mul c (sub b a))}
     "=" {sub (mul c (sub b a)) (sub v u)} "by" {Laws.addComm (neg (sub v u)) (mul c (sub b a))}
     "=" {neg (sub (sub v u) (mul c (sub b a)))} "by" {sym!{Real} _ _ (Algebra.negSub (sub v u) (mul c (sub b a)))}
   };
 \definition distanceNegZero: \forall (x: Real) -> distance (neg x) zero = distance x zero :=
-  \fun (x: Real) => trans!{Real} (distance (neg x) zero) (distance zero (neg x)) (distance x zero) (Metric.distanceSymmetric (neg x) zero)
-    (trans!{Real} (distance zero (neg x)) (distance zero x) (distance x zero) (Product[].absNeg x) (Metric.distanceSymmetric zero x));
+  \fun (x: Real) => eq_reason_in!{Real { distance (neg x) zero }
+    "=" { distance zero (neg x) } "by" { Metric.distanceSymmetric (neg x) zero }
+    "=" { distance zero x } "by" { Product[].absNeg x }
+    "=" { distance x zero } "by" { Metric.distanceSymmetric zero x }
+  };
 \definition distanceAddZero: \forall (a, b: Real) -> R.Le (distance (add a b) zero) (add (distance a zero) (distance b zero)) :=
   \fun (a, b: Real) => R.leReplaceLeft (distance (add a b) (add zero zero)) (distance (add a b) zero) (add (distance a zero) (distance b zero))
     (congr!{Real Real} (distance (add a b)) (add zero zero) zero (Laws.addZeroLeft zero)) (distanceAdd a b zero zero);

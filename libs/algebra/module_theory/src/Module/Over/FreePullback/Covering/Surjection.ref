@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \use Logic.either;
 \import Modules.Of[V := W.Carrier, space := W.space].Submodule[] \as Submodules;
 \import Submodules.Image[U := Sum.Carrier, source := Sum.space] \as Images;
@@ -7,16 +8,22 @@
 \definition onLeft: \forall (x: Left) -> Image (W.generator (leftFunction x)) :=
   \fun (x: Left) => Logic.existsIntro[Sum.Carrier, { y: Sum.Carrier \where (projection).apply y = W.generator (leftFunction x) }]
     (Sum.make (L.generator x) RightGroup.zero)
-    (trans!{W.Carrier} _ _ _ (congr!{W.Carrier W.Carrier} (WholeGroup.add ((LeftPush.push leftFunction).apply (L.generator x))) _ _
-      (RightMaps.zeroPreserved (RightPush.push rightFunction)))
-      (trans!{W.Carrier} _ _ _ (WholeGroup.zeroRight ((LeftPush.push leftFunction).apply (L.generator x))) (LeftPush.onGenerator leftFunction x)));
+    (eq_reason_in!{W.Carrier _
+      "=" _ "by" { congr!{W.Carrier W.Carrier} (WholeGroup.add ((LeftPush.push leftFunction).apply (L.generator x))) _ _
+      (RightMaps.zeroPreserved (RightPush.push rightFunction)) }
+      "=" _ "by" { WholeGroup.zeroRight ((LeftPush.push leftFunction).apply (L.generator x)) }
+      "=" _ "by" { LeftPush.onGenerator leftFunction x }
+    });
 \import Modules.Hom[V := L.Carrier, W := W.Carrier, source := L.space, target := W.space] \as LeftMaps;
 \definition onRight: \forall (x: Right) -> Image (W.generator (rightFunction x)) :=
   \fun (x: Right) => Logic.existsIntro[Sum.Carrier, { y: Sum.Carrier \where (projection).apply y = W.generator (rightFunction x) }]
     (Sum.make LeftGroup.zero (V.generator x))
-    (trans!{W.Carrier} _ _ _ (congr!{W.Carrier W.Carrier} (\fun (w: W.Carrier) => WholeGroup.add w ((RightPush.push rightFunction).apply (V.generator x))) _ _
-      (LeftMaps.zeroPreserved (LeftPush.push leftFunction)))
-      (trans!{W.Carrier} _ _ _ (WholeGroup.zeroLeft ((RightPush.push rightFunction).apply (V.generator x))) (RightPush.onGenerator rightFunction x)));
+    (eq_reason_in!{W.Carrier _
+      "=" _ "by" { congr!{W.Carrier W.Carrier} (\fun (w: W.Carrier) => WholeGroup.add w ((RightPush.push rightFunction).apply (V.generator x))) _ _
+      (LeftMaps.zeroPreserved (LeftPush.push leftFunction)) }
+      "=" _ "by" { WholeGroup.zeroLeft ((RightPush.push rightFunction).apply (V.generator x)) }
+      "=" _ "by" { RightPush.onGenerator rightFunction x }
+    });
 \definition onGenerator: \forall (w: Whole) -> Image (W.generator w) :=
   \fun (w: Whole) => either!{{((unionLaws).covered w)} {Image (W.generator w)}
     {\block {

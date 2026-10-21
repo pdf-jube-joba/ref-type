@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Modules.DirectSum[Index := Index, family := source] \as Source;
 \import Modules.DirectSum[Index := Index, family := target] \as Target;
 \import Modules.DirectSumMapping[Index := Index, sourceFamily := source, targetFamily := target].On[f := maps] \as Action;
@@ -25,12 +26,12 @@
   \definition preserved: (Sum.Injection[i := i].map).apply (\parent.Component[i := i].space).zero = Sum.space.zero := Maps.zeroPreserved Sum.Injection[i := i].map;
 }
 \definition zeroMap: Compose.compose ClassMap.map Action.map = ZeroMaps.zeroMap :=
-  SourceUniversal.ext _ _ (\fun (i: Index)(x: source.Carrier i) => trans!{Sum.Carrier} _ _ _
-    (congr!{Target.Carrier Sum.Carrier} (ClassMap.map.apply) _ _ (Action.onInjection i x))
-    (trans!{Sum.Carrier} _ _ _ (ClassMap.onInjection i ((maps i).apply x))
-      (trans!{Sum.Carrier} _ _ _
-        (congr!{{Component[i := i].Carrier} Sum.Carrier} ((Sum.Injection[i := i].map).apply) _ _ (Component[i := i].zero x))
-        Zero[i := i].preserved)));
+  SourceUniversal.ext _ _ (\fun (i: Index)(x: source.Carrier i) => eq_reason_in!{Sum.Carrier _
+    "=" _ "by" { congr!{Target.Carrier Sum.Carrier} (ClassMap.map.apply) _ _ (Action.onInjection i x) }
+    "=" _ "by" { ClassMap.onInjection i ((maps i).apply x) }
+    "=" _ "by" { congr!{{Component[i := i].Carrier} Sum.Carrier} ((Sum.Injection[i := i].map).apply) _ _ (Component[i := i].zero x) }
+    "=" _ "by" { Zero[i := i].preserved }
+  });
 \definition compositeZero: \forall (x: Source.Carrier) -> ClassMap.map.apply (Action.map.apply x) = Sum.space.zero :=
   \fun (x: Source.Carrier) => congr!{ZeroMaps.Map Sum.Carrier} (\fun (f: ZeroMaps.Map) => f.apply x) _ _ zeroMap;
 \import Quotient.To[W := Sum.Carrier, target := Sum.space] \as Descent;
@@ -50,10 +51,11 @@
   U := Target.Carrier, domain := Target.space] \as AfterClasses;
 \import Target.To[W := Quotient.Carrier, target := Quotient.moduleSpace] \as TargetUniversal;
 \definition backwardOnClasses: AfterClasses.compose backward ClassMap.map = Quotient.projection :=
-  TargetUniversal.ext _ _ (\fun (i: Index)(x: target.Carrier i) => trans!{Quotient.Carrier} _ _ _
-    (congr!{Sum.Carrier Quotient.Carrier} (backward.apply) _ _ (ClassMap.onInjection i x))
-    (trans!{Quotient.Carrier} _ _ _ (BackwardUniversal.onInjection backwards i (Component[i := i].classOf x))
-      (BackwardComponent[i := i].onClass x)));
+  TargetUniversal.ext _ _ (\fun (i: Index)(x: target.Carrier i) => eq_reason_in!{Quotient.Carrier _
+    "=" _ "by" { congr!{Sum.Carrier Quotient.Carrier} (backward.apply) _ _ (ClassMap.onInjection i x) }
+    "=" _ "by" { BackwardUniversal.onInjection backwards i (Component[i := i].classOf x) }
+    "=" _ "by" { BackwardComponent[i := i].onClass x }
+  });
 \import Modules.Hom[V := Target.Carrier, W := Quotient.Carrier, source := Target.space, target := Quotient.moduleSpace] \as TargetMaps;
 \definition leftInverse: \forall (x: Quotient.Carrier) -> backward.apply (forward.apply x) = x :=
   Quotient.induction (\fun (x: Quotient.Carrier) => backward.apply (forward.apply x) = x)
@@ -67,11 +69,12 @@
 \definition rightLaw: RightCompose.compose forward backward = Identity.identity := RightUniversal.ext _ _
   (\fun (i: Index) => Component[i := i].induction (\fun (x: Component[i := i].Carrier) =>
     forward.apply (backward.apply ((Sum.Injection[i := i].map).apply x)) = (Sum.Injection[i := i].map).apply x)
-    (\fun (x: target.Carrier i) => trans!{Sum.Carrier} _ _ _
-      (congr!{Quotient.Carrier Sum.Carrier} (forward.apply) _ _ (BackwardUniversal.onInjection backwards i (Component[i := i].classOf x)))
-      (trans!{Sum.Carrier} _ _ _
-        (congr!{Quotient.Carrier Sum.Carrier} (forward.apply) _ _ (BackwardComponent[i := i].onClass x))
-        (trans!{Sum.Carrier} _ _ _ (onClass ((Target.Injection[i := i].map).apply x)) (ClassMap.onInjection i x)))));
+    (\fun (x: target.Carrier i) => eq_reason_in!{Sum.Carrier _
+      "=" _ "by" { congr!{Quotient.Carrier Sum.Carrier} (forward.apply) _ _ (BackwardUniversal.onInjection backwards i (Component[i := i].classOf x)) }
+      "=" _ "by" { congr!{Quotient.Carrier Sum.Carrier} (forward.apply) _ _ (BackwardComponent[i := i].onClass x) }
+      "=" _ "by" { onClass ((Target.Injection[i := i].map).apply x) }
+      "=" _ "by" { ClassMap.onInjection i x }
+    }));
 \import Modules.Hom[V := Sum.Carrier, W := Sum.Carrier, source := Sum.space, target := Sum.space] \as SumMaps;
 \definition rightInverse: \forall (x: Sum.Carrier) -> forward.apply (backward.apply x) = x :=
   \fun (x: Sum.Carrier) => congr!{SumMaps.Map Sum.Carrier} (\fun (f: SumMaps.Map) => f.apply x) _ _ rightLaw;

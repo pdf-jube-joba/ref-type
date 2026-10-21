@@ -1,23 +1,26 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Data[].Nat[] \as N;
 \import N.Basic[].Def[] \as Nat;
 \import N.Basic[].Prop[] \as NatLaws;
 \import \parent.Laws[V := K, space := scalarSpace] \as Scalars;
 \definition productShuffle: \forall (a, b, c, d: K) -> mul (mul a b) (mul c d) = mul (mul a c) (mul b d) :=
-  \fun (a, b, c, d: K) => trans!{K} (mul (mul a b) (mul c d)) (mul a (mul b (mul c d))) (mul (mul a c) (mul b d))
-    (mulAssoc a b (mul c d))
-    (trans!{K} (mul a (mul b (mul c d))) (mul a (mul c (mul b d))) (mul (mul a c) (mul b d))
-      (congr!{K K} (mul a) (mul b (mul c d)) (mul c (mul b d)) (Scalars.scaleComm b c d))
-      (sym!{K} (mul (mul a c) (mul b d)) (mul a (mul c (mul b d))) (mulAssoc a c (mul b d))));
+  \fun (a, b, c, d: K) => eq_reason_in!{K { mul (mul a b) (mul c d) }
+    "=" { mul a (mul b (mul c d)) } "by" { mulAssoc a b (mul c d) }
+    "=" { mul a (mul c (mul b d)) } "by" { congr!{K K} (mul a) (mul b (mul c d)) (mul c (mul b d)) (Scalars.scaleComm b c d) }
+    "=" { mul (mul a c) (mul b d) } "by" { sym!{K} (mul (mul a c) (mul b d)) (mul a (mul c (mul b d))) (mulAssoc a c (mul b d)) }
+  };
 \definition negativeProduct: \forall (a, b: K) -> neg (mul a b) = mul (neg a) b :=
-  \fun (a, b: K) => trans!{K} (neg (mul a b)) (mul (neg one) (mul a b)) (mul (neg a) b)
-    (sym!{K} (mul (neg one) (mul a b)) (neg (mul a b)) (Scalars.minusOneScale (mul a b)))
-    (trans!{K} (mul (neg one) (mul a b)) (mul (mul (neg one) a) b) (mul (neg a) b)
-      (sym!{K} (mul (mul (neg one) a) b) (mul (neg one) (mul a b)) (mulAssoc (neg one) a b))
-      (congr!{K K} (\fun (x: K) => mul x b) (mul (neg one) a) (neg a) (Scalars.minusOneScale a)));
+  \fun (a, b: K) => eq_reason_in!{K { neg (mul a b) }
+    "=" { mul (neg one) (mul a b) } "by" { sym!{K} (mul (neg one) (mul a b)) (neg (mul a b)) (Scalars.minusOneScale (mul a b)) }
+    "=" { mul (mul (neg one) a) b } "by" { sym!{K} (mul (mul (neg one) a) b) (mul (neg one) (mul a b)) (mulAssoc (neg one) a b) }
+    "=" { mul (neg a) b } "by" { congr!{K K} (\fun (x: K) => mul x b) (mul (neg one) a) (neg a) (Scalars.minusOneScale a) }
+  };
 \definition negativeProductRight: \forall (a, b: K) -> neg (mul a b) = mul a (neg b) :=
-  \fun (a, b: K) => trans!{K} (neg (mul a b)) (neg (mul b a)) (mul a (neg b))
-    (congr!{K K} neg (mul a b) (mul b a) (mulComm a b))
-    (trans!{K} (neg (mul b a)) (mul (neg b) a) (mul a (neg b)) (negativeProduct b a) (mulComm (neg b) a));
+  \fun (a, b: K) => eq_reason_in!{K { neg (mul a b) }
+    "=" { neg (mul b a) } "by" { congr!{K K} neg (mul a b) (mul b a) (mulComm a b) }
+    "=" { mul (neg b) a } "by" { negativeProduct b a }
+    "=" { mul a (neg b) } "by" { mulComm (neg b) a }
+  };
 \definition doubleNegative: \forall (x: K) -> neg (neg x) = x :=
   \fun (x: K) => Scalars.cancelLeft (neg x) (neg (neg x)) x
     (trans!{K} (add (neg x) (neg (neg x))) zero (add (neg x) x) (addNegRight (neg x)) (sym!{K} (add (neg x) x) zero (addNegLeft x)));
@@ -27,7 +30,7 @@
   \fun (x, y: K) => eq_reason!{
     {neg (add x y)} "=" {mul (neg one) (add x y)} "by" {sym!{K} _ _ (Scalars.minusOneScale (add x y))}
     "=" {add (mul (neg one) x) (mul (neg one) y)} "by" {mulAdd (neg one) x y}
-    "=" {add (neg x) (neg y)} "by" {congr2!{K K K} add _ _ _ _ (Scalars.minusOneScale x) (Scalars.minusOneScale y)}
+    "=" {add (neg x) (neg y)} "by" {congr!{K K K} add _ _ _ _ (Scalars.minusOneScale x) (Scalars.minusOneScale y)}
   };
 \definition power: \forall (n: N.Nat^) -> K -> K := \induction (n: N.Nat^) \return K -> K \with {
   | zero: \fun (x: K) => x
@@ -52,11 +55,12 @@
   \induction (n: N.Nat^) \return mul (value n) (value n) = one \with {
     | zero: mulOneLeft one
     | succ: \fun (n: N.Nat^)(previous: mul (value n) (value n) = one) =>
-      trans!{K} (mul (neg (value n)) (neg (value n))) (neg (neg (mul (value n) (value n)))) one
-        (trans!{K} (mul (neg (value n)) (neg (value n))) (neg (mul (value n) (neg (value n)))) (neg (neg (mul (value n) (value n))))
-          (sym!{K} (neg (mul (value n) (neg (value n)))) (mul (neg (value n)) (neg (value n))) (negativeProduct (value n) (neg (value n))))
-          (congr!{K K} neg (mul (value n) (neg (value n))) (neg (mul (value n) (value n))) (sym!{K} (neg (mul (value n) (value n))) (mul (value n) (neg (value n))) (negativeProductRight (value n) (value n)))))
-        (trans!{K} (neg (neg (mul (value n) (value n)))) (mul (value n) (value n)) one (doubleNegative (mul (value n) (value n))) previous)
+      eq_reason_in!{K { mul (neg (value n)) (neg (value n)) }
+        "=" { neg (mul (value n) (neg (value n))) } "by" { sym!{K} (neg (mul (value n) (neg (value n)))) (mul (neg (value n)) (neg (value n))) (negativeProduct (value n) (neg (value n))) }
+        "=" { neg (neg (mul (value n) (value n))) } "by" { congr!{K K} neg (mul (value n) (neg (value n))) (neg (mul (value n) (value n))) (sym!{K} (neg (mul (value n) (value n))) (mul (value n) (neg (value n))) (negativeProductRight (value n) (value n))) }
+        "=" { mul (value n) (value n) } "by" { doubleNegative (mul (value n) (value n)) }
+        "=" one "by" previous
+      }
   };
 \definition leftSuccessor: \forall (l, r: N.Nat^) -> value (Nat.mul (N.Nat^::succ l) r) = mul (value r) (value (Nat.mul l r)) :=
   \fun (l, r: N.Nat^) => trans!{K} (value (Nat.mul (N.Nat^::succ l) r)) (value (Nat.add r (Nat.mul l r))) (mul (value r) (value (Nat.mul l r)))
@@ -68,10 +72,10 @@
   \fun (l, r: N.Nat^)(w: K) \then
   \let a: K := value l \then
   \let b: K := value (Nat.mul l r) \then
-  \return trans!{K} (mul (value (Nat.mul l (N.Nat^::succ r))) (mul a w)) (mul (mul a b) (mul a w)) (mul b w)
-    (congr!{K K} (\fun (c: K) => mul c (mul a w)) (value (Nat.mul l (N.Nat^::succ r))) (mul a b) (rightSuccessor l r))
-    (trans!{K} (mul (mul a b) (mul a w)) (mul (mul a a) (mul b w)) (mul b w)
-      (productShuffle a b a w)
-      (trans!{K} (mul (mul a a) (mul b w)) (mul one (mul b w)) (mul b w)
-        (congr!{K K} (\fun (c: K) => mul c (mul b w)) (mul a a) one (square l)) (mulOneLeft (mul b w))))
+  \return eq_reason_in!{K { mul (value (Nat.mul l (N.Nat^::succ r))) (mul a w) }
+    "=" { mul (mul a b) (mul a w) } "by" { congr!{K K} (\fun (c: K) => mul c (mul a w)) (value (Nat.mul l (N.Nat^::succ r))) (mul a b) (rightSuccessor l r) }
+    "=" { mul (mul a a) (mul b w) } "by" { productShuffle a b a w }
+    "=" { mul one (mul b w) } "by" { congr!{K K} (\fun (c: K) => mul c (mul b w)) (mul a a) one (square l) }
+    "=" { mul b w } "by" { mulOneLeft (mul b w) }
+  }
 };

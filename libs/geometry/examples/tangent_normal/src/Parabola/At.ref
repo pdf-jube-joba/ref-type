@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition local: manifolds.Dimension[n := one].Chart[M := M.Point, space := M.space].LocalPoint Base.standard := \into[M.Point](x, Base.standard.domain) \by { \refl(x) };
 \import Tangent.InChart[chart := Base.standard].At[x := local] \as Coordinates;
 \import \parent.Curve[] \as Curve;
@@ -7,18 +8,23 @@
   Blocks.join (Coordinates.decode v) (Line.forward.apply (R.mul (twice (x z)) (Coordinates.decode v z))) :=
   \fun (v: manifolds.Tangent[n := one].On[M := M].Vector x) => trans!{{A.Vector}} _ _ _ (Formula.coordinates v) (Curve.At[a := a].formula (Coordinates.decode v));
 \definition directionNormal: \forall (u: E.Vector) -> A.dot (direction x) (Blocks.join u (Line.forward.apply (R.mul (twice (x z)) (u z)))) = R.zero :=
-  \fun (u: E.Vector) => trans!{{R.Real}} _ _ _ (Blocks.dotJoined (Line.forward.apply (R.neg (twice (x z)))) u (Line.forward.apply R.one) (Line.forward.apply (R.mul (twice (x z)) (u z))))
-    (trans!{{R.Real}} _ _ _ (congr2!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+  \fun (u: E.Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { Blocks.dotJoined (Line.forward.apply (R.neg (twice (x z)))) u (Line.forward.apply R.one) (Line.forward.apply (R.mul (twice (x z)) (u z))) }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
       (dotLine (Line.forward.apply (R.neg (twice (x z)))) u)
-      (trans!{{R.Real}} _ _ _ (dotLine (Line.forward.apply R.one) (Line.forward.apply (R.mul (twice (x z)) (u z)))) (Spaces.mulOneLeft (R.mul (twice (x z)) (u z)))))
-      (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (\fun (r: R.Real) => R.add r (R.mul (twice (x z)) (u z))) _ _ (sym!{{R.Real}} _ _ (Sign.negativeProduct (twice (x z)) (u z))))
-        (Spaces.addNegLeft (R.mul (twice (x z)) (u z)))));
+      (trans!{{R.Real}} _ _ _ (dotLine (Line.forward.apply R.one) (Line.forward.apply (R.mul (twice (x z)) (u z)))) (Spaces.mulOneLeft (R.mul (twice (x z)) (u z)))) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (r: R.Real) => R.add r (R.mul (twice (x z)) (u z))) _ _ (sym!{{R.Real}} _ _ (Sign.negativeProduct (twice (x z)) (u z))) }
+    "=" _ "by" { Spaces.addNegLeft (R.mul (twice (x z)) (u z)) }
+  };
 \definition normal: \forall (v: manifolds.Tangent[n := one].On[M := M].Vector x) -> A.dot (direction x) (Normal.At[x := x].differential.apply v) = R.zero :=
   \fun (v: manifolds.Tangent[n := one].On[M := M].Vector x) => trans!{{R.Real}} _ _ _
     (congr!{{A.Vector} {R.Real}} (A.dot (direction x)) _ _ (differential v)) (directionNormal (Coordinates.decode v));
 \definition scaledNormal: \forall (c: R.Real)(v: manifolds.Tangent[n := one].On[M := M].Vector x) -> A.dot (scaled x c) (Normal.At[x := x].differential.apply v) = R.zero :=
-  \fun (c: R.Real)(v: manifolds.Tangent[n := one].On[M := M].Vector x) => trans!{{R.Real}} _ _ _ (A.form.scaleLeft c (direction x) (Normal.At[x := x].differential.apply v))
-    (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (R.mul c) _ _ (normal v)) (Spaces.mulZeroRight c));
+  \fun (c: R.Real)(v: manifolds.Tangent[n := one].On[M := M].Vector x) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { A.form.scaleLeft c (direction x) (Normal.At[x := x].differential.apply v) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul c) _ _ (normal v) }
+    "=" _ "by" { Spaces.mulZeroRight c }
+  };
 \definition scaledFormula: \forall (c: R.Real) -> scaled x c = Blocks.join (Line.forward.apply (R.mul c (R.neg (twice (x z))))) (Line.forward.apply c) :=
   \fun (c: R.Real) => trans!{{A.Vector}} _ _ _ (sym!{{A.Vector}} _ _ (Blocks.scalar c (Line.forward.apply (R.neg (twice (x z)))) (Line.forward.apply R.one)))
     (congr!{{E.Vector} {A.Vector}} (Blocks.join (Line.forward.apply (R.mul c (R.neg (twice (x z)))))) _ _
@@ -28,24 +34,29 @@
     (Blocks.rightJoin (Line.forward.apply (R.mul c (R.neg (twice (x z))))) (Line.forward.apply c));
 \definition unit: manifolds.Tangent[n := one].On[M := M].Vector x := Coordinates.encode (Line.forward.apply R.one);
 \definition unitFormula: Normal.At[x := x].differential.apply unit = Blocks.join (Line.forward.apply R.one) (Line.forward.apply (twice (x z))) :=
-  trans!{{A.Vector}} _ _ _ (differential unit)
-    (trans!{{A.Vector}} _ _ _
-      (congr!{{E.Vector} {A.Vector}} (\fun (u: E.Vector) => Blocks.join u (Line.forward.apply (R.mul (twice (x z)) (u z)))) _ _ (Coordinates.decodeEncode (Line.forward.apply R.one)))
-      (congr!{{R.Real} {A.Vector}} (\fun (c: R.Real) => Blocks.join (Line.forward.apply R.one) (Line.forward.apply c)) _ _ (Spaces.mulOneRight (twice (x z)))));
+  eq_reason_in!{{A.Vector} _
+    "=" _ "by" { differential unit }
+    "=" _ "by" { congr!{{E.Vector} {A.Vector}} (\fun (u: E.Vector) => Blocks.join u (Line.forward.apply (R.mul (twice (x z)) (u z)))) _ _ (Coordinates.decodeEncode (Line.forward.apply R.one)) }
+    "=" _ "by" { congr!{{R.Real} {A.Vector}} (\fun (c: R.Real) => Blocks.join (Line.forward.apply R.one) (Line.forward.apply c)) _ _ (Spaces.mulOneRight (twice (x z))) }
+  };
 \definition constraint: \forall (w: Normal.Fiber x) -> R.add (Blocks.left w z) (R.mul (Blocks.right w z) (twice (x z))) = R.zero :=
-  \fun (w: Normal.Fiber x) => trans!{{R.Real}} _ _ _
-    (sym!{{R.Real}} _ _ (trans!{{R.Real}} _ _ _ (Blocks.dotWithJoined w (Line.forward.apply R.one) (Line.forward.apply (twice (x z))))
-      (congr2!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+  \fun (w: Normal.Fiber x) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { sym!{{R.Real}} _ _ (trans!{{R.Real}} _ _ _ (Blocks.dotWithJoined w (Line.forward.apply R.one) (Line.forward.apply (twice (x z))))
+      (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
         (trans!{{R.Real}} _ _ _ (dotLine (Blocks.left w) (Line.forward.apply R.one)) (Spaces.mulOneRight (Blocks.left w z)))
-        (dotLine (Blocks.right w) (Line.forward.apply (twice (x z)))))))
-    (trans!{{R.Real}} _ _ _ (congr!{{A.Vector} {R.Real}} (A.dot w) _ _ (sym!{{A.Vector}} _ _ unitFormula)) (Normal.orthogonal (Normal.include x w) unit));
+        (dotLine (Blocks.right w) (Line.forward.apply (twice (x z)))))) }
+    "=" _ "by" { congr!{{A.Vector} {R.Real}} (A.dot w) _ _ (sym!{{A.Vector}} _ _ unitFormula) }
+    "=" _ "by" { Normal.orthogonal (Normal.include x w) unit }
+  };
 \definition leftScalar: \forall (w: Normal.Fiber x) -> Blocks.left w z = R.mul (Blocks.right w z) (R.neg (twice (x z))) :=
   \fun (w: Normal.Fiber x) => trans!{{R.Real}} _ _ _ (solveZero (Blocks.left w z) (R.mul (Blocks.right w z) (twice (x z))) (constraint w))
     (Sign.negativeProductRight (Blocks.right w z) (twice (x z)));
 \definition reconstruction: \forall (w: Normal.Fiber x) -> scaled x (Blocks.right w z) = w :=
-  \fun (w: Normal.Fiber x) => trans!{{A.Vector}} _ _ _ (scaledFormula (Blocks.right w z))
-    (trans!{{A.Vector}} _ _ _ (congr2!{{E.Vector} {E.Vector} {A.Vector}} Blocks.join _ _ _ _
+  \fun (w: Normal.Fiber x) => eq_reason_in!{{A.Vector} _
+    "=" _ "by" { scaledFormula (Blocks.right w z) }
+    "=" _ "by" { congr!{{E.Vector} {E.Vector} {A.Vector}} Blocks.join _ _ _ _
       (trans!{{E.Vector}} _ _ _ (congr!{{R.Real} {E.Vector}} Line.forward.apply _ _ (sym!{{R.Real}} _ _ (leftScalar w)))
         ((Spaces.Isomorphism[V := R.Real, W := E.Vector, source := Spaces.scalarSpace, target := E.space].laws Line.isomorphism).rightInverse (Blocks.left w)))
-      ((Spaces.Isomorphism[V := R.Real, W := E.Vector, source := Spaces.scalarSpace, target := E.space].laws Line.isomorphism).rightInverse (Blocks.right w)))
-      (Blocks.recover w));
+      ((Spaces.Isomorphism[V := R.Real, W := E.Vector, source := Spaces.scalarSpace, target := E.space].laws Line.isomorphism).rightInverse (Blocks.right w)) }
+    "=" _ "by" { Blocks.recover w }
+  };

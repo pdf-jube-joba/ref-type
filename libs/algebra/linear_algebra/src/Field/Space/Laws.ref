@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition origin: V := space.zero;
 \definition plus: V -> V -> V := space.add;
 \definition negative: V -> V := space.neg;
@@ -25,8 +26,11 @@
   \fun (x: _) => idempotentZero (scale zero x) (trans!{V} _ _ _
     (sym!{V} _ _ (space.scalarAdd zero zero x)) (congr!{K V} (\fun (a: _) => scale a x) _ _ (addZeroLeft zero)));
 \definition scaleComm: \forall (a, b: K) -> \forall (x: V) -> scale a (scale b x) = scale b (scale a x) :=
-  \fun (a, b: _) (x: _) => trans!{V} _ _ _ (sym!{V} _ _ (space.scalarAssoc a b x))
-    (trans!{V} _ _ _ (congr!{K V} (\fun (c: _) => scale c x) _ _ (mulComm a b)) (space.scalarAssoc b a x));
+  \fun (a, b: _) (x: _) => eq_reason_in!{V _
+    "=" _ "by" { sym!{V} _ _ (space.scalarAssoc a b x) }
+    "=" _ "by" { congr!{K V} (\fun (c: _) => scale c x) _ _ (mulComm a b) }
+    "=" _ "by" { space.scalarAssoc b a x }
+  };
 \definition comm: \forall (x, y: V) -> plus x y = plus y x := (space.additive).commutative;
 \definition minusOneScale: \forall (x: V) -> scale (neg one) x = negative x := \block {
   \fun (x: V) \then
@@ -38,8 +42,11 @@
     "=" origin "by" {zeroScale x}
   } \then
   \return cancelLeft x (scale (neg one) x) (negative x)
-    (trans!{V} _ _ _ (trans!{V} _ _ _ (comm x (scale (neg one) x)) vanishes)
-      (sym!{V} _ _ (trans!{V} _ _ _ (comm x (negative x)) (inverseLeft x))))
+    (eq_reason_in!{V _
+      "=" _ "by" { comm x (scale (neg one) x) }
+      "=" _ "by" vanishes
+      "=" _ "by" { sym!{V} _ _ (trans!{V} _ _ _ (comm x (negative x)) (inverseLeft x)) }
+    })
 };
 \definition shuffle: \forall (a, b, c, d: V) -> plus (plus a b) (plus c d) = plus (plus a c) (plus b d) :=
   \fun (a, b, c, d: _) => eq_reason!{
@@ -51,9 +58,11 @@
     "=" {plus (plus a c) (plus b d)} "by" {sym!{V} _ _ (assoc a c (plus b d))}
   };
 \definition scaleNegative: \forall (a: K)(x: V) -> scale a (negative x) = negative (scale a x) :=
-  \fun (a: K)(x: V) => trans!{V} _ _ _
-    (congr!{V V} (scale a) _ _ (sym!{V} _ _ (minusOneScale x)))
-    (trans!{V} _ _ _ (scaleComm a (neg one) x) (minusOneScale (scale a x)));
+  \fun (a: K)(x: V) => eq_reason_in!{V _
+    "=" _ "by" { congr!{V V} (scale a) _ _ (sym!{V} _ _ (minusOneScale x)) }
+    "=" _ "by" { scaleComm a (neg one) x }
+    "=" _ "by" { minusOneScale (scale a x) }
+  };
 \definition oppositeSelfZero: \forall (a: K)(x: V) -> add a a = one -> x = negative x -> x = origin :=
   \fun (a: K)(x: V)(half: add a a = one)(opposite: x = negative x) => eq_reason!{
     x "=" {scale one x} "by" {sym!{V} _ _ (space.scalarOne x)}

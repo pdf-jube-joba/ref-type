@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import algebraic_topology.Euclidean[].Dimension[n := n] \as Model;
 \import Model.Geometry[] \as Geometry;
 \import Model.Contraction[] \as Scaling;
@@ -17,7 +18,6 @@
 \use Equality.sym;
 \use Equality.trans;
 \use Equality.congr;
-\use Equality.congr2;
 \import topology.Topology[Carrier := Model.Disk] \as DiskSpace;
 \definition punctured: \Pow Model.Disk := { p: Model.Disk \where Logic.Not (Model.normSquared p = Real.zero) };
 \import DiskSpace.Subspace[S := punctured] \as Subspace;
@@ -53,14 +53,15 @@
 \definition coefficient[t: Interval.Carrier][p: Carrier]: Real.Real := Root.sqrt (radicand t p);
 \definition normFormula: \forall (t: Interval.Carrier)(p: Carrier) ->
   Model.normSquared (Scaling.scale (coefficient t p) p) = level t p :=
-  \fun (t: Interval.Carrier)(p: Carrier) => trans!{Real.Real} _ _ _ (Scaling.normScale (coefficient t p) p)
-    (trans!{Real.Real} _ _ _
-      (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (squared p)) _ _
-        (Root.squareOfNonnegative (radicand t p) (Order.leOfLt Real.zero (radicand t p) (radicandPositive t p))))
-      (trans!{Real.Real} _ _ _ (Laws.fieldMulAssoc (level t p) (Laws.fieldInv (squared p)) (squared p))
-        (trans!{Real.Real} _ _ _
-          (congr!{Real.Real Real.Real} (Real.mul (level t p)) _ _
-            (Laws.fieldInverseNonzero (squared p) (\bysub(Model.Disk, punctured, p)))) (Algebra.mulOneRight (level t p)))));
+  \fun (t: Interval.Carrier)(p: Carrier) => eq_reason_in!{Real.Real _
+    "=" _ "by" { Scaling.normScale (coefficient t p) p }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (squared p)) _ _
+        (Root.squareOfNonnegative (radicand t p) (Order.leOfLt Real.zero (radicand t p) (radicandPositive t p))) }
+    "=" _ "by" { Laws.fieldMulAssoc (level t p) (Laws.fieldInv (squared p)) (squared p) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (level t p)) _ _
+            (Laws.fieldInverseNonzero (squared p) (\bysub(Model.Disk, punctured, p))) }
+    "=" _ "by" { Algebra.mulOneRight (level t p) }
+  };
 \definition diskValue[t: Interval.Carrier][p: Carrier]: Model.Disk :=
   \into[Model.Coordinate](Scaling.scale (coefficient t p) p, Model.ClosedBall) \by {
     R.leReplaceLeft (level t p) (Model.normSquared (Scaling.scale (coefficient t p) p)) Real.one

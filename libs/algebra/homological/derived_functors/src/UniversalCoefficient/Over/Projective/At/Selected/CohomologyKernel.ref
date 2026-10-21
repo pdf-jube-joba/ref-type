@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition liftClosed[f: Values.Map]: Cohomology.Closed := cocycle f;
 \definition liftExtend[f: Values.Map]: Hom.Carrier z := extend f;
 \definition previousRetractCycle: \forall (x: PreviousHomology.Cycle) -> rprev.apply x = x :=
@@ -71,12 +72,12 @@
     \fun (b: Boundary.Carrier) \then
     \takefrom x: \Cast[Carrier z] ({ x: Carrier z \where Boundary.value x = b }) \by Boundary.onto b \then
     \let image: Boundary.value x = b := \bysub(Carrier z, { x: Carrier z \where Boundary.value x = b }, x) \then
-    \return trans!{A.Carrier} _ _ _
-      (sym!{A.Carrier} _ _ (congr!{Boundary.Carrier A.Carrier} (\fun (u: Boundary.Carrier) => (Ext.precompose (restrict g)).apply u) _ _ image))
-      (trans!{A.Carrier} _ _ _ (sym!{A.Carrier} _ _ (Cohomology.priorOnElement g x))
-        (trans!{A.Carrier} _ _ _
-          (congr!{{Hom.Carrier z} A.Carrier} (\fun (h: Hom.Carrier z) => h.apply x) _ _ equal)
-          (congr!{Boundary.Carrier A.Carrier} (f.apply) _ _ image)))
+    \return eq_reason_in!{A.Carrier _
+      "=" _ "by" { sym!{A.Carrier} _ _ (congr!{Boundary.Carrier A.Carrier} (\fun (u: Boundary.Carrier) => (Ext.precompose (restrict g)).apply u) _ _ image) }
+      "=" _ "by" { sym!{A.Carrier} _ _ (Cohomology.priorOnElement g x) }
+      "=" _ "by" { congr!{{Hom.Carrier z} A.Carrier} (\fun (h: Hom.Carrier z) => h.apply x) _ _ equal }
+      "=" _ "by" { congr!{Boundary.Carrier A.Carrier} (f.apply) _ _ image }
+    }
   })
 };
 \definition zeroClass: \forall (f: BoundaryValues.Carrier) -> Cohomology.classOf (cocycle f) = Cohomology.cohomologySpace.zero -> Quotient.class f = Quotient.moduleSpace.zero := \block {
@@ -96,10 +97,12 @@
 \definition evaluationZero: \forall (f: BoundaryValues.Carrier) -> Evaluation.map.apply (Cohomology.classOf (cocycle f)) = Evaluation.valueSpace.zero :=
   \fun (f: BoundaryValues.Carrier) => Values.ext (Evaluation.map.apply (Cohomology.classOf (cocycle f))) (Evaluation.valueSpace.zero)
     (Homology.classInduction (\fun (q: Homology.Homology) => (Evaluation.map.apply (Cohomology.classOf (cocycle f))).apply q = A.space.zero)
-      (\fun (x: Homology.Cycle) => trans!{A.Carrier} _ _ _
-        (congr!{Values.Map A.Carrier} (\fun (g: Values.Map) => g.apply (Homology.classOf x)) _ _ (Evaluation.onCohomologyClass (cocycle f)))
-        (trans!{A.Carrier} _ _ _ (Evaluation.onClass (cocycle f) x)
-          (trans!{A.Carrier} _ _ _ (congr!{Boundary.Carrier A.Carrier} (f.apply) _ _ (Boundary.onCycle x)) (BoundaryMaps.zeroPreserved f)))));
+      (\fun (x: Homology.Cycle) => eq_reason_in!{A.Carrier _
+        "=" _ "by" { congr!{Values.Map A.Carrier} (\fun (g: Values.Map) => g.apply (Homology.classOf x)) _ _ (Evaluation.onCohomologyClass (cocycle f)) }
+        "=" _ "by" { Evaluation.onClass (cocycle f) x }
+        "=" _ "by" { congr!{Boundary.Carrier A.Carrier} (f.apply) _ _ (Boundary.onCycle x) }
+        "=" _ "by" { BoundaryMaps.zeroPreserved f }
+      }));
 \definition quotientEvaluationZero: \forall (q: Quotient.Carrier) -> Evaluation.map.apply (quotientMap.apply q) = Evaluation.valueSpace.zero :=
   Quotient.induction (\fun (q: Quotient.Carrier) => Evaluation.map.apply (quotientMap.apply q) = Evaluation.valueSpace.zero)
     (\fun (f: BoundaryValues.Carrier) => trans!{Evaluation.ValueCarrier} _ _ _
@@ -138,12 +141,12 @@
 \definition inclusion: Modules.Hom[V := Ext.Carrier, W := Cohomology.Cohomology, source := Ext.space, target := Cohomology.cohomologySpace].Map :=
   Inclusion.compose quotientMap Ext.isomorphism.forward;
 \definition injective: \forall (p, q: Ext.Carrier) -> inclusion.apply p = inclusion.apply q -> p = q :=
-  \fun (p, q: Ext.Carrier)(equal: _) => trans!{Ext.Carrier} _ _ _
-    (sym!{Ext.Carrier} _ _ (Ext.isomorphism.leftInverse p))
-    (trans!{Ext.Carrier} _ _ _
-      (congr!{Quotient.Carrier Ext.Carrier} (Ext.isomorphism.backward.apply) _ _
-        (quotientInjective (Ext.isomorphism.forward.apply p) (Ext.isomorphism.forward.apply q) equal))
-      (Ext.isomorphism.leftInverse q));
+  \fun (p, q: Ext.Carrier)(equal: _) => eq_reason_in!{Ext.Carrier _
+    "=" _ "by" { sym!{Ext.Carrier} _ _ (Ext.isomorphism.leftInverse p) }
+    "=" _ "by" { congr!{Quotient.Carrier Ext.Carrier} (Ext.isomorphism.backward.apply) _ _
+        (quotientInjective (Ext.isomorphism.forward.apply p) (Ext.isomorphism.forward.apply q) equal) }
+    "=" _ "by" { Ext.isomorphism.leftInverse q }
+  };
 \definition kernelImage: \forall (q: Cohomology.Cohomology) -> Evaluation.map.apply q = Evaluation.valueSpace.zero ->
   \exists ( p: Ext.Carrier \where inclusion.apply p = q ) := \block {
   \fun (q: Cohomology.Cohomology)(zero: _) \then

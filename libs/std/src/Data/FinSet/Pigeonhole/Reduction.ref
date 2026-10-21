@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.Transposition[n := N.Nat^::succ n, a := f (zero k), b := zero n] \as Swap;
 \definition normalized[i: Fin (N.Nat^::succ k)]: Fin (N.Nat^::succ n) := Swap.apply (f i);
 \definition normalizedZero: normalized (zero k) = zero n := Swap.onFirst;
@@ -14,11 +15,11 @@
 \definition lowerInjective: \forall (injective: Injective (N.Nat^::succ k) (N.Nat^::succ n) f) -> Injective k n (lower injective) :=
   \fun (injective: Injective (N.Nat^::succ k) (N.Nat^::succ n) f)(i, j: Fin k)(same: lower injective i = lower injective j) =>
     NL.succInjective i j (normalizedInjective injective (succ k i) (succ k j)
-      (trans!{{Fin (N.Nat^::succ n)}} (normalized (succ k i)) (succ n (lower injective i)) (normalized (succ k j))
-        (sym!{{Fin (N.Nat^::succ n)}} (succ n (lower injective i)) (normalized (succ k i)) (successorPredecessor n (positive injective i)))
-        (trans!{{Fin (N.Nat^::succ n)}} (succ n (lower injective i)) (succ n (lower injective j)) (normalized (succ k j))
-          (congr!{{Fin n} {Fin (N.Nat^::succ n)}} (succ n) (lower injective i) (lower injective j) same)
-          (successorPredecessor n (positive injective j)))));
+      (eq_reason_in!{{Fin (N.Nat^::succ n)} { normalized (succ k i) }
+        "=" { succ n (lower injective i) } "by" { sym!{{Fin (N.Nat^::succ n)}} (succ n (lower injective i)) (normalized (succ k i)) (successorPredecessor n (positive injective i)) }
+        "=" { succ n (lower injective j) } "by" { congr!{{Fin n} {Fin (N.Nat^::succ n)}} (succ n) (lower injective i) (lower injective j) same }
+        "=" { normalized (succ k j) } "by" { successorPredecessor n (positive injective j) }
+      }));
 \definition impossible: (\forall (f: Fin k -> Fin n) -> Injective k n f -> Logic.False) ->
   \forall (injective: Injective (N.Nat^::succ k) (N.Nat^::succ n) f) -> Logic.False :=
   \fun (previous: \forall (g: Fin k -> Fin n) -> Injective k n g -> Logic.False)

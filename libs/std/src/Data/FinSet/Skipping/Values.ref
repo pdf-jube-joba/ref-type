@@ -1,5 +1,6 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import N.Basic[].Def[] \as Nat;
-\use Equality.congr2;
+\use Equality.congr;
 \import \parent.Before[] \as Before;
 \import \parent.After[] \as After;
 \definition branch[j: N.Nat^]: B.Bool^ -> N.Nat^ := \induction (b: B.Bool^) \return N.Nat^ \with {
@@ -23,11 +24,12 @@
 \definition translation: \forall (p, i, j: N.Nat^) -> position (Nat.add p i) (Nat.add p j) = Nat.add p (position i j) :=
   \induction (p: N.Nat^) \return \forall (i, j: N.Nat^) -> position (Nat.add p i) (Nat.add p j) = Nat.add p (position i j) \with {
     | zero: \fun (i, j: N.Nat^) => trans!{N.Nat^} _ _ _
-        (congr2!{N.Nat^ N.Nat^ N.Nat^} position _ _ _ _ (NL.addZeroLeft i) (NL.addZeroLeft j))
+        (congr!{N.Nat^ N.Nat^ N.Nat^} position _ _ _ _ (NL.addZeroLeft i) (NL.addZeroLeft j))
         (sym!{N.Nat^} _ _ (NL.addZeroLeft (position i j)))
-    | succ: \fun (p: N.Nat^)(previous: _)(i, j: N.Nat^) => trans!{N.Nat^} _ _ _
-        (congr2!{N.Nat^ N.Nat^ N.Nat^} position _ _ _ _ (NL.addSuccLeft p i) (NL.addSuccLeft p j))
-        (trans!{N.Nat^} _ _ _ (successor (Nat.add p i) (Nat.add p j))
-          (trans!{N.Nat^} _ _ _ (congr!{N.Nat^ N.Nat^} (\fun (k: N.Nat^) => N.Nat^::succ k) _ _ (previous i j))
-            (sym!{N.Nat^} _ _ (NL.addSuccLeft p (position i j)))))
+    | succ: \fun (p: N.Nat^)(previous: _)(i, j: N.Nat^) => eq_reason_in!{N.Nat^ _
+      "=" _ "by" { congr!{N.Nat^ N.Nat^ N.Nat^} position _ _ _ _ (NL.addSuccLeft p i) (NL.addSuccLeft p j) }
+      "=" _ "by" { successor (Nat.add p i) (Nat.add p j) }
+      "=" _ "by" { congr!{N.Nat^ N.Nat^} (\fun (k: N.Nat^) => N.Nat^::succ k) _ _ (previous i j) }
+      "=" _ "by" { sym!{N.Nat^} _ _ (NL.addSuccLeft p (position i j)) }
+    }
   };

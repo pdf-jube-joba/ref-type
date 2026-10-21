@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import derived_functors.Ext[].Over[R := Int.Int^, ring := IntegerRing.commutativeRing].Of[M := Cyclic.bundle, N := A, P := complex] \as Derived;
 \import resolutions.HomComplex[].Over[R := Int.Int^, ring := IntegerRing.commutativeRing].On[P := complex, N := A] \as Hom;
 \import chain_complexes.Cochain[].Over[R := Int.Int^, ring := Rings.commutativeRingAsRing Int.Int^ IntegerRing.commutativeRing] \as Cochains;
@@ -34,8 +35,11 @@
   apply := cycle,
   addition := \fun (a, b: A.Carrier) => OneHom.ext (value (A.space.add a b)) ((Hom.space one).add (value a) (value b)) (\fun (r: family.Carrier one) => A.space.vectorAdd r a b),
   scalar := \fun (a: Int.Int^)(b: A.Carrier) => OneHom.ext (value (A.space.smul a b)) ((Hom.space one).smul a (value b))
-    (\fun (r: family.Carrier one) => trans!{A.Carrier} _ _ _ (sym!{A.Carrier} _ _ (A.space.scalarAssoc r a b))
-      (trans!{A.Carrier} _ _ _ (congr!{Int.Int^ A.Carrier} (\fun (s: Int.Int^) => A.space.smul s b) _ _ (IntegerRing.commutativeRing.mulCommutative r a)) (A.space.scalarAssoc a r b))),
+    (\fun (r: family.Carrier one) => eq_reason_in!{A.Carrier _
+      "=" _ "by" { sym!{A.Carrier} _ _ (A.space.scalarAssoc r a b) }
+      "=" _ "by" { congr!{Int.Int^ A.Carrier} (\fun (s: Int.Int^) => A.space.smul s b) _ _ (IntegerRing.commutativeRing.mulCommutative r a) }
+      "=" _ "by" { A.space.scalarAssoc a r b }
+    }),
 };
 \definition leftInverse: \forall (f: H.CycleCarrier) -> backward.apply (forward.apply f) = f :=
   \fun (f: H.CycleCarrier) => OneHom.ext (value (f.apply (oneIntro Arithmetic.one))) f (\fun (r: family.Carrier one) =>
@@ -48,8 +52,11 @@
 \definition multiplication: CoefficientMaps.Map := CoefficientMaps.Map {
   apply := A.space.smul multiplier,
   addition := A.space.vectorAdd multiplier,
-  scalar := \fun (a: Int.Int^)(x: A.Carrier) => trans!{A.Carrier} _ _ _ (sym!{A.Carrier} _ _ (A.space.scalarAssoc multiplier a x))
-    (trans!{A.Carrier} _ _ _ (congr!{Int.Int^ A.Carrier} (\fun (r: Int.Int^) => A.space.smul r x) _ _ (IntegerRing.commutativeRing.mulCommutative multiplier a)) (A.space.scalarAssoc a multiplier x)),
+  scalar := \fun (a: Int.Int^)(x: A.Carrier) => eq_reason_in!{A.Carrier _
+    "=" _ "by" { sym!{A.Carrier} _ _ (A.space.scalarAssoc multiplier a x) }
+    "=" _ "by" { congr!{Int.Int^ A.Carrier} (\fun (r: Int.Int^) => A.space.smul r x) _ _ (IntegerRing.commutativeRing.mulCommutative multiplier a) }
+    "=" _ "by" { A.space.scalarAssoc a multiplier x }
+  },
 };
 \import Modules.Of[V := A.Carrier, space := A.space].Submodule[] \as CoefficientSub;
 \import CoefficientSub.Image[U := A.Carrier, source := A.space] \as CoefficientImage;

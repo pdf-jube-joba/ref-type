@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import SignedChains.ShortExact[A := IntersectionExtension.complex, B := MiddleExtension.complex, C := SmallExtension.complex] \as Exact;
 \import Exact.At[s := Sequence.nativeSequence, k := upperDegree] \as Connecting;
 \import Connecting.Exactness[] \as Exactness;
@@ -8,12 +9,12 @@
   \fun (q: SmallH.Homology)(killed: _) \then
   \takefrom p: \Cast[MiddleH.Homology] ({ p: MiddleH.Homology \where (Projection.induced Sequence.nativeSequence.projection).apply p = q })
     \by Exactness.exactAtC q killed \then
-  \return trans!{SmallH.Homology} _ _ _
-    (sym!{SmallH.Homology} _ _ (\bysub(MiddleH.Homology,
-      { p: MiddleH.Homology \where (Projection.induced Sequence.nativeSequence.projection).apply p = q }, p)))
-    (trans!{SmallH.Homology} _ _ _
-      (congr!{MiddleH.Homology SmallH.Homology} ((Projection.induced Sequence.nativeSequence.projection).apply) _ _ (\parent.Vanishing[].zero p))
-      (ProjectionLinear.zeroPreserved (Projection.induced Sequence.nativeSequence.projection)))
+  \return eq_reason_in!{SmallH.Homology _
+    "=" _ "by" { sym!{SmallH.Homology} _ _ (\bysub(MiddleH.Homology,
+      { p: MiddleH.Homology \where (Projection.induced Sequence.nativeSequence.projection).apply p = q }, p)) }
+    "=" _ "by" { congr!{MiddleH.Homology SmallH.Homology} ((Projection.induced Sequence.nativeSequence.projection).apply) _ _ (\parent.Vanishing[].zero p) }
+    "=" _ "by" { ProjectionLinear.zeroPreserved (Projection.induced Sequence.nativeSequence.projection) }
+  }
 };
 \definition injective: \forall (p, q: SmallH.Homology) -> (Connecting.connecting).apply p = (Connecting.connecting).apply q -> p = q :=
   ConnectingLinear.injectiveOfZeroKernel Connecting.connecting zeroKernel;
@@ -22,6 +23,8 @@
   .Diagram[s := Sequence.nativeSequence, t := Sequence.nativeSequence, a := Diagram.leftAction, b := Diagram.middleAction, c := Diagram.rightAction] \as Naturality;
 \definition action: \forall (q: SmallH.Homology) -> (Reflection.induced Diagram.rightAction).apply q = (SmallH.homologySpace).neg q :=
   \fun (q: SmallH.Homology) => injective _ _
-    (trans!{IntersectionH.Homology} _ _ _ (Naturality.At[k := upperDegree].naturality Diagram.diagram q)
-      (trans!{IntersectionH.Homology} _ _ _ (\parent.Intersection[].signedAction ((Connecting.connecting).apply q))
-        (sym!{IntersectionH.Homology} _ _ (ConnectingLinear.negativePreserved Connecting.connecting q))));
+    (eq_reason_in!{IntersectionH.Homology _
+      "=" _ "by" { Naturality.At[k := upperDegree].naturality Diagram.diagram q }
+      "=" _ "by" { \parent.Intersection[].signedAction ((Connecting.connecting).apply q) }
+      "=" _ "by" { sym!{IntersectionH.Homology} _ _ (ConnectingLinear.negativePreserved Connecting.connecting q) }
+    });

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition degree: I.Int^ := I.Int^::ofNat n;
 \definition next: I.Int^ := I.Int^::ofNat (N.Nat^::succ n);
 \import \parent.\parent.Based[n := n] \as Based;
@@ -18,14 +19,18 @@
   Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Map {
     apply := value,
     addition := \fun (f, g: Source.Carrier) => Universal.ext (raw ((Source.space).add f g)) (Hom.plus (raw f) (raw g))
-      (\fun (c: Based.Cell) => trans!{{Global.Carrier next}} _ _ _ (Universal.onGenerator (values ((Source.space).add f g)) c)
-        (trans!{{Global.Carrier next}} _ _ _ (At[c := c].addition f g)
-          (sym!{{Global.Carrier next}} _ _ (congr2!{{Global.Carrier next} {Global.Carrier next} {Global.Carrier next}} ((Global.space next).add) _ _ _ _
-            (Universal.onGenerator (values f) c) (Universal.onGenerator (values g) c))))),
+      (\fun (c: Based.Cell) => eq_reason_in!{{Global.Carrier next} _
+        "=" _ "by" { Universal.onGenerator (values ((Source.space).add f g)) c }
+        "=" _ "by" { At[c := c].addition f g }
+        "=" _ "by" { sym!{{Global.Carrier next}} _ _ (congr!{{Global.Carrier next} {Global.Carrier next} {Global.Carrier next}} ((Global.space next).add) _ _ _ _
+            (Universal.onGenerator (values f) c) (Universal.onGenerator (values g) c)) }
+      }),
     scalar := \fun (a: I.Int^)(f: Source.Carrier) => Universal.ext (raw ((Source.space).smul a f)) ((Algebra.HomAt[n := n, z := next].space).smul a (raw f))
-      (\fun (c: Based.Cell) => trans!{{Global.Carrier next}} _ _ _ (Universal.onGenerator (values ((Source.space).smul a f)) c)
-        (trans!{{Global.Carrier next}} _ _ _ (At[c := c].scalar a f)
-          (sym!{{Global.Carrier next}} _ _ (congr!{{Global.Carrier next} {Global.Carrier next}} ((Global.space next).smul a) _ _ (Universal.onGenerator (values f) c))))),
+      (\fun (c: Based.Cell) => eq_reason_in!{{Global.Carrier next} _
+        "=" _ "by" { Universal.onGenerator (values ((Source.space).smul a f)) c }
+        "=" _ "by" { At[c := c].scalar a f }
+        "=" _ "by" { sym!{{Global.Carrier next}} _ _ (congr!{{Global.Carrier next} {Global.Carrier next}} ((Global.space next).smul a) _ _ (Universal.onGenerator (values f) c)) }
+      }),
   };
 \import Based.To[W := Global.Carrier degree, target := Global.space degree] \as LowerUniversal;
 \definition boundary: \forall (f: Source.Carrier) ->

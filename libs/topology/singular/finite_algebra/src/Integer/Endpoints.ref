@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Logic[].Equality[] \as Equality;
 \import std.Logic[].Proposition[] \as Logic;
 \use Equality.trans;
@@ -13,10 +14,11 @@
   projection := Projection.compose (right).forward sequence.projection,
 };
 \definition injective: \forall (x, y: U.Carrier) -> (data.inclusion).apply x = (data.inclusion).apply y -> x = y :=
-  \fun (x, y: U.Carrier)(equal: _) => trans!{U.Carrier} _ _ _ (sym!{U.Carrier} _ _ ((left).rightInverse x))
-    (trans!{U.Carrier} _ _ _
-      (congr!{A.Carrier U.Carrier} (((left).forward).apply) _ _ ((sequence).injective (((left).backward).apply x) (((left).backward).apply y) equal))
-      ((left).rightInverse y));
+  \fun (x, y: U.Carrier)(equal: _) => eq_reason_in!{U.Carrier _
+    "=" _ "by" { sym!{U.Carrier} _ _ ((left).rightInverse x) }
+    "=" _ "by" { congr!{A.Carrier U.Carrier} (((left).forward).apply) _ _ ((sequence).injective (((left).backward).apply x) (((left).backward).apply y) equal) }
+    "=" _ "by" { (left).rightInverse y }
+  };
 \definition onto: \forall (v: V.Carrier) -> \exists ( y: B.Carrier \where (data.projection).apply y = v ) := \block {
   \fun (v: V.Carrier) \then
   \takefrom y: \Cast[B.Carrier] ({ y: B.Carrier \where (sequence.projection).apply y = ((right).backward).apply v })
@@ -33,9 +35,11 @@
 \definition kernelImage: \forall (y: B.Carrier) -> (data.projection).apply y = (V.space).zero ->
   \exists ( x: U.Carrier \where (data.inclusion).apply x = y ) := \block {
   \fun (y: B.Carrier)(closed: _) \then
-  \let original: (sequence.projection).apply y = (C.space).zero := trans!{C.Carrier} _ _ _
-    (sym!{C.Carrier} _ _ ((right).leftInverse ((sequence.projection).apply y)))
-    (trans!{C.Carrier} _ _ _ (congr!{V.Carrier C.Carrier} (((right).backward).apply) _ _ closed) (Backward.zeroPreserved (right).backward)) \then
+  \let original: (sequence.projection).apply y = (C.space).zero := eq_reason_in!{C.Carrier _
+    "=" _ "by" { sym!{C.Carrier} _ _ ((right).leftInverse ((sequence.projection).apply y)) }
+    "=" _ "by" { congr!{V.Carrier C.Carrier} (((right).backward).apply) _ _ closed }
+    "=" _ "by" { Backward.zeroPreserved (right).backward }
+  } \then
   \takefrom x: \Cast[A.Carrier] ({ x: A.Carrier \where (sequence.inclusion).apply x = y }) \by (sequence).kernelImage y original \then
   \return Logic.existsIntro[U.Carrier, { x: U.Carrier \where (data.inclusion).apply x = y }] (((left).forward).apply x)
     (trans!{B.Carrier} _ _ _ (congr!{A.Carrier B.Carrier} ((sequence.inclusion).apply) _ _ ((left).leftInverse x))

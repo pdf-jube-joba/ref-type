@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 /* Cancelling a common summand is the key to representative independence. */
 \import std.Logic[].Rel[] \as Rel;
 \definition diffAddCommon:
@@ -6,7 +7,7 @@
   \induction (k: N.Nat^) \return \forall (a, b: Nat) -> Diff.specification (NatOp.add a k) (NatOp.add b k) = Diff.specification a b \with {
     | zero : (\fun (a, b: Nat) => \refl(Diff.specification a b))
     | succ : (\fun (k: Nat) => \fun (ih: \forall (a, b: Nat) -> Diff.specification (NatOp.add a k) (NatOp.add b k) = Diff.specification a b) =>
-      \fun (a, b: Nat) => equiv_reason!{trans!{Int^}
+      \fun (a, b: Nat) => trans_reason!{trans!{Int^}
         "by" { congr!{Nat Int^} (\fun (x: Nat) => Diff.specification x (NatOp.add b (N.Nat^::succ k))) _ _ (NL.addSuccRight a k) }
         "by" { congr!{Nat Int^} (Diff.specification (N.Nat^::succ (NatOp.add a k))) _ _ (NL.addSuccRight b k) }
         "by" { ih a b }})
@@ -15,7 +16,7 @@
   NatOp.add a d = NatOp.add c b ->
   Diff.specification a b = Diff.specification c d :=
     \fun (e: NatOp.add a d = NatOp.add c b) =>
-    equiv_reason!{trans!{Int^}
+    trans_reason!{trans!{Int^}
         "by" { sym!{Int^} _ _ (diffAddCommon d a b) }
         "by" { congr!{Nat Int^} (\fun (x: Nat) => Diff.specification x (NatOp.add b d)) _ _ e }
         "by" { congr!{Nat Int^} (Diff.specification (NatOp.add c b)) _ _ (NL.addComm b d) }
@@ -35,7 +36,7 @@
       | zero : (\refl(NatOp.add N.Nat^::zero (N.Nat^::succ b)))
       | succ : (\fun (a: Nat) => \fun (unused: NatOp.add a (Negative.specification (Diff.specification a (N.Nat^::succ b))) =
           NatOp.add (Positive.specification (Diff.specification a (N.Nat^::succ b))) (N.Nat^::succ b)) =>
-          equiv_reason!{trans!{Nat}
+          trans_reason!{trans!{Nat}
             "by" { NL.addSuccLeft a (Negative.specification (Diff.specification a b)) }
             "by" { NatOp.succCong _ _ (ih a) }
             "by" { sym!{Nat} _ _ (NL.addSuccRight (Positive.specification (Diff.specification a b)) b) }})
@@ -51,7 +52,7 @@
     sym!{Nat} (NatOp.add (pos x) (negPart y)) (NatOp.add (pos y) (negPart x));
 \definition addShuffle[a, b, c, d: Nat]:
   NatOp.add (NatOp.add a b) (NatOp.add c d) = NatOp.add (NatOp.add a d) (NatOp.add c b) :=
-  equiv_reason!{trans!{Nat}
+  trans_reason!{trans!{Nat}
     "by" { NL.addInterchange a b c d }
     "by" { congr!{Nat Nat} (NatOp.add (NatOp.add a c)) _ _ (NL.addComm b d) }
     "by" { sym!{Nat} _ _ (NL.addInterchange a d c b) }};
@@ -64,7 +65,7 @@
         "=" { NatOp.add (NatOp.add (pos x) (negPart y)) (NatOp.add (pos y) (negPart z)) }
         "by" { addShuffle (pos x) (negPart z) (pos y) (negPart y) }
         "=" { NatOp.add (NatOp.add (pos y) (negPart x)) (NatOp.add (pos z) (negPart y)) }
-        "by" { congr2!{Nat Nat Nat} NatOp.add
+        "by" { congr!{Nat Nat Nat} NatOp.add
           _ _ _ _ xy yz }
         "=" { NatOp.add (NatOp.add (pos y) (pos z)) (NatOp.add (negPart x) (negPart y)) }
         "by" { NL.addInterchange (pos y) (negPart x) (pos z) (negPart y) }
@@ -74,6 +75,10 @@
         "=" { NatOp.add (NatOp.add (pos z) (negPart x)) (NatOp.add (pos y) (negPart y)) }
         "by" { sym!{Nat} _ _ (NL.addInterchange (pos z) (negPart x) (pos y) (negPart y)) }
       };
+\import std.Logic[].Equivalence[A := Difference, R := Equivalent,
+  refl := equivalentRefl, sym := equivalentSym, trans := equivalentTrans] \as Reasoning;
+\use Reasoning.equiv_reason_terms;
+
 \definition normalize[x: Difference]: Int^ := Diff.specification (pos x) (negPart x);
 \definition representative[z: Int^]: Difference := pair (Positive.specification z) (Negative.specification z);
 \definition normalizeRespects[x, y: Difference]: Equivalent x y -> normalize x = normalize y := diffRespects (pos x) (negPart x) (pos y) (negPart y);
@@ -82,7 +87,7 @@
   normalize x = normalize y ->
   Equivalent x y :=
     \fun (e: normalize x = normalize y) =>
-    equiv_reason_terms!{equivalentTrans { x }
+    equiv_reason_terms!{x
         "~" { representative (normalize x) } "by" { representativeNormalize x }
         "~" { y } "by" { \idelim normalize y = normalize x \with z: Int^ => Equivalent (representative z) y
           \by { base: equivalentSym y (representative (normalize y)) (representativeNormalize y), equality: sym!{Int^} _ _ e } }};
@@ -152,12 +157,13 @@
     \takefrom y: \Cast[\Cast[Difference] (Representatives C)]
       ({ y : \Cast[Difference] (Representatives C) \where normalize y = v })
       \by \bysub(Int^, NormalForms C, v) \then
-    \return trans!{Int^} u (normalize x) v
-      (sym!{Int^} _ _ (\bysub(\Cast[Difference] (Representatives C),
-        { x : \Cast[Difference] (Representatives C) \where normalize x = u }, x)))
-      (trans!{Int^} (normalize x) (normalize y) v (normalFormsUnique C x y)
-        (\bysub(\Cast[Difference] (Representatives C),
-          { y : \Cast[Difference] (Representatives C) \where normalize y = v }, y)))
+    \return eq_reason_in!{Int^ u
+      "=" { normalize x } "by" { sym!{Int^} _ _ (\bysub(\Cast[Difference] (Representatives C),
+        { x : \Cast[Difference] (Representatives C) \where normalize x = u }, x)) }
+      "=" { normalize y } "by" { normalFormsUnique C x y }
+      "=" v "by" { \bysub(\Cast[Difference] (Representatives C),
+          { y : \Cast[Difference] (Representatives C) \where normalize y = v }, y) }
+    }
   };
 \definition fromMath[C: Grothendieck]: Int^ :=
   \choice NormalForm C
@@ -206,7 +212,7 @@
   Equivalent x y -> Equivalent u v ->
   Equivalent (addRep x u) (addRep y v) :=
     \fun (xy: _) (uv: _) =>
-    equiv_reason!{trans!{Nat}
+    trans_reason!{trans!{Nat}
         "by" { NL.addInterchange (pos x) (pos u) (negPart y) (negPart v) }
         "by" { NL.addCong (NatOp.add (pos x) (negPart y)) (NatOp.add (pos y) (negPart x))
           (NatOp.add (pos u) (negPart v)) (NatOp.add (pos v) (negPart u)) xy uv }
@@ -215,10 +221,11 @@
   Equivalent x y ->
   Equivalent (negRep x) (negRep y) :=
     \fun (xy: _) =>
-    trans!{Nat} _ _ _ (NL.addComm (negPart x) (pos y))
-        (trans!{Nat} _ _ _
-          (sym!{Nat} (NatOp.add (pos x) (negPart y)) (NatOp.add (pos y) (negPart x)) xy)
-          (NL.addComm (pos x) (negPart y)));
+    eq_reason_in!{Nat _
+      "=" _ "by" { NL.addComm (negPart x) (pos y) }
+      "=" _ "by" { sym!{Nat} (NatOp.add (pos x) (negPart y)) (NatOp.add (pos y) (negPart x)) xy }
+      "=" _ "by" { NL.addComm (pos x) (negPart y) }
+    };
 \definition subRepRespects[x, y, u, v: Difference]:
   Equivalent x y -> Equivalent u v ->
   Equivalent (subRep x u) (subRep y v) :=
@@ -228,7 +235,7 @@
   Equivalent x y ->
   Equivalent (scaleRep x n) (scaleRep y n) :=
     \fun (xy: Equivalent x y) =>
-    equiv_reason!{trans!{Nat}
+    trans_reason!{trans!{Nat}
         "by" { sym!{Nat} _ _ (NL.mulDistribRight (pos x) (negPart y) n) }
         "by" { congr!{Nat Nat} (\fun (a: Nat) => NatOp.mul a n)
           (NatOp.add (pos x) (negPart y)) (NatOp.add (pos y) (negPart x)) xy }
@@ -246,7 +253,7 @@
   Equivalent x y ->
   Equivalent (mulRep x z) (mulRep y z) :=
   \fun (xy: _) =>
-    equiv_reason_terms!{equivalentTrans
+    equiv_reason_terms!{
       { mulRep x z }
       "~" { addRep (scaleRep x (pos z)) (negRep (scaleRep x (negPart z))) }
       "by" { mulRepAsSum x z }
@@ -257,13 +264,12 @@
         (negRepRespects (scaleRep x (negPart z)) (scaleRep y (negPart z))
           (scaleRepRespects x y (negPart z) xy)) }
       "~" { mulRep y z }
-      "by" { equivalentSym (mulRep y z)
-        (addRep (scaleRep y (pos z)) (negRep (scaleRep y (negPart z)))) (mulRepAsSum y z) }};
+      "by_sym" { mulRepAsSum y z }};
 \definition mulRepRespects[x, y, u, v: Difference]:
   Equivalent x y -> Equivalent u v ->
   Equivalent (mulRep x u) (mulRep y v) :=
   \fun (xy: _) (uv: _) =>
-    equiv_reason_terms!{equivalentTrans
+    equiv_reason_terms!{
       { mulRep x u }
       "~" { mulRep y u } "by" { mulRepRespectsLeft x y u xy }
       "~" { mulRep u y } "by" { mulRepComm y u }

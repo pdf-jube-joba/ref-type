@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \root.TensorChain[].Over[R := R, ring := ring].HomologyEquality[C := Source.complex, z := n] \as SE;
 \import \root.TensorChain[].Over[R := R, ring := ring].HomologyEquality[C := Target.complex, z := n] \as TE;
 \import \parent.Term[n := n] \as Term;
@@ -8,16 +9,18 @@
 \import Modules.Isomorphism[V := SH.Homology, W := TH.Homology, source := SH.homologySpace, target := TH.homologySpace] \as Iso;
 \definition leftInverse: \forall (x: SH.Homology) -> (Backward.induced G.map).apply ((Forward.induced F.map).apply x) = x :=
   SH.classInduction (\fun (x: SH.Homology) => (Backward.induced G.map).apply ((Forward.induced F.map).apply x) = x)
-    (\fun (x: SH.Cycle) => trans!{SH.Homology} _ _ _
-      (congr!{TH.Homology SH.Homology} ((Backward.induced G.map).apply) _ _ (Forward.onClass F.map x))
-      (trans!{SH.Homology} _ _ _ (Backward.onClass G.map ((Forward.cyclesMap F.map).apply x))
-        (SE.equalClass ((Backward.cyclesMap G.map).apply ((Forward.cyclesMap F.map).apply x)) x (Term.leftInverse x))));
+    (\fun (x: SH.Cycle) => eq_reason_in!{SH.Homology _
+      "=" _ "by" { congr!{TH.Homology SH.Homology} ((Backward.induced G.map).apply) _ _ (Forward.onClass F.map x) }
+      "=" _ "by" { Backward.onClass G.map ((Forward.cyclesMap F.map).apply x) }
+      "=" _ "by" { SE.equalClass ((Backward.cyclesMap G.map).apply ((Forward.cyclesMap F.map).apply x)) x (Term.leftInverse x) }
+    });
 \definition rightInverse: \forall (y: TH.Homology) -> (Forward.induced F.map).apply ((Backward.induced G.map).apply y) = y :=
   TH.classInduction (\fun (y: TH.Homology) => (Forward.induced F.map).apply ((Backward.induced G.map).apply y) = y)
-    (\fun (y: TH.Cycle) => trans!{TH.Homology} _ _ _
-      (congr!{SH.Homology TH.Homology} ((Forward.induced F.map).apply) _ _ (Backward.onClass G.map y))
-      (trans!{TH.Homology} _ _ _ (Forward.onClass F.map ((Backward.cyclesMap G.map).apply y))
-        (TE.equalClass ((Forward.cyclesMap F.map).apply ((Backward.cyclesMap G.map).apply y)) y (Term.rightInverse y))));
+    (\fun (y: TH.Cycle) => eq_reason_in!{TH.Homology _
+      "=" _ "by" { congr!{SH.Homology TH.Homology} ((Forward.induced F.map).apply) _ _ (Backward.onClass G.map y) }
+      "=" _ "by" { Forward.onClass F.map ((Backward.cyclesMap G.map).apply y) }
+      "=" _ "by" { TE.equalClass ((Forward.cyclesMap F.map).apply ((Backward.cyclesMap G.map).apply y)) y (Term.rightInverse y) }
+    });
 \definition isomorphism: Iso.Isomorphism := Iso.Isomorphism {
   forward := Forward.induced F.map, backward := Backward.induced G.map, leftInverse := leftInverse, rightInverse := rightInverse,
 };

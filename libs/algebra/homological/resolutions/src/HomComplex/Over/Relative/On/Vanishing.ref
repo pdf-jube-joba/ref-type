@@ -1,4 +1,5 @@
-\use Equality.congr2;
+\use std.Logic[].Equality[].eq_reason_in;
+\use Equality.congr;
 \import \root.HomComplex[].Over[R := R, ring := ring].Integer[P := WholeExtension.complex, N := coefficients] \as WholeHom;
 \import Modules.Hom[V := WholeExtension.Carrier z, W := coefficients.Carrier, source := WholeExtension.space z, target := coefficients.space] \as WholeMaps;
 \import Modules.Laws[V := coefficients.Carrier, space := coefficients.space] \as Values;
@@ -11,7 +12,7 @@
   zero := \fun (x: SubspaceExtension.Carrier z) => \refl((coefficients.space).zero),
   addition := \fun (h, k: WholeHom.Carrier z)(hz: Vanishes h)(kz: Vanishes k)(x: SubspaceExtension.Carrier z) =>
     trans!{coefficients.Carrier} _ _ _
-      (congr2!{coefficients.Carrier coefficients.Carrier coefficients.Carrier} ((coefficients.space).add) _ _ _ _ (hz x) (kz x))
+      (congr!{coefficients.Carrier coefficients.Carrier coefficients.Carrier} ((coefficients.space).add) _ _ _ _ (hz x) (kz x))
       (Group.zeroLeft (coefficients.space).zero),
   scalar := \fun (a: R)(h: WholeHom.Carrier z)(hz: Vanishes h)(x: SubspaceExtension.Carrier z) =>
     trans!{coefficients.Carrier} _ _ _ (congr!{coefficients.Carrier coefficients.Carrier} ((coefficients.space).smul a) _ _ (hz x)) (Values.scaleZero a),
@@ -56,8 +57,11 @@
     (\fun (x: WholeExtension.Carrier z) => \refl((coefficients.space).smul a ((h).apply (Q.class x)))),
 };
 \definition injective: \forall (h, k: Carrier z) -> restrict h = restrict k -> h = k :=
-  \fun (h, k: Carrier z)(same: _) => trans!{{Carrier z}} _ _ _ (sym!{{Carrier z}} _ _ (leftInverse h))
-    (trans!{{Carrier z}} _ _ _ (congr!{NullCochain {Carrier z}} descend _ _ same) (leftInverse k));
+  \fun (h, k: Carrier z)(same: _) => eq_reason_in!{{Carrier z} _
+    "=" _ "by" { sym!{{Carrier z}} _ _ (leftInverse h) }
+    "=" _ "by" { congr!{NullCochain {Carrier z}} descend _ _ same }
+    "=" _ "by" { leftInverse k }
+  };
 \definition onto: \forall (h: NullCochain) -> \exists ( k: Carrier z \where restrict k = h ) :=
   \fun (h: NullCochain) => Logic.existsIntro[Carrier z, { k: Carrier z \where restrict k = h }] (descend h) (rightInverse h);
 \import Modules.Isomorphism[V := Carrier z, W := NullCochain, source := space z, target := nullSpace] \as Iso;

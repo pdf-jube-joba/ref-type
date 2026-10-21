@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
 \definition families[i: Index]: Complexes.Family := Complexes.Family {
   Carrier := \parent.Component[i := i].Carrier,
@@ -44,18 +45,22 @@
     | negSucc: \fun (n: N.Nat^) => Negative[n := n].right
   };
 \definition injective: \forall (z: I.Int^)(x, y: Sum.Term[z := z].Carrier) -> (forward).apply z x = (forward).apply z y -> x = y :=
-  \fun (z: I.Int^)(x, y: Sum.Term[z := z].Carrier)(same: _) => trans!{{Sum.Term[z := z].Carrier}} _ _ _ (sym!{{Sum.Term[z := z].Carrier}} _ _ (leftInverse z x))
-    (trans!{{Sum.Term[z := z].Carrier}} _ _ _ (congr!{{SmallExtension.Carrier z} {Sum.Term[z := z].Carrier}} ((backwardLinear z).apply) _ _ same) (leftInverse z y));
+  \fun (z: I.Int^)(x, y: Sum.Term[z := z].Carrier)(same: _) => eq_reason_in!{{Sum.Term[z := z].Carrier} _
+    "=" _ "by" { sym!{{Sum.Term[z := z].Carrier}} _ _ (leftInverse z x) }
+    "=" _ "by" { congr!{{SmallExtension.Carrier z} {Sum.Term[z := z].Carrier}} ((backwardLinear z).apply) _ _ same }
+    "=" _ "by" { leftInverse z y }
+  };
 \import chain_complexes.Chain[] \as Degrees;
 \definition backward: Complexes.Map[C := SmallExtension.complex, D := Sum.complex].Map := Complexes.Map[C := SmallExtension.complex, D := Sum.complex].Map {
   apply := \fun (z: I.Int^) => (backwardLinear z).apply,
   addition := \fun (z: I.Int^) => (backwardLinear z).addition,
   scalar := \fun (z: I.Int^) => (backwardLinear z).scalar,
   commutes := \fun (z: I.Int^)(y: SmallExtension.Carrier z) => injective (Degrees.previous z) _ _
-    (trans!{{SmallExtension.Carrier (Degrees.previous z)}} _ _ _ (sym!{{SmallExtension.Carrier (Degrees.previous z)}} _ _ ((forward).commutes z ((backwardLinear z).apply y)))
-      (trans!{{SmallExtension.Carrier (Degrees.previous z)}} _ _ _
-        (congr!{{SmallExtension.Carrier z} {SmallExtension.Carrier (Degrees.previous z)}} ((SmallExtension.complex.differential).apply z) _ _ (rightInverse z y))
-        (sym!{{SmallExtension.Carrier (Degrees.previous z)}} _ _ (rightInverse (Degrees.previous z) ((SmallExtension.complex.differential).apply z y))))),
+    (eq_reason_in!{{SmallExtension.Carrier (Degrees.previous z)} _
+      "=" _ "by" { sym!{{SmallExtension.Carrier (Degrees.previous z)}} _ _ ((forward).commutes z ((backwardLinear z).apply y)) }
+      "=" _ "by" { congr!{{SmallExtension.Carrier z} {SmallExtension.Carrier (Degrees.previous z)}} ((SmallExtension.complex.differential).apply z) _ _ (rightInverse z y) }
+      "=" _ "by" { sym!{{SmallExtension.Carrier (Degrees.previous z)}} _ _ (rightInverse (Degrees.previous z) ((SmallExtension.complex.differential).apply z y)) }
+    }),
 };
 \definition isomorphism: Complexes.Isomorphism[C := Sum.complex, D := SmallExtension.complex].Isomorphism :=
   Complexes.Isomorphism[C := Sum.complex, D := SmallExtension.complex].Isomorphism {

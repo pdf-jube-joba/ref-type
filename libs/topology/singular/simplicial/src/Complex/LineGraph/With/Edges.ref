@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 
 \definition zero: N.Nat^ := N.Nat^::zero;
 \definition degree: N.Nat^ := N.Nat^::succ zero;
@@ -30,16 +31,24 @@
   \fun (e: E)(s: Simplicial.Simplex degree)(atHead: label (first e) = s head)(atTail: label (last e) = s tail) =>
     \axiom:funext(simplex e, s, Fin.cases degree (\fun (i: Fin.Fin (N.Nat^::succ degree)) => tuple e i = s i)
       (trans!{{Vertex}} _ _ _ (firstValue e) atHead)
-      (\fun (i: Fin.Fin degree) => trans!{{Vertex}} _ _ _
-        (Tuples.atSuccessor degree (label (first e)) (\fun (_: Fin.Fin degree) => label (last e)) i)
-        (trans!{{Vertex}} _ _ _ atTail (sym!{{Vertex}} _ _ (congr!{{Fin.Fin degree} {Vertex}}
-          (\fun (j: Fin.Fin degree) => s (Fin.succ degree j)) _ _ (Fin.singletonValue i))))));
+      (\fun (i: Fin.Fin degree) => eq_reason_in!{{Vertex} _
+        "=" _ "by" { Tuples.atSuccessor degree (label (first e)) (\fun (_: Fin.Fin degree) => label (last e)) i }
+        "=" _ "by" atTail
+        "=" _ "by" { sym!{{Vertex}} _ _ (congr!{{Fin.Fin degree} {Vertex}}
+          (\fun (j: Fin.Fin degree) => s (Fin.succ degree j)) _ _ (Fin.singletonValue i)) }
+      }));
 \definition injective: \forall (e, f: E) -> simplex e = simplex f -> e = f :=
   \fun (e, f: E)(same: simplex e = simplex f) => (laws).edges e f
-    ((laws).vertices (first e) (first f) (trans!{{Vertex}} _ _ _ (sym!{{Vertex}} _ _ (firstValue e))
-      (trans!{{Vertex}} _ _ _ (congr!{{Simplicial.Tuple degree} {Vertex}} (\fun (s: Simplicial.Tuple degree) => s head) _ _ same) (firstValue f))))
-    ((laws).vertices (last e) (last f) (trans!{{Vertex}} _ _ _ (sym!{{Vertex}} _ _ (lastValue e))
-      (trans!{{Vertex}} _ _ _ (congr!{{Simplicial.Tuple degree} {Vertex}} (\fun (s: Simplicial.Tuple degree) => s tail) _ _ same) (lastValue f))));
+    ((laws).vertices (first e) (first f) (eq_reason_in!{{Vertex} _
+      "=" _ "by" { sym!{{Vertex}} _ _ (firstValue e) }
+      "=" _ "by" { congr!{{Simplicial.Tuple degree} {Vertex}} (\fun (s: Simplicial.Tuple degree) => s head) _ _ same }
+      "=" _ "by" { firstValue f }
+    }))
+    ((laws).vertices (last e) (last f) (eq_reason_in!{{Vertex} _
+      "=" _ "by" { sym!{{Vertex}} _ _ (lastValue e) }
+      "=" _ "by" { congr!{{Simplicial.Tuple degree} {Vertex}} (\fun (s: Simplicial.Tuple degree) => s tail) _ _ same }
+      "=" _ "by" { lastValue f }
+    }));
 \definition Values[s: Simplicial.Simplex degree]: \Set := \Cast[E] ({ e: E \where simplex e = s });
 \definition ordered[s: Simplicial.Simplex degree]: Bounds.Lt (s head) (s tail) := (Simplicial.admissible degree s).increasing head tail (\refl(B.Bool^::true));
 \definition onto: \forall (s: Simplicial.Simplex degree) -> \exists Values s := \fun (s: Simplicial.Simplex degree) =>

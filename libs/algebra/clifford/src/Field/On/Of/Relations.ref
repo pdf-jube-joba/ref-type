@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 /* Polarization of the defining quadratic relation, in arbitrary characteristic. */
 \import algebra.Group[].Of[Carrier := Carrier, group := Ring.additiveGroup Carrier ring] \as Sum;
 \import algebra.Hom[A := K, B := Carrier] \as Coefficients;
@@ -6,15 +7,18 @@
 \definition scalarAdd: \forall (a, b: K) -> scalar (Linear.add a b) = add (scalar a) (scalar b) := coefficientLaws.add;
 \definition scalarMul: \forall (a, b: K) -> scalar (Linear.mul a b) = mul (scalar a) (scalar b) := coefficientLaws.mul;
 \definition scalarNeg: \forall (a: K) -> scalar (Linear.neg a) = neg (scalar a) := \fun (a: K) => Sum.inverseUnique (scalar a) (scalar (Linear.neg a))
-  (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (scalarAdd (Linear.neg a) a))
-    (trans!{Carrier} _ _ _ (congr!{K Carrier} scalar _ _ (Linear.addNegLeft a)) coefficientLaws.zero));
+  (eq_reason_in!{Carrier _
+    "=" _ "by" { sym!{Carrier} _ _ (scalarAdd (Linear.neg a) a) }
+    "=" _ "by" { congr!{K Carrier} scalar _ _ (Linear.addNegLeft a) }
+    "=" _ "by" coefficientLaws.zero
+  });
 \definition quadraticAdd: \forall (u, v: V) -> quadratic (space.add u v) =
   Linear.add (Linear.add (quadratic u) (form.form u v)) (Linear.add (form.form v u) (quadratic v)) :=
   \fun (u, v: V) => trans!{K} _ _ _ (form.addLeft u v (space.add u v))
-    (congr2!{K K K} Linear.add _ _ _ _ (form.addRight u u v) (form.addRight v u v));
+    (congr!{K K K} Linear.add _ _ _ _ (form.addRight u u v) (form.addRight v u v));
 \definition squareAdd: \forall (x, y: Carrier) -> mul (add x y) (add x y) = add (add (mul x x) (mul x y)) (add (mul y x) (mul y y)) :=
   \fun (x, y: Carrier) => trans!{Carrier} _ _ _ (Presented.addMul x y (add x y))
-    (congr2!{Carrier Carrier Carrier} add _ _ _ _ (Presented.mulAdd x x y) (Presented.mulAdd y x y));
+    (congr!{Carrier Carrier Carrier} add _ _ _ _ (Presented.mulAdd x x y) (Presented.mulAdd y x y));
 \definition foldFour: \forall (a, b, c, d: Carrier) -> add (add a b) (add c d) = add (add a (add b c)) d :=
   \fun (a, b, c, d: Carrier) => trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (Sum.assoc (add a b) c d))
     (congr!{Carrier Carrier} (\fun (x: Carrier) => add x d) _ _ (Sum.assoc a b c));
@@ -25,23 +29,30 @@
   \let c: Carrier := mul (iota v) (iota u) \then
   \let d: Carrier := scalar (quadratic v) \then
   \let square: mul (add (iota u) (iota v)) (add (iota u) (iota v)) = scalar (quadratic (space.add u v)) := trans!{Carrier} _ _ _
-    (sym!{Carrier} _ _ (congr2!{Carrier Carrier Carrier} mul _ _ _ _ (injection.preservesAdd u v) (injection.preservesAdd u v)))
+    (sym!{Carrier} _ _ (congr!{Carrier Carrier Carrier} mul _ _ _ _ (injection.preservesAdd u v) (injection.preservesAdd u v)))
     (cliffordRelation (space.add u v)) \then
-  \let expand: add (add a b) (add c d) = scalar (quadratic (space.add u v)) := trans!{Carrier} _ _ _
-    (sym!{Carrier} _ _ (congr2!{Carrier Carrier Carrier} add _ _ _ _
+  \let expand: add (add a b) (add c d) = scalar (quadratic (space.add u v)) := eq_reason_in!{Carrier _
+    "=" _ "by" { sym!{Carrier} _ _ (congr!{Carrier Carrier Carrier} add _ _ _ _
       (congr!{Carrier Carrier} (\fun (x: Carrier) => add x b) _ _ (cliffordRelation u))
-      (congr!{Carrier Carrier} (add c) _ _ (cliffordRelation v))))
-    (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (squareAdd (iota u) (iota v))) square) \then
+      (congr!{Carrier Carrier} (add c) _ _ (cliffordRelation v))) }
+    "=" _ "by" { sym!{Carrier} _ _ (squareAdd (iota u) (iota v)) }
+    "=" _ "by" square
+  } \then
   \let scalarExpansion: scalar (quadratic (space.add u v)) = add (add a (scalar (form.form u v))) (add (scalar (form.form v u)) d) :=
-    trans!{Carrier} _ _ _ (congr!{K Carrier} scalar _ _ (quadraticAdd u v))
-      (trans!{Carrier} _ _ _ (scalarAdd (Linear.add (quadratic u) (form.form u v)) (Linear.add (form.form v u) (quadratic v)))
-        (congr2!{Carrier Carrier Carrier} add _ _ _ _ (scalarAdd (quadratic u) (form.form u v)) (scalarAdd (form.form v u) (quadratic v)))) \then
+    eq_reason_in!{Carrier _
+      "=" _ "by" { congr!{K Carrier} scalar _ _ (quadraticAdd u v) }
+      "=" _ "by" { scalarAdd (Linear.add (quadratic u) (form.form u v)) (Linear.add (form.form v u) (quadratic v)) }
+      "=" _ "by" { congr!{Carrier Carrier Carrier} add _ _ _ _ (scalarAdd (quadratic u) (form.form u v)) (scalarAdd (form.form v u) (quadratic v)) }
+    } \then
   \return Sum.cancelLeft a (add b c) (scalar (Linear.add (form.form u v) (form.form v u)))
     (Sum.cancelRight d (add a (add b c)) (add a (scalar (Linear.add (form.form u v) (form.form v u))))
-      (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (foldFour a b c d))
-        (trans!{Carrier} _ _ _ expand (trans!{Carrier} _ _ _ scalarExpansion
-          (trans!{Carrier} _ _ _ (foldFour a (scalar (form.form u v)) (scalar (form.form v u)) d)
-            (congr!{Carrier Carrier} (\fun (x: Carrier) => add (add a x) d) _ _ (sym!{Carrier} _ _ (scalarAdd (form.form u v) (form.form v u)))))))))
+      (eq_reason_in!{Carrier _
+        "=" _ "by" { sym!{Carrier} _ _ (foldFour a b c d) }
+        "=" _ "by" expand
+        "=" _ "by" scalarExpansion
+        "=" _ "by" { foldFour a (scalar (form.form u v)) (scalar (form.form v u)) d }
+        "=" _ "by" { congr!{Carrier Carrier} (\fun (x: Carrier) => add (add a x) d) _ _ (sym!{Carrier} _ _ (scalarAdd (form.form u v) (form.form v u))) }
+      }))
 };
 \definition polar[u, v: V]: K := Linear.add (form.form u v) (form.form v u);
 \definition reordered: \forall (u, v: V) -> mul (iota u) (iota v) = Sum.difference (scalar (polar u v)) (mul (iota v) (iota u)) :=

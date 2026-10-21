@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition n: Nat.Nat^ := Nat.Nat^::zero;
 \import Source.Degree[n := n] \as SD;
 \import Target.Degree[n := n] \as TD;
@@ -17,12 +18,17 @@
 \import algebra.Group[].Of[Carrier := TD.Carrier, group := Values.additive] \as Group;
 \definition common[x: C.family.Carrier n n]: TD.Carrier := (TargetSingle.inject).apply ((D.differential.horizontal n n).apply ((h n n).apply x));
 \definition left[x: C.family.Carrier n n]: (lhs).apply ((SourceSingle.inject).apply x) = common x :=
-  trans!{TD.Carrier} _ _ _ (congr2!{TD.Carrier TD.Carrier TD.Carrier} Group.difference _ _ _ _ (F.onInjection SourceSingle.index x) (G.onInjection SourceSingle.index x))
-    (trans!{TD.Carrier} _ _ _ (sym!{TD.Carrier} _ _ (Injection.differencePreserved TargetSingle.inject ((f n n).apply x) ((g n n).apply x)))
-      (congr!{{D.family.Carrier n n} TD.Carrier} ((TargetSingle.inject).apply) _ _ ((laws).zero n x)));
+  eq_reason_in!{TD.Carrier _
+    "=" _ "by" { congr!{TD.Carrier TD.Carrier TD.Carrier} Group.difference _ _ _ _ (F.onInjection SourceSingle.index x) (G.onInjection SourceSingle.index x) }
+    "=" _ "by" { sym!{TD.Carrier} _ _ (Injection.differencePreserved TargetSingle.inject ((f n n).apply x) ((g n n).apply x)) }
+    "=" _ "by" { congr!{{D.family.Carrier n n} TD.Carrier} ((TargetSingle.inject).apply) _ _ ((laws).zero n x) }
+  };
 \definition right[x: C.family.Carrier n n]: (rhs).apply ((SourceSingle.inject).apply x) = common x :=
-  trans!{TD.Carrier} _ _ _ (congr!{TN.Carrier TD.Carrier} ((Differential.differential).apply) _ _ (H.onInjection SourceSingle.index x))
-    (trans!{TD.Carrier} _ _ _ (Differential.onComponent (H.Component[i := SourceSingle.index].raised) ((h n n).apply x)) (Group.zeroRight (common x)));
+  eq_reason_in!{TD.Carrier _
+    "=" _ "by" { congr!{TN.Carrier TD.Carrier} ((Differential.differential).apply) _ _ (H.onInjection SourceSingle.index x) }
+    "=" _ "by" { Differential.onComponent (H.Component[i := SourceSingle.index].raised) ((h n n).apply x) }
+    "=" _ "by" { Group.zeroRight (common x) }
+  };
 \definition onComponent[x: C.family.Carrier n n]: (lhs).apply ((SourceSingle.inject).apply x) = (rhs).apply ((SourceSingle.inject).apply x) := trans!{TD.Carrier} _ _ _ (left x) (sym!{TD.Carrier} _ _ (right x));
 \definition Statement[i: Index n]: \Prop := \forall (x: C.family.Carrier (i).first (i).second) -> (lhs).apply ((SD.Component[i := i].injection).apply x) = (rhs).apply ((SD.Component[i := i].injection).apply x);
 \definition onInjection[i: Index n]: Statement i := \idelim SourceSingle.index = i \with j: Index n => Statement j \by { base: onComponent, equality: sym!{{Index n}} _ _ (SourceSingle.unique i) };

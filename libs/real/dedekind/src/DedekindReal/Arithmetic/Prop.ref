@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \use Logic.either;
 \import \parent.Def[] \as Def;
 
@@ -10,7 +11,6 @@
 \use Equality.sym;
 \use Equality.trans;
 \use Equality.congr;
-\use Equality.congr2;
 
 \definition ofRatMem[a, q: Rat]:
   lt q a ->
@@ -588,40 +588,40 @@
     (addComm x (Def.neg x)) (addNegLeft x);
 
 \definition addNegCancelLeft[x, y: Real]: Def.add (Def.neg x) (Def.add x y) = y :=
-  trans!{Real}
-    (Def.add (Def.neg x) (Def.add x y)) (Def.add (Def.add (Def.neg x) x) y) y
-    (sym!{Real} _ _ (addAssoc (Def.neg x) x y))
-    (trans!{Real} (Def.add (Def.add (Def.neg x) x) y) (Def.add Def.zero y) y
-      (congr!{Real Real} (\fun (z: Real) => Def.add z y)
-        (Def.add (Def.neg x) x) Def.zero (addNegLeft x))
-      (addZeroLeft y));
+  eq_reason_in!{Real { Def.add (Def.neg x) (Def.add x y) }
+    "=" { Def.add (Def.add (Def.neg x) x) y } "by" { sym!{Real} _ _ (addAssoc (Def.neg x) x y) }
+    "=" { Def.add Def.zero y } "by" { congr!{Real Real} (\fun (z: Real) => Def.add z y)
+        (Def.add (Def.neg x) x) Def.zero (addNegLeft x) }
+    "=" y "by" { addZeroLeft y }
+  };
 
 \definition addNegCancelRight[x, y: Real]: Def.add (Def.add y x) (Def.neg x) = y :=
-  trans!{Real} _ _ _
-    (addAssoc y x (Def.neg x))
-    (trans!{Real} (Def.add y (Def.add x (Def.neg x))) (Def.add y Def.zero) y
-      (congr!{Real Real} (Def.add y) (Def.add x (Def.neg x)) Def.zero (addNegRight x))
-      (addZeroRight y));
+  eq_reason_in!{Real _
+    "=" _ "by" { addAssoc y x (Def.neg x) }
+    "=" { Def.add y Def.zero } "by" { congr!{Real Real} (Def.add y) (Def.add x (Def.neg x)) Def.zero (addNegRight x) }
+    "=" y "by" { addZeroRight y }
+  };
 
 \definition addCancelLeft[z, x, y: Real]:
   Def.add z x = Def.add z y ->
   x = y :=
   \fun (same: _) =>
-    trans!{Real} x (Def.add (Def.neg z) (Def.add z x)) y
-      (sym!{Real} (Def.add (Def.neg z) (Def.add z x)) x (addNegCancelLeft z x))
-      (trans!{Real} _ _ _
-        (congr!{Real Real} (Def.add (Def.neg z)) (Def.add z x) (Def.add z y) same)
-        (addNegCancelLeft z y));
+    eq_reason_in!{Real x
+      "=" { Def.add (Def.neg z) (Def.add z x) } "by" { sym!{Real} (Def.add (Def.neg z) (Def.add z x)) x (addNegCancelLeft z x) }
+      "=" _ "by" { congr!{Real Real} (Def.add (Def.neg z)) (Def.add z x) (Def.add z y) same }
+      "=" _ "by" { addNegCancelLeft z y }
+    };
 
 \definition addCancelRight[x, y, z: Real]:
   Def.add x z = Def.add y z ->
   x = y :=
   \fun (same: _) =>
     addCancelLeft z x y
-      (trans!{Real} (Def.add z x) (Def.add x z) (Def.add z y)
-        (addComm z x)
-        (trans!{Real} (Def.add x z) (Def.add y z) (Def.add z y)
-          same (addComm y z)));
+      (eq_reason_in!{Real { Def.add z x }
+        "=" { Def.add x z } "by" { addComm z x }
+        "=" { Def.add y z } "by" same
+        "=" { Def.add z y } "by" { addComm y z }
+      });
 
 \definition negZero: Def.neg Def.zero = Def.zero :=
   trans!{Real} (Def.neg Def.zero) (Def.add (Def.neg Def.zero) Def.zero) Def.zero
@@ -632,11 +632,11 @@
   Def.neg x = Def.neg y ->
   x = y :=
   \fun (same: _) =>
-    trans!{Real} x (Def.neg (Def.neg x)) y
-      (sym!{Real} (Def.neg (Def.neg x)) x (negInvolutive x))
-      (trans!{Real} (Def.neg (Def.neg x)) (Def.neg (Def.neg y)) y
-        (congr!{Real Real} Def.neg (Def.neg x) (Def.neg y) same)
-        (negInvolutive y));
+    eq_reason_in!{Real x
+      "=" { Def.neg (Def.neg x) } "by" { sym!{Real} (Def.neg (Def.neg x)) x (negInvolutive x) }
+      "=" { Def.neg (Def.neg y) } "by" { congr!{Real Real} Def.neg (Def.neg x) (Def.neg y) same }
+      "=" y "by" { negInvolutive y }
+    };
 
 \definition subSelf[x: Real]: Def.sub x x = Def.zero := addNegRight x;
 
@@ -1483,30 +1483,32 @@
     {\fun (zeroX: Le Def.zero x) =>
       either!{{(nonnegativeOrNegativeReal y)} {fieldMul x y = fieldMul y x}
         {\fun (zeroY: Le Def.zero y) =>
-          trans!{Real} (fieldMul x y) (Def.mul x y) (fieldMul y x)
-            (fieldMulNN x y zeroX zeroY)
-            (trans!{Real} (Def.mul x y) (Def.mul y x) (fieldMul y x)
-              (mulComm x y) (sym!{Real} _ _ (fieldMulNN y x zeroY zeroX)))}
+          eq_reason_in!{Real { fieldMul x y }
+            "=" { Def.mul x y } "by" { fieldMulNN x y zeroX zeroY }
+            "=" { Def.mul y x } "by" { mulComm x y }
+            "=" { fieldMul y x } "by" { sym!{Real} _ _ (fieldMulNN y x zeroY zeroX) }
+          }}
         {\fun (negativeY: Lt y Def.zero) =>
-          trans!{Real} (fieldMul x y) (Def.neg (Def.mul x (Def.neg y))) (fieldMul y x)
-            (fieldMulNP x y zeroX negativeY)
-            (trans!{Real} _ _ _
-              (congr!{Real Real} Def.neg _ _ (mulComm x (Def.neg y)))
-              (sym!{Real} _ _ (fieldMulPN y x negativeY zeroX)))}
+          eq_reason_in!{Real { fieldMul x y }
+            "=" { Def.neg (Def.mul x (Def.neg y)) } "by" { fieldMulNP x y zeroX negativeY }
+            "=" _ "by" { congr!{Real Real} Def.neg _ _ (mulComm x (Def.neg y)) }
+            "=" _ "by" { sym!{Real} _ _ (fieldMulPN y x negativeY zeroX) }
+          }}
       }}
     {\fun (negativeX: Lt x Def.zero) =>
       either!{{(nonnegativeOrNegativeReal y)} {fieldMul x y = fieldMul y x}
         {\fun (zeroY: Le Def.zero y) =>
-          trans!{Real} (fieldMul x y) (Def.neg (Def.mul (Def.neg x) y)) (fieldMul y x)
-            (fieldMulPN x y negativeX zeroY)
-            (trans!{Real} _ _ _
-              (congr!{Real Real} Def.neg _ _ (mulComm (Def.neg x) y))
-              (sym!{Real} _ _ (fieldMulNP y x zeroY negativeX)))}
+          eq_reason_in!{Real { fieldMul x y }
+            "=" { Def.neg (Def.mul (Def.neg x) y) } "by" { fieldMulPN x y negativeX zeroY }
+            "=" _ "by" { congr!{Real Real} Def.neg _ _ (mulComm (Def.neg x) y) }
+            "=" _ "by" { sym!{Real} _ _ (fieldMulNP y x zeroY negativeX) }
+          }}
         {\fun (negativeY: Lt y Def.zero) =>
-          trans!{Real} (fieldMul x y) (Def.mul (Def.neg x) (Def.neg y)) (fieldMul y x)
-            (fieldMulPP x y negativeX negativeY)
-            (trans!{Real} _ _ _ (mulComm (Def.neg x) (Def.neg y))
-              (sym!{Real} _ _ (fieldMulPP y x negativeY negativeX)))}
+          eq_reason_in!{Real { fieldMul x y }
+            "=" { Def.mul (Def.neg x) (Def.neg y) } "by" { fieldMulPP x y negativeX negativeY }
+            "=" _ "by" { mulComm (Def.neg x) (Def.neg y) }
+            "=" _ "by" { sym!{Real} _ _ (fieldMulPP y x negativeY negativeX) }
+          }}
       }}
   };
 
@@ -1516,11 +1518,11 @@
       trans!{Real} (fieldMul Def.one x) (Def.mul Def.one x) x
         (fieldMulNN Def.one x oneNonnegative zeroX) (mulOneLeft x)}
     {\fun (negativeX: Lt x Def.zero) =>
-      trans!{Real} (fieldMul Def.one x) (Def.neg (Def.mul Def.one (Def.neg x))) x
-        (fieldMulNP Def.one x oneNonnegative negativeX)
-        (trans!{Real} (Def.neg (Def.mul Def.one (Def.neg x))) (Def.neg (Def.neg x)) x
-          (congr!{Real Real} Def.neg _ _ (mulOneLeft (Def.neg x)))
-          (negInvolutive x))}
+      eq_reason_in!{Real { fieldMul Def.one x }
+        "=" { Def.neg (Def.mul Def.one (Def.neg x)) } "by" { fieldMulNP Def.one x oneNonnegative negativeX }
+        "=" { Def.neg (Def.neg x) } "by" { congr!{Real Real} Def.neg _ _ (mulOneLeft (Def.neg x)) }
+        "=" x "by" { negInvolutive x }
+      }}
   };
 
 \definition fieldMulZeroLeft[x: Real]: fieldMul Def.zero x = Def.zero :=
@@ -1529,10 +1531,11 @@
       trans!{Real} (fieldMul Def.zero x) (Def.mul Def.zero x) Def.zero
         (fieldMulNN Def.zero x zeroNonnegative zeroX) (mulZeroLeft x)}
     {\fun (negativeX: Lt x Def.zero) =>
-      trans!{Real} (fieldMul Def.zero x) (Def.neg (Def.mul Def.zero (Def.neg x))) Def.zero
-        (fieldMulNP Def.zero x zeroNonnegative negativeX)
-        (trans!{Real} (Def.neg (Def.mul Def.zero (Def.neg x))) (Def.neg Def.zero) Def.zero
-          (congr!{Real Real} Def.neg _ _ (mulZeroLeft (Def.neg x))) negZero)}
+      eq_reason_in!{Real { fieldMul Def.zero x }
+        "=" { Def.neg (Def.mul Def.zero (Def.neg x)) } "by" { fieldMulNP Def.zero x zeroNonnegative negativeX }
+        "=" { Def.neg Def.zero } "by" { congr!{Real Real} Def.neg _ _ (mulZeroLeft (Def.neg x)) }
+        "=" Def.zero "by" negZero
+      }}
   };
 
 \definition fieldMulZeroRight[x: Real]: fieldMul x Def.zero = Def.zero :=
@@ -1555,22 +1558,21 @@
         \let zeroY: Le Def.zero y := CutOrder.leOfLt Def.zero y positiveY \then
         \return either!{{(nonnegativeOrNegativeReal x)} {fieldMul x (Def.neg y) = Def.neg (fieldMul x y)}
           {\fun (zeroX: Le Def.zero x) =>
-            trans!{Real} _ _ _
-              (fieldMulNP x (Def.neg y) zeroX negativeNegY)
-              (trans!{Real} _ _ _
-                (congr!{Real Real} Def.neg _ _
-                  (congr!{Real Real} (Def.mul x) _ _ (negInvolutive y)))
-                (congr!{Real Real} Def.neg _ _
-                  (sym!{Real} _ _ (fieldMulNN x y zeroX zeroY))))}
+            eq_reason_in!{Real _
+              "=" _ "by" { fieldMulNP x (Def.neg y) zeroX negativeNegY }
+              "=" _ "by" { congr!{Real Real} Def.neg _ _
+                  (congr!{Real Real} (Def.mul x) _ _ (negInvolutive y)) }
+              "=" _ "by" { congr!{Real Real} Def.neg _ _
+                  (sym!{Real} _ _ (fieldMulNN x y zeroX zeroY)) }
+            }}
           {\fun (negativeX: Lt x Def.zero) =>
-            trans!{Real} _ _ _
-              (fieldMulPP x (Def.neg y) negativeX negativeNegY)
-              (trans!{Real} _ _ _
-                (congr!{Real Real} (Def.mul (Def.neg x)) _ _ (negInvolutive y))
-                (trans!{Real} _ _ _
-                  (sym!{Real} _ _ (negInvolutive (Def.mul (Def.neg x) y)))
-                  (congr!{Real Real} Def.neg _ _
-                    (sym!{Real} _ _ (fieldMulPN x y negativeX zeroY)))))}
+            eq_reason_in!{Real _
+              "=" _ "by" { fieldMulPP x (Def.neg y) negativeX negativeNegY }
+              "=" _ "by" { congr!{Real Real} (Def.mul (Def.neg x)) _ _ (negInvolutive y) }
+              "=" _ "by" { sym!{Real} _ _ (negInvolutive (Def.mul (Def.neg x) y)) }
+              "=" _ "by" { congr!{Real Real} Def.neg _ _
+                    (sym!{Real} _ _ (fieldMulPN x y negativeX zeroY)) }
+            }}
         }
       }}
     {\fun (rest: Logic.Or[Def.zero = y, Lt y Def.zero]) =>
@@ -1579,12 +1581,13 @@
           \idelim Def.zero = y
             \with t: Real => fieldMul x (Def.neg t) = Def.neg (fieldMul x t)
             \by { base:
-              trans!{Real} _ _ _
-                (congr!{Real Real} (fieldMul x) _ _ negZero)
-                (trans!{Real} _ _ _ (fieldMulZeroRight x)
-                  (sym!{Real} _ _
+              eq_reason_in!{Real _
+                "=" _ "by" { congr!{Real Real} (fieldMul x) _ _ negZero }
+                "=" _ "by" { fieldMulZeroRight x }
+                "=" _ "by" { sym!{Real} _ _
                     (trans!{Real} (Def.neg (fieldMul x Def.zero)) (Def.neg Def.zero) Def.zero
-                      (congr!{Real Real} Def.neg _ _ (fieldMulZeroRight x)) negZero))),
+                      (congr!{Real Real} Def.neg _ _ (fieldMulZeroRight x)) negZero) }
+              },
               equality: same }}
         {\fun (negativeY: Lt y Def.zero) =>
           \block {
@@ -1592,12 +1595,12 @@
               nonnegativeNegOfNegative y negativeY \then
             \return either!{{(nonnegativeOrNegativeReal x)} {fieldMul x (Def.neg y) = Def.neg (fieldMul x y)}
               {\fun (zeroX: Le Def.zero x) =>
-                trans!{Real} _ _ _
-                  (fieldMulNN x (Def.neg y) zeroX zeroNegY)
-                  (trans!{Real} _ _ _
-                    (sym!{Real} _ _ (negInvolutive (Def.mul x (Def.neg y))))
-                    (congr!{Real Real} Def.neg _ _
-                      (sym!{Real} _ _ (fieldMulNP x y zeroX negativeY))))}
+                eq_reason_in!{Real _
+                  "=" _ "by" { fieldMulNN x (Def.neg y) zeroX zeroNegY }
+                  "=" _ "by" { sym!{Real} _ _ (negInvolutive (Def.mul x (Def.neg y))) }
+                  "=" _ "by" { congr!{Real Real} Def.neg _ _
+                      (sym!{Real} _ _ (fieldMulNP x y zeroX negativeY)) }
+                }}
               {\fun (negativeX: Lt x Def.zero) =>
                 trans!{Real} _ _ _
                   (fieldMulPN x (Def.neg y) negativeX zeroNegY)
@@ -1609,9 +1612,11 @@
   };
 
 \definition fieldMulNegLeft[x, y: Real]: fieldMul (Def.neg x) y = Def.neg (fieldMul x y) :=
-  trans!{Real} _ _ _ (fieldMulComm (Def.neg x) y)
-    (trans!{Real} _ _ _ (fieldMulNegRight y x)
-      (congr!{Real Real} Def.neg _ _ (fieldMulComm y x)));
+  eq_reason_in!{Real _
+    "=" _ "by" { fieldMulComm (Def.neg x) y }
+    "=" _ "by" { fieldMulNegRight y x }
+    "=" _ "by" { congr!{Real Real} Def.neg _ _ (fieldMulComm y x) }
+  };
 
 \definition fieldMulNonnegative[x, y: Real]:
   Le Def.zero x -> Le Def.zero y ->
@@ -1625,19 +1630,17 @@
   Le Def.zero x -> Le Def.zero y -> Le Def.zero z ->
   fieldMul (fieldMul x y) z = fieldMul x (fieldMul y z) :=
   \fun (zeroX: Le Def.zero x) (zeroY: Le Def.zero y) (zeroZ: Le Def.zero z) =>
-    trans!{Real} _ _ _
-      (congr!{Real Real} (\fun (t: Real) => fieldMul t z) _ _
-        (fieldMulNN x y zeroX zeroY))
-      (trans!{Real} _ _ _
-        (fieldMulNN (Def.mul x y) z (nonnegativeMul x y zeroX zeroY) zeroZ)
-        (trans!{Real} _ _ _
-          (mulAssocNonnegative x y z zeroX zeroY zeroZ)
-          (trans!{Real} _ _ _
-            (sym!{Real} _ _
+    eq_reason_in!{Real _
+      "=" _ "by" { congr!{Real Real} (\fun (t: Real) => fieldMul t z) _ _
+        (fieldMulNN x y zeroX zeroY) }
+      "=" _ "by" { fieldMulNN (Def.mul x y) z (nonnegativeMul x y zeroX zeroY) zeroZ }
+      "=" _ "by" { mulAssocNonnegative x y z zeroX zeroY zeroZ }
+      "=" _ "by" { sym!{Real} _ _
               (fieldMulNN x (Def.mul y z) zeroX
-                (nonnegativeMul y z zeroY zeroZ)))
-            (congr!{Real Real} (fieldMul x) _ _
-              (sym!{Real} _ _ (fieldMulNN y z zeroY zeroZ))))));
+                (nonnegativeMul y z zeroY zeroZ)) }
+      "=" _ "by" { congr!{Real Real} (fieldMul x) _ _
+              (sym!{Real} _ _ (fieldMulNN y z zeroY zeroZ)) }
+    };
 
 \definition fieldMulAssocNN[x, y, z: Real]:
   Le Def.zero x -> Le Def.zero y ->
@@ -1657,19 +1660,20 @@
               (fieldMulNegRight (fieldMul x y) nz) \then
           \let right: fieldMul x (fieldMul y z) =
               Def.neg (fieldMul x (fieldMul y nz)) :=
-            trans!{Real} _ _ _
-              (congr!{Real Real} (fieldMul x) _ _
+            eq_reason_in!{Real _
+              "=" _ "by" { congr!{Real Real} (fieldMul x) _ _
                 (congr!{Real Real} (fieldMul y) _ _
-                  (sym!{Real} _ _ (negInvolutive z))))
-              (trans!{Real} _ _ _
-                (congr!{Real Real} (fieldMul x) _ _
-                  (fieldMulNegRight y nz))
-                (fieldMulNegRight x (fieldMul y nz))) \then
-          \return trans!{Real} _ _ _ left
-            (trans!{Real} _ _ _
-              (congr!{Real Real} Def.neg _ _
-                (fieldMulAssocNNN x y nz zeroX zeroY zeroNz))
-              (sym!{Real} _ _ right))
+                  (sym!{Real} _ _ (negInvolutive z))) }
+              "=" _ "by" { congr!{Real Real} (fieldMul x) _ _
+                  (fieldMulNegRight y nz) }
+              "=" _ "by" { fieldMulNegRight x (fieldMul y nz) }
+            } \then
+          \return eq_reason_in!{Real _
+            "=" _ "by" left
+            "=" _ "by" { congr!{Real Real} Def.neg _ _
+                (fieldMulAssocNNN x y nz zeroX zeroY zeroNz) }
+            "=" _ "by" { sym!{Real} _ _ right }
+          }
         }}
     };
 
@@ -1685,27 +1689,28 @@
           \let zeroNy: Le Def.zero ny := nonnegativeNegOfNegative y negativeY \then
           \let left: fieldMul (fieldMul x y) z =
               Def.neg (fieldMul (fieldMul x ny) z) :=
-            trans!{Real} _ _ _
-              (congr!{Real Real} (\fun (t: Real) => fieldMul (fieldMul x t) z)
-                _ _ (sym!{Real} _ _ (negInvolutive y)))
-              (trans!{Real} _ _ _
-                (congr!{Real Real} (\fun (t: Real) => fieldMul t z) _ _
-                  (fieldMulNegRight x ny))
-                (fieldMulNegLeft (fieldMul x ny) z)) \then
+            eq_reason_in!{Real _
+              "=" _ "by" { congr!{Real Real} (\fun (t: Real) => fieldMul (fieldMul x t) z)
+                _ _ (sym!{Real} _ _ (negInvolutive y)) }
+              "=" _ "by" { congr!{Real Real} (\fun (t: Real) => fieldMul t z) _ _
+                  (fieldMulNegRight x ny) }
+              "=" _ "by" { fieldMulNegLeft (fieldMul x ny) z }
+            } \then
           \let right: fieldMul x (fieldMul y z) =
               Def.neg (fieldMul x (fieldMul ny z)) :=
-            trans!{Real} _ _ _
-              (congr!{Real Real} (fieldMul x) _ _
+            eq_reason_in!{Real _
+              "=" _ "by" { congr!{Real Real} (fieldMul x) _ _
                 (congr!{Real Real} (\fun (t: Real) => fieldMul t z) _ _
-                  (sym!{Real} _ _ (negInvolutive y))))
-              (trans!{Real} _ _ _
-                (congr!{Real Real} (fieldMul x) _ _
-                  (fieldMulNegLeft ny z))
-                (fieldMulNegRight x (fieldMul ny z))) \then
-          \return trans!{Real} _ _ _ left
-            (trans!{Real} _ _ _
-              (congr!{Real Real} Def.neg _ _ (fieldMulAssocNN x ny z zeroX zeroNy))
-              (sym!{Real} _ _ right))
+                  (sym!{Real} _ _ (negInvolutive y))) }
+              "=" _ "by" { congr!{Real Real} (fieldMul x) _ _
+                  (fieldMulNegLeft ny z) }
+              "=" _ "by" { fieldMulNegRight x (fieldMul ny z) }
+            } \then
+          \return eq_reason_in!{Real _
+            "=" _ "by" left
+            "=" _ "by" { congr!{Real Real} Def.neg _ _ (fieldMulAssocNN x ny z zeroX zeroNy) }
+            "=" _ "by" { sym!{Real} _ _ right }
+          }
         }}
     };
 
@@ -1718,23 +1723,24 @@
         \let zeroNx: Le Def.zero nx := nonnegativeNegOfNegative x negativeX \then
         \let left: fieldMul (fieldMul x y) z =
             Def.neg (fieldMul (fieldMul nx y) z) :=
-          trans!{Real} _ _ _
-            (congr!{Real Real} (\fun (t: Real) => fieldMul (fieldMul t y) z)
-              _ _ (sym!{Real} _ _ (negInvolutive x)))
-            (trans!{Real} _ _ _
-              (congr!{Real Real} (\fun (t: Real) => fieldMul t z) _ _
-                (fieldMulNegLeft nx y))
-              (fieldMulNegLeft (fieldMul nx y) z)) \then
+          eq_reason_in!{Real _
+            "=" _ "by" { congr!{Real Real} (\fun (t: Real) => fieldMul (fieldMul t y) z)
+              _ _ (sym!{Real} _ _ (negInvolutive x)) }
+            "=" _ "by" { congr!{Real Real} (\fun (t: Real) => fieldMul t z) _ _
+                (fieldMulNegLeft nx y) }
+            "=" _ "by" { fieldMulNegLeft (fieldMul nx y) z }
+          } \then
         \let right: fieldMul x (fieldMul y z) =
             Def.neg (fieldMul nx (fieldMul y z)) :=
           trans!{Real} _ _ _
             (congr!{Real Real} (\fun (t: Real) => fieldMul t (fieldMul y z))
               _ _ (sym!{Real} _ _ (negInvolutive x)))
             (fieldMulNegLeft nx (fieldMul y z)) \then
-        \return trans!{Real} _ _ _ left
-          (trans!{Real} _ _ _
-            (congr!{Real Real} Def.neg _ _ (fieldMulAssocN nx y z zeroNx))
-            (sym!{Real} _ _ right))
+        \return eq_reason_in!{Real _
+          "=" _ "by" left
+          "=" _ "by" { congr!{Real Real} Def.neg _ _ (fieldMulAssocN nx y z zeroNx) }
+          "=" _ "by" { sym!{Real} _ _ right }
+        }
       }}
   };
 
@@ -2141,21 +2147,18 @@
     (trans!{Real} _ _ _
       (addNegLeft (Def.add x y))
       (sym!{Real} (Def.add (Def.add (Def.neg x) (Def.neg y)) (Def.add x y)) Def.zero
-        (trans!{Real} _ _ _
-          (addAssoc (Def.neg x) (Def.neg y) (Def.add x y))
-          (trans!{Real} _ _ _
-            (congr!{Real Real} (Def.add (Def.neg x)) _ _
-              (congr!{Real Real} (Def.add (Def.neg y)) _ _ (addComm x y)))
-            (trans!{Real} _ _ _
-              (congr!{Real Real} (Def.add (Def.neg x)) _ _
-                (sym!{Real} _ _ (addAssoc (Def.neg y) y x)))
-              (trans!{Real} _ _ _
-                (congr!{Real Real} (Def.add (Def.neg x)) _ _
+        (eq_reason_in!{Real _
+          "=" _ "by" { addAssoc (Def.neg x) (Def.neg y) (Def.add x y) }
+          "=" _ "by" { congr!{Real Real} (Def.add (Def.neg x)) _ _
+              (congr!{Real Real} (Def.add (Def.neg y)) _ _ (addComm x y)) }
+          "=" _ "by" { congr!{Real Real} (Def.add (Def.neg x)) _ _
+                (sym!{Real} _ _ (addAssoc (Def.neg y) y x)) }
+          "=" _ "by" { congr!{Real Real} (Def.add (Def.neg x)) _ _
                   (congr!{Real Real} (\fun (t: Real) => Def.add t x) _ _
-                    (addNegLeft y)))
-                (trans!{Real} _ _ _
-                  (congr!{Real Real} (Def.add (Def.neg x)) _ _ (addZeroLeft x))
-                  (addNegLeft x))))))));
+                    (addNegLeft y)) }
+          "=" _ "by" { congr!{Real Real} (Def.add (Def.neg x)) _ _ (addZeroLeft x) }
+          "=" _ "by" { addNegLeft x }
+        })));
 
 \definition addSolveRight[a, b, c: Real]:
   Def.add a b = c ->
@@ -2164,11 +2167,11 @@
     addCancelRight a (Def.add c (Def.neg b)) b
       (trans!{Real} (Def.add a b) c (Def.add (Def.add c (Def.neg b)) b) same
         (sym!{Real} (Def.add (Def.add c (Def.neg b)) b) c
-          (trans!{Real} _ _ _
-            (addAssoc c (Def.neg b) b)
-            (trans!{Real} (Def.add c (Def.add (Def.neg b) b)) (Def.add c Def.zero) c
-              (congr!{Real Real} (Def.add c) _ _ (addNegLeft b))
-              (addZeroRight c)))));
+          (eq_reason_in!{Real _
+            "=" _ "by" { addAssoc c (Def.neg b) b }
+            "=" { Def.add c Def.zero } "by" { congr!{Real Real} (Def.add c) _ _ (addNegLeft b) }
+            "=" c "by" { addZeroRight c }
+          })));
 
 \definition negLeftFromSum[a, b, c: Real]:
   Def.add a b = c ->
@@ -2178,24 +2181,24 @@
       (trans!{Real} (Def.add a (Def.neg a)) Def.zero (Def.add a (Def.add b (Def.neg c)))
         (addNegRight a)
         (sym!{Real} (Def.add a (Def.add b (Def.neg c))) Def.zero
-          (trans!{Real} _ _ _
-            (sym!{Real} _ _ (addAssoc a b (Def.neg c)))
-            (trans!{Real} _ _ _
-              (congr!{Real Real} (\fun (t: Real) => Def.add t (Def.neg c)) _ _ same)
-              (addNegRight c)))));
+          (eq_reason_in!{Real _
+            "=" _ "by" { sym!{Real} _ _ (addAssoc a b (Def.neg c)) }
+            "=" _ "by" { congr!{Real Real} (\fun (t: Real) => Def.add t (Def.neg c)) _ _ same }
+            "=" _ "by" { addNegRight c }
+          })));
 
 \definition fieldMulAddNN[x, y, z: Real]:
   Le Def.zero x -> Le Def.zero y -> Le Def.zero z ->
   fieldMul x (Def.add y z) = Def.add (fieldMul x y) (fieldMul x z) :=
   \fun (zeroX: _) (zeroY: _) (zeroZ: _) =>
-    trans!{Real} _ _ _
-      (fieldMulNN x (Def.add y z) zeroX
-        (addNonnegative y z zeroY zeroZ))
-      (trans!{Real} _ _ _
-        (mulAddNonnegative x y z zeroX zeroY zeroZ)
-        (congr2!{Real Real Real} Def.add _ _ _ _
+    eq_reason_in!{Real _
+      "=" _ "by" { fieldMulNN x (Def.add y z) zeroX
+        (addNonnegative y z zeroY zeroZ) }
+      "=" _ "by" { mulAddNonnegative x y z zeroX zeroY zeroZ }
+      "=" _ "by" { congr!{Real Real Real} Def.add _ _ _ _
           (sym!{Real} _ _ (fieldMulNN x y zeroX zeroY))
-          (sym!{Real} _ _ (fieldMulNN x z zeroX zeroZ))));
+          (sym!{Real} _ _ (fieldMulNN x z zeroX zeroZ)) }
+    };
 
 \definition fieldMulOfNegAsNeg[x, y: Real]: fieldMul x y = Def.neg (fieldMul x (Def.neg y)) :=
   trans!{Real} _ _ _
@@ -2235,11 +2238,11 @@
             nonnegativeNegOfNegative (Def.add y z) negativeSum \then
           \let nsPlusY: Def.add ns y = nz :=
             addCancelRight (Def.add ns y) nz z
-              (trans!{Real} _ _ _
-                (addAssoc ns y z)
-                (trans!{Real} (Def.add ns (Def.add y z)) Def.zero (Def.add nz z)
-                  (addNegLeft (Def.add y z))
-                  (sym!{Real} _ _ (addNegLeft z)))) \then
+              (eq_reason_in!{Real _
+                "=" _ "by" { addAssoc ns y z }
+                "=" Def.zero "by" { addNegLeft (Def.add y z) }
+                "=" { Def.add nz z } "by" { sym!{Real} _ _ (addNegLeft z) }
+              }) \then
           \let expanded: fieldMul x nz =
               Def.add (fieldMul x ns) (fieldMul x y) :=
             trans!{Real} _ _ _
@@ -2250,11 +2253,12 @@
               Def.add (fieldMul x y) (Def.neg (fieldMul x nz)) :=
             negLeftFromSum (fieldMul x ns) (fieldMul x y)
               (fieldMul x nz) (sym!{Real} _ _ expanded) \then
-          \return trans!{Real} _ _ _
-            (fieldMulOfNegAsNeg x (Def.add y z))
-            (trans!{Real} _ _ _ solved
-              (congr!{Real Real} (Def.add (fieldMul x y)) _ _
-                (sym!{Real} _ _ (fieldMulOfNegAsNeg x z))))
+          \return eq_reason_in!{Real _
+            "=" _ "by" { fieldMulOfNegAsNeg x (Def.add y z) }
+            "=" _ "by" solved
+            "=" _ "by" { congr!{Real Real} (Def.add (fieldMul x y)) _ _
+                (sym!{Real} _ _ (fieldMulOfNegAsNeg x z)) }
+          }
         }}
     }
   };
@@ -2274,11 +2278,11 @@
       {\fun (negativeY: Lt y Def.zero) =>
         either!{{(nonnegativeOrNegativeReal z)} {fieldMul x (Def.add y z) = Def.add (fieldMul x y) (fieldMul x z)}
           {\fun (zeroZ: Le Def.zero z) =>
-            trans!{Real} _ _ _
-              (congr!{Real Real} (fieldMul x) _ _ (addComm y z))
-              (trans!{Real} _ _ _
-                (fieldMulAddNP x z y zeroX zeroZ negativeY)
-                (addComm (fieldMul x z) (fieldMul x y)))}
+            eq_reason_in!{Real _
+              "=" _ "by" { congr!{Real Real} (fieldMul x) _ _ (addComm y z) }
+              "=" _ "by" { fieldMulAddNP x z y zeroX zeroZ negativeY }
+              "=" _ "by" { addComm (fieldMul x z) (fieldMul x y) }
+            }}
           {\fun (negativeZ: Lt z Def.zero) =>
             \block {
               \let ny: Real := Def.neg y \then
@@ -2291,21 +2295,18 @@
                 sym!{Real} (Def.neg (Def.add ny nz)) (Def.add y z)
                   (trans!{Real} _ _ _
                     (negAdd ny nz)
-                    (congr2!{Real Real Real} Def.add _ _ _ _
+                    (congr!{Real Real Real} Def.add _ _ _ _
                       (negInvolutive y) (negInvolutive z))) \then
-              \return trans!{Real} _ _ _
-                (congr!{Real Real} (fieldMul x) _ _ sumAsNeg)
-                (trans!{Real} _ _ _
-                  (fieldMulNegRight x (Def.add ny nz))
-                  (trans!{Real} _ _ _
-                    (congr!{Real Real} Def.neg _ _
-                      (fieldMulAddNN x ny nz zeroX zeroNy zeroNz))
-                    (trans!{Real}
-                      _ _ _
-                      (negAdd (fieldMul x ny) (fieldMul x nz))
-                      (congr2!{Real Real Real} Def.add _ _ _ _
+              \return eq_reason_in!{Real _
+                "=" _ "by" { congr!{Real Real} (fieldMul x) _ _ sumAsNeg }
+                "=" _ "by" { fieldMulNegRight x (Def.add ny nz) }
+                "=" _ "by" { congr!{Real Real} Def.neg _ _
+                      (fieldMulAddNN x ny nz zeroX zeroNy zeroNz) }
+                "=" _ "by" { negAdd (fieldMul x ny) (fieldMul x nz) }
+                "=" _ "by" { congr!{Real Real Real} Def.add _ _ _ _
                         (sym!{Real} _ _ (fieldMulOfNegAsNeg x y))
-                        (sym!{Real} _ _ (fieldMulOfNegAsNeg x z))))))
+                        (sym!{Real} _ _ (fieldMulOfNegAsNeg x z)) }
+              }
             }}
         }}
     };
@@ -2324,15 +2325,14 @@
       \block {
         \let nx: Real := Def.neg x \then
         \let zeroNx: Le Def.zero nx := nonnegativeNegOfNegative x negativeX \then
-        \return trans!{Real} _ _ _
-          (fieldMulOfNegLeftAsNeg x (Def.add y z))
-          (trans!{Real} _ _ _
-            (congr!{Real Real} Def.neg _ _ (fieldMulAddN nx y z zeroNx))
-            (trans!{Real} _ _ _
-              (negAdd (fieldMul nx y) (fieldMul nx z))
-              (congr2!{Real Real Real} Def.add _ _ _ _
+        \return eq_reason_in!{Real _
+          "=" _ "by" { fieldMulOfNegLeftAsNeg x (Def.add y z) }
+          "=" _ "by" { congr!{Real Real} Def.neg _ _ (fieldMulAddN nx y z zeroNx) }
+          "=" _ "by" { negAdd (fieldMul nx y) (fieldMul nx z) }
+          "=" _ "by" { congr!{Real Real Real} Def.add _ _ _ _
                 (sym!{Real} _ _ (fieldMulOfNegLeftAsNeg x y))
-                (sym!{Real} _ _ (fieldMulOfNegLeftAsNeg x z)))))
+                (sym!{Real} _ _ (fieldMulOfNegLeftAsNeg x z)) }
+        }
       }}
   };
 
@@ -2724,11 +2724,11 @@
   (fieldInvSpec x).negative;
 
 \definition fieldMulNegBoth[x, y: Real]: fieldMul (Def.neg x) (Def.neg y) = fieldMul x y :=
-  trans!{Real} _ _ _
-    (fieldMulNegLeft x (Def.neg y))
-    (trans!{Real} _ _ _
-      (congr!{Real Real} Def.neg _ _ (fieldMulNegRight x y))
-      (negInvolutive (fieldMul x y)));
+  eq_reason_in!{Real _
+    "=" _ "by" { fieldMulNegLeft x (Def.neg y) }
+    "=" _ "by" { congr!{Real Real} Def.neg _ _ (fieldMulNegRight x y) }
+    "=" _ "by" { negInvolutive (fieldMul x y) }
+  };
 
 \definition fieldInverseNonzero[x: Real]:
   Logic.Not (x = Def.zero) ->
@@ -2751,13 +2751,13 @@
               \let positiveNx: Lt Def.zero nx :=
                 ltReplaceLeft (Def.neg Def.zero) Def.zero nx negZero
                   (negStrictAntitone x Def.zero negative) \then
-              \return trans!{Real} _ _ _
-                (congr2!{Real Real Real} fieldMul _ _ _ _
+              \return eq_reason_in!{Real _
+                "=" _ "by" { congr!{Real Real Real} fieldMul _ _ _ _
                   (fieldInvNegative x negative)
-                  (sym!{Real} _ _ (negInvolutive x)))
-                (trans!{Real} _ _ _
-                  (fieldMulNegBoth (Def.inv nx) nx)
-                  (fieldMulInvPositive nx positiveNx))
+                  (sym!{Real} _ _ (negInvolutive x)) }
+                "=" _ "by" { fieldMulNegBoth (Def.inv nx) nx }
+                "=" _ "by" { fieldMulInvPositive nx positiveNx }
+              }
             }}
         }}
     };

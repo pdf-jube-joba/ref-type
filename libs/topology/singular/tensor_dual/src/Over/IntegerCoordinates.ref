@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Arithmetic[].Int[] \as I;
 \import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
 \import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as IntegerModules;
@@ -34,13 +35,16 @@
   \fun (f, g: Carrier)(equal: _) => Hom.ext f g (\fun (x: Source.Carrier) => \block {
     \let same: Precompose.compose f SourceFree.forward = Precompose.compose g SourceFree.forward :=
       Universal.ext (Precompose.compose f SourceFree.forward) (Precompose.compose g SourceFree.forward)
-        (\fun (i: Fin.Fin rank) => trans!{R} _ _ _ (onFree f i)
-          (trans!{R} _ _ _ (congr!{Target.Carrier R} (\fun (v: Target.Carrier) => v i) _ _ equal) (sym!{R} _ _ (onFree g i)))) \then
-    \return trans!{R} _ _ _
-      (sym!{R} _ _ (congr!{Source.Carrier R} ((f).apply) _ _ ((SourceFree.isomorphism).rightInverse x)))
-      (trans!{R} _ _ _
-        (congr!{{FreeMaps.Map} R} (\fun (h: FreeMaps.Map) => (h).apply (((SourceFree.isomorphism).backward).apply x)) _ _ same)
-        (congr!{Source.Carrier R} ((g).apply) _ _ ((SourceFree.isomorphism).rightInverse x)))
+        (\fun (i: Fin.Fin rank) => eq_reason_in!{R _
+          "=" _ "by" { onFree f i }
+          "=" _ "by" { congr!{Target.Carrier R} (\fun (v: Target.Carrier) => v i) _ _ equal }
+          "=" _ "by" { sym!{R} _ _ (onFree g i) }
+        }) \then
+    \return eq_reason_in!{R _
+      "=" _ "by" { sym!{R} _ _ (congr!{Source.Carrier R} ((f).apply) _ _ ((SourceFree.isomorphism).rightInverse x)) }
+      "=" _ "by" { congr!{{FreeMaps.Map} R} (\fun (h: FreeMaps.Map) => (h).apply (((SourceFree.isomorphism).backward).apply x)) _ _ same }
+      "=" _ "by" { congr!{Source.Carrier R} ((g).apply) _ _ ((SourceFree.isomorphism).rightInverse x) }
+    }
   });
 \definition extensionBasis[values: Target.Carrier][i: Fin.Fin rank]: (extension values).apply (Source.basis i) = values i :=
   trans!{R} _ _ _

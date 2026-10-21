@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Def[] \as Def;
 \import real.Analysis[] \as Analysis;
 \import Analysis.Estimates[] \as Estimates;
@@ -81,7 +82,7 @@
       (Estimates.addLe _ _ _ _ (coordinate x i) (coordinate y i)));
 
 \import Estimates.Product[] \as Product;
-\use Equality.congr2;
+\use Equality.congr;
 \definition scalarCoordinate: \forall (c, x: Real) ->
   distance (mul c x) zero = mul (Product.abs c) (distance x zero) :=
   \fun (c, x: Real) => eq_reason!{
@@ -97,7 +98,7 @@
       | zero: \fun (c: Real)(x: Fin.Fin N.Nat^::zero -> Real) => sym!{Real} _ _ (Laws.fieldMulZeroRight (Product.abs c))
       | succ: \fun (m: N.Nat^)(previous: _)(c: Real)(x: Fin.Fin (N.Nat^::succ m) -> Real) =>
         trans!{Real} _ _ _
-          (congr2!{Real Real Real} Metric.max _ _ _ _
+          (congr!{Real Real Real} Metric.max _ _ _ _
             (scalarCoordinate c (x (Fin.zero m)))
             (previous c (\fun (i: Fin.Fin m) => x (Fin.succ m i))))
           (sym!{Real} _ _ (Product.mulMax (Product.abs c) (distance (x (Fin.zero m)) zero)
@@ -108,7 +109,7 @@
 
 \import Analysis.Algebra[] \as Algebra;
 \definition distanceDifference: \forall (x, y: Real) -> distance (sub x y) zero = distance x y :=
-  \fun (x, y: Real) => congr2!{Real Real Real} Metric.max _ _ _ _
+  \fun (x, y: Real) => congr!{Real Real Real} Metric.max _ _ _ _
     (Laws.subZeroRight (sub x y))
     (trans!{Real} _ _ _ (Laws.addZeroLeft (Arithmetic.neg (sub x y))) (Algebra.negSub x y));
 \definition finiteSymmetric: \forall (m: N.Nat^)(x, y: Fin.Fin m -> Real) ->
@@ -117,10 +118,12 @@
     Def.finiteMax m (\fun (i: Fin.Fin m) => sub (x i) (y i)) = Def.finiteMax m (\fun (i: Fin.Fin m) => sub (y i) (x i)) \with {
       | zero: \fun (x, y: Fin.Fin N.Nat^::zero -> Real) => \refl(zero)
       | succ: \fun (m: N.Nat^)(previous: _)(x, y: Fin.Fin (N.Nat^::succ m) -> Real) =>
-        congr2!{Real Real Real} Metric.max _ _ _ _
-          (trans!{Real} _ _ _ (distanceDifference (x (Fin.zero m)) (y (Fin.zero m)))
-            (trans!{Real} _ _ _ (Metric.distanceSymmetric (x (Fin.zero m)) (y (Fin.zero m)))
-              (sym!{Real} _ _ (distanceDifference (y (Fin.zero m)) (x (Fin.zero m))))))
+        congr!{Real Real Real} Metric.max _ _ _ _
+          (eq_reason_in!{Real _
+            "=" _ "by" { distanceDifference (x (Fin.zero m)) (y (Fin.zero m)) }
+            "=" _ "by" { Metric.distanceSymmetric (x (Fin.zero m)) (y (Fin.zero m)) }
+            "=" _ "by" { sym!{Real} _ _ (distanceDifference (y (Fin.zero m)) (x (Fin.zero m))) }
+          })
           (previous (\fun (i: Fin.Fin m) => x (Fin.succ m i)) (\fun (i: Fin.Fin m) => y (Fin.succ m i)))
     };
 \definition distanceSymmetric: \forall (x, y: Point) -> Def.pointDistance x y = Def.pointDistance y x := finiteSymmetric n;
@@ -150,8 +153,11 @@
 };
 \definition translated: \forall (z, x, y: Point) -> metric.distance (Def.addPoint z x) (Def.addPoint z y) = metric.distance x y :=
   \fun (z, x, y: Point) => congr!{Point Real} Def.norm _ _ (\axiom:funext(Def.subPoint (Def.addPoint z x) (Def.addPoint z y), Def.subPoint x y,
-    \fun (i: Coordinate) => trans!{Real} _ _ _ (Algebra.subAdd (z i) (x i) (z i) (y i))
-      (trans!{Real} _ _ _ (congr!{Real Real} (\fun (r: Real) => add r (sub (x i) (y i))) _ _ (Laws.subSelf (z i))) (Laws.addZeroLeft (sub (x i) (y i))))));
+    \fun (i: Coordinate) => eq_reason_in!{Real _
+      "=" _ "by" { Algebra.subAdd (z i) (x i) (z i) (y i) }
+      "=" _ "by" { congr!{Real Real} (\fun (r: Real) => add r (sub (x i) (y i))) _ _ (Laws.subSelf (z i)) }
+      "=" _ "by" { Laws.addZeroLeft (sub (x i) (y i)) }
+    }));
 \definition distanceAdd: \forall (x, y, z, w: Point) ->
   R.Le (metric.distance (Def.addPoint x y) (Def.addPoint z w)) (add (metric.distance x z) (metric.distance y w)) :=
   \fun (x, y, z, w: Point) => R.leReplaceLeft

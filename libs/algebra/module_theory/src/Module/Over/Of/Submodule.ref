@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.Submodule[V := V, space := space] \as Core;
 \definition Submodule: \Set := Core.Submodule;
 \definition Member[S: Submodule][x: V]: \Prop := Core.Member S x;
@@ -21,7 +22,7 @@
   carrier := { x: V \where x = zero },
   zero := \refl(zero),
   addition := \fun (x, y: V)(left: x = zero)(right: y = zero) =>
-    trans!{V} _ _ _ (congr2!{V V V} add _ _ _ _ left right) (Group.zeroLeft zero),
+    trans!{V} _ _ _ (congr!{V V V} add _ _ _ _ left right) (Group.zeroLeft zero),
   scalar := \fun (a: R)(x: V)(member: x = zero) =>
     trans!{V} _ _ _ (congr!{V V} (scale a) _ _ member) (scaleZero a),
 };
@@ -44,10 +45,16 @@
     carrier := { x: V \where f.apply x = Target.zero },
     zero := Maps.zeroPreserved f,
     addition := \fun (x, y: V)(left: f.apply x = Target.zero)(right: f.apply y = Target.zero) =>
-      trans!{W} _ _ _ (f.addition x y)
-        (trans!{W} _ _ _ (congr2!{W W W} Target.add _ _ _ _ left right) (TargetGroup.zeroLeft Target.zero)),
-    scalar := \fun (a: R)(x: V)(member: f.apply x = Target.zero) => trans!{W} _ _ _ (f.scalar a x)
-      (trans!{W} _ _ _ (congr!{W W} (Target.scale a) _ _ member) (Target.scaleZero a)),
+      eq_reason_in!{W _
+        "=" _ "by" { f.addition x y }
+        "=" _ "by" { congr!{W W W} Target.add _ _ _ _ left right }
+        "=" _ "by" { TargetGroup.zeroLeft Target.zero }
+      },
+    scalar := \fun (a: R)(x: V)(member: f.apply x = Target.zero) => eq_reason_in!{W _
+      "=" _ "by" { f.scalar a x }
+      "=" _ "by" { congr!{W W} (Target.scale a) _ _ member }
+      "=" _ "by" { Target.scaleZero a }
+    },
   };
 }
 \module Image(U: \Set, source: Space U) {
@@ -76,7 +83,7 @@
       eliminate f y (\In[V] (Points f) (add y z))
         (\fun (x: U)(fx: f.apply x = y) => eliminate f z (\In[V] (Points f) (add y z))
           (\fun (w: U)(fw: f.apply w = z) => \idelim f.apply (Source.add x w) = add y z \with v: V => \In[V] (Points f) v \by {
-            base: member f (Source.add x w), equality: trans!{V} _ _ _ (f.addition x w) (congr2!{V V V} add _ _ _ _ fx fw)
+            base: member f (Source.add x w), equality: trans!{V} _ _ _ (f.addition x w) (congr!{V V V} add _ _ _ _ fx fw)
           }) right) left,
     scalar := \fun (a: R)(y: V)(exists: \In[V] (Points f) y) => eliminate f y (\In[V] (Points f) (scale a y))
       (\fun (x: U)(fx: f.apply x = y) => \idelim f.apply (Source.scale a x) = scale a y \with v: V => \In[V] (Points f) v \by {

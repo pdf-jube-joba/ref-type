@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.Representation[] \as ForwardRepresentation;
 \import Backward.Representation[] \as BackwardRepresentation;
 \import DomainSquare.Representation[] \as DomainRepresentation;
@@ -14,19 +15,21 @@
   DomainRepresentation.injective _ Identity.identity (trans!{DomainMaps.Map} _ _ _
     (BackwardComposition.law data.inverse (entries e.forward))
     (DomainMaps.ext (BackCompose.compose (Backward.linear data.inverse) (linear (entries e.forward))) (DomainSquare.linear Identity.identity)
-      (\fun (v: Domain.Carrier) => trans!{Domain.Carrier} _ _ _
-        (congr!{Codomain.Carrier Domain.Carrier} (Backward.apply data.inverse) _ _ (forwardApplication v))
-        (trans!{Domain.Carrier} _ _ _ (backApplication ((e.forward).apply v))
-          (trans!{Domain.Carrier} _ _ _ (e.leftInverse v)
-            (sym!{Domain.Carrier} _ _ (congr!{DomainMaps.Map Domain.Carrier} (\fun (f: DomainMaps.Map) => f.apply v) _ _ Identity.identityLaw)))))));
+      (\fun (v: Domain.Carrier) => eq_reason_in!{Domain.Carrier _
+        "=" _ "by" { congr!{Codomain.Carrier Domain.Carrier} (Backward.apply data.inverse) _ _ (forwardApplication v) }
+        "=" _ "by" { backApplication ((e.forward).apply v) }
+        "=" _ "by" { e.leftInverse v }
+        "=" _ "by" { sym!{Domain.Carrier} _ _ (congr!{DomainMaps.Map Domain.Carrier} (\fun (f: DomainMaps.Map) => f.apply v) _ _ Identity.identityLaw) }
+      })));
 \definition right: ForwardComposition.product (entries e.forward) data.inverse = Identity.targetIdentity :=
   CodomainRepresentation.injective _ Identity.targetIdentity (trans!{CodomainMaps.Map} _ _ _
     (ForwardComposition.law (entries e.forward) data.inverse)
     (CodomainMaps.ext (ForwardCompose.compose (linear (entries e.forward)) (Backward.linear data.inverse)) (CodomainSquare.linear Identity.targetIdentity)
-      (\fun (v: Codomain.Carrier) => trans!{Codomain.Carrier} _ _ _
-        (congr!{Domain.Carrier Codomain.Carrier} (apply (entries e.forward)) _ _ (backApplication v))
-        (trans!{Codomain.Carrier} _ _ _ (forwardApplication ((e.backward).apply v))
-          (trans!{Codomain.Carrier} _ _ _ (e.rightInverse v)
-            (sym!{Codomain.Carrier} _ _ (congr!{CodomainMaps.Map Codomain.Carrier} (\fun (f: CodomainMaps.Map) => f.apply v) _ _ Identity.targetIdentityLaw)))))));
+      (\fun (v: Codomain.Carrier) => eq_reason_in!{Codomain.Carrier _
+        "=" _ "by" { congr!{Domain.Carrier Codomain.Carrier} (apply (entries e.forward)) _ _ (backApplication v) }
+        "=" _ "by" { forwardApplication ((e.backward).apply v) }
+        "=" _ "by" { e.rightInverse v }
+        "=" _ "by" { sym!{Codomain.Carrier} _ _ (congr!{CodomainMaps.Map Codomain.Carrier} (\fun (f: CodomainMaps.Map) => f.apply v) _ _ Identity.targetIdentityLaw) }
+      })));
 \definition laws: Laws[entries e.forward, data] := Laws[entries e.forward, data] { leftInverse := left, rightInverse := right };
 \definition inverse: Inverse (entries e.forward) := \into[Data](data, { data: Data \where Laws[entries e.forward, data] }) \by { laws };

@@ -1,10 +1,14 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Modules.Tensor[V := Line.Carrier, W := N.Carrier, left := Line.space, right := N.space] \as Tensor;
 \definition value: Line.Carrier -> N.Carrier -> N.Carrier := \fun (v: Line.Carrier)(x: N.Carrier) => N.space.smul (coefficient v) x;
 \definition bilinear: Tensor.BilinearLaws[N.Carrier, N.space, value] := Tensor.BilinearLaws[N.Carrier, N.space, value] {
   addLeft := \fun (v, w: Line.Carrier)(x: N.Carrier) => N.space.scalarAdd (coefficient v) (coefficient w) x, addRight := \fun (v: Line.Carrier)(x, y: N.Carrier) => N.space.vectorAdd (coefficient v) x y,
   scaleLeft := \fun (r: R)(v: Line.Carrier)(x: N.Carrier) => N.space.scalarAssoc r (coefficient v) x,
-  scaleRight := \fun (a: R)(v: Line.Carrier)(x: N.Carrier) => trans!{N.Carrier} _ _ _ (sym!{N.Carrier} _ _ (N.space.scalarAssoc (coefficient v) a x))
-    (trans!{N.Carrier} _ _ _ (congr!{R N.Carrier} (\fun (s: R) => N.space.smul s x) _ _ (ring.mulCommutative (coefficient v) a)) (N.space.scalarAssoc a (coefficient v) x)),
+  scaleRight := \fun (a: R)(v: Line.Carrier)(x: N.Carrier) => eq_reason_in!{N.Carrier _
+    "=" _ "by" { sym!{N.Carrier} _ _ (N.space.scalarAssoc (coefficient v) a x) }
+    "=" _ "by" { congr!{R N.Carrier} (\fun (s: R) => N.space.smul s x) _ _ (ring.mulCommutative (coefficient v) a) }
+    "=" _ "by" { N.space.scalarAssoc a (coefficient v) x }
+  },
 };
 \import Tensor.Universal[U := N.Carrier, target := N.space] \as Universal;
 \definition forward: Modules.Hom[V := Tensor.Carrier, W := N.Carrier, source := Tensor.space, target := N.space].Map := Universal.map value bilinear;
@@ -14,11 +18,12 @@
 \import Modules.End[V := Tensor.Carrier, space := Tensor.space] \as Identity;
 \import Tensor.Universal[U := Tensor.Carrier, target := Tensor.space] \as Equality;
 \definition leftLaw: Composition.compose backward forward = Identity.identity :=
-  Equality.ext (Composition.compose backward forward) Identity.identity (\fun (v: Line.Carrier)(x: N.Carrier) => trans!{Tensor.Carrier} _ _ _
-    (congr!{N.Carrier Tensor.Carrier} (Tensor.tensor one) _ _ (onTensor v x))
-    (trans!{Tensor.Carrier} _ _ _ (Tensor.bilinear.scaleRight (coefficient v) one x)
-      (trans!{Tensor.Carrier} _ _ _ (sym!{Tensor.Carrier} _ _ (Tensor.bilinear.scaleLeft (coefficient v) one x))
-        (congr!{Line.Carrier Tensor.Carrier} (\fun (s: Line.Carrier) => Tensor.tensor s x) _ _ (decomposition v)))));
+  Equality.ext (Composition.compose backward forward) Identity.identity (\fun (v: Line.Carrier)(x: N.Carrier) => eq_reason_in!{Tensor.Carrier _
+    "=" _ "by" { congr!{N.Carrier Tensor.Carrier} (Tensor.tensor one) _ _ (onTensor v x) }
+    "=" _ "by" { Tensor.bilinear.scaleRight (coefficient v) one x }
+    "=" _ "by" { sym!{Tensor.Carrier} _ _ (Tensor.bilinear.scaleLeft (coefficient v) one x) }
+    "=" _ "by" { congr!{Line.Carrier Tensor.Carrier} (\fun (s: Line.Carrier) => Tensor.tensor s x) _ _ (decomposition v) }
+  });
 \import Modules.Hom[V := Tensor.Carrier, W := Tensor.Carrier, source := Tensor.space, target := Tensor.space] \as EndMaps;
 \definition leftInverse: \forall (x: Tensor.Carrier) -> backward.apply (forward.apply x) = x :=
   \fun (x: Tensor.Carrier) => congr!{EndMaps.Map Tensor.Carrier} (\fun (f: EndMaps.Map) => f.apply x) _ _ leftLaw;

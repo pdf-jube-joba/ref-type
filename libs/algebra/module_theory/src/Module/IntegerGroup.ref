@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Data[].Nat[] \as N;
 \import N.Basic[].Def[] \as Nat;
 \import std.Arithmetic[].Int[] \as I;
@@ -18,10 +19,12 @@
   \fun (m: N.Nat^) => \induction (n: N.Nat^) \return \forall (x: Carrier) -> repeat (Nat.add m n) x = Group.add (repeat m x) (repeat n x) \with {
     | zero: \fun (x: Carrier) => sym!{Carrier} _ _ (Group.zeroRight (repeat m x))
     | succ: \fun (n: N.Nat^)(previous: \forall (x: Carrier) -> repeat (Nat.add m n) x = Group.add (repeat m x) (repeat n x))(x: Carrier) =>
-      trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (Group.add x) _ _ (previous x))
-        (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (Group.assoc x (repeat m x) (repeat n x)))
-          (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (\fun (y: Carrier) => Group.add y (repeat n x)) _ _ (Group.comm x (repeat m x)))
-            (Group.assoc (repeat m x) x (repeat n x))))
+      eq_reason_in!{Carrier _
+        "=" _ "by" { congr!{Carrier Carrier} (Group.add x) _ _ (previous x) }
+        "=" _ "by" { sym!{Carrier} _ _ (Group.assoc x (repeat m x) (repeat n x)) }
+        "=" _ "by" { congr!{Carrier Carrier} (\fun (y: Carrier) => Group.add y (repeat n x)) _ _ (Group.comm x (repeat m x)) }
+        "=" _ "by" { Group.assoc (repeat m x) x (repeat n x) }
+      }
   };
 \definition repeatVectorAdd: \forall (n: N.Nat^)(x, y: Carrier) -> repeat n (Group.add x y) = Group.add (repeat n x) (repeat n y) :=
   \induction (n: N.Nat^) \return \forall (x, y: Carrier) -> repeat n (Group.add x y) = Group.add (repeat n x) (repeat n y) \with {
@@ -64,10 +67,11 @@
   };
 \definition preservesNegative: \forall (f: IntegerMap)(a: I.Int^) -> f (I.Neg.specification a) = Group.neg (f a) :=
   \fun (f: IntegerMap)(a: I.Int^) => Group.inverseUnique (f a) (f (I.Neg.specification a))
-    (trans!{Carrier} _ _ _
-      (sym!{Carrier} _ _ ((IntegerMaps.monoidLaws integerDomain target f).operation (I.Neg.specification a) a))
-      (trans!{Carrier} _ _ _ (congr!{I.Int^ Carrier} f _ _ (IntegerGroup.inverseLeft a))
-        ((IntegerMaps.monoidLaws integerDomain target f).unit)));
+    (eq_reason_in!{Carrier _
+      "=" _ "by" { sym!{Carrier} _ _ ((IntegerMaps.monoidLaws integerDomain target f).operation (I.Neg.specification a) a) }
+      "=" _ "by" { congr!{I.Int^ Carrier} f _ _ (IntegerGroup.inverseLeft a) }
+      "=" _ "by" { (IntegerMaps.monoidLaws integerDomain target f).unit }
+    });
 \definition agreesOnNaturals: \forall (f, g: IntegerMap) -> f I.One.specification = g I.One.specification ->
   \forall (n: N.Nat^) -> f (I.Int^::ofNat n) = g (I.Int^::ofNat n) :=
   \fun (f, g: IntegerMap)(one: f I.One.specification = g I.One.specification) =>
@@ -75,17 +79,21 @@
       | zero: trans!{Carrier} _ _ _ ((IntegerMaps.monoidLaws integerDomain target f).unit)
           (sym!{Carrier} _ _ ((IntegerMaps.monoidLaws integerDomain target g).unit))
       | succ: \fun (n: N.Nat^)(previous: f (I.Int^::ofNat n) = g (I.Int^::ofNat n)) =>
-          trans!{Carrier} _ _ _ ((IntegerMaps.monoidLaws integerDomain target f).operation (I.Int^::ofNat n) I.One.specification)
-            (trans!{Carrier} _ _ _ (congr2!{Carrier Carrier Carrier} Group.add _ _ _ _ previous one)
-              (sym!{Carrier} _ _ ((IntegerMaps.monoidLaws integerDomain target g).operation (I.Int^::ofNat n) I.One.specification)))
+          eq_reason_in!{Carrier _
+            "=" _ "by" { (IntegerMaps.monoidLaws integerDomain target f).operation (I.Int^::ofNat n) I.One.specification }
+            "=" _ "by" { congr!{Carrier Carrier Carrier} Group.add _ _ _ _ previous one }
+            "=" _ "by" { sym!{Carrier} _ _ ((IntegerMaps.monoidLaws integerDomain target g).operation (I.Int^::ofNat n) I.One.specification) }
+          }
     };
 \definition generatorExt: \forall (f, g: IntegerMap) -> f I.One.specification = g I.One.specification -> f = g :=
   \fun (f, g: IntegerMap)(one: f I.One.specification = g I.One.specification) => \axiom:funext(f, g,
     \induction (a: I.Int^) \return f a = g a \with {
       | ofNat: agreesOnNaturals f g one
-      | negSucc: \fun (n: N.Nat^) => trans!{Carrier} _ _ _ (preservesNegative f (I.Int^::ofNat (N.Nat^::succ n)))
-          (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} Group.neg _ _ (agreesOnNaturals f g one (N.Nat^::succ n)))
-            (sym!{Carrier} _ _ (preservesNegative g (I.Int^::ofNat (N.Nat^::succ n)))))
+      | negSucc: \fun (n: N.Nat^) => eq_reason_in!{Carrier _
+        "=" _ "by" { preservesNegative f (I.Int^::ofNat (N.Nat^::succ n)) }
+        "=" _ "by" { congr!{Carrier Carrier} Group.neg _ _ (agreesOnNaturals f g one (N.Nat^::succ n)) }
+        "=" _ "by" { sym!{Carrier} _ _ (preservesNegative g (I.Int^::ofNat (N.Nat^::succ n))) }
+      }
     });
 \module Multiplication(b: I.Int^, x: Carrier);
 \definition scalarAssoc: \forall (a, b: I.Int^)(x: Carrier) -> action (I.Mul.specification a b) x = action a (action b x) :=

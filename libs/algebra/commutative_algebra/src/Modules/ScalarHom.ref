@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.HomSpace[V := R, W := N.Carrier, source := Modules.scalarModule, target := N.space] \as Hom;
 \import Modules.Hom[V := R, W := N.Carrier, source := Modules.scalarModule, target := N.space] \as Maps;
 \definition value[a: N.Carrier]: Maps.Map := Maps.Map {
@@ -17,11 +18,11 @@
   addition := \fun (a, b: N.Carrier) => Maps.ext (value (N.space.add a b)) (Hom.space.add (value a) (value b))
     (\fun (r: R) => N.space.vectorAdd r a b),
   scalar := \fun (a: R)(x: N.Carrier) => Maps.ext (value (N.space.smul a x)) (Hom.space.smul a (value x))
-    (\fun (r: R) => trans!{N.Carrier} _ _ _
-      (sym!{N.Carrier} _ _ (N.space.scalarAssoc r a x))
-      (trans!{N.Carrier} _ _ _
-        (congr!{R N.Carrier} (\fun (s: R) => N.space.smul s x) _ _ (ring.mulCommutative r a))
-        (N.space.scalarAssoc a r x))),
+    (\fun (r: R) => eq_reason_in!{N.Carrier _
+      "=" _ "by" { sym!{N.Carrier} _ _ (N.space.scalarAssoc r a x) }
+      "=" _ "by" { congr!{R N.Carrier} (\fun (s: R) => N.space.smul s x) _ _ (ring.mulCommutative r a) }
+      "=" _ "by" { N.space.scalarAssoc a r x }
+    }),
 };
 \definition leftInverse: \forall (f: Hom.Carrier) -> backward.apply (forward.apply f) = f :=
   \fun (f: Hom.Carrier) => Maps.ext (value (f.apply ((Ring.commutativeRingAsRing R ring).one))) f (\fun (r: R) =>

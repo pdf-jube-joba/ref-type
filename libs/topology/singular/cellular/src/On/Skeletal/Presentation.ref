@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition degree: I.Int^ := I.Int^::ofNat n;
 \import \parent.\parent.Cellular[] \as Cellular;
 \import \parent.Cycles[n := n] \as Cycles;
@@ -37,9 +38,11 @@
     (((Cycles.isomorphism).forward).apply ((Above.connecting).apply q)) (boundaryCycle q)
     (sym!{{CellExtension.Carrier degree}} _ _ (prior q));
 \definition boundaryZero: \forall (q: CellExtension.Carrier (Degrees.next degree)) -> (map).apply (boundaryCycle q) = Next.zeroClass :=
-  \fun (q: CellExtension.Carrier (Degrees.next degree)) => trans!{Next.Homology} _ _ _
-    (congr!{Cell.Cycle Next.Homology} ((map).apply) _ _ (sym!{Cell.Cycle} _ _ (boundaryProjected q)))
-    (trans!{Next.Homology} _ _ _ (onProjected ((Above.connecting).apply q)) (Above.connectingInclusionZero q));
+  \fun (q: CellExtension.Carrier (Degrees.next degree)) => eq_reason_in!{Next.Homology _
+    "=" _ "by" { congr!{Cell.Cycle Next.Homology} ((map).apply) _ _ (sym!{Cell.Cycle} _ _ (boundaryProjected q)) }
+    "=" _ "by" { onProjected ((Above.connecting).apply q) }
+    "=" _ "by" { Above.connectingInclusionZero q }
+  };
 \definition vanishes: \forall (x: Cell.Cycle) -> Submodules.Member Cell.boundaries x -> (map).apply x = Next.zeroClass := \block {
   \fun (x: Cell.Cycle)(member: Submodules.Member Cell.boundaries x) \then
   \takefrom q: \Cast[CellExtension.Carrier (Degrees.next degree)]
@@ -71,13 +74,13 @@
   \let q1: CellExtension.Carrier (Degrees.next degree) := CellExtension.Positive[n := N.Nat^::succ n].intro q \then
   \return Images.introduce Cell.prior x q1
     (CyclesEqual.forget (boundaryCycle q1) x
-      (trans!{Cell.Cycle} _ _ _
-        (sym!{Cell.Cycle} _ _ (boundaryProjected q1))
-        (trans!{Cell.Cycle} _ _ _
-          (congr!{Whole.Homology Cell.Cycle} (((Cycles.isomorphism).forward).apply) _ _
+      (eq_reason_in!{Cell.Cycle _
+        "=" _ "by" { sym!{Cell.Cycle} _ _ (boundaryProjected q1) }
+        "=" _ "by" { congr!{Whole.Homology Cell.Cycle} (((Cycles.isomorphism).forward).apply) _ _
             (\bysub(Cellular.Carrier (N.Nat^::succ n),
-              { q: Cellular.Carrier (N.Nat^::succ n) \where (Above.connecting).apply q = ((Cycles.isomorphism).backward).apply x }, q)))
-          ((Cycles.isomorphism).rightInverse x))))
+              { q: Cellular.Carrier (N.Nat^::succ n) \where (Above.connecting).apply q = ((Cycles.isomorphism).backward).apply x }, q)) }
+        "=" _ "by" { (Cycles.isomorphism).rightInverse x }
+      }))
 };
 \definition target: Modules.Bundle := Modules.Bundle { Carrier := Next.Homology, space := Next.homologySpace };
 \import singular_cellular_algebra.Algebra[].HomologyPresentation[P := Cellular.integerComplex, z := degree, target := target] \as Presentation;

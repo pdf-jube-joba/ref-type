@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition n1: N.Nat^ := N.Nat^::succ n;
 \definition n2: N.Nat^ := N.Nat^::succ n1;
 \definition n3: N.Nat^ := N.Nat^::succ n2;
@@ -14,12 +15,13 @@
   (Codomain.boundary n1).apply ((Mapping.push n2 g).apply ((Domain.cone n1 a).apply x)) =
     Lower.difference ((Mapping.push n1 g).apply x)
       ((Codomain.cone n (g a)).apply ((Mapping.push n g).apply ((Domain.boundary n).apply x))) :=
-  \fun (g: V -> W)(a: V)(x: Domain.Carrier n1) => trans!{{Codomain.Carrier n1}} _ _ _
-    (congr!{{Codomain.Carrier n2} {Codomain.Carrier n1}} ((Codomain.boundary n1).apply) _ _ (Mapping.Cone[n := n1].law g a x))
-    (trans!{{Codomain.Carrier n1}} _ _ _ (Codomain.ConeBoundary[n := n].law (g a) ((Mapping.push n1 g).apply x))
-      (congr!{{Codomain.Carrier n} {Codomain.Carrier n1}}
+  \fun (g: V -> W)(a: V)(x: Domain.Carrier n1) => eq_reason_in!{{Codomain.Carrier n1} _
+    "=" _ "by" { congr!{{Codomain.Carrier n2} {Codomain.Carrier n1}} ((Codomain.boundary n1).apply) _ _ (Mapping.Cone[n := n1].law g a x) }
+    "=" _ "by" { Codomain.ConeBoundary[n := n].law (g a) ((Mapping.push n1 g).apply x) }
+    "=" _ "by" { congr!{{Codomain.Carrier n} {Codomain.Carrier n1}}
         (\fun (v: Codomain.Carrier n) => Lower.difference ((Mapping.push n1 g).apply x) ((Codomain.cone n (g a)).apply v)) _ _
-        (Mapping.Boundary[n := n].commutes g x)));
+        (Mapping.Boundary[n := n].commutes g x) }
+  };
 \definition onCone: Property n -> \forall (f, g: V -> W)(a: V)(x: Domain.Carrier n1) ->
   (Codomain.boundary n2).apply ((map n2 f g).apply ((Domain.cone n1 a).apply x)) = Upper.difference
     (Upper.difference ((Mapping.push n2 g).apply ((Domain.cone n1 a).apply x)) ((Mapping.push n2 f).apply ((Domain.cone n1 a).apply x)))
@@ -37,11 +39,12 @@
     \let cgd: Codomain.Carrier n1 := (Codomain.cone n (g a)).apply ((Mapping.push n g).apply dx) \then
     \let z: Codomain.Carrier n2 := Upper.difference gu px \then
     \let dz: (Codomain.boundary n1).apply z = Lower.difference fx (Lower.difference cgd pdx) :=
-      trans!{{Codomain.Carrier n1}} _ _ _ (LowerDifferential.differencePreserved (Codomain.boundary n1) gu px)
-        (trans!{{Codomain.Carrier n1}} _ _ _
-          (congr2!{{Codomain.Carrier n1} {Codomain.Carrier n1} {Codomain.Carrier n1}} Lower.difference _ _ _ _
-            (boundaryMappedCone g a x) (previous f g x))
-          (Lower.nested gx cgd fx pdx)) \then
+      eq_reason_in!{{Codomain.Carrier n1} _
+        "=" _ "by" { LowerDifferential.differencePreserved (Codomain.boundary n1) gu px }
+        "=" _ "by" { congr!{{Codomain.Carrier n1} {Codomain.Carrier n1} {Codomain.Carrier n1}} Lower.difference _ _ _ _
+            (boundaryMappedCone g a x) (previous f g x) }
+        "=" _ "by" { Lower.nested gx cgd fx pdx }
+      } \then
     \let coneFirst: (Codomain.cone n1 (f a)).apply fx = fu := sym!{{Codomain.Carrier n2}} _ _ (Mapping.Cone[n := n1].law f a x) \then
     \let coneSecond: (Codomain.cone n1 (f a)).apply (Lower.difference cgd pdx) = (map n1 f g).apply cdx :=
       trans!{{Codomain.Carrier n2}} _ _ _
@@ -50,19 +53,22 @@
             (sym!{{Codomain.Carrier n1}} _ _ (Mapping.Cone[n := n].law g a dx))))
         (sym!{{Codomain.Carrier n2}} _ _ (LowerRecurrence.law f g a dx)) \then
     \let coneDz: (Codomain.cone n1 (f a)).apply ((Codomain.boundary n1).apply z) = Upper.difference fu ((map n1 f g).apply cdx) :=
-      trans!{{Codomain.Carrier n2}} _ _ _ (congr!{{Codomain.Carrier n1} {Codomain.Carrier n2}} ((Codomain.cone n1 (f a)).apply) _ _ dz)
-        (trans!{{Codomain.Carrier n2}} _ _ _ (LowerCone.differencePreserved (Codomain.cone n1 (f a)) fx (Lower.difference cgd pdx))
-          (congr2!{{Codomain.Carrier n2} {Codomain.Carrier n2} {Codomain.Carrier n2}} Upper.difference _ _ _ _ coneFirst coneSecond)) \then
+      eq_reason_in!{{Codomain.Carrier n2} _
+        "=" _ "by" { congr!{{Codomain.Carrier n1} {Codomain.Carrier n2}} ((Codomain.cone n1 (f a)).apply) _ _ dz }
+        "=" _ "by" { LowerCone.differencePreserved (Codomain.cone n1 (f a)) fx (Lower.difference cgd pdx) }
+        "=" _ "by" { congr!{{Codomain.Carrier n2} {Codomain.Carrier n2} {Codomain.Carrier n2}} Upper.difference _ _ _ _ coneFirst coneSecond }
+      } \then
     \let prior: (map n1 f g).apply ((Domain.boundary n1).apply u) = Upper.difference px ((map n1 f g).apply cdx) :=
       trans!{{Codomain.Carrier n2}} _ _ _
         (congr!{{Domain.Carrier n1} {Codomain.Carrier n2}} ((map n1 f g).apply) _ _ (Domain.ConeBoundary[n := n].law a x))
         (PriorPrism.differencePreserved (map n1 f g) x cdx) \then
-    \return trans!{{Codomain.Carrier n2}} _ _ _
-      (congr!{{Codomain.Carrier n3} {Codomain.Carrier n2}} ((Codomain.boundary n2).apply) _ _ (UpperRecurrence.law f g a x))
-      (trans!{{Codomain.Carrier n2}} _ _ _ (Codomain.ConeBoundary[n := n1].law (f a) z)
-        (trans!{{Codomain.Carrier n2}} _ _ _ (congr!{{Codomain.Carrier n2} {Codomain.Carrier n2}} (Upper.difference z) _ _ coneDz)
-          (trans!{{Codomain.Carrier n2}} _ _ _ (Upper.shuffle gu px fu ((map n1 f g).apply cdx))
-            (congr!{{Codomain.Carrier n2} {Codomain.Carrier n2}} (Upper.difference (Upper.difference gu fu)) _ _ (sym!{{Codomain.Carrier n2}} _ _ prior)))))
+    \return eq_reason_in!{{Codomain.Carrier n2} _
+      "=" _ "by" { congr!{{Codomain.Carrier n3} {Codomain.Carrier n2}} ((Codomain.boundary n2).apply) _ _ (UpperRecurrence.law f g a x) }
+      "=" _ "by" { Codomain.ConeBoundary[n := n1].law (f a) z }
+      "=" _ "by" { congr!{{Codomain.Carrier n2} {Codomain.Carrier n2}} (Upper.difference z) _ _ coneDz }
+      "=" _ "by" { Upper.shuffle gu px fu ((map n1 f g).apply cdx) }
+      "=" _ "by" { congr!{{Codomain.Carrier n2} {Codomain.Carrier n2}} (Upper.difference (Upper.difference gu fu)) _ _ (sym!{{Codomain.Carrier n2}} _ _ prior) }
+    }
   };
 \definition onGenerator: Property n -> \forall (f, g: V -> W)(v: Domain.Tuple n2) ->
   (Codomain.boundary n2).apply ((map n2 f g).apply (Domain.generator n2 v)) = Upper.difference

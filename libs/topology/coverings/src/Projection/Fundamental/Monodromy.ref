@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \root.Projection[E := E, B := B, total := total, base := base, projection := projection].Transport[] \as Raw;
 \import Raw.Groupoid[covering := covering] \as Transport;
 \import Raw.Action[covering := covering, b := projection e] \as Action;
@@ -25,9 +26,11 @@
 };
 \definition fixesImage: \forall (a: Source.Carrier) -> Fixed (induced covering a) :=
   Classes.induction (\fun (a: Source.Carrier) => Fixed (induced covering a))
-    (\fun (f: Paths.Path e e) => trans!{E} _ _ _
-      (congr!{Target.Carrier E} (\fun (g: Target.Carrier) => Action.move g point) _ _ (Native.onClass projection covering.continuous e e f))
-      (trans!{E} _ _ _ (Transport.onClass (projection e) (projection e) (Mapping.apply projection covering.continuous e e f) point) (projectedLoopFixes f)));
+    (\fun (f: Paths.Path e e) => eq_reason_in!{E _
+      "=" _ "by" { congr!{Target.Carrier E} (\fun (g: Target.Carrier) => Action.move g point) _ _ (Native.onClass projection covering.continuous e e f) }
+      "=" _ "by" { Transport.onClass (projection e) (projection e) (Mapping.apply projection covering.continuous e e f) point }
+      "=" _ "by" { projectedLoopFixes f }
+    });
 \definition imageFixes: \forall (g: Target.Carrier) -> Image g -> Fixed g := \block {
   \fun (g: Target.Carrier)(image: Image g) \then
   \takefrom a: \Cast[Source.Carrier] ({ a: Source.Carrier \where induced covering a = g }) \by image \then
@@ -79,9 +82,12 @@
     }
   } \then
   \return Logic.existsIntro[Target.Carrier, { a: Target.Carrier \where Action.move a u = v }] (Target.class p)
-    (trans!{E} _ _ _ (Transport.onClass (projection e) (projection e) p u)
-      (trans!{E} _ _ _ (congr!{{Interval.Carrier -> E} E} (\fun (h: Interval.Carrier -> E) => h Interval.end) _ _
-        (Uniqueness.pathLiftUnique covering (projection e) (projection e) p u (Raw.lift covering (projection e) (projection e) p u) lifted)) (Paths.laws u v f).end))
+    (eq_reason_in!{E _
+      "=" _ "by" { Transport.onClass (projection e) (projection e) p u }
+      "=" _ "by" { congr!{{Interval.Carrier -> E} E} (\fun (h: Interval.Carrier -> E) => h Interval.end) _ _
+        (Uniqueness.pathLiftUnique covering (projection e) (projection e) p u (Raw.lift covering (projection e) (projection e) p u) lifted) }
+      "=" _ "by" { (Paths.laws u v f).end }
+    })
 };
 \import FiberActions.At[act := Action.action, point := point] \as Classification;
 \definition Cosets: \Set := Group.Cosets[H := image].Carrier;

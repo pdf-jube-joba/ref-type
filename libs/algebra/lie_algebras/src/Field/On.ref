@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Linear.Laws[V := V, space := space] \as Vectors;
 \import algebra.Group[].Of[Carrier := V, group := std.Alg[].Ring[].ringModuleAsCommutativeGroup K V Linear.ring space] \as Additive;
 \definition bracket: V -> V -> V := lie.bracket;
@@ -6,13 +7,13 @@
   \let sumZero: space.add (bracket x y) (bracket y x) = space.zero := eq_reason!{
     {space.add (bracket x y) (bracket y x)}
     "=" {space.add (space.add space.zero (bracket x y)) (space.add (bracket y x) space.zero)} "by" {
-      congr2!{V V V} space.add _ _ _ _ (sym!{V} _ _ (Vectors.zeroLeft _)) (sym!{V} _ _ (Vectors.zeroRight _))}
+      congr!{V V V} space.add _ _ _ _ (sym!{V} _ _ (Vectors.zeroLeft _)) (sym!{V} _ _ (Vectors.zeroRight _))}
     "=" {space.add (space.add (bracket x x) (bracket x y)) (space.add (bracket y x) (bracket y y))} "by" {
-      congr2!{V V V} space.add _ _ _ _
+      congr!{V V V} space.add _ _ _ _
         (congr!{V V} (\fun (v: V) => space.add v (bracket x y)) _ _ (sym!{V} _ _ (lie.alternating x)))
         (congr!{V V} (space.add (bracket y x)) _ _ (sym!{V} _ _ (lie.alternating y)))}
     "=" {space.add (bracket x (space.add x y)) (bracket y (space.add x y))} "by" {
-      congr2!{V V V} space.add _ _ _ _ (sym!{V} _ _ (lie.addRight x x y)) (sym!{V} _ _ (lie.addRight y x y))}
+      congr!{V V V} space.add _ _ _ _ (sym!{V} _ _ (lie.addRight x x y)) (sym!{V} _ _ (lie.addRight y x y))}
     "=" {bracket (space.add x y) (space.add x y)} "by" {sym!{V} _ _ (lie.addLeft x y (space.add x y))}
     "=" space.zero "by" {lie.alternating (space.add x y)}
   } \then
@@ -26,8 +27,11 @@
 };
 \definition zeroRight: \forall (x: V) -> bracket x space.zero = space.zero := \fun (x: V) => (ad x).preservesZero;
 \definition zeroLeft: \forall (x: V) -> bracket space.zero x = space.zero :=
-  \fun (x: V) => trans!{V} _ _ _ (skew space.zero x)
-    (trans!{V} _ _ _ (congr!{V V} space.neg _ _ (zeroRight x)) Additive.negZero);
+  \fun (x: V) => eq_reason_in!{V _
+    "=" _ "by" { skew space.zero x }
+    "=" _ "by" { congr!{V V} space.neg _ _ (zeroRight x) }
+    "=" _ "by" Additive.negZero
+  };
 \definition adDerivation: \forall (x, y, z: V) -> (ad x).apply (bracket y z) =
   space.add (bracket ((ad x).apply y) z) (bracket y ((ad x).apply z)) := lie.jacobi;
 \definition adRepresentation: \forall (x, y, z: V) -> (ad (bracket x y)).apply z =
@@ -35,8 +39,11 @@
   \fun (x, y, z: V) => eq_reason!{
     {(ad (bracket x y)).apply z}
     "=" {Additive.difference (space.add (bracket (bracket x y) z) (bracket y (bracket x z))) (bracket y (bracket x z))} "by" {
-      sym!{V} _ _ (trans!{V} _ _ _ (Vectors.assoc _ _ _)
-        (trans!{V} _ _ _ (congr!{V V} (space.add (bracket (bracket x y) z)) _ _ (Additive.inverseRight _)) (Vectors.zeroRight _)))}
+      sym!{V} _ _ (eq_reason_in!{V _
+        "=" _ "by" { Vectors.assoc _ _ _ }
+        "=" _ "by" { congr!{V V} (space.add (bracket (bracket x y) z)) _ _ (Additive.inverseRight _) }
+        "=" _ "by" { Vectors.zeroRight _ }
+      })}
     "=" {Additive.difference (bracket x (bracket y z)) (bracket y (bracket x z))} "by" {
       congr!{V V} (\fun (v: V) => Additive.difference v (bracket y (bracket x z))) _ _ (sym!{V} _ _ (lie.jacobi x y z))}
   };

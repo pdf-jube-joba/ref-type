@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Quotient.Lift[B := U] \as Lift;
 \import \parent.\parent.Linear[V := Carrier, W := U, source := space, target := target] \as Output;
 \import Output.Operations[] \as OutputOperations;
@@ -19,7 +20,7 @@
         {descend f laws (plus (class x) (class y))}
         "=" {descend f laws (class (Expression::sum x y))} "by" {congr!{Carrier U} (descend f laws) _ _ (plusClass x y)}
         "=" {target.add (evaluate U target f x) (evaluate U target f y)} "by" {onClass f laws (Expression::sum x y)}
-        "=" {target.add (descend f laws (class x)) (descend f laws (class y))} "by" {congr2!{U U U} (target.add) _ _ _ _
+        "=" {target.add (descend f laws (class x)) (descend f laws (class y))} "by" {congr!{U U U} (target.add) _ _ _ _
           (sym!{U} _ _ (onClass f laws x)) (sym!{U} _ _ (onClass f laws y))}
       }));
 \definition preservesScale: \forall (f: V -> W -> U) (laws: BilinearLaws[U, target, f]) (a: K) (x: Carrier) ->
@@ -42,15 +43,21 @@
     \induction (expression: Expression) \return h.apply (class expression) = evaluate U target f expression \with {
       | zero: h.preservesZero
       | tensor: agrees
-      | sum: \fun (x: Expression) (ihx: _) (y: Expression) (ihy: _) => trans!{U} _ _ _
-        (congr!{Carrier U} (h.apply) _ _ (sym!{Carrier} _ _ (plusClass x y)))
-        (trans!{U} _ _ _ (h.preservesAdd (class x) (class y)) (congr2!{U U U} (target.add) _ _ _ _ ihx ihy))
-      | negative: \fun (x: Expression) (ih: _) => trans!{U} _ _ _
-        (congr!{Carrier U} (h.apply) _ _ (sym!{Carrier} _ _ (negativeClass x)))
-        (trans!{U} _ _ _ (OutputOperations.preservesNeg h (class x)) (congr!{U U} (target.neg) _ _ ih))
-      | scale: \fun (a: K) (x: Expression) (ih: _) => trans!{U} _ _ _
-        (congr!{Carrier U} (h.apply) _ _ (sym!{Carrier} _ _ (scaleClass a x)))
-        (trans!{U} _ _ _ (h.preservesScale a (class x)) (congr!{U U} (target.smul a) _ _ ih))
+      | sum: \fun (x: Expression) (ihx: _) (y: Expression) (ihy: _) => eq_reason_in!{U _
+        "=" _ "by" { congr!{Carrier U} (h.apply) _ _ (sym!{Carrier} _ _ (plusClass x y)) }
+        "=" _ "by" { h.preservesAdd (class x) (class y) }
+        "=" _ "by" { congr!{U U U} (target.add) _ _ _ _ ihx ihy }
+      }
+      | negative: \fun (x: Expression) (ih: _) => eq_reason_in!{U _
+        "=" _ "by" { congr!{Carrier U} (h.apply) _ _ (sym!{Carrier} _ _ (negativeClass x)) }
+        "=" _ "by" { OutputOperations.preservesNeg h (class x) }
+        "=" _ "by" { congr!{U U} (target.neg) _ _ ih }
+      }
+      | scale: \fun (a: K) (x: Expression) (ih: _) => eq_reason_in!{U _
+        "=" _ "by" { congr!{Carrier U} (h.apply) _ _ (sym!{Carrier} _ _ (scaleClass a x)) }
+        "=" _ "by" { h.preservesScale a (class x) }
+        "=" _ "by" { congr!{U U} (target.smul a) _ _ ih }
+      }
     };
 \definition unique: \forall (f: V -> W -> U) (laws: BilinearLaws[U, target, f]) (h: Output.Map) ->
   (\forall (x: V) (y: W) -> h.apply (tensor x y) = f x y) -> h.apply = descend f laws :=

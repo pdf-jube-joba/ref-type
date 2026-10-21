@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Global.At[k := k] \as Target;
 \definition restrictAddition: \forall (omega, eta: Global.Form k) -> restrict (Target.plus omega eta) = plus (restrict omega) (restrict eta) :=
   \fun (omega, eta: Global.Form k) => ext k (restrict (Target.plus omega eta)) (plus (restrict omega) (restrict eta))
@@ -7,16 +8,18 @@
     (\fun (chart: Chart) => \refl(scale a (restrict omega) chart));
 \definition extendAddition: \forall (omega, eta: Form k) -> extend (plus omega eta) = Target.plus (extend omega) (extend eta) :=
   \fun (omega, eta: Form k) => injective (extend (plus omega eta)) (Target.plus (extend omega) (extend eta))
-    (trans!{{Form k}} _ (plus omega eta) _ (leftInverse (plus omega eta))
-      (trans!{{Form k}} _ (plus (restrict (extend omega)) (restrict (extend eta))) _
-        (congr2!{{Form k} {Form k} {Form k}} plus _ _ _ _ (sym!{{Form k}} _ _ (leftInverse omega)) (sym!{{Form k}} _ _ (leftInverse eta)))
-        (sym!{{Form k}} _ _ (restrictAddition (extend omega) (extend eta)))));
+    (eq_reason_in!{{Form k} _
+      "=" { plus omega eta } "by" { leftInverse (plus omega eta) }
+      "=" { plus (restrict (extend omega)) (restrict (extend eta)) } "by" { congr!{{Form k} {Form k} {Form k}} plus _ _ _ _ (sym!{{Form k}} _ _ (leftInverse omega)) (sym!{{Form k}} _ _ (leftInverse eta)) }
+      "=" _ "by" { sym!{{Form k}} _ _ (restrictAddition (extend omega) (extend eta)) }
+    });
 \definition extendScalar: \forall (a: Reals.Real)(omega: Form k) -> extend (scale a omega) = Target.scale a (extend omega) :=
   \fun (a: Reals.Real)(omega: Form k) => injective (extend (scale a omega)) (Target.scale a (extend omega))
-    (trans!{{Form k}} _ (scale a omega) _ (leftInverse (scale a omega))
-      (trans!{{Form k}} _ (scale a (restrict (extend omega))) _
-        (congr!{{Form k} {Form k}} (scale a) _ _ (sym!{{Form k}} _ _ (leftInverse omega)))
-        (sym!{{Form k}} _ _ (restrictScalar a (extend omega)))));
+    (eq_reason_in!{{Form k} _
+      "=" { scale a omega } "by" { leftInverse (scale a omega) }
+      "=" { scale a (restrict (extend omega)) } "by" { congr!{{Form k} {Form k}} (scale a) _ _ (sym!{{Form k}} _ _ (leftInverse omega)) }
+      "=" _ "by" { sym!{{Form k}} _ _ (restrictScalar a (extend omega)) }
+    });
 \import Spaces.Linear[V := Form k, W := Global.Form k, source := space, target := Target.space] \as Forward;
 \import Spaces.Linear[V := Global.Form k, W := Form k, source := Target.space, target := space] \as Backward;
 \definition forward: Forward.Map := Forward.Map { apply := extend, preservesAdd := extendAddition, preservesScale := extendScalar };

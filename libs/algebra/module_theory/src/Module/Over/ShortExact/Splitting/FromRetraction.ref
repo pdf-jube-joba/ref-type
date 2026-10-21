@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.\parent.End[V := B.Carrier, space := B.space] \as End;
 \import \parent.\parent.\parent.Hom[V := B.Carrier, W := B.Carrier, source := B.space, target := B.space] \as EndMaps;
 \import \parent.\parent.\parent.Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space].Composition[U := B.Carrier, domain := B.space] \as Inclusion;
@@ -20,20 +21,22 @@
 \definition onImage: \forall (retracts: Retracts)(b: B.Carrier) -> (section retracts).apply (sequence.projection.apply b) = remainderMap.apply b :=
   \fun (retracts: Retracts) => Descent.onImage (sequence.onto) (kills retracts);
 \definition projectionRemainder: \forall (b: B.Carrier) -> sequence.projection.apply (remainderMap.apply b) = sequence.projection.apply b :=
-  \fun (b: B.Carrier) => trans!{C.Carrier} _ _ _
-    (Projection.differencePreserved sequence.projection b (sequence.inclusion.apply (r.apply b)))
-    (trans!{C.Carrier} _ _ _
-      (congr!{C.Carrier C.Carrier} (\fun (c: C.Carrier) => RightGroup.difference (sequence.projection.apply b) c) _ _ (sequence.zero (r.apply b)))
-      (trans!{C.Carrier} _ _ _ (congr!{C.Carrier C.Carrier} (Right.add (sequence.projection.apply b)) _ _ RightGroup.negZero)
-        (RightGroup.zeroRight (sequence.projection.apply b))));
+  \fun (b: B.Carrier) => eq_reason_in!{C.Carrier _
+    "=" _ "by" { Projection.differencePreserved sequence.projection b (sequence.inclusion.apply (r.apply b)) }
+    "=" _ "by" { congr!{C.Carrier C.Carrier} (\fun (c: C.Carrier) => RightGroup.difference (sequence.projection.apply b) c) _ _ (sequence.zero (r.apply b)) }
+    "=" _ "by" { congr!{C.Carrier C.Carrier} (Right.add (sequence.projection.apply b)) _ _ RightGroup.negZero }
+    "=" _ "by" { RightGroup.zeroRight (sequence.projection.apply b) }
+  };
 \definition rightInverse: \forall (retracts: Retracts)(c: C.Carrier) -> sequence.projection.apply ((section retracts).apply c) = c := \block {
   \fun (retracts: Retracts)(c: C.Carrier) \then
   \takefrom b: \Cast[B.Carrier] ({ b: B.Carrier \where sequence.projection.apply b = c }) \by sequence.onto c \then
   \let equal: sequence.projection.apply b = c := \bysub(B.Carrier, { b: B.Carrier \where sequence.projection.apply b = c }, b) \then
-  \return trans!{C.Carrier} _ _ _
-    (congr!{C.Carrier C.Carrier} (\fun (v: C.Carrier) => sequence.projection.apply ((section retracts).apply v)) c (sequence.projection.apply b) (sym!{C.Carrier} _ _ equal))
-    (trans!{C.Carrier} _ _ _ (congr!{B.Carrier C.Carrier} (sequence.projection.apply) _ _ (onImage retracts b))
-      (trans!{C.Carrier} _ _ _ (projectionRemainder b) equal))
+  \return eq_reason_in!{C.Carrier _
+    "=" _ "by" { congr!{C.Carrier C.Carrier} (\fun (v: C.Carrier) => sequence.projection.apply ((section retracts).apply v)) c (sequence.projection.apply b) (sym!{C.Carrier} _ _ equal) }
+    "=" _ "by" { congr!{B.Carrier C.Carrier} (sequence.projection.apply) _ _ (onImage retracts b) }
+    "=" _ "by" { projectionRemainder b }
+    "=" _ "by" equal
+  }
 };
 \definition isomorphism[retracts: Retracts]: \parent.\parent.\parent.Isomorphism[V := Sum.Carrier, W := B.Carrier, source := Sum.space, target := B.space].Isomorphism :=
   \parent.With[s := section retracts].isomorphism (rightInverse retracts);

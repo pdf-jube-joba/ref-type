@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition Onto: \Prop := \forall (c: C.Carrier) -> \exists ( b: B.Carrier \where q.apply b = c );
 \definition Kills: \Prop := \forall (b: B.Carrier) -> q.apply b = C.space.zero -> \forall (y: N.Carrier) -> f.apply (Source.tensor b y) = U.space.zero;
 \module At(y: N.Carrier) {
@@ -26,7 +27,7 @@
     "=" {f.apply (Source.tensor b (N.space.add y z))} "by" {At[y := N.space.add y z].onImage onto kills b}
     "=" {f.apply (Source.space.add (Source.tensor b y) (Source.tensor b z))} "by" {congr!{Source.Carrier U.Carrier} (f.apply) _ _ (Source.bilinear.addRight b y z)}
     "=" {U.space.add (f.apply (Source.tensor b y)) (f.apply (Source.tensor b z))} "by" {f.addition (Source.tensor b y) (Source.tensor b z)}
-    "=" {U.space.add (bilinear onto kills c y) (bilinear onto kills c z)} "by" {congr2!{U.Carrier U.Carrier U.Carrier} (U.space.add) _ _ _ _
+    "=" {U.space.add (bilinear onto kills c y) (bilinear onto kills c z)} "by" {congr!{U.Carrier U.Carrier U.Carrier} (U.space.add) _ _ _ _
       (trans!{U.Carrier} _ _ _ (sym!{U.Carrier} _ _ (At[y := y].onImage onto kills b)) (congr!{C.Carrier U.Carrier} (\fun (c: C.Carrier) => bilinear onto kills c y) _ _ equal))
       (trans!{U.Carrier} _ _ _ (sym!{U.Carrier} _ _ (At[y := z].onImage onto kills b)) (congr!{C.Carrier U.Carrier} (\fun (c: C.Carrier) => bilinear onto kills c z) _ _ equal))}}
 };
@@ -52,9 +53,11 @@
   \fun (onto: Onto)(kills: Kills) => Universal.onTensor (bilinear onto kills) (laws onto kills);
 \definition factor: \forall (onto: Onto)(kills: Kills) -> Composition.compose (map onto kills) (Mapping.map q Coefficients.identity) = f :=
   \fun (onto: Onto)(kills: Kills) => Equality.ext (Composition.compose (map onto kills) (Mapping.map q Coefficients.identity)) f
-    (\fun (b: B.Carrier)(y: N.Carrier) => trans!{U.Carrier} _ _ _
-      (congr!{Target.Carrier U.Carrier} ((map onto kills).apply) _ _ (Mapping.onTensor q Coefficients.identity b y))
-      (trans!{U.Carrier} _ _ _ (onTensor onto kills (q.apply b) y) (At[y := y].onImage onto kills b)));
+    (\fun (b: B.Carrier)(y: N.Carrier) => eq_reason_in!{U.Carrier _
+      "=" _ "by" { congr!{Target.Carrier U.Carrier} ((map onto kills).apply) _ _ (Mapping.onTensor q Coefficients.identity b y) }
+      "=" _ "by" { onTensor onto kills (q.apply b) y }
+      "=" _ "by" { At[y := y].onImage onto kills b }
+    });
 \definition unique: \forall (onto: Onto)(kills: Kills)(h: Output.Map) -> Composition.compose h (Mapping.map q Coefficients.identity) = f -> h = map onto kills :=
   \fun (onto: Onto)(kills: Kills)(h: Output.Map)(factors: Composition.compose h (Mapping.map q Coefficients.identity) = f) => Universal.ext h (map onto kills) (\block {
     \fun (c: C.Carrier)(y: N.Carrier) \then

@@ -1,14 +1,15 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Modules.FiniteCoordinates[n := one] \as Coordinates;
 \import \root.Circle[].Homology[].Unit[] \as Unit;
 \definition index: Coordinates.Index := Fin.zero zero;
 \definition basis: Coordinates.Carrier := Coordinates.basis index;
 \definition decomposition[v: Coordinates.Carrier]: (Coordinates.space).smul (Unit.evaluate v) basis = v :=
-  trans!{Coordinates.Carrier} _ _ _
-    (congr!{Coordinates.Carrier Coordinates.Carrier} ((Coordinates.space).smul (Unit.evaluate v)) _ _ (sym!{Coordinates.Carrier} _ _ Unit.oneAsBasis))
-    (trans!{Coordinates.Carrier} _ _ _
-      (\axiom:funext((Coordinates.space).smul (Unit.evaluate v) (Unit.constant I.One.specification), Unit.constant (Unit.evaluate v),
-        \fun (i: Coordinates.Index) => (((Integers.ring).semiring).multiplicative).rightIdentity (Unit.evaluate v)))
-      (Unit.leftInverse v));
+  eq_reason_in!{Coordinates.Carrier _
+    "=" _ "by" { congr!{Coordinates.Carrier Coordinates.Carrier} ((Coordinates.space).smul (Unit.evaluate v)) _ _ (sym!{Coordinates.Carrier} _ _ Unit.oneAsBasis) }
+    "=" _ "by" { \axiom:funext((Coordinates.space).smul (Unit.evaluate v) (Unit.constant I.One.specification), Unit.constant (Unit.evaluate v),
+        \fun (i: Coordinates.Index) => (((Integers.ring).semiring).multiplicative).rightIdentity (Unit.evaluate v)) }
+    "=" _ "by" { Unit.leftInverse v }
+  };
 \import Modules.Hom[V := Coordinates.Carrier, W := coefficients.Carrier, source := Coordinates.space, target := coefficients.space] \as Functionals;
 \import Modules.Hom[V := FiniteCochains.Carrier one, W := coefficients.Carrier, source := FiniteCochains.space one, target := coefficients.space] \as Forward;
 \definition forward: Forward.Map := Forward.Map {
@@ -31,11 +32,11 @@
     (\fun (v: Coordinates.Carrier) => (coefficients.space).vectorAdd (Unit.evaluate v) m n),
   scalar := \fun (a: I.Int^)(m: coefficients.Carrier) => Functionals.ext
     (functional ((coefficients.space).smul a m)) ((FiniteCochains.space one).smul a (functional m))
-    (\fun (v: Coordinates.Carrier) => trans!{coefficients.Carrier} _ _ _
-      (sym!{coefficients.Carrier} _ _ ((coefficients.space).scalarAssoc (Unit.evaluate v) a m))
-      (trans!{coefficients.Carrier} _ _ _
-        (congr!{I.Int^ coefficients.Carrier} (\fun (r: I.Int^) => (coefficients.space).smul r m) _ _ ((Integers.commutativeRing).mulCommutative (Unit.evaluate v) a))
-        ((coefficients.space).scalarAssoc a (Unit.evaluate v) m))),
+    (\fun (v: Coordinates.Carrier) => eq_reason_in!{coefficients.Carrier _
+      "=" _ "by" { sym!{coefficients.Carrier} _ _ ((coefficients.space).scalarAssoc (Unit.evaluate v) a m) }
+      "=" _ "by" { congr!{I.Int^ coefficients.Carrier} (\fun (r: I.Int^) => (coefficients.space).smul r m) _ _ ((Integers.commutativeRing).mulCommutative (Unit.evaluate v) a) }
+      "=" _ "by" { (coefficients.space).scalarAssoc a (Unit.evaluate v) m }
+    }),
 };
 \definition leftInverse: \forall (h: FiniteCochains.Carrier one) -> (backward).apply ((forward).apply h) = h :=
   \fun (h: FiniteCochains.Carrier one) => Functionals.ext (functional ((h).apply basis)) h

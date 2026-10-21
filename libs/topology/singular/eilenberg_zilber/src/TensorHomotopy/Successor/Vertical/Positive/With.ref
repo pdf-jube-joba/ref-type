@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition leftGenerator: Left.Carrier p := Left.generator p sigma;
 \import Modules.Hom[V := Pure.Carrier, W := Total.Carrier (N.Nat^::succ n), source := Pure.space, target := Total.space (N.Nat^::succ n)].Composition[U := Right.Carrier q, domain := Right.space q] \as Compose;
 \definition rightMap: Modules.Hom[V := Right.Carrier q, W := Total.Carrier (N.Nat^::succ n), source := Right.space q, target := Total.space (N.Nat^::succ n)].Map := Compose.compose LowerComponent.map (Pure.rightLinear leftGenerator);
@@ -11,9 +12,11 @@
 \import TermSign.Mapping[W := Total.Carrier (N.Nat^::succ n), target := Total.space (N.Nat^::succ n)] \as TermSignNaturality;
 \import Double.Sign[V := Total.Carrier (N.Nat^::succ n), space := Total.space (N.Nat^::succ n)] \as Sign;
 \definition native: Current.vertical sigma tau = (Sign.map p).apply sum :=
-  trans!{{Total.Carrier (N.Nat^::succ n)}} _ _ _ (Lower.onInjection lowerIndex ((TermSign.map p).apply value))
-    (trans!{{Total.Carrier (N.Nat^::succ n)}} _ _ _ (TermSignNaturality.naturality LowerComponent.map p value)
-      (congr!{{Total.Carrier (N.Nat^::succ n)} {Total.Carrier (N.Nat^::succ n)}} ((Sign.map p).apply) _ _ unsignedNative));
+  eq_reason_in!{{Total.Carrier (N.Nat^::succ n)} _
+    "=" _ "by" { Lower.onInjection lowerIndex ((TermSign.map p).apply value) }
+    "=" _ "by" { TermSignNaturality.naturality LowerComponent.map p value }
+    "=" _ "by" { congr!{{Total.Carrier (N.Nat^::succ n)} {Total.Carrier (N.Nat^::succ n)}} ((Sign.map p).apply) _ _ unsignedNative }
+  };
 \definition evaluator: Modules.Hom[V := HighModel.Carrier z, W := Total.Carrier (N.Nat^::succ n), source := HighModel.space z, target := Total.space (N.Nat^::succ n)].Map := HigherComponent.evaluationLinear (N.Nat^::succ n) sigma tau;
 \import Modules.Alternating[V := HighModel.Carrier z, space := HighModel.space z].Mapping[W := Total.Carrier (N.Nat^::succ n), target := Total.space (N.Nat^::succ n)] \as Mapping;
 \module Face(j: Fin.Fin (N.Nat^::succ (N.Nat^::succ q))) {
@@ -24,12 +27,16 @@
       (Evaluation.At[p := p, q := q].pointwiseEquality Composition.leftSimplex sigma Composition.rightSimplex (RightSimplices.face q j tau) (\fun (x: Simplex.Carrier p) => \refl(sigma x)) (\fun (x: Simplex.Carrier q) => \refl(tau (Simplex.face q j x))) (N.Nat^::succ n) LowerComponent.modelValue);
 }
 \definition unsignedCoordinate: (evaluator).apply ((Faces.map).apply LowerComponent.modelValue) = sum :=
-  trans!{{Total.Carrier (N.Nat^::succ n)}} _ _ _ (congr!{{HighModel.Carrier z} {Total.Carrier (N.Nat^::succ n)}} ((evaluator).apply) _ _ (Faces.onValues LowerComponent.modelValue))
-    (trans!{{Total.Carrier (N.Nat^::succ n)}} _ _ _ (Mapping.law evaluator (N.Nat^::succ (N.Nat^::succ q)) _)
-      (Sum.congruent (N.Nat^::succ (N.Nat^::succ q)) _ _ (\fun (j: Fin.Fin (N.Nat^::succ (N.Nat^::succ q))) => Face[j := j].law)));
+  eq_reason_in!{{Total.Carrier (N.Nat^::succ n)} _
+    "=" _ "by" { congr!{{HighModel.Carrier z} {Total.Carrier (N.Nat^::succ n)}} ((evaluator).apply) _ _ (Faces.onValues LowerComponent.modelValue) }
+    "=" _ "by" { Mapping.law evaluator (N.Nat^::succ (N.Nat^::succ q)) _ }
+    "=" _ "by" { Sum.congruent (N.Nat^::succ (N.Nat^::succ q)) _ _ (\fun (j: Fin.Fin (N.Nat^::succ (N.Nat^::succ q))) => Face[j := j].law) }
+  };
 \import Double.Sign[V := HighModel.Carrier z, space := HighModel.space z].Mapping[W := Total.Carrier (N.Nat^::succ n), target := Total.space (N.Nat^::succ n)] \as ModelSignNaturality;
 \definition coordinate: Current.verticalCoordinate sigma tau = (Sign.map p).apply sum :=
-  trans!{{Total.Carrier (N.Nat^::succ n)}} _ _ _ (congr!{{HighModel.Carrier z} {Total.Carrier (N.Nat^::succ n)}} ((evaluator).apply) _ _ (CoordinateBoundary.law (Models.homotopy n)))
-    (trans!{{Total.Carrier (N.Nat^::succ n)}} _ _ _ (ModelSignNaturality.naturality evaluator p ((Faces.map).apply LowerComponent.modelValue))
-      (congr!{{Total.Carrier (N.Nat^::succ n)} {Total.Carrier (N.Nat^::succ n)}} ((Sign.map p).apply) _ _ unsignedCoordinate));
+  eq_reason_in!{{Total.Carrier (N.Nat^::succ n)} _
+    "=" _ "by" { congr!{{HighModel.Carrier z} {Total.Carrier (N.Nat^::succ n)}} ((evaluator).apply) _ _ (CoordinateBoundary.law (Models.homotopy n)) }
+    "=" _ "by" { ModelSignNaturality.naturality evaluator p ((Faces.map).apply LowerComponent.modelValue) }
+    "=" _ "by" { congr!{{Total.Carrier (N.Nat^::succ n)} {Total.Carrier (N.Nat^::succ n)}} ((Sign.map p).apply) _ _ unsignedCoordinate }
+  };
 \definition law: Current.vertical sigma tau = Current.verticalCoordinate sigma tau := trans!{{Total.Carrier (N.Nat^::succ n)}} _ _ _ native (sym!{{Total.Carrier (N.Nat^::succ n)}} _ _ coordinate);

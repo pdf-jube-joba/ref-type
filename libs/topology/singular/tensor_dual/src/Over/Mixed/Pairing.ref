@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Dual[V := V] \as Left;
 \import \parent.Dual[V := W] \as Right;
 \import IntegerModules.Tensor[V := V.Carrier, W := W.Carrier, left := V.space, right := W.space] \as Primal;
@@ -10,11 +11,12 @@
 \definition valueLaws[alpha: Left.Carrier][beta: Right.Carrier]: Primal.BilinearLaws[R, Coefficients.coefficients.space, value alpha beta] := Primal.BilinearLaws[R, Coefficients.coefficients.space, value alpha beta] {
   addLeft := \fun (x, z: V.Carrier)(y: W.Carrier) => trans!{R} _ _ _ (congr!{R R} (\fun (a: R) => mul a ((beta).apply y)) _ _ ((alpha).addition x z)) (distributeRight ((alpha).apply x) ((alpha).apply z) ((beta).apply y)),
   addRight := \fun (x: V.Carrier)(y, z: W.Carrier) => trans!{R} _ _ _ (congr!{R R} (mul ((alpha).apply x)) _ _ ((beta).addition y z)) (distributeLeft ((alpha).apply x) ((beta).apply y) ((beta).apply z)),
-  scaleLeft := \fun (a: I.Int^)(x: V.Carrier)(y: W.Carrier) => trans!{R} _ _ _
-    (congr!{R R} (\fun (b: R) => mul b ((beta).apply y)) _ _ ((alpha).scalar a x))
-    (trans!{R} _ _ _ ((ring).mulCommutative ((Coefficients.coefficients.space).smul a ((alpha).apply x)) ((beta).apply y))
-      (trans!{R} _ _ _ ((Coefficients.Scalar[a := (beta).apply y].map).scalar a ((alpha).apply x))
-        (congr!{R R} ((Coefficients.coefficients.space).smul a) _ _ ((ring).mulCommutative ((beta).apply y) ((alpha).apply x))))),
+  scaleLeft := \fun (a: I.Int^)(x: V.Carrier)(y: W.Carrier) => eq_reason_in!{R _
+    "=" _ "by" { congr!{R R} (\fun (b: R) => mul b ((beta).apply y)) _ _ ((alpha).scalar a x) }
+    "=" _ "by" { (ring).mulCommutative ((Coefficients.coefficients.space).smul a ((alpha).apply x)) ((beta).apply y) }
+    "=" _ "by" { (Coefficients.Scalar[a := (beta).apply y].map).scalar a ((alpha).apply x) }
+    "=" _ "by" { congr!{R R} ((Coefficients.coefficients.space).smul a) _ _ ((ring).mulCommutative ((beta).apply y) ((alpha).apply x)) }
+  },
   scaleRight := \fun (a: I.Int^)(x: V.Carrier)(y: W.Carrier) => trans!{R} _ _ _
     (congr!{R R} (mul ((alpha).apply x)) _ _ ((beta).scalar a y))
     ((Coefficients.Scalar[a := (alpha).apply x].map).scalar a ((beta).apply y)),

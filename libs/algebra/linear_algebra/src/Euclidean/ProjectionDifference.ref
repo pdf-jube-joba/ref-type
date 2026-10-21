@@ -1,29 +1,35 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition value: End.Map := End.Map {
   apply := \fun (v: Vector) => difference (P.map.apply v) (Q.map.apply v),
   preservesAdd := \fun (u, v: Vector) => trans!{Vector} _ _ _
-    (congr2!{Vector Vector Vector} difference _ _ _ _ (P.map.preservesAdd u v) (Q.map.preservesAdd u v))
+    (congr!{Vector Vector Vector} difference _ _ _ _ (P.map.preservesAdd u v) (Q.map.preservesAdd u v))
     (\axiom:funext(difference (space.add (P.map.apply u) (P.map.apply v)) (space.add (Q.map.apply u) (Q.map.apply v)),
       space.add (difference (P.map.apply u) (Q.map.apply u)) (difference (P.map.apply v) (Q.map.apply v)),
       \fun (i: Fin.Fin n) => Scalars.subAdd (P.map.apply u i) (P.map.apply v i) (Q.map.apply u i) (Q.map.apply v i))),
   preservesScale := \fun (a: R.Real)(v: Vector) => trans!{Vector} _ _ _
-    (congr2!{Vector Vector Vector} difference _ _ _ _ (P.map.preservesScale a v) (Q.map.preservesScale a v))
+    (congr!{Vector Vector Vector} difference _ _ _ _ (P.map.preservesScale a v) (Q.map.preservesScale a v))
     (\axiom:funext(difference (space.smul a (P.map.apply v)) (space.smul a (Q.map.apply v)),
       space.smul a (difference (P.map.apply v) (Q.map.apply v)),
       \fun (i: Fin.Fin n) => sym!{{R.Real}} _ _ (Scalars.mulSub a (P.map.apply v i) (Q.map.apply v i)))),
 };
 \definition onP: \forall (v: Vector) -> P.map.apply (value.apply v) = value.apply v := \fun (v: Vector) =>
   trans!{Vector} _ _ _ (linearDifference P.map (P.map.apply v) (Q.map.apply v))
-    (congr2!{Vector Vector Vector} difference _ _ _ _ (P.idempotent v) (included.left v));
+    (congr!{Vector Vector Vector} difference _ _ _ _ (P.idempotent v) (included.left v));
 \definition onQ: \forall (v: Vector) -> Q.map.apply (value.apply v) = space.zero := \fun (v: Vector) =>
-  trans!{Vector} _ _ _ (linearDifference Q.map (P.map.apply v) (Q.map.apply v))
-    (trans!{Vector} _ _ _ (congr2!{Vector Vector Vector} difference _ _ _ _ (included.right v) (Q.idempotent v)) (differenceSelf (Q.map.apply v)));
+  eq_reason_in!{Vector _
+    "=" _ "by" { linearDifference Q.map (P.map.apply v) (Q.map.apply v) }
+    "=" _ "by" { congr!{Vector Vector Vector} difference _ _ _ _ (included.right v) (Q.idempotent v) }
+    "=" _ "by" { differenceSelf (Q.map.apply v) }
+  };
 \definition projection: Projection := Projection {
   map := value,
-  symmetric := \fun (x, y: Vector) => trans!{{R.Real}} _ _ _ (dotDifferenceLeft (P.map.apply x) (Q.map.apply x) y)
-    (trans!{{R.Real}} _ _ _ (congr2!{{R.Real} {R.Real} {R.Real}} R.sub _ _ _ _ (P.symmetric x y) (Q.symmetric x y))
-      (sym!{{R.Real}} _ _ (dotDifferenceRight x (P.map.apply y) (Q.map.apply y)))),
+  symmetric := \fun (x, y: Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { dotDifferenceLeft (P.map.apply x) (Q.map.apply x) y }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.sub _ _ _ _ (P.symmetric x y) (Q.symmetric x y) }
+    "=" _ "by" { sym!{{R.Real}} _ _ (dotDifferenceRight x (P.map.apply y) (Q.map.apply y)) }
+  },
   idempotent := \fun (v: Vector) => trans!{Vector} _ _ _
-    (congr2!{Vector Vector Vector} difference _ _ _ _ (onP v) (onQ v)) (differenceZero (value.apply v)),
+    (congr!{Vector Vector Vector} difference _ _ _ _ (onP v) (onQ v)) (differenceZero (value.apply v)),
 };
 \definition traceFormula: trace projection = R.sub (trace P) (trace Q) := Sums.difference n
   (\fun (i: Fin.Fin n) => P.map.apply (basis i) i) (\fun (i: Fin.Fin n) => Q.map.apply (basis i) i);

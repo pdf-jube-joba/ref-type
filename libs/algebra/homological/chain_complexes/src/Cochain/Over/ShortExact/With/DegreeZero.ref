@@ -1,15 +1,19 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.\parent.At[C := A, k := N.Nat^::zero] \as HA;
 \import \parent.\parent.\parent.At[C := B, k := N.Nat^::zero] \as HB;
 \import \parent.\parent.\parent.DegreeZero[C := B] \as ZeroB;
 \import Inclusion.At[k := N.Nat^::zero] \as Map;
 \definition cycleEqual: \forall (a, b: HA.CycleCarrier) -> (Map.induced s.inclusion).apply (HA.classOf a) = (Map.induced s.inclusion).apply (HA.classOf b) -> (Map.cyclesMap s.inclusion).apply a = (Map.cyclesMap s.inclusion).apply b :=
-  \fun (a, b: HA.CycleCarrier)(equal: _) => trans!{HB.CycleCarrier} _ _ _
-    (sym!{HB.CycleCarrier} _ _ (ZeroB.kernelIso.leftInverse ((Map.cyclesMap s.inclusion).apply a)))
-    (trans!{HB.CycleCarrier} _ _ _
-      (congr!{HB.Cohomology HB.CycleCarrier} (ZeroB.kernelIso.backward.apply) _ _
-        (trans!{HB.Cohomology} _ _ _ (sym!{HB.Cohomology} _ _ (Map.onClass s.inclusion a))
-          (trans!{HB.Cohomology} _ _ _ equal (Map.onClass s.inclusion b))))
-      (ZeroB.kernelIso.leftInverse ((Map.cyclesMap s.inclusion).apply b)));
+  \fun (a, b: HA.CycleCarrier)(equal: _) => eq_reason_in!{HB.CycleCarrier _
+    "=" _ "by" { sym!{HB.CycleCarrier} _ _ (ZeroB.kernelIso.leftInverse ((Map.cyclesMap s.inclusion).apply a)) }
+    "=" _ "by" { congr!{HB.Cohomology HB.CycleCarrier} (ZeroB.kernelIso.backward.apply) _ _
+        (eq_reason_in!{HB.Cohomology _
+          "=" _ "by" { sym!{HB.Cohomology} _ _ (Map.onClass s.inclusion a) }
+          "=" _ "by" equal
+          "=" _ "by" { Map.onClass s.inclusion b }
+        }) }
+    "=" _ "by" { ZeroB.kernelIso.leftInverse ((Map.cyclesMap s.inclusion).apply b) }
+  };
 \definition onCycles: \forall (a, b: HA.CycleCarrier) -> (Map.induced s.inclusion).apply (HA.classOf a) = (Map.induced s.inclusion).apply (HA.classOf b) -> HA.classOf a = HA.classOf b :=
   \fun (a, b: HA.CycleCarrier)(equal: _) => congr!{HA.CycleCarrier HA.Cohomology} HA.classOf a b
     (s.injective N.Nat^::zero a b (cycleEqual a b equal));

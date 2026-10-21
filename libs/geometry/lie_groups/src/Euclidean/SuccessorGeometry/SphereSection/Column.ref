@@ -1,43 +1,58 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Reflection.Formula[] \as Formula;
 \import Spaces.Linear[V := Next.Vector, W := Next.Vector, source := Next.space, target := Next.space].Operations[] \as LinearMaps;
 \import algebra.Group[].Of[Carrier := Next.Vector, group := std.Alg[].Ring[].ringModuleAsCommutativeGroup R.Real Next.Vector Spaces.ring Next.space] \as Vectors;
 \definition inverse: R.Real := Arithmetic.fieldInv denominator;
 \definition coefficient: R.Real := R.add inverse inverse;
-\definition firstPairing: Next.dot direction first = R.one := trans!{R.Real} _ _ _ (Next.symmetric direction first)
-  (trans!{R.Real} _ _ _ (firstDot direction) directionHead);
+\definition firstPairing: Next.dot direction first = R.one := eq_reason_in!{R.Real _
+  "=" _ "by" { Next.symmetric direction first }
+  "=" _ "by" { firstDot direction }
+  "=" _ "by" directionHead
+};
 \definition secondPairing: Next.dot first direction = R.one := trans!{R.Real} _ _ _ (firstDot direction) directionHead;
-\definition coefficientFirst: Formula.coefficient first = coefficient := trans!{R.Real} _ _ _
-  (congr2!{R.Real R.Real R.Real} R.mul _ _ _ _ (congr!{R.Real R.Real} Arithmetic.fieldInv _ _ squaredDirection)
-    (congr2!{R.Real R.Real R.Real} R.add _ _ _ _ firstPairing secondPairing))
-  (trans!{R.Real} _ _ _ (Arithmetic.fieldMulAdd inverse R.one R.one)
-    (congr2!{R.Real R.Real R.Real} R.add _ _ _ _ (Scalars.mulOneRight inverse) (Scalars.mulOneRight inverse)));
+\definition coefficientFirst: Formula.coefficient first = coefficient := eq_reason_in!{R.Real _
+  "=" _ "by" { congr!{R.Real R.Real R.Real} R.mul _ _ _ _ (congr!{R.Real R.Real} Arithmetic.fieldInv _ _ squaredDirection)
+    (congr!{R.Real R.Real R.Real} R.add _ _ _ _ firstPairing secondPairing) }
+  "=" _ "by" { Arithmetic.fieldMulAdd inverse R.one R.one }
+  "=" _ "by" { congr!{R.Real R.Real R.Real} R.add _ _ _ _ (Scalars.mulOneRight inverse) (Scalars.mulOneRight inverse) }
+};
 \definition reflectionFirst: NextOrthogonal.action Reflection.reflection first = Next.space.add first (Next.space.neg (Next.space.smul coefficient direction)) :=
   trans!{Next.Vector} _ _ _ (Formula.value first)
     (congr!{R.Real Next.Vector} (\fun (a: R.Real) => Next.space.add first (Next.space.neg (Next.space.smul a direction))) _ _ coefficientFirst);
 \definition vector: firstColumn = Next.space.add (Next.space.neg first) (Next.space.smul coefficient direction) :=
-  trans!{Next.Vector} _ _ _ (congr!{Next.Vector Next.Vector} Reflection.reflection.value.apply _ _ firstNegative)
-    (trans!{Next.Vector} _ _ _ (LinearMaps.preservesNeg Reflection.reflection.value first)
-      (trans!{Next.Vector} _ _ _ (congr!{Next.Vector Next.Vector} Next.space.neg _ _ reflectionFirst)
-        (trans!{Next.Vector} _ _ _ (Vectors.negAdd first (Next.space.neg (Next.space.smul coefficient direction)))
-          (congr!{Next.Vector Next.Vector} (Next.space.add (Next.space.neg first)) _ _ (Vectors.negNeg (Next.space.smul coefficient direction))))));
+  eq_reason_in!{Next.Vector _
+    "=" _ "by" { congr!{Next.Vector Next.Vector} Reflection.reflection.value.apply _ _ firstNegative }
+    "=" _ "by" { LinearMaps.preservesNeg Reflection.reflection.value first }
+    "=" _ "by" { congr!{Next.Vector Next.Vector} Next.space.neg _ _ reflectionFirst }
+    "=" _ "by" { Vectors.negAdd first (Next.space.neg (Next.space.smul coefficient direction)) }
+    "=" _ "by" { congr!{Next.Vector Next.Vector} (Next.space.add (Next.space.neg first)) _ _ (Vectors.negNeg (Next.space.smul coefficient direction)) }
+  };
 \definition headValue: head firstColumn = R.add (R.neg R.one) coefficient := trans!{R.Real} _ _ _ (congr!{Next.Vector R.Real} head _ _ vector)
-  (congr2!{R.Real R.Real R.Real} R.add _ _ _ _ (congr!{R.Real R.Real} R.neg _ _ firstHead)
+  (congr!{R.Real R.Real R.Real} R.add _ _ _ _ (congr!{R.Real R.Real} R.neg _ _ firstHead)
     (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul coefficient) _ _ directionHead) (Scalars.mulOneRight coefficient)));
 \definition tailValue: tail firstColumn = space.smul coefficient s := \axiom:funext(tail firstColumn, space.smul coefficient s, \fun (i: Fin.Fin n) =>
-  trans!{R.Real} _ _ _ (congr!{Next.Vector R.Real} (\fun (x: Next.Vector) => x (Fin.succ n i)) _ _ vector)
-    (trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.add _ _ _ _
+  eq_reason_in!{R.Real _
+    "=" _ "by" { congr!{Next.Vector R.Real} (\fun (x: Next.Vector) => x (Fin.succ n i)) _ _ vector }
+    "=" _ "by" { congr!{R.Real R.Real R.Real} R.add _ _ _ _
       (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} R.neg _ _ (Tuples.atSuccessor n R.one space.zero i)) Arithmetic.negZero)
-      (congr!{R.Real R.Real} (R.mul coefficient) _ _ (Tuples.atSuccessor n R.one s i))) (Arithmetic.addZeroLeft (R.mul coefficient (s i)))));
-\definition height: R.add R.one (head firstColumn) = coefficient := trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.add R.one) _ _ headValue)
-  (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (Arithmetic.addAssoc R.one (R.neg R.one) coefficient))
-    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (a: R.Real) => R.add a coefficient) _ _ (Arithmetic.addNegRight R.one)) (Arithmetic.addZeroLeft coefficient)));
+      (congr!{R.Real R.Real} (R.mul coefficient) _ _ (Tuples.atSuccessor n R.one s i)) }
+    "=" _ "by" { Arithmetic.addZeroLeft (R.mul coefficient (s i)) }
+  });
+\definition height: R.add R.one (head firstColumn) = coefficient := eq_reason_in!{R.Real _
+  "=" _ "by" { congr!{R.Real R.Real} (R.add R.one) _ _ headValue }
+  "=" _ "by" { sym!{R.Real} _ _ (Arithmetic.addAssoc R.one (R.neg R.one) coefficient) }
+  "=" _ "by" { congr!{R.Real R.Real} (\fun (a: R.Real) => R.add a coefficient) _ _ (Arithmetic.addNegRight R.one) }
+  "=" _ "by" { Arithmetic.addZeroLeft coefficient }
+};
 \definition inversePositive: Order.Lt R.zero inverse := Estimates.Product[].invPositive denominator denominatorPositive;
 \definition coefficientPositive: Order.Lt R.zero coefficient := Order.leLtTrans R.zero inverse coefficient (Order.Order[].leOfLt _ _ inversePositive)
   (Order.ltReplaceLeft (R.add inverse R.zero) inverse coefficient (Arithmetic.addZeroRight inverse)
     (Arithmetic.ltAddLeft inverse R.zero inverse inversePositive));
 \definition coefficientNonzero: std.Logic[].Proposition[].Not (coefficient = R.zero) := R.Inverse[].positiveNonzero coefficient coefficientPositive;
 \definition recoverParameter: space.smul (Arithmetic.fieldInv (R.add R.one (head firstColumn))) (tail firstColumn) = s :=
-  trans!{Vector} _ _ _ (congr2!{R.Real Vector Vector} space.smul _ _ _ _ (congr!{R.Real R.Real} Arithmetic.fieldInv _ _ height) tailValue)
-    (trans!{Vector} _ _ _ (sym!{Vector} _ _ (space.scalarAssoc (Arithmetic.fieldInv coefficient) coefficient s))
-      (trans!{Vector} _ _ _ (congr!{R.Real Vector} (\fun (a: R.Real) => space.smul a s) _ _ (Arithmetic.fieldInverseNonzero coefficient coefficientNonzero))
-        (space.scalarOne s)));
+  eq_reason_in!{Vector _
+    "=" _ "by" { congr!{R.Real Vector Vector} space.smul _ _ _ _ (congr!{R.Real R.Real} Arithmetic.fieldInv _ _ height) tailValue }
+    "=" _ "by" { sym!{Vector} _ _ (space.scalarAssoc (Arithmetic.fieldInv coefficient) coefficient s) }
+    "=" _ "by" { congr!{R.Real Vector} (\fun (a: R.Real) => space.smul a s) _ _ (Arithmetic.fieldInverseNonzero coefficient coefficientNonzero) }
+    "=" _ "by" { space.scalarOne s }
+  };

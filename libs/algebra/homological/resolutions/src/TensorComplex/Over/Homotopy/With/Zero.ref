@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Modules.Tensor[V := P.family.Carrier Nat.Nat^::zero, W := N.Carrier, left := P.family.space Nat.Nat^::zero, right := N.space] \as Generators;
 \import Modules.Tensor[V := Q.family.Carrier Nat.Nat^::zero, W := N.Carrier, left := Q.family.space Nat.Nat^::zero, right := N.space] \as Result;
 \import Generators.Universal[U := Result.Carrier, target := Result.space] \as Equality;
@@ -8,16 +9,15 @@
 \definition difference: Linear.Map := Linear.plus Forward.map (Linear.negative Backward.map);
 \definition composite: Linear.Map := Composition.compose (Target.At[n := Nat.Nat^::zero].differential) (\parent.At[n := Nat.Nat^::zero].map);
 \definition equation: difference = composite := Equality.ext difference composite
-  (\fun (x: P.family.Carrier Nat.Nat^::zero)(y: N.Carrier) => trans!{Result.Carrier} _ _ _
-    (congr2!{Result.Carrier Result.Carrier Result.Carrier}
-      (\fun (a, b: Result.Carrier) => Result.space.add a (Result.space.neg b)) _ _ _ _ (Forward.onTensor x y) (Backward.onTensor x y))
-    (trans!{Result.Carrier} _ _ _
-      (sym!{Result.Carrier} _ _ (Result.tensorDifferenceLeft (f.apply Nat.Nat^::zero x) (g.apply Nat.Nat^::zero x) y))
-      (trans!{Result.Carrier} _ _ _
-        (congr!{{Q.family.Carrier Nat.Nat^::zero} Result.Carrier} (\fun (z: Q.family.Carrier Nat.Nat^::zero) => Result.tensor z y) _ _ (h.zeroEquation x))
-        (sym!{Result.Carrier} _ _ (trans!{Result.Carrier} _ _ _
+  (\fun (x: P.family.Carrier Nat.Nat^::zero)(y: N.Carrier) => eq_reason_in!{Result.Carrier _
+    "=" _ "by" { congr!{Result.Carrier Result.Carrier Result.Carrier}
+      (\fun (a, b: Result.Carrier) => Result.space.add a (Result.space.neg b)) _ _ _ _ (Forward.onTensor x y) (Backward.onTensor x y) }
+    "=" _ "by" { sym!{Result.Carrier} _ _ (Result.tensorDifferenceLeft (f.apply Nat.Nat^::zero x) (g.apply Nat.Nat^::zero x) y) }
+    "=" _ "by" { congr!{{Q.family.Carrier Nat.Nat^::zero} Result.Carrier} (\fun (z: Q.family.Carrier Nat.Nat^::zero) => Result.tensor z y) _ _ (h.zeroEquation x) }
+    "=" _ "by" { sym!{Result.Carrier} _ _ (trans!{Result.Carrier} _ _ _
           (congr!{{Target.Carrier (Nat.Nat^::succ Nat.Nat^::zero)} Result.Carrier} ((Target.At[n := Nat.Nat^::zero].differential).apply) _ _ (\parent.At[n := Nat.Nat^::zero].onTensor x y))
-          (Target.At[n := Nat.Nat^::zero].onTensor (h.apply Nat.Nat^::zero x) y))))));
+          (Target.At[n := Nat.Nat^::zero].onTensor (h.apply Nat.Nat^::zero x) y)) }
+  });
 \definition pointwise: \forall (x: Source.Carrier Nat.Nat^::zero) ->
   (Target.space Nat.Nat^::zero).add (Forward.map.apply x) ((Target.space Nat.Nat^::zero).neg (Backward.map.apply x)) =
     Target.differential.apply Nat.Nat^::zero ((\parent.At[n := Nat.Nat^::zero].map).apply x) :=

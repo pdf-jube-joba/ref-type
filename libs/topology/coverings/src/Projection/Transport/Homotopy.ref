@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import algebraic_topology.Homotopy[A := Interval.Carrier, B := B] \as H;
 \import algebraic_topology.SquareGluing[A := B, target := base] \as BaseGlue;
 \import algebraic_topology.Cylinder[A := Interval.Carrier] \as Square;
@@ -47,18 +48,21 @@
     Slices.composeContinuous Interval.topology (Square.topology Interval.topology) total (\fun (s: Interval.Carrier) => Square.at Interval.end s) lifted
       (Square.atContinuous Interval.topology Interval.end) (Squares.laws family initial lifted).continuous \then
   \let endProjects: \forall (s: Interval.Carrier) -> projection (endFamily s) = y :=
-    \fun (s: Interval.Carrier) => trans!{B} _ _ _ ((Squares.laws family initial lifted).projects (Square.at Interval.end s))
-      (trans!{B} _ _ _ ((H.relativeLaws Interval.topology base Paths.Boundary p q h).fixed s Interval.end (Logic.Or[_, _]::right (\refl(Interval.end))))
-        (Paths.laws x y p).end) \then
+    \fun (s: Interval.Carrier) => eq_reason_in!{B _
+      "=" _ "by" { (Squares.laws family initial lifted).projects (Square.at Interval.end s) }
+      "=" _ "by" { (H.relativeLaws Interval.topology base Paths.Boundary p q h).fixed s Interval.end (Logic.Or[_, _]::right (\refl(Interval.end))) }
+      "=" _ "by" { (Paths.laws x y p).end }
+    } \then
   \let sameEnd: endFamily Interval.end = endFamily Interval.start :=
     Uniqueness.endpoints covering y y (Paths.constant y) endFamily (\fun (_: Interval.Carrier) => endFamily Interval.start) endContinuous
       (Constants.constantContinuous Interval.topology total (endFamily Interval.start)) endProjects (\fun (_: Interval.Carrier) => endProjects Interval.start) (\refl(endFamily Interval.start)) \then
-  \return trans!{E} _ _ _
-    (congr!{{Interval.Carrier -> E} E} (\fun (f: Interval.Carrier -> E) => f Interval.end) _ _
-      (Uniqueness.pathLiftUnique covering x y p e (lift covering x y p e) first))
-    (trans!{E} _ _ _ (sym!{E} _ _ sameEnd)
-      (congr!{{Interval.Carrier -> E} E} (\fun (f: Interval.Carrier -> E) => f Interval.end) _ _
-        (Uniqueness.pathLiftUnique covering x y q e second (lift covering x y q e))))
+  \return eq_reason_in!{E _
+    "=" _ "by" { congr!{{Interval.Carrier -> E} E} (\fun (f: Interval.Carrier -> E) => f Interval.end) _ _
+      (Uniqueness.pathLiftUnique covering x y p e (lift covering x y p e) first) }
+    "=" _ "by" { sym!{E} _ _ sameEnd }
+    "=" _ "by" { congr!{{Interval.Carrier -> E} E} (\fun (f: Interval.Carrier -> E) => f Interval.end) _ _
+        (Uniqueness.pathLiftUnique covering x y q e second (lift covering x y q e)) }
+  }
 };
 \definition respects: \forall (covering: Covering)(x, y: B)(p, q: Paths.Path x y) -> Paths.Homotopic x y p q ->
   \forall (e: Fiber x) -> along covering x y p e = along covering x y q e := \block {

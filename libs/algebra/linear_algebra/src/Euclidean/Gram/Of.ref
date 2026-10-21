@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 /* Projection, orthogonal complement, and the inverse on the image. */
 \import Matrix.OfIsometry[f := factor.frame] \as Frame;
 \definition tangent: Projection := Frame.projection;
@@ -9,21 +10,28 @@
     (congr!{{Source.Vector} Vector} factor.frame.apply _ _ ((Isomorphisms.laws factor.change).rightInverse v));
 \definition orthogonalCoordinates: \forall (w: Vector) -> Orthogonal w -> coordinates.apply w = Source.space.zero :=
   \fun (w: Vector)(orthogonal: Orthogonal w) => \axiom:funext((coordinates.apply w), Source.space.zero,
-    \fun (j: Fin.Fin k) => trans!{{R.Real}} _ _ _ (symmetric (factor.frame.apply (Source.basis j)) w)
-      (trans!{{R.Real}} _ _ _ (congr!{Vector {R.Real}} (dot w) _ _ (sym!{Vector} _ _ (frameFormula (Source.basis j)))) (orthogonal (factor.change.backward.apply (Source.basis j)))));
+    \fun (j: Fin.Fin k) => eq_reason_in!{{R.Real} _
+      "=" _ "by" { symmetric (factor.frame.apply (Source.basis j)) w }
+      "=" _ "by" { congr!{Vector {R.Real}} (dot w) _ _ (sym!{Vector} _ _ (frameFormula (Source.basis j))) }
+      "=" _ "by" { orthogonal (factor.change.backward.apply (Source.basis j)) }
+    });
 \definition coordinatesOrthogonal: \forall (w: Vector) -> coordinates.apply w = Source.space.zero -> Orthogonal w :=
-  \fun (w: Vector)(zero: _)(v: Source.Vector) => trans!{{R.Real}} _ _ _
-    (congr!{Vector {R.Real}} (dot w) _ _ (factor.formula v))
-    (trans!{{R.Real}} _ _ _ (symmetric w (factor.frame.apply (factor.change.forward.apply v)))
-      (trans!{{R.Real}} _ _ _ (Matrix.adjoint factor.frame (factor.change.forward.apply v) w)
-        (trans!{{R.Real}} _ _ _ (congr!{{Source.Vector} {R.Real}} (Source.dot (factor.change.forward.apply v)) _ _ zero) (Source.form.zeroRight (factor.change.forward.apply v)))));
+  \fun (w: Vector)(zero: _)(v: Source.Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{Vector {R.Real}} (dot w) _ _ (factor.formula v) }
+    "=" _ "by" { symmetric w (factor.frame.apply (factor.change.forward.apply v)) }
+    "=" _ "by" { Matrix.adjoint factor.frame (factor.change.forward.apply v) w }
+    "=" _ "by" { congr!{{Source.Vector} {R.Real}} (Source.dot (factor.change.forward.apply v)) _ _ zero }
+    "=" _ "by" { Source.form.zeroRight (factor.change.forward.apply v) }
+  };
 \import Spaces.Linear[V := Vector, W := Source.Vector, source := space, target := Source.space].Operations[] \as CoordinateOperations;
 \definition normalCoordinates: \forall (w: Vector) -> coordinates.apply (normal.map.apply w) = Source.space.zero :=
-  \fun (w: Vector) => trans!{{Source.Vector}} _ _ _ (coordinates.preservesAdd w (space.neg (tangent.map.apply w)))
-    (trans!{{Source.Vector}} _ _ _ (congr!{{Source.Vector} {Source.Vector}} (Source.space.add (coordinates.apply w)) _ _
+  \fun (w: Vector) => eq_reason_in!{{Source.Vector} _
+    "=" _ "by" { coordinates.preservesAdd w (space.neg (tangent.map.apply w)) }
+    "=" _ "by" { congr!{{Source.Vector} {Source.Vector}} (Source.space.add (coordinates.apply w)) _ _
       (trans!{{Source.Vector}} _ _ _ (CoordinateOperations.preservesNeg coordinates (tangent.map.apply w))
-        (congr!{{Source.Vector} {Source.Vector}} Source.space.neg _ _ (Frame.leftInverse (coordinates.apply w)))))
-      (Source.differenceSelf (coordinates.apply w)));
+        (congr!{{Source.Vector} {Source.Vector}} Source.space.neg _ _ (Frame.leftInverse (coordinates.apply w)))) }
+    "=" _ "by" { Source.differenceSelf (coordinates.apply w) }
+  };
 \definition normalOrthogonal: \forall (w: Vector) -> Orthogonal (normal.map.apply w) := \fun (w: Vector) => coordinatesOrthogonal (normal.map.apply w) (normalCoordinates w);
 \definition orthogonalFixed: \forall (w: Vector) -> Orthogonal w -> normal.map.apply w = w :=
   \fun (w: Vector)(orthogonal: Orthogonal w) => trans!{Vector} _ _ _ (congr!{Vector Vector} (difference w) _ _

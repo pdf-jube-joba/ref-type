@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Arithmetic[].IntAlgebra[].Calculation[] \as Arithmetic;
 \import std.Logic[].Proposition[] \as Logic;
 \import std.Logic[].Equality[] \as Equality;
@@ -9,14 +10,20 @@
 \definition legacy: \forall (x, y: I.Int^) -> Arithmetic.mul x y = I.mulInteger x y :=
   \fun (x, y: I.Int^) => \refl(Arithmetic.mul x y);
 \definition naturalScale: \forall (x: I.Int^)(n: N.Nat^) -> Arithmetic.mul (I.Int^::ofNat n) x = I.scaleInteger x n :=
-  \fun (x: I.Int^)(n: N.Nat^) => trans!{I.Int^} _ _ _ (IL.mulComm (I.Int^::ofNat n) x)
-    (trans!{I.Int^} _ _ _ (legacy x (I.Int^::ofNat n))
-      (trans!{I.Int^} _ _ _ (congr!{I.Int^ I.Int^} (I.mulInteger x) _ _ (I.ofNatAsInteger n)) (I.mulIntegerNatural x n)));
+  \fun (x: I.Int^)(n: N.Nat^) => eq_reason_in!{I.Int^ _
+    "=" _ "by" { IL.mulComm (I.Int^::ofNat n) x }
+    "=" _ "by" { legacy x (I.Int^::ofNat n) }
+    "=" _ "by" { congr!{I.Int^ I.Int^} (I.mulInteger x) _ _ (I.ofNatAsInteger n) }
+    "=" _ "by" { I.mulIntegerNatural x n }
+  };
 \definition positiveCancellation: \forall (n: N.Nat^)(x, y: I.Int^) ->
   Arithmetic.mul (I.Int^::ofNat (N.Nat^::succ n)) x = Arithmetic.mul (I.Int^::ofNat (N.Nat^::succ n)) y -> x = y :=
   \fun (n: N.Nat^)(x, y: I.Int^)(equal: _) => I.scaleIntegerCancelPositive x y n
-    (trans!{I.Int^} _ _ _ (sym!{I.Int^} _ _ (naturalScale x (N.Nat^::succ n)))
-      (trans!{I.Int^} _ _ _ equal (naturalScale y (N.Nat^::succ n))));
+    (eq_reason_in!{I.Int^ _
+      "=" _ "by" { sym!{I.Int^} _ _ (naturalScale x (N.Nat^::succ n)) }
+      "=" _ "by" equal
+      "=" _ "by" { naturalScale y (N.Nat^::succ n) }
+    });
 \definition naturalCancellation: \forall (n: N.Nat^)(x, y: I.Int^) ->
   Logic.Not (n = N.Nat^::zero) -> Arithmetic.mul (I.Int^::ofNat n) x = Arithmetic.mul (I.Int^::ofNat n) y -> x = y :=
   \induction (n: N.Nat^) \return \forall (x, y: I.Int^) -> Logic.Not (n = N.Nat^::zero) ->
@@ -30,10 +37,11 @@
   \let a: I.Int^ := Arithmetic.mul (I.Int^::ofNat (N.Nat^::succ n)) x \then
   \let b: I.Int^ := Arithmetic.mul (I.Int^::ofNat (N.Nat^::succ n)) y \then
   \let negatives: Arithmetic.neg a = Arithmetic.neg b :=
-    trans!{I.Int^} (Arithmetic.neg a) (Arithmetic.mul (I.Int^::negSucc n) x) (Arithmetic.neg b)
-      (sym!{I.Int^} (Arithmetic.mul (I.Int^::negSucc n) x) (Arithmetic.neg a) (Arithmetic.negMulLeft (I.Int^::ofNat (N.Nat^::succ n)) x))
-      (trans!{I.Int^} (Arithmetic.mul (I.Int^::negSucc n) x) (Arithmetic.mul (I.Int^::negSucc n) y) (Arithmetic.neg b)
-        equal (Arithmetic.negMulLeft (I.Int^::ofNat (N.Nat^::succ n)) y)) \then
+    eq_reason_in!{I.Int^ { Arithmetic.neg a }
+      "=" { Arithmetic.mul (I.Int^::negSucc n) x } "by" { sym!{I.Int^} (Arithmetic.mul (I.Int^::negSucc n) x) (Arithmetic.neg a) (Arithmetic.negMulLeft (I.Int^::ofNat (N.Nat^::succ n)) x) }
+      "=" { Arithmetic.mul (I.Int^::negSucc n) y } "by" equal
+      "=" { Arithmetic.neg b } "by" { Arithmetic.negMulLeft (I.Int^::ofNat (N.Nat^::succ n)) y }
+    } \then
   \return positiveCancellation n x y (Arithmetic.cancelLeft (Arithmetic.neg a) a b
     (trans!{I.Int^} (Arithmetic.add (Arithmetic.neg a) a) Arithmetic.zero (Arithmetic.add (Arithmetic.neg a) b)
       (IL.negInverse a)

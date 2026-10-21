@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import IntegerModules.Free[Generators := Simplices.Carrier total].To[W := R, target := Theory.integerCoefficients.space] \as Free;
 \definition ext: \forall (f, g: Carrier total) ->
   (\forall (sigma: Simplices.Carrier total) -> (f).apply (Chains.generator total sigma) = (g).apply (Chains.generator total sigma)) -> f = g := Free.ext;
@@ -11,31 +12,38 @@
 \definition leftAdd: \forall (alpha, alphaPrime: Carrier p)(beta: Carrier q) ->
   apply ((space p).add alpha alphaPrime) beta = (space total).add (apply alpha beta) (apply alphaPrime beta) :=
   \fun (alpha, alphaPrime: Carrier p)(beta: Carrier q) => ext _ _ (\fun (sigma: Simplices.Carrier total) =>
-    trans!{R} _ _ _ (onSimplex ((space p).add alpha alphaPrime) beta sigma)
-      (trans!{R} _ _ _
-        ((Modules.scalarModule).scalarAdd ((alpha).apply (Chains.generator p (Cut.front sigma))) ((alphaPrime).apply (Chains.generator p (Cut.front sigma))) ((beta).apply (Chains.generator q (Cut.back sigma))))
-        (sym!{R} _ _ (congr2!{R R R} ((baseRing).add) _ _ _ _ (onSimplex alpha beta sigma) (onSimplex alphaPrime beta sigma)))));
+    eq_reason_in!{R _
+      "=" _ "by" { onSimplex ((space p).add alpha alphaPrime) beta sigma }
+      "=" _ "by" { (Modules.scalarModule).scalarAdd ((alpha).apply (Chains.generator p (Cut.front sigma))) ((alphaPrime).apply (Chains.generator p (Cut.front sigma))) ((beta).apply (Chains.generator q (Cut.back sigma))) }
+      "=" _ "by" { sym!{R} _ _ (congr!{R R R} ((baseRing).add) _ _ _ _ (onSimplex alpha beta sigma) (onSimplex alphaPrime beta sigma)) }
+    });
 \definition rightAdd: \forall (alpha: Carrier p)(beta, betaPrime: Carrier q) ->
   apply alpha ((space q).add beta betaPrime) = (space total).add (apply alpha beta) (apply alpha betaPrime) :=
   \fun (alpha: Carrier p)(beta, betaPrime: Carrier q) => ext _ _ (\fun (sigma: Simplices.Carrier total) =>
-    trans!{R} _ _ _ (onSimplex alpha ((space q).add beta betaPrime) sigma)
-      (trans!{R} _ _ _
-        ((Modules.scalarModule).vectorAdd ((alpha).apply (Chains.generator p (Cut.front sigma))) ((beta).apply (Chains.generator q (Cut.back sigma))) ((betaPrime).apply (Chains.generator q (Cut.back sigma))))
-        (sym!{R} _ _ (congr2!{R R R} ((baseRing).add) _ _ _ _ (onSimplex alpha beta sigma) (onSimplex alpha betaPrime sigma)))));
+    eq_reason_in!{R _
+      "=" _ "by" { onSimplex alpha ((space q).add beta betaPrime) sigma }
+      "=" _ "by" { (Modules.scalarModule).vectorAdd ((alpha).apply (Chains.generator p (Cut.front sigma))) ((beta).apply (Chains.generator q (Cut.back sigma))) ((betaPrime).apply (Chains.generator q (Cut.back sigma))) }
+      "=" _ "by" { sym!{R} _ _ (congr!{R R R} ((baseRing).add) _ _ _ _ (onSimplex alpha beta sigma) (onSimplex alpha betaPrime sigma)) }
+    });
 \definition leftScale: \forall (a: R)(alpha: Carrier p)(beta: Carrier q) ->
   apply ((space p).smul a alpha) beta = (space total).smul a (apply alpha beta) :=
   \fun (a: R)(alpha: Carrier p)(beta: Carrier q) => ext _ _ (\fun (sigma: Simplices.Carrier total) =>
-    trans!{R} _ _ _ (onSimplex ((space p).smul a alpha) beta sigma)
-      (trans!{R} _ _ _
-        ((Modules.scalarModule).scalarAssoc a ((alpha).apply (Chains.generator p (Cut.front sigma))) ((beta).apply (Chains.generator q (Cut.back sigma))))
-        (sym!{R} _ _ (congr!{R R} ((baseRing).mul a) _ _ (onSimplex alpha beta sigma)))));
+    eq_reason_in!{R _
+      "=" _ "by" { onSimplex ((space p).smul a alpha) beta sigma }
+      "=" _ "by" { (Modules.scalarModule).scalarAssoc a ((alpha).apply (Chains.generator p (Cut.front sigma))) ((beta).apply (Chains.generator q (Cut.back sigma))) }
+      "=" _ "by" { sym!{R} _ _ (congr!{R R} ((baseRing).mul a) _ _ (onSimplex alpha beta sigma)) }
+    });
 \definition commuteScale: \forall (a, x, y: R) -> (baseRing).mul x ((baseRing).mul a y) = (baseRing).mul a ((baseRing).mul x y) :=
-  \fun (a, x, y: R) => trans!{R} _ _ _ (sym!{R} _ _ ((Modules.scalarModule).scalarAssoc x a y))
-    (trans!{R} _ _ _ (congr!{R R} (\fun (r: R) => (baseRing).mul r y) _ _ ((ring).mulCommutative x a))
-      ((Modules.scalarModule).scalarAssoc a x y));
+  \fun (a, x, y: R) => eq_reason_in!{R _
+    "=" _ "by" { sym!{R} _ _ ((Modules.scalarModule).scalarAssoc x a y) }
+    "=" _ "by" { congr!{R R} (\fun (r: R) => (baseRing).mul r y) _ _ ((ring).mulCommutative x a) }
+    "=" _ "by" { (Modules.scalarModule).scalarAssoc a x y }
+  };
 \definition rightScale: \forall (a: R)(alpha: Carrier p)(beta: Carrier q) ->
   apply alpha ((space q).smul a beta) = (space total).smul a (apply alpha beta) :=
   \fun (a: R)(alpha: Carrier p)(beta: Carrier q) => ext _ _ (\fun (sigma: Simplices.Carrier total) =>
-    trans!{R} _ _ _ (onSimplex alpha ((space q).smul a beta) sigma)
-      (trans!{R} _ _ _ (commuteScale a ((alpha).apply (Chains.generator p (Cut.front sigma))) ((beta).apply (Chains.generator q (Cut.back sigma))))
-        (sym!{R} _ _ (congr!{R R} ((baseRing).mul a) _ _ (onSimplex alpha beta sigma)))));
+    eq_reason_in!{R _
+      "=" _ "by" { onSimplex alpha ((space q).smul a beta) sigma }
+      "=" _ "by" { commuteScale a ((alpha).apply (Chains.generator p (Cut.front sigma))) ((beta).apply (Chains.generator q (Cut.back sigma))) }
+      "=" _ "by" { sym!{R} _ _ (congr!{R R} ((baseRing).mul a) _ _ (onSimplex alpha beta sigma)) }
+    });

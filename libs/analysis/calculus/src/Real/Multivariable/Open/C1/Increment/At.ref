@@ -1,10 +1,11 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Analysis.Section[U := U, f := f, a := z, i := i] \as Section;
 \import Section.Interval[left := a i, right := x i] \as Forward;
 \import Section.Interval[left := x i, right := a i] \as Backward;
 \import \parent.\parent.\parent.\parent.Space[].Prop[] \as SpaceLaws;
 \import metric_spaces.RealLine[] \as Line;
 \import R.Order[] \as Order;
-\use Equality.congr2;
+\use Equality.congr;
 \definition Bounded[c, theta: Real]: \Prop := \forall (p: Carrier U) ->
   R.Le (Coordinates.pointDistance p a) radius -> R.Le (distance (g p) c) theta;
 \definition curveBound: \forall (s: Real) -> z = current -> Lower s -> Upper s ->
@@ -47,8 +48,11 @@
   \fun (anchor: z = current) \then
   \let equal: z = Coordinates.replace z i (a i) := sym!{Point} _ _
     (trans!{Point} _ _ _ (congr!{Real Point} (Coordinates.replace z i) _ _ (sym!{Real} _ _ (coordinate anchor))) (SpaceLaws.replaceOriginal z i)) \then
-  \return trans!{Real} _ _ _ (Section.agreement (a i) z equal)
-    (trans!{Real} _ _ _ (sym!{Real} _ _ (Extension.inside f zero z)) (congr!{Point Real} extended _ _ anchor))
+  \return eq_reason_in!{Real _
+    "=" _ "by" { Section.agreement (a i) z equal }
+    "=" _ "by" { sym!{Real} _ _ (Extension.inside f zero z) }
+    "=" _ "by" { congr!{Point Real} extended _ _ anchor }
+  }
 };
 \definition rightValue: \forall (rho: Real) -> z = current -> BallInside[U.points, a, rho] -> R.Lt radius rho -> Section.value (x i) = extended next := \block {
   \fun (rho: Real)(anchor: z = current)(ball: BallInside[U.points, a, rho])(near: _) \then
@@ -62,18 +66,23 @@
 \definition errorValue: \forall (rho, c: Real) -> z = current -> BallInside[U.points, a, rho] -> R.Lt radius rho ->
   Error c = sub (sub (Section.value (x i)) (Section.value (a i))) (mul c (sub (x i) (a i))) :=
   \fun (rho, c: Real)(anchor: _)(ball: _)(near: _) => congr!{Real Real} (\fun (r: Real) => sub r (mul c (sub (x i) (a i)))) _ _
-    (congr2!{Real Real Real} sub _ _ _ _ (sym!{Real} _ _ (rightValue rho anchor ball near)) (sym!{Real} _ _ (leftValue anchor)));
+    (congr!{Real Real Real} sub _ _ _ _ (sym!{Real} _ _ (rightValue rho anchor ball near)) (sym!{Real} _ _ (leftValue anchor)));
 \use Logic.either;
 \definition zeroError: \forall (rho, c: Real) -> z = current -> BallInside[U.points, a, rho] -> R.Lt radius rho -> a i = x i -> Error c = zero := \block {
   \fun (rho, c: Real)(anchor: _)(ball: _)(near: _)(same: a i = x i) \then
   \let argument: x i = a i := sym!{Real} _ _ same \then
   \let valueDifference: sub (Section.value (x i)) (Section.value (a i)) = zero := trans!{Real} _ _ _
     (congr!{Real Real} (\fun (r: Real) => sub (Section.value r) (Section.value (a i))) _ _ argument) (Laws.subSelf (Section.value (a i))) \then
-  \let term: mul c (sub (x i) (a i)) = zero := trans!{Real} _ _ _
-    (congr!{Real Real} (\fun (r: Real) => mul c (sub r (a i))) _ _ argument)
-    (trans!{Real} _ _ _ (congr!{Real Real} (mul c) _ _ (Laws.subSelf (a i))) (Laws.fieldMulZeroRight c)) \then
-  \return trans!{Real} _ _ _ (errorValue rho c anchor ball near)
-    (trans!{Real} _ _ _ (congr2!{Real Real Real} sub _ _ _ _ valueDifference term) (Laws.subSelf zero))
+  \let term: mul c (sub (x i) (a i)) = zero := eq_reason_in!{Real _
+    "=" _ "by" { congr!{Real Real} (\fun (r: Real) => mul c (sub r (a i))) _ _ argument }
+    "=" _ "by" { congr!{Real Real} (mul c) _ _ (Laws.subSelf (a i)) }
+    "=" _ "by" { Laws.fieldMulZeroRight c }
+  } \then
+  \return eq_reason_in!{Real _
+    "=" _ "by" { errorValue rho c anchor ball near }
+    "=" _ "by" { congr!{Real Real Real} sub _ _ _ _ valueDifference term }
+    "=" _ "by" { Laws.subSelf zero }
+  }
 };
 \definition forwardEstimate: \forall (rho, c, theta: Real) -> z = current -> BallInside[U.points, a, rho] -> R.Lt radius rho ->
   Analysis.HasPartialDerivative U f i g -> Bounded c theta -> R.Lt (a i) (x i) ->

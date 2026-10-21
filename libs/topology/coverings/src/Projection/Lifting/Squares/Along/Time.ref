@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition combine: \forall (f, g: Interval.Carrier -> Interval.Carrier) -> Property (Intervals.left f) g -> Property (Intervals.right f) g -> Property f g := \block {
   \fun (f, g: _)(left: _)(right: _)(fc: _)(gc: _)(initial: _)(ic: _)(ip: _) \then
   \takefrom l: Lift (trace (Intervals.left f) g) initial \by left (Intervals.leftContinuous f fc) gc initial ic
@@ -18,14 +19,16 @@
       projects := PairLaws.induction
         (\fun (q: Square.Carrier) => projection (Glue.join l r (laws _ _ l).continuous (laws _ _ r).continuous compatible q) = trace f g q)
         (\fun (t, s: Interval.Carrier) => either!{{(Glue.covered t)} {_}
-        {\fun (member: _) => trans!{B} _ _ _
-          (congr!{E B} projection _ _ (Glue.onLeft l r (laws _ _ l).continuous (laws _ _ r).continuous compatible t s member))
-          (trans!{B} _ _ _ ((laws _ _ l).projects (Square.at (Glue.leftTime t member) s))
-            (congr!{Interval.Carrier B} (\fun (t: Interval.Carrier) => family (Square.at (f t) (g s) )) _ _ (Glue.undoLeft t member)))}
-        {\fun (member: _) => trans!{B} _ _ _
-          (congr!{E B} projection _ _ (Glue.onRight l r (laws _ _ l).continuous (laws _ _ r).continuous compatible t s member))
-          (trans!{B} _ _ _ ((laws _ _ r).projects (Square.at (Glue.rightTime t member) s))
-            (congr!{Interval.Carrier B} (\fun (t: Interval.Carrier) => family (Square.at (f t) (g s) )) _ _ (Glue.undoRight t member)))}})
+        {\fun (member: _) => eq_reason_in!{B _
+          "=" _ "by" { congr!{E B} projection _ _ (Glue.onLeft l r (laws _ _ l).continuous (laws _ _ r).continuous compatible t s member) }
+          "=" _ "by" { (laws _ _ l).projects (Square.at (Glue.leftTime t member) s) }
+          "=" _ "by" { congr!{Interval.Carrier B} (\fun (t: Interval.Carrier) => family (Square.at (f t) (g s) )) _ _ (Glue.undoLeft t member) }
+        }}
+        {\fun (member: _) => eq_reason_in!{B _
+          "=" _ "by" { congr!{E B} projection _ _ (Glue.onRight l r (laws _ _ l).continuous (laws _ _ r).continuous compatible t s member) }
+          "=" _ "by" { (laws _ _ r).projects (Square.at (Glue.rightTime t member) s) }
+          "=" _ "by" { congr!{Interval.Carrier B} (\fun (t: Interval.Carrier) => family (Square.at (f t) (g s) )) _ _ (Glue.undoRight t member) }
+        }}})
     }
   } \then
   \return \exact(lift, Lift (trace f g) initial)

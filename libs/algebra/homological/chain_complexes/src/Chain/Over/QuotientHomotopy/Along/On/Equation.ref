@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Source.At[k := k] \as SourceAt;
 \import Target.At[k := k] \as TargetAt;
 \import Chains.Prior[C := D1] \as AmbientPrior;
@@ -10,7 +11,7 @@
   (D1.family.space k).add ((f).apply k x) ((D1.family.space k).neg ((g).apply k x));
 \definition differenceOnClass: \forall (x: D.family.Carrier k) -> difference (SourceAt.class x) = TargetAt.class (originalDifference x) :=
   \fun (x: D.family.Carrier k) => trans!{{Target.Carrier k}} _ _ _
-    (congr2!{{Target.Carrier k} {Target.Carrier k} {Target.Carrier k}} ((Target.space k).add) _ _ _ _
+    (congr!{{Target.Carrier k} {Target.Carrier k} {Target.Carrier k}} ((Target.space k).add) _ _ _ _
       (Left.At[k := k].onClass (h).left x)
       (congr!{{Target.Carrier k} {Target.Carrier k}} ((Target.space k).neg) _ _ (Right.At[k := k].onClass (h).right x)))
     (sym!{{Target.Carrier k}} _ _ (Linear.differencePreserved TargetAt.projection ((f).apply k x) ((g).apply k x)));
@@ -29,10 +30,12 @@
     (\parent.Shifted[k := k].onClass ((D.differential).apply k x));
 \definition sumOnClass: \forall (x: D.family.Carrier k) -> sum (SourceAt.class x) = TargetAt.class (originalSum x) :=
   \fun (x: D.family.Carrier k) => trans!{{Target.Carrier k}} _ _ _
-    (congr2!{{Target.Carrier k} {Target.Carrier k} {Target.Carrier k}} ((Target.space k).add) _ _ _ _ (priorOnClass x) (shiftedOnClass x))
+    (congr!{{Target.Carrier k} {Target.Carrier k} {Target.Carrier k}} ((Target.space k).add) _ _ _ _ (priorOnClass x) (shiftedOnClass x))
     (sym!{{Target.Carrier k}} _ _ ((TargetAt.projection).addition (AmbientPrior.value k ((ambient).apply k x)) (Homotopies.shifted ambient k ((D.differential).apply k x))));
 \definition law: \forall (q: Source.Carrier k) -> difference q = sum q :=
   SourceAt.induction (\fun (q: Source.Carrier k) => difference q = sum q)
-    (\fun (x: D.family.Carrier k) => trans!{{Target.Carrier k}} _ _ _ (differenceOnClass x)
-      (trans!{{Target.Carrier k}} _ _ _ (congr!{{D1.family.Carrier k} {Target.Carrier k}} TargetAt.class _ _ ((ambient).equation k x))
-        (sym!{{Target.Carrier k}} _ _ (sumOnClass x))));
+    (\fun (x: D.family.Carrier k) => eq_reason_in!{{Target.Carrier k} _
+      "=" _ "by" { differenceOnClass x }
+      "=" _ "by" { congr!{{D1.family.Carrier k} {Target.Carrier k}} TargetAt.class _ _ ((ambient).equation k x) }
+      "=" _ "by" { sym!{{Target.Carrier k}} _ _ (sumOnClass x) }
+    });

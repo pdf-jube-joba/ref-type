@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.Term[z := z] \as Source;
 \import \parent.\parent.Term[z := Bounded.previous z] \as Target;
 \import \parent.\parent.Step[z := z] \as Differential;
@@ -28,12 +29,12 @@
 }
 \definition closedMap: Compose.compose Differential.map Inclusion.map = ClosedMaps.zeroMap :=
   ClosedUniversal.ext _ _ (\fun (i: Index)(x: \parent.Component[i := i].Cycle) =>
-    trans!{Target.Carrier} _ _ _
-      (congr!{Source.Carrier Target.Carrier} (Differential.map.apply) _ _ (Inclusion.onInjection i x))
-      (trans!{Target.Carrier} _ _ _ (Differential.onInjection i x)
-        (trans!{Target.Carrier} _ _ _
-          (congr!{{termCarrier i (Bounded.previous z)} Target.Carrier} ((Target.Component[i := i].injection).apply) _ _ (Component[i := i].closed x))
-          Zero[i := i].preserved)));
+    eq_reason_in!{Target.Carrier _
+      "=" _ "by" { congr!{Source.Carrier Target.Carrier} (Differential.map.apply) _ _ (Inclusion.onInjection i x) }
+      "=" _ "by" { Differential.onInjection i x }
+      "=" _ "by" { congr!{{termCarrier i (Bounded.previous z)} Target.Carrier} ((Target.Component[i := i].injection).apply) _ _ (Component[i := i].closed x) }
+      "=" _ "by" { Zero[i := i].preserved }
+    });
 \definition closed: \forall (x: CyclesSum.Carrier) -> Differential.map.apply (Inclusion.map.apply x) = Target.space.zero :=
   \fun (x: CyclesSum.Carrier) => congr!{ClosedMaps.Map Target.Carrier} (\fun (f: ClosedMaps.Map) => f.apply x) _ _ closedMap;
 \import Modules.Hom[V := CyclesSum.Carrier, W := TotalHomology.Cycle,
@@ -46,12 +47,12 @@
 \import Modules.Product[Index := Index, family := Target.family] \as TargetProduct;
 \definition coordinateClosed: \forall (x: TotalHomology.Cycle)(i: Index) ->
   termApply i z (SourceCoordinates.coordinates x i) = (termSpace i (Bounded.previous z)).zero :=
-  \fun (x: TotalHomology.Cycle)(i: Index) => trans!{{termCarrier i (Bounded.previous z)}} _ _ _
-    (sym!{{termCarrier i (Bounded.previous z)}} _ _ (Differential.coordinatesNatural x i))
-    (trans!{{termCarrier i (Bounded.previous z)}} _ _ _
-      (congr!{Target.Carrier {termCarrier i (Bounded.previous z)}} (\fun (v: Target.Carrier) => TargetCoordinates.coordinates v i) _ _
-        (\bysub(Source.Carrier, TotalHomology.cycles.carrier, x)))
-      (congr!{TargetProduct.Carrier {termCarrier i (Bounded.previous z)}} (\fun (v: TargetProduct.Carrier) => v i) _ _ TargetCoordinates.coordinatesZero));
+  \fun (x: TotalHomology.Cycle)(i: Index) => eq_reason_in!{{termCarrier i (Bounded.previous z)} _
+    "=" _ "by" { sym!{{termCarrier i (Bounded.previous z)}} _ _ (Differential.coordinatesNatural x i) }
+    "=" _ "by" { congr!{Target.Carrier {termCarrier i (Bounded.previous z)}} (\fun (v: Target.Carrier) => TargetCoordinates.coordinates v i) _ _
+        (\bysub(Source.Carrier, TotalHomology.cycles.carrier, x)) }
+    "=" _ "by" { congr!{TargetProduct.Carrier {termCarrier i (Bounded.previous z)}} (\fun (v: TargetProduct.Carrier) => v i) _ _ TargetCoordinates.coordinatesZero }
+  };
 \module Point(i: Index) {
   \import Chains.At[C := terms i, z := z] \as H;
   \definition value[x: TotalHomology.Cycle]: H.Cycle := H.cycle (SourceCoordinates.coordinates x i) (coordinateClosed x i);
@@ -109,7 +110,8 @@
 \definition onInjection: \forall (i: Index)(x: \parent.Component[i := i].Cycle) ->
   forward.apply ((CyclesSum.Injection[i := i].map).apply x) =
   TotalHomology.cycle ((Source.Component[i := i].injection).apply x)
-    (trans!{Target.Carrier} _ _ _ (Differential.onInjection i x)
-      (trans!{Target.Carrier} _ _ _
-        (congr!{{termCarrier i (Bounded.previous z)} Target.Carrier} ((Target.Component[i := i].injection).apply) _ _ (Component[i := i].closed x))
-        Zero[i := i].preserved)) := Inclusion.onInjection;
+    (eq_reason_in!{Target.Carrier _
+      "=" _ "by" { Differential.onInjection i x }
+      "=" _ "by" { congr!{{termCarrier i (Bounded.previous z)} Target.Carrier} ((Target.Component[i := i].injection).apply) _ _ (Component[i := i].closed x) }
+      "=" _ "by" { Zero[i := i].preserved }
+    }) := Inclusion.onInjection;

@@ -1,25 +1,34 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import algebra.Group[].Of[Carrier := A, group := source] \as G;
 \import algebra.Group[].Of[Carrier := B, group := target] \as H;
 \import G.Subgroups[] \as SourceSubgroups;
 \import H.Subgroups[] \as TargetSubgroups;
 \import std.Alg[].Monoid[] \as Monoid;
 \import algebra.Hom[A := A, B := B] \as Hom;
-\use Equality.congr2;
+\use Equality.congr;
 \definition domain: Monoid.Monoid[A] := Monoid.asMonoid A G.additive;
 \definition codomain: Monoid.Monoid[B] := Monoid.asMonoid B H.additive;
 \definition Map: \Set := Hom.MonoidMap domain codomain;
 \definition preservesNeg: \forall (f: Map) (x: A) -> f (G.neg x) = H.neg (f x) :=
   \fun (f: Map) (x: A) => H.inverseUnique (f x) (f (G.neg x))
-    (trans!{B} _ _ _ (sym!{B} _ _ ((Hom.monoidLaws domain codomain f).operation (G.neg x) x))
-      (trans!{B} _ _ _ (congr!{A B} f _ _ (G.inverseLeft x)) ((Hom.monoidLaws domain codomain f).unit)));
+    (eq_reason_in!{B _
+      "=" _ "by" { sym!{B} _ _ ((Hom.monoidLaws domain codomain f).operation (G.neg x) x) }
+      "=" _ "by" { congr!{A B} f _ _ (G.inverseLeft x) }
+      "=" _ "by" { (Hom.monoidLaws domain codomain f).unit }
+    });
 \definition kernelClosed: \forall (f: Map) -> SourceSubgroups.Closed[(Kernel f H.zero)] :=
   \fun (f: Map) => SourceSubgroups.Closed[(Kernel f H.zero)] {
     zero := (Hom.monoidLaws domain codomain f).unit,
-    add := \fun (x, y: A) (fx: f x = H.zero) (fy: f y = H.zero) => trans!{B} _ _ _
-      ((Hom.monoidLaws domain codomain f).operation x y)
-      (trans!{B} _ _ _ (congr2!{B B B} H.add _ _ _ _ fx fy) (H.zeroLeft H.zero)),
-    neg := \fun (x: A) (fx: f x = H.zero) => trans!{B} _ _ _ (preservesNeg f x)
-      (trans!{B} _ _ _ (congr!{B B} H.neg _ _ fx) H.negZero),
+    add := \fun (x, y: A) (fx: f x = H.zero) (fy: f y = H.zero) => eq_reason_in!{B _
+      "=" _ "by" { (Hom.monoidLaws domain codomain f).operation x y }
+      "=" _ "by" { congr!{B B B} H.add _ _ _ _ fx fy }
+      "=" _ "by" { H.zeroLeft H.zero }
+    },
+    neg := \fun (x: A) (fx: f x = H.zero) => eq_reason_in!{B _
+      "=" _ "by" { preservesNeg f x }
+      "=" _ "by" { congr!{B B} H.neg _ _ fx }
+      "=" _ "by" H.negZero
+    },
   };
 \definition imageClosed: \forall (f: Map) -> TargetSubgroups.Closed[(Image f)] :=
   \fun (f: Map) => TargetSubgroups.Closed[(Image f)] {
@@ -31,7 +40,7 @@
           \with c: B => \In[B] (Image f) c \by {
             base: imageMember f (G.add a b),
             equality: trans!{B} _ _ _ ((Hom.monoidLaws domain codomain f).operation a b)
-              (congr2!{B B B} H.add _ _ _ _ fa fb)
+              (congr!{B B B} H.add _ _ _ _ fa fb)
           }) inZ) inY,
     neg := \fun (y: B) (member: \In[B] (Image f) y) => imageElim f y (\In[B] (Image f) (H.neg y))
       (\fun (a: A) (fa: f a = y) => \idelim f (G.neg a) = H.neg y \with b: B => \In[B] (Image f) b

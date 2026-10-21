@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Fin.Tuples[A := Vertex] \as Tuples;
 \import Tuples.Omission[] \as Omission;
 \import N.Basic[].Def[] \as Nat;
@@ -52,11 +53,12 @@
   face (N.Nat^::succ n) (Fin.succ (N.Nat^::succ (N.Nat^::succ n)) i) (cone (N.Nat^::succ n) s no) =
     cone n (face n i s) (absentFaces n s no i) :=
   \fun (n: N.Nat^)(s: Carrier (N.Nat^::succ n))(no: present (N.Nat^::succ n) s = B.Bool^::false)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) =>
-    trans!{{Tuple (N.Nat^::succ n)}} _ _ _
-      (Faces.At[n := N.Nat^::succ n].omission (Fin.succ (N.Nat^::succ (N.Nat^::succ n)) i) (cone (N.Nat^::succ n) s no))
-      (trans!{{Tuple (N.Nat^::succ n)}} _ _ _ (Omission.onExtended (N.Nat^::succ n) i (apex).vertex s)
-        (congr!{{Tuple n} {Tuple (N.Nat^::succ n)}} (Tuples.extend (N.Nat^::succ n) (apex).vertex) _ _
-          (sym!{{Tuple n}} _ _ (Faces.At[n := n].omission i s))));
+    eq_reason_in!{{Tuple (N.Nat^::succ n)} _
+      "=" _ "by" { Faces.At[n := N.Nat^::succ n].omission (Fin.succ (N.Nat^::succ (N.Nat^::succ n)) i) (cone (N.Nat^::succ n) s no) }
+      "=" _ "by" { Omission.onExtended (N.Nat^::succ n) i (apex).vertex s }
+      "=" _ "by" { congr!{{Tuple n} {Tuple (N.Nat^::succ n)}} (Tuples.extend (N.Nat^::succ n) (apex).vertex) _ _
+          (sym!{{Tuple n}} _ _ (Faces.At[n := n].omission i s)) }
+    };
 \definition firstValue: \forall (n: N.Nat^)(s: Carrier (N.Nat^::succ n))(j: Fin.Fin (N.Nat^::succ n)) ->
   face n (Fin.zero (N.Nat^::succ n)) s j = s (Fin.succ (N.Nat^::succ n) j) :=
   \fun (n: N.Nat^)(s: Carrier (N.Nat^::succ n))(j: Fin.Fin (N.Nat^::succ n)) =>
@@ -81,13 +83,13 @@
       }));
 \definition recover: \forall (n: N.Nat^)(s: Carrier (N.Nat^::succ n))(yes: present (N.Nat^::succ n) s = B.Bool^::true) ->
   cone n (face n (Fin.zero (N.Nat^::succ n)) s) (presentFirst n s yes) = s :=
-  \fun (n: N.Nat^)(s: Carrier (N.Nat^::succ n))(yes: present (N.Nat^::succ n) s = B.Bool^::true) => trans!{{Tuple (N.Nat^::succ n)}} _ _ _
-    (congr!{{Vertex} {Tuple (N.Nat^::succ n)}} (\fun (v: Vertex) => Tuples.extend (N.Nat^::succ n) v (face n (Fin.zero (N.Nat^::succ n)) s)) _ _
-      (sym!{{Vertex}} _ _ (firstPresent (N.Nat^::succ n) s yes)))
-    (trans!{{Tuple (N.Nat^::succ n)}} _ _ _
-      (congr!{{Tuple n} {Tuple (N.Nat^::succ n)}} (Tuples.extend (N.Nat^::succ n) (head (N.Nat^::succ n) s)) _ _
-        (trans!{{Tuple n}} _ _ _ (Faces.At[n := n].omission (Fin.zero (N.Nat^::succ n)) s) (Omission.first n s)))
-      (Tuples.recover (N.Nat^::succ n) s));
+  \fun (n: N.Nat^)(s: Carrier (N.Nat^::succ n))(yes: present (N.Nat^::succ n) s = B.Bool^::true) => eq_reason_in!{{Tuple (N.Nat^::succ n)} _
+    "=" _ "by" { congr!{{Vertex} {Tuple (N.Nat^::succ n)}} (\fun (v: Vertex) => Tuples.extend (N.Nat^::succ n) v (face n (Fin.zero (N.Nat^::succ n)) s)) _ _
+      (sym!{{Vertex}} _ _ (firstPresent (N.Nat^::succ n) s yes)) }
+    "=" _ "by" { congr!{{Tuple n} {Tuple (N.Nat^::succ n)}} (Tuples.extend (N.Nat^::succ n) (head (N.Nat^::succ n) s)) _ _
+        (trans!{{Tuple n}} _ _ _ (Faces.At[n := n].omission (Fin.zero (N.Nat^::succ n)) s) (Omission.first n s)) }
+    "=" _ "by" { Tuples.recover (N.Nat^::succ n) s }
+  };
 \definition presentOthers: \forall (n: N.Nat^)(s: Carrier (N.Nat^::succ n)) -> present (N.Nat^::succ n) s = B.Bool^::true ->
   \forall (i: Fin.Fin (N.Nat^::succ n)) -> present n (face n (Fin.succ (N.Nat^::succ n) i) s) = B.Bool^::true :=
   \fun (n: N.Nat^)(s: Carrier (N.Nat^::succ n))(yes: present (N.Nat^::succ n) s = B.Bool^::true)(i: Fin.Fin (N.Nat^::succ n)) =>
@@ -106,11 +108,12 @@
   face N.Nat^::zero (Fin.succ (N.Nat^::succ N.Nat^::zero) (Fin.zero N.Nat^::zero)) (cone N.Nat^::zero s no) = apexSimplex :=
   \fun (s: Carrier N.Nat^::zero)(no: present N.Nat^::zero s = B.Bool^::false) =>
     \axiom:funext(face N.Nat^::zero (Fin.succ (N.Nat^::succ N.Nat^::zero) (Fin.zero N.Nat^::zero)) (cone N.Nat^::zero s no), apexSimplex,
-      \fun (i: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => trans!{{Vertex}} _ _ _
-        (congr!{{Fin.Fin (N.Nat^::succ N.Nat^::zero)} {Vertex}}
-          (face N.Nat^::zero (Fin.succ (N.Nat^::succ N.Nat^::zero) (Fin.zero N.Nat^::zero)) (cone N.Nat^::zero s no)) _ _ (Fin.singletonValue i))
-        (trans!{{Vertex}} _ _ _ (laterHead N.Nat^::zero (cone N.Nat^::zero s no) (Fin.zero N.Nat^::zero))
-          (Tuples.atZero (N.Nat^::succ N.Nat^::zero) (apex).vertex s)));
+      \fun (i: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => eq_reason_in!{{Vertex} _
+        "=" _ "by" { congr!{{Fin.Fin (N.Nat^::succ N.Nat^::zero)} {Vertex}}
+          (face N.Nat^::zero (Fin.succ (N.Nat^::succ N.Nat^::zero) (Fin.zero N.Nat^::zero)) (cone N.Nat^::zero s no)) _ _ (Fin.singletonValue i) }
+        "=" _ "by" { laterHead N.Nat^::zero (cone N.Nat^::zero s no) (Fin.zero N.Nat^::zero) }
+        "=" _ "by" { Tuples.atZero (N.Nat^::succ N.Nat^::zero) (apex).vertex s }
+      });
 \import singular_cech.PartialCone[].On[X := object] \as PartialCone;
 \definition data: PartialCone.Data := PartialCone.Data {
   present := present,

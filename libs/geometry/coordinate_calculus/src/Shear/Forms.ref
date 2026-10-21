@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition zero: N.Nat^ := N.Nat^::zero;
 \definition second: Plane.Coordinate := Fin.succ one (Fin.zero zero);
 \import Smooth.Algebra[U := Open.whole] \as Functions;
@@ -22,7 +23,7 @@
       (sym!{{R.Real}} (R.mul scalarTwo u) (R.add u u)
         (trans!{{R.Real}} (R.mul scalarTwo u) (R.add (R.mul Spaces.one u) (R.mul Spaces.one u)) (R.add u u)
           (Spaces.addMul Spaces.one Spaces.one u)
-          (congr2!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (Spaces.mulOneLeft u) (Spaces.mulOneLeft u)))));
+          (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (Spaces.mulOneLeft u) (Spaces.mulOneLeft u)))));
 \module At(a: Open.Carrier Open.whole) {
   \import Maps.Differential[U := Open.whole, V := Open.whole, f := forwardMap, a := a] \as Jacobian;
   \definition xDerivative: \forall (v: Plane.Point) -> (Differentials.value Open.whole x a).apply v = v first :=
@@ -31,27 +32,22 @@
     \fun (v: Plane.Point) => congr!{{ScalarMaps.LinearMap} {R.Real}} (\fun (d: ScalarMaps.LinearMap) => d.apply v) _ _ (Coordinates.differential second a);
   \definition squareDerivative: \forall (v: Plane.Point) -> (Differentials.value Open.whole (Functions.product x x) a).apply v =
     R.mul (R.mul scalarTwo (a first)) (v first) :=
-      \fun (v: Plane.Point) => trans!{{R.Real}} ((Differentials.value Open.whole (Functions.product x x) a).apply v)
-        (R.add (R.mul (a first) (v first)) (R.mul (a first) (v first))) (R.mul (R.mul scalarTwo (a first)) (v first))
-        (trans!{{R.Real}} ((Differentials.value Open.whole (Functions.product x x) a).apply v)
-          (R.add (R.mul (x a) ((Differentials.value Open.whole x a).apply v))
-            (R.mul (x a) ((Differentials.value Open.whole x a).apply v)))
-          (R.add (R.mul (a first) (v first)) (R.mul (a first) (v first))) (DerivativeRules.product x x a v)
-          (congr2!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+      \fun (v: Plane.Point) => eq_reason_in!{{R.Real} { (Differentials.value Open.whole (Functions.product x x) a).apply v }
+        "=" { R.add (R.mul (x a) ((Differentials.value Open.whole x a).apply v))
+            (R.mul (x a) ((Differentials.value Open.whole x a).apply v)) } "by" { DerivativeRules.product x x a v }
+        "=" { R.add (R.mul (a first) (v first)) (R.mul (a first) (v first)) } "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
             (congr!{{R.Real} {R.Real}} (R.mul (a first)) _ _ (xDerivative v))
-            (congr!{{R.Real} {R.Real}} (R.mul (a first)) _ _ (xDerivative v))))
-        (twiceProduct (a first) (v first));
+            (congr!{{R.Real} {R.Real}} (R.mul (a first)) _ _ (xDerivative v)) }
+        "=" { R.mul (R.mul scalarTwo (a first)) (v first) } "by" { twiceProduct (a first) (v first) }
+      };
   \definition jacobianSecond: \forall (v: Plane.Point) -> Jacobian.value.apply v second =
     R.add (v second) (R.mul (R.mul scalarTwo (a first)) (v first)) :=
-      \fun (v: Plane.Point) => trans!{{R.Real}} (Jacobian.value.apply v second)
-        ((Differentials.value Open.whole secondFunction a).apply v)
-        (R.add (v second) (R.mul (R.mul scalarTwo (a first)) (v first)))
-        (congr!{{Functions.Function} {R.Real}} (\fun (h: Functions.Function) => (Differentials.value Open.whole h a).apply v)
-          (Maps.coordinateFunction Open.whole Open.whole forwardMap second) secondFunction secondAgreement)
-        (trans!{{R.Real}} ((Differentials.value Open.whole secondFunction a).apply v)
-          (R.add ((Differentials.value Open.whole y a).apply v) ((Differentials.value Open.whole (Functions.product x x) a).apply v))
-          (R.add (v second) (R.mul (R.mul scalarTwo (a first)) (v first))) (DerivativeRules.addition y (Functions.product x x) a v)
-          (congr2!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (yDerivative v) (squareDerivative v)));
+      \fun (v: Plane.Point) => eq_reason_in!{{R.Real} { Jacobian.value.apply v second }
+        "=" { (Differentials.value Open.whole secondFunction a).apply v } "by" { congr!{{Functions.Function} {R.Real}} (\fun (h: Functions.Function) => (Differentials.value Open.whole h a).apply v)
+          (Maps.coordinateFunction Open.whole Open.whole forwardMap second) secondFunction secondAgreement }
+        "=" { R.add ((Differentials.value Open.whole y a).apply v) ((Differentials.value Open.whole (Functions.product x x) a).apply v) } "by" { DerivativeRules.addition y (Functions.product x x) a v }
+        "=" { R.add (v second) (R.mul (R.mul scalarTwo (a first)) (v first)) } "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (yDerivative v) (squareDerivative v) }
+      };
 }
 \import euclidean_forms.Euclidean[n := two] \as EuclideanForms;
 \import EuclideanForms.On[U := Open.whole] \as LocalForms;

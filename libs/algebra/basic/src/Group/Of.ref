@@ -1,10 +1,10 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Alg[].Alg[] \as Alg;
 \import std.Alg[].Monoid[] \as Monoid;
 \import std.Logic[].Equality[] \as Equality;
 \use Equality.sym;
 \use Equality.trans;
 \use Equality.congr;
-\use Equality.congr2;
 \use Equality.eq_reason;
 
 \definition zero: Carrier := (group.base).unit;
@@ -34,7 +34,11 @@
     "=" c "by" {zeroLeft c}};
 
 \definition cancelRight[a, b, c: Carrier]: add b a = add c a -> b = c :=
-  \fun (equal: _) => cancelLeft a b c (trans!{Carrier} _ _ _ (comm a b) (trans!{Carrier} _ _ _ equal (comm c a)));
+  \fun (equal: _) => cancelLeft a b c (eq_reason_in!{Carrier _
+    "=" _ "by" { comm a b }
+    "=" _ "by" equal
+    "=" _ "by" { comm c a }
+  });
 
 \definition inverseUnique[a, b: Carrier]: add b a = zero -> b = neg a :=
   \fun (equal: _) => cancelRight a b (neg a) (trans!{Carrier} _ _ _ equal (sym!{Carrier} _ _ (inverseLeft a)));
@@ -49,7 +53,7 @@
   sym!{Carrier} _ _ (inverseUnique (add a b) (add (neg a) (neg b))
     (eq_reason!{{add (add (neg a) (neg b)) (add a b)}
       "=" {add (add (neg a) a) (add (neg b) b)} "by" {Sum.four (neg a) (neg b) a b}
-      "=" {add zero zero} "by" {congr2!{Carrier Carrier Carrier} add _ _ _ _ (inverseLeft a) (inverseLeft b)}
+      "=" {add zero zero} "by" {congr!{Carrier Carrier Carrier} add _ _ _ _ (inverseLeft a) (inverseLeft b)}
       "=" zero "by" {zeroLeft zero}}));
 
 \definition difference[a, b: Carrier]: Carrier := add a (neg b);
@@ -81,20 +85,28 @@
     "=" {neg y} "by" {zeroRight (neg y)}
   };
 \definition addDifference: \forall (x, y: Carrier) -> add (difference x y) y = x :=
-  \fun (x, y: Carrier) => trans!{Carrier} _ _ _ (assoc x (neg y) y)
-    (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (add x) _ _ (inverseLeft y)) (zeroRight x));
+  \fun (x, y: Carrier) => eq_reason_in!{Carrier _
+    "=" _ "by" { assoc x (neg y) y }
+    "=" _ "by" { congr!{Carrier Carrier} (add x) _ _ (inverseLeft y) }
+    "=" _ "by" { zeroRight x }
+  };
 \definition swapLast: \forall (x, y, z: Carrier) -> add (add x y) z = add (add x z) y :=
-  \fun (x, y, z: Carrier) => trans!{Carrier} _ _ _ (assoc x y z)
-    (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (add x) _ _ (comm y z)) (sym!{Carrier} _ _ (assoc x z y)));
+  \fun (x, y, z: Carrier) => eq_reason_in!{Carrier _
+    "=" _ "by" { assoc x y z }
+    "=" _ "by" { congr!{Carrier Carrier} (add x) _ _ (comm y z) }
+    "=" _ "by" { sym!{Carrier} _ _ (assoc x z y) }
+  };
 \definition differencePlusSwap: \forall (x, y, z: Carrier) -> add (difference (difference x y) z) y = difference x z :=
   \fun (x, y, z: Carrier) => trans!{Carrier} _ _ _ (swapLast (difference x y) (neg z) y)
     (congr!{Carrier Carrier} (\fun (v: Carrier) => difference v z) _ _ (addDifference x y));
 \definition subtractDifference: \forall (x, y: Carrier) -> difference x (difference x y) = y :=
-  \fun (x, y: Carrier) => trans!{Carrier} _ _ _
-    (congr!{Carrier Carrier} (add x) _ _ (negAdd x (neg y)))
-    (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (\fun (v: Carrier) => add x (add (neg x) v)) _ _ (negNeg y))
-      (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (assoc x (neg x) y))
-        (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (\fun (v: Carrier) => add v y) _ _ (inverseRight x)) (zeroLeft y))));
+  \fun (x, y: Carrier) => eq_reason_in!{Carrier _
+    "=" _ "by" { congr!{Carrier Carrier} (add x) _ _ (negAdd x (neg y)) }
+    "=" _ "by" { congr!{Carrier Carrier} (\fun (v: Carrier) => add x (add (neg x) v)) _ _ (negNeg y) }
+    "=" _ "by" { sym!{Carrier} _ _ (assoc x (neg x) y) }
+    "=" _ "by" { congr!{Carrier Carrier} (\fun (v: Carrier) => add v y) _ _ (inverseRight x) }
+    "=" _ "by" { zeroLeft y }
+  };
 \definition composeDifferences: \forall (a, b, c: Carrier) -> add (difference a b) (difference b c) = difference a c :=
   \fun (a, b, c: Carrier) => trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (assoc (difference a b) b (neg c)))
     (congr!{Carrier Carrier} (\fun (x: Carrier) => add x (neg c)) _ _ (addDifference a b));

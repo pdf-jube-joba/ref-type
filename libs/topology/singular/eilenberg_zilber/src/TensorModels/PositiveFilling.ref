@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition k: N.Nat^ := N.Nat^::succ n;
 \definition z: I.Int^ := I.Int^::ofNat k;
 \import \root.TensorModels[].Level[n := k, z := z] \as Source;
@@ -21,11 +22,16 @@
   \import \root.TensorModels[].At[p := (i).first, q := (i).second] \as Model;
   \import Model.Contraction[].Filling[n := n] \as Filler;
   \definition closed[x: Source.Carrier][cycle: (Differential.map).apply x = (Lower.space).zero]: (Model.boundary z).apply (Source.Coordinates[].coordinate i x) = (Model.space (Degrees.previous z)).zero :=
-    trans!{{Model.Carrier (Degrees.previous z)}} _ _ _ (sym!{{Model.Carrier (Degrees.previous z)}} _ _ (LowerBoundary.law i x))
-      (trans!{{Model.Carrier (Degrees.previous z)}} _ _ _ (congr!{Lower.Carrier {Model.Carrier (Degrees.previous z)}} (Lower.Coordinates[].coordinate i) _ _ cycle) Lower.Coordinates[].At[i := i].zero);
+    eq_reason_in!{{Model.Carrier (Degrees.previous z)} _
+      "=" _ "by" { sym!{{Model.Carrier (Degrees.previous z)}} _ _ (LowerBoundary.law i x) }
+      "=" _ "by" { congr!{Lower.Carrier {Model.Carrier (Degrees.previous z)}} (Lower.Coordinates[].coordinate i) _ _ cycle }
+      "=" _ "by" { Lower.Coordinates[].At[i := i].zero }
+    };
   \definition law[x: Source.Carrier][cycle: (Differential.map).apply x = (Lower.space).zero]: Source.Coordinates[].coordinate i ((UpperDifferential.map).apply ((map).apply x)) = Source.Coordinates[].coordinate i x :=
-    trans!{{Model.Carrier z}} _ _ _ (UpperBoundary.law i ((map).apply x))
-      (trans!{{Model.Carrier z}} _ _ _ (congr!{{Model.Carrier (Degrees.next z)} {Model.Carrier z}} ((Model.boundary (Degrees.next z)).apply) _ _ (Coordinates.law i x))
-        (Filler.boundaryClosed (Source.Coordinates[].coordinate i x) (closed x cycle)));
+    eq_reason_in!{{Model.Carrier z} _
+      "=" _ "by" { UpperBoundary.law i ((map).apply x) }
+      "=" _ "by" { congr!{{Model.Carrier (Degrees.next z)} {Model.Carrier z}} ((Model.boundary (Degrees.next z)).apply) _ _ (Coordinates.law i x) }
+      "=" _ "by" { Filler.boundaryClosed (Source.Coordinates[].coordinate i x) (closed x cycle) }
+    };
 }
 \definition boundary[x: Source.Carrier][cycle: (Differential.map).apply x = (Lower.space).zero]: (UpperDifferential.map).apply ((map).apply x) = x := Source.Coordinates[].ext _ _ (\fun (i: Double.Index k) => At[i := i].law x cycle);

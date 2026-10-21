@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition headCase: \forall (f: Series) -> SeriesAlternation.Laws[f] -> \forall (arguments: Multilinear.Arguments (N.Nat^::succ k))(j: Fin.Fin k) ->
   arguments (Fin.zero k) = arguments (Fin.succ k j) -> restriction (N.Nat^::succ k) f arguments = zero := \block {
   \fun (f: Series)(laws: SeriesAlternation.Laws[f])(arguments: Multilinear.Arguments (N.Nat^::succ k))(j: Fin.Fin k)(same: arguments (Fin.zero k) = arguments (Fin.succ k j)) \then
@@ -28,8 +29,16 @@
   \let first: Fin.inflate k (Fin.split k i) = i := Fin.inflateSplit k i \then
   \let second: Fin.inflate k (Fin.split k j) = j := Fin.inflateSplit k j \then
   \let distinct: Logic.Not (Fin.inflate k (Fin.split k i) = Fin.inflate k (Fin.split k j)) := \fun (equal: Fin.inflate k (Fin.split k i) = Fin.inflate k (Fin.split k j)) =>
-    different (trans!{{Fin.Fin (N.Nat^::succ k)}} i (Fin.inflate k (Fin.split k i)) j (sym!{{Fin.Fin (N.Nat^::succ k)}} _ _ first) (trans!{{Fin.Fin (N.Nat^::succ k)}} _ _ _ equal second)) \then
+    different (eq_reason_in!{{Fin.Fin (N.Nat^::succ k)} i
+      "=" { Fin.inflate k (Fin.split k i) } "by" { sym!{{Fin.Fin (N.Nat^::succ k)}} _ _ first }
+      "=" _ "by" equal
+      "=" _ "by" second
+    }) \then
   \let equalValues: arguments (Fin.inflate k (Fin.split k i)) = arguments (Fin.inflate k (Fin.split k j)) :=
-    trans!{V} _ _ _ (congr!{{Fin.Fin (N.Nat^::succ k)} V} arguments _ i first) (trans!{V} _ _ _ same (sym!{V} _ _ (congr!{{Fin.Fin (N.Nat^::succ k)} V} arguments _ j second))) \then
+    eq_reason_in!{V _
+      "=" _ "by" { congr!{{Fin.Fin (N.Nat^::succ k)} V} arguments _ i first }
+      "=" _ "by" same
+      "=" _ "by" { sym!{V} _ _ (congr!{{Fin.Fin (N.Nat^::succ k)} V} arguments _ j second) }
+    } \then
   \return cases (Fin.split k i) (Fin.split k j) distinct equalValues
 };

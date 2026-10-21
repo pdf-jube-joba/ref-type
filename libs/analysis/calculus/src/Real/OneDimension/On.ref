@@ -1,9 +1,13 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Open.Analysis[] \as Analysis;
 \import Model.Space[].Def[] \as Coordinates;
 \definition lift[f: Real -> Real]: Open.ScalarFunction U := \fun (x: Open.Carrier U) => f (x index);
 \definition coordinate[a, x: Open.Carrier U][j: Index][t: Real]: x = Coordinates.replace a j t -> x index = t :=
-  \fun (replaced: _) => trans!{Real} _ _ _ (congr!{Index Real} x _ _ (sym!{Index} _ _ (Fin.singletonValue j)))
-    (trans!{Real} _ _ _ (congr!{Model.Point Real} (\fun (p: Model.Point) => p j) _ _ replaced) (SpaceLaws.replaceSame a j t));
+  \fun (replaced: _) => eq_reason_in!{Real _
+    "=" _ "by" { congr!{Index Real} x _ _ (sym!{Index} _ _ (Fin.singletonValue j)) }
+    "=" _ "by" { congr!{Model.Point Real} (\fun (p: Model.Point) => p j) _ _ replaced }
+    "=" _ "by" { SpaceLaws.replaceSame a j t }
+  };
 \definition partialAt[f: Real -> Real][a: Open.Carrier U][d: Real]: Derivatives.HasDerivativeAt f (a index) d ->
   \forall (j: Index) -> Analysis.HasPartialDerivativeAt U (lift f) j a d := \block {
   \fun (derivative: _)(j: Index)(epsilon: Real)(positive: _) \then
@@ -17,7 +21,7 @@
       estimate := \fun (t: Real)(x: Open.Carrier U)(replaced: _)(different: _)(near: _) => R.ltReplaceLeft
         (distance (Derivatives.slope f (a index) t) d) (distance (mul (sub (lift f x) (lift f a)) (inv (sub t (a j)))) d) epsilon
         (congr!{Real Real} (\fun (s: Real) => distance s d) _ _ (sym!{Real} _ _
-          (congr2!{Real Real Real} mul _ _ _ _
+          (congr!{Real Real Real} mul _ _ _ _
             (congr!{Real Real} (\fun (s: Real) => sub (f s) (f (a index))) _ _ (coordinate a x j t replaced))
             (congr!{Real Real} (\fun (s: Real) => inv (sub t s)) _ _ same))))
         (control.estimate t (\fun (equal: t = a index) => different (trans!{Real} _ _ _ equal (sym!{Real} _ _ same)))

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Degree[n := n] \as Current;
 \import \parent.Degree[n := Nat.Nat^::succ n] \as Upper;
 \import SourceCoordinates.Degree[n := n] \as SC;
@@ -20,7 +21,7 @@
       (C.family.space i.first i.second).add ((Sign.map i.first).apply (vertical x)) (horizontal x) :=
     \fun (x: Source.Carrier (Nat.Nat^::succ n)) => trans!{{C.family.Carrier i.first i.second}} _ _ _
       (ES.differential (Upper.forward.apply x))
-      (congr2!{{C.family.Carrier i.first i.second} {C.family.Carrier i.first i.second} {C.family.Carrier i.first i.second}}
+      (congr!{{C.family.Carrier i.first i.second} {C.family.Carrier i.first i.second} {C.family.Carrier i.first i.second}}
         ((C.family.space i.first i.second).add) _ _ _ _
         (congr!{{C.family.Carrier i.first (Nat.Nat^::succ i.second)} {C.family.Carrier i.first i.second}}
           (\fun (z: C.family.Carrier i.first (Nat.Nat^::succ i.second)) => (Sign.map i.first).apply ((C.differential.vertical i.first i.second).apply z)) _ _ (VerticalCoordinate.formula x))
@@ -32,11 +33,12 @@
   \definition point: \forall (x: Source.Carrier (Nat.Nat^::succ n)) ->
     TC.coordinate (index n i) (Target.differential.apply n (Upper.forward.apply x)) =
     TC.coordinate (index n i) (Current.forward.apply (Source.differential.apply n x)) :=
-    \fun (x: Source.Carrier (Nat.Nat^::succ n)) => trans!{{C.family.Carrier i.first i.second}} _ _ _
-      (raw x)
-      (trans!{{C.family.Carrier i.first i.second}} _ _ _ (Group.comm ((Sign.map i.first).apply (vertical x)) (horizontal x))
-        (trans!{{C.family.Carrier i.first i.second}} _ _ _ (sym!{{C.family.Carrier i.first i.second}} _ _ (CS.differential x))
-          (sym!{{C.family.Carrier i.first i.second}} _ _ (Coordinate.formula (Source.differential.apply n x)))));
+    \fun (x: Source.Carrier (Nat.Nat^::succ n)) => eq_reason_in!{{C.family.Carrier i.first i.second} _
+      "=" _ "by" { raw x }
+      "=" _ "by" { Group.comm ((Sign.map i.first).apply (vertical x)) (horizontal x) }
+      "=" _ "by" { sym!{{C.family.Carrier i.first i.second}} _ _ (CS.differential x) }
+      "=" _ "by" { sym!{{C.family.Carrier i.first i.second}} _ _ (Coordinate.formula (Source.differential.apply n x)) }
+    };
 }
 \definition commutes: \forall (x: Source.Carrier (Nat.Nat^::succ n)) ->
   Target.differential.apply n (Upper.forward.apply x) = Current.forward.apply (Source.differential.apply n x) :=
@@ -46,9 +48,9 @@
       \by { base: Component[i := index n j].point x, equality: twice n j });
 \definition backwardCommutes: \forall (y: Target.Carrier (Nat.Nat^::succ n)) ->
   Source.differential.apply n (Upper.backward.apply y) = Current.backward.apply (Target.differential.apply n y) :=
-  \fun (y: Target.Carrier (Nat.Nat^::succ n)) => trans!{{Source.Carrier n}} _ _ _
-    (sym!{{Source.Carrier n}} _ _ (Current.leftInverse (Source.differential.apply n (Upper.backward.apply y))))
-    (trans!{{Source.Carrier n}} _ _ _
-      (congr!{{Target.Carrier n} {Source.Carrier n}} (Current.backward.apply) _ _ (sym!{{Target.Carrier n}} _ _ (commutes (Upper.backward.apply y))))
-      (congr!{{Target.Carrier (Nat.Nat^::succ n)} {Source.Carrier n}}
-        (\fun (z: Target.Carrier (Nat.Nat^::succ n)) => Current.backward.apply (Target.differential.apply n z)) _ _ (Upper.rightInverse y)));
+  \fun (y: Target.Carrier (Nat.Nat^::succ n)) => eq_reason_in!{{Source.Carrier n} _
+    "=" _ "by" { sym!{{Source.Carrier n}} _ _ (Current.leftInverse (Source.differential.apply n (Upper.backward.apply y))) }
+    "=" _ "by" { congr!{{Target.Carrier n} {Source.Carrier n}} (Current.backward.apply) _ _ (sym!{{Target.Carrier n}} _ _ (commutes (Upper.backward.apply y))) }
+    "=" _ "by" { congr!{{Target.Carrier (Nat.Nat^::succ n)} {Source.Carrier n}}
+        (\fun (z: Target.Carrier (Nat.Nat^::succ n)) => Current.backward.apply (Target.differential.apply n z)) _ _ (Upper.rightInverse y) }
+  };

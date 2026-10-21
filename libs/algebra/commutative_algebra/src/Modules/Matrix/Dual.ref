@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.FiniteHom[n := m, W := R, target := Modules.scalarModule] \as SourceDual;
 \import \parent.\parent.FiniteHom[n := n, W := R, target := Modules.scalarModule] \as TargetDual;
 \import Modules.Hom[V := Codomain.Carrier, W := R, source := Codomain.space, target := Modules.scalarModule] \as SourceMaps;
@@ -19,14 +20,14 @@
 \import \parent.\parent.Matrix[m := n, n := m] \as Reversed;
 \definition onCoordinate: \forall (a: Matrix)(f: SourceMaps.Map)(j: Finite.Fin n) ->
   TargetDual.evaluate (precompose a f) j = Reversed.apply (Transpose.transpose a) (SourceDual.evaluate f) j :=
-    \fun (a: Matrix)(f: SourceMaps.Map)(j: Finite.Fin n) => trans!{R} _ _ _
-      (congr!{Codomain.Carrier R} (f.apply) _ _ (sym!{Codomain.Carrier} _ _ (Codomain.decomposition (apply a (Domain.basis j)))))
-      (trans!{R} _ _ _
-        (Evaluation.law f (Finite.elements m) (\fun (i: Finite.Fin m) => Codomain.space.smul (apply a (Domain.basis j) i) (Codomain.basis i)))
-        (ScalarLaws.congruent (Finite.elements m)
+    \fun (a: Matrix)(f: SourceMaps.Map)(j: Finite.Fin n) => eq_reason_in!{R _
+      "=" _ "by" { congr!{Codomain.Carrier R} (f.apply) _ _ (sym!{Codomain.Carrier} _ _ (Codomain.decomposition (apply a (Domain.basis j)))) }
+      "=" _ "by" { Evaluation.law f (Finite.elements m) (\fun (i: Finite.Fin m) => Codomain.space.smul (apply a (Domain.basis j) i) (Codomain.basis i)) }
+      "=" _ "by" { ScalarLaws.congruent (Finite.elements m)
           (\fun (i: Finite.Fin m) => f.apply (Codomain.space.smul (apply a (Domain.basis j) i) (Codomain.basis i)))
           (\fun (i: Finite.Fin m) => ordinaryRing.mul (a i j) (f.apply (Codomain.basis i)))
           (\fun (i: Finite.Fin m) => trans!{R} _ _ _ (f.scalar (apply a (Domain.basis j) i) (Codomain.basis i))
-            (congr!{R R} (\fun (r: R) => ordinaryRing.mul r (f.apply (Codomain.basis i))) _ _ (Entries.onBasis a i j)))));
+            (congr!{R R} (\fun (r: R) => ordinaryRing.mul r (f.apply (Codomain.basis i))) _ _ (Entries.onBasis a i j))) }
+    };
 \definition onCoordinates: \forall (a: Matrix)(f: SourceMaps.Map) -> TargetDual.evaluate (precompose a f) = Reversed.apply (Transpose.transpose a) (SourceDual.evaluate f) :=
   \fun (a: Matrix)(f: SourceMaps.Map) => \axiom:funext(TargetDual.evaluate (precompose a f), Reversed.apply (Transpose.transpose a) (SourceDual.evaluate f), onCoordinate a f);

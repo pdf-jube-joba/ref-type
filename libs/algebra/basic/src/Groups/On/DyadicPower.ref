@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 /* Raising a group element to 2^n, without assuming commutativity. */
 \import std.Data[].Nat[] \as N;
 \definition square[x: G]: G := mul x x;
@@ -16,8 +17,11 @@
 \definition squareProduct[a, b: G]: mul a b = mul b a -> square (mul a b) = mul (square a) (square b) :=
   \fun (commutes: _) => shuffle a b a b (sym!{G} _ _ commutes);
 \definition commuteSquares[a, b: G]: mul a b = mul b a -> mul (square a) (square b) = mul (square b) (square a) :=
-  \fun (commutes: _) => trans!{G} _ _ _ (sym!{G} _ _ (squareProduct a b commutes))
-    (trans!{G} _ _ _ (congr!{G G} square _ _ commutes) (squareProduct b a (sym!{G} _ _ commutes)));
+  \fun (commutes: _) => eq_reason_in!{G _
+    "=" _ "by" { sym!{G} _ _ (squareProduct a b commutes) }
+    "=" _ "by" { congr!{G G} square _ _ commutes }
+    "=" _ "by" { squareProduct b a (sym!{G} _ _ commutes) }
+  };
 \definition multiplicative: \forall (n: N.Nat^)(a, b: G) -> mul a b = mul b a -> value n (mul a b) = mul (value n a) (value n b) :=
   \induction (n: N.Nat^) \return \forall (a, b: G) -> mul a b = mul b a -> value n (mul a b) = mul (value n a) (value n b) \with {
     | zero: \fun (a, b: G)(commutes: _) => \refl(mul a b)

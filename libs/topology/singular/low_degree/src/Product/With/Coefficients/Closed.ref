@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Modules.Laws[V := coefficients.Carrier, space := coefficients.space] \as Values;
 \import Modules.Hom[V := Left.Carrier zero, W := coefficients.Carrier,
   source := Left.space zero, target := coefficients.space] \as LeftValues;
@@ -16,14 +17,18 @@
 \import Shuffle.At[p := zero, q := one] \as SecondCross;
 \definition firstShuffle[x: Left.Carrier one][y: Right.Carrier zero]:
   (Shuffle.Total[].map).apply one ((Current.Component[i := firstIndex].injection).apply (FirstTerm.tensor x y)) = FirstCross.apply x y :=
-  trans!{{ProductChains.Carrier one}} _ _ _ (ShuffleDegree.onInjection firstIndex (FirstTerm.tensor x y))
-    (trans!{{ProductChains.Carrier one}} _ _ _ (FirstShuffle.onTensor x y)
-      (Transport.castRefl ProductChains.Carrier one (FirstCross.apply x y)));
+  eq_reason_in!{{ProductChains.Carrier one} _
+    "=" _ "by" { ShuffleDegree.onInjection firstIndex (FirstTerm.tensor x y) }
+    "=" _ "by" { FirstShuffle.onTensor x y }
+    "=" _ "by" { Transport.castRefl ProductChains.Carrier one (FirstCross.apply x y) }
+  };
 \definition secondShuffle[x: Left.Carrier zero][y: Right.Carrier one]:
   (Shuffle.Total[].map).apply one ((Current.Component[i := secondIndex].injection).apply (SecondTerm.tensor x y)) = SecondCross.apply x y :=
-  trans!{{ProductChains.Carrier one}} _ _ _ (ShuffleDegree.onInjection secondIndex (SecondTerm.tensor x y))
-    (trans!{{ProductChains.Carrier one}} _ _ _ (SecondShuffle.onTensor x y)
-      (Transport.castRefl ProductChains.Carrier one (SecondCross.apply x y)));
+  eq_reason_in!{{ProductChains.Carrier one} _
+    "=" _ "by" { ShuffleDegree.onInjection secondIndex (SecondTerm.tensor x y) }
+    "=" _ "by" { SecondShuffle.onTensor x y }
+    "=" _ "by" { Transport.castRefl ProductChains.Carrier one (SecondCross.apply x y) }
+  };
 \definition firstFormula[x: Left.Carrier one][y: Right.Carrier zero]:
   (normalized phi).apply ((Current.Component[i := firstIndex].injection).apply (FirstTerm.tensor x y)) =
     (phi).apply (FirstCross.apply ((L.map).apply one x) ((R.map).apply zero y)) :=
@@ -80,12 +85,12 @@
       (TensorTheory.space zero).zero
       (trans!{{TensorTheory.Carrier one}} _ _ _ TensorZero.differentialZero (sym!{{TensorTheory.Carrier one}} _ _ vanishes)));
 \definition pullClassZero: normalized phi = Linear.zeroMap -> (PullMaps.induced Pull.map).apply (ProductH.classOf phi) = (TensorH.cohomologySpace).zero :=
-  \fun (vanishes: _) => trans!{TensorH.Cohomology} _ _ _
-    (sym!{TensorH.Cohomology} _ _ (normalizationIdentity ((PullMaps.induced Pull.map).apply (ProductH.classOf phi))))
-    (trans!{TensorH.Cohomology} _ _ _
-      (congr!{TensorH.Cohomology TensorH.Cohomology} ((NormalizeMaps.induced Normalize.map).apply) _ _ (PullMaps.onClass Pull.map phi))
-      (trans!{TensorH.Cohomology} _ _ _ (NormalizeMaps.onClass Normalize.map ((PullMaps.cyclesMap Pull.map).apply phi))
-        (normalizedClassZero vanishes)));
+  \fun (vanishes: _) => eq_reason_in!{TensorH.Cohomology _
+    "=" _ "by" { sym!{TensorH.Cohomology} _ _ (normalizationIdentity ((PullMaps.induced Pull.map).apply (ProductH.classOf phi))) }
+    "=" _ "by" { congr!{TensorH.Cohomology TensorH.Cohomology} ((NormalizeMaps.induced Normalize.map).apply) _ _ (PullMaps.onClass Pull.map phi) }
+    "=" _ "by" { NormalizeMaps.onClass Normalize.map ((PullMaps.cyclesMap Pull.map).apply phi) }
+    "=" _ "by" { normalizedClassZero vanishes }
+  };
 \definition detected: (firstRestriction).apply (ProductH.classOf phi) = (LeftH.cohomologySpace).zero ->
   (secondRestriction).apply (ProductH.classOf phi) = (RightH.cohomologySpace).zero -> ProductH.classOf phi = (ProductH.cohomologySpace).zero := \block {
   \fun (leftZero: _)(rightZero: _) \then

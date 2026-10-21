@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import singular_cohomology.Chains[A := Coordinates.Sphere, source := Coordinates.sphereTopology] \as SingularChains;
 \import singular_cohomology.Cochains[A := Coordinates.Sphere, source := Coordinates.sphereTopology].With[coefficients := coefficients] \as Theory;
 \import singular_cohomology.Maps[A := Coordinates.Sphere, B := Coordinates.Sphere, source := Coordinates.sphereTopology, target := Coordinates.sphereTopology] \as Maps;
@@ -17,17 +18,20 @@
 \import Modules.Isomorphism[V := H.Cohomology, W := Carrier, source := H.cohomologySpace, target := space] \as Iso;
 \definition injective[e: Iso.Isomorphism][x, y: H.Cohomology]:
   ((e).forward).apply x = ((e).forward).apply y -> x = y :=
-  \fun (same: _) => trans!{H.Cohomology} _ _ _ (sym!{H.Cohomology} _ _ ((e).leftInverse x))
-    (trans!{H.Cohomology} _ _ _
-      (congr!{Carrier H.Cohomology} (((e).backward).apply) _ _ same) ((e).leftInverse y));
+  \fun (same: _) => eq_reason_in!{H.Cohomology _
+    "=" _ "by" { sym!{H.Cohomology} _ _ ((e).leftInverse x) }
+    "=" _ "by" { congr!{Carrier H.Cohomology} (((e).backward).apply) _ _ same }
+    "=" _ "by" { (e).leftInverse y }
+  };
 \import \root.Circle[].Powers[].Actions[coefficients := coefficients] \as Natural;
 \definition integer: \forall (k: I.Int^)(q: H.Cohomology) -> (action k).apply q = (H.cohomologySpace).smul k q := \block {
   \fun (k: I.Int^)(q: H.Cohomology) \then
   \let comparison: Iso.Isomorphism := Theory.Integer[].At[n := one].isomorphism \then
   \return injective comparison _ _
-    (trans!{Carrier} _ _ _
-      (\root.NaturalComparison[].For[C := SingularChains.complex, D := SingularChains.complex, coefficients := coefficients]
-        .On[f := nativeMap k].At[n := one].law q)
-      (trans!{Carrier} _ _ _ (Natural.integer k (((comparison).forward).apply q))
-        (sym!{Carrier} _ _ (((comparison).forward).scalar k q))))
+    (eq_reason_in!{Carrier _
+      "=" _ "by" { \root.NaturalComparison[].For[C := SingularChains.complex, D := SingularChains.complex, coefficients := coefficients]
+        .On[f := nativeMap k].At[n := one].law q }
+      "=" _ "by" { Natural.integer k (((comparison).forward).apply q) }
+      "=" _ "by" { sym!{Carrier} _ _ (((comparison).forward).scalar k q) }
+    })
 };

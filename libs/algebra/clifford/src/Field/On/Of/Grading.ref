@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 /* The canonical automorphism which negates generating vectors. */
 \import \parent.Relations[] \as Relations;
 \import \parent.Universal[A := Carrier, target := ring] \as Universal;
@@ -14,9 +15,12 @@
   addition := \fun (u, v: V) => trans!{Carrier} _ _ _ (congr!{Carrier Carrier} neg _ _ (injection.preservesAdd u v)) (Sum.negAdd (iota u) (iota v)),
   scalar := \fun (a: K)(v: V) => trans!{Carrier} _ _ _ (congr!{Carrier Carrier} neg _ _ (injection.preservesScale a v))
     (sym!{Carrier} _ _ (Units.mulNeg (scalar a) (iota v))),
-  square := \fun (v: V) => trans!{Carrier} _ _ _ (Units.negMul (iota v) (neg (iota v)))
-    (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} neg _ _ (Units.mulNeg (iota v) (iota v)))
-      (trans!{Carrier} _ _ _ (Sum.negNeg (mul (iota v) (iota v))) (cliffordRelation v))),
+  square := \fun (v: V) => eq_reason_in!{Carrier _
+    "=" _ "by" { Units.negMul (iota v) (neg (iota v)) }
+    "=" _ "by" { congr!{Carrier Carrier} neg _ _ (Units.mulNeg (iota v) (iota v)) }
+    "=" _ "by" { Sum.negNeg (mul (iota v) (iota v)) }
+    "=" _ "by" { cliffordRelation v }
+  },
 };
 \definition map: Hom.RingMap ring ring := Universal.extension representation;
 \definition onVector: \forall (v: V) -> map (iota v) = neg (iota v) := Universal.onVector representation;
@@ -24,8 +28,11 @@
 \definition laws: Hom.SemiringLaws[Ring.ringAsSemiring Carrier ring, Ring.ringAsSemiring Carrier ring, map] :=
   Hom.semiringLaws (Ring.ringAsSemiring Carrier ring) (Ring.ringAsSemiring Carrier ring) map;
 \definition onNegative: \forall (x: Carrier) -> map (neg x) = neg (map x) := \fun (x: Carrier) => Sum.inverseUnique (map x) (map (neg x))
-  (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (laws.add (neg x) x))
-    (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} map _ _ (Sum.inverseLeft x)) laws.zero));
+  (eq_reason_in!{Carrier _
+    "=" _ "by" { sym!{Carrier} _ _ (laws.add (neg x) x) }
+    "=" _ "by" { congr!{Carrier Carrier} map _ _ (Sum.inverseLeft x) }
+    "=" _ "by" laws.zero
+  });
 \definition identityRepresentation: Universal.Representation := Universal.Representation {
   coefficients := coefficientMap, vectors := iota,
   zero := injection.preservesZero, addition := injection.preservesAdd,
@@ -47,14 +54,21 @@
 \definition doubleScalar: \forall (a: K) -> double (scalar a) = scalar a := \fun (a: K) =>
   trans!{Carrier} _ _ _ (congr!{Carrier Carrier} map _ _ (onScalar a)) (onScalar a);
 \definition doubleVector: \forall (v: V) -> double (iota v) = iota v := \fun (v: V) =>
-  trans!{Carrier} _ _ _ (congr!{Carrier Carrier} map _ _ (onVector v))
-    (trans!{Carrier} _ _ _ (onNegative (iota v)) (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} neg _ _ (onVector v)) (Sum.negNeg (iota v))));
+  eq_reason_in!{Carrier _
+    "=" _ "by" { congr!{Carrier Carrier} map _ _ (onVector v) }
+    "=" _ "by" { onNegative (iota v) }
+    "=" _ "by" { congr!{Carrier Carrier} neg _ _ (onVector v) }
+    "=" _ "by" { Sum.negNeg (iota v) }
+  };
 \definition doubleIdentity: double = identity := trans!{{Hom.RingMap ring ring}} _ _ _ (Universal.unique identityRepresentation double doubleScalar doubleVector)
   (sym!{{Hom.RingMap ring ring}} _ _ (Universal.unique identityRepresentation identity (\fun (a: K) => \refl(scalar a)) (\fun (v: V) => \refl(iota v))));
 \definition involutive: \forall (x: Carrier) -> map (map x) = x := \fun (x: Carrier) =>
   congr!{{Hom.RingMap ring ring} Carrier} (\fun (h: Hom.RingMap ring ring) => h x) _ _ doubleIdentity;
-\definition injective: \forall (x, y: Carrier) -> map x = map y -> x = y := \fun (x, y: Carrier)(same: _) => trans!{Carrier} _ _ _
-  (sym!{Carrier} _ _ (involutive x)) (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} map _ _ same) (involutive y));
+\definition injective: \forall (x, y: Carrier) -> map x = map y -> x = y := \fun (x, y: Carrier)(same: _) => eq_reason_in!{Carrier _
+  "=" _ "by" { sym!{Carrier} _ _ (involutive x) }
+  "=" _ "by" { congr!{Carrier Carrier} map _ _ same }
+  "=" _ "by" { involutive y }
+};
 \import Units.Mapping[B := Carrier, target := ring, f := map] \as UnitsMap;
 \definition onUnit: Units.Unit -> Units.Unit := UnitsMap.apply;
 \definition unitOne: onUnit Units.unit = Units.unit := UnitsMap.atOne;
@@ -72,9 +86,11 @@
   \fun (g: Units.Unit)(a: K)(x: Carrier) => trans!{Carrier} _ _ _
     (congr!{Carrier Carrier} (\fun (b: Carrier) => mul b g.inverse) _ _ (sym!{Carrier} _ _ (algebra.scalarMulRight a (map g.value) x)))
     (sym!{Carrier} _ _ (algebra.scalarMulLeft a (mul (map g.value) x) g.inverse));
-\definition actionOne: \forall (x: Carrier) -> action Units.unit x = x := \fun (x: Carrier) => trans!{Carrier} _ _ _
-  (congr!{Carrier Carrier} (\fun (a: Carrier) => mul (mul a x) one) _ _ laws.one)
-  (trans!{Carrier} _ _ _ (Presented.oneRight (mul one x)) (Presented.oneLeft x));
+\definition actionOne: \forall (x: Carrier) -> action Units.unit x = x := \fun (x: Carrier) => eq_reason_in!{Carrier _
+  "=" _ "by" { congr!{Carrier Carrier} (\fun (a: Carrier) => mul (mul a x) one) _ _ laws.one }
+  "=" _ "by" { Presented.oneRight (mul one x) }
+  "=" _ "by" { Presented.oneLeft x }
+};
 \definition actionProduct: \forall (g, h: Units.Unit)(x: Carrier) -> action (Units.product g h) x = action g (action h x) :=
   \fun (g, h: Units.Unit)(x: Carrier) => eq_reason!{
     {action (Units.product g h) x}

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Arithmetic[].Int[] \as I;
 \import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
 \import I.Math[].Specification[].Prop[].Multiplication[] \as Product;
@@ -23,8 +24,11 @@
 \definition evaluationOfBasis: evaluation.apply (Free.generator Unit::unit) = I.One.specification :=
   Evaluation.onGenerator values Unit::unit;
 \definition evaluationBackward: \forall (a: I.Int^) -> evaluation.apply (backward.apply a) = a :=
-  \fun (a: I.Int^) => trans!{I.Int^} _ _ _ (evaluation.scalar a (Free.generator Unit::unit))
-    (trans!{I.Int^} _ _ _ (congr!{I.Int^ I.Int^} (I.Mul.specification a) _ _ evaluationOfBasis) (Product.mulOneRight a));
+  \fun (a: I.Int^) => eq_reason_in!{I.Int^ _
+    "=" _ "by" { evaluation.scalar a (Free.generator Unit::unit) }
+    "=" _ "by" { congr!{I.Int^ I.Int^} (I.Mul.specification a) _ _ evaluationOfBasis }
+    "=" _ "by" { Product.mulOneRight a }
+  };
 \import Backward.Composition[U := Free.Carrier, domain := Free.space] \as Composition;
 \import Algebra.Hom[V := Free.Carrier, W := Free.Carrier, source := Free.space, target := Free.space] \as EndMaps;
 \definition composite: EndMaps.Map := Composition.compose backward evaluation;
@@ -52,8 +56,11 @@
 \import Tensor.Universal[U := I.Int^, target := Algebra.scalarModule] \as TensorMaps;
 \definition bilinear: Tensor.BilinearLaws[I.Int^, Algebra.scalarModule, I.Mul.specification] := Tensor.BilinearLaws[I.Int^, Algebra.scalarModule, I.Mul.specification] {
   addLeft := Product.addMul, addRight := Product.mulAdd, scaleLeft := Product.mulAssoc,
-  scaleRight := \fun (a, x, y: I.Int^) => trans!{I.Int^} _ _ _ (sym!{I.Int^} _ _ (Product.mulAssoc x a y))
-    (trans!{I.Int^} _ _ _ (congr!{I.Int^ I.Int^} (\fun (z: I.Int^) => I.Mul.specification z y) _ _ (IntegerLaws.mulComm x a)) (Product.mulAssoc a x y)),
+  scaleRight := \fun (a, x, y: I.Int^) => eq_reason_in!{I.Int^ _
+    "=" _ "by" { sym!{I.Int^} _ _ (Product.mulAssoc x a y) }
+    "=" _ "by" { congr!{I.Int^ I.Int^} (\fun (z: I.Int^) => I.Mul.specification z y) _ _ (IntegerLaws.mulComm x a) }
+    "=" _ "by" { Product.mulAssoc a x y }
+  },
 };
 \definition contraction: _ := TensorMaps.map I.Mul.specification bilinear;
 \definition tensorValue: \forall (a, b: I.Int^) -> contraction.apply (Tensor.tensor a b) = I.Mul.specification a b := TensorMaps.onTensor I.Mul.specification bilinear;

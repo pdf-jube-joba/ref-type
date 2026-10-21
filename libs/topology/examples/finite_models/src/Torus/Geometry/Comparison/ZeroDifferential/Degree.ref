@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \module At(i: Doubles.Index n) {
   \import \parent.\parent.TensorDegree[p := (i).first, q := (i).second] \as Tensor;
   \import FiniteTensor.Term[p := (i).first, q := (i).second] \as Term;
@@ -7,15 +8,16 @@
   \import Modules.Hom[V := Term.Carrier, W := Term.Carrier, source := Term.space, target := Term.space] \as Maps;
   \definition law[x: FiniteTotal.Carrier (N.Nat^::succ n)]:
     Coordinates.Degree[n := n].coordinate i ((FiniteTotal.differential).apply n x) = (Term.space).zero :=
-    trans!{Term.Carrier} _ _ _ (Coordinates.StepAt[n := n, i := i].differential x)
-      (trans!{Term.Carrier} _ _ _
-        (congr2!{Term.Carrier Term.Carrier Term.Carrier} Values.add _ _ _ _
+    eq_reason_in!{Term.Carrier _
+      "=" _ "by" { Coordinates.StepAt[n := n, i := i].differential x }
+      "=" _ "by" { congr!{Term.Carrier Term.Carrier Term.Carrier} Values.add _ _ _ _
           (Tensor.horizontal (Coordinates.Degree[n := N.Nat^::succ n].coordinate (Coordinates.raiseHorizontalIndex n i) x))
           (trans!{Term.Carrier} _ _ _
             (congr!{Term.Carrier Term.Carrier} ((Sign.map (i).first).apply) _ _
               (Tensor.vertical (Coordinates.Degree[n := N.Nat^::succ n].coordinate (Coordinates.raiseVerticalIndex n i) x)))
-            (Maps.zeroPreserved (Sign.map (i).first))))
-        (Group.zeroLeft Values.zero));
+            (Maps.zeroPreserved (Sign.map (i).first))) }
+      "=" _ "by" { Group.zeroLeft Values.zero }
+    };
 }
 \definition law[x: FiniteTotal.Carrier (N.Nat^::succ n)]: (FiniteTotal.differential).apply n x = (FiniteTotal.space n).zero :=
   Coordinates.Degree[n := n].zero ((FiniteTotal.differential).apply n x) (\fun (i: Doubles.Index n) => At[i := i].law x);

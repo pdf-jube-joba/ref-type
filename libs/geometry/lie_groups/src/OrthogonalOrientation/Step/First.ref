@@ -1,11 +1,17 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Geometry.SphereSection[s := E.space.zero] \as Reference;
 \import Next.PinRepresentation[].Positive[v := Reference.firstUnit] \as Reflection;
-\definition polarZero[x: Next.Vector][zero: Geometry.head x = R.zero]: Flip.polar x = R.zero := trans!{R.Real} _ _ _ (Flip.polarValue x)
-  (trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.add _ _ _ _ zero zero) (Arithmetic.addZeroLeft R.zero));
+\definition polarZero[x: Next.Vector][zero: Geometry.head x = R.zero]: Flip.polar x = R.zero := eq_reason_in!{R.Real _
+  "=" _ "by" { Flip.polarValue x }
+  "=" _ "by" { congr!{R.Real R.Real R.Real} R.add _ _ _ _ zero zero }
+  "=" _ "by" { Arithmetic.addZeroLeft R.zero }
+};
 \definition fixed[x: Next.Vector][zero: Geometry.head x = R.zero]: Flip.flip.value.apply x = x :=
-  \axiom:funext(Flip.flip.value.apply x, x, \fun (j: Fin.Fin (N.Nat^::succ n)) => trans!{R.Real} _ _ _
-    (congr!{R.Real R.Real} (\fun (c: R.Real) => R.sub (x j) (R.mul c (Geometry.first j))) _ _ (polarZero x zero))
-    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.sub (x j)) _ _ (Arithmetic.fieldMulZeroLeft (Geometry.first j))) (Arithmetic.subZeroRight (x j))));
+  \axiom:funext(Flip.flip.value.apply x, x, \fun (j: Fin.Fin (N.Nat^::succ n)) => eq_reason_in!{R.Real _
+    "=" _ "by" { congr!{R.Real R.Real} (\fun (c: R.Real) => R.sub (x j) (R.mul c (Geometry.first j))) _ _ (polarZero x zero) }
+    "=" _ "by" { congr!{R.Real R.Real} (R.sub (x j)) _ _ (Arithmetic.fieldMulZeroLeft (Geometry.first j)) }
+    "=" _ "by" { Arithmetic.subZeroRight (x j) }
+  });
 \definition negativeFirst: Next.Vector := Next.space.smul (R.neg R.one) (Higher.vectors (Fin.zero n));
 \definition changed: Top.Arguments := Multilinear.update (N.Nat^::succ n) Top.basisArguments (Fin.zero n) negativeFirst;
 \definition atHead: Flip.flip.value.apply (Higher.vectors (Fin.zero n)) = changed (Fin.zero n) := eq_reason!{
@@ -23,9 +29,11 @@
 \definition arguments: Top.transformed Flip.flip.value Top.basisArguments = changed := Tuples.extensionality n _ _ atHead atTail;
 \definition volumeLaws: Multilinear.Laws[N.Nat^::succ n, Top.volume] :=
   (\bysub(Multilinear.Function (N.Nat^::succ n), Alternating.Form (N.Nat^::succ n), Top.volume)).linear;
-\definition determinant: Orientation.determinant Flip.flip = R.neg R.one := trans!{R.Real} _ _ _
-  (congr!{Top.Arguments R.Real} Top.volume _ _ arguments)
-  (trans!{R.Real} _ _ _ (volumeLaws.scalar Top.basisArguments (Fin.zero n) (R.neg R.one) (Higher.vectors (Fin.zero n)))
-    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul (R.neg R.one)) _ _
-      (congr!{Top.Arguments R.Real} Top.volume _ _ (Updates.updateSame (N.Nat^::succ n) Top.basisArguments (Fin.zero n))))
-      (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul (R.neg R.one)) _ _ Top.normalized) (Algebra.mulOneRight (R.neg R.one)))));
+\definition determinant: Orientation.determinant Flip.flip = R.neg R.one := eq_reason_in!{R.Real _
+  "=" _ "by" { congr!{Top.Arguments R.Real} Top.volume _ _ arguments }
+  "=" _ "by" { volumeLaws.scalar Top.basisArguments (Fin.zero n) (R.neg R.one) (Higher.vectors (Fin.zero n)) }
+  "=" _ "by" { congr!{R.Real R.Real} (R.mul (R.neg R.one)) _ _
+      (congr!{Top.Arguments R.Real} Top.volume _ _ (Updates.updateSame (N.Nat^::succ n) Top.basisArguments (Fin.zero n))) }
+  "=" _ "by" { congr!{R.Real R.Real} (R.mul (R.neg R.one)) _ _ Top.normalized }
+  "=" _ "by" { Algebra.mulOneRight (R.neg R.one) }
+};

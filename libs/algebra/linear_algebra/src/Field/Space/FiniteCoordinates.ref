@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Data[].Nat[] \as N;
 \import std.Data[].FinSet[] \as Fin;
 \import \parent.Coordinates[I := Fin.Fin n] \as Coordinates;
@@ -33,12 +34,11 @@
       (SumLaws.congruent (Fin.elements n) (\fun (j: Fin.Fin n) => mul (x j) (vectors i j)) (\fun (j: Fin.Fin n) => mul (Kronecker.delta i j) (x j)) (\fun (j: Fin.Fin n) => mulComm (x j) (Kronecker.delta i j)))
       (Single.extract (Fin.elements n) (Enumeration.distinct n) i (Indices.exhaustive i) x);
 \definition reconstruction: \forall (x: Coordinates.Vector) -> Basis.synthesize data x = x :=
-  \fun (x: Coordinates.Vector) => \axiom:funext(Basis.synthesize data x, x, \fun (j: Fin.Fin n) => trans!{K}
-    (Basis.synthesize data x j) (Sums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => mul (x i) (vectors i j))) (x j)
-    (evaluateSum (Fin.elements n) (\fun (i: Fin.Fin n) => Coordinates.scale (x i) (vectors i)) j)
-    (trans!{K} _ _ _
-      (SumLaws.congruent (Fin.elements n) (\fun (i: Fin.Fin n) => mul (x i) (vectors i j)) (\fun (i: Fin.Fin n) => mul (x i) (vectors j i)) (\fun (i: Fin.Fin n) => congr!{K K} (mul (x i)) (vectors i j) (vectors j i) (Kronecker.symmetric i j)))
-      (dualReconstruction x j)));
+  \fun (x: Coordinates.Vector) => \axiom:funext(Basis.synthesize data x, x, \fun (j: Fin.Fin n) => eq_reason_in!{K { Basis.synthesize data x j }
+    "=" { Sums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => mul (x i) (vectors i j)) } "by" { evaluateSum (Fin.elements n) (\fun (i: Fin.Fin n) => Coordinates.scale (x i) (vectors i)) j }
+    "=" _ "by" { SumLaws.congruent (Fin.elements n) (\fun (i: Fin.Fin n) => mul (x i) (vectors i j)) (\fun (i: Fin.Fin n) => mul (x i) (vectors j i)) (\fun (i: Fin.Fin n) => congr!{K K} (mul (x i)) (vectors i j) (vectors j i) (Kronecker.symmetric i j)) }
+    "=" _ "by" { dualReconstruction x j }
+  });
 \definition basis: Basis.Basis := \into[Basis.BasisData](data, { b: Basis.BasisData \where Basis.BasisLaws[b] }) \by {
   Basis.BasisLaws[data] {
     distinct := Enumeration.distinct n,

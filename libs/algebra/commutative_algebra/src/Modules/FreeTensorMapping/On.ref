@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import SumMapping.On[f := \fun (s: Generators) => f] \as SumAction;
 \definition map: Modules.Hom[V := SourceTensor.Carrier, W := TargetTensor.Carrier, source := SourceTensor.space, target := TargetTensor.space].Map := TensorMapping.map FreeEnd.identity f;
 \import Modules.Hom[V := TargetTensor.Carrier, W := TargetSum.Carrier, source := TargetTensor.space, target := TargetSum.space].Composition[U := SourceTensor.Carrier, domain := SourceTensor.space] \as TargetComposition;
@@ -37,11 +38,14 @@
     (\fun (g: Modules.Hom[V := SourceTensor.Carrier, W := TargetSum.Carrier, source := SourceTensor.space, target := TargetSum.space].Map) => g.apply x) first last equality;
 \definition injective: Modules.Injective A B f -> \forall (x, y: SourceTensor.Carrier) -> map.apply x = map.apply y -> x = y :=
   \fun (injection: Modules.Injective A B f)(x, y: SourceTensor.Carrier)(equal: map.apply x = map.apply y) =>
-    trans!{SourceTensor.Carrier} x (Source.backward.apply (Source.forward.apply x)) y
-      (sym!{SourceTensor.Carrier} _ _ (Source.leftInverse x))
-      (trans!{SourceTensor.Carrier} _ _ _
-        (congr!{SourceSum.Carrier SourceTensor.Carrier} (Source.backward.apply) _ _
+    eq_reason_in!{SourceTensor.Carrier x
+      "=" { Source.backward.apply (Source.forward.apply x) } "by" { sym!{SourceTensor.Carrier} _ _ (Source.leftInverse x) }
+      "=" _ "by" { congr!{SourceSum.Carrier SourceTensor.Carrier} (Source.backward.apply) _ _
           (SumAction.injective (\fun (s: Generators) => injection) (Source.forward.apply x) (Source.forward.apply y)
-            (trans!{TargetSum.Carrier} _ _ _ (sym!{TargetSum.Carrier} _ _ (commutes x))
-              (trans!{TargetSum.Carrier} _ _ _ (congr!{TargetTensor.Carrier TargetSum.Carrier} (Target.forward.apply) _ _ equal) (commutes y)))))
-        (Source.leftInverse y));
+            (eq_reason_in!{TargetSum.Carrier _
+              "=" _ "by" { sym!{TargetSum.Carrier} _ _ (commutes x) }
+              "=" _ "by" { congr!{TargetTensor.Carrier TargetSum.Carrier} (Target.forward.apply) _ _ equal }
+              "=" _ "by" { commutes y }
+            })) }
+      "=" _ "by" { Source.leftInverse y }
+    };

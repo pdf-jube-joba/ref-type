@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Modules.Hom[V := NativeCoordinates.Carrier, W := R, source := NativeCoordinates.space, target := Modules.scalarModule].Composition[U := V.Carrier, domain := V.space] \as Compose;
 \definition data: Data := Data {
   basis := \fun (i: Index) => ((e).backward).apply (NativeCoordinates.basis i),
@@ -5,14 +6,13 @@
 };
 \import Modules.Sums[I := Index].Vector[V := NativeCoordinates.Carrier, space := NativeCoordinates.space].Mapping[W := V.Carrier, target := V.space] \as Mapping;
 \definition decomposition[x: V.Carrier]: Sum.sum indices (\fun (i: Index) => (V.space).smul ((data.coordinate i).apply x) (data.basis i)) = x :=
-  trans!{V.Carrier} _ _ _
-    (Sum.congruent indices
+  eq_reason_in!{V.Carrier _
+    "=" _ "by" { Sum.congruent indices
       (\fun (i: Index) => (V.space).smul ((((e).forward).apply x) i) (((e).backward).apply (NativeCoordinates.basis i)))
       (\fun (i: Index) => ((e).backward).apply ((NativeCoordinates.space).smul ((((e).forward).apply x) i) (NativeCoordinates.basis i)))
-      (\fun (i: Index) => sym!{V.Carrier} _ _ (((e).backward).scalar ((((e).forward).apply x) i) (NativeCoordinates.basis i))))
-    (trans!{V.Carrier} _ _ _
-      (sym!{V.Carrier} _ _ (Mapping.law (e).backward indices (\fun (i: Index) => (NativeCoordinates.space).smul ((((e).forward).apply x) i) (NativeCoordinates.basis i))))
-      (trans!{V.Carrier} _ _ _
-        (congr!{NativeCoordinates.Carrier V.Carrier} (((e).backward).apply) _ _ (NativeCoordinates.decomposition (((e).forward).apply x)))
-        ((e).leftInverse x)));
+      (\fun (i: Index) => sym!{V.Carrier} _ _ (((e).backward).scalar ((((e).forward).apply x) i) (NativeCoordinates.basis i))) }
+    "=" _ "by" { sym!{V.Carrier} _ _ (Mapping.law (e).backward indices (\fun (i: Index) => (NativeCoordinates.space).smul ((((e).forward).apply x) i) (NativeCoordinates.basis i))) }
+    "=" _ "by" { congr!{NativeCoordinates.Carrier V.Carrier} (((e).backward).apply) _ _ (NativeCoordinates.decomposition (((e).forward).apply x)) }
+    "=" _ "by" { (e).leftInverse x }
+  };
 \definition frame: Frame := \into[Data](data, Frame) \by { Laws[data] { decomposition := decomposition } };

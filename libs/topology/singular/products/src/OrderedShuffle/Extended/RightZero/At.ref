@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition nextRight: Right.Tuple (N.Nat^::succ N.Nat^::zero) := Tuples.extend N.Nat^::zero b y;
 \import \parent.\parent.\parent.RightBase[].At[p := p, y := nextRight] \as UpperData;
 \import \parent.\parent.\parent.RightBase[].Linear[p := p, y := nextRight] \as UpperMap;
@@ -9,14 +10,14 @@
 \definition value[x: Left.Tuple p]: Product.Carrier (degree p q) := (LowerData.map).apply (Left.generator p x);
 \definition canonical[x: Left.Tuple p]: Product.Carrier (length p q) := (Product.cone (degree p q) (vertex a)).apply (value x);
 \definition lhs[x: Left.Tuple p]: (Recurrence.lhs).apply (Left.generator p x) (Right.generator N.Nat^::zero y) = canonical x :=
-  trans!{{Product.Carrier (length p q)}} _ _ _
-    (congr!{{Right.Carrier (N.Nat^::succ N.Nat^::zero)} {Product.Carrier (length p q)}}
-      (Full.apply ((Left.cone p a).apply (Left.generator p x))) _ _ (Right.Cone[n := N.Nat^::zero].onGenerator b y))
-    (trans!{{Product.Carrier (length p q)}} _ _ _ (UpperMap.onChain ((Left.cone p a).apply (Left.generator p x)))
-      (trans!{{Product.Carrier (length p q)}} _ _ _
-        (congr!{{Product.Carrier (N.Nat^::succ p)} {Product.Carrier (length p q)}} (Degrees.apply (N.Nat^::succ p) UpperData.actualLength UpperData.same) _ _
-          (Pointwise.Cone[n := p].onGenerator vertex a x))
-        (Degrees.coneNatural p LowerData.actualLength LowerData.same (vertex a) ((Pointwise.push p vertex).apply (Left.generator p x)))));
+  eq_reason_in!{{Product.Carrier (length p q)} _
+    "=" _ "by" { congr!{{Right.Carrier (N.Nat^::succ N.Nat^::zero)} {Product.Carrier (length p q)}}
+      (Full.apply ((Left.cone p a).apply (Left.generator p x))) _ _ (Right.Cone[n := N.Nat^::zero].onGenerator b y) }
+    "=" _ "by" { UpperMap.onChain ((Left.cone p a).apply (Left.generator p x)) }
+    "=" _ "by" { congr!{{Product.Carrier (N.Nat^::succ p)} {Product.Carrier (length p q)}} (Degrees.apply (N.Nat^::succ p) UpperData.actualLength UpperData.same) _ _
+          (Pointwise.Cone[n := p].onGenerator vertex a x) }
+    "=" _ "by" { Degrees.coneNatural p LowerData.actualLength LowerData.same (vertex a) ((Pointwise.push p vertex).apply (Left.generator p x)) }
+  };
 \definition left[x: Left.Tuple p]: (Recurrence.leftTerm).apply (Left.generator p x) (Right.generator N.Nat^::zero y) = value x :=
   trans!{{Product.Carrier (degree p q)}} _ _ _
     (congr!{{Right.Carrier (N.Nat^::succ N.Nat^::zero)} {Product.Carrier (degree p q)}} (Lower.apply (Left.generator p x)) _ _
@@ -27,14 +28,16 @@
     (join (N.Nat^::succ p) q) (degree p q) (rightDegree p q);
 \definition signedRightZero[x: Left.Tuple p]:
   (Operations.sign p Recurrence.rightTerm).apply (Left.generator p x) (Right.generator N.Nat^::zero y) = Values.zero :=
-  trans!{{Product.Carrier (degree p q)}} _ _ _ (Operations.onSign p Recurrence.rightTerm (Left.generator p x) (Right.generator N.Nat^::zero y))
-    (trans!{{Product.Carrier (degree p q)}} _ _ _
-      (congr!{{Product.Carrier (degree p q)} {Product.Carrier (degree p q)}} (Signs.twist p) _ _ (rightZero x)) (Signs.twistZero p));
+  eq_reason_in!{{Product.Carrier (degree p q)} _
+    "=" _ "by" { Operations.onSign p Recurrence.rightTerm (Left.generator p x) (Right.generator N.Nat^::zero y) }
+    "=" _ "by" { congr!{{Product.Carrier (degree p q)} {Product.Carrier (degree p q)}} (Signs.twist p) _ _ (rightZero x) }
+    "=" _ "by" { Signs.twistZero p }
+  };
 \definition rhs[x: Left.Tuple p]: (Recurrence.rhs).apply (Left.generator p x) (Right.generator N.Nat^::zero y) = canonical x :=
   trans!{{Product.Carrier (length p q)}} _ _ _
     (congr!{{Product.Carrier (degree p q)} {Product.Carrier (length p q)}} ((Product.cone (degree p q) point).apply) _ _
       (trans!{{Product.Carrier (degree p q)}} _ _ _
-        (congr2!{{Product.Carrier (degree p q)} {Product.Carrier (degree p q)} {Product.Carrier (degree p q)}} Values.add _ _ _ _
+        (congr!{{Product.Carrier (degree p q)} {Product.Carrier (degree p q)} {Product.Carrier (degree p q)}} Values.add _ _ _ _
           (left x) (signedRightZero x)) (Group.zeroRight (value x))))
     (congr!{Pair {Product.Carrier (length p q)}} (\fun (c: Pair) => (Product.cone (degree p q) c).apply (value x)) _ _ (sym!{Pair} _ _ pointLaw));
 \definition law[x: Left.Tuple p]: (Recurrence.lhs).apply (Left.generator p x) (Right.generator N.Nat^::zero y) = (Recurrence.rhs).apply (Left.generator p x) (Right.generator N.Nat^::zero y) :=

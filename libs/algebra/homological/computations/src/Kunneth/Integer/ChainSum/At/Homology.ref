@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Cycles[] \as CycleComparison;
 \module Component(i: Index) {
   \import Chains.At[C := terms i, z := z] \as H;
@@ -38,9 +39,11 @@
         (congr!{CycleProduct.Carrier H.Cycle} (\fun (v: CycleProduct.Carrier) => v i) _ _ (CycleComparison.backwardCoordinates x)));
   \definition zero: \forall (x: TotalHomology.Cycle) -> \In[TotalHomology.Cycle] (TotalHomology.boundariesInside.carrier) x ->
     HomologyCoordinates.coordinates (onCycles.apply x) i = HomologyCoordinates.coordinates HomologySum.space.zero i :=
-    \fun (x: TotalHomology.Cycle)(boundary: _) => trans!{H.Homology} _ _ _ (coordinate x)
-      (trans!{H.Homology} _ _ _ (Projected.vanishes Projection.map x boundary)
-        (sym!{H.Homology} _ _ (congr!{HomologyProduct.Carrier H.Homology} (\fun (v: HomologyProduct.Carrier) => v i) _ _ HomologyCoordinates.coordinatesZero)));
+    \fun (x: TotalHomology.Cycle)(boundary: _) => eq_reason_in!{H.Homology _
+      "=" _ "by" { coordinate x }
+      "=" _ "by" { Projected.vanishes Projection.map x boundary }
+      "=" _ "by" { sym!{H.Homology} _ _ (congr!{HomologyProduct.Carrier H.Homology} (\fun (v: HomologyProduct.Carrier) => v i) _ _ HomologyCoordinates.coordinatesZero) }
+    };
 }
 \definition vanishes: Descent.Vanishes onCycles := \fun (x: TotalHomology.Cycle)(boundary: _) =>
   HomologyCoordinates.injective (onCycles.apply x) HomologySum.space.zero
@@ -56,21 +59,23 @@
   \definition onClass: \forall (x: H.Cycle) ->
     forward.apply ((HomologySum.Injection[i := i].map).apply (H.classOf x)) =
     TotalHomology.classOf (CycleComparison.forward.apply ((CyclesSum.Injection[i := i].map).apply x)) :=
-    \fun (x: H.Cycle) => trans!{TotalHomology.Homology} _ _ _ (Universal.onInjection components i (H.classOf x))
-      (trans!{TotalHomology.Homology} _ _ _ (Induced.onClass Injection.map x)
-        (congr!{TotalHomology.Cycle TotalHomology.Homology} TotalHomology.classOf _ _
-          (sym!{TotalHomology.Cycle} _ _ (CycleComparison.onInjection i x))));
+    \fun (x: H.Cycle) => eq_reason_in!{TotalHomology.Homology _
+      "=" _ "by" { Universal.onInjection components i (H.classOf x) }
+      "=" _ "by" { Induced.onClass Injection.map x }
+      "=" _ "by" { congr!{TotalHomology.Cycle TotalHomology.Homology} TotalHomology.classOf _ _
+          (sym!{TotalHomology.Cycle} _ _ (CycleComparison.onInjection i x)) }
+    };
   \definition left: \forall (h: H.Homology) ->
     backward.apply (forward.apply ((HomologySum.Injection[i := i].map).apply h)) = (HomologySum.Injection[i := i].map).apply h :=
     H.classInduction (\fun (h: H.Homology) =>
       backward.apply (forward.apply ((HomologySum.Injection[i := i].map).apply h)) = (HomologySum.Injection[i := i].map).apply h)
-      (\fun (x: H.Cycle) => trans!{HomologySum.Carrier} _ _ _
-        (congr!{TotalHomology.Homology HomologySum.Carrier} (backward.apply) _ _ (onClass x))
-        (trans!{HomologySum.Carrier} _ _ _ (onTotalClass (CycleComparison.forward.apply ((CyclesSum.Injection[i := i].map).apply x)))
-          (trans!{HomologySum.Carrier} _ _ _
-            (congr!{CyclesSum.Carrier HomologySum.Carrier} (Classes.map.apply) _ _
-              (CycleComparison.leftInverse ((CyclesSum.Injection[i := i].map).apply x)))
-            (Classes.onInjection i x))));
+      (\fun (x: H.Cycle) => eq_reason_in!{HomologySum.Carrier _
+        "=" _ "by" { congr!{TotalHomology.Homology HomologySum.Carrier} (backward.apply) _ _ (onClass x) }
+        "=" _ "by" { onTotalClass (CycleComparison.forward.apply ((CyclesSum.Injection[i := i].map).apply x)) }
+        "=" _ "by" { congr!{CyclesSum.Carrier HomologySum.Carrier} (Classes.map.apply) _ _
+              (CycleComparison.leftInverse ((CyclesSum.Injection[i := i].map).apply x)) }
+        "=" _ "by" { Classes.onInjection i x }
+      });
 }
 \import Modules.Hom[V := TotalHomology.Homology, W := HomologySum.Carrier,
   source := TotalHomology.homologySpace, target := HomologySum.space].Composition[U := HomologySum.Carrier, domain := HomologySum.space] \as LeftCompose;

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.\parent.Sign[V := C.family.Carrier p q, space := C.family.space p q] \as Sign;
 \import Modules.Hom[V := C.family.Carrier p q, W := C.family.Carrier p q, source := C.family.space p q, target := C.family.space p q].Composition[
   U := C.family.Carrier p (Nat.Nat^::succ q), domain := C.family.space p (Nat.Nat^::succ q)] \as Signed;
@@ -10,10 +11,11 @@
 \definition before: Maps.Map := Before.compose original VerticalEvaluation.map;
 \definition own: \forall (x: C.family.Carrier p (Nat.Nat^::succ q)) ->
   after.apply ((Source.Component[i := verticalIndex].injection).apply x) = before.apply ((Source.Component[i := verticalIndex].injection).apply x) :=
-  \fun (x: C.family.Carrier p (Nat.Nat^::succ q)) => trans!{{C.family.Carrier p q}} _ _ _
-    (congr!{Target.Carrier {C.family.Carrier p q}} (TC.coordinate targetIndex) _ _ (Differential.verticalOnInjection verticalIndex x))
-    (trans!{{C.family.Carrier p q}} _ _ _ (TC.own targetIndex (original.apply x))
-      (sym!{{C.family.Carrier p q}} _ _ (congr!{{C.family.Carrier p (Nat.Nat^::succ q)} {C.family.Carrier p q}} (original.apply) _ _ (SC.own verticalIndex x))));
+  \fun (x: C.family.Carrier p (Nat.Nat^::succ q)) => eq_reason_in!{{C.family.Carrier p q} _
+    "=" _ "by" { congr!{Target.Carrier {C.family.Carrier p q}} (TC.coordinate targetIndex) _ _ (Differential.verticalOnInjection verticalIndex x) }
+    "=" _ "by" { TC.own targetIndex (original.apply x) }
+    "=" _ "by" { sym!{{C.family.Carrier p q}} _ _ (congr!{{C.family.Carrier p (Nat.Nat^::succ q)} {C.family.Carrier p q}} (original.apply) _ _ (SC.own verticalIndex x)) }
+  };
 \definition Off[b: Nat.Nat^]: \Prop := \forall (a: First (Nat.Nat^::succ n) b) ->
   Logic.Not (reverseIndex (Nat.Nat^::succ n) b a = verticalIndex) ->
   \forall (x: C.family.Carrier a b) -> TC.coordinate targetIndex ((Differential.vertical b a).apply x) = (C.family.space p q).zero;
@@ -39,15 +41,15 @@
   \forall (x: C.family.Carrier i.first i.second) ->
     after.apply ((Source.Component[i := i].injection).apply x) = before.apply ((Source.Component[i := i].injection).apply x) :=
   \fun (i: Index (Nat.Nat^::succ n))(ne: Logic.Not (i = verticalIndex))(x: C.family.Carrier i.first i.second) =>
-    trans!{{C.family.Carrier p q}} _ _ _
-      (trans!{{C.family.Carrier p q}} _ _ _
-        (congr!{Target.Carrier {C.family.Carrier p q}} (TC.coordinate targetIndex) _ _ (Differential.verticalOnInjection i x))
-        (off i.second (Differential.Component[i := i].p)
+    eq_reason_in!{{C.family.Carrier p q} _
+      "=" _ "by" { congr!{Target.Carrier {C.family.Carrier p q}} (TC.coordinate targetIndex) _ _ (Differential.verticalOnInjection i x) }
+      "=" _ "by" { off i.second (Differential.Component[i := i].p)
           (\fun (equal: reverseIndex (Nat.Nat^::succ n) i.second (Differential.Component[i := i].p) = verticalIndex) =>
-            ne (trans!{Pair} _ _ _ (sym!{Pair} _ _ (pairRebuild i)) equal)) x))
-      (sym!{{C.family.Carrier p q}} _ _ (trans!{{C.family.Carrier p q}} _ _ _
+            ne (trans!{Pair} _ _ _ (sym!{Pair} _ _ (pairRebuild i)) equal)) x }
+      "=" _ "by" { sym!{{C.family.Carrier p q}} _ _ (trans!{{C.family.Carrier p q}} _ _ _
         (congr!{{C.family.Carrier p (Nat.Nat^::succ q)} {C.family.Carrier p q}} (original.apply) _ _ (SC.other i verticalIndex x ne))
-        (OriginalMaps.zeroPreserved original)));
+        (OriginalMaps.zeroPreserved original)) }
+    };
 \definition onInjection: \forall (i: Index (Nat.Nat^::succ n))(x: C.family.Carrier i.first i.second) ->
   after.apply ((Source.Component[i := i].injection).apply x) = before.apply ((Source.Component[i := i].injection).apply x) :=
   \fun (i: Index (Nat.Nat^::succ n)) => either!{{(Classical.excludedMiddle (i = verticalIndex))} {

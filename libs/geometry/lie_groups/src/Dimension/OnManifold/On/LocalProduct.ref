@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import calculus.Real[].Multivariable[n := n].Open[] \as Open;
 \import manifolds.Dimension[n := n].Chart[M := manifold.Point, space := manifold.space] \as Charts;
 \import manifolds.ChartMap[n := n].On[M := manifold] \as Parametrizations;
@@ -39,9 +40,12 @@
   \return trans!{Point} _ _ _ (congr!{{Open.Carrier chart.image} Point} (\fun (x: Open.Carrier chart.image) => Charts.point chart x) _ _ coordinate)
     (ChartLaws.pointCoordinate (AtOne.localPoint chart))
 };
-\use Equality.congr2;
-\definition productAtBase: Maps.apply map base = one := trans!{Point} _ _ _ (apply base)
-  (trans!{Point} _ _ _ (congr2!{Point Point Point} mul _ _ _ _ leftAtBase rightAtBase) (Operations.oneLeft one));
+\use Equality.congr;
+\definition productAtBase: Maps.apply map base = one := eq_reason_in!{Point _
+  "=" _ "by" { apply base }
+  "=" _ "by" { congr!{Point Point Point} mul _ _ _ _ leftAtBase rightAtBase }
+  "=" _ "by" { Operations.oneLeft one }
+};
 \definition containsBase: Charts.Contains chart (Maps.apply map base) := \idelim one = Maps.apply map base \with p: Point => Charts.Contains chart p \by {
   base: AtOne.contains chart, equality: sym!{Point} _ _ productAtBase
 };
@@ -49,15 +53,18 @@
 \definition baseInDomain: \In[topological_algebra.Euclidean[].Dimension[n := dimension].Point] Joint.domain.points base := Joint.intro base containsBase;
 \definition basePoint: JointOpen.Carrier Joint.domain := \into[topological_algebra.Euclidean[].Dimension[n := dimension].Point](base, Joint.domain.points) \by { baseInDomain };
 \definition atBase: Joint.apply basePoint = origin := ChartLaws.pointInjective _ _
-  (trans!{Point} _ _ _ (Joint.returnsPoint basePoint)
-    (trans!{Point} _ _ _ productAtBase (sym!{Point} _ _ (ChartLaws.pointCoordinate (AtOne.localPoint chart)))));
+  (eq_reason_in!{Point _
+    "=" _ "by" { Joint.returnsPoint basePoint }
+    "=" _ "by" productAtBase
+    "=" _ "by" { sym!{Point} _ _ (ChartLaws.pointCoordinate (AtOne.localPoint chart)) }
+  });
 \definition Neighborhood: \Set := \Cast[Reals.Real] ({ radius: Reals.Real \where JointOpen.BallInside[Joint.domain.points, basePoint, radius] });
 \definition neighborhoodExists: \exists Neighborhood := Joint.domain.open basePoint baseInDomain;
 \definition factors[g, h: Open.Carrier chart.image]: Maps.apply map (Product.joinPoint g h) = mul (Charts.point chart g) (Charts.point chart h) := \block {
   \let p: source.Point := Product.joinPoint g h \then
   \let leftCoordinate: Product.leftPoint p = g := Blocks.leftJoin g h \then
   \let rightCoordinate: Product.rightPoint p = h := Blocks.rightJoin g h \then
-  \return trans!{Point} _ _ _ (apply p) (congr2!{Point Point Point} mul _ _ _ _
+  \return trans!{Point} _ _ _ (apply p) (congr!{Point Point Point} mul _ _ _ _
     (congr!{{Open.Carrier chart.image} Point} (\fun (x: Open.Carrier chart.image) => Charts.point chart x) _ _ leftCoordinate)
     (congr!{{Open.Carrier chart.image} Point} (\fun (x: Open.Carrier chart.image) => Charts.point chart x) _ _ rightCoordinate))
 };

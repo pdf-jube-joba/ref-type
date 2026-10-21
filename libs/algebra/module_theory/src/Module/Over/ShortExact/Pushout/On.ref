@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Modules.Pushout[A := A, B := N, C := B].On[f := f, g := s.inclusion] \as Pushout;
 \import Modules.Biproduct[V := N.Carrier, W := B.Carrier, left := N.space, right := B.space] \as Sum;
 \definition Carrier: \Set := Pushout.Carrier;
@@ -21,13 +22,18 @@
   \let represented: Pushout.relation.apply a = Sum.firstInjection.apply x :=
     \bysub(A.Carrier, { a: A.Carrier \where Pushout.relation.apply a = Sum.firstInjection.apply x }, a) \then
   \let negativeZero: B.space.neg (s.inclusion.apply a) = B.space.zero := Pairs.secondCong _ _ represented \then
-  \let imageZero: s.inclusion.apply a = B.space.zero := trans!{B.Carrier} _ _ _
-    (sym!{B.Carrier} _ _ (MiddleGroup.negNeg (s.inclusion.apply a)))
-    (trans!{B.Carrier} _ _ _ (congr!{B.Carrier B.Carrier} (B.space.neg) _ _ negativeZero) MiddleGroup.negZero) \then
+  \let imageZero: s.inclusion.apply a = B.space.zero := eq_reason_in!{B.Carrier _
+    "=" _ "by" { sym!{B.Carrier} _ _ (MiddleGroup.negNeg (s.inclusion.apply a)) }
+    "=" _ "by" { congr!{B.Carrier B.Carrier} (B.space.neg) _ _ negativeZero }
+    "=" _ "by" MiddleGroup.negZero
+  } \then
   \let aZero: a = A.space.zero := s.injective a A.space.zero
     (trans!{B.Carrier} _ _ _ imageZero (sym!{B.Carrier} _ _ (SourceInclusion.zeroPreserved s.inclusion))) \then
-  \return trans!{N.Carrier} _ _ _ (sym!{N.Carrier} _ _ (Pairs.firstCong _ _ represented))
-    (trans!{N.Carrier} _ _ _ (congr!{A.Carrier N.Carrier} (f.apply) _ _ aZero) (Maps.zeroPreserved f))
+  \return eq_reason_in!{N.Carrier _
+    "=" _ "by" { sym!{N.Carrier} _ _ (Pairs.firstCong _ _ represented) }
+    "=" _ "by" { congr!{A.Carrier N.Carrier} (f.apply) _ _ aZero }
+    "=" _ "by" { Maps.zeroPreserved f }
+  }
 };
 \import Modules.Hom[V := N.Carrier, W := Carrier, source := N.space, target := space] \as Inclusion;
 \definition injective: \forall (x, y: N.Carrier) -> inclusion.apply x = inclusion.apply y -> x = y := Inclusion.injectiveOfZeroKernel inclusion zeroKernel;
@@ -45,17 +51,22 @@
   \fun (q: Carrier)(closed: _) \then
   \takefrom x: \Cast[Sum.Carrier] ({ x: Sum.Carrier \where Pushout.class x = q }) \by Pushout.classOnto q \then
   \let equal: Pushout.class x = q := \bysub(Sum.Carrier, { x: Sum.Carrier \where Pushout.class x = q }, x) \then
-  \let imageZero: s.projection.apply (Sum.second x) = C.space.zero := trans!{C.Carrier} _ _ _ (sym!{C.Carrier} _ _ (onClass x))
-    (trans!{C.Carrier} _ _ _ (congr!{Carrier C.Carrier} (projection.apply) _ _ equal) closed) \then
+  \let imageZero: s.projection.apply (Sum.second x) = C.space.zero := eq_reason_in!{C.Carrier _
+    "=" _ "by" { sym!{C.Carrier} _ _ (onClass x) }
+    "=" _ "by" { congr!{Carrier C.Carrier} (projection.apply) _ _ equal }
+    "=" _ "by" closed
+  } \then
   \takefrom a: \Cast[A.Carrier] ({ a: A.Carrier \where s.inclusion.apply a = Sum.second x }) \by s.kernelImage (Sum.second x) imageZero \then
   \let represented: s.inclusion.apply a = Sum.second x := \bysub(A.Carrier, { a: A.Carrier \where s.inclusion.apply a = Sum.second x }, a) \then
   \let witness: N.Carrier := N.space.add (Sum.first x) (f.apply a) \then
   \return Logic.existsIntro[N.Carrier, { n: N.Carrier \where inclusion.apply n = q }] witness
-    (trans!{Carrier} _ _ _ (inclusion.addition (Sum.first x) (f.apply a))
-      (trans!{Carrier} _ _ _
-        (congr!{Carrier Carrier} (space.add (inclusion.apply (Sum.first x))) _ _
-          (trans!{Carrier} _ _ _ (Pushout.square a) (congr!{B.Carrier Carrier} (Pushout.right.apply) _ _ represented)))
-        (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (Pushout.onSum x)) equal)))
+    (eq_reason_in!{Carrier _
+      "=" _ "by" { inclusion.addition (Sum.first x) (f.apply a) }
+      "=" _ "by" { congr!{Carrier Carrier} (space.add (inclusion.apply (Sum.first x))) _ _
+          (trans!{Carrier} _ _ _ (Pushout.square a) (congr!{B.Carrier Carrier} (Pushout.right.apply) _ _ represented)) }
+      "=" _ "by" { sym!{Carrier} _ _ (Pushout.onSum x) }
+      "=" _ "by" equal
+    })
 };
 \import Modules.ShortExact[A := N, B := bundle, C := C] \as Sequences;
 \definition sequence: Sequences.Sequence := Sequences.Sequence {
