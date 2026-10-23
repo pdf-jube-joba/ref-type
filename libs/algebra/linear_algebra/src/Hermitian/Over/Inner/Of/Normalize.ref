@@ -1,0 +1,36 @@
+\import R.SquareRoot[] \as Root;
+\import Order.Arithmetic[].Prop[] \as Arithmetic;
+\definition length: R.Real := Root.sqrt (squared v);
+\definition lengthSquared: R.mul length length = squared v := Root.squareOfNonnegative (squared v) (Order.Order[].leOfLt R.zero (squared v) positive);
+\definition lengthNonzero: Logic.Not (length = R.zero) := \fun (zero: _) =>
+  Order.Order[].ltNotEq R.zero (squared v) positive (sym!{R.Real} _ _ (eq_reason_in!{R.Real _
+    "=" _ "by" { sym!{R.Real} _ _ lengthSquared }
+    "=" _ "by" { congr!{R.Real R.Real} (\fun (a: R.Real) => R.mul a length) _ _ zero }
+    "=" _ "by" { Arithmetic.fieldMulZeroLeft length }
+  }));
+\definition factor: R.Real := Arithmetic.fieldInv length;
+\definition inverseLength: R.mul factor length = R.one := Arithmetic.fieldInverseNonzero length lengthNonzero;
+\definition inverseSquared: R.mul (R.mul factor factor) (squared v) = R.one := eq_reason_in!{R.Real _
+  "=" _ "by" { congr!{R.Real R.Real} (R.mul (R.mul factor factor)) _ _ (sym!{R.Real} _ _ lengthSquared) }
+  "=" _ "by" { R.Algebra[].mulFour factor factor length length }
+  "=" _ "by" { congr!{R.Real R.Real R.Real} R.mul _ _ _ _ inverseLength inverseLength }
+  "=" _ "by" { Arithmetic.fieldMulOneLeft R.one }
+};
+\definition value: V := space.smul (embed factor) v;
+\definition unitNorm: h.dot value value = Spaces.one := eq_reason_in!{K _
+  "=" _ "by" { scaleLeft (embed factor) v value }
+  "=" _ "by" { congr!{K K K} Spaces.mul _ _ _ _ (scalar.conjugateReal factor) (h.scaleRight (embed factor) v v) }
+  "=" _ "by" { congr!{K K} (\fun (a: K) => Spaces.mul (embed factor) (Spaces.mul (embed factor) a)) _ _ (selfReal v) }
+  "=" _ "by" { sym!{K} _ _ (Spaces.mulAssoc (embed factor) (embed factor) (embed (squared v))) }
+  "=" _ "by" { congr!{K K} (\fun (a: K) => Spaces.mul a (embed (squared v))) _ _ (sym!{K} _ _ (scalar.embedMul factor factor)) }
+  "=" _ "by" { sym!{K} _ _ (scalar.embedMul (R.mul factor factor) (squared v)) }
+  "=" _ "by" { congr!{R.Real K} embed _ _ inverseSquared }
+  "=" _ "by" scalar.embedOne
+};
+\definition recover: space.smul (embed length) value = v := eq_reason_in!{V _
+  "=" _ "by" { sym!{V} _ _ (space.scalarAssoc (embed length) (embed factor) v) }
+  "=" _ "by" { congr!{K V} (\fun (a: K) => space.smul a v) _ _
+    (trans!{K} _ _ _ (sym!{K} _ _ (scalar.embedMul length factor))
+      (trans!{K} _ _ _ (congr!{R.Real K} embed _ _ (trans!{R.Real} _ _ _ (Arithmetic.fieldMulComm length factor) inverseLength)) scalar.embedOne)) }
+  "=" _ "by" { space.scalarOne v }
+};

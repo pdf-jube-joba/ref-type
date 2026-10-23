@@ -1,0 +1,49 @@
+\definition rankOne: End.Map := End.Map {
+  apply := \fun (w: V) => space.smul (h.dot v w) v,
+  preservesAdd := \fun (x, y: V) => trans!{V} _ _ _
+    (congr!{K V} (\fun (a: K) => space.smul a v) _ _ (h.addRight v x y)) (space.scalarAdd (h.dot v x) (h.dot v y) v),
+  preservesScale := \fun (a: K)(w: V) => trans!{V} _ _ _
+    (congr!{K V} (\fun (a: K) => space.smul a v) _ _ (h.scaleRight a v w)) (space.scalarAssoc a (h.dot v w) v),
+};
+\definition fixes: rankOne.apply v = v := trans!{V} _ _ _
+  (congr!{K V} (\fun (a: K) => space.smul a v) _ _ norm) (space.scalarOne v);
+\definition symmetric: \forall (x, y: V) -> h.dot (rankOne.apply x) y = h.dot x (rankOne.apply y) :=
+  \fun (x, y: V) => eq_reason_in!{K _
+    "=" _ "by" { scaleLeft (h.dot v x) v y }
+    "=" _ "by" { Spaces.mulComm (conj (h.dot v x)) (h.dot v y) }
+    "=" _ "by" { congr!{K K} (Spaces.mul (h.dot v y)) _ _ (sym!{K} _ _ (h.symmetric x v)) }
+    "=" _ "by" { sym!{K} _ _ (h.scaleRight (h.dot v y) x v) }
+  };
+\definition idempotent: \forall (w: V) -> rankOne.apply (rankOne.apply w) = rankOne.apply w :=
+  \fun (w: V) => trans!{V} _ _ _ (rankOne.preservesScale (h.dot v w) v)
+    (congr!{V V} (space.smul (h.dot v w)) _ _ fixes);
+\import End.Operations[] \as Operations;
+\import Spaces.Eigen[V := V, space := space] \as Eigen;
+\definition negativeAddition: \forall (x, y: V) -> space.neg (space.add x y) = space.add (space.neg x) (space.neg y) :=
+  \fun (x, y: V) => trans!{V} _ _ _ (sym!{V} _ _ (Laws.minusOneScale (space.add x y)))
+    (trans!{V} _ _ _ (space.vectorAdd (Spaces.neg Spaces.one) x y)
+      (congr!{V V V} space.add _ _ _ _ (Laws.minusOneScale x) (Laws.minusOneScale y)));
+\definition residual: End.Map := End.Map {
+  apply := \fun (w: V) => subtract w (rankOne.apply w),
+  preservesAdd := \fun (x, y: V) => trans!{V} _ _ _
+    (congr!{V V} (\fun (w: V) => space.add (space.add x y) (space.neg w)) _ _ (rankOne.preservesAdd x y))
+    (trans!{V} _ _ _ (congr!{V V} (space.add (space.add x y)) _ _ (negativeAddition (rankOne.apply x) (rankOne.apply y)))
+      (Laws.shuffle x y (space.neg (rankOne.apply x)) (space.neg (rankOne.apply y)))),
+  preservesScale := \fun (a: K)(w: V) => trans!{V} _ _ _
+    (congr!{V V} (\fun (x: V) => space.add (space.smul a w) (space.neg x)) _ _ (rankOne.preservesScale a w))
+    (trans!{V} _ _ _ (congr!{V V} (space.add (space.smul a w)) _ _ (sym!{V} _ _ (Laws.scaleNegative a (rankOne.apply w))))
+      (sym!{V} _ _ (space.vectorAdd a w (space.neg (rankOne.apply w))))),
+};
+\definition residualFormula: \forall (w: V) -> residual.apply w = subtract w (rankOne.apply w) := \fun (w: V) => \refl(residual.apply w);
+\definition orthogonal: \forall (w: V) -> h.dot v (residual.apply w) = Spaces.zero :=
+  \fun (w: V) => eq_reason_in!{K _
+    "=" _ "by" { congr!{V K} (h.dot v) _ _ (residualFormula w) }
+    "=" _ "by" { dotSubtractRight v w (rankOne.apply w) }
+    "=" _ "by" { congr!{K K} (\fun (a: K) => Spaces.add (h.dot v w) (Spaces.neg a)) _ _
+      (trans!{K} _ _ _ (h.scaleRight (h.dot v w) v v)
+        (trans!{K} _ _ _ (congr!{K K} (Spaces.mul (h.dot v w)) _ _ norm) (Spaces.mulOneRight (h.dot v w)))) }
+    "=" _ "by" { Spaces.addNegRight (h.dot v w) }
+  };
+\definition decomposition: \forall (w: V) -> space.add (rankOne.apply w) (residual.apply w) = w :=
+  \fun (w: V) => trans!{V} _ _ _ (congr!{V V} (space.add (rankOne.apply w)) _ _ (residualFormula w))
+    (addSubtract w (rankOne.apply w));

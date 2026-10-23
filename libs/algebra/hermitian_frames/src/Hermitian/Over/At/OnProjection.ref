@@ -1,0 +1,52 @@
+\definition negativeAddition: \forall (v, w: Vector) -> E.space.neg (E.space.add v w) = E.space.add (E.space.neg v) (E.space.neg w) :=
+  \fun (v, w: Vector) => eq_reason_in!{Vector _
+    "=" _ "by" { sym!{Vector} _ _ (Laws.minusOneScale (E.space.add v w)) }
+    "=" _ "by" { E.space.vectorAdd (Spaces.neg Spaces.one) v w }
+    "=" _ "by" { congr!{Vector Vector Vector} E.space.add _ _ _ _ (Laws.minusOneScale v) (Laws.minusOneScale w) }
+  };
+\definition Image: \Pow Vector := { v: Vector \where P.map.apply v = v };
+\definition fixed: \forall (v: Vector) -> \In[Vector] Image (P.map.apply v) := P.idempotent;
+\module Rank(k: N.Nat^);
+\definition complementMap: End.Map := End.Map {
+  apply := \fun (v: Vector) => InnerLaws.subtract v (P.map.apply v),
+  preservesAdd := \fun (v, w: Vector) => trans!{Vector} _ _ _
+    (congr!{Vector Vector} (\fun (x: Vector) => E.space.add (E.space.add v w) (E.space.neg x)) _ _ (P.map.preservesAdd v w))
+    (trans!{Vector} _ _ _
+      (congr!{Vector Vector} (E.space.add (E.space.add v w)) _ _ (negativeAddition (P.map.apply v) (P.map.apply w)))
+      (Laws.shuffle v w (E.space.neg (P.map.apply v)) (E.space.neg (P.map.apply w)))),
+  preservesScale := \fun (a: K)(v: Vector) => trans!{Vector} _ _ _
+    (congr!{Vector Vector} (\fun (w: Vector) => E.space.add (E.space.smul a v) (E.space.neg w)) _ _ (P.map.preservesScale a v))
+    (trans!{Vector} _ _ _ (congr!{Vector Vector} (E.space.add (E.space.smul a v)) _ _ (sym!{Vector} _ _ (Laws.scaleNegative a (P.map.apply v))))
+      (sym!{Vector} _ _ (E.space.vectorAdd a v (E.space.neg (P.map.apply v))))),
+};
+\definition annihilates: \forall (v: Vector) -> P.map.apply (complementMap.apply v) = E.space.zero :=
+  \fun (v: Vector) => eq_reason_in!{Vector _
+    "=" _ "by" { InnerLaws.linearSubtract P.map v (P.map.apply v) }
+    "=" _ "by" { congr!{Vector Vector} (InnerLaws.subtract (P.map.apply v)) _ _ (P.idempotent v) }
+    "=" _ "by" { trans!{Vector} _ _ _ (Laws.comm (P.map.apply v) (E.space.neg (P.map.apply v))) (Laws.inverseLeft (P.map.apply v)) }
+  };
+\definition complement: Projection := Projection {
+  map := complementMap,
+  selfAdjoint := \fun (v, w: Vector) => eq_reason_in!{K _
+    "=" _ "by" { InnerLaws.addLeft v (E.space.neg (P.map.apply v)) w }
+    "=" _ "by" { congr!{K K} (Spaces.add (dot v w)) _ _ (InnerLaws.negativeLeft (P.map.apply v) w) }
+    "=" _ "by" { congr!{K K} (\fun (a: K) => Spaces.add (dot v w) (Spaces.neg a)) _ _ (P.selfAdjoint v w) }
+    "=" _ "by" { sym!{K} _ _ (InnerLaws.dotSubtractRight v w (P.map.apply w)) }
+  },
+  idempotent := \fun (v: Vector) => trans!{Vector} _ _ _
+    (congr!{Vector Vector} (InnerLaws.subtract (complementMap.apply v)) _ _ (annihilates v))
+    (trans!{Vector} _ _ _ (congr!{Vector Vector} (E.space.add (complementMap.apply v)) _ _ (trans!{Vector} _ _ _ (sym!{Vector} _ _ (Laws.minusOneScale E.space.zero)) (Laws.scaleZero (Spaces.neg Spaces.one)))) (Laws.zeroRight (complementMap.apply v))),
+};
+\definition splitting: \forall (v: Vector) -> E.space.add (P.map.apply v) (complement.map.apply v) = v :=
+  \fun (v: Vector) => InnerLaws.addSubtract v (P.map.apply v);
+\definition annihilatesRight: \forall (v: Vector) -> complement.map.apply (P.map.apply v) = E.space.zero :=
+  \fun (v: Vector) => trans!{Vector} _ _ _
+    (congr!{Vector Vector} (InnerLaws.subtract (P.map.apply v)) _ _ (P.idempotent v))
+    (trans!{Vector} _ _ _ (Laws.comm (P.map.apply v) (E.space.neg (P.map.apply v))) (Laws.inverseLeft (P.map.apply v)));
+\definition orthogonal: \forall (v, w: Vector) -> dot (P.map.apply v) (complement.map.apply w) = Spaces.zero :=
+  \fun (v, w: Vector) => trans!{K} _ _ _ (P.selfAdjoint v (complement.map.apply w))
+    (trans!{K} _ _ _ (congr!{Vector K} (dot v) _ _ (annihilates w)) (E.form.zeroRight v));
+\definition complementTwiceValue: \forall (v: Vector) -> InnerLaws.subtract v (complement.map.apply v) = P.map.apply v :=
+  \fun (v: Vector) => Laws.cancelLeft (complement.map.apply v) (InnerLaws.subtract v (complement.map.apply v)) (P.map.apply v)
+    (trans!{Vector} _ _ _ (InnerLaws.addSubtract v (complement.map.apply v))
+      (sym!{Vector} _ _ (trans!{Vector} _ _ _ (Laws.comm (complement.map.apply v) (P.map.apply v)) (splitting v))));

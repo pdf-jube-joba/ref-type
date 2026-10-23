@@ -1,0 +1,46 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import Spaces.Linear[V := Next.Vector, W := Next.Vector, source := Next.space, target := Next.space] \as TotalMaps;
+\import Spaces.Isomorphism[V := Next.Vector, W := Next.Vector, source := Next.space, target := Next.space] \as TotalIsomorphisms;
+\import Rows.Operations[] \as RowOperations;
+\import Coefficients.Composition[U := Next.Vector, domain := Next.space] \as RestrictRow;
+\import Spaces.Linear[V := Vector, W := Vector, source := space, target := space].Composition[U := Next.Vector, domain := Next.space] \as RestrictLower;
+\definition lowerForward: Restrictions.Map := RestrictLower.compose lower.forward tailMap;
+\definition lowerBackward: Restrictions.Map := RestrictLower.compose lower.backward tailMap;
+\definition forwardRow: Rows.Map := RowOperations.plus (RowOperations.scale l headMap) (RestrictRow.compose row tailMap);
+\definition backwardRow: Rows.Map := RowOperations.scale (field.inv l)
+  (RowOperations.plus headMap (RowOperations.negative (RestrictRow.compose row lowerBackward)));
+\definition forward: TotalMaps.Map := \parent.Joining[V := Next.Vector, source := Next.space, first := forwardRow, rest := lowerForward].map;
+\definition backward: TotalMaps.Map := \parent.Joining[V := Next.Vector, source := Next.space, first := backwardRow, rest := lowerBackward].map;
+\definition subtract[b, a: K]: K := Spaces.add b (Spaces.neg a);
+\definition subAddCancel: \forall (a, b: K) -> Spaces.add (subtract a b) b = a := \fun (a, b: K) =>
+  trans!{K} _ _ _ (Spaces.addAssoc a (Spaces.neg b) b)
+    (trans!{K} _ _ _ (congr!{K K} (Spaces.add a) _ _ (Spaces.addNegLeft b)) (Spaces.addZeroRight a));
+\definition undo: \forall (a, b: K) -> Spaces.mul (field.inv l) (subtract (Spaces.add (Spaces.mul l a) b) b) = a :=
+  \fun (a, b: K) => eq_reason_in!{{K} _
+    "=" _ "by" { congr!{{K} {K}} (Spaces.mul (field.inv l)) _ _
+      (eq_reason_in!{K _
+        "=" _ "by" { Spaces.addAssoc (Spaces.mul l a) b (Spaces.neg b) }
+        "=" _ "by" { congr!{{K} {K}} (Spaces.add (Spaces.mul l a)) _ _ (Spaces.addNegRight b) }
+        "=" _ "by" { Spaces.addZeroRight (Spaces.mul l a) }
+      }) }
+    "=" _ "by" { sym!{{K}} _ _ (Spaces.mulAssoc (field.inv l) l a) }
+    "=" _ "by" { congr!{{K} {K}} (\fun (c: K) => Spaces.mul c a) _ _ (field.inverse l nonzero) }
+    "=" _ "by" { Spaces.mulOneLeft a }
+  };
+\definition redo: \forall (a, b: K) -> Spaces.add (Spaces.mul l (Spaces.mul (field.inv l) (subtract a b))) b = a :=
+  \fun (a, b: K) => trans!{{K}} _ _ _
+    (congr!{{K} {K}} (\fun (c: K) => Spaces.add c b) _ _
+      (eq_reason_in!{{K} _
+        "=" _ "by" { sym!{{K}} _ _ (Spaces.mulAssoc l (field.inv l) (subtract a b)) }
+        "=" _ "by" { congr!{{K} {K}} (\fun (c: K) => Spaces.mul c (subtract a b)) _ _
+          (trans!{{K}} _ _ _ (Spaces.mulComm l (field.inv l)) (field.inverse l nonzero)) }
+        "=" _ "by" { Spaces.mulOneLeft (subtract a b) }
+      }))
+    (subAddCancel a b);
+\module At(v: Next.Vector);
+\definition leftInverse: \forall (v: Next.Vector) -> backward.apply (forward.apply v) = v := \fun (v: Next.Vector) => At[v := v].leftInverse;
+\definition rightInverse: \forall (v: Next.Vector) -> forward.apply (backward.apply v) = v := \fun (v: Next.Vector) => At[v := v].rightInverse;
+\definition isomorphism: TotalIsomorphisms.Isomorphism :=
+  TotalIsomorphisms.Isomorphism {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+  };

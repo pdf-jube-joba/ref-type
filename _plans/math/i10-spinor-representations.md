@@ -10,4 +10,4 @@
 
 ## 依存するタスク
 
-- [L03 Hermitian 行列と連続な局所枠](l03-hermitian-frames.md)
+- [Hermitian 行列と連続な局所枠](../../libs/algebra/hermitian_frames/README.md)

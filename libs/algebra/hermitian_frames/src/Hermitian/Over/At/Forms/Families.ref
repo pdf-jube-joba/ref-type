@@ -1,0 +1,24 @@
+\import topology.Topology[Carrier := X] \as Source;
+\import \parent.\parent.Families[X := X] \as Vectors;
+\import \parent.\parent.\parent.Functions[X := X] \as Functions;
+\import Vectors.Matrix[m := n] \as EndFamilies;
+\import Algebra.Matrix[k := n, map := Eigen.identity] \as Metric;
+\definition Continuous[source: Source.Topology][v: X -> Vector]: \Prop := Vectors.Continuous source v;
+\definition dotContinuous: \forall (source: Source.Topology)(v, w: X -> Vector) -> Continuous source v -> Continuous source w ->
+  Functions.Continuous source (\fun (x: X) => h.dot (v x) (w x)) :=
+  \fun (source: Source.Topology)(v, w: X -> Vector)(vc: Continuous source v)(wc: Continuous source w) =>
+    Functions.transport source (\fun (x: X) => E.dot (v x) (Metric.coordinates.apply (w x))) (\fun (x: X) => h.dot (v x) (w x))
+      (\fun (x: X) => sym!{K} _ _ (Metric.adjoint (v x) (w x)))
+      (Vectors.dotContinuous source v (\fun (x: X) => Metric.coordinates.apply (w x)) vc
+        (EndFamilies.evaluate source (\fun (x: X) => Metric.coordinates) w
+          (\fun (j: Fin.Fin n) => Vectors.constant source (Metric.coordinates.apply (E.basis j))) wc));
+\module Normalize(source: Source.Topology, v: X -> Vector, continuous: Continuous source v, positive: \forall (x: X) -> dedekind_reals.DedekindReal[].Lt R.zero (Algebra.squared (v x)));
+\module Rank(k: N.Nat^);
+\definition Previous[k: N.Nat^]: \Prop := \forall (source: Source.Topology)(A: Rank[k := k].Family) ->
+  Rank[k := k].Regular source A -> Rank[k := k].Injective A -> Positive h -> \exists Rank[k := k].Factors[A, source];
+\module Zero;
+\module Step(k: N.Nat^, previous: Previous k);
+\definition exists: \forall (k: N.Nat^) -> Previous k := \induction (k: N.Nat^) \return Previous k \with {
+  | zero: Zero[].exists
+  | succ: \fun (k: N.Nat^)(previous: Previous k) => Step[k := k, previous := previous].exists
+};

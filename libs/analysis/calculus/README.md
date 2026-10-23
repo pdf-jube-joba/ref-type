@@ -42,3 +42,6 @@ Dedekind 実数上の極限と微分を扱う。
 その `Projections` は接方向・法方向の滑らかな直交射影と像上の逆写像を与える。
 `ProjectionFrames` は一定階数の滑らかな直交射影から、正値ノルムの開近傍上で正規直交枠を構成する。
 `InverseFamily` は滑らかな可逆行列族の点ごとの逆の滑らかさを導き、`LinearMap` は線形写像の滑らかさと微分の公式を共有する。
+
+実 Gram–Schmidt の代数的な分解証明は `linear_algebra.Hermitian` と共有する。
+任意の位相空間上の実・複素の連続な正規直交化と射影の局所枠は [hermitian_frames](../../algebra/hermitian_frames/README.md) にある。

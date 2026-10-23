@@ -1,0 +1,60 @@
+\definition IsIsometry[u: Isomorphisms.Isomorphism]: \Prop := \forall (v, w: Vector) -> dot (u.forward.apply v) (u.forward.apply w) = dot v w;
+\definition Carrier: \Set := \Cast[Isomorphisms.Isomorphism] ({ u: Isomorphisms.Isomorphism \where IsIsometry u });
+\definition isometry[u: Carrier]: IsIsometry u := \bysub(Isomorphisms.Isomorphism, Carrier, u);
+\definition identity: Carrier := \into[Isomorphisms.Isomorphism](Isomorphisms.Isomorphism {
+  forward := Eigen.identity, backward := Eigen.identity,
+  leftInverse := \fun (v: Vector) => \refl(v), rightInverse := \fun (v: Vector) => \refl(v),
+}, Carrier) \by { \fun (v, w: Vector) => \refl(dot v w) };
+\definition multiply[u, v: Carrier]: Carrier := \into[Isomorphisms.Isomorphism](Isomorphisms.Isomorphism {
+  forward := Compose.compose u.forward v.forward, backward := Compose.compose v.backward u.backward,
+  leftInverse := \fun (w: Vector) => trans!{Vector} _ _ _ (congr!{Vector Vector} v.backward.apply _ _ (u.leftInverse (v.forward.apply w))) (v.leftInverse w),
+  rightInverse := \fun (w: Vector) => trans!{Vector} _ _ _ (congr!{Vector Vector} u.forward.apply _ _ (v.rightInverse (u.backward.apply w))) (u.rightInverse w),
+}, Carrier) \by { \fun (x, y: Vector) => trans!{K} _ _ _ (isometry u (v.forward.apply x) (v.forward.apply y)) (isometry v x y) };
+\definition inverse[u: Carrier]: Carrier := \into[Isomorphisms.Isomorphism](Isomorphisms.Isomorphism {
+  forward := u.backward, backward := u.forward, leftInverse := u.rightInverse, rightInverse := u.leftInverse,
+}, Carrier) \by { \fun (v, w: Vector) => trans!{K} _ _ _ (sym!{K} _ _ (isometry u (u.backward.apply v) (u.backward.apply w)))
+  (congr!{Vector Vector K} dot _ _ _ _ (u.rightInverse v) (u.rightInverse w)) };
+\definition dataEta: \forall (u: Isomorphisms.Data) -> Isomorphisms.Data::# u.forward u.backward = u :=
+  \induction (u: Isomorphisms.Data) \return Isomorphisms.Data::# u.forward u.backward = u \with {
+    | # : \fun (f, g: Map) => \refl(Isomorphisms.Data::# f g)
+  };
+\definition ext: \forall (u, v: Carrier) -> (\forall (w: Vector) -> u.forward.apply w = v.forward.apply w) -> u = v := \block {
+  \fun (u, v: Carrier)(same: _) \then
+  \let forwards: u.forward = v.forward := End.ext u.forward v.forward (\axiom:funext(u.forward.apply, v.forward.apply, same)) \then
+  \let backwards: u.backward = v.backward := End.ext u.backward v.backward (\axiom:funext(u.backward.apply, v.backward.apply, \fun (w: Vector) => eq_reason_in!{Vector _
+    "=" _ "by" { sym!{Vector} _ _ (v.leftInverse (u.backward.apply w)) }
+    "=" _ "by" { congr!{Vector Vector} v.backward.apply _ _ (sym!{Vector} _ _ (same (u.backward.apply w))) }
+    "=" _ "by" { congr!{Vector Vector} v.backward.apply _ _ (u.rightInverse w) }
+  })) \then
+  \return trans!{Isomorphisms.Data} u (Isomorphisms.Data::# u.forward u.backward) v (sym!{Isomorphisms.Data} _ _ (dataEta u))
+    (trans!{Isomorphisms.Data} _ _ _ (congr!{Map Map {Isomorphisms.Data}} Isomorphisms.Data::# _ _ _ _ forwards backwards) (dataEta v))
+};
+\definition associative: \forall (u, v, w: Carrier) -> multiply (multiply u v) w = multiply u (multiply v w) :=
+  \fun (u, v, w: Carrier) => ext (multiply (multiply u v) w) (multiply u (multiply v w)) (\fun (x: Vector) => \refl(u.forward.apply (v.forward.apply (w.forward.apply x))));
+\definition leftIdentity: \forall (u: Carrier) -> multiply identity u = u := \fun (u: Carrier) => ext (multiply identity u) u (\fun (v: Vector) => \refl(u.forward.apply v));
+\definition rightIdentity: \forall (u: Carrier) -> multiply u identity = u := \fun (u: Carrier) => ext (multiply u identity) u (\fun (v: Vector) => \refl(u.forward.apply v));
+\definition leftInverse: \forall (u: Carrier) -> multiply (inverse u) u = identity := \fun (u: Carrier) => ext (multiply (inverse u) u) identity u.leftInverse;
+\definition rightInverse: \forall (u: Carrier) -> multiply u (inverse u) = identity := \fun (u: Carrier) => ext (multiply u (inverse u)) identity u.rightInverse;
+\definition adjoint: \forall (u: Carrier)(v, w: Vector) -> dot (u.forward.apply v) w = dot v (u.backward.apply w) :=
+  \fun (u: Carrier)(v, w: Vector) => trans!{K} _ _ _
+    (congr!{Vector K} (dot (u.forward.apply v)) _ _ (sym!{Vector} _ _ (u.rightInverse w))) (isometry u v (u.backward.apply w));
+\definition inverseEntry: \forall (u: Carrier)(i, j: Fin.Fin n) -> u.backward.apply (E.basis j) i = conjugate (u.forward.apply (E.basis i) j) :=
+  \fun (u: Carrier)(i, j: Fin.Fin n) => eq_reason_in!{K _
+    "=" _ "by" { sym!{K} _ _ (E.dotBasis i (u.backward.apply (E.basis j))) }
+    "=" _ "by" { sym!{K} _ _ (adjoint u (E.basis i) (E.basis j)) }
+    "=" _ "by" { E.symmetric (u.forward.apply (E.basis i)) (E.basis j) }
+    "=" _ "by" { congr!{K K} conjugate _ _ (E.dotBasis j (u.forward.apply (E.basis i))) }
+  };
+\import topological_algebra.Matrix[K := K, I := Fin.Fin n, J := Fin.Fin n] \as Matrices;
+\import topology.Topology[Carrier := Matrices.Carrier] \as MatrixSpace;
+\import topology.Topology[Carrier := Carrier] \as Space;
+\import topology.Maps[A := Carrier, B := Matrices.Carrier] \as Pullback;
+\definition entries[u: Carrier][i, j: Fin.Fin n]: K := u.forward.apply (E.basis j) i;
+\definition matrixTopology: MatrixSpace.Topology := Matrices.topology topological.space;
+\definition Basis: \Pow (\Pow Carrier) := Pullback.PullbackFamily entries (MatrixSpace.topologyData matrixTopology).openSets;
+\definition topology: Space.Topology := Space.generated Basis;
+\definition entriesContinuous: topology.Continuity[A := Carrier, B := Matrices.Carrier].Continuous topology matrixTopology entries :=
+  \fun (U: \Pow Matrices.Carrier)(open: MatrixSpace.IsOpenIn matrixTopology U) =>
+    Space.generatedBasisOpen Basis (Pullback.Preimage entries U) (Pullback.pullbackMember entries (MatrixSpace.topologyData matrixTopology).openSets U open);
+\module Families(X: \Set);
+\module Operations;

@@ -1,66 +1,12 @@
-\use std.Logic[].Equality[].eq_reason_in;
 \import Higher.Matrix[m := n] \as HigherMatrix;
-\definition previousOrthogonal: \forall (v: Source.Vector) -> dot unit.vector (previous.frame.apply v) = R.zero :=
-  \fun (v: Source.Vector) => trans!{{R.Real}} _ _ _
-    (congr!{Vector {R.Real}} (dot unit.vector) _ _ (sym!{Vector} _ _
-      (trans!{Vector} _ _ _ (previous.formula (previous.change.backward.apply v))
-        (congr!{{Source.Vector} Vector} previous.frame.apply _ _ ((Isomorphisms.laws previous.change).rightInverse v)))))
-    (Unit.orthogonal (tailMap.apply (previous.change.backward.apply v)));
-\definition apply[v: Higher.Vector]: Vector := space.add (space.smul (Split.head v) unit.vector) (previous.frame.apply (Split.tail v));
-\definition value: HigherMaps.Map := HigherMaps.Map {
-  apply := apply,
-  preservesAdd := \fun (v, w: Higher.Vector) => trans!{Vector} _ _ _
-    (congr!{Vector Vector Vector} space.add _ _ _ _ (space.scalarAdd (Split.head v) (Split.head w) unit.vector)
-      (previous.frame.preservesAdd (Split.tail v) (Split.tail w)))
-    (Laws.shuffle (space.smul (Split.head v) unit.vector) (space.smul (Split.head w) unit.vector)
-      (previous.frame.apply (Split.tail v)) (previous.frame.apply (Split.tail w))),
-  preservesScale := \fun (a: R.Real)(v: Higher.Vector) => trans!{Vector} _ _ _
-    (congr!{Vector Vector Vector} space.add _ _ _ _ (space.scalarAssoc a (Split.head v) unit.vector) (previous.frame.preservesScale a (Split.tail v)))
-    (sym!{Vector} _ _ (space.vectorAdd a (space.smul (Split.head v) unit.vector) (previous.frame.apply (Split.tail v)))),
+\import Shared.Of[h := sharedForm].Gram[k := k] \as Generic;
+\import Generic.Step[].On[A := A, injective := injective, positive := sharedPositive] \as Step;
+\definition genericPrevious: Generic.Factorization[Step.residual] := Generic.Factorization[Step.residual] {
+  frame := previous.frame, isometry := Matrix.isometryLaws previous.frame, change := previous.change, formula := previous.formula,
 };
-\definition unitDot: \forall (v: Higher.Vector) -> dot unit.vector (apply v) = Split.head v :=
-  \fun (v: Higher.Vector) => eq_reason_in!{{R.Real} _
-    "=" _ "by" { form.addRight unit.vector _ _ }
-    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
-      (eq_reason_in!{R.Real _
-        "=" _ "by" { form.scaleRight (Split.head v) unit.vector unit.vector }
-        "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul (Split.head v)) _ _ unit.norm }
-        "=" _ "by" { Spaces.mulOneRight (Split.head v) }
-      })
-      (previousOrthogonal (Split.tail v)) }
-    "=" _ "by" { Arithmetic.addZeroRight (Split.head v) }
-  };
-\definition previousDot: \forall (v: Source.Vector)(w: Higher.Vector) -> dot (previous.frame.apply v) (apply w) = Source.dot v (Split.tail w) :=
-  \fun (v: Source.Vector)(w: Higher.Vector) => eq_reason_in!{{R.Real} _
-    "=" _ "by" { form.addRight (previous.frame.apply v) _ _ }
-    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
-      (eq_reason_in!{R.Real _
-        "=" _ "by" { form.scaleRight (Split.head w) (previous.frame.apply v) unit.vector }
-        "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul (Split.head w)) _ _
-          (trans!{{R.Real}} _ _ _ (symmetric (previous.frame.apply v) unit.vector) (previousOrthogonal v)) }
-        "=" _ "by" { Spaces.mulZeroRight (Split.head w) }
-      })
-      (Matrix.isometryLaws previous.frame v (Split.tail w)) }
-    "=" _ "by" { Arithmetic.addZeroLeft (Source.dot v (Split.tail w)) }
-  };
-\definition isometry: HigherMatrix.IsIsometry value := \fun (v, w: Higher.Vector) => trans!{{R.Real}} _ _ _ (form.addLeft _ _ (apply w))
-  (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
-    (trans!{{R.Real}} _ _ _ (form.scaleLeft (Split.head v) unit.vector (apply w)) (congr!{{R.Real} {R.Real}} (R.mul (Split.head v)) _ _ (unitDot w)))
-    (previousDot (Split.tail v) w));
-\definition frame: HigherMatrix.Isometry := \into[HigherMaps.Map](value, HigherMatrix.Isometry) \by { isometry };
-\import Split.Triangular[l := Normalize.length, nonzero := Normalize.lengthNonzero, row := row, lower := previous.change] \as Triangular;
-\definition recombine: \forall (a, b, c, t: R.Real) -> R.add (R.mul (R.add (R.mul Normalize.length a) b) c) (R.sub t (R.mul b c)) =
-  R.add (R.mul a (R.mul Normalize.length c)) t := \fun (a, b, c, t: R.Real) =>
-    eq_reason_in!{{R.Real} _
-      "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (s: R.Real) => R.add s (R.sub t (R.mul b c))) _ _
-      (Scalars.mulAddRight (R.mul Normalize.length a) b c) }
-      "=" _ "by" { Scalars.addFour (R.mul (R.mul Normalize.length a) c) (R.mul b c) t (R.neg (R.mul b c)) }
-      "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
-          (congr!{{R.Real} {R.Real}} (\fun (s: R.Real) => R.add s t) _ _
-            (trans!{{R.Real}} _ _ _ (Arithmetic.fieldMulAssoc Normalize.length a c) (Scalars.mulSwap Normalize.length a c)))
-          (Arithmetic.addNegRight (R.mul b c)) }
-      "=" _ "by" { Arithmetic.addZeroRight (R.add (R.mul a (R.mul Normalize.length c)) t) }
-    };
-\module At(v: Higher.Vector);
-\definition formula: \forall (v: Higher.Vector) -> A.apply v = frame.apply (Triangular.forward.apply v) := \fun (v: Higher.Vector) => At[v := v].formula;
-\definition factorization: HigherGram.Factorization[A] := HigherGram.Factorization[A] { frame := frame, change := Triangular.isomorphism, formula := formula };
+\import Step.With[previous := genericPrevious] \as Construct;
+\definition value: HigherMaps.Map := Construct.value;
+\definition frame: HigherMatrix.Isometry := \into[HigherMaps.Map](value, HigherMatrix.Isometry) \by { Construct.isometry };
+\definition factorization: HigherGram.Factorization[A] := HigherGram.Factorization[A] {
+  frame := frame, change := Construct.factorization.change, formula := Construct.formula,
+};

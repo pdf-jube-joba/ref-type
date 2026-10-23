@@ -1,0 +1,26 @@
+\import topology.Topology[Carrier := X] \as Source;
+\import \parent.\parent.Functions[X := X] \as Functions;
+\definition Continuous[source: Source.Topology][v: X -> Vector]: \Prop :=
+  \forall (i: Fin.Fin n) -> Functions.Continuous source (\fun (x: X) => v x i);
+\definition dotContinuous: \forall (source: Source.Topology)(v, w: X -> Vector) -> Continuous source v -> Continuous source w ->
+  Functions.Continuous source (\fun (x: X) => dot (v x) (w x)) :=
+  \fun (source: Source.Topology)(v, w: X -> Vector)(vc: Continuous source v)(wc: Continuous source w) =>
+    Functions.finiteSum n source (\fun (i: Fin.Fin n)(x: X) => Spaces.mul (conjugate (v x i)) (w x i))
+      (\fun (i: Fin.Fin n) => Functions.multiplication source (\fun (x: X) => conjugate (v x i)) (\fun (x: X) => w x i)
+        (Functions.conjugation source (\fun (x: X) => v x i) (vc i)) (wc i));
+\definition addition: \forall (source: Source.Topology)(v, w: X -> Vector) -> Continuous source v -> Continuous source w ->
+  Continuous source (\fun (x: X) => E.space.add (v x) (w x)) :=
+  \fun (source: Source.Topology)(v, w: X -> Vector)(vc: Continuous source v)(wc: Continuous source w)(i: Fin.Fin n) =>
+    Functions.addition source (\fun (x: X) => v x i) (\fun (x: X) => w x i) (vc i) (wc i);
+\definition scale: \forall (source: Source.Topology)(a: X -> K)(v: X -> Vector) -> Functions.Continuous source a -> Continuous source v ->
+  Continuous source (\fun (x: X) => E.space.smul (a x) (v x)) :=
+  \fun (source: Source.Topology)(a: X -> K)(v: X -> Vector)(ac: Functions.Continuous source a)(vc: Continuous source v)(i: Fin.Fin n) =>
+    Functions.multiplication source a (\fun (x: X) => v x i) ac (vc i);
+\definition negative: \forall (source: Source.Topology)(v: X -> Vector) -> Continuous source v -> Continuous source (\fun (x: X) => E.space.neg (v x)) :=
+  \fun (source: Source.Topology)(v: X -> Vector)(vc: Continuous source v)(i: Fin.Fin n) => Functions.negation source (\fun (x: X) => v x i) (vc i);
+\definition constant: \forall (source: Source.Topology)(v: Vector) -> Continuous source (\fun (x: X) => v) :=
+  \fun (source: Source.Topology)(v: Vector)(i: Fin.Fin n) => Functions.constant source (v i);
+\module Matrix(m: N.Nat^);
+\module ProjectionFrames(k: N.Nat^, source: Source.Topology, P: X -> Projection);
+\module Orthonormalized(k: N.Nat^, source: Source.Topology, A: X -> InnerLaws.Gram[k := k].Map,
+  factors: \parent.\parent.Forms[h := E.form].Families[X := X].Rank[k := k].Factors[A, source]);

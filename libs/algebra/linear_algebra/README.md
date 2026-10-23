@@ -42,3 +42,13 @@
 `Euclidean.Blocks` と `Space.CoordinateSum` は連続する座標ブロックと直和を同一視する。
 `Space.CoordinateBasis` は座標同型から実際の有限基底とその次元を復元する。
 `Space.Pullback` は明示的な全単射を通してベクトル空間を移し、`Isomorphism.OfBijective` は全単射な線形写像の逆を構成する。
+
+## 共通の Hermitian 幾何
+
+`Hermitian.Real` と `Hermitian.Complex` は実数・複素数の体、共役、実数の埋め込みと実部を具体化する。
+`Hermitian.Over.Inner` は Hermitian 形式と正定値性を分け、`Of.Normalize` は平方根による正規化を構成する。
+`Of.Algorithm.exists` は正定値形式と単射な列行列の Gram–Schmidt 分解を有限列の長さについて帰納的に構成する。
+`Of.Matrix` は随伴座標を、`Of.Gram.Of` は枠の左逆・像上の逆座標・直交射影を与える。
+`Hermitian.Complex.FromInnerProduct` は既存の `Complex.InnerProduct` をこの共通形式へ移す。
+既存の実正規化と Gram–Schmidt の分解証明もこの共通実装を利用する。
+連続性、局所枠、Hermitian 行列、ユニタリ群と直和は [hermitian_frames](../hermitian_frames/README.md) を参照。

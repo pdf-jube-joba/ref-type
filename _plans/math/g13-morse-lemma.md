@@ -10,4 +10,4 @@
 ## 依存するタスク
 
 - [G02 逆関数・陰関数と正則値の局所形](g02-inverse-implicit.md)
-- [L03 Hermitian 行列と連続な局所枠](l03-hermitian-frames.md)
+- [Hermitian 行列と連続な局所枠](../../libs/algebra/hermitian_frames/README.md)
