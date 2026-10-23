@@ -127,7 +127,6 @@ workspace全体の module 列挙、全51パッケージの依存パス、文書�
 | `cohomology_models` | 82 | [結果](consumer-models.json) |
 
 セル全体の検査は、変更前と同じ本文の `On.Cellular.Representatives.Selected.integerMap` で複体の別名を通した型の変換に失敗した。
-[結果と診断](consumer-cellular-blocked.json) は、既存の [G15](../../../_plans/gaps.md#g15) に対応する問題である。
 写像をフィールドごとに組み立てる案と、引数を明示する案も試したが解消しなかったため、これらの試行は採用していない。
 有限モデル全体の検査は [中断した記録](consumer-examples-interrupted.json) に残した。
 これら2パッケージ全体の検査は未完了である。

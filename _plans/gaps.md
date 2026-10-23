@@ -244,14 +244,6 @@ Tor の比較同型では、親の比較写像と同型に区別できる別名�
 整数 Künneth の `Theorem.SequenceAt` は次数ごとの短完全列の型を本文で組み立て、`Sequences(n)` はその公開型だけを読む。
 `singular_cellular.On.CellCollapse.Positive.Orientation.DiskAt.AtPoint` も、基点に依存する相対群と良い対の比較を本文で import し、`Projected` からその命題を参照する。
 
-<a id="g15"></a>
-
-## G15: 複体を変換した結果を別名で再公開する
-
-解消済み。
-module 引数は検査時に確定した捕捉引数を明示した式で保持し、外側の module を具体化するときも各台集合を独立に置換する。
-[15-01-complex-alias.ref](gaps/15-01-complex-alias.ref) と、直接 import する [15-02-complex-direct.ref](gaps/15-02-complex-direct.ref) はともに受理される。
-
 <a id="g16"></a>
 
 ## G16: 型を含む構造を module header で完全修飾する

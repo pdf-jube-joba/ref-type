@@ -4,7 +4,6 @@
 
 このページでは[型コードモデル](coded_model.md)を使い、raw conversion を含む
 分類付き core の相対無矛盾性を示す。datatype は含めない。
-従来の集合そのものによる候補解釈の TC は使わず、それを証明したとも主張しない。
 
 証明の順序は次のとおりである。
 
@@ -95,7 +94,7 @@ subject が literal \(\operatorname{choice}_i(X)\) である typing に対して
 \tag{H-K}
 \]
 を帰納命題に加える。
-[従来の健全性](soundness.md)の K と同じ有限の導入追跡を使う。
+[健全性](soundness.md)の K と同じ有限の導入追跡を使う。
 
 - axiom は \(\mathsf u_i\in\mathcal C_{i+1}\)、\(\mathsf p\in\mathcal C_\omega\)。
   variable、start、weak は Val の定義。proof variable の値は、valid valuation では 0 である。
@@ -139,7 +138,6 @@ weakening では valid valuation を prefix へ制限する。
 context conversion では等しい classifier は同じ decoding を持つので、変更前後の Val が一致する。
 代入では H-soundness から、代入項の値を追加した valuation が元の context に valid である。
 Coded-substitution により、元の側条件を代入後の側条件へ移せる。
-残りの constructor は従来と同じ再構成である。
 Regularity と Prop-conversion も通常の導出構成であり、SR は使わない。□
 
 ## H における意味的 generation
@@ -319,8 +317,6 @@ H-soundness から \(0=1\) を得て矛盾する。
 Box 付きの導出は [Clear](box_elimination.md) で先に Box-free に移す。□
 
 これは一般の datatype 宣言を含む定理でも、強正規化の定理でもない。
-また、従来の非コード化モデルについての TC を解決する必要はなくなったが、
-その特定の解釈の TC まで証明したわけではない。
 
 ### 依存関係の確認
 

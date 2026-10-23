@@ -47,7 +47,7 @@ well-termination の略記は、その二つの判断の導出へ展開して数
 | 一般の SR と型付きの共通簡約先 | \(\mathcal S_+\) で証明済み | [subject reduction](subject_reduction.md) |
 | Box 消去 | 型引数への btapp を含めて証明済み | [Box 消去](box_elimination.md) |
 | 型コードモデルと元の導出の移送 | TC の仮定なしに証明済み | [型コード](coded_model.md)、[意味保存](semantic_conversion.md) |
-| 従来の非コード化モデルの健全性 | その解釈の TC を仮定した定理 | [健全性](soundness.md) |
+| 非コード化モデルの健全性 | その解釈の TC を仮定した定理 | [健全性](soundness.md) |
 | conversion を一切使わない Box-free 部分体系の無矛盾性 | 外部の集合論的仮定だけで証明済み | [部分体系の系](soundness.md#conversion-free) |
 | 分類付き core の相対無矛盾性 | 外部の集合論的仮定だけから証明済み | [最終定理](semantic_conversion.md#相対無矛盾性) |
 | datatype を含む体系への拡張 | 未証明 | [拡張に必要な事項](#datatypes) |
@@ -71,7 +71,7 @@ Box 付きの証明は Clear で先に消去する。□
 
 これは文書上の数学的証明であり、証明支援系による機械検証までは行っていない。
 
-## 従来の解釈に対する条件付き定理
+## 非コード化解釈に対する条件付き定理
 
 **定理。** [集合モデルの集合論的仮定](model.md#universes)と [TC](model.md#tc) のもとで Consistency が成り立つ。
 

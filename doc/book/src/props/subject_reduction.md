@@ -242,7 +242,7 @@ provable weak は既に扱った。これで全規則と全 reduction position �
 
 ## TC までの残り
 
-以下は従来の非コード化解釈についての未解決の主張である。
+以下は非コード化解釈についての未解決の主張である。
 core の無矛盾性は、別の[型コードモデル](coded_model.md)と
 [H-step・導出移送](semantic_conversion.md)で証明するため、この主張を仮定しない。
 

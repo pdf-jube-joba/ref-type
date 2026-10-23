@@ -3,10 +3,8 @@
 適用する構文と PTS への移送義務は、[証明の適用範囲](props.md)による。
 
 対象は datatype と Box を除いた Set/Prop core である。
-[従来の候補解釈](model.md)とは別のモデルを構成する。
 型をその要素集合と同一視せず、型コードとその decoding を区別する。
 証明項は消去するが、命題、型演算子、kind は消去しない。
-この区別を使う[conversion の証明](semantic_conversion.md)は、従来の TC を仮定しない。
 
 ## 型コードの構成
 
