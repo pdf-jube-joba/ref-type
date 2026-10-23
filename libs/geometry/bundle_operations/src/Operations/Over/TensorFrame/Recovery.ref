@@ -1,0 +1,49 @@
+\import Spaces.Linear[V := Tensor.Carrier, W := K, source := Tensor.space, target := Spaces.scalarSpace] \as Functionals;
+\definition functional[p: Index]: Functionals.Map := Functionals.Map {
+  apply := \fun (t: Tensor.Carrier) => forward.apply t p,
+  preservesAdd := \fun (s, t: Tensor.Carrier) => congr!{Coefficients.Vector K} (\fun (f: Coefficients.Vector) => f p) _ _ (forward.preservesAdd s t),
+  preservesScale := \fun (a: K)(t: Tensor.Carrier) => congr!{Coefficients.Vector K} (\fun (f: Coefficients.Vector) => f p) _ _ (forward.preservesScale a t),
+};
+\import Spaces.Coordinates[I := Fin.Fin n].Kronecker[] \as LeftDelta;
+\import Spaces.Coordinates[I := Fin.Fin m].Kronecker[] \as RightDelta;
+\import Spaces.Sums[I := Fin.Fin n] \as LeftScalars;
+\import Spaces.Sums[I := Fin.Fin m] \as RightScalars;
+\import LeftScalars.Prop[] \as LeftLaws;
+\import RightScalars.Prop[] \as RightLaws;
+\import Spaces.Sums[I := Fin.Fin n].Vector[V := Tensor.Carrier, space := Tensor.space].Mapping[W := K, target := Spaces.scalarSpace] \as LeftMapping;
+\import Spaces.Sums[I := Fin.Fin m].Vector[V := Tensor.Carrier, space := Tensor.space].Mapping[W := K, target := Spaces.scalarSpace] \as RightMapping;
+\definition basis: \forall (p: Index)(a: Fin.Fin n)(b: Fin.Fin m) -> (functional p).apply (Tensor.tensor (firstBasis.vectors a) (secondBasis.vectors b)) = field.mul (LeftDelta.delta (i p) a) (RightDelta.delta (j p) b) :=
+  \fun (p: Index)(a: Fin.Fin n)(b: Fin.Fin m) => trans!{K} _ _ _
+    (congr!{Coefficients.Vector K} (\fun (f: Coefficients.Vector) => f p) _ _ (Encode.onTensor outer bilinear (firstBasis.vectors a) (secondBasis.vectors b)))
+    (congr!{K K K} field.mul _ _ _ _ (LeftBasis.Dimension[].biorthogonal firstBasis a (i p)) (RightBasis.Dimension[].biorthogonal secondBasis b (j p)));
+\definition rowValue: \forall (f: Coefficients.Vector)(p: Index)(a: Fin.Fin n) -> (functional p).apply (\parent.Decoding[].row f a) =
+  RightScalars.sum (Fin.elements m) (\fun (b: Fin.Fin m) => field.mul (f (entry a b)) (field.mul (LeftDelta.delta (i p) a) (RightDelta.delta (j p) b))) :=
+  \fun (f: Coefficients.Vector)(p: Index)(a: Fin.Fin n) => trans!{K} _ _ _
+    (RightMapping.law (functional p) (Fin.elements m) (\fun (b: Fin.Fin m) => Tensor.space.smul (f (entry a b)) (Tensor.tensor (firstBasis.vectors a) (secondBasis.vectors b))))
+    (RightLaws.congruent (Fin.elements m)
+      (\fun (b: Fin.Fin m) => (functional p).apply (Tensor.space.smul (f (entry a b)) (Tensor.tensor (firstBasis.vectors a) (secondBasis.vectors b))))
+      (\fun (b: Fin.Fin m) => field.mul (f (entry a b)) (field.mul (LeftDelta.delta (i p) a) (RightDelta.delta (j p) b)))
+      (\fun (b: Fin.Fin m) => trans!{K} _ _ _ ((functional p).preservesScale (f (entry a b)) (Tensor.tensor (firstBasis.vectors a) (secondBasis.vectors b)))
+        (congr!{K K} (field.mul (f (entry a b))) _ _ (basis p a b))));
+\definition rotate: \forall (c, a, b: K) -> field.mul c (field.mul a b) = field.mul b (field.mul a c) :=
+  \fun (c, a, b: K) => trans!{K} _ _ _ (Spaces.mulComm c (field.mul a b))
+    (trans!{K} _ _ _ (Spaces.mulAssoc a b c) (Spaces.Laws[V := K, space := Spaces.scalarSpace].scaleComm a b c));
+\definition rowRecovered: \forall (f: Coefficients.Vector)(p: Index)(a: Fin.Fin n) -> (functional p).apply (\parent.Decoding[].row f a) = field.mul (LeftDelta.delta (i p) a) (f (entry a (j p))) :=
+  \fun (f: Coefficients.Vector)(p: Index)(a: Fin.Fin n) => trans!{K} _ _ _ (rowValue f p a)
+    (trans!{K} _ _ _
+      (RightLaws.congruent (Fin.elements m)
+        (\fun (b: Fin.Fin m) => field.mul (f (entry a b)) (field.mul (LeftDelta.delta (i p) a) (RightDelta.delta (j p) b)))
+        (\fun (b: Fin.Fin m) => field.mul (RightDelta.delta (j p) b) (field.mul (LeftDelta.delta (i p) a) (f (entry a b))))
+        (\fun (b: Fin.Fin m) => rotate (f (entry a b)) (LeftDelta.delta (i p) a) (RightDelta.delta (j p) b)))
+      (Spaces.Sums[I := Fin.Fin m].Single[].extract (Fin.elements m) (Spaces.FiniteCoordinateEnumeration[].distinct m) (j p) (Fin.exhaustive m (j p))
+        (\fun (b: Fin.Fin m) => field.mul (LeftDelta.delta (i p) a) (f (entry a b)))));
+\definition ambient[f: Coefficients.Vector][p: Indices.Pair]: K := f (\into[Indices.Pair](p, Indices.Whole) \by { \refl(p) });
+\definition rightInverse: \forall (f: Coefficients.Vector) -> forward.apply (synthesis f) = f :=
+  \fun (f: Coefficients.Vector) => \axiom:funext(forward.apply (synthesis f), f, \fun (p: Index) => trans!{K} _ _ _
+    (LeftMapping.law (functional p) (Fin.elements n) (\fun (a: Fin.Fin n) => \parent.Decoding[].row f a))
+    (trans!{K} _ _ _
+      (LeftLaws.congruent (Fin.elements n) (\fun (a: Fin.Fin n) => (functional p).apply (\parent.Decoding[].row f a))
+        (\fun (a: Fin.Fin n) => field.mul (LeftDelta.delta (i p) a) (f (entry a (j p)))) (rowRecovered f p))
+      (trans!{K} _ _ _
+        (Spaces.Sums[I := Fin.Fin n].Single[].extract (Fin.elements n) (Spaces.FiniteCoordinateEnumeration[].distinct n) (i p) (Fin.exhaustive n (i p)) (\fun (a: Fin.Fin n) => f (entry a (j p))))
+        (congr!{Indices.Pair K} (ambient f) _ _ (Pair.Prop[A := Fin.Fin n, B := Fin.Fin m].eta p)))));

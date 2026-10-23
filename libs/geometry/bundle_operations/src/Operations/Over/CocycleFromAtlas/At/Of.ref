@@ -1,0 +1,18 @@
+\import Spaces.Isomorphism[V := F x, W := Constructed.Fiber x, source := bundle.space x, target := Constructed.fiberSpace x] \as Isomorphisms;
+\import Isomorphisms.OfBijective[f := forward] \as Bijective;
+\definition injective: Bijective.Injective := \fun (v, w: F x)(same: forward.apply v = forward.apply w) => \block {
+  \takefrom i: Glue.Index x \by covered \then
+  \return Spaces.Isomorphism[V := F x, W := Vector (dimension i), source := bundle.space x, target := coordinates (dimension i)].injective (frame x i) v w
+    (trans!{{Vector (dimension i)}} _ _ _ (sym!{{Vector (dimension i)}} _ _ (alignment i v))
+      (trans!{{Vector (dimension i)}} _ _ _
+        (congr!{{Constructed.Fiber x} {Vector (dimension i)}} Compatible.Frame[i := i].forward.apply _ _ same) (alignment i w)))
+};
+\definition onto: Bijective.Onto := \fun (h: Constructed.Fiber x) => \block {
+  \takefrom i: Glue.Index x \by covered \then
+  \let v: F x := (frame x i).backward.apply (Compatible.Frame[i := i].forward.apply h) \then
+  \return Logic.existsIntro[F x, { v: F x \where forward.apply v = h }] v
+    (Spaces.Isomorphism[V := Constructed.Fiber x, W := Vector (dimension i), source := Constructed.fiberSpace x, target := coordinates (dimension i)].injective (Compatible.Frame[i := i].isomorphism) (forward.apply v) h
+      (trans!{{Vector (dimension i)}} _ _ _ (alignment i v)
+        ((Spaces.Isomorphism[V := F x, W := Vector (dimension i), source := bundle.space x, target := coordinates (dimension i)].laws (frame x i)).rightInverse (Compatible.Frame[i := i].forward.apply h))))
+};
+\definition isomorphism: Isomorphisms.Isomorphism := Bijective.isomorphism injective onto;

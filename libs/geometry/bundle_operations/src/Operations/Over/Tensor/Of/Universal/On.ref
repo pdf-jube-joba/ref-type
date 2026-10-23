@@ -1,0 +1,23 @@
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := F, G := G, left := left, right := right].Parameter[n := r, m := s] \as Generators;
+\definition pair[i: Generators.Index][p: Generators.Point]: SumFamily.Point := SumFamily.include p.base (Pair.pair (F p.base) (G p.base) (p.left i) (p.right i));
+\definition pairContinuous: \forall (i: Generators.Index) -> topology.Continuity[A := Generators.Point, B := SumFamily.Point].Continuous Generators.topology Sum.topology (pair i) :=
+  \fun (i: Generators.Index) => Sum.Universal[Y := Generators.Point].continuous Generators.topology (pair i) (Generators.Projection[].leftContinuous i) (Generators.Projection[].rightContinuous i);
+\definition base[p: Generators.Point]: Y := f p.base;
+\definition baseRegular: topology.Continuity[A := Generators.Point, B := Y].Continuous Generators.topology target.baseSpace base :=
+  topology.Composition[A := Generators.Point, B := X, C := Y].composeContinuous Generators.topology left.baseSpace target.baseSpace (\fun (p: Generators.Point) => p.base) f (Generators.Projection[].baseContinuous) (baseContinuous b);
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Along[X := Y, F := H, bundle := target, Y := Generators.Point, source := Generators.topology, base := base] \as Along;
+\definition summand[i: Generators.Index][p: Generators.Point]: H (base p) := b.fiber p.base (p.left i) (p.right i);
+\definition termContinuous: \forall (i: Generators.Index) -> Along.Continuous (summand i) :=
+  \fun (i: Generators.Index) => topology.Composition[A := Generators.Point, B := SumFamily.Point, C := Target.Point].composeContinuous Generators.topology Sum.topology target.totalSpace (pair i) (total b) (pairContinuous i) (continuous b);
+\definition row[i: Fin.Fin r]: Along.Vectors := Along.Sums[I := Fin.Fin s].sum (Fin.elements s) (\fun (j: Fin.Fin s) => summand (Generators.entry i j));
+\definition vectors: Along.Vectors := Along.Sums[I := Fin.Fin r].sum (Fin.elements r) row;
+\definition vectorsContinuous: Along.Continuous vectors := Along.Sums[I := Fin.Fin r].continuous (Fin.elements r) row baseRegular
+  (\fun (i: Fin.Fin r) => Along.Sums[I := Fin.Fin s].continuous (Fin.elements s) (\fun (j: Fin.Fin s) => summand (Generators.entry i j)) baseRegular (\fun (j: Fin.Fin s) => termContinuous (Generators.entry i j)));
+\definition mapped[p: Generators.Point]: Target.Point := Maps.total (mapData b) (Generators.value p);
+\definition formula: \forall (p: Generators.Point) -> Along.total vectors p = mapped p :=
+  \fun (p: Generators.Point) => congr!{{H (base p)} Target.Point} (Target.include (base p)) _ _
+    (sym!{{H (base p)}} _ _ (\parent.Grid[x := p.base, r := r, s := s].formula b (\fun (i: Fin.Fin r)(j: Fin.Fin s) => p.left (Generators.entry i j)) (\fun (i: Fin.Fin r)(j: Fin.Fin s) => p.right (Generators.entry i j))));
+\definition continuous: topology.Continuity[A := Generators.Point, B := Target.Point].Continuous Generators.topology target.totalSpace mapped :=
+  \idelim Along.total vectors = mapped \with h: (Generators.Point -> Target.Point) => topology.Continuity[A := Generators.Point, B := Target.Point].Continuous Generators.topology target.totalSpace h \by {
+    base: vectorsContinuous, equality: \axiom:funext(Along.total vectors, mapped, formula)
+  };

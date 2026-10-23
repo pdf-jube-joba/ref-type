@@ -1,0 +1,46 @@
+\import Complex.RealScalars[V := C.Complex, space := ComplexSpaces.scalarSpace] \as Scalar;
+\import RealSpaces.Tensor[V := V, W := C.Complex, left := source, right := Scalar.realSpace] \as Tensor;
+\import Tensor.Universal[U := Tensor.Carrier, target := Tensor.space] \as Universal;
+\import Real.TensorEquality[V := V, W := C.Complex, U := Tensor.Carrier, left := source, right := Scalar.realSpace, target := Tensor.space] \as Equality;
+\import RealSpaces.Linear[V := Tensor.Carrier, W := Tensor.Carrier, source := Tensor.space, target := Tensor.space] \as End;
+\import End.Operations[] \as EndOperations;
+\definition Carrier: \Set := Tensor.Carrier;
+\definition pure: V -> C.Complex -> Carrier := Tensor.tensor;
+\definition value[a: C.Complex][v: V][z: C.Complex]: Carrier := pure v (CD.mul a z);
+\definition bilinear[a: C.Complex]: Tensor.BilinearLaws[Carrier, Tensor.space, value a] := Tensor.BilinearLaws[Carrier, Tensor.space, value a] {
+  addLeft := \fun (v, w: V)(z: C.Complex) => Tensor.bilinear.addLeft v w (CD.mul a z),
+  addRight := \fun (v: V)(z, w: C.Complex) => trans!{Carrier} _ _ _ (congr!{{C.Complex} Carrier} (pure v) _ _ (ComplexSpaces.mulAdd a z w)) (Tensor.bilinear.addRight v (CD.mul a z) (CD.mul a w)),
+  scaleLeft := \fun (r: R.Real)(v: V)(z: C.Complex) => Tensor.bilinear.scaleLeft r v (CD.mul a z),
+  scaleRight := \fun (r: R.Real)(v: V)(z: C.Complex) => trans!{Carrier} _ _ _
+    (congr!{{C.Complex} Carrier} (pure v) _ _ (ComplexSpaces.Laws[V := C.Complex, space := ComplexSpaces.scalarSpace].scaleComm a (CD.ofReal r) z))
+    (Tensor.bilinear.scaleRight r v (CD.mul a z))
+};
+\definition action[a: C.Complex]: End.Map := Universal.map (value a) (bilinear a);
+\definition onPure: \forall (a: C.Complex)(v: V)(z: C.Complex) -> (action a).apply (pure v z) = pure v (CD.mul a z) := \fun (a: C.Complex) => Universal.onTensor (value a) (bilinear a);
+\definition identity: End.Map := End.Map { apply := \fun (t: Carrier) => t, preservesAdd := \fun (s, t: Carrier) => \refl(Tensor.plus s t), preservesScale := \fun (r: R.Real)(t: Carrier) => \refl(Tensor.scale r t) };
+\definition scalarOne: \forall (t: Carrier) -> (action CD.one).apply t = t := Equality.pointwise (action CD.one) identity
+  (\fun (v: V)(z: C.Complex) => trans!{Carrier} _ _ _ (onPure CD.one v z) (congr!{{C.Complex} Carrier} (pure v) _ _ (CP.mulOneLeft z)));
+\import End.Composition[U := Carrier, domain := Tensor.space] \as Composition;
+\definition scalarAssoc: \forall (a, b: C.Complex)(t: Carrier) -> (action (CD.mul a b)).apply t = (action a).apply ((action b).apply t) :=
+  \fun (a, b: C.Complex) => Equality.pointwise (action (CD.mul a b)) (Composition.compose (action a) (action b))
+    (\fun (v: V)(z: C.Complex) => trans!{Carrier} _ _ _ (onPure (CD.mul a b) v z)
+      (trans!{Carrier} _ _ _ (congr!{{C.Complex} Carrier} (pure v) _ _ (CP.mulAssoc a b z))
+        (sym!{Carrier} _ _ (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (action a).apply _ _ (onPure b v z)) (onPure a v (CD.mul b z))))));
+\definition scalarAdd: \forall (a, b: C.Complex)(t: Carrier) -> (action (CD.add a b)).apply t = Tensor.plus ((action a).apply t) ((action b).apply t) :=
+  \fun (a, b: C.Complex) => Equality.pointwise (action (CD.add a b)) (EndOperations.plus (action a) (action b))
+    (\fun (v: V)(z: C.Complex) => trans!{Carrier} _ _ _ (onPure (CD.add a b) v z)
+      (trans!{Carrier} _ _ _ (congr!{{C.Complex} Carrier} (pure v) _ _ (ComplexSpaces.addMul a b z))
+        (trans!{Carrier} _ _ _ (Tensor.bilinear.addRight v (CD.mul a z) (CD.mul b z))
+          (congr!{Carrier Carrier Carrier} Tensor.plus _ _ _ _ (sym!{Carrier} _ _ (onPure a v z)) (sym!{Carrier} _ _ (onPure b v z))))));
+\import std.Alg[].Ring[] \as Ring;
+\definition space: ComplexSpaces.VectorSpace Carrier := Ring.RingModule[C.Complex, Carrier, ComplexSpaces.ring] {
+  zero := Tensor.origin, add := Tensor.plus, neg := Tensor.negative,
+  smul := \fun (a: C.Complex)(t: Carrier) => (action a).apply t,
+  additive := Tensor.space.additive, scalarOne := scalarOne, scalarAssoc := scalarAssoc, scalarAdd := scalarAdd,
+  vectorAdd := \fun (a: C.Complex)(s, t: Carrier) => (action a).preservesAdd s t
+};
+\definition realAction: \forall (r: R.Real)(t: Carrier) -> space.smul (CD.ofReal r) t = Tensor.scale r t :=
+  \fun (r: R.Real) => Equality.pointwise (action (CD.ofReal r)) (EndOperations.scale r identity)
+    (\fun (v: V)(z: C.Complex) => trans!{Carrier} _ _ _ (onPure (CD.ofReal r) v z) (Tensor.bilinear.scaleRight r v z));
+\module Finite(n: N.Nat^, frame: RealBundles.Dimension[V := V, space := source].Frame n);
+\module Maps(W: \Set, target: RealSpaces.VectorSpace W);

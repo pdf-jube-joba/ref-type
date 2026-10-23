@@ -1,0 +1,26 @@
+\import Source.Of[bundle := source].Pullback[Y := Y, source := baseSpace, f := f] \as SourcePullback;
+\import Family.Of[bundle := bundle].Pullback[Y := Y, source := baseSpace, f := f] \as OperationPullback;
+\import \root.Operations[].Scalars[].Complexification[X := Y, F := \fun (y: Y) => F (f y), source := SourcePullback.pulled regular] \as Other;
+\definition firstBundle: ComplexBundles.Family[X := Y, F := \fun (y: Y) => Fiber (f y)].Bundle := OperationPullback.pulled regular;
+\definition secondBundle: ComplexBundles.Family[X := Y, F := \fun (y: Y) => Fiber (f y)].Bundle := Other.bundle;
+\definition fiber[y: Y]: ComplexSpaces.Isomorphism[V := Fiber (f y), W := Fiber (f y), source := firstBundle.space y, target := secondBundle.space y].Isomorphism :=
+  ComplexSpaces.Isomorphism[V := Fiber (f y), W := Fiber (f y), source := firstBundle.space y, target := secondBundle.space y].Isomorphism {
+    forward := ComplexSpaces.Linear[V := Fiber (f y), W := Fiber (f y), source := firstBundle.space y, target := secondBundle.space y].Map {
+      apply := \fun (v: Fiber (f y)) => v, preservesAdd := \fun (v, w: Fiber (f y)) => \refl((firstBundle.space y).add v w), preservesScale := \fun (a: C.Complex)(v: Fiber (f y)) => \refl((firstBundle.space y).smul a v)
+    },
+    backward := ComplexSpaces.Linear[V := Fiber (f y), W := Fiber (f y), source := secondBundle.space y, target := firstBundle.space y].Map {
+      apply := \fun (v: Fiber (f y)) => v, preservesAdd := \fun (v, w: Fiber (f y)) => \refl((firstBundle.space y).add v w), preservesScale := \fun (a: C.Complex)(v: Fiber (f y)) => \refl((firstBundle.space y).smul a v)
+    },
+    leftInverse := \fun (v: Fiber (f y)) => \refl(v), rightInverse := \fun (v: Fiber (f y)) => \refl(v)
+  };
+\import Complex.LocalMaps[X := Y, F := \fun (y: Y) => Fiber (f y), G := \fun (y: Y) => Fiber (f y), source := firstBundle, target := secondBundle, fiber := \fun (y: Y) => (fiber y).forward] \as Charts;
+\import Complex.LocalIsomorphisms[X := Y, F := \fun (y: Y) => Fiber (f y), G := \fun (y: Y) => Fiber (f y), source := firstBundle, target := secondBundle, fiber := fiber] \as Comparison;
+\module In(c: SourceCharts.Chart);
+\definition covers: Charts.Covers := \fun (y: Y) => \block {
+  \takefrom c: \Cast[SourceCharts.Chart] ({ c: SourceCharts.Chart \where Base.Member c.domain (f y) }) \by Source.Of[bundle := source].locallyTrivial (f y) \then
+  \return Logic.existsIntro[Charts.Chart, { e: Charts.Chart \where topology.Topology[Carrier := Y].Member e.domain y }] (In[c := c].chart)
+    (\bysub(SourceCharts.Chart, { c: SourceCharts.Chart \where Base.Member c.domain (f y) }, c))
+};
+\definition isomorphism: ComplexBundles.Isomorphisms[X := Y, F := \fun (y: Y) => Fiber (f y), G := \fun (y: Y) => Fiber (f y), source := firstBundle, target := secondBundle].Isomorphism := Comparison.isomorphism (\refl(baseSpace)) covers;
+\definition onFiber: \forall (y: Y)(v: Fiber (f y)) -> (isomorphism.forward.fiber y).apply v = v := \fun (y: Y)(v: Fiber (f y)) => \refl(v);
+\definition inverseOnFiber: \forall (y: Y)(v: Fiber (f y)) -> (isomorphism.backward.fiber y).apply v = v := \fun (y: Y)(v: Fiber (f y)) => \refl(v);

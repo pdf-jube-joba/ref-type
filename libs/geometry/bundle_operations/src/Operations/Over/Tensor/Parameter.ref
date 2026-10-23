@@ -1,0 +1,22 @@
+\definition leftBundle: Left.Bundle := left;
+\definition rightBundle: Right.Bundle := right;
+\definition Index: \Set := Pair.Times^[Fin.Fin n, Fin.Fin m];
+\definition entry[i: Fin.Fin n][j: Fin.Fin m]: Index := Pair.pair (Fin.Fin n) (Fin.Fin m) i j;
+\structure Point: \Set := { base: X, left: Index -> F base, right: Index -> G base };
+\definition left[p: Point][i: Index]: Left.Point := Left.include p.base (p.left i);
+\definition right[p: Point][i: Index]: Right.Point := Right.include p.base (p.right i);
+\import topological_algebra.Coordinates[K := Left.Point, I := Index] \as LeftPower;
+\import topological_algebra.Coordinates[K := Right.Point, I := Index] \as RightPower;
+\import topological_constructions.Product[A := LeftPower.Carrier, B := RightPower.Carrier] \as Powers;
+\definition powers: topology.Topology[Carrier := Powers.CarrierSet].Topology := Powers.topology (LeftPower.topology leftBundle.totalSpace) (RightPower.topology rightBundle.totalSpace);
+\import topological_constructions.Product[A := X, B := Powers.CarrierSet] \as Product;
+\definition productSpace: topology.Topology[Carrier := Product.CarrierSet].Topology := Product.topology leftBundle.baseSpace powers;
+\definition embedding[p: Point]: Product.CarrierSet := Pair.pair X Powers.CarrierSet p.base (Pair.pair LeftPower.Carrier RightPower.Carrier (left p) (right p));
+\import topological_constructions.Induced[A := Point, B := Product.CarrierSet] \as Induced;
+\definition topology: topology.Topology[Carrier := Point].Topology := Induced.topology productSpace embedding;
+\definition regular: topology.Continuity[A := Point, B := Product.CarrierSet].Continuous topology productSpace embedding := Induced.continuous productSpace embedding;
+\module Projection;
+\definition value[p: Point]: Family.Point := Family.include p.base
+  (Spaces.Sums[I := Fin.Fin n].Vector[V := Fiber p.base, space := fiberSpace p.base].sum (Fin.elements n) (\fun (i: Fin.Fin n) =>
+    Spaces.Sums[I := Fin.Fin m].Vector[V := Fiber p.base, space := fiberSpace p.base].sum (Fin.elements m) (\fun (j: Fin.Fin m) => pure p.base (p.left (entry i j)) (p.right (entry i j)))));
+\module Universal(Y: \Set);

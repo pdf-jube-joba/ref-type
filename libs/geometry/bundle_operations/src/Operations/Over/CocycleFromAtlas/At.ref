@@ -1,0 +1,21 @@
+\import Constructed.At[x := x] \as Compatible;
+\import Spaces.Coordinates[I := Compatible.Slot] \as Raw;
+\definition encode[v: F x]: Raw.Vector := \fun (slot: Compatible.Slot) => (frame x slot.chart).forward.apply v slot.coordinate;
+\definition coordinate: \forall (v: F x)(i: Glue.Index x) -> Compatible.value (encode v) i = (frame x i).forward.apply v :=
+  \fun (v: F x)(i: Glue.Index x) => \axiom:funext(Compatible.value (encode v) i, (frame x i).forward.apply v, \fun (j: Fin.Fin (dimension i)) => \refl((frame x i).forward.apply v j));
+\definition compatible: \forall (v: F x) -> Compatible.Compatible (encode v) := \fun (v: F x)(i, j: Glue.Index x) => trans!{{Vector (dimension j)}} _ _ _
+  (congr!{{Vector (dimension i)} {Vector (dimension j)}} (cocycle.transition x i j).forward.apply _ _ (coordinate v i))
+  (trans!{{Vector (dimension j)}} _ _ _
+    (congr!{{F x} {Vector (dimension j)}} (frame x j).forward.apply _ _ ((Spaces.Isomorphism[V := F x, W := Vector (dimension i), source := bundle.space x, target := coordinates (dimension i)].laws (frame x i)).leftInverse v))
+    (sym!{{Vector (dimension j)}} _ _ (coordinate v j)));
+\definition value[v: F x]: Constructed.Fiber x := \into[Raw.Vector](encode v, Compatible.subspace.carrier) \by { compatible v };
+\import Spaces.Linear[V := F x, W := Constructed.Fiber x, source := bundle.space x, target := Constructed.fiberSpace x] \as Maps;
+\definition forward: Maps.Map := Maps.Map {
+  apply := value,
+  preservesAdd := \fun (v, w: F x) => \axiom:funext(encode ((bundle.space x).add v w), Raw.plus (encode v) (encode w), \fun (slot: Compatible.Slot) =>
+    congr!{{Vector (dimension slot.chart)} K} (\fun (v: Vector (dimension slot.chart)) => v slot.coordinate) _ _ ((frame x slot.chart).forward.preservesAdd v w)),
+  preservesScale := \fun (a: K)(v: F x) => \axiom:funext(encode ((bundle.space x).smul a v), Raw.scale a (encode v), \fun (slot: Compatible.Slot) =>
+    congr!{{Vector (dimension slot.chart)} K} (\fun (v: Vector (dimension slot.chart)) => v slot.coordinate) _ _ ((frame x slot.chart).forward.preservesScale a v))
+};
+\definition alignment: \forall (i: Glue.Index x)(v: F x) -> (Compatible.Frame[i := i].forward).apply (forward.apply v) = (frame x i).forward.apply v := \fun (i: Glue.Index x)(v: F x) => coordinate v i;
+\module Of(covered: \exists Glue.Index x);

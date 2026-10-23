@@ -1,0 +1,32 @@
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := F] \as Source;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := G] \as Family;
+\import Source.With[data := source] \as SourceCharts;
+\definition forward[p: Source.Point]: Family.Point := Family.include p.base ((isomorphism p.base).forward.apply p.vector);
+\definition backward[p: Family.Point]: Source.Point := Source.include p.base ((isomorphism p.base).backward.apply p.vector);
+\import topological_constructions.Induced[A := Family.Point, B := Source.Point] \as Induced;
+\definition topology: topology.Topology[Carrier := Family.Point].Topology := Induced.topology source.totalSpace backward;
+\definition leftInverse: \forall (p: Source.Point) -> backward (forward p) = p :=
+  \fun (p: Source.Point) => trans!{Source.Point} _ _ _ (congr!{{F p.base} Source.Point} (Source.include p.base) _ _
+    ((Spaces.Isomorphism[V := F p.base, W := G p.base, source := source.space p.base, target := space p.base].laws (isomorphism p.base)).leftInverse p.vector)) (Source.eta p);
+\definition rightInverse: \forall (p: Family.Point) -> forward (backward p) = p :=
+  \fun (p: Family.Point) => trans!{Family.Point} _ _ _ (congr!{{G p.base} Family.Point} (Family.include p.base) _ _
+    ((Spaces.Isomorphism[V := F p.base, W := G p.base, source := source.space p.base, target := space p.base].laws (isomorphism p.base)).rightInverse p.vector)) (Family.eta p);
+\definition backwardContinuous: topology.Continuity[A := Family.Point, B := Source.Point].Continuous topology source.totalSpace backward := Induced.continuous source.totalSpace backward;
+\definition composite[p: Source.Point]: Source.Point := backward (forward p);
+\definition compositeContinuous: topology.Continuity[A := Source.Point, B := Source.Point].Continuous source.totalSpace source.totalSpace composite :=
+  \idelim (\fun (p: Source.Point) => p) = composite \with f: (Source.Point -> Source.Point) => topology.Continuity[A := Source.Point, B := Source.Point].Continuous source.totalSpace source.totalSpace f \by {
+    base: topology.Maps[A := Source.Point, B := Source.Point].Identity[].continuous source.totalSpace,
+    equality: \axiom:funext((\fun (p: Source.Point) => p), composite, \fun (p: Source.Point) => sym!{Source.Point} _ _ (leftInverse p))
+  };
+\definition forwardContinuous: topology.Continuity[A := Source.Point, B := Family.Point].Continuous source.totalSpace topology forward := Induced.Universal[Z := Source.Point].continuous source.totalSpace source.totalSpace backward forward compositeContinuous;
+\definition data: Family.Data := Family.Data { baseSpace := source.baseSpace, totalSpace := topology, space := space };
+\import Family.With[data := data] \as Charts;
+\import topology.Topology[Carrier := X] \as Base;
+\module In(c: SourceCharts.Chart);
+\definition bundle: Family.Bundle := \into[Family.Data](data, Family.Bundle) \by {
+  \fun (x: X) => \block {
+    \takefrom c: \Cast[SourceCharts.Chart] ({ c: SourceCharts.Chart \where Base.Member c.domain x }) \by Source.Of[bundle := source].locallyTrivial x \then
+    \return Logic.existsIntro[Charts.Chart, { d: Charts.Chart \where Base.Member d.domain x }] (In[c := c].trivialization) (\bysub(SourceCharts.Chart, { c: SourceCharts.Chart \where Base.Member c.domain x }, c))
+  }
+};
+\module Comparison;

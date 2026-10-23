@@ -1,0 +1,53 @@
+\import \parent.\parent.In[c := chart i] \as Parameters;
+\definition chartData: Charts.ChartData := Charts.ChartData { domain := (chart i).domain, dimension := (chart i).dimension, frame := (chart i).frame };
+\import Charts.In[c := chartData] \as Local;
+\import topology.Topology[Carrier := Local.ProductPoint] \as ParameterTopology;
+\import topology.Maps[A := Local.ProductPoint, B := Family.Point] \as ParameterSets;
+\import Total.Subspace[S := { p: Family.Point \where Base.Member (chart i).domain p.base }] \as TotalSubspace;
+\import topology.Topology[Carrier := Local.TotalPoint] \as Sub;
+\import topology.Maps[A := Local.TotalPoint, B := Local.ProductPoint] \as ForwardSets;
+\definition imageWhole: Parameters.Image ParameterTopology.Whole = ({ p: Family.Point \where Base.Member (chart i).domain p.base }) :=
+  \axiom:setext(Parameters.Image ParameterTopology.Whole, ({ p: Family.Point \where Base.Member (chart i).domain p.base }),
+    \fun (p: Family.Point)(member: _) => ParameterSets.imageElim Parameters.parameter ParameterTopology.Whole p (Base.Member (chart i).domain p.base)
+      (\fun (q: Local.ProductPoint)(inWhole: _)(same: Parameters.parameter q = p) => \idelim Parameters.parameter q = p
+        \with r: Family.Point => Base.Member (chart i).domain r.base \by {
+          base: \bysub(Family.Point, { p: Family.Point \where Base.Member (chart i).domain p.base }, Local.backward q), equality: same
+        }) member,
+    \fun (p: Family.Point)(member: _) => \block {
+      \let q: Local.TotalPoint := \into[Family.Point](p, { p: Family.Point \where Base.Member (chart i).domain p.base }) \by { member } \then
+      \return Logic.existsIntro[Local.ProductPoint, { r: Local.ProductPoint \where Logic.And[ParameterTopology.Member ParameterTopology.Whole r, Parameters.parameter r = p] }]
+        (Local.forward q) (Logic.And[_, _]::# (\refl(Local.forward q)) (Local.leftInverse q))
+    });
+\definition totalOpen: \forall (compatible: Compatible) -> Total.IsOpenIn topology ({ p: Family.Point \where Base.Member (chart i).domain p.base }) :=
+  \fun (compatible: Compatible) => \idelim Parameters.Image ParameterTopology.Whole = ({ p: Family.Point \where Base.Member (chart i).domain p.base })
+    \with U: \Pow Family.Point => Total.IsOpenIn topology U \by {
+      base: imageOpen compatible i ParameterTopology.Whole ((ParameterTopology.topologyLaws Parameters.topology).wholeOpen), equality: imageWhole
+    };
+\definition forget[p: Local.TotalPoint]: Family.Point := p;
+\definition forwardEqual: \forall (p, q: Local.TotalPoint) -> forget p = forget q -> Local.forward p = Local.forward q :=
+  \fun (p, q: Local.TotalPoint)(same: forget p = forget q) =>
+    (\idelim forget p = forget q \with r: Family.Point => \forall (member: Base.Member (chart i).domain r.base) ->
+      Local.forward p = Local.forward (\into[Family.Point](r, { p: Family.Point \where Base.Member (chart i).domain p.base }) \by { member }) \by {
+        base: \fun (member: Base.Member (chart i).domain p.base) => \refl(Local.forward p), equality: same
+      }) (\bysub(Family.Point, { p: Family.Point \where Base.Member (chart i).domain p.base }, q));
+\definition traceImage: \forall (V: \Pow Local.ProductPoint) -> TotalSubspace.Trace (Parameters.Image V) = ForwardSets.Preimage Local.forward V :=
+  \fun (V: \Pow Local.ProductPoint) => \axiom:setext(TotalSubspace.Trace (Parameters.Image V), ForwardSets.Preimage Local.forward V,
+    \fun (p: Local.TotalPoint)(member: _) => ParameterSets.imageElim Parameters.parameter V p (ParameterTopology.Member V (Local.forward p))
+      (\fun (q: Local.ProductPoint)(inV: _)(same: Parameters.parameter q = p) => \idelim q = Local.forward p
+        \with r: Local.ProductPoint => ParameterTopology.Member V r \by {
+          base: inV, equality: trans!{Local.ProductPoint} _ _ _ (sym!{Local.ProductPoint} _ _ (Local.rightInverse q))
+            (forwardEqual (Local.backward q) p same)
+        }) member,
+    \fun (p: Local.TotalPoint)(member: _) => Logic.existsIntro[Local.ProductPoint, { q: Local.ProductPoint \where Logic.And[ParameterTopology.Member V q, Parameters.parameter q = p] }]
+      (Local.forward p) (Logic.And[_, _]::# member (Local.leftInverse p)));
+\definition forwardContinuous: \forall (compatible: Compatible) -> topology.Continuity[A := Local.TotalPoint, B := Local.ProductPoint].Continuous Local.localTopology Local.productTopology Local.forward :=
+  \fun (compatible: Compatible)(V: \Pow Local.ProductPoint)(open: _) => \idelim TotalSubspace.Trace (Parameters.Image V) = ForwardSets.Preimage Local.forward V
+    \with W: \Pow Local.TotalPoint => Sub.IsOpenIn Local.localTopology W \by {
+      base: TotalSubspace.traceOpen topology (Parameters.Image V) (imageOpen compatible i V open), equality: traceImage V
+    };
+\import topology.Continuity[A := Local.ProductPoint, B := Family.Point].Corestriction[S := { p: Family.Point \where Base.Member (chart i).domain p.base }] \as Corestriction;
+\definition backwardContinuous: topology.Continuity[A := Local.ProductPoint, B := Local.TotalPoint].Continuous Local.productTopology Local.localTopology Local.backward :=
+  Corestriction.corestrictContinuous Local.productTopology topology Local.backward (\fun (U: \Pow Family.Point)(open: Total.IsOpenIn topology U) => open i);
+\definition trivialization[compatible: Compatible]: Charts.Chart := \into[Charts.ChartData](chartData, Charts.Chart) \by {
+  Local.Laws { baseOpen := compatible.openDomains i, totalOpen := totalOpen compatible, forwardContinuous := forwardContinuous compatible, backwardContinuous := backwardContinuous }
+};

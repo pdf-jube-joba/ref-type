@@ -1,0 +1,53 @@
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := F, G := G, left := left, right := right].In[c := p.first, d := p.second, enumeration := p.enumeration] \as Native;
+\import Input.In[c := Native.trivialization same] \as Read;
+\definition Point: \Set := Read.Point;
+\definition topology: topology.Topology[Carrier := Point].Topology := Read.topology;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].FiniteIndex[A := Pair.Times^[Fin.Fin p.first.dimension, Fin.Fin p.second.dimension], S := \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].PairIndices[n := p.first.dimension, m := p.second.dimension].Whole, enumeration := p.enumeration] \as Coordinates;
+\definition entry[i: Fin.Fin p.first.dimension][j: Fin.Fin p.second.dimension]: Coordinates.Index := \into[Pair.Times^[Fin.Fin p.first.dimension, Fin.Fin p.second.dimension]]
+  (Pair.pair (Fin.Fin p.first.dimension) (Fin.Fin p.second.dimension) i j, \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].PairIndices[n := p.first.dimension, m := p.second.dimension].Whole) \by {
+    \refl(Pair.pair (Fin.Fin p.first.dimension) (Fin.Fin p.second.dimension) i j)
+  };
+\definition coefficient[t: Input.Vectors][i: Fin.Fin p.first.dimension][j: Fin.Fin p.second.dimension][y: Point]: K := Read.coordinate t y (Coordinates.index (entry i j));
+\definition coefficientContinuous: \forall (t: Input.Vectors) -> Input.Continuous t -> \forall (i: Fin.Fin p.first.dimension)(j: Fin.Fin p.second.dimension) -> topology.Continuity[A := Point, B := K].Continuous topology scalar.topological.space (coefficient t i j) :=
+  \fun (t: Input.Vectors)(regular: _)(i: Fin.Fin p.first.dimension)(j: Fin.Fin p.second.dimension) => Read.component t (Read.read t regular) (Coordinates.index (entry i j));
+\import topology.Continuity[A := Y, B := X].Restriction[S := { y: Y \where Base.Member (Base.Intersection p.first.domain p.second.domain) (base y) }] \as RestrictBase;
+\definition baseContinuous: Input.BaseContinuous -> topology.Continuity[A := Point, B := X].Continuous topology left.baseSpace (\fun (y: Point) => base y) :=
+  \fun (regular: _) => RestrictBase.restrictContinuous source left.baseSpace base regular;
+\definition inLeft[y: Point]: \Cast[X] p.first.domain := \into[X](base y, p.first.domain) \by { (\bysub(Y, { y: Y \where Base.Member (Base.Intersection p.first.domain p.second.domain) (base y) }, y)).left };
+\definition inRight[y: Point]: \Cast[X] p.second.domain := \into[X](base y, p.second.domain) \by { (\bysub(Y, { y: Y \where Base.Member (Base.Intersection p.first.domain p.second.domain) (base y) }, y)).right };
+\import topology.Continuity[A := Point, B := X].Corestriction[S := p.first.domain] \as IntoLeft;
+\import topology.Continuity[A := Point, B := X].Corestriction[S := p.second.domain] \as IntoRight;
+\definition leftBaseContinuous: Input.BaseContinuous -> topology.Continuity[A := Point, B := \Cast[X] p.first.domain].Continuous topology (Base.Subspace[S := p.first.domain].topology left.baseSpace) inLeft :=
+  \fun (regular: _) => IntoLeft.corestrictContinuous topology left.baseSpace inLeft (baseContinuous regular);
+\definition rightBaseContinuous: Input.BaseContinuous -> topology.Continuity[A := Point, B := \Cast[X] p.second.domain].Continuous topology (Base.Subspace[S := p.second.domain].topology right.baseSpace) inRight :=
+  \fun (regular: _) => IntoRight.corestrictContinuous topology right.baseSpace inRight
+    (\idelim left.baseSpace = right.baseSpace \with t: Base.Topology => topology.Continuity[A := Point, B := X].Continuous topology t (\fun (y: Point) => base y) \by { base: baseContinuous regular, equality: same });
+\definition leftVector[i: Fin.Fin p.first.dimension][y: Point]: F (base y) := (p.first.frame (inLeft y)).backward.apply (Spaces.FiniteCoordinates[n := p.first.dimension].vectors i);
+\definition rightVector[j: Fin.Fin p.second.dimension][y: Point]: G (base y) := (p.second.frame (inRight y)).backward.apply (Spaces.FiniteCoordinates[n := p.second.dimension].vectors j);
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Chart[X := X, F := F, bundle := left, chart := p.first] \as LeftChart;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Chart[X := X, F := G, bundle := right, chart := p.second] \as RightChart;
+\definition leftRegular: Input.BaseContinuous -> \forall (i: Fin.Fin p.first.dimension) -> topology.Continuity[A := Point, B := Left.Point].Continuous topology left.totalSpace (\fun (y: Point) => Left.include (base y) (leftVector i y)) :=
+  \fun (regular: _)(i: Fin.Fin p.first.dimension) => LeftChart.Maps[Y := Point, source := topology].pointContinuous inLeft (\fun (y: Point) => Spaces.FiniteCoordinates[n := p.first.dimension].vectors i) (leftBaseContinuous regular)
+    (topology.Maps[A := Point, B := Vector p.first.dimension].constantContinuous topology (coordinateTopology p.first.dimension) (Spaces.FiniteCoordinates[n := p.first.dimension].vectors i));
+\definition rightRegular: Input.BaseContinuous -> \forall (j: Fin.Fin p.second.dimension) -> topology.Continuity[A := Point, B := Right.Point].Continuous topology right.totalSpace (\fun (y: Point) => Right.include (base y) (rightVector j y)) :=
+  \fun (regular: _)(j: Fin.Fin p.second.dimension) => RightChart.Maps[Y := Point, source := topology].pointContinuous inRight (\fun (y: Point) => Spaces.FiniteCoordinates[n := p.second.dimension].vectors j) (rightBaseContinuous regular)
+    (topology.Maps[A := Point, B := Vector p.second.dimension].constantContinuous topology (coordinateTopology p.second.dimension) (Spaces.FiniteCoordinates[n := p.second.dimension].vectors j));
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Along[X := X, F := H, bundle := target, Y := Point, source := topology, base := \fun (y: Point) => base y] \as TargetAlong;
+\definition pureValue[h: Operators][i: Fin.Fin p.first.dimension][j: Fin.Fin p.second.dimension][y: Point]: H (base y) := (h y).apply (pure (base y) (leftVector i y) (rightVector j y));
+\definition PureRegular[h: Operators]: \Prop := \forall (i: Fin.Fin p.first.dimension)(j: Fin.Fin p.second.dimension) -> TargetAlong.Continuous (pureValue h i j);
+\definition targetBaseContinuous: Input.BaseContinuous -> TargetAlong.BaseContinuous := \fun (regular: _) => \idelim left.baseSpace = target.baseSpace \with t: Base.Topology => topology.Continuity[A := Point, B := X].Continuous topology t (\fun (y: Point) => base y) \by { base: baseContinuous regular, equality: sameTarget };
+\definition term[h: Operators][t: Input.Vectors][i: Fin.Fin p.first.dimension][j: Fin.Fin p.second.dimension]: TargetAlong.Vectors := TargetAlong.scale (coefficient t i j) (pureValue h i j);
+\definition inner[h: Operators][t: Input.Vectors][i: Fin.Fin p.first.dimension]: TargetAlong.Vectors := TargetAlong.Sums[I := Fin.Fin p.second.dimension].sum (Fin.elements p.second.dimension) (term h t i);
+\definition model[h: Operators][t: Input.Vectors]: TargetAlong.Vectors := TargetAlong.Sums[I := Fin.Fin p.first.dimension].sum (Fin.elements p.first.dimension) (inner h t);
+\definition modelContinuous: \forall (h: Operators)(t: Input.Vectors) -> Input.BaseContinuous -> Input.Continuous t -> PureRegular h -> TargetAlong.Continuous (model h t) :=
+  \fun (h: Operators)(t: Input.Vectors)(baseRegular: _)(tRegular: _)(regular: _) => TargetAlong.Sums[I := Fin.Fin p.first.dimension].continuous (Fin.elements p.first.dimension) (inner h t) (targetBaseContinuous baseRegular)
+    (\fun (i: Fin.Fin p.first.dimension) => TargetAlong.Sums[I := Fin.Fin p.second.dimension].continuous (Fin.elements p.second.dimension) (term h t i) (targetBaseContinuous baseRegular)
+      (\fun (j: Fin.Fin p.second.dimension) => TargetAlong.scaling (coefficient t i j) (pureValue h i j) (targetBaseContinuous baseRegular) (coefficientContinuous t tRegular i j) (regular i j)));
+\module At(y: Point);
+\definition formula: \forall (h: Operators)(t: Input.Vectors)(y: Point) -> (h y).apply (t y) = model h t y := \fun (h: Operators)(t: Input.Vectors)(y: Point) => At[y := y].formula h t;
+\definition continuous: \forall (h: Operators)(t: Input.Vectors) -> Input.BaseContinuous -> Input.Continuous t -> PureRegular h -> topology.Continuity[A := Point, B := Target.Point].Continuous topology target.totalSpace (\fun (y: Point) => Target.include (base y) ((h y).apply (t y))) :=
+  \fun (h: Operators)(t: Input.Vectors)(baseRegular: _)(tRegular: _)(regular: _) => \idelim TargetAlong.total (model h t) = (\fun (y: Point) => Target.include (base y) ((h y).apply (t y)))
+    \with f: (Point -> Target.Point) => topology.Continuity[A := Point, B := Target.Point].Continuous topology target.totalSpace f \by {
+      base: modelContinuous h t baseRegular tRegular regular,
+      equality: \axiom:funext(TargetAlong.total (model h t), (\fun (y: Point) => Target.include (base y) ((h y).apply (t y))), \fun (y: Point) => congr!{{H (base y)} Target.Point} (Target.include (base y)) _ _ (sym!{{H (base y)}} _ _ (formula h t y)))
+    };

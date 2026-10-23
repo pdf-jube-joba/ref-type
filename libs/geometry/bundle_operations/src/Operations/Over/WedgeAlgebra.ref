@@ -1,0 +1,36 @@
+\import Spaces.Dual[V := V, source := space] \as Dual;
+\import Spaces.Multilinear[V := Dual.Carrier, space := Dual.space].Alternating[] \as Forms;
+\import Spaces.Multilinear[V := V, space := space] \as Multilinear;
+\import Multilinear.Alternating[] \as Primal;
+\import Spaces.FiniteCoordinates[n := k].Top[] \as Top;
+\import Spaces.Multilinear[V := Vector k, space := coordinates k].Alternating[] \as CoordinateForms;
+\import Forms.Precomposition[W := Vector k, target := coordinates k] \as Pullback;
+\import Spaces.Linear[V := Dual.Carrier, W := Vector k, source := Dual.space, target := coordinates k] \as Evaluation;
+\definition evaluate[v: Fin.Fin k -> V]: Evaluation.Map := Evaluation.Map {
+  apply := \fun (ell: Dual.Carrier)(j: Fin.Fin k) => ell (v j),
+  preservesAdd := \fun (ell, eta: Dual.Carrier) => \refl((coordinates k).add (\fun (j: Fin.Fin k) => ell (v j)) (\fun (j: Fin.Fin k) => eta (v j))),
+  preservesScale := \fun (a: K)(ell: Dual.Carrier) => \refl((coordinates k).smul a (\fun (j: Fin.Fin k) => ell (v j)))
+};
+\definition value[v: Fin.Fin k -> V]: Forms.Form k := Pullback.precompose k (evaluate v) Top.volume;
+\import Spaces.Linear[V := V, W := Vector k, source := space, target := coordinates k] \as Testing;
+\definition testing[ell: Fin.Fin k -> Dual.Carrier]: Testing.Map := Testing.Map {
+  apply := \fun (v: V)(j: Fin.Fin k) => ell j v,
+  preservesAdd := \fun (v, w: V) => \axiom:funext((\fun (j: Fin.Fin k) => ell j (space.add v w)), (coordinates k).add (\fun (j: Fin.Fin k) => ell j v) (\fun (j: Fin.Fin k) => ell j w), \fun (j: Fin.Fin k) => (Dual.laws (ell j)).preservesAdd v w),
+  preservesScale := \fun (a: K)(v: V) => \axiom:funext((\fun (j: Fin.Fin k) => ell j (space.smul a v)), (coordinates k).smul a (\fun (j: Fin.Fin k) => ell j v), \fun (j: Fin.Fin k) => (Dual.laws (ell j)).preservesScale a v)
+};
+\definition primal[ell: Fin.Fin k -> Dual.Carrier]: Primal.Form k := Primal.Precomposition[W := Vector k, target := coordinates k].precompose k (testing ell) Top.volume;
+\import matrix_invariants.Ring[K := K, scalars := Fields.fieldAsCommutativeRing K field].At[n := k] \as Matrix;
+\definition evaluation: \forall (v: Fin.Fin k -> V)(ell: Fin.Fin k -> Dual.Carrier) -> value v ell = primal ell v :=
+  \fun (v: Fin.Fin k -> V)(ell: Fin.Fin k -> Dual.Carrier) => sym!{K} _ _
+    (congr!{{CoordinateForms.Form k} K} (\fun (omega: CoordinateForms.Form k) => omega (\fun (i: Fin.Fin k)(j: Fin.Fin k) => ell i (v j))) _ _ Matrix.Rows[].agrees);
+\definition primalLaws[ell: Fin.Fin k -> Dual.Carrier]: Primal.AlternatingLaws[k, primal ell] := \bysub(Multilinear.Function k, Primal.Form k, primal ell);
+\import Forms.At[k := k] \as Values;
+\definition addition: \forall (v: Fin.Fin k -> V)(i: Fin.Fin k)(x, y: V) -> value (Multilinear.update k v i (space.add x y)) = Values.plus (value (Multilinear.update k v i x)) (value (Multilinear.update k v i y)) :=
+  \fun (v: Fin.Fin k -> V)(i: Fin.Fin k)(x, y: V) => Values.ext _ _ (\fun (ell: Fin.Fin k -> Dual.Carrier) => trans!{K} _ _ _ (evaluation (Multilinear.update k v i (space.add x y)) ell)
+    (trans!{K} _ _ _ ((primalLaws ell).linear.addition v i x y)
+      (congr!{K K K} field.add _ _ _ _ (sym!{K} _ _ (evaluation (Multilinear.update k v i x) ell)) (sym!{K} _ _ (evaluation (Multilinear.update k v i y) ell)))));
+\definition scaling: \forall (v: Fin.Fin k -> V)(i: Fin.Fin k)(a: K)(x: V) -> value (Multilinear.update k v i (space.smul a x)) = Values.scale a (value (Multilinear.update k v i x)) :=
+  \fun (v: Fin.Fin k -> V)(i: Fin.Fin k)(a: K)(x: V) => Values.ext _ _ (\fun (ell: Fin.Fin k -> Dual.Carrier) => trans!{K} _ _ _ (evaluation (Multilinear.update k v i (space.smul a x)) ell)
+    (trans!{K} _ _ _ ((primalLaws ell).linear.scalar v i a x) (congr!{K K} (field.mul a) _ _ (sym!{K} _ _ (evaluation (Multilinear.update k v i x) ell)))));
+\definition alternating: \forall (v: Fin.Fin k -> V)(i, j: Fin.Fin k) -> Logic.Not (i = j) -> v i = v j -> value v = Values.origin :=
+  \fun (v: Fin.Fin k -> V)(i, j: Fin.Fin k)(different: _)(same: _) => Values.ext _ _ (\fun (ell: Fin.Fin k -> Dual.Carrier) => trans!{K} _ _ _ (evaluation v ell) ((primalLaws ell).alternating v i j different same));

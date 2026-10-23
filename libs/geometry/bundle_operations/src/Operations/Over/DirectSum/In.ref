@@ -1,0 +1,42 @@
+\definition domain: \Pow X := Base.Intersection c.domain d.domain;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].CoordinateSum[n := c.dimension, m := d.dimension] \as CoordinateSum;
+\import Fin.Sum[m := c.dimension, n := d.dimension] \as Indices;
+\import Spaces.DirectSum[V := Vector c.dimension, W := Vector d.dimension, left := coordinates c.dimension, right := coordinates d.dimension] \as CoordinatePair;
+\module At(x: \Cast[X] domain);
+\definition chart: Charts.ChartData := Charts.ChartData { domain := domain, dimension := Indices.total, frame := \fun (x: \Cast[X] domain) => At[x := x].frame };
+\import Charts.In[c := chart] \as Local;
+\import Base.Subspace[S := domain] \as BaseSubspace;
+\import topology.Topology[Carrier := Family.Point].Subspace[S := { p: Family.Point \where Base.Member domain p.base }] \as TotalSubspace;
+\module LeftSide;
+\module RightSide;
+\import topology.Continuity[A := Family.Point, B := X].Restriction[S := { p: Family.Point \where Base.Member domain p.base }] \as RestrictProjection;
+\import topology.Continuity[A := Local.TotalPoint, B := X].Corestriction[S := domain] \as IntoBase;
+\definition baseContinuous: topology.Continuity[A := Local.TotalPoint, B := Local.BasePoint].Continuous Local.localTopology (BaseSubspace.topology left.baseSpace) Local.base :=
+  IntoBase.corestrictContinuous Local.localTopology left.baseSpace Local.base (RestrictProjection.restrictContinuous topology left.baseSpace Family.projection projectionContinuous);
+\definition pair[p: Local.TotalPoint]: CoordinatePair.Carrier := CoordinatePair.make (LeftSide[].vector p) (RightSide[].vector p);
+\import topological_constructions.Product[A := Vector c.dimension, B := Vector d.dimension] \as CoordinateProduct;
+\definition pairContinuous: topology.Continuity[A := Local.TotalPoint, B := CoordinatePair.Carrier].Continuous Local.localTopology (CoordinateSum.Topology[].product) pair :=
+  CoordinateProduct.Universal[X := Local.TotalPoint].pairContinuous Local.localTopology (coordinateTopology c.dimension) (coordinateTopology d.dimension) LeftSide[].vector RightSide[].vector LeftSide[].vectorContinuous RightSide[].vectorContinuous;
+\import topology.Composition[A := Local.TotalPoint, B := CoordinatePair.Carrier, C := Vector Indices.total] \as JoinComposition;
+\definition vector[p: Local.TotalPoint]: Vector Indices.total := CoordinateSum.join (pair p);
+\definition vectorContinuous: topology.Continuity[A := Local.TotalPoint, B := Vector Indices.total].Continuous Local.localTopology (coordinateTopology Indices.total) vector :=
+  JoinComposition.composeContinuous Local.localTopology (CoordinateSum.Topology[].product) (coordinateTopology Indices.total) pair CoordinateSum.join pairContinuous (CoordinateSum.Topology[].joinRegular);
+\import topological_constructions.Product[A := Local.BasePoint, B := Vector Indices.total] \as LocalProduct;
+\definition forwardContinuous: topology.Continuity[A := Local.TotalPoint, B := Local.ProductPoint].Continuous Local.localTopology Local.productTopology Local.forward :=
+  LocalProduct.Universal[X := Local.TotalPoint].pairContinuous Local.localTopology (BaseSubspace.topology left.baseSpace) (coordinateTopology Indices.total) Local.base vector baseContinuous vectorContinuous;
+\definition backward[p: Local.ProductPoint]: Family.Point := Local.backward p;
+\definition backwardContinuous: \forall (same: SameBase) -> topology.Continuity[A := Local.ProductPoint, B := Family.Point].Continuous Local.productTopology topology backward :=
+  \fun (same: SameBase) => \parent.Universal[Y := Local.ProductPoint].continuous Local.productTopology backward (LeftSide[].pointContinuous same) (RightSide[].pointContinuous same);
+\definition baseOpen: \forall (same: SameBase) -> Base.IsOpenIn left.baseSpace domain :=
+  \fun (same: SameBase) => (Base.topologyLaws left.baseSpace).intersectionOpen c.domain d.domain
+    (\bysub(LeftCharts.ChartData, LeftCharts.Chart, c)).baseOpen
+    (\idelim right.baseSpace = left.baseSpace \with source: Base.Topology => Base.IsOpenIn source d.domain \by {
+      base: (\bysub(RightCharts.ChartData, RightCharts.Chart, d)).baseOpen, equality: sym!{Base.Topology} _ _ same
+    });
+\import topology.Continuity[A := Local.ProductPoint, B := Family.Point].Corestriction[S := { p: Family.Point \where Base.Member domain p.base }] \as IntoLocal;
+\definition trivialization[same: SameBase]: Charts.Chart := \into[Charts.ChartData](chart, Charts.Chart) \by {
+  Local.Laws {
+    baseOpen := baseOpen same, totalOpen := projectionContinuous domain (baseOpen same), forwardContinuous := forwardContinuous,
+    backwardContinuous := IntoLocal.corestrictContinuous Local.productTopology topology Local.backward (backwardContinuous same)
+  }
+};

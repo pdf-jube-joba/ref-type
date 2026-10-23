@@ -1,0 +1,35 @@
+\import Fin.Sum[m := n, n := m] \as Indices;
+\import Indices.Tuples[A := K] \as Tuples;
+\import Spaces.DirectSum[V := Vector n, W := Vector m, left := coordinates n, right := coordinates m] \as Sum;
+\import Spaces.Linear[V := Sum.Carrier, W := Vector Indices.total, source := Sum.space, target := coordinates Indices.total] \as Forward;
+\import Spaces.Linear[V := Vector Indices.total, W := Sum.Carrier, source := coordinates Indices.total, target := Sum.space] \as Backward;
+\definition join: Sum.Carrier -> Vector Indices.total := \fun (v: Sum.Carrier) => Tuples.join (Sum.first v) (Sum.second v);
+\definition split[v: Vector Indices.total]: Sum.Carrier := Sum.make (\fun (i: Fin.Fin n) => v (Indices.left i)) (\fun (j: Fin.Fin m) => v (Indices.right j));
+\definition joinAddition: \forall (v, w: Sum.Carrier) -> join (Sum.plus v w) = (coordinates Indices.total).add (join v) (join w) :=
+  \fun (v, w: Sum.Carrier) => \axiom:funext(join (Sum.plus v w), (coordinates Indices.total).add (join v) (join w), \fun (i: Fin.Fin Indices.total) =>
+    (\induction (s: Indices.Index) \return Tuples.evaluate ((coordinates n).add (Sum.first v) (Sum.first w)) ((coordinates m).add (Sum.second v) (Sum.second w)) s =
+      field.add (Tuples.evaluate (Sum.first v) (Sum.second v) s) (Tuples.evaluate (Sum.first w) (Sum.second w) s) \with {
+        | inl: \fun (j: Fin.Fin n) => \refl(field.add (Sum.first v j) (Sum.first w j))
+        | inr: \fun (j: Fin.Fin m) => \refl(field.add (Sum.second v j) (Sum.second w j))
+      }) (Indices.split i));
+\definition joinScale: \forall (a: K)(v: Sum.Carrier) -> join (Sum.scale a v) = (coordinates Indices.total).smul a (join v) :=
+  \fun (a: K)(v: Sum.Carrier) => \axiom:funext(join (Sum.scale a v), (coordinates Indices.total).smul a (join v), \fun (i: Fin.Fin Indices.total) =>
+    (\induction (s: Indices.Index) \return Tuples.evaluate ((coordinates n).smul a (Sum.first v)) ((coordinates m).smul a (Sum.second v)) s =
+      field.mul a (Tuples.evaluate (Sum.first v) (Sum.second v) s) \with {
+        | inl: \fun (j: Fin.Fin n) => \refl(field.mul a (Sum.first v j))
+        | inr: \fun (j: Fin.Fin m) => \refl(field.mul a (Sum.second v j))
+      }) (Indices.split i));
+\definition forward: Forward.Map := Forward.Map { apply := join, preservesAdd := joinAddition, preservesScale := joinScale };
+\definition backward: Backward.Map := Backward.Map {
+  apply := split, preservesAdd := \fun (v, w: Vector Indices.total) => \refl(Sum.plus (split v) (split w)),
+  preservesScale := \fun (a: K)(v: Vector Indices.total) => \refl(Sum.scale a (split v)),
+};
+\import Spaces.Isomorphism[V := Sum.Carrier, W := Vector Indices.total, source := Sum.space, target := coordinates Indices.total] \as Isomorphisms;
+\definition isomorphism: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := \fun (v: Sum.Carrier) => Pair.Prop[A := Vector n, B := Vector m].ext (split (join v)) v
+    (\axiom:funext(Sum.first (split (join v)), Sum.first v, Tuples.atLeft (Sum.first v) (Sum.second v)))
+    (\axiom:funext(Sum.second (split (join v)), Sum.second v, Tuples.atRight (Sum.first v) (Sum.second v))),
+  rightInverse := Tuples.recover,
+};
+\module Topology;

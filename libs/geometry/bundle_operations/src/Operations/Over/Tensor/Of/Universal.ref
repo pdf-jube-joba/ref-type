@@ -1,0 +1,36 @@
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := Y, F := H] \as Target;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := Y, F := Fiber, G := H, source := tensor, target := target, f := f] \as Maps;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].DirectSum[X := X, F := F, G := G, left := left, right := right] \as Sum;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := \fun (x: X) => Pair.Times^[F x, G x]] \as SumFamily;
+\structure Data: \Set := {
+  fiber: \forall (x: X) -> F x -> G x -> H (f x),
+  bilinear: \forall (x: X) -> Spaces.Tensor[V := F x, W := G x, left := left.space x, right := right.space x].BilinearLaws[H (f x), target.space (f x), fiber x],
+};
+\definition total[b: Data][p: SumFamily.Point]: Target.Point := Target.include (f p.base) (b.fiber p.base (Pair.first (F p.base) (G p.base) p.vector) (Pair.second (F p.base) (G p.base) p.vector));
+\definition Bilinear: \Set := \Cast[Data] ({ b: Data \where topology.Continuity[A := SumFamily.Point, B := Target.Point].Continuous Sum.topology target.totalSpace (total b) });
+\definition continuous: \forall (b: Bilinear) -> topology.Continuity[A := SumFamily.Point, B := Target.Point].Continuous Sum.topology target.totalSpace (total b) :=
+  \fun (b: Bilinear) => \bysub(Data, Bilinear, b);
+\definition linear[b: Data][x: X]: Spaces.Linear[V := Fiber x, W := H (f x), source := fiberSpace x, target := target.space (f x)].Map :=
+  Spaces.Tensor[V := F x, W := G x, left := left.space x, right := right.space x].Universal[U := H (f x), target := target.space (f x)].map (b.fiber x) (b.bilinear x);
+\definition mapData[b: Data]: Maps.Data := Maps.Data { fiber := linear b };
+\definition zero: X -> SumFamily.Point := SumFamily.Of[bundle := Sum.bundle same].Sections[].total (SumFamily.Of[bundle := Sum.bundle same].Sections[].zero);
+\definition zeroContinuous: topology.Continuity[A := X, B := SumFamily.Point].Continuous left.baseSpace Sum.topology zero :=
+  SumFamily.Of[bundle := Sum.bundle same].Sections[].continuous (SumFamily.Of[bundle := Sum.bundle same].Sections[].zero);
+\definition baseContinuous: \forall (b: Bilinear) -> topology.Continuity[A := X, B := Y].Continuous left.baseSpace target.baseSpace f :=
+  \fun (b: Bilinear) => topology.Composition[A := X, B := Target.Point, C := Y].composeContinuous left.baseSpace target.totalSpace target.baseSpace
+    (\fun (x: X) => total b (zero x)) Target.projection
+    (topology.Composition[A := X, B := SumFamily.Point, C := Target.Point].composeContinuous left.baseSpace Sum.topology target.totalSpace zero (total b) zeroContinuous (continuous b))
+    (Target.Of[bundle := target].projectionContinuous);
+\module Grid(x: X, r, s: N.Nat^);
+\module On(b: Bilinear, r, s: N.Nat^);
+\definition mapContinuous: \forall (b: Bilinear) -> topology.Continuity[A := Family.Point, B := Target.Point].Continuous topology target.totalSpace (Maps.total (mapData b)) :=
+  \fun (b: Bilinear) => Final.Universal[Z := Target.Point].continuous target.totalSpace (Maps.total (mapData b))
+    (\fun (grid: Grid) => On[b := b, r := Pair.first N.Nat^ N.Nat^ grid, s := Pair.second N.Nat^ N.Nat^ grid].continuous);
+\definition map[b: Bilinear]: Maps.Map := \into[Maps.Data](mapData b, Maps.Map) \by { mapContinuous b };
+\definition onPure: \forall (b: Bilinear)(x: X)(v: F x)(w: G x) -> ((map b).fiber x).apply (pure x v w) = b.fiber x v w :=
+  \fun (b: Bilinear)(x: X)(v: F x)(w: G x) => Spaces.Tensor[V := F x, W := G x, left := left.space x, right := right.space x].Universal[U := H (f x), target := target.space (f x)].onTensor (b.fiber x) (b.bilinear x) v w;
+\definition unique: \forall (b: Bilinear)(candidate: Maps.Map) -> (\forall (x: X)(v: F x)(w: G x) -> (candidate.fiber x).apply (pure x v w) = b.fiber x v w) -> candidate = map b :=
+  \fun (b: Bilinear)(candidate: Maps.Map)(agrees: _) => Maps.ext candidate (map b) (\fun (x: X)(v: Fiber x) =>
+    congr!{{Fiber x -> H (f x)} {H (f x)}} (\fun (h: Fiber x -> H (f x)) => h v) _ _
+      (Spaces.Tensor[V := F x, W := G x, left := left.space x, right := right.space x].Universal[U := H (f x), target := target.space (f x)].unique
+        (b.fiber x) (b.bilinear x) (candidate.fiber x) (agrees x)));

@@ -1,0 +1,25 @@
+\definition reverseMiddle: middle.baseSpace = left.baseSpace := sym!{{topology.Topology[Carrier := X].Topology}} _ _ sameMiddle;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].DirectSum[X := X, F := F, G := Last.Fiber, left := left, right := Last.bundle lastBase] \as Domain;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := Domain.Fiber] \as DomainFamily;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := SourceTensor.Fiber] \as TargetFamily;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := Last.Fiber] \as LastFamily;
+\import Last.Of[same := lastBase].Parametric[Y := DomainFamily.Point, source := Domain.topology, base := DomainFamily.projection, H := SourceTensor.Fiber, target := sourceBundle, sameTarget := reverseMiddle] \as Parametric;
+\import TargetTensor.Of[same := sameMiddle].LinearFromPure[Y := X, H := SourceTensor.Fiber, target := sourceBundle, f := \fun (x: X) => x] \as Extension;
+\definition operator[p: DomainFamily.Point]: Spaces.Linear[V := Last.Fiber p.base, W := SourceTensor.Fiber p.base, source := Last.fiberSpace p.base, target := SourceTensor.fiberSpace p.base].Map := backwardParameter p.base (Pair.first (F p.base) (Last.Fiber p.base) p.vector);
+\definition input[p: DomainFamily.Point]: Last.Fiber p.base := Pair.second (F p.base) (Last.Fiber p.base) p.vector;
+\definition baseContinuous: topology.Continuity[A := DomainFamily.Point, B := X].Continuous Domain.topology middle.baseSpace DomainFamily.projection :=
+  \idelim left.baseSpace = middle.baseSpace \with t: topology.Topology[Carrier := X].Topology => topology.Continuity[A := DomainFamily.Point, B := X].Continuous Domain.topology t DomainFamily.projection \by { base: Domain.projectionContinuous, equality: sameMiddle };
+\definition inputContinuous: topology.Continuity[A := DomainFamily.Point, B := LastFamily.Point].Continuous Domain.topology Last.topology (\fun (p: DomainFamily.Point) => LastFamily.include p.base (input p)) := Domain.secondContinuous;
+\module In(p: Parametric.Index);
+\definition model[p: DomainFamily.Point]: TargetFamily.Point := TargetFamily.include p.base ((operator p).apply (input p));
+\definition modelContinuous: topology.Continuity[A := DomainFamily.Point, B := TargetFamily.Point].Continuous Domain.topology sourceBundle.totalSpace model :=
+  Parametric.continuous operator input baseContinuous inputContinuous (\fun (p: Parametric.Index) => In[p := p].regular);
+\definition fiber: Extension.Operators := \fun (x: X) => (fiberIsomorphism x).backward;
+\definition formula: \forall (p: DomainFamily.Point) -> model p = TargetFamily.include p.base ((fiber p.base).apply (TargetTensor.pure p.base (Pair.first (F p.base) (Last.Fiber p.base) p.vector) (input p))) :=
+  \fun (p: DomainFamily.Point) => congr!{{SourceTensor.Fiber p.base} TargetFamily.Point} (TargetFamily.include p.base) _ _
+    (sym!{{SourceTensor.Fiber p.base}} _ _ (backwardOnTensor p.base (Pair.first (F p.base) (Last.Fiber p.base) p.vector) (input p)));
+\definition regular: Extension.PureContinuous fiber := \idelim model = (\fun (p: DomainFamily.Point) => TargetFamily.include p.base ((fiber p.base).apply (TargetTensor.pure p.base (Pair.first (F p.base) (Last.Fiber p.base) p.vector) (input p))))
+  \with f: (DomainFamily.Point -> TargetFamily.Point) => topology.Continuity[A := DomainFamily.Point, B := TargetFamily.Point].Continuous Domain.topology sourceBundle.totalSpace f \by {
+    base: modelContinuous, equality: \axiom:funext(model, (\fun (p: DomainFamily.Point) => TargetFamily.include p.base ((fiber p.base).apply (TargetTensor.pure p.base (Pair.first (F p.base) (Last.Fiber p.base) p.vector) (input p)))), formula)
+  };
+\definition map: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := TargetTensor.Fiber, G := SourceTensor.Fiber, source := targetBundle, target := sourceBundle, f := \fun (x: X) => x].Map := Extension.map fiber regular;

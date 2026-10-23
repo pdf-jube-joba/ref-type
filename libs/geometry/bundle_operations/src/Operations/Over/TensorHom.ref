@@ -1,0 +1,19 @@
+\import Spaces.Dual[V := V, source := source] \as Dual;
+\import Spaces.Tensor[V := Dual.Carrier, W := W, left := Dual.space, right := target] \as Tensor;
+\import commutative_algebra.Modules[R := K, ring := Fields.fieldAsCommutativeRing K field].HomSpace[V := V, W := W, source := source, target := target] \as Hom;
+\import module_theory.Module[].Over[R := K, ring := Spaces.ring].Hom[V := V, W := W, source := source, target := target] \as Native;
+\definition value[ell: Dual.Carrier][w: W]: Hom.Carrier := Hom.Carrier {
+  apply := \fun (v: V) => target.smul (ell v) w,
+  addition := \fun (v, z: V) => trans!{W} _ _ _ (congr!{K W} (\fun (a: K) => target.smul a w) _ _ ((Dual.laws ell).preservesAdd v z)) (target.scalarAdd (ell v) (ell z) w),
+  scalar := \fun (a: K)(v: V) => trans!{W} _ _ _ (congr!{K W} (\fun (s: K) => target.smul s w) _ _ ((Dual.laws ell).preservesScale a v)) (target.scalarAssoc a (ell v) w)
+};
+\definition bilinear: Tensor.BilinearLaws[Hom.Carrier, Hom.space, value] := Tensor.BilinearLaws[Hom.Carrier, Hom.space, value] {
+  addLeft := \fun (ell, eta: Dual.Carrier)(w: W) => Native.ext (value (Dual.space.add ell eta) w) (Hom.add (value ell w) (value eta w)) (\fun (v: V) => target.scalarAdd (ell v) (eta v) w),
+  addRight := \fun (ell: Dual.Carrier)(w, z: W) => Native.ext (value ell (target.add w z)) (Hom.add (value ell w) (value ell z)) (\fun (v: V) => target.vectorAdd (ell v) w z),
+  scaleLeft := \fun (a: K)(ell: Dual.Carrier)(w: W) => Native.ext (value (Dual.space.smul a ell) w) (Hom.scale a (value ell w)) (\fun (v: V) => target.scalarAssoc a (ell v) w),
+  scaleRight := \fun (a: K)(ell: Dual.Carrier)(w: W) => Native.ext (value ell (target.smul a w)) (Hom.scale a (value ell w)) (\fun (v: V) => Spaces.Laws[V := W, space := target].scaleComm (ell v) a w)
+};
+\import Tensor.Universal[U := Hom.Carrier, target := Hom.space] \as Universal;
+\definition forward: Spaces.Linear[V := Tensor.Carrier, W := Hom.Carrier, source := Tensor.space, target := Hom.space].Map := Universal.map value bilinear;
+\definition onPure: \forall (ell: Dual.Carrier)(w: W) -> forward.apply (Tensor.tensor ell w) = value ell w := Universal.onTensor value bilinear;
+\module Finite(n: N.Nat^, frame: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Dimension[V := V, space := source].Frame n);

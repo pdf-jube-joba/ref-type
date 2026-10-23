@@ -1,0 +1,40 @@
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := Y, F := H] \as Target;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := Y, F := F, G := H, source := left, target := target, f := f] \as LeftMaps;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := Y, F := G, G := H, source := right, target := target, f := f] \as RightMaps;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := Y, F := Fiber, G := H, source := sum, target := target, f := f] \as Maps;
+\definition data[a: LeftMaps.Map][b: RightMaps.Map]: Maps.Data := Maps.Data { fiber := \fun (x: X) => Spaces.Linear[V := Fiber x, W := H (f x), source := fiberSpace x, target := target.space (f x)].Map {
+  apply := \fun (v: Fiber x) => (target.space (f x)).add ((a.fiber x).apply (Pair.first (F x) (G x) v)) ((b.fiber x).apply (Pair.second (F x) (G x) v)),
+  preservesAdd := \fun (v, w: Fiber x) => trans!{{H (f x)}} _ _ _
+    (congr!{{H (f x)} {H (f x)} {H (f x)}} (target.space (f x)).add _ _ _ _ ((a.fiber x).preservesAdd (Pair.first (F x) (G x) v) (Pair.first (F x) (G x) w)) ((b.fiber x).preservesAdd (Pair.second (F x) (G x) v) (Pair.second (F x) (G x) w)))
+    (Spaces.Laws[V := H (f x), space := target.space (f x)].shuffle ((a.fiber x).apply (Pair.first (F x) (G x) v)) ((a.fiber x).apply (Pair.first (F x) (G x) w)) ((b.fiber x).apply (Pair.second (F x) (G x) v)) ((b.fiber x).apply (Pair.second (F x) (G x) w))),
+  preservesScale := \fun (s: K)(v: Fiber x) => trans!{{H (f x)}} _ _ _
+    (congr!{{H (f x)} {H (f x)} {H (f x)}} (target.space (f x)).add _ _ _ _ ((a.fiber x).preservesScale s (Pair.first (F x) (G x) v)) ((b.fiber x).preservesScale s (Pair.second (F x) (G x) v)))
+    (sym!{{H (f x)}} _ _ ((target.space (f x)).vectorAdd s ((a.fiber x).apply (Pair.first (F x) (G x) v)) ((b.fiber x).apply (Pair.second (F x) (G x) v))))
+} };
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Along[X := Y, F := H, bundle := target, Y := Family.Point, source := topology, base := \fun (p: Family.Point) => f p.base] \as Along;
+\definition firstValue[a: LeftMaps.Map][p: Family.Point]: H (f p.base) := (a.fiber p.base).apply (Pair.first (F p.base) (G p.base) p.vector);
+\definition secondValue[b: RightMaps.Map][p: Family.Point]: H (f p.base) := (b.fiber p.base).apply (Pair.second (F p.base) (G p.base) p.vector);
+\definition firstRegular: \forall (a: LeftMaps.Map) -> Along.Continuous (firstValue a) := \fun (a: LeftMaps.Map) =>
+  topology.Composition[A := Family.Point, B := Left.Point, C := Target.Point].composeContinuous topology left.totalSpace target.totalSpace first (LeftMaps.total a) firstContinuous (LeftMaps.continuous a);
+\definition secondRegular: \forall (b: RightMaps.Map) -> Along.Continuous (secondValue b) := \fun (b: RightMaps.Map) =>
+  topology.Composition[A := Family.Point, B := Right.Point, C := Target.Point].composeContinuous topology right.totalSpace target.totalSpace second (RightMaps.total b) secondContinuous (RightMaps.continuous b);
+\definition baseContinuous: \forall (a: LeftMaps.Map) -> Along.BaseContinuous := \fun (a: LeftMaps.Map) => topology.Composition[A := Family.Point, B := Target.Point, C := Y].composeContinuous topology target.totalSpace target.baseSpace (Along.total (firstValue a)) Target.projection (firstRegular a) Target.Of[bundle := target].projectionContinuous;
+\definition copair[a: LeftMaps.Map][b: RightMaps.Map]: Maps.Map := \into[Maps.Data](data a b, Maps.Map) \by {
+  Along.addition (firstValue a) (secondValue b) (baseContinuous a) (firstRegular a) (secondRegular b)
+};
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].DirectSum[X := X, F := F, G := G, left := left, right := right].Of[same := same].Inclusions[] \as Inclusions;
+\definition onFirst: \forall (a: LeftMaps.Map)(b: RightMaps.Map)(x: X)(v: F x) -> ((copair a b).fiber x).apply ((Inclusions.first.fiber x).apply v) = (a.fiber x).apply v :=
+  \fun (a: LeftMaps.Map)(b: RightMaps.Map)(x: X)(v: F x) => trans!{{H (f x)}} _ _ _
+    (congr!{{H (f x)} {H (f x)}} ((target.space (f x)).add ((a.fiber x).apply v)) _ _ (b.fiber x).preservesZero)
+    (Spaces.Laws[V := H (f x), space := target.space (f x)].zeroRight ((a.fiber x).apply v));
+\definition onSecond: \forall (a: LeftMaps.Map)(b: RightMaps.Map)(x: X)(w: G x) -> ((copair a b).fiber x).apply ((Inclusions.second.fiber x).apply w) = (b.fiber x).apply w :=
+  \fun (a: LeftMaps.Map)(b: RightMaps.Map)(x: X)(w: G x) => trans!{{H (f x)}} _ _ _
+    (congr!{{H (f x)} {H (f x)}} (\fun (v: H (f x)) => (target.space (f x)).add v ((b.fiber x).apply w)) _ _ (a.fiber x).preservesZero)
+    (Spaces.Laws[V := H (f x), space := target.space (f x)].zeroLeft ((b.fiber x).apply w));
+\definition unique: \forall (a: LeftMaps.Map)(b: RightMaps.Map)(r: Maps.Map) ->
+  (\forall (x: X)(v: F x) -> (r.fiber x).apply ((Inclusions.first.fiber x).apply v) = (a.fiber x).apply v) ->
+  (\forall (x: X)(w: G x) -> (r.fiber x).apply ((Inclusions.second.fiber x).apply w) = (b.fiber x).apply w) -> r = copair a b :=
+  \fun (a: LeftMaps.Map)(b: RightMaps.Map)(r: Maps.Map)(first: _)(second: _) => Maps.ext r (copair a b) (\fun (x: X)(v: Fiber x) => trans!{{H (f x)}} _ _ _
+    (congr!{{Fiber x} {H (f x)}} (r.fiber x).apply _ _ (sym!{{Fiber x}} _ _ (Inclusions.decomposition x v)))
+    (trans!{{H (f x)}} _ _ _ ((r.fiber x).preservesAdd ((Inclusions.first.fiber x).apply (Pair.first (F x) (G x) v)) ((Inclusions.second.fiber x).apply (Pair.second (F x) (G x) v)))
+      (congr!{{H (f x)} {H (f x)} {H (f x)}} (target.space (f x)).add _ _ _ _ (first x (Pair.first (F x) (G x) v)) (second x (Pair.second (F x) (G x) v)))));

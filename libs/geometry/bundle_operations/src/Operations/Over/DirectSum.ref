@@ -1,0 +1,41 @@
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := F] \as Left;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := G] \as Right;
+\import Left.With[data := left] \as LeftCharts;
+\import Right.With[data := right] \as RightCharts;
+\definition Fiber[x: X]: \Set := Pair.Times^[F x, G x];
+\definition fiberSpace[x: X]: Spaces.VectorSpace (Fiber x) := Spaces.DirectSum[V := F x, W := G x, left := left.space x, right := right.space x].space;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := Fiber] \as Family;
+\import topology.Topology[Carrier := X] \as Base;
+\import topological_constructions.Product[A := Left.Point, B := Right.Point] \as Product;
+\import Product.Maps[] \as Projections;
+\definition first[p: Family.Point]: Left.Point := Left.include p.base (Pair.first (F p.base) (G p.base) p.vector);
+\definition second[p: Family.Point]: Right.Point := Right.include p.base (Pair.second (F p.base) (G p.base) p.vector);
+\definition embedding[p: Family.Point]: Product.CarrierSet := Pair.pair Left.Point Right.Point (first p) (second p);
+\import topological_constructions.Induced[A := Family.Point, B := Product.CarrierSet] \as Induced;
+\definition productTopology: topology.Topology[Carrier := Product.CarrierSet].Topology := Product.topology left.totalSpace right.totalSpace;
+\definition topology: topology.Topology[Carrier := Family.Point].Topology := Induced.topology productTopology embedding;
+\definition embeddingContinuous: topology.Continuity[A := Family.Point, B := Product.CarrierSet].Continuous topology productTopology embedding := Induced.continuous productTopology embedding;
+\import topology.Composition[A := Family.Point, B := Product.CarrierSet, C := Left.Point] \as FirstComposition;
+\import topology.Composition[A := Family.Point, B := Product.CarrierSet, C := Right.Point] \as SecondComposition;
+\definition firstContinuous: topology.Continuity[A := Family.Point, B := Left.Point].Continuous topology left.totalSpace first :=
+  FirstComposition.composeContinuous topology productTopology left.totalSpace embedding (Pair.first Left.Point Right.Point) embeddingContinuous (Projections.firstContinuous left.totalSpace right.totalSpace);
+\definition secondContinuous: topology.Continuity[A := Family.Point, B := Right.Point].Continuous topology right.totalSpace second :=
+  SecondComposition.composeContinuous topology productTopology right.totalSpace embedding (Pair.second Left.Point Right.Point) embeddingContinuous (Projections.secondContinuous left.totalSpace right.totalSpace);
+\import topology.Composition[A := Family.Point, B := Left.Point, C := X] \as Projection;
+\definition projectionContinuous: topology.Continuity[A := Family.Point, B := X].Continuous topology left.baseSpace Family.projection :=
+  Projection.composeContinuous topology left.totalSpace left.baseSpace first Left.projection firstContinuous (Left.Of[bundle := left].projectionContinuous);
+\definition data: Family.Data := Family.Data { baseSpace := left.baseSpace, totalSpace := topology, space := fiberSpace };
+\import Family.With[data := data] \as Charts;
+\definition SameBase: \Prop := left.baseSpace = right.baseSpace;
+\module Universal(Y: \Set);
+\module In(c: LeftCharts.Chart, d: RightCharts.Chart);
+\definition bundle[same: SameBase]: Family.Bundle := \into[Family.Data](data, Family.Bundle) \by {
+  \fun (x: X) => \block {
+    \takefrom c: \Cast[LeftCharts.Chart] ({ c: LeftCharts.Chart \where Base.Member c.domain x }) \by Left.Of[bundle := left].locallyTrivial x \then
+    \takefrom d: \Cast[RightCharts.Chart] ({ d: RightCharts.Chart \where Base.Member d.domain x }) \by Right.Of[bundle := right].locallyTrivial x \then
+    \return Logic.existsIntro[Charts.Chart, { chart: Charts.Chart \where Base.Member chart.domain x }] (In[c := c, d := d].trivialization same)
+      (Logic.And[_, _]::# (\bysub(LeftCharts.Chart, { c: LeftCharts.Chart \where Base.Member c.domain x }, c))
+        (\bysub(RightCharts.Chart, { d: RightCharts.Chart \where Base.Member d.domain x }, d)))
+  }
+};
+\module Of(same: SameBase);

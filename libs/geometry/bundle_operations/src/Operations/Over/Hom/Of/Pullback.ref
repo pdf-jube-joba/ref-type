@@ -1,0 +1,36 @@
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := G] \as Right;
+\import Right.With[data := right] \as RightCharts;
+\import Source.Of[bundle := left].Pullback[Y := Y, source := source, f := f] \as LeftPullback;
+\import Right.Of[bundle := right].Pullback[Y := Y, source := source, f := f] \as RightPullback;
+\definition rightRegular: RightPullback.BaseContinuous := \idelim left.baseSpace = right.baseSpace \with t: topology.Topology[Carrier := X].Topology => topology.Continuity[A := Y, B := X].Continuous source t f \by {
+  base: regular, equality: same
+};
+\import Family.Of[bundle := hom].Pullback[Y := Y, source := source, f := f] \as HomPullback;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Hom[X := Y, F := \fun (y: Y) => F (f y), G := \fun (y: Y) => G (f y), left := LeftPullback.pulled regular, right := RightPullback.pulled rightRegular] \as PulledHom;
+\definition firstBundle: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := Y, F := \fun (y: Y) => Fiber (f y)].Bundle := HomPullback.pulled regular;
+\definition secondBundle: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := Y, F := \fun (y: Y) => Fiber (f y)].Bundle := PulledHom.Of[same := \refl(source)].hom;
+\definition fiber[y: Y]: Spaces.Isomorphism[V := Fiber (f y), W := Fiber (f y), source := firstBundle.space y, target := secondBundle.space y].Isomorphism :=
+  Spaces.Isomorphism[V := Fiber (f y), W := Fiber (f y), source := firstBundle.space y, target := secondBundle.space y].Isomorphism {
+    forward := Spaces.Linear[V := Fiber (f y), W := Fiber (f y), source := firstBundle.space y, target := secondBundle.space y].Map {
+      apply := \fun (v: Fiber (f y)) => v, preservesAdd := \fun (v, w: Fiber (f y)) => \refl((firstBundle.space y).add v w), preservesScale := \fun (a: K)(v: Fiber (f y)) => \refl((firstBundle.space y).smul a v)
+    },
+    backward := Spaces.Linear[V := Fiber (f y), W := Fiber (f y), source := secondBundle.space y, target := firstBundle.space y].Map {
+      apply := \fun (v: Fiber (f y)) => v, preservesAdd := \fun (v, w: Fiber (f y)) => \refl((firstBundle.space y).add v w), preservesScale := \fun (a: K)(v: Fiber (f y)) => \refl((firstBundle.space y).smul a v)
+    },
+    leftInverse := \fun (v: Fiber (f y)) => \refl(v), rightInverse := \fun (v: Fiber (f y)) => \refl(v)
+  };
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].LocalMaps[X := Y, F := \fun (y: Y) => Fiber (f y), G := \fun (y: Y) => Fiber (f y), source := firstBundle, target := secondBundle, fiber := \fun (y: Y) => (fiber y).forward] \as Charts;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].LocalIsomorphisms[X := Y, F := \fun (y: Y) => Fiber (f y), G := \fun (y: Y) => Fiber (f y), source := firstBundle, target := secondBundle, fiber := fiber] \as Comparison;
+\module In(c: SourceCharts.Chart, d: RightCharts.Chart,
+  enumeration: \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].PairIndices[n := c.dimension, m := d.dimension].Enumeration);
+\definition covers: Charts.Covers := \fun (y: Y) => \block {
+  \takefrom c: \Cast[SourceCharts.Chart] ({ c: SourceCharts.Chart \where Base.Member c.domain (f y) }) \by Source.Of[bundle := left].locallyTrivial (f y) \then
+  \takefrom d: \Cast[RightCharts.Chart] ({ d: RightCharts.Chart \where Base.Member d.domain (f y) }) \by Right.Of[bundle := right].locallyTrivial (f y) \then
+  \takefrom enumeration: \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].PairIndices[n := c.dimension, m := d.dimension].Enumeration
+    \by \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].PairIndices[n := c.dimension, m := d.dimension].existsEnumeration \then
+  \return Logic.existsIntro[Charts.Chart, { e: Charts.Chart \where topology.Topology[Carrier := Y].Member e.domain y }] (In[c := c, d := d, enumeration := enumeration].chart)
+    (Logic.And[_, _]::# (\bysub(SourceCharts.Chart, { c: SourceCharts.Chart \where Base.Member c.domain (f y) }, c)) (\bysub(RightCharts.Chart, { d: RightCharts.Chart \where Base.Member d.domain (f y) }, d)))
+};
+\definition isomorphism: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Isomorphisms[X := Y, F := \fun (y: Y) => Fiber (f y), G := \fun (y: Y) => Fiber (f y), source := firstBundle, target := secondBundle].Isomorphism := Comparison.isomorphism (\refl(source)) covers;
+\definition onFiber: \forall (y: Y)(v: Fiber (f y)) -> (isomorphism.forward.fiber y).apply v = v := \fun (y: Y)(v: Fiber (f y)) => \refl(v);
+\definition inverseOnFiber: \forall (y: Y)(v: Fiber (f y)) -> (isomorphism.backward.fiber y).apply v = v := \fun (y: Y)(v: Fiber (f y)) => \refl(v);

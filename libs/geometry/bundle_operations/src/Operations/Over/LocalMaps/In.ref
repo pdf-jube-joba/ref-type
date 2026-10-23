@@ -1,0 +1,33 @@
+\definition sourceChart: SourceCharts.ChartData := SourceCharts.ChartData { domain := c.domain, dimension := c.dimension, frame := c.sourceFrame };
+\definition targetChart: TargetCharts.ChartData := TargetCharts.ChartData { domain := c.domain, dimension := c.dimension, frame := c.targetFrame };
+\import SourceCharts.In[c := sourceChart] \as Left;
+\import TargetCharts.In[c := targetChart] \as Right;
+\structure Laws: \Prop := {
+  source: Left.Laws, target: Right.Laws,
+  alignment: \forall (x: \Cast[X] c.domain)(v: F x) -> (c.targetFrame x).forward.apply ((fiber x).apply v) = (c.sourceFrame x).forward.apply v
+};
+\definition model[p: Left.TotalPoint]: Target.Point := Right.backward (Left.forward p);
+\definition formula: \forall (laws: Laws)(p: Left.TotalPoint) -> model p = Target.include p.base ((fiber p.base).apply p.vector) :=
+  \fun (laws: Laws)(p: Left.TotalPoint) => congr!{{G p.base} Target.Point} (Target.include p.base) _ _
+    (trans!{{G p.base}} _ _ _ (congr!{{Vector c.dimension} {G p.base}} (c.targetFrame (Left.base p)).backward.apply _ _ (sym!{{Vector c.dimension}} _ _ (laws.alignment (Left.base p) p.vector)))
+      ((Spaces.Isomorphism[V := G p.base, W := Vector c.dimension, source := target.space p.base, target := coordinates c.dimension].laws (c.targetFrame (Left.base p))).leftInverse ((fiber p.base).apply p.vector)));
+\import topology.Topology[Carrier := Target.Point].Subspace[S := { p: Target.Point \where Base.Member c.domain p.base }] \as Subspace;
+\definition productEquality: \forall (sameBase: source.baseSpace = target.baseSpace) -> Left.productTopology = Right.productTopology :=
+  \fun (sameBase: _) => congr!{{Base.Topology} {topology.Topology[Carrier := Left.ProductPoint].Topology}}
+    (\fun (base: Base.Topology) => topological_constructions.Product[A := Left.BasePoint, B := Vector c.dimension].topology (Base.Subspace[S := c.domain].topology base) (coordinateTopology c.dimension)) _ _ sameBase;
+\definition firstContinuous: \forall (sameBase: source.baseSpace = target.baseSpace)(laws: Laws) -> topology.Continuity[A := Left.TotalPoint, B := Right.ProductPoint].Continuous Left.localTopology Right.productTopology Left.forward :=
+  \fun (sameBase: _)(laws: Laws) => \idelim Left.productTopology = Right.productTopology \with t: topology.Topology[Carrier := Left.ProductPoint].Topology => topology.Continuity[A := Left.TotalPoint, B := Left.ProductPoint].Continuous Left.localTopology t Left.forward \by {
+    base: laws.source.forwardContinuous, equality: productEquality sameBase
+  };
+\definition modelContinuous: \forall (sameBase: source.baseSpace = target.baseSpace)(laws: Laws) -> topology.Continuity[A := Left.TotalPoint, B := Target.Point].Continuous Left.localTopology target.totalSpace model :=
+  \fun (sameBase: _)(laws: Laws) => topology.Composition[A := Left.TotalPoint, B := Right.ProductPoint, C := Target.Point].composeContinuous Left.localTopology Right.productTopology target.totalSpace Left.forward
+    (\fun (p: Right.ProductPoint) => Right.backward p) (firstContinuous sameBase laws)
+    (topology.Composition[A := Right.ProductPoint, B := Right.TotalPoint, C := Target.Point].composeContinuous Right.productTopology Right.localTopology target.totalSpace Right.backward (\fun (p: Right.TotalPoint) => p)
+      laws.target.backwardContinuous (\fun (U: \Pow Target.Point)(open: _) => Subspace.traceOpen target.totalSpace U open));
+\definition continuous: \forall (sameBase: source.baseSpace = target.baseSpace)(laws: Laws) -> topology.Continuity[A := Left.TotalPoint, B := Target.Point].Continuous Left.localTopology target.totalSpace
+  (\fun (p: Left.TotalPoint) => Target.include p.base ((fiber p.base).apply p.vector)) :=
+  \fun (sameBase: _)(laws: Laws) => \idelim model = (\fun (p: Left.TotalPoint) => Target.include p.base ((fiber p.base).apply p.vector))
+    \with f: (Left.TotalPoint -> Target.Point) => topology.Continuity[A := Left.TotalPoint, B := Target.Point].Continuous Left.localTopology target.totalSpace f \by {
+      base: modelContinuous sameBase laws,
+      equality: \axiom:funext(model, (\fun (p: Left.TotalPoint) => Target.include p.base ((fiber p.base).apply p.vector)), formula laws)
+    };

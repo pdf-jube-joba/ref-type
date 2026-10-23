@@ -1,0 +1,25 @@
+\import ComplexBundles.Family[X := X, F := F] \as Source;
+\import RealBundles.Family[X := X, F := F] \as Family;
+\import Source.With[data := source] \as SourceCharts;
+\definition space[x: X]: RealSpaces.VectorSpace (F x) := Complex.RealScalars[V := F x, space := source.space x].realSpace;
+\definition forward[p: Source.Point]: Family.Point := Family.include p.base p.vector;
+\definition backward[p: Family.Point]: Source.Point := Source.include p.base p.vector;
+\import \root.Operations[].Bijection[A := Source.Point, B := Family.Point, source := source.totalSpace, forward := forward, backward := backward] \as Total;
+\definition inverseLaws: Total.Laws := Total.Laws { leftInverse := Source.eta, rightInverse := Family.eta };
+\definition topology: topology.Topology[Carrier := Family.Point].Topology := Total.topology;
+\definition forwardContinuous: topology.Continuity[A := Source.Point, B := Family.Point].Continuous source.totalSpace topology forward := Total.forwardContinuous inverseLaws;
+\definition backwardContinuous: topology.Continuity[A := Family.Point, B := Source.Point].Continuous topology source.totalSpace backward := Total.backwardContinuous;
+\definition homeomorphism: topology.Homeomorphism[A := Source.Point, B := Family.Point].Homeomorphism[source.totalSpace, topology] := Total.homeomorphism inverseLaws;
+\definition data: Family.Data := Family.Data { baseSpace := source.baseSpace, totalSpace := topology, space := space };
+\import Family.With[data := data] \as Charts;
+\import topology.Topology[Carrier := X] \as Base;
+\module In(c: SourceCharts.Chart);
+\definition bundle: Family.Bundle := \into[Family.Data](data, Family.Bundle) \by {
+  \fun (x: X) => \block {
+    \takefrom c: \Cast[SourceCharts.Chart] ({ c: SourceCharts.Chart \where Base.Member c.domain x }) \by Source.Of[bundle := source].locallyTrivial x \then
+    \return Logic.existsIntro[Charts.Chart, { d: Charts.Chart \where Base.Member d.domain x }] (In[c := c].trivialization) (\bysub(SourceCharts.Chart, { c: SourceCharts.Chart \where Base.Member c.domain x }, c))
+  }
+};
+\module Maps(Y: \Set, G: Y -> \Set, target: ComplexBundles.Family[X := Y, F := G].Bundle, f: X -> Y);
+\module Pullback(Y: \Set, baseSpace: topology.Topology[Carrier := Y].Topology, f: Y -> X,
+  regular: topology.Continuity[A := Y, B := X].Continuous baseSpace source.baseSpace f);

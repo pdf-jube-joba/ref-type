@@ -1,0 +1,28 @@
+\import Spaces.Linear[V := Dual.Carrier, W := Tensor.Carrier, source := Dual.space, target := Tensor.space] \as LeftMaps;
+\definition left[w: W]: LeftMaps.Map := LeftMaps.Map {
+  apply := \fun (ell: Dual.Carrier) => Tensor.tensor ell w,
+  preservesAdd := \fun (ell, eta: Dual.Carrier) => Tensor.bilinear.addLeft ell eta w,
+  preservesScale := \fun (a: K)(ell: Dual.Carrier) => Tensor.bilinear.scaleLeft a ell w
+};
+\import Spaces.Sums[I := Fin.Fin n].Vector[V := Dual.Carrier, space := Dual.space].Mapping[W := Tensor.Carrier, target := Tensor.space] \as Mapping;
+\definition onValue: \forall (ell: Dual.Carrier)(w: W) -> synthesis (value ell w) = Tensor.tensor ell w :=
+  \fun (ell: Dual.Carrier)(w: W) => trans!{Tensor.Carrier} _ _ _
+    (Sums.congruent (Fin.elements n)
+      (\fun (i: Fin.Fin n) => Tensor.tensor (dualBasis.vectors i) (target.smul (ell (basis.vectors i)) w))
+      (\fun (i: Fin.Fin n) => Tensor.space.smul (ell (basis.vectors i)) (Tensor.tensor (dualBasis.vectors i) w))
+      (\fun (i: Fin.Fin n) => Tensor.bilinear.scaleRight (ell (basis.vectors i)) (dualBasis.vectors i) w))
+    (trans!{Tensor.Carrier} _ _ _
+      (Sums.congruent (Fin.elements n)
+        (\fun (i: Fin.Fin n) => Tensor.space.smul (ell (basis.vectors i)) (Tensor.tensor (dualBasis.vectors i) w))
+        (\fun (i: Fin.Fin n) => Tensor.tensor (Dual.space.smul (ell (basis.vectors i)) (dualBasis.vectors i)) w)
+        (\fun (i: Fin.Fin n) => sym!{Tensor.Carrier} _ _ (Tensor.bilinear.scaleLeft (ell (basis.vectors i)) (dualBasis.vectors i) w)))
+      (trans!{Tensor.Carrier} _ _ _
+        (sym!{Tensor.Carrier} _ _ (Mapping.law (left w) (Fin.elements n) (\fun (i: Fin.Fin n) => Dual.space.smul (ell (basis.vectors i)) (dualBasis.vectors i))))
+        (congr!{Dual.Carrier Tensor.Carrier} (\fun (eta: Dual.Carrier) => Tensor.tensor eta w) _ _ (dualBasis.reconstruction ell))));
+\import Spaces.Linear[V := Tensor.Carrier, W := Tensor.Carrier, source := Tensor.space, target := Tensor.space] \as End;
+\import Backward.Composition[U := Tensor.Carrier, domain := Tensor.space] \as Compose;
+\definition composite: End.Map := Compose.compose backward forward;
+\definition identity: End.Map := End.Map { apply := \fun (t: Tensor.Carrier) => t, preservesAdd := \fun (s, t: Tensor.Carrier) => \refl(Tensor.plus s t), preservesScale := \fun (a: K)(t: Tensor.Carrier) => \refl(Tensor.scale a t) };
+\definition law: \forall (t: Tensor.Carrier) -> backward.apply (forward.apply t) = t :=
+  \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TensorEquality[V := Dual.Carrier, W := W, U := Tensor.Carrier, left := Dual.space, right := target, target := Tensor.space].pointwise composite identity
+    (\fun (ell: Dual.Carrier)(w: W) => trans!{Tensor.Carrier} _ _ _ (congr!{Hom.Carrier Tensor.Carrier} synthesis _ _ (onPure ell w)) (onValue ell w));

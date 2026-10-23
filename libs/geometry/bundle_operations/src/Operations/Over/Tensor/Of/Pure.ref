@@ -1,0 +1,31 @@
+\import \parent.Universal[Y := X, H := Fiber, target := tensor, f := \fun (x: X) => x] \as BilinearMaps;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].DirectSum[X := X, F := F, G := G, left := left, right := right] \as Source;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := \fun (x: X) => Pair.Times^[F x, G x]] \as SourceFamily;
+\definition data: BilinearMaps.Data := BilinearMaps.Data {
+  fiber := pure, bilinear := \fun (x: X) => Spaces.Tensor[V := F x, W := G x, left := left.space x, right := right.space x].bilinear
+};
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := F, G := G, left := left, right := right].Parameter[n := one, m := one] \as Generators;
+\definition lift[p: SourceFamily.Point]: Generators.Point := Generators.Point { base := p.base,
+  left := \fun (i: Generators.Index) => Pair.first (F p.base) (G p.base) p.vector,
+  right := \fun (i: Generators.Index) => Pair.second (F p.base) (G p.base) p.vector
+};
+\definition liftContinuous: topology.Continuity[A := SourceFamily.Point, B := Generators.Point].Continuous Source.topology Generators.topology lift :=
+  Generators.Universal[Y := SourceFamily.Point].continuous Source.topology lift Source.projectionContinuous (\fun (i: Generators.Index) => Source.firstContinuous) (\fun (i: Generators.Index) => Source.secondContinuous);
+\definition model[p: SourceFamily.Point]: Family.Point := Generators.value (lift p);
+\definition modelContinuous: topology.Continuity[A := SourceFamily.Point, B := Family.Point].Continuous Source.topology topology model :=
+  topology.Composition[A := SourceFamily.Point, B := Generators.Point, C := Family.Point].composeContinuous Source.topology Generators.topology topology lift Generators.value liftContinuous (Final.parameterContinuous (Pair.pair N.Nat^ N.Nat^ one one));
+\definition value[p: SourceFamily.Point]: Family.Point := BilinearMaps.total data p;
+\definition formula: \forall (p: SourceFamily.Point) -> model p = value p :=
+  \fun (p: SourceFamily.Point) => congr!{{Fiber p.base} Family.Point} (Family.include p.base) _ _
+    (trans!{{Fiber p.base}} _ _ _
+      (Spaces.Laws[V := Fiber p.base, space := fiberSpace p.base].zeroRight ((fiberSpace p.base).add
+        (pure p.base (Pair.first (F p.base) (G p.base) p.vector) (Pair.second (F p.base) (G p.base) p.vector)) (fiberSpace p.base).zero))
+      (Spaces.Laws[V := Fiber p.base, space := fiberSpace p.base].zeroRight
+        (pure p.base (Pair.first (F p.base) (G p.base) p.vector) (Pair.second (F p.base) (G p.base) p.vector))));
+\definition continuous: topology.Continuity[A := SourceFamily.Point, B := Family.Point].Continuous Source.topology topology value :=
+  \idelim model = value \with h: (SourceFamily.Point -> Family.Point) => topology.Continuity[A := SourceFamily.Point, B := Family.Point].Continuous Source.topology topology h \by {
+    base: modelContinuous, equality: \axiom:funext(model, value, formula)
+  };
+\definition map: BilinearMaps.Bilinear := \into[BilinearMaps.Data](data, BilinearMaps.Bilinear) \by { continuous };
+\module Along(Y: \Set, source: topology.Topology[Carrier := Y].Topology, base: Y -> X);

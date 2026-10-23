@@ -1,0 +1,22 @@
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := F] \as Original;
+\import Original.With[data := left].In[c := c] \as Coordinates;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Chart[X := X, F := F, bundle := left, chart := c] \as Chart;
+\import Base.Subspace[S := c.domain] \as OriginalBase;
+\definition center[p: Local.ProductPoint]: Coordinates.BasePoint := \into[X](base p, c.domain) \by { (\bysub(X, domain, Pair.first Local.BasePoint (Vector dimension) p)).left };
+\definition ambientContinuous: \forall (same: SameBase) -> topology.Continuity[A := Local.ProductPoint, B := X].Continuous Local.productTopology left.baseSpace base :=
+  \fun (same: SameBase) => baseContinuous;
+\import topology.Continuity[A := Local.ProductPoint, B := X].Corestriction[S := c.domain] \as IntoBase;
+\definition centerContinuous: \forall (same: SameBase) -> topology.Continuity[A := Local.ProductPoint, B := Coordinates.BasePoint].Continuous Local.productTopology (OriginalBase.topology left.baseSpace) center :=
+  \fun (same: SameBase) => IntoBase.corestrictContinuous Local.productTopology left.baseSpace center (ambientContinuous same);
+\definition coordinate[i: Index][p: Local.ProductPoint]: Vector c.dimension := (coordinates c.dimension).smul (coefficient i p) (Spaces.FiniteCoordinates[n := c.dimension].vectors (Pair.first (Fin.Fin c.dimension) (Fin.Fin d.dimension) i));
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin c.dimension] \as TargetCoordinates;
+\import hermitian_frames.Hermitian[].Over[K := K, field := field, scalar := conjugation, topological := scalar.topological].Functions[X := Local.ProductPoint] \as Functions;
+\definition coordinateContinuous: \forall (i: Index) -> topology.Continuity[A := Local.ProductPoint, B := Vector c.dimension].Continuous Local.productTopology (coordinateTopology c.dimension) (coordinate i) :=
+  \fun (i: Index) => TargetCoordinates.Universal[A := Local.ProductPoint].continuous Local.productTopology scalar.topological.space (coordinate i)
+    (\fun (j: Fin.Fin c.dimension) => Functions.multiplication Local.productTopology (coefficient i)
+      (\fun (p: Local.ProductPoint) => Spaces.FiniteCoordinates[n := c.dimension].vectors (Pair.first (Fin.Fin c.dimension) (Fin.Fin d.dimension) i) j)
+      (coefficientContinuous i) (Functions.constant Local.productTopology (Spaces.FiniteCoordinates[n := c.dimension].vectors (Pair.first (Fin.Fin c.dimension) (Fin.Fin d.dimension) i) j)));
+\definition vector[i: Index][p: Local.ProductPoint]: F (base p) := (c.frame (center p)).backward.apply (coordinate i p);
+\definition point[i: Index][p: Local.ProductPoint]: Original.Point := Chart.Maps[Y := Local.ProductPoint, source := Local.productTopology].point center (coordinate i) p;
+\definition continuous: \forall (same: SameBase)(i: Index) -> topology.Continuity[A := Local.ProductPoint, B := Original.Point].Continuous Local.productTopology left.totalSpace (point i) :=
+  \fun (same: SameBase)(i: Index) => Chart.Maps[Y := Local.ProductPoint, source := Local.productTopology].pointContinuous center (coordinate i) (centerContinuous same) (coordinateContinuous i);

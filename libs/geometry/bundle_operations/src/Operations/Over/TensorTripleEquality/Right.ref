@@ -1,0 +1,15 @@
+\import Spaces.Tensor[V := W, W := U, left := middle, right := right] \as Last;
+\import Spaces.Tensor[V := V, W := Last.Carrier, left := left, right := Last.space] \as Tensor;
+\import Spaces.Linear[V := Tensor.Carrier, W := T, source := Tensor.space, target := target] \as Maps;
+\import Spaces.Linear[V := Last.Carrier, W := T, source := Last.space, target := target] \as Partial;
+\definition at[h: Maps.Map][v: V]: Partial.Map := Partial.Map {
+  apply := \fun (t: Last.Carrier) => h.apply (Tensor.tensor v t),
+  preservesAdd := \fun (s, t: Last.Carrier) => trans!{T} _ _ _ (congr!{{Tensor.Carrier} T} h.apply _ _ (Tensor.bilinear.addRight v s t)) (h.preservesAdd (Tensor.tensor v s) (Tensor.tensor v t)),
+  preservesScale := \fun (a: K)(t: Last.Carrier) => trans!{T} _ _ _ (congr!{{Tensor.Carrier} T} h.apply _ _ (Tensor.bilinear.scaleRight a v t)) (h.preservesScale a (Tensor.tensor v t))
+};
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TensorEquality[V := V, W := Last.Carrier, U := T, left := left, right := Last.space, target := target] \as Outer;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TensorEquality[V := W, W := U, U := T, left := middle, right := right, target := target] \as Inner;
+\definition pointwise: \forall (a, b: Maps.Map) -> (\forall (v: V)(w: W)(u: U) -> a.apply (Tensor.tensor v (Last.tensor w u)) = b.apply (Tensor.tensor v (Last.tensor w u))) -> \forall (t: Tensor.Carrier) -> a.apply t = b.apply t :=
+  \fun (a, b: Maps.Map)(agrees: _) => Outer.pointwise a b (\fun (v: V)(t: Last.Carrier) => Inner.pointwise (at a v) (at b v) (agrees v) t);
+\definition ext: \forall (a, b: Maps.Map) -> (\forall (v: V)(w: W)(u: U) -> a.apply (Tensor.tensor v (Last.tensor w u)) = b.apply (Tensor.tensor v (Last.tensor w u))) -> a = b :=
+  \fun (a, b: Maps.Map)(agrees: _) => Maps.ext a b (\axiom:funext(a.apply, b.apply, pointwise a b agrees));

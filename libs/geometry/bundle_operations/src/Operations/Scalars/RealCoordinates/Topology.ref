@@ -1,0 +1,26 @@
+\import topological_algebra.Coordinates[K := C.Complex, I := Fin.Fin n] \as CCoordinates;
+\import topological_algebra.Coordinates[K := R.Real, I := Fin.Fin n] \as RCoordinates;
+\import topological_constructions.Product[A := Real.Vector n, B := Real.Vector n] \as Product;
+\import topological_algebra.Complex[].Functions[A := Complex.Vector n] \as Functions;
+\import topological_constructions.Product[A := Real.Vector n, B := Real.Vector n].Maps[] \as Projections;
+\import metric_spaces.RealLine[] \as Line;
+\definition pairTopology: topology.Topology[Carrier := Sum.Carrier].Topology := Product.topology (Real.coordinateTopology n) (Real.coordinateTopology n);
+\definition splitContinuous: topology.Continuity[A := Complex.Vector n, B := Sum.Carrier].Continuous (Complex.coordinateTopology n) pairTopology split :=
+  Product.Universal[X := Complex.Vector n].pairContinuous (Complex.coordinateTopology n) (Real.coordinateTopology n) (Real.coordinateTopology n)
+    (\fun (v: Complex.Vector n) => Sum.first (split v)) (\fun (v: Complex.Vector n) => Sum.second (split v))
+    (RCoordinates.Universal[A := Complex.Vector n].continuous (Complex.coordinateTopology n) Line.topology (\fun (v: Complex.Vector n) => Sum.first (split v))
+      (\fun (i: Fin.Fin n) => Functions.realContinuous (Complex.coordinateTopology n) (\fun (v: Complex.Vector n) => v i) (CCoordinates.evaluationContinuous topological_algebra.Complex[].topology i)))
+    (RCoordinates.Universal[A := Complex.Vector n].continuous (Complex.coordinateTopology n) Line.topology (\fun (v: Complex.Vector n) => Sum.second (split v))
+      (\fun (i: Fin.Fin n) => Functions.imaginaryContinuous (Complex.coordinateTopology n) (\fun (v: Complex.Vector n) => v i) (CCoordinates.evaluationContinuous topological_algebra.Complex[].topology i)));
+\definition mergeContinuous: topology.Continuity[A := Sum.Carrier, B := Complex.Vector n].Continuous pairTopology (Complex.coordinateTopology n) merge :=
+  CCoordinates.Universal[A := Sum.Carrier].continuous pairTopology topological_algebra.Complex[].topology merge (\fun (i: Fin.Fin n) =>
+    topological_constructions.Product[A := R.Real, B := R.Real].Universal[X := Sum.Carrier].pairContinuous pairTopology Line.topology Line.topology
+      (\fun (p: Sum.Carrier) => Sum.first p i) (\fun (p: Sum.Carrier) => Sum.second p i)
+      (topology.Composition[A := Sum.Carrier, B := Real.Vector n, C := R.Real].composeContinuous pairTopology (Real.coordinateTopology n) Line.topology Sum.first (\fun (v: Real.Vector n) => v i)
+        (Projections.firstContinuous (Real.coordinateTopology n) (Real.coordinateTopology n)) (RCoordinates.evaluationContinuous Line.topology i))
+      (topology.Composition[A := Sum.Carrier, B := Real.Vector n, C := R.Real].composeContinuous pairTopology (Real.coordinateTopology n) Line.topology Sum.second (\fun (v: Real.Vector n) => v i)
+        (Projections.secondContinuous (Real.coordinateTopology n) (Real.coordinateTopology n)) (RCoordinates.evaluationContinuous Line.topology i)));
+\definition forwardContinuous: topology.Continuity[A := Complex.Vector n, B := Real.Vector dimension].Continuous (Complex.coordinateTopology n) (Real.coordinateTopology dimension) frame.forward.apply :=
+  topology.Composition[A := Complex.Vector n, B := Sum.Carrier, C := Real.Vector dimension].composeContinuous (Complex.coordinateTopology n) pairTopology (Real.coordinateTopology dimension) split Join.join splitContinuous Join.Topology[].joinRegular;
+\definition backwardContinuous: topology.Continuity[A := Real.Vector dimension, B := Complex.Vector n].Continuous (Real.coordinateTopology dimension) (Complex.coordinateTopology n) frame.backward.apply :=
+  topology.Composition[A := Real.Vector dimension, B := Sum.Carrier, C := Complex.Vector n].composeContinuous (Real.coordinateTopology dimension) pairTopology (Complex.coordinateTopology n) Join.split merge Join.Topology[].splitRegular mergeContinuous;

@@ -1,0 +1,23 @@
+\import Spaces.Coordinates[I := A].Kronecker[] \as Ambient;
+\import Spaces.Coordinates[I := Fin.Fin rank].Kronecker[] \as Delta;
+\import std.Logic[].Classical[] \as Classical;
+\definition delta: \forall (i, j: Fin.Fin rank) -> Ambient.delta (ambientEnumerate i) (ambientEnumerate j) = Delta.delta i j :=
+  \fun (i, j: Fin.Fin rank) => Logic.orElim _ _ (Ambient.delta (ambientEnumerate i) (ambientEnumerate j) = Delta.delta i j) (Classical.excludedMiddle (i = j))
+    (\fun (same: i = j) => trans!{K} _ _ _ (Ambient.equal (ambientEnumerate i) (ambientEnumerate j) (congr!{{Fin.Fin rank} A} ambientEnumerate i j same)) (sym!{K} _ _ (Delta.equal i j same)))
+    (\fun (different: Logic.Not (i = j)) => trans!{K} _ _ _ (Ambient.different (ambientEnumerate i) (ambientEnumerate j) (\fun (same: _) => different (injectiveAmbient i j same))) (sym!{K} _ _ (Delta.different i j different)));
+\definition at: \forall (q: Index)(i: Fin.Fin rank) -> Ambient.delta q (ambientEnumerate i) = Delta.delta (index q) i :=
+  \fun (q: Index)(i: Fin.Fin rank) => trans!{K} _ _ _
+    (congr!{Index K} (\fun (p: Index) => Ambient.delta p (ambientEnumerate i)) q (enumerate (index q)) (sym!{Index} _ _ (Indices.enumerateIndex q)))
+    (delta (index q) i);
+\import Spaces.Sums[I := Fin.Fin rank] \as Sums;
+\import Sums.Prop[] \as SumLaws;
+\definition interpolation: \forall (f: A -> K)(q: Index) -> Sums.sum (Fin.elements rank) (\fun (i: Fin.Fin rank) => field.mul (Ambient.delta q (ambientEnumerate i)) (f (ambientEnumerate i))) = f q :=
+  \fun (f: A -> K)(q: Index) => trans!{K} _ _ _
+    (SumLaws.congruent (Fin.elements rank)
+      (\fun (i: Fin.Fin rank) => field.mul (Ambient.delta q (ambientEnumerate i)) (f (ambientEnumerate i)))
+      (\fun (i: Fin.Fin rank) => field.mul (Delta.delta (index q) i) (f (ambientEnumerate i)))
+      (\fun (i: Fin.Fin rank) => congr!{K K} (\fun (a: K) => field.mul a (f (ambientEnumerate i)))
+        (Ambient.delta q (ambientEnumerate i)) (Delta.delta (index q) i) (at q i)))
+    (trans!{K} _ _ _
+      (Spaces.Sums[I := Fin.Fin rank].Single[].extract (Fin.elements rank) (Spaces.FiniteCoordinateEnumeration[].distinct rank) (index q) (Fin.exhaustive rank (index q)) (\fun (i: Fin.Fin rank) => f (ambientEnumerate i)))
+      (congr!{Index K} (\fun (p: Index) => f p) _ _ (Indices.enumerateIndex q)));

@@ -1,0 +1,38 @@
+\import Spaces.Linear[V := V, W := Tensor.Carrier, source := left, target := Tensor.space] \as LeftLinear;
+\import Spaces.Linear[V := W, W := Tensor.Carrier, source := right, target := Tensor.space] \as RightLinear;
+\definition leftMap[w: W]: LeftLinear.Map := LeftLinear.Map { apply := \fun (v: V) => Tensor.tensor v w, preservesAdd := \fun (v, z: V) => Tensor.bilinear.addLeft v z w, preservesScale := \fun (a: K)(v: V) => Tensor.bilinear.scaleLeft a v w };
+\definition rightMap[v: V]: RightLinear.Map := RightLinear.Map { apply := Tensor.tensor v, preservesAdd := Tensor.bilinear.addRight v, preservesScale := \fun (a: K)(w: W) => Tensor.bilinear.scaleRight a v w };
+\import Spaces.Sums[I := Fin.Fin n].Vector[V := V, space := left].Mapping[W := Tensor.Carrier, target := Tensor.space] \as LeftMapping;
+\import Spaces.Sums[I := Fin.Fin m].Vector[V := W, space := right].Mapping[W := Tensor.Carrier, target := Tensor.space] \as RightMapping;
+\definition innerExpansion: \forall (v: V)(w: W) -> RightSums.sum (Fin.elements m) (\fun (b: Fin.Fin m) => Tensor.space.smul (second.forward.apply w b) (Tensor.tensor v (secondBasis.vectors b))) = Tensor.tensor v w :=
+  \fun (v: V)(w: W) => trans!{Tensor.Carrier} _ _ _
+    (RightSums.congruent (Fin.elements m) _ _ (\fun (b: Fin.Fin m) => sym!{Tensor.Carrier} _ _ (Tensor.bilinear.scaleRight (second.forward.apply w b) v (secondBasis.vectors b))))
+    (trans!{Tensor.Carrier} _ _ _ (sym!{Tensor.Carrier} _ _ (RightMapping.law (rightMap v) (Fin.elements m) (\fun (b: Fin.Fin m) => right.smul (second.forward.apply w b) (secondBasis.vectors b))))
+      (congr!{W Tensor.Carrier} (Tensor.tensor v) _ _ (secondBasis.reconstruction w)));
+\definition column[w: W]: Coefficients.Vector := \fun (p: Index) => second.forward.apply w (j p);
+\definition rowOuter: \forall (v: V)(w: W)(a: Fin.Fin n) -> \parent.Decoding[].row (outer v w) a = Tensor.space.smul (first.forward.apply v a) (Tensor.tensor (firstBasis.vectors a) w) :=
+  \fun (v: V)(w: W)(a: Fin.Fin n) => trans!{Tensor.Carrier} _ _ _
+    (\parent.Decoding[].rowScale (first.forward.apply v a) (column w) a)
+    (congr!{Tensor.Carrier Tensor.Carrier} (Tensor.space.smul (first.forward.apply v a)) _ _ (innerExpansion (firstBasis.vectors a) w));
+\definition outerExpansion: \forall (v: V)(w: W) -> synthesis (outer v w) = Tensor.tensor v w :=
+  \fun (v: V)(w: W) => trans!{Tensor.Carrier} _ _ _
+    (LeftSums.congruent (Fin.elements n) (\fun (a: Fin.Fin n) => \parent.Decoding[].row (outer v w) a)
+      (\fun (a: Fin.Fin n) => Tensor.space.smul (first.forward.apply v a) (Tensor.tensor (firstBasis.vectors a) w)) (rowOuter v w))
+    (trans!{Tensor.Carrier} _ _ _
+      (LeftSums.congruent (Fin.elements n)
+        (\fun (a: Fin.Fin n) => Tensor.space.smul (first.forward.apply v a) (Tensor.tensor (firstBasis.vectors a) w))
+        (\fun (a: Fin.Fin n) => Tensor.tensor (left.smul (first.forward.apply v a) (firstBasis.vectors a)) w)
+        (\fun (a: Fin.Fin n) => sym!{Tensor.Carrier} _ _ (Tensor.bilinear.scaleLeft (first.forward.apply v a) (firstBasis.vectors a) w)))
+      (trans!{Tensor.Carrier} _ _ _ (sym!{Tensor.Carrier} _ _ (LeftMapping.law (leftMap w) (Fin.elements n) (\fun (a: Fin.Fin n) => left.smul (first.forward.apply v a) (firstBasis.vectors a))))
+        (congr!{V Tensor.Carrier} (\fun (z: V) => Tensor.tensor z w) _ _ (firstBasis.reconstruction v))));
+\import Spaces.Linear[V := Tensor.Carrier, W := Tensor.Carrier, source := Tensor.space, target := Tensor.space] \as End;
+\import Spaces.Linear[V := Coefficients.Vector, W := Tensor.Carrier, source := Coefficients.space, target := Tensor.space].Composition[U := Tensor.Carrier, domain := Tensor.space] \as Composition;
+\definition composite: End.Map := Composition.compose (\parent.Decoding[].backward) forward;
+\definition identity: End.Map := End.Map { apply := \fun (t: Tensor.Carrier) => t, preservesAdd := \fun (s, t: Tensor.Carrier) => \refl(Tensor.plus s t), preservesScale := \fun (a: K)(t: Tensor.Carrier) => \refl(Tensor.scale a t) };
+\definition onTensor: \forall (v: V)(w: W) -> composite.apply (Tensor.tensor v w) = Tensor.tensor v w :=
+  \fun (v: V)(w: W) => trans!{Tensor.Carrier} _ _ _ (congr!{Coefficients.Vector Tensor.Carrier} synthesis _ _ (Encode.onTensor outer bilinear v w)) (outerExpansion v w);
+\import Tensor.Universal[U := Tensor.Carrier, target := Tensor.space] \as Equality;
+\definition leftInverse: \forall (t: Tensor.Carrier) -> synthesis (forward.apply t) = t :=
+  \fun (t: Tensor.Carrier) => congr!{{Tensor.Carrier -> Tensor.Carrier} Tensor.Carrier} (\fun (f: Tensor.Carrier -> Tensor.Carrier) => f t) _ _
+    (trans!{{Tensor.Carrier -> Tensor.Carrier}} _ _ _ (Equality.unique Tensor.tensor Tensor.bilinear composite onTensor)
+      (sym!{{Tensor.Carrier -> Tensor.Carrier}} _ _ (Equality.unique Tensor.tensor Tensor.bilinear identity (\fun (v: V)(w: W) => \refl(Tensor.tensor v w)))));

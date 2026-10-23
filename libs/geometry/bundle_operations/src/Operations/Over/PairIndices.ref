@@ -1,0 +1,27 @@
+\definition Pair: \Set := std.Data[].Pair[].Times^[Fin.Fin n, Fin.Fin m];
+\import std.Data[].Pair[] \as Pairs;
+\import std.Set[].FiniteSubset[A := Pair] \as Finite;
+\import std.Set[].FiniteSubset[A := Fin.Fin m].Image[B := Pair] \as Right;
+\import Fin.Scope[n := n] \as LeftScope;
+\import Fin.Scope[n := m] \as RightScope;
+\definition row[i: Fin.Fin n]: Finite.FiniteSubset := Right.value (Pairs.pair (Fin.Fin n) (Fin.Fin m) i) RightScope.finite;
+\import std.Set[].FiniteSubset[A := Fin.Fin n].Image[B := Finite.FiniteSubset] \as Rows;
+\import Finite.Family[] \as Families;
+\definition family: std.Set[].FiniteSubset[A := Finite.FiniteSubset].FiniteSubset := Rows.value row LeftScope.finite;
+\definition pairs: Finite.FiniteSubset := Families.unions family;
+\definition covers: \forall (p: Pair) -> Finite.Member pairs p :=
+  \fun (p: Pair) => \idelim Pairs.pair (Fin.Fin n) (Fin.Fin m) (Pairs.first (Fin.Fin n) (Fin.Fin m) p) (Pairs.second (Fin.Fin n) (Fin.Fin m) p) = p
+    \with q: Pair => Finite.Member pairs q \by {
+      base: Families.memberOf family (row (Pairs.first (Fin.Fin n) (Fin.Fin m) p))
+        (Pairs.pair (Fin.Fin n) (Fin.Fin m) (Pairs.first (Fin.Fin n) (Fin.Fin m) p) (Pairs.second (Fin.Fin n) (Fin.Fin m) p))
+        (Rows.member row LeftScope.finite (Pairs.first (Fin.Fin n) (Fin.Fin m) p) (\refl(Pairs.first (Fin.Fin n) (Fin.Fin m) p)))
+        (Right.member (Pairs.pair (Fin.Fin n) (Fin.Fin m) (Pairs.first (Fin.Fin n) (Fin.Fin m) p)) RightScope.finite (Pairs.second (Fin.Fin n) (Fin.Fin m) p) (\refl(Pairs.second (Fin.Fin n) (Fin.Fin m) p))),
+      equality: Pairs.Prop[A := Fin.Fin n, B := Fin.Fin m].eta p
+    };
+\definition Whole: \Pow Pair := { p: Pair \where p = p };
+\definition whole: Finite.underlying pairs = Whole := \axiom:setext(Finite.underlying pairs, Whole, \fun (p: Pair)(member: _) => \refl(p), \fun (p: Pair)(member: _) => covers p);
+\import Finite.Enumeration[] \as Enumerations;
+\definition Enumeration: \Set := Enumerations.DistinctEnumeration[Whole];
+\definition existsEnumeration: \exists Enumeration := \idelim Finite.underlying pairs = Whole \with S: \Pow Pair => \exists Enumerations.DistinctEnumeration[S] \by {
+  base: Enumerations.existsDistinctEnumeration pairs, equality: whole
+};

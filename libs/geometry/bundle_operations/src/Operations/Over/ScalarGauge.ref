@@ -1,0 +1,39 @@
+\import Spaces.Linear[V := Vector n, W := Vector n, source := coordinates n, target := coordinates n].Operations[] \as Operations;
+\import Spaces.FiniteCoordinates[n := n] \as Identity;
+\definition scale[c: K]: Spaces.Linear[V := Vector n, W := Vector n, source := coordinates n, target := coordinates n].Map := Operations.scale c Identity.identity;
+\definition gauge[x: \Cast[X] U]: Spaces.Isomorphism[V := Vector n, W := Vector n, source := coordinates n, target := coordinates n].Isomorphism :=
+  Spaces.Isomorphism[V := Vector n, W := Vector n, source := coordinates n, target := coordinates n].Isomorphism {
+    forward := scale (a x), backward := scale (field.inv (a x)),
+    leftInverse := \fun (v: Vector n) => trans!{{Vector n}} _ _ _
+      (sym!{{Vector n}} _ _ ((coordinates n).scalarAssoc (field.inv (a x)) (a x) v))
+      (trans!{{Vector n}} _ _ _ (congr!{K {Vector n}} (\fun (c: K) => (coordinates n).smul c v) _ _ (field.inverse (a x) (nonzero x))) ((coordinates n).scalarOne v)),
+    rightInverse := \fun (v: Vector n) => trans!{{Vector n}} _ _ _
+      (sym!{{Vector n}} _ _ ((coordinates n).scalarAssoc (a x) (field.inv (a x)) v))
+      (trans!{{Vector n}} _ _ _ (congr!{K {Vector n}} (\fun (c: K) => (coordinates n).smul c v) _ _ (trans!{K} _ _ _ (Spaces.mulComm (a x) (field.inv (a x))) (field.inverse (a x) (nonzero x)))) ((coordinates n).scalarOne v))
+  };
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].CoordinateGauge[X := X, U := U, n := n, baseSpace := baseSpace, gauge := gauge] \as Coordinate;
+\definition Point: \Set := Coordinate.Point;
+\definition baseTopology: topology.Topology[Carrier := \Cast[X] U].Topology := topology.Topology[Carrier := X].Subspace[S := U].topology baseSpace;
+\definition topology: topology.Topology[Carrier := Point].Topology := Coordinate.topology;
+\import topological_constructions.Product[A := \Cast[X] U, B := Vector n] \as Product;
+\import Product.Maps[] \as Projections;
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin n] \as Coordinates;
+\import hermitian_frames.Hermitian[].Over[K := K, field := field, scalar := conjugation, topological := scalar.topological].Functions[X := Point] \as Functions;
+\definition factor[p: Point]: K := a (Pair.first (\Cast[X] U) (Vector n) p);
+\definition factorContinuous: topology.Continuity[A := \Cast[X] U, B := K].Continuous baseTopology scalar.topological.space a -> Functions.Continuous topology factor :=
+  \fun (regular: _) => topology.Composition[A := Point, B := \Cast[X] U, C := K].composeContinuous topology baseTopology scalar.topological.space (Pair.first (\Cast[X] U) (Vector n)) a (Projections.firstContinuous baseTopology (coordinateTopology n)) regular;
+\definition entry[i: Fin.Fin n][p: Point]: K := Pair.second (\Cast[X] U) (Vector n) p i;
+\definition entryContinuous: \forall (i: Fin.Fin n) -> Functions.Continuous topology (entry i) := \fun (i: Fin.Fin n) => topology.Composition[A := Point, B := Vector n, C := K].composeContinuous topology (coordinateTopology n) scalar.topological.space
+  (Pair.second (\Cast[X] U) (Vector n)) (\fun (v: Vector n) => v i) (Projections.secondContinuous baseTopology (coordinateTopology n)) (Coordinates.evaluationContinuous scalar.topological.space i);
+\definition forwardVector[p: Point]: Vector n := (gauge (Pair.first (\Cast[X] U) (Vector n) p)).forward.apply (Pair.second (\Cast[X] U) (Vector n) p);
+\definition backwardVector[p: Point]: Vector n := (gauge (Pair.first (\Cast[X] U) (Vector n) p)).backward.apply (Pair.second (\Cast[X] U) (Vector n) p);
+\definition forwardContinuous: topology.Continuity[A := \Cast[X] U, B := K].Continuous baseTopology scalar.topological.space a -> topology.Continuity[A := Point, B := Vector n].Continuous topology (coordinateTopology n) forwardVector :=
+  \fun (regular: _) => Coordinates.Universal[A := Point].continuous topology scalar.topological.space forwardVector (\fun (i: Fin.Fin n) => Functions.multiplication topology factor (entry i) (factorContinuous regular) (entryContinuous i));
+\definition backwardContinuous: topology.Continuity[A := \Cast[X] U, B := K].Continuous baseTopology scalar.topological.space a -> topology.Continuity[A := Point, B := Vector n].Continuous topology (coordinateTopology n) backwardVector :=
+  \fun (regular: _) => Coordinates.Universal[A := Point].continuous topology scalar.topological.space backwardVector (\fun (i: Fin.Fin n) => Functions.multiplication topology (\fun (p: Point) => field.inv (factor p)) (entry i)
+    (Functions.inversion topology factor (factorContinuous regular) (\fun (p: Point) => nonzero (Pair.first (\Cast[X] U) (Vector n) p))) (entryContinuous i));
+\definition regular: topology.Continuity[A := \Cast[X] U, B := K].Continuous baseTopology scalar.topological.space a -> Coordinate.Regular :=
+  \fun (regular: _) => Coordinate.Regular {
+    forward := Product.Universal[X := Point].pairContinuous topology baseTopology (coordinateTopology n) (Pair.first (\Cast[X] U) (Vector n)) forwardVector (Projections.firstContinuous baseTopology (coordinateTopology n)) (forwardContinuous regular),
+    backward := Product.Universal[X := Point].pairContinuous topology baseTopology (coordinateTopology n) (Pair.first (\Cast[X] U) (Vector n)) backwardVector (Projections.firstContinuous baseTopology (coordinateTopology n)) (backwardContinuous regular)
+  };

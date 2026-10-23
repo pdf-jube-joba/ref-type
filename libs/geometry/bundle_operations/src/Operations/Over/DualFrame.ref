@@ -1,0 +1,19 @@
+\import Spaces.Finite[V := V, I := Fin.Fin n, space := space] \as Basis;
+\import Spaces.Dual[V := V, source := space] \as Dual;
+\definition basis: Basis.Basis := vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Dimension[V := V, space := space].At[n := n].basis frame;
+\import Basis.Dual[] \as DualBasis;
+\import Spaces.Finite[V := Dual.Carrier, I := Fin.Fin n, space := Dual.space] \as Finite;
+\definition dualBasis: Finite.Basis := DualBasis.basis basis;
+\import Finite.Prop[] \as Laws;
+\import Spaces.Isomorphism[V := Dual.Carrier, W := Vector n, source := Dual.space, target := coordinates n] \as Isomorphisms;
+\definition isomorphism: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := DualBasis.encode basis, backward := Laws.synthesis dualBasis,
+  leftInverse := dualBasis.reconstruction, rightInverse := dualBasis.coordinateReconstruction
+};
+\definition evaluation: \forall (v: Vector n)(w: V) -> isomorphism.backward.apply v w =
+  Spaces.Sums[I := Fin.Fin n].sum (Fin.elements n) (\fun (i: Fin.Fin n) => field.mul (v i) (frame.forward.apply w i)) := DualBasis.synthesisEvaluation basis;
+\definition evaluationFormula: \forall (ell: Dual.Carrier)(v: V) -> ell v = Spaces.Sums[I := Fin.Fin n].sum (Fin.elements n)
+  (\fun (i: Fin.Fin n) => field.mul (isomorphism.forward.apply ell i) (frame.forward.apply v i)) :=
+  \fun (ell: Dual.Carrier)(v: V) => trans!{K} _ _ _
+    (congr!{{Dual.Carrier} K} (\fun (ell: Dual.Carrier) => ell v) _ _ (sym!{{Dual.Carrier}} _ _ ((Isomorphisms.laws isomorphism).leftInverse ell)))
+    (evaluation (isomorphism.forward.apply ell) v);

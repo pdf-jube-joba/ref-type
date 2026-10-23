@@ -1,0 +1,30 @@
+\import Spaces.Sums[I := Fin.Fin dimension] \as Scalars;
+\import Scalars.Prop[] \as ScalarLaws;
+\import Spaces.Coordinates[I := Indices.Tuple].Kronecker[] \as Delta;
+\import Spaces.Sums[I := Fin.Fin dimension].Vector[V := Form, space := formSpace].Mapping[W := K, target := Spaces.scalarSpace] \as Mapping;
+\definition coefficient: \forall (v: Vector dimension)(q: Indices.Tuple) -> Fin.Ordering[].Increasing k n q -> Exterior.coefficient (decode v) q =
+  Scalars.sum (Fin.elements dimension) (\fun (i: Fin.Fin dimension) => field.mul (Delta.delta q (Coordinates.ambientEnumerate i)) (v i)) :=
+  \fun (v: Vector dimension)(q: Indices.Tuple)(increasing: _) => trans!{K} _ _ _
+    (Mapping.law (Exterior.evaluation q) (Fin.elements dimension) (\fun (i: Fin.Fin dimension) => formSpace.smul (v i) (word i)))
+    (ScalarLaws.congruent (Fin.elements dimension)
+      (\fun (i: Fin.Fin dimension) => field.mul (v i) (Exterior.coefficient (word i) q))
+      (\fun (i: Fin.Fin dimension) => field.mul (Delta.delta q (Coordinates.ambientEnumerate i)) (v i))
+      (\fun (i: Fin.Fin dimension) => trans!{K} _ _ _
+      (congr!{K K} (field.mul (v i)) _ _ (Exterior.pair (Coordinates.enumerate i) q (indexIncreasing i) increasing))
+      (Spaces.mulComm (v i) (Delta.delta q (Coordinates.ambientEnumerate i)))));
+\definition leftInverse: \forall (omega: Form) -> decode (encode omega) = omega :=
+  \fun (omega: Form) => Increasing.ext (decode (encode omega)) omega
+    (\fun (q: Increasing.Index) => trans!{K} _ _ _
+      (coefficient (encode omega) q (\bysub(Indices.Tuple, Increasing.Index, q)))
+      (Coordinates.Laws[].interpolation (\fun (q: Indices.Tuple) => Exterior.coefficient omega q) (point q (\bysub(Indices.Tuple, Increasing.Index, q)))));
+\definition rightInverse: \forall (v: Vector dimension) -> encode (decode v) = v :=
+  \fun (v: Vector dimension) => \axiom:funext(encode (decode v), v, \fun (i: Fin.Fin dimension) => trans!{K} _ _ _
+    (coefficient v (Coordinates.enumerate i) (indexIncreasing i))
+    (trans!{K} _ _ _
+      (ScalarLaws.congruent (Fin.elements dimension)
+        (\fun (j: Fin.Fin dimension) => field.mul (Delta.delta (Coordinates.ambientEnumerate i) (Coordinates.ambientEnumerate j)) (v j))
+        (\fun (j: Fin.Fin dimension) => field.mul (Spaces.Coordinates[I := Fin.Fin dimension].Kronecker[].delta i j) (v j))
+        (\fun (j: Fin.Fin dimension) => congr!{K K} (\fun (a: K) => field.mul a (v j))
+          (Delta.delta (Coordinates.ambientEnumerate i) (Coordinates.ambientEnumerate j))
+          (Spaces.Coordinates[I := Fin.Fin dimension].Kronecker[].delta i j) (Coordinates.Laws[].delta i j)))
+      (Spaces.Sums[I := Fin.Fin dimension].Single[].extract (Fin.elements dimension) (Spaces.FiniteCoordinateEnumeration[].distinct dimension) i (Fin.exhaustive dimension i) v)));

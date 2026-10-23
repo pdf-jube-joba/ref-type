@@ -1,0 +1,17 @@
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Isomorphisms[X := X, F := F, G := G, source := source, target := target] \as Isomorphisms;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := F, G := G, source := source, target := target, f := \fun (x: X) => x] \as Forward;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := G, G := F, source := target, target := source, f := \fun (x: X) => x] \as Backward;
+\definition backwardEquality: \forall (a, b: Isomorphisms.Isomorphism) -> (\forall (x: X)(v: F x) -> (a.forward.fiber x).apply v = (b.forward.fiber x).apply v) -> \forall (x: X)(w: G x) -> (a.backward.fiber x).apply w = (b.backward.fiber x).apply w :=
+  \fun (a, b: Isomorphisms.Isomorphism)(agrees: _)(x: X)(w: G x) => trans!{{F x}} _ _ _
+    (congr!{{G x} {F x}} (a.backward.fiber x).apply _ _ (sym!{{G x}} _ _ ((\bysub(Isomorphisms.Data, Isomorphisms.Isomorphism, b)).rightInverse x w)))
+    (trans!{{F x}} _ _ _
+      (congr!{{G x} {F x}} (a.backward.fiber x).apply _ _ (sym!{{G x}} _ _ (agrees x ((b.backward.fiber x).apply w))))
+      ((\bysub(Isomorphisms.Data, Isomorphisms.Isomorphism, a)).leftInverse x ((b.backward.fiber x).apply w)));
+\definition dataEta: \forall (a: Isomorphisms.Data) -> Isomorphisms.Data::# a.forward a.backward = a :=
+  \induction (a: Isomorphisms.Data) \return Isomorphisms.Data::# a.forward a.backward = a \with {
+    | # : \fun (forward: Forward.Map)(backward: Backward.Map) => \refl(Isomorphisms.Data::# forward backward)
+  };
+\definition ext: \forall (a, b: Isomorphisms.Isomorphism) -> (\forall (x: X)(v: F x) -> (a.forward.fiber x).apply v = (b.forward.fiber x).apply v) -> a = b :=
+  \fun (a, b: Isomorphisms.Isomorphism)(agrees: _) => trans!{{Isomorphisms.Data}} _ _ _ (sym!{{Isomorphisms.Data}} _ _ (dataEta a))
+    (trans!{{Isomorphisms.Data}} _ _ _
+      (congr!{{Forward.Map} {Backward.Map} {Isomorphisms.Data}} Isomorphisms.Data::# _ _ _ _ (Forward.ext a.forward b.forward agrees) (Backward.ext a.backward b.backward (backwardEquality a b agrees))) (dataEta b));

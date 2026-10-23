@@ -1,0 +1,39 @@
+\definition sumBase: middle.baseSpace = right.baseSpace := trans!{{topology.Topology[Carrier := X].Topology}} _ _ _ (sym!{{topology.Topology[Carrier := X].Topology}} _ _ sameMiddle) sameRight;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].DirectSum[X := X, F := G, G := H, left := middle, right := right] \as Sum;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := F, G := Sum.Fiber, left := left, right := Sum.bundle sumBase] \as Source;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := F, G := G, left := left, right := middle] \as First;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := F, G := H, left := left, right := right] \as Second;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].DirectSum[X := X, F := First.Fiber, G := Second.Fiber, left := First.bundle sameMiddle, right := Second.bundle sameRight] \as Target;
+\definition sourceBundle: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := Source.Fiber].Bundle := Source.bundle sameMiddle;
+\definition targetBundle: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := Target.Fiber].Bundle := Target.bundle (\refl(left.baseSpace));
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Identity[X := X, F := F, bundle := left] \as Identity;
+\import Sum.Of[same := sumBase] \as SumMaps;
+\import SumMaps.Inclusions[] \as SumInclusions;
+\import Source.Of[same := sameMiddle].Mapping[Y := X, A := F, B := G, leftTarget := left, rightTarget := middle, f := \fun (x: X) => x].Of[targetSame := sameMiddle] \as ToFirst;
+\import Source.Of[same := sameMiddle].Mapping[Y := X, A := F, B := H, leftTarget := left, rightTarget := right, f := \fun (x: X) => x].Of[targetSame := sameRight] \as ToSecond;
+\import Target.Of[same := \refl(left.baseSpace)].From[Y := X, H := Source.Fiber, source := sourceBundle, f := \fun (x: X) => x] \as IntoPair;
+\definition firstProjection: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := Source.Fiber, G := First.Fiber, source := sourceBundle, target := First.bundle sameMiddle, f := \fun (x: X) => x].Map := ToFirst.map Identity.map SumMaps.firstMap;
+\definition secondProjection: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := Source.Fiber, G := Second.Fiber, source := sourceBundle, target := Second.bundle sameRight, f := \fun (x: X) => x].Map := ToSecond.map Identity.map SumMaps.secondMap;
+\definition forward: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := Source.Fiber, G := Target.Fiber, source := sourceBundle, target := targetBundle, f := \fun (x: X) => x].Map := IntoPair.pair firstProjection secondProjection;
+\import First.Of[same := sameMiddle].Mapping[Y := X, A := F, B := Sum.Fiber, leftTarget := left, rightTarget := Sum.bundle sumBase, f := \fun (x: X) => x].Of[targetSame := sameMiddle] \as FromFirst;
+\import Second.Of[same := sameRight].Mapping[Y := X, A := F, B := Sum.Fiber, leftTarget := left, rightTarget := Sum.bundle sumBase, f := \fun (x: X) => x].Of[targetSame := sameMiddle] \as FromSecond;
+\definition firstInclusion: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := First.Fiber, G := Source.Fiber, source := First.bundle sameMiddle, target := sourceBundle, f := \fun (x: X) => x].Map := FromFirst.map Identity.map SumInclusions.first;
+\definition secondInclusion: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := Second.Fiber, G := Source.Fiber, source := Second.bundle sameRight, target := sourceBundle, f := \fun (x: X) => x].Map := FromSecond.map Identity.map SumInclusions.second;
+\import Target.Of[same := \refl(left.baseSpace)].To[Y := X, H := Source.Fiber, target := sourceBundle, f := \fun (x: X) => x] \as Copair;
+\definition backward: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := Target.Fiber, G := Source.Fiber, source := targetBundle, target := sourceBundle, f := \fun (x: X) => x].Map := Copair.copair firstInclusion secondInclusion;
+\import Target.Of[same := \refl(left.baseSpace)].Inclusions[] \as TargetInclusions;
+\definition forwardOnPure: \forall (x: X)(v: F x)(p: Sum.Fiber x) -> (forward.fiber x).apply (Source.pure x v p) = Pair.pair (First.Fiber x) (Second.Fiber x) (First.pure x v (Pair.first (G x) (H x) p)) (Second.pure x v (Pair.second (G x) (H x) p)) :=
+  \fun (x: X)(v: F x)(p: Sum.Fiber x) => Pair.Prop[A := First.Fiber x, B := Second.Fiber x].pairCong _ _ _ _ (ToFirst.onPure Identity.map SumMaps.firstMap x v p) (ToSecond.onPure Identity.map SumMaps.secondMap x v p);
+\definition firstOnPure: \forall (x: X)(v: F x)(w: G x) -> (firstInclusion.fiber x).apply (First.pure x v w) = Source.pure x v ((SumInclusions.first.fiber x).apply w) := FromFirst.onPure Identity.map SumInclusions.first;
+\definition secondOnPure: \forall (x: X)(v: F x)(w: H x) -> (secondInclusion.fiber x).apply (Second.pure x v w) = Source.pure x v ((SumInclusions.second.fiber x).apply w) := FromSecond.onPure Identity.map SumInclusions.second;
+\module At(x: X);
+\definition isomorphism: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Isomorphisms[X := X, F := Source.Fiber, G := Target.Fiber, source := sourceBundle, target := targetBundle].Isomorphism :=
+  vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Isomorphisms[X := X, F := Source.Fiber, G := Target.Fiber, source := sourceBundle, target := targetBundle].Isomorphism {
+    forward := forward, backward := backward, leftInverse := \fun (x: X) => At[x := x].leftInverse, rightInverse := \fun (x: X) => At[x := x].rightInverse
+  };
+\definition SourceFiber[x: X]: \Set := Source.Fiber x;
+\definition TargetFiber[x: X]: \Set := Target.Fiber x;
+\definition FirstFiber[x: X]: \Set := First.Fiber x;
+\definition SecondFiber[x: X]: \Set := Second.Fiber x;
+\definition firstBundle: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := FirstFiber].Bundle := First.bundle sameMiddle;
+\definition secondBundle: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := SecondFiber].Bundle := Second.bundle sameRight;

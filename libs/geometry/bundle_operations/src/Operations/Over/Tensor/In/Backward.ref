@@ -1,0 +1,44 @@
+\import topological_constructions.Product[A := Local.BasePoint, B := Vector dimension] \as Product;
+\import Product.Maps[] \as Projections;
+\definition base[p: Local.ProductPoint]: X := Pair.first Local.BasePoint (Vector dimension) p;
+\definition baseContinuous: topology.Continuity[A := Local.ProductPoint, B := X].Continuous Local.productTopology left.baseSpace base :=
+  topology.Composition[A := Local.ProductPoint, B := Local.BasePoint, C := X].composeContinuous Local.productTopology (BaseSubspace.topology left.baseSpace) left.baseSpace
+    (Pair.first Local.BasePoint (Vector dimension)) (\fun (x: Local.BasePoint) => x) (Projections.firstContinuous (BaseSubspace.topology left.baseSpace) (coordinateTopology dimension))
+    (\fun (U: \Pow X)(open: _) => BaseSubspace.traceOpen left.baseSpace U open);
+\definition Index: \Set := Pair.Times^[Fin.Fin c.dimension, Fin.Fin d.dimension];
+\definition entry[i: Index]: Coefficients.Index := \into[Indices.Pair](i, Indices.Whole) \by { \refl(i) };
+\definition coefficient[i: Index][p: Local.ProductPoint]: K := Coefficients.decode (Pair.second Local.BasePoint (Vector dimension) p) (entry i);
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin dimension] \as CoordinateTopology;
+\definition coefficientContinuous: \forall (i: Index) -> topology.Continuity[A := Local.ProductPoint, B := K].Continuous Local.productTopology scalar.topological.space (coefficient i) :=
+  \fun (i: Index) => topology.Composition[A := Local.ProductPoint, B := Vector dimension, C := K].composeContinuous Local.productTopology (coordinateTopology dimension) scalar.topological.space
+    (Pair.second Local.BasePoint (Vector dimension)) (\fun (v: Vector dimension) => v (Coefficients.index (entry i)))
+    (Projections.secondContinuous (BaseSubspace.topology left.baseSpace) (coordinateTopology dimension)) (CoordinateTopology.evaluationContinuous scalar.topological.space (Coefficients.index (entry i)));
+\module LeftSide;
+\module RightSide;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := F, G := G, left := left, right := right].Parameter[n := c.dimension, m := d.dimension] \as GeneratingParameters;
+\definition lift[p: Local.ProductPoint]: GeneratingParameters.Point := GeneratingParameters.Point { base := base p, left := \fun (i: Index) => LeftSide[].vector i p, right := \fun (i: Index) => RightSide[].vector i p };
+\definition liftContinuous: \forall (same: SameBase) -> topology.Continuity[A := Local.ProductPoint, B := GeneratingParameters.Point].Continuous Local.productTopology GeneratingParameters.topology lift :=
+  \fun (same: SameBase) => GeneratingParameters.Universal[Y := Local.ProductPoint].continuous Local.productTopology lift baseContinuous (LeftSide[].continuous same) (RightSide[].continuous same);
+\definition model[p: Local.ProductPoint]: Family.Point := GeneratingParameters.value (lift p);
+\definition modelContinuous: \forall (same: SameBase) -> topology.Continuity[A := Local.ProductPoint, B := Family.Point].Continuous Local.productTopology topology model :=
+  \fun (same: SameBase) => topology.Composition[A := Local.ProductPoint, B := GeneratingParameters.Point, C := Family.Point].composeContinuous Local.productTopology GeneratingParameters.topology topology lift GeneratingParameters.value
+    (liftContinuous same) (Final.parameterContinuous (Pair.pair N.Nat^ N.Nat^ c.dimension d.dimension));
+\definition pureFormula: \forall (p: Local.ProductPoint)(i: Fin.Fin c.dimension)(j: Fin.Fin d.dimension) ->
+  pure (base p) ((lift p).left (GeneratingParameters.entry i j)) ((lift p).right (GeneratingParameters.entry i j)) =
+  (fiberSpace (base p)).smul (coefficient (GeneratingParameters.entry i j) p)
+    (pure (base p) ((c.frame (LeftSide[].center p)).backward.apply (Spaces.FiniteCoordinates[n := c.dimension].vectors i)) ((d.frame (RightSide[].center p)).backward.apply (Spaces.FiniteCoordinates[n := d.dimension].vectors j))) :=
+  \fun (p: Local.ProductPoint)(i: Fin.Fin c.dimension)(j: Fin.Fin d.dimension) => trans!{{Fiber (base p)}} _ _ _
+    (congr!{{F (base p)} {Fiber (base p)}} (\fun (v: F (base p)) => pure (base p) v ((lift p).right (GeneratingParameters.entry i j))) _ _
+      ((c.frame (LeftSide[].center p)).backward.preservesScale (coefficient (GeneratingParameters.entry i j) p) (Spaces.FiniteCoordinates[n := c.dimension].vectors i)))
+    (Spaces.Tensor[V := F (base p), W := G (base p), left := left.space (base p), right := right.space (base p)].bilinear.scaleLeft
+      (coefficient (GeneratingParameters.entry i j) p) ((c.frame (LeftSide[].center p)).backward.apply (Spaces.FiniteCoordinates[n := c.dimension].vectors i))
+      ((d.frame (RightSide[].center p)).backward.apply (Spaces.FiniteCoordinates[n := d.dimension].vectors j)));
+\definition formula: \forall (p: Local.ProductPoint) -> model p = Local.backward p :=
+  \fun (p: Local.ProductPoint) => congr!{{Fiber (base p)} Family.Point} (Family.include (base p)) _ _
+    (Spaces.Sums[I := Fin.Fin c.dimension].Vector[V := Fiber (base p), space := fiberSpace (base p)].congruent (Fin.elements c.dimension) _ _
+      (\fun (i: Fin.Fin c.dimension) => Spaces.Sums[I := Fin.Fin d.dimension].Vector[V := Fiber (base p), space := fiberSpace (base p)].congruent (Fin.elements d.dimension) _ _ (pureFormula p i)));
+\definition backward[p: Local.ProductPoint]: Family.Point := Local.backward p;
+\definition continuous: \forall (same: SameBase) -> topology.Continuity[A := Local.ProductPoint, B := Family.Point].Continuous Local.productTopology topology backward :=
+  \fun (same: SameBase) => \idelim model = backward \with f: (Local.ProductPoint -> Family.Point) => topology.Continuity[A := Local.ProductPoint, B := Family.Point].Continuous Local.productTopology topology f \by {
+    base: modelContinuous same, equality: \axiom:funext(model, backward, formula)
+  };

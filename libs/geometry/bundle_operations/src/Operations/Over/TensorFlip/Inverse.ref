@@ -1,0 +1,17 @@
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TensorFlip[V := W, W := V, left := right, right := left] \as Reverse;
+\import Spaces.Linear[V := Other.Carrier, W := Tensor.Carrier, source := Other.space, target := Tensor.space].Composition[U := Tensor.Carrier, domain := Tensor.space] \as LeftComposition;
+\import Spaces.Linear[V := Tensor.Carrier, W := Other.Carrier, source := Tensor.space, target := Other.space].Composition[U := Other.Carrier, domain := Other.space] \as RightComposition;
+\import Spaces.Linear[V := Tensor.Carrier, W := Tensor.Carrier, source := Tensor.space, target := Tensor.space] \as LeftEnd;
+\import Spaces.Linear[V := Other.Carrier, W := Other.Carrier, source := Other.space, target := Other.space] \as RightEnd;
+\definition leftIdentity: LeftEnd.Map := LeftEnd.Map { apply := \fun (t: Tensor.Carrier) => t, preservesAdd := \fun (s, t: Tensor.Carrier) => \refl(Tensor.plus s t), preservesScale := \fun (a: K)(t: Tensor.Carrier) => \refl(Tensor.scale a t) };
+\definition rightIdentity: RightEnd.Map := RightEnd.Map { apply := \fun (t: Other.Carrier) => t, preservesAdd := \fun (s, t: Other.Carrier) => \refl(Other.plus s t), preservesScale := \fun (a: K)(t: Other.Carrier) => \refl(Other.scale a t) };
+\definition leftInverse: \forall (t: Tensor.Carrier) -> Reverse.map.apply (map.apply t) = t :=
+  \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TensorEquality[V := V, W := W, U := Tensor.Carrier, left := left, right := right, target := Tensor.space].pointwise (LeftComposition.compose Reverse.map map) leftIdentity
+    (\fun (v: V)(w: W) => trans!{{Tensor.Carrier}} _ _ _ (congr!{{Other.Carrier} {Tensor.Carrier}} Reverse.map.apply _ _ (onPure v w)) (Reverse.onPure w v));
+\definition rightInverse: \forall (t: Other.Carrier) -> map.apply (Reverse.map.apply t) = t :=
+  \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TensorEquality[V := W, W := V, U := Other.Carrier, left := right, right := left, target := Other.space].pointwise (RightComposition.compose map Reverse.map) rightIdentity
+    (\fun (w: W)(v: V) => trans!{{Other.Carrier}} _ _ _ (congr!{{Tensor.Carrier} {Other.Carrier}} map.apply _ _ (Reverse.onPure w v)) (onPure v w));
+\definition isomorphism: Spaces.Isomorphism[V := Tensor.Carrier, W := Other.Carrier, source := Tensor.space, target := Other.space].Isomorphism :=
+  Spaces.Isomorphism[V := Tensor.Carrier, W := Other.Carrier, source := Tensor.space, target := Other.space].Isomorphism {
+    forward := map, backward := Reverse.map, leftInverse := leftInverse, rightInverse := rightInverse
+  };

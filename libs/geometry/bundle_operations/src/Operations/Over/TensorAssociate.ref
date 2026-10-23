@@ -1,0 +1,44 @@
+\import Spaces.Tensor[V := V, W := W, left := left, right := middle] \as First;
+\import Spaces.Tensor[V := W, W := U, left := middle, right := right] \as Last;
+\import Spaces.Tensor[V := First.Carrier, W := U, left := First.space, right := right] \as Source;
+\import Spaces.Tensor[V := V, W := Last.Carrier, left := left, right := Last.space] \as Target;
+\definition Left: \Set := Source.Carrier;
+\definition Right: \Set := Target.Carrier;
+\definition leftSpace: Spaces.VectorSpace Left := Source.space;
+\definition rightSpace: Spaces.VectorSpace Right := Target.space;
+\definition forwardValue[v: V][w: W][u: U]: Right := Target.tensor v (Last.tensor w u);
+\definition backwardValue[v: V][w: W][u: U]: Left := Source.tensor (First.tensor v w) u;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Trilinear[V := V, W := W, U := U, T := Right, left := left, middle := middle, right := right, target := rightSpace, value := forwardValue] \as Forward;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Trilinear[V := V, W := W, U := U, T := Left, left := left, middle := middle, right := right, target := leftSpace, value := backwardValue] \as Backward;
+\definition forwardLaws: Forward.Laws := Forward.Laws {
+  addFirst := \fun (v, z: V)(w: W)(u: U) => Target.bilinear.addLeft v z (Last.tensor w u),
+  addSecond := \fun (v: V)(w, z: W)(u: U) => trans!{Right} _ _ _ (congr!{{Last.Carrier} Right} (Target.tensor v) _ _ (Last.bilinear.addLeft w z u)) (Target.bilinear.addRight v (Last.tensor w u) (Last.tensor z u)),
+  addThird := \fun (v: V)(w: W)(u, z: U) => trans!{Right} _ _ _ (congr!{{Last.Carrier} Right} (Target.tensor v) _ _ (Last.bilinear.addRight w u z)) (Target.bilinear.addRight v (Last.tensor w u) (Last.tensor w z)),
+  scaleFirst := \fun (a: K)(v: V)(w: W)(u: U) => Target.bilinear.scaleLeft a v (Last.tensor w u),
+  scaleSecond := \fun (a: K)(v: V)(w: W)(u: U) => trans!{Right} _ _ _ (congr!{{Last.Carrier} Right} (Target.tensor v) _ _ (Last.bilinear.scaleLeft a w u)) (Target.bilinear.scaleRight a v (Last.tensor w u)),
+  scaleThird := \fun (a: K)(v: V)(w: W)(u: U) => trans!{Right} _ _ _ (congr!{{Last.Carrier} Right} (Target.tensor v) _ _ (Last.bilinear.scaleRight a w u)) (Target.bilinear.scaleRight a v (Last.tensor w u))
+};
+\definition backwardLaws: Backward.Laws := Backward.Laws {
+  addFirst := \fun (v, z: V)(w: W)(u: U) => trans!{Left} _ _ _ (congr!{{First.Carrier} Left} (\fun (t: First.Carrier) => Source.tensor t u) _ _ (First.bilinear.addLeft v z w)) (Source.bilinear.addLeft (First.tensor v w) (First.tensor z w) u),
+  addSecond := \fun (v: V)(w, z: W)(u: U) => trans!{Left} _ _ _ (congr!{{First.Carrier} Left} (\fun (t: First.Carrier) => Source.tensor t u) _ _ (First.bilinear.addRight v w z)) (Source.bilinear.addLeft (First.tensor v w) (First.tensor v z) u),
+  addThird := \fun (v: V)(w: W)(u, z: U) => Source.bilinear.addRight (First.tensor v w) u z,
+  scaleFirst := \fun (a: K)(v: V)(w: W)(u: U) => trans!{Left} _ _ _ (congr!{{First.Carrier} Left} (\fun (t: First.Carrier) => Source.tensor t u) _ _ (First.bilinear.scaleLeft a v w)) (Source.bilinear.scaleLeft a (First.tensor v w) u),
+  scaleSecond := \fun (a: K)(v: V)(w: W)(u: U) => trans!{Left} _ _ _ (congr!{{First.Carrier} Left} (\fun (t: First.Carrier) => Source.tensor t u) _ _ (First.bilinear.scaleRight a v w)) (Source.bilinear.scaleLeft a (First.tensor v w) u),
+  scaleThird := \fun (a: K)(v: V)(w: W)(u: U) => Source.bilinear.scaleRight a (First.tensor v w) u
+};
+\import Forward.With[laws := forwardLaws] \as ForwardConstruction;
+\import Backward.With[laws := backwardLaws].Right[] \as BackwardConstruction;
+\definition forward: Spaces.Linear[V := Left, W := Right, source := leftSpace, target := rightSpace].Map := ForwardConstruction.map;
+\definition backward: Spaces.Linear[V := Right, W := Left, source := rightSpace, target := leftSpace].Map := BackwardConstruction.map;
+\definition onLeftPure: \forall (v: V)(w: W)(u: U) -> forward.apply (backwardValue v w u) = forwardValue v w u := ForwardConstruction.onPure;
+\definition onRightPure: \forall (v: V)(w: W)(u: U) -> backward.apply (forwardValue v w u) = backwardValue v w u := BackwardConstruction.onPure;
+\definition forwardParameter[u: U]: Spaces.Linear[V := First.Carrier, W := Right, source := First.space, target := rightSpace].Map := ForwardConstruction.parameter u;
+\definition backwardParameter[v: V]: Spaces.Linear[V := Last.Carrier, W := Left, source := Last.space, target := leftSpace].Map := BackwardConstruction.parameter v;
+\definition forwardOnTensor: \forall (t: First.Carrier)(u: U) -> forward.apply (Source.tensor t u) = (forwardParameter u).apply t := ForwardConstruction.onTensor;
+\definition backwardOnTensor: \forall (v: V)(t: Last.Carrier) -> backward.apply (Target.tensor v t) = (backwardParameter v).apply t := BackwardConstruction.onTensor;
+\definition forwardParameterOnPure: \forall (u: U)(v: V)(w: W) -> (forwardParameter u).apply (First.tensor v w) = forwardValue v w u := ForwardConstruction.parameterOnPure;
+\definition backwardParameterOnPure: \forall (v: V)(w: W)(u: U) -> (backwardParameter v).apply (Last.tensor w u) = backwardValue v w u := BackwardConstruction.parameterOnPure;
+\module Inverses;
+\definition isomorphism: Spaces.Isomorphism[V := Left, W := Right, source := leftSpace, target := rightSpace].Isomorphism := Spaces.Isomorphism[V := Left, W := Right, source := leftSpace, target := rightSpace].Isomorphism {
+  forward := forward, backward := backward, leftInverse := Inverses[].leftInverse, rightInverse := Inverses[].rightInverse
+};

@@ -1,0 +1,34 @@
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := F] \as Source;
+\import Source.With[data := bundle] \as SourceCharts;
+\import topology.Topology[Carrier := X] \as Base;
+\definition Fiber[x: X]: \Set := Spaces.Dual[V := F x, source := bundle.space x].Carrier;
+\definition fiberSpace[x: X]: Spaces.VectorSpace (Fiber x) := Spaces.Dual[V := F x, source := bundle.space x].space;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := Fiber] \as Family;
+\structure Section: \Set := {
+  domain: \Pow X, open: Base.IsOpenIn bundle.baseSpace domain,
+  value: \forall (x: \Cast[X] domain) -> F x,
+  regular: topology.Continuity[A := \Cast[X] domain, B := Source.Point].Continuous (Base.Subspace[S := domain].topology bundle.baseSpace) bundle.totalSpace
+    (\fun (x: \Cast[X] domain) => Source.include x (value x))
+};
+\definition domains[s: Section]: \Pow X := s.domain;
+\definition Domain[s: Section]: \Pow Family.Point := { p: Family.Point \where Base.Member s.domain p.base };
+\definition evaluate[s: Section][p: \Cast[Family.Point] (Domain s)]: K := p.vector (s.value (\into[X](p.base, s.domain) \by { \bysub(Family.Point, Domain s, p) }));
+\import \root.Operations[].Evaluations[K := K, X := X, E := Family.Point, I := Section, scalarSpace := scalar.topological.space, baseSpace := bundle.baseSpace,
+  projection := Family.projection, domains := domains, open := \fun (s: Section) => s.open, evaluate := evaluate] \as Evaluations;
+\definition topology: topology.Topology[Carrier := Family.Point].Topology := Evaluations.topology;
+\definition data: Family.Data := Family.Data { baseSpace := bundle.baseSpace, totalSpace := topology, space := fiberSpace };
+\import Family.With[data := data] \as Charts;
+\definition projectionContinuous: topology.Continuity[A := Family.Point, B := X].Continuous topology bundle.baseSpace Family.projection := Evaluations.projectionContinuous;
+\module In(c: SourceCharts.Chart);
+\definition dual: Family.Bundle := \into[Family.Data](data, Family.Bundle) \by {
+  \fun (x: X) => \block {
+    \takefrom c: \Cast[SourceCharts.Chart] ({ c: SourceCharts.Chart \where Base.Member c.domain x }) \by Source.Of[bundle := bundle].locallyTrivial x \then
+    \return Logic.existsIntro[Charts.Chart, { d: Charts.Chart \where Base.Member d.domain x }] (In[c := c].trivialization) (\bysub(SourceCharts.Chart, { c: SourceCharts.Chart \where Base.Member c.domain x }, c))
+  }
+};
+\module Pairing(Y: \Set, source: topology.Topology[Carrier := Y].Topology, base: Y -> X);
+\module Pullback(Y: \Set, source: topology.Topology[Carrier := Y].Topology, f: Y -> X,
+  regular: topology.Continuity[A := Y, B := X].Continuous source bundle.baseSpace f);
+\module Contramap(G: X -> \Set,
+  target: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := G].Bundle,
+  sameBase: bundle.baseSpace = target.baseSpace);

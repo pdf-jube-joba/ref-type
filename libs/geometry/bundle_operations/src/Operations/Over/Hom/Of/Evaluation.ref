@@ -1,0 +1,24 @@
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].DirectSum[X := X, F := Fiber, G := F, left := hom, right := left] \as Domain;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := Domain.Fiber] \as DomainFamily;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := Tensor.Fiber] \as TensorFamily;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := G] \as Target;
+\definition domain: DomainFamily.Bundle := Domain.bundle (\refl(left.baseSpace));
+\import Tensor.Of[same := same].Parametric[Y := DomainFamily.Point, source := Domain.topology, base := DomainFamily.projection, H := G, target := right, sameTarget := same] \as Parametric;
+\module At(x: X);
+\definition operator[p: DomainFamily.Point]: Spaces.Linear[V := Tensor.Fiber p.base, W := G p.base, source := Tensor.fiberSpace p.base, target := right.space p.base].Map := At[x := p.base].operator (Pair.second (Fiber p.base) (F p.base) p.vector);
+\definition input[p: DomainFamily.Point]: Tensor.Fiber p.base := (isomorphism p.base).backward.apply (Pair.first (Fiber p.base) (F p.base) p.vector);
+\definition baseContinuous: topology.Continuity[A := DomainFamily.Point, B := X].Continuous Domain.topology left.baseSpace DomainFamily.projection := Domain.projectionContinuous;
+\definition inputContinuous: topology.Continuity[A := DomainFamily.Point, B := TensorFamily.Point].Continuous Domain.topology Tensor.topology (\fun (p: DomainFamily.Point) => TensorFamily.include p.base (input p)) :=
+  topology.Composition[A := DomainFamily.Point, B := Family.Point, C := TensorFamily.Point].composeContinuous Domain.topology hom.totalSpace Tensor.topology Domain.first Change.backward Domain.firstContinuous Change.backwardContinuous;
+\module In(p: Parametric.Index);
+\definition regular: Parametric.PureRegular operator := \fun (p: Parametric.Index) => In[p := p].regular;
+\definition model[p: DomainFamily.Point]: Target.Point := Target.include p.base ((operator p).apply (input p));
+\definition modelContinuous: topology.Continuity[A := DomainFamily.Point, B := Target.Point].Continuous Domain.topology right.totalSpace model := Parametric.continuous operator input baseContinuous inputContinuous regular;
+\definition value[p: DomainFamily.Point]: Target.Point := Target.include p.base ((Pair.first (Fiber p.base) (F p.base) p.vector).apply (Pair.second (Fiber p.base) (F p.base) p.vector));
+\definition formula: \forall (p: DomainFamily.Point) -> model p = value p := \fun (p: DomainFamily.Point) => congr!{{G p.base} Target.Point} (Target.include p.base) _ _
+  (congr!{{Fiber p.base} {G p.base}} (\fun (h: Fiber p.base) => h.apply (Pair.second (Fiber p.base) (F p.base) p.vector)) _ _
+    ((Spaces.Isomorphism[V := Tensor.Fiber p.base, W := Fiber p.base, source := Tensor.fiberSpace p.base, target := fiberSpace p.base].laws (isomorphism p.base)).rightInverse (Pair.first (Fiber p.base) (F p.base) p.vector)));
+\definition continuous: topology.Continuity[A := DomainFamily.Point, B := Target.Point].Continuous Domain.topology right.totalSpace value :=
+  \idelim model = value \with f: (DomainFamily.Point -> Target.Point) => topology.Continuity[A := DomainFamily.Point, B := Target.Point].Continuous Domain.topology right.totalSpace f \by {
+    base: modelContinuous, equality: \axiom:funext(model, value, formula)
+  };

@@ -1,0 +1,30 @@
+\import Spaces.Linear[V := Carrier, W := Vector (dimension i), source := space, target := coordinates (dimension i)] \as Forward;
+\import Spaces.Linear[V := Vector (dimension i), W := Carrier, source := coordinates (dimension i), target := space] \as Backward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (f: Carrier) => value f i,
+  preservesAdd := \fun (f, g: Carrier) => \refl((coordinates (dimension i)).add (value f i) (value g i)),
+  preservesScale := \fun (a: K)(f: Carrier) => \refl((coordinates (dimension i)).smul a (value f i)),
+};
+\definition assemble[v: Vector (dimension i)]: Raw.Vector := \fun (slot: Slot) => (cocycle.transition x i slot.chart).forward.apply v slot.coordinate;
+\definition assembledValue: \forall (v: Vector (dimension i))(j: Index x) -> value (assemble v) j = (cocycle.transition x i j).forward.apply v :=
+  \fun (v: Vector (dimension i))(j: Index x) => \axiom:funext(value (assemble v) j, (cocycle.transition x i j).forward.apply v, \fun (k: Fin.Fin (dimension j)) => \refl((cocycle.transition x i j).forward.apply v k));
+\definition regular: \forall (v: Vector (dimension i)) -> Compatible (assemble v) :=
+  \fun (v: Vector (dimension i))(j, k: Index x) => trans!{{Vector (dimension k)}} _ _ _
+    (congr!{{Vector (dimension j)} {Vector (dimension k)}} (cocycle.transition x j k).forward.apply _ _ (assembledValue v j))
+    (trans!{{Vector (dimension k)}} _ _ _ (laws.composition x i j k v) (sym!{{Vector (dimension k)}} _ _ (assembledValue v k)));
+\definition backward: Backward.Map := Backward.Map {
+  apply := \fun (v: Vector (dimension i)) => \into[Raw.Vector](assemble v, subspace.carrier) \by { regular v },
+  preservesAdd := \fun (v, w: Vector (dimension i)) => \axiom:funext(assemble ((coordinates (dimension i)).add v w), Raw.plus (assemble v) (assemble w),
+    \fun (slot: Slot) => congr!{{Vector (dimension slot.chart)} K} (\fun (f: Vector (dimension slot.chart)) => f slot.coordinate) _ _ ((cocycle.transition x i slot.chart).forward.preservesAdd v w)),
+  preservesScale := \fun (a: K)(v: Vector (dimension i)) => \axiom:funext(assemble ((coordinates (dimension i)).smul a v), Raw.scale a (assemble v),
+    \fun (slot: Slot) => congr!{{Vector (dimension slot.chart)} K} (\fun (f: Vector (dimension slot.chart)) => f slot.coordinate) _ _ ((cocycle.transition x i slot.chart).forward.preservesScale a v)),
+};
+\import Spaces.Isomorphism[V := Carrier, W := Vector (dimension i), source := space, target := coordinates (dimension i)] \as Isomorphisms;
+\definition isomorphism: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := \fun (f: Carrier) => \axiom:funext(assemble (value f i), f, \fun (slot: Slot) =>
+    trans!{K} _ _ _
+      (congr!{{Vector (dimension slot.chart)} K} (\fun (v: Vector (dimension slot.chart)) => v slot.coordinate) _ _ (compatible f i slot.chart))
+      (congr!{Slot K} f _ _ (slotEta slot))),
+  rightInverse := \fun (v: Vector (dimension i)) => trans!{{Vector (dimension i)}} _ _ _ (assembledValue v i) (laws.identity x i v),
+};

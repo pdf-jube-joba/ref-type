@@ -1,0 +1,39 @@
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := F] \as Family;
+\import Family.With[data := bundle] \as Charts;
+\import topology.Topology[Carrier := Y] \as Source;
+\import topology.Topology[Carrier := X] \as Base;
+\definition Vectors: \Set := \forall (y: Y) -> F (base y);
+\definition total[v: Vectors][y: Y]: Family.Point := Family.include (base y) (v y);
+\definition Continuous[v: Vectors]: \Prop := topology.Continuity[A := Y, B := Family.Point].Continuous source bundle.totalSpace (total v);
+\definition BaseContinuous: \Prop := topology.Continuity[A := Y, B := X].Continuous source bundle.baseSpace base;
+\definition domain[c: Charts.Chart]: \Pow Y := { y: Y \where Base.Member c.domain (base y) };
+\definition plus[v, w: Vectors]: Vectors := \fun (y: Y) => (bundle.space (base y)).add (v y) (w y);
+\definition scale[a: Y -> K][v: Vectors]: Vectors := \fun (y: Y) => (bundle.space (base y)).smul (a y) (v y);
+\definition zero: Vectors := \fun (y: Y) => (bundle.space (base y)).zero;
+\module In(c: Charts.Chart);
+\import topology.Continuity[A := Y, B := Family.Point].Covered[I := Charts.Chart, domains := domain] \as Covered;
+\definition regular: \forall (v: Vectors) -> BaseContinuous -> (\forall (c: Charts.Chart) -> In[c := c].Regular v) -> Continuous v :=
+  \fun (v: Vectors)(baseRegular: BaseContinuous)(regular: _) => Covered.continuous source bundle.totalSpace (total v)
+    (\fun (c: Charts.Chart) => baseRegular c.domain (\bysub(Charts.ChartData, Charts.Chart, c)).baseOpen)
+    (\fun (y: Y) => Family.Of[bundle := bundle].locallyTrivial (base y))
+    (\fun (c: Charts.Chart) => In[c := c].continuous v baseRegular (regular c));
+\definition addition: \forall (v, w: Vectors) -> BaseContinuous -> Continuous v -> Continuous w -> Continuous (plus v w) :=
+  \fun (v, w: Vectors)(baseRegular: _)(vRegular: _)(wRegular: _) => regular (plus v w) baseRegular (\fun (c: Charts.Chart) => In[c := c].addition v w vRegular wRegular);
+\definition scaling: \forall (a: Y -> K)(v: Vectors) -> BaseContinuous -> topology.Continuity[A := Y, B := K].Continuous source scalar.topological.space a -> Continuous v -> Continuous (scale a v) :=
+  \fun (a: _)(v: _)(baseRegular: _)(aRegular: _)(vRegular: _) => regular (scale a v) baseRegular (\fun (c: Charts.Chart) => In[c := c].scaling a v aRegular vRegular);
+\import topology.Composition[A := Y, B := X, C := Family.Point] \as ZeroComposition;
+\definition zeroContinuous: BaseContinuous -> Continuous zero :=
+  \fun (regular: BaseContinuous) => ZeroComposition.composeContinuous source bundle.baseSpace bundle.totalSpace base
+    (Family.Of[bundle := bundle].Sections[].total (Family.Of[bundle := bundle].Sections[].zero)) regular
+    (Family.Of[bundle := bundle].Sections[].continuous (Family.Of[bundle := bundle].Sections[].zero));
+\module Sums(I: \Set) {
+  \import std.Data[].List[] \as Lists;
+  \definition sum[xs: Lists.List[I]][v: I -> Vectors]: Vectors := \fun (y: Y) =>
+    Spaces.Sums[I := I].Vector[V := F (base y), space := bundle.space (base y)].sum xs (\fun (i: I) => v i y);
+  \definition continuous: \forall (xs: Lists.List[I])(v: I -> Vectors) -> BaseContinuous -> (\forall (i: I) -> Continuous (v i)) -> Continuous (sum xs v) :=
+    \induction (xs: Lists.List[I]) \return \forall (v: I -> Vectors) -> BaseContinuous -> (\forall (i: I) -> Continuous (v i)) -> Continuous (sum xs v) \with {
+      | nil: \fun (v: I -> Vectors)(baseRegular: BaseContinuous)(regular: _) => zeroContinuous baseRegular
+      | cons: \fun (head: I)(tail: Lists.List[I])(previous: _)(v: I -> Vectors)(baseRegular: BaseContinuous)(regular: _) =>
+        addition (v head) (sum tail v) baseRegular (regular head) (previous v baseRegular regular)
+    };
+}

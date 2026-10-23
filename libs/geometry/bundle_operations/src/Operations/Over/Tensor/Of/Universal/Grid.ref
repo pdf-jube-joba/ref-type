@@ -1,0 +1,15 @@
+\import Spaces.Sums[I := Fin.Fin r].Vector[V := Fiber x, space := fiberSpace x] \as Outer;
+\import Spaces.Sums[I := Fin.Fin s].Vector[V := Fiber x, space := fiberSpace x] \as Inner;
+\import Spaces.Sums[I := Fin.Fin r].Vector[V := H (f x), space := target.space (f x)] \as OuterTarget;
+\import Spaces.Sums[I := Fin.Fin s].Vector[V := H (f x), space := target.space (f x)] \as InnerTarget;
+\import Outer.Mapping[W := H (f x), target := target.space (f x)] \as OuterMap;
+\import Inner.Mapping[W := H (f x), target := target.space (f x)] \as InnerMap;
+\definition formula: \forall (b: Data)(v: Fin.Fin r -> Fin.Fin s -> F x)(w: Fin.Fin r -> Fin.Fin s -> G x) ->
+  (linear b x).apply (Outer.sum (Fin.elements r) (\fun (i: Fin.Fin r) => Inner.sum (Fin.elements s) (\fun (j: Fin.Fin s) => pure x (v i j) (w i j)))) =
+  OuterTarget.sum (Fin.elements r) (\fun (i: Fin.Fin r) => InnerTarget.sum (Fin.elements s) (\fun (j: Fin.Fin s) => b.fiber x (v i j) (w i j))) :=
+  \fun (b: Data)(v: _)(w: _) => trans!{{H (f x)}} _ _ _
+    (OuterMap.law (linear b x) (Fin.elements r) (\fun (i: Fin.Fin r) => Inner.sum (Fin.elements s) (\fun (j: Fin.Fin s) => pure x (v i j) (w i j))))
+    (OuterTarget.congruent (Fin.elements r) _ _ (\fun (i: Fin.Fin r) => trans!{{H (f x)}} _ _ _
+      (InnerMap.law (linear b x) (Fin.elements s) (\fun (j: Fin.Fin s) => pure x (v i j) (w i j)))
+      (InnerTarget.congruent (Fin.elements s) _ _ (\fun (j: Fin.Fin s) =>
+        Spaces.Tensor[V := F x, W := G x, left := left.space x, right := right.space x].Universal[U := H (f x), target := target.space (f x)].onTensor (b.fiber x) (b.bilinear x) (v i j) (w i j)))));
