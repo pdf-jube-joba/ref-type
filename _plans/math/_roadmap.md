@@ -107,10 +107,11 @@ B01 の後は B02 へ、A01 の後は A02 へ進められる。
 | L01 行列式と可逆行列 | [matrix_invariants](../../libs/algebra/matrix_invariants/README.md) |
 | L02 多項式の互除法と Cayley–Hamilton | [polynomial_linear_algebra](../../libs/algebra/polynomial_linear_algebra/README.md) |
 | L03 Hermitian 行列と連続な局所枠 | [hermitian_frames](../../libs/algebra/hermitian_frames/README.md) |
+| K13 複素多項式の根の存在 | [fundamental_algebra](../../libs/algebra/fundamental_algebra/README.md) |
 
 ## タスク一覧
 
-未完了89件、概算合計465千行。
+未完了88件、概算合計460千行。
 
 ### 線形代数と特性級数
 
@@ -157,7 +158,7 @@ B01 の後は B02 へ、A01 の後は A02 へ進められる。
 
 ### 位相的 K 理論
 
-13件、概算70千行。
+12件、概算65千行。
 
 | タスク | 概算（千行） |
 | --- | ---: |
@@ -173,7 +174,6 @@ B01 の後は B02 へ、A01 の後は A02 へ進められる。
 | [K10 コンパクト台付き K 理論とシンボルの表示](k10-compact-support-k.md) | 6 |
 | [K11 K 理論の Thom 同型](k11-k-thom.md) | 5 |
 | [K12 Chern 指標と Thom 類の比較](k12-chern-character-thom.md) | 6 |
-| [K13 複素多項式の根の存在](k13-fundamental-algebra.md) | 5 |
 
 ### 微分位相
 

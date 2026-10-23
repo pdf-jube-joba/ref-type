@@ -1,0 +1,30 @@
+\import topological_algebra.Complex[] \as Plane;
+\import Plane.Functions[A := Real.Real] \as Functions;
+\import topology.Maps[A := Real.Real, B := C.Complex] \as Maps;
+\import topology.Maps[A := Real.Real, B := Real.Real].Identity[] \as Identity;
+\import metric_spaces.RealLine[] \as Line;
+\import metric_spaces.RealFunctions[A := Real.Real] \as Scalars;
+\import Scalars.Product[] \as Product;
+\definition PointContinuous: \Prop := topology.Continuity[A := Real.Real, B := C.Complex].Continuous Line.topology Plane.topology (\fun (t: Real.Real) => Op.scale t w);
+\definition point: PointContinuous := Functions.scaleContinuous Line.topology (\fun (t: Real.Real) => t) (\fun (_: Real.Real) => w)
+  (Identity.continuous Line.topology) (Maps.constantContinuous Line.topology Plane.topology w);
+\definition evaluate: \forall (r: Coefficients) -> topology.Continuity[A := Real.Real, B := C.Complex].Continuous Line.topology Plane.topology (\fun (t: Real.Real) => Monic.evaluate r (Op.scale t w)) :=
+  \induction (r: Coefficients) \return topology.Continuity[A := Real.Real, B := C.Complex].Continuous Line.topology Plane.topology (\fun (t: Real.Real) => Monic.evaluate r (Op.scale t w)) \with {
+    | nil: Maps.constantContinuous Line.topology Plane.topology Op.zero
+    | cons: \fun (c: C.Complex)(tail: Coefficients)(previous: _) => Functions.additionContinuous Line.topology _ _
+      (Maps.constantContinuous Line.topology Plane.topology c) (Functions.multiplicationContinuous Line.topology _ _ point previous)
+  };
+\definition coefficientContinuous: topology.Continuity[A := Real.Real, B := C.Complex].Continuous Line.topology Plane.topology coefficient :=
+  Functions.multiplicationContinuous Line.topology _ _ (Maps.constantContinuous Line.topology Plane.topology (Field.power w n)) (evaluate h);
+\definition power: \forall (k: N.Nat^) -> Scalars.Continuous Line.topology (\fun (t: Real.Real) => Reals.power t k) :=
+  \induction (k: N.Nat^) \return Scalars.Continuous Line.topology (\fun (t: Real.Real) => Reals.power t k) \with {
+    | zero: Scalars.constantContinuous Line.topology Real.one
+    | succ: \fun (k: N.Nat^)(previous: _) => Product.continuous Line.topology _ _ (Identity.continuous Line.topology) previous
+  };
+\definition inner: Scalars.Continuous Line.topology (\fun (t: Real.Real) => Absolute.inner a (coefficient t)) :=
+  Scalars.sumContinuous Line.topology _ _
+    (Product.continuous Line.topology _ _ (Scalars.constantContinuous Line.topology (C.re a)) (Functions.realContinuous Line.topology coefficient coefficientContinuous))
+    (Product.continuous Line.topology _ _ (Scalars.constantContinuous Line.topology (C.im a)) (Functions.imaginaryContinuous Line.topology coefficient coefficientContinuous));
+\definition continuous: Scalars.Continuous Line.topology variation := Scalars.sumContinuous Line.topology _ _
+  (Scalars.sumContinuous Line.topology _ _ inner inner)
+  (Product.continuous Line.topology _ _ (power n) (Functions.normSquaredContinuous Line.topology coefficient coefficientContinuous));

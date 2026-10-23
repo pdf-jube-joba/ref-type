@@ -1,0 +1,26 @@
+\import Raw.Normalization[] \as RawNormalization;
+\import Monic.Nonzero[] \as Nonzero;
+\definition whole: C.Complex -> \Prop := \fun (_: C.Complex) => Logic.True;
+\structure Data: \Set := { leading: C.Complex, coefficients: Coefficients };
+\structure Laws[p: Polynomial.Carrier, data: Data]: \Prop := {
+  nonzero: Op.NonZero data.leading,
+  equation: p = Polynomial.mul (Polynomial.constant data.leading) (Monic.asPolynomial data.coefficients),
+};
+\definition Form[p: Polynomial.Carrier]: \Set := \Cast[Data] ({ data: Data \where Laws[p, data] });
+\definition exists: \forall (p: Polynomial.Carrier) -> Logic.Not (p = Polynomial.zero) -> \exists Form p := \block {
+  \fun (p: Polynomial.Carrier)(nonzero: _) \then
+  \takefrom r: Polynomials.Representatives[].Of p \by Polynomials.Representatives[].exists p \then
+  \let equality: Raw.asPolynomial r = p := \bysub(Coefficients, Polynomials.Representatives[].Of p, r) \then
+  \return Logic.orElim _ _ _ (RawNormalization.normalize whole (Field.Subfield[].laws Field.Subfield[].whole) r (Nonzero.allCoefficients r))
+    (\fun (all: RawNormalization.AllZero r) => Logic.falseElim (\exists Form p) (nonzero (trans!{Polynomial.Carrier} _ _ _ (sym!{Polynomial.Carrier} _ _ equality) (RawNormalization.zeroLaw r all))))
+    (\block {
+      \fun (exists: _) \then
+      \takefrom f: RawNormalization.NonzeroForm[whole, r] \by exists \then
+      \return \exact(Form[p] { leading := f.leading, coefficients := f.coefficients, nonzero := f.leadingNonzero,
+        equation := trans!{Polynomial.Carrier} _ _ _ (sym!{Polynomial.Carrier} _ _ equality) f.factorization,
+      }, Form p)
+    })
+};
+\definition monicNonzero: \forall (p: Coefficients) -> Logic.Not (Monic.asPolynomial p = Polynomial.zero) := Nonzero.monic (\parent.Roots[].closed);
+\definition factorNonzero: \forall (c: C.Complex) -> Op.NonZero c -> \forall (p: Coefficients) -> Logic.Not (Polynomial.mul (Polynomial.constant c) (Monic.asPolynomial p) = Polynomial.zero) :=
+  \fun (c: C.Complex)(nonzero: _)(p: Coefficients)(zero: _) => monicNonzero p (RawNormalization.cancelScalar c nonzero (Monic.asPolynomial p) zero);

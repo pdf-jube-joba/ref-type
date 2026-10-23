@@ -1,0 +1,51 @@
+\import \parent.Shift[a := a] \as Shift;
+\import \parent.EvaluationLaws[] \as Values;
+\import \parent.Bounds[] \as Bounds;
+\import \parent.FirstTerm[] \as First;
+\definition value: C.Complex := Monic.monicEvaluate p a;
+\definition polynomial: Polynomial.Carrier := Polynomial.add (Shift.map (Monic.asPolynomial p)) (Polynomial.neg (Polynomial.constant value));
+\definition evaluates: \forall (z: C.Complex) -> Evaluation.apply z polynomial = Op.add (Monic.monicEvaluate p (Op.add z a)) (Op.neg value) :=
+  \fun (z: C.Complex) => trans!{C.Complex} _ _ _ ((Evaluation.homomorphism z).add (Shift.map (Monic.asPolynomial p)) (Polynomial.neg (Polynomial.constant value)))
+    (congr!{C.Complex C.Complex C.Complex} Op.add _ _ _ _
+      (trans!{C.Complex} _ _ _ (Shift.evaluates z (Monic.asPolynomial p)) (Evaluation.agrees p (Op.add z a)))
+      (trans!{C.Complex} _ _ _ (Values.negative z (Polynomial.constant value)) (congr!{C.Complex C.Complex} Op.neg _ _ (Values.constants z value))));
+\definition atZero: Evaluation.apply Op.zero polynomial = Op.zero :=
+  trans!{C.Complex} _ _ _ (evaluates Op.zero) (trans!{C.Complex} _ _ _
+    (congr!{C.Complex C.Complex} (\fun (z: C.Complex) => Op.add (Monic.monicEvaluate p z) (Op.neg value)) _ _ (Complex.addZeroLeft a)) (Complex.addNegRight value));
+\definition recover: \forall (z: C.Complex) -> Monic.monicEvaluate p (Op.add z a) = Op.add value (Evaluation.apply z polynomial) :=
+  \fun (z: C.Complex) => sym!{C.Complex} _ _ (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} (Op.add value) _ _ (evaluates z))
+    (trans!{C.Complex} _ _ _ (Complex.addComm value (Op.add (Monic.monicEvaluate p (Op.add z a)) (Op.neg value))) (Sum.addDifference (Monic.monicEvaluate p (Op.add z a)) value)));
+\definition nonzero: Monic.Positive p -> Logic.Not (polynomial = Polynomial.zero) := \block {
+  \fun (positive: _)(zero: polynomial = Polynomial.zero) \then
+  \let r: Real.Real := Bounds.radius p (Absolute.abs value) \then
+  \let b: C.Complex := Op.ofReal r \then
+  \let escaped: R.Lt (Absolute.abs value) (Absolute.abs (Monic.monicEvaluate p b)) := Bounds.escapes p positive (Absolute.abs value) b (Absolute.realPartBound b) \then
+  \let z: C.Complex := Op.add b (Op.neg a) \then
+  \let translate: Op.add z a = b := Sum.addDifference b a \then
+  \let constant: Monic.monicEvaluate p b = value := eq_reason_in!{C.Complex { Monic.monicEvaluate p b }
+    "=" { Monic.monicEvaluate p (Op.add z a) } "by" { congr!{C.Complex C.Complex} (Monic.monicEvaluate p) _ _ (sym!{C.Complex} _ _ translate) }
+    "=" _ "by" { recover z }
+    "=" { Op.add value Op.zero } "by" { congr!{C.Complex C.Complex} (Op.add value) _ _ (trans!{C.Complex} _ _ _ (congr!{Polynomial.Carrier C.Complex} (Evaluation.apply z) _ _ zero) (Evaluation.homomorphism z).zero) }
+    "=" _ "by" { Complex.addZeroRight value }
+  } \then
+  \return R.ltIrrefl (Absolute.abs value) (R.ltReplaceRight _ _ _ (congr!{C.Complex Real.Real} Absolute.abs _ _ constant) escaped)
+};
+\import Raw.Operations[] \as Operations;
+\definition powerEvaluation: \forall (z: C.Complex)(k: N.Nat^) -> Evaluation.apply z (Operations.variablePower k) = Field.power z k :=
+  \fun (z: C.Complex) => \induction (k: N.Nat^) \return Evaluation.apply z (Operations.variablePower k) = Field.power z k \with {
+    | zero: (Evaluation.homomorphism z).one
+    | succ: \fun (k: N.Nat^)(previous: _) => trans!{C.Complex} _ _ _ ((Evaluation.homomorphism z).mul Polynomial.X (Operations.variablePower k))
+      (congr!{C.Complex C.Complex C.Complex} Op.mul _ _ _ _ (Values.variable z) previous)
+  };
+\definition termEvaluation: \forall (term: First.Term polynomial)(z: C.Complex) -> Evaluation.apply z polynomial = Op.mul (Field.power z term.order) (Monic.evaluate term.coefficients z) :=
+  \fun (term: First.Term polynomial)(z: C.Complex) => trans!{C.Complex} _ _ _ (congr!{Polynomial.Carrier C.Complex} (Evaluation.apply z) _ _ term.equation)
+    (trans!{C.Complex} _ _ _ ((Evaluation.homomorphism z).mul (Operations.variablePower term.order) (Raw.asPolynomial term.coefficients))
+      (congr!{C.Complex C.Complex C.Complex} Op.mul _ _ _ _ (powerEvaluation z term.order) (Values.rawAgrees term.coefficients z)));
+\definition orderPositive: \forall (term: First.Term polynomial) -> Logic.Not (term.order = N.Nat^::zero) :=
+  \fun (term: First.Term polynomial)(zero: term.order = N.Nat^::zero) => term.nonzero (eq_reason_in!{C.Complex { Monic.evaluate term.coefficients Op.zero }
+    "=" { Op.mul Op.one (Monic.evaluate term.coefficients Op.zero) } "by" { sym!{C.Complex} _ _ (Complex.mulOneLeft _) }
+    "=" { Op.mul (Field.power Op.zero term.order) (Monic.evaluate term.coefficients Op.zero) } "by" { congr!{C.Complex C.Complex} (\fun (b: C.Complex) => Op.mul b (Monic.evaluate term.coefficients Op.zero)) _ _
+      (sym!{C.Complex} _ _ (congr!{N.Nat^ C.Complex} (Field.power Op.zero) _ _ zero)) }
+    "=" _ "by" { sym!{C.Complex} _ _ (termEvaluation term Op.zero) }
+    "=" _ "by" { atZero }
+  });

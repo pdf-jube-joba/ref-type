@@ -1,0 +1,53 @@
+\import \parent.EvaluationLaws[] \as Values;
+\import Raw.Operations[] \as Operations;
+\import Raw.Normalization[] \as Normalization;
+\import algebra.Group[].Of[Carrier := Polynomial.Carrier, group := Rings.additiveGroup Polynomial.Carrier Raw.ring] \as PolynomialSum;
+\import algebra.Monoid[].Of[Carrier := Polynomial.Carrier, monoid := Raw.multiplicative] \as Product;
+\structure Data: \Set := { order: N.Nat^, coefficients: Coefficients };
+\structure Laws[p: Polynomial.Carrier, data: Data]: \Prop := {
+  nonzero: Op.NonZero (Monic.evaluate data.coefficients Op.zero),
+  equation: p = Polynomial.mul (Operations.variablePower data.order) (Raw.asPolynomial data.coefficients),
+};
+\definition Term[p: Polynomial.Carrier]: \Set := \Cast[Data] ({ data: Data \where Laws[p, data] });
+\definition headValue: \forall (a: C.Complex)(tail: Coefficients) -> Monic.evaluate (Lists.List[C.Complex]::cons a tail) Op.zero = a :=
+  \fun (a: C.Complex)(tail: Coefficients) => trans!{C.Complex}
+    (Op.add a (Op.mul Op.zero (Monic.evaluate tail Op.zero))) (Op.add a Op.zero) a
+    (congr!{C.Complex C.Complex} (Op.add a) _ _ (Complex.mulZeroLeft (Monic.evaluate tail Op.zero))) (Complex.addZeroRight a);
+\definition start: \forall (a: C.Complex)(tail: Coefficients) -> Op.NonZero a -> \exists Term (Raw.asPolynomial (Lists.List[C.Complex]::cons a tail)) :=
+  \fun (a: C.Complex)(tail: Coefficients)(nonzero: _) =>
+    \exact(Term[Raw.asPolynomial (Lists.List[C.Complex]::cons a tail)] {
+      order := N.Nat^::zero, coefficients := Lists.List[C.Complex]::cons a tail,
+      nonzero := \fun (zero: Monic.evaluate (Lists.List[C.Complex]::cons a tail) Op.zero = Op.zero) => nonzero
+        (trans!{C.Complex} a (Monic.evaluate (Lists.List[C.Complex]::cons a tail) Op.zero) Op.zero (sym!{C.Complex} _ _ (headValue a tail)) zero),
+      equation := sym!{Polynomial.Carrier} _ _ (Product.zeroLeft (Raw.asPolynomial (Lists.List[C.Complex]::cons a tail))),
+    }, Term (Raw.asPolynomial (Lists.List[C.Complex]::cons a tail)));
+\definition advance: \forall (a: C.Complex)(tail: Coefficients) -> a = Op.zero -> Term (Raw.asPolynomial tail) -> \exists Term (Raw.asPolynomial (Lists.List[C.Complex]::cons a tail)) :=
+  \fun (a: C.Complex)(tail: Coefficients)(zero: _)(next: Term (Raw.asPolynomial tail)) =>
+    \exact(Term[Raw.asPolynomial (Lists.List[C.Complex]::cons a tail)] {
+      order := N.Nat^::succ next.order, coefficients := next.coefficients, nonzero := next.nonzero,
+      equation := eq_reason_in!{Polynomial.Carrier { Raw.asPolynomial (Lists.List[C.Complex]::cons a tail) }
+        "=" { Polynomial.mul Polynomial.X (Raw.asPolynomial tail) } "by" { trans!{Polynomial.Carrier}
+          (Raw.asPolynomial (Lists.List[C.Complex]::cons a tail)) (Raw.asPolynomial (Lists.List[C.Complex]::cons Op.zero tail)) (Polynomial.mul Polynomial.X (Raw.asPolynomial tail))
+          (congr!{C.Complex Polynomial.Carrier} (\fun (b: C.Complex) => Raw.asPolynomial (Lists.List[C.Complex]::cons b tail)) a Op.zero zero) (Raw.shift tail) }
+        "=" { Polynomial.mul Polynomial.X (Polynomial.mul (Operations.variablePower next.order) (Raw.asPolynomial next.coefficients)) } "by" { congr!{Polynomial.Carrier Polynomial.Carrier} (Polynomial.mul Polynomial.X) _ _ next.equation }
+        "=" { Polynomial.mul (Polynomial.mul Polynomial.X (Operations.variablePower next.order)) (Raw.asPolynomial next.coefficients) } "by" { sym!{Polynomial.Carrier} _ _ (Product.assoc Polynomial.X (Operations.variablePower next.order) (Raw.asPolynomial next.coefficients)) }
+      },
+    }, Term (Raw.asPolynomial (Lists.List[C.Complex]::cons a tail)));
+\definition inspect: \forall (r: Coefficients) -> Logic.Or[Normalization.AllZero r, \exists Term (Raw.asPolynomial r)] :=
+  \induction (r: Coefficients) \return Logic.Or[Normalization.AllZero r, \exists Term (Raw.asPolynomial r)] \with {
+    | nil: Logic.Or[Normalization.AllZero Lists.List[C.Complex]::nil, \exists Term Polynomial.zero]::left Logic.True::intro
+    | cons: \fun (a: C.Complex)(tail: Coefficients)(previous: Logic.Or[Normalization.AllZero tail, \exists Term (Raw.asPolynomial tail)]) => Logic.orElim _ _ _ (Classical.excludedMiddle (a = Op.zero))
+      (\fun (zero: a = Op.zero) => Logic.orElim _ _ _ previous
+        (\fun (all: Normalization.AllZero tail) => Logic.Or[Normalization.AllZero (Lists.List[C.Complex]::cons a tail), \exists Term (Raw.asPolynomial (Lists.List[C.Complex]::cons a tail))]::left (Logic.And[_, _]::# zero all))
+        (\block { \fun (exists: _) \then \takefrom next: Term (Raw.asPolynomial tail) \by exists \then
+          \return Logic.Or[Normalization.AllZero (Lists.List[C.Complex]::cons a tail), \exists Term (Raw.asPolynomial (Lists.List[C.Complex]::cons a tail))]::right (advance a tail zero next) }))
+      (\fun (nonzero: Op.NonZero a) => Logic.Or[Normalization.AllZero (Lists.List[C.Complex]::cons a tail), \exists Term (Raw.asPolynomial (Lists.List[C.Complex]::cons a tail))]::right (start a tail nonzero))
+  };
+\definition exists: \forall (p: Polynomial.Carrier) -> Logic.Not (p = Polynomial.zero) -> \exists Term p := \block {
+  \fun (p: Polynomial.Carrier)(nonzero: _) \then
+  \takefrom r: Polynomials.Representatives[].Of p \by Polynomials.Representatives[].exists p \then
+  \let equality: Raw.asPolynomial r = p := \bysub(Coefficients, Polynomials.Representatives[].Of p, r) \then
+  \return Logic.orElim (Normalization.AllZero r) (\exists Term (Raw.asPolynomial r)) (\exists Term p) (inspect r)
+    (\fun (all: _) => Logic.falseElim (\exists Term p) (nonzero (trans!{Polynomial.Carrier} _ _ _ (sym!{Polynomial.Carrier} _ _ equality) (Normalization.zeroLaw r all))))
+    (\fun (term: _) => \idelim Raw.asPolynomial r = p \with q: Polynomial.Carrier => \exists Term q \by { base: term, equality: equality })
+};

@@ -1,0 +1,47 @@
+\import \parent.Families[].Quotient[] \as Families;
+\import \parent.Uniqueness[] \as Uniqueness;
+\structure Data: \Set := { leading: C.Complex, roots: Families.Family };
+\structure Laws[p: Polynomial.Carrier, data: Data]: \Prop := {
+  nonzero: Op.NonZero data.leading,
+  equation: p = Polynomial.mul (Polynomial.constant data.leading) (Families.product data.roots),
+};
+\definition Form[p: Polynomial.Carrier]: \Set := \Cast[Data] ({ data: Data \where Laws[p, data] });
+\definition ofList[p: Polynomial.Carrier][f: Result p]: Form p := Form[p] {
+  leading := f.leading, roots := Families.family f.roots, nonzero := f.nonzero,
+  equation := trans!{Polynomial.Carrier} _ _ _ f.equation
+    (congr!{Polynomial.Carrier Polynomial.Carrier} (Polynomial.mul (Polynomial.constant f.leading)) _ _ (sym!{Polynomial.Carrier} _ _ (Families.productOf f.roots))),
+};
+\definition exists: \forall (p: Polynomial.Carrier) -> Logic.Not (p = Polynomial.zero) -> \exists Form p := \block {
+  \fun (p: Polynomial.Carrier)(nonzero: _) \then
+  \takefrom f: Result p \by \root.Complex[].Factorization[].exists p nonzero \then
+  \return \exact(ofList p f, Form p)
+};
+\structure Same[f, g: Data]: \Prop := { leading: f.leading = g.leading, roots: f.roots = g.roots };
+\definition ofListUnique: \forall (p: Polynomial.Carrier)(f, g: Result p) -> Same[ofList p f, ofList p g] :=
+  \fun (p: Polynomial.Carrier)(f, g: Result p) => Same[ofList p f, ofList p g] {
+    leading := (Uniqueness.result p f g).leading,
+    roots := Uniqueness.unordered p f g,
+  };
+\import \parent.Families[] \as ListFamilies;
+\import std.Set[].Quotient[A := Coefficients, Equivalent := ListFamilies.Permutation] \as Classes;
+\structure FamilyEquality[c, d: C.Complex, F, G: Families.Family]: \Prop := { leading: c = d, roots: F = G };
+\definition uniqueFamilies: \forall (F, G: Families.Family)(c, d: C.Complex) -> Op.NonZero c -> Op.NonZero d ->
+  Polynomial.mul (Polynomial.constant c) (Families.product F) = Polynomial.mul (Polynomial.constant d) (Families.product G) -> FamilyEquality[c, d, F, G] :=
+  Classes.induction2 (\fun (F, G: Families.Family) => \forall (c, d: C.Complex) -> Op.NonZero c -> Op.NonZero d ->
+    Polynomial.mul (Polynomial.constant c) (Families.product F) = Polynomial.mul (Polynomial.constant d) (Families.product G) -> FamilyEquality[c, d, F, G])
+    (\block {
+      \fun (xs, ys: Coefficients)(c, d: C.Complex)(cn: Op.NonZero c)(dn: Op.NonZero d)(equal: Polynomial.mul (Polynomial.constant c) (Families.product (Families.family xs)) = Polynomial.mul (Polynomial.constant d) (Families.product (Families.family ys))) \then
+      \let products: Uniqueness.scaled c xs = Uniqueness.scaled d ys := eq_reason_in!{Polynomial.Carrier { Uniqueness.scaled c xs }
+        "=" { Polynomial.mul (Polynomial.constant c) (Families.product (Families.family xs)) } "by" { congr!{Polynomial.Carrier Polynomial.Carrier} (Polynomial.mul (Polynomial.constant c)) _ _ (sym!{Polynomial.Carrier} _ _ (Families.productOf xs)) }
+        "=" { Polynomial.mul (Polynomial.constant d) (Families.product (Families.family ys)) } "by" { equal }
+        "=" { Uniqueness.scaled d ys } "by" { congr!{Polynomial.Carrier Polynomial.Carrier} (Polynomial.mul (Polynomial.constant d)) _ _ (Families.productOf ys) }
+      } \then
+      \let same: Uniqueness.Same[c, d, xs, ys] := Uniqueness.unique xs ys c d cn dn products \then
+      \return FamilyEquality[c, d, Families.family xs, Families.family ys] { leading := same.leading, roots := Families.equal xs ys same.roots }
+    });
+\definition unique: \forall (p: Polynomial.Carrier)(f, g: Form p) -> Same[f, g] := \block {
+  \fun (p: Polynomial.Carrier)(f, g: Form p) \then
+  \let equality: FamilyEquality[f.leading, g.leading, f.roots, g.roots] := uniqueFamilies f.roots g.roots f.leading g.leading f.nonzero g.nonzero
+    (trans!{Polynomial.Carrier} _ _ _ (sym!{Polynomial.Carrier} _ _ f.equation) g.equation) \then
+  \return Same[f, g] { leading := equality.leading, roots := equality.roots }
+};

@@ -1,0 +1,26 @@
+\import \parent.FirstTerm[] \as First;
+\import \parent.Directions[] \as Directions;
+\import \parent.UnitRoots[] \as Units;
+\import \parent.Scaling[] \as Scaling;
+\import \parent.Minimum[] \as Minimum;
+\definition conjugateNonzero: \forall (z: C.Complex) -> Op.NonZero z -> Op.NonZero (Op.conj z) :=
+  \fun (z: C.Complex)(nonzero: _)(zero: Op.conj z = Op.zero) => nonzero (trans!{C.Complex} _ _ _ (sym!{C.Complex} _ _ (Complex.conjConj z))
+    (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} Op.conj _ _ zero) (Complex.conjOfReal Real.zero)));
+\definition normLower: \forall (u, v: C.Complex) -> R.Le (Absolute.abs u) (Absolute.abs v) -> R.Le (Op.normSq u) (Op.normSq v) :=
+  \fun (u, v: C.Complex)(less: _) => R.leReplaceLeft _ _ _ (Absolute.square u)
+    (R.leReplaceRight _ _ _ (Absolute.square v) (SquareRoot.squareMonotone (Absolute.abs u) (Absolute.abs v) (Absolute.nonnegative u) (Absolute.nonnegative v) less));
+\module At(p: Coefficients, a: C.Complex);
+\definition minimumRoot: \forall (p: Coefficients) -> Monic.Positive p -> \forall (a: C.Complex) -> Minimum.Global[p, a] -> Monic.monicEvaluate p a = Op.zero :=
+  \fun (p: Coefficients)(positive: _)(a: C.Complex)(minimum: _) => At[p := p, a := a].root positive minimum;
+\definition exists: \forall (p: Coefficients) -> Monic.Positive p -> \exists ( z: C.Complex \where Monic.monicEvaluate p z = Op.zero ) := \block {
+  \fun (p: Coefficients)(positive: _) \then
+  \takefrom a: \Cast[C.Complex] ({ a: C.Complex \where Minimum.Global[p, a] }) \by Minimum.exists p positive \then
+  \let minimum: Minimum.Global[p, a] := \bysub(C.Complex, { a: C.Complex \where Minimum.Global[p, a] }, a) \then
+  \return Logic.existsIntro[C.Complex, { z: C.Complex \where Monic.monicEvaluate p z = Op.zero }] a (minimumRoot p positive a minimum)
+};
+\definition closed: Monic.AlgebraicallyClosed (\fun (_: C.Complex) => Logic.True) := \block {
+  \fun (p: Coefficients)(over: _)(positive: _) \then
+  \takefrom z: \Cast[C.Complex] ({ z: C.Complex \where Monic.monicEvaluate p z = Op.zero }) \by exists p positive \then
+  \return Logic.existsIntro[C.Complex, { z: C.Complex \where Logic.And[Logic.True, Monic.monicEvaluate p z = Op.zero] }] z
+    (Logic.And[_, _]::# Logic.True::intro (\bysub(C.Complex, { z: C.Complex \where Monic.monicEvaluate p z = Op.zero }, z)))
+};

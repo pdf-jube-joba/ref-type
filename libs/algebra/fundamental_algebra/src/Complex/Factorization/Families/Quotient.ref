@@ -1,0 +1,37 @@
+\import std.Logic[].Relation[] \as Relations;
+\import std.Set[].Quotient[A := Coefficients, Equivalent := Permutation] \as Classes;
+\definition equivalence: Relations.Equivalence[Coefficients, Permutation] := Relations.Equivalence[Coefficients, Permutation] {
+  refl := \fun (xs: Coefficients) => unique xs xs (\refl(Monic.factors xs)),
+  sym := \fun (xs, ys: Coefficients)(same: _) => unique ys xs (sym!{Polynomial.Carrier} _ _ (independent xs ys same)),
+  trans := \fun (xs, ys, zs: Coefficients)(xy: _)(yz: _) => unique xs zs (trans!{Polynomial.Carrier} _ _ _ (independent xs ys xy) (independent ys zs yz)),
+};
+\definition Family: \Set := Classes.Carrier;
+\definition family: Coefficients -> Family := Classes.class;
+\definition equal: \forall (xs, ys: Coefficients) -> Permutation xs ys -> family xs = family ys := Classes.classOfEq equivalence;
+\definition Represents[F: Family][p: Polynomial.Carrier]: \Prop := \exists ( xs: Coefficients \where Logic.And[family xs = F, Monic.factors xs = p] );
+\definition Value[F: Family]: \Set := \Cast[Polynomial.Carrier] ({ p: Polynomial.Carrier \where Represents F p });
+\definition exists: \forall (F: Family) -> \exists Value F := Classes.induction (\fun (F: Family) => \exists Value F)
+  (\fun (xs: Coefficients) => Logic.existsIntro[Polynomial.Carrier, { p: Polynomial.Carrier \where Represents (family xs) p }] (Monic.factors xs)
+    (Logic.existsIntro[Coefficients, { ys: Coefficients \where Logic.And[family ys = family xs, Monic.factors ys = Monic.factors xs] }] xs
+      (Logic.And[_, _]::# (\refl(family xs)) (\refl(Monic.factors xs)))));
+\definition uniqueValue: \forall (F: Family)(p, q: Value F) -> p = q := \block {
+  \fun (F: Family)(p, q: Value F) \then
+  \takefrom xs: \Cast[Coefficients] ({ xs: Coefficients \where Logic.And[family xs = F, Monic.factors xs = p] }) \by \bysub(Polynomial.Carrier, Value F, p) \then
+  \takefrom ys: \Cast[Coefficients] ({ ys: Coefficients \where Logic.And[family ys = F, Monic.factors ys = q] }) \by \bysub(Polynomial.Carrier, Value F, q) \then
+  \let x: Logic.And[family xs = F, Monic.factors xs = p] := \bysub(Coefficients, { xs: Coefficients \where Logic.And[family xs = F, Monic.factors xs = p] }, xs) \then
+  \let y: Logic.And[family ys = F, Monic.factors ys = q] := \bysub(Coefficients, { ys: Coefficients \where Logic.And[family ys = F, Monic.factors ys = q] }, ys) \then
+  \return trans!{Polynomial.Carrier} _ _ _ (sym!{Polynomial.Carrier} _ _ x.right)
+    (trans!{Polynomial.Carrier} _ _ _ (independent xs ys (Classes.equivalentOfClassEq equivalence xs ys (trans!{Family} _ _ _ x.left (sym!{Family} _ _ y.left)))) y.right)
+};
+\definition product[F: Family]: Value F := \choice Value F \by { existence: exists F, uniqueness: uniqueValue F };
+\definition productOf: \forall (xs: Coefficients) -> product (family xs) = Monic.factors xs := \block {
+  \fun (xs: Coefficients) \then
+  \let p: Value (family xs) := \into[Polynomial.Carrier](Monic.factors xs, Value (family xs)) \by {
+    Logic.existsIntro[Coefficients, { ys: Coefficients \where Logic.And[family ys = family xs, Monic.factors ys = Monic.factors xs] }] xs (Logic.And[_, _]::# (\refl(family xs)) (\refl(Monic.factors xs)))
+  } \then
+  \return uniqueValue (family xs) (product (family xs)) p
+};
+\definition injective: \forall (F, G: Family) -> product F = product G -> F = G :=
+  Classes.induction2 (\fun (F, G: Family) => product F = product G -> F = G)
+    (\fun (xs, ys: Coefficients)(same: _) => equal xs ys (unique xs ys (trans!{Polynomial.Carrier} _ _ _ (sym!{Polynomial.Carrier} _ _ (productOf xs))
+      (trans!{Polynomial.Carrier} _ _ _ same (productOf ys)))));

@@ -37,6 +37,7 @@
 | [algebra/linear_algebra](algebra/linear_algebra/README.md) | `linear_algebra` | 可換環上の線形・多重線形・外代数、実数・複素数への具体化 |
 | [algebra/matrix_invariants](algebra/matrix_invariants/README.md) | `matrix_invariants` | 行列式、余因子・随伴行列、逆行列、実・複素行列族の連続性と開性 |
 | [algebra/polynomial_linear_algebra](algebra/polynomial_linear_algebra/README.md) | `polynomial_linear_algebra` | 多項式の除法・互除法と Bézout 係数、中国剰余定理、Cayley–Hamilton、核の直和分解と係数変更 |
+| [algebra/fundamental_algebra](algebra/fundamental_algebra/README.md) | `fundamental_algebra` | 複素多項式の無限遠での評価・最小値・根の存在、重複度付き完全分解と一意な有限根族 |
 | [algebra/hermitian_frames](algebra/hermitian_frames/README.md) | `hermitian_frames` | Hermitian 形式、連続な正規直交化、射影の局所枠と逆座標、ユニタリ群 |
 | [algebra/lie_algebras](algebra/lie_algebras/README.md) | `lie_algebras` | リー代数、随伴表現、交換子、部分リー代数、自己準同型代数 |
 | [algebra/clifford](algebra/clifford/README.md) | `clifford` | クリフォード代数の商構成と普遍性、Pin・Spin と複素拡張の群構造 |
