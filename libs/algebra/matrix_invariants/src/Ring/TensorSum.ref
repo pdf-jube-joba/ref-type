@@ -1,0 +1,44 @@
+\import Fin.Tuples[A := Fin.Fin n] \as Tuples;
+\import Fin.Empty[A := Fin.Fin n] \as Empty;
+\import Algebra.Sums[I := Fin.Fin n] \as Sums;
+\import Sums.Prop[] \as SumLaws;
+\definition Tuple[k: N.Nat^]: \Set := Fin.Fin k -> Fin.Fin n;
+\definition sum: \forall (k: N.Nat^) -> (Tuple k -> K) -> K :=
+  \induction (k: N.Nat^) \return (Tuple k -> K) -> K \with {
+    | zero: \fun (f: Tuple N.Nat^::zero -> K) => f Empty.function
+    | succ: \fun (k: N.Nat^)(previous: (Tuple k -> K) -> K)(f: Tuple (N.Nat^::succ k) -> K) =>
+      Sums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => previous (\fun (tail: Tuple k) => f (Tuples.extend k i tail)))
+  };
+\definition congruent: \forall (k: N.Nat^)(f, g: Tuple k -> K) -> (\forall (i: Tuple k) -> f i = g i) -> sum k f = sum k g :=
+  \induction (k: N.Nat^) \return \forall (f, g: Tuple k -> K) -> (\forall (i: Tuple k) -> f i = g i) -> sum k f = sum k g \with {
+    | zero: \fun (f, g: Tuple N.Nat^::zero -> K)(same: _) => same Empty.function
+    | succ: \fun (k: N.Nat^)(previous: \forall (f, g: Tuple k -> K) -> (\forall (i: Tuple k) -> f i = g i) -> sum k f = sum k g)(f, g: Tuple (N.Nat^::succ k) -> K)(same: \forall (i: Tuple (N.Nat^::succ k)) -> f i = g i) =>
+      SumLaws.congruent (Fin.elements n)
+        (\fun (i: Fin.Fin n) => sum k (\fun (tail: Tuple k) => f (Tuples.extend k i tail)))
+        (\fun (i: Fin.Fin n) => sum k (\fun (tail: Tuple k) => g (Tuples.extend k i tail)))
+        (\fun (i: Fin.Fin n) => previous (\fun (tail: Tuple k) => f (Tuples.extend k i tail)) (\fun (tail: Tuple k) => g (Tuples.extend k i tail)) (\fun (tail: Tuple k) => same (Tuples.extend k i tail)))
+  };
+\definition additive: \forall (k: N.Nat^)(f, g: Tuple k -> K) -> sum k (\fun (i: Tuple k) => add (f i) (g i)) = add (sum k f) (sum k g) :=
+  \induction (k: N.Nat^) \return \forall (f, g: Tuple k -> K) -> sum k (\fun (i: Tuple k) => add (f i) (g i)) = add (sum k f) (sum k g) \with {
+    | zero: \fun (f, g: Tuple N.Nat^::zero -> K) => \refl(add (f Empty.function) (g Empty.function))
+    | succ: \fun (k: N.Nat^)(previous: \forall (f, g: Tuple k -> K) -> sum k (\fun (i: Tuple k) => add (f i) (g i)) = add (sum k f) (sum k g))
+        (f, g: Tuple (N.Nat^::succ k) -> K) => trans!{K} _ _ _
+      (SumLaws.congruent (Fin.elements n)
+        (\fun (i: Fin.Fin n) => sum k (\fun (tail: Tuple k) => add (f (Tuples.extend k i tail)) (g (Tuples.extend k i tail))))
+        (\fun (i: Fin.Fin n) => add (sum k (\fun (tail: Tuple k) => f (Tuples.extend k i tail))) (sum k (\fun (tail: Tuple k) => g (Tuples.extend k i tail))))
+        (\fun (i: Fin.Fin n) => previous (\fun (tail: Tuple k) => f (Tuples.extend k i tail)) (\fun (tail: Tuple k) => g (Tuples.extend k i tail))))
+      (SumLaws.additive (Fin.elements n)
+        (\fun (i: Fin.Fin n) => sum k (\fun (tail: Tuple k) => f (Tuples.extend k i tail)))
+        (\fun (i: Fin.Fin n) => sum k (\fun (tail: Tuple k) => g (Tuples.extend k i tail))))
+  };
+\definition scalar: \forall (k: N.Nat^)(a: K)(f: Tuple k -> K) -> sum k (\fun (i: Tuple k) => mul a (f i)) = mul a (sum k f) :=
+  \induction (k: N.Nat^) \return \forall (a: K)(f: Tuple k -> K) -> sum k (\fun (i: Tuple k) => mul a (f i)) = mul a (sum k f) \with {
+    | zero: \fun (a: K)(f: Tuple N.Nat^::zero -> K) => \refl(mul a (f Empty.function))
+    | succ: \fun (k: N.Nat^)(previous: \forall (a: K)(f: Tuple k -> K) -> sum k (\fun (i: Tuple k) => mul a (f i)) = mul a (sum k f))
+        (a: K)(f: Tuple (N.Nat^::succ k) -> K) => trans!{K} _ _ _
+      (SumLaws.congruent (Fin.elements n)
+        (\fun (i: Fin.Fin n) => sum k (\fun (tail: Tuple k) => mul a (f (Tuples.extend k i tail))))
+        (\fun (i: Fin.Fin n) => mul a (sum k (\fun (tail: Tuple k) => f (Tuples.extend k i tail))))
+        (\fun (i: Fin.Fin n) => previous a (\fun (tail: Tuple k) => f (Tuples.extend k i tail))))
+      (SumLaws.multiplyLeft (Fin.elements n) a (\fun (i: Fin.Fin n) => sum k (\fun (tail: Tuple k) => f (Tuples.extend k i tail))))
+  };

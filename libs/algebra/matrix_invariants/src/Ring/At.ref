@@ -1,0 +1,68 @@
+\import Algebra.FiniteCoordinates[n := n] \as Coordinates;
+\import Algebra.Coordinates[I := Fin.Fin n] \as Vectors;
+\import Vectors.Kronecker[] \as Kronecker;
+\import Coordinates.Top[] \as Top;
+\import Algebra.Matrix[I := Fin.Fin n, J := Fin.Fin n] \as Matrices;
+\import Matrices.Composition[H := Fin.Fin n] \as Composition;
+\import Algebra.Sums[I := Fin.Fin n] \as Sums;
+\import Sums.Prop[] \as SumLaws;
+\import Algebra.Multilinear[V := Vectors.Vector, space := Vectors.space] \as Multilinear;
+\import Multilinear.Alternating[] \as Alternating;
+\import Multilinear.Properties[] \as Updates;
+\import Algebra.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as Linear;
+\definition Index: \Set := Fin.Fin n;
+\definition Vector: \Set := Vectors.Vector;
+\definition Matrix: \Set := Matrices.Matrix;
+\definition transpose[A: Matrix]: Matrix := \fun (i, j: Index) => A j i;
+\definition columns[A: Matrix]: Multilinear.Arguments n := transpose A;
+\definition identity: Matrix := \fun (i, j: Index) => Kronecker.delta j i;
+\definition product[A, B: Matrix]: Matrix := Composition.multiply (Fin.elements n) A B;
+\definition determinant[A: Matrix]: K := Top.volume (columns A);
+\definition atIdentity: determinant identity = one := Top.normalized;
+\definition linear[A: Matrix]: Linear.Map := Matrices.asLinear (Fin.elements n) A;
+\definition onBasis: \forall (A: Matrix)(j: Index) -> (linear A).apply (Coordinates.vectors j) = columns A j :=
+  \fun (A: Matrix)(j: Index) => \axiom:funext((linear A).apply (Coordinates.vectors j), columns A j,
+    \fun (i: Index) => Coordinates.dualReconstruction (A i) j);
+\definition determinantLinear: \forall (A: Matrix) -> Top.determinant (linear A) = determinant A :=
+  \fun (A: Matrix) => congr!{{Multilinear.Arguments n} K} Top.volume _ _
+    (\axiom:funext(Top.transformed (linear A) Top.basisArguments, columns A, onBasis A));
+\definition multiplicative: \forall (A, B: Matrix) -> determinant (product A B) = mul (determinant A) (determinant B) :=
+  \fun (A, B: Matrix) => trans!{K} _ _ _ (Top.action (linear A) Top.volume (columns B))
+    (congr!{K K} (\fun (a: K) => mul a (determinant B)) _ _ (determinantLinear A));
+\definition replaceColumn[A: Matrix][j: Index][v: Vector]: Matrix := transpose (Multilinear.update n (columns A) j v);
+\definition transposeTwice: \forall (A: Matrix) -> transpose (transpose A) = A :=
+  \fun (A: Matrix) => \axiom:funext(transpose (transpose A), A,
+    \fun (i: Index) => \axiom:funext(transpose (transpose A) i, A i, \fun (j: Index) => \refl(A i j)));
+\definition determinantReplace: \forall (A: Matrix)(j: Index)(v: Vector) ->
+  determinant (replaceColumn A j v) = Top.volume (Multilinear.update n (columns A) j v) :=
+  \fun (A: Matrix)(j: Index)(v: Vector) => congr!{{Multilinear.Arguments n} K} Top.volume _ _
+    (transposeTwice (Multilinear.update n (columns A) j v));
+\definition columnAddition: \forall (A: Matrix)(j: Index)(v, w: Vector) ->
+  determinant (replaceColumn A j (Vectors.plus v w)) = add (determinant (replaceColumn A j v)) (determinant (replaceColumn A j w)) :=
+  \fun (A: Matrix)(j: Index)(v, w: Vector) => eq_reason_in!{K _
+    "=" _ "by" { determinantReplace A j (Vectors.plus v w) }
+    "=" _ "by" { ((\bysub(Multilinear.Function n, Alternating.Form n, Top.volume)).linear).addition (columns A) j v w }
+    "=" _ "by" { congr!{K K K} add _ _ _ _ (sym!{K} _ _ (determinantReplace A j v)) (sym!{K} _ _ (determinantReplace A j w)) }
+  };
+\definition columnScalar: \forall (A: Matrix)(j: Index)(a: K)(v: Vector) ->
+  determinant (replaceColumn A j (Vectors.scale a v)) = mul a (determinant (replaceColumn A j v)) :=
+  \fun (A: Matrix)(j: Index)(a: K)(v: Vector) => eq_reason_in!{K _
+    "=" _ "by" { determinantReplace A j (Vectors.scale a v) }
+    "=" _ "by" { ((\bysub(Multilinear.Function n, Alternating.Form n, Top.volume)).linear).scalar (columns A) j a v }
+    "=" _ "by" { congr!{K K} (mul a) _ _ (sym!{K} _ _ (determinantReplace A j v)) }
+  };
+\definition repeatedColumns: \forall (A: Matrix)(i, j: Index) -> Logic.Not (i = j) -> columns A i = columns A j -> determinant A = zero :=
+  \fun (A: Matrix)(i, j: Index)(different: _)(same: _) => (\bysub(Multilinear.Function n, Alternating.Form n, Top.volume)).alternating (columns A) i j different same;
+\definition zeroColumn: \forall (A: Matrix)(j: Index) -> determinant (replaceColumn A j Vectors.origin) = zero :=
+  \fun (A: Matrix)(j: Index) => trans!{K} _ _ _ (determinantReplace A j Vectors.origin)
+    (Updates.zeroArgument n (Alternating.asMultilinear n Top.volume) (columns A) j);
+\definition cofactor[A: Matrix][i, j: Index]: K := determinant (replaceColumn A j (Coordinates.vectors i));
+\definition adjugate[A: Matrix]: Matrix := \fun (i, j: Index) => cofactor A j i;
+\module Cofactors;
+\module Expansion;
+\module RowTerms;
+\module Operations;
+\module Rows;
+\module Adjugate;
+\module Representation;
+\module CommutativeComparison;

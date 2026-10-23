@@ -1,0 +1,51 @@
+\import \parent.\parent.\parent.Products[n := k] \as Products;
+\import \parent.\parent.\parent.Products[n := N.Nat^::succ k] \as Successor;
+\import Products.Mapping[m := N.Nat^::succ k] \as Mapping;
+\import Multilinear.Contraction[k := k] \as Contract;
+\import Contract.Expansion[I := Index, b := Coordinates.basis] \as ExpandHead;
+\definition tail[arguments: Multilinear.Arguments (N.Nat^::succ k)]: Multilinear.Arguments k :=
+  \fun (i: Fin.Fin k) => arguments (Fin.succ k i);
+\definition coefficientExtend: \forall (f: Multilinear.Form (N.Nat^::succ k))(head: Index)(indices: TuplesSum.Tuple k) ->
+  coefficient (N.Nat^::succ k) f (IndexTuples.extend k head indices) = coefficient k (Contract.apply f (Coordinates.vectors head)) indices :=
+  \fun (f: Multilinear.Form (N.Nat^::succ k))(head: Index)(indices: TuplesSum.Tuple k) =>
+    congr!{{Multilinear.Arguments (N.Nat^::succ k)} K} f _ _
+      (VectorTuples.extensionality k _ _
+        (trans!{Vector} _ _ _ (congr!{Index Vector} Coordinates.vectors _ _ (IndexTuples.atZero k head indices))
+          (sym!{Vector} _ _ (VectorTuples.atZero k (Coordinates.vectors head) (\fun (i: Fin.Fin k) => Coordinates.vectors (indices i)))))
+        (\fun (i: Fin.Fin k) => trans!{Vector} _ _ _ (congr!{Index Vector} Coordinates.vectors _ _ (IndexTuples.atSuccessor k head indices i))
+          (sym!{Vector} _ _ (VectorTuples.atSuccessor k (Coordinates.vectors head) (\fun (j: Fin.Fin k) => Coordinates.vectors (indices j)) i))));
+\definition entriesExtend: \forall (arguments: Multilinear.Arguments (N.Nat^::succ k))(head: Index)(indices: TuplesSum.Tuple k) ->
+  entries (N.Nat^::succ k) arguments (IndexTuples.extend k head indices) = mul (arguments (Fin.zero k) head) (entries k (tail arguments) indices) :=
+  \fun (arguments: Multilinear.Arguments (N.Nat^::succ k))(head: Index)(indices: TuplesSum.Tuple k) =>
+    congr!{K K K} mul _ _ _ _ (congr!{Index K} (arguments (Fin.zero k)) _ _ (IndexTuples.atZero k head indices))
+      (trans!{K} _ _ _ (Mapping.law (Fin.elements k) (Fin.succ k) (\fun (i: Fin.Fin (N.Nat^::succ k)) => arguments i (IndexTuples.extend k head indices i)))
+        (Products.congruent (Fin.elements k)
+          (\fun (i: Fin.Fin k) => arguments (Fin.succ k i) (IndexTuples.extend k head indices (Fin.succ k i)))
+          (\fun (i: Fin.Fin k) => arguments (Fin.succ k i) (indices i))
+          (\fun (i: Fin.Fin k)(member: _) => congr!{Index K} (arguments (Fin.succ k i)) _ _ (IndexTuples.atSuccessor k head indices i))));
+\definition summand: \forall (f: Multilinear.Form (N.Nat^::succ k))(arguments: Multilinear.Arguments (N.Nat^::succ k))(head: Index)(indices: TuplesSum.Tuple k) ->
+  mul (entries (N.Nat^::succ k) arguments (IndexTuples.extend k head indices)) (coefficient (N.Nat^::succ k) f (IndexTuples.extend k head indices)) =
+  mul (arguments (Fin.zero k) head) (mul (entries k (tail arguments) indices) (coefficient k (Contract.apply f (Coordinates.vectors head)) indices)) :=
+  \fun (f: Multilinear.Form (N.Nat^::succ k))(arguments: Multilinear.Arguments (N.Nat^::succ k))(head: Index)(indices: TuplesSum.Tuple k) => trans!{K} _ _ _
+    (congr!{K K K} mul _ _ _ _ (entriesExtend arguments head indices) (coefficientExtend f head indices))
+    (Algebra.mulAssoc (arguments (Fin.zero k) head) (entries k (tail arguments) indices) (coefficient k (Contract.apply f (Coordinates.vectors head)) indices));
+\definition law: Law k -> Law (N.Nat^::succ k) :=
+  \fun (previous: Law k)(f: Multilinear.Form (N.Nat^::succ k))(arguments: Multilinear.Arguments (N.Nat^::succ k)) => eq_reason_in!{K _
+    "=" { Sums.sum (Fin.elements n) (\fun (head: Index) => mul (arguments (Fin.zero k) head) (formula k (Contract.apply f (Coordinates.vectors head)) (tail arguments))) } "by" {
+      SumLaws.congruent (Fin.elements n)
+        (\fun (head: Index) => TuplesSum.sum k (\fun (indices: TuplesSum.Tuple k) => mul (entries (N.Nat^::succ k) arguments (IndexTuples.extend k head indices)) (coefficient (N.Nat^::succ k) f (IndexTuples.extend k head indices))))
+        (\fun (head: Index) => mul (arguments (Fin.zero k) head) (formula k (Contract.apply f (Coordinates.vectors head)) (tail arguments)))
+        (\fun (head: Index) => trans!{K} _ _ _
+          (TuplesSum.congruent k
+            (\fun (indices: TuplesSum.Tuple k) => mul (entries (N.Nat^::succ k) arguments (IndexTuples.extend k head indices)) (coefficient (N.Nat^::succ k) f (IndexTuples.extend k head indices)))
+            (\fun (indices: TuplesSum.Tuple k) => mul (arguments (Fin.zero k) head) (mul (entries k (tail arguments) indices) (coefficient k (Contract.apply f (Coordinates.vectors head)) indices)))
+            (summand f arguments head))
+          (TuplesSum.scalar k (arguments (Fin.zero k) head) (\fun (indices: TuplesSum.Tuple k) => mul (entries k (tail arguments) indices) (coefficient k (Contract.apply f (Coordinates.vectors head)) indices)))) }
+    "=" { Sums.sum (Fin.elements n) (\fun (head: Index) => mul (arguments (Fin.zero k) head) (Contract.value f (Coordinates.vectors head) (tail arguments))) } "by" {
+      SumLaws.congruent (Fin.elements n)
+        (\fun (head: Index) => mul (arguments (Fin.zero k) head) (formula k (Contract.apply f (Coordinates.vectors head)) (tail arguments)))
+        (\fun (head: Index) => mul (arguments (Fin.zero k) head) (Contract.value f (Coordinates.vectors head) (tail arguments)))
+        (\fun (head: Index) => congr!{K K} (mul (arguments (Fin.zero k) head)) _ _ (previous (Contract.apply f (Coordinates.vectors head)) (tail arguments))) }
+    "=" { Contract.value f (arguments (Fin.zero k)) (tail arguments) } "by" { sym!{K} _ _ (ExpandHead.law f (arguments (Fin.zero k)) (tail arguments)) }
+    "=" { f arguments } "by" { congr!{{Multilinear.Arguments (N.Nat^::succ k)} K} f _ _ (VectorTuples.recover k arguments) }
+  };

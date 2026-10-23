@@ -34,7 +34,8 @@
 | [algebra/commutative_algebra](algebra/commutative_algebra/README.md) | `commutative_algebra` | Hom とテンソル積、射影性、有限自由加群の行列 |
 | [algebra/integer_matrices](algebra/integer_matrices/README.md) | `integer_matrices` | 整数行列の演算、Smith 標準形と変換行列 |
 | [algebra/finitely_generated_modules](algebra/finitely_generated_modules/README.md) | `finitely_generated_modules` | 整数の核・像・部分加群の基底、巡回加群、体上の有限次元部分空間 |
-| [algebra/linear_algebra](algebra/linear_algebra/README.md) | `linear_algebra` | 体上の線形代数、多重線形・外代数、実数・複素数への具体化 |
+| [algebra/linear_algebra](algebra/linear_algebra/README.md) | `linear_algebra` | 可換環上の線形・多重線形・外代数、実数・複素数への具体化 |
+| [algebra/matrix_invariants](algebra/matrix_invariants/README.md) | `matrix_invariants` | 行列式、余因子・随伴行列、逆行列、実・複素行列族の連続性と開性 |
 | [algebra/lie_algebras](algebra/lie_algebras/README.md) | `lie_algebras` | リー代数、随伴表現、交換子、部分リー代数、自己準同型代数 |
 | [algebra/clifford](algebra/clifford/README.md) | `clifford` | クリフォード代数の商構成と普遍性、Pin・Spin と複素拡張の群構造 |
 | [algebra/homological/chain_complexes](algebra/homological/chain_complexes/README.md) | `chain_complexes` | 自然数・整数次数の複体、ホモロジー、写像・ホモトピー・複体の圏 |

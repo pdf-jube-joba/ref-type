@@ -1,7 +1,9 @@
 # 線形代数
 
-`Field.Space[K := K, field := field]` は任意の体上の `std.Alg.Ring.RingModule` を扱う。
+`Commutative[K := K, scalarRing := ring]` は任意の可換環上の `std.Alg.Ring.RingModule` を扱う。
 以下の `Space` はその具体化を指す。
+有限自由加群・多重線形形式・外代数・標準基底上の行列式は零環にも適用できる。
+`Field.Space` は体の逆元を使うスカラーの消去則を提供する。
 `Real.field` は Dedekind 実数、`Complex.field` は実数対の複素数を使う。
 
 | module | 内容 |

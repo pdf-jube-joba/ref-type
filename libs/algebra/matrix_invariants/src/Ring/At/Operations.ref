@@ -1,0 +1,78 @@
+\import SumLaws.Exchange[J := Index] \as Exchange;
+\import Algebra.Laws[V := K, space := Algebra.scalarSpace] \as Scalars;
+\definition ext: \forall (A, B: Matrix) -> (\forall (i, j: Index) -> A i j = B i j) -> A = B :=
+  \fun (A, B: Matrix)(same: _) => \axiom:funext(A, B, \fun (i: Index) => \axiom:funext(A i, B i, same i));
+\definition entry: \forall (A, B: Matrix) -> A = B -> \forall (i, j: Index) -> A i j = B i j :=
+  \fun (A, B: Matrix)(same: A = B)(i, j: Index) => congr!{Matrix K} (\fun (C: Matrix) => C i j) _ _ same;
+\definition rightIdentity: \forall (A: Matrix) -> product A identity = A :=
+  \fun (A: Matrix) => ext _ _ (\fun (i, j: Index) => Coordinates.dualReconstruction (A i) j);
+\definition leftIdentity: \forall (A: Matrix) -> product identity A = A :=
+  \fun (A: Matrix) => ext _ _ (\fun (i, j: Index) => trans!{K} _ _ _
+    (SumLaws.congruent (Fin.elements n)
+      (\fun (k: Index) => mul (Kronecker.delta k i) (A k j)) (\fun (k: Index) => mul (A k j) (Kronecker.delta i k))
+      (\fun (k: Index) => trans!{K} _ _ _ (Algebra.mulComm (Kronecker.delta k i) (A k j))
+        (congr!{K K} (mul (A k j)) _ _ (Kronecker.symmetric k i))))
+    (Coordinates.dualReconstruction (columns A j) i));
+\definition transposeIdentity: transpose identity = identity := ext _ _ (\fun (i, j: Index) => Kronecker.symmetric i j);
+\definition transposeProduct: \forall (A, B: Matrix) -> transpose (product A B) = product (transpose B) (transpose A) :=
+  \fun (A, B: Matrix) => ext _ _ (\fun (i, j: Index) =>
+    SumLaws.congruent (Fin.elements n) (\fun (k: Index) => mul (A j k) (B k i)) (\fun (k: Index) => mul (B k i) (A j k))
+      (\fun (k: Index) => Algebra.mulComm (A j k) (B k i)));
+\definition associative: \forall (A, B, C: Matrix) -> product (product A B) C = product A (product B C) :=
+  \fun (A, B, C: Matrix) => ext _ _ (\fun (i, l: Index) => eq_reason_in!{K _
+    "=" { Sums.sum (Fin.elements n) (\fun (k: Index) => Sums.sum (Fin.elements n) (\fun (j: Index) => mul (mul (A i j) (B j k)) (C k l))) } "by" {
+      SumLaws.congruent (Fin.elements n)
+        (\fun (k: Index) => mul (Sums.sum (Fin.elements n) (\fun (j: Index) => mul (A i j) (B j k))) (C k l))
+        (\fun (k: Index) => Sums.sum (Fin.elements n) (\fun (j: Index) => mul (mul (A i j) (B j k)) (C k l)))
+        (\fun (k: Index) => sym!{K} _ _ (SumLaws.multiplyRight (Fin.elements n) (C k l) (\fun (j: Index) => mul (A i j) (B j k)))) }
+    "=" { Sums.sum (Fin.elements n) (\fun (j: Index) => Sums.sum (Fin.elements n) (\fun (k: Index) => mul (mul (A i j) (B j k)) (C k l))) } "by" {
+      Exchange.exchange (Fin.elements n) (Fin.elements n) (\fun (k, j: Index) => mul (mul (A i j) (B j k)) (C k l)) }
+    "=" { Sums.sum (Fin.elements n) (\fun (j: Index) => mul (A i j) (Sums.sum (Fin.elements n) (\fun (k: Index) => mul (B j k) (C k l)))) } "by" {
+      SumLaws.congruent (Fin.elements n)
+        (\fun (j: Index) => Sums.sum (Fin.elements n) (\fun (k: Index) => mul (mul (A i j) (B j k)) (C k l)))
+        (\fun (j: Index) => mul (A i j) (Sums.sum (Fin.elements n) (\fun (k: Index) => mul (B j k) (C k l))))
+        (\fun (j: Index) => trans!{K} _ _ _
+          (SumLaws.congruent (Fin.elements n)
+            (\fun (k: Index) => mul (mul (A i j) (B j k)) (C k l)) (\fun (k: Index) => mul (A i j) (mul (B j k) (C k l)))
+            (\fun (k: Index) => Algebra.mulAssoc (A i j) (B j k) (C k l)))
+          (SumLaws.multiplyLeft (Fin.elements n) (A i j) (\fun (k: Index) => mul (B j k) (C k l)))) }
+  });
+\definition scaleLeft: \forall (a: K)(A, B: Matrix) -> product (Matrices.scale a A) B = Matrices.scale a (product A B) :=
+  \fun (a: K)(A, B: Matrix) => ext _ _ (\fun (i, j: Index) => trans!{K} _ _ _
+    (SumLaws.congruent (Fin.elements n) (\fun (k: Index) => mul (mul a (A i k)) (B k j)) (\fun (k: Index) => mul a (mul (A i k) (B k j)))
+      (\fun (k: Index) => Algebra.mulAssoc a (A i k) (B k j)))
+    (SumLaws.multiplyLeft (Fin.elements n) a (\fun (k: Index) => mul (A i k) (B k j))));
+\definition scaleRight: \forall (a: K)(A, B: Matrix) -> product A (Matrices.scale a B) = Matrices.scale a (product A B) :=
+  \fun (a: K)(A, B: Matrix) => ext _ _ (\fun (i, j: Index) => trans!{K} _ _ _
+    (SumLaws.congruent (Fin.elements n) (\fun (k: Index) => mul (A i k) (mul a (B k j))) (\fun (k: Index) => mul a (mul (A i k) (B k j)))
+      (\fun (k: Index) => Scalars.scaleComm (A i k) a (B k j)))
+    (SumLaws.multiplyLeft (Fin.elements n) a (\fun (k: Index) => mul (A i k) (B k j))));
+\structure InverseLaws[A, B: Matrix]: \Prop := {
+  left: product B A = identity,
+  right: product A B = identity,
+};
+\definition Inverse[A: Matrix]: \Set := \Cast[Matrix] ({ B: Matrix \where InverseLaws[A, B] });
+\definition inverseLaws[A: Matrix][B: Inverse A]: InverseLaws[A, B] := \bysub(Matrix, Inverse A, B);
+\definition inverseUnique: \forall (A: Matrix)(B, C: Inverse A) -> B = C :=
+  \fun (A: Matrix)(B, C: Inverse A) => eq_reason_in!{Matrix B
+    "=" { product B identity } "by" { sym!{Matrix} _ _ (rightIdentity B) }
+    "=" { product B (product A C) } "by" { congr!{Matrix Matrix} (product B) _ _ (sym!{Matrix} _ _ ((inverseLaws A C).right)) }
+    "=" { product (product B A) C } "by" { sym!{Matrix} _ _ (associative B A C) }
+    "=" { product identity C } "by" { congr!{Matrix Matrix} (\fun (D: Matrix) => product D C) _ _ ((inverseLaws A B).left) }
+    "=" C "by" { leftIdentity C }
+  };
+\definition determinantInverse: \forall (A: Matrix)(B: Inverse A) -> mul (determinant B) (determinant A) = one :=
+  \fun (A: Matrix)(B: Inverse A) => eq_reason_in!{K _
+    "=" { determinant (product B A) } "by" { sym!{K} _ _ (multiplicative B A) }
+    "=" { determinant identity } "by" { congr!{Matrix K} determinant _ _ ((inverseLaws A B).left) }
+    "=" one "by" atIdentity
+  };
+\definition basisChange: \forall (A, P: Matrix)(Q: Inverse P) -> determinant (product (product Q A) P) = determinant A :=
+  \fun (A, P: Matrix)(Q: Inverse P) => eq_reason_in!{K _
+    "=" { mul (determinant (product Q A)) (determinant P) } "by" { multiplicative (product Q A) P }
+    "=" { mul (mul (determinant Q) (determinant A)) (determinant P) } "by" { congr!{K K} (\fun (a: K) => mul a (determinant P)) _ _ (multiplicative Q A) }
+    "=" { mul (mul (determinant A) (determinant Q)) (determinant P) } "by" { congr!{K K} (\fun (a: K) => mul a (determinant P)) _ _ (Algebra.mulComm (determinant Q) (determinant A)) }
+    "=" { mul (determinant A) (mul (determinant Q) (determinant P)) } "by" { Algebra.mulAssoc (determinant A) (determinant Q) (determinant P) }
+    "=" { mul (determinant A) one } "by" { congr!{K K} (mul (determinant A)) _ _ (determinantInverse P Q) }
+    "=" { determinant A } "by" { Algebra.mulOneRight (determinant A) }
+  };

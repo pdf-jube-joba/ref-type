@@ -1,0 +1,40 @@
+\import \parent.Operations[] \as Operations;
+\import commutative_algebra.Modules[R := K, ring := scalars].Matrix[m := n, n := n] \as Existing;
+\import Existing.Composition[k := n] \as ExistingProduct;
+\import Existing.Transpose[] \as ExistingTranspose;
+\import Existing.End[] \as ExistingIdentity;
+\import Existing.Invertible[] \as ExistingInverse;
+\import module_theory.Module[].Over[R := K, ring := Algebra.ring].Coordinates[I := Index].Kronecker[] \as ExistingKronecker;
+\definition productComparison: \forall (A, B: Matrix) -> product A B = ExistingProduct.product A B :=
+  \fun (A, B: Matrix) => \refl(product A B);
+\definition transposeComparison: \forall (A: Matrix) -> transpose A = ExistingTranspose.transpose A :=
+  \fun (A: Matrix) => \refl(transpose A);
+\definition identityComparison: identity = ExistingIdentity.identity :=
+  Operations.ext identity ExistingIdentity.identity (\fun (i, j: Index) =>
+    either!{{(Classical.excludedMiddle (i = j))} {identity i j = ExistingIdentity.identity i j}
+      {\fun (same: i = j) => trans!{K} _ _ _ (Kronecker.equal j i (sym!{Index} _ _ same)) (sym!{K} _ _ (ExistingKronecker.equal i j same))}
+      {\fun (different: Logic.Not (i = j)) => trans!{K} _ _ _ (Kronecker.different j i (\fun (same: j = i) => different (sym!{Index} _ _ same)))
+        (sym!{K} _ _ (ExistingKronecker.different i j different))}
+    });
+\definition toExisting[A: Matrix][B: Operations.Inverse A]: ExistingInverse.Inverse A :=
+  \into[ExistingInverse.Data](ExistingInverse.Data { inverse := B }, ExistingInverse.Inverse A) \by {
+    ExistingInverse.Laws[A, ExistingInverse.Data { inverse := B }] {
+      leftInverse := trans!{Matrix} _ _ _ (sym!{Matrix} _ _ (productComparison B A))
+        (trans!{Matrix} _ _ _ ((Operations.inverseLaws A B).left) identityComparison),
+      rightInverse := trans!{Matrix} _ _ _ (sym!{Matrix} _ _ (productComparison A B))
+        (trans!{Matrix} _ _ _ ((Operations.inverseLaws A B).right) identityComparison),
+    }
+  };
+\definition fromExisting[A: Matrix][B: ExistingInverse.Inverse A]: Operations.Inverse A :=
+  \into[Matrix](B.inverse, Operations.Inverse A) \by {
+    Operations.InverseLaws[A, B.inverse] {
+      left := trans!{Matrix} _ _ _ (productComparison B.inverse A)
+        (trans!{Matrix} _ _ _ (\bysub(ExistingInverse.Data, ExistingInverse.Inverse A, B)).leftInverse (sym!{Matrix} _ _ identityComparison)),
+      right := trans!{Matrix} _ _ _ (productComparison A B.inverse)
+        (trans!{Matrix} _ _ _ (\bysub(ExistingInverse.Data, ExistingInverse.Inverse A, B)).rightInverse (sym!{Matrix} _ _ identityComparison)),
+    }
+  };
+\definition inverseRoundTrip: \forall (A: Matrix)(B: Operations.Inverse A) -> fromExisting A (toExisting A B) = B :=
+  \fun (A: Matrix)(B: Operations.Inverse A) => Operations.inverseUnique A (fromExisting A (toExisting A B)) B;
+\definition existingRoundTripEntries: \forall (A: Matrix)(B: ExistingInverse.Inverse A) -> (toExisting A (fromExisting A B)).inverse = B.inverse :=
+  \fun (A: Matrix)(B: ExistingInverse.Inverse A) => \refl(B.inverse);

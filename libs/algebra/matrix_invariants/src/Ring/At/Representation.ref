@@ -1,0 +1,24 @@
+\import \parent.Operations[] \as Operations;
+\import Algebra.Finite[V := Vector, I := Index, space := Vectors.space].Representation[W := Vector, J := Index, target := Vectors.space] \as Representation;
+\import Representation.Composition[U := Vector, H := Index, domain := Vectors.space] \as Composed;
+\import Linear.Composition[U := Vector, domain := Vectors.space] \as Compose;
+\definition entries[f: Linear.Map]: Matrix := \fun (i, j: Index) => f.apply (Coordinates.vectors j) i;
+\definition linearEntries: \forall (f: Linear.Map) -> linear (entries f) = f :=
+  \fun (f: Linear.Map) => Linear.ext _ _ (\axiom:funext((linear (entries f)).apply, f.apply,
+    \fun (v: Vector) => sym!{Vector} _ _ (Representation.actionLaw Coordinates.basis Coordinates.basis f v)));
+\definition entriesLinear: \forall (A: Matrix) -> entries (linear A) = A :=
+  \fun (A: Matrix) => Operations.ext _ _ (\fun (i, j: Index) => congr!{Vector K} (\fun (v: Vector) => v i) _ _ (onBasis A j));
+\definition composition: \forall (f, g: Linear.Map) -> entries (Compose.compose f g) = product (entries f) (entries g) :=
+  \fun (f, g: Linear.Map) => Composed.compositionMatrix Coordinates.basis Coordinates.basis Coordinates.basis f g;
+\definition inverseCertificate: \forall (f, g: Linear.Map) ->
+  (\forall (v: Vector) -> g.apply (f.apply v) = v) -> (\forall (v: Vector) -> f.apply (g.apply v) = v) ->
+  Operations.InverseLaws[entries f, entries g] :=
+  \fun (f, g: Linear.Map)(left: _)(right: _) => Operations.InverseLaws[entries f, entries g] {
+    left := trans!{Matrix} _ _ _ (sym!{Matrix} _ _ (composition g f))
+      (Operations.ext _ _ (\fun (i, j: Index) => congr!{Vector K} (\fun (v: Vector) => v i) _ _ (left (Coordinates.vectors j)))),
+    right := trans!{Matrix} _ _ _ (sym!{Matrix} _ _ (composition f g))
+      (Operations.ext _ _ (\fun (i, j: Index) => congr!{Vector K} (\fun (v: Vector) => v i) _ _ (right (Coordinates.vectors j)))),
+  };
+\definition determinantComparison: \forall (f: Linear.Map) -> determinant (entries f) = Top.determinant f :=
+  \fun (f: Linear.Map) => trans!{K} _ _ _ (sym!{K} _ _ (determinantLinear (entries f)))
+    (congr!{{Linear.Map} K} Top.determinant _ _ (linearEntries f));

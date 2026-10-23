@@ -39,18 +39,33 @@
 }
 \import std.Logic[].Classical[] \as Classical;
 \use Logic.either;
-\definition indicesExhaustive: \forall (b: Basis) (i: I) -> \In[I] (Sums.keys b.indices) i :=
-  \fun (b: Basis) (i: I) => either!{{(Classical.excludedMiddle (\In[I] (Sums.keys b.indices) i))} {\In[I] (Sums.keys b.indices) i}
-    {\fun (member: _) => member}
-    {\fun (absent: Logic.Not (\In[I] (Sums.keys b.indices) i)) => Logic.falseElim (\In[I] (Sums.keys b.indices) i)
-      (field.nontrivial (eq_reason_in!{K _
-        "=" _ "by" { sym!{K} _ _ (Single.absent b.indices i absent
-          (\fun (j: I) => coordinates b (b.vectors i) j)) }
-        "=" _ "by" { b.dualReconstruction (\fun (j: I) => Kronecker.delta i j) i }
-        "=" _ "by" { Kronecker.self i }
-      }))}
+\definition omittedTrivial: \forall (b: Basis) (i: I) -> Logic.Not (\In[I] (Sums.keys b.indices) i) -> zero = one :=
+  \fun (b: Basis)(i: I)(absent: _) => eq_reason_in!{K zero
+    "=" _ "by" { sym!{K} _ _ (Single.absent b.indices i absent (\fun (j: I) => coordinates b (b.vectors i) j)) }
+    "=" _ "by" { b.dualReconstruction (\fun (j: I) => Kronecker.delta i j) i }
+    "=" one "by" { Kronecker.self i }
+  };
+\definition trivialEquality: zero = one -> \forall (a, b: K) -> a = b :=
+  \fun (trivial: zero = one)(a, b: K) => eq_reason_in!{K a
+    "=" { mul a one } "by" { sym!{K} _ _ (mulOneRight a) }
+    "=" { mul a zero } "by" { congr!{K K} (mul a) _ _ (sym!{K} _ _ trivial) }
+    "=" zero "by" { mulZeroRight a }
+    "=" { mul b zero } "by" { sym!{K} _ _ (mulZeroRight b) }
+    "=" { mul b one } "by" { congr!{K K} (mul b) _ _ trivial }
+    "=" b "by" { mulOneRight b }
   };
 \definition biorthogonal: \forall (b: Basis) (i, j: I) -> coordinates b (b.vectors i) j = Kronecker.delta j i :=
-  \fun (b: Basis) (i, j: I) => trans!{K} _ _ _
-    (sym!{K} _ _ (Single.extract b.indices b.distinct j (indicesExhaustive b j) (\fun (k: I) => coordinates b (b.vectors i) k)))
-    (b.dualReconstruction (\fun (k: I) => Kronecker.delta j k) i);
+  \fun (b: Basis)(i, j: I) => either!{{(Classical.excludedMiddle (\In[I] (Sums.keys b.indices) j))} {coordinates b (b.vectors i) j = Kronecker.delta j i}
+    {\fun (member: _) => trans!{K} _ _ _
+      (sym!{K} _ _ (Single.extract b.indices b.distinct j member (\fun (k: I) => coordinates b (b.vectors i) k)))
+      (b.dualReconstruction (\fun (k: I) => Kronecker.delta j k) i)}
+    {\fun (absent: _) => trivialEquality (omittedTrivial b j absent) _ _}
+  };
+\definition extract: \forall (b: Basis)(i: I)(x: Coordinates.Vector) ->
+  Sums.sum b.indices (\fun (j: I) => mul (Kronecker.delta i j) (x j)) = x i :=
+  \fun (b: Basis)(i: I)(x: Coordinates.Vector) => trans!{K} _ _ _
+    (SumLaws.congruent b.indices (\fun (j: I) => mul (Kronecker.delta i j) (x j))
+      (\fun (j: I) => mul (x j) (coordinates b (b.vectors i) j))
+      (\fun (j: I) => trans!{K} _ _ _ (mulComm (Kronecker.delta i j) (x j))
+        (congr!{K K} (mul (x j)) _ _ (trans!{K} _ _ _ (Kronecker.symmetric i j) (sym!{K} _ _ (biorthogonal b i j))))))
+    (b.dualReconstruction x i);

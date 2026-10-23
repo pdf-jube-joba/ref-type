@@ -1,0 +1,44 @@
+\import \parent.Expansion[] \as Expanded;
+\import \parent.RowTerms[] \as Terms;
+\import \parent.\parent.TensorSum[n := n] \as TuplesSum;
+\import \parent.Operations[] \as Operations;
+\definition regular: Multilinear.Laws[n, determinant] := Multilinear.Laws[n, determinant] {
+  addition := \fun (A: Matrix)(i: Index)(v, w: Vector) => eq_reason_in!{K _
+    "=" { TuplesSum.sum n (\fun (p: Index -> Index) => Terms.term p (Multilinear.update n A i (Vectors.plus v w))) } "by" { sym!{K} _ _ (Expanded.determinantExpansion (Multilinear.update n A i (Vectors.plus v w))) }
+    "=" { TuplesSum.sum n (\fun (p: Index -> Index) => add (Terms.term p (Multilinear.update n A i v)) (Terms.term p (Multilinear.update n A i w))) } "by" {
+      TuplesSum.congruent n
+        (\fun (p: Index -> Index) => Terms.term p (Multilinear.update n A i (Vectors.plus v w)))
+        (\fun (p: Index -> Index) => add (Terms.term p (Multilinear.update n A i v)) (Terms.term p (Multilinear.update n A i w)))
+        (\fun (p: Index -> Index) => (Terms.regular p).addition A i v w) }
+    "=" _ "by" { TuplesSum.additive n (\fun (p: Index -> Index) => Terms.term p (Multilinear.update n A i v)) (\fun (p: Index -> Index) => Terms.term p (Multilinear.update n A i w)) }
+    "=" _ "by" { congr!{K K K} add _ _ _ _ (Expanded.determinantExpansion (Multilinear.update n A i v)) (Expanded.determinantExpansion (Multilinear.update n A i w)) }
+  },
+  scalar := \fun (A: Matrix)(i: Index)(a: K)(v: Vector) => eq_reason_in!{K _
+    "=" { TuplesSum.sum n (\fun (p: Index -> Index) => Terms.term p (Multilinear.update n A i (Vectors.scale a v))) } "by" { sym!{K} _ _ (Expanded.determinantExpansion (Multilinear.update n A i (Vectors.scale a v))) }
+    "=" { TuplesSum.sum n (\fun (p: Index -> Index) => mul a (Terms.term p (Multilinear.update n A i v))) } "by" {
+      TuplesSum.congruent n
+        (\fun (p: Index -> Index) => Terms.term p (Multilinear.update n A i (Vectors.scale a v)))
+        (\fun (p: Index -> Index) => mul a (Terms.term p (Multilinear.update n A i v)))
+        (\fun (p: Index -> Index) => (Terms.regular p).scalar A i a v) }
+    "=" _ "by" { TuplesSum.scalar n a (\fun (p: Index -> Index) => Terms.term p (Multilinear.update n A i v)) }
+    "=" _ "by" { congr!{K K} (mul a) _ _ (Expanded.determinantExpansion (Multilinear.update n A i v)) }
+  },
+};
+\definition projection[i, j: Index]: Matrix := Multilinear.update n identity i (identity j);
+\module Projection(i, j: Index);
+\definition repeated: \forall (A: Matrix)(i, j: Index) -> Logic.Not (i = j) -> A i = A j -> determinant A = zero :=
+  \fun (A: Matrix)(i, j: Index)(different: _)(same: _) => eq_reason_in!{K _
+    "=" { determinant (product (projection i j) A) } "by" { congr!{Matrix K} determinant _ _ (sym!{Matrix} _ _ (Projection[i := i, j := j].acts A same)) }
+    "=" { mul (determinant (projection i j)) (determinant A) } "by" { multiplicative (projection i j) A }
+    "=" { mul zero (determinant A) } "by" { congr!{K K} (\fun (a: K) => mul a (determinant A)) _ _ (Projection[i := i, j := j].singular different) }
+    "=" zero "by" { Algebra.mulZeroLeft (determinant A) }
+  };
+\definition form: Alternating.Form n := \into[Multilinear.Function n](determinant, Alternating.Form n) \by {
+  Alternating.AlternatingLaws[n, determinant] { linear := regular, alternating := repeated }
+};
+\definition normalized: form Top.basisArguments = one := trans!{K} _ _ _
+  (congr!{Matrix K} determinant _ _ (Operations.ext Top.basisArguments identity (\fun (i, j: Index) => Kronecker.symmetric i j))) atIdentity;
+\definition agrees: form = Top.volume := Top.ext form Top.volume (trans!{K} _ _ _ normalized (sym!{K} _ _ Top.normalized));
+\definition transposeInvariant: \forall (A: Matrix) -> determinant (transpose A) = determinant A :=
+  \fun (A: Matrix) => trans!{K} _ _ _ (congr!{{Multilinear.Arguments n} K} Top.volume _ _ (transposeTwice A))
+    (congr!{{Alternating.Form n} K} (\fun (f: Alternating.Form n) => f A) _ _ (sym!{{Alternating.Form n}} _ _ agrees));
