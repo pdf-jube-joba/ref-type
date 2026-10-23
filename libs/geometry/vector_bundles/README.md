@@ -65,6 +65,7 @@
 ```sh
 cargo build -p cli --locked
 target/debug/cli libs/geometry/vector_bundles --memory-mib 8192 --cache-stats
+target/debug/cli libs --module vector_bundles --memory-mib 8192 --cache-stats
 target/debug/cli libs --memory-mib 8192 --cache-stats
 ```
 
@@ -74,3 +75,8 @@ target/debug/cli libs --memory-mib 8192 --cache-stats
 対象と全依存の通常検査は最終ソースの38 module・548ソース検査ステップを検査し、依存1,380 module を再利用して成功した。
 最大 RSS は約1,033 MiB、worker は1、復旧・重複・再実行・失われたステップ・キャッシュ保存失敗はすべて0であった。
 先行する依存閉包の検査でも11,963ソース検査ステップを検査して成功している。
+
+共通の位相構成の変更を含む workspace 全体の検査も、69 package・6,976 module で成功した。
+初回全体検査では73,864ソース検査ステップの後、終了処理中に worker が一度 checkpoint から再開し、checkpoint 未保存の4,739ステップが記録されたが、確定済みの全6,976 module のキャッシュを再検査して全範囲が受理された。
+コミット済みソースの対象と全依存の通常検査は、1,418 module を再利用し、ソース再検査0ステップで成功した。
+workspace からの `--module vector_bundles` も38 module・548ステップの再検査と411 module の再利用で成功し、これら最終検査の復旧・重複・再実行・失われたステップ・キャッシュ保存失敗はすべて0であった。
