@@ -34,3 +34,21 @@
   };
   \definition PositiveDefinite: \Prop := Positive form;
 }
+\module OfForm(h: Form) {
+  \import Inner.Of[h := h].Matrix[k := n, map := Eigen.identity] \as Metric;
+  \definition matrix: Hermitian := \into[Carrier](Representation.entries Metric.coordinates, Hermitian) \by {
+    MatrixLaws.ext (adjoint (Representation.entries Metric.coordinates)) (Representation.entries Metric.coordinates)
+      (\fun (i, j: Fin.Fin n) => sym!{K} (h.dot (E.basis i) (E.basis j)) (conjugate (h.dot (E.basis j) (E.basis i))) (h.symmetric (E.basis i) (E.basis j)))
+  };
+  \definition representation: \forall (v, w: Vector) -> h.dot v w = \parent.Of[A := matrix].form.dot v w :=
+    \fun (v, w: Vector) => trans!{K} _ _ _ (Metric.adjoint v w)
+      (congr!{Map K} (\fun (f: Map) => dot v (f.apply w)) _ _ (sym!{Map} _ _ (Representation.linearEntries Metric.coordinates)));
+  \definition positive: Positive h -> \parent.Of[A := matrix].PositiveDefinite := \fun (positive: Positive h) => Inner.Positive[\parent.Of[A := matrix].form] {
+    nonnegative := \fun (v: Vector) => dedekind_reals.DedekindReal[].leReplaceRight R.zero _ _
+      (congr!{K {R.Real}} scalar.realPart _ _ (representation v v)) (positive.nonnegative v),
+    definite := \fun (v: Vector)(zero: _) => positive.definite v (trans!{K} _ _ _ (representation v v) zero),
+  };
+}
+\definition identity: Hermitian := OfForm[h := E.form].matrix;
+\definition identityEntries: identity = Matrix.identity := MatrixLaws.ext identity Matrix.identity (\fun (i, j: Fin.Fin n) => E.dotBasis i (E.basis j));
+\definition identityPositive: Of[A := identity].PositiveDefinite := OfForm[h := E.form].positive E.positive;

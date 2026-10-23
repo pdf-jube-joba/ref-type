@@ -19,7 +19,7 @@
 | module | 公開する内容 |
 | --- | --- |
 | `At.Matrices` | 共役転置 `adjoint`、二重随伴、`Hermitian` 行列と線形写像の自己随伴性の比較 |
-| `At.Matrices.Of` | Hermitian 行列が定める形式と `PositiveDefinite` |
+| `At.Matrices.Of` / `OfForm` | Hermitian 行列と形式の往復、正定値性の移送、単位行列の正定値性 |
 | `At.Forms.Gram` | 任意の正定値形式での `Factorization` とその存在 |
 | `At.Forms.Families` | 固定した形式について、任意の底空間上の連続な単射行列族の連続な正規直交化 |
 | `At.Forms.Families.Normalize` | 正値ノルムを持つ連続ベクトル族の正規化の連続性 |
