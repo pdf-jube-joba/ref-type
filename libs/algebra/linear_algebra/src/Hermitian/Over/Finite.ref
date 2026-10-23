@@ -1,0 +1,82 @@
+\import Spaces.Coordinates[I := Fin.Fin n] \as Coordinates;
+\import Spaces.FiniteCoordinates[n := n] \as Basis;
+\import Coordinates.Kronecker[] \as Delta;
+\import \parent.Sums[] \as Sums;
+\import \parent.Inner[V := Coordinates.Vector, space := Coordinates.space] \as Inner;
+\definition Vector: \Set := Coordinates.Vector;
+\definition space: Spaces.VectorSpace Vector := Coordinates.space;
+\definition dot[x, y: Vector]: K := Sums.sum n (\fun (i: Fin.Fin n) => Spaces.mul (conj (x i)) (y i));
+\definition symmetric: \forall (x, y: Vector) -> dot x y = conj (dot y x) := \block {
+  \fun (x, y: Vector) \then
+  \let f: Fin.Fin n -> K := \fun (i: Fin.Fin n) => Spaces.mul (conj (y i)) (x i) \then
+  \return trans!{K} (dot x y) (Sums.sum n (\fun (i: Fin.Fin n) => conj (f i))) (conj (dot y x))
+    (Sums.congruent n (\fun (i: Fin.Fin n) => Spaces.mul (conj (x i)) (y i))
+      (\fun (i: Fin.Fin n) => conj (f i)) (\fun (i: Fin.Fin n) => conjugateSwap (x i) (y i)))
+    (sym!{K} (conj (dot y x)) (Sums.sum n (\fun (i: Fin.Fin n) => conj (f i))) (Sums.conjugate n f))
+};
+\definition zeroRight: \forall (v: Vector) -> dot v space.zero = Spaces.zero :=
+  \fun (v: Vector) => trans!{K} (dot v space.zero) (Sums.sum n (\fun (i: Fin.Fin n) => Spaces.zero)) Spaces.zero
+    (Sums.congruent n (\fun (i: Fin.Fin n) => Spaces.mul (conj (v i)) Spaces.zero)
+      (\fun (i: Fin.Fin n) => Spaces.zero) (\fun (i: Fin.Fin n) => Spaces.mulZeroRight (conj (v i)))) (Sums.zeroSum n);
+\definition addRight: \forall (v, w, z: Vector) -> dot v (space.add w z) = Spaces.add (dot v w) (dot v z) :=
+  \fun (v, w, z: Vector) => trans!{K} (dot v (space.add w z))
+    (Sums.sum n (\fun (i: Fin.Fin n) => Spaces.add (Spaces.mul (conj (v i)) (w i)) (Spaces.mul (conj (v i)) (z i)))) (Spaces.add (dot v w) (dot v z))
+    (Sums.congruent n (\fun (i: Fin.Fin n) => Spaces.mul (conj (v i)) (Spaces.add (w i) (z i)))
+      (\fun (i: Fin.Fin n) => Spaces.add (Spaces.mul (conj (v i)) (w i)) (Spaces.mul (conj (v i)) (z i)))
+      (\fun (i: Fin.Fin n) => Spaces.mulAdd (conj (v i)) (w i) (z i)))
+    (Sums.addition n (\fun (i: Fin.Fin n) => Spaces.mul (conj (v i)) (w i)) (\fun (i: Fin.Fin n) => Spaces.mul (conj (v i)) (z i)));
+\definition scaleRight: \forall (a: K)(v, w: Vector) -> dot v (space.smul a w) = Spaces.mul a (dot v w) :=
+  \fun (a: K)(v, w: Vector) => trans!{K} (dot v (space.smul a w))
+    (Sums.sum n (\fun (i: Fin.Fin n) => Spaces.mul a (Spaces.mul (conj (v i)) (w i)))) (Spaces.mul a (dot v w))
+    (Sums.congruent n (\fun (i: Fin.Fin n) => Spaces.mul (conj (v i)) (Spaces.mul a (w i)))
+      (\fun (i: Fin.Fin n) => Spaces.mul a (Spaces.mul (conj (v i)) (w i)))
+      (\fun (i: Fin.Fin n) => ScalarLaws.scaleComm (conj (v i)) a (w i)))
+    (Sums.scaleSum n a (\fun (i: Fin.Fin n) => Spaces.mul (conj (v i)) (w i)));
+\definition form: Inner.Form := Inner.Form {
+  dot := dot, symmetric := symmetric, zeroRight := zeroRight, addRight := addRight, scaleRight := scaleRight,
+};
+\import Inner.Of[h := form] \as Laws;
+\definition squared[v: Vector]: R.Real := R.FiniteSums[].sum n (\fun (i: Fin.Fin n) => re (Spaces.mul (conj (v i)) (v i)));
+\definition selfReal: \forall (v: Vector) -> dot v v = embed (squared v) := \fun (v: Vector) =>
+  trans!{K} (dot v v) (Sums.sum n (\fun (i: Fin.Fin n) => embed (re (Spaces.mul (conj (v i)) (v i))))) (embed (squared v))
+    (Sums.congruent n (\fun (i: Fin.Fin n) => Spaces.mul (conj (v i)) (v i))
+      (\fun (i: Fin.Fin n) => embed (re (Spaces.mul (conj (v i)) (v i)))) (\fun (i: Fin.Fin n) => selfProductReal (v i)))
+    (Sums.embedding n (\fun (i: Fin.Fin n) => re (Spaces.mul (conj (v i)) (v i))));
+\definition squaredFormula: \forall (v: Vector) -> Laws.squared v = squared v :=
+  \fun (v: Vector) => trans!{R.Real} _ _ _ (congr!{K R.Real} re _ _ (selfReal v)) (scalar.realEmbed (squared v));
+\definition nonnegative: \forall (v: Vector) -> Order.Le R.zero (squared v) := \fun (v: Vector) =>
+  R.FiniteSums[].nonnegative n _ (\fun (i: Fin.Fin n) => scalar.scalarNonnegative (v i));
+\definition separated: \forall (v: Vector) -> squared v = R.zero -> v = space.zero :=
+  \fun (v: Vector)(zero: _) => \axiom:funext(v, space.zero, \fun (i: Fin.Fin n) => scalar.scalarDefinite (v i)
+    (Order.leAntisym _ _
+      (Order.leReplaceRight _ _ R.zero zero (R.FiniteSums[].coordinateUpper n _ (\fun (j: Fin.Fin n) => scalar.scalarNonnegative (v j)) i))
+      (scalar.scalarNonnegative (v i))));
+\definition positive: Inner.Positive[form] := Inner.Positive[form] {
+  nonnegative := \fun (v: Vector) => Order.leReplaceRight R.zero _ _ (sym!{R.Real} _ _ (squaredFormula v)) (nonnegative v),
+  definite := \fun (v: Vector)(zero: _) => separated v (trans!{R.Real} _ _ _
+    (sym!{R.Real} _ _ (squaredFormula v)) (trans!{R.Real} _ _ _ (congr!{K R.Real} re _ _ zero) reZero)),
+};
+\definition basis: Fin.Fin n -> Vector := Basis.vectors;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition conjugateBasis: \forall (i, j: Fin.Fin n) -> conj (basis i j) = basis i j :=
+  \fun (i, j: Fin.Fin n) => either!{{(Classical.excludedMiddle (i = j))} {conj (basis i j) = basis i j}
+    {\fun (same: _) => trans!{K} _ _ _ (congr!{K K} conj _ _ (Delta.equal i j same))
+      (trans!{K} _ _ _ conjugateOne (sym!{K} _ _ (Delta.equal i j same)))}
+    {\fun (different: _) => trans!{K} _ _ _ (congr!{K K} conj _ _ (Delta.different i j different))
+      (trans!{K} _ _ _ conjugateZero (sym!{K} _ _ (Delta.different i j different)))}
+  };
+\definition dotBasis: \forall (i: Fin.Fin n)(v: Vector) -> dot (basis i) v = v i := \block {
+  \fun (i: Fin.Fin n)(v: Vector) \then
+  \let f: Fin.Fin n -> K := \fun (j: Fin.Fin n) => Spaces.mul (v j) (basis i j) \then
+  \return trans!{K} (dot (basis i) v) (Sums.sum n f) (v i)
+    (Sums.congruent n (\fun (j: Fin.Fin n) => Spaces.mul (conj (basis i j)) (v j)) f
+      (\fun (j: Fin.Fin n) => trans!{K} (Spaces.mul (conj (basis i j)) (v j)) (Spaces.mul (basis i j) (v j)) (f j)
+        (congr!{K K} (\fun (a: K) => Spaces.mul a (v j)) (conj (basis i j)) (basis i j) (conjugateBasis i j))
+        (Spaces.mulComm (basis i j) (v j))))
+    (trans!{K} (Sums.sum n f) (Spaces.FiniteCoordinateEnumeration[].sum n f) (v i)
+      (sym!{K} (Spaces.FiniteCoordinateEnumeration[].sum n f) (Sums.sum n f) (Sums.enumeration n f)) (Basis.dualReconstruction v i))
+};
+\import Spaces.Laws[V := Vector, space := space] \as VectorLaws;
+\module Successor;
+\module Blocks(m: N.Nat^);

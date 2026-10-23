@@ -1,0 +1,24 @@
+\import Geometry.Finite[n := k] \as Domain;
+\import \parent.Matrix[m := k] \as Matrices;
+\module Point(x: X) {
+  \import InnerLaws.Gram[k := k].Of[A := A x, factor := factors.value x] \as Gram;
+  \definition projection: Projection := Projection { map := Gram.projection, selfAdjoint := Gram.selfAdjoint, idempotent := Gram.idempotent };
+  \definition basis: \parent.\parent.\parent.OnProjection[P := projection].Rank[k := k].Basis :=
+    \parent.\parent.\parent.OnProjection[P := projection].Rank[k := k].Basis {
+      value := (factors.value x).frame, coordinate := Gram.coordinates, leftInverse := Gram.leftInverse,
+      reconstruction := \fun (v: Vector) => \refl(Gram.projection.apply v),
+    };
+}
+\definition projection[x: X]: Projection := Point[x := x].projection;
+\definition coordinatesContinuous: \forall (w: Vector)(i: Fin.Fin k) -> Functions.Continuous source
+  (\fun (x: X) => InnerLaws.Gram[k := k].Of[A := A x, factor := factors.value x].coordinates.apply w i) :=
+  \fun (w: Vector)(i: Fin.Fin k) => dotContinuous source
+    (\fun (x: X) => (factors.value x).frame.apply (Domain.basis i)) (\fun (x: X) => w)
+    (factors.frame (Domain.basis i)) (constant source w);
+\definition regular: \parent.Matrix[m := n].Regular source (\fun (x: X) => (projection x).map) :=
+  \fun (w: Vector) => Matrices.evaluate source (\fun (x: X) => (factors.value x).frame)
+    (\fun (x: X) => InnerLaws.Gram[k := k].Of[A := A x, factor := factors.value x].coordinates.apply w)
+    (\fun (i: Fin.Fin k) => factors.frame (Domain.basis i)) (coordinatesContinuous w);
+\import \parent.ProjectionFrames[k := k, source := source, P := projection] \as Local;
+\definition rank: Local.HasRank := \fun (x: X) => \exact(Point[x := x].basis, \parent.\parent.OnProjection[P := projection x].Rank[k := k].Basis);
+\definition local: \forall (a: X) -> \exists Local.Local[a] := Local.exists regular rank;

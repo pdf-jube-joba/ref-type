@@ -1,0 +1,37 @@
+\import \parent.\parent.\parent.Finite[n := k] \as Source;
+\import Spaces.Linear[V := V, W := Source.Vector, source := space, target := Source.space] \as Backward;
+\import Spaces.Linear[V := Source.Vector, W := K, source := Source.space, target := Spaces.scalarSpace] \as Rows;
+\import Spaces.Finite[V := Source.Vector, I := Fin.Fin k, space := Source.space].Prop[] \as BasisLaws;
+\import Spaces.FiniteCoordinates[n := k] \as Basis;
+\import \parent.\parent.\parent.Sums[] \as Sums;
+\definition coordinates: Backward.Map := Backward.Map {
+  apply := \fun (w: V)(i: Fin.Fin k) => h.dot (map.apply (Source.basis i)) w,
+  preservesAdd := \fun (v, w: V) => \axiom:funext((\fun (i: Fin.Fin k) => h.dot (map.apply (Source.basis i)) (space.add v w)), (\fun (i: Fin.Fin k) => Spaces.add (h.dot (map.apply (Source.basis i)) v) (h.dot (map.apply (Source.basis i)) w)), \fun (i: Fin.Fin k) => h.addRight (map.apply (Source.basis i)) v w),
+  preservesScale := \fun (a: K)(v: V) => \axiom:funext((\fun (i: Fin.Fin k) => h.dot (map.apply (Source.basis i)) (space.smul a v)), (\fun (i: Fin.Fin k) => Spaces.mul a (h.dot (map.apply (Source.basis i)) v)), \fun (i: Fin.Fin k) => h.scaleRight a (map.apply (Source.basis i)) v),
+};
+\module Adjoint(v: Source.Vector, w: V) {
+  \definition row: Rows.Map := Rows.Map {
+    apply := \fun (x: Source.Vector) => h.dot w (map.apply x),
+    preservesAdd := \fun (x, y: Source.Vector) => trans!{K} _ _ _
+      (congr!{V K} (h.dot w) _ _ (map.preservesAdd x y)) (h.addRight w _ _),
+    preservesScale := \fun (a: K)(x: Source.Vector) => trans!{K} _ _ _
+      (congr!{V K} (h.dot w) _ _ (map.preservesScale a x)) (h.scaleRight a w _),
+  };
+  \definition f: Fin.Fin k -> K := \fun (i: Fin.Fin k) => Spaces.mul (v i) (h.dot w (map.apply (Source.basis i)));
+  \definition g: Fin.Fin k -> K := \fun (i: Fin.Fin k) => Spaces.mul (conj (v i)) (h.dot (map.apply (Source.basis i)) w);
+  \definition component: \forall (i: Fin.Fin k) -> conj (f i) = g i := \fun (i: Fin.Fin k) =>
+    trans!{K} (conj (f i)) (Spaces.mul (conj (v i)) (conj (h.dot w (map.apply (Source.basis i))))) (g i)
+      (scalar.conjugateMul (v i) (h.dot w (map.apply (Source.basis i))))
+      (congr!{K K} (Spaces.mul (conj (v i))) (conj (h.dot w (map.apply (Source.basis i))))
+        (h.dot (map.apply (Source.basis i)) w) (sym!{K} _ _ (h.symmetric (map.apply (Source.basis i)) w)));
+  \definition law: h.dot (map.apply v) w = Source.dot v (coordinates.apply w) := eq_reason_in!{K {h.dot (map.apply v) w}
+    "=" {conj (row.apply v)} "by" { h.symmetric (map.apply v) w }
+    "=" {conj (Sums.sum k f)} "by" { congr!{K K} conj (row.apply v) (Sums.sum k f)
+      (trans!{K} (row.apply v) (Spaces.FiniteCoordinateEnumeration[].sum k f) (Sums.sum k f)
+        (BasisLaws.functionalExpansion Basis.basis row v) (Sums.enumeration k f)) }
+    "=" {Sums.sum k (\fun (i: Fin.Fin k) => conj (f i))} "by" { Sums.conjugate k f }
+    "=" {Sums.sum k g} "by" { Sums.congruent k (\fun (i: Fin.Fin k) => conj (f i)) g component }
+  };
+}
+\definition adjoint: \forall (v: Source.Vector)(w: V) -> h.dot (map.apply v) w = Source.dot v (coordinates.apply w) :=
+  \fun (v: Source.Vector)(w: V) => Adjoint[v := v, w := w].law;

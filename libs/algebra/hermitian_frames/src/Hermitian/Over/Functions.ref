@@ -1,0 +1,45 @@
+\import topology.Topology[Carrier := X] \as Source;
+\import topology.Continuity[A := X, B := K] \as Maps;
+\import topology.Maps[A := X, B := K] \as Constants;
+\import topological_algebra.Topology[K := K].Functions[A := X] \as Operations;
+\import topology.Composition[A := X, B := K, C := K] \as Compose;
+\import topology.Composition[A := X, B := K, C := R.Real] \as RealCompose;
+\import topology.Composition[A := X, B := R.Real, C := K] \as EmbedCompose;
+\definition Continuous[source: Source.Topology][f: X -> K]: \Prop := Maps.Continuous source topological.space f;
+\definition RealContinuous[source: Source.Topology][f: X -> R.Real]: \Prop := metric_spaces.RealFunctions[A := X].Continuous source f;
+\definition transport: \forall (source: Source.Topology)(f, g: X -> K) -> (\forall (x: X) -> f x = g x) -> Continuous source f -> Continuous source g :=
+  \fun (source: Source.Topology)(f, g: X -> K)(same: _)(continuous: _) =>
+    \idelim f = g \with h: (X -> K) => Continuous source h \by { base: continuous, equality: \axiom:funext(f, g, same) };
+\definition constant: \forall (source: Source.Topology)(a: K) -> Continuous source (\fun (x: X) => a) :=
+  \fun (source: Source.Topology)(a: K) => Constants.constantContinuous source topological.space a;
+\definition addition: \forall (source: Source.Topology)(f, g: X -> K) -> Continuous source f -> Continuous source g -> Continuous source (\fun (x: X) => Spaces.add (f x) (g x)) :=
+  \fun (source: Source.Topology)(f, g: X -> K) => Operations.ringAdditionContinuous source topological.space (Fields.fieldAsCommutativeRing K field) topological.ring f g;
+\definition multiplication: \forall (source: Source.Topology)(f, g: X -> K) -> Continuous source f -> Continuous source g -> Continuous source (\fun (x: X) => Spaces.mul (f x) (g x)) :=
+  \fun (source: Source.Topology)(f, g: X -> K) => Operations.multiplicationContinuous source topological.space (Fields.fieldAsCommutativeRing K field) topological.ring f g;
+\definition negation: \forall (source: Source.Topology)(f: X -> K) -> Continuous source f -> Continuous source (\fun (x: X) => Spaces.neg (f x)) :=
+  \fun (source: Source.Topology)(f: X -> K) => Operations.ringNegationContinuous source topological.space (Fields.fieldAsCommutativeRing K field) topological.ring f;
+\definition conjugation: \forall (source: Source.Topology)(f: X -> K) -> Continuous source f -> Continuous source (\fun (x: X) => conjugate (f x)) :=
+  \fun (source: Source.Topology)(f: X -> K)(continuous: _) => Compose.composeContinuous source topological.space topological.space f conjugate continuous topological.conjugate;
+\definition realPart: \forall (source: Source.Topology)(f: X -> K) -> Continuous source f -> RealContinuous source (\fun (x: X) => scalar.realPart (f x)) :=
+  \fun (source: Source.Topology)(f: X -> K)(continuous: _) => RealCompose.composeContinuous source topological.space Line.topology f scalar.realPart continuous topological.realPart;
+\definition embedding: \forall (source: Source.Topology)(f: X -> R.Real) -> RealContinuous source f -> Continuous source (\fun (x: X) => embed (f x)) :=
+  \fun (source: Source.Topology)(f: X -> R.Real)(continuous: _) => EmbedCompose.composeContinuous source Line.topology topological.space f embed continuous topological.embed;
+\definition finiteSum: \forall (n: N.Nat^)(source: Source.Topology)(f: Fin.Fin n -> X -> K) -> (\forall (i: Fin.Fin n) -> Continuous source (f i)) -> Continuous source (\fun (x: X) => Sums.sum n (\fun (i: Fin.Fin n) => f i x)) :=
+  \induction (n: N.Nat^) \return \forall (source: Source.Topology)(f: Fin.Fin n -> X -> K) -> (\forall (i: Fin.Fin n) -> Continuous source (f i)) -> Continuous source (\fun (x: X) => Sums.sum n (\fun (i: Fin.Fin n) => f i x)) \with {
+    | zero: \fun (source: Source.Topology)(f: _)(continuous: _) => constant source Spaces.zero
+    | succ: \fun (n: N.Nat^)(previous: _)(source: Source.Topology)(f: _)(continuous: _) => addition source (f (Fin.zero n))
+      (\fun (x: X) => Sums.sum n (\fun (i: Fin.Fin n) => f (Fin.succ n i) x))
+      (continuous (Fin.zero n)) (previous source (\fun (i: Fin.Fin n) => f (Fin.succ n i)) (\fun (i: Fin.Fin n) => continuous (Fin.succ n i)))
+  };
+
+\import \parent.\parent.Nonzero[K := K, field := field] \as Nonzero;
+\import topology.Continuity[A := X, B := K].Corestriction[S := Nonzero.points] \as IntoNonzero;
+\import topology.Composition[A := X, B := Nonzero.Carrier, C := K] \as InvertCompose;
+\definition inversion: \forall (source: Source.Topology)(f: X -> K) -> Continuous source f ->
+  (\forall (x: X) -> Logic.Not (f x = field.zero)) -> Continuous source (\fun (x: X) => field.inv (f x)) := \block {
+  \fun (source: Source.Topology)(f: X -> K)(continuous: Continuous source f)(nonzero: _) \then
+  \let value: X -> Nonzero.Carrier := \fun (x: X) => \into[K](f x, Nonzero.Carrier) \by { nonzero x } \then
+  \return InvertCompose.composeContinuous source (Nonzero.topology topological.space) topological.space value
+    (\fun (x: Nonzero.Carrier) => field.inv x)
+    (IntoNonzero.corestrictContinuous source topological.space value continuous) topological.inversion
+};

@@ -1,0 +1,37 @@
+\import \root.Commutative[K := K, scalarRing := Fields.fieldAsCommutativeRing K field] \as Spaces;
+\import Spaces.Sign[] \as Sign;
+\import Spaces.Laws[V := K, space := Spaces.scalarSpace] \as ScalarLaws;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\definition conj: K -> K := scalar.conjugate;
+\definition embed: R.Real -> K := scalar.embed;
+\definition re: K -> R.Real := scalar.realPart;
+\definition conjugateZero: conj Spaces.zero = Spaces.zero := trans!{K} _ _ _
+  (congr!{K K} conj _ _ (sym!{K} _ _ scalar.embedZero))
+  (trans!{K} _ _ _ (scalar.conjugateReal R.zero) scalar.embedZero);
+\definition conjugateOne: conj Spaces.one = Spaces.one := trans!{K} _ _ _
+  (congr!{K K} conj _ _ (sym!{K} _ _ scalar.embedOne))
+  (trans!{K} _ _ _ (scalar.conjugateReal R.one) scalar.embedOne);
+\definition embedInjective: \forall (a, b: R.Real) -> embed a = embed b -> a = b :=
+  \fun (a, b: R.Real)(same: _) => eq_reason_in!{R.Real _
+    "=" _ "by" { sym!{R.Real} _ _ (scalar.realEmbed a) }
+    "=" _ "by" { congr!{K R.Real} re _ _ same }
+    "=" _ "by" { scalar.realEmbed b }
+  };
+\definition reZero: re Spaces.zero = R.zero := trans!{R.Real} _ _ _
+  (congr!{K R.Real} re _ _ (sym!{K} _ _ scalar.embedZero)) (scalar.realEmbed R.zero);
+\definition conjugateSwap: \forall (a, b: K) -> Spaces.mul (conj a) b = conj (Spaces.mul (conj b) a) :=
+  \fun (a, b: K) => trans!{K} (Spaces.mul (conj a) b) (Spaces.mul b (conj a)) (conj (Spaces.mul (conj b) a))
+    (Spaces.mulComm (conj a) b)
+    (trans!{K} (Spaces.mul b (conj a)) (Spaces.mul (conj (conj b)) (conj a)) (conj (Spaces.mul (conj b) a))
+      (congr!{K K} (\fun (c: K) => Spaces.mul c (conj a)) b (conj (conj b)) (sym!{K} (conj (conj b)) b (scalar.involution b)))
+      (sym!{K} (conj (Spaces.mul (conj b) a)) (Spaces.mul (conj (conj b)) (conj a)) (scalar.conjugateMul (conj b) a)));
+\definition selfProductReal: \forall (a: K) -> Spaces.mul (conj a) a = embed (re (Spaces.mul (conj a) a)) :=
+  \fun (a: K) => scalar.fixedReal (Spaces.mul (conj a) a)
+    (trans!{K} (conj (Spaces.mul (conj a) a)) (Spaces.mul (conj (conj a)) (conj a)) (Spaces.mul (conj a) a)
+      (scalar.conjugateMul (conj a) a)
+      (trans!{K} (Spaces.mul (conj (conj a)) (conj a)) (Spaces.mul a (conj a)) (Spaces.mul (conj a) a)
+        (congr!{K K} (\fun (b: K) => Spaces.mul b (conj a)) (conj (conj a)) a (scalar.involution a)) (Spaces.mulComm a (conj a))));
+\module Inner(V: \Set, space: Spaces.VectorSpace V);
+\module Sums;
+\module Finite(n: N.Nat^);

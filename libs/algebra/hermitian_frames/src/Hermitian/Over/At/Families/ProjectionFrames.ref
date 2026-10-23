@@ -1,0 +1,27 @@
+\import \parent.Matrix[m := n] \as EndFamilies;
+\import Geometry.Finite[n := k] \as Domain;
+\import Spaces.Linear[V := Domain.Vector, W := Vector, source := Domain.space, target := E.space] \as Forward;
+\import Spaces.Linear[V := Vector, W := Domain.Vector, source := E.space, target := Domain.space] \as Backward;
+\import \parent.\parent.\parent.At[n := k].Square[] \as Square;
+\import matrix_invariants.Ring[K := K, scalars := Fields.fieldAsCommutativeRing K field].At[n := k] \as Matrices;
+\import matrix_invariants.Field[K := K, field := field].At[n := k] \as Inversion;
+\definition BasisAt[Q: Projection]: \Set := \parent.\parent.OnProjection[P := Q].Rank[k := k].Basis;
+\definition FrameAt[Q: Projection]: \Set := \parent.\parent.OnProjection[P := Q].Rank[k := k].Frame;
+\definition Regular: \Prop := EndFamilies.Regular source (\fun (x: X) => (P x).map);
+\definition HasRank: \Prop := \forall (x: X) -> \exists BasisAt (P x);
+\structure Local[a: X]: \Set := {
+  domain: \Pow X,
+  open: Source.IsOpenIn source domain,
+  contains: \In[X] domain a,
+  value: \forall (x: \Cast[X] domain) -> FrameAt (P x),
+  regular: \parent.\parent.Families[X := \Cast[X] domain].Matrix[m := k].Regular
+    (Source.Subspace[S := domain].topology source) (\fun (x: \Cast[X] domain) => (value x).basis.value),
+  coordinates: \parent.\parent.\parent.At[n := k].Families[X := \Cast[X] domain].Matrix[m := n].Regular
+    (Source.Subspace[S := domain].topology source) (\fun (x: \Cast[X] domain) => (value x).basis.coordinate),
+};
+\module On(a: X, center: BasisAt (P a), regular: Regular, rank: HasRank);
+\definition exists: Regular -> HasRank -> \forall (a: X) -> \exists Local[a] := \block {
+  \fun (regular: Regular)(rank: HasRank)(a: X) \then
+  \takefrom center: BasisAt (P a) \by rank a \then
+  \return On[a := a, center := center, regular := regular, rank := rank].exists
+};

@@ -1,0 +1,20 @@
+\import \parent.\parent.\parent.Matrix[m := k] \as ForwardFamilies;
+\import \parent.\parent.\parent.\parent.\parent.At[n := k].Families[X := X] \as SmallVectors;
+\import SmallVectors.Matrix[m := n] \as BackwardFamilies;
+\import Square.Families[X := X] \as SmallMatrices;
+\definition globalForward: ForwardFamilies.Regular source forward := \fun (v: Domain.Vector) => regular (center.value.apply v);
+\definition globalComparison: \forall (v: Domain.Vector) -> SmallVectors.Continuous source (\fun (x: X) => (comparison x).apply v) :=
+  \fun (v: Domain.Vector) => BackwardFamilies.evaluate source (\fun (x: X) => center.coordinate) (\fun (x: X) => (forward x).apply v)
+    (\fun (j: Fin.Fin n) => SmallVectors.constant source (center.coordinate.apply (E.basis j))) (globalForward v);
+\definition matrixRegular: SmallMatrices.Regular source matrix := \fun (i, j: Fin.Fin k) => globalComparison (Domain.basis j) i;
+\definition open: Source.IsOpenIn source domain := SmallMatrices.nonsingularOpen source matrix matrixRegular;
+\definition contains: \In[X] domain a := \fun (zero: Matrices.determinant (matrix a) = field.zero) => field.nontrivial
+  (eq_reason_in!{K {field.zero}
+    "=" {Matrices.determinant (matrix a)} "by" { sym!{K} _ _ zero }
+    "=" {Matrices.determinant Matrices.identity} "by" { congr!{{Matrices.Matrix} K} Matrices.determinant _ _ centerMatrix }
+    "=" {field.one} "by" { Matrices.atIdentity }
+  });
+\import \parent.\parent.\parent.\parent.Families[X := Carrier].Matrix[m := k] \as LocalMatrices;
+\definition forwardRegular: LocalMatrices.Regular localTopology (\fun (x: Carrier) => forward x) :=
+  \fun (v: Domain.Vector)(i: Fin.Fin n) => topology.Continuity[A := X, B := K].Restriction[S := domain].restrictContinuous
+    source topological.space (\fun (x: X) => (forward x).apply v i) (globalForward v i);

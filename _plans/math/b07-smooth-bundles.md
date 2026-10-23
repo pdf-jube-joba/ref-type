@@ -10,5 +10,5 @@
 ## 依存するタスク
 
 - [B02 束の貼り合わせと線形演算](b02-bundle-operations.md)
-- [L03 Hermitian 行列と連続な局所枠](l03-hermitian-frames.md)
+- [Hermitian 行列と連続な局所枠](../../libs/algebra/hermitian_frames/README.md)
 - [G01 滑らかな bump 関数と従属分割](g01-smooth-partitions.md)

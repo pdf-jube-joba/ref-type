@@ -1,0 +1,60 @@
+\definition column: V := A.apply Split.first;
+\definition firstNonzero: Logic.Not (Split.first = Higher.space.zero) := \fun (same: _) => field.nontrivial
+  (trans!{K} _ _ _ (sym!{K} _ _ (congr!{{Higher.Vector} K} Split.head _ _ same)) Split.firstHead);
+\definition columnNonzero: Logic.Not (column = space.zero) := \fun (same: _) => firstNonzero
+  (injective Split.first Higher.space.zero (trans!{V} _ _ _ same (sym!{V} _ _ A.preservesZero)));
+\import \parent.\parent.\parent.Normalize[v := column, positive := positiveNorm positive column columnNonzero] \as Normalize;
+\definition unit: V := Normalize.value;
+\import \parent.\parent.\parent.Unit[v := unit, norm := Normalize.unitNorm] \as Unit;
+\import HigherMaps.Composition[U := Source.Vector, domain := Source.space] \as Restrict;
+\definition tailMap: Maps.Map := Restrict.compose A Split.embedding;
+\import End.Composition[U := Source.Vector, domain := Source.space] \as Project;
+\definition residual: Maps.Map := Project.compose Unit.residual tailMap;
+\definition joinFormula: \forall (a: K)(v: Source.Vector) -> A.apply (Split.join a v) = space.add (space.smul a column) (tailMap.apply v) :=
+  \fun (a: K)(v: Source.Vector) => eq_reason_in!{V _
+    "=" _ "by" { congr!{{Higher.Vector} V} A.apply _ _ (sym!{{Higher.Vector}} _ _ (Split.decompose (Split.join a v))) }
+    "=" _ "by" { A.preservesAdd _ _ }
+    "=" _ "by" { congr!{V V V} space.add _ _ _ _
+      (trans!{V} _ _ _ (A.preservesScale _ _) (congr!{K V} (\fun (b: K) => space.smul b column) _ _ (Split.joinHead a v)))
+      (congr!{{Source.Vector} V} tailMap.apply _ _ (Split.joinTail a v)) }
+  };
+\definition columnFormula: column = space.smul (embed Normalize.length) unit := sym!{V} _ _ Normalize.recover;
+\import Spaces.Linear[V := Source.Vector, W := K, source := Source.space, target := Spaces.scalarSpace] \as Rows;
+\definition row: Rows.Map := Rows.Map {
+  apply := \fun (v: Source.Vector) => h.dot unit (tailMap.apply v),
+  preservesAdd := \fun (v, w: Source.Vector) => trans!{K} _ _ _
+    (congr!{V K} (h.dot unit) _ _ (tailMap.preservesAdd v w)) (h.addRight unit (tailMap.apply v) (tailMap.apply w)),
+  preservesScale := \fun (a: K)(v: Source.Vector) => trans!{K} _ _ _
+    (congr!{V K} (h.dot unit) _ _ (tailMap.preservesScale a v)) (h.scaleRight a unit (tailMap.apply v)),
+};
+\definition inverseLength: Spaces.mul (embed Normalize.factor) (embed Normalize.length) = Spaces.one :=
+  trans!{K} _ _ _ (sym!{K} _ _ (scalar.embedMul Normalize.factor Normalize.length))
+    (trans!{K} _ _ _ (congr!{R.Real K} embed _ _ Normalize.inverseLength) scalar.embedOne);
+\definition lengthNonzero: Logic.Not (embed Normalize.length = Spaces.zero) := \fun (zero: _) => Normalize.lengthNonzero
+  (embedInjective Normalize.length R.zero (trans!{K} _ _ _ zero (sym!{K} _ _ scalar.embedZero)));
+\definition lift[v: Source.Vector]: Higher.Vector := Split.join (Spaces.neg (Spaces.mul (embed Normalize.factor) (row.apply v))) v;
+\definition cancelFactor: \forall (a: K) -> Spaces.mul (Spaces.neg (Spaces.mul (embed Normalize.factor) a)) (embed Normalize.length) = Spaces.neg a :=
+  \fun (a: K) => eq_reason_in!{K _
+    "=" _ "by" { sym!{K} _ _ (Sign.negativeProduct _ _) }
+    "=" _ "by" { congr!{K K} Spaces.neg _ _ (trans!{K} _ _ _ (Spaces.mulAssoc _ _ _)
+      (trans!{K} _ _ _ (ScalarLaws.scaleComm _ _ _) (trans!{K} _ _ _ (congr!{K K} (Spaces.mul a) _ _ inverseLength) (Spaces.mulOneRight a)))) }
+  };
+\definition liftFormula: \forall (v: Source.Vector) -> A.apply (lift v) = residual.apply v :=
+  \fun (v: Source.Vector) => eq_reason_in!{V _
+    "=" _ "by" { joinFormula _ v }
+    "=" _ "by" { congr!{V V} (\fun (w: V) => space.add w (tailMap.apply v)) _ _ (eq_reason_in!{V _
+      "=" _ "by" { congr!{V V} (space.smul (Spaces.neg (Spaces.mul (embed Normalize.factor) (row.apply v)))) _ _ columnFormula }
+      "=" _ "by" { sym!{V} _ _ (space.scalarAssoc _ _ unit) }
+      "=" _ "by" { congr!{K V} (\fun (a: K) => space.smul a unit) _ _ (cancelFactor (row.apply v)) }
+      "=" _ "by" { negativeScale (row.apply v) unit }
+    }) }
+    "=" _ "by" { Laws.comm _ _ }
+    "=" _ "by" { sym!{V} _ _ (Unit.residualFormula (tailMap.apply v)) }
+  };
+\definition residualInjective: Injective residual := \fun (v, w: Source.Vector)(same: _) => eq_reason_in!{{Source.Vector} _
+  "=" _ "by" { sym!{{Source.Vector}} _ _ (Split.joinTail _ v) }
+  "=" _ "by" { congr!{{Higher.Vector} {Source.Vector}} Split.tail _ _
+    (injective (lift v) (lift w) (trans!{V} _ _ _ (liftFormula v) (trans!{V} _ _ _ same (sym!{V} _ _ (liftFormula w))))) }
+  "=" _ "by" { Split.joinTail _ w }
+};
+\module With(previous: Factorization[residual]);

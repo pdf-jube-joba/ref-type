@@ -1,0 +1,88 @@
+\import E.Blocks[m := m] \as Coordinates;
+\import Geometry.Finite[n := m] \as RightE;
+\import Geometry.Finite[n := Coordinates.dimension] \as TotalE;
+\import \parent.\parent.At[n := m] \as Right;
+\import \parent.\parent.At[n := Coordinates.dimension] \as Total;
+\import Spaces.Linear[V := Total.Vector, W := Total.Vector, source := TotalE.space, target := TotalE.space] \as TotalMaps;
+\import TotalMaps.Composition[U := Total.Vector, domain := TotalE.space] \as TotalCompose;
+\import Spaces.Linear[V := Right.Vector, W := Right.Vector, source := RightE.space, target := RightE.space] \as RightMaps;
+\import RightMaps.Composition[U := Right.Vector, domain := RightE.space] \as RightCompose;
+\definition map[f: Map][g: Right.Map]: Total.Map := Total.Map {
+  apply := \fun (v: Total.Vector) => Coordinates.join (f.apply (Coordinates.left v)) (g.apply (Coordinates.right v)),
+  preservesAdd := \fun (v, w: Total.Vector) => trans!{Total.Vector} _ _ _
+    (congr!{Vector {Right.Vector} {Total.Vector}} Coordinates.join _ _ _ _ (f.preservesAdd (Coordinates.left v) (Coordinates.left w)) (g.preservesAdd (Coordinates.right v) (Coordinates.right w)))
+    (Coordinates.addition (f.apply (Coordinates.left v)) (f.apply (Coordinates.left w)) (g.apply (Coordinates.right v)) (g.apply (Coordinates.right w))),
+  preservesScale := \fun (a: K)(v: Total.Vector) => trans!{Total.Vector} _ _ _
+    (congr!{Vector {Right.Vector} {Total.Vector}} Coordinates.join _ _ _ _ (f.preservesScale a (Coordinates.left v)) (g.preservesScale a (Coordinates.right v)))
+    (Coordinates.scalar a (f.apply (Coordinates.left v)) (g.apply (Coordinates.right v))),
+};
+\definition left: \forall (f: Map)(g: Right.Map)(v: Total.Vector) -> Coordinates.left ((map f g).apply v) = f.apply (Coordinates.left v) :=
+  \fun (f: Map)(g: Right.Map)(v: Total.Vector) => Coordinates.leftJoin _ _;
+\definition right: \forall (f: Map)(g: Right.Map)(v: Total.Vector) -> Coordinates.right ((map f g).apply v) = g.apply (Coordinates.right v) :=
+  \fun (f: Map)(g: Right.Map)(v: Total.Vector) => Coordinates.rightJoin _ _;
+\definition ext: \forall (v, w: Total.Vector) -> Coordinates.left v = Coordinates.left w -> Coordinates.right v = Coordinates.right w -> v = w :=
+  \fun (v, w: Total.Vector)(l: _)(r: _) => trans!{Total.Vector} _ _ _ (sym!{Total.Vector} _ _ (Coordinates.recover v))
+    (trans!{Total.Vector} _ _ _ (congr!{Vector {Right.Vector} {Total.Vector}} Coordinates.join _ _ _ _ l r) (Coordinates.recover w));
+\definition composition: \forall (f, h: Map)(g, k: Right.Map) -> TotalCompose.compose (map f g) (map h k) = map (Compose.compose f h) (RightCompose.compose g k) :=
+  \fun (f, h: Map)(g, k: Right.Map) => TotalMaps.ext _ _ (\axiom:funext((TotalCompose.compose (map f g) (map h k)).apply, (map (Compose.compose f h) (RightCompose.compose g k)).apply,
+    \fun (v: Total.Vector) => congr!{Vector {Right.Vector} {Total.Vector}} Coordinates.join _ _ _ _
+      (congr!{Vector Vector} f.apply _ _ (left h k v)) (congr!{{Right.Vector} {Right.Vector}} g.apply _ _ (right h k v))));
+\definition identity: map Eigen.identity (Spaces.Eigen[V := Right.Vector, space := RightE.space].identity) = Spaces.Eigen[V := Total.Vector, space := TotalE.space].identity :=
+  TotalMaps.ext _ _ (\axiom:funext((map Eigen.identity (Spaces.Eigen[V := Right.Vector, space := RightE.space].identity)).apply, (\fun (v: Total.Vector) => v), Coordinates.recover));
+\definition dotLeft: \forall (f: Map)(g: Right.Map)(v, w: Total.Vector) ->
+  Total.dot ((map f g).apply v) w = Spaces.add (dot (f.apply (Coordinates.left v)) (Coordinates.left w)) (Right.dot (g.apply (Coordinates.right v)) (Coordinates.right w)) :=
+  \fun (f: Map)(g: Right.Map)(v, w: Total.Vector) => trans!{K} _ _ _ (Coordinates.dotSplit ((map f g).apply v) w)
+    (congr!{K K K} Spaces.add _ _ _ _ (congr!{Vector K} (\fun (u: Vector) => dot u (Coordinates.left w)) _ _ (left f g v))
+      (congr!{{Right.Vector} K} (\fun (u: Right.Vector) => Right.dot u (Coordinates.right w)) _ _ (right f g v)));
+\definition dotRight: \forall (f: Map)(g: Right.Map)(v, w: Total.Vector) ->
+  Total.dot v ((map f g).apply w) = Spaces.add (dot (Coordinates.left v) (f.apply (Coordinates.left w))) (Right.dot (Coordinates.right v) (g.apply (Coordinates.right w))) :=
+  \fun (f: Map)(g: Right.Map)(v, w: Total.Vector) => trans!{K} _ _ _ (Coordinates.dotSplit v ((map f g).apply w))
+    (congr!{K K K} Spaces.add _ _ _ _ (congr!{Vector K} (dot (Coordinates.left v)) _ _ (left f g w))
+      (congr!{{Right.Vector} K} (Right.dot (Coordinates.right v)) _ _ (right f g w)));
+\definition projection[P: Projection][Q: Right.Projection]: Total.Projection := Total.Projection {
+  map := map P.map Q.map,
+  selfAdjoint := \fun (v, w: Total.Vector) => trans!{K} _ _ _ (dotLeft P.map Q.map v w)
+    (trans!{K} _ _ _ (congr!{K K K} Spaces.add _ _ _ _ (P.selfAdjoint (Coordinates.left v) (Coordinates.left w)) (Q.selfAdjoint (Coordinates.right v) (Coordinates.right w)))
+      (sym!{K} _ _ (dotRight P.map Q.map v w))),
+  idempotent := \fun (v: Total.Vector) => congr!{Vector {Right.Vector} {Total.Vector}} Coordinates.join _ _ _ _
+    (trans!{Vector} _ _ _ (congr!{Vector Vector} P.map.apply _ _ (left P.map Q.map v)) (P.idempotent (Coordinates.left v)))
+    (trans!{Right.Vector} _ _ _ (congr!{{Right.Vector} {Right.Vector}} Q.map.apply _ _ (right P.map Q.map v)) (Q.idempotent (Coordinates.right v))),
+};
+\definition complement: \forall (P: Projection)(Q: Right.Projection) ->
+  Total.OnProjection[P := projection P Q].complement.map = (projection (\parent.OnProjection[P := P].complement) (Right.OnProjection[P := Q].complement)).map :=
+  \fun (P: Projection)(Q: Right.Projection) => TotalMaps.ext _ _ (\axiom:funext((Total.OnProjection[P := projection P Q].complement).map.apply,
+    (projection (\parent.OnProjection[P := P].complement) (Right.OnProjection[P := Q].complement)).map.apply,
+    \fun (v: Total.Vector) => ext _ _
+      (trans!{Vector} _ _ _ (congr!{Vector Vector} (\fun (w: Vector) => E.space.add (Coordinates.left v) (E.space.neg w)) _ _ (left P.map Q.map v))
+        (sym!{Vector} _ _ (left (\parent.OnProjection[P := P].complement).map (Right.OnProjection[P := Q].complement).map v)))
+      (trans!{Right.Vector} _ _ _ (congr!{{Right.Vector} {Right.Vector}} (\fun (w: Right.Vector) => RightE.space.add (Coordinates.right v) (RightE.space.neg w)) _ _ (right P.map Q.map v))
+        (sym!{Right.Vector} _ _ (right (\parent.OnProjection[P := P].complement).map (Right.OnProjection[P := Q].complement).map v)))));
+\import \parent.Unitary[] \as LeftUnitary;
+\import Right.Unitary[] \as RightUnitary;
+\import Total.Unitary[] \as TotalUnitary;
+\import Spaces.Isomorphism[V := Total.Vector, W := Total.Vector, source := TotalE.space, target := TotalE.space] \as TotalIsomorphisms;
+\definition inverseLaw: \forall (f, F: Map)(g, G: Right.Map) ->
+  (\forall (v: Vector) -> F.apply (f.apply v) = v) -> (\forall (v: Right.Vector) -> G.apply (g.apply v) = v) ->
+  \forall (w: Total.Vector) -> (map F G).apply ((map f g).apply w) = w :=
+  \fun (f, F: Map)(g, G: Right.Map)(first: _)(second: _)(w: Total.Vector) => trans!{Total.Vector} _ _ _
+    (congr!{Vector {Right.Vector} {Total.Vector}} Coordinates.join _ _ _ _
+      (trans!{Vector} _ _ _ (congr!{Vector Vector} F.apply _ _ (left f g w)) (first (Coordinates.left w)))
+      (trans!{Right.Vector} _ _ _ (congr!{{Right.Vector} {Right.Vector}} G.apply _ _ (right f g w)) (second (Coordinates.right w)))) (Coordinates.recover w);
+\definition unitary[u: LeftUnitary.Carrier][v: RightUnitary.Carrier]: TotalUnitary.Carrier :=
+  \into[TotalIsomorphisms.Isomorphism](TotalIsomorphisms.Isomorphism {
+    forward := map u.forward v.forward, backward := map u.backward v.backward,
+    leftInverse := inverseLaw u.forward u.backward v.forward v.backward u.leftInverse v.leftInverse,
+    rightInverse := inverseLaw u.backward u.forward v.backward v.forward u.rightInverse v.rightInverse,
+  }, TotalUnitary.Carrier) \by {
+    \fun (x, y: Total.Vector) => trans!{K} _ _ _ (Coordinates.dotSplit ((map u.forward v.forward).apply x) ((map u.forward v.forward).apply y))
+      (trans!{K} _ _ _
+        (congr!{K K K} Spaces.add _ _ _ _
+          (trans!{K} _ _ _ (congr!{Vector Vector K} dot _ _ _ _ (left u.forward v.forward x) (left u.forward v.forward y)) (LeftUnitary.isometry u (Coordinates.left x) (Coordinates.left y)))
+          (trans!{K} _ _ _ (congr!{{Right.Vector} {Right.Vector} K} Right.dot _ _ _ _ (right u.forward v.forward x) (right u.forward v.forward y)) (RightUnitary.isometry v (Coordinates.right x) (Coordinates.right y))))
+        (sym!{K} _ _ (Coordinates.dotSplit x y)))
+  };
+\definition unitaryProduct: \forall (u, U: LeftUnitary.Carrier)(v, V: RightUnitary.Carrier) ->
+  TotalUnitary.multiply (unitary u v) (unitary U V) = unitary (LeftUnitary.multiply u U) (RightUnitary.multiply v V) :=
+  \fun (u, U: LeftUnitary.Carrier)(v, V: RightUnitary.Carrier) => TotalUnitary.ext
+    (TotalUnitary.multiply (unitary u v) (unitary U V)) (unitary (LeftUnitary.multiply u U) (RightUnitary.multiply v V))
+    (\fun (w: Total.Vector) => congr!{{Total.Map} {Total.Vector}} (\fun (f: Total.Map) => f.apply w) _ _ (composition u.forward U.forward v.forward V.forward));

@@ -1,0 +1,36 @@
+\import matrix_invariants.Ring[K := K, scalars := Fields.fieldAsCommutativeRing K field].At[n := n] \as Matrix;
+\import Matrix.Representation[] \as Representation;
+\import Matrix.Operations[] \as MatrixLaws;
+\definition Carrier: \Set := Matrix.Matrix;
+\definition adjoint[A: Carrier][i, j: Fin.Fin n]: K := conjugate (A j i);
+\definition adjointTwice: \forall (A: Carrier) -> adjoint (adjoint A) = A :=
+  \fun (A: Carrier) => MatrixLaws.ext (adjoint (adjoint A)) A (\fun (i, j: Fin.Fin n) => scalar.involution (A i j));
+\definition Hermitian: \Set := \Cast[Carrier] ({ A: Carrier \where adjoint A = A });
+\module Adjoint(A: Carrier) {
+  \import InnerLaws.Matrix[k := n, map := Matrix.linear A] \as Algebra;
+  \definition entry: \forall (i, j: Fin.Fin n) -> Representation.entries Algebra.coordinates i j = adjoint A i j :=
+    \fun (i, j: Fin.Fin n) => eq_reason_in!{K _
+      "=" _ "by" { E.symmetric ((Matrix.linear A).apply (E.basis i)) (E.basis j) }
+      "=" _ "by" { congr!{K K} conjugate _ _ (E.dotBasis j ((Matrix.linear A).apply (E.basis i))) }
+      "=" _ "by" { congr!{Vector K} (\fun (v: Vector) => conjugate (v j)) _ _ (Matrix.onBasis A i) }
+    };
+  \definition linear: Matrix.linear (adjoint A) = Algebra.coordinates :=
+    trans!{Map} _ _ _ (congr!{Carrier Map} Matrix.linear _ _ (sym!{Carrier} _ _ (MatrixLaws.ext _ _ entry))) (Representation.linearEntries Algebra.coordinates);
+  \definition law: \forall (v, w: Vector) -> dot ((Matrix.linear A).apply v) w = dot v ((Matrix.linear (adjoint A)).apply w) :=
+    \fun (v, w: Vector) => trans!{K} _ _ _ (Algebra.adjoint v w)
+      (congr!{Map K} (\fun (f: Map) => dot v (f.apply w)) _ _ (sym!{Map} _ _ linear));
+}
+\definition selfAdjoint: \forall (A: Hermitian)(v, w: Vector) -> dot ((Matrix.linear A).apply v) w = dot v ((Matrix.linear A).apply w) :=
+  \fun (A: Hermitian)(v, w: Vector) => trans!{K} _ _ _ (Adjoint[A := A].law v w)
+    (congr!{Carrier K} (\fun (B: Carrier) => dot v ((Matrix.linear B).apply w)) _ _ (\bysub(Carrier, Hermitian, A)));
+\module Of(A: Hermitian) {
+  \definition form: Form := Form {
+    dot := \fun (v, w: Vector) => dot v ((Matrix.linear A).apply w),
+    symmetric := \fun (v, w: Vector) => trans!{K} _ _ _ (E.symmetric v ((Matrix.linear A).apply w))
+      (congr!{K K} conjugate _ _ (selfAdjoint A w v)),
+    zeroRight := \fun (v: Vector) => trans!{K} _ _ _ (congr!{Vector K} (dot v) _ _ (Matrix.linear A).preservesZero) (E.form.zeroRight v),
+    addRight := \fun (v, w, z: Vector) => trans!{K} _ _ _ (congr!{Vector K} (dot v) _ _ ((Matrix.linear A).preservesAdd w z)) (E.form.addRight v _ _),
+    scaleRight := \fun (a: K)(v, w: Vector) => trans!{K} _ _ _ (congr!{Vector K} (dot v) _ _ ((Matrix.linear A).preservesScale a w)) (E.form.scaleRight a v _),
+  };
+  \definition PositiveDefinite: \Prop := Positive form;
+}

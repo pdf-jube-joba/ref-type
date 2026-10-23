@@ -1,0 +1,27 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\definition forwardHead: head (forward.apply v) = Spaces.add (Spaces.mul l (head v)) (row.apply (tail v)) := joinHead _ _;
+\definition forwardTail: tail (forward.apply v) = lower.forward.apply (tail v) := joinTail _ _;
+\definition backwardHead: head (backward.apply v) = Spaces.mul (field.inv l) (subtract (head v) (row.apply (lower.backward.apply (tail v)))) :=
+  trans!{{K}} _ _ _ (joinHead _ _) (congr!{{K} {K}} (Spaces.mul (field.inv l)) _ _
+    (congr!{{K} {K}} (Spaces.add (head v)) _ _ (Spaces.Laws[V := K, space := Spaces.scalarSpace].minusOneScale (row.apply (lower.backward.apply (tail v))))));
+\definition backwardTail: tail (backward.apply v) = lower.backward.apply (tail v) := joinTail _ _;
+\definition backTailForward: lower.backward.apply (tail (forward.apply v)) = tail v := trans!{Vector} _ _ _
+  (congr!{Vector Vector} lower.backward.apply _ _ forwardTail) ((Isomorphisms.laws lower).leftInverse (tail v));
+\definition forwardTailBack: lower.forward.apply (tail (backward.apply v)) = tail v := trans!{Vector} _ _ _
+  (congr!{Vector Vector} lower.forward.apply _ _ backwardTail) ((Isomorphisms.laws lower).rightInverse (tail v));
+\definition leftInverse: backward.apply (forward.apply v) = v := ext _ _
+  (eq_reason_in!{{K} _
+    "=" _ "by" { \parent.At[v := forward.apply v].backwardHead }
+    "=" _ "by" { congr!{{K} {K}} (Spaces.mul (field.inv l)) _ _
+      (congr!{{K} {K} {K}} subtract _ _ _ _ forwardHead (congr!{Vector {K}} row.apply _ _ backTailForward)) }
+    "=" _ "by" { undo (head v) (row.apply (tail v)) }
+  })
+  (trans!{Vector} _ _ _ (joinTail _ _) backTailForward);
+\definition rightInverse: forward.apply (backward.apply v) = v := ext _ _
+  (eq_reason_in!{{K} _
+    "=" _ "by" { joinHead _ _ }
+    "=" _ "by" { congr!{{K} {K} {K}} Spaces.add _ _ _ _
+      (congr!{{K} {K}} (Spaces.mul l) _ _ backwardHead) (congr!{Vector {K}} row.apply _ _ backwardTail) }
+    "=" _ "by" { redo (head v) (row.apply (lower.backward.apply (tail v))) }
+  })
+  (trans!{Vector} _ _ _ (joinTail _ _) forwardTailBack);

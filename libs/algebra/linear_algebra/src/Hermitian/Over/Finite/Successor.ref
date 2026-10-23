@@ -1,0 +1,58 @@
+/* First coordinate and tail, with linear maps in both directions. */
+\import \parent.\parent.Finite[n := N.Nat^::succ n] \as Next;
+\import Fin.Tuples[A := K] \as Tuples;
+\definition head[v: Next.Vector]: K := v (Fin.zero n);
+\definition tail[v: Next.Vector][i: Fin.Fin n]: K := v (Fin.succ n i);
+\definition join[a: K][v: Vector]: Next.Vector := Tuples.extend n a v;
+\definition joinHead: \forall (a: K)(v: Vector) -> head (join a v) = a := Tuples.atZero n;
+\definition joinTail: \forall (a: K)(v: Vector) -> tail (join a v) = v :=
+  \fun (a: K)(v: Vector) => \axiom:funext(tail (join a v), v, Tuples.atSuccessor n a v);
+\definition recover: \forall (v: Next.Vector) -> join (head v) (tail v) = v := Tuples.recover n;
+\definition ext: \forall (x, y: Next.Vector) -> head x = head y -> tail x = tail y -> x = y :=
+  \fun (x, y: Next.Vector)(first: _)(rest: _) => Tuples.extensionality n x y first
+    (\fun (i: Fin.Fin n) => congr!{Vector {K}} (\fun (v: Vector) => v i) _ _ rest);
+\definition addition: \forall (a, b: K)(x, y: Vector) -> join (Spaces.add a b) (space.add x y) = Next.space.add (join a x) (join b y) :=
+  \fun (a, b: K)(x, y: Vector) => ext _ _
+    (trans!{{K}} _ _ _ (joinHead (Spaces.add a b) (space.add x y))
+      (sym!{{K}} _ _ (congr!{{K} {K} {K}} Spaces.add _ _ _ _ (joinHead a x) (joinHead b y))))
+    (trans!{Vector} _ _ _ (joinTail (Spaces.add a b) (space.add x y))
+      (sym!{Vector} _ _ (congr!{Vector Vector Vector} space.add _ _ _ _ (joinTail a x) (joinTail b y))));
+\definition scalar: \forall (c, a: K)(v: Vector) -> join (Spaces.mul c a) (space.smul c v) = Next.space.smul c (join a v) :=
+  \fun (c, a: K)(v: Vector) => ext _ _
+    (trans!{{K}} _ _ _ (joinHead (Spaces.mul c a) (space.smul c v)) (sym!{{K}} _ _ (congr!{{K} {K}} (Spaces.mul c) _ _ (joinHead a v))))
+    (trans!{Vector} _ _ _ (joinTail (Spaces.mul c a) (space.smul c v)) (sym!{Vector} _ _ (congr!{Vector Vector} (space.smul c) _ _ (joinTail a v))));
+\definition zero: join Spaces.zero space.zero = Next.space.zero := ext _ _ (joinHead Spaces.zero space.zero) (joinTail Spaces.zero space.zero);
+\import Spaces.Linear[V := Vector, W := Next.Vector, source := space, target := Next.space] \as Embeddings;
+\definition embedding: Embeddings.Map := Embeddings.Map {
+  apply := join Spaces.zero,
+  preservesAdd := \fun (x, y: Vector) => trans!{{Next.Vector}} _ _ _
+    (congr!{{K} {Next.Vector}} (\fun (a: K) => join a (space.add x y)) _ _ (sym!{{K}} _ _ (Spaces.addZeroLeft Spaces.zero))) (addition Spaces.zero Spaces.zero x y),
+  preservesScale := \fun (a: K)(x: Vector) => trans!{{Next.Vector}} _ _ _
+    (congr!{{K} {Next.Vector}} (\fun (b: K) => join b (space.smul a x)) _ _ (sym!{{K}} _ _ (Spaces.mulZeroRight a))) (scalar a Spaces.zero x),
+};
+\definition first: Next.Vector := join Spaces.one space.zero;
+\definition firstHead: head first = Spaces.one := joinHead Spaces.one space.zero;
+\definition firstTail: tail first = space.zero := joinTail Spaces.one space.zero;
+\definition decompose: \forall (v: Next.Vector) -> Next.space.add (Next.space.smul (head v) first) (embedding.apply (tail v)) = v :=
+  \fun (v: Next.Vector) => ext _ _
+    (trans!{{K}} _ _ _ (congr!{{K} {K} {K}} Spaces.add _ _ _ _
+      (trans!{{K}} _ _ _ (congr!{{K} {K}} (Spaces.mul (head v)) _ _ firstHead) (Spaces.mulOneRight (head v))) (joinHead Spaces.zero (tail v))) (Spaces.addZeroRight (head v)))
+    (trans!{Vector} _ _ _ (congr!{Vector Vector Vector} space.add _ _ _ _
+      (trans!{Vector} _ _ _ (congr!{Vector Vector} (space.smul (head v)) _ _ firstTail) (VectorLaws.scaleZero (head v))) (joinTail Spaces.zero (tail v))) (VectorLaws.zeroLeft (tail v)));
+\definition dotSplit: \forall (v, w: Next.Vector) -> Next.dot v w = Spaces.add (Spaces.mul (conj (head v)) (head w)) (dot (tail v) (tail w)) :=
+  \fun (v, w: Next.Vector) => \refl(Next.dot v w);
+\import Spaces.Linear[V := Next.Vector, W := K, source := Next.space, target := Spaces.scalarSpace] \as Rows;
+\import Spaces.Linear[V := Next.Vector, W := Vector, source := Next.space, target := space] \as Restrictions;
+\definition headMap: Rows.Map := Rows.Map {
+  apply := head, preservesAdd := \fun (v, w: Next.Vector) => \refl(Spaces.add (head v) (head w)),
+  preservesScale := \fun (a: K)(v: Next.Vector) => \refl(Spaces.mul a (head v)),
+};
+\definition tailMap: Restrictions.Map := Restrictions.Map {
+  apply := tail, preservesAdd := \fun (v, w: Next.Vector) => \refl(space.add (tail v) (tail w)),
+  preservesScale := \fun (a: K)(v: Next.Vector) => \refl(space.smul a (tail v)),
+};
+\module Joining(V: \Set, source: Spaces.VectorSpace V, first: Spaces.Linear[V := V, W := K, source := source, target := Spaces.scalarSpace].Map,
+  rest: Spaces.Linear[V := V, W := Vector, source := source, target := space].Map);
+\import Spaces.Isomorphism[V := Vector, W := Vector, source := space, target := space] \as Isomorphisms;
+\import Spaces.Linear[V := Vector, W := K, source := space, target := Spaces.scalarSpace] \as Coefficients;
+\module Triangular(l: K, nonzero: Logic.Not (l = Spaces.zero), row: Coefficients.Map, lower: Isomorphisms.Isomorphism);

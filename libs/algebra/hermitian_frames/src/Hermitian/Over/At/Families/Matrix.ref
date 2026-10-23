@@ -1,0 +1,33 @@
+\import Geometry.Finite[n := m] \as Domain;
+\import Spaces.Linear[V := Domain.Vector, W := Vector, source := Domain.space, target := E.space] \as Maps;
+\import Spaces.Linear[V := Domain.Vector, W := K, source := Domain.space, target := Spaces.scalarSpace] \as Rows;
+\import Spaces.FiniteCoordinates[n := m] \as Basis;
+\import Spaces.Finite[V := Domain.Vector, I := Fin.Fin m, space := Domain.space].Prop[] \as BasisLaws;
+\definition Family: \Set := X -> Maps.Map;
+\definition Regular[source: Source.Topology][A: Family]: \Prop :=
+  \forall (v: Domain.Vector) -> Continuous source (\fun (x: X) => (A x).apply v);
+\definition Components[source: Source.Topology][A: Family]: \Prop :=
+  \forall (j: Fin.Fin m) -> Continuous source (\fun (x: X) => (A x).apply (Domain.basis j));
+\module Expansion(A: Maps.Map, v: Domain.Vector, i: Fin.Fin n) {
+  \definition row: Rows.Map := Rows.Map {
+    apply := \fun (w: Domain.Vector) => A.apply w i,
+    preservesAdd := \fun (v, w: Domain.Vector) => congr!{Vector K} (\fun (x: Vector) => x i) _ _ (A.preservesAdd v w),
+    preservesScale := \fun (a: K)(v: Domain.Vector) => congr!{Vector K} (\fun (x: Vector) => x i) _ _ (A.preservesScale a v),
+  };
+  \definition formula: A.apply v i = Sums.sum m (\fun (j: Fin.Fin m) => Spaces.mul (v j) (A.apply (Domain.basis j) i)) :=
+    trans!{K} _ _ _ (BasisLaws.functionalExpansion Basis.basis row v) (Sums.enumeration m _);
+}
+\definition evaluate: \forall (source: Source.Topology)(A: Family)(v: X -> Domain.Vector) -> Components source A ->
+  (\forall (j: Fin.Fin m) -> Functions.Continuous source (\fun (x: X) => v x j)) -> Continuous source (\fun (x: X) => (A x).apply (v x)) :=
+  \fun (source: Source.Topology)(A: Family)(v: X -> Domain.Vector)(regular: Components source A)(vc: _)(i: Fin.Fin n) =>
+    Functions.transport source
+      (\fun (x: X) => Sums.sum m (\fun (j: Fin.Fin m) => Spaces.mul (v x j) ((A x).apply (Domain.basis j) i)))
+      (\fun (x: X) => (A x).apply (v x) i)
+      (\fun (x: X) => sym!{K} _ _ (Expansion[A := A x, v := v x, i := i].formula))
+      (Functions.finiteSum m source (\fun (j: Fin.Fin m)(x: X) => Spaces.mul (v x j) ((A x).apply (Domain.basis j) i))
+        (\fun (j: Fin.Fin m) => Functions.multiplication source (\fun (x: X) => v x j) (\fun (x: X) => (A x).apply (Domain.basis j) i) (vc j) (regular j i)));
+\definition regularOfComponents: \forall (source: Source.Topology)(A: Family) -> Components source A -> Regular source A :=
+  \fun (source: Source.Topology)(A: Family)(regular: Components source A)(v: Domain.Vector) =>
+    evaluate source A (\fun (x: X) => v) regular (\fun (j: Fin.Fin m) => Functions.constant source (v j));
+\definition constant: \forall (source: Source.Topology)(A: Maps.Map) -> Regular source (\fun (x: X) => A) :=
+  \fun (source: Source.Topology)(A: Maps.Map)(v: Domain.Vector)(i: Fin.Fin n) => Functions.constant source (A.apply v i);

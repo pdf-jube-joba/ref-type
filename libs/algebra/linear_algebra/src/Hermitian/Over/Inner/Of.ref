@@ -1,0 +1,76 @@
+\definition squared[v: V]: R.Real := re (h.dot v v);
+\definition selfReal: \forall (v: V) -> h.dot v v = embed (squared v) :=
+  \fun (v: V) => scalar.fixedReal (h.dot v v) (sym!{K} _ _ (h.symmetric v v));
+\definition zeroLeft: \forall (v: V) -> h.dot space.zero v = Spaces.zero :=
+  \fun (v: V) => eq_reason_in!{K _
+    "=" _ "by" { h.symmetric space.zero v }
+    "=" _ "by" { congr!{K K} conj _ _ (h.zeroRight v) }
+    "=" _ "by" conjugateZero
+  };
+\definition addLeft: \forall (x, y, z: V) -> h.dot (space.add x y) z = Spaces.add (h.dot x z) (h.dot y z) :=
+  \fun (x, y, z: V) => eq_reason_in!{K _
+    "=" _ "by" { h.symmetric (space.add x y) z }
+    "=" _ "by" { congr!{K K} conj _ _ (h.addRight z x y) }
+    "=" _ "by" { scalar.conjugateAdd (h.dot z x) (h.dot z y) }
+    "=" _ "by" { congr!{K K K} Spaces.add _ _ _ _ (sym!{K} _ _ (h.symmetric x z)) (sym!{K} _ _ (h.symmetric y z)) }
+  };
+\definition scaleLeft: \forall (a: K)(x, y: V) -> h.dot (space.smul a x) y = Spaces.mul (conj a) (h.dot x y) :=
+  \fun (a: K)(x, y: V) => eq_reason_in!{K _
+    "=" _ "by" { h.symmetric (space.smul a x) y }
+    "=" _ "by" { congr!{K K} conj _ _ (h.scaleRight a y x) }
+    "=" _ "by" { scalar.conjugateMul a (h.dot y x) }
+    "=" _ "by" { congr!{K K} (Spaces.mul (conj a)) _ _ (sym!{K} _ _ (h.symmetric x y)) }
+  };
+\definition squaredDefinite: \forall (positive: Positive[h])(v: V) -> squared v = R.zero -> v = space.zero :=
+  \fun (positive: Positive[h])(v: V)(zero: _) => positive.definite v
+    (trans!{K} _ _ _ (selfReal v) (trans!{K} _ _ _ (congr!{R.Real K} embed _ _ zero) scalar.embedZero));
+\definition positiveNorm: \forall (positive: Positive[h])(v: V) -> Logic.Not (v = space.zero) -> Order.Lt R.zero (squared v) :=
+  \fun (positive: Positive[h])(v: V)(nonzero: _) => Order.Order[].ltOfLeNotEq R.zero (squared v) (positive.nonnegative v)
+    (\fun (zero: _) => nonzero (squaredDefinite positive v (sym!{R.Real} _ _ zero)));
+
+\definition negativeRight: \forall (x, y: V) -> h.dot x (space.neg y) = Spaces.neg (h.dot x y) :=
+  \fun (x, y: V) => ScalarLaws.cancelLeft (h.dot x y) _ _ (eq_reason_in!{K _
+    "=" _ "by" { sym!{K} _ _ (h.addRight x y (space.neg y)) }
+    "=" _ "by" { congr!{V K} (h.dot x) _ _ (trans!{V} _ _ _ (Laws.comm y (space.neg y)) (Laws.inverseLeft y)) }
+    "=" _ "by" { h.zeroRight x }
+    "=" _ "by" { sym!{K} _ _ (Spaces.addNegRight (h.dot x y)) }
+  });
+\definition negativeLeft: \forall (x, y: V) -> h.dot (space.neg x) y = Spaces.neg (h.dot x y) :=
+  \fun (x, y: V) => ScalarLaws.cancelLeft (h.dot x y) _ _ (eq_reason_in!{K _
+    "=" _ "by" { sym!{K} _ _ (addLeft x (space.neg x) y) }
+    "=" _ "by" { congr!{V K} (\fun (v: V) => h.dot v y) _ _ (trans!{V} _ _ _ (Laws.comm x (space.neg x)) (Laws.inverseLeft x)) }
+    "=" _ "by" { zeroLeft y }
+    "=" _ "by" { sym!{K} _ _ (Spaces.addNegRight (h.dot x y)) }
+  });
+\definition negativeScale: \forall (a: K)(v: V) -> space.smul (Spaces.neg a) v = space.neg (space.smul a v) :=
+  \fun (a: K)(v: V) => trans!{V} _ _ _
+    (congr!{K V} (\fun (b: K) => space.smul b v) _ _ (sym!{K} _ _ (ScalarLaws.minusOneScale a)))
+    (trans!{V} _ _ _ (space.scalarAssoc (Spaces.neg Spaces.one) a v) (Laws.minusOneScale (space.smul a v)));
+\definition subtract[x, y: V]: V := space.add x (space.neg y);
+\definition subtractAdd: \forall (x, y: V) -> space.add (subtract x y) y = x :=
+  \fun (x, y: V) => trans!{V} _ _ _ (Laws.assoc x (space.neg y) y)
+    (trans!{V} _ _ _ (congr!{V V} (space.add x) _ _ (Laws.inverseLeft y)) (Laws.zeroRight x));
+\definition addSubtract: \forall (x, y: V) -> space.add y (subtract x y) = x :=
+  \fun (x, y: V) => trans!{V} _ _ _ (Laws.comm y (subtract x y)) (subtractAdd x y);
+\definition linearSubtract: \forall (f: End.Map)(x, y: V) -> f.apply (subtract x y) = subtract (f.apply x) (f.apply y) :=
+  \fun (f: End.Map)(x, y: V) => trans!{V} _ _ _ (f.preservesAdd x (space.neg y))
+    (congr!{V V} (space.add (f.apply x)) _ _ (End.Operations[].preservesNeg f y));
+\definition dotSubtractRight: \forall (x, y, z: V) -> h.dot x (subtract y z) = Spaces.add (h.dot x y) (Spaces.neg (h.dot x z)) :=
+  \fun (x, y, z: V) => trans!{K} _ _ _ (h.addRight x y (space.neg z))
+    (congr!{K K} (Spaces.add (h.dot x y)) _ _ (negativeRight x z));
+\definition recombine: \forall (l, a, b: K)(u, t: V) ->
+  space.add (space.smul (Spaces.add (Spaces.mul l a) b) u) (subtract t (space.smul b u)) = space.add (space.smul a (space.smul l u)) t :=
+  \fun (l, a, b: K)(u, t: V) => eq_reason_in!{V _
+    "=" _ "by" { congr!{V V} (\fun (v: V) => space.add v (subtract t (space.smul b u))) _ _ (space.scalarAdd (Spaces.mul l a) b u) }
+    "=" _ "by" { Laws.shuffle (space.smul (Spaces.mul l a) u) (space.smul b u) t (space.neg (space.smul b u)) }
+    "=" _ "by" { congr!{V V} (space.add (space.add (space.smul (Spaces.mul l a) u) t)) _ _
+      (trans!{V} _ _ _ (Laws.comm (space.smul b u) (space.neg (space.smul b u))) (Laws.inverseLeft (space.smul b u))) }
+    "=" _ "by" { Laws.zeroRight (space.add (space.smul (Spaces.mul l a) u) t) }
+    "=" _ "by" { congr!{V V} (\fun (v: V) => space.add v t) _ _
+      (trans!{V} _ _ _ (congr!{K V} (\fun (c: K) => space.smul c u) _ _ (Spaces.mulComm l a)) (space.scalarAssoc a l u)) }
+  };
+\module Normalize(v: V, positive: Order.Lt R.zero (squared v));
+\module Unit(v: V, norm: h.dot v v = Spaces.one);
+\module Matrix(k: N.Nat^, map: Spaces.Linear[V := \parent.\parent.\parent.Finite[n := k].Vector, W := V, source := \parent.\parent.\parent.Finite[n := k].space, target := space].Map);
+\module Gram(k: N.Nat^);
+\module Algorithm;

@@ -1,0 +1,53 @@
+\import matrix_invariants.Ring[K := K, scalars := Fields.fieldAsCommutativeRing K field].At[n := n] \as Matrix;
+\import matrix_invariants.Field[K := K, field := field].At[n := n] \as Inversion;
+\import Matrix.Representation[] \as Representation;
+\import Matrix.Operations[] \as MatrixLaws;
+\definition entries: Map -> Matrix.Matrix := Representation.entries;
+\definition linear: Matrix.Matrix -> Map := Matrix.linear;
+\definition linearProduct: \forall (A, B: Matrix.Matrix) -> linear (Matrix.product A B) = Compose.compose (linear A) (linear B) :=
+  \fun (A, B: Matrix.Matrix) => trans!{Map} _ _ _
+    (congr!{{Matrix.Matrix} Map} linear _ _ (sym!{Matrix.Matrix} _ _
+      (trans!{Matrix.Matrix} _ _ _ (Representation.composition (linear A) (linear B))
+        (congr!{{Matrix.Matrix} {Matrix.Matrix} {Matrix.Matrix}} Matrix.product _ _ _ _ (Representation.entriesLinear A) (Representation.entriesLinear B)))))
+    (Representation.linearEntries (Compose.compose (linear A) (linear B)));
+\definition linearIdentity: linear Matrix.identity = Eigen.identity := Representation.linearEntries Eigen.identity;
+\definition applyProduct: \forall (A, B: Matrix.Matrix)(v: Vector) -> (linear A).apply ((linear B).apply v) = (linear (Matrix.product A B)).apply v :=
+  \fun (A, B: Matrix.Matrix)(v: Vector) => congr!{Map Vector} (\fun (f: Map) => f.apply v) _ _ (sym!{Map} _ _ (linearProduct A B));
+\module Inverse(A: Inversion.Nonsingular) {
+  \definition matrix: MatrixLaws.Inverse A := Inversion.inverse A;
+  \definition value: Map := linear matrix;
+  \definition left: \forall (v: Vector) -> value.apply ((linear A).apply v) = v := \fun (v: Vector) => eq_reason_in!{Vector _
+    "=" _ "by" { applyProduct matrix A v }
+    "=" _ "by" { congr!{{Matrix.Matrix} Vector} (\fun (B: Matrix.Matrix) => (linear B).apply v) _ _ (MatrixLaws.inverseLaws A matrix).left }
+    "=" _ "by" { congr!{Map Vector} (\fun (f: Map) => f.apply v) _ _ linearIdentity }
+  };
+  \definition right: \forall (v: Vector) -> (linear A).apply (value.apply v) = v := \fun (v: Vector) => eq_reason_in!{Vector _
+    "=" _ "by" { applyProduct A matrix v }
+    "=" _ "by" { congr!{{Matrix.Matrix} Vector} (\fun (B: Matrix.Matrix) => (linear B).apply v) _ _ (MatrixLaws.inverseLaws A matrix).right }
+    "=" _ "by" { congr!{Map Vector} (\fun (f: Map) => f.apply v) _ _ linearIdentity }
+  };
+}
+\module LeftInverse(f, g: Map, left: \forall (v: Vector) -> g.apply (f.apply v) = v) {
+  \definition productIdentity: Matrix.product (entries g) (entries f) = Matrix.identity := trans!{Matrix.Matrix} _ _ _
+    (sym!{Matrix.Matrix} _ _ (Representation.composition g f))
+    (MatrixLaws.ext _ _ (\fun (i, j: Fin.Fin n) => congr!{Vector K} (\fun (v: Vector) => v i) _ _ (left (E.basis j))));
+  \definition nonzero: Inversion.Nonzero (entries f) := \fun (zero: _) => field.nontrivial (eq_reason_in!{K {Spaces.zero}
+    "=" {Spaces.mul (Matrix.determinant (entries g)) Spaces.zero} "by" { sym!{K} _ _ (Spaces.mulZeroRight (Matrix.determinant (entries g))) }
+    "=" {Spaces.mul (Matrix.determinant (entries g)) (Matrix.determinant (entries f))} "by" { congr!{K K} (Spaces.mul (Matrix.determinant (entries g))) _ _ (sym!{K} _ _ zero) }
+    "=" {Matrix.determinant (Matrix.product (entries g) (entries f))} "by" { sym!{K} _ _ (Matrix.multiplicative (entries g) (entries f)) }
+    "=" {Matrix.determinant Matrix.identity} "by" { congr!{{Matrix.Matrix} K} Matrix.determinant _ _ productIdentity }
+    "=" {Spaces.one} "by" { Matrix.atIdentity }
+  });
+  \definition nonsingular: Inversion.Nonsingular := \into[Matrix.Matrix](entries f, Inversion.Nonsingular) \by { nonzero };
+  \import \parent.Inverse[A := nonsingular] \as Inverse;
+  \definition inverseRight: \forall (v: Vector) -> f.apply (Inverse.value.apply v) = v :=
+    \fun (v: Vector) => trans!{Vector} _ _ _
+      (congr!{Map Vector} (\fun (h: Map) => h.apply (Inverse.value.apply v)) _ _ (sym!{Map} _ _ (Representation.linearEntries f))) (Inverse.right v);
+  \definition equal: \forall (v: Vector) -> g.apply v = Inverse.value.apply v := \fun (v: Vector) => trans!{Vector} _ _ _
+    (congr!{Vector Vector} g.apply _ _ (sym!{Vector} _ _ (inverseRight v))) (left (Inverse.value.apply v));
+  \definition right: \forall (v: Vector) -> f.apply (g.apply v) = v := \fun (v: Vector) => trans!{Vector} _ _ _
+    (congr!{Vector Vector} f.apply _ _ (equal v)) (inverseRight v);
+}
+\definition leftInverseRight: \forall (f, g: Map) -> (\forall (v: Vector) -> g.apply (f.apply v) = v) -> \forall (v: Vector) -> f.apply (g.apply v) = v :=
+  \fun (f, g: Map)(left: _) => LeftInverse[f := f, g := g, left := left].right;
+\module Families(X: \Set);
