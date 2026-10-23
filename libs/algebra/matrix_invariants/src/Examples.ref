@@ -1,0 +1,60 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import real.Analysis[] \as R;
+\import R.Algebra[] \as Scalars;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import std.Logic[].Proposition[] \as Logic;
+\import \root.Real[].At[n := N.Nat^::zero] \as Empty;
+\import \root.Ring[K := R.Real, scalars := std.Alg[].Field[].fieldAsCommutativeRing R.Real Scalars.field].At[n := N.Nat^::zero] \as EmptyMatrix;
+\definition empty: EmptyMatrix.Matrix := \fun (i, j: EmptyMatrix.Index) => R.zero;
+\definition emptyDeterminant: EmptyMatrix.determinant empty = R.one := \refl(R.one);
+\definition two: N.Nat^ := N.Nat^::succ (N.Nat^::succ N.Nat^::zero);
+\definition first: Fin.Fin two := Fin.zero (N.Nat^::succ N.Nat^::zero);
+\definition second: Fin.Fin two := Fin.succ (N.Nat^::succ N.Nat^::zero) (Fin.zero N.Nat^::zero);
+\import \root.Real[].At[n := two] \as Real;
+\import \root.Field[K := R.Real, field := Scalars.field].At[n := two] \as Inversion;
+\import \root.Ring[K := R.Real, scalars := std.Alg[].Field[].fieldAsCommutativeRing R.Real Scalars.field].At[n := two] \as Matrix;
+\import Matrix.Operations[] \as Operations;
+\import Matrix.Cofactors[] \as Cofactors;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing R.Real Scalars.field] \as Algebra;
+\import Algebra.Coordinates[I := Matrix.Index] \as Vectors;
+\import Algebra.FiniteCoordinates[n := two] \as Coordinates;
+\definition different: Logic.Not (second = first) := std.Data[].Nat[].Basic[].Prop[].succNeZero N.Nat^::zero;
+\definition shear[t: R.Real]: Matrix.Matrix := Matrix.replaceColumn Matrix.identity second
+  (Vectors.plus (Matrix.columns Matrix.identity second) (Vectors.scale t (Coordinates.vectors first)));
+\definition shearDeterminant: \forall (t: R.Real) -> Matrix.determinant (shear t) = R.one :=
+  \fun (t: R.Real) => eq_reason_in!{R.Real _
+    "=" { R.add (Matrix.determinant (Matrix.replaceColumn Matrix.identity second (Matrix.columns Matrix.identity second)))
+      (Matrix.determinant (Matrix.replaceColumn Matrix.identity second (Vectors.scale t (Coordinates.vectors first)))) } "by" {
+        Matrix.columnAddition Matrix.identity second (Matrix.columns Matrix.identity second) (Vectors.scale t (Coordinates.vectors first)) }
+    "=" { R.add R.one (R.mul t (Matrix.determinant (Matrix.replaceColumn Matrix.identity second (Coordinates.vectors first)))) } "by" {
+      congr!{R.Real R.Real R.Real} R.add _ _ _ _
+        (trans!{R.Real} _ _ _ (Cofactors.original Matrix.identity second) Matrix.atIdentity)
+        (Matrix.columnScalar Matrix.identity second t (Coordinates.vectors first)) }
+    "=" { R.add R.one (R.mul t R.zero) } "by" { congr!{R.Real R.Real} (\fun (a: R.Real) => R.add R.one (R.mul t a)) _ _ (Cofactors.repeated Matrix.identity second first different) }
+    "=" { R.add R.one R.zero } "by" { congr!{R.Real R.Real} (R.add R.one) _ _ (Algebra.mulZeroRight t) }
+    "=" R.one "by" { Algebra.addZeroRight R.one }
+  };
+\definition shearNonzero: \forall (t: R.Real) -> Inversion.Nonzero (shear t) :=
+  \fun (t: R.Real)(zero: Matrix.determinant (shear t) = R.zero) => Scalars.field.nontrivial
+    (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ zero) (shearDeterminant t));
+\definition shearInverse[t: R.Real]: Operations.Inverse (shear t) :=
+  Inversion.inverse (\into[Matrix.Matrix](shear t, Inversion.Nonsingular) \by { shearNonzero t });
+\import \root.Topological[K := R.Real, ring := topological_algebra.Real[].topologicalRing].At[n := two].Families[X := R.Real] \as Continuous;
+\import topology.Maps[A := R.Real, B := R.Real].Identity[] \as Identity;
+\import metric_spaces.RealLine[] \as Line;
+\definition shearRegular: Continuous.Regular Line.topology shear :=
+  Continuous.replaceColumnRegular Line.topology (\fun (t: R.Real) => Matrix.identity)
+    (\fun (t: R.Real) => Vectors.plus (Matrix.columns Matrix.identity second) (Vectors.scale t (Coordinates.vectors first))) second
+    (\fun (i, j: Matrix.Index) => Continuous.constant Line.topology (Matrix.identity i j))
+    (\fun (i: Matrix.Index) => Continuous.addition Line.topology (\fun (t: R.Real) => Matrix.identity i second)
+      (\fun (t: R.Real) => R.mul t (Coordinates.vectors first i))
+      (Continuous.constant Line.topology (Matrix.identity i second))
+      (Continuous.multiplication Line.topology (\fun (t: R.Real) => t) (\fun (t: R.Real) => Coordinates.vectors first i)
+        (Identity.continuous Line.topology) (Continuous.constant Line.topology (Coordinates.vectors first i))));
+\definition shearInverseContinuous: topology.Continuity[A := R.Real, B := Matrix.Matrix].Continuous Line.topology Real.topology (\fun (t: R.Real) => shearInverse t) :=
+  Real.Families[X := R.Real].certifiedInverseContinuous Line.topology shear shearInverse shearRegular;

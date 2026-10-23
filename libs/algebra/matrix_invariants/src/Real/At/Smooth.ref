@@ -1,0 +1,59 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import linear_algebra.Euclidean[n := n] \as Euclidean;
+\import linear_algebra.Commutative[K := K, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing K Scalars.field] \as Algebra;
+\import Algebra.FiniteCoordinates[n := n] \as Coordinates;
+\import Algebra.Coordinates[I := Matrix.Index].Kronecker[] \as Kronecker;
+\import Algebra.Linear[V := Euclidean.Vector, W := Euclidean.Vector, source := Euclidean.space, target := Euclidean.space] \as Maps;
+\import Matrix.Representation[] \as Representation;
+\import calculus.Real[].Multivariable[n := d].Open[] \as Open;
+\import Open.Smooth[] \as Smooth;
+\import Smooth.Properties[] \as Properties;
+\import calculus.MatrixFamily[d := d, p := n, q := n] \as Families;
+\import calculus.InverseFamily[d := d, r := n] \as SmoothInverse;
+\import std.Data[].Bool[] \as Bool;
+\import std.Data[].Nat[].Basic[].Def[] \as Naturals;
+\import std.Data[].Nat[].Basic[].Prop[] \as NatLaws;
+\definition basisComparison: \forall (j: Matrix.Index) -> Euclidean.basis j = Coordinates.vectors j :=
+  \fun (j: Matrix.Index) => \axiom:funext(Euclidean.basis j, Coordinates.vectors j, \fun (i: Matrix.Index) =>
+    Bool.cases
+      (\fun (test: Bool.Bool^) => Naturals.eqb i j = test -> Bool.ite K test Scalars.field.one Scalars.field.zero = Kronecker.delta j i)
+      (\fun (different: Naturals.eqb i j = Bool.Bool^::false) => sym!{K} _ _ (Kronecker.different j i
+        (\fun (same: j = i) => Bool.Prop[].falseNeTrue (eq_reason_in!{{Bool.Bool^} Bool.Bool^::false
+          "=" { Naturals.eqb i j } "by" { sym!{{Bool.Bool^}} _ _ different }
+          "=" { Naturals.eqb i i } "by" { congr!{Matrix.Index {Bool.Bool^}} (\fun (k: Matrix.Index) => Naturals.eqb i k) _ _ same }
+          "=" Bool.Bool^::true "by" { NatLaws.eqbRefl i }
+        }))))
+      (\fun (same: Naturals.eqb i j = Bool.Bool^::true) => sym!{K} _ _ (Kronecker.equal j i (sym!{Matrix.Index} _ _ (NatLaws.eqOfEqbTrue j i same))))
+      (Naturals.eqb i j) (\refl(Naturals.eqb i j)));
+\definition entries[f: Maps.Map]: Matrix.Matrix := \fun (i, j: Matrix.Index) => f.apply (Euclidean.basis j) i;
+\definition entriesComparison: \forall (f: Maps.Map) -> entries f = Representation.entries f :=
+  \fun (f: Maps.Map) => Operations.ext (entries f) (Representation.entries f) (\fun (i, j: Matrix.Index) => congr!{Euclidean.Vector K} (\fun (v: Euclidean.Vector) => f.apply v i) _ _ (basisComparison j));
+\definition inverseFormula: \forall (A, B: Maps.Map) ->
+  (\forall (v: Euclidean.Vector) -> B.apply (A.apply v) = v) -> (\forall (v: Euclidean.Vector) -> A.apply (B.apply v) = v) ->
+  \forall (i, j: Matrix.Index) -> entries B i j = Scalars.field.mul (Scalars.field.inv (Matrix.determinant (entries A))) (Matrix.cofactor (entries A) j i) := \block {
+  \fun (A, B: Maps.Map)(left: _)(right: _) \then
+  \let certificate: Operations.Inverse (Representation.entries A) := \into[Matrix.Matrix](Representation.entries B, Operations.Inverse (Representation.entries A)) \by {
+    Representation.inverseCertificate A B left right
+  } \then
+  \fun (i, j: Matrix.Index) \then
+  \return eq_reason_in!{K _
+    "=" { Representation.entries B i j } "by" { Operations.entry _ _ (entriesComparison B) i j }
+    "=" { Inversion.formula (Representation.entries A) i j } "by" { Inversion.componentFormula (Representation.entries A) certificate i j }
+    "=" { Inversion.formula (entries A) i j } "by" { congr!{Matrix.Matrix K} (\fun (C: Matrix.Matrix) => Inversion.formula C i j) _ _ (sym!{Matrix.Matrix} _ _ (entriesComparison A)) }
+  }
+};
+\definition smoothInverseAgreement: \forall (U: Open.OpenSet)(A, B: Open.Carrier U -> Maps.Map) ->
+  (\forall (x: Open.Carrier U)(v: Euclidean.Vector) -> (B x).apply ((A x).apply v) = v) ->
+  (\forall (x: Open.Carrier U)(v: Euclidean.Vector) -> (A x).apply ((B x).apply v) = v) -> Families.Regular U A ->
+  Families.Regular U B := SmoothInverse.regular;
+\definition smoothFormula: \forall (U: Open.OpenSet)(A, B: Open.Carrier U -> Maps.Map) ->
+  (\forall (x: Open.Carrier U)(v: Euclidean.Vector) -> (B x).apply ((A x).apply v) = v) ->
+  (\forall (x: Open.Carrier U)(v: Euclidean.Vector) -> (A x).apply ((B x).apply v) = v) -> Families.Regular U A ->
+  \forall (i, j: Matrix.Index) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => Inversion.formula (entries (A x)) i j) :=
+  \fun (U: Open.OpenSet)(A, B: Open.Carrier U -> Maps.Map)(left: _)(right: _)(regular: _)(i, j: Matrix.Index) =>
+    \idelim (\fun (x: Open.Carrier U) => entries (B x) i j) = (\fun (x: Open.Carrier U) => Inversion.formula (entries (A x)) i j)
+      \with f: (Open.Carrier U -> K) => Smooth.SmoothOn U f \by {
+        base: smoothInverseAgreement U A B left right regular i j,
+        equality: \axiom:funext((\fun (x: Open.Carrier U) => entries (B x) i j), (\fun (x: Open.Carrier U) => Inversion.formula (entries (A x)) i j),
+          \fun (x: Open.Carrier U) => inverseFormula (A x) (B x) (left x) (right x) i j)
+      };

@@ -1,0 +1,90 @@
+\import Algebra.Sums[I := Fin.Fin n] \as Sums;
+\import Algebra.Multilinear[V := K, space := Algebra.scalarSpace] \as Tuples;
+\import Tuples.Properties[] \as Updates;
+\definition Index: \Set := Fin.Fin n;
+\definition value[xs: Lists.List[Index]][f: Index -> K]: K := Lists.foldr Index K (\fun (i: Index)(tail: K) => mul (f i) tail) one xs;
+\definition congruent: \forall (xs: Lists.List[Index])(f, g: Index -> K) ->
+  (\forall (i: Index) -> \In[Index] (Sums.keys xs) i -> f i = g i) -> value xs f = value xs g :=
+  \induction (xs: Lists.List[Index]) \return \forall (f, g: Index -> K) ->
+    (\forall (i: Index) -> \In[Index] (Sums.keys xs) i -> f i = g i) -> value xs f = value xs g \with {
+    | nil: \fun (f, g: Index -> K)(same: _) => \refl(one)
+    | cons: \fun (head: Index)(tail: Lists.List[Index])(previous: _)(f, g: Index -> K)(same: _) =>
+      congr!{K K K} mul _ _ _ _ (same head (Logic.Or[_, _]::left (\refl(head))))
+        (previous f g (\fun (i: Index)(member: _) => same i (Logic.Or[_, _]::right member)))
+  };
+\definition headValue: \forall (head: Index)(tail: Lists.List[Index]) -> Logic.Not (\In[Index] (Sums.keys tail) head) ->
+  \forall (f: Index -> K)(a: K) -> value (Lists.List[Index]::cons head tail) (Tuples.update n f head a) = mul a (value tail f) :=
+  \fun (head: Index)(tail: Lists.List[Index])(fresh: _)(f: Index -> K)(a: K) =>
+    congr!{K K K} mul _ _ _ _ (Updates.updateSelf n f head a)
+      (congruent tail (Tuples.update n f head a) f (\fun (i: Index)(member: _) => Updates.updateOther n f head i a
+        (\fun (same: head = i) => fresh (\idelim i = head \with j: Index => \In[Index] (Sums.keys tail) j \by {
+          base: member, equality: sym!{Index} _ _ same
+        }))));
+\definition Addition[xs: Lists.List[Index]]: \Prop := \forall (i: Index) -> \In[Index] (Sums.keys xs) i ->
+  \forall (f: Index -> K)(a, b: K) -> value xs (Tuples.update n f i (add a b)) = add (value xs (Tuples.update n f i a)) (value xs (Tuples.update n f i b));
+\definition headAddition: \forall (head: Index)(tail: Lists.List[Index]) -> Logic.Not (\In[Index] (Sums.keys tail) head) ->
+  \forall (f: Index -> K)(a, b: K) -> value (Lists.List[Index]::cons head tail) (Tuples.update n f head (add a b)) =
+    add (value (Lists.List[Index]::cons head tail) (Tuples.update n f head a)) (value (Lists.List[Index]::cons head tail) (Tuples.update n f head b)) :=
+  \fun (head: Index)(tail: Lists.List[Index])(fresh: _)(f: Index -> K)(a, b: K) => eq_reason_in!{K _
+    "=" _ "by" { headValue head tail fresh f (add a b) }
+    "=" _ "by" { Algebra.addMul a b (value tail f) }
+    "=" _ "by" { congr!{K K K} add _ _ _ _ (sym!{K} _ _ (headValue head tail fresh f a)) (sym!{K} _ _ (headValue head tail fresh f b)) }
+  };
+\definition additionStep: \forall (head: Index)(tail: Lists.List[Index]) -> Logic.Not (\In[Index] (Sums.keys tail) head) -> Addition tail -> Addition (Lists.List[Index]::cons head tail) :=
+  \fun (head: Index)(tail: Lists.List[Index])(fresh: Logic.Not (\In[Index] (Sums.keys tail) head))(previous: Addition tail)(i: Index)(member: Logic.Or[i = head, \In[Index] (Sums.keys tail) i])(f: Index -> K)(a, b: K) =>
+      either!{{(Classical.excludedMiddle (i = head))} {value (Lists.List[Index]::cons head tail) (Tuples.update n f i (add a b)) = add (value (Lists.List[Index]::cons head tail) (Tuples.update n f i a)) (value (Lists.List[Index]::cons head tail) (Tuples.update n f i b))}
+        {\fun (same: i = head) => \idelim head = i \with j: Index =>
+          value (Lists.List[Index]::cons head tail) (Tuples.update n f j (add a b)) = add (value (Lists.List[Index]::cons head tail) (Tuples.update n f j a)) (value (Lists.List[Index]::cons head tail) (Tuples.update n f j b)) \by {
+            base: headAddition head tail fresh f a b, equality: sym!{Index} _ _ same
+          }}
+        {\block {
+          \fun (different: Logic.Not (i = head)) \then
+          \let inTail: \In[Index] (Sums.keys tail) i := either!{member {\In[Index] (Sums.keys tail) i}
+            {\fun (same: i = head) => Logic.falseElim _ (different same)} {\fun (old: _) => old}} \then
+          \return eq_reason_in!{K _
+            "=" { mul (f head) (value tail (Tuples.update n f i (add a b))) } "by" { congr!{K K} (\fun (c: K) => mul c (value tail (Tuples.update n f i (add a b)))) _ _ (Updates.updateOther n f i head (add a b) different) }
+            "=" _ "by" { congr!{K K} (mul (f head)) _ _ (previous i inTail f a b) }
+            "=" _ "by" { Algebra.mulAdd (f head) (value tail (Tuples.update n f i a)) (value tail (Tuples.update n f i b)) }
+            "=" _ "by" { congr!{K K K} add _ _ _ _
+              (congr!{K K} (\fun (c: K) => mul c (value tail (Tuples.update n f i a))) _ _ (sym!{K} _ _ (Updates.updateOther n f i head a different)))
+              (congr!{K K} (\fun (c: K) => mul c (value tail (Tuples.update n f i b))) _ _ (sym!{K} _ _ (Updates.updateOther n f i head b different))) }
+          }
+        }}
+      };
+\definition addition: \forall (xs: Lists.List[Index]) -> Sums.Distinct xs -> Addition xs :=
+  \fun (xs: Lists.List[Index])(distinct: Sums.Distinct xs) => distinct Addition
+    (\fun (i: Index)(empty: Logic.False)(f: Index -> K)(a, b: K) => Logic.falseElim _ empty)
+    additionStep;
+\definition Scalar[xs: Lists.List[Index]]: \Prop := \forall (i: Index) -> \In[Index] (Sums.keys xs) i ->
+  \forall (f: Index -> K)(a, b: K) -> value xs (Tuples.update n f i (mul a b)) = mul a (value xs (Tuples.update n f i b));
+\definition headScalar: \forall (head: Index)(tail: Lists.List[Index]) -> Logic.Not (\In[Index] (Sums.keys tail) head) ->
+  \forall (f: Index -> K)(a, b: K) -> value (Lists.List[Index]::cons head tail) (Tuples.update n f head (mul a b)) = mul a (value (Lists.List[Index]::cons head tail) (Tuples.update n f head b)) :=
+  \fun (head: Index)(tail: Lists.List[Index])(fresh: _)(f: Index -> K)(a, b: K) => eq_reason_in!{K _
+    "=" _ "by" { headValue head tail fresh f (mul a b) }
+    "=" _ "by" { Algebra.mulAssoc a b (value tail f) }
+    "=" _ "by" { congr!{K K} (mul a) _ _ (sym!{K} _ _ (headValue head tail fresh f b)) }
+  };
+\definition scalarStep: \forall (head: Index)(tail: Lists.List[Index]) -> Logic.Not (\In[Index] (Sums.keys tail) head) -> Scalar tail -> Scalar (Lists.List[Index]::cons head tail) :=
+  \fun (head: Index)(tail: Lists.List[Index])(fresh: Logic.Not (\In[Index] (Sums.keys tail) head))(previous: Scalar tail)(i: Index)(member: Logic.Or[i = head, \In[Index] (Sums.keys tail) i])(f: Index -> K)(a, b: K) =>
+      either!{{(Classical.excludedMiddle (i = head))} {value (Lists.List[Index]::cons head tail) (Tuples.update n f i (mul a b)) = mul a (value (Lists.List[Index]::cons head tail) (Tuples.update n f i b))}
+        {\fun (same: i = head) => \idelim head = i \with j: Index => value (Lists.List[Index]::cons head tail) (Tuples.update n f j (mul a b)) = mul a (value (Lists.List[Index]::cons head tail) (Tuples.update n f j b)) \by {
+          base: headScalar head tail fresh f a b, equality: sym!{Index} _ _ same
+        }}
+        {\block {
+          \fun (different: Logic.Not (i = head)) \then
+          \let inTail: \In[Index] (Sums.keys tail) i := either!{member {\In[Index] (Sums.keys tail) i}
+            {\fun (same: i = head) => Logic.falseElim _ (different same)} {\fun (old: _) => old}} \then
+          \return eq_reason_in!{K _
+            "=" { mul (f head) (value tail (Tuples.update n f i (mul a b))) } "by" { congr!{K K} (\fun (c: K) => mul c (value tail (Tuples.update n f i (mul a b)))) _ _ (Updates.updateOther n f i head (mul a b) different) }
+            "=" { mul (f head) (mul a (value tail (Tuples.update n f i b))) } "by" { congr!{K K} (mul (f head)) _ _ (previous i inTail f a b) }
+            "=" { mul a (mul (f head) (value tail (Tuples.update n f i b))) } "by" { Algebra.Laws[V := K, space := Algebra.scalarSpace].scaleComm (f head) a (value tail (Tuples.update n f i b)) }
+            "=" _ "by" { congr!{K K} (mul a) _ _ (congr!{K K} (\fun (c: K) => mul c (value tail (Tuples.update n f i b))) _ _ (sym!{K} _ _ (Updates.updateOther n f i head b different))) }
+          }
+        }}
+      };
+\definition scalar: \forall (xs: Lists.List[Index]) -> Sums.Distinct xs -> Scalar xs :=
+  \fun (xs: Lists.List[Index])(distinct: Sums.Distinct xs) => distinct Scalar
+    (\fun (i: Index)(empty: Logic.False)(f: Index -> K)(a, b: K) => Logic.falseElim _ empty)
+    scalarStep;
+\module Mapping(m: N.Nat^);
+\definition product[f: Index -> K]: K := value (Fin.elements n) f;

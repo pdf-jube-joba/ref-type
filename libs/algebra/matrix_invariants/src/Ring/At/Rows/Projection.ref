@@ -1,0 +1,40 @@
+\definition atReplaced: \forall (A: Matrix)(l: Index) -> product (projection i j) A i l = A j l :=
+  \fun (A: Matrix)(l: Index) => trans!{K} _ _ _
+    (SumLaws.congruent (Fin.elements n)
+      (\fun (k: Index) => mul (projection i j i k) (A k l)) (\fun (k: Index) => mul (identity j k) (A k l))
+      (\fun (k: Index) => congr!{K K} (\fun (a: K) => mul a (A k l)) _ _
+        (congr!{Vector K} (\fun (v: Vector) => v k) _ _ (Updates.updateSelf n identity i (identity j)))))
+    (Operations.entry _ _ (Operations.leftIdentity A) j l);
+\definition atOther: \forall (A: Matrix)(k, l: Index) -> Logic.Not (i = k) -> product (projection i j) A k l = A k l :=
+  \fun (A: Matrix)(k, l: Index)(different: _) => trans!{K} _ _ _
+    (SumLaws.congruent (Fin.elements n)
+      (\fun (h: Index) => mul (projection i j k h) (A h l)) (\fun (h: Index) => mul (identity k h) (A h l))
+      (\fun (h: Index) => congr!{K K} (\fun (a: K) => mul a (A h l)) _ _
+        (congr!{Vector K} (\fun (v: Vector) => v h) _ _ (Updates.updateOther n identity i k (identity j) different))))
+    (Operations.entry _ _ (Operations.leftIdentity A) k l);
+\definition acts: \forall (A: Matrix) -> A i = A j -> product (projection i j) A = A :=
+  \fun (A: Matrix)(same: A i = A j) => Operations.ext _ _ (\fun (k, l: Index) =>
+    either!{{(Classical.excludedMiddle (i = k))} {product (projection i j) A k l = A k l}
+      {\fun (equal: i = k) => \idelim i = k \with t: Index => product (projection i j) A t l = A t l \by {
+        base: trans!{K} _ _ _ (atReplaced A l) (sym!{K} _ _ (congr!{Vector K} (\fun (v: Vector) => v l) _ _ same)), equality: equal
+      }}
+      {atOther A k l}
+    });
+\definition columnZero: Logic.Not (i = j) -> columns (projection i j) i = Vectors.origin :=
+  \fun (different: Logic.Not (i = j)) => \axiom:funext(columns (projection i j) i, Vectors.origin,
+    \fun (k: Index) => either!{{(Classical.excludedMiddle (i = k))} {projection i j k i = zero}
+      {\fun (same: i = k) => eq_reason_in!{K _
+        "=" { projection i j i i } "by" { congr!{Index K} (\fun (t: Index) => projection i j t i) _ _ (sym!{Index} _ _ same) }
+        "=" { identity j i } "by" { congr!{Vector K} (\fun (v: Vector) => v i) _ _ (Updates.updateSelf n identity i (identity j)) }
+        "=" zero "by" { Kronecker.different i j different }
+      }}
+      {\fun (other: Logic.Not (i = k)) => trans!{K} _ _ _
+        (congr!{Vector K} (\fun (v: Vector) => v i) _ _ (Updates.updateOther n identity i k (identity j) other))
+        (Kronecker.different i k other)}
+    });
+\definition singular: Logic.Not (i = j) -> determinant (projection i j) = zero :=
+  \fun (different: Logic.Not (i = j)) => trans!{K} _ _ _
+    (congr!{{Multilinear.Arguments n} K} Top.volume _ _ (trans!{{Multilinear.Arguments n}} _ _ _
+      (sym!{{Multilinear.Arguments n}} _ _ (Updates.updateSame n (columns (projection i j)) i))
+      (congr!{Vector {Multilinear.Arguments n}} (Multilinear.update n (columns (projection i j)) i) _ _ (columnZero different))))
+    (Updates.zeroArgument n (Alternating.asMultilinear n Top.volume) (columns (projection i j)) i);

@@ -1,0 +1,22 @@
+\import \parent.\parent.TensorSum[n := n] \as TuplesSum;
+\import Fin.Tuples[A := Index] \as IndexTuples;
+\import Fin.Tuples[A := Vector] \as VectorTuples;
+\import Fin.Empty[A := Vector] \as Empty;
+\definition coefficient[k: N.Nat^][f: Multilinear.Form k][indices: TuplesSum.Tuple k]: K :=
+  f (\fun (i: Fin.Fin k) => Coordinates.vectors (indices i));
+\definition entries[k: N.Nat^][arguments: Multilinear.Arguments k][indices: TuplesSum.Tuple k]: K :=
+  \parent.\parent.Products[n := k].product (\fun (i: Fin.Fin k) => arguments i (indices i));
+\definition formula[k: N.Nat^][f: Multilinear.Form k][arguments: Multilinear.Arguments k]: K :=
+  TuplesSum.sum k (\fun (indices: TuplesSum.Tuple k) => mul (entries k arguments indices) (coefficient k f indices));
+\definition Law[k: N.Nat^]: \Prop := \forall (f: Multilinear.Form k)(arguments: Multilinear.Arguments k) -> formula k f arguments = f arguments;
+\module Step(k: N.Nat^);
+\definition law: \forall (k: N.Nat^) -> Law k :=
+  \induction (k: N.Nat^) \return Law k \with {
+    | zero: \fun (f: Multilinear.Form N.Nat^::zero)(arguments: Multilinear.Arguments N.Nat^::zero) => trans!{K} _ _ _
+      (Algebra.mulOneLeft (coefficient N.Nat^::zero f Fin.Empty[A := Index].function))
+      (congr!{{Multilinear.Arguments N.Nat^::zero} K} f _ _ (Empty.unique _ arguments))
+    | succ: \fun (k: N.Nat^)(previous: Law k) => Step[k := k].law previous
+  };
+\definition determinantExpansion: \forall (A: Matrix) ->
+  TuplesSum.sum n (\fun (indices: TuplesSum.Tuple n) => mul (entries n (columns A) indices) (coefficient n (Alternating.asMultilinear n Top.volume) indices)) = determinant A :=
+  \fun (A: Matrix) => law n (Alternating.asMultilinear n Top.volume) (columns A);

@@ -1,0 +1,46 @@
+\import Algebra.Linear[V := Vector, W := K, source := Vectors.space, target := Algebra.scalarSpace] \as Functionals;
+\import Algebra.Finite[V := Vector, I := Index, space := Vectors.space].Prop[] \as BasisLaws;
+\definition functional[A: Matrix][j: Index]: Functionals.Map := Functionals.Map {
+  apply := \fun (v: Vector) => determinant (replaceColumn A j v),
+  preservesAdd := columnAddition A j,
+  preservesScale := columnScalar A j,
+};
+\definition expansion: \forall (A: Matrix)(j: Index)(v: Vector) ->
+  determinant (replaceColumn A j v) = Sums.sum (Fin.elements n) (\fun (i: Index) => mul (v i) (cofactor A i j)) :=
+  \fun (A: Matrix)(j: Index)(v: Vector) => BasisLaws.functionalExpansion Coordinates.basis (functional A j) v;
+\definition original: \forall (A: Matrix)(j: Index) -> determinant (replaceColumn A j (columns A j)) = determinant A :=
+  \fun (A: Matrix)(j: Index) => trans!{K} _ _ _ (determinantReplace A j (columns A j))
+    (congr!{{Multilinear.Arguments n} K} Top.volume _ _ (Updates.updateSame n (columns A) j));
+\definition repeated: \forall (A: Matrix)(i, j: Index) -> Logic.Not (i = j) ->
+  determinant (replaceColumn A i (columns A j)) = zero :=
+  \fun (A: Matrix)(i, j: Index)(different: _) => trans!{K} _ _ _ (determinantReplace A i (columns A j)) ((\bysub(Multilinear.Function n, Alternating.Form n, Top.volume)).alternating
+    (Multilinear.update n (columns A) i (columns A j)) i j different
+    (trans!{Vector} _ _ _ (Updates.updateSelf n (columns A) i (columns A j))
+      (sym!{Vector} _ _ (Updates.updateOther n (columns A) i j (columns A j) different))));
+\definition laplaceColumn: \forall (A: Matrix)(j: Index) ->
+  Sums.sum (Fin.elements n) (\fun (i: Index) => mul (A i j) (cofactor A i j)) = determinant A :=
+  \fun (A: Matrix)(j: Index) => trans!{K} _ _ _ (sym!{K} _ _ (expansion A j (columns A j))) (original A j);
+\definition adjugateEntry: \forall (A: Matrix)(i, j: Index) ->
+  product (adjugate A) A i j = determinant (replaceColumn A i (columns A j)) :=
+  \fun (A: Matrix)(i, j: Index) => trans!{K} _ _ _
+    (SumLaws.congruent (Fin.elements n) (\fun (k: Index) => mul (cofactor A k i) (A k j))
+      (\fun (k: Index) => mul (A k j) (cofactor A k i)) (\fun (k: Index) => Algebra.mulComm (cofactor A k i) (A k j)))
+    (sym!{K} _ _ (expansion A i (columns A j)));
+\definition adjugateProduct: \forall (A: Matrix) -> product (adjugate A) A = Matrices.scale (determinant A) identity :=
+  \fun (A: Matrix) => \axiom:funext(product (adjugate A) A, Matrices.scale (determinant A) identity,
+    \fun (i: Index) => \axiom:funext(product (adjugate A) A i, Matrices.scale (determinant A) identity i,
+      \fun (j: Index) => either!{{(Classical.excludedMiddle (i = j))} {product (adjugate A) A i j = mul (determinant A) (identity i j)}
+        {\fun (same: i = j) => eq_reason_in!{K _
+          "=" _ "by" { adjugateEntry A i j }
+          "=" { determinant (replaceColumn A i (columns A i)) } "by" { congr!{Index K} (\fun (k: Index) => determinant (replaceColumn A i (columns A k))) j i (sym!{Index} _ _ same) }
+          "=" { determinant A } "by" { original A i }
+          "=" { mul (determinant A) one } "by" { sym!{K} _ _ (Algebra.mulOneRight (determinant A)) }
+          "=" _ "by" { congr!{K K} (mul (determinant A)) _ _ (sym!{K} _ _ (Kronecker.equal j i (sym!{Index} _ _ same))) }
+        }}
+        {\fun (different: Logic.Not (i = j)) => eq_reason_in!{K _
+          "=" _ "by" { adjugateEntry A i j }
+          "=" zero "by" { repeated A i j different }
+          "=" { mul (determinant A) zero } "by" { sym!{K} _ _ (Algebra.mulZeroRight (determinant A)) }
+          "=" _ "by" { congr!{K K} (mul (determinant A)) _ _ (sym!{K} _ _ (Kronecker.different j i (\fun (same: j = i) => different (sym!{Index} _ _ same)))) }
+        }}
+      }));

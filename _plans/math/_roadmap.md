@@ -11,7 +11,8 @@
 接束・法束、微分形式、Clifford 代数、Spin・Spin-c の群、実 Gram–Schmidt も利用できる。
 一般のベクトル束、管状近傍、境界付き多様体、特性類、K 理論は今回のタスクで構成する。
 既存の Lp・Sobolev は主に定義で、Euclid 空間の Lebesgue 測度、完備性、Fourier 解析、楕円正則性も実装範囲に含める。
-個別タスクはすべて未着手として置き、既存 API と重なる部分は実装時に比較して再利用する。
+既存 API と重なる部分は実装時に比較して再利用する。
+完了した単位は公開 API の README に移し、未完了の単位を以下のタスク一覧に残す。
 
 ## 到達点と証明の経路
 
@@ -91,25 +92,32 @@ flowchart TD
 - [G01 滑らかな bump 関数と従属分割](g01-smooth-partitions.md)
 - [K02 CW cofibration と Puppe 列](k02-cofibration-puppe.md)
 - [K04 Stone–Weierstrass と Laurent 近似](k04-uniform-approximation.md)
-- [L01 行列式と可逆行列](l01-determinants.md)
+- [L02 多項式の互除法と Cayley–Hamilton](l02-polynomial-factorization.md)
+- [L03 Hermitian 行列と連続な局所枠](l03-hermitian-frames.md)
+- [G02 逆関数・陰関数と正則値の局所形](g02-inverse-implicit.md)
 - [L04 対称多項式と特性級数](l04-symmetric-series.md)
 
-4エージェントなら、初手の例は B01・L01・G01・A01。
-L01 の後は L03 と G02 を別担当へ、B01 の後は B02 へ、A01 の後は A02 へ進められる。
+L01 の行列式・逆行列の基盤が利用可能になり、L02・L03・G02 に着手できる。
+B01 の後は B02 へ、A01 の後は A02 へ進められる。
 空いた担当には C01・K02・K04・L04・A19 を割り当て、長い解析の経路を早めに進める。
 各節の番号は識別子で、実装順は依存リストから決まる。
 
+## 完了した単位
+
+| 単位 | 公開 API |
+| --- | --- |
+| L01 行列式と可逆行列 | [matrix_invariants](../../libs/algebra/matrix_invariants/README.md) |
+
 ## タスク一覧
 
-全92件、概算合計480千行。
+未完了91件、概算合計475千行。
 
 ### 線形代数と特性級数
 
-4件、概算20千行。
+3件、概算15千行。
 
 | タスク | 概算（千行） |
 | --- | ---: |
-| [L01 行列式と可逆行列](l01-determinants.md) | 5 |
 | [L02 多項式の互除法と Cayley–Hamilton](l02-polynomial-factorization.md) | 5 |
 | [L03 Hermitian 行列と連続な局所枠](l03-hermitian-frames.md) | 5 |
 | [L04 対称多項式と特性級数](l04-symmetric-series.md) | 5 |
