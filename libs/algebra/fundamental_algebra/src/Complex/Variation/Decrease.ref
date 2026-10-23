@@ -1,0 +1,43 @@
+\import \parent.Continuity[] \as Continuity;
+\import metric_spaces.RealLine[] \as Line;
+\import metric_spaces.RealMetric[] \as RealMetric;
+\import metric_spaces.MetricSpace[Carrier := Real.Real] \as Metric;
+\import Metric.Topology[] \as MetricTopology;
+\import topology.Topology[Carrier := Real.Real] \as Space;
+\definition powerPositive: \forall (t: Real.Real)(k: N.Nat^) -> R.Lt Real.zero t -> R.Lt Real.zero (Reals.power t k) :=
+  \fun (t: Real.Real) => \induction (k: N.Nat^) \return R.Lt Real.zero t -> R.Lt Real.zero (Reals.power t k) \with {
+    | zero: \fun (positive: _) => Bounds.onePositive
+    | succ: \fun (k: N.Nat^)(previous: _)(positive: _) => Products.mulPositive t (Reals.power t k) positive (previous positive)
+  };
+\structure Improvement[t: Real.Real, epsilon: Real.Real]: \Prop := {
+  positive: R.Lt Real.zero t,
+  small: R.Lt t epsilon,
+  lower: R.Lt (Op.normSq (perturb t)) (Op.normSq a),
+};
+\definition exists: Logic.Not (n = N.Nat^::zero) -> R.Lt leading Real.zero ->
+  \forall (epsilon: Real.Real) -> R.Lt Real.zero epsilon -> \exists ( t: Real.Real \where Improvement[t, epsilon] ) := \block {
+  \fun (nonzero: _)(negative: _)(epsilon: Real.Real)(ep: _) \then
+  \let U: \Pow Real.Real := { t: Real.Real \where R.Lt (variation t) Real.zero } \then
+  \let open: Space.IsOpenIn Line.topology U := Continuity.continuous (Line.Rays[].Below Real.zero) (Line.Rays[].belowOpen Real.zero) \then
+  \takefrom r: \Cast[Real.Real] (Metric.NeighborhoodRadius RealMetric.metric U Real.zero)
+    \by (MetricTopology.openIff RealMetric.metric U).ltr open Real.zero (negativeAtZero nonzero negative) \then
+  \let radius: Logic.And[R.Lt Real.zero r, Space.Subset (Metric.Ball RealMetric.metric Real.zero r) U] :=
+    \bysub(Real.Real, Metric.NeighborhoodRadius RealMetric.metric U Real.zero, r) \then
+  \let m: Real.Real := Distance.min r epsilon \then
+  \let mp: R.Lt Real.zero m := Products.minPositive r epsilon radius.left ep \then
+  \let t: Real.Real := Real.mul Real.half m \then
+  \let tp: R.Lt Real.zero t := Estimates.halfOfPositive m mp \then
+  \let tm: R.Lt t m := Estimates.halfStrict m mp \then
+  \let tr: R.Lt t r := R.ltLeTrans t m r tm (Distance.minLeft r epsilon) \then
+  \let negativeValue: R.Lt (variation t) Real.zero := radius.right t
+    (R.ltReplaceLeft t (Real.distance Real.zero t) r (sym!{Real.Real} _ _ (Products.absOfNonnegative t (Order.leOfLt _ _ tp))) tr) \then
+  \let productNegative: R.Lt (Real.mul (Reals.power t n) (variation t)) Real.zero :=
+    R.ltReplaceRight _ (Real.mul (Reals.power t n) Real.zero) Real.zero (Laws.fieldMulZeroRight _)
+      (Products.mulStrict (Reals.power t n) (variation t) Real.zero (powerPositive t n tp) negativeValue) \then
+  \return Logic.existsIntro[Real.Real, { t: Real.Real \where Improvement[t, epsilon] }] t (Improvement[t, epsilon] {
+    positive := tp, small := R.ltLeTrans t m epsilon tm (Distance.minRight r epsilon),
+    lower := R.ltReplaceLeft (Real.add (Op.normSq a) (Real.mul (Reals.power t n) (variation t))) (Op.normSq (perturb t)) (Op.normSq a)
+      (sym!{Real.Real} _ _ (identity t))
+      (R.ltReplaceRight _ (Real.add (Op.normSq a) Real.zero) (Op.normSq a) (Laws.addZeroRight _) (Laws.ltAddLeft _ _ _ productNegative)),
+  })
+};

@@ -1,0 +1,99 @@
+\import \parent.UnitRoots[] \as Units;
+\import \parent.Bounds[] \as Bounds;
+\import std.Data[].Nat[].Order[].Prop[] \as NatOrder;
+\definition double[n: N.Nat^]: N.Nat^ := NatOp.add n n;
+\definition odd[n: N.Nat^]: N.Nat^ := N.Nat^::succ (double n);
+\definition doubleSucc: \forall (n: N.Nat^) -> double (N.Nat^::succ n) = N.Nat^::succ (N.Nat^::succ (double n)) :=
+  \fun (n: N.Nat^) => Nat.addSuccLeft n (N.Nat^::succ n);
+\definition oddSucc: \forall (n: N.Nat^) -> odd (N.Nat^::succ n) = N.Nat^::succ (N.Nat^::succ (odd n)) :=
+  \fun (n: N.Nat^) => congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _ (doubleSucc n);
+\definition parity: \forall (n: N.Nat^) -> Logic.Or[\exists ( m: N.Nat^ \where n = double m ), \exists ( m: N.Nat^ \where n = odd m )] :=
+  \induction (n: N.Nat^) \return Logic.Or[\exists ( m: N.Nat^ \where n = double m ), \exists ( m: N.Nat^ \where n = odd m )] \with {
+    | zero: Logic.Or[\exists ( m: N.Nat^ \where N.Nat^::zero = double m ), \exists ( m: N.Nat^ \where N.Nat^::zero = odd m )]::left (Logic.existsIntro[N.Nat^, { m: N.Nat^ \where N.Nat^::zero = double m }] N.Nat^::zero (\refl(N.Nat^::zero)))
+    | succ: \fun (n: N.Nat^)(previous: _) => Logic.orElim (\exists ( m: N.Nat^ \where n = double m )) (\exists ( m: N.Nat^ \where n = odd m )) (Logic.Or[\exists ( m: N.Nat^ \where N.Nat^::succ n = double m ), \exists ( m: N.Nat^ \where N.Nat^::succ n = odd m )]) previous
+      (\block {
+        \fun (even: _) \then
+        \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where n = double m }) \by even \then
+        \return Logic.Or[\exists ( m: N.Nat^ \where N.Nat^::succ n = double m ), \exists ( m: N.Nat^ \where N.Nat^::succ n = odd m )]::right (Logic.existsIntro[N.Nat^, { m: N.Nat^ \where N.Nat^::succ n = odd m }] m
+          (congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _ (\bysub(N.Nat^, { m: N.Nat^ \where n = double m }, m))))
+      })
+      (\block {
+        \fun (oddCase: _) \then
+        \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where n = odd m }) \by oddCase \then
+        \return Logic.Or[\exists ( m: N.Nat^ \where N.Nat^::succ n = double m ), \exists ( m: N.Nat^ \where N.Nat^::succ n = odd m )]::left (Logic.existsIntro[N.Nat^, { k: N.Nat^ \where N.Nat^::succ n = double k }] (N.Nat^::succ m)
+          (trans!{N.Nat^} _ _ _ (congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _ (\bysub(N.Nat^, { m: N.Nat^ \where n = odd m }, m))) (sym!{N.Nat^} _ _ (doubleSucc m))))
+      })
+  };
+\definition doubleLarger: \forall (n: N.Nat^) -> Logic.Not (n = N.Nat^::zero) -> Nat.Lt n (double n) :=
+  \induction (n: N.Nat^) \return Logic.Not (n = N.Nat^::zero) -> Nat.Lt n (double n) \with {
+    | zero: \fun (nonzero: _) => Logic.falseElim _ (nonzero (\refl(N.Nat^::zero)))
+    | succ: \fun (n: N.Nat^)(previous: _)(nonzero: _) =>
+      \idelim N.Nat^::succ (N.Nat^::succ (double n)) = double (N.Nat^::succ n) \with k: N.Nat^ => Nat.Lt (N.Nat^::succ n) k \by {
+        base: Nat.ltSuccSucc n (N.Nat^::succ (double n)) (Nat.leLtTrans n (double n) _ (Nat.leAddRight n n) (NatOrder.ltSelfSucc (double n))),
+        equality: sym!{N.Nat^} _ _ (doubleSucc n)
+      }
+  };
+\definition powerPair: \forall (z: C.Complex)(n: N.Nat^) -> Field.power z (N.Nat^::succ (N.Nat^::succ n)) = Op.mul (Op.mul z z) (Field.power z n) :=
+  \fun (z: C.Complex)(n: N.Nat^) => sym!{C.Complex} _ _ (Complex.mulAssoc z z (Field.power z n));
+\definition evenPower: \forall (z: C.Complex)(n: N.Nat^) -> Field.power z (double n) = Field.power (Op.mul z z) n :=
+  \fun (z: C.Complex) => \induction (n: N.Nat^) \return Field.power z (double n) = Field.power (Op.mul z z) n \with {
+    | zero: \refl(Op.one)
+    | succ: \fun (n: N.Nat^)(previous: _) => eq_reason_in!{C.Complex _
+      "=" _ "by" { congr!{N.Nat^ C.Complex} (Field.power z) _ _ (doubleSucc n) }
+      "=" _ "by" { powerPair z (double n) }
+      "=" _ "by" { congr!{C.Complex C.Complex} (Op.mul (Op.mul z z)) _ _ previous }
+    }
+  };
+\definition squareNegation: \forall (z: C.Complex) -> Op.mul (Op.neg z) (Op.neg z) = Op.mul z z :=
+  \fun (z: C.Complex) => trans!{C.Complex} _ _ _ (Arithmetic.mulNegLeft z (Op.neg z))
+    (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} Op.neg _ _ (Arithmetic.mulNegRight z z)) (Sum.negNeg (Op.mul z z)));
+\definition oddNegation: \forall (z: C.Complex)(n: N.Nat^) -> Field.power (Op.neg z) (odd n) = Op.neg (Field.power z (odd n)) :=
+  \fun (z: C.Complex)(n: N.Nat^) => eq_reason_in!{C.Complex _
+    "=" { Op.mul (Op.neg z) (Field.power (Op.mul (Op.neg z) (Op.neg z)) n) } "by" { congr!{C.Complex C.Complex} (Op.mul (Op.neg z)) _ _ (evenPower (Op.neg z) n) }
+    "=" { Op.neg (Op.mul z (Field.power (Op.mul z z) n)) } "by" {
+      trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} (\fun (a: C.Complex) => Op.mul (Op.neg z) (Field.power a n)) _ _ (squareNegation z))
+        (Arithmetic.mulNegLeft z (Field.power (Op.mul z z) n)) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (a: C.Complex) => Op.neg (Op.mul z a)) _ _ (sym!{C.Complex} _ _ (evenPower z n)) }
+  };
+\definition unitPower: \forall (z: Units.Carrier)(n: N.Nat^) -> Op.normSq (Field.power z n) = Real.one :=
+  \fun (z: Units.Carrier) => \induction (n: N.Nat^) \return Op.normSq (Field.power z n) = Real.one \with {
+    | zero: Bounds.normOne
+    | succ: \fun (n: N.Nat^)(previous: _) => trans!{Real.Real} _ _ _ (Complex.normSqMul z (Field.power z n))
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (Units.norm z) previous) (Laws.fieldMulOneLeft Real.one))
+  };
+\definition imaginaryOdd: \forall (n: N.Nat^) -> C.re (Field.power Op.i (odd n)) = Real.zero :=
+  \induction (n: N.Nat^) \return C.re (Field.power Op.i (odd n)) = Real.zero \with {
+    | zero: congr!{C.Complex Real.Real} C.re _ _ (Complex.mulOneRight Op.i)
+    | succ: \fun (n: N.Nat^)(previous: _) => eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{N.Nat^ Real.Real} (\fun (k: N.Nat^) => C.re (Field.power Op.i k)) _ _ (oddSucc n) }
+      "=" _ "by" { congr!{C.Complex Real.Real} C.re _ _ (powerPair Op.i (odd n)) }
+      "=" { C.re (Op.neg (Field.power Op.i (odd n))) } "by" { congr!{C.Complex Real.Real} C.re _ _
+        (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} (\fun (a: C.Complex) => Op.mul a (Field.power Op.i (odd n))) _ _ Complex.iSquared) (Arithmetic.negOneMul (Field.power Op.i (odd n)))) }
+      "=" _ "by" { trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Real.neg _ _ previous) Laws.negZero }
+    }
+  };
+\definition Direction[n: N.Nat^][c: C.Complex]: \Set := \Cast[Units.Carrier] ({ w: Units.Carrier \where R.Lt (C.re (Op.mul c (Field.power w n))) Real.zero });
+\module Odd(n: N.Nat^, c: C.Complex);
+\module Even(n, m: N.Nat^, c: C.Complex);
+\definition exists: \forall (n: N.Nat^) -> Logic.Not (n = N.Nat^::zero) -> \forall (c: C.Complex) -> Op.NonZero c -> \exists Direction n c :=
+  std.Data[].Nat[].Induction[].strong (\fun (n: N.Nat^) => Logic.Not (n = N.Nat^::zero) -> \forall (c: C.Complex) -> Op.NonZero c -> \exists Direction n c)
+    (\fun (n: N.Nat^)(previous: \forall (m: N.Nat^) -> Nat.Lt m n -> Logic.Not (m = N.Nat^::zero) -> \forall (c: C.Complex) -> Op.NonZero c -> \exists Direction m c)
+      (positive: Logic.Not (n = N.Nat^::zero))(c: C.Complex)(nonzero: Op.NonZero c) => Logic.orElim
+      (\exists ( m: N.Nat^ \where n = double m )) (\exists ( m: N.Nat^ \where n = odd m )) (\exists Direction n c) (parity n)
+      (\block {
+        \fun (even: _) \then
+        \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where n = double m }) \by even \then
+        \let equation: n = double m := \bysub(N.Nat^, { m: N.Nat^ \where n = double m }, m) \then
+        \let mNonzero: Logic.Not (m = N.Nat^::zero) := \fun (zero: _) => positive (trans!{N.Nat^} _ _ _ equation (congr!{N.Nat^ N.Nat^} double _ _ zero)) \then
+        \let smaller: Nat.Lt m n := \idelim double m = n \with k: N.Nat^ => Nat.Lt m k \by {
+          base: doubleLarger m mNonzero, equality: sym!{N.Nat^} _ _ equation
+        } \then
+        \return Even[n := n, m := m, c := c].exists equation (previous m smaller mNonzero c nonzero)
+      })
+      (\block {
+        \fun (oddCase: _) \then
+        \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where n = odd m }) \by oddCase \then
+        \return \idelim odd m = n \with k: N.Nat^ => \exists Direction k c \by {
+          base: Odd[n := m, c := c].exists nonzero, equality: sym!{N.Nat^} _ _ (\bysub(N.Nat^, { m: N.Nat^ \where n = odd m }, m))
+        }
+      }));

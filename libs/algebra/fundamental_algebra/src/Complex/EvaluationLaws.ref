@@ -1,0 +1,15 @@
+\import Polynomial.Universal[K := C.Complex, target := std.Alg[].Field[].fieldAsCommutativeRing C.Complex ComplexAlgebra.field] \as Universal;
+\definition constants: \forall (z, a: C.Complex) -> Evaluation.apply z (Polynomial.constant a) = a :=
+  \fun (z, a: C.Complex) => Universal.constants Evaluation.identity z a;
+\definition variable: \forall (z: C.Complex) -> Evaluation.apply z Polynomial.X = z :=
+  \fun (z: C.Complex) => Universal.variable Evaluation.identity z;
+\definition negative: \forall (z: C.Complex)(p: Polynomial.Carrier) -> Evaluation.apply z (Polynomial.neg p) = Op.neg (Evaluation.apply z p) :=
+  \fun (z: C.Complex)(p: Polynomial.Carrier) => Sum.inverseUnique (Evaluation.apply z p) (Evaluation.apply z (Polynomial.neg p))
+    (trans!{C.Complex} _ _ _ (sym!{C.Complex} _ _ ((Evaluation.homomorphism z).add (Polynomial.neg p) p))
+      (trans!{C.Complex} _ _ _ (congr!{Polynomial.Carrier C.Complex} (Evaluation.apply z) _ _ (Polynomial.ring.ring.additiveInverse p)) (Evaluation.homomorphism z).zero));
+\import Raw.In[L := C.Complex, target := std.Alg[].Field[].fieldAsCommutativeRing C.Complex ComplexAlgebra.field] \as In;
+\definition rawAgrees: \forall (p: Coefficients)(z: C.Complex) -> Evaluation.apply z (Raw.asPolynomial p) = Monic.evaluate p z :=
+  \fun (p: Coefficients)(z: C.Complex) => In.At[coefficients := Evaluation.identity, x := z].rawAgrees p;
+\definition atZero: \forall (a: C.Complex)(tail: Coefficients) -> Evaluation.apply Op.zero (Raw.asPolynomial (Lists.List[C.Complex]::cons a tail)) = a :=
+  \fun (a: C.Complex)(tail: Coefficients) => trans!{C.Complex} _ _ _ (rawAgrees (Lists.List[C.Complex]::cons a tail) Op.zero)
+    (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} (Op.add a) _ _ (Complex.mulZeroLeft (Monic.evaluate tail Op.zero))) (Complex.addZeroRight a));

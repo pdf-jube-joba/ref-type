@@ -1,0 +1,13 @@
+\definition coefficient: Real.Real := Absolute.abs form.leading;
+\definition coefficientPositive: R.Lt Real.zero coefficient := Absolute.positive form.leading form.nonzero;
+\definition coefficientNonzero: Logic.Not (coefficient = Real.zero) := \fun (zero: _) => R.ltIrrefl Real.zero (R.ltReplaceRight _ _ _ zero coefficientPositive);
+\definition threshold[M: Real.Real]: Real.Real := Real.mul (Laws.fieldInv coefficient) M;
+\definition cancellation: \forall (M: Real.Real) -> Real.mul coefficient (threshold M) = M :=
+  \fun (M: Real.Real) => trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.fieldMulAssoc coefficient (Laws.fieldInv coefficient) M))
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (c: Real.Real) => Real.mul c M) _ _ (trans!{Real.Real} _ _ _ (Laws.fieldMulComm coefficient (Laws.fieldInv coefficient)) (Laws.fieldInverseNonzero coefficient coefficientNonzero))) (Laws.fieldMulOneLeft M));
+\definition radius[M: Real.Real]: Real.Real := Bounds.radius form.coefficients (threshold M);
+\definition positiveRadius: \forall (M: Real.Real) -> R.Lt Real.zero (radius M) := \fun (M: Real.Real) => Bounds.radiusPositive form.coefficients (threshold M);
+\definition escapes: Nonconstant p -> \forall (M: Real.Real)(z: C.Complex) -> R.Le (radius M) (Absolute.abs z) -> R.Lt M (absolute p z) :=
+  \fun (nonconstant: _)(M: Real.Real)(z: C.Complex)(large: _) => R.ltReplaceLeft _ _ _ (cancellation M)
+    (R.ltReplaceRight _ _ _ (sym!{Real.Real} _ _ (absoluteForm p form z))
+      (Products.mulStrict coefficient (threshold M) (Minimum.value form.coefficients z) coefficientPositive (Bounds.escapes form.coefficients (positive p nonconstant form) (threshold M) z large)));

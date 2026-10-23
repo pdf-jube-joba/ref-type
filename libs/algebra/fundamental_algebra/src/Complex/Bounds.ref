@@ -1,0 +1,99 @@
+\definition normNeg: \forall (z: C.Complex) -> Op.normSq (Op.neg z) = Op.normSq z :=
+  \fun (z: C.Complex) => congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+    (Laws.fieldMulNegBoth (C.re z) (C.re z)) (Laws.fieldMulNegBoth (C.im z) (C.im z));
+\definition absNeg: \forall (z: C.Complex) -> Absolute.abs (Op.neg z) = Absolute.abs z :=
+  \fun (z: C.Complex) => congr!{Real.Real Real.Real} SquareRoot.sqrt _ _ (normNeg z);
+\definition normOne: Op.normSq Op.one = Real.one := trans!{Real.Real} _ _ _
+  (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Laws.fieldMulOneLeft Real.one) (Laws.fieldMulZeroLeft Real.zero)) (Laws.addZeroRight Real.one);
+\definition absOne: Absolute.abs Op.one = Real.one := trans!{Real.Real} _ _ _
+  (congr!{Real.Real Real.Real} SquareRoot.sqrt _ _ normOne) SquareRoot.sqrtOne;
+\definition normZero: Op.normSq Op.zero = Real.zero := trans!{Real.Real} _ _ _
+  (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Laws.fieldMulZeroLeft Real.zero) (Laws.fieldMulZeroLeft Real.zero)) (Laws.addZeroLeft Real.zero);
+\definition absZero: Absolute.abs Op.zero = Real.zero := trans!{Real.Real} _ _ _
+  (congr!{Real.Real Real.Real} SquareRoot.sqrt _ _ normZero) SquareRoot.sqrtZero;
+\definition reverseTriangle: \forall (a, b: C.Complex) -> R.Le (Absolute.abs b) (Real.add (Absolute.abs a) (Absolute.abs (Op.add a b))) :=
+  \fun (a, b: C.Complex) => R.leReplace (Absolute.abs b) (Absolute.abs b)
+    (Real.add (Absolute.abs (Op.neg a)) (Absolute.abs (Op.add a b)))
+    (Real.add (Absolute.abs a) (Absolute.abs (Op.add a b)))
+    (\refl(Absolute.abs b)) (congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.add x (Absolute.abs (Op.add a b))) _ _ (absNeg a))
+    (R.leReplaceLeft (Absolute.abs (Op.add (Op.neg a) (Op.add a b))) (Absolute.abs b) _
+      (congr!{C.Complex Real.Real} Absolute.abs _ _ (trans!{C.Complex} _ _ _
+        (sym!{C.Complex} _ _ (Sum.assoc (Op.neg a) a b))
+        (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} (\fun (x: C.Complex) => Op.add x b) _ _ (Sum.inverseLeft a)) (Sum.zeroLeft b))))
+      (Absolute.triangle (Op.neg a) (Op.add a b)));
+\definition budget: Coefficients -> Real.Real := Lists.foldr C.Complex Real.Real
+  (\fun (a: C.Complex)(s: Real.Real) => Real.add (Absolute.abs a) s) Real.zero;
+\definition budgetNonnegative: \forall (p: Coefficients) -> R.Le Real.zero (budget p) :=
+  \induction (p: Coefficients) \return R.Le Real.zero (budget p) \with {
+    | nil: R.leRefl Real.zero
+    | cons: \fun (a: C.Complex)(tail: Coefficients)(previous: _) => Laws.addNonnegative (Absolute.abs a) (budget tail) (Absolute.nonnegative a) previous
+  };
+\definition tailBudget: \forall (a: C.Complex)(p: Coefficients) -> R.Le (budget p) (budget (Lists.List[C.Complex]::cons a p)) :=
+  \fun (a: C.Complex)(p: Coefficients) => Distance.leAddRightOfNonnegative (Absolute.abs a) (budget p) (Absolute.nonnegative a);
+\definition headBudget: \forall (a: C.Complex)(p: Coefficients) -> R.Le (Absolute.abs a) (budget (Lists.List[C.Complex]::cons a p)) :=
+  \fun (a: C.Complex)(p: Coefficients) => Algebra.leAddRight (Absolute.abs a) (budget p) (budgetNonnegative p);
+\definition hornerLower: \forall (a, z, t: C.Complex) -> R.Le Real.one (Absolute.abs t) ->
+  R.Le (Absolute.abs z) (Real.add (Absolute.abs a) (Absolute.abs (Op.add a (Op.mul z t)))) :=
+  \fun (a, z, t: C.Complex)(large: _) => R.leTrans _ (Absolute.abs (Op.mul z t)) _
+    (R.leReplace (Real.mul (Absolute.abs z) Real.one) (Absolute.abs z)
+      (Real.mul (Absolute.abs z) (Absolute.abs t)) (Absolute.abs (Op.mul z t))
+      (Algebra.mulOneRight (Absolute.abs z)) (sym!{Real.Real} _ _ (Absolute.multiplicative z t))
+      (Estimates.mulMonotone (Absolute.abs z) Real.one (Absolute.abs t) (Absolute.nonnegative z) large))
+    (reverseTriangle a (Op.mul z t));
+\definition outsideUnit: \forall (p: Coefficients)(z: C.Complex) -> R.Le (Real.add Real.one (budget p)) (Absolute.abs z) ->
+  R.Le Real.one (Absolute.abs (Monic.monicEvaluate p z)) :=
+  \induction (p: Coefficients) \return \forall (z: C.Complex) -> R.Le (Real.add Real.one (budget p)) (Absolute.abs z) -> R.Le Real.one (Absolute.abs (Monic.monicEvaluate p z)) \with {
+    | nil: \fun (z: C.Complex)(large: _) => R.leReplaceRight Real.one Real.one (Absolute.abs Op.one) (sym!{Real.Real} _ _ absOne) (R.leRefl Real.one)
+    | cons: \fun (a: C.Complex)(tail: Coefficients)(previous: _)(z: C.Complex)(large: _) =>
+      Laws.leAddCancelRight Real.one (Absolute.abs (Monic.monicEvaluate (Lists.List[C.Complex]::cons a tail) z)) (Absolute.abs a)
+        (R.leReplaceRight (Real.add Real.one (Absolute.abs a))
+          (Real.add (Absolute.abs a) (Absolute.abs (Monic.monicEvaluate (Lists.List[C.Complex]::cons a tail) z)))
+          (Real.add (Absolute.abs (Monic.monicEvaluate (Lists.List[C.Complex]::cons a tail) z)) (Absolute.abs a))
+          (Laws.addComm _ _)
+          (R.leTrans _ (Real.add Real.one (budget (Lists.List[C.Complex]::cons a tail))) _
+            (Laws.addMonotoneLeft _ _ Real.one (headBudget a tail))
+            (R.leTrans _ (Absolute.abs z) _ large
+              (hornerLower a z (Monic.monicEvaluate tail z) (previous z
+                (R.leTrans _ (Real.add Real.one (budget (Lists.List[C.Complex]::cons a tail))) _
+                  (Laws.addMonotoneLeft _ _ Real.one (tailBudget a tail)) large))))))
+  };
+\definition grows: \forall (p: Coefficients) -> Monic.Positive p -> \forall (z: C.Complex) ->
+  R.Le (Real.add Real.one (budget p)) (Absolute.abs z) -> R.Le (Absolute.abs z) (Real.add (budget p) (Absolute.abs (Monic.monicEvaluate p z))) :=
+  \induction (p: Coefficients) \return Monic.Positive p -> \forall (z: C.Complex) ->
+    R.Le (Real.add Real.one (budget p)) (Absolute.abs z) -> R.Le (Absolute.abs z) (Real.add (budget p) (Absolute.abs (Monic.monicEvaluate p z))) \with {
+      | nil: \fun (positive: _)(z: C.Complex)(large: _) => Logic.falseElim _ (positive (\refl(N.Nat^::zero)))
+      | cons: \fun (a: C.Complex)(tail: Coefficients)(unused: _)(positive: _)(z: C.Complex)(large: _) =>
+        R.leTrans _ (Real.add (Absolute.abs a) (Absolute.abs (Monic.monicEvaluate (Lists.List[C.Complex]::cons a tail) z))) _
+          (hornerLower a z (Monic.monicEvaluate tail z) (outsideUnit tail z
+            (R.leTrans _ (Real.add Real.one (budget (Lists.List[C.Complex]::cons a tail))) _ (Laws.addMonotoneLeft _ _ Real.one (tailBudget a tail)) large)))
+          (Laws.addMonotoneRight _ _ _ (headBudget a tail))
+    };
+\definition onePositive: R.Lt Real.zero Real.one := Order.ltOfLeNotEq Real.zero Real.one Laws.oneNonnegative Laws.zeroNotOne;
+\definition radius[p: Coefficients][threshold: Real.Real]: Real.Real := Real.add (budget p) (Real.add Real.one (Distance.max Real.zero threshold));
+\definition radiusLarge: \forall (p: Coefficients)(threshold: Real.Real) -> R.Le (Real.add Real.one (budget p)) (radius p threshold) :=
+  \fun (p: Coefficients)(threshold: Real.Real) => R.leReplaceLeft (Real.add (budget p) Real.one) (Real.add Real.one (budget p)) _ (Laws.addComm _ _)
+    (Laws.addMonotoneLeft _ _ (budget p) (Algebra.leAddRight Real.one (Distance.max Real.zero threshold) (Distance.maxLeft Real.zero threshold)));
+\definition radiusPositive: \forall (p: Coefficients)(threshold: Real.Real) -> R.Lt Real.zero (radius p threshold) :=
+  \fun (p: Coefficients)(threshold: Real.Real) => R.ltLeTrans _ Real.one _ onePositive
+    (R.leTrans Real.one (Real.add Real.one (budget p)) _ (Algebra.leAddRight Real.one (budget p) (budgetNonnegative p)) (radiusLarge p threshold));
+\definition escapes: \forall (p: Coefficients) -> Monic.Positive p -> \forall (threshold: Real.Real)(z: C.Complex) ->
+  R.Le (radius p threshold) (Absolute.abs z) -> R.Lt threshold (Absolute.abs (Monic.monicEvaluate p z)) :=
+  \fun (p: Coefficients)(positive: _)(threshold: Real.Real)(z: C.Complex)(outside: _) =>
+    Laws.ltAddCancelLeft (budget p) threshold (Absolute.abs (Monic.monicEvaluate p z))
+      (R.ltLeTrans _ (radius p threshold) _
+        (Laws.ltAddLeft (budget p) threshold (Real.add Real.one (Distance.max Real.zero threshold))
+          (R.leLtTrans threshold (Distance.max Real.zero threshold) _ (Distance.maxRight Real.zero threshold)
+            (R.ltReplaceRight (Distance.max Real.zero threshold) (Real.add (Distance.max Real.zero threshold) Real.one)
+              (Real.add Real.one (Distance.max Real.zero threshold)) (Laws.addComm _ _)
+              (SquareRoot.addPositive (Distance.max Real.zero threshold) Real.one onePositive))))
+        (R.leTrans _ (Absolute.abs z) _ outside
+          (grows p positive z (R.leTrans _ (radius p threshold) _ (radiusLarge p threshold) outside))));
+\definition imaginaryBound: \forall (z: C.Complex) -> R.Le (C.im z) (Absolute.abs z) :=
+  \fun (z: C.Complex) => Order.leOfNotLtReverse (C.im z) (Absolute.abs z) (\fun (greater: R.Lt (Absolute.abs z) (C.im z)) =>
+    R.ltNotLeReverse (Op.normSq z) (Real.mul (C.im z) (C.im z))
+      (R.ltReplaceLeft (Real.mul (Absolute.abs z) (Absolute.abs z)) (Op.normSq z) _ (Absolute.square z)
+        (SquareRoot.squareStrict (Absolute.abs z) (C.im z) (Absolute.nonnegative z) greater))
+      (Distance.leAddRightOfNonnegative (Real.mul (C.re z) (C.re z)) (Real.mul (C.im z) (C.im z)) (Algebra.squareNonnegative (C.re z))));
+\definition coordinateLower: \forall (x, r: Real.Real) -> R.Le (Real.neg x) r -> R.Le (Real.neg r) x :=
+  \fun (x, r: Real.Real)(h: _) => R.leReplaceRight (Real.neg r) (Real.neg (Real.neg x)) x (Laws.negInvolutive x)
+    (Laws.negAntitone (Real.neg x) r h);

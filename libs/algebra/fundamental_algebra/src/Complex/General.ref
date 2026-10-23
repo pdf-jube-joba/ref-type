@@ -1,0 +1,67 @@
+\import \parent.Normalization[] \as Normalization;
+\import \parent.Minimum[] \as Minimum;
+\import \parent.Bounds[] \as Bounds;
+\import \parent.Roots[] \as Roots;
+\import \parent.EvaluationLaws[] \as Values;
+\import Real.Estimates[].Product[] \as Products;
+\import algebra.Monoid[].Of[Carrier := Polynomial.Carrier, monoid := Raw.multiplicative] \as Product;
+\definition Nonconstant[p: Polynomial.Carrier]: \Prop := \forall (c: C.Complex) -> Logic.Not (p = Polynomial.constant c);
+\definition absolute[p: Polynomial.Carrier][z: C.Complex]: Real.Real := Absolute.abs (Evaluation.apply z p);
+\definition nonzero: \forall (p: Polynomial.Carrier) -> Nonconstant p -> Logic.Not (p = Polynomial.zero) :=
+  \fun (p: Polynomial.Carrier)(nonconstant: _)(zero: _) => nonconstant Op.zero
+    (trans!{Polynomial.Carrier} _ _ _ zero (sym!{Polynomial.Carrier} _ _ Raw.coefficientLaws.zero));
+\definition constantMonic: \forall (p: Coefficients) -> Monic.degree p = N.Nat^::zero -> Monic.asPolynomial p = Polynomial.one :=
+  \induction (p: Coefficients) \return Monic.degree p = N.Nat^::zero -> Monic.asPolynomial p = Polynomial.one \with {
+    | nil: \fun (zero: _) => \refl(Polynomial.one)
+    | cons: \fun (a: C.Complex)(tail: Coefficients)(previous: _)(zero: _) => Logic.falseElim _ (Nat.succNeZero (Monic.degree tail) zero)
+  };
+\definition positive: \forall (p: Polynomial.Carrier) -> Nonconstant p -> \forall (form: Normalization.Form p) -> Monic.Positive form.coefficients :=
+  \fun (p: Polynomial.Carrier)(nonconstant: _)(form: Normalization.Form p)(zero: _) => nonconstant form.leading (trans!{Polynomial.Carrier} _ _ _ form.equation
+    (trans!{Polynomial.Carrier} _ _ _ (congr!{Polynomial.Carrier Polynomial.Carrier} (Polynomial.mul (Polynomial.constant form.leading)) _ _ (constantMonic form.coefficients zero)) (Product.zeroRight _)));
+\definition evaluates: \forall (p: Polynomial.Carrier)(form: Normalization.Form p)(z: C.Complex) -> Evaluation.apply z p = Op.mul form.leading (Monic.monicEvaluate form.coefficients z) :=
+  \fun (p: Polynomial.Carrier)(form: Normalization.Form p)(z: C.Complex) => trans!{C.Complex} _ _ _ (congr!{Polynomial.Carrier C.Complex} (Evaluation.apply z) _ _ form.equation)
+    (trans!{C.Complex} _ _ _ ((Evaluation.homomorphism z).mul (Polynomial.constant form.leading) (Monic.asPolynomial form.coefficients))
+      (congr!{C.Complex C.Complex C.Complex} Op.mul _ _ _ _ (Values.constants z form.leading) (Evaluation.agrees form.coefficients z)));
+\definition absoluteForm: \forall (p: Polynomial.Carrier)(form: Normalization.Form p)(z: C.Complex) -> absolute p z = Real.mul (Absolute.abs form.leading) (Minimum.value form.coefficients z) :=
+  \fun (p: Polynomial.Carrier)(form: Normalization.Form p)(z: C.Complex) => trans!{Real.Real} _ _ _ (congr!{C.Complex Real.Real} Absolute.abs _ _ (evaluates p form z)) (Absolute.multiplicative form.leading (Monic.monicEvaluate form.coefficients z));
+\definition root: \forall (p: Polynomial.Carrier) -> Nonconstant p -> \exists ( z: C.Complex \where Evaluation.apply z p = Op.zero ) := \block {
+  \fun (p: Polynomial.Carrier)(nonconstant: _) \then
+  \takefrom form: Normalization.Form p \by Normalization.exists p (nonzero p nonconstant) \then
+  \takefrom z: \Cast[C.Complex] ({ z: C.Complex \where Monic.monicEvaluate form.coefficients z = Op.zero }) \by Roots.exists form.coefficients (positive p nonconstant form) \then
+  \return Logic.existsIntro[C.Complex, { z: C.Complex \where Evaluation.apply z p = Op.zero }] z (trans!{C.Complex} _ _ _ (evaluates p form z)
+    (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} (Op.mul form.leading) _ _ (\bysub(C.Complex, { z: C.Complex \where Monic.monicEvaluate form.coefficients z = Op.zero }, z))) (Complex.mulZeroRight form.leading)))
+};
+\structure Global[p: Polynomial.Carrier, a: C.Complex]: \Prop := { lower: \forall (z: C.Complex) -> R.Le (absolute p a) (absolute p z) };
+\definition minimum: \forall (p: Polynomial.Carrier) -> \exists ( a: C.Complex \where Global[p, a] ) :=
+  \fun (p: Polynomial.Carrier) => Logic.orElim _ _ _ (Classical.excludedMiddle (p = Polynomial.zero))
+    (\fun (zero: p = Polynomial.zero) => Logic.existsIntro[C.Complex, { a: C.Complex \where Global[p, a] }] Op.zero (Global[p, Op.zero] {
+      lower := \fun (z: C.Complex) => \idelim Polynomial.zero = p \with q: Polynomial.Carrier => R.Le (absolute q Op.zero) (absolute q z) \by {
+        base: R.leReplaceLeft _ _ _ (congr!{C.Complex Real.Real} Absolute.abs _ _ (sym!{C.Complex} _ _ (Evaluation.homomorphism Op.zero).zero))
+          (R.leReplaceRight _ _ _ (congr!{C.Complex Real.Real} Absolute.abs _ _ (sym!{C.Complex} _ _ (Evaluation.homomorphism z).zero)) (R.leRefl (Absolute.abs Op.zero))),
+        equality: sym!{Polynomial.Carrier} _ _ zero
+      },
+    }))
+    (\block {
+      \fun (nonzero: _) \then
+      \takefrom form: Normalization.Form p \by Normalization.exists p nonzero \then
+      \takefrom a: \Cast[C.Complex] ({ a: C.Complex \where Minimum.Global[form.coefficients, a] }) \by Minimum.all form.coefficients \then
+      \let minimum: Minimum.Global[form.coefficients, a] := \bysub(C.Complex, { a: C.Complex \where Minimum.Global[form.coefficients, a] }, a) \then
+      \return Logic.existsIntro[C.Complex, { a: C.Complex \where Global[p, a] }] a (Global[p, a] {
+        lower := \fun (z: C.Complex) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (absoluteForm p form a))
+          (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (absoluteForm p form z)) (Estimates.mulMonotone (Absolute.abs form.leading) _ _ (Absolute.nonnegative form.leading) (minimum.lower z))),
+      })
+    });
+\module Growth(p: Polynomial.Carrier, form: Normalization.Form p);
+\structure Exterior[p: Polynomial.Carrier, M, r: Real.Real]: \Prop := {
+  positive: R.Lt Real.zero r,
+  bound: \forall (z: C.Complex) -> R.Le r (Absolute.abs z) -> R.Lt M (absolute p z),
+};
+\definition growth: \forall (p: Polynomial.Carrier) -> Nonconstant p -> \forall (M: Real.Real) -> \exists ( r: Real.Real \where Exterior[p, M, r] ) := \block {
+  \fun (p: Polynomial.Carrier)(nonconstant: _)(M: Real.Real) \then
+  \takefrom form: Normalization.Form p \by Normalization.exists p (nonzero p nonconstant) \then
+  \return Logic.existsIntro[Real.Real, { r: Real.Real \where Exterior[p, M, r] }] (Growth[p := p, form := form].radius M)
+    (Exterior[p, M, Growth[p := p, form := form].radius M] {
+      positive := Growth[p := p, form := form].positiveRadius M,
+      bound := Growth[p := p, form := form].escapes nonconstant M,
+    })
+};

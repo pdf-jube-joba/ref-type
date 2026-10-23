@@ -1,0 +1,33 @@
+\import \parent.Roots[] \as Roots;
+\import \parent.Factorization[] \as Factorization;
+\import Factorization.Families[] \as Families;
+\import Families.Quotient[] \as Unordered;
+\import Factorization.Cancellation[] \as Cancellation;
+\import algebra.Monoid[].Of[Carrier := Polynomial.Carrier, monoid := Raw.multiplicative] \as Product;
+\definition quadratic: Coefficients := Lists.List[C.Complex]::cons Op.one (Lists.List[C.Complex]::cons Op.zero Lists.List[C.Complex]::nil);
+\definition quadraticRoot: \exists ( z: C.Complex \where Monic.monicEvaluate quadratic z = Op.zero ) := Roots.exists quadratic (Nat.succNeZero _);
+\definition quadraticSplitting: Monic.Splits (\fun (_: C.Complex) => Logic.True) quadratic := Factorization.monic quadratic;
+\definition pair[a, b: C.Complex]: Coefficients := Lists.List[C.Complex]::cons a (Lists.List[C.Complex]::cons b Lists.List[C.Complex]::nil);
+\definition single[a: C.Complex]: Coefficients := Lists.List[C.Complex]::cons a Lists.List[C.Complex]::nil;
+\definition swap: \forall (a, b: C.Complex) -> Unordered.family (pair a b) = Unordered.family (pair b a) :=
+  \fun (a, b: C.Complex) => Unordered.equal (pair a b) (pair b a) (Families.unique (pair a b) (pair b a) (Product.swap (Monic.linearFactor a) (Monic.linearFactor b) Polynomial.one));
+\definition multiplicityMatters: \forall (a: C.Complex) -> Logic.Not (Unordered.family (pair a a) = Unordered.family (single a)) := \block {
+  \fun (a: C.Complex)(same: _) \then
+  \let products: Monic.factors (pair a a) = Monic.factors (single a) := eq_reason_in!{Polynomial.Carrier _
+    "=" _ "by" { sym!{Polynomial.Carrier} _ _ (Unordered.productOf (pair a a)) }
+    "=" _ "by" { congr!{Unordered.Family Polynomial.Carrier} (\fun (F: Unordered.Family) => Unordered.product F) _ _ same }
+    "=" _ "by" { Unordered.productOf (single a) }
+  } \then
+  \let one: Monic.factors (single a) = Polynomial.one := Cancellation.linear a (Monic.factors (single a)) Polynomial.one products \then
+  \return Nat.succNeZero N.Nat^::zero (congr!{Coefficients N.Nat^} (Lists.length C.Complex) _ _ (Families.empty (single a) one))
+};
+\import \parent.Normalization[] \as Normalization;
+\import \parent.General[] \as General;
+\import Factorization.Unordered[] \as UnorderedFactorization;
+\definition nonmonic: Polynomial.Carrier := Polynomial.mul (Polynomial.constant Op.i) (Monic.asPolynomial quadratic);
+\definition nonmonicNonzero: Logic.Not (nonmonic = Polynomial.zero) := Normalization.factorNonzero Op.i Complex.iNonzero quadratic;
+\definition nonmonicSplitting: \exists Factorization.Result nonmonic := Factorization.exists nonmonic nonmonicNonzero;
+\definition unorderedNonmonic: \exists UnorderedFactorization.Form nonmonic := UnorderedFactorization.exists nonmonic nonmonicNonzero;
+\definition zeroMinimum: \exists ( a: C.Complex \where General.Global[Polynomial.zero, a] ) := General.minimum Polynomial.zero;
+\definition constantMinimum: \forall (c: C.Complex) -> \exists ( a: C.Complex \where General.Global[Polynomial.constant c, a] ) :=
+  \fun (c: C.Complex) => General.minimum (Polynomial.constant c);

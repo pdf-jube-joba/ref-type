@@ -1,0 +1,61 @@
+\import \parent.Families[] \as Families;
+\import \parent.Cancellation[] \as Cancellation;
+\import \root.Complex[].EvaluationLaws[] \as Values;
+\definition scaled[c: C.Complex][xs: Coefficients]: Polynomial.Carrier := Polynomial.mul (Polynomial.constant c) (Monic.factors xs);
+\definition evaluates: \forall (c: C.Complex)(xs: Coefficients)(z: C.Complex) -> Evaluation.apply z (scaled c xs) = Op.mul c (Evaluation.apply z (Monic.factors xs)) :=
+  \fun (c: C.Complex)(xs: Coefficients)(z: C.Complex) => trans!{C.Complex} _ _ _ ((Evaluation.homomorphism z).mul (Polynomial.constant c) (Monic.factors xs))
+    (congr!{C.Complex C.Complex} (\fun (v: C.Complex) => Op.mul v (Evaluation.apply z (Monic.factors xs))) _ _ (Values.constants z c));
+\definition constantValue: \forall (c, z: C.Complex) -> Evaluation.apply z (scaled c Lists.List[C.Complex]::nil) = c :=
+  \fun (c, z: C.Complex) => trans!{C.Complex} _ _ _ (evaluates c Lists.List[C.Complex]::nil z)
+    (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} (Op.mul c) _ _ (Evaluation.homomorphism z).one) (Complex.mulOneRight c));
+\definition headRoot: \forall (c, x: C.Complex)(tail: Coefficients) -> Evaluation.apply x (scaled c (Lists.List[C.Complex]::cons x tail)) = Op.zero :=
+  \fun (c, x: C.Complex)(tail: Coefficients) => trans!{C.Complex} _ _ _ (evaluates c (Lists.List[C.Complex]::cons x tail) x)
+    (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} (Op.mul c) _ _ (Families.headRoot x tail)) (Complex.mulZeroRight c));
+\definition empty: \forall (ys: Coefficients)(c, d: C.Complex) -> Op.NonZero c -> scaled c Lists.List[C.Complex]::nil = scaled d ys -> ys = Lists.List[C.Complex]::nil :=
+  \induction (ys: Coefficients) \return \forall (c, d: C.Complex) -> Op.NonZero c -> scaled c Lists.List[C.Complex]::nil = scaled d ys -> ys = Lists.List[C.Complex]::nil \with {
+    | nil: \fun (c, d: C.Complex)(nonzero: _)(equal: _) => \refl(Lists.List[C.Complex]::nil)
+    | cons: \fun (x: C.Complex)(tail: Coefficients)(previous: _)(c, d: C.Complex)(nonzero: _)(equal: _) => Logic.falseElim _ (nonzero
+      (trans!{C.Complex} _ _ _ (sym!{C.Complex} _ _ (constantValue c x))
+        (trans!{C.Complex} _ _ _ (congr!{Polynomial.Carrier C.Complex} (Evaluation.apply x) _ _ equal) (headRoot d x tail))))
+  };
+\structure Same[c, d: C.Complex, xs, ys: Coefficients]: \Prop := { leading: c = d, roots: Families.Permutation xs ys };
+\definition deletion: \forall (c, x: C.Complex)(ys: Coefficients)(removed: Families.Deletion x ys) -> scaled c ys = Polynomial.mul (Monic.linearFactor x) (scaled c (Families.remainder removed)) :=
+  \fun (c, x: C.Complex)(ys: Coefficients)(removed: Families.Deletion x ys) => trans!{Polynomial.Carrier} _ _ _
+    (congr!{Polynomial.Carrier Polynomial.Carrier} (Polynomial.mul (Polynomial.constant c)) _ _ (Families.deletionProduct x ys removed))
+    (Product.swap (Polynomial.constant c) (Monic.linearFactor x) (Monic.factors (Families.remainder removed)));
+\definition unique: \forall (xs, ys: Coefficients)(c, d: C.Complex) -> Op.NonZero c -> Op.NonZero d -> scaled c xs = scaled d ys -> Same[c, d, xs, ys] :=
+  \induction (xs: Coefficients) \return \forall (ys: Coefficients)(c, d: C.Complex) -> Op.NonZero c -> Op.NonZero d -> scaled c xs = scaled d ys -> Same[c, d, xs, ys] \with {
+    | nil: \block {
+      \fun (ys: Coefficients)(c, d: C.Complex)(cn: _)(dn: _)(equal: _) \then
+      \let ysNil: ys = Lists.List[C.Complex]::nil := empty ys c d cn equal \then
+      \let same: scaled c Lists.List[C.Complex]::nil = scaled d Lists.List[C.Complex]::nil := trans!{Polynomial.Carrier} _ _ _ equal (congr!{Coefficients Polynomial.Carrier} (scaled d) _ _ ysNil) \then
+      \return Same[c, d, Lists.List[C.Complex]::nil, ys] {
+        roots := ysNil,
+        leading := trans!{C.Complex} _ _ _ (sym!{C.Complex} _ _ (constantValue c Op.zero))
+          (trans!{C.Complex} _ _ _ (congr!{Polynomial.Carrier C.Complex} (Evaluation.apply Op.zero) _ _ same) (constantValue d Op.zero)),
+      }
+    }
+    | cons: \block {
+      \fun (x: C.Complex)(tail: Coefficients)(previous: \forall (ys: Coefficients)(c, d: C.Complex) -> Op.NonZero c -> Op.NonZero d -> scaled c tail = scaled d ys -> Same[c, d, tail, ys])
+        (ys: Coefficients)(c, d: C.Complex)(cn: _)(dn: _)(equal: scaled c (Lists.List[C.Complex]::cons x tail) = scaled d ys) \then
+      \let root: Evaluation.apply x (Monic.factors ys) = Op.zero := Arithmetic.cancelLeft d _ Op.zero dn
+        (trans!{C.Complex} _ _ _ (sym!{C.Complex} _ _ (evaluates d ys x))
+          (trans!{C.Complex} _ _ _ (congr!{Polynomial.Carrier C.Complex} (Evaluation.apply x) _ _ (sym!{Polynomial.Carrier} _ _ equal))
+            (trans!{C.Complex} _ _ _ (headRoot c x tail) (sym!{C.Complex} _ _ (Complex.mulZeroRight d))))) \then
+      \takefrom removed: Families.Deletion x ys \by Families.extract ys x root \then
+      \let tails: scaled c tail = scaled d (Families.remainder removed) := Cancellation.linear x _ _
+        (trans!{Polynomial.Carrier} _ _ _ (sym!{Polynomial.Carrier} _ _ (Product.swap (Polynomial.constant c) (Monic.linearFactor x) (Monic.factors tail)))
+          (trans!{Polynomial.Carrier} _ _ _ equal (deletion d x ys removed))) \then
+      \let same: Same[c, d, tail, Families.remainder removed] := previous (Families.remainder removed) c d cn dn tails \then
+      \return Same[c, d, Lists.List[C.Complex]::cons x tail, ys] {
+        leading := same.leading,
+        roots := Logic.existsIntro[Families.Deletion x ys, { removed: Families.Deletion x ys \where Families.Permutation tail (Families.remainder removed) }] removed same.roots,
+      }
+    }
+  };
+\definition result: \forall (p: Polynomial.Carrier)(f, g: Result p) -> Same[f.leading, g.leading, f.roots, g.roots] :=
+  \fun (p: Polynomial.Carrier)(f, g: Result p) => unique f.roots g.roots f.leading g.leading f.nonzero g.nonzero
+    (trans!{Polynomial.Carrier} _ _ _ (sym!{Polynomial.Carrier} _ _ f.equation) g.equation);
+\import Families.Quotient[] \as Unordered;
+\definition unordered: \forall (p: Polynomial.Carrier)(f, g: Result p) -> Unordered.family f.roots = Unordered.family g.roots :=
+  \fun (p: Polynomial.Carrier)(f, g: Result p) => Unordered.equal f.roots g.roots (result p f g).roots;

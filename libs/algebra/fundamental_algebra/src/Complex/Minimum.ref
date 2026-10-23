@@ -1,0 +1,59 @@
+\import \parent.Bounds[] \as Bounds;
+\import topological_algebra.Complex[] \as Plane;
+\import Plane.Functions[A := C.Complex] \as Functions;
+\import topology.Topology[Carrier := C.Complex] \as Space;
+\import topology.Maps[A := C.Complex, B := C.Complex] \as Maps;
+\import Maps.Identity[] \as Identity;
+\import metric_spaces.RealFunctions[A := C.Complex] \as ScalarFunctions;
+\import ScalarFunctions.Extrema[] \as Extrema;
+\import metric_spaces.RealLine[] \as Line;
+\import topological_constructions.Product[A := Real.Real, B := Real.Real] \as Product;
+\import Product.Compactness[] \as Compactness;
+\definition value[p: Coefficients][z: C.Complex]: Real.Real := Absolute.abs (Monic.monicEvaluate p z);
+\definition continuous: \forall (p: Coefficients) -> topology.Continuity[A := C.Complex, B := C.Complex].Continuous Plane.topology Plane.topology (Monic.monicEvaluate p) :=
+  \induction (p: Coefficients) \return topology.Continuity[A := C.Complex, B := C.Complex].Continuous Plane.topology Plane.topology (Monic.monicEvaluate p) \with {
+    | nil: Maps.constantContinuous Plane.topology Plane.topology Op.one
+    | cons: \fun (a: C.Complex)(tail: Coefficients)(previous: _) => Functions.additionContinuous Plane.topology (\fun (z: C.Complex) => a)
+      (\fun (z: C.Complex) => Op.mul z (Monic.monicEvaluate tail z)) (Maps.constantContinuous Plane.topology Plane.topology a)
+      (Functions.multiplicationContinuous Plane.topology (\fun (z: C.Complex) => z) (Monic.monicEvaluate tail) (Identity.continuous Plane.topology) previous)
+  };
+\definition absoluteContinuous: \forall (p: Coefficients) -> ScalarFunctions.Continuous Plane.topology (value p) :=
+  \fun (p: Coefficients) => Functions.absoluteContinuous Plane.topology (Monic.monicEvaluate p) (continuous p);
+\definition box[r: Real.Real]: \Pow C.Complex := Product.Rectangle (Line.ClosedInterval (Real.neg r) r) (Line.ClosedInterval (Real.neg r) r);
+\definition compact: \forall (r: Real.Real) -> Space.IsCompactIn Plane.topology (box r) :=
+  \fun (r: Real.Real) => Compactness.productCompactIn Line.topology Line.topology _ _
+    (Line.CompactIntervals[].intervalCompact (Real.neg r) r) (Line.CompactIntervals[].intervalCompact (Real.neg r) r);
+\definition contains: \forall (r: Real.Real)(z: C.Complex) -> R.Le (Absolute.abs z) r -> Space.Member (box r) z :=
+  \fun (r: Real.Real)(z: C.Complex)(bound: _) => Logic.And[_, _]::#
+    (Logic.And[_, _]::#
+      (Bounds.coordinateLower (C.re z) r (R.leTrans _ (Absolute.abs (Op.neg z)) _ (Absolute.realPartBound (Op.neg z))
+        (R.leReplaceLeft (Absolute.abs z) (Absolute.abs (Op.neg z)) r (sym!{Real.Real} _ _ (Bounds.absNeg z)) bound)))
+      (R.leTrans _ (Absolute.abs z) _ (Absolute.realPartBound z) bound))
+    (Logic.And[_, _]::#
+      (Bounds.coordinateLower (C.im z) r (R.leTrans _ (Absolute.abs (Op.neg z)) _ (Bounds.imaginaryBound (Op.neg z))
+        (R.leReplaceLeft (Absolute.abs z) (Absolute.abs (Op.neg z)) r (sym!{Real.Real} _ _ (Bounds.absNeg z)) bound)))
+      (R.leTrans _ (Absolute.abs z) _ (Bounds.imaginaryBound z) bound));
+\structure Global[p: Coefficients, a: C.Complex]: \Prop := { lower: \forall (z: C.Complex) -> R.Le (value p a) (value p z) };
+\definition exists: \forall (p: Coefficients) -> Monic.Positive p -> \exists ( a: C.Complex \where Global[p, a] ) := \block {
+  \fun (p: Coefficients)(positive: _) \then
+  \let radius: Real.Real := Bounds.radius p (value p Op.zero) \then
+  \let zeroMember: Space.Member (box radius) Op.zero := contains radius Op.zero
+    (R.leReplaceLeft Real.zero (Absolute.abs Op.zero) radius (sym!{Real.Real} _ _ Bounds.absZero)
+      (Order.leOfLt Real.zero radius (Bounds.radiusPositive p (value p Op.zero)))) \then
+  \takefrom a: \Cast[C.Complex] ({ a: C.Complex \where Extrema.Minimum[box radius, value p, a] }) \by
+    Extrema.minimum Plane.topology (box radius) (value p) (Logic.existsIntro[C.Complex, box radius] Op.zero zeroMember) (compact radius) (absoluteContinuous p) \then
+  \let minimum: Extrema.Minimum[box radius, value p, a] := \bysub(C.Complex, { a: C.Complex \where Extrema.Minimum[box radius, value p, a] }, a) \then
+  \return Logic.existsIntro[C.Complex, { a: C.Complex \where Global[p, a] }] a (Global[p, a] {
+    lower := \fun (z: C.Complex) => Logic.orElim _ _ _ (Classical.excludedMiddle (R.Le (Absolute.abs z) radius))
+      (\fun (inside: _) => minimum.lower z (contains radius z inside))
+      (\fun (outside: _) => R.leTrans _ (value p Op.zero) _ (minimum.lower Op.zero zeroMember)
+        (Order.leOfLt _ _ (Bounds.escapes p positive (value p Op.zero) z
+          (Order.leOfNotLtReverse radius (Absolute.abs z) (\fun (less: R.Lt (Absolute.abs z) radius) => outside (Order.leOfLt _ _ less)))))),
+  })
+};
+\definition all: \forall (p: Coefficients) -> \exists ( a: C.Complex \where Global[p, a] ) :=
+  \induction (p: Coefficients) \return \exists ( a: C.Complex \where Global[p, a] ) \with {
+    | nil: Logic.existsIntro[C.Complex, { a: C.Complex \where Global[Lists.List[C.Complex]::nil, a] }] Op.zero
+      (Global[Lists.List[C.Complex]::nil, Op.zero] { lower := \fun (z: C.Complex) => R.leRefl (Absolute.abs Op.one) })
+    | cons: \fun (c: C.Complex)(tail: Coefficients)(previous: _) => exists (Lists.List[C.Complex]::cons c tail) (Nat.succNeZero (Monic.degree tail))
+  };
