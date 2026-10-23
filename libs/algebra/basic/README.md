@@ -31,7 +31,7 @@
 
 多項式環と Laurent 多項式環は、式の集合を最小の環合同関係で割って構成する。
 `FreeCommutativeRing` の表示は追加の関係を持つ係数環上の可換環にも利用できる。
-係数列による正規形、次数、体上の除法と互除法は次の実装単位となる。
+体上の係数列のモニック化とモニック除法は `galois.Field.Over.Polynomial.Raw`、一般の非零除数への除法・互除法と Bézout 係数は [polynomial_linear_algebra](../polynomial_linear_algebra/README.md) を参照。
 
 `Noncommutative` は一般の群、部分群、右作用、安定化部分群、左剰余類の右作用を扱う。
 `Actions.At` は、推移的な右作用と選んだ点の安定化部分群の剰余類作用の間の同変全単射を構成する。

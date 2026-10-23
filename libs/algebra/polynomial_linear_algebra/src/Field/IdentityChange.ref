@@ -1,0 +1,21 @@
+\import algebra.Hom[A := K, B := K] \as ScalarsMap;
+\definition scalarIdentity: ScalarsMap.RingMap (Rings.commutativeRingAsRing K (std.Alg[].Field[].fieldAsCommutativeRing K field)) (Rings.commutativeRingAsRing K (std.Alg[].Field[].fieldAsCommutativeRing K field)) :=
+  \into[K -> K]((\fun (a: K) => a), ScalarsMap.RingMap (Rings.commutativeRingAsRing K (std.Alg[].Field[].fieldAsCommutativeRing K field)) (Rings.commutativeRingAsRing K (std.Alg[].Field[].fieldAsCommutativeRing K field))) \by {
+    ScalarsMap.SemiringLaws[Rings.ringAsSemiring K ScalarArithmetic.underlyingRing, Rings.ringAsSemiring K ScalarArithmetic.underlyingRing, (\fun (a: K) => a)] {
+      zero := \refl(Scalars.zero), one := \refl(Scalars.one),
+      add := \fun (a, b: K) => \refl(Scalars.add a b), mul := \fun (a, b: K) => \refl(Scalars.mul a b),
+    }
+  };
+\import \parent.Change[L := K, target := field, f := scalarIdentity] \as Change;
+\import algebra.Hom[A := Polynomial, B := Polynomial] \as Hom;
+\definition polynomialIdentity: Hom.RingMap Raw.ring Raw.ring := \into[Polynomial -> Polynomial]((\fun (p: Polynomial) => p), Hom.RingMap Raw.ring Raw.ring) \by {
+  Hom.SemiringLaws[Rings.ringAsSemiring Polynomial Raw.ring, Rings.ringAsSemiring Polynomial Raw.ring, (\fun (p: Polynomial) => p)] {
+    zero := \refl(P.zero), one := \refl(P.one),
+    add := \fun (p, q: Polynomial) => \refl(P.add p q), mul := \fun (p, q: Polynomial) => \refl(P.mul p q),
+  }
+};
+\definition mapIdentity: \forall (p: Polynomial) -> Change.map p = p :=
+  \fun (p: Polynomial) => sym!{Polynomial} _ _
+    (congr!{{Polynomial -> Polynomial} Polynomial} (\fun (h: Polynomial -> Polynomial) => h p) _ _
+      (P.Universal[K := Polynomial, target := P.ring].unique Change.coefficients P.X polynomialIdentity
+        (\fun (a: K) => \refl(P.constant a)) (\refl(P.X))));

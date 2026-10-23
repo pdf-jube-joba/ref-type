@@ -1,0 +1,47 @@
+\import algebra.Hom[A := Polynomial, B := Left.Carrier] \as LeftMaps;
+\import algebra.Hom[A := Polynomial, B := Right.Carrier] \as RightMaps;
+\definition leftLaws: LeftMaps.SemiringLaws[Rings.ringAsSemiring Polynomial Raw.ring, Rings.ringAsSemiring Left.Carrier (Rings.commutativeRingAsRing Left.Carrier Left.ring), Left.class] :=
+  LeftMaps.semiringLaws _ _ Left.projection;
+\definition rightLaws: RightMaps.SemiringLaws[Rings.ringAsSemiring Polynomial Raw.ring, Rings.ringAsSemiring Right.Carrier (Rings.commutativeRingAsRing Right.Carrier Right.ring), Right.class] :=
+  RightMaps.semiringLaws _ _ Right.projection;
+\import linear_algebra.Commutative[K := Left.Carrier, scalarRing := Left.ring] \as L;
+\import linear_algebra.Commutative[K := Right.Carrier, scalarRing := Right.ring] \as R;
+\definition leftUnit: Left.class (P.mul b.right q) = L.one :=
+  eq_reason_in!{Left.Carrier _
+    "=" { L.add L.zero (Left.class (P.mul b.right q)) } "by" { sym!{Left.Carrier} _ _ (L.addZeroLeft _) }
+    "=" { L.add (Left.class (P.mul b.left p)) (Left.class (P.mul b.right q)) } "by" {
+      congr!{Left.Carrier Left.Carrier} (\fun (x: Left.Carrier) => L.add x (Left.class (P.mul b.right q))) _ _
+        (sym!{Left.Carrier} _ _ (trans!{Left.Carrier} _ _ _ (congr!{Polynomial Left.Carrier} Left.class _ _ (Product.comm b.left p)) (Left.multiple b.left))) }
+    "=" { Left.class P.one } "by" { trans!{Left.Carrier} _ _ _ (sym!{Left.Carrier} _ _ (leftLaws.add (P.mul b.left p) (P.mul b.right q))) (congr!{Polynomial Left.Carrier} Left.class _ _ (sym!{Polynomial} _ _ b.equation)) }
+    "=" _ "by" { leftLaws.one }
+  };
+\definition rightUnit: Right.class (P.mul b.left p) = R.one :=
+  eq_reason_in!{Right.Carrier _
+    "=" { R.add (Right.class (P.mul b.left p)) R.zero } "by" { sym!{Right.Carrier} _ _ (R.addZeroRight _) }
+    "=" { R.add (Right.class (P.mul b.left p)) (Right.class (P.mul b.right q)) } "by" {
+      congr!{Right.Carrier Right.Carrier} (R.add (Right.class (P.mul b.left p))) _ _
+        (sym!{Right.Carrier} _ _ (trans!{Right.Carrier} _ _ _ (congr!{Polynomial Right.Carrier} Right.class _ _ (Product.comm b.right q)) (Right.multiple b.right))) }
+    "=" { Right.class P.one } "by" { trans!{Right.Carrier} _ _ _ (sym!{Right.Carrier} _ _ (rightLaws.add (P.mul b.left p) (P.mul b.right q))) (congr!{Polynomial Right.Carrier} Right.class _ _ (sym!{Polynomial} _ _ b.equation)) }
+    "=" _ "by" { rightLaws.one }
+  };
+\definition combine[a, c: Polynomial]: Polynomial := P.add (P.mul (P.mul b.right q) a) (P.mul (P.mul b.left p) c);
+\definition leftResidue: \forall (a, c: Polynomial) -> Left.class (combine a c) = Left.class a :=
+  \fun (a, c: Polynomial) => eq_reason_in!{Left.Carrier _
+    "=" _ "by" { leftLaws.add (P.mul (P.mul b.right q) a) (P.mul (P.mul b.left p) c) }
+    "=" { L.add (L.mul L.one (Left.class a)) (L.mul L.zero (Left.class c)) } "by" {
+      congr!{Left.Carrier Left.Carrier Left.Carrier} L.add _ _ _ _
+        (trans!{Left.Carrier} _ _ _ (leftLaws.mul (P.mul b.right q) a) (congr!{Left.Carrier Left.Carrier} (\fun (x: Left.Carrier) => L.mul x (Left.class a)) _ _ leftUnit))
+        (trans!{Left.Carrier} _ _ _ (leftLaws.mul (P.mul b.left p) c) (congr!{Left.Carrier Left.Carrier} (\fun (x: Left.Carrier) => L.mul x (Left.class c)) _ _
+          (trans!{Left.Carrier} _ _ _ (congr!{Polynomial Left.Carrier} Left.class _ _ (Product.comm b.left p)) (Left.multiple b.left)))) }
+    "=" _ "by" { trans!{Left.Carrier} _ _ _ (congr!{Left.Carrier Left.Carrier Left.Carrier} L.add _ _ _ _ (L.mulOneLeft (Left.class a)) (L.mulZeroLeft (Left.class c))) (L.addZeroRight (Left.class a)) }
+  };
+\definition rightResidue: \forall (a, c: Polynomial) -> Right.class (combine a c) = Right.class c :=
+  \fun (a, c: Polynomial) => eq_reason_in!{Right.Carrier _
+    "=" _ "by" { rightLaws.add (P.mul (P.mul b.right q) a) (P.mul (P.mul b.left p) c) }
+    "=" { R.add (R.mul R.zero (Right.class a)) (R.mul R.one (Right.class c)) } "by" {
+      congr!{Right.Carrier Right.Carrier Right.Carrier} R.add _ _ _ _
+        (trans!{Right.Carrier} _ _ _ (rightLaws.mul (P.mul b.right q) a) (congr!{Right.Carrier Right.Carrier} (\fun (x: Right.Carrier) => R.mul x (Right.class a)) _ _
+          (trans!{Right.Carrier} _ _ _ (congr!{Polynomial Right.Carrier} Right.class _ _ (Product.comm b.right q)) (Right.multiple b.right))))
+        (trans!{Right.Carrier} _ _ _ (rightLaws.mul (P.mul b.left p) c) (congr!{Right.Carrier Right.Carrier} (\fun (x: Right.Carrier) => R.mul x (Right.class c)) _ _ rightUnit)) }
+    "=" _ "by" { trans!{Right.Carrier} _ _ _ (congr!{Right.Carrier Right.Carrier Right.Carrier} R.add _ _ _ _ (R.mulZeroLeft (Right.class a)) (R.mulOneLeft (Right.class c))) (R.addZeroLeft (Right.class c)) }
+  };

@@ -9,4 +9,4 @@
 
 ## 依存するタスク
 
-- [L02 多項式の互除法と Cayley–Hamilton](l02-polynomial-factorization.md)
+- [L02 多項式の互除法と Cayley–Hamilton](../../libs/algebra/polynomial_linear_algebra/README.md)

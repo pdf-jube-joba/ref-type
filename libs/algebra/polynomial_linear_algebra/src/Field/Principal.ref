@@ -1,0 +1,59 @@
+\import \parent.Euclid[] \as Euclid;
+\import module_theory.Module[].Over[R := Polynomial, ring := Raw.ring] \as Modules;
+\import Modules.Of[V := Polynomial, space := PolynomialAlgebra.scalarSpace].Submodule[] \as Submodules;
+\definition ideal: Submodules.Submodule := Submodules.Submodule {
+  carrier := { p: Polynomial \where \exists Divides[d, p] },
+  zero := \exact(Euclid.dividesZero d, Divides[d, P.zero]),
+  addition := \block {
+    \fun (p, q: Polynomial)(hp: _)(hq: _) \then
+    \takefrom a: Divides[d, p] \by hp \then
+    \takefrom b: Divides[d, q] \by hq \then
+    \return \exact(Euclid.dividesAdd d p q a b, Divides[d, P.add p q])
+  },
+  scalar := \block {
+    \fun (a, p: Polynomial)(hp: _) \then
+    \takefrom b: Divides[d, p] \by hp \then
+    \let result: Divides[d, P.mul a p] := \idelim P.mul p a = P.mul a p \with q: Polynomial => Divides[d, q] \by {
+      base: Euclid.dividesProduct d p a b, equality: Product.comm p a
+    } \then
+    \return \exact(result, Divides[d, P.mul a p])
+  },
+};
+\import Submodules.Quotient[S := ideal] \as Q;
+\import algebra.Quotient[A := Polynomial, relation := Q.Equivalent] \as Quotient;
+\import Quotient.Rings[] \as QuotientRings;
+\import std.Set[].Quotient[A := Polynomial, Equivalent := Q.Equivalent] \as Sets;
+\definition Carrier: \Set := Q.Carrier;
+\definition class: Polynomial -> Carrier := Q.class;
+\definition multiplicationRespects: Sets.BinaryRespects P.mul :=
+  \fun (x, x2, y, y2: Polynomial)(hx: Q.Equivalent x x2)(hy: Q.Equivalent y y2) => Q.equivalence.trans _ (P.mul x2 y) _
+    (\idelim P.mul y x = P.mul x y \with a: Polynomial => Q.Equivalent a (P.mul x2 y) \by {
+      base: \idelim P.mul y x2 = P.mul x2 y \with a: Polynomial => Q.Equivalent (P.mul y x) a \by {
+        base: Q.scaleRespects y x x2 hx, equality: Product.comm y x2
+      }, equality: Product.comm y x
+    }) (Q.scaleRespects x2 y y2 hy);
+\definition congruence: QuotientRings.Congruence[P.ring] := QuotientRings.Congruence[P.ring] {
+  equivalence := Q.equivalence, addition := Q.additionRespects, inverse := Q.negationRespects, multiplication := multiplicationRespects,
+};
+\definition ring: Rings.CommutativeRing[Carrier] := QuotientRings.quotient P.ring congruence;
+\import algebra.Hom[A := Polynomial, B := Carrier] \as Hom;
+\definition projection: Hom.RingMap Raw.ring (Rings.commutativeRingAsRing Carrier ring) :=
+  \into[Polynomial -> Carrier](class, Hom.RingMap Raw.ring (Rings.commutativeRingAsRing Carrier ring)) \by {
+    Hom.SemiringLaws[Rings.ringAsSemiring Polynomial Raw.ring, Rings.ringAsSemiring Carrier (Rings.commutativeRingAsRing Carrier ring), class] {
+      zero := \refl(class P.zero), one := \refl(class P.one),
+      add := \fun (p, q: Polynomial) => sym!{Carrier} _ _ (Quotient.Operations[].binaryClass Q.equivalence P.add Q.additionRespects p q),
+      mul := \fun (p, q: Polynomial) => sym!{Carrier} _ _ (Quotient.Operations[].binaryClass Q.equivalence P.mul multiplicationRespects p q),
+    }
+  };
+\definition classEqual: \forall (x, y: Polynomial) -> (\exists Divides[d, Sum.difference x y]) -> class x = class y := Q.classRelated;
+\definition equalDivisible: \forall (x, y: Polynomial) -> class x = class y -> \exists Divides[d, Sum.difference x y] := Q.relatedOfClassEq;
+\definition classZero: \forall (x: Polynomial) -> (\exists Divides[d, x]) -> class x = class P.zero := Q.classZero;
+\definition zeroDivisible: \forall (x: Polynomial) -> class x = class P.zero -> \exists Divides[d, x] := Q.zeroClassMember;
+\definition multiple: \forall (a: Polynomial) -> class (P.mul d a) = class P.zero :=
+  \fun (a: Polynomial) => classZero (P.mul d a) (\exact(Divides[d, P.mul d a] { multiplier := a, equation := \refl(P.mul d a) }, Divides[d, P.mul d a]));
+\definition factorZero: class d = class P.zero := classZero d (\exact(Euclid.dividesSelf d, Divides[d, d]));
+\definition induction: \forall (Q: Carrier -> \Prop) -> (\forall (x: Polynomial) -> Q (class x)) -> \forall (x: Carrier) -> Q x := Sets.induction;
+\definition space: PolynomialAlgebra.VectorSpace Carrier := Q.moduleSpace;
+\definition relation: Polynomial -> Polynomial -> \Prop := Q.Equivalent;
+\definition equivalence: std.Logic[].Relation[].Equivalence[Polynomial, relation] := Q.equivalence;
+\definition additionRespects: Sets.BinaryRespects P.add := Q.additionRespects;

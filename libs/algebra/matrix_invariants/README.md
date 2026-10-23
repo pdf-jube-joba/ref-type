@@ -56,3 +56,5 @@ workspace の共有キャッシュを使い、対象とその全依存パッケ�
 対象と依存閉包の検査は成功し、1,205 module を検査、88 module を共有キャッシュから再利用した。
 15,635 ソース検査ステップ、最大 RSS 約853 MiB、worker 復旧・重複検査・失われたステップはいずれも0であった。
 処理系の変更は含まない。
+
+多項式係数の行列式と随伴行列による Cayley–Hamilton の証明は [polynomial_linear_algebra](../polynomial_linear_algebra/README.md) を参照。

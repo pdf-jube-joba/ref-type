@@ -1,0 +1,55 @@
+\import linear_algebra.Commutative[K := K, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing K field] \as Linear;
+\import Linear.DirectSum[V := K, W := K, left := Linear.scalarSpace, right := Linear.scalarSpace] \as Plane;
+\import std.Data[].Pair[].Prop[A := K, B := K] \as Pairs;
+\import \parent.Action[V := Plane.Carrier, space := Plane.space] \as Operators;
+\import algebra.Group[].Of[Carrier := K, group := Rings.additiveGroup K ScalarArithmetic.underlyingRing] \as ScalarSum;
+\definition secondCoordinate: Operators.Map := Operators.Map {
+  apply := \fun (v: Plane.Carrier) => Plane.make Scalars.zero (Plane.second v),
+  preservesAdd := \fun (v, w: Plane.Carrier) => Pairs.ext _ _ (sym!{K} _ _ (Linear.addZeroLeft Scalars.zero)) (\refl(Scalars.add (Plane.second v) (Plane.second w))),
+  preservesScale := \fun (a: K)(v: Plane.Carrier) => Pairs.ext _ _ (sym!{K} _ _ (Linear.mulZeroRight a)) (\refl(Scalars.mul a (Plane.second v))),
+};
+\import Operators.At[T := secondCoordinate] \as Evaluation;
+\import \parent.Primary[V := Plane.Carrier, space := Evaluation.module] \as Primary;
+\definition complement: Polynomial := Sum.difference P.one P.X;
+\definition bezout: Bezout[P.X, complement, P.one] := Bezout[P.X, complement, P.one] {
+  left := P.one, right := P.one,
+  equation := eq_reason_in!{Polynomial P.one
+    "=" { P.add complement P.X } "by" { sym!{Polynomial} _ _ (Sum.addDifference P.one P.X) }
+    "=" { P.add P.X complement } "by" { Sum.comm complement P.X }
+    "=" _ "by" { congr!{Polynomial Polynomial Polynomial} P.add _ _ _ _ (sym!{Polynomial} _ _ (Product.zeroLeft P.X)) (sym!{Polynomial} _ _ (Product.zeroLeft complement)) }
+  },
+};
+\definition pairDifference: \forall (v: Plane.Carrier) -> Plane.plus v (Plane.negative (secondCoordinate.apply v)) = Plane.make (Plane.first v) Scalars.zero :=
+  \fun (v: Plane.Carrier) => Pairs.ext (Plane.plus v (Plane.negative (secondCoordinate.apply v))) (Plane.make (Plane.first v) Scalars.zero)
+    (trans!{K} _ _ _ (congr!{K K} (Scalars.add (Plane.first v)) _ _ ScalarSum.negZero) (Linear.addZeroRight (Plane.first v)))
+    (Linear.addNegRight (Plane.second v));
+\definition complementaryAction: \forall (v: Plane.Carrier) -> Evaluation.apply complement v = Plane.make (Plane.first v) Scalars.zero :=
+  \fun (v: Plane.Carrier) => eq_reason_in!{Plane.Carrier { Evaluation.apply complement v }
+    "=" { Plane.plus (Evaluation.apply P.one v) (Evaluation.apply (P.neg P.X) v) } "by" { Evaluation.addition P.one (P.neg P.X) v }
+    "=" { Plane.plus v (Plane.negative (secondCoordinate.apply v)) } "by" {
+      congr!{Plane.Carrier Plane.Carrier Plane.Carrier} Plane.plus
+        (Evaluation.apply P.one v) v (Evaluation.apply (P.neg P.X) v) (Plane.negative (secondCoordinate.apply v))
+        (Evaluation.unit v)
+        (trans!{Plane.Carrier} _ _ _ (Evaluation.negative P.X v) (congr!{Plane.Carrier Plane.Carrier} Plane.negative _ _ (Evaluation.variable v))) }
+    "=" { Plane.make (Plane.first v) Scalars.zero } "by" { pairDifference v }
+  };
+\definition factorAnnihilation: \forall (v: Plane.Carrier) -> Evaluation.apply (P.mul P.X complement) v = Plane.origin :=
+  \fun (v: Plane.Carrier) => eq_reason_in!{Plane.Carrier _
+    "=" _ "by" { Evaluation.multiplication P.X complement v }
+    "=" _ "by" { Evaluation.variable (Evaluation.apply complement v) }
+    "=" _ "by" { congr!{Plane.Carrier Plane.Carrier} secondCoordinate.apply _ _ (complementaryAction v) }
+  };
+\definition firstProjection: \forall (v: Plane.Carrier) -> Primary.projection P.X complement bezout v = Plane.make (Plane.first v) Scalars.zero :=
+  \fun (v: Plane.Carrier) => trans!{Plane.Carrier} _ _ _ (congr!{Polynomial Plane.Carrier} (\fun (p: Polynomial) => Evaluation.apply p v) _ _ (Product.zeroLeft complement)) (complementaryAction v);
+\definition splitting[v: Plane.Carrier]: Primary.Split[P.X, complement, v] :=
+  Primary.decompose P.X complement bezout (\into[Plane.Carrier](v, Primary.Kernel (P.mul P.X complement)) \by { factorAnnihilation v });
+\import \parent.Chinese[p := P.X, q := complement].Of[b := bezout] \as Chinese;
+\definition quotientReconstruction: \forall (x: \parent.Principal[d := P.mul P.X complement].Carrier) -> Chinese.inverse (\parent.Chinese[p := P.X, q := complement].forward x) = x := Chinese.leftInverse;
+\definition gcd: \exists Gcd[P.X, complement] := \parent.Representatives[].gcdExists P.X complement;
+\definition divide: \exists \parent.Representatives[].PresentedDivision[P.X, P.one] :=
+  \parent.Representatives[].divisionExists P.X P.one (\fun (zero: P.one = P.zero) =>
+    ScalarArithmetic.oneNonzero (eq_reason_in!{K Scalars.one
+      "=" { Monic.AbstractEvaluation[].apply Scalars.zero P.one } "by" { sym!{K} _ _ ((Monic.AbstractEvaluation[].homomorphism Scalars.zero).one) }
+      "=" { Monic.AbstractEvaluation[].apply Scalars.zero P.zero } "by" { congr!{Polynomial K} (Monic.AbstractEvaluation[].apply Scalars.zero) _ _ zero }
+      "=" { Scalars.zero } "by" { (Monic.AbstractEvaluation[].homomorphism Scalars.zero).zero }
+    }));

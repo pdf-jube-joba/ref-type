@@ -1,0 +1,136 @@
+\import \parent.Principal[d := p] \as Left;
+\import \parent.Principal[d := q] \as Right;
+\import \parent.Principal[d := P.mul p q] \as Whole;
+\import \parent.Euclid[] \as Euclid;
+\import PolynomialAlgebra.DirectSum[V := Left.Carrier, W := Right.Carrier, left := Left.space, right := Right.space] \as ProductSpace;
+\import std.Data[].Pair[].Prop[A := Left.Carrier, B := Right.Carrier] \as Pairs;
+\definition Pair: \Set := ProductSpace.Carrier;
+\definition residue[x: Polynomial]: Pair := ProductSpace.make (Left.class x) (Right.class x);
+\definition divisibleLeft: \forall (x: Polynomial) -> Divides[P.mul p q, x] -> Divides[p, x] :=
+  \fun (x: Polynomial)(d: Divides[P.mul p q, x]) => Divides[p, x] {
+    multiplier := P.mul q d.multiplier,
+    equation := trans!{Polynomial} _ _ _ d.equation (Product.assoc p q d.multiplier),
+  };
+\definition divisibleRight: \forall (x: Polynomial) -> Divides[P.mul p q, x] -> Divides[q, x] :=
+  \fun (x: Polynomial)(d: Divides[P.mul p q, x]) => Divides[q, x] {
+    multiplier := P.mul p d.multiplier,
+    equation := trans!{Polynomial} _ _ _ d.equation (trans!{Polynomial} _ _ _
+      (congr!{Polynomial Polynomial} (\fun (a: Polynomial) => P.mul a d.multiplier) _ _ (Product.comm p q))
+      (Product.assoc q p d.multiplier)),
+  };
+\import algebra.Quotient[A := Polynomial, relation := Whole.relation].Lift[B := Pair] \as Lift;
+\definition respects: Lift.Respects residue := \block {
+  \fun (x, y: Polynomial)(related: Whole.relation x y) \then
+  \takefrom d: Divides[P.mul p q, Sum.difference x y] \by related \then
+  \return Pairs.ext (residue x) (residue y)
+    (Left.classEqual x y (\exact(divisibleLeft _ d, Divides[p, Sum.difference x y])))
+    (Right.classEqual x y (\exact(divisibleRight _ d, Divides[q, Sum.difference x y])))
+};
+\definition forward: Whole.Carrier -> Pair := Lift.apply Whole.equivalence residue respects;
+\definition onClass: \forall (x: Polynomial) -> forward (Whole.class x) = residue x := Lift.onClass Whole.equivalence residue respects;
+\definition cross: \forall (a, b, c, d: Polynomial) -> P.mul (P.mul a b) (P.mul c d) = P.mul (P.mul b c) (P.mul a d) :=
+  \fun (a, b, c, d: Polynomial) => eq_reason_in!{Polynomial _
+    "=" _ "by" { Product.assoc a b (P.mul c d) }
+    "=" _ "by" { congr!{Polynomial Polynomial} (P.mul a) _ _ (sym!{Polynomial} _ _ (Product.assoc b c d)) }
+    "=" _ "by" { Product.swap a (P.mul b c) d }
+  };
+\definition intersection: \forall (b: Bezout[p, q, P.one])(x: Polynomial) -> Divides[p, x] -> Divides[q, x] -> Divides[P.mul p q, x] :=
+  \fun (b: Bezout[p, q, P.one])(x: Polynomial)(a: Divides[p, x])(c: Divides[q, x]) => Divides[P.mul p q, x] {
+    multiplier := P.add (P.mul b.left c.multiplier) (P.mul b.right a.multiplier),
+    equation := eq_reason_in!{Polynomial x
+      "=" { P.mul P.one x } "by" { sym!{Polynomial} _ _ (Product.zeroLeft x) }
+      "=" { P.mul (P.add (P.mul b.left p) (P.mul b.right q)) x } "by" { congr!{Polynomial Polynomial} (\fun (t: Polynomial) => P.mul t x) _ _ b.equation }
+      "=" { P.add (P.mul (P.mul b.left p) x) (P.mul (P.mul b.right q) x) } "by" { Raw.ring.semiring.rightDistributive _ _ x }
+      "=" { P.add (P.mul (P.mul p q) (P.mul b.left c.multiplier)) (P.mul (P.mul p q) (P.mul b.right a.multiplier)) } "by" {
+        congr!{Polynomial Polynomial Polynomial} P.add _ _ _ _
+          (trans!{Polynomial} _ _ _ (congr!{Polynomial Polynomial} (P.mul (P.mul b.left p)) _ _ c.equation) (cross b.left p q c.multiplier))
+          (trans!{Polynomial} _ _ _ (congr!{Polynomial Polynomial} (P.mul (P.mul b.right q)) _ _ a.equation)
+            (trans!{Polynomial} _ _ _ (cross b.right q p a.multiplier)
+              (congr!{Polynomial Polynomial} (\fun (t: Polynomial) => P.mul t (P.mul b.right a.multiplier)) _ _ (Product.comm q p)))) }
+      "=" _ "by" { sym!{Polynomial} _ _ (Raw.ring.semiring.leftDistributive _ _ _) }
+    },
+  };
+\definition injective: Coprime p q -> \forall (x, y: Whole.Carrier) -> forward x = forward y -> x = y := \block {
+  \fun (coprime: Coprime p q) \then
+  \takefrom b: Bezout[p, q, P.one] \by coprime \then
+  \return Whole.induction (\fun (x: Whole.Carrier) => \forall (y: Whole.Carrier) -> forward x = forward y -> x = y)
+    (\fun (x: Polynomial) => Whole.induction (\fun (y: Whole.Carrier) => forward (Whole.class x) = forward y -> Whole.class x = y)
+      (\block {
+        \fun (y: Polynomial)(same: forward (Whole.class x) = forward (Whole.class y)) \then
+        \let pairs: residue x = residue y := trans!{Pair} _ _ _ (sym!{Pair} _ _ (onClass x)) (trans!{Pair} _ _ _ same (onClass y)) \then
+        \takefrom a: Divides[p, Sum.difference x y] \by Left.equalDivisible x y (congr!{Pair Left.Carrier} ProductSpace.first _ _ pairs) \then
+        \takefrom c: Divides[q, Sum.difference x y] \by Right.equalDivisible x y (congr!{Pair Right.Carrier} ProductSpace.second _ _ pairs) \then
+        \return Whole.classEqual x y (\exact(intersection b _ a c, Divides[P.mul p q, Sum.difference x y]))
+      }))
+};
+\module Weights(b: Bezout[p, q, P.one]);
+\definition plus[a, b: Pair]: Pair := ProductSpace.plus a b;
+\definition times[a, b: Pair]: Pair := ProductSpace.make
+  (Left.ring.base.mul (ProductSpace.first a) (ProductSpace.first b))
+  (Right.ring.base.mul (ProductSpace.second a) (ProductSpace.second b));
+\definition one: Pair := residue P.one;
+\definition productRing: Rings.CommutativeRing[Pair] := Rings.CommutativeRing[Pair] {
+  base := Rings.RingData[Pair]::# ProductSpace.origin one plus ProductSpace.negative times,
+  ring := Rings.RingLaws[Pair, Rings.RingData[Pair]::# ProductSpace.origin one plus ProductSpace.negative times] {
+    semiring := std.Alg[].Alg[].SemiringLaws[Pair, std.Alg[].Alg[].SemiringData[Pair]::# ProductSpace.origin one plus times] {
+      additive := std.Alg[].Monoid[].CommutativeMonoidLaws[Pair, std.Alg[].Monoid[].CommutativeMonoidData[Pair]::# (std.Alg[].Monoid[].MonoidData[Pair]::# ProductSpace.origin plus)] {
+        monoid := ProductSpace.space.additive.group.monoid, commutative := ProductSpace.space.additive.commutative,
+      },
+      multiplicative := std.Alg[].Monoid[].MonoidLaws[Pair, std.Alg[].Monoid[].MonoidData[Pair]::# one times] {
+        leftIdentity := \fun (a: Pair) => Pairs.ext (times one a) a
+          (Left.ring.ring.semiring.multiplicative.leftIdentity (ProductSpace.first a))
+          (Right.ring.ring.semiring.multiplicative.leftIdentity (ProductSpace.second a)),
+        rightIdentity := \fun (a: Pair) => Pairs.ext (times a one) a
+          (Left.ring.ring.semiring.multiplicative.rightIdentity (ProductSpace.first a))
+          (Right.ring.ring.semiring.multiplicative.rightIdentity (ProductSpace.second a)),
+        associative := \fun (a, b, c: Pair) => Pairs.ext (times (times a b) c) (times a (times b c))
+          (Left.ring.ring.semiring.multiplicative.associative (ProductSpace.first a) (ProductSpace.first b) (ProductSpace.first c))
+          (Right.ring.ring.semiring.multiplicative.associative (ProductSpace.second a) (ProductSpace.second b) (ProductSpace.second c)),
+      },
+      leftDistributive := \fun (a, b, c: Pair) => Pairs.ext (times a (plus b c)) (plus (times a b) (times a c))
+        (Left.ring.ring.semiring.leftDistributive (ProductSpace.first a) (ProductSpace.first b) (ProductSpace.first c))
+        (Right.ring.ring.semiring.leftDistributive (ProductSpace.second a) (ProductSpace.second b) (ProductSpace.second c)),
+      rightDistributive := \fun (a, b, c: Pair) => Pairs.ext (times (plus a b) c) (plus (times a c) (times b c))
+        (Left.ring.ring.semiring.rightDistributive (ProductSpace.first a) (ProductSpace.first b) (ProductSpace.first c))
+        (Right.ring.ring.semiring.rightDistributive (ProductSpace.second a) (ProductSpace.second b) (ProductSpace.second c)),
+      zeroAbsorbsLeft := \fun (a: Pair) => Pairs.ext (times ProductSpace.origin a) ProductSpace.origin
+        (Left.ring.ring.semiring.zeroAbsorbsLeft (ProductSpace.first a))
+        (Right.ring.ring.semiring.zeroAbsorbsLeft (ProductSpace.second a)),
+      zeroAbsorbsRight := \fun (a: Pair) => Pairs.ext (times a ProductSpace.origin) ProductSpace.origin
+        (Left.ring.ring.semiring.zeroAbsorbsRight (ProductSpace.first a))
+        (Right.ring.ring.semiring.zeroAbsorbsRight (ProductSpace.second a)),
+    },
+    additiveInverse := ProductSpace.space.additive.group.leftInverse,
+  },
+  mulCommutative := \fun (a, b: Pair) => Pairs.ext (times a b) (times b a)
+    (Left.ring.mulCommutative (ProductSpace.first a) (ProductSpace.first b))
+    (Right.ring.mulCommutative (ProductSpace.second a) (ProductSpace.second b)),
+};
+\import algebra.Hom[A := Polynomial, B := Pair] \as ResidueMaps;
+\import algebra.Hom[A := Polynomial, B := Left.Carrier] \as LeftMaps;
+\import algebra.Hom[A := Polynomial, B := Right.Carrier] \as RightMaps;
+\definition leftLaws: LeftMaps.SemiringLaws[Rings.ringAsSemiring Polynomial Raw.ring, Rings.ringAsSemiring Left.Carrier (Rings.commutativeRingAsRing Left.Carrier Left.ring), Left.class] := LeftMaps.semiringLaws _ _ Left.projection;
+\definition rightLaws: RightMaps.SemiringLaws[Rings.ringAsSemiring Polynomial Raw.ring, Rings.ringAsSemiring Right.Carrier (Rings.commutativeRingAsRing Right.Carrier Right.ring), Right.class] := RightMaps.semiringLaws _ _ Right.projection;
+\definition residueMap: ResidueMaps.RingMap Raw.ring (Rings.commutativeRingAsRing Pair productRing) :=
+  \into[Polynomial -> Pair](residue, ResidueMaps.RingMap Raw.ring (Rings.commutativeRingAsRing Pair productRing)) \by {
+    ResidueMaps.SemiringLaws[Rings.ringAsSemiring Polynomial Raw.ring, Rings.ringAsSemiring Pair (Rings.commutativeRingAsRing Pair productRing), residue] {
+      zero := \refl(residue P.zero), one := \refl(residue P.one),
+      add := \fun (x, y: Polynomial) => Pairs.ext (residue (P.add x y)) (plus (residue x) (residue y)) (leftLaws.add x y) (rightLaws.add x y),
+      mul := \fun (x, y: Polynomial) => Pairs.ext (residue (P.mul x y)) (times (residue x) (residue y)) (leftLaws.mul x y) (rightLaws.mul x y),
+    }
+  };
+\import algebra.Hom[A := Whole.Carrier, B := Pair] \as Maps;
+\import algebra.Quotient[A := Polynomial, relation := Whole.relation].Lift[B := Pair] \as Descent;
+\definition forwardMap: Maps.RingMap (Rings.commutativeRingAsRing Whole.Carrier Whole.ring) (Rings.commutativeRingAsRing Pair productRing) :=
+  \into[Whole.Carrier -> Pair](forward, Maps.RingMap (Rings.commutativeRingAsRing Whole.Carrier Whole.ring) (Rings.commutativeRingAsRing Pair productRing)) \by {
+    Maps.SemiringLaws[Rings.ringAsSemiring Whole.Carrier (Rings.commutativeRingAsRing Whole.Carrier Whole.ring), Rings.ringAsSemiring Pair (Rings.commutativeRingAsRing Pair productRing), forward] {
+      zero := onClass P.zero, one := onClass P.one,
+      add := Descent.preservesBinary Whole.equivalence residue respects P.add
+        Whole.additionRespects
+        plus (\fun (x, y: Polynomial) => Pairs.ext _ _ (leftLaws.add x y) (rightLaws.add x y)),
+      mul := Descent.preservesBinary Whole.equivalence residue respects P.mul
+        Whole.multiplicationRespects
+        times (\fun (x, y: Polynomial) => Pairs.ext _ _ (leftLaws.mul x y) (rightLaws.mul x y)),
+    }
+  };
+\module Of(b: Bezout[p, q, P.one]);

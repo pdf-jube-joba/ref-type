@@ -92,11 +92,10 @@ flowchart TD
 - [G01 滑らかな bump 関数と従属分割](g01-smooth-partitions.md)
 - [K02 CW cofibration と Puppe 列](k02-cofibration-puppe.md)
 - [K04 Stone–Weierstrass と Laurent 近似](k04-uniform-approximation.md)
-- [L02 多項式の互除法と Cayley–Hamilton](l02-polynomial-factorization.md)
 - [G02 逆関数・陰関数と正則値の局所形](g02-inverse-implicit.md)
 - [L04 対称多項式と特性級数](l04-symmetric-series.md)
 
-L01 の行列式・逆行列と L03 の Hermitian 行列・局所枠が利用可能になり、L02・G02 に着手できる。
+L01 の行列式・逆行列、L02 の多項式分解、L03 の Hermitian 行列・局所枠が利用可能になり、G02 に着手できる。
 B01 の後は B02 へ、A01 の後は A02 へ進められる。
 空いた担当には C01・K02・K04・L04・A19 を割り当て、長い解析の経路を早めに進める。
 各節の番号は識別子で、実装順は依存リストから決まる。
@@ -106,19 +105,19 @@ B01 の後は B02 へ、A01 の後は A02 へ進められる。
 | 単位 | 公開 API |
 | --- | --- |
 | L01 行列式と可逆行列 | [matrix_invariants](../../libs/algebra/matrix_invariants/README.md) |
+| L02 多項式の互除法と Cayley–Hamilton | [polynomial_linear_algebra](../../libs/algebra/polynomial_linear_algebra/README.md) |
 | L03 Hermitian 行列と連続な局所枠 | [hermitian_frames](../../libs/algebra/hermitian_frames/README.md) |
 
 ## タスク一覧
 
-未完了90件、概算合計470千行。
+未完了89件、概算合計465千行。
 
 ### 線形代数と特性級数
 
-2件、概算10千行。
+1件、概算5千行。
 
 | タスク | 概算（千行） |
 | --- | ---: |
-| [L02 多項式の互除法と Cayley–Hamilton](l02-polynomial-factorization.md) | 5 |
 | [L04 対称多項式と特性級数](l04-symmetric-series.md) | 5 |
 
 ### ベクトル束
