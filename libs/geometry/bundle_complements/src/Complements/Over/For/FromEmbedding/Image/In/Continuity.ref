@@ -1,0 +1,13 @@
+\import Operations.Chart[X := X, F := F, bundle := bundle, chart := chart].Maps[Y := Carrier, source := source] \as ChartMaps;
+\import \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].For[X := X, F := F, bundle := bundle].FromEmbedding[embedding := embedding].Continuity[] \as EmbeddingContinuity;
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin k] \as SmallCoordinates;
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin n] \as LargeCoordinates;
+\definition point[v: Vector k][x: Carrier]: Family.Point := Family.include x ((chart.frame x).backward.apply v);
+\definition pointContinuous: \forall (v: Vector k) -> topology.Continuity[A := Carrier, B := Family.Point].Continuous source bundle.totalSpace (point v) :=
+  \fun (v: Vector k) => ChartMaps.pointContinuous (\fun (x: Carrier) => x) (\fun (x: Carrier) => v)
+    (topology.Maps[A := Carrier, B := Carrier].Identity[].continuous source) (topology.Maps[A := Carrier, B := Vector k].constantContinuous source (coordinateTopology k) v);
+\definition vectorContinuous: \forall (v: Vector k) -> topology.Continuity[A := Carrier, B := Vector n].Continuous source (coordinateTopology n) (\fun (x: Carrier) => (A x).apply v) :=
+  \fun (v: Vector k) => topology.Composition[A := Carrier, B := Family.Point, C := Vector n].composeContinuous source bundle.totalSpace (coordinateTopology n) (point v) EmbeddingContinuity.vector (pointContinuous v) EmbeddingContinuity.vectorContinuous;
+\definition regular: Native.Families[X := Carrier].Matrix[m := k].Regular source A :=
+  \fun (v: Vector k)(i: Fin.Fin n) => topology.Composition[A := Carrier, B := Vector n, C := K].composeContinuous source (coordinateTopology n) scalar.topological.space
+    (\fun (x: Carrier) => (A x).apply v) (\fun (v: Vector n) => v i) (vectorContinuous v) (LargeCoordinates.evaluationContinuous scalar.topological.space i);

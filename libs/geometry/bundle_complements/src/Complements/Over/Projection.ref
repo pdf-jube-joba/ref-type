@@ -1,0 +1,31 @@
+\definition Image[x: X]: \Pow (Vector n) := { v: Vector n \where (P x).map.apply v = v };
+\definition Fiber[x: X]: \Set := \Cast[Vector n] (Image x);
+\module At(x: X);
+\definition fiberSpace[x: X]: Spaces.VectorSpace (Fiber x) := At[x := x].space;
+\import Bundles.Family[X := X, F := Fiber] \as Family;
+\import Bundles.Trivial[X := X, n := n, baseSpace := baseSpace] \as Ambient;
+\import Bundles.Family[X := X, F := \fun (x: X) => Vector n] \as AmbientFamily;
+\import topology.Topology[Carrier := X] \as Base;
+\definition embedding[p: Family.Point]: AmbientFamily.Point := AmbientFamily.include p.base p.vector;
+\import topological_constructions.Induced[A := Family.Point, B := AmbientFamily.Point] \as Induced;
+\definition topology: topology.Topology[Carrier := Family.Point].Topology := Induced.topology Ambient.topology embedding;
+\definition inclusionContinuous: topology.Continuity[A := Family.Point, B := AmbientFamily.Point].Continuous topology Ambient.topology embedding := Induced.continuous Ambient.topology embedding;
+\definition projectionContinuous: topology.Continuity[A := Family.Point, B := X].Continuous topology baseSpace Family.projection :=
+  topology.Composition[A := Family.Point, B := AmbientFamily.Point, C := X].composeContinuous topology Ambient.topology baseSpace embedding AmbientFamily.projection inclusionContinuous (AmbientFamily.Of[bundle := Ambient.bundle].projectionContinuous);
+\definition vectorContinuous: topology.Continuity[A := Family.Point, B := Vector n].Continuous topology (coordinateTopology n) (\fun (p: Family.Point) => p.vector) :=
+  topology.Composition[A := Family.Point, B := AmbientFamily.Point, C := Vector n].composeContinuous topology Ambient.topology (coordinateTopology n) embedding (\fun (p: AmbientFamily.Point) => p.vector) inclusionContinuous Ambient.vectorContinuous;
+\definition data: Family.Data := Family.Data { baseSpace := baseSpace, totalSpace := topology, space := fiberSpace };
+\import Family.With[data := data] \as Charts;
+\module Universal(Y: \Set, source: topology.Topology[Carrier := Y].Topology);
+\module Around(a: X, center: \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Finite[n := n].ProjectionBasis[P := P a].BasisWitness);
+\definition locallyTrivial: Charts.LocallyTrivial := \fun (a: X) => \block {
+  \takefrom center: \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Finite[n := n].ProjectionBasis[P := P a].BasisWitness
+    \by \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Finite[n := n].ProjectionBasis[P := P a].basisExists \then
+  \return Logic.existsIntro[Charts.Chart, { c: Charts.Chart \where Base.Member c.domain a }] (Around[a := a, center := center].trivialization) (Around[a := a, center := center].contains)
+};
+\definition bundle: Family.Bundle := \into[Family.Data](data, Family.Bundle) \by { locallyTrivial };
+\import Bundles.Morphisms[X := X, Y := X, F := Fiber, G := \fun (x: X) => Vector n, source := bundle, target := Ambient.bundle, f := \fun (x: X) => x] \as InclusionMaps;
+\definition inclusionData: InclusionMaps.Data := InclusionMaps.Data { fiber := \fun (x: X) => At[x := x].include };
+\definition inclusion: InclusionMaps.Map := \into[InclusionMaps.Data](inclusionData, InclusionMaps.Map) \by { inclusionContinuous };
+\module Project;
+\definition projectMap: Bundles.Morphisms[X := X, Y := X, F := \fun (x: X) => Vector n, G := Fiber, source := Ambient.bundle, target := bundle, f := \fun (x: X) => x].Map := Project[].map;

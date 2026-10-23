@@ -1,0 +1,25 @@
+\import Bundles.Family[X := X, F := ImageFiber] \as TargetFamily;
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := ImageFiber, source := bundle, target := imageBundle, f := \fun (x: X) => x] \as ForwardMaps;
+\import Bundles.Morphisms[X := X, Y := X, F := ImageFiber, G := F, source := imageBundle, target := bundle, f := \fun (x: X) => x] \as BackwardMaps;
+\module At(x: X);
+\definition forwardData: ForwardMaps.Data := ForwardMaps.Data { fiber := \fun (x: X) => At[x := x].iso.forward };
+\import \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].For[X := X, F := F, bundle := bundle].FromEmbedding[embedding := embedding].Continuity[] \as EmbeddingContinuity;
+\definition forward: ForwardMaps.Map := \into[ForwardMaps.Data](forwardData, ForwardMaps.Map) \by {
+  Projected.Universal[Y := Family.Point, source := bundle.totalSpace].continuous (ForwardMaps.total forwardData) (Family.Of[bundle := bundle].projectionContinuous) EmbeddingContinuity.vectorContinuous
+};
+\definition backwardData: BackwardMaps.Data := BackwardMaps.Data { fiber := \fun (x: X) => At[x := x].iso.backward };
+\definition domains[c: Charts.Chart]: \Pow TargetFamily.Point := { p: TargetFamily.Point \where Base.Member c.domain p.base };
+\module In(chart: Charts.Chart);
+\import topology.Continuity[A := TargetFamily.Point, B := Family.Point].Covered[I := Charts.Chart, domains := domains] \as InverseCover;
+\definition backward: BackwardMaps.Map := \into[BackwardMaps.Data](backwardData, BackwardMaps.Map) \by {
+  InverseCover.continuous imageBundle.totalSpace bundle.totalSpace (BackwardMaps.total backwardData)
+    (\fun (c: Charts.Chart) => Projected.projectionContinuous c.domain (\bysub(Charts.ChartData, Charts.Chart, c)).baseOpen)
+    (\fun (p: TargetFamily.Point) => Family.Of[bundle := bundle].locallyTrivial p.base)
+    (\fun (c: Charts.Chart) => In[chart := c].regular)
+};
+\definition isomorphism: Bundles.Isomorphisms[X := X, F := F, G := ImageFiber, source := bundle, target := imageBundle].Isomorphism :=
+  Bundles.Isomorphisms[X := X, F := F, G := ImageFiber, source := bundle, target := imageBundle].Isomorphism {
+    forward := forward, backward := backward,
+    leftInverse := \fun (x: X) => At[x := x].iso.leftInverse,
+    rightInverse := \fun (x: X) => At[x := x].iso.rightInverse
+  };

@@ -1,0 +1,55 @@
+\import Bundles.Family[X := X, F := F] \as Family;
+\import Family.With[data := bundle] \as Charts;
+\import topology.Topology[Carrier := X] \as Base;
+\import topology.Topology[Carrier := Family.Point] \as Total;
+\import metric_spaces.PartitionOfUnity[A := X] \as Partitions;
+\import metric_spaces.RealFunctions[A := X].Bounded[] \as Bounded;
+\structure WeightedChart: \Set := {
+  chart: Charts.Chart,
+  weight: Bounded.Function[bundle.baseSpace],
+  supportWithin: Base.Subset (Partitions.support bundle.baseSpace weight) chart.domain,
+};
+\module Weighted(entry: WeightedChart);
+\definition dimension: Lists.List[WeightedChart] -> N.Nat^ := \induction (parts: Lists.List[WeightedChart]) \return N.Nat^ \with {
+  | nil: N.Nat^::zero
+  | cons: \fun (head: WeightedChart)(tail: Lists.List[WeightedChart])(n: N.Nat^) => Fin.Sum[m := head.chart.dimension, n := n].total
+};
+\definition mass: Lists.List[WeightedChart] -> X -> R.Real := \induction (parts: Lists.List[WeightedChart]) \return (X -> R.Real) \with {
+  | nil: \fun (x: X) => R.zero
+  | cons: \fun (head: WeightedChart)(tail: Lists.List[WeightedChart])(rest: X -> R.Real)(x: X) => R.add (head.weight x) (rest x)
+};
+\definition Ambient[n: N.Nat^]: Bundles.Family[X := X, F := \fun (x: X) => Vector n].Bundle := Bundles.Trivial[X := X, n := n, baseSpace := bundle.baseSpace].bundle;
+\definition Into[n: N.Nat^]: \Set := Bundles.Morphisms[X := X, Y := X, F := F, G := \fun (x: X) => Vector n, source := bundle, target := Ambient n, f := \fun (x: X) => x].Map;
+\structure Block[parts: Lists.List[WeightedChart]]: \Set := {
+  map: Into (dimension parts),
+  kernelMass: \forall (x: X)(v: F x) -> (map.fiber x).apply v = (coordinates (dimension parts)).zero -> (bundle.space x).smul (conjugation.embed (mass parts x)) v = (bundle.space x).zero,
+};
+\module EmptyBlock;
+\module AppendBlock(head: WeightedChart, tail: Lists.List[WeightedChart], previous: Block[tail]);
+\definition build: \forall (parts: Lists.List[WeightedChart]) -> Block[parts] := \induction (parts: Lists.List[WeightedChart]) \return Block[parts] \with {
+  | nil: EmptyBlock[].block
+  | cons: \fun (head: WeightedChart)(tail: Lists.List[WeightedChart])(previous: Block[tail]) => AppendBlock[head := head, tail := tail, previous := previous].block
+};
+\structure Embedding: \Set := {
+  dimension: N.Nat^,
+  map: Into dimension,
+  injective: \forall (x: X)(v, w: F x) -> (map.fiber x).apply v = (map.fiber x).apply w -> v = w,
+};
+\module FromPartition(parts: Lists.List[WeightedChart], total: \forall (x: X) -> mass parts x = R.one);
+\module FiniteCover;
+\definition Form[x: X]: \Set := Geometry.Inner[V := F x, space := bundle.space x].Form;
+\definition Positive[x: X][form: Form x]: \Prop := Geometry.Inner[V := F x, space := bundle.space x].Positive[form];
+\import Operations.DirectSum[X := X, F := F, G := F, left := bundle, right := bundle] \as PairBundle;
+\import Bundles.Family[X := X, F := PairBundle.Fiber] \as PairFamily;
+\definition evaluation[forms: \forall (x: X) -> Form x][p: PairFamily.Point]: K := (forms p.base).dot (Pair.first (F p.base) (F p.base) p.vector) (Pair.second (F p.base) (F p.base) p.vector);
+\structure Metric: \Set := {
+  form: \forall (x: X) -> Form x,
+  positive: \forall (x: X) -> Positive x (form x),
+  continuous: topology.Continuity[A := PairFamily.Point, B := K].Continuous PairBundle.topology scalar.topological.space (evaluation form),
+};
+\module FromEmbedding(embedding: Embedding);
+\definition embeddingExists: Base.IsCompact bundle.baseSpace -> Base.IsT2 bundle.baseSpace -> \exists Embedding := FiniteCover[].embeddingExists;
+\definition metricExists: Base.IsCompact bundle.baseSpace -> Base.IsT2 bundle.baseSpace -> \exists Metric := \fun (compact: _)(hausdorff: _) => \block {
+  \takefrom embedding: Embedding \by embeddingExists compact hausdorff \then
+  \return \exact(FromEmbedding[embedding := embedding].metric, Metric)
+};

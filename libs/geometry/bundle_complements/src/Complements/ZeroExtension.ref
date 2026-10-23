@@ -1,0 +1,29 @@
+\import topology.Topology[Carrier := A] \as Source;
+\import topology.Topology[Carrier := B] \as Target;
+\import std.Data[].Bool[] \as Bool;
+\import std.Set[].Extension[A := A, B := B, domain := U] \as Extension;
+\definition value[a: A]: B := Extension.extend f default a;
+\definition onDomain: \forall (a: \Cast[A] U) -> value a = f a := Extension.inside f default;
+\definition offSupport: \forall (a: A) -> Logic.Not (Source.Member S a) -> value a = default :=
+  \fun (a: A)(outside: _) => either!{{(Classical.excludedMiddle (Source.Member U a))} {value a = default}
+    {\fun (inside: _) => trans!{B} _ _ _ (onDomain (\into[A](a, U) \by { inside })) (vanishes (\into[A](a, U) \by { inside }) outside)}
+    {\fun (notInside: _) => Extension.outside f default a notInside}};
+\definition domains: Bool.Bool^ -> \Pow A := \induction (i: Bool.Bool^) \return \Pow A \with { | true: U | false: Source.Complement S };
+\definition opens: \forall (i: Bool.Bool^) -> Source.IsOpenIn source (domains i) := \induction (i: Bool.Bool^) \return Source.IsOpenIn source (domains i) \with { | true: open | false: closed };
+\definition covers: \forall (a: A) -> \exists ( i: Bool.Bool^ \where Source.Member (domains i) a ) :=
+  \fun (a: A) => either!{{(Classical.excludedMiddle (Source.Member U a))} {\exists ( i: Bool.Bool^ \where Source.Member (domains i) a )}
+    {\fun (member: _) => Logic.existsIntro[Bool.Bool^, { i: Bool.Bool^ \where Source.Member (domains i) a }] Bool.Bool^::true member}
+    {\fun (outside: _) => Logic.existsIntro[Bool.Bool^, { i: Bool.Bool^ \where Source.Member (domains i) a }] Bool.Bool^::false (\fun (member: Source.Member S a) => outside (within a member))}};
+\definition onDomainContinuous: topology.Continuity[A := \Cast[A] U, B := B].Continuous (Source.Subspace[S := U].topology source) target (\fun (a: \Cast[A] U) => value a) :=
+  \idelim f = (\fun (a: \Cast[A] U) => value a) \with g: (\Cast[A] U -> B) => topology.Continuity[A := \Cast[A] U, B := B].Continuous (Source.Subspace[S := U].topology source) target g \by {
+    base: regular, equality: \axiom:funext(f, (\fun (a: \Cast[A] U) => value a), \fun (a: \Cast[A] U) => sym!{B} _ _ (onDomain a))
+  };
+\definition offSupportContinuous: topology.Continuity[A := \Cast[A] (Source.Complement S), B := B].Continuous (Source.Subspace[S := Source.Complement S].topology source) target (\fun (a: \Cast[A] (Source.Complement S)) => value a) :=
+  \idelim (\fun (a: \Cast[A] (Source.Complement S)) => default) = (\fun (a: \Cast[A] (Source.Complement S)) => value a)
+  \with g: (\Cast[A] (Source.Complement S) -> B) => topology.Continuity[A := \Cast[A] (Source.Complement S), B := B].Continuous (Source.Subspace[S := Source.Complement S].topology source) target g \by {
+    base: topology.Maps[A := \Cast[A] (Source.Complement S), B := B].constantContinuous (Source.Subspace[S := Source.Complement S].topology source) target default,
+    equality: \axiom:funext((\fun (a: \Cast[A] (Source.Complement S)) => default), (\fun (a: \Cast[A] (Source.Complement S)) => value a), \fun (a: \Cast[A] (Source.Complement S)) => sym!{B} _ _ (offSupport a (\bysub(A, Source.Complement S, a))))
+  };
+\definition local: topology.Continuity[A := A, B := B].Covered[I := Bool.Bool^, domains := domains].Local source target value :=
+  \induction (i: Bool.Bool^) \return topology.Continuity[A := \Cast[A] (domains i), B := B].Continuous (Source.Subspace[S := domains i].topology source) target (\fun (a: \Cast[A] (domains i)) => value a) \with { | true: onDomainContinuous | false: offSupportContinuous };
+\definition continuous: topology.Continuity[A := A, B := B].Continuous source target value := topology.Continuity[A := A, B := B].Covered[I := Bool.Bool^, domains := domains].continuous source target value opens covers local;

@@ -1,0 +1,26 @@
+\import Geometry.Finite[n := n] \as E;
+\import Geometry.Inner[V := E.Vector, space := E.space] \as InnerForms;
+\import InnerForms.Of[h := E.form] \as Inner;
+\import Spaces.Laws[V := E.Vector, space := E.space] \as Laws;
+\structure Orthonormal[k: N.Nat^]: \Set := {
+  value: Spaces.Linear[V := Vector k, W := Vector n, source := coordinates k, target := coordinates n].Map,
+  isometry: \forall (v, w: Vector k) -> E.dot (value.apply v) (value.apply w) = Geometry.Finite[n := k].dot v w,
+};
+\module Frame(k: N.Nat^, frame: Orthonormal[k]);
+\module Join(k: N.Nat^, lower: Orthonormal[k], unit: Vector n, norm: E.dot unit unit = field.one,
+  orthogonal: \forall (v: Vector k) -> E.dot unit (lower.value.apply v) = field.zero);
+\import Spaces.Linear[V := Vector n, W := Vector n, source := coordinates n, target := coordinates n] \as End;
+\import matrix_invariants.Ring[K := K, scalars := Fields.fieldAsCommutativeRing K field].At[n := n] \as Matrices;
+\import Matrices.Representation[] \as Representation;
+\definition extOnBasis: \forall (f, g: End.Map) -> (\forall (i: Fin.Fin n) -> f.apply (E.basis i) = g.apply (E.basis i)) -> f = g :=
+  \fun (f, g: End.Map)(same: _) => trans!{End.Map} _ _ _ (sym!{End.Map} _ _ (Representation.linearEntries f))
+    (trans!{End.Map} _ _ _ (congr!{{Matrices.Matrix} End.Map} Matrices.linear _ _ (Matrices.Operations[].ext (Representation.entries f) (Representation.entries g)
+      (\fun (i, j: Fin.Fin n) => congr!{{Vector n} K} (\fun (v: Vector n) => v i) _ _ (same j)))) (Representation.linearEntries g));
+\definition separate: \forall (v, w: Vector n) -> (\forall (t: Vector n) -> E.dot v t = E.dot w t) -> v = w :=
+  \fun (v, w: Vector n)(same: _) => \axiom:funext(v, w, \fun (i: Fin.Fin n) => trans!{K} _ _ _ (sym!{K} _ _ (E.dotBasis i v))
+    (trans!{K} _ _ _ (E.form.symmetric (E.basis i) v)
+      (trans!{K} _ _ _ (congr!{K K} Geometry.conj _ _ (same (E.basis i)))
+        (trans!{K} _ _ _ (sym!{K} _ _ (E.form.symmetric (E.basis i) w)) (E.dotBasis i w)))));
+\module ProjectionBasis(P: Hermitian.At[n := n].Projection);
+\module Range(V: \Set, space: Spaces.VectorSpace V, f: Spaces.Linear[V := V, W := Vector n, source := space, target := coordinates n].Map, injective: \forall (v, w: V) -> f.apply v = f.apply w -> v = w);
+\module InverseFamily(X: \Set, k: N.Nat^, source: topology.Topology[Carrier := X].Topology, A: X -> Spaces.Linear[V := Vector k, W := Vector n, source := coordinates k, target := coordinates n].Map, regularA: Hermitian.At[n := n].Families[X := X].Matrix[m := k].Regular source A, factors: Hermitian.At[n := n].Forms[h := E.form].Families[X := X].Rank[k := k].Factors[A, source]);

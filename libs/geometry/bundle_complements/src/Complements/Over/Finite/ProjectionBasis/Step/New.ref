@@ -1,0 +1,54 @@
+\import \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Finite[n := n].Frame[k := k, frame := previous.frame] \as Span;
+\import Hermitian.At[n := n].OnProjection[P := Span.projection] \as Complement;
+\definition residual: Vector n := Complement.complement.map.apply w;
+\definition projected[v: Vector k]: Span.projection.map.apply (previous.frame.value.apply v) = previous.frame.value.apply v :=
+  Hermitian.At[n := n].OnProjection[P := Span.projection].Rank[k := k].fixed Span.basis v;
+\definition nonzero: Logic.Not (residual = E.space.zero) := \fun (zero: _) => outside
+  (Logic.existsIntro[Vector k, { v: Vector k \where previous.frame.value.apply v = w }] (Span.coordinate.apply w)
+    (trans!{{Vector n}} _ _ _ (sym!{{Vector n}} _ _ (Laws.zeroRight (Span.projection.map.apply w)))
+      (trans!{{Vector n}} _ _ _ (congr!{{Vector n} {Vector n}} (E.space.add (Span.projection.map.apply w)) _ _ (sym!{{Vector n}} _ _ zero)) (Complement.splitting w))));
+\definition positive: dedekind_reals.DedekindReal[].Lt R.zero (Inner.squared residual) := Inner.positiveNorm E.positive residual nonzero;
+\import Inner.Normalize[v := residual, positive := positive] \as Normalize;
+\definition unit: Vector n := Normalize.value;
+\definition residualOrthogonal: \forall (v: Vector k) -> E.dot (previous.frame.value.apply v) residual = field.zero :=
+  \fun (v: Vector k) => trans!{K} _ _ _
+    (sym!{K} _ _ (congr!{{Vector n} K} (\fun (u: Vector n) => E.dot u residual) _ _ (projected v)))
+    (Complement.orthogonal (previous.frame.value.apply v) w);
+\definition orthogonal: \forall (v: Vector k) -> E.dot unit (previous.frame.value.apply v) = field.zero :=
+  \fun (v: Vector k) => trans!{K} _ _ _ (Inner.scaleLeft (conjugation.embed Normalize.factor) residual (previous.frame.value.apply v))
+    (trans!{K} _ _ _ (congr!{K K} (field.mul (Geometry.conj (conjugation.embed Normalize.factor))) _ _
+      (trans!{K} _ _ _ (E.form.symmetric residual (previous.frame.value.apply v))
+        (trans!{K} _ _ _ (congr!{K K} Geometry.conj _ _ (residualOrthogonal v)) Geometry.conjugateZero)))
+      (Spaces.mulZeroRight (Geometry.conj (conjugation.embed Normalize.factor))));
+\import \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Finite[n := n].Join[k := k, lower := previous.frame, unit := unit, norm := Normalize.unitNorm, orthogonal := orthogonal] \as Join;
+\import Geometry.Finite[n := k].Successor[] \as Split;
+\import Spaces.Linear[V := Vector n, W := Vector n, source := coordinates n, target := coordinates n].Operations[] \as EndOperations;
+\definition fixedResidual: P.map.apply residual = residual := trans!{{Vector n}} _ _ _
+  (P.map.preservesAdd w (E.space.neg (Span.projection.map.apply w)))
+  (congr!{{Vector n} {Vector n} {Vector n}} E.space.add _ _ _ _ (P.idempotent (E.basis head))
+    (trans!{{Vector n}} _ _ _ (EndOperations.preservesNeg P.map (Span.projection.map.apply w))
+      (congr!{{Vector n} {Vector n}} E.space.neg _ _ (previous.fixed (Span.coordinate.apply w)))));
+\definition fixedUnit: P.map.apply unit = unit := trans!{{Vector n}} _ _ _ (P.map.preservesScale (conjugation.embed Normalize.factor) residual)
+  (congr!{{Vector n} {Vector n}} (E.space.smul (conjugation.embed Normalize.factor)) _ _ fixedResidual);
+\definition fixed: \forall (v: Vector (N.Nat^::succ k)) -> P.map.apply (Join.value.apply v) = Join.value.apply v :=
+  \fun (v: Vector (N.Nat^::succ k)) => trans!{{Vector n}} _ _ _ (P.map.preservesAdd (E.space.smul (Split.head v) unit) (previous.frame.value.apply (Split.tail v)))
+    (congr!{{Vector n} {Vector n} {Vector n}} E.space.add _ _ _ _
+      (trans!{{Vector n}} _ _ _ (P.map.preservesScale (Split.head v) unit) (congr!{{Vector n} {Vector n}} (E.space.smul (Split.head v)) _ _ fixedUnit))
+      (previous.fixed (Split.tail v)));
+\definition headCovered: Covered (N.Nat^::succ k) Join.frame head :=
+  Logic.existsIntro[Vector (N.Nat^::succ k), { v: Vector (N.Nat^::succ k) \where Join.value.apply v = w }] (Split.join (conjugation.embed Normalize.length) (Span.coordinate.apply w))
+    (trans!{{Vector n}} _ _ _ (Join.onJoin (conjugation.embed Normalize.length) (Span.coordinate.apply w))
+      (trans!{{Vector n}} _ _ _ (congr!{{Vector n} {Vector n}} (\fun (r: Vector n) => E.space.add r (Span.projection.map.apply w)) _ _ Normalize.recover)
+        (trans!{{Vector n}} _ _ _ (Laws.comm residual (Span.projection.map.apply w)) (Complement.splitting w))));
+\definition tailCovered: \forall (i: Fin.Fin n) -> Members.Occurs i tail -> Covered (N.Nat^::succ k) Join.frame i :=
+  \fun (i: Fin.Fin n)(member: _) => \block {
+    \takefrom v: \Cast[Vector k] ({ v: Vector k \where previous.frame.value.apply v = P.map.apply (E.basis i) }) \by previous.covers i member \then
+    \return Logic.existsIntro[Vector (N.Nat^::succ k), { u: Vector (N.Nat^::succ k) \where Join.value.apply u = P.map.apply (E.basis i) }] (Split.join field.zero v)
+      (trans!{{Vector n}} _ _ _ (Join.onJoin field.zero v)
+        (trans!{{Vector n}} _ _ _ (congr!{{Vector n} {Vector n}} (\fun (u: Vector n) => E.space.add u (previous.frame.value.apply v)) _ _ (Laws.zeroScale unit))
+          (trans!{{Vector n}} _ _ _ (Laws.zeroLeft (previous.frame.value.apply v)) (\bysub(Vector k, { v: Vector k \where previous.frame.value.apply v = P.map.apply (E.basis i) }, v)))))
+  };
+\definition result: Result[Lists.List[Fin.Fin n]::cons head tail] := Result[Lists.List[Fin.Fin n]::cons head tail] {
+  rank := N.Nat^::succ k, frame := Join.frame, fixed := fixed,
+  covers := coverage (N.Nat^::succ k) Join.frame headCovered tailCovered
+};

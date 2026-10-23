@@ -1,0 +1,39 @@
+\definition dimension: N.Nat^ := entry.chart.dimension;
+\definition support: \Pow X := Partitions.support bundle.baseSpace entry.weight;
+\definition zeroOffSupport: \forall (x: X) -> Logic.Not (Base.Member support x) -> entry.weight x = R.zero :=
+  \fun (x: X)(outside: _) => Base.Finite[].doubleNegElim (entry.weight x = R.zero) (\fun (nonzero: _) => outside (Base.Closure[].contains bundle.baseSpace (Partitions.Nonzero entry.weight) x nonzero));
+\import Charts.In[c := entry.chart] \as Chart;
+\definition domain: \Pow Family.Point := { p: Family.Point \where Base.Member entry.chart.domain p.base };
+\definition closedSupport: \Pow Family.Point := { p: Family.Point \where Base.Member support p.base };
+\definition supportClosed: Total.IsClosedIn bundle.totalSpace closedSupport := topology.Continuity[A := Family.Point, B := X].closedPreimage bundle.totalSpace bundle.baseSpace Family.projection (Family.Of[bundle := bundle].projectionContinuous) support (Base.Closure[].closed bundle.baseSpace (Partitions.Nonzero entry.weight));
+\definition within: Total.Subset closedSupport domain := \fun (p: Family.Point)(member: _) => entry.supportWithin p.base member;
+\definition local[p: Chart.TotalPoint]: Vector dimension := (coordinates dimension).smul (conjugation.embed (entry.weight p.base)) ((entry.chart.frame (Chart.base p)).forward.apply p.vector);
+\module Continuity;
+\definition vanishes: \forall (p: Chart.TotalPoint) -> Logic.Not (Total.Member closedSupport p) -> local p = (coordinates dimension).zero :=
+  \fun (p: Chart.TotalPoint)(outside: _) => trans!{{Vector dimension}} _ _ _
+    (congr!{K {Vector dimension}} (\fun (a: K) => (coordinates dimension).smul a ((entry.chart.frame (Chart.base p)).forward.apply p.vector)) _ _
+      (trans!{K} _ _ _ (congr!{{R.Real} K} conjugation.embed _ _ (zeroOffSupport p.base outside)) conjugation.embedZero))
+    (Spaces.Laws[V := Vector dimension, space := coordinates dimension].zeroScale ((entry.chart.frame (Chart.base p)).forward.apply p.vector));
+\import \root.Complements[].ZeroExtension[A := Family.Point, B := Vector dimension, U := domain, S := closedSupport, source := bundle.totalSpace, target := coordinateTopology dimension,
+  open := (\bysub(Charts.ChartData, Charts.Chart, entry.chart)).totalOpen, closed := supportClosed, within := within, f := local, default := (coordinates dimension).zero, regular := Continuity[].regular, vanishes := vanishes] \as Extension;
+\definition value[p: Family.Point]: Vector dimension := Extension.value p;
+\definition inside: \forall (x: \Cast[X] entry.chart.domain)(v: F x) -> value (Family.include x v) = (coordinates dimension).smul (conjugation.embed (entry.weight x)) ((entry.chart.frame x).forward.apply v) :=
+  \fun (x: \Cast[X] entry.chart.domain)(v: F x) => Extension.onDomain (\into[Family.Point](Family.include x v, domain) \by { \bysub(X, entry.chart.domain, x) });
+\definition outside: \forall (x: X) -> Logic.Not (Base.Member entry.chart.domain x) -> \forall (v: F x) -> value (Family.include x v) = (coordinates dimension).zero :=
+  \fun (x: X)(outside: _)(v: F x) => Extension.offSupport (Family.include x v) (\fun (member: _) => outside (entry.supportWithin x member));
+\module At(x: X);
+\import Bundles.Trivial[X := X, n := dimension, baseSpace := bundle.baseSpace] \as Target;
+\import Bundles.Family[X := X, F := \fun (x: X) => Vector dimension] \as TargetFamily;
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := \fun (x: X) => Vector dimension, source := bundle, target := Target.bundle, f := \fun (x: X) => x] \as Maps;
+\definition data: Maps.Data := Maps.Data { fiber := \fun (x: X) => At[x := x].map };
+\definition total[p: Family.Point]: TargetFamily.Point := TargetFamily.include p.base (value p);
+\definition totalContinuous: topology.Continuity[A := Family.Point, B := TargetFamily.Point].Continuous bundle.totalSpace Target.topology total :=
+  \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TrivialMaps[X := X, n := dimension, baseSpace := bundle.baseSpace].Into[Y := Family.Point, source := bundle.totalSpace].continuous Family.projection value (Family.Of[bundle := bundle].projectionContinuous) Extension.continuous;
+\definition formula: \forall (p: Family.Point) -> Maps.total data p = total p := \fun (p: Family.Point) => congr!{{Vector dimension} TargetFamily.Point} (TargetFamily.include p.base) _ _
+  (trans!{{Vector dimension}} _ _ _ (At[x := p.base].formula p.vector) (congr!{Family.Point {Vector dimension}} value _ _ (Family.eta p)));
+\definition map: Maps.Map := \into[Maps.Data](data, Maps.Map) \by {
+  \idelim total = Maps.total data \with f: (Family.Point -> TargetFamily.Point) => topology.Continuity[A := Family.Point, B := TargetFamily.Point].Continuous bundle.totalSpace Target.topology f \by {
+    base: totalContinuous, equality: \axiom:funext(total, Maps.total data, \fun (p: Family.Point) => sym!{TargetFamily.Point} _ _ (formula p))
+  }
+};
+\module Kernel(x: X);

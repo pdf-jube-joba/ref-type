@@ -1,0 +1,20 @@
+\import Spaces.Laws[V := F x, space := bundle.space x] \as Laws;
+\definition insideKernel: \forall (point: \Cast[X] entry.chart.domain) -> \forall (v: F point) -> (map.fiber point).apply v = (coordinates dimension).zero -> (bundle.space point).smul (conjugation.embed (entry.weight point)) v = (bundle.space point).zero :=
+  \fun (point: \Cast[X] entry.chart.domain)(v: F point)(zero: _) => \block {
+    \let a: K := conjugation.embed (entry.weight point) \then
+    \let frame: Spaces.Isomorphism[V := F point, W := Vector dimension, source := bundle.space point, target := coordinates dimension].Isomorphism := entry.chart.frame point \then
+    \let weightedZero: (coordinates dimension).smul a (frame.forward.apply v) = (coordinates dimension).zero := trans!{{Vector dimension}} _ _ _
+      (sym!{{Vector dimension}} _ _ (inside point v))
+      (trans!{{Vector dimension}} _ _ _ (sym!{{Vector dimension}} _ _ (\root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].For[X := X, F := F, bundle := bundle].Weighted[entry := entry].At[x := point].formula v)) zero) \then
+    \return trans!{{F point}} _ _ _
+      (congr!{{F point} {F point}} ((bundle.space point).smul a) _ _ (sym!{{F point}} _ _ (frame.leftInverse v)))
+      (trans!{{F point}} _ _ _ (sym!{{F point}} _ _ (frame.backward.preservesScale a (frame.forward.apply v)))
+        (trans!{{F point}} _ _ _ (congr!{{Vector dimension} {F point}} frame.backward.apply _ _ weightedZero) frame.backward.preservesZero))
+  };
+\definition killsScaled: \forall (v: F x) -> (map.fiber x).apply v = (coordinates dimension).zero -> (bundle.space x).smul (conjugation.embed (entry.weight x)) v = (bundle.space x).zero :=
+  \fun (v: F x)(zero: _) => either!{{(Classical.excludedMiddle (Base.Member entry.chart.domain x))} {(bundle.space x).smul (conjugation.embed (entry.weight x)) v = (bundle.space x).zero}
+    {\fun (member: _) => insideKernel (\into[X](x, entry.chart.domain) \by { member }) v zero}
+    {\fun (outside: _) => trans!{{F x}} _ _ _
+      (congr!{K {F x}} (\fun (a: K) => (bundle.space x).smul a v) _ _ (trans!{K} _ _ _
+        (congr!{{R.Real} K} conjugation.embed _ _ (zeroOffSupport x (\fun (member: _) => outside (entry.supportWithin x member)))) conjugation.embedZero))
+      (Laws.zeroScale v)}};
