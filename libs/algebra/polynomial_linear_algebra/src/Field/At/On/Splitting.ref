@@ -1,0 +1,19 @@
+\import \root.Field[K := K, field := field].Primary[V := Vector, space := Evaluation.module] \as Primary;
+\definition annihilated: \forall (v: Vector) -> Evaluation.apply (P.mul factors.left factors.right) v = Vectors.origin :=
+  \fun (v: Vector) => trans!{Vector} _ _ _
+    (congr!{Polynomial Vector} (\fun (p: Polynomial) => Evaluation.apply p v) _ _ (sym!{Polynomial} _ _ factors.equation)) (annihilates v);
+\definition split[v: Vector]: Primary.Split[factors.left, factors.right, v] :=
+  Primary.decompose factors.left factors.right factors.bezout
+    (\into[Vector](v, Primary.Kernel (P.mul factors.left factors.right)) \by { annihilated v });
+\definition projection: Linear.Linear[V := Vector, W := Vector, source := Vectors.space, target := Vectors.space].Map :=
+  Evaluation.evaluate (P.mul factors.bezout.right factors.right);
+\definition idempotent: \forall (v: Vector) -> projection.apply (projection.apply v) = projection.apply v :=
+  \fun (v: Vector) => Primary.idempotent factors.left factors.right factors.bezout v (annihilated v);
+\definition inKernel: \forall (v: Vector) -> Evaluation.apply factors.left (projection.apply v) = Vectors.origin :=
+  \fun (v: Vector) => Primary.intoKernel factors.left factors.right factors.bezout v (annihilated v);
+\definition unique: \forall (v: Vector)(s: Primary.Split[factors.left, factors.right, v]) -> s.left = projection.apply v :=
+  Primary.uniqueLeft factors.left factors.right factors.bezout;
+\definition invariant: \forall (v: Primary.Kernel factors.left) -> Evaluation.apply factors.left ((Mat.linear A).apply v) = Vectors.origin :=
+  \fun (v: Primary.Kernel factors.left) => trans!{Vector} _ _ _
+    (congr!{Vector Vector} (Evaluation.apply factors.left) _ _ (sym!{Vector} _ _ (Evaluation.variable v)))
+    (Primary.invariant factors.left P.X v);

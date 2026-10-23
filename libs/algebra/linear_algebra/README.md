@@ -52,3 +52,5 @@
 `Hermitian.Complex.FromInnerProduct` は既存の `Complex.InnerProduct` をこの共通形式へ移す。
 既存の実正規化と Gram–Schmidt の分解証明もこの共通実装を利用する。
 連続性、局所枠、Hermitian 行列、ユニタリ群と直和は [hermitian_frames](../hermitian_frames/README.md) を参照。
+
+有限基底を持つ線形写像の特性多項式と Cayley–Hamilton、互いに素な因子に対応する不変部分空間への射影は [polynomial_linear_algebra](../polynomial_linear_algebra/README.md) を参照。

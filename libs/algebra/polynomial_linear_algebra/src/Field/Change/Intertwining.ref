@@ -1,0 +1,61 @@
+\import \parent.\parent.Action[V := V, space := source].At[T := S] \as Source;
+\import Target.Action[V := W, space := destination].At[T := T] \as Destination;
+\import linear_algebra.Commutative[K := L, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing L target].Laws[V := W, space := destination] \as Values;
+\structure Data: \Set := { apply: V -> W };
+\structure Laws[data: Data]: \Prop := {
+  zero: data.apply source.zero = destination.zero,
+  addition: \forall (v, w: V) -> data.apply (source.add v w) = destination.add (data.apply v) (data.apply w),
+  scalar: \forall (a: K)(v: V) -> data.apply (source.smul a v) = destination.smul (f a) (data.apply v),
+  intertwines: \forall (v: V) -> data.apply (S.apply v) = T.apply (data.apply v),
+};
+\definition Morphism: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+\definition preservesNeg: \forall (h: Morphism)(v: V) -> h.apply (source.neg v) = destination.neg (h.apply v) :=
+  \fun (h: Morphism)(v: V) => Values.cancelLeft (h.apply v) _ _ (eq_reason_in!{W _
+    "=" _ "by" { Values.comm _ _ }
+    "=" { h.apply (source.add (source.neg v) v) } "by" { sym!{W} _ _ (h.addition (source.neg v) v) }
+    "=" { h.apply source.zero } "by" { congr!{V W} h.apply _ _ (source.additive.group.leftInverse v) }
+    "=" { destination.zero } "by" { h.zero }
+    "=" _ "by" { sym!{W} _ _ (trans!{W} _ _ _ (Values.comm _ _) (Values.inverseLeft (h.apply v))) }
+  });
+\definition naturality: \forall (h: Morphism)(p: Polynomial)(v: V) -> h.apply (Source.apply p v) = Destination.apply (map p) (h.apply v) :=
+  \fun (h: Morphism) => \parent.\parent.PolynomialInduction[].induction
+    (\fun (p: Polynomial) => \forall (v: V) -> h.apply (Source.apply p v) = Destination.apply (map p) (h.apply v))
+    (\fun (a: K)(v: V) => eq_reason_in!{W _
+      "=" { h.apply (source.smul a v) } "by" { congr!{V W} h.apply _ _ (Source.constants a v) }
+      "=" { destination.smul (f a) (h.apply v) } "by" { h.scalar a v }
+      "=" { Destination.apply (Q.constant (f a)) (h.apply v) } "by" { sym!{W} _ _ (Destination.constants (f a) (h.apply v)) }
+      "=" _ "by" { congr!{Q.Carrier W} (\fun (p: Q.Carrier) => Destination.apply p (h.apply v)) _ _ (sym!{Q.Carrier} _ _ (constant a)) }
+    })
+    (\fun (v: V) => eq_reason_in!{W _
+      "=" { h.apply (S.apply v) } "by" { congr!{V W} h.apply _ _ (Source.variable v) }
+      "=" { T.apply (h.apply v) } "by" { h.intertwines v }
+      "=" { Destination.apply Q.X (h.apply v) } "by" { sym!{W} _ _ (Destination.variable (h.apply v)) }
+      "=" _ "by" { congr!{Q.Carrier W} (\fun (p: Q.Carrier) => Destination.apply p (h.apply v)) _ _ (sym!{Q.Carrier} _ _ variable) }
+    })
+    (\fun (p, q: Polynomial)(hp: _)(hq: _)(v: V) => eq_reason_in!{W _
+      "=" { h.apply (source.add (Source.apply p v) (Source.apply q v)) } "by" { congr!{V W} h.apply _ _ (Source.addition p q v) }
+      "=" _ "by" { h.addition (Source.apply p v) (Source.apply q v) }
+      "=" { destination.add (Destination.apply (map p) (h.apply v)) (Destination.apply (map q) (h.apply v)) } "by" { congr!{W W W} destination.add _ _ _ _ (hp v) (hq v) }
+      "=" { Destination.apply (Q.add (map p) (map q)) (h.apply v) } "by" { sym!{W} _ _ (Destination.addition (map p) (map q) (h.apply v)) }
+      "=" _ "by" { congr!{Q.Carrier W} (\fun (p: Q.Carrier) => Destination.apply p (h.apply v)) _ _ (sym!{Q.Carrier} _ _ (laws.add p q)) }
+    })
+    (\fun (p: Polynomial)(hp: _)(v: V) => eq_reason_in!{W _
+      "=" { h.apply (source.neg (Source.apply p v)) } "by" { congr!{V W} h.apply _ _ (Source.negative p v) }
+      "=" _ "by" { preservesNeg h (Source.apply p v) }
+      "=" { destination.neg (Destination.apply (map p) (h.apply v)) } "by" { congr!{W W} destination.neg _ _ (hp v) }
+      "=" { Destination.apply (Q.neg (map p)) (h.apply v) } "by" { sym!{W} _ _ (Destination.negative (map p) (h.apply v)) }
+      "=" _ "by" { congr!{Q.Carrier W} (\fun (p: Q.Carrier) => Destination.apply p (h.apply v)) _ _ (sym!{Q.Carrier} _ _ (negative p)) }
+    })
+    (\fun (p, q: Polynomial)(hp: _)(hq: _)(v: V) => eq_reason_in!{W _
+      "=" { h.apply (Source.apply p (Source.apply q v)) } "by" { congr!{V W} h.apply _ _ (Source.multiplication p q v) }
+      "=" { Destination.apply (map p) (h.apply (Source.apply q v)) } "by" { hp (Source.apply q v) }
+      "=" { Destination.apply (map p) (Destination.apply (map q) (h.apply v)) } "by" { congr!{W W} (Destination.apply (map p)) _ _ (hq v) }
+      "=" { Destination.apply (Q.mul (map p) (map q)) (h.apply v) } "by" { sym!{W} _ _ (Destination.multiplication (map p) (map q) (h.apply v)) }
+      "=" _ "by" { congr!{Q.Carrier W} (\fun (p: Q.Carrier) => Destination.apply p (h.apply v)) _ _ (sym!{Q.Carrier} _ _ (laws.mul p q)) }
+    });
+\import \parent.\parent.Primary[V := V, space := Source.module] \as Primary;
+\import Target.Primary[V := W, space := Destination.module] \as TargetPrimary;
+\definition projectionNatural: \forall (h: Morphism)(p, q: Polynomial)(b: Bezout[p, q, P.one])(v: V) ->
+  h.apply (Primary.projection p q b v) = TargetPrimary.projection (map p) (map q) (bezout p q b) (h.apply v) :=
+  \fun (h: Morphism)(p, q: Polynomial)(b: Bezout[p, q, P.one])(v: V) => trans!{W} _ _ _ (naturality h (P.mul b.right q) v)
+    (congr!{Q.Carrier W} (\fun (p: Q.Carrier) => Destination.apply p (h.apply v)) _ _ (laws.mul b.right q));

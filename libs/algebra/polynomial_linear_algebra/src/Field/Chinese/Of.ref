@@ -1,0 +1,24 @@
+\import \parent.Weights[b := b] \as Weights;
+\definition coprime: Coprime p q := \exact(b, Bezout[p, q, P.one]);
+\definition Fiber[y: Pair]: \Set := \Cast[Whole.Carrier] ({ x: Whole.Carrier \where forward x = y });
+\definition surjective: \forall (y: Pair) -> \exists Fiber y :=
+  \induction (y: Pair) \return \exists Fiber y \with {
+    | pair: Left.induction (\fun (a: Left.Carrier) => \forall (c: Right.Carrier) -> \exists Fiber (ProductSpace.make a c))
+      (\fun (a: Polynomial) => Right.induction (\fun (c: Right.Carrier) => \exists Fiber (ProductSpace.make (Left.class a) c))
+        (\fun (c: Polynomial) => \exact(\into[Whole.Carrier](Whole.class (Weights.combine a c), Fiber (ProductSpace.make (Left.class a) (Right.class c))) \by {
+          trans!{Pair} _ _ _ (onClass (Weights.combine a c)) (Pairs.ext _ _ (Weights.leftResidue a c) (Weights.rightResidue a c))
+        }, Fiber (ProductSpace.make (Left.class a) (Right.class c)))))
+  };
+\definition unique: \forall (y: Pair)(x, z: Fiber y) -> x = z :=
+  \fun (y: Pair)(x, z: Fiber y) => injective coprime x z
+    (trans!{Pair} _ _ _ (\bysub(Whole.Carrier, Fiber y, x)) (sym!{Pair} _ _ (\bysub(Whole.Carrier, Fiber y, z))));
+\definition inverse[y: Pair]: Fiber y := \choice Fiber y \by { existence: surjective y, uniqueness: unique y };
+\definition rightInverse: \forall (y: Pair) -> forward (inverse y) = y := \fun (y: Pair) => \bysub(Whole.Carrier, Fiber y, inverse y);
+\definition leftInverse: \forall (x: Whole.Carrier) -> inverse (forward x) = x :=
+  \fun (x: Whole.Carrier) => injective coprime _ _ (rightInverse (forward x));
+\definition explicit: \forall (a, c: Polynomial) -> inverse (ProductSpace.make (Left.class a) (Right.class c)) = Whole.class (Weights.combine a c) :=
+  \fun (a, c: Polynomial) => injective coprime _ _ (eq_reason_in!{Pair _
+    "=" _ "by" { rightInverse (ProductSpace.make (Left.class a) (Right.class c)) }
+    "=" { residue (Weights.combine a c) } "by" { sym!{Pair} _ _ (Pairs.ext _ _ (Weights.leftResidue a c) (Weights.rightResidue a c)) }
+    "=" _ "by" { sym!{Pair} _ _ (onClass (Weights.combine a c)) }
+  });

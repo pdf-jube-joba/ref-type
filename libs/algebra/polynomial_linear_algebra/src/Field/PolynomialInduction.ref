@@ -1,0 +1,25 @@
+\import algebra.FreeCommutativeRing[].Over[R := K, coefficients := std.Alg[].Field[].fieldAsCommutativeRing K field, Variables := P.Variable] \as Free;
+\import Free.Presentation[relations := (\fun (x, y: Free.Expression) => Logic.False)] \as Presented;
+\import std.Set[].Quotient[A := Free.Expression, Equivalent := Presented.Equivalent] \as Quotient;
+\definition induction: \forall (Q: Polynomial -> \Prop) ->
+  (\forall (a: K) -> Q (P.constant a)) -> Q P.X ->
+  (\forall (p, q: Polynomial) -> Q p -> Q q -> Q (P.add p q)) ->
+  (\forall (p: Polynomial) -> Q p -> Q (P.neg p)) ->
+  (\forall (p, q: Polynomial) -> Q p -> Q q -> Q (P.mul p q)) -> \forall (p: Polynomial) -> Q p :=
+  \fun (Q: Polynomial -> \Prop)(constants: _)(variable: _)(addition: _)(negative: _)(multiplication: _) =>
+    Quotient.induction Q (\induction (e: Free.Expression) \return Q (Presented.class e) \with {
+      | constant: constants
+      | variable: \induction (x: P.Variable) \return Q (Presented.class (Free.Expression::variable x)) \with { | x: variable }
+      | sum: \fun (p: Free.Expression)(hp: _)(q: Free.Expression)(hq: _) =>
+        \idelim P.add (Presented.class p) (Presented.class q) = Presented.class (Free.Expression::sum p q) \with r: Polynomial => Q r \by {
+          base: addition (Presented.class p) (Presented.class q) hp hq, equality: Presented.addClass p q
+        }
+      | negative: \fun (p: Free.Expression)(hp: _) =>
+        \idelim P.neg (Presented.class p) = Presented.class (Free.Expression::negative p) \with r: Polynomial => Q r \by {
+          base: negative (Presented.class p) hp, equality: Presented.negClass p
+        }
+      | product: \fun (p: Free.Expression)(hp: _)(q: Free.Expression)(hq: _) =>
+        \idelim P.mul (Presented.class p) (Presented.class q) = Presented.class (Free.Expression::product p q) \with r: Polynomial => Q r \by {
+          base: multiplication (Presented.class p) (Presented.class q) hp hq, equality: Presented.mulClass p q
+        }
+    });

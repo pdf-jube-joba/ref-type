@@ -1,0 +1,50 @@
+\import PolynomialAlgebra.Subspace[V := V, space := space] \as Subspaces;
+\import Subspaces.Of[subspace := kernel p] \as Left;
+\import Subspaces.Of[subspace := kernel q] \as Right;
+\import Subspaces.Of[subspace := kernel (P.mul p q)] \as Whole;
+\import PolynomialAlgebra.DirectSum[V := Left.Carrier, W := Right.Carrier, left := Left.induced, right := Right.induced] \as Sum;
+\import std.Data[].Pair[].Prop[A := Left.Carrier, B := Right.Carrier] \as Pairs;
+\import PolynomialAlgebra.Isomorphism[V := Whole.Carrier, W := Sum.Carrier, source := Whole.induced, target := Sum.space] \as Iso;
+\definition forward[v: Whole.Carrier]: Sum.Carrier := Sum.make (decompose p q b v).left (decompose p q b v).right;
+\definition sumAnnihilated: \forall (a: Left.Carrier)(c: Right.Carrier) -> space.smul (P.mul p q) (space.add a c) = space.zero :=
+  \fun (a: Left.Carrier)(c: Right.Carrier) => eq_reason_in!{V _
+    "=" _ "by" { space.vectorAdd (P.mul p q) a c }
+    "=" { space.add (space.smul q (space.smul p a)) (space.smul p (space.smul q c)) } "by" {
+      congr!{V V V} space.add _ _ _ _
+        (trans!{V} _ _ _ (congr!{Polynomial V} (\fun (r: Polynomial) => space.smul r a) _ _ (Product.comm p q)) (space.scalarAssoc q p a))
+        (space.scalarAssoc p q c) }
+    "=" { space.add space.zero space.zero } "by" { congr!{V V V} space.add _ _ _ _
+      (trans!{V} _ _ _ (congr!{V V} (space.smul q) _ _ (\bysub(V, Kernel p, a))) (Vectors.scaleZero q))
+      (trans!{V} _ _ _ (congr!{V V} (space.smul p) _ _ (\bysub(V, Kernel q, c))) (Vectors.scaleZero p)) }
+    "=" _ "by" { Vectors.zeroLeft space.zero }
+  };
+\definition backward[v: Sum.Carrier]: Whole.Carrier := \into[V](space.add (Sum.first v) (Sum.second v), Kernel (P.mul p q)) \by {
+  sumAnnihilated (Sum.first v) (Sum.second v)
+};
+\definition leftInverse: \forall (v: Whole.Carrier) -> backward (forward v) = v :=
+  \fun (v: Whole.Carrier) => (decompose p q b v).reconstruction;
+\definition rightInverse: \forall (v: Sum.Carrier) -> forward (backward v) = v :=
+  \fun (v: Sum.Carrier) => Pairs.ext _ _
+    (sym!{V} _ _ (uniqueLeft p q b (backward v) (Split[p, q, backward v] {
+      left := Sum.first v, right := Sum.second v, reconstruction := \refl(space.add (Sum.first v) (Sum.second v)),
+    })))
+    (sym!{V} _ _ (uniqueRight p q b (backward v) (Split[p, q, backward v] {
+      left := Sum.first v, right := Sum.second v, reconstruction := \refl(space.add (Sum.first v) (Sum.second v)),
+    })));
+\import PolynomialAlgebra.Linear[V := Whole.Carrier, W := Sum.Carrier, source := Whole.induced, target := Sum.space] \as Forward;
+\import PolynomialAlgebra.Linear[V := Sum.Carrier, W := Whole.Carrier, source := Sum.space, target := Whole.induced] \as Backward;
+\definition isomorphism: Iso.Isomorphism := Iso.Isomorphism {
+  forward := Forward.Map {
+    apply := forward,
+    preservesAdd := \fun (v, w: Whole.Carrier) => Pairs.ext _ _
+      (space.vectorAdd (P.mul b.right q) v w) (space.vectorAdd (P.mul b.left p) v w),
+    preservesScale := \fun (a: Polynomial)(v: Whole.Carrier) => Pairs.ext _ _
+      (Vectors.scaleComm (P.mul b.right q) a v) (Vectors.scaleComm (P.mul b.left p) a v),
+  },
+  backward := Backward.Map {
+    apply := backward,
+    preservesAdd := \fun (v, w: Sum.Carrier) => Vectors.shuffle (Sum.first v) (Sum.first w) (Sum.second v) (Sum.second w),
+    preservesScale := \fun (a: Polynomial)(v: Sum.Carrier) => sym!{V} _ _ (space.vectorAdd a (Sum.first v) (Sum.second v)),
+  },
+  leftInverse := leftInverse, rightInverse := rightInverse,
+};

@@ -1,0 +1,41 @@
+\import \root.Field[K := L, field := target] \as Target;
+\import algebra.Polynomial[].Over[R := L, coefficients := std.Alg[].Field[].fieldAsCommutativeRing L target] \as Q;
+\import P.Universal[K := Q.Carrier, target := Q.ring] \as Extension;
+\import algebra.Hom[A := K, B := L].Composition[C := Q.Carrier] \as Composition;
+\definition coefficients: Extension.CoefficientMap := Composition.ring
+  (Rings.commutativeRingAsRing K (std.Alg[].Field[].fieldAsCommutativeRing K field))
+  (Rings.commutativeRingAsRing L (std.Alg[].Field[].fieldAsCommutativeRing L target))
+  (Rings.commutativeRingAsRing Q.Carrier Q.ring) f Q.coefficientMap;
+\definition map: Polynomial -> Q.Carrier := Extension.evaluate coefficients Q.X;
+\import algebra.Hom[A := Polynomial, B := Q.Carrier] \as Maps;
+\definition extension: Maps.RingMap Raw.ring (Rings.commutativeRingAsRing Q.Carrier Q.ring) := Extension.extension coefficients Q.X;
+\definition laws: Maps.SemiringLaws[Rings.ringAsSemiring Polynomial Raw.ring, Rings.ringAsSemiring Q.Carrier (Rings.commutativeRingAsRing Q.Carrier Q.ring), map] := Maps.semiringLaws _ _ extension;
+\import linear_algebra.Commutative[K := Q.Carrier, scalarRing := Q.ring] \as Algebra;
+\import Algebra.Laws[V := Q.Carrier, space := Algebra.scalarSpace] \as ScalarLaws;
+\definition constant: \forall (a: K) -> map (P.constant a) = Q.constant (f a) := Extension.constants coefficients Q.X;
+\definition variable: map P.X = Q.X := Extension.variable coefficients Q.X;
+\definition negative: \forall (p: Polynomial) -> map (P.neg p) = Q.neg (map p) :=
+  \fun (p: Polynomial) => ScalarLaws.cancelLeft (map p) _ _ (eq_reason_in!{Q.Carrier _
+    "=" { Q.add (map (P.neg p)) (map p) } "by" { Algebra.addComm _ _ }
+    "=" { map P.zero } "by" { trans!{Q.Carrier} _ _ _ (sym!{Q.Carrier} _ _ (laws.add (P.neg p) p)) (congr!{Polynomial Q.Carrier} map _ _ (P.ring.ring.additiveInverse p)) }
+    "=" { Q.zero } "by" { laws.zero }
+    "=" _ "by" { sym!{Q.Carrier} _ _ (Algebra.addNegRight (map p)) }
+  });
+\definition bezout[p, q: Polynomial][b: Bezout[p, q, P.one]]: Target.Bezout[map p, map q, Q.one] := Target.Bezout[map p, map q, Q.one] {
+  left := map b.left, right := map b.right,
+  equation := eq_reason_in!{Q.Carrier Q.one
+    "=" { map P.one } "by" { sym!{Q.Carrier} _ _ laws.one }
+    "=" { map (P.add (P.mul b.left p) (P.mul b.right q)) } "by" { congr!{Polynomial Q.Carrier} map _ _ b.equation }
+    "=" _ "by" { laws.add (P.mul b.left p) (P.mul b.right q) }
+    "=" _ "by" { congr!{Q.Carrier Q.Carrier Q.Carrier} Q.add _ _ _ _ (laws.mul b.left p) (laws.mul b.right q) }
+  },
+};
+\definition coprime: \forall (p, q: Polynomial) -> Coprime p q -> Target.Coprime (map p) (map q) := \block {
+  \fun (p, q: Polynomial)(h: _) \then
+  \takefrom b: Bezout[p, q, P.one] \by h \then
+  \return \exact(bezout p q b, Target.Bezout[map p, map q, Q.one])
+};
+\module Intertwining(V, W: \Set,
+  source: linear_algebra.Commutative[K := K, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing K field].VectorSpace V,
+  destination: linear_algebra.Commutative[K := L, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing L target].VectorSpace W,
+  S: \root.Field[K := K, field := field].Action[V := V, space := source].Map, T: Target.Action[V := W, space := destination].Map);

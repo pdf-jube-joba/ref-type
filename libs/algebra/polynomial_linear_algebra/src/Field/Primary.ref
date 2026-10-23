@@ -1,0 +1,78 @@
+\import PolynomialAlgebra.Laws[V := V, space := space] \as Vectors;
+\definition Kernel[p: Polynomial]: \Set := \Cast[V] ({ v: V \where space.smul p v = space.zero });
+\structure SplitData[p, q: Polynomial]: \Set := { left: Kernel p, right: Kernel q };
+\structure SplitLaws[p, q: Polynomial, v: V, data: SplitData[p, q]]: \Prop := { reconstruction: space.add data.left data.right = v };
+\definition Split[p, q: Polynomial, v: V]: \Set := \Cast[SplitData[p, q]] ({ data: SplitData[p, q] \where SplitLaws[p, q, v, data] });
+\definition projection[p, q: Polynomial][b: Bezout[p, q, P.one]][v: V]: V := space.smul (P.mul b.right q) v;
+\definition complementary[p, q: Polynomial][b: Bezout[p, q, P.one]][v: V]: V := space.smul (P.mul b.left p) v;
+\definition reconstruction: \forall (p, q: Polynomial)(b: Bezout[p, q, P.one])(v: V) ->
+  space.add (projection p q b v) (complementary p q b v) = v :=
+  \fun (p, q: Polynomial)(b: Bezout[p, q, P.one])(v: V) => eq_reason_in!{V _
+    "=" _ "by" { Vectors.comm _ _ }
+    "=" _ "by" { sym!{V} _ _ (space.scalarAdd (P.mul b.left p) (P.mul b.right q) v) }
+    "=" _ "by" { congr!{Polynomial V} (\fun (a: Polynomial) => space.smul a v) _ _ (sym!{Polynomial} _ _ b.equation) }
+    "=" _ "by" { space.scalarOne v }
+  };
+\definition onKernel: \forall (p, q: Polynomial)(b: Bezout[p, q, P.one])(v: V) -> space.smul p v = space.zero -> projection p q b v = v :=
+  \fun (p, q: Polynomial)(b: Bezout[p, q, P.one])(v: V)(member: _) => eq_reason_in!{V _
+    "=" { space.add (projection p q b v) space.zero } "by" { sym!{V} _ _ (Vectors.zeroRight _) }
+    "=" { space.add (projection p q b v) (complementary p q b v) } "by" {
+      congr!{V V} (space.add (projection p q b v)) _ _ (sym!{V} _ _
+        (trans!{V} _ _ _ (space.scalarAssoc b.left p v)
+          (trans!{V} _ _ _ (congr!{V V} (space.smul b.left) _ _ member) (Vectors.scaleZero b.left)))) }
+    "=" _ "by" { reconstruction p q b v }
+  };
+\definition onOtherKernel: \forall (p, q: Polynomial)(b: Bezout[p, q, P.one])(v: V) -> space.smul q v = space.zero -> projection p q b v = space.zero :=
+  \fun (p, q: Polynomial)(b: Bezout[p, q, P.one])(v: V)(member: _) => trans!{V} _ _ _ (space.scalarAssoc b.right q v)
+    (trans!{V} _ _ _ (congr!{V V} (space.smul b.right) _ _ member) (Vectors.scaleZero b.right));
+\definition intoKernel: \forall (p, q: Polynomial)(b: Bezout[p, q, P.one])(v: V) -> space.smul (P.mul p q) v = space.zero ->
+  space.smul p (projection p q b v) = space.zero :=
+  \fun (p, q: Polynomial)(b: Bezout[p, q, P.one])(v: V)(annihilated: _) => eq_reason_in!{V _
+    "=" { space.smul (P.mul p (P.mul b.right q)) v } "by" { sym!{V} _ _ (space.scalarAssoc p (P.mul b.right q) v) }
+    "=" { space.smul (P.mul b.right (P.mul p q)) v } "by" {
+      congr!{Polynomial V} (\fun (a: Polynomial) => space.smul a v) _ _ (Product.swap p b.right q) }
+    "=" { space.smul b.right (space.smul (P.mul p q) v) } "by" { space.scalarAssoc b.right (P.mul p q) v }
+    "=" _ "by" { congr!{V V} (space.smul b.right) _ _ annihilated }
+    "=" _ "by" { Vectors.scaleZero b.right }
+  };
+\definition swap[p, q: Polynomial][b: Bezout[p, q, P.one]]: Bezout[q, p, P.one] := Bezout[q, p, P.one] {
+  left := b.right, right := b.left, equation := trans!{Polynomial} _ _ _ b.equation (Sum.comm _ _),
+};
+\definition decompose: \forall (p, q: Polynomial)(b: Bezout[p, q, P.one])(v: Kernel (P.mul p q)) -> Split[p, q, v] :=
+  \fun (p, q: Polynomial)(b: Bezout[p, q, P.one])(v: Kernel (P.mul p q)) => Split[p, q, v] {
+    left := \into[V](projection p q b v, Kernel p) \by { intoKernel p q b v (\bysub(V, Kernel (P.mul p q), v)) },
+    right := \into[V](complementary p q b v, Kernel q) \by {
+      intoKernel q p (swap p q b) v
+        (trans!{V} _ _ _ (congr!{Polynomial V} (\fun (a: Polynomial) => space.smul a v) _ _ (Product.comm q p)) (\bysub(V, Kernel (P.mul p q), v)))
+    },
+    reconstruction := reconstruction p q b v,
+  };
+\definition uniqueLeft: \forall (p, q: Polynomial)(b: Bezout[p, q, P.one])(v: V)(s: Split[p, q, v]) -> s.left = projection p q b v :=
+  \fun (p, q: Polynomial)(b: Bezout[p, q, P.one])(v: V)(s: Split[p, q, v]) => eq_reason_in!{V s.left
+    "=" _ "by" { sym!{V} _ _ (onKernel p q b s.left (\bysub(V, Kernel p, s.left))) }
+    "=" { space.add (projection p q b s.left) space.zero } "by" { sym!{V} _ _ (Vectors.zeroRight _) }
+    "=" { space.add (projection p q b s.left) (projection p q b s.right) } "by" {
+      congr!{V V} (space.add (projection p q b s.left)) _ _ (sym!{V} _ _ (onOtherKernel p q b s.right (\bysub(V, Kernel q, s.right)))) }
+    "=" { projection p q b (space.add s.left s.right) } "by" { sym!{V} _ _ (space.vectorAdd (P.mul b.right q) s.left s.right) }
+    "=" _ "by" { congr!{V V} (projection p q b) _ _ s.reconstruction }
+  };
+\definition uniqueRight: \forall (p, q: Polynomial)(b: Bezout[p, q, P.one])(v: V)(s: Split[p, q, v]) -> s.right = complementary p q b v :=
+  \fun (p, q: Polynomial)(b: Bezout[p, q, P.one])(v: V)(s: Split[p, q, v]) => uniqueLeft q p (swap p q b) v
+    (Split[q, p, v] { left := s.right, right := s.left, reconstruction := trans!{V} _ _ _ (Vectors.comm s.right s.left) s.reconstruction });
+\definition idempotent: \forall (p, q: Polynomial)(b: Bezout[p, q, P.one])(v: V) -> space.smul (P.mul p q) v = space.zero ->
+  projection p q b (projection p q b v) = projection p q b v :=
+  \fun (p, q: Polynomial)(b: Bezout[p, q, P.one])(v: V)(annihilated: _) => onKernel p q b _ (intoKernel p q b v annihilated);
+\definition independent: \forall (p, q: Polynomial)(a, b: Bezout[p, q, P.one])(v: V) -> space.smul (P.mul p q) v = space.zero ->
+  projection p q a v = projection p q b v :=
+  \fun (p, q: Polynomial)(a, b: Bezout[p, q, P.one])(v: V)(annihilated: _) => uniqueLeft p q b v (decompose p q a (\into[V](v, Kernel (P.mul p q)) \by { annihilated }));
+\definition invariant: \forall (p, a: Polynomial)(v: Kernel p) -> space.smul p (space.smul a v) = space.zero :=
+  \fun (p, a: Polynomial)(v: Kernel p) => trans!{V} _ _ _ (Vectors.scaleComm p a v)
+    (trans!{V} _ _ _ (congr!{V V} (space.smul a) _ _ (\bysub(V, Kernel p, v))) (Vectors.scaleZero a));
+\import PolynomialAlgebra.Linear[V := V, W := V, source := space, target := space] \as End;
+\definition multiplication[p: Polynomial]: End.Map := End.Map {
+  apply := space.smul p, preservesAdd := space.vectorAdd p,
+  preservesScale := \fun (a: Polynomial)(v: V) => Vectors.scaleComm p a v,
+};
+\definition kernel[p: Polynomial]: PolynomialAlgebra.Subspace[V := V, space := space].Subspace :=
+  PolynomialAlgebra.Subspace[V := V, space := space].Kernel[W := V, target := space].kernel (multiplication p);
+\module At(p, q: Polynomial, b: Bezout[p, q, P.one]);

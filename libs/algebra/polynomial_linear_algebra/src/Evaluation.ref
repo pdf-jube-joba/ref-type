@@ -1,0 +1,120 @@
+\import std.Alg[].Ring[] \as Rings;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import algebra.Polynomial[].Over[R := K, coefficients := coefficients] \as P;
+\import algebra.FreeCommutativeRing[].Over[R := K, coefficients := coefficients, Variables := P.Variable] \as Free;
+\import Free.Presentation[relations := (\fun (x, y: Free.Expression) => Logic.False)] \as Presented;
+\import algebra.Group[].Of[Carrier := A, group := Rings.additiveGroup A target] \as Sum;
+\import algebra.Hom[A := K, B := A] \as Coefficients;
+\import algebra.Hom[A := P.Carrier, B := A] \as Output;
+\definition coefficientLaws: Coefficients.SemiringLaws[Rings.ringAsSemiring K (Rings.commutativeRingAsRing K coefficients), Rings.ringAsSemiring A target, f] :=
+  Coefficients.semiringLaws _ _ f;
+\definition Commutes[x, y: A]: \Prop := target.mul x y = target.mul y x;
+\definition commutesAdd: \forall (x, y, z: A) -> Commutes x z -> Commutes y z -> Commutes (target.add x y) z :=
+  \fun (x, y, z: A)(hx: _)(hy: _) => eq_reason_in!{A _
+    "=" _ "by" { target.semiring.rightDistributive x y z }
+    "=" _ "by" { congr!{A A A} target.add _ _ _ _ hx hy }
+    "=" _ "by" { sym!{A} _ _ (target.semiring.leftDistributive z x y) }
+  };
+\definition commutesMul: \forall (x, y, z: A) -> Commutes x z -> Commutes y z -> Commutes (target.mul x y) z :=
+  \fun (x, y, z: A)(hx: _)(hy: _) => eq_reason_in!{A _
+    "=" _ "by" { target.semiring.multiplicative.associative x y z }
+    "=" _ "by" { congr!{A A} (target.mul x) _ _ hy }
+    "=" _ "by" { sym!{A} _ _ (target.semiring.multiplicative.associative x z y) }
+    "=" _ "by" { congr!{A A} (\fun (v: A) => target.mul v y) _ _ hx }
+    "=" _ "by" { target.semiring.multiplicative.associative z x y }
+  };
+\definition negMul: \forall (x, y: A) -> target.mul (target.neg x) y = target.neg (target.mul x y) :=
+  \fun (x, y: A) => Sum.inverseUnique (target.mul x y) (target.mul (target.neg x) y)
+    (trans!{A} _ _ _ (sym!{A} _ _ (target.semiring.rightDistributive (target.neg x) x y))
+      (trans!{A} _ _ _ (congr!{A A} (\fun (v: A) => target.mul v y) _ _ (target.additiveInverse x)) (target.semiring.zeroAbsorbsLeft y)));
+\definition mulNeg: \forall (x, y: A) -> target.mul x (target.neg y) = target.neg (target.mul x y) :=
+  \fun (x, y: A) => Sum.inverseUnique (target.mul x y) (target.mul x (target.neg y))
+    (trans!{A} _ _ _ (sym!{A} _ _ (target.semiring.leftDistributive x (target.neg y) y))
+      (trans!{A} _ _ _ (congr!{A A} (target.mul x) _ _ (target.additiveInverse y)) (target.semiring.zeroAbsorbsRight x)));
+\definition commutesNeg: \forall (x, z: A) -> Commutes x z -> Commutes (target.neg x) z :=
+  \fun (x, z: A)(h: _) => trans!{A} _ _ _ (negMul x z)
+    (trans!{A} _ _ _ (congr!{A A} target.neg _ _ h) (sym!{A} _ _ (mulNeg z x)));
+\definition value: Free.Expression -> A :=
+  \induction (e: Free.Expression) \return A \with {
+    | constant: \fun (a: K) => f a
+    | variable: \fun (x: P.Variable) => T
+    | sum: \fun (x: Free.Expression)(vx: A)(y: Free.Expression)(vy: A) => target.add vx vy
+    | negative: \fun (x: Free.Expression)(vx: A) => target.neg vx
+    | product: \fun (x: Free.Expression)(vx: A)(y: Free.Expression)(vy: A) => target.mul vx vy
+  };
+\definition withVariable: \forall (e: Free.Expression) -> Commutes (value e) T :=
+  \induction (e: Free.Expression) \return Commutes (value e) T \with {
+    | constant: \fun (a: K) => central a T
+    | variable: \fun (x: P.Variable) => \refl(target.mul T T)
+    | sum: \fun (x: Free.Expression)(hx: _)(y: Free.Expression)(hy: _) => commutesAdd (value x) (value y) T hx hy
+    | negative: \fun (x: Free.Expression)(hx: _) => commutesNeg (value x) T hx
+    | product: \fun (x: Free.Expression)(hx: _)(y: Free.Expression)(hy: _) => commutesMul (value x) (value y) T hx hy
+  };
+\definition pairCommutes: \forall (x, y: Free.Expression) -> Commutes (value x) (value y) :=
+  \induction (x: Free.Expression) \return \forall (y: Free.Expression) -> Commutes (value x) (value y) \with {
+    | constant: \fun (a: K)(y: Free.Expression) => central a (value y)
+    | variable: \fun (x: P.Variable)(y: Free.Expression) => sym!{A} _ _ (withVariable y)
+    | sum: \fun (x: Free.Expression)(hx: _)(z: Free.Expression)(hz: _)(y: Free.Expression) => commutesAdd (value x) (value z) (value y) (hx y) (hz y)
+    | negative: \fun (x: Free.Expression)(hx: _)(y: Free.Expression) => commutesNeg (value x) (value y) (hx y)
+    | product: \fun (x: Free.Expression)(hx: _)(z: Free.Expression)(hz: _)(y: Free.Expression) => commutesMul (value x) (value z) (value y) (hx y) (hz y)
+  };
+\definition coefficientNeg: \forall (a: K) -> f (coefficients.base.neg a) = target.neg (f a) :=
+  \fun (a: K) => Sum.inverseUnique (f a) (f (coefficients.base.neg a))
+    (trans!{A} _ _ _ (sym!{A} _ _ (coefficientLaws.add (coefficients.base.neg a) a))
+      (trans!{A} _ _ _ (congr!{K A} f _ _ (coefficients.ring.additiveInverse a)) coefficientLaws.zero));
+\definition Related[x, y: Free.Expression]: \Prop := value x = value y;
+\definition rules: Free.Rules[Related] := Free.Rules[Related] {
+  equivalence := std.Logic[].Relation[].Equivalence[Free.Expression, Related] {
+    refl := \fun (x: Free.Expression) => \refl(value x),
+    sym := \fun (x, y: Free.Expression) => sym!{A} _ _,
+    trans := \fun (x, y, z: Free.Expression) => trans!{A} _ _ _,
+  },
+  addCong := \fun (x, y, u, v: Free.Expression) => congr!{A A A} target.add _ _ _ _,
+  negCong := \fun (x, y: Free.Expression) => congr!{A A} target.neg _ _,
+  mulCong := \fun (x, y, u, v: Free.Expression) => congr!{A A A} target.mul _ _ _ _,
+  zeroLeft := \fun (x: Free.Expression) => trans!{A} _ _ _
+    (congr!{A A} (\fun (v: A) => target.add v (value x)) _ _ coefficientLaws.zero) (Sum.zeroLeft (value x)),
+  addAssoc := \fun (x, y, z: Free.Expression) => Sum.assoc (value x) (value y) (value z),
+  addComm := \fun (x, y: Free.Expression) => Sum.comm (value x) (value y),
+  inverse := \fun (x: Free.Expression) => trans!{A} _ _ _ (Sum.inverseLeft (value x)) (sym!{A} _ _ coefficientLaws.zero),
+  oneLeft := \fun (x: Free.Expression) => trans!{A} _ _ _
+    (congr!{A A} (\fun (v: A) => target.mul v (value x)) _ _ coefficientLaws.one) (target.semiring.multiplicative.leftIdentity (value x)),
+  mulAssoc := \fun (x, y, z: Free.Expression) => target.semiring.multiplicative.associative (value x) (value y) (value z),
+  mulComm := pairCommutes,
+  distributive := \fun (x, y, z: Free.Expression) => target.semiring.leftDistributive (value x) (value y) (value z),
+  absorbs := \fun (x: Free.Expression) => trans!{A} _ _ _
+    (congr!{A A} (\fun (v: A) => target.mul v (value x)) _ _ coefficientLaws.zero)
+    (trans!{A} _ _ _ (target.semiring.zeroAbsorbsLeft (value x)) (sym!{A} _ _ coefficientLaws.zero)),
+  constantAdd := coefficientLaws.add, constantMul := coefficientLaws.mul, constantNeg := coefficientNeg,
+};
+\import algebra.Quotient[A := Free.Expression, relation := Presented.Equivalent] \as Quotient;
+\import Quotient.Lift[B := A] \as Lift;
+\definition respects: Lift.Respects value := \fun (x, y: Free.Expression)(h: Presented.Equivalent x y) => h Related rules
+  (\fun (x, y: Free.Expression)(impossible: Logic.False) => Logic.falseElim (Related x y) impossible);
+\definition apply: P.Carrier -> A := Lift.apply Presented.equivalence value respects;
+\definition onClass: \forall (x: Free.Expression) -> apply (Presented.class x) = value x :=
+  Lift.onClass Presented.equivalence value respects;
+\definition extension: Output.RingMap (Rings.commutativeRingAsRing P.Carrier P.ring) target :=
+  \into[P.Carrier -> A](apply, Output.RingMap (Rings.commutativeRingAsRing P.Carrier P.ring) target) \by {
+    Output.SemiringLaws[Rings.ringAsSemiring P.Carrier (Rings.commutativeRingAsRing P.Carrier P.ring), Rings.ringAsSemiring A target, apply] {
+      zero := trans!{A} _ _ _ (onClass Free.zeroExpr) coefficientLaws.zero,
+      one := trans!{A} _ _ _ (onClass Free.oneExpr) coefficientLaws.one,
+      add := Lift.preservesBinary Presented.equivalence value respects Free.Expression::sum Presented.rules.addCong target.add
+        (\fun (x, y: Free.Expression) => \refl(target.add (value x) (value y))),
+      mul := Lift.preservesBinary Presented.equivalence value respects Free.Expression::product Presented.rules.mulCong target.mul
+        (\fun (x, y: Free.Expression) => \refl(target.mul (value x) (value y))),
+    }
+  };
+\definition laws: Output.SemiringLaws[Rings.ringAsSemiring P.Carrier (Rings.commutativeRingAsRing P.Carrier P.ring), Rings.ringAsSemiring A target, apply] :=
+  Output.semiringLaws _ _ extension;
+\definition constants: \forall (a: K) -> apply (P.constant a) = f a := \fun (a: K) => onClass (Free.Expression::constant a);
+\definition variable: apply P.X = T := onClass (Free.Expression::variable P.Variable::x);
+\definition negative: \forall (p: P.Carrier) -> apply (P.neg p) = target.neg (apply p) :=
+  \fun (p: P.Carrier) => Sum.inverseUnique (apply p) (apply (P.neg p))
+    (trans!{A} _ _ _ (sym!{A} _ _ (laws.add (P.neg p) p))
+      (trans!{A} _ _ _ (congr!{P.Carrier A} apply _ _ (P.ring.ring.additiveInverse p)) laws.zero));

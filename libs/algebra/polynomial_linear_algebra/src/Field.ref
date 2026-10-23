@@ -1,0 +1,80 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import std.Data[].List[] \as Lists;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].Nat[].Basic[].Prop[] \as Nat;
+\import std.Data[].Nat[].Induction[] \as Induction;
+\import std.Alg[].Ring[] \as Rings;
+\import galois.Field[].Over[K := K, field := field] \as Scalars;
+\import Scalars.Polynomial[] \as Monic;
+\import Monic.Raw[] \as Raw;
+\import Raw.Normalization[] \as Normalization;
+\import Raw.Operations[] \as Operations;
+\import Raw.Division[] \as Division;
+\import Monic.Nonzero[] \as Nonzero;
+\import Scalars.Arithmetic[] \as ScalarArithmetic;
+\import Scalars.Subfield[] \as Subfields;
+\import algebra.Polynomial[].Over[R := K, coefficients := std.Alg[].Field[].fieldAsCommutativeRing K field] \as P;
+\import algebra.Group[].Of[Carrier := P.Carrier, group := Rings.additiveGroup P.Carrier Raw.ring] \as Sum;
+\import algebra.Monoid[].Of[Carrier := P.Carrier, monoid := Raw.multiplicative] \as Product;
+\import linear_algebra.Commutative[K := P.Carrier, scalarRing := P.ring] \as PolynomialAlgebra;
+\import PolynomialAlgebra.Laws[V := P.Carrier, space := PolynomialAlgebra.scalarSpace] \as PolynomialLaws;
+\definition Polynomial: \Set := P.Carrier;
+\definition Coefficients: \Set := Monic.Coefficients;
+\definition whole: K -> \Prop := \fun (x: K) => Logic.True;
+\definition all: \forall (p: Coefficients) -> Monic.Over whole p := Nonzero.allCoefficients;
+\definition closed: Subfields.Closed[whole] := Subfields.laws Subfields.whole;
+\structure DivisorData: \Set := { multiplier: Polynomial };
+\structure DivisorLaws[d, p: Polynomial, data: DivisorData]: \Prop := { equation: p = P.mul d data.multiplier };
+\definition Divides[d, p: Polynomial]: \Set := \Cast[DivisorData] ({ data: DivisorData \where DivisorLaws[d, p, data] });
+\structure BezoutData: \Set := { left: Polynomial, right: Polynomial };
+\structure BezoutLaws[p, q, d: Polynomial, data: BezoutData]: \Prop := {
+  equation: d = P.add (P.mul data.left p) (P.mul data.right q),
+};
+\definition Bezout[p, q, d: Polynomial]: \Set := \Cast[BezoutData] ({ data: BezoutData \where BezoutLaws[p, q, d, data] });
+\structure Gcd[p, q: Polynomial]: \Set := {
+  value: Polynomial,
+  leftDivisor: Divides[value, p],
+  rightDivisor: Divides[value, q],
+  bezout: Bezout[p, q, value],
+};
+\structure DivisorFormData: \Set := { leading: K, coefficients: Coefficients };
+\structure DivisorFormLaws[divisor: Coefficients, data: DivisorFormData]: \Prop := {
+  leadingNonzero: Logic.Not (data.leading = Scalars.zero),
+  factorization: Raw.asPolynomial divisor = P.mul (P.constant data.leading) (Monic.asPolynomial data.coefficients),
+};
+\definition DivisorForm[divisor: Coefficients]: \Set := \Cast[DivisorFormData] ({ data: DivisorFormData \where DivisorFormLaws[divisor, data] });
+\structure DivisionData[divisor: Coefficients]: \Set := { quotient: Polynomial, remainder: Coefficients, normal: DivisorForm divisor };
+\structure DivisionLaws[p, divisor: Coefficients, data: DivisionData[divisor]]: \Prop := {
+  bound: Nat.Lt (Lists.length K data.remainder) (Lists.length K divisor),
+  degreeBound: Nat.Le (Lists.length K data.remainder) (Monic.degree data.normal.coefficients),
+  equation: Raw.asPolynomial p = P.add (P.mul (Raw.asPolynomial divisor) data.quotient) (Raw.asPolynomial data.remainder),
+};
+\definition DivisionResult[p, divisor: Coefficients]: \Set := \Cast[DivisionData[divisor]] ({ data: DivisionData[divisor] \where DivisionLaws[p, divisor, data] });
+\module Euclid;
+\module Primary(V: \Set, space: PolynomialAlgebra.VectorSpace V);
+\module Action(V: \Set, space: linear_algebra.Commutative[K := K, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing K field].VectorSpace V);
+\module Principal(d: Polynomial);
+\definition Coprime[p, q: Polynomial]: \Prop := \exists Bezout[p, q, P.one];
+\module Chinese(p, q: Polynomial);
+\module MatrixModule(n: N.Nat^, V: \Set, space: PolynomialAlgebra.VectorSpace V);
+\module At(n: N.Nat^);
+\module PolynomialInduction;
+\module Change(L: \Set, target: std.Alg[].Field[].Field[L], f: algebra.Hom[A := K, B := L].RingMap
+  (Rings.commutativeRingAsRing K (std.Alg[].Field[].fieldAsCommutativeRing K field))
+  (Rings.commutativeRingAsRing L (std.Alg[].Field[].fieldAsCommutativeRing L target)));
+\module Representatives;
+\module IdentityChange;
+\module Finite(n: N.Nat^, V: \Set, space: linear_algebra.Commutative[K := K, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing K field].VectorSpace V);
+\module Examples;
+\structure FactorizationData: \Set := {
+  left: Polynomial,
+  right: Polynomial,
+  bezout: Bezout[left, right, P.one],
+};
+\structure FactorizationLaws[p: Polynomial, data: FactorizationData]: \Prop := { equation: p = P.mul data.left data.right };
+\definition Factorization[p: Polynomial]: \Set := \Cast[FactorizationData] ({ data: FactorizationData \where FactorizationLaws[p, data] });

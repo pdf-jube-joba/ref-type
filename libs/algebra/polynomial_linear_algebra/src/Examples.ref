@@ -1,0 +1,72 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import std.Alg[].Ring[] \as Rings;
+\import std.Alg[].Field[] \as Fields;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import real.Analysis[] \as R;
+\import R.Algebra[] \as Real;
+\import complex.Complex[] \as C;
+\import C.Algebra[] \as Complex;
+\import C.Def[] \as ComplexOp;
+\import C.Prop[] \as ComplexLaws;
+\import \root.Field[K := R.Real, field := Real.field] \as Polynomials;
+\import Polynomials.Examples[] \as RealPlane;
+\import \root.Field[K := C.Complex, field := Complex.field].Examples[] \as ComplexPlane;
+\import algebra.Hom[A := R.Real, B := C.Complex] \as ScalarMaps;
+\definition scalarMap: ScalarMaps.RingMap (Rings.commutativeRingAsRing R.Real (Fields.fieldAsCommutativeRing R.Real Real.field))
+  (Rings.commutativeRingAsRing C.Complex (Fields.fieldAsCommutativeRing C.Complex Complex.field)) :=
+  \into[R.Real -> C.Complex](ComplexOp.ofReal, ScalarMaps.RingMap
+    (Rings.commutativeRingAsRing R.Real (Fields.fieldAsCommutativeRing R.Real Real.field))
+    (Rings.commutativeRingAsRing C.Complex (Fields.fieldAsCommutativeRing C.Complex Complex.field))) \by {
+    ScalarMaps.SemiringLaws[Rings.ringAsSemiring R.Real (Rings.commutativeRingAsRing R.Real (Fields.fieldAsCommutativeRing R.Real Real.field)),
+      Rings.ringAsSemiring C.Complex (Rings.commutativeRingAsRing C.Complex (Fields.fieldAsCommutativeRing C.Complex Complex.field)), ComplexOp.ofReal] {
+      zero := \refl(ComplexOp.zero), one := \refl(ComplexOp.one),
+      add := ComplexLaws.ofRealAdd, mul := \fun (a, b: R.Real) => sym!{C.Complex} _ _ (ComplexLaws.ofRealMul a b),
+    }
+  };
+\import Polynomials.Change[L := C.Complex, target := Complex.field, f := scalarMap] \as Change;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := Fields.fieldAsCommutativeRing R.Real Real.field].DirectSum[V := R.Real, W := R.Real,
+  left := linear_algebra.Commutative[K := R.Real, scalarRing := Fields.fieldAsCommutativeRing R.Real Real.field].scalarSpace,
+  right := linear_algebra.Commutative[K := R.Real, scalarRing := Fields.fieldAsCommutativeRing R.Real Real.field].scalarSpace] \as Source;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := Fields.fieldAsCommutativeRing C.Complex Complex.field].DirectSum[V := C.Complex, W := C.Complex,
+  left := linear_algebra.Commutative[K := C.Complex, scalarRing := Fields.fieldAsCommutativeRing C.Complex Complex.field].scalarSpace,
+  right := linear_algebra.Commutative[K := C.Complex, scalarRing := Fields.fieldAsCommutativeRing C.Complex Complex.field].scalarSpace] \as Destination;
+\import std.Data[].Pair[].Prop[A := C.Complex, B := C.Complex] \as Pairs;
+\import Change.Intertwining[V := Source.Carrier, W := Destination.Carrier, source := Source.space, destination := Destination.space,
+  S := RealPlane.secondCoordinate, T := ComplexPlane.secondCoordinate] \as Intertwining;
+\definition complexify: Intertwining.Morphism := Intertwining.Morphism {
+  apply := \fun (v: Source.Carrier) => Destination.make (ComplexOp.ofReal (Source.first v)) (ComplexOp.ofReal (Source.second v)),
+  zero := \refl(Destination.origin),
+  addition := \fun (v, w: Source.Carrier) => Pairs.ext _ _ (ComplexLaws.ofRealAdd (Source.first v) (Source.first w)) (ComplexLaws.ofRealAdd (Source.second v) (Source.second w)),
+  scalar := \fun (a: R.Real)(v: Source.Carrier) => Pairs.ext _ _ (sym!{C.Complex} _ _ (ComplexLaws.ofRealMul a (Source.first v))) (sym!{C.Complex} _ _ (ComplexLaws.ofRealMul a (Source.second v))),
+  intertwines := \fun (v: Source.Carrier) => \refl(Destination.make ComplexOp.zero (ComplexOp.ofReal (Source.second v))),
+};
+\import algebra.Polynomial[].Over[R := R.Real, coefficients := Fields.fieldAsCommutativeRing R.Real Real.field] \as P;
+\import Polynomials.Action[V := Source.Carrier, space := Source.space].At[T := RealPlane.secondCoordinate] \as SourceEvaluation;
+\import \root.Field[K := C.Complex, field := Complex.field].Action[V := Destination.Carrier, space := Destination.space].At[T := ComplexPlane.secondCoordinate] \as TargetEvaluation;
+\import Polynomials.Primary[V := Source.Carrier, space := SourceEvaluation.module] \as SourcePrimary;
+\import \root.Field[K := C.Complex, field := Complex.field].Primary[V := Destination.Carrier, space := TargetEvaluation.module] \as TargetPrimary;
+\definition projectionsCommute: \forall (v: Source.Carrier) ->
+  complexify.apply (SourcePrimary.projection P.X RealPlane.complement RealPlane.bezout v) =
+  TargetPrimary.projection (Change.map P.X) (Change.map RealPlane.complement) (Change.bezout P.X RealPlane.complement RealPlane.bezout) (complexify.apply v) :=
+  Intertwining.projectionNatural complexify P.X RealPlane.complement RealPlane.bezout;
+\import Polynomials.At[n := N.Nat^::zero] \as Empty;
+\definition empty: Empty.Matrix := \fun (i, j: Empty.Index) => R.zero;
+\definition emptyCharacteristic: Empty.characteristic empty = P.one :=
+  \refl(P.one);
+\definition two: N.Nat^ := N.Nat^::succ (N.Nat^::succ N.Nat^::zero);
+\import Polynomials.At[n := two] \as Matrices;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := Fields.fieldAsCommutativeRing R.Real Real.field].Coordinates[I := Fin.Fin two].Kronecker[] \as Delta;
+\definition first: Fin.Fin two := Fin.zero (N.Nat^::succ N.Nat^::zero);
+\definition second: Fin.Fin two := Fin.succ (N.Nat^::succ N.Nat^::zero) (Fin.zero N.Nat^::zero);
+\definition nilpotent: Matrices.Matrix := \fun (i, j: Matrices.Index) => R.mul (Delta.delta first i) (Delta.delta second j);
+\definition nonzeroEntry: nilpotent first second = R.one := trans!{R.Real} _ _ _
+  (congr!{R.Real R.Real R.Real} R.mul _ _ _ _ (Delta.self first) (Delta.self second)) (Real.field.ring.ring.semiring.multiplicative.leftIdentity R.one);
+\import linear_algebra.Commutative[K := R.Real, scalarRing := Fields.fieldAsCommutativeRing R.Real Real.field].Coordinates[I := Fin.Fin two] \as Vectors;
+\import matrix_invariants.Ring[K := R.Real, scalars := Fields.fieldAsCommutativeRing R.Real Real.field].At[n := two] \as MatrixOperations;
+\import Polynomials.Action[V := Vectors.Vector, space := Vectors.space].At[T := MatrixOperations.linear nilpotent] \as NilpotentEvaluation;
+\definition annihilation: \forall (v: Vectors.Vector) -> NilpotentEvaluation.apply (Matrices.characteristic nilpotent) v = Vectors.origin := Matrices.cayleyHamilton nilpotent;
