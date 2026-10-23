@@ -51,3 +51,14 @@ target/debug/cli libs/algebra/hermitian_frames --memory-mib 8192 --cache-stats
 ```
 
 workspace の共有キャッシュを利用し、対象と読み込んだ依存パッケージ全体を検査する。
+
+対象と全依存閉包の通常検査は成功し、10,851ソース検査ステップ、913 module の検査、1,098 module の再利用、最大RSS約908 MiBであった。
+既存の接束・法束の利用例と `lie_groups` も、現在のソースに一致する共有キャッシュを利用して依存先まで検査した。
+固定した最終ソースでの workspace 全体の通常検査は、65 package・6,852 module の検証結果を再利用して成功した。
+worker の復旧、重複検査、再実行、失われたステップ、キャッシュ保存失敗はいずれも0である。
+
+```sh
+target/debug/cli libs/geometry/examples/tangent_normal --memory-mib 8192 --cache-stats
+target/debug/cli libs/geometry/lie_groups --memory-mib 8192 --cache-stats
+target/debug/cli libs --memory-mib 8192 --cache-stats
+```
