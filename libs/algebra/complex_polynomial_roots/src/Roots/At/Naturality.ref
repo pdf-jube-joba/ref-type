@@ -1,0 +1,23 @@
+
+\import Field.Automorphism[] \as Automorphisms;
+\import Tuples.Mapping[B := C.Complex] \as ListMapping;
+\definition map[f: Automorphisms.Automorphism][a: Vector n]: Vector n := \fun (i: Fin.Fin n) => f.map.apply (a i);
+\definition coefficientNatural: \forall (f: Automorphisms.Automorphism)(a: Vector n) -> coefficients (map f a) = map f (coefficients a) :=
+  \fun (f: Automorphisms.Automorphism)(a: Vector n) => MonicCoordinates.injective n _ _ (congr!{Coefficients Polynomial.Carrier} Monic.asPolynomial _ _
+    (eq_reason_in!{Coefficients { Tuples.list n (coefficients (map f a)) }
+      "=" _ "by" { coefficientList (map f a) }
+      "=" { RootProduct.coefficients (Lists.map C.Complex C.Complex f.map.apply (Tuples.list n a)) } "by" { congr!{Coefficients Coefficients} RootProduct.coefficients _ _ (ListMapping.listMap n f.map.apply a) }
+      "=" { Lists.map C.Complex C.Complex f.map.apply (RootProduct.coefficients (Tuples.list n a)) } "by" { sym!{Coefficients} _ _ (RootProduct.natural f (Tuples.list n a)) }
+      "=" { Lists.map C.Complex C.Complex f.map.apply (Tuples.list n (coefficients a)) } "by" { congr!{Coefficients Coefficients} (Lists.map C.Complex C.Complex f.map.apply) _ _ (sym!{Coefficients} _ _ (coefficientList a)) }
+      "=" _ "by" { sym!{Coefficients} _ _ (ListMapping.listMap n f.map.apply (coefficients a)) }
+    }));
+\definition mapFamily[f: Automorphisms.Automorphism][F: Family]: Family := roots (map f (coefficientMap F));
+\definition onRoots: \forall (f: Automorphisms.Automorphism)(a: Vector n) -> mapFamily f (family a) = family (map f a) :=
+  \fun (f: Automorphisms.Automorphism)(a: Vector n) => coefficientInjective _ _ (eq_reason_in!{{Vector n} _
+    "=" { map f (coefficientMap (family a)) } "by" { coefficientsRoots _ }
+    "=" { map f (coefficients a) } "by" { congr!{{Vector n} {Vector n}} (map f) _ _ (onClass a) }
+    "=" { coefficients (map f a) } "by" { sym!{{Vector n}} _ _ (coefficientNatural f a) }
+    "=" _ "by" { sym!{{Vector n}} _ _ (onClass (map f a)) }
+  });
+\definition rootsNatural: \forall (f: Automorphisms.Automorphism)(p: Vector n) -> mapFamily f (roots p) = roots (map f p) :=
+  \fun (f: Automorphisms.Automorphism)(p: Vector n) => congr!{{Vector n} Family} (\fun (q: Vector n) => roots q) _ _ (congr!{{Vector n} {Vector n}} (map f) _ _ (coefficientsRoots p));

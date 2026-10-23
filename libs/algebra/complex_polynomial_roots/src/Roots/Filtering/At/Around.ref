@@ -1,0 +1,23 @@
+
+\definition mask[i: Fin.Fin n]: B.Bool^ := test (a i);
+\import \root.Roots[].ListSelection[A := Fin.Fin n, test := mask] \as Select;
+\import Select.Mapping[D := C.Complex, f := a, targetTest := test] \as CenterMapping;
+\definition selected: Lists.List[Fin.Fin n] := Select.filter indices;
+\definition Pattern[b: Vector n]: \Prop := \forall (i: Fin.Fin n) -> test (b i) = mask i;
+\module AtValue(b: Vector n) {
+  \import Select.Mapping[D := C.Complex, f := b, targetTest := test] \as FilteringMap;
+  \definition representation: Pattern b -> filter (Tuples.list n b) = Lists.map (Fin.Fin n) C.Complex b selected :=
+    \fun (same: Pattern b) => trans!{Coefficients} _ _ _ (congr!{Coefficients Coefficients} filter _ _ (indexed b)) (FilteringMap.map same indices);
+}
+\definition length: \forall (b: Vector n) -> Pattern b -> Lists.length C.Complex (filter (Tuples.list n b)) = Lists.length (Fin.Fin n) selected :=
+  \fun (b: Vector n)(same: _) => trans!{N.Nat^} _ _ _ (congr!{Coefficients N.Nat^} (Lists.length C.Complex) _ _ (AtValue[b := b].representation same)) (Mapping.lengthMap b selected);
+\definition centerLength: Lists.length C.Complex (filter (Tuples.list n a)) = Lists.length (Fin.Fin n) selected := length a (\fun (i: Fin.Fin n) => \refl(test (a i)));
+\definition subtuple[k: N.Nat^][degree: Lists.length (Fin.Fin n) selected = k][b: Vector n]: Vector k :=
+  \fun (i: Fin.Fin k) => b (IndexTuples.at k selected degree i);
+\definition subtupleList: \forall (k: N.Nat^)(degree: Lists.length (Fin.Fin n) selected = k)(b: Vector n) -> Tuples.list k (subtuple k degree b) = Lists.map (Fin.Fin n) C.Complex b selected :=
+  \fun (k: N.Nat^)(degree: _)(b: Vector n) => trans!{Coefficients} _ _ _ (IndexMapping.listMap k b (IndexTuples.at k selected degree))
+    (congr!{{Lists.List[Fin.Fin n]} Coefficients} (Lists.map (Fin.Fin n) C.Complex b) _ _ (IndexTuples.listAt k selected degree));
+\definition subtupleFactor: \forall (k: N.Nat^)(degree: Lists.length (Fin.Fin n) selected = k)(b: Vector n) -> Pattern b ->
+  polynomial k (\root.Roots[].SymmetricCoefficients[].value k (subtuple k degree b)) = Monic.factors (filter (Tuples.list n b)) :=
+  \fun (k: N.Nat^)(degree: _)(b: Vector n)(same: _) => trans!{Polynomial.Carrier} _ _ _ (\root.Roots[].At[n := k].factorization (subtuple k degree b))
+    (congr!{Coefficients Polynomial.Carrier} Monic.factors _ _ (trans!{Coefficients} _ _ _ (subtupleList k degree b) (sym!{Coefficients} _ _ (AtValue[b := b].representation same))));

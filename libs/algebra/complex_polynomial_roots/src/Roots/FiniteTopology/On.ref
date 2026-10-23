@@ -1,0 +1,37 @@
+
+\import Scalars.Subspace[S := S] \as Subspace;
+\import Subspace.Properties[] \as Properties;
+\definition Bounded: \Pow (Vector n) := { a: Vector n \where \forall (i: Fin.Fin n) -> Scalars.Member S (a i) };
+\definition BoundedScalar: \Set := \Cast[C.Complex] S;
+\import topological_algebra.FinitePower[K := BoundedScalar] \as RestrictedPowers;
+\import topological_algebra.Coordinates[K := BoundedScalar, I := Fin.Fin n] \as RestrictedCoordinates;
+\import topology.Topology[Carrier := RestrictedPowers.Carrier n] \as RestrictedSpace;
+\import topology.Continuity[A := BoundedScalar, B := C.Complex] \as Inclusion;
+\import topology.Composition[A := RestrictedPowers.Carrier n, B := BoundedScalar, C := C.Complex] \as Compose;
+\import Coordinates.Universal[A := RestrictedPowers.Carrier n] \as Into;
+\definition forget[a: RestrictedPowers.Carrier n]: Vector n := \fun (i: Fin.Fin n) => a i;
+\definition continuous: topology.Continuity[A := RestrictedPowers.Carrier n, B := Vector n].Continuous
+  (RestrictedCoordinates.topology (Subspace.topology Plane.topology)) topology forget :=
+  Into.continuous (RestrictedCoordinates.topology (Subspace.topology Plane.topology)) Plane.topology forget
+    (\fun (i: Fin.Fin n) => Compose.composeContinuous (RestrictedCoordinates.topology (Subspace.topology Plane.topology)) (Subspace.topology Plane.topology) Plane.topology
+      (RestrictedCoordinates.evaluate i) (\fun (z: BoundedScalar) => z)
+      (RestrictedCoordinates.evaluationContinuous (Subspace.topology Plane.topology) i)
+      (\fun (U: \Pow C.Complex)(open: _) => Subspace.traceOpen Plane.topology U open));
+\import topology.Compactness[A := RestrictedPowers.Carrier n, B := Vector n] \as Image;
+\import topology.Maps[A := RestrictedPowers.Carrier n, B := Vector n] \as Sets;
+\definition image: Sets.Image forget RestrictedSpace.Whole = Bounded :=
+  \axiom:setext(Sets.Image forget RestrictedSpace.Whole, Bounded,
+    (\fun (a: Vector n)(member: _) => Sets.imageElim forget RestrictedSpace.Whole a (\forall (i: Fin.Fin n) -> Scalars.Member S (a i))
+      (\fun (b: RestrictedPowers.Carrier n)(whole: _)(same: _)(i: Fin.Fin n) => \idelim forget b = a \with v: Vector n => Scalars.Member S (v i)
+        \by { base: \bysub(C.Complex, S, b i), equality: same }) member),
+    (\block {
+      \fun (a: Vector n)(bounded: \forall (i: Fin.Fin n) -> Scalars.Member S (a i)) \then
+      \let b: RestrictedPowers.Carrier n := \fun (i: Fin.Fin n) => \into[C.Complex](a i, S) \by { bounded i } \then
+      \return Logic.existsIntro[RestrictedPowers.Carrier n, { b: RestrictedPowers.Carrier n \where Logic.And[RestrictedSpace.Member RestrictedSpace.Whole b, forget b = a] }] b
+        (Logic.And[_, _]::# (\refl(b)) (\axiom:funext(forget b, a, \fun (i: Fin.Fin n) => \refl(a i))))
+    }));
+\definition compact: Scalars.IsCompactIn Plane.topology S -> Space.IsCompactIn topology Bounded :=
+  \fun (compact: _) => \idelim Sets.Image forget RestrictedSpace.Whole = Bounded \with T: \Pow (Vector n) => Space.IsCompactIn topology T \by {
+    base: Image.continuousImage (RestrictedCoordinates.topology (Subspace.topology Plane.topology)) topology forget continuous RestrictedSpace.Whole
+      (RestrictedPowers.compact (Subspace.topology Plane.topology) (Properties.compact Plane.topology compact) n), equality: image
+  };

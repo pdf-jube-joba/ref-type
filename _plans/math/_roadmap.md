@@ -108,10 +108,11 @@ B01 の後は B02 へ、A01 の後は A02 へ進められる。
 | L02 多項式の互除法と Cayley–Hamilton | [polynomial_linear_algebra](../../libs/algebra/polynomial_linear_algebra/README.md) |
 | L03 Hermitian 行列と連続な局所枠 | [hermitian_frames](../../libs/algebra/hermitian_frames/README.md) |
 | K13 複素多項式の根の存在 | [fundamental_algebra](../../libs/algebra/fundamental_algebra/README.md) |
+| K05 代数学の基本定理と根群の連続性 | [complex_polynomial_roots](../../libs/algebra/complex_polynomial_roots/README.md) |
 
 ## タスク一覧
 
-未完了88件、概算合計460千行。
+未完了87件、概算合計455千行。
 
 ### 線形代数と特性級数
 
@@ -158,7 +159,7 @@ B01 の後は B02 へ、A01 の後は A02 へ進められる。
 
 ### 位相的 K 理論
 
-12件、概算65千行。
+11件、概算60千行。
 
 | タスク | 概算（千行） |
 | --- | ---: |
@@ -166,7 +167,6 @@ B01 の後は B02 へ、A01 の後は A02 へ進められる。
 | [K02 CW cofibration と Puppe 列](k02-cofibration-puppe.md) | 5 |
 | [K03 相対 K 群と負次数の完全列](k03-relative-k.md) | 6 |
 | [K04 Stone–Weierstrass と Laurent 近似](k04-uniform-approximation.md) | 6 |
-| [K05 代数学の基本定理と根群の連続性](k05-complex-roots.md) | 5 |
 | [K06 連続なスペクトル分離](k06-spectral-splitting.md) | 5 |
 | [K07 clutching の安定線形化](k07-clutching-linearization.md) | 6 |
 | [K08 Bott の基本積定理](k08-bott-product.md) | 5 |

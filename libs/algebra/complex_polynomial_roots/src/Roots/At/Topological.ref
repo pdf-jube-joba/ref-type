@@ -1,0 +1,78 @@
+\import \parent.\parent.FiniteTopology[n := n] \as FiniteTopology;
+\import CoefficientFormulas.Families[X := Vector n] \as Formulas;
+\import Coordinates.Universal[A := Vector n] \as Into;
+\import topology.Continuity[A := Vector n, B := Vector n] \as Maps;
+\import topology.Maps[A := Vector n, B := Vector n] \as Sets;
+\import Space.Compactness[] \as Compact;
+\import Space.Finite[] \as Finite;
+\import topology.Compactness[A := Vector n, B := Vector n] \as Image;
+\import metric_spaces.RealLine[] \as Line;
+\import Line.Rays[] \as Rays;
+\import Fundamental.Minimum[] \as Minimum;
+\definition continuous: Maps.Continuous topology topology coefficients :=
+  Into.continuous topology Plane.topology coefficients (Formulas.regular n topology (\fun (a: Vector n) => a) (Coordinates.evaluationContinuous Plane.topology));
+\definition budgetContinuous: metric_spaces.RealFunctions[A := Vector n].Continuous topology (\fun (p: Vector n) => Bounds.budget (Tuples.list n p)) :=
+  Formulas.budgetRegular n topology (\fun (a: Vector n) => a) (Coordinates.evaluationContinuous Plane.topology);
+\definition radius[p: Vector n]: Real.Real := Real.add Real.one (Real.add Real.one (Bounds.budget (Tuples.list n p)));
+\definition neighborhood[p: Vector n]: \Pow (Vector n) := { q: Vector n \where R.Lt (Bounds.budget (Tuples.list n q)) (Real.add Real.one (Bounds.budget (Tuples.list n p))) };
+\definition bounded[p: Vector n]: \Pow (Vector n) := { a: Vector n \where \forall (i: Fin.Fin n) -> Scalars.Member (Minimum.box (radius p)) (a i) };
+\definition neighborhoodOpen: \forall (p: Vector n) -> Space.IsOpenIn topology (neighborhood p) :=
+  \fun (p: Vector n) => budgetContinuous (Rays.Below (Real.add Real.one (Bounds.budget (Tuples.list n p)))) (Rays.belowOpen _);
+\definition neighborhoodContains: \forall (p: Vector n) -> Space.Member (neighborhood p) p :=
+  \fun (p: Vector n) => R.ltReplaceRight _ (Real.add (Bounds.budget (Tuples.list n p)) Real.one) _ (Laws.addComm _ _)
+    (SquareRoot.addPositive (Bounds.budget (Tuples.list n p)) Real.one Bounds.onePositive);
+\definition boundedCompact: \forall (p: Vector n) -> Space.IsCompactIn topology (bounded p) :=
+  \fun (p: Vector n) => FiniteTopology.On[S := Minimum.box (radius p)].compact (Minimum.compact (radius p));
+\definition controlled: \forall (p, a: Vector n) -> Space.Member (neighborhood p) (coefficients a) -> Space.Member (bounded p) a :=
+  \fun (p, a: Vector n)(near: _)(i: Fin.Fin n) => Minimum.contains (radius p) (a i)
+    (Order.leOfLt _ _ (Order.ltTrans _ (Real.add Real.one (Bounds.budget (Tuples.list n (coefficients a)))) _ (bound (coefficients a) a (\refl(coefficients a)) i)
+      (Laws.ltAddLeft Real.one _ _ near)));
+\definition ClosedMap: \Prop := \forall (F: \Pow (Vector n)) -> Space.IsClosedIn topology F -> Space.IsClosedIn topology (Sets.Image coefficients F);
+\definition closedMap: ClosedMap :=
+  \fun (F: \Pow (Vector n))(closed: _) => Space.openOfNeighborhoods topology (Space.Complement (Sets.Image coefficients F)) (\block {
+    \fun (p: Vector n)(outside: _) \then
+    \let S: \Pow (Vector n) := Space.Intersection F (bounded p) \then
+    \let compact: Space.IsCompactIn topology S := Compact.closedSubset topology (bounded p) S (boundedCompact p)
+      (Finite.intersectionClosed topology F (bounded p) closed (Compact.compactClosed topology FiniteTopology.hausdorff (bounded p) (boundedCompact p)))
+      (\fun (a: Vector n)(inside: Space.Member S a) => inside.right) \then
+    \let I: \Pow (Vector n) := Sets.Image coefficients S \then
+    \let imageClosed: Space.IsClosedIn topology I := Compact.compactClosed topology FiniteTopology.hausdorff I (Image.continuousImage topology topology coefficients continuous S compact) \then
+    \let U: \Pow (Vector n) := Space.Intersection (neighborhood p) (Space.Complement I) \then
+    \return Logic.existsIntro[\Pow (Vector n), { U: \Pow (Vector n) \where Space.OpenNeighborhood[topology, p, Space.Complement (Sets.Image coefficients F), U] }] U
+      (Space.OpenNeighborhood[topology, p, Space.Complement (Sets.Image coefficients F), U] {
+        open := (Space.topologyLaws topology).intersectionOpen (neighborhood p) (Space.Complement I) (neighborhoodOpen p) imageClosed,
+        contains := Logic.And[_, _]::# (neighborhoodContains p)
+          (\fun (inside: Space.Member I p) => Sets.imageElim coefficients S p Logic.False
+            (\fun (a: Vector n)(inS: Space.Member S a)(same: _) => outside
+              (Logic.existsIntro[Vector n, { a: Vector n \where Logic.And[Space.Member F a, coefficients a = p] }] a (Logic.And[_, _]::# inS.left same))) inside),
+        within := \fun (q: Vector n)(inU: Space.Member U q)(inImage: Space.Member (Sets.Image coefficients F) q) =>
+          Sets.imageElim coefficients F q Logic.False (\fun (a: Vector n)(inF: Space.Member F a)(same: coefficients a = q) => inU.right
+            (Logic.existsIntro[Vector n, { a: Vector n \where Logic.And[Space.Member S a, coefficients a = q] }] a
+              (Logic.And[_, _]::# (Logic.And[_, _]::# inF (controlled p a
+                (\idelim q = coefficients a \with b: Vector n => Space.Member (neighborhood p) b \by { base: inU.left, equality: sym!{{Vector n}} _ _ same }))) same))) inImage,
+      })
+  });
+\import topological_constructions.CompactQuotient[A := Vector n, B := Vector n, source := topology, target := topology, q := coefficients] \as ClosedQuotient;
+\import topological_constructions.Quotient[A := Vector n, B := Vector n] \as CoefficientQuotient;
+\definition quotientMap: CoefficientQuotient.IsQuotientMap[topology, topology, coefficients] := CoefficientQuotient.IsQuotientMap[topology, topology, coefficients] {
+  onto := onto, continuous := continuous, reflectsOpen := ClosedQuotient.reflectsOpen closedMap onto,
+};
+\definition coefficientContinuous: topology.Continuity[A := Family, B := Vector n].Continuous symmetricTopology topology coefficientMap :=
+  Descent.continuous topology topology equivalence coefficients equalCoefficients continuous;
+\definition rootsOnCoefficients: \forall (a: Vector n) -> roots (coefficients a) = family a :=
+  \fun (a: Vector n) => coefficientInjective _ _ (trans!{{Vector n}} _ _ _ (coefficientsRoots (coefficients a)) (sym!{{Vector n}} _ _ (onClass a)));
+\definition rootsContinuous: topology.Continuity[A := Vector n, B := Family].Continuous topology symmetricTopology (\fun (p: Vector n) => roots p) :=
+  \fun (U: \Pow Family)(open: _) => quotientMap.reflectsOpen (topology.Continuity[A := Vector n, B := Family].Preimage (\fun (p: Vector n) => roots p) U)
+    (\idelim ({ a: Vector n \where \In[Family] U (family a) }) = ({ a: Vector n \where \In[Family] U (roots (coefficients a)) })
+      \with V: \Pow (Vector n) => Space.IsOpenIn topology V \by {
+        base: Symmetric.projectionContinuous topology U open,
+        equality: \axiom:setext(({ a: Vector n \where \In[Family] U (family a) }), ({ a: Vector n \where \In[Family] U (roots (coefficients a)) }),
+          (\fun (a: Vector n)(member: _) => \idelim family a = roots (coefficients a) \with F: Family => \In[Family] U F \by { base: member, equality: sym!{Family} _ _ (rootsOnCoefficients a) }),
+          (\fun (a: Vector n)(member: _) => \idelim roots (coefficients a) = family a \with F: Family => \In[Family] U F \by { base: member, equality: rootsOnCoefficients a }))
+      });
+\import topology.Homeomorphism[A := Family, B := Vector n] \as Homeomorphisms;
+\definition homeomorphism: Homeomorphisms.Homeomorphism[symmetricTopology, topology] := Homeomorphisms.Homeomorphism[symmetricTopology, topology] {
+  forward := coefficientMap, backward := \fun (p: Vector n) => roots p,
+  leftInverse := rootsCoefficients, rightInverse := coefficientsRoots,
+  forwardContinuous := coefficientContinuous, backwardContinuous := rootsContinuous,
+};

@@ -1,0 +1,64 @@
+\import topology.Topology[Carrier := X] \as Source;
+\import topology.Continuity[A := X, B := C.Complex] \as Maps;
+\import Plane.Functions[A := X] \as Functions;
+\definition Regular[source: Source.Topology][n: N.Nat^][f: X -> Vector n]: \Prop :=
+  \forall (i: Fin.Fin n) -> Maps.Continuous source Plane.topology (\fun (x: X) => f x i);
+\definition transport: \forall (source: Source.Topology)(f, g: X -> C.Complex) ->
+  (\forall (x: X) -> f x = g x) -> Maps.Continuous source Plane.topology f -> Maps.Continuous source Plane.topology g :=
+  \fun (source: Source.Topology)(f, g: X -> C.Complex)(same: _)(regular: _) =>
+    \idelim f = g \with h: (X -> C.Complex) => Maps.Continuous source Plane.topology h \by { base: regular, equality: \axiom:funext(f, g, same) };
+\definition extendRegular: \forall (source: Source.Topology)(n: N.Nat^)(a: X -> C.Complex)(p: X -> Vector n) ->
+  Maps.Continuous source Plane.topology a -> Regular source n p ->
+  Regular source (N.Nat^::succ n) (\fun (x: X) => Extend.extend n (a x) (p x)) :=
+  \fun (source: Source.Topology)(n: N.Nat^)(a: X -> C.Complex)(p: X -> Vector n)(ac: _)(pc: _) =>
+    Fin.cases n (\fun (i: Fin.Fin (N.Nat^::succ n)) => Maps.Continuous source Plane.topology (\fun (x: X) => Extend.extend n (a x) (p x) i))
+      (transport source a (\fun (x: X) => Extend.extend n (a x) (p x) (Fin.zero n)) (\fun (x: X) => sym!{C.Complex} _ _ (Extend.atZero n (a x) (p x))) ac)
+      (\fun (i: Fin.Fin n) => transport source (\fun (x: X) => p x i) (\fun (x: X) => Extend.extend n (a x) (p x) (Fin.succ n i))
+        (\fun (x: X) => sym!{C.Complex} _ _ (Extend.atSuccessor n (a x) (p x) i)) (pc i));
+\structure LinearRegular[source: Source.Topology, n: N.Nat^, a: X -> C.Complex, p: X -> Vector n]: \Prop := {
+  head: Maps.Continuous source Plane.topology (\fun (x: X) => (linear n (a x) (p x)).head),
+  tail: Regular source n (\fun (x: X) => (linear n (a x) (p x)).tail),
+};
+\definition linearRegular: \forall (n: N.Nat^)(source: Source.Topology)(a: X -> C.Complex)(p: X -> Vector n) ->
+  Maps.Continuous source Plane.topology a -> Regular source n p -> LinearRegular[source, n, a, p] :=
+  \induction (n: N.Nat^) \return \forall (source: Source.Topology)(a: X -> C.Complex)(p: X -> Vector n) ->
+    Maps.Continuous source Plane.topology a -> Regular source n p -> LinearRegular[source, n, a, p] \with {
+      | zero: \fun (source: Source.Topology)(a: X -> C.Complex)(p: X -> Vector N.Nat^::zero)(ac: _)(pc: _) => LinearRegular[source, N.Nat^::zero, a, p] {
+        head := Functions.negationContinuous source a ac, tail := pc,
+      }
+      | succ: \block {
+        \fun (n: N.Nat^)(previous: \forall (source: Source.Topology)(a: X -> C.Complex)(p: X -> Vector n) -> Maps.Continuous source Plane.topology a -> Regular source n p -> LinearRegular[source, n, a, p])(source: Source.Topology)(a: X -> C.Complex)(p: X -> Vector (N.Nat^::succ n))(ac: _)(pc: _) \then
+        \let tail: X -> Vector n := \fun (x: X)(i: Fin.Fin n) => p x (Fin.succ n i) \then
+        \let lower: LinearRegular[source, n, a, tail] := previous source a tail ac (\fun (i: Fin.Fin n) => pc (Fin.succ n i)) \then
+        \return LinearRegular[source, N.Nat^::succ n, a, p] {
+          head := Functions.negationContinuous source (\fun (x: X) => Op.mul (a x) (p x (Fin.zero n)))
+            (Functions.multiplicationContinuous source a (\fun (x: X) => p x (Fin.zero n)) ac (pc (Fin.zero n))),
+          tail := extendRegular source n (\fun (x: X) => Op.add (p x (Fin.zero n)) (linear n (a x) (tail x)).head)
+            (\fun (x: X) => (linear n (a x) (tail x)).tail)
+            (Functions.additionContinuous source (\fun (x: X) => p x (Fin.zero n)) (\fun (x: X) => (linear n (a x) (tail x)).head) (pc (Fin.zero n)) lower.head) lower.tail,
+        }
+      }
+    };
+\definition regular: \forall (n: N.Nat^)(source: Source.Topology)(a: X -> Vector n) -> Regular source n a -> Regular source n (\fun (x: X) => value n (a x)) :=
+  \induction (n: N.Nat^) \return \forall (source: Source.Topology)(a: X -> Vector n) -> Regular source n a -> Regular source n (\fun (x: X) => value n (a x)) \with {
+    | zero: \fun (source: Source.Topology)(a: X -> Vector N.Nat^::zero)(ac: _) => ac
+    | succ: \block {
+      \fun (n: N.Nat^)(previous: \forall (source: Source.Topology)(a: X -> Vector n) -> Regular source n a -> Regular source n (\fun (x: X) => value n (a x)))(source: Source.Topology)(a: X -> Vector (N.Nat^::succ n))(ac: _) \then
+      \let tail: X -> Vector n := \fun (x: X)(i: Fin.Fin n) => a x (Fin.succ n i) \then
+      \let p: X -> Vector n := \fun (x: X) => value n (tail x) \then
+      \let pc: Regular source n p := previous source tail (\fun (i: Fin.Fin n) => ac (Fin.succ n i)) \then
+      \let lc: LinearRegular[source, n, \fun (x: X) => a x (Fin.zero n), p] := linearRegular n source (\fun (x: X) => a x (Fin.zero n)) p (ac (Fin.zero n)) pc \then
+      \return extendRegular source n (\fun (x: X) => (linear n (a x (Fin.zero n)) (p x)).head) (\fun (x: X) => (linear n (a x (Fin.zero n)) (p x)).tail) lc.head lc.tail
+    }
+  };
+\import metric_spaces.RealFunctions[A := X] \as RealFunctions;
+\definition budgetRegular: \forall (n: N.Nat^)(source: Source.Topology)(p: X -> Vector n) -> Regular source n p ->
+  RealFunctions.Continuous source (\fun (x: X) => Bounds.budget (Tuples.list n (p x))) :=
+  \induction (n: N.Nat^) \return \forall (source: Source.Topology)(p: X -> Vector n) -> Regular source n p ->
+    RealFunctions.Continuous source (\fun (x: X) => Bounds.budget (Tuples.list n (p x))) \with {
+      | zero: \fun (source: Source.Topology)(p: X -> Vector N.Nat^::zero)(pc: _) => RealFunctions.constantContinuous source Real.zero
+      | succ: \fun (n: N.Nat^)(previous: _)(source: Source.Topology)(p: X -> Vector (N.Nat^::succ n))(pc: _) =>
+        RealFunctions.sumContinuous source (\fun (x: X) => Absolute.abs (p x (Fin.zero n))) (\fun (x: X) => Bounds.budget (Tuples.list n (\fun (i: Fin.Fin n) => p x (Fin.succ n i))))
+          (Functions.absoluteContinuous source (\fun (x: X) => p x (Fin.zero n)) (pc (Fin.zero n)))
+          (previous source (\fun (x: X)(i: Fin.Fin n) => p x (Fin.succ n i)) (\fun (i: Fin.Fin n) => pc (Fin.succ n i)))
+    };

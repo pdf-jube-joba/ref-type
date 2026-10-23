@@ -1,0 +1,46 @@
+
+\definition listExtend: \forall (n: N.Nat^)(a: C.Complex)(p: Vector n) -> Tuples.list (N.Nat^::succ n) (Extend.extend n a p) = Lists.List[C.Complex]::cons a (Tuples.list n p) :=
+  \fun (n: N.Nat^)(a: C.Complex)(p: Vector n) => congr!{C.Complex Coefficients Coefficients} Lists.List[C.Complex]::cons _ _ _ _
+    (Extend.atZero n a p) (congr!{{Vector n} Coefficients} (Tuples.list n) _ _
+      (\axiom:funext((\fun (i: Fin.Fin n) => Extend.extend n a p (Fin.succ n i)), p, Extend.atSuccessor n a p)));
+\structure Linear[n: N.Nat^]: \Set := { head: C.Complex, tail: Vector n };
+\definition linear: \forall (n: N.Nat^) -> C.Complex -> Vector n -> Linear[n] :=
+  \induction (n: N.Nat^) \return C.Complex -> Vector n -> Linear[n] \with {
+    | zero: \fun (a: C.Complex)(p: Vector N.Nat^::zero) => Linear[N.Nat^::zero] { head := Op.neg a, tail := p }
+    | succ: \fun (n: N.Nat^)(previous: C.Complex -> Vector n -> Linear[n])(a: C.Complex)(p: Vector (N.Nat^::succ n)) => Linear[N.Nat^::succ n] {
+      head := Op.neg (Op.mul a (p (Fin.zero n))),
+      tail := Extend.extend n (Op.add (p (Fin.zero n)) (previous a (\fun (i: Fin.Fin n) => p (Fin.succ n i))).head)
+        (previous a (\fun (i: Fin.Fin n) => p (Fin.succ n i))).tail,
+    }
+  };
+\structure Agreement[n: N.Nat^, a: C.Complex, p: Vector n]: \Prop := {
+  head: (linear n a p).head = (RootProduct.linear a (Tuples.list n p)).head,
+  tail: Tuples.list n (linear n a p).tail = (RootProduct.linear a (Tuples.list n p)).tail,
+};
+\definition agrees: \forall (n: N.Nat^)(a: C.Complex)(p: Vector n) -> Agreement[n, a, p] :=
+  \induction (n: N.Nat^) \return \forall (a: C.Complex)(p: Vector n) -> Agreement[n, a, p] \with {
+    | zero: \fun (a: C.Complex)(p: Vector N.Nat^::zero) => Agreement[N.Nat^::zero, a, p] { head := \refl(Op.neg a), tail := \refl(Lists.List[C.Complex]::nil) }
+    | succ: \fun (n: N.Nat^)(previous: \forall (a: C.Complex)(p: Vector n) -> Agreement[n, a, p])(a: C.Complex)(p: Vector (N.Nat^::succ n)) => Agreement[N.Nat^::succ n, a, p] {
+      head := \refl(Op.neg (Op.mul a (p (Fin.zero n)))),
+      tail := trans!{Coefficients} _ _ _ (listExtend n _ _) (congr!{C.Complex Coefficients Coefficients} Lists.List[C.Complex]::cons _ _ _ _
+        (congr!{C.Complex C.Complex} (Op.add (p (Fin.zero n))) _ _ (previous a (\fun (i: Fin.Fin n) => p (Fin.succ n i))).head)
+        (previous a (\fun (i: Fin.Fin n) => p (Fin.succ n i))).tail),
+    }
+  };
+\definition value: \forall (n: N.Nat^) -> Vector n -> Vector n :=
+  \induction (n: N.Nat^) \return Vector n -> Vector n \with {
+    | zero: \fun (a: Vector N.Nat^::zero) => a
+    | succ: \fun (n: N.Nat^)(previous: _)(a: Vector (N.Nat^::succ n)) =>
+      Extend.extend n (linear n (a (Fin.zero n)) (previous (\fun (i: Fin.Fin n) => a (Fin.succ n i)))).head
+        (linear n (a (Fin.zero n)) (previous (\fun (i: Fin.Fin n) => a (Fin.succ n i)))).tail
+  };
+\definition coefficientList: \forall (n: N.Nat^)(a: Vector n) -> Tuples.list n (value n a) = RootProduct.coefficients (Tuples.list n a) :=
+  \induction (n: N.Nat^) \return \forall (a: Vector n) -> Tuples.list n (value n a) = RootProduct.coefficients (Tuples.list n a) \with {
+    | zero: \fun (a: Vector N.Nat^::zero) => \refl(Lists.List[C.Complex]::nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(a: Vector (N.Nat^::succ n)) => trans!{Coefficients} _ _ _ (listExtend n _ _)
+      (trans!{Coefficients} _ _ _ (congr!{C.Complex Coefficients Coefficients} Lists.List[C.Complex]::cons _ _ _ _
+        (agrees n (a (Fin.zero n)) (value n (\fun (i: Fin.Fin n) => a (Fin.succ n i)))).head
+        (agrees n (a (Fin.zero n)) (value n (\fun (i: Fin.Fin n) => a (Fin.succ n i)))).tail)
+        (congr!{Coefficients Coefficients} (\fun (p: Coefficients) => RootProduct.list (RootProduct.linear (a (Fin.zero n)) p)) _ _ (previous (\fun (i: Fin.Fin n) => a (Fin.succ n i)))))
+  };
+\module Families(X: \Set);
