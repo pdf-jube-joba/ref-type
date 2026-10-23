@@ -1,0 +1,21 @@
+\import Spaces.Finite[V := V, I := Fin.Fin n, space := source] \as Basis;
+\definition basis: Basis.Basis := vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Dimension[V := V, space := source].At[n := n].basis frame;
+\import Basis.Dual[] \as DualBasis;
+\import Spaces.Finite[V := Dual.Carrier, I := Fin.Fin n, space := Dual.space] \as DualFinite;
+\definition dualBasis: DualFinite.Basis := DualBasis.basis basis;
+\import Spaces.Sums[I := Fin.Fin n].Vector[V := Tensor.Carrier, space := Tensor.space] \as Sums;
+\definition synthesis[h: Hom.Carrier]: Tensor.Carrier := Sums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => Tensor.tensor (dualBasis.vectors i) (h.apply (basis.vectors i)));
+\import Spaces.Linear[V := Hom.Carrier, W := Tensor.Carrier, source := Hom.space, target := Tensor.space] \as Backward;
+\definition backward: Backward.Map := Backward.Map {
+  apply := synthesis,
+  preservesAdd := \fun (h, g: Hom.Carrier) => trans!{Tensor.Carrier} _ _ _
+    (Sums.congruent (Fin.elements n) _ _ (\fun (i: Fin.Fin n) => Tensor.bilinear.addRight (dualBasis.vectors i) (h.apply (basis.vectors i)) (g.apply (basis.vectors i))))
+    (Sums.addition (Fin.elements n) _ _),
+  preservesScale := \fun (a: K)(h: Hom.Carrier) => trans!{Tensor.Carrier} _ _ _
+    (Sums.congruent (Fin.elements n) _ _ (\fun (i: Fin.Fin n) => Tensor.bilinear.scaleRight a (dualBasis.vectors i) (h.apply (basis.vectors i))))
+    (Sums.scalar (Fin.elements n) a _)
+};
+\module Right;
+\module Left;
+\import Spaces.Isomorphism[V := Tensor.Carrier, W := Hom.Carrier, source := Tensor.space, target := Hom.space] \as Isomorphisms;
+\definition isomorphism: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism { forward := forward, backward := backward, leftInverse := Left[].law, rightInverse := Right[].law };

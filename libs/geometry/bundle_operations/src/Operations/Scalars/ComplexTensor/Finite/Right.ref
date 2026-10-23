@@ -1,0 +1,30 @@
+\import RealSpaces.Coordinates[I := Fin.Fin n].Kronecker[] \as RK;
+\import ComplexSpaces.Coordinates[I := Fin.Fin n].Kronecker[] \as CK;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition embedDelta: \forall (i, j: Fin.Fin n) -> CD.ofReal (RK.delta i j) = CK.delta i j :=
+  \fun (i, j: Fin.Fin n) => either!{{(Classical.excludedMiddle (i = j))} {CD.ofReal (RK.delta i j) = CK.delta i j}
+    {\fun (same: i = j) => trans!{{C.Complex}} _ _ _ (congr!{{R.Real} {C.Complex}} CD.ofReal _ _ (RK.equal i j same)) (sym!{{C.Complex}} _ _ (CK.equal i j same))}
+    {\fun (different: Logic.Not (i = j)) => trans!{{C.Complex}} _ _ _ (congr!{{R.Real} {C.Complex}} CD.ofReal _ _ (RK.different i j different)) (sym!{{C.Complex}} _ _ (CK.different i j different))}};
+\import RealSpaces.Linear[V := Complex.Vector n, W := C.Complex, source := CoordinateScalars.realSpace, target := Scalar.realSpace] \as Evaluation;
+\definition evaluation[j: Fin.Fin n]: Evaluation.Map := Evaluation.Map {
+  apply := \fun (z: Complex.Vector n) => z j, preservesAdd := \fun (z, w: Complex.Vector n) => \refl(CD.add (z j) (w j)),
+  preservesScale := \fun (r: R.Real)(z: Complex.Vector n) => \refl(CD.mul (CD.ofReal r) (z j))
+};
+\import Evaluation.Composition[U := Carrier, domain := Tensor.space] \as Composition;
+\import RealSpaces.Sums[I := Fin.Fin n].Vector[V := Carrier, space := Tensor.space].Mapping[W := C.Complex, target := Scalar.realSpace] \as Mapping;
+\import ComplexSpaces.Sums[I := Fin.Fin n] \as CSums;
+\import CSums.Prop[] \as SumLaws;
+\definition pointwise: \forall (z: Complex.Vector n)(j: Fin.Fin n) -> forward.apply (synthesis z) j = z j :=
+  \fun (z: Complex.Vector n)(j: Fin.Fin n) => trans!{{C.Complex}} _ _ _
+    (Mapping.law (Composition.compose (evaluation j) realForward) (Fin.elements n) (\fun (i: Fin.Fin n) => pure (basis.vectors i) (z i)))
+    (trans!{{C.Complex}} _ _ _
+      (SumLaws.congruent (Fin.elements n)
+        (\fun (i: Fin.Fin n) => forward.apply (pure (basis.vectors i) (z i)) j)
+        (\fun (i: Fin.Fin n) => CD.mul (CK.delta j i) (z i))
+        (\fun (i: Fin.Fin n) => trans!{{C.Complex}} _ _ _
+          (congr!{{Complex.Vector n} {C.Complex}} (\fun (z: Complex.Vector n) => z j) _ _ (onPure (basis.vectors i) (z i)))
+          (congr!{{C.Complex} {C.Complex}} (\fun (a: C.Complex) => CD.mul a (z i)) _ _
+            (trans!{{C.Complex}} _ _ _ (congr!{{R.Real} {C.Complex}} CD.ofReal _ _ (Basis.Dimension[].biorthogonal basis i j)) (embedDelta j i)))))
+      (CSums.Single[].extract (Fin.elements n) (ComplexSpaces.FiniteCoordinateEnumeration[].distinct n) j (ComplexSpaces.FiniteCoordinateEnumeration[].At[n := n].exhaustive j) z));
+\definition law: \forall (z: Complex.Vector n) -> forward.apply (synthesis z) = z := \fun (z: Complex.Vector n) => \axiom:funext(forward.apply (synthesis z), z, pointwise z);

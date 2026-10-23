@@ -1,0 +1,23 @@
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Trilinear[V := W, W := U, U := V, T := T, left := middle, middle := right, right := left, target := target,
+  value := \fun (w: W)(u: U)(v: V) => value v w u] \as Cyclic;
+\definition cyclicLaws: Cyclic.Laws := Cyclic.Laws {
+  addFirst := \fun (w, z: W)(u: U)(v: V) => laws.addSecond v w z u,
+  addSecond := \fun (w: W)(u, z: U)(v: V) => laws.addThird v w u z,
+  addThird := \fun (w: W)(u: U)(v, z: V) => laws.addFirst v z w u,
+  scaleFirst := \fun (a: K)(w: W)(u: U)(v: V) => laws.scaleSecond a v w u,
+  scaleSecond := \fun (a: K)(w: W)(u: U)(v: V) => laws.scaleThird a v w u,
+  scaleThird := \fun (a: K)(w: W)(u: U)(v: V) => laws.scaleFirst a v w u
+};
+\import Cyclic.With[laws := cyclicLaws] \as Construction;
+\import Spaces.Tensor[V := W, W := U, left := middle, right := right] \as Last;
+\import Spaces.Tensor[V := V, W := Last.Carrier, left := left, right := Last.space] \as Source;
+\import Spaces.Tensor[V := Last.Carrier, W := V, left := Last.space, right := left] \as Swapped;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TensorFlip[V := V, W := Last.Carrier, left := left, right := Last.space] \as Swap;
+\import Spaces.Linear[V := Swapped.Carrier, W := T, source := Swapped.space, target := target].Composition[U := Source.Carrier, domain := Source.space] \as Composition;
+\definition map: Spaces.Linear[V := Source.Carrier, W := T, source := Source.space, target := target].Map := Composition.compose Construction.map Swap.map;
+\definition parameter[v: V]: Spaces.Linear[V := Last.Carrier, W := T, source := Last.space, target := target].Map := Construction.parameter v;
+\definition onTensor: \forall (v: V)(t: Last.Carrier) -> map.apply (Source.tensor v t) = (parameter v).apply t :=
+  \fun (v: V)(t: Last.Carrier) => trans!{T} _ _ _ (congr!{{Swapped.Carrier} T} Construction.map.apply _ _ (Swap.onPure v t)) (Construction.onTensor t v);
+\definition onPure: \forall (v: V)(w: W)(u: U) -> map.apply (Source.tensor v (Last.tensor w u)) = value v w u :=
+  \fun (v: V)(w: W)(u: U) => trans!{T} _ _ _ (onTensor v (Last.tensor w u)) (Construction.parameterOnPure v w u);
+\definition parameterOnPure: \forall (v: V)(w: W)(u: U) -> (parameter v).apply (Last.tensor w u) = value v w u := Construction.parameterOnPure;

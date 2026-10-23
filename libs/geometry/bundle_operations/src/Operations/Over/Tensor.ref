@@ -1,0 +1,34 @@
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := F] \as Left;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := G] \as Right;
+\import topology.Topology[Carrier := X] \as Base;
+\definition Fiber[x: X]: \Set := Spaces.Tensor[V := F x, W := G x, left := left.space x, right := right.space x].Carrier;
+\definition fiberSpace[x: X]: Spaces.VectorSpace (Fiber x) := Spaces.Tensor[V := F x, W := G x, left := left.space x, right := right.space x].space;
+\definition pure[x: X][v: F x][w: G x]: Fiber x := Spaces.Tensor[V := F x, W := G x, left := left.space x, right := right.space x].tensor v w;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := Fiber] \as Family;
+\definition Grid: \Set := Pair.Times^[N.Nat^, N.Nat^];
+\module Parameter(n, m: N.Nat^);
+\definition Parameters[k: Grid]: \Set := Parameter[n := Pair.first N.Nat^ N.Nat^ k, m := Pair.second N.Nat^ N.Nat^ k].Point;
+\definition parameterSpace[k: Grid]: topology.Topology[Carrier := Parameters k].Topology := Parameter[n := Pair.first N.Nat^ N.Nat^ k, m := Pair.second N.Nat^ N.Nat^ k].topology;
+\definition parameter[k: Grid][p: Parameters k]: Family.Point := Parameter[n := Pair.first N.Nat^ N.Nat^ k, m := Pair.second N.Nat^ N.Nat^ k].value p;
+\import \root.Operations[].Final[I := Grid, E := Family.Point, P := Parameters, parameterSpaces := parameterSpace, parameter := parameter] \as Final;
+\definition topology: topology.Topology[Carrier := Family.Point].Topology := Final.topology;
+\definition data: Family.Data := Family.Data { baseSpace := left.baseSpace, totalSpace := topology, space := fiberSpace };
+\definition SameBase: \Prop := left.baseSpace = right.baseSpace;
+\definition projectionContinuous: topology.Continuity[A := Family.Point, B := X].Continuous topology left.baseSpace Family.projection :=
+  Final.Universal[Z := X].continuous left.baseSpace Family.projection (\fun (k: Grid) => Parameter[n := Pair.first N.Nat^ N.Nat^ k, m := Pair.second N.Nat^ N.Nat^ k].Projection[].baseContinuous);
+\import Left.With[data := left] \as LeftCharts;
+\import Right.With[data := right] \as RightCharts;
+\import Family.With[data := data] \as Charts;
+\module In(c: LeftCharts.Chart, d: RightCharts.Chart,
+  enumeration: \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].PairIndices[n := c.dimension, m := d.dimension].Enumeration);
+\definition bundle[same: SameBase]: Family.Bundle := \into[Family.Data](data, Family.Bundle) \by {
+  \fun (x: X) => \block {
+    \takefrom c: \Cast[LeftCharts.Chart] ({ c: LeftCharts.Chart \where Base.Member c.domain x }) \by Left.Of[bundle := left].locallyTrivial x \then
+    \takefrom d: \Cast[RightCharts.Chart] ({ d: RightCharts.Chart \where Base.Member d.domain x }) \by Right.Of[bundle := right].locallyTrivial x \then
+    \takefrom enumeration: \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].PairIndices[n := c.dimension, m := d.dimension].Enumeration
+      \by \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].PairIndices[n := c.dimension, m := d.dimension].existsEnumeration \then
+    \return Logic.existsIntro[Charts.Chart, { chart: Charts.Chart \where Base.Member chart.domain x }] (In[c := c, d := d, enumeration := enumeration].trivialization same)
+      (Logic.And[_, _]::# (\bysub(LeftCharts.Chart, { c: LeftCharts.Chart \where Base.Member c.domain x }, c)) (\bysub(RightCharts.Chart, { d: RightCharts.Chart \where Base.Member d.domain x }, d)))
+  }
+};
+\module Of(same: SameBase);

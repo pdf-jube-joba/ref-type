@@ -1,0 +1,30 @@
+\definition sumBase: middle.baseSpace = right.baseSpace := trans!{{topology.Topology[Carrier := X].Topology}} _ _ _ (sym!{{topology.Topology[Carrier := X].Topology}} _ _ sameMiddle) sameRight;
+\definition reverseMiddle: middle.baseSpace = left.baseSpace := sym!{{topology.Topology[Carrier := X].Topology}} _ _ sameMiddle;
+\definition reverseRight: right.baseSpace = left.baseSpace := sym!{{topology.Topology[Carrier := X].Topology}} _ _ sameRight;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].DirectSum[X := X, F := G, G := H, left := middle, right := right] \as Sum;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := Sum.Fiber, G := F, left := Sum.bundle sumBase, right := left] \as Source;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := G, G := F, left := middle, right := left] \as First;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := H, G := F, left := right, right := left] \as Second;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].DirectSum[X := X, F := First.Fiber, G := Second.Fiber, left := First.bundle reverseMiddle, right := Second.bundle reverseRight] \as Target;
+\definition sourceBundle: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := Source.Fiber].Bundle := Source.bundle reverseMiddle;
+\definition targetBundle: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := Target.Fiber].Bundle := Target.bundle sumBase;
+\import Source.Of[same := reverseMiddle].Symmetry[] \as SwapSource;
+\import Source.Of[same := reverseMiddle].Transpose[] \as FlipSource;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TensorDistribution[X := X, F := F, G := G, H := H, left := left, middle := middle, right := right, sameMiddle := sameMiddle, sameRight := sameRight] \as Left;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := F, G := G, left := left, right := middle].Of[same := sameMiddle].Symmetry[] \as SwapFirst;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := F, G := H, left := left, right := right].Of[same := sameRight].Symmetry[] \as SwapSecond;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := F, G := G, left := left, right := middle].Of[same := sameMiddle].Transpose[] \as FlipFirst;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := F, G := H, left := left, right := right].Of[same := sameRight].Transpose[] \as FlipSecond;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].DirectSumIsomorphisms[X := X, F := Left.FirstFiber, G := Left.SecondFiber, A := First.Fiber, B := Second.Fiber,
+  first := Left.firstBundle, second := Left.secondBundle, newFirst := First.bundle reverseMiddle, newSecond := Second.bundle reverseRight, sameSource := \refl(left.baseSpace), sameTarget := sumBase] \as Last;
+\definition lastIsomorphism: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Isomorphisms[X := X, F := Left.TargetFiber, G := Target.Fiber, source := Left.targetBundle, target := targetBundle].Isomorphism := Last.isomorphism SwapFirst.isomorphism SwapSecond.isomorphism;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].IsomorphismComposition[X := X, F := Source.Fiber, G := Left.SourceFiber, H := Left.TargetFiber, source := sourceBundle, middle := Left.sourceBundle, target := Left.targetBundle] \as FirstComposition;
+\definition intermediate: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Isomorphisms[X := X, F := Source.Fiber, G := Left.TargetFiber, source := sourceBundle, target := Left.targetBundle].Isomorphism := FirstComposition.compose SwapSource.isomorphism Left.isomorphism;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].IsomorphismComposition[X := X, F := Source.Fiber, G := Left.TargetFiber, H := Target.Fiber, source := sourceBundle, middle := Left.targetBundle, target := targetBundle] \as LastComposition;
+\definition isomorphism: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Isomorphisms[X := X, F := Source.Fiber, G := Target.Fiber, source := sourceBundle, target := targetBundle].Isomorphism := LastComposition.compose intermediate lastIsomorphism;
+\definition onPure: \forall (x: X)(p: Sum.Fiber x)(v: F x) -> (isomorphism.forward.fiber x).apply (Source.pure x p v) = Pair.pair (First.Fiber x) (Second.Fiber x) (First.pure x (Pair.first (G x) (H x) p) v) (Second.pure x (Pair.second (G x) (H x) p) v) :=
+  \fun (x: X)(p: Sum.Fiber x)(v: F x) => trans!{{Target.Fiber x}} _ _ _
+    (congr!{{Left.SourceFiber x} {Target.Fiber x}} (\fun (t: Left.SourceFiber x) => (lastIsomorphism.forward.fiber x).apply ((Left.forward.fiber x).apply t)) _ _ (FlipSource.onPure x p v))
+    (trans!{{Target.Fiber x}} _ _ _
+      (congr!{{Left.TargetFiber x} {Target.Fiber x}} (lastIsomorphism.forward.fiber x).apply _ _ (Left.forwardOnPure x v p))
+      (Pair.Prop[A := First.Fiber x, B := Second.Fiber x].pairCong _ _ _ _ (FlipFirst.onPure x v (Pair.first (G x) (H x) p)) (FlipSecond.onPure x v (Pair.second (G x) (H x) p))));

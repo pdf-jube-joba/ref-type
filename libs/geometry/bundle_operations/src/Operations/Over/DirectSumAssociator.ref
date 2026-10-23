@@ -1,0 +1,33 @@
+\definition lastBase: middle.baseSpace = right.baseSpace := trans!{{topology.Topology[Carrier := X].Topology}} _ _ _ (sym!{{topology.Topology[Carrier := X].Topology}} _ _ sameMiddle) sameRight;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].DirectSum[X := X, F := F, G := G, left := left, right := middle] \as First;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].DirectSum[X := X, F := G, G := H, left := middle, right := right] \as Last;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].DirectSum[X := X, F := First.Fiber, G := H, left := First.bundle sameMiddle, right := right] \as Source;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].DirectSum[X := X, F := F, G := Last.Fiber, left := left, right := Last.bundle lastBase] \as Target;
+\definition sourceBundle: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := Source.Fiber].Bundle := Source.bundle sameRight;
+\definition targetBundle: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := Target.Fiber].Bundle := Target.bundle sameMiddle;
+\import Source.Of[same := sameRight] \as SourceMaps;
+\import First.Of[same := sameMiddle] \as FirstMaps;
+\import Target.Of[same := sameMiddle] \as TargetMaps;
+\import Last.Of[same := lastBase] \as LastMaps;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := Source.Fiber, G := First.Fiber, source := sourceBundle, target := First.bundle sameMiddle, f := \fun (x: X) => x].Composition[Z := X, H := F, range := left, g := \fun (x: X) => x] \as ProjectFirst;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := Source.Fiber, G := First.Fiber, source := sourceBundle, target := First.bundle sameMiddle, f := \fun (x: X) => x].Composition[Z := X, H := G, range := middle, g := \fun (x: X) => x] \as ProjectMiddle;
+\import LastMaps.From[Y := X, H := Source.Fiber, source := sourceBundle, f := \fun (x: X) => x] \as IntoLast;
+\import TargetMaps.From[Y := X, H := Source.Fiber, source := sourceBundle, f := \fun (x: X) => x] \as IntoTarget;
+\definition forward: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := Source.Fiber, G := Target.Fiber, source := sourceBundle, target := targetBundle, f := \fun (x: X) => x].Map :=
+  IntoTarget.pair (ProjectFirst.compose SourceMaps.firstMap FirstMaps.firstMap) (IntoLast.pair (ProjectMiddle.compose SourceMaps.firstMap FirstMaps.secondMap) SourceMaps.secondMap);
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := Target.Fiber, G := Last.Fiber, source := targetBundle, target := Last.bundle lastBase, f := \fun (x: X) => x].Composition[Z := X, H := G, range := middle, g := \fun (x: X) => x] \as ProjectTargetMiddle;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := Target.Fiber, G := Last.Fiber, source := targetBundle, target := Last.bundle lastBase, f := \fun (x: X) => x].Composition[Z := X, H := H, range := right, g := \fun (x: X) => x] \as ProjectThird;
+\import FirstMaps.From[Y := X, H := Target.Fiber, source := targetBundle, f := \fun (x: X) => x] \as IntoFirst;
+\import SourceMaps.From[Y := X, H := Target.Fiber, source := targetBundle, f := \fun (x: X) => x] \as IntoSource;
+\definition backward: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := Target.Fiber, G := Source.Fiber, source := targetBundle, target := sourceBundle, f := \fun (x: X) => x].Map :=
+  IntoSource.pair (IntoFirst.pair TargetMaps.firstMap (ProjectTargetMiddle.compose TargetMaps.secondMap LastMaps.firstMap)) (ProjectThird.compose TargetMaps.secondMap LastMaps.secondMap);
+\definition isomorphism: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Isomorphisms[X := X, F := Source.Fiber, G := Target.Fiber, source := sourceBundle, target := targetBundle].Isomorphism :=
+  vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Isomorphisms[X := X, F := Source.Fiber, G := Target.Fiber, source := sourceBundle, target := targetBundle].Isomorphism {
+    forward := forward, backward := backward,
+    leftInverse := \fun (x: X)(v: Source.Fiber x) => Pair.Prop[A := First.Fiber x, B := H x].ext ((backward.fiber x).apply ((forward.fiber x).apply v)) v
+      (Pair.Prop[A := F x, B := G x].eta (Pair.first (First.Fiber x) (H x) v)) (\refl(Pair.second (First.Fiber x) (H x) v)),
+    rightInverse := \fun (x: X)(v: Target.Fiber x) => Pair.Prop[A := F x, B := Last.Fiber x].ext ((forward.fiber x).apply ((backward.fiber x).apply v)) v
+      (\refl(Pair.first (F x) (Last.Fiber x) v)) (Pair.Prop[A := G x, B := H x].eta (Pair.second (F x) (Last.Fiber x) v))
+  };
+\definition SourceFiber[x: X]: \Set := Source.Fiber x;
+\definition TargetFiber[x: X]: \Set := Target.Fiber x;

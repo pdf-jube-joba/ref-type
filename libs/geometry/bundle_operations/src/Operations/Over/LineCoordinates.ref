@@ -1,0 +1,24 @@
+\definition zero: N.Nat^ := N.Nat^::zero;
+\definition one: N.Nat^ := N.Nat^::succ zero;
+\definition index: Fin.Fin one := Fin.zero zero;
+\definition unique: \forall (i: Fin.Fin one) -> i = index := Fin.cases zero (\fun (i: Fin.Fin one) => i = index) (\refl(index))
+  (\fun (i: Fin.Fin zero) => Logic.falseElim (Fin.succ zero i = index) (Fin.zeroImpossible i (Fin.bound zero i)));
+\definition constant[a: K]: Vector one := \fun (i: Fin.Fin one) => a;
+\definition evaluate[v: Vector one]: K := v index;
+\import Spaces.Linear[V := K, W := Vector one, source := Spaces.scalarSpace, target := coordinates one] \as Forward;
+\import Spaces.Linear[V := Vector one, W := K, source := coordinates one, target := Spaces.scalarSpace] \as Backward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := constant, preservesAdd := \fun (a, b: K) => \refl((coordinates one).add (constant a) (constant b)), preservesScale := \fun (a, b: K) => \refl((coordinates one).smul a (constant b))
+};
+\definition backward: Backward.Map := Backward.Map {
+  apply := evaluate, preservesAdd := \fun (v, w: Vector one) => \refl(field.add (evaluate v) (evaluate w)), preservesScale := \fun (a: K)(v: Vector one) => \refl(field.mul a (evaluate v))
+};
+\import Spaces.Isomorphism[V := K, W := Vector one, source := Spaces.scalarSpace, target := coordinates one] \as Isomorphisms;
+\definition isomorphism: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := forward, backward := backward, leftInverse := \fun (a: K) => \refl(a),
+  rightInverse := \fun (v: Vector one) => \axiom:funext(constant (evaluate v), v, \fun (i: Fin.Fin one) => congr!{{Fin.Fin one} K} v index i (sym!{{Fin.Fin one}} _ _ (unique i)))
+};
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin one] \as Coordinates;
+\definition forwardContinuous: topology.Continuity[A := K, B := Vector one].Continuous scalar.topological.space (coordinateTopology one) constant :=
+  Coordinates.Universal[A := K].continuous scalar.topological.space scalar.topological.space constant (\fun (i: Fin.Fin one) => topology.Maps[A := K, B := K].Identity[].continuous scalar.topological.space);
+\definition backwardContinuous: topology.Continuity[A := Vector one, B := K].Continuous (coordinateTopology one) scalar.topological.space evaluate := Coordinates.evaluationContinuous scalar.topological.space index;

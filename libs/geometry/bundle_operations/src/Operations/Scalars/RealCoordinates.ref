@@ -1,0 +1,33 @@
+\import Complex.RealScalars[V := Complex.Vector n, space := Complex.coordinates n] \as Restricted;
+\import RealSpaces.DirectSum[V := Real.Vector n, W := Real.Vector n, left := Real.coordinates n, right := Real.coordinates n] \as Sum;
+\import Real.CoordinateSum[n := n, m := n] \as Join;
+\import Fin.Sum[m := n, n := n] \as Indices;
+\definition dimension: N.Nat^ := Indices.total;
+\definition split[v: Complex.Vector n]: Sum.Carrier := Sum.make (\fun (i: Fin.Fin n) => C.re (v i)) (\fun (i: Fin.Fin n) => C.im (v i));
+\definition merge[p: Sum.Carrier]: Complex.Vector n := \fun (i: Fin.Fin n) => C.make (Sum.first p i) (Sum.second p i);
+\import RealSpaces.Linear[V := Complex.Vector n, W := Sum.Carrier, source := Restricted.realSpace, target := Sum.space] \as Forward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := split,
+  preservesAdd := \fun (v, w: Complex.Vector n) => \refl(Sum.space.add (split v) (split w)),
+  preservesScale := \fun (a: R.Real)(v: Complex.Vector n) => Pair.Prop[A := Real.Vector n, B := Real.Vector n].ext _ _
+    (\axiom:funext(Sum.first (split (Restricted.realSpace.smul a v)), (Real.coordinates n).smul a (Sum.first (split v)), \fun (i: Fin.Fin n) => congr!{{C.Complex} {R.Real}} C.re _ _ (embedScale a (v i))))
+    (\axiom:funext(Sum.second (split (Restricted.realSpace.smul a v)), (Real.coordinates n).smul a (Sum.second (split v)), \fun (i: Fin.Fin n) => congr!{{C.Complex} {R.Real}} C.im _ _ (embedScale a (v i))))
+};
+\definition leftInverse: \forall (v: Complex.Vector n) -> merge (split v) = v := \fun (v: Complex.Vector n) => \axiom:funext(merge (split v), v, \fun (i: Fin.Fin n) => CP.eta (v i));
+\definition rightInverse: \forall (p: Sum.Carrier) -> split (merge p) = p := \fun (p: Sum.Carrier) => Pair.Prop[A := Real.Vector n, B := Real.Vector n].ext (split (merge p)) p
+  (\axiom:funext(Sum.first (split (merge p)), Sum.first p, \fun (i: Fin.Fin n) => \refl(Sum.first p i)))
+  (\axiom:funext(Sum.second (split (merge p)), Sum.second p, \fun (i: Fin.Fin n) => \refl(Sum.second p i)));
+\import RealSpaces.Linear[V := Sum.Carrier, W := Complex.Vector n, source := Sum.space, target := Restricted.realSpace] \as Backward;
+\definition backward: Backward.Map := Backward.Map {
+  apply := merge,
+  preservesAdd := \fun (v, w: Sum.Carrier) => \refl(Restricted.realSpace.add (merge v) (merge w)),
+  preservesScale := \fun (a: R.Real)(v: Sum.Carrier) => \axiom:funext(merge (Sum.space.smul a v), Restricted.realSpace.smul a (merge v),
+    \fun (i: Fin.Fin n) => sym!{{C.Complex}} _ _ (embedScale a (merge v i)))
+};
+\definition pairIso: RealSpaces.Isomorphism[V := Complex.Vector n, W := Sum.Carrier, source := Restricted.realSpace, target := Sum.space].Isomorphism :=
+  RealSpaces.Isomorphism[V := Complex.Vector n, W := Sum.Carrier, source := Restricted.realSpace, target := Sum.space].Isomorphism {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse
+  };
+\import Real.LinearIsomorphisms[V := Complex.Vector n, W := Sum.Carrier, source := Restricted.realSpace, target := Sum.space].After[U := Real.Vector dimension, space := Real.coordinates dimension] \as Compose;
+\definition frame: RealSpaces.Isomorphism[V := Complex.Vector n, W := Real.Vector dimension, source := Restricted.realSpace, target := Real.coordinates dimension].Isomorphism := Compose.compose pairIso Join.isomorphism;
+\module Topology;

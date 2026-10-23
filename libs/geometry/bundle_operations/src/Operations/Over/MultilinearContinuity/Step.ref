@@ -1,0 +1,22 @@
+\import Forms.Contraction[k := k] \as Contraction;
+\import Contraction.Expansion[I := Fin.Fin n, b := Standard.basis] \as Expansion;
+\import Spaces.Sums[I := Fin.Fin n] \as Sums;
+\import Fin.Tuples[A := Vector n] \as Tuples;
+\definition model[form: Forms.Form (N.Nat^::succ k)][arguments: Fin.Fin (N.Nat^::succ k) -> X -> Vector n][x: X]: K :=
+  Sums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => field.mul (arguments (Fin.zero k) x i)
+    (Contraction.apply form (Standard.vectors i) (\fun (j: Fin.Fin k) => arguments (Fin.succ k j) x)));
+\definition formula: \forall (form: Forms.Form (N.Nat^::succ k))(arguments: Fin.Fin (N.Nat^::succ k) -> X -> Vector n)(x: X) -> model form arguments x = form (\fun (i: Fin.Fin (N.Nat^::succ k)) => arguments i x) :=
+  \fun (form: _)(arguments: _)(x: X) => trans!{K} _ _ _
+    (sym!{K} _ _ (Expansion.law form (arguments (Fin.zero k) x) (\fun (j: Fin.Fin k) => arguments (Fin.succ k j) x)))
+    (congr!{{Forms.Arguments (N.Nat^::succ k)} K} form _ _ (Tuples.recover k (\fun (i: Fin.Fin (N.Nat^::succ k)) => arguments i x)));
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin n] \as Coordinates;
+\definition headContinuous: \forall (source: Source.Topology)(arguments: Fin.Fin (N.Nat^::succ k) -> X -> Vector n) -> Regular (N.Nat^::succ k) source arguments -> \forall (i: Fin.Fin n) -> Functions.Continuous source (\fun (x: X) => arguments (Fin.zero k) x i) :=
+  \fun (source: _)(arguments: _)(regular: _)(i: Fin.Fin n) => topology.Composition[A := X, B := Vector n, C := K].composeContinuous source (coordinateTopology n) scalar.topological.space (arguments (Fin.zero k)) (\fun (v: Vector n) => v i) (regular (Fin.zero k)) (Coordinates.evaluationContinuous scalar.topological.space i);
+\definition law: Result k -> Result (N.Nat^::succ k) := \fun (previous: Result k)(source: _)(form: _)(arguments: _)(regular: _) =>
+  Functions.transport source (model form arguments) (\fun (x: X) => form (\fun (i: Fin.Fin (N.Nat^::succ k)) => arguments i x)) (formula form arguments)
+    (\root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].ScalarFunctions[X := X].Sums[I := Fin.Fin n].continuous (Fin.elements n) source
+      (\fun (i: Fin.Fin n)(x: X) => field.mul (arguments (Fin.zero k) x i) (Contraction.apply form (Standard.vectors i) (\fun (j: Fin.Fin k) => arguments (Fin.succ k j) x)))
+      (\fun (i: Fin.Fin n) => Functions.multiplication source (\fun (x: X) => arguments (Fin.zero k) x i)
+        (\fun (x: X) => Contraction.apply form (Standard.vectors i) (\fun (j: Fin.Fin k) => arguments (Fin.succ k j) x))
+        (headContinuous source arguments regular i)
+        (previous source (Contraction.apply form (Standard.vectors i)) (\fun (j: Fin.Fin k)(x: X) => arguments (Fin.succ k j) x) (\fun (j: Fin.Fin k) => regular (Fin.succ k j)))));

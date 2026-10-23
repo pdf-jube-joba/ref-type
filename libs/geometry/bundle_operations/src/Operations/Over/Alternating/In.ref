@@ -1,0 +1,49 @@
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].ExteriorIndices[n := c.dimension, k := k] \as Indices;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].FiniteIndex[A := Indices.Tuple, S := Indices.set, enumeration := enumeration] \as Coordinates;
+\definition dimension: N.Nat^ := Coordinates.rank;
+\module At(x: \Cast[X] c.domain);
+\definition chart: Charts.ChartData := Charts.ChartData { domain := c.domain, dimension := dimension, frame := \fun (x: \Cast[X] c.domain) => At[x := x].frame };
+\import Charts.In[c := chart] \as Local;
+\import Base.Subspace[S := c.domain] \as BaseSubspace;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Chart[X := X, F := F, bundle := bundle, chart := c] \as SourceChart;
+\definition section[j: Fin.Fin dimension]: TupleSection := TupleSection {
+  domain := c.domain, open := (\bysub(SourceCharts.ChartData, SourceCharts.Chart, c)).baseOpen,
+  value := \fun (i: Fin.Fin k)(x: \Cast[X] c.domain) => (c.frame x).backward.apply (Spaces.FiniteCoordinates[n := c.dimension].vectors (Coordinates.enumerate j i)),
+  regular := \fun (i: Fin.Fin k) => SourceChart.Maps[Y := Local.BasePoint, source := BaseSubspace.topology bundle.baseSpace].pointContinuous
+    (\fun (x: Local.BasePoint) => x) (\fun (x: Local.BasePoint) => Spaces.FiniteCoordinates[n := c.dimension].vectors (Coordinates.enumerate j i))
+    (topology.Maps[A := Local.BasePoint, B := Local.BasePoint].Identity[].continuous (BaseSubspace.topology bundle.baseSpace))
+    (topology.Maps[A := Local.BasePoint, B := Vector c.dimension].constantContinuous (BaseSubspace.topology bundle.baseSpace) (coordinateTopology c.dimension) (Spaces.FiniteCoordinates[n := c.dimension].vectors (Coordinates.enumerate j i)))
+};
+\definition componentContinuous: \forall (i: Fin.Fin dimension) -> topology.Continuity[A := Local.TotalPoint, B := K].Continuous Local.localTopology scalar.topological.space
+  (\fun (p: Local.TotalPoint) => (chart.frame (Local.base p)).forward.apply p.vector i) :=
+  \fun (i: Fin.Fin dimension) => Evaluations.At[i := section i].continuous;
+\import topology.Continuity[A := Family.Point, B := X].Restriction[S := { p: Family.Point \where Base.Member c.domain p.base }] \as Restriction;
+\import topology.Continuity[A := Local.TotalPoint, B := X].Corestriction[S := c.domain] \as IntoBase;
+\definition baseContinuous: topology.Continuity[A := Local.TotalPoint, B := Local.BasePoint].Continuous Local.localTopology (BaseSubspace.topology bundle.baseSpace) Local.base :=
+  IntoBase.corestrictContinuous Local.localTopology bundle.baseSpace Local.base (Restriction.restrictContinuous topology bundle.baseSpace Family.projection projectionContinuous);
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin dimension] \as VectorTopology;
+\import topological_constructions.Product[A := Local.BasePoint, B := Vector dimension] \as Product;
+\definition vector[p: Local.TotalPoint]: Vector dimension := (chart.frame (Local.base p)).forward.apply p.vector;
+\definition vectorContinuous: topology.Continuity[A := Local.TotalPoint, B := Vector dimension].Continuous Local.localTopology (coordinateTopology dimension) vector :=
+  VectorTopology.Universal[A := Local.TotalPoint].continuous Local.localTopology scalar.topological.space vector componentContinuous;
+\definition forwardContinuous: topology.Continuity[A := Local.TotalPoint, B := Local.ProductPoint].Continuous Local.localTopology Local.productTopology Local.forward :=
+  Product.Universal[X := Local.TotalPoint].pairContinuous Local.localTopology (BaseSubspace.topology bundle.baseSpace) (coordinateTopology dimension) Local.base vector baseContinuous vectorContinuous;
+\import Product.Maps[] \as Projections;
+\definition backward[p: Local.ProductPoint]: Family.Point := Local.backward p;
+\definition backwardBase[p: Local.ProductPoint]: X := Pair.first Local.BasePoint (Vector dimension) p;
+\definition backwardBaseContinuous: topology.Continuity[A := Local.ProductPoint, B := X].Continuous Local.productTopology bundle.baseSpace backwardBase :=
+  topology.Composition[A := Local.ProductPoint, B := Local.BasePoint, C := X].composeContinuous Local.productTopology (BaseSubspace.topology bundle.baseSpace) bundle.baseSpace
+    (Pair.first Local.BasePoint (Vector dimension)) (\fun (x: Local.BasePoint) => x) (Projections.firstContinuous (BaseSubspace.topology bundle.baseSpace) (coordinateTopology dimension))
+    (\fun (U: \Pow X)(open: _) => BaseSubspace.traceOpen bundle.baseSpace U open);
+\module Backward(s: TupleSection);
+\definition backwardContinuous: topology.Continuity[A := Local.ProductPoint, B := Family.Point].Continuous Local.productTopology topology backward :=
+  Evaluations.Universal[A := Local.ProductPoint].continuous Local.productTopology backward backwardBaseContinuous (\fun (s: TupleSection) => Backward[s := s].continuous);
+\import topology.Continuity[A := Local.ProductPoint, B := Family.Point].Corestriction[S := { p: Family.Point \where Base.Member c.domain p.base }] \as IntoLocal;
+\definition trivialization: Charts.Chart := \into[Charts.ChartData](chart, Charts.Chart) \by {
+  Local.Laws {
+    baseOpen := (\bysub(SourceCharts.ChartData, SourceCharts.Chart, c)).baseOpen,
+    totalOpen := projectionContinuous c.domain (\bysub(SourceCharts.ChartData, SourceCharts.Chart, c)).baseOpen,
+    forwardContinuous := forwardContinuous,
+    backwardContinuous := IntoLocal.corestrictContinuous Local.productTopology topology Local.backward backwardContinuous
+  }
+};

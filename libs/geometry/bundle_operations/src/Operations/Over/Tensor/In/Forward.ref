@@ -1,0 +1,47 @@
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := F, G := G, left := left, right := right].Parameter[n := r, m := s] \as SourceParameters;
+\definition Domain: \Pow SourceParameters.Point := { p: SourceParameters.Point \where Base.Member domain p.base };
+\definition Point: \Set := \Cast[SourceParameters.Point] Domain;
+\import topology.Topology[Carrier := SourceParameters.Point].Subspace[S := Domain] \as Subspace;
+\definition topology: topology.Topology[Carrier := Point].Topology := Subspace.topology SourceParameters.topology;
+\definition center[p: Point]: Local.BasePoint := \into[X](p.base, domain) \by { \bysub(SourceParameters.Point, Domain, p) };
+\module LeftSide;
+\module RightSide;
+\import hermitian_frames.Hermitian[].Over[K := K, field := field, scalar := conjugation, topological := scalar.topological].Functions[X := Point] \as Functions;
+\import Spaces.Sums[I := Fin.Fin r] \as Outer;
+\import Spaces.Sums[I := Fin.Fin s] \as Inner;
+\definition component[i: Fin.Fin dimension][p: Point]: K := Outer.sum (Fin.elements r) (\fun (a: Fin.Fin r) => Inner.sum (Fin.elements s) (\fun (b: Fin.Fin s) =>
+  field.mul (LeftSide[].entry (SourceParameters.entry a b) (Pair.first (Fin.Fin c.dimension) (Fin.Fin d.dimension) (Coefficients.enumerate i)) p)
+    (RightSide[].entry (SourceParameters.entry a b) (Pair.second (Fin.Fin c.dimension) (Fin.Fin d.dimension) (Coefficients.enumerate i)) p)));
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].ScalarFunctions[X := Point] \as Sums;
+\definition componentContinuous: \forall (i: Fin.Fin dimension) -> Functions.Continuous topology (component i) :=
+  \fun (i: Fin.Fin dimension) => Sums.Sums[I := Fin.Fin r].continuous (Fin.elements r) topology
+    (\fun (a: Fin.Fin r)(p: Point) => Inner.sum (Fin.elements s) (\fun (b: Fin.Fin s) =>
+      field.mul (LeftSide[].entry (SourceParameters.entry a b) (Pair.first (Fin.Fin c.dimension) (Fin.Fin d.dimension) (Coefficients.enumerate i)) p)
+        (RightSide[].entry (SourceParameters.entry a b) (Pair.second (Fin.Fin c.dimension) (Fin.Fin d.dimension) (Coefficients.enumerate i)) p)))
+    (\fun (a: Fin.Fin r) => Sums.Sums[I := Fin.Fin s].continuous (Fin.elements s) topology
+      (\fun (b: Fin.Fin s)(p: Point) => field.mul (LeftSide[].entry (SourceParameters.entry a b) (Pair.first (Fin.Fin c.dimension) (Fin.Fin d.dimension) (Coefficients.enumerate i)) p)
+        (RightSide[].entry (SourceParameters.entry a b) (Pair.second (Fin.Fin c.dimension) (Fin.Fin d.dimension) (Coefficients.enumerate i)) p))
+      (\fun (b: Fin.Fin s) => Functions.multiplication topology
+        (LeftSide[].entry (SourceParameters.entry a b) (Pair.first (Fin.Fin c.dimension) (Fin.Fin d.dimension) (Coefficients.enumerate i)))
+        (RightSide[].entry (SourceParameters.entry a b) (Pair.second (Fin.Fin c.dimension) (Fin.Fin d.dimension) (Coefficients.enumerate i)))
+        (LeftSide[].entryContinuous (SourceParameters.entry a b) (Pair.first (Fin.Fin c.dimension) (Fin.Fin d.dimension) (Coefficients.enumerate i)))
+        (RightSide[].entryContinuous (SourceParameters.entry a b) (Pair.second (Fin.Fin c.dimension) (Fin.Fin d.dimension) (Coefficients.enumerate i)))));
+\definition original[p: Point]: Local.TotalPoint := \into[Family.Point](SourceParameters.value p, { q: Family.Point \where Base.Member domain q.base }) \by { \bysub(SourceParameters.Point, Domain, p) };
+\definition vector[p: Point]: Vector dimension := Pair.second Local.BasePoint (Vector dimension) (Local.forward (original p));
+\definition formula: \forall (p: Point)(i: Fin.Fin dimension) -> vector p i = component i p :=
+  \fun (p: Point)(i: Fin.Fin dimension) => \parent.At[x := center p].Grid[r := r, s := s].formula
+    (\fun (a: Fin.Fin r)(b: Fin.Fin s) => p.left (SourceParameters.entry a b))
+    (\fun (a: Fin.Fin r)(b: Fin.Fin s) => p.right (SourceParameters.entry a b)) (Coefficients.enumerate i);
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin dimension] \as TargetCoordinates;
+\definition vectorContinuous: topology.Continuity[A := Point, B := Vector dimension].Continuous topology (coordinateTopology dimension) vector :=
+  TargetCoordinates.Universal[A := Point].continuous topology scalar.topological.space vector
+    (\fun (i: Fin.Fin dimension) => Functions.transport topology (component i) (\fun (p: Point) => vector p i) (\fun (p: Point) => sym!{K} _ _ (formula p i)) (componentContinuous i));
+\import topology.Continuity[A := SourceParameters.Point, B := X].Restriction[S := Domain] \as RestrictBase;
+\import topology.Continuity[A := Point, B := X].Corestriction[S := domain] \as IntoBase;
+\definition centerContinuous: topology.Continuity[A := Point, B := Local.BasePoint].Continuous topology (BaseSubspace.topology left.baseSpace) center :=
+  IntoBase.corestrictContinuous topology left.baseSpace center
+    (RestrictBase.restrictContinuous SourceParameters.topology left.baseSpace (\fun (p: SourceParameters.Point) => p.base) (SourceParameters.Projection[].baseContinuous));
+\definition model[p: Point]: Local.ProductPoint := Local.forward (original p);
+\import topological_constructions.Product[A := Local.BasePoint, B := Vector dimension] \as Product;
+\definition regular: topology.Continuity[A := Point, B := Local.ProductPoint].Continuous topology Local.productTopology model :=
+  Product.Universal[X := Point].pairContinuous topology (BaseSubspace.topology left.baseSpace) (coordinateTopology dimension) center vector centerContinuous vectorContinuous;

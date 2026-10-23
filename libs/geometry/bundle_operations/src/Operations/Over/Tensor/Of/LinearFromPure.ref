@@ -1,0 +1,23 @@
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := F, G := G, left := left, right := right].Of[same := same].Universal[Y := Y, H := H, target := target, f := f] \as Universal;
+\definition Operators: \Set := \forall (x: X) -> Spaces.Linear[V := Fiber x, W := H (f x), source := fiberSpace x, target := target.space (f x)].Map;
+\definition pureData[h: Operators]: Universal.Data := Universal.Data {
+  fiber := \fun (x: X)(v: F x)(w: G x) => (h x).apply (pure x v w),
+  bilinear := \fun (x: X) => \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].BilinearOfTensorMap[V := F x, W := G x, U := H (f x), left := left.space x, right := right.space x, target := target.space (f x)].laws (h x)
+};
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].DirectSum[X := X, F := F, G := G, left := left, right := right] \as Sum;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := Sum.Fiber] \as PairFamily;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := Y, F := H] \as Target;
+\definition PureContinuous[h: Operators]: \Prop := topology.Continuity[A := PairFamily.Point, B := Target.Point].Continuous Sum.topology target.totalSpace (Universal.total (pureData h));
+\definition bilinear[h: Operators][regular: PureContinuous h]: Universal.Bilinear := \into[Universal.Data](pureData h, Universal.Bilinear) \by { regular };
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := Y, F := Fiber, G := H, source := tensor, target := target, f := f] \as Maps;
+\definition data[h: Operators]: Maps.Data := Maps.Data { fiber := h };
+\definition equality: \forall (h: Operators)(regular: PureContinuous h)(x: X)(t: Fiber x) -> ((Universal.map (bilinear h regular)).fiber x).apply t = (h x).apply t :=
+  \fun (h: Operators)(regular: PureContinuous h)(x: X) => \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TensorEquality[V := F x, W := G x, U := H (f x), left := left.space x, right := right.space x, target := target.space (f x)].pointwise
+    ((Universal.map (bilinear h regular)).fiber x) (h x) (Universal.onPure (bilinear h regular) x);
+\definition continuous: \forall (h: Operators) -> PureContinuous h -> topology.Continuity[A := Family.Point, B := Target.Point].Continuous topology target.totalSpace (Maps.total (data h)) :=
+  \fun (h: Operators)(regular: PureContinuous h) => \idelim Maps.total (Universal.map (bilinear h regular)) = Maps.total (data h)
+    \with g: (Family.Point -> Target.Point) => topology.Continuity[A := Family.Point, B := Target.Point].Continuous topology target.totalSpace g \by {
+      base: Maps.continuous (Universal.map (bilinear h regular)),
+      equality: \axiom:funext(Maps.total (Universal.map (bilinear h regular)), Maps.total (data h), \fun (p: Family.Point) => congr!{{H (f p.base)} Target.Point} (Target.include (f p.base)) _ _ (equality h regular p.base p.vector))
+    };
+\definition map[h: Operators][regular: PureContinuous h]: Maps.Map := \into[Maps.Data](data h, Maps.Map) \by { continuous h regular };

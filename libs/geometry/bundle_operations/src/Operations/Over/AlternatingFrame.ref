@@ -1,0 +1,43 @@
+\import Spaces.Multilinear[V := V, space := space].Alternating[] \as Alternating;
+\import Alternating.At[k := k] \as Forms;
+\import Spaces.Finite[V := V, I := Fin.Fin n, space := space] \as Basis;
+\definition basis: Basis.Basis := vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Dimension[V := V, space := space].At[n := n].basis frame;
+\import Spaces.FiniteExterior[V := V, space := space, n := n, b := basis].At[k := k] \as Exterior;
+\import Alternating.Dimension[n := n, b := basis].Increasing[k := k] \as Increasing;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].ExteriorIndices[n := n, k := k] \as Indices;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].FiniteIndex[A := Indices.Tuple, S := Indices.set, enumeration := enumeration] \as Coordinates;
+\definition Form: \Set := Alternating.Form k;
+\definition formSpace: Spaces.VectorSpace Form := Forms.vectorSpace;
+\definition dimension: N.Nat^ := Coordinates.rank;
+\definition indexIncreasing: \forall (i: Fin.Fin dimension) -> Fin.Ordering[].Increasing k n (Coordinates.enumerate i) :=
+  \fun (i: Fin.Fin dimension) => (\bysub(Indices.Tuple, Indices.set, Coordinates.enumerate i)).right;
+\definition point[q: Indices.Tuple][increasing: Fin.Ordering[].Increasing k n q]: Coordinates.Index := \into[Indices.Tuple](q, Indices.set) \by { Logic.And[_, _]::# (\refl(q)) increasing };
+\definition word[i: Fin.Fin dimension]: Form := Exterior.word (Coordinates.enumerate i);
+\definition encode[omega: Form]: Vector dimension := \fun (i: Fin.Fin dimension) => Exterior.coefficient omega (Coordinates.enumerate i);
+\import Spaces.Sums[I := Fin.Fin dimension].Vector[V := Form, space := formSpace] \as Sums;
+\definition decode[v: Vector dimension]: Form := Sums.sum (Fin.elements dimension) (\fun (i: Fin.Fin dimension) => formSpace.smul (v i) (word i));
+\import Spaces.Linear[V := Form, W := Vector dimension, source := formSpace, target := coordinates dimension] \as Forward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := encode, preservesAdd := \fun (omega, eta: Form) => \refl((coordinates dimension).add (encode omega) (encode eta)),
+  preservesScale := \fun (a: K)(omega: Form) => \refl((coordinates dimension).smul a (encode omega))
+};
+\import Spaces.Linear[V := Vector dimension, W := Form, source := coordinates dimension, target := formSpace] \as Backward;
+\definition backward: Backward.Map := Backward.Map {
+  apply := decode,
+  preservesAdd := \fun (v, w: Vector dimension) => trans!{Form} _ _ _
+    (Sums.congruent (Fin.elements dimension) _ _ (\fun (i: Fin.Fin dimension) => formSpace.scalarAdd (v i) (w i) (word i))) (Sums.addition (Fin.elements dimension) _ _),
+  preservesScale := \fun (a: K)(v: Vector dimension) => trans!{Form} _ _ _
+    (Sums.congruent (Fin.elements dimension) _ _ (\fun (i: Fin.Fin dimension) => formSpace.scalarAssoc a (v i) (word i))) (Sums.scalar (Fin.elements dimension) a _)
+};
+\module Reconstruction;
+\import Spaces.Isomorphism[V := Form, W := Vector dimension, source := formSpace, target := coordinates dimension] \as Isomorphisms;
+\definition isomorphism: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism { forward := forward, backward := backward, leftInverse := Reconstruction[].leftInverse, rightInverse := Reconstruction[].rightInverse };
+\import Spaces.Linear[V := Form, W := K, source := formSpace, target := Spaces.scalarSpace] \as Evaluation;
+\definition evaluationMap[arguments: Fin.Fin k -> V]: Evaluation.Map := Evaluation.Map {
+  apply := \fun (omega: Form) => omega arguments, preservesAdd := \fun (omega, eta: Form) => \refl(field.add (omega arguments) (eta arguments)),
+  preservesScale := \fun (a: K)(omega: Form) => \refl(field.mul a (omega arguments))
+};
+\definition evaluation: \forall (v: Vector dimension)(arguments: Fin.Fin k -> V) -> decode v arguments = Spaces.Sums[I := Fin.Fin dimension].sum (Fin.elements dimension) (\fun (i: Fin.Fin dimension) => field.mul (v i) (word i arguments)) :=
+  \fun (v: Vector dimension)(arguments: Fin.Fin k -> V) => Spaces.Sums[I := Fin.Fin dimension].Vector[V := Form, space := formSpace].Mapping[W := K, target := Spaces.scalarSpace].law (evaluationMap arguments) (Fin.elements dimension) (\fun (i: Fin.Fin dimension) => formSpace.smul (v i) (word i));
+\definition wordFormula: \forall (i: Fin.Fin dimension)(arguments: Fin.Fin k -> V) -> word i arguments = Spaces.FiniteCoordinates[n := n].Exterior[].word k (Coordinates.enumerate i) (\fun (j: Fin.Fin k) => frame.forward.apply (arguments j)) :=
+  \fun (i: Fin.Fin dimension)(arguments: Fin.Fin k -> V) => \refl(word i arguments);

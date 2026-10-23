@@ -1,0 +1,20 @@
+\import Spaces.Linear[V := Coefficients.Vector, W := Tensor.Carrier, source := Coefficients.space, target := Tensor.space] \as Maps;
+\definition addition: \forall (f, g: Coefficients.Vector) -> synthesis (Coefficients.plus f g) = Tensor.space.add (synthesis f) (synthesis g) :=
+  \fun (f, g: Coefficients.Vector) => trans!{Tensor.Carrier} _ _ _
+    (LeftSums.congruent (Fin.elements n) _ _ (\fun (a: Fin.Fin n) => trans!{Tensor.Carrier} _ _ _
+      (RightSums.congruent (Fin.elements m) _ _ (\fun (b: Fin.Fin m) => Tensor.space.scalarAdd (f (entry a b)) (g (entry a b)) (Tensor.tensor (firstBasis.vectors a) (secondBasis.vectors b))))
+      (RightSums.addition (Fin.elements m) _ _)))
+    (LeftSums.addition (Fin.elements n) _ _);
+\definition row[f: Coefficients.Vector][b: Fin.Fin n]: Tensor.Carrier := RightSums.sum (Fin.elements m) (\fun (c: Fin.Fin m) => Tensor.space.smul (f (entry b c)) (Tensor.tensor (firstBasis.vectors b) (secondBasis.vectors c)));
+\definition rowScale: \forall (a: K)(f: Coefficients.Vector)(b: Fin.Fin n) -> row (Coefficients.scale a f) b = Tensor.space.smul a (row f b) :=
+  \fun (a: K)(f: Coefficients.Vector)(b: Fin.Fin n) => trans!{Tensor.Carrier} _ _ _
+    (RightSums.congruent (Fin.elements m)
+      (\fun (c: Fin.Fin m) => Tensor.space.smul (field.mul a (f (entry b c))) (Tensor.tensor (firstBasis.vectors b) (secondBasis.vectors c)))
+      (\fun (c: Fin.Fin m) => Tensor.space.smul a (Tensor.space.smul (f (entry b c)) (Tensor.tensor (firstBasis.vectors b) (secondBasis.vectors c))))
+      (\fun (c: Fin.Fin m) => Tensor.space.scalarAssoc a (f (entry b c)) (Tensor.tensor (firstBasis.vectors b) (secondBasis.vectors c))))
+    (RightSums.scalar (Fin.elements m) a (\fun (c: Fin.Fin m) => Tensor.space.smul (f (entry b c)) (Tensor.tensor (firstBasis.vectors b) (secondBasis.vectors c))));
+\definition scaling: \forall (a: K)(f: Coefficients.Vector) -> synthesis (Coefficients.scale a f) = Tensor.space.smul a (synthesis f) :=
+  \fun (a: K)(f: Coefficients.Vector) => trans!{Tensor.Carrier} _ _ _
+    (LeftSums.congruent (Fin.elements n) (\fun (b: Fin.Fin n) => row (Coefficients.scale a f) b) (\fun (b: Fin.Fin n) => Tensor.space.smul a (row f b)) (rowScale a f))
+    (LeftSums.scalar (Fin.elements n) a (row f));
+\definition backward: Maps.Map := Maps.Map { apply := synthesis, preservesAdd := addition, preservesScale := scaling };

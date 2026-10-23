@@ -1,0 +1,27 @@
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := AB.Fiber, G := C, left := AB.bundle sameSecond, right := third] \as AB_C;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := BA.Fiber, G := C, left := BA.bundle baBase, right := third] \as BA_C;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := B, G := AC.Fiber, left := second, right := AC.bundle sameThird] \as B_AC;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := B, G := CA.Fiber, left := second, right := CA.bundle caBase] \as B_CA;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := BC.Fiber, G := A, left := BC.bundle bcBase, right := first] \as Target;
+\definition input[v: A x][w: B x][u: C x]: ABC.TargetFiber x := Source.pure x v (BC.pure x w u);
+\definition normal[v: A x][w: B x][u: C x]: BCA.SourceFiber x := Target.pure x (BC.pure x w u) v;
+\definition firstNormal: \forall (v: A x)(w: B x)(u: C x) -> (firstStep.forward.fiber x).apply (input v w u) = AB_C.pure x (AB.pure x v w) u := ABC.onReversePure x;
+\definition secondNormal: \forall (v: A x)(w: B x)(u: C x) -> (path1.forward.fiber x).apply (input v w u) = BA_C.pure x (BA.pure x w v) u :=
+  \fun (v: A x)(w: B x)(u: C x) => trans!{{BAC.SourceFiber x}} _ _ _
+    (congr!{{ABC.SourceFiber x} {BAC.SourceFiber x}} (secondStep.forward.fiber x).apply _ _ (firstNormal v w u))
+    (trans!{{BAC.SourceFiber x}} _ _ _ (Second.onPure SwapAB.isomorphism ThirdIdentity.isomorphism x (AB.pure x v w) u)
+      (congr!{{BA.Fiber x} {BAC.SourceFiber x}} (\fun (t: BA.Fiber x) => BA_C.pure x t u) _ _ (FlipAB.onPure x v w)));
+\definition thirdNormal: \forall (v: A x)(w: B x)(u: C x) -> (path2.forward.fiber x).apply (input v w u) = B_AC.pure x w (AC.pure x v u) :=
+  \fun (v: A x)(w: B x)(u: C x) => trans!{{BAC.TargetFiber x}} _ _ _
+    (congr!{{BAC.SourceFiber x} {BAC.TargetFiber x}} (BAC.isomorphism.forward.fiber x).apply _ _ (secondNormal v w u)) (BAC.onPure x w v u);
+\definition fourthNormal: \forall (v: A x)(w: B x)(u: C x) -> (path3.forward.fiber x).apply (input v w u) = B_CA.pure x w (CA.pure x u v) :=
+  \fun (v: A x)(w: B x)(u: C x) => trans!{{BCA.TargetFiber x}} _ _ _
+    (congr!{{BAC.TargetFiber x} {BCA.TargetFiber x}} (fourthStep.forward.fiber x).apply _ _ (thirdNormal v w u))
+    (trans!{{BCA.TargetFiber x}} _ _ _ (Fourth.onPure SecondIdentity.isomorphism SwapAC.isomorphism x w (AC.pure x v u))
+      (congr!{{CA.Fiber x} {BCA.TargetFiber x}} (B_CA.pure x w) _ _ (FlipAC.onPure x v u)));
+\definition pathNormal: \forall (v: A x)(w: B x)(u: C x) -> (path4.forward.fiber x).apply (input v w u) = normal v w u :=
+  \fun (v: A x)(w: B x)(u: C x) => trans!{{BCA.SourceFiber x}} _ _ _
+    (congr!{{BCA.TargetFiber x} {BCA.SourceFiber x}} (lastStep.forward.fiber x).apply _ _ (fourthNormal v w u)) (BCA.onReversePure x w u v);
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TensorTripleEquality[V := A x, W := B x, U := C x, T := BCA.SourceFiber x, left := first.space x, middle := second.space x, right := third.space x, target := BCA.sourceBundle.space x].Right[] \as Triple;
+\definition equality: \forall (t: ABC.TargetFiber x) -> (direct.forward.fiber x).apply t = (path4.forward.fiber x).apply t := Triple.pointwise (direct.forward.fiber x) (path4.forward.fiber x)
+  (\fun (v: A x)(w: B x)(u: C x) => trans!{{BCA.SourceFiber x}} _ _ _ (Flip.onPure x v (BC.pure x w u)) (sym!{{BCA.SourceFiber x}} _ _ (pathNormal v w u)));

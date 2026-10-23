@@ -1,0 +1,29 @@
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := F] \as Source;
+\import Source.With[data := bundle] \as SourceCharts;
+\import topology.Topology[Carrier := X] \as Base;
+\definition chartEta: \forall (c: SourceCharts.ChartData) -> SourceCharts.ChartData { domain := c.domain, dimension := c.dimension, frame := c.frame } = c :=
+  \induction (c: SourceCharts.ChartData) \return SourceCharts.ChartData { domain := c.domain, dimension := c.dimension, frame := c.frame } = c \with {
+    | # : \fun (domain: \Pow X)(dimension: N.Nat^)(frame: \forall (x: \Cast[X] domain) -> SourceCharts.Frame dimension x) => \refl(SourceCharts.ChartData { domain := domain, dimension := dimension, frame := frame })
+  };
+\definition domain[i: I]: \Pow X := (charts i).domain;
+\definition dimension[i: I]: N.Nat^ := (charts i).dimension;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Cocycle[X := X, I := I, baseSpace := bundle.baseSpace, domain := domain, dimension := dimension] \as Glue;
+\definition center[x: X][i: Glue.Index x]: \Cast[X] (charts i).domain := \into[X](x, (charts i).domain) \by { \bysub(I, { i: I \where Base.Member (domain i) x }, i) };
+\definition frame[x: X][i: Glue.Index x]: Spaces.Isomorphism[V := F x, W := Vector (dimension i), source := bundle.space x, target := coordinates (dimension i)].Isomorphism := (charts i).frame (center x i);
+\module Transitions(x: X);
+\definition data: Glue.Data := Glue.Data { transition := \fun (x: X) => Transitions[x := x].transition };
+\definition cocycle: Glue.Cocycle := \into[Glue.Data](data, Glue.Cocycle) \by {
+  Glue.Laws[data] { identity := \fun (x: X) => Transitions[x := x].identity, composition := \fun (x: X) => Transitions[x := x].composition }
+};
+\import Glue.With[cocycle := cocycle] \as Constructed;
+\definition Covers: \Prop := \forall (x: X) -> \exists Glue.Index x;
+\module Overlap(i, j: I);
+\definition continuous: \forall (covers: Covers) -> Constructed.Continuous := \fun (covers: Covers) => Constructed.Continuous {
+  openDomains := \fun (i: I) => (\bysub(SourceCharts.ChartData, SourceCharts.Chart, charts i)).baseOpen,
+  covers := covers, transitions := \fun (i, j: I) => Overlap[i := i, j := j].regular
+};
+\module At(x: X);
+\definition embedding[x: X]: Spaces.Linear[V := F x, W := Constructed.Fiber x, source := bundle.space x, target := Constructed.fiberSpace x].Map := At[x := x].forward;
+\definition frameAlignment: \forall (x: X)(i: Glue.Index x)(v: F x) -> Constructed.At[x := x].Frame[i := i].forward.apply ((embedding x).apply v) = (frame x i).forward.apply v := \fun (x: X) => At[x := x].alignment;
+\definition fiberIsomorphism[x: X][covered: \exists Glue.Index x]: Spaces.Isomorphism[V := F x, W := Constructed.Fiber x, source := bundle.space x, target := Constructed.fiberSpace x].Isomorphism := At[x := x].Of[covered := covered].isomorphism;
+\module WithCover(covers: Covers);

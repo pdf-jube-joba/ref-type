@@ -1,0 +1,19 @@
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].DirectSum[X := Y, F := A, G := B, left := leftTarget, right := rightTarget] \as TargetSum;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := Y, F := TargetSum.Fiber] \as TargetFamily;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := Y, F := F, G := A, source := left, target := leftTarget, f := f] \as LeftMaps;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := Y, F := G, G := B, source := right, target := rightTarget, f := f] \as RightMaps;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := Y, F := Fiber, G := TargetSum.Fiber, source := sum, target := TargetSum.bundle targetSame, f := f] \as Maps;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := Y, F := A] \as TargetLeft;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := Y, F := B] \as TargetRight;
+\definition data[a: LeftMaps.Map][b: RightMaps.Map]: Maps.Data := Maps.Data { fiber := \fun (x: X) => Spaces.Linear[V := Fiber x, W := TargetSum.Fiber (f x), source := fiberSpace x, target := TargetSum.fiberSpace (f x)].Map {
+  apply := \fun (v: Fiber x) => Pair.pair (A (f x)) (B (f x)) ((a.fiber x).apply (Pair.first (F x) (G x) v)) ((b.fiber x).apply (Pair.second (F x) (G x) v)),
+  preservesAdd := \fun (v, w: Fiber x) => Pair.Prop[A := A (f x), B := B (f x)].pairCong _ _ _ _
+    ((a.fiber x).preservesAdd (Pair.first (F x) (G x) v) (Pair.first (F x) (G x) w)) ((b.fiber x).preservesAdd (Pair.second (F x) (G x) v) (Pair.second (F x) (G x) w)),
+  preservesScale := \fun (s: K)(v: Fiber x) => Pair.Prop[A := A (f x), B := B (f x)].pairCong _ _ _ _
+    ((a.fiber x).preservesScale s (Pair.first (F x) (G x) v)) ((b.fiber x).preservesScale s (Pair.second (F x) (G x) v))
+} };
+\definition map[a: LeftMaps.Map][b: RightMaps.Map]: Maps.Map := \into[Maps.Data](data a b, Maps.Map) \by {
+  TargetSum.Universal[Y := Family.Point].continuous topology (Maps.total (data a b))
+    (topology.Composition[A := Family.Point, B := Left.Point, C := TargetLeft.Point].composeContinuous topology left.totalSpace leftTarget.totalSpace first (LeftMaps.total a) firstContinuous (LeftMaps.continuous a))
+    (topology.Composition[A := Family.Point, B := Right.Point, C := TargetRight.Point].composeContinuous topology right.totalSpace rightTarget.totalSpace second (RightMaps.total b) secondContinuous (RightMaps.continuous b))
+};

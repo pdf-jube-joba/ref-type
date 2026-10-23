@@ -1,0 +1,36 @@
+\import Spaces.Tensor[V := F x, W := Sum.Fiber x, left := left.space x, right := Sum.fiberSpace x] \as Native;
+\import Spaces.Linear[V := Target.Fiber x, W := Source.Fiber x, source := Target.fiberSpace x, target := Source.fiberSpace x].Composition[U := Source.Fiber x, domain := Source.fiberSpace x] \as LeftComposition;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Identity[X := X, F := Source.Fiber, bundle := sourceBundle] \as SourceIdentity;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TensorEquality[V := F x, W := Sum.Fiber x, U := Source.Fiber x, left := left.space x, right := Sum.fiberSpace x, target := Source.fiberSpace x] \as SourceEquality;
+\definition onPure: \forall (v: F x)(p: Sum.Fiber x) -> (backward.fiber x).apply ((forward.fiber x).apply (Source.pure x v p)) = Source.pure x v p :=
+  \fun (v: F x)(p: Sum.Fiber x) => trans!{{Source.Fiber x}} _ _ _
+    (congr!{{Target.Fiber x} {Source.Fiber x}} (backward.fiber x).apply _ _ (forwardOnPure x v p))
+    (trans!{{Source.Fiber x}} _ _ _
+      (congr!{{Source.Fiber x} {Source.Fiber x} {Source.Fiber x}} (Source.fiberSpace x).add _ _ _ _ (firstOnPure x v (Pair.first (G x) (H x) p)) (secondOnPure x v (Pair.second (G x) (H x) p)))
+      (trans!{{Source.Fiber x}} _ _ _
+        (sym!{{Source.Fiber x}} _ _ (Native.bilinear.addRight v ((SumInclusions.first.fiber x).apply (Pair.first (G x) (H x) p)) ((SumInclusions.second.fiber x).apply (Pair.second (G x) (H x) p))))
+        (congr!{{Sum.Fiber x} {Source.Fiber x}} (Source.pure x v) _ _ (SumInclusions.decomposition x p))));
+\definition leftInverse: \forall (t: Source.Fiber x) -> (backward.fiber x).apply ((forward.fiber x).apply t) = t :=
+  SourceEquality.pointwise (LeftComposition.compose (backward.fiber x) (forward.fiber x)) (SourceIdentity.map.fiber x) onPure;
+\import Spaces.Linear[V := Source.Fiber x, W := Target.Fiber x, source := Source.fiberSpace x, target := Target.fiberSpace x].Composition[U := First.Fiber x, domain := First.fiberSpace x] \as FirstComposition;
+\import Spaces.Linear[V := Source.Fiber x, W := Target.Fiber x, source := Source.fiberSpace x, target := Target.fiberSpace x].Composition[U := Second.Fiber x, domain := Second.fiberSpace x] \as SecondComposition;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TensorEquality[V := F x, W := G x, U := Target.Fiber x, left := left.space x, right := middle.space x, target := Target.fiberSpace x] \as FirstEquality;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TensorEquality[V := F x, W := H x, U := Target.Fiber x, left := left.space x, right := right.space x, target := Target.fiberSpace x] \as SecondEquality;
+\definition firstRoundTrip: \forall (t: First.Fiber x) -> (forward.fiber x).apply ((firstInclusion.fiber x).apply t) = (TargetInclusions.first.fiber x).apply t :=
+  FirstEquality.pointwise (FirstComposition.compose (forward.fiber x) (firstInclusion.fiber x)) (TargetInclusions.first.fiber x)
+    (\fun (v: F x)(w: G x) => trans!{{Target.Fiber x}} _ _ _ (congr!{{Source.Fiber x} {Target.Fiber x}} (forward.fiber x).apply _ _ (firstOnPure x v w))
+      (trans!{{Target.Fiber x}} _ _ _ (forwardOnPure x v ((SumInclusions.first.fiber x).apply w))
+        (congr!{{Second.Fiber x} {Target.Fiber x}} (\fun (t: Second.Fiber x) => Pair.pair (First.Fiber x) (Second.Fiber x) (First.pure x v w) t) _ _
+          (\root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TensorFactors[V := F x, W := H x, left := left.space x, right := right.space x].zeroRight v))));
+\definition secondRoundTrip: \forall (t: Second.Fiber x) -> (forward.fiber x).apply ((secondInclusion.fiber x).apply t) = (TargetInclusions.second.fiber x).apply t :=
+  SecondEquality.pointwise (SecondComposition.compose (forward.fiber x) (secondInclusion.fiber x)) (TargetInclusions.second.fiber x)
+    (\fun (v: F x)(w: H x) => trans!{{Target.Fiber x}} _ _ _ (congr!{{Source.Fiber x} {Target.Fiber x}} (forward.fiber x).apply _ _ (secondOnPure x v w))
+      (trans!{{Target.Fiber x}} _ _ _ (forwardOnPure x v ((SumInclusions.second.fiber x).apply w))
+        (congr!{{First.Fiber x} {Target.Fiber x}} (\fun (t: First.Fiber x) => Pair.pair (First.Fiber x) (Second.Fiber x) t (Second.pure x v w)) _ _
+          (\root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TensorFactors[V := F x, W := G x, left := left.space x, right := middle.space x].zeroRight v))));
+\definition rightInverse: \forall (p: Target.Fiber x) -> (forward.fiber x).apply ((backward.fiber x).apply p) = p :=
+  \fun (p: Target.Fiber x) => trans!{{Target.Fiber x}} _ _ _
+    ((forward.fiber x).preservesAdd ((firstInclusion.fiber x).apply (Pair.first (First.Fiber x) (Second.Fiber x) p)) ((secondInclusion.fiber x).apply (Pair.second (First.Fiber x) (Second.Fiber x) p)))
+    (trans!{{Target.Fiber x}} _ _ _
+      (congr!{{Target.Fiber x} {Target.Fiber x} {Target.Fiber x}} (Target.fiberSpace x).add _ _ _ _ (firstRoundTrip (Pair.first (First.Fiber x) (Second.Fiber x) p)) (secondRoundTrip (Pair.second (First.Fiber x) (Second.Fiber x) p)))
+      (TargetInclusions.decomposition x p));

@@ -1,0 +1,19 @@
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := Y, F := H] \as Source;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := Y, Y := X, F := H, G := F, source := source, target := left, f := f] \as LeftMaps;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := Y, Y := X, F := H, G := G, source := source, target := right, f := f] \as RightMaps;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := Y, Y := X, F := H, G := Fiber, source := source, target := sum, f := f] \as Maps;
+\definition data[a: LeftMaps.Map][b: RightMaps.Map]: Maps.Data := Maps.Data { fiber := \fun (y: Y) =>
+  Spaces.DirectSum[V := F (f y), W := G (f y), left := left.space (f y), right := right.space (f y)].Universal[U := H y, domain := source.space y].pair (a.fiber y) (b.fiber y)
+};
+\definition continuous: \forall (a: LeftMaps.Map)(b: RightMaps.Map) -> topology.Continuity[A := Source.Point, B := Family.Point].Continuous source.totalSpace topology (Maps.total (data a b)) :=
+  \fun (a: LeftMaps.Map)(b: RightMaps.Map) => \parent.\parent.Universal[Y := Source.Point].continuous source.totalSpace (Maps.total (data a b)) (LeftMaps.continuous a) (RightMaps.continuous b);
+\definition pair[a: LeftMaps.Map][b: RightMaps.Map]: Maps.Map := \into[Maps.Data](data a b, Maps.Map) \by { continuous a b };
+\definition firstFormula: \forall (a: LeftMaps.Map)(b: RightMaps.Map)(y: Y)(v: H y) -> Pair.first (F (f y)) (G (f y)) (((pair a b).fiber y).apply v) = (a.fiber y).apply v :=
+  \fun (a: LeftMaps.Map)(b: RightMaps.Map)(y: Y)(v: H y) => \refl((a.fiber y).apply v);
+\definition secondFormula: \forall (a: LeftMaps.Map)(b: RightMaps.Map)(y: Y)(v: H y) -> Pair.second (F (f y)) (G (f y)) (((pair a b).fiber y).apply v) = (b.fiber y).apply v :=
+  \fun (a: LeftMaps.Map)(b: RightMaps.Map)(y: Y)(v: H y) => \refl((b.fiber y).apply v);
+\definition unique: \forall (a: LeftMaps.Map)(b: RightMaps.Map)(h: Maps.Map) ->
+  (\forall (y: Y)(v: H y) -> Pair.first (F (f y)) (G (f y)) ((h.fiber y).apply v) = (a.fiber y).apply v) ->
+  (\forall (y: Y)(v: H y) -> Pair.second (F (f y)) (G (f y)) ((h.fiber y).apply v) = (b.fiber y).apply v) -> h = pair a b :=
+  \fun (a: LeftMaps.Map)(b: RightMaps.Map)(h: Maps.Map)(first: _)(second: _) => Maps.ext h (pair a b)
+    (\fun (y: Y)(v: H y) => Pair.Prop[A := F (f y), B := G (f y)].ext _ _ (first y v) (second y v));

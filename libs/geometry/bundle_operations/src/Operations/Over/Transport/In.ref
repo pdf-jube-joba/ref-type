@@ -1,0 +1,28 @@
+\import SourceCharts.In[c := c] \as Original;
+\module At(x: \Cast[X] c.domain);
+\definition chart: Charts.ChartData := Charts.ChartData { domain := c.domain, dimension := c.dimension, frame := \fun (x: \Cast[X] c.domain) => At[x := x].frame };
+\import Charts.In[c := chart] \as Local;
+\definition original[p: Local.TotalPoint]: Original.TotalPoint := \into[Source.Point](backward p, { p: Source.Point \where Base.Member c.domain p.base }) \by { \bysub(Family.Point, { p: Family.Point \where Base.Member c.domain p.base }, p) };
+\import topology.Continuity[A := Family.Point, B := Source.Point].Restriction[S := { p: Family.Point \where Base.Member c.domain p.base }] \as RestrictBackward;
+\import topology.Continuity[A := Local.TotalPoint, B := Source.Point].Corestriction[S := { p: Source.Point \where Base.Member c.domain p.base }] \as IntoSource;
+\definition originalContinuous: topology.Continuity[A := Local.TotalPoint, B := Original.TotalPoint].Continuous Local.localTopology Original.localTopology original :=
+  IntoSource.corestrictContinuous Local.localTopology source.totalSpace original (RestrictBackward.restrictContinuous topology source.totalSpace backward backwardContinuous);
+\definition localForward[p: Local.TotalPoint]: Original.ProductPoint := Original.forward (original p);
+\definition localForwardContinuous: topology.Continuity[A := Local.TotalPoint, B := Local.ProductPoint].Continuous Local.localTopology Local.productTopology Local.forward :=
+  topology.Composition[A := Local.TotalPoint, B := Original.TotalPoint, C := Original.ProductPoint].composeContinuous Local.localTopology Original.localTopology Original.productTopology original Original.forward originalContinuous (\bysub(SourceCharts.ChartData, SourceCharts.Chart, c)).forwardContinuous;
+\import topology.Topology[Carrier := Source.Point].Subspace[S := { p: Source.Point \where Base.Member c.domain p.base }] \as SourceSubspace;
+\definition originalBackward[p: Local.ProductPoint]: Source.Point := Original.backward p;
+\definition originalBackwardContinuous: topology.Continuity[A := Local.ProductPoint, B := Source.Point].Continuous Local.productTopology source.totalSpace originalBackward :=
+  topology.Composition[A := Local.ProductPoint, B := Original.TotalPoint, C := Source.Point].composeContinuous Local.productTopology Original.localTopology source.totalSpace Original.backward (\fun (p: Original.TotalPoint) => p)
+    (\bysub(SourceCharts.ChartData, SourceCharts.Chart, c)).backwardContinuous (\fun (U: \Pow Source.Point)(open: _) => SourceSubspace.traceOpen source.totalSpace U open);
+\import topology.Continuity[A := Local.ProductPoint, B := Family.Point].Corestriction[S := { p: Family.Point \where Base.Member c.domain p.base }] \as IntoLocal;
+\definition localBackwardContinuous: topology.Continuity[A := Local.ProductPoint, B := Local.TotalPoint].Continuous Local.productTopology Local.localTopology Local.backward :=
+  IntoLocal.corestrictContinuous Local.productTopology topology Local.backward
+    (topology.Composition[A := Local.ProductPoint, B := Source.Point, C := Family.Point].composeContinuous Local.productTopology source.totalSpace topology originalBackward forward originalBackwardContinuous forwardContinuous);
+\definition trivialization: Charts.Chart := \into[Charts.ChartData](chart, Charts.Chart) \by {
+  Local.Laws {
+    baseOpen := (\bysub(SourceCharts.ChartData, SourceCharts.Chart, c)).baseOpen,
+    totalOpen := backwardContinuous ({ p: Source.Point \where Base.Member c.domain p.base }) (\bysub(SourceCharts.ChartData, SourceCharts.Chart, c)).totalOpen,
+    forwardContinuous := localForwardContinuous, backwardContinuous := localBackwardContinuous
+  }
+};

@@ -1,0 +1,27 @@
+\definition point[base: Y -> Coordinates.BasePoint][vector: Y -> Vector chart.dimension][y: Y]: Family.Point :=
+  Family.include (base y) ((chart.frame (base y)).backward.apply (vector y));
+\definition pair[base: Y -> Coordinates.BasePoint][vector: Y -> Vector chart.dimension][y: Y]: Coordinates.ProductPoint :=
+  Pair.pair Coordinates.BasePoint (Vector chart.dimension) (base y) (vector y);
+\definition parameter[p: Coordinates.ProductPoint]: Family.Point := Coordinates.backward p;
+\import topology.Composition[A := Coordinates.ProductPoint, B := Coordinates.TotalPoint, C := Family.Point] \as Include;
+\definition parameterContinuous: topology.Continuity[A := Coordinates.ProductPoint, B := Family.Point].Continuous Coordinates.productTopology bundle.totalSpace parameter :=
+  Include.composeContinuous Coordinates.productTopology Coordinates.localTopology bundle.totalSpace Coordinates.backward (\fun (p: Coordinates.TotalPoint) => p)
+    laws.backwardContinuous (\fun (U: \Pow Family.Point)(open: _) => TotalSubspace.traceOpen bundle.totalSpace U open);
+\import topology.Composition[A := Y, B := Coordinates.ProductPoint, C := Family.Point] \as Compose;
+\definition pointContinuous: \forall (base: Y -> Coordinates.BasePoint)(vector: Y -> Vector chart.dimension) ->
+  topology.Continuity[A := Y, B := Coordinates.BasePoint].Continuous source (BaseSubspace.topology bundle.baseSpace) base ->
+  topology.Continuity[A := Y, B := Vector chart.dimension].Continuous source (coordinateTopology chart.dimension) vector ->
+  topology.Continuity[A := Y, B := Family.Point].Continuous source bundle.totalSpace (point base vector) :=
+  \fun (base: _)(vector: _)(baseRegular: _)(vectorRegular: _) => Compose.composeContinuous source Coordinates.productTopology bundle.totalSpace
+    (pair base vector) parameter (Product.Universal[X := Y].pairContinuous source (BaseSubspace.topology bundle.baseSpace) (coordinateTopology chart.dimension) base vector baseRegular vectorRegular) parameterContinuous;
+\definition vector[f: Y -> Coordinates.TotalPoint][y: Y]: Vector chart.dimension := (chart.frame (Coordinates.base (f y))).forward.apply (f y).vector;
+\import topology.Continuity[A := Y, B := Family.Point].Corestriction[S := { p: Family.Point \where Base.Member chart.domain p.base }] \as Into;
+\import topology.Composition[A := Y, B := Coordinates.TotalPoint, C := Coordinates.ProductPoint] \as Read;
+\import topology.Composition[A := Y, B := Coordinates.ProductPoint, C := Vector chart.dimension] \as Evaluate;
+\definition vectorContinuous: \forall (f: Y -> Coordinates.TotalPoint) -> topology.Continuity[A := Y, B := Family.Point].Continuous source bundle.totalSpace (\fun (y: Y) => f y) ->
+  topology.Continuity[A := Y, B := Vector chart.dimension].Continuous source (coordinateTopology chart.dimension) (vector f) :=
+  \fun (f: _)(regular: _) => Evaluate.composeContinuous source Coordinates.productTopology (coordinateTopology chart.dimension)
+    (\fun (y: Y) => Coordinates.forward (f y)) (Pair.second Coordinates.BasePoint (Vector chart.dimension))
+    (Read.composeContinuous source Coordinates.localTopology Coordinates.productTopology f Coordinates.forward
+      (Into.corestrictContinuous source bundle.totalSpace f regular) laws.forwardContinuous)
+    (Product.Maps[].secondContinuous (BaseSubspace.topology bundle.baseSpace) (coordinateTopology chart.dimension));

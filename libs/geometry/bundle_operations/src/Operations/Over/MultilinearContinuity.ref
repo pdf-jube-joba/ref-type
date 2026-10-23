@@ -1,0 +1,18 @@
+\import Spaces.Multilinear[V := Vector n, space := coordinates n] \as Forms;
+\import Spaces.FiniteCoordinates[n := n] \as Standard;
+\import hermitian_frames.Hermitian[].Over[K := K, field := field, scalar := conjugation, topological := scalar.topological].Functions[X := X] \as Functions;
+\import topology.Topology[Carrier := X] \as Source;
+\definition Regular[k: N.Nat^][source: Source.Topology][arguments: Fin.Fin k -> X -> Vector n]: \Prop := \forall (i: Fin.Fin k) ->
+  topology.Continuity[A := X, B := Vector n].Continuous source (coordinateTopology n) (arguments i);
+\definition Result[k: N.Nat^]: \Prop := \forall (source: Source.Topology)(form: Forms.Form k)(arguments: Fin.Fin k -> X -> Vector n) -> Regular k source arguments ->
+  Functions.Continuous source (\fun (x: X) => form (\fun (i: Fin.Fin k) => arguments i x));
+\import Fin.Empty[A := Vector n] \as Empty;
+\definition zero: Result N.Nat^::zero := \fun (source: _)(form: _)(arguments: _)(regular: _) =>
+  Functions.transport source (\fun (x: X) => form Empty.function) (\fun (x: X) => form (\fun (i: Fin.Fin N.Nat^::zero) => arguments i x))
+    (\fun (x: X) => congr!{{Forms.Arguments N.Nat^::zero} K} form _ _ (Empty.unique Empty.function (\fun (i: Fin.Fin N.Nat^::zero) => arguments i x)))
+    (Functions.constant source (form Empty.function));
+\module Step(k: N.Nat^);
+\definition continuous: \forall (k: N.Nat^) -> Result k := \induction (k: N.Nat^) \return Result k \with {
+  | zero: zero
+  | succ: \fun (k: N.Nat^)(previous: Result k) => Step[k := k].law previous
+};

@@ -1,0 +1,24 @@
+\import singular_simplicial.ListIndex[A := A].Selected[S := S].Listed[xs := enumeration] \as Indices;
+\definition Index: \Set := \Cast[A] S;
+\definition rank: N.Nat^ := Indices.rank;
+\definition enumerate: Fin.Fin rank -> Index := Indices.enumerate;
+\definition index[a: Index]: Fin.Fin rank := Indices.index a;
+\import Spaces.Coordinates[I := Index] \as Raw;
+\import Spaces.Linear[V := Raw.Vector, W := Vector rank, source := Raw.space, target := coordinates rank] \as Forward;
+\import Spaces.Linear[V := Vector rank, W := Raw.Vector, source := coordinates rank, target := Raw.space] \as Backward;
+\definition encode[f: Raw.Vector]: Vector rank := \fun (i: Fin.Fin rank) => f (enumerate i);
+\definition decode[v: Vector rank]: Raw.Vector := \fun (a: Index) => v (index a);
+\definition forward: Forward.Map := Forward.Map { apply := encode, preservesAdd := \fun (f, g: Raw.Vector) => \refl((coordinates rank).add (encode f) (encode g)), preservesScale := \fun (a: K)(f: Raw.Vector) => \refl((coordinates rank).smul a (encode f)) };
+\definition backward: Backward.Map := Backward.Map { apply := decode, preservesAdd := \fun (f, g: Vector rank) => \refl(Raw.plus (decode f) (decode g)), preservesScale := \fun (a: K)(f: Vector rank) => \refl(Raw.scale a (decode f)) };
+\import Spaces.Isomorphism[V := Raw.Vector, W := Vector rank, source := Raw.space, target := coordinates rank] \as Isomorphisms;
+\definition isomorphism: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := \fun (f: Raw.Vector) => \axiom:funext(decode (encode f), f, \fun (a: Index) => congr!{Index K} f _ _ (Indices.enumerateIndex a)),
+  rightInverse := \fun (v: Vector rank) => \axiom:funext(encode (decode v), v, \fun (i: Fin.Fin rank) => congr!{{Fin.Fin rank} K} v _ _ (Indices.indexEnumerate i)),
+};
+\module Topology;
+\definition ambientEnumerate[i: Fin.Fin rank]: A := enumerate i;
+\import \root.Operations[].Subset[E := A, U := S] \as Subset;
+\definition injectiveAmbient: \forall (i, j: Fin.Fin rank) -> ambientEnumerate i = ambientEnumerate j -> i = j :=
+  \fun (i, j: Fin.Fin rank)(same: _) => Indices.injective i j (Subset.equality (enumerate i) (enumerate j) same);
+\module Laws;

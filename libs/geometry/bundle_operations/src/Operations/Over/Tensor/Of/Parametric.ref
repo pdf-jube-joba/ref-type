@@ -1,0 +1,26 @@
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := H] \as Target;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Along[X := X, F := Fiber, bundle := tensor, Y := Y, source := source, base := base] \as Input;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Along[X := X, F := H, bundle := target, Y := Y, source := source, base := base] \as Output;
+\definition Operators: \Set := \forall (y: Y) -> Spaces.Linear[V := Fiber (base y), W := H (base y), source := fiberSpace (base y), target := target.space (base y)].Map;
+\definition value[h: Operators][t: Input.Vectors][y: Y]: H (base y) := (h y).apply (t y);
+\structure Index: \Set := {
+  first: LeftCharts.Chart, second: RightCharts.Chart,
+  enumeration: \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].PairIndices[n := first.dimension, m := second.dimension].Enumeration
+};
+\definition domain[p: Index]: \Pow Y := { y: Y \where Base.Member (Base.Intersection p.first.domain p.second.domain) (base y) };
+\module In(p: Index);
+\definition PureRegular[h: Operators]: \Prop := \forall (p: Index) -> In[p := p].PureRegular h;
+\import topology.Continuity[A := Y, B := Target.Point].Covered[I := Index, domains := domain] \as Covered;
+\definition covers: \forall (y: Y) -> \exists ( p: Index \where \In[Y] (domain p) y ) := \fun (y: Y) => \block {
+  \takefrom c: \Cast[LeftCharts.Chart] ({ c: LeftCharts.Chart \where Base.Member c.domain (base y) }) \by Left.Of[bundle := left].locallyTrivial (base y) \then
+  \takefrom d: \Cast[RightCharts.Chart] ({ d: RightCharts.Chart \where Base.Member d.domain (base y) }) \by Right.Of[bundle := right].locallyTrivial (base y) \then
+  \takefrom enumeration: \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].PairIndices[n := c.dimension, m := d.dimension].Enumeration
+    \by \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].PairIndices[n := c.dimension, m := d.dimension].existsEnumeration \then
+  \return Logic.existsIntro[Index, { p: Index \where \In[Y] (domain p) y }] (Index { first := c, second := d, enumeration := enumeration })
+    (Logic.And[_, _]::# (\bysub(LeftCharts.Chart, { c: LeftCharts.Chart \where Base.Member c.domain (base y) }, c)) (\bysub(RightCharts.Chart, { d: RightCharts.Chart \where Base.Member d.domain (base y) }, d)))
+};
+\definition continuous: \forall (h: Operators)(t: Input.Vectors) -> Input.BaseContinuous -> Input.Continuous t -> PureRegular h -> Output.Continuous (value h t) :=
+  \fun (h: Operators)(t: Input.Vectors)(baseRegular: _)(tRegular: _)(regular: _) => Covered.continuous source target.totalSpace (Output.total (value h t))
+    (\fun (p: Index) => baseRegular (Base.Intersection p.first.domain p.second.domain)
+      (\root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := F, G := G, left := left, right := right].In[c := p.first, d := p.second, enumeration := p.enumeration].baseOpen same))
+    covers (\fun (p: Index) => In[p := p].continuous h t baseRegular tRegular (regular p));

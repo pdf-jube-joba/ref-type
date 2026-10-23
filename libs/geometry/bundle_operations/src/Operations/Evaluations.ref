@@ -1,0 +1,25 @@
+\import topology.Topology[Carrier := X] \as Base;
+\import topology.Topology[Carrier := E] \as Total;
+\import topology.Topology[Carrier := K] \as Scalars;
+\import topology.Maps[A := E, B := X] \as Sets;
+\definition Domain[i: I]: \Pow E := Sets.Preimage projection (domains i);
+\definition Point[i: I]: \Set := \Cast[E] (Domain i);
+\definition Test[i: I][V: \Pow K]: \Pow E := Total.Subspace[S := Domain i].Open[].image (topology.Maps[A := Point i, B := K].Preimage (evaluate i) V);
+\structure BaseWitness[W: \Pow E]: \Set := {
+  openSet: \Pow X, open: Base.IsOpenIn baseSpace openSet, equality: W = Sets.Preimage projection openSet
+};
+\structure ValueWitness[W: \Pow E]: \Set := {
+  index: I, openSet: \Pow K, open: Scalars.IsOpenIn scalarSpace openSet, equality: W = Test index openSet
+};
+\definition Basis: \Pow (\Pow E) := { W: \Pow E \where Logic.Or[\exists BaseWitness[W], \exists ValueWitness[W]] };
+\definition topology: Total.Topology := Total.generated Basis;
+\definition baseOpen: \forall (U: \Pow X) -> Base.IsOpenIn baseSpace U -> Total.IsOpenIn topology (Sets.Preimage projection U) :=
+  \fun (U: _)(open: _) => Total.generatedBasisOpen Basis (Sets.Preimage projection U)
+    (Logic.Or[_, _]::left (\exact(BaseWitness[Sets.Preimage projection U] { openSet := U, open := open, equality := \refl(Sets.Preimage projection U) }, BaseWitness[Sets.Preimage projection U])));
+\definition testOpen: \forall (i: I)(V: \Pow K) -> Scalars.IsOpenIn scalarSpace V -> Total.IsOpenIn topology (Test i V) :=
+  \fun (i: I)(V: _)(open: _) => Total.generatedBasisOpen Basis (Test i V)
+    (Logic.Or[_, _]::right (\exact(ValueWitness[Test i V] { index := i, openSet := V, open := open, equality := \refl(Test i V) }, ValueWitness[Test i V])));
+\definition projectionContinuous: topology.Continuity[A := E, B := X].Continuous topology baseSpace projection := baseOpen;
+\definition domainOpen: \forall (i: I) -> Total.IsOpenIn topology (Domain i) := \fun (i: I) => baseOpen (domains i) (open i);
+\module At(i: I);
+\module Universal(A: \Set);

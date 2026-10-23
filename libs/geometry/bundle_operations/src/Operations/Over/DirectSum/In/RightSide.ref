@@ -1,0 +1,36 @@
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := G] \as Original;
+\import Original.With[data := right].In[c := d] \as Coordinates;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Chart[X := X, F := G, bundle := right, chart := d] \as ChartMaps;
+\import Base.Subspace[S := d.domain] \as OriginalBase;
+\definition local[p: Local.TotalPoint]: Coordinates.TotalPoint := \into[Original.Point](second p, { p: Original.Point \where Base.Member d.domain p.base }) \by {
+  (\bysub(Family.Point, { p: Family.Point \where Base.Member domain p.base }, p)).right
+};
+\import topology.Continuity[A := Family.Point, B := Original.Point].Restriction[S := { p: Family.Point \where Base.Member domain p.base }] \as Restriction;
+\definition vector[p: Local.TotalPoint]: Vector d.dimension := ChartMaps.Maps[Y := Local.TotalPoint, source := Local.localTopology].vector local p;
+\definition vectorContinuous: topology.Continuity[A := Local.TotalPoint, B := Vector d.dimension].Continuous Local.localTopology (coordinateTopology d.dimension) vector :=
+  ChartMaps.Maps[Y := Local.TotalPoint, source := Local.localTopology].vectorContinuous local (Restriction.restrictContinuous topology right.totalSpace second secondContinuous);
+\import topological_constructions.Product[A := Local.BasePoint, B := Vector Indices.total] \as Product;
+\import Product.Maps[] \as Projections;
+\definition base[x: Local.BasePoint]: Coordinates.BasePoint := \into[X](x, d.domain) \by { (\bysub(X, domain, x)).right };
+\definition ambientBase[x: Local.BasePoint]: X := x;
+\definition ambientBaseContinuous: \forall (same: SameBase) -> topology.Continuity[A := Local.BasePoint, B := X].Continuous (BaseSubspace.topology left.baseSpace) right.baseSpace ambientBase :=
+  \fun (same: SameBase) => \idelim left.baseSpace = right.baseSpace \with target: Base.Topology => topology.Continuity[A := Local.BasePoint, B := X].Continuous (BaseSubspace.topology left.baseSpace) target ambientBase \by {
+    base: \fun (U: \Pow X)(open: _) => BaseSubspace.traceOpen left.baseSpace U open, equality: same
+  };
+\import topology.Continuity[A := Local.BasePoint, B := X].Corestriction[S := d.domain] \as IntoBase;
+\definition baseContinuous: \forall (same: SameBase) -> topology.Continuity[A := Local.BasePoint, B := Coordinates.BasePoint].Continuous (BaseSubspace.topology left.baseSpace) (OriginalBase.topology right.baseSpace) base :=
+  \fun (same: SameBase) => IntoBase.corestrictContinuous (BaseSubspace.topology left.baseSpace) right.baseSpace base (ambientBaseContinuous same);
+\definition parameterBase[p: Local.ProductPoint]: Coordinates.BasePoint := base (Pair.first Local.BasePoint (Vector Indices.total) p);
+\import topology.Composition[A := Local.ProductPoint, B := Local.BasePoint, C := Coordinates.BasePoint] \as BaseComposition;
+\definition parameterBaseContinuous: \forall (same: SameBase) -> topology.Continuity[A := Local.ProductPoint, B := Coordinates.BasePoint].Continuous Local.productTopology (OriginalBase.topology right.baseSpace) parameterBase :=
+  \fun (same: SameBase) => BaseComposition.composeContinuous Local.productTopology (BaseSubspace.topology left.baseSpace) (OriginalBase.topology right.baseSpace)
+    (Pair.first Local.BasePoint (Vector Indices.total)) base (Projections.firstContinuous (BaseSubspace.topology left.baseSpace) (coordinateTopology Indices.total)) (baseContinuous same);
+\definition parameterVector[p: Local.ProductPoint]: Vector d.dimension := CoordinatePair.second (CoordinateSum.split (Pair.second Local.BasePoint (Vector Indices.total) p));
+\import topology.Composition[A := Local.ProductPoint, B := Vector Indices.total, C := Vector d.dimension] \as VectorComposition;
+\definition parameterVectorContinuous: topology.Continuity[A := Local.ProductPoint, B := Vector d.dimension].Continuous Local.productTopology (coordinateTopology d.dimension) parameterVector :=
+  VectorComposition.composeContinuous Local.productTopology (coordinateTopology Indices.total) (coordinateTopology d.dimension)
+    (Pair.second Local.BasePoint (Vector Indices.total)) (\fun (v: Vector Indices.total) => CoordinatePair.second (CoordinateSum.split v))
+    (Projections.secondContinuous (BaseSubspace.topology left.baseSpace) (coordinateTopology Indices.total)) (CoordinateSum.Topology[].secondRegular);
+\definition point[p: Local.ProductPoint]: Original.Point := ChartMaps.Maps[Y := Local.ProductPoint, source := Local.productTopology].point parameterBase parameterVector p;
+\definition pointContinuous: \forall (same: SameBase) -> topology.Continuity[A := Local.ProductPoint, B := Original.Point].Continuous Local.productTopology right.totalSpace point :=
+  \fun (same: SameBase) => ChartMaps.Maps[Y := Local.ProductPoint, source := Local.productTopology].pointContinuous parameterBase parameterVector (parameterBaseContinuous same) parameterVectorContinuous;

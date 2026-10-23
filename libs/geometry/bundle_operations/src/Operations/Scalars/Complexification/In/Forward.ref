@@ -1,0 +1,39 @@
+\import Real.Tensor[X := X, F := F, G := \fun (x: X) => C.Complex, left := source, right := RealConstant.bundle].Parameter[n := r, m := s] \as SourceParameters;
+\definition Domain: \Pow SourceParameters.Point := { p: SourceParameters.Point \where Base.Member c.domain p.base };
+\definition Point: \Set := \Cast[SourceParameters.Point] Domain;
+\import topology.Topology[Carrier := SourceParameters.Point].Subspace[S := Domain] \as Subspace;
+\definition topology: topology.Topology[Carrier := Point].Topology := Subspace.topology SourceParameters.topology;
+\definition center[p: Point]: Local.BasePoint := \into[X](p.base, c.domain) \by { \bysub(SourceParameters.Point, Domain, p) };
+\module LeftSide;
+\module RightSide;
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := CA.field, scalar := HC.scalar, topological := Bundles.Complex[].scalar.topological].Functions[X := Point] \as Functions;
+\import ComplexSpaces.Sums[I := Fin.Fin r] \as Outer;
+\import ComplexSpaces.Sums[I := Fin.Fin s] \as Inner;
+\definition component[i: Fin.Fin c.dimension][p: Point]: C.Complex := Outer.sum (Fin.elements r) (\fun (a: Fin.Fin r) => Inner.sum (Fin.elements s) (\fun (b: Fin.Fin s) =>
+  CD.mul (CD.ofReal (LeftSide[].entry (SourceParameters.entry a b) i p)) (p.right (SourceParameters.entry a b))));
+\import Complex.ScalarFunctions[X := Point] \as Sums;
+\definition componentContinuous: \forall (i: Fin.Fin c.dimension) -> Functions.Continuous topology (component i) :=
+  \fun (i: Fin.Fin c.dimension) => Sums.Sums[I := Fin.Fin r].continuous (Fin.elements r) topology
+    (\fun (a: Fin.Fin r)(p: Point) => Inner.sum (Fin.elements s) (\fun (b: Fin.Fin s) => CD.mul (CD.ofReal (LeftSide[].entry (SourceParameters.entry a b) i p)) (p.right (SourceParameters.entry a b))))
+    (\fun (a: Fin.Fin r) => Sums.Sums[I := Fin.Fin s].continuous (Fin.elements s) topology
+      (\fun (b: Fin.Fin s)(p: Point) => CD.mul (CD.ofReal (LeftSide[].entry (SourceParameters.entry a b) i p)) (p.right (SourceParameters.entry a b)))
+      (\fun (b: Fin.Fin s) => Functions.multiplication topology (\fun (p: Point) => CD.ofReal (LeftSide[].entry (SourceParameters.entry a b) i p)) (\fun (p: Point) => p.right (SourceParameters.entry a b))
+        (topology.Composition[A := Point, B := R.Real, C := C.Complex].composeContinuous topology metric_spaces.RealLine[].topology topological_algebra.Complex[].topology (LeftSide[].entry (SourceParameters.entry a b) i) CD.ofReal
+          (LeftSide[].entryContinuous (SourceParameters.entry a b) i) (Bundles.Complex[].scalar.topological.embed)) (RightSide[].continuous (SourceParameters.entry a b))));
+\definition original[p: Point]: Local.TotalPoint := \into[Family.Point](parameter (Pair.pair N.Nat^ N.Nat^ r s) p, { q: Family.Point \where Base.Member c.domain q.base }) \by { \bysub(SourceParameters.Point, Domain, p) };
+\definition vector[p: Point]: Complex.Vector c.dimension := Pair.second Local.BasePoint (Complex.Vector c.dimension) (Local.forward (original p));
+\definition formula: \forall (p: Point)(i: Fin.Fin c.dimension) -> vector p i = component i p :=
+  \fun (p: Point)(i: Fin.Fin c.dimension) => \root.Operations[].Scalars[].ComplexTensor[V := F p.base, source := source.space p.base].Finite[n := c.dimension, frame := c.frame (center p)].Grid[r := r, s := s].formula
+    (\fun (a: Fin.Fin r)(b: Fin.Fin s) => p.left (SourceParameters.entry a b)) (\fun (a: Fin.Fin r)(b: Fin.Fin s) => p.right (SourceParameters.entry a b)) i;
+\import topological_algebra.Coordinates[K := C.Complex, I := Fin.Fin c.dimension] \as TargetCoordinates;
+\definition vectorContinuous: topology.Continuity[A := Point, B := Complex.Vector c.dimension].Continuous topology (Complex.coordinateTopology c.dimension) vector :=
+  TargetCoordinates.Universal[A := Point].continuous topology topological_algebra.Complex[].topology vector
+    (\fun (i: Fin.Fin c.dimension) => Functions.transport topology (component i) (\fun (p: Point) => vector p i) (\fun (p: Point) => sym!{{C.Complex}} _ _ (formula p i)) (componentContinuous i));
+\import topology.Continuity[A := SourceParameters.Point, B := X].Restriction[S := Domain] \as RestrictBase;
+\import topology.Continuity[A := Point, B := X].Corestriction[S := c.domain] \as IntoBase;
+\definition centerContinuous: topology.Continuity[A := Point, B := Local.BasePoint].Continuous topology (BaseSubspace.topology source.baseSpace) center :=
+  IntoBase.corestrictContinuous topology source.baseSpace center (RestrictBase.restrictContinuous SourceParameters.topology source.baseSpace (\fun (p: SourceParameters.Point) => p.base) SourceParameters.Projection[].baseContinuous);
+\definition model[p: Point]: Local.ProductPoint := Local.forward (original p);
+\import topological_constructions.Product[A := Local.BasePoint, B := Complex.Vector c.dimension] \as Product;
+\definition regular: topology.Continuity[A := Point, B := Local.ProductPoint].Continuous topology Local.productTopology model :=
+  Product.Universal[X := Point].pairContinuous topology (BaseSubspace.topology source.baseSpace) (Complex.coordinateTopology c.dimension) center vector centerContinuous vectorContinuous;

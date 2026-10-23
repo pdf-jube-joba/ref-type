@@ -1,0 +1,19 @@
+\definition reverseBase: right.baseSpace = left.baseSpace := sym!{{topology.Topology[Carrier := X].Topology}} _ _ same;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := G, G := F, left := right, right := left] \as Other;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := F, G := G, left := left, right := right].Of[same := same].Universal[Y := X, H := Other.Fiber, target := Other.bundle reverseBase, f := \fun (x: X) => x] \as Universal;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].DirectSum[X := X, F := F, G := G, left := left, right := right] \as SourceSum;
+\import SourceSum.Of[same := same].Symmetry[] \as SumSymmetry;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := SourceSum.Fiber] \as SourceFamily;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := \fun (x: X) => Pair.Times^[G x, F x]] \as PairFamily;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := Other.Fiber] \as TargetFamily;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := SourceSum.Fiber, G := \fun (x: X) => Pair.Times^[G x, F x], source := SourceSum.bundle same, target := SumSymmetry.swapped, f := \fun (x: X) => x] \as Swap;
+\definition data: Universal.Data := Universal.Data {
+  fiber := \fun (x: X)(v: F x)(w: G x) => Other.pure x w v,
+  bilinear := \fun (x: X) => \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TensorFlip[V := F x, W := G x, left := left.space x, right := right.space x].bilinear
+};
+\definition bilinear: Universal.Bilinear := \into[Universal.Data](data, Universal.Bilinear) \by {
+  topology.Composition[A := SourceFamily.Point, B := PairFamily.Point, C := TargetFamily.Point].composeContinuous SourceSum.topology SumSymmetry.swapped.totalSpace Other.topology
+    (Swap.total SumSymmetry.isomorphism.forward) (Other.Of[same := reverseBase].Pure[].value) (Swap.continuous SumSymmetry.isomorphism.forward) (Other.Of[same := reverseBase].Pure[].continuous)
+};
+\definition map: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := Fiber, G := Other.Fiber, source := tensor, target := Other.bundle reverseBase, f := \fun (x: X) => x].Map := Universal.map bilinear;
+\definition onPure: \forall (x: X)(v: F x)(w: G x) -> ((map.fiber x).apply (pure x v w)) = Other.pure x w v := Universal.onPure bilinear;

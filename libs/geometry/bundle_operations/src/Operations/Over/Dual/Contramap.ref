@@ -1,0 +1,34 @@
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Dual[X := X, F := G, bundle := target] \as Other;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := G] \as Target;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := Other.Fiber] \as OtherFamily;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := F, G := G, source := bundle, target := target, f := \fun (x: X) => x] \as Original;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := Other.Fiber, G := Fiber, source := Other.dual, target := dual, f := \fun (x: X) => x] \as Result;
+\definition data[a: Original.Map]: Result.Data := Result.Data {
+  fiber := \fun (x: X) => Spaces.Dual[V := F x, source := bundle.space x].Precomposition[W := G x, target := target.space x].map (a.fiber x)
+};
+\definition value[a: Original.Map][s: Section][x: \Cast[X] s.domain]: G x := (a.fiber x).apply (s.value x);
+\definition sectionContinuous: \forall (a: Original.Map)(s: Section) -> topology.Continuity[A := \Cast[X] s.domain, B := Target.Point].Continuous (Base.Subspace[S := s.domain].topology target.baseSpace) target.totalSpace
+  (\fun (x: \Cast[X] s.domain) => Target.include x (value a s x)) :=
+  \fun (a: Original.Map)(s: Section) => \idelim (Base.Subspace[S := s.domain].topology bundle.baseSpace) = (Base.Subspace[S := s.domain].topology target.baseSpace)
+    \with t: topology.Topology[Carrier := \Cast[X] s.domain].Topology => topology.Continuity[A := \Cast[X] s.domain, B := Target.Point].Continuous t target.totalSpace (\fun (x: \Cast[X] s.domain) => Target.include x (value a s x)) \by {
+      base: topology.Composition[A := \Cast[X] s.domain, B := Source.Point, C := Target.Point].composeContinuous (Base.Subspace[S := s.domain].topology bundle.baseSpace) bundle.totalSpace target.totalSpace
+        (\fun (x: \Cast[X] s.domain) => Source.include x (s.value x)) (Original.total a) s.regular (Original.continuous a),
+      equality: congr!{{Base.Topology} {topology.Topology[Carrier := \Cast[X] s.domain].Topology}} (Base.Subspace[S := s.domain].topology) _ _ sameBase
+    };
+\definition mappedSection[a: Original.Map][s: Section]: Other.Section := Other.Section {
+  domain := s.domain,
+  open := \idelim bundle.baseSpace = target.baseSpace \with t: Base.Topology => Base.IsOpenIn t s.domain \by { base: s.open, equality: sameBase },
+  value := value a s, regular := sectionContinuous a s
+};
+\import \root.Operations[].Evaluations[K := K, X := X, E := OtherFamily.Point, I := Other.Section, scalarSpace := scalar.topological.space, baseSpace := target.baseSpace,
+  projection := OtherFamily.projection, domains := Other.domains, open := \fun (s: Other.Section) => s.open, evaluate := Other.evaluate] \as OtherEvaluations;
+\definition baseContinuous: topology.Continuity[A := OtherFamily.Point, B := X].Continuous Other.topology bundle.baseSpace OtherFamily.projection :=
+  \idelim target.baseSpace = bundle.baseSpace \with t: Base.Topology => topology.Continuity[A := OtherFamily.Point, B := X].Continuous Other.topology t OtherFamily.projection \by {
+    base: Other.projectionContinuous, equality: sym!{{Base.Topology}} _ _ sameBase
+  };
+\definition map[a: Original.Map]: Result.Map := \into[Result.Data](data a, Result.Map) \by {
+  Evaluations.Universal[A := OtherFamily.Point].continuous Other.topology (Result.total (data a)) baseContinuous
+    (\fun (s: Section) => OtherEvaluations.At[i := mappedSection a s].continuous)
+};
+\definition evaluation: \forall (a: Original.Map)(x: X)(ell: Other.Fiber x)(v: F x) -> ((map a).fiber x).apply ell v = ell ((a.fiber x).apply v) :=
+  \fun (a: Original.Map)(x: X)(ell: Other.Fiber x)(v: F x) => \refl(ell ((a.fiber x).apply v));

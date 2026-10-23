@@ -1,0 +1,17 @@
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].LocalMaps[X := X, F := F, G := G, source := source, target := target, fiber := \fun (x: X) => (fiber x).forward] \as Forward;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].LocalMaps[X := X, F := G, G := F, source := target, target := source, fiber := \fun (x: X) => (fiber x).backward] \as Backward;
+\definition Chart: \Set := Forward.Chart;
+\definition Covers: \Prop := Forward.Covers;
+\module In(c: Chart);
+\definition inverseCovers: Covers -> Backward.Covers := \fun (covers: Covers)(x: X) => \block {
+  \takefrom c: \Cast[Chart] ({ c: Chart \where topology.Topology[Carrier := X].Member c.domain x }) \by covers x \then
+  \return Logic.existsIntro[Backward.Chart, { d: Backward.Chart \where topology.Topology[Carrier := X].Member d.domain x }] (In[c := c].inverseChart)
+    (\bysub(Chart, { c: Chart \where topology.Topology[Carrier := X].Member c.domain x }, c))
+};
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Isomorphisms[X := X, F := F, G := G, source := source, target := target] \as Isomorphisms;
+\definition isomorphism[sameBase: source.baseSpace = target.baseSpace][covers: Covers]: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := Forward.map sameBase covers,
+  backward := Backward.map (sym!{{topology.Topology[Carrier := X].Topology}} _ _ sameBase) (inverseCovers covers),
+  leftInverse := \fun (x: X) => (Spaces.Isomorphism[V := F x, W := G x, source := source.space x, target := target.space x].laws (fiber x)).leftInverse,
+  rightInverse := \fun (x: X) => (Spaces.Isomorphism[V := F x, W := G x, source := source.space x, target := target.space x].laws (fiber x)).rightInverse
+};

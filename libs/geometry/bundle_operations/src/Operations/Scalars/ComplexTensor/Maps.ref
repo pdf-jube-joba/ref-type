@@ -1,0 +1,23 @@
+\import \root.Operations[].Scalars[].ComplexTensor[V := W, source := target] \as Other;
+\import RealSpaces.Linear[V := V, W := W, source := source, target := target] \as Original;
+\definition image[f: Original.Map][v: V][z: C.Complex]: Other.Carrier := Other.pure (f.apply v) z;
+\definition bilinear[f: Original.Map]: Tensor.BilinearLaws[Other.Carrier, RealSpaces.Tensor[V := W, W := C.Complex, left := target, right := Scalar.realSpace].space, image f] := Tensor.BilinearLaws[Other.Carrier, RealSpaces.Tensor[V := W, W := C.Complex, left := target, right := Scalar.realSpace].space, image f] {
+  addLeft := \fun (v, w: V)(z: C.Complex) => trans!{{Other.Carrier}} _ _ _ (congr!{W {Other.Carrier}} (\fun (w: W) => Other.pure w z) _ _ (f.preservesAdd v w)) (RealSpaces.Tensor[V := W, W := C.Complex, left := target, right := Scalar.realSpace].bilinear.addLeft (f.apply v) (f.apply w) z),
+  addRight := \fun (v: V)(z, w: C.Complex) => RealSpaces.Tensor[V := W, W := C.Complex, left := target, right := Scalar.realSpace].bilinear.addRight (f.apply v) z w,
+  scaleLeft := \fun (r: R.Real)(v: V)(z: C.Complex) => trans!{{Other.Carrier}} _ _ _ (congr!{W {Other.Carrier}} (\fun (w: W) => Other.pure w z) _ _ (f.preservesScale r v)) (RealSpaces.Tensor[V := W, W := C.Complex, left := target, right := Scalar.realSpace].bilinear.scaleLeft r (f.apply v) z),
+  scaleRight := \fun (r: R.Real)(v: V)(z: C.Complex) => RealSpaces.Tensor[V := W, W := C.Complex, left := target, right := Scalar.realSpace].bilinear.scaleRight r (f.apply v) z
+};
+\import Tensor.Universal[U := Other.Carrier, target := RealSpaces.Tensor[V := W, W := C.Complex, left := target, right := Scalar.realSpace].space] \as Universal;
+\definition realMap[f: Original.Map]: RealSpaces.Linear[V := Carrier, W := Other.Carrier, source := Tensor.space, target := RealSpaces.Tensor[V := W, W := C.Complex, left := target, right := Scalar.realSpace].space].Map := Universal.map (image f) (bilinear f);
+\definition onPure: \forall (f: Original.Map)(v: V)(z: C.Complex) -> (realMap f).apply (pure v z) = Other.pure (f.apply v) z := \fun (f: Original.Map) => Universal.onTensor (image f) (bilinear f);
+\import Real.TensorEquality[V := V, W := C.Complex, U := Other.Carrier, left := source, right := Scalar.realSpace, target := RealSpaces.Tensor[V := W, W := C.Complex, left := target, right := Scalar.realSpace].space] \as Ext;
+\import RealSpaces.Linear[V := Carrier, W := Other.Carrier, source := Tensor.space, target := RealSpaces.Tensor[V := W, W := C.Complex, left := target, right := Scalar.realSpace].space].Composition[U := Carrier, domain := Tensor.space] \as Before;
+\import RealSpaces.Linear[V := Other.Carrier, W := Other.Carrier, source := RealSpaces.Tensor[V := W, W := C.Complex, left := target, right := Scalar.realSpace].space, target := RealSpaces.Tensor[V := W, W := C.Complex, left := target, right := Scalar.realSpace].space].Composition[U := Carrier, domain := Tensor.space] \as After;
+\definition preservesComplex: \forall (f: Original.Map)(a: C.Complex)(t: Carrier) -> (realMap f).apply (space.smul a t) = Other.space.smul a ((realMap f).apply t) :=
+  \fun (f: Original.Map)(a: C.Complex) => Ext.pointwise (Before.compose (realMap f) (action a)) (After.compose (Other.action a) (realMap f))
+    (\fun (v: V)(z: C.Complex) => trans!{{Other.Carrier}} _ _ _
+      (congr!{Carrier {Other.Carrier}} (realMap f).apply _ _ (\root.Operations[].Scalars[].ComplexTensor[V := V, source := source].onPure a v z))
+      (trans!{{Other.Carrier}} _ _ _ (onPure f v (CD.mul a z))
+        (sym!{{Other.Carrier}} _ _ (trans!{{Other.Carrier}} _ _ _ (congr!{{Other.Carrier} {Other.Carrier}} (Other.action a).apply _ _ (onPure f v z)) (Other.onPure a (f.apply v) z)))));
+\definition map[f: Original.Map]: ComplexSpaces.Linear[V := Carrier, W := Other.Carrier, source := space, target := Other.space].Map :=
+  ComplexSpaces.Linear[V := Carrier, W := Other.Carrier, source := space, target := Other.space].Map { apply := (realMap f).apply, preservesAdd := (realMap f).preservesAdd, preservesScale := preservesComplex f };

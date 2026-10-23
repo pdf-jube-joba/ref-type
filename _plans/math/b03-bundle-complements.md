@@ -9,5 +9,5 @@
 
 ## 依存するタスク
 
-- [B02 束の貼り合わせと線形演算](b02-bundle-operations.md)
+- [束の貼り合わせと線形演算](../../libs/geometry/bundle_operations/README.md)
 - [Hermitian 行列と連続な局所枠](../../libs/algebra/hermitian_frames/README.md)

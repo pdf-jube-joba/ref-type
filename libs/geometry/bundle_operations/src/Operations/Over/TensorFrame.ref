@@ -1,0 +1,42 @@
+\import Spaces.Tensor[V := V, W := W, left := left, right := right] \as Tensor;
+\import Spaces.Finite[V := V, I := Fin.Fin n, space := left] \as LeftBasis;
+\import Spaces.Finite[V := W, I := Fin.Fin m, space := right] \as RightBasis;
+\definition firstBasis: LeftBasis.Basis := vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Dimension[V := V, space := left].At[n := n].basis first;
+\definition secondBasis: RightBasis.Basis := vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Dimension[V := W, space := right].At[n := m].basis second;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].PairIndices[n := n, m := m] \as Indices;
+\definition Index: \Set := \Cast[Indices.Pair] Indices.Whole;
+\import Spaces.Coordinates[I := Index] \as Coefficients;
+\definition i[p: Index]: Fin.Fin n := Pair.first (Fin.Fin n) (Fin.Fin m) p;
+\definition j[p: Index]: Fin.Fin m := Pair.second (Fin.Fin n) (Fin.Fin m) p;
+\definition entry[a: Fin.Fin n][b: Fin.Fin m]: Index := \into[Indices.Pair](Pair.pair (Fin.Fin n) (Fin.Fin m) a b, Indices.Whole) \by { \refl(Pair.pair (Fin.Fin n) (Fin.Fin m) a b) };
+\definition outer[v: V][w: W]: Coefficients.Vector := \fun (p: Index) => field.mul (LeftBasis.coordinates firstBasis v (i p)) (RightBasis.coordinates secondBasis w (j p));
+\definition bilinear: Tensor.BilinearLaws[Coefficients.Vector, Coefficients.space, outer] := Tensor.BilinearLaws[Coefficients.Vector, Coefficients.space, outer] {
+  addLeft := \fun (v, z: V)(w: W) => \axiom:funext(outer (left.add v z) w, Coefficients.plus (outer v w) (outer z w), \fun (p: Index) =>
+    trans!{K} _ _ _ (congr!{K K} (\fun (a: K) => field.mul a (second.forward.apply w (j p))) _ _
+      (congr!{{Vector n} K} (\fun (a: Vector n) => a (i p)) _ _ (first.forward.preservesAdd v z)))
+      (Spaces.addMul (first.forward.apply v (i p)) (first.forward.apply z (i p)) (second.forward.apply w (j p)))),
+  addRight := \fun (v: V)(w, z: W) => \axiom:funext(outer v (right.add w z), Coefficients.plus (outer v w) (outer v z), \fun (p: Index) =>
+    trans!{K} _ _ _ (congr!{K K} (field.mul (first.forward.apply v (i p))) _ _
+      (congr!{{Vector m} K} (\fun (a: Vector m) => a (j p)) _ _ (second.forward.preservesAdd w z)))
+      (Spaces.mulAdd (first.forward.apply v (i p)) (second.forward.apply w (j p)) (second.forward.apply z (j p)))),
+  scaleLeft := \fun (a: K)(v: V)(w: W) => \axiom:funext(outer (left.smul a v) w, Coefficients.scale a (outer v w), \fun (p: Index) =>
+    trans!{K} _ _ _ (congr!{K K} (\fun (b: K) => field.mul b (second.forward.apply w (j p))) _ _
+      (congr!{{Vector n} K} (\fun (b: Vector n) => b (i p)) _ _ (first.forward.preservesScale a v)))
+      (Spaces.mulAssoc a (first.forward.apply v (i p)) (second.forward.apply w (j p)))),
+  scaleRight := \fun (a: K)(v: V)(w: W) => \axiom:funext(outer v (right.smul a w), Coefficients.scale a (outer v w), \fun (p: Index) =>
+    trans!{K} _ _ _ (congr!{K K} (field.mul (first.forward.apply v (i p))) _ _
+      (congr!{{Vector m} K} (\fun (b: Vector m) => b (j p)) _ _ (second.forward.preservesScale a w)))
+      (Spaces.Laws[V := K, space := Spaces.scalarSpace].scaleComm (first.forward.apply v (i p)) a (second.forward.apply w (j p)))),
+};
+\import Tensor.Universal[U := Coefficients.Vector, target := Coefficients.space] \as Encode;
+\definition forward: Spaces.Linear[V := Tensor.Carrier, W := Coefficients.Vector, source := Tensor.space, target := Coefficients.space].Map := Encode.map outer bilinear;
+\import Spaces.Sums[I := Fin.Fin n].Vector[V := Tensor.Carrier, space := Tensor.space] \as LeftSums;
+\import Spaces.Sums[I := Fin.Fin m].Vector[V := Tensor.Carrier, space := Tensor.space] \as RightSums;
+\definition synthesis[f: Coefficients.Vector]: Tensor.Carrier := LeftSums.sum (Fin.elements n) (\fun (a: Fin.Fin n) => RightSums.sum (Fin.elements m) (\fun (b: Fin.Fin m) =>
+  Tensor.space.smul (f (entry a b)) (Tensor.tensor (firstBasis.vectors a) (secondBasis.vectors b))));
+\module Decoding;
+\module Reconstruction;
+\module Recovery;
+\module Enumerated(enumeration: \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].PairIndices[n := n, m := m].Enumeration);
+\module Sums(I: \Set);
+\module Summation(U: \Set, target: Spaces.VectorSpace U);

@@ -1,0 +1,37 @@
+\import real.Analysis[] \as R;
+\import metric_spaces.RealLine[] \as Line;
+\import topology.Topology[Carrier := R.Real] \as Base;
+\import std.Data[].Bool[] \as Bool;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\import Bundles.Trivial[X := R.Real, n := one, baseSpace := Line.topology] \as Trivial;
+\import Bundles.Family[X := R.Real, F := \fun (x: R.Real) => Vector one].With[data := Trivial.bundle] \as Charts;
+\definition charts[i: Bool.Bool^]: Charts.Chart := Trivial.trivialization;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].CocycleFromAtlas[X := R.Real, I := Bool.Bool^, F := \fun (x: R.Real) => Vector one, bundle := Trivial.bundle, charts := charts] \as Original;
+\definition originalCover: Original.Covers := \fun (x: R.Real) => Logic.existsIntro[Bool.Bool^, { i: Bool.Bool^ \where Base.Member (Original.domain i) x }] Bool.Bool^::true (\refl(x));
+\definition coefficient[x: R.Real]: R.Real := R.Estimates[].Product[].coefficient x R.zero;
+\definition coefficientNonzero: \forall (x: R.Real) -> Logic.Not (coefficient x = R.zero) := \fun (x: R.Real) => R.Inverse[].positiveNonzero (coefficient x) (R.Estimates[].Product[].coefficientPositive x R.zero);
+\import metric_spaces.RealFunctions[A := R.Real] \as RealFunctions;
+\import topology.Maps[A := R.Real, B := R.Real] \as RealMaps;
+\definition coefficientContinuous: RealFunctions.Continuous Line.topology coefficient := RealFunctions.sumContinuous Line.topology (\fun (x: R.Real) => R.Estimates[].Product[].abs x) (\fun (x: R.Real) => R.add (R.Estimates[].Product[].abs R.zero) R.one)
+  (RealFunctions.Lattice[].absoluteContinuous Line.topology (\fun (x: R.Real) => x) (RealMaps.Identity[].continuous Line.topology)) (RealMaps.constantContinuous Line.topology Line.topology (R.add (R.Estimates[].Product[].abs R.zero) R.one));
+\import linear_algebra.Hermitian[].Over[K := K, field := field, scalar := conjugation] \as Hermitian;
+\definition factor[x: R.Real]: K := conjugation.embed (coefficient x);
+\definition factorNonzero: \forall (x: R.Real) -> Logic.Not (factor x = field.zero) := \fun (x: R.Real)(zero: _) => coefficientNonzero x (Hermitian.embedInjective (coefficient x) R.zero (trans!{K} _ _ _ zero (sym!{K} _ _ conjugation.embedZero)));
+\import hermitian_frames.Hermitian[].Over[K := K, field := field, scalar := conjugation, topological := scalar.topological].Functions[X := R.Real] \as Functions;
+\definition factorContinuous: Functions.Continuous Line.topology factor := Functions.embedding Line.topology coefficient coefficientContinuous;
+\definition domains: Bool.Bool^ -> \Pow R.Real := \induction (i: Bool.Bool^) \return \Pow R.Real \with { | true: Base.Whole | false: Line.Rays[].Above R.zero };
+\definition opens: \forall (i: Bool.Bool^) -> Base.IsOpenIn Line.topology (domains i) := \induction (i: Bool.Bool^) \return Base.IsOpenIn Line.topology (domains i) \with { | true: (Base.topologyLaws Line.topology).wholeOpen | false: Line.Rays[].aboveOpen R.zero };
+\definition contained: \forall (i: Bool.Bool^)(x: \Cast[R.Real] (domains i)) -> Base.Member (charts i).domain x := \fun (i: Bool.Bool^)(x: \Cast[R.Real] (domains i)) => \refl(x);
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].ScalarGauge[X := R.Real, U := Base.Whole, n := one, baseSpace := Line.topology, a := \fun (x: \Cast[R.Real] Base.Whole) => factor x, nonzero := \fun (x: \Cast[R.Real] Base.Whole) => factorNonzero x] \as Scaling;
+\import topology.Continuity[A := R.Real, B := K].Restriction[S := Base.Whole] \as Restriction;
+\definition scalingRegular: \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].CoordinateGauge[X := R.Real, U := Base.Whole, n := one, baseSpace := Line.topology, gauge := Scaling.gauge].Regular := Scaling.regular (Restriction.restrictContinuous Line.topology scalar.topological.space factor factorContinuous);
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].IdentityGauge[X := R.Real, U := Line.Rays[].Above R.zero, n := one, baseSpace := Line.topology] \as IdentityGauge;
+\definition gauge: \forall (i: Bool.Bool^)(x: \Cast[R.Real] (domains i)) -> Spaces.Isomorphism[V := Vector one, W := Vector one, source := coordinates one, target := coordinates one].Isomorphism :=
+  \induction (i: Bool.Bool^) \return (\forall (x: \Cast[R.Real] (domains i)) -> Spaces.Isomorphism[V := Vector one, W := Vector one, source := coordinates one, target := coordinates one].Isomorphism) \with { | true: Scaling.gauge | false: IdentityGauge.gauge };
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].AtlasChange[X := R.Real, I := Bool.Bool^, J := Bool.Bool^, F := \fun (x: R.Real) => Vector one, bundle := Trivial.bundle, charts := charts, refines := \fun (i: Bool.Bool^) => i, domains := domains, opens := opens, contained := contained, gauge := gauge] \as Change;
+\definition regular: Change.Regular := \induction (i: Bool.Bool^) \return Change.At[j := i].Regular \with { | true: scalingRegular | false: IdentityGauge.regular };
+\definition cover: Change.Covers := \fun (x: R.Real) => Logic.existsIntro[Bool.Bool^, { i: Bool.Bool^ \where Base.Member (domains i) x }] Bool.Bool^::true (\refl(x));
+\import Change.Using[regular := regular, covers := cover] \as Changed;
+\definition NewFiber[x: R.Real]: \Set := Changed.Fiber x;
+\definition glued: Bundles.Family[X := R.Real, F := NewFiber].Bundle := Changed.glued;
+\definition comparison: Bundles.Isomorphisms[X := R.Real, F := \fun (x: R.Real) => Vector one, G := NewFiber, source := Trivial.bundle, target := glued].Isomorphism := Changed.comparison;

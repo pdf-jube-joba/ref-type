@@ -1,0 +1,42 @@
+\definition Point: \Set := \Cast[Y] (domain c);
+\import Source.Subspace[S := domain c] \as Subspace;
+\import Base.Subspace[S := c.domain] \as BaseSubspace;
+\definition topology: topology.Topology[Carrier := Point].Topology := Subspace.topology source;
+\import Charts.In[c := c] \as Coordinates;
+\definition center[y: Point]: Coordinates.BasePoint := \into[X](base y, c.domain) \by { \bysub(Y, domain c, y) };
+\definition coordinate[v: Vectors][y: Point]: Vector c.dimension := (c.frame (center y)).forward.apply (v y);
+\definition Regular[v: Vectors]: \Prop := topology.Continuity[A := Point, B := Vector c.dimension].Continuous topology (coordinateTopology c.dimension) (coordinate v);
+\definition restricted[v: Vectors][y: Point]: Coordinates.TotalPoint := \into[Family.Point](total v y, { p: Family.Point \where Base.Member c.domain p.base }) \by { \bysub(Y, domain c, y) };
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Chart[X := X, F := F, bundle := bundle, chart := c] \as Chart;
+\import topology.Continuity[A := Y, B := Family.Point].Restriction[S := domain c] \as Restriction;
+\definition read: \forall (v: Vectors) -> Continuous v -> Regular v :=
+  \fun (v: Vectors)(regular: _) => Chart.Maps[Y := Point, source := topology].vectorContinuous (restricted v) (Restriction.restrictContinuous source bundle.totalSpace (total v) regular);
+\import topology.Continuity[A := Y, B := X].Restriction[S := domain c] \as RestrictBase;
+\import topology.Continuity[A := Point, B := X].Corestriction[S := c.domain] \as IntoBase;
+\definition centerContinuous: BaseContinuous -> topology.Continuity[A := Point, B := Coordinates.BasePoint].Continuous topology (BaseSubspace.topology bundle.baseSpace) center :=
+  \fun (regular: BaseContinuous) => IntoBase.corestrictContinuous topology bundle.baseSpace center (RestrictBase.restrictContinuous source bundle.baseSpace base regular);
+\definition model[v: Vectors][y: Point]: Family.Point := Chart.Maps[Y := Point, source := topology].point center (coordinate v) y;
+\definition formula: \forall (v: Vectors)(y: Point) -> model v y = total v y :=
+  \fun (v: Vectors)(y: Point) => congr!{{F (base y)} Family.Point} (Family.include (base y)) _ _
+    ((Spaces.Isomorphism[V := F (base y), W := Vector c.dimension, source := bundle.space (base y), target := coordinates c.dimension].laws (c.frame (center y))).leftInverse (v y));
+\definition continuous: \forall (v: Vectors) -> BaseContinuous -> Regular v -> topology.Continuity[A := Point, B := Family.Point].Continuous topology bundle.totalSpace (\fun (y: Point) => total v y) :=
+  \fun (v: Vectors)(baseRegular: _)(vectorRegular: _) => \idelim model v = (\fun (y: Point) => total v y) \with f: (Point -> Family.Point) => topology.Continuity[A := Point, B := Family.Point].Continuous topology bundle.totalSpace f \by {
+    base: Chart.Maps[Y := Point, source := topology].pointContinuous center (coordinate v) (centerContinuous baseRegular) vectorRegular,
+    equality: \axiom:funext(model v, (\fun (y: Point) => total v y), formula v)
+  };
+\import hermitian_frames.Hermitian[].Over[K := K, field := field, scalar := conjugation, topological := scalar.topological].Functions[X := Point] \as Functions;
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin c.dimension] \as CoordinateSpace;
+\import topology.Composition[A := Point, B := Vector c.dimension, C := K] \as Evaluate;
+\definition component: \forall (v: Vectors) -> Regular v -> \forall (i: Fin.Fin c.dimension) -> Functions.Continuous topology (\fun (y: Point) => coordinate v y i) :=
+  \fun (v: Vectors)(regular: _)(i: Fin.Fin c.dimension) => Evaluate.composeContinuous topology (coordinateTopology c.dimension) scalar.topological.space (coordinate v) (\fun (v: Vector c.dimension) => v i) regular (CoordinateSpace.evaluationContinuous scalar.topological.space i);
+\definition addition: \forall (v, w: Vectors) -> Continuous v -> Continuous w -> Regular (plus v w) :=
+  \fun (v, w: Vectors)(vc: _)(wc: _) => CoordinateSpace.Universal[A := Point].continuous topology scalar.topological.space (coordinate (plus v w))
+    (\fun (i: Fin.Fin c.dimension) => Functions.transport topology (\fun (y: Point) => field.add (coordinate v y i) (coordinate w y i)) (\fun (y: Point) => coordinate (plus v w) y i)
+      (\fun (y: Point) => sym!{K} _ _ (congr!{{Vector c.dimension} K} (\fun (f: Vector c.dimension) => f i) _ _ ((c.frame (center y)).forward.preservesAdd (v y) (w y))))
+      (Functions.addition topology (\fun (y: Point) => coordinate v y i) (\fun (y: Point) => coordinate w y i) (component v (read v vc) i) (component w (read w wc) i)));
+\import topology.Continuity[A := Y, B := K].Restriction[S := domain c] \as RestrictScalar;
+\definition scaling: \forall (a: Y -> K)(v: Vectors) -> topology.Continuity[A := Y, B := K].Continuous source scalar.topological.space a -> Continuous v -> Regular (scale a v) :=
+  \fun (a: _)(v: _)(ac: _)(vc: _) => CoordinateSpace.Universal[A := Point].continuous topology scalar.topological.space (coordinate (scale a v))
+    (\fun (i: Fin.Fin c.dimension) => Functions.transport topology (\fun (y: Point) => field.mul (a y) (coordinate v y i)) (\fun (y: Point) => coordinate (scale a v) y i)
+      (\fun (y: Point) => sym!{K} _ _ (congr!{{Vector c.dimension} K} (\fun (f: Vector c.dimension) => f i) _ _ ((c.frame (center y)).forward.preservesScale (a y) (v y))))
+      (Functions.multiplication topology (\fun (y: Point) => a y) (\fun (y: Point) => coordinate v y i) (RestrictScalar.restrictContinuous source scalar.topological.space a ac) (component v (read v vc) i)));

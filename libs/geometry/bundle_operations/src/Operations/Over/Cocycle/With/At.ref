@@ -1,0 +1,24 @@
+\structure Slot: \Set := { chart: Index x, coordinate: Fin.Fin (dimension chart) };
+\definition slotEta: \forall (slot: Slot) -> Slot { chart := slot.chart, coordinate := slot.coordinate } = slot :=
+  \induction (slot: Slot) \return Slot { chart := slot.chart, coordinate := slot.coordinate } = slot \with {
+    | # : \fun (i: Index x)(k: Fin.Fin (dimension i)) => \refl(Slot { chart := i, coordinate := k })
+  };
+\import Spaces.Coordinates[I := Slot] \as Raw;
+\definition value[f: Raw.Vector][i: Index x]: Vector (dimension i) := \fun (k: Fin.Fin (dimension i)) => f (Slot { chart := i, coordinate := k });
+\definition Compatible[f: Raw.Vector]: \Prop := \forall (i, j: Index x) -> (cocycle.transition x i j).forward.apply (value f i) = value f j;
+\import Spaces.Subspace[V := Raw.Vector, space := Raw.space] \as Subspaces;
+\definition subspace: Subspaces.Subspace := Subspaces.Subspace {
+  carrier := { f: Raw.Vector \where Compatible f },
+  containsZero := \fun (i, j: Index x) => (cocycle.transition x i j).forward.preservesZero,
+  closedAdd := \fun (f, g: Raw.Vector)(fl: Compatible f)(gl: Compatible g)(i, j: Index x) => trans!{{Vector (dimension j)}} _ _ _
+    ((cocycle.transition x i j).forward.preservesAdd (value f i) (value g i))
+    (congr!{{Vector (dimension j)} {Vector (dimension j)} {Vector (dimension j)}} (coordinates (dimension j)).add _ _ _ _ (fl i j) (gl i j)),
+  closedScale := \fun (a: K)(f: Raw.Vector)(fl: Compatible f)(i, j: Index x) => trans!{{Vector (dimension j)}} _ _ _
+    ((cocycle.transition x i j).forward.preservesScale a (value f i))
+    (congr!{{Vector (dimension j)} {Vector (dimension j)}} ((coordinates (dimension j)).smul a) _ _ (fl i j)),
+};
+\import Subspaces.Of[subspace := subspace] \as Subspace;
+\definition Carrier: \Set := Subspace.Carrier;
+\definition space: Spaces.VectorSpace Carrier := Subspace.induced;
+\definition compatible[f: Carrier]: Compatible f := \bysub(Raw.Vector, subspace.carrier, f);
+\module Frame(i: Index x);

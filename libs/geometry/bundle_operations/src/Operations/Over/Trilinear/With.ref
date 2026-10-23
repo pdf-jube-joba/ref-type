@@ -1,0 +1,34 @@
+\import Spaces.Tensor[V := V, W := W, left := left, right := middle] \as First;
+\import Spaces.Tensor[V := First.Carrier, W := U, left := First.space, right := right] \as Tensor;
+\import commutative_algebra.Modules[R := K, ring := Fields.fieldAsCommutativeRing K field].HomSpace[V := U, W := T, source := right, target := target] \as Hom;
+\import module_theory.Module[].Over[R := K, ring := Spaces.ring].Hom[V := U, W := T, source := right, target := target] \as Native;
+\definition at[v: V][w: W]: Hom.Carrier := Hom.Carrier { apply := value v w, addition := laws.addThird v w, scalar := \fun (a: K)(u: U) => laws.scaleThird a v w u };
+\definition bilinear: First.BilinearLaws[Hom.Carrier, Hom.space, at] := First.BilinearLaws[Hom.Carrier, Hom.space, at] {
+  addLeft := \fun (v, z: V)(w: W) => Native.ext (at (left.add v z) w) (Hom.add (at v w) (at z w)) (\fun (u: U) => laws.addFirst v z w u),
+  addRight := \fun (v: V)(w, z: W) => Native.ext (at v (middle.add w z)) (Hom.add (at v w) (at v z)) (\fun (u: U) => laws.addSecond v w z u),
+  scaleLeft := \fun (a: K)(v: V)(w: W) => Native.ext (at (left.smul a v) w) (Hom.scale a (at v w)) (\fun (u: U) => laws.scaleFirst a v w u),
+  scaleRight := \fun (a: K)(v: V)(w: W) => Native.ext (at v (middle.smul a w)) (Hom.scale a (at v w)) (\fun (u: U) => laws.scaleSecond a v w u)
+};
+\import First.Universal[U := Hom.Carrier, target := Hom.space] \as Curry;
+\definition curry: Spaces.Linear[V := First.Carrier, W := Hom.Carrier, source := First.space, target := Hom.space].Map := Curry.map at bilinear;
+\definition curryOnPure: \forall (v: V)(w: W) -> curry.apply (First.tensor v w) = at v w := Curry.onTensor at bilinear;
+\definition evaluate[t: First.Carrier][u: U]: T := (curry.apply t).apply u;
+\definition outerLaws: Tensor.BilinearLaws[T, target, evaluate] := Tensor.BilinearLaws[T, target, evaluate] {
+  addLeft := \fun (s, t: First.Carrier)(u: U) => congr!{{Hom.Carrier} T} (\fun (h: Hom.Carrier) => h.apply u) _ _ (curry.preservesAdd s t),
+  addRight := \fun (t: First.Carrier)(u, z: U) => (curry.apply t).addition u z,
+  scaleLeft := \fun (a: K)(t: First.Carrier)(u: U) => congr!{{Hom.Carrier} T} (\fun (h: Hom.Carrier) => h.apply u) _ _ (curry.preservesScale a t),
+  scaleRight := \fun (a: K)(t: First.Carrier)(u: U) => (curry.apply t).scalar a u
+};
+\import Tensor.Universal[U := T, target := target] \as Universal;
+\definition map: Spaces.Linear[V := Tensor.Carrier, W := T, source := Tensor.space, target := target].Map := Universal.map evaluate outerLaws;
+\definition onTensor: \forall (t: First.Carrier)(u: U) -> map.apply (Tensor.tensor t u) = evaluate t u := Universal.onTensor evaluate outerLaws;
+\definition onPure: \forall (v: V)(w: W)(u: U) -> map.apply (Tensor.tensor (First.tensor v w) u) = value v w u :=
+  \fun (v: V)(w: W)(u: U) => trans!{T} _ _ _ (onTensor (First.tensor v w) u) (congr!{{Hom.Carrier} T} (\fun (h: Hom.Carrier) => h.apply u) _ _ (curryOnPure v w));
+\definition parameter[u: U]: Spaces.Linear[V := First.Carrier, W := T, source := First.space, target := target].Map := Spaces.Linear[V := First.Carrier, W := T, source := First.space, target := target].Map {
+  apply := \fun (t: First.Carrier) => evaluate t u,
+  preservesAdd := \fun (s, t: First.Carrier) => outerLaws.addLeft s t u,
+  preservesScale := \fun (a: K)(t: First.Carrier) => outerLaws.scaleLeft a t u
+};
+\definition parameterOnPure: \forall (u: U)(v: V)(w: W) -> (parameter u).apply (First.tensor v w) = value v w u :=
+  \fun (u: U)(v: V)(w: W) => congr!{{Hom.Carrier} T} (\fun (h: Hom.Carrier) => h.apply u) _ _ (curryOnPure v w);
+\module Right;
