@@ -1,0 +1,25 @@
+
+\import std.Data[].Bool[] \as B;
+\import B.Prop[] \as Bool;
+\import std.Logic[].Reflection[] \as Reflection;
+\definition Decision[P: \Prop]: \Set := \Cast[B.Bool^] ({ b: B.Bool^ \where Reflection.Reflect P b });
+\definition exists: \forall (P: \Prop) -> \exists Decision P := \fun (P: \Prop) => Logic.orElim _ _ _ (Classical.excludedMiddle P)
+  (\fun (p: P) => Logic.existsIntro[B.Bool^, { b: B.Bool^ \where Reflection.Reflect P b }] B.Bool^::true (Reflection.reflectTrue P p))
+  (\fun (p: Logic.Not P) => Logic.existsIntro[B.Bool^, { b: B.Bool^ \where Reflection.Reflect P b }] B.Bool^::false (Reflection.reflectFalse P p));
+\definition reflected: \forall (P: \Prop)(b: Decision P) -> Reflection.Reflect P b := \fun (P: \Prop)(b: Decision P) => \bysub(B.Bool^, Decision P, b);
+\definition boolUnique: \forall (P: \Prop)(a, b: B.Bool^) -> Reflection.Reflect P a -> Reflection.Reflect P b -> a = b :=
+  \fun (P: \Prop) => \induction (a: B.Bool^) \return \forall (b: B.Bool^) -> Reflection.Reflect P a -> Reflection.Reflect P b -> a = b \with {
+    | false: \induction (b: B.Bool^) \return Reflection.Reflect P B.Bool^::false -> Reflection.Reflect P b -> B.Bool^::false = b \with {
+      | false: \fun (ap: _)(bp: _) => \refl(B.Bool^::false)
+      | true: \fun (ap: Reflection.Reflect P B.Bool^::false)(bp: Reflection.Reflect P B.Bool^::true) => Logic.falseElim _ (Bool.falseNeTrue (ap.rtl (bp.ltr (\refl(B.Bool^::true)))))
+    }
+    | true: \induction (b: B.Bool^) \return Reflection.Reflect P B.Bool^::true -> Reflection.Reflect P b -> B.Bool^::true = b \with {
+      | false: \fun (ap: Reflection.Reflect P B.Bool^::true)(bp: Reflection.Reflect P B.Bool^::false) => Logic.falseElim _ (Bool.falseNeTrue (bp.rtl (ap.ltr (\refl(B.Bool^::true)))))
+      | true: \fun (ap: _)(bp: _) => \refl(B.Bool^::true)
+    }
+  };
+\definition unique: \forall (P: \Prop)(a, b: Decision P) -> a = b := \fun (P: \Prop)(a, b: Decision P) => boolUnique P a b (reflected P a) (reflected P b);
+\definition decide[P: \Prop]: Decision P := \choice Decision P \by { existence: exists P, uniqueness: unique P };
+\definition trueOf: \forall (P: \Prop) -> P -> decide P = B.Bool^::true := \fun (P: \Prop)(p: P) => (reflected P (decide P)).rtl p;
+\definition falseOf: \forall (P: \Prop) -> Logic.Not P -> decide P = B.Bool^::false :=
+  \fun (P: \Prop)(p: Logic.Not P) => boolUnique P (decide P) B.Bool^::false (reflected P (decide P)) (Reflection.reflectFalse P p);

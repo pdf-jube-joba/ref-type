@@ -71,3 +71,5 @@ workspace の共有キャッシュを使い、対象・全依存と利用例を�
 最大 RSS は約1,120 MiB、worker は1、復旧・重複・失われたステップはすべて0であった。
 無変更の通常検査は全1,456 module をキャッシュから再利用し、ソース再検査0ステップで成功した。
 workspace からの `--module fundamental_algebra` による登録・依存閉包の検査と、既存 `polynomial_linear_algebra` の全1,424 module のキャッシュ回帰検査も成功した。
+
+固定次数の有限対称積と係数空間の同相、分離領域の根数と因子の連続性は [complex_polynomial_roots](../complex_polynomial_roots/README.md) を参照。

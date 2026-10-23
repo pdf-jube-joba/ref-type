@@ -1,0 +1,75 @@
+\definition zero: N.Nat^ := N.Nat^::zero;
+\definition one: N.Nat^ := N.Nat^::succ zero;
+\definition two: N.Nat^ := N.Nat^::succ one;
+\import Fin.Empty[A := C.Complex] \as Empty;
+\definition pair[a, b: C.Complex]: Vector two := Extend.extend one a (Extend.extend zero b Empty.function);
+\definition pairList: \forall (a, b: C.Complex) -> Tuples.list two (pair a b) = Lists.List[C.Complex]::cons a (Lists.List[C.Complex]::cons b Lists.List[C.Complex]::nil) :=
+  \fun (a, b: C.Complex) => trans!{Coefficients} _ _ _ (\parent.SymmetricCoefficients[].listExtend one a (Extend.extend zero b Empty.function))
+    (congr!{Coefficients Coefficients} (Lists.List[C.Complex]::cons a) _ _ (\parent.SymmetricCoefficients[].listExtend zero b Empty.function));
+\definition pairAll: \forall (a, b: C.Complex)(P: C.Complex -> \Prop) -> P a -> P b -> \forall (i: Fin.Fin two) -> P (pair a b i) :=
+  \fun (a, b: C.Complex)(P: C.Complex -> \Prop)(pa: P a)(pb: P b) => Fin.cases one (\fun (i: Fin.Fin two) => P (pair a b i))
+    (\idelim a = pair a b (Fin.zero one) \with z: C.Complex => P z \by { base: pa, equality: sym!{C.Complex} _ _ (Extend.atZero one a (Extend.extend zero b Empty.function)) })
+    (\fun (i: Fin.Fin one) => \idelim b = pair a b (Fin.succ one i) \with z: C.Complex => P z \by {
+      base: pb, equality: sym!{C.Complex} _ _ (trans!{C.Complex} _ _ _ (Extend.atSuccessor one a (Extend.extend zero b Empty.function) i)
+        (trans!{C.Complex} _ _ _ (congr!{{Fin.Fin one} C.Complex} (Extend.extend zero b Empty.function) _ _ (Fin.singletonValue i)) (Extend.atZero zero b Empty.function)))
+    });
+\import metric_spaces.RealLine[] \as Line;
+\import Line.Rays[] \as Rays;
+\import Plane.Functions[A := C.Complex] \as PlaneFunctions;
+\import topology.Maps[A := C.Complex, B := C.Complex].Identity[] \as Identity;
+\definition positive: \Pow C.Complex := { z: C.Complex \where R.Lt Real.zero (C.re z) };
+\definition negative: \Pow C.Complex := { z: C.Complex \where R.Lt (C.re z) Real.zero };
+\definition positiveOpen: Scalars.IsOpenIn Plane.topology positive :=
+  PlaneFunctions.realContinuous Plane.topology (\fun (z: C.Complex) => z) (Identity.continuous Plane.topology) (Rays.Above Real.zero) (Rays.aboveOpen Real.zero);
+\definition negativeOpen: Scalars.IsOpenIn Plane.topology negative :=
+  PlaneFunctions.realContinuous Plane.topology (\fun (z: C.Complex) => z) (Identity.continuous Plane.topology) (Rays.Below Real.zero) (Rays.belowOpen Real.zero);
+\import \parent.Separated[U := positive, V := negative] \as Separation;
+\import Separation.At[n := two] \as Split;
+\definition disjoint: Separation.Disjoint := \fun (z: C.Complex)(above: _)(below: _) => Order.ltAsym Real.zero (C.re z) above below;
+\import \parent.Filtering[test := Separation.test] \as Filter;
+\import Filter.At[n := two].Regions[U := positive, V := negative] \as Regions;
+\definition laws: Regions.Laws := Split.laws positiveOpen negativeOpen disjoint;
+\definition plus: C.Complex := Op.one;
+\definition minus: C.Complex := Op.neg Op.one;
+\definition plusPositive: Scalars.Member positive plus := Bounds.onePositive;
+\definition minusNegative: Scalars.Member negative minus :=
+  R.ltReplaceRight (Real.neg Real.one) (Real.neg Real.zero) Real.zero Laws.negZero (Laws.negStrictAntitone Real.zero Real.one Bounds.onePositive);
+\definition plusTest: Separation.test plus = std.Data[].Bool[].Bool^::true := laws.left plus plusPositive;
+\definition minusTest: Separation.test minus = std.Data[].Bool[].Bool^::false := laws.right minus minusNegative;
+\definition simple: Vector two := pair plus minus;
+\definition double: Vector two := pair plus plus;
+\definition simpleCount: Lists.length C.Complex (Filter.filter (Lists.List[C.Complex]::cons plus (Lists.List[C.Complex]::cons minus Lists.List[C.Complex]::nil))) = one :=
+  \idelim std.Data[].Bool[].Bool^::true = Separation.test plus \with b: std.Data[].Bool[].Bool^ =>
+    Lists.length C.Complex (std.Data[].Bool[].ite Coefficients b (Lists.List[C.Complex]::cons plus (Filter.filter (Lists.List[C.Complex]::cons minus Lists.List[C.Complex]::nil))) (Filter.filter (Lists.List[C.Complex]::cons minus Lists.List[C.Complex]::nil))) = one \by {
+      base: \idelim std.Data[].Bool[].Bool^::false = Separation.test minus \with b: std.Data[].Bool[].Bool^ =>
+        Lists.length C.Complex (Lists.List[C.Complex]::cons plus (std.Data[].Bool[].ite Coefficients b (Lists.List[C.Complex]::cons minus Lists.List[C.Complex]::nil) Lists.List[C.Complex]::nil)) = one
+        \by { base: \refl(one), equality: sym!{std.Data[].Bool[].Bool^} _ _ minusTest },
+      equality: sym!{std.Data[].Bool[].Bool^} _ _ plusTest
+    };
+\definition simpleLaws: Regions.RootLaws[one, simple] := Regions.RootLaws[one, simple] {
+  allowed := pairAll plus minus Regions.Allowed (Logic.Or[_, _]::left plusPositive) (Logic.Or[_, _]::right minusNegative),
+  count := trans!{N.Nat^} _ _ _ (congr!{Coefficients N.Nat^} (\fun (xs: Coefficients) => Lists.length C.Complex (Filter.filter xs)) _ _ (pairList plus minus)) simpleCount,
+};
+\definition doubleCount: Lists.length C.Complex (Filter.filter (Lists.List[C.Complex]::cons plus (Lists.List[C.Complex]::cons plus Lists.List[C.Complex]::nil))) = two :=
+  \idelim std.Data[].Bool[].Bool^::true = Separation.test plus \with b: std.Data[].Bool[].Bool^ =>
+    Lists.length C.Complex (std.Data[].Bool[].ite Coefficients b
+      (Lists.List[C.Complex]::cons plus (std.Data[].Bool[].ite Coefficients b (Lists.List[C.Complex]::cons plus Lists.List[C.Complex]::nil) Lists.List[C.Complex]::nil))
+      (std.Data[].Bool[].ite Coefficients b (Lists.List[C.Complex]::cons plus Lists.List[C.Complex]::nil) Lists.List[C.Complex]::nil)) = two
+    \by { base: \refl(two), equality: sym!{std.Data[].Bool[].Bool^} _ _ plusTest };
+\definition doubleLaws: Regions.RootLaws[two, double] := Regions.RootLaws[two, double] {
+  allowed := pairAll plus plus Regions.Allowed (Logic.Or[_, _]::left plusPositive) (Logic.Or[_, _]::left plusPositive),
+  count := trans!{N.Nat^} _ _ _ (congr!{Coefficients N.Nat^} (\fun (xs: Coefficients) => Lists.length C.Complex (Filter.filter xs)) _ _ (pairList plus plus)) doubleCount,
+};
+\import \parent.At[n := two] \as Quadratic;
+\import Regions.Cluster[k := one] \as SimpleCluster;
+\import Regions.Cluster[k := two] \as DoubleCluster;
+\definition simplePoint: SimpleCluster.Base := \into[Vector two](Quadratic.coefficients simple, Regions.Domain one) \by { Regions.contains one simple simpleLaws };
+\definition simpleFactor: Vector one := SimpleCluster.value simplePoint;
+\definition simpleEquation: polynomial one simpleFactor = Monic.factors (Filter.filter (Tuples.list two simple)) := SimpleCluster.onRoots simplePoint simple (\refl(Quadratic.coefficients simple));
+\definition doublePoint: DoubleCluster.Base := \into[Vector two](Quadratic.coefficients double, Regions.Domain two) \by { Regions.contains two double doubleLaws };
+\definition doubleFactor: Vector two := DoubleCluster.value doublePoint;
+\definition doubleEquation: polynomial two doubleFactor = Monic.factors (Filter.filter (Tuples.list two double)) := DoubleCluster.onRoots doublePoint double (\refl(Quadratic.coefficients double));
+\definition simpleRegular: topology.Continuity[A := SimpleCluster.Base, B := Vector one].Continuous SimpleCluster.topology (\parent.At[n := one].topology) (\fun (p: SimpleCluster.Base) => SimpleCluster.value p) := SimpleCluster.continuous laws;
+\definition doubleRegular: topology.Continuity[A := DoubleCluster.Base, B := Vector two].Continuous DoubleCluster.topology Quadratic.topology (\fun (p: DoubleCluster.Base) => DoubleCluster.value p) := DoubleCluster.continuous laws;
+\definition unorderedQuadratics: topology.Continuity[A := Vector two, B := Quadratic.Family].Continuous Quadratic.topology Quadratic.symmetricTopology (\fun (p: Vector two) => Quadratic.roots p) := Quadratic.Topological[].rootsContinuous;
+\definition zeroHomeomorphism: topology.Homeomorphism[A := \parent.At[n := zero].Family, B := Vector zero].Homeomorphism[\parent.At[n := zero].symmetricTopology, \parent.At[n := zero].topology] := \parent.At[n := zero].Topological[].homeomorphism;

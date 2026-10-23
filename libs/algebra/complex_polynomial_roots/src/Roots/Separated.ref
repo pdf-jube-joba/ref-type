@@ -1,0 +1,19 @@
+
+\import \parent.Selection[] \as Decision;
+\definition test[z: C.Complex]: std.Data[].Bool[].Bool^ := Decision.decide (Scalars.Member U z);
+\definition Disjoint: \Prop := \forall (z: C.Complex) -> Scalars.Member U z -> Scalars.Member V z -> Logic.False;
+\module At(n: N.Nat^) {
+  \import \root.Roots[].Filtering[test := test].At[n := n].Regions[U := U, V := V] \as Regions;
+  \definition laws: Scalars.IsOpenIn Plane.topology U -> Scalars.IsOpenIn Plane.topology V -> Disjoint -> Regions.Laws :=
+    \fun (left: _)(right: _)(disjoint: Disjoint) => Regions.Laws {
+      leftOpen := left, rightOpen := right,
+      left := \fun (z: C.Complex)(inside: _) => Decision.trueOf (Scalars.Member U z) inside,
+      right := \fun (z: C.Complex)(inside: _) => Decision.falseOf (Scalars.Member U z) (\fun (other: _) => disjoint z other inside),
+    };
+  \definition stable: Scalars.IsOpenIn Plane.topology U -> Scalars.IsOpenIn Plane.topology V -> Disjoint ->
+    \forall (k: N.Nat^)(a: Vector n) -> Regions.RootLaws[k, a] ->
+    Logic.And[topology.Topology[Carrier := Vector n].IsOpenIn (\root.Roots[].At[n := n].topology) (Regions.Domain k),
+      \In[Vector n] (Regions.Domain k) (\root.Roots[].At[n := n].coefficients a)] :=
+    \fun (left: _)(right: _)(disjoint: _)(k: N.Nat^)(a: Vector n)(inside: Regions.RootLaws[k, a]) => Logic.And[_, _]::#
+      (Regions.open (laws left right disjoint) k) (Regions.contains k a inside);
+}

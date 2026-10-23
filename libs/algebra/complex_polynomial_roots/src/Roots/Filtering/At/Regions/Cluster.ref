@@ -1,0 +1,86 @@
+\definition Base: \Set := \Cast[Vector n] (Domain k);
+\import Space.Subspace[S := Domain k] \as Subspace;
+\import topology.Topology[Carrier := Base] \as BaseSpace;
+\definition topology: BaseSpace.Topology := Subspace.topology Roots.topology;
+\definition Represents[p: Vector n][q: Vector k]: \Prop := \exists ( a: Vector n \where
+  Logic.And[Roots.coefficients a = p, polynomial k q = Monic.factors (filter (Tuples.list n a))] );
+\definition Result[p: Base]: \Set := \Cast[Vector k] ({ q: Vector k \where Represents p q });
+\definition exists: \forall (p: Base) -> \exists Result p := \block {
+  \fun (p: Base) \then
+  \takefrom a: \Cast[Vector n] ({ a: Vector n \where Roots.coefficients a = p }) \by Roots.onto p \then
+  \let same: Roots.coefficients a = p := \bysub(Vector n, { a: Vector n \where Roots.coefficients a = p }, a) \then
+  \let laws: RootLaws[k, a] := (\bysub(Vector n, Domain k, p)) a same \then
+  \let selected: Vector k := Tuples.at k (filter (Tuples.list n a)) laws.count \then
+  \let result: Vector k := \root.Roots[].SymmetricCoefficients[].value k selected \then
+  \return Logic.existsIntro[Vector k, { q: Vector k \where Represents p q }] result
+    (Logic.existsIntro[Vector n, { a: Vector n \where Logic.And[Roots.coefficients a = p, polynomial k result = Monic.factors (filter (Tuples.list n a))] }] a
+      (Logic.And[_, _]::# same (trans!{Polynomial.Carrier} _ _ _ (\root.Roots[].At[n := k].factorization selected)
+        (congr!{Coefficients Polynomial.Carrier} Monic.factors _ _ (Tuples.listAt k (filter (Tuples.list n a)) laws.count)))))
+};
+\definition unique: \forall (p: Base)(q, r: Result p) -> q = r := \block {
+  \fun (p: Base)(q, r: Result p) \then
+  \takefrom a: \Cast[Vector n] ({ a: Vector n \where Logic.And[Roots.coefficients a = p, polynomial k q = Monic.factors (filter (Tuples.list n a))] }) \by \bysub(Vector k, Result p, q) \then
+  \takefrom b: \Cast[Vector n] ({ b: Vector n \where Logic.And[Roots.coefficients b = p, polynomial k r = Monic.factors (filter (Tuples.list n b))] }) \by \bysub(Vector k, Result p, r) \then
+  \let left: Logic.And[Roots.coefficients a = p, polynomial k q = Monic.factors (filter (Tuples.list n a))] := \bysub(Vector n, { a: Vector n \where Logic.And[Roots.coefficients a = p, polynomial k q = Monic.factors (filter (Tuples.list n a))] }, a) \then
+  \let right: Logic.And[Roots.coefficients b = p, polynomial k r = Monic.factors (filter (Tuples.list n b))] := \bysub(Vector n, { b: Vector n \where Logic.And[Roots.coefficients b = p, polynomial k r = Monic.factors (filter (Tuples.list n b))] }, b) \then
+  \return \root.Roots[].MonicCoordinates[].injective k q r (trans!{Polynomial.Carrier} _ _ _ left.right
+    (trans!{Polynomial.Carrier} _ _ _ (\root.Roots[].Filtering[test := test].invariant (Tuples.list n a) (Tuples.list n b)
+      (Roots.coefficientsEqual a b (trans!{{Vector n}} _ _ _ left.left (sym!{{Vector n}} _ _ right.left)))) (sym!{Polynomial.Carrier} _ _ right.right)))
+};
+\definition value[p: Base]: Result p := \choice Result p \by { existence: exists p, uniqueness: unique p };
+\definition onRoots: \forall (p: Base)(a: Vector n) -> Roots.coefficients a = p -> polynomial k (value p) = Monic.factors (filter (Tuples.list n a)) := \block {
+  \fun (p: Base)(a: Vector n)(same: _) \then
+  \takefrom b: \Cast[Vector n] ({ b: Vector n \where Logic.And[Roots.coefficients b = p, polynomial k (value p) = Monic.factors (filter (Tuples.list n b))] }) \by \bysub(Vector k, Result p, value p) \then
+  \let data: Logic.And[Roots.coefficients b = p, polynomial k (value p) = Monic.factors (filter (Tuples.list n b))] := \bysub(Vector n, { b: Vector n \where Logic.And[Roots.coefficients b = p, polynomial k (value p) = Monic.factors (filter (Tuples.list n b))] }, b) \then
+  \return trans!{Polynomial.Carrier} _ _ _ data.right (\root.Roots[].Filtering[test := test].invariant (Tuples.list n b) (Tuples.list n a)
+    (Roots.coefficientsEqual b a (trans!{{Vector n}} _ _ _ data.left (sym!{{Vector n}} _ _ same))))
+};
+\import topological_constructions.Quotient[A := Vector n, B := Vector n].Restriction[q := Roots.coefficients, U := Domain k] \as Restriction;
+\definition RootBase: \Set := \Cast[Vector n] ({ a: Vector n \where Space.Member (Domain k) (Roots.coefficients a) });
+\import Space.Subspace[S := { a: Vector n \where Space.Member (Domain k) (Roots.coefficients a) }] \as RootSubspace;
+\import topology.Topology[Carrier := RootBase] \as RootSpace;
+\definition rootTopology: RootSpace.Topology := RootSubspace.topology Roots.topology;
+\definition coefficient[a: RootBase]: Base := Restriction.map a;
+\definition rootLaws: \forall (a: RootBase) -> RootLaws[k, a] :=
+  \fun (a: RootBase) => (\bysub(Vector n, { a: Vector n \where Space.Member (Domain k) (Roots.coefficients a) }, a)) a (\refl(Roots.coefficients a));
+\module Near(a: RootBase);
+\definition fromRoots[a: RootBase]: Vector k := value (coefficient a);
+\import topological_algebra.Coordinates[K := C.Complex, I := Fin.Fin k] \as Output;
+\import topology.Continuity[A := RootBase, B := Vector k] \as RootMaps;
+\definition fromRootsContinuous: Laws -> RootMaps.Continuous rootTopology (Output.topology Plane.topology) fromRoots :=
+  \fun (laws: Laws)(W: \Pow (Vector k))(openW: _) => RootSpace.openOfNeighborhoods rootTopology (RootMaps.Preimage fromRoots W)
+    (\fun (a: RootBase)(inside: \In[Vector k] W (fromRoots a)) =>
+      Logic.existsIntro[\Pow RootBase, { O: \Pow RootBase \where RootSpace.OpenNeighborhood[rootTopology, a, RootMaps.Preimage fromRoots W, O] }]
+        (RootSpace.Intersection (RootSubspace.Trace (local a)) (RootMaps.Preimage (\fun (b: RootBase) => Near[a := a].model b) W))
+        (RootSpace.OpenNeighborhood[rootTopology, a, RootMaps.Preimage fromRoots W, RootSpace.Intersection (RootSubspace.Trace (local a)) (RootMaps.Preimage (\fun (b: RootBase) => Near[a := a].model b) W)] {
+          open := (RootSpace.topologyLaws rootTopology).intersectionOpen _ _ (RootSubspace.traceOpen Roots.topology (local a) (localOpen laws a)) (Near[a := a].continuous W openW),
+          contains := Logic.And[_, _]::# (localContains laws a (rootLaws a).allowed)
+            (\idelim fromRoots a = Near[a := a].model a \with q: Vector k => \In[Vector k] W q \by { base: inside, equality: Near[a := a].equation laws a (localContains laws a (rootLaws a).allowed) }),
+          within := \fun (b: RootBase)(near: Logic.And[Space.Member (local a) b, \In[Vector k] W (Near[a := a].model b)]) =>
+            \idelim Near[a := a].model b = fromRoots b \with q: Vector k => \In[Vector k] W q \by { base: near.right, equality: sym!{{Vector k}} _ _ (Near[a := a].equation laws b near.left) },
+        }));
+\import \root.Roots[].Filtering[test := test].At[n := n].Regions[U := U, V := V] \as Regions;
+\definition continuous: Laws -> topology.Continuity[A := Base, B := Vector k].Continuous topology (Output.topology Plane.topology) (\fun (p: Base) => value p) :=
+  \fun (laws: Laws)(W: \Pow (Vector k))(openW: _) =>
+    (Restriction.quotientMap Roots.topology Roots.topology Topological.quotientMap (Regions.open laws k)).reflectsOpen
+      ({ p: Base \where \In[Vector k] W (value p) }) (fromRootsContinuous laws W openW);
+\definition decomposition: \forall (p: Base)(a: Vector n) -> Roots.coefficients a = p ->
+  polynomial n p = Polynomial.mul (polynomial k (value p)) (Monic.factors (other (Tuples.list n a))) :=
+  \fun (p: Base)(a: Vector n)(same: _) => eq_reason_in!{Polynomial.Carrier { polynomial n p }
+    "=" { polynomial n (Roots.coefficients a) } "by" { congr!{{Vector n} Polynomial.Carrier} (polynomial n) _ _ (sym!{{Vector n}} _ _ same) }
+    "=" { product n a } "by" { Roots.factorization a }
+    "=" _ "by" { splitProduct (Tuples.list n a) }
+    "=" _ "by" { congr!{Polynomial.Carrier Polynomial.Carrier} (\fun (q: Polynomial.Carrier) => Polynomial.mul q (Monic.factors (other (Tuples.list n a)))) _ _ (sym!{Polynomial.Carrier} _ _ (onRoots p a same)) }
+  };
+\definition coefficients[p: Base]: Vector k := value p;
+\module Families(X: \Set) {
+  \import topology.Topology[Carrier := X] \as Source;
+  \import topology.Composition[A := X, B := Base, C := Vector k] \as Compose;
+  \definition pullback[f: X -> Base][x: X]: Vector k := value (f x);
+  \definition regular: Laws -> \forall (source: Source.Topology)(f: X -> Base) ->
+    topology.Continuity[A := X, B := Base].Continuous source topology f ->
+    topology.Continuity[A := X, B := Vector k].Continuous source (Output.topology Plane.topology) (pullback f) :=
+    \fun (laws: Laws)(source: Source.Topology)(f: X -> Base)(regular: _) => Compose.composeContinuous source topology (Output.topology Plane.topology) f (\fun (p: Base) => value p) regular (continuous laws);
+  \definition natural[Y: \Set][f: X -> Base][g: Y -> X]:
+    (\fun (y: Y) => pullback f (g y)) = (\fun (y: Y) => coefficients (f (g y))) := \refl(\fun (y: Y) => coefficients (f (g y)));
+}

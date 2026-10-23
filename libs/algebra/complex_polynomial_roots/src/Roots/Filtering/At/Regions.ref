@@ -1,0 +1,65 @@
+\structure Laws: \Prop := {
+  leftOpen: Scalars.IsOpenIn Plane.topology U,
+  rightOpen: Scalars.IsOpenIn Plane.topology V,
+  left: \forall (z: C.Complex) -> Scalars.Member U z -> test z = B.Bool^::true,
+  right: \forall (z: C.Complex) -> Scalars.Member V z -> test z = B.Bool^::false,
+};
+\definition Allowed[z: C.Complex]: \Prop := Logic.Or[Scalars.Member U z, Scalars.Member V z];
+\definition region[b: B.Bool^]: \Pow C.Complex := B.ite (\Pow C.Complex) b U V;
+\definition regionOpen: Laws -> \forall (b: B.Bool^) -> Scalars.IsOpenIn Plane.topology (region b) :=
+  \fun (laws: Laws) => \induction (b: B.Bool^) \return Scalars.IsOpenIn Plane.topology (region b) \with { | false: laws.rightOpen | true: laws.leftOpen };
+\definition regionTest: Laws -> \forall (b: B.Bool^)(z: C.Complex) -> Scalars.Member (region b) z -> test z = b :=
+  \fun (laws: Laws) => \induction (b: B.Bool^) \return \forall (z: C.Complex) -> Scalars.Member (region b) z -> test z = b \with { | false: laws.right | true: laws.left };
+\definition regionAllowed: \forall (b: B.Bool^)(z: C.Complex) -> Scalars.Member (region b) z -> Allowed z :=
+  \induction (b: B.Bool^) \return \forall (z: C.Complex) -> Scalars.Member (region b) z -> Allowed z \with {
+    | false: \fun (z: C.Complex)(inside: _) => Logic.Or[_, _]::right inside
+    | true: \fun (z: C.Complex)(inside: _) => Logic.Or[_, _]::left inside
+  };
+\definition regionContains: Laws -> \forall (z: C.Complex) -> Allowed z -> Scalars.Member (region (test z)) z :=
+  \fun (laws: Laws)(z: C.Complex)(allowed: Allowed z) => Logic.orElim _ _ _ allowed
+    (\fun (inside: Scalars.Member U z) => \idelim B.Bool^::true = test z \with b: B.Bool^ => Scalars.Member (region b) z \by { base: inside, equality: sym!{B.Bool^} _ _ (laws.left z inside) })
+    (\fun (inside: Scalars.Member V z) => \idelim B.Bool^::false = test z \with b: B.Bool^ => Scalars.Member (region b) z \by { base: inside, equality: sym!{B.Bool^} _ _ (laws.right z inside) });
+\import Space.IndexedIntersections[] \as Intersections;
+\definition local[a: Vector n]: \Pow (Vector n) := { b: Vector n \where \forall (i: Fin.Fin n) -> Scalars.Member (region (test (a i))) (b i) };
+\definition localOpen: Laws -> \forall (a: Vector n) -> Space.IsOpenIn Roots.topology (local a) :=
+  \fun (laws: Laws)(a: Vector n) => Intersections.open Roots.topology n (\fun (i: Fin.Fin n) => { b: Vector n \where Scalars.Member (region (test (a i))) (b i) })
+    (\fun (i: Fin.Fin n) => Coordinates.evaluationContinuous Plane.topology i (region (test (a i))) (regionOpen laws (test (a i))));
+\definition localContains: Laws -> \forall (a: Vector n) -> (\forall (i: Fin.Fin n) -> Allowed (a i)) -> Space.Member (local a) a :=
+  \fun (laws: Laws)(a: Vector n)(allowed: _)(i: Fin.Fin n) => regionContains laws (a i) (allowed i);
+\definition localPattern: Laws -> \forall (a, b: Vector n) -> Space.Member (local a) b -> \parent.Around[a := a].Pattern b :=
+  \fun (laws: Laws)(a, b: Vector n)(inside: _)(i: Fin.Fin n) => regionTest laws (test (a i)) (b i) (inside i);
+\structure RootLaws[k: N.Nat^, a: Vector n]: \Prop := {
+  allowed: \forall (i: Fin.Fin n) -> Allowed (a i),
+  count: Lists.length C.Complex (filter (Tuples.list n a)) = k,
+};
+\definition RootDomain[k: N.Nat^]: \Pow (Vector n) := { a: Vector n \where RootLaws[k, a] };
+\definition rootOpen: Laws -> \forall (k: N.Nat^) -> Space.IsOpenIn Roots.topology (RootDomain k) :=
+  \fun (laws: Laws)(k: N.Nat^) => Space.openOfNeighborhoods Roots.topology (RootDomain k)
+    (\fun (a: Vector n)(inside: RootLaws[k, a]) => Logic.existsIntro[\Pow (Vector n), { O: \Pow (Vector n) \where Space.OpenNeighborhood[Roots.topology, a, RootDomain k, O] }] (local a)
+      (Space.OpenNeighborhood[Roots.topology, a, RootDomain k, local a] {
+        open := localOpen laws a, contains := localContains laws a inside.allowed,
+        within := \fun (b: Vector n)(near: Space.Member (local a) b) => RootLaws[k, b] {
+          allowed := \fun (i: Fin.Fin n) => regionAllowed (test (a i)) (b i) (near i),
+          count := trans!{N.Nat^} _ _ _ (\parent.Around[a := a].length b (localPattern laws a b near))
+            (trans!{N.Nat^} _ _ _ (sym!{N.Nat^} _ _ \parent.Around[a := a].centerLength) inside.count),
+        },
+      }));
+\definition invariant: \forall (k: N.Nat^)(a, b: Vector n) -> Roots.coefficients a = Roots.coefficients b -> RootLaws[k, a] -> RootLaws[k, b] :=
+  \fun (k: N.Nat^)(a, b: Vector n)(same: _)(inside: RootLaws[k, a]) => RootLaws[k, b] {
+    allowed := \fun (i: Fin.Fin n) => Splitting.factorsRoot Allowed (Tuples.list n a) (Tuples.all n a Allowed inside.allowed) (b i)
+      (trans!{C.Complex} _ _ _ (congr!{Polynomial.Carrier C.Complex} (Evaluation.apply (b i)) _ _ (Roots.equalProduct a b (Roots.coefficientsEqual a b same)))
+        (\root.Roots[].MonicCoordinates[].occursRoot (Tuples.list n b) (b i) (Tuples.occurs n b i))),
+    count := trans!{N.Nat^} _ _ _ (sym!{N.Nat^} _ _ (countInvariant (Tuples.list n a) (Tuples.list n b) (Roots.coefficientsEqual a b same))) inside.count,
+  };
+\definition Domain[k: N.Nat^]: \Pow (Vector n) := { p: Vector n \where \forall (a: Vector n) -> Roots.coefficients a = p -> RootLaws[k, a] };
+\definition preimage: \forall (k: N.Nat^) -> ({ a: Vector n \where Space.Member (Domain k) (Roots.coefficients a) }) = RootDomain k :=
+  \fun (k: N.Nat^) => \axiom:setext(({ a: Vector n \where Space.Member (Domain k) (Roots.coefficients a) }), RootDomain k,
+    (\fun (a: Vector n)(all: _) => all a (\refl(Roots.coefficients a))),
+    (\fun (a: Vector n)(inside: RootLaws[k, a])(b: Vector n)(same: Roots.coefficients b = Roots.coefficients a) => invariant k a b (sym!{{Vector n}} _ _ same) inside));
+\definition open: Laws -> \forall (k: N.Nat^) -> Space.IsOpenIn Roots.topology (Domain k) :=
+  \fun (laws: Laws)(k: N.Nat^) => Topological.quotientMap.reflectsOpen (Domain k)
+    (\idelim RootDomain k = ({ a: Vector n \where Space.Member (Domain k) (Roots.coefficients a) }) \with O: \Pow (Vector n) => Space.IsOpenIn Roots.topology O
+      \by { base: rootOpen laws k, equality: sym!{{\Pow (Vector n)}} _ _ (preimage k) });
+\definition contains: \forall (k: N.Nat^)(a: Vector n) -> RootLaws[k, a] -> Space.Member (Domain k) (Roots.coefficients a) :=
+  \fun (k: N.Nat^)(a: Vector n)(inside: _)(b: Vector n)(same: _) => invariant k a b (sym!{{Vector n}} _ _ same) inside;
+\module Cluster(k: N.Nat^);

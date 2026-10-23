@@ -1,0 +1,69 @@
+\import \parent.MonicCoordinates[] \as MonicCoordinates;
+\import topological_algebra.Coordinates[K := C.Complex, I := Fin.Fin n] \as Coordinates;
+\import topology.Topology[Carrier := Vector n] \as Space;
+\definition topology: Space.Topology := Coordinates.topology Plane.topology;
+\import \parent.SymmetricCoefficients[] \as CoefficientFormulas;
+\definition coefficients: Vector n -> Vector n := CoefficientFormulas.value n;
+\definition coefficientList: \forall (a: Vector n) -> Tuples.list n (coefficients a) = RootProduct.coefficients (Tuples.list n a) := CoefficientFormulas.coefficientList n;
+\definition factorization: \forall (a: Vector n) -> polynomial n (coefficients a) = product n a :=
+  \fun (a: Vector n) => trans!{Polynomial.Carrier} _ _ _ (congr!{Coefficients Polynomial.Carrier} Monic.asPolynomial _ _ (coefficientList a)) (RootProduct.factorization (Tuples.list n a));
+\definition Equivalent[a, b: Vector n]: \Prop := Families.Permutation (Tuples.list n a) (Tuples.list n b);
+\definition equalProduct: \forall (a, b: Vector n) -> Equivalent a b -> product n a = product n b :=
+  \fun (a, b: Vector n) => Families.independent (Tuples.list n a) (Tuples.list n b);
+\definition equalCoefficients: \forall (a, b: Vector n) -> Equivalent a b -> coefficients a = coefficients b :=
+  \fun (a, b: Vector n)(same: _) => MonicCoordinates.injective n (coefficients a) (coefficients b)
+    (trans!{Polynomial.Carrier} _ _ _ (factorization a) (trans!{Polynomial.Carrier} _ _ _ (equalProduct a b same) (sym!{Polynomial.Carrier} _ _ (factorization b))));
+\definition coefficientsEqual: \forall (a, b: Vector n) -> coefficients a = coefficients b -> Equivalent a b :=
+  \fun (a, b: Vector n)(same: _) => Families.unique (Tuples.list n a) (Tuples.list n b)
+    (trans!{Polynomial.Carrier} _ _ _ (sym!{Polynomial.Carrier} _ _ (factorization a))
+      (trans!{Polynomial.Carrier} _ _ _ (congr!{{Vector n} Polynomial.Carrier} (polynomial n) _ _ same) (factorization b)));
+\definition onto: \forall (p: Vector n) -> \exists ( a: Vector n \where coefficients a = p ) := \block {
+  \fun (p: Vector n) \then
+  \takefrom f: Monic.Splitting[Fundamental.Normalization[].whole, Tuples.list n p] \by Factorization.monic (Tuples.list n p) \then
+  \let a: Vector n := Tuples.at n f.roots (trans!{N.Nat^} _ _ _ f.degree (Tuples.listLength n p)) \then
+  \let list: Tuples.list n a = f.roots := Tuples.listAt n f.roots _ \then
+  \return Logic.existsIntro[Vector n, { a: Vector n \where coefficients a = p }] a
+    (MonicCoordinates.injective n (coefficients a) p (trans!{Polynomial.Carrier} _ _ _ (factorization a)
+      (trans!{Polynomial.Carrier} _ _ _ (congr!{Coefficients Polynomial.Carrier} Monic.factors _ _ list) (sym!{Polynomial.Carrier} _ _ f.factorization))))
+};
+\import topological_constructions.RelationQuotient[A := Vector n, relation := Equivalent] \as Symmetric;
+\definition equivalence: Symmetric.Laws := std.Logic[].Relation[].Equivalence[Vector n, Equivalent] {
+  refl := \fun (a: Vector n) => coefficientsEqual a a (\refl(coefficients a)),
+  sym := \fun (a, b: Vector n)(same: _) => coefficientsEqual b a (sym!{{Vector n}} _ _ (equalCoefficients a b same)),
+  trans := \fun (a, b, c: Vector n)(ab: _)(bc: _) => coefficientsEqual a c (trans!{{Vector n}} _ _ _ (equalCoefficients a b ab) (equalCoefficients b c bc)),
+};
+\definition Family: \Set := Symmetric.Carrier;
+\definition family: Vector n -> Family := Symmetric.class;
+\definition symmetricTopology: topology.Topology[Carrier := Family].Topology := Symmetric.topology topology;
+\import Symmetric.Descent[C := Vector n] \as Descent;
+\definition coefficientMap: Family -> Vector n := Descent.apply equivalence coefficients equalCoefficients;
+
+\definition onClass: \forall (a: Vector n) -> coefficientMap (family a) = coefficients a := Descent.onClass equivalence coefficients equalCoefficients;
+\definition coefficientInjective: \forall (F, G: Family) -> coefficientMap F = coefficientMap G -> F = G :=
+  Symmetric.induction (\fun (F: Family) => \forall (G: Family) -> coefficientMap F = coefficientMap G -> F = G)
+    (\fun (a: Vector n) => Symmetric.induction (\fun (G: Family) => coefficientMap (family a) = coefficientMap G -> family a = G)
+      (\fun (b: Vector n)(same: _) => Symmetric.relatedEqual equivalence a b (coefficientsEqual a b (trans!{{Vector n}} _ _ _ (sym!{{Vector n}} _ _ (onClass a)) (trans!{{Vector n}} _ _ _ same (onClass b))))));
+\definition RootFamily[p: Vector n]: \Set := \Cast[Family] ({ F: Family \where coefficientMap F = p });
+\definition rootFamilyExists: \forall (p: Vector n) -> \exists RootFamily p := \block {
+  \fun (p: Vector n) \then
+  \takefrom a: \Cast[Vector n] ({ a: Vector n \where coefficients a = p }) \by onto p \then
+  \return Logic.existsIntro[Family, { F: Family \where coefficientMap F = p }] (family a)
+    (trans!{{Vector n}} _ _ _ (onClass a) (\bysub(Vector n, { a: Vector n \where coefficients a = p }, a)))
+};
+\definition rootFamilyUnique: \forall (p: Vector n)(F, G: RootFamily p) -> F = G :=
+  \fun (p: Vector n)(F, G: RootFamily p) => coefficientInjective F G (trans!{{Vector n}} _ _ _ (\bysub(Family, RootFamily p, F)) (sym!{{Vector n}} _ _ (\bysub(Family, RootFamily p, G))));
+\definition roots[p: Vector n]: RootFamily p := \choice RootFamily p \by { existence: rootFamilyExists p, uniqueness: rootFamilyUnique p };
+\definition coefficientsRoots: \forall (p: Vector n) -> coefficientMap (roots p) = p := \fun (p: Vector n) => \bysub(Family, RootFamily p, roots p);
+\definition rootsCoefficients: \forall (F: Family) -> roots (coefficientMap F) = F :=
+  \fun (F: Family) => coefficientInjective _ _ (coefficientsRoots (coefficientMap F));
+\definition bound: \forall (p, a: Vector n) -> coefficients a = p -> \forall (i: Fin.Fin n) -> R.Lt (Absolute.abs (a i)) (Real.add Real.one (Bounds.budget (Tuples.list n p))) :=
+  \fun (p, a: Vector n)(same: _)(i: Fin.Fin n) => MonicCoordinates.rootBound (Tuples.list n p) (a i)
+    (eq_reason_in!{C.Complex { Monic.monicEvaluate (Tuples.list n p) (a i) }
+      "=" _ "by" { sym!{C.Complex} _ _ (Evaluation.agrees (Tuples.list n p) (a i)) }
+      "=" { Evaluation.apply (a i) (polynomial n (coefficients a)) } "by" { congr!{{Vector n} C.Complex} (\fun (q: Vector n) => Evaluation.apply (a i) (polynomial n q)) _ _ (sym!{{Vector n}} _ _ same) }
+      "=" { Evaluation.apply (a i) (product n a) } "by" { congr!{Polynomial.Carrier C.Complex} (Evaluation.apply (a i)) _ _ (factorization a) }
+      "=" _ "by" { MonicCoordinates.occursRoot (Tuples.list n a) (a i) (Tuples.occurs n a i) }
+    });
+\module Topological;
+\module Naturality;
+\module Unordered;
