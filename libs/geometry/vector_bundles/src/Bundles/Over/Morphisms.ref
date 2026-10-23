@@ -1,0 +1,21 @@
+\import \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := F] \as Source;
+\import \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := Y, F := G] \as Target;
+\definition Linear[x: X]: \Set := Spaces.Linear[V := F x, W := G (f x), source := source.space x, target := target.space (f x)].Map;
+\structure Data: \Set := { fiber: \forall (x: X) -> Linear x };
+\definition total[data: Data][p: Source.Point]: Target.Point := Target.include (f p.base) ((data.fiber p.base).apply p.vector);
+\definition Map: \Set := \Cast[Data] ({ data: Data \where topology.Continuity[A := Source.Point, B := Target.Point].Continuous source.totalSpace target.totalSpace (total data) });
+\definition continuous: \forall (map: Map) -> topology.Continuity[A := Source.Point, B := Target.Point].Continuous source.totalSpace target.totalSpace (total map) :=
+  \fun (map: Map) => \bysub(Data, Map, map);
+\definition projection: \forall (map: Map)(p: Source.Point) -> Target.projection (total map p) = f (Source.projection p) :=
+  \fun (map: Map)(p: Source.Point) => \refl(f p.base);
+\definition onFiber: \forall (map: Map)(x: X)(v: F x) -> total map (Source.include x v) = Target.include (f x) ((map.fiber x).apply v) :=
+  \fun (map: Map)(x: X)(v: F x) => \refl(Target.include (f x) ((map.fiber x).apply v));
+\definition dataEta: \forall (data: Data) -> Data { fiber := data.fiber } = data :=
+  \induction (data: Data) \return Data { fiber := data.fiber } = data \with { | # : \fun (fiber: \forall (x: X) -> Linear x) => \refl(Data { fiber := fiber }) };
+\definition ext: \forall (a, b: Map) -> (\forall (x: X)(v: F x) -> (a.fiber x).apply v = (b.fiber x).apply v) -> a = b :=
+  \fun (a, b: Map)(same: _) => trans!{Data} _ _ _ (sym!{Data} _ _ (dataEta a))
+    (trans!{Data} _ _ _ (congr!{{\forall (x: X) -> Linear x} Data} Data::# _ _
+      (\axiom:funext(a.fiber, b.fiber, \fun (x: X) => Spaces.Linear[V := F x, W := G (f x), source := source.space x, target := target.space (f x)].ext (a.fiber x) (b.fiber x)
+        (\axiom:funext((a.fiber x).apply, (b.fiber x).apply, same x))))) (dataEta b));
+\module Composition(Z: \Set, H: Z -> \Set,
+  range: \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := Z, F := H].Bundle, g: Y -> Z);

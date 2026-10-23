@@ -1,0 +1,26 @@
+\import \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := Y, F := F, G := G, source := source, target := target, f := f] \as Maps;
+\import \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := F] \as Source;
+\import \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := Y, F := G] \as Target;
+\import Source.Of[bundle := source] \as SourceOf;
+\import Target.Of[bundle := target] \as TargetOf;
+\import SourceOf.Sections[] \as Sections;
+\import \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Identity[X := X, F := F, bundle := source] \as SourceIdentity;
+\import \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Identity[X := Y, F := G, bundle := target] \as TargetIdentity;
+\import \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := F, G := F, source := source, target := source, f := \fun (x: X) => x] \as SourceEnd;
+\import SourceEnd.Composition[Z := Y, H := G, range := target, g := f] \as Before;
+\import Maps.Composition[Z := Y, H := G, range := target, g := \fun (y: Y) => y] \as After;
+\definition leftUnit: \forall (a: Maps.Map)(x: X)(v: F x) -> ((Before.compose SourceIdentity.map a).fiber x).apply v = (a.fiber x).apply v :=
+  \fun (a: Maps.Map)(x: X)(v: F x) => \refl((a.fiber x).apply v);
+\definition rightUnit: \forall (a: Maps.Map)(x: X)(v: F x) -> ((After.compose a TargetIdentity.map).fiber x).apply v = (a.fiber x).apply v :=
+  \fun (a: Maps.Map)(x: X)(v: F x) => \refl((a.fiber x).apply v);
+\import topology.Composition[A := X, B := Source.Point, C := Target.Point] \as AlongZero;
+\import topology.Composition[A := X, B := Target.Point, C := Y] \as Project;
+\definition baseContinuous: \forall (a: Maps.Map) -> topology.Continuity[A := X, B := Y].Continuous source.baseSpace target.baseSpace f :=
+  \fun (a: Maps.Map) => Project.composeContinuous source.baseSpace target.totalSpace target.baseSpace
+    (\fun (x: X) => Maps.total a (Sections.total Sections.zero x)) Target.projection
+    (AlongZero.composeContinuous source.baseSpace source.totalSpace target.totalSpace (Sections.total Sections.zero) (Maps.total a) (Sections.continuous Sections.zero) (Maps.continuous a)) TargetOf.projectionContinuous;
+\module Pullback(Z: \Set, space: topology.Topology[Carrier := Z].Topology, g: Z -> X);
+
+\module Associativity(Z, W: \Set, H: Z -> \Set, J: W -> \Set,
+  middle: \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := Z, F := H].Bundle,
+  range: \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := W, F := J].Bundle, g: Y -> Z, h: Z -> W);

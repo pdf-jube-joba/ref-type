@@ -1,0 +1,28 @@
+\import \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := F] \as Source;
+\import \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := G] \as Target;
+\import \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := F, G := G, source := source, target := target, f := \fun (x: X) => x] \as Forward;
+\import \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := G, G := F, source := target, target := source, f := \fun (x: X) => x] \as Backward;
+\structure Data: \Set := { forward: Forward.Map, backward: Backward.Map };
+\structure Laws[data: Data]: \Prop := {
+  leftInverse: \forall (x: X)(v: F x) -> (data.backward.fiber x).apply ((data.forward.fiber x).apply v) = v,
+  rightInverse: \forall (x: X)(v: G x) -> (data.forward.fiber x).apply ((data.backward.fiber x).apply v) = v,
+};
+\definition Isomorphism: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+\definition leftInverse: \forall (iso: Isomorphism)(p: Source.Point) -> Backward.total iso.backward (Forward.total iso.forward p) = p :=
+  \fun (iso: Isomorphism)(p: Source.Point) => trans!{Source.Point} _ _ _
+    (congr!{{F p.base} Source.Point} (Source.include p.base) _ _ ((\bysub(Data, Isomorphism, iso)).leftInverse p.base p.vector)) (Source.eta p);
+\definition rightInverse: \forall (iso: Isomorphism)(p: Target.Point) -> Forward.total iso.forward (Backward.total iso.backward p) = p :=
+  \fun (iso: Isomorphism)(p: Target.Point) => trans!{Target.Point} _ _ _
+    (congr!{{G p.base} Target.Point} (Target.include p.base) _ _ ((\bysub(Data, Isomorphism, iso)).rightInverse p.base p.vector)) (Target.eta p);
+\import topology.Homeomorphism[A := Source.Point, B := Target.Point] \as Homeomorphisms;
+\definition homeomorphism[iso: Isomorphism]: Homeomorphisms.Homeomorphism[source.totalSpace, target.totalSpace] := Homeomorphisms.Homeomorphism[source.totalSpace, target.totalSpace] {
+  forward := Forward.total iso.forward, backward := Backward.total iso.backward,
+  leftInverse := leftInverse iso, rightInverse := rightInverse iso,
+  forwardContinuous := Forward.continuous iso.forward, backwardContinuous := Backward.continuous iso.backward,
+};
+\import \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Isomorphisms[X := X, F := G, G := F, source := target, target := source] \as Reverse;
+\definition inverse[iso: Isomorphism]: Reverse.Isomorphism := Reverse.Isomorphism {
+  forward := iso.backward, backward := iso.forward,
+  leftInverse := (\bysub(Data, Isomorphism, iso)).rightInverse,
+  rightInverse := (\bysub(Data, Isomorphism, iso)).leftInverse,
+};

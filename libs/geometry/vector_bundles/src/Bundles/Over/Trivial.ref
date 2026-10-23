@@ -1,0 +1,71 @@
+\import \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := \fun (x: X) => Vector n] \as Family;
+\import topology.Topology[Carrier := X] \as Base;
+\import topology.Topology[Carrier := Family.Point] \as Total;
+\import topological_constructions.Product[A := X, B := Vector n] \as Product;
+\import Product.Maps[] \as Projections;
+\import Product.Universal[X := Product.CarrierSet] \as PairIdentity;
+\import topological_constructions.Induced[A := Family.Point, B := Product.CarrierSet] \as Induced;
+\definition forward[p: Family.Point]: Product.CarrierSet := Pair.pair X (Vector n) p.base p.vector;
+\definition backward[p: Product.CarrierSet]: Family.Point := Family.include (Pair.first X (Vector n) p) (Pair.second X (Vector n) p);
+\definition topology: Total.Topology := Induced.topology (Product.topology baseSpace (coordinateTopology n)) forward;
+\definition forwardContinuous: topology.Continuity[A := Family.Point, B := Product.CarrierSet].Continuous topology (Product.topology baseSpace (coordinateTopology n)) forward := Induced.continuous (Product.topology baseSpace (coordinateTopology n)) forward;
+\definition backwardContinuous: topology.Continuity[A := Product.CarrierSet, B := Family.Point].Continuous (Product.topology baseSpace (coordinateTopology n)) topology backward :=
+  Induced.Universal[Z := Product.CarrierSet].continuous (Product.topology baseSpace (coordinateTopology n)) (Product.topology baseSpace (coordinateTopology n)) forward backward
+    (PairIdentity.pairContinuous (Product.topology baseSpace (coordinateTopology n)) baseSpace (coordinateTopology n) (Pair.first X (Vector n)) (Pair.second X (Vector n))
+      (Projections.firstContinuous baseSpace (coordinateTopology n)) (Projections.secondContinuous baseSpace (coordinateTopology n)));
+\definition data: Family.Data := Family.Data { baseSpace := baseSpace, totalSpace := topology, space := \fun (x: X) => coordinates n };
+\import Family.With[data := data] \as Charts;
+\import Spaces.Isomorphism[V := Vector n, W := Vector n, source := coordinates n, target := coordinates n] \as LinearIsomorphisms;
+\definition identity: LinearIsomorphisms.Isomorphism := LinearIsomorphisms.Isomorphism {
+  forward := Spaces.FiniteCoordinates[n := n].identity, backward := Spaces.FiniteCoordinates[n := n].identity,
+  leftInverse := \fun (v: Vector n) => \refl(v), rightInverse := \fun (v: Vector n) => \refl(v),
+};
+\definition chart: Charts.ChartData := Charts.ChartData { domain := Base.Whole, dimension := n, frame := \fun (x: \Cast[X] Base.Whole) => identity };
+\import Charts.In[c := chart] \as Local;
+\import Base.Subspace[S := Base.Whole] \as BaseSubspace;
+\import Total.Subspace[S := { p: Family.Point \where Base.Member Base.Whole p.base }] \as TotalSubspace;
+\import topological_constructions.Product[A := Local.BasePoint, B := Vector n] \as LocalProduct;
+\import LocalProduct.Universal[X := Local.TotalPoint] \as PairForward;
+\import LocalProduct.Maps[] \as LocalProjections;
+\import topology.Composition[A := Family.Point, B := Product.CarrierSet, C := X] \as BaseProjection;
+\import topology.Composition[A := Family.Point, B := Product.CarrierSet, C := Vector n] \as VectorProjection;
+\definition projectionContinuous: topology.Continuity[A := Family.Point, B := X].Continuous topology baseSpace Family.projection :=
+  BaseProjection.composeContinuous topology (Product.topology baseSpace (coordinateTopology n)) baseSpace forward (Pair.first X (Vector n)) forwardContinuous (Projections.firstContinuous baseSpace (coordinateTopology n));
+\definition vectorContinuous: topology.Continuity[A := Family.Point, B := Vector n].Continuous topology (coordinateTopology n) (\fun (p: Family.Point) => p.vector) :=
+  VectorProjection.composeContinuous topology (Product.topology baseSpace (coordinateTopology n)) (coordinateTopology n) forward (Pair.second X (Vector n)) forwardContinuous (Projections.secondContinuous baseSpace (coordinateTopology n));
+\import topology.Continuity[A := Family.Point, B := X].Restriction[S := { p: Family.Point \where Base.Member Base.Whole p.base }] \as RestrictBase;
+\import topology.Continuity[A := Family.Point, B := Vector n].Restriction[S := { p: Family.Point \where Base.Member Base.Whole p.base }] \as RestrictVector;
+\import topology.Continuity[A := Local.TotalPoint, B := X].Corestriction[S := Base.Whole] \as IntoBase;
+\definition localForward: topology.Continuity[A := Local.TotalPoint, B := Local.ProductPoint].Continuous Local.localTopology Local.productTopology Local.forward :=
+  PairForward.pairContinuous Local.localTopology (BaseSubspace.topology baseSpace) (coordinateTopology n) Local.base (\fun (p: Local.TotalPoint) => p.vector)
+    (IntoBase.corestrictContinuous Local.localTopology baseSpace (\fun (p: Local.TotalPoint) => Local.base p) (RestrictBase.restrictContinuous topology baseSpace Family.projection projectionContinuous))
+    (RestrictVector.restrictContinuous topology (coordinateTopology n) (\fun (p: Family.Point) => p.vector) vectorContinuous);
+\import Product.Universal[X := Local.ProductPoint] \as PairBackward;
+\import topology.Composition[A := Local.ProductPoint, B := Local.BasePoint, C := X] \as BaseInclude;
+\definition localPair[p: Local.ProductPoint]: Product.CarrierSet := Pair.pair X (Vector n) (Pair.first Local.BasePoint (Vector n) p) (Pair.second Local.BasePoint (Vector n) p);
+\definition localPairContinuous: topology.Continuity[A := Local.ProductPoint, B := Product.CarrierSet].Continuous Local.productTopology (Product.topology baseSpace (coordinateTopology n)) localPair :=
+  PairBackward.pairContinuous Local.productTopology baseSpace (coordinateTopology n)
+    (\fun (p: Local.ProductPoint) => Pair.first Local.BasePoint (Vector n) p) (Pair.second Local.BasePoint (Vector n))
+    (BaseInclude.composeContinuous Local.productTopology (BaseSubspace.topology baseSpace) baseSpace (Pair.first Local.BasePoint (Vector n)) (\fun (x: Local.BasePoint) => x)
+      (LocalProjections.firstContinuous (BaseSubspace.topology baseSpace) (coordinateTopology n)) (\fun (U: \Pow X)(open: _) => BaseSubspace.traceOpen baseSpace U open))
+    (LocalProjections.secondContinuous (BaseSubspace.topology baseSpace) (coordinateTopology n));
+\import topology.Composition[A := Local.ProductPoint, B := Product.CarrierSet, C := Family.Point] \as BackwardComposition;
+\import topology.Continuity[A := Local.ProductPoint, B := Family.Point].Corestriction[S := { p: Family.Point \where Base.Member Base.Whole p.base }] \as IntoLocal;
+\definition laws: Local.Laws := Local.Laws {
+  baseOpen := (Base.topologyLaws baseSpace).wholeOpen,
+  totalOpen := \idelim Total.Whole = ({ p: Family.Point \where Base.Member Base.Whole p.base }) \with U: \Pow Family.Point => Total.IsOpenIn topology U \by {
+    base: (Total.topologyLaws topology).wholeOpen, equality: \axiom:setext(Total.Whole, ({ p: Family.Point \where Base.Member Base.Whole p.base }), (\fun (p: Family.Point)(h: _) => \refl(p.base)), (\fun (p: Family.Point)(h: _) => \refl(p)))
+  },
+  forwardContinuous := localForward,
+  backwardContinuous := IntoLocal.corestrictContinuous Local.productTopology topology (\fun (p: Local.ProductPoint) => Local.backward p)
+    (BackwardComposition.composeContinuous Local.productTopology (Product.topology baseSpace (coordinateTopology n)) topology localPair backward localPairContinuous backwardContinuous),
+};
+\definition trivialization: Charts.Chart := \into[Charts.ChartData](chart, Charts.Chart) \by { laws };
+\definition bundle: Family.Bundle := \into[Family.Data](data, Family.Bundle) \by {
+  \fun (x: X) => Logic.existsIntro[Charts.Chart, { c: Charts.Chart \where Base.Member c.domain x }] trivialization (\refl(x))
+};
+\import topology.Homeomorphism[A := Family.Point, B := Product.CarrierSet] \as Homeomorphisms;
+\definition homeomorphism: Homeomorphisms.Homeomorphism[topology, Product.topology baseSpace (coordinateTopology n)] := Homeomorphisms.Homeomorphism[topology, Product.topology baseSpace (coordinateTopology n)] {
+  forward := forward, backward := backward, leftInverse := Family.eta, rightInverse := Pair.Prop[A := X, B := Vector n].eta,
+  forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
+};

@@ -1,0 +1,34 @@
+\import FirstFamily.Of[bundle := First.pulled fRegular].Pullback[Y := Z, source := second, f := g] \as Nested;
+\import topology.Composition[A := Z, B := Y, C := X] \as BaseComposition;
+\definition compositeRegular: Direct.BaseContinuous := BaseComposition.composeContinuous second first bundle.baseSpace g f gRegular fRegular;
+\definition direct: TargetFamily.Bundle := Direct.pulled compositeRegular;
+\definition nested: TargetFamily.Bundle := Nested.pulled gRegular;
+\import \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Isomorphisms[X := Z, F := \fun (z: Z) => F (f (g z)), G := \fun (z: Z) => F (f (g z)), source := direct, target := nested] \as Isomorphisms;
+\import \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := Z, Y := Z, F := \fun (z: Z) => F (f (g z)), G := \fun (z: Z) => F (f (g z)), source := direct, target := nested, f := \fun (z: Z) => z] \as Forward;
+\import \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := Z, Y := Z, F := \fun (z: Z) => F (f (g z)), G := \fun (z: Z) => F (f (g z)), source := nested, target := direct, f := \fun (z: Z) => z] \as Backward;
+\definition identity[z: Z]: Spaces.Linear[V := F (f (g z)), W := F (f (g z)), source := bundle.space (f (g z)), target := bundle.space (f (g z))].Map :=
+  Spaces.Linear[V := F (f (g z)), W := F (f (g z)), source := bundle.space (f (g z)), target := bundle.space (f (g z))].Map {
+    apply := \fun (v: F (f (g z))) => v,
+    preservesAdd := \fun (v, w: F (f (g z))) => \refl((bundle.space (f (g z))).add v w), preservesScale := \fun (a: K)(v: F (f (g z))) => \refl((bundle.space (f (g z))).smul a v),
+  };
+\definition forwardData: Forward.Data := Forward.Data { fiber := identity };
+\definition backwardData: Backward.Data := Backward.Data { fiber := identity };
+\import topology.Composition[A := TargetFamily.Point, B := Z, C := Y] \as FirstBase;
+\definition toFirst[p: TargetFamily.Point]: FirstFamily.Point := FirstFamily.include (g p.base) p.vector;
+\definition toFirstContinuous: topology.Continuity[A := TargetFamily.Point, B := FirstFamily.Point].Continuous Direct.topology First.topology toFirst :=
+  First.Universal[Z := TargetFamily.Point].continuous Direct.topology toFirst
+    (FirstBase.composeContinuous Direct.topology second first TargetFamily.projection g Direct.projectionContinuous gRegular) Direct.mapContinuous;
+\definition forward: Forward.Map := \into[Forward.Data](forwardData, Forward.Map) \by {
+  Nested.Universal[Z := TargetFamily.Point].continuous Direct.topology (Forward.total forwardData) Direct.projectionContinuous toFirstContinuous
+};
+\import topology.Composition[A := TargetFamily.Point, B := FirstFamily.Point, C := Point] \as Second;
+\definition backward: Backward.Map := \into[Backward.Data](backwardData, Backward.Map) \by {
+  Direct.Universal[Z := TargetFamily.Point].continuous Nested.topology (Backward.total backwardData) Nested.projectionContinuous
+    (Second.composeContinuous Nested.topology First.topology bundle.totalSpace Nested.map First.map Nested.mapContinuous First.mapContinuous)
+};
+\definition isomorphism: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := \fun (z: Z)(v: F (f (g z))) => \refl(v), rightInverse := \fun (z: Z)(v: F (f (g z))) => \refl(v),
+};
+\definition formula: \forall (z: Z)(v: F (f (g z))) -> Forward.total forward (TargetFamily.include z v) = TargetFamily.include z v :=
+  \fun (z: Z)(v: F (f (g z))) => \refl(TargetFamily.include z v);

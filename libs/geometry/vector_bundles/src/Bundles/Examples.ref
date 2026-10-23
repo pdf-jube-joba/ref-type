@@ -1,0 +1,48 @@
+\import real.Analysis[] \as R;
+\import R.Algebra[] \as Algebra;
+\import complex.Complex[] \as C;
+\import metric_spaces.RealLine[] \as Line;
+\import topological_algebra.Complex[] \as Plane;
+\definition zero: N.Nat^ := N.Nat^::zero;
+\definition one: N.Nat^ := N.Nat^::succ zero;
+\import \parent.Over[K := R.Real, field := Algebra.field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := \parent.Real[].scalar] \as RealBundles;
+\import \parent.Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := \parent.Complex[].scalar] \as ComplexBundles;
+\import RealBundles.Trivial[X := R.Real, n := one, baseSpace := Line.topology] \as LineBundle;
+\import RealBundles.Family[X := R.Real, F := \fun (x: R.Real) => RealBundles.Vector one] \as LineFamily;
+\import LineFamily.Of[bundle := LineBundle.bundle] \as LineOf;
+\import LineOf.Sections[] \as Sections;
+\definition sectionData: Sections.SectionData := Sections.SectionData { value := \fun (x: R.Real)(i: Fin.Fin one) => x };
+\import topological_algebra.Coordinates[K := R.Real, I := Fin.Fin one].Universal[A := R.Real] \as IntoVector;
+\import topological_constructions.Product[A := R.Real, B := RealBundles.Vector one] \as Product;
+\import Product.Universal[X := R.Real] \as IntoProduct;
+\import topology.Composition[A := R.Real, B := Product.CarrierSet, C := LineFamily.Point] \as IntoTotal;
+\definition diagonal: Sections.Section := \into[Sections.SectionData](sectionData, Sections.Section) \by {
+  IntoTotal.composeContinuous Line.topology (Product.topology Line.topology (RealBundles.coordinateTopology one)) LineBundle.topology
+    (\fun (x: R.Real) => Pair.pair R.Real (RealBundles.Vector one) x (\fun (i: Fin.Fin one) => x)) LineBundle.backward
+    (IntoProduct.pairContinuous Line.topology Line.topology (RealBundles.coordinateTopology one) (\fun (x: R.Real) => x) (\fun (x: R.Real)(i: Fin.Fin one) => x)
+      (topology.Maps[A := R.Real, B := R.Real].Identity[].continuous Line.topology)
+      (IntoVector.continuous Line.topology Line.topology (\fun (x: R.Real)(i: Fin.Fin one) => x) (\fun (i: Fin.Fin one) => topology.Maps[A := R.Real, B := R.Real].Identity[].continuous Line.topology))) LineBundle.backwardContinuous
+};
+\definition square[x: R.Real]: R.Real := R.mul x x;
+\definition squareContinuous: topology.Continuity[A := R.Real, B := R.Real].Continuous Line.topology Line.topology square :=
+  metric_spaces.RealFunctions[A := R.Real].Product[].continuous Line.topology (\fun (x: R.Real) => x) (\fun (x: R.Real) => x)
+    (topology.Maps[A := R.Real, B := R.Real].Identity[].continuous Line.topology) (topology.Maps[A := R.Real, B := R.Real].Identity[].continuous Line.topology);
+\import LineOf.Pullback[Y := R.Real, source := Line.topology, f := square] \as Pulled;
+\definition quadraticSection: LineFamily.Of[bundle := Pulled.pulled squareContinuous].Sections[].Section := Pulled.Of[regular := squareContinuous].Sections[].pullback diagonal;
+\definition quadraticValue: \forall (x: R.Real)(i: Fin.Fin one) -> quadraticSection.value x i = square x := \fun (x: R.Real)(i: Fin.Fin one) => \refl(square x);
+\import LineOf.PullbackComposition[Y := R.Real, Z := R.Real, first := Line.topology, second := Line.topology, f := square, g := square].Of[fRegular := squareContinuous, gRegular := squareContinuous] \as Composition;
+\definition compositionComparison: RealBundles.Isomorphisms[X := R.Real, F := \fun (x: R.Real) => RealBundles.Vector one, G := \fun (x: R.Real) => RealBundles.Vector one, source := Composition.direct, target := Composition.nested].Isomorphism := Composition.isomorphism;
+\import RealBundles.Trivial[X := R.Real, n := zero, baseSpace := Line.topology] \as Zero;
+\definition zeroRank: \forall (x: R.Real) -> RealBundles.Family[X := R.Real, F := \fun (x: R.Real) => RealBundles.Vector zero].Of[bundle := Zero.bundle].rank x = zero :=
+  \fun (x: R.Real) => RealBundles.Family[X := R.Real, F := \fun (x: R.Real) => RealBundles.Vector zero].Of[bundle := Zero.bundle].rankFrame x zero Zero.identity;
+\import topology.Topology[Carrier := Fin.Fin zero] \as EmptySpace;
+\import RealBundles.Trivial[X := Fin.Fin zero, n := one, baseSpace := EmptySpace.Discrete] \as Empty;
+\definition emptyTotal: \forall (p: RealBundles.Family[X := Fin.Fin zero, F := \fun (x: Fin.Fin zero) => RealBundles.Vector one].Point) -> Logic.False :=
+  \fun (p: RealBundles.Family[X := Fin.Fin zero, F := \fun (x: Fin.Fin zero) => RealBundles.Vector one].Point) => Fin.zeroImpossible p.base (Fin.bound zero p.base);
+\import RealBundles.TwoRanks[n := zero, m := one] \as Mixed;
+\import RealBundles.Family[X := std.Data[].Bool[].Bool^, F := Mixed.Fiber].Of[bundle := Mixed.bundle] \as MixedOf;
+\definition rankLeft: MixedOf.rank std.Data[].Bool[].Bool^::true = zero := MixedOf.rankFrame std.Data[].Bool[].Bool^::true zero Mixed.Left[].identity;
+\definition rankRight: MixedOf.rank std.Data[].Bool[].Bool^::false = one := MixedOf.rankFrame std.Data[].Bool[].Bool^::false one Mixed.Right[].identity;
+\import ComplexBundles.Trivial[X := C.Complex, n := one, baseSpace := Plane.topology] \as ComplexLine;
+\import ComplexBundles.Family[X := C.Complex, F := \fun (z: C.Complex) => ComplexBundles.Vector one].Of[bundle := ComplexLine.bundle].PullbackIdentity[] \as Identity;
+\definition identityComparison: ComplexBundles.Isomorphisms[X := C.Complex, F := \fun (z: C.Complex) => ComplexBundles.Vector one, G := \fun (z: C.Complex) => ComplexBundles.Vector one, source := ComplexLine.bundle, target := Identity.target].Isomorphism := Identity.isomorphism;
