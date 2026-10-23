@@ -11,6 +11,9 @@ mod existence;
 mod normalization;
 #[path = "structures/parameters.rs"]
 mod parameters;
+#[cfg(test)]
+#[path = "structures/tests.rs"]
+mod tests;
 
 #[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Clone)]
 pub(super) struct Structure {
@@ -331,6 +334,14 @@ impl Resolver {
             return None;
         }
         let scope = &self.scopes[module.0 as usize];
+        let is_identity = |id, value: &SExp| {
+            matches!(value,
+            SExp::AccessPath {
+                access: LocalAccess::Current { access, .. }
+                    | LocalAccess::Resolved { access, .. },
+                parameters,
+            } if parameters.is_empty() && access.1 == Some(id))
+        };
         let mut changed = false;
         for argument in scope.substitutions.materialize().values() {
             let mut argument = (**argument).clone();
@@ -344,15 +355,28 @@ impl Resolver {
                     && let Some(id) = access.1
                     && let Some(value) = substitutions.get(&id)
                 {
-                    let identity = matches!(value.borrow(),
-                        SExp::AccessPath {
-                            access: LocalAccess::Current { access, .. }
-                                | LocalAccess::Resolved { access, .. },
-                            parameters,
-                        } if parameters.is_empty() && access.1 == Some(id));
-                    changed |= !identity;
+                    changed |= !is_identity(id, value.borrow());
                 }
             });
+        }
+        // Structure values specialize their fields through structure_value.
+        // Ordinary references must also expose lexical parameters which have
+        // no explicit entry in the selected namespace's argument environment.
+        if !changed && !self.structure_values.contains_key(&name.1?) {
+            let mut ancestor = Some(self.origins.get(module).copied().unwrap_or(*module));
+            while let Some(current) = ancestor {
+                if let Some(parameters) = self.module_parameters.get(&current) {
+                    for name in parameters.iter().flat_map(|bind| &bind.vars) {
+                        if let Some(id) = name.1
+                            && scope.substitutions.get(&id).is_none()
+                            && let Some(value) = substitutions.get(&id)
+                        {
+                            changed |= !is_identity(id, value.borrow());
+                        }
+                    }
+                }
+                ancestor = self.scopes[current.0 as usize].parent;
+            }
         }
         if !changed {
             return None;
@@ -374,7 +398,7 @@ impl Resolver {
                     // Imported aliases may record only their own arguments.
                     // Recover omitted parent arguments from the new environment.
                     let argument = if let Some(argument) = scope.substitutions.get(&name.1?) {
-                        substitute(&argument, substitutions)
+                        self.substitute_front_expression(&argument, substitutions)
                     } else {
                         // This value already belongs to the caller environment.
                         substitutions.get(&name.1?)?.borrow().clone()
@@ -393,10 +417,10 @@ impl Resolver {
         })
     }
 
-    fn substitute_front_expression(
+    fn substitute_front_expression<T: Borrow<SExp>>(
         &self,
         expression: &SExp,
-        substitutions: &HashMap<BindingId, SExp>,
+        substitutions: &HashMap<BindingId, T>,
     ) -> SExp {
         let mut expression = expression.clone();
         if substitutions.is_empty() {
