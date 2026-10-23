@@ -9,4 +9,4 @@
 
 ## 依存するタスク
 
-- [B01 一般の実・複素ベクトル束](b01-vector-bundles.md)
+- [一般の実・複素ベクトル束](../../libs/geometry/vector_bundles/README.md)

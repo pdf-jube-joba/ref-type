@@ -1,0 +1,27 @@
+\import \parent.Pullback[Y := X, source := bundle.baseSpace, f := \fun (x: X) => x] \as Pullback;
+\definition regular: Pullback.BaseContinuous := topology.Maps[A := X, B := X].Identity[].continuous bundle.baseSpace;
+\definition target: \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := \fun (x: X) => F x].Bundle := Pullback.pulled regular;
+\import \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := \fun (x: X) => F x] \as Target;
+\import \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Isomorphisms[X := X, F := F, G := \fun (x: X) => F x, source := bundle, target := target] \as Isomorphisms;
+\import \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := F, G := \fun (x: X) => F x, source := bundle, target := target, f := \fun (x: X) => x] \as Forward;
+\import \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := \fun (x: X) => F x, G := F, source := target, target := bundle, f := \fun (x: X) => x] \as Backward;
+\definition identity[x: X]: Spaces.Linear[V := F x, W := F x, source := bundle.space x, target := bundle.space x].Map :=
+  Spaces.Linear[V := F x, W := F x, source := bundle.space x, target := bundle.space x].Map {
+    apply := \fun (v: F x) => v,
+    preservesAdd := \fun (v, w: F x) => \refl((bundle.space x).add v w), preservesScale := \fun (a: K)(v: F x) => \refl((bundle.space x).smul a v),
+  };
+\definition forwardData: Forward.Data := Forward.Data { fiber := identity };
+\definition backwardData: Backward.Data := Backward.Data { fiber := identity };
+\definition etaContinuous: topology.Continuity[A := Point, B := Point].Continuous bundle.totalSpace bundle.totalSpace (\fun (p: Point) => include p.base p.vector) :=
+  \idelim (\fun (p: Point) => p) = (\fun (p: Point) => include p.base p.vector) \with f: (Point -> Point) => topology.Continuity[A := Point, B := Point].Continuous bundle.totalSpace bundle.totalSpace f \by {
+    base: topology.Maps[A := Point, B := Point].Identity[].continuous bundle.totalSpace,
+    equality: \axiom:funext((\fun (p: Point) => p), (\fun (p: Point) => include p.base p.vector), \fun (p: Point) => sym!{Point} _ _ (eta p))
+  };
+\definition forward: Forward.Map := \into[Forward.Data](forwardData, Forward.Map) \by {
+  Pullback.Universal[Z := Point].continuous bundle.totalSpace (Forward.total forwardData) projectionContinuous etaContinuous
+};
+\definition backward: Backward.Map := \into[Backward.Data](backwardData, Backward.Map) \by { Pullback.mapContinuous };
+\definition isomorphism: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := \fun (x: X)(v: F x) => \refl(v), rightInverse := \fun (x: X)(v: F x) => \refl(v),
+};

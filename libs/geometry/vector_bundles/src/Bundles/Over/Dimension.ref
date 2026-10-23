@@ -1,0 +1,52 @@
+\definition Frame[n: N.Nat^]: \Set := Spaces.Isomorphism[V := V, W := Vector n, source := space, target := coordinates n].Isomorphism;
+\module At(n: N.Nat^) {
+  \import Spaces.Finite[V := V, I := Fin.Fin n, space := space] \as Basis;
+  \import Spaces.FiniteCoordinates[n := n] \as Standard;
+  \import Spaces.Finite[V := Vector n, I := Fin.Fin n, space := coordinates n] \as CoordinateBasis;
+  \import Spaces.Coordinates[I := Fin.Fin n] \as Coordinates;
+  \import Spaces.Isomorphism[V := V, W := Vector n, source := space, target := coordinates n] \as Isomorphisms;
+  \definition data[f: Frame n]: Basis.BasisData := Basis.BasisData {
+    indices := Fin.elements n, vectors := \fun (i: Fin.Fin n) => f.backward.apply (Standard.vectors i), coordinates := f.forward,
+  };
+  \definition sumMap: \forall (f: Frame n)(xs: Lists.List[Fin.Fin n])(g: Fin.Fin n -> Vector n) ->
+    Basis.vectorSum xs (\fun (i: Fin.Fin n) => f.backward.apply (g i)) = f.backward.apply (CoordinateBasis.vectorSum xs g) :=
+    \fun (f: Frame n) => \induction (xs: Lists.List[Fin.Fin n]) \return \forall (g: Fin.Fin n -> Vector n) ->
+      Basis.vectorSum xs (\fun (i: Fin.Fin n) => f.backward.apply (g i)) = f.backward.apply (CoordinateBasis.vectorSum xs g) \with {
+        | nil: \fun (g: _) => sym!{V} _ _ f.backward.preservesZero
+        | cons: \fun (i: Fin.Fin n)(tail: Lists.List[Fin.Fin n])(previous: _)(g: _) => trans!{V} _ _ _
+          (congr!{V V} (space.add (f.backward.apply (g i))) _ _ (previous g)) (sym!{V} _ _ (f.backward.preservesAdd (g i) (CoordinateBasis.vectorSum tail g)))
+      };
+  \definition synthesis: \forall (f: Frame n)(x: Vector n) -> Basis.synthesize (data f) x = f.backward.apply x :=
+    \fun (f: Frame n)(x: Vector n) => eq_reason_in!{V _
+      "=" { Basis.vectorSum (Fin.elements n) (\fun (i: Fin.Fin n) => f.backward.apply (Coordinates.scale (x i) (Standard.vectors i))) } "by" {
+        congr!{{Fin.Fin n -> V} V} (Basis.vectorSum (Fin.elements n)) _ _ (\axiom:funext(
+          (\fun (i: Fin.Fin n) => space.smul (x i) (f.backward.apply (Standard.vectors i))),
+          (\fun (i: Fin.Fin n) => f.backward.apply (Coordinates.scale (x i) (Standard.vectors i))),
+          \fun (i: Fin.Fin n) => sym!{V} _ _ (f.backward.preservesScale (x i) (Standard.vectors i)))) }
+      "=" { f.backward.apply (CoordinateBasis.synthesize Standard.basis x) } "by" { sumMap f (Fin.elements n) (\fun (i: Fin.Fin n) => Coordinates.scale (x i) (Standard.vectors i)) }
+      "=" _ "by" { congr!{{Vector n} V} f.backward.apply _ _ (Standard.reconstruction x) }
+    };
+  \import Spaces.Sums[I := Fin.Fin n].Prop[] \as Sums;
+  \definition basis[f: Frame n]: Basis.Basis := \into[Basis.BasisData](data f, Basis.Basis) \by {
+    Basis.BasisLaws[data f] {
+      distinct := Spaces.FiniteCoordinateEnumeration[].distinct n,
+      dualReconstruction := \fun (x: Vector n)(i: Fin.Fin n) => trans!{K} _ _ _
+        (Sums.congruent (Fin.elements n) (\fun (j: Fin.Fin n) => field.mul (x j) (f.forward.apply (f.backward.apply (Standard.vectors i)) j)) (\fun (j: Fin.Fin n) => field.mul (x j) (Standard.vectors i j))
+          (\fun (j: Fin.Fin n) => congr!{K K} (field.mul (x j)) _ _ (congr!{{Vector n} K} (\fun (v: Vector n) => v j) _ _ ((Isomorphisms.laws f).rightInverse (Standard.vectors i)))))
+        (Standard.dualReconstruction x i),
+      reconstruction := \fun (v: V) => trans!{V} _ _ _ (synthesis f (f.forward.apply v)) ((Isomorphisms.laws f).leftInverse v),
+      coordinateReconstruction := \fun (x: Vector n) => trans!{{Vector n}} _ _ _ (congr!{V {Vector n}} f.forward.apply _ _ (synthesis f x)) ((Isomorphisms.laws f).rightInverse x),
+    }
+  };
+  \definition dimension: \forall (f: Frame n) -> Basis.dimension (basis f) = n := \fun (f: Frame n) => Fin.elementsLength n;
+  \module Comparison(m: N.Nat^) {
+    \import \parent.\parent.At[n := m] \as Other;
+    \import Basis.Dimension[].Comparison[J := Fin.Fin m] \as Compare;
+    \definition unique: \forall (f: Frame n)(g: Frame m) -> n = m :=
+      \fun (f: Frame n)(g: Frame m) => scalar.naturalInjective n m (eq_reason_in!{K { \root.Bundles[].natural K field n }
+        "=" { \root.Bundles[].natural K field (Basis.dimension (basis f)) } "by" { congr!{N.Nat^ K} (\root.Bundles[].natural K field) _ _ (sym!{N.Nat^} _ _ (dimension f)) }
+        "=" { \root.Bundles[].natural K field (m) } "by" {
+          trans!{K} _ _ _ (Compare.equalScalarDimension (basis f) (Other.basis g)) (congr!{N.Nat^ K} (\root.Bundles[].natural K field) _ _ (Other.dimension g)) }
+      });
+  }
+}

@@ -1,0 +1,86 @@
+\import \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := Y, F := \fun (y: Y) => F (f y)] \as Family;
+\import topology.Topology[Carrier := Y] \as BaseSpace;
+\import topology.Topology[Carrier := Family.Point] \as TotalSpace;
+\import topological_constructions.Product[A := Y, B := Point] \as Product;
+\import Product.Maps[] \as Projections;
+\definition map[p: Family.Point]: Point := include (f p.base) p.vector;
+\definition embedding[p: Family.Point]: Product.CarrierSet := Pair.pair Y Point p.base (map p);
+\import topological_constructions.Induced[A := Family.Point, B := Product.CarrierSet] \as Induced;
+\definition topology: TotalSpace.Topology := Induced.topology (Product.topology source bundle.totalSpace) embedding;
+\definition data: Family.Data := Family.Data { baseSpace := source, totalSpace := topology, space := \fun (y: Y) => bundle.space (f y) };
+\import Family.With[data := data] \as Charts;
+\import topology.Composition[A := Family.Point, B := Product.CarrierSet, C := Y] \as First;
+\import topology.Composition[A := Family.Point, B := Product.CarrierSet, C := Point] \as Second;
+\definition projectionContinuous: topology.Continuity[A := Family.Point, B := Y].Continuous topology source Family.projection :=
+  First.composeContinuous topology (Product.topology source bundle.totalSpace) source embedding (Pair.first Y Point)
+    (Induced.continuous (Product.topology source bundle.totalSpace) embedding) (Projections.firstContinuous source bundle.totalSpace);
+\definition mapContinuous: topology.Continuity[A := Family.Point, B := Point].Continuous topology bundle.totalSpace map :=
+  Second.composeContinuous topology (Product.topology source bundle.totalSpace) bundle.totalSpace embedding (Pair.second Y Point)
+    (Induced.continuous (Product.topology source bundle.totalSpace) embedding) (Projections.secondContinuous source bundle.totalSpace);
+\import std.Logic[].Equality[].Transport[A := Y] \as PullbackTransport;
+\definition changeFiber: \forall (y, z: Y)(same: y = z)(v: F (f y)) ->
+  PullbackTransport.cast (\fun (y: Y) => F (f y)) y z same v = Transport.cast F (f y) (f z) (congr!{Y X} f y z same) v :=
+  \fun (y, z: Y)(same: y = z) =>
+    (\idelim y = z \with w: Y => \forall (equal: y = w)(v: F (f y)) ->
+      PullbackTransport.cast (\fun (y: Y) => F (f y)) y w equal v = Transport.cast F (f y) (f w) (congr!{Y X} f y w equal) v \by {
+        base: \fun (equal: y = y)(v: F (f y)) => trans!{{F (f y)}} _ _ _
+          (PullbackTransport.castRefl (\fun (y: Y) => F (f y)) y v) (sym!{{F (f y)}} _ _ (Transport.castRefl F (f y) v)), equality: same
+      }) same;
+\definition jointInjective: \forall (p, q: Family.Point)(base: p.base = q.base) -> map p = map q -> p = q :=
+  \fun (p, q: Family.Point)(base: _)(same: _) => Family.ext p q base
+    (trans!{{F (f q.base)}} _ _ _ (changeFiber p.base q.base base p.vector) (vectorEquality (map p) (map q) same));
+\module Universal(Z: \Set) {
+  \import topology.Topology[Carrier := Z] \as Source;
+  \import Product.Universal[X := Z] \as PairMaps;
+  \import Induced.Universal[Z := Z] \as Into;
+  \definition continuous: \forall (space: Source.Topology)(g: Z -> Family.Point) ->
+    topology.Continuity[A := Z, B := Y].Continuous space source (\fun (z: Z) => (g z).base) ->
+    topology.Continuity[A := Z, B := Point].Continuous space bundle.totalSpace (\fun (z: Z) => map (g z)) ->
+    topology.Continuity[A := Z, B := Family.Point].Continuous space topology g :=
+    \fun (space: Source.Topology)(g: Z -> Family.Point)(first: _)(second: _) => Into.continuous space (Product.topology source bundle.totalSpace) embedding g
+      (PairMaps.pairContinuous space source bundle.totalSpace (\fun (z: Z) => (g z).base) (\fun (z: Z) => map (g z)) first second);
+  \structure Cone: \Set := {
+    base: Z -> Y,
+    total: Z -> Point,
+    commutes: \forall (z: Z) -> projection (total z) = f (base z),
+  };
+  \definition lift[cone: Cone][z: Z]: Family.Point := Family.include (cone.base z)
+    (Transport.cast F (cone.total z).base (f (cone.base z)) (cone.commutes z) (cone.total z).vector);
+  \definition baseFormula: \forall (cone: Cone)(z: Z) -> Family.projection (lift cone z) = cone.base z := \fun (cone: Cone)(z: Z) => \refl(cone.base z);
+  \definition mapFormula: \forall (cone: Cone)(z: Z) -> map (lift cone z) = cone.total z :=
+    \fun (cone: Cone)(z: Z) => trans!{Point} _ _ _ (includeTransport (cone.total z).base (f (cone.base z)) (cone.commutes z) (cone.total z).vector) (eta (cone.total z));
+  \definition liftContinuous: \forall (space: Source.Topology)(cone: Cone) ->
+    topology.Continuity[A := Z, B := Y].Continuous space source cone.base ->
+    topology.Continuity[A := Z, B := Point].Continuous space bundle.totalSpace cone.total ->
+    topology.Continuity[A := Z, B := Family.Point].Continuous space topology (lift cone) :=
+    \fun (space: Source.Topology)(cone: Cone)(base: _)(total: _) => continuous space (lift cone) base
+      (\idelim cone.total = (\fun (z: Z) => map (lift cone z)) \with g: (Z -> Point) => topology.Continuity[A := Z, B := Point].Continuous space bundle.totalSpace g \by {
+        base: total, equality: \axiom:funext(cone.total, (\fun (z: Z) => map (lift cone z)), \fun (z: Z) => sym!{Point} _ _ (mapFormula cone z))
+      });
+  \definition unique: \forall (cone: Cone)(g: Z -> Family.Point) ->
+    (\forall (z: Z) -> (g z).base = cone.base z) -> (\forall (z: Z) -> map (g z) = cone.total z) -> g = lift cone :=
+    \fun (cone: Cone)(g: Z -> Family.Point)(first: _)(second: _) => \axiom:funext(g, lift cone,
+      \fun (z: Z) => jointInjective (g z) (lift cone z) (first z) (trans!{Point} _ _ _ (second z) (sym!{Point} _ _ (mapFormula cone z))));
+
+}
+\module In(c: Local.Chart);
+\definition BaseContinuous: \Prop := topology.Continuity[A := Y, B := X].Continuous source bundle.baseSpace f;
+\definition locallyTrivial: BaseContinuous -> Charts.LocallyTrivial := \block {
+  \fun (regular: BaseContinuous)(y: Y) \then
+  \takefrom c: \Cast[Local.Chart] ({ c: Local.Chart \where Base.Member c.domain (f y) }) \by \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := F].Of[bundle := bundle].locallyTrivial (f y) \then
+  \return Logic.existsIntro[Charts.Chart, { c: Charts.Chart \where BaseSpace.Member c.domain y }] (In[c := c].trivialization regular)
+    (\bysub(Local.Chart, { c: Local.Chart \where Base.Member c.domain (f y) }, c))
+};
+\definition pulled[regular: BaseContinuous]: Family.Bundle := \into[Family.Data](data, Family.Bundle) \by { locallyTrivial regular };
+
+\module Of(regular: BaseContinuous) {
+  \import Family.Of[bundle := pulled regular] \as Pulled;
+  \definition rank: \forall (y: Y) -> Pulled.rank y = \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := F].Of[bundle := bundle].rank (f y) := \block {
+    \fun (y: Y) \then
+    \takefrom frame: Frame (\root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := F].Of[bundle := bundle].rank (f y)) (f y)
+      \by \bysub(N.Nat^, RankAt (f y), \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := F].Of[bundle := bundle].rank (f y)) \then
+    \return Pulled.rankFrame y _ frame
+  };
+  \module Sections;
+
+}

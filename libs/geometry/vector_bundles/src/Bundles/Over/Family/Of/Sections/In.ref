@@ -1,0 +1,32 @@
+\import Local.In[c := c] \as Coordinates;
+\import Base.Subspace[S := c.domain] \as BaseSubspace;
+\import Total.Subspace[S := { p: Point \where Base.Member c.domain p.base }] \as TotalSubspace;
+\import topological_constructions.Product[A := Coordinates.BasePoint, B := Vector c.dimension] \as Product;
+\import Product.Universal[X := Coordinates.BasePoint] \as PairMaps;
+\definition coordinate[s: SectionData][x: Coordinates.BasePoint]: Vector c.dimension := (c.frame x).forward.apply (s.value x);
+\definition Regular[s: SectionData]: \Prop := topology.Continuity[A := Coordinates.BasePoint, B := Vector c.dimension].Continuous (BaseSubspace.topology bundle.baseSpace) (coordinateTopology c.dimension) (coordinate s);
+\definition pair[s: SectionData][x: Coordinates.BasePoint]: Coordinates.ProductPoint := Pair.pair Coordinates.BasePoint (Vector c.dimension) x (coordinate s x);
+\definition pairContinuous: \forall (s: SectionData) -> Regular s -> topology.Continuity[A := Coordinates.BasePoint, B := Coordinates.ProductPoint].Continuous (BaseSubspace.topology bundle.baseSpace) Coordinates.productTopology (pair s) :=
+  \fun (s: SectionData)(regular: _) => PairMaps.pairContinuous (BaseSubspace.topology bundle.baseSpace) (BaseSubspace.topology bundle.baseSpace) (coordinateTopology c.dimension)
+    (\fun (x: Coordinates.BasePoint) => x) (coordinate s) (topology.Maps[A := Coordinates.BasePoint, B := Coordinates.BasePoint].Identity[].continuous (BaseSubspace.topology bundle.baseSpace)) regular;
+\import topology.Composition[A := Coordinates.BasePoint, B := Coordinates.ProductPoint, C := Coordinates.TotalPoint] \as Backward;
+\import topology.Composition[A := Coordinates.BasePoint, B := Coordinates.TotalPoint, C := Point] \as Include;
+\definition model[s: SectionData][x: Coordinates.BasePoint]: Point := Coordinates.backward (pair s x);
+\definition formula: \forall (s: SectionData)(x: Coordinates.BasePoint) -> model s x = total s x :=
+  \fun (s: SectionData)(x: Coordinates.BasePoint) => congr!{{F x} Point} (include x) _ _
+    ((Spaces.Isomorphism[V := F x, W := Vector c.dimension, source := bundle.space x, target := coordinates c.dimension].laws (c.frame x)).leftInverse (s.value x));
+\definition continuous: \forall (s: SectionData) -> Regular s -> topology.Continuity[A := Coordinates.BasePoint, B := Point].Continuous (BaseSubspace.topology bundle.baseSpace) bundle.totalSpace (\fun (x: Coordinates.BasePoint) => total s x) :=
+  \fun (s: SectionData)(regular: _) => \idelim model s = (\fun (x: Coordinates.BasePoint) => total s x)
+    \with f: (Coordinates.BasePoint -> Point) => topology.Continuity[A := Coordinates.BasePoint, B := Point].Continuous (BaseSubspace.topology bundle.baseSpace) bundle.totalSpace f \by {
+      base: Include.composeContinuous (BaseSubspace.topology bundle.baseSpace) Coordinates.localTopology bundle.totalSpace
+        (\fun (x: Coordinates.BasePoint) => Coordinates.backward (pair s x)) (\fun (p: Coordinates.TotalPoint) => p)
+        (Backward.composeContinuous (BaseSubspace.topology bundle.baseSpace) Coordinates.productTopology Coordinates.localTopology (pair s) (\fun (p: Coordinates.ProductPoint) => Coordinates.backward p) (pairContinuous s regular) (chartLaws c).backwardContinuous)
+        (\fun (U: \Pow Point)(open: _) => TotalSubspace.traceOpen bundle.totalSpace U open),
+      equality: \axiom:funext(model s, (\fun (x: Coordinates.BasePoint) => total s x), formula s)
+    };
+\definition zeroRegular: Regular zeroData := \idelim (\fun (x: Coordinates.BasePoint) => (coordinates c.dimension).zero) = coordinate zeroData
+  \with f: (Coordinates.BasePoint -> Vector c.dimension) => topology.Continuity[A := Coordinates.BasePoint, B := Vector c.dimension].Continuous (BaseSubspace.topology bundle.baseSpace) (coordinateTopology c.dimension) f \by {
+    base: topology.Maps[A := Coordinates.BasePoint, B := Vector c.dimension].constantContinuous (BaseSubspace.topology bundle.baseSpace) (coordinateTopology c.dimension) (coordinates c.dimension).zero,
+    equality: \axiom:funext((\fun (x: Coordinates.BasePoint) => (coordinates c.dimension).zero), coordinate zeroData,
+      \fun (x: Coordinates.BasePoint) => sym!{{Vector c.dimension}} _ _ (c.frame x).forward.preservesZero)
+  };

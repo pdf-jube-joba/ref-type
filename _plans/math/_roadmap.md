@@ -87,7 +87,7 @@ flowchart TD
 
 - [A01 測度積分の収束定理](a01-measure-convergence.md)
 - [A19 複素 Hilbert 空間とコンパクト作用素](a19-complex-hilbert.md)
-- [B01 一般の実・複素ベクトル束](b01-vector-bundles.md)
+- [B02 束の貼り合わせと線形演算](b02-bundle-operations.md)
 - [C01 cap 積と相対積](c01-cap-products.md)
 - [G01 滑らかな bump 関数と従属分割](g01-smooth-partitions.md)
 - [K02 CW cofibration と Puppe 列](k02-cofibration-puppe.md)
@@ -96,7 +96,7 @@ flowchart TD
 - [L04 対称多項式と特性級数](l04-symmetric-series.md)
 
 L01 の行列式・逆行列、L02 の多項式分解、L03 の Hermitian 行列・局所枠が利用可能になり、G02 に着手できる。
-B01 の後は B02 へ、A01 の後は A02 へ進められる。
+B01 が利用可能になり B02 へ、A01 の後は A02 へ進められる。
 空いた担当には C01・K02・K04・L04・A19 を割り当て、長い解析の経路を早めに進める。
 各節の番号は識別子で、実装順は依存リストから決まる。
 
@@ -109,10 +109,11 @@ B01 の後は B02 へ、A01 の後は A02 へ進められる。
 | L03 Hermitian 行列と連続な局所枠 | [hermitian_frames](../../libs/algebra/hermitian_frames/README.md) |
 | K13 複素多項式の根の存在 | [fundamental_algebra](../../libs/algebra/fundamental_algebra/README.md) |
 | K05 代数学の基本定理と根群の連続性 | [complex_polynomial_roots](../../libs/algebra/complex_polynomial_roots/README.md) |
+| B01 一般の実・複素ベクトル束 | [vector_bundles](../../libs/geometry/vector_bundles/README.md) |
 
 ## タスク一覧
 
-未完了87件、概算合計455千行。
+未完了86件、概算合計450千行。
 
 ### 線形代数と特性級数
 
@@ -124,11 +125,10 @@ B01 の後は B02 へ、A01 の後は A02 へ進められる。
 
 ### ベクトル束
 
-9件、概算46千行。
+8件、概算41千行。
 
 | タスク | 概算（千行） |
 | --- | ---: |
-| [B01 一般の実・複素ベクトル束](b01-vector-bundles.md) | 5 |
 | [B02 束の貼り合わせと線形演算](b02-bundle-operations.md) | 5 |
 | [B03 束の計量・補束と集合による表示](b03-bundle-complements.md) | 5 |
 | [B04 束のホモトピー不変性と clutching](b04-bundle-homotopy.md) | 5 |
