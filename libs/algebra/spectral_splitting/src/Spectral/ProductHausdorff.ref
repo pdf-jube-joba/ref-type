@@ -1,0 +1,14 @@
+\import topological_constructions.Product[A := A, B := B] \as Product;
+\import topology.Topology[Carrier := Product.CarrierSet] \as Space;
+\definition topology: Space.Topology := Product.topology left right;
+\import topology.Maps[A := Product.CarrierSet, B := A].Separate[source := topology, target := left, f := Pair.first A B,
+  continuous := Product.Maps[].firstContinuous left right, hausdorff := hausdorffLeft] \as First;
+\import topology.Maps[A := Product.CarrierSet, B := B].Separate[source := topology, target := right, f := Pair.second A B,
+  continuous := Product.Maps[].secondContinuous left right, hausdorff := hausdorffRight] \as Second;
+\import std.Logic[].Classical[] \as Classical;
+\definition value: Space.IsT2 topology := \fun (p, q: Product.CarrierSet)(different: _) =>
+  Logic.orElim (Pair.first A B p = Pair.first A B q) (Logic.Not (Pair.first A B p = Pair.first A B q))
+    (\exists ( U: \Pow Product.CarrierSet \where Space.RegularChoice[topology, Space.Singleton q, p, U] ))
+    (Classical.excludedMiddle (Pair.first A B p = Pair.first A B q))
+    (\fun (same: _) => Second.neighborhood p q (\fun (equal: _) => different (Pair.Prop[A := A, B := B].ext p q same equal)))
+    (\fun (unequal: _) => First.neighborhood p q unequal);

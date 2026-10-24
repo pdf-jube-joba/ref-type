@@ -75,7 +75,7 @@ Bézout 分解、Horner 評価、単位円内外の根因子と係数の連続�
 `BundleCoordinates` と `BundleImage` は上表の検査で成功した。
 `BundleEndomorphism` の貼り合わせ・不変部分束・自然性・引き戻し比較は上表の検査で成功した。
 具体例、`At.Homotopy` の接続、直和分解も上表の範囲で検査が成功した。
-一般の束の像のホモトピー比較に向け、`PullbackIsomorphism` と `EmbeddedCylinder` を追加中であり、これらは未検証である。
+一般の束の像のホモトピー比較に向け、`PullbackIsomorphism`・`EmbeddedCylinder`・`BundleHomotopy` を追加中であり、これらは未検証である。
 以前の全体検査の終了コード130は診断のための中断である。
 worker の checkpoint 再開が1回あったが、その原因は確定していない。
 逆行列の法則を明示する証明に変更後、該当する `Separated` は保存処理と正常終了まで確認できた。
@@ -92,5 +92,5 @@ REF_TYPE_PROFILE_PROGRESS=1 target/debug/cli libs \
   --report-json work/k06-check.json
 ```
 
-次は有限埋め込みを使う一般の像束のホモトピー比較を検証する。
+次は有限埋め込みを使う `EmbeddedCylinder` の検査結果を確認し、一般の像束の `BundleHomotopy` を検証する。
 残作業は、一般の束の貼り合わせ・自然性とホモトピー比較の検証、引き戻し比較、具体例、公開 API・下流リンクの整備、対象・全依存閉包・影響する下流・workspace の最終検査である。
