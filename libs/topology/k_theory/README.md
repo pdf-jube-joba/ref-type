@@ -1,7 +1,7 @@
 # 束の Grothendieck 環（K01、実装中）
 
 計画は [_plans/math/k01-grothendieck-k.md](../../../_plans/math/k01-grothendieck-k.md)。
-B03 の同型類と補束、B02 の束演算、既存の `algebra.GroupCompletion` を再利用する。
+[B03 の同型類と補束](../../geometry/bundle_complements/README.md)、[B02 の束演算](../../geometry/bundle_operations/README.md)、既存の [`algebra.GroupCompletion`](../../algebra/basic/README.md) を再利用する。
 
 ## 公開 API（追加分は検査中）
 
@@ -36,6 +36,8 @@ B03 の同型類と補束、B02 の束演算、既存の `algebra.GroupCompletio
 最後の検証成功は `bac1d6e9`、`work/k01-complete`（対象スコープ、保存完了、終了0、保存失敗0）。
 環構成・反変関手・ランクと自然性・被約群・安定判定・有限離散／一点の環同型・利用例は対象検査済み。
 その後の `Stability.differenceCriterion`（一般の差の判定）が未検証。
-次は `target/debug/cli libs/topology/k_theory --parse-only --save-source-snapshot work/k01-package.source.json` で入力を固定する。
-続いて `target/debug/cli libs/topology/k_theory --source-snapshot work/k01-package.source.json --memory-mib 8192 --cache-budget-mib 12288 --time-limit-seconds 1800 --report-json work/k01-package.json` で package と全依存閉包を検査し、終了コード・保存完了を確認する。
+`d48cc565` の package 全依存閉包を `work/k01-package` で検査中（終了未確認）。
+入力の固定は `target/debug/cli libs/topology/k_theory --parse-only --save-source-snapshot work/k01-package.source.json`。
+検査コマンドは `target/debug/cli libs/topology/k_theory --source-snapshot work/k01-package.source.json --memory-mib 8192 --cache-budget-mib 12288 --time-limit-seconds 1800 --report-json work/k01-package.json` （終了コード・保存完了は確認待ち）。
+次はこのプロセスの終了を確認し、必要なら同じ snapshot で再検査する。
 その後は workspace の検査、下流リンク・ロードマップ・PR の整備と統合を行う。
