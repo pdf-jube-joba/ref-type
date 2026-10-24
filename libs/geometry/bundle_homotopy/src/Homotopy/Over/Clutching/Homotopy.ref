@@ -1,0 +1,40 @@
+\import algebraic_topology.Interval[] \as I;
+\import topological_constructions.Product[A := I.Carrier, B := X] \as Cylinder;
+\import topological_constructions.Product[A := I.Carrier, B := Overlap] \as Parameters;
+\definition topology: topology.Topology[Carrier := Cylinder.CarrierSet].Topology := Cylinder.topology I.topology baseSpace;
+\definition parameterTopology: topology.Topology[Carrier := Parameters.CarrierSet].Topology := Parameters.topology I.topology overlapTopology;
+\definition base[p: Cylinder.CarrierSet]: X := Pair.second I.Carrier X p;
+\definition time[p: Cylinder.CarrierSet]: I.Carrier := Pair.first I.Carrier X p;
+\definition UC: \Pow Cylinder.CarrierSet := { p: Cylinder.CarrierSet \where \In[X] U (base p) };
+\definition VC: \Pow Cylinder.CarrierSet := { p: Cylinder.CarrierSet \where \In[X] V (base p) };
+\definition openUC: topology.Topology[Carrier := Cylinder.CarrierSet].IsOpenIn topology UC := (Cylinder.Maps[].secondContinuous I.topology baseSpace) U openU;
+\definition openVC: topology.Topology[Carrier := Cylinder.CarrierSet].IsOpenIn topology VC := (Cylinder.Maps[].secondContinuous I.topology baseSpace) V openV;
+\definition covered: \forall (p: Cylinder.CarrierSet) -> Logic.Or[\In[Cylinder.CarrierSet] UC p, \In[Cylinder.CarrierSet] VC p] := \fun (p: Cylinder.CarrierSet) => covers (base p);
+\definition overlapC: \Pow Cylinder.CarrierSet := { p: Cylinder.CarrierSet \where Logic.And[\In[Cylinder.CarrierSet] UC p, \In[Cylinder.CarrierSet] VC p] };
+\definition OverlapC: \Set := \Cast[Cylinder.CarrierSet] overlapC;
+\definition overlapTopologyC: topology.Topology[Carrier := OverlapC].Topology := topology.Topology[Carrier := Cylinder.CarrierSet].Subspace[S := overlapC].topology topology;
+\definition overlapBase[p: OverlapC]: Overlap := \into[X](base p, overlap) \by { \bysub(Cylinder.CarrierSet, overlapC, p) };
+\definition overlapBaseContinuous: topology.Continuity[A := OverlapC, B := Overlap].Continuous overlapTopologyC overlapTopology overlapBase :=
+  topology.Continuity[A := OverlapC, B := X].Corestriction[S := overlap].corestrictContinuous overlapTopologyC baseSpace overlapBase
+    (topology.Continuity[A := Cylinder.CarrierSet, B := X].Restriction[S := overlapC].restrictContinuous topology baseSpace base (Cylinder.Maps[].secondContinuous I.topology baseSpace));
+\definition parameter[p: OverlapC]: Parameters.CarrierSet := Pair.pair I.Carrier Overlap (time p) (overlapBase p);
+\definition parameterContinuous: topology.Continuity[A := OverlapC, B := Parameters.CarrierSet].Continuous overlapTopologyC parameterTopology parameter :=
+  Parameters.Universal[X := OverlapC].pairContinuous overlapTopologyC I.topology overlapTopology (\fun (p: OverlapC) => time p) overlapBase
+    (topology.Continuity[A := Cylinder.CarrierSet, B := I.Carrier].Restriction[S := overlapC].restrictContinuous topology I.topology time (Cylinder.Maps[].firstContinuous I.topology baseSpace)) overlapBaseContinuous;
+\definition transition[p: OverlapC]: Units.Carrier := G (parameter p);
+\definition transitionContinuous: topology.Continuity[A := OverlapC, B := Units.Carrier].Continuous overlapTopologyC Units.topology transition :=
+  topology.Composition[A := OverlapC, B := Parameters.CarrierSet, C := Units.Carrier].composeContinuous overlapTopologyC parameterTopology Units.topology parameter G parameterContinuous regular;
+\import \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Clutching[n := n, X := Cylinder.CarrierSet, baseSpace := topology, U := UC, V := VC, openU := openUC, openV := openVC, covers := covered].With[g := transition, continuous := transitionContinuous] \as Construction;
+\import \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Cylinder[X := X, baseSpace := baseSpace, compact := compact, hausdorff := hausdorff,
+  F := Construction.Fiber, bundle := Construction.bundle, sameBase := \refl(topology)] \as Motion;
+\module Endpoint(t: I.Carrier);
+\import Endpoint[t := I.start] \as Start;
+\import Endpoint[t := I.end] \as Finish;
+\definition Isomorphism: \Set := Bundles.Isomorphisms[X := X, F := Start.Fiber, G := Finish.Fiber, source := Start.bundle, target := Finish.bundle].Isomorphism;
+\module Compare(first: Start.Comparison, motion: Motion.Isomorphism, last: Finish.Comparison);
+\definition isomorphismExists: \exists Isomorphism := \block {
+  \takefrom first: Start.Comparison \by Start.comparisonExists \then
+  \takefrom motion: Motion.Isomorphism \by Motion.endpointIsomorphismExists \then
+  \takefrom last: Finish.Comparison \by Finish.comparisonExists \then
+  \return \exact(Compare[first := first, motion := motion, last := last].value, Isomorphism)
+};
