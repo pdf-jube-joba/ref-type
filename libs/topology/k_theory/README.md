@@ -13,4 +13,5 @@ B03 の同型類と補束、B02 の束演算、既存の `algebra.GroupCompletio
 `9bd6d5fc` の `work/k01-variable` は同型の構造リテラルの型名で終了1、具体的な Isomorphism 型名に修正した。
 各検査は `target/debug/cli libs --source-snapshot work/<名前>.source.json --module topological_k_theory --memory-mib 8192 --cache-budget-mib 12288 --time-limit-seconds 1200 --report-json work/<名前>.json` で共有キャッシュを利用する。
 次は修正版を snapshot 化して同じ対象検査を行い、終了コード・保存完了を確認する。
-残作業は追加分の検査・修正、有限離散計算・利用例、文書・最終検証・統合。
+有限離散底の K 群と整数値関数群の往復写像・逆写像則を追加した（未検証）。
+残作業は追加分の検査・修正、一点計算・自然性と利用例、文書・最終検証・統合。

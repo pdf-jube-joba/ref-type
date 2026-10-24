@@ -1,0 +1,35 @@
+\import \parent.Classification[] \as Classes;
+\import K.Ranks[] \as Ranks;
+\import K.K0[] \as Group;
+\import K.AdditiveMonoid[] \as Add;
+\import K.IntegerFunctions[] \as Functions;
+\import std.Arithmetic[].Int[] \as I;
+\import I.Math[] \as IntegerMath;
+\import \parent.\parent.IntegerDifference[] \as Difference;
+\import algebra.GroupCompletion[].Of[M := K.Classes, monoid := Group.additiveMonoid] \as Completion;
+\definition Carrier: \Set := Group.Carrier;
+\definition IntegerFunctions: \Set := Functions.Carrier;
+\definition forward: Carrier -> IntegerFunctions := Ranks.rank;
+\definition positive[f: IntegerFunctions]: Classes.NatFunctions := \fun (x: X) => I.Positive.specification (f x);
+\definition negative[f: IntegerFunctions]: Classes.NatFunctions := \fun (x: X) => I.Negative.specification (f x);
+\definition backward[f: IntegerFunctions]: Carrier := Group.difference (Classes.realize (positive f)) (Classes.realize (negative f));
+\definition normalize: \forall (a, b: K.Classes)(x: X) -> forward (Group.difference a b) x = I.integer (Classes.rank a x) (Classes.rank b x) := \fun (a, b: K.Classes)(x: X) =>
+  trans!{{I.Int^}} _ _ _ (congr!{{Functions.Carrier} {I.Int^}} (\fun (f: Functions.Carrier) => f x) _ _ (Ranks.rankDifference a b))
+    (trans!{{I.Int^}} _ _ _ (congr!{{I.Int^} {I.Int^} {I.Int^}} (\fun (s, t: I.Int^) => I.Add.specification s (I.Neg.specification t)) _ _ _ _ (Classes.naturalIntegerRank a x) (Classes.naturalIntegerRank b x))
+      (Difference.equation (Classes.rank a x) (Classes.rank b x)));
+\definition rightInverse: \forall (f: IntegerFunctions) -> forward (backward f) = f := \fun (f: IntegerFunctions) => \axiom:funext(forward (backward f), f, \fun (x: X) =>
+  trans!{{I.Int^}} _ _ _ (normalize (Classes.realize (positive f)) (Classes.realize (negative f)) x)
+    (trans!{{I.Int^}} _ _ _ (congr!{{N.Nat^} {N.Nat^} {I.Int^}} I.integer _ _ _ _
+      (congr!{{Classes.NatFunctions} {N.Nat^}} (\fun (r: Classes.NatFunctions) => r x) _ _ (Classes.rankRealize (positive f)))
+      (congr!{{Classes.NatFunctions} {N.Nat^}} (\fun (r: Classes.NatFunctions) => r x) _ _ (Classes.rankRealize (negative f))))
+      (I.diffCanonical (f x))));
+\module At(a, b: K.Classes);
+\import std.Set[].Quotient[A := Completion.Difference, Equivalent := Completion.Equivalent] \as Quotient;
+\definition leftInverse: \forall (x: Carrier) -> backward (forward x) = x :=
+  Quotient.induction (\fun (x: Carrier) => backward (forward x) = x)
+    (\fun (d: Completion.Difference) => \idelim Group.difference (Completion.positive d) (Completion.negative d) = Completion.class d
+      \with x: Carrier => backward (forward x) = x \by { base: At[a := Completion.positive d, b := Completion.negative d].equation,
+        equality: Group.differenceClass (Completion.positive d) (Completion.negative d) });
+\definition injective: \forall (x, y: Carrier) -> forward x = forward y -> x = y := \fun (x, y: Carrier)(equal: _) =>
+  trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (leftInverse x)) (trans!{Carrier} _ _ _ (congr!{IntegerFunctions Carrier} backward _ _ equal) (leftInverse y));
+\definition additive: \forall (x, y: Carrier) -> forward (Group.add x y) = Functions.add (forward x) (forward y) := Ranks.rankAdd;
