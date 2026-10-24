@@ -18,19 +18,20 @@
 
 ## 検証と再開
 
-実行環境の切断により、このブランチは未完了の退避スナップショットである。
-会話に記録された書き込み内容から55個のソースファイルを復元しており、元の作業ディレクトリとのバイト単位の照合と、復元後の型検査は未実施である。
+復元コミット `5d993911` をリモートから取得し、残存した元の55ソース、package manifest、workspace 登録の57ファイルが Git blob hash まで一致することを確認した。
+元の作業は stash に保存し、復元コミットへ fast-forward した。
+環境切断の根本原因は不明である。
 
-切断前には計量・有限分割の範囲で22 module・205ステップ、有限基底と射影の一意性で15 module・121ステップ、射影の像の束で24 module・244ステップの通常検査が受理された。
-最後の比較同型を含む検査は55 module のソース検査完了を記録した後に終了処理へ入り、その最終結果を取得する前に環境が利用不能になった。
+検証済みコミットは `5d993911`。
+`target/debug/cli libs --module bundle_complements --memory-mib 8192 --diagnostics compact --report-json work/b03-resume-restored.json --cache-stats` は終了コード0、535 module を共有キャッシュから再利用して受理された。
+切断前の比較同型を含む検査の受理済みレポートも残存したが、今回の終了コード付き再検査を確認の基準とする。
+未検証の数学コード変更はない。
 
-再開時の検査範囲は次のとおり。
+次は直交補束と自明束への直和同型を実装・検査し、同型類の集合、引き戻しの自然性、実・複素・零階数・空基底・可変階数の利用例を完成させる。
+最終的に次を共有キャッシュで実行し、下流リンク・ロードマップを更新する。
 
 ```sh
 target/debug/cli libs/geometry/bundle_complements --memory-mib 8192 --cache-stats
 target/debug/cli libs --module bundle_complements --memory-mib 8192 --cache-stats
 target/debug/cli libs --memory-mib 8192 --cache-stats
 ```
-
-直交補束と自明束への直和同型、異なる周囲次元を含む束同型の同値関係と同型類の集合、引き戻しに対する自然性、実・複素の利用例、最終検証と完了時のロードマップ更新が残っている。
-B03 の計画は未完了として保持している。
