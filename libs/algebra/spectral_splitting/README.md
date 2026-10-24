@@ -15,10 +15,10 @@
 互いに素性の証明で存在消去の結論の推論が失敗したため、結論を明記した。
 `267739bb` の Horner 評価は終了コード0、510 module で受理された。
 互いに素性の証明も `742fb3de` で終了コード0、474 module で受理された。
-単位円の内外の開性・根因子の分離を追加した。
-その初回検査は import の参照解決で終了コード1となり、参照を明記した。
-この変更は未検証である。
-次は単位円の範囲を再検査し、行列族の特性多項式と連続射影へ接続する。
+単位円の内外の開性・根因子の分離も `999005ab` で終了コード0となった。
+その後の行列式の係数写像、有限係数演算、並び方に依存しない根因子の選択は未検証である。
+`c08b33fa` の package 検査は `Coefficients.Data` の大きな除去の制限で終了コード1となった。
+有限係数の型を自然数による型の再帰ではなく固定長ベクトルへ変更して再検査する。
 作業保存用の [draft PR #42](https://github.com/pdf-jube-joba/ref-type/pull/42) を作成済みである。
 最新 main の既存実装の検証記録は各依存先の README にあり、新規範囲の検査は次のコマンドで行う。
 
@@ -26,7 +26,8 @@
 target/debug/cli libs --module spectral_splitting --memory-mib 8192 --diagnostics compact --cache-stats
 # 受理済み: --module spectral_splitting.Spectral.At.Families (終了コード0)
 # 受理済み: --module spectral_splitting.Spectral.Coprime (終了コード0)
-# 要再検査: --module spectral_splitting.Spectral.Circle (直前は終了コード1)
+# 受理済み: --module spectral_splitting.Spectral.Circle (999005ab、終了コード0)
+# 要再検査: package 全体 (c08b33fa は終了コード1)
 ```
 
 残作業は単位円の内外の根群・連続射影、Bézout と Cayley–Hamilton による分解と基底変更の自然性、束への貼り合わせ・像の局所自明化・ホモトピー比較、具体例と最終検証である。
