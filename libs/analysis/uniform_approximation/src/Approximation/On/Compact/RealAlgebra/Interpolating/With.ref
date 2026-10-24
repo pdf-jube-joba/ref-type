@@ -1,0 +1,18 @@
+\definition delta: R.Real := R.sub (h y) (h x);
+\definition nonzero: Logic.Not (delta = R.zero) := \fun (zero: delta = R.zero) => distinct (sym!{{R.Real}} _ _ (Distance.subZeroEq (h y) (h x) zero));
+\definition slope: R.Real := R.mul (R.sub (f y) (f x)) (Laws.fieldInv delta);
+\definition value: Function := sum (constant (f x)) (product (constant slope) (sum h (negative (constant (h x)))));
+\definition inAlgebra: \In[Function] A value := laws.addition (constant (f x)) (product (constant slope) (sum h (negative (constant (h x))))) (laws.constants (f x))
+  (laws.multiplication (constant slope) (sum h (negative (constant (h x)))) (laws.constants slope) (laws.addition h (negative (constant (h x))) member (laws.negation (constant (h x)) (laws.constants (h x)))));
+\definition first: value x = f x := eq_reason_in!{{R.Real} _
+  "=" { R.add (f x) (R.mul slope R.zero) } "by" { congr!{{R.Real} {R.Real}} (\fun (t: R.Real) => R.add (f x) (R.mul slope t)) _ _ (Laws.subSelf (h x)) }
+  "=" { R.add (f x) R.zero } "by" { congr!{{R.Real} {R.Real}} (R.add (f x)) _ _ (Laws.fieldMulZeroRight slope) }
+  "=" { f x } "by" { Laws.addZeroRight (f x) }
+};
+\definition second: value y = f y := eq_reason_in!{{R.Real} _
+  "=" { R.add (f x) (R.mul (R.sub (f y) (f x)) (R.mul (Laws.fieldInv delta) delta)) } "by" { congr!{{R.Real} {R.Real}} (R.add (f x)) _ _ (Laws.fieldMulAssoc (R.sub (f y) (f x)) (Laws.fieldInv delta) delta) }
+  "=" { R.add (f x) (R.mul (R.sub (f y) (f x)) R.one) } "by" { congr!{{R.Real} {R.Real}} (\fun (t: R.Real) => R.add (f x) (R.mul (R.sub (f y) (f x)) t)) _ _ (Laws.fieldInverseNonzero delta nonzero) }
+  "=" { R.add (f x) (R.sub (f y) (f x)) } "by" { congr!{{R.Real} {R.Real}} (R.add (f x)) _ _ (Algebra.mulOneRight (R.sub (f y) (f x))) }
+  "=" { f y } "by" { Estimates.addSubCancel (f y) (f x) }
+};
+\definition result: Interpolation[A, f, x, y] := Interpolation[A, f, x, y] { value := value, member := inAlgebra, atFirst := first, atSecond := second };
