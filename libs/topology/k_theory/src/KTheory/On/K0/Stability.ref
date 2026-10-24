@@ -48,3 +48,21 @@
   };
 \module ForBundles(F, G: X -> \Set, first: Bundles.Family[X := X, F := F].Bundle, second: Bundles.Family[X := X, F := G].Bundle,
   firstSame: first.baseSpace = baseSpace, secondSame: second.baseSpace = baseSpace);
+\definition crossSumEqual: \forall (a, b, c, d: Classes) -> difference a b = difference c d -> include (Monoid.add a d) = include (Monoid.add c b) := \block {
+  \fun (a, b, c, d: Classes)(equal: difference a b = difference c d) \then
+  \let same: Additive.class (Additive.pair a b) = Additive.class (Additive.pair c d) :=
+    trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (differenceClass a b)) (trans!{Carrier} _ _ _ equal (differenceClass c d)) \then
+  \takefrom e: \Cast[Classes] ({ e: Classes \where Additive.Balance (Additive.pair a b) (Additive.pair c d) e })
+    \by Differences.equivalentOfClassEq Additive.equivalence (Additive.pair a b) (Additive.pair c d) same \then
+  \return equalInclusion (Monoid.add a d) (Monoid.add c b) e
+    (\bysub(Classes, { e: Classes \where Additive.Balance (Additive.pair a b) (Additive.pair c d) e }, e))
+};
+\definition ofCrossSumEqual: \forall (a, b, c, d: Classes) -> include (Monoid.add a d) = include (Monoid.add c b) -> difference a b = difference c d :=
+  \fun (a, b, c, d: Classes)(equal: _) => Group.balancedDifference (include a) (include b) (include c) (include d)
+    (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (includeAdd a d)) (trans!{Carrier} _ _ _ equal (includeAdd c b)));
+\definition differenceCriterion: \forall (a, b, c, d: Classes) -> Logic.PropEquiv[difference a b = difference c d,
+  \exists (n: N.Nat^ \where Stable (Monoid.add a d) (Monoid.add c b) n)] := \fun (a, b, c, d: Classes) =>
+    Logic.PropEquiv[difference a b = difference c d, \exists (n: N.Nat^ \where Stable (Monoid.add a d) (Monoid.add c b) n)] {
+      ltr := \fun (equal: _) => stabilizes (Monoid.add a d) (Monoid.add c b) (crossSumEqual a b c d equal),
+      rtl := \fun (stable: _) => ofCrossSumEqual a b c d ((stableCriterion (Monoid.add a d) (Monoid.add c b)).rtl stable)
+    };
