@@ -1,0 +1,48 @@
+\import \parent.Polynomials[] \as P;
+\import R.Estimates[].Product[] \as Bounds;
+\import metric_spaces.RealLine[] \as Line;
+\definition interval: \Pow R.Real := Line.ClosedInterval (R.neg R.one) R.one;
+\definition Carrier: \Set := \Cast[R.Real] interval;
+\import topology.Topology[Carrier := R.Real].Subspace[S := interval] \as Subspace;
+\import topology.Topology[Carrier := Carrier] \as Base;
+\definition topology: Base.Topology := Subspace.topology Line.topology;
+\definition compact: Base.IsCompact topology := Subspace.Properties[].compact Line.topology (Line.CompactIntervals[].intervalCompact (R.neg R.one) R.one);
+\definition include[x: Carrier]: R.Real := x;
+\definition includeContinuous: topology.Continuity[A := Carrier, B := R.Real].Continuous topology Line.topology include :=
+  \fun (U: \Pow R.Real)(open: topology.Topology[Carrier := R.Real].IsOpenIn Line.topology U) => Subspace.traceOpen Line.topology U open;
+\definition bounded: \forall (x: Carrier) -> Real.Le (absolute x) R.one := \fun (x: Carrier) =>
+  Real.leReplaceLeft (Distance.max (R.neg x) x) (absolute x) R.one (sym!{{R.Real}} _ _ (Bounds.absExpression x))
+    (Distance.maxLeast (R.neg x) x R.one
+      (Real.leReplaceRight (R.neg x) (R.neg (R.neg R.one)) R.one (Laws.negInvolutive R.one)
+        (Laws.negAntitone (R.neg R.one) x (\bysub(R.Real, interval, x)).left))
+      (\bysub(R.Real, interval, x)).right);
+\definition square: \forall (x: R.Real) -> R.mul (absolute x) (absolute x) = R.mul x x := \fun (x: R.Real) =>
+  trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ (Bounds.absProduct x x)) (Bounds.absOfNonnegative (R.mul x x) (Algebra.squareNonnegative x));
+\import \parent.On[X := Carrier, space := topology] \as On;
+\import metric_spaces.RealFunctions[A := Carrier] \as Functions;
+\import On.Polynomial[f := include, regular := includeContinuous] \as Polynomial;
+\definition error[n: N.Nat^][x: Carrier]: R.Real := R.sub (absolute x) (P.value n x);
+\definition continuous: \forall (n: N.Nat^) -> Functions.Continuous topology (error n) := \fun (n: N.Nat^) =>
+  Functions.subContinuous topology (\fun (x: Carrier) => absolute x) (\fun (x: Carrier) => P.value n x)
+    (Functions.Lattice[].absoluteContinuous topology include includeContinuous) (Polynomial.continuous (P.absolutePolynomial n));
+\module At(x: Carrier);
+\definition antitone: \forall (n, m: N.Nat^) -> NatLaws.Le n m -> \forall (x: Carrier) -> Real.Le (error m x) (error n x) := \fun (n, m: N.Nat^)(ordered: NatLaws.Le n m)(x: Carrier) => At[x := x].antitone n m ordered;
+\import On.Dini[error := error, continuous := continuous, antitone := antitone] \as Dini;
+\definition pointwise: Dini.Pointwise := \fun (epsilon: R.Real)(positive: Real.Lt R.zero epsilon)(x: Carrier) => At[x := x].pointwise epsilon positive;
+\definition unit: \forall (epsilon: R.Real) -> Real.Lt R.zero epsilon -> \exists (p: P.Carrier \where \forall (x: Carrier) -> Real.Lt (R.distance (absolute x) (P.evaluate p x)) epsilon) := \block {
+  \fun (epsilon: R.Real)(positive: Real.Lt R.zero epsilon) \then
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \forall (x: Carrier) -> Real.Lt (error n x) epsilon }) \by Dini.uniform compact pointwise epsilon positive \then
+  \return Logic.existsIntro[P.Carrier, { p: P.Carrier \where \forall (x: Carrier) -> Real.Lt (R.distance (absolute x) (P.evaluate p x)) epsilon }] (P.absolutePolynomial n)
+    (\fun (x: Carrier) => Real.ltReplaceLeft (error n x) (R.distance (absolute x) (P.value n x)) epsilon (sym!{{R.Real}} _ _ (At[x := x].distance n))
+      ((\bysub(N.Nat^, { n: N.Nat^ \where \forall (x: Carrier) -> Real.Lt (error n x) epsilon }, n)) x))
+};
+\definition member[x: R.Real]: Real.Le (absolute x) R.one -> \In[R.Real] interval x := \fun (bound: _) => Logic.And[_, _]::#
+  (Real.leReplaceLeft (R.sub R.zero R.one) (R.neg R.one) x (Laws.addZeroLeft (R.neg R.one)) (Estimates.distanceLeLower R.zero x R.one bound))
+  (Real.leReplaceRight x (R.add R.zero R.one) R.one (Laws.addZeroLeft R.one) (Estimates.distanceLeUpper R.zero x R.one bound));
+\definition unitBounded: \forall (epsilon: R.Real) -> Real.Lt R.zero epsilon -> \exists (p: P.Carrier \where \forall (x: R.Real) -> Real.Le (absolute x) R.one -> Real.Lt (R.distance (absolute x) (P.evaluate p x)) epsilon) := \block {
+  \fun (epsilon: R.Real)(positive: _) \then
+  \takefrom p: \Cast[P.Carrier] ({ p: P.Carrier \where \forall (x: Carrier) -> Real.Lt (R.distance (absolute x) (P.evaluate p x)) epsilon }) \by unit epsilon positive \then
+  \return Logic.existsIntro[P.Carrier, { p: P.Carrier \where \forall (x: R.Real) -> Real.Le (absolute x) R.one -> Real.Lt (R.distance (absolute x) (P.evaluate p x)) epsilon }] p
+    (\fun (x: R.Real)(bound: Real.Le (absolute x) R.one) =>
+      (\bysub(P.Carrier, { p: P.Carrier \where \forall (x: Carrier) -> Real.Lt (R.distance (absolute x) (P.evaluate p x)) epsilon }, p)) (\into[R.Real](x, interval) \by { member x bound }))
+};

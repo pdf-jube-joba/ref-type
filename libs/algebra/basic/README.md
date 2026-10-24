@@ -39,3 +39,5 @@
 `AmalgamatedProduct` は群の融合積の普遍性と、普遍性を満たす二つの群の標準同型を提供する。
 `Noncommutative.Actions.PointedMaps` は推移的な群作用間の基点付き同変写像を安定化部分群の包含から構成する。
 `GroupTransport` は相互逆な全単射で群構造を移す。
+
+`Polynomial.Over.induction` と `LaurentPolynomial.Over.induction` は、定数・変数・和・負・積について閉じた命題をすべての多項式へ拡張する。
