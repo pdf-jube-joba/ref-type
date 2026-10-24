@@ -1,0 +1,12 @@
+\import \root.Spectral[].Coefficients[].Tensor[n := n, k := k] \as Tensor;
+\import \parent.Summing[I := Fin.Fin n] \as Sums;
+\import Fin.Tuples[A := Fin.Fin n] \as Indices;
+\definition regular: \forall (r: N.Nat^)(f: Tensor.Tuple r -> X -> Data[k]) ->
+  (\forall (t: Tensor.Tuple r) -> Regular[k, f t]) -> Regular[k, \fun (x: X) => Tensor.sum r (\fun (t: Tensor.Tuple r) => f t x)] :=
+  \induction (r: N.Nat^) \return \forall (f: Tensor.Tuple r -> X -> Data[k]) ->
+    (\forall (t: Tensor.Tuple r) -> Regular[k, f t]) -> Regular[k, \fun (x: X) => Tensor.sum r (\fun (t: Tensor.Tuple r) => f t x)] \with {
+    | zero: \fun (f: Tensor.Tuple N.Nat^::zero -> X -> Data[k])(regular: _) => regular Fin.Empty[A := Fin.Fin n].function
+    | succ: \fun (r: N.Nat^)(previous: _)(f: Tensor.Tuple (N.Nat^::succ r) -> X -> Data[k])(regular: _) =>
+      Sums.regular k (Fin.elements n) _ (\fun (i: Fin.Fin n) => previous (\fun (t: Tensor.Tuple r) => f (Indices.extend r i t))
+        (\fun (t: Tensor.Tuple r) => regular (Indices.extend r i t)))
+  };
