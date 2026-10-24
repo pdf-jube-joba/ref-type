@@ -1,0 +1,36 @@
+\import Bundles.Family[X := X, F := F] \as Ambient;
+\import Ambient.With[data := bundle] \as AmbientCharts;
+\import topology.Topology[Carrier := X] \as Base;
+\import AmbientCharts.In[c := c] \as Original;
+\import Base.Subspace[S := c.domain] \as Subspace;
+\definition baseSpace: topology.Topology[Carrier := Original.BasePoint].Topology := Subspace.topology bundle.baseSpace;
+\definition Vector: \Set := Bundles.Vector c.dimension;
+\definition coordinates: Spaces.VectorSpace Vector := Bundles.coordinates c.dimension;
+\definition coordinateTopology: topology.Topology[Carrier := Vector].Topology := Bundles.coordinateTopology c.dimension;
+\import Spaces.Linear[V := Vector, W := Vector, source := coordinates, target := coordinates] \as End;
+\import BundleOperations.Chart[X := X, F := F, bundle := bundle, chart := c] \as Chart;
+\module At(x: Original.BasePoint);
+\definition operator[x: Original.BasePoint]: End.Map := At[x := x].operator;
+\module Applying(Y: \Set, source: topology.Topology[Carrier := Y].Topology, base: Y -> Original.BasePoint, vector: Y -> Vector,
+  baseRegular: topology.Continuity[A := Y, B := Original.BasePoint].Continuous source baseSpace base,
+  vectorRegular: topology.Continuity[A := Y, B := Vector].Continuous source coordinateTopology vector);
+\import Hermitian.At[n := c.dimension].Families[X := Original.BasePoint] \as Vectors;
+\definition regular: Vectors.Matrix[m := c.dimension].Regular baseSpace operator :=
+  \fun (v: Vector)(i: Fin.Fin c.dimension) => topology.Composition[A := Original.BasePoint, B := Vector, C := C.Complex].composeContinuous
+    baseSpace coordinateTopology Bundles.scalarTopology (\fun (x: Original.BasePoint) => (operator x).apply v) (\fun (w: Vector) => w i)
+    Applying[Y := Original.BasePoint, source := baseSpace, base := (\fun (x: Original.BasePoint) => x), vector := (\fun (_: Original.BasePoint) => v),
+      baseRegular := topology.Maps[A := Original.BasePoint, B := Original.BasePoint].Identity[].continuous baseSpace,
+      vectorRegular := topology.Maps[A := Original.BasePoint, B := Vector].constantContinuous baseSpace coordinateTopology v].continuous
+    (topological_algebra.Coordinates[K := C.Complex, I := Fin.Fin c.dimension].evaluationContinuous Bundles.scalarTopology i);
+
+\import matrix_invariants.Ring[K := C.Complex, scalars := Fields.fieldAsCommutativeRing C.Complex Scalars.field].At[n := c.dimension] \as Matrices;
+\definition matrix[x: Original.BasePoint]: Matrices.Matrix := \root.Spectral[].InFrame[V := F x, space := bundle.space x, T := T.fiber x, n := c.dimension, frame := c.frame x].matrix;
+\definition matrixFormula: \forall (x: Original.BasePoint)(v: Vector) -> (Matrices.linear (matrix x)).apply v = (operator x).apply v :=
+  \fun (x: Original.BasePoint) => \root.Spectral[].InFrame[V := F x, space := bundle.space x, T := T.fiber x, n := c.dimension, frame := c.frame x].matrixFormula;
+\definition matrixRegular: \root.Spectral[].At[n := c.dimension].Characteristic[].Families[X := Original.BasePoint, source := baseSpace].Regular matrix :=
+  \fun (i, j: Fin.Fin c.dimension) => Hermitian.Functions[X := Original.BasePoint].transport baseSpace
+    (\fun (x: Original.BasePoint) => (operator x).apply (Geometry.Finite[n := c.dimension].basis j) i) (\fun (x: Original.BasePoint) => matrix x i j)
+    (\fun (x: Original.BasePoint) => trans!{{C.Complex}} _ _ _
+      (congr!{Vector {C.Complex}} (\fun (v: Vector) => v i) _ _ (sym!{Vector} _ _ (matrixFormula x (Geometry.Finite[n := c.dimension].basis j))))
+      (congr!{Vector {C.Complex}} (\fun (v: Vector) => v i) _ _ (Matrices.onBasis (matrix x) j)))
+    (regular (Geometry.Finite[n := c.dimension].basis j) i);
