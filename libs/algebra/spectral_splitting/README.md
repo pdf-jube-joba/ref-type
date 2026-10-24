@@ -5,31 +5,34 @@
 
 ## 検証と再開
 
-基点は main `6bf92837`。
-リモートの今回の4単位に対応するブランチと open PR はなく、未完了の各計画が残っていることを確認した。
-複素多項式の作用、Bézout 射影・補射影、その独立性、および評価和の右逆を構成した。
-基礎4ソースは `ece9322d` で終了コード0（234 module）となった。
-`17f58311` の行列版も終了コード0、464 module で受理された。
-共通根がない複素多項式の互いに素性の初回検査は公開名の参照で終了コード1となり、修正した。
-固定次数の係数族に対する Horner 評価と連続性も追加した。
-互いに素性の証明で存在消去の結論の推論が失敗したため、結論を明記した。
-`267739bb` の Horner 評価は終了コード0、510 module で受理された。
-互いに素性の証明も `742fb3de` で終了コード0、474 module で受理された。
-単位円の内外の開性・根因子の分離も `999005ab` で終了コード0となった。
-その後の行列式の係数写像、有限係数演算、並び方に依存しない根因子の選択は未検証である。
-`c08b33fa` の package 検査は `Coefficients.Data` の大きな除去の制限で終了コード1となった。
-有限係数の型を自然数による型の再帰ではなく固定長ベクトルへ変更して再検査する。
-作業保存用の [draft PR #42](https://github.com/pdf-jube-joba/ref-type/pull/42) を作成済みである。
-最新 main の既存実装の検証記録は各依存先の README にあり、新規範囲の検査は次のコマンドで行う。
+基点は main `6bf92837`、作業は `math/k06-spectral-splitting`、[draft PR #42](https://github.com/pdf-jube-joba/ref-type/pull/42)。
+開始時にリモートの既存ブランチ・open PR と4計画を確認し、重複する作業がないことを確認した。
+Bézout 射影と独立性、Cayley–Hamilton による評価和の逆行列、Horner 評価の連続性、共通根がない場合の互いに素性、単位円内外の根因子の分離を構成した。
+以下は保存処理を含むプロセスの終了を確認した範囲である。
+
+| コミット | 検査範囲 (`spectral_splitting.Spectral` 以下) | module 数（新規＋再利用） | 終了コード |
+| --- | --- | --- | --- |
+| `17f58311` | 当時の package 全体（逆行列による射影まで） | 464 | 0 |
+| `267739bb` | `At.Families` | 510 | 0 |
+| `742fb3de` | `Coprime` | 474 | 0 |
+| `999005ab` | 当時の `Circle` | 507 | 0 |
+
+その後の並び方に依存しない因子、局所根群との比較、有限係数演算・行列式の係数写像・特性多項式の係数と連続性は未検証である。
+最後に終了を確認した検査は `18a49375` の `Coefficients` で終了コード1、`Families.constantAddition` の証明引数の型推論で失敗した。
+`2266e494` で引数の型を明記し、同範囲を再検査中である。
+型の再帰での大きな除去は固定長ベクトルで回避した。
+
+検査コマンドは以下を基準とする。
+実行時には `--source-snapshot` で検査対象を固定し、`--report-json` も指定している。
+生成 snapshot・JSON・ログは追跡しない。
 
 ```sh
-target/debug/cli libs --module spectral_splitting --memory-mib 8192 --diagnostics compact --cache-stats
-# 受理済み: --module spectral_splitting.Spectral.At.Families (終了コード0)
-# 受理済み: --module spectral_splitting.Spectral.Coprime (終了コード0)
-# 受理済み: --module spectral_splitting.Spectral.Circle (999005ab、終了コード0)
-# 要再検査: package 全体 (c08b33fa は終了コード1)
+target/debug/cli libs --parse-only --save-source-snapshot /tmp/k06-sources.json
+target/debug/cli libs --module spectral_splitting.Spectral.Coefficients \
+  --source-snapshot /tmp/k06-sources.json --memory-mib 8192 --diagnostics compact --cache-stats
 ```
 
-残作業は単位円の内外の根群・連続射影、Bézout と Cayley–Hamilton による分解と基底変更の自然性、束への貼り合わせ・像の局所自明化・ホモトピー比較、具体例と最終検証である。
-次は K05 と L02 の公開 API を接続し、代数的射影と一意性・自然性を実装する。
-その後 package/workspace を登録し、`src/USAGE.md` に従って共有キャッシュで対象・依存・影響範囲を検査する。
+次は実行中の検査の終了コードを確認し、残る型エラーを修正する。
+その後 `At.Weights`、`Circle`、`At.Characteristic` を検査し、局所的な連続評価を逆行列によるスペクトル射影へ接続する。
+残作業は連続射影・基底変更の自然性、束への貼り合わせ・像の局所自明化・ホモトピー比較、具体例、公開 API の整備と全依存・下流・workspace の最終検査である。
+K06 は未完成であり、B04・K01・K04 には着手していない。
