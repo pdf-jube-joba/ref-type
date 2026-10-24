@@ -1,0 +1,44 @@
+\structure Layer[A: \Set]: \Set := { coefficient: C.Complex, tail: A };
+\definition Data: N.Nat^ -> \Set := \induction (k: N.Nat^) \return \Set \with {
+  | zero: C.Complex
+  | succ: \fun (k: N.Nat^)(previous: \Set) => Layer[previous]
+};
+\definition polynomial: \forall (k: N.Nat^) -> Data k -> P.Carrier :=
+  \induction (k: N.Nat^) \return Data k -> P.Carrier \with {
+    | zero: P.constant
+    | succ: \fun (k: N.Nat^)(previous: Data k -> P.Carrier)(p: Data (N.Nat^::succ k)) =>
+      P.add (P.constant p.coefficient) (P.mul P.X (previous p.tail))
+  };
+\definition leading: \forall (k: N.Nat^) -> Data k -> C.Complex :=
+  \induction (k: N.Nat^) \return Data k -> C.Complex \with {
+    | zero: \fun (p: C.Complex) => p
+    | succ: \fun (k: N.Nat^)(previous: Data k -> C.Complex)(p: Data (N.Nat^::succ k)) => previous p.tail
+  };
+\definition plus: \forall (k: N.Nat^) -> Data k -> Data k -> Data k :=
+  \induction (k: N.Nat^) \return Data k -> Data k -> Data k \with {
+    | zero: Scalars.field.add
+    | succ: \fun (k: N.Nat^)(previous: Data k -> Data k -> Data k)(p, q: Data (N.Nat^::succ k)) =>
+      Layer[Data k] { coefficient := Scalars.field.add p.coefficient q.coefficient, tail := previous p.tail q.tail }
+  };
+\definition scale: \forall (k: N.Nat^) -> C.Complex -> Data k -> Data k :=
+  \induction (k: N.Nat^) \return C.Complex -> Data k -> Data k \with {
+    | zero: Scalars.field.mul
+    | succ: \fun (k: N.Nat^)(previous: C.Complex -> Data k -> Data k)(a: C.Complex)(p: Data (N.Nat^::succ k)) =>
+      Layer[Data k] { coefficient := Scalars.field.mul a p.coefficient, tail := previous a p.tail }
+  };
+\definition addConstant: \forall (k: N.Nat^) -> C.Complex -> Data k -> Data k :=
+  \induction (k: N.Nat^) \return C.Complex -> Data k -> Data k \with {
+    | zero: Scalars.field.add
+    | succ: \fun (k: N.Nat^)(previous: C.Complex -> Data k -> Data k)(a: C.Complex)(p: Data (N.Nat^::succ k)) =>
+      Layer[Data k] { coefficient := Scalars.field.add a p.coefficient, tail := p.tail }
+  };
+\definition affine: \forall (k: N.Nat^) -> C.Complex -> C.Complex -> Data k -> Data (N.Nat^::succ k) :=
+  \induction (k: N.Nat^) \return C.Complex -> C.Complex -> Data k -> Data (N.Nat^::succ k) \with {
+    | zero: \fun (a, b, p: C.Complex) => Layer[C.Complex] { coefficient := Scalars.field.mul a p, tail := Scalars.field.mul b p }
+    | succ: \fun (k: N.Nat^)(previous: C.Complex -> C.Complex -> Data k -> Data (N.Nat^::succ k))(a, b: C.Complex)(p: Data (N.Nat^::succ k)) =>
+      Layer[Data (N.Nat^::succ k)] {
+        coefficient := Scalars.field.mul a p.coefficient,
+        tail := addConstant (N.Nat^::succ k) (Scalars.field.mul b p.coefficient) (previous a b p.tail),
+      }
+  };
+\module Laws;
