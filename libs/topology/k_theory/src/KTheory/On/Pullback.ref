@@ -1,0 +1,24 @@
+\import \root.KTheory[].On[X := Y, baseSpace := space, compact := sourceCompact, hausdorff := sourceHausdorff] \as Target;
+\import Rep.Pullback[Y := Y, source := space, f := f, regularBase := regular] \as Native;
+\definition map: Classes -> Target.Classes := Native.map;
+\definition onClasses: \forall (p: Presentation) -> map (class p) = Target.class (Native.presentation p) := Native.onClass;
+\module Of(F: X -> \Set, original: Bundles.Family[X := X, F := F].Bundle, same: original.baseSpace = baseSpace);
+\module Sum(p, q: Presentation);
+\module Product(p, q: Presentation);
+\module Zero;
+\module Line;
+\import \parent.Semiring[] \as SourceSemiring;
+\import Target.Semiring[] \as TargetSemiring;
+\definition preservesAdd: \forall (a, b: Classes) -> map (SourceSemiring.add a b) = TargetSemiring.add (map a) (map b) :=
+  Quotient.induction2 (\fun (a, b: Classes) => map (SourceSemiring.add a b) = TargetSemiring.add (map a) (map b))
+    (\fun (p, q: Presentation) => Sum[p := p, q := q].equation);
+\definition preservesMul: \forall (a, b: Classes) -> map (SourceSemiring.mul a b) = TargetSemiring.mul (map a) (map b) :=
+  Quotient.induction2 (\fun (a, b: Classes) => map (SourceSemiring.mul a b) = TargetSemiring.mul (map a) (map b))
+    (\fun (p, q: Presentation) => Product[p := p, q := q].equation);
+\import algebra.Hom[A := Classes, B := Target.Classes] \as Hom;
+\definition semiringMap: Hom.SemiringMap SourceSemiring.semiring TargetSemiring.semiring :=
+  \into[Classes -> Target.Classes](map, Hom.SemiringMap SourceSemiring.semiring TargetSemiring.semiring) \by {
+    Hom.SemiringLaws[SourceSemiring.semiring, TargetSemiring.semiring, map] {
+      zero := Zero.equation, one := Line.equation, add := preservesAdd, mul := preservesMul
+    }
+  };

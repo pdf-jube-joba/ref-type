@@ -1,0 +1,31 @@
+\import \parent.\parent.Line[] \as Original;
+\import Target.Line[] \as Other;
+\import \parent.Of[F := Original.FiberAt, original := Original.lineBundle, same := \refl(baseSpace)] \as Pull;
+\import Operations.ScalarLine[X := X, baseSpace := baseSpace] \as SourceLine;
+\import Operations.ScalarLine[X := Y, baseSpace := space] \as TargetLine;
+\import Bundles.Family[X := X, F := Original.FiberAt].Of[bundle := Original.lineBundle].Pullback[Y := Y, source := space, f := f] \as NativePull;
+\import Bundles.Family[X := Y, F := Other.FiberAt] \as Family;
+\import Bundles.Morphisms[X := Y, Y := Y, F := Other.FiberAt, G := Other.FiberAt, source := Pull.pulled, target := Other.lineBundle, f := \fun (y: Y) => y] \as Forward;
+\import Bundles.Morphisms[X := Y, Y := Y, F := Other.FiberAt, G := Other.FiberAt, source := Other.lineBundle, target := Pull.pulled, f := \fun (y: Y) => y] \as Backward;
+\definition identity: Spaces.Linear[V := C.Complex, W := C.Complex, source := Spaces.scalarSpace, target := Spaces.scalarSpace].Map :=
+  Spaces.Linear[V := C.Complex, W := C.Complex, source := Spaces.scalarSpace, target := Spaces.scalarSpace].Map {
+    apply := \fun (a: C.Complex) => a, preservesAdd := \fun (a, b: C.Complex) => \refl(Algebra.field.add a b), preservesScale := \fun (a, b: C.Complex) => \refl(Algebra.field.mul a b)
+  };
+\definition forwardData: Forward.Data := Forward.Data { fiber := \fun (y: Y) => identity };
+\definition backwardData: Backward.Data := Backward.Data { fiber := \fun (y: Y) => identity };
+\definition forward: Forward.Map := \into[Forward.Data](forwardData, Forward.Map) \by {
+  TargetLine.Universal[Y := Family.Point].continuous Pull.pulled.totalSpace (Forward.total forwardData) NativePull.projectionContinuous
+    (topology.Composition[A := Family.Point, B := Bundles.Family[X := X, F := Original.FiberAt].Point, C := C.Complex].composeContinuous Pull.pulled.totalSpace Original.lineBundle.totalSpace Scalar.scalar.topological.space NativePull.map SourceLine.value NativePull.mapContinuous SourceLine.valueContinuous)
+};
+\import TargetLine.Mapping[Y := X, space := baseSpace, f := f, regular := regular] \as Mapping;
+\definition backward: Backward.Map := \into[Backward.Data](backwardData, Backward.Map) \by {
+  NativePull.Universal[Z := Family.Point].continuous Other.lineBundle.totalSpace (Backward.total backwardData)
+    Family.Of[bundle := Other.lineBundle].projectionContinuous
+    (Bundles.Morphisms[X := Y, Y := X, F := Other.FiberAt, G := Original.FiberAt, source := Other.lineBundle, target := Original.lineBundle, f := f].continuous Mapping.map)
+};
+\definition isomorphism: Bundles.Isomorphisms[X := Y, F := Other.FiberAt, G := Other.FiberAt, source := Pull.pulled, target := Other.lineBundle].Isomorphism :=
+  Bundles.Isomorphisms[X := Y, F := Other.FiberAt, G := Other.FiberAt, source := Pull.pulled, target := Other.lineBundle].Isomorphism {
+    forward := forward, backward := backward, leftInverse := \fun (y: Y)(a: C.Complex) => \refl(a), rightInverse := \fun (y: Y)(a: C.Complex) => \refl(a)
+  };
+\import Target.Compare[F := Other.FiberAt, G := Other.FiberAt, first := Pull.pulled, second := Other.lineBundle, firstSame := \refl(space), secondSame := \refl(space)] \as Comparison;
+\definition equation: map Original.value = Other.value := trans!{{Target.Classes}} _ _ _ Pull.naturality (Comparison.ofIsomorphism isomorphism);
