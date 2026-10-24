@@ -136,6 +136,7 @@ impl Lowerer<'_> {
         ctx: &mut ExpContext,
         m: ModuleId,
     ) -> Result<s::Expression, crate::error::Error> {
+        let _cost = timing::costs::Scope::enter("lower.logical");
         let nominal = !self.structural
             && self.scope.nominal
             && self.scope.proof_base.is_none()

@@ -113,6 +113,7 @@ impl Lowerer<'_> {
     }
 
     pub(super) fn captures(&mut self, declaration: Declaration) -> Vec<ModuleParamId> {
+        let _cost = timing::costs::Scope::enter("lower.captures");
         if let Some(captures) = self.registered_captures(declaration) {
             return captures;
         }
@@ -386,6 +387,7 @@ impl Lowerer<'_> {
         depth: usize,
         program: bool,
     ) -> Result<Vec<s::Expression>, crate::error::Error> {
+        let _cost = timing::costs::Scope::enter("lower.capture-arguments");
         captures
             .iter()
             .map(|&id| {
@@ -426,6 +428,7 @@ impl Lowerer<'_> {
     }
 
     pub(super) fn definition_ambient(&mut self, id: DefId) -> Result<usize, crate::error::Error> {
+        let _cost = timing::costs::Scope::enter("lower.definition-ambient");
         if let Some(native) = self.raw.kernel_definitions.borrow().get(&id).copied()
             && let Ok(definition) = self.kernel.definition(native)
             && let Some(captures) = self.raw.arena().definition_captures(native)
@@ -480,6 +483,7 @@ impl Lowerer<'_> {
         program: bool,
         parameters: &[s::Expression],
     ) -> Result<s::Expression, crate::error::Error> {
+        let _cost = timing::costs::Scope::enter("lower.definition-expression");
         if let Some(origin) = self.raw.generic_definition_specialization(id) {
             self.definition(origin.source)?;
             let captures = self.captures(Declaration::Definition(origin.source));

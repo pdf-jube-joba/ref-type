@@ -25,7 +25,9 @@ clutching 関数のホモトピーによる束同型、直和による clutching
 `.Clutching.Homotopy` の合成部分の検査は未完了である。
 2回は終了2・`memory-limit`（4,294,967,296 byte の allocation failure）、その後の修正・計測は120〜180秒上限で終了2・`time-limit` となった。
 最新の `d26d43f8` の計測は `startInverseExists` の検査で180秒上限に達した。
-環境・端末・ファイル操作は利用でき、原因の調査と型の具体化の整理を継続する。
+全 cost/bridge 計測（90秒上限、終了2）では、`bridge lower` の後、kernel へ渡す前に停滞することを確認した。
+型の変換処理に cost 計測を追加し、詳しい箇所を調べる。
+環境・端末・ファイル操作は利用でき、原因の調査を継続する。
 B01 の逆同型の存在、B02 の同型の合成・直和の存在を公開 API として追加したため、これらと下流も最終検査に含める。
 
 検査は `target/debug/cli libs --parse-only --save-source-snapshot work/<name>-snapshot.json`、続いて `target/debug/cli libs --module <scope> --source-snapshot work/<name>-snapshot.json --memory-mib 8192 --time-limit-seconds 900 --diagnostics compact --report-json work/<name>.json --cache-stats` を使用する。

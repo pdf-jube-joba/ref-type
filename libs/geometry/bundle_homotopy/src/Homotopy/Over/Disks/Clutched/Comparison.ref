@@ -3,17 +3,25 @@
 \definition Domain[i: B.Bool^]: \Pow Sphere.Sphere := (chart i).domain;
 \module Half(i: B.Bool^, S: \Pow Sphere.Sphere, inside: \forall (x: \Cast[Sphere.Sphere] S) -> \In[Sphere.Sphere] (Domain i) x);
 
-\import Half[i := B.Bool^::false, S := Cover.PositiveHalf, inside := Cover.positiveInside] \as Positive;
-\import Half[i := B.Bool^::true, S := Cover.NegativeHalf, inside := Cover.negativeInside] \as Negative;
+\import Half[i := B.Bool^::false, S := Cover.PositiveHalf, inside := Cover.positiveInside] \as PositiveSide;
+\import Half[i := B.Bool^::true, S := Cover.NegativeHalf, inside := Cover.negativeInside] \as NegativeSide;
 \structure Gauge: \Set := {
-  positive: Positive.Carrier -> Units.Carrier,
-  negative: Negative.Carrier -> Units.Carrier,
-  positiveContinuous: topology.Continuity[A := Positive.Carrier, B := Units.Carrier].Continuous Positive.topology Units.topology positive,
-  negativeContinuous: topology.Continuity[A := Negative.Carrier, B := Units.Carrier].Continuous Negative.topology Units.topology negative,
+  positive: PositiveSide.Carrier -> Units.Carrier,
+  negative: NegativeSide.Carrier -> Units.Carrier,
+  positiveContinuous: topology.Continuity[A := PositiveSide.Carrier, B := Units.Carrier].Continuous PositiveSide.topology Units.topology positive,
+  negativeContinuous: topology.Continuity[A := NegativeSide.Carrier, B := Units.Carrier].Continuous NegativeSide.topology Units.topology negative,
   compatible: \forall (x: Sphere.Sphere)(inPositive: \In[Sphere.Sphere] Cover.PositiveHalf x)(inNegative: \In[Sphere.Sphere] Cover.NegativeHalf x)(v: Vector n) ->
     (negative (\into[Sphere.Sphere](x, Cover.NegativeHalf) \by { inNegative })).apply ((g (boundary (Cover.overlapPoint x inPositive inNegative))).apply v) =
     (g2 (boundary (Cover.overlapPoint x inPositive inNegative))).apply ((positive (\into[Sphere.Sphere](x, Cover.PositiveHalf) \by { inPositive })).apply v)
 };
 \definition Isomorphism: \Set := Bundles.Isomorphisms[X := Sphere.Sphere, F := Fiber, G := Other.Fiber, source := bundle, target := Other.bundle].Isomorphism;
+
+\structure DiskGauge: \Set := {
+  positive: Disk.Disk -> Units.Carrier, negative: Disk.Disk -> Units.Carrier,
+  positiveContinuous: topology.Continuity[A := Disk.Disk, B := Units.Carrier].Continuous Disk.diskTopology Units.topology positive,
+  negativeContinuous: topology.Continuity[A := Disk.Disk, B := Units.Carrier].Continuous Disk.diskTopology Units.topology negative,
+  compatible: \forall (s: Disk.Sphere)(v: Vector n) -> (negative (Halves.boundaryInclusion s)).apply ((g s).apply v) = (g2 s).apply ((positive (Halves.boundaryInclusion s)).apply v)
+};
 \module FromGauge(gauge: Gauge);
 \module FromIsomorphism(iso: Isomorphism);
+\module FromDiskGauge(gauge: DiskGauge);

@@ -142,6 +142,7 @@ impl<'a> Lowerer<'a> {
         base: usize,
         module: ModuleId,
     ) -> Result<s::Context, crate::error::Error> {
+        let _cost = timing::costs::Scope::enter("lower.nominal-context");
         self.nominal(base);
         let mut prefix = context[..base].to_vec();
         let mut result = vec![];
