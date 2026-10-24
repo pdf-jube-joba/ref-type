@@ -1,0 +1,31 @@
+\import \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].For[X := X, F := F, bundle := original] \as Original;
+\definition Isomorphism[p: Presentation]: \Set := Bundles.Isomorphisms[X := X, F := F, G := Fiber p, source := original, target := bundle p].Isomorphism;
+\definition Represents[p: Presentation]: \Prop := \exists Isomorphism p;
+\definition representatives: \Pow Presentation := { p: Presentation \where Represents p };
+\module FromEmbedding(embedding: Original.Embedding);
+\definition classOfRepresentative: \forall (p: Presentation) -> Represents p -> representatives = Quotient.ClassOf p := \fun (p: Presentation)(represents: _) => \block {
+  \takefrom a: Isomorphism p \by represents \then
+  \return \axiom:setext(representatives, Quotient.ClassOf p,
+    \fun (q: Presentation)(other: Represents q) => \block {
+      \takefrom b: Isomorphism q \by other \then
+      \return \exact(Operations.IsomorphismComposition[X := X, F := Fiber p, G := F, H := Fiber q, source := bundle p, middle := original, target := bundle q].compose
+        (Bundles.Isomorphisms[X := X, F := F, G := Fiber p, source := original, target := bundle p].inverse a) b, \parent.Isomorphism p q)
+    },
+    \fun (q: Presentation)(related: Equivalent p q) => \block {
+      \takefrom b: \parent.Isomorphism p q \by related \then
+      \return \exact(Operations.IsomorphismComposition[X := X, F := F, G := Fiber p, H := Fiber q, source := original, middle := bundle p, target := bundle q].compose a b, Isomorphism q)
+    })
+};
+\definition isClass: topology.Topology[Carrier := X].IsCompact original.baseSpace -> topology.Topology[Carrier := X].IsT2 original.baseSpace -> Quotient.IsClass representatives :=
+  \fun (compact: _)(hausdorff: _) => \block {
+    \takefrom embedding: Original.Embedding \by Original.embeddingExists compact hausdorff \then
+    \return Quotient.isClassOf representatives (FromEmbedding[embedding := embedding].presentation)
+      (classOfRepresentative (FromEmbedding[embedding := embedding].presentation) (\exact(FromEmbedding[embedding := embedding].isomorphism, Isomorphism (FromEmbedding[embedding := embedding].presentation))))
+  };
+\definition class[compact: topology.Topology[Carrier := X].IsCompact original.baseSpace][hausdorff: topology.Topology[Carrier := X].IsT2 original.baseSpace]: Classes :=
+  \into[\Pow Presentation](representatives, Quotient.ClassSet) \by { isClass compact hausdorff };
+\definition classification: \forall (compact: topology.Topology[Carrier := X].IsCompact original.baseSpace)(hausdorff: topology.Topology[Carrier := X].IsT2 original.baseSpace)(p: Presentation) -> Logic.PropEquiv[class compact hausdorff = \parent.class p, Represents p] :=
+  \fun (compact: _)(hausdorff: _)(p: Presentation) => Logic.PropEquiv[class compact hausdorff = \parent.class p, Represents p] {
+    ltr := \fun (equal: _) => \idelim Quotient.ClassOf p = representatives \with S: \Pow Presentation => \In[Presentation] S p \by { base: reflexive p, equality: sym!{\Pow Presentation} _ _ equal },
+    rtl := classOfRepresentative p
+  };
