@@ -1,0 +1,18 @@
+\import Spaces.Tensor[V := Trivial.FiberAt x, W := Fiber p x, left := Trivial.trivialBundle.space x, right := (bundle p).space x] \as Tensor;
+\import Spaces.Linear[V := Tensor.Carrier, W := Tensor.Carrier, source := Tensor.space, target := Tensor.space] \as Maps;
+\definition identity: Maps.Map := Maps.Map {
+  apply := \fun (t: Tensor.Carrier) => t,
+  preservesAdd := \fun (s, t: Tensor.Carrier) => \refl(Tensor.plus s t),
+  preservesScale := \fun (a: C.Complex)(t: Tensor.Carrier) => \refl(Tensor.scale a t)
+};
+\definition zeroMap: Maps.Map := Maps.Operations[].zeroMap;
+\definition fixed[w: Fiber p x]: Spaces.Linear[V := Trivial.FiberAt x, W := Tensor.Carrier, source := Trivial.trivialBundle.space x, target := Tensor.space].Map :=
+  Spaces.Linear[V := Trivial.FiberAt x, W := Tensor.Carrier, source := Trivial.trivialBundle.space x, target := Tensor.space].Map {
+    apply := \fun (v: Trivial.FiberAt x) => Tensor.tensor v w,
+    preservesAdd := \fun (v, u: Trivial.FiberAt x) => Tensor.bilinear.addLeft v u w,
+    preservesScale := \fun (a: C.Complex)(v: Trivial.FiberAt x) => Tensor.bilinear.scaleLeft a v w
+  };
+\definition pureZero: \forall (v: Trivial.FiberAt x)(w: Fiber p x) -> Tensor.tensor v w = Tensor.origin := \fun (v: Trivial.FiberAt x)(w: Fiber p x) =>
+  trans!{{Tensor.Carrier}} _ _ _ (congr!{{Trivial.FiberAt x} {Tensor.Carrier}} (\fun (v: Trivial.FiberAt x) => Tensor.tensor v w) _ _ (Empty.unique v (Trivial.trivialBundle.space x).zero)) (fixed w).preservesZero;
+\definition vanishes: \forall (t: Tensor.Carrier) -> t = Tensor.origin :=
+  Operations.TensorEquality[V := Trivial.FiberAt x, W := Fiber p x, U := Tensor.Carrier, left := Trivial.trivialBundle.space x, right := (bundle p).space x, target := Tensor.space].pointwise identity zeroMap pureZero;
