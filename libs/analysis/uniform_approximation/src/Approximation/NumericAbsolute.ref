@@ -1,0 +1,38 @@
+\definition value: N.Nat^ -> R.Real := \induction (n: N.Nat^) \return R.Real \with {
+  | zero: R.zero
+  | succ: \fun (n: N.Nat^)(p: R.Real) => R.add p (R.mul R.half (R.sub (R.mul t t) (R.mul p p)))
+};
+\definition error[n: N.Nat^]: R.Real := R.sub t (value n);
+\structure State[n: N.Nat^]: \Prop := { nonnegative: Real.Le R.zero (value n), below: Real.Le (value n) t };
+\module Advance(n: N.Nat^, state: State[n]);
+\definition states: \forall (n: N.Nat^) -> State[n] := \induction (n: N.Nat^) \return State[n] \with {
+  | zero: State[N.Nat^::zero] { nonnegative := Real.leRefl R.zero, below := nonnegative }
+  | succ: \fun (n: N.Nat^)(previous: State[n]) => Advance[n := n, state := previous].after
+};
+\definition antitone: \forall (n, m: N.Nat^) -> NatLaws.Le n m -> Real.Le (error m) (error n) :=
+  \parent.Sequences[].antitone error (\fun (n: N.Nat^) => Advance[n := n, state := states n].decreasing);
+\definition q: R.Real := R.sub R.one (R.mul R.half t);
+\definition qNonnegative: Real.Le R.zero q := Distance.subNonnegative R.one (R.mul R.half t) (Real.leTrans _ t R.one (Estimates.halfBelow t nonnegative) bounded);
+\import R.Geometric[q := q] \as Geometric;
+\definition geometricBound: \forall (n: N.Nat^) -> Real.Le (error n) (Geometric.value n) := \induction (n: N.Nat^) \return Real.Le (error n) (Geometric.value n) \with {
+  | zero: Real.leReplaceLeft t (R.sub t R.zero) R.one (sym!{{R.Real}} _ _ (Laws.subZeroRight t)) bounded
+  | succ: \fun (n: N.Nat^)(previous: _) => Real.leTrans _ _ _ (Advance[n := n, state := states n].contraction) (Estimates.mulMonotone q (error n) (Geometric.value n) qNonnegative previous)
+};
+\definition pointwise: \forall (epsilon: R.Real) -> Real.Lt R.zero epsilon -> \exists (n: N.Nat^ \where Real.Lt (error n) epsilon) := \fun (epsilon: R.Real)(positive: _) =>
+  Logic.orElim[(t = R.zero), Logic.Not (t = R.zero), (\exists (n: N.Nat^ \where Real.Lt (error n) epsilon))] (Classical.excludedMiddle (t = R.zero))
+    (\fun (zero: t = R.zero) => Logic.existsIntro[N.Nat^, { n: N.Nat^ \where Real.Lt (error n) epsilon }] N.Nat^::zero
+      (Real.ltReplaceLeft R.zero (R.sub t R.zero) epsilon (sym!{{R.Real}} _ _ (trans!{{R.Real}} _ _ _ (Laws.subZeroRight t) zero)) positive))
+    (\fun (different: Logic.Not (t = R.zero)) => \block {
+      \let tPositive: Real.Lt R.zero t := Order.ltOfLeNotEq R.zero t nonnegative (\fun (equal: R.zero = t) => different (sym!{{R.Real}} _ _ equal)) \then
+      \let strict: Real.Lt q R.one := R.SquareRoot[].subBelow R.one (R.mul R.half t) (Estimates.halfOfPositive t tPositive) \then
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Real.Lt (Geometric.value n) epsilon }) \by Geometric.eventual qNonnegative strict epsilon positive \then
+      \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where Real.Lt (error n) epsilon }] n
+        (Real.leLtTrans _ _ _ (geometricBound n) (\bysub(N.Nat^, { n: N.Nat^ \where Real.Lt (Geometric.value n) epsilon }, n)))
+    });
+\definition onSquare: \forall (x: R.Real) -> R.mul x x = R.mul t t -> \forall (n: N.Nat^) -> \parent.Polynomials[].value n x = value n :=
+  \fun (x: R.Real)(square: _) => \induction (n: N.Nat^) \return \parent.Polynomials[].value n x = value n \with {
+    | zero: \parent.Polynomials[].onZero x
+    | succ: \fun (n: N.Nat^)(previous: _) => trans!{{R.Real}} _ _ _ (\parent.Polynomials[].recurrence n x)
+      (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ previous
+        (congr!{{R.Real} {R.Real}} (R.mul R.half) _ _ (congr!{{R.Real} {R.Real} {R.Real}} R.sub _ _ _ _ square (congr!{{R.Real} {R.Real} {R.Real}} R.mul _ _ _ _ previous previous))))
+  };

@@ -1,0 +1,13 @@
+\definition antitone: \forall (s: N.Nat^ -> R.Real) -> (\forall (n: N.Nat^) -> Real.Le (s (N.Nat^::succ n)) (s n)) -> \forall (n, m: N.Nat^) -> NatLaws.Le n m -> Real.Le (s m) (s n) := \block {
+  \fun (s: N.Nat^ -> R.Real)(step: \forall (n: N.Nat^) -> Real.Le (s (N.Nat^::succ n)) (s n)) \then
+  \let tail: \forall (k, n: N.Nat^) -> Real.Le (s (Nat.add n k)) (s n) :=
+    \induction (k: N.Nat^) \return \forall (n: N.Nat^) -> Real.Le (s (Nat.add n k)) (s n) \with {
+      | zero: \fun (n: N.Nat^) => Real.leReplaceLeft (s n) (s (Nat.add n N.Nat^::zero)) (s n) (sym!{{R.Real}} _ _ (congr!{{N.Nat^} {R.Real}} s _ _ (NatLaws.addZeroRight n))) (Real.leRefl (s n))
+      | succ: \fun (k: N.Nat^)(previous: _)(n: N.Nat^) =>
+        Real.leReplaceLeft (s (N.Nat^::succ (Nat.add n k))) (s (Nat.add n (N.Nat^::succ k))) (s n)
+          (sym!{{R.Real}} _ _ (congr!{{N.Nat^} {R.Real}} s _ _ (NatLaws.addSuccRight n k)))
+          (Real.leTrans _ _ _ (step (Nat.add n k)) (previous n))
+    } \then
+  \return \fun (n, m: N.Nat^)(bound: NatLaws.Le n m) =>
+    Real.leReplaceLeft (s (Nat.add n (Nat.sub m n))) (s m) (s n) (congr!{{N.Nat^} {R.Real}} s _ _ (NatLaws.addSubOfLe n m bound)) (tail (Nat.sub m n) n)
+};
