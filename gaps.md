@@ -1,5 +1,34 @@
 # 言語の表現上の不足
 
+## 自然数で再帰する有限係数の型
+
+固定次数の多項式の係数を、次のように先頭と残りの再帰で表したい。
+現在は `Data` の検査が `forbidden large elimination` で失敗する。
+
+```ref
+\module Test {
+  \import std.Data[].Nat[] \as N;
+  \structure Layer[A: \Set]: \Set := { head: N.Nat^, tail: A };
+  \definition Data: N.Nat^ -> \Set :=
+    \induction (k: N.Nat^) \return \Set \with {
+      | zero: N.Nat^
+      | succ: \fun (k: N.Nat^)(previous: \Set) => Layer[previous]
+    };
+}
+```
+
+現在は最高次係数と固定長ベクトルを持つ型を使う。
+
+```ref
+\module Test {
+  \import std.Data[].Nat[] \as N;
+  \import std.Data[].FinSet[] \as Fin;
+  \structure Data[k: N.Nat^]: \Set := {
+    top: N.Nat^, lower: Fin.Fin k -> N.Nat^
+  };
+}
+```
+
 ## 集合族を引数に持つ structure の組み立て
 
 次のように、集合族を直接 structure の引数にしたい。
