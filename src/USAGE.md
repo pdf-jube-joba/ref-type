@@ -153,12 +153,15 @@ REF_TYPE_PROFILE_DECLARATIONS=fieldMulAssocNN cargo run -p cli -- libs/std --no-
 | `REF_TYPE_PROFILE_ENVIRONMENTS=1` | checkpoint のキー・復元位置・保存サイズ |
 | `REF_TYPE_PROFILE_COSTS=1` | 入れ子の処理ごとの inclusive / exclusive 時間とキャッシュ統計 |
 | `REF_TYPE_PROFILE_COSTS_PROGRESS_MS=15000` | cost 計測中の途中経過を出す間隔 |
+| `REF_TYPE_PROFILE_LARGE_STACK=1` | allocation profiling feature 使用時、128 MiB 以上の確保の backtrace |
 
 先頭の三つは `1` で全件、名前の一部で対象を絞る。
 `REF_TYPE_COMPACT_DIAGNOSTICS=1` でも簡潔な診断を選べるが、CLI の指定が優先する。
 `REF_TYPE_PROFILE_COSTS` は `resolve.,namespace.,kernel.` のような接頭辞でも絞れる。
 `inclusive_us` は子を含み、`exclusive_us` は計測した子の時間を差し引く。
 再帰の内訳は `cost_group` の exclusive 時間で比較する。
+大きな確保の backtrace は `cargo build -p cli --features large-allocation-profile` で有効になる。
+通常の検証には feature を付けずにビルドする。
 
 `resolve.total` / `resolve.package` は名前解決と展開、`namespace.*` は具体化・再利用判定を測る。
 `namespace.translation-failed.*` は比較用の変換失敗数で、最初の原因を `translation-failure sample=...` に出す。

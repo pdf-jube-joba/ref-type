@@ -1,0 +1,24 @@
+\import \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Presentation[X := X, F := F, bundle := bundle, embedding := embedding] \as Original;
+\import Bundles.Family[X := X, F := F].Of[bundle := bundle].Pullback[Y := Y, source := source, f := f] \as Pulled;
+\definition Fiber[y: Y]: \Set := F (f y);
+\definition pulledBundle: Bundles.Family[X := Y, F := Fiber].Bundle := Pulled.pulled continuous;
+\import Complements.Projection[X := X, n := n, baseSpace := bundle.baseSpace, P := Original.projection, regular := Original.regular] \as Projected;
+\import Projected.Pullback[Y := Y, source := source, f := f, regularBase := continuous] \as ImagePullback;
+\import \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].PullbackIsomorphism[X := X, F := F, G := Original.ImageFiber,
+  first := bundle, second := Original.imageBundle, iso := Original.isomorphism, Y := Y, source := source, f := f, regularFirst := continuous, regularSecond := continuous] \as PulledIsomorphism;
+\definition projection[y: Y]: Hermitian.At[n := n].Projection := Original.projection (f y);
+\definition regular: Hermitian.At[n := n].Families[X := Y].Matrix[m := n].Regular source (\fun (y: Y) => (projection y).map) := ImagePullback.composedRegular;
+\import Complements.Projection[X := Y, n := n, baseSpace := source, P := projection, regular := regular] \as Image;
+\definition ImageFiber[y: Y]: \Set := Image.Fiber y;
+\definition imageBundle: Bundles.Family[X := Y, F := ImageFiber].Bundle := Image.bundle;
+\import Operations.IsomorphismComposition[X := Y, F := Fiber, G := (\fun (y: Y) => Original.ImageFiber (f y)), H := ImageFiber,
+  source := pulledBundle, middle := PulledIsomorphism.secondBundle, target := imageBundle] \as Compose;
+\definition isomorphism: Bundles.Isomorphisms[X := Y, F := Fiber, G := ImageFiber, source := pulledBundle, target := imageBundle].Isomorphism := Compose.compose PulledIsomorphism.isomorphism ImagePullback.isomorphism;
+\definition forwardFormula: \forall (y: Y)(v: Fiber y) -> \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Projections[n := n].valueOf ((isomorphism.forward.fiber y).apply v) = (embedding.map.fiber (f y)).apply v :=
+  \fun (y: Y)(v: Fiber y) => \refl((embedding.map.fiber (f y)).apply v);
+
+\import Bundles.Isomorphisms[X := Y, F := Fiber, G := ImageFiber, source := pulledBundle, target := imageBundle] \as Isomorphisms;
+\definition backwardFormula: \forall (y: Y)(v: ImageFiber y) -> (embedding.map.fiber (f y)).apply ((isomorphism.backward.fiber y).apply v) =
+  \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Projections[n := n].valueOf v :=
+  \fun (y: Y)(v: ImageFiber y) => trans!{{Vector n}} _ _ _ (sym!{{Vector n}} _ _ (forwardFormula y ((isomorphism.backward.fiber y).apply v)))
+    (congr!{{ImageFiber y} {Vector n}} (\fun (w: ImageFiber y) => w) _ _ ((\bysub(Isomorphisms.Data, Isomorphisms.Isomorphism, isomorphism)).rightInverse y v));

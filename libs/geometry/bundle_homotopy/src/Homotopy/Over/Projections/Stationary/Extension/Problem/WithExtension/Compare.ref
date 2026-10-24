@@ -1,0 +1,27 @@
+\import Motion.Comparison[iso := iso] \as Transport;
+\definition sameStart: \forall (z: Cylinder.CarrierSet) -> (projection z).map = (Motion.startProjection z).map :=
+  \fun (z: Cylinder.CarrierSet) => sym!{End.Map} _ _ (\parent.AtStart[x := base z].projectionEqual);
+\import \parent.\parent.\parent.\parent.\parent.EqualImages[X := Cylinder.CarrierSet, baseSpace := topology, P := projection, Q := Motion.startProjection,
+  regularP := projectionRegular, regularQ := Motion.startRegular, same := sameStart] \as AtZero;
+\import Operations.IsomorphismComposition[X := Cylinder.CarrierSet, F := Fiber, G := Motion.StartFiber, H := Moving.Fiber, source := bundle, middle := Motion.startBundle, target := Moving.bundle] \as ComposeComparison;
+\import Bundles.Isomorphisms[X := Cylinder.CarrierSet, F := Fiber, G := Moving.Fiber, source := bundle, target := Moving.bundle] \as Comparison;
+\definition comparison: Comparison.Isomorphism := ComposeComparison.compose AtZero.isomorphism Transport.value;
+\definition comparisonFixed: \forall (z: Cylinder.CarrierSet) -> \In[Cylinder.CarrierSet] Motion.subset z -> \forall (v: Fiber z) -> valueOf ((comparison.forward.fiber z).apply v) = valueOf v :=
+  \fun (z: Cylinder.CarrierSet)(inside: \In[Cylinder.CarrierSet] Motion.subset z)(v: Fiber z) => Transport.fixed z inside ((AtZero.isomorphism.forward.fiber z).apply v);
+\import Operations.IsomorphismComposition[X := Cylinder.CarrierSet, F := Fiber, G := Moving.Fiber, H := Fiber, source := bundle, middle := Moving.bundle, target := bundle] \as Compose;
+\definition value: Automorphisms.Isomorphism := Compose.compose Moving.isomorphism (Comparison.inverse comparison);
+\definition inverseFormula: \forall (z: Cylinder.CarrierSet)(v, w: Fiber z) -> \In[Cylinder.CarrierSet] Motion.subset z -> (h z).apply v = valueOf w -> (value.forward.fiber z).apply v = w := \block {
+  \fun (z: Cylinder.CarrierSet)(v, w: Fiber z)(inside: \In[Cylinder.CarrierSet] Motion.subset z)(equal: _) \then
+  \let same: (Moving.isomorphism.forward.fiber z).apply v = (comparison.forward.fiber z).apply w :=
+    trans!{{Vector n}} _ _ _ equal (sym!{{Vector n}} _ _ (comparisonFixed z inside w)) \then
+  \return trans!{{Fiber z}} _ _ _ (congr!{{Moving.Fiber z} {Fiber z}} (comparison.backward.fiber z).apply _ _ same)
+    ((\bysub(Comparison.Data, Comparison.Isomorphism, comparison)).leftInverse z w)
+};
+\definition result: Result := Result {
+  value := value,
+  initial := \fun (x: X)(v: Fiber (Pair.pair I.Carrier X I.start x)) => inverseFormula (Pair.pair I.Carrier X I.start x) v v
+    (Logic.Or[_, _]::left (\refl(I.start))) (\parent.AtStart[x := x].formula v),
+  extends := \fun (t: I.Carrier)(x: Subset)(v: SubFiber (Pair.pair I.Carrier Subset t x)) =>
+    inverseFormula (Pair.pair I.Carrier X t x) v ((a.forward.fiber (Pair.pair I.Carrier Subset t x)).apply v)
+      (Logic.Or[_, _]::right (\bysub(X, A, x))) (\parent.OnSubset[t := t, x := x].formula v)
+};

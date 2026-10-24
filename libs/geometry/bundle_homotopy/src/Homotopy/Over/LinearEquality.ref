@@ -1,0 +1,18 @@
+\import Spaces.Isomorphism[V := V, W := W, source := source, target := target] \as Isomorphisms;
+\import Spaces.Linear[V := V, W := W, source := source, target := target] \as Forward;
+\import Spaces.Linear[V := W, W := V, source := target, target := source] \as Backward;
+\definition eta: \forall (data: Isomorphisms.Data) -> Isomorphisms.Data::# data.forward data.backward = data :=
+  \induction (data: Isomorphisms.Data) \return Isomorphisms.Data::# data.forward data.backward = data \with {
+    | # : \fun (f: Forward.Map)(g: Backward.Map) => \refl(Isomorphisms.Data::# f g)
+  };
+\definition ext: \forall (a, b: Isomorphisms.Isomorphism) -> (\forall (v: V) -> a.forward.apply v = b.forward.apply v) -> a = b := \block {
+  \fun (a, b: Isomorphisms.Isomorphism)(same: _) \then
+  \let forward: a.forward = b.forward := Forward.ext a.forward b.forward (\axiom:funext(a.forward.apply, b.forward.apply, same)) \then
+  \let backward: a.backward = b.backward := Backward.ext a.backward b.backward (\axiom:funext(a.backward.apply, b.backward.apply, \fun (w: W) => eq_reason_in!{V _
+    "=" { a.backward.apply (b.forward.apply (b.backward.apply w)) } "by" { congr!{W V} a.backward.apply _ _ (sym!{W} _ _ ((Isomorphisms.laws b).rightInverse w)) }
+    "=" { a.backward.apply (a.forward.apply (b.backward.apply w)) } "by" { congr!{W V} a.backward.apply _ _ (sym!{W} _ _ (same (b.backward.apply w))) }
+    "=" _ "by" { (Isomorphisms.laws a).leftInverse (b.backward.apply w) }
+  })) \then
+  \return trans!{{Isomorphisms.Data}} _ _ _ (sym!{{Isomorphisms.Data}} _ _ (eta a))
+    (trans!{{Isomorphisms.Data}} _ _ _ (congr!{{Forward.Map} {Backward.Map} {Isomorphisms.Data}} Isomorphisms.Data::# _ _ _ _ forward backward) (eta b))
+};

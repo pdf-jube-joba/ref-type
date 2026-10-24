@@ -1,0 +1,25 @@
+\import algebraic_topology.Interval[] \as I;
+\import topological_constructions.Product[A := I.Carrier, B := Y] \as Cylinder;
+\definition topology: topology.Topology[Carrier := Cylinder.CarrierSet].Topology := Cylinder.topology I.topology bundle.baseSpace;
+\definition base[z: Cylinder.CarrierSet]: Y := Pair.second I.Carrier Y z;
+\definition baseContinuous: topology.Continuity[A := Cylinder.CarrierSet, B := Y].Continuous topology bundle.baseSpace base := Cylinder.Maps[].secondContinuous I.topology bundle.baseSpace;
+\import Original.Of[bundle := bundle].Pullback[Y := Cylinder.CarrierSet, source := topology, f := base] \as Pulled;
+\definition Fiber[z: Cylinder.CarrierSet]: \Set := F (base z);
+\definition cylinderBundle: Bundles.Family[X := Cylinder.CarrierSet, F := Fiber].Bundle := Pulled.pulled baseContinuous;
+\import topology.Topology[Carrier := Y].Subspace[S := A] \as Subspace;
+\definition Subset: \Set := Subspace.CarrierSet;
+\import topological_constructions.Product[A := I.Carrier, B := Subset] \as SubCylinder;
+\definition subTopology: topology.Topology[Carrier := SubCylinder.CarrierSet].Topology := SubCylinder.topology I.topology (Subspace.topology bundle.baseSpace);
+\definition subBase[z: SubCylinder.CarrierSet]: Y := Pair.second I.Carrier Subset z;
+\definition subBaseContinuous: topology.Continuity[A := SubCylinder.CarrierSet, B := Y].Continuous subTopology bundle.baseSpace subBase :=
+  topology.Composition[A := SubCylinder.CarrierSet, B := Subset, C := Y].composeContinuous subTopology (Subspace.topology bundle.baseSpace) bundle.baseSpace (Pair.second I.Carrier Subset) (\fun (y: Subset) => y)
+    (SubCylinder.Maps[].secondContinuous I.topology (Subspace.topology bundle.baseSpace))
+    (topology.Continuity[A := Y, B := Y].Restriction[S := A].restrictContinuous bundle.baseSpace bundle.baseSpace (\fun (y: Y) => y) (topology.Maps[A := Y, B := Y].Identity[].continuous bundle.baseSpace));
+\definition SubFiber[z: SubCylinder.CarrierSet]: \Set := F (subBase z);
+\definition subBundle: Bundles.Family[X := SubCylinder.CarrierSet, F := SubFiber].Bundle := Original.Of[bundle := bundle].Pullback[Y := SubCylinder.CarrierSet, source := subTopology, f := subBase].pulled subBaseContinuous;
+\import Bundles.Isomorphisms[X := SubCylinder.CarrierSet, F := SubFiber, G := SubFiber, source := subBundle, target := subBundle] \as Partial;
+\import Bundles.Isomorphisms[X := Cylinder.CarrierSet, F := Fiber, G := Fiber, source := cylinderBundle, target := cylinderBundle] \as Global;
+\module Problem(a: Partial.Isomorphism, initial: \forall (y: Subset)(v: SubFiber (Pair.pair I.Carrier Subset I.start y)) -> (a.forward.fiber (Pair.pair I.Carrier Subset I.start y)).apply v = v);
+
+\module To(G: Y -> \Set, target: Bundles.Family[X := Y, F := G].Bundle, sameBase: bundle.baseSpace = target.baseSpace,
+  initialIso: Bundles.Isomorphisms[X := Y, F := F, G := G, source := bundle, target := target].Isomorphism);

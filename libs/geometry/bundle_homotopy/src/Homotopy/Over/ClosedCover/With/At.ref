@@ -1,0 +1,33 @@
+\import Spaces.Isomorphism[V := F x, W := G x, source := source.space x, target := target.space x] \as Linear;
+\import Bundles.Isomorphisms[X := Left.Carrier, F := (\fun (x: Left.Carrier) => F x), G := (\fun (x: Left.Carrier) => G x), source := Left.sourceBundle, target := Left.targetBundle] \as LeftIso;
+\import Bundles.Isomorphisms[X := Right.Carrier, F := (\fun (x: Right.Carrier) => F x), G := (\fun (x: Right.Carrier) => G x), source := Right.sourceBundle, target := Right.targetBundle] \as RightIso;
+\definition fromLeft[inside: \In[X] C x]: Linear.Isomorphism := Linear.Isomorphism {
+  forward := left.forward.fiber (\into[X](x, C) \by { inside }), backward := left.backward.fiber (\into[X](x, C) \by { inside }),
+  leftInverse := (\bysub(LeftIso.Data, LeftIso.Isomorphism, left)).leftInverse (\into[X](x, C) \by { inside }),
+  rightInverse := (\bysub(LeftIso.Data, LeftIso.Isomorphism, left)).rightInverse (\into[X](x, C) \by { inside })
+};
+\definition fromRight[inside: \In[X] D x]: Linear.Isomorphism := Linear.Isomorphism {
+  forward := right.forward.fiber (\into[X](x, D) \by { inside }), backward := right.backward.fiber (\into[X](x, D) \by { inside }),
+  leftInverse := (\bysub(RightIso.Data, RightIso.Isomorphism, right)).leftInverse (\into[X](x, D) \by { inside }),
+  rightInverse := (\bysub(RightIso.Data, RightIso.Isomorphism, right)).rightInverse (\into[X](x, D) \by { inside })
+};
+\definition overlap[inC: \In[X] C x][inD: \In[X] D x]: fromLeft inC = fromRight inD :=
+  \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].LinearEquality[V := F x, W := G x, source := source.space x, target := target.space x].ext (fromLeft inC) (fromRight inD) (agrees x inC inD);
+\structure Conditions[value: Linear.Isomorphism]: \Prop := {
+  left: \forall (inside: \In[X] C x) -> value = fromLeft inside,
+  right: \forall (inside: \In[X] D x) -> value = fromRight inside
+};
+\definition Values: \Pow Linear.Isomorphism := { value: Linear.Isomorphism \where Conditions[value] };
+\definition Candidate: \Set := \Cast[Linear.Isomorphism] Values;
+\definition conditions[value: Candidate]: Conditions[value] := \bysub(Linear.Isomorphism, Values, value);
+\definition leftCandidate[inside: \In[X] C x]: Candidate := \into[Linear.Isomorphism](fromLeft inside, Values) \by {
+  Conditions[fromLeft inside] { left := (\fun (inC: \In[X] C x) => \refl(fromLeft inside)), right := (\fun (inD: \In[X] D x) => overlap inside inD) }
+};
+\definition rightCandidate[inside: \In[X] D x]: Candidate := \into[Linear.Isomorphism](fromRight inside, Values) \by {
+  Conditions[fromRight inside] { left := (\fun (inC: \In[X] C x) => sym!{{Linear.Isomorphism}} _ _ (overlap inC inside)), right := (\fun (inD: \In[X] D x) => \refl(fromRight inside)) }
+};
+\definition exists: \exists Candidate := Logic.orElim[\In[X] C x, \In[X] D x, \exists Candidate] (covers x)
+  (\fun (inside: \In[X] C x) => \exact(leftCandidate inside, Candidate)) (\fun (inside: \In[X] D x) => \exact(rightCandidate inside, Candidate));
+\definition unique: \forall (a, b: Candidate) -> a = b := \fun (a, b: Candidate) => Logic.orElim[\In[X] C x, \In[X] D x, a = b] (covers x)
+  (\fun (inside: \In[X] C x) => trans!{{Linear.Isomorphism}} _ _ _ ((conditions a).left inside) (sym!{{Linear.Isomorphism}} _ _ ((conditions b).left inside)))
+  (\fun (inside: \In[X] D x) => trans!{{Linear.Isomorphism}} _ _ _ ((conditions a).right inside) (sym!{{Linear.Isomorphism}} _ _ ((conditions b).right inside)));

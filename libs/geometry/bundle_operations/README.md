@@ -54,6 +54,7 @@
 `DirectSumPentagon`・`TensorPentagon`、`DirectSumHexagon`・`TensorHexagon`、その `OppositeHexagon`、`DirectSumTriangle`・`TensorTriangle` は合成した束同型どうしの等式を証明する。
 `UnitAtBase` は等しい底位相の上で選んだ零束・標準一次元束との比較も明示する。
 `DirectSumIsomorphisms` と `TensorIsomorphisms` は二つの束同型から演算後の束同型を作る。
+`IsomorphismComposition.exists` と `DirectSumIsomorphisms.exists` は、入力の束同型の存在から合成・直和の束同型の存在を導く。
 `SymmetryNaturality`、`AssociatorNaturality`、`UnitNaturality`、`TensorDistributionNaturality` は束写像との可換性を写像の等式として証明する。
 `TensorDistribution` は \(E\otimes(F\oplus G)\cong(E\otimes F)\oplus(E\otimes G)\) を、射影・包含と純テンソル上の式から構成し、両逆を証明する。
 `TensorRightDistribution` は交換同型による比較を通して右分配を構成する。

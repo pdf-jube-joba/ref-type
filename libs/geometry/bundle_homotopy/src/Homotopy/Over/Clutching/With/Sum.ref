@@ -1,0 +1,44 @@
+\import \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].BlockDiagonal[n := n, m := m] \as Block;
+\import Operations.CoordinateSum[n := n, m := m] \as Coordinates;
+\import Spaces.DirectSum[V := Vector n, W := Vector m, left := coordinates n, right := coordinates m] \as PairSpace;
+\import \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Projections[n := m].Operators[].Units[] \as OtherUnits;
+\import \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Projections[n := Block.total].Operators[].Units[] \as TotalUnits;
+\import \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Clutching[n := m, X := X, baseSpace := baseSpace, U := U, V := V, openU := openU, openV := openV, covers := covers].With[g := h, continuous := continuousH] \as Other;
+\definition block[x: Overlap]: TotalUnits.Carrier := Block.value (g x) (h x);
+\definition blockContinuous: topology.Continuity[A := Overlap, B := TotalUnits.Carrier].Continuous overlapTopology TotalUnits.topology block := Block.Family[Y := Overlap, source := overlapTopology, a := g, b := h, continuousA := continuous, continuousB := continuousH].continuous;
+\import \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Clutching[n := Block.total, X := X, baseSpace := baseSpace, U := U, V := V, openU := openU, openV := openV, covers := covers].With[g := block, continuous := blockContinuous] \as New;
+\import Operations.DirectSum[X := X, F := Fiber, G := Other.Fiber, left := bundle, right := Other.bundle] \as Added;
+\definition SumFiber[x: X]: \Set := Added.Fiber x;
+\definition sumBundle: Bundles.Family[X := X, F := SumFiber].Bundle := Added.bundle (\refl(baseSpace));
+\definition rawCharts[i: B.Bool^]: Bundles.Family[X := X, F := SumFiber].With[data := sumBundle].Chart := Added.In[c := chart i, d := Other.chart i].trivialization (\refl(baseSpace));
+\definition contained: \forall (i: B.Bool^)(x: \Cast[X] (domain i)) -> \In[X] (rawCharts i).domain x :=
+  \fun (i: B.Bool^)(x: \Cast[X] (domain i)) => Logic.And[_, _]::# (\bysub(X, domain i, x)) (\bysub(X, domain i, x));
+\definition openDomains: \forall (i: B.Bool^) -> Base.IsOpenIn baseSpace (domain i) := \parent.Regularity[].openDomains;
+\definition charts[i: B.Bool^]: Bundles.Family[X := X, F := SumFiber].With[data := sumBundle].Chart :=
+  Operations.ChartRestriction[X := X, F := SumFiber, bundle := sumBundle, c := rawCharts i, U := domain i, open := openDomains i, contained := contained i].trivialization;
+\import std.Set[].Extension[A := X, B := OtherUnits.Carrier, domain := overlap] \as OtherExtend;
+\import std.Set[].Extension[A := X, B := TotalUnits.Carrier, domain := overlap] \as TotalExtend;
+\definition globalEquality: \forall (x: Overlap) -> New.global x = Block.value (global x) (Other.global x) := \fun (x: Overlap) =>
+  trans!{{TotalUnits.Carrier}} _ _ _ (TotalExtend.inside block TotalUnits.identity x)
+    (congr!{{Units.Carrier} {OtherUnits.Carrier} {TotalUnits.Carrier}} Block.value _ _ _ _
+      (sym!{{Units.Carrier}} _ _ (Extend.inside g Units.identity x)) (sym!{{OtherUnits.Carrier}} _ _ (OtherExtend.inside h OtherUnits.identity x)));
+\module Point(x: X);
+\import Operations.Cocycle[X := X, I := B.Bool^, baseSpace := baseSpace, domain := domain, dimension := (\fun (i: B.Bool^) => m)].With[cocycle := Other.cocycle] \as OtherConstructed;
+\import \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].FromCharts[X := X, I := B.Bool^, F := SumFiber, bundle := sumBundle, charts := charts] \as From;
+\definition transitions: \forall (x: X)(i, j: Cocycles.Index x)(v: Vector Block.total) -> (New.cocycle.transition x i j).forward.apply v =
+  ((charts j).frame (From.center x j)).forward.apply (((charts i).frame (From.center x i)).backward.apply v) :=
+  \fun (x: X)(i, j: Cocycles.Index x)(v: Vector Block.total) => trans!{{Vector Block.total}} _ _ _
+    (Point[x := x].rawEqual i j (\bysub(B.Bool^, { i: B.Bool^ \where \In[X] (domain i) x }, i)) (\bysub(B.Bool^, { i: B.Bool^ \where \In[X] (domain i) x }, j)) v)
+    (congr!{{PairSpace.Carrier} {Vector Block.total}} Coordinates.join _ _ (Pair.Prop[A := Vector n, B := Vector m].pairCong _ _ _ _
+      (sym!{{Vector n}} _ _ (Constructed.At[x := x].Frame[i := i].assembledValue (PairSpace.first (Coordinates.split v)) j))
+      (sym!{{Vector m}} _ _ (OtherConstructed.At[x := x].Frame[i := i].assembledValue (PairSpace.second (Coordinates.split v)) j))));
+\import From.With[cocycle := New.cocycle, regular := New.regular, transition := transitions] \as Comparison;
+\definition AlignedIsomorphism: \Set := Comparison.For[c := New.cocycle, r := New.regular].Result;
+\definition alignedIsomorphismExists: \exists AlignedIsomorphism := Comparison.exists;
+\definition NewFiber[x: X]: \Set := New.Fiber x;
+\definition newBundle: Bundles.Family[X := X, F := NewFiber].Bundle := New.bundle;
+\definition Isomorphism: \Set := Bundles.Isomorphisms[X := X, F := SumFiber, G := NewFiber, source := sumBundle, target := newBundle].Isomorphism;
+\definition isomorphismExists: \exists Isomorphism := \block {
+  \takefrom result: Comparison.For[c := New.cocycle, r := New.regular].Result \by Comparison.exists \then
+  \return \exact(result.value, Isomorphism)
+};

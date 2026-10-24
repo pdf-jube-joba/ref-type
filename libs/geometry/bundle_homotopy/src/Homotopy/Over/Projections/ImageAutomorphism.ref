@@ -1,0 +1,32 @@
+\import Complements.Projection[X := X, n := n, baseSpace := baseSpace, P := P, regular := regular] \as Image;
+\import Image.Complement[] \as Complement;
+\import Operations.DirectSum[X := X, F := Image.Fiber, G := Complement.ComplementFiber, left := Image.bundle, right := Complement.complementBundle] \as Sum;
+\import Sum.Of[same := \refl(baseSpace)].Mapping[Y := X, A := Image.Fiber, B := Complement.ComplementFiber, leftTarget := Image.bundle, rightTarget := Complement.complementBundle,
+  f := (\fun (x: X) => x), targetSame := \refl(baseSpace)] \as Mapping;
+\import Bundles.Identity[X := X, F := Complement.ComplementFiber, bundle := Complement.complementBundle] \as Identity;
+\import Bundles.Isomorphisms[X := X, F := Image.Fiber, G := Image.Fiber, source := Image.bundle, target := Image.bundle] \as Original;
+\import Bundles.Isomorphisms[X := X, F := Sum.Fiber, G := Sum.Fiber, source := Complement.sumBundle, target := Complement.sumBundle] \as SumIsomorphisms;
+\definition sumIsomorphism: SumIsomorphisms.Isomorphism := SumIsomorphisms.Isomorphism {
+  forward := Mapping.map a.forward Identity.map, backward := Mapping.map a.backward Identity.map,
+  leftInverse := \fun (x: X)(v: Sum.Fiber x) => trans!{{Sum.Fiber x}} _ _ _
+    (Pair.Prop[A := Image.Fiber x, B := Complement.ComplementFiber x].pairCong _ _ _ _ ((\bysub(Original.Data, Original.Isomorphism, a)).leftInverse x (Pair.first (Image.Fiber x) (Complement.ComplementFiber x) v)) (\refl(Pair.second (Image.Fiber x) (Complement.ComplementFiber x) v)))
+    (Pair.Prop[A := Image.Fiber x, B := Complement.ComplementFiber x].eta v),
+  rightInverse := \fun (x: X)(v: Sum.Fiber x) => trans!{{Sum.Fiber x}} _ _ _
+    (Pair.Prop[A := Image.Fiber x, B := Complement.ComplementFiber x].pairCong _ _ _ _ ((\bysub(Original.Data, Original.Isomorphism, a)).rightInverse x (Pair.first (Image.Fiber x) (Complement.ComplementFiber x) v)) (\refl(Pair.second (Image.Fiber x) (Complement.ComplementFiber x) v)))
+    (Pair.Prop[A := Image.Fiber x, B := Complement.ComplementFiber x].eta v)
+};
+\import Bundles.Trivial[X := X, n := n, baseSpace := baseSpace] \as Trivial;
+\import Bundles.Isomorphisms[X := X, F := Sum.Fiber, G := (\fun (x: X) => Vector n), source := Complement.sumBundle, target := Trivial.bundle] \as Decomposition;
+\import Operations.IsomorphismComposition[X := X, F := (\fun (x: X) => Vector n), G := Sum.Fiber, H := Sum.Fiber, source := Trivial.bundle, middle := Complement.sumBundle, target := Complement.sumBundle] \as First;
+\import Operations.IsomorphismComposition[X := X, F := (\fun (x: X) => Vector n), G := Sum.Fiber, H := (\fun (x: X) => Vector n), source := Trivial.bundle, middle := Complement.sumBundle, target := Trivial.bundle] \as Second;
+\import Bundles.Isomorphisms[X := X, F := (\fun (x: X) => Vector n), G := (\fun (x: X) => Vector n), source := Trivial.bundle, target := Trivial.bundle] \as Ambient;
+\definition isomorphism: Ambient.Isomorphism := Second.compose (First.compose (Decomposition.inverse Complement.isomorphism) sumIsomorphism) Complement.isomorphism;
+\import \parent.Operators[] \as Operators;
+\import Operators.Units[] \as Units;
+\import Native.Square[] \as Square;
+\definition value[x: X]: Units.Carrier := \into[End.Map](isomorphism.forward.fiber x, Units.Invertible) \by {
+  Square.LeftInverse[f := isomorphism.forward.fiber x, g := isomorphism.backward.fiber x, left := (\bysub(Ambient.Data, Ambient.Isomorphism, isomorphism)).leftInverse x].nonzero
+};
+\definition continuous: topology.Continuity[A := X, B := Units.Carrier].Continuous baseSpace Units.topology value :=
+  Units.Family[X := X, source := baseSpace, H := value].continuous (Operators.FromMorphism[X := X, baseSpace := baseSpace, h := isomorphism.forward].regular);
+\module At(x: X);

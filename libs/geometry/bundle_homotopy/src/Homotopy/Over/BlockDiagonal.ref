@@ -1,0 +1,42 @@
+\import Fin.Sum[m := n, n := m] \as Indices;
+\definition total: N.Nat^ := Indices.total;
+\import Spaces.DirectSum[V := Vector n, W := Vector m, left := coordinates n, right := coordinates m] \as PairSpace;
+\import Operations.CoordinateSum[n := n, m := m] \as Coordinates;
+\import \parent.Projections[n := n].Operators[].Units[] \as Left;
+\import \parent.Projections[n := m].Operators[].Units[] \as Right;
+\import \parent.Projections[n := total].Operators[].Units[] \as Units;
+\import Spaces.Linear[V := Vector n, W := Vector n, source := coordinates n, target := coordinates n] \as LeftMaps;
+\import Spaces.Linear[V := Vector m, W := Vector m, source := coordinates m, target := coordinates m] \as RightMaps;
+\import Spaces.Linear[V := PairSpace.Carrier, W := PairSpace.Carrier, source := PairSpace.space, target := PairSpace.space] \as PairMaps;
+\definition paired[a: LeftMaps.Map][b: RightMaps.Map]: PairMaps.Map := PairMaps.Map {
+  apply := (\fun (v: PairSpace.Carrier) => PairSpace.make (a.apply (PairSpace.first v)) (b.apply (PairSpace.second v))),
+  preservesAdd := (\fun (v, w: PairSpace.Carrier) => Pair.Prop[A := Vector n, B := Vector m].pairCong _ _ _ _ (a.preservesAdd (PairSpace.first v) (PairSpace.first w)) (b.preservesAdd (PairSpace.second v) (PairSpace.second w))),
+  preservesScale := (\fun (c: K)(v: PairSpace.Carrier) => Pair.Prop[A := Vector n, B := Vector m].pairCong _ _ _ _ (a.preservesScale c (PairSpace.first v)) (b.preservesScale c (PairSpace.second v)))
+};
+\import Spaces.Isomorphism[V := PairSpace.Carrier, W := PairSpace.Carrier, source := PairSpace.space, target := PairSpace.space] \as PairIsomorphisms;
+\definition pairIsomorphism[a: Left.Carrier][b: Right.Carrier]: PairIsomorphisms.Isomorphism := PairIsomorphisms.Isomorphism {
+  forward := paired a b, backward := paired (Left.inverse a) (Right.inverse b),
+  leftInverse := (\fun (v: PairSpace.Carrier) => Pair.Prop[A := Vector n, B := Vector m].ext _ _ (Left.left a (PairSpace.first v)) (Right.left b (PairSpace.second v))),
+  rightInverse := (\fun (v: PairSpace.Carrier) => Pair.Prop[A := Vector n, B := Vector m].ext _ _ (Left.right a (PairSpace.first v)) (Right.right b (PairSpace.second v)))
+};
+\import Operations.LinearIsomorphisms[V := PairSpace.Carrier, W := Vector total, source := PairSpace.space, target := coordinates total] \as CoordinateInverse;
+\import Operations.LinearIsomorphisms[V := Vector total, W := PairSpace.Carrier, source := coordinates total, target := PairSpace.space].After[U := PairSpace.Carrier, space := PairSpace.space] \as First;
+\import Operations.LinearIsomorphisms[V := Vector total, W := PairSpace.Carrier, source := coordinates total, target := PairSpace.space].After[U := Vector total, space := coordinates total] \as Second;
+\import Spaces.Isomorphism[V := Vector total, W := Vector total, source := coordinates total, target := coordinates total] \as Isomorphisms;
+\definition isomorphism[a: Left.Carrier][b: Right.Carrier]: Isomorphisms.Isomorphism := Second.compose (First.compose (CoordinateInverse.inverse Coordinates.isomorphism) (pairIsomorphism a b)) Coordinates.isomorphism;
+\import Hermitian.At[n := total].Square[] \as Square;
+\import Spaces.Linear[V := Vector total, W := Vector total, source := coordinates total, target := coordinates total] \as End;
+\definition value[a: Left.Carrier][b: Right.Carrier]: Units.Carrier := \into[End.Map]((isomorphism a b).forward, Units.Invertible) \by {
+  Square.LeftInverse[f := (isomorphism a b).forward, g := (isomorphism a b).backward, left := (Isomorphisms.laws (isomorphism a b)).leftInverse].nonzero
+};
+\definition formula: \forall (a: Left.Carrier)(b: Right.Carrier)(v: Vector total) -> (value a b).apply v = Coordinates.join
+  (PairSpace.make (a.apply (PairSpace.first (Coordinates.split v))) (b.apply (PairSpace.second (Coordinates.split v)))) :=
+  \fun (a: Left.Carrier)(b: Right.Carrier)(v: Vector total) => \refl((value a b).apply v);
+\definition inverseFormula: \forall (a: Left.Carrier)(b: Right.Carrier)(v: Vector total) -> (Units.inverse (value a b)).apply v = Coordinates.join
+  (PairSpace.make ((Left.inverse a).apply (PairSpace.first (Coordinates.split v))) ((Right.inverse b).apply (PairSpace.second (Coordinates.split v)))) :=
+  \fun (a: Left.Carrier)(b: Right.Carrier)(v: Vector total) => trans!{{Vector total}} _ _ _
+    (sym!{{Vector total}} _ _ ((Isomorphisms.laws (isomorphism a b)).leftInverse ((Units.inverse (value a b)).apply v)))
+    (congr!{{Vector total} {Vector total}} (isomorphism a b).backward.apply _ _ (Units.right (value a b) v));
+\module Family(Y: \Set, source: topology.Topology[Carrier := Y].Topology, a: Y -> Left.Carrier, b: Y -> Right.Carrier,
+  continuousA: topology.Continuity[A := Y, B := Left.Carrier].Continuous source Left.topology a,
+  continuousB: topology.Continuity[A := Y, B := Right.Carrier].Continuous source Right.topology b);

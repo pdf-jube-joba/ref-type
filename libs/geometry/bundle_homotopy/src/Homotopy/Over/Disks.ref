@@ -1,0 +1,96 @@
+\import algebraic_topology.Euclidean[].Dimension[n := d] \as Disk;
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::succ d] \as Sphere;
+\import Disk.Splitting[] \as Splitting;
+\import Disk.Geometry[] \as Geometry;
+\import Sphere.Geometry[] \as SphereGeometry;
+\import Disk.Normalization[] \as Normalization;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import Real.Algebra[] \as Algebra;
+\import Real.SquareRoot[] \as Root;
+\import metric_spaces.RealLine[] \as Line;
+\import metric_spaces.RealFunctions[A := Sphere.Sphere] \as Functions;
+\import topology.Topology[Carrier := Sphere.Sphere] \as Base;
+\import topological_algebra.Coordinates[K := Real.Real, I := Sphere.Index] \as Coordinates;
+\definition inclusionContinuous: topology.Continuity[A := Sphere.Sphere, B := Sphere.Coordinate].Continuous Sphere.sphereTopology Sphere.topology (\fun (x: Sphere.Sphere) => x) :=
+  topology.Continuity[A := Sphere.Coordinate, B := Sphere.Coordinate].Corestriction[S := Sphere.Boundary].inclusionContinuous Sphere.topology;
+\definition head[x: Sphere.Sphere]: Real.Real := Splitting.head x;
+\definition tail[x: Sphere.Sphere]: Disk.Coordinate := Splitting.tail x;
+\definition headContinuous: Functions.Continuous Sphere.sphereTopology head :=
+  topology.Composition[A := Sphere.Sphere, B := Sphere.Coordinate, C := Real.Real].composeContinuous Sphere.sphereTopology Sphere.topology Line.topology
+    (\fun (x: Sphere.Sphere) => x) Splitting.head inclusionContinuous (Coordinates.evaluationContinuous Line.topology (Fin.zero d));
+\definition tailContinuous: topology.Continuity[A := Sphere.Sphere, B := Disk.Coordinate].Continuous Sphere.sphereTopology Disk.topology tail :=
+  topological_algebra.Coordinates[K := Real.Real, I := Disk.Index].Universal[A := Sphere.Sphere].continuous Sphere.sphereTopology Line.topology tail
+    (\fun (i: Disk.Index) => topology.Composition[A := Sphere.Sphere, B := Sphere.Coordinate, C := Real.Real].composeContinuous Sphere.sphereTopology Sphere.topology Line.topology
+      (\fun (x: Sphere.Sphere) => x) (\fun (x: Sphere.Coordinate) => x (Fin.succ d i)) inclusionContinuous (Coordinates.evaluationContinuous Line.topology (Fin.succ d i)));
+\definition tailSquared[x: Sphere.Sphere]: Real.Real := Disk.normSquared (tail x);
+\definition tailSquaredContinuous: Functions.Continuous Sphere.sphereTopology tailSquared :=
+  topology.Composition[A := Sphere.Sphere, B := Disk.Coordinate, C := Real.Real].composeContinuous Sphere.sphereTopology Disk.topology Line.topology tail Disk.normSquared tailContinuous Geometry.normSquaredContinuous;
+\definition Positive: \Pow Sphere.Sphere := { x: Sphere.Sphere \where R.Lt Real.zero (head x) };
+\definition Negative: \Pow Sphere.Sphere := { x: Sphere.Sphere \where R.Lt (head x) Real.zero };
+\definition Collar: \Pow Sphere.Sphere := { x: Sphere.Sphere \where R.Lt Real.zero (tailSquared x) };
+\import Base.Finite[] \as Finite;
+\definition U: \Pow Sphere.Sphere := Finite.Join Positive Collar;
+\definition V: \Pow Sphere.Sphere := Finite.Join Negative Collar;
+\definition openU: Base.IsOpenIn Sphere.sphereTopology U := Finite.joinOpen Sphere.sphereTopology Positive Collar
+  (headContinuous (Line.Rays[].Above Real.zero) (Line.Rays[].aboveOpen Real.zero)) (tailSquaredContinuous (Line.Rays[].Above Real.zero) (Line.Rays[].aboveOpen Real.zero));
+\definition openV: Base.IsOpenIn Sphere.sphereTopology V := Finite.joinOpen Sphere.sphereTopology Negative Collar
+  (headContinuous (Line.Rays[].Below Real.zero) (Line.Rays[].belowOpen Real.zero)) (tailSquaredContinuous (Line.Rays[].Above Real.zero) (Line.Rays[].aboveOpen Real.zero));
+\definition headNotZero: \forall (x: Sphere.Sphere) -> tailSquared x = Real.zero -> Logic.Not (head x = Real.zero) :=
+  \fun (x: Sphere.Sphere)(tailZero: _)(headZero: _) => Laws.zeroNeOne (eq_reason_in!{Real.Real Real.zero
+    "=" { Real.add (Real.mul (head x) (head x)) (tailSquared x) } "by" {
+      sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+        (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+          (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ headZero headZero) (Laws.fieldMulZeroLeft Real.zero)) tailZero) (Laws.addZeroLeft Real.zero))
+    }
+    "=" { Sphere.normSquared x } "by" { sym!{Real.Real} _ _ (Splitting.normSplit x) }
+    "=" Real.one "by" { \bysub(Sphere.Coordinate, Sphere.Boundary, x) }
+  });
+\definition covers: \forall (x: Sphere.Sphere) -> Logic.Or[\In[Sphere.Sphere] U x, \In[Sphere.Sphere] V x] :=
+  \fun (x: Sphere.Sphere) => Logic.orElim[\In[Sphere.Sphere] Collar x, Logic.Not (\In[Sphere.Sphere] Collar x), Logic.Or[\In[Sphere.Sphere] U x, \In[Sphere.Sphere] V x]]
+    (std.Logic[].Classical[].excludedMiddle (\In[Sphere.Sphere] Collar x))
+    (\fun (positive: R.Lt Real.zero (tailSquared x)) => Logic.Or[_, _]::left (Logic.Or[_, _]::right positive))
+    (\fun (notPositive: Logic.Not (R.Lt Real.zero (tailSquared x))) => \block {
+      \let zero: tailSquared x = Real.zero := R.leAntisym _ _ (Order.leOfNotLtReverse (tailSquared x) Real.zero notPositive) (Geometry.normSquaredNonnegative (tail x)) \then
+      \return Logic.orElim[R.Lt Real.zero (head x), Logic.Or[Real.zero = head x, R.Lt (head x) Real.zero], Logic.Or[\In[Sphere.Sphere] U x, \In[Sphere.Sphere] V x]] (Order.ltTrichotomy Real.zero (head x))
+        (\fun (positive: R.Lt Real.zero (head x)) => Logic.Or[_, _]::left (Logic.Or[_, _]::left positive))
+        (\fun (other: Logic.Or[Real.zero = head x, R.Lt (head x) Real.zero]) => Logic.orElim[Real.zero = head x, R.Lt (head x) Real.zero, Logic.Or[\In[Sphere.Sphere] U x, \In[Sphere.Sphere] V x]] other
+          (\fun (equal: _) => Logic.falseElim _ (headNotZero x zero (sym!{Real.Real} _ _ equal)))
+          (\fun (negative: R.Lt (head x) Real.zero) => Logic.Or[_, _]::right (Logic.Or[_, _]::left negative)))
+    });
+\definition overlap: \Pow Sphere.Sphere := Base.Intersection U V;
+\definition Overlap: \Set := \Cast[Sphere.Sphere] overlap;
+\definition overlapTopology: topology.Topology[Carrier := Overlap].Topology := Base.Subspace[S := overlap].topology Sphere.sphereTopology;
+\definition collar: \forall (x: Overlap) -> R.Lt Real.zero (tailSquared x) :=
+  \fun (x: Overlap) => Logic.orElim[R.Lt Real.zero (head x), R.Lt Real.zero (tailSquared x), R.Lt Real.zero (tailSquared x)] ((\bysub(Sphere.Sphere, overlap, x)).left)
+    (\fun (positive: R.Lt Real.zero (head x)) => Logic.orElim[R.Lt (head x) Real.zero, R.Lt Real.zero (tailSquared x), R.Lt Real.zero (tailSquared x)] ((\bysub(Sphere.Sphere, overlap, x)).right)
+      (\fun (negative: R.Lt (head x) Real.zero) => Logic.falseElim _ (R.ltNotLeReverse Real.zero (head x) positive (Order.leOfLt _ _ negative)))
+      (\fun (value: R.Lt Real.zero (tailSquared x)) => value)) (\fun (value: R.Lt Real.zero (tailSquared x)) => value);
+\definition nonzero[x: Overlap]: Normalization.Nonzero := \into[Disk.Coordinate](tail x, Normalization.Nonzero) \by {
+  \fun (equal: tailSquared x = Real.zero) => R.ltNotLeReverse Real.zero (tailSquared x) (collar x) (R.leReplaceLeft Real.zero (tailSquared x) Real.zero (sym!{Real.Real} _ _ equal) (R.leRefl Real.zero))
+};
+\definition boundary[x: Overlap]: Disk.Sphere := Normalization.normalize (nonzero x);
+\definition boundaryContinuous: topology.Continuity[A := Overlap, B := Disk.Sphere].Continuous overlapTopology Disk.sphereTopology boundary :=
+  Normalization.Continuity[A := Overlap].continuous overlapTopology nonzero
+    (topology.Continuity[A := Sphere.Sphere, B := Disk.Coordinate].Restriction[S := overlap].restrictContinuous Sphere.sphereTopology Disk.topology tail tailContinuous);
+\definition tailSquaredEquator: \forall (s: Disk.Sphere) -> tailSquared (Splitting.equator s) = Real.one := \fun (s: Disk.Sphere) =>
+  trans!{Real.Real} _ _ _ (congr!{Disk.Coordinate Real.Real} Disk.normSquared _ _ (Splitting.equatorTail s)) (\bysub(Disk.Coordinate, Disk.Boundary, s));
+\definition equatorCollar: \forall (s: Disk.Sphere) -> R.Lt Real.zero (tailSquared (Splitting.equator s)) := \fun (s: Disk.Sphere) =>
+  R.ltReplaceRight Real.zero Real.one (tailSquared (Splitting.equator s)) (sym!{Real.Real} _ _ (tailSquaredEquator s)) (Order.ltOfLeNotEq Real.zero Real.one Laws.oneNonnegative Laws.zeroNeOne);
+\definition equatorPoint[s: Disk.Sphere]: Overlap := \into[Sphere.Sphere](Splitting.equator s, overlap) \by { Logic.And[_, _]::# (Logic.Or[_, _]::right (equatorCollar s)) (Logic.Or[_, _]::right (equatorCollar s)) };
+\definition boundaryEquator: \forall (s: Disk.Sphere) -> boundary (equatorPoint s) = s := \fun (s: Disk.Sphere) =>
+  trans!{Disk.Sphere} _ _ _ (congr!{Normalization.Nonzero Disk.Sphere} Normalization.normalize (nonzero (equatorPoint s)) (Normalization.ofSphere s) (Splitting.equatorTail s)) (Normalization.normalizesUnit s);
+\module Hemispheres;
+\module Clutched(n: N.Nat^, g: Disk.Sphere -> \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Projections[n := n].Operators[].Units[].Carrier,
+  continuous: topology.Continuity[A := Disk.Sphere, B := \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Projections[n := n].Operators[].Units[].Carrier].Continuous Disk.sphereTopology
+    \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Projections[n := n].Operators[].Units[].topology g);
+
+\module Triviality(F: Disk.Disk -> \Set, bundle: Bundles.Family[X := Disk.Disk, F := F].Bundle, sameBase: bundle.baseSpace = Disk.diskTopology);
+
+\module Homotopy(n: N.Nat^,
+  G: Pair.Times^[algebraic_topology.Interval[].Carrier, Disk.Sphere] -> \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Projections[n := n].Operators[].Units[].Carrier,
+  regular: topology.Continuity[A := Pair.Times^[algebraic_topology.Interval[].Carrier, Disk.Sphere], B := \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Projections[n := n].Operators[].Units[].Carrier].Continuous
+    (topological_constructions.Product[A := algebraic_topology.Interval[].Carrier, B := Disk.Sphere].topology algebraic_topology.Interval[].topology Disk.sphereTopology)
+    \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Projections[n := n].Operators[].Units[].topology G);

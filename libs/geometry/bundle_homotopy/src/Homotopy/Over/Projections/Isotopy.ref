@@ -1,0 +1,59 @@
+\import algebraic_topology.Interval[] \as I;
+\import I.Arithmetic[] \as Arithmetic;
+\import topological_constructions.Product[A := I.Carrier, B := X] \as Cylinder;
+\import Cylinder.Maps[] \as CylinderMaps;
+\definition topology: topology.Topology[Carrier := Cylinder.CarrierSet].Topology := Cylinder.topology I.topology baseSpace;
+\import topological_constructions.Product[A := I.Carrier, B := Cylinder.CarrierSet] \as Double;
+\import Double.Maps[] \as DoubleMaps;
+\definition doubleTopology: topology.Topology[Carrier := Double.CarrierSet].Topology := Double.topology I.topology topology;
+\definition time[z: Cylinder.CarrierSet]: I.Carrier := Pair.first I.Carrier X z;
+\definition base[z: Cylinder.CarrierSet]: X := Pair.second I.Carrier X z;
+\definition scale[p: Double.CarrierSet]: Cylinder.CarrierSet := Pair.pair I.Carrier X
+  (Arithmetic.multiply (Pair.first I.Carrier Cylinder.CarrierSet p) (time (Pair.second I.Carrier Cylinder.CarrierSet p))) (base (Pair.second I.Carrier Cylinder.CarrierSet p));
+\definition scaleContinuous: topology.Continuity[A := Double.CarrierSet, B := Cylinder.CarrierSet].Continuous doubleTopology topology scale :=
+  Cylinder.Universal[X := Double.CarrierSet].pairContinuous doubleTopology I.topology baseSpace
+    (\fun (p: Double.CarrierSet) => Arithmetic.multiply (Pair.first I.Carrier Cylinder.CarrierSet p) (time (Pair.second I.Carrier Cylinder.CarrierSet p)))
+    (\fun (p: Double.CarrierSet) => base (Pair.second I.Carrier Cylinder.CarrierSet p))
+    (algebraic_topology.IntervalFunctions[A := Double.CarrierSet].multiplyContinuous doubleTopology (Pair.first I.Carrier Cylinder.CarrierSet)
+      (\fun (p: Double.CarrierSet) => time (Pair.second I.Carrier Cylinder.CarrierSet p)) (DoubleMaps.firstContinuous I.topology topology)
+      (topology.Composition[A := Double.CarrierSet, B := Cylinder.CarrierSet, C := I.Carrier].composeContinuous doubleTopology topology I.topology
+        (Pair.second I.Carrier Cylinder.CarrierSet) time (DoubleMaps.secondContinuous I.topology topology) (CylinderMaps.firstContinuous I.topology baseSpace)))
+    (topology.Composition[A := Double.CarrierSet, B := Cylinder.CarrierSet, C := X].composeContinuous doubleTopology topology baseSpace
+      (Pair.second I.Carrier Cylinder.CarrierSet) base (DoubleMaps.secondContinuous I.topology topology) (CylinderMaps.secondContinuous I.topology baseSpace));
+\definition moved[p: Double.CarrierSet]: Native.Projection := P (scale p);
+\definition movedRegular: Native.Families[X := Double.CarrierSet].Matrix[m := n].Regular doubleTopology (\fun (p: Double.CarrierSet) => (moved p).map) :=
+  \fun (v: Vector n)(i: Fin.Fin n) => topology.Composition[A := Double.CarrierSet, B := Cylinder.CarrierSet, C := K].composeContinuous doubleTopology topology scalar.topological.space scale
+    (\fun (z: Cylinder.CarrierSet) => (P z).map.apply v i) scaleContinuous (regular v i);
+\definition subset: \Pow Cylinder.CarrierSet := { z: Cylinder.CarrierSet \where Logic.Or[time z = I.start, \In[X] A (base z)] };
+\import real.Analysis[].Algebra[] \as RealAlgebra;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as RealLaws;
+\definition zeroLeft: \forall (t: I.Carrier) -> Arithmetic.multiply I.start t = I.start := \fun (t: I.Carrier) => RealLaws.fieldMulZeroLeft t;
+\definition oneLeft: \forall (t: I.Carrier) -> Arithmetic.multiply I.end t = t := \fun (t: I.Carrier) => RealLaws.fieldMulOneLeft t;
+\definition zeroRight: \forall (t: I.Carrier) -> Arithmetic.multiply t I.start = I.start := \fun (t: I.Carrier) => RealLaws.fieldMulZeroRight t;
+\definition scaleStart: \forall (s: I.Carrier)(z: Cylinder.CarrierSet) -> time z = I.start -> Arithmetic.multiply s (time z) = I.start :=
+  \fun (s: I.Carrier)(z: Cylinder.CarrierSet)(atStart: _) => trans!{I.Carrier} _ _ _
+    (congr!{I.Carrier I.Carrier} (Arithmetic.multiply s) _ _ atStart) (zeroRight s);
+\definition movedStationary: \forall (z: Cylinder.CarrierSet) -> \In[Cylinder.CarrierSet] subset z -> \forall (s, t: I.Carrier) ->
+  (moved (Pair.pair I.Carrier Cylinder.CarrierSet s z)).map = (moved (Pair.pair I.Carrier Cylinder.CarrierSet t z)).map :=
+  \fun (z: Cylinder.CarrierSet)(inside: \In[Cylinder.CarrierSet] subset z)(s, t: I.Carrier) => Logic.orElim[time z = I.start, \In[X] A (base z), (moved (Pair.pair I.Carrier Cylinder.CarrierSet s z)).map = (moved (Pair.pair I.Carrier Cylinder.CarrierSet t z)).map] inside
+    (\fun (atStart: time z = I.start) => congr!{I.Carrier End.Map} (\fun (r: I.Carrier) => (P (Pair.pair I.Carrier X r (base z))).map) _ _
+      (trans!{I.Carrier} _ _ _ (scaleStart s z atStart) (sym!{I.Carrier} _ _ (scaleStart t z atStart))))
+    (\fun (inA: \In[X] A (base z)) => stationary (base z) inA (Arithmetic.multiply s (time z)) (Arithmetic.multiply t (time z)));
+\definition compactCylinder: topology.Topology[Carrier := Cylinder.CarrierSet].IsCompact topology := Cylinder.Compactness[].productCompact I.topology baseSpace I.compact compact;
+\import \parent.Homotopy[X := Cylinder.CarrierSet, baseSpace := topology, compact := compactCylinder, P := moved, regular := movedRegular, A := subset, stationary := movedStationary] \as Motion;
+\definition RelativeIsomorphism[s: I.Carrier][t: I.Carrier]: \Set := Motion.RelativeIsomorphism[s, t];
+\definition isomorphismExists: \exists Motion.RelativeIsomorphism[I.start, I.end] := Motion.endpointComparisonExists;
+\definition startMap[z: Cylinder.CarrierSet]: Cylinder.CarrierSet := Pair.pair I.Carrier X I.start (base z);
+\definition startContinuous: topology.Continuity[A := Cylinder.CarrierSet, B := Cylinder.CarrierSet].Continuous topology topology startMap :=
+  Cylinder.Universal[X := Cylinder.CarrierSet].pairContinuous topology I.topology baseSpace (\fun (z: Cylinder.CarrierSet) => I.start) base
+    (topology.Maps[A := Cylinder.CarrierSet, B := I.Carrier].constantContinuous topology I.topology I.start) (CylinderMaps.secondContinuous I.topology baseSpace);
+\definition startProjection[z: Cylinder.CarrierSet]: Native.Projection := P (startMap z);
+\definition startRegular: Native.Families[X := Cylinder.CarrierSet].Matrix[m := n].Regular topology (\fun (z: Cylinder.CarrierSet) => (startProjection z).map) :=
+  \fun (v: Vector n)(i: Fin.Fin n) => topology.Composition[A := Cylinder.CarrierSet, B := Cylinder.CarrierSet, C := K].composeContinuous topology topology scalar.topological.space startMap
+    (\fun (z: Cylinder.CarrierSet) => (P z).map.apply v i) startContinuous (regular v i);
+\import Complements.Projection[X := Cylinder.CarrierSet, n := n, baseSpace := topology, P := startProjection, regular := startRegular] \as StartImage;
+\import Complements.Projection[X := Cylinder.CarrierSet, n := n, baseSpace := topology, P := P, regular := regular] \as FinishImage;
+\definition StartFiber[z: Cylinder.CarrierSet]: \Set := StartImage.Fiber z;
+\definition startBundle: Bundles.Family[X := Cylinder.CarrierSet, F := StartFiber].Bundle := StartImage.bundle;
+\definition Isomorphism: \Set := Bundles.Isomorphisms[X := Cylinder.CarrierSet, F := StartImage.Fiber, G := FinishImage.Fiber, source := StartImage.bundle, target := FinishImage.bundle].Isomorphism;
+\module Comparison(iso: Motion.RelativeIsomorphism[I.start, I.end]);

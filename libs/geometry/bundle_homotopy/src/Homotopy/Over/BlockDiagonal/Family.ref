@@ -1,0 +1,19 @@
+\import topological_constructions.Product[A := Vector n, B := Vector m] \as Product;
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin n] \as LeftCoordinates;
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin m] \as RightCoordinates;
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin total] \as TotalCoordinates;
+\definition regularA: Hermitian.At[n := n].Families[X := Y].Matrix[m := n].Regular source (\fun (y: Y) => a y) := Left.Family[X := Y, source := source, H := a].regular continuousA;
+\definition regularB: Hermitian.At[n := m].Families[X := Y].Matrix[m := m].Regular source (\fun (y: Y) => b y) := Right.Family[X := Y, source := source, H := b].regular continuousB;
+\definition pair[v: Vector total][y: Y]: PairSpace.Carrier := PairSpace.make ((a y).apply (PairSpace.first (Coordinates.split v))) ((b y).apply (PairSpace.second (Coordinates.split v)));
+\definition pairContinuous: \forall (v: Vector total) -> topology.Continuity[A := Y, B := PairSpace.Carrier].Continuous source Coordinates.Topology[].product (pair v) :=
+  \fun (v: Vector total) => Product.Universal[X := Y].pairContinuous source (coordinateTopology n) (coordinateTopology m)
+    (\fun (y: Y) => (a y).apply (PairSpace.first (Coordinates.split v))) (\fun (y: Y) => (b y).apply (PairSpace.second (Coordinates.split v)))
+    (LeftCoordinates.Universal[A := Y].continuous source scalar.topological.space (\fun (y: Y) => (a y).apply (PairSpace.first (Coordinates.split v))) (regularA (PairSpace.first (Coordinates.split v))))
+    (RightCoordinates.Universal[A := Y].continuous source scalar.topological.space (\fun (y: Y) => (b y).apply (PairSpace.second (Coordinates.split v))) (regularB (PairSpace.second (Coordinates.split v))));
+\definition vectorContinuous: \forall (v: Vector total) -> topology.Continuity[A := Y, B := Vector total].Continuous source (coordinateTopology total) (\fun (y: Y) => (value (a y) (b y)).apply v) :=
+  \fun (v: Vector total) => topology.Composition[A := Y, B := PairSpace.Carrier, C := Vector total].composeContinuous source Coordinates.Topology[].product (coordinateTopology total) (pair v) Coordinates.join (pairContinuous v) Coordinates.Topology[].joinRegular;
+\definition regular: Hermitian.At[n := total].Families[X := Y].Matrix[m := total].Regular source (\fun (y: Y) => value (a y) (b y)) :=
+  \fun (v: Vector total)(i: Fin.Fin total) => topology.Composition[A := Y, B := Vector total, C := K].composeContinuous source (coordinateTopology total) scalar.topological.space (\fun (y: Y) => (value (a y) (b y)).apply v)
+    (\fun (w: Vector total) => w i) (vectorContinuous v) (TotalCoordinates.evaluationContinuous scalar.topological.space i);
+\definition continuous: topology.Continuity[A := Y, B := Units.Carrier].Continuous source Units.topology (\fun (y: Y) => value (a y) (b y)) :=
+  Units.Family[X := Y, source := source, H := (\fun (y: Y) => value (a y) (b y))].continuous regular;

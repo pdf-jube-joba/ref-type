@@ -1,0 +1,52 @@
+\import std.Set[].Extension[A := X, B := Units.Carrier, domain := overlap] \as Extend;
+\definition global[x: X]: Units.Carrier := Extend.extend g Units.identity x;
+\import Spaces.Isomorphism[V := Vector n, W := Vector n, source := coordinates n, target := coordinates n] \as Linear;
+\definition identity: Linear.Isomorphism := Units.isomorphism Units.identity;
+\definition inverse[h: Units.Carrier]: Linear.Isomorphism := Linear.Isomorphism { forward := Units.inverse h, backward := h, leftInverse := Units.right h, rightInverse := Units.left h };
+\definition change[x: X][i: B.Bool^][j: B.Bool^]: Linear.Isomorphism :=
+  B.ite Linear.Isomorphism i (B.ite Linear.Isomorphism j identity (inverse (global x)))
+    (B.ite Linear.Isomorphism j (Units.isomorphism (global x)) identity);
+\definition identityLaw: \forall (x: X)(i: B.Bool^)(v: Vector n) -> (change x i i).forward.apply v = v :=
+  \fun (x: X) => B.cases (\fun (i: B.Bool^) => \forall (v: Vector n) -> (change x i i).forward.apply v = v)
+    (\fun (v: Vector n) => \refl(v)) (\fun (v: Vector n) => \refl(v));
+\definition compositionLaw: \forall (x: X)(i, j, k: B.Bool^)(v: Vector n) ->
+  (change x j k).forward.apply ((change x i j).forward.apply v) = (change x i k).forward.apply v :=
+  \fun (x: X) => B.cases2 (\fun (i, j: B.Bool^) => \forall (k: B.Bool^)(v: Vector n) ->
+    (change x j k).forward.apply ((change x i j).forward.apply v) = (change x i k).forward.apply v)
+    (B.cases (\fun (k: B.Bool^) => \forall (v: Vector n) -> (change x B.Bool^::false k).forward.apply ((change x B.Bool^::false B.Bool^::false).forward.apply v) = (change x B.Bool^::false k).forward.apply v)
+      (\fun (v: Vector n) => \refl(v)) (\fun (v: Vector n) => \refl((global x).apply v)))
+    (B.cases (\fun (k: B.Bool^) => \forall (v: Vector n) -> (change x B.Bool^::true k).forward.apply ((change x B.Bool^::false B.Bool^::true).forward.apply v) = (change x B.Bool^::false k).forward.apply v)
+      (Units.left (global x)) (\fun (v: Vector n) => \refl((global x).apply v)))
+    (B.cases (\fun (k: B.Bool^) => \forall (v: Vector n) -> (change x B.Bool^::false k).forward.apply ((change x B.Bool^::true B.Bool^::false).forward.apply v) = (change x B.Bool^::true k).forward.apply v)
+      (\fun (v: Vector n) => \refl((Units.inverse (global x)).apply v)) (Units.right (global x)))
+    (B.cases (\fun (k: B.Bool^) => \forall (v: Vector n) -> (change x B.Bool^::true k).forward.apply ((change x B.Bool^::true B.Bool^::true).forward.apply v) = (change x B.Bool^::true k).forward.apply v)
+      (\fun (v: Vector n) => \refl((Units.inverse (global x)).apply v)) (\fun (v: Vector n) => \refl(v)));
+\definition data: Cocycles.Data := Cocycles.Data { transition := (\fun (x: X)(i, j: Cocycles.Index x) => change x i j) };
+\definition cocycle: Cocycles.Cocycle := \into[Cocycles.Data](data, Cocycles.Cocycle) \by {
+  Cocycles.Laws[data] { identity := (\fun (x: X)(i: Cocycles.Index x) => identityLaw x i), composition := (\fun (x: X)(i, j, k: Cocycles.Index x) => compositionLaw x i j k) }
+};
+\import Cocycles.With[cocycle := cocycle] \as Constructed;
+\definition Fiber[x: X]: \Set := Constructed.Fiber x;
+\module Regularity;
+
+\definition bundle: Bundles.Family[X := X, F := Fiber].Bundle := Constructed.Construction[].bundle Regularity[].regular;
+\import Operations.Atlas[X := X, I := B.Bool^, F := Fiber, baseSpace := baseSpace, space := Constructed.fiberSpace].Using[chart := Constructed.chart] \as Atlas;
+\definition chart[i: B.Bool^]: Bundles.Family[X := X, F := Fiber].With[data := bundle].Chart :=
+  Atlas.Local[i := i].trivialization (Constructed.Construction[].compatible Regularity[].regular);
+\module Boundary(x: Overlap);
+
+\definition regular: Constructed.Regular := Regularity[].regular;
+\module Pullback(Y: \Set, source: topology.Topology[Carrier := Y].Topology, f: Y -> X,
+  continuousF: topology.Continuity[A := Y, B := X].Continuous source baseSpace f);
+
+\module AlongCover(Y: \Set, source: topology.Topology[Carrier := Y].Topology, f: Y -> X,
+  continuousF: topology.Continuity[A := Y, B := X].Continuous source baseSpace f,
+  UY, VY: \Pow Y, openUY: topology.Topology[Carrier := Y].IsOpenIn source UY, openVY: topology.Topology[Carrier := Y].IsOpenIn source VY,
+  covered: \forall (y: Y) -> Logic.Or[\In[Y] UY y, \In[Y] VY y],
+  containedU: \forall (y: \Cast[Y] UY) -> \In[X] U (f y), containedV: \forall (y: \Cast[Y] VY) -> \In[X] V (f y));
+
+\module Sum(m: N.Nat^,
+  h: Overlap -> \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Projections[n := m].Operators[].Units[].Carrier,
+  continuousH: topology.Continuity[A := Overlap, B := \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Projections[n := m].Operators[].Units[].Carrier].Continuous overlapTopology
+    \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Projections[n := m].Operators[].Units[].topology h);
+\module Stabilize(m: N.Nat^);

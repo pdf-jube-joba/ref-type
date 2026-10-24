@@ -1,0 +1,39 @@
+\import Bundles.Family[X := X, F := F] \as Original;
+\import Original.With[data := bundle].In[c := chart] \as Local;
+\import Original.Of[bundle := bundle].Pullback[Y := Y, source := source, f := f] \as Pulled;
+\definition Fiber[y: Y]: \Set := F (f y);
+\definition pulledBundle: Bundles.Family[X := Y, F := Fiber].Bundle := Pulled.pulled continuous;
+\import Bundles.Family[X := Y, F := Fiber] \as Family;
+\import Bundles.Trivial[X := Y, n := chart.dimension, baseSpace := source] \as Trivial;
+\import Bundles.Family[X := Y, F := (\fun (y: Y) => Vector chart.dimension)] \as TrivialFamily;
+\import Bundles.Morphisms[X := Y, Y := Y, F := Fiber, G := (\fun (y: Y) => Vector chart.dimension), source := pulledBundle, target := Trivial.bundle, f := (\fun (y: Y) => y)] \as Forward;
+\import Bundles.Morphisms[X := Y, Y := Y, F := (\fun (y: Y) => Vector chart.dimension), G := Fiber, source := Trivial.bundle, target := pulledBundle, f := (\fun (y: Y) => y)] \as Backward;
+\definition point[y: Y]: Local.BasePoint := \into[X](f y, chart.domain) \by { inside y };
+\definition forwardData: Forward.Data := Forward.Data { fiber := (\fun (y: Y) => (chart.frame (point y)).forward) };
+\definition backwardData: Backward.Data := Backward.Data { fiber := (\fun (y: Y) => (chart.frame (point y)).backward) };
+\definition localPoint[p: Family.Point]: Local.TotalPoint := \into[Original.Point](Original.include (f p.base) p.vector,
+  { p: Original.Point \where \In[X] chart.domain p.base }) \by { inside p.base };
+\import Operations.Chart[X := X, F := F, bundle := bundle, chart := chart].Maps[Y := Family.Point, source := Pulled.topology] \as Read;
+\definition vectorContinuous: topology.Continuity[A := Family.Point, B := Vector chart.dimension].Continuous Pulled.topology (coordinateTopology chart.dimension) (Read.vector localPoint) :=
+  Read.vectorContinuous localPoint Pulled.mapContinuous;
+\definition forward: Forward.Map := \into[Forward.Data](forwardData, Forward.Map) \by {
+  Complements.TrivialMaps[X := Y, n := chart.dimension, baseSpace := source].Into[Y := Family.Point, source := Pulled.topology].continuous Family.projection (Read.vector localPoint)
+    (Family.Of[bundle := pulledBundle].projectionContinuous) vectorContinuous
+};
+\definition basePoint[p: TrivialFamily.Point]: Local.BasePoint := point p.base;
+\definition basePointContinuous: topology.Continuity[A := TrivialFamily.Point, B := Local.BasePoint].Continuous Trivial.topology (topology.Topology[Carrier := X].Subspace[S := chart.domain].topology bundle.baseSpace) basePoint :=
+  topology.Continuity[A := TrivialFamily.Point, B := X].Corestriction[S := chart.domain].corestrictContinuous Trivial.topology bundle.baseSpace basePoint
+    (topology.Composition[A := TrivialFamily.Point, B := Y, C := X].composeContinuous Trivial.topology source bundle.baseSpace TrivialFamily.projection f
+      (TrivialFamily.Of[bundle := Trivial.bundle].projectionContinuous) continuous);
+\import Operations.Chart[X := X, F := F, bundle := bundle, chart := chart].Maps[Y := TrivialFamily.Point, source := Trivial.topology] \as Write;
+\definition backward: Backward.Map := \into[Backward.Data](backwardData, Backward.Map) \by {
+  Pulled.Universal[Z := TrivialFamily.Point].continuous Trivial.topology (Backward.total backwardData)
+    (TrivialFamily.Of[bundle := Trivial.bundle].projectionContinuous)
+    (Write.pointContinuous basePoint (\fun (p: TrivialFamily.Point) => p.vector) basePointContinuous Trivial.vectorContinuous)
+};
+\definition isomorphism: Bundles.Isomorphisms[X := Y, F := Fiber, G := (\fun (y: Y) => Vector chart.dimension), source := pulledBundle, target := Trivial.bundle].Isomorphism :=
+  Bundles.Isomorphisms[X := Y, F := Fiber, G := (\fun (y: Y) => Vector chart.dimension), source := pulledBundle, target := Trivial.bundle].Isomorphism {
+    forward := forward, backward := backward,
+    leftInverse := (\fun (y: Y) => (Spaces.Isomorphism[V := F (f y), W := Vector chart.dimension, source := bundle.space (f y), target := coordinates chart.dimension].laws (chart.frame (point y))).leftInverse),
+    rightInverse := (\fun (y: Y) => (Spaces.Isomorphism[V := F (f y), W := Vector chart.dimension, source := bundle.space (f y), target := coordinates chart.dimension].laws (chart.frame (point y))).rightInverse)
+  };

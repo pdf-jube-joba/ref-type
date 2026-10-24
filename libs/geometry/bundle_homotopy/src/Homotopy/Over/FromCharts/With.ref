@@ -1,0 +1,23 @@
+\import Cocycles.With[cocycle := cocycle] \as Target;
+\definition covered: Original.Covers := regular.covers;
+\import Original.WithCover[covers := covered] \as Generated;
+\definition transitionEqual: \forall (x: X)(i, j: Cocycles.Index x) -> Original.cocycle.transition x i j = cocycle.transition x i j :=
+  \fun (x: X)(i, j: Cocycles.Index x) => \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].LinearEquality[V := Vector (dimension i), W := Vector (dimension j), source := coordinates (dimension i), target := coordinates (dimension j)].ext
+    (Original.cocycle.transition x i j) (cocycle.transition x i j) (\fun (v: Vector (dimension i)) => sym!{{Vector (dimension j)}} _ _ (transition x i j v));
+\definition eta: \forall (data: Cocycles.Data) -> Cocycles.Data::# data.transition = data :=
+  \induction (data: Cocycles.Data) \return Cocycles.Data::# data.transition = data \with {
+    | # : \fun (f: \forall (x: X)(i, j: Cocycles.Index x) -> Cocycles.Linear i j) => \refl(Cocycles.Data::# f)
+  };
+\definition equal: Original.cocycle = cocycle := trans!{{Cocycles.Data}} _ _ _ (sym!{{Cocycles.Data}} _ _ (eta Original.cocycle))
+  (trans!{{Cocycles.Data}} _ _ _ (congr!{{\forall (x: X)(i, j: Cocycles.Index x) -> Cocycles.Linear i j} {Cocycles.Data}} Cocycles.Data::# _ _
+    (\axiom:funext(Original.cocycle.transition, cocycle.transition, \fun (x: X) => \axiom:funext(Original.cocycle.transition x, cocycle.transition x,
+      \fun (i: Cocycles.Index x) => \axiom:funext(Original.cocycle.transition x i, cocycle.transition x i, transitionEqual x i))))) (eta cocycle));
+\definition TargetFiber[c: Cocycles.Cocycle][x: X]: \Set := Cocycles.With[cocycle := c].Fiber x;
+\definition targetBundle[c: Cocycles.Cocycle][r: Cocycles.With[cocycle := c].Regular]: Bundles.Family[X := X, F := TargetFiber c].Bundle := Cocycles.With[cocycle := c].Construction[].bundle r;
+\definition Isomorphism[c: Cocycles.Cocycle][r: Cocycles.With[cocycle := c].Regular]: \Set := Bundles.Isomorphisms[X := X, F := F, G := TargetFiber c, source := bundle, target := targetBundle c r].Isomorphism;
+\module For(c: Cocycles.Cocycle, r: Cocycles.With[cocycle := c].Regular);
+\definition exists: \exists For[c := cocycle, r := regular].Result :=
+  (\idelim Original.cocycle = cocycle \with c: Cocycles.Cocycle => \forall (r: Cocycles.With[cocycle := c].Regular) -> \exists For[c := c, r := r].Result \by {
+    base: \fun (r: Cocycles.With[cocycle := Original.cocycle].Regular) => \exact(For[c := Original.cocycle, r := r].Result { value := Generated.isomorphism, alignment := Original.frameAlignment }, For[c := Original.cocycle, r := r].Result),
+    equality: equal
+  }) regular;

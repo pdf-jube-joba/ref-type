@@ -1,0 +1,24 @@
+\import \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Presentation[X := Y, F := F, bundle := bundle, embedding := embedding] \as Presented;
+\definition n: N.Nat^ := embedding.dimension;
+\import Presented.Pullback[Y := SubCylinder.CarrierSet, source := subTopology, f := subBase, continuous := subBaseContinuous] \as SubPresentation;
+\import Presented.Pullback[Y := Cylinder.CarrierSet, source := topology, f := base, continuous := baseContinuous] \as Presentation;
+\import Bundles.Isomorphisms[X := SubCylinder.CarrierSet, F := SubFiber, G := SubPresentation.ImageFiber, source := subBundle, target := SubPresentation.imageBundle] \as SubComparison;
+\import Operations.IsomorphismComposition[X := SubCylinder.CarrierSet, F := SubPresentation.ImageFiber, G := SubFiber, H := SubFiber,
+  source := SubPresentation.imageBundle, middle := subBundle, target := subBundle] \as First;
+\import Operations.IsomorphismComposition[X := SubCylinder.CarrierSet, F := SubPresentation.ImageFiber, G := SubFiber, H := SubPresentation.ImageFiber,
+  source := SubPresentation.imageBundle, middle := subBundle, target := SubPresentation.imageBundle] \as Second;
+\import Bundles.Isomorphisms[X := SubCylinder.CarrierSet, F := SubPresentation.ImageFiber, G := SubPresentation.ImageFiber, source := SubPresentation.imageBundle, target := SubPresentation.imageBundle] \as ImageAutomorphisms;
+\definition imageIsomorphism: ImageAutomorphisms.Isomorphism := Second.compose (First.compose (SubComparison.inverse SubPresentation.isomorphism) a) SubPresentation.isomorphism;
+\definition initialImage: \forall (y: Subset)(v: SubPresentation.ImageFiber (Pair.pair I.Carrier Subset I.start y)) ->
+  (imageIsomorphism.forward.fiber (Pair.pair I.Carrier Subset I.start y)).apply v = v :=
+  \fun (y: Subset)(v: SubPresentation.ImageFiber (Pair.pair I.Carrier Subset I.start y)) => trans!{{SubPresentation.ImageFiber (Pair.pair I.Carrier Subset I.start y)}} _ _ _
+    (congr!{{F y} {SubPresentation.ImageFiber (Pair.pair I.Carrier Subset I.start y)}} (SubPresentation.isomorphism.forward.fiber (Pair.pair I.Carrier Subset I.start y)).apply _ _
+      (initial y ((SubPresentation.isomorphism.backward.fiber (Pair.pair I.Carrier Subset I.start y)).apply v)))
+    ((\bysub(SubComparison.Data, SubComparison.Isomorphism, SubPresentation.isomorphism)).rightInverse (Pair.pair I.Carrier Subset I.start y) v);
+\import \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Projections[n := n].Stationary[X := Y, baseSpace := bundle.baseSpace, compact := compact,
+  P := Presented.projection, regular := Presented.regular].Extension[A := A, cofibration := cofibration].Problem[a := imageIsomorphism, initial := initialImage] \as ImageExtension;
+\module WithResult(result: ImageExtension.Result);
+\definition exists: \exists Result := \block {
+  \takefrom result: ImageExtension.Result \by ImageExtension.exists \then
+  \return \exact(WithResult[result := result].value, Result)
+};

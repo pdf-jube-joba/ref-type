@@ -1,0 +1,16 @@
+\import Bundles.Trivial[X := X, n := n, baseSpace := baseSpace] \as Trivial;
+\import Bundles.Family[X := X, F := (\fun (x: X) => Vector n)] \as Family;
+\import Bundles.Morphisms[X := X, Y := X, F := (\fun (x: X) => Vector n), G := (\fun (x: X) => Vector n), source := Trivial.bundle, target := Trivial.bundle, f := (\fun (x: X) => x)] \as Maps;
+\import Complements.TrivialMaps[X := X, n := n, baseSpace := baseSpace].Into[Y := X, source := baseSpace] \as Sections;
+\definition section[v: Vector n][x: X]: Family.Point := Family.include x v;
+\definition sectionContinuous: \forall (v: Vector n) -> topology.Continuity[A := X, B := Family.Point].Continuous baseSpace Trivial.topology (section v) :=
+  \fun (v: Vector n) => Sections.continuous (\fun (x: X) => x) (\fun (x: X) => v)
+    (topology.Maps[A := X, B := X].Identity[].continuous baseSpace)
+    (topology.Maps[A := X, B := Vector n].constantContinuous baseSpace (coordinateTopology n) v);
+\definition vectorContinuous: \forall (v: Vector n) -> topology.Continuity[A := X, B := Vector n].Continuous baseSpace (coordinateTopology n) (\fun (x: X) => (h.fiber x).apply v) :=
+  \fun (v: Vector n) => topology.Composition[A := X, B := Family.Point, C := Vector n].composeContinuous baseSpace Trivial.topology (coordinateTopology n)
+    (\fun (x: X) => Maps.total h (section v x)) (\fun (p: Family.Point) => p.vector)
+    (topology.Composition[A := X, B := Family.Point, C := Family.Point].composeContinuous baseSpace Trivial.topology Trivial.topology (section v) (Maps.total h) (sectionContinuous v) (Maps.continuous h)) Trivial.vectorContinuous;
+\definition regular: Native.Families[X := X].Matrix[m := n].Regular baseSpace h.fiber :=
+  \fun (v: Vector n)(i: Fin.Fin n) => topology.Composition[A := X, B := Vector n, C := K].composeContinuous baseSpace (coordinateTopology n) scalar.topological.space
+    (\fun (x: X) => (h.fiber x).apply v) (\fun (w: Vector n) => w i) (vectorContinuous v) (Coordinates.evaluationContinuous scalar.topological.space i);
