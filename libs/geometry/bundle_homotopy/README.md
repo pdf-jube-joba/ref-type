@@ -22,15 +22,12 @@ B03 の計量・有限埋め込み・射影の像束、K06 の近接射影比較
 `699c5f51` の clutching と引き戻しの比較も対象検査が終了0で成功した。
 `33fadf17` の円板の pushout と球面の同相は対象検査が終了0で成功した。
 clutching 関数のホモトピーによる束同型、閉被覆に沿う束射・束同型の貼り合わせ、連続なブロック対角作用素と直和による clutching の比較、円板の同型を比較する半球上の座標表示、境界で両立する gauge からの束同型とその逆向きの構成は未検証の WIP である。
-`.Clutching.Homotopy` の再検査は終了2、report の outcome は `memory-limit`（4,294,967,296 byte の allocation failure）で未完了となった。
-検査環境自体は利用できており、存在量化した比較の型推論を局所化した再検査も終了2・memory-limit となり未完了である。
-宣言単位の profiler は `forMotion` で停滞し、120秒の上限で終了2・未完了となった。
-選択を別 module へ分けた検査も、その存在量化の除去で180秒の上限に達し終了2・未完了となった。
-map/bind を使う検査も `forFirst` の局所的な比較 module の具体化で180秒上限・終了2となった。
-比較を関数引数へ移した検査も180秒上限・終了2で未完了となった。
-B01 の同型の逆と B02 の合成に存在量化版の通常の定理を追加し、個々の束の文脈で存在量化を除去せずに組み立て直す。
-この公開 API の追加は B01・B02 と下流を最終検査の対象に含める。
-抽象 API で組み直した検査も180秒上限・終了2で未完了となり、両端の比較に使う制限束を `Cylinder.Endpoint` そのものへそろえて段階別に再検査する。
+`.Clutching.Homotopy` の合成部分の検査は未完了である。
+2回は終了2・`memory-limit`（4,294,967,296 byte の allocation failure）、その後の修正・計測は120〜180秒上限で終了2・`time-limit` となった。
+最新の `d26d43f8` の計測は `startInverseExists` の検査で180秒上限に達した。
+環境・端末・ファイル操作は利用でき、原因の調査と型の具体化の整理を継続する。
+B01 の逆同型の存在、B02 の同型の合成・直和の存在を公開 API として追加したため、これらと下流も最終検査に含める。
+
 検査は `target/debug/cli libs --parse-only --save-source-snapshot work/<name>-snapshot.json`、続いて `target/debug/cli libs --module <scope> --source-snapshot work/<name>-snapshot.json --memory-mib 8192 --time-limit-seconds 900 --diagnostics compact --report-json work/<name>.json --cache-stats` を使用する。
-次は `.Clutching.Homotopy` を対象検査し、終了コードを確認する。
+次は `.ClosedCover` と `.BlockDiagonal` を検査し、`.Clutching.Homotopy` の型の具体化をさらに計測して修正し、終了コードを確認する。
 残作業は一般の同型への相対延長、円板の clutching のホモトピー・安定化・同型の対応、実・複素の利用例、文書・依存リンク、package全体・依存先・影響箇所・workspace の最終検査である。
