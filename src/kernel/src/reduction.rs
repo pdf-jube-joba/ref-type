@@ -637,6 +637,7 @@ fn beta_head(
     e: Expression,
     erase: bool,
 ) -> Result<Expression, crate::error::Error> {
+    let _cost = timing::costs::Scope::enter("kernel.beta-head");
     match *env.arena.read(e) {
         Node::SubsetIntro { element, .. } if erase => beta_head(env, element, erase),
         Node::App {
@@ -715,6 +716,7 @@ fn conversion(
         erase: bool,
         seen: &mut rustc_hash::FxHashSet<(Expression, Expression)>,
     ) -> Result<bool, crate::error::Error> {
+        let _cost = timing::costs::Scope::enter("kernel.conversion-pair");
         let cacheable = !env.arena.contains_meta(left) && !env.arena.contains_meta(right);
         let key = if left.index() <= right.index() {
             (left, right, erase)
