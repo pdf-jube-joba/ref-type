@@ -1,0 +1,16 @@
+\import \root.Approximation[].ComplexOn[X := X, space := bundle.baseSpace] \as Functions;
+\import Functions.Algebra[A := A, laws := laws].Compact[compact := compact, hausdorff := hausdorff, separates := separates] \as Density;
+\import \root.Approximation[].Matrices[n := n].On[X := X, space := bundle.baseSpace] \as Matrices;
+\structure Candidate[epsilon: R.Real]: \Set := {
+  value: X -> M.Matrix,
+  member: \forall (i, j: M.Index) -> \In[Functions.Function] A (\fun (x: X) => value x i j),
+  near: Matrices.Error matrix value epsilon
+};
+\definition exists: \forall (epsilon: R.Real) -> Real.Lt R.zero epsilon -> \exists Candidate[epsilon] := \block {
+  \fun (epsilon: R.Real)(positive: Real.Lt R.zero epsilon) \then
+  \takefrom a: \Cast[(X -> M.Matrix)] ({ a: (X -> M.Matrix) \where Logic.And[(\forall (i, j: M.Index) -> \In[Functions.Function] A (Matrices.entries a i j)), Matrices.Error matrix a epsilon] })
+    \by Matrices.density A matrix (\fun (i, j: M.Index) => Density.StoneWeierstrass[f := \fun (x: X) => matrix x i j, regular := regular i j].approximation) epsilon positive \then
+  \let properties: Logic.And[(\forall (i, j: M.Index) -> \In[Functions.Function] A (Matrices.entries a i j)), Matrices.Error matrix a epsilon] := \bysub((X -> M.Matrix), { a: (X -> M.Matrix) \where Logic.And[(\forall (i, j: M.Index) -> \In[Functions.Function] A (Matrices.entries a i j)), Matrices.Error matrix a epsilon] }, a) \then
+  \return \exact(Candidate[epsilon] { value := a, member := properties.left, near := properties.right }, Candidate[epsilon])
+};
+\module Using(epsilon: R.Real, candidate: Candidate[epsilon]);
