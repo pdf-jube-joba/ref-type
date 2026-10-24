@@ -48,10 +48,12 @@
 一時的に `exec-server transport disconnected` となったが、同じ作業領域へのアクセスが戻り、保存処理の終了0も確認できた。
 接続切断の根本原因は不明である。
 
-残作業は、影響する下流を含む workspace 全体の検査、最終差分・CI の確認、PR のマージと main の確認。
+workspace 全体7,557 module の初回 `work/b04-workspace` は全モジュールの処理後、最終保存中に総時間3600秒へ達し終了2・time-limit・未完了。
+同じ snapshot と共有キャッシュを使い、7200秒上限の `work/b04-workspace-retry` で再検証する。
+残作業は、この検査の保存を含む正常終了、最終差分・CI の確認、PR のマージと main の確認。
 文書・計画の完了処理後の snapshot を `work/b04-workspace-snapshot.json` に保存し、次を実行する。
 
 ```sh
 target/debug/cli libs --parse-only --save-source-snapshot work/b04-workspace-snapshot.json
-target/debug/cli libs --source-snapshot work/b04-workspace-snapshot.json --memory-mib 10240 --cache-budget-mib 12288 --time-limit-seconds 3600 --diagnostics compact --report-json work/b04-workspace.json --cache-stats
+target/debug/cli libs --source-snapshot work/b04-workspace-snapshot.json --memory-mib 10240 --cache-budget-mib 12288 --time-limit-seconds 7200 --diagnostics compact --report-json work/b04-workspace-retry.json --cache-stats
 ```
