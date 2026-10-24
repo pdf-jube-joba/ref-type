@@ -42,10 +42,10 @@ package 全体・依存先・影響箇所・workspace の最終検査、文書�
 `cargo test --workspace --locked` は最初の実行が依存取得時の proxy 接続失敗で終了101。
 ネットワークを有効にした再実行 `work/b04-rust-workspace-tests2` は383テスト成功・終了0。
 `cargo clippy --workspace --all-targets --locked --offline -- -D warnings` は CLI の時間制限条件の `nonminimal_bool` 1件で終了101（`work/b04-clippy`）。
-同値な `is_none_or` 条件へ修正し、clippy と CLI テスト・通常ビルドを再実行する。
-受理・拒否テストは未実施。
+同値な `is_none_or` 条件へ修正後、clippy の再実行は終了0、CLI テスト8件・通常ビルドも終了0（`work/b04-clippy2`、`work/b04-cli-tests`、`work/b04-cli-final-build`）。
+`python3 tests/tests.py --command /workspace/ref-type/target/debug/cli` は401件成功・終了0（`work/b04-acceptance`）。
 標準の `rustfmt`・`clippy` component を導入した（終了0）。
-変更した kernel / allocator の rustfmt 検査は整形後に終了0。
+変更した Rust 10ファイルの `rustfmt --edition 2024 --check` は終了0。
 
 修正前は `Cache::insert` の scratch write 記録の4 GiB確保失敗（終了2・memory-limit）、型変換の時間制限（終了2）を確認した。
 `work/b04-cache-fixed*`、`work/b04-beta`、`work/b04-captures-final`、`work/b04-conversion-profile` は改善・計測の切り替え時に中断した（終了130・未完了）。
@@ -58,5 +58,5 @@ package 全体・依存先・影響箇所・workspace の最終検査、文書�
 共有キャッシュを保持し、同じ保存済み snapshot で package 全体を `work/b04-package-final` に再開する。
 Rust 全体テストのビルドでディスク使用量が増えたため、CLI のキャッシュ保持上限を12 GiB（`--cache-budget-mib 12288`）に下げる。
 引き戻し・直和の比較同型と局所枠での可換式を公開する `alignedIsomorphismExists` を追加した（未検証）。
-次はこの変更を新しい snapshot で検査し、package 全体と clippy の終了を確認して、受理拒否テスト・影響する下流・workspace の検査を行う。
+次は package 全体の終了を確認し、追加 API を新しい snapshot で検査してから、影響する下流を含む workspace 全体を検査する。
 B01 の逆同型存在、B02 の同型の合成・直和存在、pushout の帰納法を追加したため、それらと下流も最終検査に含める。
