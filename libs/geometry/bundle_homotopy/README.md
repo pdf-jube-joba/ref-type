@@ -21,6 +21,10 @@ B03 の計量・有限埋め込み・射影の像束、K06 の近接射影比較
 | `Disks.Clutched.Comparison.diskGaugeCriterion` | 両円板上の連続 gauge の境界での両立条件と束同型の存在の同値 |
 | `Homotopy.Examples.Mobius` / `CircleLine` | 実の符号遷移・複素単位円遷移による具体的な線束 |
 
+[実線束の例](src/Homotopy/Examples/Mobius.ref) は二点の境界上の符号を用いて円周上の束を作る。
+[複素線束の例](src/Homotopy/Examples/CircleLine.ref) は単位円の複素座標を用いて二次元球面上の束を作る。
+それぞれ実際の `Fiber` と `bundle` を公開する。
+
 `Clutching.With.Pullback` と `With.Sum` の `alignedIsomorphismExists` は、比較同型と局所枠での可換式 `alignment` をまとめて与える。
 比較の条件は \(h_-g=g' h_+\) である。
 実の場合も同じ API を用いるため、同型の判定には両円板上の gauge を明示している。
@@ -55,8 +59,11 @@ package 全体・依存先・影響箇所・workspace の最終検査、文書�
 検査は `target/debug/cli <input> --parse-only --save-source-snapshot work/<name>-snapshot.json`、続いて `target/debug/cli <input> --source-snapshot work/<name>-snapshot.json --memory-mib 8192 --cache-budget-mib 16384 --time-limit-seconds 900 --diagnostics compact --report-json work/<name>.json --cache-stats` を用いる。
 対象を絞る場合は `--module <scope>` を付ける。
 `libs/geometry/bundle_homotopy` 全体の依存閉包4,728 module の初回検査 `work/b04-package-first` は3,124 module の完了後、本体の未検証箇所を先に確認するため約770秒で中断した（終了130・未完了）。
-共有キャッシュを保持し、同じ保存済み snapshot で package 全体を `work/b04-package-final` に再開する。
+共有キャッシュを保持し、同じ保存済み snapshot の package 全体 `work/b04-package-final` は4,728 module、キャッシュ保存完了・終了0で成功した。
+この snapshot は `alignedIsomorphismExists` 追加前なので、最新ソースの再検査が必要である。
+保存中に端末が `exec-server transport disconnected` となったが、同一作業領域へのアクセスが戻り、環境状態 running / connected、終了コード0・acceptedレポート・完了ログ・保存失敗0を確認できた。
+接続切断の根本原因は不明である。
 Rust 全体テストのビルドでディスク使用量が増えたため、CLI のキャッシュ保持上限を12 GiB（`--cache-budget-mib 12288`）に下げる。
 引き戻し・直和の比較同型と局所枠での可換式を公開する `alignedIsomorphismExists` を追加した（未検証）。
-次は package 全体の終了を確認し、追加 API を新しい snapshot で検査してから、影響する下流を含む workspace 全体を検査する。
+次は最新ソースを `work/b04-package-current-snapshot.json` に保存して package 全体を再検査し、影響する下流を含む workspace 全体を検査する。
 B01 の逆同型存在、B02 の同型の合成・直和存在、pushout の帰納法を追加したため、それらと下流も最終検査に含める。
