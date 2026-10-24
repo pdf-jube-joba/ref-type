@@ -18,6 +18,9 @@
 
 ## 射影の像と直交補束
 
+`Finite.ImageBasis[map, idempotent]` は一般の冪等な線形写像の列を順に処理し、その像を張る正規直交枠を構成する。
+`Finite.ProjectionBasis` はこの共通構成を Hermitian 射影に適用し、座標による射影の再構成を導く。
+
 | API | 構成と証明 |
 | --- | --- |
 | `Finite.ProjectionBasis.basisExists` | 射影された標準基底を順に正規直交化して像の有限基底を構成する。 |
