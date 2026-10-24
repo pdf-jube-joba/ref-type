@@ -8,7 +8,9 @@ B03 の計量・有限埋め込み・射影の像束、K06 の近接射影比較
 
 基点は K06 の統合済み main `75e87a4c`、ブランチは `math/b04-bundle-homotopy`。
 開始時にリモートの B04 ブランチ・open PR がないことを確認した。
+作業は [draft PR #43](https://github.com/pdf-jube-joba/ref-type/pull/43) に保存する。
 近接射影間の比較を実・複素共通のスカラーに移す最初の構成を追加した。
-未検証の WIP であり、最後の検証済み入力は K06 main の workspace 7,441 module（終了コード0）である。
-次は workspace の構文解析と `bundle_homotopy.Homotopy.Over.ProjectionComparison` の対象検査を共有キャッシュで実行する。
+`d7312c53` の `ProjectionComparison` は参照依存先を含む458 module・48ステップが終了コード0で成功し、保存処理の終了も確認した。
+その後、指定した部分集合上で恒等となる射影族の比較を追加しており、これは未検証の WIP である。
+次は workspace の構文解析と `bundle_homotopy.Homotopy.Over.Projections.Homotopy` の対象検査を共有キャッシュで実行し、終了コードを確認する。
 残作業は両端の比較、ホモトピックな引き戻し、相対的な同型の延長、円板の clutching とホモトピー・安定化・同型の対応、利用例、全依存と下流の最終検査である。

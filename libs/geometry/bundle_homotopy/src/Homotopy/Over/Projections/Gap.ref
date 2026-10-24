@@ -1,0 +1,24 @@
+\import Hermitian.At[n := n].Families[X := X] \as Vectors;
+\import Vectors.Matrix[m := n] \as Maps;
+\import Spaces.Linear[V := Vector n, W := Vector n, source := coordinates n, target := coordinates n] \as End;
+\definition sourceComplement[x: X]: Native.Projection := Native.OnProjection[P := P x].complement;
+\definition targetComplement[x: X]: Native.Projection := Native.OnProjection[P := Q x].complement;
+\definition sourceRegular: Maps.Regular baseSpace (\fun (x: X) => (sourceComplement x).map) :=
+  \fun (v: Vector n) => Vectors.addition baseSpace (\fun (_: X) => v) (\fun (x: X) => (coordinates n).neg ((P x).map.apply v)) (Vectors.constant baseSpace v)
+    (Vectors.negative baseSpace (\fun (x: X) => (P x).map.apply v) (regularP v));
+\definition targetRegular: Maps.Regular baseSpace (\fun (x: X) => (targetComplement x).map) :=
+  \fun (v: Vector n) => Vectors.addition baseSpace (\fun (_: X) => v) (\fun (x: X) => (coordinates n).neg ((Q x).map.apply v)) (Vectors.constant baseSpace v)
+    (Vectors.negative baseSpace (\fun (x: X) => (Q x).map.apply v) (regularQ v));
+\definition h[x: X]: End.Map := \parent.Between[P := P x, Q := Q x].h;
+\definition regular: Maps.Regular baseSpace h := \fun (v: Vector n) => Vectors.addition baseSpace _ _
+  (Maps.evaluate baseSpace (\fun (x: X) => (Q x).map) (\fun (x: X) => (P x).map.apply v) (\fun (j: Fin.Fin n) => regularQ (Geometry.Finite[n := n].basis j)) (regularP v))
+  (Maps.evaluate baseSpace (\fun (x: X) => (targetComplement x).map) (\fun (x: X) => (sourceComplement x).map.apply v)
+    (\fun (j: Fin.Fin n) => targetRegular (Geometry.Finite[n := n].basis j)) (sourceRegular v));
+\definition intertwines: \forall (x: X)(v: Vector n) -> (Q x).map.apply ((h x).apply v) = (h x).apply ((P x).map.apply v) :=
+  \fun (x: X) => \parent.Between[P := P x, Q := Q x].intertwines;
+\definition domain: \Pow X := { x: X \where matrix_invariants.Field[K := K, field := field].At[n := n].Nonzero (Hermitian.At[n := n].Square[].entries (h x)) };
+\definition open: topology.Topology[Carrier := X].IsOpenIn baseSpace domain := Hermitian.At[n := n].Square[].Families[X := X].nonsingularOpen baseSpace
+  (\fun (x: X) => Hermitian.At[n := n].Square[].entries (h x)) (\fun (i, j: Fin.Fin n) => regular (Geometry.Finite[n := n].basis j) i);
+
+\definition onImage: \forall (x: X)(v: Vector n) -> (P x).map.apply v = v -> (P x).map = (Q x).map -> (h x).apply v = v :=
+  \fun (x: X) => \parent.Between[P := P x, Q := Q x].onImage;
