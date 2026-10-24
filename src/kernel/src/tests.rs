@@ -2198,3 +2198,40 @@ fn strengthening_reduces_only_dependencies_on_the_removed_binder() {
     ));
     assert_eq!(crate::reduction::strengthen(&env, set, 0).unwrap(), set);
 }
+
+#[test]
+fn curried_conversion_preserves_argument_order_and_free_variables() {
+    let env = Environment::new();
+    let a = &env.arena;
+    let set = a.sort(Sort::Base(BaseSort::Set(0)));
+    let mut term = a.alloc(Node::Equal {
+        left: a.bound(63),
+        right: a.bound(0),
+    });
+    for _ in 0..64 {
+        term = a.alloc(Node::Lambda {
+            mode: Mode::Pure,
+            var: SymbolId::ANONYMOUS,
+            domain: set,
+            body: term,
+        });
+    }
+    for index in 0..64 {
+        term = a.alloc(Node::App {
+            mode: Mode::Pure,
+            function: term,
+            argument: a.bound(index),
+        });
+    }
+    let expected = a.alloc(Node::Equal {
+        left: a.bound(0),
+        right: a.bound(63),
+    });
+    let different = a.alloc(Node::Equal {
+        left: a.bound(1),
+        right: a.bound(63),
+    });
+    assert!(reduction::erased_convertible(&env, term, expected).unwrap());
+    assert!(reduction::convertible(&env, term, expected).unwrap());
+    assert!(!reduction::erased_convertible(&env, term, different).unwrap());
+}

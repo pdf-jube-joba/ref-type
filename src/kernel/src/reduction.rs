@@ -641,22 +641,47 @@ fn beta_head(
         Node::SubsetIntro { element, .. } if erase => beta_head(env, element, erase),
         Node::App {
             mode,
-            function,
-            argument,
+            ..
         } => {
-            let function = beta_head(env, function, erase)?;
-            if let Node::Lambda {
-                mode: actual, body, ..
-            } = *env.arena.read(function)
-                && mode == actual
-            {
-                return beta_head(env, env.instantiate(body, &[argument])?, erase);
-            }
-            Ok(env.arena.alloc(Node::App {
-                mode,
+            // Substitute a curried spine simultaneously. Substituting one
+            // argument at a time repeatedly traverses every remaining binder
+            // and all captured arguments in the same shared body.
+            let mut head = e;
+            let mut arguments = Vec::new();
+            while let Node::App {
+                mode: actual,
                 function,
                 argument,
-            }))
+            } = *env.arena.read(head)
+            {
+                if actual != mode {
+                    break;
+                }
+                arguments.push(argument);
+                head = function;
+            }
+            arguments.reverse();
+            head = beta_head(env, head, erase)?;
+            let mut consumed = 0;
+            while let Node::Lambda {
+                mode: actual, body, ..
+            } = *env.arena.read(head)
+            {
+                if actual != mode || consumed == arguments.len() {
+                    break;
+                }
+                consumed += 1;
+                head = body;
+            }
+            head = env.instantiate(head, &arguments[..consumed])?;
+            for &argument in &arguments[consumed..] {
+                head = app(env, mode, head, argument);
+            }
+            if consumed > 0 {
+                beta_head(env, head, erase)
+            } else {
+                Ok(head)
+            }
         }
         _ => Ok(e),
     }
