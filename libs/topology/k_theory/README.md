@@ -33,10 +33,9 @@ B03 の同型類と補束、B02 の束演算、既存の `algebra.GroupCompletio
 ## 検証と再開
 
 基点は B04 統合済み main `4f411dda`、作業は `math/k01-grothendieck-k` / [draft PR #44](https://github.com/pdf-jube-joba/ref-type/pull/44)。
-最後の検証成功は `2f8ba902`、`work/k01-ring-computation`（対象838 module、保存完了、終了0、保存失敗0）。
-環構成・安定判定・反変関手・整数ランクと自然性・被約群・有限離散束の分類と加法群計算・一点の乗法整合性は対象検査済み。
-その後の整数値関数環、有限離散・一点の環同型、環同型を使う利用例、一般の差の安定等式判定が未検証。
-`bac1d6e9` を `work/k01-complete.source.json` に固定した対象検査が進行中。
-コマンドは `target/debug/cli libs --source-snapshot work/k01-complete.source.json --module topological_k_theory --memory-mib 8192 --cache-budget-mib 12288 --time-limit-seconds 1200 --report-json work/k01-complete.json`。
-次は終了コードと保存結果を確認し、通常の型エラーを修正する。
-その後は package 全依存閉包・workspace を共有キャッシュで検査し、下流リンク・ロードマップ・PR を整えて統合する。
+最後の検証成功は `bac1d6e9`、`work/k01-complete`（対象スコープ、保存完了、終了0、保存失敗0）。
+環構成・反変関手・ランクと自然性・被約群・安定判定・有限離散／一点の環同型・利用例は対象検査済み。
+その後の `Stability.differenceCriterion`（一般の差の判定）が未検証。
+次は `target/debug/cli libs/topology/k_theory --parse-only --save-source-snapshot work/k01-package.source.json` で入力を固定する。
+続いて `target/debug/cli libs/topology/k_theory --source-snapshot work/k01-package.source.json --memory-mib 8192 --cache-budget-mib 12288 --time-limit-seconds 1800 --report-json work/k01-package.json` で package と全依存閉包を検査し、終了コード・保存完了を確認する。
+その後は workspace の検査、下流リンク・ロードマップ・PR の整備と統合を行う。
