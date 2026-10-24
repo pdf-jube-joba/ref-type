@@ -37,5 +37,7 @@
 対象スコープ・利用例は `bac1d6e9` の `work/k01-complete`（841 module、保存完了・終了0）でも成功した。
 package コマンドは `target/debug/cli libs/topology/k_theory --source-snapshot work/k01-package.source.json --memory-mib 8192 --cache-budget-mib 12288 --time-limit-seconds 1800 --report-json work/k01-package.json`。
 その後の変更は完了ドキュメントのみで、数学ソースの未検証変更はない。
-次は `target/debug/cli libs --parse-only --save-source-snapshot work/k01-workspace.source.json` で固定し、`target/debug/cli libs --source-snapshot work/k01-workspace.source.json --memory-mib 10240 --cache-budget-mib 12288 --time-limit-seconds 7200 --report-json work/k01-workspace.json` を実行する。
-workspace の終了・保存を確認した後に PR と必要な CI を確認し、通常の merge と main の反映確認を行う。
+`764af78a` の workspace 全体は `work/k01-workspace` で7,644 moduleを再利用、保存完了・終了0（復旧・重複・再実行・失われたステップ・保存失敗は各0）。
+workspace コマンドは `target/debug/cli libs --source-snapshot work/k01-workspace.source.json --memory-mib 10240 --cache-budget-mib 12288 --time-limit-seconds 7200 --report-json work/k01-workspace.json`。
+検証後の変更はこの記録のみで、未検証の数学ソースや残る実装はない。
+次は PR の最終 head の CI・差分を確認して通常の merge を行い、main の tree が検証済みブランチと一致することを確認する。
