@@ -1,16 +1,6 @@
-\definition Agreement[p: End.Map]: \Prop := \forall (n: N.Nat^)
-  (frame: Spaces.Isomorphism[V := V, W := Fin.Fin n -> C.Complex, source := space, target := Spaces.Coordinates[I := Fin.Fin n].space].Isomorphism)
-  (off: \root.Spectral[].InFrame[V := V, space := space, T := T, n := n, frame := frame].OffSpectrum)(v: V) ->
-  p.apply v = \root.Spectral[].InFrame[V := V, space := space, T := T, n := n, frame := frame].Separated[off := off].value.apply v;
-\definition Candidate: \Set := \Cast[End.Map] ({ p: End.Map \where Agreement p });
 \definition exists: \exists Candidate := \block {
   \takefrom witness: Witness \by finite \then
-  \return \exact(\into[End.Map](\root.Spectral[].InFrame[V := V, space := space, T := T, n := witness.rank, frame := witness.frame].Separated[off := witness.off].value, Candidate) \by {
-    \fun (n: N.Nat^)
-      (frame: Spaces.Isomorphism[V := V, W := Fin.Fin n -> C.Complex, source := space, target := Spaces.Coordinates[I := Fin.Fin n].space].Isomorphism)
-      (off: \root.Spectral[].InFrame[V := V, space := space, T := T, n := n, frame := frame].OffSpectrum)(v: V) =>
-        \root.Spectral[].InFrame[V := V, space := space, T := T, n := witness.rank, frame := witness.frame].Separated[off := witness.off].Comparison[m := n, other := frame, otherOff := off].same v
-  }, Candidate)
+  \return \exact(\into[End.Map](In[witness := witness].value, Candidate) \by { In[witness := witness].agrees }, Candidate)
 };
 \definition unique: \forall (p, q: Candidate) -> p = q := \block {
   \fun (p, q: Candidate) \then
@@ -25,10 +15,11 @@
 \definition idempotent: \forall (v: V) -> value.apply (value.apply v) = value.apply v := \block {
   \fun (v: V) \then
   \takefrom witness: Witness \by finite \then
+  \let selected: End.Map := In[witness := witness].value \then
   \return eq_reason_in!{V _
-    "=" _ "by" { inFrame witness.rank witness.frame witness.off (value.apply v) }
-    "=" _ "by" { congr!{V V} \root.Spectral[].InFrame[V := V, space := space, T := T, n := witness.rank, frame := witness.frame].Separated[off := witness.off].value.apply _ _ (inFrame witness.rank witness.frame witness.off v) }
-    "=" _ "by" { \root.Spectral[].InFrame[V := V, space := space, T := T, n := witness.rank, frame := witness.frame].Separated[off := witness.off].idempotent v }
+    "=" { selected.apply (value.apply v) } "by" { inFrame witness.rank witness.frame witness.off (value.apply v) }
+    "=" { selected.apply (selected.apply v) } "by" { congr!{V V} selected.apply _ _ (inFrame witness.rank witness.frame witness.off v) }
+    "=" _ "by" { In[witness := witness].idempotent v }
     "=" _ "by" { sym!{V} _ _ (inFrame witness.rank witness.frame witness.off v) }
   }
 };
