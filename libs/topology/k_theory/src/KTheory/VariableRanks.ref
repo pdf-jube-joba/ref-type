@@ -1,0 +1,51 @@
+\import topology.Topology[Carrier := X] \as Base;
+\import std.Logic[].Equality[].Transport[A := X] \as Transport;
+\import std.Data[].Pair[] \as Pair;
+\import std.Logic[].Classical[] \as Classical;
+\definition domain[i: X]: \Pow X := Base.Singleton i;
+\import Operations.Cocycle[X := X, I := X, baseSpace := Base.Discrete, domain := domain, dimension := dimension] \as Native;
+\definition identity[i: X]: Native.Linear i i := Native.Linear i i {
+  forward := Spaces.FiniteCoordinates[n := dimension i].identity, backward := Spaces.FiniteCoordinates[n := dimension i].identity,
+  leftInverse := \fun (v: Bundles.Vector (dimension i)) => \refl(v), rightInverse := \fun (v: Bundles.Vector (dimension i)) => \refl(v)
+};
+\definition change[i, j: X][same: i = j]: Native.Linear i j :=
+  \idelim i = j \with k: X => Native.Linear i k \by { base: identity i, equality: same };
+\definition changeSelf: \forall (i: X)(same: i = i) -> change i i same = identity i :=
+  \fun (i: X)(same: i = i) => \transporteq i \with j: X => Native.Linear i j \by { base: identity i };
+\definition Vectors[i: X]: \Set := Bundles.Vector (dimension i);
+\definition changeApply: \forall (i, j: X)(same: i = j)(v: Vectors i) -> (change i j same).forward.apply v = Transport.cast Vectors i j same v :=
+  \fun (i, j: X)(same: i = j) =>
+    (\idelim i = j \with k: X => \forall (equal: i = k)(v: Vectors i) -> (change i k equal).forward.apply v = Transport.cast Vectors i k equal v \by {
+      base: \fun (equal: i = i)(v: Vectors i) => trans!{{Vectors i}} _ _ _
+        (congr!{{Native.Linear i i} {Vectors i}} (\fun (iso: Native.Linear i i) => iso.forward.apply v) _ _ (changeSelf i equal))
+        (sym!{{Vectors i}} _ _ (Transport.castRefl Vectors i v)),
+      equality: same
+    }) same;
+\definition sameIndex[x: X][i, j: Native.Index x]: i = j := trans!{X} _ _ _ (sym!{X} _ _ (\bysub(X, { i: X \where Base.Member (domain i) x }, i)))
+  (\bysub(X, { i: X \where Base.Member (domain i) x }, j));
+\definition data: Native.Data := Native.Data { transition := \fun (x: X)(i, j: Native.Index x) => change i j (sameIndex x i j) };
+\definition cocycle: Native.Cocycle := Native.Cocycle {
+  transition := data.transition,
+  identity := \fun (x: X)(i: Native.Index x)(v: Vectors i) =>
+    congr!{{Native.Linear i i} {Vectors i}} (\fun (iso: Native.Linear i i) => iso.forward.apply v) _ _ (changeSelf i (sameIndex x i i)),
+  composition := \fun (x: X)(i, j, k: Native.Index x)(v: Vectors i) =>
+    eq_reason_in!{{Vectors k} _
+      "=" { Transport.cast Vectors j k (sameIndex x j k) ((change i j (sameIndex x i j)).forward.apply v) } "by" { changeApply j k (sameIndex x j k) _ }
+      "=" { Transport.cast Vectors j k (sameIndex x j k) (Transport.cast Vectors i j (sameIndex x i j) v) } "by" { congr!{{Vectors j} {Vectors k}} (Transport.cast Vectors j k (sameIndex x j k)) _ _ (changeApply i j (sameIndex x i j) v) }
+      "=" { Transport.cast Vectors i k (sameIndex x i k) v } "by" { Transport.castComposition Vectors i j k (sameIndex x i j) (sameIndex x j k) v }
+      "=" { (change i k (sameIndex x i k)).forward.apply v } "by" { sym!{{Vectors k}} _ _ (changeApply i k (sameIndex x i k) v) }
+    }
+};
+\import Native.With[cocycle := cocycle] \as Glued;
+\module Overlap(i, j: X);
+\definition continuous: Glued.Continuous := Glued.Continuous {
+  openDomains := \fun (i: X) => Base.discreteOpen (domain i),
+  covers := \fun (x: X) => Logic.existsIntro[X, { i: X \where Base.Member (domain i) x }] x (\refl(x)),
+  transitions := \fun (i, j: X) => Overlap[i := i, j := j].regular
+};
+\definition Fiber[x: X]: \Set := Glued.Fiber x;
+\definition bundle: Bundles.Family[X := X, F := Fiber].Bundle := Glued.Construction[].bundle (Glued.regular continuous);
+\definition frame[x: X]: Bundles.Dimension[V := Fiber x, space := bundle.space x].Frame (dimension x) :=
+  Glued.At[x := x].Frame[i := \into[X](x, { i: X \where Base.Member (domain i) x }) \by { \refl(x) }].isomorphism;
+\definition rank: \forall (x: X) -> Bundles.Family[X := X, F := Fiber].Of[bundle := bundle].rank x = dimension x :=
+  \fun (x: X) => Bundles.Family[X := X, F := Fiber].Of[bundle := bundle].rankFrame x (dimension x) (frame x);
