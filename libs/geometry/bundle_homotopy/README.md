@@ -49,6 +49,7 @@ package 全体・依存先・影響箇所・workspace の最終検査、文書�
 
 検査は `target/debug/cli <input> --parse-only --save-source-snapshot work/<name>-snapshot.json`、続いて `target/debug/cli <input> --source-snapshot work/<name>-snapshot.json --memory-mib 8192 --cache-budget-mib 16384 --time-limit-seconds 900 --diagnostics compact --report-json work/<name>.json --cache-stats` を用いる。
 対象を絞る場合は `--module <scope>` を付ける。
-`libs/geometry/bundle_homotopy` 全体の依存閉包4,728 module を `work/b04-package-first` で検査中（1800秒上限）。
-次はこの検査と Rust テストの終了を確認し、型エラーを修正して保存・push する。
+`libs/geometry/bundle_homotopy` 全体の依存閉包4,728 module の初回検査 `work/b04-package-first` は3,124 module の完了後、本体の未検証箇所を先に確認するため約770秒で中断した（終了130・未完了）。
+共有キャッシュを保持し、`libs --module bundle_homotopy` を `work/b04-scope-first` で検査中。
+次は対象スコープと Rust テストの終了を確認して型エラーを修正し、package 全体・影響する下流・workspace の検査を再開する。
 B01 の逆同型存在、B02 の同型の合成・直和存在、pushout の帰納法を追加したため、それらと下流も最終検査に含める。
