@@ -49,10 +49,14 @@
         (RSums.comparison n _ _ (\fun (i: Fin.Fin n) => Real.leReplace _ _ _ _ (Laws.fieldMulComm (Abs.abs (v i)) (Abs.abs (O.sub (a i) (b i)))) (Laws.fieldMulComm (Abs.abs (v i)) epsilon)
           (Estimates.mulMonotone (Abs.abs (v i)) (Abs.abs (O.sub (a i) (b i))) epsilon (Abs.nonnegative (v i)) (near i))))));
 \definition enumeration: \forall (n: N.Nat^)(f: Fin.Fin n -> C.Complex) -> Linear.FiniteCoordinateEnumeration[].sum n f = Sums.sum n f := Sums.enumeration;
+\definition multiplicationInputDifference: \forall (a, v, w: C.Complex) -> O.sub (O.mul a v) (O.mul a w) = O.mul a (O.sub v w) := \fun (a, v, w: C.Complex) =>
+  trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (O.add (O.mul a v)) _ _ (Sign.negativeProductRight a w)) (sym!{{C.Complex}} _ _ (CP.mulAddLeft a v (O.neg w)));
 \definition inputDifference: \forall (n: N.Nat^)(a, v, w: Fin.Fin n -> C.Complex) -> O.sub (action n a v) (action n a w) = action n a (\fun (i: Fin.Fin n) => O.sub (v i) (w i)) := \fun (n: N.Nat^)(a, v, w: Fin.Fin n -> C.Complex) =>
-  trans!{{C.Complex}} _ _ _ (sumDifference n (\fun (i: Fin.Fin n) => O.mul (a i) (v i)) (\fun (i: Fin.Fin n) => O.mul (a i) (w i)))
-    (Sums.congruent n _ _ (\fun (i: Fin.Fin n) => trans!{{C.Complex}} _ _ _
-      (congr!{{C.Complex} {C.Complex}} (O.add (O.mul (a i) (v i))) _ _ (Sign.negativeProductRight (a i) (w i))) (sym!{{C.Complex}} _ _ (CP.mulAddLeft (a i) (v i) (O.neg (w i))))));
+  trans!{{C.Complex}} (O.sub (action n a v) (action n a w))
+    (Sums.sum n (\fun (i: Fin.Fin n) => O.sub (O.mul (a i) (v i)) (O.mul (a i) (w i)))) (action n a (\fun (i: Fin.Fin n) => O.sub (v i) (w i)))
+    (sumDifference n (\fun (i: Fin.Fin n) => O.mul (a i) (v i)) (\fun (i: Fin.Fin n) => O.mul (a i) (w i)))
+    (Sums.congruent n (\fun (i: Fin.Fin n) => O.sub (O.mul (a i) (v i)) (O.mul (a i) (w i)))
+      (\fun (i: Fin.Fin n) => O.mul (a i) (O.sub (v i) (w i))) (\fun (i: Fin.Fin n) => multiplicationInputDifference (a i) (v i) (w i)));
 \definition inputErrorBound: \forall (n: N.Nat^)(a, v, w: Fin.Fin n -> C.Complex)(delta: R.Real) -> (\forall (i: Fin.Fin n) -> Real.Le (Abs.abs (O.sub (v i) (w i))) delta) ->
   Real.Le (Abs.abs (O.sub (action n a v) (action n a w))) (R.mul delta (RSums.sum n (\fun (i: Fin.Fin n) => Abs.abs (a i)))) := \fun (n: N.Nat^)(a, v, w: Fin.Fin n -> C.Complex)(delta: R.Real)(near: _) =>
   Real.leReplaceLeft _ _ _ (sym!{{R.Real}} _ _ (congr!{{C.Complex} {R.Real}} Abs.abs _ _ (inputDifference n a v w)))

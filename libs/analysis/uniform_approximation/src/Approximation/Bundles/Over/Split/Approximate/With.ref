@@ -1,0 +1,18 @@
+\definition ambient: Ambient.Map := \parent.\parent.MatrixMap[a := a, regular := regularA].map;
+\definition intoAmbient: Inclusion.Map := Inclusion.Composition[Z := X, H := \fun (x: X) => Native.Vector n, range := Trivial.bundle, g := \fun (x: X) => x].compose include ambient;
+\definition map: Endomorphisms.Map := Inclusion.Composition[Z := X, H := F, range := bundle, g := \fun (x: X) => x].compose intoAmbient project;
+\definition first: \forall (x: X)(v: F x) -> (M.linear (projectionMatrix x)).apply ((M.linear (matrix x)).apply ((include.fiber x).apply v)) = (include.fiber x).apply ((h.fiber x).apply v) := \fun (x: X)(v: F x) =>
+  trans!{{Native.Vector n}} _ _ _ (congr!{{Spaces.Linear[V := Native.Vector n, W := Native.Vector n, source := Native.coordinates n, target := Native.coordinates n].Map} {Native.Vector n}} (\fun (f: Spaces.Linear[V := Native.Vector n, W := Native.Vector n, source := Native.coordinates n, target := Native.coordinates n].Map) => f.apply ((M.linear (matrix x)).apply ((include.fiber x).apply v))) _ _ (Representation.linearEntries (projection.fiber x)))
+    (trans!{{Native.Vector n}} _ _ _ (congr!{{Native.Vector n} {Native.Vector n}} (projection.fiber x).apply _ _ (onImage x v))
+      (congr!{{F x} {Native.Vector n}} (include.fiber x).apply _ _ (retraction x ((h.fiber x).apply v))));
+\definition second: \forall (x: X)(v: F x) -> (M.linear (projectionMatrix x)).apply ((M.linear (a x)).apply ((include.fiber x).apply v)) = (include.fiber x).apply ((map.fiber x).apply v) := \fun (x: X)(v: F x) =>
+  congr!{{Spaces.Linear[V := Native.Vector n, W := Native.Vector n, source := Native.coordinates n, target := Native.coordinates n].Map} {Native.Vector n}} (\fun (f: Spaces.Linear[V := Native.Vector n, W := Native.Vector n, source := Native.coordinates n, target := Native.coordinates n].Map) => f.apply ((M.linear (a x)).apply ((include.fiber x).apply v))) _ _ (Representation.linearEntries (projection.fiber x));
+\definition error: \forall (epsilon: R.Real) -> (\forall (x: X)(i, j: M.Index) -> Real.Le (Abs.abs (O.sub (matrix x i j) (a x i j))) epsilon) ->
+  \forall (x: X)(v: F x)(i: M.Index) -> Real.Le
+    (Abs.abs (O.sub ((include.fiber x).apply ((h.fiber x).apply v) i) ((include.fiber x).apply ((map.fiber x).apply v) i)))
+    (R.mul (R.mul epsilon (R.FiniteSums[].sum n (\fun (j: M.Index) => Abs.abs ((include.fiber x).apply v j)))) (R.FiniteSums[].sum n (\fun (j: M.Index) => Abs.abs (projectionMatrix x i j)))) :=
+  \fun (epsilon: R.Real)(near: _)(x: X)(v: F x)(i: M.Index) => Real.leReplaceLeft _ _ _
+    (congr!{{C.Complex} {R.Real}} Abs.abs _ _ (congr!{{C.Complex} {C.Complex} {C.Complex}} O.sub _ _ _ _
+      (congr!{{Native.Vector n} {C.Complex}} (\fun (v: Native.Vector n) => v i) _ _ (first x v))
+      (congr!{{Native.Vector n} {C.Complex}} (\fun (v: Native.Vector n) => v i) _ _ (second x v))))
+    (\root.Approximation[].Matrices[n := n].compressedError (matrix x) (a x) (projectionMatrix x) epsilon (near x) ((include.fiber x).apply v) i);
