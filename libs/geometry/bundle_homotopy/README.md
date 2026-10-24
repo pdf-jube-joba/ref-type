@@ -27,7 +27,9 @@ clutching 関数のホモトピーによる束同型、閉被覆に沿う束射�
 宣言単位の profiler は `forMotion` で停滞し、120秒の上限で終了2・未完了となった。
 選択を別 module へ分けた検査も、その存在量化の除去で180秒の上限に達し終了2・未完了となった。
 map/bind を使う検査も `forFirst` の局所的な比較 module の具体化で180秒上限・終了2となった。
-比較の三つの同型を module 引数から通常の関数引数へ移し、再検査する。
+比較を関数引数へ移した検査も180秒上限・終了2で未完了となった。
+B01 の同型の逆と B02 の合成に存在量化版の通常の定理を追加し、個々の束の文脈で存在量化を除去せずに組み立て直す。
+この公開 API の追加は B01・B02 と下流を最終検査の対象に含める。
 検査は `target/debug/cli libs --parse-only --save-source-snapshot work/<name>-snapshot.json`、続いて `target/debug/cli libs --module <scope> --source-snapshot work/<name>-snapshot.json --memory-mib 8192 --time-limit-seconds 900 --diagnostics compact --report-json work/<name>.json --cache-stats` を使用する。
 次は `.Clutching.Homotopy` を対象検査し、終了コードを確認する。
 残作業は一般の同型への相対延長、円板の clutching のホモトピー・安定化・同型の対応、実・複素の利用例、文書・依存リンク、package全体・依存先・影響箇所・workspace の最終検査である。
