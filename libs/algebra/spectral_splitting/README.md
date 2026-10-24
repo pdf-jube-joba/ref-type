@@ -85,7 +85,9 @@ Bézout 分解、Horner 評価、単位円内外の根因子と係数の連続�
 `PullbackIsomorphism` と `EmbeddedCylinder` も上表の範囲で検証済みである。
 `BundleHomotopy` は上表の範囲で検証済みである。
 `Examples.MixedRanksHomotopy` も上表の範囲で検証済みである。
-数学コードに未検証の追加はないが、package 全体・全依存閉包・影響範囲の最終検査は未実施である。
+追加した構成はそれぞれ上表の対象検査を通過した。
+package 全体・全依存閉包の最終検査は実行中であり、終了コードはまだ未確認である。
+影響する B03 package と workspace 全体の最終検査は未実施である。
 以前の全体検査の終了コード130は診断のための中断である。
 worker の checkpoint 再開が1回あったが、その原因は確定していない。
 逆行列の法則を明示する証明に変更後、該当する `Separated` は保存処理と正常終了まで確認できた。
@@ -102,6 +104,8 @@ REF_TYPE_PROFILE_PROGRESS=1 target/debug/cli libs \
   --report-json work/k06-check.json
 ```
 
-次は `target/debug/cli libs/algebra/spectral_splitting --memory-mib 8192 --cache-stats` と同じ範囲を、専用 snapshot から検証する。
+実行中の検査は `target/debug/cli libs/algebra/spectral_splitting --source-snapshot work/k06-package-snapshot.json --memory-mib 8192 --time-limit-seconds 1800 --diagnostics compact --report-json work/k06-package.json --cache-stats` である。
+次は `work/k06-package.exit` とプロセスの終了を確認する。
+別環境では同じ package を `--parse-only --save-source-snapshot` で保存し直してから実行する。
 続いて B03 package と workspace 全体を検査する。
 残作業は、対象・全依存閉包・影響する下流・workspace の最終検査、公開 API・下流リンク・ロードマップの完了更新と PR の最終確認である。
