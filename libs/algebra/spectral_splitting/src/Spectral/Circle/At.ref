@@ -73,3 +73,34 @@
         (congr!{{P.Carrier} {P.Carrier}} (P.mul b.right) _ _ (sym!{{P.Carrier}} _ _ rightAt))),
   }, Polynomials.Bezout[left p, right p, P.one])
 };
+\import Opposite.At[n := n].Regions[U := Outside, V := Inside] \as OppositeRegions;
+\definition oppositeLaws: OppositeRegions.Laws := OppositeRegions.Laws {
+  leftOpen := outsideOpen, rightOpen := insideOpen,
+  left := \fun (z: C.Complex)(outside: _) => congr!{B.Bool^ B.Bool^} B.Neg.specification _ _ (laws.right z outside),
+  right := \fun (z: C.Complex)(inside: _) => congr!{B.Bool^ B.Bool^} B.Neg.specification _ _ (laws.left z inside),
+};
+\module LocalLeft(k: N.Nat^);
+\module LocalRight(k: N.Nat^);
+\structure Index: \Set := { left: N.Nat^, right: N.Nat^ };
+\definition Domain[index: Index]: \Pow (Roots.Vector n) := { p: Roots.Vector n \where
+  Logic.And[\In[Roots.Vector n] (Regions.Domain index.left) p, \In[Roots.Vector n] (OppositeRegions.Domain index.right) p] };
+\definition open: \forall (index: Index) -> topology.Topology[Carrier := Roots.Vector n].IsOpenIn Coefficients.topology (Domain index) :=
+  \fun (index: Index) => (topology.Topology[Carrier := Roots.Vector n].topologyLaws Coefficients.topology).intersectionOpen _ _
+    (Regions.open laws index.left) (OppositeRegions.open oppositeLaws index.right);
+\definition covers: \forall (p: Roots.Vector n) -> OffSpectrum p -> \exists ( index: Index \where \In[Roots.Vector n] (Domain index) p ) := \block {
+  \fun (p: Roots.Vector n)(off: OffSpectrum p) \then
+  \takefrom a: \Cast[Roots.Vector n] ({ a: Roots.Vector n \where Coefficients.coefficients a = p }) \by Coefficients.onto p \then
+  \let at: Coefficients.coefficients a = p := \bysub(Roots.Vector n, { a: Roots.Vector n \where Coefficients.coefficients a = p }, a) \then
+  \let allowed: \forall (i: Fin.Fin n) -> Allowed (a i) := \fun (i: Fin.Fin n) => Splitting.factorsRoot Allowed (Tuples.list n a) (rootsAllowed p a at off) (a i)
+    (MonicCoordinates.occursRoot (Tuples.list n a) (a i) (Tuples.occurs n a i)) \then
+  \let index: Index := Index { left := Lists.length C.Complex (Filtering.filter (Tuples.list n a)), right := Lists.length C.Complex (Filtering.other (Tuples.list n a)) } \then
+  \return Logic.existsIntro[Index, { index: Index \where \In[Roots.Vector n] (Domain index) p }] index
+    (\idelim Coefficients.coefficients a = p \with c: Roots.Vector n => \In[Roots.Vector n] (Domain index) c \by {
+      base: Logic.And[_, _]::# (Regions.contains index.left a (Regions.RootLaws[index.left, a] { allowed := allowed, count := \refl(index.left) }))
+        (OppositeRegions.contains index.right a (OppositeRegions.RootLaws[index.right, a] {
+          allowed := \fun (i: Fin.Fin n) => Logic.orElim _ _ _ (allowed i) (Logic.Or[_, _]::right) (Logic.Or[_, _]::left),
+          count := \refl(index.right),
+        })),
+      equality: at
+    })
+};
