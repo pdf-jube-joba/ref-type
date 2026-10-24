@@ -14,7 +14,8 @@
 有限個の関数・行列成分の同時近似と引き戻しの自然性まで検証済み。
 有限和・行列作用の成分誤差評価、射影による誤差増幅評価、行列式の一様な可逆性余裕は追加済み・未検証。
 `work/k04-matrix-bounds` は参照名、以後の行列検査は暗黙型推論で終了1となり、中間式を明示して修正中。
-B03 の座標族の束写像を `CoordinateFamily` に共通化し、有限埋め込みの分裂から自己準同型を行列へ移し、近似後に束へ戻す構成と誤差評価を追加した状態は未検証。
+`work/k04-bundle-fix` は成分関数の関数外延性が必要な箇所で終了1となり、明示的な移送を追加した。
+B03 の座標族の束写像を `CoordinateFamily` に共通化し、有限埋め込みの分裂から自己準同型を行列へ移し、近似後に束へ戻す構成・誤差評価・射影と可換な可逆行列から束同型を作る構成を追加した状態は未検証。
 [draft PR #45](https://github.com/pdf-jube-joba/ref-type/pull/45) に途中保存する。
 残作業は円周単独版の検証、有限成分評価・束自己準同型・可逆性、自然性・利用例・全体検証・完了文書・統合。
 次は `cli libs --parse-only --save-source-snapshot` の後、`cli libs --source-snapshot … --module uniform_approximation --memory-mib 8192 --cache-budget-mib 12288 --time-limit-seconds 900 --report-json …` で対象を検査する。
