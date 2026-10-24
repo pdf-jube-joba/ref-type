@@ -49,7 +49,7 @@ Bézout 射影と独立性、Cayley–Hamilton による評価和の逆行列、
 
 最新の保存範囲には、特性多項式のスカラー評価と行列式の比較、および単位円上の固有値の不在との同値性を追加している。
 固有値条件と枠変更は上表の範囲で検証済みである。
-`IntervalRelations`、`Idempotents.Comparison`・`Gap` は未検証であり、package 全体の最終検査もまだ行っていない。
+`IntervalRelations`、`Idempotents.Comparison`・`Gap`・`Homotopy` は構文解析のみ成功し、型検査は未完了であり、package 全体の最終検査もまだ行っていない。
 以前の全体検査は `At.Splitting.Separated` の診断のため中断し、終了コード130を確認した。
 worker の checkpoint 再開が1回あったが、その原因は確定していない。
 逆行列の法則を明示する証明に変更後、該当部分は保存処理と正常終了まで確認できた。
@@ -64,6 +64,8 @@ target/debug/cli libs --parse-only --save-source-snapshot /tmp/k06-sources.json
 target/debug/cli libs --module spectral_splitting.Spectral.Coefficients \
   --source-snapshot /tmp/k06-sources.json --memory-mib 8192 --diagnostics compact --cache-stats
 ```
+
+依存登録の検査は終了コード1（package 名の相違）となり、`algebraic_topology` に修正後の workspace 構文解析は終了コード0を確認した。
 
 次は `REF_TYPE_PROFILE_PROGRESS=1` で module 進捗を記録し、`At.Eigenvalues` と一般の像束の `Idempotents.Comparison`・`Gap` を検査する。
 残作業は追加済みの連続射影・自然性・像束の検証、一般の束の局所構成の貼り合わせ・ホモトピー比較、具体例、公開 API の整備と全依存・下流・workspace の最終検査である。
