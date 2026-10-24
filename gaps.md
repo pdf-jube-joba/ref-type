@@ -29,6 +29,27 @@
 }
 ```
 
+## 証明引数を持つ集合値の構成
+
+次のように命題の証明を通常の関数引数にすると、`no product rule for domain Prop and body Set(0)` で失敗する。
+
+```ref
+\module Test {
+  \import std.Data[].Nat[] \as N;
+  \definition make: (N.Nat^::zero = N.Nat^::zero) -> N.Nat^ :=
+    \fun (_: N.Nat^::zero = N.Nat^::zero) => N.Nat^::zero;
+}
+```
+
+現在は証明を宣言の引数に置く。
+
+```ref
+\module Test {
+  \import std.Data[].Nat[] \as N;
+  \definition make[proof: N.Nat^::zero = N.Nat^::zero]: N.Nat^ := N.Nat^::zero;
+}
+```
+
 ## 集合族を引数に持つ structure の組み立て
 
 次のように、集合族を直接 structure の引数にしたい。
