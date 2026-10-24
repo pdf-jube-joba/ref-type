@@ -733,7 +733,29 @@ fn conversion(
             if alpha_equal(&env.arena, left, right) {
                 return Ok(true);
             }
-            if skeleton(&env.arena, left) == skeleton(&env.arena, right) {
+            if let (
+                Node::Definition {
+                    id: l,
+                    arguments: la,
+                },
+                Node::Definition {
+                    id: r,
+                    arguments: ra,
+                },
+            ) = (env.arena.get(left), env.arena.get(right))
+                && l == r
+            {
+                let mut congruent = true;
+                for &index in env.conversion_arguments(l)?.iter() {
+                    if !compare(env, la[index], ra[index], erase, &mut seen.clone())? {
+                        congruent = false;
+                        break;
+                    }
+                }
+                if congruent {
+                    return Ok(true);
+                }
+            } else if skeleton(&env.arena, left) == skeleton(&env.arena, right) {
                 let mut congruent = true;
                 for ((l, ld), (r, rd)) in comparison_children(&env.arena, left)
                     .into_iter()

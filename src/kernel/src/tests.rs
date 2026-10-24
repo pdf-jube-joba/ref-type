@@ -2235,3 +2235,60 @@ fn curried_conversion_preserves_argument_order_and_free_variables() {
     assert!(reduction::convertible(&env, term, expected).unwrap());
     assert!(!reduction::erased_convertible(&env, term, different).unwrap());
 }
+
+#[test]
+fn transparent_congruence_ignores_unused_captures_but_checks_their_types() {
+    let mut env = Environment::new();
+    let a = env.arena.clone();
+    let set = a.sort(Sort::Base(BaseSort::Set(0)));
+    let mut metas = MetaContext::new();
+    let context = vec![binding(set), binding(a.bound(0)), binding(a.bound(1))];
+    let ty = a.alloc(Node::Product {
+        var: SymbolId::ANONYMOUS,
+        domain: a.bound(2),
+        body: a.bound(3),
+    });
+    let body = a.alloc(Node::Lambda {
+        mode: Mode::Pure,
+        var: SymbolId::ANONYMOUS,
+        domain: a.bound(2),
+        body: a.bound(2),
+    });
+    let base = env
+        .register_definition(&mut metas, Definition {
+            context: context.clone(),
+            ty,
+            body,
+        })
+        .unwrap();
+    let alias_body = env
+        .reference(base, vec![a.bound(2), a.bound(1), a.bound(0)])
+        .unwrap();
+    let alias = env
+        .register_definition(&mut metas, Definition {
+            context: context.clone(),
+            ty,
+            body: alias_body,
+        })
+        .unwrap();
+    let first = env
+        .reference(alias, vec![a.bound(3), a.bound(2), a.bound(1)])
+        .unwrap();
+    let second = env
+        .reference(alias, vec![a.bound(3), a.bound(2), a.bound(0)])
+        .unwrap();
+    let different = env
+        .reference(alias, vec![a.bound(3), a.bound(1), a.bound(0)])
+        .unwrap();
+    assert!(reduction::erased_convertible(&env, first, second).unwrap());
+    assert!(!reduction::erased_convertible(&env, first, different).unwrap());
+    let mut outer = context;
+    outer.push(binding(a.bound(2)));
+    Checker::new(&env, &mut metas, outer.clone())
+        .infer(first)
+        .unwrap();
+    let ill_typed = env
+        .reference(alias, vec![a.bound(3), a.bound(2), set])
+        .unwrap();
+    assert!(Checker::new(&env, &mut metas, outer).infer(ill_typed).is_err());
+}

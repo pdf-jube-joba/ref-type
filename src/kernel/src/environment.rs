@@ -49,6 +49,8 @@ pub struct Environment {
     #[serde(skip)]
     pub(crate) conversions: RefCell<Cache<(Expression, Expression, bool), bool>>,
     #[serde(skip)]
+    conversion_arguments: RefCell<FxHashMap<DefinitionId, std::rc::Rc<[usize]>>>,
+    #[serde(skip)]
     pub(crate) checked: RefCell<Cache<(crate::sharing::ContextId, Expression, Expression), ()>>,
     #[serde(skip)]
     pub(crate) validated_contexts: RefCell<Cache<crate::sharing::ContextId, ()>>,
@@ -73,6 +75,7 @@ impl Default for Environment {
             contexts: RefCell::default(),
             inferred: RefCell::default(),
             conversions: RefCell::default(),
+            conversion_arguments: RefCell::default(),
             checked: RefCell::default(),
             validated_contexts: RefCell::default(),
             heads: RefCell::default(),
@@ -180,6 +183,55 @@ impl Environment {
         self.instantiations
             .borrow_mut()
             .apply(&self.arena, term, arguments)
+    }
+
+    /// Arguments which can occur after expanding this transparent definition.
+    /// Certificates erased by conversion and unused arguments of referenced
+    /// definitions cannot affect the resulting expression.
+    pub(crate) fn conversion_arguments(
+        &self,
+        id: DefinitionId,
+    ) -> Result<std::rc::Rc<[usize]>, crate::error::Error> {
+        if let Some(arguments) = self.conversion_arguments.borrow().get(&id) {
+            return Ok(arguments.clone());
+        }
+        let definition = self.definition(id)?;
+        let mut used = vec![false; definition.context.len()];
+        let mut pending = vec![(definition.body, 0)];
+        let mut seen = rustc_hash::FxHashSet::default();
+        while let Some((term, depth)) = pending.pop() {
+            if self.arena.max_loose_bound(term).is_none_or(|i| i < depth)
+                || !seen.insert((term, depth))
+            {
+                continue;
+            }
+            match self.arena.get(term) {
+                Node::Bound(index) => {
+                    if index >= depth {
+                        used[definition.context.len() - 1 - (index - depth)] = true;
+                    }
+                }
+                Node::Definition { id, arguments } => {
+                    for &index in self.conversion_arguments(id)?.iter() {
+                        pending.push((arguments[index], depth));
+                    }
+                }
+                _ => {
+                    for (child, bound) in comparison_children(&self.arena, term) {
+                        pending.push((child, depth + bound));
+                    }
+                }
+            }
+        }
+        let arguments: std::rc::Rc<[usize]> = used
+            .into_iter()
+            .enumerate()
+            .filter_map(|(index, used)| used.then_some(index))
+            .collect();
+        self.conversion_arguments
+            .borrow_mut()
+            .insert(id, arguments.clone());
+        Ok(arguments)
     }
     pub(crate) fn shifted(
         &self,
