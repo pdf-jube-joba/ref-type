@@ -9,5 +9,5 @@
 
 ## 依存するタスク
 
-- [B04 束のホモトピー不変性と clutching](b04-bundle-homotopy.md)
+- [B04 束のホモトピー不変性と clutching](../../libs/geometry/bundle_homotopy/README.md)
 - [B05 有限 Grassmannian と普遍束](b05-grassmannians.md)

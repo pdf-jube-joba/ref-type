@@ -11,4 +11,4 @@
 
 - [束の計量・補束と同型類](../../libs/geometry/bundle_complements/README.md)
 - [K02 CW cofibration と Puppe 列](k02-cofibration-puppe.md)
-- [B04 束のホモトピー不変性と clutching](b04-bundle-homotopy.md)
+- [B04 束のホモトピー不変性と clutching](../../libs/geometry/bundle_homotopy/README.md)
