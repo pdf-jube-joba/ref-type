@@ -1,45 +1,76 @@
-# 束の計量と射影表示（B03、進行中）
+# 束の計量・直交補束と同型類
 
-入口は `bundle_complements.Complements.Over[K, field, conjugation, scalar]` である。
-[vector_bundles](../vector_bundles/README.md)、[bundle_operations](../bundle_operations/README.md)、[hermitian_frames](../../algebra/hermitian_frames/README.md) を再利用する。
+入口は `bundle_complements.Complements.Over[K, field, conjugation, scalar]`。
+スカラーは [vector_bundles](../vector_bundles/README.md) の実・複素の実装を渡し、線形演算は [bundle_operations](../bundle_operations/README.md)、正規直交化と行列族の連続性は [hermitian_frames](../../algebra/hermitian_frames/README.md) を使う。
 
-`For[X, F, bundle].embeddingExists` はコンパクト Hausdorff 性から有限従属分割を構成し、重み付き局所座標の零延長と連結によって有限次元自明束への連続な単射を与える。
-`FromPartition` は明示した有限分割にも適用でき、和が1であることから核が零であることを導く。
-`For.metricExists` と `For.FromEmbedding.metric` は標準内積を引き戻した正定値な実・Hermitian 計量で、内積の全空間上の連続性を証明する。
+## 計量と有限埋め込み
 
-`Finite.ProjectionBasis.basisExists` は射影された標準基底を順に正規直交化して像の有限基底を構成する。
-`Projection[X, n, baseSpace, P, regular].bundle` は任意の連続な直交射影の像の束である。
-`Around` は中心で恒等となる比較行列と連続な逆行列から局所自明化を作り、一定階数の追加仮定を使わない。
-`inclusion` と `projectMap` は自明束への包含と自明束からの射影である。
+`For[X, F, bundle].embeddingExists` は、コンパクト Hausdorff 底空間上の局所自明化に従属する有限分割を構成する。
+`Weighted` は重み付き局所座標を台の外で零延長し、`build` は座標を連結する。
+`FromPartition` は重みの和が1であることから核が零であることを証明する。
+既存の `PartitionOfUnity` と `ZeroExtension` により、零延長の連続性も証明する。
+周囲次元は有限個の局所次元の和であり、底の連結性や一定ランクを仮定しない。
 
-`For.FromEmbedding.Image.projection` は埋め込みの像への一意な直交射影で、局所的な連続 Gram–Schmidt から行列族の連続性を証明する。
-`Image.isomorphism` は元の束と射影の像の束を比較する。
-`Finite.InverseFamily` は局所 Gram 座標と逆座標の族の連続性を与える。
+`Embedding` は次元、連続な束写像、各ファイバー上の単射性をまとめる。
+`FromEmbedding.metric` は標準内積を引き戻した正定値な実・Hermitian 計量で、直和束の全空間上の評価の連続性を持つ。
+`metricExists` はこの構成を有限埋め込みに適用する。
+`CoordinateEmbedding` は連続な単射行列族を、自明束間の実際の連続な束写像にする。
+
+## 射影の像と直交補束
+
+| API | 構成と証明 |
+| --- | --- |
+| `Finite.ProjectionBasis.basisExists` | 射影された標準基底を順に正規直交化して像の有限基底を構成する。 |
+| `Projection[X, n, baseSpace, P, regular].bundle` | 連続な直交射影の像の束。誘導位相と局所自明化の両方向の連続性を持つ。 |
+| `Projection.Around` | 中心で恒等となる行列 \(P(x)P(a)+(I-P(x))(I-P(a))\) と連続な逆行列から局所座標を作る。一定階数の追加入力は不要。 |
+| `Projection.inclusion` / `projectMap` | 像から自明束への包含と、自明束から像への射影。 |
+| `Projection.Complement` | \(I-P\) の像の束、直交性、\(\operatorname{im}P\oplus\operatorname{im}(I-P)\cong X\times K^n\) と両逆。 |
+| `For.FromEmbedding.Image` | 埋め込みの像への一意な連続直交射影と、元の束から射影の像の束への比較同型。 |
+| `For.FromEmbedding.Complement` | 元の束の直交補束と、その直和から有限次元自明束への同型。 |
+
+射影の一意性は `Finite.Range.unique`、行列族と局所逆座標の連続性は L01・L03 の API から導く。
+
+## 集合による表示と自然性
+
+`Representations[X, baseSpace].Presentation` は有限の周囲次元と連続な直交射影の組である。
+`Realize[p].bundle` が像の束を構成する。
+`Equivalent p q` はその二つの束の同型の存在であり、周囲次元が異なる場合も許す。
+反射・対称・推移律を証明し、既存の `std.Set.Quotient` から同型類の集合 `Classes` を作る。
+`classCriterion` は同型類の等式と束同型の存在の同値を与える。
+
+`Of[F, original, same].class` はコンパクト Hausdorff 底空間上の一般の束の同型類である。
+`Of.classification` は射影表示の実現との比較を、`Comparison.criterion` は一般の二つの束の同型と同型類の等式の同値を証明する。
+類の定義はすべての同型な射影表示からなる部分集合で、埋め込みや枠の選択によらない。
+
+`Projection.Pullback.isomorphism` は射影を合成した像の束と像の束の引き戻しを比較する。
+包含・射影・補射影・直和同型の両方向についてファイバー上の可換性を証明する。
+`For.Pullback.metric` は任意の連続な計量の引き戻しである。
+`FromEmbedding.Pullback` は埋め込みを引き戻し、計量の評価式と像への射影の一致を証明する。
+`Representations.Pullback.map` は同型類の集合への引き戻し写像、`onClass` は代表上の式、`Of.naturality` は一般の束の同型類との可換性を与える。
+
+## 利用例
+
+[Moving](src/Complements/Over/Examples/Moving.ref) は L03 の列 \((1,z)\) を再利用し、計量・直交補束・自明束への直和同型を構成する。
+周囲次元1と2の表示が同じ類を定めること、二乗写像による引き戻し、計量・射影・類の自然性も使う。
+[FiniteBases](src/Complements/Over/Examples/FiniteBases.ref) は二点離散空間のコンパクト Hausdorff 性を証明し、ランク0と1の束、零束、空の底上の束に有限埋め込みと計量の存在定理を適用する。
+[Examples](src/Complements/Examples.ref) は実数・複素数のスカラーで具体化する。
 
 ## 検証と再開
 
-復元コミット `5d993911` をリモートから取得し、残存した元の55ソース、package manifest、workspace 登録の57ファイルが Git blob hash まで一致することを確認した。
-元の作業は stash に保存し、復元コミットへ fast-forward した。
-環境切断の根本原因は不明である。
+復元コミット `5d993911` を取得し、残存した元の55ソースと二つの manifest の57ファイルが Git blob hash まで一致することを確認した。
+元の作業は stash に保持した。
+切断の根本原因は不明である。
 
-検証済みコミットは `1fd5d9f6`。
-`target/debug/cli libs --module bundle_complements --memory-mib 8192 --diagnostics compact --report-json work/b03-resume-restored.json --cache-stats` は終了コード0、535 module を共有キャッシュから再利用して受理された。
-切断前の比較同型を含む検査の受理済みレポートも残存したが、今回の終了コード付き再検査を確認の基準とする。
-直交補束と自明束への直和同型の検査も終了コード0、58 checked・584ステップ・491 reused で受理された（同じコマンド、report は `work/b03-complement-check.json`）。
-同型類の最初の検査は終了コード1（非公開 import alias の参照）となり、参照を修正して再検査中である。
-最新の先行検査 `work/b03-all-check.json` は終了コード1、引き戻しの射影比較で候補の型が一致しなかった。
-同じ線形像を持つことを明示的に証明する形へ修正し、現在は次の検査を実行中である（終了未確認）。
+全追加範囲が受理された最後の数学コードは `1fd5d9f6`（直交補束まで、終了コード0）。
+射影の引き戻し比較の修正 `da1372dc` の対象検査も終了コード0、57 checked・483 reused で受理された。
+最新のコード `53df8b7e` の同型類・自然性・利用例を含む検査は実行中であり、未検証部分として扱う。
 
 ```sh
-target/debug/cli libs --parse-only --save-source-snapshot work/b03-fix-snapshot.json
-target/debug/cli libs --module bundle_complements.Complements.Over.For.FromEmbedding.Pullback --source-snapshot work/b03-fix-snapshot.json --memory-mib 8192 --diagnostics compact --report-json work/b03-fix-check.json --cache-stats
+target/debug/cli libs --parse-only --save-source-snapshot work/b03-current-snapshot.json
+target/debug/cli libs --module bundle_complements --source-snapshot work/b03-current-snapshot.json --memory-mib 8192 --diagnostics compact --report-json work/b03-current-check.json --cache-stats
 ```
 
-同型類・自然性・行列族からの埋め込み・利用例は未検証であり、最後に全追加範囲が受理された数学コードは `1fd5d9f6` である。
-同型類の比較定理はコンパクト Hausdorff 性を命題内で量化する形に整理した。
-
-次は引き戻しの射影比較を再検査し、同型類・自然性・利用例を含む package 全体を検査して、残る型エラーを修正する。
-最終的に次を共有キャッシュで実行し、下流リンク・ロードマップを更新する。
+次はこの検査の終了コードを確認し、型エラーがあれば修正して、以下の全依存・影響範囲の検査と完了時の文書更新を行う。
 
 ```sh
 target/debug/cli libs/geometry/bundle_complements --memory-mib 8192 --cache-stats
