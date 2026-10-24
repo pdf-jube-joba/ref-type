@@ -31,7 +31,10 @@ clutching 関数のホモトピーによる束同型、直和による clutching
 `afc847e1` の allocation stack 計測（`work/b04-allocation`、360秒上限）は約295秒で終了2・memory-limit。
 具体化された定義を kernel に登録する際の型変換で、`calculus::substitute` の `Cache::insert` にある scratch write 記録が4 GiBを確保しようとして失敗した。
 連続な非零スカラーから GL への構成と、実 Möbius 型・複素円周 clutching の利用例を追加したが、これらは未検証である。
-環境・端末・ファイル操作は利用でき、原因の調査を継続する。
+kernel の scratch write journal を重複排除し、キャッシュから除去した項目の記録も回収する修正を追加した。
+`cargo test -p kernel --lib` は76テスト成功・終了0（長時間 scratch の記録上限と最終値の整理の回帰テストを含む）。
+この修正後の B04 対象検査は未実施。
+環境・端末・ファイル操作は利用できる。
 B01 の逆同型の存在、B02 の同型の合成・直和の存在を公開 API として追加したため、これらと下流も最終検査に含める。
 
 検査は `target/debug/cli libs --parse-only --save-source-snapshot work/<name>-snapshot.json`、続いて `target/debug/cli libs --module <scope> --source-snapshot work/<name>-snapshot.json --memory-mib 8192 --time-limit-seconds 900 --diagnostics compact --report-json work/<name>.json --cache-stats` を使用する。
