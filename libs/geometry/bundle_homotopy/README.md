@@ -41,7 +41,8 @@ package 全体・依存先・影響箇所・workspace の最終検査、文書�
 追加した cost / allocation stack 計測は通常の型検査規則を変えない。
 `cargo test --workspace --locked` は最初の実行が依存取得時の proxy 接続失敗で終了101。
 ネットワークを有効にした再実行 `work/b04-rust-workspace-tests2` は383テスト成功・終了0。
-`cargo clippy --workspace --all-targets --locked --offline -- -D warnings` は実行中（`work/b04-clippy`）。
+`cargo clippy --workspace --all-targets --locked --offline -- -D warnings` は CLI の時間制限条件の `nonminimal_bool` 1件で終了101（`work/b04-clippy`）。
+同値な `is_none_or` 条件へ修正し、clippy と CLI テスト・通常ビルドを再実行する。
 受理・拒否テストは未実施。
 標準の `rustfmt`・`clippy` component を導入した（終了0）。
 変更した kernel / allocator の rustfmt 検査は整形後に終了0。

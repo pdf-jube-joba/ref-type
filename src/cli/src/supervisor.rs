@@ -667,9 +667,9 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
         if !outcome.status.success()
             && !outcome.cancelled
             && !outcome.timeout_hit
-            && !args
+            && args
                 .time_limit_seconds
-                .is_some_and(|limit| started.elapsed() >= Duration::from_secs(limit))
+                .is_none_or(|limit| started.elapsed() < Duration::from_secs(limit))
             && (outcome.memory_limited || outcome.status.signal().is_some())
             && let Some(checkpoint) = outcome.events.checkpoint
             && checkpoint > last_checkpoint
