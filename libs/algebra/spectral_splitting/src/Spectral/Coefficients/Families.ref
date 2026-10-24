@@ -4,11 +4,11 @@
   lower: \forall (i: Fin.Fin k) -> Functions.Continuous source (\fun (x: X) => (p x).lower i),
 };
 \definition constant: \forall (k: N.Nat^)(p: Data[k]) -> Regular[k, \fun (_: X) => p] :=
-  \fun (k: N.Nat^)(p: Data[k]) => Regular[k, _] { top := Functions.constant source p.top, lower := \fun (i: Fin.Fin k) => Functions.constant source (p.lower i) };
+  \fun (k: N.Nat^)(p: Data[k]) => Regular[k, \fun (_: X) => p] { top := Functions.constant source p.top, lower := \fun (i: Fin.Fin k) => Functions.constant source (p.lower i) };
 \definition tailRegular: \forall (k: N.Nat^)(p: X -> Data[N.Nat^::succ k]) -> Regular[N.Nat^::succ k, p] -> Regular[k, \fun (x: X) => tail k (p x)] :=
-  \fun (k: N.Nat^)(p: X -> Data[N.Nat^::succ k])(regular: _) => Regular[k, _] { top := regular.top, lower := \fun (i: Fin.Fin k) => regular.lower (Fin.succ k i) };
+  \fun (k: N.Nat^)(p: X -> Data[N.Nat^::succ k])(regular: _) => Regular[k, \fun (x: X) => tail k (p x)] { top := regular.top, lower := \fun (i: Fin.Fin k) => regular.lower (Fin.succ k i) };
 \definition prependRegular: \forall (k: N.Nat^)(a: X -> C.Complex)(p: X -> Data[k]) -> Functions.Continuous source a -> Regular[k, p] -> Regular[N.Nat^::succ k, \fun (x: X) => prepend k (a x) (p x)] :=
-  \fun (k: N.Nat^)(a: X -> C.Complex)(p: X -> Data[k])(ac: _)(pc: _) => Regular[N.Nat^::succ k, _] {
+  \fun (k: N.Nat^)(a: X -> C.Complex)(p: X -> Data[k])(ac: _)(pc: _) => Regular[N.Nat^::succ k, \fun (x: X) => prepend k (a x) (p x)] {
     top := pc.top,
     lower := Fin.cases k (\fun (i: Fin.Fin (N.Nat^::succ k)) => Functions.Continuous source (\fun (x: X) => (prepend k (a x) (p x)).lower i))
       (Functions.transport source a _ (\fun (x: X) => sym!{{C.Complex}} _ _ (Tuples.atZero k (a x) (p x).lower)) ac)
@@ -16,18 +16,18 @@
         (\fun (x: X) => sym!{{C.Complex}} _ _ (Tuples.atSuccessor k (a x) (p x).lower i)) (pc.lower i)),
   };
 \definition addition: \forall (k: N.Nat^)(p, q: X -> Data[k]) -> Regular[k, p] -> Regular[k, q] -> Regular[k, \fun (x: X) => plus k (p x) (q x)] :=
-  \fun (k: N.Nat^)(p, q: X -> Data[k])(pc: _)(qc: _) => Regular[k, _] {
+  \fun (k: N.Nat^)(p, q: X -> Data[k])(pc: _)(qc: _) => Regular[k, \fun (x: X) => plus k (p x) (q x)] {
     top := Functions.addition source _ _ pc.top qc.top,
     lower := \fun (i: Fin.Fin k) => Functions.addition source _ _ (pc.lower i) (qc.lower i),
   };
 \definition scaling: \forall (k: N.Nat^)(a: X -> C.Complex)(p: X -> Data[k]) -> Functions.Continuous source a -> Regular[k, p] -> Regular[k, \fun (x: X) => scale k (a x) (p x)] :=
-  \fun (k: N.Nat^)(a: X -> C.Complex)(p: X -> Data[k])(ac: _)(pc: _) => Regular[k, _] {
+  \fun (k: N.Nat^)(a: X -> C.Complex)(p: X -> Data[k])(ac: _)(pc: _) => Regular[k, \fun (x: X) => scale k (a x) (p x)] {
     top := Functions.multiplication source _ _ ac pc.top,
     lower := \fun (i: Fin.Fin k) => Functions.multiplication source _ _ ac (pc.lower i),
   };
 \definition constantAddition: \forall (k: N.Nat^)(a: X -> C.Complex)(p: X -> Data[k]) -> Functions.Continuous source a -> Regular[k, p] -> Regular[k, \fun (x: X) => addConstant k (a x) (p x)] :=
   \induction (k: N.Nat^) \return \forall (a: X -> C.Complex)(p: X -> Data[k]) -> Functions.Continuous source a -> Regular[k, p] -> Regular[k, \fun (x: X) => addConstant k (a x) (p x)] \with {
-    | zero: \fun (a: X -> C.Complex)(p: X -> Data[N.Nat^::zero])(ac: Functions.Continuous source a)(pc: Regular[N.Nat^::zero, p]) => Regular[N.Nat^::zero, _] { top := Functions.addition source _ _ ac pc.top, lower := pc.lower }
+    | zero: \fun (a: X -> C.Complex)(p: X -> Data[N.Nat^::zero])(ac: Functions.Continuous source a)(pc: Regular[N.Nat^::zero, p]) => Regular[N.Nat^::zero, \fun (x: X) => addConstant N.Nat^::zero (a x) (p x)] { top := Functions.addition source _ _ ac pc.top, lower := pc.lower }
     | succ: \fun (k: N.Nat^)(previous: _)(a: X -> C.Complex)(p: X -> Data[N.Nat^::succ k])(ac: Functions.Continuous source a)(pc: Regular[N.Nat^::succ k, p]) =>
       prependRegular k (\fun (x: X) => Scalars.field.add (a x) ((p x).lower (Fin.zero k))) (\fun (x: X) => tail k (p x))
         (Functions.addition source _ _ ac (pc.lower (Fin.zero k))) (tailRegular k p pc)
@@ -35,7 +35,7 @@
 \definition affineRegular: \forall (k: N.Nat^)(a, b: X -> C.Complex)(p: X -> Data[k]) -> Functions.Continuous source a -> Functions.Continuous source b -> Regular[k, p] -> Regular[N.Nat^::succ k, \fun (x: X) => affine k (a x) (b x) (p x)] :=
   \induction (k: N.Nat^) \return \forall (a, b: X -> C.Complex)(p: X -> Data[k]) -> Functions.Continuous source a -> Functions.Continuous source b -> Regular[k, p] -> Regular[N.Nat^::succ k, \fun (x: X) => affine k (a x) (b x) (p x)] \with {
     | zero: \fun (a, b: X -> C.Complex)(p: X -> Data[N.Nat^::zero])(ac: Functions.Continuous source a)(bc: Functions.Continuous source b)(pc: Regular[N.Nat^::zero, p]) => prependRegular N.Nat^::zero _ _
-      (Functions.multiplication source _ _ ac pc.top) (Regular[N.Nat^::zero, _] { top := Functions.multiplication source _ _ bc pc.top, lower := pc.lower })
+      (Functions.multiplication source _ _ ac pc.top) (Regular[N.Nat^::zero, \fun (x: X) => Data[N.Nat^::zero] { top := Scalars.field.mul (b x) (p x).top, lower := (p x).lower }] { top := Functions.multiplication source _ _ bc pc.top, lower := pc.lower })
     | succ: \fun (k: N.Nat^)(previous: _)(a, b: X -> C.Complex)(p: X -> Data[N.Nat^::succ k])(ac: Functions.Continuous source a)(bc: Functions.Continuous source b)(pc: Regular[N.Nat^::succ k, p]) =>
       prependRegular (N.Nat^::succ k) _ _ (Functions.multiplication source _ _ ac (pc.lower (Fin.zero k)))
         (constantAddition (N.Nat^::succ k) _ _ (Functions.multiplication source _ _ bc (pc.lower (Fin.zero k)))
