@@ -63,7 +63,9 @@
 
 全追加範囲が受理された最後の数学コードは `1fd5d9f6`（直交補束まで、終了コード0）。
 射影の引き戻し比較の修正 `da1372dc` の対象検査も終了コード0、57 checked・483 reused で受理された。
-最新のコード `53df8b7e` の同型類・自然性・利用例を含む検査は実行中であり、未検証部分として扱う。
+`53df8b7e` の全範囲検査は終了コード1（集合族を引数に持つ structure の組み立て）だった。
+小さい例で同じエラーを確認し、集合族を `Representing` module の引数に置く形へ修正した（最小例は終了コード0、[gaps.md](../../../gaps.md) に両形式を記録）。
+この修正後の全範囲は未検証である。
 
 ```sh
 target/debug/cli libs --parse-only --save-source-snapshot work/b03-current-snapshot.json
