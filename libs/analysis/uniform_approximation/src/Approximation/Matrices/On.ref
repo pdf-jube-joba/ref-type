@@ -1,0 +1,22 @@
+\import \root.Approximation[].ComplexOn[X := X, space := space] \as Functions;
+\import Functions.FiniteComponents[n := n].Grid[m := n] \as Entries;
+\import std.Data[].FinSet[].Choice[A := C.Complex] \as Choice;
+\definition Family: \Set := X -> M.Matrix;
+\definition entries[a: Family]: Entries.Matrices := \fun (i, j: M.Index)(x: X) => a x i j;
+\definition Error[a, b: Family][epsilon: R.Real]: \Prop := \forall (i, j: M.Index)(x: X) -> Real.Lt (Abs.abs (O.sub (a x i j) (b x i j))) epsilon;
+\definition fromEntries[g: Entries.Matrices]: Family := \fun (x: X)(i, j: M.Index) => g i j x;
+\definition density: \forall (A: \Pow Functions.Function)(a: Family) -> (\forall (i, j: M.Index) -> Functions.Approximates A (entries a i j)) -> \forall (epsilon: R.Real) -> Real.Lt R.zero epsilon ->
+  \exists (b: Family \where Logic.And[(\forall (i, j: M.Index) -> \In[Functions.Function] A (entries b i j)), Error a b epsilon]) := \block {
+  \fun (A: \Pow Functions.Function)(a: Family)(each: _)(epsilon: R.Real)(positive: _) \then
+  \takefrom g: \Cast[Entries.Matrices] ({ g: Entries.Matrices \where \forall (i: M.Index) -> Logic.And[(\forall (j: M.Index) -> \In[Functions.Function] A (g i j)), Functions.FiniteComponents[n := n].Error (entries a i) (g i) epsilon] }) \by Entries.density A (entries a) each epsilon positive \then
+  \let properties: \forall (i: M.Index) -> Logic.And[(\forall (j: M.Index) -> \In[Functions.Function] A (g i j)), Functions.FiniteComponents[n := n].Error (entries a i) (g i) epsilon] := \bysub(Entries.Matrices, { g: Entries.Matrices \where \forall (i: M.Index) -> Logic.And[(\forall (j: M.Index) -> \In[Functions.Function] A (g i j)), Functions.FiniteComponents[n := n].Error (entries a i) (g i) epsilon] }, g) \then
+  \return Logic.existsIntro[Family, { b: Family \where Logic.And[(\forall (i, j: M.Index) -> \In[Functions.Function] A (entries b i j)), Error a b epsilon] }] (fromEntries g) (Logic.And[_, _]::# (\fun (i: M.Index) => (properties i).left) (\fun (i: M.Index) => (properties i).right))
+};
+\definition actionError: \forall (a, b: Family)(epsilon: R.Real) -> Error a b epsilon -> \forall (x: X)(v: M.Vector)(i: M.Index) ->
+  Real.Le (Abs.abs (O.sub ((M.linear (a x)).apply v i) ((M.linear (b x)).apply v i))) (R.mul epsilon (R.FiniteSums[].sum n (\fun (j: M.Index) => Abs.abs (v j)))) :=
+  \fun (a, b: Family)(epsilon: R.Real)(near: _)(x: X)(v: M.Vector)(i: M.Index) => matrixActionError (a x) (b x) epsilon (\fun (i, j: M.Index) => Order.leOfLt _ _ (near i j x)) v i;
+\definition invertibleError: \forall (a, b: Family)(epsilon: R.Real) -> Real.Lt R.zero epsilon ->
+  (\forall (x: X) -> Real.Le epsilon (Abs.abs (M.determinant (a x)))) ->
+  (\forall (x: X) -> Real.Lt (Abs.abs (O.sub (M.determinant (a x)) (M.determinant (b x)))) epsilon) ->
+  \forall (x: X) -> \exists Operations.Inverse (b x) :=
+  \fun (a, b: Family)(epsilon: R.Real)(positive: _)(lower: _)(near: _)(x: X) => invertibleOfDeterminantError (a x) (b x) (Real.ltLeTrans _ _ _ (near x) (lower x));

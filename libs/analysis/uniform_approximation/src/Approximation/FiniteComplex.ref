@@ -1,0 +1,46 @@
+\import complex.Complex[] \as C;
+\import C.Def[] \as O;
+\import C.Prop[] \as CP;
+\import C.Absolute[] \as Abs;
+\import C.Algebra[] \as CA;
+\import std.Data[].FinSet[] \as Fin;
+\import R.FiniteSums[] \as RSums;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := CA.commutativeRing] \as Linear;
+\import Linear.Sign[] \as Sign;
+\import Linear.Laws[V := C.Complex, space := Linear.scalarSpace] \as ScalarLaws;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := CA.field, scalar := linear_algebra.Hermitian[].Complex[].scalar].Sums[] \as Sums;
+\import R.Estimates[].Product[] \as Bounds;
+\definition zeroAbsolute: Abs.abs O.zero = R.zero := trans!{{R.Real}} _ _ _
+  (congr!{{R.Real} {R.Real}} R.SquareRoot[].sqrt _ _ (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (Laws.fieldMulZeroLeft R.zero) (Laws.fieldMulZeroLeft R.zero)) (Laws.addZeroLeft R.zero))) R.SquareRoot[].sqrtZero;
+\definition addDifference: \forall (a, b, c, d: C.Complex) -> O.sub (O.add a b) (O.add c d) = O.add (O.sub a c) (O.sub b d) := \fun (a, b, c, d: C.Complex) =>
+  trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (O.add (O.add a b)) _ _ (Sign.negativeAddition c d)) (ScalarLaws.shuffle a b (O.neg c) (O.neg d));
+\definition subZeroRight: \forall (z: C.Complex) -> O.sub z O.zero = z := \fun (z: C.Complex) => trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (O.add z) _ _ Sign.negativeZero) (CP.addZeroRight z);
+\definition zeroSubAbsolute: \forall (z: C.Complex) -> Abs.abs (O.sub z O.zero) = Abs.abs z := \fun (z: C.Complex) => congr!{{C.Complex} {R.Real}} Abs.abs _ _ (subZeroRight z);
+\definition sumDifference: \forall (n: N.Nat^)(a, b: Fin.Fin n -> C.Complex) -> O.sub (Sums.sum n a) (Sums.sum n b) = Sums.sum n (\fun (i: Fin.Fin n) => O.sub (a i) (b i)) :=
+  \induction (n: N.Nat^) \return \forall (a, b: Fin.Fin n -> C.Complex) -> O.sub (Sums.sum n a) (Sums.sum n b) = Sums.sum n (\fun (i: Fin.Fin n) => O.sub (a i) (b i)) \with {
+    | zero: \fun (a, b: _) => CP.subSelf O.zero
+    | succ: \fun (n: N.Nat^)(previous: _)(a, b: _) => trans!{{C.Complex}} _ _ _ (addDifference (a (Fin.zero n)) (Sums.sum n (\fun (i: Fin.Fin n) => a (Fin.succ n i))) (b (Fin.zero n)) (Sums.sum n (\fun (i: Fin.Fin n) => b (Fin.succ n i))))
+      (congr!{{C.Complex} {C.Complex}} (O.add (O.sub (a (Fin.zero n)) (b (Fin.zero n)))) _ _ (previous (\fun (i: Fin.Fin n) => a (Fin.succ n i)) (\fun (i: Fin.Fin n) => b (Fin.succ n i))))
+  };
+\definition sumBound: \forall (n: N.Nat^)(a: Fin.Fin n -> C.Complex) -> Real.Le (Abs.abs (Sums.sum n a)) (RSums.sum n (\fun (i: Fin.Fin n) => Abs.abs (a i))) :=
+  \induction (n: N.Nat^) \return \forall (a: Fin.Fin n -> C.Complex) -> Real.Le (Abs.abs (Sums.sum n a)) (RSums.sum n (\fun (i: Fin.Fin n) => Abs.abs (a i))) \with {
+    | zero: \fun (a: _) => Real.leReplaceLeft R.zero (Abs.abs O.zero) R.zero (sym!{{R.Real}} _ _ zeroAbsolute) (Real.leRefl R.zero)
+    | succ: \fun (n: N.Nat^)(previous: _)(a: _) => Real.leTrans _ _ _ (Abs.triangle (a (Fin.zero n)) (Sums.sum n (\fun (i: Fin.Fin n) => a (Fin.succ n i))))
+      (Laws.addMonotoneLeft _ _ (Abs.abs (a (Fin.zero n))) (previous (\fun (i: Fin.Fin n) => a (Fin.succ n i))))
+  };
+\definition multiplicationDifference: \forall (a, b, v: C.Complex) -> O.sub (O.mul a v) (O.mul b v) = O.mul (O.sub a b) v := \fun (a, b, v: C.Complex) =>
+  trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (O.add (O.mul a v)) _ _ (Sign.negativeProduct b v)) (sym!{{C.Complex}} _ _ (CP.mulAddRight a (O.neg b) v));
+\definition action[n: N.Nat^][a, v: Fin.Fin n -> C.Complex]: C.Complex := Sums.sum n (\fun (i: Fin.Fin n) => O.mul (a i) (v i));
+\definition actionDifference: \forall (n: N.Nat^)(a, b, v: Fin.Fin n -> C.Complex) -> O.sub (action n a v) (action n b v) = action n (\fun (i: Fin.Fin n) => O.sub (a i) (b i)) v := \fun (n: N.Nat^)(a, b, v: _) =>
+  trans!{{C.Complex}} _ _ _ (sumDifference n (\fun (i: Fin.Fin n) => O.mul (a i) (v i)) (\fun (i: Fin.Fin n) => O.mul (b i) (v i)))
+    (Sums.congruent n _ _ (\fun (i: Fin.Fin n) => multiplicationDifference (a i) (b i) (v i)));
+\definition actionBound: \forall (n: N.Nat^)(a, v: Fin.Fin n -> C.Complex) -> Real.Le (Abs.abs (action n a v)) (RSums.sum n (\fun (i: Fin.Fin n) => R.mul (Abs.abs (a i)) (Abs.abs (v i)))) := \fun (n: N.Nat^)(a, v: _) =>
+  Real.leReplaceRight _ _ _ (RSums.congruent n _ _ (\fun (i: Fin.Fin n) => Abs.multiplicative (a i) (v i))) (sumBound n (\fun (i: Fin.Fin n) => O.mul (a i) (v i)));
+\definition uniformActionBound: \forall (n: N.Nat^)(a, b, v: Fin.Fin n -> C.Complex)(epsilon: R.Real) -> (\forall (i: Fin.Fin n) -> Real.Le (Abs.abs (O.sub (a i) (b i))) epsilon) ->
+  Real.Le (Abs.abs (O.sub (action n a v) (action n b v))) (R.mul epsilon (RSums.sum n (\fun (i: Fin.Fin n) => Abs.abs (v i)))) := \fun (n: N.Nat^)(a, b, v: _)(epsilon: R.Real)(near: _) =>
+  Real.leReplaceLeft _ _ _ (sym!{{R.Real}} _ _ (congr!{{C.Complex} {R.Real}} Abs.abs _ _ (actionDifference n a b v)))
+    (Real.leTrans _ _ _ (actionBound n (\fun (i: Fin.Fin n) => O.sub (a i) (b i)) v)
+      (Real.leReplaceRight _ _ _ (RSums.scalar n epsilon (\fun (i: Fin.Fin n) => Abs.abs (v i)))
+        (RSums.comparison n _ _ (\fun (i: Fin.Fin n) => Real.leReplace _ _ _ _ (Laws.fieldMulComm (Abs.abs (v i)) (Abs.abs (O.sub (a i) (b i)))) (Laws.fieldMulComm (Abs.abs (v i)) epsilon)
+          (Estimates.mulMonotone (Abs.abs (v i)) (Abs.abs (O.sub (a i) (b i))) epsilon (Abs.nonnegative (v i)) (near i))))));
+\definition enumeration: \forall (n: N.Nat^)(f: Fin.Fin n -> C.Complex) -> Linear.FiniteCoordinateEnumeration[].sum n f = Sums.sum n f := Sums.enumeration;
