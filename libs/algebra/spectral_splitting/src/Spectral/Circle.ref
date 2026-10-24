@@ -1,0 +1,45 @@
+\import complex.Complex[].Absolute[] \as Absolute;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import metric_spaces.RealLine[] \as Line;
+\import topological_algebra.Complex[] \as Plane;
+\import topology.Topology[Carrier := C.Complex] \as Space;
+\import topology.Maps[A := C.Complex, B := C.Complex].Identity[] \as Identity;
+\import std.Data[].Bool[] \as B;
+\import B.Prop[] \as Bool;
+\import Roots.Selection[] \as Decision;
+\import \parent.Coprime[] \as Coprime;
+\import galois.Field[].Over[K := C.Complex, field := Scalars.field].Polynomial[] \as Monic;
+\import Monic.Splitting[] \as Splitting;
+\import Monic.RootProduct[] \as RootProduct;
+\import fundamental_algebra.Complex[].Normalization[] \as Normalization;
+\definition Inside: \Pow C.Complex := { z: C.Complex \where R.Lt (Absolute.abs z) Real.one };
+\definition Outside: \Pow C.Complex := { z: C.Complex \where R.Lt Real.one (Absolute.abs z) };
+\definition Allowed[z: C.Complex]: \Prop := Logic.Or[Space.Member Inside z, Space.Member Outside z];
+\definition Off[z: C.Complex]: \Prop := Logic.Not (Absolute.abs z = Real.one);
+\definition insideOpen: Space.IsOpenIn Plane.topology Inside :=
+  Plane.Functions[A := C.Complex].absoluteContinuous Plane.topology (\fun (z: C.Complex) => z) (Identity.continuous Plane.topology)
+    (Line.Rays[].Below Real.one) (Line.Rays[].belowOpen Real.one);
+\definition outsideOpen: Space.IsOpenIn Plane.topology Outside :=
+  Plane.Functions[A := C.Complex].absoluteContinuous Plane.topology (\fun (z: C.Complex) => z) (Identity.continuous Plane.topology)
+    (Line.Rays[].Above Real.one) (Line.Rays[].aboveOpen Real.one);
+\definition disjoint: \forall (z: C.Complex) -> Space.Member Inside z -> Space.Member Outside z -> Logic.False :=
+  \fun (z: C.Complex) => Order.ltAsym (Absolute.abs z) Real.one;
+\definition allowed: \forall (z: C.Complex) -> Off z -> Allowed z :=
+  \fun (z: C.Complex)(off: Off z) => Logic.orElim _ _ _ (Order.ltTrichotomy (Absolute.abs z) Real.one)
+    (Logic.Or[_, _]::left)
+    (\fun (other: Logic.Or[Absolute.abs z = Real.one, R.Lt Real.one (Absolute.abs z)]) => Logic.orElim _ _ _ other
+      (\fun (on: _) => Logic.falseElim (Allowed z) (off on)) (Logic.Or[_, _]::right));
+\import Roots.Separated[U := Inside, V := Outside] \as Separation;
+\definition test: C.Complex -> B.Bool^ := Separation.test;
+\import Roots.Filtering[test := test] \as Filtering;
+\definition selected[z: C.Complex]: test z = B.Bool^::true -> Space.Member Inside z :=
+  (Decision.reflected (Space.Member Inside z) (Decision.decide (Space.Member Inside z))).ltr;
+\definition rejected[z: C.Complex]: Allowed z -> test z = B.Bool^::false -> Space.Member Outside z :=
+  \fun (all: Allowed z)(no: _) => Logic.orElim _ _ _ all
+    (\fun (inside: _) => Logic.falseElim (Space.Member Outside z)
+      (Bool.falseNeTrue (trans!{B.Bool^} _ _ _ (sym!{B.Bool^} _ _ no) (Decision.trueOf (Space.Member Inside z) inside))))
+    (\fun (outside: _) => outside);
+\module Factors;
+\module At(n: N.Nat^);
