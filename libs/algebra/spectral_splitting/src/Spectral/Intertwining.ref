@@ -1,0 +1,23 @@
+\import Polynomials.IdentityChange[] \as Identity;
+\import Polynomials.Change[L := C.Complex, target := Scalars.field, f := Identity.scalarIdentity] \as Change;
+\import Change.Intertwining[V := V, W := W, source := source, destination := destination, S := S, T := T] \as Maps;
+\import Polynomials.Action[V := V, space := source].At[T := S] \as Source;
+\import Polynomials.Action[V := W, space := destination].At[T := T] \as Destination;
+\import \root.Spectral[].Action[V := W, space := destination, T := T] \as Target;
+\definition naturality: \forall (h: Maps.Morphism)(p: P.Carrier)(v: V) -> h.apply (Source.apply p v) = Destination.apply p (h.apply v) :=
+  \fun (h: Maps.Morphism)(p: P.Carrier)(v: V) => trans!{W} _ _ _ (Maps.naturality h p v)
+    (congr!{{P.Carrier} W} (\fun (q: P.Carrier) => Destination.apply q (h.apply v)) _ _ (Identity.mapIdentity p));
+\definition annihilated: \forall (h: Maps.Morphism)(p: P.Carrier)(v: V) -> Source.apply p v = source.zero -> Destination.apply p (h.apply v) = destination.zero :=
+  \fun (h: Maps.Morphism)(p: P.Carrier)(v: V)(zero: _) => trans!{W} _ _ _ (sym!{W} _ _ (naturality h p v))
+    (trans!{W} _ _ _ (congr!{V W} h.apply _ _ zero) h.zero);
+\definition projectionNatural: \forall (h: Maps.Morphism)(p, q: P.Carrier)(b: Polynomials.Bezout[p, q, P.one])
+  (c, d: P.Carrier)(other: Polynomials.Bezout[c, d, P.one])
+  (pd: Polynomials.Bezout[p, d, P.one])(qc: Polynomials.Bezout[q, c, P.one])(v: V) ->
+  Source.apply (P.mul p q) v = source.zero -> Destination.apply (P.mul c d) (h.apply v) = destination.zero ->
+  h.apply (Source.apply (P.mul b.right q) v) = Destination.apply (P.mul other.right d) (h.apply v) :=
+  \fun (h: Maps.Morphism)(p, q: P.Carrier)(b: Polynomials.Bezout[p, q, P.one])
+    (c, d: P.Carrier)(other: Polynomials.Bezout[c, d, P.one])
+    (pd: Polynomials.Bezout[p, d, P.one])(qc: Polynomials.Bezout[q, c, P.one])(v: V)(sourceZero: _)(targetZero: _) =>
+    trans!{W} _ _ _ (naturality h (P.mul b.right q) v)
+      (Target.Comparison[p := p, q := q, b := b, c := c, d := d, other := other].same pd qc (h.apply v)
+        (annihilated h (P.mul p q) v sourceZero) targetZero);

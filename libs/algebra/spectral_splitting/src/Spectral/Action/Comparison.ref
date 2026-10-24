@@ -1,0 +1,21 @@
+\definition same: \forall (pd: Polynomials.Bezout[p, d, P.one])(qc: Polynomials.Bezout[q, c, P.one])(v: V) ->
+  E.apply (P.mul p q) v = space.zero -> E.apply (P.mul c d) v = space.zero ->
+  Primary.projection p q b v = Primary.projection c d other v := \block {
+  \fun (pd: Polynomials.Bezout[p, d, P.one])(qc: Polynomials.Bezout[q, c, P.one])(v: V)(source: _)(target: _) \then
+  \let left: V := Primary.projection p q b v \then
+  \let right: V := Primary.complementary p q b v \then
+  \let sourceLeft: E.apply p left = space.zero := Primary.intoKernel p q b v source \then
+  \let sourceRight: E.apply q right = space.zero := Primary.intoKernel q p (Primary.swap p q b) v
+    (trans!{V} _ _ _ (congr!{{P.Carrier} V} (\fun (r: P.Carrier) => E.apply r v) _ _ (P.ring.mulCommutative q p)) source) \then
+  \let targetReverse: E.apply (P.mul d c) v = space.zero := trans!{V} _ _ _
+    (congr!{{P.Carrier} V} (\fun (r: P.Carrier) => E.apply r v) _ _ (P.ring.mulCommutative d c)) target \then
+  \return Primary.uniqueLeft c d other v (Primary.Split[c, d, v] {
+    left := \into[V](left, Primary.Kernel c) \by {
+      coprimeCancellation p d pd c left sourceLeft (polynomialKernel (P.mul c d) (P.mul b.right q) v target)
+    },
+    right := \into[V](right, Primary.Kernel d) \by {
+      coprimeCancellation q c qc d right sourceRight (polynomialKernel (P.mul d c) (P.mul b.left p) v targetReverse)
+    },
+    reconstruction := Primary.reconstruction p q b v,
+  })
+};
