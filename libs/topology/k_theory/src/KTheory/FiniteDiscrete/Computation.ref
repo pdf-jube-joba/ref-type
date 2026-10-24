@@ -33,3 +33,17 @@
 \definition injective: \forall (x, y: Carrier) -> forward x = forward y -> x = y := \fun (x, y: Carrier)(equal: _) =>
   trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (leftInverse x)) (trans!{Carrier} _ _ _ (congr!{IntegerFunctions Carrier} backward _ _ equal) (leftInverse y));
 \definition additive: \forall (x, y: Carrier) -> forward (Group.add x y) = Functions.add (forward x) (forward y) := Ranks.rankAdd;
+\definition backwardAdd: \forall (f, g: IntegerFunctions) -> backward (Functions.add f g) = Group.add (backward f) (backward g) := \fun (f, g: IntegerFunctions) =>
+  injective _ _ (trans!{IntegerFunctions} _ _ _ (rightInverse (Functions.add f g))
+    (sym!{IntegerFunctions} _ _ (trans!{IntegerFunctions} _ _ _ (additive (backward f) (backward g))
+      (congr!{IntegerFunctions IntegerFunctions IntegerFunctions} Functions.add _ _ _ _ (rightInverse f) (rightInverse g)))));
+\structure AdditiveIsomorphism: \Set := {
+  to: Carrier -> IntegerFunctions,
+  from: IntegerFunctions -> Carrier,
+  leftInverse: \forall (x: Carrier) -> from (to x) = x,
+  rightInverse: \forall (f: IntegerFunctions) -> to (from f) = f,
+  addition: \forall (x, y: Carrier) -> to (Group.add x y) = Functions.add (to x) (to y)
+};
+\definition isomorphism: AdditiveIsomorphism := AdditiveIsomorphism {
+  to := forward, from := backward, leftInverse := leftInverse, rightInverse := rightInverse, addition := additive
+};
