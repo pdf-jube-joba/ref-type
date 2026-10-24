@@ -1,0 +1,30 @@
+\import \parent.AdditiveMonoid[] \as Add;
+\import \parent.MultiplicativeMonoid[] \as Multiply;
+\import std.Alg[].Alg[] \as Alg;
+\import std.Alg[].Monoid[] \as Monoid;
+\definition add: Classes -> Classes -> Classes := Add.add;
+\definition mul: Classes -> Classes -> Classes := Multiply.mul;
+\definition zeroClass: Classes := Add.zeroClass;
+\definition oneClass: Classes := Multiply.oneClass;
+\module Distributing(p, q, r: Presentation);
+\module Zero(p: Presentation);
+\definition leftDistributive: \forall (a, b, c: Classes) -> mul a (add b c) = add (mul a b) (mul a c) :=
+  Quotient.induction (\fun (a: Classes) => \forall (b, c: Classes) -> mul a (add b c) = add (mul a b) (mul a c))
+    (\fun (p: Presentation) => Quotient.induction2 (\fun (b, c: Classes) => mul (class p) (add b c) = add (mul (class p) b) (mul (class p) c))
+      (\fun (q, r: Presentation) => Distributing[p := p, q := q, r := r].equation));
+\definition rightDistributive: \forall (a, b, c: Classes) -> mul (add a b) c = add (mul a c) (mul b c) := \fun (a, b, c: Classes) =>
+  trans!{Classes} _ _ _ (Multiply.commutative (add a b) c)
+    (trans!{Classes} _ _ _ (leftDistributive c a b)
+      (congr!{Classes Classes Classes} add _ _ _ _ (Multiply.commutative c a) (Multiply.commutative c b)));
+\definition zeroAbsorbsLeft: \forall (a: Classes) -> mul zeroClass a = zeroClass :=
+  Quotient.induction (\fun (a: Classes) => mul zeroClass a = zeroClass) (\fun (p: Presentation) => Zero[p := p].equation);
+\definition zeroAbsorbsRight: \forall (a: Classes) -> mul a zeroClass = zeroClass := \fun (a: Classes) =>
+  trans!{Classes} _ _ _ (Multiply.commutative a zeroClass) (zeroAbsorbsLeft a);
+\definition semiring: Alg.Semiring[Classes] := Alg.Semiring[Classes] {
+  zero := zeroClass, one := oneClass, add := add, mul := mul,
+  additive := Monoid.CommutativeMonoidLaws[Classes, (Monoid.CommutativeMonoidData[Classes]::# (Monoid.MonoidData[Classes]::# zeroClass add))] {
+    monoid := Add.monoid.monoid, commutative := Add.commutative
+  }, multiplicative := Multiply.monoid.monoid,
+  leftDistributive := leftDistributive, rightDistributive := rightDistributive,
+  zeroAbsorbsLeft := zeroAbsorbsLeft, zeroAbsorbsRight := zeroAbsorbsRight
+};

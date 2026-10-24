@@ -9,7 +9,7 @@
 
 ## 依存するタスク
 
-- [K01 束の Grothendieck 環](k01-grothendieck-k.md)
+- [K01 束の Grothendieck 環と安定同型判定](../../libs/topology/k_theory/README.md)
 - [K02 CW cofibration と Puppe 列](k02-cofibration-puppe.md)
 - [B04 束のホモトピー不変性と clutching](../../libs/geometry/bundle_homotopy/README.md)
 - [B09 閉部分空間からの束の延長](b09-bundle-extension.md)

@@ -83,6 +83,7 @@
 | --- | --- | --- |
 | [topology/basic](topology/basic/README.md) | `topology` | 位相・部分空間、連続写像、コンパクト性、分離性 |
 | [topology/metric](topology/metric/README.md) | `metric_spaces` | 距離位相、距離化、実数直線、実数値関数、有限従属分割 |
+| [topology/k_theory](topology/k_theory/README.md) | `topological_k_theory` | 複素束の Grothendieck 環、安定同型判定、反変引き戻し、ランクと被約群、有限離散計算 |
 | [topology/constructions](topology/constructions/README.md) | `topological_constructions` | 積、商、直和、貼り合わせ、compact-open 位相 |
 | [topology/algebra](topology/algebra/README.md) | `topological_algebra` | 位相的代数、座標空間・行列位相、連続性判定 |
 | [topology/homotopy](topology/homotopy/README.md) | `algebraic_topology` | ホモトピー、基点付き商、mapping cone、有限 CW 対、標準単体の座標 |

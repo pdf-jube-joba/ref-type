@@ -1,0 +1,26 @@
+\import \parent.Multiplication[] \as Operation;
+\definition mul: Classes -> Classes -> Classes := Operation.mul;
+\definition onClasses: \forall (p, q: Presentation) -> mul (class p) (class q) = \parent.Multiply[p := p, q := q].value := Operation.onClasses;
+\import std.Alg[].Monoid[] \as Monoid;
+\definition oneClass: Classes := \parent.Line[].value;
+\module Commuting(p, q: Presentation);
+\module Associating(p, q, r: Presentation);
+\module Unit(p: Presentation);
+\definition commutative: \forall (a, b: Classes) -> mul a b = mul b a :=
+  Quotient.induction2 (\fun (a, b: Classes) => mul a b = mul b a)
+    (\fun (p, q: Presentation) => Commuting[p := p, q := q].equation);
+\definition leftIdentity: \forall (a: Classes) -> mul oneClass a = a :=
+  Quotient.induction (\fun (a: Classes) => mul oneClass a = a) (\fun (p: Presentation) => Unit[p := p].equation);
+\definition rightIdentity: \forall (a: Classes) -> mul a oneClass = a := \fun (a: Classes) =>
+  trans!{Classes} _ _ _ (commutative a oneClass) (leftIdentity a);
+\definition associative: \forall (a, b, c: Classes) -> mul (mul a b) c = mul a (mul b c) :=
+  Quotient.induction (\fun (a: Classes) => \forall (b, c: Classes) -> mul (mul a b) c = mul a (mul b c))
+    (\fun (p: Presentation) => Quotient.induction2 (\fun (b, c: Classes) => mul (mul (class p) b) c = mul (class p) (mul b c))
+      (\fun (q, r: Presentation) => Associating[p := p, q := q, r := r].equation));
+\definition monoid: Monoid.CommutativeMonoid[Classes] := Monoid.CommutativeMonoid[Classes] {
+  base := Monoid.MonoidData[Classes]::# oneClass mul,
+  monoid := Monoid.MonoidLaws[Classes, (Monoid.MonoidData[Classes]::# oneClass mul)] {
+    leftIdentity := leftIdentity, rightIdentity := rightIdentity, associative := associative
+  },
+  commutative := commutative
+};

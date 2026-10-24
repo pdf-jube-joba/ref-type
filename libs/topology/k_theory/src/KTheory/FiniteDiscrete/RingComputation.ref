@@ -1,0 +1,42 @@
+\import \parent.Computation[] \as Computation;
+\import K.K0[] \as Group;
+\import K.IntegerFunctions[] \as Functions;
+\import K.Ranks[] \as Ranks;
+\definition Carrier: \Set := Computation.Carrier;
+\definition IntegerFunctions: \Set := Computation.IntegerFunctions;
+\definition forward: Carrier -> IntegerFunctions := Computation.forward;
+\definition backward: IntegerFunctions -> Carrier := Computation.backward;
+\module At(p: X);
+\definition multiplicative: \forall (x, y: Carrier) -> forward (Group.mul x y) = Functions.mul (forward x) (forward y) := \fun (x, y: Carrier) =>
+  \axiom:funext(forward (Group.mul x y), Functions.mul (forward x) (forward y), \fun (p: X) => At[p := p].multiplicative x y);
+\definition zero: forward Group.zero = Functions.zero := Ranks.rankZero;
+\definition one: forward Group.one = Functions.one := Ranks.One[].virtual;
+\import algebra.Hom[A := Carrier, B := IntegerFunctions] \as Hom;
+\definition map: Hom.RingMap Group.ring Functions.ring := \into[Carrier -> IntegerFunctions](forward, Hom.RingMap Group.ring Functions.ring) \by {
+  Hom.SemiringLaws[(std.Alg[].Ring[].ringAsSemiring Carrier Group.ring), (std.Alg[].Ring[].ringAsSemiring IntegerFunctions Functions.ring), forward] {
+    zero := zero, one := one, add := Computation.additive, mul := multiplicative
+  }
+};
+\definition backwardZero: backward Functions.zero = Group.zero := Computation.injective _ _
+  (trans!{IntegerFunctions} _ _ _ (Computation.rightInverse Functions.zero) (sym!{IntegerFunctions} _ _ zero));
+\definition backwardOne: backward Functions.one = Group.one := Computation.injective _ _
+  (trans!{IntegerFunctions} _ _ _ (Computation.rightInverse Functions.one) (sym!{IntegerFunctions} _ _ one));
+\definition backwardMul: \forall (f, g: IntegerFunctions) -> backward (Functions.mul f g) = Group.mul (backward f) (backward g) := \fun (f, g: IntegerFunctions) =>
+  Computation.injective _ _ (trans!{IntegerFunctions} _ _ _ (Computation.rightInverse (Functions.mul f g))
+    (sym!{IntegerFunctions} _ _ (trans!{IntegerFunctions} _ _ _ (multiplicative (backward f) (backward g))
+      (congr!{IntegerFunctions IntegerFunctions IntegerFunctions} Functions.mul _ _ _ _ (Computation.rightInverse f) (Computation.rightInverse g)))));
+\import algebra.Hom[A := IntegerFunctions, B := Carrier] \as Inverse;
+\definition inverse: Inverse.RingMap Functions.ring Group.ring := \into[IntegerFunctions -> Carrier](backward, Inverse.RingMap Functions.ring Group.ring) \by {
+  Inverse.SemiringLaws[(std.Alg[].Ring[].ringAsSemiring IntegerFunctions Functions.ring), (std.Alg[].Ring[].ringAsSemiring Carrier Group.ring), backward] {
+    zero := backwardZero, one := backwardOne, add := Computation.backwardAdd, mul := backwardMul
+  }
+};
+\structure Isomorphism: \Set := {
+  to: Hom.RingMap Group.ring Functions.ring,
+  from: Inverse.RingMap Functions.ring Group.ring,
+  leftInverse: \forall (x: Carrier) -> from (to x) = x,
+  rightInverse: \forall (f: IntegerFunctions) -> to (from f) = f
+};
+\definition isomorphism: Isomorphism := Isomorphism {
+  to := map, from := inverse, leftInverse := Computation.leftInverse, rightInverse := Computation.rightInverse
+};

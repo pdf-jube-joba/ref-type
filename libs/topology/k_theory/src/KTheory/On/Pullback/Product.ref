@@ -1,0 +1,23 @@
+\import \parent.\parent.Multiply[p := p, q := q] \as Original;
+\import \parent.Of[F := Fiber p, original := bundle p, same := \refl(baseSpace)] \as First;
+\import \parent.Of[F := Fiber q, original := bundle q, same := \refl(baseSpace)] \as Second;
+\import \parent.Of[F := Original.FiberAt, original := Original.tensorBundle, same := \refl(baseSpace)] \as Pull;
+\import Target.Product[F := \fun (y: Y) => Fiber p (f y), G := \fun (y: Y) => Fiber q (f y), left := First.pulled, right := Second.pulled,
+  leftSame := \refl(space), rightSame := \refl(space)] \as Result;
+\import Operations.Tensor[X := X, F := Fiber p, G := Fiber q, left := bundle p, right := bundle q].Of[same := \refl(baseSpace)].Pullback[Y := Y, source := space, f := f, regular := regular] \as Comparison;
+\import Target.Compare[F := \fun (y: Y) => Original.FiberAt (f y), G := Result.FiberAt, first := Pull.pulled, second := Result.tensorBundle,
+  firstSame := \refl(space), secondSame := \refl(space)] \as Equal;
+\import \parent.\parent.MultiplicativeMonoid[] \as SourceOperation;
+\import Target.MultiplicativeMonoid[] \as TargetOperation;
+\import \parent.\parent.Realized[p := p] \as RealizedFirst;
+\import \parent.\parent.Realized[p := q] \as RealizedSecond;
+\definition firstEquation: First.value = map (class p) := trans!{{Target.Classes}} _ _ _ (sym!{{Target.Classes}} _ _ First.naturality) (congr!{Classes {Target.Classes}} map _ _ RealizedFirst.equation);
+\definition secondEquation: Second.value = map (class q) := trans!{{Target.Classes}} _ _ _ (sym!{{Target.Classes}} _ _ Second.naturality) (congr!{Classes {Target.Classes}} map _ _ RealizedSecond.equation);
+\definition equation: map (SourceOperation.mul (class p) (class q)) = TargetOperation.mul (map (class p)) (map (class q)) :=
+  eq_reason_in!{{Target.Classes} _
+    "=" { map Original.value } "by" { congr!{Classes {Target.Classes}} map _ _ (SourceOperation.onClasses p q) }
+    "=" { Pull.value } "by" { Pull.naturality }
+    "=" { Result.value } "by" { Equal.ofIsomorphism Comparison.isomorphism }
+    "=" { TargetOperation.mul First.value Second.value } "by" { sym!{{Target.Classes}} _ _ Result.onBundles }
+    "=" { TargetOperation.mul (map (class p)) (map (class q)) } "by" { congr!{{Target.Classes} {Target.Classes} {Target.Classes}} TargetOperation.mul _ _ _ _ firstEquation secondEquation }
+  };

@@ -1,0 +1,25 @@
+\import std.Arithmetic[].IntAlgebra[] \as IA;
+\import IA.Ring[] \as Integers;
+\import \parent.\parent.IntegerMaps[K := I.Int^, group := IA.additiveCommutativeGroup] \as Maps;
+\definition first: Maps.Map := Maps.Map {
+  apply := \fun (z: I.Int^) => forward (Group.mul (backward z) y),
+  zero := trans!{{I.Int^}} _ _ _ (congr!{Carrier {I.Int^}} (\fun (x: Carrier) => forward (Group.mul x y)) _ _ backwardZero)
+    (trans!{{I.Int^}} _ _ _ (congr!{Carrier {I.Int^}} forward _ _ (Group.ring.semiring.zeroAbsorbsLeft y)) zeroRank),
+  addition := \fun (a, b: I.Int^) =>
+    eq_reason_in!{{I.Int^} _
+      "=" { forward (Group.mul (Group.add (backward a) (backward b)) y) } "by" { congr!{Carrier {I.Int^}} (\fun (x: Carrier) => forward (Group.mul x y)) _ _ (backwardAdd a b) }
+      "=" { forward (Group.add (Group.mul (backward a) y) (Group.mul (backward b) y)) } "by" { congr!{Carrier {I.Int^}} forward _ _ (Group.ring.semiring.rightDistributive (backward a) (backward b) y) }
+      "=" { I.Add.specification (forward (Group.mul (backward a) y)) (forward (Group.mul (backward b) y)) } "by" { additive (Group.mul (backward a) y) (Group.mul (backward b) y) }
+    }
+};
+\definition second: Maps.Map := Maps.Map {
+  apply := \fun (z: I.Int^) => I.Mul.specification z (forward y),
+  zero := Integers.ring.semiring.zeroAbsorbsLeft (forward y),
+  addition := \fun (a, b: I.Int^) => Integers.ring.semiring.rightDistributive a b (forward y)
+};
+\definition sameOne: first.apply I.One.specification = second.apply I.One.specification :=
+  trans!{{I.Int^}} _ _ _ (congr!{Carrier {I.Int^}} (\fun (x: Carrier) => forward (Group.mul x y)) _ _ backwardOne)
+    (trans!{{I.Int^}} _ _ _ (congr!{Carrier {I.Int^}} forward _ _ (Group.ring.semiring.multiplicative.leftIdentity y))
+      (sym!{{I.Int^}} _ _ (Integers.ring.semiring.multiplicative.leftIdentity (forward y))));
+\definition equation: \forall (z: I.Int^) -> forward (Group.mul (backward z) y) = I.Mul.specification z (forward y) := \fun (z: I.Int^) =>
+  congr!{{I.Int^ -> I.Int^} {I.Int^}} (\fun (h: I.Int^ -> I.Int^) => h z) _ _ (Maps.ext first second sameOne);

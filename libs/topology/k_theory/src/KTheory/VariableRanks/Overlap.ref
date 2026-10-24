@@ -1,0 +1,18 @@
+\import Glued.Overlap[i := i, j := j] \as Change;
+\import Glued.Overlap[i := i, j := i] \as Self;
+\import Glued.Coordinates[i := j] \as Right;
+\import topology.Topology[Carrier := Change.Point] \as Points;
+\import topology.Topology[Carrier := Right.Parameter].Subspace[S := Change.Domain] \as Subspace;
+\module Diagonal;
+\definition impossible: \forall (different: Logic.Not (i = j))(p: Change.Point) -> Logic.False := \fun (different: _)(p: Change.Point) =>
+  different (trans!{X} _ _ _ (sym!{X} _ _ (\bysub(Right.Parameter, Change.Domain, p))) (\bysub(X, domain j, Right.base p)));
+\definition regular: Change.Regular := Logic.orElim[(i = j), Logic.Not (i = j), Change.Regular] (Classical.excludedMiddle (i = j))
+  (\fun (equal: i = j) => \idelim i = j \with k: X => Glued.Overlap[i := i, j := k].Regular \by { base: Diagonal[].regular, equality: equal })
+  (\fun (different: Logic.Not (i = j))(U: \Pow (Glued.Coordinates[i := i].Parameter))(open: topology.Topology[Carrier := Glued.Coordinates[i := i].Parameter].IsOpenIn (Glued.Coordinates[i := i].topology) U) =>
+    \idelim Points.Empty = topology.Maps[A := Change.Point, B := Glued.Coordinates[i := i].Parameter].Preimage Change.change U
+      \with V: \Pow Change.Point => Points.IsOpenIn (Subspace.topology Right.topology) V \by {
+        base: (Points.topologyLaws (Subspace.topology Right.topology)).emptyOpen,
+        equality: \axiom:setext(Points.Empty, topology.Maps[A := Change.Point, B := Glued.Coordinates[i := i].Parameter].Preimage Change.change U,
+          \fun (p: Change.Point)(empty: Logic.False) => Logic.falseElim _ empty,
+          \fun (p: Change.Point)(member: _) => impossible different p)
+      });
