@@ -106,3 +106,31 @@
       equality: at
     })
 };
+\definition region[b: B.Bool^]: \Pow C.Complex := B.ite (\Pow C.Complex) b Inside Outside;
+\definition chosenRoot: \forall (b: B.Bool^)(xs: Monic.Coefficients) -> Monic.Over Allowed xs ->
+  \forall (z: C.Complex) -> Evaluation.apply z (chosen b xs) = Scalars.field.zero -> \In[C.Complex] (region b) z :=
+  \induction (b: B.Bool^) \return \forall (xs: Monic.Coefficients) -> Monic.Over Allowed xs ->
+    \forall (z: C.Complex) -> Evaluation.apply z (chosen b xs) = Scalars.field.zero -> \In[C.Complex] (region b) z \with {
+    | false: \fun (xs: Monic.Coefficients)(all: _) => Splitting.factorsRoot (\fun (z: C.Complex) => Space.Member Outside z) (Filtering.other xs) (FactorLists.right xs all)
+    | true: \fun (xs: Monic.Coefficients)(all: _) => Splitting.factorsRoot (\fun (z: C.Complex) => Space.Member Inside z) (Filtering.filter xs) (FactorLists.left xs all)
+  };
+\definition chosenNonzero: \forall (b: B.Bool^)(xs: Monic.Coefficients) -> Logic.Not (chosen b xs = P.zero) :=
+  \induction (b: B.Bool^) \return \forall (xs: Monic.Coefficients) -> Logic.Not (chosen b xs = P.zero) \with {
+    | false: \fun (xs: Monic.Coefficients) => FactorLists.nonzero (Filtering.other xs)
+    | true: \fun (xs: Monic.Coefficients) => FactorLists.nonzero (Filtering.filter xs)
+  };
+\definition factorNonzero: \forall (b: B.Bool^)(p: Roots.Vector n) -> Logic.Not (factor b p = P.zero) := \block {
+  \fun (b: B.Bool^)(p: Roots.Vector n)(zero: _) \then
+  \takefrom a: \Cast[Roots.Vector n] ({ a: Roots.Vector n \where Coefficients.coefficients a = p }) \by Coefficients.onto p \then
+  \let at: Coefficients.coefficients a = p := \bysub(Roots.Vector n, { a: Roots.Vector n \where Coefficients.coefficients a = p }, a) \then
+  \return chosenNonzero b (Tuples.list n a) (trans!{{P.Carrier}} _ _ _
+    (sym!{{P.Carrier}} _ _ ((\bysub(P.Carrier, Factor b p, factor b p)) a at)) zero)
+};
+\definition factorRoot: \forall (b: B.Bool^)(p: Roots.Vector n) -> OffSpectrum p ->
+  \forall (z: C.Complex) -> Evaluation.apply z (factor b p) = Scalars.field.zero -> \In[C.Complex] (region b) z := \block {
+  \fun (b: B.Bool^)(p: Roots.Vector n)(off: OffSpectrum p)(z: C.Complex)(zero: _) \then
+  \takefrom a: \Cast[Roots.Vector n] ({ a: Roots.Vector n \where Coefficients.coefficients a = p }) \by Coefficients.onto p \then
+  \let at: Coefficients.coefficients a = p := \bysub(Roots.Vector n, { a: Roots.Vector n \where Coefficients.coefficients a = p }, a) \then
+  \return chosenRoot b (Tuples.list n a) (rootsAllowed p a at off) z (trans!{{C.Complex}} _ _ _
+    (congr!{{P.Carrier} {C.Complex}} (Evaluation.apply z) _ _ (sym!{{P.Carrier}} _ _ ((\bysub(P.Carrier, Factor b p, factor b p)) a at))) zero)
+};
