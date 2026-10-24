@@ -28,10 +28,10 @@
 比較の条件は \(h_-g=g' h_+\) である。
 実の場合も同じ API を用いるため、同型の判定には両円板上の gauge を明示している。
 
-## 検証と再開
+## 検査と統合記録
 
 ブランチは `math/b04-bundle-homotopy`、[PR #43](https://github.com/pdf-jube-joba/ref-type/pull/43)。
-実装ソースの最終変更は `2f786058`、最後に package 検査が成功したコミットは `ca2a13df`（差分は文書のみ）。
+実装ソースの最終変更は `2f786058`、package 検査の基準は `ca2a13df`、workspace 検査の基準は `ad9d9af9`（実装ソースからの差分は文書のみ）。
 最新 snapshot の `work/b04-package-current` は対象・依存閉包4,728 module、キャッシュ保存完了・終了0。
 53,943ソース検査ステップ、最大 RSS 約4,415 MiB、worker 1、復旧・重複・再実行・失われたステップ・保存失敗は0。
 実・複素の利用例、直和・安定化、円板の自明化、gauge の同型判定、比較同型の局所枠での可換式も含む。
@@ -49,9 +49,11 @@
 接続切断の根本原因は不明である。
 
 workspace 全体7,557 module の初回 `work/b04-workspace` は全モジュールの処理後、最終保存中に総時間3600秒へ達し終了2・time-limit・未完了。
-同じ snapshot と共有キャッシュを使い、7200秒上限の `work/b04-workspace-retry` で再検証する。
-残作業は、この検査の保存を含む正常終了、最終差分・CI の確認、PR のマージと main の確認。
-文書・計画の完了処理後の snapshot を `work/b04-workspace-snapshot.json` に保存し、次を実行する。
+同じ snapshot と共有キャッシュを使った `work/b04-workspace-retry` は7,557 moduleをすべて再利用し、約26秒・保存完了・終了0で成功した。
+再検査はソース検査0ステップ、復旧・重複・再実行・失われたステップ・保存失敗0。
+実装・検査の残作業はない。
+統合状態は PR #43 を参照し、再開時に未統合なら最終 CI と検証ソースの一致を確認して通常のマージを行い、main の反映を確認する。
+再検査はリポジトリルートから次を実行する。
 
 ```sh
 target/debug/cli libs --parse-only --save-source-snapshot work/b04-workspace-snapshot.json
