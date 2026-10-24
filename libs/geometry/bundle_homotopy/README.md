@@ -9,18 +9,13 @@ B03 の計量・有限埋め込み・射影の像束、K06 の近接射影比較
 基点は K06 の統合済み main `75e87a4c`、ブランチは `math/b04-bundle-homotopy`。
 開始時にリモートの B04 ブランチ・open PR がないことを確認した。
 作業は [draft PR #43](https://github.com/pdf-jube-joba/ref-type/pull/43) に保存する。
-近接射影間の比較を実・複素共通のスカラーに移す最初の構成を追加した。
-`d7312c53` の `ProjectionComparison` は参照依存先を含む458 module・48ステップが終了コード0で成功し、保存処理の終了も確認した。
-`18f1f947` の指定した部分集合上で恒等となる射影族の比較は、参照依存先を含む596 module・138ステップが終了コード0で成功した。
-最初の検査は K06 への参照パスの誤りで終了コード1となり、外部 package のパスに修正して再検証した。
-`5859e0f9` の `Cylinder` は参照依存先を含む698 module・224ステップが終了コード0で成功した。
-`13c27269` のホモトピックな引き戻しと有限表示の比較式は、参照依存先を含む707 module・265ステップが終了コード0で成功した。
-`b99e6db0` の相対ホモトピーによる引き戻し同型は、参照依存先を含む710 module・302ステップが終了コード0で成功した。
-`89e76645` の可逆作用素の位相・逆写像は対象検査が終了コード0で成功した。
-`e8849fa4` の像束の自己同型の周囲への拡張は対象検査が終了コード0で成功した（最初の引数表記ミスは終了2、API参照と型注釈の修正前の検査は終了1）。
-`7a474ac2` の動く像の射影・像が保たれる点での射影の一意性は、対象検査が終了コード0で成功した。
-`015b3158` の区間全体での相対比較（`Projections.Isotopy`）は対象検査が終了コード0で成功した。
-cofibration による任意の束の自己同型の延長、二つの開集合での clutching、pushout の帰納法の公開は未検証の WIP である。
-動く像の最初の検査は参照パスで終了1、再試行は作成途中の子 module が未保存のため構文解析で終了1となり、ファイルを追加した。
-次は workspace の構文解析と `bundle_homotopy.Homotopy.Over.For.Extensions`、続いて `.Clutching` の対象検査を共有キャッシュで実行し、終了コードを確認する。
-残作業は相対的な同型の延長、円板の clutching とホモトピー・安定化・同型の対応、利用例、全依存と下流の最終検査である。
+検証済みの最新コミットは `821023d4`（相対延長までの対象スコープ）。
+両端の束の比較、ホモトピックな引き戻し、指定部分集合上で恒等となる比較、cofibration に沿う自己同型の延長を実装した。
+共有キャッシュで `ProjectionComparison`、`Projections.Homotopy`、`Cylinder`、`For.Pullbacks.Along`、`For.Pullbacks.Relative`、`Projections.Operators.Units`、`Projections.ImageAutomorphism`、`Projections.Moved`、`Projections.Isotopy`、`For.Extensions` を検査し、それぞれプロセス・保存処理の正常終了（終了0）を確認した。
+最後の `For.Extensions` は参照依存先を含む734 moduleで成功した。
+修正前の参照・型エラーは終了1、引数の表記ミスは終了2であり、修正後に対象を再検証した。
+
+以後の二開集合での clutching、球面を覆う円板と境界遷移、pushout の帰納法の公開は未検証の WIP である。
+検査は `target/debug/cli libs --parse-only --save-source-snapshot work/<name>-snapshot.json`、続いて `target/debug/cli libs --module <scope> --source-snapshot work/<name>-snapshot.json --memory-mib 8192 --time-limit-seconds 900 --diagnostics compact --report-json work/<name>.json --cache-stats` を使用する。
+次は `.Clutching`、`.Disks` を対象検査し、終了コードを確認する。
+残作業は一般の同型への相対延長、円板の clutching のホモトピー・安定化・同型の対応、実・複素の利用例、文書・依存リンク、package全体・依存先・影響箇所・workspace の最終検査である。

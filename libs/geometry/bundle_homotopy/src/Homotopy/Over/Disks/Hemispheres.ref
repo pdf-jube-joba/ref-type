@@ -1,0 +1,55 @@
+\import Real.Distance[] \as Distance;
+\definition height[v: Disk.Disk]: Real.Real := Root.sqrt (Real.sub Real.one (Disk.normSquared v));
+\definition radicandNonnegative: \forall (v: Disk.Disk) -> R.Le Real.zero (Real.sub Real.one (Disk.normSquared v)) :=
+  \fun (v: Disk.Disk) => Distance.subNonnegative Real.one (Disk.normSquared v) (\bysub(Disk.Coordinate, Disk.ClosedBall, v));
+\definition squareHeight: \forall (v: Disk.Disk) -> Real.mul (height v) (height v) = Real.sub Real.one (Disk.normSquared v) :=
+  \fun (v: Disk.Disk) => Root.squareOfNonnegative (Real.sub Real.one (Disk.normSquared v)) (radicandNonnegative v);
+\definition unit: \forall (v: Disk.Disk) -> Real.add (Real.mul (height v) (height v)) (Disk.normSquared v) = Real.one :=
+  \fun (v: Disk.Disk) => trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add r (Disk.normSquared v)) _ _ (squareHeight v)) (Distance.subAddCancel Real.one (Disk.normSquared v));
+\definition positive[v: Disk.Disk]: Sphere.Sphere := \into[Sphere.Coordinate](Splitting.join (height v) v, Sphere.Boundary) \by {
+  trans!{Real.Real} _ _ _ (Splitting.normJoin (height v) v) (unit v)
+};
+\definition negative[v: Disk.Disk]: Sphere.Sphere := \into[Sphere.Coordinate](Splitting.join (Real.neg (height v)) v, Sphere.Boundary) \by {
+  trans!{Real.Real} _ _ _ (Splitting.normJoin (Real.neg (height v)) v)
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add r (Disk.normSquared v)) _ _ (Laws.fieldMulNegBoth (height v) (height v))) (unit v))
+};
+\definition boundaryInclusion[v: Disk.Sphere]: Disk.Disk := \into[Disk.Coordinate](v, Disk.ClosedBall) \by {
+  R.leReplaceLeft Real.one (Disk.normSquared v) Real.one (sym!{Real.Real} _ _ (\bysub(Disk.Coordinate, Disk.Boundary, v))) (R.leRefl Real.one)
+};
+\definition heightAtBoundary: \forall (v: Disk.Sphere) -> height (boundaryInclusion v) = Real.zero := \fun (v: Disk.Sphere) => trans!{Real.Real} _ _ _
+  (congr!{Real.Real Real.Real} Root.sqrt _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.sub Real.one) _ _ (\bysub(Disk.Coordinate, Disk.Boundary, v))) (Laws.subSelf Real.one))) Root.sqrtZero;
+\definition positiveBoundary: \forall (v: Disk.Sphere) -> positive (boundaryInclusion v) = Splitting.equator v := \fun (v: Disk.Sphere) =>
+  congr!{Real.Real Sphere.Coordinate} (\fun (r: Real.Real) => Splitting.join r v) _ _ (heightAtBoundary v);
+\definition negativeBoundary: \forall (v: Disk.Sphere) -> negative (boundaryInclusion v) = Splitting.equator v := \fun (v: Disk.Sphere) =>
+  congr!{Real.Real Sphere.Coordinate} (\fun (r: Real.Real) => Splitting.join r v) _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Real.neg _ _ (heightAtBoundary v)) Laws.negZero);
+\import metric_spaces.RealFunctions[A := Disk.Disk] \as DiskFunctions;
+\definition inclusionContinuous: topology.Continuity[A := Disk.Disk, B := Disk.Coordinate].Continuous Disk.diskTopology Disk.topology (\fun (v: Disk.Disk) => v) :=
+  topology.Continuity[A := Disk.Coordinate, B := Disk.Coordinate].Corestriction[S := Disk.ClosedBall].inclusionContinuous Disk.topology;
+\definition normSquaredContinuous: DiskFunctions.Continuous Disk.diskTopology (\fun (v: Disk.Disk) => Disk.normSquared v) :=
+  topology.Composition[A := Disk.Disk, B := Disk.Coordinate, C := Real.Real].composeContinuous Disk.diskTopology Disk.topology Line.topology (\fun (v: Disk.Disk) => v) Disk.normSquared inclusionContinuous Geometry.normSquaredContinuous;
+\definition heightContinuous: DiskFunctions.Continuous Disk.diskTopology height := DiskFunctions.SquareRoot[].continuous Disk.diskTopology (\fun (v: Disk.Disk) => Real.sub Real.one (Disk.normSquared v))
+  (DiskFunctions.subContinuous Disk.diskTopology (\fun (v: Disk.Disk) => Real.one) (\fun (v: Disk.Disk) => Disk.normSquared v) (DiskFunctions.constantContinuous Disk.diskTopology Real.one) normSquaredContinuous);
+\definition coordinateContinuous: \forall (i: Disk.Index) -> DiskFunctions.Continuous Disk.diskTopology (\fun (v: Disk.Disk) => v i) := \fun (i: Disk.Index) =>
+  topology.Composition[A := Disk.Disk, B := Disk.Coordinate, C := Real.Real].composeContinuous Disk.diskTopology Disk.topology Line.topology (\fun (v: Disk.Disk) => v) (\fun (v: Disk.Coordinate) => v i) inclusionContinuous
+    (topological_algebra.Coordinates[K := Real.Real, I := Disk.Index].evaluationContinuous Line.topology i);
+\definition positiveContinuous: topology.Continuity[A := Disk.Disk, B := Sphere.Sphere].Continuous Disk.diskTopology Sphere.sphereTopology positive :=
+  topology.Continuity[A := Disk.Disk, B := Sphere.Coordinate].Corestriction[S := Sphere.Boundary].corestrictContinuous Disk.diskTopology Sphere.topology positive
+    (Splitting.Continuity[A := Disk.Disk].joinContinuous Disk.diskTopology height (\fun (v: Disk.Disk) => v) heightContinuous coordinateContinuous);
+\definition negativeContinuous: topology.Continuity[A := Disk.Disk, B := Sphere.Sphere].Continuous Disk.diskTopology Sphere.sphereTopology negative :=
+  topology.Continuity[A := Disk.Disk, B := Sphere.Coordinate].Corestriction[S := Sphere.Boundary].corestrictContinuous Disk.diskTopology Sphere.topology negative
+    (Splitting.Continuity[A := Disk.Disk].joinContinuous Disk.diskTopology (\fun (v: Disk.Disk) => Real.neg (height v)) (\fun (v: Disk.Disk) => v)
+      (DiskFunctions.negContinuous Disk.diskTopology height heightContinuous) coordinateContinuous);
+\definition zeroHeight: \forall (v: Disk.Disk) -> height v = Real.zero -> Disk.normSquared v = Real.one := \fun (v: Disk.Disk)(zero: _) =>
+  sym!{Real.Real} _ _ (Distance.subZeroEq Real.one (Disk.normSquared v) (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (squareHeight v))
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ zero zero) (Laws.fieldMulZeroLeft Real.zero))));
+\definition onePositive: R.Lt Real.zero Real.one := Order.ltOfLeNotEq Real.zero Real.one Laws.oneNonnegative Laws.zeroNeOne;
+\definition positiveInU: \forall (v: Disk.Disk) -> \In[Sphere.Sphere] U (positive v) := \fun (v: Disk.Disk) =>
+  Logic.orElim[height v = Real.zero, Logic.Not (height v = Real.zero), \In[Sphere.Sphere] U (positive v)] (std.Logic[].Classical[].excludedMiddle (height v = Real.zero))
+    (\fun (zero: _) => Logic.Or[_, _]::right (R.ltReplaceRight Real.zero Real.one (tailSquared (positive v))
+      (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (zeroHeight v zero)) (congr!{Disk.Coordinate Real.Real} Disk.normSquared _ _ (sym!{Disk.Coordinate} _ _ (Splitting.tailJoin (height v) v)))) onePositive))
+    (\fun (nonzero: _) => Logic.Or[_, _]::left (Order.ltOfLeNotEq Real.zero (height v) (Root.nonnegative (Real.sub Real.one (Disk.normSquared v))) (\fun (same: Real.zero = height v) => nonzero (sym!{Real.Real} _ _ same))));
+\definition negativeInV: \forall (v: Disk.Disk) -> \In[Sphere.Sphere] V (negative v) := \fun (v: Disk.Disk) =>
+  Logic.orElim[height v = Real.zero, Logic.Not (height v = Real.zero), \In[Sphere.Sphere] V (negative v)] (std.Logic[].Classical[].excludedMiddle (height v = Real.zero))
+    (\fun (zero: _) => Logic.Or[_, _]::right (R.ltReplaceRight Real.zero Real.one (tailSquared (negative v))
+      (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (zeroHeight v zero)) (congr!{Disk.Coordinate Real.Real} Disk.normSquared _ _ (sym!{Disk.Coordinate} _ _ (Splitting.tailJoin (Real.neg (height v)) v)))) onePositive))
+    (\fun (nonzero: _) => Logic.Or[_, _]::left (Laws.negativeNegOfPositive (height v) (Order.ltOfLeNotEq Real.zero (height v) (Root.nonnegative (Real.sub Real.one (Disk.normSquared v))) (\fun (same: Real.zero = height v) => nonzero (sym!{Real.Real} _ _ same)))));
