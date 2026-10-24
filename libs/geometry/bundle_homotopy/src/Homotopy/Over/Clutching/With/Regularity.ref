@@ -2,3 +2,26 @@
 \import \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Projections[n := n].Operators[] \as Operators;
 \import Spaces.Linear[V := Vector n, W := Vector n, source := coordinates n, target := coordinates n] \as End;
 \module At(i, j: B.Bool^);
+
+\import At[i := B.Bool^::false, j := B.Bool^::true] \as FT;
+\import At[i := B.Bool^::true, j := B.Bool^::false] \as TF;
+\definition bothFT: \forall (p: FT.Point) -> \In[X] overlap (FT.base p) :=
+  \fun (p: FT.Point) => Logic.And[_, _]::#
+    (\bysub(Constructed.Coordinates[i := B.Bool^::true].Parameter, Constructed.Overlap[i := B.Bool^::false, j := B.Bool^::true].Domain, p))
+    (\bysub(X, V, Pair.first (\Cast[X] V) (Vector n) p));
+\definition bothTF: \forall (p: TF.Point) -> \In[X] overlap (TF.base p) :=
+  \fun (p: TF.Point) => Logic.And[_, _]::#
+    (\bysub(X, U, Pair.first (\Cast[X] U) (Vector n) p))
+    (\bysub(Constructed.Coordinates[i := B.Bool^::false].Parameter, Constructed.Overlap[i := B.Bool^::true, j := B.Bool^::false].Domain, p));
+\definition transitions: \forall (i, j: B.Bool^) -> Constructed.Overlap[i := i, j := j].Regular :=
+  B.cases2 (\fun (i, j: B.Bool^) => Constructed.Overlap[i := i, j := j].Regular)
+    (At[i := B.Bool^::false, j := B.Bool^::false].fromContinuous (At[i := B.Bool^::false, j := B.Bool^::false].constantContinuous))
+    (FT.fromContinuous (FT.Cross[both := bothFT].backward))
+    (TF.fromContinuous (TF.Cross[both := bothTF].forward))
+    (At[i := B.Bool^::true, j := B.Bool^::true].fromContinuous (At[i := B.Bool^::true, j := B.Bool^::true].constantContinuous));
+\definition openDomains: \forall (i: B.Bool^) -> Base.IsOpenIn baseSpace (domain i) := B.cases (\fun (i: B.Bool^) => Base.IsOpenIn baseSpace (domain i)) openU openV;
+\definition covered: \forall (x: X) -> \exists Cocycles.Index x := \fun (x: X) => Logic.orElim[\In[X] U x, \In[X] V x, \exists Cocycles.Index x] (covers x)
+  (\fun (inside: \In[X] U x) => \exact(\into[B.Bool^](B.Bool^::false, Cocycles.Index x) \by { inside }, Cocycles.Index x))
+  (\fun (inside: \In[X] V x) => \exact(\into[B.Bool^](B.Bool^::true, Cocycles.Index x) \by { inside }, Cocycles.Index x));
+\definition continuous: Constructed.Continuous := Constructed.Continuous { openDomains := openDomains, covers := covered, transitions := transitions };
+\definition regular: Constructed.Regular := Constructed.regular continuous;
