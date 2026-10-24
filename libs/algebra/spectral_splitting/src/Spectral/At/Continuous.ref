@@ -1,0 +1,42 @@
+\import \parent.Characteristic[] \as Characteristic;
+\import Characteristic.Families[X := X, source := source] \as Coefficients;
+\import \root.Spectral[].Circle[].At[n := n] \as Roots;
+\import complex_polynomial_roots.Roots[] \as ComplexRoots;
+\import Hermitian.Functions[X := X] \as Functions;
+\import Hermitian.At[n := n].Families[X := X] \as Vectors;
+\import Vectors.Matrix[m := n] \as Maps;
+\import topology.Topology[Carrier := X] \as Source;
+\import topological_algebra.Complex[] \as Plane;
+\definition T[x: X]: End.Map := Matrices.linear (A x);
+\definition regularT: Maps.Regular source T := Maps.regularOfComponents source T
+  (\fun (j, i: Fin.Fin n) => Functions.transport source (\fun (x: X) => A x i j) (\fun (x: X) => (T x).apply (Geometry.Finite[n := n].basis j) i)
+    (\fun (x: X) => sym!{{C.Complex}} _ _ (congr!{Vector {C.Complex}} (\fun (v: Vector) => v i) _ _ (Matrices.onBasis (A x) j))) (regular i j));
+\import \parent.Families[X := X, source := source, T := T, regularT := regularT] \as Evaluation;
+\definition coefficients[x: X]: ComplexRoots.Vector n := Characteristic.coefficients (A x);
+\definition inside[x: X]: P.Carrier := Roots.left (coefficients x);
+\definition outside[x: X]: P.Carrier := Roots.right (coefficients x);
+\definition domain[index: Roots.Index]: \Pow X := { x: X \where \In[ComplexRoots.Vector n] (Roots.Domain index) (coefficients x) };
+\definition domainOpen: \forall (index: Roots.Index) -> Source.IsOpenIn source (domain index) :=
+  \fun (index: Roots.Index) => Coefficients.continuous A regular (Roots.Domain index) (Roots.open index);
+\definition covers: \forall (x: X) -> \exists ( index: Roots.Index \where \In[X] (domain index) x ) :=
+  \fun (x: X) => Roots.covers (coefficients x) (off x);
+\module Near(index: Roots.Index);
+\import topology.Continuity[A := X, B := C.Complex].Covered[I := Roots.Index, domains := domain] \as Covered;
+\definition insideRegular: Maps.Regular source (\fun (x: X) => Evaluation.evaluate x (inside x)) :=
+  \fun (v: Vector)(i: Fin.Fin n) => Covered.continuous source Plane.topology (\fun (x: X) => (Evaluation.evaluate x (inside x)).apply v i)
+    domainOpen covers (\fun (index: Roots.Index) => Near[index := index].insideRegular v i);
+\definition outsideRegular: Maps.Regular source (\fun (x: X) => Evaluation.evaluate x (outside x)) :=
+  \fun (v: Vector)(i: Fin.Fin n) => Covered.continuous source Plane.topology (\fun (x: X) => (Evaluation.evaluate x (outside x)).apply v i)
+    domainOpen covers (\fun (index: Roots.Index) => Near[index := index].outsideRegular v i);
+\definition middle[x: X]: End.Map := Evaluation.evaluate x (P.add (inside x) (outside x));
+\definition middleRegular: Maps.Regular source middle := \fun (v: Vector)(i: Fin.Fin n) =>
+  Functions.transport source (\fun (x: X) => Coordinates.plus ((Evaluation.evaluate x (inside x)).apply v) ((Evaluation.evaluate x (outside x)).apply v) i)
+    (\fun (x: X) => (middle x).apply v i)
+    (\fun (x: X) => sym!{{C.Complex}} _ _ (congr!{Vector {C.Complex}} (\fun (v: Vector) => v i) _ _ (Evaluation.addition x (inside x) (outside x) v)))
+    (Vectors.addition source _ _ (insideRegular v) (outsideRegular v) i);
+\definition matrix[x: X]: Inversion.Nonsingular := \parent.Splitting[A := A x].Separated[off := off x].matrix;
+\definition inverse[x: X]: End.Map := Square.Inverse[A := matrix x].value;
+\definition inverseRegular: Maps.Regular source inverse := Square.Families[X := X].inverseMaps source matrix
+  (\fun (i, j: Fin.Fin n) => middleRegular (Geometry.Finite[n := n].basis j) i);
+\definition projection[x: X]: End.Map := \parent.Splitting[A := A x].Separated[off := off x].projection;
+\definition projectionRegular: Maps.Regular source projection := Evaluation.compositionRegular (\fun (x: X) => Evaluation.evaluate x (outside x)) inverse outsideRegular inverseRegular;
