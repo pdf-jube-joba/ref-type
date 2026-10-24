@@ -58,32 +58,20 @@
 [FiniteBases](src/Complements/Over/Examples/FiniteBases.ref) は二点離散空間のコンパクト Hausdorff 性を証明し、ランク0と1の束、零束、空の底上の束に有限埋め込みと計量の存在定理を適用する。
 [Examples](src/Complements/Examples.ref) は実数・複素数のスカラーで具体化する。
 
-## 検証と再開
+## 検証
 
-K06 の作業ブランチでは、`Finite.ImageBasis` を切り出して一般の冪等写像にも再利用している。
-この切り出しの `Finite` と参照依存先445 module はコミット `696c8da2` で終了コード0を確認した。
-B03 package 全体と workspace の再検査は K06 の最終検証で実施する予定である。
+B03 は [PR #41](https://github.com/pdf-jube-joba/ref-type/pull/41) で main `6bf92837` に統合済みである。
+復元コミット `5d993911` について、残存した元の55ソースと二つの manifest は Git blob hash まで一致することを確認した。
+当時の環境切断の根本原因は不明である。
 
-復元コミット `5d993911` を取得し、残存した元の55ソースと二つの manifest の57ファイルが Git blob hash まで一致することを確認した。
-元の作業は stash に保持した。
-切断の根本原因は不明である。
-
-検証済みコミットは `213b7e90`（数学コードは `67220c21` と同一）。
-B03 の実装は完了し、未検証の数学コード変更と残作業はない。
-初期の名前参照・表示データの組み立て・移送の次元計算のエラーは修正し、全範囲を再検査した。
-集合族の structure 記法の制限と、受理される module 配置は [gaps.md](../../../gaps.md) に記録する。
+K06 では `Finite.ImageBasis` を切り出し、一般の冪等写像と Hermitian 射影で基底構成を共用した。
+コミット `e3aecc2e` の B03 package と全依存閉包の再検査は終了コード0で、4,345 module をすべてキャッシュから再利用した。
+ソース再検査・worker 復旧・重複・再実行・失われたステップ・保存失敗はすべて0である。
 Rust の変更はない。
 
-| コマンド | 終了コード・結果 |
-| --- | --- |
-| `cargo build -p cli --locked --offline` | 0。環境の Rust 設定を読み込んでビルド。 |
-| `target/debug/cli libs/geometry/bundle_complements --memory-mib 8192 --cache-stats` | 0。全依存を含む4,344 module、79 checked・827ステップ・4,265 reused。 |
-| `target/debug/cli libs --module bundle_complements --memory-mib 8192 --cache-stats` | 0。625 module を再利用、ソース再検査0ステップ。 |
-| `target/debug/cli libs --memory-mib 8192 --cache-stats` | 0。71 package・7,326 module を再利用、ソース再検査0ステップ。 |
+```sh
+target/debug/cli libs/geometry/bundle_complements --memory-mib 8192 --cache-stats
+```
 
-すべて共有キャッシュによる通常検査で、worker は1、復旧・重複・再実行・失われたステップ・キャッシュ保存失敗は0だった。
-対象と全依存の検査の最大 RSS は5,123,928 KiB。
-下流の実装済み package はまだなく、workspace 全体の検査で既存の接束・法束の利用例や `lie_groups` も確認した。
-
-次の手順は文書更新を含む最終コミットで上記の検査を再確認し、既存 PR #41 の CI 状態を確認してマージし、main の tree と照合することである。
+K06 の workspace 全体の検査と再開情報は [spectral_splitting の引き継ぎ欄](../../algebra/spectral_splitting/README.md#検証と再開) にまとめる。
 B03 に続く実装候補は B04・B05・B09・K01 である。

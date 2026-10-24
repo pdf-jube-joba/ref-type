@@ -64,6 +64,7 @@ K06 は実装中であり、B04・K01・K04 には着手していない。
 | `89233a89` | `Comparison`（行列の intertwiner 自然性） | 564 | 0 |
 | `0b10d2dc` | `FiniteSpace`（枠によらない一意な射影） | レポート参照 | 0 |
 | `15a2b0b2` | `At.Eigenvalues`（固有値条件との同値性） | 577 | 0 |
+| `e3aecc2e` | B03 package と全依存閉包 | 4345 | 0 |
 | `fea0e38e` | K06 package と全依存閉包（専用 snapshot） | 4765 | 0 |
 | `ca460cb5` | `Examples.MixedRanksHomotopy`（ランク0・1の成分を持つ束） | 791 | 0 |
 | `7c24d715` | `BundleHomotopy`（一般のスペクトル像束の両端比較） | 944 | 0 |
@@ -90,7 +91,8 @@ K06 package と全依存閉包の検査は上表の範囲で成功した。
 package 全体・全依存閉包の最終検査は終了コード0を確認した。
 4,437 module のキャッシュを再利用し、328 module・4,196ステップを検査した。
 最大 RSS は5,259,356 KiB、worker は1、復旧・重複・再実行・失われたステップ・保存失敗は0である。
-影響する B03 package と workspace 全体の最終検査は未実施である。
+影響する B03 package と全依存閉包も終了コード0を確認した。
+workspace 全体の最終検査は未実施である。
 以前の全体検査の終了コード130は診断のための中断である。
 worker の checkpoint 再開が1回あったが、その原因は確定していない。
 逆行列の法則を明示する証明に変更後、該当する `Separated` は保存処理と正常終了まで確認できた。
@@ -108,6 +110,6 @@ REF_TYPE_PROFILE_PROGRESS=1 target/debug/cli libs \
 ```
 
 終了コード0を確認した検査は `target/debug/cli libs/algebra/spectral_splitting --source-snapshot work/k06-package-snapshot.json --memory-mib 8192 --time-limit-seconds 1800 --diagnostics compact --report-json work/k06-package.json --cache-stats` である。
-次は B03 package と workspace 全体の検査を実行し、終了コードを確認する。
+次は `target/debug/cli libs --source-snapshot work/k06-workspace-snapshot.json --memory-mib 8192 --time-limit-seconds 1800 --diagnostics compact --report-json work/k06-workspace.json --cache-stats` を実行し、プロセスの終了と終了コードを確認する。
 別環境では同じ package を `--parse-only --save-source-snapshot` で保存し直してから実行する。
 残作業は、対象・全依存閉包・影響する下流・workspace の最終検査、公開 API・下流リンク・ロードマップの完了更新と PR の最終確認である。
