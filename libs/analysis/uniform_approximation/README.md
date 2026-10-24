@@ -82,9 +82,10 @@
 次は対象 package の全依存閉包と、共通化した B03 `CoordinateFamily` の利用先を含む workspace を固定 snapshot で検査する。
 
 ```sh
-target/debug/cli libs --parse-only --save-source-snapshot work/k04-package.source.json
+target/debug/cli libs/analysis/uniform_approximation --parse-only --save-source-snapshot work/k04-package.source.json
 target/debug/cli libs/analysis/uniform_approximation --source-snapshot work/k04-package.source.json --memory-mib 8192 --cache-budget-mib 12288 --time-limit-seconds 1800 --report-json work/k04-package.report.json
 target/debug/cli libs --source-snapshot work/k04-workspace.source.json --memory-mib 10240 --cache-budget-mib 12288 --time-limit-seconds 7200 --report-json work/k04-workspace.report.json
 ```
 
+最初の `work/k04-package` は workspace 入口の snapshot と package 入力が一致せず終了2となり、package 入口で snapshot を作り直して再検査する。
 検査の正常終了とキャッシュ保存完了を確認してから、依存リンク・ロードマップの完了処理と PR の最終確認・統合へ進む。
