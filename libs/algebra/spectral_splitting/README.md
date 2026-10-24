@@ -60,6 +60,7 @@ K06 は実装中であり、B04・K01・K04 には着手していない。
 | `89233a89` | `Comparison`（行列の intertwiner 自然性） | 564 | 0 |
 | `0b10d2dc` | `FiniteSpace`（枠によらない一意な射影） | レポート参照 | 0 |
 | `15a2b0b2` | `At.Eigenvalues`（固有値条件との同値性） | 577 | 0 |
+| `a67dc066` | `EmbeddedCylinder`（埋め込み像・引き戻し・両端の比較） | 771 | 0 |
 | `b7470b9c` | `Examples`（零次元・動く冪零行列・両端比較・直和分解） | 781 | 0 |
 | `e0ac5797` | `BundleEndomorphism`（貼り合わせ・不変部分束・自然性・引き戻し） | 758 | 0 |
 | `11c2c7e2` | `FiniteSpace.On.Naturality`（任意の有限枠間の自然性） | 642 | 0 |
@@ -75,7 +76,8 @@ Bézout 分解、Horner 評価、単位円内外の根因子と係数の連続�
 `BundleCoordinates` と `BundleImage` は上表の検査で成功した。
 `BundleEndomorphism` の貼り合わせ・不変部分束・自然性・引き戻し比較は上表の検査で成功した。
 具体例、`At.Homotopy` の接続、直和分解も上表の範囲で検査が成功した。
-一般の束の像のホモトピー比較に向け、`PullbackIsomorphism`・`EmbeddedCylinder`・`BundleHomotopy` を追加中であり、これらと `Examples.MixedRanksHomotopy` は未検証である。
+`PullbackIsomorphism` と `EmbeddedCylinder` も上表の範囲で検証済みである。
+`BundleHomotopy` と `Examples.MixedRanksHomotopy` は構文解析のみ成功し、型検査は未完了である。
 以前の全体検査の終了コード130は診断のための中断である。
 worker の checkpoint 再開が1回あったが、その原因は確定していない。
 逆行列の法則を明示する証明に変更後、該当する `Separated` は保存処理と正常終了まで確認できた。
@@ -92,5 +94,5 @@ REF_TYPE_PROFILE_PROGRESS=1 target/debug/cli libs \
   --report-json work/k06-check.json
 ```
 
-次は有限埋め込みを使う `EmbeddedCylinder` の検査結果を確認し、一般の像束の `BundleHomotopy` を検証する。
+次は一般の像束の `BundleHomotopy` と `Examples.MixedRanksHomotopy` を検証する。
 残作業は、一般の束の貼り合わせ・自然性とホモトピー比較の検証、引き戻し比較、具体例、公開 API・下流リンクの整備、対象・全依存閉包・影響する下流・workspace の最終検査である。
