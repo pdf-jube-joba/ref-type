@@ -1,18 +1,14 @@
 # 束の Grothendieck 環（K01、実装中）
 
 計画は [_plans/math/k01-grothendieck-k.md](../../../_plans/math/k01-grothendieck-k.md)。
-B03 の射影表示と束の同型類、B02 の束演算、既存の `algebra.GroupCompletion` を再利用する。
+B03 の同型類と補束、B02 の束演算、既存の `algebra.GroupCompletion` を再利用する。
 
 ## 検証と再開
 
-基点は B04 統合済み main `4f411dda`、ブランチは `math/k01-grothendieck-k`。
-開始時に既存の K01 / Grothendieck ブランチ・PR・実装がないことを確認した。
-複素束の同型類、直和の商への降下、一般の束との比較、直和可換モノイドを実装した。
-最後の検証成功は `157545a4`、`work/k01-monoid2`（対象595 module、保存完了・終了0）。
-テンソル積の類・商への降下・乗法可換モノイド、分配則・零の吸収則、群完成の環、B03 の補束を使う自明束による安定判定を追加した（未検証）。
-`aed15a7f` のテンソルモノイドは `work/k01-tensor`（697 module、保存完了・終了0）で成功。
-`f4f5ce25` の `work/k01-ring` は Fin の import パス誤りで終了1。修正し、引き戻し半環写像を追加した（未検証）。
-残作業は分配則・零の吸収則、群完成・安定同型判定、引き戻し・ランク・被約群、有限離散計算・利用例、文書・最終検証・統合。
-`100cd8a7` の `work/k01-ring2` は安定判定の等式推論マクロ書式で終了1。修正し、引き戻し環写像を追加した（未検証）。
-次は共有キャッシュで `libs --module topological_k_theory` を snapshot 付きで検査する。
-`828c1295` の `work/k01-ring3` は引き戻し単位の子 module 参照で終了1。修正し、整数値関数群と束ランクの比較・局所定数性を追加した（未検証）。
+基点は B04 統合済み main `4f411dda`、作業は `math/k01-grothendieck-k` / [draft PR #44](https://github.com/pdf-jube-joba/ref-type/pull/44)。
+同型類上の直和・テンソル積の可換モノイドまで `aed15a7f` を `work/k01-tensor`（対象697 module、保存完了、終了0）で検証済み。
+分配則・零の吸収則・Grothendieck 環・自明束による安定同型判定・引き戻し環写像・整数値ランクを追加した。
+この追加分の最新検査 `work/k01-ring4`（`b557a934`）は引き戻し環写像の親参照で終了1、当該参照を修正したが未再検証。
+各検査は `target/debug/cli libs --source-snapshot work/<名前>.source.json --module topological_k_theory --memory-mib 8192 --cache-budget-mib 12288 --time-limit-seconds 1200 --report-json work/<名前>.json` で共有キャッシュを利用する。
+次は修正版を snapshot 化して同じ対象検査を行い、終了コード・保存完了を確認する。
+残作業はランクの群完成への延長・被約群、引き戻しの恒等・合成則、有限離散計算・利用例、文書・最終検証・統合。
