@@ -19,7 +19,8 @@ B03 の計量・有限埋め込み・射影の像束、K06 の近接射影比較
 `ec020933` の球面上の clutching と実際の円板への制限束の自明化（`.Disks`）も対象検査が終了0で成功した。
 `6ca0466f` の一般の二束間の相対同型の延長（`.For.Extensions.To` を含む検査）も終了0で成功した。
 `370dd74b` の局所枠から指定した cocycle への比較（`.FromCharts`）も終了0で成功した。
-円板と閉半球の同相・被覆、円板の pushout と球面の同相は未検証の WIP である。
+`699c5f51` の clutching と引き戻しの比較も対象検査が終了0で成功した。
+円板の pushout と球面の同相、clutching 関数のホモトピーによる束同型は未検証の WIP である。
 検査は `target/debug/cli libs --parse-only --save-source-snapshot work/<name>-snapshot.json`、続いて `target/debug/cli libs --module <scope> --source-snapshot work/<name>-snapshot.json --memory-mib 8192 --time-limit-seconds 900 --diagnostics compact --report-json work/<name>.json --cache-stats` を使用する。
-次は `.Disks.Hemispheres.Cover` を対象検査し、終了コードを確認する。
+次は `.Disks.Hemispheres.Cover`、`.Clutching.Homotopy` を対象検査し、終了コードを確認する。
 残作業は一般の同型への相対延長、円板の clutching のホモトピー・安定化・同型の対応、実・複素の利用例、文書・依存リンク、package全体・依存先・影響箇所・workspace の最終検査である。
