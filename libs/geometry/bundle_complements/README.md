@@ -65,11 +65,12 @@
 射影の引き戻し比較の修正 `da1372dc` の対象検査も終了コード0、57 checked・483 reused で受理された。
 `53df8b7e` の全範囲検査は終了コード1（集合族を引数に持つ structure の組み立て）だった。
 小さい例で同じエラーを確認し、集合族を `Representing` module の引数に置く形へ修正した（最小例は終了コード0、[gaps.md](../../../gaps.md) に両形式を記録）。
-この修正後の全範囲は未検証である。
+この修正後の検査は、利用例の次元計算で終了コード1となった。
+位相の等式に沿う移送で次元が保存される補題を既存の `Equality.Transport.predicate` から追加し、再検査する。
 
 ```sh
-target/debug/cli libs --parse-only --save-source-snapshot work/b03-current-snapshot.json
-target/debug/cli libs --module bundle_complements --source-snapshot work/b03-current-snapshot.json --memory-mib 8192 --diagnostics compact --report-json work/b03-current-check.json --cache-stats
+target/debug/cli libs --parse-only --save-source-snapshot work/b03-dimension-snapshot.json
+target/debug/cli libs --module bundle_complements --source-snapshot work/b03-dimension-snapshot.json --memory-mib 8192 --diagnostics compact --report-json work/b03-dimension-check.json --cache-stats
 ```
 
 次はこの検査の終了コードを確認し、型エラーがあれば修正して、以下の全依存・影響範囲の検査と完了時の文書更新を行う。
