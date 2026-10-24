@@ -9,26 +9,3 @@
 \definition add: Classes -> Classes -> Classes := Descend.value Rep.equivalence Rep.equivalence onRepresentatives respects;
 \definition onClasses: \forall (p, q: Presentation) -> add (class p) (class q) = onRepresentatives p q :=
   Descend.onClass Rep.equivalence Rep.equivalence onRepresentatives respects;
-\import std.Alg[].Monoid[] \as Monoid;
-\definition zeroClass: Classes := \parent.Trivial[n := zero].value;
-\module Commuting(p, q: Presentation);
-\module Associating(p, q, r: Presentation);
-\module Unit(p: Presentation);
-\definition commutative: \forall (a, b: Classes) -> add a b = add b a :=
-  Quotient.induction2 (\fun (a, b: Classes) => add a b = add b a)
-    (\fun (p, q: Presentation) => Commuting[p := p, q := q].equation);
-\definition leftIdentity: \forall (a: Classes) -> add zeroClass a = a :=
-  Quotient.induction (\fun (a: Classes) => add zeroClass a = a) (\fun (p: Presentation) => Unit[p := p].equation);
-\definition rightIdentity: \forall (a: Classes) -> add a zeroClass = a := \fun (a: Classes) =>
-  trans!{Classes} _ _ _ (commutative a zeroClass) (leftIdentity a);
-\definition associative: \forall (a, b, c: Classes) -> add (add a b) c = add a (add b c) :=
-  Quotient.induction (\fun (a: Classes) => \forall (b, c: Classes) -> add (add a b) c = add a (add b c))
-    (\fun (p: Presentation) => Quotient.induction2 (\fun (b, c: Classes) => add (add (class p) b) c = add (class p) (add b c))
-      (\fun (q, r: Presentation) => Associating[p := p, q := q, r := r].equation));
-\definition monoid: Monoid.CommutativeMonoid[Classes] := Monoid.CommutativeMonoid[Classes] {
-  base := Monoid.MonoidData[Classes]::# zeroClass add,
-  monoid := Monoid.MonoidLaws[Classes, (Monoid.MonoidData[Classes]::# zeroClass add)] {
-    leftIdentity := leftIdentity, rightIdentity := rightIdentity, associative := associative
-  },
-  commutative := commutative
-};
