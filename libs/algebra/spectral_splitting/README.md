@@ -69,7 +69,9 @@ target/debug/cli libs --module spectral_splitting.Spectral.Coefficients \
 
 `Idempotents.Comparison` は構造体の別名指定で終了コード1となり、具体的な型に修正した。
 その後の `Homotopy` は子 module `Slice` の解決で終了コード1となり、明示したパスへ修正中である。
-`BundleImage` には一般の連続冪等写像の像の局所自明化を追加したが、型検査は未実施である。
+`BundleCoordinates`・`BundleImage`・`BundleEndomorphism` には、一般の連続冪等写像の像の局所自明化とスペクトル射影の貼り合わせを追加した。
+`FiniteSpace.On.Naturality` には有限枠から任意の有限次元空間への自然性の移送を追加した。
+これらは構文解析のみ成功し、型検査は未実施である。
 
 次は `REF_TYPE_PROFILE_PROGRESS=1` で module 進捗を記録し、`At.Eigenvalues` と一般の像束の `Idempotents.Comparison`・`Gap` を検査する。
 残作業は追加済みの連続射影・自然性・像束の検証、一般の束の局所構成の貼り合わせ・ホモトピー比較、具体例、公開 API の整備と全依存・下流・workspace の最終検査である。
