@@ -43,3 +43,50 @@
     | zero: \fun (a, p: C.Complex) => \refl(Scalars.field.mul a p)
     | succ: \fun (k: N.Nat^)(previous: _)(a: C.Complex)(p: Data (N.Nat^::succ k)) => previous a p.tail
   };
+\definition hornerProduct: \forall (a, b, c, q: P.Carrier) ->
+  P.add (P.mul a c) (P.mul P.X (P.add (P.mul b c) (P.mul (P.add a (P.mul P.X b)) q))) =
+    P.mul (P.add a (P.mul P.X b)) (P.add c (P.mul P.X q)) :=
+  \fun (a, b, c, q: P.Carrier) => eq_reason_in!{{P.Carrier} _
+    "=" _ "by" { congr!{{P.Carrier} {P.Carrier}} (P.add (P.mul a c)) _ _
+      (P.ring.ring.semiring.leftDistributive P.X (P.mul b c) (P.mul (P.add a (P.mul P.X b)) q)) }
+    "=" { P.add (P.mul a c) (P.add (P.mul (P.mul P.X b) c) (P.mul (P.add a (P.mul P.X b)) (P.mul P.X q))) } "by" {
+      congr!{{P.Carrier} {P.Carrier}} (P.add (P.mul a c)) _ _
+        (congr!{{P.Carrier} {P.Carrier} {P.Carrier}} P.add _ _ _ _
+          (sym!{{P.Carrier}} _ _ (Product.assoc P.X b c)) (Product.swap P.X (P.add a (P.mul P.X b)) q))
+    }
+    "=" _ "by" { sym!{{P.Carrier}} _ _ (Sum.assoc (P.mul a c) (P.mul (P.mul P.X b) c) (P.mul (P.add a (P.mul P.X b)) (P.mul P.X q))) }
+    "=" _ "by" { congr!{{P.Carrier} {P.Carrier}} (\fun (v: P.Carrier) => P.add v (P.mul (P.add a (P.mul P.X b)) (P.mul P.X q))) _ _
+      (sym!{{P.Carrier}} _ _ (P.ring.ring.semiring.rightDistributive a (P.mul P.X b) c)) }
+    "=" _ "by" { sym!{{P.Carrier}} _ _ (P.ring.ring.semiring.leftDistributive (P.add a (P.mul P.X b)) c (P.mul P.X q)) }
+  };
+\definition affineProduct: \forall (k: N.Nat^)(a, b: C.Complex)(p: Data k) ->
+  polynomial (N.Nat^::succ k) (affine k a b p) = P.mul (P.add (P.constant a) (P.mul P.X (P.constant b))) (polynomial k p) :=
+  \induction (k: N.Nat^) \return \forall (a, b: C.Complex)(p: Data k) ->
+    polynomial (N.Nat^::succ k) (affine k a b p) = P.mul (P.add (P.constant a) (P.mul P.X (P.constant b))) (polynomial k p) \with {
+    | zero: \fun (a, b, p: C.Complex) => eq_reason_in!{{P.Carrier} _
+      "=" { P.add (P.mul (P.constant a) (P.constant p)) (P.mul P.X (P.mul (P.constant b) (P.constant p))) } "by" {
+        congr!{{P.Carrier} {P.Carrier} {P.Carrier}} P.add _ _ _ _ (Raw.coefficientLaws.mul a p)
+          (congr!{{P.Carrier} {P.Carrier}} (P.mul P.X) _ _ (Raw.coefficientLaws.mul b p))
+      }
+      "=" _ "by" { congr!{{P.Carrier} {P.Carrier}} (P.add (P.mul (P.constant a) (P.constant p))) _ _ (sym!{{P.Carrier}} _ _ (Product.assoc P.X (P.constant b) (P.constant p))) }
+      "=" _ "by" { sym!{{P.Carrier}} _ _ (P.ring.ring.semiring.rightDistributive (P.constant a) (P.mul P.X (P.constant b)) (P.constant p)) }
+    }
+    | succ: \fun (k: N.Nat^)(previous: _)(a, b: C.Complex)(p: Data (N.Nat^::succ k)) => eq_reason_in!{{P.Carrier} _
+      "=" { P.add (P.mul (P.constant a) (P.constant p.coefficient))
+        (P.mul P.X (P.add (P.constant (Scalars.field.mul b p.coefficient)) (polynomial (N.Nat^::succ k) (affine k a b p.tail)))) } "by" {
+        congr!{{P.Carrier} {P.Carrier} {P.Carrier}} P.add _ _ _ _ (Raw.coefficientLaws.mul a p.coefficient)
+          (congr!{{P.Carrier} {P.Carrier}} (P.mul P.X) _ _ (constant (N.Nat^::succ k) (Scalars.field.mul b p.coefficient) (affine k a b p.tail)))
+      }
+      "=" _ "by" { congr!{{P.Carrier} {P.Carrier}} (P.add (P.mul (P.constant a) (P.constant p.coefficient))) _ _
+        (congr!{{P.Carrier} {P.Carrier}} (P.mul P.X) _ _
+          (congr!{{P.Carrier} {P.Carrier} {P.Carrier}} P.add _ _ _ _ (Raw.coefficientLaws.mul b p.coefficient) (previous a b p.tail))) }
+      "=" _ "by" { hornerProduct (P.constant a) (P.constant b) (P.constant p.coefficient) (polynomial k p.tail) }
+    }
+  };
+\definition leadingAffine: \forall (k: N.Nat^)(a, b: C.Complex)(p: Data k) ->
+  leading (N.Nat^::succ k) (affine k a b p) = Scalars.field.mul b (leading k p) :=
+  \induction (k: N.Nat^) \return \forall (a, b: C.Complex)(p: Data k) ->
+    leading (N.Nat^::succ k) (affine k a b p) = Scalars.field.mul b (leading k p) \with {
+    | zero: \fun (a, b, p: C.Complex) => \refl(Scalars.field.mul b p)
+    | succ: \fun (k: N.Nat^)(previous: _)(a, b: C.Complex)(p: Data (N.Nat^::succ k)) => previous a b p.tail
+  };
