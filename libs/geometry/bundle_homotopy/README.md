@@ -21,6 +21,7 @@ B03 の計量・有限埋め込み・射影の像束、K06 の近接射影比較
 | `Disks.Clutched.Comparison.diskGaugeCriterion` | 両円板上の連続 gauge の境界での両立条件と束同型の存在の同値 |
 | `Homotopy.Examples.Mobius` / `CircleLine` | 実の符号遷移・複素単位円遷移による具体的な線束 |
 
+`Clutching.With.Pullback` と `With.Sum` の `alignedIsomorphismExists` は、比較同型と局所枠での可換式 `alignment` をまとめて与える。
 比較の条件は \(h_-g=g' h_+\) である。
 実の場合も同じ API を用いるため、同型の判定には両円板上の gauge を明示している。
 
@@ -39,7 +40,8 @@ package 全体・依存先・影響箇所・workspace の最終検査、文書�
 `cargo test -p kernel --lib` は不正な引数の型・個数の拒否を含む78テスト成功・終了0、通常ビルドも終了0。
 追加した cost / allocation stack 計測は通常の型検査規則を変えない。
 `cargo test --workspace --locked` は最初の実行が依存取得時の proxy 接続失敗で終了101。
-ネットワークを有効にした再実行 `work/b04-rust-workspace-tests2` はコンパイル中。
+ネットワークを有効にした再実行 `work/b04-rust-workspace-tests2` は383テスト成功・終了0。
+`cargo clippy --workspace --all-targets --locked --offline -- -D warnings` は実行中（`work/b04-clippy`）。
 受理・拒否テストは未実施。
 標準の `rustfmt`・`clippy` component を導入した（終了0）。
 変更した kernel / allocator の rustfmt 検査は整形後に終了0。
@@ -54,5 +56,6 @@ package 全体・依存先・影響箇所・workspace の最終検査、文書�
 `libs/geometry/bundle_homotopy` 全体の依存閉包4,728 module の初回検査 `work/b04-package-first` は3,124 module の完了後、本体の未検証箇所を先に確認するため約770秒で中断した（終了130・未完了）。
 共有キャッシュを保持し、同じ保存済み snapshot で package 全体を `work/b04-package-final` に再開する。
 Rust 全体テストのビルドでディスク使用量が増えたため、CLI のキャッシュ保持上限を12 GiB（`--cache-budget-mib 12288`）に下げる。
-次は package 全体と Rust テストの終了を確認し、clippy・受理拒否テスト・影響する下流・workspace の検査を行う。
+引き戻し・直和の比較同型と局所枠での可換式を公開する `alignedIsomorphismExists` を追加した（未検証）。
+次はこの変更を新しい snapshot で検査し、package 全体と clippy の終了を確認して、受理拒否テスト・影響する下流・workspace の検査を行う。
 B01 の逆同型存在、B02 の同型の合成・直和存在、pushout の帰納法を追加したため、それらと下流も最終検査に含める。
