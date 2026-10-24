@@ -1,0 +1,20 @@
+\import bundle_complements.Complements[].Over[K := C.Complex, field := Scalars.field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].Finite[n := n] \as Finite;
+\import Finite.ImageBasis[map := P, idempotent := idempotent] \as Greedy;
+\definition Carrier[k: N.Nat^]: \Set := Fin.Fin k -> C.Complex;
+\definition coordinates[k: N.Nat^]: Spaces.VectorSpace (Carrier k) := Spaces.Coordinates[I := Fin.Fin k].space;
+\structure Basis[k: N.Nat^]: \Set := {
+  value: Spaces.Linear[V := Carrier k, W := Vector, source := coordinates k, target := Coordinates.space].Map,
+  coordinate: Spaces.Linear[V := Vector, W := Carrier k, source := Coordinates.space, target := coordinates k].Map,
+  leftInverse: \forall (v: Carrier k) -> coordinate.apply (value.apply v) = v,
+  reconstruction: \forall (v: Vector) -> value.apply (coordinate.apply v) = P.apply v,
+};
+\definition fixed: \forall (k: N.Nat^)(basis: Basis[k])(v: Carrier k) -> P.apply (basis.value.apply v) = basis.value.apply v :=
+  \fun (k: N.Nat^)(basis: Basis[k])(v: Carrier k) => trans!{Vector} _ _ _ (sym!{Vector} _ _ (basis.reconstruction (basis.value.apply v)))
+    (congr!{{Carrier k} Vector} basis.value.apply _ _ (basis.leftInverse v));
+\module Complete(result: Greedy.Result[Fin.elements n]);
+\structure Witness: \Set := { rank: N.Nat^, basis: Basis[rank] };
+\definition exists: \exists Witness := \block {
+  \takefrom result: Greedy.Result[Fin.elements n] \by Greedy.exists (Fin.elements n) \then
+  \return \exact(Witness { rank := result.rank, basis := Complete[result := result].basis }, Witness)
+};
