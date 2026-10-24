@@ -32,14 +32,11 @@
 \import Endpoint[t := I.end] \as Finish;
 \definition Isomorphism: \Set := Bundles.Isomorphisms[X := X, F := Start.Fiber, G := Finish.Fiber, source := Start.bundle, target := Finish.bundle].Isomorphism;
 \module Compare(first: Start.Comparison, motion: Motion.Isomorphism, last: Finish.Comparison);
-\module WithFirst(first: Start.Comparison);
-\definition forMotion[motion: Motion.Isomorphism]: \exists Isomorphism := \block {
-  \takefrom first: Start.Comparison \by Start.comparisonExists \then
-  \let result: \exists Isomorphism := WithFirst[first := first].exists motion \then
-  \return result
-};
-\definition isomorphismExists: \exists Isomorphism := \block {
-  \takefrom motion: Motion.Isomorphism \by Motion.endpointIsomorphismExists \then
-  \let result: \exists Isomorphism := forMotion motion \then
-  \return result
-};
+\definition forFirst[first: Start.Comparison][motion: Motion.Isomorphism]: \exists Isomorphism :=
+  \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Existence[A := Finish.Comparison, B := Isomorphism].map
+    (\fun (last: Finish.Comparison) => Compare[first := first, motion := motion, last := last].value) Finish.comparisonExists;
+\definition forMotion[motion: Motion.Isomorphism]: \exists Isomorphism :=
+  \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Existence[A := Start.Comparison, B := Isomorphism].bind
+    (\fun (first: Start.Comparison) => forFirst first motion) Start.comparisonExists;
+\definition isomorphismExists: \exists Isomorphism :=
+  \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Existence[A := Motion.Isomorphism, B := Isomorphism].bind forMotion Motion.endpointIsomorphismExists;
