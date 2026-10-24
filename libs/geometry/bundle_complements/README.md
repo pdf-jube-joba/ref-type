@@ -35,7 +35,8 @@ target/debug/cli libs --parse-only --save-source-snapshot work/b03-fix-snapshot.
 target/debug/cli libs --module bundle_complements.Complements.Over.For.FromEmbedding.Pullback --source-snapshot work/b03-fix-snapshot.json --memory-mib 8192 --diagnostics compact --report-json work/b03-fix-check.json --cache-stats
 ```
 
-同型類・自然性・行列族からの埋め込み・利用例は未検証であり、最後に受理された数学コードは `1fd5d9f6` である。
+同型類・自然性・行列族からの埋め込み・利用例は未検証であり、最後に全追加範囲が受理された数学コードは `1fd5d9f6` である。
+同型類の比較定理はコンパクト Hausdorff 性を命題内で量化する形に整理した。
 
 次は引き戻しの射影比較を再検査し、同型類・自然性・利用例を含む package 全体を検査して、残る型エラーを修正する。
 最終的に次を共有キャッシュで実行し、下流リンク・ロードマップを更新する。
