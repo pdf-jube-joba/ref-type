@@ -1,0 +1,40 @@
+\import \parent.Characteristic[].Evaluation[z := z] \as Evaluation;
+\import Spaces.Eigen[V := Vector, space := Coordinates.space] \as Eigen;
+\import End.Operations[] \as Operations;
+\import Spaces.Laws[V := Vector, space := Coordinates.space] \as Laws;
+\import Geometry.Finite[n := n] \as E;
+\import Geometry.Inner[V := Vector, space := Coordinates.space].Of[h := E.form] \as Inner;
+\import Matrices.Representation[] \as Representation;
+\definition value: End.Map := Operations.plus (Eigen.scalar z) (Operations.negative (Matrices.linear A));
+\definition formula: \forall (v: Vector) -> value.apply v = Inner.subtract (Coordinates.scale z v) ((Matrices.linear A).apply v) :=
+  \fun (v: Vector) => congr!{Vector Vector} (Coordinates.plus (Coordinates.scale z v)) _ _ (Laws.minusOneScale ((Matrices.linear A).apply v));
+\definition entries: Matrices.Matrix := Square.entries value;
+\definition entriesFormula: entries = Evaluation.entries A := \axiom:funext(entries, Evaluation.entries A, \fun (i: Fin.Fin n) =>
+  \axiom:funext(entries i, Evaluation.entries A i, \fun (j: Fin.Fin n) => congr!{{C.Complex} {C.Complex} {C.Complex}} Scalars.field.add _ _ _ _
+    (\refl(Scalars.field.mul z (Coordinates.Kronecker[].delta j i)))
+    (trans!{{C.Complex}} _ _ _ (congr!{Vector {C.Complex}} (\fun (v: Vector) => v i) _ _ (Laws.minusOneScale ((Matrices.linear A).apply (E.basis j))))
+      (congr!{Vector {C.Complex}} (\fun (v: Vector) => Scalars.field.neg (v i)) _ _ (Matrices.onBasis A j)))));
+\definition determinant: Evaluation.evaluate (PolynomialMatrices.characteristic A) = Matrices.determinant entries :=
+  trans!{{C.Complex}} _ _ _ (Evaluation.characteristic A) (congr!{{Matrices.Matrix} {C.Complex}} Matrices.determinant _ _ (sym!{{Matrices.Matrix}} _ _ entriesFormula));
+\definition subtractZero: \forall (v, w: Vector) -> Inner.subtract v w = Coordinates.origin -> v = w :=
+  \fun (v, w: Vector)(zero: _) => eq_reason_in!{Vector v
+    "=" { Coordinates.plus (Inner.subtract v w) w } "by" { sym!{Vector} _ _ (Inner.subtractAdd v w) }
+    "=" { Coordinates.plus Coordinates.origin w } "by" { congr!{Vector Vector} (\fun (v: Vector) => Coordinates.plus v w) _ _ zero }
+    "=" _ "by" { Laws.zeroLeft w }
+  };
+\definition kernelToEigen: \forall (v: Vector) -> value.apply v = Coordinates.origin -> (Matrices.linear A).apply v = Coordinates.scale z v :=
+  \fun (v: Vector)(zero: _) => sym!{Vector} _ _ (subtractZero (Coordinates.scale z v) ((Matrices.linear A).apply v)
+    (trans!{Vector} _ _ _ (sym!{Vector} _ _ (formula v)) zero));
+\definition eigenToKernel: \forall (v: Vector) -> (Matrices.linear A).apply v = Coordinates.scale z v -> value.apply v = Coordinates.origin :=
+  \fun (v: Vector)(eigen: _) => eq_reason_in!{Vector _
+    "=" _ "by" { formula v }
+    "=" { Inner.subtract (Coordinates.scale z v) (Coordinates.scale z v) } "by" { congr!{Vector Vector} (Inner.subtract (Coordinates.scale z v)) _ _ eigen }
+    "=" _ "by" { trans!{Vector} _ _ _ (Laws.comm (Coordinates.scale z v) (Coordinates.space.neg (Coordinates.scale z v))) (Laws.inverseLeft (Coordinates.scale z v)) }
+  };
+\definition nonzero: (\forall (v, w: Vector) -> value.apply v = value.apply w -> v = w) -> Inversion.Nonzero entries := \block {
+  \fun (injective: _) \then
+  \takefrom factor: Inner.Gram[k := n].Factorization[value] \by Inner.Algorithm[].exists n value injective E.positive \then
+  \let inverse: End.Map := Inner.Gram[k := n].Of[A := value, factor := factor].inverse \then
+  \let left: \forall (v: Vector) -> inverse.apply (value.apply v) = v := Inner.Gram[k := n].Of[A := value, factor := factor].inverseOnImage \then
+  \return Square.LeftInverse[f := value, g := inverse, left := left].nonzero
+};

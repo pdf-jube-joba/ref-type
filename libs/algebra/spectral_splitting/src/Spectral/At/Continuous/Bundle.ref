@@ -1,0 +1,28 @@
+\import \root.Spectral[].Idempotents[n := n] \as Idempotents;
+\import vector_bundles.Bundles[].Over[K := C.Complex, field := Scalars.field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar] \as Bundles;
+\definition idempotent[x: X]: Idempotents.Projection := Idempotents.Projection {
+  map := projection x,
+  idempotent := \root.Spectral[].At[n := n].Splitting[A := A x].Separated[off := off x].idempotent,
+};
+\import Idempotents.Image[X := X, baseSpace := source, P := idempotent, regular := projectionRegular] \as Image;
+\definition Fiber[x: X]: \Set := Image.Fiber x;
+\import Bundles.Family[X := X, F := Fiber] \as Family;
+\import Bundles.Trivial[X := X, n := n, baseSpace := source] \as Ambient;
+\definition bundle: Family.Bundle := Image.bundle;
+\definition inclusion: Bundles.Morphisms[X := X, Y := X, F := Fiber, G := \fun (_: X) => Vector,
+  source := bundle, target := Ambient.bundle, f := \fun (x: X) => x].Map := Image.inclusion;
+\definition project: Bundles.Morphisms[X := X, Y := X, F := \fun (_: X) => Vector, G := Fiber,
+  source := Ambient.bundle, target := bundle, f := \fun (x: X) => x].Map := Image.projectMap;
+\definition onImage: \forall (x: X)(v: Fiber x) -> (inclusion.fiber x).apply ((project.fiber x).apply v) = v :=
+  \fun (x: X)(v: Fiber x) => \bysub(Vector, { v: Vector \where (projection x).apply v = v }, v);
+
+\import Image.Complement[] \as Complement;
+\definition OutsideFiber[x: X]: \Set := Complement.ComplementFiber x;
+\definition outsideBundle: Bundles.Family[X := X, F := OutsideFiber].Bundle := Complement.complementBundle;
+\definition SplitFiber[x: X]: \Set := Complement.SumFiber x;
+\definition splitBundle: Bundles.Family[X := X, F := SplitFiber].Bundle := Complement.sumBundle;
+\definition decomposition: Bundles.Isomorphisms[X := X, F := SplitFiber, G := (\fun (_: X) => Vector), source := splitBundle, target := Ambient.bundle].Isomorphism := Complement.isomorphism;
+
+\definition outsideAction: \forall (x: X)(v: Vector) -> (Complement.Q x).map.apply v = (complementary x).apply v :=
+  \fun (x: X)(v: Vector) => sym!{Vector} _ _ (\root.Spectral[].At[n := n].Splitting[A := A x].Separated[off := off x].complementaryFormula v);

@@ -1,0 +1,56 @@
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition two: N.Nat^ := N.Nat^::succ one;
+\import Geometry.Finite[n := one] \as Small;
+\import Geometry.Finite[n := two] \as E;
+\import Small.Successor[] \as Split;
+\import Spaces.Linear[V := E.Vector, W := E.Vector, source := E.space, target := E.space] \as End;
+\import Spaces.Linear[V := E.Vector, W := C.Complex, source := E.space, target := Spaces.scalarSpace] \as Rows;
+\import Rows.Operations[] \as RowOperations;
+\definition second[v: E.Vector]: C.Complex := v (Fin.succ one (Fin.zero N.Nat^::zero));
+\definition row: Rows.Map := Rows.Map {
+  apply := second, preservesAdd := \fun (v, w: E.Vector) => \refl(Scalars.field.add (second v) (second w)),
+  preservesScale := \fun (a: C.Complex)(v: E.Vector) => \refl(Scalars.field.mul a (second v)),
+};
+\import Spaces.Laws[V := Small.Vector, space := Small.space] \as SmallLaws;
+\import Spaces.Linear[V := E.Vector, W := Small.Vector, source := E.space, target := Small.space] \as Rest;
+\definition rest: Rest.Map := Rest.Map {
+  apply := \fun (_: E.Vector) => Small.space.zero,
+  preservesAdd := \fun (v, w: E.Vector) => sym!{Small.Vector} _ _ (SmallLaws.zeroLeft Small.space.zero),
+  preservesScale := \fun (a: C.Complex)(v: E.Vector) => sym!{Small.Vector} _ _ (SmallLaws.scaleZero a),
+};
+\definition operator[a: C.Complex]: End.Map := Split.Joining[V := E.Vector, source := E.space, first := RowOperations.scale a row, rest := rest].map;
+\definition rowZero: \forall (a: C.Complex)(v: E.Vector) -> second ((operator a).apply v) = Scalars.field.zero :=
+  \fun (a: C.Complex)(v: E.Vector) => congr!{Small.Vector {C.Complex}} (\fun (w: Small.Vector) => w (Fin.zero N.Nat^::zero)) _ _
+    (Split.joinTail (Scalars.field.mul a (second v)) Small.space.zero);
+\definition squareZero: \forall (a: C.Complex)(v: E.Vector) -> (operator a).apply ((operator a).apply v) = E.space.zero :=
+  \fun (a: C.Complex)(v: E.Vector) => Split.ext _ _
+    (trans!{{C.Complex}} _ _ _ (Split.joinHead (Scalars.field.mul a (second ((operator a).apply v))) Small.space.zero)
+      (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (Scalars.field.mul a) _ _ (rowZero a v)) (Spaces.mulZeroRight a)))
+    (Split.joinTail (Scalars.field.mul a (second ((operator a).apply v))) Small.space.zero);
+\import topological_algebra.Complex[] \as Plane;
+\import Hermitian.Functions[X := C.Complex] \as Functions;
+\import Hermitian.At[n := two].Families[X := C.Complex] \as Vectors;
+\definition regular: Vectors.Matrix[m := two].Regular Plane.topology operator := \fun (v: E.Vector) =>
+  Fin.cases one (\fun (i: Fin.Fin two) => Functions.Continuous Plane.topology (\fun (a: C.Complex) => (operator a).apply v i))
+    (Functions.transport Plane.topology (\fun (a: C.Complex) => Scalars.field.mul a (second v)) (\fun (a: C.Complex) => (operator a).apply v (Fin.zero one))
+      (\fun (a: C.Complex) => sym!{{C.Complex}} _ _ (Split.joinHead (Scalars.field.mul a (second v)) Small.space.zero))
+      (Functions.multiplication Plane.topology (\fun (a: C.Complex) => a) (\fun (_: C.Complex) => second v)
+        (topology.Maps[A := C.Complex, B := C.Complex].Identity[].continuous Plane.topology) (Functions.constant Plane.topology (second v))))
+    (\fun (i: Fin.Fin one) => Functions.transport Plane.topology (\fun (_: C.Complex) => Scalars.field.zero) (\fun (a: C.Complex) => (operator a).apply v (Fin.succ one i))
+      (\fun (a: C.Complex) => sym!{{C.Complex}} _ _ (congr!{Small.Vector {C.Complex}} (\fun (w: Small.Vector) => w i) _ _ (Split.joinTail (Scalars.field.mul a (second v)) Small.space.zero)))
+      (Functions.constant Plane.topology Scalars.field.zero));
+\import \root.Spectral[].At[n := two] \as Model;
+\import Hermitian.At[n := two].Square[] \as Square;
+\import matrix_invariants.Ring[K := C.Complex, scalars := Fields.fieldAsCommutativeRing C.Complex Scalars.field].At[n := two] \as Matrices;
+\import Matrices.Representation[] \as Representation;
+\definition matrix[a: C.Complex]: Matrices.Matrix := Square.entries (operator a);
+\definition matrixRegular: Model.Characteristic[].Families[X := C.Complex, source := Plane.topology].Regular matrix := \fun (i, j: Fin.Fin two) => regular (E.basis j) i;
+\definition gap: \forall (a: C.Complex) -> Model.Splitting[A := matrix a].OffSpectrum := \fun (a: C.Complex) => Model.Eigenvalues[A := matrix a].off
+  (\fun (z: C.Complex)(unit: Absolute.abs z = Real.one)(v: E.Vector)(eigen: (Matrices.linear (matrix a)).apply v = E.space.smul z v) => \root.Spectral[].Nilpotent[V := E.Vector, space := E.space, T := operator a, squareZero := squareZero a].noUnitEigen z unit v
+    (trans!{E.Vector} _ _ _ (sym!{E.Vector} _ _ (congr!{End.Map {E.Vector}} (\fun (f: End.Map) => f.apply v) _ _ (Representation.linearEntries (operator a)))) eigen));
+\import Model.Continuous[X := C.Complex, source := Plane.topology, A := matrix, regular := matrixRegular, off := gap] \as Splitting;
+\definition Fiber[a: C.Complex]: \Set := Splitting.Bundle[].Fiber a;
+\definition imageBundle: Bundles.Family[X := C.Complex, F := Fiber].Bundle := Splitting.Bundle[].bundle;
+\definition projectorIdempotent: \forall (a: C.Complex)(v: E.Vector) -> (Splitting.projection a).apply ((Splitting.projection a).apply v) = (Splitting.projection a).apply v :=
+  \fun (a: C.Complex) => Model.Splitting[A := matrix a].Separated[off := gap a].idempotent;
+\module Homotopy;

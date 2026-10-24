@@ -1,0 +1,61 @@
+\import \root.Spectral[].Coefficients[] \as Coefficients;
+\import Coefficients.Laws[] \as CoefficientLaws;
+\import Coefficients.ProductLaws[] \as Products;
+\import Coefficients.Tensor[n := n, k := n] \as Sum;
+\import \parent.Weights[] \as Weights;
+\import matrix_invariants.Ring[K := C.Complex, scalars := Fields.fieldAsCommutativeRing C.Complex Scalars.field] \as ScalarRing;
+\import matrix_invariants.Ring[K := P.Carrier, scalars := P.ring] \as PolynomialRing;
+\import PolynomialRing.At[n := n] \as PolynomialDeterminant;
+\import Matrices.RowTerms[] \as ScalarTerms;
+\import PolynomialDeterminant.RowTerms[] \as PolynomialTerms;
+\import ScalarRing.TensorSum[n := n] \as ScalarSum;
+\import PolynomialRing.TensorSum[n := n] \as PolynomialSum;
+\import PolynomialRing.Products[n := n] \as PolynomialProducts;
+\import Coordinates.Kronecker[] \as Delta;
+\import galois.Field[].Over[K := C.Complex, field := Scalars.field].Polynomial[].Raw[] \as Raw;
+\definition constants[A: Matrices.Matrix][indices: Fin.Fin n -> Fin.Fin n]: Roots.Vector n := \fun (j: Fin.Fin n) => Scalars.field.neg (A (indices j) j);
+\definition variables[indices: Fin.Fin n -> Fin.Fin n]: Roots.Vector n := \fun (j: Fin.Fin n) => Delta.delta j (indices j);
+\definition term[A: Matrices.Matrix][indices: Fin.Fin n -> Fin.Fin n]: Coefficients.Data[n] :=
+  Coefficients.scale n (ScalarTerms.Weight indices) (Coefficients.product n (constants A indices) (variables indices));
+\definition value[A: Matrices.Matrix]: Coefficients.Data[n] := Sum.sum n (term A);
+\definition entry: \forall (A: Matrices.Matrix)(i, j: Fin.Fin n) ->
+  P.add (P.constant (Scalars.field.neg (A i j))) (P.mul P.X (P.constant (Delta.delta j i))) = PolynomialMatrices.pencil A i j :=
+  \fun (A: Matrices.Matrix)(i, j: Fin.Fin n) => trans!{{P.Carrier}} _ _ _
+    (congr!{{P.Carrier} {P.Carrier}} (\fun (p: P.Carrier) => P.add p (P.mul P.X (P.constant (Delta.delta j i)))) _ _ (Raw.Laws[].constantNeg (A i j)))
+    (P.ring.ring.semiring.additive.commutative (P.neg (P.constant (A i j))) (P.mul P.X (P.constant (Delta.delta j i))));
+\definition termPolynomial: \forall (A: Matrices.Matrix)(indices: Fin.Fin n -> Fin.Fin n) ->
+  Coefficients.polynomial n (term A indices) = PolynomialTerms.term indices (PolynomialMatrices.pencil A) :=
+  \fun (A: Matrices.Matrix)(indices: Fin.Fin n -> Fin.Fin n) => eq_reason_in!{{P.Carrier} _
+    "=" _ "by" { CoefficientLaws.scaling n (ScalarTerms.Weight indices) (Coefficients.product n (constants A indices) (variables indices)) }
+    "=" _ "by" { congr!{{P.Carrier} {P.Carrier}} (P.mul (P.constant (ScalarTerms.Weight indices))) _ _ (Products.polynomialLaw n (constants A indices) (variables indices)) }
+    "=" { P.mul (P.constant (ScalarTerms.Weight indices)) (PolynomialTerms.monomial indices (PolynomialMatrices.pencil A)) } "by" {
+      congr!{{P.Carrier} {P.Carrier}} (P.mul (P.constant (ScalarTerms.Weight indices))) _ _
+        (PolynomialProducts.congruent (Fin.elements n) _ _ (\fun (j: Fin.Fin n)(_: _) => entry A (indices j) j))
+    }
+    "=" _ "by" { congr!{{P.Carrier} {P.Carrier}} (\fun (p: P.Carrier) => P.mul p (PolynomialTerms.monomial indices (PolynomialMatrices.pencil A))) _ _ (Weights.natural indices) }
+    "=" _ "by" { P.ring.mulCommutative (PolynomialTerms.Weight indices) (PolynomialTerms.monomial indices (PolynomialMatrices.pencil A)) }
+  };
+\definition polynomial: \forall (A: Matrices.Matrix) -> Coefficients.polynomial n (value A) = PolynomialMatrices.characteristic A :=
+  \fun (A: Matrices.Matrix) => eq_reason_in!{{P.Carrier} _
+    "=" _ "by" { Sum.polynomialLaw n (term A) }
+    "=" _ "by" { PolynomialSum.congruent n _ _ (termPolynomial A) }
+    "=" _ "by" { PolynomialDeterminant.Expansion[].determinantExpansion (PolynomialMatrices.pencil A) }
+  };
+\definition leading: \forall (A: Matrices.Matrix) -> (value A).top = Scalars.field.one :=
+  \fun (A: Matrices.Matrix) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { Sum.leadingLaw n (term A) }
+    "=" { ScalarSum.sum n (\fun (indices: Fin.Fin n -> Fin.Fin n) => ScalarTerms.term indices Matrices.identity) } "by" {
+      ScalarSum.congruent n (\fun (indices: Fin.Fin n -> Fin.Fin n) => (term A indices).top)
+        (\fun (indices: Fin.Fin n -> Fin.Fin n) => ScalarTerms.term indices Matrices.identity)
+        (\fun (indices: Fin.Fin n -> Fin.Fin n) => trans!{{C.Complex}} _ _ _
+        (congr!{{C.Complex} {C.Complex}} (Scalars.field.mul (ScalarTerms.Weight indices)) _ _ (Products.leading n (constants A indices) (variables indices)))
+        (Scalars.field.ring.mulCommutative (ScalarTerms.Weight indices) (ScalarTerms.monomial indices Matrices.identity)))
+    }
+    "=" _ "by" { Matrices.Expansion[].determinantExpansion Matrices.identity }
+    "=" _ "by" { Matrices.atIdentity }
+  };
+\definition coefficients[A: Matrices.Matrix]: Roots.Vector n := (value A).lower;
+\definition monic: \forall (A: Matrices.Matrix) -> PolynomialMatrices.characteristic A = Roots.polynomial n (coefficients A) :=
+  \fun (A: Matrices.Matrix) => trans!{{P.Carrier}} _ _ _ (sym!{{P.Carrier}} _ _ (polynomial A)) (CoefficientLaws.monic n (value A) (leading A));
+\module Families(X: \Set, source: topology.Topology[Carrier := X].Topology);
+\module Evaluation(z: C.Complex);

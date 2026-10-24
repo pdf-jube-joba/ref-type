@@ -1,0 +1,46 @@
+\import Spaces.FiniteCoordinates[n := n].Top[] \as ScalarTop;
+\import PolynomialSpaces.FiniteCoordinates[n := n].Top[] \as PolynomialTop;
+\import Spaces.Multilinear[V := Vector, space := Coordinates.space].Alternating[].PermutationRule[k := n] \as ScalarSigns;
+\import PolynomialSpaces.Coordinates[I := Fin.Fin n] \as PolynomialCoordinates;
+\import PolynomialSpaces.Multilinear[V := PolynomialCoordinates.Vector, space := PolynomialCoordinates.space].Alternating[].PermutationRule[k := n] \as PolynomialSigns;
+\import matrix_invariants.Ring[K := P.Carrier, scalars := P.ring].At[n := n] \as PolynomialMatrices;
+\import Matrices.RowTerms[] \as ScalarTerms;
+\import PolynomialMatrices.RowTerms[] \as PolynomialTerms;
+\import std.Data[].Bool[] \as B;
+\import N.Basic[].Def[] \as Nat;
+\import Fin.Permutations[n := n] \as Permutations;
+\import Fin.Ordering[] \as Ordering;
+\import Ordering.Rigidity[] \as Rigidity;
+\import std.Logic[].Classical[] \as Classical;
+\import galois.Field[].Over[K := C.Complex, field := Scalars.field].Polynomial[].Raw[] \as Raw;
+\definition multiplier: \forall (swap: Permutations.Swap)(value: C.Complex) ->
+  P.constant (ScalarSigns.multiplier swap value) = PolynomialSigns.multiplier swap (P.constant value) :=
+  \fun (swap: Permutations.Swap)(value: C.Complex) => B.cases
+    (\fun (b: B.Bool^) => P.constant (B.ite C.Complex b value (Scalars.field.neg value)) = B.ite P.Carrier b (P.constant value) (P.neg (P.constant value)))
+    (Raw.Laws[].constantNeg value) (\refl(P.constant value)) (Nat.eqb swap.first swap.second);
+\definition signed: \forall (word: Permutations.Word)(value: C.Complex) ->
+  P.constant (ScalarSigns.signed word value) = PolynomialSigns.signed word (P.constant value) :=
+  \induction (word: Permutations.Word) \return \forall (value: C.Complex) ->
+    P.constant (ScalarSigns.signed word value) = PolynomialSigns.signed word (P.constant value) \with {
+    | nil: \fun (value: C.Complex) => \refl(P.constant value)
+    | cons: \fun (swap: Permutations.Swap)(tail: Permutations.Word)(previous: _)(value: C.Complex) =>
+      trans!{{P.Carrier}} _ _ _ (multiplier swap (ScalarSigns.signed tail value))
+        (congr!{{P.Carrier} {P.Carrier}} (PolynomialSigns.multiplier swap) _ _ (previous value))
+  };
+\module Ordered(indices: Fin.Fin n -> Fin.Fin n, ordering: Ordering.Ordered n n indices,
+  word: Permutations.Word, represents: Permutations.Represents ordering word);
+\definition natural: \forall (indices: Fin.Fin n -> Fin.Fin n) ->
+  P.constant (ScalarTerms.Weight indices) = PolynomialTerms.Weight indices :=
+  \fun (indices: Fin.Fin n -> Fin.Fin n) => Logic.orElim _ _ _ (Classical.excludedMiddle (Ordering.Injective n n indices))
+    (\block {
+      \fun (injective: _) \then
+      \takefrom ordered: Ordering.Ordered n n indices \by Ordering.ordering n n indices injective \then
+      \takefrom word: \Cast[Permutations.Word] ({ word: Permutations.Word \where Permutations.Represents ordered word }) \by ScalarSigns.decomposition ordered \then
+      \return Ordered[indices := indices, ordering := ordered, word := word,
+        represents := \bysub(Permutations.Word, { word: Permutations.Word \where Permutations.Represents ordered word }, word)].natural
+    })
+    (\fun (notInjective: _) => eq_reason_in!{{P.Carrier} _
+      "=" { P.constant Scalars.field.zero } "by" { congr!{{C.Complex} {P.Carrier}} P.constant _ _ (ScalarTerms.weightZero indices notInjective) }
+      "=" { P.zero } "by" { Raw.coefficientLaws.zero }
+      "=" _ "by" { sym!{{P.Carrier}} _ _ (PolynomialTerms.weightZero indices notInjective) }
+    });

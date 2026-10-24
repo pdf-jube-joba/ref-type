@@ -1,0 +1,73 @@
+\import galois.Field[].Over[K := C.Complex, field := Scalars.field].Polynomial[].AbstractEvaluation[] \as ScalarEvaluation;
+\import P.Universal[K := C.Complex, target := Fields.fieldAsCommutativeRing C.Complex Scalars.field] \as Universal;
+\import PolynomialSpaces.Sums[I := Fin.Fin n] \as PolynomialSums;
+\import Spaces.Sums[I := Fin.Fin n] \as ScalarSums;
+\import ScalarSums.Prop[] \as SumLaws;
+\import ScalarRing.Products[n := n] \as ScalarProducts;
+\import Fin.Tuples[A := Fin.Fin n] \as Tuples;
+\definition evaluate[p: P.Carrier]: C.Complex := ScalarEvaluation.apply z p;
+\definition constants: \forall (a: C.Complex) -> evaluate (P.constant a) = a := Universal.constants ScalarEvaluation.identity z;
+\definition sum: \forall (xs: Lists.List[Fin.Fin n])(f: Fin.Fin n -> P.Carrier) ->
+  evaluate (PolynomialSums.sum xs f) = ScalarSums.sum xs (\fun (i: Fin.Fin n) => evaluate (f i)) :=
+  \induction (xs: Lists.List[Fin.Fin n]) \return \forall (f: Fin.Fin n -> P.Carrier) ->
+    evaluate (PolynomialSums.sum xs f) = ScalarSums.sum xs (\fun (i: Fin.Fin n) => evaluate (f i)) \with {
+    | nil: \fun (f: Fin.Fin n -> P.Carrier) => (ScalarEvaluation.homomorphism z).zero
+    | cons: \fun (i: Fin.Fin n)(xs: Lists.List[Fin.Fin n])(previous: _)(f: Fin.Fin n -> P.Carrier) => trans!{{C.Complex}} _ _ _
+      ((ScalarEvaluation.homomorphism z).add (f i) (PolynomialSums.sum xs f)) (congr!{{C.Complex} {C.Complex}} (Scalars.field.add (evaluate (f i))) _ _ (previous f))
+  };
+\definition product: \forall (xs: Lists.List[Fin.Fin n])(f: Fin.Fin n -> P.Carrier) ->
+  evaluate (PolynomialProducts.value xs f) = ScalarProducts.value xs (\fun (i: Fin.Fin n) => evaluate (f i)) :=
+  \induction (xs: Lists.List[Fin.Fin n]) \return \forall (f: Fin.Fin n -> P.Carrier) ->
+    evaluate (PolynomialProducts.value xs f) = ScalarProducts.value xs (\fun (i: Fin.Fin n) => evaluate (f i)) \with {
+    | nil: \fun (f: Fin.Fin n -> P.Carrier) => (ScalarEvaluation.homomorphism z).one
+    | cons: \fun (i: Fin.Fin n)(xs: Lists.List[Fin.Fin n])(previous: _)(f: Fin.Fin n -> P.Carrier) => trans!{{C.Complex}} _ _ _
+      ((ScalarEvaluation.homomorphism z).mul (f i) (PolynomialProducts.value xs f)) (congr!{{C.Complex} {C.Complex}} (Scalars.field.mul (evaluate (f i))) _ _ (previous f))
+  };
+\definition tensor: \forall (r: N.Nat^)(f: PolynomialSum.Tuple r -> P.Carrier) ->
+  evaluate (PolynomialSum.sum r f) = ScalarSum.sum r (\fun (indices: PolynomialSum.Tuple r) => evaluate (f indices)) :=
+  \induction (r: N.Nat^) \return \forall (f: PolynomialSum.Tuple r -> P.Carrier) ->
+    evaluate (PolynomialSum.sum r f) = ScalarSum.sum r (\fun (indices: PolynomialSum.Tuple r) => evaluate (f indices)) \with {
+    | zero: \fun (f: PolynomialSum.Tuple N.Nat^::zero -> P.Carrier) => \refl(evaluate (f Fin.Empty[A := Fin.Fin n].function))
+    | succ: \fun (r: N.Nat^)(previous: _)(f: PolynomialSum.Tuple (N.Nat^::succ r) -> P.Carrier) => trans!{{C.Complex}} _ _ _
+      (sum (Fin.elements n) (\fun (i: Fin.Fin n) => PolynomialSum.sum r (\fun (indices: PolynomialSum.Tuple r) => f (Tuples.extend r i indices))))
+      (SumLaws.congruent (Fin.elements n)
+        (\fun (i: Fin.Fin n) => evaluate (PolynomialSum.sum r (\fun (indices: PolynomialSum.Tuple r) => f (Tuples.extend r i indices))))
+        (\fun (i: Fin.Fin n) => ScalarSum.sum r (\fun (indices: PolynomialSum.Tuple r) => evaluate (f (Tuples.extend r i indices))))
+        (\fun (i: Fin.Fin n) => previous (\fun (indices: PolynomialSum.Tuple r) => f (Tuples.extend r i indices))))
+  };
+\definition entries[A: Matrices.Matrix]: Matrices.Matrix := \fun (i, j: Fin.Fin n) =>
+  Scalars.field.add (Scalars.field.mul z (Delta.delta j i)) (Scalars.field.neg (A i j));
+\definition entry: \forall (A: Matrices.Matrix)(i, j: Fin.Fin n) -> evaluate (PolynomialMatrices.pencil A i j) = entries A i j :=
+  \fun (A: Matrices.Matrix)(i, j: Fin.Fin n) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { (ScalarEvaluation.homomorphism z).add (P.mul P.X (P.constant (Delta.delta j i))) (P.neg (P.constant (A i j))) }
+    "=" { Scalars.field.add (Scalars.field.mul (evaluate P.X) (evaluate (P.constant (Delta.delta j i)))) (evaluate (P.constant (Scalars.field.neg (A i j)))) } "by" {
+      congr!{{C.Complex} {C.Complex} {C.Complex}} Scalars.field.add _ _ _ _
+        ((ScalarEvaluation.homomorphism z).mul P.X (P.constant (Delta.delta j i)))
+        (congr!{{P.Carrier} {C.Complex}} evaluate _ _ (sym!{{P.Carrier}} _ _ (Raw.Laws[].constantNeg (A i j))))
+    }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex} {C.Complex}} Scalars.field.add _ _ _ _
+      (congr!{{C.Complex} {C.Complex} {C.Complex}} Scalars.field.mul _ _ _ _ (Universal.variable ScalarEvaluation.identity z) (constants (Delta.delta j i)))
+      (constants (Scalars.field.neg (A i j))) }
+  };
+\definition weight: \forall (indices: Fin.Fin n -> Fin.Fin n) -> evaluate (PolynomialTerms.Weight indices) = ScalarTerms.Weight indices :=
+  \fun (indices: Fin.Fin n -> Fin.Fin n) => trans!{{C.Complex}} _ _ _
+    (congr!{{P.Carrier} {C.Complex}} evaluate _ _ (sym!{{P.Carrier}} _ _ (Weights.natural indices))) (constants (ScalarTerms.Weight indices));
+\definition term: \forall (A: Matrices.Matrix)(indices: Fin.Fin n -> Fin.Fin n) ->
+  evaluate (PolynomialTerms.term indices (PolynomialMatrices.pencil A)) = ScalarTerms.term indices (entries A) :=
+  \fun (A: Matrices.Matrix)(indices: Fin.Fin n -> Fin.Fin n) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { (ScalarEvaluation.homomorphism z).mul (PolynomialTerms.monomial indices (PolynomialMatrices.pencil A)) (PolynomialTerms.Weight indices) }
+    "=" { Scalars.field.mul (ScalarProducts.product (\fun (j: Fin.Fin n) => evaluate (PolynomialMatrices.pencil A (indices j) j))) (ScalarTerms.Weight indices) } "by" {
+      congr!{{C.Complex} {C.Complex} {C.Complex}} Scalars.field.mul _ _ _ _ (product (Fin.elements n) (\fun (j: Fin.Fin n) => PolynomialMatrices.pencil A (indices j) j)) (weight indices)
+    }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (\fun (a: C.Complex) => Scalars.field.mul a (ScalarTerms.Weight indices)) _ _
+      (ScalarProducts.congruent (Fin.elements n) _ _ (\fun (j: Fin.Fin n)(_: _) => entry A (indices j) j)) }
+  };
+\definition characteristic: \forall (A: Matrices.Matrix) -> evaluate (PolynomialMatrices.characteristic A) = Matrices.determinant (entries A) :=
+  \fun (A: Matrices.Matrix) => eq_reason_in!{{C.Complex} _
+    "=" { evaluate (PolynomialSum.sum n (\fun (indices: Fin.Fin n -> Fin.Fin n) => PolynomialTerms.term indices (PolynomialMatrices.pencil A))) } "by" {
+      congr!{{P.Carrier} {C.Complex}} evaluate _ _ (sym!{{P.Carrier}} _ _ (PolynomialDeterminant.Expansion[].determinantExpansion (PolynomialMatrices.pencil A)))
+    }
+    "=" _ "by" { tensor n (\fun (indices: Fin.Fin n -> Fin.Fin n) => PolynomialTerms.term indices (PolynomialMatrices.pencil A)) }
+    "=" _ "by" { ScalarSum.congruent n _ _ (term A) }
+    "=" _ "by" { Matrices.Expansion[].determinantExpansion (entries A) }
+  };

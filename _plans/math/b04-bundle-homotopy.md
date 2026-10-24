@@ -10,3 +10,4 @@
 ## 依存するタスク
 
 - [束の計量・補束と同型類](../../libs/geometry/bundle_complements/README.md)
+- [連続なスペクトル分離と像束の比較](../../libs/algebra/spectral_splitting/README.md)

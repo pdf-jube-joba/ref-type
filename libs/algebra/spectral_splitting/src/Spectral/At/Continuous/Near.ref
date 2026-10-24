@@ -1,0 +1,43 @@
+\definition Base: \Set := \Cast[X] (domain index);
+\import Source.Subspace[S := domain index] \as Subspace;
+\definition topology: topology.Topology[Carrier := Base].Topology := Subspace.topology source;
+\import Hermitian.Functions[X := Base] \as LocalFunctions;
+\import Hermitian.At[n := n].Families[X := Base].Matrix[m := n] \as LocalMaps;
+\import topology.Continuity[A := X, B := C.Complex].Restriction[S := domain index] \as RestrictScalars;
+\definition localT: LocalMaps.Regular topology (\fun (x: Base) => T x) :=
+  \fun (v: Vector)(i: Fin.Fin n) => RestrictScalars.restrictContinuous source Plane.topology _ (regularT v i);
+\import \root.Spectral[].At[n := n].Families[X := Base, source := topology, T := (\fun (x: Base) => T x), regularT := localT] \as LocalEvaluation;
+\definition evaluateRegular: \forall (k: N.Nat^)(c: Base -> ComplexRoots.Vector k)(p: Base -> P.Carrier) ->
+  LocalEvaluation.CoefficientRegular k c -> (\forall (x: Base) -> ComplexRoots.polynomial k (c x) = p x) -> LocalMaps.Regular topology (\fun (x: Base) => Evaluation.evaluate x (p x)) :=
+  \fun (k: N.Nat^)(c: Base -> ComplexRoots.Vector k)(p: Base -> P.Carrier)(cc: _)(same: _)(v: Vector)(i: Fin.Fin n) =>
+    LocalFunctions.transport topology (\fun (x: Base) => (LocalEvaluation.evaluate x (ComplexRoots.polynomial k (c x))).apply v i)
+      (\fun (x: Base) => (Evaluation.evaluate x (p x)).apply v i)
+      (\fun (x: Base) => congr!{{P.Carrier} {C.Complex}} (\fun (q: P.Carrier) => (Evaluation.evaluate x q).apply v i) _ _ (same x))
+      (LocalEvaluation.regular k c cc v i);
+\import Roots.LocalLeft[k := index.left] \as Left;
+\import Roots.LocalRight[k := index.right] \as Right;
+\import topology.Continuity[A := X, B := ComplexRoots.Vector n].Restriction[S := domain index] \as RestrictCoefficients;
+\import topology.Continuity[A := Base, B := ComplexRoots.Vector n].Corestriction[S := Roots.LeftDomain index.left] \as IntoLeft;
+\import topology.Continuity[A := Base, B := ComplexRoots.Vector n].Corestriction[S := Roots.RightDomain index.right] \as IntoRight;
+\definition leftPoint[x: Base]: Left.Base := \into[ComplexRoots.Vector n](coefficients x, Left.Base) \by { (\bysub(X, domain index, x)).left };
+\definition rightPoint[x: Base]: Right.Base := \into[ComplexRoots.Vector n](coefficients x, Right.Base) \by { (\bysub(X, domain index, x)).right };
+\definition leftContinuous: topology.Continuity[A := Base, B := Left.Base].Continuous topology Left.topology leftPoint :=
+  IntoLeft.corestrictContinuous topology (ComplexRoots.At[n := n].topology) leftPoint
+    (RestrictCoefficients.restrictContinuous source (ComplexRoots.At[n := n].topology) coefficients (Coefficients.continuous A regular));
+\definition rightContinuous: topology.Continuity[A := Base, B := Right.Base].Continuous topology Right.topology rightPoint :=
+  IntoRight.corestrictContinuous topology (ComplexRoots.At[n := n].topology) rightPoint
+    (RestrictCoefficients.restrictContinuous source (ComplexRoots.At[n := n].topology) coefficients (Coefficients.continuous A regular));
+\import topological_algebra.Coordinates[K := C.Complex, I := Fin.Fin index.left] \as LeftCoordinates;
+\import topological_algebra.Coordinates[K := C.Complex, I := Fin.Fin index.right] \as RightCoordinates;
+\import topology.Composition[A := Base, B := ComplexRoots.Vector index.left, C := C.Complex] \as LeftCompose;
+\import topology.Composition[A := Base, B := ComplexRoots.Vector index.right, C := C.Complex] \as RightCompose;
+\definition insideRegular: LocalMaps.Regular topology (\fun (x: Base) => Evaluation.evaluate x (inside x)) :=
+  evaluateRegular index.left (\fun (x: Base) => Left.coefficients (leftPoint x)) (\fun (x: Base) => inside x)
+    (\fun (i: Fin.Fin index.left) => LeftCompose.composeContinuous topology (ComplexRoots.At[n := index.left].topology) Plane.topology _ (\fun (c: ComplexRoots.Vector index.left) => c i)
+      (Left.Families[X := Base].regular topology leftPoint leftContinuous) (LeftCoordinates.evaluationContinuous Plane.topology i))
+    (\fun (x: Base) => Left.polynomial (leftPoint x));
+\definition outsideRegular: LocalMaps.Regular topology (\fun (x: Base) => Evaluation.evaluate x (outside x)) :=
+  evaluateRegular index.right (\fun (x: Base) => Right.coefficients (rightPoint x)) (\fun (x: Base) => outside x)
+    (\fun (i: Fin.Fin index.right) => RightCompose.composeContinuous topology (ComplexRoots.At[n := index.right].topology) Plane.topology _ (\fun (c: ComplexRoots.Vector index.right) => c i)
+      (Right.Families[X := Base].regular topology rightPoint rightContinuous) (RightCoordinates.evaluationContinuous Plane.topology i))
+    (\fun (x: Base) => Right.polynomial (rightPoint x));

@@ -1,0 +1,42 @@
+\import \root.Spectral[].InFrame[V := V, space := space, T := T, n := first.rank, frame := first.frame] \as SourceFrame;
+\import \root.Spectral[].InFrame[V := W, space := destination, T := U, n := second.rank, frame := second.frame] \as TargetFrame;
+\import SourceFrame.Separated[off := first.off] \as SourceProjection;
+\import TargetFrame.Separated[off := second.off] \as TargetProjection;
+\definition A: \Set := Fin.Fin first.rank -> C.Complex;
+\definition B: \Set := Fin.Fin second.rank -> C.Complex;
+\definition sourceCoordinates: Spaces.VectorSpace A := Spaces.Coordinates[I := Fin.Fin first.rank].space;
+\definition targetCoordinates: Spaces.VectorSpace B := Spaces.Coordinates[I := Fin.Fin second.rank].space;
+\import Spaces.Linear[V := V, W := W, source := space, target := destination].Composition[U := A, domain := sourceCoordinates] \as First;
+\import Spaces.Linear[V := W, W := B, source := destination, target := targetCoordinates].Composition[U := A, domain := sourceCoordinates] \as Second;
+\definition change: Spaces.Linear[V := A, W := B, source := sourceCoordinates, target := targetCoordinates].Map := Second.compose second.frame.forward (First.compose h first.frame.backward);
+\import matrix_invariants.Ring[K := C.Complex, scalars := Fields.fieldAsCommutativeRing C.Complex Scalars.field] \as Matrices;
+\definition intertwinesCoordinates: \forall (v: A) -> change.apply ((Matrices.At[n := first.rank].linear SourceFrame.matrix).apply v) = (Matrices.At[n := second.rank].linear TargetFrame.matrix).apply (change.apply v) :=
+  \fun (v: A) => eq_reason_in!{B _
+    "=" _ "by" { congr!{A B} change.apply _ _ (SourceFrame.matrixFormula v) }
+    "=" { second.frame.forward.apply (h.apply (T.apply (first.frame.backward.apply v))) } "by" {
+      congr!{V B} (\fun (w: V) => second.frame.forward.apply (h.apply w)) _ _ (SourceFrame.left (T.apply (first.frame.backward.apply v)))
+    }
+    "=" { second.frame.forward.apply (U.apply (h.apply (first.frame.backward.apply v))) } "by" {
+      congr!{W B} second.frame.forward.apply _ _ (intertwines (first.frame.backward.apply v))
+    }
+    "=" { second.frame.forward.apply (U.apply (second.frame.backward.apply (change.apply v))) } "by" {
+      congr!{W B} (\fun (w: W) => second.frame.forward.apply (U.apply w)) _ _ (sym!{W} _ _ (TargetFrame.left (h.apply (first.frame.backward.apply v))))
+    }
+    "=" _ "by" { sym!{B} _ _ (TargetFrame.matrixFormula (change.apply v)) }
+  };
+\import \root.Spectral[].Comparison[n := first.rank, m := second.rank, A := SourceFrame.matrix, B := TargetFrame.matrix, sourceOff := first.off, targetOff := second.off] \as Comparison;
+\import \root.Spectral[].Intertwining[V := A, W := B, source := sourceCoordinates, destination := targetCoordinates,
+  S := Matrices.At[n := first.rank].linear SourceFrame.matrix, T := Matrices.At[n := second.rank].linear TargetFrame.matrix] \as Intertwining;
+\definition morphism: Comparison.Morphism := Intertwining.ofLinear change intertwinesCoordinates;
+\definition natural: \forall (v: V) -> h.apply (SourceIntrinsic.value.apply v) = TargetIntrinsic.value.apply (h.apply v) :=
+  \fun (v: V) => eq_reason_in!{W _
+    "=" { h.apply (SourceProjection.value.apply v) } "by" { congr!{V W} h.apply _ _ (SourceIntrinsic.inFrame first.rank first.frame first.off v) }
+    "=" { second.frame.backward.apply (change.apply (SourceProjection.coordinateProjection.apply (first.frame.forward.apply v))) } "by" { sym!{W} _ _ (TargetFrame.left (h.apply (SourceProjection.value.apply v))) }
+    "=" { second.frame.backward.apply (TargetProjection.coordinateProjection.apply (change.apply (first.frame.forward.apply v))) } "by" {
+      congr!{B W} second.frame.backward.apply _ _ (Comparison.natural morphism (first.frame.forward.apply v))
+    }
+    "=" { TargetProjection.value.apply (h.apply v) } "by" {
+      congr!{V W} (\fun (w: V) => second.frame.backward.apply (TargetProjection.coordinateProjection.apply (second.frame.forward.apply (h.apply w)))) _ _ (SourceFrame.left v)
+    }
+    "=" _ "by" { sym!{W} _ _ (TargetIntrinsic.inFrame second.rank second.frame second.off (h.apply v)) }
+  };

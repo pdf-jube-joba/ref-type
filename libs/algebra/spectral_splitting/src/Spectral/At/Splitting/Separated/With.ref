@@ -1,0 +1,20 @@
+\import \root.Spectral[].Action[V := Vector, space := Coordinates.space, T := Matrices.linear A].With[p := inside, q := outside, b := b] \as Algebra;
+\definition annihilated: \forall (v: Vector) -> Evaluation.apply (P.mul inside outside) v = Coordinates.origin :=
+  \root.Spectral[].At[n := n].On[A := A, factors := factorization b].annihilated;
+\definition formula: \forall (v: Vector) -> projection.apply v = Algebra.projection.apply v := \fun (v: Vector) => trans!{Vector} _ _ _
+  (sym!{Vector} _ _ (Algebra.projectionOfMiddle annihilated (inverse.apply v)))
+  (congr!{Vector Vector} Algebra.projection.apply _ _ (inverseRight v));
+\definition idempotent: \forall (v: Vector) -> projection.apply (projection.apply v) = projection.apply v := \fun (v: Vector) => trans!{Vector} _ _ _
+  (formula (projection.apply v)) (trans!{Vector} _ _ _ (congr!{Vector Vector} Algebra.projection.apply _ _ (formula v))
+    (trans!{Vector} _ _ _ (Algebra.idempotent annihilated v) (sym!{Vector} _ _ (formula v))));
+\definition inKernel: \forall (v: Vector) -> Evaluation.apply inside (projection.apply v) = Coordinates.origin := \fun (v: Vector) => trans!{Vector} _ _ _
+  (congr!{Vector Vector} (Evaluation.apply inside) _ _ (formula v)) (Algebra.inLeft annihilated v);
+\definition complementaryFormula: \forall (v: Vector) -> complementary.apply v = Algebra.complementary.apply v := \fun (v: Vector) => trans!{Vector} _ _ _
+  (sym!{Vector} _ _ (Algebra.complementaryOfMiddle annihilated (inverse.apply v)))
+  (congr!{Vector Vector} Algebra.complementary.apply _ _ (inverseRight v));
+\definition reconstruction: \forall (v: Vector) -> Coordinates.plus (projection.apply v) (complementary.apply v) = v :=
+  \fun (v: Vector) => trans!{Vector} _ _ _ (congr!{Vector Vector Vector} Coordinates.plus _ _ _ _ (formula v) (complementaryFormula v)) (Algebra.reconstruction v);
+\definition inOtherKernel: \forall (v: Vector) -> Evaluation.apply outside (complementary.apply v) = Coordinates.origin :=
+  \fun (v: Vector) => trans!{Vector} _ _ _ (congr!{Vector Vector} (Evaluation.apply outside) _ _ (complementaryFormula v)) (Algebra.inRight annihilated v);
+\definition onKernel: \forall (v: Vector) -> Evaluation.apply inside v = Coordinates.origin -> projection.apply v = v :=
+  \fun (v: Vector)(member: _) => trans!{Vector} _ _ _ (formula v) (Algebra.onLeft v member);

@@ -1,0 +1,35 @@
+\import Polynomials.Action[V := V, space := space].At[T := T] \as E;
+\import Polynomials.Primary[V := V, space := E.module] \as Primary;
+\import PolynomialSpaces.Laws[V := V, space := E.module] \as Laws;
+\import Spaces.Laws[V := V, space := space] \as Values;
+\import Spaces.Linear[V := V, W := V, source := space, target := space] \as End;
+\import End.Operations[] \as Operations;
+\import End.Composition[U := V, domain := space] \as Compose;
+\definition onKernelSum: \forall (p, q: P.Carrier)(b: Polynomials.Bezout[p, q, P.one])(w: V) -> E.apply p w = space.zero ->
+  E.apply (P.add p q) (E.apply b.right w) = w :=
+  \fun (p, q: P.Carrier)(b: Polynomials.Bezout[p, q, P.one])(w: V)(member: _) => eq_reason_in!{V _
+    "=" _ "by" { E.addition p q (E.apply b.right w) }
+    "=" { space.add space.zero (E.apply (P.mul b.right q) w) } "by" {
+      congr!{V V V} space.add _ _ _ _
+        (trans!{V} _ _ _ (Laws.scaleComm p b.right w)
+          (trans!{V} _ _ _ (congr!{V V} (E.apply b.right) _ _ member) (E.evaluate b.right).preservesZero))
+        (trans!{V} _ _ _ (Laws.scaleComm q b.right w) (sym!{V} _ _ (E.multiplication b.right q w)))
+    }
+    "=" _ "by" { Values.zeroLeft (E.apply (P.mul b.right q) w) }
+    "=" _ "by" { Primary.onKernel p q b w member }
+  };
+\module With(p, q: P.Carrier, b: Polynomials.Bezout[p, q, P.one]);
+\definition polynomialKernel: \forall (r, t: P.Carrier)(v: V) -> E.apply r v = space.zero -> E.apply r (E.apply t v) = space.zero :=
+  \fun (r, t: P.Carrier)(v: V)(member: _) => trans!{V} _ _ _ (Laws.scaleComm r t v)
+    (trans!{V} _ _ _ (congr!{V V} (E.apply t) _ _ member) (E.evaluate t).preservesZero);
+\definition coprimeCancellation: \forall (p, d: P.Carrier)(b: Polynomials.Bezout[p, d, P.one])(c: P.Carrier)(v: V) ->
+  E.apply p v = space.zero -> E.apply (P.mul c d) v = space.zero -> E.apply c v = space.zero :=
+  \fun (p, d: P.Carrier)(b: Polynomials.Bezout[p, d, P.one])(c: P.Carrier)(v: V)(member: _)(annihilated: _) => eq_reason_in!{V _
+    "=" { E.apply c (Primary.projection p d b v) } "by" { congr!{V V} (E.apply c) _ _ (sym!{V} _ _ (Primary.onKernel p d b v member)) }
+    "=" { E.apply c (E.apply b.right (E.apply d v)) } "by" { congr!{V V} (E.apply c) _ _ (E.multiplication b.right d v) }
+    "=" _ "by" { Laws.scaleComm c b.right (E.apply d v) }
+    "=" { E.apply b.right (E.apply (P.mul c d) v) } "by" { congr!{V V} (E.apply b.right) _ _ (sym!{V} _ _ (E.multiplication c d v)) }
+    "=" { E.apply b.right space.zero } "by" { congr!{V V} (E.apply b.right) _ _ annihilated }
+    "=" _ "by" { (E.evaluate b.right).preservesZero }
+  };
+\module Comparison(p, q: P.Carrier, b: Polynomials.Bezout[p, q, P.one], c, d: P.Carrier, other: Polynomials.Bezout[c, d, P.one]);

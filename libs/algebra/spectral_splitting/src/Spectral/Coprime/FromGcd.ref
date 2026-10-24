@@ -1,0 +1,39 @@
+\definition empty: NoCommon p q -> form.coefficients = Lists.List[C.Complex]::nil := \fun (noCommon: _) =>
+  Logic.orElim (form.coefficients = Lists.List[C.Complex]::nil) (Logic.Not (form.coefficients = Lists.List[C.Complex]::nil)) (form.coefficients = Lists.List[C.Complex]::nil) (Classical.excludedMiddle (form.coefficients = Lists.List[C.Complex]::nil)) (\fun (same: _) => same)
+    (\fun (notEmpty: _) => \block {
+      \takefrom z: \Cast[C.Complex] ({ z: C.Complex \where Monic.monicEvaluate form.coefficients z = Scalars.field.zero })
+        \by Fundamental.Roots[].exists form.coefficients (\fun (zero: _) => notEmpty (emptyOfLength form.coefficients zero)) \then
+      \let root: E.apply z gcd.value = Scalars.field.zero := eq_reason_in!{C.Complex _
+        "=" _ "by" { congr!{{P.Carrier} {C.Complex}} (E.apply z) _ _ form.equation }
+        "=" _ "by" { (E.homomorphism z).mul (P.constant form.leading) (Monic.asPolynomial form.coefficients) }
+        "=" { Scalars.field.mul form.leading Scalars.field.zero } "by" {
+          congr!{{C.Complex} {C.Complex} {C.Complex}} Scalars.field.mul _ _ _ _ (constantValue z form.leading)
+            (trans!{{C.Complex}} _ _ _ (E.agrees form.coefficients z) (\bysub(C.Complex, { z: C.Complex \where Monic.monicEvaluate form.coefficients z = Scalars.field.zero }, z)))
+        }
+        "=" _ "by" { Scalars.field.ring.ring.semiring.zeroAbsorbsRight form.leading }
+      } \then
+      \return Logic.falseElim (form.coefficients = Lists.List[C.Complex]::nil) (noCommon z (divisorRoot p gcd.value gcd.leftDivisor z root) (divisorRoot q gcd.value gcd.rightDivisor z root))
+    });
+\definition constant: NoCommon p q -> gcd.value = P.constant form.leading := \fun (noCommon: _) => eq_reason_in!{{P.Carrier} _
+  "=" _ "by" { form.equation }
+  "=" { P.mul (P.constant form.leading) P.one } "by" { congr!{{Monic.Coefficients} {P.Carrier}} (\fun (xs: Monic.Coefficients) => P.mul (P.constant form.leading) (Monic.asPolynomial xs)) _ _ (empty noCommon) }
+  "=" _ "by" { P.ring.ring.semiring.multiplicative.rightIdentity (P.constant form.leading) }
+};
+\definition scale: P.Carrier := P.constant (Scalars.field.inv form.leading);
+\definition unitScale: P.mul scale (P.constant form.leading) = P.one := eq_reason_in!{{P.Carrier} _
+  "=" _ "by" { sym!{{P.Carrier}} _ _ (Raw.coefficientLaws.mul (Scalars.field.inv form.leading) form.leading) }
+  "=" { P.constant Scalars.field.one } "by" { congr!{{C.Complex} {P.Carrier}} P.constant _ _ (Scalars.field.inverse form.leading form.nonzero) }
+  "=" _ "by" { Raw.coefficientLaws.one }
+};
+\definition result[noCommon: NoCommon p q]: Polynomials.Bezout[p, q, P.one] := Polynomials.Bezout[p, q, P.one] {
+  left := P.mul scale gcd.bezout.left, right := P.mul scale gcd.bezout.right,
+  equation := eq_reason_in!{{P.Carrier} P.one
+    "=" _ "by" { sym!{{P.Carrier}} _ _ unitScale }
+    "=" { P.mul scale gcd.value } "by" { congr!{{P.Carrier} {P.Carrier}} (P.mul scale) _ _ (sym!{{P.Carrier}} _ _ (constant noCommon)) }
+    "=" _ "by" { congr!{{P.Carrier} {P.Carrier}} (P.mul scale) _ _ gcd.bezout.equation }
+    "=" _ "by" { P.ring.ring.semiring.leftDistributive scale (P.mul gcd.bezout.left p) (P.mul gcd.bezout.right q) }
+    "=" _ "by" { congr!{{P.Carrier} {P.Carrier} {P.Carrier}} P.add _ _ _ _
+      (sym!{{P.Carrier}} _ _ (P.ring.ring.semiring.multiplicative.associative scale gcd.bezout.left p))
+      (sym!{{P.Carrier}} _ _ (P.ring.ring.semiring.multiplicative.associative scale gcd.bezout.right q)) }
+  }
+};

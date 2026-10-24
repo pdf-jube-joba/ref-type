@@ -1,0 +1,20 @@
+\import PolynomialMatrices.On[A := A].Splitting[factors := factors] \as Existing;
+\import Polynomials.Action[V := Vector, space := Coordinates.space].At[T := Matrices.linear A] \as Evaluation;
+\import \root.Spectral[].Action[V := Vector, space := Coordinates.space, T := Matrices.linear A].With[p := factors.left, q := factors.right, b := factors.bezout] \as Algebra;
+\definition annihilated: \forall (v: Vector) -> Evaluation.apply (P.mul factors.left factors.right) v = Coordinates.origin := Existing.annihilated;
+\definition rightInverse: \forall (v: Vector) -> Algebra.middle.apply (Algebra.inverse.apply v) = v := Algebra.rightInverse annihilated;
+\definition leftInverse: \forall (v: Vector) -> Algebra.inverse.apply (Algebra.middle.apply v) = v := Square.leftInverseRight Algebra.inverse Algebra.middle rightInverse;
+\definition nonsingular: Inversion.Nonzero (Square.entries Algebra.middle) := Square.LeftInverse[f := Algebra.middle, g := Algebra.inverse, left := leftInverse].nonzero;
+\definition matrix: Inversion.Nonsingular := \into[Matrices.Matrix](Square.entries Algebra.middle, Inversion.Nonsingular) \by { nonsingular };
+\definition inverse: End.Map := Square.Inverse[A := matrix].value;
+\definition inverseRight: \forall (v: Vector) -> Algebra.middle.apply (inverse.apply v) = v :=
+  Square.LeftInverse[f := Algebra.middle, g := Algebra.inverse, left := leftInverse].inverseRight;
+\definition projection: End.Map := Compose.compose (Evaluation.evaluate factors.right) inverse;
+\definition bezoutFormula: \forall (v: Vector) -> projection.apply v = Algebra.projection.apply v := \fun (v: Vector) => trans!{Vector} _ _ _
+  (sym!{Vector} _ _ (Algebra.projectionOfMiddle annihilated (inverse.apply v)))
+  (congr!{Vector Vector} Algebra.projection.apply _ _ (inverseRight v));
+\definition idempotent: \forall (v: Vector) -> projection.apply (projection.apply v) = projection.apply v := \fun (v: Vector) => trans!{Vector} _ _ _
+  (bezoutFormula (projection.apply v)) (trans!{Vector} _ _ _ (congr!{Vector Vector} Algebra.projection.apply _ _ (bezoutFormula v))
+    (trans!{Vector} _ _ _ (Algebra.idempotent annihilated v) (sym!{Vector} _ _ (bezoutFormula v))));
+\definition inKernel: \forall (v: Vector) -> Evaluation.apply factors.left (projection.apply v) = Coordinates.origin := \fun (v: Vector) => trans!{Vector} _ _ _
+  (congr!{Vector Vector} (Evaluation.apply factors.left) _ _ (bezoutFormula v)) (Algebra.inLeft annihilated v);

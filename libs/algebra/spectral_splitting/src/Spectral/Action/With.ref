@@ -1,0 +1,54 @@
+\definition projection: End.Map := E.evaluate (P.mul b.right q);
+\definition complementary: End.Map := E.evaluate (P.mul b.left p);
+\definition middle: End.Map := E.evaluate (P.add p q);
+\definition inverse: End.Map := Operations.plus (Compose.compose (E.evaluate b.right) projection) (Compose.compose (E.evaluate b.left) complementary);
+\definition reconstruction: \forall (v: V) -> space.add (projection.apply v) (complementary.apply v) = v := Primary.reconstruction p q b;
+\definition onLeft: \forall (v: V) -> E.apply p v = space.zero -> projection.apply v = v := Primary.onKernel p q b;
+\definition onRight: \forall (v: V) -> E.apply q v = space.zero -> projection.apply v = space.zero := Primary.onOtherKernel p q b;
+\definition swappedAnnihilation: (\forall (v: V) -> E.apply (P.mul p q) v = space.zero) -> \forall (v: V) -> E.apply (P.mul q p) v = space.zero :=
+  \fun (annihilated: _)(v: V) => trans!{V} _ _ _
+    (congr!{{P.Carrier} V} (\fun (r: P.Carrier) => E.apply r v) _ _ (P.ring.mulCommutative q p)) (annihilated v);
+\definition inLeft: (\forall (v: V) -> E.apply (P.mul p q) v = space.zero) -> \forall (v: V) -> E.apply p (projection.apply v) = space.zero :=
+  \fun (annihilated: _)(v: V) => Primary.intoKernel p q b v (annihilated v);
+\definition inRight: (\forall (v: V) -> E.apply (P.mul p q) v = space.zero) -> \forall (v: V) -> E.apply q (complementary.apply v) = space.zero :=
+  \fun (annihilated: _)(v: V) => Primary.intoKernel q p (Primary.swap p q b) v (swappedAnnihilation annihilated v);
+\definition idempotent: (\forall (v: V) -> E.apply (P.mul p q) v = space.zero) -> \forall (v: V) -> projection.apply (projection.apply v) = projection.apply v :=
+  \fun (annihilated: _)(v: V) => Primary.idempotent p q b v (annihilated v);
+\definition rightInverse: (\forall (v: V) -> E.apply (P.mul p q) v = space.zero) -> \forall (v: V) -> middle.apply (inverse.apply v) = v :=
+  \fun (annihilated: _)(v: V) => eq_reason_in!{V _
+    "=" _ "by" { middle.preservesAdd (E.apply b.right (projection.apply v)) (E.apply b.left (complementary.apply v)) }
+    "=" { space.add (projection.apply v) (complementary.apply v) } "by" {
+      congr!{V V V} space.add _ _ _ _
+        (onKernelSum p q b (projection.apply v) (inLeft annihilated v))
+        (trans!{V} _ _ _ (congr!{{P.Carrier} V} (\fun (r: P.Carrier) => E.apply r (E.apply b.left (complementary.apply v))) _ _ (P.ring.ring.semiring.additive.commutative p q))
+          (onKernelSum q p (Primary.swap p q b) (complementary.apply v) (inRight annihilated v)))
+    }
+    "=" _ "by" { reconstruction v }
+  };
+\definition independent: \forall (c: Polynomials.Bezout[p, q, P.one]) -> (\forall (v: V) -> E.apply (P.mul p q) v = space.zero) ->
+  \forall (v: V) -> projection.apply v = E.apply (P.mul c.right q) v :=
+  \fun (c: Polynomials.Bezout[p, q, P.one])(annihilated: _)(v: V) => Primary.independent p q b c v (annihilated v);
+\definition projectionOfMiddle: (\forall (v: V) -> E.apply (P.mul p q) v = space.zero) -> \forall (v: V) -> projection.apply (middle.apply v) = E.apply q v :=
+  \fun (annihilated: _)(v: V) => eq_reason_in!{V _
+    "=" _ "by" { congr!{V V} projection.apply _ _ (E.addition p q v) }
+    "=" _ "by" { projection.preservesAdd (E.apply p v) (E.apply q v) }
+    "=" { space.add space.zero (E.apply q v) } "by" {
+      congr!{V V V} space.add _ _ _ _
+        (onRight (E.apply p v) (trans!{V} _ _ _ (sym!{V} _ _ (E.multiplication q p v)) (swappedAnnihilation annihilated v)))
+        (onLeft (E.apply q v) (trans!{V} _ _ _ (sym!{V} _ _ (E.multiplication p q v)) (annihilated v)))
+    }
+    "=" _ "by" { Values.zeroLeft (E.apply q v) }
+  };
+\definition complementaryOfMiddle: (\forall (v: V) -> E.apply (P.mul p q) v = space.zero) -> \forall (v: V) -> complementary.apply (middle.apply v) = E.apply p v :=
+  \fun (annihilated: _)(v: V) => eq_reason_in!{V _
+    "=" _ "by" { congr!{V V} complementary.apply _ _ (E.addition p q v) }
+    "=" _ "by" { complementary.preservesAdd (E.apply p v) (E.apply q v) }
+    "=" { space.add (E.apply p v) space.zero } "by" {
+      congr!{V V V} space.add _ _ _ _
+        (Primary.onKernel q p (Primary.swap p q b) (E.apply p v)
+          (trans!{V} _ _ _ (sym!{V} _ _ (E.multiplication q p v)) (swappedAnnihilation annihilated v)))
+        (Primary.onOtherKernel q p (Primary.swap p q b) (E.apply q v)
+          (trans!{V} _ _ _ (sym!{V} _ _ (E.multiplication p q v)) (annihilated v)))
+    }
+    "=" _ "by" { Values.zeroRight (E.apply p v) }
+  };

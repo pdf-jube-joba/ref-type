@@ -1,0 +1,18 @@
+\import Model.Restricted[x := intoOriginal x] \as Restriction;
+\import Spaces.Isomorphism[V := Fiber x, W := Native.Fiber (intoOriginal x), source := space x, target := Native.fiberSpace (intoOriginal x)] \as RestrictedFrames;
+\import Spaces.Isomorphism[V := Native.Fiber (intoOriginal x), W := Bundles.Vector d.dimension, source := Native.fiberSpace (intoOriginal x), target := Bundles.coordinates d.dimension] \as NativeFrames;
+\import Spaces.Linear[V := Native.Fiber (intoOriginal x), W := Bundles.Vector d.dimension, source := Native.fiberSpace (intoOriginal x), target := Bundles.coordinates d.dimension].Composition[U := Fiber x, domain := space x] \as Forward;
+\import Spaces.Linear[V := Native.Fiber (intoOriginal x), W := Fiber x, source := Native.fiberSpace (intoOriginal x), target := space x].Composition[U := Bundles.Vector d.dimension, domain := Bundles.coordinates d.dimension] \as Backward;
+\import Spaces.Isomorphism[V := Fiber x, W := Bundles.Vector d.dimension, source := space x, target := Bundles.coordinates d.dimension] \as Frames;
+\definition frame: Frames.Isomorphism := Frames.Isomorphism {
+  forward := Forward.compose (d.frame (intoNative x)).forward Restriction.forward,
+  backward := Backward.compose Restriction.backward (d.frame (intoNative x)).backward,
+  leftInverse := \fun (v: Fiber x) => trans!{{Fiber x}} _ _ _
+    (congr!{{Native.Fiber (intoOriginal x)} {Fiber x}} Restriction.backward.apply _ _
+      ((NativeFrames.laws (d.frame (intoNative x))).leftInverse (Restriction.forward.apply v)))
+    ((RestrictedFrames.laws Restriction.frame).leftInverse v),
+  rightInverse := \fun (v: Bundles.Vector d.dimension) => trans!{{Bundles.Vector d.dimension}} _ _ _
+    (congr!{{Native.Fiber (intoOriginal x)} {Bundles.Vector d.dimension}} (d.frame (intoNative x)).forward.apply _ _
+      ((RestrictedFrames.laws Restriction.frame).rightInverse ((d.frame (intoNative x)).backward.apply v)))
+    ((NativeFrames.laws (d.frame (intoNative x))).rightInverse v),
+};

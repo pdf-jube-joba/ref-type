@@ -1,0 +1,43 @@
+\import \root.Spectral[].Idempotents[n := n].Homotopy[X := X, baseSpace := baseSpace, compact := compact, P := P, regular := regular] \as Motion;
+\import topological_constructions.Product[A := I.Carrier, B := I.Carrier] \as Times;
+\definition timeSpace: topology.Topology[Carrier := Times.CarrierSet].Topology := Times.topology I.topology I.topology;
+\import topological_constructions.Product[A := Times.CarrierSet, B := X] \as Parameters;
+\definition parameterSpace: topology.Topology[Carrier := Parameters.CarrierSet].Topology := Parameters.topology timeSpace baseSpace;
+\definition first[p: Parameters.CarrierSet]: Cylinder.CarrierSet := Pair.pair I.Carrier X
+  (Pair.first I.Carrier I.Carrier (Pair.first Times.CarrierSet X p)) (Pair.second Times.CarrierSet X p);
+\definition second[p: Parameters.CarrierSet]: Cylinder.CarrierSet := Pair.pair I.Carrier X
+  (Pair.second I.Carrier I.Carrier (Pair.first Times.CarrierSet X p)) (Pair.second Times.CarrierSet X p);
+\definition firstContinuous: topology.Continuity[A := Parameters.CarrierSet, B := Cylinder.CarrierSet].Continuous parameterSpace topology first :=
+  Cylinder.Universal[X := Parameters.CarrierSet].pairContinuous parameterSpace I.topology baseSpace _ _
+    (topology.Composition[A := Parameters.CarrierSet, B := Times.CarrierSet, C := I.Carrier].composeContinuous parameterSpace timeSpace I.topology
+      (Pair.first Times.CarrierSet X) (Pair.first I.Carrier I.Carrier) (Parameters.Maps[].firstContinuous timeSpace baseSpace) (Times.Maps[].firstContinuous I.topology I.topology))
+    (Parameters.Maps[].secondContinuous timeSpace baseSpace);
+\definition secondContinuous: topology.Continuity[A := Parameters.CarrierSet, B := Cylinder.CarrierSet].Continuous parameterSpace topology second :=
+  Cylinder.Universal[X := Parameters.CarrierSet].pairContinuous parameterSpace I.topology baseSpace _ _
+    (topology.Composition[A := Parameters.CarrierSet, B := Times.CarrierSet, C := I.Carrier].composeContinuous parameterSpace timeSpace I.topology
+      (Pair.first Times.CarrierSet X) (Pair.second I.Carrier I.Carrier) (Parameters.Maps[].firstContinuous timeSpace baseSpace) (Times.Maps[].secondContinuous I.topology I.topology))
+    (Parameters.Maps[].secondContinuous timeSpace baseSpace);
+\import \parent.Reindex[Y := Parameters.CarrierSet, source := parameterSpace, f := first, continuous := firstContinuous] \as First;
+\import \parent.Reindex[Y := Parameters.CarrierSet, source := parameterSpace, f := second, continuous := secondContinuous] \as Second;
+\import \root.Spectral[].Idempotents[n := n].Gap[X := Parameters.CarrierSet, baseSpace := parameterSpace,
+  P := (\fun (p: Parameters.CarrierSet) => P (first p)), Q := (\fun (p: Parameters.CarrierSet) => P (second p)), regularP := First.regular, regularQ := Second.regular] \as Gap;
+\import Hermitian.At[n := n].Square[] \as Square;
+\import matrix_invariants.Field[K := K, field := field].At[n := n] \as Inversion;
+\import Spaces.Linear[V := Vector n, W := Vector n, source := coordinates n, target := coordinates n] \as End;
+\import Spaces.Eigen[V := Vector n, space := coordinates n] \as Eigen;
+\definition diagonal: \forall (t: I.Carrier)(x: X) -> \In[Parameters.CarrierSet] Gap.domain
+  (Pair.pair Times.CarrierSet X (Pair.pair I.Carrier I.Carrier t t) x) :=
+  \fun (t: I.Carrier)(x: X) => Square.LeftInverse[f := Gap.h (Pair.pair Times.CarrierSet X (Pair.pair I.Carrier I.Carrier t t) x), g := Eigen.identity,
+    left := \root.Spectral[].Idempotents[n := n].diagonal (P (Pair.pair I.Carrier X t x))].nonzero;
+\module At(t: I.Carrier,
+  tube: Parameters.Compactness[].Tube[timeSpace, Pair.pair I.Carrier I.Carrier t t, Gap.domain, Base.Whole],
+  rectangle: Times.Compactness[].Neighborhood[I.topology, I.topology, Pair.pair I.Carrier I.Carrier t t, tube.neighborhood]);
+\definition local: \forall (t: I.Carrier) -> \exists Relations.Neighborhood[t] := \block {
+  \fun (t: I.Carrier) \then
+  \takefrom tube: Parameters.Compactness[].Tube[timeSpace, Pair.pair I.Carrier I.Carrier t t, Gap.domain, Base.Whole]
+    \by Parameters.Compactness[].tubeLemma timeSpace baseSpace Base.Whole compact (Pair.pair I.Carrier I.Carrier t t) Gap.domain Gap.open
+      (\fun (x: X)(_: _) => diagonal t x) \then
+  \takefrom rectangle: Times.Compactness[].Neighborhood[I.topology, I.topology, Pair.pair I.Carrier I.Carrier t t, tube.neighborhood]
+    \by Times.Compactness[].rectangleNeighborhoods I.topology I.topology tube.neighborhood tube.open (Pair.pair I.Carrier I.Carrier t t) tube.contains \then
+  \return \exact(At[t := t, tube := tube, rectangle := rectangle].neighborhood, Relations.Neighborhood[t])
+};

@@ -1,0 +1,136 @@
+\import Filtering.At[n := n].Regions[U := Inside, V := Outside] \as Regions;
+\definition laws: Regions.Laws := Separation.At[n := n].laws insideOpen outsideOpen disjoint;
+\import Roots.At[n := n] \as Coefficients;
+\import Fin.FromList[A := C.Complex] \as Tuples;
+\import Roots.Filtering[test := Filtering.opposite] \as Opposite;
+\definition chosen[b: B.Bool^][xs: Monic.Coefficients]: P.Carrier := B.ite P.Carrier b (Monic.factors (Filtering.filter xs)) (Monic.factors (Filtering.other xs));
+\definition invariant: \forall (b: B.Bool^)(a, c: Roots.Vector n) -> Coefficients.coefficients a = Coefficients.coefficients c -> chosen b (Tuples.list n a) = chosen b (Tuples.list n c) :=
+  \induction (b: B.Bool^) \return \forall (a, c: Roots.Vector n) -> Coefficients.coefficients a = Coefficients.coefficients c -> chosen b (Tuples.list n a) = chosen b (Tuples.list n c) \with {
+    | false: \fun (a, c: Roots.Vector n)(same: _) => Opposite.invariant _ _ (Coefficients.coefficientsEqual a c same)
+    | true: \fun (a, c: Roots.Vector n)(same: _) => Filtering.invariant _ _ (Coefficients.coefficientsEqual a c same)
+  };
+\definition IsFactor[b: B.Bool^][p: Roots.Vector n][f: P.Carrier]: \Prop :=
+  \forall (a: Roots.Vector n) -> Coefficients.coefficients a = p -> f = chosen b (Tuples.list n a);
+\definition Factor[b: B.Bool^][p: Roots.Vector n]: \Set := \Cast[P.Carrier] ({ f: P.Carrier \where IsFactor b p f });
+\definition factorExists: \forall (b: B.Bool^)(p: Roots.Vector n) -> \exists Factor b p := \block {
+  \fun (b: B.Bool^)(p: Roots.Vector n) \then
+  \takefrom a: \Cast[Roots.Vector n] ({ a: Roots.Vector n \where Coefficients.coefficients a = p }) \by Coefficients.onto p \then
+  \let at: Coefficients.coefficients a = p := \bysub(Roots.Vector n, { a: Roots.Vector n \where Coefficients.coefficients a = p }, a) \then
+  \return \exact(\into[P.Carrier](chosen b (Tuples.list n a), Factor b p) \by {
+    \fun (c: Roots.Vector n)(same: _) => invariant b a c (trans!{{Roots.Vector n}} _ _ _ at (sym!{{Roots.Vector n}} _ _ same))
+  }, Factor b p)
+};
+\definition factorUnique: \forall (b: B.Bool^)(p: Roots.Vector n)(f, g: Factor b p) -> f = g := \block {
+  \fun (b: B.Bool^)(p: Roots.Vector n)(f, g: Factor b p) \then
+  \takefrom a: \Cast[Roots.Vector n] ({ a: Roots.Vector n \where Coefficients.coefficients a = p }) \by Coefficients.onto p \then
+  \let at: Coefficients.coefficients a = p := \bysub(Roots.Vector n, { a: Roots.Vector n \where Coefficients.coefficients a = p }, a) \then
+  \return trans!{{P.Carrier}} _ _ _ ((\bysub(P.Carrier, Factor b p, f)) a at) (sym!{{P.Carrier}} _ _ ((\bysub(P.Carrier, Factor b p, g)) a at))
+};
+\definition factor[b: B.Bool^][p: Roots.Vector n]: Factor b p := \choice Factor b p \by { existence: factorExists b p, uniqueness: factorUnique b p };
+\definition onRoots: \forall (b: B.Bool^)(a: Roots.Vector n) -> factor b (Coefficients.coefficients a) = chosen b (Tuples.list n a) :=
+  \fun (b: B.Bool^)(a: Roots.Vector n) => (\bysub(P.Carrier, Factor b (Coefficients.coefficients a), factor b (Coefficients.coefficients a))) a (\refl(Coefficients.coefficients a));
+\definition left[p: Roots.Vector n]: P.Carrier := factor B.Bool^::true p;
+\definition right[p: Roots.Vector n]: P.Carrier := factor B.Bool^::false p;
+\definition product: \forall (p: Roots.Vector n) -> Roots.polynomial n p = P.mul (left p) (right p) := \block {
+  \fun (p: Roots.Vector n) \then
+  \takefrom a: \Cast[Roots.Vector n] ({ a: Roots.Vector n \where Coefficients.coefficients a = p }) \by Coefficients.onto p \then
+  \let at: Coefficients.coefficients a = p := \bysub(Roots.Vector n, { a: Roots.Vector n \where Coefficients.coefficients a = p }, a) \then
+  \return \idelim Coefficients.coefficients a = p \with c: Roots.Vector n => Roots.polynomial n c = P.mul (left c) (right c) \by {
+    base: eq_reason_in!{{P.Carrier} _
+      "=" _ "by" { Coefficients.factorization a }
+      "=" _ "by" { Filtering.splitProduct (Tuples.list n a) }
+      "=" _ "by" { congr!{{P.Carrier} {P.Carrier} {P.Carrier}} P.mul _ _ _ _
+        (sym!{{P.Carrier}} _ _ (onRoots B.Bool^::true a)) (sym!{{P.Carrier}} _ _ (onRoots B.Bool^::false a)) }
+    },
+    equality: at
+  }
+};
+\import \parent.Factors[] \as FactorLists;
+\import Monic.AbstractEvaluation[] \as Evaluation;
+\import Roots.MonicCoordinates[] \as MonicCoordinates;
+\definition OffSpectrum[p: Roots.Vector n]: \Prop :=
+  \forall (z: C.Complex) -> Evaluation.apply z (Roots.polynomial n p) = Scalars.field.zero -> Off z;
+\definition rootsAllowed: \forall (p, a: Roots.Vector n) -> Coefficients.coefficients a = p -> OffSpectrum p -> Monic.Over Allowed (Tuples.list n a) :=
+  \fun (p, a: Roots.Vector n)(same: _)(off: OffSpectrum p) => Tuples.all n a Allowed
+    (\fun (i: Fin.Fin n) => allowed (a i) (off (a i) (eq_reason_in!{{C.Complex} _
+      "=" _ "by" { congr!{{Roots.Vector n} {C.Complex}} (\fun (c: Roots.Vector n) => Evaluation.apply (a i) (Roots.polynomial n c)) _ _ (sym!{{Roots.Vector n}} _ _ same) }
+      "=" _ "by" { congr!{{P.Carrier} {C.Complex}} (Evaluation.apply (a i)) _ _ (Coefficients.factorization a) }
+      "=" _ "by" { MonicCoordinates.occursRoot (Tuples.list n a) (a i) (Tuples.occurs n a i) }
+    })));
+\definition coprime: \forall (p: Roots.Vector n) -> OffSpectrum p -> Polynomials.Coprime (left p) (right p) := \block {
+  \fun (p: Roots.Vector n)(off: OffSpectrum p) \then
+  \takefrom a: \Cast[Roots.Vector n] ({ a: Roots.Vector n \where Coefficients.coefficients a = p }) \by Coefficients.onto p \then
+  \let at: Coefficients.coefficients a = p := \bysub(Roots.Vector n, { a: Roots.Vector n \where Coefficients.coefficients a = p }, a) \then
+  \let leftAt: left p = Monic.factors (Filtering.filter (Tuples.list n a)) := (\bysub(P.Carrier, Factor B.Bool^::true p, factor B.Bool^::true p)) a at \then
+  \let rightAt: right p = Monic.factors (Filtering.other (Tuples.list n a)) := (\bysub(P.Carrier, Factor B.Bool^::false p, factor B.Bool^::false p)) a at \then
+  \takefrom b: Polynomials.Bezout[Monic.factors (Filtering.filter (Tuples.list n a)), Monic.factors (Filtering.other (Tuples.list n a)), P.one]
+    \by FactorLists.coprime (Tuples.list n a) (rootsAllowed p a at off) \then
+  \return \exact(Polynomials.Bezout[left p, right p, P.one] {
+    left := b.left, right := b.right,
+    equation := trans!{{P.Carrier}} _ _ _ b.equation
+      (congr!{{P.Carrier} {P.Carrier} {P.Carrier}} P.add _ _ _ _
+        (congr!{{P.Carrier} {P.Carrier}} (P.mul b.left) _ _ (sym!{{P.Carrier}} _ _ leftAt))
+        (congr!{{P.Carrier} {P.Carrier}} (P.mul b.right) _ _ (sym!{{P.Carrier}} _ _ rightAt))),
+  }, Polynomials.Bezout[left p, right p, P.one])
+};
+\import Opposite.At[n := n].Regions[U := Outside, V := Inside] \as OppositeRegions;
+\definition oppositeLaws: OppositeRegions.Laws := OppositeRegions.Laws {
+  leftOpen := outsideOpen, rightOpen := insideOpen,
+  left := \fun (z: C.Complex)(outside: _) => congr!{B.Bool^ B.Bool^} B.Neg.specification _ _ (laws.right z outside),
+  right := \fun (z: C.Complex)(inside: _) => congr!{B.Bool^ B.Bool^} B.Neg.specification _ _ (laws.left z inside),
+};
+\definition LeftDomain[k: N.Nat^]: \Pow (Roots.Vector n) := Regions.Domain k;
+\definition RightDomain[k: N.Nat^]: \Pow (Roots.Vector n) := OppositeRegions.Domain k;
+\module LocalLeft(k: N.Nat^);
+\module LocalRight(k: N.Nat^);
+\structure Index: \Set := { left: N.Nat^, right: N.Nat^ };
+\definition Domain[index: Index]: \Pow (Roots.Vector n) := { p: Roots.Vector n \where
+  Logic.And[\In[Roots.Vector n] (Regions.Domain index.left) p, \In[Roots.Vector n] (OppositeRegions.Domain index.right) p] };
+\definition open: \forall (index: Index) -> topology.Topology[Carrier := Roots.Vector n].IsOpenIn Coefficients.topology (Domain index) :=
+  \fun (index: Index) => (topology.Topology[Carrier := Roots.Vector n].topologyLaws Coefficients.topology).intersectionOpen _ _
+    (Regions.open laws index.left) (OppositeRegions.open oppositeLaws index.right);
+\definition covers: \forall (p: Roots.Vector n) -> OffSpectrum p -> \exists ( index: Index \where \In[Roots.Vector n] (Domain index) p ) := \block {
+  \fun (p: Roots.Vector n)(off: OffSpectrum p) \then
+  \takefrom a: \Cast[Roots.Vector n] ({ a: Roots.Vector n \where Coefficients.coefficients a = p }) \by Coefficients.onto p \then
+  \let at: Coefficients.coefficients a = p := \bysub(Roots.Vector n, { a: Roots.Vector n \where Coefficients.coefficients a = p }, a) \then
+  \let allowed: \forall (i: Fin.Fin n) -> Allowed (a i) := \fun (i: Fin.Fin n) => Splitting.factorsRoot Allowed (Tuples.list n a) (rootsAllowed p a at off) (a i)
+    (MonicCoordinates.occursRoot (Tuples.list n a) (a i) (Tuples.occurs n a i)) \then
+  \let index: Index := Index { left := Lists.length C.Complex (Filtering.filter (Tuples.list n a)), right := Lists.length C.Complex (Filtering.other (Tuples.list n a)) } \then
+  \return Logic.existsIntro[Index, { index: Index \where \In[Roots.Vector n] (Domain index) p }] index
+    (\idelim Coefficients.coefficients a = p \with c: Roots.Vector n => \In[Roots.Vector n] (Domain index) c \by {
+      base: Logic.And[_, _]::# (Regions.contains index.left a (Regions.RootLaws[index.left, a] { allowed := allowed, count := \refl(index.left) }))
+        (OppositeRegions.contains index.right a (OppositeRegions.RootLaws[index.right, a] {
+          allowed := \fun (i: Fin.Fin n) => Logic.orElim _ _ _ (allowed i) (Logic.Or[_, _]::right) (Logic.Or[_, _]::left),
+          count := \refl(index.right),
+        })),
+      equality: at
+    })
+};
+\definition region[b: B.Bool^]: \Pow C.Complex := B.ite (\Pow C.Complex) b Inside Outside;
+\definition chosenRoot: \forall (b: B.Bool^)(xs: Monic.Coefficients) -> Monic.Over Allowed xs ->
+  \forall (z: C.Complex) -> Evaluation.apply z (chosen b xs) = Scalars.field.zero -> \In[C.Complex] (region b) z :=
+  \induction (b: B.Bool^) \return \forall (xs: Monic.Coefficients) -> Monic.Over Allowed xs ->
+    \forall (z: C.Complex) -> Evaluation.apply z (chosen b xs) = Scalars.field.zero -> \In[C.Complex] (region b) z \with {
+    | false: \fun (xs: Monic.Coefficients)(all: _) => Splitting.factorsRoot (\fun (z: C.Complex) => Space.Member Outside z) (Filtering.other xs) (FactorLists.right xs all)
+    | true: \fun (xs: Monic.Coefficients)(all: _) => Splitting.factorsRoot (\fun (z: C.Complex) => Space.Member Inside z) (Filtering.filter xs) (FactorLists.left xs all)
+  };
+\definition chosenNonzero: \forall (b: B.Bool^)(xs: Monic.Coefficients) -> Logic.Not (chosen b xs = P.zero) :=
+  \induction (b: B.Bool^) \return \forall (xs: Monic.Coefficients) -> Logic.Not (chosen b xs = P.zero) \with {
+    | false: \fun (xs: Monic.Coefficients) => FactorLists.nonzero (Filtering.other xs)
+    | true: \fun (xs: Monic.Coefficients) => FactorLists.nonzero (Filtering.filter xs)
+  };
+\definition factorNonzero: \forall (b: B.Bool^)(p: Roots.Vector n) -> Logic.Not (factor b p = P.zero) := \block {
+  \fun (b: B.Bool^)(p: Roots.Vector n)(zero: _) \then
+  \takefrom a: \Cast[Roots.Vector n] ({ a: Roots.Vector n \where Coefficients.coefficients a = p }) \by Coefficients.onto p \then
+  \let at: Coefficients.coefficients a = p := \bysub(Roots.Vector n, { a: Roots.Vector n \where Coefficients.coefficients a = p }, a) \then
+  \return chosenNonzero b (Tuples.list n a) (trans!{{P.Carrier}} _ _ _
+    (sym!{{P.Carrier}} _ _ ((\bysub(P.Carrier, Factor b p, factor b p)) a at)) zero)
+};
+\definition factorRoot: \forall (b: B.Bool^)(p: Roots.Vector n) -> OffSpectrum p ->
+  \forall (z: C.Complex) -> Evaluation.apply z (factor b p) = Scalars.field.zero -> \In[C.Complex] (region b) z := \block {
+  \fun (b: B.Bool^)(p: Roots.Vector n)(off: OffSpectrum p)(z: C.Complex)(zero: _) \then
+  \takefrom a: \Cast[Roots.Vector n] ({ a: Roots.Vector n \where Coefficients.coefficients a = p }) \by Coefficients.onto p \then
+  \let at: Coefficients.coefficients a = p := \bysub(Roots.Vector n, { a: Roots.Vector n \where Coefficients.coefficients a = p }, a) \then
+  \return chosenRoot b (Tuples.list n a) (rootsAllowed p a at off) z (trans!{{C.Complex}} _ _ _
+    (congr!{{P.Carrier} {C.Complex}} (Evaluation.apply z) _ _ (sym!{{P.Carrier}} _ _ ((\bysub(P.Carrier, Factor b p, factor b p)) a at))) zero)
+};
