@@ -100,6 +100,7 @@ flowchart TD
 
 L01 の行列式・逆行列、L02 の多項式分解、L03 の Hermitian 行列・局所枠が利用可能になり、G02 に着手できる。
 B03 の計量・補束と同型類の集合が利用可能になり、B04・B05・B09・K01 に着手できる。
+K06 の連続なスペクトル分離と像束のホモトピー比較は B04・K07 で再利用できる。
 B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進められる。
 空いた担当には C01・K02・K04・L04・A19 を割り当て、長い解析の経路を早めに進める。
 各節の番号は識別子で、実装順は依存リストから決まる。
@@ -116,10 +117,11 @@ B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進め�
 | B01 一般の実・複素ベクトル束 | [vector_bundles](../../libs/geometry/vector_bundles/README.md) |
 | B02 束の貼り合わせと線形演算 | [bundle_operations](../../libs/geometry/bundle_operations/README.md) |
 | B03 束の計量・補束と集合による表示 | [bundle_complements](../../libs/geometry/bundle_complements/README.md) |
+| K06 連続なスペクトル分離 | [spectral_splitting](../../libs/algebra/spectral_splitting/README.md) |
 
 ## タスク一覧
 
-未完了84件、概算合計440千行。
+未完了83件、概算合計435千行。
 
 ### 線形代数と特性級数
 
@@ -163,7 +165,7 @@ B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進め�
 
 ### 位相的 K 理論
 
-11件、概算60千行。
+10件、概算55千行。
 
 | タスク | 概算（千行） |
 | --- | ---: |
@@ -171,7 +173,6 @@ B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進め�
 | [K02 CW cofibration と Puppe 列](k02-cofibration-puppe.md) | 5 |
 | [K03 相対 K 群と負次数の完全列](k03-relative-k.md) | 6 |
 | [K04 Stone–Weierstrass と Laurent 近似](k04-uniform-approximation.md) | 6 |
-| [K06 連続なスペクトル分離](k06-spectral-splitting.md) | 5 |
 | [K07 clutching の安定線形化](k07-clutching-linearization.md) | 6 |
 | [K08 Bott の基本積定理](k08-bott-product.md) | 5 |
 | [K09 Bott 周期性と整数次数](k09-bott-periodicity.md) | 5 |

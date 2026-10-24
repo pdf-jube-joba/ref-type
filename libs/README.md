@@ -40,7 +40,7 @@
 | [algebra/fundamental_algebra](algebra/fundamental_algebra/README.md) | `fundamental_algebra` | 複素多項式の無限遠での評価・最小値・根の存在、重複度付き完全分解と一意な有限根族 |
 | [algebra/complex_polynomial_roots](algebra/complex_polynomial_roots/README.md) | `complex_polynomial_roots` | 根の有界性、有限対称積と係数空間の同相、分離した根群の連続な因子 |
 | [algebra/hermitian_frames](algebra/hermitian_frames/README.md) | `hermitian_frames` | Hermitian 形式、連続な正規直交化、射影の局所枠と逆座標、ユニタリ群 |
-| [algebra/spectral_splitting](algebra/spectral_splitting/README.md) | `spectral_splitting` | 単位円内外の根因子、連続なスペクトル射影、像束とホモトピー比較（実装中） |
+| [algebra/spectral_splitting](algebra/spectral_splitting/README.md) | `spectral_splitting` | 単位円内外の根因子、連続なスペクトル射影、像束とホモトピー比較 |
 | [algebra/lie_algebras](algebra/lie_algebras/README.md) | `lie_algebras` | リー代数、随伴表現、交換子、部分リー代数、自己準同型代数 |
 | [algebra/clifford](algebra/clifford/README.md) | `clifford` | クリフォード代数の商構成と普遍性、Pin・Spin と複素拡張の群構造 |
 | [algebra/homological/chain_complexes](algebra/homological/chain_complexes/README.md) | `chain_complexes` | 自然数・整数次数の複体、ホモロジー、写像・ホモトピー・複体の圏 |
