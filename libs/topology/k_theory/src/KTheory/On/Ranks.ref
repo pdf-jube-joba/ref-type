@@ -1,0 +1,16 @@
+\import \parent.IntegerFunctions[] \as Functions;
+\import std.Arithmetic[].Int[] \as I;
+\definition natural[n: N.Nat^]: I.Int^ := I.Diff.specification n N.Nat^::zero;
+\module Of(F: X -> \Set, original: Bundles.Family[X := X, F := F].Bundle, same: original.baseSpace = baseSpace);
+\module Comparing(F, G: X -> \Set, first: Bundles.Family[X := X, F := F].Bundle, second: Bundles.Family[X := X, F := G].Bundle,
+  iso: Bundles.Isomorphisms[X := X, F := F, G := G, source := first, target := second].Isomorphism);
+\definition representative[p: Presentation]: Functions.Carrier := \fun (x: X) => natural (Bundles.Family[X := X, F := Fiber p].Of[bundle := bundle p].rank x);
+\definition respects: \forall (p, q: Presentation) -> Rep.Equivalent p q -> representative p = representative q := \block {
+  \fun (p, q: Presentation)(related: Rep.Equivalent p q) \then
+  \takefrom iso: Rep.Isomorphism p q \by related \then
+  \return \axiom:funext(representative p, representative q,
+    \fun (x: X) => congr!{{N.Nat^} {I.Int^}} natural _ _ (Comparing[F := Fiber p, G := Fiber q, first := bundle p, second := bundle q, iso := iso].equation x))
+};
+\import Quotient.Maps[B := Functions.Carrier] \as Descend;
+\definition classes: Classes -> Functions.Carrier := Descend.value Rep.equivalence representative respects;
+\definition onClasses: \forall (p: Presentation) -> classes (class p) = representative p := Descend.onClass Rep.equivalence representative respects;
