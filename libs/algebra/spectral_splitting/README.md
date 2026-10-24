@@ -42,11 +42,14 @@ Bézout 射影と独立性、Cayley–Hamilton による評価和の逆行列、
 | `a1f16544` | `At.Continuous`（連続射影と像束） | 675 | 0 |
 | `89233a89` | `Comparison`（intertwiner の自然性） | 564 | 0 |
 
+| `15a2b0b2` | `At.Eigenvalues`（固有値条件と特性多項式条件） | 577 | 0 |
+| `16a4a25f` | `InFrame`（スペクトル条件の枠変更を含む） | 602 | 0 |
 | `0509916d` | `InFrame`（有限枠への移送と独立性） | 検査レポート参照 | 0 |
 | `0b10d2dc` | `FiniteSpace`（枠によらない射影の一意選択） | 検査レポート参照 | 0 |
 
 最新の保存範囲には、特性多項式のスカラー評価と行列式の比較、および単位円上の固有値の不在との同値性を追加している。
-この追加と `Idempotents.Comparison`・`Gap` は未検証であり、package 全体の最終検査もまだ行っていない。
+固有値条件と枠変更は上表の範囲で検証済みである。
+`IntervalRelations`、`Idempotents.Comparison`・`Gap` は未検証であり、package 全体の最終検査もまだ行っていない。
 以前の全体検査は `At.Splitting.Separated` の診断のため中断し、終了コード130を確認した。
 worker の checkpoint 再開が1回あったが、その原因は確定していない。
 逆行列の法則を明示する証明に変更後、該当部分は保存処理と正常終了まで確認できた。
