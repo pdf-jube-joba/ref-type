@@ -65,7 +65,7 @@
 | `Split.Lift` | \(PaP+(1-P)\) の連続性、射影との可換性、元の圧縮との一致 |
 | `Split.Lift.Invertible.isomorphism` / `forwardEquals` | 行列式の相対誤差条件から同型を構成し、その順写像が元の圧縮であることを示す |
 
-`Matrices.invertibleOfDeterminantError` の条件は \(\lvert\det b-\det a\rvert<\lvert\det a\rvert\) である。
+`Matrices.invertibleOfDeterminantError` の条件は \(\lvert\det a-\det b\rvert<\lvert\det a\rvert\) である。
 `Matrices.On.Margin.exists` はコンパクト底上の連続可逆行列族について \(0<\eta\leq\lvert\det a(x)\rvert\) を構成し、`invertibleError` は一様な行列式の誤差 \(<\eta\) から逆行列の存在を導く。
 束への適用では `Lift.matrix` にこの条件を課し、L01 の逆行列と L03 の連続性を再利用する。
 
@@ -76,17 +76,19 @@
 [Examples.Bundle](src/Approximation/Examples/Bundle.ref) は円周上の自明線束の自己準同型を単位球上一様に近似する。
 [Examples.IdentityMatrix](src/Approximation/Examples/IdentityMatrix.ref) は任意次元の恒等行列で可逆性の誤差条件を使う。
 
-基点は K01 統合済み main `f6c3dcfb`、ブランチは `math/k04-uniform-approximation`、[draft PR #45](https://github.com/pdf-jube-joba/ref-type/pull/45)。
-最後に成功した対象検査は `71ddcdd1` の `work/k04-examples`（終了0・共有キャッシュ保存完了）。
-公開 API と利用例まで対象スコープで検証済みで、数学ソースへの未検証変更はない。
-`97e259ec` の package snapshot に対する `work/k04-package-retry` は全依存閉包の検査を実行中で、終了結果は未確認。
-次はこの終了結果と保存完了を確認し、B03 `CoordinateFamily` の利用先を含む workspace を検査する。
+基点は K01 統合済み main `f6c3dcfb`、ブランチは `math/k04-uniform-approximation`、[PR #45](https://github.com/pdf-jube-joba/ref-type/pull/45)。
+`71ddcdd1` の `work/k04-examples` で対象と利用例の検査が保存完了・終了0。
+`97e259ec` の snapshot に対する `work/k04-package-retry` で対象 package と全依存閉包が保存完了・終了0。
+4,702 modules を検査、640 modules を再利用、59,627ソースステップ、最大RSS 5,708,712 KiBで、復旧・重複・再実行・未保存ステップ・キャッシュ書き込み失敗・保存失敗はいずれも0。
+数学ソース・package 設定はこの snapshot と一致し、残る検証は B03 `CoordinateFamily` の利用先を含む workspace 全体。
+次は以下の workspace snapshot を作り、検査の終了と保存完了を確認してから PR の CI・差分・統合と main を照合する。
 
 ```sh
 target/debug/cli libs/analysis/uniform_approximation --parse-only --save-source-snapshot work/k04-package-retry.source.json
 target/debug/cli libs/analysis/uniform_approximation --source-snapshot work/k04-package-retry.source.json --memory-mib 8192 --cache-budget-mib 12288 --time-limit-seconds 1800 --report-json work/k04-package-retry.report.json
+target/debug/cli libs --parse-only --save-source-snapshot work/k04-workspace.source.json
 target/debug/cli libs --source-snapshot work/k04-workspace.source.json --memory-mib 10240 --cache-budget-mib 12288 --time-limit-seconds 7200 --report-json work/k04-workspace.report.json
 ```
 
-最初の `work/k04-package` は workspace 入口の snapshot と package 入力が一致せず終了2となり、package 入口で snapshot を作り直して再検査する。
-検査の正常終了とキャッシュ保存完了を確認してから、依存リンク・ロードマップの完了処理と PR の最終確認・統合へ進む。
+最初の `work/k04-package` は snapshot と入力の入口不一致で終了2となり、上記の package 入口での再検査で解消済み。
+依存リンク・ライブラリ一覧・ロードマップは実装に合わせて更新し、完了した計画は公開 API に移した。
