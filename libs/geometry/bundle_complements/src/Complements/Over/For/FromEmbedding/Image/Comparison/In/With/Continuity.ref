@@ -1,0 +1,19 @@
+\definition baseRaw: topology.Continuity[A := Carrier, B := X].Continuous source bundle.baseSpace (\fun (p: Carrier) => p.base) :=
+  topology.Continuity[A := TargetFamily.Point, B := X].Restriction[S := domains chart].restrictContinuous imageBundle.totalSpace bundle.baseSpace TargetFamily.projection Projected.projectionContinuous;
+\definition baseRegular: topology.Continuity[A := Carrier, B := Original.Carrier].Continuous source Original.source base :=
+  topology.Continuity[A := Carrier, B := X].Corestriction[S := chart.domain].corestrictContinuous source bundle.baseSpace base baseRaw;
+\definition vectorContinuous: topology.Continuity[A := Carrier, B := Vector n].Continuous source (coordinateTopology n) (\fun (p: Carrier) => p.vector) :=
+  topology.Continuity[A := TargetFamily.Point, B := Vector n].Restriction[S := domains chart].restrictContinuous imageBundle.totalSpace (coordinateTopology n) (\fun (p: TargetFamily.Point) => p.vector) Projected.vectorContinuous;
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin n] \as LargeCoordinates;
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin k] \as SmallCoordinates;
+\import Hermitian.At[n := k].Families[X := Carrier].Matrix[m := n] \as Matrices;
+\definition components: Matrices.Components source (\fun (p: Carrier) => Local.inverse (base p)) :=
+  \fun (j: Fin.Fin n)(i: Fin.Fin k) => topology.Composition[A := Carrier, B := Original.Carrier, C := K].composeContinuous source Original.source scalar.topological.space base
+    (\fun (x: Original.Carrier) => (Local.inverse x).apply (Euclidean.basis j) i) baseRegular (Local.inverseRegular (Euclidean.basis j) i);
+\definition moving: Native.Families[X := Carrier].Continuous source (\fun (p: Carrier) => p.vector) :=
+  \fun (i: Fin.Fin n) => topology.Composition[A := Carrier, B := Vector n, C := K].composeContinuous source (coordinateTopology n) scalar.topological.space (\fun (p: Carrier) => p.vector)
+    (\fun (v: Vector n) => v i) vectorContinuous (LargeCoordinates.evaluationContinuous scalar.topological.space i);
+\definition coefficientContinuous: topology.Continuity[A := Carrier, B := Vector k].Continuous source (coordinateTopology k) coefficient :=
+  SmallCoordinates.Universal[A := Carrier].continuous source scalar.topological.space coefficient (Matrices.evaluate source (\fun (p: Carrier) => Local.inverse (base p)) (\fun (p: Carrier) => p.vector) components moving);
+\definition regular: topology.Continuity[A := Carrier, B := Family.Point].Continuous source bundle.totalSpace candidateTotal :=
+  Operations.Chart[X := X, F := F, bundle := bundle, chart := chart].Maps[Y := Carrier, source := source].pointContinuous base coefficient baseRegular coefficientContinuous;

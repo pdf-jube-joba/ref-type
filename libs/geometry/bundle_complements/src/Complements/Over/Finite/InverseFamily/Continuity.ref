@@ -1,0 +1,19 @@
+\import Hermitian.Functions[X := X] \as Functions;
+\import Small.Families[X := X].Matrix[m := n] \as CoordinateMatrices;
+\import matrix_invariants.Ring[K := K, scalars := Fields.fieldAsCommutativeRing K field].At[n := k] \as Matrices;
+\import matrix_invariants.Field[K := K, field := field].At[n := k] \as Inversion;
+\definition changeRegular: Small.Families[X := X].Matrix[m := k].Regular source change :=
+  \fun (v: Vector k)(i: Fin.Fin k) => Functions.transport source (\fun (x: X) => (coordinates x).apply ((A x).apply v) i) (\fun (x: X) => (change x).apply v i)
+    (\fun (x: X) => congr!{{Vector k} K} (\fun (v: Vector k) => v i) _ _ (\root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Finite[n := n].InverseFamily[X := X, k := k, source := source, A := A, regularA := regularA, factors := factors].At[x := x].changeFormula v))
+    (CoordinateMatrices.evaluate source coordinates (\fun (x: X) => (A x).apply v) (\fun (j: Fin.Fin n) => coordinatesRegular (E.basis j)) (regularA v) i);
+\definition entries[x: X]: Matrices.Matrix := Small.Square[].entries (change x);
+\definition matrix[x: X]: Inversion.Nonsingular := \into[Matrices.Matrix](entries x, Inversion.Nonsingular) \by {
+  Small.Square[].LeftInverse[f := change x, g := backward x, left := (factors.value x).change.leftInverse].nonzero
+};
+\definition entriesRegular: Small.Square[].Families[X := X].Regular source entries := \fun (i, j: Fin.Fin k) => changeRegular (Source.basis j) i;
+\definition canonicalRegular: Small.Families[X := X].Matrix[m := k].Regular source (\fun (x: X) => Small.Square[].Inverse[A := matrix x].value) := Small.Square[].Families[X := X].inverseMaps source matrix entriesRegular;
+\definition backwardRegular: Small.Families[X := X].Matrix[m := k].Regular source backward :=
+  \fun (v: Vector k)(i: Fin.Fin k) => Functions.transport source
+    (\fun (x: X) => Small.Square[].Inverse[A := matrix x].value.apply v i) (\fun (x: X) => (backward x).apply v i)
+    (\fun (x: X) => sym!{K} _ _ (congr!{{Vector k} K} (\fun (v: Vector k) => v i) _ _ (Small.Square[].LeftInverse[f := change x, g := backward x, left := (factors.value x).change.leftInverse].equal v)))
+    (canonicalRegular v i);

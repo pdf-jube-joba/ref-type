@@ -1,0 +1,16 @@
+\import Operations.Chart[X := X, F := F, bundle := bundle, chart := entry.chart].Maps[Y := Chart.TotalPoint, source := Chart.localTopology] \as Read;
+\definition vector[p: Chart.TotalPoint]: Vector dimension := (entry.chart.frame (Chart.base p)).forward.apply p.vector;
+\definition vectorContinuous: topology.Continuity[A := Chart.TotalPoint, B := Vector dimension].Continuous Chart.localTopology (coordinateTopology dimension) vector :=
+  Read.vectorContinuous (\fun (p: Chart.TotalPoint) => p) (\fun (U: \Pow Family.Point)(open: _) => Total.Subspace[S := domain].traceOpen bundle.totalSpace U open);
+\definition baseContinuous: topology.Continuity[A := Chart.TotalPoint, B := X].Continuous Chart.localTopology bundle.baseSpace (\fun (p: Chart.TotalPoint) => p.base) :=
+  topology.Continuity[A := Family.Point, B := X].Restriction[S := domain].restrictContinuous bundle.totalSpace bundle.baseSpace Family.projection (Family.Of[bundle := bundle].projectionContinuous);
+\definition weightContinuous: metric_spaces.RealFunctions[A := Chart.TotalPoint].Continuous Chart.localTopology (\fun (p: Chart.TotalPoint) => entry.weight p.base) :=
+  topology.Composition[A := Chart.TotalPoint, B := X, C := R.Real].composeContinuous Chart.localTopology bundle.baseSpace metric_spaces.RealLine[].topology (\fun (p: Chart.TotalPoint) => p.base) entry.weight baseContinuous (Bounded.laws bundle.baseSpace entry.weight).continuous;
+\import Hermitian.Functions[X := Chart.TotalPoint] \as Functions;
+\definition factor[p: Chart.TotalPoint]: K := conjugation.embed (entry.weight p.base);
+\definition factorContinuous: Functions.Continuous Chart.localTopology factor := Functions.embedding Chart.localTopology (\fun (p: Chart.TotalPoint) => entry.weight p.base) weightContinuous;
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin dimension] \as Coordinates;
+\definition entryContinuous: \forall (i: Fin.Fin dimension) -> Functions.Continuous Chart.localTopology (\fun (p: Chart.TotalPoint) => vector p i) :=
+  \fun (i: Fin.Fin dimension) => topology.Composition[A := Chart.TotalPoint, B := Vector dimension, C := K].composeContinuous Chart.localTopology (coordinateTopology dimension) scalar.topological.space vector (\fun (v: Vector dimension) => v i) vectorContinuous (Coordinates.evaluationContinuous scalar.topological.space i);
+\definition regular: topology.Continuity[A := Chart.TotalPoint, B := Vector dimension].Continuous Chart.localTopology (coordinateTopology dimension) local :=
+  Coordinates.Universal[A := Chart.TotalPoint].continuous Chart.localTopology scalar.topological.space local (\fun (i: Fin.Fin dimension) => Functions.multiplication Chart.localTopology factor (\fun (p: Chart.TotalPoint) => vector p i) factorContinuous (entryContinuous i));

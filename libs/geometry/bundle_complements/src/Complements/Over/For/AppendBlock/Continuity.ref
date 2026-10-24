@@ -1,0 +1,20 @@
+\import Bundles.Trivial[X := X, n := n, baseSpace := bundle.baseSpace] \as First;
+\import Bundles.Trivial[X := X, n := m, baseSpace := bundle.baseSpace] \as Second;
+\import Bundles.Family[X := X, F := \fun (x: X) => Vector n] \as FirstFamily;
+\import Bundles.Family[X := X, F := \fun (x: X) => Vector m] \as SecondFamily;
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := \fun (x: X) => Vector n, source := bundle, target := Ambient n, f := \fun (x: X) => x] \as FirstMaps;
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := \fun (x: X) => Vector m, source := bundle, target := Ambient m, f := \fun (x: X) => x] \as SecondMaps;
+\definition first[p: Family.Point]: Vector n := (Head.map.fiber p.base).apply p.vector;
+\definition second[p: Family.Point]: Vector m := (previous.map.fiber p.base).apply p.vector;
+\definition firstContinuous: topology.Continuity[A := Family.Point, B := Vector n].Continuous bundle.totalSpace (coordinateTopology n) first :=
+  topology.Composition[A := Family.Point, B := FirstFamily.Point, C := Vector n].composeContinuous bundle.totalSpace First.topology (coordinateTopology n) (FirstMaps.total Head.map) (\fun (p: FirstFamily.Point) => p.vector) (FirstMaps.continuous Head.map) First.vectorContinuous;
+\definition secondContinuous: topology.Continuity[A := Family.Point, B := Vector m].Continuous bundle.totalSpace (coordinateTopology m) second :=
+  topology.Composition[A := Family.Point, B := SecondFamily.Point, C := Vector m].composeContinuous bundle.totalSpace Second.topology (coordinateTopology m) (SecondMaps.total previous.map) (\fun (p: SecondFamily.Point) => p.vector) (SecondMaps.continuous previous.map) Second.vectorContinuous;
+\import topological_constructions.Product[A := Vector n, B := Vector m] \as Product;
+\definition pair[p: Family.Point]: Sum.Carrier := Pair.pair (Vector n) (Vector m) (first p) (second p);
+\definition value[p: Family.Point]: Vector (dimension (Lists.List[WeightedChart]::cons head tail)) := Coordinates.join (pair p);
+\definition vectorContinuous: topology.Continuity[A := Family.Point, B := Vector (dimension (Lists.List[WeightedChart]::cons head tail))].Continuous bundle.totalSpace (coordinateTopology (dimension (Lists.List[WeightedChart]::cons head tail))) value :=
+  topology.Composition[A := Family.Point, B := Sum.Carrier, C := Vector (dimension (Lists.List[WeightedChart]::cons head tail))].composeContinuous bundle.totalSpace (Product.topology (coordinateTopology n) (coordinateTopology m)) (coordinateTopology (dimension (Lists.List[WeightedChart]::cons head tail))) pair Coordinates.join
+    (Product.Universal[X := Family.Point].pairContinuous bundle.totalSpace (coordinateTopology n) (coordinateTopology m) first second firstContinuous secondContinuous) Coordinates.Topology[].joinRegular;
+\definition regular: topology.Continuity[A := Family.Point, B := Bundles.Family[X := X, F := \fun (x: X) => Vector (dimension (Lists.List[WeightedChart]::cons head tail))].Point].Continuous bundle.totalSpace (Ambient (dimension (Lists.List[WeightedChart]::cons head tail))).totalSpace (Maps.total data) :=
+  \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TrivialMaps[X := X, n := dimension (Lists.List[WeightedChart]::cons head tail), baseSpace := bundle.baseSpace].Into[Y := Family.Point, source := bundle.totalSpace].continuous Family.projection value (Family.Of[bundle := bundle].projectionContinuous) vectorContinuous;

@@ -1,0 +1,23 @@
+\import Inner.Gram[k := k].Of[A := A, factor := factor] \as Gram;
+\definition onOriginal: \forall (v: V) -> A.apply (frame.forward.apply v) = f.apply v :=
+  \fun (v: V) => congr!{V {Vector n}} f.apply _ _ (frame.leftInverse v);
+\definition fixed: \forall (v: Vector k) -> Gram.projection.apply (A.apply v) = A.apply v :=
+  \fun (v: Vector k) => trans!{{Vector n}} _ _ _ (congr!{{Vector n} {Vector n}} Gram.projection.apply _ _ (factor.formula v))
+    (trans!{{Vector n}} _ _ _ (congr!{{Vector k} {Vector n}} factor.frame.apply _ _ (Gram.leftInverse (factor.change.forward.apply v))) (sym!{{Vector n}} _ _ (factor.formula v)));
+\definition toImage: \forall (z: Vector n) -> Gram.projection.apply z = z -> Image z :=
+  \fun (z: Vector n)(same: _) => Logic.existsIntro[V, { v: V \where f.apply v = z }] (frame.backward.apply (Gram.inverse.apply z))
+    (trans!{{Vector n}} _ _ _ (Gram.frameFormula (Gram.coordinates.apply z)) same);
+\definition ofImage: \forall (z: Vector n) -> Image z -> Gram.projection.apply z = z :=
+  \fun (z: Vector n)(member: _) => \block {
+    \takefrom v: \Cast[V] ({ v: V \where f.apply v = z }) \by member \then
+    \let same: f.apply v = z := \bysub(V, { v: V \where f.apply v = z }, v) \then
+    \return trans!{{Vector n}} _ _ _ (congr!{{Vector n} {Vector n}} Gram.projection.apply _ _ (sym!{{Vector n}} _ _ same))
+      (trans!{{Vector n}} _ _ _ (congr!{{Vector n} {Vector n}} Gram.projection.apply _ _ (sym!{{Vector n}} _ _ (onOriginal v)))
+        (trans!{{Vector n}} _ _ _ (fixed (frame.forward.apply v)) (trans!{{Vector n}} _ _ _ (onOriginal v) same)))
+  };
+\definition candidate: Candidate := \into[End.Map](Gram.projection, Values) \by {
+  Conditions[Gram.projection] {
+    selfAdjoint := Gram.selfAdjoint, idempotent := Gram.idempotent,
+    range := \fun (z: Vector n) => Logic.PropEquiv[Gram.projection.apply z = z, Image z] { ltr := toImage z, rtl := ofImage z }
+  }
+};

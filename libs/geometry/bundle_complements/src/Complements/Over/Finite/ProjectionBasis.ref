@@ -1,0 +1,27 @@
+\import std.Set[].FiniteSubset[A := Fin.Fin n].Enumeration[] \as Members;
+\definition image[rank: N.Nat^][frame: Orthonormal[rank]]: \Pow (Vector n) := { w: Vector n \where \exists ( v: Vector rank \where frame.value.apply v = w ) };
+\structure Result[indices: Lists.List[Fin.Fin n]]: \Set := {
+  rank: N.Nat^,
+  frame: Orthonormal[rank],
+  fixed: \forall (v: Vector rank) -> P.map.apply (frame.value.apply v) = frame.value.apply v,
+  covers: \forall (i: Fin.Fin n) -> Members.Occurs i indices -> \exists ( v: Vector rank \where frame.value.apply v = P.map.apply (E.basis i) ),
+};
+\module Empty;
+\module Step(head: Fin.Fin n, tail: Lists.List[Fin.Fin n], previous: Result[tail]);
+\definition exists: \forall (indices: Lists.List[Fin.Fin n]) -> \exists Result[indices] :=
+  \induction (indices: Lists.List[Fin.Fin n]) \return \exists Result[indices] \with {
+    | nil: \exact(Empty[].result, Result[Lists.List[Fin.Fin n]::nil])
+    | cons: \fun (head: Fin.Fin n)(tail: Lists.List[Fin.Fin n])(ih: \exists Result[tail]) => \block {
+      \takefrom previous: Result[tail] \by ih \then
+      \return Step[head := head, tail := tail, previous := previous].exists
+    }
+  };
+\module Complete(result: Result[Fin.elements n]);
+\structure BasisWitness: \Set := {
+  rank: N.Nat^,
+  basis: Hermitian.At[n := n].OnProjection[P := P].Rank[k := rank].Basis,
+};
+\definition basisExists: \exists BasisWitness := \block {
+  \takefrom result: Result[Fin.elements n] \by exists (Fin.elements n) \then
+  \return \exact(BasisWitness { rank := result.rank, basis := Complete[result := result].basis }, BasisWitness)
+};

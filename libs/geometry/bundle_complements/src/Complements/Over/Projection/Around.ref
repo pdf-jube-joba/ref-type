@@ -1,0 +1,45 @@
+\import \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Projection[X := X, n := n, baseSpace := baseSpace, P := P, regular := regular] \as Projected;
+\definition k: N.Nat^ := center.rank;
+\import Hermitian.At[n := n] \as Native;
+\import Spaces.Linear[V := Vector n, W := Vector n, source := coordinates n, target := coordinates n] \as End;
+\import End.Operations[] \as EndOperations;
+\import End.Composition[U := Vector n, domain := coordinates n] \as Compose;
+\import Spaces.Eigen[V := Vector n, space := coordinates n] \as Eigen;
+\import Geometry.Finite[n := n] \as Euclidean;
+\import Spaces.Laws[V := Vector n, space := coordinates n] \as Laws;
+\import Native.OnProjection[P := P a] \as Center;
+\definition complement[x: X]: Native.Projection := Native.OnProjection[P := P x].complement;
+\definition h[x: X]: End.Map := EndOperations.plus (Compose.compose (P x).map (P a).map) (Compose.compose (complement x).map (complement a).map);
+\module Algebra;
+\definition intertwines: \forall (x: X)(v: Vector n) -> (P x).map.apply ((h x).apply v) = (h x).apply ((P a).map.apply v) := Algebra[].intertwines;
+\import matrix_invariants.Ring[K := K, scalars := Fields.fieldAsCommutativeRing K field].At[n := n] \as Matrices;
+\import matrix_invariants.Field[K := K, field := field].At[n := n] \as Inversion;
+\import Matrices.Representation[] \as Representation;
+\definition entries[x: X]: Matrices.Matrix := Native.Square[].entries (h x);
+\module Continuity;
+\definition hContinuous: Native.Families[X := X].Matrix[m := n].Regular baseSpace h := Continuity[].hRegular;
+\definition entriesContinuous: Native.Square[].Families[X := X].Regular baseSpace entries := Continuity[].entriesRegular;
+\definition domain: \Pow X := { x: X \where Inversion.Nonzero (entries x) };
+\definition Carrier: \Set := \Cast[X] domain;
+\definition localSpace: topology.Topology[Carrier := Carrier].Topology := Base.Subspace[S := domain].topology baseSpace;
+\definition open: Base.IsOpenIn baseSpace domain := Native.Square[].Families[X := X].nonsingularOpen baseSpace entries Continuity[].entriesRegular;
+\definition contains: Base.Member domain a := Native.Square[].LeftInverse[f := h a, g := Eigen.identity, left := Algebra[].centerValue].nonzero;
+\definition matrix[x: Carrier]: Inversion.Nonsingular := \into[Matrices.Matrix](entries x, Inversion.Nonsingular) \by { \bysub(X, domain, x) };
+\definition inverse[x: Carrier]: End.Map := Native.Square[].Inverse[A := matrix x].value;
+\definition inverseLeft: \forall (x: Carrier)(v: Vector n) -> (inverse x).apply ((h x).apply v) = v :=
+  \fun (x: Carrier)(v: Vector n) => trans!{{Vector n}} _ _ _
+    (congr!{{Vector n} {Vector n}} (inverse x).apply _ _ (sym!{{Vector n}} _ _ (congr!{End.Map {Vector n}} (\fun (f: End.Map) => f.apply v) _ _ (Representation.linearEntries (h x)))))
+    (Native.Square[].Inverse[A := matrix x].left v);
+\definition inverseRight: \forall (x: Carrier)(v: Vector n) -> (h x).apply ((inverse x).apply v) = v :=
+  \fun (x: Carrier)(v: Vector n) => trans!{{Vector n}} _ _ _
+    (sym!{{Vector n}} _ _ (congr!{End.Map {Vector n}} (\fun (f: End.Map) => f.apply ((inverse x).apply v)) _ _ (Representation.linearEntries (h x))))
+    (Native.Square[].Inverse[A := matrix x].right v);
+\module At(x: Carrier);
+\definition forward[x: Carrier]: Spaces.Linear[V := Vector k, W := Vector n, source := coordinates k, target := coordinates n].Map := At[x := x].forward;
+\definition backward[x: Carrier]: Spaces.Linear[V := Vector n, W := Vector k, source := coordinates n, target := coordinates k].Map := At[x := x].backward;
+\module LocalContinuity;
+\definition forwardContinuous: Native.Families[X := Carrier].Matrix[m := k].Regular localSpace forward := LocalContinuity[].forwardRegular;
+\definition backwardContinuous: Hermitian.At[n := k].Families[X := Carrier].Matrix[m := n].Regular localSpace backward := LocalContinuity[].backwardRegular;
+\definition chart: Charts.ChartData := Charts.ChartData { domain := domain, dimension := k, frame := \fun (x: Carrier) => At[x := x].frame };
+\module ChartContinuity;
+\definition trivialization: Charts.Chart := \into[Charts.ChartData](chart, Charts.Chart) \by { ChartContinuity[].laws };

@@ -1,0 +1,29 @@
+\import Hermitian.At[n := n] \as Native;
+\import Native.Families[X := X] \as Families;
+\import Geometry.Finite[n := n] \as Euclidean;
+\import Spaces.Laws[V := Vector n, space := coordinates n] \as Laws;
+\definition Q[x: X]: Native.Projection := Native.OnProjection[P := P x].complement;
+\definition qRegular: Families.Matrix[m := n].Regular baseSpace (\fun (x: X) => (Q x).map) :=
+  \fun (v: Vector n) => Families.addition baseSpace (\fun (x: X) => v) (\fun (x: X) => Euclidean.space.neg ((P x).map.apply v))
+    (Families.constant baseSpace v) (Families.negative baseSpace (\fun (x: X) => (P x).map.apply v) (regular v));
+\import \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Projection[X := X, n := n, baseSpace := baseSpace, P := P, regular := regular] \as Original;
+\import \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Projection[X := X, n := n, baseSpace := baseSpace, P := Q, regular := qRegular] \as Other;
+\definition ComplementFiber[x: X]: \Set := Other.Fiber x;
+\definition complementBundle: Bundles.Family[X := X, F := ComplementFiber].Bundle := Other.bundle;
+\import Operations.DirectSum[X := X, F := Original.Fiber, G := ComplementFiber, left := Original.bundle, right := complementBundle] \as Sum;
+\definition sumBundle: Bundles.Family[X := X, F := Sum.Fiber].Bundle := Sum.bundle (\refl(baseSpace));
+\import Sum.Of[same := \refl(baseSpace)].To[Y := X, H := \fun (x: X) => Vector n, target := Ambient.bundle, f := \fun (x: X) => x] \as ToAmbient;
+\import Sum.Of[same := \refl(baseSpace)].From[Y := X, H := \fun (x: X) => Vector n, source := Ambient.bundle, f := \fun (x: X) => x] \as FromAmbient;
+\definition forward: Bundles.Morphisms[X := X, Y := X, F := Sum.Fiber, G := \fun (x: X) => Vector n, source := sumBundle, target := Ambient.bundle, f := \fun (x: X) => x].Map := ToAmbient.copair Original.inclusion Other.inclusion;
+\definition backward: Bundles.Morphisms[X := X, Y := X, F := \fun (x: X) => Vector n, G := Sum.Fiber, source := Ambient.bundle, target := sumBundle, f := \fun (x: X) => x].Map := FromAmbient.pair Original.projectMap Other.projectMap;
+\module At(x: X);
+\definition isomorphism: Bundles.Isomorphisms[X := X, F := Sum.Fiber, G := \fun (x: X) => Vector n, source := sumBundle, target := Ambient.bundle].Isomorphism :=
+  Bundles.Isomorphisms[X := X, F := Sum.Fiber, G := \fun (x: X) => Vector n, source := sumBundle, target := Ambient.bundle].Isomorphism {
+    forward := forward, backward := backward,
+    leftInverse := \fun (x: X) => At[x := x].leftInverse,
+    rightInverse := \fun (x: X)(v: Vector n) => Native.OnProjection[P := P x].splitting v
+  };
+\definition orthogonal: \forall (x: X)(v: Original.Fiber x)(w: ComplementFiber x) -> Euclidean.dot v w = field.zero :=
+  \fun (x: X)(v: Original.Fiber x)(w: ComplementFiber x) => trans!{K} _ _ _
+    (sym!{K} _ _ (congr!{{Vector n} {Vector n} K} Euclidean.dot _ _ _ _ (\bysub(Vector n, Original.Image x, v)) (\bysub(Vector n, Other.Image x, w))))
+    (Native.OnProjection[P := P x].orthogonal v w);

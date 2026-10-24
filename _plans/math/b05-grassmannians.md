@@ -9,4 +9,4 @@
 
 ## 依存するタスク
 
-- [B03 束の計量・補束と集合による表示](b03-bundle-complements.md)
+- [束の計量・補束と同型類](../../libs/geometry/bundle_complements/README.md)

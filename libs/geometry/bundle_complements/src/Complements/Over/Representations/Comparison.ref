@@ -1,0 +1,32 @@
+\import \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].For[X := X, F := F, bundle := first] \as FirstOriginal;
+\import \parent.Of[F := F, original := first, same := firstSame] \as First;
+\import \parent.Of[F := G, original := second, same := secondSame] \as Second;
+\import Bundles.Isomorphisms[X := X, F := F, G := G, source := first, target := second] \as Isos;
+\definition representativesEqual: \forall (iso: Isos.Isomorphism) -> First.representatives = Second.representatives := \fun (iso: Isos.Isomorphism) =>
+  \axiom:setext(First.representatives, Second.representatives,
+    \fun (p: Presentation)(represented: First.Represents p) => \block {
+      \takefrom a: First.Isomorphism p \by represented \then
+      \return \exact(Operations.IsomorphismComposition[X := X, F := G, G := F, H := Fiber p, source := second, middle := first, target := bundle p].compose (Isos.inverse iso) a, Second.Isomorphism p)
+    },
+    \fun (p: Presentation)(represented: Second.Represents p) => \block {
+      \takefrom b: Second.Isomorphism p \by represented \then
+      \return \exact(Operations.IsomorphismComposition[X := X, F := F, G := G, H := Fiber p, source := first, middle := second, target := bundle p].compose iso b, First.Isomorphism p)
+    });
+\definition isomorphicEqual: \forall (firstCompact: topology.Topology[Carrier := X].IsCompact first.baseSpace)(firstT2: topology.Topology[Carrier := X].IsT2 first.baseSpace)
+  (secondCompact: topology.Topology[Carrier := X].IsCompact second.baseSpace)(secondT2: topology.Topology[Carrier := X].IsT2 second.baseSpace) -> \forall (iso: Isos.Isomorphism) -> First.class firstCompact firstT2 = Second.class secondCompact secondT2 := \fun (firstCompact: _)(firstT2: _)(secondCompact: _)(secondT2: _) => representativesEqual;
+\definition equalIsomorphic: \forall (firstCompact: topology.Topology[Carrier := X].IsCompact first.baseSpace)(firstT2: topology.Topology[Carrier := X].IsT2 first.baseSpace)
+  (secondCompact: topology.Topology[Carrier := X].IsCompact second.baseSpace)(secondT2: topology.Topology[Carrier := X].IsT2 second.baseSpace) -> First.class firstCompact firstT2 = Second.class secondCompact secondT2 -> \exists Isos.Isomorphism := \fun (firstCompact: _)(firstT2: _)(secondCompact: _)(secondT2: _) => \fun (equal: _) => \block {
+  \takefrom embedding: FirstOriginal.Embedding \by FirstOriginal.embeddingExists firstCompact firstT2 \then
+  \let p: Presentation := First.FromEmbedding[embedding := embedding].presentation \then
+  \let a: First.Isomorphism p := First.FromEmbedding[embedding := embedding].isomorphism \then
+  \let represented: Second.Represents p := \idelim First.representatives = Second.representatives \with S: \Pow Presentation => \In[Presentation] S p \by { base: \exact(a, First.Isomorphism p), equality: equal } \then
+  \takefrom b: Second.Isomorphism p \by represented \then
+  \return \exact(Operations.IsomorphismComposition[X := X, F := F, G := Fiber p, H := G, source := first, middle := bundle p, target := second].compose a
+    (Bundles.Isomorphisms[X := X, F := G, G := Fiber p, source := second, target := bundle p].inverse b), Isos.Isomorphism)
+};
+\definition criterion: \forall (firstCompact: topology.Topology[Carrier := X].IsCompact first.baseSpace)(firstT2: topology.Topology[Carrier := X].IsT2 first.baseSpace)
+  (secondCompact: topology.Topology[Carrier := X].IsCompact second.baseSpace)(secondT2: topology.Topology[Carrier := X].IsT2 second.baseSpace) -> Logic.PropEquiv[First.class firstCompact firstT2 = Second.class secondCompact secondT2, \exists Isos.Isomorphism] :=
+  \fun (firstCompact: _)(firstT2: _)(secondCompact: _)(secondT2: _) => Logic.PropEquiv[First.class firstCompact firstT2 = Second.class secondCompact secondT2, \exists Isos.Isomorphism] {
+    ltr := equalIsomorphic firstCompact firstT2 secondCompact secondT2,
+    rtl := \fun (exists: _) => \block { \takefrom iso: Isos.Isomorphism \by exists \then \return isomorphicEqual firstCompact firstT2 secondCompact secondT2 iso }
+  };

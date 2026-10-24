@@ -1,0 +1,37 @@
+\import hermitian_frames.Hermitian[].Examples[].MovingLine[K := K, field := field, scalar := conjugation, topological := scalar.topological] \as Column;
+\import \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].CoordinateEmbedding[X := K, m := one, n := two, baseSpace := scalar.topological.space, A := Column.column, regular := Column.regular, injective := Column.injective] \as Moving;
+\import Bundles.Trivial[X := K, n := one, baseSpace := scalar.topological.space] \as Line;
+\import \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].For[X := K, F := \fun (z: K) => Vector one, bundle := Line.bundle] \as Original;
+\definition identityEmbedding: Original.Embedding := Original.Embedding {
+  dimension := one, map := Bundles.Identity[X := K, F := \fun (z: K) => Vector one, bundle := Line.bundle].map,
+  injective := \fun (z: K)(v, w: Vector one)(equal: v = w) => equal
+};
+\import Original.FromEmbedding[embedding := Moving.embedding] \as Construction;
+\import Construction.Complement[] \as Split;
+\definition metric: Original.Metric := Construction.metric;
+\definition complement: Bundles.Family[X := K, F := Split.ComplementFiber].Bundle := Split.complementBundle;
+\definition trivialization: Bundles.Isomorphisms[X := K, F := Split.SourceFiber, G := \fun (z: K) => Vector two, source := Split.sumBundle, target := Original.Ambient two].Isomorphism := Split.isomorphism;
+\import \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Representations[X := K, baseSpace := scalar.topological.space] \as Classes;
+\import Classes.Of[F := \fun (z: K) => Vector one, original := Line.bundle, same := \refl(scalar.topological.space)] \as Classified;
+\definition small: Classes.Presentation := Classified.FromEmbedding[embedding := identityEmbedding].presentation;
+\definition large: Classes.Presentation := Classified.FromEmbedding[embedding := Moving.embedding].presentation;
+\definition smallDimension: small.dimension = one := Classified.FromEmbedding[embedding := identityEmbedding].dimensionFormula;
+\definition largeDimension: large.dimension = two := Classified.FromEmbedding[embedding := Moving.embedding].dimensionFormula;
+\definition differentAmbientSameClass: Classes.class small = Classes.class large := trans!{\Pow Classes.Presentation} _ _ _
+  (sym!{\Pow Classes.Presentation} _ _ (Classified.classOfRepresentative small (\exact(Classified.FromEmbedding[embedding := identityEmbedding].isomorphism, Classified.Isomorphism small))))
+  (Classified.classOfRepresentative large (\exact(Classified.FromEmbedding[embedding := Moving.embedding].isomorphism, Classified.Isomorphism large)));
+\definition square[z: K]: K := field.mul z z;
+\definition squareContinuous: topology.Continuity[A := K, B := K].Continuous scalar.topological.space scalar.topological.space square :=
+  Hermitian.Functions[X := K].multiplication scalar.topological.space (\fun (z: K) => z) (\fun (z: K) => z)
+    (topology.Maps[A := K, B := K].Identity[].continuous scalar.topological.space) (topology.Maps[A := K, B := K].Identity[].continuous scalar.topological.space);
+\import Construction.Pullback[Y := K, source := scalar.topological.space, f := square, regularBase := squareContinuous] \as Pulled;
+\definition metricNaturality: \forall (z: K)(v, w: Vector one) -> (Pulled.metric.form z).dot v w = (metric.form (square z)).dot v w := Pulled.metricNaturality;
+\import \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].For[X := K, F := \fun (z: K) => Vector one, bundle := Pulled.pulledBundle].FromEmbedding[embedding := Pulled.pulledEmbedding].Image[] \as PulledImage;
+\definition projectionNaturality: \forall (z: K) -> (PulledImage.projection z).map = (Construction.Image[].projection (square z)).map := Pulled.projectionNaturality;
+\import Classes.Pullback[Y := K, source := scalar.topological.space, f := square, regularBase := squareContinuous] \as ClassPull;
+\definition classPullback: ClassPull.map (Classes.class large) = Classes.class (ClassPull.presentation large) := ClassPull.onClass large;
+\import Original.Pullback[Y := K, source := scalar.topological.space, f := square, regularBase := squareContinuous] \as MetricPull;
+\definition arbitraryMetricNaturality: \forall (original: Original.Metric)(z: K)(v, w: Vector one) -> ((MetricPull.metric original).form z).dot v w = (original.form (square z)).dot v w := MetricPull.naturality;
+\import Construction.Image[] \as Image;
+\import \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Projection[X := K, n := two, baseSpace := scalar.topological.space, P := Image.projection, regular := Image.regular].Pullback[Y := K, source := scalar.topological.space, f := square, regularBase := squareContinuous] \as ProjectedPull;
+\definition projectionPullback: Bundles.Isomorphisms[X := K, F := \fun (z: K) => Image.ImageFiber (square z), G := \fun (z: K) => Image.ImageFiber (square z), source := ProjectedPull.firstBundle, target := ProjectedPull.secondBundle].Isomorphism := ProjectedPull.isomorphism;

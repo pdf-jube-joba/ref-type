@@ -1,0 +1,17 @@
+\import Geometry.Finite[n := k] \as Source;
+\import Hermitian.At[n := n] \as Native;
+\import Hermitian.At[n := k] \as Small;
+\module At(x: X);
+\definition coordinates[x: X]: Spaces.Linear[V := Vector n, W := Vector k, source := \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].coordinates n, target := \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].coordinates k].Map := At[x := x].coordinate;
+\import Native.Families[X := X].Orthonormalized[k := k, source := source, A := A, factors := factors] \as Orthonormalized;
+\definition coordinatesRegular: Small.Families[X := X].Matrix[m := n].Regular source coordinates := Orthonormalized.coordinatesContinuous;
+\definition change[x: X]: Spaces.Linear[V := Vector k, W := Vector k, source := Source.space, target := Source.space].Map := (factors.value x).change.forward;
+\definition backward[x: X]: Spaces.Linear[V := Vector k, W := Vector k, source := Source.space, target := Source.space].Map := (factors.value x).change.backward;
+\module Continuity;
+\definition inverse[x: X]: Spaces.Linear[V := Vector n, W := Vector k, source := E.space, target := Source.space].Map := At[x := x].inverse;
+\definition regular: Small.Families[X := X].Matrix[m := n].Regular source inverse :=
+  \fun (v: Vector n) => Small.Families[X := X].Matrix[m := k].evaluate source backward (\fun (x: X) => (coordinates x).apply v)
+    (\fun (j: Fin.Fin k) => Continuity[].backwardRegular (Source.basis j)) (coordinatesRegular v);
+\definition projection[x: X]: Native.Projection := Orthonormalized.projection x;
+\definition leftInverse: \forall (x: X)(v: Vector k) -> (inverse x).apply ((A x).apply v) = v := \fun (x: X) => At[x := x].leftInverse;
+\definition reconstruction: \forall (x: X)(v: Vector n) -> (A x).apply ((inverse x).apply v) = (projection x).map.apply v := \fun (x: X) => At[x := x].reconstruction;

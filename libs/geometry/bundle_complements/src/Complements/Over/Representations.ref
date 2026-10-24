@@ -1,0 +1,31 @@
+\structure Presentation: \Set := {
+  dimension: N.Nat^,
+  projection: X -> Hermitian.At[n := dimension].Projection,
+  regular: Hermitian.At[n := dimension].Families[X := X].Matrix[m := dimension].Regular baseSpace (\fun (x: X) => (projection x).map),
+};
+\module Realize(p: Presentation);
+\definition Fiber[p: Presentation][x: X]: \Set := Realize[p := p].Fiber x;
+\definition bundle[p: Presentation]: Bundles.Family[X := X, F := Fiber p].Bundle := Realize[p := p].bundle;
+\definition Isomorphism[p, q: Presentation]: \Set := Bundles.Isomorphisms[X := X, F := Fiber p, G := Fiber q, source := bundle p, target := bundle q].Isomorphism;
+\definition Equivalent[p, q: Presentation]: \Prop := \exists Isomorphism p q;
+\definition reflexive: \forall (p: Presentation) -> Equivalent p p := \fun (p: Presentation) => \exact(Operations.IdentityIsomorphism[X := X, F := Fiber p, bundle := bundle p].isomorphism, Isomorphism p p);
+\definition symmetric: \forall (p, q: Presentation) -> Equivalent p q -> Equivalent q p := \fun (p, q: Presentation)(related: _) => \block {
+  \takefrom iso: Isomorphism p q \by related \then
+  \return \exact(Bundles.Isomorphisms[X := X, F := Fiber p, G := Fiber q, source := bundle p, target := bundle q].inverse iso, Isomorphism q p)
+};
+\definition transitive: \forall (p, q, r: Presentation) -> Equivalent p q -> Equivalent q r -> Equivalent p r := \fun (p, q, r: Presentation)(first: _)(second: _) => \block {
+  \takefrom a: Isomorphism p q \by first \then
+  \takefrom b: Isomorphism q r \by second \then
+  \return \exact(Operations.IsomorphismComposition[X := X, F := Fiber p, G := Fiber q, H := Fiber r, source := bundle p, middle := bundle q, target := bundle r].compose a b, Isomorphism p r)
+};
+\import std.Set[].Quotient[A := Presentation, Equivalent := Equivalent] \as Quotient;
+\definition equivalence: Quotient.EquivalenceLaws := std.Logic[].Relation[].Equivalence[Presentation, Equivalent] { refl := reflexive, sym := symmetric, trans := transitive };
+\definition Classes: \Set := Quotient.Carrier;
+\definition class[p: Presentation]: Classes := Quotient.class p;
+\definition relatedEqual: \forall (p, q: Presentation) -> Equivalent p q -> class p = class q := Quotient.classOfEq equivalence;
+\definition equalRelated: \forall (p, q: Presentation) -> class p = class q -> Equivalent p q := Quotient.equivalentOfClassEq equivalence;
+\definition classCriterion: \forall (p, q: Presentation) -> Logic.PropEquiv[class p = class q, Equivalent p q] := \fun (p, q: Presentation) => Logic.PropEquiv[class p = class q, Equivalent p q] { ltr := equalRelated p q, rtl := relatedEqual p q };
+\module Representing(F: X -> \Set, original: Bundles.Family[X := X, F := F].Bundle);
+\module Of(F: X -> \Set, original: Bundles.Family[X := X, F := F].Bundle, same: original.baseSpace = baseSpace);
+\module Comparison(F, G: X -> \Set, first: Bundles.Family[X := X, F := F].Bundle, second: Bundles.Family[X := X, F := G].Bundle, firstSame: first.baseSpace = baseSpace, secondSame: second.baseSpace = baseSpace);
+\module Pullback(Y: \Set, source: topology.Topology[Carrier := Y].Topology, f: Y -> X, regularBase: topology.Continuity[A := Y, B := X].Continuous source baseSpace f);

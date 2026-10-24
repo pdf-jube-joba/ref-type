@@ -1,0 +1,16 @@
+\import Spaces.Linear[V := F x, W := Vector dimension, source := bundle.space x, target := coordinates dimension] \as Native;
+\definition Values: \Pow Native.Map := { m: Native.Map \where \forall (v: F x) -> m.apply v = value (Family.include x v) };
+\definition Choice: \Set := \Cast[Native.Map] Values;
+\import Native.Operations[] \as Operations;
+\definition onChart[point: \Cast[X] entry.chart.domain]: Spaces.Linear[V := F point, W := Vector dimension, source := bundle.space point, target := coordinates dimension].Map :=
+  Spaces.Linear[V := F point, W := Vector dimension, source := bundle.space point, target := coordinates dimension].Operations[].scale (conjugation.embed (entry.weight point)) (entry.chart.frame point).forward;
+\definition existence: \exists Choice := either!{{(Classical.excludedMiddle (Base.Member entry.chart.domain x))} {\exists Choice}
+  {\fun (inside: _) => \block {
+    \let point: \Cast[X] entry.chart.domain := \into[X](x, entry.chart.domain) \by { inside } \then
+    \return \exact(\into[Native.Map](onChart point, Values) \by { \fun (v: F x) => sym!{{Vector dimension}} _ _ (\root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].For[X := X, F := F, bundle := bundle].Weighted[entry := entry].inside point v) }, Choice)
+  }}
+  {\fun (notInside: _) => \exact(\into[Native.Map](Operations.zeroMap, Values) \by { \fun (v: F x) => sym!{{Vector dimension}} _ _ (outside x notInside v) }, Choice)}};
+\definition uniqueness: \forall (a, b: Choice) -> a = b := \fun (a, b: Choice) => Native.ext a b (\axiom:funext(a.apply, b.apply,
+  \fun (v: F x) => trans!{{Vector dimension}} _ _ _ ((\bysub(Native.Map, Values, a)) v) (sym!{{Vector dimension}} _ _ ((\bysub(Native.Map, Values, b)) v))));
+\definition map: Choice := \choice Choice \by { existence: existence, uniqueness: uniqueness };
+\definition formula: \forall (v: F x) -> map.apply v = value (Family.include x v) := \bysub(Native.Map, Values, map);
