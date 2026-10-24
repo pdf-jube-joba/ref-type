@@ -3,6 +3,18 @@
 計画は [_plans/math/k01-grothendieck-k.md](../../../_plans/math/k01-grothendieck-k.md)。
 B03 の同型類と補束、B02 の束演算、既存の `algebra.GroupCompletion` を再利用する。
 
+## 公開 API（追加分は検査中）
+
+`KTheory.On[X, baseSpace, compact, hausdorff]` はコンパクト Hausdorff 空間上の複素束を扱う。
+`Bundle.value` と `Compare.criterion` が一般の束を B03 の射影表示の同型類と比較する。
+`AdditiveMonoid`・`MultiplicativeMonoid`・`Semiring` は B02 の実際の束同型から演算の法則を導く。
+`K0` は既存の半環の群完成を用いる可換環で、`Stability.ForBundles.criterion` は同じ自明束を加える安定同型による等式判定である。
+`Pullback.K0.map`、`IdentityPullback.onK0`、`Pullback.Composition.onK0` が反変関手を与える。
+`Ranks.rank` は局所定数な整数値ランク、`Ranks.Reduced[point].group` は基点でのランクの核である。
+`VariableRanks` は離散底上に任意の自然数値ランクを持つ束を構成する。
+`FiniteDiscrete.Classification` はランクによる束の分類、`FiniteDiscrete.Computation` と `Point` は整数値関数群・整数群との往復写像と逆写像則を与える。
+`Examples` は空空間・一点・二点上の正負のランクを検査する。
+
 ## 検証と再開
 
 基点は B04 統合済み main `4f411dda`、作業は `math/k01-grothendieck-k` / [draft PR #44](https://github.com/pdf-jube-joba/ref-type/pull/44)。
