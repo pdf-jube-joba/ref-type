@@ -1,0 +1,21 @@
+\import fundamental_algebra.Complex[].Bounds[] \as Bounds;
+\import real.Analysis[].Algebra[] \as RealLaws;
+\import Spaces.Laws[V := V, space := space] \as Laws;
+\definition unitNonzero: \forall (z: C.Complex) -> Absolute.abs z = Real.one -> Logic.Not (z = Scalars.field.zero) :=
+  \fun (z: C.Complex)(unit: _)(zero: _) => RealLaws.zeroNeOne (trans!{{Real.Real}} _ _ _
+    (sym!{{Real.Real}} _ _ Bounds.absZero) (trans!{{Real.Real}} _ _ _ (congr!{{C.Complex} {Real.Real}} Absolute.abs _ _ (sym!{{C.Complex}} _ _ zero)) unit));
+\definition cancel: \forall (z: C.Complex) -> Logic.Not (z = Scalars.field.zero) -> \forall (v: V) -> space.smul z v = space.zero -> v = space.zero :=
+  \fun (z: C.Complex)(nonzero: _)(v: V)(zero: _) => eq_reason_in!{V v
+    "=" { space.smul Scalars.field.one v } "by" { sym!{V} _ _ (space.scalarOne v) }
+    "=" { space.smul (Scalars.field.mul (Scalars.field.inv z) z) v } "by" { congr!{{C.Complex} V} (\fun (a: C.Complex) => space.smul a v) _ _ (sym!{{C.Complex}} _ _ (Scalars.field.inverse z nonzero)) }
+    "=" { space.smul (Scalars.field.inv z) (space.smul z v) } "by" { space.scalarAssoc (Scalars.field.inv z) z v }
+    "=" { space.smul (Scalars.field.inv z) space.zero } "by" { congr!{V V} (space.smul (Scalars.field.inv z)) _ _ zero }
+    "=" _ "by" { Laws.scaleZero (Scalars.field.inv z) }
+  };
+\definition noUnitEigen: \root.Spectral[].NoUnitEigen V space T := \fun (z: C.Complex)(unit: _)(v: V)(eigen: _) =>
+  cancel z (unitNonzero z unit) v (cancel z (unitNonzero z unit) (space.smul z v) (eq_reason_in!{V _
+    "=" { space.smul z (T.apply v) } "by" { congr!{V V} (space.smul z) _ _ (sym!{V} _ _ eigen) }
+    "=" { T.apply (space.smul z v) } "by" { sym!{V} _ _ (T.preservesScale z v) }
+    "=" { T.apply (T.apply v) } "by" { congr!{V V} T.apply _ _ (sym!{V} _ _ eigen) }
+    "=" _ "by" { squareZero v }
+  }));
