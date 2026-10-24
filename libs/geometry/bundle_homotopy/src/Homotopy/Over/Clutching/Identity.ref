@@ -1,0 +1,29 @@
+\definition identity[x: Overlap]: Units.Carrier := Units.identity;
+\definition continuous: topology.Continuity[A := Overlap, B := Units.Carrier].Continuous overlapTopology Units.topology identity :=
+  topology.Maps[A := Overlap, B := Units.Carrier].constantContinuous overlapTopology Units.topology Units.identity;
+\import \parent.With[g := identity, continuous := continuous] \as Construction;
+\import Bundles.Trivial[X := X, n := n, baseSpace := baseSpace] \as Trivial;
+\definition openDomains: \forall (i: B.Bool^) -> Base.IsOpenIn baseSpace (domain i) := B.cases (\fun (i: B.Bool^) => Base.IsOpenIn baseSpace (domain i)) openU openV;
+\definition contained: \forall (i: B.Bool^)(x: \Cast[X] (domain i)) -> \In[X] Trivial.trivialization.domain x := \fun (i: B.Bool^)(x: \Cast[X] (domain i)) => \refl(x);
+\definition charts[i: B.Bool^]: Bundles.Family[X := X, F := (\fun (x: X) => Vector n)].With[data := Trivial.bundle].Chart :=
+  Operations.ChartRestriction[X := X, F := (\fun (x: X) => Vector n), bundle := Trivial.bundle, c := Trivial.trivialization, U := domain i, open := openDomains i, contained := contained i].trivialization;
+\import std.Set[].Extension[A := X, B := Units.Carrier, domain := overlap] \as Extend;
+\definition globalIdentity: \forall (x: X) -> Construction.global x = Units.identity := Extend.preserves ({ h: Units.Carrier \where h = Units.identity }) identity Units.identity (\fun (x: Overlap) => \refl(Units.identity)) (\refl(Units.identity));
+\definition rawIdentity: \forall (x: X)(i, j: B.Bool^)(v: Vector n) -> (Construction.change x i j).forward.apply v = v :=
+  \fun (x: X) => B.cases2 (\fun (i, j: B.Bool^) => \forall (v: Vector n) -> (Construction.change x i j).forward.apply v = v)
+    (\fun (v: Vector n) => \refl(v))
+    (\fun (v: Vector n) => congr!{{Units.Carrier} {Vector n}} (\fun (h: Units.Carrier) => h.apply v) _ _ (globalIdentity x))
+    (\fun (v: Vector n) => trans!{{Vector n}} _ _ _ (congr!{{Units.Carrier} {Vector n}} (\fun (h: Units.Carrier) => (Units.inverse h).apply v) _ _ (globalIdentity x)) (Units.left Units.identity v))
+    (\fun (v: Vector n) => \refl(v));
+\import \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].FromCharts[X := X, I := B.Bool^, F := (\fun (x: X) => Vector n), bundle := Trivial.bundle, charts := charts] \as From;
+\definition transitions: \forall (x: X)(i, j: Cocycles.Index x)(v: Vector n) -> (Construction.cocycle.transition x i j).forward.apply v =
+  ((charts j).frame (From.center x j)).forward.apply (((charts i).frame (From.center x i)).backward.apply v) :=
+  \fun (x: X)(i, j: Cocycles.Index x)(v: Vector n) => rawIdentity x i j v;
+\import From.With[cocycle := Construction.cocycle, regular := Construction.regular, transition := transitions] \as Comparison;
+\definition Fiber[x: X]: \Set := Construction.Fiber x;
+\definition bundle: Bundles.Family[X := X, F := Fiber].Bundle := Construction.bundle;
+\definition Isomorphism: \Set := Bundles.Isomorphisms[X := X, F := (\fun (x: X) => Vector n), G := Fiber, source := Trivial.bundle, target := bundle].Isomorphism;
+\definition isomorphismExists: \exists Isomorphism := \block {
+  \takefrom result: Comparison.For[c := Construction.cocycle, r := Construction.regular].Result \by Comparison.exists \then
+  \return \exact(result.value, Isomorphism)
+};
