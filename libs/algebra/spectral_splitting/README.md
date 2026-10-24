@@ -20,7 +20,9 @@ Bézout 射影と独立性、Cayley–Hamilton による評価和の逆行列、
 
 その後の並び方に依存しない因子、局所根群との比較、行列式の係数写像・特性多項式の係数と連続性、連続射影・自然性は package 全体として未検証である。
 最後に終了を確認した全体検査は `fd9434df` で終了コード1、`At.Characteristic.leading` の推論で失敗した。
-有限多重和に渡す関数を明記した `2c6931cb` の全体検査は実行中で、終了結果はまだ不明である。
+有限多重和に渡す関数を明記した `2c6931cb` の全体検査は22分後に診断のため中断し、終了コード130を確認した。
+worker 2、checkpoint からの再開1回、最後の module は `At.Splitting.Separated`、未保存ステップ638であり、検証未完了である。
+再開の原因はこの記録だけでは確定していない。
 それ以降に `bundle_complements.Finite.ImageBasis` の切り出し、一般の冪等射影の像束・引き戻し比較、スペクトル像束への包含・射影を追加した。
 これらの追加は構文解析のみ成功し、型検査は未実施である。
 型の再帰での大きな除去は固定長ベクトルで回避した。
@@ -35,7 +37,7 @@ target/debug/cli libs --module spectral_splitting.Spectral.Coefficients \
   --source-snapshot /tmp/k06-sources.json --memory-mib 8192 --diagnostics compact --cache-stats
 ```
 
-次は実行中の検査の終了コードを確認し、残る型エラーを修正する。
-新しい snapshot で `bundle_complements` の `Finite.ImageBasis`・`ProjectionBasis` と `spectral_splitting` 全体を検査する。
+次は `REF_TYPE_PROFILE_PROGRESS=1` で module 進捗を記録し、`At.Characteristic` を先に検査・保存してから `At.Splitting.Separated` の検査負荷を調べる。
+その後 `bundle_complements` の `Finite.ImageBasis`・`ProjectionBasis` と `spectral_splitting` 全体を検査する。
 残作業は追加済みの連続射影・自然性・像束の検証、一般の束の局所構成の貼り合わせ・ホモトピー比較、具体例、公開 API の整備と全依存・下流・workspace の最終検査である。
 K06 は未完成であり、B04・K01・K04 には着手していない。
