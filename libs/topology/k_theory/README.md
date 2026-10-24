@@ -14,7 +14,8 @@ B03 の同型類と補束、B02 の束演算、既存の `algebra.GroupCompletio
 `Pullback.Ranks.Reduced` は基点を保つ写像による被約群の引き戻しである。
 `Ranks.rank` は局所定数な整数値ランク、`Ranks.Reduced[point].group` は基点でのランクの核である。
 `VariableRanks` は離散底上に任意の自然数値ランクを持つ束を構成する。
-`FiniteDiscrete.Classification` はランクによる束の分類、`FiniteDiscrete.Computation` と `Point` は整数値関数群・整数群との往復写像と逆写像則を与える。
+`FiniteDiscrete.Classification` はランクによる束の分類、`FiniteDiscrete.Computation` は整数値関数群との往復写像を与える。
+`FiniteDiscrete.RingComputation.isomorphism` と `Point.Ring.isomorphism` は、それぞれ整数値関数環・整数環との環同型である。
 `Examples` は空空間・一点・二点上の正負のランクを検査する。
 
 ## 検証と再開
@@ -25,7 +26,8 @@ B03 の同型類と補束、B02 の束演算、既存の `algebra.GroupCompletio
 直和ランク公式、ランクの群完成への延長・被約群、引き戻しの恒等・合成則、離散底上の線形写像族から連続な束写像への構成を追加した。
 有限離散束の分類・K 群計算、一点計算・利用例、ランクの自然性を追加した（未検証）。
 被約群の基点付き引き戻しと、一点計算の乗法整合性を追加した（未検証）。
-次は有限離散計算の乗法整合性を接続し、最新ソースを再検査する。
+有限離散計算の乗法整合性・環同型を接続した（未検証）。
+次は最新ソースを snapshot 化して全対象を再検査する。
 各検査は `target/debug/cli libs --source-snapshot work/<名前>.source.json --module topological_k_theory --memory-mib 8192 --cache-budget-mib 12288 --time-limit-seconds 1200 --report-json work/<名前>.json` で共有キャッシュを利用する。
 次は修正版を snapshot 化して同じ対象検査を行い、終了コード・保存完了を確認する。
 有限離散底・一点の計算、空・一点・二点の利用例、引き戻しに対するランクの自然性を追加した（未検証）。

@@ -1,0 +1,18 @@
+\import \root.KTheory[].Point[] \as Point;
+\import \root.KTheory[].FiniteDiscrete[n := N.Nat^::succ N.Nat^::zero] \as Points;
+\import \root.KTheory[].On[X := Fin.Fin (N.Nat^::succ N.Nat^::zero), baseSpace := topology.Topology[Carrier := Fin.Fin (N.Nat^::succ N.Nat^::zero)].Discrete, compact := Points.compact, hausdorff := Points.hausdorff].K0[] \as PointGroup;
+\definition regular: topology.Continuity[A := Fin.Fin (N.Nat^::succ N.Nat^::zero), B := X].Continuous
+  topology.Topology[Carrier := Fin.Fin (N.Nat^::succ N.Nat^::zero)].Discrete Base.Discrete (\fun (i: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => p) :=
+    topology.Maps[A := Fin.Fin (N.Nat^::succ N.Nat^::zero), B := X].constantContinuous topology.Topology[Carrier := Fin.Fin (N.Nat^::succ N.Nat^::zero)].Discrete Base.Discrete p;
+\import K.Pullback[Y := Fin.Fin (N.Nat^::succ N.Nat^::zero), space := topology.Topology[Carrier := Fin.Fin (N.Nat^::succ N.Nat^::zero)].Discrete,
+  sourceCompact := Points.compact, sourceHausdorff := Points.hausdorff, f := \fun (i: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => p, regular := regular] \as Pull;
+\import std.Arithmetic[].Int[] \as I;
+\definition evaluation: \forall (x: Carrier) -> Point.forward (Pull.K0[].map x) = forward x p := \fun (x: Carrier) => Pull.Ranks[].naturality x (Fin.zero N.Nat^::zero);
+\import algebra.Hom[A := Carrier, B := PointGroup.Carrier] \as Hom;
+\definition multiplicative: \forall (x, y: Carrier) -> forward (Group.mul x y) p = I.Mul.specification (forward x p) (forward y p) := \fun (x, y: Carrier) =>
+  eq_reason_in!{{I.Int^} _
+    "=" { Point.forward (Pull.K0[].map (Group.mul x y)) } "by" { sym!{{I.Int^}} _ _ (evaluation (Group.mul x y)) }
+    "=" { Point.forward (PointGroup.mul (Pull.K0[].map x) (Pull.K0[].map y)) } "by" { congr!{{PointGroup.Carrier} {I.Int^}} Point.forward _ _ ((Hom.semiringLaws (std.Alg[].Ring[].ringAsSemiring Carrier Group.ring) (std.Alg[].Ring[].ringAsSemiring PointGroup.Carrier PointGroup.ring) Pull.K0[].map).mul x y) }
+    "=" { I.Mul.specification (Point.forward (Pull.K0[].map x)) (Point.forward (Pull.K0[].map y)) } "by" { Point.multiplicative (Pull.K0[].map x) (Pull.K0[].map y) }
+    "=" { I.Mul.specification (forward x p) (forward y p) } "by" { congr!{{I.Int^} {I.Int^} {I.Int^}} I.Mul.specification _ _ _ _ (evaluation x) (evaluation y) }
+  };
