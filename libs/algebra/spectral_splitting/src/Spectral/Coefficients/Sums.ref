@@ -1,0 +1,26 @@
+\import \parent.Laws[] \as Laws;
+\import algebra.Group[].Of[Carrier := P.Carrier, group := std.Alg[].Ring[].additiveGroup P.Carrier (std.Alg[].Ring[].commutativeRingAsRing P.Carrier P.ring)] \as Sum;
+\import PolynomialSpaces.Sums[I := I] \as Polynomials;
+\import Spaces.Sums[I := I] \as ScalarSums;
+\import galois.Field[].Over[K := C.Complex, field := Scalars.field].Polynomial[].Raw[] \as Raw;
+\definition zeroPolynomial: \forall (k: N.Nat^) -> polynomial k (origin k) = P.zero :=
+  \induction (k: N.Nat^) \return polynomial k (origin k) = P.zero \with {
+    | zero: Raw.coefficientLaws.zero
+    | succ: \fun (k: N.Nat^)(previous: _) => eq_reason_in!{{P.Carrier} _
+      "=" { P.add P.zero (P.mul P.X P.zero) } "by" { congr!{{P.Carrier} {P.Carrier} {P.Carrier}} P.add _ _ _ _ Raw.coefficientLaws.zero (congr!{{P.Carrier} {P.Carrier}} (P.mul P.X) _ _ previous) }
+      "=" _ "by" { trans!{{P.Carrier}} _ _ _ (Sum.zeroLeft (P.mul P.X P.zero)) (P.ring.ring.semiring.zeroAbsorbsRight P.X) }
+    }
+  };
+\definition sum[k: N.Nat^][xs: Lists.List[I]][f: I -> Data[k]]: Data[k] :=
+  Lists.foldr I (Data[k]) (\fun (i: I)(p: Data[k]) => plus k (f i) p) (origin k) xs;
+\definition polynomialLaw: \forall (k: N.Nat^)(xs: Lists.List[I])(f: I -> Data[k]) -> polynomial k (sum k xs f) = Polynomials.sum xs (\fun (i: I) => polynomial k (f i)) :=
+  \fun (k: N.Nat^) => \induction (xs: Lists.List[I]) \return \forall (f: I -> Data[k]) -> polynomial k (sum k xs f) = Polynomials.sum xs (\fun (i: I) => polynomial k (f i)) \with {
+    | nil: \fun (f: I -> Data[k]) => zeroPolynomial k
+    | cons: \fun (i: I)(xs: Lists.List[I])(previous: _)(f: I -> Data[k]) => trans!{{P.Carrier}} _ _ _ (Laws.addition k (f i) (sum k xs f))
+      (congr!{{P.Carrier} {P.Carrier}} (P.add (polynomial k (f i))) _ _ (previous f))
+  };
+\definition leadingLaw: \forall (k: N.Nat^)(xs: Lists.List[I])(f: I -> Data[k]) -> (sum k xs f).top = ScalarSums.sum xs (\fun (i: I) => (f i).top) :=
+  \fun (k: N.Nat^) => \induction (xs: Lists.List[I]) \return \forall (f: I -> Data[k]) -> (sum k xs f).top = ScalarSums.sum xs (\fun (i: I) => (f i).top) \with {
+    | nil: \fun (f: I -> Data[k]) => \refl(Scalars.field.zero)
+    | cons: \fun (i: I)(xs: Lists.List[I])(previous: _)(f: I -> Data[k]) => congr!{{C.Complex} {C.Complex}} (Scalars.field.add (f i).top) _ _ (previous f)
+  };
