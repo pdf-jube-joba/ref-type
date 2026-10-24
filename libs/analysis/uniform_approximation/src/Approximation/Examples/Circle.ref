@@ -1,0 +1,23 @@
+\import complex.Complex[] \as C;
+\import C.Def[] \as O;
+\import \root.Approximation[].Circle[] \as Domain;
+\import Domain.Scalar[] \as Laurent;
+\import metric_spaces.RealFunctions[A := Domain.Carrier] \as Reals;
+\import topological_algebra.Complex[].Functions[A := Domain.Carrier] \as ComplexFunctions;
+\import topological_constructions.Product[A := R.Real, B := R.Real].Universal[X := Domain.Carrier] \as Pairing;
+\definition target: Domain.Carrier -> C.Complex := \fun (z: Domain.Carrier) => O.ofReal (absolute (C.re z));
+\definition regular: topology.Continuity[A := Domain.Carrier, B := C.Complex].Continuous Domain.topology topological_algebra.Complex[].topology target :=
+  Pairing.pairContinuous Domain.topology metric_spaces.RealLine[].topology metric_spaces.RealLine[].topology
+    (\fun (z: Domain.Carrier) => absolute (C.re z)) (\fun (z: Domain.Carrier) => R.zero)
+    (Reals.Lattice[].absoluteContinuous Domain.topology (\fun (z: Domain.Carrier) => C.re z) (ComplexFunctions.realContinuous Domain.topology (\fun (z: Domain.Carrier) => z) sphere_maps.Circle[].Coordinates[].inclusionContinuous))
+    (Reals.constantContinuous Domain.topology R.zero);
+\import algebra.LaurentPolynomial[].Over[R := C.Complex, coefficients := C.Algebra[].commutativeRing] \as P;
+\definition approximated: \forall (epsilon: R.Real) -> Real.Lt R.zero epsilon -> \exists (p: P.Carrier \where \root.Approximation[].ComplexOn[X := Domain.Carrier, space := Domain.topology].Error target (Laurent.value p) epsilon) := Laurent.Approximate[f := target, regular := regular].exists;
+\import std.Data[].FinSet[] \as Fin;
+\definition two: N.Nat^ := N.Nat^::succ (N.Nat^::succ N.Nat^::zero);
+\definition matrix: Fin.Fin two -> Fin.Fin two -> Domain.Carrier -> C.Complex := \fun (i, j: Fin.Fin two) => target;
+\definition matrixRegular: \forall (i, j: Fin.Fin two) -> topology.Continuity[A := Domain.Carrier, B := C.Complex].Continuous Domain.topology topological_algebra.Complex[].topology (matrix i j) := \fun (i, j: Fin.Fin two) => regular;
+\definition matrixApproximation: \forall (epsilon: R.Real) -> Real.Lt R.zero epsilon -> \exists (p: Fin.Fin two -> Fin.Fin two -> P.Carrier \where \forall (i, j: Fin.Fin two) -> \root.Approximation[].ComplexOn[X := Domain.Carrier, space := Domain.topology].Error (matrix i j) (Laurent.value (p i j)) epsilon) := Laurent.Matrices[n := two, m := two, f := matrix, regular := matrixRegular].exists;
+\definition empty: Fin.Fin N.Nat^::zero -> Fin.Fin N.Nat^::zero -> Domain.Carrier -> C.Complex := \fun (i, j: Fin.Fin N.Nat^::zero) => target;
+\definition emptyRegular: \forall (i, j: Fin.Fin N.Nat^::zero) -> topology.Continuity[A := Domain.Carrier, B := C.Complex].Continuous Domain.topology topological_algebra.Complex[].topology (empty i j) := \fun (i, j: Fin.Fin N.Nat^::zero) => regular;
+\definition emptyApproximation: \forall (epsilon: R.Real) -> Real.Lt R.zero epsilon -> \exists (p: Fin.Fin N.Nat^::zero -> Fin.Fin N.Nat^::zero -> P.Carrier \where \forall (i, j: Fin.Fin N.Nat^::zero) -> \root.Approximation[].ComplexOn[X := Domain.Carrier, space := Domain.topology].Error (empty i j) (Laurent.value (p i j)) epsilon) := Laurent.Matrices[n := N.Nat^::zero, m := N.Nat^::zero, f := empty, regular := emptyRegular].exists;
