@@ -7,3 +7,25 @@
   continuous: \forall (n: N.Nat^) -> Continuous (error n),
   antitone: \forall (n, m: N.Nat^) -> NatLaws.Le n m -> \forall (x: X) -> Real.Le (error m x) (error n x));
 \module Polynomial(f: X -> R.Real, regular: Continuous f);
+\definition Function: \Set := X -> R.Real;
+\definition constant[a: R.Real]: Function := \fun (x: X) => a;
+\definition sum[f, g: Function]: Function := \fun (x: X) => R.add (f x) (g x);
+\definition negative[f: Function]: Function := \fun (x: X) => R.neg (f x);
+\definition product[f, g: Function]: Function := \fun (x: X) => R.mul (f x) (g x);
+\definition absoluteValue[f: Function]: Function := \fun (x: X) => absolute (f x);
+\definition maximum[f, g: Function]: Function := \fun (x: X) => Distance.max (f x) (g x);
+\definition minimum[f, g: Function]: Function := \fun (x: X) => Distance.min (f x) (g x);
+\structure SubalgebraLaws[A: \Pow Function]: \Prop := {
+  continuous: \forall (f: Function) -> \In[Function] A f -> Continuous f,
+  constants: \forall (a: R.Real) -> \In[Function] A (constant a),
+  addition: \forall (f, g: Function) -> \In[Function] A f -> \In[Function] A g -> \In[Function] A (sum f g),
+  negation: \forall (f: Function) -> \In[Function] A f -> \In[Function] A (negative f),
+  multiplication: \forall (f, g: Function) -> \In[Function] A f -> \In[Function] A g -> \In[Function] A (product f g)
+};
+\definition errorReflexive: \forall (f: Function)(epsilon: R.Real) -> Real.Lt R.zero epsilon -> Error f f epsilon := \fun (f: Function)(epsilon: R.Real)(positive: _)(x: X) =>
+  Real.ltReplaceLeft R.zero (R.distance (f x) (f x)) epsilon (sym!{{R.Real}} _ _ (Distance.distanceSelf (f x))) positive;
+\definition errorTriangle: \forall (f, g, h: Function)(epsilon: R.Real) -> Error f g (R.mul R.half epsilon) -> Error g h (R.mul R.half epsilon) -> Error f h epsilon :=
+  \fun (f, g, h: Function)(epsilon: R.Real)(first: _)(second: _)(x: X) => Real.leLtTrans _ _ _ (Distance.distanceTriangle (f x) (g x) (h x))
+    (Real.ltReplaceRight _ (R.add (R.mul R.half epsilon) (R.mul R.half epsilon)) epsilon (Estimates.halfTwice epsilon) (Estimates.addLt _ _ _ _ (first x) (second x)));
+\module AlgebraEvaluation(A: \Pow Function, laws: SubalgebraLaws[A]);
+\module Compact(compact: Base.IsCompact space, hausdorff: Base.IsT2 space);
