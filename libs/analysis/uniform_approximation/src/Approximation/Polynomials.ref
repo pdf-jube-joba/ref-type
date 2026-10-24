@@ -1,0 +1,53 @@
+\import std.Alg[].Field[] \as Fields;
+\import std.Alg[].Ring[] \as Rings;
+\definition coefficients: Rings.CommutativeRing[R.Real] := Fields.fieldAsCommutativeRing R.Real Algebra.field;
+\import algebra.Polynomial[].Over[R := R.Real, coefficients := coefficients] \as Native;
+\definition Carrier: \Set := Native.Carrier;
+\definition ring: Rings.CommutativeRing[Carrier] := Native.ring;
+\definition constant: R.Real -> Carrier := Native.constant;
+\definition variable: Carrier := Native.X;
+\definition zero: Carrier := Native.zero;
+\definition one: Carrier := Native.one;
+\definition add: Carrier -> Carrier -> Carrier := Native.add;
+\definition neg: Carrier -> Carrier := Native.neg;
+\definition mul: Carrier -> Carrier -> Carrier := Native.mul;
+\definition sourceRing: Rings.Ring[Carrier] := Rings.commutativeRingAsRing Carrier ring;
+\definition targetRing: Rings.Ring[R.Real] := Rings.commutativeRingAsRing R.Real coefficients;
+\import Native.Universal[K := R.Real, target := coefficients] \as NativeEvaluation;
+\import algebra.Hom[A := R.Real, B := R.Real] \as Coefficients;
+\definition identity: NativeEvaluation.CoefficientMap := \into[R.Real -> R.Real]((\fun (x: R.Real) => x), NativeEvaluation.CoefficientMap) \by {
+  Coefficients.SemiringLaws[(Rings.ringAsSemiring R.Real targetRing), (Rings.ringAsSemiring R.Real targetRing), (\fun (x: R.Real) => x)] {
+    zero := \refl(R.zero), one := \refl(R.one), add := \fun (a, b: R.Real) => \refl(R.add a b), mul := \fun (a, b: R.Real) => \refl(R.mul a b)
+  }
+};
+\definition evaluate[p: Carrier][x: R.Real]: R.Real := NativeEvaluation.evaluate identity x p;
+\import algebra.Hom[A := Carrier, B := R.Real] \as Hom;
+\definition map[x: R.Real]: Hom.RingMap sourceRing targetRing := NativeEvaluation.extension identity x;
+\definition onConstant: \forall (a, x: R.Real) -> evaluate (constant a) x = a := \fun (a, x: R.Real) => NativeEvaluation.constants identity x a;
+\definition onVariable: \forall (x: R.Real) -> evaluate variable x = x := NativeEvaluation.variable identity;
+\definition onZero: \forall (x: R.Real) -> evaluate zero x = R.zero := \fun (x: R.Real) => (Hom.semiringLaws (Rings.ringAsSemiring Carrier sourceRing) (Rings.ringAsSemiring R.Real targetRing) (map x)).zero;
+\definition onAdd: \forall (p, q: Carrier)(x: R.Real) -> evaluate (add p q) x = R.add (evaluate p x) (evaluate q x) := \fun (p, q: Carrier)(x: R.Real) => (Hom.semiringLaws (Rings.ringAsSemiring Carrier sourceRing) (Rings.ringAsSemiring R.Real targetRing) (map x)).add p q;
+\definition onMul: \forall (p, q: Carrier)(x: R.Real) -> evaluate (mul p q) x = R.mul (evaluate p x) (evaluate q x) := \fun (p, q: Carrier)(x: R.Real) => (Hom.semiringLaws (Rings.ringAsSemiring Carrier sourceRing) (Rings.ringAsSemiring R.Real targetRing) (map x)).mul p q;
+\import algebra.Group[].Of[Carrier := R.Real, group := Rings.additiveGroup R.Real targetRing] \as Group;
+\definition onNeg: \forall (p: Carrier)(x: R.Real) -> evaluate (neg p) x = R.neg (evaluate p x) := \fun (p: Carrier)(x: R.Real) => Group.inverseUnique (evaluate p x) (evaluate (neg p) x)
+  (trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ (onAdd (neg p) p x))
+    (trans!{{R.Real}} _ _ _ (congr!{Carrier {R.Real}} (\fun (p: Carrier) => evaluate p x) _ _ (sourceRing.additiveInverse p)) (onZero x)));
+\definition absolutePolynomial: N.Nat^ -> Carrier := \induction (n: N.Nat^) \return Carrier \with {
+  | zero: zero
+  | succ: \fun (n: N.Nat^)(p: Carrier) => add p (mul (constant R.half) (add (mul variable variable) (neg (mul p p))))
+};
+\definition value[n: N.Nat^][x: R.Real]: R.Real := evaluate (absolutePolynomial n) x;
+\definition recurrence: \forall (n: N.Nat^)(x: R.Real) -> value (N.Nat^::succ n) x = R.add (value n x) (R.mul R.half (R.sub (R.mul x x) (R.mul (value n x) (value n x)))) := \fun (n: N.Nat^)(x: R.Real) =>
+  trans!{{R.Real}} _ _ _ (onAdd (absolutePolynomial n) (mul (constant R.half) (add (mul variable variable) (neg (mul (absolutePolynomial n) (absolutePolynomial n))))) x)
+    (congr!{{R.Real} {R.Real}} (R.add (value n x)) _ _
+      (trans!{{R.Real}} _ _ _ (onMul (constant R.half) (add (mul variable variable) (neg (mul (absolutePolynomial n) (absolutePolynomial n)))) x)
+        (congr!{{R.Real} {R.Real} {R.Real}} R.mul _ _ _ _ (onConstant R.half x)
+          (trans!{{R.Real}} _ _ _ (onAdd (mul variable variable) (neg (mul (absolutePolynomial n) (absolutePolynomial n))) x)
+            (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+              (trans!{{R.Real}} _ _ _ (onMul variable variable x) (congr!{{R.Real} {R.Real} {R.Real}} R.mul _ _ _ _ (onVariable x) (onVariable x)))
+              (trans!{{R.Real}} _ _ _ (onNeg (mul (absolutePolynomial n) (absolutePolynomial n)) x)
+                (congr!{{R.Real} {R.Real}} R.neg _ _ (onMul (absolutePolynomial n) (absolutePolynomial n) x))))))));
+\definition induction: \forall (Predicate: Carrier -> \Prop) -> (\forall (a: R.Real) -> Predicate (constant a)) -> Predicate variable ->
+  (\forall (p, q: Carrier) -> Predicate p -> Predicate q -> Predicate (add p q)) ->
+  (\forall (p: Carrier) -> Predicate p -> Predicate (neg p)) ->
+  (\forall (p, q: Carrier) -> Predicate p -> Predicate q -> Predicate (mul p q)) -> \forall (p: Carrier) -> Predicate p := Native.induction;

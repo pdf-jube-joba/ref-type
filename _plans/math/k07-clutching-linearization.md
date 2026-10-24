@@ -9,7 +9,7 @@
 
 ## 依存するタスク
 
-- [K04 Stone–Weierstrass と Laurent 近似](k04-uniform-approximation.md)
+- [K04 Stone–Weierstrass と Laurent 近似](../../libs/analysis/uniform_approximation/README.md)
 - [連続なスペクトル分離と像束の比較](../../libs/algebra/spectral_splitting/README.md)
 - [B04 束のホモトピー不変性と clutching](../../libs/geometry/bundle_homotopy/README.md)
 - [K01 束の Grothendieck 環と安定同型判定](../../libs/topology/k_theory/README.md)

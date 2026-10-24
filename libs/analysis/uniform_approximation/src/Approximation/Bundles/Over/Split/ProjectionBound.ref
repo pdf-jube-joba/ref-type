@@ -1,0 +1,21 @@
+\import Homotopy.Projections[n := n].Operators[].FromMorphism[X := X, baseSpace := bundle.baseSpace, h := projection] \as ProjectionRegular;
+\import topological_algebra.Complex[].Functions[A := X] \as Functions;
+\import metric_spaces.RealFunctions[A := X] \as Reals;
+\import R.FiniteSums[] \as Sums;
+\import R.Estimates[].Product[] \as Bounds;
+\definition rows[i: M.Index][x: X]: R.Real := Sums.sum n (\fun (j: M.Index) => Abs.abs (projectionMatrix x i j));
+\definition total[x: X]: R.Real := Sums.sum n (\fun (i: M.Index) => rows i x);
+\definition nonnegative: \forall (i: M.Index)(x: X) -> Real.Le R.zero (rows i x) := \fun (i: M.Index)(x: X) => Sums.nonnegative n (\fun (j: M.Index) => Abs.abs (projectionMatrix x i j)) (\fun (j: M.Index) => Abs.nonnegative (projectionMatrix x i j));
+\definition totalNonnegative: \forall (x: X) -> Real.Le R.zero (total x) := \fun (x: X) => Sums.nonnegative n (\fun (i: M.Index) => rows i x) (\fun (i: M.Index) => nonnegative i x);
+\definition rowContinuous: \forall (i: M.Index) -> Reals.Continuous bundle.baseSpace (rows i) := \fun (i: M.Index) => Reals.FiniteSums[].continuous bundle.baseSpace n (\fun (j: M.Index)(x: X) => Abs.abs (projectionMatrix x i j))
+  (\fun (j: M.Index) => Functions.absoluteContinuous bundle.baseSpace (\fun (x: X) => projectionMatrix x i j) (ProjectionRegular.regular (linear_algebra.Hermitian[].Over[K := C.Complex, field := CA.field, scalar := Conjugation.scalar].Finite[n := n].basis j) i));
+\definition continuous: Reals.Continuous bundle.baseSpace total := Reals.FiniteSums[].continuous bundle.baseSpace n rows rowContinuous;
+\import \root.Approximation[].On[X := X, space := bundle.baseSpace].Compact[compact := compact, hausdorff := hausdorff] \as Compact;
+\structure Bound: \Set := { value: R.Real, positive: Real.Lt R.zero value, controls: \forall (i: M.Index)(x: X) -> Real.Le (rows i x) value };
+\definition exists: \exists Bound := \block {
+  \takefrom bound: Compact.Bound[total] \by Compact.Bounded[f := total, regular := continuous].exists \then
+  \return \exact(Bound { value := bound.size, positive := bound.positive, controls := \fun (i: M.Index)(x: X) => Real.leTrans _ _ _
+    (Sums.coordinateUpper n (\fun (i: M.Index) => rows i x) (\fun (i: M.Index) => nonnegative i x) i)
+    (Real.leReplaceLeft (absolute (total x)) (total x) bound.size (Bounds.absOfNonnegative (total x) (totalNonnegative x)) (bound.controls x))
+  }, Bound)
+};

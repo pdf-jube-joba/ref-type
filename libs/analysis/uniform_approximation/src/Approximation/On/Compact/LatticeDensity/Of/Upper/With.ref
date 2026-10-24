@@ -1,0 +1,19 @@
+\definition initialLower: \forall (z: X) -> Real.Lt (R.sub (f z) bound.size) epsilon := \fun (z: X) =>
+  Real.leLtTrans _ R.zero epsilon
+    (Real.leReplaceRight _ (R.sub bound.size bound.size) R.zero (Laws.subSelf bound.size)
+      (Laws.addMonotoneRight (f z) bound.size (R.neg bound.size)
+        (Real.leTrans _ (absolute (f z)) _
+          (Real.leReplaceRight (f z) (Distance.max (R.neg (f z)) (f z)) (absolute (f z)) (sym!{{R.Real}} _ _ (Bounds.absExpression (f z))) (Distance.maxRight (R.neg (f z)) (f z))) (bound.controls z)))) positive;
+\definition finiteEnvelope: \forall (S: Finite.FiniteSubset) -> (\forall (U: \Pow X) -> Finite.Member S U -> Base.FamilyMember family U) -> \exists Envelope[S] :=
+  Finite.induction ({ S: \Pow (\Pow X) \where (\forall (U: \Pow X) -> \In[\Pow X] S U -> Base.FamilyMember family U) -> \exists Envelope[S] })
+    (\fun (included: _) => \exact(Envelope[Finite.Empty] { value := constant bound.size, member := laws.constants bound.size, lower := initialLower, local := \fun (U: \Pow X)(empty: Logic.False)(z: X)(inside: Base.Member U z) => Logic.falseElim _ empty }, Envelope[Finite.Empty]))
+    (\fun (S: \Pow (\Pow X))(previous: _)(U: \Pow X) => \parent.Inserting[S := S, previous := previous, U := U].exists);
+\definition exists: \exists (g: Function \where Logic.And[\In[Function] B g, Error f g epsilon]) := \block {
+  \takefrom finite: \Cast[Finite.FiniteSubset] ({ S: Finite.FiniteSubset \where Base.FiniteSubcover[family, Base.Whole, S] }) \by compact family cover \then
+  \let finiteCover: Base.FiniteSubcover[family, Base.Whole, finite] := \bysub(Finite.FiniteSubset, { S: Finite.FiniteSubset \where Base.FiniteSubcover[family, Base.Whole, S] }, finite) \then
+  \takefrom result: Envelope[finite] \by finiteEnvelope finite finiteCover.included \then
+  \return Logic.existsIntro[Function, { g: Function \where Logic.And[\In[Function] B g, Error f g epsilon] }] result.value (Logic.And[_, _]::# result.member
+    (\fun (z: X) => Distance.maxLt (R.sub (f z) (result.value z)) (R.sub (result.value z) (f z)) epsilon (result.lower z)
+      (Base.unionMemberElim finite z (Real.Lt (R.sub (result.value z) (f z)) epsilon)
+        (\fun (U: \Pow X)(member: Finite.Member finite U)(inside: Base.Member U z) => result.local U member z inside) (finiteCover.covers z (\refl(z))))))
+};

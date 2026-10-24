@@ -1,0 +1,27 @@
+\import \parent.\parent.Polynomials[] \as P;
+\definition value[p: P.Carrier][x: X]: R.Real := P.evaluate p (f x);
+\definition constantEquation: \forall (a: R.Real) -> value (P.constant a) = (\fun (x: X) => a) := \fun (a: R.Real) =>
+  \axiom:funext(value (P.constant a), (\fun (x: X) => a), \fun (x: X) => P.onConstant a (f x));
+\definition variableEquation: value P.variable = f := \axiom:funext(value P.variable, f, \fun (x: X) => P.onVariable (f x));
+\definition additionEquation: \forall (p, q: P.Carrier) -> value (P.add p q) = (\fun (x: X) => R.add (value p x) (value q x)) := \fun (p, q: P.Carrier) =>
+  \axiom:funext(value (P.add p q), (\fun (x: X) => R.add (value p x) (value q x)), \fun (x: X) => P.onAdd p q (f x));
+\definition negativeEquation: \forall (p: P.Carrier) -> value (P.neg p) = (\fun (x: X) => R.neg (value p x)) := \fun (p: P.Carrier) =>
+  \axiom:funext(value (P.neg p), (\fun (x: X) => R.neg (value p x)), \fun (x: X) => P.onNeg p (f x));
+\definition productEquation: \forall (p, q: P.Carrier) -> value (P.mul p q) = (\fun (x: X) => R.mul (value p x) (value q x)) := \fun (p, q: P.Carrier) =>
+  \axiom:funext(value (P.mul p q), (\fun (x: X) => R.mul (value p x) (value q x)), \fun (x: X) => P.onMul p q (f x));
+\definition continuous: \forall (p: P.Carrier) -> Continuous (value p) :=
+  P.induction (\fun (p: P.Carrier) => Continuous (value p))
+    (\fun (a: R.Real) => \idelim (\fun (x: X) => a) = value (P.constant a) \with h: (X -> R.Real) => Continuous h \by { base: Functions.constantContinuous space a, equality: sym!{{X -> R.Real}} _ _ (constantEquation a) })
+    (\idelim f = value P.variable \with h: (X -> R.Real) => Continuous h \by { base: regular, equality: sym!{{X -> R.Real}} _ _ variableEquation })
+    (\fun (p, q: P.Carrier)(first: Continuous (value p))(second: Continuous (value q)) =>
+      \idelim (\fun (x: X) => R.add (value p x) (value q x)) = value (P.add p q) \with h: (X -> R.Real) => Continuous h \by {
+        base: Functions.sumContinuous space (value p) (value q) first second, equality: sym!{{X -> R.Real}} _ _ (additionEquation p q)
+      })
+    (\fun (p: P.Carrier)(previous: Continuous (value p)) =>
+      \idelim (\fun (x: X) => R.neg (value p x)) = value (P.neg p) \with h: (X -> R.Real) => Continuous h \by {
+        base: Functions.negContinuous space (value p) previous, equality: sym!{{X -> R.Real}} _ _ (negativeEquation p)
+      })
+    (\fun (p, q: P.Carrier)(first: Continuous (value p))(second: Continuous (value q)) =>
+      \idelim (\fun (x: X) => R.mul (value p x) (value q x)) = value (P.mul p q) \with h: (X -> R.Real) => Continuous h \by {
+        base: Functions.Product[].continuous space (value p) (value q) first second, equality: sym!{{X -> R.Real}} _ _ (productEquation p q)
+      });

@@ -1,0 +1,72 @@
+\structure Candidate[f: Function, epsilon: R.Real]: \Set := { value: Function, member: \In[Function] A value, near: Error f value epsilon };
+\definition fromCandidate[f: Function][epsilon: R.Real][c: Candidate[f, epsilon]]: \exists (g: Function \where Logic.And[\In[Function] A g, Error f g epsilon]) :=
+  Logic.existsIntro[Function, { g: Function \where Logic.And[\In[Function] A g, Error f g epsilon] }] c.value (Logic.And[_, _]::# c.member c.near);
+\definition candidateExists: \forall (f: Function) -> Approximates A f -> \forall (epsilon: R.Real) -> Real.Lt R.zero epsilon -> \exists Candidate[f, epsilon] := \block {
+  \fun (f: Function)(approximation: Approximates A f)(epsilon: R.Real)(positive: _) \then
+  \takefrom g: \Cast[Function] ({ g: Function \where Logic.And[\In[Function] A g, Error f g epsilon] }) \by approximation epsilon positive \then
+  \let properties: Logic.And[\In[Function] A g, Error f g epsilon] := \bysub(Function, { g: Function \where Logic.And[\In[Function] A g, Error f g epsilon] }, g) \then
+  \return \exact(Candidate[f, epsilon] { value := g, member := properties.left, near := properties.right }, Candidate[f, epsilon])
+};
+\structure InClosure[f: Function]: \Prop := { continuous: Continuous f, approximation: Approximates A f };
+\definition Closure: \Pow Function := { f: Function \where InClosure[f] };
+\definition original: \forall (f: Function) -> \In[Function] A f -> InClosure[f] := \fun (f: Function)(member: _) => InClosure[f] {
+  continuous := laws.continuous f member,
+  approximation := \fun (epsilon: R.Real)(positive: _) => fromCandidate f epsilon (Candidate[f, epsilon] { value := f, member := member, near := errorReflexive f epsilon positive })
+};
+\definition constants: \forall (a: R.Real) -> InClosure[constant a] := \fun (a: R.Real) => original (constant a) (laws.constants a);
+\definition addition: \forall (f, g: Function) -> InClosure[f] -> InClosure[g] -> InClosure[sum f g] := \fun (f, g: Function)(first: InClosure[f])(second: InClosure[g]) => InClosure[sum f g] {
+  continuous := Functions.sumContinuous space f g first.continuous second.continuous,
+  approximation := \fun (epsilon: R.Real)(positive: _) => \block {
+    \takefrom a: Candidate[f, R.mul R.half epsilon] \by candidateExists f first.approximation (R.mul R.half epsilon) (Estimates.halfOfPositive epsilon positive) \then
+    \takefrom b: Candidate[g, R.mul R.half epsilon] \by candidateExists g second.approximation (R.mul R.half epsilon) (Estimates.halfOfPositive epsilon positive) \then
+    \return fromCandidate (sum f g) epsilon (Candidate[sum f g, epsilon] {
+      value := sum a.value b.value, member := laws.addition a.value b.value a.member b.member,
+      near := \fun (x: X) => Real.leLtTrans _ _ _ (Estimates.distanceAdd (f x) (g x) (a.value x) (b.value x))
+        (Real.ltReplaceRight _ (R.add (R.mul R.half epsilon) (R.mul R.half epsilon)) epsilon (Estimates.halfTwice epsilon) (Estimates.addLt _ _ _ _ (a.near x) (b.near x)))
+    })
+  }
+};
+\definition negation: \forall (f: Function) -> InClosure[f] -> InClosure[negative f] := \fun (f: Function)(closed: InClosure[f]) => InClosure[negative f] {
+  continuous := Functions.negContinuous space f closed.continuous,
+  approximation := \fun (epsilon: R.Real)(positive: _) => \block {
+    \takefrom a: Candidate[f, epsilon] \by candidateExists f closed.approximation epsilon positive \then
+    \return fromCandidate (negative f) epsilon (Candidate[negative f, epsilon] {
+      value := negative a.value, member := laws.negation a.value a.member,
+      near := \fun (x: X) => Real.ltReplaceLeft (R.distance (f x) (a.value x)) (R.distance (R.neg (f x)) (R.neg (a.value x))) epsilon (sym!{{R.Real}} _ _ (Bounds.distanceNeg (f x) (a.value x))) (a.near x)
+    })
+  }
+};
+\module Product(f, g: Function, first: InClosure[f], second: InClosure[g]);
+\definition multiplication: \forall (f, g: Function) -> InClosure[f] -> InClosure[g] -> InClosure[product f g] :=
+  \fun (f, g: Function)(first: InClosure[f])(second: InClosure[g]) => Product[f := f, g := g, first := first, second := second].closed;
+\definition algebra: SubalgebraLaws[Closure] := SubalgebraLaws[Closure] {
+  continuous := \fun (f: Function)(closed: InClosure[f]) => closed.continuous,
+  constants := constants, addition := addition, negation := negation, multiplication := multiplication
+};
+\definition limit: \forall (f: Function) -> Continuous f -> Approximates Closure f -> InClosure[f] := \fun (f: Function)(regular: Continuous f)(approximation: Approximates Closure f) => InClosure[f] {
+  continuous := regular,
+  approximation := \fun (epsilon: R.Real)(positive: _) => \block {
+    \takefrom g: \Cast[Function] ({ g: Function \where Logic.And[InClosure[g], Error f g (R.mul R.half epsilon)] }) \by approximation (R.mul R.half epsilon) (Estimates.halfOfPositive epsilon positive) \then
+    \let properties: Logic.And[InClosure[g], Error f g (R.mul R.half epsilon)] := \bysub(Function, { g: Function \where Logic.And[InClosure[g], Error f g (R.mul R.half epsilon)] }, g) \then
+    \takefrom a: Candidate[g, R.mul R.half epsilon] \by candidateExists g properties.left.approximation (R.mul R.half epsilon) (Estimates.halfOfPositive epsilon positive) \then
+    \return fromCandidate f epsilon (Candidate[f, epsilon] { value := a.value, member := a.member, near := errorTriangle f g a.value epsilon properties.right a.near })
+  }
+};
+\module Absolute(f: Function, closed: InClosure[f]);
+\definition absoluteClosure: \forall (f: Function) -> InClosure[f] -> InClosure[absoluteValue f] := \fun (f: Function)(closed: InClosure[f]) => Absolute[f := f, closed := closed].result;
+\definition maximumClosure: \forall (f, g: Function) -> InClosure[f] -> InClosure[g] -> InClosure[maximum f g] := \fun (f, g: Function)(first: InClosure[f])(second: InClosure[g]) =>
+  \idelim product (constant R.half) (sum (sum f g) (absoluteValue (sum f (negative g)))) = maximum f g
+    \with h: Function => InClosure[h] \by {
+      base: multiplication (constant R.half) (sum (sum f g) (absoluteValue (sum f (negative g)))) (constants R.half)
+        (addition (sum f g) (absoluteValue (sum f (negative g))) (addition f g first second) (absoluteClosure (sum f (negative g)) (addition f (negative g) first (negation g second)))),
+      equality: \axiom:funext(product (constant R.half) (sum (sum f g) (absoluteValue (sum f (negative g)))), maximum f g,
+        \fun (x: X) => sym!{{R.Real}} _ _ (\root.Approximation[].Lattice[].maximumFormula (f x) (g x)))
+    };
+\definition minimumClosure: \forall (f, g: Function) -> InClosure[f] -> InClosure[g] -> InClosure[minimum f g] := \fun (f, g: Function)(first: InClosure[f])(second: InClosure[g]) =>
+  negation (maximum (negative f) (negative g)) (maximumClosure (negative f) (negative g) (negation f first) (negation g second));
+\definition lattice: LatticeLaws[Closure] := LatticeLaws[Closure] {
+  continuous := \fun (f: Function)(closed: InClosure[f]) => closed.continuous,
+  constants := constants, supremum := maximumClosure, infimum := minimumClosure
+};
+\module Interpolating(f: Function, x, y: X);
+\module StoneWeierstrass(separates: Separates A, f: Function, regular: Continuous f);

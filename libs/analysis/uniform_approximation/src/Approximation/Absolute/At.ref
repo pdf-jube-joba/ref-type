@@ -1,0 +1,15 @@
+\import \parent.\parent.NumericAbsolute[t := absolute x, nonnegative := Distance.distanceNonnegative R.zero x, bounded := bounded x] \as Numeric;
+\definition equation: \forall (n: N.Nat^) -> P.value n x = Numeric.value n := Numeric.onSquare x (sym!{{R.Real}} _ _ (square x));
+\definition errorEquation: \forall (n: N.Nat^) -> error n x = Numeric.error n := \fun (n: N.Nat^) => congr!{{R.Real} {R.Real}} (R.sub (absolute x)) _ _ (equation n);
+\definition below: \forall (n: N.Nat^) -> Real.Le (P.value n x) (absolute x) := \fun (n: N.Nat^) =>
+  Real.leReplaceLeft (Numeric.value n) (P.value n x) (absolute x) (sym!{{R.Real}} _ _ (equation n)) (Numeric.states n).below;
+\definition antitone: \forall (n, m: N.Nat^) -> NatLaws.Le n m -> Real.Le (error m x) (error n x) := \fun (n, m: N.Nat^)(ordered: _) =>
+  Real.leReplace (Numeric.error m) (error m x) (Numeric.error n) (error n x) (sym!{{R.Real}} _ _ (errorEquation m)) (sym!{{R.Real}} _ _ (errorEquation n)) (Numeric.antitone n m ordered);
+\definition pointwise: \forall (epsilon: R.Real) -> Real.Lt R.zero epsilon -> \exists (n: N.Nat^ \where Real.Lt (error n x) epsilon) := \block {
+  \fun (epsilon: R.Real)(positive: _) \then
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Real.Lt (Numeric.error n) epsilon }) \by Numeric.pointwise epsilon positive \then
+  \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where Real.Lt (error n x) epsilon }] n
+    (Real.ltReplaceLeft (Numeric.error n) (error n x) epsilon (sym!{{R.Real}} _ _ (errorEquation n)) (\bysub(N.Nat^, { n: N.Nat^ \where Real.Lt (Numeric.error n) epsilon }, n)))
+};
+\definition distance: \forall (n: N.Nat^) -> R.distance (absolute x) (P.value n x) = error n x := \fun (n: N.Nat^) =>
+  trans!{{R.Real}} _ _ _ (Distance.distanceSymmetric (absolute x) (P.value n x)) (R.SquareRoot[].distanceOrdered (P.value n x) (absolute x) (below n));

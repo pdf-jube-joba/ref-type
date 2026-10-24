@@ -39,3 +39,8 @@
 `AmalgamatedProduct` は群の融合積の普遍性と、普遍性を満たす二つの群の標準同型を提供する。
 `Noncommutative.Actions.PointedMaps` は推移的な群作用間の基点付き同変写像を安定化部分群の包含から構成する。
 `GroupTransport` は相互逆な全単射で群構造を移す。
+
+`Polynomial.Over.induction` と `LaurentPolynomial.Over.induction` は、定数・変数・和・負・積について閉じた命題をすべての多項式へ拡張する。
+
+`LaurentPolynomial.Over.Universal` の `onConstant`・`onVariable`・`onInverseVariable` は、評価の生成元での計算法則を公開する。
+[uniform_approximation](../../analysis/uniform_approximation/README.md) は多項式・Laurent 環の帰納法と評価を使い、実際の環の元として一様近似を構成する。

@@ -1,0 +1,41 @@
+\import \root.Approximation[].Polynomials[] \as P;
+\import R.Inverse[] \as Inverse;
+\definition inverse: R.Real := Laws.fieldInv bound.size;
+\definition inversePositive: Real.Lt R.zero inverse := Bounds.invPositive bound.size bound.positive;
+\definition inverseNonnegative: Real.Le R.zero inverse := Order.leOfLt R.zero inverse inversePositive;
+\definition sizeNonnegative: Real.Le R.zero bound.size := Order.leOfLt R.zero bound.size bound.positive;
+\definition inverseLaw: R.mul inverse bound.size = R.one := Laws.fieldInverseNonzero bound.size (Inverse.positiveNonzero bound.size bound.positive);
+\definition normalized: Function := product (constant inverse) f;
+\definition normalizedClosed: InClosure[normalized] := multiplication (constant inverse) f (constants inverse) closed;
+\definition normalizedBound: \forall (x: X) -> Real.Le (absolute (normalized x)) R.one := \fun (x: X) =>
+  Real.leReplaceLeft (R.mul inverse (absolute (f x))) (absolute (normalized x)) R.one (sym!{{R.Real}} _ _ (Bounds.positiveAbsProduct inverse (f x) inverseNonnegative))
+    (Real.leReplaceRight _ (R.mul inverse bound.size) R.one inverseLaw (Estimates.mulMonotone inverse (absolute (f x)) bound.size inverseNonnegative (bound.controls x)));
+\definition scaleInput: \forall (x: X) -> R.mul bound.size (normalized x) = f x := \fun (x: X) =>
+  eq_reason_in!{{R.Real} _
+    "=" { R.mul inverse (R.mul bound.size (f x)) } "by" { Algebra.mulSwap bound.size inverse (f x) }
+    "=" { R.mul (R.mul inverse bound.size) (f x) } "by" { sym!{{R.Real}} _ _ (Laws.fieldMulAssoc inverse bound.size (f x)) }
+    "=" { R.mul R.one (f x) } "by" { congr!{{R.Real} {R.Real}} (\fun (s: R.Real) => R.mul s (f x)) _ _ inverseLaw }
+    "=" { f x } "by" { Laws.fieldMulOneLeft (f x) }
+  };
+\definition scaleAbsolute: \forall (x: X) -> absolute (f x) = R.mul bound.size (absolute (normalized x)) := \fun (x: X) =>
+  trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} absolute _ _ (sym!{{R.Real}} _ _ (scaleInput x))) (Bounds.positiveAbsProduct bound.size (normalized x) sizeNonnegative);
+\import \root.Approximation[].On[X := X, space := space].AlgebraEvaluation[A := Closure, laws := algebra].At[f := normalized, member := normalizedClosed] \as Evaluation;
+\definition evaluated[p: P.Carrier]: Function := \fun (x: X) => P.evaluate p (normalized x);
+\definition approximant[p: P.Carrier]: Function := product (constant bound.size) (evaluated p);
+\definition approximantClosed: \forall (p: P.Carrier) -> InClosure[approximant p] := \fun (p: P.Carrier) =>
+  multiplication (constant bound.size) (evaluated p) (constants bound.size) (Evaluation.contains p);
+\definition approximation: Approximates Closure (absoluteValue f) := \block {
+  \fun (epsilon: R.Real)(positive: Real.Lt R.zero epsilon) \then
+  \let delta: R.Real := Bounds.radius bound.size epsilon \then
+  \takefrom p: \Cast[P.Carrier] ({ p: P.Carrier \where \forall (x: R.Real) -> Real.Le (absolute x) R.one -> Real.Lt (R.distance (absolute x) (P.evaluate p x)) delta })
+    \by \root.Approximation[].Absolute[].unitBounded delta (Bounds.radiusPositive bound.size epsilon bound.positive positive) \then
+  \let near: \forall (x: R.Real) -> Real.Le (absolute x) R.one -> Real.Lt (R.distance (absolute x) (P.evaluate p x)) delta :=
+    \bysub(P.Carrier, { p: P.Carrier \where \forall (x: R.Real) -> Real.Le (absolute x) R.one -> Real.Lt (R.distance (absolute x) (P.evaluate p x)) delta }, p) \then
+  \return Logic.existsIntro[Function, { g: Function \where Logic.And[InClosure[g], Error (absoluteValue f) g epsilon] }] (approximant p)
+    (Logic.And[_, _]::# (approximantClosed p) (\fun (x: X) =>
+      Real.leLtTrans _ _ _
+        (Real.leReplaceLeft (R.distance (R.mul bound.size (absolute (normalized x))) (approximant p x)) (R.distance (absolute (f x)) (approximant p x)) (R.mul bound.size (R.distance (absolute (normalized x)) (P.evaluate p (normalized x))))
+          (congr!{{R.Real} {R.Real}} (\fun (a: R.Real) => R.distance a (approximant p x)) _ _ (sym!{{R.Real}} _ _ (scaleAbsolute x)))
+          (Estimates.distanceMul bound.size (absolute (normalized x)) (P.evaluate p (normalized x)) sizeNonnegative))
+        (Order.ltTrans _ _ _ (Bounds.mulStrict bound.size (R.distance (absolute (normalized x)) (P.evaluate p (normalized x))) delta bound.positive (near (normalized x) (normalizedBound x))) (Bounds.radiusSmall bound.size epsilon bound.positive positive))))
+};

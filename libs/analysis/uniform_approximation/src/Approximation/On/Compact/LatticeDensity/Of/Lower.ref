@@ -1,0 +1,39 @@
+\structure Index: \Set := { value: Function, member: \In[Function] B value, atCenter: value x = f x };
+\definition domain[i: Index]: \Pow X := { z: X \where Real.Lt (R.sub (f z) (i.value z)) epsilon };
+\definition family: \Pow (\Pow X) := { U: \Pow X \where \exists (i: Index \where U = domain i) };
+\definition member[i: Index]: Base.FamilyMember family (domain i) := Logic.existsIntro[Index, { j: Index \where domain i = domain j }] i (\refl(domain i));
+\definition open: \forall (U: \Pow X) -> Base.FamilyMember family U -> Base.IsOpenIn space U := \block {
+  \fun (U: \Pow X)(included: Base.FamilyMember family U) \then
+  \takefrom i: \Cast[Index] ({ i: Index \where U = domain i }) \by included \then
+  \return \idelim domain i = U \with V: \Pow X => Base.IsOpenIn space V \by {
+    base: Functions.subContinuous space f i.value regular (laws.continuous i.value i.member) (Rays.Below epsilon) (Rays.belowOpen epsilon),
+    equality: sym!{{\Pow X}} _ _ (\bysub(Index, { i: Index \where U = domain i }, i))
+  }
+};
+\definition cover: Base.IsOpenCover[space, family, Base.Whole] := Base.IsOpenCover[space, family, Base.Whole] {
+  open := open,
+  covers := \fun (z: X)(whole: Base.Member Base.Whole z) => \block {
+    \takefrom a: Interpolation[B, f, x, z] \by interpolation x z \then
+    \let i: Index := Index { value := a.value, member := a.member, atCenter := a.atFirst } \then
+    \return Base.unionMemberOf family (domain i) z (member i) (ScalarLattice.leftErrorAtEqual (f z) (a.value z) epsilon a.atSecond positive)
+  }
+};
+\structure Envelope[S: \Pow (\Pow X)]: \Set := {
+  value: Function, member: \In[Function] B value, atCenter: value x = f x,
+  local: \forall (U: \Pow X) -> \In[\Pow X] S U -> \forall (z: X) -> Base.Member U z -> Real.Lt (R.sub (f z) (value z)) epsilon
+};
+\module Inserting(S: \Pow (\Pow X), previous: (\forall (U: \Pow X) -> \In[\Pow X] S U -> Base.FamilyMember family U) -> \exists Envelope[S], U: \Pow X);
+\definition finiteEnvelope: \forall (S: Finite.FiniteSubset) -> (\forall (U: \Pow X) -> Finite.Member S U -> Base.FamilyMember family U) -> \exists Envelope[S] :=
+  Finite.induction ({ S: \Pow (\Pow X) \where (\forall (U: \Pow X) -> \In[\Pow X] S U -> Base.FamilyMember family U) -> \exists Envelope[S] })
+    (\fun (included: _) => \exact(Envelope[Finite.Empty] { value := constant (f x), member := laws.constants (f x), atCenter := \refl(f x), local := \fun (U: \Pow X)(empty: Logic.False)(z: X)(inside: Base.Member U z) => Logic.falseElim _ empty }, Envelope[Finite.Empty]))
+    (\fun (S: \Pow (\Pow X))(previous: _)(U: \Pow X) => Inserting[S := S, previous := previous, U := U].exists);
+\definition exists: \exists Support[x, epsilon] := \block {
+  \takefrom finite: \Cast[Finite.FiniteSubset] ({ S: Finite.FiniteSubset \where Base.FiniteSubcover[family, Base.Whole, S] }) \by compact family cover \then
+  \let finiteCover: Base.FiniteSubcover[family, Base.Whole, finite] := \bysub(Finite.FiniteSubset, { S: Finite.FiniteSubset \where Base.FiniteSubcover[family, Base.Whole, S] }, finite) \then
+  \takefrom result: Envelope[finite] \by finiteEnvelope finite finiteCover.included \then
+  \return \exact(Support[x, epsilon] {
+    value := result.value, member := result.member, atCenter := result.atCenter,
+    lower := \fun (z: X) => Base.unionMemberElim finite z (Real.Lt (R.sub (f z) (result.value z)) epsilon)
+      (\fun (U: \Pow X)(member: Finite.Member finite U)(inside: Base.Member U z) => result.local U member z inside) (finiteCover.covers z (\refl(z)))
+  }, Support[x, epsilon])
+};

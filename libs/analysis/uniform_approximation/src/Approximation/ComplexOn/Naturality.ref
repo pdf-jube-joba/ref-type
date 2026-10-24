@@ -1,0 +1,15 @@
+\import \root.Approximation[].ComplexOn[X := Y, space := source] \as Target;
+\definition pull[f: Function]: Target.Function := \fun (y: Y) => f (map y);
+\definition error: \forall (f, g: Function)(epsilon: R.Real) -> Error f g epsilon -> Target.Error (pull f) (pull g) epsilon := \fun (f, g: Function)(epsilon: R.Real)(near: Error f g epsilon)(y: Y) => near (map y);
+\definition Image[A: \Pow Function]: \Pow Target.Function := { g: Target.Function \where \exists (f: Function \where Logic.And[\In[Function] A f, g = pull f]) };
+\definition approximation: \forall (A: \Pow Function)(f: Function) -> Approximates A f -> Target.Approximates (Image A) (pull f) := \block {
+  \fun (A: \Pow Function)(f: Function)(density: Approximates A f)(epsilon: R.Real)(positive: Real.Lt R.zero epsilon) \then
+  \takefrom g: \Cast[Function] ({ g: Function \where Logic.And[\In[Function] A g, Error f g epsilon] }) \by density epsilon positive \then
+  \let properties: Logic.And[\In[Function] A g, Error f g epsilon] := \bysub(Function, { g: Function \where Logic.And[\In[Function] A g, Error f g epsilon] }, g) \then
+  \return Logic.existsIntro[Target.Function, { h: Target.Function \where Logic.And[\In[Target.Function] (Image A) h, Target.Error (pull f) h epsilon] }] (pull g)
+    (Logic.And[_, _]::# (Logic.existsIntro[Function, { k: Function \where Logic.And[\In[Function] A k, pull g = pull k] }] g (Logic.And[_, _]::# properties.left (\refl(pull g)))) (error f g epsilon properties.right))
+};
+\definition constants: \forall (a: C.Complex) -> pull (constant a) = Target.constant a := \fun (a: C.Complex) => \refl(Target.constant a);
+\definition addition: \forall (f, g: Function) -> pull (sum f g) = Target.sum (pull f) (pull g) := \fun (f, g: Function) => \refl(Target.sum (pull f) (pull g));
+\definition multiplication: \forall (f, g: Function) -> pull (product f g) = Target.product (pull f) (pull g) := \fun (f, g: Function) => \refl(Target.product (pull f) (pull g));
+\definition conjugation: \forall (f: Function) -> pull (conjugate f) = Target.conjugate (pull f) := \fun (f: Function) => \refl(Target.conjugate (pull f));

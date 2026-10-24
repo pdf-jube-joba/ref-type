@@ -1,0 +1,30 @@
+\import std.Set[].FiniteSubset[A := \Pow X] \as Finite;
+\import metric_spaces.RealLine[].Rays[] \as Rays;
+\definition domain[n: N.Nat^]: \Pow X := { x: X \where Real.Lt (error n x) epsilon };
+\definition family: \Pow (\Pow X) := { U: \Pow X \where \exists (n: N.Nat^ \where U = domain n) };
+\definition member[n: N.Nat^]: Base.FamilyMember family (domain n) := Logic.existsIntro[N.Nat^, { m: N.Nat^ \where domain n = domain m }] n (\refl(domain n));
+\definition open: \forall (U: \Pow X) -> Base.FamilyMember family U -> Base.IsOpenIn space U := \block {
+  \fun (U: \Pow X)(included: Base.FamilyMember family U) \then
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where U = domain n }) \by included \then
+  \return \idelim domain n = U \with V: \Pow X => Base.IsOpenIn space V \by {
+    base: continuous n (Rays.Below epsilon) (Rays.belowOpen epsilon),
+    equality: sym!{{\Pow X}} _ _ (\bysub(N.Nat^, { n: N.Nat^ \where U = domain n }, n))
+  }
+};
+\definition cover: (\forall (x: X) -> \exists (n: N.Nat^ \where Real.Lt (error n x) epsilon)) -> Base.IsOpenCover[space, family, Base.Whole] := \fun (pointwise: _) =>
+  Base.IsOpenCover[space, family, Base.Whole] {
+    open := open,
+    covers := \fun (x: X)(whole: Base.Member Base.Whole x) => \block {
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Real.Lt (error n x) epsilon }) \by pointwise x \then
+      \return Base.unionMemberOf family (domain n) x (member n) (\bysub(N.Nat^, { n: N.Nat^ \where Real.Lt (error n x) epsilon }, n))
+    }
+  };
+\structure Bound[S: \Pow (\Pow X)]: \Set := {
+  index: N.Nat^,
+  bounds: \forall (U: \Pow X) -> \In[\Pow X] S U -> \forall (x: X) -> Base.Member U x -> Real.Lt (error index x) epsilon
+};
+\module Inserting(S: \Pow (\Pow X), previous: (\forall (U: \Pow X) -> \In[\Pow X] S U -> Base.FamilyMember family U) -> \exists Bound[S], U: \Pow X);
+\definition finiteBound: \forall (S: Finite.FiniteSubset) -> (\forall (U: \Pow X) -> Finite.Member S U -> Base.FamilyMember family U) -> \exists Bound[S] :=
+  Finite.induction ({ S: \Pow (\Pow X) \where (\forall (U: \Pow X) -> \In[\Pow X] S U -> Base.FamilyMember family U) -> \exists Bound[S] })
+    (\fun (included: _) => \exact(Bound[Finite.Empty] { index := N.Nat^::zero, bounds := \fun (U: \Pow X)(empty: Logic.False)(x: X)(inside: Base.Member U x) => Logic.falseElim _ empty }, Bound[Finite.Empty]))
+    (\fun (S: \Pow (\Pow X))(previous: _)(U: \Pow X) => Inserting[S := S, previous := previous, U := U].exists);

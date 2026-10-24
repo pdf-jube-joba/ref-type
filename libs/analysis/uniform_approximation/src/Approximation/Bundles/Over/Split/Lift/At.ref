@@ -1,0 +1,33 @@
+\definition p: End.Map := projection.fiber x;
+\definition b: End.Map := M.linear (a x);
+\definition pap: End.Map := Compose.compose p (Compose.compose b p);
+\definition operator: End.Map := Operations.plus pap (Operations.plus Eigen.identity (Operations.negative p));
+\definition formula: \forall (v: Native.Vector n) -> operator.apply v = (Native.coordinates n).add (pap.apply v) ((Native.coordinates n).add v ((Native.coordinates n).neg (p.apply v))) := \fun (v: Native.Vector n) =>
+  congr!{{Native.Vector n} {Native.Vector n}} ((Native.coordinates n).add (pap.apply v)) _ _ (congr!{{Native.Vector n} {Native.Vector n}} ((Native.coordinates n).add v) _ _ (Laws.minusOneScale (p.apply v)));
+\definition idempotent: \forall (v: Native.Vector n) -> p.apply (p.apply v) = p.apply v := \fun (v: Native.Vector n) => congr!{{F x} {Native.Vector n}} (include.fiber x).apply _ _ (retraction x ((project.fiber x).apply v));
+\definition addNegative: \forall (v: Native.Vector n) -> (Native.coordinates n).add v ((Native.coordinates n).neg v) = (Native.coordinates n).zero := \fun (v: Native.Vector n) => trans!{{Native.Vector n}} _ _ _ (Laws.comm v ((Native.coordinates n).neg v)) (Laws.inverseLeft v);
+\definition left: \forall (v: Native.Vector n) -> p.apply (operator.apply v) = pap.apply v := \fun (v: Native.Vector n) => eq_reason_in!{{Native.Vector n} _
+  "=" { p.apply ((Native.coordinates n).add (pap.apply v) ((Native.coordinates n).add v ((Native.coordinates n).neg (p.apply v)))) } "by" { congr!{{Native.Vector n} {Native.Vector n}} p.apply _ _ (formula v) }
+  "=" { (Native.coordinates n).add (p.apply (pap.apply v)) (p.apply ((Native.coordinates n).add v ((Native.coordinates n).neg (p.apply v)))) } "by" { p.preservesAdd (pap.apply v) ((Native.coordinates n).add v ((Native.coordinates n).neg (p.apply v))) }
+  "=" { (Native.coordinates n).add (pap.apply v) ((Native.coordinates n).add (p.apply v) ((Native.coordinates n).neg (p.apply v))) } "by" {
+    congr!{{Native.Vector n} {Native.Vector n} {Native.Vector n}} (Native.coordinates n).add _ _ _ _ (idempotent (b.apply (p.apply v)))
+      (trans!{{Native.Vector n}} _ _ _ (p.preservesAdd v ((Native.coordinates n).neg (p.apply v)))
+        (congr!{{Native.Vector n} {Native.Vector n}} ((Native.coordinates n).add (p.apply v)) _ _ (trans!{{Native.Vector n}} _ _ _ (Operations.preservesNeg p (p.apply v)) (congr!{{Native.Vector n} {Native.Vector n}} (Native.coordinates n).neg _ _ (idempotent v))))) }
+  "=" { (Native.coordinates n).add (pap.apply v) (Native.coordinates n).zero } "by" { congr!{{Native.Vector n} {Native.Vector n}} ((Native.coordinates n).add (pap.apply v)) _ _ (addNegative (p.apply v)) }
+  "=" { pap.apply v } "by" { Laws.zeroRight (pap.apply v) }
+};
+\definition right: \forall (v: Native.Vector n) -> operator.apply (p.apply v) = pap.apply v := \fun (v: Native.Vector n) => eq_reason_in!{{Native.Vector n} _
+  "=" { (Native.coordinates n).add (pap.apply (p.apply v)) ((Native.coordinates n).add (p.apply v) ((Native.coordinates n).neg (p.apply (p.apply v)))) } "by" { formula (p.apply v) }
+  "=" { (Native.coordinates n).add (pap.apply v) ((Native.coordinates n).add (p.apply v) ((Native.coordinates n).neg (p.apply v))) } "by" { congr!{{Native.Vector n} {Native.Vector n} {Native.Vector n}} (Native.coordinates n).add _ _ _ _
+    (congr!{{Native.Vector n} {Native.Vector n}} (\fun (w: Native.Vector n) => p.apply (b.apply w)) _ _ (idempotent v))
+    (congr!{{Native.Vector n} {Native.Vector n}} (\fun (w: Native.Vector n) => (Native.coordinates n).add (p.apply v) ((Native.coordinates n).neg w)) _ _ (idempotent v)) }
+  "=" { (Native.coordinates n).add (pap.apply v) (Native.coordinates n).zero } "by" { congr!{{Native.Vector n} {Native.Vector n}} ((Native.coordinates n).add (pap.apply v)) _ _ (addNegative (p.apply v)) }
+  "=" { pap.apply v } "by" { Laws.zeroRight (pap.apply v) }
+};
+\definition commutes: \forall (v: Native.Vector n) -> p.apply (operator.apply v) = operator.apply (p.apply v) := \fun (v: Native.Vector n) => trans!{{Native.Vector n}} _ _ _ (left v) (sym!{{Native.Vector n}} _ _ (right v));
+\definition fixesImage: \forall (v: F x) -> p.apply ((include.fiber x).apply v) = (include.fiber x).apply v := \fun (v: F x) => congr!{{F x} {Native.Vector n}} (include.fiber x).apply _ _ (retraction x v);
+\definition onImage: \forall (v: F x) -> operator.apply ((include.fiber x).apply v) = p.apply (b.apply ((include.fiber x).apply v)) := \fun (v: F x) =>
+  trans!{{Native.Vector n}} _ _ _ (sym!{{Native.Vector n}} _ _ (congr!{{Native.Vector n} {Native.Vector n}} operator.apply _ _ (fixesImage v)))
+    (trans!{{Native.Vector n}} _ _ _ (right ((include.fiber x).apply v)) (congr!{{Native.Vector n} {Native.Vector n}} (\fun (w: Native.Vector n) => p.apply (b.apply w)) _ _ (fixesImage v)));
+\definition compressedSame: \forall (v: F x) -> (project.fiber x).apply (operator.apply ((include.fiber x).apply v)) = (project.fiber x).apply (b.apply ((include.fiber x).apply v)) := \fun (v: F x) =>
+  trans!{{F x}} _ _ _ (congr!{{Native.Vector n} {F x}} (project.fiber x).apply _ _ (onImage v)) (retraction x ((project.fiber x).apply (b.apply ((include.fiber x).apply v))));
