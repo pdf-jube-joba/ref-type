@@ -1,0 +1,23 @@
+\definition compositeRegular: topology.Continuity[A := Z, B := X].Continuous nextSpace baseSpace (\fun (z: Z) => f (g z)) :=
+  topology.Composition[A := Z, B := Y, C := X].composeContinuous nextSpace space baseSpace g f nextRegular regular;
+\import \parent.\parent.Pullback[Y := Z, space := nextSpace, sourceCompact := nextCompact, sourceHausdorff := nextHausdorff, f := \fun (z: Z) => f (g z), regular := compositeRegular] \as Direct;
+\import Target.Pullback[Y := Z, space := nextSpace, sourceCompact := nextCompact, sourceHausdorff := nextHausdorff, f := g, regular := nextRegular] \as Next;
+\import \root.KTheory[].On[X := Z, baseSpace := nextSpace, compact := nextCompact, hausdorff := nextHausdorff] \as Result;
+\module At(p: Presentation);
+\definition onClasses: \forall (a: Classes) -> Direct.map a = Next.map (Native.map a) :=
+  Quotient.induction (\fun (a: Classes) => Direct.map a = Next.map (Native.map a)) (\fun (p: Presentation) => At[p := p].equation);
+\import \parent.\parent.K0[] \as Source;
+\import Target.K0[] \as Middle;
+\import Result.K0[] \as Destination;
+\import algebra.Hom[A := Source.Carrier, B := Middle.Carrier].Composition[C := Destination.Carrier] \as Compose;
+\definition composite: algebra.Hom[A := Source.Carrier, B := Destination.Carrier].RingMap Source.ring Destination.ring :=
+  Compose.ring Source.ring Middle.ring Destination.ring (\parent.K0[].map) Next.K0[].map;
+\definition ringMap: Direct.K0[].map = composite := Source.Maps[K := Destination.Carrier, target := Destination.ring].ext Direct.K0[].map composite
+  (\fun (a: Classes) => eq_reason_in!{{Destination.Carrier} _
+    "=" { Destination.include (Direct.map a) } "by" { Direct.K0[].onIncludes a }
+    "=" { Destination.include (Next.map (Native.map a)) } "by" { congr!{{Result.Classes} {Destination.Carrier}} Destination.include _ _ (onClasses a) }
+    "=" { Next.K0[].map (Middle.include (Native.map a)) } "by" { sym!{{Destination.Carrier}} _ _ (Next.K0[].onIncludes (Native.map a)) }
+    "=" { composite (Source.include a) } "by" { congr!{{Middle.Carrier} {Destination.Carrier}} Next.K0[].map _ _ (sym!{{Middle.Carrier}} _ _ (\parent.K0[].onIncludes a)) }
+  });
+\definition onK0: \forall (x: Source.Carrier) -> Direct.K0[].map x = Next.K0[].map (\parent.K0[].map x) := \fun (x: Source.Carrier) =>
+  congr!{{Source.Carrier -> Destination.Carrier} {Destination.Carrier}} (\fun (h: Source.Carrier -> Destination.Carrier) => h x) _ _ ringMap;
