@@ -81,7 +81,9 @@
 `97e259ec` の snapshot に対する `work/k04-package-retry` で対象 package と全依存閉包が保存完了・終了0。
 4,702 modules を検査、640 modules を再利用、59,627ソースステップ、最大RSS 5,708,712 KiBで、復旧・重複・再実行・未保存ステップ・キャッシュ書き込み失敗・保存失敗はいずれも0。
 数学ソース・package 設定はこの snapshot と一致し、残る検証は B03 `CoordinateFamily` の利用先を含む workspace 全体。
-次は以下の workspace snapshot を作り、検査の終了と保存完了を確認してから PR の CI・差分・統合と main を照合する。
+`9004f57b` の workspace snapshot に対する `work/k04-workspace` を実行中で、終了結果は未確認。
+次はこのプロセスの終了コードと保存完了を確認し、PR の CI・差分・統合と main を照合する。
+別環境では以下のコマンドで同じ数学ソースから snapshot を作り直して再検査する。
 
 ```sh
 target/debug/cli libs/analysis/uniform_approximation --parse-only --save-source-snapshot work/k04-package-retry.source.json
