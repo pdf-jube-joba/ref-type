@@ -61,19 +61,12 @@
 元の作業は stash に保持した。
 切断の根本原因は不明である。
 
-全追加範囲が受理された最後の数学コードは `1fd5d9f6`（直交補束まで、終了コード0）。
-射影の引き戻し比較の修正 `da1372dc` の対象検査も終了コード0、57 checked・483 reused で受理された。
-`53df8b7e` の全範囲検査は終了コード1（集合族を引数に持つ structure の組み立て）だった。
-小さい例で同じエラーを確認し、集合族を `Representing` module の引数に置く形へ修正した（最小例は終了コード0、[gaps.md](../../../gaps.md) に両形式を記録）。
-この修正後の検査は、利用例の次元計算で終了コード1となった。
-位相の等式に沿う移送で次元が保存される補題を既存の `Equality.Transport.predicate` から追加し、再検査する。
+検証済みの数学コードは `98ed65ce`。
+`target/debug/cli libs --module bundle_complements --source-snapshot work/b03-dimension-snapshot.json --memory-mib 8192 --diagnostics compact --report-json work/b03-dimension-check.json --cache-stats` は終了コード0、79 checked・546 reused で全範囲が受理された。
+実・複素の利用例の型表記を整理し、複素可変ランクの計量と同型類を明示した変更は未検証である。
+次の全依存検査を実行する。
 
-```sh
-target/debug/cli libs --parse-only --save-source-snapshot work/b03-dimension-snapshot.json
-target/debug/cli libs --module bundle_complements --source-snapshot work/b03-dimension-snapshot.json --memory-mib 8192 --diagnostics compact --report-json work/b03-dimension-check.json --cache-stats
-```
-
-次はこの検査の終了コードを確認し、型エラーがあれば修正して、以下の全依存・影響範囲の検査と完了時の文書更新を行う。
+下記を順に実行して終了コードを確認し、下流リンク・ロードマップを更新して、最終コミットを既存 PR #41 へ反映する。
 
 ```sh
 target/debug/cli libs/geometry/bundle_complements --memory-mib 8192 --cache-stats
