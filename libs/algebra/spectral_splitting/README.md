@@ -43,7 +43,7 @@
 ## 利用例（検査中）
 
 `Examples.Empty` は零次元の射影を構成する。
-`Examples.MovingNilpotent` は \(T_a=egin{pmatrix}0&a\\0&0\end{pmatrix}\) を複素平面上で動かし、\(T_a^2=0\) からスペクトル条件を導いて像束を構成する。
+`Examples.MovingNilpotent` は \(T_a=\begin{pmatrix}0&a\\0&0\end{pmatrix}\) を複素平面上で動かし、\(T_a^2=0\) からスペクトル条件を導いて像束を構成する。
 その `Homotopy` は区間上の族にも適用し、両端の像束の比較を使用する。
 
 ## 検証と再開
