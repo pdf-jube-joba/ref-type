@@ -17,3 +17,13 @@
       (sym!{{R.Real}} _ _ (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (R.mul R.half) _ _ (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (Laws.addComm a b) (Distance.distanceSymmetric a b))) (halfDistance b a ordered))));
 \definition maximumFormula: \forall (a, b: R.Real) -> Distance.max a b = R.mul R.half (R.add (R.add a b) (absolute (R.sub a b))) := \fun (a, b: R.Real) =>
   trans!{{R.Real}} _ _ _ (maximumDistance a b) (congr!{{R.Real} {R.Real}} (R.mul R.half) _ _ (congr!{{R.Real} {R.Real}} (R.add (R.add a b)) _ _ (sym!{{R.Real}} _ _ (differenceAbsolute a b))));
+\definition leftErrorAtEqual: \forall (a, b, epsilon: R.Real) -> b = a -> Real.Lt R.zero epsilon -> Real.Lt (R.sub a b) epsilon := \fun (a, b, epsilon: R.Real)(equal: b = a)(positive: _) =>
+  Real.ltReplaceLeft R.zero (R.sub a b) epsilon (sym!{{R.Real}} _ _ (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (R.sub a) _ _ equal) (Laws.subSelf a))) positive;
+\definition subMaximumLeft: \forall (a, b, c: R.Real) -> Real.Le (R.sub a (Distance.max b c)) (R.sub a b) := \fun (a, b, c: R.Real) => Laws.addMonotoneLeft _ _ a (Laws.negAntitone b (Distance.max b c) (Distance.maxLeft b c));
+\definition subMaximumRight: \forall (a, b, c: R.Real) -> Real.Le (R.sub a (Distance.max b c)) (R.sub a c) := \fun (a, b, c: R.Real) => Laws.addMonotoneLeft _ _ a (Laws.negAntitone c (Distance.max b c) (Distance.maxRight b c));
+\definition minimumSubLeft: \forall (a, b, c: R.Real) -> Real.Le (R.sub (Distance.min b c) a) (R.sub b a) := \fun (a, b, c: R.Real) => Laws.addMonotoneRight _ _ (R.neg a) (Distance.minLeft b c);
+\definition minimumSubRight: \forall (a, b, c: R.Real) -> Real.Le (R.sub (Distance.min b c) a) (R.sub c a) := \fun (a, b, c: R.Real) => Laws.addMonotoneRight _ _ (R.neg a) (Distance.minRight b c);
+\definition subMinimumStrict: \forall (a, b, c, epsilon: R.Real) -> Real.Lt (R.sub a b) epsilon -> Real.Lt (R.sub a c) epsilon -> Real.Lt (R.sub a (Distance.min b c)) epsilon := \fun (a, b, c, epsilon: R.Real)(first: _)(second: _) =>
+  Logic.orElim[(Real.Le b c), (Real.Le c b), Real.Lt (R.sub a (Distance.min b c)) epsilon] (Order.leTotal b c)
+    (\fun (ordered: Real.Le b c) => Real.ltReplaceLeft (R.sub a b) (R.sub a (Distance.min b c)) epsilon (sym!{{R.Real}} _ _ (congr!{{R.Real} {R.Real}} (R.sub a) _ _ (Distance.minOfLe b c ordered))) first)
+    (\fun (ordered: Real.Le c b) => Real.ltReplaceLeft (R.sub a c) (R.sub a (Distance.min b c)) epsilon (sym!{{R.Real}} _ _ (congr!{{R.Real} {R.Real}} (R.sub a) _ _ (Distance.minOfGe b c ordered))) second);

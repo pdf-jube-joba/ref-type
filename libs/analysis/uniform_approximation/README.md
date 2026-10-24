@@ -7,14 +7,12 @@
 
 基点は K01 統合済み main `f6c3dcfb`、ブランチは `math/k04-uniform-approximation`。
 開始時に K04 / Weierstrass の既存ブランチ・PR・実装がないことを確認した。
-package・workspace 登録と一様誤差の基本定義は `79470328` の `work/k04-foundation` で保存完了・終了0。
-コンパクト性と単調性から点ごとの上界近似を一様化する Dini 型の補題は `52a34f5f` の `work/k04-dini` で保存完了・終了0。
-既存の多項式環の評価、絶対値用の反復多項式、1ステップの単調性・誤差因子分解・収縮評価は `3dad0eb1` の `work/k04-polynomial-step` で保存完了・終了0。
-数値反復の非負性・上界・単調誤差、幾何級数による点ごとの近似、多項式評価との一致は `8ef240d7` の `work/k04-numeric` で保存完了・終了0。
-多項式環の公開帰納法、評価の連続性、閉区間上の絶対値の一様近似は `3e86b207` の `work/k04-absolute` で対象スコープの保存完了・終了0。
-連続関数の大域的な有界性、部分代数への多項式評価、一様閉包の代数演算・極限は `11fca362` の `work/k04-closure` で対象検査が保存完了・終了0。
-絶対値・最大・最小への閉性と Laurent 環の公開帰納法は追加済み・未検証。
+最後に成功した対象検査は `11fca362` の `work/k04-closure`（共有キャッシュ保存完了・終了0）。
+絶対値近似多項式・Dini 型一様化・一様閉包の代数演算と極限まで検証した。
+`4c845bac` の `work/k04-lattice-closure` は参照名 `Real.ltTrans` が見つからず終了1。
+この参照を `Order.ltTrans` に修正し、最大・最小への閉性、有限被覆による下側近似を追加した状態は未検証。
+Laurent 環の公開帰納法も未検証。
 [draft PR #45](https://github.com/pdf-jube-joba/ref-type/pull/45) に途中保存する。
-残作業は絶対値の近似多項式、実・複素 Stone–Weierstrass、円周・積上の係数付き Laurent 近似、有限成分評価・束自己準同型・可逆性、利用例・全体検証・完了文書・統合。
-次は対象スコープを snapshot 化し、共有キャッシュで型検査する。
+残作業は実・複素 Stone–Weierstrass、円周・積上の係数付き Laurent 近似、有限成分評価・束自己準同型・可逆性、利用例・全体検証・完了文書・統合。
+次は `cli libs --parse-only --save-source-snapshot` の後、`cli libs --source-snapshot … --module uniform_approximation --memory-mib 8192 --cache-budget-mib 12288 --time-limit-seconds 900 --report-json …` で対象を検査する。
 検査の終了・キャッシュ保存完了が確認できるまでは成功と扱わない。
