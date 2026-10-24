@@ -61,12 +61,14 @@
 元の作業は stash に保持した。
 切断の根本原因は不明である。
 
-検証済みの数学コードは `98ed65ce`。
-`target/debug/cli libs --module bundle_complements --source-snapshot work/b03-dimension-snapshot.json --memory-mib 8192 --diagnostics compact --report-json work/b03-dimension-check.json --cache-stats` は終了コード0、79 checked・546 reused で全範囲が受理された。
-実・複素の利用例の型表記を整理し、複素可変ランクの計量と同型類を明示した変更は未検証である。
-次の全依存検査を実行する。
+検証済みの数学コードは `67220c21`。
+対象 package と全依存閉包の通常検査は終了コード0、4,344 module（79 checked・827ステップ・4,265 reused）で受理された。
+worker は1、復旧・重複・再実行・失われたステップ・キャッシュ保存失敗はすべて0で、最大 RSS は5,123,928 KiB だった。
+`cargo build -p cli --locked --offline` も環境の Rust 設定を読み込んで終了コード0となった。
+Rust の変更はない。
 
-下記を順に実行して終了コードを確認し、下流リンク・ロードマップを更新して、最終コミットを既存 PR #41 へ反映する。
+現在の数学コードに未検証の変更はない。
+次はビルド済み CLI で workspace の対象範囲と全体を検査し、下流リンク・ロードマップを更新して既存 PR #41 をマージする。
 
 ```sh
 target/debug/cli libs/geometry/bundle_complements --memory-mib 8192 --cache-stats
