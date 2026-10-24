@@ -61,17 +61,22 @@
 元の作業は stash に保持した。
 切断の根本原因は不明である。
 
-検証済みの数学コードは `67220c21`。
-対象 package と全依存閉包の通常検査は終了コード0、4,344 module（79 checked・827ステップ・4,265 reused）で受理された。
-worker は1、復旧・重複・再実行・失われたステップ・キャッシュ保存失敗はすべて0で、最大 RSS は5,123,928 KiB だった。
-`cargo build -p cli --locked --offline` も環境の Rust 設定を読み込んで終了コード0となった。
+検証済みコミットは `213b7e90`（数学コードは `67220c21` と同一）。
+B03 の実装は完了し、未検証の数学コード変更と残作業はない。
+初期の名前参照・表示データの組み立て・移送の次元計算のエラーは修正し、全範囲を再検査した。
+集合族の structure 記法の制限と、受理される module 配置は [gaps.md](../../../gaps.md) に記録する。
 Rust の変更はない。
 
-現在の数学コードに未検証の変更はない。
-次はビルド済み CLI で workspace の対象範囲と全体を検査し、下流リンク・ロードマップを更新して既存 PR #41 をマージする。
+| コマンド | 終了コード・結果 |
+| --- | --- |
+| `cargo build -p cli --locked --offline` | 0。環境の Rust 設定を読み込んでビルド。 |
+| `target/debug/cli libs/geometry/bundle_complements --memory-mib 8192 --cache-stats` | 0。全依存を含む4,344 module、79 checked・827ステップ・4,265 reused。 |
+| `target/debug/cli libs --module bundle_complements --memory-mib 8192 --cache-stats` | 0。625 module を再利用、ソース再検査0ステップ。 |
+| `target/debug/cli libs --memory-mib 8192 --cache-stats` | 0。71 package・7,326 module を再利用、ソース再検査0ステップ。 |
 
-```sh
-target/debug/cli libs/geometry/bundle_complements --memory-mib 8192 --cache-stats
-target/debug/cli libs --module bundle_complements --memory-mib 8192 --cache-stats
-target/debug/cli libs --memory-mib 8192 --cache-stats
-```
+すべて共有キャッシュによる通常検査で、worker は1、復旧・重複・再実行・失われたステップ・キャッシュ保存失敗は0だった。
+対象と全依存の検査の最大 RSS は5,123,928 KiB。
+下流の実装済み package はまだなく、workspace 全体の検査で既存の接束・法束の利用例や `lie_groups` も確認した。
+
+次の手順は文書更新を含む最終コミットで上記の検査を再確認し、既存 PR #41 の CI 状態を確認してマージし、main の tree と照合することである。
+B03 に続く実装候補は B04・B05・B09・K01 である。

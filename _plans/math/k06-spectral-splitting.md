@@ -11,4 +11,4 @@
 
 - [根群の連続性と有限対称積](../../libs/algebra/complex_polynomial_roots/README.md)
 - [Hermitian 行列と連続な局所枠](../../libs/algebra/hermitian_frames/README.md)
-- [B03 束の計量・補束と集合による表示](b03-bundle-complements.md)
+- [束の計量・補束と同型類](../../libs/geometry/bundle_complements/README.md)

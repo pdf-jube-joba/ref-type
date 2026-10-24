@@ -65,6 +65,7 @@
 | [geometry/manifolds](geometry/manifolds/README.md) | `manifolds` | アトラス、滑らかな写像、接空間と微分 |
 | [geometry/vector_bundles](geometry/vector_bundles/README.md) | `vector_bundles` | 一般の実・複素束、局所定数ランク、束写像・切断・引き戻しと普遍性 |
 | [geometry/bundle_operations](geometry/bundle_operations/README.md) | `bundle_operations` | Cocycle の貼り合わせ、直和・テンソル・双対・Hom・外冪、実化・複素化と引き戻し |
+| [geometry/bundle_complements](geometry/bundle_complements/README.md) | `bundle_complements` | 有限分割からの計量・有限埋め込み、直交補束、連続射影の像と同型類の集合 |
 | [geometry/tangent_bundles](geometry/tangent_bundles/README.md) | `tangent_bundles` | 接束の全空間、接写像、関手則、滑らかなファイバー演算 |
 | [geometry/normal_bundles](geometry/normal_bundles/README.md) | `normal_bundles` | はめ込みの法束、局所正規直交枠、直和分解、底空間変更と安定化 |
 | [geometry/examples/tangent_normal](geometry/examples/tangent_normal/README.md) | `tangent_normal` | ユークリッド接束、座標包含、放物線、退化次数の利用例 |

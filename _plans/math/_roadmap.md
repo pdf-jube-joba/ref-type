@@ -87,7 +87,10 @@ flowchart TD
 
 - [A01 測度積分の収束定理](a01-measure-convergence.md)
 - [A19 複素 Hilbert 空間とコンパクト作用素](a19-complex-hilbert.md)
-- [B03 束の計量・補束と集合による表示](b03-bundle-complements.md)
+- [B04 束のホモトピー不変性と clutching](b04-bundle-homotopy.md)
+- [B05 有限 Grassmannian と普遍束](b05-grassmannians.md)
+- [B09 閉部分空間からの束の延長](b09-bundle-extension.md)
+- [K01 束の Grothendieck 環](k01-grothendieck-k.md)
 - [C01 cap 積と相対積](c01-cap-products.md)
 - [G01 滑らかな bump 関数と従属分割](g01-smooth-partitions.md)
 - [K02 CW cofibration と Puppe 列](k02-cofibration-puppe.md)
@@ -96,7 +99,8 @@ flowchart TD
 - [L04 対称多項式と特性級数](l04-symmetric-series.md)
 
 L01 の行列式・逆行列、L02 の多項式分解、L03 の Hermitian 行列・局所枠が利用可能になり、G02 に着手できる。
-B02 の束演算が利用可能になり B03・B07・C05 へ、A01 の後は A02 へ進められる。
+B03 の計量・補束と同型類の集合が利用可能になり、B04・B05・B09・K01 に着手できる。
+B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進められる。
 空いた担当には C01・K02・K04・L04・A19 を割り当て、長い解析の経路を早めに進める。
 各節の番号は識別子で、実装順は依存リストから決まる。
 
@@ -111,10 +115,11 @@ B02 の束演算が利用可能になり B03・B07・C05 へ、A01 の後は A02
 | K05 代数学の基本定理と根群の連続性 | [complex_polynomial_roots](../../libs/algebra/complex_polynomial_roots/README.md) |
 | B01 一般の実・複素ベクトル束 | [vector_bundles](../../libs/geometry/vector_bundles/README.md) |
 | B02 束の貼り合わせと線形演算 | [bundle_operations](../../libs/geometry/bundle_operations/README.md) |
+| B03 束の計量・補束と集合による表示 | [bundle_complements](../../libs/geometry/bundle_complements/README.md) |
 
 ## タスク一覧
 
-未完了85件、概算合計445千行。
+未完了84件、概算合計440千行。
 
 ### 線形代数と特性級数
 
@@ -126,11 +131,10 @@ B02 の束演算が利用可能になり B03・B07・C05 へ、A01 の後は A02
 
 ### ベクトル束
 
-7件、概算36千行。
+6件、概算31千行。
 
 | タスク | 概算（千行） |
 | --- | ---: |
-| [B03 束の計量・補束と集合による表示](b03-bundle-complements.md) | 5 |
 | [B04 束のホモトピー不変性と clutching](b04-bundle-homotopy.md) | 5 |
 | [B05 有限 Grassmannian と普遍束](b05-grassmannians.md) | 5 |
 | [B06 束の分類写像と安定化](b06-bundle-classification.md) | 5 |
