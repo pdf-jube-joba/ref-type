@@ -19,7 +19,32 @@
 | `Spectral.Circle.At` | 根の順序に依存しない内外の因子と互いに素性 |
 | `Spectral.At.Splitting.Separated` | 単位円上に根がない行列の射影、冪等性、核への包含 |
 
-連続な族・基底変更・像束の追加 API は検査中である。
+`Spectral.At.Eigenvalues` はこの条件と「単位円上の固有ベクトルは零」を相互に導く。
+`Spectral.InFrame` と `FiniteSpace.On` は有限枠を通して射影を移し、枠によらない一意な写像を選ぶ。
+
+## 連続な族と束（追加部分は検査中）
+
+| 公開入口 | 内容 |
+| --- | --- |
+| `At.Continuous` / `Bundle` | 連続な射影、内側と補側の像束、包含・射影、直和分解 |
+| `Comparison` / `FiniteSpace.On.Naturality` | intertwiner と射影の可換性 |
+| `Idempotents.Image` | 自己共役性を仮定しない連続冪等射影の像束 |
+| `Idempotents.Comparison` / `Gap` | 近接する冪等射影の像の比較同型と可逆領域の開性 |
+| `Idempotents.Homotopy` / `At.Homotopy` | コンパクトな底空間上のホモトピーの両端の像束の同型 |
+| `BundleCoordinates` | 束写像の局所行列と係数の連続性 |
+| `BundleImage` / `Pullback` | 束の冪等写像の像の局所自明化と引き戻し比較 |
+| `BundleEndomorphism` / `Naturality` / `Pullback` | スペクトル射影の貼り合わせ、像の部分束、自然性 |
+
+近接比較には \(H=QP+(I-Q)(I-P)\) を用いる。
+\(Q=P\) では恒等写像であり、可逆な範囲で \(HP=QH\) から像束の同型を得る。
+コンパクトな底空間では tube lemma で時間の共通近傍を取り、区間の細分で両端の比較同型を合成する。
+一般の束の像の局所自明化は、元の束の枠でこの行列の構成を適用し、開部分空間のチャートを底空間へ持ち上げて作る。
+
+## 利用例（検査中）
+
+`Examples.Empty` は零次元の射影を構成する。
+`Examples.MovingNilpotent` は \(T_a=egin{pmatrix}0&a\\0&0\end{pmatrix}\) を複素平面上で動かし、\(T_a^2=0\) からスペクトル条件を導いて像束を構成する。
+その `Homotopy` は区間上の族にも適用し、両端の像束の比較を使用する。
 
 ## 検証と再開
 
@@ -31,11 +56,11 @@ K06 は実装中であり、B04・K01・K04 には着手していない。
 | --- | --- | --- | --- |
 | `696c8da2` | `At.Splitting.Separated` | 557 | 0 |
 | `696c8da2` | B03 の `Finite`（共通化した基底構成） | 445 | 0 |
-| `a1f16544` | `At.Continuous`（連続射影と自明な周囲束内の像束） | 675 | 0 |
+| `a1f16544` | `At.Continuous`（当時の連続射影と像束） | 675 | 0 |
 | `89233a89` | `Comparison`（行列の intertwiner 自然性） | 564 | 0 |
 | `0b10d2dc` | `FiniteSpace`（枠によらない一意な射影） | レポート参照 | 0 |
 | `15a2b0b2` | `At.Eigenvalues`（固有値条件との同値性） | 577 | 0 |
-| `4e69b3ce` | `BundleCoordinates`（局所行列と係数の連続性） | レポート参照 | 0 |
+| `4e69b3ce` | `BundleCoordinates`（局所行列と係数の連続性） | 606 | 0 |
 | `8d8d09ab` | `Idempotents.Homotopy`（像束比較・近接比較・区間の細分） | 655 | 0 |
 | `16a4a25f` | `InFrame`（スペクトル条件の枠変更を含む） | 602 | 0 |
 
