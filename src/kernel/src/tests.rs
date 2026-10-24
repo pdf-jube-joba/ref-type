@@ -2282,6 +2282,11 @@ fn transparent_congruence_ignores_unused_captures_but_checks_their_types() {
         .unwrap();
     assert!(reduction::erased_convertible(&env, first, second).unwrap());
     assert!(!reduction::erased_convertible(&env, first, different).unwrap());
+    let wrong_arity = a.alloc(Node::Definition {
+        id: alias,
+        arguments: vec![a.bound(3), a.bound(2)],
+    });
+    assert!(reduction::erased_convertible(&env, first, wrong_arity).is_err());
     let mut outer = context;
     outer.push(binding(a.bound(2)));
     Checker::new(&env, &mut metas, outer.clone())

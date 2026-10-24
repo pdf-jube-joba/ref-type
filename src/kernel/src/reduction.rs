@@ -745,6 +745,10 @@ fn conversion(
             ) = (env.arena.get(left), env.arena.get(right))
                 && l == r
             {
+                let arity = env.definition(l)?.context.len();
+                if la.len() != arity || ra.len() != arity {
+                    return Err(crate::error::Error::DefinitionParameterCountMismatch);
+                }
                 let mut congruent = true;
                 for &index in env.conversion_arguments(l)?.iter() {
                     if !compare(env, la[index], ra[index], erase, &mut seen.clone())? {
