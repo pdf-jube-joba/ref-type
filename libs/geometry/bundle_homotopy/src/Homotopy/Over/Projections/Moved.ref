@@ -1,0 +1,19 @@
+\import \parent.Operators[].Units[] \as Units;
+\import Complements.Projection[X := X, n := n, baseSpace := baseSpace, P := P, regular := regular] \as Original;
+\import Spaces.Isomorphism[V := Vector n, W := Vector n, source := coordinates n, target := coordinates n] \as Linear;
+\definition hRegular: Native.Families[X := X].Matrix[m := n].Regular baseSpace (\fun (x: X) => H x) := Units.Family[X := X, source := baseSpace, H := H].regular continuous;
+\definition hInjective: \forall (x: X)(v, w: Vector n) -> (H x).apply v = (H x).apply w -> v = w :=
+  \fun (x: X) => Linear.injective (Units.isomorphism (H x));
+\import Complements.CoordinateEmbedding[X := X, m := n, n := n, baseSpace := baseSpace, A := (\fun (x: X) => H x), regular := hRegular, injective := hInjective] \as Ambient;
+\import Bundles.Morphisms[X := X, Y := X, F := Original.Fiber, G := (\fun (x: X) => Vector n), source := Original.bundle, target := Ambient.bundle, f := (\fun (x: X) => x)].Composition[Z := X, H := (\fun (x: X) => Vector n), range := Ambient.bundle, g := (\fun (x: X) => x)] \as Compose;
+\import Complements.For[X := X, F := Original.Fiber, bundle := Original.bundle] \as Embedded;
+\definition embedding: Embedded.Embedding := Embedded.Embedding { dimension := n, map := Compose.compose Original.inclusion Ambient.map,
+  injective := \fun (x: X)(v, w: Original.Fiber x)(same: _) => hInjective x v w same };
+\import Embedded.FromEmbedding[embedding := embedding].Image[] \as Result;
+\definition projection[x: X]: Native.Projection := Result.projection x;
+\definition projectionRegular: Native.Families[X := X].Matrix[m := n].Regular baseSpace (\fun (x: X) => (projection x).map) := Result.regular;
+\definition Fiber[x: X]: \Set := Result.ImageFiber x;
+\definition bundle: Bundles.Family[X := X, F := Fiber].Bundle := Result.imageBundle;
+\definition isomorphism: Bundles.Isomorphisms[X := X, F := Original.Fiber, G := Fiber, source := Original.bundle, target := bundle].Isomorphism := Result.isomorphism;
+\definition formula: \forall (x: X)(v: Original.Fiber x) -> valueOf ((isomorphism.forward.fiber x).apply v) = (H x).apply v := \fun (x: X)(v: Original.Fiber x) => \refl((H x).apply v);
+\module At(x: X);
