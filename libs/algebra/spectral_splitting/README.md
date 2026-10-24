@@ -64,6 +64,7 @@ K06 は実装中であり、B04・K01・K04 には着手していない。
 | `89233a89` | `Comparison`（行列の intertwiner 自然性） | 564 | 0 |
 | `0b10d2dc` | `FiniteSpace`（枠によらない一意な射影） | レポート参照 | 0 |
 | `15a2b0b2` | `At.Eigenvalues`（固有値条件との同値性） | 577 | 0 |
+| `fea0e38e` | K06 package と全依存閉包（専用 snapshot） | 4765 | 0 |
 | `ca460cb5` | `Examples.MixedRanksHomotopy`（ランク0・1の成分を持つ束） | 791 | 0 |
 | `7c24d715` | `BundleHomotopy`（一般のスペクトル像束の両端比較） | 944 | 0 |
 | `a67dc066` | `EmbeddedCylinder`（埋め込み像・引き戻し・両端の比較） | 771 | 0 |
@@ -76,7 +77,7 @@ K06 は実装中であり、B04・K01・K04 には着手していない。
 | `16a4a25f` | `InFrame`（スペクトル条件の枠変更を含む） | 602 | 0 |
 
 Bézout 分解、Horner 評価、単位円内外の根因子と係数の連続性も、各対象と参照依存先の検査で終了コード0を確認した。
-最後の全体検査は未完了であり、上表を package 全体の成功とは扱わない。
+K06 package と全依存閉包の検査は上表の範囲で成功した。
 
 `Idempotents.Comparison`・`Gap`・`Homotopy`・`IntervalRelations` は上表の検査で成功した。
 `BundleCoordinates` と `BundleImage` は上表の検査で成功した。
@@ -86,7 +87,9 @@ Bézout 分解、Horner 評価、単位円内外の根因子と係数の連続�
 `BundleHomotopy` は上表の範囲で検証済みである。
 `Examples.MixedRanksHomotopy` も上表の範囲で検証済みである。
 追加した構成はそれぞれ上表の対象検査を通過した。
-package 全体・全依存閉包の最終検査は実行中であり、終了コードはまだ未確認である。
+package 全体・全依存閉包の最終検査は終了コード0を確認した。
+4,437 module のキャッシュを再利用し、328 module・4,196ステップを検査した。
+最大 RSS は5,259,356 KiB、worker は1、復旧・重複・再実行・失われたステップ・保存失敗は0である。
 影響する B03 package と workspace 全体の最終検査は未実施である。
 以前の全体検査の終了コード130は診断のための中断である。
 worker の checkpoint 再開が1回あったが、その原因は確定していない。
@@ -104,8 +107,7 @@ REF_TYPE_PROFILE_PROGRESS=1 target/debug/cli libs \
   --report-json work/k06-check.json
 ```
 
-実行中の検査は `target/debug/cli libs/algebra/spectral_splitting --source-snapshot work/k06-package-snapshot.json --memory-mib 8192 --time-limit-seconds 1800 --diagnostics compact --report-json work/k06-package.json --cache-stats` である。
-次は `work/k06-package.exit` とプロセスの終了を確認する。
+終了コード0を確認した検査は `target/debug/cli libs/algebra/spectral_splitting --source-snapshot work/k06-package-snapshot.json --memory-mib 8192 --time-limit-seconds 1800 --diagnostics compact --report-json work/k06-package.json --cache-stats` である。
+次は B03 package と workspace 全体の検査を実行し、終了コードを確認する。
 別環境では同じ package を `--parse-only --save-source-snapshot` で保存し直してから実行する。
-続いて B03 package と workspace 全体を検査する。
 残作業は、対象・全依存閉包・影響する下流・workspace の最終検査、公開 API・下流リンク・ロードマップの完了更新と PR の最終確認である。
