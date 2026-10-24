@@ -34,6 +34,7 @@
 | `Morphisms.Composition.compose` / `Over.Identity.map` | 束写像の合成と恒等写像。 |
 | `Over.ArrowLaws` / `Associativity` | 単位則と結合則、零切断を用いて束写像から底の写像の連続性を導く証明。 |
 | `Over.Isomorphisms` | 同じ底空間上の相互に逆な束写像、全空間の同相と逆の束同型。 |
+| `Isomorphisms.inverseExists` | 束同型の存在から逆方向の束同型の存在を導く。 |
 | `Of.Sections` | 連続な全空間の写像を与える依存ベクトル族としての切断。 |
 | `Sections.regular` / `zero` | 局所座標による切断の連続性判定と零切断の構成。 |
 
