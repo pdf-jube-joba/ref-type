@@ -21,7 +21,7 @@ B03 の計量・有限埋め込み・射影の像束、K06 の近接射影比較
 `370dd74b` の局所枠から指定した cocycle への比較（`.FromCharts`）も終了0で成功した。
 `699c5f51` の clutching と引き戻しの比較も対象検査が終了0で成功した。
 `33fadf17` の円板の pushout と球面の同相は対象検査が終了0で成功した。
-clutching 関数のホモトピーによる束同型、閉被覆に沿う束射・束同型の貼り合わせは未検証の WIP である。
+clutching 関数のホモトピーによる束同型、閉被覆に沿う束射・束同型の貼り合わせ、連続なブロック対角作用素は未検証の WIP である。
 `.Clutching.Homotopy` の再検査は終了2、report の outcome は `memory-limit`（4,294,967,296 byte の allocation failure）で未完了となった。
 検査環境自体は利用できており、存在量化した比較の型推論を局所化して再検査する。
 検査は `target/debug/cli libs --parse-only --save-source-snapshot work/<name>-snapshot.json`、続いて `target/debug/cli libs --module <scope> --source-snapshot work/<name>-snapshot.json --memory-mib 8192 --time-limit-seconds 900 --diagnostics compact --report-json work/<name>.json --cache-stats` を使用する。
