@@ -11,6 +11,7 @@ B03 の同型類と補束、B02 の束演算、既存の `algebra.GroupCompletio
 `K0` は既存の半環の群完成を用いる可換環で、`Stability.ForBundles.criterion` は同じ自明束を加える安定同型による等式判定である。
 `Pullback.K0.map`、`IdentityPullback.onK0`、`Pullback.Composition.onK0` が反変関手を与える。
 `Pullback.Ranks.naturality` はランクと引き戻しの可換性を証明する。
+`Pullback.Ranks.Reduced` は基点を保つ写像による被約群の引き戻しである。
 `Ranks.rank` は局所定数な整数値ランク、`Ranks.Reduced[point].group` は基点でのランクの核である。
 `VariableRanks` は離散底上に任意の自然数値ランクを持つ束を構成する。
 `FiniteDiscrete.Classification` はランクによる束の分類、`FiniteDiscrete.Computation` と `Point` は整数値関数群・整数群との往復写像と逆写像則を与える。
