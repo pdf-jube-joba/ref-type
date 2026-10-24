@@ -1,9 +1,9 @@
-# 束の Grothendieck 環（K01、実装中）
+# 束の Grothendieck 環（K01）
 
-計画は [_plans/math/k01-grothendieck-k.md](../../../_plans/math/k01-grothendieck-k.md)。
+コンパクト Hausdorff 空間上の複素束から、Grothendieck の可換環 \(K^0\) を構成する。
 [B03 の同型類と補束](../../geometry/bundle_complements/README.md)、[B02 の束演算](../../geometry/bundle_operations/README.md)、既存の [`algebra.GroupCompletion`](../../algebra/basic/README.md) を再利用する。
 
-## 公開 API（追加分は検査中）
+## 公開 API
 
 `KTheory.On[X, baseSpace, compact, hausdorff]` はコンパクト Hausdorff 空間上の複素束を扱う。
 `Bundle.value` と `Compare.criterion` が一般の束を B03 の射影表示の同型類と比較する。
@@ -32,12 +32,10 @@
 
 ## 検証と再開
 
-基点は B04 統合済み main `4f411dda`、作業は `math/k01-grothendieck-k` / [draft PR #44](https://github.com/pdf-jube-joba/ref-type/pull/44)。
-最後の検証成功は `bac1d6e9`、`work/k01-complete`（対象スコープ、保存完了、終了0、保存失敗0）。
-環構成・反変関手・ランクと自然性・被約群・安定判定・有限離散／一点の環同型・利用例は対象検査済み。
-その後の `Stability.differenceCriterion`（一般の差の判定）が未検証。
-`d48cc565` の package 全依存閉包を `work/k01-package` で検査中（終了未確認）。
-入力の固定は `target/debug/cli libs/topology/k_theory --parse-only --save-source-snapshot work/k01-package.source.json`。
-検査コマンドは `target/debug/cli libs/topology/k_theory --source-snapshot work/k01-package.source.json --memory-mib 8192 --cache-budget-mib 12288 --time-limit-seconds 1800 --report-json work/k01-package.json` （終了コード・保存完了は確認待ち）。
-次はこのプロセスの終了を確認し、必要なら同じ snapshot で再検査する。
-その後は workspace の検査、下流リンク・ロードマップ・PR の整備と統合を行う。
+基点は B04 統合済み main `4f411dda`、作業は `math/k01-grothendieck-k` / [PR #44](https://github.com/pdf-jube-joba/ref-type/pull/44)。
+全要件の実装を含む `d48cc565` の package・全依存閉包は `work/k01-package` で保存完了・終了0（4,236件検査／4,345件再利用、53,089ステップ、復旧・重複・再実行・失われたステップ・保存失敗は各0）。
+対象スコープ・利用例は `bac1d6e9` の `work/k01-complete`（841 module、保存完了・終了0）でも成功した。
+package コマンドは `target/debug/cli libs/topology/k_theory --source-snapshot work/k01-package.source.json --memory-mib 8192 --cache-budget-mib 12288 --time-limit-seconds 1800 --report-json work/k01-package.json`。
+その後の変更は完了ドキュメントのみで、数学ソースの未検証変更はない。
+次は `target/debug/cli libs --parse-only --save-source-snapshot work/k01-workspace.source.json` で固定し、`target/debug/cli libs --source-snapshot work/k01-workspace.source.json --memory-mib 10240 --cache-budget-mib 12288 --time-limit-seconds 7200 --report-json work/k01-workspace.json` を実行する。
+workspace の終了・保存を確認した後に PR と必要な CI を確認し、通常の merge と main の反映確認を行う。
