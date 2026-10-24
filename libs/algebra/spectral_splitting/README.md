@@ -19,8 +19,10 @@ Bézout 射影と独立性、Cayley–Hamilton による評価和の逆行列、
 | `6c38873e` | `Coefficients`（有限係数演算・連続性） | 481 | 0 |
 
 その後の並び方に依存しない因子、局所根群との比較、行列式の係数写像・特性多項式の係数と連続性、連続射影・自然性は package 全体として未検証である。
-最後に終了を確認した検査は `fd9434df` の package 全体で終了コード1、`At.Characteristic.leading` の推論で失敗した。
-有限多重和に渡す関数を明記して再検査する。
+最後に終了を確認した全体検査は `fd9434df` で終了コード1、`At.Characteristic.leading` の推論で失敗した。
+有限多重和に渡す関数を明記した `2c6931cb` の全体検査は実行中で、終了結果はまだ不明である。
+それ以降に `bundle_complements.Finite.ImageBasis` の切り出し、一般の冪等射影の像束・引き戻し比較、スペクトル像束への包含・射影を追加した。
+これらの追加は構文解析のみ成功し、型検査は未実施である。
 型の再帰での大きな除去は固定長ベクトルで回避した。
 
 検査コマンドは以下を基準とする。
@@ -34,6 +36,6 @@ target/debug/cli libs --module spectral_splitting.Spectral.Coefficients \
 ```
 
 次は実行中の検査の終了コードを確認し、残る型エラーを修正する。
-その後 `At.Weights`、`Circle`、`At.Characteristic` を検査し、局所的な連続評価を逆行列によるスペクトル射影へ接続する。
-残作業は連続射影・基底変更の自然性、束への貼り合わせ・像の局所自明化・ホモトピー比較、具体例、公開 API の整備と全依存・下流・workspace の最終検査である。
+新しい snapshot で `bundle_complements` の `Finite.ImageBasis`・`ProjectionBasis` と `spectral_splitting` 全体を検査する。
+残作業は追加済みの連続射影・自然性・像束の検証、一般の束の局所構成の貼り合わせ・ホモトピー比較、具体例、公開 API の整備と全依存・下流・workspace の最終検査である。
 K06 は未完成であり、B04・K01・K04 には着手していない。
