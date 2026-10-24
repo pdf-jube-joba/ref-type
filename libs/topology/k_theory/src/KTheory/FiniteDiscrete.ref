@@ -1,0 +1,24 @@
+\definition X: \Set := Fin.Fin n;
+\import topology.Topology[Carrier := X] \as Base;
+\import std.Set[].FiniteSubset[A := X] \as Finite;
+\definition compact: Base.IsCompact Base.Discrete :=
+  Finite.induction (\fun (S: \Pow X) => Base.IsCompactIn Base.Discrete S)
+    (Base.Compactness[].emptyCompact Base.Discrete)
+    (\fun (S: \Pow X)(previous: Base.IsCompactIn Base.Discrete S)(a: X) =>
+      Base.Compactness[].joinCompact Base.Discrete (Base.Singleton a) S (Base.Compactness[].singletonCompact Base.Discrete a) previous)
+    Fin.Scope[n := n].finite;
+\definition hausdorff: Base.IsT2 Base.Discrete := \fun (x, y: X)(different: Logic.Not (x = y)) =>
+  Logic.existsIntro[\Pow X, { U: \Pow X \where Base.RegularChoice[Base.Discrete, Base.Singleton y, x, U] }] (Base.Singleton x)
+    (Base.RegularChoice[Base.Discrete, Base.Singleton y, x, Base.Singleton x] {
+      open := Base.discreteOpen (Base.Singleton x), contains := \refl(x),
+      partner := Logic.existsIntro[\Pow X, { V: \Pow X \where Base.NormalPartner[Base.Discrete, Base.Singleton y, Base.Singleton x, V] }] (Base.Complement (Base.Singleton x))
+        (Base.NormalPartner[Base.Discrete, Base.Singleton y, Base.Singleton x, Base.Complement (Base.Singleton x)] {
+          open := Base.discreteOpen (Base.Complement (Base.Singleton x)),
+          covers := \fun (b: X)(by: b = y)(bx: b = x) => different (trans!{X} _ _ _ (sym!{X} _ _ bx) by),
+          disjoint := \fun (b: X)(bx: b = x)(outside: Logic.Not (b = x)) => outside bx
+        })
+    });
+\import \parent.On[X := X, baseSpace := Base.Discrete, compact := compact, hausdorff := hausdorff] \as K;
+\module Comparing(F, G: X -> \Set, first: Bundles.Family[X := X, F := F].Bundle, second: Bundles.Family[X := X, F := G].Bundle,
+  firstSame: first.baseSpace = Base.Discrete, secondSame: second.baseSpace = Base.Discrete);
+\module Classification;

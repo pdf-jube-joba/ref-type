@@ -1,0 +1,13 @@
+\structure Total: \Set := { index: Fin.Fin n, value: F index };
+\import Fin.Choice[A := Total] \as Choice;
+\import std.Logic[].Equality[].Transport[A := Fin.Fin n] \as Transport;
+\definition relation[i: Fin.Fin n][t: Total]: \Prop := t.index = i;
+\definition exists: (\forall (i: Fin.Fin n) -> \exists F i) -> \exists (\forall (i: Fin.Fin n) -> F i) := \block {
+  \fun (all: \forall (i: Fin.Fin n) -> \exists F i) \then
+  \let choices: \forall (i: Fin.Fin n) -> \exists (t: Total \where relation i t) := \fun (i: Fin.Fin n) => \block {
+    \takefrom v: F i \by all i \then
+    \return Logic.existsIntro[Total, { t: Total \where relation i t }] (Total { index := i, value := v }) (\refl(i))
+  } \then
+  \takefrom f: \Cast[Fin.Fin n -> Total] ({ f: Fin.Fin n -> Total \where \forall (i: Fin.Fin n) -> relation i (f i) }) \by Choice.exists n relation choices \then
+  \return \exact((\fun (i: Fin.Fin n) => Transport.cast F (f i).index i ((\bysub(Fin.Fin n -> Total, { f: Fin.Fin n -> Total \where \forall (i: Fin.Fin n) -> relation i (f i) }, f)) i) (f i).value), (\forall (i: Fin.Fin n) -> F i))
+};
