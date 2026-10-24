@@ -15,7 +15,8 @@ B03 の計量・有限埋め込み・射影の像束、K06 の近接射影比較
 最後の `For.Extensions` は参照依存先を含む734 moduleで成功した。
 修正前の参照・型エラーは終了1、引数の表記ミスは終了2であり、修正後に対象を再検証した。
 
-以後の二開集合での clutching、球面を覆う円板と境界遷移、pushout の帰納法の公開は未検証の WIP である。
+`15f8e0f7` の二開集合での clutching は局所枠・遷移式を含む対象検査が終了0で成功した。
+一般の二束間の相対同型の延長、球面を覆う円板と境界遷移、pushout の帰納法の公開は未検証の WIP である。
 検査は `target/debug/cli libs --parse-only --save-source-snapshot work/<name>-snapshot.json`、続いて `target/debug/cli libs --module <scope> --source-snapshot work/<name>-snapshot.json --memory-mib 8192 --time-limit-seconds 900 --diagnostics compact --report-json work/<name>.json --cache-stats` を使用する。
-次は `.Clutching`、`.Disks` を対象検査し、終了コードを確認する。
+次は `.Disks`、`.For.Extensions` を対象検査し、終了コードを確認する。
 残作業は一般の同型への相対延長、円板の clutching のホモトピー・安定化・同型の対応、実・複素の利用例、文書・依存リンク、package全体・依存先・影響箇所・workspace の最終検査である。
