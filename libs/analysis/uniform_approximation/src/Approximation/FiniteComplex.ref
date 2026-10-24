@@ -58,8 +58,18 @@
     (Sums.congruent n (\fun (i: Fin.Fin n) => O.sub (O.mul (a i) (v i)) (O.mul (a i) (w i)))
       (\fun (i: Fin.Fin n) => O.mul (a i) (O.sub (v i) (w i))) (\fun (i: Fin.Fin n) => multiplicationInputDifference (a i) (v i) (w i)));
 \definition inputErrorBound: \forall (n: N.Nat^)(a, v, w: Fin.Fin n -> C.Complex)(delta: R.Real) -> (\forall (i: Fin.Fin n) -> Real.Le (Abs.abs (O.sub (v i) (w i))) delta) ->
-  Real.Le (Abs.abs (O.sub (action n a v) (action n a w))) (R.mul delta (RSums.sum n (\fun (i: Fin.Fin n) => Abs.abs (a i)))) := \fun (n: N.Nat^)(a, v, w: Fin.Fin n -> C.Complex)(delta: R.Real)(near: _) =>
-  Real.leReplaceLeft _ _ _ (sym!{{R.Real}} _ _ (congr!{{C.Complex} {R.Real}} Abs.abs _ _ (inputDifference n a v w)))
-    (Real.leTrans _ _ _ (actionBound n a (\fun (i: Fin.Fin n) => O.sub (v i) (w i)))
-      (Real.leReplaceRight _ _ _ (trans!{{R.Real}} _ _ _ (RSums.congruent n _ _ (\fun (i: Fin.Fin n) => Laws.fieldMulComm (Abs.abs (a i)) delta)) (RSums.scalar n delta (\fun (i: Fin.Fin n) => Abs.abs (a i))))
-        (RSums.comparison n _ _ (\fun (i: Fin.Fin n) => Estimates.mulMonotone (Abs.abs (a i)) (Abs.abs (O.sub (v i) (w i))) delta (Abs.nonnegative (a i)) (near i)))));
+  Real.Le (Abs.abs (O.sub (action n a v) (action n a w))) (R.mul delta (RSums.sum n (\fun (i: Fin.Fin n) => Abs.abs (a i)))) := \block {
+  \fun (n: N.Nat^)(a, v, w: Fin.Fin n -> C.Complex)(delta: R.Real)(near: \forall (i: Fin.Fin n) -> Real.Le (Abs.abs (O.sub (v i) (w i))) delta) \then
+  \let difference: Fin.Fin n -> C.Complex := \fun (i: Fin.Fin n) => O.sub (v i) (w i) \then
+  \let products: Fin.Fin n -> R.Real := \fun (i: Fin.Fin n) => R.mul (Abs.abs (a i)) (Abs.abs (difference i)) \then
+  \let bounds: Fin.Fin n -> R.Real := \fun (i: Fin.Fin n) => R.mul (Abs.abs (a i)) delta \then
+  \let scaled: Fin.Fin n -> R.Real := \fun (i: Fin.Fin n) => R.mul delta (Abs.abs (a i)) \then
+  \let boundSum: RSums.sum n bounds = R.mul delta (RSums.sum n (\fun (i: Fin.Fin n) => Abs.abs (a i))) :=
+    trans!{{R.Real}} (RSums.sum n bounds) (RSums.sum n scaled) (R.mul delta (RSums.sum n (\fun (i: Fin.Fin n) => Abs.abs (a i))))
+      (RSums.congruent n bounds scaled (\fun (i: Fin.Fin n) => Laws.fieldMulComm (Abs.abs (a i)) delta)) (RSums.scalar n delta (\fun (i: Fin.Fin n) => Abs.abs (a i))) \then
+  \return Real.leReplaceLeft (Abs.abs (action n a difference)) (Abs.abs (O.sub (action n a v) (action n a w))) _
+    (sym!{{R.Real}} _ _ (congr!{{C.Complex} {R.Real}} Abs.abs (O.sub (action n a v) (action n a w)) (action n a difference) (inputDifference n a v w)))
+    (Real.leTrans (Abs.abs (action n a difference)) (RSums.sum n products) _ (actionBound n a difference)
+      (Real.leReplaceRight (RSums.sum n products) (RSums.sum n bounds) _ boundSum
+        (RSums.comparison n products bounds (\fun (i: Fin.Fin n) => Estimates.mulMonotone (Abs.abs (a i)) (Abs.abs (difference i)) delta (Abs.nonnegative (a i)) (near i)))))
+};
