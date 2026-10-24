@@ -1,0 +1,18 @@
+\import Operations.IsomorphismComposition[X := SubCylinder.CarrierSet, F := SubFiber, G := (\fun (z: SubCylinder.CarrierSet) => G (subBase z)), H := SubFiber,
+  source := subBundle, middle := SubInitial.secondBundle, target := subBundle] \as Normalize;
+\definition normalized: Partial.Isomorphism := Normalize.compose a (PartialIsomorphisms.inverse SubInitial.isomorphism);
+\import Bundles.Isomorphisms[X := Y, F := F, G := G, source := bundle, target := target] \as OriginalIso;
+\definition initial: \forall (y: Subset)(v: SubFiber (Pair.pair I.Carrier Subset I.start y)) -> (normalized.forward.fiber (Pair.pair I.Carrier Subset I.start y)).apply v = v :=
+  \fun (y: Subset)(v: F y) => trans!{{F y}} _ _ _ (congr!{{G y} {F y}} (initialIso.backward.fiber y).apply _ _ (agrees y v))
+    ((\bysub(OriginalIso.Data, OriginalIso.Isomorphism, initialIso)).leftInverse y v);
+\import \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].For[Y := Y, F := F, bundle := bundle].Extensions[A := A, cofibration := cofibration, compact := compact, hausdorff := hausdorff].Problem[a := normalized, initial := initial] \as Extension;
+\structure Result: \Set := {
+  value: GlobalIsomorphisms.Isomorphism,
+  initial: \forall (y: Y)(v: F y) -> (value.forward.fiber (Pair.pair I.Carrier Y I.start y)).apply v = (initialIso.forward.fiber y).apply v,
+  extends: \forall (t: I.Carrier)(y: Subset)(v: F y) -> (value.forward.fiber (Pair.pair I.Carrier Y t y)).apply v = (a.forward.fiber (Pair.pair I.Carrier Subset t y)).apply v
+};
+\module WithResult(result: Extension.Result);
+\definition exists: \exists Result := \block {
+  \takefrom result: Extension.Result \by Extension.exists \then
+  \return \exact(WithResult[result := result].value, Result)
+};
