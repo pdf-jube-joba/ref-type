@@ -43,13 +43,21 @@
   sym!{Real.Real} _ _ (Distance.subZeroEq Real.one (Disk.normSquared v) (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (squareHeight v))
     (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ zero zero) (Laws.fieldMulZeroLeft Real.zero))));
 \definition onePositive: R.Lt Real.zero Real.one := Order.ltOfLeNotEq Real.zero Real.one Laws.oneNonnegative Laws.zeroNeOne;
+\definition positiveCollar[v: Disk.Disk][zero: height v = Real.zero]: R.Lt Real.zero (tailSquared (positive v)) :=
+  R.ltReplaceRight Real.zero Real.one (tailSquared (positive v))
+    (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (zeroHeight v zero)) (congr!{Disk.Coordinate Real.Real} Disk.normSquared _ _ (sym!{Disk.Coordinate} _ _ (Splitting.tailJoin (height v) v)))) onePositive;
+\definition negativeCollar[v: Disk.Disk][zero: height v = Real.zero]: R.Lt Real.zero (tailSquared (negative v)) :=
+  R.ltReplaceRight Real.zero Real.one (tailSquared (negative v))
+    (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (zeroHeight v zero)) (congr!{Disk.Coordinate Real.Real} Disk.normSquared _ _ (sym!{Disk.Coordinate} _ _ (Splitting.tailJoin (Real.neg (height v)) v)))) onePositive;
+\definition heightPositive[v: Disk.Disk][nonzero: Logic.Not (height v = Real.zero)]: R.Lt Real.zero (height v) :=
+  Order.ltOfLeNotEq Real.zero (height v) (Root.nonnegative (Real.sub Real.one (Disk.normSquared v))) (\fun (same: Real.zero = height v) => nonzero (sym!{Real.Real} _ _ same));
 \definition positiveInU: \forall (v: Disk.Disk) -> \In[Sphere.Sphere] U (positive v) := \fun (v: Disk.Disk) =>
   Logic.orElim[height v = Real.zero, Logic.Not (height v = Real.zero), \In[Sphere.Sphere] U (positive v)] (std.Logic[].Classical[].excludedMiddle (height v = Real.zero))
-    (\fun (zero: _) => Logic.Or[_, _]::right (R.ltReplaceRight Real.zero Real.one (tailSquared (positive v))
-      (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (zeroHeight v zero)) (congr!{Disk.Coordinate Real.Real} Disk.normSquared _ _ (sym!{Disk.Coordinate} _ _ (Splitting.tailJoin (height v) v)))) onePositive))
-    (\fun (nonzero: _) => Logic.Or[_, _]::left (Order.ltOfLeNotEq Real.zero (height v) (Root.nonnegative (Real.sub Real.one (Disk.normSquared v))) (\fun (same: Real.zero = height v) => nonzero (sym!{Real.Real} _ _ same))));
+    (\fun (zero: height v = Real.zero) => Logic.Or[_, _]::right (positiveCollar v zero))
+    (\fun (nonzero: Logic.Not (height v = Real.zero)) => Logic.Or[_, _]::left
+      (R.ltReplaceRight Real.zero (height v) (head (positive v)) (sym!{Real.Real} _ _ (Splitting.headJoin (height v) v)) (heightPositive v nonzero)));
 \definition negativeInV: \forall (v: Disk.Disk) -> \In[Sphere.Sphere] V (negative v) := \fun (v: Disk.Disk) =>
   Logic.orElim[height v = Real.zero, Logic.Not (height v = Real.zero), \In[Sphere.Sphere] V (negative v)] (std.Logic[].Classical[].excludedMiddle (height v = Real.zero))
-    (\fun (zero: _) => Logic.Or[_, _]::right (R.ltReplaceRight Real.zero Real.one (tailSquared (negative v))
-      (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (zeroHeight v zero)) (congr!{Disk.Coordinate Real.Real} Disk.normSquared _ _ (sym!{Disk.Coordinate} _ _ (Splitting.tailJoin (Real.neg (height v)) v)))) onePositive))
-    (\fun (nonzero: _) => Logic.Or[_, _]::left (Laws.negativeNegOfPositive (height v) (Order.ltOfLeNotEq Real.zero (height v) (Root.nonnegative (Real.sub Real.one (Disk.normSquared v))) (\fun (same: Real.zero = height v) => nonzero (sym!{Real.Real} _ _ same)))));
+    (\fun (zero: height v = Real.zero) => Logic.Or[_, _]::right (negativeCollar v zero))
+    (\fun (nonzero: Logic.Not (height v = Real.zero)) => Logic.Or[_, _]::left
+      (R.ltReplaceLeft (Real.neg (height v)) (head (negative v)) Real.zero (sym!{Real.Real} _ _ (Splitting.headJoin (Real.neg (height v)) v)) (Laws.negativeNegOfPositive (height v) (heightPositive v nonzero))));
