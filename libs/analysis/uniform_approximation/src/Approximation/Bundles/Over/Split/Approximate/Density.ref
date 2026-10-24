@@ -14,3 +14,20 @@
   \return \exact(Candidate[epsilon] { value := a, member := properties.left, near := properties.right }, Candidate[epsilon])
 };
 \module Using(epsilon: R.Real, candidate: Candidate[epsilon]);
+\import \root.Approximation[].Bundles[].Over[X := X, F := F, bundle := bundle].Split[n := n, include := include, project := project, retraction := retraction].ProjectionBound[compact := compact, hausdorff := hausdorff] \as ProjectionBounds;
+\definition UnitInput[x: X][v: F x]: \Prop := Real.Le (R.FiniteSums[].sum n (\fun (j: M.Index) => Abs.abs ((include.fiber x).apply v j))) R.one;
+\structure UniformCandidate[epsilon: R.Real]: \Set := {
+  matrix: X -> M.Matrix,
+  member: \forall (i, j: M.Index) -> \In[Functions.Function] A (\fun (x: X) => matrix x i j),
+  map: Endomorphisms.Map,
+  formula: \forall (x: X)(v: F x) -> (map.fiber x).apply v = (project.fiber x).apply ((M.linear (matrix x)).apply ((include.fiber x).apply v)),
+  error: \forall (x: X)(v: F x) -> UnitInput x v -> \forall (i: M.Index) -> Real.Lt
+    (Abs.abs (O.sub ((include.fiber x).apply ((h.fiber x).apply v) i) ((include.fiber x).apply ((map.fiber x).apply v) i))) epsilon
+};
+\definition chooseCandidate: \forall (epsilon: R.Real) -> Real.Lt R.zero epsilon -> \exists Candidate[epsilon] := exists;
+\module Uniform(epsilon: R.Real, positive: Real.Lt R.zero epsilon, bound: ProjectionBounds.Bound);
+\definition uniformExists: \forall (epsilon: R.Real) -> Real.Lt R.zero epsilon -> \exists UniformCandidate[epsilon] := \block {
+  \fun (epsilon: R.Real)(positive: Real.Lt R.zero epsilon) \then
+  \takefrom bound: ProjectionBounds.Bound \by ProjectionBounds.exists \then
+  \return Uniform[epsilon := epsilon, positive := positive, bound := bound].exists
+};
