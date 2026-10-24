@@ -1,0 +1,26 @@
+\import topological_constructions.Product[A := Local.BasePoint, B := Bundles.Vector d.dimension] \as Product;
+\definition first[p: Local.ProductPoint]: Local.BasePoint := Pair.first Local.BasePoint (Bundles.Vector d.dimension) p;
+\definition firstContinuous: topology.Continuity[A := Local.ProductPoint, B := Local.BasePoint].Continuous Local.productTopology (BaseSubspace.topology bundle.baseSpace) first := Product.Maps[].firstContinuous (BaseSubspace.topology bundle.baseSpace) (Bundles.coordinateTopology d.dimension);
+\definition second[p: Local.ProductPoint]: Bundles.Vector d.dimension := Pair.second Local.BasePoint (Bundles.Vector d.dimension) p;
+\definition secondContinuous: topology.Continuity[A := Local.ProductPoint, B := Bundles.Vector d.dimension].Continuous Local.productTopology (Bundles.coordinateTopology d.dimension) second := Product.Maps[].secondContinuous (BaseSubspace.topology bundle.baseSpace) (Bundles.coordinateTopology d.dimension);
+\definition center[p: Local.ProductPoint]: NativeCoordinates.BasePoint := intoNative (first p);
+\definition centerContinuous: topology.Continuity[A := Local.ProductPoint, B := NativeCoordinates.BasePoint].Continuous Local.productTopology (NativeBaseSubspace.topology baseSpace) center :=
+  topology.Composition[A := Local.ProductPoint, B := Local.BasePoint, C := NativeCoordinates.BasePoint].composeContinuous Local.productTopology (BaseSubspace.topology bundle.baseSpace) (NativeBaseSubspace.topology baseSpace) first intoNative firstContinuous nativeBaseContinuous;
+\definition native[p: Local.ProductPoint]: NativeFamily.Point := NativeChart.Maps[Y := Local.ProductPoint, source := Local.productTopology].point center second p;
+\definition nativeContinuous: topology.Continuity[A := Local.ProductPoint, B := NativeFamily.Point].Continuous Local.productTopology Native.topology native :=
+  NativeChart.Maps[Y := Local.ProductPoint, source := Local.productTopology].pointContinuous center second centerContinuous secondContinuous;
+\definition vector[p: Local.ProductPoint]: Vector := (native p).vector;
+\definition vectorContinuous: topology.Continuity[A := Local.ProductPoint, B := Vector].Continuous Local.productTopology coordinateTopology vector :=
+  topology.Composition[A := Local.ProductPoint, B := NativeFamily.Point, C := Vector].composeContinuous Local.productTopology Native.topology coordinateTopology native
+    (\fun (p: NativeFamily.Point) => p.vector) nativeContinuous Native.vectorContinuous;
+\definition originalCenter[p: Local.ProductPoint]: Original.BasePoint := intoOriginal (first p);
+\definition originalCenterContinuous: topology.Continuity[A := Local.ProductPoint, B := Original.BasePoint].Continuous Local.productTopology baseSpace originalCenter :=
+  topology.Composition[A := Local.ProductPoint, B := Local.BasePoint, C := Original.BasePoint].composeContinuous Local.productTopology (BaseSubspace.topology bundle.baseSpace) baseSpace first intoOriginal firstContinuous originalBaseContinuous;
+\definition ambient[p: Local.ProductPoint]: Ambient.Point := Chart.Maps[Y := Local.ProductPoint, source := Local.productTopology].point originalCenter vector p;
+\definition ambientContinuous: topology.Continuity[A := Local.ProductPoint, B := Ambient.Point].Continuous Local.productTopology bundle.totalSpace ambient :=
+  Chart.Maps[Y := Local.ProductPoint, source := Local.productTopology].pointContinuous originalCenter vector originalCenterContinuous vectorContinuous;
+\definition image[p: Local.ProductPoint]: Family.Point := Local.backward p;
+\definition imageContinuous: topology.Continuity[A := Local.ProductPoint, B := Family.Point].Continuous Local.productTopology topology image :=
+  \root.Spectral[].BundleImage[X := X, F := F, bundle := bundle, P := P, idempotent := idempotent].Universal[Y := Local.ProductPoint, source := Local.productTopology].continuous image ambientContinuous;
+\definition continuous: topology.Continuity[A := Local.ProductPoint, B := Local.TotalPoint].Continuous Local.productTopology Local.localTopology Local.backward :=
+  topology.Continuity[A := Local.ProductPoint, B := Family.Point].Corestriction[S := { p: Family.Point \where Base.Member domain p.base }].corestrictContinuous Local.productTopology topology Local.backward imageContinuous;

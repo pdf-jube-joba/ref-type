@@ -1,0 +1,35 @@
+\import Bundles.Family[X := X, F := F] \as Ambient;
+\import Ambient.With[data := bundle] \as AmbientCharts;
+\import topology.Topology[Carrier := X] \as Base;
+\definition Image[x: X]: \Pow (F x) := { v: F x \where (P.fiber x).apply v = v };
+\definition Fiber[x: X]: \Set := \Cast[F x] (Image x);
+\module At(x: X);
+\definition space[x: X]: Spaces.VectorSpace (Fiber x) := At[x := x].space;
+\import Bundles.Family[X := X, F := Fiber] \as Family;
+\definition embedding[p: Family.Point]: Ambient.Point := Ambient.include p.base p.vector;
+\import topological_constructions.Induced[A := Family.Point, B := Ambient.Point] \as Induced;
+\definition topology: topology.Topology[Carrier := Family.Point].Topology := Induced.topology bundle.totalSpace embedding;
+\definition inclusionContinuous: topology.Continuity[A := Family.Point, B := Ambient.Point].Continuous topology bundle.totalSpace embedding := Induced.continuous bundle.totalSpace embedding;
+\definition data: Family.Data := Family.Data { baseSpace := bundle.baseSpace, totalSpace := topology, space := space };
+\import Family.With[data := data] \as Charts;
+\definition projectionContinuous: topology.Continuity[A := Family.Point, B := X].Continuous topology bundle.baseSpace Family.projection :=
+  topology.Composition[A := Family.Point, B := Ambient.Point, C := X].composeContinuous topology bundle.totalSpace bundle.baseSpace embedding Ambient.projection inclusionContinuous Ambient.Of[bundle := bundle].projectionContinuous;
+\module Universal(Y: \Set, source: topology.Topology[Carrier := Y].Topology);
+\module Local(c: AmbientCharts.Chart);
+
+\definition locallyTrivial: Charts.LocallyTrivial := \fun (x: X) => \block {
+  \takefrom c: \Cast[AmbientCharts.Chart] ({ c: AmbientCharts.Chart \where Base.Member c.domain x }) \by Ambient.Of[bundle := bundle].locallyTrivial x \then
+  \return Local[c := c].locallyTrivial (\into[X](x, c.domain) \by { \bysub(AmbientCharts.Chart, { c: AmbientCharts.Chart \where Base.Member c.domain x }, c) })
+};
+\definition imageBundle: Family.Bundle := \into[Family.Data](data, Family.Bundle) \by { locallyTrivial };
+\import Bundles.Morphisms[X := X, Y := X, F := Fiber, G := F, source := imageBundle, target := bundle, f := \fun (x: X) => x] \as Inclusions;
+\definition inclusionData: Inclusions.Data := Inclusions.Data { fiber := \fun (x: X) => At[x := x].inclusion };
+\definition inclusion: Inclusions.Map := \into[Inclusions.Data](inclusionData, Inclusions.Map) \by { inclusionContinuous };
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := Fiber, source := bundle, target := imageBundle, f := \fun (x: X) => x] \as Projections;
+\definition projectData: Projections.Data := Projections.Data { fiber := \fun (x: X) => At[x := x].project };
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := F, source := bundle, target := bundle, f := \fun (x: X) => x] \as Endomorphisms;
+\definition project: Projections.Map := \into[Projections.Data](projectData, Projections.Map) \by {
+  Universal[Y := Ambient.Point, source := bundle.totalSpace].continuous (Projections.total projectData) (Endomorphisms.continuous P)
+};
+\definition onImage: \forall (x: X)(v: Fiber x) -> (project.fiber x).apply ((inclusion.fiber x).apply v) = v :=
+  \fun (x: X)(v: Fiber x) => \bysub(F x, Image x, v);

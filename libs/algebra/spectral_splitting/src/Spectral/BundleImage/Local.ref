@@ -1,0 +1,44 @@
+\import AmbientCharts.In[c := c] \as Original;
+\import Base.Subspace[S := c.domain] \as Subspace;
+\definition baseSpace: topology.Topology[Carrier := Original.BasePoint].Topology := Subspace.topology bundle.baseSpace;
+\definition Vector: \Set := Bundles.Vector c.dimension;
+\definition coordinates: Spaces.VectorSpace Vector := Bundles.coordinates c.dimension;
+\definition coordinateTopology: topology.Topology[Carrier := Vector].Topology := Bundles.coordinateTopology c.dimension;
+\import Spaces.Linear[V := Vector, W := Vector, source := coordinates, target := coordinates] \as End;
+\import BundleOperations.Chart[X := X, F := F, bundle := bundle, chart := c] \as Chart;
+\module At(x: Original.BasePoint);
+\definition operator[x: Original.BasePoint]: End.Map := At[x := x].operator;
+\definition projection[x: Original.BasePoint]: \root.Spectral[].Idempotents[n := c.dimension].Projection :=
+  \root.Spectral[].Idempotents[n := c.dimension].Projection { map := operator x, idempotent := At[x := x].idempotent };
+\module Applying(Y: \Set, source: topology.Topology[Carrier := Y].Topology, base: Y -> Original.BasePoint, vector: Y -> Vector,
+  baseRegular: topology.Continuity[A := Y, B := Original.BasePoint].Continuous source baseSpace base,
+  vectorRegular: topology.Continuity[A := Y, B := Vector].Continuous source coordinateTopology vector);
+\import Hermitian.At[n := c.dimension].Families[X := Original.BasePoint] \as Vectors;
+\definition regular: Vectors.Matrix[m := c.dimension].Regular baseSpace operator :=
+  \fun (v: Vector)(i: Fin.Fin c.dimension) => topology.Composition[A := Original.BasePoint, B := Vector, C := C.Complex].composeContinuous
+    baseSpace coordinateTopology Bundles.scalarTopology (\fun (x: Original.BasePoint) => (operator x).apply v) (\fun (w: Vector) => w i)
+    Applying[Y := Original.BasePoint, source := baseSpace, base := (\fun (x: Original.BasePoint) => x), vector := (\fun (_: Original.BasePoint) => v),
+      baseRegular := topology.Maps[A := Original.BasePoint, B := Original.BasePoint].Identity[].continuous baseSpace,
+      vectorRegular := topology.Maps[A := Original.BasePoint, B := Vector].constantContinuous baseSpace coordinateTopology v].continuous
+    (topological_algebra.Coordinates[K := C.Complex, I := Fin.Fin c.dimension].evaluationContinuous Bundles.scalarTopology i);
+\import \root.Spectral[].Idempotents[n := c.dimension].Image[X := Original.BasePoint, baseSpace := baseSpace, P := projection, regular := regular] \as Native;
+
+\module Restricted(x: Original.BasePoint);
+\import Bundles.Family[X := Original.BasePoint, F := Native.Fiber] \as NativeFamily;
+\import NativeFamily.With[data := Native.bundle] \as NativeCharts;
+\module Lift(d: NativeCharts.Chart, O: \Pow X, open: Base.IsOpenIn bundle.baseSpace O, same: d.domain = Subspace.Trace O);
+
+\use Equality.transport;
+\definition locallyTrivial: \forall (a: Original.BasePoint) -> \exists ( d: Charts.Chart \where Base.Member d.domain a ) := \block {
+  \fun (a: Original.BasePoint) \then
+  \takefrom d: \Cast[NativeCharts.Chart] ({ d: NativeCharts.Chart \where \In[Original.BasePoint] d.domain a }) \by NativeFamily.Of[bundle := Native.bundle].locallyTrivial a \then
+  \takefrom O: \Cast[\Pow X] ({ O: \Pow X \where Logic.And[Base.IsOpenIn bundle.baseSpace O, d.domain = Subspace.Trace O] })
+    \by Subspace.openRepresentation bundle.baseSpace d.domain (\bysub(NativeCharts.ChartData, NativeCharts.Chart, d)).baseOpen \then
+  \let properties: Logic.And[Base.IsOpenIn bundle.baseSpace O, d.domain = Subspace.Trace O] :=
+    \bysub(\Pow X, { O: \Pow X \where Logic.And[Base.IsOpenIn bundle.baseSpace O, d.domain = Subspace.Trace O] }, O) \then
+  \return Logic.existsIntro[Charts.Chart, { e: Charts.Chart \where Base.Member e.domain a }]
+    (Lift[d := d, O := O, open := properties.left, same := properties.right].trivialization)
+    (Logic.And[_, _]::# (\bysub(X, c.domain, a))
+      (transport!{\Pow Original.BasePoint} (\fun (U: \Pow Original.BasePoint) => \In[Original.BasePoint] U a) _ _ properties.right
+        (\bysub(NativeCharts.Chart, { d: NativeCharts.Chart \where \In[Original.BasePoint] d.domain a }, d))))
+};

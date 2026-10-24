@@ -1,0 +1,20 @@
+\definition ambient[p: Local.TotalPoint]: Ambient.Point := embedding p;
+\definition ambientContinuous: topology.Continuity[A := Local.TotalPoint, B := Ambient.Point].Continuous Local.localTopology bundle.totalSpace ambient :=
+  topology.Continuity[A := Family.Point, B := Ambient.Point].Restriction[S := { p: Family.Point \where Base.Member domain p.base }].restrictContinuous topology bundle.totalSpace embedding inclusionContinuous;
+\definition original[p: Local.TotalPoint]: Original.TotalPoint := \into[Ambient.Point](ambient p, { p: Ambient.Point \where Base.Member c.domain p.base }) \by { (\bysub(Family.Point, { p: Family.Point \where Base.Member domain p.base }, p)).left };
+\definition originalVectorContinuous: topology.Continuity[A := Local.TotalPoint, B := Vector].Continuous Local.localTopology coordinateTopology (\fun (p: Local.TotalPoint) => (c.frame (intoOriginal (Local.base p))).forward.apply p.vector) :=
+  Chart.Maps[Y := Local.TotalPoint, source := Local.localTopology].vectorContinuous original ambientContinuous;
+\definition center[p: Local.TotalPoint]: Original.BasePoint := intoOriginal (Local.base p);
+\definition centerContinuous: topology.Continuity[A := Local.TotalPoint, B := Original.BasePoint].Continuous Local.localTopology baseSpace center :=
+  topology.Composition[A := Local.TotalPoint, B := Local.BasePoint, C := Original.BasePoint].composeContinuous Local.localTopology (BaseSubspace.topology bundle.baseSpace) baseSpace Local.base intoOriginal baseContinuous originalBaseContinuous;
+\definition native[p: Local.TotalPoint]: NativeFamily.Point := NativeFamily.include (center p) (Restricted[x := center p].forward.apply p.vector);
+\definition nativeContinuous: topology.Continuity[A := Local.TotalPoint, B := NativeFamily.Point].Continuous Local.localTopology Native.topology native :=
+  Native.Universal[Y := Local.TotalPoint, source := Local.localTopology].continuous native centerContinuous originalVectorContinuous;
+\definition restricted[p: Local.TotalPoint]: NativeCoordinates.TotalPoint := \into[NativeFamily.Point](native p, { p: NativeFamily.Point \where \In[Original.BasePoint] d.domain p.base }) \by { \bysub(Original.BasePoint, d.domain, intoNative (Local.base p)) };
+\definition vectorContinuous: topology.Continuity[A := Local.TotalPoint, B := Bundles.Vector d.dimension].Continuous Local.localTopology (Bundles.coordinateTopology d.dimension)
+  (\fun (p: Local.TotalPoint) => (chart.frame (Local.base p)).forward.apply p.vector) :=
+  NativeChart.Maps[Y := Local.TotalPoint, source := Local.localTopology].vectorContinuous restricted nativeContinuous;
+\import topological_constructions.Product[A := Local.BasePoint, B := Bundles.Vector d.dimension] \as Product;
+\definition continuous: topology.Continuity[A := Local.TotalPoint, B := Local.ProductPoint].Continuous Local.localTopology Local.productTopology Local.forward :=
+  Product.Universal[X := Local.TotalPoint].pairContinuous Local.localTopology (BaseSubspace.topology bundle.baseSpace) (Bundles.coordinateTopology d.dimension) Local.base
+    (\fun (p: Local.TotalPoint) => (chart.frame (Local.base p)).forward.apply p.vector) baseContinuous vectorContinuous;

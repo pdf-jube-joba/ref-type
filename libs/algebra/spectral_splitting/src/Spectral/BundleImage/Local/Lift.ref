@@ -1,0 +1,32 @@
+\use Equality.transport;
+\definition domain: \Pow X := Base.Intersection c.domain O;
+\definition intoOriginal[x: \Cast[X] domain]: Original.BasePoint := \into[X](x, c.domain) \by { (\bysub(X, domain, x)).left };
+\definition intoNative[x: \Cast[X] domain]: \Cast[Original.BasePoint] d.domain := \into[Original.BasePoint](intoOriginal x, d.domain) \by {
+  transport!{\Pow Original.BasePoint} (\fun (U: \Pow Original.BasePoint) => \In[Original.BasePoint] U (intoOriginal x)) _ _ (sym!{\Pow Original.BasePoint} _ _ same) (\bysub(X, domain, x)).right
+};
+\module At(x: \Cast[X] domain);
+\definition chart: Charts.ChartData := Charts.ChartData { domain := domain, dimension := d.dimension, frame := \fun (x: \Cast[X] domain) => At[x := x].frame };
+\import Charts.In[c := chart] \as Local;
+\import Base.Subspace[S := domain] \as BaseSubspace;
+\import topology.Topology[Carrier := Family.Point].Subspace[S := { p: Family.Point \where Base.Member domain p.base }] \as TotalSubspace;
+\import NativeCharts.In[c := d] \as NativeCoordinates;
+\import BundleOperations.Chart[X := Original.BasePoint, F := Native.Fiber, bundle := Native.bundle, chart := d] \as NativeChart;
+\import topology.Topology[Carrier := Original.BasePoint].Subspace[S := d.domain] \as NativeBaseSubspace;
+\definition baseContinuous: topology.Continuity[A := Local.TotalPoint, B := Local.BasePoint].Continuous Local.localTopology (BaseSubspace.topology bundle.baseSpace) Local.base :=
+  topology.Continuity[A := Local.TotalPoint, B := X].Corestriction[S := domain].corestrictContinuous Local.localTopology bundle.baseSpace Local.base
+    (topology.Continuity[A := Family.Point, B := X].Restriction[S := { p: Family.Point \where Base.Member domain p.base }].restrictContinuous topology bundle.baseSpace Family.projection projectionContinuous);
+\definition originalBaseContinuous: topology.Continuity[A := Local.BasePoint, B := Original.BasePoint].Continuous (BaseSubspace.topology bundle.baseSpace) baseSpace intoOriginal :=
+  topology.Continuity[A := Local.BasePoint, B := X].Corestriction[S := c.domain].corestrictContinuous (BaseSubspace.topology bundle.baseSpace) bundle.baseSpace intoOriginal
+    (\fun (U: \Pow X)(open: _) => BaseSubspace.traceOpen bundle.baseSpace U open);
+\definition nativeBaseContinuous: topology.Continuity[A := Local.BasePoint, B := NativeCoordinates.BasePoint].Continuous (BaseSubspace.topology bundle.baseSpace) (NativeBaseSubspace.topology baseSpace) intoNative :=
+  topology.Continuity[A := Local.BasePoint, B := Original.BasePoint].Corestriction[S := d.domain].corestrictContinuous (BaseSubspace.topology bundle.baseSpace) baseSpace intoNative originalBaseContinuous;
+\module Forward;
+\module Backward;
+\definition trivialization: Charts.Chart := \into[Charts.ChartData](chart, Charts.Chart) \by {
+  Local.Laws {
+    baseOpen := (Base.topologyLaws bundle.baseSpace).intersectionOpen c.domain O (\bysub(AmbientCharts.ChartData, AmbientCharts.Chart, c)).baseOpen open,
+    totalOpen := projectionContinuous domain ((Base.topologyLaws bundle.baseSpace).intersectionOpen c.domain O (\bysub(AmbientCharts.ChartData, AmbientCharts.Chart, c)).baseOpen open),
+    forwardContinuous := Forward[].continuous,
+    backwardContinuous := Backward[].continuous,
+  }
+};
