@@ -79,11 +79,12 @@
 基点は K01 統合済み main `f6c3dcfb`、ブランチは `math/k04-uniform-approximation`、[draft PR #45](https://github.com/pdf-jube-joba/ref-type/pull/45)。
 最後に成功した対象検査は `71ddcdd1` の `work/k04-examples`（終了0・共有キャッシュ保存完了）。
 公開 API と利用例まで対象スコープで検証済みで、数学ソースへの未検証変更はない。
-次は対象 package の全依存閉包と、共通化した B03 `CoordinateFamily` の利用先を含む workspace を固定 snapshot で検査する。
+`97e259ec` の package snapshot に対する `work/k04-package-retry` は全依存閉包の検査を実行中で、終了結果は未確認。
+次はこの終了結果と保存完了を確認し、B03 `CoordinateFamily` の利用先を含む workspace を検査する。
 
 ```sh
-target/debug/cli libs/analysis/uniform_approximation --parse-only --save-source-snapshot work/k04-package.source.json
-target/debug/cli libs/analysis/uniform_approximation --source-snapshot work/k04-package.source.json --memory-mib 8192 --cache-budget-mib 12288 --time-limit-seconds 1800 --report-json work/k04-package.report.json
+target/debug/cli libs/analysis/uniform_approximation --parse-only --save-source-snapshot work/k04-package-retry.source.json
+target/debug/cli libs/analysis/uniform_approximation --source-snapshot work/k04-package-retry.source.json --memory-mib 8192 --cache-budget-mib 12288 --time-limit-seconds 1800 --report-json work/k04-package-retry.report.json
 target/debug/cli libs --source-snapshot work/k04-workspace.source.json --memory-mib 10240 --cache-budget-mib 12288 --time-limit-seconds 7200 --report-json work/k04-workspace.report.json
 ```
 
