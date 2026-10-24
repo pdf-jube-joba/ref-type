@@ -75,7 +75,7 @@ Bézout 分解、Horner 評価、単位円内外の根因子と係数の連続�
 `BundleCoordinates` と `BundleImage` は上表の検査で成功した。
 `BundleEndomorphism` の貼り合わせ・不変部分束・自然性・引き戻し比較は上表の検査で成功した。
 具体例、`At.Homotopy` の接続、直和分解も上表の範囲で検査が成功した。
-一般の束の像のホモトピー比較に向け、`PullbackIsomorphism`・`EmbeddedCylinder`・`BundleHomotopy` を追加中であり、これらは未検証である。
+一般の束の像のホモトピー比較に向け、`PullbackIsomorphism`・`EmbeddedCylinder`・`BundleHomotopy` を追加中であり、これらと `Examples.MixedRanksHomotopy` は未検証である。
 以前の全体検査の終了コード130は診断のための中断である。
 worker の checkpoint 再開が1回あったが、その原因は確定していない。
 逆行列の法則を明示する証明に変更後、該当する `Separated` は保存処理と正常終了まで確認できた。
