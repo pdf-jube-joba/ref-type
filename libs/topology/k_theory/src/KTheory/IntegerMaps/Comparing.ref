@@ -1,0 +1,21 @@
+\definition naturalAgreement: \forall (n: N.Nat^) -> first.apply (natural n) = second.apply (natural n) :=
+  \induction (n: N.Nat^) \return first.apply (natural n) = second.apply (natural n) \with {
+    | zero: trans!{K} _ _ _ first.zero (sym!{K} _ _ second.zero)
+    | succ: \fun (n: N.Nat^)(previous: _) =>
+      eq_reason_in!{K _
+        "=" { first.apply (I.Add.specification I.One.specification (natural n)) } "by" { congr!{{I.Int^} K} first.apply _ _ (I.integerSuccAsAdd n) }
+        "=" { Group.add (first.apply I.One.specification) (first.apply (natural n)) } "by" { first.addition I.One.specification (natural n) }
+        "=" { Group.add (second.apply I.One.specification) (second.apply (natural n)) } "by" { congr!{K K K} Group.add _ _ _ _ sameOne previous }
+        "=" { second.apply (I.Add.specification I.One.specification (natural n)) } "by" { sym!{K} _ _ (second.addition I.One.specification (natural n)) }
+        "=" { second.apply (natural (N.Nat^::succ n)) } "by" { congr!{{I.Int^} K} second.apply _ _ (sym!{{I.Int^}} _ _ (I.integerSuccAsAdd n)) }
+      }
+  };
+\definition agreement: \forall (n: N.Nat^) -> lift first (Completion.include n) = lift second (Completion.include n) := \fun (n: N.Nat^) =>
+  trans!{K} _ _ _ (congr!{{I.Int^} K} first.apply _ _ (Natural.toIntClass (Completion.pair n N.Nat^::zero)))
+    (trans!{K} _ _ _ (naturalAgreement n) (congr!{{I.Int^} K} second.apply _ _ (sym!{{I.Int^}} _ _ (Natural.toIntClass (Completion.pair n N.Nat^::zero)))));
+\definition equation: first.apply = second.apply := \axiom:funext(first.apply, second.apply, \fun (z: I.Int^) =>
+  eq_reason_in!{K _
+    "=" { first.apply (Natural.toInt (Natural.fromInt z)) } "by" { congr!{{I.Int^} K} first.apply _ _ (sym!{{I.Int^}} _ _ (Natural.toFrom z)) }
+    "=" { second.apply (Natural.toInt (Natural.fromInt z)) } "by" { congr!{{Natural.Carrier -> K} K} (\fun (f: Natural.Carrier -> K) => f (Natural.fromInt z)) _ _ (Universal.ext (lift first) (lift second) agreement) }
+    "=" { second.apply z } "by" { congr!{{I.Int^} K} second.apply _ _ (Natural.toFrom z) }
+  });

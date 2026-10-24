@@ -20,11 +20,12 @@ B03 の同型類と補束、B02 の束演算、既存の `algebra.GroupCompletio
 ## 検証と再開
 
 基点は B04 統合済み main `4f411dda`、作業は `math/k01-grothendieck-k` / [draft PR #44](https://github.com/pdf-jube-joba/ref-type/pull/44)。
-最後の検証成功は `31c15b37` の `work/k01-functor-rank2`（対象800 module、保存完了、終了0、保存失敗0）。
+最後の検証成功は `ffae85d5` の `work/k01-computation2`（対象833 module、保存完了、終了0、保存失敗0）。
 分配則・零の吸収則・Grothendieck 環・自明束による安定同型判定・引き戻し環写像・整数値ランクを追加した。
 直和ランク公式、ランクの群完成への延長・被約群、引き戻しの恒等・合成則、離散底上の線形写像族から連続な束写像への構成を追加した。
 有限離散束の分類・K 群計算、一点計算・利用例、ランクの自然性を追加した（未検証）。
-`1fb39649` の `work/k01-computation` は有限部分集合の帰納法に渡す述語の形式で終了1、集合内包へ修正した。
+被約群の基点付き引き戻しと、一点計算の乗法整合性を追加した（未検証）。
+次は有限離散計算の乗法整合性を接続し、最新ソースを再検査する。
 各検査は `target/debug/cli libs --source-snapshot work/<名前>.source.json --module topological_k_theory --memory-mib 8192 --cache-budget-mib 12288 --time-limit-seconds 1200 --report-json work/<名前>.json` で共有キャッシュを利用する。
 次は修正版を snapshot 化して同じ対象検査を行い、終了コード・保存完了を確認する。
 有限離散底・一点の計算、空・一点・二点の利用例、引き戻しに対するランクの自然性を追加した（未検証）。
