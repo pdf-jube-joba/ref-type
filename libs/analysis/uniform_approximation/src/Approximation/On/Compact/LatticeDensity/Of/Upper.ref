@@ -1,0 +1,27 @@
+\structure Index: \Set := { center: X, support: Support[center, epsilon] };
+\definition domain[i: Index]: \Pow X := { z: X \where Real.Lt (R.sub (i.support.value z) (f z)) epsilon };
+\definition family: \Pow (\Pow X) := { U: \Pow X \where \exists (i: Index \where U = domain i) };
+\definition member[i: Index]: Base.FamilyMember family (domain i) := Logic.existsIntro[Index, { j: Index \where domain i = domain j }] i (\refl(domain i));
+\definition open: \forall (U: \Pow X) -> Base.FamilyMember family U -> Base.IsOpenIn space U := \block {
+  \fun (U: \Pow X)(included: Base.FamilyMember family U) \then
+  \takefrom i: \Cast[Index] ({ i: Index \where U = domain i }) \by included \then
+  \return \idelim domain i = U \with V: \Pow X => Base.IsOpenIn space V \by {
+    base: Functions.subContinuous space i.support.value f (laws.continuous i.support.value i.support.member) regular (Rays.Below epsilon) (Rays.belowOpen epsilon),
+    equality: sym!{{\Pow X}} _ _ (\bysub(Index, { i: Index \where U = domain i }, i))
+  }
+};
+\definition cover: Base.IsOpenCover[space, family, Base.Whole] := Base.IsOpenCover[space, family, Base.Whole] {
+  open := open,
+  covers := \fun (z: X)(whole: Base.Member Base.Whole z) => \block {
+    \takefrom a: Support[z, epsilon] \by \parent.Lower[x := z, epsilon := epsilon, positive := positive].exists \then
+    \let i: Index := Index { center := z, support := a } \then
+    \return Base.unionMemberOf family (domain i) z (member i) (ScalarLattice.leftErrorAtEqual (a.value z) (f z) epsilon (sym!{{R.Real}} _ _ a.atCenter) positive)
+  }
+};
+\structure Envelope[S: \Pow (\Pow X)]: \Set := {
+  value: Function, member: \In[Function] B value,
+  lower: \forall (z: X) -> Real.Lt (R.sub (f z) (value z)) epsilon,
+  local: \forall (U: \Pow X) -> \In[\Pow X] S U -> \forall (z: X) -> Base.Member U z -> Real.Lt (R.sub (value z) (f z)) epsilon
+};
+\module Inserting(S: \Pow (\Pow X), previous: (\forall (U: \Pow X) -> \In[\Pow X] S U -> Base.FamilyMember family U) -> \exists Envelope[S], U: \Pow X);
+\module With(bound: Bound[f]);
