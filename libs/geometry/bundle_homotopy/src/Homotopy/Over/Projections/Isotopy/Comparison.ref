@@ -1,0 +1,14 @@
+\import Motion.Slice[t := I.start] \as Start;
+\import Motion.Slice[t := I.end] \as Finish;
+\import \parent.\parent.EqualImages[X := Cylinder.CarrierSet, baseSpace := topology, P := startProjection, Q := Start.projection, regularP := startRegular, regularQ := Start.regular,
+  same := (\fun (z: Cylinder.CarrierSet) => congr!{I.Carrier End.Map} (\fun (t: I.Carrier) => (P (Pair.pair I.Carrier X t (base z))).map) _ _
+    (sym!{I.Carrier} _ _ (RealLaws.fieldMulZeroLeft (time z))))] \as FirstComparison;
+\import \parent.\parent.EqualImages[X := Cylinder.CarrierSet, baseSpace := topology, P := Finish.projection, Q := P, regularP := Finish.regular, regularQ := regular,
+  same := (\fun (z: Cylinder.CarrierSet) => trans!{End.Map} _ _ _
+    (congr!{I.Carrier End.Map} (\fun (t: I.Carrier) => (P (Pair.pair I.Carrier X t (base z))).map) _ _ (RealLaws.fieldMulOneLeft (time z)))
+    (congr!{Cylinder.CarrierSet End.Map} (\fun (p: Cylinder.CarrierSet) => (P p).map) _ _ (Pair.Prop[A := I.Carrier, B := X].eta z)))] \as LastComparison;
+\import Operations.IsomorphismComposition[X := Cylinder.CarrierSet, F := StartImage.Fiber, G := Start.Fiber, H := Finish.Fiber, source := StartImage.bundle, middle := Start.bundle, target := Finish.bundle] \as First;
+\import Operations.IsomorphismComposition[X := Cylinder.CarrierSet, F := StartImage.Fiber, G := Finish.Fiber, H := FinishImage.Fiber, source := StartImage.bundle, middle := Finish.bundle, target := FinishImage.bundle] \as Second;
+\definition value: Isomorphism := Second.compose (First.compose FirstComparison.isomorphism iso.value) LastComparison.isomorphism;
+\definition fixed: \forall (z: Cylinder.CarrierSet) -> \In[Cylinder.CarrierSet] subset z -> \forall (v: StartImage.Fiber z) -> valueOf ((value.forward.fiber z).apply v) = valueOf v :=
+  \fun (z: Cylinder.CarrierSet)(inside: \In[Cylinder.CarrierSet] subset z)(v: StartImage.Fiber z) => iso.fixed z inside ((FirstComparison.isomorphism.forward.fiber z).apply v);
