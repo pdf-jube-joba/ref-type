@@ -3,6 +3,24 @@
 計画は [_plans/math/k06-spectral-splitting.md](../../../_plans/math/k06-spectral-splitting.md)。
 [根群](../complex_polynomial_roots/README.md)、[多項式線形代数](../polynomial_linear_algebra/README.md)、[Hermitian 局所枠](../hermitian_frames/README.md)、[束の補空間](../../geometry/bundle_complements/README.md) を再利用する。
 
+## 射影の構成
+
+特性多項式を単位円の内側の根因子 \(p\) と外側の根因子 \(q\) に分ける。
+共通根がないことから Bézout 係数 \(up+vq=1\) を構成し、Cayley–Hamilton を適用して \(P=v(T)q(T)\)、\(R=u(T)p(T)\) による分解を得る。
+この射影は Bézout 係数の選び方に依存しない。
+評価和 \(M=p(T)+q(T)\) の逆を分解上で構成すると、同じ射影は \(P=q(T)M^{-1}\) と書ける。
+連続性にはこの逆行列の式を使う。
+根の並べ方によらない因子を K05 の局所的な連続因子と比較し、Horner 評価と逆行列の連続性を接続する。
+
+| 公開入口 | 内容 |
+| --- | --- |
+| `Spectral.Action.With` | Bézout 射影・補射影、核での計算、独立性 |
+| `Spectral.At.Characteristic` | 有限係数表示、最高次係数1、係数族の連続性 |
+| `Spectral.Circle.At` | 根の順序に依存しない内外の因子と互いに素性 |
+| `Spectral.At.Splitting.Separated` | 単位円上に根がない行列の射影、冪等性、核への包含 |
+
+連続な族・基底変更・像束の追加 API は検査中である。
+
 ## 検証と再開
 
 基点は main `6bf92837`、作業は `math/k06-spectral-splitting`、[draft PR #42](https://github.com/pdf-jube-joba/ref-type/pull/42)。
