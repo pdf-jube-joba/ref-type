@@ -52,3 +52,15 @@
     \return fromCandidate f epsilon (Candidate[f, epsilon] { value := a.value, member := a.member, near := errorTriangle f g a.value epsilon properties.right a.near })
   }
 };
+\module Absolute(f: Function, closed: InClosure[f]);
+\definition absoluteClosure: \forall (f: Function) -> InClosure[f] -> InClosure[absoluteValue f] := \fun (f: Function)(closed: InClosure[f]) => Absolute[f := f, closed := closed].result;
+\definition maximumClosure: \forall (f, g: Function) -> InClosure[f] -> InClosure[g] -> InClosure[maximum f g] := \fun (f, g: Function)(first: InClosure[f])(second: InClosure[g]) =>
+  \idelim product (constant R.half) (sum (sum f g) (absoluteValue (sum f (negative g)))) = maximum f g
+    \with h: Function => InClosure[h] \by {
+      base: multiplication (constant R.half) (sum (sum f g) (absoluteValue (sum f (negative g)))) (constants R.half)
+        (addition (sum f g) (absoluteValue (sum f (negative g))) (addition f g first second) (absoluteClosure (sum f (negative g)) (addition f (negative g) first (negation g second)))),
+      equality: \axiom:funext(product (constant R.half) (sum (sum f g) (absoluteValue (sum f (negative g)))), maximum f g,
+        \fun (x: X) => sym!{{R.Real}} _ _ (\root.Approximation[].Lattice[].maximumFormula (f x) (g x)))
+    };
+\definition minimumClosure: \forall (f, g: Function) -> InClosure[f] -> InClosure[g] -> InClosure[minimum f g] := \fun (f, g: Function)(first: InClosure[f])(second: InClosure[g]) =>
+  negation (maximum (negative f) (negative g)) (maximumClosure (negative f) (negative g) (negation f first) (negation g second));
