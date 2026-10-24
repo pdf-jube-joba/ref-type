@@ -25,9 +25,12 @@ clutching 関数のホモトピーによる束同型、直和による clutching
 `.Clutching.Homotopy` の合成部分の検査は未完了である。
 2回は終了2・`memory-limit`（4,294,967,296 byte の allocation failure）、その後の修正・計測は120〜180秒上限で終了2・`time-limit` となった。
 最新の `d26d43f8` の計測は `startInverseExists` の検査で180秒上限に達した。
-全 cost/bridge 計測（90秒上限、終了2）では、`bridge lower` の後、kernel へ渡す前に停滞することを確認した。
+全 cost/bridge 計測（90秒上限、終了2）では、`bridge lower` 内の停滞を確認した。
 型の変換処理に cost 計測を追加したビルドは終了0。
-その計測も120秒上限で終了2・未完了となったため、既存の allocation profiling feature で大きな確保の呼び出し元を調べる。
+その計測も120秒上限で終了2・未完了となった。
+`afc847e1` の allocation stack 計測（`work/b04-allocation`、360秒上限）は約295秒で終了2・memory-limit。
+具体化された定義を kernel に登録する際の型変換で、`calculus::substitute` の `Cache::insert` にある scratch write 記録が4 GiBを確保しようとして失敗した。
+連続な非零スカラーから GL への構成と、実 Möbius 型・複素円周 clutching の利用例を追加したが、これらは未検証である。
 環境・端末・ファイル操作は利用でき、原因の調査を継続する。
 B01 の逆同型の存在、B02 の同型の合成・直和の存在を公開 API として追加したため、これらと下流も最終検査に含める。
 
