@@ -1,0 +1,33 @@
+\import complex.Complex[] \as C;
+\import C.Def[] \as O;
+\import C.Prop[] \as CP;
+\import C.Absolute[] \as Abs;
+\import R.Estimates[].Product[] \as Bounds;
+\definition realProduct: \forall (a: R.Real)(z: C.Complex) -> O.mul (O.ofReal a) z = O.scale a z := \fun (a: R.Real)(z: C.Complex) => CP.ext _ _
+  (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (R.sub (R.mul a (C.re z))) _ _ (Laws.fieldMulZeroLeft (C.im z))) (Laws.subZeroRight (R.mul a (C.re z))))
+  (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (R.add (R.mul a (C.im z))) _ _ (Laws.fieldMulZeroLeft (C.re z))) (Laws.addZeroRight (R.mul a (C.im z))));
+\definition realAverage: \forall (z: C.Complex) -> O.mul (O.ofReal R.half) (O.add z (O.conj z)) = O.ofReal (C.re z) := \fun (z: C.Complex) =>
+  trans!{{C.Complex}} _ _ _ (realProduct R.half (O.add z (O.conj z))) (CP.ext _ _
+    (trans!{{R.Real}} _ _ _ (Laws.fieldMulAdd R.half (C.re z) (C.re z)) (Estimates.halfTwice (C.re z)))
+    (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (R.mul R.half) _ _ (Laws.addNegRight (C.im z))) (Laws.fieldMulZeroRight R.half)));
+\definition negativeIReal: \forall (z: C.Complex) -> C.re (O.mul (O.neg O.i) z) = C.im z := \fun (z: C.Complex) => eq_reason_in!{{R.Real} _
+  "=" { R.sub R.zero (R.neg (C.im z)) } "by" { congr!{{R.Real} {R.Real} {R.Real}} R.sub _ _ _ _ (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (\fun (a: R.Real) => R.mul a (C.re z)) _ _ Laws.negZero) (Laws.fieldMulZeroLeft (C.re z))) (trans!{{R.Real}} _ _ _ (Laws.fieldMulNegLeft R.one (C.im z)) (congr!{{R.Real} {R.Real}} R.neg _ _ (Laws.fieldMulOneLeft (C.im z)))) }
+  "=" { R.add R.zero (C.im z) } "by" { Algebra.subNeg R.zero (C.im z) }
+  "=" { C.im z } "by" { Laws.addZeroLeft (C.im z) }
+};
+\definition reconstruct: \forall (a, b: R.Real) -> O.add (O.ofReal a) (O.mul O.i (O.ofReal b)) = C.make a b := \fun (a, b: R.Real) => CP.ext _ _
+  (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (R.add a) _ _ (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real} {R.Real}} R.sub _ _ _ _ (Laws.fieldMulZeroLeft b) (Laws.fieldMulOneLeft R.zero)) (Laws.subSelf R.zero))) (Laws.addZeroRight a))
+  (trans!{{R.Real}} _ _ _ (Laws.addZeroLeft (R.add (R.mul R.zero R.zero) (R.mul R.one b))) (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (Laws.fieldMulZeroLeft R.zero) (Laws.fieldMulOneLeft b)) (Laws.addZeroLeft b)));
+\definition absoluteReal: \forall (a: R.Real) -> Abs.abs (O.ofReal a) = absolute a := \fun (a: R.Real) => R.SquareRoot[].squaresInjective _ _ (Abs.nonnegative (O.ofReal a)) (Bounds.absNonnegative a)
+  (trans!{{R.Real}} _ _ _ (Abs.square (O.ofReal a)) (trans!{{R.Real}} _ _ _
+    (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (R.add (R.mul a a)) _ _ (Laws.fieldMulZeroLeft R.zero)) (Laws.addZeroRight (R.mul a a))) (sym!{{R.Real}} _ _ (\root.Approximation[].Absolute[].square a))));
+\definition imaginaryAbsolute: \forall (a: R.Real) -> Abs.abs (C.make R.zero a) = absolute a := \fun (a: R.Real) => R.SquareRoot[].squaresInjective _ _ (Abs.nonnegative (C.make R.zero a)) (Bounds.absNonnegative a)
+  (trans!{{R.Real}} _ _ _ (Abs.square (C.make R.zero a)) (trans!{{R.Real}} _ _ _
+    (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (\fun (s: R.Real) => R.add s (R.mul a a)) _ _ (Laws.fieldMulZeroLeft R.zero)) (Laws.addZeroLeft (R.mul a a))) (sym!{{R.Real}} _ _ (\root.Approximation[].Absolute[].square a))));
+\definition split: \forall (a, b: R.Real) -> C.make a b = O.add (O.ofReal a) (C.make R.zero b) := \fun (a, b: R.Real) => CP.ext _ _ (sym!{{R.Real}} _ _ (Laws.addZeroRight a)) (sym!{{R.Real}} _ _ (Laws.addZeroLeft b));
+\definition componentBound: \forall (z: C.Complex) -> Real.Le (Abs.abs z) (R.add (absolute (C.re z)) (absolute (C.im z))) := \fun (z: C.Complex) =>
+  Real.leReplace _ (Abs.abs z) _ (R.add (absolute (C.re z)) (absolute (C.im z)))
+    (congr!{{C.Complex} {R.Real}} Abs.abs _ _ (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (split (C.re z) (C.im z))) (CP.eta z)))
+    (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (absoluteReal (C.re z)) (imaginaryAbsolute (C.im z))) (Abs.triangle (O.ofReal (C.re z)) (C.make R.zero (C.im z)));
+\definition distanceBound: \forall (z, w: C.Complex) -> Real.Le (Abs.abs (O.sub z w)) (R.add (R.distance (C.re z) (C.re w)) (R.distance (C.im z) (C.im w))) := \fun (z, w: C.Complex) =>
+  Real.leReplaceRight _ _ _ (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (\root.Approximation[].Lattice[].differenceAbsolute (C.re z) (C.re w)) (\root.Approximation[].Lattice[].differenceAbsolute (C.im z) (C.im w))) (componentBound (O.sub z w));

@@ -1,0 +1,32 @@
+\definition realAlgebra: \Pow Reals.Function := { f: Reals.Function \where \In[Function] A (embed f) };
+\definition realLaws: Reals.SubalgebraLaws[realAlgebra] := Reals.SubalgebraLaws[realAlgebra] {
+  continuous := \fun (f: Reals.Function)(member: \In[Function] A (embed f)) => Functions.realContinuous space (embed f) (laws.continuous (embed f) member),
+  constants := \fun (a: R.Real) => laws.constants (O.ofReal a),
+  addition := \fun (f, g: Reals.Function)(first: _)(second: _) =>
+    \idelim sum (embed f) (embed g) = embed (Reals.sum f g) \with h: Function => \In[Function] A h \by {
+      base: laws.addition (embed f) (embed g) first second,
+      equality: \axiom:funext(sum (embed f) (embed g), embed (Reals.sum f g), \fun (x: X) => sym!{{C.Complex}} _ _ (CP.ofRealAdd (f x) (g x)))
+    },
+  negation := \fun (f: Reals.Function)(member: _) =>
+    \idelim negative (embed f) = embed (Reals.negative f) \with h: Function => \In[Function] A h \by {
+      base: laws.negation (embed f) member,
+      equality: \axiom:funext(negative (embed f), embed (Reals.negative f), \fun (x: X) => sym!{{C.Complex}} _ _ (CP.ofRealNeg (f x)))
+    },
+  multiplication := \fun (f, g: Reals.Function)(first: _)(second: _) =>
+    \idelim product (embed f) (embed g) = embed (Reals.product f g) \with h: Function => \In[Function] A h \by {
+      base: laws.multiplication (embed f) (embed g) first second,
+      equality: \axiom:funext(product (embed f) (embed g), embed (Reals.product f g), \fun (x: X) => CP.ofRealMul (f x) (g x))
+    }
+};
+\definition realMember: \forall (f: Function) -> \In[Function] A f -> \In[Reals.Function] realAlgebra (realPart f) := \fun (f: Function)(member: _) =>
+  \idelim product (constant (O.ofReal R.half)) (sum f (conjugate f)) = embed (realPart f) \with h: Function => \In[Function] A h \by {
+    base: laws.multiplication (constant (O.ofReal R.half)) (sum f (conjugate f)) (laws.constants (O.ofReal R.half)) (laws.addition f (conjugate f) member (laws.conjugation f member)),
+    equality: \axiom:funext(product (constant (O.ofReal R.half)) (sum f (conjugate f)), embed (realPart f), \fun (x: X) => Scalars.realAverage (f x))
+  };
+\definition imaginaryMember: \forall (f: Function) -> \In[Function] A f -> \In[Reals.Function] realAlgebra (imaginaryPart f) := \fun (f: Function)(member: _) =>
+  \idelim realPart (product (constant (O.neg O.i)) f) = imaginaryPart f \with h: Reals.Function => \In[Reals.Function] realAlgebra h \by {
+    base: realMember (product (constant (O.neg O.i)) f) (laws.multiplication (constant (O.neg O.i)) f (laws.constants (O.neg O.i)) member),
+    equality: \axiom:funext(realPart (product (constant (O.neg O.i)) f), imaginaryPart f, \fun (x: X) => Scalars.negativeIReal (f x))
+  };
+\module Separation(separates: Separates A);
+\module Compact(compact: Base.IsCompact space, hausdorff: Base.IsT2 space, separates: Separates A);
