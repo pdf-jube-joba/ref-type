@@ -35,14 +35,14 @@ K06 は実装中であり、B04・K01・K04 には着手していない。
 | `89233a89` | `Comparison`（行列の intertwiner 自然性） | 564 | 0 |
 | `0b10d2dc` | `FiniteSpace`（枠によらない一意な射影） | レポート参照 | 0 |
 | `15a2b0b2` | `At.Eigenvalues`（固有値条件との同値性） | 577 | 0 |
+| `8d8d09ab` | `Idempotents.Homotopy`（像束比較・近接比較・区間の細分） | 655 | 0 |
 | `16a4a25f` | `InFrame`（スペクトル条件の枠変更を含む） | 602 | 0 |
 
 Bézout 分解、Horner 評価、単位円内外の根因子と係数の連続性も、各対象と参照依存先の検査で終了コード0を確認した。
 最後の全体検査は未完了であり、上表を package 全体の成功とは扱わない。
 
-追加した `Idempotents.Comparison`・`Gap`・`Homotopy`・`IntervalRelations` と `BundleCoordinates`・`BundleImage`・`BundleEndomorphism`・`FiniteSpace.On.Naturality` は、構文解析のみ成功し、型検査は未完了である。
-`Idempotents.Comparison` の線形写像構造体指定と制限されたファイバー上の法則は、検出した型エラーを修正した。
-`Homotopy` の最後の検査は終了コード1（`Isomorphism` の時間パラメータの型不一致）であり、明示した時間引数・ファイバー族に修正して再検査中である。
+`Idempotents.Comparison`・`Gap`・`Homotopy`・`IntervalRelations` は上表の検査で成功した。
+`BundleCoordinates`・`BundleImage`（引き戻し比較を含む）・`BundleEndomorphism`（自然性を含む）・`FiniteSpace.On.Naturality` と具体例は構文解析のみ成功し、型検査は未完了である。
 以前の全体検査の終了コード130は診断のための中断である。
 worker の checkpoint 再開が1回あったが、その原因は確定していない。
 逆行列の法則を明示する証明に変更後、該当する `Separated` は保存処理と正常終了まで確認できた。
@@ -59,6 +59,5 @@ REF_TYPE_PROFILE_PROGRESS=1 target/debug/cli libs \
   --report-json work/k06-check.json
 ```
 
-次は `Idempotents.Homotopy` の再検査の終了結果を確認し、通常の型エラーを修正する。
-続いて `BundleCoordinates`、`BundleImage`、`FiniteSpace.On.Naturality`、`BundleEndomorphism` を順に型検査する。
+次は `BundleCoordinates`、`BundleImage`、`FiniteSpace.On.Naturality`、`BundleEndomorphism` を順に型検査する。
 残作業は、一般の束の貼り合わせ・自然性とホモトピー比較の検証、引き戻し比較、具体例、公開 API・下流リンクの整備、対象・全依存閉包・影響する下流・workspace の最終検査である。
