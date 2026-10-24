@@ -1,0 +1,43 @@
+\import std.Data[].Bool[] \as Bool;
+\import topology.Topology[Carrier := Bool.Bool^] \as Base;
+\definition covered: \forall (b: Bool.Bool^) -> Logic.Or[b = Bool.Bool^::false, b = Bool.Bool^::true] :=
+  Bool.cases (\fun (b: Bool.Bool^) => Logic.Or[b = Bool.Bool^::false, b = Bool.Bool^::true])
+    (Logic.Or[_, _]::left (\refl(Bool.Bool^::false))) (Logic.Or[_, _]::right (\refl(Bool.Bool^::true)));
+\definition whole: Base.Finite[].Join (Base.Singleton Bool.Bool^::false) (Base.Singleton Bool.Bool^::true) = Base.Whole :=
+  \axiom:setext(Base.Finite[].Join (Base.Singleton Bool.Bool^::false) (Base.Singleton Bool.Bool^::true), Base.Whole,
+    \fun (b: Bool.Bool^)(_: _) => \refl(b), \fun (b: Bool.Bool^)(_: _) => covered b);
+\definition compact: Base.IsCompact Base.Discrete := \idelim Base.Finite[].Join (Base.Singleton Bool.Bool^::false) (Base.Singleton Bool.Bool^::true) = Base.Whole \with S: \Pow Bool.Bool^ => Base.IsCompactIn Base.Discrete S \by {
+  base: Base.Compactness[].joinCompact Base.Discrete (Base.Singleton Bool.Bool^::false) (Base.Singleton Bool.Bool^::true)
+    (Base.Compactness[].singletonCompact Base.Discrete Bool.Bool^::false) (Base.Compactness[].singletonCompact Base.Discrete Bool.Bool^::true), equality: whole
+};
+\definition hausdorff: Base.IsT2 Base.Discrete := \fun (x, y: Bool.Bool^)(different: Logic.Not (x = y)) =>
+  Logic.existsIntro[\Pow Bool.Bool^, { U: \Pow Bool.Bool^ \where Base.RegularChoice[Base.Discrete, Base.Singleton y, x, U] }] (Base.Singleton x)
+    (Base.RegularChoice[Base.Discrete, Base.Singleton y, x, Base.Singleton x] {
+      open := Base.discreteOpen (Base.Singleton x), contains := \refl(x),
+      partner := Logic.existsIntro[\Pow Bool.Bool^, { V: \Pow Bool.Bool^ \where Base.NormalPartner[Base.Discrete, Base.Singleton y, Base.Singleton x, V] }] (Base.Complement (Base.Singleton x))
+        (Base.NormalPartner[Base.Discrete, Base.Singleton y, Base.Singleton x, Base.Complement (Base.Singleton x)] {
+          open := Base.discreteOpen (Base.Complement (Base.Singleton x)),
+          covers := \fun (b: Bool.Bool^)(by: b = y)(bx: b = x) => different (trans!{Bool.Bool^} _ _ _ (sym!{Bool.Bool^} _ _ bx) by),
+          disjoint := \fun (b: Bool.Bool^)(bx: b = x)(outside: Logic.Not (b = x)) => outside bx
+        })
+    });
+\import Bundles.TwoRanks[n := zero, m := one] \as Mixed;
+\import \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].For[X := Bool.Bool^, F := Mixed.Fiber, bundle := Mixed.bundle] \as MixedFor;
+\definition mixedEmbedding: \exists MixedFor.Embedding := MixedFor.embeddingExists compact hausdorff;
+\definition mixedMetric: \exists MixedFor.Metric := MixedFor.metricExists compact hausdorff;
+\import \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Representations[X := Bool.Bool^, baseSpace := Base.Discrete].Of[F := Mixed.Fiber, original := Mixed.bundle, same := \refl(Base.Discrete)] \as Classified;
+\definition mixedClass: \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Representations[X := Bool.Bool^, baseSpace := Base.Discrete].Classes := Classified.class compact hausdorff;
+\import Bundles.Trivial[X := Bool.Bool^, n := zero, baseSpace := Base.Discrete] \as Zero;
+\import \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].For[X := Bool.Bool^, F := \fun (b: Bool.Bool^) => Vector zero, bundle := Zero.bundle] \as ZeroFor;
+\definition zeroEmbedding: \exists ZeroFor.Embedding := ZeroFor.embeddingExists compact hausdorff;
+\definition zeroMetric: \exists ZeroFor.Metric := ZeroFor.metricExists compact hausdorff;
+\import topology.Topology[Carrier := Fin.Fin zero] \as EmptyBase;
+\definition emptyWhole: EmptyBase.Empty = EmptyBase.Whole := \axiom:setext(EmptyBase.Empty, EmptyBase.Whole,
+  \fun (p: Fin.Fin zero)(absurd: Logic.False) => Logic.falseElim (p = p) absurd,
+  \fun (p: Fin.Fin zero)(_: _) => Fin.zeroImpossible p (Fin.bound zero p));
+\definition emptyCompact: EmptyBase.IsCompact EmptyBase.Discrete := \idelim EmptyBase.Empty = EmptyBase.Whole \with S: \Pow (Fin.Fin zero) => EmptyBase.IsCompactIn EmptyBase.Discrete S \by { base: EmptyBase.Compactness[].emptyCompact EmptyBase.Discrete, equality: emptyWhole };
+\definition emptyT2: EmptyBase.IsT2 EmptyBase.Discrete := \fun (x, y: Fin.Fin zero)(different: Logic.Not (x = y)) => Logic.falseElim (\exists ( U: \Pow (Fin.Fin zero) \where EmptyBase.RegularChoice[EmptyBase.Discrete, EmptyBase.Singleton y, x, U] )) (Fin.zeroImpossible x (Fin.bound zero x));
+\import Bundles.Trivial[X := Fin.Fin zero, n := one, baseSpace := EmptyBase.Discrete] \as Empty;
+\import \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].For[X := Fin.Fin zero, F := \fun (p: Fin.Fin zero) => Vector one, bundle := Empty.bundle] \as EmptyFor;
+\definition emptyEmbedding: \exists EmptyFor.Embedding := EmptyFor.embeddingExists emptyCompact emptyT2;
+\definition emptyMetric: \exists EmptyFor.Metric := EmptyFor.metricExists emptyCompact emptyT2;
