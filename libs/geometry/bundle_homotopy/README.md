@@ -9,7 +9,7 @@ B03 の計量・有限埋め込み・射影の像束、K06 の近接射影比較
 基点は K06 の統合済み main `75e87a4c`、ブランチは `math/b04-bundle-homotopy`。
 開始時にリモートの B04 ブランチ・open PR がないことを確認した。
 作業は [draft PR #43](https://github.com/pdf-jube-joba/ref-type/pull/43) に保存する。
-検証済みの最新コミットは `821023d4`（相対延長までの対象スコープ）。
+最後に対象検査が成功したコミットは `33fadf17`（円板の pushout と球面の同相のスコープ）。
 両端の束の比較、ホモトピックな引き戻し、指定部分集合上で恒等となる比較、cofibration に沿う自己同型の延長を実装した。
 共有キャッシュで `ProjectionComparison`、`Projections.Homotopy`、`Cylinder`、`For.Pullbacks.Along`、`For.Pullbacks.Relative`、`Projections.Operators.Units`、`Projections.ImageAutomorphism`、`Projections.Moved`、`Projections.Isotopy`、`For.Extensions` を検査し、それぞれプロセス・保存処理の正常終了（終了0）を確認した。
 最後の `For.Extensions` は参照依存先を含む734 moduleで成功した。
@@ -21,7 +21,7 @@ B03 の計量・有限埋め込み・射影の像束、K06 の近接射影比較
 `370dd74b` の局所枠から指定した cocycle への比較（`.FromCharts`）も終了0で成功した。
 `699c5f51` の clutching と引き戻しの比較も対象検査が終了0で成功した。
 `33fadf17` の円板の pushout と球面の同相は対象検査が終了0で成功した。
-clutching 関数のホモトピーによる束同型、閉被覆に沿う束射・束同型の貼り合わせ、連続なブロック対角作用素と直和による clutching の比較、円板の同型を比較する半球上の座標表示は未検証の WIP である。
+clutching 関数のホモトピーによる束同型、閉被覆に沿う束射・束同型の貼り合わせ、連続なブロック対角作用素と直和による clutching の比較、円板の同型を比較する半球上の座標表示、境界で両立する gauge からの束同型とその逆向きの構成は未検証の WIP である。
 `.Clutching.Homotopy` の再検査は終了2、report の outcome は `memory-limit`（4,294,967,296 byte の allocation failure）で未完了となった。
 検査環境自体は利用できており、存在量化した比較の型推論を局所化した再検査も終了2・memory-limit となり未完了である。
 宣言単位の profiler は `forMotion` で停滞し、120秒の上限で終了2・未完了となった。

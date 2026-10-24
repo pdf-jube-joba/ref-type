@@ -1,0 +1,22 @@
+\definition positive: Positive.Carrier := \into[Sphere.Sphere](x, Cover.PositiveHalf) \by { inPositive };
+\definition negative: Negative.Carrier := \into[Sphere.Sphere](x, Cover.NegativeHalf) \by { inNegative };
+\definition point: Overlap := Cover.overlapPoint x inPositive inNegative;
+\import \parent.\parent.\parent.FrameChange[x := point] \as SourceFrame;
+\import Other.FrameChange[x := point] \as TargetFrame;
+\definition sourceInverse: \forall (v: Vector n) -> ((chart B.Bool^::true).frame SourceFrame.rightPoint).backward.apply ((g (boundary point)).apply v) = ((chart B.Bool^::false).frame SourceFrame.leftPoint).backward.apply v :=
+  \fun (v: Vector n) => trans!{{Fiber x}} _ _ _
+    (congr!{{Vector n} {Fiber x}} ((chart B.Bool^::true).frame SourceFrame.rightPoint).backward.apply _ _ (sym!{{Vector n}} _ _ (SourceFrame.formula v)))
+    ((Spaces.Isomorphism[V := Fiber x, W := Vector n, source := bundle.space x, target := coordinates n].laws ((chart B.Bool^::true).frame SourceFrame.rightPoint)).leftInverse (((chart B.Bool^::false).frame SourceFrame.leftPoint).backward.apply v));
+\definition compatible: \forall (v: Vector n) -> (Right.value negative).apply ((g (boundary point)).apply v) = (g2 (boundary point)).apply ((Left.value positive).apply v) :=
+  \fun (v: Vector n) => eq_reason_in!{{Vector n} _
+    "=" { ((Other.chart B.Bool^::true).frame TargetFrame.rightPoint).forward.apply ((iso.forward.fiber x).apply (((chart B.Bool^::true).frame SourceFrame.rightPoint).backward.apply ((g (boundary point)).apply v))) } "by" {
+      Right.formula negative ((g (boundary point)).apply v)
+    }
+    "=" { ((Other.chart B.Bool^::true).frame TargetFrame.rightPoint).forward.apply ((iso.forward.fiber x).apply (((chart B.Bool^::false).frame SourceFrame.leftPoint).backward.apply v)) } "by" {
+      congr!{{Fiber x} {Vector n}} (\fun (w: Fiber x) => ((Other.chart B.Bool^::true).frame TargetFrame.rightPoint).forward.apply ((iso.forward.fiber x).apply w)) _ _ (sourceInverse v)
+    }
+    "=" { (g2 (boundary point)).apply (((Other.chart B.Bool^::false).frame TargetFrame.leftPoint).forward.apply ((iso.forward.fiber x).apply (((chart B.Bool^::false).frame SourceFrame.leftPoint).backward.apply v))) } "by" {
+      TargetFrame.onFiber ((iso.forward.fiber x).apply (((chart B.Bool^::false).frame SourceFrame.leftPoint).backward.apply v))
+    }
+    "=" _ "by" { congr!{{Vector n} {Vector n}} (g2 (boundary point)).apply _ _ (sym!{{Vector n}} _ _ (Left.formula positive v)) }
+  };
