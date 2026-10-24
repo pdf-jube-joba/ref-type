@@ -27,10 +27,12 @@ B03 の計量・有限埋め込み・射影の像束、K06 の近接射影比較
 ## 検証と再開
 
 基点は K06 統合済み main `75e87a4c`、ブランチは `math/b04-bundle-homotopy`、[draft PR #43](https://github.com/pdf-jube-joba/ref-type/pull/43)。
-最後に対象検査が成功したコミットは `9d5b6eb4`。
+最後に B04 全スコープの検査が成功したコミットは `5168604a`（以降は文書のみ変更）。
+`libs --module bundle_homotopy` は874 module・1,031ソース検査ステップ、キャッシュ保存完了・終了0で成功した（`work/b04-scope-first`）。
+復旧・重複・再実行・失われたステップ・キャッシュ保存失敗は0。
 `Clutching.Homotopy` は依存先を含む744 module、キャッシュ保存完了・終了0で成功した（`work/b04-reused-endpoint`）。
 両端比較、ホモトピック・相対引き戻し、cofibration に沿う同型の延長、開集合の clutching と引き戻し、円板 pushout と球面の同相、連続なブロック直和は、それぞれ以前の対象検査が終了0で成功している。
-未検証部分は直和・安定化、円板上の任意の束の自明化、円板 gauge と束同型の対応、実・複素の利用例である。
+直和・安定化、円板上の任意の束の自明化、円板 gauge と束同型の対応、実・複素の利用例も対象スコープの検査が成功した。
 package 全体・依存先・影響箇所・workspace の最終検査、文書・下流依存リンク・ロードマップの完了処理が残る。
 
 処理系では scratch cache の記録を有界にし、連続した lambda 適用を一括置換し、透明な定義を使われる捕捉引数から比較する。
@@ -50,6 +52,7 @@ package 全体・依存先・影響箇所・workspace の最終検査、文書�
 検査は `target/debug/cli <input> --parse-only --save-source-snapshot work/<name>-snapshot.json`、続いて `target/debug/cli <input> --source-snapshot work/<name>-snapshot.json --memory-mib 8192 --cache-budget-mib 16384 --time-limit-seconds 900 --diagnostics compact --report-json work/<name>.json --cache-stats` を用いる。
 対象を絞る場合は `--module <scope>` を付ける。
 `libs/geometry/bundle_homotopy` 全体の依存閉包4,728 module の初回検査 `work/b04-package-first` は3,124 module の完了後、本体の未検証箇所を先に確認するため約770秒で中断した（終了130・未完了）。
-共有キャッシュを保持し、`libs --module bundle_homotopy` を `work/b04-scope-first` で検査中。
-次は対象スコープと Rust テストの終了を確認して型エラーを修正し、package 全体・影響する下流・workspace の検査を再開する。
+共有キャッシュを保持し、同じ保存済み snapshot で package 全体を `work/b04-package-final` に再開する。
+Rust 全体テストのビルドでディスク使用量が増えたため、CLI のキャッシュ保持上限を12 GiB（`--cache-budget-mib 12288`）に下げる。
+次は package 全体と Rust テストの終了を確認し、clippy・受理拒否テスト・影響する下流・workspace の検査を行う。
 B01 の逆同型存在、B02 の同型の合成・直和存在、pushout の帰納法を追加したため、それらと下流も最終検査に含める。
