@@ -30,7 +30,7 @@
 同型類・自然性の先行検査は終了コード1（名前参照）となり、公開 module への参照に修正した。
 直近は `target/debug/cli libs --module bundle_complements --source-snapshot work/b03-all-snapshot.json --memory-mib 8192 --diagnostics compact --report-json work/b03-all-check.json --cache-stats` を実行中で、終了コードは未確定である。
 スナップショットは `target/debug/cli libs --parse-only --save-source-snapshot work/b03-all-snapshot.json` で作り直せる（終了コード0）。
-同型類・自然性・連続行列族からの埋め込み、および実・複素の動く直線、異なる周囲次元、零・空・可変ランクの利用例を追加した現在の変更は未検証である。
+同型類・自然性・連続行列族からの埋め込み、任意の計量の引き戻しと直和同型の可換性、および実・複素の動く直線、異なる周囲次元、零・空・可変ランクの利用例を追加した現在の変更は未検証である。
 
 次は直交補束と自明束への直和同型を実装・検査し、同型類の集合、引き戻しの自然性、実・複素・零階数・空基底・可変階数の利用例を完成させる。
 最終的に次を共有キャッシュで実行し、下流リンク・ロードマップを更新する。
