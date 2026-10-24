@@ -1,0 +1,36 @@
+\import \root.Approximation[].ComplexOn[X := Y, space := source] \as Functions;
+\import topological_algebra.Complex[].Functions[A := Y] \as Regular;
+\import topology.Composition[A := Y, B := X, C := C.Complex] \as Compose;
+\definition inverse[y: Y]: O.mul (unit y) (O.conj (unit y)) = O.one := trans!{{C.Complex}} _ _ _ (CP.mulConjSelf (unit y)) (congr!{{R.Real} {C.Complex}} O.ofReal _ _ (norm y));
+\definition value[p: Carrier]: Functions.Function := \fun (y: Y) => Evaluation.evaluate (Coefficients.evaluation (base y)) (unit y) (O.conj (unit y)) (inverse y) p;
+\definition map[y: Y]: Hom.RingMap (Rings.commutativeRingAsRing Carrier P.ring) (Rings.commutativeRingAsRing C.Complex CA.commutativeRing) := Evaluation.extension (Coefficients.evaluation (base y)) (unit y) (O.conj (unit y)) (inverse y);
+\definition onConstant: \forall (a: Coefficients.Carrier)(y: Y) -> value (P.constant a) y = a (base y) := \fun (a: Coefficients.Carrier)(y: Y) => Evaluation.onConstant (Coefficients.evaluation (base y)) (unit y) (O.conj (unit y)) (inverse y) a;
+\definition onVariable: \forall (y: Y) -> value P.X y = unit y := \fun (y: Y) => Evaluation.onVariable (Coefficients.evaluation (base y)) (unit y) (O.conj (unit y)) (inverse y);
+\definition onInverseVariable: \forall (y: Y) -> value P.inverseX y = O.conj (unit y) := \fun (y: Y) => Evaluation.onInverseVariable (Coefficients.evaluation (base y)) (unit y) (O.conj (unit y)) (inverse y);
+\definition mapLaws[y: Y]: Hom.SemiringLaws[(Rings.ringAsSemiring Carrier (Rings.commutativeRingAsRing Carrier P.ring)), (Rings.ringAsSemiring C.Complex (Rings.commutativeRingAsRing C.Complex CA.commutativeRing)), map y] := Hom.semiringLaws (Rings.ringAsSemiring Carrier (Rings.commutativeRingAsRing Carrier P.ring)) (Rings.ringAsSemiring C.Complex (Rings.commutativeRingAsRing C.Complex CA.commutativeRing)) (map y);
+\definition onAdd: \forall (p, q: Carrier)(y: Y) -> value (P.add p q) y = O.add (value p y) (value q y) := \fun (p, q: Carrier)(y: Y) => (mapLaws y).add p q;
+\definition onMul: \forall (p, q: Carrier)(y: Y) -> value (P.mul p q) y = O.mul (value p y) (value q y) := \fun (p, q: Carrier)(y: Y) => (mapLaws y).mul p q;
+\definition onNeg: \forall (p: Carrier)(y: Y) -> value (P.neg p) y = O.neg (value p y) := \fun (p: Carrier)(y: Y) => Additive.inverseUnique (value p y) (value (P.neg p) y)
+  (eq_reason_in!{{C.Complex} _
+    "=" { value (P.add (P.neg p) p) y } "by" { sym!{{C.Complex}} _ _ (onAdd (P.neg p) p y) }
+    "=" { value P.zero y } "by" { congr!{{Carrier} {C.Complex}} (\fun (r: Carrier) => value r y) _ _ (P.ring.ring.additiveInverse p) }
+    "=" { O.zero } "by" { (mapLaws y).zero }
+  });
+\definition constantFunction: \forall (a: Coefficients.Carrier) -> value (P.constant a) = (\fun (y: Y) => a (base y)) := \fun (a: Coefficients.Carrier) => \axiom:funext(value (P.constant a), (\fun (y: Y) => a (base y)), onConstant a);
+\definition variableFunction: value P.X = unit := \axiom:funext(value P.X, unit, onVariable);
+\definition inverseFunction: value P.inverseX = Functions.conjugate unit := \axiom:funext(value P.inverseX, Functions.conjugate unit, onInverseVariable);
+\definition addFunction: \forall (p, q: Carrier) -> value (P.add p q) = Functions.sum (value p) (value q) := \fun (p, q: Carrier) => \axiom:funext(value (P.add p q), Functions.sum (value p) (value q), onAdd p q);
+\definition mulFunction: \forall (p, q: Carrier) -> value (P.mul p q) = Functions.product (value p) (value q) := \fun (p, q: Carrier) => \axiom:funext(value (P.mul p q), Functions.product (value p) (value q), onMul p q);
+\definition negFunction: \forall (p: Carrier) -> value (P.neg p) = Functions.negative (value p) := \fun (p: Carrier) => \axiom:funext(value (P.neg p), Functions.negative (value p), onNeg p);
+\definition continuous: \forall (p: Carrier) -> Functions.Continuous (value p) :=
+  P.induction (\fun (p: Carrier) => Functions.Continuous (value p))
+    (\fun (a: Coefficients.Carrier) => \idelim (\fun (y: Y) => a (base y)) = value (P.constant a) \with f: Functions.Function => Functions.Continuous f \by {
+      base: Compose.composeContinuous source space topological_algebra.Complex[].topology base a baseContinuous (Coefficients.regular a), equality: sym!{{Functions.Function}} _ _ (constantFunction a)
+    })
+    (\idelim unit = value P.X \with f: Functions.Function => Functions.Continuous f \by { base: unitContinuous, equality: sym!{{Functions.Function}} _ _ variableFunction })
+    (\idelim Functions.conjugate unit = value P.inverseX \with f: Functions.Function => Functions.Continuous f \by { base: Regular.conjugateContinuous source unit unitContinuous, equality: sym!{{Functions.Function}} _ _ inverseFunction })
+    (\fun (p, q: Carrier)(first: _)(second: _) => \idelim Functions.sum (value p) (value q) = value (P.add p q) \with f: Functions.Function => Functions.Continuous f \by { base: Regular.additionContinuous source (value p) (value q) first second, equality: sym!{{Functions.Function}} _ _ (addFunction p q) })
+    (\fun (p: Carrier)(previous: _) => \idelim Functions.negative (value p) = value (P.neg p) \with f: Functions.Function => Functions.Continuous f \by { base: Regular.negationContinuous source (value p) previous, equality: sym!{{Functions.Function}} _ _ (negFunction p) })
+    (\fun (p, q: Carrier)(first: _)(second: _) => \idelim Functions.product (value p) (value q) = value (P.mul p q) \with f: Functions.Function => Functions.Continuous f \by { base: Regular.multiplicationContinuous source (value p) (value q) first second, equality: sym!{{Functions.Function}} _ _ (mulFunction p q) });
+\module Conjugates;
+\module Algebra;

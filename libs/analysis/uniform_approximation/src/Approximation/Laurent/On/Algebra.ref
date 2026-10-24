@@ -1,0 +1,17 @@
+\definition Subalgebra: \Pow Functions.Function := { f: Functions.Function \where \exists (p: Carrier \where f = value p) };
+\definition member[p: Carrier]: \In[Functions.Function] Subalgebra (value p) := Logic.existsIntro[Carrier, { q: Carrier \where value p = value q }] p (\refl(value p));
+\module From(f: Functions.Function, represented: \In[Functions.Function] Subalgebra f);
+\definition continuous: \forall (f: Functions.Function) -> \In[Functions.Function] Subalgebra f -> Functions.Continuous f := \block {
+  \fun (f: Functions.Function)(represented: \In[Functions.Function] Subalgebra f) \then
+  \takefrom p: \Cast[Carrier] ({ p: Carrier \where f = value p }) \by represented \then
+  \return \idelim value p = f \with g: Functions.Function => Functions.Continuous g \by { base: \parent.continuous p, equality: sym!{{Functions.Function}} _ _ (\bysub(Carrier, { p: Carrier \where f = value p }, p)) }
+};
+\definition constants: \forall (a: C.Complex) -> \In[Functions.Function] Subalgebra (Functions.constant a) := \fun (a: C.Complex) => Logic.existsIntro[Carrier, { p: Carrier \where Functions.constant a = value p }] (P.constant (Coefficients.constant a)) (sym!{{Functions.Function}} _ _ (constantFunction (Coefficients.constant a)));
+\module Combining(f, g: Functions.Function, first: \In[Functions.Function] Subalgebra f, second: \In[Functions.Function] Subalgebra g);
+\definition laws: Functions.SubalgebraLaws[Subalgebra] := Functions.SubalgebraLaws[Subalgebra] {
+  continuous := continuous, constants := constants,
+  addition := \fun (f, g: Functions.Function)(first: _)(second: _) => Combining[f := f, g := g, first := first, second := second].addition,
+  negation := \fun (f: Functions.Function)(represented: _) => From[f := f, represented := represented].negation,
+  multiplication := \fun (f, g: Functions.Function)(first: _)(second: _) => Combining[f := f, g := g, first := first, second := second].multiplication,
+  conjugation := \fun (f: Functions.Function)(represented: _) => From[f := f, represented := represented].conjugation
+};
