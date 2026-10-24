@@ -36,8 +36,11 @@ package 全体・依存先・影響箇所・workspace の最終検査、文書�
 処理系では scratch cache の記録を有界にし、連続した lambda 適用を一括置換し、透明な定義を使われる捕捉引数から比較する。
 `cargo test -p kernel --lib` は不正な引数の型・個数の拒否を含む78テスト成功・終了0、通常ビルドも終了0。
 追加した cost / allocation stack 計測は通常の型検査規則を変えない。
-全体の Rust / 受理・拒否テストは未実施。
-`rustfmt` は選択した Rust 1.95 toolchain に未導入のため追加箇所を手動で整形した。
+`cargo test --workspace --locked` は最初の実行が依存取得時の proxy 接続失敗で終了101。
+ネットワークを有効にした再実行 `work/b04-rust-workspace-tests2` はコンパイル中。
+受理・拒否テストは未実施。
+標準の `rustfmt`・`clippy` component を導入した（終了0）。
+変更した kernel / allocator の rustfmt 検査は整形後に終了0。
 
 修正前は `Cache::insert` の scratch write 記録の4 GiB確保失敗（終了2・memory-limit）、型変換の時間制限（終了2）を確認した。
 `work/b04-cache-fixed*`、`work/b04-beta`、`work/b04-captures-final`、`work/b04-conversion-profile` は改善・計測の切り替え時に中断した（終了130・未完了）。
@@ -46,5 +49,6 @@ package 全体・依存先・影響箇所・workspace の最終検査、文書�
 
 検査は `target/debug/cli <input> --parse-only --save-source-snapshot work/<name>-snapshot.json`、続いて `target/debug/cli <input> --source-snapshot work/<name>-snapshot.json --memory-mib 8192 --cache-budget-mib 16384 --time-limit-seconds 900 --diagnostics compact --report-json work/<name>.json --cache-stats` を用いる。
 対象を絞る場合は `--module <scope>` を付ける。
-次は `libs/geometry/bundle_homotopy` 全体を検査し、通常の型エラーを修正しながら保存・push する。
+`libs/geometry/bundle_homotopy` 全体の依存閉包4,728 module を `work/b04-package-first` で検査中（1800秒上限）。
+次はこの検査と Rust テストの終了を確認し、型エラーを修正して保存・push する。
 B01 の逆同型存在、B02 の同型の合成・直和存在、pushout の帰納法を追加したため、それらと下流も最終検査に含める。

@@ -640,10 +640,7 @@ fn beta_head(
     let _cost = timing::costs::Scope::enter("kernel.beta-head");
     match *env.arena.read(e) {
         Node::SubsetIntro { element, .. } if erase => beta_head(env, element, erase),
-        Node::App {
-            mode,
-            ..
-        } => {
+        Node::App { mode, .. } => {
             // Substitute a curried spine simultaneously. Substituting one
             // argument at a time repeatedly traverses every remaining binder
             // and all captured arguments in the same shared body.
