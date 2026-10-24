@@ -60,6 +60,7 @@ K06 は実装中であり、B04・K01・K04 には着手していない。
 | `89233a89` | `Comparison`（行列の intertwiner 自然性） | 564 | 0 |
 | `0b10d2dc` | `FiniteSpace`（枠によらない一意な射影） | レポート参照 | 0 |
 | `15a2b0b2` | `At.Eigenvalues`（固有値条件との同値性） | 577 | 0 |
+| `e0ac5797` | `BundleEndomorphism`（貼り合わせ・不変部分束・自然性・引き戻し） | 758 | 0 |
 | `11c2c7e2` | `FiniteSpace.On.Naturality`（任意の有限枠間の自然性） | 642 | 0 |
 | `b35d1902` | `BundleImage`（局所自明化・包含・射影・引き戻し比較） | 721 | 0 |
 | `4e69b3ce` | `BundleCoordinates`（局所行列と係数の連続性） | 606 | 0 |
@@ -71,7 +72,8 @@ Bézout 分解、Horner 評価、単位円内外の根因子と係数の連続�
 
 `Idempotents.Comparison`・`Gap`・`Homotopy`・`IntervalRelations` は上表の検査で成功した。
 `BundleCoordinates` と `BundleImage` は上表の検査で成功した。
-`BundleEndomorphism`（自然性・引き戻し比較を含む）と具体例、および補射影・直和分解の追加は構文解析のみ成功し、型検査は未完了である。
+`BundleEndomorphism` の貼り合わせ・不変部分束・自然性・引き戻し比較は上表の検査で成功した。
+具体例、`At.Homotopy` の接続、直和分解の追加は構文解析のみ成功し、型検査は未完了である。
 以前の全体検査の終了コード130は診断のための中断である。
 worker の checkpoint 再開が1回あったが、その原因は確定していない。
 逆行列の法則を明示する証明に変更後、該当する `Separated` は保存処理と正常終了まで確認できた。
@@ -88,5 +90,5 @@ REF_TYPE_PROFILE_PROGRESS=1 target/debug/cli libs \
   --report-json work/k06-check.json
 ```
 
-次は `BundleEndomorphism` と具体例・直和分解を型検査する。
+次は具体例・直和分解を型検査する。
 残作業は、一般の束の貼り合わせ・自然性とホモトピー比較の検証、引き戻し比較、具体例、公開 API・下流リンクの整備、対象・全依存閉包・影響する下流・workspace の最終検査である。
