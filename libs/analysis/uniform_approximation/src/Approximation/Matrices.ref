@@ -19,4 +19,10 @@
 \definition invertibleOfDeterminantError: \forall (a, b: M.Matrix) -> Real.Lt (Abs.abs (O.sub (M.determinant a) (M.determinant b))) (Abs.abs (M.determinant a)) -> \exists Operations.Inverse b :=
   \fun (a, b: M.Matrix)(near: _) => (Field.invertibleIff b).rtl (determinantError a b near);
 \definition matrixActionError: \forall (a, b: M.Matrix)(epsilon: R.Real) -> (\forall (i, j: M.Index) -> Real.Le (Abs.abs (O.sub (a i j) (b i j))) epsilon) -> \forall (v: M.Vector)(i: M.Index) -> Real.Le (Abs.abs (O.sub ((M.linear a).apply v i) ((M.linear b).apply v i))) (R.mul epsilon (R.FiniteSums[].sum n (\fun (j: M.Index) => Abs.abs (v j)))) := actionError;
+\definition compressedError: \forall (a, b, p: M.Matrix)(epsilon: R.Real) -> (\forall (i, j: M.Index) -> Real.Le (Abs.abs (O.sub (a i j) (b i j))) epsilon) ->
+  \forall (v: M.Vector)(i: M.Index) -> Real.Le (Abs.abs (O.sub ((M.linear p).apply ((M.linear a).apply v) i) ((M.linear p).apply ((M.linear b).apply v) i)))
+    (R.mul (R.mul epsilon (R.FiniteSums[].sum n (\fun (j: M.Index) => Abs.abs (v j)))) (R.FiniteSums[].sum n (\fun (j: M.Index) => Abs.abs (p i j)))) :=
+  \fun (a, b, p: M.Matrix)(epsilon: R.Real)(near: _)(v: M.Vector)(i: M.Index) => Real.leReplaceLeft _ _ _
+    (sym!{{R.Real}} _ _ (congr!{{C.Complex} {R.Real}} Abs.abs _ _ (congr!{{C.Complex} {C.Complex} {C.Complex}} O.sub _ _ _ _ (actionFormula p ((M.linear a).apply v) i) (actionFormula p ((M.linear b).apply v) i))))
+    (Finite.inputErrorBound n (p i) ((M.linear a).apply v) ((M.linear b).apply v) (R.mul epsilon (R.FiniteSums[].sum n (\fun (j: M.Index) => Abs.abs (v j)))) (\fun (j: M.Index) => matrixActionError a b epsilon near v j));
 \module On(X: \Set, space: topology.Topology[Carrier := X].Topology);
