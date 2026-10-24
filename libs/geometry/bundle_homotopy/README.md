@@ -4,6 +4,26 @@
 B03 の計量・有限埋め込み・射影の像束、K06 の近接射影比較と区間の局所から大域への原理、B02 の束演算を再利用する。
 実・複素の両方のスカラーを扱う `Homotopy.Over` に構成を置く。
 
+## 公開 API（最終検証中）
+
+入口は `bundle_homotopy.Homotopy[].Over`。
+
+| API | 構成・証明 |
+| --- | --- |
+| `Cylinder.endpointIsomorphismExists` | コンパクト Hausdorff 空間と区間の積上の束の両端を比較する |
+| `For.Pullbacks.Along` / `Relative` | ホモトピックな引き戻しを比較し、固定部分集合での恒等性を示す |
+| `For.Extensions` / `To` | cofibration に沿う自己同型・二束間同型の相対延長 |
+| `For.Contractible` / `Disks.Triviality` | 収縮可能なコンパクト空間・閉円板上の任意の束を自明化する |
+| `Clutching.With` / `Pullback` | 二開集合の遷移関数から束を作り、引き戻しとの比較同型を構成する |
+| `Clutching.Homotopy` / `With.Sum` / `With.Stabilize` | 遷移関数のホモトピー、ブロック直和・安定化を束の同型へ送る |
+| `Disks.Hemispheres.Cover` | 二円板の pushout と球面の実際の同相・閉半球での貼り合わせ |
+| `Disks.Clutched` / `Homotopy` | 境界球面の GL 値関数による clutching と円板制限の自明化 |
+| `Disks.Clutched.Comparison.diskGaugeCriterion` | 両円板上の連続 gauge の境界での両立条件と束同型の存在の同値 |
+| `Homotopy.Examples.Mobius` / `CircleLine` | 実の符号遷移・複素単位円遷移による具体的な線束 |
+
+比較の条件は \(h_-g=g' h_+\) である。
+実の場合も同じ API を用いるため、同型の判定には両円板上の gauge を明示している。
+
 ## 検証と再開
 
 基点は K06 の統合済み main `75e87a4c`、ブランチは `math/b04-bundle-homotopy`。
