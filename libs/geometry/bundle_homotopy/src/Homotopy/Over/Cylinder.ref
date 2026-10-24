@@ -1,0 +1,23 @@
+\import algebraic_topology.Interval[] \as I;
+\import topological_constructions.Product[A := I.Carrier, B := X] \as Cylinder;
+\import topology.Topology[Carrier := Cylinder.CarrierSet] \as Space;
+\definition topology: Space.Topology := Cylinder.topology I.topology baseSpace;
+\definition cylinderCompact: Space.IsCompact topology := Cylinder.Compactness[].productCompact I.topology baseSpace I.compact compact;
+\definition cylinderHausdorff: Space.IsT2 topology := spectral_splitting.Spectral[].ProductHausdorff[A := I.Carrier, B := X, left := I.topology, right := baseSpace, hausdorffLeft := I.hausdorff, hausdorffRight := hausdorff].value;
+\definition sourceCompact: Space.IsCompact bundle.baseSpace := \idelim topology = bundle.baseSpace \with space: Space.Topology => Space.IsCompact space \by {
+  base: cylinderCompact, equality: sym!{{Space.Topology}} _ _ sameBase
+};
+\definition sourceHausdorff: Space.IsT2 bundle.baseSpace := \idelim topology = bundle.baseSpace \with space: Space.Topology => Space.IsT2 space \by {
+  base: cylinderHausdorff, equality: sym!{{Space.Topology}} _ _ sameBase
+};
+\import Complements.For[X := Cylinder.CarrierSet, F := F, bundle := bundle] \as Embeddings;
+\definition originalBundle: Bundles.Family[X := Cylinder.CarrierSet, F := F].Bundle := bundle;
+\module Endpoint(t: I.Carrier);
+\definition Isomorphism: \Set := Bundles.Isomorphisms[X := X, F := (\fun (x: X) => Endpoint[t := I.start].Fiber x), G := (\fun (x: X) => Endpoint[t := I.end].Fiber x),
+  source := Endpoint[t := I.start].bundle, target := Endpoint[t := I.end].bundle].Isomorphism;
+\definition endpointIsomorphismExists: \exists Isomorphism := \block {
+  \takefrom embedding: Embeddings.Embedding \by Embeddings.embeddingExists sourceCompact sourceHausdorff \then
+  \let result: \exists Isomorphism := \parent.EmbeddedCylinder[X := X, baseSpace := baseSpace, compact := compact,
+    F := F, bundle := bundle, sameBase := sameBase, embedding := embedding].endpointIsomorphismExists \then
+  \return result
+};
