@@ -18,6 +18,17 @@ B03 の同型類と補束、B02 の束演算、既存の `algebra.GroupCompletio
 `FiniteDiscrete.RingComputation.isomorphism` と `Point.Ring.isomorphism` は、それぞれ整数値関数環・整数環との環同型である。
 `Examples` は空空間・一点・二点上の正負のランクを検査する。
 
+例えば一点上の整数に対応する仮想束は、次のように使える。
+
+```ref
+\import topological_k_theory.KTheory[].Point[] \as Point;
+\import std.Arithmetic[].Int[] \as I;
+\definition minusOne: Point.Carrier := Point.backward (I.Neg.specification I.One.specification);
+\definition rank: Point.forward minusOne = I.Neg.specification I.One.specification := Point.rightInverse (I.Neg.specification I.One.specification);
+```
+
+同じ公開 API を使う検査対象は `KTheory.Examples` に置く。
+
 ## 検証と再開
 
 基点は B04 統合済み main `4f411dda`、作業は `math/k01-grothendieck-k` / [draft PR #44](https://github.com/pdf-jube-joba/ref-type/pull/44)。
@@ -31,4 +42,4 @@ B03 の同型類と補束、B02 の束演算、既存の `algebra.GroupCompletio
 各検査は `target/debug/cli libs --source-snapshot work/<名前>.source.json --module topological_k_theory --memory-mib 8192 --cache-budget-mib 12288 --time-limit-seconds 1200 --report-json work/<名前>.json` で共有キャッシュを利用する。
 次は修正版を snapshot 化して同じ対象検査を行い、終了コード・保存完了を確認する。
 有限離散底・一点の計算、空・一点・二点の利用例、引き戻しに対するランクの自然性を追加した（未検証）。
-残作業は追加分の検査・修正、一点計算・自然性と利用例、文書・最終検証・統合。
+残作業は環同型と基点付き引き戻しの検査・修正、文書・最終検証・統合。
