@@ -1,0 +1,30 @@
+\import std.Logic[].Classical[] \as Classical;
+\import N.Basic[].Prop[] \as Nat;
+\import galois.Field[].Over[K := C.Complex, field := Scalars.field] \as Field;
+\import Field.Polynomial[] \as Monic;
+\import Monic.Raw[] \as Raw;
+\import Monic.AbstractEvaluation[] \as E;
+\import Field.Arithmetic[] \as Arithmetic;
+\import fundamental_algebra.Complex[] \as Fundamental;
+\definition NoCommon[p, q: P.Carrier]: \Prop := \forall (z: C.Complex) -> E.apply z p = Scalars.field.zero -> E.apply z q = Scalars.field.zero -> Logic.False;
+\definition emptyOfLength: \forall (xs: Monic.Coefficients) -> Lists.length C.Complex xs = N.Nat^::zero -> xs = Lists.List[C.Complex]::nil :=
+  \induction (xs: Monic.Coefficients) \return Lists.length C.Complex xs = N.Nat^::zero -> xs = Lists.List[C.Complex]::nil \with {
+    | nil: \fun (_: _) => \refl(Lists.List[C.Complex]::nil)
+    | cons: \fun (head: C.Complex)(tail: Monic.Coefficients)(previous: _)(zero: _) => Logic.falseElim _ (Nat.succNeZero (Lists.length C.Complex tail) zero)
+  };
+\definition divisorRoot: \forall (p, d: P.Carrier)(divisor: Polynomials.Divides[d, p])(z: C.Complex) -> E.apply z d = Scalars.field.zero -> E.apply z p = Scalars.field.zero :=
+  \fun (p, d: P.Carrier)(divisor: Polynomials.Divides[d, p])(z: C.Complex)(root: _) => eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{{P.Carrier} {C.Complex}} (E.apply z) _ _ divisor.equation }
+    "=" _ "by" { (E.homomorphism z).mul d divisor.multiplier }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (\fun (a: C.Complex) => Scalars.field.mul a (E.apply z divisor.multiplier)) _ _ root }
+    "=" _ "by" { Scalars.field.ring.ring.semiring.zeroAbsorbsLeft (E.apply z divisor.multiplier) }
+  };
+\module FromGcd(p, q: P.Carrier, gcd: Polynomials.Gcd[p, q], form: Fundamental.Normalization[].Form gcd.value);
+\definition exists: \forall (p, q: P.Carrier) -> Logic.Not (p = P.zero) -> NoCommon p q -> Polynomials.Coprime p q :=
+  \fun (p, q: P.Carrier)(nonzero: _)(noCommon: _) => \block {
+    \takefrom gcd: Polynomials.Gcd[p, q] \by Polynomials.Representatives[].gcdExists p q \then
+    \let gcdNonzero: Logic.Not (gcd.value = P.zero) := \fun (zero: _) => nonzero (trans!{{P.Carrier}} _ _ _ gcd.leftDivisor.equation
+      (trans!{{P.Carrier}} _ _ _ (congr!{{P.Carrier} {P.Carrier}} (\fun (r: P.Carrier) => P.mul r gcd.leftDivisor.multiplier) _ _ zero) (P.ring.ring.semiring.zeroAbsorbsLeft gcd.leftDivisor.multiplier))) \then
+    \takefrom form: Fundamental.Normalization[].Form gcd.value \by Fundamental.Normalization[].exists gcd.value gcdNonzero \then
+    \return \exact(FromGcd[p := p, q := q, gcd := gcd, form := form].result noCommon, Polynomials.Bezout[p, q, P.one])
+  };
