@@ -1,0 +1,25 @@
+\import Constructed.Overlap[i := i, j := j] \as Overlap;
+\import Constructed.Coordinates[i := i] \as Left;
+\import Constructed.Coordinates[i := j] \as Right;
+\import topology.Topology[Carrier := Right.Parameter].Subspace[S := Overlap.Domain] \as Subspace;
+\definition Point: \Set := Overlap.Point;
+\definition source: topology.Topology[Carrier := Point].Topology := Subspace.topology Right.topology;
+\definition base[p: Point]: X := Right.base p;
+\definition vector[p: Point]: Vector n := Right.vector p;
+\definition matrix[p: Point]: End.Map := (change (base p) j i).forward;
+\definition baseContinuous: topology.Continuity[A := Point, B := X].Continuous source baseSpace base :=
+  topology.Continuity[A := Right.Parameter, B := X].Restriction[S := Overlap.Domain].restrictContinuous Right.topology baseSpace Right.base Overlap.baseContinuous;
+\definition vectorContinuous: topology.Continuity[A := Point, B := Vector n].Continuous source (coordinateTopology n) vector :=
+  topology.Continuity[A := Right.Parameter, B := Vector n].Restriction[S := Overlap.Domain].restrictContinuous Right.topology (coordinateTopology n) Right.vector
+    (topological_constructions.Product[A := \Cast[X] (domain j), B := Vector n].Maps[].secondContinuous (Base.Subspace[S := domain j].topology baseSpace) (coordinateTopology n));
+\definition leftBase[p: Point]: \Cast[X] (domain i) := \into[X](base p, domain i) \by { \bysub(Right.Parameter, Overlap.Domain, p) };
+\definition leftBaseContinuous: topology.Continuity[A := Point, B := \Cast[X] (domain i)].Continuous source (Base.Subspace[S := domain i].topology baseSpace) leftBase :=
+  topology.Continuity[A := Point, B := X].Corestriction[S := domain i].corestrictContinuous source baseSpace leftBase baseContinuous;
+\definition fromContinuous: topology.Continuity[A := Point, B := End.Map].Continuous source Operators.topology matrix -> Overlap.Regular :=
+  \fun (continuous: _) => topological_constructions.Product[A := \Cast[X] (domain i), B := Vector n].Universal[X := Point].pairContinuous source (Base.Subspace[S := domain i].topology baseSpace) (coordinateTopology n) leftBase
+    (\fun (p: Point) => (matrix p).apply (vector p)) leftBaseContinuous
+    (Operators.Evaluation[Y := Point, source := source, H := matrix,
+      regular := Operators.Family[X := Point, source := source, H := matrix].regular continuous, v := vector, vectorRegular := vectorContinuous].continuous);
+\definition constantContinuous: topology.Continuity[A := Point, B := End.Map].Continuous source Operators.topology (\fun (p: Point) => Units.identity) :=
+  topology.Maps[A := Point, B := End.Map].constantContinuous source Operators.topology Units.identity;
+\module Cross(both: \forall (p: Point) -> \In[X] overlap (base p));
