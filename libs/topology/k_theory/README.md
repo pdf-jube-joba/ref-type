@@ -32,14 +32,10 @@ B03 の同型類と補束、B02 の束演算、既存の `algebra.GroupCompletio
 ## 検証と再開
 
 基点は B04 統合済み main `4f411dda`、作業は `math/k01-grothendieck-k` / [draft PR #44](https://github.com/pdf-jube-joba/ref-type/pull/44)。
-最後の検証成功は `2f8ba902` の `work/k01-ring-computation`（保存完了、終了0、保存失敗0）。
-分配則・零の吸収則・Grothendieck 環・自明束による安定同型判定・引き戻し環写像・整数値ランクを追加した。
-直和ランク公式、ランクの群完成への延長・被約群、引き戻しの恒等・合成則、離散底上の線形写像族から連続な束写像への構成を追加した。
-有限離散束の分類・K 群計算、一点計算・利用例、ランクの自然性を追加した（未検証）。
-被約群の基点付き引き戻しと、一点計算の乗法整合性も検証済み。
-有限離散計算の乗法整合性・環同型を接続した（未検証）。
-次は最新ソースを snapshot 化して全対象を再検査する。
-各検査は `target/debug/cli libs --source-snapshot work/<名前>.source.json --module topological_k_theory --memory-mib 8192 --cache-budget-mib 12288 --time-limit-seconds 1200 --report-json work/<名前>.json` で共有キャッシュを利用する。
-次は修正版を snapshot 化して同じ対象検査を行い、終了コード・保存完了を確認する。
-有限離散底・一点の計算、空・一点・二点の利用例、引き戻しに対するランクの自然性を追加した（未検証）。
-残作業は環同型と基点付き引き戻しの検査・修正、文書・最終検証・統合。
+最後の検証成功は `2f8ba902`、`work/k01-ring-computation`（対象838 module、保存完了、終了0、保存失敗0）。
+環構成・安定判定・反変関手・整数ランクと自然性・被約群・有限離散束の分類と加法群計算・一点の乗法整合性は対象検査済み。
+その後の整数値関数環、有限離散・一点の環同型、環同型を使う利用例が未検証。
+`bac1d6e9` を `work/k01-complete.source.json` に固定した対象検査が進行中。
+コマンドは `target/debug/cli libs --source-snapshot work/k01-complete.source.json --module topological_k_theory --memory-mib 8192 --cache-budget-mib 12288 --time-limit-seconds 1200 --report-json work/k01-complete.json`。
+次は終了コードと保存結果を確認し、通常の型エラーを修正する。
+その後は package 全依存閉包・workspace を共有キャッシュで検査し、下流リンク・ロードマップ・PR を整えて統合する。
