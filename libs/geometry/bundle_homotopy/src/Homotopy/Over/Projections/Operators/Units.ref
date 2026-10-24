@@ -1,0 +1,34 @@
+\import Hermitian.At[n := n].Square[] \as Square;
+\import matrix_invariants.Ring[K := K, scalars := Fields.fieldAsCommutativeRing K field].At[n := n] \as Matrices;
+\import Matrices.Representation[] \as Representation;
+\import matrix_invariants.Field[K := K, field := field].At[n := n] \as Inversion;
+\definition Invertible: \Pow End.Map := { h: End.Map \where Inversion.Nonzero (Square.entries h) };
+\definition Carrier: \Set := \Cast[End.Map] Invertible;
+\import topology.Topology[Carrier := End.Map].Subspace[S := Invertible] \as Subspace;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Subspace.topology operatorTopology;
+\definition include[h: Carrier]: End.Map := h;
+\definition inclusionContinuous: topology.Continuity[A := Carrier, B := End.Map].Continuous topology operatorTopology include :=
+  \fun (U: \Pow End.Map)(open: _) => Subspace.traceOpen operatorTopology U open;
+\definition matrix[h: Carrier]: Inversion.Nonsingular := \into[Matrices.Matrix](Square.entries h, Inversion.Nonsingular) \by { \bysub(End.Map, Invertible, h) };
+\definition inverse[h: Carrier]: End.Map := Square.Inverse[A := matrix h].value;
+\definition left: \forall (h: Carrier)(v: Vector n) -> (inverse h).apply (h.apply v) = v :=
+  \fun (h: Carrier)(v: Vector n) => trans!{{Vector n}} _ _ _
+    (congr!{{Vector n} {Vector n}} (inverse h).apply _ _ (sym!{{Vector n}} _ _ (congr!{End.Map {Vector n}} (\fun (f: End.Map) => f.apply v) _ _ (Representation.linearEntries h))))
+    (Square.Inverse[A := matrix h].left v);
+\definition right: \forall (h: Carrier)(v: Vector n) -> h.apply ((inverse h).apply v) = v :=
+  \fun (h: Carrier)(v: Vector n) => trans!{{Vector n}} _ _ _
+    (sym!{{Vector n}} _ _ (congr!{End.Map {Vector n}} (\fun (f: End.Map) => f.apply ((inverse h).apply v)) _ _ (Representation.linearEntries h)))
+    (Square.Inverse[A := matrix h].right v);
+\import Spaces.Eigen[V := Vector n, space := coordinates n] \as Eigen;
+\definition identity: Carrier := \into[End.Map](Eigen.identity, Carrier) \by {
+  Square.LeftInverse[f := Eigen.identity, g := Eigen.identity, left := \fun (v: Vector n) => \refl(v)].nonzero
+};
+\definition identityRegular: Native.Families[X := Carrier].Matrix[m := n].Regular topology include :=
+  \parent.Family[X := Carrier, source := topology, H := include].regular inclusionContinuous;
+\definition inverseRegular: Native.Families[X := Carrier].Matrix[m := n].Regular topology inverse :=
+  Square.Families[X := Carrier].inverseMaps topology matrix (\fun (i, j: Fin.Fin n) => identityRegular (Geometry.Finite[n := n].basis j) i);
+\definition inverseContinuous: topology.Continuity[A := Carrier, B := End.Map].Continuous topology operatorTopology inverse :=
+  \parent.Family[X := Carrier, source := topology, H := inverse].continuous inverseRegular;
+\import Spaces.Isomorphism[V := Vector n, W := Vector n, source := coordinates n, target := coordinates n] \as Isomorphisms;
+\definition isomorphism[h: Carrier]: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism { forward := h, backward := inverse h, leftInverse := left h, rightInverse := right h };
+\module Family(X: \Set, source: topology.Topology[Carrier := X].Topology, H: X -> Carrier);
