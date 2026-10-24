@@ -24,7 +24,8 @@ B03 の計量・有限埋め込み・射影の像束、K06 の近接射影比較
 clutching 関数のホモトピーによる束同型、閉被覆に沿う束射・束同型の貼り合わせ、連続なブロック対角作用素と直和による clutching の比較は未検証の WIP である。
 `.Clutching.Homotopy` の再検査は終了2、report の outcome は `memory-limit`（4,294,967,296 byte の allocation failure）で未完了となった。
 検査環境自体は利用できており、存在量化した比較の型推論を局所化した再検査も終了2・memory-limit となり未完了である。
-次に宣言単位の profiler を有効にして失敗箇所を特定する。
+宣言単位の profiler は `forMotion` で停滞し、120秒の上限で終了2・未完了となった。
+二つの存在量化の選択を別 module の固定した結論へ分けて再検査する。
 検査は `target/debug/cli libs --parse-only --save-source-snapshot work/<name>-snapshot.json`、続いて `target/debug/cli libs --module <scope> --source-snapshot work/<name>-snapshot.json --memory-mib 8192 --time-limit-seconds 900 --diagnostics compact --report-json work/<name>.json --cache-stats` を使用する。
 次は `.Clutching.Homotopy` を対象検査し、終了コードを確認する。
 残作業は一般の同型への相対延長、円板の clutching のホモトピー・安定化・同型の対応、実・複素の利用例、文書・依存リンク、package全体・依存先・影響箇所・workspace の最終検査である。
