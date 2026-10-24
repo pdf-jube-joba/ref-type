@@ -10,6 +10,7 @@ B03 の同型類と補束、B02 の束演算、既存の `algebra.GroupCompletio
 `AdditiveMonoid`・`MultiplicativeMonoid`・`Semiring` は B02 の実際の束同型から演算の法則を導く。
 `K0` は既存の半環の群完成を用いる可換環で、`Stability.ForBundles.criterion` は同じ自明束を加える安定同型による等式判定である。
 `Pullback.K0.map`、`IdentityPullback.onK0`、`Pullback.Composition.onK0` が反変関手を与える。
+`Pullback.Ranks.naturality` はランクと引き戻しの可換性を証明する。
 `Ranks.rank` は局所定数な整数値ランク、`Ranks.Reduced[point].group` は基点でのランクの核である。
 `VariableRanks` は離散底上に任意の自然数値ランクを持つ束を構成する。
 `FiniteDiscrete.Classification` はランクによる束の分類、`FiniteDiscrete.Computation` と `Point` は整数値関数群・整数群との往復写像と逆写像則を与える。
@@ -27,5 +28,5 @@ B03 の同型類と補束、B02 の束演算、既存の `algebra.GroupCompletio
 `77394d98` の `work/k01-finite` は可変ランク束の自己座標変換で型推論が両端を同じ値に決めたため終了1、対の外延性の両端を明示して修正した（未再検証）。
 最新ソースの構文検査は終了0。
 次は修正版を snapshot 化して同じ対象検査を行い、終了コード・保存完了を確認する。
-有限離散底の K 群と整数値関数群の往復写像・逆写像則を追加した（未検証）。
+有限離散底・一点の計算、空・一点・二点の利用例、引き戻しに対するランクの自然性を追加した（未検証）。
 残作業は追加分の検査・修正、一点計算・自然性と利用例、文書・最終検証・統合。
