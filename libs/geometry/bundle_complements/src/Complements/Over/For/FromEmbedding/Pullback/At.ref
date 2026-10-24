@@ -1,0 +1,23 @@
+\import \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Finite[n := n].Range[V := F (f y), space := bundle.space (f y), f := embedding.map.fiber (f y), injective := embedding.injective (f y)] \as Range;
+\import Constructed.Image[].At[x := y] \as New;
+\definition newValue[v: F (f y)]: Vector n := (pulledEmbedding.map.fiber y).apply v;
+\definition valueFormula: \forall (v: F (f y)) -> newValue v = (embedding.map.fiber (f y)).apply v := \fun (v: F (f y)) => \refl((embedding.map.fiber (f y)).apply v);
+\definition candidate: Range.Candidate := \into[Spaces.Linear[V := Vector n, W := Vector n, source := coordinates n, target := coordinates n].Map]((Constructed.Image[].projection y).map, Range.Values) \by {
+  Range.Conditions[(Constructed.Image[].projection y).map] {
+    selfAdjoint := (Constructed.Image[].projection y).selfAdjoint,
+    idempotent := (Constructed.Image[].projection y).idempotent,
+    range := \fun (z: Vector n) => Logic.PropEquiv[(Constructed.Image[].projection y).map.apply z = z, Range.Image z] {
+      ltr := \fun (fixed: _) => \block {
+        \takefrom v: \Cast[F (f y)] ({ v: F (f y) \where newValue v = z }) \by (New.conditions.range z).ltr fixed \then
+        \return Logic.existsIntro[F (f y), { v: F (f y) \where (embedding.map.fiber (f y)).apply v = z }] v
+          (trans!{{Vector n}} _ _ _ (sym!{{Vector n}} _ _ (valueFormula v)) (\bysub(F (f y), { v: F (f y) \where newValue v = z }, v)))
+      },
+      rtl := \fun (image: Range.Image z) => \block {
+        \takefrom v: \Cast[F (f y)] ({ v: F (f y) \where (embedding.map.fiber (f y)).apply v = z }) \by image \then
+        \return (New.conditions.range z).rtl (Logic.existsIntro[F (f y), { v: F (f y) \where newValue v = z }] v
+          (trans!{{Vector n}} _ _ _ (valueFormula v) (\bysub(F (f y), { v: F (f y) \where (embedding.map.fiber (f y)).apply v = z }, v))))
+      }
+    }
+  }
+};
+\definition equal: (Constructed.Image[].projection y).map = (Original.Image[].projection (f y)).map := Range.unique candidate (Original.Image[].At[x := f y].map);
