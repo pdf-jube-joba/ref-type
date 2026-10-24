@@ -1,0 +1,17 @@
+\import \root.Spectral[].At[n := n].Pencil[A := A, z := z] \as Pencil;
+\import Matrices.Representation[] \as Representation;
+\definition nonzero: Splitting.OffSpectrum -> Absolute.abs z = Real.one -> Inversion.Nonzero Pencil.entries :=
+  \fun (gap: Splitting.OffSpectrum)(circle: _)(zero: _) => gap z
+    (trans!{{C.Complex}} _ _ _ (congr!{{P.Carrier} {C.Complex}} (Evaluation.apply z) _ _ (sym!{{P.Carrier}} _ _ (Characteristic.monic A)))
+      (trans!{{C.Complex}} _ _ _ Pencil.determinant zero)) circle;
+\definition noUnitEigen: Splitting.OffSpectrum -> Absolute.abs z = Real.one ->
+  \forall (v: Vector) -> (Matrices.linear A).apply v = Coordinates.scale z v -> v = Coordinates.origin := \block {
+  \fun (gap: Splitting.OffSpectrum)(circle: _)(v: Vector)(eigen: _) \then
+  \let matrix: Inversion.Nonsingular := \into[Matrices.Matrix](Pencil.entries, Inversion.Nonsingular) \by { nonzero gap circle } \then
+  \let inverse: End.Map := Square.Inverse[A := matrix].value \then
+  \let left: inverse.apply (Pencil.value.apply v) = v := trans!{Vector} _ _ _
+    (congr!{Vector Vector} inverse.apply _ _ (sym!{Vector} _ _ (congr!{End.Map Vector} (\fun (f: End.Map) => f.apply v) _ _ (Representation.linearEntries Pencil.value))))
+    (Square.Inverse[A := matrix].left v) \then
+  \return trans!{Vector} _ _ _ (sym!{Vector} _ _ left)
+    (trans!{Vector} _ _ _ (congr!{Vector Vector} inverse.apply _ _ (Pencil.eigenToKernel v eigen)) inverse.preservesZero)
+};

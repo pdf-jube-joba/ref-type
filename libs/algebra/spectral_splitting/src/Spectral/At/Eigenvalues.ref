@@ -1,0 +1,19 @@
+\import complex.Complex[].Absolute[] \as Absolute;
+\import real.Analysis[] \as Real;
+\import galois.Field[].Over[K := C.Complex, field := Scalars.field].Polynomial[].AbstractEvaluation[] \as Evaluation;
+\import \parent.Characteristic[] \as Characteristic;
+\import \parent.Splitting[A := A] \as Splitting;
+\definition NoUnitEigen: \Prop := \forall (z: C.Complex) -> Absolute.abs z = Real.one ->
+  \forall (v: Vector) -> (Matrices.linear A).apply v = Coordinates.scale z v -> v = Coordinates.origin;
+\definition off: NoUnitEigen -> Splitting.OffSpectrum := \block {
+  \fun (absence: NoUnitEigen)(z: C.Complex)(root: _)(circle: _) \then
+  \let injective: \forall (v, w: Vector) -> (\parent.Pencil[A := A, z := z].value).apply v = (\parent.Pencil[A := A, z := z].value).apply w -> v = w :=
+    End.injectiveOfZeroKernel (\parent.Pencil[A := A, z := z].value)
+      (\fun (v: Vector)(zero: _) => absence z circle v (\parent.Pencil[A := A, z := z].kernelToEigen v zero)) \then
+  \let nonzero: Inversion.Nonzero (\parent.Pencil[A := A, z := z].entries) := \parent.Pencil[A := A, z := z].nonzero injective \then
+  \let charZero: Evaluation.apply z (PolynomialMatrices.characteristic A) = Scalars.field.zero :=
+    trans!{{C.Complex}} _ _ _ (congr!{{P.Carrier} {C.Complex}} (Evaluation.apply z) _ _ (Characteristic.monic A)) root \then
+  \return nonzero (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (\parent.Pencil[A := A, z := z].determinant)) charZero)
+};
+\module At(z: C.Complex);
+\definition noUnitEigen: Splitting.OffSpectrum -> NoUnitEigen := \fun (gap: Splitting.OffSpectrum)(z: C.Complex) => At[z := z].noUnitEigen gap;
