@@ -1,0 +1,32 @@
+\import galois.Field[].Over[K := C.Complex, field := Scalars.field].Polynomial[].Raw[] \as Raw;
+\import matrix_invariants.Ring[K := C.Complex, scalars := Fields.fieldAsCommutativeRing C.Complex Scalars.field] \as ScalarRing;
+\import matrix_invariants.Ring[K := P.Carrier, scalars := P.ring] \as PolynomialRing;
+\definition scalarStep: \forall (k: N.Nat^)(f: Roots.Vector (N.Nat^::succ k)) -> ScalarRing.Products[n := N.Nat^::succ k].product f =
+  Scalars.field.mul (f (Fin.zero k)) (ScalarRing.Products[n := k].product (\fun (i: Fin.Fin k) => f (Fin.succ k i))) :=
+  \fun (k: N.Nat^)(f: Roots.Vector (N.Nat^::succ k)) => congr!{{C.Complex} {C.Complex}} (Scalars.field.mul (f (Fin.zero k))) _ _
+    (ScalarRing.Products[n := k].Mapping[m := N.Nat^::succ k].law (Fin.elements k) (Fin.succ k) f);
+\definition polynomialStep: \forall (k: N.Nat^)(f: Fin.Fin (N.Nat^::succ k) -> P.Carrier) -> PolynomialRing.Products[n := N.Nat^::succ k].product f =
+  P.mul (f (Fin.zero k)) (PolynomialRing.Products[n := k].product (\fun (i: Fin.Fin k) => f (Fin.succ k i))) :=
+  \fun (k: N.Nat^)(f: Fin.Fin (N.Nat^::succ k) -> P.Carrier) => congr!{{P.Carrier} {P.Carrier}} (P.mul (f (Fin.zero k))) _ _
+    (PolynomialRing.Products[n := k].Mapping[m := N.Nat^::succ k].law (Fin.elements k) (Fin.succ k) f);
+\definition leading: \forall (k: N.Nat^)(a, b: Roots.Vector k) -> (product k a b).top = ScalarRing.Products[n := k].product b :=
+  \induction (k: N.Nat^) \return \forall (a, b: Roots.Vector k) -> (product k a b).top = ScalarRing.Products[n := k].product b \with {
+    | zero: \fun (a, b: Roots.Vector N.Nat^::zero) => \refl(Scalars.field.one)
+    | succ: \fun (k: N.Nat^)(previous: _)(a, b: Roots.Vector (N.Nat^::succ k)) => eq_reason_in!{{C.Complex} _
+      "=" _ "by" { Laws[].leadingAffine k (a (Fin.zero k)) (b (Fin.zero k)) (product k (\fun (i: Fin.Fin k) => a (Fin.succ k i)) (\fun (i: Fin.Fin k) => b (Fin.succ k i))) }
+      "=" _ "by" { congr!{{C.Complex} {C.Complex}} (Scalars.field.mul (b (Fin.zero k))) _ _ (previous (\fun (i: Fin.Fin k) => a (Fin.succ k i)) (\fun (i: Fin.Fin k) => b (Fin.succ k i))) }
+      "=" _ "by" { sym!{{C.Complex}} _ _ (scalarStep k b) }
+    }
+  };
+\definition polynomial: \forall (k: N.Nat^)(a, b: Roots.Vector k) -> \parent.polynomial k (product k a b) =
+  PolynomialRing.Products[n := k].product (\fun (i: Fin.Fin k) => P.add (P.constant (a i)) (P.mul P.X (P.constant (b i)))) :=
+  \induction (k: N.Nat^) \return \forall (a, b: Roots.Vector k) -> \parent.polynomial k (product k a b) =
+    PolynomialRing.Products[n := k].product (\fun (i: Fin.Fin k) => P.add (P.constant (a i)) (P.mul P.X (P.constant (b i)))) \with {
+    | zero: \fun (a, b: Roots.Vector N.Nat^::zero) => Raw.coefficientLaws.one
+    | succ: \fun (k: N.Nat^)(previous: _)(a, b: Roots.Vector (N.Nat^::succ k)) => eq_reason_in!{{P.Carrier} _
+      "=" _ "by" { Laws[].affineProduct k (a (Fin.zero k)) (b (Fin.zero k)) (product k (\fun (i: Fin.Fin k) => a (Fin.succ k i)) (\fun (i: Fin.Fin k) => b (Fin.succ k i))) }
+      "=" _ "by" { congr!{{P.Carrier} {P.Carrier}} (P.mul (P.add (P.constant (a (Fin.zero k))) (P.mul P.X (P.constant (b (Fin.zero k)))))) _ _
+        (previous (\fun (i: Fin.Fin k) => a (Fin.succ k i)) (\fun (i: Fin.Fin k) => b (Fin.succ k i))) }
+      "=" _ "by" { sym!{{P.Carrier}} _ _ (polynomialStep k (\fun (i: Fin.Fin (N.Nat^::succ k)) => P.add (P.constant (a i)) (P.mul P.X (P.constant (b i))))) }
+    }
+  };

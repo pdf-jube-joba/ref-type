@@ -45,3 +45,30 @@
     equality: at
   }
 };
+\import Monic.AbstractEvaluation[] \as Evaluation;
+\import Roots.MonicCoordinates[] \as MonicCoordinates;
+\definition OffSpectrum[p: Roots.Vector n]: \Prop :=
+  \forall (z: C.Complex) -> Evaluation.apply z (Roots.polynomial n p) = Scalars.field.zero -> Off z;
+\definition rootsAllowed: \forall (p, a: Roots.Vector n) -> Coefficients.coefficients a = p -> OffSpectrum p -> Monic.Over Allowed (Tuples.list n a) :=
+  \fun (p, a: Roots.Vector n)(same: _)(off: OffSpectrum p) => Tuples.all n a Allowed
+    (\fun (i: Fin.Fin n) => allowed (a i) (off (a i) (eq_reason_in!{{C.Complex} _
+      "=" _ "by" { congr!{{Roots.Vector n} {C.Complex}} (\fun (c: Roots.Vector n) => Evaluation.apply (a i) (Roots.polynomial n c)) _ _ (sym!{{Roots.Vector n}} _ _ same) }
+      "=" _ "by" { congr!{{P.Carrier} {C.Complex}} (Evaluation.apply (a i)) _ _ (Coefficients.factorization a) }
+      "=" _ "by" { MonicCoordinates.occursRoot (Tuples.list n a) (a i) (Tuples.occurs n a i) }
+    })));
+\definition coprime: \forall (p: Roots.Vector n) -> OffSpectrum p -> Polynomials.Coprime (left p) (right p) := \block {
+  \fun (p: Roots.Vector n)(off: OffSpectrum p) \then
+  \takefrom a: \Cast[Roots.Vector n] ({ a: Roots.Vector n \where Coefficients.coefficients a = p }) \by Coefficients.onto p \then
+  \let at: Coefficients.coefficients a = p := \bysub(Roots.Vector n, { a: Roots.Vector n \where Coefficients.coefficients a = p }, a) \then
+  \let leftAt: left p = Monic.factors (Filtering.filter (Tuples.list n a)) := (\bysub(P.Carrier, Factor B.Bool^::true p, factor B.Bool^::true p)) a at \then
+  \let rightAt: right p = Monic.factors (Filtering.other (Tuples.list n a)) := (\bysub(P.Carrier, Factor B.Bool^::false p, factor B.Bool^::false p)) a at \then
+  \takefrom b: Polynomials.Bezout[Monic.factors (Filtering.filter (Tuples.list n a)), Monic.factors (Filtering.other (Tuples.list n a)), P.one]
+    \by Factors[].coprime (Tuples.list n a) (rootsAllowed p a at off) \then
+  \return \exact(Polynomials.Bezout[left p, right p, P.one] {
+    left := b.left, right := b.right,
+    equation := trans!{{P.Carrier}} _ _ _ b.equation
+      (congr!{{P.Carrier} {P.Carrier} {P.Carrier}} P.add _ _ _ _
+        (congr!{{P.Carrier} {P.Carrier}} (P.mul b.left) _ _ (sym!{{P.Carrier}} _ _ leftAt))
+        (congr!{{P.Carrier} {P.Carrier}} (P.mul b.right) _ _ (sym!{{P.Carrier}} _ _ rightAt))),
+  }, Polynomials.Bezout[left p, right p, P.one])
+};

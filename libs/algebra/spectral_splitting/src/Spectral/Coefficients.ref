@@ -1,32 +1,41 @@
 \import Fin.Tuples[A := C.Complex] \as Tuples;
 \structure Data[k: N.Nat^]: \Set := { top: C.Complex, lower: Roots.Vector k };
-\definition tail[k: N.Nat^][p: Data (N.Nat^::succ k)]: Data k :=
+\definition tail[k: N.Nat^][p: Data[N.Nat^::succ k]]: Data[k] :=
   Data[k] { top := p.top, lower := \fun (i: Fin.Fin k) => p.lower (Fin.succ k i) };
-\definition prepend[k: N.Nat^][a: C.Complex][p: Data k]: Data (N.Nat^::succ k) :=
+\definition prepend[k: N.Nat^][a: C.Complex][p: Data[k]]: Data[N.Nat^::succ k] :=
   Data[N.Nat^::succ k] { top := p.top, lower := Tuples.extend k a p.lower };
-\definition polynomial: \forall (k: N.Nat^) -> Data k -> P.Carrier :=
-  \induction (k: N.Nat^) \return Data k -> P.Carrier \with {
-    | zero: \fun (p: Data N.Nat^::zero) => P.constant p.top
-    | succ: \fun (k: N.Nat^)(previous: Data k -> P.Carrier)(p: Data (N.Nat^::succ k)) =>
+\definition polynomial: \forall (k: N.Nat^) -> Data[k] -> P.Carrier :=
+  \induction (k: N.Nat^) \return Data[k] -> P.Carrier \with {
+    | zero: \fun (p: Data[N.Nat^::zero]) => P.constant p.top
+    | succ: \fun (k: N.Nat^)(previous: Data[k] -> P.Carrier)(p: Data[N.Nat^::succ k]) =>
       P.add (P.constant (p.lower (Fin.zero k))) (P.mul P.X (previous (tail k p)))
   };
-\definition leading[k: N.Nat^][p: Data k]: C.Complex := p.top;
-\definition plus[k: N.Nat^][p, q: Data k]: Data k :=
+\definition leading[k: N.Nat^][p: Data[k]]: C.Complex := p.top;
+\definition plus[k: N.Nat^][p, q: Data[k]]: Data[k] :=
   Data[k] { top := Scalars.field.add p.top q.top, lower := \fun (i: Fin.Fin k) => Scalars.field.add (p.lower i) (q.lower i) };
-\definition scale[k: N.Nat^][a: C.Complex][p: Data k]: Data k :=
+\definition scale[k: N.Nat^][a: C.Complex][p: Data[k]]: Data[k] :=
   Data[k] { top := Scalars.field.mul a p.top, lower := \fun (i: Fin.Fin k) => Scalars.field.mul a (p.lower i) };
-\definition addConstant: \forall (k: N.Nat^) -> C.Complex -> Data k -> Data k :=
-  \induction (k: N.Nat^) \return C.Complex -> Data k -> Data k \with {
-    | zero: \fun (a: C.Complex)(p: Data N.Nat^::zero) => Data[N.Nat^::zero] { top := Scalars.field.add a p.top, lower := p.lower }
-    | succ: \fun (k: N.Nat^)(previous: C.Complex -> Data k -> Data k)(a: C.Complex)(p: Data (N.Nat^::succ k)) =>
+\definition addConstant: \forall (k: N.Nat^) -> C.Complex -> Data[k] -> Data[k] :=
+  \induction (k: N.Nat^) \return C.Complex -> Data[k] -> Data[k] \with {
+    | zero: \fun (a: C.Complex)(p: Data[N.Nat^::zero]) => Data[N.Nat^::zero] { top := Scalars.field.add a p.top, lower := p.lower }
+    | succ: \fun (k: N.Nat^)(previous: C.Complex -> Data[k] -> Data[k])(a: C.Complex)(p: Data[N.Nat^::succ k]) =>
       prepend k (Scalars.field.add a (p.lower (Fin.zero k))) (tail k p)
   };
-\definition affine: \forall (k: N.Nat^) -> C.Complex -> C.Complex -> Data k -> Data (N.Nat^::succ k) :=
-  \induction (k: N.Nat^) \return C.Complex -> C.Complex -> Data k -> Data (N.Nat^::succ k) \with {
-    | zero: \fun (a, b: C.Complex)(p: Data N.Nat^::zero) => prepend N.Nat^::zero (Scalars.field.mul a p.top)
+\definition affine: \forall (k: N.Nat^) -> C.Complex -> C.Complex -> Data[k] -> Data[N.Nat^::succ k] :=
+  \induction (k: N.Nat^) \return C.Complex -> C.Complex -> Data[k] -> Data[N.Nat^::succ k] \with {
+    | zero: \fun (a, b: C.Complex)(p: Data[N.Nat^::zero]) => prepend N.Nat^::zero (Scalars.field.mul a p.top)
       (Data[N.Nat^::zero] { top := Scalars.field.mul b p.top, lower := p.lower })
-    | succ: \fun (k: N.Nat^)(previous: C.Complex -> C.Complex -> Data k -> Data (N.Nat^::succ k))(a, b: C.Complex)(p: Data (N.Nat^::succ k)) =>
+    | succ: \fun (k: N.Nat^)(previous: C.Complex -> C.Complex -> Data[k] -> Data[N.Nat^::succ k])(a, b: C.Complex)(p: Data[N.Nat^::succ k]) =>
       prepend (N.Nat^::succ k) (Scalars.field.mul a (p.lower (Fin.zero k)))
         (addConstant (N.Nat^::succ k) (Scalars.field.mul b (p.lower (Fin.zero k))) (previous a b (tail k p)))
   };
 \module Laws;
+\definition unit: Data[N.Nat^::zero] := Data[N.Nat^::zero] { top := Scalars.field.one, lower := Fin.Empty[A := C.Complex].function };
+\definition product: \forall (k: N.Nat^) -> Roots.Vector k -> Roots.Vector k -> Data[k] :=
+  \induction (k: N.Nat^) \return Roots.Vector k -> Roots.Vector k -> Data[k] \with {
+    | zero: \fun (a, b: Roots.Vector N.Nat^::zero) => unit
+    | succ: \fun (k: N.Nat^)(previous: Roots.Vector k -> Roots.Vector k -> Data[k])(a, b: Roots.Vector (N.Nat^::succ k)) =>
+      affine k (a (Fin.zero k)) (b (Fin.zero k))
+        (previous (\fun (i: Fin.Fin k) => a (Fin.succ k i)) (\fun (i: Fin.Fin k) => b (Fin.succ k i)))
+  };
+\module ProductLaws;
