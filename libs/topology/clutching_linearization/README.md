@@ -85,3 +85,7 @@ Clutched の型検査は `/tmp/k07-resume/source.json` を入力に `libs/refcac
 これらは parse-only 終了0、型検査は未完了であり WIP として保存する。
 
 `Construction.Clutching.spectralComparisonExists` へ標準形比較を公開し、`Examples.Empty` と `Examples.Nilpotent` の利用例を追加した（型検査待ち）。
+
+Clutched の再検査は `Along.isomorphismExists` で長時間停滞し、計測のため中断した（終了130）。
+最初のレポートは 11,896 source steps、checkpoint 11,468、保存失敗0であり、成功ではない。
+宣言計測では `startExists`・`finishExists` までは完了したため、最終合成を `motionExists`・`throughInitialExists` に分けて検査箇所を絞る（未検証）。
