@@ -1,0 +1,32 @@
+\import \root.Linearization[].SpectralSum[n := n, m := m, A := A x, B := B x, offA := off x, offB := offB x] \as Block;
+\import Block.Projection[] \as Projection;
+\import Spaces.Isomorphism[V := PairSpace.Carrier, W := Flat.Vector, source := PairSpace.space, target := Flat.space] \as Frames;
+\import std.Data[].Pair[] \as Pair;
+\definition first[v: SumFiber x]: Fiber x := Pair.first (Fiber x) (Other.Fiber x) v;
+\definition second[v: SumFiber x]: Other.Fiber x := Pair.second (Fiber x) (Other.Fiber x) v;
+\definition raw[v: SumFiber x]: PairSpace.Carrier := PairSpace.make (first v) (second v);
+\definition leftJoin: \forall (v: SumFiber x) -> Block.first.apply (Coordinates.join (raw v)) = first v :=
+  \fun (v: SumFiber x) => congr!{PairSpace.Carrier V.Vector} PairSpace.first _ _ ((Frames.laws Coordinates.isomorphism).leftInverse (raw v));
+\definition rightJoin: \forall (v: SumFiber x) -> Block.second.apply (Coordinates.join (raw v)) = second v :=
+  \fun (v: SumFiber x) => congr!{PairSpace.Carrier W.Vector} PairSpace.second _ _ ((Frames.laws Coordinates.isomorphism).leftInverse (raw v));
+\definition forward[v: SumFiber x]: Total.Fiber x := \into[Flat.Vector](Coordinates.join (raw v), Total.Fiber x) \by {
+  trans!{Flat.Vector} _ _ _ (Projection.formula (Coordinates.join (raw v)))
+    (congr!{PairSpace.Carrier Flat.Vector} Coordinates.join _ _ (Pair.Prop[A := V.Vector, B := W.Vector].ext _ _
+      (trans!{V.Vector} _ _ _ (congr!{V.Vector V.Vector} (Native.projection x).apply _ _ (leftJoin v))
+        (\bysub(V.Vector, { w: V.Vector \where (Native.projection x).apply w = w }, first v)))
+      (trans!{W.Vector} _ _ _ (congr!{W.Vector W.Vector} (OtherNative.projection x).apply _ _ (rightJoin v))
+        (\bysub(W.Vector, { w: W.Vector \where (OtherNative.projection x).apply w = w }, second v)))))
+};
+\definition backwardLeft[v: Total.Fiber x]: Fiber x := \into[V.Vector](Block.first.apply v, Fiber x) \by {
+  trans!{V.Vector} _ _ _ (sym!{V.Vector} _ _ (spectral_splitting.Spectral[].Comparison[n := total, m := n, A := matrix x, B := A x, sourceOff := totalOff x, targetOff := off x].natural Projection.left v))
+    (congr!{Flat.Vector V.Vector} Block.first.apply _ _ (\bysub(Flat.Vector, { w: Flat.Vector \where (TotalNative.projection x).apply w = w }, v)))
+};
+\definition backwardRight[v: Total.Fiber x]: Other.Fiber x := \into[W.Vector](Block.second.apply v, Other.Fiber x) \by {
+  trans!{W.Vector} _ _ _ (sym!{W.Vector} _ _ (spectral_splitting.Spectral[].Comparison[n := total, m := m, A := matrix x, B := B x, sourceOff := totalOff x, targetOff := offB x].natural Projection.right v))
+    (congr!{Flat.Vector W.Vector} Block.second.apply _ _ (\bysub(Flat.Vector, { w: Flat.Vector \where (TotalNative.projection x).apply w = w }, v)))
+};
+\definition backward[v: Total.Fiber x]: SumFiber x := Pair.pair (Fiber x) (Other.Fiber x) (backwardLeft v) (backwardRight v);
+\definition leftInverse: \forall (v: SumFiber x) -> backward (forward v) = v :=
+  \fun (v: SumFiber x) => Pair.Prop[A := Fiber x, B := Other.Fiber x].ext _ _ (leftJoin v) (rightJoin v);
+\definition rightInverse: \forall (v: Total.Fiber x) -> forward (backward v) = v :=
+  \fun (v: Total.Fiber x) => (Frames.laws Coordinates.isomorphism).rightInverse v;
