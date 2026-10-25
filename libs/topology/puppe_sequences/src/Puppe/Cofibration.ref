@@ -1,0 +1,37 @@
+\import algebraic_topology.Cofibration[A := A, subset := subset] \as Native;
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := A] \as Cylinder;
+\import topology.Topology[Carrier := A] \as Space;
+\import Space.Subspace[S := subset] \as Subspace;
+\import algebraic_topology.Cylinder[A := Subspace.CarrierSet] \as SubCylinder;
+\import topological_constructions.Pushout[A := A, B := SubCylinder.Carrier, C := Subspace.CarrierSet].Of[u := (\fun (x: Subspace.CarrierSet) => x), v := SubCylinder.at I.start] \as Wedge;
+\import Wedge.Universal[D := Cylinder.Carrier] \as Embed;
+\import Native.ForTarget[B := Wedge.Carrier] \as Target;
+\import algebraic_topology.Homotopy[A := A, B := Wedge.Carrier] \as Homotopy;
+\import std.Data[].Pair[] \as Pair;
+\definition problem[source: Space.Topology]: Target.Problem[source, Native.wedgeTopology source] := Target.Problem[source, Native.wedgeTopology source] {
+  initial := Wedge.inl,
+  family := Wedge.inr,
+  initialContinuous := Wedge.inlContinuous source (SubCylinder.topology (Subspace.topology source)),
+  familyContinuous := Wedge.inrContinuous source (SubCylinder.topology (Subspace.topology source)),
+  agrees := \fun (x: Subspace.CarrierSet) => sym!{Wedge.Carrier} _ _ (Wedge.glued x),
+};
+\definition fromExtension: \forall (source: Space.Topology) -> Target.HomotopyExtensionProperty source (Native.wedgeTopology source) -> Native.IsCofibration source := \block {
+  \fun (source: Space.Topology)(extension: Target.HomotopyExtensionProperty source (Native.wedgeTopology source)) \then
+  \takefrom h: Target.Extension[source, Native.wedgeTopology source, problem source] \by extension (problem source) \then
+  \let laws: Target.ExtensionLaws[source, Native.wedgeTopology source, problem source, h] := \bysub(Homotopy.Family, Target.Extension[source, Native.wedgeTopology source, problem source], h) \then
+  \return \exact(Native.Retraction[source] {
+    apply := h,
+    continuous := laws.continuous,
+    fixes := Wedge.induction (\fun (w: Wedge.Carrier) => h (Native.embedding w) = w)
+      (\fun (x: A) => trans!{Wedge.Carrier} _ _ _ (congr!{Cylinder.Carrier Wedge.Carrier} h _ _ (Embed.onLeft (Cylinder.at I.start) Native.include Native.embeddingCompatible x)) (laws.initial x))
+      (\induction (p: SubCylinder.Carrier) \return h (Native.embedding (Wedge.inr p)) = Wedge.inr p \with {
+        | pair: \fun (t: I.Carrier)(x: Subspace.CarrierSet) => trans!{Wedge.Carrier} _ _ _
+          (congr!{Cylinder.Carrier Wedge.Carrier} h _ _ (Embed.onRight (Cylinder.at I.start) Native.include Native.embeddingCompatible (SubCylinder.at t x)))
+          (laws.extends t x)
+      }),
+  }, Native.Retraction[source])
+};
+\definition characterization: \forall (source: Space.Topology) -> Logic.PropEquiv[Native.IsCofibration source, Target.HomotopyExtensionProperty source (Native.wedgeTopology source)] :=
+  \fun (source: Space.Topology) => Logic.PropEquiv[Native.IsCofibration source, Target.HomotopyExtensionProperty source (Native.wedgeTopology source)]::#
+    (Target.homotopyExtension source (Native.wedgeTopology source)) (fromExtension source);
