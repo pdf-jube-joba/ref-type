@@ -1,0 +1,57 @@
+\import std.Data[].FinSet[] \as Fin;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as NatLaws;
+\import N.Order[].Prop[] \as NatOrder;
+\import Spaces.Coordinates[I := Fin.Fin n] \as Vectors;
+\definition degree: N.Nat^ := N.Nat^::succ d;
+\import \root.Linearization[].Coordinates[n := n] \as Coordinates;
+\definition Carrier: \Set := Coordinates.Carrier degree;
+\definition space: Spaces.VectorSpace Carrier := Coordinates.space degree;
+\import Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as End;
+\import Spaces.Linear[V := Carrier, W := Vectors.Vector, source := space, target := Vectors.space] \as Row;
+\import Spaces.Linear[V := Carrier, W := Carrier, source := space, target := space] \as Operators;
+\import Spaces.Laws[V := Vectors.Vector, space := Vectors.space] \as Values;
+\import Fin.Sum[m := d, n := N.Nat^::succ N.Nat^::zero] \as Indices;
+\import Indices.Tuples[A := Vectors.Vector] \as Joining;
+\definition rankEquality: Indices.total = degree := NatLaws.addComm (N.Nat^::succ N.Nat^::zero) d;
+\definition toTotal[i: Fin.Fin degree]: Fin.Fin Indices.total := \into[N.Nat^](i, Fin.Fin Indices.total) \by {
+  \idelim degree = Indices.total \with k: N.Nat^ => NatLaws.Lt i k \by { base: Fin.bound degree i, equality: sym!{{N.Nat^}} _ _ rankEquality }
+};
+\definition join[f: Fin.Fin d -> Vectors.Vector][v: Vectors.Vector]: Carrier :=
+  \fun (i: Fin.Fin degree) => Joining.join f (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => v) (toTotal i);
+\definition last: Fin.Fin degree := \into[N.Nat^](d, Fin.Fin degree) \by { NatOrder.ltSelfSucc d };
+\definition atFront: \forall (f: Fin.Fin d -> Vectors.Vector)(v: Vectors.Vector)(i: Fin.Fin d) -> join f v (Fin.widen d i) = f i :=
+  \fun (f: Fin.Fin d -> Vectors.Vector)(v: Vectors.Vector)(i: Fin.Fin d) => Joining.atLeft f (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => v) i;
+\definition atLast: \forall (f: Fin.Fin d -> Vectors.Vector)(v: Vectors.Vector) -> join f v last = v :=
+  \fun (f: Fin.Fin d -> Vectors.Vector)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _
+    (congr!{{Fin.Fin Indices.total} Vectors.Vector} (Joining.join f (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => v)) _ _ (sym!{{N.Nat^}} _ _ (NatLaws.addZeroLeft d)))
+    (Joining.atRight f (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => v) (Fin.zero N.Nat^::zero));
+\definition joinAddition: \forall (f, g: Fin.Fin d -> Vectors.Vector)(v, w: Vectors.Vector) ->
+  join (\fun (i: Fin.Fin d) => Vectors.plus (f i) (g i)) (Vectors.plus v w) = (space.add (join f v) (join g w)) :=
+  \fun (f, g: Fin.Fin d -> Vectors.Vector)(v, w: Vectors.Vector) => \axiom:funext(_, _, \fun (i: Fin.Fin degree) =>
+    (\induction (k: Indices.Index) \return
+      Joining.evaluate (\fun (j: Fin.Fin d) => Vectors.plus (f j) (g j)) (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => Vectors.plus v w) k =
+        Vectors.plus (Joining.evaluate f (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => v) k) (Joining.evaluate g (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => w) k) \with {
+          | inl: \fun (j: Fin.Fin d) => \refl(Vectors.plus (f j) (g j))
+          | inr: \fun (j: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => \refl(Vectors.plus v w)
+        }) (Indices.split (toTotal i)));
+\definition joinScalar: \forall (a: C.Complex)(f: Fin.Fin d -> Vectors.Vector)(v: Vectors.Vector) ->
+  join (\fun (i: Fin.Fin d) => Vectors.scale a (f i)) (Vectors.scale a v) = space.smul a (join f v) :=
+  \fun (a: C.Complex)(f: Fin.Fin d -> Vectors.Vector)(v: Vectors.Vector) => \axiom:funext(_, _, \fun (i: Fin.Fin degree) =>
+    (\induction (k: Indices.Index) \return
+      Joining.evaluate (\fun (j: Fin.Fin d) => Vectors.scale a (f j)) (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => Vectors.scale a v) k =
+        Vectors.scale a (Joining.evaluate f (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => v) k) \with {
+          | inl: \fun (j: Fin.Fin d) => \refl(Vectors.scale a (f j))
+          | inr: \fun (j: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => \refl(Vectors.scale a v)
+        }) (Indices.split (toTotal i)));
+\definition power[z: C.Complex]: N.Nat^ -> C.Complex := \induction (k: N.Nat^) \return C.Complex \with {
+  | zero: C.Def[].one
+  | succ: \fun (k: N.Nat^)(previous: C.Complex) => C.Def[].mul z previous
+};
+\import Spaces.Linear[V := Vectors.Vector, W := Carrier, source := Vectors.space, target := space] \as Column;
+\definition geometric[z: C.Complex]: Column.Map := Column.Map {
+  apply := \fun (v: Vectors.Vector)(i: Fin.Fin degree) => Vectors.scale (power z i) v,
+  preservesAdd := \fun (v, w: Vectors.Vector) => \axiom:funext(_, _, \fun (i: Fin.Fin degree) => Vectors.space.vectorAdd (power z i) v w),
+  preservesScale := \fun (a: C.Complex)(v: Vectors.Vector) => \axiom:funext(_, _, \fun (i: Fin.Fin degree) => Values.scaleComm (power z i) a v),
+};
+\module With(coefficients: Fin.Fin degree -> End.Map);
