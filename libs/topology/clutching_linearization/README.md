@@ -83,3 +83,5 @@ Clutched の型検査は `/tmp/k07-resume/source.json` を入力に `libs/refcac
 さらに `SpectralMotion.Comparison`、`Companion.Families.Linearization.Gauges.SpectralForm` と `Separated.Bundles.Deformation` を追加し、pencil の二つの表示と射影の標準形への束比較を接続した。
 行列族の等式からの束同型 `Clutched.Comparison.ofEquality` も公開した。
 これらは parse-only 終了0、型検査は未完了であり WIP として保存する。
+
+`Construction.Clutching.spectralComparisonExists` へ標準形比較を公開し、`Examples.Empty` と `Examples.Nilpotent` の利用例を追加した（型検査待ち）。
