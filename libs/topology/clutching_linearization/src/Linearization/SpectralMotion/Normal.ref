@@ -1,0 +1,33 @@
+\import \parent.Regularity[] \as MotionRegularity;
+\import \parent.Endpoint[t := Time.start] \as Start;
+\import Hermitian.At[n := n].Families[X := X] \as BaseVectors;
+\import BaseVectors.Matrix[m := n] \as BaseMaps;
+\import Hermitian.At[n := n].Families[X := Domain] \as DomainVectors;
+\import DomainVectors.Matrix[m := n] \as DomainMaps;
+\import spectral_splitting.Spectral[].At[n := n].Families[X := X, source := source, T := (\fun (x: X) => M.linear (A x)), regularT := Native.regularT] \as Evaluation;
+\module At(x: X);
+\definition gauge[x: X]: End.Map := At[x := x].gauge;
+\definition gaugeMatrix[x: X]: M.Matrix := M.Representation[].entries (gauge x);
+\definition gaugeRegular: BaseMaps.Regular source gauge := \fun (v: M.Vector) => BaseVectors.addition source _ _ (Native.projectionRegular v)
+  (BaseVectors.scale source (\fun (_: X) => C.Def[].neg C.Def[].one) _
+    (topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology (C.Def[].neg C.Def[].one))
+    (Evaluation.compositionRegular (\fun (x: X) => M.linear (A x)) Native.complementary Native.regularT Native.complementaryRegular v));
+\definition gaugeMatrixRegular: matrix_invariants.Topological[K := C.Complex, ring := Plane.Ring[].topologicalRing].At[n := n].Families[X := X].Regular source gaugeMatrix :=
+  \fun (i, j: M.Index) => gaugeRegular (Basis.vectors j) i;
+\definition gaugeNonzero: \forall (x: X) -> matrix_invariants.Field[K := C.Complex, field := Scalars.field].At[n := n].Nonzero (gaugeMatrix x) := \fun (x: X) => At[x := x].gaugeNonzero;
+\import \root.Linearization[].ScalarMatrices[n := n].InverseFamily[Y := X, source := source, A := gaugeMatrix, regularA := gaugeMatrixRegular, nonzeroA := gaugeNonzero] \as Inverse;
+\definition loopOnDomain[p: Domain]: End.Map := At[x := base p].loop (variable p);
+\definition loopRegular: DomainMaps.Regular topology loopOnDomain := \fun (v: M.Vector) => DomainVectors.addition topology _ _
+  (DomainVectors.scale topology variable (\fun (p: Domain) => (Native.projection (base p)).apply v) MotionRegularity.variableContinuous (MotionRegularity.projectionRegular v))
+  (MotionRegularity.complementaryRegular v);
+\definition loopMatrix[q: Circular.CarrierSet]: M.Matrix := M.Representation[].entries (loopOnDomain (Start.include q));
+\definition loopMatrixRegular: matrix_invariants.Topological[K := C.Complex, ring := Plane.Ring[].topologicalRing].At[n := n].Families[X := Circular.CarrierSet].Regular circleTopology loopMatrix :=
+  \fun (i, j: M.Index) => topology.Composition[A := Circular.CarrierSet, B := Domain, C := C.Complex].composeContinuous circleTopology topology Plane.topology Start.include
+    (\fun (p: Domain) => (loopOnDomain p).apply (Basis.vectors j) i) Start.inclusionContinuous (loopRegular (Basis.vectors j) i);
+\definition loopNonzero: \forall (q: Circular.CarrierSet) -> matrix_invariants.Field[K := C.Complex, field := Scalars.field].At[n := n].Nonzero (loopMatrix q) :=
+  \fun (q: Circular.CarrierSet) => At[x := Pair.first X Circle.Carrier q].loopNonzero (Pair.second X Circle.Carrier q)
+    (\root.Linearization[].Powers[].unitOfNorm (Pair.second X Circle.Carrier q) (Circle.norm (Pair.second X Circle.Carrier q)));
+\definition intertwines: \forall (q: Circular.CarrierSet) -> M.product (gaugeMatrix (Pair.first X Circle.Carrier q)) (loopMatrix q) = Start.endpointMatrix q :=
+  \fun (q: Circular.CarrierSet) => trans!{M.Matrix} _ _ _ (At[x := Pair.first X Circle.Carrier q].intertwines (Pair.second X Circle.Carrier q))
+    (sym!{M.Matrix} _ _ (congr!{End.Map M.Matrix} M.Representation[].entries _ _
+      (End.ext _ _ (\axiom:funext((value (Start.include q)).apply, (\parent.Endpoints[q := q].separated).apply, \parent.Endpoints[q := q].atStart)))));
