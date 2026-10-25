@@ -1,0 +1,18 @@
+\import topological_algebra.Complex[] \as Plane;
+\import topological_algebra.Matrix[K := C.Complex, I := M.Index, J := M.Index] \as MatrixTopology;
+\import matrix_invariants.Topological[K := C.Complex, ring := Plane.Ring[].topologicalRing].At[n := n].Families[X := Y] \as Top;
+\import matrix_invariants.Complex[].At[n := n].Families[X := Y] \as Existing;
+\definition certificate[y: Y]: Operations.Inverse (A y) := Field.inverse (\into[M.Matrix](A y, Field.Nonsingular) \by { nonzeroA y });
+\definition inverse[y: Y]: M.Matrix := certificate y;
+\definition continuous: topology.Continuity[A := Y, B := M.Matrix].Continuous source (MatrixTopology.topology Plane.topology) inverse :=
+  Existing.certifiedInverseContinuous source A certificate regularA;
+\definition regular: Top.Regular source inverse := \fun (i, j: M.Index) => Top.transport source
+  (\fun (y: Y) => Field.formula (A y) i j) (\fun (y: Y) => inverse y i j)
+  (\fun (y: Y) => sym!{{C.Complex}} _ _ (Field.componentFormula (A y) (certificate y) i j)) (Existing.inverseRegular source A regularA nonzeroA i j);
+\definition nonzero: \forall (y: Y) -> Field.Nonzero (inverse y) := \fun (y: Y) => Field.nonzeroOfInverse (inverse y)
+  (\into[M.Matrix](A y, Operations.Inverse (inverse y)) \by {
+    Operations.InverseLaws[inverse y, A y] {
+      left := (Operations.inverseLaws (A y) (certificate y)).right,
+      right := (Operations.inverseLaws (A y) (certificate y)).left,
+    }
+  });
