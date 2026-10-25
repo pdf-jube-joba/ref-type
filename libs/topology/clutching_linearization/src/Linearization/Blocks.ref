@@ -69,3 +69,64 @@
     "=" p "by" { lowerZero c p }
   },
 };
+\definition compose[a, b: Isomorphisms.Isomorphism]: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := End.Composition[U := Sum.Carrier, domain := Sum.space].compose a.forward b.forward,
+  backward := End.Composition[U := Sum.Carrier, domain := Sum.space].compose b.backward a.backward,
+  leftInverse := \fun (p: Sum.Carrier) => trans!{Sum.Carrier} _ _ _
+    (congr!{Sum.Carrier Sum.Carrier} b.backward.apply _ _ ((Isomorphisms.laws a).leftInverse (b.forward.apply p))) ((Isomorphisms.laws b).leftInverse p),
+  rightInverse := \fun (p: Sum.Carrier) => trans!{Sum.Carrier} _ _ _
+    (congr!{Sum.Carrier Sum.Carrier} a.forward.apply _ _ ((Isomorphisms.laws b).rightInverse (a.backward.apply p))) ((Isomorphisms.laws a).rightInverse p),
+};
+\definition diagonal[s: EndLeft.Map]: End.Map := Pairing.pair
+  (EndLeft.Composition[U := Sum.Carrier, domain := Sum.space].compose s first) second;
+\import Spaces.Isomorphism[V := V, W := V, source := left, target := left] \as LeftIsomorphisms;
+\definition stabilize[s: LeftIsomorphisms.Isomorphism]: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := diagonal s.forward,
+  backward := diagonal s.backward,
+  leftInverse := \fun (p: Sum.Carrier) => Pairs.ext _ _ ((LeftIsomorphisms.laws s).leftInverse (Sum.first p)) (\refl(Sum.second p)),
+  rightInverse := \fun (p: Sum.Carrier) => Pairs.ext _ _ ((LeftIsomorphisms.laws s).rightInverse (Sum.first p)) (\refl(Sum.second p)),
+};
+\definition path[s: EndLeft.Map][b: Row.Map][c: Column.Map][t: C.Complex]: End.Map :=
+  End.Composition[U := Sum.Carrier, domain := Sum.space].compose (upper b t)
+    (End.Composition[U := Sum.Carrier, domain := Sum.space].compose (diagonal s) (lower c t));
+\definition pathIsomorphism[s: LeftIsomorphisms.Isomorphism][b: Row.Map][c: Column.Map][t: C.Complex]: Isomorphisms.Isomorphism :=
+  compose (upperIsomorphism b t) (compose (stabilize s) (lowerIsomorphism c t));
+\definition pathForward: \forall (s: LeftIsomorphisms.Isomorphism)(b: Row.Map)(c: Column.Map)(t: C.Complex) ->
+  (pathIsomorphism s b c t).forward = path s.forward b c t :=
+  \fun (s: LeftIsomorphisms.Isomorphism)(b: Row.Map)(c: Column.Map)(t: C.Complex) => \refl(path s.forward b c t);
+\definition pathAtZero: \forall (s: EndLeft.Map)(b: Row.Map)(c: Column.Map)(p: Sum.Carrier) ->
+  (path s b c C.Def[].zero).apply p = (diagonal s).apply p :=
+  \fun (s: EndLeft.Map)(b: Row.Map)(c: Column.Map)(p: Sum.Carrier) => trans!{Sum.Carrier} _ _ _
+    (upperZero b ((diagonal s).apply ((lower c C.Def[].zero).apply p)))
+    (congr!{Sum.Carrier Sum.Carrier} (diagonal s).apply _ _ (lowerZero c p));
+\definition schur[a: EndLeft.Map][b: Row.Map][c: Column.Map]: EndLeft.Map := EndLeft.Operations[].plus a
+  (EndLeft.Operations[].negative (Row.Composition[U := V, domain := left].compose b c));
+\definition block[a: EndLeft.Map][b: Row.Map][c: Column.Map]: End.Map := Pairing.pair
+  (First.Operations[].plus (EndLeft.Composition[U := Sum.Carrier, domain := Sum.space].compose a first)
+    (Row.Composition[U := Sum.Carrier, domain := Sum.space].compose b second))
+  (Second.Operations[].plus second (Column.Composition[U := Sum.Carrier, domain := Sum.space].compose c first));
+\definition schurFactorization: \forall (a: EndLeft.Map)(b: Row.Map)(c: Column.Map)(p: Sum.Carrier) ->
+  (path (schur a b c) b c C.Def[].one).apply p = (block a b c).apply p :=
+  \fun (a: EndLeft.Map)(b: Row.Map)(c: Column.Map)(p: Sum.Carrier) => Pairs.ext _ _
+    (eq_reason_in!{V _
+      "=" { left.add (left.add (a.apply (Sum.first p)) (left.neg (b.apply (c.apply (Sum.first p)))))
+        (b.apply (right.add (Sum.second p) (c.apply (Sum.first p)))) } "by" {
+          congr!{V V V} left.add _ _ _ _
+            (congr!{V V} (left.add (a.apply (Sum.first p))) _ _ (Left.minusOneScale (b.apply (c.apply (Sum.first p)))))
+            (trans!{V} _ _ _ (left.scalarOne (b.apply (right.add (Sum.second p) (right.smul C.Def[].one (c.apply (Sum.first p))))))
+              (congr!{W V} b.apply _ _ (congr!{W W} (right.add (Sum.second p)) _ _ (right.scalarOne (c.apply (Sum.first p))))))
+        }
+      "=" { left.add (left.add (a.apply (Sum.first p)) (left.neg (b.apply (c.apply (Sum.first p)))))
+        (left.add (b.apply (Sum.second p)) (b.apply (c.apply (Sum.first p))))) } "by" {
+          congr!{V V} (left.add (left.add (a.apply (Sum.first p)) (left.neg (b.apply (c.apply (Sum.first p)))))) _ _ (b.preservesAdd (Sum.second p) (c.apply (Sum.first p)))
+        }
+      "=" { left.add (left.add (a.apply (Sum.first p)) (b.apply (Sum.second p)))
+        (left.add (left.neg (b.apply (c.apply (Sum.first p)))) (b.apply (c.apply (Sum.first p))))) } "by" {
+          Left.shuffle (a.apply (Sum.first p)) (left.neg (b.apply (c.apply (Sum.first p)))) (b.apply (Sum.second p)) (b.apply (c.apply (Sum.first p)))
+        }
+      "=" { left.add (left.add (a.apply (Sum.first p)) (b.apply (Sum.second p))) left.zero } "by" {
+          congr!{V V} (left.add (left.add (a.apply (Sum.first p)) (b.apply (Sum.second p)))) _ _ (Left.inverseLeft (b.apply (c.apply (Sum.first p))))
+        }
+      "=" { left.add (a.apply (Sum.first p)) (b.apply (Sum.second p)) } "by" { Left.zeroRight _ }
+    })
+    (congr!{W W} (right.add (Sum.second p)) _ _ (right.scalarOne (c.apply (Sum.first p))));
