@@ -1,0 +1,32 @@
+\import algebra.Group[].Of[Carrier := C.Complex, group := Scalars.additiveGroup] \as Group;
+\import Spaces.Laws[V := C.Complex, space := Spaces.scalarSpace] \as ScalarLaws;
+\definition corrected: \forall (p, f: C.Complex) -> C.Def[].add p (C.Def[].mul (C.Def[].sub f C.Def[].one) p) = C.Def[].mul f p :=
+  \fun (p, f: C.Complex) => trans!{{C.Complex}} _ _ _
+    (congr!{{C.Complex} {C.Complex}} (C.Def[].add p) _ _ (trans!{{C.Complex}} _ _ _ (C.Prop[].mulAddRight f (C.Def[].neg C.Def[].one) p)
+      (congr!{{C.Complex} {C.Complex}} (C.Def[].add (C.Def[].mul f p)) _ _ (ScalarLaws.minusOneScale p))))
+    (trans!{{C.Complex}} _ _ _ (C.Prop[].addComm p (Group.difference (C.Def[].mul f p) p)) (Group.addDifference (C.Def[].mul f p) p));
+\definition leftScalar: \forall (l, r, f, g: C.Complex) -> blend l l r f g C.Def[].zero = C.Def[].mul f l :=
+  \fun (l, r, f, g: C.Complex) => trans!{{C.Complex}} _ _ _
+    (congr!{{C.Complex} {C.Complex}} (C.Def[].add l) _ _ (congr!{{C.Complex} {C.Complex} {C.Complex}} C.Def[].add _ _ _ _
+      (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (\fun (w: C.Complex) => C.Def[].mul w (C.Def[].mul (C.Def[].sub f C.Def[].one) l)) _ _
+        (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (C.Def[].add C.Def[].one) _ _ C.Prop[].negZero) (C.Prop[].addZeroRight C.Def[].one))) (C.Prop[].mulOneLeft (C.Def[].mul (C.Def[].sub f C.Def[].one) l)))
+      (C.Prop[].mulZeroLeft (C.Def[].mul (C.Def[].sub g C.Def[].one) r))))
+    (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (C.Def[].add l) _ _ (C.Prop[].addZeroRight (C.Def[].mul (C.Def[].sub f C.Def[].one) l))) (corrected l f));
+\definition rightScalar: \forall (l, r, f, g: C.Complex) -> blend r l r f g C.Def[].one = C.Def[].mul g r :=
+  \fun (l, r, f, g: C.Complex) => trans!{{C.Complex}} _ _ _
+    (congr!{{C.Complex} {C.Complex}} (C.Def[].add r) _ _ (congr!{{C.Complex} {C.Complex} {C.Complex}} C.Def[].add _ _ _ _
+      (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (\fun (w: C.Complex) => C.Def[].mul w (C.Def[].mul (C.Def[].sub f C.Def[].one) l)) _ _ (C.Prop[].subSelf C.Def[].one)) (C.Prop[].mulZeroLeft (C.Def[].mul (C.Def[].sub f C.Def[].one) l)))
+      (C.Prop[].mulOneLeft (C.Def[].mul (C.Def[].sub g C.Def[].one) r))))
+    (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (C.Def[].add r) _ _ (C.Prop[].addZeroLeft (C.Def[].mul (C.Def[].sub g C.Def[].one) r))) (corrected r g));
+\definition leftValue[s: R.Real][x: X]: Matrices.Matrix := \fun (i, j: Matrices.Index) => C.Def[].mul (Powers.value (factor (Pair.pair R.Real X s x)) leftPower) (left x i j);
+\definition rightValue[s: R.Real][x: X]: Matrices.Matrix := \fun (i, j: Matrices.Index) => C.Def[].mul (Powers.value (factor (Pair.pair R.Real X s x)) rightPower) (right x i j);
+\definition atLeft: \forall (s: R.Real)(x: X) -> weight x = C.Def[].zero -> original x = left x -> value (Pair.pair R.Real X s x) = leftValue s x :=
+  \fun (s: R.Real)(x: X)(weightZero: _)(same: _) => Matrices.Operations[].ext _ _ (\fun (i, j: Matrices.Index) => trans!{{C.Complex}} _ _ _
+    (congr!{{C.Complex} {C.Complex} {C.Complex}} (\fun (h, w: C.Complex) => blend h (left x i j) (right x i j) (Powers.value (factor (Pair.pair R.Real X s x)) leftPower) (Powers.value (factor (Pair.pair R.Real X s x)) rightPower) w) _ _ _ _
+      (congr!{Matrices.Matrix {C.Complex}} (\fun (m: Matrices.Matrix) => m i j) _ _ same) weightZero)
+    (leftScalar (left x i j) (right x i j) (Powers.value (factor (Pair.pair R.Real X s x)) leftPower) (Powers.value (factor (Pair.pair R.Real X s x)) rightPower)));
+\definition atRight: \forall (s: R.Real)(x: X) -> weight x = C.Def[].one -> original x = right x -> value (Pair.pair R.Real X s x) = rightValue s x :=
+  \fun (s: R.Real)(x: X)(weightOne: _)(same: _) => Matrices.Operations[].ext _ _ (\fun (i, j: Matrices.Index) => trans!{{C.Complex}} _ _ _
+    (congr!{{C.Complex} {C.Complex} {C.Complex}} (\fun (h, w: C.Complex) => blend h (left x i j) (right x i j) (Powers.value (factor (Pair.pair R.Real X s x)) leftPower) (Powers.value (factor (Pair.pair R.Real X s x)) rightPower) w) _ _ _ _
+      (congr!{Matrices.Matrix {C.Complex}} (\fun (m: Matrices.Matrix) => m i j) _ _ same) weightOne)
+    (rightScalar (left x i j) (right x i j) (Powers.value (factor (Pair.pair R.Real X s x)) leftPower) (Powers.value (factor (Pair.pair R.Real X s x)) rightPower)));
