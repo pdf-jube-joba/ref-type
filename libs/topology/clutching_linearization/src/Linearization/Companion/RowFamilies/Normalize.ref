@@ -1,0 +1,22 @@
+\definition normalized[x: X]: Row.Map := Row.Operations[].scale (C.Def[].inv (a x)) (rows x);
+\definition normalizedRegular: \forall (v: Carrier)(j: Fin.Fin n) -> topology.Continuity[A := X, B := C.Complex].Continuous source Plane.topology (\fun (x: X) => (normalized x).apply v j) :=
+  \fun (v: Carrier)(j: Fin.Fin n) => Functions.multiplicationContinuous source _ _ (Functions.inverseContinuous source a regularA nonzero) (regular v j);
+\definition polynomial[x: X][z: C.Complex]: End.Map := End.Operations[].plus
+  (End.Operations[].scale (a x) (Spaces.Eigen[V := Vectors.Vector, space := Vectors.space].scalar (power z degree)))
+  (Row.Composition[U := Vectors.Vector, domain := Vectors.space].compose (rows x) (geometric z));
+\definition normalizedPolynomial[x: X][z: C.Complex]: End.Map := \root.Linearization[].Companion[n := n, d := d].FromRow[row := normalized x].polynomial z;
+\definition restoration: \forall (x: X)(z: C.Complex)(v: Vectors.Vector) -> Vectors.scale (a x) ((normalizedPolynomial x z).apply v) = (polynomial x z).apply v :=
+  \fun (x: X)(z: C.Complex)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _ (Vectors.space.vectorAdd (a x) (Vectors.scale (power z degree) v) (Vectors.scale (C.Def[].inv (a x)) ((rows x).apply ((geometric z).apply v))))
+    (congr!{Vectors.Vector Vectors.Vector} (Vectors.plus (Vectors.scale (a x) (Vectors.scale (power z degree) v))) _ _
+      (trans!{Vectors.Vector} _ _ _ (sym!{Vectors.Vector} _ _ (Vectors.space.scalarAssoc (a x) (C.Def[].inv (a x)) ((rows x).apply ((geometric z).apply v))))
+        (trans!{Vectors.Vector} _ _ _ (congr!{{C.Complex} Vectors.Vector} (\fun (s: C.Complex) => Vectors.scale s ((rows x).apply ((geometric z).apply v))) _ _ (C.Prop[].inverseNonzeroRight (a x) (nonzero x)))
+          (Vectors.space.scalarOne ((rows x).apply ((geometric z).apply v))))));
+\definition normalizedKernel:
+  (\forall (x: X)(z: C.Complex) -> C.Absolute[].abs z = R.one -> \forall (v: Vectors.Vector) -> (polynomial x z).apply v = Vectors.origin -> v = Vectors.origin) ->
+  \forall (x: X)(z: C.Complex) -> C.Absolute[].abs z = R.one -> \forall (v: Vectors.Vector) -> (normalizedPolynomial x z).apply v = Vectors.origin -> v = Vectors.origin :=
+  \fun (kernel: _)(x: X)(z: C.Complex)(unit: _)(v: Vectors.Vector)(zero: _) => kernel x z unit v
+    (trans!{Vectors.Vector} _ _ _ (sym!{Vectors.Vector} _ _ (restoration x z v))
+      (trans!{Vectors.Vector} _ _ _ (congr!{Vectors.Vector Vectors.Vector} (Vectors.scale (a x)) _ _ zero) (Values.scaleZero (a x))));
+\import \root.Linearization[].Companion[n := n, d := d].RowFamilies[X := X, source := source, rows := normalized, regular := normalizedRegular] \as Monic;
+\definition matrix: X -> matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := Coordinates.dimension degree].Matrix := Monic.matrix;
+\definition matrixRegular: Top.Regular source matrix := Monic.matrixRegular;
