@@ -100,6 +100,8 @@ B03 の計量・補束と同型類の集合が利用可能になり、B05・B09 
 K06 の連続なスペクトル分離は B04 の束比較の基盤となり、B04 の clutching と合わせて K07 で再利用できる。
 K01 の Grothendieck 環・安定判定・反変引き戻しは K03・K07 で再利用する。
 K04 の実・複素 Stone–Weierstrass、Laurent 近似と行列・束の一様評価も K07 で利用できる。
+K07 は [clutching_linearization](../../libs/topology/clutching_linearization/README.md) で実装中。
+Laurent 近似、companion とスペクトル標準形の束比較、スペクトル束の差の自然性・直和は公開済みで、全正規化選択の独立性と相互逆の接続は未完了。
 B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進められる。
 空いた担当には C01・K02・L04・A19 を割り当て、長い解析の経路を早めに進める。
 各節の番号は識別子で、実装順は依存リストから決まる。
