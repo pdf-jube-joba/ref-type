@@ -40,3 +40,36 @@
     "=" { Vectors.plus (Vectors.scale z ((polynomial z).apply v)) (Vectors.scale (C.Def[].neg r) ((polynomial z).apply v)) } "by" { congr!{Vectors.Vector Vectors.Vector} (\fun (w: Vectors.Vector) => Vectors.plus w (Vectors.scale (C.Def[].neg r) ((polynomial z).apply v))) _ _ (sym!{Vectors.Vector} _ _ (Vectors.space.vectorAdd z _ _)) }
     "=" _ "by" { sym!{Vectors.Vector} _ _ (Vectors.space.scalarAdd z (C.Def[].neg r) ((polynomial z).apply v)) }
   };
+
+\import Spaces.DirectSum[V := Carrier, W := Vectors.Vector, left := space, right := Vectors.space] \as State;
+\import Spaces.Linear[V := Next.Carrier, W := State.Carrier, source := Next.space, target := State.space] \as Forward;
+\definition forward: Forward.Map := State.Universal[U := Next.Carrier, domain := Next.space].pair prefix residual;
+\definition backwardValue[p: State.Carrier]: Next.Carrier := Next.join (State.first p) (ValueGroup.difference (State.second p) (row.apply (State.first p)));
+\definition prefixBackward: \forall (p: State.Carrier) -> prefix.apply (backwardValue p) = State.first p :=
+  \fun (p: State.Carrier) => \axiom:funext(prefix.apply (backwardValue p), State.first p,
+    \fun (i: Fin.Fin degree) => Next.atFront (State.first p) (ValueGroup.difference (State.second p) (row.apply (State.first p))) i);
+\definition residualBackward: \forall (p: State.Carrier) -> residual.apply (backwardValue p) = State.second p :=
+  \fun (p: State.Carrier) => eq_reason_in!{Vectors.Vector
+    { residual.apply (backwardValue p) }
+    "=" { Vectors.plus (row.apply (State.first p)) (ValueGroup.difference (State.second p) (row.apply (State.first p))) } "by" {
+      congr!{Vectors.Vector Vectors.Vector Vectors.Vector} Vectors.plus _ _ _ _
+        (congr!{Carrier Vectors.Vector} row.apply _ _ (prefixBackward p))
+        (Next.atLast (State.first p) (ValueGroup.difference (State.second p) (row.apply (State.first p)))) }
+    "=" { Vectors.plus (ValueGroup.difference (State.second p) (row.apply (State.first p))) (row.apply (State.first p)) } "by" { ValueGroup.comm _ _ }
+    "=" _ "by" { ValueGroup.addDifference (State.second p) (row.apply (State.first p)) }
+  };
+\import std.Data[].Pair[].Prop[A := Carrier, B := Vectors.Vector] \as StatePairs;
+\definition forwardBackward: \forall (p: State.Carrier) -> forward.apply (backwardValue p) = p :=
+  \fun (p: State.Carrier) => StatePairs.ext _ p (prefixBackward p) (residualBackward p);
+\definition lastRecovered: \forall (v: Next.Carrier) -> ValueGroup.difference (residual.apply v) (row.apply (prefix.apply v)) = v Next.last :=
+  \fun (v: Next.Carrier) => eq_reason_in!{Vectors.Vector
+    { ValueGroup.difference (residual.apply v) (row.apply (prefix.apply v)) }
+    "=" { Vectors.plus (Vectors.plus (v Next.last) (row.apply (prefix.apply v))) (Vectors.negative (row.apply (prefix.apply v))) } "by" {
+      congr!{Vectors.Vector Vectors.Vector} (\fun (w: Vectors.Vector) => Vectors.plus w (Vectors.negative (row.apply (prefix.apply v)))) _ _ (ValueGroup.comm _ _) }
+    "=" { Vectors.plus (v Next.last) (Vectors.plus (row.apply (prefix.apply v)) (Vectors.negative (row.apply (prefix.apply v)))) } "by" { ValueGroup.assoc _ _ _ }
+    "=" { Vectors.plus (v Next.last) Vectors.origin } "by" { congr!{Vectors.Vector Vectors.Vector} (Vectors.plus (v Next.last)) _ _ (ValueGroup.inverseRight (row.apply (prefix.apply v))) }
+    "=" _ "by" { ValueGroup.zeroRight (v Next.last) }
+  };
+\definition backwardForward: \forall (v: Next.Carrier) -> backwardValue (forward.apply v) = v :=
+  \fun (v: Next.Carrier) => trans!{Next.Carrier} _ _ _
+    (congr!{Vectors.Vector Next.Carrier} (Next.join (prefix.apply v)) _ _ (lastRecovered v)) (Next.Reordering[].recover v);
