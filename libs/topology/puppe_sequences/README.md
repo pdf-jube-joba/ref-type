@@ -11,8 +11,9 @@
 `e4fa67d7` の連続性、`a6aa2276` の閉集合貼り合わせ、`ec1c454d` の `Disk.Boundary.cofibration` と任意の対象へのホモトピー拡張性は各 accepted・終了0・保存失敗0。
 `5e7595a2` の `CW.Cylinder.continuous` は accepted・終了0・保存失敗0。
 ローカル `5f5def60` の部分複体の内部セルによる被覆・閉性も accepted・終了0・保存失敗0（`cw-subcomplex.json`、302 modules）。
-この部分複体の追加はリモート未保存で、最後のリモート head は `5e7595a2032de56fb8b6503c82c6c248471db17a`。
+部分複体の追加はリモート `cbd07bdc9cfb6af91678773c9197aae900fbb62a` に保存済み。
+`Quotient.Descent` と `CW.Assembly` による骨格 cylinder 上の貼り合わせは accepted・終了0・保存失敗0。
 次は骨格ごとのホモトピー延長を構成する。
 
-次は円板境界の retraction と有限 CW 部分複体への拡張、基点付き mapping cone・reduced suspension の比較、自然性・商との比較・反変 Hom の完全性を依存順に証明する。
+次は有限 CW 部分複体への拡張、基点付き mapping cone・reduced suspension の比較、自然性・商との比較・反変 Hom の完全性を依存順に証明する。
 共有キャッシュは `libs/refcache`。

@@ -1,0 +1,21 @@
+\import Native.Filtration[].Stage[limit := k] \as Stage;
+\import Stage.Charts[] \as Charts;
+\import algebraic_topology.Cylinder[A := Stage.Carrier] \as Cylinder;
+\import algebraic_topology.Cylinder[A := Charts.Carrier] \as ChartCylinder;
+\import singular_cellular.Coproduct[Index := Charts.Index, fibers := (\fun (c: Charts.Index) => Euclidean.Disk c.dimension),
+  spaces := (\fun (c: Charts.Index) => Euclidean.Dimension[n := c.dimension].diskTopology)] \as Disks;
+\import Disks.ProductUniversal[X := I.Carrier, B := B, factor := I.topology, target := target] \as Universal;
+\import topological_constructions.ProductQuotient[X := I.Carrier, A := Charts.Carrier, B := Stage.Carrier] \as ProductQuotient;
+\import topological_constructions.Quotient[A := ChartCylinder.Carrier, B := Cylinder.Carrier] \as Quotient;
+\import Quotient.Descent[C := B] \as Descent;
+\definition lift: ChartCylinder.Carrier -> Cylinder.Carrier := ProductQuotient.map Charts.map;
+\definition quotient: Quotient.IsQuotientMap[ChartCylinder.topology Charts.topology, Cylinder.topology Stage.topology, lift] :=
+  ProductQuotient.quotientMap I.topology I.compact I.hausdorff Charts.topology Stage.topology Charts.map Charts.quotientMap;
+\definition Compatible[f: ChartCylinder.Carrier -> B]: \Prop := Descent.Respects lift f;
+\definition apply[f: ChartCylinder.Carrier -> B][compatible: Compatible f]: Cylinder.Carrier -> B := Descent.apply lift quotient.onto f compatible;
+\definition onChart: \forall (f: ChartCylinder.Carrier -> B)(compatible: Compatible f)(p: ChartCylinder.Carrier) -> apply f compatible (lift p) = f p :=
+  \fun (f: _)(compatible: _)(p: _) => Descent.onProjection lift quotient.onto f compatible p;
+\definition continuous: \forall (f: ChartCylinder.Carrier -> B)(compatible: Compatible f) -> Universal.Branches f ->
+  topology.Continuity[A := Cylinder.Carrier, B := B].Continuous (Cylinder.topology Stage.topology) target (apply f compatible) :=
+  \fun (f: _)(compatible: _)(branches: _) => Descent.continuous (ChartCylinder.topology Charts.topology) (Cylinder.topology Stage.topology) target
+    lift quotient f compatible (Universal.continuous f branches);
