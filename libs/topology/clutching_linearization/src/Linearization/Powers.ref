@@ -1,0 +1,23 @@
+\definition value[z: C.Complex]: N.Nat^ -> C.Complex := \induction (k: N.Nat^) \return C.Complex \with {
+  | zero: C.Def[].one
+  | succ: \fun (k: N.Nat^)(previous: C.Complex) => C.Def[].mul z previous
+};
+\definition oneAbsolute: C.Absolute[].abs C.Def[].one = R.one := trans!{{R.Real}} _ _ _
+  (uniform_approximation.Approximation[].ComplexScalars[].absoluteReal R.one) (R.Estimates[].Product[].absOfNonnegative R.one Laws.oneNonnegative);
+\definition unitOfNorm: \forall (z: C.Complex) -> C.Def[].normSq z = R.one -> C.Absolute[].abs z = R.one :=
+  \fun (z: C.Complex)(unit: _) => trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} R.SquareRoot[].sqrt _ _ unit) R.SquareRoot[].sqrtOne;
+\definition unit: \forall (z: C.Complex) -> C.Absolute[].abs z = R.one -> \forall (k: N.Nat^) -> C.Absolute[].abs (value z k) = R.one :=
+  \fun (z: C.Complex)(onCircle: _) => \induction (k: N.Nat^) \return C.Absolute[].abs (value z k) = R.one \with {
+    | zero: oneAbsolute
+    | succ: \fun (k: N.Nat^)(previous: _) => trans!{{R.Real}} _ _ _ (C.Absolute[].multiplicative z (value z k))
+      (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real} {R.Real}} R.mul _ _ _ _ onCircle previous) (R.Algebra[].mulOneRight R.one))
+  };
+\definition nonzero: \forall (z: C.Complex) -> C.Absolute[].abs z = R.one -> \forall (k: N.Nat^) -> C.Def[].NonZero (value z k) :=
+  \fun (z: C.Complex)(onCircle: _)(k: N.Nat^)(zero: value z k = C.Def[].zero) => Laws.zeroNeOne
+    (eq_reason_in!{{R.Real} R.zero
+      "=" { C.Absolute[].abs C.Def[].zero } "by" { sym!{{R.Real}} _ _ uniform_approximation.Approximation[].FiniteComplex[].zeroAbsolute }
+      "=" { C.Absolute[].abs (value z k) } "by" { congr!{{C.Complex} {R.Real}} C.Absolute[].abs _ _ (sym!{{C.Complex}} _ _ zero) }
+      "=" R.one "by" { unit z onCircle k }
+    });
+\module Families(X: \Set, source: topology.Topology[Carrier := X].Topology, z: X -> C.Complex,
+  regular: topology.Continuity[A := X, B := C.Complex].Continuous source topological_algebra.Complex[].topology z);
