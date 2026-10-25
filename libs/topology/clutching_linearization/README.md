@@ -41,7 +41,11 @@ target/debug/cli libs/topology/clutching_linearization --source-snapshot work/k0
 `work/k07-comparison`（300秒）と `work/k07-comparison-alias`（180秒）、trace による個別検査（90秒）は終了2・time-limit・未完了。
 遷移関数から作る `Raw` cocycle を分離し、既存の `FromCharts.With` を使う構成へ変更した。
 `b3f782ef` の B04 `Clutching.With.Comparison` 自身と参照先は `work/k07-cocycle-equality` で accepted・保存失敗0・終了0。
-次は K07 全対象 module を検査し、閉被覆 gauge・積空間ホモトピー・ブロック線形化の連続性・スペクトル核の追加分を修正・確認する。
+`work/k07-gauges-continuous` は保存完了・終了1で、B04 の非公開 alias `Motion.Start` の参照エラーを検出した。
+公開 `Endpoint[t]` に変更した `0ebd9247` の次の検査は、`bundle_operations` の直接依存が不足して終了1となり、manifest に追加した。
+最新の `work/k07-motion-current` は K07 全対象 module を検査中。
+未検証の追加には、スペクトル kernel の固有値評価、可逆な pencil 変形と連続な族、両端の等式も含む。
+次は同検査の終了結果を確認し、通常の型・名前解決エラーを修正して、最新 source snapshot で再検査する。
 既存の有限係数共通化の影響先 `polynomial_linear_algebra.Field.Representatives` の個別検査は終了0。
 package 全依存閉包・影響する下流・利用例・workspace の最終検証は残っている。
 clutching とスペクトル束の比較、選択独立性・直和・相互逆、具体例・workspace 登録・公開一覧・下流リンク・ロードマップが残作業である。
