@@ -48,7 +48,10 @@ target/debug/cli libs/topology/clutching_linearization --source-snapshot work/k0
 `work/k07-shift-continuity` は追加した `Shift.power` と複素数の冪の名前衝突で終了1。
 `Shift.iterate` へ変更した `b2901d44` の `Companion.ShiftFamilies` は `work/k07-shift-continuity-current` で accepted・保存完了・終了0。
 この対象検査では `--memory-mib 10240` を使用した。
-次は `Companion.Families.Linearization` の型と gauge の連続性・行列比較を検査する。
+`19b1962e` の `Companion.Families.Linearization` は `work/k07-gauge-matrices` で accepted・保存失敗0・終了0。
+平面全体での gauge の連続性・可逆性・安定化した行列との等式を含む。
+その後、右 gauge の逆行列の連続性と intertwining を追加しており、この追加は未検証。
+次は `PolynomialEigen`、`SpectralPencil`、`SpectralMotion`、積空間の clutching 比較を対象検査する。
 残る追加 module を順に検査し、その後 K07 全対象と package 全依存閉包へ戻る。
 未検証の追加には、スペクトル kernel の固有値評価、可逆な pencil 変形と連続な族、両端の等式も含む。
 次は同検査の終了結果を確認し、通常の型・名前解決エラーを修正して、最新 source snapshot で再検査する。
