@@ -1,0 +1,17 @@
+\import std.Data[].FinSet[] \as Fin;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Order;
+\definition sum: \forall (n: N.Nat^) -> (Fin.Fin n -> N.Nat^) -> N.Nat^ :=
+  \induction (n: N.Nat^) \return (Fin.Fin n -> N.Nat^) -> N.Nat^ \with {
+    | zero: \fun (f: Fin.Fin N.Nat^::zero -> N.Nat^) => N.Nat^::zero
+    | succ: \fun (n: N.Nat^)(previous: _)(f: Fin.Fin (N.Nat^::succ n) -> N.Nat^) => Nat.add (f (Fin.zero n)) (previous (\fun (i: Fin.Fin n) => f (Fin.succ n i)))
+  };
+\definition bound: \forall (n: N.Nat^)(f: Fin.Fin n -> N.Nat^)(i: Fin.Fin n) -> Order.Le (f i) (sum n f) :=
+  \induction (n: N.Nat^) \return \forall (f: Fin.Fin n -> N.Nat^)(i: Fin.Fin n) -> Order.Le (f i) (sum n f) \with {
+    | zero: \fun (f: Fin.Fin N.Nat^::zero -> N.Nat^)(i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))
+    | succ: \fun (n: N.Nat^)(previous: _)(f: Fin.Fin (N.Nat^::succ n) -> N.Nat^) => Fin.cases n
+      (\fun (i: Fin.Fin (N.Nat^::succ n)) => Order.Le (f i) (sum (N.Nat^::succ n) f))
+      (Order.leAddRight (f (Fin.zero n)) (sum n (\fun (i: Fin.Fin n) => f (Fin.succ n i))))
+      (\fun (i: Fin.Fin n) => Order.leTrans _ _ _ (previous (\fun (j: Fin.Fin n) => f (Fin.succ n j)) i)
+        (Order.leAddLeft (f (Fin.zero n)) (sum n (\fun (j: Fin.Fin n) => f (Fin.succ n j)))))
+  };

@@ -1,0 +1,21 @@
+\import \root.Linearization[].FiniteBounds[] \as Bounds;
+\import N.Basic[].Prop[] \as Order;
+\definition row[i: Fin.Fin n]: N.Nat^ := Bounds.sum m (\fun (j: Fin.Fin m) => (forms i j).shift);
+\definition total: N.Nat^ := Bounds.sum n row;
+\definition bounded: \forall (i: Fin.Fin n)(j: Fin.Fin m) -> Order.Le (forms i j).shift total :=
+  \fun (i: Fin.Fin n)(j: Fin.Fin m) => Order.leTrans _ _ _ (Bounds.bound m (\fun (j: Fin.Fin m) => (forms i j).shift) j) (Bounds.bound n row i);
+\definition remainder[i: Fin.Fin n][j: Fin.Fin m]: N.Nat^ := Nat.sub total (forms i j).shift;
+\definition common: \forall (i: Fin.Fin n)(j: Fin.Fin m) -> Nat.add (forms i j).shift (remainder i j) = total :=
+  \fun (i: Fin.Fin n)(j: Fin.Fin m) => Order.addSubOfLe (forms i j).shift total (bounded i j);
+\definition polynomial[i: Fin.Fin n][j: Fin.Fin m]: P.Carrier := P.mul (polynomialPower (remainder i j)) (forms i j).polynomial;
+\definition equation: \forall (i: Fin.Fin n)(j: Fin.Fin m) -> L.mul (power total) (p i j) = embed (polynomial i j) :=
+  \fun (i: Fin.Fin n)(j: Fin.Fin m) => eq_reason_in!{L.Carrier _
+    "=" { L.mul (power (Nat.add (forms i j).shift (remainder i j))) (p i j) } "by" {
+      congr!{{N.Nat^} L.Carrier} (\fun (k: N.Nat^) => L.mul (power k) (p i j)) _ _ (sym!{{N.Nat^}} _ _ (common i j))
+    }
+    "=" { L.mul (power (remainder i j)) (L.mul (power (forms i j).shift) (p i j)) } "by" { advanceRight (forms i j).shift (remainder i j) (p i j) }
+    "=" { L.mul (power (remainder i j)) (embed (forms i j).polynomial) } "by" { congr!{L.Carrier L.Carrier} (L.mul (power (remainder i j))) _ _ (forms i j).equation }
+    "=" { L.mul (embed (polynomialPower (remainder i j))) (embed (forms i j).polynomial) } "by" { congr!{L.Carrier L.Carrier} (\fun (a: L.Carrier) => L.mul a (embed (forms i j).polynomial)) _ _ (sym!{L.Carrier} _ _ (embedPower (remainder i j))) }
+    "=" _ "by" { sym!{L.Carrier} _ _ (embeddingLaws.mul (polynomialPower (remainder i j)) (forms i j).polynomial) }
+  };
+\definition result: MatrixForm := MatrixForm { shift := total, polynomials := polynomial, equation := equation };
