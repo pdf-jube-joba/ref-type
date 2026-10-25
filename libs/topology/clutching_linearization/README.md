@@ -35,9 +35,11 @@ K04 の `Circle.Coefficients.valueContinuous` を公開し、評価の連続性�
 `ProjectionBundle.Clutching.With.isomorphismExists`、同 `KClass.comparison`、`SpectralMotion.Normal.Clutched.Product.productFormula` と冪零行列の例は `2626b4f1` までの個別検査で accepted・終了0・保存失敗0。
 `d3ff4937` の K07 全対象検査も 1,323 modules、accepted・終了0・保存失敗0。
 `83b5da62` では剪断回転を使う安定積経路の連続性と端点等式まで検査済み（`clutching-product.json`、accepted・終了0・保存失敗0）。
-`de128642` の `ClutchingProduct.With.Comparison` は積の clutching と直和の安定束同型を証明済み（`clutching-product-bundle.json`、accepted・終了0・保存失敗0）。
-同 `KClass.additivity` の被約 K0 等式を追加し、次に検査する。
-次はこの比較の K0 等式、円周の冪への帰納適用、Laurent shift 補正へ進む。
+積の clutching と直和の安定束同型、被約 K0 の積加法性、円周の冪の帰納公式、ランク \(nk\) による Laurent shift 補正を検証した。
+`7b0f8033` の `Leading.KClass.Pullback.reconstruction` は、Laurent clutching を線束の差と引き戻したスペクトル逆クラスの積として復元する（`spectral-reconstruction.json`、accepted・終了0・保存失敗0）。
+`c43bc8e0` で元の近似前のループに対する `Construction.Reconstruction.reconstruction` を追加し、検査中。
+次は全 K07 の検査後、一般の選択独立性に進む。
+次数の追加は外側の一次因子による companion の安定化、shift の変更は零固有値ブロックの追加、固定次数の補助選択はスペクトルホモトピーで比較する方針。
 以下の全workspace結果は再開前の数学入力に対する記録。
 
 | 対象 | 数学入力 | 結果 |
@@ -75,15 +77,9 @@ K07 だけを検査する場合は入力を `libs/topology/clutching_linearizati
 ## 完了に必要な数学的接続
 
 現在の `Construction.inverseClass` は選択した `Parameters` に対する候補であり、選択に依存しない逆写像の定義にはまだなっていない。
-必要な接続は次のとおり。
-
-- Laurent shift による円周の冪を K0 の自明束の差へ反映する一般の比較。
-- 検証済みの標準ループの積公式を、一般の Laurent shift 補正と結合する。
-- 任意の shift・次数・正規化パラメータについての候補の選択独立性。
-- 基本積定理に必要な相互逆の等式。
-
-近似間の clutching 束同型、スペクトル族の自然性・直和・ホモトピー不変性、標準モデルの復元は検証済みだが、これらだけでは上記の一般の結論を導けていない。
-体系・言語処理系による不可能性が確認されたわけではなく、必要な証明構成が未完成という状態である。
-次の実装は安定積比較と Laurent shift 補正から再開する。
+Laurent shift 補正と標準ループの積公式を結合した再構成等式は検証済み。
+残るのは任意の近似・shift・次数・正規化についてのスペクトル逆クラスの選択独立性と、それを用いた一般の相互逆の公開である。
+固定されたスペクトル族の自然性・直和・ホモトピー不変性、標準モデルの復元は検証済み。
+一般の選択独立性を再構成の積公式だけから結論することはできないため、companion の一次因子追加と次数・shift の変更の比較を構成する。
 workspace・公開一覧・下流リンク・ロードマップは実装中と表示している。
 PR の ready 化と main へのマージは未実施。
