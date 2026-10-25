@@ -1,0 +1,37 @@
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := n] \as Matrices;
+\import topological_algebra.Matrix[K := C.Complex, I := Matrices.Index, J := Matrices.Index] \as MatrixSpace;
+\import topological_algebra.Complex[] \as Plane;
+\import std.Data[].Bool[] \as B;
+\import std.Data[].Pair[] \as Pair;
+\definition Entry: \Set := Pair.Times^[Matrices.Index, Matrices.Index];
+\definition Index: \Set := Pair.Times^[B.Bool^, Entry];
+\definition part: B.Bool^ -> C.Complex -> R.Real := \induction (b: B.Bool^) \return C.Complex -> R.Real \with {
+  | false: C.re
+  | true: C.im
+};
+\definition coordinate[a: Matrices.Matrix][k: Index]: R.Real :=
+  part (Pair.first B.Bool^ Entry k) (a (Pair.first Matrices.Index Matrices.Index (Pair.second B.Bool^ Entry k)) (Pair.second Matrices.Index Matrices.Index (Pair.second B.Bool^ Entry k)));
+\definition index[b: B.Bool^][i, j: Matrices.Index]: Index := Pair.pair B.Bool^ Entry b (Pair.pair Matrices.Index Matrices.Index i j);
+\import \root.Linearization[].Uniform[A := Matrices.Matrix, I := Index, coordinate := coordinate] \as Uniform;
+\import topological_constructions.Product[A := R.Real, B := R.Real] \as ComplexSpace;
+\definition entryContinuous: \forall (i, j: Matrices.Index) -> topology.Continuity[A := Matrices.Matrix, B := C.Complex].Continuous Uniform.topology Plane.topology (\fun (a: Matrices.Matrix) => a i j) :=
+  \fun (i, j: Matrices.Index) => \idelim (\fun (a: Matrices.Matrix) => C.make (C.re (a i j)) (C.im (a i j))) = (\fun (a: Matrices.Matrix) => a i j)
+    \with f: Matrices.Matrix -> C.Complex => topology.Continuity[A := Matrices.Matrix, B := C.Complex].Continuous Uniform.topology Plane.topology f \by {
+      base: ComplexSpace.Universal[X := Matrices.Matrix].pairContinuous Uniform.topology metric_spaces.RealLine[].topology metric_spaces.RealLine[].topology
+        (\fun (a: Matrices.Matrix) => C.re (a i j)) (\fun (a: Matrices.Matrix) => C.im (a i j))
+        (Uniform.coordinateContinuous (index B.Bool^::false i j)) (Uniform.coordinateContinuous (index B.Bool^::true i j)),
+      equality: \axiom:funext((\fun (a: Matrices.Matrix) => C.make (C.re (a i j)) (C.im (a i j))), (\fun (a: Matrices.Matrix) => a i j), \fun (a: Matrices.Matrix) => C.Prop[].eta (a i j))
+    };
+\definition identityContinuous: topology.Continuity[A := Matrices.Matrix, B := Matrices.Matrix].Continuous Uniform.topology (MatrixSpace.topology Plane.topology) (\fun (a: Matrices.Matrix) => a) :=
+  MatrixSpace.Universal[A := Matrices.Matrix].continuous Uniform.topology Plane.topology (\fun (a: Matrices.Matrix) => a) entryContinuous;
+\definition radiusExists: \forall (U: \Pow Matrices.Matrix) -> topology.Topology[Carrier := Matrices.Matrix].IsOpenIn (MatrixSpace.topology Plane.topology) U ->
+  \forall (a: Matrices.Matrix) -> \In[Matrices.Matrix] U a -> \exists Uniform.Radius[U, a] :=
+  \fun (U: \Pow Matrices.Matrix)(open: _)(a: Matrices.Matrix)(member: _) => identityContinuous U open a member;
+\definition complexError: \forall (a, b: Matrices.Matrix)(delta: R.Real) ->
+  (\forall (i, j: Matrices.Index) -> Real.Lt (C.Absolute[].abs (C.Def[].sub (a i j) (b i j))) delta) -> Uniform.Near a b delta :=
+  \fun (a, b: Matrices.Matrix)(delta: R.Real)(near: _) => std.Data[].Pair[].Prop[A := B.Bool^, B := Entry].induction
+    (\fun (part: B.Bool^)(entry: Entry) => (\induction (p: B.Bool^) \return
+      Real.Lt (R.distance (coordinate a (Pair.pair B.Bool^ Entry p entry)) (coordinate b (Pair.pair B.Bool^ Entry p entry))) delta \with {
+        | false: Real.leLtTrans _ _ _ (\root.Linearization[].ComplexBounds[].realDistance (a (Pair.first Matrices.Index Matrices.Index entry) (Pair.second Matrices.Index Matrices.Index entry)) (b (Pair.first Matrices.Index Matrices.Index entry) (Pair.second Matrices.Index Matrices.Index entry))) (near (Pair.first Matrices.Index Matrices.Index entry) (Pair.second Matrices.Index Matrices.Index entry))
+        | true: Real.leLtTrans _ _ _ (\root.Linearization[].ComplexBounds[].imaginaryDistance (a (Pair.first Matrices.Index Matrices.Index entry) (Pair.second Matrices.Index Matrices.Index entry)) (b (Pair.first Matrices.Index Matrices.Index entry) (Pair.second Matrices.Index Matrices.Index entry))) (near (Pair.first Matrices.Index Matrices.Index entry) (Pair.second Matrices.Index Matrices.Index entry))
+      }) part);

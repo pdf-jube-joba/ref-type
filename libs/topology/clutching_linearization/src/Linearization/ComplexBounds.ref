@@ -1,0 +1,21 @@
+\import C.Def[] \as O;
+\import C.Absolute[] \as Absolute;
+\import R.Algebra[] \as Algebra;
+\import R.Distance[] \as Distance;
+\import R.SquareRoot[] \as Root;
+\definition realBound: \forall (z: C.Complex) -> Real.Le (R.distance R.zero (C.re z)) (Absolute.abs z) :=
+  \fun (z: C.Complex) => Order.leOfNotLtReverse _ _ (\fun (less: Real.Lt (Absolute.abs z) (R.distance R.zero (C.re z))) =>
+    Real.ltNotLeReverse (R.mul (Absolute.abs z) (Absolute.abs z)) (R.mul (R.distance R.zero (C.re z)) (R.distance R.zero (C.re z)))
+      (Root.squareStrict _ _ (Absolute.nonnegative z) less)
+      (Real.leReplace _ _ _ _ (sym!{{R.Real}} _ _ (uniform_approximation.Approximation[].Absolute[].square (C.re z)))
+        (sym!{{R.Real}} _ _ (Absolute.square z))
+        (Algebra.leAddRight (R.mul (C.re z) (C.re z)) (R.mul (C.im z) (C.im z)) (Algebra.squareNonnegative (C.im z)))));
+\definition swap[z: C.Complex]: C.Complex := C.make (C.im z) (C.re z);
+\definition swapAbsolute: \forall (z: C.Complex) -> Absolute.abs (swap z) = Absolute.abs z :=
+  \fun (z: C.Complex) => congr!{{R.Real} {R.Real}} Root.sqrt _ _ (Laws.addComm (R.mul (C.im z) (C.im z)) (R.mul (C.re z) (C.re z)));
+\definition imaginaryBound: \forall (z: C.Complex) -> Real.Le (R.distance R.zero (C.im z)) (Absolute.abs z) :=
+  \fun (z: C.Complex) => Real.leReplaceRight _ _ _ (swapAbsolute z) (realBound (swap z));
+\definition realDistance: \forall (z, w: C.Complex) -> Real.Le (R.distance (C.re z) (C.re w)) (Absolute.abs (O.sub z w)) :=
+  \fun (z, w: C.Complex) => Real.leReplaceLeft _ _ _ (uniform_approximation.Approximation[].Lattice[].differenceAbsolute (C.re z) (C.re w)) (realBound (O.sub z w));
+\definition imaginaryDistance: \forall (z, w: C.Complex) -> Real.Le (R.distance (C.im z) (C.im w)) (Absolute.abs (O.sub z w)) :=
+  \fun (z, w: C.Complex) => Real.leReplaceLeft _ _ _ (uniform_approximation.Approximation[].Lattice[].differenceAbsolute (C.im z) (C.im w)) (imaginaryBound (O.sub z w));
