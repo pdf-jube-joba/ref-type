@@ -22,3 +22,25 @@
 \definition self: Maps.Morphism := Maps.ofLinear (M.linear A) (\fun (v: M.Vector) => \refl((M.linear A).apply ((M.linear A).apply v)));
 \definition commute: \forall (v: M.Vector) -> (M.linear A).apply (Projection.projection.apply v) = Projection.projection.apply ((M.linear A).apply v) := Natural.natural self;
 \definition commuteComplement: \forall (v: M.Vector) -> (M.linear A).apply (Projection.complementary.apply v) = Projection.complementary.apply ((M.linear A).apply v) := Natural.naturalComplement self;
+\definition onOtherKernel: \forall (v: M.Vector) -> Evaluation.apply Split.outside v = Vectors.origin -> Projection.projection.apply v = Vectors.origin := \block {
+  \fun (v: M.Vector)(kernel: _) \then
+  \takefrom b: polynomial_linear_algebra.Field[K := C.Complex, field := Scalars.field].Bezout[Split.inside, Split.outside, algebra.Polynomial[].Over[R := C.Complex, coefficients := Scalars.commutativeRing].one]
+    \by Roots.coprime Split.coefficients off \then
+  \return trans!{M.Vector} _ _ _ (Projection.formula b v)
+    (Spectral.Action[V := M.Vector, space := Vectors.space, T := M.linear A].With[p := Split.inside, q := Split.outside, b := b].onRight v kernel)
+};
+\structure SeparateZero[u, v: M.Vector]: \Prop := { first: u = Vectors.origin, second: v = Vectors.origin };
+\definition separateZero: \forall (u, v: M.Vector) -> Evaluation.apply Split.inside u = Vectors.origin -> Evaluation.apply Split.outside v = Vectors.origin ->
+  Vectors.plus u v = Vectors.origin -> SeparateZero[u, v] := \block {
+    \fun (u, v: M.Vector)(inner: _)(outer: _)(sum: _) \then
+    \let first: u = Vectors.origin := eq_reason_in!{M.Vector u
+      "=" { Vectors.plus u Vectors.origin } "by" { sym!{M.Vector} _ _ (Values.zeroRight u) }
+      "=" { Vectors.plus (Projection.projection.apply u) (Projection.projection.apply v) } "by" {
+        congr!{M.Vector M.Vector M.Vector} Vectors.plus _ _ _ _ (sym!{M.Vector} _ _ (Projection.onKernel u inner)) (sym!{M.Vector} _ _ (onOtherKernel v outer)) }
+      "=" { Projection.projection.apply (Vectors.plus u v) } "by" { sym!{M.Vector} _ _ (Projection.projection.preservesAdd u v) }
+      "=" { Projection.projection.apply Vectors.origin } "by" { congr!{M.Vector M.Vector} Projection.projection.apply _ _ sum }
+      "=" Vectors.origin "by" { Projection.projection.preservesZero }
+    } \then
+    \return SeparateZero[u, v] { first := first, second := trans!{M.Vector} _ _ _ (sym!{M.Vector} _ _ (Values.zeroLeft v))
+      (trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector} (\fun (w: M.Vector) => Vectors.plus w v) _ _ (sym!{M.Vector} _ _ first)) sum) }
+  };
