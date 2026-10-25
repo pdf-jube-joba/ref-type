@@ -16,7 +16,7 @@
 \import topological_constructions.Product[A := R.Real, B := R.Real] \as ComplexSpace;
 \definition entryContinuous: \forall (i, j: Matrices.Index) -> topology.Continuity[A := Matrices.Matrix, B := C.Complex].Continuous Uniform.topology Plane.topology (\fun (a: Matrices.Matrix) => a i j) :=
   \fun (i, j: Matrices.Index) => \idelim (\fun (a: Matrices.Matrix) => C.make (C.re (a i j)) (C.im (a i j))) = (\fun (a: Matrices.Matrix) => a i j)
-    \with f: Matrices.Matrix -> C.Complex => topology.Continuity[A := Matrices.Matrix, B := C.Complex].Continuous Uniform.topology Plane.topology f \by {
+    \with f: (Matrices.Matrix -> C.Complex) => topology.Continuity[A := Matrices.Matrix, B := C.Complex].Continuous Uniform.topology Plane.topology f \by {
       base: ComplexSpace.Universal[X := Matrices.Matrix].pairContinuous Uniform.topology metric_spaces.RealLine[].topology metric_spaces.RealLine[].topology
         (\fun (a: Matrices.Matrix) => C.re (a i j)) (\fun (a: Matrices.Matrix) => C.im (a i j))
         (Uniform.coordinateContinuous (index B.Bool^::false i j)) (Uniform.coordinateContinuous (index B.Bool^::true i j)),
@@ -26,12 +26,31 @@
   MatrixSpace.Universal[A := Matrices.Matrix].continuous Uniform.topology Plane.topology (\fun (a: Matrices.Matrix) => a) entryContinuous;
 \definition radiusExists: \forall (U: \Pow Matrices.Matrix) -> topology.Topology[Carrier := Matrices.Matrix].IsOpenIn (MatrixSpace.topology Plane.topology) U ->
   \forall (a: Matrices.Matrix) -> \In[Matrices.Matrix] U a -> \exists Uniform.Radius[U, a] :=
-  \fun (U: \Pow Matrices.Matrix)(open: _)(a: Matrices.Matrix)(member: _) => identityContinuous U open a member;
+  \block {
+    \fun (U: \Pow Matrices.Matrix)(open: _)(a: Matrices.Matrix)(member: _) \then
+    \takefrom r: Uniform.Radius[(topology.Continuity[A := Matrices.Matrix, B := Matrices.Matrix].Preimage (\fun (b: Matrices.Matrix) => b) U), a] \by identityContinuous U open a member \then
+    \return \exact(Uniform.Radius[U, a] { value := r.value, positive := r.positive, within := r.within }, Uniform.Radius[U, a])
+  };
 \definition complexError: \forall (a, b: Matrices.Matrix)(delta: R.Real) ->
   (\forall (i, j: Matrices.Index) -> Real.Lt (C.Absolute[].abs (C.Def[].sub (a i j) (b i j))) delta) -> Uniform.Near a b delta :=
-  \fun (a, b: Matrices.Matrix)(delta: R.Real)(near: _) => std.Data[].Pair[].Prop[A := B.Bool^, B := Entry].induction
-    (\fun (part: B.Bool^)(entry: Entry) => (\induction (p: B.Bool^) \return
-      Real.Lt (R.distance (coordinate a (Pair.pair B.Bool^ Entry p entry)) (coordinate b (Pair.pair B.Bool^ Entry p entry))) delta \with {
-        | false: Real.leLtTrans _ _ _ (\root.Linearization[].ComplexBounds[].realDistance (a (Pair.first Matrices.Index Matrices.Index entry) (Pair.second Matrices.Index Matrices.Index entry)) (b (Pair.first Matrices.Index Matrices.Index entry) (Pair.second Matrices.Index Matrices.Index entry))) (near (Pair.first Matrices.Index Matrices.Index entry) (Pair.second Matrices.Index Matrices.Index entry))
-        | true: Real.leLtTrans _ _ _ (\root.Linearization[].ComplexBounds[].imaginaryDistance (a (Pair.first Matrices.Index Matrices.Index entry) (Pair.second Matrices.Index Matrices.Index entry)) (b (Pair.first Matrices.Index Matrices.Index entry) (Pair.second Matrices.Index Matrices.Index entry))) (near (Pair.first Matrices.Index Matrices.Index entry) (Pair.second Matrices.Index Matrices.Index entry))
-      }) part);
+  \block {
+    \fun (a, b: Matrices.Matrix)(delta: R.Real)(near: _)(k: Index) \then
+    \let i: Matrices.Index := Pair.first Matrices.Index Matrices.Index (Pair.second B.Bool^ Entry k) \then
+    \let j: Matrices.Index := Pair.second Matrices.Index Matrices.Index (Pair.second B.Bool^ Entry k) \then
+    \return B.cases (\fun (p: B.Bool^) => Real.Lt (R.distance (part p (a i j)) (part p (b i j))) delta)
+      (Real.leLtTrans _ _ _ (\root.Linearization[].ComplexBounds[].realDistance (a i j) (b i j)) (near i j))
+      (Real.leLtTrans _ _ _ (\root.Linearization[].ComplexBounds[].imaginaryDistance (a i j) (b i j)) (near i j))
+      (Pair.first B.Bool^ Entry k)
+  };
+\definition zero: Matrices.Matrix := \fun (i, j: Matrices.Index) => C.Def[].zero;
+\definition nearZero: \forall (e: Matrices.Matrix)(delta: R.Real) ->
+  (\forall (i, j: Matrices.Index) -> Real.Lt (C.Absolute[].abs (e i j)) delta) -> Uniform.Near zero e delta :=
+  \fun (e: Matrices.Matrix)(delta: R.Real)(near: _) => Uniform.symmetric e zero delta (complexError e zero delta
+    (\fun (i, j: Matrices.Index) => Real.ltReplaceLeft _ _ _
+      (sym!{{R.Real}} _ _ (congr!{{C.Complex} {R.Real}} C.Absolute[].abs _ _ (uniform_approximation.Approximation[].FiniteComplex[].subZeroRight (e i j)))) (near i j)));
+\import matrix_invariants.Topological[K := C.Complex, ring := Plane.Ring[].topologicalRing].At[n := n] \as Top;
+\import matrix_invariants.Field[K := C.Complex, field := Scalars.field].At[n := n] \as Field;
+\module Perturbation(X: \Set, source: topology.Topology[Carrier := X].Topology,
+  compact: topology.Topology[Carrier := X].IsCompact source,
+  a: X -> Matrices.Matrix, regular: Top.Families[X := X].Regular source a,
+  nonzero: \forall (x: X) -> Field.Nonzero (a x));
