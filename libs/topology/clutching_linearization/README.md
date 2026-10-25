@@ -58,8 +58,11 @@ GitHub 連携で既存ブランチを fast-forward 更新し、ローカルと�
 
 `1972b9e5` の `On.DirectSum.additivity` は accepted・終了0・保存失敗0。
 一般の逆クラスの直和加法性まで検証済み。
-冪零行列の逆クラスと直和の具体例を含む K07 全対象検査は `6c784da7` で正常終了。
-最新入力の全workspace検証、CI・PR差分の確認、main へのマージが残る。
+冪零行列の逆クラスと直和の具体例を含む K07 全対象検査は `6c784da7` で1,505 modules、accepted・終了0・保存失敗0（`k07-complete.json`、約189秒）。
+同じ数学入力の全workspace 8,065 modules は accepted・終了0・保存失敗0（`k07-final-workspace.json`、約26秒）。
+共有キャッシュを再利用し、復旧・重複・lost steps は0。
+この検証後の差分は公開一覧・ロードマップ・検証記録のみ。
+PR の最終 head の確認と main へのマージが残る。
 
 ```sh
 target/debug/cli libs --parse-only --save-source-snapshot /tmp/k07-resume/final.source.json
