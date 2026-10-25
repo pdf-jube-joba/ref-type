@@ -100,3 +100,7 @@ Clutched の再検査は `Along.isomorphismExists` で長時間停滞し、計�
 
 B04 `Clutching.Homotopy.Endpoint.at` と実際の端点束が使用する `Pullback.pulledG` の同値比較で、束の型が大きく展開されることを確認した。
 `at`・`regularAt` を構成元の `pulledG`・`pulledContinuous` の別名へ整理して再検査する（定義上同じ遷移関数、未検証）。
+
+`cdbdc077` の Clutched は `/tmp/k07-resume/shared-endpoint.json` で accepted・終了0、保存失敗0、復旧・重複・再実行・lost steps 各0を確認した（約46.5秒、5,502 source steps、895 module）。
+`Along` は約0.7秒で完了し、端点遷移の共有により停滞を解消した。
+この成功は Clutched の対象範囲のみで、NormalForm・スペクトル束比較・利用例などの追加は未検証。
