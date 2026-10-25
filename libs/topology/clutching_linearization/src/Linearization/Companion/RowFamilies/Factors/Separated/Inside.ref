@@ -10,3 +10,13 @@
   | zero: \refl(value N.Nat^::zero)
   | succ: \fun (k: N.Nat^)(previous: value k = value N.Nat^::zero) => trans!{K.K0[].Carrier} _ _ _ Step[k := k].invariant previous
 };
+\definition removedFormula: \forall (k: N.Nat^) -> removedAt k = Nat.add (Nat.mul n k) removed :=
+  \induction (k: N.Nat^) \return removedAt k = Nat.add (Nat.mul n k) removed \with {
+    | zero: sym!{{N.Nat^}} _ _ (NatLaws.addZeroLeft removed)
+    | succ: \fun (k: N.Nat^)(previous: _) => trans!{{N.Nat^}} _ _ _ (congr!{{N.Nat^} {N.Nat^}} (Nat.add n) _ _ previous)
+      (sym!{{N.Nat^}} _ _ (NatLaws.addAssoc n (Nat.mul n k) removed))
+  };
+\definition rankValue[k: N.Nat^]: K.K0[].Carrier := On.SpectralIndex[n := Coordinates.dimension (length k), A := \parent.At[k := k].matrix, regular := \parent.At[k := k].regular, off := \parent.At[k := k].off, removed := Nat.add (Nat.mul n k) removed].value;
+\definition rankInvariant: \forall (k: N.Nat^) -> rankValue k = value N.Nat^::zero := \fun (k: N.Nat^) => trans!{K.K0[].Carrier} _ _ _
+  (sym!{K.K0[].Carrier} _ _ (On.SpectralIndex[n := Coordinates.dimension (length k), A := \parent.At[k := k].matrix, regular := \parent.At[k := k].regular, off := \parent.At[k := k].off, removed := removedAt k].removedEquality (Nat.add (Nat.mul n k) removed) (removedFormula k)))
+  (invariant k);
