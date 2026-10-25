@@ -1,0 +1,26 @@
+\definition point[x: Model.Disk]: Skeleton.Carrier := \into[A](cell.characteristic x, Filtration.subset k) \by {
+  Filtration.include complex.cells k cell member below (cell.characteristic x)
+    (Logic.existsIntro[Model.Disk, { p: Model.Disk \where cell.characteristic p = cell.characteristic x }] x (\refl(cell.characteristic x)))
+};
+\import topology.Continuity[A := Model.Disk, B := A].Corestriction[S := Filtration.subset k] \as Into;
+\definition pointContinuous: topology.Continuity[A := Model.Disk, B := Skeleton.Carrier].Continuous Model.diskTopology Skeleton.topology point :=
+  Into.corestrictContinuous Model.diskTopology source point ((Cells.laws source complex).cellLaws cell member).continuous;
+\definition map[p: DiskCylinder.Carrier]: Cylinder.Carrier := Cylinder.at (DiskCylinder.time p) (point (DiskCylinder.point p));
+\import topological_constructions.Product[A := I.Carrier, B := Skeleton.Carrier].Universal[X := DiskCylinder.Carrier] \as Product;
+\import topology.Composition[A := DiskCylinder.Carrier, B := Model.Disk, C := Skeleton.Carrier] \as Points;
+\definition mapContinuous: topology.Continuity[A := DiskCylinder.Carrier, B := Cylinder.Carrier].Continuous
+  (DiskCylinder.topology Model.diskTopology) (Cylinder.topology Skeleton.topology) map :=
+  Product.pairContinuous (DiskCylinder.topology Model.diskTopology) I.topology Skeleton.topology DiskCylinder.time
+    (\fun (p: DiskCylinder.Carrier) => point (DiskCylinder.point p)) (DiskCylinder.timeContinuous Model.diskTopology)
+    (Points.composeContinuous (DiskCylinder.topology Model.diskTopology) Model.diskTopology Skeleton.topology DiskCylinder.point point
+      (DiskCylinder.pointContinuous Model.diskTopology) pointContinuous);
+\definition value[p: DiskCylinder.Carrier]: B := h (map p);
+\import topology.Composition[A := DiskCylinder.Carrier, B := Cylinder.Carrier, C := B] \as Compose;
+\definition result: Good := \into[DiskCylinder.Carrier -> B](value, Good) \by {
+  GoodLaws[value] {
+    continuous := Compose.composeContinuous (DiskCylinder.topology Model.diskTopology) (Cylinder.topology Skeleton.topology) target map h mapContinuous hLaws.continuous,
+    initial := \fun (x: Model.Disk) => hLaws.initial (point x),
+    onLower := \fun (t: I.Carrier)(x: Model.Disk)(lower: _) => \refl(value (DiskCylinder.at t x)),
+    onSubset := \fun (t: I.Carrier)(x: Model.Disk)(inside: _) => hLaws.agrees t (point x) inside,
+  }
+};

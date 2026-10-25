@@ -13,7 +13,8 @@
 ローカル `5f5def60` の部分複体の内部セルによる被覆・閉性も accepted・終了0・保存失敗0（`cw-subcomplex.json`、302 modules）。
 部分複体の追加はリモート `cbd07bdc9cfb6af91678773c9197aae900fbb62a` に保存済み。
 `Quotient.Descent` と `CW.Assembly` による骨格 cylinder 上の貼り合わせは accepted・終了0・保存失敗0。
-次は骨格ごとのホモトピー延長を構成する。
+`CW.Subcomplex.Extension` の空骨格とセル単位の拡張（初期値・低次骨格・部分複体上の指定値を保持）も accepted・終了0・保存失敗0。
+次はセルの重なりでの一致、骨格への貼り合わせ、有限段の帰納法を構成する。
 
 次は有限 CW 部分複体への拡張、基点付き mapping cone・reduced suspension の比較、自然性・商との比較・反変 Hom の完全性を依存順に証明する。
 共有キャッシュは `libs/refcache`。

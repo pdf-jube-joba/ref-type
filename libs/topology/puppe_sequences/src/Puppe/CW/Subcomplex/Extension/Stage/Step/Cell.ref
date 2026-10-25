@@ -1,0 +1,74 @@
+\import Euclidean.Dimension[n := cell.dimension] \as Model;
+\import \root.Puppe[].Disk[n := cell.dimension].Boundary[] \as Boundary;
+\import topology.Topology[Carrier := Model.Disk].Subspace[S := Boundary.subset] \as BoundarySpace;
+\import algebraic_topology.Cylinder[A := BoundarySpace.CarrierSet] \as BoundaryCylinder;
+\import algebraic_topology.Cylinder[A := Model.Disk] \as DiskCylinder;
+\import algebraic_topology.Cofibration[A := Model.Disk, subset := Boundary.subset].ForTarget[B := B] \as DiskHEP;
+\definition boundaryImage: \forall (x: BoundarySpace.CarrierSet) -> \In[A] (Filtration.subset k) (cell.characteristic x) := \block {
+  \fun (x: BoundarySpace.CarrierSet) \then
+  \takefrom witness: Cells.BoundaryWitness[complex.cells, cell, cell.characteristic x]
+    \by (Cells.laws source complex).boundary cell member x (\bysub(Model.Disk, Boundary.subset, x)) \then
+  \return Filtration.include complex.cells k witness.other witness.member
+    (Nat.ltLeTrans witness.other.dimension cell.dimension k witness.lower bound) (cell.characteristic x)
+    (Filtration.Exhaustion[].interiorClosed witness.other (cell.characteristic x) witness.contains)
+};
+\definition boundaryPoint[x: BoundarySpace.CarrierSet]: Skeleton.Carrier :=
+  \into[A](cell.characteristic x, Filtration.subset k) \by { boundaryImage x };
+\import topology.Continuity[A := BoundarySpace.CarrierSet, B := Model.Disk].Corestriction[S := Boundary.subset] \as BoundaryInclusion;
+\import topology.Composition[A := BoundarySpace.CarrierSet, B := Model.Disk, C := A] \as BoundaryCompose;
+\import topology.Continuity[A := BoundarySpace.CarrierSet, B := A].Corestriction[S := Filtration.subset k] \as IntoSkeleton;
+\definition boundaryContinuous: topology.Continuity[A := BoundarySpace.CarrierSet, B := Skeleton.Carrier].Continuous
+  (BoundarySpace.topology Model.diskTopology) Skeleton.topology boundaryPoint :=
+  IntoSkeleton.corestrictContinuous (BoundarySpace.topology Model.diskTopology) source boundaryPoint
+    (BoundaryCompose.composeContinuous (BoundarySpace.topology Model.diskTopology) Model.diskTopology source
+      (\fun (x: BoundarySpace.CarrierSet) => x) cell.characteristic
+      (BoundaryInclusion.inclusionContinuous Model.diskTopology) ((Cells.laws source complex).cellLaws cell member).continuous);
+\definition boundaryMap[p: BoundaryCylinder.Carrier]: Cylinder.Carrier := Cylinder.at (BoundaryCylinder.time p) (boundaryPoint (BoundaryCylinder.point p));
+\import topological_constructions.Product[A := I.Carrier, B := Skeleton.Carrier].Universal[X := BoundaryCylinder.Carrier] \as Product;
+\import topology.Composition[A := BoundaryCylinder.Carrier, B := BoundarySpace.CarrierSet, C := Skeleton.Carrier] \as PointCompose;
+\definition boundaryMapContinuous: topology.Continuity[A := BoundaryCylinder.Carrier, B := Cylinder.Carrier].Continuous
+  (BoundaryCylinder.topology (BoundarySpace.topology Model.diskTopology)) (Cylinder.topology Skeleton.topology) boundaryMap :=
+  Product.pairContinuous (BoundaryCylinder.topology (BoundarySpace.topology Model.diskTopology)) I.topology Skeleton.topology
+    BoundaryCylinder.time (\fun (p: BoundaryCylinder.Carrier) => boundaryPoint (BoundaryCylinder.point p))
+    (BoundaryCylinder.timeContinuous (BoundarySpace.topology Model.diskTopology))
+    (PointCompose.composeContinuous (BoundaryCylinder.topology (BoundarySpace.topology Model.diskTopology))
+      (BoundarySpace.topology Model.diskTopology) Skeleton.topology BoundaryCylinder.point boundaryPoint
+      (BoundaryCylinder.pointContinuous (BoundarySpace.topology Model.diskTopology)) boundaryContinuous);
+\definition initial[x: Model.Disk]: B := problem.initial (cell.characteristic x);
+\definition family[p: BoundaryCylinder.Carrier]: B := h (boundaryMap p);
+\definition localData: DiskHEP.ProblemData := DiskHEP.ProblemData { initial := initial, family := family };
+\import topology.Composition[A := Model.Disk, B := A, C := B] \as InitialCompose;
+\import topology.Composition[A := BoundaryCylinder.Carrier, B := Cylinder.Carrier, C := B] \as FamilyCompose;
+\definition localProblem: DiskHEP.Problem[Model.diskTopology, target] := \into[DiskHEP.ProblemData](localData, DiskHEP.Problem[Model.diskTopology, target]) \by {
+  DiskHEP.ProblemLaws[Model.diskTopology, target, localData] {
+    initialContinuous := InitialCompose.composeContinuous Model.diskTopology source target cell.characteristic problem.initial
+      ((Cells.laws source complex).cellLaws cell member).continuous problemLaws.initialContinuous,
+    familyContinuous := FamilyCompose.composeContinuous (BoundaryCylinder.topology (BoundarySpace.topology Model.diskTopology))
+      (Cylinder.topology Skeleton.topology) target boundaryMap h boundaryMapContinuous hLaws.continuous,
+    agrees := \fun (x: BoundarySpace.CarrierSet) => hLaws.initial (boundaryPoint x),
+  }
+};
+\definition extension: DiskHEP.Extension[Model.diskTopology, target, localData] := DiskHEP.extend Model.diskTopology target Boundary.retraction localProblem;
+\definition extendedLaws: DiskHEP.ExtensionLaws[Model.diskTopology, target, localData, extension] :=
+  \bysub(DiskCylinder.Carrier -> B, DiskHEP.Extension[Model.diskTopology, target, localData], extension);
+
+\structure GoodLaws[g: DiskCylinder.Carrier -> B]: \Prop := {
+  continuous: topology.Continuity[A := DiskCylinder.Carrier, B := B].Continuous (DiskCylinder.topology Model.diskTopology) target g,
+  initial: \forall (x: Model.Disk) -> g (DiskCylinder.at I.start x) = initial x,
+  onLower: \forall (t: I.Carrier)(x: Model.Disk)(lower: \In[A] (Filtration.subset k) (cell.characteristic x)) ->
+    g (DiskCylinder.at t x) = h (Cylinder.at t (\into[A](cell.characteristic x, Filtration.subset k) \by { lower })),
+  onSubset: \forall (t: I.Carrier)(x: Model.Disk)(inside: \In[A] subset (cell.characteristic x)) ->
+    g (DiskCylinder.at t x) = problem.family (SubCylinder.at t (\into[A](cell.characteristic x, subset) \by { inside })),
+};
+\definition Good: \Set := \Cast[DiskCylinder.Carrier -> B] ({ g: DiskCylinder.Carrier -> B \where GoodLaws[g] });
+\definition goodLaws[g: Good]: GoodLaws[g] := \bysub(DiskCylinder.Carrier -> B, Good, g);
+\module Top(dimension: cell.dimension = k, outside: Logic.Not (Cells.CellMember data.cells cell));
+\module Lower(below: Nat.Lt cell.dimension k);
+\module Selected(selected: Cells.CellMember data.cells cell);
+
+\definition existence: \exists Good := either!{{Classical.excludedMiddle (Cells.CellMember data.cells cell)} {\exists Good}
+  {\fun (selected: _) => \exact(Selected[selected := selected].result, Good)}
+  {\fun (outside: _) => either!{{Classical.excludedMiddle (cell.dimension = k)} {\exists Good}
+    {\fun (dimension: _) => \exact(Top[dimension := dimension, outside := outside].result, Good)}
+    {\fun (different: _) => \exact(Lower[below := Nat.ltOfLeDifferent cell.dimension k bound different].result, Good)}
+   }}};
