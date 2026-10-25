@@ -1,0 +1,71 @@
+\import Spaces.DirectSum[V := V, W := W, left := left, right := right] \as Sum;
+\import std.Data[].Pair[].Prop[A := V, B := W] \as Pairs;
+\import Spaces.Laws[V := V, space := left] \as Left;
+\import Spaces.Laws[V := W, space := right] \as Right;
+\import Spaces.Linear[V := W, W := V, source := right, target := left] \as Row;
+\import Spaces.Linear[V := V, W := W, source := left, target := right] \as Column;
+\import Spaces.Linear[V := V, W := V, source := left, target := left] \as EndLeft;
+\import Spaces.Linear[V := Sum.Carrier, W := Sum.Carrier, source := Sum.space, target := Sum.space] \as End;
+\import Spaces.Linear[V := Sum.Carrier, W := V, source := Sum.space, target := left] \as First;
+\import Spaces.Linear[V := Sum.Carrier, W := W, source := Sum.space, target := right] \as Second;
+\import Sum.Universal[U := Sum.Carrier, domain := Sum.space] \as Pairing;
+\import Spaces.Isomorphism[V := Sum.Carrier, W := Sum.Carrier, source := Sum.space, target := Sum.space] \as Isomorphisms;
+\definition first: First.Map := First.Map {
+  apply := Sum.first,
+  preservesAdd := \fun (x, y: Sum.Carrier) => \refl(left.add (Sum.first x) (Sum.first y)),
+  preservesScale := \fun (a: C.Complex)(x: Sum.Carrier) => \refl(left.smul a (Sum.first x)),
+};
+\definition second: Second.Map := Second.Map {
+  apply := Sum.second,
+  preservesAdd := \fun (x, y: Sum.Carrier) => \refl(right.add (Sum.second x) (Sum.second y)),
+  preservesScale := \fun (a: C.Complex)(x: Sum.Carrier) => \refl(right.smul a (Sum.second x)),
+};
+\definition upper[b: Row.Map][a: C.Complex]: End.Map := Pairing.pair
+  (First.Operations[].plus first (First.Operations[].scale a (Row.Composition[U := Sum.Carrier, domain := Sum.space].compose b second))) second;
+\definition lower[c: Column.Map][a: C.Complex]: End.Map := Pairing.pair first
+  (Second.Operations[].plus second (Second.Operations[].scale a (Column.Composition[U := Sum.Carrier, domain := Sum.space].compose c first)));
+\definition upperAddition: \forall (b: Row.Map)(a, d: C.Complex)(p: Sum.Carrier) ->
+  (upper b a).apply ((upper b d).apply p) = (upper b (C.Def[].add d a)).apply p :=
+  \fun (b: Row.Map)(a, d: C.Complex)(p: Sum.Carrier) => Pairs.ext _ _
+    (trans!{V} _ _ _ (Left.assoc (Sum.first p) (left.smul d (b.apply (Sum.second p))) (left.smul a (b.apply (Sum.second p))))
+      (congr!{V V} (left.add (Sum.first p)) _ _ (sym!{V} _ _ (left.scalarAdd d a (b.apply (Sum.second p))))))
+    (\refl(Sum.second p));
+\definition lowerAddition: \forall (c: Column.Map)(a, d: C.Complex)(p: Sum.Carrier) ->
+  (lower c a).apply ((lower c d).apply p) = (lower c (C.Def[].add d a)).apply p :=
+  \fun (c: Column.Map)(a, d: C.Complex)(p: Sum.Carrier) => Pairs.ext _ _ (\refl(Sum.first p))
+    (trans!{W} _ _ _ (Right.assoc (Sum.second p) (right.smul d (c.apply (Sum.first p))) (right.smul a (c.apply (Sum.first p))))
+      (congr!{W W} (right.add (Sum.second p)) _ _ (sym!{W} _ _ (right.scalarAdd d a (c.apply (Sum.first p))))));
+\definition upperZero: \forall (b: Row.Map)(p: Sum.Carrier) -> (upper b C.Def[].zero).apply p = p :=
+  \fun (b: Row.Map)(p: Sum.Carrier) => Pairs.ext _ _
+    (trans!{V} _ _ _ (congr!{V V} (left.add (Sum.first p)) _ _ (Left.zeroScale (b.apply (Sum.second p)))) (Left.zeroRight (Sum.first p))) (\refl(Sum.second p));
+\definition lowerZero: \forall (c: Column.Map)(p: Sum.Carrier) -> (lower c C.Def[].zero).apply p = p :=
+  \fun (c: Column.Map)(p: Sum.Carrier) => Pairs.ext _ _ (\refl(Sum.first p))
+    (trans!{W} _ _ _ (congr!{W W} (right.add (Sum.second p)) _ _ (Right.zeroScale (c.apply (Sum.first p)))) (Right.zeroRight (Sum.second p)));
+\definition upperIsomorphism[b: Row.Map][a: C.Complex]: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := upper b a,
+  backward := upper b (C.Def[].neg a),
+  leftInverse := \fun (p: Sum.Carrier) => eq_reason_in!{Sum.Carrier _
+    "=" _ "by" { upperAddition b (C.Def[].neg a) a p }
+    "=" { (upper b C.Def[].zero).apply p } "by" { congr!{{C.Complex} Sum.Carrier} (\fun (z: C.Complex) => (upper b z).apply p) _ _ (Spaces.addNegRight a) }
+    "=" p "by" { upperZero b p }
+  },
+  rightInverse := \fun (p: Sum.Carrier) => eq_reason_in!{Sum.Carrier _
+    "=" _ "by" { upperAddition b a (C.Def[].neg a) p }
+    "=" { (upper b C.Def[].zero).apply p } "by" { congr!{{C.Complex} Sum.Carrier} (\fun (z: C.Complex) => (upper b z).apply p) _ _ (Spaces.addNegLeft a) }
+    "=" p "by" { upperZero b p }
+  },
+};
+\definition lowerIsomorphism[c: Column.Map][a: C.Complex]: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := lower c a,
+  backward := lower c (C.Def[].neg a),
+  leftInverse := \fun (p: Sum.Carrier) => eq_reason_in!{Sum.Carrier _
+    "=" _ "by" { lowerAddition c (C.Def[].neg a) a p }
+    "=" { (lower c C.Def[].zero).apply p } "by" { congr!{{C.Complex} Sum.Carrier} (\fun (z: C.Complex) => (lower c z).apply p) _ _ (Spaces.addNegRight a) }
+    "=" p "by" { lowerZero c p }
+  },
+  rightInverse := \fun (p: Sum.Carrier) => eq_reason_in!{Sum.Carrier _
+    "=" _ "by" { lowerAddition c a (C.Def[].neg a) p }
+    "=" { (lower c C.Def[].zero).apply p } "by" { congr!{{C.Complex} Sum.Carrier} (\fun (z: C.Complex) => (lower c z).apply p) _ _ (Spaces.addNegLeft a) }
+    "=" p "by" { lowerZero c p }
+  },
+};
