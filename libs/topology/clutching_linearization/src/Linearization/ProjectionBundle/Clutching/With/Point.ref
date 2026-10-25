@@ -1,0 +1,20 @@
+\definition center[i: B.Bool^][member: \In[X] (LineBase.domain i) x]: \Cast[X] (LineBase.domain i) := \into[X](x, LineBase.domain i) \by { member };
+\definition frame[i: B.Bool^][member: \In[X] (LineBase.domain i) x]: Spaces.Isomorphism[V := ProductFiber x, W := M.Vector,
+  source := productBundle.space x, target := Vectors.space].Isomorphism := (charts i).frame (center i member);
+\definition overlap[first: \In[X] U x][second: \In[X] V x]: LineBase.Overlap := \into[X](x, LineBase.overlap) \by { Logic.And[_, _]::# first second };
+\definition globalFormula: \forall (first: \In[X] U x)(second: \In[X] V x) -> Clutched.global x = Normal.unit (overlap first second) :=
+  \fun (first: _)(second: _) => Extend.inside Normal.unit Units.identity (overlap first second);
+\definition raw: \forall (i, j: B.Bool^)(first: \In[X] (LineBase.domain i) x)(second: \In[X] (LineBase.domain j) x)(v: M.Vector) ->
+  (Clutched.change x i j).forward.apply v = (frame j second).forward.apply ((frame i first).backward.apply v) :=
+  B.cases2 (\fun (i, j: B.Bool^) => \forall (first: \In[X] (LineBase.domain i) x)(second: \In[X] (LineBase.domain j) x)(v: M.Vector) ->
+    (Clutched.change x i j).forward.apply v = (frame j second).forward.apply ((frame i first).backward.apply v))
+    (\fun (first: \In[X] U x)(second: \In[X] U x)(v: M.Vector) => sym!{M.Vector} _ _
+      ((Spaces.Isomorphism[V := ProductFiber x, W := M.Vector, source := productBundle.space x, target := Vectors.space].laws (frame B.Bool^::false first)).rightInverse v))
+    (\fun (first: \In[X] U x)(second: \In[X] V x)(v: M.Vector) => trans!{M.Vector} _ _ _
+      (congr!{{Units.Carrier} M.Vector} (\fun (h: Units.Carrier) => h.apply v) _ _ (globalFormula first second))
+      (sym!{M.Vector} _ _ (\parent.Boundary[x := overlap first second].transition v)))
+    (\fun (first: \In[X] V x)(second: \In[X] U x)(v: M.Vector) => trans!{M.Vector} _ _ _
+      (congr!{{Units.Carrier} M.Vector} (\fun (h: Units.Carrier) => (Units.inverse h).apply v) _ _ (globalFormula second first))
+      (sym!{M.Vector} _ _ (\parent.Boundary[x := overlap second first].inverseTransition v)))
+    (\fun (first: \In[X] V x)(second: \In[X] V x)(v: M.Vector) => sym!{M.Vector} _ _
+      ((Spaces.Isomorphism[V := ProductFiber x, W := M.Vector, source := productBundle.space x, target := Vectors.space].laws (frame B.Bool^::true first)).rightInverse v));

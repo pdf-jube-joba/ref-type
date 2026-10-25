@@ -20,3 +20,20 @@
   B.cases (\fun (i: B.Bool^) => topology.Topology[Carrier := X].IsOpenIn source (LineBase.domain i)) openU openV;
 \module Side(i: B.Bool^);
 \module Boundary(x: LineBase.Overlap);
+\definition charts[i: B.Bool^]: Bundles.Family[X := X, F := ProductFiber].With[data := productBundle].Chart := Side[i := i].chart;
+\import Operations.Cocycle[X := X, I := B.Bool^, baseSpace := source, domain := LineBase.domain, dimension := (\fun (_: B.Bool^) => n)] \as Cocycles;
+\import Homotopy.FromCharts[X := X, I := B.Bool^, F := ProductFiber, bundle := productBundle, charts := charts] \as From;
+\import Homotopy.Projections[n := n].Operators[].Units[] \as Units;
+\import std.Set[].Extension[A := X, B := Units.Carrier, domain := LineBase.overlap] \as Extend;
+\module Point(x: X);
+\definition transitions: \forall (x: X)(i, j: Cocycles.Index x)(v: M.Vector) -> (Clutched.cocycle.transition x i j).forward.apply v =
+  ((charts j).frame (From.center x j)).forward.apply (((charts i).frame (From.center x i)).backward.apply v) :=
+  \fun (x: X)(i, j: Cocycles.Index x)(v: M.Vector) => Point[x := x].raw i j
+    (\bysub(B.Bool^, { i: B.Bool^ \where \In[X] (LineBase.domain i) x }, i))
+    (\bysub(B.Bool^, { j: B.Bool^ \where \In[X] (LineBase.domain j) x }, j)) v;
+\import From.With[cocycle := Clutched.cocycle, regular := Clutched.regular, transition := transitions] \as Comparison;
+\definition Isomorphism: \Set := Bundles.Isomorphisms[X := X, F := ProductFiber, G := NormalFiber, source := productBundle, target := normalBundle].Isomorphism;
+\definition isomorphismExists: \exists Isomorphism := \block {
+  \takefrom result: Comparison.For[c := Clutched.cocycle, r := Clutched.regular].Result \by Comparison.exists \then
+  \return \exact(result.value, Isomorphism)
+};
