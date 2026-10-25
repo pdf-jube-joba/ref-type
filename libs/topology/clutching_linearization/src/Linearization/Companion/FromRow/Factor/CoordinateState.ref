@@ -1,0 +1,70 @@
+\import Spaces.Coordinates[I := Fin.Fin (Coordinates.dimension degree)] \as OldFlat;
+\import Spaces.Coordinates[I := Fin.Fin (Coordinates.dimension Next.degree)] \as NewFlat;
+\import Spaces.DirectSum[V := OldFlat.Vector, W := Vectors.Vector, left := OldFlat.space, right := Vectors.space] \as FlatPair;
+\import std.Data[].Pair[].Prop[A := OldFlat.Vector, B := Vectors.Vector] \as FlatPairs;
+\import Spaces.Linear[V := State.Carrier, W := FlatPair.Carrier, source := State.space, target := FlatPair.space] \as PairForward;
+\import Spaces.Linear[V := FlatPair.Carrier, W := State.Carrier, source := FlatPair.space, target := State.space] \as PairBackward;
+\definition pairForward: PairForward.Map := PairForward.Map {
+  apply := \fun (p: State.Carrier) => FlatPair.make (Coordinates.flatten degree (State.first p)) (State.second p),
+  preservesAdd := \fun (p, q: State.Carrier) => FlatPairs.ext _ _ (Coordinates.addition degree (State.first p) (State.first q)) (\refl(Vectors.plus (State.second p) (State.second q))),
+  preservesScale := \fun (a: C.Complex)(p: State.Carrier) => FlatPairs.ext _ _ (Coordinates.scalar degree a (State.first p)) (\refl(Vectors.scale a (State.second p))),
+};
+\definition pairBackward: PairBackward.Map := PairBackward.Map {
+  apply := \fun (p: FlatPair.Carrier) => State.make (Coordinates.unflatten degree (FlatPair.first p)) (FlatPair.second p),
+  preservesAdd := \fun (p, q: FlatPair.Carrier) => StatePairs.ext _ _ (Coordinates.At[d := degree].backward.preservesAdd (FlatPair.first p) (FlatPair.first q)) (\refl(Vectors.plus (FlatPair.second p) (FlatPair.second q))),
+  preservesScale := \fun (a: C.Complex)(p: FlatPair.Carrier) => StatePairs.ext _ _ (Coordinates.At[d := degree].backward.preservesScale a (FlatPair.first p)) (\refl(Vectors.scale a (FlatPair.second p))),
+};
+\import Spaces.Isomorphism[V := State.Carrier, W := FlatPair.Carrier, source := State.space, target := FlatPair.space] \as PairIso;
+\definition pairIsomorphism: PairIso.Isomorphism := PairIso.Isomorphism {
+  forward := pairForward, backward := pairBackward,
+  leftInverse := \fun (p: State.Carrier) => StatePairs.ext _ p (Coordinates.leftInverse degree (State.first p)) (\refl(State.second p)),
+  rightInverse := \fun (p: FlatPair.Carrier) => FlatPairs.ext _ p (Coordinates.rightInverse degree (FlatPair.first p)) (\refl(FlatPair.second p)),
+};
+\import bundle_operations.Operations[].Over[K := C.Complex, field := Scalars.field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar].CoordinateSum[n := Coordinates.dimension degree, m := n] \as JoiningFlat;
+\definition total: N.Nat^ := Nat.add n (Coordinates.dimension degree);
+\import Spaces.Coordinates[I := Fin.Fin total] \as Total;
+\import Spaces.Isomorphism[V := FlatPair.Carrier, W := Total.Vector, source := FlatPair.space, target := Total.space] \as JoinIso;
+\import Spaces.Isomorphism[V := State.Carrier, W := Total.Vector, source := State.space, target := Total.space] \as StateFlatIso;
+\definition stateFrame: StateFlatIso.Isomorphism := JoinIso.Composition[U := State.Carrier, domain := State.space].compose JoiningFlat.isomorphism pairIsomorphism;
+\import Spaces.Isomorphism[V := Next.Carrier, W := Total.Vector, source := Next.space, target := Total.space] \as EnlargedIso;
+\definition enlargedFrame: EnlargedIso.Isomorphism := StateFlatIso.Composition[U := Next.Carrier, domain := Next.space].compose stateFrame stateIsomorphism;
+\import Spaces.Isomorphism[V := Next.Carrier, W := NewFlat.Vector, source := Next.space, target := NewFlat.space] \as NativeIso;
+\definition flatIsomorphism: Spaces.Isomorphism[V := NewFlat.Vector, W := Total.Vector, source := NewFlat.space, target := Total.space].Isomorphism :=
+  EnlargedIso.Composition[U := NewFlat.Vector, domain := NewFlat.space].compose enlargedFrame (NativeIso.inverse (Coordinates.At[d := Next.degree].frame));
+\definition forwardFormula: \forall (v: NewFlat.Vector) -> flatIsomorphism.forward.apply v =
+  JoiningFlat.join (FlatPair.make (Coordinates.flatten degree (prefix.apply (Coordinates.unflatten Next.degree v))) (residual.apply (Coordinates.unflatten Next.degree v))) :=
+  \fun (v: NewFlat.Vector) => \refl(flatIsomorphism.forward.apply v);
+\definition backwardFormula: \forall (v: Total.Vector) -> flatIsomorphism.backward.apply v =
+  Coordinates.flatten Next.degree (backwardValue (State.make (Coordinates.unflatten degree (FlatPair.first (JoiningFlat.split v))) (FlatPair.second (JoiningFlat.split v)))) :=
+  \fun (v: Total.Vector) => \refl(flatIsomorphism.backward.apply v);
+\import Spaces.Linear[V := Vectors.Vector, W := Carrier, source := Vectors.space, target := space] \as Injection;
+\definition injectLinear: Injection.Map := Injection.Map {
+  apply := injection,
+  preservesAdd := \fun (u, v: Vectors.Vector) => trans!{Carrier} _ _ _
+    (congr!{{Fin.Fin d -> Vectors.Vector} Carrier} (\fun (f: Fin.Fin d -> Vectors.Vector) => join f (Vectors.plus u v)) _ _
+      (\axiom:funext((\fun (_: Fin.Fin d) => Vectors.origin), (\fun (_: Fin.Fin d) => Vectors.plus Vectors.origin Vectors.origin), \fun (_: Fin.Fin d) => sym!{Vectors.Vector} _ _ (ValueGroup.zeroLeft Vectors.origin))))
+    (joinAddition (\fun (_: Fin.Fin d) => Vectors.origin) (\fun (_: Fin.Fin d) => Vectors.origin) u v),
+  preservesScale := \fun (a: C.Complex)(u: Vectors.Vector) => trans!{Carrier} _ _ _
+    (congr!{{Fin.Fin d -> Vectors.Vector} Carrier} (\fun (f: Fin.Fin d -> Vectors.Vector) => join f (Vectors.scale a u)) _ _
+      (\axiom:funext((\fun (_: Fin.Fin d) => Vectors.origin), (\fun (_: Fin.Fin d) => Vectors.scale a Vectors.origin), \fun (_: Fin.Fin d) => sym!{Vectors.Vector} _ _ (Values.scaleZero a))))
+    (joinScalar a (\fun (_: Fin.Fin d) => Vectors.origin) u),
+};
+\definition coupling: Spaces.Linear[V := Vectors.Vector, W := OldFlat.Vector, source := Vectors.space, target := OldFlat.space].Map :=
+  Spaces.Linear[V := Carrier, W := OldFlat.Vector, source := space, target := OldFlat.space].Composition[U := Vectors.Vector, domain := Vectors.space].compose (Coordinates.At[d := degree].forward) injectLinear;
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := n] \as ScalarMatrices;
+\definition scalarOperator: End.Map := Spaces.Eigen[V := Vectors.Vector, space := Vectors.space].scalar r;
+\definition scalarMatrix: ScalarMatrices.Matrix := ScalarMatrices.Representation[].entries scalarOperator;
+\definition scalarAction: \forall (v: Vectors.Vector) -> (ScalarMatrices.linear scalarMatrix).apply v = Vectors.scale r v :=
+  \fun (v: Vectors.Vector) => congr!{End.Map Vectors.Vector} (\fun (f: End.Map) => f.apply v) _ _ (ScalarMatrices.Representation[].linearEntries scalarOperator);
+\definition scalarOff: Logic.Not (C.Absolute[].abs r = R.one) -> spectral_splitting.Spectral[].At[n := n].Splitting[A := scalarMatrix].OffSpectrum :=
+  \fun (off: _) => spectral_splitting.Spectral[].At[n := n].Eigenvalues[A := scalarMatrix].off
+    (\fun (z: C.Complex)(unit: _)(v: Vectors.Vector)(eigen: _) => scalarKernel (C.Def[].add z (C.Def[].neg r)) (factorNonzero off z unit) v
+      (eq_reason_in!{Vectors.Vector
+        { Vectors.scale (C.Def[].add z (C.Def[].neg r)) v }
+        "=" { Vectors.plus (Vectors.scale z v) (Vectors.scale (C.Def[].neg r) v) } "by" { Vectors.space.scalarAdd z (C.Def[].neg r) v }
+        "=" { Vectors.plus (Vectors.scale r v) (Vectors.negative (Vectors.scale r v)) } "by" {
+          congr!{Vectors.Vector Vectors.Vector Vectors.Vector} Vectors.plus _ _ _ _
+            (trans!{Vectors.Vector} _ _ _ (sym!{Vectors.Vector} _ _ eigen) (scalarAction v)) (negativeScalar r v) }
+        "=" _ "by" { ValueGroup.inverseRight (Vectors.scale r v) }
+      }));
