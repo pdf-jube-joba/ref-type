@@ -73,3 +73,44 @@
 \definition backwardForward: \forall (v: Next.Carrier) -> backwardValue (forward.apply v) = v :=
   \fun (v: Next.Carrier) => trans!{Next.Carrier} _ _ _
     (congr!{Vectors.Vector Next.Carrier} (Next.join (prefix.apply v)) _ _ (lastRecovered v)) (Next.Reordering[].recover v);
+
+\definition forwardInjective: \forall (v, w: Next.Carrier) -> forward.apply v = forward.apply w -> v = w :=
+  \fun (v, w: Next.Carrier)(equal: _) => trans!{Next.Carrier} _ _ _ (sym!{Next.Carrier} _ _ (backwardForward v))
+    (trans!{Next.Carrier} _ _ _ (congr!{State.Carrier Next.Carrier} backwardValue _ _ equal) (backwardForward w));
+\import Spaces.Linear[V := State.Carrier, W := Next.Carrier, source := State.space, target := Next.space] \as Backward;
+\definition backward: Backward.Map := Backward.Map {
+  apply := backwardValue,
+  preservesAdd := \fun (p, q: State.Carrier) => forwardInjective _ _
+    (trans!{State.Carrier} _ _ _ (forwardBackward (State.plus p q))
+      (sym!{State.Carrier} _ _ (trans!{State.Carrier} _ _ _ (forward.preservesAdd (backwardValue p) (backwardValue q))
+        (congr!{State.Carrier State.Carrier State.Carrier} State.plus _ _ _ _ (forwardBackward p) (forwardBackward q))))),
+  preservesScale := \fun (a: C.Complex)(p: State.Carrier) => forwardInjective _ _
+    (trans!{State.Carrier} _ _ _ (forwardBackward (State.scale a p))
+      (sym!{State.Carrier} _ _ (trans!{State.Carrier} _ _ _ (forward.preservesScale a (backwardValue p))
+        (congr!{State.Carrier State.Carrier} (State.scale a) _ _ (forwardBackward p))))),
+};
+\import Spaces.Isomorphism[V := Next.Carrier, W := State.Carrier, source := Next.space, target := State.space] \as StateIsomorphisms;
+\definition stateIsomorphism: StateIsomorphisms.Isomorphism := StateIsomorphisms.Isomorphism {
+  forward := forward, backward := backward, leftInverse := backwardForward, rightInverse := forwardBackward,
+};
+\definition prefixOperator: \forall (v: Next.Carrier) -> prefix.apply (Enlarged.operator.apply v) = tail.apply v :=
+  \fun (v: Next.Carrier) => \axiom:funext(prefix.apply (Enlarged.operator.apply v), tail.apply v,
+    \fun (i: Fin.Fin degree) => Next.atFront (tail.apply v) (Enlarged.negativeRow.apply v) i);
+\definition negativeScalar: \forall (a: C.Complex)(v: Vectors.Vector) -> Vectors.scale (C.Def[].neg a) v = Vectors.negative (Vectors.scale a v) :=
+  \fun (a: C.Complex)(v: Vectors.Vector) => Values.cancelLeft (Vectors.scale a v) _ _
+    (trans!{Vectors.Vector} _ _ _ (sym!{Vectors.Vector} _ _ (Vectors.space.scalarAdd a (C.Def[].neg a) v))
+      (trans!{Vectors.Vector} _ _ _ (congr!{{C.Complex} Vectors.Vector} (\fun (s: C.Complex) => Vectors.scale s v) _ _ (C.Prop[].addNegRight a))
+        (trans!{Vectors.Vector} _ _ _ (Values.zeroScale v) (sym!{Vectors.Vector} _ _ (ValueGroup.inverseRight (Vectors.scale a v))))));
+\definition rowFormula: \forall (v: Next.Carrier) -> newRow.apply v = ValueGroup.difference (rowTail.apply v) (Vectors.scale r (residual.apply v)) :=
+  \fun (v: Next.Carrier) => congr!{Vectors.Vector Vectors.Vector} (Vectors.plus (rowTail.apply v)) _ _ (negativeScalar r (residual.apply v));
+\definition residualOperator: \forall (v: Next.Carrier) -> residual.apply (Enlarged.operator.apply v) = Vectors.scale r (residual.apply v) :=
+  \fun (v: Next.Carrier) => eq_reason_in!{Vectors.Vector
+    { residual.apply (Enlarged.operator.apply v) }
+    "=" { ValueGroup.difference (rowTail.apply v) (newRow.apply v) } "by" {
+      congr!{Vectors.Vector Vectors.Vector Vectors.Vector} Vectors.plus _ _ _ _
+        (congr!{Carrier Vectors.Vector} row.apply _ _ (prefixOperator v))
+        (trans!{Vectors.Vector} _ _ _ (Next.atLast (tail.apply v) (Enlarged.negativeRow.apply v)) (Enlarged.negativeRowValue v)) }
+    "=" { ValueGroup.difference (rowTail.apply v) (ValueGroup.difference (rowTail.apply v) (Vectors.scale r (residual.apply v))) } "by" {
+      congr!{Vectors.Vector Vectors.Vector} (ValueGroup.difference (rowTail.apply v)) _ _ (rowFormula v) }
+    "=" _ "by" { ValueGroup.subtractDifference (rowTail.apply v) (Vectors.scale r (residual.apply v)) }
+  };
