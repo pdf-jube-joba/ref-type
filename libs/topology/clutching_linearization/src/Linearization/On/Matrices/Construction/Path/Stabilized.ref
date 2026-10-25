@@ -1,0 +1,29 @@
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[n := n, a := a, regular := regular, nonzero := nonzero].Construction[parameters := parameters].Path[] \as OriginalPath;
+\import Spaces.Coordinates[I := M.Index] \as Vectors;
+\import Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as End;
+\import \parent.Model[] \as Model;
+\import \root.Linearization[].Companion[n := n, d := parameters.normal.order].RowFamilies[X := X, source := source, rows := Model.rows, regular := Model.regular].ZeroFactors[] \as Zero;
+\import \root.Linearization[].RowOrders[n := n, X := X, source := source] \as Orders;
+\import N.Basic[].Def[] \as Nat;
+\definition order: N.Nat^ := Nat.add parameters.normal.order k;
+\definition rows: Orders.Family order := Zero.family k;
+\definition rowsRegular: Orders.Regular order rows := Zero.familyRegular k;
+\definition rowsKernel: Orders.Kernel order rows := Zero.familyKernel Model.kernel k;
+\definition extra[p: Circle.Domain]: C.Complex := Powers.value (Circle.unit p) k;
+\definition extraNonzero: \forall (p: Circle.Domain) -> C.Def[].NonZero (extra p) := \fun (p: Circle.Domain) => Powers.nonzero (Circle.unit p) (Powers.unitOfNorm (Circle.unit p) (Circle.unitNorm p)) k;
+\import Paths.Scale[s := extra, regular := CirclePowers.continuous k, nonzero := extraNonzero] \as Extra;
+\definition start: Paths.Family := Extra.family shifted;
+\definition finish: Paths.Family := Extra.family polynomial;
+\definition path: Paths.Path[start, finish] := Extra.path shifted polynomial OriginalPath.path;
+\definition entries: \forall (p: Circle.Domain) -> M.Representation[].entries (Orders.polynomial order rows (Circle.first p) (Circle.unit p)) = finish.matrix p :=
+  \fun (p: Circle.Domain) => M.Operations[].ext (M.Representation[].entries (Orders.polynomial order rows (Circle.first p) (Circle.unit p))) (finish.matrix p) (\fun (i, j: M.Index) => trans!{{C.Complex}} _ _ _
+    (congr!{Vectors.Vector {C.Complex}} (\fun (v: Vectors.Vector) => v i) _ _
+      (Zero.evaluation k (Circle.first p) (Circle.unit p) (Spaces.FiniteCoordinates[n := n].vectors j)))
+    (congr!{{C.Complex} {C.Complex}} (C.Def[].mul (extra p)) _ _
+      (congr!{M.Matrix {C.Complex}} (\fun (A: M.Matrix) => A i j) _ _
+        (trans!{M.Matrix} _ _ _ (congr!{End.Map M.Matrix}
+          M.Representation[].entries _ _ (sym!{End.Map} _ _ (Model.action p)))
+          (M.Representation[].entriesLinear (Model.polynomial p))))));
+\definition removed: N.Nat^ := Nat.add (Nat.mul n k) (Nat.mul n parameters.normal.shift);
+\import Zero.Separated[initial := Model.kernel].Index[compact := compact, hausdorff := hausdorff, removed := Nat.mul n parameters.normal.shift] \as Correction;
+\definition correction: Orders.Index[compact := compact, hausdorff := hausdorff, removed := removed].value order rows rowsRegular rowsKernel = inverseClass := Correction.invariant k;

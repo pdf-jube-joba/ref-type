@@ -1,0 +1,32 @@
+\import \parent.Construction[parameters := first].Path[].Stabilized[k := second.normal.shift] \as First;
+\import \parent.Construction[parameters := second].Path[].Stabilized[k := first.normal.shift] \as Second;
+\import \parent.Construction[parameters := first] \as FirstConstruction;
+\import \parent.Construction[parameters := second] \as SecondConstruction;
+\import \root.Linearization[].RowOrders[n := n, X := X, source := source] \as Orders;
+\import Orders.DegreePair[d0 := First.order, d1 := Second.order, padding := N.Nat^::zero, q0 := First.rows, q1 := Second.rows, regular0 := First.rowsRegular, regular1 := Second.rowsRegular].LoopPath[
+  compact := compact, hausdorff := hausdorff, kernel0 := First.rowsKernel, kernel1 := Second.rowsKernel] \as Loops;
+\import \root.Linearization[].MatrixPaths[n := n, Y := Circle.Domain, source := Circle.source] \as Paths;
+\import \root.Linearization[].Powers[] \as Powers;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as NatLaws;
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := source, compact := compact, hausdorff := hausdorff] \as K;
+\definition commonStart: \forall (p: Circle.Domain) -> First.start.matrix p = Second.start.matrix p :=
+  \fun (p: Circle.Domain) => M.Operations[].ext (First.start.matrix p) (Second.start.matrix p) (\fun (i, j: M.Index) => eq_reason_in!{{C.Complex} {First.start.matrix p i j}
+    "=" {C.Def[].mul (C.Def[].mul (Powers.value (Circle.unit p) second.normal.shift) (Powers.value (Circle.unit p) first.normal.shift)) (a p i j)} "by" {
+      sym!{{C.Complex}} _ _ (C.Prop[].mulAssoc (Powers.value (Circle.unit p) second.normal.shift) (Powers.value (Circle.unit p) first.normal.shift) (a p i j)) }
+    "=" {C.Def[].mul (C.Def[].mul (Powers.value (Circle.unit p) first.normal.shift) (Powers.value (Circle.unit p) second.normal.shift)) (a p i j)} "by" {
+      congr!{{C.Complex} {C.Complex}} (\fun (s: C.Complex) => C.Def[].mul s (a p i j)) _ _ (C.Prop[].mulComm (Powers.value (Circle.unit p) second.normal.shift) (Powers.value (Circle.unit p) first.normal.shift)) }
+    "=" {Second.start.matrix p i j} "by" {C.Prop[].mulAssoc (Powers.value (Circle.unit p) first.normal.shift) (Powers.value (Circle.unit p) second.normal.shift) (a p i j)}
+  });
+\definition secondPath: Paths.Path[First.start, Second.finish] := Paths.retarget Second.start Second.finish First.start Second.finish Second.path
+  (\fun (p: Circle.Domain) => sym!{M.Matrix} _ _ (commonStart p)) (\fun (p: Circle.Domain) => \refl(Second.finish.matrix p));
+\definition path: Paths.Path[Loops.first, Loops.last] := Paths.retarget First.finish Second.finish Loops.first Loops.last
+  (Paths.concatenate First.finish First.start Second.finish (Paths.reverse First.start First.finish First.path) secondPath)
+  (\fun (p: Circle.Domain) => sym!{M.Matrix} _ _ (First.entries p)) (\fun (p: Circle.Domain) => sym!{M.Matrix} _ _ (Second.entries p));
+\import Loops.With[path := path] \as Comparison;
+\definition rankEquality: First.removed = Second.removed := NatLaws.addComm (Nat.mul n second.normal.shift) (Nat.mul n first.normal.shift);
+\definition rankComparison: Orders.Index[compact := compact, hausdorff := hausdorff, removed := First.removed].value Second.order Second.rows Second.rowsRegular Second.rowsKernel =
+  Orders.Index[compact := compact, hausdorff := hausdorff, removed := Second.removed].value Second.order Second.rows Second.rowsRegular Second.rowsKernel :=
+  congr!{{N.Nat^} {K.K0[].Carrier}} (\fun (r: N.Nat^) => Orders.Index[compact := compact, hausdorff := hausdorff, removed := r].value Second.order Second.rows Second.rowsRegular Second.rowsKernel) _ _ rankEquality;
+\definition independent: FirstConstruction.inverseClass = SecondConstruction.inverseClass := trans!{K.K0[].Carrier} _ _ _ (sym!{K.K0[].Carrier} _ _ First.correction)
+  (trans!{K.K0[].Carrier} _ _ _ (Comparison.invariant First.removed) (trans!{K.K0[].Carrier} _ _ _ rankComparison Second.correction));
