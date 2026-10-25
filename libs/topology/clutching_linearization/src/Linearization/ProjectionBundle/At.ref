@@ -1,0 +1,29 @@
+\import \root.Linearization[].ProjectionLoop[n := n, projection := P x] \as Loop;
+\import Spaces.Linear[V := SumFiber x, W := SumFiber x, source := sumBundle.space x, target := sumBundle.space x] \as End;
+\import Spaces.Laws[V := ImageFiber x, space := imageBundle.space x] \as ImageLaws;
+\definition first: SumFiber x -> ImageFiber x := Pair.first (ImageFiber x) (ComplementFiber x);
+\definition second: SumFiber x -> ComplementFiber x := Pair.second (ImageFiber x) (ComplementFiber x);
+\definition diagonal[z: C.Complex]: End.Map := End.Map {
+  apply := \fun (v: SumFiber x) => Pair.pair (ImageFiber x) (ComplementFiber x) ((imageBundle.space x).smul z (first v)) (second v),
+  preservesAdd := \fun (v, w: SumFiber x) => Pair.Prop[A := ImageFiber x, B := ComplementFiber x].pairCong _ _ _ _
+    ((imageBundle.space x).vectorAdd z (first v) (first w)) (\refl((complementBundle.space x).add (second v) (second w))),
+  preservesScale := \fun (a: C.Complex)(v: SumFiber x) => Pair.Prop[A := ImageFiber x, B := ComplementFiber x].pairCong _ _ _ _
+    (ImageLaws.scaleComm z a (first v)) (\refl((complementBundle.space x).smul a (second v)))
+};
+\definition onImage: \forall (z: C.Complex)(v: ImageFiber x) -> (Loop.loop z).apply v = Vectors.scale z v :=
+  \fun (z: C.Complex)(v: ImageFiber x) => trans!{M.Vector} _ _ _
+    (congr!{M.Vector M.Vector} (Loop.loop z).apply _ _ (sym!{M.Vector} _ _ (\bysub(M.Vector, Image.Image x, v))))
+    (trans!{M.Vector} _ _ _ (Loop.onImage z v) (congr!{M.Vector M.Vector} (Vectors.scale z) _ _ (\bysub(M.Vector, Image.Image x, v))));
+\definition onComplement: \forall (z: C.Complex)(v: ComplementFiber x) -> (Loop.loop z).apply v = v :=
+  \fun (z: C.Complex)(v: ComplementFiber x) => trans!{M.Vector} _ _ _
+    (congr!{M.Vector M.Vector} (Loop.loop z).apply _ _ (sym!{M.Vector} _ _ (\bysub(M.Vector, Split.Other.Image x, v))))
+    (trans!{M.Vector} _ _ _ (Loop.onComplement z v) (\bysub(M.Vector, Split.Other.Image x, v)));
+\definition intertwines: \forall (z: C.Complex)(v: SumFiber x) ->
+  (Loop.loop z).apply ((isomorphism.forward.fiber x).apply v) = (isomorphism.forward.fiber x).apply ((diagonal z).apply v) :=
+  \fun (z: C.Complex)(v: SumFiber x) => trans!{M.Vector} _ _ _ ((Loop.loop z).preservesAdd (first v) (second v))
+    (congr!{M.Vector M.Vector M.Vector} Vectors.plus _ _ _ _ (onImage z (first v)) (onComplement z (second v)));
+\definition conjugation: \forall (z: C.Complex)(v: SumFiber x) ->
+  (isomorphism.backward.fiber x).apply ((Loop.loop z).apply ((isomorphism.forward.fiber x).apply v)) = (diagonal z).apply v :=
+  \fun (z: C.Complex)(v: SumFiber x) => trans!{{SumFiber x}} _ _ _
+    (congr!{M.Vector {SumFiber x}} (isomorphism.backward.fiber x).apply _ _ (intertwines z v))
+    (isomorphism.leftInverse x ((diagonal z).apply v));
