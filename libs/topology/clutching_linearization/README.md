@@ -97,3 +97,6 @@ Clutched の再検査は `Along.isomorphismExists` で長時間停滞し、計�
 
 端点の型名再利用で `startExists` の kernel 登録を通過した。
 同じ整理を合成へ適用するため `bundle_operations.Operations.Over.IsomorphismComposition.Isomorphism` を公開し、Along の戻り型に使用する（型検査待ち）。
+
+B04 `Clutching.Homotopy.Endpoint.at` と実際の端点束が使用する `Pullback.pulledG` の同値比較で、束の型が大きく展開されることを確認した。
+`at`・`regularAt` を構成元の `pulledG`・`pulledContinuous` の別名へ整理して再検査する（定義上同じ遷移関数、未検証）。
