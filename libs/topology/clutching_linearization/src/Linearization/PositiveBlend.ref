@@ -1,0 +1,38 @@
+\import algebraic_topology.Interval[] \as Time;
+\definition weighted[t: Time.Carrier][u, v: R.Real]: R.Real := R.add (R.mul (Time.reverse t) u) (R.mul t v);
+\definition value[t: Time.Carrier]: R.Real := weighted t a b;
+\definition fixed: \forall (t: Time.Carrier)(c: R.Real) -> weighted t c c = c :=
+  \fun (t: Time.Carrier)(c: R.Real) => trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ (R.Algebra[].mulAddRight (Time.reverse t) t c))
+    (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (\fun (s: R.Real) => R.mul s c) _ _ (Time.Convex[].weight t)) (Laws.fieldMulOneLeft c));
+\definition lower: \forall (t: Time.Carrier)(c: R.Real) -> Real.Le c a -> Real.Le c b -> Real.Le c (value t) :=
+  \fun (t: Time.Carrier)(c: R.Real)(ca: _)(cb: _) => Real.leReplaceLeft _ _ _ (fixed t c)
+    (R.Estimates[].addLe _ _ _ _
+      (R.Estimates[].mulMonotone (Time.reverse t) c a (Time.bounds (Time.reverse t)).left ca)
+      (R.Estimates[].mulMonotone t c b (Time.bounds t).left cb));
+\definition upper: \forall (t: Time.Carrier)(c: R.Real) -> Real.Le a c -> Real.Le b c -> Real.Le (value t) c :=
+  \fun (t: Time.Carrier)(c: R.Real)(ac: _)(bc: _) => Real.leReplaceRight _ _ _ (fixed t c)
+    (R.Estimates[].addLe _ _ _ _
+      (R.Estimates[].mulMonotone (Time.reverse t) a c (Time.bounds (Time.reverse t)).left ac)
+      (R.Estimates[].mulMonotone t b c (Time.bounds t).left bc));
+\definition positive: \forall (t: Time.Carrier) -> Real.Lt R.zero (value t) :=
+  \fun (t: Time.Carrier) => Real.ltLeTrans _ _ _ (R.Estimates[].Product[].minPositive a b positiveA positiveB)
+    (lower t (R.Distance[].min a b) (R.Distance[].minLeft a b) (R.Distance[].minRight a b));
+\definition below: \forall (t: Time.Carrier)(c: R.Real) -> Real.Lt a c -> Real.Lt b c -> Real.Lt (value t) c :=
+  \fun (t: Time.Carrier)(c: R.Real)(ac: _)(bc: _) => Real.leLtTrans _ _ _
+    (upper t (R.Distance[].max a b) (R.Distance[].maxLeft a b) (R.Distance[].maxRight a b)) (R.Distance[].maxLt a b c ac bc);
+\definition atStart: value Time.start = a := trans!{{R.Real}} _ _ _
+  (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+    (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (\fun (s: R.Real) => R.mul s a) _ _ Time.reverseStart) (Laws.fieldMulOneLeft a)) (Laws.fieldMulZeroLeft b)) (Laws.addZeroRight a);
+\definition atEnd: value Time.end = b := trans!{{R.Real}} _ _ _
+  (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+    (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (\fun (s: R.Real) => R.mul s a) _ _ Time.reverseEnd) (Laws.fieldMulZeroLeft a)) (Laws.fieldMulOneLeft b)) (Laws.addZeroLeft b);
+\import metric_spaces.RealFunctions[A := Time.Carrier] \as Functions;
+\definition continuous: Functions.Continuous Time.topology value := Functions.sumContinuous Time.topology _ _
+  (Functions.Product[].continuous Time.topology (\fun (t: Time.Carrier) => Time.reverse t) (\fun (_: Time.Carrier) => a)
+    (Functions.subContinuous Time.topology (\fun (_: Time.Carrier) => R.one) (\fun (t: Time.Carrier) => t) (Functions.constantContinuous Time.topology R.one) Time.inclusionContinuous)
+    (Functions.constantContinuous Time.topology a))
+  (Functions.Product[].continuous Time.topology (\fun (t: Time.Carrier) => t) (\fun (_: Time.Carrier) => b) Time.inclusionContinuous (Functions.constantContinuous Time.topology b));
+\definition scalar[t: Time.Carrier]: C.Complex := C.Def[].ofReal (value t);
+\definition nonzero: \forall (t: Time.Carrier) -> C.Def[].NonZero (scalar t) := \fun (t: Time.Carrier)(zero: scalar t = C.Def[].zero) =>
+  Real.ltNotLeReverse R.zero (value t) (positive t)
+    (Real.leReplaceLeft _ _ _ (sym!{{R.Real}} _ _ (congr!{{C.Complex} {R.Real}} C.re _ _ zero)) (Real.leRefl R.zero));
