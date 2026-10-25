@@ -24,5 +24,6 @@ K07 の Laurent 近似ホモトピー・安定線形化・スペクトル束へ�
 この追加と K04 の評価連続性の公開は `work/k07-laurent.source.json` の対象検査で保存完了・終了0（コマンドの snapshot・report 名を `k07-laurent` とした）。
 `LaurentNormal.exists` はすべての Laurent 多項式について、変数の非負整数冪を掛けた結果を既存の多項式環へ移す表示を構成する。
 和・負・積の表示と評価準同型を含め `work/k07-normal.source.json` の対象検査で保存完了・終了0。
-Laurent 環の係数準同型の公開もこの検査に含み、この時点の数学ソースに未検証の変更はない。
+Laurent 環の係数準同型の公開もこの検査に含み、`algebra.Polynomial.Over.Finite` に可換環上の有限係数表示を追加し、`target/debug/cli libs/algebra/basic --module algebra.Polynomial --memory-mib 8192 --cache-dir libs/refcache --cache-budget-mib 12288 --diagnostics compact --report-json work/k07-finite.report.json` は保存完了・終了0。
+以後の `LaurentNormal.FiniteForm` と `finiteExists` への接続は未検証である。
 次は Laurent 多項式の有限係数表示と、ブロック操作による安定線形化へ進む。
