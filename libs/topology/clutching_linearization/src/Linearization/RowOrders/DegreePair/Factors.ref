@@ -1,0 +1,34 @@
+\import \root.Linearization[].SmallScalar[delta := delta, positive := positive, belowOne := belowOne] \as Parameter;
+\import \root.Linearization[].Companion[n := n, d := d0].RowFamilies[X := X, source := source, rows := q0, regular := regular0] \as LeftFamily;
+\import \root.Linearization[].Companion[n := n, d := d1].RowFamilies[X := X, source := source, rows := q1, regular := regular1] \as RightFamily;
+\import LeftFamily.SmallFactors[delta := delta, positive := positive, belowOne := belowOne] \as LeftSmall;
+\import RightFamily.SmallFactors[delta := delta, positive := positive, belowOne := belowOne] \as RightSmall;
+\import LeftFamily.Factors[r := Parameter.root, offR := Parameter.off] \as LeftFactors;
+\import RightFamily.Factors[r := Parameter.root, offR := Parameter.off] \as RightFactors;
+\definition leftMonic: Family order := LeftFactors.iterated leftExtra;
+\definition rightMonic: Family order := cast _ _ rightOrder (RightFactors.iterated rightExtra);
+\definition leftMonicRegular: Regular order leftMonic := LeftFactors.iteratedRegular leftExtra;
+\definition rightMonicRegular: Regular order rightMonic := castRegular _ _ rightOrder (RightFactors.iterated rightExtra) (RightFactors.iteratedRegular rightExtra);
+\definition leftLeading: C.Complex := LeftSmall.leading leftExtra;
+\definition rightLeading: C.Complex := RightSmall.leading rightExtra;
+\import Spaces.Linear[V := Coordinates.Carrier (N.Nat^::succ order), W := Vectors.Vector, source := Coordinates.space (N.Nat^::succ order), target := Vectors.space] \as Rows;
+\definition leftRows[x: X]: Row order := Rows.Operations[].scale leftLeading (leftMonic x);
+\definition rightRows[x: X]: Row order := Rows.Operations[].scale rightLeading (rightMonic x);
+\import Plane.Functions[A := X] \as Functions;
+\definition leftRowsRegular: Regular order leftRows := \fun (v: Coordinates.Carrier (N.Nat^::succ order))(j: Fin.Fin n) => Functions.multiplicationContinuous source _ _
+  (topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology leftLeading) (leftMonicRegular v j);
+\definition rightRowsRegular: Regular order rightRows := \fun (v: Coordinates.Carrier (N.Nat^::succ order))(j: Fin.Fin n) => Functions.multiplicationContinuous source _ _
+  (topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology rightLeading) (rightMonicRegular v j);
+\import \root.Linearization[].Powers[] \as Powers;
+\definition factor[z: C.Complex]: C.Complex := C.Def[].add C.Def[].one (C.Def[].mul Parameter.scalar z);
+\definition leftEvaluation: \forall (x: X)(z: C.Complex)(v: Vectors.Vector) -> Vectors.scale leftLeading ((polynomial order leftMonic x z).apply v) =
+  Vectors.scale (Powers.value (factor z) leftExtra) ((polynomial d0 q0 x z).apply v) := LeftSmall.clearedEvaluation leftExtra;
+\definition rightEvaluation: \forall (x: X)(z: C.Complex)(v: Vectors.Vector) -> Vectors.scale rightLeading ((polynomial order rightMonic x z).apply v) =
+  Vectors.scale (Powers.value (factor z) rightExtra) ((polynomial d1 q1 x z).apply v) :=
+  \fun (x: X)(z: C.Complex)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _
+    (congr!{End.Map Vectors.Vector} (\fun (p: End.Map) => Vectors.scale rightLeading (p.apply v)) _ _ (polynomialEquality _ _ rightOrder (RightFactors.iterated rightExtra) x z))
+    (RightSmall.clearedEvaluation rightExtra x z v);
+\definition leftKernel: Kernel d0 q0 -> Kernel order leftMonic := \fun (kernel: Kernel d0 q0) => LeftFactors.iteratedKernel kernel leftExtra;
+\definition rightKernel: Kernel d1 q1 -> Kernel order rightMonic := \fun (kernel: Kernel d1 q1) => castKernel _ _ rightOrder (RightFactors.iterated rightExtra) (RightFactors.iteratedKernel kernel rightExtra);
+\module Index(compact: topology.Topology[Carrier := X].IsCompact source, hausdorff: topology.Topology[Carrier := X].IsT2 source, removed: N.Nat^,
+  kernel0: Kernel d0 q0, kernel1: Kernel d1 q1);
