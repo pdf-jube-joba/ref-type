@@ -51,7 +51,8 @@ K04 の `Circle.Coefficients.valueContinuous` を公開し、評価の連続性�
 正規化後の因子の復元、コンパクト底上の因子摂動と端点等式を `74fd5636` まで検査済み。
 `20cb1ae7` の `RowOrders` は次数の等式に沿う評価・K0 の移送、任意に大きい共通次数への埋め込み、外側因子追加後の K0 不変性が accepted・終了0・保存失敗0（`common-padding.json`）。
 `8a43548e` までに共通次数の係数補正と可逆な因子摂動、正の最高次係数による正規化、両端の monic 係数の復元、円周全体での核の消滅を接続した（`circle-correction.json`、accepted・終了0・保存失敗0）。
-次はこの固定次数のホモトピーの K0 端点比較を結合し、相対 Laurent 近似による端点補正から一般の選択独立性を導く。
+`a6d0c52f` の `RowOrders.DegreePair.Homotopy.With.invariant` は、共通次数の可逆な係数ホモトピーが結ぶ異なる次数の両端についてスペクトル K0 クラスの一致を証明する（`degree-homotopy.json`、accepted・終了0・保存失敗0）。
+次は相対 Laurent 近似による端点補正を構成し、任意の連続ループのホモトピーにこの比較を適用して一般の選択独立性を導く。
 次数の追加は外側の一次因子による companion の安定化、shift の変更は零固有値ブロックの追加、固定次数の補助選択はスペクトルホモトピーで比較する方針。
 以下の全workspace結果は再開前の数学入力に対する記録。
 
