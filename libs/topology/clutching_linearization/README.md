@@ -14,7 +14,7 @@ K07 の Laurent 近似ホモトピー・安定線形化・スペクトル束へ�
 最初は旧 CLI のオプション不一致で終了2、現行 CLI の通常ビルドは終了0。
 構文修正と半径補題の存在命題への修正後、現在の数学ソースは上記 snapshot と一致する。
 この検査は package 全依存閉包・下流・最終検証とは別である。
-最後に対象検査が成功したコミットは `d869050e`。
+最後に対象検査が成功したコミットは `e7ad8221`。
 `ComplexBounds`・`MatrixNeighborhoods.Perturbation` の追加と依存登録も `work/k07-neighborhoods.source.json` の対象検査で保存完了・終了0。
 後者のコマンドは上記の snapshot・report 名を `k07-neighborhoods` に置き換えて実行した。
 `ComplexBounds` の補題と `Perturbation.Nearby` の行列ホモトピーも `work/k07-homotopy.source.json` の対象検査で保存完了・終了0。
@@ -22,5 +22,7 @@ K07 の Laurent 近似ホモトピー・安定線形化・スペクトル束へ�
 `On.Matrices.exists` は連続可逆行列族の Laurent 近似、可逆なホモトピー、両端の等式を構成する。
 `On.Matrices.Result` は逆行列の連続性と両逆を公開する。
 この追加と K04 の評価連続性の公開は `work/k07-laurent.source.json` の対象検査で保存完了・終了0（コマンドの snapshot・report 名を `k07-laurent` とした）。
-以後の `LaurentNormal`、Laurent 環の係数準同型の公開、依存登録は未検証である。
+`LaurentNormal.exists` はすべての Laurent 多項式について、変数の非負整数冪を掛けた結果を既存の多項式環へ移す表示を構成する。
+和・負・積の表示と評価準同型を含め `work/k07-normal.source.json` の対象検査で保存完了・終了0。
+Laurent 環の係数準同型の公開もこの検査に含み、この時点の数学ソースに未検証の変更はない。
 次は Laurent 多項式の有限係数表示と、ブロック操作による安定線形化へ進む。
