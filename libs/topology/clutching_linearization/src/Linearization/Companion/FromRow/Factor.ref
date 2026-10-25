@@ -138,3 +138,25 @@
 \definition intertwines: \forall (v: Next.Carrier) -> forward.apply (Enlarged.operator.apply v) = triangularValue (forward.apply v) :=
   \fun (v: Next.Carrier) => StatePairs.ext _ _
     (trans!{Carrier} _ _ _ (prefixOperator v) (firstOperator v)) (residualOperator v);
+
+\import algebra.Group[].Of[Carrier := C.Complex, group := Scalars.additiveGroup] \as ScalarGroup;
+\definition factorNonzero: Logic.Not (C.Absolute[].abs r = R.one) -> \forall (z: C.Complex) -> C.Absolute[].abs z = R.one -> C.Def[].NonZero (C.Def[].add z (C.Def[].neg r)) :=
+  \fun (off: _)(z: C.Complex)(unit: _)(zero: C.Def[].add z (C.Def[].neg r) = C.Def[].zero) => off
+    (trans!{{R.Real}} _ _ _ (congr!{{C.Complex} {R.Real}} C.Absolute[].abs r z
+      (sym!{{C.Complex}} _ _ (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (ScalarGroup.addDifference z r))
+        (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (\fun (w: C.Complex) => C.Def[].add w r) _ _ zero) (C.Prop[].addZeroLeft r))))) unit);
+\definition scalarKernel: \forall (a: C.Complex) -> C.Def[].NonZero a -> \forall (v: Vectors.Vector) -> Vectors.scale a v = Vectors.origin -> v = Vectors.origin :=
+  \fun (a: C.Complex)(nonzero: _)(v: Vectors.Vector)(zero: _) => eq_reason_in!{Vectors.Vector v
+    "=" { Vectors.scale C.Def[].one v } "by" { sym!{Vectors.Vector} _ _ (Vectors.space.scalarOne v) }
+    "=" { Vectors.scale (C.Def[].mul (C.Def[].inv a) a) v } "by" { congr!{{C.Complex} Vectors.Vector} (\fun (s: C.Complex) => Vectors.scale s v) _ _ (sym!{{C.Complex}} _ _ (C.Prop[].inverseNonzero a nonzero)) }
+    "=" { Vectors.scale (C.Def[].inv a) (Vectors.scale a v) } "by" { Vectors.space.scalarAssoc (C.Def[].inv a) a v }
+    "=" { Vectors.scale (C.Def[].inv a) Vectors.origin } "by" { congr!{Vectors.Vector Vectors.Vector} (Vectors.scale (C.Def[].inv a)) _ _ zero }
+    "=" _ "by" { Values.scaleZero (C.Def[].inv a) }
+  };
+\definition polynomialKernel:
+  (\forall (z: C.Complex) -> C.Absolute[].abs z = R.one -> \forall (v: Vectors.Vector) -> (polynomial z).apply v = Vectors.origin -> v = Vectors.origin) ->
+  Logic.Not (C.Absolute[].abs r = R.one) ->
+  \forall (z: C.Complex) -> C.Absolute[].abs z = R.one -> \forall (v: Vectors.Vector) -> (Enlarged.polynomial z).apply v = Vectors.origin -> v = Vectors.origin :=
+  \fun (kernel: _)(off: _)(z: C.Complex)(unit: _)(v: Vectors.Vector)(zero: _) => kernel z unit v
+    (scalarKernel (C.Def[].add z (C.Def[].neg r)) (factorNonzero off z unit) ((polynomial z).apply v)
+      (trans!{Vectors.Vector} _ _ _ (sym!{Vectors.Vector} _ _ (polynomialFactor z v)) zero));
