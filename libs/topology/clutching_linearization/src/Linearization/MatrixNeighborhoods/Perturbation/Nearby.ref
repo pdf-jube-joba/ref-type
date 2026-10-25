@@ -1,0 +1,38 @@
+\import Spaces.Sign[] \as Sign;
+\import algebraic_topology.Interval[] \as Time;
+\import topological_constructions.Product[A := Time.Carrier, B := X] \as Cylinder;
+\definition cylinderTopology: topology.Topology[Carrier := Cylinder.CarrierSet].Topology := Cylinder.topology Time.topology source;
+\definition time[p: Cylinder.CarrierSet]: Time.Carrier := Pair.first Time.Carrier X p;
+\definition base[p: Cylinder.CarrierSet]: X := Pair.second Time.Carrier X p;
+\definition error[p: Cylinder.CarrierSet]: Matrices.Matrix := \fun (i, j: Matrices.Index) => C.Def[].neg (C.Def[].scale (time p) (C.Def[].sub (a (base p) i j) (b (base p) i j)));
+\definition homotopy[p: Cylinder.CarrierSet]: Matrices.Matrix := perturb (error p) (base p);
+\definition errorBound: \forall (p: Cylinder.CarrierSet)(i, j: Matrices.Index) -> Real.Lt (C.Absolute[].abs (error p i j)) bound.value :=
+  \fun (p: Cylinder.CarrierSet)(i, j: Matrices.Index) => Real.leLtTrans _ _ _
+    (\root.Linearization[].ComplexBounds[].shrinks (time p) (C.Def[].sub (a (base p) i j) (b (base p) i j)) ((Time.bounds (time p)).left) ((Time.bounds (time p)).right)) (near (base p) i j);
+\definition nonzero: \forall (p: Cylinder.CarrierSet) -> Field.Nonzero (homotopy p) :=
+  \fun (p: Cylinder.CarrierSet) => bound.preserves (error p) (errorBound p) (base p);
+\import Top.Families[X := Cylinder.CarrierSet] \as Families;
+\import Plane.Functions[A := Cylinder.CarrierSet] \as Functions;
+\definition firstRegular: Families.Regular cylinderTopology (\fun (p: Cylinder.CarrierSet) => a (base p)) :=
+  \fun (i, j: Matrices.Index) => topology.Composition[A := Cylinder.CarrierSet, B := X, C := C.Complex].composeContinuous cylinderTopology source Plane.topology base (\fun (x: X) => a x i j) (Cylinder.Maps[].secondContinuous Time.topology source) (regular i j);
+\definition secondRegular: Families.Regular cylinderTopology (\fun (p: Cylinder.CarrierSet) => b (base p)) :=
+  \fun (i, j: Matrices.Index) => topology.Composition[A := Cylinder.CarrierSet, B := X, C := C.Complex].composeContinuous cylinderTopology source Plane.topology base (\fun (x: X) => b x i j) (Cylinder.Maps[].secondContinuous Time.topology source) (regularB i j);
+\definition timeContinuous: metric_spaces.RealFunctions[A := Cylinder.CarrierSet].Continuous cylinderTopology (\fun (p: Cylinder.CarrierSet) => time p) :=
+  topology.Composition[A := Cylinder.CarrierSet, B := Time.Carrier, C := R.Real].composeContinuous cylinderTopology Time.topology metric_spaces.RealLine[].topology time (\fun (t: Time.Carrier) => t)
+    (Cylinder.Maps[].firstContinuous Time.topology source) Time.inclusionContinuous;
+\definition differenceRegular: Families.Regular cylinderTopology (\fun (p: Cylinder.CarrierSet)(i, j: Matrices.Index) => C.Def[].sub (a (base p) i j) (b (base p) i j)) :=
+  \fun (i, j: Matrices.Index) => Functions.additionContinuous cylinderTopology _ _ (firstRegular i j)
+    (Functions.negationContinuous cylinderTopology _ (secondRegular i j));
+\definition errorRegular: Families.Regular cylinderTopology error := \fun (i, j: Matrices.Index) => Functions.negationContinuous cylinderTopology _
+  (Functions.scaleContinuous cylinderTopology (\fun (p: Cylinder.CarrierSet) => time p) _ timeContinuous (differenceRegular i j));
+\definition homotopyRegular: Families.Regular cylinderTopology homotopy := \fun (i, j: Matrices.Index) => Functions.additionContinuous cylinderTopology _ _ (firstRegular i j) (errorRegular i j);
+\definition atStart: \forall (x: X) -> homotopy (Pair.pair Time.Carrier X Time.start x) = a x :=
+  \fun (x: X) => Matrices.Operations[].ext _ _ (\fun (i, j: Matrices.Index) => trans!{{C.Complex}} _ _ _
+    (congr!{{C.Complex} {C.Complex}} (C.Def[].add (a x i j)) _ _ (trans!{{C.Complex}} _ _ _
+      (congr!{{C.Complex} {C.Complex}} C.Def[].neg _ _ (\root.Linearization[].ComplexBounds[].scaleZero (C.Def[].sub (a x i j) (b x i j)))) Sign.negativeZero)) (C.Prop[].addZeroRight (a x i j)));
+\definition atEnd: \forall (x: X) -> homotopy (Pair.pair Time.Carrier X Time.end x) = b x :=
+  \fun (x: X) => Matrices.Operations[].ext _ _ (\fun (i, j: Matrices.Index) => trans!{{C.Complex}} _ _ _
+    (congr!{{C.Complex} {C.Complex}} (\fun (v: C.Complex) => C.Def[].add (a x i j) (C.Def[].neg v)) _ _ (\root.Linearization[].ComplexBounds[].scaleOne (C.Def[].sub (a x i j) (b x i j))))
+    (\root.Linearization[].ComplexBounds[].interpolationEnd (a x i j) (b x i j)));
+\definition inverse[p: Cylinder.CarrierSet]: Matrices.Matrix := Field.formula (homotopy p);
+\definition inverseRegular: Families.Regular cylinderTopology inverse := matrix_invariants.Complex[].At[n := n].Families[X := Cylinder.CarrierSet].inverseRegular cylinderTopology homotopy homotopyRegular nonzero;

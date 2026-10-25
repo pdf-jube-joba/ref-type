@@ -19,3 +19,32 @@
   \fun (z, w: C.Complex) => Real.leReplaceLeft _ _ _ (uniform_approximation.Approximation[].Lattice[].differenceAbsolute (C.re z) (C.re w)) (realBound (O.sub z w));
 \definition imaginaryDistance: \forall (z, w: C.Complex) -> Real.Le (R.distance (C.im z) (C.im w)) (Absolute.abs (O.sub z w)) :=
   \fun (z, w: C.Complex) => Real.leReplaceLeft _ _ _ (uniform_approximation.Approximation[].Lattice[].differenceAbsolute (C.im z) (C.im w)) (imaginaryBound (O.sub z w));
+\definition negativeAbsolute: \forall (z: C.Complex) -> Absolute.abs (O.neg z) = Absolute.abs z :=
+  \fun (z: C.Complex) => congr!{{R.Real} {R.Real}} Root.sqrt _ _
+    (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (Laws.fieldMulNegBoth (C.re z) (C.re z)) (Laws.fieldMulNegBoth (C.im z) (C.im z)));
+\definition scaleZero: \forall (z: C.Complex) -> O.scale R.zero z = O.zero :=
+  \fun (z: C.Complex) => C.Prop[].ext _ _ (Laws.fieldMulZeroLeft (C.re z)) (Laws.fieldMulZeroLeft (C.im z));
+\definition scaleOne: \forall (z: C.Complex) -> O.scale R.one z = z :=
+  \fun (z: C.Complex) => C.Prop[].ext _ _ (Laws.fieldMulOneLeft (C.re z)) (Laws.fieldMulOneLeft (C.im z));
+\definition scaledAbsolute: \forall (t: R.Real)(z: C.Complex) -> Real.Le R.zero t -> Absolute.abs (O.scale t z) = R.mul t (Absolute.abs z) :=
+  \fun (t: R.Real)(z: C.Complex)(nonnegative: _) => eq_reason_in!{{R.Real} _
+    "=" { Absolute.abs (O.mul (O.ofReal t) z) } "by" { congr!{{C.Complex} {R.Real}} Absolute.abs _ _ (sym!{{C.Complex}} _ _ (uniform_approximation.Approximation[].ComplexScalars[].realProduct t z)) }
+    "=" { R.mul (Absolute.abs (O.ofReal t)) (Absolute.abs z) } "by" { Absolute.multiplicative (O.ofReal t) z }
+    "=" { R.mul t (Absolute.abs z) } "by" { congr!{{R.Real} {R.Real}} (\fun (a: R.Real) => R.mul a (Absolute.abs z)) _ _
+      (trans!{{R.Real}} _ _ _ (uniform_approximation.Approximation[].ComplexScalars[].absoluteReal t) (R.Estimates[].Product[].absOfNonnegative t nonnegative)) }
+  };
+\definition shrinks: \forall (t: R.Real)(z: C.Complex) -> Real.Le R.zero t -> Real.Le t R.one ->
+  Real.Le (Absolute.abs (O.neg (O.scale t z))) (Absolute.abs z) :=
+  \fun (t: R.Real)(z: C.Complex)(nonnegative: _)(bounded: _) => Real.leReplace _ _ _ _
+    (sym!{{R.Real}} _ _ (trans!{{R.Real}} _ _ _ (negativeAbsolute (O.scale t z)) (trans!{{R.Real}} _ _ _ (scaledAbsolute t z nonnegative) (Laws.fieldMulComm t (Absolute.abs z)))))
+    (Laws.fieldMulOneRight (Absolute.abs z))
+    (R.Estimates[].mulMonotone (Absolute.abs z) t R.one (Absolute.nonnegative z) bounded);
+\import Spaces.Sign[] \as Sign;
+\definition interpolationEnd: \forall (z, w: C.Complex) -> O.add z (O.neg (O.sub z w)) = w :=
+  \fun (z, w: C.Complex) => eq_reason_in!{{C.Complex} _
+    "=" { O.add z (O.add (O.neg z) (O.neg (O.neg w))) } "by" { congr!{{C.Complex} {C.Complex}} (O.add z) _ _ (Sign.negativeAddition z (O.neg w)) }
+    "=" { O.add z (O.add (O.neg z) w) } "by" { congr!{{C.Complex} {C.Complex}} (\fun (v: C.Complex) => O.add z (O.add (O.neg z) v)) _ _ (C.Prop[].negNeg w) }
+    "=" { O.add (O.add z (O.neg z)) w } "by" { sym!{{C.Complex}} _ _ (C.Prop[].addAssoc z (O.neg z) w) }
+    "=" { O.add O.zero w } "by" { congr!{{C.Complex} {C.Complex}} (\fun (v: C.Complex) => O.add v w) _ _ (C.Prop[].addNegRight z) }
+    "=" w "by" { C.Prop[].addZeroLeft w }
+  };
