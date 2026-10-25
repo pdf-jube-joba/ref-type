@@ -1,0 +1,52 @@
+\definition negative[y: Y]: C.Complex := C.Def[].neg (t y);
+\definition negativeContinuous: Continuous negative := Functions.negationContinuous source t continuousT;
+\definition doubleNegativeContinuous: Continuous (\fun (y: Y) => C.Def[].neg (negative y)) := Functions.negationContinuous source negative negativeContinuous;
+\definition rotate[v: Y -> Sum.Carrier][y: Y]: Sum.Carrier := (Rotation.rotation (t y)).forward.apply (v y);
+\definition unrotate[v: Y -> Sum.Carrier][y: Y]: Sum.Carrier := (Rotation.rotation (t y)).backward.apply (v y);
+\definition rotateRegular: \forall (v: Y -> Sum.Carrier) -> Regular[v] -> Regular[rotate v] :=
+  \fun (v: Y -> Sum.Carrier)(vc: Regular[v]) => upperRegular t _ continuousT
+    (lowerRegular negative _ negativeContinuous (upperRegular t v continuousT vc));
+\definition unrotateRegular: \forall (v: Y -> Sum.Carrier) -> Regular[v] -> Regular[unrotate v] :=
+  \fun (v: Y -> Sum.Carrier)(vc: Regular[v]) => upperRegular negative _ negativeContinuous
+    (lowerRegular (\fun (y: Y) => C.Def[].neg (negative y)) _ doubleNegativeContinuous (upperRegular negative v negativeContinuous vc));
+\import Spaces.Isomorphism[V := Sum.Carrier, W := Sum.Carrier, source := Sum.space, target := Sum.space] \as PairIsomorphisms;
+\definition paired[y: Y]: PairIsomorphisms.Isomorphism := Rotation.Product[a := a y, b := b y].path (t y);
+\definition pairedRegular: \forall (v: Y -> Sum.Carrier) -> Regular[v] -> Regular[\fun (y: Y) => (paired y).forward.apply (v y)] :=
+  \fun (v: Y -> Sum.Carrier)(vc: Regular[v]) => diagonalRegular a _ regularA
+    (rotateRegular _ (diagonalRegular b _ regularB (unrotateRegular v vc)));
+\import Fin.Sum[m := n, n := n] \as Indices;
+\definition total: N.Nat^ := Indices.total;
+\import Spaces.Coordinates[I := Fin.Fin total] \as Flat;
+\import Operations.LinearIsomorphisms[V := Sum.Carrier, W := Flat.Vector, source := Sum.space, target := Flat.space] \as CoordinateInverse;
+\import Operations.LinearIsomorphisms[V := Flat.Vector, W := Sum.Carrier, source := Flat.space, target := Sum.space].After[U := Sum.Carrier, space := Sum.space] \as First;
+\import Operations.LinearIsomorphisms[V := Flat.Vector, W := Sum.Carrier, source := Flat.space, target := Sum.space].After[U := Flat.Vector, space := Flat.space] \as Second;
+\import Spaces.Isomorphism[V := Flat.Vector, W := Flat.Vector, source := Flat.space, target := Flat.space] \as Isomorphisms;
+\definition isomorphism[y: Y]: Isomorphisms.Isomorphism := Second.compose (First.compose (CoordinateInverse.inverse Coordinates.isomorphism) (paired y)) Coordinates.isomorphism;
+\import topological_constructions.Product[A := Vectors.Vector, B := Vectors.Vector] \as Product;
+\import topological_algebra.Coordinates[K := C.Complex, I := Fin.Fin n] \as VectorTopology;
+\import topological_algebra.Coordinates[K := C.Complex, I := Fin.Fin total] \as FlatTopology;
+\definition pairContinuous: \forall (v: Y -> Sum.Carrier) -> Regular[v] -> topology.Continuity[A := Y, B := Sum.Carrier].Continuous source Coordinates.Topology[].product v :=
+  \fun (v: Y -> Sum.Carrier)(vc: Regular[v]) => Product.Universal[X := Y].pairContinuous source (VectorTopology.topology Plane.topology) (VectorTopology.topology Plane.topology)
+    (\fun (y: Y) => Sum.first (v y)) (\fun (y: Y) => Sum.second (v y))
+    (VectorTopology.Universal[A := Y].continuous source Plane.topology _ vc.first)
+    (VectorTopology.Universal[A := Y].continuous source Plane.topology _ vc.second);
+\definition constantRegular: \forall (v: Sum.Carrier) -> Regular[\fun (_: Y) => v] :=
+  \fun (v: Sum.Carrier) => Regular[\fun (_: Y) => v] {
+    first := \fun (i: Fin.Fin n) => topology.Maps[A := Y, B := C.Complex].constantContinuous source Plane.topology (Sum.first v i),
+    second := \fun (i: Fin.Fin n) => topology.Maps[A := Y, B := C.Complex].constantContinuous source Plane.topology (Sum.second v i),
+  };
+\definition vectorContinuous: \forall (v: Flat.Vector) -> topology.Continuity[A := Y, B := Flat.Vector].Continuous source (FlatTopology.topology Plane.topology) (\fun (y: Y) => (isomorphism y).forward.apply v) :=
+  \fun (v: Flat.Vector) => topology.Composition[A := Y, B := Sum.Carrier, C := Flat.Vector].composeContinuous source Coordinates.Topology[].product (FlatTopology.topology Plane.topology)
+    (\fun (y: Y) => (paired y).forward.apply (Coordinates.split v)) Coordinates.join
+    (pairContinuous _ (pairedRegular _ (constantRegular (Coordinates.split v)))) Coordinates.Topology[].joinRegular;
+\definition regular: Hermitian.At[n := total].Families[X := Y].Matrix[m := total].Regular source (\fun (y: Y) => (isomorphism y).forward) :=
+  \fun (v: Flat.Vector)(i: Fin.Fin total) => topology.Composition[A := Y, B := Flat.Vector, C := C.Complex].composeContinuous source (FlatTopology.topology Plane.topology) Plane.topology
+    (\fun (y: Y) => (isomorphism y).forward.apply v) (\fun (w: Flat.Vector) => w i) (vectorContinuous v) (FlatTopology.evaluationContinuous Plane.topology i);
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := Scalars.field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar].Projections[n := total].Operators[].Units[] \as Units;
+\import Spaces.Linear[V := Flat.Vector, W := Flat.Vector, source := Flat.space, target := Flat.space] \as End;
+\import Hermitian.At[n := total].Square[] \as Square;
+\definition unit[y: Y]: Units.Carrier := \into[End.Map]((isomorphism y).forward, Units.Invertible) \by {
+  Square.LeftInverse[f := (isomorphism y).forward, g := (isomorphism y).backward, left := (Isomorphisms.laws (isomorphism y)).leftInverse].nonzero
+};
+\definition continuous: topology.Continuity[A := Y, B := Units.Carrier].Continuous source Units.topology unit := Units.Family[X := Y, source := source, H := unit].continuous regular;
