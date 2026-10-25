@@ -43,7 +43,8 @@ K04 の `Circle.Coefficients.valueContinuous` を公開し、評価の連続性�
 `Companion.FromRow.Factor` は一次因子の多項式等式、状態空間の線形同型、三角作用への共役、単位円上の核の消滅を実装し、`44dab674` の個別検査が accepted・終了0・保存失敗0（`factor-gap.json`）。
 `Companion.RowFamilies.Factor` の連続な拡大族、`ProjectionBundle.Into.With.map` の像束への制限、`On.SpectralIndex.Similarity.With.invariant` の連続相似不変性は `85a3762a` までの個別検査が accepted・終了0・保存失敗0。
 `b4bbd912` の K07 と全依存閉包は 5,720 modules、accepted・終了0・保存失敗0（`factor-full.json`、約1,047秒）。
-次は一次因子の状態同型を座標化し、三角族の K0 加法性と結んで次数・shift の変更の比較へ進む。
+`fcefcc54` までに一次因子の座標相似、両方向の連続性、K0 加法公式、内外の因子に対するランク補正後の不変性を検証した（`factor-correction.json`、accepted・終了0・保存失敗0）。
+次は固定次数の行写像ホモトピーの不変性を公開し、次数をそろえる摂動と近似ホモトピーの端点補正を構成して一般の選択独立性へ接続する。
 次数の追加は外側の一次因子による companion の安定化、shift の変更は零固有値ブロックの追加、固定次数の補助選択はスペクトルホモトピーで比較する方針。
 以下の全workspace結果は再開前の数学入力に対する記録。
 
