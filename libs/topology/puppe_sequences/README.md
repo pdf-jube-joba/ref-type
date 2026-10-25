@@ -9,7 +9,10 @@
 [PR #47](https://github.com/pdf-jube-joba/ref-type/pull/47) は draft。
 `d50d55ce` の円板 scaling 評価、`0c83afde` の radial パラメータの正値性・区間評価、`2e3c2c89` の端点公式、`9f0e1abf` の円板 cylinder の底面・境界への写像は各 accepted・終了0・保存失敗0。
 `e4fa67d7` の連続性、`a6aa2276` の閉集合貼り合わせ、`ec1c454d` の `Disk.Boundary.cofibration` と任意の対象へのホモトピー拡張性は各 accepted・終了0・保存失敗0。
-次は既存の有限 CW 骨格・商写像を再利用し、骨格ごとにホモトピーを延長する。
+`5e7595a2` の `CW.Cylinder.continuous` は accepted・終了0・保存失敗0。
+ローカル `5f5def60` の部分複体の内部セルによる被覆・閉性も accepted・終了0・保存失敗0（`cw-subcomplex.json`、302 modules）。
+この部分複体の追加はリモート未保存で、最後のリモート head は `5e7595a2032de56fb8b6503c82c6c248471db17a`。
+次は骨格ごとのホモトピー延長を構成する。
 
 次は円板境界の retraction と有限 CW 部分複体への拡張、基点付き mapping cone・reduced suspension の比較、自然性・商との比較・反変 Hom の完全性を依存順に証明する。
 共有キャッシュは `libs/refcache`。

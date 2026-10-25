@@ -1,0 +1,17 @@
+\import singular_cellular.FiniteUnion[A := A, C := Cells.CellData, source := source, pieces := Cells.ClosedImage] \as Union;
+\definition toUnion: \forall (x: A) -> \In[A] subset x -> \In[A] (Union.union data.cells) x := \block {
+  \fun (x: A)(inside: \In[A] subset x) \then
+  \takefrom cell: \Cast[Cells.CellData] ({ c: Cells.CellData \where Logic.And[Cells.CellMember data.cells c, \In[A] (Cells.ClosedImage c) x] }) \by inside \then
+  \let present: Logic.And[Cells.CellMember data.cells cell, \In[A] (Cells.ClosedImage cell) x] :=
+    \bysub(Cells.CellData, { c: Cells.CellData \where Logic.And[Cells.CellMember data.cells c, \In[A] (Cells.ClosedImage c) x] }, cell) \then
+  \return Union.include data.cells cell present.left x present.right
+};
+\definition fromUnion: \forall (x: A) -> \In[A] (Union.union data.cells) x -> \In[A] subset x :=
+  \fun (x: A) => Union.eliminate data.cells x (\In[A] subset x)
+    (\fun (cell: Cells.CellData)(member: Cells.CellMember data.cells cell)(contains: \In[A] (Cells.ClosedImage cell) x) =>
+      Logic.existsIntro[Cells.CellData, { c: Cells.CellData \where Logic.And[Cells.CellMember data.cells c, \In[A] (Cells.ClosedImage c) x] }] cell (Logic.And[_, _]::# member contains));
+\definition same: Union.union data.cells = subset := \axiom:setext(Union.union data.cells, subset, fromUnion, toUnion);
+\definition closed: Space.IsClosedIn source subset := \idelim Union.union data.cells = subset \with S: \Pow A => Space.IsClosedIn source S \by {
+  base: Union.closed data.cells (\fun (cell: Cells.CellData)(member: Cells.CellMember data.cells cell) => ((Cells.laws source complex).cellLaws cell (laws.included cell member)).closed),
+  equality: same
+};

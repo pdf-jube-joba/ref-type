@@ -1,0 +1,57 @@
+\import Cells.Pair[source := source, complex := complex] \as Pairs;
+\import Pairs.Of[subcomplex := data] \as Given;
+\import topology.Topology[Carrier := A] \as Space;
+\import std.Logic[].Classical[] \as Classical;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import real.Analysis[] \as Real;
+\use Logic.either;
+\definition laws: Pairs.SubcomplexLaws[data] := \bysub(Pairs.SubcomplexData, Pairs.Subcomplex, data);
+\definition subset: \Pow A := Given.Subset;
+\structure InteriorWitness[x: A]: \Set := {
+  cell: Cells.CellData,
+  member: Cells.CellMember data.cells cell,
+  contains: \In[A] (Cells.InteriorImage cell) x,
+};
+\definition fromPoint: \forall (cell: Cells.CellData) -> Cells.CellMember data.cells cell -> \forall (p: Euclidean.Disk cell.dimension) -> \exists InteriorWitness[cell.characteristic p] :=
+  \fun (cell: Cells.CellData)(member: Cells.CellMember data.cells cell)(p: Euclidean.Disk cell.dimension) => either!{{Classical.excludedMiddle (R.Lt (Euclidean.normSquaredAt cell.dimension p) Real.one)} {\exists InteriorWitness[cell.characteristic p]}
+    {\fun (inside: R.Lt (Euclidean.normSquaredAt cell.dimension p) Real.one) => \exact(InteriorWitness[cell.characteristic p] {
+      cell := cell, member := member,
+      contains := Logic.existsIntro[Euclidean.Disk cell.dimension, { q: Euclidean.Disk cell.dimension \where Logic.And[
+        \In[Euclidean.coordinateCarrier cell.dimension] (Euclidean.interiorAt cell.dimension) q, cell.characteristic q = cell.characteristic p] }] p
+        (Logic.And[_, _]::# inside (\refl(cell.characteristic p))),
+    }, InteriorWitness[cell.characteristic p])}
+    {\block {
+      \fun (outside: Logic.Not (R.Lt (Euclidean.normSquaredAt cell.dimension p) Real.one)) \then
+      \let boundary: Euclidean.normSquaredAt cell.dimension p = Real.one := R.leAntisym _ _
+        (\bysub(Euclidean.coordinateCarrier cell.dimension, Euclidean.closedBallAt cell.dimension, p))
+        (Order.leOfNotLtReverse Real.one (Euclidean.normSquaredAt cell.dimension p) outside) \then
+      \takefrom witness: Cells.BoundaryWitness[data.cells, cell, cell.characteristic p] \by laws.boundary cell member p boundary \then
+      \return \exact(InteriorWitness[cell.characteristic p] { cell := witness.other, member := witness.member, contains := witness.contains }, InteriorWitness[cell.characteristic p])
+    }}};
+\definition interiorCover: \forall (x: A) -> \In[A] subset x -> \exists InteriorWitness[x] := \block {
+  \fun (x: A)(inside: \In[A] subset x) \then
+  \takefrom cell: \Cast[Cells.CellData] ({ c: Cells.CellData \where Logic.And[Cells.CellMember data.cells c, \In[A] (Cells.ClosedImage c) x] }) \by inside \then
+  \let present: Logic.And[Cells.CellMember data.cells cell, \In[A] (Cells.ClosedImage cell) x] := \bysub(Cells.CellData, { c: Cells.CellData \where Logic.And[Cells.CellMember data.cells c, \In[A] (Cells.ClosedImage c) x] }, cell) \then
+  \takefrom p: \Cast[Euclidean.Disk cell.dimension] ({ p: Euclidean.Disk cell.dimension \where cell.characteristic p = x }) \by present.right \then
+  \return \idelim cell.characteristic p = x \with y: A => \exists InteriorWitness[y] \by {
+    base: fromPoint cell present.left p,
+    equality: \bysub(Euclidean.Disk cell.dimension, { p: Euclidean.Disk cell.dimension \where cell.characteristic p = x }, p)
+  }
+};
+\definition cellOfInterior: \forall (cell: Cells.CellData) -> Cells.CellMember complex.cells cell -> \forall (x: A) ->
+  \In[A] (Cells.InteriorImage cell) x -> \In[A] subset x -> Cells.CellMember data.cells cell := \block {
+  \fun (cell: Cells.CellData)(member: Cells.CellMember complex.cells cell)(x: A)(interior: \In[A] (Cells.InteriorImage cell) x)(inside: \In[A] subset x) \then
+  \takefrom witness: InteriorWitness[x] \by interiorCover x inside \then
+  \let same: cell = witness.cell := (Cells.laws source complex).disjoint cell witness.cell member (laws.included witness.cell witness.member) x interior witness.contains \then
+  \return \idelim witness.cell = cell \with c: Cells.CellData => Cells.CellMember data.cells c \by { base: witness.member, equality: sym!{Cells.CellData} _ _ same }
+};
+\definition boundaryOutside: \forall (cell: Cells.CellData) -> Cells.CellMember complex.cells cell -> Logic.Not (Cells.CellMember data.cells cell) ->
+  \forall (p: Euclidean.Disk cell.dimension) -> \In[A] subset (cell.characteristic p) -> Euclidean.normSquaredAt cell.dimension p = Real.one :=
+  \fun (cell: Cells.CellData)(member: Cells.CellMember complex.cells cell)(outside: Logic.Not (Cells.CellMember data.cells cell))(p: Euclidean.Disk cell.dimension)(inside: \In[A] subset (cell.characteristic p)) =>
+    R.leAntisym _ _ (\bysub(Euclidean.coordinateCarrier cell.dimension, Euclidean.closedBallAt cell.dimension, p))
+      (Order.leOfNotLtReverse Real.one (Euclidean.normSquaredAt cell.dimension p) (\fun (interior: R.Lt (Euclidean.normSquaredAt cell.dimension p) Real.one) => outside
+        (cellOfInterior cell member (cell.characteristic p)
+          (Logic.existsIntro[Euclidean.Disk cell.dimension, { q: Euclidean.Disk cell.dimension \where Logic.And[
+            \In[Euclidean.coordinateCarrier cell.dimension] (Euclidean.interiorAt cell.dimension) q, cell.characteristic q = cell.characteristic p] }] p (Logic.And[_, _]::# interior (\refl(cell.characteristic p)))) inside)));
+\module Closed;
