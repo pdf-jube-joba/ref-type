@@ -31,5 +31,6 @@ Laurent 環の係数準同型の公開もこの検査に含み、`algebra.Polyno
 行列の全成分に共通の shift を選ぶ `LaurentNormal.Matrices.commonExists` も `work/k07-common.source.json` で対象検査・保存完了、終了0。
 零係数による padding と `LaurentNormal.Matrices.finiteMatrixExists` は共通の shift・次数・有限係数配列を構成する。
 `work/k07-degree.source.json` の対象検査は保存完了・終了0で、体上 API の共通化後の入力を含む。
-以後の有限個の座標ブロックと単一の有限座標空間の比較 `Coordinates` は未検証である。
+有限個の座標ブロックと単一の有限座標空間の比較 `Coordinates.At.frame` も、両逆・加法・スカラーを含めて `work/k07-coordinates.source.json` で対象検査・保存完了、終了0。
+この時点の数学ソースに未検証の変更はない。
 次は companion 作用素とブロック操作による安定線形化へ進む。
