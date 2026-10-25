@@ -25,8 +25,8 @@ GitHub 連携で #42〜#45 の統合を確認済み、開始時の open PR 検�
 通常の GitHub 連携は PR 情報の読み取りに成功し、gh / curl 経由で観測した拒否とは区別する。
 K07 は [draft PR #46](https://github.com/pdf-jube-joba/ref-type/pull/46) で進行中。
 
-最後に対象検査が成功した数学ソースのコミットは `8d015991`。
-Laurent 近似、共通次数の有限係数、座標、companion、有限幾何級数、安定対角化、評価準同型の比較まで対象検査が成功した。
+最後に対象検査が成功した数学ソースのコミットは `0bbc7b03`。
+Laurent 近似、共通次数の有限係数、座標、companion、有限幾何級数、安定対角化、monic 正規化と成分比較まで対象検査が成功した。
 `work/k07-normalized-confirm.report.json` は accepted、プロセスの終了0、キャッシュ保存の失敗0を確認済みである。
 このコミットは push 後のリモート SHA も確認済みである。
 既存の有限係数共通化の影響先 `polynomial_linear_algebra.Field.Representatives` の個別検査も終了0。
@@ -40,3 +40,6 @@ target/debug/cli libs/topology/clutching_linearization --source-snapshot work/k0
 Laurent 行列の monic 正規化、clutching とスペクトル束との比較、選択独立性・直和・相互逆、具体例・workspace 登録・公開一覧・下流リンク・ロードマップが残作業である。
 次は小さな最高次項を加えた可逆族と、monic 正規化・companion の比較を実装する。
 K07 の最終検証・通常のマージと main への反映確認後、K02、B09、K03 を順番に実施する。
+
+`parametersExist` と `Construction` によるスペクトル像束の構成は `work/k07-construction` で accepted・保存完了・終了0。
+この検査の数学入力は `388dabd1` から `Construction.ref` の sibling module 参照を修正したもの。
