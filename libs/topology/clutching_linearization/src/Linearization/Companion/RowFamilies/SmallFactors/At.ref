@@ -12,3 +12,15 @@
   \fun (x: X)(z: C.Complex)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _
     (sym!{Vectors.Vector} _ _ (Vectors.space.vectorAdd (leading k) (Vectors.scale (power z (Factors.length k)) v) ((Factors.iterated k x).apply ((Extended.geometric z).apply v))))
     (clearedEvaluation k x z v);
+
+\import Extended.RowFamilies[X := X, source := source, rows := rows, regular := regular].Normalize[a := (\fun (_: X) => leading k),
+  regularA := topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology (leading k), nonzero := (\fun (_: X) => leadingNonzero k)] \as Normal;
+\definition recoveredRows: X -> ExtendedRows.Map := Normal.normalized;
+\definition rowRecovery: \forall (x: X) -> recoveredRows x = Factors.iterated k x :=
+  \fun (x: X) => ExtendedRows.ext (recoveredRows x) (Factors.iterated k x)
+    (\axiom:funext((recoveredRows x).apply, (Factors.iterated k x).apply, \fun (v: Extended.Carrier) =>
+      trans!{Vectors.Vector} _ _ _ (sym!{Vectors.Vector} _ _ (Vectors.space.scalarAssoc (C.Def[].inv (leading k)) (leading k) ((Factors.iterated k x).apply v)))
+        (trans!{Vectors.Vector} _ _ _ (congr!{{C.Complex} Vectors.Vector} (\fun (s: C.Complex) => Vectors.scale s ((Factors.iterated k x).apply v)) _ _ (C.Prop[].inverseNonzero (leading k) (leadingNonzero k)))
+          (Vectors.space.scalarOne ((Factors.iterated k x).apply v)))));
+\definition polynomialRecovery: \forall (x: X)(z: C.Complex) -> Normal.normalizedPolynomial x z = Factors.polynomial k x z :=
+  \fun (x: X)(z: C.Complex) => congr!{ExtendedRows.Map End.Map} (\fun (q: ExtendedRows.Map) => Extended.FromRow[row := q].polynomial z) _ _ (rowRecovery x);
