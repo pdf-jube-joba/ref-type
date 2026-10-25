@@ -32,5 +32,7 @@ Laurent 環の係数準同型の公開もこの検査に含み、`algebra.Polyno
 零係数による padding と `LaurentNormal.Matrices.finiteMatrixExists` は共通の shift・次数・有限係数配列を構成する。
 `work/k07-degree.source.json` の対象検査は保存完了・終了0で、体上 API の共通化後の入力を含む。
 有限個の座標ブロックと単一の有限座標空間の比較 `Coordinates.At.frame` も、両逆・加法・スカラーを含めて `work/k07-coordinates.source.json` で対象検査・保存完了、終了0。
-以後の `Companion` の作用素・多項式・固有ベクトルの核への比較は未検証である。
+`Companion.With` の作用素・多項式と `Eigen.polynomialKernel` の固有ベクトルからの比較も `work/k07-companion.source.json` で対象検査・保存完了、終了0。
+`noUnitEigen` は単位円上での多項式の零核から companion の単位円固有値の不在を導く。
+この時点の数学ソースに未検証の変更はない。
 次は companion 作用素とブロック操作による安定線形化へ進む。

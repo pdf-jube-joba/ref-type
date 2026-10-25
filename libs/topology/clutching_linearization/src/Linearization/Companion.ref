@@ -24,11 +24,11 @@
   \fun (f: Fin.Fin d -> Vectors.Vector)(v: Vectors.Vector)(i: Fin.Fin d) => Joining.atLeft f (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => v) i;
 \definition atLast: \forall (f: Fin.Fin d -> Vectors.Vector)(v: Vectors.Vector) -> join f v last = v :=
   \fun (f: Fin.Fin d -> Vectors.Vector)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _
-    (congr!{{Fin.Fin Indices.total} Vectors.Vector} (Joining.join f (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => v)) _ _ (sym!{{N.Nat^}} _ _ (NatLaws.addZeroLeft d)))
+    (congr!{{Fin.Fin Indices.total} Vectors.Vector} (Joining.join f (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => v)) (toTotal last) (Indices.right (Fin.zero N.Nat^::zero)) (sym!{{N.Nat^}} _ _ (NatLaws.addZeroLeft d)))
     (Joining.atRight f (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => v) (Fin.zero N.Nat^::zero));
 \definition joinAddition: \forall (f, g: Fin.Fin d -> Vectors.Vector)(v, w: Vectors.Vector) ->
   join (\fun (i: Fin.Fin d) => Vectors.plus (f i) (g i)) (Vectors.plus v w) = (space.add (join f v) (join g w)) :=
-  \fun (f, g: Fin.Fin d -> Vectors.Vector)(v, w: Vectors.Vector) => \axiom:funext(_, _, \fun (i: Fin.Fin degree) =>
+  \fun (f, g: Fin.Fin d -> Vectors.Vector)(v, w: Vectors.Vector) => \axiom:funext(join (\fun (i: Fin.Fin d) => Vectors.plus (f i) (g i)) (Vectors.plus v w), space.add (join f v) (join g w), \fun (i: Fin.Fin degree) =>
     (\induction (k: Indices.Index) \return
       Joining.evaluate (\fun (j: Fin.Fin d) => Vectors.plus (f j) (g j)) (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => Vectors.plus v w) k =
         Vectors.plus (Joining.evaluate f (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => v) k) (Joining.evaluate g (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => w) k) \with {
@@ -37,7 +37,7 @@
         }) (Indices.split (toTotal i)));
 \definition joinScalar: \forall (a: C.Complex)(f: Fin.Fin d -> Vectors.Vector)(v: Vectors.Vector) ->
   join (\fun (i: Fin.Fin d) => Vectors.scale a (f i)) (Vectors.scale a v) = space.smul a (join f v) :=
-  \fun (a: C.Complex)(f: Fin.Fin d -> Vectors.Vector)(v: Vectors.Vector) => \axiom:funext(_, _, \fun (i: Fin.Fin degree) =>
+  \fun (a: C.Complex)(f: Fin.Fin d -> Vectors.Vector)(v: Vectors.Vector) => \axiom:funext(join (\fun (i: Fin.Fin d) => Vectors.scale a (f i)) (Vectors.scale a v), space.smul a (join f v), \fun (i: Fin.Fin degree) =>
     (\induction (k: Indices.Index) \return
       Joining.evaluate (\fun (j: Fin.Fin d) => Vectors.scale a (f j)) (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => Vectors.scale a v) k =
         Vectors.scale a (Joining.evaluate f (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => v) k) \with {
@@ -51,7 +51,7 @@
 \import Spaces.Linear[V := Vectors.Vector, W := Carrier, source := Vectors.space, target := space] \as Column;
 \definition geometric[z: C.Complex]: Column.Map := Column.Map {
   apply := \fun (v: Vectors.Vector)(i: Fin.Fin degree) => Vectors.scale (power z i) v,
-  preservesAdd := \fun (v, w: Vectors.Vector) => \axiom:funext(_, _, \fun (i: Fin.Fin degree) => Vectors.space.vectorAdd (power z i) v w),
-  preservesScale := \fun (a: C.Complex)(v: Vectors.Vector) => \axiom:funext(_, _, \fun (i: Fin.Fin degree) => Values.scaleComm (power z i) a v),
+  preservesAdd := \fun (v, w: Vectors.Vector) => \axiom:funext((\fun (i: Fin.Fin degree) => Vectors.scale (power z i) (Vectors.plus v w)), (\fun (i: Fin.Fin degree) => Vectors.plus (Vectors.scale (power z i) v) (Vectors.scale (power z i) w)), \fun (i: Fin.Fin degree) => Vectors.space.vectorAdd (power z i) v w),
+  preservesScale := \fun (a: C.Complex)(v: Vectors.Vector) => \axiom:funext((\fun (i: Fin.Fin degree) => Vectors.scale (power z i) (Vectors.scale a v)), (\fun (i: Fin.Fin degree) => Vectors.scale a (Vectors.scale (power z i) v)), \fun (i: Fin.Fin degree) => Values.scaleComm (power z i) a v),
 };
 \module With(coefficients: Fin.Fin degree -> End.Map);
