@@ -37,6 +37,7 @@
 | `Circle.Scalar.Matrices[n, m].exists` | 零サイズを含む有限行列の、同じ誤差による Laurent 成分の同時近似 |
 | `ComplexOn.FunctionRing` | 連続複素関数の可換環、共役、点での環準同型としての評価 |
 | `Circle.Coefficients[X, space, baseCompact, baseHausdorff]` | 連続係数関数環上の既存の Laurent 環 `Polynomial` と \(X\times S^1\) 上の `value` |
+| `Circle.Coefficients.valueContinuous` | 連続係数 Laurent 多項式の評価の連続性 |
 | `Circle.Coefficients.Approximate.exists` / `Matrices.exists` | 積上の連続関数と有限行列の、連続係数を持つ Laurent 近似 |
 | `Laurent.On.Reparameterization` | 底への写像と円周の単位関数を合成したときの評価・誤差の可換性 |
 

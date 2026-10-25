@@ -19,5 +19,8 @@ K07 の Laurent 近似ホモトピー・安定線形化・スペクトル束へ�
 後者のコマンドは上記の snapshot・report 名を `k07-neighborhoods` に置き換えて実行した。
 `ComplexBounds` の補題と `Perturbation.Nearby` の行列ホモトピーも `work/k07-homotopy.source.json` の対象検査で保存完了・終了0。
 同じコマンドで snapshot・report 名を `k07-homotopy` とした。
-以後の `On.Matrices` の Laurent 近似の存在と逆行列比較は未検証である。
-次は構成した可逆性の共通誤差幅を Laurent 近似とそのホモトピーへ接続する。
+`On.Matrices.exists` は連続可逆行列族の Laurent 近似、可逆なホモトピー、両端の等式を構成する。
+`On.Matrices.Result` は逆行列の連続性と両逆を公開する。
+この追加と K04 の評価連続性の公開は `work/k07-laurent.source.json` の対象検査で保存完了・終了0（コマンドの snapshot・report 名を `k07-laurent` とした）。
+この時点の数学ソースに未検証の変更はない。
+次は Laurent 多項式の有限係数表示と、ブロック操作による安定線形化へ進む。
