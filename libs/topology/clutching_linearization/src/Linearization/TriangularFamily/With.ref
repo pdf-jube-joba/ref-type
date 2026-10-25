@@ -55,3 +55,20 @@
     }) (Indices.split i);
 \definition atStart: \forall (x: X) -> homotopy (Pair.pair Time.Carrier X Time.start x) = At[x := x].diagonal := \fun (x: X) => At[x := x].starts;
 \definition atEnd: \forall (x: X) -> homotopy (Pair.pair Time.Carrier X Time.end x) = At[x := x].matrix := \fun (x: X) => At[x := x].ends;
+\module Endpoint(t: Time.Carrier);
+\import Endpoint[t := Time.start] \as Start;
+\import Endpoint[t := Time.end] \as Finish;
+\definition diagonal[x: X]: M.Matrix := At[x := x].diagonal;
+\definition matrix[x: X]: M.Matrix := At[x := x].matrix;
+\definition diagonalOff: \forall (x: X) -> spectral_splitting.Spectral[].At[n := total].Splitting[A := diagonal x].OffSpectrum :=
+  \fun (x: X) => \root.Linearization[].SpectralSum[n := n, m := m, A := A x, B := B x, offA := offA x, offB := offB x].off;
+\definition matrixOff: \forall (x: X) -> spectral_splitting.Spectral[].At[n := total].Splitting[A := matrix x].OffSpectrum := \fun (x: X) => At[x := x].off;
+\definition diagonalRegular: MatrixTopology.At[n := total].Families[X := X].Regular source diagonal :=
+  \fun (i, j: M.Index) => MatrixTopology.At[n := total].Families[X := X].transport source
+    (\fun (x: X) => Start.matrix x i j) (\fun (x: X) => diagonal x i j)
+    (\fun (x: X) => congr!{M.Matrix {C.Complex}} (\fun (v: M.Matrix) => v i j) _ _ (atStart x)) (Start.regular i j);
+\definition matrixRegular: MatrixTopology.At[n := total].Families[X := X].Regular source matrix :=
+  \fun (i, j: M.Index) => MatrixTopology.At[n := total].Families[X := X].transport source
+    (\fun (x: X) => Finish.matrix x i j) (\fun (x: X) => matrix x i j)
+    (\fun (x: X) => congr!{M.Matrix {C.Complex}} (\fun (v: M.Matrix) => v i j) _ _ (atEnd x)) (Finish.regular i j);
+\module KClass(compact: topology.Topology[Carrier := X].IsCompact source, hausdorff: topology.Topology[Carrier := X].IsT2 source, removed: N.Nat^);
