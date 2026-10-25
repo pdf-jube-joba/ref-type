@@ -1,21 +1,26 @@
 \import N.Basic[].Def[] \as Nat;
 \import N.Basic[].Prop[] \as NatLaws;
-\definition order: N.Nat^ := Nat.add d0 (N.Nat^::succ d1);
-\definition leftExtra: N.Nat^ := N.Nat^::succ d1;
-\definition rightExtra: N.Nat^ := N.Nat^::succ d0;
-\definition rightOrder: Nat.add d1 rightExtra = order := congr!{{N.Nat^} {N.Nat^}} N.Nat^::succ _ _ (NatLaws.addComm d1 d0);
-\definition leftPaddingOrder: Nat.add (N.Nat^::succ d0) d1 = order := NatLaws.addSuccLeft d0 d1;
-\definition rightPaddingOrder: Nat.add (N.Nat^::succ d1) d0 = order := trans!{{N.Nat^}} _ _ _ (NatLaws.addSuccLeft d1 d0) rightOrder;
+\definition leftPadding: N.Nat^ := Nat.add d1 padding;
+\definition rightPadding: N.Nat^ := Nat.add d0 padding;
+\definition order: N.Nat^ := Nat.add d0 (N.Nat^::succ leftPadding);
+\definition leftExtra: N.Nat^ := N.Nat^::succ leftPadding;
+\definition rightExtra: N.Nat^ := N.Nat^::succ rightPadding;
+\definition middleOrder: Nat.add d1 rightPadding = Nat.add d0 leftPadding := trans!{{N.Nat^}} _ _ _
+  (sym!{{N.Nat^}} _ _ (NatLaws.addAssoc d1 d0 padding))
+  (trans!{{N.Nat^}} _ _ _ (congr!{{N.Nat^} {N.Nat^}} (\fun (k: N.Nat^) => Nat.add k padding) _ _ (NatLaws.addComm d1 d0)) (NatLaws.addAssoc d0 d1 padding));
+\definition rightOrder: Nat.add d1 rightExtra = order := congr!{{N.Nat^} {N.Nat^}} N.Nat^::succ _ _ middleOrder;
+\definition leftPaddingOrder: Nat.add (N.Nat^::succ d0) leftPadding = order := NatLaws.addSuccLeft d0 leftPadding;
+\definition rightPaddingOrder: Nat.add (N.Nat^::succ d1) rightPadding = order := trans!{{N.Nat^}} _ _ _ (NatLaws.addSuccLeft d1 rightPadding) rightOrder;
 \import \root.Linearization[].Companion[n := n, d := d0].RowFamilies[X := X, source := source, rows := q0, regular := regular0].Complete[] \as Left;
 \import \root.Linearization[].Companion[n := n, d := d1].RowFamilies[X := X, source := source, rows := q1, regular := regular1].Complete[] \as Right;
-\definition left: Family order := cast _ _ leftPaddingOrder (Left.padded d1);
-\definition right: Family order := cast _ _ rightPaddingOrder (Right.padded d0);
-\definition leftRegular: Regular order left := castRegular _ _ leftPaddingOrder (Left.padded d1) (Left.paddedRegular d1);
-\definition rightRegular: Regular order right := castRegular _ _ rightPaddingOrder (Right.padded d0) (Right.paddedRegular d0);
+\definition left: Family order := cast _ _ leftPaddingOrder (Left.padded leftPadding);
+\definition right: Family order := cast _ _ rightPaddingOrder (Right.padded rightPadding);
+\definition leftRegular: Regular order left := castRegular _ _ leftPaddingOrder (Left.padded leftPadding) (Left.paddedRegular leftPadding);
+\definition rightRegular: Regular order right := castRegular _ _ rightPaddingOrder (Right.padded rightPadding) (Right.paddedRegular rightPadding);
 \definition leftEvaluation: \forall (x: X)(z: C.Complex)(v: Vectors.Vector) -> (evaluation order left x z).apply v = (polynomial d0 q0 x z).apply v :=
   \fun (x: X)(z: C.Complex)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _
-    (congr!{End.Map Vectors.Vector} (\fun (p: End.Map) => p.apply v) _ _ (evaluationEquality _ _ leftPaddingOrder (Left.padded d1) x z)) (Left.evaluation d1 x z v);
+    (congr!{End.Map Vectors.Vector} (\fun (p: End.Map) => p.apply v) _ _ (evaluationEquality _ _ leftPaddingOrder (Left.padded leftPadding) x z)) (Left.evaluation leftPadding x z v);
 \definition rightEvaluation: \forall (x: X)(z: C.Complex)(v: Vectors.Vector) -> (evaluation order right x z).apply v = (polynomial d1 q1 x z).apply v :=
   \fun (x: X)(z: C.Complex)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _
-    (congr!{End.Map Vectors.Vector} (\fun (p: End.Map) => p.apply v) _ _ (evaluationEquality _ _ rightPaddingOrder (Right.padded d0) x z)) (Right.evaluation d0 x z v);
+    (congr!{End.Map Vectors.Vector} (\fun (p: End.Map) => p.apply v) _ _ (evaluationEquality _ _ rightPaddingOrder (Right.padded rightPadding) x z)) (Right.evaluation rightPadding x z v);
 \module Factors(delta: R.Real, positive: Real.Lt R.zero delta, belowOne: Real.Lt delta R.one);
