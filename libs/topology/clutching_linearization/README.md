@@ -21,51 +21,53 @@ K04 の `Circle.Coefficients.valueContinuous` を公開し、評価の連続性�
 ## 検証と引き継ぎ
 
 ブランチは `math/k07-clutching-linearization`、開始点は main `744d501e`。
-GitHub 連携で #42〜#45 の統合を確認済み、開始時の open PR 検索結果は空であった。
-通常の GitHub 連携は PR 情報の読み取りに成功し、gh / curl 経由で観測した拒否とは区別する。
-K07 は [draft PR #46](https://github.com/pdf-jube-joba/ref-type/pull/46) で進行中。
+#42〜#45 の統合と重複 PR の不在を確認して開始した。
+K07 は [draft PR #46](https://github.com/pdf-jube-joba/ref-type/pull/46) で進行中であり、未マージ。
+K02・B09・K03 は未着手。
 
-最後に対象検査が成功した数学ソースのコミットは `67f32242`。
-Laurent 近似、共通次数、座標、companion、安定対角化、monic 正規化、スペクトル像束と K0 の差の構成、積空間上の clutching 束まで検査が成功した。
-`work/k07-clutched.report.json` は accepted、プロセスの終了0とキャッシュ保存完了を確認済みである。
-このコミットは push 後のリモート SHA も確認済みである。
+| 対象 | 数学入力コミット | 結果 |
+| --- | --- | --- |
+| K07 全対象（当時の実装範囲） | `67f32242` | accepted・保存完了・終了0 |
+| B04 cocycle 等式比較 | `b3f782ef` | accepted・保存失敗0・終了0 |
+| 座標の連続性 | `d2a50e80` | accepted・保存完了・終了0 |
+| ShiftFamilies | `b2901d44` | accepted・保存完了・終了0 |
+| Companion.Families.Linearization | `19b1962e` | accepted・保存失敗0・終了0 |
+| PolynomialEigen | `8502642e` | accepted・保存完了・終了0 |
+| SpectralPencil | `11f6a15c` | accepted・保存失敗0・終了0 |
+| SpectralMotion | `1208fe83` | accepted・保存失敗0・終了0 |
+
+検査は source snapshot と共有キャッシュを使用した。
+最後に成功した個別対象は SpectralMotion で、連続な族・全時刻の可逆性・両端の等式を含む。
+その後の NormalForm、InverseFamily、Endpoint、ClutchedMotion、Normal/Clutched、companion の円周上 gauge 比較、dimensionFormula は未検証。
+既存の多項式係数 API 共通化の影響先 polynomial_linear_algebra.Field.Representatives の個別検査は終了0。
+Rust の変更はない。
+
+2026-10-25、実行ツールが `exec-server transport disconnected` で切断された。
+状態 API は running / connected・failure=null を返したが、再確認した exec_command と write_stdin は `No usable execution environment is available. Wait for an environment to become available before using this tool.` と拒否された。
+保持された診断記録は history_status=not_found・records=[] で、原因は不明。
+設定・プロキシ・認証情報の変更は行っていない。
+GitHub 連携は正常に PR 情報を取得でき、退避にも使用した。
+
+切断時の検査は `work/k07-clutching-comparison-current`、入力コミット `74c41afd`、対象 `clutching_linearization.Linearization.On.Matrices.Clutched`。
+最後の観測は checking (541s)、Along module まで到達したが、終了コード・最終結果・キャッシュ保存は確認できず検証未完了。
+以前の検査では非公開 alias、名前衝突、連続性証明の型推論エラーを修正した。
+タイムアウト（終了2）と中断（終了130）は成功扱いしていない。
+
+切断前に git push と ls-remote で確認した最終 SHA は `7ac02faf8022f09a9fc82e409a4938715cd0e760`。
+この退避コミットは、その子として Normal/Clutched と親 module 宣言、および本引き継ぎを GitHub 連携経由で保存する。
+Normal/Clutched の初版の parse-only は終了0だったが、identity 証明修正後は再実行できていないため未検証。
+秘密情報・生成キャッシュ・ログは含めていない。
+
+再開時は remote branch とローカル差分を比較して引き継ぎ、上書きや重複 PR を避ける。
+環境が新規なら当該 branch を取得して `cargo build -p cli --locked`（切断前は終了0）から再開する。
+残存する work のレポートがあれば正常終了を確認し、終了不明なら再検査する。
 
 ```sh
-target/debug/cli libs/topology/clutching_linearization --parse-only --save-source-snapshot work/k07-clutched.source.json
-target/debug/cli libs/topology/clutching_linearization --source-snapshot work/k07-clutched.source.json --module clutching_linearization --memory-mib 8192 --cache-dir libs/refcache --cache-budget-mib 12288 --diagnostics compact --time-limit-seconds 1800 --report-json work/k07-clutched.report.json
+target/debug/cli libs/topology/clutching_linearization --parse-only --save-source-snapshot work/k07-resume.source.json
+target/debug/cli libs/topology/clutching_linearization --source-snapshot work/k07-resume.source.json --module clutching_linearization.Linearization.On.Matrices.Clutched --memory-mib 10240 --cache-dir libs/refcache --cache-budget-mib 12288 --diagnostics compact --time-limit-seconds 900 --report-json work/k07-resume.report.json
 ```
 
-未検証の変更は、B04 の閉被覆 gauge 比較・等しい遷移関数の比較、積空間上の gauge・ホモトピーによる比較、ブロック gauge の連続性と行列表示。
-`work/k07-motion` は `Comparison` の補題で数分進まなかったため SIGINT で中断し、終了130・検証未完了として扱う。
-反射的な場合を独立 module に分けた `work/k07-comparison` は300秒制限で終了2・time-limitとなり、検証未完了。
-`work/k07-comparison`（300秒）と `work/k07-comparison-alias`（180秒）、trace による個別検査（90秒）は終了2・time-limit・未完了。
-遷移関数から作る `Raw` cocycle を分離し、既存の `FromCharts.With` を使う構成へ変更した。
-`b3f782ef` の B04 `Clutching.With.Comparison` 自身と参照先は `work/k07-cocycle-equality` で accepted・保存失敗0・終了0。
-`work/k07-gauges-continuous` は保存完了・終了1で、B04 の非公開 alias `Motion.Start` の参照エラーを検出した。
-公開 `Endpoint[t]` に変更した `0ebd9247` の次の検査は、`bundle_operations` の直接依存が不足して終了1となり、manifest に追加した。
-`work/k07-motion-current` は module 引数の座標型参照を直した後、`Coordinates.Families` の型推論不足で終了1となった。
-`d2a50e80` の座標連続性は `work/k07-block-continuity` の対象検査で accepted・保存完了・終了0。
-`work/k07-shift-continuity` は追加した `Shift.power` と複素数の冪の名前衝突で終了1。
-`Shift.iterate` へ変更した `b2901d44` の `Companion.ShiftFamilies` は `work/k07-shift-continuity-current` で accepted・保存完了・終了0。
-この対象検査では `--memory-mib 10240` を使用した。
-`19b1962e` の `Companion.Families.Linearization` は `work/k07-gauge-matrices` で accepted・保存失敗0・終了0。
-平面全体での gauge の連続性・可逆性・安定化した行列との等式を含む。
-その後、右 gauge の逆行列の連続性と intertwining を追加しており、この追加は未検証。
-`8502642e` の `PolynomialEigen` は `work/k07-polynomial-eigen` で accepted・保存完了・終了0。
-円周上の pencil・対角化行列の可逆性から gauge による束の比較へ接続するコードを追加したが、未検証である。
-`11f6a15c` の `SpectralPencil` は `work/k07-spectral-pencil` で accepted・保存失敗0・終了0。
-単位円上の変形の零核・可逆性まで含み、固有値評価の結論を仮定せず導いている。
-`1208fe83` の `SpectralMotion` は `work/k07-spectral-motion` で accepted・保存失敗0・終了0。
-連続な行列族・全時刻の可逆性・分離した pencil と元の pencil を与える両端の等式を含む。
-その後追加した `Endpoint`・`ClutchedMotion` と gauge による束比較は未検証。
-`work/k07-clutching-comparison` は閉部分集合 `C` と複素数 module `C` の名前衝突で保存完了・終了1。
-集合名を `PositiveHalf`・`NegativeHalf` へ変更して再検査する。
-次は同対象検査、続いて追加した円周上の可逆性・束比較と `ClutchedMotion` を確認する。
-標準形 `SpectralPencil.NormalForm` と、零核から可逆性を導く Gram API の共通化も追加しており、未検証である。
-残る追加 module を順に検査し、その後 K07 全対象と package 全依存閉包へ戻る。
-未検証の追加には、スペクトル kernel の固有値評価、可逆な pencil 変形と連続な族、両端の等式も含む。
-次は同検査の終了結果を確認し、通常の型・名前解決エラーを修正して、最新 source snapshot で再検査する。
-既存の有限係数共通化の影響先 `polynomial_linear_algebra.Field.Representatives` の個別検査は終了0。
-package 全依存閉包・影響する下流・利用例・workspace の最終検証は残っている。
-clutching とスペクトル束の比較、選択独立性・直和・相互逆、具体例・workspace 登録・公開一覧・下流リンク・ロードマップが残作業である。
-K07 の最終検証・通常のマージと main への反映確認後、K02、B09、K03 を順番に実施する。
+次に追加した NormalForm・InverseFamily・SpectralMotion.Normal・ClutchedMotion と companion gauge の対象検査を行う。
+clutching とスペクトル束の比較、選択独立性・自然性・直和・相互逆、具体例、workspace/package 登録・公開一覧・下流リンク・ロードマップが残作業。
+package 全依存閉包・影響する下流・利用例・workspace の最終検証も残っている。
+K07 の完成・最終検証・必要な CI・通常マージ・main 反映確認後に、最新 main から K02、B09、K03 を順番に進める。
