@@ -1,0 +1,37 @@
+\import \parent.\parent.Normalized[data := parameters.approximation].With[form := parameters.normal].Shifted[] \as Shifted;
+\import Shifted.Leading[bound := parameters.radius] \as Leading;
+\import \root.Linearization[].MatrixPaths[n := n, Y := Circle.Domain, source := Circle.source] \as Paths;
+\import \root.Linearization[].Powers[] \as Powers;
+\import Powers.Families[X := Circle.Domain, source := Circle.source, z := Circle.unit, regular := Circle.unitContinuous] \as CirclePowers;
+\definition scalar[p: Circle.Domain]: C.Complex := Powers.value (Circle.unit p) parameters.normal.shift;
+\definition scalarNonzero: \forall (p: Circle.Domain) -> C.Def[].NonZero (scalar p) := \fun (p: Circle.Domain) => Powers.nonzero (Circle.unit p) (Powers.unitOfNorm (Circle.unit p) (Circle.unitNorm p)) parameters.normal.shift;
+\import Paths.Scale[s := scalar, regular := CirclePowers.continuous parameters.normal.shift, nonzero := scalarNonzero] \as Shift;
+\definition original: Paths.Family := Paths.Family { matrix := a, regular := regular, nonzero := nonzero };
+\definition approximate: Paths.Family := Paths.Family {
+  matrix := value parameters.approximation.coefficients,
+  regular := valueRegular parameters.approximation.coefficients,
+  nonzero := \fun (p: Circle.Domain)(zero: _) => parameters.approximation.invertible (Pair.pair Time.Carrier Circle.Domain Time.end p)
+    (trans!{{C.Complex}} _ _ _ (congr!{M.Matrix {C.Complex}} M.determinant _ _ (parameters.approximation.atEnd p)) zero),
+};
+\definition approximation: Paths.Path[original, approximate] := Paths.Path[original, approximate] {
+  homotopy := parameters.approximation.homotopy, regular := parameters.approximation.continuous, nonzero := parameters.approximation.invertible,
+  atStart := parameters.approximation.atStart, atEnd := parameters.approximation.atEnd,
+};
+\definition shifted: Paths.Family := Shift.family original;
+\definition raw: Paths.Family := Paths.Family { matrix := Leading.perturbed, regular := Leading.perturbedRegular, nonzero := Leading.perturbedNonzero };
+\definition polynomial: Paths.Family := Paths.Family { matrix := Monic.polynomial, regular := Monic.polynomialRegular, nonzero := Monic.nonzero };
+\definition perturbation: Paths.Path[Shift.family approximate, raw] := Paths.Path[Shift.family approximate, raw] {
+  homotopy := Leading.Homotopy[].homotopy, regular := Leading.Homotopy[].continuous, nonzero := Leading.Homotopy[].nonzero,
+  atStart := Leading.Homotopy[].atStart, atEnd := Leading.Homotopy[].atEnd,
+};
+\import Paths.Positive[a := polynomial, c := Leading.epsilon, positive := Leading.positive] \as Normalize;
+\import \root.Linearization[].ScalarMatrices[n := n] \as Scaling;
+\definition restoration: \forall (p: Circle.Domain) -> Normalize.target.matrix p = raw.matrix p :=
+  \fun (p: Circle.Domain) => M.Operations[].ext (Normalize.target.matrix p) (raw.matrix p) (\fun (i, j: M.Index) => trans!{{C.Complex}} _ _ _
+    (sym!{{C.Complex}} _ _ (C.Prop[].mulAssoc Monic.scalar Monic.reciprocal (Leading.perturbed p i j)))
+    (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (\fun (s: C.Complex) => C.Def[].mul s (Leading.perturbed p i j)) _ _ (C.Prop[].inverseNonzeroRight Monic.scalar Monic.scalarNonzero)) (C.Prop[].mulOneLeft (Leading.perturbed p i j))));
+\definition normalization: Paths.Path[polynomial, raw] := Paths.retarget polynomial Normalize.target polynomial raw Normalize.path (\fun (p: Circle.Domain) => \refl(polynomial.matrix p)) restoration;
+\definition path: Paths.Path[shifted, polynomial] := Paths.concatenate shifted raw polynomial
+  (Paths.concatenate shifted (Shift.family approximate) raw (Shift.path original approximate approximation) perturbation)
+  (Paths.reverse polynomial raw normalization);
+\module Model;
