@@ -94,3 +94,6 @@ Clutched の再検査は `Along.isomorphismExists` で長時間停滞し、計�
 比較回数と項を限定出力する `REF_TYPE_PROFILE_CONVERSION` の診断を追加した。判定規則は変更していない。
 
 型同値判定の展開を抑えるため、端点比較の戻り型は比較 module が公開する同じ `Isomorphism` 型の名前を使う形へ整理した（検査待ち）。
+
+端点の型名再利用で `startExists` の kernel 登録を通過した。
+同じ整理を合成へ適用するため `bundle_operations.Operations.Over.IsomorphismComposition.Isomorphism` を公開し、Along の戻り型に使用する（型検査待ち）。
