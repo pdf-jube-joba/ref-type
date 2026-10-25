@@ -92,3 +92,5 @@ Clutched の再検査は `Along.isomorphismExists` で長時間停滞し、計�
 
 計測により `motionExists` は完了し、`throughInitialExists` から参照される `startExists` の kernel 登録時の型同値判定で展開が増大していると分かった。
 比較回数と項を限定出力する `REF_TYPE_PROFILE_CONVERSION` の診断を追加した。判定規則は変更していない。
+
+型同値判定の展開を抑えるため、端点比較の戻り型は比較 module が公開する同じ `Isomorphism` 型の名前を使う形へ整理した（検査待ち）。

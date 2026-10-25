@@ -720,8 +720,10 @@ fn conversion(
             if *calls >= 65536 && calls.is_power_of_two() {
                 eprintln!(
                     "conversion calls={calls} erase={erase} root_left={:?} root_right={:?} left={:?} right={:?}",
-                    env.arena.get(*root_left), env.arena.get(*root_right),
-                    env.arena.get(left), env.arena.get(right),
+                    env.arena.get(*root_left),
+                    env.arena.get(*root_right),
+                    env.arena.get(left),
+                    env.arena.get(right),
                 );
             }
         }
@@ -819,8 +821,12 @@ fn conversion(
                 (Some(l), Some(r)) if l.index < r.index => {
                     return compare(env, left, delta(env, right)?, erase, seen, profile);
                 }
-                (Some(_), _) => return compare(env, delta(env, left)?, right, erase, seen, profile),
-                (_, Some(_)) => return compare(env, left, delta(env, right)?, erase, seen, profile),
+                (Some(_), _) => {
+                    return compare(env, delta(env, left)?, right, erase, seen, profile);
+                }
+                (_, Some(_)) => {
+                    return compare(env, left, delta(env, right)?, erase, seen, profile);
+                }
                 _ => {}
             }
             let left = if erase {
