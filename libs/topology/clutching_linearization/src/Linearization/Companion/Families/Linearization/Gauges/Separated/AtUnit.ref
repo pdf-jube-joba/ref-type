@@ -1,0 +1,25 @@
+\import \root.Linearization[].Companion[n := n, d := d].With[coefficients := coefficients x] \as Cyclic;
+\import Cyclic.Linearize[z := z] \as Native;
+\import Spaces.Coordinates[I := Matrices.Index] \as Flat;
+\import Spaces.Linear[V := Flat.Vector, W := Flat.Vector, source := Flat.space, target := Flat.space] \as FlatEnd;
+\import Spaces.Eigen[V := Flat.Vector, space := Flat.space] \as Eigen;
+\import spectral_splitting.Spectral[].At[n := Coordinates.dimension degree].Pencil[A := Cyclic.Spectral[].matrix, z := z] \as NativePencil;
+\definition position: Domain := Pair.pair X C.Complex x z;
+\definition operatorComparison: Left.coordinateMap Cyclic.operator = Matrices.linear Cyclic.Spectral[].matrix :=
+  FlatEnd.ext _ _ (\axiom:funext((Left.coordinateMap Cyclic.operator).apply, (Matrices.linear Cyclic.Spectral[].matrix).apply,
+    \fun (v: Flat.Vector) => sym!{Flat.Vector} _ _ (Cyclic.Spectral[].formula v)));
+\definition coordinatePencil: Left.coordinateMap Native.pencil = NativePencil.value := eq_reason_in!{FlatEnd.Map _
+  "=" { FlatEnd.Operations[].plus (Left.coordinateMap (Spaces.Eigen[V := \root.Linearization[].Companion[n := n, d := d].Carrier, space := \root.Linearization[].Companion[n := n, d := d].space].scalar z))
+    (Left.coordinateMap (Operators.Operations[].negative Cyclic.operator)) } "by" { Left.coordinateAddition _ _ }
+  "=" { FlatEnd.Operations[].plus (Eigen.scalar z) (FlatEnd.Operations[].negative (Left.coordinateMap Cyclic.operator)) } "by" {
+    congr!{FlatEnd.Map FlatEnd.Map FlatEnd.Map} FlatEnd.Operations[].plus _ _ _ _ (Left.coordinateScalar z) (Left.coordinateScale (C.Def[].neg C.Def[].one) Cyclic.operator) }
+  "=" _ "by" { congr!{FlatEnd.Map FlatEnd.Map} (\fun (f: FlatEnd.Map) => FlatEnd.Operations[].plus (Eigen.scalar z) (FlatEnd.Operations[].negative f)) _ _ operatorComparison }
+};
+\definition pencilComparison: pencilMatrix position = NativePencil.entries := congr!{FlatEnd.Map Matrices.Matrix} Matrices.Representation[].entries _ _ coordinatePencil;
+\definition pencilNonzero: Field.Nonzero (pencilMatrix position) := \fun (zero: _) =>
+  spectral_splitting.Spectral[].At[n := Coordinates.dimension degree].Eigenvalues[A := Cyclic.Spectral[].matrix].At[z := z].nonzero (Cyclic.Spectral[].off (kernel x)) unit
+    (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (congr!{Matrices.Matrix {C.Complex}} Matrices.determinant _ _ pencilComparison)) zero);
+\definition diagonalNonzero: Field.Nonzero (diagonalMatrix position) := \fun (zero: _) =>
+  \root.Linearization[].ScalarMatrices[n := Coordinates.dimension degree].productNonzero (Matrices.product (leftMatrix position) (pencilMatrix position)) (rightMatrix position)
+    (\root.Linearization[].ScalarMatrices[n := Coordinates.dimension degree].productNonzero (leftMatrix position) (pencilMatrix position) (leftNonzero position) pencilNonzero)
+    (rightNonzero position) (trans!{{C.Complex}} _ _ _ (congr!{Matrices.Matrix {C.Complex}} Matrices.determinant _ _ (matrixComparison position)) zero);

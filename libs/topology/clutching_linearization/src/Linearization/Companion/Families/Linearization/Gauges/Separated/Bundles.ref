@@ -1,0 +1,29 @@
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[n := Coordinates.dimension degree,
+  a := pencil, regular := pencilContinuous, nonzero := nonzeroPencil].Clutched[] \as First;
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[n := Coordinates.dimension degree,
+  a := diagonal, regular := diagonalContinuous, nonzero := nonzeroDiagonal].Clutched[] \as Second;
+\import First.Comparison[b := diagonal, regularB := diagonalContinuous, nonzeroB := nonzeroDiagonal] \as Comparison;
+\import \root.Linearization[].MatrixUnits[n := Coordinates.dimension degree, Y := Domain, source := topology,
+  A := rightBackwardMatrix, regular := rightBackwardRegular, nonzero := rightBackwardNonzero] \as Positive;
+\import \root.Linearization[].MatrixUnits[n := Coordinates.dimension degree, Y := Domain, source := topology,
+  A := leftMatrix, regular := leftRegular, nonzero := leftNonzero] \as Negative;
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Scalars.field, scalar := linear_algebra.Hermitian[].Complex[].scalar,
+  topological := hermitian_frames.Hermitian[].Complex[].topological].At[n := Coordinates.dimension degree].Square[] \as Square;
+\definition compatible: \forall (p: Carrier)(v: Matrices.Vector) ->
+  (Matrices.linear (leftMatrix (include p))).apply ((Matrices.linear (pencil p)).apply v) =
+  (Matrices.linear (diagonal p)).apply ((Matrices.linear (rightBackwardMatrix (include p))).apply v) :=
+  \fun (p: Carrier)(v: Matrices.Vector) => eq_reason_in!{Matrices.Vector _
+    "=" { (Matrices.linear (Matrices.product (leftMatrix (include p)) (pencil p))).apply v } "by" { Square.applyProduct (leftMatrix (include p)) (pencil p) v }
+    "=" { (Matrices.linear (Matrices.product (diagonal p) (rightBackwardMatrix (include p)))).apply v } "by" {
+      congr!{Matrices.Matrix Matrices.Vector} (\fun (m: Matrices.Matrix) => (Matrices.linear m).apply v) _ _ (intertwines (include p)) }
+    "=" _ "by" { sym!{Matrices.Vector} _ _ (Square.applyProduct (diagonal p) (rightBackwardMatrix (include p)) v) }
+  };
+\definition gauge: Comparison.Gauge := Comparison.Gauge {
+  positive := Positive.map, negative := Negative.map,
+  positiveContinuous := Positive.continuous, negativeContinuous := Negative.continuous,
+  compatible := compatible,
+};
+\import vector_bundles.Bundles[].Over[K := C.Complex, field := Scalars.field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as VectorBundles;
+\definition isomorphism: VectorBundles.Isomorphisms[X := First.Carrier, F := First.Fiber, G := Second.Fiber, source := First.bundle, target := Second.bundle].Isomorphism :=
+  Comparison.FromGauge[gauge := gauge].value;
