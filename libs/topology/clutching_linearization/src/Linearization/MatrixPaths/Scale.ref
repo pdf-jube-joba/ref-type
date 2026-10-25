@@ -1,0 +1,16 @@
+\import \root.Linearization[].ScalarMatrices[n := n] \as Scaling;
+\import Plane.Functions[A := Y] \as Functions;
+\import Plane.Functions[A := Cylinder.Carrier] \as PathFunctions;
+\definition family[a: Family]: Family := Family {
+  matrix := \fun (y: Y) => Scaling.scale (s y) (a.matrix y),
+  regular := \fun (i, j: M.Index) => Functions.multiplicationContinuous source s (\fun (y: Y) => a.matrix y i j) regular (a.regular i j),
+  nonzero := \fun (y: Y) => Scaling.nonzero (s y) (nonzero y) (a.matrix y) (a.nonzero y),
+};
+\definition path[a, b: Family][h: Path[a, b]]: Path[family a, family b] := Path[family a, family b] {
+  homotopy := \fun (p: Cylinder.Carrier) => Scaling.scale (s (Cylinder.point p)) (h.homotopy p),
+  regular := \fun (i, j: M.Index) => PathFunctions.multiplicationContinuous (Cylinder.topology source) (\fun (p: Cylinder.Carrier) => s (Cylinder.point p)) (\fun (p: Cylinder.Carrier) => h.homotopy p i j)
+    (topology.Composition[A := Cylinder.Carrier, B := Y, C := C.Complex].composeContinuous (Cylinder.topology source) source Plane.topology Cylinder.point s (Cylinder.pointContinuous source) regular) (h.regular i j),
+  nonzero := \fun (p: Cylinder.Carrier) => Scaling.nonzero (s (Cylinder.point p)) (nonzero (Cylinder.point p)) (h.homotopy p) (h.nonzero p),
+  atStart := \fun (y: Y) => congr!{M.Matrix M.Matrix} (Scaling.scale (s y)) _ _ (h.atStart y),
+  atEnd := \fun (y: Y) => congr!{M.Matrix M.Matrix} (Scaling.scale (s y)) _ _ (h.atEnd y),
+};
