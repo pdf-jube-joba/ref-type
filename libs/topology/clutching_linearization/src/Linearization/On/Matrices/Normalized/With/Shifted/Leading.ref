@@ -1,0 +1,31 @@
+\import \root.Linearization[].ComplexBounds[] \as Bounds;
+\import algebra.Group[].Of[Carrier := C.Complex, group := Scalars.additiveGroup] \as Group;
+\definition epsilon: R.Real := R.mul R.half bound.value;
+\definition positive: Real.Lt R.zero epsilon := R.Estimates[].halfOfPositive bound.value bound.positive;
+\definition below: Real.Lt epsilon bound.value := R.Estimates[].halfStrict bound.value bound.positive;
+\definition error[point: Circle.Domain]: M.Matrix := \fun (i, j: M.Index) => C.Def[].scale epsilon (C.Def[].mul (power point degree) (M.identity i j));
+\definition perturbed[point: Circle.Domain]: M.Matrix := Margin.perturb (error point) point;
+\definition errorBound: \forall (point: Circle.Domain)(i, j: M.Index) -> Real.Lt (C.Absolute[].abs (error point i j)) bound.value :=
+  \fun (point: Circle.Domain)(i, j: M.Index) => Real.leLtTrans _ _ _
+    (Real.leReplace _ _ _ _ (sym!{{R.Real}} _ _ (Bounds.scaledAbsolute epsilon (C.Def[].mul (power point degree) (M.identity i j)) (Order.leOfLt _ _ positive)))
+      (R.Algebra[].mulOneRight epsilon)
+      (R.Estimates[].mulMonotone epsilon (C.Absolute[].abs (C.Def[].mul (power point degree) (M.identity i j))) R.one (Order.leOfLt _ _ positive)
+        (Real.leReplaceLeft _ _ _ (sym!{{R.Real}} _ _ (trans!{{R.Real}} _ _ _ (C.Absolute[].multiplicative (power point degree) (M.identity i j))
+          (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (\fun (v: R.Real) => R.mul v (C.Absolute[].abs (M.identity i j))) _ _
+            (Powers.unit (Circle.unit point) (Powers.unitOfNorm (Circle.unit point) (Circle.unitNorm point)) degree)) (Laws.fieldMulOneLeft (C.Absolute[].abs (M.identity i j)))))) (Scaling.identityBound i j)))) below;
+\definition nonzero: \forall (point: Circle.Domain) -> Field.Nonzero (perturbed point) :=
+  \fun (point: Circle.Domain) => bound.preserves (error point) (errorBound point) point;
+\definition errorRegular: Top.Families[X := Circle.Domain].Regular Circle.source error :=
+  \fun (i, j: M.Index) => Functions.scaleContinuous Circle.source (\fun (_: Circle.Domain) => epsilon) _
+    (metric_spaces.RealFunctions[A := Circle.Domain].constantContinuous Circle.source epsilon)
+    (Functions.multiplicationContinuous Circle.source (\fun (point: Circle.Domain) => power point degree) (\fun (_: Circle.Domain) => M.identity i j)
+      (CirclePowers.continuous degree) (topology.Maps[A := Circle.Domain, B := C.Complex].constantContinuous Circle.source Plane.topology (M.identity i j)));
+\definition perturbedRegular: Top.Families[X := Circle.Domain].Regular Circle.source perturbed :=
+  \fun (i, j: M.Index) => Functions.additionContinuous Circle.source _ _ (regular i j) (errorRegular i j);
+\definition near: \forall (point: Circle.Domain)(i, j: M.Index) -> Real.Lt (C.Absolute[].abs (C.Def[].sub (value point i j) (perturbed point i j))) bound.value :=
+  \fun (point: Circle.Domain)(i, j: M.Index) => Real.ltReplaceLeft _ _ _ (sym!{{R.Real}} _ _
+    (trans!{{R.Real}} _ _ _ (congr!{{C.Complex} {R.Real}} C.Absolute[].abs _ _
+      (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (C.Def[].sub (value point i j)) _ _
+        (sym!{{C.Complex}} _ _ (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (C.Def[].add (value point i j)) _ _ (C.Prop[].negNeg (error point i j))) (\refl(perturbed point i j)))))
+        (Group.subtractDifference (value point i j) (C.Def[].neg (error point i j))))) (Bounds.negativeAbsolute (error point i j)))) (errorBound point i j);
+\module Homotopy;

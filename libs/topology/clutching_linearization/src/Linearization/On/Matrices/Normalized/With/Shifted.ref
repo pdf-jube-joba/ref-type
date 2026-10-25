@@ -1,0 +1,19 @@
+\import topological_algebra.Complex[] \as Plane;
+\import Plane.Functions[A := Circle.Domain] \as Functions;
+\import \root.Linearization[].Powers[] \as Powers;
+\import Powers.Families[X := Circle.Domain, source := Circle.source, z := Circle.unit, regular := Circle.unitContinuous] \as CirclePowers;
+\import \root.Linearization[].ScalarMatrices[n := n] \as Scaling;
+\import \root.Linearization[].MatrixNeighborhoods[n := n] \as Neighborhoods;
+\definition value[point: Circle.Domain]: M.Matrix := Scaling.scale (power point form.shift) (\fun (i, j: M.Index) => Circle.value (data.coefficients i j) point);
+\definition regular: Top.Families[X := Circle.Domain].Regular Circle.source value :=
+  \fun (i, j: M.Index) => Functions.multiplicationContinuous Circle.source (\fun (point: Circle.Domain) => power point form.shift)
+    (Circle.value (data.coefficients i j)) (CirclePowers.continuous form.shift) (Circle.valueContinuous (data.coefficients i j));
+\definition nonzero: \forall (point: Circle.Domain) -> Field.Nonzero (value point) :=
+  \fun (point: Circle.Domain) => Scaling.nonzero (power point form.shift)
+    (Powers.nonzero (Circle.unit point) (Powers.unitOfNorm (Circle.unit point) (Circle.unitNorm point)) form.shift)
+    (\fun (i, j: M.Index) => Circle.value (data.coefficients i j) point)
+    (\fun (zero: _) => data.invertible (Pair.pair Time.Carrier Circle.Domain Time.end point)
+      (trans!{{C.Complex}} _ _ _ (congr!{M.Matrix {C.Complex}} M.determinant _ _ (data.atEnd point)) zero));
+\import Neighborhoods.Perturbation[X := Circle.Domain, source := Circle.source, compact := Circle.domainCompact, a := value, regular := regular, nonzero := nonzero] \as Margin;
+\definition radiusExists: \exists Margin.Bound := Margin.boundExists;
+\module Leading(bound: Margin.Bound);
