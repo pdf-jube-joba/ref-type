@@ -43,7 +43,10 @@ target/debug/cli libs/topology/clutching_linearization --source-snapshot work/k0
 `b3f782ef` の B04 `Clutching.With.Comparison` 自身と参照先は `work/k07-cocycle-equality` で accepted・保存失敗0・終了0。
 `work/k07-gauges-continuous` は保存完了・終了1で、B04 の非公開 alias `Motion.Start` の参照エラーを検出した。
 公開 `Endpoint[t]` に変更した `0ebd9247` の次の検査は、`bundle_operations` の直接依存が不足して終了1となり、manifest に追加した。
-最新の `work/k07-motion-current` は K07 全対象 module を検査中。
+`work/k07-motion-current` は module 引数の座標型参照を直した後、`Coordinates.Families` の型推論不足で終了1となった。
+`d2a50e80` の座標連続性は `work/k07-block-continuity` の対象検査で accepted・保存完了・終了0。
+同じ snapshot で `Companion.ShiftFamilies` を `work/k07-shift-continuity` として対象検査中である。
+残る追加 module を順に検査し、その後 K07 全対象と package 全依存閉包へ戻る。
 未検証の追加には、スペクトル kernel の固有値評価、可逆な pencil 変形と連続な族、両端の等式も含む。
 次は同検査の終了結果を確認し、通常の型・名前解決エラーを修正して、最新 source snapshot で再検査する。
 既存の有限係数共通化の影響先 `polynomial_linear_algebra.Field.Representatives` の個別検査は終了0。
