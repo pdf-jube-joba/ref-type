@@ -45,7 +45,10 @@ target/debug/cli libs/topology/clutching_linearization --source-snapshot work/k0
 公開 `Endpoint[t]` に変更した `0ebd9247` の次の検査は、`bundle_operations` の直接依存が不足して終了1となり、manifest に追加した。
 `work/k07-motion-current` は module 引数の座標型参照を直した後、`Coordinates.Families` の型推論不足で終了1となった。
 `d2a50e80` の座標連続性は `work/k07-block-continuity` の対象検査で accepted・保存完了・終了0。
-同じ snapshot で `Companion.ShiftFamilies` を `work/k07-shift-continuity` として対象検査中である。
+`work/k07-shift-continuity` は追加した `Shift.power` と複素数の冪の名前衝突で終了1。
+`Shift.iterate` へ変更した `b2901d44` の `Companion.ShiftFamilies` は `work/k07-shift-continuity-current` で accepted・保存完了・終了0。
+この対象検査では `--memory-mib 10240` を使用した。
+次は `Companion.Families.Linearization` の型と gauge の連続性・行列比較を検査する。
 残る追加 module を順に検査し、その後 K07 全対象と package 全依存閉包へ戻る。
 未検証の追加には、スペクトル kernel の固有値評価、可逆な pencil 変形と連続な族、両端の等式も含む。
 次は同検査の終了結果を確認し、通常の型・名前解決エラーを修正して、最新 source snapshot で再検査する。
