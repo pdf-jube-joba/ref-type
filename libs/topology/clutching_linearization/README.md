@@ -25,7 +25,7 @@ GitHub 連携で #42〜#45 の統合を確認済み、開始時の open PR 検�
 通常の GitHub 連携は PR 情報の読み取りに成功し、gh / curl 経由で観測した拒否とは区別する。
 K07 の PR はまだ作成していない。
 
-最後に対象検査が成功した数学ソースのコミットは `a0a42edb`。
+最後に対象検査が成功した数学ソースのコミットは `b0215617`。
 `work/k07-spectral-family.source.json` の対象 module と参照先は検査・キャッシュ保存完了、プロセスの終了0を確認した。
 復旧・重複・再実行・未保存ステップは0である。
 それ以前の foundations・neighborhoods・homotopy・Laurent 近似・normal forms・共通次数・座標・companion の各検査も終了0。
@@ -38,7 +38,7 @@ target/debug/cli libs/topology/clutching_linearization --source-snapshot work/k0
 ```
 
 `Geometric` の有限幾何級数と `Companion.Shift` の三角行列操作も、`work/k07-geometric.source.json`・`work/k07-shift.source.json` の対象検査で保存完了・終了0。
-この時点で未検証の数学ソース変更はない。
+以後の `Shift.solveHead` と符号付きブロック順序交換の比較写像は未検証で、`work/k07-gauges.source.json` の対象検査を実行中。
 これらは途中の対象検査であり、package 全依存閉包・下流・利用例・workspace の最終検証は残っている。
 Laurent 行列の monic 正規化、安定線形化と clutching の比較、スペクトル束との比較、選択独立性・直和・相互逆、具体例・workspace 登録・公開一覧・下流リンク・ロードマップが残作業である。
 次は Laurent 行列の正規化と companion への比較を実装する。

@@ -35,3 +35,30 @@
 \definition isomorphism: Isomorphisms.Isomorphism := Geometric.WithOrder[order := degree, nilpotent := nilpotent].isomorphism;
 \definition difference: Operators.Map := Geometric.difference;
 \definition solve: Operators.Map := Geometric.partial degree;
+\definition differenceAt: \forall (v: Carrier)(i: Fin.Fin degree) -> difference.apply v i = ValueGroup.difference (v i) (map.apply v i) :=
+  \fun (v: Carrier)(i: Fin.Fin degree) => congr!{Carrier Vectors.Vector} (\fun (w: Carrier) => w i) _ _ (Geometric.formula v);
+\definition differenceHead: \forall (v: Carrier) -> difference.apply v (Fin.zero d) = v (Fin.zero d) :=
+  \fun (v: Carrier) => eq_reason_in!{Vectors.Vector _
+    "=" { ValueGroup.difference (v (Fin.zero d)) (map.apply v (Fin.zero d)) } "by" { differenceAt v (Fin.zero d) }
+    "=" { ValueGroup.difference (v (Fin.zero d)) Vectors.origin } "by" { congr!{Vectors.Vector Vectors.Vector} (ValueGroup.difference (v (Fin.zero d))) _ _ (Tuples.atZero d Vectors.origin (\fun (i: Fin.Fin d) => Vectors.scale z (v (Fin.widen d i)))) }
+    "=" { Vectors.plus (v (Fin.zero d)) Vectors.origin } "by" { congr!{Vectors.Vector Vectors.Vector} (Vectors.plus (v (Fin.zero d))) _ _ ValueGroup.negZero }
+    "=" _ "by" { Values.zeroRight (v (Fin.zero d)) }
+  };
+\definition differenceTail: \forall (v: Carrier)(i: Fin.Fin d) -> difference.apply v (Fin.succ d i) = ValueGroup.difference (v (Fin.succ d i)) (Vectors.scale z (v (Fin.widen d i))) :=
+  \fun (v: Carrier)(i: Fin.Fin d) => trans!{Vectors.Vector} _ _ _ (differenceAt v (Fin.succ d i))
+    (congr!{Vectors.Vector Vectors.Vector} (ValueGroup.difference (v (Fin.succ d i))) _ _ (Tuples.atSuccessor d Vectors.origin (\fun (j: Fin.Fin d) => Vectors.scale z (v (Fin.widen d j))) i));
+\definition inject[v: Vectors.Vector]: Carrier := Tuples.extend d v (\fun (i: Fin.Fin d) => Vectors.origin);
+\definition differenceGeometric: \forall (v: Vectors.Vector) -> difference.apply ((geometric z).apply v) = inject v :=
+  \fun (v: Vectors.Vector) => \axiom:funext(difference.apply ((geometric z).apply v), inject v, Fin.cases d
+    (\fun (i: Fin.Fin degree) => difference.apply ((geometric z).apply v) i = inject v i)
+    (trans!{Vectors.Vector} _ _ _ (differenceHead ((geometric z).apply v)) (trans!{Vectors.Vector} _ _ _ (Vectors.space.scalarOne v) (sym!{Vectors.Vector} _ _ (Tuples.atZero d v (\fun (i: Fin.Fin d) => Vectors.origin)))))
+    (\fun (i: Fin.Fin d) => eq_reason_in!{Vectors.Vector _
+      "=" { ValueGroup.difference (Vectors.scale (power z (N.Nat^::succ i)) v) (Vectors.scale z (Vectors.scale (power z i) v)) } "by" { differenceTail ((geometric z).apply v) i }
+      "=" { ValueGroup.difference (Vectors.scale z (Vectors.scale (power z i) v)) (Vectors.scale z (Vectors.scale (power z i) v)) } "by" { congr!{Vectors.Vector Vectors.Vector} (\fun (w: Vectors.Vector) => ValueGroup.difference w (Vectors.scale z (Vectors.scale (power z i) v))) _ _ (Vectors.space.scalarAssoc z (power z i) v) }
+      "=" Vectors.origin "by" { ValueGroup.inverseRight (Vectors.scale z (Vectors.scale (power z i) v)) }
+      "=" _ "by" { sym!{Vectors.Vector} _ _ (Tuples.atSuccessor d v (\fun (j: Fin.Fin d) => Vectors.origin) i) }
+    }));
+\definition solveHead: \forall (v: Vectors.Vector) -> solve.apply (inject v) = (geometric z).apply v :=
+  \fun (v: Vectors.Vector) => trans!{Carrier} _ _ _
+    (congr!{Carrier Carrier} solve.apply _ _ (sym!{Carrier} _ _ (differenceGeometric v)))
+    ((Isomorphisms.laws isomorphism).leftInverse ((geometric z).apply v));
