@@ -34,3 +34,29 @@
     {\fun (different: _) => Real.leReplaceLeft _ _ _ (sym!{{R.Real}} _ _ (trans!{{R.Real}} _ _ _
       (congr!{{C.Complex} {R.Real}} C.Absolute[].abs _ _ (Kronecker.different j i different)) uniform_approximation.Approximation[].FiniteComplex[].zeroAbsolute)) Laws.oneNonnegative}
   };
+\import Spaces.Coordinates[I := M.Index] \as Vectors;
+\import Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as End;
+\import End.Composition[U := Vectors.Vector, domain := Vectors.space] \as Compose;
+\import Spaces.Eigen[V := Vectors.Vector, space := Vectors.space] \as Eigen;
+\import M.Representation[] \as Representation;
+\definition faithful: \forall (f, g: End.Map) -> Representation.entries f = Representation.entries g -> f = g :=
+  \fun (f, g: End.Map)(same: _) => trans!{End.Map} _ _ _ (sym!{End.Map} _ _ (Representation.linearEntries f))
+    (trans!{End.Map} _ _ _ (congr!{M.Matrix End.Map} M.linear _ _ same) (Representation.linearEntries g));
+\definition productLinear: \forall (A, B: M.Matrix) -> Compose.compose (M.linear A) (M.linear B) = M.linear (M.product A B) :=
+  \fun (A, B: M.Matrix) => faithful _ _ (eq_reason_in!{M.Matrix _
+    "=" { M.product (Representation.entries (M.linear A)) (Representation.entries (M.linear B)) } "by" { Representation.composition (M.linear A) (M.linear B) }
+    "=" { M.product A B } "by" { congr!{M.Matrix M.Matrix M.Matrix} M.product _ _ _ _ (Representation.entriesLinear A) (Representation.entriesLinear B) }
+    "=" _ "by" { sym!{M.Matrix} _ _ (Representation.entriesLinear (M.product A B)) }
+  });
+\definition identityLinear: M.linear M.identity = Eigen.identity := faithful _ _ (Representation.entriesLinear M.identity);
+\definition zeroKernel: \forall (A: M.Matrix) -> Field.Nonzero A -> \forall (v: Vectors.Vector) -> (M.linear A).apply v = Vectors.origin -> v = Vectors.origin :=
+  \fun (A: M.Matrix)(nonzero: _)(v: Vectors.Vector)(zero: _) => \block {
+    \let B: Operations.Inverse A := Field.inverse (\into[M.Matrix](A, Field.Nonsingular) \by { nonzero }) \then
+    \let inverse: Compose.compose (M.linear B) (M.linear A) = Eigen.identity := trans!{End.Map} _ _ _ (productLinear B A)
+      (trans!{End.Map} _ _ _ (congr!{M.Matrix End.Map} M.linear _ _ (Operations.inverseLaws A B).left) identityLinear) \then
+    \return eq_reason_in!{Vectors.Vector v
+      "=" { (M.linear B).apply ((M.linear A).apply v) } "by" { sym!{Vectors.Vector} _ _ (congr!{End.Map Vectors.Vector} (\fun (f: End.Map) => f.apply v) _ _ inverse) }
+      "=" { (M.linear B).apply Vectors.origin } "by" { congr!{Vectors.Vector Vectors.Vector} (M.linear B).apply _ _ zero }
+      "=" Vectors.origin "by" { (M.linear B).preservesZero }
+    }
+  };

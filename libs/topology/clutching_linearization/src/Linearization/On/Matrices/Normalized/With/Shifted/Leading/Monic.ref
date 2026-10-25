@@ -1,0 +1,36 @@
+\import Spaces.Coordinates[I := M.Index] \as Vectors;
+\import Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as End;
+\import Spaces.Laws[V := C.Complex, space := Spaces.scalarSpace] \as ScalarLaws;
+\import topological_algebra.Complex[].Functions[A := X] \as BaseFunctions;
+\import matrix_invariants.Topological[K := C.Complex, ring := Plane.Ring[].topologicalRing].At[n := n].Families[X := X] \as BaseTop;
+\import M.Representation[] \as Representation;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := Scalars.field, scalar := linear_algebra.Hermitian[].Complex[].scalar].Sums[] \as Sums;
+\definition scalar: C.Complex := C.Def[].ofReal epsilon;
+\definition scalarNonzero: C.Def[].NonZero scalar := \fun (zero: scalar = C.Def[].zero) => Real.ltNotLeReverse R.zero epsilon positive
+  (Real.leReplaceLeft _ _ _ (sym!{{R.Real}} _ _ (congr!{{C.Complex} {R.Real}} C.re _ _ zero)) (Real.leRefl R.zero));
+\definition reciprocal: C.Complex := C.Def[].inv scalar;
+\definition reciprocalNonzero: C.Def[].NonZero reciprocal := \fun (zero: reciprocal = C.Def[].zero) => C.Prop[].zeroNeOne
+  (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (trans!{{C.Complex}} _ _ _
+    (congr!{{C.Complex} {C.Complex}} (\fun (v: C.Complex) => C.Def[].mul v scalar) _ _ zero) (C.Prop[].mulZeroLeft scalar)))
+    (C.Prop[].inverseNonzero scalar scalarNonzero));
+\definition coefficient[k: Fin.Fin degree][x: X]: M.Matrix := Scaling.scale reciprocal (\fun (i, j: M.Index) => form.coefficients i j k x);
+\definition coefficients[x: X][k: Fin.Fin degree]: End.Map := M.linear (coefficient k x);
+\definition coefficientRegular: \forall (k: Fin.Fin degree) -> BaseTop.Regular source (coefficient k) :=
+  \fun (k: Fin.Fin degree)(i, j: M.Index) => BaseFunctions.multiplicationContinuous source (\fun (_: X) => reciprocal) (\fun (x: X) => form.coefficients i j k x)
+    (topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology reciprocal) (CoefficientRing.regular (form.coefficients i j k));
+\definition regularAction: \forall (k: Fin.Fin degree)(v: Vectors.Vector)(i: M.Index) ->
+  topology.Continuity[A := X, B := C.Complex].Continuous source Plane.topology (\fun (x: X) => (coefficients x k).apply v i) :=
+  \fun (k: Fin.Fin degree)(v: Vectors.Vector)(i: M.Index) => BaseTop.Indexed[I := M.Index].sumContinuous (Fin.elements n) source
+    (\fun (j: M.Index)(x: X) => C.Def[].mul (coefficient k x i j) (v j))
+    (\fun (j: M.Index) => BaseFunctions.multiplicationContinuous source _ _ (coefficientRegular k i j)
+      (topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology (v j)));
+\import \root.Linearization[].Companion[n := n, d := form.order] \as Companion;
+\definition polynomial[point: Circle.Domain]: M.Matrix := Scaling.scale reciprocal (perturbed point);
+\definition nonzero: \forall (point: Circle.Domain) -> Field.Nonzero (polynomial point) :=
+  \fun (point: Circle.Domain) => Scaling.nonzero reciprocal reciprocalNonzero (perturbed point) (perturbedNonzero point);
+\definition cancelScale: \forall (v: C.Complex) -> C.Def[].mul reciprocal (C.Def[].scale epsilon v) = v :=
+  \fun (v: C.Complex) => trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (C.Def[].mul reciprocal) _ _
+    (sym!{{C.Complex}} _ _ (uniform_approximation.Approximation[].ComplexScalars[].realProduct epsilon v)))
+    (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (C.Prop[].mulAssoc reciprocal scalar v))
+      (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (\fun (w: C.Complex) => C.Def[].mul w v) _ _ (C.Prop[].inverseNonzero scalar scalarNonzero)) (C.Prop[].mulOneLeft v)));
+\module At(point: Circle.Domain);
