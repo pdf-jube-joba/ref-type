@@ -1,11 +1,19 @@
 \import std.Data[].FinSet[] \as Fin;
 \import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as NatLaws;
 \import Spaces.Coordinates[I := Fin.Fin n] \as Vectors;
 \import module_theory.Module[].Over[R := C.Complex, ring := Spaces.ring] \as Modules;
 \definition dimension: N.Nat^ -> N.Nat^ := \induction (d: N.Nat^) \return N.Nat^ \with {
   | zero: N.Nat^::zero
   | succ: \fun (d: N.Nat^)(previous: N.Nat^) => Nat.add previous n
 };
+\definition dimensionFormula: \forall (d: N.Nat^) -> dimension d = Nat.mul n d :=
+  \induction (d: N.Nat^) \return dimension d = Nat.mul n d \with {
+    | zero: sym!{{N.Nat^}} _ _ (NatLaws.mulZeroRight n)
+    | succ: \fun (d: N.Nat^)(previous: dimension d = Nat.mul n d) => trans!{{N.Nat^}} _ _ _
+      (congr!{{N.Nat^} {N.Nat^}} (\fun (k: N.Nat^) => Nat.add k n) _ _ previous)
+      (trans!{{N.Nat^}} _ _ _ (NatLaws.addComm (Nat.mul n d) n) (sym!{{N.Nat^}} _ _ (NatLaws.mulSuccRight n d)))
+  };
 \definition Carrier[d: N.Nat^]: \Set := Fin.Fin d -> Vectors.Vector;
 \definition space[d: N.Nat^]: Spaces.VectorSpace (Carrier d) := Modules.Functions[X := Fin.Fin d, V := Vectors.Vector, target := Vectors.space].space;
 \import Fin.Tuples[A := Vectors.Vector] \as Tuples;
