@@ -1,0 +1,28 @@
+\import std.Alg[].Ring[] \as Rings;
+\import algebra.LaurentPolynomial[].Over[R := CoefficientRing.Carrier, coefficients := CoefficientRing.commutativeRing] \as Laurent;
+\import algebra.Hom[A := CoefficientRing.Carrier, B := CoefficientRing.Carrier] \as Coefficients;
+\definition coefficient[a: CoefficientRing.Carrier]: CoefficientRing.Carrier := \into[X -> C.Complex](\fun (x: X) => a (f x), CoefficientRing.Carrier) \by {
+  topology.Composition[A := X, B := X, C := C.Complex].composeContinuous source source topological_algebra.Complex[].topology f a regular (CoefficientRing.regular a)
+};
+\definition coefficientMap: Coefficients.RingMap CoefficientRing.ring CoefficientRing.ring := \into[CoefficientRing.Carrier -> CoefficientRing.Carrier](coefficient, Coefficients.RingMap CoefficientRing.ring CoefficientRing.ring) \by {
+  Coefficients.SemiringLaws[(Rings.ringAsSemiring CoefficientRing.Carrier CoefficientRing.ring), (Rings.ringAsSemiring CoefficientRing.Carrier CoefficientRing.ring), coefficient] {
+    zero := \refl(CoefficientRing.zero), one := \refl(CoefficientRing.one),
+    add := \fun (a, b: CoefficientRing.Carrier) => \refl(coefficient (CoefficientRing.add a b)),
+    mul := \fun (a, b: CoefficientRing.Carrier) => \refl(coefficient (CoefficientRing.mul a b)),
+  }
+};
+\import Coefficients.Composition[C := Laurent.Carrier] \as Composition;
+\definition constants: algebra.Hom[A := CoefficientRing.Carrier, B := Laurent.Carrier].RingMap CoefficientRing.ring (Rings.commutativeRingAsRing Laurent.Carrier Laurent.ring) :=
+  Composition.ring CoefficientRing.ring CoefficientRing.ring (Rings.commutativeRingAsRing Laurent.Carrier Laurent.ring) coefficientMap Laurent.coefficientMap;
+\import Laurent.Universal[K := Laurent.Carrier, target := Laurent.ring] \as Extension;
+\definition map: algebra.Hom[A := Laurent.Carrier, B := Laurent.Carrier].RingMap
+  (Rings.commutativeRingAsRing Laurent.Carrier Laurent.ring) (Rings.commutativeRingAsRing Laurent.Carrier Laurent.ring) := Extension.extension constants Laurent.X Laurent.inverseX Laurent.inverse;
+\definition onConstant: \forall (a: CoefficientRing.Carrier) -> map (Laurent.constant a) = Laurent.constant (coefficient a) := Extension.onConstant constants Laurent.X Laurent.inverseX Laurent.inverse;
+\definition onVariable: map Laurent.X = Laurent.X := Extension.onVariable constants Laurent.X Laurent.inverseX Laurent.inverse;
+\definition onInverseVariable: map Laurent.inverseX = Laurent.inverseX := Extension.onInverseVariable constants Laurent.X Laurent.inverseX Laurent.inverse;
+\import std.Data[].Pair[] \as Pair;
+\import sphere_maps.Circle[] \as Native;
+\definition point[p: Circle.Domain]: Circle.Domain := Pair.pair X Native.Carrier (f (Circle.first p)) (Circle.second p);
+\module At(p: Circle.Domain);
+\definition evaluation: \forall (q: Laurent.Carrier)(p: Circle.Domain) -> Circle.value (map q) p = Circle.value q (point p) :=
+  \fun (q: Laurent.Carrier)(p: Circle.Domain) => At[p := p].evaluation q;
