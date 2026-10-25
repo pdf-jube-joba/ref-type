@@ -42,10 +42,13 @@
     };
 \definition extension: \forall (d: N.Nat^)(v: X -> Vectors.Vector)(w: X -> Carrier d) ->
   (\forall (j: Fin.Fin n) -> Continuous (\fun (x: X) => v x j)) -> Regular d w -> Regular (N.Nat^::succ d) (\fun (x: X) => Tuples.extend d (v x) (w x)) :=
-  \fun (d: N.Nat^)(v: X -> Vectors.Vector)(w: X -> Carrier d)(vr: _)(wr: _) => Fin.cases d
-    (\fun (i: Fin.Fin (N.Nat^::succ d)) => \forall (j: Fin.Fin n) -> Continuous (\fun (x: X) => Tuples.extend d (v x) (w x) i j))
-    (\fun (j: Fin.Fin n) => transport _ _ (\fun (x: X) => sym!{{C.Complex}} _ _ (congr!{Vectors.Vector {C.Complex}} (\fun (u: Vectors.Vector) => u j) _ _ (Tuples.atZero d (v x) (w x)))) (vr j))
-    (\fun (i: Fin.Fin d)(j: Fin.Fin n) => transport _ _ (\fun (x: X) => sym!{{C.Complex}} _ _ (congr!{Vectors.Vector {C.Complex}} (\fun (u: Vectors.Vector) => u j) _ _ (Tuples.atSuccessor d (v x) (w x) i))) (wr i j));
+  \fun (d: N.Nat^)(v: X -> Vectors.Vector)(w: X -> Carrier d)
+    (vr: \forall (j: Fin.Fin n) -> Continuous (\fun (x: X) => v x j))(wr: Regular d w) => Fin.cases d
+      (\fun (i: Fin.Fin (N.Nat^::succ d)) => \forall (j: Fin.Fin n) -> Continuous (\fun (x: X) => Tuples.extend d (v x) (w x) i j))
+      (\fun (j: Fin.Fin n) => transport (\fun (x: X) => v x j) (\fun (x: X) => Tuples.extend d (v x) (w x) (Fin.zero d) j)
+        (\fun (x: X) => sym!{{C.Complex}} _ _ (congr!{Vectors.Vector {C.Complex}} (\fun (u: Vectors.Vector) => u j) _ _ (Tuples.atZero d (v x) (w x)))) (vr j))
+      (\fun (i: Fin.Fin d)(j: Fin.Fin n) => transport (\fun (x: X) => w x i j) (\fun (x: X) => Tuples.extend d (v x) (w x) (Fin.succ d i) j)
+        (\fun (x: X) => sym!{{C.Complex}} _ _ (congr!{Vectors.Vector {C.Complex}} (\fun (u: Vectors.Vector) => u j) _ _ (Tuples.atSuccessor d (v x) (w x) i))) (wr i j));
 \definition flattenRegular: \forall (d: N.Nat^)(v: X -> Carrier d) -> Regular d v ->
   \forall (k: Fin.Fin (dimension d)) -> topology.Continuity[A := X, B := C.Complex].Continuous source Plane.topology (\fun (x: X) => flatten d (v x) k) := \block {
     \fun (d: N.Nat^)(v: X -> Carrier d)(regular: _)(k: Fin.Fin (dimension d)) \then
