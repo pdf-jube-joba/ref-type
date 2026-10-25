@@ -1,0 +1,22 @@
+\import std.Data[].FinSet[] \as Fin;
+\import \root.Linearization[].Coordinates[n := n] \as Coordinates;
+\import Coordinates.At[d := d] \as Frame;
+\import Coordinates.Families[X := Y, source := source] \as Families;
+\definition Carrier: \Set := Coordinates.Carrier d;
+\import Spaces.Linear[V := Carrier, W := Carrier, source := Coordinates.space d, target := Coordinates.space d] \as End;
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := Coordinates.dimension d] \as M;
+\import M.Representation[] \as Representation;
+\import Spaces.Coordinates[I := M.Index] \as Flat;
+\import Spaces.Linear[V := Flat.Vector, W := Flat.Vector, source := Flat.space, target := Flat.space] \as FlatEnd;
+\import Spaces.Linear[V := Carrier, W := Flat.Vector, source := Coordinates.space d, target := Flat.space] \as Forward;
+\import Spaces.FiniteCoordinates[n := Coordinates.dimension d] \as Basis;
+\import matrix_invariants.Topological[K := C.Complex, ring := topological_algebra.Complex[].Ring[].topologicalRing].At[n := Coordinates.dimension d].Families[X := Y] \as Top;
+\definition coordinateMap[f: End.Map]: FlatEnd.Map := Forward.Composition[U := Flat.Vector, domain := Flat.space].compose Frame.forward
+  (End.Composition[U := Flat.Vector, domain := Flat.space].compose f Frame.backward);
+\definition matrix[y: Y]: M.Matrix := Representation.entries (coordinateMap (A y));
+\definition formula: \forall (y: Y)(v: Flat.Vector) -> (M.linear (matrix y)).apply v = Coordinates.flatten d ((A y).apply (Coordinates.unflatten d v)) :=
+  \fun (y: Y)(v: Flat.Vector) => congr!{FlatEnd.Map Flat.Vector} (\fun (f: FlatEnd.Map) => f.apply v) _ _ (Representation.linearEntries (coordinateMap (A y)));
+\definition matrixRegular: Top.Regular source matrix := \fun (i, j: M.Index) => Families.flattenRegular d
+  (\fun (y: Y) => (A y).apply (Coordinates.unflatten d (Basis.vectors j))) (regular (Coordinates.unflatten d (Basis.vectors j))) i;
+\module WithInverse(B: Y -> End.Map, left: \forall (y: Y)(v: Carrier) -> (B y).apply ((A y).apply v) = v,
+  right: \forall (y: Y)(v: Carrier) -> (A y).apply ((B y).apply v) = v);
