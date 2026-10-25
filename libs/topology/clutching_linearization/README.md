@@ -25,25 +25,18 @@ GitHub 連携で #42〜#45 の統合を確認済み、開始時の open PR 検�
 通常の GitHub 連携は PR 情報の読み取りに成功し、gh / curl 経由で観測した拒否とは区別する。
 K07 は [draft PR #46](https://github.com/pdf-jube-joba/ref-type/pull/46) で進行中。
 
-最後に対象検査が成功した数学ソースのコミットは `26cc1f1b`。
-`work/k07-spectral-family.source.json` の対象 module と参照先は検査・キャッシュ保存完了、プロセスの終了0を確認した。
-復旧・重複・再実行・未保存ステップは0である。
-それ以前の foundations・neighborhoods・homotopy・Laurent 近似・normal forms・共通次数・座標・companion の各検査も終了0。
-`algebra.Polynomial` と共通化の影響先 `polynomial_linear_algebra.Field.Representatives` の個別検査も終了0。
-初回は旧 CLI のオプション不一致で終了2となり、現行 CLI の通常ビルド（終了0）で解消した。
+最後に対象検査が成功した数学ソースのコミットは `8d015991`。
+Laurent 近似、共通次数の有限係数、座標、companion、有限幾何級数、安定対角化、評価準同型の比較まで対象検査が成功した。
+`work/k07-normalized-confirm.report.json` は accepted、プロセスの終了0、キャッシュ保存の失敗0を確認済みである。
+このコミットは push 後のリモート SHA も確認済みである。
+既存の有限係数共通化の影響先 `polynomial_linear_algebra.Field.Representatives` の個別検査も終了0。
 
 ```sh
-target/debug/cli libs/topology/clutching_linearization --parse-only --save-source-snapshot work/k07-spectral-family.source.json
-target/debug/cli libs/topology/clutching_linearization --source-snapshot work/k07-spectral-family.source.json --module clutching_linearization --memory-mib 8192 --cache-dir libs/refcache --cache-budget-mib 12288 --diagnostics compact --time-limit-seconds 1800 --report-json work/k07-spectral-family.report.json
+target/debug/cli libs/topology/clutching_linearization --parse-only --save-source-snapshot work/k07-normalized.source.json
+target/debug/cli libs/topology/clutching_linearization --source-snapshot work/k07-normalized.source.json --module clutching_linearization --memory-mib 8192 --cache-dir libs/refcache --cache-budget-mib 12288 --diagnostics compact --time-limit-seconds 1800 --report-json work/k07-normalized-confirm.report.json
 ```
 
-`Geometric` の有限幾何級数と `Companion.Shift` の三角行列操作も、`work/k07-geometric.source.json`・`work/k07-shift.source.json` の対象検査で保存完了・終了0。
-`Shift.solveHead` と符号付きブロック順序交換も `work/k07-gauges.source.json` の対象検査で保存完了・終了0。
-線形同型の逆・合成 API と `Companion.With.Linearize` の安定対角化は module 参照を修正して `work/k07-linearize.source.json` の対象検査を実行中、終了結果は未確認。
-多項式の有限係数評価、K04 の評価準同型の公開、`On.Evaluation` の比較も追加しており、この追加は未検証である。
-`work/k07-evaluation` は有限係数評価の推論エラーで終了1となり、型と配列引数を明示して `work/k07-finite-evaluation` を再検査中。
-安定対角化の module 参照も修正済みで、次の対象検査に含める。
-これらは途中の対象検査であり、package 全依存閉包・下流・利用例・workspace の最終検証は残っている。
-Laurent 行列の monic 正規化、安定線形化と clutching の比較、スペクトル束との比較、選択独立性・直和・相互逆、具体例・workspace 登録・公開一覧・下流リンク・ロードマップが残作業である。
-次は Laurent 行列の正規化と companion への比較を実装する。
-K07 の最終検証・PR・通常のマージと main への反映確認後、K02、B09、K03 を順番に実施する。
+これは途中の対象検査であり、package 全依存閉包・影響する下流・利用例・workspace の最終検証は残っている。
+Laurent 行列の monic 正規化、clutching とスペクトル束との比較、選択独立性・直和・相互逆、具体例・workspace 登録・公開一覧・下流リンク・ロードマップが残作業である。
+次は小さな最高次項を加えた可逆族と、monic 正規化・companion の比較を実装する。
+K07 の最終検証・通常のマージと main への反映確認後、K02、B09、K03 を順番に実施する。

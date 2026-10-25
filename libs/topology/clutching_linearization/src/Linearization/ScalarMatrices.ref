@@ -1,0 +1,36 @@
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := n] \as M;
+\import M.Operations[] \as Operations;
+\import matrix_invariants.Field[K := C.Complex, field := Scalars.field].At[n := n] \as Field;
+\import Spaces.Matrix[I := M.Index, J := M.Index] \as Matrices;
+\import Spaces.Laws[V := C.Complex, space := Spaces.scalarSpace] \as ScalarLaws;
+\import Spaces.Coordinates[I := M.Index].Kronecker[] \as Kronecker;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition scale: C.Complex -> M.Matrix -> M.Matrix := Matrices.scale;
+\definition inverseProduct: \forall (s, t: C.Complex) -> C.Def[].mul s t = C.Def[].one -> \forall (A, B: M.Matrix) -> M.product A B = M.identity ->
+  M.product (scale s A) (scale t B) = M.identity :=
+  \fun (s, t: C.Complex)(cancels: _)(A, B: M.Matrix)(inverse: _) => eq_reason_in!{M.Matrix _
+    "=" { scale s (M.product A (scale t B)) } "by" { Operations.scaleLeft s A (scale t B) }
+    "=" { scale s (scale t (M.product A B)) } "by" { congr!{M.Matrix M.Matrix} (scale s) _ _ (Operations.scaleRight t A B) }
+    "=" { scale s (scale t M.identity) } "by" { congr!{M.Matrix M.Matrix} (\fun (D: M.Matrix) => scale s (scale t D)) _ _ inverse }
+    "=" M.identity "by" { Operations.ext _ _ (\fun (i, j: M.Index) => trans!{{C.Complex}} _ _ _
+      (sym!{{C.Complex}} _ _ (C.Prop[].mulAssoc s t (M.identity i j)))
+      (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (\fun (v: C.Complex) => C.Def[].mul v (M.identity i j)) _ _ cancels) (C.Prop[].mulOneLeft (M.identity i j)))) }
+  };
+\definition scaledInverse[s: C.Complex, nonzero: C.Def[].NonZero s, A: M.Matrix, inverse: Operations.Inverse A]: Operations.Inverse (scale s A) :=
+  \into[M.Matrix](scale (C.Def[].inv s) inverse, Operations.Inverse (scale s A)) \by {
+    Operations.InverseLaws[scale s A, scale (C.Def[].inv s) inverse] {
+      left := inverseProduct (C.Def[].inv s) s (C.Prop[].inverseNonzero s nonzero) inverse A (Operations.inverseLaws A inverse).left,
+      right := inverseProduct s (C.Def[].inv s) (trans!{{C.Complex}} _ _ _ (C.Prop[].mulComm s (C.Def[].inv s)) (C.Prop[].inverseNonzero s nonzero)) A inverse (Operations.inverseLaws A inverse).right,
+    }
+  };
+\definition nonzero: \forall (s: C.Complex) -> C.Def[].NonZero s -> \forall (A: M.Matrix) -> Field.Nonzero A -> Field.Nonzero (scale s A) :=
+  \fun (s: C.Complex)(sn: _)(A: M.Matrix)(an: _) => Field.nonzeroOfInverse (scale s A)
+    (scaledInverse s sn A (Field.inverse (\into[M.Matrix](A, Field.Nonsingular) \by { an })));
+\definition identityBound: \forall (i, j: M.Index) -> Real.Le (C.Absolute[].abs (M.identity i j)) R.one :=
+  \fun (i, j: M.Index) => either!{{(Classical.excludedMiddle (j = i))} {Real.Le (C.Absolute[].abs (M.identity i j)) R.one}
+    {\fun (same: _) => Real.leReplaceLeft _ _ _ (sym!{{R.Real}} _ _ (trans!{{R.Real}} _ _ _
+      (congr!{{C.Complex} {R.Real}} C.Absolute[].abs _ _ (Kronecker.equal j i same)) (\root.Linearization[].Powers[].oneAbsolute))) (Real.leRefl R.one)}
+    {\fun (different: _) => Real.leReplaceLeft _ _ _ (sym!{{R.Real}} _ _ (trans!{{R.Real}} _ _ _
+      (congr!{{C.Complex} {R.Real}} C.Absolute[].abs _ _ (Kronecker.different j i different)) uniform_approximation.Approximation[].FiniteComplex[].zeroAbsolute)) Laws.oneNonnegative}
+  };
