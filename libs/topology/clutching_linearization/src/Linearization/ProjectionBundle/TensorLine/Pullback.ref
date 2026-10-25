@@ -32,3 +32,22 @@
 \definition comparison: Bundles.Isomorphisms[X := Y, F := (\fun (y: Y) => ProductFiber (f y)), G := LocalFiber,
   source := pulledBundle, target := localBundle].Isomorphism :=
   Compose.compose ProductPull.isomorphism (SumChange.isomorphism tensorIsomorphism OtherPull.isomorphism);
+\definition tensorIdentity[y: Y]: Spaces.Linear[V := TensorFiber (f y), W := New.TensorFiber y,
+  source := TensorPull.firstBundle.space y, target := New.tensorBundle.space y].Map :=
+  Spaces.Linear[V := TensorFiber (f y), W := New.TensorFiber y, source := TensorPull.firstBundle.space y, target := New.tensorBundle.space y].Map {
+    apply := \fun (v: TensorFiber (f y)) => v,
+    preservesAdd := \fun (v, w: TensorFiber (f y)) => \refl((New.tensorBundle.space y).add v w),
+    preservesScale := \fun (a: C.Complex)(v: TensorFiber (f y)) => \refl((New.tensorBundle.space y).smul a v)
+  };
+\definition tensorOnFiber: \forall (y: Y)(v: TensorFiber (f y)) -> (tensorIsomorphism.forward.fiber y).apply v = v :=
+  \fun (y: Y) => Operations.TensorEquality[V := L (f y), W := ImageFiber (f y), U := New.TensorFiber y,
+    left := line.space (f y), right := imageBundle.space (f y), target := New.tensorBundle.space y].pointwise
+    (tensorIsomorphism.forward.fiber y) (tensorIdentity y)
+    (\fun (l: L (f y))(v: ImageFiber (f y)) => TensorChange.onPure LineIdentity.isomorphism ImagePull.isomorphism y l v);
+\definition onFiber: \forall (y: Y)(v: ProductFiber (f y)) -> (comparison.forward.fiber y).apply v = v :=
+  \fun (y: Y)(v: ProductFiber (f y)) => Pair.Prop[A := TensorFiber (f y), B := ComplementFiber (f y)].ext _ _
+    (tensorOnFiber y (Pair.first (TensorFiber (f y)) (ComplementFiber (f y)) v))
+    (\refl(Pair.second (TensorFiber (f y)) (ComplementFiber (f y)) v));
+\definition inverseOnFiber: \forall (y: Y)(v: LocalFiber y) -> (comparison.backward.fiber y).apply v = v :=
+  \fun (y: Y)(v: LocalFiber y) => trans!{{LocalFiber y}} _ _ _
+    (sym!{{LocalFiber y}} _ _ (onFiber y ((comparison.backward.fiber y).apply v))) (comparison.rightInverse y v);
