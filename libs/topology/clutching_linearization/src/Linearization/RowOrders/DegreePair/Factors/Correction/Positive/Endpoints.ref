@@ -1,0 +1,27 @@
+\import algebraic_topology.Interval[] \as Time;
+\definition leftLeadingValue: \forall (x: X) -> time x = Time.start -> leading x = leftLeading :=
+  \fun (x: X)(start: time x = Time.start) => trans!{{C.Complex}} _ _ _ (leadingFormula x)
+    (trans!{{C.Complex}} _ _ _ (congr!{{Time.Carrier} {C.Complex}} Blend.scalar _ _ start)
+      (trans!{{C.Complex}} _ _ _ (congr!{{R.Real} {C.Complex}} C.Def[].ofReal _ _ Blend.atStart) (sym!{{C.Complex}} _ _ (LeftSmall.leadingFormula leftExtra))));
+\definition rightLeadingValue: \forall (x: X) -> time x = Time.end -> leading x = rightLeading :=
+  \fun (x: X)(finish: time x = Time.end) => trans!{{C.Complex}} _ _ _ (leadingFormula x)
+    (trans!{{C.Complex}} _ _ _ (congr!{{Time.Carrier} {C.Complex}} Blend.scalar _ _ finish)
+      (trans!{{C.Complex}} _ _ _ (congr!{{R.Real} {C.Complex}} C.Def[].ofReal _ _ Blend.atEnd) (sym!{{C.Complex}} _ _ (RightSmall.leadingFormula rightExtra))));
+\definition cancel: \forall (a: C.Complex) -> C.Def[].NonZero a -> \forall (v: Vectors.Vector) -> Vectors.scale (C.Def[].inv a) (Vectors.scale a v) = v :=
+  \fun (a: C.Complex)(nonzeroA: C.Def[].NonZero a)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _
+    (sym!{Vectors.Vector} _ _ (Vectors.space.scalarAssoc (C.Def[].inv a) a v))
+    (trans!{Vectors.Vector} _ _ _ (congr!{{C.Complex} Vectors.Vector} (\fun (s: C.Complex) => Vectors.scale s v) _ _ (C.Prop[].inverseNonzero a nonzeroA)) (Vectors.space.scalarOne v));
+\definition atLeft: \forall (x: X) -> time x = Time.start -> h x = left x -> normalized x = leftMonic x :=
+  \fun (x: X)(start: time x = Time.start)(same: h x = left x) => Rows.ext (normalized x) (leftMonic x)
+    (\axiom:funext((normalized x).apply, (leftMonic x).apply, \fun (v: Common.Carrier) => trans!{Vectors.Vector} _ _ _
+      (congr!{{C.Complex} {Row order} Vectors.Vector} (\fun (a: C.Complex)(q: Row order) => Vectors.scale (C.Def[].inv a) (q.apply v)) _ _ _ _
+        (leftLeadingValue x start)
+        (RawEndpoints.atLeft x (trans!{{C.Complex}} _ _ _ (weightFormula x) (congr!{{Time.Carrier} {C.Complex}} (\fun (t: Time.Carrier) => C.Def[].ofReal t) _ _ start)) same))
+      (cancel leftLeading (LeftSmall.leadingNonzero leftExtra) ((leftMonic x).apply v))));
+\definition atRight: \forall (x: X) -> time x = Time.end -> h x = right x -> normalized x = rightMonic x :=
+  \fun (x: X)(finish: time x = Time.end)(same: h x = right x) => Rows.ext (normalized x) (rightMonic x)
+    (\axiom:funext((normalized x).apply, (rightMonic x).apply, \fun (v: Common.Carrier) => trans!{Vectors.Vector} _ _ _
+      (congr!{{C.Complex} {Row order} Vectors.Vector} (\fun (a: C.Complex)(q: Row order) => Vectors.scale (C.Def[].inv a) (q.apply v)) _ _ _ _
+        (rightLeadingValue x finish)
+        (RawEndpoints.atRight x (trans!{{C.Complex}} _ _ _ (weightFormula x) (congr!{{Time.Carrier} {C.Complex}} (\fun (t: Time.Carrier) => C.Def[].ofReal t) _ _ finish)) same))
+      (cancel rightLeading (RightSmall.leadingNonzero rightExtra) ((rightMonic x).apply v))));
