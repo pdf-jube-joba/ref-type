@@ -1,0 +1,27 @@
+\import Family.With[data := bundle] \as Charts;
+\definition chart: Charts.ChartData := Charts.ChartData { domain := U, dimension := n,
+  frame := \fun (x: BasePoint) => Spaces.Isomorphism[V := F x, W := Vector, source := bundle.space x, target := Bundles.coordinates n].Isomorphism {
+    forward := value.forward.fiber x, backward := value.backward.fiber x,
+    leftInverse := value.leftInverse x, rightInverse := value.rightInverse x
+  }
+};
+\import Charts.In[c := chart] \as Local;
+\import Bundles.Morphisms[X := BasePoint, Y := BasePoint, F := (\fun (x: BasePoint) => F x), G := (\fun (_: BasePoint) => Vector),
+  source := Restriction.restricted, target := Trivial.bundle, f := (\fun (x: BasePoint) => x)] \as Forward;
+\import Bundles.Morphisms[X := BasePoint, Y := BasePoint, F := (\fun (_: BasePoint) => Vector), G := (\fun (x: BasePoint) => F x),
+  source := Trivial.bundle, target := Restriction.restricted, f := (\fun (x: BasePoint) => x)] \as Backward;
+\definition forwardContinuous: topology.Continuity[A := Local.TotalPoint, B := Local.ProductPoint].Continuous Local.localTopology Local.productTopology Local.forward :=
+  topology.Composition[A := Local.TotalPoint, B := Restricted.Point, C := Local.ProductPoint].composeContinuous Local.localTopology Restriction.restricted.totalSpace Local.productTopology
+    Restriction.backward (\fun (p: Restricted.Point) => Trivial.forward (Forward.total value.forward p)) Restriction.backwardContinuous
+    (topology.Composition[A := Restricted.Point, B := Coordinates.Point, C := Local.ProductPoint].composeContinuous Restriction.restricted.totalSpace Trivial.topology Local.productTopology
+      (Forward.total value.forward) Trivial.forward (Forward.continuous value.forward) Trivial.forwardContinuous);
+\definition backwardContinuous: topology.Continuity[A := Local.ProductPoint, B := Local.TotalPoint].Continuous Local.productTopology Local.localTopology Local.backward :=
+  topology.Composition[A := Local.ProductPoint, B := Coordinates.Point, C := Local.TotalPoint].composeContinuous Local.productTopology Trivial.topology Local.localTopology
+    Trivial.backward (\fun (p: Coordinates.Point) => Restriction.forward (Backward.total value.backward p)) Trivial.backwardContinuous
+    (topology.Composition[A := Coordinates.Point, B := Restricted.Point, C := Local.TotalPoint].composeContinuous Trivial.topology Restriction.restricted.totalSpace Local.localTopology
+      (Backward.total value.backward) Restriction.forward (Backward.continuous value.backward) Restriction.forwardContinuous);
+\definition laws: Local.Laws := Local.Laws { baseOpen := openU,
+  totalOpen := Family.Of[bundle := bundle].projectionContinuous U openU,
+  forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous
+};
+\definition trivialization: Charts.Chart := \into[Charts.ChartData](chart, Charts.Chart) \by { laws };
