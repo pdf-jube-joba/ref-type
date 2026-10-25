@@ -1,0 +1,32 @@
+\import \root.Linearization[].MatrixNeighborhoods[n := n] \as Neighborhoods;
+\import Neighborhoods.Matrices \as M;
+\import Neighborhoods.Top \as Top;
+\import Neighborhoods.Field \as Field;
+\import Neighborhoods.Perturbation[X := Circle.Domain, source := Circle.source, compact := Circle.domainCompact, a := a, regular := regular, nonzero := nonzero] \as Margin;
+\import algebraic_topology.Interval[] \as Time;
+\import std.Data[].Pair[] \as Pair;
+\import topological_constructions.Product[A := Time.Carrier, B := Circle.Domain] \as Cylinder;
+\definition cylinderTopology: topology.Topology[Carrier := Cylinder.CarrierSet].Topology := Cylinder.topology Time.topology Circle.source;
+\definition PolynomialMatrix: \Set := M.Index -> M.Index -> Circle.Polynomial;
+\definition value[p: PolynomialMatrix][x: Circle.Domain]: M.Matrix := \fun (i, j: M.Index) => Circle.value (p i j) x;
+\definition valueRegular: \forall (p: PolynomialMatrix) -> Top.Families[X := Circle.Domain].Regular Circle.source (value p) :=
+  \fun (p: PolynomialMatrix)(i, j: M.Index) => Circle.Evaluation.polynomialContinuous (p i j);
+\structure Approximation: \Set := {
+  coefficients: PolynomialMatrix,
+  homotopy: Cylinder.CarrierSet -> M.Matrix,
+  continuous: Top.Families[X := Cylinder.CarrierSet].Regular cylinderTopology homotopy,
+  invertible: \forall (p: Cylinder.CarrierSet) -> Field.Nonzero (homotopy p),
+  atStart: \forall (x: Circle.Domain) -> homotopy (Pair.pair Time.Carrier Circle.Domain Time.start x) = a x,
+  atEnd: \forall (x: Circle.Domain) -> homotopy (Pair.pair Time.Carrier Circle.Domain Time.end x) = value coefficients x,
+};
+\module Candidate(bound: Margin.Bound, coefficients: PolynomialMatrix,
+  near: \forall (x: Circle.Domain)(i, j: M.Index) -> Real.Lt (C.Absolute[].abs (C.Def[].sub (a x i j) (value coefficients x i j))) bound.value);
+\definition exists: \exists Approximation := \block {
+  \takefrom bound: Margin.Bound \by Margin.boundExists \then
+  \takefrom p: \Cast[PolynomialMatrix] ({ p: PolynomialMatrix \where \forall (i, j: M.Index) -> Circle.Functions.Error (\fun (x: Circle.Domain) => a x i j) (Circle.value (p i j)) bound.value })
+    \by Circle.Matrices[n := n, m := n, f := (\fun (i, j: M.Index)(x: Circle.Domain) => a x i j), regular := regular].exists bound.value bound.positive \then
+  \let near: \forall (i, j: M.Index) -> Circle.Functions.Error (\fun (x: Circle.Domain) => a x i j) (Circle.value (p i j)) bound.value :=
+    \bysub(PolynomialMatrix, { p: PolynomialMatrix \where \forall (i, j: M.Index) -> Circle.Functions.Error (\fun (x: Circle.Domain) => a x i j) (Circle.value (p i j)) bound.value }, p) \then
+  \return \exact(Candidate[bound := bound, coefficients := p, near := (\fun (x: Circle.Domain)(i, j: M.Index) => near i j x)].result, Approximation)
+};
+\module Result(data: Approximation);
