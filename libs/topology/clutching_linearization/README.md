@@ -40,7 +40,9 @@ target/debug/cli libs/topology/clutching_linearization --source-snapshot work/k0
 `Geometric` の有限幾何級数と `Companion.Shift` の三角行列操作も、`work/k07-geometric.source.json`・`work/k07-shift.source.json` の対象検査で保存完了・終了0。
 `Shift.solveHead` と符号付きブロック順序交換も `work/k07-gauges.source.json` の対象検査で保存完了・終了0。
 線形同型の逆・合成 API と `Companion.With.Linearize` の安定対角化は module 参照を修正して `work/k07-linearize.source.json` の対象検査を実行中、終了結果は未確認。
-多項式の有限係数評価と K04 の評価準同型の公開も追加しており、この追加は未検証である。
+多項式の有限係数評価、K04 の評価準同型の公開、`On.Evaluation` の比較も追加しており、この追加は未検証である。
+`work/k07-evaluation` は有限係数評価の推論エラーで終了1となり、型と配列引数を明示して `work/k07-finite-evaluation` を再検査中。
+安定対角化の module 参照も修正済みで、次の対象検査に含める。
 これらは途中の対象検査であり、package 全依存閉包・下流・利用例・workspace の最終検証は残っている。
 Laurent 行列の monic 正規化、安定線形化と clutching の比較、スペクトル束との比較、選択独立性・直和・相互逆、具体例・workspace 登録・公開一覧・下流リンク・ロードマップが残作業である。
 次は Laurent 行列の正規化と companion への比較を実装する。
