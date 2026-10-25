@@ -55,5 +55,7 @@ target/debug/cli libs/topology/clutching_linearization --parse-only --save-sourc
 REF_TYPE_PROFILE_PROGRESS=1 target/debug/cli libs/topology/clutching_linearization --source-snapshot /tmp/k07-resume/current.source.json --module clutching_linearization --memory-mib 10240 --cache-dir libs/refcache --cache-budget-mib 12288 --diagnostics compact --time-limit-seconds 1800 --report-json /tmp/k07-resume/target.json
 ```
 
+`On.SpectralIndex` にスペクトル束の差を共通化し、`On.SpectralHomotopy.invariant` にスペクトル分離を保つ変形の両端の差の等式を追加した（型検査待ち）。
+
 残作業は、元の clutching の安定化とスペクトル束の差の比較の完成、選択独立性・自然性・直和・相互逆、公開一覧・workspace・下流リンク・ロードマップ、package 全依存閉包と影響先の最終検証。
 その後に PR の差分・必要な CI を確認して ready にし、通常マージと main 反映を確認する。
