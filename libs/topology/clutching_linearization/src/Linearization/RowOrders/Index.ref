@@ -1,0 +1,20 @@
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff] \as On;
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := source, compact := compact, hausdorff := hausdorff] \as K;
+\module At(d: N.Nat^, q: Family d, regular: Regular d q, kernel: Kernel d q) {
+  \import \root.Linearization[].Companion[n := n, d := d].RowFamilies[X := X, source := source, rows := q, regular := regular] \as Rows;
+  \import Rows.Separated[kernel := kernel] \as Separated;
+  \definition value: K.K0[].Carrier := On.SpectralIndex[n := Coordinates.dimension (N.Nat^::succ d), A := Rows.matrix, regular := Rows.matrixRegular, off := Separated.off, removed := removed].value;
+}
+\definition value[d: N.Nat^][q: Family d][regular: Regular d q][kernel: Kernel d q]: K.K0[].Carrier := At[d := d, q := q, regular := regular, kernel := kernel].value;
+\definition invariant: \forall (d, e: N.Nat^)(same: d = e)(q: Family d)(regular: Regular d q)(kernel: Kernel d q) ->
+  value e (cast d e same q) (castRegular d e same q regular) (castKernel d e same q kernel) = value d q regular kernel :=
+  \fun (d, e: N.Nat^)(same: d = e)(q: Family d)(regular: Regular d q)(kernel: Kernel d q) =>
+    (\idelim d = e \with k: N.Nat^ => \forall (equal: d = k) ->
+      value k (cast d k equal q) (castRegular d k equal q regular) (castKernel d k equal q kernel) = value d q regular kernel
+    \by {
+      base: \fun (equal: d = d) => \idelim q = cast d d equal q \with p: Family d => \forall (rp: Regular d p)(kp: Kernel d p) -> value d p rp kp = value d q regular kernel \by {
+        base: \fun (rp: Regular d q)(kp: Kernel d q) => \refl(value d q regular kernel),
+        equality: sym!{{Family d}} _ _ (Transport.castRefl Family d q)
+      } (castRegular d d equal q regular) (castKernel d d equal q kernel),
+      equality: same
+    }) same;
