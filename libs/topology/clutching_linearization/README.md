@@ -71,7 +71,10 @@ REF_TYPE_PROFILE_PROGRESS=1 target/debug/cli libs/topology/clutching_linearizati
 `f9f665b2` の最新 K07 全対象は `/tmp/k07-resume/stabilization-3.json` で accepted・保存失敗0・終了0（1,300 module）。
 `Construction.Clutching.stabilizedComparisonExists` と `shiftedComparisonExists` は monic および shifted loop に自明束を加えた束からスペクトル標準形への同型を与える。
 Rust workspace は383 tests passed・終了0、format と Clippy（全workspace・全targets・警告をエラー化）も終了0。
-次は workspace 全体で影響先を検査する。これらはまだ元の clutching の安定化から K0 の差への完全な変換・相互逆を意味しない。
+workspace 全体（7,871 module）は `eaa94ba7` の固定 snapshot で影響先を検査中。
+その検査中に `CanonicalProjection.recovered`、`On.CanonicalIndex.recovery`・`ScalarChoice.independent`、`On.SpectralIndex.Canonical.invariant` を追加した（`e8a17a0e`、未検証）。
+これは射影 \(P\) から \(c(1-P)\)（\(|c|>1\)）を作り、そのスペクトル射影・像束・K0 の差が元に戻ることと、補助スカラーの選択によらないことを証明する。
+workspace 検査の終了後、この追加を同じ共有キャッシュで検査する。これらはまだ元の clutching の安定化から K0 の差への完全な変換・相互逆を意味しない。
 
 残る数学的な接続は、Laurent shift による円周の冪を K0 の自明束の差へ反映すること、射影の標準ループの clutching と像束の差を同定すること、任意の shift・次数・正規化パラメータについての選択独立性、および基本積定理に必要な相互逆の等式。
 現在のスペクトル族の自然性・直和・ホモトピー不変性と、近似間の clutching 束同型だけからは、これらの結論はまだ出せない。
