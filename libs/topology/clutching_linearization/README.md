@@ -79,3 +79,7 @@ K07 の完成・最終検証・必要な CI・通常マージ・main 反映確�
 再開後、Laurent 近似のホモトピーを実際の束同型へ接続する `On.Matrices.Result.Clutching.isomorphismExists` を追加した（未検証）。
 処理系のビルドと退避時ソースの parse-only は終了0。
 Clutched の型検査は `/tmp/k07-resume/source.json` を入力に `libs/refcache` で実行中であり、最終結果はまだ未確認。
+
+さらに `SpectralMotion.Comparison`、`Companion.Families.Linearization.Gauges.SpectralForm` と `Separated.Bundles.Deformation` を追加し、pencil の二つの表示と射影の標準形への束比較を接続した。
+行列族の等式からの束同型 `Clutched.Comparison.ofEquality` も公開した。
+これらは parse-only 終了0、型検査は未完了であり WIP として保存する。
