@@ -1,0 +1,49 @@
+\import std.Data[].Pair[] \as Pair;
+\definition V: \Set := Bundles.Vector removed;
+\import Bundles.Trivial[X := X, n := removed, baseSpace := source] \as Original;
+\import Bundles.Trivial[X := Y, n := removed, baseSpace := space] \as Other;
+\import Bundles.Family[X := X, F := Removed.FiberAt] \as OriginalFamily;
+\import Bundles.Family[X := Y, F := TargetRemoved.FiberAt] \as Family;
+\import Pull.Of[F := Removed.FiberAt, original := Removed.trivialBundle, same := \refl(source)] \as ClassPull;
+\import OriginalFamily.Of[bundle := Removed.trivialBundle].Pullback[Y := Y, source := space, f := f] \as NativePull;
+\import Bundles.Morphisms[X := Y, Y := Y, F := TargetRemoved.FiberAt, G := TargetRemoved.FiberAt,
+  source := ClassPull.pulled, target := TargetRemoved.trivialBundle, f := (\fun (y: Y) => y)] \as Forward;
+\import Bundles.Morphisms[X := Y, Y := Y, F := TargetRemoved.FiberAt, G := TargetRemoved.FiberAt,
+  source := TargetRemoved.trivialBundle, target := ClassPull.pulled, f := (\fun (y: Y) => y)] \as Backward;
+\definition forwardData: Forward.Data := Forward.Data { fiber := \fun (y: Y) => Spaces.FiniteCoordinates[n := removed].identity };
+\definition backwardData: Backward.Data := Backward.Data { fiber := \fun (y: Y) => Spaces.FiniteCoordinates[n := removed].identity };
+\import topological_constructions.Product[A := Y, B := V] \as TargetProduct;
+\import topological_constructions.Product[A := X, B := V] \as SourceProduct;
+\definition vectorContinuous: topology.Continuity[A := Family.Point, B := V].Continuous NativePull.topology (Bundles.coordinateTopology removed) (\fun (p: Family.Point) => p.vector) :=
+  topology.Composition[A := Family.Point, B := OriginalFamily.Point, C := V].composeContinuous NativePull.topology Original.topology (Bundles.coordinateTopology removed)
+    NativePull.map (\fun (p: OriginalFamily.Point) => p.vector) NativePull.mapContinuous Original.vectorContinuous;
+\definition targetPair[p: Family.Point]: TargetProduct.CarrierSet := Pair.pair Y V p.base p.vector;
+\definition targetPairContinuous: topology.Continuity[A := Family.Point, B := TargetProduct.CarrierSet].Continuous NativePull.topology (TargetProduct.topology space (Bundles.coordinateTopology removed)) targetPair :=
+  TargetProduct.Universal[X := Family.Point].pairContinuous NativePull.topology space (Bundles.coordinateTopology removed) Family.projection
+    (\fun (p: Family.Point) => p.vector) NativePull.projectionContinuous vectorContinuous;
+\definition forward: Forward.Map := \into[Forward.Data](forwardData, Forward.Map) \by {
+  topology.Composition[A := Family.Point, B := TargetProduct.CarrierSet, C := Family.Point].composeContinuous NativePull.topology
+    (TargetProduct.topology space (Bundles.coordinateTopology removed)) Other.topology targetPair Other.backward targetPairContinuous Other.backwardContinuous
+};
+\definition sourcePair[p: Family.Point]: SourceProduct.CarrierSet := Pair.pair X V (f p.base) p.vector;
+\definition sourcePairContinuous: topology.Continuity[A := Family.Point, B := SourceProduct.CarrierSet].Continuous Other.topology (SourceProduct.topology source (Bundles.coordinateTopology removed)) sourcePair :=
+  SourceProduct.Universal[X := Family.Point].pairContinuous Other.topology source (Bundles.coordinateTopology removed)
+    (\fun (p: Family.Point) => f p.base) (\fun (p: Family.Point) => p.vector)
+    (topology.Composition[A := Family.Point, B := Y, C := X].composeContinuous Other.topology space source Family.projection f Other.projectionContinuous continuous)
+    Other.vectorContinuous;
+\definition originalMapContinuous: topology.Continuity[A := Family.Point, B := OriginalFamily.Point].Continuous Other.topology Original.topology (\fun (p: Family.Point) => OriginalFamily.include (f p.base) p.vector) :=
+  topology.Composition[A := Family.Point, B := SourceProduct.CarrierSet, C := OriginalFamily.Point].composeContinuous Other.topology
+    (SourceProduct.topology source (Bundles.coordinateTopology removed)) Original.topology sourcePair Original.backward sourcePairContinuous Original.backwardContinuous;
+\definition backward: Backward.Map := \into[Backward.Data](backwardData, Backward.Map) \by {
+  NativePull.Universal[Z := Family.Point].continuous Other.topology (Backward.total backwardData) Other.projectionContinuous originalMapContinuous
+};
+\definition isomorphism: Bundles.Isomorphisms[X := Y, F := TargetRemoved.FiberAt, G := TargetRemoved.FiberAt,
+  source := ClassPull.pulled, target := TargetRemoved.trivialBundle].Isomorphism :=
+  Bundles.Isomorphisms[X := Y, F := TargetRemoved.FiberAt, G := TargetRemoved.FiberAt, source := ClassPull.pulled, target := TargetRemoved.trivialBundle].Isomorphism {
+    forward := forward, backward := backward,
+    leftInverse := \fun (y: Y)(v: V) => \refl(v), rightInverse := \fun (y: Y)(v: V) => \refl(v),
+  };
+\import TargetK.Compare[F := TargetRemoved.FiberAt, G := TargetRemoved.FiberAt, first := ClassPull.pulled, second := TargetRemoved.trivialBundle,
+  firstSame := \refl(space), secondSame := \refl(space)] \as ClassComparison;
+\definition naturality: Pull.map Removed.value = TargetRemoved.value :=
+  trans!{TargetK.Classes} _ _ _ ClassPull.naturality (ClassComparison.ofIsomorphism isomorphism);
