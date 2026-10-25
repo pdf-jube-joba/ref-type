@@ -100,8 +100,7 @@ B03 の計量・補束と同型類の集合が利用可能になり、B05・B09 
 K06 の連続なスペクトル分離は B04 の束比較の基盤となり、B04 の clutching と合わせて K07 で再利用できる。
 K01 の Grothendieck 環・安定判定・反変引き戻しは K03・K07 で再利用する。
 K04 の実・複素 Stone–Weierstrass、Laurent 近似と行列・束の一様評価も K07 で利用できる。
-K07 は [clutching_linearization](../../libs/topology/clutching_linearization/README.md) で実装中。
-Laurent 近似、companion とスペクトル標準形の束比較、スペクトル束の差の自然性・直和は公開済みで、全正規化選択の独立性と相互逆の接続は未完了。
+K07 の [clutching_linearization](../../libs/topology/clutching_linearization/README.md) は、選択に依存しないスペクトル逆クラス、自然性・直和・基本積の相互逆を公開し、K08 で利用できる。
 B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進められる。
 空いた担当には C01・K02・L04・A19 を割り当て、長い解析の経路を早めに進める。
 各節の番号は識別子で、実装順は依存リストから決まる。
@@ -122,10 +121,11 @@ B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進め�
 | B04 束のホモトピー不変性と clutching | [bundle_homotopy](../../libs/geometry/bundle_homotopy/README.md) |
 | K01 束の Grothendieck 環 | [topological_k_theory](../../libs/topology/k_theory/README.md) |
 | K04 Stone–Weierstrass と Laurent 近似 | [uniform_approximation](../../libs/analysis/uniform_approximation/README.md) |
+| K07 clutching の安定線形化 | [clutching_linearization](../../libs/topology/clutching_linearization/README.md) |
 
 ## タスク一覧
 
-未完了80件、概算合計419千行。
+未完了79件、概算合計413千行。
 
 ### 線形代数と特性級数
 
@@ -168,13 +168,12 @@ B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進め�
 
 ### 位相的 K 理論
 
-8件、概算44千行。
+7件、概算38千行。
 
 | タスク | 概算（千行） |
 | --- | ---: |
 | [K02 CW cofibration と Puppe 列](k02-cofibration-puppe.md) | 5 |
 | [K03 相対 K 群と負次数の完全列](k03-relative-k.md) | 6 |
-| [K07 clutching の安定線形化](k07-clutching-linearization.md) | 6 |
 | [K08 Bott の基本積定理](k08-bott-product.md) | 5 |
 | [K09 Bott 周期性と整数次数](k09-bott-periodicity.md) | 5 |
 | [K10 コンパクト台付き K 理論とシンボルの表示](k10-compact-support-k.md) | 6 |

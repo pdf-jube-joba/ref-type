@@ -1,4 +1,4 @@
-# clutching の安定線形化（K07、実装中）
+# clutching の安定線形化（K07）
 
 入口は `clutching_linearization.Linearization`。
 K04 の Laurent 近似、K06 のスペクトル分離、K01 の束の同型類と K0 を再利用する。
@@ -58,7 +58,8 @@ GitHub 連携で既存ブランチを fast-forward 更新し、ローカルと�
 
 `1972b9e5` の `On.DirectSum.additivity` は accepted・終了0・保存失敗0。
 一般の逆クラスの直和加法性まで検証済み。
-追加例と最新入力の全workspace検証、CI・PR差分の確認、main へのマージが残る。
+冪零行列の逆クラスと直和の具体例を含む K07 全対象検査は `6c784da7` で正常終了。
+最新入力の全workspace検証、CI・PR差分の確認、main へのマージが残る。
 
 ```sh
 target/debug/cli libs --parse-only --save-source-snapshot /tmp/k07-resume/final.source.json

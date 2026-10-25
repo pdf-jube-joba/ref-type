@@ -84,7 +84,7 @@
 | --- | --- | --- |
 | [topology/basic](topology/basic/README.md) | `topology` | 位相・部分空間、連続写像、コンパクト性、分離性 |
 | [topology/metric](topology/metric/README.md) | `metric_spaces` | 距離位相、距離化、実数直線、実数値関数、有限従属分割 |
-| [topology/clutching_linearization](topology/clutching_linearization/README.md) | `clutching_linearization` | Laurent 近似、companion 安定線形化、スペクトル像束の差と clutching 比較（K07 実装中） |
+| [topology/clutching_linearization](topology/clutching_linearization/README.md) | `clutching_linearization` | Laurent 近似、companion 安定線形化、選択に依存しないスペクトル逆クラス、自然性・直和・基本積の相互逆 |
 | [topology/k_theory](topology/k_theory/README.md) | `topological_k_theory` | 複素束の Grothendieck 環、安定同型判定、反変引き戻し、ランクと被約群、有限離散計算 |
 | [topology/constructions](topology/constructions/README.md) | `topological_constructions` | 積、商、直和、貼り合わせ、compact-open 位相 |
 | [topology/algebra](topology/algebra/README.md) | `topological_algebra` | 位相的代数、座標空間・行列位相、連続性判定 |

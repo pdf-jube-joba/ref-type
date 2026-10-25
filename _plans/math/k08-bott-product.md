@@ -9,6 +9,6 @@
 
 ## 依存するタスク
 
-- [K07 clutching の安定線形化](../../libs/topology/clutching_linearization/README.md)（実装中。完了条件は [K07 計画](k07-clutching-linearization.md)）
+- [K07 clutching の安定線形化](../../libs/topology/clutching_linearization/README.md)
 - [K03 相対 K 群と負次数の完全列](k03-relative-k.md)
 - [B05 有限 Grassmannian と普遍束](b05-grassmannians.md)
