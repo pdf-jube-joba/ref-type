@@ -1,0 +1,22 @@
+\import Spaces.Coordinates[I := Fin.Fin (dimension d)] \as Total;
+\import Spaces.Linear[V := Carrier d, W := Total.Vector, source := space d, target := Total.space] \as Forward;
+\import Spaces.Linear[V := Total.Vector, W := Carrier d, source := Total.space, target := space d] \as Backward;
+\import Spaces.Isomorphism[V := Carrier d, W := Total.Vector, source := space d, target := Total.space] \as Isomorphisms;
+\definition forward: Forward.Map := Forward.Map { apply := flatten d, preservesAdd := addition d, preservesScale := scalar d };
+\definition backward: Backward.Map := Backward.Map {
+  apply := unflatten d,
+  preservesAdd := \fun (x, y: Total.Vector) => injective d _ _ (eq_reason_in!{Total.Vector _
+    "=" { Total.plus x y } "by" { rightInverse d (Total.plus x y) }
+    "=" { Total.plus (flatten d (unflatten d x)) (flatten d (unflatten d y)) } "by" { congr!{Total.Vector Total.Vector Total.Vector} Total.plus _ _ _ _ (sym!{Total.Vector} _ _ (rightInverse d x)) (sym!{Total.Vector} _ _ (rightInverse d y)) }
+    "=" _ "by" { sym!{Total.Vector} _ _ (addition d (unflatten d x) (unflatten d y)) }
+  }),
+  preservesScale := \fun (a: C.Complex)(x: Total.Vector) => injective d _ _ (eq_reason_in!{Total.Vector _
+    "=" { Total.scale a x } "by" { rightInverse d (Total.scale a x) }
+    "=" { Total.scale a (flatten d (unflatten d x)) } "by" { congr!{Total.Vector Total.Vector} (Total.scale a) _ _ (sym!{Total.Vector} _ _ (rightInverse d x)) }
+    "=" _ "by" { sym!{Total.Vector} _ _ (scalar d a (unflatten d x)) }
+  }),
+};
+\definition frame: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := leftInverse d, rightInverse := rightInverse d,
+};

@@ -1,0 +1,48 @@
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Pair[] \as Pair;
+\import Fin.Sum[m := n, n := m] \as Indices;
+\definition total: N.Nat^ := Indices.total;
+\import Spaces.Coordinates[I := Fin.Fin n] \as V;
+\import Spaces.Coordinates[I := Fin.Fin m] \as W;
+\import Spaces.Coordinates[I := Fin.Fin total] \as Flat;
+\import Spaces.DirectSum[V := V.Vector, W := W.Vector, left := V.space, right := W.space] \as Sum;
+\import bundle_operations.Operations[].Over[K := C.Complex, field := Scalars.field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].CoordinateSum[n := n, m := m] \as Coordinates;
+\import Spaces.Isomorphism[V := Sum.Carrier, W := Flat.Vector, source := Sum.space, target := Flat.space] \as Frames;
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing] \as Matrices;
+\import Matrices.At[n := n] \as MA;
+\import Matrices.At[n := m] \as MB;
+\import Matrices.At[n := total] \as M;
+\import Spaces.Linear[V := Flat.Vector, W := Flat.Vector, source := Flat.space, target := Flat.space] \as End;
+\import Spaces.Linear[V := Flat.Vector, W := V.Vector, source := Flat.space, target := V.space] \as Left;
+\import Spaces.Linear[V := Flat.Vector, W := W.Vector, source := Flat.space, target := W.space] \as Right;
+\definition first: Left.Map := Left.Map {
+  apply := \fun (v: Flat.Vector) => Sum.first (Coordinates.split v),
+  preservesAdd := \fun (v, w: Flat.Vector) => \refl(V.plus (Sum.first (Coordinates.split v)) (Sum.first (Coordinates.split w))),
+  preservesScale := \fun (z: C.Complex)(v: Flat.Vector) => \refl(V.scale z (Sum.first (Coordinates.split v))),
+};
+\definition second: Right.Map := Right.Map {
+  apply := \fun (v: Flat.Vector) => Sum.second (Coordinates.split v),
+  preservesAdd := \fun (v, w: Flat.Vector) => \refl(W.plus (Sum.second (Coordinates.split v)) (Sum.second (Coordinates.split w))),
+  preservesScale := \fun (z: C.Complex)(v: Flat.Vector) => \refl(W.scale z (Sum.second (Coordinates.split v))),
+};
+\import Spaces.Linear[V := V.Vector, W := V.Vector, source := V.space, target := V.space].Composition[U := Flat.Vector, domain := Flat.space] \as LeftCompose;
+\import Spaces.Linear[V := W.Vector, W := W.Vector, source := W.space, target := W.space].Composition[U := Flat.Vector, domain := Flat.space] \as RightCompose;
+\definition pairMap: Spaces.Linear[V := Flat.Vector, W := Sum.Carrier, source := Flat.space, target := Sum.space].Map :=
+  Sum.Universal[U := Flat.Vector, domain := Flat.space].pair (LeftCompose.compose (MA.linear A) first) (RightCompose.compose (MB.linear B) second);
+\definition block: End.Map := Spaces.Linear[V := Sum.Carrier, W := Flat.Vector, source := Sum.space, target := Flat.space].Composition[U := Flat.Vector, domain := Flat.space].compose Coordinates.forward pairMap;
+\definition matrix: M.Matrix := M.Representation[].entries block;
+\definition action: \forall (v: Flat.Vector) -> (M.linear matrix).apply v = block.apply v :=
+  \fun (v: Flat.Vector) => congr!{End.Map Flat.Vector} (\fun (f: End.Map) => f.apply v) _ _ (M.Representation[].linearEntries block);
+\definition splitAction: \forall (v: Flat.Vector) -> Coordinates.split ((M.linear matrix).apply v) = pairMap.apply v :=
+  \fun (v: Flat.Vector) => trans!{Sum.Carrier} _ _ _ (congr!{Flat.Vector Sum.Carrier} Coordinates.split _ _ (action v))
+    ((Frames.laws Coordinates.isomorphism).leftInverse (pairMap.apply v));
+\definition leftAction: \forall (v: Flat.Vector) -> first.apply ((M.linear matrix).apply v) = (MA.linear A).apply (first.apply v) :=
+  \fun (v: Flat.Vector) => congr!{Sum.Carrier V.Vector} Sum.first _ _ (splitAction v);
+\definition rightAction: \forall (v: Flat.Vector) -> second.apply ((M.linear matrix).apply v) = (MB.linear B).apply (second.apply v) :=
+  \fun (v: Flat.Vector) => congr!{Sum.Carrier W.Vector} Sum.second _ _ (splitAction v);
+\module Eigen(z: C.Complex, unit: C.Absolute[].abs z = R.one, v: Flat.Vector, eigen: (M.linear matrix).apply v = Flat.scale z v);
+\definition off: spectral_splitting.Spectral[].At[n := total].Splitting[A := matrix].OffSpectrum :=
+  spectral_splitting.Spectral[].At[n := total].Eigenvalues[A := matrix].off
+    (\fun (z: C.Complex)(unit: _)(v: Flat.Vector)(eigen: _) => Eigen[z := z, unit := unit, v := v, eigen := eigen].zero);
+\module Projection;

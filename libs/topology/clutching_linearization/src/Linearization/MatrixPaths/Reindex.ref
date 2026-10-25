@@ -1,0 +1,21 @@
+\import \root.Linearization[].MatrixPaths[n := n, Y := Z, source := target] \as Target;
+\import algebraic_topology.Cylinder[A := Z] \as TargetCylinder;
+\import topological_constructions.Product[A := Time.Carrier, B := Y] \as Product;
+\definition family[a: Family]: Target.Family := Target.Family {
+  matrix := \fun (z: Z) => a.matrix (f z),
+  regular := \fun (i, j: M.Index) => topology.Composition[A := Z, B := Y, C := C.Complex].composeContinuous target source Plane.topology f
+    (\fun (y: Y) => a.matrix y i j) continuous (a.regular i j),
+  nonzero := \fun (z: Z) => a.nonzero (f z),
+};
+\definition reindex[p: TargetCylinder.Carrier]: Cylinder.Carrier := Cylinder.at (TargetCylinder.time p) (f (TargetCylinder.point p));
+\definition reindexContinuous: topology.Continuity[A := TargetCylinder.Carrier, B := Cylinder.Carrier].Continuous (TargetCylinder.topology target) (Cylinder.topology source) reindex :=
+  Product.Universal[X := TargetCylinder.Carrier].pairContinuous (TargetCylinder.topology target) Time.topology source TargetCylinder.time (\fun (p: TargetCylinder.Carrier) => f (TargetCylinder.point p))
+    (TargetCylinder.timeContinuous target)
+    (topology.Composition[A := TargetCylinder.Carrier, B := Z, C := Y].composeContinuous (TargetCylinder.topology target) target source TargetCylinder.point f (TargetCylinder.pointContinuous target) continuous);
+\definition path[a, b: Family][h: Path[a, b]]: Target.Path[family a, family b] := Target.Path[family a, family b] {
+  homotopy := \fun (p: TargetCylinder.Carrier) => h.homotopy (reindex p),
+  regular := \fun (i, j: M.Index) => topology.Composition[A := TargetCylinder.Carrier, B := Cylinder.Carrier, C := C.Complex].composeContinuous (TargetCylinder.topology target) (Cylinder.topology source) Plane.topology reindex
+    (\fun (p: Cylinder.Carrier) => h.homotopy p i j) reindexContinuous (h.regular i j),
+  nonzero := \fun (p: TargetCylinder.Carrier) => h.nonzero (reindex p),
+  atStart := \fun (z: Z) => h.atStart (f z), atEnd := \fun (z: Z) => h.atEnd (f z),
+};

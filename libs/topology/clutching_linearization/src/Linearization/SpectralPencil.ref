@@ -1,0 +1,61 @@
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := n] \as M;
+\import Spaces.Coordinates[I := M.Index] \as Vectors;
+\import Spaces.Linear[V := M.Vector, W := M.Vector, source := Vectors.space, target := Vectors.space] \as End;
+\import Spaces.Laws[V := M.Vector, space := Vectors.space] \as Values;
+\import spectral_splitting.Spectral[] \as Spectral;
+\import Spectral.At[n := n].Splitting[A := A] \as Split;
+\import Split.Separated[off := off] \as Projection;
+\import Spectral.Circle[].At[n := n] \as Roots;
+\import polynomial_linear_algebra.Field[K := C.Complex, field := Scalars.field].Action[V := M.Vector, space := Vectors.space].At[T := M.linear A] \as Evaluation;
+\import \root.Linearization[].PolynomialEigen[V := M.Vector, space := Vectors.space, T := M.linear A] \as Eigen;
+\import std.Data[].Bool[] \as B;
+\import algebra.Polynomial[].Over[R := C.Complex, coefficients := Scalars.commutativeRing] \as P;
+\import algebra.Group[].Of[Carrier := M.Vector, group := Rings.ringModuleAsCommutativeGroup C.Complex M.Vector Spaces.ring Vectors.space] \as Group;
+\definition invariant: \forall (p: P.Carrier)(v: M.Vector) -> Evaluation.apply p v = Vectors.origin -> Evaluation.apply p ((M.linear A).apply v) = Vectors.origin :=
+  \fun (p: P.Carrier)(v: M.Vector)(kernel: _) => trans!{M.Vector} _ _ _
+    (congr!{M.Vector M.Vector} (Evaluation.apply p) _ _ (sym!{M.Vector} _ _ (Evaluation.variable v)))
+    (Spectral.Action[V := M.Vector, space := Vectors.space, T := M.linear A].polynomialKernel p P.X v kernel);
+\definition differenceZero: \forall (v, w: M.Vector) -> Group.difference v w = Vectors.origin -> v = w :=
+  \fun (v, w: M.Vector)(zero: _) => trans!{M.Vector} _ _ _ (sym!{M.Vector} _ _ (Group.addDifference v w))
+    (trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector} (\fun (u: M.Vector) => Vectors.plus u w) _ _ zero) (Values.zeroLeft w));
+\definition insideNoEigen: \forall (z: C.Complex) -> Real.Le R.one (C.Absolute[].abs z) -> \forall (v: M.Vector) ->
+  Evaluation.apply Split.inside v = Vectors.origin -> (M.linear A).apply v = Vectors.scale z v -> v = Vectors.origin :=
+  \fun (z: C.Complex)(outside: _)(v: M.Vector)(kernel: _)(eigen: _) => Eigen.zero Split.inside z
+    (\fun (root: _) => Real.ltNotLeReverse (C.Absolute[].abs z) R.one (Roots.factorRoot B.Bool^::true Split.coefficients off z root) outside) v kernel eigen;
+\definition outsideNoEigen: \forall (z: C.Complex) -> Real.Le (C.Absolute[].abs z) R.one -> \forall (v: M.Vector) ->
+  Evaluation.apply Split.outside v = Vectors.origin -> (M.linear A).apply v = Vectors.scale z v -> v = Vectors.origin :=
+  \fun (z: C.Complex)(inside: _)(v: M.Vector)(kernel: _)(eigen: _) => Eigen.zero Split.outside z
+    (\fun (root: _) => Real.ltNotLeReverse R.one (C.Absolute[].abs z) (Roots.factorRoot B.Bool^::false Split.coefficients off z root) inside) v kernel eigen;
+\import Spectral.Intertwining[V := M.Vector, W := M.Vector, source := Vectors.space, destination := Vectors.space, S := M.linear A, T := M.linear A] \as Maps;
+\import Spectral.Comparison[n := n, m := n, A := A, B := A, sourceOff := off, targetOff := off] \as Natural;
+\definition self: Maps.Morphism := Maps.ofLinear (M.linear A) (\fun (v: M.Vector) => \refl((M.linear A).apply ((M.linear A).apply v)));
+\definition commute: \forall (v: M.Vector) -> (M.linear A).apply (Projection.projection.apply v) = Projection.projection.apply ((M.linear A).apply v) := Natural.natural self;
+\definition commuteComplement: \forall (v: M.Vector) -> (M.linear A).apply (Projection.complementary.apply v) = Projection.complementary.apply ((M.linear A).apply v) := Natural.naturalComplement self;
+\definition onOtherKernel: \forall (v: M.Vector) -> Evaluation.apply Split.outside v = Vectors.origin -> Projection.projection.apply v = Vectors.origin := \block {
+  \fun (v: M.Vector)(kernel: _) \then
+  \takefrom b: polynomial_linear_algebra.Field[K := C.Complex, field := Scalars.field].Bezout[Split.inside, Split.outside, algebra.Polynomial[].Over[R := C.Complex, coefficients := Scalars.commutativeRing].one]
+    \by Roots.coprime Split.coefficients off \then
+  \return trans!{M.Vector} _ _ _ (Projection.formula b v)
+    (Spectral.Action[V := M.Vector, space := Vectors.space, T := M.linear A].With[p := Split.inside, q := Split.outside, b := b].onRight v kernel)
+};
+\structure SeparateZero[u, v: M.Vector]: \Prop := { first: u = Vectors.origin, second: v = Vectors.origin };
+\definition separateZero: \forall (u, v: M.Vector) -> Evaluation.apply Split.inside u = Vectors.origin -> Evaluation.apply Split.outside v = Vectors.origin ->
+  Vectors.plus u v = Vectors.origin -> SeparateZero[u, v] := \block {
+    \fun (u, v: M.Vector)(inner: _)(outer: _)(sum: _) \then
+    \let first: u = Vectors.origin := eq_reason_in!{M.Vector u
+      "=" { Vectors.plus u Vectors.origin } "by" { sym!{M.Vector} _ _ (Values.zeroRight u) }
+      "=" { Vectors.plus (Projection.projection.apply u) (Projection.projection.apply v) } "by" {
+        congr!{M.Vector M.Vector M.Vector} Vectors.plus _ _ _ _ (sym!{M.Vector} _ _ (Projection.onKernel u inner)) (sym!{M.Vector} _ _ (onOtherKernel v outer)) }
+      "=" { Projection.projection.apply (Vectors.plus u v) } "by" { sym!{M.Vector} _ _ (Projection.projection.preservesAdd u v) }
+      "=" { Projection.projection.apply Vectors.origin } "by" { congr!{M.Vector M.Vector} Projection.projection.apply _ _ sum }
+      "=" Vectors.origin "by" { Projection.projection.preservesZero }
+    } \then
+    \return SeparateZero[u, v] { first := first, second := trans!{M.Vector} _ _ _ (sym!{M.Vector} _ _ (Values.zeroLeft v))
+      (trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector} (\fun (w: M.Vector) => Vectors.plus w v) _ _ (sym!{M.Vector} _ _ first)) sum) }
+  };
+\definition inverseScale: \forall (a: C.Complex) -> C.Def[].NonZero a -> \forall (v: M.Vector) -> Vectors.scale (C.Def[].inv a) (Vectors.scale a v) = v :=
+  \fun (a: C.Complex)(nonzero: _)(v: M.Vector) => trans!{M.Vector} _ _ _ (sym!{M.Vector} _ _ (Vectors.space.scalarAssoc (C.Def[].inv a) a v))
+    (trans!{M.Vector} _ _ _ (congr!{{C.Complex} M.Vector} (\fun (s: C.Complex) => Vectors.scale s v) _ _ (C.Prop[].inverseNonzero a nonzero)) (Vectors.space.scalarOne v));
+\module Unit(z: C.Complex, unit: C.Absolute[].abs z = R.one);
+\module NormalForm;
+\module Eigenvector(z: C.Complex, v: M.Vector, eigen: (M.linear A).apply v = Vectors.scale z v);

@@ -712,8 +712,21 @@ fn conversion(
         right: Expression,
         erase: bool,
         seen: &mut rustc_hash::FxHashSet<(Expression, Expression)>,
+        profile: &mut Option<(usize, Expression, Expression)>,
     ) -> Result<bool, crate::error::Error> {
         let _cost = timing::costs::Scope::enter("kernel.conversion-pair");
+        if let Some((calls, root_left, root_right)) = profile {
+            *calls += 1;
+            if *calls >= 65536 && calls.is_power_of_two() {
+                eprintln!(
+                    "conversion calls={calls} erase={erase} root_left={:?} root_right={:?} left={:?} right={:?}",
+                    env.arena.get(*root_left),
+                    env.arena.get(*root_right),
+                    env.arena.get(left),
+                    env.arena.get(right),
+                );
+            }
+        }
         let cacheable = !env.arena.contains_meta(left) && !env.arena.contains_meta(right);
         let key = if left.index() <= right.index() {
             (left, right, erase)
@@ -750,7 +763,7 @@ fn conversion(
                 }
                 let mut congruent = true;
                 for &index in env.conversion_arguments(l)?.iter() {
-                    if !compare(env, la[index], ra[index], erase, &mut seen.clone())? {
+                    if !compare(env, la[index], ra[index], erase, &mut seen.clone(), profile)? {
                         congruent = false;
                         break;
                     }
@@ -764,7 +777,7 @@ fn conversion(
                     .into_iter()
                     .zip(comparison_children(&env.arena, right))
                 {
-                    if ld != rd || !compare(env, l, r, erase, &mut seen.clone())? {
+                    if ld != rd || !compare(env, l, r, erase, &mut seen.clone(), profile)? {
                         congruent = false;
                         break;
                     }
@@ -806,10 +819,14 @@ fn conversion(
             }
             match (definition_head(env, left), definition_head(env, right)) {
                 (Some(l), Some(r)) if l.index < r.index => {
-                    return compare(env, left, delta(env, right)?, erase, seen);
+                    return compare(env, left, delta(env, right)?, erase, seen, profile);
                 }
-                (Some(_), _) => return compare(env, delta(env, left)?, right, erase, seen),
-                (_, Some(_)) => return compare(env, left, delta(env, right)?, erase, seen),
+                (Some(_), _) => {
+                    return compare(env, delta(env, left)?, right, erase, seen, profile);
+                }
+                (_, Some(_)) => {
+                    return compare(env, left, delta(env, right)?, erase, seen, profile);
+                }
                 _ => {}
             }
             let left = if erase {
@@ -832,7 +849,7 @@ fn conversion(
                 .into_iter()
                 .zip(comparison_children(&env.arena, right))
             {
-                if ld != rd || !compare(env, l, r, erase, seen)? {
+                if ld != rd || !compare(env, l, r, erase, seen, profile)? {
                     return Ok(false);
                 }
             }
@@ -849,6 +866,7 @@ fn conversion(
         right,
         erase,
         &mut rustc_hash::FxHashSet::default(),
+        &mut std::env::var_os("REF_TYPE_PROFILE_CONVERSION").map(|_| (0, left, right)),
     )
 }
 

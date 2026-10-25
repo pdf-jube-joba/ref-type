@@ -1,0 +1,61 @@
+\import \parent.Regularity[] \as Continuity;
+\import \root.Linearization[].BlockMatrices[n := n, d := degree, Y := Domain, source := topology, A := (\fun (p: Domain) => (left p).forward),
+  regular := (\fun (v: Carrier) => Continuity.leftRegular (\fun (_: Domain) => v) (Families.constant degree v))] \as Left;
+\import \root.Linearization[].BlockMatrices[n := n, d := degree, Y := Domain, source := topology, A := (\fun (p: Domain) => (right p).forward),
+  regular := (\fun (v: Carrier) => Continuity.rightRegular (\fun (_: Domain) => v) (Families.constant degree v))] \as Right;
+\import \root.Linearization[].BlockMatrices[n := n, d := degree, Y := Domain, source := topology, A := pencil,
+  regular := (\fun (v: Carrier) => Continuity.pencilRegular (\fun (_: Domain) => v) (Families.constant degree v))] \as Pencil;
+\import \root.Linearization[].BlockMatrices[n := n, d := degree, Y := Domain, source := topology, A := diagonal,
+  regular := (\fun (v: Carrier) => Continuity.diagonalRegular (\fun (_: Domain) => v) (Families.constant degree v))] \as Diagonal;
+\import Left.WithInverse[B := (\fun (p: Domain) => (left p).backward), left := (\fun (p: Domain) => (EndIso.laws (left p)).leftInverse), right := (\fun (p: Domain) => (EndIso.laws (left p)).rightInverse)] \as LeftInverse;
+\import Right.WithInverse[B := (\fun (p: Domain) => (right p).backward), left := (\fun (p: Domain) => (EndIso.laws (right p)).leftInverse), right := (\fun (p: Domain) => (EndIso.laws (right p)).rightInverse)] \as RightInverse;
+\definition leftMatrix: Domain -> Matrices.Matrix := Left.matrix;
+\definition rightMatrix: Domain -> Matrices.Matrix := Right.matrix;
+\definition pencilMatrix: Domain -> Matrices.Matrix := Pencil.matrix;
+\definition diagonalMatrix: Domain -> Matrices.Matrix := Diagonal.matrix;
+\definition leftRegular: matrix_invariants.Topological[K := C.Complex, ring := Plane.Ring[].topologicalRing].At[n := Coordinates.dimension degree].Families[X := Domain].Regular topology leftMatrix := Left.matrixRegular;
+\definition rightRegular: matrix_invariants.Topological[K := C.Complex, ring := Plane.Ring[].topologicalRing].At[n := Coordinates.dimension degree].Families[X := Domain].Regular topology rightMatrix := Right.matrixRegular;
+\definition pencilRegular: matrix_invariants.Topological[K := C.Complex, ring := Plane.Ring[].topologicalRing].At[n := Coordinates.dimension degree].Families[X := Domain].Regular topology pencilMatrix := Pencil.matrixRegular;
+\definition diagonalRegular: matrix_invariants.Topological[K := C.Complex, ring := Plane.Ring[].topologicalRing].At[n := Coordinates.dimension degree].Families[X := Domain].Regular topology diagonalMatrix := Diagonal.matrixRegular;
+\definition leftNonzero: \forall (p: Domain) -> matrix_invariants.Field[K := C.Complex, field := Scalars.field].At[n := Coordinates.dimension degree].Nonzero (leftMatrix p) := LeftInverse.nonzero;
+\definition rightNonzero: \forall (p: Domain) -> matrix_invariants.Field[K := C.Complex, field := Scalars.field].At[n := Coordinates.dimension degree].Nonzero (rightMatrix p) := RightInverse.nonzero;
+\import Operators.Composition[U := Carrier, domain := space] \as Composition;
+\definition matrixComparison: \forall (p: Domain) -> Matrices.product (Matrices.product (leftMatrix p) (pencilMatrix p)) (rightMatrix p) = diagonalMatrix p :=
+  \fun (p: Domain) => eq_reason_in!{Matrices.Matrix _
+    "=" { Matrices.product (Left.entries (Composition.compose (left p).forward (pencil p))) (rightMatrix p) } "by" {
+      congr!{Matrices.Matrix Matrices.Matrix} (\fun (m: Matrices.Matrix) => Matrices.product m (rightMatrix p)) _ _ (sym!{Matrices.Matrix} _ _ (Left.composition (left p).forward (pencil p))) }
+    "=" { Left.entries (Composition.compose (Composition.compose (left p).forward (pencil p)) (right p).forward) } "by" {
+      sym!{Matrices.Matrix} _ _ (Left.composition (Composition.compose (left p).forward (pencil p)) (right p).forward) }
+    "=" { Left.entries (diagonal p) } "by" { congr!{Operators.Map Matrices.Matrix} Left.entries _ _
+      (Operators.ext _ _ (\axiom:funext((Composition.compose (Composition.compose (left p).forward (pencil p)) (right p).forward).apply, (diagonal p).apply, comparison p))) }
+  };
+\import matrix_invariants.Field[K := C.Complex, field := Scalars.field].At[n := Coordinates.dimension degree] \as Field;
+\import topological_algebra.Matrix[K := C.Complex, I := Matrices.Index, J := Matrices.Index] \as MatrixTopology;
+\definition rightBackward[p: Domain]: Matrices.Operations[].Inverse (rightMatrix p) := RightInverse.inverse p;
+\definition rightBackwardMatrix[p: Domain]: Matrices.Matrix := rightBackward p;
+\definition rightBackwardContinuous: topology.Continuity[A := Domain, B := Matrices.Matrix].Continuous topology (MatrixTopology.topology Plane.topology) rightBackwardMatrix :=
+  matrix_invariants.Complex[].At[n := Coordinates.dimension degree].Families[X := Domain].certifiedInverseContinuous topology rightMatrix rightBackward rightRegular;
+\definition rightBackwardRegular: matrix_invariants.Topological[K := C.Complex, ring := Plane.Ring[].topologicalRing].At[n := Coordinates.dimension degree].Families[X := Domain].Regular topology rightBackwardMatrix :=
+  \fun (i, j: Matrices.Index) => topology.Composition[A := Domain, B := Matrices.Matrix, C := C.Complex].composeContinuous topology (MatrixTopology.topology Plane.topology) Plane.topology
+    rightBackwardMatrix (\fun (m: Matrices.Matrix) => m i j) rightBackwardContinuous (MatrixTopology.entryContinuous Plane.topology i j);
+\definition rightBackwardNonzero: \forall (p: Domain) -> Field.Nonzero (rightBackwardMatrix p) :=
+  \fun (p: Domain) => Field.nonzeroOfInverse (rightBackwardMatrix p) (\into[Matrices.Matrix](rightMatrix p, Matrices.Operations[].Inverse (rightBackwardMatrix p)) \by {
+    Matrices.Operations[].InverseLaws[rightBackwardMatrix p, rightMatrix p] {
+      left := (Matrices.Operations[].inverseLaws (rightMatrix p) (rightBackward p)).right,
+      right := (Matrices.Operations[].inverseLaws (rightMatrix p) (rightBackward p)).left,
+    }
+  });
+\definition intertwines: \forall (p: Domain) -> Matrices.product (leftMatrix p) (pencilMatrix p) = Matrices.product (diagonalMatrix p) (rightBackwardMatrix p) :=
+  \fun (p: Domain) => eq_reason_in!{Matrices.Matrix _
+    "=" { Matrices.product (Matrices.product (leftMatrix p) (pencilMatrix p)) Matrices.identity } "by" { sym!{Matrices.Matrix} _ _ (Matrices.Operations[].rightIdentity (Matrices.product (leftMatrix p) (pencilMatrix p))) }
+    "=" { Matrices.product (Matrices.product (leftMatrix p) (pencilMatrix p)) (Matrices.product (rightMatrix p) (rightBackwardMatrix p)) } "by" {
+      congr!{Matrices.Matrix Matrices.Matrix} (Matrices.product (Matrices.product (leftMatrix p) (pencilMatrix p))) _ _ (sym!{Matrices.Matrix} _ _ ((Matrices.Operations[].inverseLaws (rightMatrix p) (rightBackward p)).right)) }
+    "=" { Matrices.product (Matrices.product (Matrices.product (leftMatrix p) (pencilMatrix p)) (rightMatrix p)) (rightBackwardMatrix p) } "by" {
+      sym!{Matrices.Matrix} _ _ (Matrices.Operations[].associative (Matrices.product (leftMatrix p) (pencilMatrix p)) (rightMatrix p) (rightBackwardMatrix p)) }
+    "=" _ "by" { congr!{Matrices.Matrix Matrices.Matrix} (\fun (m: Matrices.Matrix) => Matrices.product m (rightBackwardMatrix p)) _ _ (matrixComparison p) }
+  };
+\module Separated(kernel: \forall (x: X)(z: C.Complex) -> C.Absolute[].abs z = R.one -> \forall (v: Vectors.Vector) ->
+  (\root.Linearization[].Companion[n := n, d := d].With[coefficients := coefficients x].polynomial z).apply v = Vectors.origin -> v = Vectors.origin);
+\module SpectralForm(p: Domain);
+\definition diagonalAction: \forall (p: Domain)(v: Matrices.Vector) ->
+  (Matrices.linear (diagonalMatrix p)).apply v = Coordinates.flatten degree ((diagonal p).apply (Coordinates.unflatten degree v)) := Diagonal.formula;

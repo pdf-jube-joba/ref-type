@@ -1,0 +1,48 @@
+\import topology.Topology[Carrier := X] \as Base;
+\import topological_constructions.Product[A := Matrices.Matrix, B := X] \as Parameters;
+\definition matrixTopology: topology.Topology[Carrier := Matrices.Matrix].Topology := MatrixSpace.topology Plane.topology;
+\definition topology: topology.Topology[Carrier := Parameters.CarrierSet].Topology := Parameters.topology matrixTopology source;
+\definition perturb[e: Matrices.Matrix][x: X]: Matrices.Matrix := \fun (i, j: Matrices.Index) => C.Def[].add (a x i j) (e i j);
+\definition family[p: Parameters.CarrierSet]: Matrices.Matrix := perturb (Pair.first Matrices.Matrix X p) (Pair.second Matrices.Matrix X p);
+\import Top.Families[X := Parameters.CarrierSet] \as Families;
+\import Plane.Functions[A := Parameters.CarrierSet] \as Functions;
+\definition familyRegular: Families.Regular topology family := \fun (i, j: Matrices.Index) => Functions.additionContinuous topology
+  (\fun (p: Parameters.CarrierSet) => a (Pair.second Matrices.Matrix X p) i j) (\fun (p: Parameters.CarrierSet) => Pair.first Matrices.Matrix X p i j)
+  (topology.Composition[A := Parameters.CarrierSet, B := X, C := C.Complex].composeContinuous topology source Plane.topology
+    (Pair.second Matrices.Matrix X) (\fun (x: X) => a x i j) (Parameters.Maps[].secondContinuous matrixTopology source) (regular i j))
+  (topology.Composition[A := Parameters.CarrierSet, B := Matrices.Matrix, C := C.Complex].composeContinuous topology matrixTopology Plane.topology
+    (Pair.first Matrices.Matrix X) (\fun (e: Matrices.Matrix) => e i j) (Parameters.Maps[].firstContinuous matrixTopology source) (MatrixSpace.entryContinuous Plane.topology i j));
+\definition domain: \Pow Parameters.CarrierSet := { p: Parameters.CarrierSet \where Field.Nonzero (family p) };
+\definition open: topology.Topology[Carrier := Parameters.CarrierSet].IsOpenIn topology domain :=
+  Families.determinantContinuous topology family familyRegular
+    (topology.Topology[Carrier := C.Complex].Complement (topology.Topology[Carrier := C.Complex].Singleton C.Def[].zero))
+    matrix_invariants.Complex[].At[n := n].ScalarOpen[].nonzeroOpen;
+\definition atZero: \forall (x: X) -> perturb zero x = a x :=
+  \fun (x: X) => Matrices.Operations[].ext (perturb zero x) (a x) (\fun (i, j: Matrices.Index) => C.Prop[].addZeroRight (a x i j));
+\definition zeroFiber: \forall (x: X) -> \In[Parameters.CarrierSet] domain (Pair.pair Matrices.Matrix X zero x) :=
+  \fun (x: X)(vanishes: Matrices.determinant (perturb zero x) = C.Def[].zero) => nonzero x
+    (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (congr!{Matrices.Matrix {C.Complex}} Matrices.determinant _ _ (atZero x))) vanishes);
+\structure Bound: \Set := {
+  value: R.Real,
+  positive: Real.Lt R.zero value,
+  preserves: \forall (e: Matrices.Matrix) -> (\forall (i, j: Matrices.Index) -> Real.Lt (C.Absolute[].abs (e i j)) value) ->
+    \forall (x: X) -> Field.Nonzero (perturb e x),
+};
+\definition boundExists: \exists Bound := \block {
+  \takefrom tube: Parameters.Compactness[].Tube[matrixTopology, zero, domain, Base.Whole] \by
+    Parameters.Compactness[].tubeLemma matrixTopology source Base.Whole compact zero domain open (\fun (x: X)(_: _) => zeroFiber x) \then
+  \takefrom radius: Uniform.Radius[tube.neighborhood, zero] \by radiusExists tube.neighborhood tube.open zero tube.contains \then
+  \return \exact(Bound {
+    value := radius.value, positive := radius.positive,
+    preserves := \fun (e: Matrices.Matrix)(near: _)(x: X) => tube.within e (radius.within e (nearZero e radius.value near)) x (\refl(x)),
+  }, Bound)
+};
+\module Nearby(b: X -> Matrices.Matrix, regularB: Top.Families[X := X].Regular source b, bound: Bound,
+  near: \forall (x: X)(i, j: Matrices.Index) -> Real.Lt (C.Absolute[].abs (C.Def[].sub (a x i j) (b x i j))) bound.value);
+\definition smaller[bound: Bound][value: R.Real][positive: Real.Lt R.zero value][below: Real.Le value bound.value]: Bound := Bound {
+  value := value, positive := positive,
+  preserves := \fun (e: Matrices.Matrix)(near: \forall (i, j: Matrices.Index) -> Real.Lt (C.Absolute[].abs (e i j)) value) =>
+    bound.preserves e (\fun (i, j: Matrices.Index) => Real.ltLeTrans _ _ _ (near i j) below),
+};
+\module UnitScale(s: X -> C.Complex, regularS: topology.Continuity[A := X, B := C.Complex].Continuous source Plane.topology s,
+  unit: \forall (x: X) -> C.Absolute[].abs (s x) = R.one);

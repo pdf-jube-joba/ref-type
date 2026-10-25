@@ -1,0 +1,43 @@
+\import Spaces.Laws[V := V, space := space] \as Values;
+\definition difference[a, b: V]: V := space.add a (space.neg b);
+\definition rearrange: \forall (a, b, h, c, d: V) -> space.add (space.add a b) (space.add h (space.add c d)) = space.add h (space.add (space.add a c) (space.add b d)) :=
+  \fun (a, b, h, c, d: V) => eq_reason_in!{V { space.add (space.add a b) (space.add h (space.add c d)) }
+    "=" _ "by" { sym!{V} _ _ (Values.assoc (space.add a b) h (space.add c d)) }
+    "=" _ "by" { congr!{V V} (\fun (v: V) => space.add v (space.add c d)) _ _ (Values.comm (space.add a b) h) }
+    "=" _ "by" { Values.assoc h (space.add a b) (space.add c d) }
+    "=" _ "by" { congr!{V V} (space.add h) _ _ (Values.shuffle a b c d) }
+  };
+\definition collect: \forall (u: C.Complex)(a, f, l: V) -> space.add (space.smul u a) (space.smul u (difference f l)) = space.smul u (difference (space.add a f) l) :=
+  \fun (u: C.Complex)(a, f, l: V) => trans!{V} _ _ _ (sym!{V} _ _ (space.vectorAdd u a (difference f l)))
+    (congr!{V V} (space.smul u) _ _ (sym!{V} _ _ (Values.assoc a f (space.neg l))));
+\definition leading[a, b, u, w: C.Complex]: C.Complex := C.Def[].add (C.Def[].mul u a) (C.Def[].mul w b);
+\definition lower[h, f, g, l, r: V][u, w: C.Complex]: V := space.add h (space.add (space.smul u (difference f l)) (space.smul w (difference g r)));
+\definition formula: \forall (a, b, u, w: C.Complex)(p, h, f, g, l, r: V) ->
+  space.add (space.smul (leading a b u w) p) (lower h f g l r u w) =
+  lower h (space.add (space.smul a p) f) (space.add (space.smul b p) g) l r u w :=
+  \fun (a, b, u, w: C.Complex)(p, h, f, g, l, r: V) => eq_reason_in!{V { space.add (space.smul (leading a b u w) p) (lower h f g l r u w) }
+    "=" _ "by" { congr!{V V} (\fun (v: V) => space.add v (lower h f g l r u w)) _ _
+      (trans!{V} _ _ _ (space.scalarAdd (C.Def[].mul u a) (C.Def[].mul w b) p)
+        (congr!{V V V} space.add _ _ _ _ (space.scalarAssoc u a p) (space.scalarAssoc w b p))) }
+    "=" _ "by" { rearrange (space.smul u (space.smul a p)) (space.smul w (space.smul b p)) h (space.smul u (difference f l)) (space.smul w (difference g r)) }
+    "=" _ "by" { congr!{V V} (space.add h) _ _ (congr!{V V V} space.add _ _ _ _ (collect u (space.smul a p) f l) (collect w (space.smul b p) g r)) }
+  };
+\definition scaledDifference: \forall (f: C.Complex)(v: V) -> difference (space.smul f v) v = space.smul (C.Def[].sub f C.Def[].one) v :=
+  \fun (f: C.Complex)(v: V) => trans!{V} _ _ _
+    (congr!{V V} (space.add (space.smul f v)) _ _ (sym!{V} _ _ (Values.minusOneScale v)))
+    (sym!{V} _ _ (space.scalarAdd f (C.Def[].neg C.Def[].one) v));
+\definition restore: \forall (f, l: V) -> space.add l (difference f l) = f :=
+  \fun (f, l: V) => eq_reason_in!{V { space.add l (difference f l) }
+    "=" _ "by" { Values.comm l (difference f l) }
+    "=" _ "by" { Values.assoc f (space.neg l) l }
+    "=" _ "by" { congr!{V V} (space.add f) _ _ (Values.inverseLeft l) }
+    "=" _ "by" { Values.zeroRight f }
+  };
+\definition atLeft: \forall (f, g, l, r: V) -> lower l f g l r C.Def[].one C.Def[].zero = f :=
+  \fun (f, g, l, r: V) => trans!{V} _ _ _
+    (congr!{V V} (space.add l) _ _ (congr!{V V V} space.add _ _ _ _ (space.scalarOne (difference f l)) (Values.zeroScale (difference g r))))
+    (trans!{V} _ _ _ (congr!{V V} (space.add l) _ _ (Values.zeroRight (difference f l))) (restore f l));
+\definition atRight: \forall (f, g, l, r: V) -> lower r f g l r C.Def[].zero C.Def[].one = g :=
+  \fun (f, g, l, r: V) => trans!{V} _ _ _
+    (congr!{V V} (space.add r) _ _ (congr!{V V V} space.add _ _ _ _ (Values.zeroScale (difference f l)) (space.scalarOne (difference g r))))
+    (trans!{V} _ _ _ (congr!{V V} (space.add r) _ _ (Values.zeroLeft (difference g r))) (restore g r));

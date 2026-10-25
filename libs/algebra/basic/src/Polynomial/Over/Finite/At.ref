@@ -1,0 +1,52 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import Fin.FromList[A := R] \as FromList;
+\import Abstract.Universal[K := K, target := target] \as Evaluation;
+\import algebra.Hom[A := Abstract.Carrier, B := K] \as Maps;
+\definition evaluate: Abstract.Carrier -> K := Evaluation.evaluate coefficientMap variable;
+\definition extension: Maps.RingMap ring (Rings.commutativeRingAsRing K target) := Evaluation.extension coefficientMap variable;
+\definition laws: Maps.SemiringLaws[(Rings.ringAsSemiring Abstract.Carrier ring), (Rings.ringAsSemiring K (Rings.commutativeRingAsRing K target)), evaluate] := Maps.semiringLaws _ _ extension;
+\definition power: N.Nat^ -> K := \induction (k: N.Nat^) \return K \with {
+  | zero: target.base.one
+  | succ: \fun (k: N.Nat^)(previous: K) => target.base.mul variable previous
+};
+\definition sum: \forall (n: N.Nat^) -> (Fin.Fin n -> K) -> K :=
+  \induction (n: N.Nat^) \return (Fin.Fin n -> K) -> K \with {
+    | zero: \fun (f: Fin.Fin N.Nat^::zero -> K) => target.base.zero
+    | succ: \fun (n: N.Nat^)(previous: _)(f: Fin.Fin (N.Nat^::succ n) -> K) => target.base.add (f (Fin.zero n)) (previous (\fun (i: Fin.Fin n) => f (Fin.succ n i)))
+  };
+\definition sumCongruent: \forall (n: N.Nat^)(f, g: Fin.Fin n -> K) -> (\forall (i: Fin.Fin n) -> f i = g i) -> sum n f = sum n g :=
+  \induction (n: N.Nat^) \return \forall (f, g: Fin.Fin n -> K) -> (\forall (i: Fin.Fin n) -> f i = g i) -> sum n f = sum n g \with {
+    | zero: \fun (f, g: Fin.Fin N.Nat^::zero -> K)(same: _) => \refl(target.base.zero)
+    | succ: \fun (n: N.Nat^)(previous: _)(f, g: Fin.Fin (N.Nat^::succ n) -> K)(same: _) => congr!{K K K} target.base.add _ _ _ _ (same (Fin.zero n))
+      (previous (\fun (i: Fin.Fin n) => f (Fin.succ n i)) (\fun (i: Fin.Fin n) => g (Fin.succ n i)) (\fun (i: Fin.Fin n) => same (Fin.succ n i)))
+  };
+\definition scalarSum: \forall (n: N.Nat^)(a: K)(f: Fin.Fin n -> K) -> target.base.mul a (sum n f) = sum n (\fun (i: Fin.Fin n) => target.base.mul a (f i)) :=
+  \induction (n: N.Nat^) \return \forall (a: K)(f: Fin.Fin n -> K) -> target.base.mul a (sum n f) = sum n (\fun (i: Fin.Fin n) => target.base.mul a (f i)) \with {
+    | zero: \fun (a: K)(f: Fin.Fin N.Nat^::zero -> K) => target.ring.semiring.zeroAbsorbsRight a
+    | succ: \fun (n: N.Nat^)(previous: _)(a: K)(f: Fin.Fin (N.Nat^::succ n) -> K) => trans!{K} _ _ _
+      (target.ring.semiring.leftDistributive a (f (Fin.zero n)) (sum n (\fun (i: Fin.Fin n) => f (Fin.succ n i))))
+      (congr!{K K} (target.base.add (target.base.mul a (f (Fin.zero n)))) _ _ (previous a (\fun (i: Fin.Fin n) => f (Fin.succ n i))))
+  };
+\definition sumFormula: \forall (n: N.Nat^)(f: Fin.Fin n -> R) -> evaluate (asPolynomial (FromList.list n f)) = sum n (\fun (i: Fin.Fin n) => target.base.mul (power i) (coefficientMap (f i))) :=
+  \induction (n: N.Nat^) \return \forall (f: Fin.Fin n -> R) -> evaluate (asPolynomial (FromList.list n f)) = sum n (\fun (i: Fin.Fin n) => target.base.mul (power i) (coefficientMap (f i))) \with {
+    | zero: \fun (f: Fin.Fin N.Nat^::zero -> R) => laws.zero
+    | succ: \fun (n: N.Nat^)(previous: \forall (g: Fin.Fin n -> R) -> evaluate (asPolynomial (FromList.list n g)) = sum n (\fun (i: Fin.Fin n) => target.base.mul (power i) (coefficientMap (g i))))(f: Fin.Fin (N.Nat^::succ n) -> R) => eq_reason_in!{K _
+      "=" { target.base.add (evaluate (Abstract.constant (f (Fin.zero n)))) (evaluate (Abstract.mul Abstract.X (asPolynomial (FromList.list n (\fun (i: Fin.Fin n) => f (Fin.succ n i)))))) } "by" { laws.add _ _ }
+      "=" { target.base.add (coefficientMap (f (Fin.zero n))) (target.base.mul variable (evaluate (asPolynomial (FromList.list n (\fun (i: Fin.Fin n) => f (Fin.succ n i)))))) } "by" {
+        congr!{K K K} target.base.add _ _ _ _ (Evaluation.constants coefficientMap variable (f (Fin.zero n)))
+          (trans!{K} _ _ _ (laws.mul Abstract.X (asPolynomial (FromList.list n (\fun (i: Fin.Fin n) => f (Fin.succ n i)))))
+            (congr!{K K} (\fun (a: K) => target.base.mul a (evaluate (asPolynomial (FromList.list n (\fun (i: Fin.Fin n) => f (Fin.succ n i)))))) _ _ (Evaluation.variable coefficientMap variable)))
+      }
+      "=" { target.base.add (coefficientMap (f (Fin.zero n))) (target.base.mul variable (sum n (\fun (i: Fin.Fin n) => target.base.mul (power i) (coefficientMap (f (Fin.succ n i)))))) } "by" {
+        congr!{K K} (\fun (a: K) => target.base.add (coefficientMap (f (Fin.zero n))) (target.base.mul variable a)) _ _ (previous (\fun (i: Fin.Fin n) => f (Fin.succ n i)))
+      }
+      "=" { target.base.add (coefficientMap (f (Fin.zero n))) (sum n (\fun (i: Fin.Fin n) => target.base.mul variable (target.base.mul (power i) (coefficientMap (f (Fin.succ n i)))))) } "by" {
+        congr!{K K} (target.base.add (coefficientMap (f (Fin.zero n)))) _ _ (scalarSum n variable (\fun (i: Fin.Fin n) => target.base.mul (power i) (coefficientMap (f (Fin.succ n i)))))
+      }
+      "=" _ "by" { congr!{K K K} target.base.add _ _ _ _
+        (sym!{K} _ _ (target.ring.semiring.multiplicative.leftIdentity (coefficientMap (f (Fin.zero n)))))
+        (sumCongruent n (\fun (i: Fin.Fin n) => target.base.mul variable (target.base.mul (power i) (coefficientMap (f (Fin.succ n i))))) (\fun (i: Fin.Fin n) => target.base.mul (power (Fin.succ n i)) (coefficientMap (f (Fin.succ n i)))) (\fun (i: Fin.Fin n) => sym!{K} _ _ (target.ring.semiring.multiplicative.associative variable (power i) (coefficientMap (f (Fin.succ n i))))))
+      }
+    }
+  };

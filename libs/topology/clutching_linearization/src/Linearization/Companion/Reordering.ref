@@ -1,0 +1,43 @@
+\import \parent.Splitting[] \as Splitting;
+\import Spaces.DirectSum[V := Vectors.Vector, W := Coordinates.Carrier d, left := Vectors.space, right := Coordinates.space d] \as Sum;
+\import std.Data[].Pair[].Prop[A := Vectors.Vector, B := Coordinates.Carrier d] \as Pairs;
+\definition rightConstant: \forall (v: Carrier)(i: Fin.Fin (N.Nat^::succ N.Nat^::zero)) -> v (fromTotal (Indices.right i)) = v last :=
+  \fun (v: Carrier)(i: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => congr!{{Fin.Fin degree} Vectors.Vector} v (fromTotal (Indices.right i)) last
+    (trans!{{N.Nat^}} _ _ _ (congr!{{N.Nat^} {N.Nat^}} (\fun (j: N.Nat^) => Nat.add j d) i N.Nat^::zero (Fin.singletonValue i)) (NatLaws.addZeroLeft d));
+\definition recover: \forall (v: Carrier) -> join (\fun (i: Fin.Fin d) => v (Fin.widen d i)) (v last) = v :=
+  \fun (v: Carrier) => \axiom:funext(join (\fun (i: Fin.Fin d) => v (Fin.widen d i)) (v last), v, \fun (i: Fin.Fin degree) => trans!{Vectors.Vector} _ _ _
+    (congr!{{Fin.Fin (N.Nat^::succ N.Nat^::zero) -> Vectors.Vector} Vectors.Vector}
+      (\fun (f: Fin.Fin (N.Nat^::succ N.Nat^::zero) -> Vectors.Vector) => Joining.join (\fun (j: Fin.Fin d) => v (Fin.widen d j)) f (toTotal i)) _ _
+      (sym!{{Fin.Fin (N.Nat^::succ N.Nat^::zero) -> Vectors.Vector}} _ _ (\axiom:funext((\fun (j: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => v (fromTotal (Indices.right j))), (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => v last), rightConstant v))))
+    (congr!{{Fin.Fin Indices.total -> Vectors.Vector} Vectors.Vector} (\fun (f: Fin.Fin Indices.total -> Vectors.Vector) => f (toTotal i)) _ _ (Joining.recover (\fun (j: Fin.Fin Indices.total) => v (fromTotal j)))));
+\import Spaces.Linear[V := Carrier, W := Sum.Carrier, source := space, target := Sum.space] \as Forward;
+\import Spaces.Linear[V := Sum.Carrier, W := Carrier, source := Sum.space, target := space] \as Backward;
+\import Spaces.Isomorphism[V := Carrier, W := Sum.Carrier, source := space, target := Sum.space] \as Isomorphisms;
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (v: Carrier) => Sum.make (v last) (\fun (i: Fin.Fin d) => Vectors.negative (v (Fin.widen d i))),
+  preservesAdd := \fun (v, w: Carrier) => Pairs.ext _ _ (\refl(Vectors.plus (v last) (w last)))
+    (\axiom:funext((\fun (i: Fin.Fin d) => Vectors.negative (Vectors.plus (v (Fin.widen d i)) (w (Fin.widen d i)))), (\fun (i: Fin.Fin d) => Vectors.plus (Vectors.negative (v (Fin.widen d i))) (Vectors.negative (w (Fin.widen d i)))), \fun (i: Fin.Fin d) => ValueGroup.negAdd (v (Fin.widen d i)) (w (Fin.widen d i)))),
+  preservesScale := \fun (a: C.Complex)(v: Carrier) => Pairs.ext _ _ (\refl(Vectors.scale a (v last)))
+    (\axiom:funext((\fun (i: Fin.Fin d) => Vectors.negative (Vectors.scale a (v (Fin.widen d i)))), (\fun (i: Fin.Fin d) => Vectors.scale a (Vectors.negative (v (Fin.widen d i)))), \fun (i: Fin.Fin d) => sym!{Vectors.Vector} _ _ (Values.scaleNegative a (v (Fin.widen d i))))),
+};
+\definition backward: Backward.Map := Backward.Map {
+  apply := \fun (p: Sum.Carrier) => join (\fun (i: Fin.Fin d) => Vectors.negative (Sum.second p i)) (Sum.first p),
+  preservesAdd := \fun (p, q: Sum.Carrier) => trans!{Carrier} _ _ _
+    (congr!{{Coordinates.Carrier d} Carrier} (\fun (f: Coordinates.Carrier d) => join f (Vectors.plus (Sum.first p) (Sum.first q))) _ _
+      (\axiom:funext((\fun (i: Fin.Fin d) => Vectors.negative (Vectors.plus (Sum.second p i) (Sum.second q i))), (\fun (i: Fin.Fin d) => Vectors.plus (Vectors.negative (Sum.second p i)) (Vectors.negative (Sum.second q i))), \fun (i: Fin.Fin d) => ValueGroup.negAdd (Sum.second p i) (Sum.second q i))))
+    (joinAddition (\fun (i: Fin.Fin d) => Vectors.negative (Sum.second p i)) (\fun (i: Fin.Fin d) => Vectors.negative (Sum.second q i)) (Sum.first p) (Sum.first q)),
+  preservesScale := \fun (a: C.Complex)(p: Sum.Carrier) => trans!{Carrier} _ _ _
+    (congr!{{Coordinates.Carrier d} Carrier} (\fun (f: Coordinates.Carrier d) => join f (Vectors.scale a (Sum.first p))) _ _
+      (\axiom:funext((\fun (i: Fin.Fin d) => Vectors.negative (Vectors.scale a (Sum.second p i))), (\fun (i: Fin.Fin d) => Vectors.scale a (Vectors.negative (Sum.second p i))), \fun (i: Fin.Fin d) => sym!{Vectors.Vector} _ _ (Values.scaleNegative a (Sum.second p i)))))
+    (joinScalar a (\fun (i: Fin.Fin d) => Vectors.negative (Sum.second p i)) (Sum.first p)),
+};
+\definition isomorphism: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := \fun (v: Carrier) => trans!{Carrier} _ _ _
+    (congr!{{Coordinates.Carrier d} Carrier} (\fun (f: Coordinates.Carrier d) => join f (v last)) _ _
+      (\axiom:funext((\fun (i: Fin.Fin d) => Vectors.negative (Vectors.negative (v (Fin.widen d i)))) , (\fun (i: Fin.Fin d) => v (Fin.widen d i)), \fun (i: Fin.Fin d) => ValueGroup.negNeg (v (Fin.widen d i))))) (recover v),
+  rightInverse := \fun (p: Sum.Carrier) => Pairs.ext _ p
+    (atLast (\fun (i: Fin.Fin d) => Vectors.negative (Sum.second p i)) (Sum.first p))
+    (\axiom:funext((\fun (i: Fin.Fin d) => Vectors.negative (backward.apply p (Fin.widen d i))), Sum.second p, \fun (i: Fin.Fin d) => trans!{Vectors.Vector} _ _ _
+      (congr!{Vectors.Vector Vectors.Vector} Vectors.negative _ _ (atFront (\fun (j: Fin.Fin d) => Vectors.negative (Sum.second p j)) (Sum.first p) i)) (ValueGroup.negNeg (Sum.second p i)))),
+};

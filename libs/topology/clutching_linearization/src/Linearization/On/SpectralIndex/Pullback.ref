@@ -1,0 +1,23 @@
+\import topological_algebra.Complex[] \as Plane;
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := n] \as M;
+\definition matrix[y: Y]: M.Matrix := A (f y);
+\definition matrixRegular: matrix_invariants.Topological[K := C.Complex, ring := Plane.Ring[].topologicalRing].At[n := n].Families[X := Y].Regular space matrix :=
+  \fun (i, j: M.Index) => topology.Composition[A := Y, B := X, C := C.Complex].composeContinuous space source Plane.topology f
+    (\fun (x: X) => A x i j) continuous (regular i j);
+\import \root.Linearization[].On[X := Y, source := space, compact := compactY, hausdorff := hausdorffY].SpectralIndex[
+  n := n, A := matrix, regular := matrixRegular, off := (\fun (y: Y) => off (f y)), removed := removed] \as Target;
+\import topological_k_theory.KTheory[].On[X := Y, baseSpace := space, compact := compactY, hausdorff := hausdorffY] \as TargetK;
+\import TargetK.Bundle[F := Target.Fiber, original := Target.bundle, same := \refl(space)] \as TargetImage;
+\import TargetK.Trivial[n := removed] \as TargetRemoved;
+\import K.Pullback[Y := Y, space := space, sourceCompact := compactY, sourceHausdorff := hausdorffY, f := f, regular := continuous] \as Pull;
+\import Pull.Of[F := Fiber, original := bundle, same := \refl(source)] \as ImagePull;
+\import spectral_splitting.Spectral[].Idempotents[n := n].Image[X := X, baseSpace := source, P := Image.idempotent,
+  regular := Native.projectionRegular].Pullback[Y := Y, source := space, f := f, regularBase := continuous] \as ImageComparison;
+\import TargetK.Compare[F := (\fun (y: Y) => Fiber (f y)), G := Target.Fiber, first := ImagePull.pulled, second := Target.bundle,
+  firstSame := \refl(space), secondSame := \refl(space)] \as Classes;
+\definition imageNaturality: Pull.map Inside.value = TargetImage.value :=
+  trans!{TargetK.Classes} _ _ _ ImagePull.naturality (Classes.ofIsomorphism ImageComparison.isomorphism);
+\module Trivial;
+\definition naturality: Pull.K0[].map value = Target.value :=
+  trans!{TargetK.K0[].Carrier} _ _ _ (Pull.Ranks[].Difference[a := Inside.value, b := Removed.value].difference)
+    (congr!{TargetK.Classes TargetK.Classes TargetK.K0[].Carrier} TargetK.K0[].difference _ _ _ _ imageNaturality Trivial[].naturality);

@@ -1,0 +1,19 @@
+\import \root.Linearization[].MatrixSum[n := n, m := m] \as Blocks;
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing] \as Matrices;
+\import Matrices.At[n := n] \as ML;
+\import Matrices.At[n := m] \as MR;
+\import Matrices.At[n := total] \as MT;
+\import Spaces.Linear[V := V.Vector, W := V.Vector, source := V.space, target := V.space] \as EndL;
+\import Spaces.Linear[V := W.Vector, W := W.Vector, source := W.space, target := W.space] \as EndR;
+\definition entries: \forall (x: X)(z: C.Complex) -> MT.Representation[].entries (Total.FromRow[row := rows x].polynomial z) = Blocks.matrix (ML.Representation[].entries (Left.FromRow[row := q0 x].polynomial z)) (MR.Representation[].entries (Right.FromRow[row := q1 x].polynomial z)) :=
+  \fun (x: X)(z: C.Complex) => MT.Operations[].ext
+    (MT.Representation[].entries (Total.FromRow[row := rows x].polynomial z))
+    (Blocks.matrix (ML.Representation[].entries (Left.FromRow[row := q0 x].polynomial z)) (MR.Representation[].entries (Right.FromRow[row := q1 x].polynomial z)))
+    (\fun (i, j: MT.Index) => congr!{T.Vector {C.Complex}} (\fun (v: T.Vector) => v i) _ _
+      (trans!{T.Vector} _ _ _ (sym!{T.Vector} _ _ (Sum.recover ((Total.FromRow[row := rows x].polynomial z).apply (Spaces.FiniteCoordinates[n := total].vectors j))))
+        (trans!{T.Vector} _ _ _ (congr!{V.Vector W.Vector T.Vector} Sum.join _ _ _ _
+          (polynomialLeft x z (Spaces.FiniteCoordinates[n := total].vectors j))
+          (polynomialRight x z (Spaces.FiniteCoordinates[n := total].vectors j)))
+          (congr!{V.Vector W.Vector T.Vector} Sum.join _ _ _ _
+            (sym!{V.Vector} _ _ (congr!{EndL.Map V.Vector} (\fun (f: EndL.Map) => f.apply (Sum.left (Spaces.FiniteCoordinates[n := total].vectors j))) _ _ (ML.Representation[].linearEntries (Left.FromRow[row := q0 x].polynomial z))))
+            (sym!{W.Vector} _ _ (congr!{EndR.Map W.Vector} (\fun (f: EndR.Map) => f.apply (Sum.right (Spaces.FiniteCoordinates[n := total].vectors j))) _ _ (MR.Representation[].linearEntries (Right.FromRow[row := q1 x].polynomial z))))))));

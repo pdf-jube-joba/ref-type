@@ -1,0 +1,65 @@
+\import topology.Topology[Carrier := A] \as Base;
+\import metric_spaces.RealLine[] \as Line;
+\import metric_spaces.RealMetric[] \as Metric;
+\import metric_spaces.MetricSpace[Carrier := R.Real] \as Scalar;
+\definition Near[x, y: A][delta: R.Real]: \Prop := \forall (i: I) -> Real.Lt (R.distance (coordinate x i) (coordinate y i)) delta;
+\definition monotone: \forall (x, y: A)(r, s: R.Real) -> Real.Le r s -> Near x y r -> Near x y s :=
+  \fun (x, y: A)(r, s: R.Real)(less: _)(near: _)(i: I) => Real.ltLeTrans _ _ _ (near i) less;
+\definition symmetric: \forall (x, y: A)(r: R.Real) -> Near x y r -> Near y x r :=
+  \fun (x, y: A)(r: R.Real)(near: _)(i: I) => Real.ltReplaceLeft _ _ _ (R.Distance[].distanceSymmetric (coordinate x i) (coordinate y i)) (near i);
+\structure Radius[U: \Pow A, x: A]: \Set := {
+  value: R.Real,
+  positive: Real.Lt R.zero value,
+  within: \forall (y: A) -> Near x y value -> \In[A] U y,
+};
+\definition Open[U: \Pow A]: \Prop := \forall (x: A) -> \In[A] U x -> \exists Radius[U, x];
+\definition emptyOpen: Open Base.Empty := \fun (x: A)(empty: Logic.False) => Logic.falseElim _ empty;
+\definition wholeOpen: Open Base.Whole := \fun (x: A)(_: _) => \exact(Radius[Base.Whole, x] {
+  value := R.one,
+  positive := Order.ltOfLeNotEq R.zero R.one Laws.oneNonnegative Laws.zeroNeOne,
+  within := \fun (y: A)(_: _) => \refl(y),
+}, Radius[Base.Whole, x]);
+\definition unionOpen: \forall (family: \Pow (\Pow A)) -> (\forall (U: \Pow A) -> Base.FamilyMember family U -> Open U) -> Open (Base.Union family) :=
+  \fun (family: \Pow (\Pow A))(open: _)(x: A)(member: _) => Base.unionMemberElim family x (\exists Radius[Base.Union family, x])
+    (\block {
+      \fun (U: \Pow A)(inFamily: _)(inU: _) \then
+      \takefrom radius: Radius[U, x] \by open U inFamily x inU \then
+      \return \exact(Radius[Base.Union family, x] {
+        value := radius.value, positive := radius.positive,
+        within := \fun (y: A)(near: _) => Base.unionMemberOf family U y inFamily (radius.within y near),
+      }, Radius[Base.Union family, x])
+    }) member;
+\definition intersectionRadius[U, V: \Pow A][x: A][r: Radius[U, x]][s: Radius[V, x]]:
+  Real.Le r.value s.value -> \exists Radius[Base.Intersection U V, x] :=
+  \fun (less: _) => \exact(Radius[Base.Intersection U V, x] {
+    value := r.value, positive := r.positive,
+    within := \fun (y: A)(near: _) => Logic.And[_, _]::# (r.within y near) (s.within y (monotone x y r.value s.value less near)),
+  }, Radius[Base.Intersection U V, x]);
+\definition intersectionOpen: \forall (U, V: \Pow A) -> Open U -> Open V -> Open (Base.Intersection U V) := \block {
+  \fun (U, V: \Pow A)(openU: _)(openV: _)(x: A)(member: _) \then
+  \takefrom r: Radius[U, x] \by openU x member.left \then
+  \takefrom s: Radius[V, x] \by openV x member.right \then
+  \return Logic.orElim[(Real.Le r.value s.value), (Real.Le s.value r.value), (\exists Radius[Base.Intersection U V, x])] (Order.leTotal r.value s.value)
+    (intersectionRadius U V x r s)
+    (\fun (less: _) => \exact(Radius[Base.Intersection U V, x] {
+      value := s.value, positive := s.positive,
+      within := \fun (y: A)(near: _) => Logic.And[_, _]::# (r.within y (monotone x y s.value r.value less near)) (s.within y near),
+    }, Radius[Base.Intersection U V, x]))
+};
+\definition raw: Base.TopologyData := Base.TopologyData { openSets := { U: \Pow A \where Open U } };
+\definition topology: Base.Topology := \into[Base.TopologyData](raw, Base.Topology) \by {
+  Base.TopologyLaws[raw] {
+    emptyOpen := emptyOpen, wholeOpen := wholeOpen,
+    unionOpen := unionOpen, intersectionOpen := intersectionOpen,
+  }
+};
+\definition coordinateContinuous: \forall (i: I) -> topology.Continuity[A := A, B := R.Real].Continuous topology Line.topology (\fun (x: A) => coordinate x i) := \block {
+  \fun (i: I)(U: \Pow R.Real)(open: _)(x: A)(member: _) \then
+  \takefrom r: \Cast[R.Real] (Scalar.NeighborhoodRadius Metric.metric U (coordinate x i)) \by open (coordinate x i) member \then
+  \let properties: Logic.And[Real.Lt R.zero r, topology.Topology[Carrier := R.Real].Subset (Scalar.Ball Metric.metric (coordinate x i) r) U] :=
+    \bysub(R.Real, Scalar.NeighborhoodRadius Metric.metric U (coordinate x i), r) \then
+  \return \exact(Radius[({ y: A \where \In[R.Real] U (coordinate y i) }), x] {
+    value := r, positive := properties.left,
+    within := \fun (y: A)(near: _) => properties.right (coordinate y i) (near i),
+  }, Radius[({ y: A \where \In[R.Real] U (coordinate y i) }), x])
+};

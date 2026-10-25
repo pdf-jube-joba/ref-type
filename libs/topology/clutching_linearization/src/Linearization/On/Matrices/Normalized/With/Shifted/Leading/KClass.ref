@@ -1,0 +1,45 @@
+\import \parent.Monic[] \as Monic;
+\import \parent.StableClutching[] \as Stable;
+\import \parent.\parent.Correction[] \as Correction;
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[n := n,
+  a := value, regular := regular, nonzero := nonzero].Clutched[] \as Shifted;
+\import \root.Linearization[].Coordinates[n := n] \as Coordinates;
+\import \root.Linearization[].Companion[n := n, d := form.order].Families[X := X, source := source, coefficients := Monic.coefficients, regular := Monic.regularAction] \as Family;
+\import Family.Separated[kernel := Monic.kernel] \as Separated;
+\import \root.Linearization[].SpectralMotion[n := Coordinates.dimension degree, X := X, source := source,
+  A := Family.matrix, regular := Family.matrixRegular, off := Separated.off].Normal[].Clutched[compact := compact, hausdorff := hausdorff].Product[] \as Product;
+\import vector_bundles.Bundles[].Over[K := C.Complex, field := Scalars.field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Bundles;
+\import topological_k_theory.KTheory[].On[X := Shifted.Carrier, baseSpace := Shifted.topology, compact := Shifted.productCompact, hausdorff := Shifted.productHausdorff] \as K;
+\import K.K0[] \as K0;
+\import K.Bundle[F := Shifted.Fiber, original := Shifted.bundle, same := \refl(Shifted.topology)] \as ShiftedClass;
+\import K.Bundle[F := Stable.NormalFiber, original := Stable.normalBundle, same := \refl(Shifted.topology)] \as NormalClass;
+\import K.Trivial[n := n] \as Rank;
+\import K.Trivial[n := Coordinates.dimension form.order] \as Extra;
+\import K.Trivial[n := Coordinates.dimension degree] \as Total;
+\import Bundles.Trivial[X := Shifted.Carrier, n := Coordinates.dimension form.order, baseSpace := Shifted.topology] \as ExtraBundle;
+\import K.Sum[F := Shifted.Fiber, G := (\fun (_: Shifted.Carrier) => Bundles.Vector (Coordinates.dimension form.order)), left := Shifted.bundle, right := ExtraBundle.bundle,
+  leftSame := \refl(Shifted.topology), rightSame := \refl(Shifted.topology)] \as Sum;
+\import K.Compare[F := Stable.SumFiber, G := Stable.NormalFiber, first := Stable.sumBundle, second := Stable.normalBundle,
+  firstSame := \refl(Shifted.topology), secondSame := \refl(Shifted.topology)] \as Compare;
+\definition positive: K.Addition[].add ShiftedClass.value Extra.value = NormalClass.value :=
+  trans!{K.Classes} _ _ _ Sum.onBundles (Compare.ofExists Stable.isomorphismExists);
+\import \root.Linearization[].On[X := Shifted.Carrier, source := Shifted.topology, compact := Shifted.productCompact, hausdorff := Shifted.productHausdorff].TrivialSum[n := n, m := Coordinates.dimension form.order] \as Ranks;
+\definition negative: K.Addition[].add Rank.value Extra.value = Total.value := Ranks.additivity;
+\import algebra.Group[].Of[Carrier := K0.Carrier, group := K0.group] \as Group;
+\definition cancelExtra: K0.difference (K.Addition[].add ShiftedClass.value Extra.value) (K.Addition[].add Rank.value Extra.value) = Correction.shiftedClass :=
+  trans!{K0.Carrier} _ _ _
+    (congr!{K0.Carrier K0.Carrier K0.Carrier} Group.difference _ _ _ _ (K0.includeAdd ShiftedClass.value Extra.value) (K0.includeAdd Rank.value Extra.value))
+    (trans!{K0.Carrier} _ _ _ (Group.differenceAdd (K0.include ShiftedClass.value) (K0.include Extra.value) (K0.include Rank.value) (K0.include Extra.value))
+      (trans!{K0.Carrier} _ _ _ (congr!{K0.Carrier K0.Carrier} (K0.add Correction.shiftedClass) _ _ (Group.inverseRight (K0.include Extra.value))) (Group.zeroRight Correction.shiftedClass)));
+\definition normalComparison: Correction.shiftedClass = Product.reducedClass :=
+  trans!{K0.Carrier} _ _ _ (sym!{K0.Carrier} _ _ cancelExtra)
+    (congr!{K.Classes K.Classes K0.Carrier} K0.difference _ _ _ _ positive negative);
+\definition lineDifference: K0.Carrier := Product.lineDifference;
+\definition imageClass: K0.Carrier := Product.imageClass;
+\definition shiftedProduct: Correction.shiftedClass = K0.mul lineDifference imageClass :=
+  trans!{K0.Carrier} _ _ _ normalComparison Product.productFormula;
+\definition correctedProduct: Correction.originalClass = Group.difference (K0.mul lineDifference imageClass) (K0.mul lineDifference (K0.include Correction.removed)) :=
+  trans!{K0.Carrier} _ _ _ (sym!{K0.Carrier} _ _ Correction.correction)
+    (congr!{K0.Carrier K0.Carrier} (\fun (v: K0.Carrier) => Group.difference v (K0.mul lineDifference (K0.include Correction.removed))) _ _ shiftedProduct);
+\module Pullback;

@@ -1,0 +1,119 @@
+\import algebra.LaurentPolynomial[].Over[R := K, coefficients := coefficients] \as L;
+\import algebra.Polynomial[].Over[R := K, coefficients := coefficients] \as P;
+\import linear_algebra.Commutative[K := L.Carrier, scalarRing := L.ring] \as Laws;
+\import Laws.Sign[] \as Sign;
+\import algebra.Group[].Of[Carrier := L.Carrier, group := Rings.additiveGroup L.Carrier (Rings.commutativeRingAsRing L.Carrier L.ring)] \as Additive;
+\import P.Universal[K := L.Carrier, target := L.ring] \as Evaluation;
+\import algebra.Hom[A := P.Carrier, B := L.Carrier] \as Hom;
+\definition embedding: Hom.RingMap (Rings.commutativeRingAsRing P.Carrier P.ring) (Rings.commutativeRingAsRing L.Carrier L.ring) := Evaluation.extension L.coefficientMap L.X;
+\definition embed: P.Carrier -> L.Carrier := embedding;
+\definition embeddingLaws: Hom.SemiringLaws[(Rings.ringAsSemiring P.Carrier (Rings.commutativeRingAsRing P.Carrier P.ring)), (Rings.ringAsSemiring L.Carrier (Rings.commutativeRingAsRing L.Carrier L.ring)), embed] := Hom.semiringLaws _ _ embedding;
+\definition embedConstant: \forall (a: K) -> embed (P.constant a) = L.constant a := Evaluation.constants L.coefficientMap L.X;
+\definition embedVariable: embed P.X = L.X := Evaluation.variable L.coefficientMap L.X;
+\definition embedNegative: \forall (p: P.Carrier) -> embed (P.neg p) = L.neg (embed p) :=
+  \fun (p: P.Carrier) => Additive.inverseUnique (embed p) (embed (P.neg p))
+    (eq_reason_in!{L.Carrier _
+      "=" { embed (P.add (P.neg p) p) } "by" { sym!{L.Carrier} _ _ (embeddingLaws.add (P.neg p) p) }
+      "=" { embed P.zero } "by" { congr!{P.Carrier L.Carrier} embed _ _ (P.ring.ring.additiveInverse p) }
+      "=" L.zero "by" { embeddingLaws.zero }
+    });
+\import N.Basic[].Def[] \as Nat;
+\definition power: N.Nat^ -> L.Carrier := \induction (n: N.Nat^) \return L.Carrier \with {
+  | zero: L.one
+  | succ: \fun (n: N.Nat^)(previous: L.Carrier) => L.mul L.X previous
+};
+\definition polynomialPower: N.Nat^ -> P.Carrier := \induction (n: N.Nat^) \return P.Carrier \with {
+  | zero: P.one
+  | succ: \fun (n: N.Nat^)(previous: P.Carrier) => P.mul P.X previous
+};
+\definition embedPower: \forall (n: N.Nat^) -> embed (polynomialPower n) = power n :=
+  \induction (n: N.Nat^) \return embed (polynomialPower n) = power n \with {
+    | zero: embeddingLaws.one
+    | succ: \fun (n: N.Nat^)(previous: _) => trans!{L.Carrier} _ _ _ (embeddingLaws.mul P.X (polynomialPower n))
+      (congr!{L.Carrier L.Carrier L.Carrier} L.mul _ _ _ _ embedVariable previous)
+  };
+\definition powerAddition: \forall (n, m: N.Nat^) -> power (Nat.add n m) = L.mul (power n) (power m) :=
+  \fun (n: N.Nat^) => \induction (m: N.Nat^) \return power (Nat.add n m) = L.mul (power n) (power m) \with {
+    | zero: sym!{L.Carrier} _ _ (Laws.mulOneRight (power n))
+    | succ: \fun (m: N.Nat^)(previous: _) => eq_reason_in!{L.Carrier _
+      "=" { L.mul L.X (L.mul (power n) (power m)) } "by" { congr!{L.Carrier L.Carrier} (L.mul L.X) _ _ previous }
+      "=" { L.mul (L.mul L.X (power n)) (power m) } "by" { sym!{L.Carrier} _ _ (Laws.mulAssoc L.X (power n) (power m)) }
+      "=" { L.mul (L.mul (power n) L.X) (power m) } "by" { congr!{L.Carrier L.Carrier} (\fun (a: L.Carrier) => L.mul a (power m)) _ _ (Laws.mulComm L.X (power n)) }
+      "=" { L.mul (power n) (power (N.Nat^::succ m)) } "by" { Laws.mulAssoc (power n) L.X (power m) }
+    }
+  };
+\definition advanceLeft: \forall (n, m: N.Nat^)(p: L.Carrier) -> L.mul (power (Nat.add n m)) p = L.mul (power n) (L.mul (power m) p) :=
+  \fun (n, m: N.Nat^)(p: L.Carrier) => trans!{L.Carrier} _ _ _ (congr!{L.Carrier L.Carrier} (\fun (a: L.Carrier) => L.mul a p) _ _ (powerAddition n m)) (Laws.mulAssoc (power n) (power m) p);
+\definition advanceRight: \forall (n, m: N.Nat^)(p: L.Carrier) -> L.mul (power (Nat.add n m)) p = L.mul (power m) (L.mul (power n) p) :=
+  \fun (n, m: N.Nat^)(p: L.Carrier) => eq_reason_in!{L.Carrier _
+    "=" { L.mul (L.mul (power n) (power m)) p } "by" { congr!{L.Carrier L.Carrier} (\fun (a: L.Carrier) => L.mul a p) _ _ (powerAddition n m) }
+    "=" { L.mul (L.mul (power m) (power n)) p } "by" { congr!{L.Carrier L.Carrier} (\fun (a: L.Carrier) => L.mul a p) _ _ (Laws.mulComm (power n) (power m)) }
+    "=" { L.mul (power m) (L.mul (power n) p) } "by" { Laws.mulAssoc (power m) (power n) p }
+  };
+\structure Form[p: L.Carrier]: \Set := {
+  shift: N.Nat^,
+  polynomial: P.Carrier,
+  equation: L.mul (power shift) p = embed polynomial,
+};
+\definition constantForm[a: K]: Form[L.constant a] := Form[L.constant a] {
+  shift := N.Nat^::zero, polynomial := P.constant a,
+  equation := trans!{L.Carrier} _ _ _ (Laws.mulOneLeft (L.constant a)) (sym!{L.Carrier} _ _ (embedConstant a)),
+};
+\definition variableForm: Form[L.X] := Form[L.X] {
+  shift := N.Nat^::zero, polynomial := P.X,
+  equation := trans!{L.Carrier} _ _ _ (Laws.mulOneLeft L.X) (sym!{L.Carrier} _ _ embedVariable),
+};
+\definition inverseForm: Form[L.inverseX] := Form[L.inverseX] {
+  shift := N.Nat^::succ N.Nat^::zero, polynomial := P.one,
+  equation := eq_reason_in!{L.Carrier _
+    "=" { L.mul L.X L.inverseX } "by" { congr!{L.Carrier L.Carrier} (\fun (a: L.Carrier) => L.mul a L.inverseX) _ _ (Laws.mulOneRight L.X) }
+    "=" L.one "by" L.inverse
+    "=" { embed P.one } "by" { sym!{L.Carrier} _ _ embeddingLaws.one }
+  },
+};
+\module Combining(p, q: L.Carrier, first: Form[p], second: Form[q]);
+\definition negative[p: L.Carrier][first: Form[p]]: Form[L.neg p] := Form[L.neg p] {
+  shift := first.shift, polynomial := P.neg first.polynomial,
+  equation := eq_reason_in!{L.Carrier _
+    "=" { L.neg (L.mul (power first.shift) p) } "by" { sym!{L.Carrier} _ _ (Sign.negativeProductRight (power first.shift) p) }
+    "=" { L.neg (embed first.polynomial) } "by" { congr!{L.Carrier L.Carrier} L.neg _ _ first.equation }
+    "=" { embed (P.neg first.polynomial) } "by" { sym!{L.Carrier} _ _ (embedNegative first.polynomial) }
+  },
+};
+\definition exists: \forall (p: L.Carrier) -> \exists Form[p] := L.induction (\fun (p: L.Carrier) => \exists Form[p])
+  (\fun (a: K) => \exact(constantForm a, Form[L.constant a])) (\exact(variableForm, Form[L.X])) (\exact(inverseForm, Form[L.inverseX]))
+  (\block {
+    \fun (p, q: L.Carrier)(hp: _)(hq: _) \then
+    \takefrom first: Form[p] \by hp \then
+    \takefrom second: Form[q] \by hq \then
+    \return \exact(Combining[p := p, q := q, first := first, second := second].sum, Form[L.add p q])
+  })
+  (\block {
+    \fun (p: L.Carrier)(hp: _) \then
+    \takefrom first: Form[p] \by hp \then
+    \return \exact(negative p first, Form[L.neg p])
+  })
+  (\block {
+    \fun (p, q: L.Carrier)(hp: _)(hq: _) \then
+    \takefrom first: Form[p] \by hp \then
+    \takefrom second: Form[q] \by hq \then
+    \return \exact(Combining[p := p, q := q, first := first, second := second].product, Form[L.mul p q])
+  });
+\import P.Finite[] \as Finite;
+\structure FiniteForm[p: L.Carrier]: \Set := {
+  shift: N.Nat^,
+  terms: Finite.Coefficients,
+  equation: L.mul (power shift) p = embed (Finite.asPolynomial terms),
+};
+\definition finiteExists: \forall (p: L.Carrier) -> \exists FiniteForm[p] := \block {
+  \fun (p: L.Carrier) \then
+  \takefrom form: Form[p] \by exists p \then
+  \takefrom terms: Finite.Of form.polynomial \by Finite.exists form.polynomial \then
+  \return \exact(FiniteForm[p] {
+    shift := form.shift, terms := terms,
+    equation := trans!{L.Carrier} _ _ _ form.equation
+      (congr!{P.Carrier L.Carrier} embed _ _ (sym!{P.Carrier} _ _ (\bysub(Finite.Coefficients, Finite.Of form.polynomial, terms)))),
+  }, FiniteForm[p])
+};
+\import std.Data[].FinSet[] \as Fin;
+\module Matrices(n, m: N.Nat^, p: Fin.Fin n -> Fin.Fin m -> L.Carrier);

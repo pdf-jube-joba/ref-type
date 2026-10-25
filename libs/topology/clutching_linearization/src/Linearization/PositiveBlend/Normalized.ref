@@ -1,0 +1,42 @@
+\import topological_algebra.Complex[] \as Plane;
+\import Plane.Functions[A := Time.Carrier] \as Functions;
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Scalars.field, scalar := linear_algebra.Hermitian[].Complex[].scalar,
+  topological := hermitian_frames.Hermitian[].Complex[].topological] \as Hermitian;
+\import algebra.Group[].Of[Carrier := C.Complex, group := Scalars.additiveGroup] \as Group;
+\definition clock[t: Time.Carrier]: C.Complex := C.Def[].ofReal t;
+\definition complement[t: Time.Carrier]: C.Complex := C.Def[].sub C.Def[].one (clock t);
+\definition leftNumerator[t: Time.Carrier]: C.Complex := C.Def[].mul (complement t) (C.Def[].ofReal a);
+\definition rightNumerator[t: Time.Carrier]: C.Complex := C.Def[].mul (clock t) (C.Def[].ofReal b);
+\definition left[t: Time.Carrier]: C.Complex := C.Def[].mul (C.Def[].inv (scalar t)) (leftNumerator t);
+\definition right[t: Time.Carrier]: C.Complex := C.Def[].mul (C.Def[].inv (scalar t)) (rightNumerator t);
+\definition clockRegular: topology.Continuity[A := Time.Carrier, B := C.Complex].Continuous Time.topology Plane.topology clock := Hermitian.Functions[X := Time.Carrier].embedding Time.topology (\fun (t: Time.Carrier) => t) Time.inclusionContinuous;
+\definition complementRegular: topology.Continuity[A := Time.Carrier, B := C.Complex].Continuous Time.topology Plane.topology complement := Functions.additionContinuous Time.topology _ _
+  (topology.Maps[A := Time.Carrier, B := C.Complex].constantContinuous Time.topology Plane.topology C.Def[].one) (Functions.negationContinuous Time.topology clock clockRegular);
+\definition scalarRegular: topology.Continuity[A := Time.Carrier, B := C.Complex].Continuous Time.topology Plane.topology scalar := Hermitian.Functions[X := Time.Carrier].embedding Time.topology value continuous;
+\definition leftRegular: topology.Continuity[A := Time.Carrier, B := C.Complex].Continuous Time.topology Plane.topology left := Functions.multiplicationContinuous Time.topology _ _
+  (Functions.inverseContinuous Time.topology scalar scalarRegular nonzero)
+  (Functions.multiplicationContinuous Time.topology _ _ complementRegular (topology.Maps[A := Time.Carrier, B := C.Complex].constantContinuous Time.topology Plane.topology (C.Def[].ofReal a)));
+\definition rightRegular: topology.Continuity[A := Time.Carrier, B := C.Complex].Continuous Time.topology Plane.topology right := Functions.multiplicationContinuous Time.topology _ _
+  (Functions.inverseContinuous Time.topology scalar scalarRegular nonzero)
+  (Functions.multiplicationContinuous Time.topology _ _ clockRegular (topology.Maps[A := Time.Carrier, B := C.Complex].constantContinuous Time.topology Plane.topology (C.Def[].ofReal b)));
+\definition scalarStart: scalar Time.start = C.Def[].ofReal a := congr!{{R.Real} {C.Complex}} C.Def[].ofReal _ _ atStart;
+\definition scalarEnd: scalar Time.end = C.Def[].ofReal b := congr!{{R.Real} {C.Complex}} C.Def[].ofReal _ _ atEnd;
+\definition nonzeroA: C.Def[].NonZero (C.Def[].ofReal a) := \fun (zero: _) => nonzero Time.start (trans!{{C.Complex}} _ _ _ scalarStart zero);
+\definition nonzeroB: C.Def[].NonZero (C.Def[].ofReal b) := \fun (zero: _) => nonzero Time.end (trans!{{C.Complex}} _ _ _ scalarEnd zero);
+\definition complementStart: complement Time.start = C.Def[].one := trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (C.Def[].add C.Def[].one) _ _ Group.negZero) (C.Prop[].addZeroRight C.Def[].one);
+\definition complementEnd: complement Time.end = C.Def[].zero := C.Prop[].subSelf C.Def[].one;
+\definition leftStart: left Time.start = C.Def[].one := trans!{{C.Complex}} _ _ _
+  (congr!{{C.Complex} {C.Complex} {C.Complex}} (\fun (s, u: C.Complex) => C.Def[].mul (C.Def[].inv s) (C.Def[].mul u (C.Def[].ofReal a))) _ _ _ _ scalarStart complementStart)
+  (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (C.Def[].mul (C.Def[].inv (C.Def[].ofReal a))) _ _ (C.Prop[].mulOneLeft (C.Def[].ofReal a))) (C.Prop[].inverseNonzero (C.Def[].ofReal a) nonzeroA));
+\definition rightStart: right Time.start = C.Def[].zero := trans!{{C.Complex}} _ _ _
+  (congr!{{C.Complex} {C.Complex}} (C.Def[].mul (C.Def[].inv (scalar Time.start))) _ _ (C.Prop[].mulZeroLeft (C.Def[].ofReal b))) (C.Prop[].mulZeroRight (C.Def[].inv (scalar Time.start)));
+\definition leftEnd: left Time.end = C.Def[].zero := trans!{{C.Complex}} _ _ _
+  (congr!{{C.Complex} {C.Complex}} (C.Def[].mul (C.Def[].inv (scalar Time.end))) _ _ (trans!{{C.Complex}} _ _ _
+    (congr!{{C.Complex} {C.Complex}} (\fun (u: C.Complex) => C.Def[].mul u (C.Def[].ofReal a)) _ _ complementEnd) (C.Prop[].mulZeroLeft (C.Def[].ofReal a))))
+  (C.Prop[].mulZeroRight (C.Def[].inv (scalar Time.end)));
+\definition rightEnd: right Time.end = C.Def[].one := trans!{{C.Complex}} _ _ _
+  (congr!{{C.Complex} {C.Complex}} (\fun (s: C.Complex) => C.Def[].mul (C.Def[].inv s) (C.Def[].mul C.Def[].one (C.Def[].ofReal b))) _ _ scalarEnd)
+  (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (C.Def[].mul (C.Def[].inv (C.Def[].ofReal b))) _ _ (C.Prop[].mulOneLeft (C.Def[].ofReal b))) (C.Prop[].inverseNonzero (C.Def[].ofReal b) nonzeroB));
+\definition restore: \forall (t: Time.Carrier)(u: C.Complex) -> C.Def[].mul (scalar t) (C.Def[].mul (C.Def[].inv (scalar t)) u) = u :=
+  \fun (t: Time.Carrier)(u: C.Complex) => trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (C.Prop[].mulAssoc (scalar t) (C.Def[].inv (scalar t)) u))
+    (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (\fun (s: C.Complex) => C.Def[].mul s u) _ _ (C.Prop[].inverseNonzeroRight (scalar t) (nonzero t))) (C.Prop[].mulOneLeft u));

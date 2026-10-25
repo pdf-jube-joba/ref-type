@@ -1,0 +1,23 @@
+\definition backwardIntertwines: \forall (x: X)(w: W.Vector) -> (iso x).backward.apply ((MB.linear (B x)).apply w) = (MA.linear (A x)).apply ((iso x).backward.apply w) :=
+  \fun (x: X)(w: W.Vector) => Iso.injective (iso x) _ _
+    (trans!{W.Vector} _ _ _ ((Iso.laws (iso x)).rightInverse ((MB.linear (B x)).apply w))
+      (sym!{W.Vector} _ _ (trans!{W.Vector} _ _ _ (intertwines x ((iso x).backward.apply w))
+        (congr!{W.Vector W.Vector} (MB.linear (B x)).apply _ _ ((Iso.laws (iso x)).rightInverse w)))));
+\definition natural: \forall (x: X)(v: V.Vector) -> (iso x).forward.apply ((Native.projection x).apply v) = (OtherNative.projection x).apply ((iso x).forward.apply v) :=
+  \fun (x: X) => spectral_splitting.Spectral[].Comparison[n := n, m := m, A := A x, B := B x, sourceOff := off x, targetOff := offB x].natural
+    (spectral_splitting.Spectral[].Intertwining[V := V.Vector, W := W.Vector, source := V.space, destination := W.space, S := MA.linear (A x), T := MB.linear (B x)].ofLinear (iso x).forward (intertwines x));
+\definition backwardNatural: \forall (x: X)(w: W.Vector) -> (iso x).backward.apply ((OtherNative.projection x).apply w) = (Native.projection x).apply ((iso x).backward.apply w) :=
+  \fun (x: X) => spectral_splitting.Spectral[].Comparison[n := m, m := n, A := B x, B := A x, sourceOff := offB x, targetOff := off x].natural
+    (spectral_splitting.Spectral[].Intertwining[V := W.Vector, W := V.Vector, source := W.space, destination := V.space, S := MB.linear (B x), T := MA.linear (A x)].ofLinear (iso x).backward (backwardIntertwines x));
+\import \root.Linearization[].ProjectionBundle[n := n, X := X, source := source, P := Image.idempotent, regular := Native.projectionRegular].Into[m := m, Q := OtherImage.idempotent, regularQ := OtherNative.projectionRegular].With[h := (\fun (x: X) => (iso x).forward), regularH := regularForward, commutes := natural] \as Forward;
+\import \root.Linearization[].ProjectionBundle[n := m, X := X, source := source, P := OtherImage.idempotent, regular := OtherNative.projectionRegular].Into[m := n, Q := Image.idempotent, regularQ := Native.projectionRegular].With[h := (\fun (x: X) => (iso x).backward), regularH := regularBackward, commutes := backwardNatural] \as Backward;
+\definition isomorphism: Bundles.Isomorphisms[X := X, F := Fiber, G := Other.Fiber, source := bundle, target := Other.bundle].Isomorphism :=
+  Bundles.Isomorphisms[X := X, F := Fiber, G := Other.Fiber, source := bundle, target := Other.bundle].Isomorphism {
+    forward := Forward.map, backward := Backward.map,
+    leftInverse := \fun (x: X)(v: Fiber x) => (Iso.laws (iso x)).leftInverse v,
+    rightInverse := \fun (x: X)(w: Other.Fiber x) => (Iso.laws (iso x)).rightInverse w,
+  };
+\import K.Bundle[F := Other.Fiber, original := Other.bundle, same := \refl(source)] \as OtherClass;
+\definition classEquality: Inside.value = OtherClass.value :=
+  K.Compare[F := Fiber, G := Other.Fiber, first := bundle, second := Other.bundle, firstSame := \refl(source), secondSame := \refl(source)].ofIsomorphism isomorphism;
+\definition invariant: value = Other.value := congr!{K.Classes {K.K0[].Carrier}} (\fun (c: K.Classes) => K.K0[].difference c Removed.value) _ _ classEquality;

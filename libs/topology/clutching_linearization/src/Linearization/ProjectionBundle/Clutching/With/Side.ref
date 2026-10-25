@@ -1,0 +1,20 @@
+\import \root.Linearization[].ChartTrivialization[X := X, F := LineFiber, bundle := lineBundle, c := Line.chart i] \as Chart;
+\import TensorConstruction.Restriction[U := LineBase.domain i, openU := openDomains i] \as ProductRestriction;
+\import Bundles.Family[X := X, F := LineFiber].Of[bundle := lineBundle].Restriction[U := LineBase.domain i] \as LineRestriction;
+\import Bundles.Trivial[X := Chart.BasePoint, n := LineCoordinates.one, baseSpace := Chart.source] \as Coordinates;
+\import Operations.ScalarLine[X := Chart.BasePoint, baseSpace := Chart.source] \as Scalar;
+\import Operations.IsomorphismComposition[X := Chart.BasePoint, F := (\fun (x: Chart.BasePoint) => LineFiber x),
+  G := (\fun (_: Chart.BasePoint) => Bundles.Vector LineCoordinates.one), H := (\fun (_: Chart.BasePoint) => C.Complex),
+  source := LineRestriction.restricted, middle := Coordinates.bundle, target := Scalar.bundle] \as Compose;
+\definition lineFrame: ProductRestriction.Frame := Compose.compose Chart.isomorphism Scalar.coordinateIsomorphism;
+\import ProductRestriction.In[frame := lineFrame] \as Framed;
+\definition chart: Bundles.Family[X := X, F := ProductFiber].With[data := productBundle].Chart := Framed.trivialization;
+\definition unit[x: Chart.BasePoint]: LineFiber x := Framed.unit x;
+\definition forwardPure: \forall (x: Chart.BasePoint)(l: LineFiber x)(v: ImageFiber x)(w: ComplementFiber x) ->
+  (chart.frame x).forward.apply (Pair.pair (TensorConstruction.TensorFiber x) (ComplementFiber x)
+    (Operations.Tensor[X := X, F := LineFiber, G := ImageFiber, left := lineBundle, right := imageBundle].pure x l v) w) =
+    Vectors.plus (Vectors.scale ((lineFrame.forward.fiber x).apply l) v) w := Framed.forwardPure;
+\definition backwardFormula: \forall (x: Chart.BasePoint)(v: M.Vector) -> (chart.frame x).backward.apply v =
+  Pair.pair (TensorConstruction.TensorFiber x) (ComplementFiber x)
+    (Operations.Tensor[X := X, F := LineFiber, G := ImageFiber, left := lineBundle, right := imageBundle].pure x (unit x) ((Image.projectMap.fiber x).apply v))
+    ((Other.projectMap.fiber x).apply v) := Framed.backwardFormula;

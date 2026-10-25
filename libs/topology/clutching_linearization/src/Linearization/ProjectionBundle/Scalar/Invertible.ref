@@ -1,0 +1,27 @@
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Scalars.field, scalar := linear_algebra.Hermitian[].Complex[].scalar,
+  topological := hermitian_frames.Hermitian[].Complex[].topological].Functions[X := X] \as Functions;
+\definition reciprocal[x: X]: C.Complex := C.Def[].inv (a x);
+\definition reciprocalContinuous: topology.Continuity[A := X, B := C.Complex].Continuous source topological_algebra.Complex[].topology reciprocal :=
+  Functions.inversion source a continuous nonzero;
+\import \root.Linearization[].ProjectionBundle[n := n, X := X, source := source, P := P, regular := regular].Scalar[
+  a := reciprocal, continuous := reciprocalContinuous] \as OtherScalar;
+\definition leftInverse: \forall (x: X)(v: M.Vector) -> (OtherScalar.map.fiber x).apply ((map.fiber x).apply v) = v :=
+  \fun (x: X)(v: M.Vector) => trans!{M.Vector} _ _ _ (OtherScalar.formula x ((map.fiber x).apply v))
+    (trans!{M.Vector} _ _ _
+      (congr!{M.Vector M.Vector} (\root.Linearization[].ProjectionLoop[n := n, projection := P x].loop (reciprocal x)).apply _ _ (formula x v))
+      (\root.Linearization[].ProjectionLoop[n := n, projection := P x].inverse (a x) (nonzero x) v));
+\definition rightInverse: \forall (x: X)(v: M.Vector) -> (map.fiber x).apply ((OtherScalar.map.fiber x).apply v) = v :=
+  \fun (x: X)(v: M.Vector) => trans!{M.Vector} _ _ _ (formula x ((OtherScalar.map.fiber x).apply v))
+    (trans!{M.Vector} _ _ _
+      (congr!{M.Vector M.Vector} (\root.Linearization[].ProjectionLoop[n := n, projection := P x].loop (a x)).apply _ _ (OtherScalar.formula x v))
+      (\root.Linearization[].ProjectionLoop[n := n, projection := P x].rightInverse (a x) (nonzero x) v));
+\definition isomorphism: Bundles.Isomorphisms[X := X, F := (\fun (_: X) => M.Vector), G := (\fun (_: X) => M.Vector), source := Ambient.bundle, target := Ambient.bundle].Isomorphism :=
+  Bundles.Isomorphisms[X := X, F := (\fun (_: X) => M.Vector), G := (\fun (_: X) => M.Vector), source := Ambient.bundle, target := Ambient.bundle].Isomorphism {
+    forward := map, backward := OtherScalar.map, leftInverse := leftInverse, rightInverse := rightInverse
+  };
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := Scalars.field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].Projections[n := n].Operators[].Units[] \as Units;
+\import Units.FromIsomorphism[X := X, baseSpace := source, iso := isomorphism] \as Unit;
+\definition unit: X -> Units.Carrier := Unit.value;
+\definition unitContinuous: topology.Continuity[A := X, B := Units.Carrier].Continuous source Units.topology unit := Unit.continuous;
+\definition unitFormula: \forall (x: X)(v: M.Vector) -> (unit x).apply v = (\root.Linearization[].ProjectionLoop[n := n, projection := P x].loop (a x)).apply v := formula;

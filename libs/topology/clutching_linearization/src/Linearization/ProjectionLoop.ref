@@ -1,0 +1,44 @@
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := n] \as M;
+\import Spaces.Coordinates[I := M.Index] \as Vectors;
+\import Spaces.Linear[V := M.Vector, W := M.Vector, source := Vectors.space, target := Vectors.space] \as End;
+\import Spaces.Laws[V := M.Vector, space := Vectors.space] \as Values;
+\import spectral_splitting.Spectral[].At[n := n].Idempotent[P := projection.map, idempotent := projection.idempotent] \as Complement;
+\definition loop[z: C.Complex]: End.Map := End.Operations[].plus (End.Operations[].scale z projection.map) Complement.complementMap;
+\definition onImage: \forall (z: C.Complex)(v: M.Vector) -> (loop z).apply (projection.map.apply v) = Vectors.scale z (projection.map.apply v) :=
+  \fun (z: C.Complex)(v: M.Vector) => trans!{M.Vector} _ _ _
+    (congr!{M.Vector M.Vector M.Vector} Vectors.plus _ _ _ _
+      (congr!{M.Vector M.Vector} (Vectors.scale z) _ _ (projection.idempotent v)) (Complement.annihilatesRight v))
+    (Values.zeroRight (Vectors.scale z (projection.map.apply v)));
+\definition onComplement: \forall (z: C.Complex)(v: M.Vector) -> (loop z).apply (Complement.complementMap.apply v) = Complement.complementMap.apply v :=
+  \fun (z: C.Complex)(v: M.Vector) => trans!{M.Vector} _ _ _
+    (congr!{M.Vector M.Vector M.Vector} Vectors.plus _ _ _ _
+      (trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector} (Vectors.scale z) _ _ (Complement.annihilates v)) (Values.scaleZero z))
+      (Complement.complementIdempotent v))
+    (Values.zeroLeft (Complement.complementMap.apply v));
+\definition onSplit: \forall (z: C.Complex)(v, w: M.Vector) ->
+  (loop z).apply (Vectors.plus (projection.map.apply v) (Complement.complementMap.apply w)) =
+    Vectors.plus (Vectors.scale z (projection.map.apply v)) (Complement.complementMap.apply w) :=
+  \fun (z: C.Complex)(v, w: M.Vector) => trans!{M.Vector} _ _ _
+    ((loop z).preservesAdd (projection.map.apply v) (Complement.complementMap.apply w))
+    (congr!{M.Vector M.Vector M.Vector} Vectors.plus _ _ _ _ (onImage z v) (onComplement z w));
+\definition product: \forall (z, w: C.Complex)(v: M.Vector) -> (loop z).apply ((loop w).apply v) = (loop (C.Def[].mul z w)).apply v :=
+  \fun (z, w: C.Complex)(v: M.Vector) => trans!{M.Vector} _ _ _
+    ((loop z).preservesAdd (Vectors.scale w (projection.map.apply v)) (Complement.complementMap.apply v))
+    (congr!{M.Vector M.Vector M.Vector} Vectors.plus _ _ _ _
+      (trans!{M.Vector} _ _ _ ((loop z).preservesScale w (projection.map.apply v))
+        (trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector} (Vectors.scale w) _ _ (onImage z v))
+          (trans!{M.Vector} _ _ _ (Values.scaleComm w z (projection.map.apply v))
+            (sym!{M.Vector} _ _ (Vectors.space.scalarAssoc z w (projection.map.apply v))))))
+      (onComplement z v));
+\definition identity: \forall (v: M.Vector) -> (loop C.Def[].one).apply v = v :=
+  \fun (v: M.Vector) => trans!{M.Vector} _ _ _
+    (congr!{M.Vector M.Vector} (\fun (u: M.Vector) => Vectors.plus u (Complement.complementMap.apply v)) _ _ (Vectors.space.scalarOne (projection.map.apply v)))
+    (Complement.splitting v);
+\definition inverse: \forall (z: C.Complex) -> C.Def[].NonZero z -> \forall (v: M.Vector) -> (loop (C.Def[].inv z)).apply ((loop z).apply v) = v :=
+  \fun (z: C.Complex)(nonzero: _)(v: M.Vector) => trans!{M.Vector} _ _ _ (product (C.Def[].inv z) z v)
+    (trans!{M.Vector} _ _ _ (congr!{{C.Complex} M.Vector} (\fun (a: C.Complex) => (loop a).apply v) _ _ (C.Prop[].inverseNonzero z nonzero)) (identity v));
+\definition rightInverse: \forall (z: C.Complex) -> C.Def[].NonZero z -> \forall (v: M.Vector) -> (loop z).apply ((loop (C.Def[].inv z)).apply v) = v :=
+  \fun (z: C.Complex)(nonzero: _)(v: M.Vector) => trans!{M.Vector} _ _ _ (product z (C.Def[].inv z) v)
+    (trans!{M.Vector} _ _ _ (congr!{{C.Complex} M.Vector} (\fun (a: C.Complex) => (loop a).apply v) _ _
+      (trans!{{C.Complex}} _ _ _ (C.Prop[].mulComm z (C.Def[].inv z)) (C.Prop[].inverseNonzero z nonzero))) (identity v));
+\module Weighted(z, w: C.Complex, nonzeroZ: C.Def[].NonZero z, nonzeroW: C.Def[].NonZero w);

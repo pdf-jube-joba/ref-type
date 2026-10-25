@@ -1,0 +1,44 @@
+\import std.Data[].FinSet[] \as Fin;
+\import \root.Linearization[].Coordinates[n := n] \as Coordinates;
+\import Coordinates.At[d := d] \as Frame;
+\import Coordinates.Families[X := Y, source := source] \as Families;
+\definition Carrier: \Set := Coordinates.Carrier d;
+\import Spaces.Linear[V := Carrier, W := Carrier, source := Coordinates.space d, target := Coordinates.space d] \as End;
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := Coordinates.dimension d] \as M;
+\import M.Representation[] \as Representation;
+\import Spaces.Coordinates[I := M.Index] \as Flat;
+\import Spaces.Linear[V := Flat.Vector, W := Flat.Vector, source := Flat.space, target := Flat.space] \as FlatEnd;
+\import Spaces.Linear[V := Carrier, W := Flat.Vector, source := Coordinates.space d, target := Flat.space] \as Forward;
+\import Spaces.FiniteCoordinates[n := Coordinates.dimension d] \as Basis;
+\import matrix_invariants.Topological[K := C.Complex, ring := topological_algebra.Complex[].Ring[].topologicalRing].At[n := Coordinates.dimension d].Families[X := Y] \as Top;
+\definition coordinateMap[f: End.Map]: FlatEnd.Map := Forward.Composition[U := Flat.Vector, domain := Flat.space].compose Frame.forward
+  (End.Composition[U := Flat.Vector, domain := Flat.space].compose f Frame.backward);
+\definition entries[f: End.Map]: M.Matrix := Representation.entries (coordinateMap f);
+\definition matrix[y: Y]: M.Matrix := entries (A y);
+\import End.Composition[U := Carrier, domain := Coordinates.space d] \as Composition;
+\import FlatEnd.Composition[U := Flat.Vector, domain := Flat.space] \as FlatComposition;
+\definition coordinateComposition: \forall (f, g: End.Map) -> FlatComposition.compose (coordinateMap f) (coordinateMap g) = coordinateMap (Composition.compose f g) :=
+  \fun (f, g: End.Map) => FlatEnd.ext _ _ (\axiom:funext((FlatComposition.compose (coordinateMap f) (coordinateMap g)).apply, (coordinateMap (Composition.compose f g)).apply,
+    \fun (v: Flat.Vector) => congr!{Carrier Flat.Vector} (\fun (w: Carrier) => Coordinates.flatten d (f.apply w)) _ _ (Coordinates.leftInverse d (g.apply (Coordinates.unflatten d v)))));
+\definition composition: \forall (f, g: End.Map) -> entries (Composition.compose f g) = M.product (entries f) (entries g) :=
+  \fun (f, g: End.Map) => trans!{M.Matrix} _ _ _
+    (congr!{FlatEnd.Map M.Matrix} Representation.entries _ _ (sym!{FlatEnd.Map} _ _ (coordinateComposition f g)))
+    (Representation.composition (coordinateMap f) (coordinateMap g));
+\definition coordinateAddition: \forall (f, g: End.Map) -> coordinateMap (End.Operations[].plus f g) = FlatEnd.Operations[].plus (coordinateMap f) (coordinateMap g) :=
+  \fun (f, g: End.Map) => FlatEnd.ext _ _ (\axiom:funext((coordinateMap (End.Operations[].plus f g)).apply, (FlatEnd.Operations[].plus (coordinateMap f) (coordinateMap g)).apply,
+    \fun (v: Flat.Vector) => Coordinates.addition d (f.apply (Coordinates.unflatten d v)) (g.apply (Coordinates.unflatten d v))));
+\definition coordinateScale: \forall (a: C.Complex)(f: End.Map) -> coordinateMap (End.Operations[].scale a f) = FlatEnd.Operations[].scale a (coordinateMap f) :=
+  \fun (a: C.Complex)(f: End.Map) => FlatEnd.ext _ _ (\axiom:funext((coordinateMap (End.Operations[].scale a f)).apply, (FlatEnd.Operations[].scale a (coordinateMap f)).apply,
+    \fun (v: Flat.Vector) => Coordinates.scalar d a (f.apply (Coordinates.unflatten d v))));
+\import Spaces.Eigen[V := Carrier, space := Coordinates.space d] \as Eigen;
+\import Spaces.Eigen[V := Flat.Vector, space := Flat.space] \as FlatEigen;
+\definition coordinateScalar: \forall (a: C.Complex) -> coordinateMap (Eigen.scalar a) = FlatEigen.scalar a :=
+  \fun (a: C.Complex) => FlatEnd.ext _ _ (\axiom:funext((coordinateMap (Eigen.scalar a)).apply, (FlatEigen.scalar a).apply,
+    \fun (v: Flat.Vector) => trans!{Flat.Vector} _ _ _ (Coordinates.scalar d a (Coordinates.unflatten d v))
+      (congr!{Flat.Vector Flat.Vector} (Flat.scale a) _ _ (Coordinates.rightInverse d v))));
+\definition formula: \forall (y: Y)(v: Flat.Vector) -> (M.linear (matrix y)).apply v = Coordinates.flatten d ((A y).apply (Coordinates.unflatten d v)) :=
+  \fun (y: Y)(v: Flat.Vector) => congr!{FlatEnd.Map Flat.Vector} (\fun (f: FlatEnd.Map) => f.apply v) _ _ (Representation.linearEntries (coordinateMap (A y)));
+\definition matrixRegular: Top.Regular source matrix := \fun (i, j: M.Index) => Families.flattenRegular d
+  (\fun (y: Y) => (A y).apply (Coordinates.unflatten d (Basis.vectors j))) (regular (Coordinates.unflatten d (Basis.vectors j))) i;
+\module WithInverse(B: Y -> End.Map, left: \forall (y: Y)(v: Carrier) -> (B y).apply ((A y).apply v) = v,
+  right: \forall (y: Y)(v: Carrier) -> (A y).apply ((B y).apply v) = v);

@@ -1,0 +1,18 @@
+\import Spaces.Linear[V := W.Vector, W := V.Vector, source := W.space, target := V.space] \as Rows;
+\module At(t: C.Complex) {
+  \import \root.Linearization[].SpectralTriangular[n := n, m := m, A := A, B := B, coupling := Rows.Operations[].scale t coupling, offA := offA, offB := offB] \as Native;
+  \definition matrix: M.Matrix := Native.matrix;
+  \definition off: spectral_splitting.Spectral[].At[n := total].Splitting[A := matrix].OffSpectrum := Native.off;
+}
+\import \root.Linearization[].SpectralSum[n := n, m := m, A := A, B := B, offA := offA, offB := offB] \as Diagonal;
+\import Spaces.FiniteCoordinates[n := total] \as Basis;
+\import Spaces.Laws[V := V.Vector, space := V.space] \as Values;
+\definition starts: At[t := C.Def[].zero].matrix = Diagonal.matrix := M.Operations[].ext _ _
+  (\fun (i, j: M.Index) => congr!{V.Vector {C.Complex}}
+    (\fun (v: V.Vector) => Coordinates.join (Sum.make v ((MB.linear B).apply (second.apply (Basis.vectors j)))) i) _ _
+    (trans!{V.Vector} _ _ _ (congr!{V.Vector V.Vector} (V.plus ((MA.linear A).apply (first.apply (Basis.vectors j)))) _ _ (Values.zeroScale (coupling.apply (second.apply (Basis.vectors j)))))
+      (Values.zeroRight ((MA.linear A).apply (first.apply (Basis.vectors j))))));
+\definition ends: At[t := C.Def[].one].matrix = matrix := M.Operations[].ext _ _
+  (\fun (i, j: M.Index) => congr!{V.Vector {C.Complex}}
+    (\fun (v: V.Vector) => Coordinates.join (Sum.make (V.plus ((MA.linear A).apply (first.apply (Basis.vectors j))) v) ((MB.linear B).apply (second.apply (Basis.vectors j)))) i) _ _
+    (V.space.scalarOne (coupling.apply (second.apply (Basis.vectors j)))));

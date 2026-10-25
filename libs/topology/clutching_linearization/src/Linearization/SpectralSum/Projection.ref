@@ -1,0 +1,15 @@
+\import spectral_splitting.Spectral[].At[n := total].Splitting[A := matrix].Separated[off := off] \as Total;
+\import spectral_splitting.Spectral[].At[n := n].Splitting[A := A].Separated[off := offA] \as LeftProjection;
+\import spectral_splitting.Spectral[].At[n := m].Splitting[A := B].Separated[off := offB] \as RightProjection;
+\import spectral_splitting.Spectral[].Comparison[n := total, m := n, A := matrix, B := A, sourceOff := off, targetOff := offA] \as LeftComparison;
+\import spectral_splitting.Spectral[].Comparison[n := total, m := m, A := matrix, B := B, sourceOff := off, targetOff := offB] \as RightComparison;
+\definition left: LeftComparison.Morphism := LeftComparison.Morphism {
+  apply := first.apply, zero := first.preservesZero, addition := first.preservesAdd, scalar := first.preservesScale, intertwines := leftAction,
+};
+\definition right: RightComparison.Morphism := RightComparison.Morphism {
+  apply := second.apply, zero := second.preservesZero, addition := second.preservesAdd, scalar := second.preservesScale, intertwines := rightAction,
+};
+\definition formula: \forall (v: Flat.Vector) -> Total.projection.apply v =
+  Coordinates.join (Sum.make (LeftProjection.projection.apply (first.apply v)) (RightProjection.projection.apply (second.apply v))) :=
+  \fun (v: Flat.Vector) => trans!{Flat.Vector} _ _ _ (sym!{Flat.Vector} _ _ ((Frames.laws Coordinates.isomorphism).rightInverse (Total.projection.apply v)))
+    (congr!{Sum.Carrier Flat.Vector} Coordinates.join _ _ (Pair.Prop[A := V.Vector, B := W.Vector].ext _ _ (LeftComparison.natural left v) (RightComparison.natural right v)));

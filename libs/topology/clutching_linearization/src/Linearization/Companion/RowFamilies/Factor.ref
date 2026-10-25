@@ -1,0 +1,19 @@
+\import \root.Linearization[].Companion[n := n, d := degree] \as Next;
+\import Spaces.Linear[V := Next.Carrier, W := Vectors.Vector, source := Next.space, target := Vectors.space] \as Rows;
+\definition newRows[x: X]: Rows.Map := \root.Linearization[].Companion[n := n, d := d].FromRow[row := rows x].Factor[r := r].newRow;
+\definition regularRows: \forall (v: Next.Carrier)(j: Fin.Fin n) -> topology.Continuity[A := X, B := C.Complex].Continuous source Plane.topology (\fun (x: X) => (newRows x).apply v j) :=
+  \fun (v: Next.Carrier)(j: Fin.Fin n) => Functions.additionContinuous source _ _
+    (regular (\fun (i: Fin.Fin degree) => v (Fin.succ degree i)) j)
+    (Functions.multiplicationContinuous source (\fun (_: X) => C.Def[].neg r) _
+      (topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology (C.Def[].neg r))
+      (Functions.additionContinuous source _ _ (regular (\fun (i: Fin.Fin degree) => v (Fin.widen degree i)) j)
+        (topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology (v Next.last j))));
+\import Next.RowFamilies[X := X, source := source, rows := newRows, regular := regularRows] \as Enlarged;
+\definition enlargedMatrix: X -> matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := Coordinates.dimension Next.degree].Matrix := Enlarged.matrix;
+\definition enlargedRegular: matrix_invariants.Topological[K := C.Complex, ring := Plane.Ring[].topologicalRing].At[n := Coordinates.dimension Next.degree].Families[X := X].Regular source enlargedMatrix := Enlarged.matrixRegular;
+\definition enlargedKernel:
+  (\forall (x: X)(z: C.Complex) -> C.Absolute[].abs z = R.one -> \forall (v: Vectors.Vector) -> (\root.Linearization[].Companion[n := n, d := d].FromRow[row := rows x].polynomial z).apply v = Vectors.origin -> v = Vectors.origin) ->
+  Logic.Not (C.Absolute[].abs r = R.one) ->
+  \forall (x: X)(z: C.Complex) -> C.Absolute[].abs z = R.one -> \forall (v: Vectors.Vector) -> (Next.FromRow[row := newRows x].polynomial z).apply v = Vectors.origin -> v = Vectors.origin :=
+  \fun (kernel: _)(off: _)(x: X) => \root.Linearization[].Companion[n := n, d := d].FromRow[row := rows x].Factor[r := r].polynomialKernel (kernel x) off;
+\module StateMaps;

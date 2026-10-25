@@ -1,0 +1,34 @@
+\import algebraic_topology.Interval[] \as Time;
+\import std.Data[].Pair[] \as Product;
+\import topological_constructions.Product[A := Time.Carrier, B := X] \as Cylinder;
+\definition Domain: \Set := Cylinder.CarrierSet;
+\definition topology: topology.Topology[Carrier := Domain].Topology := Cylinder.topology Time.topology source;
+\definition domainCompact: topology.Topology[Carrier := Domain].IsCompact topology := Cylinder.Compactness[].productCompact Time.topology source Time.compact compact;
+\definition domainHausdorff: topology.Topology[Carrier := Domain].IsT2 topology := uniform_approximation.Approximation[].Separation[].Product[A := Time.Carrier, B := X].On[left := Time.topology, right := source, leftHausdorff := Time.hausdorff, rightHausdorff := hausdorff].hausdorff;
+\definition base: Domain -> X := Product.second Time.Carrier X;
+\definition time: Domain -> Time.Carrier := Product.first Time.Carrier X;
+\definition baseContinuous: topology.Continuity[A := Domain, B := X].Continuous topology source base := Cylinder.Maps[].secondContinuous Time.topology source;
+\definition timeContinuous: topology.Continuity[A := Domain, B := Time.Carrier].Continuous topology Time.topology time := Cylinder.Maps[].firstContinuous Time.topology source;
+\import \root.Linearization[].RowOrders[n := n, X := Domain, source := topology] \as Over;
+\definition first[p: Domain]: Row d0 := q0 (base p);
+\definition last[p: Domain]: Row d1 := q1 (base p);
+\definition firstRegular: Over.Regular d0 first := \fun (v: Coordinates.Carrier (N.Nat^::succ d0))(j: Fin.Fin n) => topology.Composition[A := Domain, B := X, C := C.Complex].composeContinuous topology source Plane.topology base
+  (\fun (x: X) => (q0 x).apply v j) baseContinuous (regular0 v j);
+\definition lastRegular: Over.Regular d1 last := \fun (v: Coordinates.Carrier (N.Nat^::succ d1))(j: Fin.Fin n) => topology.Composition[A := Domain, B := X, C := C.Complex].composeContinuous topology source Plane.topology base
+  (\fun (x: X) => (q1 x).apply v j) baseContinuous (regular1 v j);
+\definition firstKernel: Over.Kernel d0 first := \fun (p: Domain) => kernel0 (base p);
+\definition lastKernel: Over.Kernel d1 last := \fun (p: Domain) => kernel1 (base p);
+\import Over.DegreePair[d0 := d0, d1 := d1, padding := padding, q0 := first, q1 := last, regular0 := firstRegular, regular1 := lastRegular] \as Pair;
+\definition weight[p: Domain]: C.Complex := C.Def[].ofReal (time p);
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Scalars.field, scalar := linear_algebra.Hermitian[].Complex[].scalar,
+  topological := hermitian_frames.Hermitian[].Complex[].topological] \as Hermitian;
+\definition weightContinuous: topology.Continuity[A := Domain, B := C.Complex].Continuous topology Plane.topology weight := Hermitian.Functions[X := Domain].embedding topology (\fun (p: Domain) => time p)
+  (topology.Composition[A := Domain, B := Time.Carrier, C := R.Real].composeContinuous topology Time.topology metric_spaces.RealLine[].topology time (\fun (t: Time.Carrier) => t) timeContinuous Time.inclusionContinuous);
+\definition include[t: Time.Carrier][x: X]: Domain := Product.pair Time.Carrier X t x;
+\definition inclusionContinuous: \forall (t: Time.Carrier) -> topology.Continuity[A := X, B := Domain].Continuous source topology (include t) :=
+  \fun (t: Time.Carrier) => Cylinder.Universal[X := X].pairContinuous source Time.topology source (\fun (_: X) => t) (\fun (x: X) => x)
+    (topology.Maps[A := X, B := Time.Carrier].constantContinuous source Time.topology t) (topology.Maps[A := X, B := X].Identity[].continuous source);
+\module With(h: Over.Family order, regularH: Over.Regular order h,
+  kernelH: \forall (p: Domain)(z: C.Complex) -> C.Absolute[].abs z = R.one -> \forall (v: Vectors.Vector) -> (Over.evaluation order h p z).apply v = Vectors.origin -> v = Vectors.origin,
+  atStart: \forall (x: X) -> h (include Time.start x) = Pair.left (include Time.start x),
+  atEnd: \forall (x: X) -> h (include Time.end x) = Pair.right (include Time.end x));

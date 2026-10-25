@@ -1,0 +1,52 @@
+\import algebraic_topology.Interval[] \as Time;
+\import std.Data[].Pair[] \as Pair;
+\import topological_constructions.Product[A := Time.Carrier, B := X] \as Cylinder;
+\definition Domain: \Set := Cylinder.CarrierSet;
+\definition topology: topology.Topology[Carrier := Domain].Topology := Cylinder.topology Time.topology source;
+\definition base: Domain -> X := Pair.second Time.Carrier X;
+\definition time: Domain -> Time.Carrier := Pair.first Time.Carrier X;
+\definition scalar[p: Domain]: C.Complex := C.Def[].ofReal (time p);
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Scalars.field, scalar := linear_algebra.Hermitian[].Complex[].scalar,
+  topological := hermitian_frames.Hermitian[].Complex[].topological] \as Hermitian;
+\definition timeContinuous: metric_spaces.RealFunctions[A := Domain].Continuous topology (\fun (p: Domain) => time p) :=
+  topology.Composition[A := Domain, B := Time.Carrier, C := R.Real].composeContinuous topology Time.topology metric_spaces.RealLine[].topology time (\fun (t: Time.Carrier) => t)
+    (Cylinder.Maps[].firstContinuous Time.topology source) Time.inclusionContinuous;
+\definition scalarContinuous: topology.Continuity[A := Domain, B := C.Complex].Continuous topology Plane.topology scalar :=
+  Hermitian.Functions[X := Domain].embedding topology (\fun (p: Domain) => time p) timeContinuous;
+\definition delta[x: X]: Row.Map := Row.Operations[].plus (other x) (Row.Operations[].negative (rows x));
+\definition deltaValue: \forall (x: X)(v: Carrier) -> (delta x).apply v = ValueGroup.difference ((other x).apply v) ((rows x).apply v) :=
+  \fun (x: X)(v: Carrier) => congr!{Vectors.Vector Vectors.Vector} (Vectors.plus ((other x).apply v)) _ _ (Values.minusOneScale ((rows x).apply v));
+\definition homotopy[p: Domain]: Row.Map := Row.Operations[].plus (rows (base p)) (Row.Operations[].scale (scalar p) (delta (base p)));
+\definition alongRegular: \forall (v: Carrier)(j: Fin.Fin n) -> topology.Continuity[A := Domain, B := C.Complex].Continuous topology Plane.topology (\fun (p: Domain) => (rows (base p)).apply v j) :=
+  \fun (v: Carrier)(j: Fin.Fin n) => topology.Composition[A := Domain, B := X, C := C.Complex].composeContinuous topology source Plane.topology base
+    (\fun (x: X) => (rows x).apply v j) (Cylinder.Maps[].secondContinuous Time.topology source) (regular v j);
+\definition alongOther: \forall (v: Carrier)(j: Fin.Fin n) -> topology.Continuity[A := Domain, B := C.Complex].Continuous topology Plane.topology (\fun (p: Domain) => (other (base p)).apply v j) :=
+  \fun (v: Carrier)(j: Fin.Fin n) => topology.Composition[A := Domain, B := X, C := C.Complex].composeContinuous topology source Plane.topology base
+    (\fun (x: X) => (other x).apply v j) (Cylinder.Maps[].secondContinuous Time.topology source) (regularOther v j);
+\import Plane.Functions[A := Domain] \as Along;
+\definition homotopyRegular: \forall (v: Carrier)(j: Fin.Fin n) -> topology.Continuity[A := Domain, B := C.Complex].Continuous topology Plane.topology (\fun (p: Domain) => (homotopy p).apply v j) :=
+  \fun (v: Carrier)(j: Fin.Fin n) => Along.additionContinuous topology _ _ (alongRegular v j)
+    (Along.multiplicationContinuous topology _ _ scalarContinuous
+      (Along.additionContinuous topology _ _ (alongOther v j)
+        (Along.multiplicationContinuous topology (\fun (_: Domain) => C.Def[].neg C.Def[].one) _
+          (topology.Maps[A := Domain, B := C.Complex].constantContinuous topology Plane.topology (C.Def[].neg C.Def[].one)) (alongRegular v j))));
+\definition rowEquality: \forall (x: X)(z: C.Complex) -> C.Absolute[].abs z = R.one -> \forall (v: Vectors.Vector) -> (rows x).apply ((geometric z).apply v) = (other x).apply ((geometric z).apply v) :=
+  \fun (x: X)(z: C.Complex)(unit: _)(v: Vectors.Vector) => Values.cancelLeft (Vectors.scale (power z degree) v) _ _ (same x z unit v);
+\definition deltaZero: \forall (x: X)(z: C.Complex) -> C.Absolute[].abs z = R.one -> \forall (v: Vectors.Vector) -> (delta x).apply ((geometric z).apply v) = Vectors.origin :=
+  \fun (x: X)(z: C.Complex)(unit: _)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _ (deltaValue x ((geometric z).apply v))
+    (trans!{Vectors.Vector} _ _ _ (congr!{Vectors.Vector Vectors.Vector} (\fun (w: Vectors.Vector) => ValueGroup.difference w ((rows x).apply ((geometric z).apply v))) _ _ (sym!{Vectors.Vector} _ _ (rowEquality x z unit v)))
+      (ValueGroup.inverseRight ((rows x).apply ((geometric z).apply v))));
+\definition rowOnCircle: \forall (p: Domain)(z: C.Complex) -> C.Absolute[].abs z = R.one -> \forall (v: Vectors.Vector) -> (homotopy p).apply ((geometric z).apply v) = (rows (base p)).apply ((geometric z).apply v) :=
+  \fun (p: Domain)(z: C.Complex)(unit: _)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _
+    (congr!{Vectors.Vector Vectors.Vector} (\fun (w: Vectors.Vector) => Vectors.plus ((rows (base p)).apply ((geometric z).apply v)) (Vectors.scale (scalar p) w)) _ _ (deltaZero (base p) z unit v))
+    (trans!{Vectors.Vector} _ _ _ (congr!{Vectors.Vector Vectors.Vector} (Vectors.plus ((rows (base p)).apply ((geometric z).apply v))) _ _ (Values.scaleZero (scalar p))) (ValueGroup.zeroRight ((rows (base p)).apply ((geometric z).apply v))));
+\definition homotopyKernel: \forall (p: Domain)(z: C.Complex) -> C.Absolute[].abs z = R.one -> \forall (v: Vectors.Vector) -> (\root.Linearization[].Companion[n := n, d := d].FromRow[row := homotopy p].polynomial z).apply v = Vectors.origin -> v = Vectors.origin :=
+  \fun (p: Domain)(z: C.Complex)(unit: _)(v: Vectors.Vector)(zero: _) => kernel (base p) z unit v
+    (trans!{Vectors.Vector} _ _ _ (congr!{Vectors.Vector Vectors.Vector} (Vectors.plus (Vectors.scale (power z degree) v)) _ _ (sym!{Vectors.Vector} _ _ (rowOnCircle p z unit v))) zero);
+\definition atStart: \forall (x: X)(v: Carrier) -> (homotopy (Pair.pair Time.Carrier X Time.start x)).apply v = (rows x).apply v :=
+  \fun (x: X)(v: Carrier) => trans!{Vectors.Vector} _ _ _ (congr!{Vectors.Vector Vectors.Vector} (Vectors.plus ((rows x).apply v)) _ _ (Values.zeroScale ((delta x).apply v))) (ValueGroup.zeroRight ((rows x).apply v));
+\definition atEnd: \forall (x: X)(v: Carrier) -> (homotopy (Pair.pair Time.Carrier X Time.end x)).apply v = (other x).apply v :=
+  \fun (x: X)(v: Carrier) => trans!{Vectors.Vector} _ _ _ (congr!{Vectors.Vector Vectors.Vector} (Vectors.plus ((rows x).apply v)) _ _
+    (trans!{Vectors.Vector} _ _ _ (Vectors.space.scalarOne ((delta x).apply v)) (deltaValue x v)))
+    (trans!{Vectors.Vector} _ _ _ (ValueGroup.comm _ _) (ValueGroup.addDifference ((other x).apply v) ((rows x).apply v)));
+\module KClass(compact: topology.Topology[Carrier := X].IsCompact source, hausdorff: topology.Topology[Carrier := X].IsT2 source, removed: N.Nat^);

@@ -1,0 +1,39 @@
+\import \parent.In[frame := first] \as First;
+\import \parent.In[frame := second] \as Second;
+\definition coefficient[x: X]: C.Complex := (second.forward.fiber x).apply (First.unit x);
+\definition transition: \forall (x: X)(v: M.Vector) ->
+  (Second.trivialization.forward.fiber x).apply ((First.trivialization.backward.fiber x).apply v) =
+    (\root.Linearization[].ProjectionLoop[n := n, projection := P x].loop (coefficient x)).apply v :=
+  \fun (x: X)(v: M.Vector) => trans!{M.Vector} _ _ _
+    (congr!{{ProductFiber x} M.Vector} (Second.trivialization.forward.fiber x).apply _ _ (First.backwardFormula x v))
+    (Second.forwardPure x (First.unit x) ((Image.projectMap.fiber x).apply v) ((Other.projectMap.fiber x).apply v));
+\import Bundles.Family[X := X, F := (\fun (_: X) => C.Complex)] \as ScalarFamily;
+\import Bundles.Morphisms[X := X, Y := X, F := (\fun (_: X) => C.Complex), G := L, source := ScalarLine.bundle, target := line,
+  f := (\fun (x: X) => x)].Composition[Z := X, H := (\fun (_: X) => C.Complex), range := ScalarLine.bundle, g := (\fun (x: X) => x)] \as Compose;
+\import Bundles.Morphisms[X := X, Y := X, F := (\fun (_: X) => C.Complex), G := (\fun (_: X) => C.Complex),
+  source := ScalarLine.bundle, target := ScalarLine.bundle, f := (\fun (x: X) => x)] \as ScalarMaps;
+\definition change: ScalarMaps.Map := Compose.compose first.backward second.forward;
+\definition unitSection[x: X]: ScalarFamily.Point := ScalarFamily.include x C.Def[].one;
+\definition sectionContinuous: topology.Continuity[A := X, B := ScalarFamily.Point].Continuous source ScalarLine.bundle.totalSpace unitSection :=
+  ScalarLine.Universal[Y := X].continuous source unitSection (topology.Maps[A := X, B := X].Identity[].continuous source)
+    (topology.Maps[A := X, B := C.Complex].constantContinuous source topological_algebra.Complex[].topology C.Def[].one);
+\definition changedSection[x: X]: ScalarFamily.Point := ScalarMaps.total change (unitSection x);
+\definition changedContinuous: topology.Continuity[A := X, B := ScalarFamily.Point].Continuous source ScalarLine.bundle.totalSpace changedSection :=
+  topology.Composition[A := X, B := ScalarFamily.Point, C := ScalarFamily.Point].composeContinuous source ScalarLine.bundle.totalSpace ScalarLine.bundle.totalSpace
+    unitSection (ScalarMaps.total change) sectionContinuous (ScalarMaps.continuous change);
+\definition regular: topology.Continuity[A := X, B := C.Complex].Continuous source topological_algebra.Complex[].topology coefficient :=
+  topology.Composition[A := X, B := ScalarFamily.Point, C := C.Complex].composeContinuous source ScalarLine.bundle.totalSpace topological_algebra.Complex[].topology
+    changedSection ScalarLine.value changedContinuous ScalarLine.valueContinuous;
+\definition recovers: \forall (x: X) -> (first.forward.fiber x).apply ((second.backward.fiber x).apply (coefficient x)) = C.Def[].one :=
+  \fun (x: X) => trans!{{C.Complex}} _ _ _
+    (congr!{{L x} {C.Complex}} (first.forward.fiber x).apply _ _ (second.leftInverse x (First.unit x)))
+    (first.rightInverse x C.Def[].one);
+\definition nonzero: \forall (x: X) -> C.Def[].NonZero (coefficient x) :=
+  \fun (x: X)(zero: _) => C.Prop[].zeroNeOne
+    (trans!{{C.Complex}} _ _ _
+      (sym!{{C.Complex}} _ _ (trans!{{C.Complex}} _ _ _
+        (congr!{{L x} {C.Complex}} (first.forward.fiber x).apply _ _ (second.backward.fiber x).preservesZero)
+        (first.forward.fiber x).preservesZero))
+      (trans!{{C.Complex}} _ _ _
+        (congr!{{C.Complex} {C.Complex}} (\fun (z: C.Complex) => (first.forward.fiber x).apply ((second.backward.fiber x).apply z)) _ _ (sym!{{C.Complex}} _ _ zero))
+        (recovers x)));

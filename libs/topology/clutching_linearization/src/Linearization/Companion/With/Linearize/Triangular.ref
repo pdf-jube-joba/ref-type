@@ -1,0 +1,22 @@
+\import Fin.Tuples[A := Vectors.Vector] \as Tuples;
+\import std.Data[].Pair[].Prop[A := Vectors.Vector, B := Coordinates.Carrier d] \as Pairs;
+\import Spaces.Laws[V := Coordinates.Carrier d, space := Coordinates.space d] \as TailValues;
+\import Spaces.Isomorphism[V := Carrier, W := Carrier, source := space, target := space] \as Iso;
+\definition tail: \forall (p: Sum.Carrier) -> Sum.second (transformed.apply p) = Sum.second p :=
+  \fun (p: Sum.Carrier) => \axiom:funext(Sum.second (transformed.apply p), Sum.second p, \fun (i: Fin.Fin d) => eq_reason_in!{Vectors.Vector _
+    "=" { Vectors.negative (Vectors.negative (Shift.difference.apply (right.apply p) (Fin.succ d i))) } "by" { congr!{Vectors.Vector Vectors.Vector} Vectors.negative _ _ (frontPencil (right.apply p) i) }
+    "=" { Shift.difference.apply (right.apply p) (Fin.succ d i) } "by" { ValueGroup.negNeg (Shift.difference.apply (right.apply p) (Fin.succ d i)) }
+    "=" { Splitting.backward.apply p (Fin.succ d i) } "by" { congr!{Carrier Vectors.Vector} (\fun (v: Carrier) => v (Fin.succ d i)) _ _ ((Iso.laws Shift.isomorphism).rightInverse (Splitting.backward.apply p)) }
+    "=" _ "by" { Tuples.atSuccessor d (Sum.first p) (Sum.second p) i }
+  });
+\definition onHead: \forall (v: Vectors.Vector) -> Sum.first (transformed.apply (head v)) = (polynomial z).apply v :=
+  \fun (v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _
+    (congr!{Carrier Vectors.Vector} (\fun (w: Carrier) => pencil.apply w last) _ _ (Shift.solveHead v)) (onGeometric v);
+\definition decompose: \forall (p: Sum.Carrier) -> Sum.space.add (head (Sum.first p)) (tailInjection.apply (Sum.second p)) = p :=
+  \fun (p: Sum.Carrier) => Pairs.ext (Sum.space.add (head (Sum.first p)) (tailInjection.apply (Sum.second p))) p (Values.zeroRight (Sum.first p)) (TailValues.zeroLeft (Sum.second p));
+\definition first: \forall (p: Sum.Carrier) -> Sum.first (transformed.apply p) = Vectors.plus ((polynomial z).apply (Sum.first p)) (remainder.apply (Sum.second p)) :=
+  \fun (p: Sum.Carrier) => eq_reason_in!{Vectors.Vector _
+    "=" { Sum.first (transformed.apply (Sum.space.add (head (Sum.first p)) (tailInjection.apply (Sum.second p)))) } "by" { congr!{Sum.Carrier Vectors.Vector} (\fun (q: Sum.Carrier) => Sum.first (transformed.apply q)) _ _ (sym!{Sum.Carrier} _ _ (decompose p)) }
+    "=" { Sum.first (Sum.space.add (transformed.apply (head (Sum.first p))) (transformed.apply (tailInjection.apply (Sum.second p)))) } "by" { congr!{Sum.Carrier Vectors.Vector} Sum.first _ _ (transformed.preservesAdd (head (Sum.first p)) (tailInjection.apply (Sum.second p))) }
+    "=" _ "by" { congr!{Vectors.Vector Vectors.Vector} (\fun (v: Vectors.Vector) => Vectors.plus v (remainder.apply (Sum.second p))) _ _ (onHead (Sum.first p)) }
+  };

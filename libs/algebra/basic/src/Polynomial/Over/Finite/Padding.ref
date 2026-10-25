@@ -1,0 +1,40 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Order;
+\definition pad: N.Nat^ -> Coefficients -> Coefficients :=
+  \induction (n: N.Nat^) \return Coefficients -> Coefficients \with {
+    | zero: \fun (p: Coefficients) => Lists.List[R]::nil
+    | succ: \fun (n: N.Nat^)(previous: Coefficients -> Coefficients) =>
+      \induction (p: Coefficients) \return Coefficients \with {
+        | nil: Lists.List[R]::cons zero (previous Lists.List[R]::nil)
+        | cons: \fun (a: R)(tail: Coefficients)(unused: _) => Lists.List[R]::cons a (previous tail)
+      }
+  };
+\definition length: \forall (n: N.Nat^)(p: Coefficients) -> Lists.length R (pad n p) = n :=
+  \induction (n: N.Nat^) \return \forall (p: Coefficients) -> Lists.length R (pad n p) = n \with {
+    | zero: \fun (p: Coefficients) => \refl(N.Nat^::zero)
+    | succ: \fun (n: N.Nat^)(previous: _) => \induction (p: Coefficients) \return Lists.length R (pad (N.Nat^::succ n) p) = N.Nat^::succ n \with {
+      | nil: congr!{{N.Nat^} {N.Nat^}} N.Nat^::succ _ _ (previous Lists.List[R]::nil)
+      | cons: \fun (a: R)(tail: Coefficients)(unused: _) => congr!{{N.Nat^} {N.Nat^}} N.Nat^::succ _ _ (previous tail)
+    }
+  };
+\definition empty: \forall (n: N.Nat^) -> asPolynomial (pad n Lists.List[R]::nil) = Abstract.zero :=
+  \induction (n: N.Nat^) \return asPolynomial (pad n Lists.List[R]::nil) = Abstract.zero \with {
+    | zero: \refl(Abstract.zero)
+    | succ: \fun (n: N.Nat^)(previous: _) => eq_reason_in!{Abstract.Carrier _
+      "=" { Abstract.mul Abstract.X (asPolynomial (pad n Lists.List[R]::nil)) } "by" { shift (pad n Lists.List[R]::nil) }
+      "=" { Abstract.mul Abstract.X Abstract.zero } "by" { congr!{Abstract.Carrier Abstract.Carrier} (Abstract.mul Abstract.X) _ _ previous }
+      "=" Abstract.zero "by" { ring.semiring.zeroAbsorbsRight Abstract.X }
+    }
+  };
+\definition preserves: \forall (n: N.Nat^)(p: Coefficients) -> Order.Le (Lists.length R p) n -> asPolynomial (pad n p) = asPolynomial p :=
+  \induction (n: N.Nat^) \return \forall (p: Coefficients) -> Order.Le (Lists.length R p) n -> asPolynomial (pad n p) = asPolynomial p \with {
+    | zero: \induction (p: Coefficients) \return Order.Le (Lists.length R p) N.Nat^::zero -> asPolynomial (pad N.Nat^::zero p) = asPolynomial p \with {
+      | nil: \fun (bound: _) => \refl(Abstract.zero)
+      | cons: \fun (a: R)(tail: Coefficients)(unused: _)(bound: _) => Logic.falseElim _ (Order.succNeZero (Lists.length R tail) (Order.leZeroEq _ bound))
+    }
+    | succ: \fun (n: N.Nat^)(previous: _) => \induction (p: Coefficients) \return Order.Le (Lists.length R p) (N.Nat^::succ n) -> asPolynomial (pad (N.Nat^::succ n) p) = asPolynomial p \with {
+      | nil: \fun (bound: _) => empty (N.Nat^::succ n)
+      | cons: \fun (a: R)(tail: Coefficients)(unused: _)(bound: _) => congr!{Abstract.Carrier Abstract.Carrier}
+        (\fun (q: Abstract.Carrier) => Abstract.add (Abstract.constant a) (Abstract.mul Abstract.X q)) _ _ (previous tail bound)
+    }
+  };

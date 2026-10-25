@@ -1,0 +1,21 @@
+\import algebraic_topology.Interval[] \as Time;
+\import \root.Linearization[].ComplexBounds[] \as Bounds;
+\import C.Absolute[] \as Absolute;
+\definition half: R.Real := R.mul R.half delta;
+\definition epsilon: R.Real := R.mul R.half half;
+\definition halfPositive: Real.Lt R.zero half := R.Estimates[].halfOfPositive delta positive;
+\definition epsilonPositive: Real.Lt R.zero epsilon := R.Estimates[].halfOfPositive half halfPositive;
+\definition epsilonBelow: Real.Lt epsilon half := R.Estimates[].halfStrict half halfPositive;
+\definition scaled: \forall (t: Time.Carrier)(z: C.Complex) -> Real.Le (Absolute.abs (C.Def[].scale t z)) (Absolute.abs z) :=
+  \fun (t: Time.Carrier)(z: C.Complex) => Real.leReplaceLeft _ _ _ (Bounds.negativeAbsolute (C.Def[].scale t z))
+    (Bounds.shrinks t z (Time.bounds t).left (Time.bounds t).right);
+\definition error[t: Time.Carrier][a, b, c: C.Complex]: C.Complex := C.Def[].add a (C.Def[].add (C.Def[].scale (Time.reverse t) b) (C.Def[].scale t c));
+\definition correctionBound: \forall (t: Time.Carrier)(b, c: C.Complex) -> Real.Lt (Absolute.abs b) epsilon -> Real.Lt (Absolute.abs c) epsilon ->
+  Real.Lt (Absolute.abs (C.Def[].add (C.Def[].scale (Time.reverse t) b) (C.Def[].scale t c))) half :=
+  \fun (t: Time.Carrier)(b, c: C.Complex)(smallB: _)(smallC: _) => Real.ltReplaceRight _ _ _ (R.Estimates[].halfTwice half)
+    (Real.leLtTrans _ _ _ (Absolute.triangle (C.Def[].scale (Time.reverse t) b) (C.Def[].scale t c))
+      (R.Estimates[].addLt _ _ _ _ (Real.leLtTrans _ _ _ (scaled (Time.reverse t) b) smallB) (Real.leLtTrans _ _ _ (scaled t c) smallC)));
+\definition bound: \forall (t: Time.Carrier)(a, b, c: C.Complex) -> Real.Lt (Absolute.abs a) epsilon -> Real.Lt (Absolute.abs b) epsilon -> Real.Lt (Absolute.abs c) epsilon -> Real.Lt (Absolute.abs (error t a b c)) delta :=
+  \fun (t: Time.Carrier)(a, b, c: C.Complex)(smallA: _)(smallB: _)(smallC: _) => Real.ltReplaceRight _ _ _ (R.Estimates[].halfTwice delta)
+    (Real.leLtTrans _ _ _ (Absolute.triangle a (C.Def[].add (C.Def[].scale (Time.reverse t) b) (C.Def[].scale t c)))
+      (R.Estimates[].addLt _ _ _ _ (Order.ltTrans _ _ _ smallA epsilonBelow) (correctionBound t b c smallB smallC)));

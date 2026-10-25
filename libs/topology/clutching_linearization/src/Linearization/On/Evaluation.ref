@@ -1,0 +1,40 @@
+\import algebra.Polynomial[].Over[R := CoefficientRing.Carrier, coefficients := CoefficientRing.commutativeRing] \as P;
+\import algebra.LaurentPolynomial[].Over[R := CoefficientRing.Carrier, coefficients := CoefficientRing.commutativeRing] \as L;
+\import P.Universal[K := C.Complex, target := Scalars.commutativeRing] \as PolynomialEvaluation;
+\import P.Finite[].At[K := C.Complex, target := Scalars.commutativeRing, coefficientMap := CoefficientRing.evaluation (Circle.first point), variable := Circle.unit point] \as Finite;
+\import algebra.Hom[A := P.Carrier, B := C.Complex] \as Hom;
+\import algebra.Hom[A := P.Carrier, B := L.Carrier].Composition[C := C.Complex] \as Composition;
+\definition composed: Hom.RingMap (Rings.commutativeRingAsRing P.Carrier P.ring) (Rings.commutativeRingAsRing C.Complex Scalars.commutativeRing) :=
+  Composition.ring (Rings.commutativeRingAsRing P.Carrier P.ring) (Rings.commutativeRingAsRing L.Carrier L.ring) (Rings.commutativeRingAsRing C.Complex Scalars.commutativeRing)
+    Normal.embedding (Circle.evaluation point);
+\definition constant: \forall (a: CoefficientRing.Carrier) -> composed (P.constant a) = a (Circle.first point) :=
+  \fun (a: CoefficientRing.Carrier) => trans!{{C.Complex}} _ _ _
+    (congr!{L.Carrier {C.Complex}} (Circle.evaluation point) _ _ (Normal.embedConstant a)) (Circle.onConstant a point);
+\definition variable: composed P.X = Circle.unit point := trans!{{C.Complex}} _ _ _
+  (congr!{L.Carrier {C.Complex}} (Circle.evaluation point) _ _ Normal.embedVariable) (Circle.onVariable point);
+\definition evaluate: P.Carrier -> C.Complex := Finite.evaluate;
+\definition compatible: composed = evaluate := PolynomialEvaluation.unique (CoefficientRing.evaluation (Circle.first point)) (Circle.unit point) composed constant variable;
+\definition onPolynomial: \forall (p: P.Carrier) -> Circle.value (Normal.embed p) point = evaluate p :=
+  \fun (p: P.Carrier) => congr!{{P.Carrier -> C.Complex} {C.Complex}} (\fun (f: P.Carrier -> C.Complex) => f p) _ _ compatible;
+\import algebra.Hom[A := L.Carrier, B := C.Complex] \as Maps;
+\definition laws: Maps.SemiringLaws[(Rings.ringAsSemiring L.Carrier (Rings.commutativeRingAsRing L.Carrier L.ring)), (Rings.ringAsSemiring C.Complex (Rings.commutativeRingAsRing C.Complex Scalars.commutativeRing)), Circle.evaluation point] := Maps.semiringLaws _ _ (Circle.evaluation point);
+\definition power: N.Nat^ -> C.Complex := Finite.power;
+\definition onPower: \forall (k: N.Nat^) -> Circle.value (Normal.power k) point = power k :=
+  \induction (k: N.Nat^) \return Circle.value (Normal.power k) point = power k \with {
+    | zero: laws.one
+    | succ: \fun (k: N.Nat^)(previous: _) => trans!{{C.Complex}} _ _ _ (laws.mul L.X (Normal.power k))
+      (congr!{{C.Complex} {C.Complex} {C.Complex}} C.Def[].mul _ _ _ _ (Circle.onVariable point) previous)
+  };
+\definition shifted: \forall (k: N.Nat^)(p: L.Carrier)(q: P.Carrier) -> L.mul (Normal.power k) p = Normal.embed q ->
+  C.Def[].mul (power k) (Circle.value p point) = evaluate q :=
+  \fun (k: N.Nat^)(p: L.Carrier)(q: P.Carrier)(equation: _) => eq_reason_in!{{C.Complex} _
+    "=" { C.Def[].mul (Circle.value (Normal.power k) point) (Circle.value p point) } "by" { congr!{{C.Complex} {C.Complex}} (\fun (z: C.Complex) => C.Def[].mul z (Circle.value p point)) _ _ (sym!{{C.Complex}} _ _ (onPower k)) }
+    "=" { Circle.value (L.mul (Normal.power k) p) point } "by" { sym!{{C.Complex}} _ _ (laws.mul (Normal.power k) p) }
+    "=" { Circle.value (Normal.embed q) point } "by" { congr!{L.Carrier {C.Complex}} (Circle.evaluation point) _ _ equation }
+    "=" _ "by" { onPolynomial q }
+  };
+\import std.Data[].FinSet[] \as Fin;
+\import Fin.FromList[A := CoefficientRing.Carrier] \as FromList;
+\definition sum: \forall (n: N.Nat^) -> (Fin.Fin n -> C.Complex) -> C.Complex := Finite.sum;
+\definition arrayFormula: \forall (n: N.Nat^)(f: Fin.Fin n -> CoefficientRing.Carrier) ->
+  evaluate (P.Finite[].asPolynomial (FromList.list n f)) = sum n (\fun (i: Fin.Fin n) => C.Def[].mul (power i) (f i (Circle.first point))) := Finite.sumFormula;

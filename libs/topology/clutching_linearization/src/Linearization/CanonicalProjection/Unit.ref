@@ -1,0 +1,24 @@
+\definition scalarNonzero: C.Def[].NonZero z := \fun (zero: _) => Laws.zeroNeOne
+  (trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ uniform_approximation.Approximation[].FiniteComplex[].zeroAbsolute)
+    (trans!{{R.Real}} _ _ _ (congr!{{C.Complex} {R.Real}} C.Absolute[].abs _ _ (sym!{{C.Complex}} _ _ zero)) unit));
+\definition projectedZero: Vectors.scale z (projection.map.apply v) = Vectors.origin :=
+  trans!{M.Vector} _ _ _ (sym!{M.Vector} _ _ (projection.map.preservesScale z v))
+    (trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector} projection.map.apply _ _ (sym!{M.Vector} _ _ eigen))
+      (trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector} projection.map.apply _ _ (action v))
+        (trans!{M.Vector} _ _ _ (projection.map.preservesScale c (Complement.complementMap.apply v))
+          (trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector} (Vectors.scale c) _ _ (Complement.annihilates v)) (Values.scaleZero c)))));
+\definition imageZero: projection.map.apply v = Vectors.origin := scaleZero z scalarNonzero (projection.map.apply v) projectedZero;
+\definition complement: Complement.complementMap.apply v = v :=
+  trans!{M.Vector} _ _ _ (sym!{M.Vector} _ _ (Values.zeroLeft (Complement.complementMap.apply v)))
+    (trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector} (\fun (w: M.Vector) => Vectors.plus w (Complement.complementMap.apply v)) _ _ (sym!{M.Vector} _ _ imageZero)) (Complement.splitting v));
+\definition eigenEquality: Vectors.scale c v = Vectors.scale z v :=
+  trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector} (Vectors.scale c) _ _ (sym!{M.Vector} _ _ complement))
+    (trans!{M.Vector} _ _ _ (sym!{M.Vector} _ _ (action v)) eigen);
+\definition different: Logic.Not (c = z) := \fun (same: _) => Order.ltNotEq R.one (C.Absolute[].abs c) outside
+  (sym!{{R.Real}} _ _ (trans!{{R.Real}} _ _ _ (congr!{{C.Complex} {R.Real}} C.Absolute[].abs _ _ same) unit));
+\import std.Logic[].Classical[] \as Classical;
+\definition zero: v = Vectors.origin := \axiom:funext(v, Vectors.origin, \fun (i: M.Index) =>
+  Logic.orElim _ _ _ (Classical.excludedMiddle (v i = C.Def[].zero))
+    (\fun (zero: v i = C.Def[].zero) => zero)
+    (\fun (nonzero: Logic.Not (v i = C.Def[].zero)) => Logic.falseElim (v i = C.Def[].zero)
+      (different (Arithmetic.cancelRight (v i) c z nonzero (congr!{M.Vector {C.Complex}} (\fun (w: M.Vector) => w i) _ _ eigenEquality)))));

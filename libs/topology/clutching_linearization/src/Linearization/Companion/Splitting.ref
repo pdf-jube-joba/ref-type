@@ -1,0 +1,41 @@
+\import Fin.Tuples[A := Vectors.Vector] \as Tuples;
+\import Spaces.DirectSum[V := Vectors.Vector, W := Coordinates.Carrier d, left := Vectors.space, right := Coordinates.space d] \as Sum;
+\import std.Data[].Pair[].Prop[A := Vectors.Vector, B := Coordinates.Carrier d] \as Pairs;
+\definition Pair: \Set := Sum.Carrier;
+\definition pairSpace: Spaces.VectorSpace Pair := Sum.space;
+\definition extendAddition: \forall (a, b: Vectors.Vector)(f, g: Coordinates.Carrier d) ->
+  Tuples.extend d (Vectors.plus a b) (\fun (i: Fin.Fin d) => Vectors.plus (f i) (g i)) = space.add (Tuples.extend d a f) (Tuples.extend d b g) :=
+  \fun (a, b: Vectors.Vector)(f, g: Coordinates.Carrier d) => \axiom:funext(Tuples.extend d (Vectors.plus a b) (\fun (i: Fin.Fin d) => Vectors.plus (f i) (g i)), space.add (Tuples.extend d a f) (Tuples.extend d b g), \fun (i: Fin.Fin degree) =>
+    (\induction (o: std.Data[].Option[].Option[Fin.Fin d]) \return
+      Tuples.evaluate d (Vectors.plus a b) (\fun (j: Fin.Fin d) => Vectors.plus (f j) (g j)) o = Vectors.plus (Tuples.evaluate d a f o) (Tuples.evaluate d b g o) \with {
+        | none: \refl(Vectors.plus a b)
+        | some: \fun (j: Fin.Fin d) => \refl(Vectors.plus (f j) (g j))
+      }) (Fin.split d i));
+\definition extendScalar: \forall (a: C.Complex)(v: Vectors.Vector)(f: Coordinates.Carrier d) ->
+  Tuples.extend d (Vectors.scale a v) (\fun (i: Fin.Fin d) => Vectors.scale a (f i)) = space.smul a (Tuples.extend d v f) :=
+  \fun (a: C.Complex)(v: Vectors.Vector)(f: Coordinates.Carrier d) => \axiom:funext(Tuples.extend d (Vectors.scale a v) (\fun (i: Fin.Fin d) => Vectors.scale a (f i)), space.smul a (Tuples.extend d v f), \fun (i: Fin.Fin degree) =>
+    (\induction (o: std.Data[].Option[].Option[Fin.Fin d]) \return
+      Tuples.evaluate d (Vectors.scale a v) (\fun (j: Fin.Fin d) => Vectors.scale a (f j)) o = Vectors.scale a (Tuples.evaluate d v f o) \with {
+        | none: \refl(Vectors.scale a v)
+        | some: \fun (j: Fin.Fin d) => \refl(Vectors.scale a (f j))
+      }) (Fin.split d i));
+\import Spaces.Linear[V := Carrier, W := Pair, source := space, target := pairSpace] \as Forward;
+\import Spaces.Linear[V := Pair, W := Carrier, source := pairSpace, target := space] \as Backward;
+\import Spaces.Isomorphism[V := Carrier, W := Pair, source := space, target := pairSpace] \as Isomorphisms;
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (v: Carrier) => Sum.make (v (Fin.zero d)) (\fun (i: Fin.Fin d) => v (Fin.succ d i)),
+  preservesAdd := \fun (v, w: Carrier) => \refl(pairSpace.add (Sum.make (v (Fin.zero d)) (\fun (i: Fin.Fin d) => v (Fin.succ d i))) (Sum.make (w (Fin.zero d)) (\fun (i: Fin.Fin d) => w (Fin.succ d i)))),
+  preservesScale := \fun (a: C.Complex)(v: Carrier) => \refl(pairSpace.smul a (Sum.make (v (Fin.zero d)) (\fun (i: Fin.Fin d) => v (Fin.succ d i)))),
+};
+\definition backward: Backward.Map := Backward.Map {
+  apply := \fun (p: Pair) => Tuples.extend d (Sum.first p) (Sum.second p),
+  preservesAdd := \fun (p, q: Pair) => extendAddition (Sum.first p) (Sum.first q) (Sum.second p) (Sum.second q),
+  preservesScale := \fun (a: C.Complex)(p: Pair) => extendScalar a (Sum.first p) (Sum.second p),
+};
+\definition isomorphism: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := Tuples.recover d,
+  rightInverse := \fun (p: Pair) => Pairs.ext (forward.apply (backward.apply p)) p
+    (Tuples.atZero d (Sum.first p) (Sum.second p))
+    (\axiom:funext((\fun (i: Fin.Fin d) => backward.apply p (Fin.succ d i)), Sum.second p, Tuples.atSuccessor d (Sum.first p) (Sum.second p))),
+};

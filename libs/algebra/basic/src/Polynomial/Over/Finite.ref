@@ -1,0 +1,158 @@
+\import algebra.Polynomial[].Over[R := R, coefficients := coefficients] \as Abstract;
+\import std.Data[].List[] \as Lists;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason;
+\use Equality.eq_reason_in;
+\import std.Alg[].Ring[] \as Rings;
+\definition Coefficients: \Set := Lists.List[R];
+\definition zero: R := coefficients.base.zero;
+\definition one: R := coefficients.base.one;
+\definition add: R -> R -> R := coefficients.base.add;
+\definition mul: R -> R -> R := coefficients.base.mul;
+\definition asPolynomial[p: Coefficients]: Abstract.Carrier :=
+  Lists.foldr R Abstract.Carrier
+    (\fun (a: R)(tail: Abstract.Carrier) => Abstract.add (Abstract.constant a) (Abstract.mul Abstract.X tail)) Abstract.zero p;
+\definition plus: Coefficients -> Coefficients -> Coefficients :=
+  \induction (p: Coefficients) \return Coefficients -> Coefficients \with {
+    | nil: \fun (q: Coefficients) => q
+    | cons: \fun (a: R)(tail: Coefficients)(previous: Coefficients -> Coefficients) =>
+      \induction (q: Coefficients) \return Coefficients \with {
+        | nil: Lists.List[R]::cons a tail
+        | cons: \fun (b: R)(other: Coefficients)(unused: Coefficients) => Lists.List[R]::cons (add a b) (previous other)
+      }
+  };
+\definition scale[a: R][p: Coefficients]: Coefficients := Lists.map R R (mul a) p;
+\definition times[p: Coefficients][q: Coefficients]: Coefficients :=
+  \induction (p: Coefficients) \return Coefficients \with {
+    | nil: Lists.List[R]::nil
+    | cons: \fun (a: R)(tail: Coefficients)(previous: Coefficients) => plus (scale a q) (Lists.List[R]::cons zero previous)
+  } p;
+\import std.Alg[].Alg[] \as Algebra;
+\import std.Alg[].Monoid[] \as Monoids;
+\definition ring: Rings.Ring[Abstract.Carrier] := Rings.commutativeRingAsRing Abstract.Carrier Abstract.ring;
+\import algebra.Group[].Of[Carrier := Abstract.Carrier, group := Rings.additiveGroup Abstract.Carrier ring] \as Sum;
+\definition multiplicative: Monoids.CommutativeMonoid[Abstract.Carrier] := Monoids.CommutativeMonoid[Abstract.Carrier] {
+  base := Monoids.MonoidData[Abstract.Carrier]::# Abstract.one Abstract.mul,
+  monoid := ring.semiring.multiplicative, commutative := Abstract.ring.mulCommutative,
+};
+\import algebra.Monoid[].Of[Carrier := Abstract.Carrier, monoid := multiplicative] \as Product;
+\import algebra.Hom[A := R, B := Abstract.Carrier] \as Hom;
+\definition coefficientLaws: Hom.SemiringLaws[
+  Rings.ringAsSemiring R (Rings.commutativeRingAsRing R coefficients), Rings.ringAsSemiring Abstract.Carrier ring, Abstract.constant] :=
+  Hom.semiringLaws _ _ Abstract.coefficientMap;
+\definition shift[p: Coefficients]: asPolynomial (Lists.List[R]::cons zero p) = Abstract.mul Abstract.X (asPolynomial p) :=
+  Sum.zeroLeft (Abstract.mul Abstract.X (asPolynomial p));
+\definition plusLaw: \forall (p, q: Coefficients) -> asPolynomial (plus p q) = Abstract.add (asPolynomial p) (asPolynomial q) :=
+  \induction (p: Coefficients) \return \forall (q: Coefficients) -> asPolynomial (plus p q) = Abstract.add (asPolynomial p) (asPolynomial q) \with {
+    | nil: \fun (q: Coefficients) => sym!{Abstract.Carrier} _ _ (Sum.zeroLeft (asPolynomial q))
+    | cons: \fun (a: R)(tail: Coefficients)(previous: _) =>
+      \induction (q: Coefficients) \return asPolynomial (plus (Lists.List[R]::cons a tail) q) = Abstract.add (asPolynomial (Lists.List[R]::cons a tail)) (asPolynomial q) \with {
+        | nil: sym!{Abstract.Carrier} _ _ (Sum.zeroRight (asPolynomial (Lists.List[R]::cons a tail)))
+        | cons: \fun (b: R)(other: Coefficients)(unused: _) =>
+          eq_reason!{{asPolynomial (plus (Lists.List[R]::cons a tail) (Lists.List[R]::cons b other))}
+            "=" {Abstract.add (Abstract.add (Abstract.constant a) (Abstract.constant b))
+              (Abstract.mul Abstract.X (Abstract.add (asPolynomial tail) (asPolynomial other)))}
+            "by" {congr!{Abstract.Carrier Abstract.Carrier Abstract.Carrier} Abstract.add _ _ _ _
+              (coefficientLaws.add a b) (congr!{Abstract.Carrier Abstract.Carrier} (Abstract.mul Abstract.X) _ _ (previous other))}
+            "=" {Abstract.add (Abstract.add (Abstract.constant a) (Abstract.constant b))
+              (Abstract.add (Abstract.mul Abstract.X (asPolynomial tail)) (Abstract.mul Abstract.X (asPolynomial other)))}
+            "by" {congr!{Abstract.Carrier Abstract.Carrier} (Abstract.add (Abstract.add (Abstract.constant a) (Abstract.constant b))) _ _
+              (ring.semiring.leftDistributive Abstract.X (asPolynomial tail) (asPolynomial other))}
+            "=" {Abstract.add (asPolynomial (Lists.List[R]::cons a tail)) (asPolynomial (Lists.List[R]::cons b other))}
+            "by" {Sum.four (Abstract.constant a) (Abstract.constant b) (Abstract.mul Abstract.X (asPolynomial tail)) (Abstract.mul Abstract.X (asPolynomial other))}}
+      }
+  };
+\definition scaleLaw: \forall (a: R)(p: Coefficients) -> asPolynomial (scale a p) = Abstract.mul (Abstract.constant a) (asPolynomial p) :=
+  \fun (a: R) => \induction (p: Coefficients) \return asPolynomial (scale a p) = Abstract.mul (Abstract.constant a) (asPolynomial p) \with {
+    | nil: sym!{Abstract.Carrier} _ _ (ring.semiring.zeroAbsorbsRight (Abstract.constant a))
+    | cons: \fun (b: R)(tail: Coefficients)(previous: _) =>
+      eq_reason!{{asPolynomial (scale a (Lists.List[R]::cons b tail))}
+        "=" {Abstract.add (Abstract.mul (Abstract.constant a) (Abstract.constant b)) (Abstract.mul Abstract.X (Abstract.mul (Abstract.constant a) (asPolynomial tail)))}
+        "by" {congr!{Abstract.Carrier Abstract.Carrier Abstract.Carrier} Abstract.add _ _ _ _
+          (coefficientLaws.mul a b) (congr!{Abstract.Carrier Abstract.Carrier} (Abstract.mul Abstract.X) _ _ previous)}
+        "=" {Abstract.add (Abstract.mul (Abstract.constant a) (Abstract.constant b)) (Abstract.mul (Abstract.constant a) (Abstract.mul Abstract.X (asPolynomial tail)))}
+        "by" {congr!{Abstract.Carrier Abstract.Carrier} (Abstract.add (Abstract.mul (Abstract.constant a) (Abstract.constant b))) _ _
+          (Product.swap Abstract.X (Abstract.constant a) (asPolynomial tail))}
+        "=" {Abstract.mul (Abstract.constant a) (asPolynomial (Lists.List[R]::cons b tail))}
+        "by" {sym!{Abstract.Carrier} _ _ (ring.semiring.leftDistributive (Abstract.constant a) (Abstract.constant b) (Abstract.mul Abstract.X (asPolynomial tail)))}}
+  };
+\definition timesLaw: \forall (p, q: Coefficients) -> asPolynomial (times p q) = Abstract.mul (asPolynomial p) (asPolynomial q) :=
+  \fun (p, q: Coefficients) => (\induction (p: Coefficients) \return asPolynomial (times p q) = Abstract.mul (asPolynomial p) (asPolynomial q) \with {
+    | nil: sym!{Abstract.Carrier} _ _ (ring.semiring.zeroAbsorbsLeft (asPolynomial q))
+    | cons: \fun (a: R)(tail: Coefficients)(previous: _) =>
+      eq_reason!{{asPolynomial (times (Lists.List[R]::cons a tail) q)}
+        "=" {Abstract.add (asPolynomial (scale a q)) (asPolynomial (Lists.List[R]::cons zero (times tail q)))}
+        "by" {plusLaw (scale a q) (Lists.List[R]::cons zero (times tail q))}
+        "=" {Abstract.add (Abstract.mul (Abstract.constant a) (asPolynomial q)) (Abstract.mul Abstract.X (asPolynomial (times tail q)))}
+        "by" {congr!{Abstract.Carrier Abstract.Carrier Abstract.Carrier} Abstract.add _ _ _ _ (scaleLaw a q) (shift (times tail q))}
+        "=" {Abstract.add (Abstract.mul (Abstract.constant a) (asPolynomial q)) (Abstract.mul (Abstract.mul Abstract.X (asPolynomial tail)) (asPolynomial q))}
+        "by" {congr!{Abstract.Carrier Abstract.Carrier} (Abstract.add (Abstract.mul (Abstract.constant a) (asPolynomial q))) _ _
+          (trans!{Abstract.Carrier} _ _ _ (congr!{Abstract.Carrier Abstract.Carrier} (Abstract.mul Abstract.X) _ _ previous)
+            (sym!{Abstract.Carrier} _ _ (Product.assoc Abstract.X (asPolynomial tail) (asPolynomial q))))}
+        "=" {Abstract.mul (asPolynomial (Lists.List[R]::cons a tail)) (asPolynomial q)}
+        "by" {sym!{Abstract.Carrier} _ _ (ring.semiring.rightDistributive (Abstract.constant a) (Abstract.mul Abstract.X (asPolynomial tail)) (asPolynomial q))}}
+  }) p;
+\definition constantNegative: \forall (a: R) -> Abstract.constant (coefficients.base.neg a) = Abstract.neg (Abstract.constant a) :=
+  \fun (a: R) => Sum.inverseUnique (Abstract.constant a) (Abstract.constant (coefficients.base.neg a))
+    (eq_reason_in!{Abstract.Carrier _
+      "=" { Abstract.constant (add (coefficients.base.neg a) a) } "by" { sym!{Abstract.Carrier} _ _ (coefficientLaws.add (coefficients.base.neg a) a) }
+      "=" { Abstract.constant zero } "by" { congr!{R Abstract.Carrier} Abstract.constant _ _ (coefficients.ring.additiveInverse a) }
+      "=" Abstract.zero "by" { coefficientLaws.zero }
+    });
+\definition minusOneProduct: \forall (p: Abstract.Carrier) -> Abstract.mul (Abstract.neg Abstract.one) p = Abstract.neg p :=
+  \fun (p: Abstract.Carrier) => Sum.inverseUnique p (Abstract.mul (Abstract.neg Abstract.one) p)
+    (eq_reason_in!{Abstract.Carrier _
+      "=" { Abstract.add (Abstract.mul (Abstract.neg Abstract.one) p) (Abstract.mul Abstract.one p) } "by" { congr!{Abstract.Carrier Abstract.Carrier} (Abstract.add (Abstract.mul (Abstract.neg Abstract.one) p)) _ _ (sym!{Abstract.Carrier} _ _ (Product.zeroLeft p)) }
+      "=" { Abstract.mul (Abstract.add (Abstract.neg Abstract.one) Abstract.one) p } "by" { sym!{Abstract.Carrier} _ _ (ring.semiring.rightDistributive (Abstract.neg Abstract.one) Abstract.one p) }
+      "=" { Abstract.mul Abstract.zero p } "by" { congr!{Abstract.Carrier Abstract.Carrier} (\fun (a: Abstract.Carrier) => Abstract.mul a p) _ _ (ring.additiveInverse Abstract.one) }
+      "=" Abstract.zero "by" { ring.semiring.zeroAbsorbsLeft p }
+    });
+\definition negative[p: Coefficients]: Coefficients := scale (coefficients.base.neg one) p;
+\definition negativeLaw: \forall (p: Coefficients) -> asPolynomial (negative p) = Abstract.neg (asPolynomial p) :=
+  \fun (p: Coefficients) => eq_reason_in!{Abstract.Carrier _
+    "=" { Abstract.mul (Abstract.constant (coefficients.base.neg one)) (asPolynomial p) } "by" { scaleLaw (coefficients.base.neg one) p }
+    "=" { Abstract.mul (Abstract.neg (Abstract.constant one)) (asPolynomial p) } "by" { congr!{Abstract.Carrier Abstract.Carrier} (\fun (a: Abstract.Carrier) => Abstract.mul a (asPolynomial p)) _ _ (constantNegative one) }
+    "=" { Abstract.mul (Abstract.neg Abstract.one) (asPolynomial p) } "by" { congr!{Abstract.Carrier Abstract.Carrier} (\fun (a: Abstract.Carrier) => Abstract.mul (Abstract.neg a) (asPolynomial p)) _ _ coefficientLaws.one }
+    "=" _ "by" { minusOneProduct (asPolynomial p) }
+  };
+\definition Of[p: Abstract.Carrier]: \Set := \Cast[Coefficients] ({ a: Coefficients \where asPolynomial a = p });
+\definition singleton[a: R]: Coefficients := Lists.List[R]::cons a Lists.List[R]::nil;
+\definition singletonLaw: \forall (a: R) -> asPolynomial (singleton a) = Abstract.constant a :=
+  \fun (a: R) => trans!{Abstract.Carrier} _ _ _ (congr!{Abstract.Carrier Abstract.Carrier} (Abstract.add (Abstract.constant a)) _ _ (ring.semiring.zeroAbsorbsRight Abstract.X)) (Sum.zeroRight (Abstract.constant a));
+\definition exists: \forall (p: Abstract.Carrier) -> \exists Of p := Abstract.induction (\fun (p: Abstract.Carrier) => \exists Of p)
+  (\fun (a: R) => \exact(\into[Coefficients](singleton a, Of (Abstract.constant a)) \by { singletonLaw a }, Of (Abstract.constant a)))
+  (\exact(\into[Coefficients](Lists.List[R]::cons zero (singleton one), Of Abstract.X) \by {
+    trans!{Abstract.Carrier} _ _ _ (shift (singleton one))
+      (trans!{Abstract.Carrier} _ _ _ (congr!{Abstract.Carrier Abstract.Carrier} (Abstract.mul Abstract.X) _ _
+        (trans!{Abstract.Carrier} _ _ _ (singletonLaw one) coefficientLaws.one)) (Product.zeroRight Abstract.X))
+  }, Of Abstract.X))
+  (\block {
+    \fun (p, q: Abstract.Carrier)(hp: _)(hq: _) \then
+    \takefrom a: Of p \by hp \then
+    \takefrom b: Of q \by hq \then
+    \return \exact(\into[Coefficients](plus a b, Of (Abstract.add p q)) \by {
+      trans!{Abstract.Carrier} _ _ _ (plusLaw a b) (congr!{Abstract.Carrier Abstract.Carrier Abstract.Carrier} Abstract.add _ _ _ _ (\bysub(Coefficients, Of p, a)) (\bysub(Coefficients, Of q, b)))
+    }, Of (Abstract.add p q))
+  })
+  (\block {
+    \fun (p: Abstract.Carrier)(hp: _) \then
+    \takefrom a: Of p \by hp \then
+    \return \exact(\into[Coefficients](negative a, Of (Abstract.neg p)) \by {
+      trans!{Abstract.Carrier} _ _ _ (negativeLaw a) (congr!{Abstract.Carrier Abstract.Carrier} Abstract.neg _ _ (\bysub(Coefficients, Of p, a)))
+    }, Of (Abstract.neg p))
+  })
+  (\block {
+    \fun (p, q: Abstract.Carrier)(hp: _)(hq: _) \then
+    \takefrom a: Of p \by hp \then
+    \takefrom b: Of q \by hq \then
+    \return \exact(\into[Coefficients](times a b, Of (Abstract.mul p q)) \by {
+      trans!{Abstract.Carrier} _ _ _ (timesLaw a b) (congr!{Abstract.Carrier Abstract.Carrier Abstract.Carrier} Abstract.mul _ _ _ _ (\bysub(Coefficients, Of p, a)) (\bysub(Coefficients, Of q, b)))
+    }, Of (Abstract.mul p q))
+  });
+\module Padding;
+\module At(K: \Set, target: Rings.CommutativeRing[K],
+  coefficientMap: algebra.Hom[A := R, B := K].RingMap (Rings.commutativeRingAsRing R coefficients) (Rings.commutativeRingAsRing K target), variable: K);

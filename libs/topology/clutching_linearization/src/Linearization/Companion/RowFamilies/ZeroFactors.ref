@@ -1,0 +1,23 @@
+\import algebra.Group[].Of[Carrier := C.Complex, group := Scalars.additiveGroup] \as ScalarsAdd;
+\definition off: Logic.Not (C.Absolute[].abs C.Def[].zero = R.one) := \fun (same: _) => Laws.zeroNeOne
+  (trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ uniform_approximation.Approximation[].FiniteComplex[].zeroAbsolute) same);
+\definition inside: Real.Le (C.Absolute[].abs C.Def[].zero) R.one := Real.leReplaceLeft _ _ _ (sym!{{R.Real}} _ _ uniform_approximation.Approximation[].FiniteComplex[].zeroAbsolute) Laws.oneNonnegative;
+\import \parent.Factors[r := C.Def[].zero, offR := off] \as Factors;
+\definition order: N.Nat^ -> N.Nat^ := Factors.order;
+\definition family: \forall (k: N.Nat^) -> X -> Factors.RowAt k := Factors.iterated;
+\definition familyRegular: \forall (k: N.Nat^) -> Factors.Regular k (family k) := Factors.iteratedRegular;
+\definition familyKernel: Factors.Kernel N.Nat^::zero rows -> \forall (k: N.Nat^) -> Factors.Kernel k (family k) := Factors.iteratedKernel;
+\definition factor: \forall (z: C.Complex) -> C.Def[].add z (C.Def[].neg C.Def[].zero) = z := \fun (z: C.Complex) => trans!{{C.Complex}} _ _ _
+  (congr!{{C.Complex} {C.Complex}} (C.Def[].add z) _ _ ScalarsAdd.negZero) (C.Prop[].addZeroRight z);
+\definition polynomial[k: N.Nat^][x: X][z: C.Complex]: End.Map := Factors.polynomial k x z;
+\definition evaluation: \forall (k: N.Nat^)(x: X)(z: C.Complex)(v: Vectors.Vector) -> (polynomial k x z).apply v = Vectors.scale (power z k) ((polynomial N.Nat^::zero x z).apply v) :=
+  \fun (k: N.Nat^)(x: X)(z: C.Complex)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _ (Factors.polynomialFormula k x z v)
+    (congr!{{C.Complex} Vectors.Vector} (\fun (w: C.Complex) => Vectors.scale (power w k) ((polynomial N.Nat^::zero x z).apply v)) _ _ (factor z));
+\module Separated(initial: Factors.Kernel N.Nat^::zero rows) {
+  \module Index(compact: topology.Topology[Carrier := X].IsCompact source, hausdorff: topology.Topology[Carrier := X].IsT2 source, removed: N.Nat^) {
+    \import Factors.Separated[initial := initial].Inside[compact := compact, hausdorff := hausdorff, removed := removed, inside := inside] \as Inside;
+    \import topological_k_theory.KTheory[].On[X := X, baseSpace := source, compact := compact, hausdorff := hausdorff] \as K;
+    \definition value: N.Nat^ -> K.K0[].Carrier := Inside.rankValue;
+    \definition invariant: \forall (k: N.Nat^) -> value k = Inside.value N.Nat^::zero := Inside.rankInvariant;
+  }
+}

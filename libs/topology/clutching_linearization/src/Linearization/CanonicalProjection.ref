@@ -1,0 +1,44 @@
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := n] \as M;
+\import Spaces.Coordinates[I := M.Index] \as Vectors;
+\import Spaces.Linear[V := M.Vector, W := M.Vector, source := Vectors.space, target := Vectors.space] \as End;
+\import Spaces.Laws[V := M.Vector, space := Vectors.space] \as Values;
+\import spectral_splitting.Spectral[].At[n := n].Idempotent[P := projection.map, idempotent := projection.idempotent] \as Complement;
+\definition operator: End.Map := End.Operations[].scale c Complement.complementMap;
+\definition matrix: M.Matrix := M.Representation[].entries operator;
+\definition action: \forall (v: M.Vector) -> (M.linear matrix).apply v = Vectors.scale c (Complement.complementMap.apply v) :=
+  \fun (v: M.Vector) => congr!{End.Map M.Vector} (\fun (f: End.Map) => f.apply v) _ _ (M.Representation[].linearEntries operator);
+\import galois.Field[].Over[K := C.Complex, field := Scalars.field].Arithmetic[] \as Arithmetic;
+\definition scaleZero: \forall (s: C.Complex) -> C.Def[].NonZero s -> \forall (v: M.Vector) -> Vectors.scale s v = Vectors.origin -> v = Vectors.origin :=
+  \fun (s: C.Complex)(sn: _)(v: M.Vector)(zero: _) => \axiom:funext(v, Vectors.origin, \fun (i: M.Index) =>
+    Arithmetic.cancelLeft s (v i) C.Def[].zero sn
+      (trans!{{C.Complex}} _ _ _ (congr!{M.Vector {C.Complex}} (\fun (w: M.Vector) => w i) _ _ zero) (sym!{{C.Complex}} _ _ (C.Prop[].mulZeroRight s))));
+\module Unit(z: C.Complex, unit: C.Absolute[].abs z = R.one, v: M.Vector, eigen: (M.linear matrix).apply v = Vectors.scale z v);
+\definition off: spectral_splitting.Spectral[].At[n := n].Splitting[A := matrix].OffSpectrum :=
+  spectral_splitting.Spectral[].At[n := n].Eigenvalues[A := matrix].off (\fun (z: C.Complex)(unit: _)(v: M.Vector)(eigen: _) => Unit[z := z, unit := unit, v := v, eigen := eigen].zero);
+\import spectral_splitting.Spectral[].At[n := n].Splitting[A := matrix].Separated[off := off] \as Spectral;
+\import \root.Linearization[].SpectralPencil[n := n, A := matrix, off := off] \as Pencil;
+\definition insideEigen: \forall (v: M.Vector) -> (M.linear matrix).apply (projection.map.apply v) = Vectors.scale C.Def[].zero (projection.map.apply v) :=
+  \fun (v: M.Vector) => trans!{M.Vector} _ _ _ (action (projection.map.apply v))
+    (trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector} (Vectors.scale c) _ _ (Complement.annihilatesRight v))
+      (trans!{M.Vector} _ _ _ (Values.scaleZero c) (sym!{M.Vector} _ _ (Values.zeroScale (projection.map.apply v)))));
+\definition outsideEigen: \forall (v: M.Vector) -> (M.linear matrix).apply (Complement.complementMap.apply v) = Vectors.scale c (Complement.complementMap.apply v) :=
+  \fun (v: M.Vector) => trans!{M.Vector} _ _ _ (action (Complement.complementMap.apply v))
+    (congr!{M.Vector M.Vector} (Vectors.scale c) _ _ (Complement.complementIdempotent v));
+\definition zeroInside: Real.Le (C.Absolute[].abs C.Def[].zero) R.one :=
+  Real.leReplaceLeft _ _ _ (sym!{{R.Real}} _ _ uniform_approximation.Approximation[].FiniteComplex[].zeroAbsolute) Laws.oneNonnegative;
+\definition onImage: \forall (v: M.Vector) -> Spectral.projection.apply (projection.map.apply v) = projection.map.apply v :=
+  \fun (v: M.Vector) => Pencil.Eigenvector[z := C.Def[].zero, v := projection.map.apply v, eigen := insideEigen v].onInside zeroInside;
+\definition onComplement: \forall (v: M.Vector) -> Spectral.projection.apply (Complement.complementMap.apply v) = Vectors.origin :=
+  \fun (v: M.Vector) => Pencil.Eigenvector[z := c, v := Complement.complementMap.apply v, eigen := outsideEigen v].onOutside (Order.leOfLt _ _ outside);
+\definition retraction: \forall (v: M.Vector) -> Spectral.projection.apply v = projection.map.apply v :=
+  \fun (v: M.Vector) => trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector} Spectral.projection.apply _ _ (sym!{M.Vector} _ _ (Complement.splitting v)))
+    (trans!{M.Vector} _ _ _ (Spectral.projection.preservesAdd (projection.map.apply v) (Complement.complementMap.apply v))
+      (trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector M.Vector} Vectors.plus _ _ _ _ (onImage v) (onComplement v)) (Values.zeroRight (projection.map.apply v))));
+\definition recovered: Spectral.projection = projection.map := End.ext _ _ (\axiom:funext(Spectral.projection.apply, projection.map.apply, retraction));
+\definition complementRecovery: \forall (v: M.Vector) -> Spectral.complementary.apply v = Complement.complementMap.apply v :=
+  \fun (v: M.Vector) => trans!{M.Vector} _ _ _ (Spectral.complementaryFormula v)
+    (congr!{M.Vector M.Vector} (\fun (w: M.Vector) => Vectors.plus v (Vectors.negative w)) _ _ (retraction v));
+\definition normalLoop[z: C.Complex]: End.Map := \root.Linearization[].ProjectionLoop[n := n, projection := projection].loop z;
+\definition loopRecovery: \forall (z: C.Complex) -> Pencil.NormalForm[].loop z = normalLoop z :=
+  \fun (z: C.Complex) => End.ext _ _ (\axiom:funext((Pencil.NormalForm[].loop z).apply, (normalLoop z).apply, \fun (v: M.Vector) =>
+    congr!{M.Vector M.Vector M.Vector} Vectors.plus _ _ _ _ (congr!{M.Vector M.Vector} (Vectors.scale z) _ _ (retraction v)) (complementRecovery v)));

@@ -1,0 +1,24 @@
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := source, compact := compact, hausdorff := hausdorff] \as K;
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[n := n, a := a, regular := regular, nonzero := nonzero] \as Original;
+\definition Values: \Pow K.K0[].Carrier := { v: K.K0[].Carrier \where \forall (p: Parameters) -> v = Original.Construction[parameters := p].inverseClass };
+\definition Value: \Set := \Cast[K.K0[].Carrier] Values;
+\definition existsValue: \exists Value := \block {
+  \takefrom p: Parameters \by parametersExist \then
+  \return \exact(\into[K.K0[].Carrier](Original.Construction[parameters := p].inverseClass, Values) \by {
+    \fun (q: Parameters) => Original.ChoiceComparison[first := p, second := q].independent
+  }, Value)
+};
+\definition uniqueValue: \forall (v, w: Value) -> v = w := \fun (v, w: Value) => \block {
+  \takefrom p: Parameters \by parametersExist \then
+  \return trans!{K.K0[].Carrier} _ _ _ ((\bysub(K.K0[].Carrier, Values, v)) p)
+    (sym!{K.K0[].Carrier} _ _ ((\bysub(K.K0[].Carrier, Values, w)) p))
+};
+\definition value: K.K0[].Carrier := \choice Value \by { existence: existsValue, uniqueness: uniqueValue };
+\definition comparison: \forall (p: Parameters) -> value = Original.Construction[parameters := p].inverseClass :=
+  \bysub(K.K0[].Carrier, Values, (\choice Value \by { existence: existsValue, uniqueness: uniqueValue }));
+\module Reconstruction(parameters: Parameters);
+\module Naturality(Y: \Set, space: topology.Topology[Carrier := Y].Topology,
+  compactY: topology.Topology[Carrier := Y].IsCompact space, hausdorffY: topology.Topology[Carrier := Y].IsT2 space,
+  f: Y -> X, continuous: topology.Continuity[A := Y, B := X].Continuous space source f);
+\module Homotopy(b: Circle.Domain -> M.Matrix, regularB: Top.Families[X := Circle.Domain].Regular Circle.source b,
+  nonzeroB: \forall (p: Circle.Domain) -> Field.Nonzero (b p));

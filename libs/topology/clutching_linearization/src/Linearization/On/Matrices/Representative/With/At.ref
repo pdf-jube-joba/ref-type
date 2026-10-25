@@ -1,0 +1,37 @@
+\import Original.Construction[parameters := parameters].Path[].Stabilized[k := k] \as Construction;
+\import \root.Linearization[].Companion[n := n, d := d].RowFamilies[X := X, source := source, rows := q, regular := regularQ].ZeroFactors[] \as Zero;
+\definition order: N.Nat^ := Nat.add d parameters.normal.shift;
+\definition rows: Orders.Family order := Zero.family parameters.normal.shift;
+\definition rowsRegular: Orders.Regular order rows := Zero.familyRegular parameters.normal.shift;
+\definition rowsKernel: Orders.Kernel order rows := Zero.familyKernel kernelQ parameters.normal.shift;
+\definition extra[p: Circle.Domain]: C.Complex := Powers.value (Circle.unit p) parameters.normal.shift;
+\definition extraNonzero: \forall (p: Circle.Domain) -> C.Def[].NonZero (extra p) := \fun (p: Circle.Domain) => Powers.nonzero (Circle.unit p) (Powers.unitOfNorm (Circle.unit p) (Circle.unitNorm p)) parameters.normal.shift;
+\import Paths.Scale[s := extra, regular := CirclePowers.continuous parameters.normal.shift, nonzero := extraNonzero] \as Extra;
+\definition start: Paths.Family := Extra.family shifted;
+\definition finish: Paths.Family := Extra.family polynomial;
+\definition lifted: Paths.Path[start, finish] := Extra.path shifted polynomial path;
+\import Orders.DegreePair[d0 := Construction.order, d1 := order, padding := N.Nat^::zero, q0 := Construction.rows, q1 := rows, regular0 := Construction.rowsRegular, regular1 := rowsRegular].LoopPath[
+  compact := compact, hausdorff := hausdorff, kernel0 := Construction.rowsKernel, kernel1 := rowsKernel] \as Loops;
+\definition commonStart: \forall (p: Circle.Domain) -> Construction.start.matrix p = start.matrix p :=
+  \fun (p: Circle.Domain) => M.Operations[].ext (Construction.start.matrix p) (start.matrix p) (\fun (i, j: M.Index) => trans!{{C.Complex}} _ _ _
+    (sym!{{C.Complex}} _ _ (C.Prop[].mulAssoc (scalar p) (extra p) (a p i j)))
+    (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (\fun (s: C.Complex) => C.Def[].mul s (a p i j)) _ _ (C.Prop[].mulComm (scalar p) (extra p)))
+      (C.Prop[].mulAssoc (extra p) (scalar p) (a p i j))));
+\import Spaces.Coordinates[I := M.Index] \as Vectors;
+\definition entries: \forall (p: Circle.Domain) -> Loops.last.matrix p = finish.matrix p :=
+  \fun (p: Circle.Domain) => M.Operations[].ext (Loops.last.matrix p) (finish.matrix p) (\fun (i, j: M.Index) =>
+    congr!{Vectors.Vector {C.Complex}} (\fun (v: Vectors.Vector) => v i) _ _ (Zero.evaluation parameters.normal.shift (Circle.first p) (Circle.unit p) (Spaces.FiniteCoordinates[n := n].vectors j)));
+\definition secondPath: Paths.Path[Construction.start, finish] := Paths.retarget start finish Construction.start finish lifted
+  (\fun (p: Circle.Domain) => sym!{M.Matrix} _ _ (commonStart p)) (\fun (p: Circle.Domain) => \refl(finish.matrix p));
+\definition comparisonPath: Paths.Path[Loops.first, Loops.last] := Paths.retarget Construction.finish finish Loops.first Loops.last
+  (Paths.concatenate Construction.finish Construction.start finish (Paths.reverse Construction.start Construction.finish Construction.path) secondPath)
+  (\fun (p: Circle.Domain) => sym!{M.Matrix} _ _ (Construction.entries p)) (\fun (p: Circle.Domain) => sym!{M.Matrix} _ _ (entries p));
+\import Loops.With[path := comparisonPath] \as Comparison;
+\definition removed: N.Nat^ := Nat.add (Nat.mul n parameters.normal.shift) (Nat.mul n k);
+\definition rankComparison: Orders.Index[compact := compact, hausdorff := hausdorff, removed := Construction.removed].value order rows rowsRegular rowsKernel =
+  Orders.Index[compact := compact, hausdorff := hausdorff, removed := removed].value order rows rowsRegular rowsKernel :=
+  congr!{{N.Nat^} {K.K0[].Carrier}} (\fun (r: N.Nat^) => Orders.Index[compact := compact, hausdorff := hausdorff, removed := r].value order rows rowsRegular rowsKernel) _ _ (NatLaws.addComm (Nat.mul n k) (Nat.mul n parameters.normal.shift));
+\import Zero.Separated[initial := kernelQ].Index[compact := compact, hausdorff := hausdorff, removed := Nat.mul n k] \as Correction;
+\definition recovery: Original.Construction[parameters := parameters].inverseClass = Orders.Index[compact := compact, hausdorff := hausdorff, removed := Nat.mul n k].value d q regularQ kernelQ :=
+  trans!{K.K0[].Carrier} _ _ _ (sym!{K.K0[].Carrier} _ _ Construction.correction)
+    (trans!{K.K0[].Carrier} _ _ _ (Comparison.invariant Construction.removed) (trans!{K.K0[].Carrier} _ _ _ rankComparison (Correction.invariant parameters.normal.shift)));

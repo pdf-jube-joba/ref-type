@@ -142,6 +142,7 @@ REF_TYPE_PROFILE_DECLARATIONS=fieldMulAssocNN cargo run -p cli -- libs/std --no-
 | `REF_TYPE_PROFILE_DECLARATIONS` | 宣言の検査時間 |
 | `REF_TYPE_PROFILE_LOCAL_DEFINITIONS` | 局所定義の検査時間 |
 | `REF_TYPE_PROFILE_LOWERING` | kernel 定義への変換・登録時間 |
+| `REF_TYPE_PROFILE_CONVERSION=1` | 長時間の型同値判定の比較回数・入力と現在の項 |
 | `REF_TYPE_PROFILE_PHASES=1` | 各処理段階の時間と RSS |
 | `REF_TYPE_PROFILE_STORAGE=1` | 検査ステップ、宣言セル、置換表、式ページの保持量と I/O |
 | `REF_TYPE_GRAPH_RESIDENT_MIB=N` | 式ページの常駐予算。native の既定128 MiB、最小1 MiB |

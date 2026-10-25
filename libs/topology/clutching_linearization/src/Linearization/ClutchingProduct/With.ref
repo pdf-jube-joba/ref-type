@@ -1,0 +1,59 @@
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Pair[] \as Pair;
+\import topological_algebra.Complex[] \as Plane;
+\import Spaces.Coordinates[I := Fin.Fin n] \as Vectors;
+\import Spaces.Isomorphism[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as Isomorphisms;
+\import Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as End;
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Scalars.field, scalar := linear_algebra.Hermitian[].Complex[].scalar,
+  topological := hermitian_frames.Hermitian[].Complex[].topological] \as Hermitian;
+\import Hermitian.At[n := n].Families[X := Overlap].Matrix[m := n] \as Families;
+\definition regularA: Families.Regular overlapTopology (\fun (x: Overlap) => a x) := Units.Family[X := Overlap, source := overlapTopology, H := a].regular continuousA;
+\definition regularB: Families.Regular overlapTopology (\fun (x: Overlap) => b x) := Units.Family[X := Overlap, source := overlapTopology, H := b].regular continuousB;
+\definition productIso[x: Overlap]: Isomorphisms.Isomorphism := Isomorphisms.Composition[U := Vectors.Vector, domain := Vectors.space].compose (Units.isomorphism (a x)) (Units.isomorphism (b x));
+\definition product[x: Overlap]: Units.Carrier := \into[End.Map]((productIso x).forward, Units.Invertible) \by {
+  Hermitian.At[n := n].Square[].LeftInverse[f := (productIso x).forward, g := (productIso x).backward, left := (Isomorphisms.laws (productIso x)).leftInverse].nonzero
+};
+\definition productRegular: Families.Regular overlapTopology (\fun (x: Overlap) => product x) :=
+  \fun (v: Vectors.Vector) => Families.evaluate overlapTopology (\fun (x: Overlap) => a x) (\fun (x: Overlap) => (b x).apply v)
+    (\fun (j: Fin.Fin n) => regularA (Spaces.FiniteCoordinates[n := n].vectors j)) (regularB v);
+\definition productContinuous: topology.Continuity[A := Overlap, B := Units.Carrier].Continuous overlapTopology Units.topology product :=
+  Units.Family[X := Overlap, source := overlapTopology, H := product].continuous productRegular;
+\import algebraic_topology.Interval[] \as Time;
+\import topological_constructions.Product[A := Time.Carrier, B := Overlap] \as Cylinder;
+\definition Domain: \Set := Cylinder.CarrierSet;
+\definition topology: topology.Topology[Carrier := Domain].Topology := Cylinder.topology Time.topology overlapTopology;
+\definition base: Domain -> Overlap := Pair.second Time.Carrier Overlap;
+\definition time: Domain -> Time.Carrier := Pair.first Time.Carrier Overlap;
+\definition timeContinuous: metric_spaces.RealFunctions[A := Domain].Continuous topology (\fun (p: Domain) => time p) :=
+  topology.Composition[A := Domain, B := Time.Carrier, C := R.Real].composeContinuous topology Time.topology metric_spaces.RealLine[].topology time (\fun (t: Time.Carrier) => t)
+    (Cylinder.Maps[].firstContinuous Time.topology overlapTopology) Time.inclusionContinuous;
+\definition scalar[p: Domain]: C.Complex := C.Def[].ofReal (time p);
+\definition scalarContinuous: topology.Continuity[A := Domain, B := C.Complex].Continuous topology Plane.topology scalar :=
+  Hermitian.Functions[X := Domain].embedding topology (\fun (p: Domain) => time p) timeContinuous;
+\definition alongA: Hermitian.At[n := n].Families[X := Domain].Matrix[m := n].Regular topology (\fun (p: Domain) => a (base p)) :=
+  \fun (v: Vectors.Vector)(i: Fin.Fin n) => topology.Composition[A := Domain, B := Overlap, C := C.Complex].composeContinuous topology overlapTopology Plane.topology base
+    (\fun (x: Overlap) => (a x).apply v i) (Cylinder.Maps[].secondContinuous Time.topology overlapTopology) (regularA v i);
+\definition alongB: Hermitian.At[n := n].Families[X := Domain].Matrix[m := n].Regular topology (\fun (p: Domain) => b (base p)) :=
+  \fun (v: Vectors.Vector)(i: Fin.Fin n) => topology.Composition[A := Domain, B := Overlap, C := C.Complex].composeContinuous topology overlapTopology Plane.topology base
+    (\fun (x: Overlap) => (b x).apply v i) (Cylinder.Maps[].secondContinuous Time.topology overlapTopology) (regularB v i);
+\import \root.Linearization[].StableProduct[n := n, Y := Domain, source := topology].With[
+  a := (\fun (p: Domain) => Units.isomorphism (a (base p))), b := (\fun (p: Domain) => Units.isomorphism (b (base p))), t := scalar,
+  regularA := alongA, regularB := alongB, continuousT := scalarContinuous] \as Path;
+\import Homotopy.BlockDiagonal[n := n, m := n] \as Block;
+\definition total: N.Nat^ := Block.total;
+\import Spaces.Coordinates[I := Fin.Fin total] \as Flat;
+\import Spaces.Linear[V := Flat.Vector, W := Flat.Vector, source := Flat.space, target := Flat.space] \as FlatEnd;
+\import Homotopy.Projections[n := total].Operators[].Units[] \as BigUnits;
+\import bundle_operations.Operations[].Over[K := C.Complex, field := Scalars.field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Operations;
+\import Operations.CoordinateSum[n := n, m := n] \as Coordinates;
+\import \root.Linearization[].Rotation[V := Vectors.Vector, space := Vectors.space] \as Rotation;
+\definition starts: \forall (x: Overlap) -> Path.unit (Pair.pair Time.Carrier Overlap Time.start x) = Block.value (product x) Units.identity :=
+  \fun (x: Overlap) => FlatEnd.ext _ _ (\axiom:funext((Path.unit (Pair.pair Time.Carrier Overlap Time.start x)).apply, (Block.value (product x) Units.identity).apply,
+    \fun (v: Flat.Vector) => congr!{Spaces.DirectSum[V := Vectors.Vector, W := Vectors.Vector, left := Vectors.space, right := Vectors.space].Carrier Flat.Vector} Coordinates.join _ _
+      (Rotation.Product[a := Units.isomorphism (a x), b := Units.isomorphism (b x)].starts (Coordinates.split v))));
+\definition ends: \forall (x: Overlap) -> Path.unit (Pair.pair Time.Carrier Overlap Time.end x) = Block.value (a x) (b x) :=
+  \fun (x: Overlap) => FlatEnd.ext _ _ (\axiom:funext((Path.unit (Pair.pair Time.Carrier Overlap Time.end x)).apply, (Block.value (a x) (b x)).apply,
+    \fun (v: Flat.Vector) => congr!{Spaces.DirectSum[V := Vectors.Vector, W := Vectors.Vector, left := Vectors.space, right := Vectors.space].Carrier Flat.Vector} Coordinates.join _ _
+      (Rotation.Product[a := Units.isomorphism (a x), b := Units.isomorphism (b x)].ends (Coordinates.split v))));
+\module Comparison;

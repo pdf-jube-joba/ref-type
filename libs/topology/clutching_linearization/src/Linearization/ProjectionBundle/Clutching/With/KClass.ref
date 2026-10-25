@@ -1,0 +1,44 @@
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := source, compact := compact, hausdorff := hausdorff] \as K;
+\import K.Bundle[F := ImageFiber, original := imageBundle, same := \refl(source)] \as ImageClass;
+\import K.Bundle[F := ComplementFiber, original := complementBundle, same := \refl(source)] \as ComplementClass;
+\import K.Bundle[F := LineFiber, original := lineBundle, same := \refl(source)] \as LineClass;
+\import K.Bundle[F := NormalFiber, original := normalBundle, same := \refl(source)] \as NormalClass;
+\import K.Trivial[n := n] \as TrivialClass;
+\import K.Product[F := LineFiber, G := ImageFiber, left := lineBundle, right := imageBundle, leftSame := \refl(source), rightSame := \refl(source)] \as TensorClass;
+\import K.Sum[F := TensorConstruction.TensorFiber, G := ComplementFiber, left := TensorConstruction.tensorBundle, right := complementBundle,
+  leftSame := \refl(source), rightSame := \refl(source)] \as ProductClass;
+\import K.Sum[F := ImageFiber, G := ComplementFiber, left := imageBundle, right := complementBundle, leftSame := \refl(source), rightSame := \refl(source)] \as SplitClass;
+\import K.Compare[F := ProductFiber, G := NormalFiber, first := productBundle, second := normalBundle,
+  firstSame := \refl(source), secondSame := \refl(source)] \as ProductComparison;
+\import K.Compare[F := SumFiber, G := (\fun (_: X) => M.Vector), first := sumBundle, second := Ambient.bundle,
+  firstSame := \refl(source), secondSame := \refl(source)] \as SplitComparison;
+\definition positive: K.Addition[].add TensorClass.value ComplementClass.value = NormalClass.value :=
+  trans!{K.Classes} _ _ _ ProductClass.onBundles (ProductComparison.ofExists isomorphismExists);
+\definition negative: K.Addition[].add ImageClass.value ComplementClass.value = TrivialClass.value :=
+  trans!{K.Classes} _ _ _ SplitClass.onBundles (SplitComparison.ofIsomorphism isomorphism);
+\import K.K0[] \as K0;
+\import algebra.Group[].Of[Carrier := K0.Carrier, group := K0.group] \as Group;
+\definition cancelCommon: \forall (a, b, c: K.Classes) -> K0.difference (K.Addition[].add a c) (K.Addition[].add b c) = K0.difference a b :=
+  \fun (a, b, c: K.Classes) => trans!{K0.Carrier} _ _ _
+    (congr!{K0.Carrier K0.Carrier K0.Carrier} Group.difference _ _ _ _ (K0.includeAdd a c) (K0.includeAdd b c))
+    (trans!{K0.Carrier} _ _ _ (Group.differenceAdd (K0.include a) (K0.include c) (K0.include b) (K0.include c))
+      (trans!{K0.Carrier} _ _ _ (congr!{K0.Carrier K0.Carrier} (K0.add (K0.difference a b)) _ _ (Group.inverseRight (K0.include c)))
+        (Group.zeroRight (K0.difference a b))));
+\definition reducedClass: K0.Carrier := K0.difference NormalClass.value TrivialClass.value;
+\definition differenceEquation: reducedClass = K0.difference TensorClass.value ImageClass.value :=
+  trans!{K0.Carrier} _ _ _
+    (congr!{K.Classes K.Classes K0.Carrier} K0.difference _ _ _ _ (sym!{K.Classes} _ _ positive) (sym!{K.Classes} _ _ negative))
+    (cancelCommon TensorClass.value ImageClass.value ComplementClass.value);
+\import algebra.GroupCompletion[].Semiring[M := K.Classes, semiring := K.Semiring[].semiring] \as Completion;
+\import algebra.GroupCompletion[].Of[M := K.Classes, monoid := K0.additiveMonoid] \as Additive;
+\definition lineDifference: K0.Carrier := K0.difference LineClass.value K.Line[].value;
+\definition imageClass: K0.Carrier := K0.include ImageClass.value;
+\definition productEquation: K0.mul lineDifference imageClass = K0.difference TensorClass.value ImageClass.value :=
+  trans!{K0.Carrier} _ _ _
+    (congr!{K0.Carrier K0.Carrier} (\fun (v: K0.Carrier) => K0.mul v imageClass) _ _ (K0.differenceClass LineClass.value K.Line[].value))
+    (trans!{K0.Carrier} _ _ _ (Completion.mulClass (Additive.pair LineClass.value K.Line[].value) imageClass)
+      (trans!{K0.Carrier} _ _ _
+        (congr!{K0.Carrier K0.Carrier K0.Carrier} Group.difference _ _ _ _
+          (Completion.scaleIncludes LineClass.value ImageClass.value) (Completion.scaleIncludes K.Line[].value ImageClass.value))
+        (congr!{K.Classes K.Classes K0.Carrier} K0.difference _ _ _ _ TensorClass.onBundles (K.MultiplicativeMonoid[].leftIdentity ImageClass.value))));
+\definition comparison: reducedClass = K0.mul lineDifference imageClass := trans!{K0.Carrier} _ _ _ differenceEquation (sym!{K0.Carrier} _ _ productEquation);

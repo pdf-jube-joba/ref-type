@@ -1,0 +1,47 @@
+\import vector_bundles.Bundles[].Over[K := C.Complex, field := Scalars.field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar] \as Bundles;
+\import Bundles.Family[X := X, F := F] \as Family;
+\import Family.With[data := bundle] \as Charts;
+\import Charts.In[c := c] \as Local;
+\import Family.Of[bundle := bundle].Restriction[U := c.domain] \as Restriction;
+\definition BasePoint: \Set := \Cast[X] c.domain;
+\definition source: topology.Topology[Carrier := BasePoint].Topology := topology.Topology[Carrier := X].Subspace[S := c.domain].topology bundle.baseSpace;
+\definition Vector: \Set := Bundles.Vector c.dimension;
+\import Bundles.Family[X := BasePoint, F := (\fun (x: BasePoint) => F x)] \as Restricted;
+\import Bundles.Family[X := BasePoint, F := (\fun (_: BasePoint) => Vector)] \as Coordinates;
+\import Bundles.Trivial[X := BasePoint, n := c.dimension, baseSpace := source] \as Trivial;
+\import Bundles.Morphisms[X := BasePoint, Y := BasePoint, F := (\fun (x: BasePoint) => F x), G := (\fun (_: BasePoint) => Vector),
+  source := Restriction.restricted, target := Trivial.bundle, f := (\fun (x: BasePoint) => x)] \as Forward;
+\import Bundles.Morphisms[X := BasePoint, Y := BasePoint, F := (\fun (_: BasePoint) => Vector), G := (\fun (x: BasePoint) => F x),
+  source := Trivial.bundle, target := Restriction.restricted, f := (\fun (x: BasePoint) => x)] \as Backward;
+\definition laws: Local.Laws := \bysub(Charts.ChartData, Charts.Chart, c);
+\definition forwardData: Forward.Data := Forward.Data { fiber := \fun (x: BasePoint) => (c.frame x).forward };
+\definition backwardData: Backward.Data := Backward.Data { fiber := \fun (x: BasePoint) => (c.frame x).backward };
+\definition forward: Forward.Map := \into[Forward.Data](forwardData, Forward.Map) \by {
+  topology.Composition[A := Restricted.Point, B := Local.TotalPoint, C := Coordinates.Point].composeContinuous Restriction.restricted.totalSpace Local.localTopology Trivial.topology
+    Restriction.forward (\fun (p: Local.TotalPoint) => Trivial.backward (Local.forward p)) Restriction.forwardContinuous
+    (topology.Composition[A := Local.TotalPoint, B := Local.ProductPoint, C := Coordinates.Point].composeContinuous Local.localTopology Local.productTopology Trivial.topology
+      Local.forward Trivial.backward laws.forwardContinuous Trivial.backwardContinuous)
+};
+\definition model[p: Coordinates.Point]: Restricted.Point := Restriction.backward (Local.backward (Trivial.forward p));
+\definition modelContinuous: topology.Continuity[A := Coordinates.Point, B := Restricted.Point].Continuous Trivial.topology Restriction.restricted.totalSpace model :=
+  topology.Composition[A := Coordinates.Point, B := Local.ProductPoint, C := Restricted.Point].composeContinuous Trivial.topology Local.productTopology Restriction.restricted.totalSpace
+    Trivial.forward (\fun (p: Local.ProductPoint) => Restriction.backward (Local.backward p)) Trivial.forwardContinuous
+    (topology.Composition[A := Local.ProductPoint, B := Local.TotalPoint, C := Restricted.Point].composeContinuous Local.productTopology Local.localTopology Restriction.restricted.totalSpace
+      Local.backward Restriction.backward laws.backwardContinuous Restriction.backwardContinuous);
+\definition vectorFormula: \forall (p: Coordinates.Point) -> (model p).vector = (c.frame p.base).backward.apply p.vector :=
+  \fun (p: Coordinates.Point) => Equality.Transport[A := X].castRefl F p.base ((c.frame p.base).backward.apply p.vector);
+\definition formula: \forall (p: Coordinates.Point) -> model p = Backward.total backwardData p :=
+  \fun (p: Coordinates.Point) => congr!{{F p.base} {Restricted.Point}} (Restricted.include p.base) _ _ (vectorFormula p);
+\definition backward: Backward.Map := \into[Backward.Data](backwardData, Backward.Map) \by {
+  \idelim model = Backward.total backwardData \with f: (Coordinates.Point -> Restricted.Point) => topology.Continuity[A := Coordinates.Point, B := Restricted.Point].Continuous Trivial.topology Restriction.restricted.totalSpace f \by {
+    base: modelContinuous, equality: \axiom:funext(model, Backward.total backwardData, formula)
+  }
+};
+\definition isomorphism: Bundles.Isomorphisms[X := BasePoint, F := (\fun (x: BasePoint) => F x), G := (\fun (_: BasePoint) => Vector),
+  source := Restriction.restricted, target := Trivial.bundle].Isomorphism :=
+  Bundles.Isomorphisms[X := BasePoint, F := (\fun (x: BasePoint) => F x), G := (\fun (_: BasePoint) => Vector), source := Restriction.restricted, target := Trivial.bundle].Isomorphism {
+    forward := forward, backward := backward,
+    leftInverse := \fun (x: BasePoint) => (Spaces.Isomorphism[V := F x, W := Vector, source := bundle.space x, target := Bundles.coordinates c.dimension].laws (c.frame x)).leftInverse,
+    rightInverse := \fun (x: BasePoint) => (Spaces.Isomorphism[V := F x, W := Vector, source := bundle.space x, target := Bundles.coordinates c.dimension].laws (c.frame x)).rightInverse
+  };

@@ -1,0 +1,39 @@
+\import Hermitian.At[n := n].Families[X := Domain] \as Vectors;
+\import Vectors.Matrix[m := n] \as Maps;
+\import Plane.Functions[A := Domain] \as Functions;
+\definition baseContinuous: topology.Continuity[A := Domain, B := X].Continuous topology source base :=
+  topology.Composition[A := Domain, B := Circular.CarrierSet, C := X].composeContinuous topology circleTopology source circlePoint (Pair.first X Circle.Carrier)
+    (Cylinder.Maps[].secondContinuous Time.topology circleTopology) (Circular.Maps[].firstContinuous source Circle.topology);
+\definition variableContinuous: topology.Continuity[A := Domain, B := C.Complex].Continuous topology Plane.topology variable :=
+  topology.Composition[A := Domain, B := Circular.CarrierSet, C := C.Complex].composeContinuous topology circleTopology Plane.topology circlePoint
+    (\fun (p: Circular.CarrierSet) => Pair.second X Circle.Carrier p) (Cylinder.Maps[].secondContinuous Time.topology circleTopology)
+    (topology.Composition[A := Circular.CarrierSet, B := Circle.Carrier, C := C.Complex].composeContinuous circleTopology Circle.topology Plane.topology
+      (Pair.second X Circle.Carrier) (\fun (z: Circle.Carrier) => z) (Circular.Maps[].secondContinuous source Circle.topology)
+      (topology.Continuity[A := C.Complex, B := C.Complex].Corestriction[S := Circle.unit].inclusionContinuous Plane.topology));
+\definition timeContinuous: metric_spaces.RealFunctions[A := Domain].Continuous topology (\fun (p: Domain) => time p) :=
+  topology.Composition[A := Domain, B := Time.Carrier, C := R.Real].composeContinuous topology Time.topology metric_spaces.RealLine[].topology time (\fun (t: Time.Carrier) => t)
+    (Cylinder.Maps[].firstContinuous Time.topology circleTopology) Time.inclusionContinuous;
+\definition scalarContinuous: topology.Continuity[A := Domain, B := C.Complex].Continuous topology Plane.topology scalar := Hermitian.Functions[X := Domain].embedding topology (\fun (p: Domain) => time p) timeContinuous;
+\definition operator[p: Domain]: End.Map := M.linear (A (base p));
+\definition projection[p: Domain]: End.Map := Native.projection (base p);
+\definition complementary[p: Domain]: End.Map := Native.complementary (base p);
+\definition operatorRegular: Maps.Regular topology operator := \fun (v: M.Vector)(i: Fin.Fin n) =>
+  topology.Composition[A := Domain, B := X, C := C.Complex].composeContinuous topology source Plane.topology base (\fun (x: X) => (M.linear (A x)).apply v i) baseContinuous (Native.regularT v i);
+\definition projectionRegular: Maps.Regular topology projection := \fun (v: M.Vector)(i: Fin.Fin n) =>
+  topology.Composition[A := Domain, B := X, C := C.Complex].composeContinuous topology source Plane.topology base (\fun (x: X) => (Native.projection x).apply v i) baseContinuous (Native.projectionRegular v i);
+\definition complementaryRegular: Maps.Regular topology complementary := \fun (v: M.Vector)(i: Fin.Fin n) =>
+  topology.Composition[A := Domain, B := X, C := C.Complex].composeContinuous topology source Plane.topology base (\fun (x: X) => (Native.complementary x).apply v i) baseContinuous (Native.complementaryRegular v i);
+\import spectral_splitting.Spectral[].At[n := n].Families[X := Domain, source := topology, T := operator, regularT := operatorRegular] \as Evaluation;
+\definition innerComposition: Maps.Regular topology (\fun (p: Domain) => Composition.compose (operator p) (projection p)) := Evaluation.compositionRegular operator projection operatorRegular projectionRegular;
+\definition outerComposition: Maps.Regular topology (\fun (p: Domain) => Composition.compose (operator p) (complementary p)) := Evaluation.compositionRegular operator complementary operatorRegular complementaryRegular;
+\definition minusOneContinuous: topology.Continuity[A := Domain, B := C.Complex].Continuous topology Plane.topology (\fun (_: Domain) => C.Def[].neg C.Def[].one) :=
+  topology.Maps[A := Domain, B := C.Complex].constantContinuous topology Plane.topology (C.Def[].neg C.Def[].one);
+\definition productContinuous: topology.Continuity[A := Domain, B := C.Complex].Continuous topology Plane.topology (\fun (p: Domain) => C.Def[].mul (scalar p) (variable p)) := Functions.multiplicationContinuous topology scalar variable scalarContinuous variableContinuous;
+\definition regular: Maps.Regular topology value := \fun (v: M.Vector) => Vectors.addition topology _ _
+  (Vectors.addition topology _ _ (Vectors.scale topology variable (\fun (p: Domain) => (projection p).apply v) variableContinuous (projectionRegular v))
+    (Vectors.scale topology (\fun (_: Domain) => C.Def[].neg C.Def[].one) _ minusOneContinuous
+      (Vectors.scale topology scalar (\fun (p: Domain) => (operator p).apply ((projection p).apply v)) scalarContinuous (innerComposition v))))
+  (Vectors.addition topology _ _ (Vectors.scale topology (\fun (p: Domain) => C.Def[].mul (scalar p) (variable p)) (\fun (p: Domain) => (complementary p).apply v) productContinuous (complementaryRegular v))
+    (Vectors.scale topology (\fun (_: Domain) => C.Def[].neg C.Def[].one) (\fun (p: Domain) => (operator p).apply ((complementary p).apply v)) minusOneContinuous (outerComposition v)));
+\definition matrixRegular: matrix_invariants.Topological[K := C.Complex, ring := Plane.Ring[].topologicalRing].At[n := n].Families[X := Domain].Regular topology matrix :=
+  \fun (i, j: M.Index) => regular (Basis.vectors j) i;
