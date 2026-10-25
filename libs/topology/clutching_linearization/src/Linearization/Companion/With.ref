@@ -8,25 +8,14 @@
     (Sums.congruent (Fin.elements degree) _ _ (\fun (i: Fin.Fin degree) => (coefficients i).preservesScale a (v i)))
     (Sums.scalar (Fin.elements degree) a (\fun (i: Fin.Fin degree) => (coefficients i).apply (v i))),
 };
-\definition negativeRow: Row.Map := Row.Operations[].negative row;
-\definition negativeRowValue: \forall (v: Carrier) -> negativeRow.apply v = Vectors.negative (row.apply v) :=
-  \fun (v: Carrier) => Values.minusOneScale (row.apply v);
-\definition operator: Operators.Map := Operators.Map {
-  apply := \fun (v: Carrier) => join (\fun (i: Fin.Fin d) => v (Fin.succ d i)) (negativeRow.apply v),
-  preservesAdd := \fun (v, w: Carrier) => trans!{Carrier} _ _ _
-    (congr!{Vectors.Vector Carrier} (join (\fun (i: Fin.Fin d) => Vectors.plus (v (Fin.succ d i)) (w (Fin.succ d i)))) _ _ (negativeRow.preservesAdd v w))
-    (joinAddition (\fun (i: Fin.Fin d) => v (Fin.succ d i)) (\fun (i: Fin.Fin d) => w (Fin.succ d i)) (negativeRow.apply v) (negativeRow.apply w)),
-  preservesScale := \fun (a: C.Complex)(v: Carrier) => trans!{Carrier} _ _ _
-    (congr!{Vectors.Vector Carrier} (join (\fun (i: Fin.Fin d) => Vectors.scale a (v (Fin.succ d i)))) _ _ (negativeRow.preservesScale a v))
-    (joinScalar a (\fun (i: Fin.Fin d) => v (Fin.succ d i)) (negativeRow.apply v)),
-};
-\definition polynomial[z: C.Complex]: End.Map := End.Operations[].plus (Spaces.Eigen[V := Vectors.Vector, space := Vectors.space].scalar (power z degree))
-  (Row.Composition[U := Vectors.Vector, domain := Vectors.space].compose row (geometric z));
-\module Eigen(z: C.Complex, v: Carrier, equation: operator.apply v = space.smul z v);
+\import \parent.FromRow[row := row] \as Native;
+\definition negativeRow: Row.Map := Native.negativeRow;
+\definition negativeRowValue: \forall (v: Carrier) -> negativeRow.apply v = Vectors.negative (row.apply v) := Native.negativeRowValue;
+\definition operator: Operators.Map := Native.operator;
+\definition polynomial: C.Complex -> End.Map := Native.polynomial;
 \definition noUnitEigen:
   (\forall (z: C.Complex) -> C.Absolute[].abs z = R.one -> \forall (w: Vectors.Vector) -> (polynomial z).apply w = Vectors.origin -> w = Vectors.origin) ->
-  \forall (z: C.Complex) -> C.Absolute[].abs z = R.one -> \forall (v: Carrier) -> operator.apply v = space.smul z v -> v = space.zero :=
-  \fun (kernel: _)(z: C.Complex)(unit: _)(v: Carrier)(equation: _) => Eigen[z := z, v := v, equation := equation].zeroOfPolynomialKernel (kernel z unit);
+  \forall (z: C.Complex) -> C.Absolute[].abs z = R.one -> \forall (v: Carrier) -> operator.apply v = space.smul z v -> v = space.zero := Native.noUnitEigen;
 \module Spectral;
 \module Linearize(z: C.Complex);
 \module PolynomialEntries;
