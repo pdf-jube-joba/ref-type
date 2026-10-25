@@ -1,0 +1,21 @@
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := source, compact := compact, hausdorff := hausdorff] \as BaseK;
+\import BaseK.Pullback[Y := Shifted.Carrier, space := Shifted.topology, sourceCompact := Shifted.productCompact, sourceHausdorff := Shifted.productHausdorff,
+  f := Shifted.first, regular := Product.baseContinuous] \as Pull;
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].SpectralIndex[
+  n := Coordinates.dimension degree, A := Family.matrix, regular := Family.matrixRegular, off := Separated.off, removed := N.Basic[].Def[].mul n form.shift].Pullback[
+    Y := Shifted.Carrier, space := Shifted.topology, compactY := Shifted.productCompact, hausdorffY := Shifted.productHausdorff,
+    f := Shifted.first, continuous := Product.baseContinuous] \as Naturality;
+\definition pulledIndex: K0.Carrier := Pull.K0[].map Monic.inverseClass;
+\definition pullbackFormula: pulledIndex = Group.difference imageClass (K0.include Correction.removed) := Naturality.naturality;
+\import algebra.GroupCompletion[].Semiring[M := K.Classes, semiring := K.Semiring[].semiring] \as Ring;
+\definition commutative: \forall (a, b: K0.Carrier) -> K0.mul a b = K0.mul b a := Ring.mulComm K.MultiplicativeMonoid[].commutative;
+\definition multiplyNegative: \forall (a, b: K0.Carrier) -> K0.mul a (K0.neg b) = K0.neg (K0.mul a b) :=
+  \fun (a, b: K0.Carrier) => trans!{K0.Carrier} _ _ _ (commutative a (K0.neg b))
+    (trans!{K0.Carrier} _ _ _ (Ring.mulNegLeft b a) (congr!{K0.Carrier K0.Carrier} K0.neg _ _ (commutative b a)));
+\definition multiplyDifference: \forall (a, b, c: K0.Carrier) -> K0.mul a (Group.difference b c) = Group.difference (K0.mul a b) (K0.mul a c) :=
+  \fun (a, b, c: K0.Carrier) => trans!{K0.Carrier} _ _ _ (Ring.mulAddRight a b (K0.neg c))
+    (congr!{K0.Carrier K0.Carrier} (K0.add (K0.mul a b)) _ _ (multiplyNegative a c));
+\definition reconstruction: Correction.originalClass = K0.mul lineDifference pulledIndex :=
+  trans!{K0.Carrier} _ _ _ correctedProduct
+    (trans!{K0.Carrier} _ _ _ (sym!{K0.Carrier} _ _ (multiplyDifference lineDifference imageClass (K0.include Correction.removed)))
+      (congr!{K0.Carrier K0.Carrier} (K0.mul lineDifference) _ _ (sym!{K0.Carrier} _ _ pullbackFormula)));
