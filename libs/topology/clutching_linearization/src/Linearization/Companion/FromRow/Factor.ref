@@ -114,3 +114,27 @@
       congr!{Vectors.Vector Vectors.Vector} (ValueGroup.difference (rowTail.apply v)) _ _ (rowFormula v) }
     "=" _ "by" { ValueGroup.subtractDifference (rowTail.apply v) (Vectors.scale r (residual.apply v)) }
   };
+
+\definition injection[u: Vectors.Vector]: Carrier := join (\fun (_: Fin.Fin d) => Vectors.origin) u;
+\definition joinSplitAdd: \forall (f: Fin.Fin d -> Vectors.Vector)(a, b: Vectors.Vector) -> space.add (join f a) (injection b) = join f (Vectors.plus a b) :=
+  \fun (f: Fin.Fin d -> Vectors.Vector)(a, b: Vectors.Vector) => trans!{Carrier} _ _ _
+    (sym!{Carrier} _ _ (joinAddition f (\fun (_: Fin.Fin d) => Vectors.origin) a b))
+    (congr!{{Fin.Fin d -> Vectors.Vector} Carrier} (\fun (g: Fin.Fin d -> Vectors.Vector) => join g (Vectors.plus a b)) _ _
+      (\axiom:funext((\fun (i: Fin.Fin d) => Vectors.plus (f i) Vectors.origin), f, \fun (i: Fin.Fin d) => ValueGroup.zeroRight (f i))));
+\definition cancelResidual: \forall (a, b: Vectors.Vector) -> Vectors.plus (Vectors.negative a) (Vectors.plus a b) = b :=
+  \fun (a, b: Vectors.Vector) => trans!{Vectors.Vector} _ _ _ (sym!{Vectors.Vector} _ _ (ValueGroup.assoc (Vectors.negative a) a b))
+    (trans!{Vectors.Vector} _ _ _ (congr!{Vectors.Vector Vectors.Vector} (\fun (w: Vectors.Vector) => Vectors.plus w b) _ _ (ValueGroup.inverseLeft a)) (ValueGroup.zeroLeft b));
+\definition firstOperator: \forall (v: Next.Carrier) -> tail.apply v = space.add (operator.apply (prefix.apply v)) (injection (residual.apply v)) :=
+  \fun (v: Next.Carrier) => sym!{Carrier} _ _ (eq_reason_in!{Carrier
+    { space.add (operator.apply (prefix.apply v)) (injection (residual.apply v)) }
+    "=" { join (\fun (i: Fin.Fin d) => prefix.apply v (Fin.succ d i)) (Vectors.plus (negativeRow.apply (prefix.apply v)) (residual.apply v)) } "by" { joinSplitAdd (\fun (i: Fin.Fin d) => prefix.apply v (Fin.succ d i)) (negativeRow.apply (prefix.apply v)) (residual.apply v) }
+    "=" { join (\fun (i: Fin.Fin d) => prefix.apply v (Fin.succ d i)) (v Next.last) } "by" {
+      congr!{Vectors.Vector Carrier} (join (\fun (i: Fin.Fin d) => prefix.apply v (Fin.succ d i))) _ _
+        (trans!{Vectors.Vector} _ _ _ (congr!{Vectors.Vector Vectors.Vector} (\fun (w: Vectors.Vector) => Vectors.plus w (residual.apply v)) _ _ (negativeRowValue (prefix.apply v)))
+          (cancelResidual (row.apply (prefix.apply v)) (v Next.last))) }
+    "=" _ "by" { \root.Linearization[].Companion[n := n, d := d].Reordering[].recover (tail.apply v) }
+  });
+\definition triangularValue[p: State.Carrier]: State.Carrier := State.make (space.add (operator.apply (State.first p)) (injection (State.second p))) (Vectors.scale r (State.second p));
+\definition intertwines: \forall (v: Next.Carrier) -> forward.apply (Enlarged.operator.apply v) = triangularValue (forward.apply v) :=
+  \fun (v: Next.Carrier) => StatePairs.ext _ _
+    (trans!{Carrier} _ _ _ (prefixOperator v) (firstOperator v)) (residualOperator v);
