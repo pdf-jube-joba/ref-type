@@ -1,0 +1,17 @@
+\import New.In[frame := frame] \as LocalFrame;
+\import Bundles.Trivial[X := Y, n := n, baseSpace := space] \as Target;
+\import Operations.IsomorphismComposition[X := Y, F := (\fun (y: Y) => ProductFiber (f y)), G := LocalFiber, H := (\fun (_: Y) => M.Vector),
+  source := pulledBundle, middle := localBundle, target := Target.bundle] \as Framing;
+\definition trivialization: Bundles.Isomorphisms[X := Y, F := (\fun (y: Y) => ProductFiber (f y)), G := (\fun (_: Y) => M.Vector),
+  source := pulledBundle, target := Target.bundle].Isomorphism := Framing.compose comparison LocalFrame.trivialization;
+\definition forwardFormula: \forall (y: Y)(v: ProductFiber (f y)) -> (trivialization.forward.fiber y).apply v = (LocalFrame.trivialization.forward.fiber y).apply v :=
+  \fun (y: Y)(v: ProductFiber (f y)) => congr!{{LocalFiber y} M.Vector} (LocalFrame.trivialization.forward.fiber y).apply _ _ (onFiber y v);
+\definition backwardFormula: \forall (y: Y)(v: M.Vector) -> (trivialization.backward.fiber y).apply v = LocalFrame.reconstruction y v :=
+  \fun (y: Y)(v: M.Vector) => trans!{{ProductFiber (f y)}} _ _ _
+    (inverseOnFiber y ((LocalFrame.trivialization.backward.fiber y).apply v)) (LocalFrame.backwardFormula y v);
+\definition onPure: \forall (y: Y)(l: L (f y))(v: ImageFiber (f y))(w: ComplementFiber (f y)) ->
+  (trivialization.forward.fiber y).apply (Pair.pair (TensorFiber (f y)) (ComplementFiber (f y)) (Tensor.pure (f y) l v) w) =
+    Vectors.plus (Vectors.scale ((frame.forward.fiber y).apply l) v) w :=
+  \fun (y: Y)(l: L (f y))(v: ImageFiber (f y))(w: ComplementFiber (f y)) => trans!{M.Vector} _ _ _
+    (forwardFormula y (Pair.pair (TensorFiber (f y)) (ComplementFiber (f y)) (Tensor.pure (f y) l v) w))
+    (LocalFrame.forwardPure y l v w);
