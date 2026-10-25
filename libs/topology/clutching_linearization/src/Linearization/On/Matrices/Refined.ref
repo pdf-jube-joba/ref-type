@@ -3,3 +3,27 @@
 \definition precisionBelow: \forall (bound: Margin.Bound) -> Real.Lt (precision bound) bound.value := \fun (bound: Margin.Bound) => Order.ltTrans _ _ _
   (\root.Linearization[].RelativeBounds[delta := bound.value, positive := bound.positive].epsilonBelow) (R.Estimates[].halfStrict bound.value bound.positive);
 \module WithBound(bound: Margin.Bound);
+\structure Parameters: \Set := {
+  margin: Margin.Bound,
+  nearData: WithBound[bound := margin].Near,
+  form: Normal.Matrices[n := n, m := n, p := nearData.data.coefficients].PolynomialMatrix,
+  radius: Normalized[data := nearData.data].With[form := form].Shifted[].Radius,
+  smallRadius: Real.Le radius.value (precision margin),
+};
+\definition parametersExist: \exists Parameters := \block {
+  \takefrom margin: Margin.Bound \by Margin.boundExists \then
+  \takefrom nearData: WithBound[bound := margin].Near \by WithBound[bound := margin].exists \then
+  \takefrom form: Normal.Matrices[n := n, m := n, p := nearData.data.coefficients].PolynomialMatrix \by Normalized[data := nearData.data].normalizationExists \then
+  \takefrom radius: Normalized[data := nearData.data].With[form := form].Shifted[].Radius \by Normalized[data := nearData.data].With[form := form].Shifted[].radiusExists \then
+  \let minimum: R.Real := R.Distance[].min radius.value (precision margin) \then
+  \let smaller: Normalized[data := nearData.data].With[form := form].Shifted[].Radius := Normalized[data := nearData.data].With[form := form].Shifted[].Radius {
+    value := minimum, positive := R.Estimates[].Product[].minPositive radius.value (precision margin) radius.positive (precisionPositive margin),
+    preserves := \fun (e: M.Matrix)(near: \forall (i, j: M.Index) -> Real.Lt (C.Absolute[].abs (e i j)) minimum) =>
+      radius.preserves e (\fun (i, j: M.Index) => Real.ltLeTrans _ _ _ (near i j) (R.Distance[].minLeft radius.value (precision margin))),
+  } \then
+  \return \exact(Parameters { margin := margin, nearData := nearData, form := form, radius := smaller, smallRadius := R.Distance[].minRight radius.value (precision margin) }, Parameters)
+};
+\definition parameters[chosen: Parameters]: \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[n := n, a := a, regular := regular, nonzero := nonzero].Parameters :=
+  \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[n := n, a := a, regular := regular, nonzero := nonzero].Parameters {
+    approximation := chosen.nearData.data, normal := chosen.form, radius := chosen.radius,
+  };
