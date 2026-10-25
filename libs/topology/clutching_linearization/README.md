@@ -31,6 +31,12 @@ K04 の `Circle.Coefficients.valueContinuous` を公開し、評価の連続性�
 退避 head `060c0616` から再開し、数学ソース `95809e5d` まで検証した。
 共有キャッシュは `libs/refcache`。
 
+再開後は、標準ループの作用・積・逆、像束分解による共役、テンソル像束の局所自明化と遷移スカラーの連続性・非零性、引き戻し比較、開集合上のチャート構成を追加した。
+`06e0a0de` までのこれらの個別検査は accepted・終了0・保存失敗0。
+`d3ff4937` の `ChartTrivialization` と B02 `ScalarLine.coordinateIsomorphism` は追加直後で、最新 K07 全対象を次に検査する。
+次の接続は、線束の clutching チャートから局所フレームを取り出し、テンソル像束のチャートの遷移を標準ループに同定すること。
+以下の全workspace結果は再開前の数学入力に対する記録。
+
 | 対象 | 数学入力 | 結果 |
 | --- | --- | --- |
 | package 全依存閉包 | `a4ead646` | 5,638 module、accepted、終了0、保存失敗0 |
