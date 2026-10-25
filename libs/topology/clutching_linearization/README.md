@@ -89,3 +89,6 @@ Clutched の型検査は `/tmp/k07-resume/source.json` を入力に `libs/refcac
 Clutched の再検査は `Along.isomorphismExists` で長時間停滞し、計測のため中断した（終了130）。
 最初のレポートは 11,896 source steps、checkpoint 11,468、保存失敗0であり、成功ではない。
 宣言計測では `startExists`・`finishExists` までは完了したため、最終合成を `motionExists`・`throughInitialExists` に分けて検査箇所を絞る（未検証）。
+
+計測により `motionExists` は完了し、`throughInitialExists` から参照される `startExists` の kernel 登録時の型同値判定で展開が増大していると分かった。
+比較回数と項を限定出力する `REF_TYPE_PROFILE_CONVERSION` の診断を追加した。判定規則は変更していない。
