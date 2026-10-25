@@ -70,4 +70,8 @@ target/debug/cli libs/topology/clutching_linearization --source-snapshot work/k0
 次に追加した NormalForm・InverseFamily・SpectralMotion.Normal・ClutchedMotion と companion gauge の対象検査を行う。
 clutching とスペクトル束の比較、選択独立性・自然性・直和・相互逆、具体例、workspace/package 登録・公開一覧・下流リンク・ロードマップが残作業。
 package 全依存閉包・影響する下流・利用例・workspace の最終検証も残っている。
-K07 の完成・最終検証・必要な CI・通常マージ・main 反映確認後に、最新 main から K02、B09、K03 を順番に進める。
+K07 の完成・最終検証・必要な CI・通常マージ・main 反映確認までが、この再開作業の対象。
+
+2026-10-25、新しい実行環境で退避 head `060c0616a1c3f648a967fd40897a35706c60ffcb` を取得し、GitHub と git ls-remote の一致を確認した。
+旧環境の work レポートと libs/refcache は残っていないため、共有キャッシュを再構築して Clutched から検査を再開する。
+数学ソースの検証状態は上記のままであり、この再開記録は検証成功を示すものではない。
