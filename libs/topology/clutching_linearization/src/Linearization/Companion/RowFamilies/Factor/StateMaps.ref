@@ -1,0 +1,41 @@
+\import \root.Linearization[].Companion[n := n, d := d].FromRow[row := Row.Operations[].zeroMap].Factor[r := r] \as Template;
+\import Spaces.Coordinates[I := Fin.Fin (Coordinates.dimension degree)] \as OldFlat;
+\import Spaces.Coordinates[I := Fin.Fin (Coordinates.dimension Next.degree)] \as NewFlat;
+\definition total: N.Nat^ := Nat.add n (Coordinates.dimension degree);
+\import Spaces.Coordinates[I := Fin.Fin total] \as Total;
+\import Spaces.DirectSum[V := OldFlat.Vector, W := Vectors.Vector, left := OldFlat.space, right := Vectors.space] \as FlatPair;
+\import Fin.Sum[m := Coordinates.dimension degree, n := n] \as FlatIndices;
+\import FlatIndices.Tuples[A := C.Complex] \as FlatTuples;
+\import bundle_operations.Operations[].Over[K := C.Complex, field := Scalars.field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar].CoordinateSum[n := Coordinates.dimension degree, m := n] \as Join;
+\import Spaces.Isomorphism[V := NewFlat.Vector, W := Total.Vector, source := NewFlat.space, target := Total.space] \as Iso;
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Scalars.field, scalar := linear_algebra.Hermitian[].Complex[].scalar,
+  topological := hermitian_frames.Hermitian[].Complex[].topological] \as Hermitian;
+\definition isomorphism[x: X]: Iso.Isomorphism := \root.Linearization[].Companion[n := n, d := d].FromRow[row := rows x].Factor[r := r].CoordinateState[].flatIsomorphism;
+\definition front[v: NewFlat.Vector]: Carrier := Template.prefix.apply (Coordinates.unflatten Next.degree v);
+\definition residualValue[v: NewFlat.Vector][x: X]: Vectors.Vector := Vectors.plus ((rows x).apply (front v)) (Coordinates.unflatten Next.degree v Next.last);
+\definition residualRegular: \forall (v: NewFlat.Vector)(i: Fin.Fin n) -> Flatten.Continuous (\fun (x: X) => residualValue v x i) :=
+  \fun (v: NewFlat.Vector)(i: Fin.Fin n) => Functions.additionContinuous source _ _ (regular (front v) i)
+    (topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology (Coordinates.unflatten Next.degree v Next.last i));
+\definition forwardRegular: Hermitian.At[n := total].Families[X := X].Matrix[m := Coordinates.dimension Next.degree].Regular source (\fun (x: X) => (isomorphism x).forward) :=
+  \fun (v: NewFlat.Vector)(i: Fin.Fin total) =>
+    (\induction (s: FlatIndices.Index) \return Flatten.Continuous (\fun (x: X) => FlatTuples.evaluate (Coordinates.flatten degree (front v)) (residualValue v x) s) \with {
+      | inl: \fun (j: Fin.Fin (Coordinates.dimension degree)) => topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology (Coordinates.flatten degree (front v) j)
+      | inr: \fun (j: Fin.Fin n) => residualRegular v j
+    }) (FlatIndices.split i);
+\definition backFront[v: Total.Vector]: Carrier := Coordinates.unflatten degree (FlatPair.first (Join.split v));
+\definition backLast[v: Total.Vector][x: X]: Vectors.Vector := ValueGroup.difference (FlatPair.second (Join.split v)) ((rows x).apply (backFront v));
+\definition backLastRegular: \forall (v: Total.Vector)(i: Fin.Fin n) -> Flatten.Continuous (\fun (x: X) => backLast v x i) :=
+  \fun (v: Total.Vector)(i: Fin.Fin n) => Functions.additionContinuous source _ _
+    (topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology (FlatPair.second (Join.split v) i))
+    (Functions.negationContinuous source _ (regular (backFront v) i));
+\import Fin.Sum[m := degree, n := N.Nat^::succ N.Nat^::zero] \as BackIndices;
+\import BackIndices.Tuples[A := Vectors.Vector] \as BackTuples;
+\definition backwardRawRegular: \forall (v: Total.Vector) -> Flatten.Regular Next.degree (\fun (x: X) => Next.join (backFront v) (backLast v x)) :=
+  \fun (v: Total.Vector)(i: Fin.Fin Next.degree)(j: Fin.Fin n) =>
+    (\induction (s: BackIndices.Index) \return Flatten.Continuous (\fun (x: X) => BackTuples.evaluate (backFront v) (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => backLast v x) s j) \with {
+      | inl: \fun (k: Fin.Fin degree) => topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology (backFront v k j)
+      | inr: \fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => backLastRegular v j
+    }) (BackIndices.split (Next.toTotal i));
+\definition backwardRegular: Hermitian.At[n := Coordinates.dimension Next.degree].Families[X := X].Matrix[m := total].Regular source (\fun (x: X) => (isomorphism x).backward) :=
+  \fun (v: Total.Vector) => Flatten.flattenRegular Next.degree (\fun (x: X) => Next.join (backFront v) (backLast v x)) (backwardRawRegular v);
