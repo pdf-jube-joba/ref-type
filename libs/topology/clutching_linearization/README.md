@@ -23,7 +23,7 @@ K04 の `Circle.Coefficients.valueContinuous` を公開し、評価の連続性�
 ブランチは `math/k07-clutching-linearization`、開始点は main `744d501e`。
 GitHub 連携で #42〜#45 の統合を確認済み、開始時の open PR 検索結果は空であった。
 通常の GitHub 連携は PR 情報の読み取りに成功し、gh / curl 経由で観測した拒否とは区別する。
-K07 の PR はまだ作成していない。
+K07 は [draft PR #46](https://github.com/pdf-jube-joba/ref-type/pull/46) で進行中。
 
 最後に対象検査が成功した数学ソースのコミットは `26cc1f1b`。
 `work/k07-spectral-family.source.json` の対象 module と参照先は検査・キャッシュ保存完了、プロセスの終了0を確認した。
@@ -39,7 +39,8 @@ target/debug/cli libs/topology/clutching_linearization --source-snapshot work/k0
 
 `Geometric` の有限幾何級数と `Companion.Shift` の三角行列操作も、`work/k07-geometric.source.json`・`work/k07-shift.source.json` の対象検査で保存完了・終了0。
 `Shift.solveHead` と符号付きブロック順序交換も `work/k07-gauges.source.json` の対象検査で保存完了・終了0。
-線形同型の逆・合成 API と `Companion.With.Linearize` の安定対角化は `work/k07-linearize.source.json` の対象検査を実行中で、終了結果は未確認。
+線形同型の逆・合成 API と `Companion.With.Linearize` の安定対角化は module 参照を修正して `work/k07-linearize.source.json` の対象検査を実行中、終了結果は未確認。
+多項式の有限係数評価と K04 の評価準同型の公開も追加しており、この追加は未検証である。
 これらは途中の対象検査であり、package 全依存閉包・下流・利用例・workspace の最終検証は残っている。
 Laurent 行列の monic 正規化、安定線形化と clutching の比較、スペクトル束との比較、選択独立性・直和・相互逆、具体例・workspace 登録・公開一覧・下流リンク・ロードマップが残作業である。
 次は Laurent 行列の正規化と companion への比較を実装する。
