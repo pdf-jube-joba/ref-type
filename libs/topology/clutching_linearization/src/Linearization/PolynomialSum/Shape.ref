@@ -1,0 +1,56 @@
+\import Spaces.DirectSum[V := Left.Carrier, W := Right.Carrier, left := Left.space, right := Right.space] \as PairSpace;
+\import Spaces.Linear[V := Total.Carrier, W := Left.Carrier, source := Total.space, target := Left.space] \as LeftMap;
+\import Spaces.Linear[V := Total.Carrier, W := Right.Carrier, source := Total.space, target := Right.space] \as RightMap;
+\import Spaces.Linear[V := PairSpace.Carrier, W := Total.Carrier, source := PairSpace.space, target := Total.space] \as JoinMap;
+\definition first: LeftMap.Map := LeftMap.Map {
+  apply := left,
+  preservesAdd := \fun (v, w: Total.Carrier) => \refl(Left.space.add (left v) (left w)),
+  preservesScale := \fun (s: C.Complex)(v: Total.Carrier) => \refl(Left.space.smul s (left v)),
+};
+\definition second: RightMap.Map := RightMap.Map {
+  apply := right,
+  preservesAdd := \fun (v, w: Total.Carrier) => \refl(Right.space.add (right v) (right w)),
+  preservesScale := \fun (s: C.Complex)(v: Total.Carrier) => \refl(Right.space.smul s (right v)),
+};
+\definition split: Spaces.Linear[V := Total.Carrier, W := PairSpace.Carrier, source := Total.space, target := PairSpace.space].Map := PairSpace.Universal[U := Total.Carrier, domain := Total.space].pair first second;
+\definition join: JoinMap.Map := JoinMap.Map {
+  apply := \fun (p: PairSpace.Carrier) => joined (PairSpace.first p) (PairSpace.second p),
+  preservesAdd := \fun (p, q: PairSpace.Carrier) => \axiom:funext(joined (Left.space.add (PairSpace.first p) (PairSpace.first q)) (Right.space.add (PairSpace.second p) (PairSpace.second q)),
+    Total.space.add (joined (PairSpace.first p) (PairSpace.second p)) (joined (PairSpace.first q) (PairSpace.second q)),
+    \fun (i: Fin.Fin Total.degree) => Sum.addition (PairSpace.first p i) (PairSpace.first q i) (PairSpace.second p i) (PairSpace.second q i)),
+  preservesScale := \fun (s: C.Complex)(p: PairSpace.Carrier) => \axiom:funext(joined (Left.space.smul s (PairSpace.first p)) (Right.space.smul s (PairSpace.second p)),
+    Total.space.smul s (joined (PairSpace.first p) (PairSpace.second p)), \fun (i: Fin.Fin Total.degree) => Sum.scalar s (PairSpace.first p i) (PairSpace.second p i)),
+};
+\import Spaces.Isomorphism[V := Total.Carrier, W := PairSpace.Carrier, source := Total.space, target := PairSpace.space] \as ShapeIso;
+\definition isomorphism: ShapeIso.Isomorphism := ShapeIso.Isomorphism {
+  forward := split, backward := join, leftInverse := recover,
+  rightInverse := \fun (p: PairSpace.Carrier) => std.Data[].Pair[].Prop[A := Left.Carrier, B := Right.Carrier].ext (split.apply (join.apply p)) p
+    (leftJoined (PairSpace.first p) (PairSpace.second p)) (rightJoined (PairSpace.first p) (PairSpace.second p)),
+};
+\import Fin.Sum[m := d, n := N.Nat^::succ N.Nat^::zero] \as Degrees;
+\import Degrees.Tuples[A := T.Vector] \as TotalTuples;
+\import Degrees.Tuples[A := V.Vector] \as LeftTuples;
+\import Degrees.Tuples[A := W.Vector] \as RightTuples;
+\definition joinLeft: \forall (f: Fin.Fin d -> T.Vector)(v: T.Vector) -> left (Total.join f v) = Left.join (\fun (i: Fin.Fin d) => Sum.left (f i)) (Sum.left v) :=
+  \fun (f: Fin.Fin d -> T.Vector)(v: T.Vector) => \axiom:funext(left (Total.join f v), Left.join (\fun (i: Fin.Fin d) => Sum.left (f i)) (Sum.left v),
+    \fun (i: Fin.Fin Total.degree) => (\induction (s: Degrees.Index) \return Sum.left (TotalTuples.evaluate f (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => v) s) =
+      LeftTuples.evaluate (\fun (j: Fin.Fin d) => Sum.left (f j)) (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => Sum.left v) s \with {
+      | inl: \fun (j: Fin.Fin d) => \refl(Sum.left (f j))
+      | inr: \fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => \refl(Sum.left v)
+    }) (Degrees.split (Total.toTotal i)));
+\definition joinRight: \forall (f: Fin.Fin d -> T.Vector)(v: T.Vector) -> right (Total.join f v) = Right.join (\fun (i: Fin.Fin d) => Sum.right (f i)) (Sum.right v) :=
+  \fun (f: Fin.Fin d -> T.Vector)(v: T.Vector) => \axiom:funext(right (Total.join f v), Right.join (\fun (i: Fin.Fin d) => Sum.right (f i)) (Sum.right v),
+    \fun (i: Fin.Fin Total.degree) => (\induction (s: Degrees.Index) \return Sum.right (TotalTuples.evaluate f (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => v) s) =
+      RightTuples.evaluate (\fun (j: Fin.Fin d) => Sum.right (f j)) (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => Sum.right v) s \with {
+      | inl: \fun (j: Fin.Fin d) => \refl(Sum.right (f j))
+      | inr: \fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => \refl(Sum.right v)
+    }) (Degrees.split (Total.toTotal i)));
+\definition operatorLeft: \forall (x: X)(v: Total.Carrier) -> left ((Total.FromRow[row := rows x].operator).apply v) = (Left.FromRow[row := q0 x].operator).apply (left v) :=
+  \fun (x: X)(v: Total.Carrier) => trans!{Left.Carrier} _ _ _ (joinLeft (\fun (i: Fin.Fin d) => v (Fin.succ d i)) ((Total.FromRow[row := rows x].negativeRow).apply v))
+    (congr!{V.Vector Left.Carrier} (Left.join (\fun (i: Fin.Fin d) => Sum.left (v (Fin.succ d i)))) _ _
+      (congr!{V.Vector V.Vector} (V.scale (C.Def[].neg C.Def[].one)) _ _ (Sum.leftJoin ((q0 x).apply (left v)) ((q1 x).apply (right v)))));
+\definition operatorRight: \forall (x: X)(v: Total.Carrier) -> right ((Total.FromRow[row := rows x].operator).apply v) = (Right.FromRow[row := q1 x].operator).apply (right v) :=
+  \fun (x: X)(v: Total.Carrier) => trans!{Right.Carrier} _ _ _ (joinRight (\fun (i: Fin.Fin d) => v (Fin.succ d i)) ((Total.FromRow[row := rows x].negativeRow).apply v))
+    (congr!{W.Vector Right.Carrier} (Right.join (\fun (i: Fin.Fin d) => Sum.right (v (Fin.succ d i)))) _ _
+      (congr!{W.Vector W.Vector} (W.scale (C.Def[].neg C.Def[].one)) _ _ (Sum.rightJoin ((q0 x).apply (left v)) ((q1 x).apply (right v)))));
+\module Flat;
