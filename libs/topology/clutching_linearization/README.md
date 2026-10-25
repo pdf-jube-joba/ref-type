@@ -58,7 +58,10 @@ target/debug/cli libs/topology/clutching_linearization --source-snapshot work/k0
 `1208fe83` の `SpectralMotion` は `work/k07-spectral-motion` で accepted・保存失敗0・終了0。
 連続な行列族・全時刻の可逆性・分離した pencil と元の pencil を与える両端の等式を含む。
 その後追加した `Endpoint`・`ClutchedMotion` と gauge による束比較は未検証。
-次は `On.Matrices.Clutched` の対象検査で、閉被覆 gauge と可逆ホモトピーからの比較を確認する。
+`work/k07-clutching-comparison` は閉部分集合 `C` と複素数 module `C` の名前衝突で保存完了・終了1。
+集合名を `PositiveHalf`・`NegativeHalf` へ変更して再検査する。
+次は同対象検査、続いて追加した円周上の可逆性・束比較と `ClutchedMotion` を確認する。
+標準形 `SpectralPencil.NormalForm` と、零核から可逆性を導く Gram API の共通化も追加しており、未検証である。
 残る追加 module を順に検査し、その後 K07 全対象と package 全依存閉包へ戻る。
 未検証の追加には、スペクトル kernel の固有値評価、可逆な pencil 変形と連続な族、両端の等式も含む。
 次は同検査の終了結果を確認し、通常の型・名前解決エラーを修正して、最新 source snapshot で再検査する。

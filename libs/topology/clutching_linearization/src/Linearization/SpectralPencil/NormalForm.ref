@@ -1,0 +1,68 @@
+\import End.Operations[] \as Operations;
+\import End.Composition[U := M.Vector, domain := Vectors.space] \as Composition;
+\import Spaces.Subspace[V := M.Vector, space := Vectors.space] \as Subspaces;
+\import Spectral.At[n := n].Idempotent[P := Projection.projection, idempotent := Projection.idempotent] \as Complement;
+\definition loop[z: C.Complex]: End.Map := Operations.plus (Operations.scale z Projection.projection) Projection.complementary;
+\definition separated[z: C.Complex]: End.Map := Operations.plus (Operations.scale z Projection.projection) (Operations.negative (Composition.compose (M.linear A) Projection.complementary));
+\definition gauge: End.Map := Operations.plus Projection.projection (Operations.negative (Composition.compose (M.linear A) Projection.complementary));
+\definition leftCross: \forall (v: M.Vector) -> Projection.projection.apply (Projection.complementary.apply v) = Vectors.origin :=
+  \fun (v: M.Vector) => trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector} Projection.projection.apply _ _ (Projection.complementaryFormula v)) (Complement.annihilates v);
+\definition rightCross: \forall (v: M.Vector) -> Projection.complementary.apply (Projection.projection.apply v) = Vectors.origin :=
+  \fun (v: M.Vector) => trans!{M.Vector} _ _ _ (Projection.complementaryFormula (Projection.projection.apply v)) (Complement.annihilatesRight v);
+\definition onProjection: \forall (v: M.Vector) -> gauge.apply (Projection.projection.apply v) = Projection.projection.apply v :=
+  \fun (v: M.Vector) => trans!{M.Vector} _ _ _
+    (congr!{M.Vector M.Vector M.Vector} Vectors.plus _ _ _ _ (Projection.idempotent v)
+      (trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector} (Vectors.scale (C.Def[].neg C.Def[].one)) _ _
+        (trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector} (M.linear A).apply _ _ (rightCross v)) (M.linear A).preservesZero)) (Values.scaleZero (C.Def[].neg C.Def[].one))))
+    (Values.zeroRight (Projection.projection.apply v));
+\definition onComplement: \forall (v: M.Vector) -> gauge.apply (Projection.complementary.apply v) = Vectors.scale (C.Def[].neg C.Def[].one) ((M.linear A).apply (Projection.complementary.apply v)) :=
+  \fun (v: M.Vector) => trans!{M.Vector} _ _ _
+    (congr!{M.Vector M.Vector M.Vector} Vectors.plus _ _ _ _ (leftCross v)
+      (congr!{M.Vector M.Vector} (\fun (w: M.Vector) => Vectors.scale (C.Def[].neg C.Def[].one) ((M.linear A).apply w)) _ _ (Projection.complementaryIdempotent v)))
+    (Values.zeroLeft (Vectors.scale (C.Def[].neg C.Def[].one) ((M.linear A).apply (Projection.complementary.apply v))));
+\definition intertwines: \forall (z: C.Complex)(v: M.Vector) -> gauge.apply ((loop z).apply v) = (separated z).apply v :=
+  \fun (z: C.Complex)(v: M.Vector) => trans!{M.Vector} _ _ _ (gauge.preservesAdd (Vectors.scale z (Projection.projection.apply v)) (Projection.complementary.apply v))
+    (congr!{M.Vector M.Vector M.Vector} Vectors.plus _ _ _ _
+      (trans!{M.Vector} _ _ _ (gauge.preservesScale z (Projection.projection.apply v)) (congr!{M.Vector M.Vector} (Vectors.scale z) _ _ (onProjection v))) (onComplement v));
+\definition outerKernel: Subspaces.Subspace := Subspaces.Kernel[W := M.Vector, target := Vectors.space].kernel (Evaluation.evaluate Split.outside);
+\definition gaugeZero: \forall (v: M.Vector) -> gauge.apply v = Vectors.origin -> v = Vectors.origin := \block {
+  \fun (v: M.Vector)(zero: _) \then
+  \let separated: SeparateZero[Projection.projection.apply v, Vectors.scale (C.Def[].neg C.Def[].one) ((M.linear A).apply (Projection.complementary.apply v))] :=
+    separateZero _ _ (Projection.inKernel v)
+      (outerKernel.closedScale (C.Def[].neg C.Def[].one) _ (invariant Split.outside (Projection.complementary.apply v) (Projection.inOtherKernel v))) zero \then
+  \let negativeZero: Vectors.negative ((M.linear A).apply (Projection.complementary.apply v)) = Vectors.origin :=
+    trans!{M.Vector} _ _ _ (sym!{M.Vector} _ _ (Values.minusOneScale ((M.linear A).apply (Projection.complementary.apply v)))) separated.second \then
+  \let annihilated: (M.linear A).apply (Projection.complementary.apply v) = Vectors.origin := eq_reason_in!{M.Vector _
+    "=" { Vectors.plus ((M.linear A).apply (Projection.complementary.apply v)) Vectors.origin } "by" { sym!{M.Vector} _ _ (Values.zeroRight ((M.linear A).apply (Projection.complementary.apply v))) }
+    "=" { Vectors.plus ((M.linear A).apply (Projection.complementary.apply v)) (Vectors.negative ((M.linear A).apply (Projection.complementary.apply v))) } "by" {
+      congr!{M.Vector M.Vector} (Vectors.plus ((M.linear A).apply (Projection.complementary.apply v))) _ _ (sym!{M.Vector} _ _ negativeZero) }
+    "=" Vectors.origin "by" { Group.inverseRight ((M.linear A).apply (Projection.complementary.apply v)) }
+  } \then
+  \let outerZero: Projection.complementary.apply v = Vectors.origin := outsideNoEigen C.Def[].zero
+    (Real.leReplaceLeft _ _ _ (sym!{{R.Real}} _ _ uniform_approximation.Approximation[].FiniteComplex[].zeroAbsolute) Laws.oneNonnegative)
+    (Projection.complementary.apply v) (Projection.inOtherKernel v)
+    (trans!{M.Vector} _ _ _ annihilated (sym!{M.Vector} _ _ (Values.zeroScale (Projection.complementary.apply v)))) \then
+  \return trans!{M.Vector} _ _ _ (sym!{M.Vector} _ _ (Projection.reconstruction v))
+    (trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector M.Vector} Vectors.plus _ _ _ _ separated.first outerZero) (Values.zeroLeft Vectors.origin))
+};
+\definition matrix: M.Matrix := M.Representation[].entries gauge;
+\definition nonzero: matrix_invariants.Field[K := C.Complex, field := Scalars.field].At[n := n].Nonzero matrix :=
+  \root.Linearization[].ScalarMatrices[n := n].nonzeroOfZeroKernel gauge gaugeZero;
+\definition loopZero: \forall (z: C.Complex) -> C.Absolute[].abs z = R.one -> \forall (v: M.Vector) -> (loop z).apply v = Vectors.origin -> v = Vectors.origin := \block {
+  \fun (z: C.Complex)(unit: _)(v: M.Vector)(zero: _) \then
+  \let separated: SeparateZero[Vectors.scale z (Projection.projection.apply v), Projection.complementary.apply v] :=
+    separateZero _ _ ((Subspaces.Kernel[W := M.Vector, target := Vectors.space].kernel (Evaluation.evaluate Split.inside)).closedScale z (Projection.projection.apply v) (Projection.inKernel v))
+      (Projection.inOtherKernel v) zero \then
+  \let innerZero: Projection.projection.apply v = Vectors.origin := trans!{M.Vector} _ _ _
+    (sym!{M.Vector} _ _ (inverseScale z (\parent.Unit[z := z, unit := unit].nonzero) (Projection.projection.apply v)))
+    (trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector} (Vectors.scale (C.Def[].inv z)) _ _ separated.first) (Values.scaleZero (C.Def[].inv z))) \then
+  \return trans!{M.Vector} _ _ _ (sym!{M.Vector} _ _ (Projection.reconstruction v))
+    (trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector M.Vector} Vectors.plus _ _ _ _ innerZero separated.second) (Values.zeroLeft Vectors.origin))
+};
+\definition loopMatrix[z: C.Complex]: M.Matrix := M.Representation[].entries (loop z);
+\definition loopNonzero: \forall (z: C.Complex) -> C.Absolute[].abs z = R.one -> matrix_invariants.Field[K := C.Complex, field := Scalars.field].At[n := n].Nonzero (loopMatrix z) :=
+  \fun (z: C.Complex)(unit: _) => \root.Linearization[].ScalarMatrices[n := n].nonzeroOfZeroKernel (loop z) (loopZero z unit);
+\definition matrixIntertwines: \forall (z: C.Complex) -> M.product matrix (loopMatrix z) = M.Representation[].entries (separated z) :=
+  \fun (z: C.Complex) => trans!{M.Matrix} _ _ _ (sym!{M.Matrix} _ _ (M.Representation[].composition gauge (loop z)))
+    (congr!{End.Map M.Matrix} M.Representation[].entries _ _ (End.ext _ _
+      (\axiom:funext((Composition.compose gauge (loop z)).apply, (separated z).apply, intertwines z))));
