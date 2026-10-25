@@ -37,7 +37,10 @@ target/debug/cli libs/topology/clutching_linearization --source-snapshot work/k0
 
 未検証の変更は、B04 の閉被覆 gauge 比較・等しい遷移関数の比較、積空間上の gauge・ホモトピーによる比較、ブロック gauge の連続性と行列表示。
 `work/k07-motion` は `Comparison` の補題で数分進まなかったため SIGINT で中断し、終了130・検証未完了として扱う。
-補題の反射的な場合を独立 module に分け、次は `bundle_homotopy.Homotopy.Over.Clutching.With.Comparison` の対象検査を行う。
+反射的な場合を独立 module に分けた `work/k07-comparison` は300秒制限で終了2・time-limitとなり、検証未完了。
+`Comparison` を最後に記録し、source_steps173、lost_steps164、最大RSS5,655,200KiBだった。
+結果型を `For.Result` に共通化した `work/k07-comparison-alias` を180秒上限で対象検査中。
+次はこの正常終了を確認し、未完了なら等式移送の構成を調整してから、ブロック gauge とスペクトル核の追加分を検査する。
 既存の有限係数共通化の影響先 `polynomial_linear_algebra.Field.Representatives` の個別検査は終了0。
 package 全依存閉包・影響する下流・利用例・workspace の最終検証は残っている。
 clutching とスペクトル束の比較、選択独立性・直和・相互逆、具体例・workspace 登録・公開一覧・下流リンク・ロードマップが残作業である。
