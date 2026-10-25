@@ -25,21 +25,20 @@ GitHub 連携で #42〜#45 の統合を確認済み、開始時の open PR 検�
 通常の GitHub 連携は PR 情報の読み取りに成功し、gh / curl 経由で観測した拒否とは区別する。
 K07 は [draft PR #46](https://github.com/pdf-jube-joba/ref-type/pull/46) で進行中。
 
-最後に対象検査が成功した数学ソースのコミットは `0bbc7b03`。
-Laurent 近似、共通次数の有限係数、座標、companion、有限幾何級数、安定対角化、monic 正規化と成分比較まで対象検査が成功した。
-`work/k07-normalized-confirm.report.json` は accepted、プロセスの終了0、キャッシュ保存の失敗0を確認済みである。
+最後に対象検査が成功した数学ソースのコミットは `67f32242`。
+Laurent 近似、共通次数、座標、companion、安定対角化、monic 正規化、スペクトル像束と K0 の差の構成、積空間上の clutching 束まで検査が成功した。
+`work/k07-clutched.report.json` は accepted、プロセスの終了0とキャッシュ保存完了を確認済みである。
 このコミットは push 後のリモート SHA も確認済みである。
-既存の有限係数共通化の影響先 `polynomial_linear_algebra.Field.Representatives` の個別検査も終了0。
 
 ```sh
-target/debug/cli libs/topology/clutching_linearization --parse-only --save-source-snapshot work/k07-normalized.source.json
-target/debug/cli libs/topology/clutching_linearization --source-snapshot work/k07-normalized.source.json --module clutching_linearization --memory-mib 8192 --cache-dir libs/refcache --cache-budget-mib 12288 --diagnostics compact --time-limit-seconds 1800 --report-json work/k07-normalized-confirm.report.json
+target/debug/cli libs/topology/clutching_linearization --parse-only --save-source-snapshot work/k07-clutched.source.json
+target/debug/cli libs/topology/clutching_linearization --source-snapshot work/k07-clutched.source.json --module clutching_linearization --memory-mib 8192 --cache-dir libs/refcache --cache-budget-mib 12288 --diagnostics compact --time-limit-seconds 1800 --report-json work/k07-clutched.report.json
 ```
 
-これは途中の対象検査であり、package 全依存閉包・影響する下流・利用例・workspace の最終検証は残っている。
-Laurent 行列の monic 正規化、clutching とスペクトル束との比較、選択独立性・直和・相互逆、具体例・workspace 登録・公開一覧・下流リンク・ロードマップが残作業である。
-次は小さな最高次項を加えた可逆族と、monic 正規化・companion の比較を実装する。
+未検証の変更は、B04 の閉被覆 gauge 比較・等しい遷移関数の比較、積空間上の gauge・ホモトピーによる比較、ブロック gauge の連続性と行列表示。
+`work/k07-motion` は `Comparison` の補題で数分進まなかったため SIGINT で中断し、終了130・検証未完了として扱う。
+補題の反射的な場合を独立 module に分け、次は `bundle_homotopy.Homotopy.Over.Clutching.With.Comparison` の対象検査を行う。
+既存の有限係数共通化の影響先 `polynomial_linear_algebra.Field.Representatives` の個別検査は終了0。
+package 全依存閉包・影響する下流・利用例・workspace の最終検証は残っている。
+clutching とスペクトル束の比較、選択独立性・直和・相互逆、具体例・workspace 登録・公開一覧・下流リンク・ロードマップが残作業である。
 K07 の最終検証・通常のマージと main への反映確認後、K02、B09、K03 を順番に実施する。
-
-`parametersExist` と `Construction` によるスペクトル像束の構成は `work/k07-construction` で accepted・保存完了・終了0。
-この検査の数学入力は `388dabd1` から `Construction.ref` の sibling module 参照を修正したもの。
