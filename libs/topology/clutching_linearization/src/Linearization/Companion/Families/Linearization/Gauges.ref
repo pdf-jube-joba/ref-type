@@ -17,3 +17,13 @@
 \definition rightRegular: matrix_invariants.Topological[K := C.Complex, ring := Plane.Ring[].topologicalRing].At[n := Coordinates.dimension degree].Families[X := Domain].Regular topology rightMatrix := Right.matrixRegular;
 \definition leftNonzero: \forall (p: Domain) -> matrix_invariants.Field[K := C.Complex, field := Scalars.field].At[n := Coordinates.dimension degree].Nonzero (leftMatrix p) := LeftInverse.nonzero;
 \definition rightNonzero: \forall (p: Domain) -> matrix_invariants.Field[K := C.Complex, field := Scalars.field].At[n := Coordinates.dimension degree].Nonzero (rightMatrix p) := RightInverse.nonzero;
+\import Operators.Composition[U := Carrier, domain := space] \as Composition;
+\definition matrixComparison: \forall (p: Domain) -> Matrices.product (Matrices.product (leftMatrix p) (pencilMatrix p)) (rightMatrix p) = diagonalMatrix p :=
+  \fun (p: Domain) => eq_reason_in!{Matrices.Matrix _
+    "=" { Matrices.product (Left.entries (Composition.compose (left p).forward (pencil p))) (rightMatrix p) } "by" {
+      congr!{Matrices.Matrix Matrices.Matrix} (\fun (m: Matrices.Matrix) => Matrices.product m (rightMatrix p)) _ _ (sym!{Matrices.Matrix} _ _ (Left.composition (left p).forward (pencil p))) }
+    "=" { Left.entries (Composition.compose (Composition.compose (left p).forward (pencil p)) (right p).forward) } "by" {
+      sym!{Matrices.Matrix} _ _ (Left.composition (Composition.compose (left p).forward (pencil p)) (right p).forward) }
+    "=" { Left.entries (diagonal p) } "by" { congr!{Operators.Map Matrices.Matrix} Left.entries _ _
+      (Operators.ext _ _ (\axiom:funext((Composition.compose (Composition.compose (left p).forward (pencil p)) (right p).forward).apply, (diagonal p).apply, comparison p))) }
+  };

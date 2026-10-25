@@ -13,7 +13,17 @@
 \import matrix_invariants.Topological[K := C.Complex, ring := topological_algebra.Complex[].Ring[].topologicalRing].At[n := Coordinates.dimension d].Families[X := Y] \as Top;
 \definition coordinateMap[f: End.Map]: FlatEnd.Map := Forward.Composition[U := Flat.Vector, domain := Flat.space].compose Frame.forward
   (End.Composition[U := Flat.Vector, domain := Flat.space].compose f Frame.backward);
-\definition matrix[y: Y]: M.Matrix := Representation.entries (coordinateMap (A y));
+\definition entries[f: End.Map]: M.Matrix := Representation.entries (coordinateMap f);
+\definition matrix[y: Y]: M.Matrix := entries (A y);
+\import End.Composition[U := Carrier, domain := Coordinates.space d] \as Composition;
+\import FlatEnd.Composition[U := Flat.Vector, domain := Flat.space] \as FlatComposition;
+\definition coordinateComposition: \forall (f, g: End.Map) -> FlatComposition.compose (coordinateMap f) (coordinateMap g) = coordinateMap (Composition.compose f g) :=
+  \fun (f, g: End.Map) => FlatEnd.ext _ _ (\axiom:funext((FlatComposition.compose (coordinateMap f) (coordinateMap g)).apply, (coordinateMap (Composition.compose f g)).apply,
+    \fun (v: Flat.Vector) => congr!{Carrier Flat.Vector} (\fun (w: Carrier) => Coordinates.flatten d (f.apply w)) _ _ (Coordinates.leftInverse d (g.apply (Coordinates.unflatten d v)))));
+\definition composition: \forall (f, g: End.Map) -> entries (Composition.compose f g) = M.product (entries f) (entries g) :=
+  \fun (f, g: End.Map) => trans!{M.Matrix} _ _ _
+    (congr!{FlatEnd.Map M.Matrix} Representation.entries _ _ (sym!{FlatEnd.Map} _ _ (coordinateComposition f g)))
+    (Representation.composition (coordinateMap f) (coordinateMap g));
 \definition formula: \forall (y: Y)(v: Flat.Vector) -> (M.linear (matrix y)).apply v = Coordinates.flatten d ((A y).apply (Coordinates.unflatten d v)) :=
   \fun (y: Y)(v: Flat.Vector) => congr!{FlatEnd.Map Flat.Vector} (\fun (f: FlatEnd.Map) => f.apply v) _ _ (Representation.linearEntries (coordinateMap (A y)));
 \definition matrixRegular: Top.Regular source matrix := \fun (i, j: M.Index) => Families.flattenRegular d
