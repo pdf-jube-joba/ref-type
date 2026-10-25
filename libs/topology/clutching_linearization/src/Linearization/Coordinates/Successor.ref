@@ -1,0 +1,33 @@
+\import Spaces.CoordinateSum[n := n, m := dimension d] \as Sum;
+\import Spaces.Coordinates[I := Fin.Fin (dimension d)] \as Tail;
+\import Spaces.Coordinates[I := Fin.Fin (dimension (N.Nat^::succ d))] \as Total;
+\definition leftInverse: (\forall (x: Carrier d) -> unflatten d (flatten d x) = x) ->
+  \forall (x: Carrier (N.Nat^::succ d)) -> unflatten (N.Nat^::succ d) (flatten (N.Nat^::succ d) x) = x :=
+  \fun (previous: _)(x: Carrier (N.Nat^::succ d)) => Tuples.extensionality d _ x
+    (trans!{Vectors.Vector} _ _ _ (Tuples.atZero d (Sum.left (flatten (N.Nat^::succ d) x)) (unflatten d (Sum.right (flatten (N.Nat^::succ d) x))))
+      (Sum.leftJoin (x (Fin.zero d)) (flatten d (\fun (i: Fin.Fin d) => x (Fin.succ d i)))))
+    (\fun (i: Fin.Fin d) => eq_reason_in!{Vectors.Vector _
+      "=" { unflatten d (Sum.right (flatten (N.Nat^::succ d) x)) i } "by" { Tuples.atSuccessor d (Sum.left (flatten (N.Nat^::succ d) x)) (unflatten d (Sum.right (flatten (N.Nat^::succ d) x))) i }
+      "=" { unflatten d (flatten d (\fun (j: Fin.Fin d) => x (Fin.succ d j))) i } "by" { congr!{Tail.Vector Vectors.Vector} (\fun (v: Tail.Vector) => unflatten d v i) _ _ (Sum.rightJoin (x (Fin.zero d)) (flatten d (\fun (j: Fin.Fin d) => x (Fin.succ d j)))) }
+      "=" { x (Fin.succ d i) } "by" { congr!{{Carrier d} Vectors.Vector} (\fun (v: Carrier d) => v i) _ _ (previous (\fun (j: Fin.Fin d) => x (Fin.succ d j))) }
+    });
+\definition rightInverse: (\forall (x: Tail.Vector) -> flatten d (unflatten d x) = x) -> \forall (x: Total.Vector) -> flatten (N.Nat^::succ d) (unflatten (N.Nat^::succ d) x) = x :=
+  \fun (previous: _)(x: Total.Vector) => eq_reason_in!{Total.Vector _
+    "=" { Sum.join (Sum.left x) (flatten d (unflatten d (Sum.right x))) } "by" {
+      congr!{Vectors.Vector Tail.Vector Total.Vector} Sum.join _ _ _ _
+        (Tuples.atZero d (Sum.left x) (unflatten d (Sum.right x)))
+        (congr!{{Carrier d} Tail.Vector} (flatten d) _ _ (\axiom:funext((\fun (i: Fin.Fin d) => unflatten (N.Nat^::succ d) x (Fin.succ d i)), unflatten d (Sum.right x), Tuples.atSuccessor d (Sum.left x) (unflatten d (Sum.right x)))))
+    }
+    "=" { Sum.join (Sum.left x) (Sum.right x) } "by" { congr!{Tail.Vector Total.Vector} (Sum.join (Sum.left x)) _ _ (previous (Sum.right x)) }
+    "=" x "by" { Sum.recover x }
+  };
+\definition addition: (\forall (x, y: Carrier d) -> flatten d ((space d).add x y) = Tail.plus (flatten d x) (flatten d y)) ->
+  \forall (x, y: Carrier (N.Nat^::succ d)) -> flatten (N.Nat^::succ d) ((space (N.Nat^::succ d)).add x y) = Total.plus (flatten (N.Nat^::succ d) x) (flatten (N.Nat^::succ d) y) :=
+  \fun (previous: _)(x, y: Carrier (N.Nat^::succ d)) => trans!{Total.Vector} _ _ _
+    (congr!{Tail.Vector Total.Vector} (Sum.join (Vectors.plus (x (Fin.zero d)) (y (Fin.zero d)))) _ _ (previous (\fun (i: Fin.Fin d) => x (Fin.succ d i)) (\fun (i: Fin.Fin d) => y (Fin.succ d i))))
+    (Sum.addition (x (Fin.zero d)) (y (Fin.zero d)) (flatten d (\fun (i: Fin.Fin d) => x (Fin.succ d i))) (flatten d (\fun (i: Fin.Fin d) => y (Fin.succ d i))));
+\definition scalar: (\forall (a: C.Complex)(x: Carrier d) -> flatten d ((space d).smul a x) = Tail.scale a (flatten d x)) ->
+  \forall (a: C.Complex)(x: Carrier (N.Nat^::succ d)) -> flatten (N.Nat^::succ d) ((space (N.Nat^::succ d)).smul a x) = Total.scale a (flatten (N.Nat^::succ d) x) :=
+  \fun (previous: _)(a: C.Complex)(x: Carrier (N.Nat^::succ d)) => trans!{Total.Vector} _ _ _
+    (congr!{Tail.Vector Total.Vector} (Sum.join (Vectors.scale a (x (Fin.zero d)))) _ _ (previous a (\fun (i: Fin.Fin d) => x (Fin.succ d i))))
+    (Sum.scalar a (x (Fin.zero d)) (flatten d (\fun (i: Fin.Fin d) => x (Fin.succ d i))));
