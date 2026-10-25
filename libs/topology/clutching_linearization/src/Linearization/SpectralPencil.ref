@@ -9,6 +9,15 @@
 \import polynomial_linear_algebra.Field[K := C.Complex, field := Scalars.field].Action[V := M.Vector, space := Vectors.space].At[T := M.linear A] \as Evaluation;
 \import \root.Linearization[].PolynomialEigen[V := M.Vector, space := Vectors.space, T := M.linear A] \as Eigen;
 \import std.Data[].Bool[] \as B;
+\import algebra.Polynomial[].Over[R := C.Complex, coefficients := Scalars.commutativeRing] \as P;
+\import algebra.Group[].Of[Carrier := M.Vector, group := Rings.ringModuleAsCommutativeGroup C.Complex M.Vector Spaces.ring Vectors.space] \as Group;
+\definition invariant: \forall (p: P.Carrier)(v: M.Vector) -> Evaluation.apply p v = Vectors.origin -> Evaluation.apply p ((M.linear A).apply v) = Vectors.origin :=
+  \fun (p: P.Carrier)(v: M.Vector)(kernel: _) => trans!{M.Vector} _ _ _
+    (congr!{M.Vector M.Vector} (Evaluation.apply p) _ _ (sym!{M.Vector} _ _ (Evaluation.variable v)))
+    (Spectral.Action[V := M.Vector, space := Vectors.space, T := M.linear A].polynomialKernel p P.X v kernel);
+\definition differenceZero: \forall (v, w: M.Vector) -> Group.difference v w = Vectors.origin -> v = w :=
+  \fun (v, w: M.Vector)(zero: _) => trans!{M.Vector} _ _ _ (sym!{M.Vector} _ _ (Group.addDifference v w))
+    (trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector} (\fun (u: M.Vector) => Vectors.plus u w) _ _ zero) (Values.zeroLeft w));
 \definition insideNoEigen: \forall (z: C.Complex) -> Real.Le R.one (C.Absolute[].abs z) -> \forall (v: M.Vector) ->
   Evaluation.apply Split.inside v = Vectors.origin -> (M.linear A).apply v = Vectors.scale z v -> v = Vectors.origin :=
   \fun (z: C.Complex)(outside: _)(v: M.Vector)(kernel: _)(eigen: _) => Eigen.zero Split.inside z

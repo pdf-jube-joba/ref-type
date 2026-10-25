@@ -1,0 +1,46 @@
+\import End.Operations[] \as Operations;
+\import End.Composition[U := M.Vector, domain := Vectors.space] \as Composition;
+\import Spaces.Subspace[V := M.Vector, space := Vectors.space] \as Subspaces;
+\definition innerKernel: Subspaces.Subspace := Subspaces.Kernel[W := M.Vector, target := Vectors.space].kernel (Evaluation.evaluate Split.inside);
+\definition outerKernel: Subspaces.Subspace := Subspaces.Kernel[W := M.Vector, target := Vectors.space].kernel (Evaluation.evaluate Split.outside);
+\definition inner: End.Map := Operations.plus (Operations.scale z Projection.projection)
+  (Operations.negative (Operations.scale s (Composition.compose (M.linear A) Projection.projection)));
+\definition outer: End.Map := Operations.plus (Operations.scale (C.Def[].mul s z) Projection.complementary)
+  (Operations.negative (Composition.compose (M.linear A) Projection.complementary));
+\definition value: End.Map := Operations.plus inner outer;
+\definition innerMember: \forall (v: M.Vector) -> Evaluation.apply Split.inside (inner.apply v) = Vectors.origin :=
+  \fun (v: M.Vector) => innerKernel.closedAdd _ _
+    (innerKernel.closedScale z (Projection.projection.apply v) (Projection.inKernel v))
+    (innerKernel.closedScale (C.Def[].neg C.Def[].one) _
+      (innerKernel.closedScale s _ (invariant Split.inside (Projection.projection.apply v) (Projection.inKernel v))));
+\definition outerMember: \forall (v: M.Vector) -> Evaluation.apply Split.outside (outer.apply v) = Vectors.origin :=
+  \fun (v: M.Vector) => outerKernel.closedAdd _ _
+    (outerKernel.closedScale (C.Def[].mul s z) (Projection.complementary.apply v) (Projection.inOtherKernel v))
+    (outerKernel.closedScale (C.Def[].neg C.Def[].one) _ (invariant Split.outside (Projection.complementary.apply v) (Projection.inOtherKernel v)));
+\definition innerFormula: \forall (v: M.Vector) -> inner.apply v = Group.difference (Vectors.scale z (Projection.projection.apply v)) (Vectors.scale s ((M.linear A).apply (Projection.projection.apply v))) :=
+  \fun (v: M.Vector) => congr!{M.Vector M.Vector} (Vectors.plus (Vectors.scale z (Projection.projection.apply v))) _ _
+    (Values.minusOneScale (Vectors.scale s ((M.linear A).apply (Projection.projection.apply v))));
+\definition outerFormula: \forall (v: M.Vector) -> outer.apply v = Group.difference (Vectors.scale (C.Def[].mul s z) (Projection.complementary.apply v)) ((M.linear A).apply (Projection.complementary.apply v)) :=
+  \fun (v: M.Vector) => congr!{M.Vector M.Vector} (Vectors.plus (Vectors.scale (C.Def[].mul s z) (Projection.complementary.apply v))) _ _
+    (Values.minusOneScale ((M.linear A).apply (Projection.complementary.apply v)));
+\definition zeroKernel: \forall (v: M.Vector) -> value.apply v = Vectors.origin -> v = Vectors.origin := \block {
+  \fun (v: M.Vector)(zero: _) \then
+  \let separated: SeparateZero[inner.apply v, outer.apply v] := separateZero (inner.apply v) (outer.apply v) (innerMember v) (outerMember v) zero \then
+  \let innerZero: Projection.projection.apply v = Vectors.origin := inside (Projection.projection.apply v) (Projection.inKernel v)
+    (sym!{M.Vector} _ _ (differenceZero _ _ (trans!{M.Vector} _ _ _ (sym!{M.Vector} _ _ (innerFormula v)) separated.first))) \then
+  \let outerZero: Projection.complementary.apply v = Vectors.origin := outside (Projection.complementary.apply v) (Projection.inOtherKernel v)
+    (sym!{M.Vector} _ _ (differenceZero _ _ (trans!{M.Vector} _ _ _ (sym!{M.Vector} _ _ (outerFormula v)) separated.second))) \then
+  \return trans!{M.Vector} _ _ _ (sym!{M.Vector} _ _ (Projection.reconstruction v))
+    (trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector M.Vector} Vectors.plus _ _ _ _ innerZero outerZero) (Values.zeroLeft Vectors.origin))
+};
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := Scalars.field, scalar := linear_algebra.Hermitian[].Complex[].scalar] \as Geometry;
+\import Geometry.Finite[n := n] \as Basis;
+\import Geometry.Inner[V := M.Vector, space := Vectors.space].Of[h := Basis.form] \as Inner;
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Scalars.field, scalar := linear_algebra.Hermitian[].Complex[].scalar,
+  topological := hermitian_frames.Hermitian[].Complex[].topological].At[n := n].Square[] \as Square;
+\definition matrix: M.Matrix := M.Representation[].entries value;
+\definition nonzero: matrix_invariants.Field[K := C.Complex, field := Scalars.field].At[n := n].Nonzero matrix := \block {
+  \takefrom factor: Inner.Gram[k := n].Factorization[value] \by Inner.Algorithm[].exists n value (End.injectiveOfZeroKernel value zeroKernel) Basis.positive \then
+  \return Square.LeftInverse[f := value, g := Inner.Gram[k := n].Of[A := value, factor := factor].inverse,
+    left := Inner.Gram[k := n].Of[A := value, factor := factor].inverseOnImage].nonzero
+};

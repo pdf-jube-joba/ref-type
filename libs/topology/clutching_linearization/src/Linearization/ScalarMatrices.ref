@@ -39,16 +39,11 @@
 \import End.Composition[U := Vectors.Vector, domain := Vectors.space] \as Compose;
 \import Spaces.Eigen[V := Vectors.Vector, space := Vectors.space] \as Eigen;
 \import M.Representation[] \as Representation;
-\definition faithful: \forall (f, g: End.Map) -> Representation.entries f = Representation.entries g -> f = g :=
-  \fun (f, g: End.Map)(same: _) => trans!{End.Map} _ _ _ (sym!{End.Map} _ _ (Representation.linearEntries f))
-    (trans!{End.Map} _ _ _ (congr!{M.Matrix End.Map} M.linear _ _ same) (Representation.linearEntries g));
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Scalars.field, scalar := linear_algebra.Hermitian[].Complex[].scalar,
+  topological := hermitian_frames.Hermitian[].Complex[].topological].At[n := n].Square[] \as Square;
 \definition productLinear: \forall (A, B: M.Matrix) -> Compose.compose (M.linear A) (M.linear B) = M.linear (M.product A B) :=
-  \fun (A, B: M.Matrix) => faithful _ _ (eq_reason_in!{M.Matrix _
-    "=" { M.product (Representation.entries (M.linear A)) (Representation.entries (M.linear B)) } "by" { Representation.composition (M.linear A) (M.linear B) }
-    "=" { M.product A B } "by" { congr!{M.Matrix M.Matrix M.Matrix} M.product _ _ _ _ (Representation.entriesLinear A) (Representation.entriesLinear B) }
-    "=" _ "by" { sym!{M.Matrix} _ _ (Representation.entriesLinear (M.product A B)) }
-  });
-\definition identityLinear: M.linear M.identity = Eigen.identity := faithful _ _ (Representation.entriesLinear M.identity);
+  \fun (A, B: M.Matrix) => sym!{End.Map} _ _ (Square.linearProduct A B);
+\definition identityLinear: M.linear M.identity = Eigen.identity := Square.linearIdentity;
 \definition zeroKernel: \forall (A: M.Matrix) -> Field.Nonzero A -> \forall (v: Vectors.Vector) -> (M.linear A).apply v = Vectors.origin -> v = Vectors.origin :=
   \fun (A: M.Matrix)(nonzero: _)(v: Vectors.Vector)(zero: _) => \block {
     \let B: Operations.Inverse A := Field.inverse (\into[M.Matrix](A, Field.Nonsingular) \by { nonzero }) \then
