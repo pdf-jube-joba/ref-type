@@ -1,0 +1,14 @@
+\import Pair.Factors[delta := small.value, positive := small.positive, belowOne := small.below].Correction[h := h, regularH := regularH, weight := weight, regularWeight := regularWeight] \as Correct;
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := n] \as Matrices;
+\import matrix_invariants.Field[K := C.Complex, field := Scalars.field].At[n := n] \as Field;
+\import std.Data[].Pair[] \as Product;
+\import Spaces.FiniteCoordinates[n := n] \as Basis;
+\definition matrix[y: Y]: Matrices.Matrix := Matrices.Representation[].entries (Correct.raw (f y) (z y));
+\definition equality: \forall (y: Y) -> matrix y = Uniform.value (Product.pair R.Real Y small.value y) :=
+  \fun (y: Y) => Matrices.Operations[].ext (matrix y) (Uniform.value (Product.pair R.Real Y small.value y))
+    (\fun (i, j: Fin.Fin n) => congr!{Vectors.Vector {C.Complex}} (\fun (v: Vectors.Vector) => v i) _ _ (Correct.evaluationFormula (f y) (z y) (Basis.vectors j)));
+\definition nonzero: \forall (y: Y) -> Field.Nonzero (matrix y) := \fun (y: Y)(zero: _) => small.preserves y
+  (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (congr!{Matrices.Matrix {C.Complex}} Matrices.determinant _ _ (equality y))) zero);
+\definition kernel: \forall (y: Y)(v: Vectors.Vector) -> (Correct.raw (f y) (z y)).apply v = Vectors.origin -> v = Vectors.origin :=
+  \fun (y: Y)(v: Vectors.Vector)(zero: _) => \root.Linearization[].ScalarMatrices[n := n].zeroKernel (matrix y) (nonzero y) v
+    (trans!{Vectors.Vector} _ _ _ (congr!{End.Map Vectors.Vector} (\fun (p: End.Map) => p.apply v) _ _ (Matrices.Representation[].linearEntries (Correct.raw (f y) (z y)))) zero);
