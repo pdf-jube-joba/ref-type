@@ -25,12 +25,14 @@ K07 では Laurent 係数・行列近似、clutching ホモトピー、スペク
 `gh pr list --repo pdf-jube-joba/ref-type --state all --limit 40 --json number,title,state,headRefName,mergeCommit` は終了1（GraphQL `Forbidden`）。
 `gh api 'repos/pdf-jube-joba/ref-type/pulls?state=all&per_page=15'` も終了1（`Forbidden`）。
 認証情報を送らない `curl --max-time 20 https://api.github.com/repos/pdf-jube-joba/ref-type/pulls` は終了56（`CONNECT tunnel failed, response 403`）。
-Git 接続は成功するが API の許可を確認できず、既存 PR・CI・マージ状態の確認は未完了である。
-環境の状態確認は connected / running、HTTP policy の観測状態は unknown であり、拒否の根本原因は確定していない。
-クラウド環境の許可先に `api.github.com` を追加する設定の確認を依頼した。
+Git 接続は成功し、gh / curl の経路だけで上記の拒否を観測した。
+通常の GitHub 連携では `get_pr_info` が成功し、#42・#43・#44・#45 の `merged: true` を確認した。
+それぞれの統合コミットは `75e87a4c`・`4f411dda`・`f6c3dcfb`・`744d501e` である。
+連携の open PR 検索結果は空であった。
+以後の PR・CI 確認とマージにはこの連携を使う。
 
 数学実装・利用例・package 登録・新規 PR はまだない。
 このブランチで成功を確認した型検査はなく、未検証の数学ソース変更もない。
 前回の検証記録は [K04 の README](../../libs/analysis/uniform_approximation/README.md#利用例と検証・再開) にあり、今回の検証とは区別する。
-次は API の接続設定反映後に既存 PR と #42〜#45 の統合状態を確認し、最新 main との差分を再確認して K07 の実装へ進む。
+次は最新 main との差分を再確認して K07 の実装へ進む。
 K07 の検証・PR・通常のマージと main への反映確認後、K02、B09、K03 を順番に実施する。
