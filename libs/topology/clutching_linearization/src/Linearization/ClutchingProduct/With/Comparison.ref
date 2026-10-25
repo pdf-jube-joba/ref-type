@@ -1,0 +1,45 @@
+\import vector_bundles.Bundles[].Over[K := C.Complex, field := Scalars.field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Bundles;
+\import Clutching.With[g := product, continuous := productContinuous] \as ProductBundle;
+\import ProductBundle.Stabilize[m := n] \as Stable;
+\import Clutching.With[g := a, continuous := continuousA] \as Left;
+\import Clutching.With[g := b, continuous := continuousB] \as Right;
+\import Left.Sum[m := n, h := b, continuousH := continuousB] \as Added;
+\definition start[x: Overlap]: BigUnits.Carrier := Block.value (product x) Units.identity;
+\definition finish[x: Overlap]: BigUnits.Carrier := Block.value (a x) (b x);
+\definition identityContinuous: topology.Continuity[A := Overlap, B := Units.Carrier].Continuous overlapTopology Units.topology (\fun (_: Overlap) => Units.identity) :=
+  topology.Maps[A := Overlap, B := Units.Carrier].constantContinuous overlapTopology Units.topology Units.identity;
+\definition startContinuous: topology.Continuity[A := Overlap, B := BigUnits.Carrier].Continuous overlapTopology BigUnits.topology start :=
+  Block.Family[Y := Overlap, source := overlapTopology, a := product, b := (\fun (_: Overlap) => Units.identity), continuousA := productContinuous, continuousB := identityContinuous].continuous;
+\definition finishContinuous: topology.Continuity[A := Overlap, B := BigUnits.Carrier].Continuous overlapTopology BigUnits.topology finish :=
+  Block.Family[Y := Overlap, source := overlapTopology, a := a, b := b, continuousA := continuousA, continuousB := continuousB].continuous;
+\import Homotopy.Clutching[n := total, X := X, baseSpace := source, U := U, V := V, openU := openU, openV := openV, covers := covers] \as BigClutching;
+\import BigClutching.With[g := start, continuous := startContinuous] \as First;
+\import BigClutching.With[g := finish, continuous := finishContinuous] \as Last;
+\import BigClutching.Homotopy[compact := compact, hausdorff := hausdorff, G := Path.unit, regular := Path.continuous] \as Motion;
+\import Motion.Endpoint[t := Time.start] \as Initial;
+\import Motion.Endpoint[t := Time.end] \as Final;
+\import First.Comparison[h := Initial.at, continuousH := Initial.regularAt] \as Start;
+\import BigClutching.With[g := Final.at, continuous := Final.regularAt].Comparison[h := finish, continuousH := finishContinuous] \as Finish;
+\definition startExists: \exists Start.Isomorphism := Start.ofEquality (\axiom:funext(start, Initial.at, \fun (x: Overlap) => sym!{{BigUnits.Carrier}} _ _ (starts x)));
+\definition finishExists: \exists Finish.Isomorphism := Finish.ofEquality (\axiom:funext(Final.at, finish, ends));
+\import Operations.IsomorphismComposition[X := X, F := Stable.SumFiber, G := First.Fiber, H := Initial.Fiber, source := Stable.sumBundle, middle := First.bundle, target := Initial.bundle] \as ToInitial;
+\definition initialExists: \exists ToInitial.Isomorphism := ToInitial.exists Stable.isomorphismExists startExists;
+\import Operations.IsomorphismComposition[X := X, F := Stable.SumFiber, G := Initial.Fiber, H := Final.Fiber, source := Stable.sumBundle, middle := Initial.bundle, target := Final.bundle] \as ThroughMotion;
+\definition motionExists: \exists ThroughMotion.Isomorphism := ThroughMotion.exists initialExists Motion.isomorphismExists;
+\import Operations.IsomorphismComposition[X := X, F := Stable.SumFiber, G := Final.Fiber, H := Last.Fiber, source := Stable.sumBundle, middle := Final.bundle, target := Last.bundle] \as ToLast;
+\definition lastExists: \exists ToLast.Isomorphism := ToLast.exists motionExists finishExists;
+\import Bundles.Isomorphisms[X := X, F := Added.SumFiber, G := Last.Fiber, source := Added.sumBundle, target := Last.bundle] \as Reverse;
+\import Operations.IsomorphismComposition[X := X, F := Stable.SumFiber, G := Last.Fiber, H := Added.SumFiber, source := Stable.sumBundle, middle := Last.bundle, target := Added.sumBundle] \as Compose;
+\definition ProductFiber: X -> \Set := ProductBundle.Fiber;
+\definition productBundle: Bundles.Family[X := X, F := ProductFiber].Bundle := ProductBundle.bundle;
+\definition LeftFiber: X -> \Set := Left.Fiber;
+\definition leftBundle: Bundles.Family[X := X, F := LeftFiber].Bundle := Left.bundle;
+\definition RightFiber: X -> \Set := Right.Fiber;
+\definition rightBundle: Bundles.Family[X := X, F := RightFiber].Bundle := Right.bundle;
+\definition StableFiber: X -> \Set := Stable.SumFiber;
+\definition stableBundle: Bundles.Family[X := X, F := StableFiber].Bundle := Stable.sumBundle;
+\definition SumFiber: X -> \Set := Added.SumFiber;
+\definition sumBundle: Bundles.Family[X := X, F := SumFiber].Bundle := Added.sumBundle;
+\definition isomorphismExists: \exists Bundles.Isomorphisms[X := X, F := StableFiber, G := SumFiber, source := stableBundle, target := sumBundle].Isomorphism :=
+  Compose.exists lastExists (Reverse.inverseExists Added.isomorphismExists);
