@@ -1,0 +1,54 @@
+\import Spaces.Linear[V := V, W := V, source := space, target := space] \as Maps;
+\definition identity: Maps.Map := Maps.Map { apply := \fun (v: V) => v,
+  preservesAdd := \fun (v, w: V) => \refl(space.add v w), preservesScale := \fun (a: C.Complex)(v: V) => \refl(space.smul a v)
+};
+\import \root.Linearization[].Blocks[V := V, W := V, left := space, right := space] \as Blocks;
+\import Spaces.DirectSum[V := V, W := V, left := space, right := space] \as Sum;
+\import Spaces.Isomorphism[V := Sum.Carrier, W := Sum.Carrier, source := Sum.space, target := Sum.space] \as Isos;
+\import std.Data[].Pair[].Prop[A := V, B := V] \as Pairs;
+\import Spaces.Laws[V := V, space := space] \as Values;
+\import algebra.Group[].Of[Carrier := V, group := Rings.ringModuleAsCommutativeGroup C.Complex V Spaces.ring space] \as Group;
+\import algebra.Group[].Of[Carrier := C.Complex, group := Rings.ringModuleAsCommutativeGroup C.Complex C.Complex Spaces.ring Spaces.scalarSpace] \as ScalarGroup;
+\definition rotation[t: C.Complex]: Isos.Isomorphism := Blocks.compose (Blocks.upperIsomorphism identity t)
+  (Blocks.compose (Blocks.lowerIsomorphism identity (C.Def[].neg t)) (Blocks.upperIsomorphism identity t));
+\definition lowerZero: \forall (p: Sum.Carrier) -> (Blocks.lower identity (C.Def[].neg C.Def[].zero)).apply p = p :=
+  \fun (p: Sum.Carrier) => trans!{Sum.Carrier} _ _ _
+    (congr!{{C.Complex} Sum.Carrier} (\fun (t: C.Complex) => (Blocks.lower identity t).apply p) _ _ ScalarGroup.negZero) (Blocks.lowerZero identity p);
+\definition atZero: \forall (p: Sum.Carrier) -> (rotation C.Def[].zero).forward.apply p = p :=
+  \fun (p: Sum.Carrier) => trans!{Sum.Carrier} _ _ _
+    (Blocks.upperZero identity ((Blocks.lower identity (C.Def[].neg C.Def[].zero)).apply ((Blocks.upper identity C.Def[].zero).apply p)))
+    (trans!{Sum.Carrier} _ _ _ (lowerZero ((Blocks.upper identity C.Def[].zero).apply p)) (Blocks.upperZero identity p));
+\definition inverseAtZero: \forall (p: Sum.Carrier) -> (rotation C.Def[].zero).backward.apply p = p :=
+  \fun (p: Sum.Carrier) => trans!{Sum.Carrier} _ _ _
+    (congr!{Sum.Carrier Sum.Carrier} (rotation C.Def[].zero).backward.apply _ _ (sym!{Sum.Carrier} _ _ (atZero p))) ((Isos.laws (rotation C.Def[].zero)).leftInverse p);
+\definition upperOne: \forall (p: Sum.Carrier) -> (Blocks.upper identity C.Def[].one).apply p = Sum.make (space.add (Sum.first p) (Sum.second p)) (Sum.second p) :=
+  \fun (p: Sum.Carrier) => Pairs.pairCong _ _ _ _
+    (congr!{V V} (space.add (Sum.first p)) _ _ (space.scalarOne (Sum.second p))) (\refl(Sum.second p));
+\definition lowerMinusOne: \forall (p: Sum.Carrier) -> (Blocks.lower identity (C.Def[].neg C.Def[].one)).apply p = Sum.make (Sum.first p) (space.add (Sum.second p) (space.neg (Sum.first p))) :=
+  \fun (p: Sum.Carrier) => Pairs.pairCong _ _ _ _ (\refl(Sum.first p))
+    (congr!{V V} (space.add (Sum.second p)) _ _ (Values.minusOneScale (Sum.first p)));
+\definition middle: \forall (v, w: V) -> space.add w (space.neg (space.add v w)) = space.neg v :=
+  \fun (v, w: V) => trans!{V} _ _ _ (congr!{V V} (space.add w) _ _ (Group.negAdd v w))
+    (trans!{V} _ _ _ (congr!{V V} (space.add w) _ _ (Group.comm (space.neg v) (space.neg w)))
+      (trans!{V} _ _ _ (sym!{V} _ _ (Group.assoc w (space.neg w) (space.neg v)))
+        (trans!{V} _ _ _ (congr!{V V} (\fun (u: V) => space.add u (space.neg v)) _ _ (Group.inverseRight w)) (Group.zeroLeft (space.neg v)))));
+\definition finish: \forall (v, w: V) -> space.add (space.add v w) (space.neg v) = w :=
+  \fun (v, w: V) => trans!{V} _ _ _ (congr!{V V} (\fun (u: V) => space.add u (space.neg v)) _ _ (Group.comm v w))
+    (trans!{V} _ _ _ (Group.assoc w v (space.neg v))
+      (trans!{V} _ _ _ (congr!{V V} (space.add w) _ _ (Group.inverseRight v)) (Group.zeroRight w)));
+\definition atOne: \forall (p: Sum.Carrier) -> (rotation C.Def[].one).forward.apply p = Sum.make (Sum.second p) (space.neg (Sum.first p)) :=
+  \fun (p: Sum.Carrier) => trans!{Sum.Carrier} _ _ _
+    (congr!{Sum.Carrier Sum.Carrier} (\fun (q: Sum.Carrier) => (Blocks.upper identity C.Def[].one).apply ((Blocks.lower identity (C.Def[].neg C.Def[].one)).apply q)) _ _ (upperOne p))
+    (trans!{Sum.Carrier} _ _ _
+      (congr!{Sum.Carrier Sum.Carrier} (Blocks.upper identity C.Def[].one).apply _ _ (lowerMinusOne (Sum.make (space.add (Sum.first p) (Sum.second p)) (Sum.second p))))
+      (trans!{Sum.Carrier} _ _ _
+        (congr!{Sum.Carrier Sum.Carrier} (Blocks.upper identity C.Def[].one).apply _ _
+          (Pairs.pairCong _ _ _ _ (\refl(space.add (Sum.first p) (Sum.second p))) (middle (Sum.first p) (Sum.second p))))
+        (trans!{Sum.Carrier} _ _ _ (upperOne (Sum.make (space.add (Sum.first p) (Sum.second p)) (space.neg (Sum.first p))))
+          (Pairs.pairCong _ _ _ _ (finish (Sum.first p) (Sum.second p)) (\refl(space.neg (Sum.first p)))))));
+\definition inverseAtOne: \forall (p: Sum.Carrier) -> (rotation C.Def[].one).backward.apply p = Sum.make (space.neg (Sum.second p)) (Sum.first p) :=
+  \fun (p: Sum.Carrier) => trans!{Sum.Carrier} _ _ _
+    (congr!{Sum.Carrier Sum.Carrier} (rotation C.Def[].one).backward.apply _ _
+      (sym!{Sum.Carrier} _ _ (trans!{Sum.Carrier} _ _ _ (atOne (Sum.make (space.neg (Sum.second p)) (Sum.first p)))
+        (Pairs.ext (Sum.make (Sum.first p) (space.neg (space.neg (Sum.second p)))) p (\refl(Sum.first p)) (Group.negNeg (Sum.second p))))))
+    ((Isos.laws (rotation C.Def[].one)).leftInverse (Sum.make (space.neg (Sum.second p)) (Sum.first p)));
