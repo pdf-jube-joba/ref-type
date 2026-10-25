@@ -16,7 +16,7 @@ K04 の Laurent 近似、K06 のスペクトル分離、K01 の束の同型類�
 | `On.SpectralIndex.Pullback.naturality` / `Sum.Difference.additivity` | スペクトル束の差の引き戻し自然性と直和加法性 |
 | `On.SpectralHomotopy.invariant` | 単位円との分離を保つ行列族の両端の K0 の差の一致 |
 | `On.Matrices.Clutched.Scaling` / `Normalized.With.Shifted.Leading.Clutching` | 定数倍・正規化時の摂動による clutching 束比較 |
-| `On.Matrices.Construction.Clutching.shiftedComparisonExists` | 自明束を加えた shifted loop からスペクトル標準形への比較（最新追加、検査待ち） |
+| `On.Matrices.Construction.Clutching.shiftedComparisonExists` | 自明束を加えた shifted loop からスペクトル標準形への比較（検証済み） |
 
 `algebra.Polynomial.Over.Finite` は任意の可換環上の有限係数表示・演算・padding を公開する。
 既存の体上の `galois` の係数演算と `polynomial_linear_algebra.Field.Representatives.exists` もこの実装を共用する。
@@ -66,8 +66,12 @@ REF_TYPE_PROFILE_PROGRESS=1 target/debug/cli libs/topology/clutching_linearizati
 `6e52e50c` の K07 全対象は `/tmp/k07-resume/normalization.json` で accepted・保存失敗0・終了0（1,287 module、約50秒）。
 `SpectralIndex.Sum.BundlesComparison.isomorphism` と `Sum.Difference.additivity` に直和の束同型・K0 の加法性を追加し、`TrivialSum` の自明束の比較も利用して証明した。
 `Clutched.Scaling.isomorphism` と `Normalized.With.Shifted.Leading.Clutching.isomorphismExists` に、摂動と非零定数倍による正規化の束比較を追加した。
-最新の `Matrices.ApproximationComparison.isomorphismExists` は Laurent 近似の選択によらない clutching 束同型（追加後の検査待ち）。
-次は package 全依存閉包の検査を行う。これらはまだ元の clutching の安定化から K0 の差への完全な変換・相互逆を意味しない。
+`Matrices.ApproximationComparison.isomorphismExists` は Laurent 近似の選択によらない clutching 束同型。
+`a4ead646` の package 全依存閉包は `/tmp/k07-resume/closure.json` で accepted・保存失敗0・終了0（5,638 module、約26分、復旧・重複・lost steps すべて0）。
+`f9f665b2` の最新 K07 全対象は `/tmp/k07-resume/stabilization-3.json` で accepted・保存失敗0・終了0（1,300 module）。
+`Construction.Clutching.stabilizedComparisonExists` と `shiftedComparisonExists` は monic および shifted loop に自明束を加えた束からスペクトル標準形への同型を与える。
+Rust workspace は383 tests passed・終了0、format と Clippy（全workspace・全targets・警告をエラー化）も終了0。
+次は workspace 全体で影響先を検査する。これらはまだ元の clutching の安定化から K0 の差への完全な変換・相互逆を意味しない。
 
 残る数学的な接続は、Laurent shift による円周の冪を K0 の自明束の差へ反映すること、射影の標準ループの clutching と像束の差を同定すること、任意の shift・次数・正規化パラメータについての選択独立性、および基本積定理に必要な相互逆の等式。
 現在のスペクトル族の自然性・直和・ホモトピー不変性と、近似間の clutching 束同型だけからは、これらの結論はまだ出せない。
