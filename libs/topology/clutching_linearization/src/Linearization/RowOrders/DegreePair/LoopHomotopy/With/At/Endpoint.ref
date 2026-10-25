@@ -17,3 +17,30 @@
   \fun (x: X)(z: Native.Carrier) => trans!{M.Matrix} _ _ _
     (congr!{End.Map M.Matrix} M.Representation[].entries _ _ (sym!{End.Map} _ _ (Model.action (point t x z))))
     (M.Representation[].entriesLinear (Model.polynomial (point t x z)));
+\definition weightedPoint[u: Time.Carrier][x: X][z: Native.Carrier]: Product.Times^[Time.Carrier, Circle.Domain] := Product.pair Time.Carrier Circle.Domain u (point t x z);
+\definition mixedEntries: \forall (u: Time.Carrier)(x: X)(z: Native.Carrier) -> M.Representation[].entries (Segment.mixed u x z) = Refined.weighted (weightedPoint u x z) :=
+  \fun (u: Time.Carrier)(x: X)(z: Native.Carrier) => M.Operations[].ext (M.Representation[].entries (Segment.mixed u x z)) (Refined.weighted (weightedPoint u x z)) (\fun (i, j: M.Index) => congr!{{C.Complex} {C.Complex} {C.Complex}} C.Def[].add _ _ _ _
+    (congr!{{C.Complex} {C.Complex} {C.Complex}} C.Def[].mul _ _ _ _
+      (C.Prop[].mulOneRight (C.Def[].sub C.Def[].one (C.Def[].ofReal u)))
+      (congr!{M.Matrix {C.Complex}} (\fun (A: M.Matrix) => A i j) _ _ (leftEntries x z)))
+    (trans!{{C.Complex}} _ _ _
+      (congr!{{C.Complex} {C.Complex}} (C.Def[].mul (C.Def[].mul (C.Def[].ofReal u) (C.Def[].ofReal Model.epsilon))) _ _
+        (congr!{M.Matrix {C.Complex}} (\fun (A: M.Matrix) => A i j) _ _ (rightEntries x z)))
+      (trans!{{C.Complex}} _ _ _ (C.Prop[].mulAssoc (C.Def[].ofReal u) (C.Def[].ofReal Model.epsilon) (Model.polynomial (point t x z) i j))
+        (congr!{{C.Complex} {C.Complex}} (C.Def[].mul (C.Def[].ofReal u)) _ _
+          (congr!{M.Matrix {C.Complex}} (\fun (A: M.Matrix) => A i j) _ _ (Model.restoration (point t x z)))))));
+\import \root.Linearization[].ScalarMatrices[n := n] \as Scaling;
+\definition mixedKernel: \forall (u: Time.Carrier)(x: X)(z: C.Complex) -> C.Absolute[].abs z = R.one -> \forall (v: Vectors.Vector) -> (Segment.mixed u x z).apply v = Vectors.origin -> v = Vectors.origin :=
+  \fun (u: Time.Carrier)(x: X)(z: C.Complex)(unit: _)(v: Vectors.Vector)(zero: _) => \block {
+    \let circleZ: Native.Carrier := \into[C.Complex](z, Native.Carrier) \by { \root.Linearization[].Powers[].normOfUnit z unit } \then
+    \let same: M.Representation[].entries (Segment.mixed u x z) = Refined.weighted (weightedPoint u x circleZ) := mixedEntries u x circleZ \then
+    \let nonzero: Field.Nonzero (M.Representation[].entries (Segment.mixed u x z)) := \fun (vanishes: _) => Refined.weightedNonzero (weightedPoint u x circleZ)
+      (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (congr!{M.Matrix {C.Complex}} M.determinant _ _ same)) vanishes) \then
+    \return Scaling.zeroKernel (M.Representation[].entries (Segment.mixed u x z)) nonzero v
+      (trans!{Vectors.Vector} _ _ _ (congr!{End.Map Vectors.Vector} (\fun (f: End.Map) => f.apply v) _ _ (M.Representation[].linearEntries (Segment.mixed u x z))) zero)
+  };
+\import Segment.Invertible[kernel := mixedKernel] \as Comparison;
+\import Zero.Separated[initial := kernelQ].Index[compact := compact, hausdorff := hausdorff, removed := removed] \as Correction;
+\definition value: K.K0[].Carrier := Base.Index[compact := compact, hausdorff := hausdorff, removed := rank].value chosen.form.order right rightRegular rightKernel;
+\definition comparison: Base.Index[compact := compact, hausdorff := hausdorff, removed := removed].value d q regularQ kernelQ = value :=
+  trans!{K.K0[].Carrier} _ _ _ (sym!{K.K0[].Carrier} _ _ (Correction.invariant shift)) (Comparison.invariant rank);
