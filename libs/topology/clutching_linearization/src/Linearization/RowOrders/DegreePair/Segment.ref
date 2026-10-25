@@ -1,0 +1,40 @@
+\import \root.Linearization[].PositiveBlend[a := a, b := b, positiveA := positiveA, positiveB := positiveB] \as Blend;
+\import Blend.Normalized[] \as Weights;
+\import \parent.Homotopy[compact := compact, hausdorff := hausdorff, kernel0 := kernel0, kernel1 := kernel1] \as Path;
+\import algebraic_topology.Interval[] \as Time;
+\import \root.Linearization[].RowOrders[n := n, X := Path.Domain, source := Path.topology] \as Over;
+\import Over.DegreePair[d0 := d0, d1 := d1, padding := padding, q0 := Path.first, q1 := Path.last, regular0 := Path.firstRegular, regular1 := Path.lastRegular] \as Pair;
+\import Spaces.Linear[V := Coordinates.Carrier (N.Nat^::succ order), W := Vectors.Vector, source := Coordinates.space (N.Nat^::succ order), target := Vectors.space] \as Rows;
+\import Spaces.Laws[V := Vectors.Vector, space := Vectors.space] \as Values;
+\import Plane.Functions[A := Path.Domain] \as Functions;
+\definition h[p: Path.Domain]: Row order := Rows.Operations[].plus
+  (Rows.Operations[].scale (Weights.left (Path.time p)) (Pair.left p)) (Rows.Operations[].scale (Weights.right (Path.time p)) (Pair.right p));
+\definition regular: Over.Regular order h := \fun (v: Coordinates.Carrier (N.Nat^::succ order))(j: Fin.Fin n) => Functions.additionContinuous Path.topology _ _
+  (Functions.multiplicationContinuous Path.topology _ _
+    (topology.Composition[A := Path.Domain, B := Time.Carrier, C := C.Complex].composeContinuous Path.topology Time.topology Plane.topology Path.time Weights.left Path.timeContinuous Weights.leftRegular) (Pair.leftRegular v j))
+  (Functions.multiplicationContinuous Path.topology _ _
+    (topology.Composition[A := Path.Domain, B := Time.Carrier, C := C.Complex].composeContinuous Path.topology Time.topology Plane.topology Path.time Weights.right Path.timeContinuous Weights.rightRegular) (Pair.rightRegular v j));
+\definition mixed[t: Time.Carrier][x: X][z: C.Complex]: End.Map := End.Operations[].plus
+  (End.Operations[].scale (Weights.leftNumerator t) (polynomial d0 q0 x z)) (End.Operations[].scale (Weights.rightNumerator t) (polynomial d1 q1 x z));
+\definition restoration: \forall (p: Path.Domain)(z: C.Complex)(v: Vectors.Vector) ->
+  Vectors.scale (Blend.scalar (Path.time p)) ((Over.evaluation order h p z).apply v) = (mixed (Path.time p) (Path.base p) z).apply v :=
+  \fun (p: Path.Domain)(z: C.Complex)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _
+    (Vectors.space.vectorAdd (Blend.scalar (Path.time p)) _ _)
+    (congr!{Vectors.Vector Vectors.Vector Vectors.Vector} Vectors.plus _ _ _ _
+      (trans!{Vectors.Vector} _ _ _ (sym!{Vectors.Vector} _ _ (Vectors.space.scalarAssoc (Blend.scalar (Path.time p)) (Weights.left (Path.time p)) ((Pair.left p).apply ((\root.Linearization[].Companion[n := n, d := order].geometric z).apply v))))
+        (congr!{{C.Complex} Vectors.Vector Vectors.Vector} Vectors.scale _ _ _ _ (Weights.restore (Path.time p) (Weights.leftNumerator (Path.time p))) (Pair.leftEmbeddedEvaluation p z v)))
+      (trans!{Vectors.Vector} _ _ _ (sym!{Vectors.Vector} _ _ (Vectors.space.scalarAssoc (Blend.scalar (Path.time p)) (Weights.right (Path.time p)) ((Pair.right p).apply ((\root.Linearization[].Companion[n := n, d := order].geometric z).apply v))))
+        (congr!{{C.Complex} Vectors.Vector Vectors.Vector} Vectors.scale _ _ _ _ (Weights.restore (Path.time p) (Weights.rightNumerator (Path.time p))) (Pair.rightEmbeddedEvaluation p z v))));
+\definition atStart: \forall (x: X) -> h (Path.include Time.start x) = Pair.left (Path.include Time.start x) :=
+  \fun (x: X) => Rows.ext (h (Path.include Time.start x)) (Pair.left (Path.include Time.start x)) (\axiom:funext((h (Path.include Time.start x)).apply, (Pair.left (Path.include Time.start x)).apply, \fun (v: Coordinates.Carrier (N.Nat^::succ order)) => trans!{Vectors.Vector} _ _ _
+    (congr!{Vectors.Vector Vectors.Vector Vectors.Vector} Vectors.plus _ _ _ _
+      (trans!{Vectors.Vector} _ _ _ (congr!{{C.Complex} Vectors.Vector} (\fun (s: C.Complex) => Vectors.scale s ((Pair.left (Path.include Time.start x)).apply v)) _ _ Weights.leftStart) (Vectors.space.scalarOne ((Pair.left (Path.include Time.start x)).apply v)))
+      (trans!{Vectors.Vector} _ _ _ (congr!{{C.Complex} Vectors.Vector} (\fun (s: C.Complex) => Vectors.scale s ((Pair.right (Path.include Time.start x)).apply v)) _ _ Weights.rightStart) (Values.zeroScale ((Pair.right (Path.include Time.start x)).apply v))))
+    (Values.zeroRight ((Pair.left (Path.include Time.start x)).apply v))));
+\definition atEnd: \forall (x: X) -> h (Path.include Time.end x) = Pair.right (Path.include Time.end x) :=
+  \fun (x: X) => Rows.ext (h (Path.include Time.end x)) (Pair.right (Path.include Time.end x)) (\axiom:funext((h (Path.include Time.end x)).apply, (Pair.right (Path.include Time.end x)).apply, \fun (v: Coordinates.Carrier (N.Nat^::succ order)) => trans!{Vectors.Vector} _ _ _
+    (congr!{Vectors.Vector Vectors.Vector Vectors.Vector} Vectors.plus _ _ _ _
+      (trans!{Vectors.Vector} _ _ _ (congr!{{C.Complex} Vectors.Vector} (\fun (s: C.Complex) => Vectors.scale s ((Pair.left (Path.include Time.end x)).apply v)) _ _ Weights.leftEnd) (Values.zeroScale ((Pair.left (Path.include Time.end x)).apply v)))
+      (trans!{Vectors.Vector} _ _ _ (congr!{{C.Complex} Vectors.Vector} (\fun (s: C.Complex) => Vectors.scale s ((Pair.right (Path.include Time.end x)).apply v)) _ _ Weights.rightEnd) (Vectors.space.scalarOne ((Pair.right (Path.include Time.end x)).apply v))))
+    (Values.zeroLeft ((Pair.right (Path.include Time.end x)).apply v))));
+\module Invertible(kernel: \forall (t: Time.Carrier)(x: X)(z: C.Complex) -> C.Absolute[].abs z = R.one -> \forall (v: Vectors.Vector) -> (mixed t x z).apply v = Vectors.origin -> v = Vectors.origin);
