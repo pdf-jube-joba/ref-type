@@ -1,0 +1,41 @@
+\definition approximation[p: Circle.Domain]: M.Matrix := \fun (i, j: M.Index) => Circle.value (data.coefficients i j) p;
+\definition approximationRegular: Top.Families[X := Circle.Domain].Regular Circle.source approximation :=
+  \fun (i, j: M.Index) => Circle.valueContinuous (data.coefficients i j);
+\definition approximationNonzero: \forall (p: Circle.Domain) -> Field.Nonzero (approximation p) :=
+  \fun (p: Circle.Domain)(zero: _) => data.invertible (Pair.pair Time.Carrier Circle.Domain Time.end p)
+    (trans!{{C.Complex}} _ _ _ (congr!{M.Matrix {C.Complex}} M.determinant _ _ (data.atEnd p)) zero);
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[n := n,
+  a := approximation, regular := approximationRegular, nonzero := approximationNonzero].Clutched[] \as Original;
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[n := n,
+  a := value, regular := regular, nonzero := nonzero].Clutched[] \as Shifted;
+\import \root.Linearization[].ClutchingProduct[n := n, X := Original.Carrier, source := Original.topology, compact := Original.productCompact, hausdorff := Original.productHausdorff,
+  U := Original.U, V := Original.V, openU := Original.openU, openV := Original.openV, covers := Original.covers] \as Product;
+\definition scalar[p: Original.Overlap]: C.Complex := Circle.unit (Original.circlePoint p);
+\definition scalarContinuous: topology.Continuity[A := Original.Overlap, B := C.Complex].Continuous Original.overlapTopology Plane.topology scalar :=
+  topology.Composition[A := Original.Overlap, B := Circle.Domain, C := C.Complex].composeContinuous Original.overlapTopology Circle.source Plane.topology
+    Original.circlePoint Circle.unit Original.circleContinuous Circle.unitContinuous;
+\definition unitScalar: \forall (p: Original.Overlap) -> C.Absolute[].abs (scalar p) = R.one :=
+  \fun (p: Original.Overlap) => Powers.unitOfNorm (scalar p) (Circle.unitNorm (Original.circlePoint p));
+\import Product.Powers[z := scalar, continuousZ := scalarContinuous, unitZ := unitScalar] \as ScalarPowers;
+\import ScalarPowers.Times[a := Original.transition, continuousA := Original.transitionContinuous].Shift[k := form.shift] \as Correction;
+\import Spaces.Coordinates[I := M.Index] \as Vectors;
+\import Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as End;
+\definition action: \forall (p: Original.Overlap)(v: Vectors.Vector) -> (Correction.transition p).apply v = (Shifted.transition p).apply v :=
+  \fun (p: Original.Overlap)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _ (Correction.action p v)
+    (sym!{Vectors.Vector} _ _ (congr!{End.Map Vectors.Vector} (\fun (f: End.Map) => f.apply v) _ _ (Scaling.scaleLinear (power (Original.circlePoint p) form.shift) (approximation (Original.circlePoint p)))));
+\definition transitionEquality: \forall (p: Original.Overlap) -> Correction.transition p = Shifted.transition p :=
+  \fun (p: Original.Overlap) => End.ext _ _ (\axiom:funext((Correction.transition p).apply, (Shifted.transition p).apply, action p));
+\import Product.Class[g := Correction.transition, continuous := Correction.continuous].Compare[h := Shifted.transition, continuousH := Shifted.transitionContinuous] \as Comparison;
+\import Product.Class[g := Shifted.transition, continuous := Shifted.transitionContinuous] \as ShiftedClass;
+\import Product.Class[g := Original.transition, continuous := Original.transitionContinuous] \as OriginalClass;
+\import topological_k_theory.KTheory[].On[X := Original.Carrier, baseSpace := Original.topology, compact := Original.productCompact, hausdorff := Original.productHausdorff] \as K;
+\import K.K0[] \as K0;
+\import algebra.Group[].Of[Carrier := K0.Carrier, group := K0.group] \as Group;
+\definition originalClass: K0.Carrier := OriginalClass.value;
+\definition shiftedClass: K0.Carrier := ShiftedClass.value;
+\definition lineDifference: K0.Carrier := ScalarPowers.Rank[].lineDifference;
+\definition removed: K.Classes := K.Trivial[n := N.Basic[].Def[].mul n form.shift].value;
+\definition correction: Group.difference shiftedClass (K0.mul lineDifference (K0.include removed)) = originalClass :=
+  trans!{K0.Carrier} _ _ _
+    (congr!{K0.Carrier K0.Carrier} (\fun (v: K0.Carrier) => Group.difference v (K0.mul lineDifference (K0.include removed))) _ _ (sym!{K0.Carrier} _ _ (Comparison.ofEquality transitionEquality)))
+    Correction.rankCorrection;
