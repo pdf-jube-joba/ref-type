@@ -13,6 +13,10 @@ K04 の Laurent 近似、K06 のスペクトル分離、K01 の束の同型類�
 | `Coordinates.At.frame` / `Families` | 有限個の座標ブロックの比較同型と族の連続性 |
 | `Companion.With.Eigen` | 固有ベクトルから多項式の核への写像、単位円固有値の不在の判定 |
 | `Companion.Families.Separated` / `KClass` | 連続な companion 行列、スペクトル像束とその K0 の差の定義 |
+| `On.SpectralIndex.Pullback.naturality` / `Sum.Difference.additivity` | スペクトル束の差の引き戻し自然性と直和加法性 |
+| `On.SpectralHomotopy.invariant` | 単位円との分離を保つ行列族の両端の K0 の差の一致 |
+| `On.Matrices.Clutched.Scaling` / `Normalized.With.Shifted.Leading.Clutching` | 定数倍・正規化時の摂動による clutching 束比較 |
+| `On.Matrices.Construction.Clutching.shiftedComparisonExists` | 自明束を加えた shifted loop からスペクトル標準形への比較（最新追加、検査待ち） |
 
 `algebra.Polynomial.Over.Finite` は任意の可換環上の有限係数表示・演算・padding を公開する。
 既存の体上の `galois` の係数演算と `polynomial_linear_algebra.Field.Representatives.exists` もこの実装を共用する。
