@@ -1,0 +1,16 @@
+\import \root.Linearization[].SmallScalar[delta := delta, positive := positive, belowOne := belowOne] \as Parameter;
+\import \parent.Factors[r := Parameter.root, offR := Parameter.off] \as Factors;
+\definition leading[k: N.Nat^]: C.Complex := power Parameter.scalar k;
+\definition leadingReal: N.Nat^ -> R.Real := Parameter.realPower;
+\definition leadingPositive: \forall (k: N.Nat^) -> Real.Lt R.zero (leadingReal k) := Parameter.powerPositive;
+\definition leadingFormula: \forall (k: N.Nat^) -> leading k = C.Def[].ofReal (leadingReal k) := Parameter.powerReal;
+\definition leadingNonzero: \forall (k: N.Nat^) -> C.Def[].NonZero (leading k) := \fun (k: N.Nat^)(zero: _) =>
+  Real.ltNotLeReverse R.zero (leadingReal k) (leadingPositive k)
+    (Real.leReplaceLeft _ _ _ (sym!{{R.Real}} _ _ (congr!{{C.Complex} {R.Real}} C.re _ _ (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (leadingFormula k)) zero))) (Real.leRefl R.zero));
+\definition clearedEvaluation: \forall (k: N.Nat^)(x: X)(z: C.Complex)(v: Vectors.Vector) -> Vectors.scale (leading k) ((Factors.polynomial k x z).apply v) =
+  Vectors.scale (power (C.Def[].add C.Def[].one (C.Def[].mul Parameter.scalar z)) k) ((Factors.polynomial N.Nat^::zero x z).apply v) :=
+  \fun (k: N.Nat^)(x: X)(z: C.Complex)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _
+    (congr!{Vectors.Vector Vectors.Vector} (Vectors.scale (leading k)) _ _ (Factors.polynomialFormula k x z v))
+    (trans!{Vectors.Vector} _ _ _ (sym!{Vectors.Vector} _ _ (Vectors.space.scalarAssoc (leading k) (power (C.Def[].add z (C.Def[].neg Parameter.root)) k) ((Factors.polynomial N.Nat^::zero x z).apply v)))
+      (congr!{{C.Complex} Vectors.Vector} (\fun (s: C.Complex) => Vectors.scale s ((Factors.polynomial N.Nat^::zero x z).apply v)) _ _ (Parameter.powers z k)));
+\module At(k: N.Nat^);
