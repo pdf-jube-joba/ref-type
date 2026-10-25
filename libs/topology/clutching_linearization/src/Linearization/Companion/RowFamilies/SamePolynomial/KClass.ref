@@ -1,0 +1,30 @@
+\import \root.Linearization[].Companion[n := n, d := d].RowHomotopy[X := X, source := source].With[rows := homotopy, regular := homotopyRegular, kernel := homotopyKernel] \as Path;
+\import Path.Endpoint[t := Time.start] \as Start;
+\import Path.Endpoint[t := Time.end] \as Finish;
+\import Path.KClass[compact := compact, hausdorff := hausdorff, removed := removed] \as Motion;
+\import \root.Linearization[].Companion[n := n, d := d].RowFamilies[X := X, source := source, rows := other, regular := regularOther] \as OtherFamily;
+\definition originalOff: \forall (x: X) -> spectral_splitting.Spectral[].At[n := Coordinates.dimension degree].Splitting[A := matrix x].OffSpectrum :=
+  \fun (x: X) => \root.Linearization[].Companion[n := n, d := d].FromRow[row := rows x].Spectral[].off (kernel x);
+\definition otherKernel: \forall (x: X)(z: C.Complex) -> C.Absolute[].abs z = R.one -> \forall (v: Vectors.Vector) -> (\root.Linearization[].Companion[n := n, d := d].FromRow[row := other x].polynomial z).apply v = Vectors.origin -> v = Vectors.origin :=
+  \fun (x: X)(z: C.Complex)(unit: _)(v: Vectors.Vector)(zero: _) => kernel x z unit v (trans!{Vectors.Vector} _ _ _ (same x z unit v) zero);
+\definition otherOff: \forall (x: X) -> spectral_splitting.Spectral[].At[n := Coordinates.dimension degree].Splitting[A := OtherFamily.matrix x].OffSpectrum :=
+  \fun (x: X) => \root.Linearization[].Companion[n := n, d := d].FromRow[row := other x].Spectral[].off (otherKernel x);
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := Coordinates.dimension degree] \as M;
+\definition startEquality: \forall (x: X) -> Start.matrix x = matrix x :=
+  \fun (x: X) => congr!{Row.Map M.Matrix} (\fun (r: Row.Map) => \root.Linearization[].Companion[n := n, d := d].FromRow[row := r].Spectral[].matrix) _ _
+    (Row.ext (homotopy (Pair.pair Time.Carrier X Time.start x)) (rows x)
+      (\axiom:funext((homotopy (Pair.pair Time.Carrier X Time.start x)).apply, (rows x).apply, atStart x)));
+\definition endEquality: \forall (x: X) -> Finish.matrix x = OtherFamily.matrix x :=
+  \fun (x: X) => congr!{Row.Map M.Matrix} (\fun (r: Row.Map) => \root.Linearization[].Companion[n := n, d := d].FromRow[row := r].Spectral[].matrix) _ _
+    (Row.ext (homotopy (Pair.pair Time.Carrier X Time.end x)) (other x)
+      (\axiom:funext((homotopy (Pair.pair Time.Carrier X Time.end x)).apply, (other x).apply, atEnd x)));
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff] \as On;
+\import On.SpectralIndex[n := Coordinates.dimension degree, A := matrix, regular := matrixRegular, off := originalOff, removed := removed] \as Original;
+\import On.SpectralIndex[n := Coordinates.dimension degree, A := OtherFamily.matrix, regular := OtherFamily.matrixRegular, off := otherOff, removed := removed] \as Other;
+\import On.SpectralIndex[n := Coordinates.dimension degree, A := Start.matrix, regular := Start.matrixRegular, off := Start.off, removed := removed].Equal[B := matrix, regularB := matrixRegular, offB := originalOff] \as First;
+\import On.SpectralIndex[n := Coordinates.dimension degree, A := Finish.matrix, regular := Finish.matrixRegular, off := Finish.off, removed := removed].Equal[B := OtherFamily.matrix, regularB := OtherFamily.matrixRegular, offB := otherOff] \as Last;
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := source, compact := compact, hausdorff := hausdorff] \as K;
+\definition originalValue: K.K0[].Carrier := Original.value;
+\definition otherValue: K.K0[].Carrier := Other.value;
+\definition invariant: originalValue = otherValue := trans!{K.K0[].Carrier} _ _ _ (sym!{K.K0[].Carrier} _ _ (First.invariant startEquality))
+  (trans!{K.K0[].Carrier} _ _ _ Motion.invariant (Last.invariant endEquality));
