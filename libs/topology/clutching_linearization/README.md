@@ -14,7 +14,7 @@ K07 の Laurent 近似ホモトピー・安定線形化・スペクトル束へ�
 最初は旧 CLI のオプション不一致で終了2、現行 CLI の通常ビルドは終了0。
 構文修正と半径補題の存在命題への修正後、現在の数学ソースは上記 snapshot と一致する。
 この検査は package 全依存閉包・下流・最終検証とは別である。
-最後に対象検査が成功したコミットは `b8412bcb`。
+最後に対象検査が成功したコミットは `76aa6917`。
 `ComplexBounds`・`MatrixNeighborhoods.Perturbation` の追加と依存登録も `work/k07-neighborhoods.source.json` の対象検査で保存完了・終了0。
 後者のコマンドは上記の snapshot・report 名を `k07-neighborhoods` に置き換えて実行した。
 `ComplexBounds` の補題と `Perturbation.Nearby` の行列ホモトピーも `work/k07-homotopy.source.json` の対象検査で保存完了・終了0。
@@ -34,5 +34,6 @@ Laurent 環の係数準同型の公開もこの検査に含み、`algebra.Polyno
 有限個の座標ブロックと単一の有限座標空間の比較 `Coordinates.At.frame` も、両逆・加法・スカラーを含めて `work/k07-coordinates.source.json` で対象検査・保存完了、終了0。
 `Companion.With` の作用素・多項式と `Eigen.polynomialKernel` の固有ベクトルからの比較も `work/k07-companion.source.json` で対象検査・保存完了、終了0。
 `noUnitEigen` は単位円上での多項式の零核から companion の単位円固有値の不在を導く。
-この時点の数学ソースに未検証の変更はない。
+以後の座標成分の選択・族の連続性と `Companion.With.Spectral` の K06 接続は未検証である。
+`work/k07-spectral.source.json` を上記と同じ対象検査コマンドで実行中であり、終了結果は未確認。
 次は companion 作用素とブロック操作による安定線形化へ進む。
