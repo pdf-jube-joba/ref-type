@@ -1,0 +1,53 @@
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := n] \as M;
+\import matrix_invariants.Field[K := C.Complex, field := Scalars.field].At[n := n] \as Field;
+\import matrix_invariants.Topological[K := C.Complex, ring := topological_algebra.Complex[].Ring[].topologicalRing].At[n := n] \as Top;
+\import topological_algebra.Complex[] \as Plane;
+\import topological_algebra.Matrix[K := C.Complex, I := M.Index, J := M.Index] \as MatrixSpace;
+\import topology.Topology[Carrier := M.Matrix].Subspace[S := { A: M.Matrix \where Field.Nonzero A }] \as Subspace;
+\import algebraic_topology.Interval[] \as Time;
+\import algebraic_topology.Cylinder[A := Y] \as Cylinder;
+\import algebraic_topology.Homotopy[A := Y, B := Field.Nonsingular] \as Native;
+\definition topology: topology.Topology[Carrier := Field.Nonsingular].Topology := Subspace.topology Top.topology;
+\structure Family: \Set := {
+  matrix: Y -> M.Matrix,
+  regular: Top.Families[X := Y].Regular source matrix,
+  nonzero: \forall (y: Y) -> Field.Nonzero (matrix y),
+};
+\definition map[a: Family][y: Y]: Field.Nonsingular := \into[M.Matrix](a.matrix y, Field.Nonsingular) \by { a.nonzero y };
+\definition continuous: \forall (a: Family) -> topology.Continuity[A := Y, B := Field.Nonsingular].Continuous source topology (map a) :=
+  \fun (a: Family) => topology.Continuity[A := Y, B := M.Matrix].Corestriction[S := { A: M.Matrix \where Field.Nonzero A }].corestrictContinuous source Top.topology (map a)
+    (MatrixSpace.Universal[A := Y].continuous source Plane.topology a.matrix a.regular);
+\structure Path[a, b: Family]: \Set := {
+  homotopy: Cylinder.Carrier -> M.Matrix,
+  regular: Top.Families[X := Cylinder.Carrier].Regular (Cylinder.topology source) homotopy,
+  nonzero: \forall (p: Cylinder.Carrier) -> Field.Nonzero (homotopy p),
+  atStart: \forall (y: Y) -> homotopy (Cylinder.at Time.start y) = a.matrix y,
+  atEnd: \forall (y: Y) -> homotopy (Cylinder.at Time.end y) = b.matrix y,
+};
+\definition into[a, b: Family][h: Path[a, b]]: Native.Homotopy[source, topology, map a, map b] := \block {
+  \let family: Cylinder.Carrier -> Field.Nonsingular := \fun (p: Cylinder.Carrier) => \into[M.Matrix](h.homotopy p, Field.Nonsingular) \by { h.nonzero p } \then
+  \return \into[Native.Family](family, Native.Homotopy[source, topology, map a, map b]) \by {
+    Native.Laws[source, topology, map a, map b, family] {
+      continuous := topology.Continuity[A := Cylinder.Carrier, B := M.Matrix].Corestriction[S := { A: M.Matrix \where Field.Nonzero A }].corestrictContinuous (Cylinder.topology source) Top.topology family
+        (MatrixSpace.Universal[A := Cylinder.Carrier].continuous (Cylinder.topology source) Plane.topology h.homotopy h.regular),
+      start := h.atStart, end := h.atEnd,
+    }
+  }
+};
+\definition include[A: Field.Nonsingular]: M.Matrix := A;
+\definition inclusionContinuous: topology.Continuity[A := Field.Nonsingular, B := M.Matrix].Continuous topology Top.topology include :=
+  \fun (U: \Pow M.Matrix)(open: _) => Subspace.traceOpen Top.topology U open;
+\definition out[a, b: Family][h: Native.Homotopy[source, topology, map a, map b]]: Path[a, b] := Path[a, b] {
+  homotopy := \fun (p: Cylinder.Carrier) => h p,
+  regular := \fun (i, j: M.Index) => topology.Composition[A := Cylinder.Carrier, B := M.Matrix, C := C.Complex].composeContinuous (Cylinder.topology source) Top.topology Plane.topology
+    (\fun (p: Cylinder.Carrier) => h p) (\fun (A: M.Matrix) => A i j)
+    (topology.Composition[A := Cylinder.Carrier, B := Field.Nonsingular, C := M.Matrix].composeContinuous (Cylinder.topology source) topology Top.topology h include
+      (Native.laws source topology (map a) (map b) h).continuous inclusionContinuous) (MatrixSpace.entryContinuous Plane.topology i j),
+  nonzero := \fun (p: Cylinder.Carrier) => \bysub(M.Matrix, Field.Nonsingular, h p),
+  atStart := (Native.laws source topology (map a) (map b) h).start,
+  atEnd := (Native.laws source topology (map a) (map b) h).end,
+};
+\definition reverse[a, b: Family][h: Path[a, b]]: Path[b, a] := out b a (Native.reverse source topology (map a) (map b) (into a b h));
+\definition concatenate[a, b, c: Family][first: Path[a, b]][second: Path[b, c]]: Path[a, c] := out a c
+  (Native.Concatenation[].concatenate source topology (map a) (map b) (map c) (into a b first) (into b c second));
+\definition constant[a: Family]: Path[a, a] := out a a (Native.constant source topology (map a) (continuous a));

@@ -56,7 +56,9 @@ K04 の `Circle.Coefficients.valueContinuous` を公開し、評価の連続性�
 `fea167b6` までの追加は、端点誤差の評価、正の重み付き補間、単位スカラーによる摂動幅の保存、Laurent 係数の再添字付けを個別検査済み（いずれも accepted・終了0・保存失敗0）。
 `ab7421f3`（ローカル `6cc419af` と同一 tree）の正係数の多項式補間の K0 比較も検査済み（`degree-segment.json`、accepted・終了0・保存失敗0）。
 Git CLI の push が認証エラーとなったため、以後は通常の GitHub 連携で既存ブランチを fast-forward 更新し、tree の一致とリモート head を確認して保存する。
-次は全体の Laurent 近似と両端の短い可逆な多項式経路を結び、任意の連続ループのホモトピーに比較を適用して一般の選択独立性を導く。
+`1f693be9`（ローカル `d6bb5b47` と同一 tree）の `RowOrders.DegreePair.LoopHomotopy.With.invariant` は、任意の連続可逆ループホモトピーが結ぶ monic 多項式のスペクトル K0 クラスの一致を証明する（`loop-homotopy.json`、accepted・終了0・保存失敗0）。
+誤差を制御した Laurent 近似、両端の短い正係数多項式経路、零因子のランク補正を接続した。
+次は既存の近似・正規化の経路をこの定理へ接続して、一般の選択独立性を導く。
 次数の追加は外側の一次因子による companion の安定化、shift の変更は零固有値ブロックの追加、固定次数の補助選択はスペクトルホモトピーで比較する方針。
 以下の全workspace結果は再開前の数学入力に対する記録。
 
