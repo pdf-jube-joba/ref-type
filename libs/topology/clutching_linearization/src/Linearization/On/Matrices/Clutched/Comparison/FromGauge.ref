@@ -1,0 +1,30 @@
+\import std.Data[].Bool[] \as B;
+\import Closed.Side[i := B.Bool^::false, S := C, inside := insideC] \as Positive;
+\import Closed.Side[i := B.Bool^::true, S := D, inside := insideD] \as Negative;
+\definition positive[p: Positive.Carrier]: Units.Carrier := gauge.positive (parameter p);
+\definition negative[p: Negative.Carrier]: Units.Carrier := gauge.negative (parameter p);
+\definition positiveContinuous: topology.Continuity[A := Positive.Carrier, B := Units.Carrier].Continuous Positive.topology Units.topology positive :=
+  topology.Composition[A := Positive.Carrier, B := Parameters, C := Units.Carrier].composeContinuous Positive.topology parameterTopology Units.topology
+    (\fun (p: Positive.Carrier) => parameter p) gauge.positive
+    (topology.Continuity[A := Carrier, B := Parameters].Restriction[S := C].restrictContinuous topology parameterTopology parameter parameterContinuous) gauge.positiveContinuous;
+\definition negativeContinuous: topology.Continuity[A := Negative.Carrier, B := Units.Carrier].Continuous Negative.topology Units.topology negative :=
+  topology.Composition[A := Negative.Carrier, B := Parameters, C := Units.Carrier].composeContinuous Negative.topology parameterTopology Units.topology
+    (\fun (p: Negative.Carrier) => parameter p) gauge.negative
+    (topology.Continuity[A := Carrier, B := Parameters].Restriction[S := D].restrictContinuous topology parameterTopology parameter parameterContinuous) gauge.negativeContinuous;
+\definition intersection: \forall (p: Carrier)(inC: \In[Carrier] C p)(inD: \In[Carrier] D p) -> parameter p = circleParameter (circlePoint (Closed.overlapPoint p inC inD)) :=
+  \fun (p: Carrier)(inC: _)(inD: _) => Pair.Prop[A := X, B := C.Complex].ext _ _ (\refl(first p))
+    (sym!{{C.Complex}} _ _ (congr!{CircleCoordinates.Sphere {C.Complex}} (\fun (s: CircleCoordinates.Sphere) => CircleCoordinates.forward s) _ _ (Halves.boundaryOnIntersection (second p) inC inD)));
+\definition compatible: \forall (p: Carrier)(inC: \In[Carrier] C p)(inD: \In[Carrier] D p)(v: Fin.Fin n -> C.Complex) ->
+  (negative (\into[Carrier](p, D) \by { inD })).apply ((transition (Closed.overlapPoint p inC inD)).apply v) =
+  (Other.transition (Closed.overlapPoint p inC inD)).apply ((positive (\into[Carrier](p, C) \by { inC })).apply v) :=
+  \fun (p: Carrier)(inC: _)(inD: _)(v: Fin.Fin n -> C.Complex) =>
+    \idelim circleParameter (circlePoint (Closed.overlapPoint p inC inD)) = parameter p \with q: Parameters =>
+      (gauge.negative q).apply ((transition (Closed.overlapPoint p inC inD)).apply v) =
+      (Other.transition (Closed.overlapPoint p inC inD)).apply ((gauge.positive q).apply v) \by {
+        base: gauge.compatible (circlePoint (Closed.overlapPoint p inC inD)) v,
+        equality: sym!{Parameters} _ _ (intersection p inC inD)
+      };
+\definition halfGauge: Closed.Gauge := Closed.Gauge { positive := positive, negative := negative, positiveContinuous := positiveContinuous, negativeContinuous := negativeContinuous, compatible := compatible };
+\definition value: vector_bundles.Bundles[].Over[K := C.Complex, field := Scalars.field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].Isomorphisms[X := Carrier, F := Fiber, G := Other.Fiber, source := bundle, target := Other.bundle].Isomorphism :=
+  Closed.FromGauge[gauge := halfGauge].value;
