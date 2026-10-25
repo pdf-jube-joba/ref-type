@@ -1,0 +1,24 @@
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := n] \as M;
+\import Spaces.Coordinates[I := M.Index] \as Vectors;
+\import Spaces.Linear[V := M.Vector, W := M.Vector, source := Vectors.space, target := Vectors.space] \as End;
+\import Spaces.Laws[V := M.Vector, space := Vectors.space] \as Values;
+\import spectral_splitting.Spectral[] \as Spectral;
+\import Spectral.At[n := n].Splitting[A := A] \as Split;
+\import Split.Separated[off := off] \as Projection;
+\import Spectral.Circle[].At[n := n] \as Roots;
+\import polynomial_linear_algebra.Field[K := C.Complex, field := Scalars.field].Action[V := M.Vector, space := Vectors.space].At[T := M.linear A] \as Evaluation;
+\import \root.Linearization[].PolynomialEigen[V := M.Vector, space := Vectors.space, T := M.linear A] \as Eigen;
+\import std.Data[].Bool[] \as B;
+\definition insideNoEigen: \forall (z: C.Complex) -> Real.Le R.one (C.Absolute[].abs z) -> \forall (v: M.Vector) ->
+  Evaluation.apply Split.inside v = Vectors.origin -> (M.linear A).apply v = Vectors.scale z v -> v = Vectors.origin :=
+  \fun (z: C.Complex)(outside: _)(v: M.Vector)(kernel: _)(eigen: _) => Eigen.zero Split.inside z
+    (\fun (root: _) => Real.ltNotLeReverse (C.Absolute[].abs z) R.one (Roots.factorRoot B.Bool^::true Split.coefficients off z root) outside) v kernel eigen;
+\definition outsideNoEigen: \forall (z: C.Complex) -> Real.Le (C.Absolute[].abs z) R.one -> \forall (v: M.Vector) ->
+  Evaluation.apply Split.outside v = Vectors.origin -> (M.linear A).apply v = Vectors.scale z v -> v = Vectors.origin :=
+  \fun (z: C.Complex)(inside: _)(v: M.Vector)(kernel: _)(eigen: _) => Eigen.zero Split.outside z
+    (\fun (root: _) => Real.ltNotLeReverse R.one (C.Absolute[].abs z) (Roots.factorRoot B.Bool^::false Split.coefficients off z root) inside) v kernel eigen;
+\import Spectral.Intertwining[V := M.Vector, W := M.Vector, source := Vectors.space, destination := Vectors.space, S := M.linear A, T := M.linear A] \as Maps;
+\import Spectral.Comparison[n := n, m := n, A := A, B := A, sourceOff := off, targetOff := off] \as Natural;
+\definition self: Maps.Morphism := Maps.ofLinear (M.linear A) (\fun (v: M.Vector) => \refl((M.linear A).apply ((M.linear A).apply v)));
+\definition commute: \forall (v: M.Vector) -> (M.linear A).apply (Projection.projection.apply v) = Projection.projection.apply ((M.linear A).apply v) := Natural.natural self;
+\definition commuteComplement: \forall (v: M.Vector) -> (M.linear A).apply (Projection.complementary.apply v) = Projection.complementary.apply ((M.linear A).apply v) := Natural.naturalComplement self;
