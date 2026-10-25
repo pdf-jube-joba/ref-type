@@ -18,15 +18,27 @@
   (\forall (k: Fin.Fin (dimension d)) -> Continuous (\fun (x: X) => v x k)) -> Regular d (\fun (x: X) => unflatten d (v x)) :=
   \induction (d: N.Nat^) \return \forall (v: X -> Fin.Fin (dimension d) -> C.Complex) ->
     (\forall (k: Fin.Fin (dimension d)) -> Continuous (\fun (x: X) => v x k)) -> Regular d (\fun (x: X) => unflatten d (v x)) \with {
-      | zero: \fun (v: X -> Fin.Fin (dimension N.Nat^::zero) -> C.Complex)(regular: _)(i: Fin.Fin N.Nat^::zero)(j: Fin.Fin n) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))
-      | succ: \fun (d: N.Nat^)(previous: _)(v: X -> Fin.Fin (dimension (N.Nat^::succ d)) -> C.Complex)(regular: _) => Fin.cases d
-        (\fun (i: Fin.Fin (N.Nat^::succ d)) => \forall (j: Fin.Fin n) -> Continuous (\fun (x: X) => unflatten (N.Nat^::succ d) (v x) i j))
-        (\fun (j: Fin.Fin n) => transport _ _ (\fun (x: X) => sym!{{C.Complex}} _ _ (congr!{Vectors.Vector {C.Complex}} (\fun (w: Vectors.Vector) => w j) _ _
-          (Tuples.atZero d (Spaces.CoordinateSum[n := n, m := dimension d].left (v x)) (unflatten d (Spaces.CoordinateSum[n := n, m := dimension d].right (v x))))))
-          (regular (Fin.Sum[m := n, n := dimension d].left j)))
-        (\fun (i: Fin.Fin d)(j: Fin.Fin n) => transport _ _ (\fun (x: X) => sym!{{C.Complex}} _ _ (congr!{Vectors.Vector {C.Complex}} (\fun (w: Vectors.Vector) => w j) _ _
-          (Tuples.atSuccessor d (Spaces.CoordinateSum[n := n, m := dimension d].left (v x)) (unflatten d (Spaces.CoordinateSum[n := n, m := dimension d].right (v x))) i)))
-          (previous (\fun (x: X) => Spaces.CoordinateSum[n := n, m := dimension d].right (v x)) (\fun (k: Fin.Fin (dimension d)) => regular (Fin.Sum[m := n, n := dimension d].right k)) i j))
+      | zero: \fun (v: X -> Fin.Fin (dimension N.Nat^::zero) -> C.Complex)
+        (regular: \forall (k: Fin.Fin (dimension N.Nat^::zero)) -> Continuous (\fun (x: X) => v x k))(i: Fin.Fin N.Nat^::zero)(j: Fin.Fin n) =>
+          Logic.falseElim (Continuous (\fun (x: X) => unflatten N.Nat^::zero (v x) i j)) (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))
+      | succ: \fun (d: N.Nat^)
+        (previous: \forall (u: X -> Fin.Fin (dimension d) -> C.Complex) -> (\forall (k: Fin.Fin (dimension d)) -> Continuous (\fun (x: X) => u x k)) -> Regular d (\fun (x: X) => unflatten d (u x)))
+        (v: X -> Fin.Fin (dimension (N.Nat^::succ d)) -> C.Complex)
+        (regular: \forall (k: Fin.Fin (dimension (N.Nat^::succ d))) -> Continuous (\fun (x: X) => v x k)) => Fin.cases d
+          (\fun (i: Fin.Fin (N.Nat^::succ d)) => \forall (j: Fin.Fin n) -> Continuous (\fun (x: X) => unflatten (N.Nat^::succ d) (v x) i j))
+          (\fun (j: Fin.Fin n) => transport
+            (\fun (x: X) => v x (Fin.Sum[m := n, n := dimension d].left j))
+            (\fun (x: X) => unflatten (N.Nat^::succ d) (v x) (Fin.zero d) j)
+            (\fun (x: X) => sym!{{C.Complex}} _ _ (congr!{Vectors.Vector {C.Complex}} (\fun (w: Vectors.Vector) => w j) _ _
+              (Tuples.atZero d (Spaces.CoordinateSum[n := n, m := dimension d].left (v x)) (unflatten d (Spaces.CoordinateSum[n := n, m := dimension d].right (v x))))))
+            (regular (Fin.Sum[m := n, n := dimension d].left j)))
+          (\fun (i: Fin.Fin d)(j: Fin.Fin n) => transport
+            (\fun (x: X) => unflatten d (Spaces.CoordinateSum[n := n, m := dimension d].right (v x)) i j)
+            (\fun (x: X) => unflatten (N.Nat^::succ d) (v x) (Fin.succ d i) j)
+            (\fun (x: X) => sym!{{C.Complex}} _ _ (congr!{Vectors.Vector {C.Complex}} (\fun (w: Vectors.Vector) => w j) _ _
+              (Tuples.atSuccessor d (Spaces.CoordinateSum[n := n, m := dimension d].left (v x)) (unflatten d (Spaces.CoordinateSum[n := n, m := dimension d].right (v x))) i)))
+            (previous (\fun (x: X) => Spaces.CoordinateSum[n := n, m := dimension d].right (v x))
+              (\fun (k: Fin.Fin (dimension d)) => regular (Fin.Sum[m := n, n := dimension d].right k)) i j))
     };
 \definition extension: \forall (d: N.Nat^)(v: X -> Vectors.Vector)(w: X -> Carrier d) ->
   (\forall (j: Fin.Fin n) -> Continuous (\fun (x: X) => v x j)) -> Regular d w -> Regular (N.Nat^::succ d) (\fun (x: X) => Tuples.extend d (v x) (w x)) :=
