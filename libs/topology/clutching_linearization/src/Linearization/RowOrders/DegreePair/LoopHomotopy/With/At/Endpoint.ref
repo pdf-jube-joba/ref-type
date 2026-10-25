@@ -1,0 +1,19 @@
+\import Path.Endpoint[t := t] \as EndPoint;
+\import \root.Linearization[].Companion[n := n, d := d].RowFamilies[X := X, source := source, rows := q, regular := regularQ].ZeroFactors[] \as Zero;
+\definition left: Base.Family (Nat.add d shift) := Zero.family shift;
+\definition leftRegular: Base.Regular (Nat.add d shift) left := Zero.familyRegular shift;
+\definition leftKernel: Base.Kernel (Nat.add d shift) left := Zero.familyKernel kernelQ shift;
+\definition right: Base.Family chosen.form.order := EndPoint.endpointRows;
+\definition rightRegular: Base.Regular chosen.form.order right := EndPoint.endpointRegular;
+\definition rightKernel: Base.Kernel chosen.form.order right := \fun (x: X) => Model.kernel (Cylinder.include t x);
+\import Base.DegreePair[d0 := Nat.add d shift, d1 := chosen.form.order, padding := N.Nat^::zero, q0 := left, q1 := right, regular0 := leftRegular, regular1 := rightRegular].Segment[
+  compact := compact, hausdorff := hausdorff, kernel0 := leftKernel, kernel1 := rightKernel, a := R.one, b := Model.epsilon, positiveA := R.Estimates[].Product[].onePositive, positiveB := Model.positive] \as Segment;
+\definition leftEntries: \forall (x: X)(z: Native.Carrier) -> M.Representation[].entries (Base.polynomial (Nat.add d shift) left x z) = Refined.original (point t x z) :=
+  \fun (x: X)(z: Native.Carrier) => M.Operations[].ext _ _ (\fun (i, j: M.Index) => trans!{{C.Complex}} _ _ _
+    (congr!{Vectors.Vector {C.Complex}} (\fun (v: Vectors.Vector) => v i) _ _ (Zero.evaluation shift x z (Spaces.FiniteCoordinates[n := n].vectors j)))
+    (congr!{{C.Complex} {C.Complex}} (C.Def[].mul (\root.Linearization[].Powers[].value z shift)) _ _
+      (sym!{{C.Complex}} _ _ (congr!{M.Matrix {C.Complex}} (\fun (A: M.Matrix) => A i j) _ _ (endpoint x z)))));
+\definition rightEntries: \forall (x: X)(z: Native.Carrier) -> M.Representation[].entries (Base.polynomial chosen.form.order right x z) = Model.polynomial (point t x z) :=
+  \fun (x: X)(z: Native.Carrier) => trans!{M.Matrix} _ _ _
+    (congr!{End.Map M.Matrix} M.Representation[].entries _ _ (sym!{End.Map} _ _ (Model.action (point t x z))))
+    (M.Representation[].entriesLinear (Model.polynomial (point t x z)));
