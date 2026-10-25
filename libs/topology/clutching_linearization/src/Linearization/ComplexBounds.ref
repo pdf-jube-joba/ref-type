@@ -58,3 +58,18 @@
 \definition shiftedDifference: \forall (u, p, q, e: C.Complex) -> O.sub (O.mul u p) (O.add (O.mul u q) e) = O.add (O.mul u (O.sub p q)) (O.neg e) :=
   \fun (u, p, q, e: C.Complex) => trans!{{C.Complex}} _ _ _ (subtractSum (O.mul u p) (O.mul u q) e)
     (congr!{{C.Complex} {C.Complex}} (\fun (v: C.Complex) => O.add v (O.neg e)) _ _ (sym!{{C.Complex}} _ _ (multiplyDifference u p q)));
+\definition negativeDifference: \forall (w, p, q: C.Complex) -> O.neg (O.mul w (O.sub p q)) = O.add (O.neg (O.mul w p)) (O.mul w q) :=
+  \fun (w, p, q: C.Complex) => trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} O.neg _ _ (multiplyDifference w p q))
+    (trans!{{C.Complex}} _ _ _ (Additive.negAdd (O.mul w p) (O.neg (O.mul w q)))
+      (congr!{{C.Complex} {C.Complex}} (O.add (O.neg (O.mul w p))) _ _ (C.Prop[].negNeg (O.mul w q))));
+\definition affine: \forall (w, p, q: C.Complex) -> O.add (O.mul (O.sub O.one w) p) (O.mul w q) = O.add p (O.neg (O.mul w (O.sub p q))) :=
+  \fun (w, p, q: C.Complex) => eq_reason_in!{{C.Complex} { O.add (O.mul (O.sub O.one w) p) (O.mul w q) }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (\fun (v: C.Complex) => O.add v (O.mul w q)) _ _
+      (trans!{{C.Complex}} _ _ _ (C.Prop[].mulAddRight O.one (O.neg w) p)
+        (congr!{{C.Complex} {C.Complex} {C.Complex}} O.add _ _ _ _ (C.Prop[].mulOneLeft p) (sym!{{C.Complex}} _ _ (Sign.negativeProduct w p)))) }
+    "=" _ "by" { C.Prop[].addAssoc p (O.neg (O.mul w p)) (O.mul w q) }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (O.add p) _ _ (sym!{{C.Complex}} _ _ (negativeDifference w p q)) }
+  };
+\definition realAffine: \forall (t: R.Real)(p, q: C.Complex) -> O.add (O.mul (O.sub O.one (O.ofReal t)) p) (O.mul (O.ofReal t) q) = O.add p (O.neg (O.scale t (O.sub p q))) :=
+  \fun (t: R.Real)(p, q: C.Complex) => trans!{{C.Complex}} _ _ _ (affine (O.ofReal t) p q)
+    (congr!{{C.Complex} {C.Complex}} (\fun (v: C.Complex) => O.add p (O.neg v)) _ _ (uniform_approximation.Approximation[].ComplexScalars[].realProduct t (O.sub p q)));
