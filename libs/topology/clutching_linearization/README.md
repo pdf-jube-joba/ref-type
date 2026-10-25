@@ -20,87 +20,40 @@ K04 の `Circle.Coefficients.valueContinuous` を公開し、評価の連続性�
 
 ## 検証と引き継ぎ
 
-ブランチは `math/k07-clutching-linearization`、開始点は main `744d501e`。
-#42〜#45 の統合と重複 PR の不在を確認して開始した。
-K07 は [draft PR #46](https://github.com/pdf-jube-joba/ref-type/pull/46) で進行中であり、未マージ。
-K02・B09・K03 は未着手。
+作業は `math/k07-clutching-linearization` / [draft PR #46](https://github.com/pdf-jube-joba/ref-type/pull/46)、基点は main `744d501e`。
+新環境で退避 head `060c0616` を取得し、旧 work・キャッシュがない状態から共有キャッシュを再構築した。
 
-| 対象 | 数学入力コミット | 結果 |
+| 対象 | 数学入力 | 結果 |
 | --- | --- | --- |
-| K07 全対象（当時の実装範囲） | `67f32242` | accepted・保存完了・終了0 |
-| B04 cocycle 等式比較 | `b3f782ef` | accepted・保存失敗0・終了0 |
-| 座標の連続性 | `d2a50e80` | accepted・保存完了・終了0 |
-| ShiftFamilies | `b2901d44` | accepted・保存完了・終了0 |
-| Companion.Families.Linearization | `19b1962e` | accepted・保存失敗0・終了0 |
-| PolynomialEigen | `8502642e` | accepted・保存完了・終了0 |
-| SpectralPencil | `11f6a15c` | accepted・保存失敗0・終了0 |
-| SpectralMotion | `1208fe83` | accepted・保存失敗0・終了0 |
+| Clutched（ホモトピー・gauge 比較） | `cdbdc077` | accepted・保存失敗0・終了0、895 module |
+| K07 全対象（現在の実装範囲） | `e19631fb` | accepted・保存失敗0・終了0、1,221 module |
+| kernel 既存テスト | `874e6292` の処理系 | 78 passed、終了0 |
 
-検査は source snapshot と共有キャッシュを使用した。
-最後に成功した個別対象は SpectralMotion で、連続な族・全時刻の可逆性・両端の等式を含む。
-その後の NormalForm、InverseFamily、Endpoint、ClutchedMotion、Normal/Clutched、companion の円周上 gauge 比較、dimensionFormula は未検証。
-既存の多項式係数 API 共通化の影響先 polynomial_linear_algebra.Field.Representatives の個別検査は終了0。
-Rust の変更はない。
+K07 全対象は `/tmp/k07-resume/target-2.json`、約47秒、1,301 source steps、最大RSS 2,283,812 KiB。
+復旧・重複・再実行・lost steps は各0で、プロセス終了と最終保存を確認した。
+NormalForm・InverseFamily・ClutchedMotion・Normal/Clutched・companion gauge 比較、および再開後の追加を含む。
+処理系には比較回数を限定表示する `REF_TYPE_PROFILE_CONVERSION` の診断だけを追加し、型判定規則は変更していない。
 
-2026-10-25、実行ツールが `exec-server transport disconnected` で切断された。
-状態 API は running / connected・failure=null を返したが、再確認した exec_command と write_stdin は `No usable execution environment is available. Wait for an environment to become available before using this tool.` と拒否された。
-保持された診断記録は history_status=not_found・records=[] で、原因は不明。
-設定・プロキシ・認証情報の変更は行っていない。
-GitHub 連携は正常に PR 情報を取得でき、退避にも使用した。
+再開後の主な接続:
 
-切断時の検査は `work/k07-clutching-comparison-current`、入力コミット `74c41afd`、対象 `clutching_linearization.Linearization.On.Matrices.Clutched`。
-最後の観測は checking (541s)、Along module まで到達したが、終了コード・最終結果・キャッシュ保存は確認できず検証未完了。
-以前の検査では非公開 alias、名前衝突、連続性証明の型推論エラーを修正した。
-タイムアウト（終了2）と中断（終了130）は成功扱いしていない。
+- `On.Matrices.Result.Clutching.isomorphismExists`: 元のループと Laurent 近似の clutching 束の同型。
+- `SpectralMotion.Comparison.isomorphismExists`: spectral pencil と射影の標準ループの clutching 束の同型。
+- `Companion.Families.Linearization.Gauges.SpectralForm`: ブロック行列と spectral pencil の等式。
+- `Construction.Clutching.spectralComparisonExists`: 安定対角形からスペクトル標準形への束比較。
+- `Examples.Empty`・`Examples.Nilpotent`: 零次元と2次の冪零行列で比較を利用する具体例。
 
-切断前に git push と ls-remote で確認した最終 SHA は `7ac02faf8022f09a9fc82e409a4938715cd0e760`。
-この退避コミットは、その子として Normal/Clutched と親 module 宣言、および本引き継ぎを GitHub 連携経由で保存する。
-Normal/Clutched の初版の parse-only は終了0だったが、identity 証明修正後は再実行できていないため未検証。
-秘密情報・生成キャッシュ・ログは含めていない。
+以前の Clutched 検査は `Along` 内の型同値判定で停滞し、診断のため中断した（終了130、成功ではない）。
+B04 `Clutching.Homotopy.Endpoint.at` を実際に束構成が使う `Pullback.pulledG` の別名に整理すると、巨大な束の型展開を避け、Along は約0.7秒で完了した。
+`IsomorphismComposition.Isomorphism` の公開と型付きの中間証明も追加した。
 
-再開時は remote branch とローカル差分を比較して引き継ぎ、上書きや重複 PR を避ける。
-環境が新規なら当該 branch を取得して `cargo build -p cli --locked`（切断前は終了0）から再開する。
-残存する work のレポートがあれば正常終了を確認し、終了不明なら再検査する。
+検査コマンド:
 
 ```sh
-target/debug/cli libs/topology/clutching_linearization --parse-only --save-source-snapshot work/k07-resume.source.json
-target/debug/cli libs/topology/clutching_linearization --source-snapshot work/k07-resume.source.json --module clutching_linearization.Linearization.On.Matrices.Clutched --memory-mib 10240 --cache-dir libs/refcache --cache-budget-mib 12288 --diagnostics compact --time-limit-seconds 900 --report-json work/k07-resume.report.json
+source /workspace/ref-type-env.sh
+cargo build -p cli --locked
+target/debug/cli libs/topology/clutching_linearization --parse-only --save-source-snapshot /tmp/k07-resume/current.source.json
+REF_TYPE_PROFILE_PROGRESS=1 target/debug/cli libs/topology/clutching_linearization --source-snapshot /tmp/k07-resume/current.source.json --module clutching_linearization --memory-mib 10240 --cache-dir libs/refcache --cache-budget-mib 12288 --diagnostics compact --time-limit-seconds 1800 --report-json /tmp/k07-resume/target.json
 ```
 
-次に追加した NormalForm・InverseFamily・SpectralMotion.Normal・ClutchedMotion と companion gauge の対象検査を行う。
-clutching とスペクトル束の比較、選択独立性・自然性・直和・相互逆、具体例、workspace/package 登録・公開一覧・下流リンク・ロードマップが残作業。
-package 全依存閉包・影響する下流・利用例・workspace の最終検証も残っている。
-K07 の完成・最終検証・必要な CI・通常マージ・main 反映確認までが、この再開作業の対象。
-
-2026-10-25、新しい実行環境で退避 head `060c0616a1c3f648a967fd40897a35706c60ffcb` を取得し、GitHub と git ls-remote の一致を確認した。
-旧環境の work レポートと libs/refcache は残っていないため、共有キャッシュを再構築して Clutched から検査を再開する。
-数学ソースの検証状態は上記のままであり、この再開記録は検証成功を示すものではない。
-
-再開後、Laurent 近似のホモトピーを実際の束同型へ接続する `On.Matrices.Result.Clutching.isomorphismExists` を追加した（未検証）。
-処理系のビルドと退避時ソースの parse-only は終了0。
-Clutched の型検査は `/tmp/k07-resume/source.json` を入力に `libs/refcache` で実行中であり、最終結果はまだ未確認。
-
-さらに `SpectralMotion.Comparison`、`Companion.Families.Linearization.Gauges.SpectralForm` と `Separated.Bundles.Deformation` を追加し、pencil の二つの表示と射影の標準形への束比較を接続した。
-行列族の等式からの束同型 `Clutched.Comparison.ofEquality` も公開した。
-これらは parse-only 終了0、型検査は未完了であり WIP として保存する。
-
-`Construction.Clutching.spectralComparisonExists` へ標準形比較を公開し、`Examples.Empty` と `Examples.Nilpotent` の利用例を追加した（型検査待ち）。
-
-Clutched の再検査は `Along.isomorphismExists` で長時間停滞し、計測のため中断した（終了130）。
-最初のレポートは 11,896 source steps、checkpoint 11,468、保存失敗0であり、成功ではない。
-宣言計測では `startExists`・`finishExists` までは完了したため、最終合成を `motionExists`・`throughInitialExists` に分けて検査箇所を絞る（未検証）。
-
-計測により `motionExists` は完了し、`throughInitialExists` から参照される `startExists` の kernel 登録時の型同値判定で展開が増大していると分かった。
-比較回数と項を限定出力する `REF_TYPE_PROFILE_CONVERSION` の診断を追加した。判定規則は変更していない。
-
-型同値判定の展開を抑えるため、端点比較の戻り型は比較 module が公開する同じ `Isomorphism` 型の名前を使う形へ整理した（検査待ち）。
-
-端点の型名再利用で `startExists` の kernel 登録を通過した。
-同じ整理を合成へ適用するため `bundle_operations.Operations.Over.IsomorphismComposition.Isomorphism` を公開し、Along の戻り型に使用する（型検査待ち）。
-
-B04 `Clutching.Homotopy.Endpoint.at` と実際の端点束が使用する `Pullback.pulledG` の同値比較で、束の型が大きく展開されることを確認した。
-`at`・`regularAt` を構成元の `pulledG`・`pulledContinuous` の別名へ整理して再検査する（定義上同じ遷移関数、未検証）。
-
-`cdbdc077` の Clutched は `/tmp/k07-resume/shared-endpoint.json` で accepted・終了0、保存失敗0、復旧・重複・再実行・lost steps 各0を確認した（約46.5秒、5,502 source steps、895 module）。
-`Along` は約0.7秒で完了し、端点遷移の共有により停滞を解消した。
-この成功は Clutched の対象範囲のみで、NormalForm・スペクトル束比較・利用例などの追加は未検証。
+残作業は、元の clutching の安定化とスペクトル束の差の比較の完成、選択独立性・自然性・直和・相互逆、公開一覧・workspace・下流リンク・ロードマップ、package 全依存閉包と影響先の最終検証。
+その後に PR の差分・必要な CI を確認して ready にし、通常マージと main 反映を確認する。
