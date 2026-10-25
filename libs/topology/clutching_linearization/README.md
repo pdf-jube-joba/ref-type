@@ -39,7 +39,7 @@ target/debug/cli libs/topology/clutching_linearization --source-snapshot work/k0
 
 `Geometric` の有限幾何級数と `Companion.Shift` の三角行列操作も、`work/k07-geometric.source.json`・`work/k07-shift.source.json` の対象検査で保存完了・終了0。
 `Shift.solveHead` と符号付きブロック順序交換も `work/k07-gauges.source.json` の対象検査で保存完了・終了0。
-以後の線形同型の逆・合成 API と `Companion.With.Linearize` の安定対角化は未検証である。
+線形同型の逆・合成 API と `Companion.With.Linearize` の安定対角化は `work/k07-linearize.source.json` の対象検査を実行中で、終了結果は未確認。
 これらは途中の対象検査であり、package 全依存閉包・下流・利用例・workspace の最終検証は残っている。
 Laurent 行列の monic 正規化、安定線形化と clutching の比較、スペクトル束との比較、選択独立性・直和・相互逆、具体例・workspace 登録・公開一覧・下流リンク・ロードマップが残作業である。
 次は Laurent 行列の正規化と companion への比較を実装する。
