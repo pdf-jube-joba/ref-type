@@ -34,17 +34,18 @@ K04 の `Circle.Coefficients.valueContinuous` を公開し、評価の連続性�
 | 対象 | 数学入力 | 結果 |
 | --- | --- | --- |
 | package 全依存閉包 | `a4ead646` | 5,638 module、accepted、終了0、保存失敗0 |
-| 全workspace・影響先・例 | `eaa94ba7` | 7,871 module、accepted、終了0、保存失敗0 |
+| 最新全workspace・依存閉包・影響先・例 | `0a2e29ec`（数学ソース `95809e5d`） | 7,878 module、accepted、終了0、保存失敗0 |
 | 最新 K07 全対象・参照先・例 | `95809e5d` | 1,307 module、accepted、終了0、保存失敗0 |
 | Rust workspace | 同一処理系 | 383 tests passed、終了0 |
 | format / Clippy | 同一処理系 | 全workspace・全targets、警告をエラー化、終了0 |
 
-結果は `/tmp/k07-resume/closure.json`、`workspace-resume.json`、`canonical.json`。
+結果は `/tmp/k07-resume/closure.json`、`workspace-resume.json`、`canonical.json`、`final.json`。
 最新 K07 は約244秒、最大RSS 6,373,460 KiB、復旧・重複・lost steps は0。
 Clutched・NormalForm・InverseFamily・bundle 比較、自然性・直和・標準モデルの復元と具体例を含む。
 全workspace の初回は30分の時間上限で終了2となり、成功扱いせずキャッシュから再開した。
 再開後は約728秒で正常終了したが、復旧1回、lost steps 4,740 の記録がある。
-最新追加も含めた全workspaceの最終確認を次に実行する。
+最新追加も含めた全workspaceの最終確認は約23秒、検証済みキャッシュの再利用で正常終了した。
+この最終確認の復旧・重複・lost steps は0。
 
 B04 `Clutching.Homotopy.Endpoint.at` を `Pullback.pulledG` の別名に整理し、同じ束の型を繰り返し展開する停滞を解消した。
 処理系には `REF_TYPE_PROFILE_CONVERSION` の任意診断を追加したが、型判定規則は変更していない。
