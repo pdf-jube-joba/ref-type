@@ -60,7 +60,9 @@ Git CLI の push が認証エラーとなったため、以後は通常の GitHu
 誤差を制御した Laurent 近似、両端の短い正係数多項式経路、零因子のランク補正を接続した。
 `1061e488`（ローカル `c0ecae9e` と同一 tree）の `On.Matrices.ChoiceComparison.independent` は、任意の二つの `Parameters` のスペクトル逆クラスが一致することを証明する（`choice-comparison.json`、accepted・終了0・保存失敗0）。
 各 monic 多項式を元のループへ結ぶ経路、共通 shift への零因子追加、ランク補正の交換を使用する。
-次は選択に依存しない逆クラスの公開と、自然性・直和・標準モデルの復元を接続する。
+`8fb650cf` の `On.Matrices.Inverse.value` と clutching 復元、`d2ed77a0` の任意の多項式経路表示からの回収、`047b9ffc` の `Inverse.Naturality` と `Inverse.Homotopy` を検証済み（各 accepted・終了0・保存失敗0）。
+`54c90213` の `RowOrders.Monic.recovery` と `LinearPolynomial.Index.recovery` は、monic 多項式の逆クラス、特に一次の \(zI-A\) の逆クラスを元のスペクトル指数と同定する（`linear-polynomial.json`、accepted・終了0・保存失敗0）。
+次は標準射影ループでの復元と、逆クラスの直和加法性を接続する。
 次数の追加は外側の一次因子による companion の安定化、shift の変更は零固有値ブロックの追加、固定次数の補助選択はスペクトルホモトピーで比較する方針。
 以下の全workspace結果は再開前の数学入力に対する記録。
 
@@ -100,7 +102,8 @@ K07 だけを検査する場合は入力を `libs/topology/clutching_linearizati
 
 `Construction.inverseClass` の一般の選択独立性は検証済み。
 Laurent shift 補正と標準ループの積公式を結合した再構成等式は検証済み。
-残るのは選択に依存しない逆クラスの公開 API と、自然性・直和・一般の相互逆への接続である。
+選択に依存しない逆クラスの公開 API・自然性・ホモトピー不変性・clutching 復元を検証済み。
+残るのは標準射影ループ側の復元と、逆クラスの直和加法性の接続、および最新差分の全体検証である。
 固定されたスペクトル族の自然性・直和・ホモトピー不変性、標準モデルの復元は検証済み。
 一般の選択独立性を再構成の積公式だけから結論することはできないため、companion の一次因子追加と次数・shift の変更の比較を構成する。
 workspace・公開一覧・下流リンク・ロードマップは実装中と表示している。
