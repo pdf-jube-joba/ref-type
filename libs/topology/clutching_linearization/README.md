@@ -57,7 +57,8 @@ REF_TYPE_PROFILE_PROGRESS=1 target/debug/cli libs/topology/clutching_linearizati
 
 `On.SpectralIndex` にスペクトル束の差を共通化し、`On.SpectralHomotopy.invariant` にスペクトル分離を保つ変形の両端の差の等式を追加した。
 `5bc767f4` の K07 全対象は `/tmp/k07-resume/index.json` で accepted・保存失敗0・終了0。
-続いて `SpectralIndex.Pullback.naturality` と引き戻した自明束の比較を追加した（型検査待ち）。
+`8202b036` の `SpectralIndex.Pullback.naturality` と引き戻した自明束の比較も、`/tmp/k07-resume/pullback.json` で accepted・保存失敗0・終了0。
+続いて `SpectralSum.off` と `SpectralSum.Projection.formula` を追加した（型検査待ち）。
 
 残作業は、元の clutching の安定化とスペクトル束の差の比較の完成、選択独立性・自然性・直和・相互逆、公開一覧・workspace・下流リンク・ロードマップ、package 全依存閉包と影響先の最終検証。
 その後に PR の差分・必要な CI を確認して ready にし、通常マージと main 反映を確認する。
