@@ -1,0 +1,50 @@
+\import \root.Linearization[].CanonicalScalar[] \as Two;
+\import \root.Linearization[].Powers[] \as Powers;
+\import \root.Linearization[].ComplexBounds[] \as Bounds;
+\import \root.Linearization[].ScalarMatrices[n := n] \as Scaling;
+\import Plane.Functions[A := Cylinder.Carrier] \as Functions;
+\definition root: C.Complex := C.Def[].neg Two.value;
+\definition outside: Real.Lt R.one (C.Absolute[].abs root) := Real.ltReplaceRight _ _ _ (sym!{{R.Real}} _ _ (Bounds.negativeAbsolute Two.value)) Two.outside;
+\definition off: Logic.Not (C.Absolute[].abs root = R.one) := \fun (same: _) => Order.ltNotEq _ _ outside (sym!{{R.Real}} _ _ same);
+\definition variable[p: Cylinder.Carrier]: C.Complex := z (Cylinder.point p);
+\definition clock[p: Cylinder.Carrier]: C.Complex := C.Def[].ofReal (Cylinder.time p);
+\definition weight[p: Cylinder.Carrier]: C.Complex := C.Def[].add (C.Def[].ofReal (R.add R.one (Cylinder.time p))) (C.Def[].mul (clock p) (variable p));
+\definition separated: \forall (t: Time.Carrier) -> Real.Lt t (R.add R.one t) := \fun (t: Time.Carrier) =>
+  Real.ltReplaceLeft _ _ _ (Laws.addZeroLeft t) (Laws.ltAddRight R.zero R.one t R.Estimates[].Product[].onePositive);
+\definition weightNonzero: \forall (p: Cylinder.Carrier) -> C.Def[].NonZero (weight p) := \fun (p: Cylinder.Carrier) =>
+  \root.Linearization[].PositiveCircle[a := R.add R.one (Cylinder.time p), b := Cylinder.time p, nonnegative := (Time.bounds (Cylinder.time p)).left, separated := separated (Cylinder.time p)].nonzero (variable p) (unit (Cylinder.point p));
+\definition variableContinuous: topology.Continuity[A := Cylinder.Carrier, B := C.Complex].Continuous (Cylinder.topology source) Plane.topology variable :=
+  topology.Composition[A := Cylinder.Carrier, B := Y, C := C.Complex].composeContinuous (Cylinder.topology source) source Plane.topology Cylinder.point z (Cylinder.pointContinuous source) regularZ;
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Scalars.field, scalar := linear_algebra.Hermitian[].Complex[].scalar,
+  topological := hermitian_frames.Hermitian[].Complex[].topological] \as Hermitian;
+\definition clockContinuous: topology.Continuity[A := Cylinder.Carrier, B := C.Complex].Continuous (Cylinder.topology source) Plane.topology clock :=
+  Hermitian.Functions[X := Cylinder.Carrier].embedding (Cylinder.topology source) (\fun (p: Cylinder.Carrier) => Cylinder.time p)
+    (topology.Composition[A := Cylinder.Carrier, B := Time.Carrier, C := R.Real].composeContinuous (Cylinder.topology source) Time.topology metric_spaces.RealLine[].topology Cylinder.time (\fun (t: Time.Carrier) => t) (Cylinder.timeContinuous source) Time.inclusionContinuous);
+\definition weightContinuous: topology.Continuity[A := Cylinder.Carrier, B := C.Complex].Continuous (Cylinder.topology source) Plane.topology weight :=
+  Top.Families[X := Cylinder.Carrier].transport (Cylinder.topology source)
+    (\fun (p: Cylinder.Carrier) => C.Def[].add (C.Def[].add C.Def[].one (clock p)) (C.Def[].mul (clock p) (variable p))) weight
+    (\fun (p: Cylinder.Carrier) => congr!{{C.Complex} {C.Complex}} (\fun (u: C.Complex) => C.Def[].add u (C.Def[].mul (clock p) (variable p))) _ _ (sym!{{C.Complex}} _ _ (C.Prop[].ofRealAdd R.one (Cylinder.time p))))
+    (Functions.additionContinuous (Cylinder.topology source) _ _
+      (Functions.additionContinuous (Cylinder.topology source) _ _ (topology.Maps[A := Cylinder.Carrier, B := C.Complex].constantContinuous (Cylinder.topology source) Plane.topology C.Def[].one) clockContinuous)
+      (Functions.multiplicationContinuous (Cylinder.topology source) clock variable clockContinuous variableContinuous));
+\definition weightStart: \forall (y: Y) -> weight (Cylinder.at Time.start y) = C.Def[].one := \fun (y: Y) => trans!{{C.Complex}} _ _ _
+  (congr!{{C.Complex} {C.Complex} {C.Complex}} C.Def[].add _ _ _ _ (congr!{{R.Real} {C.Complex}} C.Def[].ofReal _ _ (Laws.addZeroRight R.one)) (C.Prop[].mulZeroLeft (z y))) (C.Prop[].addZeroRight C.Def[].one);
+\definition weightEnd: \forall (y: Y) -> weight (Cylinder.at Time.end y) = C.Def[].add (z y) Two.value := \fun (y: Y) => trans!{{C.Complex}} _ _ _
+  (congr!{{C.Complex} {C.Complex}} (C.Def[].add Two.value) _ _ (C.Prop[].mulOneLeft (z y))) (C.Prop[].addComm Two.value (z y));
+\definition factor[y: Y]: C.Complex := Powers.value (C.Def[].add (z y) Two.value) k;
+\definition factorRegular: topology.Continuity[A := Y, B := C.Complex].Continuous source Plane.topology factor :=
+  Powers.Families[X := Y, source := source, z := (\fun (y: Y) => C.Def[].add (z y) Two.value), regular := Plane.Functions[A := Y].additionContinuous source z (\fun (_: Y) => Two.value) regularZ (topology.Maps[A := Y, B := C.Complex].constantContinuous source Plane.topology Two.value)].continuous k;
+\definition factorNonzero: \forall (y: Y) -> C.Def[].NonZero (factor y) := \fun (y: Y)(zero: _) => Powers.nonzeroPower (weight (Cylinder.at Time.end y)) (weightNonzero (Cylinder.at Time.end y)) k
+  (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (\fun (u: C.Complex) => Powers.value u k) _ _ (weightEnd y)) zero);
+\import \parent.Scale[s := factor, regular := factorRegular, nonzero := factorNonzero] \as Scale;
+\definition target: Family -> Family := Scale.family;
+\definition path[a: Family]: Path[a, target a] := Path[a, target a] {
+  homotopy := \fun (p: Cylinder.Carrier) => Scaling.scale (Powers.value (weight p) k) (a.matrix (Cylinder.point p)),
+  regular := \fun (i, j: M.Index) => Functions.multiplicationContinuous (Cylinder.topology source) (\fun (p: Cylinder.Carrier) => Powers.value (weight p) k) _
+    (Powers.Families[X := Cylinder.Carrier, source := Cylinder.topology source, z := weight, regular := weightContinuous].continuous k)
+    (topology.Composition[A := Cylinder.Carrier, B := Y, C := C.Complex].composeContinuous (Cylinder.topology source) source Plane.topology Cylinder.point (\fun (y: Y) => a.matrix y i j) (Cylinder.pointContinuous source) (a.regular i j)),
+  nonzero := \fun (p: Cylinder.Carrier) => Scaling.nonzero (Powers.value (weight p) k) (Powers.nonzeroPower (weight p) (weightNonzero p) k) (a.matrix (Cylinder.point p)) (a.nonzero (Cylinder.point p)),
+  atStart := \fun (y: Y) => M.Operations[].ext (Scaling.scale (Powers.value (weight (Cylinder.at Time.start y)) k) (a.matrix y)) (a.matrix y) (\fun (i, j: M.Index) => trans!{{C.Complex}} _ _ _
+    (congr!{{C.Complex} {C.Complex}} (\fun (u: C.Complex) => C.Def[].mul u (a.matrix y i j)) _ _ (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (\fun (u: C.Complex) => Powers.value u k) _ _ (weightStart y)) (Powers.one k))) (C.Prop[].mulOneLeft (a.matrix y i j))),
+  atEnd := \fun (y: Y) => congr!{{C.Complex} M.Matrix} (\fun (u: C.Complex) => Scaling.scale (Powers.value u k) (a.matrix y)) _ _ (weightEnd y),
+};
