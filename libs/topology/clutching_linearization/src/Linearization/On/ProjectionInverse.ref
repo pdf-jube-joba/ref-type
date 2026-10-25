@@ -1,0 +1,73 @@
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := n] \as M;
+\import matrix_invariants.Field[K := C.Complex, field := Scalars.field].At[n := n] \as Field;
+\import matrix_invariants.Topological[K := C.Complex, ring := topological_algebra.Complex[].Ring[].topologicalRing].At[n := n] \as Top;
+\import Spaces.Coordinates[I := M.Index] \as Vectors;
+\import Spaces.FiniteCoordinates[n := n] \as Basis;
+\import Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as End;
+\import Spaces.Laws[V := Vectors.Vector, space := Vectors.space] \as Values;
+\import Spaces.Laws[V := C.Complex, space := Spaces.scalarSpace] \as ScalarLaws;
+\import spectral_splitting.Spectral[].Idempotents[n := n].Image[X := X, baseSpace := source, P := P, regular := regular] \as Image;
+\import Image.Complement[] \as Split;
+\import \root.Linearization[].CanonicalScalar[] \as Two;
+\import \root.Linearization[].ComplexBounds[] \as Bounds;
+\definition c: C.Complex := C.Def[].neg Two.value;
+\definition outside: Real.Lt R.one (C.Absolute[].abs c) := Real.ltReplaceRight _ _ _ (sym!{{R.Real}} _ _ (Bounds.negativeAbsolute Two.value)) Two.outside;
+\import \parent.CanonicalIndex[n := n, P := P, regular := regular, c := c, outside := outside, removed := N.Nat^::zero] \as Canonical;
+\import \root.Linearization[].LinearPolynomial[n := n, X := X, source := source, A := Canonical.matrix, regular := Canonical.matrixRegular, off := Canonical.off] \as Linear;
+\import Linear.Index[compact := compact, hausdorff := hausdorff] \as Index;
+\import algebraic_topology.Interval[] \as Time;
+\import algebraic_topology.Cylinder[A := Circle.Domain] \as Cylinder;
+\import \root.Linearization[].MatrixPaths[n := n, Y := Circle.Domain, source := Circle.source] \as Paths;
+\import sphere_maps.Circle[] \as NativeCircle;
+\import topological_constructions.Product[A := X, B := NativeCircle.Carrier] \as CircleProduct;
+\import topological_algebra.Complex[] \as Plane;
+\import Plane.Functions[A := Cylinder.Carrier] \as Functions;
+\definition base[p: Cylinder.Carrier]: X := Circle.first (Cylinder.point p);
+\definition z[p: Cylinder.Carrier]: C.Complex := Circle.unit (Cylinder.point p);
+\definition clock[p: Cylinder.Carrier]: C.Complex := C.Def[].ofReal (Cylinder.time p);
+\definition weight[p: Cylinder.Carrier]: C.Complex := C.Def[].add (C.Def[].ofReal (R.add R.one (Cylinder.time p))) (C.Def[].mul (clock p) (z p));
+\definition separated: \forall (t: Time.Carrier) -> Real.Lt t (R.add R.one t) := \fun (t: Time.Carrier) =>
+  Real.ltReplaceLeft _ _ _ (Laws.addZeroLeft t) (Laws.ltAddRight R.zero R.one t R.Estimates[].Product[].onePositive);
+\definition zNonzero: \forall (p: Cylinder.Carrier) -> C.Def[].NonZero (z p) := \fun (p: Cylinder.Carrier)(zero: _) => Laws.zeroNeOne
+  (trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ uniform_approximation.Approximation[].FiniteComplex[].zeroAbsolute)
+    (trans!{{R.Real}} _ _ _ (congr!{{C.Complex} {R.Real}} C.Absolute[].abs _ _ (sym!{{C.Complex}} _ _ zero))
+      (\root.Linearization[].Powers[].unitOfNorm (z p) (Circle.unitNorm (Cylinder.point p)))));
+\definition weightNonzero: \forall (p: Cylinder.Carrier) -> C.Def[].NonZero (weight p) := \fun (p: Cylinder.Carrier) =>
+  \root.Linearization[].PositiveCircle[a := R.add R.one (Cylinder.time p), b := Cylinder.time p, nonnegative := (Time.bounds (Cylinder.time p)).left, separated := separated (Cylinder.time p)].nonzero (z p)
+    (\root.Linearization[].Powers[].unitOfNorm (z p) (Circle.unitNorm (Cylinder.point p)));
+\definition operator[p: Cylinder.Carrier]: End.Map := End.Operations[].plus (End.Operations[].scale (z p) (P (base p)).map) (End.Operations[].scale (weight p) (Split.Q (base p)).map);
+\definition matrix[p: Cylinder.Carrier]: M.Matrix := M.Representation[].entries (operator p);
+\definition nonzero: \forall (p: Cylinder.Carrier) -> Field.Nonzero (matrix p) := \fun (p: Cylinder.Carrier) =>
+  \root.Linearization[].ProjectionLoop[n := n, projection := P (base p)].Weighted[z := z p, w := weight p, nonzeroZ := zNonzero p, nonzeroW := weightNonzero p].nonzero;
+\definition baseContinuous: topology.Continuity[A := Cylinder.Carrier, B := X].Continuous (Cylinder.topology Circle.source) source base :=
+  topology.Composition[A := Cylinder.Carrier, B := Circle.Domain, C := X].composeContinuous (Cylinder.topology Circle.source) Circle.source source Cylinder.point Circle.first
+    (Cylinder.pointContinuous Circle.source) (CircleProduct.Maps[].firstContinuous source NativeCircle.topology);
+\definition zContinuous: topology.Continuity[A := Cylinder.Carrier, B := C.Complex].Continuous (Cylinder.topology Circle.source) Plane.topology z :=
+  topology.Composition[A := Cylinder.Carrier, B := Circle.Domain, C := C.Complex].composeContinuous (Cylinder.topology Circle.source) Circle.source Plane.topology Cylinder.point Circle.unit
+    (Cylinder.pointContinuous Circle.source) Circle.unitContinuous;
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Scalars.field, scalar := linear_algebra.Hermitian[].Complex[].scalar,
+  topological := hermitian_frames.Hermitian[].Complex[].topological] \as Hermitian;
+\definition clockContinuous: topology.Continuity[A := Cylinder.Carrier, B := C.Complex].Continuous (Cylinder.topology Circle.source) Plane.topology clock :=
+  Hermitian.Functions[X := Cylinder.Carrier].embedding (Cylinder.topology Circle.source) (\fun (p: Cylinder.Carrier) => Cylinder.time p)
+    (topology.Composition[A := Cylinder.Carrier, B := Time.Carrier, C := R.Real].composeContinuous (Cylinder.topology Circle.source) Time.topology metric_spaces.RealLine[].topology Cylinder.time (\fun (t: Time.Carrier) => t)
+      (Cylinder.timeContinuous Circle.source) Time.inclusionContinuous);
+\definition weightContinuous: topology.Continuity[A := Cylinder.Carrier, B := C.Complex].Continuous (Cylinder.topology Circle.source) Plane.topology weight :=
+  Top.Families[X := Cylinder.Carrier].transport (Cylinder.topology Circle.source)
+    (\fun (p: Cylinder.Carrier) => C.Def[].add (C.Def[].add C.Def[].one (clock p)) (C.Def[].mul (clock p) (z p))) weight
+    (\fun (p: Cylinder.Carrier) => congr!{{C.Complex} {C.Complex}} (\fun (u: C.Complex) => C.Def[].add u (C.Def[].mul (clock p) (z p))) _ _ (sym!{{C.Complex}} _ _ (C.Prop[].ofRealAdd R.one (Cylinder.time p))))
+    (Functions.additionContinuous (Cylinder.topology Circle.source) _ _
+      (Functions.additionContinuous (Cylinder.topology Circle.source) _ _ (topology.Maps[A := Cylinder.Carrier, B := C.Complex].constantContinuous (Cylinder.topology Circle.source) Plane.topology C.Def[].one) clockContinuous)
+      (Functions.multiplicationContinuous (Cylinder.topology Circle.source) clock z clockContinuous zContinuous));
+\definition matrixRegular: Top.Families[X := Cylinder.Carrier].Regular (Cylinder.topology Circle.source) matrix := \fun (i, j: M.Index) =>
+  Functions.additionContinuous (Cylinder.topology Circle.source) _ _
+    (Functions.multiplicationContinuous (Cylinder.topology Circle.source) z _ zContinuous
+      (topology.Composition[A := Cylinder.Carrier, B := X, C := C.Complex].composeContinuous (Cylinder.topology Circle.source) source Plane.topology base (\fun (x: X) => (P x).map.apply (Basis.vectors j) i) baseContinuous (regular (Basis.vectors j) i)))
+    (Functions.multiplicationContinuous (Cylinder.topology Circle.source) weight _ weightContinuous
+      (topology.Composition[A := Cylinder.Carrier, B := X, C := C.Complex].composeContinuous (Cylinder.topology Circle.source) source Plane.topology base (\fun (x: X) => (Split.Q x).map.apply (Basis.vectors j) i) baseContinuous (Split.qRegular (Basis.vectors j) i)));
+\definition family: Paths.Family := Paths.Family {
+  matrix := \fun (p: Circle.Domain) => matrix (Cylinder.at Time.start p),
+  regular := \fun (i, j: M.Index) => topology.Composition[A := Circle.Domain, B := Cylinder.Carrier, C := C.Complex].composeContinuous Circle.source (Cylinder.topology Circle.source) Plane.topology (Cylinder.at Time.start)
+    (\fun (p: Cylinder.Carrier) => matrix p i j) (Cylinder.atContinuous Circle.source Time.start) (matrixRegular i j),
+  nonzero := \fun (p: Circle.Domain) => nonzero (Cylinder.at Time.start p),
+};
+\module Endpoints;
