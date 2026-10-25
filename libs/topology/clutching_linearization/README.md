@@ -69,5 +69,8 @@ REF_TYPE_PROFILE_PROGRESS=1 target/debug/cli libs/topology/clutching_linearizati
 最新の `Matrices.ApproximationComparison.isomorphismExists` は Laurent 近似の選択によらない clutching 束同型（追加後の検査待ち）。
 次は package 全依存閉包の検査を行う。これらはまだ元の clutching の安定化から K0 の差への完全な変換・相互逆を意味しない。
 
-残作業は、元の clutching の安定化とスペクトル束の差の比較の完成、選択独立性・自然性・直和・相互逆、公開一覧・workspace・下流リンク・ロードマップ、package 全依存閉包と影響先の最終検証。
+残る数学的な接続は、Laurent shift による円周の冪を K0 の自明束の差へ反映すること、射影の標準ループの clutching と像束の差を同定すること、任意の shift・次数・正規化パラメータについての選択独立性、および基本積定理に必要な相互逆の等式。
+現在のスペクトル族の自然性・直和・ホモトピー不変性と、近似間の clutching 束同型だけからは、これらの結論はまだ出せない。
+workspace・公開一覧・下流リンク・ロードマップには実装中の状態を反映した。
+package 全依存閉包の検査後に、最新追加と影響先の検査を行う。
 その後に PR の差分・必要な CI を確認して ready にし、通常マージと main 反映を確認する。
