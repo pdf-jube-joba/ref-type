@@ -11,7 +11,7 @@ K04 の Laurent 近似、K06 のスペクトル分離、K01 の束の同型類�
 | `LaurentNormal.exists` / `finiteExists` | 負の冪を払った多項式と有限係数表示 |
 | `LaurentNormal.Matrices.commonExists` / `finiteMatrixExists` | 全成分に共通の shift・次数・有限係数配列 |
 | `Coordinates.At.frame` / `Families` | 有限個の座標ブロックの比較同型と族の連続性 |
-| `Companion.With.Eigen` | 固有ベクトルから多項式の核への写像、単位円固有値の不在の判定 |
+| `Companion.FromRow.Eigen` | 固有ベクトルから多項式の核への写像、単位円固有値の不在の判定 |
 | `Companion.Families.Separated` / `KClass` | 連続な companion 行列、スペクトル像束とその K0 の差の定義 |
 | `On.SpectralIndex.Pullback.naturality` / `Sum.Difference.additivity` | スペクトル束の差の引き戻し自然性と直和加法性 |
 | `On.SpectralHomotopy.invariant` | 単位円との分離を保つ行列族の両端の K0 の差の一致 |
@@ -39,7 +39,9 @@ K04 の `Circle.Coefficients.valueContinuous` を公開し、評価の連続性�
 `7b0f8033` の `Leading.KClass.Pullback.reconstruction` は、Laurent clutching を線束の差と引き戻したスペクトル逆クラスの積として復元する（`spectral-reconstruction.json`、accepted・終了0・保存失敗0）。
 `d8d4074b` の K07 全対象検査は 1,356 modules、accepted・終了0・保存失敗0・lost steps 0（`reconstruction-full.json`）。
 元の近似前のループに対する `Construction.Reconstruction.reconstruction` も含めて検証済み。
-一般の選択独立性に向け、三角ブロック行列の単位円上の分離を `SpectralTriangular` に追加し、次に検査する。
+一般の選択独立性に向け、`TriangularFamily.With.Additivity.additivity` による三角ブロックのスペクトル K0 加法性を `20544514` まで検証した。
+`Companion.FromRow.Factor` は一次因子の多項式等式、状態空間の線形同型、三角作用への共役、単位円上の核の消滅を実装し、`44dab674` の個別検査が accepted・終了0・保存失敗0（`factor-gap.json`）。
+次は `Companion.RowFamilies` の連続性を検査し、一次因子の族のスペクトル束比較へ進む。
 次数の追加は外側の一次因子による companion の安定化、shift の変更は零固有値ブロックの追加、固定次数の補助選択はスペクトルホモトピーで比較する方針。
 以下の全workspace結果は再開前の数学入力に対する記録。
 
