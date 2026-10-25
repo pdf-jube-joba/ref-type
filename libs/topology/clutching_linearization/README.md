@@ -55,7 +55,10 @@ target/debug/cli libs/topology/clutching_linearization --source-snapshot work/k0
 円周上の pencil・対角化行列の可逆性から gauge による束の比較へ接続するコードを追加したが、未検証である。
 `11f6a15c` の `SpectralPencil` は `work/k07-spectral-pencil` で accepted・保存失敗0・終了0。
 単位円上の変形の零核・可逆性まで含み、固有値評価の結論を仮定せず導いている。
-次は `SpectralMotion`、追加した gauge と積空間の clutching 比較を対象検査する。
+`1208fe83` の `SpectralMotion` は `work/k07-spectral-motion` で accepted・保存失敗0・終了0。
+連続な行列族・全時刻の可逆性・分離した pencil と元の pencil を与える両端の等式を含む。
+その後追加した `Endpoint`・`ClutchedMotion` と gauge による束比較は未検証。
+次は `On.Matrices.Clutched` の対象検査で、閉被覆 gauge と可逆ホモトピーからの比較を確認する。
 残る追加 module を順に検査し、その後 K07 全対象と package 全依存閉包へ戻る。
 未検証の追加には、スペクトル kernel の固有値評価、可逆な pencil 変形と連続な族、両端の等式も含む。
 次は同検査の終了結果を確認し、通常の型・名前解決エラーを修正して、最新 source snapshot で再検査する。
