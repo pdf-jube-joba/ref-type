@@ -1,0 +1,26 @@
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := source, compact := compact, hausdorff := hausdorff] \as K;
+\import K.K0[] \as K0;
+\import K.Bundle[F := ProductFiber, original := productBundle, same := \refl(source)] \as ProductClass;
+\import K.Bundle[F := LeftFiber, original := leftBundle, same := \refl(source)] \as LeftClass;
+\import K.Bundle[F := RightFiber, original := rightBundle, same := \refl(source)] \as RightClass;
+\import Bundles.Trivial[X := X, n := n, baseSpace := source] \as Trivial;
+\import K.Trivial[n := n] \as Rank;
+\import K.Sum[F := ProductFiber, G := (\fun (_: X) => Vectors.Vector), left := productBundle, right := Trivial.bundle, leftSame := \refl(source), rightSame := \refl(source)] \as StableClass;
+\import K.Sum[F := LeftFiber, G := RightFiber, left := leftBundle, right := rightBundle, leftSame := \refl(source), rightSame := \refl(source)] \as SumClass;
+\import K.Compare[F := StableFiber, G := SumFiber, first := stableBundle, second := sumBundle, firstSame := \refl(source), secondSame := \refl(source)] \as Compare;
+\definition balance: K.Addition[].add ProductClass.value Rank.value = K.Addition[].add LeftClass.value RightClass.value :=
+  trans!{K.Classes} _ _ _ StableClass.onBundles (trans!{K.Classes} _ _ _ (Compare.ofExists isomorphismExists) (sym!{K.Classes} _ _ SumClass.onBundles));
+\definition balanceIncluded: K0.add (K0.include ProductClass.value) (K0.include Rank.value) = K0.add (K0.include LeftClass.value) (K0.include RightClass.value) :=
+  trans!{K0.Carrier} _ _ _ (sym!{K0.Carrier} _ _ (K0.includeAdd ProductClass.value Rank.value))
+    (trans!{K0.Carrier} _ _ _ (congr!{K.Classes K0.Carrier} K0.include _ _ balance) (K0.includeAdd LeftClass.value RightClass.value));
+\import algebra.Group[].Of[Carrier := K0.Carrier, group := K0.group] \as Group;
+\definition productReduced: K0.Carrier := K0.difference ProductClass.value Rank.value;
+\definition leftReduced: K0.Carrier := K0.difference LeftClass.value Rank.value;
+\definition rightReduced: K0.Carrier := K0.difference RightClass.value Rank.value;
+\definition cancelRank: Group.difference (K0.add (K0.include ProductClass.value) (K0.include Rank.value)) (K0.add (K0.include Rank.value) (K0.include Rank.value)) = productReduced :=
+  trans!{K0.Carrier} _ _ _ (Group.differenceAdd (K0.include ProductClass.value) (K0.include Rank.value) (K0.include Rank.value) (K0.include Rank.value))
+    (trans!{K0.Carrier} _ _ _ (congr!{K0.Carrier K0.Carrier} (K0.add productReduced) _ _ (Group.inverseRight (K0.include Rank.value))) (Group.zeroRight productReduced));
+\definition additivity: productReduced = K0.add leftReduced rightReduced :=
+  trans!{K0.Carrier} _ _ _ (sym!{K0.Carrier} _ _ cancelRank)
+    (trans!{K0.Carrier} _ _ _ (congr!{K0.Carrier K0.Carrier} (\fun (v: K0.Carrier) => Group.difference v (K0.add (K0.include Rank.value) (K0.include Rank.value))) _ _ balanceIncluded)
+      (Group.differenceAdd (K0.include LeftClass.value) (K0.include RightClass.value) (K0.include Rank.value) (K0.include Rank.value)));

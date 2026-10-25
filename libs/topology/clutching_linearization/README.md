@@ -31,10 +31,13 @@ K04 の `Circle.Coefficients.valueContinuous` を公開し、評価の連続性�
 退避 head `060c0616` から再開し、数学ソース `95809e5d` まで検証した。
 共有キャッシュは `libs/refcache`。
 
-再開後は、標準ループの作用・積・逆、像束分解による共役、テンソル像束の局所自明化と遷移スカラーの連続性・非零性、引き戻し比較、開集合上のチャート構成を追加した。
-`06e0a0de` までのこれらの個別検査は accepted・終了0・保存失敗0。
-`d3ff4937` の `ChartTrivialization` と B02 `ScalarLine.coordinateIsomorphism` は追加直後で、最新 K07 全対象を次に検査する。
-次の接続は、線束の clutching チャートから局所フレームを取り出し、テンソル像束のチャートの遷移を標準ループに同定すること。
+再開後、射影ループのテンソル像束との同型と K0 の積公式を構成した。
+`ProjectionBundle.Clutching.With.isomorphismExists`、同 `KClass.comparison`、`SpectralMotion.Normal.Clutched.Product.productFormula` と冪零行列の例は `2626b4f1` までの個別検査で accepted・終了0・保存失敗0。
+`d3ff4937` の K07 全対象検査も 1,323 modules、accepted・終了0・保存失敗0。
+`83b5da62` では剪断回転を使う安定積経路の連続性と端点等式まで検査済み（`clutching-product.json`、accepted・終了0・保存失敗0）。
+`de128642` の `ClutchingProduct.With.Comparison` は積の clutching と直和の安定束同型を証明済み（`clutching-product-bundle.json`、accepted・終了0・保存失敗0）。
+同 `KClass.additivity` の被約 K0 等式を追加し、次に検査する。
+次はこの比較の K0 等式、円周の冪への帰納適用、Laurent shift 補正へ進む。
 以下の全workspace結果は再開前の数学入力に対する記録。
 
 | 対象 | 数学入力 | 結果 |
@@ -75,12 +78,12 @@ K07 だけを検査する場合は入力を `libs/topology/clutching_linearizati
 必要な接続は次のとおり。
 
 - Laurent shift による円周の冪を K0 の自明束の差へ反映する一般の比較。
-- 射影の標準ループの clutching と、像束の差を与える基本積構成との同定。
+- 検証済みの標準ループの積公式を、一般の Laurent shift 補正と結合する。
 - 任意の shift・次数・正規化パラメータについての候補の選択独立性。
 - 基本積定理に必要な相互逆の等式。
 
 近似間の clutching 束同型、スペクトル族の自然性・直和・ホモトピー不変性、標準モデルの復元は検証済みだが、これらだけでは上記の一般の結論を導けていない。
 体系・言語処理系による不可能性が確認されたわけではなく、必要な証明構成が未完成という状態である。
-次の実装は標準ループと像束の基本積構成の比較から再開する。
+次の実装は安定積比較と Laurent shift 補正から再開する。
 workspace・公開一覧・下流リンク・ロードマップは実装中と表示している。
 PR の ready 化と main へのマージは未実施。
