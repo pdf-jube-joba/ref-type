@@ -1,15 +1,14 @@
-\import \root.Linearization[].Companion[n := n, d := d].Families[X := X, source := source, coefficients := coefficients, regular := regular] \as Native;
 \import \root.Linearization[].MatrixContinuity[n := Coordinates.dimension degree, Y := Domain, source := topology] \as Evaluation;
 \import matrix_invariants.Topological[K := C.Complex, ring := Plane.Ring[].topologicalRing].At[n := Coordinates.dimension degree].Families[X := Domain] \as MatrixTop;
 \import Plane.Functions[A := Domain] \as Functions;
-\definition matrixRegular: MatrixTop.Regular topology (\fun (p: Domain) => Native.matrix (base p)) :=
+\definition matrixRegular: MatrixTop.Regular topology (\fun (p: Domain) => baseMatrix (base p)) :=
   \fun (i, j: Matrices.Index) => topology.Composition[A := Domain, B := X, C := C.Complex].composeContinuous topology source Plane.topology base
-    (\fun (x: X) => Native.matrix x i j) (Product.Maps[].firstContinuous source Plane.topology) (Native.matrixRegular i j);
+    (\fun (x: X) => baseMatrix x i j) (Product.Maps[].firstContinuous source Plane.topology) (baseMatrixRegular i j);
 \definition operatorRegular: \forall (v: Domain -> Carrier) -> Families.Regular degree v -> Families.Regular degree (\fun (p: Domain) => (\parent.At[p := p].operator).apply (v p)) :=
   \fun (v: Domain -> Carrier)(vr: _) => \block {
-    \let values: Domain -> Matrices.Vector := \fun (p: Domain) => (Matrices.linear (Native.matrix (base p))).apply (Coordinates.flatten degree (v p)) \then
+    \let values: Domain -> Matrices.Vector := \fun (p: Domain) => (Matrices.linear (baseMatrix (base p))).apply (Coordinates.flatten degree (v p)) \then
     \let valueRegular: \forall (i: Matrices.Index) -> Families.Continuous (\fun (p: Domain) => values p i) :=
-      Evaluation.evaluate (\fun (p: Domain) => Native.matrix (base p)) (\fun (p: Domain) => Coordinates.flatten degree (v p)) matrixRegular (Families.flattenRegular degree v vr) \then
+      Evaluation.evaluate (\fun (p: Domain) => baseMatrix (base p)) (\fun (p: Domain) => Coordinates.flatten degree (v p)) matrixRegular (Families.flattenRegular degree v vr) \then
     \let blocks: Families.Regular degree (\fun (p: Domain) => Coordinates.unflatten degree (values p)) := Families.unflattenRegular degree values valueRegular \then
     \return \fun (i: Fin.Fin degree)(j: Fin.Fin n) => Families.transport _ _ (\fun (p: Domain) => congr!{Carrier {C.Complex}} (\fun (w: Carrier) => w i j) _ _
       (trans!{Carrier} _ _ _ (congr!{Matrices.Vector Carrier} (Coordinates.unflatten degree) _ _ (\parent.At[p := p].operatorFormula (v p))) (Coordinates.leftInverse degree ((\parent.At[p := p].operator).apply (v p))))) (blocks i j)
