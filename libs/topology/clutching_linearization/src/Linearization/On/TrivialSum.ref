@@ -1,0 +1,72 @@
+\import vector_bundles.Bundles[].Over[K := C.Complex, field := Scalars.field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar] \as Bundles;
+\import bundle_operations.Operations[].Over[K := C.Complex, field := Scalars.field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar] \as Operations;
+\import bundle_complements.Complements[].Over[K := C.Complex, field := Scalars.field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar] \as Complements;
+\import Operations.CoordinateSum[n := n, m := m] \as Coordinates;
+\definition total: N.Nat^ := N.Basic[].Def[].add n m;
+\import Spaces.Coordinates[I := std.Data[].FinSet[].Fin n] \as V;
+\import Spaces.Coordinates[I := std.Data[].FinSet[].Fin m] \as W;
+\import Spaces.Coordinates[I := std.Data[].FinSet[].Fin total] \as Flat;
+\import Spaces.DirectSum[V := V.Vector, W := W.Vector, left := V.space, right := W.space] \as PairSpace;
+\import Bundles.Trivial[X := X, n := n, baseSpace := source] \as Left;
+\import Bundles.Trivial[X := X, n := m, baseSpace := source] \as Right;
+\import Bundles.Trivial[X := X, n := total, baseSpace := source] \as Combined;
+\definition LeftFiber[x: X]: \Set := V.Vector;
+\definition RightFiber[x: X]: \Set := W.Vector;
+\definition FlatFiber[x: X]: \Set := Flat.Vector;
+\import Operations.DirectSum[X := X, F := LeftFiber, G := RightFiber, left := Left.bundle, right := Right.bundle] \as Added;
+\definition SumFiber: X -> \Set := Added.Fiber;
+\definition sumBundle: Bundles.Family[X := X, F := SumFiber].Bundle := Added.bundle (\refl(source));
+\import Bundles.Family[X := X, F := LeftFiber] \as LeftFamily;
+\import Bundles.Family[X := X, F := RightFiber] \as RightFamily;
+\import Bundles.Family[X := X, F := SumFiber] \as SumFamily;
+\import Bundles.Family[X := X, F := FlatFiber] \as FlatFamily;
+\import Bundles.Morphisms[X := X, Y := X, F := SumFiber, G := FlatFiber, source := sumBundle, target := Combined.bundle, f := (\fun (x: X) => x)] \as Forward;
+\import Bundles.Morphisms[X := X, Y := X, F := FlatFiber, G := SumFiber, source := Combined.bundle, target := sumBundle, f := (\fun (x: X) => x)] \as Backward;
+\definition forwardData: Forward.Data := Forward.Data { fiber := \fun (x: X) => Coordinates.forward };
+\definition backwardData: Backward.Data := Backward.Data { fiber := \fun (x: X) => Coordinates.backward };
+\definition firstContinuous: topology.Continuity[A := SumFamily.Point, B := V.Vector].Continuous Added.topology (Bundles.coordinateTopology n) (\fun (p: SumFamily.Point) => (Added.first p).vector) :=
+  topology.Composition[A := SumFamily.Point, B := LeftFamily.Point, C := V.Vector].composeContinuous Added.topology Left.topology (Bundles.coordinateTopology n)
+    Added.first (\fun (p: LeftFamily.Point) => p.vector) Added.firstContinuous Left.vectorContinuous;
+\definition secondContinuous: topology.Continuity[A := SumFamily.Point, B := W.Vector].Continuous Added.topology (Bundles.coordinateTopology m) (\fun (p: SumFamily.Point) => (Added.second p).vector) :=
+  topology.Composition[A := SumFamily.Point, B := RightFamily.Point, C := W.Vector].composeContinuous Added.topology Right.topology (Bundles.coordinateTopology m)
+    Added.second (\fun (p: RightFamily.Point) => p.vector) Added.secondContinuous Right.vectorContinuous;
+\definition pairContinuous: topology.Continuity[A := SumFamily.Point, B := PairSpace.Carrier].Continuous Added.topology Coordinates.Topology[].product (\fun (p: SumFamily.Point) => p.vector) :=
+  topological_constructions.Product[A := V.Vector, B := W.Vector].Universal[X := SumFamily.Point].pairContinuous Added.topology (Bundles.coordinateTopology n) (Bundles.coordinateTopology m)
+    (\fun (p: SumFamily.Point) => (Added.first p).vector) (\fun (p: SumFamily.Point) => (Added.second p).vector) firstContinuous secondContinuous;
+\definition forward: Forward.Map := \into[Forward.Data](forwardData, Forward.Map) \by {
+  Complements.TrivialMaps[X := X, n := total, baseSpace := source].Into[Y := SumFamily.Point, source := Added.topology].continuous SumFamily.projection
+    (\fun (p: SumFamily.Point) => Coordinates.join p.vector) Added.projectionContinuous
+    (topology.Composition[A := SumFamily.Point, B := PairSpace.Carrier, C := Flat.Vector].composeContinuous Added.topology Coordinates.Topology[].product (Bundles.coordinateTopology total)
+      (\fun (p: SumFamily.Point) => p.vector) Coordinates.join pairContinuous Coordinates.Topology[].joinRegular)
+};
+\definition backwardFirst: topology.Continuity[A := FlatFamily.Point, B := LeftFamily.Point].Continuous Combined.topology Left.topology (\fun (p: FlatFamily.Point) => Added.first (Backward.total backwardData p)) :=
+  Complements.TrivialMaps[X := X, n := n, baseSpace := source].Into[Y := FlatFamily.Point, source := Combined.topology].continuous FlatFamily.projection
+    (\fun (p: FlatFamily.Point) => Coordinates.Topology[].first p.vector) Combined.projectionContinuous
+    (topology.Composition[A := FlatFamily.Point, B := Flat.Vector, C := V.Vector].composeContinuous Combined.topology (Bundles.coordinateTopology total) (Bundles.coordinateTopology n)
+      (\fun (p: FlatFamily.Point) => p.vector) Coordinates.Topology[].first Combined.vectorContinuous Coordinates.Topology[].firstRegular);
+\definition backwardSecond: topology.Continuity[A := FlatFamily.Point, B := RightFamily.Point].Continuous Combined.topology Right.topology (\fun (p: FlatFamily.Point) => Added.second (Backward.total backwardData p)) :=
+  Complements.TrivialMaps[X := X, n := m, baseSpace := source].Into[Y := FlatFamily.Point, source := Combined.topology].continuous FlatFamily.projection
+    (\fun (p: FlatFamily.Point) => Coordinates.Topology[].second p.vector) Combined.projectionContinuous
+    (topology.Composition[A := FlatFamily.Point, B := Flat.Vector, C := W.Vector].composeContinuous Combined.topology (Bundles.coordinateTopology total) (Bundles.coordinateTopology m)
+      (\fun (p: FlatFamily.Point) => p.vector) Coordinates.Topology[].second Combined.vectorContinuous Coordinates.Topology[].secondRegular);
+\definition backward: Backward.Map := \into[Backward.Data](backwardData, Backward.Map) \by {
+  Added.Universal[Y := FlatFamily.Point].continuous Combined.topology (Backward.total backwardData) backwardFirst backwardSecond
+};
+\import Spaces.Isomorphism[V := PairSpace.Carrier, W := Flat.Vector, source := PairSpace.space, target := Flat.space] \as Frames;
+\definition isomorphism: Bundles.Isomorphisms[X := X, F := SumFiber, G := FlatFiber, source := sumBundle, target := Combined.bundle].Isomorphism :=
+  Bundles.Isomorphisms[X := X, F := SumFiber, G := FlatFiber, source := sumBundle, target := Combined.bundle].Isomorphism {
+    forward := forward, backward := backward,
+    leftInverse := \fun (x: X) => (Frames.laws Coordinates.isomorphism).leftInverse,
+    rightInverse := \fun (x: X) => (Frames.laws Coordinates.isomorphism).rightInverse,
+  };
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := source, compact := compact, hausdorff := hausdorff] \as K;
+\import K.Trivial[n := n] \as LeftClass;
+\import K.Trivial[n := m] \as RightClass;
+\import K.Trivial[n := total] \as TotalClass;
+\import K.Sum[F := LeftFiber, G := RightFiber, left := Left.bundle, right := Right.bundle, leftSame := \refl(source), rightSame := \refl(source)] \as ClassSum;
+\import K.Compare[F := SumFiber, G := FlatFiber, first := sumBundle, second := Combined.bundle, firstSame := \refl(source), secondSame := \refl(source)] \as Compare;
+\definition additivity: K.Addition[].add LeftClass.value RightClass.value = TotalClass.value :=
+  trans!{K.Classes} _ _ _ ClassSum.onBundles (Compare.ofIsomorphism isomorphism);
