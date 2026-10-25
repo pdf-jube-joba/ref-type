@@ -58,7 +58,12 @@ REF_TYPE_PROFILE_PROGRESS=1 target/debug/cli libs/topology/clutching_linearizati
 `On.SpectralIndex` にスペクトル束の差を共通化し、`On.SpectralHomotopy.invariant` にスペクトル分離を保つ変形の両端の差の等式を追加した。
 `5bc767f4` の K07 全対象は `/tmp/k07-resume/index.json` で accepted・保存失敗0・終了0。
 `8202b036` の `SpectralIndex.Pullback.naturality` と引き戻した自明束の比較も、`/tmp/k07-resume/pullback.json` で accepted・保存失敗0・終了0。
-続いて `SpectralSum.off` と `SpectralSum.Projection.formula` を追加した（型検査待ち）。
+`SpectralSum.off` と `SpectralSum.Projection.formula` は `/tmp/k07-resume/sum.json` で accepted・保存失敗0・終了0。
+`6e52e50c` の K07 全対象は `/tmp/k07-resume/normalization.json` で accepted・保存失敗0・終了0（1,287 module、約50秒）。
+`SpectralIndex.Sum.BundlesComparison.isomorphism` と `Sum.Difference.additivity` に直和の束同型・K0 の加法性を追加し、`TrivialSum` の自明束の比較も利用して証明した。
+`Clutched.Scaling.isomorphism` と `Normalized.With.Shifted.Leading.Clutching.isomorphismExists` に、摂動と非零定数倍による正規化の束比較を追加した。
+最新の `Matrices.ApproximationComparison.isomorphismExists` は Laurent 近似の選択によらない clutching 束同型（追加後の検査待ち）。
+次は package 全依存閉包の検査を行う。これらはまだ元の clutching の安定化から K0 の差への完全な変換・相互逆を意味しない。
 
 残作業は、元の clutching の安定化とスペクトル束の差の比較の完成、選択独立性・自然性・直和・相互逆、公開一覧・workspace・下流リンク・ロードマップ、package 全依存閉包と影響先の最終検証。
 その後に PR の差分・必要な CI を確認して ready にし、通常マージと main 反映を確認する。
