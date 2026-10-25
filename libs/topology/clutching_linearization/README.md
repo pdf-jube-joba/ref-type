@@ -37,8 +37,9 @@ K04 の `Circle.Coefficients.valueContinuous` を公開し、評価の連続性�
 `83b5da62` では剪断回転を使う安定積経路の連続性と端点等式まで検査済み（`clutching-product.json`、accepted・終了0・保存失敗0）。
 積の clutching と直和の安定束同型、被約 K0 の積加法性、円周の冪の帰納公式、ランク \(nk\) による Laurent shift 補正を検証した。
 `7b0f8033` の `Leading.KClass.Pullback.reconstruction` は、Laurent clutching を線束の差と引き戻したスペクトル逆クラスの積として復元する（`spectral-reconstruction.json`、accepted・終了0・保存失敗0）。
-`c43bc8e0` で元の近似前のループに対する `Construction.Reconstruction.reconstruction` を追加し、検査中。
-次は全 K07 の検査後、一般の選択独立性に進む。
+`d8d4074b` の K07 全対象検査は 1,356 modules、accepted・終了0・保存失敗0・lost steps 0（`reconstruction-full.json`）。
+元の近似前のループに対する `Construction.Reconstruction.reconstruction` も含めて検証済み。
+一般の選択独立性に向け、三角ブロック行列の単位円上の分離を `SpectralTriangular` に追加し、次に検査する。
 次数の追加は外側の一次因子による companion の安定化、shift の変更は零固有値ブロックの追加、固定次数の補助選択はスペクトルホモトピーで比較する方針。
 以下の全workspace結果は再開前の数学入力に対する記録。
 
