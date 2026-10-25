@@ -75,3 +75,7 @@ K07 の完成・最終検証・必要な CI・通常マージ・main 反映確�
 2026-10-25、新しい実行環境で退避 head `060c0616a1c3f648a967fd40897a35706c60ffcb` を取得し、GitHub と git ls-remote の一致を確認した。
 旧環境の work レポートと libs/refcache は残っていないため、共有キャッシュを再構築して Clutched から検査を再開する。
 数学ソースの検証状態は上記のままであり、この再開記録は検証成功を示すものではない。
+
+再開後、Laurent 近似のホモトピーを実際の束同型へ接続する `On.Matrices.Result.Clutching.isomorphismExists` を追加した（未検証）。
+処理系のビルドと退避時ソースの parse-only は終了0。
+Clutched の型検査は `/tmp/k07-resume/source.json` を入力に `libs/refcache` で実行中であり、最終結果はまだ未確認。
