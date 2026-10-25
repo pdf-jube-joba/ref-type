@@ -1,0 +1,42 @@
+\import \root.Linearization[].Companion[n := n, d := degree] \as Next;
+\import Spaces.Linear[V := Next.Carrier, W := Carrier, source := Next.space, target := space] \as Projections;
+\import Spaces.Linear[V := Next.Carrier, W := Vectors.Vector, source := Next.space, target := Vectors.space] \as Rows;
+\definition prefix: Projections.Map := Projections.Map {
+  apply := \fun (v: Next.Carrier)(i: Fin.Fin degree) => v (Fin.widen degree i),
+  preservesAdd := \fun (v, w: Next.Carrier) => \refl(\fun (i: Fin.Fin degree) => Vectors.plus (v (Fin.widen degree i)) (w (Fin.widen degree i))),
+  preservesScale := \fun (a: C.Complex)(v: Next.Carrier) => \refl(\fun (i: Fin.Fin degree) => Vectors.scale a (v (Fin.widen degree i))),
+};
+\definition tail: Projections.Map := Projections.Map {
+  apply := \fun (v: Next.Carrier)(i: Fin.Fin degree) => v (Fin.succ degree i),
+  preservesAdd := \fun (v, w: Next.Carrier) => \refl(\fun (i: Fin.Fin degree) => Vectors.plus (v (Fin.succ degree i)) (w (Fin.succ degree i))),
+  preservesScale := \fun (a: C.Complex)(v: Next.Carrier) => \refl(\fun (i: Fin.Fin degree) => Vectors.scale a (v (Fin.succ degree i))),
+};
+\definition finalCoordinate: Rows.Map := Rows.Map {
+  apply := \fun (v: Next.Carrier) => v Next.last,
+  preservesAdd := \fun (v, w: Next.Carrier) => \refl(Vectors.plus (v Next.last) (w Next.last)),
+  preservesScale := \fun (a: C.Complex)(v: Next.Carrier) => \refl(Vectors.scale a (v Next.last)),
+};
+\definition rowPrefix: Rows.Map := Row.Composition[U := Next.Carrier, domain := Next.space].compose row prefix;
+\definition rowTail: Rows.Map := Row.Composition[U := Next.Carrier, domain := Next.space].compose row tail;
+\definition residual: Rows.Map := Rows.Operations[].plus rowPrefix finalCoordinate;
+\definition newRow: Rows.Map := Rows.Operations[].plus rowTail (Rows.Operations[].scale (C.Def[].neg r) residual);
+\import Next.FromRow[row := newRow] \as Enlarged;
+\definition prefixGeometric: \forall (z: C.Complex)(v: Vectors.Vector) -> prefix.apply ((Next.geometric z).apply v) = (geometric z).apply v :=
+  \fun (z: C.Complex)(v: Vectors.Vector) => \refl((geometric z).apply v);
+\definition tailGeometric: \forall (z: C.Complex)(v: Vectors.Vector) -> tail.apply ((Next.geometric z).apply v) = space.smul z ((geometric z).apply v) :=
+  \fun (z: C.Complex)(v: Vectors.Vector) => \axiom:funext(tail.apply ((Next.geometric z).apply v), space.smul z ((geometric z).apply v),
+    \fun (i: Fin.Fin degree) => Vectors.space.scalarAssoc z (power z i) v);
+\definition residualGeometric: \forall (z: C.Complex)(v: Vectors.Vector) -> residual.apply ((Next.geometric z).apply v) = (polynomial z).apply v :=
+  \fun (z: C.Complex)(v: Vectors.Vector) => ValueGroup.comm (row.apply ((geometric z).apply v)) (Vectors.scale (power z degree) v);
+\definition polynomialFactor: \forall (z: C.Complex)(v: Vectors.Vector) -> (Enlarged.polynomial z).apply v = Vectors.scale (C.Def[].add z (C.Def[].neg r)) ((polynomial z).apply v) :=
+  \fun (z: C.Complex)(v: Vectors.Vector) => eq_reason_in!{Vectors.Vector
+    (Enlarged.polynomial z).apply v
+    "=" { Vectors.plus (Vectors.scale z (Vectors.scale (power z degree) v)) (Vectors.plus (Vectors.scale z (row.apply ((geometric z).apply v))) (Vectors.scale (C.Def[].neg r) ((polynomial z).apply v))) } "by" {
+      congr!{Vectors.Vector Vectors.Vector Vectors.Vector} Vectors.plus _ _ _ _ (Vectors.space.scalarAssoc z (power z degree) v)
+        (congr!{Vectors.Vector Vectors.Vector Vectors.Vector} Vectors.plus _ _ _ _
+          (trans!{Vectors.Vector} _ _ _ (congr!{Carrier Vectors.Vector} row.apply _ _ (tailGeometric z v)) (row.preservesScale z ((geometric z).apply v)))
+          (congr!{Vectors.Vector Vectors.Vector} (Vectors.scale (C.Def[].neg r)) _ _ (residualGeometric z v))) }
+    "=" { Vectors.plus (Vectors.plus (Vectors.scale z (Vectors.scale (power z degree) v)) (Vectors.scale z (row.apply ((geometric z).apply v)))) (Vectors.scale (C.Def[].neg r) ((polynomial z).apply v)) } "by" { sym!{Vectors.Vector} _ _ (ValueGroup.assoc _ _ _) }
+    "=" { Vectors.plus (Vectors.scale z ((polynomial z).apply v)) (Vectors.scale (C.Def[].neg r) ((polynomial z).apply v)) } "by" { congr!{Vectors.Vector Vectors.Vector} (\fun (w: Vectors.Vector) => Vectors.plus w (Vectors.scale (C.Def[].neg r) ((polynomial z).apply v))) _ _ (sym!{Vectors.Vector} _ _ (Vectors.space.vectorAdd z _ _)) }
+    "=" _ "by" { sym!{Vectors.Vector} _ _ (Vectors.space.scalarAdd z (C.Def[].neg r) ((polynomial z).apply v)) }
+  };
