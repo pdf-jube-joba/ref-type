@@ -1,0 +1,20 @@
+\definition order[k: N.Nat^]: N.Nat^ := Nat.add d k;
+\definition length[k: N.Nat^]: N.Nat^ := N.Nat^::succ (order k);
+\definition RowAt[k: N.Nat^]: \Set := Spaces.Linear[V := Coordinates.Carrier (length k), W := Vectors.Vector, source := Coordinates.space (length k), target := Vectors.space].Map;
+\module Step(k: N.Nat^);
+\definition padded: \forall (k: N.Nat^) -> X -> RowAt k := \induction (k: N.Nat^) \return X -> RowAt k \with {
+  | zero: rows
+  | succ: \fun (k: N.Nat^)(previous: X -> RowAt k)(x: X) => Step[k := k].append (previous x)
+};
+\definition Regular[k: N.Nat^][family: X -> RowAt k]: \Prop := \forall (v: Coordinates.Carrier (length k))(j: Fin.Fin n) -> topology.Continuity[A := X, B := C.Complex].Continuous source Plane.topology (\fun (x: X) => (family x).apply v j);
+\definition paddedRegular: \forall (k: N.Nat^) -> Regular k (padded k) := \induction (k: N.Nat^) \return Regular k (padded k) \with {
+  | zero: regular
+  | succ: \fun (k: N.Nat^)(previous: Regular k (padded k))(v: Coordinates.Carrier (length (N.Nat^::succ k))) => previous (Step[k := k].prefix.apply v)
+};
+\definition geometric[k: N.Nat^][z: C.Complex]: Spaces.Linear[V := Vectors.Vector, W := Coordinates.Carrier (length k), source := Vectors.space, target := Coordinates.space (length k)].Map :=
+  \root.Linearization[].Companion[n := n, d := order k].geometric z;
+\definition evaluation: \forall (k: N.Nat^)(x: X)(z: C.Complex)(v: Vectors.Vector) -> (padded k x).apply ((geometric k z).apply v) = (rows x).apply ((geometric N.Nat^::zero z).apply v) :=
+  \induction (k: N.Nat^) \return \forall (x: X)(z: C.Complex)(v: Vectors.Vector) -> (padded k x).apply ((geometric k z).apply v) = (rows x).apply ((geometric N.Nat^::zero z).apply v) \with {
+    | zero: \fun (x: X)(z: C.Complex)(v: Vectors.Vector) => \refl((rows x).apply ((geometric N.Nat^::zero z).apply v))
+    | succ: \fun (k: N.Nat^)(previous: _)(x: X)(z: C.Complex)(v: Vectors.Vector) => previous x z v
+  };
