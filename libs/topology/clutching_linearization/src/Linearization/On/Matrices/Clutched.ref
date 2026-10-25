@@ -1,0 +1,49 @@
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := Scalars.field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar] \as Homotopy;
+\import Homotopy.Projections[n := n].Operators[].Units[] \as Units;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition two: N.Nat^ := N.Nat^::succ one;
+\definition three: N.Nat^ := N.Nat^::succ two;
+\import Homotopy.Disks[d := two] \as Disks;
+\import algebraic_topology.Euclidean[].Dimension[n := three] \as Sphere;
+\import Sphere.Compactness[] \as SphereCompactness;
+\import sphere_maps.Circle[] \as NativeCircle;
+\import NativeCircle.Coordinates[] \as CircleCoordinates;
+\import topological_constructions.Product[A := X, B := Sphere.Sphere] \as Product;
+\import topology.Topology[Carrier := Product.CarrierSet] \as Base;
+\definition Carrier: \Set := Product.CarrierSet;
+\definition topology: Base.Topology := Product.topology source Sphere.sphereTopology;
+\definition first: Carrier -> X := Pair.first X Sphere.Sphere;
+\definition second: Carrier -> Sphere.Sphere := Pair.second X Sphere.Sphere;
+\definition U: \Pow Carrier := { p: Carrier \where \In[Sphere.Sphere] Disks.U (second p) };
+\definition V: \Pow Carrier := { p: Carrier \where \In[Sphere.Sphere] Disks.V (second p) };
+\definition openU: Base.IsOpenIn topology U := Product.Maps[].secondContinuous source Sphere.sphereTopology Disks.U Disks.openU;
+\definition openV: Base.IsOpenIn topology V := Product.Maps[].secondContinuous source Sphere.sphereTopology Disks.V Disks.openV;
+\definition covers: \forall (p: Carrier) -> Logic.Or[\In[Carrier] U p, \In[Carrier] V p] := \fun (p: Carrier) => Disks.covers (second p);
+\definition overlap: \Pow Carrier := { p: Carrier \where Logic.And[\In[Carrier] U p, \In[Carrier] V p] };
+\definition Overlap: \Set := \Cast[Carrier] overlap;
+\definition overlapTopology: topology.Topology[Carrier := Overlap].Topology := Base.Subspace[S := overlap].topology topology;
+\definition spherePoint[p: Overlap]: Disks.Overlap := \into[Sphere.Sphere](second p, Disks.overlap) \by { \bysub(Carrier, overlap, p) };
+\definition sphereContinuous: topology.Continuity[A := Overlap, B := Disks.Overlap].Continuous overlapTopology Disks.overlapTopology spherePoint :=
+  topology.Continuity[A := Overlap, B := Sphere.Sphere].Corestriction[S := Disks.overlap].corestrictContinuous overlapTopology Sphere.sphereTopology spherePoint
+    (topology.Continuity[A := Carrier, B := Sphere.Sphere].Restriction[S := overlap].restrictContinuous topology Sphere.sphereTopology second (Product.Maps[].secondContinuous source Sphere.sphereTopology));
+\definition circlePoint[p: Overlap]: Circle.Domain := Pair.pair X NativeCircle.Carrier (first p) (CircleCoordinates.forward (Disks.boundary (spherePoint p)));
+\definition circleContinuous: topology.Continuity[A := Overlap, B := Circle.Domain].Continuous overlapTopology Circle.source circlePoint :=
+  topological_constructions.Product[A := X, B := NativeCircle.Carrier].Universal[X := Overlap].pairContinuous overlapTopology source NativeCircle.topology
+    (\fun (p: Overlap) => first p) (\fun (p: Overlap) => CircleCoordinates.forward (Disks.boundary (spherePoint p)))
+    (topology.Continuity[A := Carrier, B := X].Restriction[S := overlap].restrictContinuous topology source first (Product.Maps[].firstContinuous source Sphere.sphereTopology))
+    (topology.Composition[A := Overlap, B := Disks.Overlap, C := NativeCircle.Carrier].composeContinuous overlapTopology Disks.overlapTopology NativeCircle.topology spherePoint
+      (\fun (s: Disks.Overlap) => CircleCoordinates.forward (Disks.boundary s)) sphereContinuous
+      (topology.Composition[A := Disks.Overlap, B := CircleCoordinates.Sphere, C := NativeCircle.Carrier].composeContinuous Disks.overlapTopology CircleCoordinates.sphereTopology NativeCircle.topology
+        Disks.boundary CircleCoordinates.forward Disks.boundaryContinuous CircleCoordinates.forwardContinuous));
+\import \root.Linearization[].MatrixUnits[n := n, Y := Circle.Domain, source := Circle.source, A := a, regular := regular, nonzero := nonzero] \as Matrices;
+\definition transition[p: Overlap]: Units.Carrier := Matrices.map (circlePoint p);
+\definition transitionContinuous: topology.Continuity[A := Overlap, B := Units.Carrier].Continuous overlapTopology Units.topology transition :=
+  topology.Composition[A := Overlap, B := Circle.Domain, C := Units.Carrier].composeContinuous overlapTopology Circle.source Units.topology circlePoint Matrices.map circleContinuous Matrices.continuous;
+\import Homotopy.Clutching[n := n, X := Carrier, baseSpace := topology, U := U, V := V, openU := openU, openV := openV, covers := covers] \as BaseClutching;
+\import BaseClutching.With[g := transition, continuous := transitionContinuous] \as Construction;
+\definition Fiber: Carrier -> \Set := Construction.Fiber;
+\definition bundle: vector_bundles.Bundles[].Over[K := C.Complex, field := Scalars.field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].Family[X := Carrier, F := Fiber].Bundle := Construction.bundle;
+\definition compact: Base.IsCompact topology := Product.Compactness[].productCompact source Sphere.sphereTopology compact SphereCompactness.sphere;
+\definition hausdorff: Base.IsT2 topology := uniform_approximation.Approximation[].Separation[].Product[A := X, B := Sphere.Sphere].On[left := source, right := Sphere.sphereTopology, leftHausdorff := hausdorff, rightHausdorff := SphereCompactness.sphereHausdorff].hausdorff;
