@@ -1,0 +1,17 @@
+\import \root.Linearization[].PositiveBlend[a := LeftSmall.leadingReal leftExtra, b := RightSmall.leadingReal rightExtra,
+  positiveA := LeftSmall.leadingPositive leftExtra, positiveB := RightSmall.leadingPositive rightExtra] \as Blend;
+\definition leadingFormula: \forall (x: X) -> leading x = Blend.scalar (time x) :=
+  \fun (x: X) => trans!{{C.Complex}} _ _ _
+    (congr!{{C.Complex} {C.Complex}} (\fun (w: C.Complex) => Algebra.leading leftLeading rightLeading (C.Def[].sub C.Def[].one w) w) _ _ (weightFormula x))
+    (trans!{{C.Complex}} _ _ _
+      (congr!{{C.Complex} {C.Complex} {C.Complex}} (\fun (a, b: C.Complex) => Algebra.leading a b (C.Def[].sub C.Def[].one (C.Def[].ofReal (time x))) (C.Def[].ofReal (time x))) _ _ _ _
+        (LeftSmall.leadingFormula leftExtra) (RightSmall.leadingFormula rightExtra))
+      (sym!{{C.Complex}} _ _ (Blend.scalarFormula (time x))));
+\definition nonzero: \forall (x: X) -> C.Def[].NonZero (leading x) := \fun (x: X)(zero: leading x = C.Def[].zero) => Blend.nonzero (time x)
+  (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (leadingFormula x)) zero);
+\import Common.RowFamilies[X := X, source := source, rows := corrected, regular := correctedRegular].Normalize[a := leading, regularA := leadingRegular, nonzero := nonzero] \as Normal;
+\definition normalized: Family order := Normal.normalized;
+\definition normalizedRegular: Regular order normalized := Normal.normalizedRegular;
+\definition restoration: \forall (x: X)(z: C.Complex)(v: Vectors.Vector) -> Vectors.scale (leading x) ((polynomial order normalized x z).apply v) = (raw x z).apply v := Normal.restoration;
+\definition normalizedKernel:
+  (\forall (x: X)(z: C.Complex) -> C.Absolute[].abs z = R.one -> \forall (v: Vectors.Vector) -> (raw x z).apply v = Vectors.origin -> v = Vectors.origin) -> Kernel order normalized := Normal.normalizedKernel;
