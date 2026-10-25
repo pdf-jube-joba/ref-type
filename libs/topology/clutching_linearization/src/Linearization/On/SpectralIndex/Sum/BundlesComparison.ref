@@ -1,0 +1,50 @@
+\import Native.Bundle[] \as LeftNative;
+\import OtherNative.Bundle[] \as RightNative;
+\import TotalNative.Bundle[] \as FlatNative;
+\import spectral_splitting.Spectral[].Idempotents[n := n].Image[X := X, baseSpace := source, P := LeftNative.idempotent, regular := Native.projectionRegular] \as LeftImage;
+\import spectral_splitting.Spectral[].Idempotents[n := m].Image[X := X, baseSpace := source, P := RightNative.idempotent, regular := OtherNative.projectionRegular] \as RightImage;
+\import spectral_splitting.Spectral[].Idempotents[n := total].Image[X := X, baseSpace := source, P := FlatNative.idempotent, regular := TotalNative.projectionRegular] \as FlatImage;
+\import Bundles.Family[X := X, F := Fiber] \as LeftFamily;
+\import Bundles.Family[X := X, F := Other.Fiber] \as RightFamily;
+\import Bundles.Family[X := X, F := SumFiber] \as SumFamily;
+\import Bundles.Family[X := X, F := Total.Fiber] \as FlatFamily;
+\import Bundles.Morphisms[X := X, Y := X, F := SumFiber, G := Total.Fiber, source := sumBundle, target := Total.bundle, f := (\fun (x: X) => x)] \as Forward;
+\import Bundles.Morphisms[X := X, Y := X, F := Total.Fiber, G := SumFiber, source := Total.bundle, target := sumBundle, f := (\fun (x: X) => x)] \as Backward;
+\definition forwardData: Forward.Data := Forward.Data { fiber := \fun (x: X) => At[x := x].forwardLinear };
+\definition backwardData: Backward.Data := Backward.Data { fiber := \fun (x: X) => At[x := x].backwardLinear };
+\definition firstContinuous: topology.Continuity[A := SumFamily.Point, B := V.Vector].Continuous Added.topology (Bundles.coordinateTopology n) (\fun (p: SumFamily.Point) => (Added.first p).vector) :=
+  topology.Composition[A := SumFamily.Point, B := LeftFamily.Point, C := V.Vector].composeContinuous Added.topology LeftImage.topology (Bundles.coordinateTopology n)
+    Added.first (\fun (p: LeftFamily.Point) => p.vector) Added.firstContinuous LeftImage.vectorContinuous;
+\definition secondContinuous: topology.Continuity[A := SumFamily.Point, B := W.Vector].Continuous Added.topology (Bundles.coordinateTopology m) (\fun (p: SumFamily.Point) => (Added.second p).vector) :=
+  topology.Composition[A := SumFamily.Point, B := RightFamily.Point, C := W.Vector].composeContinuous Added.topology RightImage.topology (Bundles.coordinateTopology m)
+    Added.second (\fun (p: RightFamily.Point) => p.vector) Added.secondContinuous RightImage.vectorContinuous;
+\definition pairContinuous: topology.Continuity[A := SumFamily.Point, B := PairSpace.Carrier].Continuous Added.topology Coordinates.Topology[].product (\fun (p: SumFamily.Point) => At[x := p.base].raw p.vector) :=
+  topological_constructions.Product[A := V.Vector, B := W.Vector].Universal[X := SumFamily.Point].pairContinuous Added.topology (Bundles.coordinateTopology n) (Bundles.coordinateTopology m)
+    (\fun (p: SumFamily.Point) => (Added.first p).vector) (\fun (p: SumFamily.Point) => (Added.second p).vector) firstContinuous secondContinuous;
+\definition forward: Forward.Map := \into[Forward.Data](forwardData, Forward.Map) \by {
+  FlatImage.Universal[Y := SumFamily.Point, source := Added.topology].continuous (Forward.total forwardData) Added.projectionContinuous
+    (topology.Composition[A := SumFamily.Point, B := PairSpace.Carrier, C := Flat.Vector].composeContinuous Added.topology Coordinates.Topology[].product (Bundles.coordinateTopology total)
+      (\fun (p: SumFamily.Point) => At[x := p.base].raw p.vector) Coordinates.join pairContinuous Coordinates.Topology[].joinRegular)
+};
+\definition backwardFirst: topology.Continuity[A := FlatFamily.Point, B := LeftFamily.Point].Continuous FlatImage.topology LeftImage.topology (\fun (p: FlatFamily.Point) => Added.first (Backward.total backwardData p)) :=
+  LeftImage.Universal[Y := FlatFamily.Point, source := FlatImage.topology].continuous (\fun (p: FlatFamily.Point) => Added.first (Backward.total backwardData p)) FlatImage.projectionContinuous
+    (topology.Composition[A := FlatFamily.Point, B := Flat.Vector, C := V.Vector].composeContinuous FlatImage.topology (Bundles.coordinateTopology total) (Bundles.coordinateTopology n)
+      (\fun (p: FlatFamily.Point) => p.vector) Coordinates.Topology[].first FlatImage.vectorContinuous Coordinates.Topology[].firstRegular);
+\definition backwardSecond: topology.Continuity[A := FlatFamily.Point, B := RightFamily.Point].Continuous FlatImage.topology RightImage.topology (\fun (p: FlatFamily.Point) => Added.second (Backward.total backwardData p)) :=
+  RightImage.Universal[Y := FlatFamily.Point, source := FlatImage.topology].continuous (\fun (p: FlatFamily.Point) => Added.second (Backward.total backwardData p)) FlatImage.projectionContinuous
+    (topology.Composition[A := FlatFamily.Point, B := Flat.Vector, C := W.Vector].composeContinuous FlatImage.topology (Bundles.coordinateTopology total) (Bundles.coordinateTopology m)
+      (\fun (p: FlatFamily.Point) => p.vector) Coordinates.Topology[].second FlatImage.vectorContinuous Coordinates.Topology[].secondRegular);
+\definition backward: Backward.Map := \into[Backward.Data](backwardData, Backward.Map) \by {
+  Added.Universal[Y := FlatFamily.Point].continuous FlatImage.topology (Backward.total backwardData) backwardFirst backwardSecond
+};
+\definition isomorphism: Bundles.Isomorphisms[X := X, F := SumFiber, G := Total.Fiber, source := sumBundle, target := Total.bundle].Isomorphism :=
+  Bundles.Isomorphisms[X := X, F := SumFiber, G := Total.Fiber, source := sumBundle, target := Total.bundle].Isomorphism {
+    forward := forward, backward := backward,
+    leftInverse := \fun (x: X) => At[x := x].leftInverse, rightInverse := \fun (x: X) => At[x := x].rightInverse,
+  };
+\import K.Sum[F := Fiber, G := Other.Fiber, left := bundle, right := Other.bundle, leftSame := \refl(source), rightSame := \refl(source)] \as ClassSum;
+\import K.Compare[F := SumFiber, G := Total.Fiber, first := sumBundle, second := Total.bundle, firstSame := \refl(source), secondSame := \refl(source)] \as Compare;
+\import K.Bundle[F := Other.Fiber, original := Other.bundle, same := \refl(source)] \as OtherClass;
+\import K.Bundle[F := Total.Fiber, original := Total.bundle, same := \refl(source)] \as TotalClass;
+\definition additivity: K.Addition[].add Inside.value OtherClass.value = TotalClass.value :=
+  trans!{K.Classes} _ _ _ ClassSum.onBundles (Compare.ofIsomorphism isomorphism);
