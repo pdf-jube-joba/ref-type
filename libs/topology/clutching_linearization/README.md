@@ -37,7 +37,7 @@ target/debug/cli libs/topology/clutching_linearization --parse-only --save-sourc
 target/debug/cli libs/topology/clutching_linearization --source-snapshot work/k07-spectral-family.source.json --module clutching_linearization --memory-mib 8192 --cache-dir libs/refcache --cache-budget-mib 12288 --diagnostics compact --time-limit-seconds 1800 --report-json work/k07-spectral-family.report.json
 ```
 
-この時点で未検証の数学ソース変更はない。
+以後の `Geometric` の有限幾何級数と nilpotent 作用素からの逆写像は未検証で、`work/k07-geometric.source.json` の対象検査を実行中。
 これらは途中の対象検査であり、package 全依存閉包・下流・利用例・workspace の最終検証は残っている。
 Laurent 行列の monic 正規化、安定線形化と clutching の比較、スペクトル束との比較、選択独立性・直和・相互逆、具体例・workspace 登録・公開一覧・下流リンク・ロードマップが残作業である。
 次は Laurent 行列の正規化と companion への比較を実装する。
