@@ -1,0 +1,58 @@
+\import \root.Linearization[].Companion[n := n, d := d].Splitting[] \as Splitting;
+\import \root.Linearization[].Companion[n := n, d := d].Shift[z := z] \as Shift;
+\import \root.Linearization[].Companion[n := n, d := d].Reordering[] \as Reordering;
+\import Spaces.DirectSum[V := Vectors.Vector, W := Coordinates.Carrier d, left := Vectors.space, right := Coordinates.space d] \as Sum;
+\import \root.Linearization[].Blocks[V := Vectors.Vector, W := Coordinates.Carrier d, left := Vectors.space, right := Coordinates.space d] \as Blocks;
+\import Spaces.Eigen[V := Carrier, space := space] \as Eigen;
+\definition pencil: Operators.Map := Operators.Operations[].plus (Eigen.scalar z) (Operators.Operations[].negative operator);
+\definition pencilFormula: \forall (v: Carrier)(i: Fin.Fin degree) -> pencil.apply v i = ValueGroup.difference (Vectors.scale z (v i)) (operator.apply v i) :=
+  \fun (v: Carrier)(i: Fin.Fin degree) => congr!{Vectors.Vector Vectors.Vector} (Vectors.plus (Vectors.scale z (v i))) _ _ (Values.minusOneScale (operator.apply v i));
+\definition reverseDifference: \forall (a, b: Vectors.Vector) -> Vectors.negative (ValueGroup.difference a b) = ValueGroup.difference b a :=
+  \fun (a, b: Vectors.Vector) => eq_reason_in!{Vectors.Vector _
+    "=" { Vectors.plus (Vectors.negative a) (Vectors.negative (Vectors.negative b)) } "by" { ValueGroup.negAdd a (Vectors.negative b) }
+    "=" { Vectors.plus (Vectors.negative a) b } "by" { congr!{Vectors.Vector Vectors.Vector} (Vectors.plus (Vectors.negative a)) _ _ (ValueGroup.negNeg b) }
+    "=" _ "by" { Values.comm (Vectors.negative a) b }
+  };
+\definition frontPencil: \forall (v: Carrier)(i: Fin.Fin d) -> pencil.apply v (Fin.widen d i) = Vectors.negative (Shift.difference.apply v (Fin.succ d i)) :=
+  \fun (v: Carrier)(i: Fin.Fin d) => eq_reason_in!{Vectors.Vector _
+    "=" { ValueGroup.difference (Vectors.scale z (v (Fin.widen d i))) (operator.apply v (Fin.widen d i)) } "by" { pencilFormula v (Fin.widen d i) }
+    "=" { ValueGroup.difference (Vectors.scale z (v (Fin.widen d i))) (v (Fin.succ d i)) } "by" { congr!{Vectors.Vector Vectors.Vector} (ValueGroup.difference (Vectors.scale z (v (Fin.widen d i)))) _ _ (atFront (\fun (j: Fin.Fin d) => v (Fin.succ d j)) (negativeRow.apply v) i) }
+    "=" { Vectors.negative (ValueGroup.difference (v (Fin.succ d i)) (Vectors.scale z (v (Fin.widen d i)))) } "by" { sym!{Vectors.Vector} _ _ (reverseDifference (v (Fin.succ d i)) (Vectors.scale z (v (Fin.widen d i)))) }
+    "=" _ "by" { congr!{Vectors.Vector Vectors.Vector} Vectors.negative _ _ (sym!{Vectors.Vector} _ _ (Shift.differenceTail v i)) }
+  };
+\definition lastPencil: \forall (v: Carrier) -> pencil.apply v last = Vectors.plus (Vectors.scale z (v last)) (row.apply v) :=
+  \fun (v: Carrier) => eq_reason_in!{Vectors.Vector _
+    "=" { ValueGroup.difference (Vectors.scale z (v last)) (operator.apply v last) } "by" { pencilFormula v last }
+    "=" { ValueGroup.difference (Vectors.scale z (v last)) (negativeRow.apply v) } "by" { congr!{Vectors.Vector Vectors.Vector} (ValueGroup.difference (Vectors.scale z (v last))) _ _ (atLast (\fun (j: Fin.Fin d) => v (Fin.succ d j)) (negativeRow.apply v)) }
+    "=" { ValueGroup.difference (Vectors.scale z (v last)) (Vectors.negative (row.apply v)) } "by" { congr!{Vectors.Vector Vectors.Vector} (ValueGroup.difference (Vectors.scale z (v last))) _ _ (negativeRowValue v) }
+    "=" _ "by" { congr!{Vectors.Vector Vectors.Vector} (Vectors.plus (Vectors.scale z (v last))) _ _ (ValueGroup.negNeg (row.apply v)) }
+  };
+\definition onGeometric: \forall (v: Vectors.Vector) -> pencil.apply ((geometric z).apply v) last = (polynomial z).apply v :=
+  \fun (v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _ (lastPencil ((geometric z).apply v))
+    (congr!{Vectors.Vector Vectors.Vector} (\fun (w: Vectors.Vector) => Vectors.plus w (row.apply ((geometric z).apply v))) _ _ (sym!{Vectors.Vector} _ _ (Vectors.space.scalarAssoc z (power z d) v)));
+\import Spaces.Linear[V := Sum.Carrier, W := Carrier, source := Sum.space, target := space] \as Into;
+\import Spaces.Linear[V := Carrier, W := Sum.Carrier, source := space, target := Sum.space] \as Out;
+\import Spaces.Linear[V := Sum.Carrier, W := Sum.Carrier, source := Sum.space, target := Sum.space] \as PairMaps;
+\definition right: Into.Map := Operators.Composition[U := Sum.Carrier, domain := Sum.space].compose Shift.solve Splitting.backward;
+\definition transformed: PairMaps.Map := Out.Composition[U := Sum.Carrier, domain := Sum.space].compose Reordering.forward
+  (Operators.Composition[U := Sum.Carrier, domain := Sum.space].compose pencil right);
+\import Sum.Universal[U := Coordinates.Carrier d, domain := Coordinates.space d] \as Pairing;
+\import Spaces.Linear[V := Coordinates.Carrier d, W := Vectors.Vector, source := Coordinates.space d, target := Vectors.space] \as Remainders;
+\import Spaces.Eigen[V := Coordinates.Carrier d, space := Coordinates.space d] \as Tail;
+\definition tail: Spaces.Linear[V := Coordinates.Carrier d, W := Sum.Carrier, source := Coordinates.space d, target := Sum.space].Map :=
+  Pairing.pair Remainders.Operations[].zeroMap Tail.identity;
+\definition head[v: Vectors.Vector]: Sum.Carrier := Sum.make v (Coordinates.space d).zero;
+\import Spaces.Linear[V := Sum.Carrier, W := Vectors.Vector, source := Sum.space, target := Vectors.space] \as First;
+\definition remainder: Remainders.Map := First.Composition[U := Coordinates.Carrier d, domain := Coordinates.space d].compose Blocks.first
+  (PairMaps.Composition[U := Coordinates.Carrier d, domain := Coordinates.space d].compose transformed tail);
+\module Triangular;
+\import Spaces.Isomorphism[V := Carrier, W := Carrier, source := space, target := space] \as CarrierIso;
+\import Spaces.Isomorphism[V := Carrier, W := Sum.Carrier, source := space, target := Sum.space] \as OutIso;
+\import Spaces.Isomorphism[V := Sum.Carrier, W := Carrier, source := Sum.space, target := space] \as IntoIso;
+\import Spaces.Isomorphism[V := Sum.Carrier, W := Sum.Carrier, source := Sum.space, target := Sum.space] \as PairIso;
+\definition rightIsomorphism: IntoIso.Isomorphism := CarrierIso.Composition[U := Sum.Carrier, domain := Sum.space].compose
+  (CarrierIso.inverse Shift.isomorphism) (OutIso.inverse Splitting.isomorphism);
+\definition elimination: PairIso.Isomorphism := Blocks.upperIsomorphism remainder (C.Def[].neg C.Def[].one);
+\definition leftIsomorphism: OutIso.Isomorphism := PairIso.Composition[U := Carrier, domain := space].compose elimination Reordering.isomorphism;
+\module Diagonalization;
+\definition comparison: \forall (p: Sum.Carrier) -> leftIsomorphism.forward.apply (pencil.apply (rightIsomorphism.forward.apply p)) = (Blocks.diagonal (polynomial z)).apply p := Diagonalization.equation;
