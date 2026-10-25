@@ -1,0 +1,29 @@
+\import Bundles.Family[X := X, F := ImageFiber] \as Family;
+\import Bundles.Morphisms[X := X, Y := X, F := ImageFiber, G := Destination.Fiber, source := imageBundle, target := Destination.bundle, f := (\fun (x: X) => x)] \as Maps;
+\definition fiber[x: X]: Spaces.Linear[V := ImageFiber x, W := Destination.Fiber x, source := imageBundle.space x, target := Destination.bundle.space x].Map :=
+  Spaces.Linear[V := ImageFiber x, W := Destination.Fiber x, source := imageBundle.space x, target := Destination.bundle.space x].Map {
+    apply := \fun (v: ImageFiber x) => \into[TargetVectors.Vector]((h x).apply v, Destination.Fiber x) \by {
+      trans!{TargetVectors.Vector} _ _ _ (sym!{TargetVectors.Vector} _ _ (commutes x v))
+        (congr!{Vectors.Vector TargetVectors.Vector} (h x).apply _ _ (\outof[Vectors.Vector](v, Image.Image x)))
+    },
+    preservesAdd := \fun (v, w: ImageFiber x) => (h x).preservesAdd v w,
+    preservesScale := \fun (a: C.Complex)(v: ImageFiber x) => (h x).preservesScale a v,
+  };
+\definition data: Maps.Data := Maps.Data { fiber := fiber };
+\import topological_algebra.Complex[] \as Plane;
+\import Spaces.FiniteCoordinates[n := n] \as Basis;
+\import topological_algebra.Coordinates[K := C.Complex, I := Fin.Fin n] \as SourceCoordinates;
+\import topological_algebra.Coordinates[K := C.Complex, I := Fin.Fin m] \as TargetCoordinates;
+\import Hermitian.At[n := m].Families[X := Family.Point].Matrix[m := n] \as Matrix;
+\definition components: Matrix.Components imageBundle.totalSpace (\fun (p: Family.Point) => h p.base) :=
+  \fun (j: Fin.Fin n)(i: Fin.Fin m) => topology.Composition[A := Family.Point, B := X, C := C.Complex].composeContinuous imageBundle.totalSpace source Plane.topology
+    Family.projection (\fun (x: X) => (h x).apply (Basis.vectors j) i) Image.projectionContinuous (regularH (Basis.vectors j) i);
+\definition vectorRegular: Hermitian.At[n := n].Families[X := Family.Point].Continuous imageBundle.totalSpace (\fun (p: Family.Point) => p.vector) :=
+  \fun (i: Fin.Fin n) => topology.Composition[A := Family.Point, B := Vectors.Vector, C := C.Complex].composeContinuous imageBundle.totalSpace (Bundles.coordinateTopology n) Plane.topology
+    (\fun (p: Family.Point) => p.vector) (\fun (v: Vectors.Vector) => v i) Image.vectorContinuous (SourceCoordinates.evaluationContinuous Plane.topology i);
+\definition vectorContinuous: topology.Continuity[A := Family.Point, B := TargetVectors.Vector].Continuous imageBundle.totalSpace (Bundles.coordinateTopology m) (\fun (p: Family.Point) => (h p.base).apply p.vector) :=
+  TargetCoordinates.Universal[A := Family.Point].continuous imageBundle.totalSpace Plane.topology (\fun (p: Family.Point) => (h p.base).apply p.vector)
+    (Matrix.evaluate imageBundle.totalSpace (\fun (p: Family.Point) => h p.base) (\fun (p: Family.Point) => p.vector) components vectorRegular);
+\definition map: Maps.Map := \into[Maps.Data](data, Maps.Map) \by {
+  Destination.Universal[Y := Family.Point, source := imageBundle.totalSpace].continuous (Maps.total data) Image.projectionContinuous vectorContinuous
+};
