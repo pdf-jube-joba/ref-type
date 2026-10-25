@@ -1,0 +1,29 @@
+\definition scalar: C.Complex := C.Def[].ofReal delta;
+\definition nonzero: C.Def[].NonZero scalar := \fun (zero: scalar = C.Def[].zero) => Real.ltNotLeReverse R.zero delta positive
+  (Real.leReplaceLeft _ _ _ (sym!{{R.Real}} _ _ (congr!{{C.Complex} {R.Real}} C.re _ _ zero)) (Real.leRefl R.zero));
+\definition absolute: C.Absolute[].abs scalar = delta := trans!{{R.Real}} _ _ _
+  (uniform_approximation.Approximation[].ComplexScalars[].absoluteReal delta) (R.Estimates[].Product[].absOfNonnegative delta (Order.leOfLt _ _ positive));
+\definition inverseAbsolute: R.mul (C.Absolute[].abs (C.Def[].inv scalar)) delta = R.one := trans!{{R.Real}} _ _ _
+  (congr!{{R.Real} {R.Real}} (R.mul (C.Absolute[].abs (C.Def[].inv scalar))) _ _ (sym!{{R.Real}} _ _ absolute))
+  (trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ (C.Absolute[].multiplicative (C.Def[].inv scalar) scalar))
+    (trans!{{R.Real}} _ _ _ (congr!{{C.Complex} {R.Real}} C.Absolute[].abs _ _ (C.Prop[].inverseNonzero scalar nonzero)) (\root.Linearization[].Powers[].oneAbsolute)));
+\definition inverseNotSmall: Logic.Not (Real.Le (C.Absolute[].abs (C.Def[].inv scalar)) R.one) :=
+  \fun (small: _) => Real.ltNotLeReverse delta R.one belowOne
+    (Real.leReplaceLeft _ _ _ (trans!{{R.Real}} _ _ _ (Laws.fieldMulComm delta (C.Absolute[].abs (C.Def[].inv scalar))) inverseAbsolute)
+      (Real.leReplaceRight _ _ _ (R.Algebra[].mulOneRight delta)
+        (R.Estimates[].mulMonotone delta (C.Absolute[].abs (C.Def[].inv scalar)) R.one (Order.leOfLt _ _ positive) small)));
+\definition inverseOutside: Real.Lt R.one (C.Absolute[].abs (C.Def[].inv scalar)) :=
+  Order.byContradiction _ (\fun (notOutside: _) => inverseNotSmall (Order.leOfNotLtReverse _ _ notOutside));
+\definition root: C.Complex := C.Def[].neg (C.Def[].inv scalar);
+\definition outside: Real.Lt R.one (C.Absolute[].abs root) := Real.ltReplaceRight _ _ _
+  (sym!{{R.Real}} _ _ (\root.Linearization[].ComplexBounds[].negativeAbsolute (C.Def[].inv scalar))) inverseOutside;
+\definition off: Logic.Not (C.Absolute[].abs root = R.one) := \fun (equal: _) => Order.ltNotEq _ _ outside (sym!{{R.Real}} _ _ equal);
+\definition factor: \forall (z: C.Complex) -> C.Def[].mul scalar (C.Def[].add z (C.Def[].neg root)) = C.Def[].add C.Def[].one (C.Def[].mul scalar z) :=
+  \fun (z: C.Complex) => trans!{{C.Complex}} _ _ _
+    (congr!{{C.Complex} {C.Complex}} (\fun (w: C.Complex) => C.Def[].mul scalar (C.Def[].add z w)) _ _ (C.Prop[].negNeg (C.Def[].inv scalar)))
+    (trans!{{C.Complex}} _ _ _ (C.Prop[].mulAddLeft scalar z (C.Def[].inv scalar))
+      (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (C.Def[].add (C.Def[].mul scalar z)) _ _ (C.Prop[].inverseNonzeroRight scalar nonzero)) (C.Prop[].addComm (C.Def[].mul scalar z) C.Def[].one)));
+\definition powers: \forall (z: C.Complex)(k: N.Nat^) -> C.Def[].mul (\root.Linearization[].Powers[].value scalar k) (\root.Linearization[].Powers[].value (C.Def[].add z (C.Def[].neg root)) k) =
+  \root.Linearization[].Powers[].value (C.Def[].add C.Def[].one (C.Def[].mul scalar z)) k :=
+  \fun (z: C.Complex)(k: N.Nat^) => trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (\root.Linearization[].Powers[].product scalar (C.Def[].add z (C.Def[].neg root)) k))
+    (congr!{{C.Complex} {C.Complex}} (\fun (w: C.Complex) => \root.Linearization[].Powers[].value w k) _ _ (factor z));
