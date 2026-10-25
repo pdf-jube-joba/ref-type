@@ -1,0 +1,21 @@
+\import std.Data[].List[] \as Lists;
+\import Spaces.Sums[I := Fin.Fin degree].Vector[V := Vectors.Vector, space := Vectors.space] \as Sums;
+\definition partial: \forall (xs: Lists.List[Fin.Fin degree])(j: Fin.Fin n) ->
+  topology.Continuity[A := X, B := C.Complex].Continuous source Plane.topology (\fun (x: X) => Sums.sum xs (\fun (k: Fin.Fin degree) => (coefficients x k).apply (v k)) j) :=
+  \induction (xs: Lists.List[Fin.Fin degree]) \return \forall (j: Fin.Fin n) ->
+    topology.Continuity[A := X, B := C.Complex].Continuous source Plane.topology (\fun (x: X) => Sums.sum xs (\fun (k: Fin.Fin degree) => (coefficients x k).apply (v k)) j) \with {
+      | nil: \fun (j: Fin.Fin n) => topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology C.Def[].zero
+      | cons: \fun (k: Fin.Fin degree)(tail: Lists.List[Fin.Fin degree])(previous: _)(j: Fin.Fin n) => Functions.additionContinuous source _ _ (regular k (v k) j) (previous j)
+    };
+\definition negativeRegular: \forall (j: Fin.Fin n) -> topology.Continuity[A := X, B := C.Complex].Continuous source Plane.topology
+  (\fun (x: X) => (\root.Linearization[].Companion[n := n, d := d].With[coefficients := coefficients x].negativeRow).apply v j) :=
+  \fun (j: Fin.Fin n) => Functions.multiplicationContinuous source (\fun (_: X) => C.Def[].neg C.Def[].one) _
+    (topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology (C.Def[].neg C.Def[].one)) (partial (Fin.elements degree) j);
+\definition operatorRegular: Flatten.Regular degree (\fun (x: X) => (\root.Linearization[].Companion[n := n, d := d].With[coefficients := coefficients x].operator).apply v) :=
+  \fun (i: Fin.Fin degree)(j: Fin.Fin n) =>
+    (\induction (k: Indices.Index) \return topology.Continuity[A := X, B := C.Complex].Continuous source Plane.topology
+      (\fun (x: X) => Joining.evaluate (\fun (l: Fin.Fin d) => v (Fin.succ d l))
+        (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => (\root.Linearization[].Companion[n := n, d := d].With[coefficients := coefficients x].negativeRow).apply v) k j) \with {
+          | inl: \fun (l: Fin.Fin d) => topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology (v (Fin.succ d l) j)
+          | inr: \fun (l: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => negativeRegular j
+        }) (Indices.split (toTotal i));

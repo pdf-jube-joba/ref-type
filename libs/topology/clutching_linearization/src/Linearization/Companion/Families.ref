@@ -1,0 +1,20 @@
+\import topological_algebra.Complex[] \as Plane;
+\import Plane.Functions[A := X] \as Functions;
+\import \root.Linearization[].Coordinates[n := n].Families[X := X, source := source] \as Flatten;
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := Coordinates.dimension degree] \as Matrices;
+\import matrix_invariants.Topological[K := C.Complex, ring := Plane.Ring[].topologicalRing].At[n := Coordinates.dimension degree].Families[X := X] \as Top;
+\import Spaces.FiniteCoordinates[n := Coordinates.dimension degree] \as Basis;
+\definition matrix[x: X]: Matrices.Matrix := \root.Linearization[].Companion[n := n, d := d].With[coefficients := coefficients x].Spectral[].matrix;
+\module At(v: Carrier);
+\definition entryFormula: \forall (x: X)(i, j: Matrices.Index) -> matrix x i j =
+  Coordinates.flatten degree ((\root.Linearization[].Companion[n := n, d := d].With[coefficients := coefficients x].operator).apply (Coordinates.unflatten degree (Basis.vectors j))) i :=
+  \fun (x: X)(i, j: Matrices.Index) => trans!{{C.Complex}} _ _ _
+    (sym!{{C.Complex}} _ _ (congr!{Matrices.Vector {C.Complex}} (\fun (v: Matrices.Vector) => v i) _ _ (Matrices.onBasis (matrix x) j)))
+    (congr!{Matrices.Vector {C.Complex}} (\fun (v: Matrices.Vector) => v i) _ _ (\root.Linearization[].Companion[n := n, d := d].With[coefficients := coefficients x].Spectral[].formula (Basis.vectors j)));
+\definition matrixRegular: Top.Regular source matrix := \fun (i, j: Matrices.Index) => Top.transport source
+  (\fun (x: X) => Coordinates.flatten degree ((\root.Linearization[].Companion[n := n, d := d].With[coefficients := coefficients x].operator).apply (Coordinates.unflatten degree (Basis.vectors j))) i)
+  (\fun (x: X) => matrix x i j) (\fun (x: X) => sym!{{C.Complex}} _ _ (entryFormula x i j))
+  (Flatten.flattenRegular degree (\fun (x: X) => (\root.Linearization[].Companion[n := n, d := d].With[coefficients := coefficients x].operator).apply (Coordinates.unflatten degree (Basis.vectors j)))
+    At[v := Coordinates.unflatten degree (Basis.vectors j)].operatorRegular i);
+\module Separated(kernel: \forall (x: X)(z: C.Complex) -> C.Absolute[].abs z = R.one -> \forall (v: Vectors.Vector) ->
+  (\root.Linearization[].Companion[n := n, d := d].With[coefficients := coefficients x].polynomial z).apply v = Vectors.origin -> v = Vectors.origin);

@@ -35,5 +35,6 @@ Laurent 環の係数準同型の公開もこの検査に含み、`algebra.Polyno
 `Companion.With` の作用素・多項式と `Eigen.polynomialKernel` の固有ベクトルからの比較も `work/k07-companion.source.json` で対象検査・保存完了、終了0。
 `noUnitEigen` は単位円上での多項式の零核から companion の単位円固有値の不在を導く。
 以後の座標成分の選択・族の連続性と `Companion.With.Spectral` の K06 接続は未検証である。
-`work/k07-spectral.source.json` を上記と同じ対象検査コマンドで実行中であり、終了結果は未確認。
+`work/k07-spectral` は兄弟 module の import パスの修正前に終了1。
+その修正、companion 行列族の連続性、スペクトル像束と K0 の差の構成を含む `work/k07-spectral-family.source.json` の対象検査を実行中であり、終了結果は未確認。
 次は companion 作用素とブロック操作による安定線形化へ進む。
