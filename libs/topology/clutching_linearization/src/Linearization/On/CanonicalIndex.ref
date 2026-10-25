@@ -1,0 +1,50 @@
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := n] \as M;
+\import Spaces.Coordinates[I := M.Index] \as Vectors;
+\import Spaces.FiniteCoordinates[n := n] \as Basis;
+\import Spaces.Linear[V := M.Vector, W := M.Vector, source := Vectors.space, target := Vectors.space] \as End;
+\import spectral_splitting.Spectral[].Idempotents[n := n] \as Idempotents;
+\import Idempotents.Image[X := X, baseSpace := source, P := P, regular := regular] \as Given;
+\import topological_algebra.Complex[] \as Plane;
+\import Plane.Functions[A := X] \as Functions;
+\definition matrix[x: X]: M.Matrix := \root.Linearization[].CanonicalProjection[n := n, projection := P x, c := c, outside := outside].matrix;
+\definition matrixRegular: matrix_invariants.Topological[K := C.Complex, ring := Plane.Ring[].topologicalRing].At[n := n].Families[X := X].Regular source matrix :=
+  \fun (i, j: M.Index) => Functions.multiplicationContinuous source (\fun (_: X) => c)
+    (\fun (x: X) => C.Def[].add (Basis.vectors j i) (C.Def[].neg ((P x).map.apply (Basis.vectors j) i)))
+    (topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology c)
+    (Functions.additionContinuous source (\fun (_: X) => Basis.vectors j i) (\fun (x: X) => C.Def[].neg ((P x).map.apply (Basis.vectors j) i))
+      (topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology (Basis.vectors j i))
+      (Functions.negationContinuous source (\fun (x: X) => (P x).map.apply (Basis.vectors j) i) (regular (Basis.vectors j) i)));
+\definition off: \forall (x: X) -> spectral_splitting.Spectral[].At[n := n].Splitting[A := matrix x].OffSpectrum :=
+  \fun (x: X) => \root.Linearization[].CanonicalProjection[n := n, projection := P x, c := c, outside := outside].off;
+\import \parent.SpectralIndex[n := n, A := matrix, regular := matrixRegular, off := off, removed := removed] \as Index;
+\import spectral_splitting.Spectral[].At[n := n].Continuous[X := X, source := source, A := matrix, regular := matrixRegular, off := off] \as Native;
+\import Native.Bundle[] \as Image;
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Scalars.field, scalar := linear_algebra.Hermitian[].Complex[].scalar,
+  topological := hermitian_frames.Hermitian[].Complex[].topological].At[n := n] \as Hermitian;
+\definition identity: End.Map := Basis.identity;
+\definition identityRegular: Hermitian.Families[X := X].Matrix[m := n].Regular source (\fun (_: X) => identity) :=
+  Hermitian.Families[X := X].Matrix[m := n].constant source identity;
+\definition identityLeft: \forall (v: M.Vector) -> identity.apply (identity.apply v) = v := \fun (v: M.Vector) => \refl(v);
+\definition nonsingular: \forall (x: X) -> matrix_invariants.Field[K := C.Complex, field := Scalars.field].At[n := n].Nonzero (Hermitian.Square[].entries identity) :=
+  \fun (x: X) => Hermitian.Square[].LeftInverse[f := identity, g := identity, left := identityLeft].nonzero;
+\definition recovered: \forall (x: X)(v: M.Vector) -> (Image.idempotent x).map.apply v = (P x).map.apply v :=
+  \fun (x: X) => \root.Linearization[].CanonicalProjection[n := n, projection := P x, c := c, outside := outside].retraction;
+\import Idempotents.Comparison[X := X, baseSpace := source, P := P, Q := Image.idempotent, regularP := regular, regularQ := Native.projectionRegular,
+  H := (\fun (_: X) => identity), regularH := identityRegular, nonsingular := nonsingular, intertwines := recovered] \as Compare;
+\import vector_bundles.Bundles[].Over[K := C.Complex, field := Scalars.field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar] \as Bundles;
+\definition GivenFiber: X -> \Set := Given.Fiber;
+\definition givenBundle: Bundles.Family[X := X, F := GivenFiber].Bundle := Given.bundle;
+\definition SpectralFiber: X -> \Set := Index.Fiber;
+\definition spectralBundle: Bundles.Family[X := X, F := SpectralFiber].Bundle := Index.bundle;
+\definition isomorphism: Bundles.Isomorphisms[X := X, F := GivenFiber, G := SpectralFiber, source := givenBundle, target := spectralBundle].Isomorphism := Compare.isomorphism;
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := source, compact := compact, hausdorff := hausdorff] \as K;
+\import K.Bundle[F := GivenFiber, original := givenBundle, same := \refl(source)] \as OriginalClass;
+\import K.Bundle[F := SpectralFiber, original := spectralBundle, same := \refl(source)] \as SpectralClass;
+\import K.Compare[F := GivenFiber, G := SpectralFiber, first := givenBundle, second := spectralBundle, firstSame := \refl(source), secondSame := \refl(source)] \as Classes;
+\import K.Trivial[n := removed] \as Removed;
+\definition value: K.K0[].Carrier := Index.value;
+\definition recovery: value = K.K0[].difference OriginalClass.value Removed.value :=
+  congr!{K.Classes K.K0[].Carrier} (\fun (v: K.Classes) => K.K0[].difference v Removed.value) _ _
+    (sym!{K.Classes} _ _ (Classes.ofIsomorphism isomorphism));
+\module ScalarChoice(d: C.Complex, outsideD: Real.Lt R.one (C.Absolute[].abs d));
