@@ -1,0 +1,32 @@
+\definition sum: Form[L.add p q] := Form[L.add p q] {
+  shift := Nat.add first.shift second.shift,
+  polynomial := P.add (P.mul (polynomialPower second.shift) first.polynomial) (P.mul (polynomialPower first.shift) second.polynomial),
+  equation := eq_reason_in!{L.Carrier _
+    "=" { L.add (L.mul (power (Nat.add first.shift second.shift)) p) (L.mul (power (Nat.add first.shift second.shift)) q) } "by" { Laws.mulAdd _ p q }
+    "=" { L.add (L.mul (power second.shift) (L.mul (power first.shift) p)) (L.mul (power first.shift) (L.mul (power second.shift) q)) } "by" {
+      congr!{L.Carrier L.Carrier L.Carrier} L.add _ _ _ _ (advanceRight first.shift second.shift p) (advanceLeft first.shift second.shift q)
+    }
+    "=" { L.add (L.mul (power second.shift) (embed first.polynomial)) (L.mul (power first.shift) (embed second.polynomial)) } "by" {
+      congr!{L.Carrier L.Carrier L.Carrier} L.add _ _ _ _ (congr!{L.Carrier L.Carrier} (L.mul (power second.shift)) _ _ first.equation) (congr!{L.Carrier L.Carrier} (L.mul (power first.shift)) _ _ second.equation)
+    }
+    "=" { L.add (L.mul (embed (polynomialPower second.shift)) (embed first.polynomial)) (L.mul (embed (polynomialPower first.shift)) (embed second.polynomial)) } "by" {
+      congr!{L.Carrier L.Carrier L.Carrier} L.add _ _ _ _
+        (congr!{L.Carrier L.Carrier} (\fun (a: L.Carrier) => L.mul a (embed first.polynomial)) _ _ (sym!{L.Carrier} _ _ (embedPower second.shift)))
+        (congr!{L.Carrier L.Carrier} (\fun (a: L.Carrier) => L.mul a (embed second.polynomial)) _ _ (sym!{L.Carrier} _ _ (embedPower first.shift)))
+    }
+    "=" { L.add (embed (P.mul (polynomialPower second.shift) first.polynomial)) (embed (P.mul (polynomialPower first.shift) second.polynomial)) } "by" {
+      congr!{L.Carrier L.Carrier L.Carrier} L.add _ _ _ _
+        (sym!{L.Carrier} _ _ (embeddingLaws.mul (polynomialPower second.shift) first.polynomial)) (sym!{L.Carrier} _ _ (embeddingLaws.mul (polynomialPower first.shift) second.polynomial))
+    }
+    "=" _ "by" { sym!{L.Carrier} _ _ (embeddingLaws.add (P.mul (polynomialPower second.shift) first.polynomial) (P.mul (polynomialPower first.shift) second.polynomial)) }
+  },
+};
+\definition product: Form[L.mul p q] := Form[L.mul p q] {
+  shift := Nat.add first.shift second.shift, polynomial := P.mul first.polynomial second.polynomial,
+  equation := eq_reason_in!{L.Carrier _
+    "=" { L.mul (L.mul (power first.shift) (power second.shift)) (L.mul p q) } "by" { congr!{L.Carrier L.Carrier} (\fun (a: L.Carrier) => L.mul a (L.mul p q)) _ _ (powerAddition first.shift second.shift) }
+    "=" { L.mul (L.mul (power first.shift) p) (L.mul (power second.shift) q) } "by" { Sign.productShuffle (power first.shift) (power second.shift) p q }
+    "=" { L.mul (embed first.polynomial) (embed second.polynomial) } "by" { congr!{L.Carrier L.Carrier L.Carrier} L.mul _ _ _ _ first.equation second.equation }
+    "=" _ "by" { sym!{L.Carrier} _ _ (embeddingLaws.mul first.polynomial second.polynomial) }
+  },
+};
