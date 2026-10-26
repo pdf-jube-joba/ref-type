@@ -1,0 +1,46 @@
+\use Logic.either;
+\use Equality.eq_reason_in;
+\definition hLaws: HEP.ExtensionLaws[source.topology, Model.topology, problemData, h] :=
+  \bysub(Cylinder.Carrier -> Model.Carrier, HEP.Extension[source.topology, Model.topology, problemData], h);
+\definition end[x: A]: Model.Carrier := h (Cylinder.at I.end x);
+\definition endContinuous: topology.Continuity[A := A, B := Model.Carrier].Continuous source.topology Model.topology end :=
+  topology.Composition[A := A, B := Cylinder.Carrier, C := Model.Carrier].composeContinuous source.topology (Cylinder.topology source.topology) Model.topology
+    (Cylinder.at I.end) h (Cylinder.atContinuous source.topology I.end) hLaws.continuous;
+\definition onSubset: \forall (x: Subspace.CarrierSet) -> end x = Model.point :=
+  \fun (x: Subspace.CarrierSet) => trans!{Model.Carrier} _ _ _ (hLaws.extends I.end x) (nullLaws.homotopy.end x);
+\definition hAtBase: \forall (t: I.Carrier) -> h (Cylinder.at t source.basepoint) = Model.point :=
+  \fun (t: I.Carrier) => trans!{Model.Carrier} _ _ _ (hLaws.extends t subpointed.basepoint) (Model.nullAtBase t);
+\import Quotient.Descent[B := Model.Carrier] \as Descent;
+\definition respects: Descent.Respects end := \fun (x, y: A)(related: Quotient.Related x y) =>
+  either!{related {end x = end y}
+    {\fun (same: x = y) => congr!{A Model.Carrier} end _ _ same}
+    {\fun (both: Logic.And[\In[A] subset x, \In[A] subset y]) => trans!{Model.Carrier} _ _ _
+      (onSubset (\into[A](x, subset) \by { both.left })) (sym!{Model.Carrier} _ _ (onSubset (\into[A](y, subset) \by { both.right })))}
+  };
+\definition section: Carrier -> Model.Carrier := Descent.apply end respects;
+\definition onClass: \forall (x: A) -> section (Quotient.class x) = end x := Descent.onClass end respects;
+\definition continuous: topology.Continuity[A := Carrier, B := Model.Carrier].Continuous topology Model.topology section :=
+  Descent.continuous source.topology Model.topology end respects endContinuous;
+\definition atPoint: section point = Model.point := trans!{Model.Carrier} _ _ _ (onClass source.basepoint) (hAtBase I.end);
+\import algebraic_topology.Pointed[A := Carrier].Maps[B := Model.Carrier] \as Section;
+\definition sectionMap: Section.Map[pointed, Model.pointed] := \into[Carrier -> Model.Carrier](section, Section.Map[pointed, Model.pointed]) \by {
+  Section.Laws[pointed, Model.pointed, section] { continuous := continuous, pointed := atPoint }
+};
+
+\import \root.Puppe[].Maps[A := Model.Carrier, B := Model.Carrier, source := Model.pointed, target := Model.pointed] \as LeftMaps;
+\import \root.Puppe[].Maps[A := Carrier, B := Carrier, source := pointed, target := pointed] \as RightMaps;
+\import \root.Puppe[].Identity[A := Model.Carrier, source := Model.pointed] \as LeftIdentity;
+\import \root.Puppe[].Identity[A := Carrier, source := pointed] \as RightIdentity;
+\definition leftComposite: LeftMaps.Map := algebraic_topology.Pointed[A := Model.Carrier].Maps[B := Carrier].Composition[C := Model.Carrier]
+  .compose Model.pointed pointed Model.pointed comparisonMap sectionMap;
+\definition rightComposite: RightMaps.Map := algebraic_topology.Pointed[A := Carrier].Maps[B := Model.Carrier].Composition[C := Carrier]
+  .compose pointed Model.pointed pointed sectionMap comparisonMap;
+\module LeftHomotopy;
+
+\module RightHomotopy;
+\import \root.Puppe[].Equivalence[A := Model.Carrier, B := Carrier, source := Model.pointed, target := pointed] \as Equivalence;
+\definition equivalence: Equivalence.Data := Equivalence.Data {
+  forward := comparisonMap, backward := sectionMap,
+  leftInverse := LeftMaps.equivalence.sym LeftIdentity.map leftComposite (\exact(LeftHomotopy[].result, LeftMaps.Homotopy[LeftIdentity.map, leftComposite])),
+  rightInverse := RightMaps.equivalence.sym RightIdentity.map rightComposite (\exact(RightHomotopy[].result, RightMaps.Homotopy[RightIdentity.map, rightComposite])),
+};

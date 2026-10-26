@@ -1,0 +1,41 @@
+\import algebraic_topology.Cylinder[A := Cone.Carrier] \as ConeCylinder;
+\import algebraic_topology.Cylinder[A := Model.Carrier] \as ModelCylinder;
+\import Cone.Contraction[] \as Contraction;
+\import Attached.Families[X := I.Carrier, D := Model.Carrier, factor := I.topology, left := source.topology, right := Cone.topology, target := Model.topology] \as Families;
+\definition left: Cylinder.Carrier -> Model.Carrier := h;
+\definition right[p: ConeCylinder.Carrier]: Model.Carrier := Model.cone (Contraction.family p);
+\definition compatible: Families.Compatible left right := \fun (t: I.Carrier)(x: Subspace.CarrierSet) => trans!{Model.Carrier} _ _ _
+  (hLaws.extends t x) (congr!{Cone.Carrier Model.Carrier} Model.cone _ _ (sym!{Cone.Carrier} _ _ (Contraction.onBase t x)));
+\definition family: ModelCylinder.Carrier -> Model.Carrier := Families.apply left right compatible;
+\definition continuous: topology.Continuity[A := ModelCylinder.Carrier, B := Model.Carrier].Continuous (ModelCylinder.topology Model.topology) Model.topology family :=
+  Families.continuous I.compact I.hausdorff left right compatible hLaws.continuous
+    (topology.Composition[A := ConeCylinder.Carrier, B := Cone.Carrier, C := Model.Carrier].composeContinuous
+      (ConeCylinder.topology Cone.topology) Cone.topology Model.topology Contraction.family Model.cone Contraction.continuous Model.coneContinuous);
+\definition start: \forall (x: Model.Carrier) -> family (ModelCylinder.at I.start x) = x :=
+  Attached.induction (\fun (x: Model.Carrier) => family (ModelCylinder.at I.start x) = x)
+    (\fun (x: A) => trans!{Model.Carrier} _ _ _ (Families.onLeft left right compatible I.start x) (hLaws.initial x))
+    (\fun (c: Cone.Carrier) => trans!{Model.Carrier} _ _ _ (Families.onRight left right compatible I.start c) (congr!{Cone.Carrier Model.Carrier} Model.cone _ _ (Contraction.atStart c)));
+\definition end: \forall (x: Model.Carrier) -> family (ModelCylinder.at I.end x) = section (comparison x) :=
+  Attached.induction (\fun (x: Model.Carrier) => family (ModelCylinder.at I.end x) = section (comparison x))
+    (\fun (x: A) => eq_reason_in!{Model.Carrier {family (ModelCylinder.at I.end (Model.inclusion x))}
+      "=" {h (Cylinder.at I.end x)} "by" { Families.onLeft left right compatible I.end x }
+      "=" {section (Quotient.class x)} "by" { sym!{Model.Carrier} _ _ (onClass x) }
+      "=" {section (comparison (Model.inclusion x))} "by" { congr!{Carrier Model.Carrier} section _ _ (sym!{Carrier} _ _ (onOriginal x)) }
+    })
+    (\fun (c: Cone.Carrier) => eq_reason_in!{Model.Carrier {family (ModelCylinder.at I.end (Model.cone c))}
+      "=" {Model.cone (Contraction.family (ConeCylinder.at I.end c))} "by" { Families.onRight left right compatible I.end c }
+      "=" {Model.cone Cone.point} "by" { congr!{Cone.Carrier Model.Carrier} Model.cone _ _ (Contraction.atEnd c) }
+      "=" {Model.point} "by" { Model.conePoint }
+      "=" {section point} "by" { sym!{Model.Carrier} _ _ atPoint }
+      "=" {section (comparison (Model.cone c))} "by" { congr!{Carrier Model.Carrier} section _ _ (sym!{Carrier} _ _ (onCone c)) }
+    });
+\definition atBase: \forall (t: I.Carrier) -> family (ModelCylinder.at t Model.point) = Model.point :=
+  \fun (t: I.Carrier) => trans!{Model.Carrier} _ _ _ (Families.onLeft left right compatible t source.basepoint) (hAtBase t);
+\import algebraic_topology.Homotopy[A := Model.Carrier, B := Model.Carrier] \as Native;
+\definition result: LeftMaps.Homotopy[LeftIdentity.map, leftComposite] := \into[Native.Family](family, LeftMaps.Homotopy[LeftIdentity.map, leftComposite]) \by {
+  Native.RelativeLaws[Model.topology, Model.topology, LeftMaps.fixed, LeftIdentity.map, leftComposite, family] {
+    homotopy := Native.Laws[Model.topology, Model.topology, LeftIdentity.map, leftComposite, family] { continuous := continuous, start := start, end := end },
+    fixed := \fun (t: I.Carrier)(x: Model.Carrier)(same: x = Model.point) => \idelim Model.point = x
+      \with y: Model.Carrier => family (ModelCylinder.at t y) = y \by { base: atBase t, equality: sym!{Model.Carrier} _ _ same },
+  }
+};

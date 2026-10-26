@@ -1,0 +1,61 @@
+\import topology.Topology[Carrier := A].Subspace[S := subset] \as Subspace;
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := A] \as Cylinder;
+\import algebraic_topology.Cylinder[A := Subspace.CarrierSet] \as SubCylinder;
+\definition subpointed: algebraic_topology.Pointed[A := Subspace.CarrierSet].Space := algebraic_topology.Pointed[A := Subspace.CarrierSet].Space {
+  topology := Subspace.topology source.topology,
+  basepoint := \into[A](source.basepoint, subset) \by { containsBase },
+};
+\import algebraic_topology.Pointed[A := Subspace.CarrierSet].Maps[B := A] \as Inclusion;
+\definition inclusion: Inclusion.Map[subpointed, source] := \into[Subspace.CarrierSet -> A]((\fun (x: Subspace.CarrierSet) => x), Inclusion.Map[subpointed, source]) \by {
+  Inclusion.Laws[subpointed, source, (\fun (x: Subspace.CarrierSet) => x)] {
+    continuous := topology.Continuity[A := Subspace.CarrierSet, B := A].Corestriction[S := subset].inclusionContinuous source.topology,
+    pointed := \refl(source.basepoint),
+  }
+};
+\import \root.Puppe[].Cone[A := Subspace.CarrierSet, B := A, source := subpointed, target := source, f := inclusion] \as Model;
+\import \root.Puppe[].ReducedCone[A := Subspace.CarrierSet, source := subpointed] \as Cone;
+\import algebraic_topology.Collapse[A := A, subset := subset] \as Quotient;
+\definition Carrier: \Set := Quotient.Carrier;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Quotient.topology source.topology;
+\definition point: Carrier := Quotient.class source.basepoint;
+\definition pointed: algebraic_topology.Pointed[A := Carrier].Space := algebraic_topology.Pointed[A := Carrier].Space { topology := topology, basepoint := point };
+\definition onSubset: \forall (x: Subspace.CarrierSet) -> Quotient.class x = point :=
+  \fun (x: Subspace.CarrierSet) => Quotient.collapsed x source.basepoint (\bysub(A, subset, x)) containsBase;
+\import topological_constructions.Pushout[A := A, B := Cone.Carrier, C := Subspace.CarrierSet].Of[u := inclusion, v := Cone.base] \as Attached;
+\import Attached.Universal[D := Carrier] \as Gluing;
+\definition constant[c: Cone.Carrier]: Carrier := point;
+\definition compatible: Gluing.Compatible Quotient.class constant := onSubset;
+\definition comparison: Model.Carrier -> Carrier := Gluing.apply Quotient.class constant compatible;
+\definition onOriginal: \forall (x: A) -> comparison (Model.inclusion x) = Quotient.class x := Gluing.onLeft Quotient.class constant compatible;
+\definition onCone: \forall (c: Cone.Carrier) -> comparison (Model.cone c) = point := Gluing.onRight Quotient.class constant compatible;
+\definition comparisonContinuous: topology.Continuity[A := Model.Carrier, B := Carrier].Continuous Model.topology topology comparison :=
+  Gluing.continuous source.topology Cone.topology topology Quotient.class constant compatible (Quotient.projectionContinuous source.topology)
+    (topology.Maps[A := Cone.Carrier, B := Carrier].constantContinuous Cone.topology topology point);
+\import algebraic_topology.Pointed[A := Model.Carrier].Maps[B := Carrier] \as Comparison;
+\definition comparisonMap: Comparison.Map[Model.pointed, pointed] := \into[Model.Carrier -> Carrier](comparison, Comparison.Map[Model.pointed, pointed]) \by {
+  Comparison.Laws[Model.pointed, pointed, comparison] { continuous := comparisonContinuous, pointed := onOriginal source.basepoint }
+};
+\import algebraic_topology.Cofibration[A := A, subset := subset] \as Cofibration;
+\import Cofibration.ForTarget[B := Model.Carrier] \as HEP;
+\import \root.Puppe[].Maps[A := Subspace.CarrierSet, B := Model.Carrier, source := subpointed, target := Model.pointed] \as NullMaps;
+\definition nullLaws: algebraic_topology.Homotopy[A := Subspace.CarrierSet, B := Model.Carrier].RelativeLaws[
+  subpointed.topology, Model.topology, NullMaps.fixed, Model.composite, NullMaps.constant, Model.nullFamily] :=
+  NullMaps.homotopyLaws Model.composite NullMaps.constant Model.nullHomotopy;
+\definition problemData: HEP.ProblemData := HEP.ProblemData { initial := Model.inclusion, family := Model.nullFamily };
+\definition problem: HEP.Problem[source.topology, Model.topology] := \into[HEP.ProblemData](problemData, HEP.Problem[source.topology, Model.topology]) \by {
+  HEP.ProblemLaws[source.topology, Model.topology, problemData] {
+    initialContinuous := (algebraic_topology.Pointed[A := A].Maps[B := Model.Carrier].laws source Model.pointed Model.inclusionMap).continuous,
+    familyContinuous := nullLaws.homotopy.continuous,
+    agrees := nullLaws.homotopy.start,
+  }
+};
+\module Extension(h: HEP.Extension[source.topology, Model.topology, problemData]);
+
+\import \root.Puppe[].Equivalence[A := Model.Carrier, B := Carrier, source := Model.pointed, target := pointed] \as Equivalence;
+\definition ComparisonEquivalence: \Set := \Cast[Equivalence.Data] ({ e: Equivalence.Data \where e.forward = comparisonMap });
+\definition equivalence: Cofibration.IsCofibration source.topology -> \exists ComparisonEquivalence := \block {
+  \fun (cofibration: Cofibration.IsCofibration source.topology) \then
+  \takefrom h: HEP.Extension[source.topology, Model.topology, problemData] \by HEP.homotopyExtension source.topology Model.topology cofibration problem \then
+  \return \exact(\into[Equivalence.Data](Extension[h := h].equivalence, ComparisonEquivalence) \by { \refl(comparisonMap) }, ComparisonEquivalence)
+};
