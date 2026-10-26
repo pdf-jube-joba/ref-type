@@ -1,0 +1,33 @@
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := A] \as Cylinder;
+\import algebraic_topology.Suspension[A := A].Reduced[basepoint := source.basepoint] \as Native;
+\import algebraic_topology.Collapse[A := Cylinder.Carrier, subset := Native.Collapsed] \as Quotient;
+\import \root.Puppe[].ReducedCone[A := A, source := source] \as Cone;
+\use Logic.either;
+\definition Carrier: \Set := Native.Carrier;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Native.topology source.topology;
+\definition class: Cylinder.Carrier -> Carrier := Quotient.class;
+\definition point: Carrier := Native.basepoint;
+\definition pointed: algebraic_topology.Pointed[A := Carrier].Space := algebraic_topology.Pointed[A := Carrier].Space { topology := topology, basepoint := point };
+\definition collapsed: \forall (p: Cylinder.Carrier) -> \In[Cylinder.Carrier] Native.Collapsed p -> class p = point :=
+  \fun (p: Cylinder.Carrier)(inside: _) => Quotient.collapsed p (Cylinder.at I.start source.basepoint) inside (Logic.Or[_, _]::left (\refl(I.start)));
+\definition bottom: \forall (x: A) -> class (Cylinder.at I.start x) = point :=
+  \fun (x: A) => collapsed (Cylinder.at I.start x) (Logic.Or[_, _]::left (\refl(I.start)));
+\definition top: \forall (x: A) -> class (Cylinder.at I.end x) = point :=
+  \fun (x: A) => collapsed (Cylinder.at I.end x) (Logic.Or[_, _]::right (Logic.Or[_, _]::left (\refl(I.end))));
+\definition line: \forall (t: I.Carrier) -> class (Cylinder.at t source.basepoint) = point :=
+  \fun (t: I.Carrier) => collapsed (Cylinder.at t source.basepoint) (Logic.Or[_, _]::right (Logic.Or[_, _]::right (\refl(source.basepoint))));
+\import algebraic_topology.Collapse[A := Cylinder.Carrier, subset := Cone.Collapsed].Mapping[B := Cylinder.Carrier, targetSubset := Native.Collapsed] \as Projection;
+\definition identity[p: Cylinder.Carrier]: Cylinder.Carrier := p;
+\definition preserves: Projection.Preserves identity := \fun (p: Cylinder.Carrier)(inside: \In[Cylinder.Carrier] Cone.Collapsed p) =>
+  Logic.Or[_, _]::right inside;
+\definition quotient: Cone.Carrier -> Carrier := Projection.apply identity preserves;
+\definition onClass: \forall (p: Cylinder.Carrier) -> quotient (Cone.class p) = class p := Projection.onClass identity preserves;
+\definition quotientContinuous: topology.Continuity[A := Cone.Carrier, B := Carrier].Continuous Cone.topology topology quotient :=
+  Projection.continuous (Cylinder.topology source.topology) (Cylinder.topology source.topology) identity preserves
+    (topology.Maps[A := Cylinder.Carrier, B := Cylinder.Carrier].Identity[].continuous (Cylinder.topology source.topology));
+\definition onBase: \forall (x: A) -> quotient (Cone.base x) = point := \fun (x: A) => trans!{Carrier} _ _ _ (onClass (Cylinder.at I.start x)) (bottom x);
+
+\module Mapping(B: \Set, target: algebraic_topology.Pointed[A := B].Space,
+  f: algebraic_topology.Pointed[A := A].Maps[B := B].Map[source, target]);
+\module TimeChange;

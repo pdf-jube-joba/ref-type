@@ -1,0 +1,47 @@
+\use Equality.eq_reason_in;
+\import \root.Puppe[].Maps[A := Carrier, B := C, source := pointed, target := range] \as ConeMaps;
+\import \root.Puppe[].Maps[A := B, B := C, source := target, target := range] \as TargetMaps;
+\import \root.Puppe[].Maps[A := A, B := C, source := source, target := range] \as SourceMaps;
+\import ConeMaps.Precompose[C := B, domain := target, f := inclusionMap] \as Restriction;
+\import TargetMaps.Precompose[C := A, domain := source, f := f] \as Pullback;
+\definition extensionOfNull: \forall (g: TargetMaps.Map) -> Pullback.apply (TargetMaps.class g) = SourceMaps.zero ->
+  \exists ( j: ConeMaps.Map \where Restriction.map j = g ) := \block {
+  \fun (g: TargetMaps.Map)(null: _) \then
+  \let nullClass: SourceMaps.class (Pullback.map g) = SourceMaps.zero := trans!{SourceMaps.Class} _ _ _
+    (sym!{SourceMaps.Class} _ _ (Pullback.onClass g)) null \then
+  \takefrom h: SourceMaps.Homotopy[Pullback.map g, SourceMaps.constant]
+    \by SourceMaps.homotopicOfEqual (Pullback.map g) SourceMaps.constant nullClass \then
+  \let j: ConeMaps.Map := \parent.Lift[C := C, range := range, g := g, h := h].map \then
+  \return Logic.existsIntro[ConeMaps.Map, { j: ConeMaps.Map \where Restriction.map j = g }] j
+    (TargetMaps.ext (Restriction.map j) g (\parent.Lift[C := C, range := range, g := g, h := h].onTarget))
+};
+\definition imageInKernel: \forall (c: ConeMaps.Class) -> Pullback.apply (Restriction.apply c) = SourceMaps.zero :=
+  ConeMaps.induction (\fun (c: ConeMaps.Class) => Pullback.apply (Restriction.apply c) = SourceMaps.zero)
+    (\fun (j: ConeMaps.Map) => eq_reason_in!{SourceMaps.Class {Pullback.apply (Restriction.apply (ConeMaps.class j))}
+      "=" {Pullback.apply (TargetMaps.class (Restriction.map j))} "by" { congr!{TargetMaps.Class SourceMaps.Class} Pullback.apply _ _ (Restriction.onClass j) }
+      "=" {SourceMaps.class (Pullback.map (Restriction.map j))} "by" { Pullback.onClass (Restriction.map j) }
+      "=" {SourceMaps.zero} "by" { SourceMaps.equalOfHomotopic (Pullback.map (Restriction.map j)) SourceMaps.constant
+        (\exact(Maps.Postcompose[C := C, range := range, f := j].null composite nullHomotopy,
+          SourceMaps.Homotopy[Pullback.map (Restriction.map j), SourceMaps.constant])) }
+    });
+\definition kernelInImage: \forall (g: TargetMaps.Class) -> Pullback.apply g = SourceMaps.zero ->
+  \exists ( j: ConeMaps.Class \where Restriction.apply j = g ) :=
+  TargetMaps.induction (\fun (g: TargetMaps.Class) => Pullback.apply g = SourceMaps.zero -> \exists ( j: ConeMaps.Class \where Restriction.apply j = g ))
+    (\block {
+      \fun (g: TargetMaps.Map)(null: _) \then
+      \takefrom j: \Cast[ConeMaps.Map] ({ j: ConeMaps.Map \where Restriction.map j = g }) \by extensionOfNull g null \then
+      \return Logic.existsIntro[ConeMaps.Class, { c: ConeMaps.Class \where Restriction.apply c = TargetMaps.class g }] (ConeMaps.class j)
+        (trans!{TargetMaps.Class} _ _ _ (Restriction.onClass j) (congr!{TargetMaps.Map TargetMaps.Class} TargetMaps.class _ _
+          (\bysub(ConeMaps.Map, { j: ConeMaps.Map \where Restriction.map j = g }, j))))
+    });
+\definition exact[g: TargetMaps.Class]: Logic.PropEquiv[Pullback.apply g = SourceMaps.zero,
+  \exists ( j: ConeMaps.Class \where Restriction.apply j = g )] := Logic.PropEquiv[_, _] {
+    ltr := kernelInImage g,
+    rtl := \block {
+      \fun (image: \exists ( j: ConeMaps.Class \where Restriction.apply j = g )) \then
+      \takefrom j: \Cast[ConeMaps.Class] ({ j: ConeMaps.Class \where Restriction.apply j = g }) \by image \then
+      \return trans!{SourceMaps.Class} _ _ _
+        (congr!{TargetMaps.Class SourceMaps.Class} Pullback.apply _ _ (sym!{TargetMaps.Class} _ _
+          (\bysub(ConeMaps.Class, { j: ConeMaps.Class \where Restriction.apply j = g }, j)))) (imageInKernel j)
+    },
+  };

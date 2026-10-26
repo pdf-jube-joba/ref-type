@@ -1,0 +1,32 @@
+\import std.Data[].Pair[] \as Pair;
+\import Pair.Prop[A := X, B := A] \as Pairs;
+\import topology.Topology[Carrier := X] \as Factor;
+\import topological_constructions.Product[A := X, B := A] \as Domain;
+\import topological_constructions.Product[A := X, B := Carrier] \as Product;
+\import topological_constructions.ProductQuotient[X := X, A := A, B := Carrier] \as Projection;
+\import \parent.Descent[C := C] \as Descent;
+\definition Respects[f: Domain.CarrierSet -> C]: \Prop := \forall (t: X)(a, b: A) -> relation a b -> f (Pair.pair X A t a) = f (Pair.pair X A t b);
+\definition slice[f: Domain.CarrierSet -> C][t: X][a: A]: C := f (Pair.pair X A t a);
+\definition sliceRespects[f: Domain.CarrierSet -> C][respects: Respects f][t: X]: Descent.Respects (slice f t) := respects t;
+\definition apply[f: Domain.CarrierSet -> C][respects: Respects f][p: Product.CarrierSet]: C :=
+  Descent.apply laws (slice f (Pair.first X Carrier p)) (sliceRespects f respects (Pair.first X Carrier p)) (Pair.second X Carrier p);
+\definition onClass: \forall (f: Domain.CarrierSet -> C)(respects: Respects f)(t: X)(a: A) ->
+  apply f respects (Pair.pair X Carrier t (class a)) = f (Pair.pair X A t a) :=
+  \fun (f: _)(respects: _)(t: X)(a: A) => Descent.onClass laws (slice f t) (sliceRespects f respects t) a;
+\definition onLift: \forall (f: Domain.CarrierSet -> C)(respects: Respects f)(p: Domain.CarrierSet) -> apply f respects (Projection.map class p) = f p :=
+  \fun (f: _)(respects: _)(p: Domain.CarrierSet) => trans!{C} _ _ _
+    (onClass f respects (Pair.first X A p) (Pair.second X A p)) (congr!{Domain.CarrierSet C} f _ _ (Pairs.eta p));
+\import topology.Topology[Carrier := Domain.CarrierSet] \as DomainSpace;
+\import topology.Topology[Carrier := C] \as Target;
+\definition continuous: Factor.IsCompact factor -> Factor.IsT2 factor -> \forall (f: Domain.CarrierSet -> C)(respects: Respects f) ->
+  topology.Continuity[A := Domain.CarrierSet, B := C].Continuous (Domain.topology factor source) target f ->
+  topology.Continuity[A := Product.CarrierSet, B := C].Continuous (Product.topology factor (topology source)) target (apply f respects) :=
+  \fun (compact: _)(hausdorff: _)(f: _)(respects: _)(continuous: _)(U: \Pow C)(open: Target.IsOpenIn target U) =>
+    (Projection.quotientMap factor compact hausdorff source (topology source) class (quotientMap source)).reflectsOpen
+      ({ p: Product.CarrierSet \where \In[C] U (apply f respects p) })
+      (\idelim f = (\fun (p: Domain.CarrierSet) => apply f respects (Projection.map class p))
+        \with h: (Domain.CarrierSet -> C) => DomainSpace.IsOpenIn (Domain.topology factor source) ({ p: Domain.CarrierSet \where \In[C] U (h p) }) \by {
+          base: continuous U open,
+          equality: \axiom:funext(f, (\fun (p: Domain.CarrierSet) => apply f respects (Projection.map class p)),
+            \fun (p: Domain.CarrierSet) => sym!{C} _ _ (onLift f respects p))
+        });

@@ -1,0 +1,28 @@
+\import std.Data[].Nat[] \as N;
+\structure Details[A, B: \Set]: \Set := {
+  source: algebraic_topology.Pointed[A := A].Space,
+  target: algebraic_topology.Pointed[A := B].Space,
+  map: algebraic_topology.Pointed[A := A].Maps[B := B].Map[source, target],
+};
+\structure Arrow: \Set(1) := {
+  A: \Set,
+  B: \Set,
+  dataLift: \forall (X: \Set) -> (Details[A, B] -> X) -> X,
+};
+\definition data[a: Arrow]: Details[a.A, a.B] := a.dataLift Details[a.A, a.B] (\fun (d: Details[a.A, a.B]) => d);
+\definition pack[A, B: \Set][d: Details[A, B]]: Arrow := Arrow {
+  A := A, B := B, dataLift := \fun (X: \Set)(f: Details[A, B] -> X) => f d,
+};
+\module Cone(a: Arrow) {
+  \import \root.Puppe[].Cone[A := a.A, B := a.B, source := (data a).source, target := (data a).target, f := (data a).map] \as Model;
+  \definition next: Arrow := pack a.B Model.Carrier (Details[a.B, Model.Carrier] { source := (data a).target, target := Model.pointed, map := Model.inclusionMap });
+}
+\definition step[a: Arrow]: Arrow := Cone[a := a].next;
+\module Of(initial: Arrow);
+\structure Square[a, b: Arrow]: \Set := {
+  left: algebraic_topology.Pointed[A := a.A].Maps[B := b.A].Map[(data a).source, (data b).source],
+  right: algebraic_topology.Pointed[A := a.B].Maps[B := b.B].Map[(data a).target, (data b).target],
+  commutes: \forall (x: a.A) -> (data b).map (left x) = right ((data a).map x),
+};
+\module Mapping(a, b: Arrow, square: Square[a, b]);
+\module Natural(a, b: Arrow, square: Square[a, b]);

@@ -1,0 +1,57 @@
+\import algebraic_topology.Interval[] \as I;
+\import I.Halves[] \as Halves;
+\import real.Analysis[] \as Real;
+\import Real.Distance[] \as Distance;
+\import Real.Estimates[] \as Estimates;
+\import Real.Estimates[].Product[] \as Products;
+\import Real.Algebra[] \as Algebra;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import metric_spaces.RealLine[] \as Line;
+\import \root.Puppe[].Radial[t := t, r := I.start] \as Radial;
+\use Equality.eq_reason_in;
+\definition half: I.Carrier := Halves.lower t;
+\definition denominator: I.Carrier := I.reverse half;
+\definition positive: R.Lt Real.zero denominator := R.ltLeTrans Real.zero Real.half denominator Radial.halfPositive Radial.lowerBound;
+\definition nonzero: Logic.Not (denominator = Real.zero) := \fun (same: denominator = Real.zero) => Order.ltNotEq Real.zero denominator positive (sym!{Real.Real} _ _ same);
+\definition coefficient: Real.Real := Laws.fieldInv denominator;
+\definition coefficientNonnegative: R.Le Real.zero coefficient := Order.leOfLt Real.zero coefficient (Products.invPositive denominator positive);
+\definition Low: \Prop := R.Le u half;
+\definition High: \Prop := R.Le half u;
+\definition differenceBound: R.Le (Real.sub half u) half :=
+  R.leReplaceRight _ (Real.add half Real.zero) half (Laws.addZeroRight half)
+    (Laws.addMonotoneLeft (Real.neg u) Real.zero half (Products.negNonnegative u (I.bounds u).left));
+\definition left[low: Low]: I.Carrier := \into[Real.Real](Real.add (Real.sub half u) (Real.sub half u), Line.ClosedInterval Real.zero Real.one) \by {
+  Logic.And[_, _]::# (Laws.addNonnegative (Real.sub half u) (Real.sub half u) (Distance.subNonnegative half u low) (Distance.subNonnegative half u low))
+    (R.leTrans _ t Real.one
+      (R.leReplaceRight _ (Real.add half half) t (Halves.lowerDouble t)
+        (Estimates.addLe _ _ _ _ differenceBound differenceBound)) (I.bounds t).right)
+};
+\definition numeratorBound: R.Le (Real.sub u half) denominator := Laws.addMonotoneRight u Real.one (Real.neg half) (I.bounds u).right;
+\definition right[high: High]: I.Carrier := \into[Real.Real](Real.mul coefficient (Real.sub u half), Line.ClosedInterval Real.zero Real.one) \by {
+  Logic.And[_, _]::# (Laws.fieldMulNonnegative coefficient (Real.sub u half) coefficientNonnegative (Distance.subNonnegative u half high))
+    (R.leReplaceRight _ (Real.mul coefficient denominator) Real.one (Laws.fieldInverseNonzero denominator nonzero)
+      (Estimates.mulMonotone coefficient (Real.sub u half) denominator coefficientNonnegative numeratorBound))
+};
+\definition leftAtBoundary[low: Low]: u = half -> left low = I.start := \fun (same: u = half) => eq_reason_in!{Real.Real {left low}
+  "=" {Real.add (Real.sub half half) (Real.sub half half)} "by" { congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.add (Real.sub half x) (Real.sub half x)) _ _ same }
+  "=" {Real.add Real.zero Real.zero} "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Laws.subSelf half) (Laws.subSelf half) }
+  "=" {Real.zero} "by" { Laws.addZeroLeft Real.zero }
+};
+\definition rightAtBoundary[high: High]: u = half -> right high = I.start := \fun (same: u = half) => trans!{Real.Real} _ _ _
+  (congr!{Real.Real Real.Real} (Real.mul coefficient) _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.sub x half) _ _ same) (Laws.subSelf half)))
+  (Laws.fieldMulZeroRight coefficient);
+\definition leftAtBottom[low: Low]: u = I.start -> left low = t := \fun (same: u = I.start) => trans!{Real.Real} _ _ _
+  (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.sub half) _ _ same) (Laws.subZeroRight half))
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.sub half) _ _ same) (Laws.subZeroRight half))) (Halves.lowerDouble t);
+\definition rightAtTop[high: High]: u = I.end -> right high = I.end := \fun (same: u = I.end) => trans!{Real.Real} _ _ _
+  (congr!{Real.Real Real.Real} (Real.mul coefficient) _ _ (congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.sub x half) _ _ same)) (Laws.fieldInverseNonzero denominator nonzero);
+\definition halfAtStart: t = I.start -> half = I.start := \fun (same: t = I.start) => trans!{Real.Real} _ _ _
+  (congr!{Real.Real Real.Real} (Real.mul Real.half) _ _ same) Halves.lowerStart;
+\definition coefficientAtStart: t = I.start -> coefficient = Real.one := \fun (same: t = I.start) => trans!{Real.Real} _ _ _
+  (congr!{Real.Real Real.Real} Laws.fieldInv _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.sub Real.one) _ _ (halfAtStart same)) (Laws.subZeroRight Real.one))) Radial.Endpoints[].inverseOne;
+\definition rightAtStart[high: High]: t = I.start -> right high = u := \fun (same: t = I.start) => trans!{Real.Real} _ _ _
+  (congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (coefficientAtStart same)
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.sub u) _ _ (halfAtStart same)) (Laws.subZeroRight u))) (Laws.fieldMulOneLeft u);

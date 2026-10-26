@@ -1,0 +1,29 @@
+\import std.Data[].Pair[] \as Pair;
+\import topological_constructions.Product[A := X, B := Carrier] \as Product;
+\import topological_constructions.Product[A := X, B := A] \as LeftProduct;
+\import topological_constructions.Product[A := X, B := B] \as RightProduct;
+\import topology.Topology[Carrier := Product.CarrierSet] \as Domain;
+\import topology.Topology[Carrier := D] \as Range;
+\import \parent.Universal[C := D] \as Copair;
+\definition productTopology: Domain.Topology := Product.topology factor (topology left right);
+\definition apply[f: LeftProduct.CarrierSet -> D][g: RightProduct.CarrierSet -> D][p: Product.CarrierSet]: D :=
+  Copair.copair (\fun (a: A) => f (Pair.pair X A (Pair.first X Carrier p) a))
+    (\fun (b: B) => g (Pair.pair X B (Pair.first X Carrier p) b)) (Pair.second X Carrier p);
+\module LeftBranch(f: LeftProduct.CarrierSet -> D, g: RightProduct.CarrierSet -> D,
+  continuous: topology.Continuity[A := LeftProduct.CarrierSet, B := D].Continuous (LeftProduct.topology factor left) target f);
+\module RightBranch(f: LeftProduct.CarrierSet -> D, g: RightProduct.CarrierSet -> D,
+  continuous: topology.Continuity[A := RightProduct.CarrierSet, B := D].Continuous (RightProduct.topology factor right) target g);
+\definition continuous: \forall (f: LeftProduct.CarrierSet -> D)(g: RightProduct.CarrierSet -> D) ->
+  topology.Continuity[A := LeftProduct.CarrierSet, B := D].Continuous (LeftProduct.topology factor left) target f ->
+  topology.Continuity[A := RightProduct.CarrierSet, B := D].Continuous (RightProduct.topology factor right) target g ->
+  topology.Continuity[A := Product.CarrierSet, B := D].Continuous productTopology target (apply f g) :=
+  \fun (f: _)(g: _)(fc: _)(gc: _)(U: \Pow D)(open: Range.IsOpenIn target U) =>
+    Domain.openOfNeighborhoods productTopology ({ p: Product.CarrierSet \where \In[D] U (apply f g p) })
+      (\induction (p: Product.CarrierSet) \return \In[D] U (apply f g p) ->
+        \exists ( V: \Pow Product.CarrierSet \where Domain.OpenNeighborhood[productTopology, p, { q: Product.CarrierSet \where \In[D] U (apply f g q) }, V] ) \with {
+        | pair: \fun (x: X) => \induction (s: Carrier) \return \In[D] U (apply f g (Pair.pair X Carrier x s)) ->
+          \exists ( V: \Pow Product.CarrierSet \where Domain.OpenNeighborhood[productTopology, Pair.pair X Carrier x s, { q: Product.CarrierSet \where \In[D] U (apply f g q) }, V] ) \with {
+          | inl: \fun (a: A) => LeftBranch[f := f, g := g, continuous := fc].neighborhood U open x a
+          | inr: \fun (b: B) => RightBranch[f := f, g := g, continuous := gc].neighborhood U open x b
+        }
+      });

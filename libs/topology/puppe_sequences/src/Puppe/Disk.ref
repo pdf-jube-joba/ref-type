@@ -1,0 +1,37 @@
+\import algebraic_topology.Euclidean[].Dimension[n := n] \as Model;
+\import Model.Geometry[] \as Geometry;
+\import Model.Contraction[] \as Scaling;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Order[] \as Order;
+\import Real.Algebra[] \as Algebra;
+\import Real.SquareRoot[] \as Root;
+\import Real.Estimates[] \as Estimates;
+\import Real.Estimates[].Product[] \as Products;
+\use Equality.eq_reason_in;
+\definition normNonnegative: \forall (x: Model.Coordinate) -> R.Le Real.zero (Geometry.norm x) := \fun (x: Model.Coordinate) => Root.nonnegative (Model.normSquared x);
+\definition diskNorm: \forall (x: Model.Disk) -> R.Le (Geometry.norm x) Real.one := \fun (x: Model.Disk) => Geometry.upperUnitBound (Geometry.norm x)
+  (R.leReplaceLeft (Model.normSquared x) (Real.mul (Geometry.norm x) (Geometry.norm x)) Real.one
+    (sym!{Real.Real} _ _ (Geometry.normSquaredOfNorm x)) (\bysub(Model.Coordinate, Model.ClosedBall, x)));
+\definition scaledSquared: \forall (s: Real.Real)(x: Model.Coordinate) -> Model.normSquared (Scaling.scale s x) = Real.mul (Real.mul s (Geometry.norm x)) (Real.mul s (Geometry.norm x)) :=
+  \fun (s: Real.Real)(x: Model.Coordinate) => trans!{Real.Real} _ _ _ (Scaling.normScale s x)
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (Real.mul s s)) _ _ (sym!{Real.Real} _ _ (Geometry.normSquaredOfNorm x)))
+      (Algebra.mulFour s s (Geometry.norm x) (Geometry.norm x)));
+\definition positiveNonzero: \forall (d: Real.Real) -> R.Lt Real.zero d -> Logic.Not (d = Real.zero) :=
+  \fun (d: Real.Real)(positive: R.Lt Real.zero d)(zero: d = Real.zero) => Order.ltNotEq Real.zero d positive (sym!{Real.Real} _ _ zero);
+\definition ratioUnit: \forall (r, d: Real.Real) -> R.Lt Real.zero d -> R.Le r d -> R.Le (Real.mul (Laws.fieldInv d) r) Real.one :=
+  \fun (r, d: Real.Real)(positive: R.Lt Real.zero d)(bound: R.Le r d) => R.leReplaceRight (Real.mul (Laws.fieldInv d) r) (Real.mul (Laws.fieldInv d) d) Real.one
+    (Laws.fieldInverseNonzero d (positiveNonzero d positive))
+    (Estimates.mulMonotone (Laws.fieldInv d) r d (Order.leOfLt Real.zero (Laws.fieldInv d) (Products.invPositive d positive)) bound);
+\definition rescaleDisk: \forall (d: Real.Real) -> R.Lt Real.zero d -> \forall (x: Model.Coordinate) -> R.Le (Geometry.norm x) d ->
+  R.Le (Model.normSquared (Scaling.scale (Laws.fieldInv d) x)) Real.one :=
+  \fun (d: Real.Real)(positive: R.Lt Real.zero d)(x: Model.Coordinate)(bound: R.Le (Geometry.norm x) d) =>
+    R.leReplace (Real.mul (Real.mul (Laws.fieldInv d) (Geometry.norm x)) (Real.mul (Laws.fieldInv d) (Geometry.norm x)))
+      (Model.normSquared (Scaling.scale (Laws.fieldInv d) x)) (Real.mul Real.one Real.one) Real.one
+      (sym!{Real.Real} _ _ (scaledSquared (Laws.fieldInv d) x)) (Algebra.mulOneRight Real.one)
+      (Root.squareMonotone (Real.mul (Laws.fieldInv d) (Geometry.norm x)) Real.one
+        (Laws.fieldMulNonnegative (Laws.fieldInv d) (Geometry.norm x) (Order.leOfLt Real.zero (Laws.fieldInv d) (Products.invPositive d positive)) (normNonnegative x))
+        Laws.oneNonnegative (ratioUnit (Geometry.norm x) d positive bound));
+\module Motion;
+\module Boundary;

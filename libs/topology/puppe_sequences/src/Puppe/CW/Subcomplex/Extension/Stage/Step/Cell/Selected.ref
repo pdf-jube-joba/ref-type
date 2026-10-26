@@ -1,0 +1,27 @@
+\definition point[x: Model.Disk]: Subspace.CarrierSet := \into[A](cell.characteristic x, subset) \by {
+  Logic.existsIntro[Cells.CellData, { c: Cells.CellData \where Logic.And[Cells.CellMember data.cells c, \In[A] (Cells.ClosedImage c) (cell.characteristic x)] }] cell
+    (Logic.And[_, _]::# selected (Logic.existsIntro[Model.Disk, { p: Model.Disk \where cell.characteristic p = cell.characteristic x }] x (\refl(cell.characteristic x))))
+};
+\import topology.Continuity[A := Model.Disk, B := A].Corestriction[S := subset] \as Into;
+\definition pointContinuous: topology.Continuity[A := Model.Disk, B := Subspace.CarrierSet].Continuous Model.diskTopology (Subspace.topology source) point :=
+  Into.corestrictContinuous Model.diskTopology source point ((Cells.laws source complex).cellLaws cell member).continuous;
+\definition map[p: DiskCylinder.Carrier]: SubCylinder.Carrier := SubCylinder.at (DiskCylinder.time p) (point (DiskCylinder.point p));
+\import topological_constructions.Product[A := I.Carrier, B := Subspace.CarrierSet].Universal[X := DiskCylinder.Carrier] \as Product;
+\import topology.Composition[A := DiskCylinder.Carrier, B := Model.Disk, C := Subspace.CarrierSet] \as Points;
+\definition mapContinuous: topology.Continuity[A := DiskCylinder.Carrier, B := SubCylinder.Carrier].Continuous
+  (DiskCylinder.topology Model.diskTopology) (SubCylinder.topology (Subspace.topology source)) map :=
+  Product.pairContinuous (DiskCylinder.topology Model.diskTopology) I.topology (Subspace.topology source) DiskCylinder.time
+    (\fun (p: DiskCylinder.Carrier) => point (DiskCylinder.point p)) (DiskCylinder.timeContinuous Model.diskTopology)
+    (Points.composeContinuous (DiskCylinder.topology Model.diskTopology) Model.diskTopology (Subspace.topology source) DiskCylinder.point point
+      (DiskCylinder.pointContinuous Model.diskTopology) pointContinuous);
+\definition value[p: DiskCylinder.Carrier]: B := problem.family (map p);
+\import topology.Composition[A := DiskCylinder.Carrier, B := SubCylinder.Carrier, C := B] \as Compose;
+\definition result: Good := \into[DiskCylinder.Carrier -> B](value, Good) \by {
+  GoodLaws[value] {
+    continuous := Compose.composeContinuous (DiskCylinder.topology Model.diskTopology) (SubCylinder.topology (Subspace.topology source)) target map problem.family mapContinuous problemLaws.familyContinuous,
+    initial := \fun (x: Model.Disk) => problemLaws.agrees (point x),
+    onLower := \fun (t: I.Carrier)(x: Model.Disk)(lower: _) => sym!{B} _ _
+      (hLaws.agrees t (\into[A](cell.characteristic x, Filtration.subset k) \by { lower }) (\bysub(A, subset, point x))),
+    onSubset := \fun (t: I.Carrier)(x: Model.Disk)(inside: _) => \refl(value (DiskCylinder.at t x)),
+  }
+};

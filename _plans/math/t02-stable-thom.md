@@ -11,5 +11,5 @@
 
 - [B06 束の分類写像と安定化](b06-bundle-classification.md)
 - [C02 円板束・球面束と Thom 空間](c02-thom-spaces.md)
-- [K02 CW cofibration と Puppe 列](k02-cofibration-puppe.md)
+- [K02 CW cofibration と Puppe 列](../../libs/topology/puppe_sequences/README.md)
 - [B08 Grassmannian のセル分解](b08-grassmannian-cells.md)

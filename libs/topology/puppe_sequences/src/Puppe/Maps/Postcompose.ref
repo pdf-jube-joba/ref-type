@@ -1,0 +1,37 @@
+\import \root.Puppe[].Maps[A := A, B := C, source := source, target := range] \as Result;
+\import algebraic_topology.Pointed[A := B].Maps[B := C] \as After;
+\import Pointed.Composition[C := C] \as Composition;
+\definition map[g: Map]: Result.Map := Composition.compose source target range g f;
+\import algebraic_topology.Homotopy[A := A, B := C] \as NewHomotopy;
+\import Native.Composition[C := C] \as Compose;
+\definition homotopy[g, k: Map][h: Homotopy[g, k]]: Result.Homotopy[map g, map k] := \block {
+  \let ordinary: NewHomotopy.Homotopy[source.topology, range.topology, map g, map k] :=
+    Compose.postcompose source.topology target.topology range.topology g k
+      (Native.forgetRelative source.topology target.topology fixed g k h) f (After.laws target range f).continuous \then
+  \return \into[NewHomotopy.Family](ordinary, Result.Homotopy[map g, map k]) \by {
+    NewHomotopy.RelativeLaws[source.topology, range.topology, Result.fixed, map g, map k, ordinary] {
+      homotopy := NewHomotopy.laws source.topology range.topology (map g) (map k) ordinary,
+      fixed := \fun (t: I.Carrier)(x: A)(same: x = source.basepoint) => congr!{B C} f _ _
+        ((Native.relativeLaws source.topology target.topology fixed g k h).fixed t x same),
+    }
+  }
+};
+\definition related: \forall (g, k: Map) -> Related g k -> Result.Related (map g) (map k) := \block {
+  \fun (g, k: Map)(related: Related g k) \then
+  \takefrom h: Homotopy[g, k] \by related \then
+  \return \exact(homotopy g k h, Result.Homotopy[map g, map k])
+};
+\import Quotient.Maps[B := Result.Class] \as Descent;
+\definition classMap[g: Map]: Result.Class := Result.class (map g);
+\definition respects: Descent.Respects classMap := \fun (g, k: Map)(same: Related g k) => Result.equalOfHomotopic (map g) (map k) (related g k same);
+\definition apply: Class -> Result.Class := Descent.value equivalence classMap respects;
+\definition onClass: \forall (g: Map) -> apply (class g) = Result.class (map g) := Descent.onClass equivalence classMap respects;
+
+\definition constantMap: map constant = Result.constant := Result.ext (map constant) Result.constant
+  (\fun (_: A) => (After.laws target range f).pointed);
+\definition null[g: Map][h: Homotopy[g, constant]]: Result.Homotopy[map g, Result.constant] :=
+  \idelim map constant = Result.constant \with k: Result.Map => Result.Homotopy[map g, k] \by {
+    base: homotopy g constant h, equality: constantMap
+  };
+\definition zero: apply zero = Result.zero := trans!{Result.Class} _ _ _ (onClass constant)
+  (congr!{Result.Map Result.Class} Result.class _ _ constantMap);

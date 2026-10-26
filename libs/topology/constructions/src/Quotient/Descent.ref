@@ -1,0 +1,51 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\definition Respects[q: A -> B][f: A -> C]: \Prop := \forall (x, y: A) -> q x = q y -> f x = f y;
+\definition Fiber[q: A -> B][y: B]: \Set := \Cast[A] ({ x: A \where q x = y });
+\definition Values[q: A -> B][f: A -> C][y: B]: \Pow C :=
+  { z: C \where \exists ( x: Fiber q y \where f x = z ) };
+\definition Value[q: A -> B][f: A -> C][y: B]: \Set := \Cast[C] (Values q f y);
+\definition witness[q: A -> B][f: A -> C][y: B][x: Fiber q y]: Value q f y :=
+  \into[C](f x, Values q f y) \by {
+    Logic.existsIntro[Fiber q y, { a: Fiber q y \where f a = f x }] x (\refl(f x))
+  };
+\definition existence: \forall (q: A -> B) -> Surjective q -> \forall (f: A -> C)(y: B) -> \exists Value q f y := \block {
+  \fun (q: _)(onto: _)(f: _)(y: _) \then
+  \takefrom x: Fiber q y \by onto y \then
+  \return \exact(witness q f y x, Value q f y)
+};
+\definition uniqueness: \forall (q: A -> B)(f: A -> C) -> Respects q f -> \forall (y: B)(u, v: Value q f y) -> u = v := \block {
+  \fun (q: _)(f: _)(respects: _)(y: _)(u, v: _) \then
+  \takefrom x: \Cast[Fiber q y] ({ x: Fiber q y \where f x = u }) \by \bysub(C, Values q f y, u) \then
+  \takefrom z: \Cast[Fiber q y] ({ x: Fiber q y \where f x = v }) \by \bysub(C, Values q f y, v) \then
+  \return eq_reason_in!{C u
+    "=" { f x } "by" { sym!{C} _ _ (\bysub(Fiber q y, { x: Fiber q y \where f x = u }, x)) }
+    "=" { f z } "by" { respects x z (trans!{B} _ _ _
+      (\bysub(A, { x: A \where q x = y }, x)) (sym!{B} _ _ (\bysub(A, { x: A \where q x = y }, z)))) }
+    "=" v "by" { \bysub(Fiber q y, { x: Fiber q y \where f x = v }, z) }
+  }
+};
+\definition apply[q: A -> B][onto: Surjective q][f: A -> C][respects: Respects q f][y: B]: C :=
+  \choice Value q f y \by { existence: existence q onto f y, uniqueness: uniqueness q f respects y };
+\definition onProjection: \forall (q: A -> B)(onto: Surjective q)(f: A -> C)(respects: Respects q f)(x: A) ->
+  apply q onto f respects (q x) = f x :=
+  \fun (q: _)(onto: _)(f: _)(respects: _)(x: _) => sym!{C} _ _
+    (\choiceeq witness q f (q x) (\into[A](x, Fiber q (q x)) \by { \refl(q x) }) \of Value q f (q x)
+      \by { existence: existence q onto f (q x), uniqueness: uniqueness q f respects (q x) });
+\import topology.Topology[Carrier := C] \as Range;
+\import topology.Continuity[A := A, B := C] \as Original;
+\import topology.Continuity[A := B, B := C] \as Descended;
+\definition continuous: \forall (source: Source.Topology)(target: Target.Topology)(range: Range.Topology)
+  (q: A -> B)(laws: IsQuotientMap[source, target, q])(f: A -> C)(respects: Respects q f) ->
+  Original.Continuous source range f -> Descended.Continuous target range (apply q laws.onto f respects) :=
+  \fun (source: _)(target: _)(range: _)(q: _)(laws: _)(f: _)(respects: _)(continuous: _)(U: _)(open: _) =>
+    laws.reflectsOpen (Descended.Preimage (apply q laws.onto f respects) U)
+      (\idelim f = (\fun (x: A) => apply q laws.onto f respects (q x))
+        \with g: (A -> C) => Source.IsOpenIn source (Original.Preimage g U) \by {
+          base: continuous U open,
+          equality: \axiom:funext(f, (\fun (x: A) => apply q laws.onto f respects (q x)),
+            \fun (x: A) => sym!{C} _ _ (onProjection q laws.onto f respects x))
+        });

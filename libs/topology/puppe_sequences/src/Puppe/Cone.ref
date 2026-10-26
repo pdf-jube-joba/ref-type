@@ -1,0 +1,62 @@
+\import \root.Puppe[].ReducedCone[A := A, source := source] \as Cone;
+\import topological_constructions.Pushout[A := B, B := Cone.Carrier, C := A].Of[u := f, v := Cone.base] \as Attached;
+\import algebraic_topology.Pointed[A := A].Maps[B := B] \as Original;
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := A] \as Cylinder;
+\definition Carrier: \Set := Attached.Carrier;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Attached.topology target.topology Cone.topology;
+\definition inclusion: B -> Carrier := Attached.inl;
+\definition cone: Cone.Carrier -> Carrier := Attached.inr;
+\definition point: Carrier := inclusion target.basepoint;
+\definition pointed: algebraic_topology.Pointed[A := Carrier].Space := algebraic_topology.Pointed[A := Carrier].Space { topology := topology, basepoint := point };
+\definition attached: \forall (x: A) -> inclusion (f x) = cone (Cone.base x) := Attached.glued;
+\definition conePoint: cone Cone.point = point := trans!{Carrier} _ _ _
+  (sym!{Carrier} _ _ (attached source.basepoint)) (congr!{B Carrier} inclusion _ _ (Original.laws source target f).pointed);
+\definition coneContinuous: topology.Continuity[A := Cone.Carrier, B := Carrier].Continuous Cone.topology topology cone := Attached.inrContinuous target.topology Cone.topology;
+\import algebraic_topology.Pointed[A := B].Maps[B := Carrier] \as Inclusion;
+\definition inclusionMap: Inclusion.Map[target, pointed] := \into[B -> Carrier](inclusion, Inclusion.Map[target, pointed]) \by {
+  Inclusion.Laws[target, pointed, inclusion] { continuous := Attached.inlContinuous target.topology Cone.topology, pointed := \refl(point) }
+};
+\import algebraic_topology.Pointed[A := A].Maps[B := B].Composition[C := Carrier] \as Composition;
+\definition composite: algebraic_topology.Pointed[A := A].Maps[B := Carrier].Map[source, pointed] :=
+  Composition.compose source target pointed f inclusionMap;
+\import \root.Puppe[].Maps[A := A, B := Carrier, source := source, target := pointed] \as Maps;
+\import algebraic_topology.Homotopy[A := A, B := Carrier] \as Homotopy;
+\definition nullFamily[p: Cylinder.Carrier]: Carrier := cone (Cone.class p);
+\definition nullAtBase: \forall (t: I.Carrier) -> nullFamily (Cylinder.at t source.basepoint) = point :=
+  \fun (t: I.Carrier) => trans!{Carrier} _ _ _ (congr!{Cone.Carrier Carrier} cone _ _ (Cone.line t)) conePoint;
+\definition nullHomotopy: Maps.Homotopy[composite, Maps.constant] := \into[Homotopy.Family](nullFamily, Maps.Homotopy[composite, Maps.constant]) \by {
+  Homotopy.RelativeLaws[source.topology, topology, Maps.fixed, composite, Maps.constant, nullFamily] {
+    homotopy := Homotopy.Laws[source.topology, topology, composite, Maps.constant, nullFamily] {
+      continuous := topology.Composition[A := Cylinder.Carrier, B := Cone.Carrier, C := Carrier].composeContinuous
+        (Cylinder.topology source.topology) Cone.topology topology Cone.class cone
+        (algebraic_topology.Collapse[A := Cylinder.Carrier, subset := Cone.Collapsed].projectionContinuous (Cylinder.topology source.topology))
+        (Attached.inrContinuous target.topology Cone.topology),
+      start := \fun (x: A) => sym!{Carrier} _ _ (attached x),
+      end := \fun (x: A) => trans!{Carrier} _ _ _ (congr!{Cone.Carrier Carrier} cone _ _ (Cone.apex x)) conePoint,
+    },
+    fixed := \fun (t: I.Carrier)(x: A)(same: x = source.basepoint) =>
+      \idelim source.basepoint = x \with y: A => nullFamily (Cylinder.at t y) = composite y \by {
+        base: trans!{Carrier} _ _ _ (nullAtBase t)
+          (sym!{Carrier} _ _ (congr!{B Carrier} inclusion _ _ (Original.laws source target f).pointed)),
+        equality: sym!{A} _ _ same
+      },
+  }
+};
+\definition nullContinuous: topology.Continuity[A := Cylinder.Carrier, B := Carrier].Continuous (Cylinder.topology source.topology) topology nullFamily :=
+  (Maps.homotopyLaws composite Maps.constant nullHomotopy).homotopy.continuous;
+\definition nullStart: \forall (x: A) -> nullFamily (Cylinder.at I.start x) = inclusion (f x) :=
+  (Maps.homotopyLaws composite Maps.constant nullHomotopy).homotopy.start;
+\definition nullEnd: \forall (x: A) -> nullFamily (Cylinder.at I.end x) = point :=
+  (Maps.homotopyLaws composite Maps.constant nullHomotopy).homotopy.end;
+\module Lift(C: \Set, range: algebraic_topology.Pointed[A := C].Space,
+  g: algebraic_topology.Pointed[A := B].Maps[B := C].Map[target, range],
+  h: \root.Puppe[].Maps[A := A, B := C, source := source, target := range].Homotopy[
+    algebraic_topology.Pointed[A := A].Maps[B := B].Composition[C := C].compose source target range f g,
+    \root.Puppe[].Maps[A := A, B := C, source := source, target := range].constant]);
+\module Exactness(C: \Set, range: algebraic_topology.Pointed[A := C].Space);
+\module Connecting;
+
+\module Morphisms(C, D: \Set, nextSource: algebraic_topology.Pointed[A := C].Space, nextTarget: algebraic_topology.Pointed[A := D].Space,
+  next: algebraic_topology.Pointed[A := C].Maps[B := D].Map[nextSource, nextTarget]);
+\module Iteration;

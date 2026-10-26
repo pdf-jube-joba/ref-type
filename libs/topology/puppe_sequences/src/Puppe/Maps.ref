@@ -1,0 +1,43 @@
+\import algebraic_topology.Pointed[A := A].Maps[B := B] \as Pointed;
+\import algebraic_topology.Homotopy[A := A, B := B] \as Native;
+\import Native.RelativeRelation[] \as Relation;
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := A] \as Cylinder;
+\definition Map: \Set := Pointed.Map[source, target];
+\definition fixed: \Pow A := { x: A \where x = source.basepoint };
+\definition Homotopy[f, g: Map]: \Set := Native.RelativeHomotopy[source.topology, target.topology, fixed, f, g];
+\definition Related[f, g: Map]: \Prop := \exists Homotopy[f, g];
+\import std.Set[].Quotient[A := Map, Equivalent := Related] \as Quotient;
+\definition equivalence: Quotient.EquivalenceLaws := Quotient.EquivalenceLaws {
+  refl := \fun (f: Map) => Relation.reflexive source.topology target.topology fixed f (Pointed.laws source target f).continuous,
+  sym := \fun (f, g: Map) => Relation.symmetric source.topology target.topology fixed f g,
+  trans := \fun (f, g, h: Map) => Relation.transitive source.topology target.topology fixed f g h,
+};
+\definition Class: \Set := Quotient.Carrier;
+\definition class: Map -> Class := Quotient.class;
+\definition equalOfHomotopic: \forall (f, g: Map) -> Related f g -> class f = class g := Quotient.classOfEq equivalence;
+\definition homotopicOfEqual: \forall (f, g: Map) -> class f = class g -> Related f g := Quotient.equivalentOfClassEq equivalence;
+\definition constant: Map := \into[A -> B]((\fun (_: A) => target.basepoint), Map) \by {
+  Pointed.Laws[source, target, (\fun (_: A) => target.basepoint)] {
+    continuous := topology.Maps[A := A, B := B].constantContinuous source.topology target.topology target.basepoint,
+    pointed := \refl(target.basepoint),
+  }
+};
+\definition zero: Class := class constant;
+\definition atBasepoint: \forall (f, g: Map)(h: Homotopy[f, g])(t: I.Carrier) -> h (Cylinder.at t source.basepoint) = target.basepoint :=
+  \fun (f, g: Map)(h: Homotopy[f, g])(t: I.Carrier) => trans!{B} _ _ _
+    ((Native.relativeLaws source.topology target.topology fixed f g h).fixed t source.basepoint (\refl(source.basepoint)))
+    (Pointed.laws source target f).pointed;
+
+\definition induction[P: Class -> \Prop]: (\forall (f: Map) -> P (class f)) -> \forall (x: Class) -> P x := Quotient.induction P;
+\import singular_cellular_algebra.Algebra[].Refinement[A := (A -> B), S := ({ g: A -> B \where Pointed.Laws[source, target, g] })] \as Refinement;
+\definition underlying[f: Map]: A -> B := f;
+\definition ext[f, g: Map]: (\forall (x: A) -> f x = g x) -> f = g :=
+  \fun (same: _) => Refinement.ext f g (\axiom:funext(underlying f, underlying g, same));
+
+\definition homotopyLaws[f, g: Map][h: Homotopy[f, g]]: Native.RelativeLaws[source.topology, target.topology, fixed, f, g, h] :=
+  Native.relativeLaws source.topology target.topology fixed f g h;
+\module Precompose(C: \Set, domain: algebraic_topology.Pointed[A := C].Space,
+  f: algebraic_topology.Pointed[A := C].Maps[B := A].Map[domain, source]);
+\module Postcompose(C: \Set, range: algebraic_topology.Pointed[A := C].Space,
+  f: algebraic_topology.Pointed[A := B].Maps[B := C].Map[target, range]);

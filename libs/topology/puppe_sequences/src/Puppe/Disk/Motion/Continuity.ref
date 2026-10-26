@@ -1,0 +1,43 @@
+\import metric_spaces.RealLine[] \as Line;
+\import metric_spaces.RealFunctions[A := Cylinder.Carrier] \as Functions;
+\import Functions.Product[] \as Product;
+\import Functions.Reciprocal[] \as Reciprocal;
+\import Functions.Lattice[] \as Lattice;
+\definition source: topology.Topology[Carrier := Cylinder.Carrier].Topology := Cylinder.topology Model.diskTopology;
+\import topology.Continuity[A := Model.Disk, B := Model.Coordinate].Corestriction[S := Model.ClosedBall] \as Inclusion;
+\definition originalPoint: topology.Continuity[A := Cylinder.Carrier, B := Model.Coordinate].Continuous source Model.topology (\fun (p: Cylinder.Carrier) => Cylinder.point p) :=
+  topology.Composition[A := Cylinder.Carrier, B := Model.Disk, C := Model.Coordinate].composeContinuous source Model.diskTopology Model.topology Cylinder.point (\fun (x: Model.Disk) => x)
+    (Cylinder.pointContinuous Model.diskTopology) (Inclusion.inclusionContinuous Model.topology);
+\definition originalTime: Functions.Continuous source (\fun (p: Cylinder.Carrier) => Cylinder.time p) :=
+  topology.Composition[A := Cylinder.Carrier, B := I.Carrier, C := Real.Real].composeContinuous source I.topology Line.topology Cylinder.time (\fun (t: I.Carrier) => t)
+    (Cylinder.timeContinuous Model.diskTopology) I.inclusionContinuous;
+\definition radiusContinuous: Functions.Continuous source (\fun (p: Cylinder.Carrier) => radius (Cylinder.point p)) :=
+  topology.Composition[A := Cylinder.Carrier, B := Model.Coordinate, C := Real.Real].composeContinuous source Model.topology Line.topology (\fun (p: Cylinder.Carrier) => Cylinder.point p)
+    Geometry.norm originalPoint Geometry.normContinuous;
+\definition lower[p: Cylinder.Carrier]: Real.Real := \root.Puppe[].Radial[t := Cylinder.time p, r := radius (Cylinder.point p)].lower;
+\definition denominator[p: Cylinder.Carrier]: Real.Real := \root.Puppe[].Radial[t := Cylinder.time p, r := radius (Cylinder.point p)].denominator;
+\definition coefficient[p: Cylinder.Carrier]: Real.Real := \root.Puppe[].Radial[t := Cylinder.time p, r := radius (Cylinder.point p)].coefficient;
+\definition quotient[p: Cylinder.Carrier]: Real.Real := \root.Puppe[].Radial[t := Cylinder.time p, r := radius (Cylinder.point p)].quotient;
+\definition lowerContinuous: Functions.Continuous source lower := Functions.subContinuous source (\fun (_: Cylinder.Carrier) => Real.one)
+  (\fun (p: Cylinder.Carrier) => Real.mul Real.half (Cylinder.time p)) (Functions.constantContinuous source Real.one)
+  (Product.continuous source (\fun (_: Cylinder.Carrier) => Real.half) (\fun (p: Cylinder.Carrier) => Cylinder.time p)
+    (Functions.constantContinuous source Real.half) originalTime);
+\definition denominatorContinuous: Functions.Continuous source denominator := Lattice.maximumContinuous source lower (\fun (p: Cylinder.Carrier) => radius (Cylinder.point p)) lowerContinuous radiusContinuous;
+\definition coefficientContinuous: Functions.Continuous source coefficient := Reciprocal.continuousPositive source denominator denominatorContinuous
+  (\fun (p: Cylinder.Carrier) => \root.Puppe[].Radial[t := Cylinder.time p, r := radius (Cylinder.point p)].denominatorPositive);
+\definition quotientContinuous: Functions.Continuous source quotient := Product.continuous source coefficient lower coefficientContinuous lowerContinuous;
+\definition reverseContinuous: Functions.Continuous source (\fun (p: Cylinder.Carrier) => Real.sub Real.one (quotient p)) :=
+  Functions.subContinuous source (\fun (_: Cylinder.Carrier) => Real.one) quotient (Functions.constantContinuous source Real.one) quotientContinuous;
+\definition timeContinuous: topology.Continuity[A := Cylinder.Carrier, B := I.Carrier].Continuous source I.topology time :=
+  topology.Continuity[A := Cylinder.Carrier, B := Real.Real].Corestriction[S := Line.ClosedInterval Real.zero Real.one].corestrictContinuous source Line.topology time
+    (Functions.sumContinuous source (\fun (p: Cylinder.Carrier) => Real.sub Real.one (quotient p)) (\fun (p: Cylinder.Carrier) => Real.sub Real.one (quotient p)) reverseContinuous reverseContinuous);
+\import topological_algebra.Coordinates[K := Real.Real, I := Model.Index] \as Coordinates;
+\definition coordinateContinuous: \forall (i: Model.Index) -> Functions.Continuous source (\fun (p: Cylinder.Carrier) => Cylinder.point p i) :=
+  \fun (i: Model.Index) => topology.Composition[A := Cylinder.Carrier, B := Model.Coordinate, C := Real.Real].composeContinuous source Model.topology Line.topology
+    (\fun (p: Cylinder.Carrier) => Cylinder.point p) (\fun (x: Model.Coordinate) => x i) originalPoint (Coordinates.evaluationContinuous Line.topology i);
+\definition pointContinuous: topology.Continuity[A := Cylinder.Carrier, B := Model.Disk].Continuous source Model.diskTopology point :=
+  topology.Continuity[A := Cylinder.Carrier, B := Model.Coordinate].Corestriction[S := Model.ClosedBall].corestrictContinuous source Model.topology point
+    (Coordinates.Universal[A := Cylinder.Carrier].continuous source Line.topology point
+      (\fun (i: Model.Index) => Product.continuous source coefficient (\fun (p: Cylinder.Carrier) => Cylinder.point p i) coefficientContinuous (coordinateContinuous i)));
+\definition continuous: topology.Continuity[A := Cylinder.Carrier, B := Cylinder.Carrier].Continuous source source family :=
+  topological_constructions.Product[A := I.Carrier, B := Model.Disk].Universal[X := Cylinder.Carrier].pairContinuous source I.topology Model.diskTopology time point timeContinuous pointContinuous;

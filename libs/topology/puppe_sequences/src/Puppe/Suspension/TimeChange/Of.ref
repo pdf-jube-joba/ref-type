@@ -1,0 +1,25 @@
+\import Quotient.Mapping[B := Cylinder.Carrier, targetSubset := Native.Collapsed] \as Descent;
+\definition raw[p: Cylinder.Carrier]: Cylinder.Carrier := Cylinder.at (r.value (Cylinder.time p)) (Cylinder.point p);
+\definition preserves: Descent.Preserves raw := \fun (p: Cylinder.Carrier)(inside: \In[Cylinder.Carrier] Native.Collapsed p) =>
+  either!{inside {\In[Cylinder.Carrier] Native.Collapsed (raw p)}
+    {\fun (bottom: Cylinder.time p = I.start) => Logic.Or[_, _]::right (Logic.Or[_, _]::left (trans!{I.Carrier} _ _ _ (congr!{I.Carrier I.Carrier} r.value _ _ bottom) r.bottom))}
+    {\fun (other: Logic.Or[Cylinder.time p = I.end, Cylinder.point p = source.basepoint]) =>
+      either!{other {\In[Cylinder.Carrier] Native.Collapsed (raw p)}
+        {\fun (top: Cylinder.time p = I.end) => Logic.Or[_, _]::left (trans!{I.Carrier} _ _ _ (congr!{I.Carrier I.Carrier} r.value _ _ top) r.top)}
+        {\fun (line: Cylinder.point p = source.basepoint) => Logic.Or[_, _]::right (Logic.Or[_, _]::right line)}
+      }}
+  };
+\import topological_constructions.Product[A := I.Carrier, B := A].Universal[X := Cylinder.Carrier] \as Product;
+\definition rawContinuous: topology.Continuity[A := Cylinder.Carrier, B := Cylinder.Carrier].Continuous (Cylinder.topology source.topology) (Cylinder.topology source.topology) raw :=
+  Product.pairContinuous (Cylinder.topology source.topology) I.topology source.topology (\fun (p: Cylinder.Carrier) => r.value (Cylinder.time p)) Cylinder.point
+    (topology.Composition[A := Cylinder.Carrier, B := I.Carrier, C := I.Carrier].composeContinuous (Cylinder.topology source.topology) I.topology I.topology
+      Cylinder.time r.value (Cylinder.timeContinuous source.topology) r.continuous) (Cylinder.pointContinuous source.topology);
+\definition apply: Carrier -> Carrier := Descent.apply raw preserves;
+\definition onClass: \forall (p: Cylinder.Carrier) -> apply (class p) = class (raw p) := Descent.onClass raw preserves;
+\definition continuous: topology.Continuity[A := Carrier, B := Carrier].Continuous topology topology apply :=
+  Descent.continuous (Cylinder.topology source.topology) (Cylinder.topology source.topology) raw preserves rawContinuous;
+\definition atPoint: apply point = point := trans!{Carrier} _ _ _ (onClass (Cylinder.at I.start source.basepoint)) (line (r.value I.start));
+\import algebraic_topology.Pointed[A := Carrier].Maps[B := Carrier] \as Pointed;
+\definition map: Pointed.Map[pointed, pointed] := \into[Carrier -> Carrier](apply, Pointed.Map[pointed, pointed]) \by {
+  Pointed.Laws[pointed, pointed, apply] { continuous := continuous, pointed := atPoint }
+};

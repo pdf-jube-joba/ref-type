@@ -10,5 +10,5 @@
 ## 依存するタスク
 
 - [束の計量・補束と同型類](../../libs/geometry/bundle_complements/README.md)
-- [K02 CW cofibration と Puppe 列](k02-cofibration-puppe.md)
+- [K02 CW cofibration と Puppe 列](../../libs/topology/puppe_sequences/README.md)
 - [B04 束のホモトピー不変性と clutching](../../libs/geometry/bundle_homotopy/README.md)

@@ -1,0 +1,24 @@
+\import \root.Puppe[].Radial[t := t, r := radius x] \as Parameters;
+\definition time: I.Carrier := Parameters.time;
+\definition point: Model.Disk := \into[Model.Coordinate](Scaling.scale Parameters.coefficient x, Model.ClosedBall) \by {
+  rescaleDisk Parameters.denominator Parameters.denominatorPositive x (Real.Distance[].maxRight Parameters.lower (radius x))
+};
+\definition boundaryRadius: Model.normSquared x = Real.one -> radius x = I.end := \fun (onSphere: Model.normSquared x = Real.one) =>
+  trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Root.sqrt _ _ onSphere) Root.sqrtOne;
+\definition fixesPoint: Parameters.coefficient = Real.one -> point = x := \fun (one: Parameters.coefficient = Real.one) =>
+  \axiom:funext(point, x, \fun (i: Model.Index) => trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (s: Real.Real) => Real.mul s (x i)) _ _ one) (Laws.fieldMulOneLeft (x i)));
+\definition startPoint: t = I.start -> point = x := \fun (atStart: t = I.start) => fixesPoint (Parameters.Endpoints[].startCoefficient atStart);
+\definition startTime: t = I.start -> time = I.start := Parameters.Endpoints[].startTime;
+\definition boundaryPoint: Model.normSquared x = Real.one -> point = x := \fun (onSphere: Model.normSquared x = Real.one) => fixesPoint (Parameters.Endpoints[].boundaryCoefficient (boundaryRadius onSphere));
+\definition boundaryTime: Model.normSquared x = Real.one -> time = t := \fun (onSphere: Model.normSquared x = Real.one) => Parameters.Endpoints[].boundaryTime (boundaryRadius onSphere);
+\definition side: Parameters.denominator = radius x -> Model.normSquared point = Real.one := \fun (same: Parameters.denominator = radius x) => \block {
+  \let unit: Real.mul Parameters.coefficient (radius x) = Real.one := trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (Real.mul Parameters.coefficient) _ _ (sym!{Real.Real} _ _ same))
+    (Laws.fieldInverseNonzero Parameters.denominator Parameters.denominatorNonzero) \then
+  \return trans!{Real.Real} _ _ _ (scaledSquared Parameters.coefficient x)
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ unit unit) (Algebra.mulOneRight Real.one))
+};
+\use Logic.either;
+\definition covered: Logic.Or[time = I.start, Model.normSquared point = Real.one] := either!{{Parameters.Endpoints[].alternatives} {Logic.Or[time = I.start, Model.normSquared point = Real.one]}
+  {\fun (same: Parameters.denominator = Parameters.lower) => Logic.Or[_, _]::left (Parameters.bottom same)}
+  {\fun (same: Parameters.denominator = radius x) => Logic.Or[_, _]::right (side same)}};

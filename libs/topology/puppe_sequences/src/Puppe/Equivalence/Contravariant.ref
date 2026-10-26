@@ -1,0 +1,39 @@
+\use Equality.eq_reason_in;
+\import \root.Puppe[].Maps[A := A, B := C, source := source, target := range] \as Source;
+\import \root.Puppe[].Maps[A := B, B := C, source := target, target := range] \as Target;
+\import Target.Precompose[C := A, domain := source, f := e.forward] \as Pull;
+\import Source.Precompose[C := B, domain := target, f := e.backward] \as Inverse;
+\definition forward: Target.Class -> Source.Class := Pull.apply;
+\definition backward: Source.Class -> Target.Class := Inverse.apply;
+\definition leftOnMap: \forall (h: Source.Map) -> Source.class (Pull.map (Inverse.map h)) = Source.class h := \block {
+  \fun (h: Source.Map) \then
+  \let left: Left.Map := LeftComposition.compose source target source e.forward e.backward \then
+  \let composed: Source.Map := Left.Postcompose[C := C, range := range, f := h].map left \then
+  \let identity: Source.Map := Left.Postcompose[C := C, range := range, f := h].map LeftIdentity.map \then
+  \return eq_reason_in!{Source.Class {Source.class (Pull.map (Inverse.map h))}
+    "=" {Source.class composed} "by" { congr!{Source.Map Source.Class} Source.class _ _ (Source.ext (Pull.map (Inverse.map h)) composed (\fun (x: A) => \refl(h (e.backward (e.forward x))))) }
+    "=" {Source.class identity} "by" { Source.equalOfHomotopic composed identity (Left.Postcompose[C := C, range := range, f := h].related left LeftIdentity.map e.leftInverse) }
+    "=" {Source.class h} "by" { congr!{Source.Map Source.Class} Source.class _ _ (Source.ext identity h (\fun (x: A) => \refl(h x))) }
+  }
+};
+\definition rightOnMap: \forall (h: Target.Map) -> Target.class (Inverse.map (Pull.map h)) = Target.class h := \block {
+  \fun (h: Target.Map) \then
+  \let right: Right.Map := RightComposition.compose target source target e.backward e.forward \then
+  \let composed: Target.Map := Right.Postcompose[C := C, range := range, f := h].map right \then
+  \let identity: Target.Map := Right.Postcompose[C := C, range := range, f := h].map RightIdentity.map \then
+  \return eq_reason_in!{Target.Class {Target.class (Inverse.map (Pull.map h))}
+    "=" {Target.class composed} "by" { congr!{Target.Map Target.Class} Target.class _ _ (Target.ext (Inverse.map (Pull.map h)) composed (\fun (x: B) => \refl(h (e.forward (e.backward x))))) }
+    "=" {Target.class identity} "by" { Target.equalOfHomotopic composed identity (Right.Postcompose[C := C, range := range, f := h].related right RightIdentity.map e.rightInverse) }
+    "=" {Target.class h} "by" { congr!{Target.Map Target.Class} Target.class _ _ (Target.ext identity h (\fun (x: B) => \refl(h x))) }
+  }
+};
+\definition leftInverse: \forall (x: Source.Class) -> forward (backward x) = x :=
+  Source.induction (\fun (x: Source.Class) => forward (backward x) = x)
+    (\fun (h: Source.Map) => trans!{Source.Class} _ _ _ (congr!{Target.Class Source.Class} forward _ _ (Inverse.onClass h))
+      (trans!{Source.Class} _ _ _ (Pull.onClass (Inverse.map h)) (leftOnMap h)));
+\definition rightInverse: \forall (x: Target.Class) -> backward (forward x) = x :=
+  Target.induction (\fun (x: Target.Class) => backward (forward x) = x)
+    (\fun (h: Target.Map) => trans!{Target.Class} _ _ _ (congr!{Source.Class Target.Class} backward _ _ (Pull.onClass h))
+      (trans!{Target.Class} _ _ _ (Inverse.onClass (Pull.map h)) (rightOnMap h)));
+\definition forwardZero: forward Target.zero = Source.zero := Pull.zero;
+\definition backwardZero: backward Source.zero = Target.zero := Inverse.zero;
