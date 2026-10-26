@@ -1,0 +1,23 @@
+\import \root.Extension[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].Isomorphisms[X := X, subset := subset, F := F, G := G, source := source, target := target, same := same] \as Native;
+\import \root.Extension[].ComplexMaps[X := X, subset := subset, F := F, G := G, source := source, target := target, baseSpace := source.baseSpace, sourceSame := \refl(source.baseSpace), same := same] \as Forward;
+\import \root.Extension[].ComplexMaps[X := X, subset := subset, F := G, G := F, source := target, target := source, baseSpace := source.baseSpace,
+  sourceSame := sym!{{topology.Topology[Carrier := X].Topology}} source.baseSpace target.baseSpace same,
+  same := sym!{{topology.Topology[Carrier := X].Topology}} source.baseSpace target.baseSpace same] \as Backward;
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar] \as Complements;
+\import Complements.For[X := X, F := F, bundle := source] \as SourceEmbeddings;
+\import Complements.For[X := X, F := G, bundle := target] \as TargetEmbeddings;
+\definition OnSubset: \Set := Native.OnSubset;
+\definition Result[a: OnSubset]: \Set := Native.Extension[a];
+\definition extend[a: OnSubset]: topology.Topology[Carrier := X].IsCompact source.baseSpace -> topology.Topology[Carrier := X].IsT2 source.baseSpace ->
+  topology.Topology[Carrier := X].IsClosedIn source.baseSpace subset -> \exists Result[a] := \block {
+  \fun (compact: _)(hausdorff: _)(closed: _) \then
+  \takefrom h: Forward.Result[a.forward] \by Forward.extend a.forward compact hausdorff closed \then
+  \takefrom g: Backward.Result[a.backward] \by Backward.extend a.backward compact hausdorff closed \then
+  \takefrom first: SourceEmbeddings.Embedding \by SourceEmbeddings.embeddingExists compact hausdorff \then
+  \let targetCompact: topology.Topology[Carrier := X].IsCompact target.baseSpace := \idelim source.baseSpace = target.baseSpace
+    \with t: topology.Topology[Carrier := X].Topology => topology.Topology[Carrier := X].IsCompact t \by { base: compact, equality: same } \then
+  \let targetHausdorff: topology.Topology[Carrier := X].IsT2 target.baseSpace := \idelim source.baseSpace = target.baseSpace
+    \with t: topology.Topology[Carrier := X].Topology => topology.Topology[Carrier := X].IsT2 t \by { base: hausdorff, equality: same } \then
+  \takefrom second: TargetEmbeddings.Embedding \by TargetEmbeddings.embeddingExists targetCompact targetHausdorff \then
+  \return \exact(Native.Through[a := a, h := h, g := g, first := first, second := second].extension, Result[a])
+};
