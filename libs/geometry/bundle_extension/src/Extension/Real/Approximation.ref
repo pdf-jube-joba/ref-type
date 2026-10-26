@@ -1,0 +1,31 @@
+\import \root.Extension[].Correction[r := r] \as Numeric;
+\import \parent.Separation[f := f, lower := R.neg Numeric.quarter, upper := Numeric.quarter] \as Separate;
+\structure Approximation: \Set := {
+  value: A -> R.Real,
+  continuous: Functions.Continuous source value,
+  bounded: \forall (x: A) -> D.Le (R.distance R.zero (value x)) Numeric.half,
+  error: \forall (x: Subspace.CarrierSet) -> D.Le (R.distance (f.value x) (value x)) Numeric.slack,
+};
+\definition exists: Space.IsNormal source -> Space.IsClosedIn source subset -> D.Lt R.zero r ->
+  (\forall (x: Subspace.CarrierSet) -> D.Le (R.distance R.zero (f.value x)) r) -> \exists Approximation := \block {
+  \fun (normal: Space.IsNormal source)(closed: Space.IsClosedIn source subset)(positive: D.Lt R.zero r)(bounded: _) \then
+  \let nonnegative: D.Le R.zero r := Order.leOfLt R.zero r positive \then
+  \let qp: D.Lt R.zero Numeric.quarter := Estimates.halfOfPositive Numeric.half (Estimates.halfOfPositive r positive) \then
+  \takefrom u: Separate.Separator \by Separate.exists normal closed
+    (Order.ltTrans (R.neg Numeric.quarter) R.zero Numeric.quarter (Laws.negativeNegOfPositive Numeric.quarter qp) qp) \then
+  \let value: A -> R.Real := \fun (x: A) => Numeric.value (u.value x) \then
+  \let bound: \forall (x: A) -> D.Le (R.distance R.zero (value x)) Numeric.half :=
+    \fun (x: A) => Numeric.valueBound (u.value x) nonnegative (u.nonnegative x) (u.bounded x) \then
+  \return \exact(Approximation {
+    value := value,
+    continuous := Functions.subContinuous source (\fun (x: A) => R.mul r (u.value x)) (\fun (_: A) => Numeric.half)
+      (Functions.Product[].continuous source (\fun (_: A) => r) u.value (Functions.constantContinuous source r) u.continuous)
+      (Functions.constantContinuous source Numeric.half),
+    bounded := bound,
+    error := \fun (x: Subspace.CarrierSet) => Numeric.error (f.value x) (value x) nonnegative (bounded x) (bound x)
+      (\fun (low: D.Le (f.value x) (R.neg Numeric.quarter)) => trans!{R.Real} _ _ _
+        (congr!{R.Real R.Real} Numeric.value _ _ (u.low x low)) Numeric.atZero)
+      (\fun (high: D.Le Numeric.quarter (f.value x)) => trans!{R.Real} _ _ _
+        (congr!{R.Real R.Real} Numeric.value _ _ (u.high x high)) Numeric.atOne),
+  }, Approximation)
+};
