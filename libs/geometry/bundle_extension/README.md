@@ -55,7 +55,9 @@ CLI は `source /workspace/ref-type-env.sh` 後の `cargo build -p cli --locked`
 キャッシュ保存失敗・worker 復旧・重複・再実行・未保存ステップは0。
 `ad41f1c14fdb4dbb88b91aed23c26cb2cb054454` の全公開入口は終了0・831 module（91 checked、740 reused）。
 実・複素版、同型の引き戻し・安定化、`CompactNeighborhood` の縮小と持ち上げを含み、キャッシュ保存失敗・worker 復旧・重複・再実行・未保存ステップは0。
-引き戻しの比較を一段の引き戻しへ整理する変更と、開近傍上の同型を縮小して延長する `RealLocalIsomorphisms`・`ComplexLocalIsomorphisms` は未検証。
+`RealLocalIsomorphisms.extend` と共通の縮小比較は終了0・666 module（59 checked、607 reused）で検証済み。
+同型の引き戻しを一段へ整理した構成もこの依存検査に含み、キャッシュ保存失敗・worker 復旧・重複・再実行・未保存ステップは0。
+閉端面上の Möbius 束・複素線束、次元0と1の実・複素束の利用例、束の制限比較の引き戻し、縮小比較の安定化を追加し、これは検査待ち。
 package・workspace 全体の検査も残る。
 初回の実成分検査の中断終了130、および宣言順・親参照・型推論の修正前の失敗は上記成功検査で解消した。
 
