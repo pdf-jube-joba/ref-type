@@ -1,0 +1,48 @@
+\import std.Alg[].Ring[] \as Rings;
+\import complex.Complex[].Def[] \as Complex;
+\import complex.Complex[].Prop[] \as ComplexLaws;
+\import complex.Complex[].Absolute[] \as Absolute;
+\import real.Analysis[] \as R;
+\import algebra.Hom[A := C.Complex, B := C.Complex] \as ScalarMaps;
+\definition scalarRing: Rings.Ring[C.Complex] := Rings.commutativeRingAsRing C.Complex (Fields.fieldAsCommutativeRing C.Complex Scalars.field);
+\definition scalarSemiring: std.Alg[].Alg[].Semiring[C.Complex] := Rings.ringAsSemiring C.Complex scalarRing;
+\definition conjugation: ScalarMaps.RingMap scalarRing scalarRing := \into[C.Complex -> C.Complex](Complex.conj, ScalarMaps.RingMap scalarRing scalarRing) \by {
+  ScalarMaps.SemiringLaws[scalarSemiring, scalarSemiring, Complex.conj] {
+    zero := ComplexLaws.conjOfReal R.zero, one := ComplexLaws.conjOfReal R.one,
+    add := ComplexLaws.conjAdd, mul := ComplexLaws.conjMul,
+  }
+};
+\definition scalarLaws: ScalarMaps.SemiringLaws[scalarSemiring, scalarSemiring, Complex.conj] := ScalarMaps.semiringLaws scalarSemiring scalarSemiring conjugation;
+\import Polynomials.Change[L := C.Complex, target := Scalars.field, f := conjugation] \as Change;
+\import galois.Field[].Over[K := C.Complex, field := Scalars.field].Polynomial[].AbstractEvaluation[] \as Evaluation;
+\import P.Universal[K := C.Complex, target := Fields.fieldAsCommutativeRing C.Complex Scalars.field] \as Universal;
+\import algebra.Hom[A := P.Carrier, B := P.Carrier] \as PolynomialMaps;
+\import algebra.Hom[A := P.Carrier, B := C.Complex] \as Maps;
+\import PolynomialMaps.Composition[C := C.Complex] \as Before;
+\import Maps.Composition[C := C.Complex] \as After;
+\definition polynomialRing: Rings.Ring[P.Carrier] := Rings.commutativeRingAsRing P.Carrier P.ring;
+\definition evaluationMap[z: C.Complex]: Maps.RingMap polynomialRing scalarRing := Universal.extension Evaluation.identity z;
+\definition left[z: C.Complex]: Maps.RingMap polynomialRing scalarRing := Before.ring polynomialRing polynomialRing scalarRing Change.extension (evaluationMap (Complex.conj z));
+\definition right[z: C.Complex]: Maps.RingMap polynomialRing scalarRing := After.ring polynomialRing scalarRing scalarRing (evaluationMap z) conjugation;
+\definition leftConstants[z, a: C.Complex]: left z (P.constant a) = Complex.conj a := trans!{{C.Complex}} _ _ _
+  (congr!{{P.Carrier} {C.Complex}} (Evaluation.apply (Complex.conj z)) _ _ (Change.constant a))
+  (Universal.constants Evaluation.identity (Complex.conj z) (Complex.conj a));
+\definition rightConstants[z, a: C.Complex]: right z (P.constant a) = Complex.conj a :=
+  congr!{{C.Complex} {C.Complex}} Complex.conj _ _ (Universal.constants Evaluation.identity z a);
+\definition leftVariable[z: C.Complex]: left z P.X = Complex.conj z := trans!{{C.Complex}} _ _ _
+  (congr!{{P.Carrier} {C.Complex}} (Evaluation.apply (Complex.conj z)) _ _ Change.variable) (Universal.variable Evaluation.identity (Complex.conj z));
+\definition rightVariable[z: C.Complex]: right z P.X = Complex.conj z := congr!{{C.Complex} {C.Complex}} Complex.conj _ _ (Universal.variable Evaluation.identity z);
+\definition leftUnique[z: C.Complex]: left z = Universal.evaluate conjugation (Complex.conj z) := Universal.unique conjugation (Complex.conj z) (left z) (leftConstants z) (leftVariable z);
+\definition rightUnique[z: C.Complex]: right z = Universal.evaluate conjugation (Complex.conj z) := Universal.unique conjugation (Complex.conj z) (right z) (rightConstants z) (rightVariable z);
+\definition evaluation[p: P.Carrier][z: C.Complex]: Evaluation.apply (Complex.conj z) (Change.map p) = Complex.conj (Evaluation.apply z p) := trans!{{C.Complex}} _ _ _
+  (congr!{{P.Carrier -> C.Complex} {C.Complex}} (\fun (h: P.Carrier -> C.Complex) => h p) _ _ (leftUnique z))
+  (sym!{{C.Complex}} _ _ (congr!{{P.Carrier -> C.Complex} {C.Complex}} (\fun (h: P.Carrier -> C.Complex) => h p) _ _ (rightUnique z)));
+\definition mappedRoot[p: P.Carrier][z: C.Complex]: Evaluation.apply z (Change.map p) = Scalars.field.zero -> Evaluation.apply (Complex.conj z) p = Scalars.field.zero :=
+  \fun (root: _) => eq_reason_in!{{C.Complex} { Evaluation.apply (Complex.conj z) p }
+    "=" { Complex.conj (Complex.conj (Evaluation.apply (Complex.conj z) p)) } "by" { sym!{{C.Complex}} _ _ (ComplexLaws.conjConj (Evaluation.apply (Complex.conj z) p)) }
+    "=" { Complex.conj (Evaluation.apply (Complex.conj (Complex.conj z)) (Change.map p)) } "by" { sym!{{C.Complex}} _ _ (congr!{{C.Complex} {C.Complex}} Complex.conj _ _ (evaluation p (Complex.conj z))) }
+    "=" { Complex.conj (Evaluation.apply z (Change.map p)) } "by" { congr!{{C.Complex} {C.Complex}} (\fun (w: C.Complex) => Complex.conj (Evaluation.apply w (Change.map p))) _ _ (ComplexLaws.conjConj z) }
+    "=" { Complex.conj Scalars.field.zero } "by" { congr!{{C.Complex} {C.Complex}} Complex.conj _ _ root }
+    "=" _ "by" { scalarLaws.zero }
+  };
+\module At(n: N.Nat^);

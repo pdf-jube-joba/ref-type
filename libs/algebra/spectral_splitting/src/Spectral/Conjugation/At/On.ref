@@ -1,0 +1,33 @@
+\import \root.Spectral[].At[n := n].Splitting[A := A] \as Source;
+\import Source.Separated[off := off] \as Recovered;
+\import \root.Spectral[].Circle[] \as Circle;
+\import Circle.At[n := n] \as Roots;
+\import std.Data[].Bool[] \as B;
+\import Change.Intertwining[V := Vector, W := Vector, source := Coordinates.space, destination := Coordinates.space, S := M.linear A, T := M.linear A] \as Intertwining;
+\import Polynomials.Action[V := Vector, space := Coordinates.space].At[T := M.linear A] \as Action;
+\import Polynomials.Primary[V := Vector, space := Action.module] \as Primary;
+\definition morphism: Intertwining.Morphism := \into[Intertwining.Data](Intertwining.Data { apply := conjugate }, Intertwining.Morphism) \by {
+  Intertwining.Laws[Intertwining.Data { apply := conjugate }] {
+    zero := \axiom:funext(conjugate Coordinates.origin, Coordinates.origin, \fun (_: Fin.Fin n) => scalarLaws.zero),
+    addition := \fun (v, w: Vector) => \axiom:funext(conjugate (Coordinates.plus v w), Coordinates.plus (conjugate v) (conjugate w), \fun (i: Fin.Fin n) => ComplexLaws.conjAdd (v i) (w i)),
+    scalar := \fun (a: C.Complex)(v: Vector) => \axiom:funext(conjugate (Coordinates.scale a v), Coordinates.scale (Complex.conj a) (conjugate v), \fun (i: Fin.Fin n) => ComplexLaws.conjMul a (v i)),
+    intertwines := real,
+  }
+};
+\definition mappedInside[z: C.Complex]: Evaluation.apply z (Change.map Source.inside) = Scalars.field.zero -> \In[C.Complex] Circle.Inside z :=
+  \fun (root: _) => dedekind_reals.DedekindReal[].ltReplaceLeft (Absolute.abs (Complex.conj z)) (Absolute.abs z) R.one (Absolute.conjugate z)
+    (Roots.factorRoot B.Bool^::true Source.coefficients off (Complex.conj z) (mappedRoot Source.inside z root));
+\definition mappedOutside[z: C.Complex]: Evaluation.apply z (Change.map Source.outside) = Scalars.field.zero -> \In[C.Complex] Circle.Outside z :=
+  \fun (root: _) => dedekind_reals.DedekindReal[].ltReplaceRight R.one (Absolute.abs (Complex.conj z)) (Absolute.abs z) (Absolute.conjugate z)
+    (Roots.factorRoot B.Bool^::false Source.coefficients off (Complex.conj z) (mappedRoot Source.outside z root));
+\definition crossLeft: Polynomials.Coprime Source.inside (Change.map Source.outside) := \root.Spectral[].Coprime[].exists Source.inside (Change.map Source.outside)
+  (Roots.factorNonzero B.Bool^::true Source.coefficients)
+  (\fun (z: C.Complex)(inside: _)(outside: _) => Circle.disjoint z (Roots.factorRoot B.Bool^::true Source.coefficients off z inside) (mappedOutside z outside));
+\definition crossRight: Polynomials.Coprime Source.outside (Change.map Source.inside) := \root.Spectral[].Coprime[].exists Source.outside (Change.map Source.inside)
+  (Roots.factorNonzero B.Bool^::false Source.coefficients)
+  (\fun (z: C.Complex)(outside: _)(inside: _) => Circle.disjoint z (mappedInside z inside) (Roots.factorRoot B.Bool^::false Source.coefficients off z outside));
+\module With(b: Polynomials.Bezout[Source.inside, Source.outside, P.one]);
+\definition natural[v: Vector]: conjugate (Recovered.projection.apply v) = Recovered.projection.apply (conjugate v) := \block {
+  \takefrom b: Polynomials.Bezout[Source.inside, Source.outside, P.one] \by Roots.coprime Source.coefficients off \then
+  \return With[b := b].natural v
+};
