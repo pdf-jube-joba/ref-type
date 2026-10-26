@@ -24,5 +24,6 @@ reduced suspension と接続写像、対の写像による cone・suspension の
 次は反復 cofiber と suspension の比較・Puppe 列全体、具体例・最終 workspace 検証へ進む。
 
 円錐反復の比較射影と二領域の変形は、連続性・端点・基点まで accepted・保存失敗0（`cone-iteration-raw.json`）。
-次は変形を商へ降ろし、反復 cofiber と suspension の両側逆を構成する。
+`Cone.Iteration.Inverse.equivalence` は反復 cofiber と reduced suspension の比較射影・逆写像・基点固定の両側ホモトピーを構成済みで、accepted・終了0・保存失敗0（`cone-iteration-equivalence.json`）。
+次はこの比較による Puppe 列の接続写像と完全性、具体例・最終検証。
 共有キャッシュは `libs/refcache`。

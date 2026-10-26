@@ -1,0 +1,26 @@
+\import algebraic_topology.Cylinder[A := Cylinder.Carrier] \as Double;
+\import algebraic_topology.Cylinder[A := B] \as TargetCylinder;
+\import \parent.Raw[] \as Raw;
+\import Raw.Endpoints[] \as Endpoints;
+\import algebraic_topology.Cylinder[A := Cone.Carrier] \as ConeCylinder;
+\import algebraic_topology.Collapse[A := Cylinder.Carrier, subset := Cone.Collapsed] \as Quotient;
+\import topological_constructions.RelationQuotient[A := Cylinder.Carrier, relation := Quotient.Related].Families[
+  X := I.Carrier, C := Next.Carrier, factor := I.topology, source := Cylinder.topology source.topology, target := Next.topology, laws := Quotient.equivalence] \as Families;
+\use Logic.either;
+\definition respects: Families.Respects Raw.value := \fun (t: I.Carrier)(p, q: Cylinder.Carrier)(related: Quotient.Related p q) =>
+  either!{related {Raw.value (Double.at t p) = Raw.value (Double.at t q)}
+    {\fun (same: p = q) => congr!{Cylinder.Carrier Next.Carrier} (\fun (r: Cylinder.Carrier) => Raw.value (Double.at t r)) _ _ same}
+    {\fun (both: Logic.And[\In[Cylinder.Carrier] Cone.Collapsed p, \In[Cylinder.Carrier] Cone.Collapsed q]) =>
+      trans!{Next.Carrier} _ _ _ (Endpoints.vanishes t p both.left) (sym!{Next.Carrier} _ _ (Endpoints.vanishes t q both.right))}
+  };
+\definition family: ConeCylinder.Carrier -> Next.Carrier := Families.apply Raw.value respects;
+\definition continuous: topology.Continuity[A := ConeCylinder.Carrier, B := Next.Carrier].Continuous
+  (ConeCylinder.topology Cone.topology) Next.topology family := Families.continuous I.compact I.hausdorff Raw.value respects Raw.continuous;
+\definition onClass: \forall (t: I.Carrier)(p: Cylinder.Carrier) -> family (ConeCylinder.at t (Cone.class p)) = Raw.value (Double.at t p) := Families.onClass Raw.value respects;
+\definition onBase: \forall (t: I.Carrier)(x: A) -> family (ConeCylinder.at t (Cone.base x)) = Next.nullFamily (TargetCylinder.at t (f x)) :=
+  \fun (t: I.Carrier)(x: A) => trans!{Next.Carrier} _ _ _ (onClass t (Cylinder.at I.start x)) (Endpoints.atBottom t x);
+\definition atStart: \forall (c: Cone.Carrier) -> family (ConeCylinder.at I.start c) = Next.inclusion (cone c) :=
+  Quotient.induction (\fun (c: Cone.Carrier) => family (ConeCylinder.at I.start c) = Next.inclusion (cone c))
+    (\fun (p: Cylinder.Carrier) => trans!{Next.Carrier} _ _ _ (onClass I.start p) (Endpoints.atStart p));
+\definition atPoint: \forall (t: I.Carrier) -> family (ConeCylinder.at t Cone.point) = Next.point :=
+  \fun (t: I.Carrier) => trans!{Next.Carrier} _ _ _ (onClass t (Cylinder.at I.start source.basepoint)) (Endpoints.atLine t I.start);

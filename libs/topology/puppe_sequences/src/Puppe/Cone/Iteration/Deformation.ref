@@ -1,0 +1,26 @@
+\import \parent.ConeHomotopy[] \as ConeHomotopy;
+\import algebraic_topology.Cylinder[A := Cone.Carrier] \as ConeCylinder;
+\import algebraic_topology.Cylinder[A := Carrier] \as ModelCylinder;
+\import algebraic_topology.Cylinder[A := B] \as TargetCylinder;
+\import Attached.Families[X := I.Carrier, D := Next.Carrier, factor := I.topology, left := target.topology, right := Cone.topology, target := Next.topology] \as Families;
+\definition compatible: Families.Compatible Next.nullFamily ConeHomotopy.family :=
+  \fun (t: I.Carrier)(x: A) => sym!{Next.Carrier} _ _ (ConeHomotopy.onBase t x);
+\definition family: ModelCylinder.Carrier -> Next.Carrier := Families.apply Next.nullFamily ConeHomotopy.family compatible;
+\definition continuous: topology.Continuity[A := ModelCylinder.Carrier, B := Next.Carrier].Continuous (ModelCylinder.topology modelTopology) Next.topology family :=
+  Families.continuous I.compact I.hausdorff Next.nullFamily ConeHomotopy.family compatible Next.nullContinuous ConeHomotopy.continuous;
+\definition onTarget: \forall (t: I.Carrier)(b: B) -> family (ModelCylinder.at t (inclusion b)) = Next.nullFamily (TargetCylinder.at t b) :=
+  Families.onLeft Next.nullFamily ConeHomotopy.family compatible;
+\definition onCone: \forall (t: I.Carrier)(c: Cone.Carrier) -> family (ModelCylinder.at t (cone c)) = ConeHomotopy.family (ConeCylinder.at t c) :=
+  Families.onRight Next.nullFamily ConeHomotopy.family compatible;
+\definition atStart: \forall (x: Carrier) -> family (ModelCylinder.at I.start x) = Next.inclusion x :=
+  Attached.induction (\fun (x: Carrier) => family (ModelCylinder.at I.start x) = Next.inclusion x)
+    (\fun (b: B) => trans!{Next.Carrier} _ _ _ (onTarget I.start b) (Next.nullStart b))
+    (\fun (c: Cone.Carrier) => trans!{Next.Carrier} _ _ _ (onCone I.start c) (ConeHomotopy.atStart c));
+\definition atPoint: \forall (t: I.Carrier) -> family (ModelCylinder.at t point) = Next.point :=
+  \fun (t: I.Carrier) => trans!{Next.Carrier} _ _ _ (onTarget t target.basepoint) (Next.nullAtBase t);
+\definition end[x: Carrier]: Next.Carrier := family (ModelCylinder.at I.end x);
+\definition endContinuous: topology.Continuity[A := Carrier, B := Next.Carrier].Continuous modelTopology Next.topology end :=
+  topology.Composition[A := Carrier, B := ModelCylinder.Carrier, C := Next.Carrier].composeContinuous modelTopology (ModelCylinder.topology modelTopology) Next.topology
+    (ModelCylinder.at I.end) family (ModelCylinder.atContinuous modelTopology I.end) continuous;
+\definition endOnTarget: \forall (b: B) -> end (inclusion b) = Next.point :=
+  \fun (b: B) => trans!{Next.Carrier} _ _ _ (onTarget I.end b) (Next.nullEnd b);

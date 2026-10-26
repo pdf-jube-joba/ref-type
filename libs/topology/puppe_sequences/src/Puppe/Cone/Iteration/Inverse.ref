@@ -1,0 +1,67 @@
+\import \parent.Deformation[] \as Deformation;
+\import algebraic_topology.Suspension[A := A].Reduced[basepoint := source.basepoint] \as NativeSuspension;
+\import algebraic_topology.Collapse[A := Cylinder.Carrier, subset := NativeSuspension.Collapsed] \as Quotient;
+\import Quotient.Descent[B := Next.Carrier] \as Descent;
+\use Logic.either;
+\definition raw[p: Cylinder.Carrier]: Next.Carrier := Deformation.end (nullFamily p);
+\definition bottom: \forall (x: A) -> raw (Cylinder.at I.start x) = Next.point :=
+  \fun (x: A) => trans!{Next.Carrier} _ _ _ (congr!{Carrier Next.Carrier} Deformation.end _ _ (nullStart x)) (Deformation.endOnTarget (f x));
+\definition top: \forall (x: A) -> raw (Cylinder.at I.end x) = Next.point :=
+  \fun (x: A) => trans!{Next.Carrier} _ _ _ (congr!{Carrier Next.Carrier} Deformation.end _ _ (nullEnd x)) (Deformation.atPoint I.end);
+\definition line: \forall (t: I.Carrier) -> raw (Cylinder.at t source.basepoint) = Next.point :=
+  \fun (t: I.Carrier) => trans!{Next.Carrier} _ _ _ (congr!{Carrier Next.Carrier} Deformation.end _ _ (nullAtBase t)) (Deformation.atPoint I.end);
+\definition vanishes: \forall (p: Cylinder.Carrier) -> \In[Cylinder.Carrier] NativeSuspension.Collapsed p -> raw p = Next.point :=
+  \induction (p: Cylinder.Carrier) \return \In[Cylinder.Carrier] NativeSuspension.Collapsed p -> raw p = Next.point \with {
+    | pair: \fun (t: I.Carrier)(x: A)(inside: Logic.Or[t = I.start, Logic.Or[t = I.end, x = source.basepoint]]) =>
+      either!{inside {raw (Cylinder.at t x) = Next.point}
+        {\fun (atBottom: t = I.start) => trans!{Next.Carrier} _ _ _ (congr!{I.Carrier Next.Carrier} (\fun (u: I.Carrier) => raw (Cylinder.at u x)) _ _ atBottom) (bottom x)}
+        {\fun (other: Logic.Or[t = I.end, x = source.basepoint]) => either!{other {raw (Cylinder.at t x) = Next.point}
+          {\fun (atTop: t = I.end) => trans!{Next.Carrier} _ _ _ (congr!{I.Carrier Next.Carrier} (\fun (u: I.Carrier) => raw (Cylinder.at u x)) _ _ atTop) (top x)}
+          {\fun (atLine: x = source.basepoint) => trans!{Next.Carrier} _ _ _ (congr!{A Next.Carrier} (\fun (y: A) => raw (Cylinder.at t y)) _ _ atLine) (line t)}
+        }}
+      }
+  };
+\definition respects: Descent.Respects raw := \fun (p, q: Cylinder.Carrier)(related: Quotient.Related p q) =>
+  either!{related {raw p = raw q}
+    {\fun (same: p = q) => congr!{Cylinder.Carrier Next.Carrier} raw _ _ same}
+    {\fun (both: Logic.And[\In[Cylinder.Carrier] NativeSuspension.Collapsed p, \In[Cylinder.Carrier] NativeSuspension.Collapsed q]) =>
+      trans!{Next.Carrier} _ _ _ (vanishes p both.left) (sym!{Next.Carrier} _ _ (vanishes q both.right))}
+  };
+\definition section: Suspension.Carrier -> Next.Carrier := Descent.apply raw respects;
+\definition onClass: \forall (p: Cylinder.Carrier) -> section (Suspension.class p) = raw p := Descent.onClass raw respects;
+\definition continuous: topology.Continuity[A := Suspension.Carrier, B := Next.Carrier].Continuous Suspension.topology Next.topology section :=
+  Descent.continuous (Cylinder.topology source.topology) Next.topology raw respects
+    (topology.Composition[A := Cylinder.Carrier, B := Carrier, C := Next.Carrier].composeContinuous (Cylinder.topology source.topology) modelTopology Next.topology
+      nullFamily Deformation.end nullContinuous Deformation.endContinuous);
+\definition atPoint: section Suspension.point = Next.point := trans!{Next.Carrier} _ _ _ (onClass (Cylinder.at I.start source.basepoint)) (bottom source.basepoint);
+\import algebraic_topology.Pointed[A := Suspension.Carrier].Maps[B := Next.Carrier] \as Section;
+\definition sectionMap: Section.Map[Suspension.pointed, Next.pointed] := \into[Suspension.Carrier -> Next.Carrier](section, Section.Map[Suspension.pointed, Next.pointed]) \by {
+  Section.Laws[Suspension.pointed, Next.pointed, section] { continuous := continuous, pointed := atPoint }
+};
+\import algebraic_topology.Collapse[A := Cylinder.Carrier, subset := Cone.Collapsed] \as ConeQuotient;
+\definition endOnCone: \forall (c: Cone.Carrier) -> Deformation.end (cone c) = section (Suspension.quotient c) :=
+  ConeQuotient.induction (\fun (c: Cone.Carrier) => Deformation.end (cone c) = section (Suspension.quotient c))
+    (\fun (p: Cylinder.Carrier) => trans!{Next.Carrier} _ _ _ (sym!{Next.Carrier} _ _ (onClass p))
+      (congr!{Suspension.Carrier Next.Carrier} section _ _ (sym!{Suspension.Carrier} _ _ (Suspension.onClass p))));
+\definition endOnModel: \forall (x: Carrier) -> Deformation.end x = section (Connecting.apply x) :=
+  Attached.induction (\fun (x: Carrier) => Deformation.end x = section (Connecting.apply x))
+    (\fun (b: B) => trans!{Next.Carrier} _ _ _ (Deformation.endOnTarget b) (trans!{Next.Carrier} _ _ _
+      (sym!{Next.Carrier} _ _ atPoint) (congr!{Suspension.Carrier Next.Carrier} section _ _ (sym!{Suspension.Carrier} _ _ (Connecting.onTarget b)))))
+    (\fun (c: Cone.Carrier) => trans!{Next.Carrier} _ _ _ (endOnCone c)
+      (congr!{Suspension.Carrier Next.Carrier} section _ _ (sym!{Suspension.Carrier} _ _ (Connecting.onCone c))));
+\import \root.Puppe[].Maps[A := Next.Carrier, B := Next.Carrier, source := Next.pointed, target := Next.pointed] \as LeftMaps;
+\import \root.Puppe[].Maps[A := Suspension.Carrier, B := Suspension.Carrier, source := Suspension.pointed, target := Suspension.pointed] \as RightMaps;
+\import \root.Puppe[].Identity[A := Next.Carrier, source := Next.pointed] \as LeftIdentity;
+\import \root.Puppe[].Identity[A := Suspension.Carrier, source := Suspension.pointed] \as RightIdentity;
+\definition leftComposite: LeftMaps.Map := algebraic_topology.Pointed[A := Next.Carrier].Maps[B := Suspension.Carrier].Composition[C := Next.Carrier]
+  .compose Next.pointed Suspension.pointed Next.pointed projectionMap sectionMap;
+\definition rightComposite: RightMaps.Map := algebraic_topology.Pointed[A := Suspension.Carrier].Maps[B := Next.Carrier].Composition[C := Suspension.Carrier]
+  .compose Suspension.pointed Next.pointed Suspension.pointed sectionMap projectionMap;
+\module LeftHomotopy;
+\module RightHomotopy;
+\import \root.Puppe[].Equivalence[A := Next.Carrier, B := Suspension.Carrier, source := Next.pointed, target := Suspension.pointed] \as Equivalence;
+\definition equivalence: Equivalence.Data := Equivalence.Data {
+  forward := projectionMap, backward := sectionMap,
+  leftInverse := LeftMaps.equivalence.sym LeftIdentity.map leftComposite (\exact(LeftHomotopy[].result, LeftMaps.Homotopy[LeftIdentity.map, leftComposite])),
+  rightInverse := RightMaps.equivalence.sym RightIdentity.map rightComposite (\exact(RightHomotopy[].result, RightMaps.Homotopy[RightIdentity.map, rightComposite])),
+};
