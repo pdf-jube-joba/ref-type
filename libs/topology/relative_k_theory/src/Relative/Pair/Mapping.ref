@@ -1,0 +1,41 @@
+\import \root.Relative[].Pair[X := Y, space := source, compact := sourceCompact, hausdorff := sourceHausdorff, subset := sourceSubset, closed := sourceClosed] \as DomainPair;
+\import DomainPair.Quotient[] \as Domain;
+\import \parent.Quotient[] \as Range;
+\import topological_constructions.Coproduct[A := Y, B := Domain.Point] \as SourceSum;
+\import topological_constructions.Coproduct[A := X, B := Range.Point] \as TargetSum;
+\import SourceSum.Universal[C := Range.Augmented] \as Copair;
+\definition left[y: Y]: Range.Augmented := TargetSum.inl (f y);
+\definition raw: Domain.Augmented -> Range.Augmented := Copair.copair left TargetSum.inr;
+\import algebraic_topology.Collapse[A := Domain.Augmented, subset := Domain.collapsedPart].Mapping[
+  B := Range.Augmented, targetSubset := Range.collapsedPart] \as Descent;
+\definition respects: Descent.Preserves raw := \induction (p: Domain.Augmented) \return
+  \In[Domain.Augmented] Domain.collapsedPart p -> \In[Range.Augmented] Range.collapsedPart (raw p) \with {
+    | inl: preserves
+    | inr: \fun (p: Domain.Point)(member: _) => member
+  };
+\definition leftContinuous: topology.Continuity[A := Y, B := Range.Augmented].Continuous source Range.augmentedSpace left :=
+  topology.Composition[A := Y, B := X, C := Range.Augmented].composeContinuous source space Range.augmentedSpace f TargetSum.inl regular
+    (TargetSum.inlContinuous space (topology.Topology[Carrier := Range.Point].Discrete));
+\definition rawContinuous: topology.Continuity[A := Domain.Augmented, B := Range.Augmented].Continuous Domain.augmentedSpace Range.augmentedSpace raw :=
+  Copair.continuous source (topology.Topology[Carrier := Domain.Point].Discrete) Range.augmentedSpace left TargetSum.inr leftContinuous
+    (TargetSum.inrContinuous space (topology.Topology[Carrier := Range.Point].Discrete));
+\definition quotient: Domain.Carrier -> Range.Carrier := Descent.apply raw respects;
+\definition onProjection: \forall (y: Y) -> quotient (Domain.projection y) = Range.projection (f y) :=
+  \fun (y: Y) => Descent.onClass raw respects (SourceSum.inl y);
+\definition quotientContinuous: topology.Continuity[A := Domain.Carrier, B := Range.Carrier].Continuous Domain.topology Range.topology quotient :=
+  Descent.continuous Domain.augmentedSpace Range.augmentedSpace raw respects rawContinuous;
+\import algebraic_topology.Pointed[A := Domain.Carrier].Maps[B := Range.Carrier] \as Pointed;
+\definition quotientMap: \root.Relative[].Map Domain.model Range.model :=
+  \into[Domain.Carrier -> Range.Carrier](quotient, \root.Relative[].Map Domain.model Range.model) \by {
+    Pointed.Laws[Domain.pointed, Range.pointed, quotient] {
+      continuous := quotientContinuous, pointed := Descent.onClass raw respects (SourceSum.inr Domain.distinguished)
+    }
+  };
+\import \root.Relative[].Pullback[source := Domain.model, target := Range.model, f := quotientMap] \as Pull;
+\definition relative: Range.Relative -> Domain.Relative := Pull.map;
+\definition additive: \forall (x, y: Range.Relative) -> relative (Range.group.base.op x y) = Domain.group.base.op (relative x) (relative y) := Pull.additive;
+\definition preservesZero: relative Range.group.base.unit = Domain.group.base.unit := Pull.preservesZero;
+\module Negative(degree: N.Nat^) {
+  \import \root.Relative[].NegativeMap[source := Domain.model, target := Range.model, f := quotientMap, degree := degree] \as Native;
+  \definition map: \root.Relative[].Negative[original := Range.model, degree := degree].Carrier -> \root.Relative[].Negative[original := Domain.model, degree := degree].Carrier := Native.map;
+}
