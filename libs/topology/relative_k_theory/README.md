@@ -15,7 +15,9 @@
 束の三つ組の群表示、直和・合成・ホモトピー・全体に延長する同型の関係式、逆元の比較を追加した。
 一点付加商、反復 suspension、負次数群と引き戻しも未検証の構成。
 基点付きコンパクト空間の上位宇宙のパッケージは、K02 と同じ継続による表現へ修正した。
-検査には最新の `work/k03-resume/triples-fixed.source.json` を使う。
+`Relative.Suspension` の対象と依存閉包は accepted・終了0・キャッシュ保存失敗0（共有キャッシュ436 module、追加検査4 module）。
+引き戻しの恒等則・合成則を追加したが、これらと三つ組の群は未検証。
+検査には最新の `work/k03-resume/triples-current.source.json` を使う。
 各検査には `--source-snapshot` を指定する。
 作業の保存先は [Draft PR #50](https://github.com/pdf-jube-joba/ref-type/pull/50)。
 対象検査は `target/debug/cli libs --module topological_constructions.Coproduct.Properties --memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact --report-json work/k03-resume/coproduct.json`。
