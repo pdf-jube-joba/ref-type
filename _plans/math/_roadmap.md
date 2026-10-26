@@ -88,14 +88,14 @@ flowchart TD
 - [A01 測度積分の収束定理](a01-measure-convergence.md)
 - [A19 複素 Hilbert 空間とコンパクト作用素](a19-complex-hilbert.md)
 - [B05 有限 Grassmannian と普遍束](b05-grassmannians.md)
-- [B09 閉部分空間からの束の延長](b09-bundle-extension.md)
 - [C01 cap 積と相対積](c01-cap-products.md)
 - [G01 滑らかな bump 関数と従属分割](g01-smooth-partitions.md)
 - [G02 逆関数・陰関数と正則値の局所形](g02-inverse-implicit.md)
 - [L04 対称多項式と特性級数](l04-symmetric-series.md)
 
 L01 の行列式・逆行列、L02 の多項式分解、L03 の Hermitian 行列・局所枠が利用可能になり、G02 に着手できる。
-B03 の計量・補束と同型類の集合が利用可能になり、B05・B09 に着手できる。
+B03 の計量・補束と同型類の集合が利用可能になり、B05 に着手できる。
+B09 の [bundle_extension](../../libs/geometry/bundle_extension/README.md) は実・複素の Tietze、束・写像・同型の近傍延長、縮小比較と安定化を公開し、K03 で再利用できる。
 K06 の連続なスペクトル分離は B04 の束比較の基盤となり、B04 の clutching と合わせて K07 で再利用できる。
 K01 の Grothendieck 環・安定判定・反変引き戻しは K03・K07 で再利用する。
 K04 の実・複素 Stone–Weierstrass、Laurent 近似と行列・束の一様評価も K07 で利用できる。
@@ -119,6 +119,7 @@ B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進め�
 | B03 束の計量・補束と集合による表示 | [bundle_complements](../../libs/geometry/bundle_complements/README.md) |
 | K06 連続なスペクトル分離 | [spectral_splitting](../../libs/algebra/spectral_splitting/README.md) |
 | B04 束のホモトピー不変性と clutching | [bundle_homotopy](../../libs/geometry/bundle_homotopy/README.md) |
+| B09 閉部分空間からの束の延長 | [bundle_extension](../../libs/geometry/bundle_extension/README.md) |
 | K01 束の Grothendieck 環 | [topological_k_theory](../../libs/topology/k_theory/README.md) |
 | K04 Stone–Weierstrass と Laurent 近似 | [uniform_approximation](../../libs/analysis/uniform_approximation/README.md) |
 | K07 clutching の安定線形化 | [clutching_linearization](../../libs/topology/clutching_linearization/README.md) |
@@ -146,7 +147,6 @@ B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進め�
 | [B06 束の分類写像と安定化](b06-bundle-classification.md) | 5 |
 | [B07 滑らかな束と既存の接束・法束との接続](b07-smooth-bundles.md) | 5 |
 | [B08 Grassmannian のセル分解](b08-grassmannian-cells.md) | 6 |
-| [B09 閉部分空間からの束の延長](b09-bundle-extension.md) | 5 |
 
 ### 特性類
 

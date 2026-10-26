@@ -74,7 +74,7 @@ target/debug/cli libs/geometry/bundle_complements --memory-mib 8192 --cache-stat
 ```
 
 K06 の workspace 全体の検査と再開情報は [spectral_splitting の引き継ぎ欄](../../algebra/spectral_splitting/README.md#検証と再開) にまとめる。
-B03 に続く実装候補は B04・B05・B09・K01 である。
+[B09](../bundle_extension/README.md) は有限埋め込み・像束・レトラクションを使い、閉部分空間からの束と束写像の延長を構成する。
 
 `CoordinateFamily` は単射性を要求しない連続な座標線形写像族を、自明束間の束写像へ移す。
 `CoordinateEmbedding` はこの写像構成を共有し、単射な場合に有限埋め込みも公開する。
