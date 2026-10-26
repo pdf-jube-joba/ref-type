@@ -1,0 +1,55 @@
+\import complex.Complex[] \as C;
+\import C.Def[] \as O;
+\import C.Prop[] \as CP;
+\import C.Algebra[] \as CA;
+\import std.Data[].FinSet[] \as Fin;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition Point: \Set := Fin.Fin one;
+\definition point: Point := Fin.zero N.Nat^::zero;
+\import topology.Topology[Carrier := Point] \as PointSpace;
+\definition pointSpace: PointSpace.Topology := PointSpace.Discrete;
+\definition base: Carrier -> Point := \fun (z: Carrier) => point;
+\definition baseContinuous: topology.Continuity[A := Carrier, B := Point].Continuous topology pointSpace base := topology.Maps[A := Carrier, B := Point].constantContinuous topology pointSpace point;
+\import \root.Approximation[].Laurent[X := Point, space := pointSpace] \as CoefficientPolynomials;
+\definition unit: Carrier -> C.Complex := \fun (z: Carrier) => z;
+\import CoefficientPolynomials.On[Y := Carrier, source := topology, base := base, baseContinuous := baseContinuous, unit := unit, unitContinuous := Coordinates.inclusionContinuous, norm := Native.norm] \as CoefficientEvaluation;
+\import \root.Approximation[].ComplexOn[X := Carrier, space := topology] \as Functions;
+\import \root.Approximation[].ComplexOn[X := Point, space := pointSpace].FunctionRing[] \as CoefficientRing;
+\import algebra.LaurentPolynomial[].Over[R := CoefficientRing.Carrier, coefficients := CoefficientRing.commutativeRing] \as CoefficientP;
+\definition separates: Functions.Separates CoefficientEvaluation.Algebra[].Subalgebra := \fun (x, y: Carrier)(distinct: Logic.Not (x = y)) =>
+  Logic.existsIntro[Functions.Function, { f: Functions.Function \where Logic.And[\In[Functions.Function] CoefficientEvaluation.Algebra[].Subalgebra f, Logic.Not (f x = f y)] }] (CoefficientEvaluation.value CoefficientP.X)
+    (Logic.And[_, _]::# (CoefficientEvaluation.Algebra[].member CoefficientP.X) (\fun (equal: CoefficientEvaluation.value CoefficientP.X x = CoefficientEvaluation.value CoefficientP.X y) => distinct (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (CoefficientEvaluation.onVariable x)) (trans!{{C.Complex}} _ _ _ equal (CoefficientEvaluation.onVariable y)))));
+\import std.Alg[].Ring[] \as Rings;
+\import algebra.LaurentPolynomial[].Over[R := C.Complex, coefficients := CA.commutativeRing] \as P;
+\import P.Universal[K := C.Complex, target := CA.commutativeRing] \as E;
+\import algebra.Hom[A := C.Complex, B := C.Complex] \as Identity;
+\definition scalarRing: Rings.Ring[C.Complex] := Rings.commutativeRingAsRing C.Complex CA.commutativeRing;
+\definition identity: Identity.RingMap scalarRing scalarRing := \into[(C.Complex -> C.Complex)](\fun (z: C.Complex) => z, Identity.RingMap scalarRing scalarRing) \by {
+  Identity.SemiringLaws[(Rings.ringAsSemiring C.Complex scalarRing), (Rings.ringAsSemiring C.Complex scalarRing), (\fun (z: C.Complex) => z)] {
+    zero := \refl(O.zero), one := \refl(O.one), add := \fun (z, w: C.Complex) => \refl(O.add z w), mul := \fun (z, w: C.Complex) => \refl(O.mul z w)
+  }
+};
+\definition inverse[z: Carrier]: O.mul z (O.conj z) = O.one := Native.rightInverse z;
+\definition value[p: P.Carrier]: Functions.Function := \fun (z: Carrier) => E.evaluate identity z (O.conj z) (inverse z) p;
+\import algebra.Hom[A := P.Carrier, B := C.Complex] \as Hom;
+\definition map[z: Carrier]: Hom.RingMap (Rings.commutativeRingAsRing P.Carrier P.ring) scalarRing := E.extension identity z (O.conj z) (inverse z);
+\definition mapLaws[z: Carrier]: Hom.SemiringLaws[(Rings.ringAsSemiring P.Carrier (Rings.commutativeRingAsRing P.Carrier P.ring)), (Rings.ringAsSemiring C.Complex scalarRing), map z] := Hom.semiringLaws (Rings.ringAsSemiring P.Carrier (Rings.commutativeRingAsRing P.Carrier P.ring)) (Rings.ringAsSemiring C.Complex scalarRing) (map z);
+\definition onConstant: \forall (a: C.Complex)(z: Carrier) -> value (P.constant a) z = a := \fun (a: C.Complex)(z: Carrier) => E.onConstant identity z (O.conj z) (inverse z) a;
+\definition onVariable: \forall (z: Carrier) -> value P.X z = z := \fun (z: Carrier) => E.onVariable identity z (O.conj z) (inverse z);
+\definition onInverseVariable: \forall (z: Carrier) -> value P.inverseX z = O.conj z := \fun (z: Carrier) => E.onInverseVariable identity z (O.conj z) (inverse z);
+\definition onAdd: \forall (p, q: P.Carrier)(z: Carrier) -> value (P.add p q) z = O.add (value p z) (value q z) := \fun (p, q: P.Carrier)(z: Carrier) => (mapLaws z).add p q;
+\definition onMul: \forall (p, q: P.Carrier)(z: Carrier) -> value (P.mul p q) z = O.mul (value p z) (value q z) := \fun (p, q: P.Carrier)(z: Carrier) => (mapLaws z).mul p q;
+\import algebra.Group[].Of[Carrier := C.Complex, group := Rings.additiveGroup C.Complex scalarRing] \as Group;
+\definition onNeg: \forall (p: P.Carrier)(z: Carrier) -> value (P.neg p) z = O.neg (value p z) := \fun (p: P.Carrier)(z: Carrier) => Group.inverseUnique (value p z) (value (P.neg p) z)
+  (eq_reason_in!{{C.Complex} _
+    "=" { value (P.add (P.neg p) p) z } "by" { sym!{{C.Complex}} _ _ (onAdd (P.neg p) p z) }
+    "=" { value P.zero z } "by" { congr!{{P.Carrier} {C.Complex}} (\fun (q: P.Carrier) => value q z) _ _ (P.ring.ring.additiveInverse p) }
+    "=" { O.zero } "by" { (mapLaws z).zero }
+  });
+\module Translation;
+\module Approximate(f: Functions.Function, regular: Functions.Continuous f);
+\module Matrices(n, m: N.Nat^, f: Fin.Fin n -> Fin.Fin m -> Functions.Function, regular: \forall (i: Fin.Fin n)(j: Fin.Fin m) -> Functions.Continuous (f i j));
+\definition Subalgebra: \Pow Functions.Function := CoefficientEvaluation.Algebra[].Subalgebra;
+\definition algebraLaws: Functions.SubalgebraLaws[Subalgebra] := CoefficientEvaluation.Algebra[].laws;
+\definition separation: Functions.Separates Subalgebra := separates;
+\definition Polynomial: \Set := P.Carrier;

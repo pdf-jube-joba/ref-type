@@ -1,0 +1,20 @@
+\import \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].For[X := X, F := F, bundle := bundle].FromEmbedding[embedding := embedding] \as Original;
+\import Family.Of[bundle := bundle].Pullback[Y := Y, source := source, f := f] \as Pulled;
+\import Bundles.Family[X := Y, F := \fun (y: Y) => F (f y)] \as PulledFamily;
+\definition pulledBundle: Bundles.Family[X := Y, F := \fun (y: Y) => F (f y)].Bundle := Pulled.pulled regularBase;
+\import \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].For[X := Y, F := \fun (y: Y) => F (f y), bundle := pulledBundle] \as Target;
+\import Bundles.Trivial[X := Y, n := n, baseSpace := source] \as AmbientTarget;
+\import Bundles.Morphisms[X := Y, Y := Y, F := \fun (y: Y) => F (f y), G := \fun (y: Y) => Vector n, source := pulledBundle, target := AmbientTarget.bundle, f := \fun (y: Y) => y] \as Maps;
+\definition data: Maps.Data := Maps.Data { fiber := \fun (y: Y) => embedding.map.fiber (f y) };
+\definition map: Maps.Map := \into[Maps.Data](data, Maps.Map) \by {
+  \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TrivialMaps[X := Y, n := n, baseSpace := source].Into[Y := PulledFamily.Point, source := Pulled.topology].continuous
+    PulledFamily.projection (\fun (p: PulledFamily.Point) => (embedding.map.fiber (f p.base)).apply p.vector) Pulled.projectionContinuous
+    (topology.Composition[A := PulledFamily.Point, B := Family.Point, C := Vector n].composeContinuous Pulled.topology bundle.totalSpace (coordinateTopology n) Pulled.map
+      (\fun (p: Family.Point) => (embedding.map.fiber p.base).apply p.vector) Pulled.mapContinuous Original.Continuity[].vectorContinuous)
+};
+\definition pulledEmbedding: Target.Embedding := Target.Embedding { dimension := n, map := map, injective := \fun (y: Y) => embedding.injective (f y) };
+\import Target.FromEmbedding[embedding := pulledEmbedding] \as Constructed;
+\definition metric: Target.Metric := Constructed.metric;
+\definition metricNaturality: \forall (y: Y)(v, w: F (f y)) -> (metric.form y).dot v w = (Original.form (f y)).dot v w := \fun (y: Y)(v, w: F (f y)) => \refl((Original.form (f y)).dot v w);
+\module At(y: Y);
+\definition projectionNaturality: \forall (y: Y) -> (Constructed.Image[].projection y).map = (Original.Image[].projection (f y)).map := \fun (y: Y) => At[y := y].equal;

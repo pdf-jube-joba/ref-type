@@ -1,0 +1,20 @@
+\import Vectors.In[c := c] \as VectorCoordinates;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Dual[X := X, F := F, bundle := bundle].In[c := c] \as DualChart;
+\import Covectors.In[c := DualChart.trivialization] \as CovectorCoordinates;
+\definition Point: \Set := VectorCoordinates.Point;
+\definition topology: topology.Topology[Carrier := Point].Topology := VectorCoordinates.topology;
+\import hermitian_frames.Hermitian[].Over[K := K, field := field, scalar := conjugation, topological := scalar.topological].Functions[X := Point] \as Functions;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].ScalarFunctions[X := Point].Sums[I := Fin.Fin c.dimension] \as Sums;
+\import Spaces.Sums[I := Fin.Fin c.dimension] \as Sum;
+\definition model[ell: Covectors.Vectors][v: Vectors.Vectors][y: Point]: K := Sum.sum (Fin.elements c.dimension)
+  (\fun (i: Fin.Fin c.dimension) => field.mul (CovectorCoordinates.coordinate ell y i) (VectorCoordinates.coordinate v y i));
+\definition formula: \forall (ell: Covectors.Vectors)(v: Vectors.Vectors)(y: Point) -> value ell v y = model ell v y :=
+  \fun (ell: Covectors.Vectors)(v: Vectors.Vectors)(y: Point) => \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].DualFrame[V := F (base y), space := bundle.space (base y), n := c.dimension, frame := c.frame (VectorCoordinates.center y)].evaluationFormula (ell y) (v y);
+\definition continuous: \forall (ell: Covectors.Vectors)(v: Vectors.Vectors) -> Covectors.Continuous ell -> Vectors.Continuous v ->
+  topology.Continuity[A := Point, B := K].Continuous topology scalar.topological.space (\fun (y: Point) => value ell v y) :=
+  \fun (ell: Covectors.Vectors)(v: Vectors.Vectors)(ellRegular: _)(vRegular: _) => Functions.transport topology (model ell v) (\fun (y: Point) => value ell v y)
+    (\fun (y: Point) => sym!{K} _ _ (formula ell v y))
+    (Sums.continuous (Fin.elements c.dimension) topology
+      (\fun (i: Fin.Fin c.dimension)(y: Point) => field.mul (CovectorCoordinates.coordinate ell y i) (VectorCoordinates.coordinate v y i))
+      (\fun (i: Fin.Fin c.dimension) => Functions.multiplication topology (\fun (y: Point) => CovectorCoordinates.coordinate ell y i) (\fun (y: Point) => VectorCoordinates.coordinate v y i)
+        (CovectorCoordinates.component ell (CovectorCoordinates.read ell ellRegular) i) (VectorCoordinates.component v (VectorCoordinates.read v vRegular) i)));

@@ -1,0 +1,35 @@
+\import RealSpaces.Linear[V := Complex.Vector n, W := Carrier, source := CoordinateScalars.realSpace, target := Tensor.space] \as Backward;
+\definition backward: Backward.Map := Backward.Map {
+  apply := synthesis,
+  preservesAdd := \fun (z, w: Complex.Vector n) => trans!{Carrier} _ _ _
+    (Sums.congruent (Fin.elements n) (\fun (i: Fin.Fin n) => pure (basis.vectors i) (CD.add (z i) (w i)))
+      (\fun (i: Fin.Fin n) => Tensor.plus (pure (basis.vectors i) (z i)) (pure (basis.vectors i) (w i)))
+      (\fun (i: Fin.Fin n) => Tensor.bilinear.addRight (basis.vectors i) (z i) (w i))) (Sums.addition (Fin.elements n) (\fun (i: Fin.Fin n) => pure (basis.vectors i) (z i)) (\fun (i: Fin.Fin n) => pure (basis.vectors i) (w i))),
+  preservesScale := \fun (r: R.Real)(z: Complex.Vector n) => trans!{Carrier} _ _ _
+    (Sums.congruent (Fin.elements n) (\fun (i: Fin.Fin n) => pure (basis.vectors i) (CD.mul (CD.ofReal r) (z i)))
+      (\fun (i: Fin.Fin n) => Tensor.scale r (pure (basis.vectors i) (z i)))
+      (\fun (i: Fin.Fin n) => Tensor.bilinear.scaleRight r (basis.vectors i) (z i))) (Sums.scalar (Fin.elements n) r (\fun (i: Fin.Fin n) => pure (basis.vectors i) (z i)))
+};
+\import RealSpaces.Linear[V := V, W := Carrier, source := source, target := Tensor.space] \as PureMaps;
+\definition pureMap[z: C.Complex]: PureMaps.Map := PureMaps.Map {
+  apply := \fun (v: V) => pure v z, preservesAdd := \fun (v, w: V) => Tensor.bilinear.addLeft v w z,
+  preservesScale := \fun (r: R.Real)(v: V) => Tensor.bilinear.scaleLeft r v z
+};
+\import RealSpaces.Sums[I := Fin.Fin n].Vector[V := V, space := source].Mapping[W := Carrier, target := Tensor.space] \as Mapping;
+\definition onValue: \forall (v: V)(z: C.Complex) -> synthesis (coefficients v z) = pure v z :=
+  \fun (v: V)(z: C.Complex) => trans!{Carrier} _ _ _
+    (Sums.congruent (Fin.elements n)
+      (\fun (i: Fin.Fin n) => pure (basis.vectors i) (CD.mul (CD.ofReal (frame.forward.apply v i)) z))
+      (\fun (i: Fin.Fin n) => Tensor.scale (frame.forward.apply v i) (pure (basis.vectors i) z))
+      (\fun (i: Fin.Fin n) => Tensor.bilinear.scaleRight (frame.forward.apply v i) (basis.vectors i) z))
+    (trans!{Carrier} _ _ _
+      (Sums.congruent (Fin.elements n)
+        (\fun (i: Fin.Fin n) => Tensor.scale (frame.forward.apply v i) (pure (basis.vectors i) z))
+        (\fun (i: Fin.Fin n) => pure (source.smul (frame.forward.apply v i) (basis.vectors i)) z)
+        (\fun (i: Fin.Fin n) => sym!{Carrier} _ _ (Tensor.bilinear.scaleLeft (frame.forward.apply v i) (basis.vectors i) z)))
+      (trans!{Carrier} _ _ _
+        (sym!{Carrier} _ _ (Mapping.law (pureMap z) (Fin.elements n) (\fun (i: Fin.Fin n) => source.smul (frame.forward.apply v i) (basis.vectors i))))
+        (congr!{V Carrier} (\fun (v: V) => pure v z) _ _ (basis.reconstruction v))));
+\import Backward.Composition[U := Carrier, domain := Tensor.space] \as Compose;
+\definition law: \forall (t: Carrier) -> synthesis (forward.apply t) = t := Equality.pointwise (Compose.compose backward realForward) identity
+  (\fun (v: V)(z: C.Complex) => trans!{Carrier} _ _ _ (congr!{{Complex.Vector n} Carrier} synthesis _ _ (onPure v z)) (onValue v z));

@@ -1,0 +1,51 @@
+\definition previousOrthogonal: \forall (v: Source.Vector) -> h.dot unit (previous.frame.apply v) = Spaces.zero :=
+  \fun (v: Source.Vector) => trans!{K} _ _ _
+    (congr!{V K} (h.dot unit) _ _ (sym!{V} _ _
+      (trans!{V} _ _ _ (previous.formula (previous.change.backward.apply v))
+        (congr!{{Source.Vector} V} previous.frame.apply _ _ (previous.change.rightInverse v)))))
+    (Unit.orthogonal (tailMap.apply (previous.change.backward.apply v)));
+\definition apply[v: Higher.Vector]: V := space.add (space.smul (Split.head v) unit) (previous.frame.apply (Split.tail v));
+\definition value: HigherMaps.Map := HigherMaps.Map {
+  apply := apply,
+  preservesAdd := \fun (v, w: Higher.Vector) => trans!{V} _ _ _
+    (congr!{V V V} space.add _ _ _ _ (space.scalarAdd (Split.head v) (Split.head w) unit)
+      (previous.frame.preservesAdd (Split.tail v) (Split.tail w)))
+    (Laws.shuffle _ _ _ _),
+  preservesScale := \fun (a: K)(v: Higher.Vector) => trans!{V} _ _ _
+    (congr!{V V V} space.add _ _ _ _ (space.scalarAssoc a (Split.head v) unit) (previous.frame.preservesScale a (Split.tail v)))
+    (sym!{V} _ _ (space.vectorAdd a _ _)),
+};
+\definition unitDot: \forall (v: Higher.Vector) -> h.dot unit (apply v) = Split.head v :=
+  \fun (v: Higher.Vector) => eq_reason_in!{K _
+    "=" _ "by" { h.addRight unit _ _ }
+    "=" _ "by" { congr!{K K K} Spaces.add _ _ _ _
+      (trans!{K} _ _ _ (h.scaleRight (Split.head v) unit unit)
+        (trans!{K} _ _ _ (congr!{K K} (Spaces.mul (Split.head v)) _ _ Normalize.unitNorm) (Spaces.mulOneRight (Split.head v))))
+      (previousOrthogonal (Split.tail v)) }
+    "=" _ "by" { Spaces.addZeroRight (Split.head v) }
+  };
+\definition previousDot: \forall (v: Source.Vector)(w: Higher.Vector) -> h.dot (previous.frame.apply v) (apply w) = Source.dot v (Split.tail w) :=
+  \fun (v: Source.Vector)(w: Higher.Vector) => eq_reason_in!{K _
+    "=" _ "by" { h.addRight (previous.frame.apply v) _ _ }
+    "=" _ "by" { congr!{K K K} Spaces.add _ _ _ _
+      (eq_reason_in!{K _
+        "=" _ "by" { h.scaleRight (Split.head w) (previous.frame.apply v) unit }
+        "=" _ "by" { congr!{K K} (Spaces.mul (Split.head w)) _ _
+          (trans!{K} _ _ _ (h.symmetric (previous.frame.apply v) unit)
+            (trans!{K} _ _ _ (congr!{K K} conj _ _ (previousOrthogonal v)) conjugateZero)) }
+        "=" _ "by" { Spaces.mulZeroRight (Split.head w) }
+      }) (previous.isometry v (Split.tail w)) }
+    "=" _ "by" { Spaces.addZeroLeft (Source.dot v (Split.tail w)) }
+  };
+\definition isometry: \forall (v, w: Higher.Vector) -> h.dot (value.apply v) (value.apply w) = Higher.dot v w :=
+  \fun (v, w: Higher.Vector) => trans!{K} _ _ _ (addLeft _ _ (apply w))
+    (congr!{K K K} Spaces.add _ _ _ _
+      (trans!{K} _ _ _ (scaleLeft (Split.head v) unit (apply w)) (congr!{K K} (Spaces.mul (conj (Split.head v))) _ _ (unitDot w)))
+      (previousDot (Split.tail v) w));
+\import Split.Triangular[l := embed Normalize.length, nonzero := lengthNonzero, row := row, lower := previous.change] \as Triangular;
+\module At(v: Higher.Vector);
+\definition formula: \forall (v: Higher.Vector) -> A.apply v = value.apply (Triangular.forward.apply v) :=
+  \fun (v: Higher.Vector) => At[v := v].formula;
+\definition factorization: HigherGram.Factorization[A] := HigherGram.Factorization[A] {
+  frame := value, isometry := isometry, change := Triangular.isomorphism, formula := formula,
+};

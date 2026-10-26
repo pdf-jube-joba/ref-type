@@ -1,0 +1,33 @@
+\definition Carrier: \Set := \Cast[X] S;
+\import topology.Topology[Carrier := X].Subspace[S := S] \as BaseSubspace;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := BaseSubspace.topology baseSpace;
+\definition include[x: Carrier]: X := x;
+\definition sourceContinuous: topology.Continuity[A := Carrier, B := X].Continuous topology source.baseSpace include :=
+  topology.Continuity[A := X, B := X].Restriction[S := S].restrictContinuous baseSpace source.baseSpace (\fun (x: X) => x) sourceRegular;
+\definition targetContinuous: topology.Continuity[A := Carrier, B := X].Continuous topology target.baseSpace include :=
+  topology.Continuity[A := X, B := X].Restriction[S := S].restrictContinuous baseSpace target.baseSpace (\fun (x: X) => x) targetRegular;
+\import Source.Of[bundle := source].Pullback[Y := Carrier, source := topology, f := include] \as SourcePullback;
+\import Target.Of[bundle := target].Pullback[Y := Carrier, source := topology, f := include] \as TargetPullback;
+\definition sourceBundle: Bundles.Family[X := Carrier, F := (\fun (x: Carrier) => F x)].Bundle := SourcePullback.pulled sourceContinuous;
+\definition targetBundle: Bundles.Family[X := Carrier, F := (\fun (x: Carrier) => G x)].Bundle := TargetPullback.pulled targetContinuous;
+\definition Map: \Set := Bundles.Morphisms[X := Carrier, Y := Carrier, F := (\fun (x: Carrier) => F x), G := (\fun (x: Carrier) => G x), source := sourceBundle, target := targetBundle, f := (\fun (x: Carrier) => x)].Map;
+\definition Isomorphism: \Set := Bundles.Isomorphisms[X := Carrier, F := (\fun (x: Carrier) => F x), G := (\fun (x: Carrier) => G x), source := sourceBundle, target := targetBundle].Isomorphism;
+\definition totalSubset: \Pow Source.Point := { p: Source.Point \where \In[X] S p.base };
+\definition TotalPoint: \Set := \Cast[Source.Point] totalSubset;
+\definition localTopology: topology.Topology[Carrier := TotalPoint].Topology := topology.Topology[Carrier := Source.Point].Subspace[S := totalSubset].topology source.totalSpace;
+\import Bundles.Family[X := Carrier, F := (\fun (x: Carrier) => F x)] \as RestrictedSource;
+\definition point[p: TotalPoint]: RestrictedSource.Point := RestrictedSource.include (\into[X](p.base, S) \by { \bysub(Source.Point, totalSubset, p) }) p.vector;
+\definition base[p: TotalPoint]: Carrier := \into[X](p.base, S) \by { \bysub(Source.Point, totalSubset, p) };
+\definition baseContinuous: topology.Continuity[A := TotalPoint, B := Carrier].Continuous localTopology topology base :=
+  topology.Continuity[A := TotalPoint, B := X].Corestriction[S := S].corestrictContinuous localTopology baseSpace base
+    (topology.Continuity[A := Source.Point, B := X].Restriction[S := totalSubset].restrictContinuous source.totalSpace baseSpace Source.projection projectionContinuous);
+\definition forget[p: TotalPoint]: Source.Point := p;
+\definition intoOriginal[p: TotalPoint]: Source.Point := Source.include p.base p.vector;
+\definition intoOriginalContinuous: topology.Continuity[A := TotalPoint, B := Source.Point].Continuous localTopology source.totalSpace intoOriginal :=
+  \idelim forget = intoOriginal \with f: (TotalPoint -> Source.Point) => topology.Continuity[A := TotalPoint, B := Source.Point].Continuous localTopology source.totalSpace f \by {
+    base: (\fun (U: \Pow Source.Point)(open: _) => topology.Topology[Carrier := Source.Point].Subspace[S := totalSubset].traceOpen source.totalSpace U open),
+    equality: \axiom:funext(forget, intoOriginal, \fun (p: TotalPoint) => sym!{Source.Point} _ _ (Source.eta p))
+  };
+\definition pointContinuous: topology.Continuity[A := TotalPoint, B := RestrictedSource.Point].Continuous localTopology sourceBundle.totalSpace point :=
+  SourcePullback.Universal[Z := TotalPoint].continuous localTopology point baseContinuous intoOriginalContinuous;
+\module Applying(map: Map);

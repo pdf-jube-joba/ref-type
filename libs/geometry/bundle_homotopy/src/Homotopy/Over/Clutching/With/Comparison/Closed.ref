@@ -1,0 +1,20 @@
+\module Side(i: B.Bool^, S: \Pow X, inside: \forall (x: \Cast[X] S) -> \In[X] (domain i) x);
+\import Side[i := B.Bool^::false, S := C, inside := insideC] \as Positive;
+\import Side[i := B.Bool^::true, S := D, inside := insideD] \as Negative;
+\definition overlapPoint[x: X][inC: \In[X] C x][inD: \In[X] D x]: Overlap := \into[X](x, overlap) \by {
+  Logic.And[_, _]::# (insideC (\into[X](x, C) \by { inC })) (insideD (\into[X](x, D) \by { inD }))
+};
+\structure Gauge: \Set := {
+  positive: Positive.Carrier -> Units.Carrier, negative: Negative.Carrier -> Units.Carrier,
+  positiveContinuous: topology.Continuity[A := Positive.Carrier, B := Units.Carrier].Continuous Positive.topology Units.topology positive,
+  negativeContinuous: topology.Continuity[A := Negative.Carrier, B := Units.Carrier].Continuous Negative.topology Units.topology negative,
+  compatible: \forall (x: X)(inC: \In[X] C x)(inD: \In[X] D x)(v: Vector n) ->
+    (negative (\into[X](x, D) \by { inD })).apply ((g (overlapPoint x inC inD)).apply v) =
+    (h (overlapPoint x inC inD)).apply ((positive (\into[X](x, C) \by { inC })).apply v),
+};
+\module FromGauge(gauge: Gauge);
+\definition isomorphismExists: (\exists Gauge) -> \exists Isomorphism := \block {
+  \fun (exists: \exists Gauge) \then
+  \takefrom gauge: Gauge \by exists \then
+  \return \exact(FromGauge[gauge := gauge].value, Isomorphism)
+};

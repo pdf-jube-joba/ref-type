@@ -1,0 +1,55 @@
+\import \parent.Expansion[] \as Expanded;
+\import \parent.\parent.Products[n := n] \as Products;
+\import Fin.Permutations[n := n] \as Permutations;
+\import Fin.Ordering[] \as Ordering;
+\import Ordering.Rigidity[] \as Rigidity;
+\import Algebra.Multilinear[V := K, space := Algebra.scalarSpace] \as ScalarTuples;
+\import ScalarTuples.Properties[] \as ScalarUpdates;
+\import Algebra.FiniteCoordinateEnumeration[] \as Enumeration;
+\import Enumeration.At[n := n] \as Indices;
+\definition Weight[indices: Index -> Index]: K := Top.volume (\fun (j: Index) => Coordinates.vectors (indices j));
+\definition factors[indices: Index -> Index][A: Matrix]: Index -> K := \fun (j: Index) => A (indices j) j;
+\definition monomial[indices: Index -> Index][A: Matrix]: K := Products.product (factors indices A);
+\definition term[indices: Index -> Index][A: Matrix]: K := mul (monomial indices A) (Weight indices);
+\module Permuted(p: Permutations.Permutation);
+\definition withInjection: \forall (indices: Index -> Index) -> Ordering.Injective n n indices -> Multilinear.Laws[n, term indices] := \block {
+  \fun (indices: Index -> Index)(injection: Ordering.Injective n n indices) \then
+  \takefrom ordered: Ordering.Ordered n n indices \by Ordering.ordering n n indices injection \then
+  \let increasing: Rigidity.Endomorphism n := \into[Index -> Index](\fun (i: Index) => indices (ordered.forward i), Rigidity.Endomorphism n) \by {
+    \bysub(Ordering.PermutationType n, Ordering.Ordered n n indices, ordered)
+  } \then
+  \let normalized: (\fun (i: Index) => indices (ordered.forward i)) = (\fun (i: Index) => i) := Rigidity.rigid n increasing \then
+  \let right: \forall (i: Index) -> indices (ordered.forward i) = i :=
+    \fun (i: Index) => congr!{{Index -> Index} Index} (\fun (f: Index -> Index) => f i) _ _ normalized \then
+  \let p: Permutations.Permutation := Permutations.Permutation {
+    forward := indices, backward := ordered.forward,
+    leftInverse := \fun (i: Index) => injection (ordered.forward (indices i)) i (right (indices i)),
+    rightInverse := right,
+  } \then
+  \return Permuted[p := p].laws
+};
+\definition weightZero: \forall (indices: Index -> Index) -> Logic.Not (Ordering.Injective n n indices) -> Weight indices = zero := \block {
+  \fun (indices: Index -> Index)(notInjective: Logic.Not (Ordering.Injective n n indices)) \then
+  \takefrom collision: Fin.Pigeonhole[].Collision[n, n, indices] \by Ordering.collision n n indices notInjective \then
+  \return (\bysub(Multilinear.Function n, Alternating.Form n, Top.volume)).alternating
+    (\fun (j: Index) => Coordinates.vectors (indices j)) collision.first collision.second collision.different
+    (congr!{Index Vector} Coordinates.vectors _ _ collision.same)
+};
+\definition termZero: \forall (indices: Index -> Index) -> Logic.Not (Ordering.Injective n n indices) -> \forall (A: Matrix) -> term indices A = zero :=
+  \fun (indices: Index -> Index)(notInjective: _)(A: Matrix) => trans!{K} _ _ _
+    (congr!{K K} (mul (monomial indices A)) _ _ (weightZero indices notInjective)) (Algebra.mulZeroRight (monomial indices A));
+\definition regular: \forall (indices: Index -> Index) -> Multilinear.Laws[n, term indices] :=
+  \fun (indices: Index -> Index) => either!{{(Classical.excludedMiddle (Ordering.Injective n n indices))} {Multilinear.Laws[n, term indices]}
+    {withInjection indices}
+    {\fun (notInjective: Logic.Not (Ordering.Injective n n indices)) => Multilinear.Laws[n, term indices] {
+      addition := \fun (A: Matrix)(i: Index)(v, w: Vector) => eq_reason_in!{K _
+        "=" zero "by" { termZero indices notInjective (Multilinear.update n A i (Vectors.plus v w)) }
+        "=" { add zero zero } "by" { sym!{K} _ _ (Algebra.addZeroLeft zero) }
+        "=" _ "by" { congr!{K K K} add _ _ _ _ (sym!{K} _ _ (termZero indices notInjective (Multilinear.update n A i v))) (sym!{K} _ _ (termZero indices notInjective (Multilinear.update n A i w))) }
+      },
+      scalar := \fun (A: Matrix)(i: Index)(a: K)(v: Vector) => eq_reason_in!{K _
+        "=" zero "by" { termZero indices notInjective (Multilinear.update n A i (Vectors.scale a v)) }
+        "=" { mul a zero } "by" { sym!{K} _ _ (Algebra.mulZeroRight a) }
+        "=" _ "by" { congr!{K K} (mul a) _ _ (sym!{K} _ _ (termZero indices notInjective (Multilinear.update n A i v))) }
+      },
+    }}};

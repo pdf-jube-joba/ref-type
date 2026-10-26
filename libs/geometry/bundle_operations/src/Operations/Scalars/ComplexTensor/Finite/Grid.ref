@@ -1,0 +1,28 @@
+\import RealSpaces.Sums[I := Fin.Fin r].Vector[V := Carrier, space := Tensor.space] \as Outer;
+\import RealSpaces.Sums[I := Fin.Fin s].Vector[V := Carrier, space := Tensor.space] \as Inner;
+\import ComplexSpaces.Sums[I := Fin.Fin r] \as Scalars;
+\import Scalars.Prop[] \as Laws;
+\import ComplexSpaces.Sums[I := Fin.Fin s] \as InnerScalars;
+\import RealSpaces.Linear[V := Complex.Vector n, W := C.Complex, source := CoordinateScalars.realSpace, target := Scalar.realSpace] \as Evaluation;
+\definition evaluation[j: Fin.Fin n]: Evaluation.Map := Evaluation.Map {
+  apply := \fun (z: Complex.Vector n) => z j, preservesAdd := \fun (z, w: Complex.Vector n) => \refl(CD.add (z j) (w j)),
+  preservesScale := \fun (a: R.Real)(z: Complex.Vector n) => \refl(CD.mul (CD.ofReal a) (z j))
+};
+\import Evaluation.Composition[U := Carrier, domain := Tensor.space] \as Composition;
+\definition functional[j: Fin.Fin n]: RealSpaces.Linear[V := Carrier, W := C.Complex, source := Tensor.space, target := Scalar.realSpace].Map := Composition.compose (evaluation j) realForward;
+\import Outer.Mapping[W := C.Complex, target := Scalar.realSpace] \as OuterMapping;
+\import Inner.Mapping[W := C.Complex, target := Scalar.realSpace] \as InnerMapping;
+\import InnerScalars.Prop[] \as InnerLaws;
+\definition formula: \forall (v: Fin.Fin r -> Fin.Fin s -> V)(z: Fin.Fin r -> Fin.Fin s -> C.Complex)(j: Fin.Fin n) ->
+  forward.apply (Outer.sum (Fin.elements r) (\fun (a: Fin.Fin r) => Inner.sum (Fin.elements s) (\fun (b: Fin.Fin s) => pure (v a b) (z a b)))) j =
+    Scalars.sum (Fin.elements r) (\fun (a: Fin.Fin r) => InnerScalars.sum (Fin.elements s) (\fun (b: Fin.Fin s) => CD.mul (CD.ofReal (frame.forward.apply (v a b) j)) (z a b))) :=
+  \fun (v: _)(z: _)(j: Fin.Fin n) => trans!{{C.Complex}} _ _ _
+    (OuterMapping.law (functional j) (Fin.elements r) (\fun (a: Fin.Fin r) => Inner.sum (Fin.elements s) (\fun (b: Fin.Fin s) => pure (v a b) (z a b))))
+    (Laws.congruent (Fin.elements r)
+      (\fun (a: Fin.Fin r) => (functional j).apply (Inner.sum (Fin.elements s) (\fun (b: Fin.Fin s) => pure (v a b) (z a b))))
+      (\fun (a: Fin.Fin r) => InnerScalars.sum (Fin.elements s) (\fun (b: Fin.Fin s) => CD.mul (CD.ofReal (frame.forward.apply (v a b) j)) (z a b)))
+      (\fun (a: Fin.Fin r) => trans!{{C.Complex}} _ _ _ (InnerMapping.law (functional j) (Fin.elements s) (\fun (b: Fin.Fin s) => pure (v a b) (z a b)))
+        (InnerLaws.congruent (Fin.elements s)
+          (\fun (b: Fin.Fin s) => (functional j).apply (pure (v a b) (z a b)))
+          (\fun (b: Fin.Fin s) => CD.mul (CD.ofReal (frame.forward.apply (v a b) j)) (z a b))
+          (\fun (b: Fin.Fin s) => congr!{{Complex.Vector n} {C.Complex}} (\fun (z: Complex.Vector n) => z j) _ _ (onPure (v a b) (z a b))))));

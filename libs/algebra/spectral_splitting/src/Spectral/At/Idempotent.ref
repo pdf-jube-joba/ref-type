@@ -1,0 +1,56 @@
+\import Geometry.Finite[n := n] \as E;
+\import Geometry.Inner[V := Vector, space := Coordinates.space].Of[h := E.form] \as InnerLaws;
+\import Spaces.Laws[V := Vector, space := Coordinates.space] \as Laws;
+\definition negativeAddition: \forall (v, w: Vector) -> E.space.neg (E.space.add v w) = E.space.add (E.space.neg v) (E.space.neg w) :=
+  \fun (v, w: Vector) => eq_reason_in!{Vector _
+    "=" _ "by" { sym!{Vector} _ _ (Laws.minusOneScale (E.space.add v w)) }
+    "=" _ "by" { E.space.vectorAdd (Spaces.neg Spaces.one) v w }
+    "=" _ "by" { congr!{Vector Vector Vector} E.space.add _ _ _ _ (Laws.minusOneScale v) (Laws.minusOneScale w) }
+  };
+\definition complementMap: End.Map := End.Map {
+  apply := \fun (v: Vector) => InnerLaws.subtract v (P.apply v),
+  preservesAdd := \fun (v, w: Vector) => trans!{Vector} _ _ _
+    (congr!{Vector Vector} (\fun (x: Vector) => E.space.add (E.space.add v w) (E.space.neg x)) _ _ (P.preservesAdd v w))
+    (trans!{Vector} _ _ _
+      (congr!{Vector Vector} (E.space.add (E.space.add v w)) _ _ (negativeAddition (P.apply v) (P.apply w)))
+      (Laws.shuffle v w (E.space.neg (P.apply v)) (E.space.neg (P.apply w)))),
+  preservesScale := \fun (a: C.Complex)(v: Vector) => trans!{Vector} _ _ _
+    (congr!{Vector Vector} (\fun (w: Vector) => E.space.add (E.space.smul a v) (E.space.neg w)) _ _ (P.preservesScale a v))
+    (trans!{Vector} _ _ _ (congr!{Vector Vector} (E.space.add (E.space.smul a v)) _ _ (sym!{Vector} _ _ (Laws.scaleNegative a (P.apply v))))
+      (sym!{Vector} _ _ (E.space.vectorAdd a v (E.space.neg (P.apply v))))),
+};
+\definition annihilates: \forall (v: Vector) -> P.apply (complementMap.apply v) = E.space.zero :=
+  \fun (v: Vector) => eq_reason_in!{Vector _
+    "=" _ "by" { InnerLaws.linearSubtract P v (P.apply v) }
+    "=" _ "by" { congr!{Vector Vector} (InnerLaws.subtract (P.apply v)) _ _ (idempotent v) }
+    "=" _ "by" { trans!{Vector} _ _ _ (Laws.comm (P.apply v) (E.space.neg (P.apply v))) (Laws.inverseLeft (P.apply v)) }
+  };
+\definition complementIdempotent: \forall (v: Vector) -> complementMap.apply (complementMap.apply v) = complementMap.apply v := \fun (v: Vector) => trans!{Vector} _ _ _
+    (congr!{Vector Vector} (InnerLaws.subtract (complementMap.apply v)) _ _ (annihilates v))
+    (trans!{Vector} _ _ _ (congr!{Vector Vector} (E.space.add (complementMap.apply v)) _ _ (trans!{Vector} _ _ _ (sym!{Vector} _ _ (Laws.minusOneScale E.space.zero)) (Laws.scaleZero (Spaces.neg Spaces.one)))) (Laws.zeroRight (complementMap.apply v)));
+\definition splitting: \forall (v: Vector) -> E.space.add (P.apply v) (complementMap.apply v) = v :=
+  \fun (v: Vector) => InnerLaws.addSubtract v (P.apply v);
+\definition annihilatesRight: \forall (v: Vector) -> complementMap.apply (P.apply v) = E.space.zero :=
+  \fun (v: Vector) => trans!{Vector} _ _ _
+    (congr!{Vector Vector} (InnerLaws.subtract (P.apply v)) _ _ (idempotent v))
+    (trans!{Vector} _ _ _ (Laws.comm (P.apply v) (E.space.neg (P.apply v))) (Laws.inverseLeft (P.apply v)));
+\import bundle_complements.Complements[].Over[K := C.Complex, field := Scalars.field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].Finite[n := n] \as Finite;
+\import Finite.ImageBasis[map := P, idempotent := idempotent] \as Greedy;
+\definition Carrier[k: N.Nat^]: \Set := Fin.Fin k -> C.Complex;
+\definition coordinates[k: N.Nat^]: Spaces.VectorSpace (Carrier k) := Spaces.Coordinates[I := Fin.Fin k].space;
+\structure Basis[k: N.Nat^]: \Set := {
+  value: Spaces.Linear[V := Carrier k, W := Vector, source := coordinates k, target := Coordinates.space].Map,
+  coordinate: Spaces.Linear[V := Vector, W := Carrier k, source := Coordinates.space, target := coordinates k].Map,
+  leftInverse: \forall (v: Carrier k) -> coordinate.apply (value.apply v) = v,
+  reconstruction: \forall (v: Vector) -> value.apply (coordinate.apply v) = P.apply v,
+};
+\definition fixed: \forall (k: N.Nat^)(basis: Basis[k])(v: Carrier k) -> P.apply (basis.value.apply v) = basis.value.apply v :=
+  \fun (k: N.Nat^)(basis: Basis[k])(v: Carrier k) => trans!{Vector} _ _ _ (sym!{Vector} _ _ (basis.reconstruction (basis.value.apply v)))
+    (congr!{{Carrier k} Vector} basis.value.apply _ _ (basis.leftInverse v));
+\module Complete(result: Greedy.Result[Fin.elements n]);
+\structure Witness: \Set := { rank: N.Nat^, basis: Basis[rank] };
+\definition exists: \exists Witness := \block {
+  \takefrom result: Greedy.Result[Fin.elements n] \by Greedy.exists (Fin.elements n) \then
+  \return \exact(Witness { rank := result.rank, basis := Complete[result := result].basis }, Witness)
+};

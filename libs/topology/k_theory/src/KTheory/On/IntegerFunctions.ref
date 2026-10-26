@@ -1,0 +1,79 @@
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[] \as IA;
+\import IA.Ring[] \as Integers;
+\import std.Alg[].Alg[] \as Alg;
+\import std.Alg[].Monoid[] \as Monoid;
+\import topology.Topology[Carrier := X] \as Base;
+\definition Carrier: \Set := X -> I.Int^;
+\definition zero: Carrier := \fun (x: X) => Integers.ring.zero;
+\definition one: Carrier := \fun (x: X) => Integers.ring.one;
+\definition add[a, b: Carrier]: Carrier := \fun (x: X) => Integers.ring.add (a x) (b x);
+\definition neg[a: Carrier]: Carrier := \fun (x: X) => Integers.ring.neg (a x);
+\definition mul[a, b: Carrier]: Carrier := \fun (x: X) => Integers.ring.mul (a x) (b x);
+\definition group: Alg.CommutativeGroup[Carrier] := Alg.CommutativeGroup[Carrier] {
+  base := Alg.GroupData[Carrier]::# zero add neg,
+  group := Alg.GroupLaws[Carrier, (Alg.GroupData[Carrier]::# zero add neg)] {
+    monoid := Monoid.MonoidLaws[Carrier, (Monoid.MonoidData[Carrier]::# zero add)] {
+      leftIdentity := \fun (a: Carrier) => \axiom:funext(add zero a, a, \fun (x: X) => IA.additiveGroupLaws.monoid.leftIdentity (a x)),
+      rightIdentity := \fun (a: Carrier) => \axiom:funext(add a zero, a, \fun (x: X) => IA.additiveGroupLaws.monoid.rightIdentity (a x)),
+      associative := \fun (a, b, c: Carrier) => \axiom:funext(add (add a b) c, add a (add b c), \fun (x: X) => IA.additiveGroupLaws.monoid.associative (a x) (b x) (c x))
+    },
+    leftInverse := \fun (a: Carrier) => \axiom:funext(add (neg a) a, zero, \fun (x: X) => IA.additiveGroupLaws.leftInverse (a x)),
+    rightInverse := \fun (a: Carrier) => \axiom:funext(add a (neg a), zero, \fun (x: X) => IA.additiveGroupLaws.rightInverse (a x))
+  },
+  commutative := \fun (a, b: Carrier) => \axiom:funext(add a b, add b a, \fun (x: X) => IA.additiveCommutativeGroupLaws.commutative (a x) (b x))
+};
+\structure Neighborhood[f: Carrier, x: X]: \Set := {
+  domain: \Pow X,
+  open: Base.IsOpenIn baseSpace domain,
+  contains: Base.Member domain x,
+  constant: \forall (y: X) -> Base.Member domain y -> f y = f x
+};
+\definition LocallyConstant[f: Carrier]: \Prop := \forall (x: X) -> \exists Neighborhood[f, x];
+\definition constant: \forall (z: I.Int^) -> LocallyConstant (\fun (x: X) => z) := \fun (z: I.Int^)(x: X) =>
+  \exact(Neighborhood[(\fun (x: X) => z), x] {
+    domain := Base.Whole, open := (Base.topologyLaws baseSpace).wholeOpen, contains := \refl(x), constant := \fun (y: X)(h: Base.Member Base.Whole y) => \refl(z)
+  }, Neighborhood[(\fun (x: X) => z), x]);
+\definition negative: \forall (f: Carrier) -> LocallyConstant f -> LocallyConstant (neg f) := \block {
+  \fun (f: Carrier)(regular: LocallyConstant f)(x: X) \then
+  \takefrom n: Neighborhood[f, x] \by regular x \then
+  \return \exact(Neighborhood[neg f, x] {
+    domain := n.domain, open := n.open, contains := n.contains,
+    constant := \fun (y: X)(h: Base.Member n.domain y) => congr!{{I.Int^} {I.Int^}} Integers.ring.neg _ _ (n.constant y h)
+  }, Neighborhood[neg f, x])
+};
+\definition addition: \forall (f, g: Carrier) -> LocallyConstant f -> LocallyConstant g -> LocallyConstant (add f g) := \block {
+  \fun (f, g: Carrier)(first: LocallyConstant f)(second: LocallyConstant g)(x: X) \then
+  \takefrom n: Neighborhood[f, x] \by first x \then
+  \takefrom m: Neighborhood[g, x] \by second x \then
+  \return \exact(Neighborhood[add f g, x] {
+    domain := Base.Intersection n.domain m.domain,
+    open := (Base.topologyLaws baseSpace).intersectionOpen n.domain m.domain n.open m.open,
+    contains := Logic.And[_, _]::# n.contains m.contains,
+    constant := \fun (y: X)(h: Base.Member (Base.Intersection n.domain m.domain) y) =>
+      congr!{{I.Int^} {I.Int^} {I.Int^}} Integers.ring.add _ _ _ _ (n.constant y h.left) (m.constant y h.right)
+  }, Neighborhood[add f g, x])
+};
+\import std.Alg[].Ring[] \as Rings;
+\definition ring: Rings.Ring[Carrier] := Rings.Ring[Carrier] {
+  zero := zero, one := one, add := add, neg := neg, mul := mul,
+  semiring := Alg.SemiringLaws[Carrier, (Alg.SemiringData[Carrier]::# zero one add mul)] {
+    additive := Monoid.CommutativeMonoidLaws[Carrier, (Monoid.CommutativeMonoidData[Carrier]::# (Monoid.MonoidData[Carrier]::# zero add))] {
+      monoid := group.group.monoid, commutative := group.commutative
+    },
+    multiplicative := Monoid.MonoidLaws[Carrier, (Monoid.MonoidData[Carrier]::# one mul)] {
+      leftIdentity := \fun (a: Carrier) => \axiom:funext(mul one a, a, \fun (x: X) => Integers.ring.semiring.multiplicative.leftIdentity (a x)),
+      rightIdentity := \fun (a: Carrier) => \axiom:funext(mul a one, a, \fun (x: X) => Integers.ring.semiring.multiplicative.rightIdentity (a x)),
+      associative := \fun (a, b, c: Carrier) => \axiom:funext(mul (mul a b) c, mul a (mul b c), \fun (x: X) => Integers.ring.semiring.multiplicative.associative (a x) (b x) (c x))
+    },
+    leftDistributive := \fun (a, b, c: Carrier) => \axiom:funext(mul a (add b c), add (mul a b) (mul a c), \fun (x: X) => Integers.ring.semiring.leftDistributive (a x) (b x) (c x)),
+    rightDistributive := \fun (a, b, c: Carrier) => \axiom:funext(mul (add a b) c, add (mul a c) (mul b c), \fun (x: X) => Integers.ring.semiring.rightDistributive (a x) (b x) (c x)),
+    zeroAbsorbsLeft := \fun (a: Carrier) => \axiom:funext(mul zero a, zero, \fun (x: X) => Integers.ring.semiring.zeroAbsorbsLeft (a x)),
+    zeroAbsorbsRight := \fun (a: Carrier) => \axiom:funext(mul a zero, zero, \fun (x: X) => Integers.ring.semiring.zeroAbsorbsRight (a x))
+  },
+  additiveInverse := group.group.leftInverse
+};
+\definition commutativeRing: Rings.CommutativeRing[Carrier] := Rings.CommutativeRing[Carrier] {
+  base := ring, ring := \bysub(Rings.RingData[Carrier], Rings.Ring[Carrier], ring),
+  mulCommutative := \fun (f, g: Carrier) => \axiom:funext(mul f g, mul g f, \fun (x: X) => Integers.commutativeRing.mulCommutative (f x) (g x))
+};

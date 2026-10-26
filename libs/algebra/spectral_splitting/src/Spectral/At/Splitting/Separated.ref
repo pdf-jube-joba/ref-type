@@ -1,0 +1,56 @@
+\definition matrix: Inversion.Nonsingular := \into[Matrices.Matrix](Square.entries middle, Inversion.Nonsingular) \by { nonzero off };
+\definition inverse: End.Map := Square.Inverse[A := matrix].value;
+\definition projection: End.Map := Compose.compose (Evaluation.evaluate outside) inverse;
+\definition complementary: End.Map := Compose.compose (Evaluation.evaluate inside) inverse;
+\import Matrices.Representation[] \as Representation;
+\definition inverseRight: \forall (v: Vector) -> middle.apply (inverse.apply v) = v :=
+  \fun (v: Vector) => trans!{Vector} _ _ _
+    (sym!{Vector} _ _ (congr!{End.Map Vector} (\fun (f: End.Map) => f.apply (inverse.apply v)) _ _ (Representation.linearEntries middle)))
+    (Square.Inverse[A := matrix].right v);
+\module With(b: Polynomials.Bezout[inside, outside, P.one]);
+\definition formula: \forall (b: Polynomials.Bezout[inside, outside, P.one])(v: Vector) -> projection.apply v =
+  \root.Spectral[].Action[V := Vector, space := Coordinates.space, T := Matrices.linear A].With[p := inside, q := outside, b := b].projection.apply v :=
+  \fun (b: Polynomials.Bezout[inside, outside, P.one]) => With[b := b].formula;
+\definition idempotent: \forall (v: Vector) -> projection.apply (projection.apply v) = projection.apply v := \block {
+  \takefrom b: Polynomials.Bezout[inside, outside, P.one] \by Roots.coprime coefficients off \then
+  \return With[b := b].idempotent
+};
+\definition inKernel: \forall (v: Vector) -> Evaluation.apply inside (projection.apply v) = Coordinates.origin := \block {
+  \takefrom b: Polynomials.Bezout[inside, outside, P.one] \by Roots.coprime coefficients off \then
+  \return With[b := b].inKernel
+};
+\definition reconstruction: \forall (v: Vector) -> Coordinates.plus (projection.apply v) (complementary.apply v) = v := \block {
+  \takefrom b: Polynomials.Bezout[inside, outside, P.one] \by Roots.coprime coefficients off \then
+  \return With[b := b].reconstruction
+};
+\definition inOtherKernel: \forall (v: Vector) -> Evaluation.apply outside (complementary.apply v) = Coordinates.origin := \block {
+  \takefrom b: Polynomials.Bezout[inside, outside, P.one] \by Roots.coprime coefficients off \then
+  \return With[b := b].inOtherKernel
+};
+\definition onKernel: \forall (v: Vector) -> Evaluation.apply inside v = Coordinates.origin -> projection.apply v = v := \block {
+  \takefrom b: Polynomials.Bezout[inside, outside, P.one] \by Roots.coprime coefficients off \then
+  \return With[b := b].onKernel
+};
+\import Polynomials.Primary[V := Vector, space := Evaluation.module] \as Primary;
+\definition decomposition[v: Vector]: Primary.Split[inside, outside, v] := Primary.Split[inside, outside, v] {
+  left := \into[Vector](projection.apply v, Primary.Kernel inside) \by { inKernel v },
+  right := \into[Vector](complementary.apply v, Primary.Kernel outside) \by { inOtherKernel v },
+  reconstruction := reconstruction v,
+};
+\definition invariant: \forall (v: Vector) -> Evaluation.apply inside v = Coordinates.origin -> Evaluation.apply inside ((Matrices.linear A).apply v) = Coordinates.origin :=
+  \fun (v: Vector)(member: _) => trans!{Vector} _ _ _
+    (congr!{Vector Vector} (Evaluation.apply inside) _ _ (sym!{Vector} _ _ (Evaluation.variable v)))
+    (\root.Spectral[].Action[V := Vector, space := Coordinates.space, T := Matrices.linear A].polynomialKernel inside P.X v member);
+
+\import Spaces.Laws[V := Vector, space := Coordinates.space] \as VectorLaws;
+\import \root.Spectral[].At[n := n].Idempotent[P := projection, idempotent := idempotent] \as Complement;
+\definition complementaryFormula: \forall (v: Vector) -> complementary.apply v = Complement.complementMap.apply v :=
+  \fun (v: Vector) => VectorLaws.cancelLeft (projection.apply v) (complementary.apply v) (Complement.complementMap.apply v)
+    (trans!{Vector} _ _ _ (reconstruction v) (sym!{Vector} _ _ (Complement.splitting v)));
+\definition complementaryIdempotent: \forall (v: Vector) -> complementary.apply (complementary.apply v) = complementary.apply v :=
+  \fun (v: Vector) => eq_reason_in!{Vector _
+    "=" _ "by" { complementaryFormula (complementary.apply v) }
+    "=" { Complement.complementMap.apply (Complement.complementMap.apply v) } "by" { congr!{Vector Vector} Complement.complementMap.apply _ _ (complementaryFormula v) }
+    "=" _ "by" { Complement.complementIdempotent v }
+    "=" _ "by" { sym!{Vector} _ _ (complementaryFormula v) }
+  };

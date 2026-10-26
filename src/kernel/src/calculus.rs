@@ -21,6 +21,7 @@ impl Instantiations {
         term: Expression,
         arguments: &[Expression],
     ) -> Result<Expression, crate::error::Error> {
+        let _cost = timing::costs::Scope::enter("kernel.instantiate");
         if arguments.is_empty() || arena.max_loose_bound(term).is_none() {
             return Ok(term);
         }
@@ -299,6 +300,7 @@ pub fn skeleton(arena: &Arena, expression: Expression) -> Node {
 }
 
 pub fn alpha_equal(arena: &Arena, left: Expression, right: Expression) -> bool {
+    let _cost = timing::costs::Scope::enter("kernel.alpha-equal");
     fn compare(
         arena: &Arena,
         left: Expression,

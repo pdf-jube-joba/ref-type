@@ -1,0 +1,49 @@
+\import Hermitian.At[n := n].Families[X := X] \as Vectors;
+\import Vectors.Matrix[m := n] \as Maps;
+\import Hermitian.Functions[X := X] \as Functions;
+\import Spaces.Eigen[V := Vector, space := Coordinates.space] \as Eigen;
+\import End.Operations[] \as Operations;
+\definition CoefficientRegular[k: N.Nat^][c: X -> Roots.Vector k]: \Prop := \forall (i: Fin.Fin k) -> Functions.Continuous source (\fun (x: X) => c x i);
+\definition evaluate[x: X][p: P.Carrier]: End.Map := Polynomials.Action[V := Vector, space := Coordinates.space].At[T := T x].evaluate p;
+\definition unit: \forall (x: X)(v: Vector) -> (evaluate x P.one).apply v = v := \fun (x: X) => Polynomials.Action[V := Vector, space := Coordinates.space].At[T := T x].unit;
+\definition constants: \forall (x: X)(a: C.Complex)(v: Vector) -> (evaluate x (P.constant a)).apply v = Coordinates.scale a v := \fun (x: X) => Polynomials.Action[V := Vector, space := Coordinates.space].At[T := T x].constants;
+\definition variable: \forall (x: X)(v: Vector) -> (evaluate x P.X).apply v = (T x).apply v := \fun (x: X) => Polynomials.Action[V := Vector, space := Coordinates.space].At[T := T x].variable;
+\definition addition: \forall (x: X)(p, q: P.Carrier)(v: Vector) -> (evaluate x (P.add p q)).apply v = Coordinates.plus ((evaluate x p).apply v) ((evaluate x q).apply v) := \fun (x: X) => Polynomials.Action[V := Vector, space := Coordinates.space].At[T := T x].addition;
+\definition multiplication: \forall (x: X)(p, q: P.Carrier)(v: Vector) -> (evaluate x (P.mul p q)).apply v = (evaluate x p).apply ((evaluate x q).apply v) := \fun (x: X) => Polynomials.Action[V := Vector, space := Coordinates.space].At[T := T x].multiplication;
+\definition horner: \forall (k: N.Nat^) -> (X -> Roots.Vector k) -> X -> End.Map :=
+  \induction (k: N.Nat^) \return (X -> Roots.Vector k) -> X -> End.Map \with {
+    | zero: \fun (c: X -> Roots.Vector N.Nat^::zero)(x: X) => Eigen.identity
+    | succ: \fun (k: N.Nat^)(previous: (X -> Roots.Vector k) -> X -> End.Map)(c: X -> Roots.Vector (N.Nat^::succ k))(x: X) =>
+      Operations.plus (Operations.scale (c x (Fin.zero k)) Eigen.identity) (Compose.compose (T x) (previous (\fun (y: X)(i: Fin.Fin k) => c y (Fin.succ k i)) x))
+  };
+\definition formula: \forall (k: N.Nat^)(c: X -> Roots.Vector k)(x: X)(v: Vector) -> (horner k c x).apply v = (evaluate x (Roots.polynomial k (c x))).apply v :=
+  \induction (k: N.Nat^) \return \forall (c: X -> Roots.Vector k)(x: X)(v: Vector) -> (horner k c x).apply v = (evaluate x (Roots.polynomial k (c x))).apply v \with {
+    | zero: \fun (c: X -> Roots.Vector N.Nat^::zero)(x: X)(v: Vector) => sym!{Vector} _ _ (unit x v)
+    | succ: \fun (k: N.Nat^)(previous: _)(c: X -> Roots.Vector (N.Nat^::succ k))(x: X)(v: Vector) => eq_reason_in!{Vector _
+      "=" { Coordinates.plus (Coordinates.scale (c x (Fin.zero k)) v) ((T x).apply ((evaluate x (Roots.polynomial k (\fun (i: Fin.Fin k) => c x (Fin.succ k i)))).apply v)) } "by" {
+        congr!{Vector Vector} (Coordinates.plus (Coordinates.scale (c x (Fin.zero k)) v)) _ _
+          (congr!{Vector Vector} (T x).apply _ _ (previous (\fun (y: X)(i: Fin.Fin k) => c y (Fin.succ k i)) x v))
+      }
+      "=" _ "by" { congr!{Vector Vector Vector} Coordinates.plus _ _ _ _ (sym!{Vector} _ _ (constants x (c x (Fin.zero k)) v))
+        (trans!{Vector} _ _ _ (sym!{Vector} _ _ (variable x ((evaluate x (Roots.polynomial k (\fun (i: Fin.Fin k) => c x (Fin.succ k i)))).apply v)))
+          (sym!{Vector} _ _ (multiplication x P.X (Roots.polynomial k (\fun (i: Fin.Fin k) => c x (Fin.succ k i))) v))) }
+      "=" _ "by" { sym!{Vector} _ _ (addition x (P.constant (c x (Fin.zero k))) (P.mul P.X (Roots.polynomial k (\fun (i: Fin.Fin k) => c x (Fin.succ k i)))) v) }
+    }
+  };
+\definition compositionRegular: \forall (A, B: X -> End.Map) -> Maps.Regular source A -> Maps.Regular source B -> Maps.Regular source (\fun (x: X) => Compose.compose (A x) (B x)) :=
+  \fun (A, B: X -> End.Map)(ac: _)(bc: _)(v: Vector) => Maps.evaluate source A (\fun (x: X) => (B x).apply v) (\fun (j: Fin.Fin n) => ac (Geometry.Finite[n := n].basis j)) (bc v);
+\definition hornerRegular: \forall (k: N.Nat^)(c: X -> Roots.Vector k) -> CoefficientRegular k c -> Maps.Regular source (horner k c) :=
+  \induction (k: N.Nat^) \return \forall (c: X -> Roots.Vector k) -> CoefficientRegular k c -> Maps.Regular source (horner k c) \with {
+    | zero: \fun (c: X -> Roots.Vector N.Nat^::zero)(regular: _) => Maps.constant source Eigen.identity
+    | succ: \fun (k: N.Nat^)(previous: _)(c: X -> Roots.Vector (N.Nat^::succ k))(regular: _)(v: Vector) =>
+      Vectors.addition source (\fun (x: X) => Coordinates.scale (c x (Fin.zero k)) v)
+        (\fun (x: X) => (T x).apply ((horner k (\fun (y: X)(i: Fin.Fin k) => c y (Fin.succ k i)) x).apply v))
+        (Vectors.scale source (\fun (x: X) => c x (Fin.zero k)) (\fun (x: X) => v) (regular (Fin.zero k)) (Vectors.constant source v))
+        (Maps.evaluate source T (\fun (x: X) => (horner k (\fun (y: X)(i: Fin.Fin k) => c y (Fin.succ k i)) x).apply v)
+          (\fun (j: Fin.Fin n) => regularT (Geometry.Finite[n := n].basis j))
+          (previous (\fun (y: X)(i: Fin.Fin k) => c y (Fin.succ k i)) (\fun (i: Fin.Fin k) => regular (Fin.succ k i)) v))
+  };
+\definition regular: \forall (k: N.Nat^)(c: X -> Roots.Vector k) -> CoefficientRegular k c -> Maps.Regular source (\fun (x: X) => evaluate x (Roots.polynomial k (c x))) :=
+  \fun (k: N.Nat^)(c: X -> Roots.Vector k)(regular: _)(v: Vector)(i: Fin.Fin n) => Functions.transport source
+    (\fun (x: X) => (horner k c x).apply v i) (\fun (x: X) => (evaluate x (Roots.polynomial k (c x))).apply v i)
+    (\fun (x: X) => congr!{Vector {C.Complex}} (\fun (w: Vector) => w i) _ _ (formula k c x v)) (hornerRegular k c regular v i);

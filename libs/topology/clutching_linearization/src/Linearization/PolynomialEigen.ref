@@ -1,0 +1,31 @@
+\import algebra.Polynomial[].Over[R := C.Complex, coefficients := Scalars.commutativeRing] \as P;
+\import polynomial_linear_algebra.Field[K := C.Complex, field := Scalars.field].Action[V := V, space := space].At[T := T] \as Action;
+\import galois.Field[].Over[K := C.Complex, field := Scalars.field].Polynomial[].AbstractEvaluation[] \as Evaluation;
+\import P.Universal[K := C.Complex, target := Scalars.commutativeRing] \as Universal;
+\import Spaces.Laws[V := V, space := space] \as Values;
+\import algebra.Group[].Of[Carrier := C.Complex, group := Scalars.additiveGroup] \as ScalarGroup;
+\import algebra.Group[].Of[Carrier := V, group := Rings.ringModuleAsCommutativeGroup C.Complex V Spaces.ring space] \as Group;
+\definition negativeEvaluation: \forall (z: C.Complex)(p: P.Carrier) -> Evaluation.apply z (P.neg p) = C.Def[].neg (Evaluation.apply z p) :=
+  \fun (z: C.Complex)(p: P.Carrier) => ScalarGroup.inverseUnique (Evaluation.apply z p) (Evaluation.apply z (P.neg p)) (eq_reason_in!{{C.Complex} _
+    "=" { Evaluation.apply z (P.add (P.neg p) p) } "by" { sym!{{C.Complex}} _ _ ((Evaluation.homomorphism z).add (P.neg p) p) }
+    "=" { Evaluation.apply z P.zero } "by" { congr!{P.Carrier {C.Complex}} (Evaluation.apply z) _ _ (P.ring.ring.additiveInverse p) }
+    "=" C.Def[].zero "by" { (Evaluation.homomorphism z).zero }
+  });
+\definition negativeScalar: \forall (a: C.Complex)(v: V) -> space.neg (space.smul a v) = space.smul (C.Def[].neg a) v :=
+  \fun (a: C.Complex)(v: V) => sym!{V} _ _ (Group.inverseUnique (space.smul a v) (space.smul (C.Def[].neg a) v)
+    (trans!{V} _ _ _ (sym!{V} _ _ (space.scalarAdd (C.Def[].neg a) a v))
+      (trans!{V} _ _ _ (congr!{{C.Complex} V} (\fun (s: C.Complex) => space.smul s v) _ _ (C.Prop[].addNegLeft a)) (Values.zeroScale v))));
+\module At(z: C.Complex, v: V, eigen: T.apply v = space.smul z v);
+\definition law: \forall (p: P.Carrier)(z: C.Complex)(v: V) -> T.apply v = space.smul z v -> Action.apply p v = space.smul (Evaluation.apply z p) v :=
+  \fun (p: P.Carrier)(z: C.Complex)(v: V)(eigen: _) => At[z := z, v := v, eigen := eigen].law p;
+\definition zero: \forall (p: P.Carrier)(z: C.Complex) -> C.Def[].NonZero (Evaluation.apply z p) -> \forall (v: V) ->
+  Action.apply p v = space.zero -> T.apply v = space.smul z v -> v = space.zero :=
+  \fun (p: P.Carrier)(z: C.Complex)(nonzero: _)(v: V)(kernel: _)(eigen: _) => eq_reason_in!{V v
+    "=" { space.smul C.Def[].one v } "by" { sym!{V} _ _ (space.scalarOne v) }
+    "=" { space.smul (C.Def[].mul (C.Def[].inv (Evaluation.apply z p)) (Evaluation.apply z p)) v } "by" {
+      congr!{{C.Complex} V} (\fun (s: C.Complex) => space.smul s v) _ _ (sym!{{C.Complex}} _ _ (C.Prop[].inverseNonzero (Evaluation.apply z p) nonzero)) }
+    "=" { space.smul (C.Def[].inv (Evaluation.apply z p)) (space.smul (Evaluation.apply z p) v) } "by" { space.scalarAssoc (C.Def[].inv (Evaluation.apply z p)) (Evaluation.apply z p) v }
+    "=" { space.smul (C.Def[].inv (Evaluation.apply z p)) (Action.apply p v) } "by" { congr!{V V} (space.smul (C.Def[].inv (Evaluation.apply z p))) _ _ (sym!{V} _ _ (law p z v eigen)) }
+    "=" { space.smul (C.Def[].inv (Evaluation.apply z p)) space.zero } "by" { congr!{V V} (space.smul (C.Def[].inv (Evaluation.apply z p))) _ _ kernel }
+    "=" space.zero "by" { Values.scaleZero (C.Def[].inv (Evaluation.apply z p)) }
+  };

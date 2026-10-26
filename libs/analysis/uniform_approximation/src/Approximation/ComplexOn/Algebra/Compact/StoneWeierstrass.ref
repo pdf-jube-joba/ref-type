@@ -1,0 +1,22 @@
+\definition realRegular: Reals.Continuous (realPart f) := Functions.realContinuous space f regular;
+\definition imaginaryRegular: Reals.Continuous (imaginaryPart f) := Functions.imaginaryContinuous space f regular;
+\definition approximation: Approximates A f := \block {
+  \fun (epsilon: R.Real)(positive: Real.Lt R.zero epsilon) \then
+  \let delta: R.Real := R.mul R.half epsilon \then
+  \let deltaPositive: Real.Lt R.zero delta := Estimates.halfOfPositive epsilon positive \then
+  \takefrom a: RealDensity.Candidate[realPart f, delta] \by RealDensity.candidateExists (realPart f)
+    RealDensity.StoneWeierstrass[separates := realSeparation, f := realPart f, regular := realRegular].approximation delta deltaPositive \then
+  \takefrom b: RealDensity.Candidate[imaginaryPart f, delta] \by RealDensity.candidateExists (imaginaryPart f)
+    RealDensity.StoneWeierstrass[separates := realSeparation, f := imaginaryPart f, regular := imaginaryRegular].approximation delta deltaPositive \then
+  \let g: Function := sum (embed a.value) (product (constant O.i) (embed b.value)) \then
+  \let member: \In[Function] A g := laws.addition (embed a.value) (product (constant O.i) (embed b.value)) a.member (laws.multiplication (constant O.i) (embed b.value) (laws.constants O.i) b.member) \then
+  \let equals: \forall (x: X) -> g x = C.make (a.value x) (b.value x) := \fun (x: X) => Scalars.reconstruct (a.value x) (b.value x) \then
+  \return Logic.existsIntro[Function, { g: Function \where Logic.And[\In[Function] A g, Error f g epsilon] }] g (Logic.And[_, _]::# member
+    (\fun (x: X) => Real.leLtTrans _ _ _ (Scalars.distanceBound (f x) (g x))
+      (Real.ltReplaceLeft (R.add (R.distance (C.re (f x)) (a.value x)) (R.distance (C.im (f x)) (b.value x)))
+        (R.add (R.distance (C.re (f x)) (C.re (g x))) (R.distance (C.im (f x)) (C.im (g x)))) epsilon
+        (sym!{{R.Real}} _ _ (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+          (congr!{{R.Real} {R.Real}} (R.distance (C.re (f x))) _ _ (congr!{{C.Complex} {R.Real}} C.re _ _ (equals x)))
+          (congr!{{R.Real} {R.Real}} (R.distance (C.im (f x))) _ _ (congr!{{C.Complex} {R.Real}} C.im _ _ (equals x)))))
+        (Real.ltReplaceRight _ (R.add delta delta) epsilon (Estimates.halfTwice epsilon) (Estimates.addLt _ _ _ _ (a.near x) (b.near x))))))
+};

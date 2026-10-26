@@ -1,0 +1,68 @@
+\import \parent.\parent.AdditiveMonoid[] \as Monoid;
+\import std.Set[].Quotient[A := Additive.Difference, Equivalent := Additive.Equivalent] \as Differences;
+\import algebra.Group[].Of[Carrier := Carrier, group := Additive.group] \as Group;
+\definition Absorbs[a, b, e: Classes]: \Prop := Monoid.add a e = Monoid.add b e;
+\definition inclusionEqual: \forall (a, b: Classes) -> include a = include b -> \exists (e: Classes \where Absorbs a b e) := \block {
+  \fun (a, b: Classes)(equal: include a = include b) \then
+  \takefrom e: \Cast[Classes] ({ e: Classes \where Additive.Balance (Additive.pair a Monoid.zeroClass) (Additive.pair b Monoid.zeroClass) e })
+    \by Differences.equivalentOfClassEq Additive.equivalence (Additive.pair a Monoid.zeroClass) (Additive.pair b Monoid.zeroClass) equal \then
+  \return Logic.existsIntro[Classes, { e: Classes \where Absorbs a b e }] e
+    (trans!{Classes} _ _ _ (sym!{Classes} _ _ (congr!{Classes Classes} (\fun (c: Classes) => Monoid.add c e) _ _ (Monoid.rightIdentity a)))
+      (trans!{Classes} _ _ _ (\bysub(Classes, { e: Classes \where Additive.Balance (Additive.pair a Monoid.zeroClass) (Additive.pair b Monoid.zeroClass) e }, e))
+        (congr!{Classes Classes} (\fun (c: Classes) => Monoid.add c e) _ _ (Monoid.rightIdentity b))))
+};
+\definition equalInclusion: \forall (a, b, e: Classes) -> Absorbs a b e -> include a = include b := \fun (a, b, e: Classes)(equal: _) =>
+  Group.cancelRight (include e) (include a) (include b)
+    (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (includeAdd a e))
+      (trans!{Carrier} _ _ _ (congr!{Classes Carrier} include _ _ equal) (includeAdd b e)));
+\structure CompletionWitness[e: Classes]: \Set := {
+  dimension: N.Nat^,
+  complement: Classes,
+  equation: Monoid.add e complement = \parent.\parent.Trivial[n := dimension].value
+};
+\module Complement(p: Presentation);
+\definition complementExists: \forall (e: Classes) -> \exists CompletionWitness[e] :=
+  Quotient.induction (\fun (e: Classes) => \exists CompletionWitness[e])
+    (\fun (p: Presentation) => \exact(Complement[p := p].witness, CompletionWitness[class p]));
+\definition Stable[a, b: Classes][n: N.Nat^]: \Prop := Absorbs a b (\parent.\parent.Trivial[n := n].value);
+\definition stabilizes: \forall (a, b: Classes) -> include a = include b -> \exists (n: N.Nat^ \where Stable a b n) := \block {
+  \fun (a, b: Classes)(equal: include a = include b) \then
+  \takefrom e: \Cast[Classes] ({ e: Classes \where Absorbs a b e }) \by inclusionEqual a b equal \then
+  \takefrom w: CompletionWitness[e] \by complementExists e \then
+  \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where Stable a b n }] w.dimension
+    (eq_reason_in!{Classes _
+      "=" { Monoid.add a (Monoid.add e w.complement) } "by" { congr!{Classes Classes} (Monoid.add a) _ _ (sym!{Classes} _ _ w.equation) }
+      "=" { Monoid.add (Monoid.add a e) w.complement } "by" { sym!{Classes} _ _ (Monoid.associative a e w.complement) }
+      "=" { Monoid.add (Monoid.add b e) w.complement } "by" { congr!{Classes Classes} (\fun (c: Classes) => Monoid.add c w.complement) _ _ (\bysub(Classes, { e: Classes \where Absorbs a b e }, e)) }
+      "=" { Monoid.add b (Monoid.add e w.complement) } "by" { Monoid.associative b e w.complement }
+      "=" { Monoid.add b (\parent.\parent.Trivial[n := w.dimension].value) } "by" { congr!{Classes Classes} (Monoid.add b) _ _ w.equation }
+    })
+};
+\definition stableCriterion: \forall (a, b: Classes) -> Logic.PropEquiv[include a = include b, \exists (n: N.Nat^ \where Stable a b n)] := \fun (a, b: Classes) =>
+  Logic.PropEquiv[include a = include b, \exists (n: N.Nat^ \where Stable a b n)] {
+    ltr := stabilizes a b,
+    rtl := \fun (stable: _) => \block {
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Stable a b n }) \by stable \then
+      \return equalInclusion a b (\parent.\parent.Trivial[n := n].value) (\bysub(N.Nat^, { n: N.Nat^ \where Stable a b n }, n))
+    }
+  };
+\module ForBundles(F, G: X -> \Set, first: Bundles.Family[X := X, F := F].Bundle, second: Bundles.Family[X := X, F := G].Bundle,
+  firstSame: first.baseSpace = baseSpace, secondSame: second.baseSpace = baseSpace);
+\definition crossSumEqual: \forall (a, b, c, d: Classes) -> difference a b = difference c d -> include (Monoid.add a d) = include (Monoid.add c b) := \block {
+  \fun (a, b, c, d: Classes)(equal: difference a b = difference c d) \then
+  \let same: Additive.class (Additive.pair a b) = Additive.class (Additive.pair c d) :=
+    trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (differenceClass a b)) (trans!{Carrier} _ _ _ equal (differenceClass c d)) \then
+  \takefrom e: \Cast[Classes] ({ e: Classes \where Additive.Balance (Additive.pair a b) (Additive.pair c d) e })
+    \by Differences.equivalentOfClassEq Additive.equivalence (Additive.pair a b) (Additive.pair c d) same \then
+  \return equalInclusion (Monoid.add a d) (Monoid.add c b) e
+    (\bysub(Classes, { e: Classes \where Additive.Balance (Additive.pair a b) (Additive.pair c d) e }, e))
+};
+\definition ofCrossSumEqual: \forall (a, b, c, d: Classes) -> include (Monoid.add a d) = include (Monoid.add c b) -> difference a b = difference c d :=
+  \fun (a, b, c, d: Classes)(equal: _) => Group.balancedDifference (include a) (include b) (include c) (include d)
+    (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (includeAdd a d)) (trans!{Carrier} _ _ _ equal (includeAdd c b)));
+\definition differenceCriterion: \forall (a, b, c, d: Classes) -> Logic.PropEquiv[difference a b = difference c d,
+  \exists (n: N.Nat^ \where Stable (Monoid.add a d) (Monoid.add c b) n)] := \fun (a, b, c, d: Classes) =>
+    Logic.PropEquiv[difference a b = difference c d, \exists (n: N.Nat^ \where Stable (Monoid.add a d) (Monoid.add c b) n)] {
+      ltr := \fun (equal: _) => stabilizes (Monoid.add a d) (Monoid.add c b) (crossSumEqual a b c d equal),
+      rtl := \fun (stable: _) => ofCrossSumEqual a b c d ((stableCriterion (Monoid.add a d) (Monoid.add c b)).rtl stable)
+    };

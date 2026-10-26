@@ -1,0 +1,26 @@
+\import Fin.Sum[m := n, n := dimension d] \as Indices;
+\import Indices.Tuples[A := C.Complex] \as Joining;
+\definition fromIndex: (\forall (k: Fin.Fin (dimension d)) -> \exists Position[d, k]) ->
+  \forall (k: Indices.Index) -> \exists Position[N.Nat^::succ d, Indices.inflate k] :=
+  \fun (previous: _) => \induction (k: Indices.Index) \return \exists Position[N.Nat^::succ d, Indices.inflate k] \with {
+    | inl: \fun (j: Fin.Fin n) => \exact(Position[N.Nat^::succ d, Indices.left j] {
+      block := Fin.zero d, component := j,
+      equation := \fun (v: Carrier (N.Nat^::succ d)) => Joining.atLeft (v (Fin.zero d)) (flatten d (\fun (i: Fin.Fin d) => v (Fin.succ d i))) j,
+    }, Position[N.Nat^::succ d, Indices.left j])
+    | inr: \block {
+      \fun (j: Fin.Fin (dimension d)) \then
+      \takefrom position: Position[d, j] \by previous j \then
+      \return \exact(Position[N.Nat^::succ d, Indices.right j] {
+        block := Fin.succ d position.block, component := position.component,
+        equation := \fun (v: Carrier (N.Nat^::succ d)) => trans!{{C.Complex}} _ _ _
+          (Joining.atRight (v (Fin.zero d)) (flatten d (\fun (i: Fin.Fin d) => v (Fin.succ d i))) j)
+          (position.equation (\fun (i: Fin.Fin d) => v (Fin.succ d i))),
+      }, Position[N.Nat^::succ d, Indices.right j])
+    }
+  };
+\definition exists: (\forall (k: Fin.Fin (dimension d)) -> \exists Position[d, k]) ->
+  \forall (k: Fin.Fin (dimension (N.Nat^::succ d))) -> \exists Position[N.Nat^::succ d, k] :=
+  \fun (previous: _)(k: Fin.Fin (dimension (N.Nat^::succ d))) => \idelim Indices.inflate (Indices.split k) = k
+    \with j: Fin.Fin (dimension (N.Nat^::succ d)) => \exists Position[N.Nat^::succ d, j] \by {
+      base: fromIndex previous (Indices.split k), equality: Indices.inflateSplit k
+    };

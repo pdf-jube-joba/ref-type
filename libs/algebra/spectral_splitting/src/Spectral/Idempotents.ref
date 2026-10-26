@@ -1,0 +1,38 @@
+\import vector_bundles.Bundles[] \as BundleFields;
+\import std.Data[].Pair[] \as Pair;
+\definition K: \Set := C.Complex;
+\definition field: Fields.Field[K] := Scalars.field;
+\definition conjugation: linear_algebra.Hermitian[].Scalar[K, field] := linear_algebra.Hermitian[].Complex[].scalar;
+\definition scalar: BundleFields.Scalar[K, field, conjugation] := BundleFields.Complex[].scalar;
+\import BundleFields.Over[K := K, field := field, conjugation := conjugation, scalar := scalar] \as Bundles;
+\definition Vector[k: N.Nat^]: \Set := Bundles.Vector k;
+\definition coordinates[k: N.Nat^]: Spaces.VectorSpace (Vector k) := Bundles.coordinates k;
+\definition coordinateTopology[k: N.Nat^]: topology.Topology[Carrier := Vector k].Topology := Bundles.coordinateTopology k;
+\structure Projection: \Set := {
+  map: Spaces.Linear[V := Vector n, W := Vector n, source := coordinates n, target := coordinates n].Map,
+  idempotent: \forall (v: Vector n) -> map.apply (map.apply v) = map.apply v,
+};
+\module With(P: Projection);
+\module Image(X: \Set, baseSpace: topology.Topology[Carrier := X].Topology, P: X -> Projection,
+  regular: Hermitian.At[n := n].Families[X := X].Matrix[m := n].Regular baseSpace (\fun (x: X) => (P x).map));
+\module Comparison(X: \Set, baseSpace: topology.Topology[Carrier := X].Topology, P, Q: X -> Projection,
+  regularP: Hermitian.At[n := n].Families[X := X].Matrix[m := n].Regular baseSpace (\fun (x: X) => (P x).map),
+  regularQ: Hermitian.At[n := n].Families[X := X].Matrix[m := n].Regular baseSpace (\fun (x: X) => (Q x).map),
+  H: X -> Spaces.Linear[V := Vector n, W := Vector n, source := coordinates n, target := coordinates n].Map,
+  regularH: Hermitian.At[n := n].Families[X := X].Matrix[m := n].Regular baseSpace H,
+  nonsingular: \forall (x: X) -> matrix_invariants.Field[K := K, field := field].At[n := n].Nonzero (Hermitian.At[n := n].Square[].entries (H x)),
+  intertwines: \forall (x: X)(v: Vector n) -> (Q x).map.apply ((H x).apply v) = (H x).apply ((P x).map.apply v));
+\module Between(P, Q: Projection);
+\definition diagonal: \forall (P: Projection)(v: Vector n) -> Between[P := P, Q := P].h.apply v = v :=
+  \fun (P: Projection)(v: Vector n) => trans!{{Vector n}} _ _ _
+    (congr!{{Vector n} {Vector n} {Vector n}} (coordinates n).add _ _ _ _ (P.idempotent v) ((With[P := P].complement).idempotent v)) (With[P := P].splitting v);
+\module Gap(X: \Set, baseSpace: topology.Topology[Carrier := X].Topology, P, Q: X -> Projection,
+  regularP: Hermitian.At[n := n].Families[X := X].Matrix[m := n].Regular baseSpace (\fun (x: X) => (P x).map),
+  regularQ: Hermitian.At[n := n].Families[X := X].Matrix[m := n].Regular baseSpace (\fun (x: X) => (Q x).map));
+
+\module Homotopy(X: \Set, baseSpace: topology.Topology[Carrier := X].Topology,
+  compact: topology.Topology[Carrier := X].IsCompactIn baseSpace (topology.Topology[Carrier := X].Whole),
+  P: std.Data[].Pair[].Times^[algebraic_topology.Interval[].Carrier, X] -> Projection,
+  regular: Hermitian.At[n := n].Families[X := std.Data[].Pair[].Times^[algebraic_topology.Interval[].Carrier, X]].Matrix[m := n].Regular
+    (topological_constructions.Product[A := algebraic_topology.Interval[].Carrier, B := X].topology algebraic_topology.Interval[].topology baseSpace)
+    (\fun (p: std.Data[].Pair[].Times^[algebraic_topology.Interval[].Carrier, X]) => (P p).map));

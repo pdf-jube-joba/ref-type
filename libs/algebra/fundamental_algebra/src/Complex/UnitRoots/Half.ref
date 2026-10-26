@@ -1,0 +1,29 @@
+\definition different: Logic.Not (z = Op.neg Op.one) := \bysub(Carrier, Ordinary, z);
+\use std.Logic[].Equality[].eq_reason_in;
+\definition vector: C.Complex := Op.add Op.one z;
+\definition nonzero: Op.NonZero vector :=
+  \fun (same: vector = Op.zero) => different
+    (Sum.cancelLeft Op.one z (Op.neg Op.one)
+      (trans!{C.Complex} _ _ _ same (sym!{C.Complex} _ _ (Complex.addNegRight Op.one))));
+\definition nonzeroVector: Nonzero := \into[C.Complex](vector, Nonzero) \by { nonzero };
+\import \parent.Normalize[v := nonzeroVector] \as Normalization;
+\definition value: Carrier := Normalization.value;
+\definition conjugateProduct: Op.mul z (Op.conj vector) = vector :=
+  eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{C.Complex C.Complex} (Op.mul z) _ _
+      (trans!{C.Complex} _ _ _ (Complex.conjAdd Op.one z)
+        (congr!{C.Complex C.Complex} (\fun (a: C.Complex) => Op.add a (Op.conj z)) _ _ (Complex.conjOfReal Real.one))) }
+    "=" _ "by" { Complex.mulAddLeft z Op.one (Op.conj z) }
+    "=" _ "by" { congr!{C.Complex C.Complex C.Complex} Op.add _ _ _ _ (Complex.mulOneRight z)
+          (trans!{C.Complex} _ _ _ (Complex.mulConjSelf z) (congr!{Real.Real C.Complex} Op.ofReal _ _ (norm z))) }
+    "=" _ "by" { Complex.addComm z Op.one }
+  };
+\definition vectorSquare: Op.mul vector vector = Op.scale (Op.normSq vector) z :=
+  eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (a: C.Complex) => Op.mul a vector) _ _ (sym!{C.Complex} _ _ conjugateProduct) }
+    "=" _ "by" { Complex.mulAssoc z (Op.conj vector) vector }
+    "=" _ "by" { congr!{C.Complex C.Complex} (Op.mul z) _ _ (Complex.conjMulSelf vector) }
+    "=" _ "by" { Complex.mulComm z (Op.ofReal (Op.normSq vector)) }
+    "=" _ "by" { realTimes (Op.normSq vector) z }
+  };
+\definition square: Op.mul value value = z := Normalization.square z vectorSquare;

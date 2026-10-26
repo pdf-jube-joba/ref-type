@@ -1,0 +1,16 @@
+\import Base.Urysohn[] \as Urysohn;
+\import Base.Compactness[] \as Compactness;
+\import metric_spaces.RealFunctions[A := X].Urysohn[] \as Regular;
+\import topological_constructions.Product[A := R.Real, B := R.Real].Universal[X := X] \as Pairing;
+\import metric_spaces.RealFunctions[A := X] \as RealFunctions;
+\definition result: Separates ({ f: Function \where Continuous f }) := \block {
+  \fun (x, y: X)(distinct: Logic.Not (x = y)) \then
+  \let disjoint: Base.Disjoint (Base.Singleton x) (Base.Singleton y) := \fun (z: X)(first: z = x)(second: z = y) => distinct (trans!{{X}} _ _ _ (sym!{{X}} _ _ first) second) \then
+  \takefrom f: Urysohn.UrysohnFunction[space, Base.Singleton x, Base.Singleton y] \by Urysohn.normalUrysohn space (Compactness.compactHausdorffNormal space compact hausdorff) (Base.Singleton x) (Base.Singleton y) (Compactness.hausdorffT1 space hausdorff x) (Compactness.hausdorffT1 space hausdorff y) disjoint \then
+  \let h: Function := embed f.value \then
+  \let regular: Continuous h := Pairing.pairContinuous space metric_spaces.RealLine[].topology metric_spaces.RealLine[].topology f.value (\fun (x: X) => R.zero)
+    (Regular.continuous space (Base.Singleton x) (Base.Singleton y) f) (RealFunctions.constantContinuous space R.zero) \then
+  \return Logic.existsIntro[Function, { h: Function \where Logic.And[Continuous h, Logic.Not (h x = h y)] }] h (Logic.And[_, _]::# regular
+    (\fun (equal: h x = h y) => Order.ltNotEq R.zero R.one R.Estimates[].Product[].onePositive
+      (trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ (f.zeroOn x (\refl(x)))) (trans!{{R.Real}} _ _ _ (CP.ofRealInjective _ _ equal) (f.oneOn y (\refl(y)))))))
+};

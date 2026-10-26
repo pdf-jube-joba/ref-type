@@ -1,0 +1,20 @@
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := Scalars.field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].Projections[n := n].Operators[].Units[] \as Units;
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := n] \as M;
+\import M.Representation[] \as Representation;
+\import Spaces.Coordinates[I := M.Index] \as Vectors;
+\import Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as End;
+\import topological_algebra.Complex[] \as Plane;
+\import Plane.Functions[A := Y] \as Functions;
+\import matrix_invariants.Topological[K := C.Complex, ring := Plane.Ring[].topologicalRing].At[n := n].Families[X := Y] \as Top;
+\definition map[y: Y]: Units.Carrier := \into[End.Map](M.linear (A y), Units.Carrier) \by {
+  \fun (zero: _) => nonzero y (trans!{{C.Complex}} _ _ _
+    (sym!{{C.Complex}} _ _ (congr!{M.Matrix {C.Complex}} M.determinant _ _ (Representation.entriesLinear (A y)))) zero)
+};
+\definition actionRegular: \forall (v: Vectors.Vector)(i: M.Index) -> topology.Continuity[A := Y, B := C.Complex].Continuous source Plane.topology (\fun (y: Y) => (map y).apply v i) :=
+  \fun (v: Vectors.Vector)(i: M.Index) => Top.Indexed[I := M.Index].sumContinuous (std.Data[].FinSet[].elements n) source
+    (\fun (j: M.Index)(y: Y) => C.Def[].mul (A y i j) (v j))
+    (\fun (j: M.Index) => Functions.multiplicationContinuous source _ _ (regular i j)
+      (topology.Maps[A := Y, B := C.Complex].constantContinuous source Plane.topology (v j)));
+\definition continuous: topology.Continuity[A := Y, B := Units.Carrier].Continuous source Units.topology map :=
+  Units.Family[X := Y, source := source, H := map].continuous actionRegular;

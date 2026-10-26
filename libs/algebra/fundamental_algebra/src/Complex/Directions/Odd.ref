@@ -1,0 +1,37 @@
+\definition chooseSign: \forall (w: Units.Carrier) -> Logic.Not (C.re (Op.mul c (Field.power w (odd n))) = Real.zero) -> \exists Direction (odd n) c :=
+  \fun (w: Units.Carrier)(nonzero: _) => Logic.orElim _ _ _ (Classical.excludedMiddle (R.Lt (C.re (Op.mul c (Field.power w (odd n)))) Real.zero))
+    (\fun (negative: _) => \exact(\into[Units.Carrier](w, Direction (odd n) c) \by { negative }, Direction (odd n) c))
+    (\fun (notNegative: _) => \exact(\into[Units.Carrier](Units.negative w, Direction (odd n) c) \by {
+      R.ltReplaceLeft (Real.neg (C.re (Op.mul c (Field.power w (odd n))))) (C.re (Op.mul c (Field.power (Op.neg w) (odd n)))) Real.zero
+        (sym!{Real.Real} _ _ (congr!{C.Complex Real.Real} C.re _ _
+          (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} (Op.mul c) _ _ (oddNegation w n)) (Arithmetic.mulNegRight c (Field.power w (odd n))))))
+        (Laws.negativeNegOfPositive (C.re (Op.mul c (Field.power w (odd n))))
+          (Order.ltOfLeNotEq Real.zero (C.re (Op.mul c (Field.power w (odd n))))
+            (Order.leOfNotLtReverse Real.zero _ notNegative)
+            (\fun (zero: Real.zero = C.re (Op.mul c (Field.power w (odd n)))) => nonzero (sym!{Real.Real} _ _ zero))))
+    }, Direction (odd n) c));
+\definition imaginaryPowerNonzero: Logic.Not (C.im (Field.power Op.i (odd n)) = Real.zero) :=
+  \fun (zero: _) => Laws.zeroNotOne (eq_reason_in!{Real.Real Real.zero
+    "=" { Op.normSq Op.zero } "by" { sym!{Real.Real} _ _ Bounds.normZero }
+    "=" { Op.normSq (Field.power Op.i (odd n)) } "by" {
+      congr!{C.Complex Real.Real} Op.normSq _ _ (sym!{C.Complex} _ _ (Complex.ext _ _ (imaginaryOdd n) zero)) }
+    "=" _ "by" { unitPower Units.imaginary (odd n) }
+  });
+\definition imaginaryProduct: C.re c = Real.zero -> C.re (Op.mul c (Field.power Op.i (odd n))) = Real.neg (Real.mul (C.im c) (C.im (Field.power Op.i (odd n)))) :=
+  \fun (realZero: _) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.sub x (Real.mul (C.im c) (C.im (Field.power Op.i (odd n))))) _ _
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.mul x (C.re (Field.power Op.i (odd n)))) _ _ realZero) (Laws.fieldMulZeroLeft _)))
+    (Laws.addZeroLeft _);
+\import galois.Field[].Over[K := Real.Real, field := Algebra.field].Arithmetic[] \as RealArithmetic;
+\import Real.Inverse[] \as Inverse;
+\definition exists: Op.NonZero c -> \exists Direction (odd n) c :=
+  \fun (nonzero: _) => Logic.orElim _ _ _ (Classical.excludedMiddle (C.re c = Real.zero))
+    (\fun (realZero: _) => chooseSign Units.imaginary (\fun (zero: _) =>
+      (RealArithmetic.nonzeroProduct (C.im c) (C.im (Field.power Op.i (odd n)))
+        (\fun (imaginaryZero: C.im c = Real.zero) => nonzero (Complex.ext c Op.zero realZero imaginaryZero)) imaginaryPowerNonzero)
+        (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.negInvolutive (Real.mul (C.im c) (C.im (Field.power Op.i (odd n))))))
+          (trans!{Real.Real} _ _ _
+            (congr!{Real.Real Real.Real} Real.neg _ _ (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (imaginaryProduct realZero)) zero)) Laws.negZero))))
+    (\fun (realNonzero: _) => chooseSign Units.identity (\fun (zero: _) => realNonzero
+      (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (congr!{C.Complex Real.Real} C.re _ _
+        (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} (Op.mul c) _ _ (Arithmetic.powerOne (odd n))) (Complex.mulOneRight c)))) zero)));

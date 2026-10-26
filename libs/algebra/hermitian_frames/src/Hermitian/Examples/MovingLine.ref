@@ -1,0 +1,45 @@
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition two: N.Nat^ := N.Nat^::succ one;
+\import linear_algebra.Hermitian[].Over[K := K, field := field, scalar := scalar] \as Geometry;
+\import linear_algebra.Commutative[K := K, scalarRing := Fields.fieldAsCommutativeRing K field] \as Spaces;
+\import Geometry.Finite[n := one] \as Domain;
+\import Geometry.Finite[n := two] \as E;
+\import Domain.Successor[] \as Split;
+\import \parent.\parent.Over[K := K, field := field, scalar := scalar, topological := topological].At[n := two] \as Target;
+\import Target.Families[X := K] \as Vectors;
+\import Vectors.Matrix[m := one] \as Matrices;
+\import Target.Forms[h := E.form].Families[X := K] \as Gram;
+\import \parent.\parent.Over[K := K, field := field, scalar := scalar, topological := topological].Functions[X := K] \as Functions;
+\import Spaces.Linear[V := Domain.Vector, W := K, source := Domain.space, target := Spaces.scalarSpace] \as Rows;
+\import Spaces.Linear[V := Domain.Vector, W := Domain.Vector, source := Domain.space, target := Domain.space].Operations[] \as Operations;
+\import Spaces.Eigen[V := Domain.Vector, space := Domain.space] \as Eigen;
+\definition coordinate: Rows.Map := Rows.Map {
+  apply := \fun (v: Domain.Vector) => v (Fin.zero N.Nat^::zero),
+  preservesAdd := \fun (v, w: Domain.Vector) => \refl(Spaces.add (v (Fin.zero N.Nat^::zero)) (w (Fin.zero N.Nat^::zero))),
+  preservesScale := \fun (a: K)(v: Domain.Vector) => \refl(Spaces.mul a (v (Fin.zero N.Nat^::zero))),
+};
+\definition column[z: K]: Target.Forms[h := E.form].Gram[k := one].Map :=
+  Split.Joining[V := Domain.Vector, source := Domain.space, first := coordinate, rest := Operations.scale z Eigen.identity].map;
+\definition injective: \forall (z: K) -> Target.Forms[h := E.form].Gram[k := one].Injective (column z) :=
+  \fun (z: K)(v, w: Domain.Vector)(same: _) => \axiom:funext(v, w, \fun (i: Fin.Fin one) => eq_reason_in!{K _
+    "=" _ "by" { congr!{{Fin.Fin one} K} v _ _ (Fin.singletonValue i) }
+    "=" _ "by" { sym!{K} _ _ (Split.joinHead (coordinate.apply v) (Domain.space.smul z v)) }
+    "=" _ "by" { congr!{{E.Vector} K} Split.head _ _ same }
+    "=" _ "by" { Split.joinHead (coordinate.apply w) (Domain.space.smul z w) }
+    "=" _ "by" { congr!{{Fin.Fin one} K} w _ _ (sym!{{Fin.Fin one}} _ _ (Fin.singletonValue i)) }
+  });
+\import topology.Maps[A := K, B := K].Identity[] \as Identity;
+\definition regular: Matrices.Regular topological.space column := \fun (v: Domain.Vector) =>
+  Fin.cases one (\fun (i: Fin.Fin two) => Functions.Continuous topological.space (\fun (z: K) => (column z).apply v i))
+    (Functions.transport topological.space (\fun (z: K) => coordinate.apply v) (\fun (z: K) => (column z).apply v (Fin.zero one))
+      (\fun (z: K) => sym!{K} _ _ (Split.joinHead (coordinate.apply v) (Domain.space.smul z v))) (Functions.constant topological.space (coordinate.apply v)))
+    (\fun (i: Fin.Fin one) => Functions.transport topological.space (\fun (z: K) => Spaces.mul z (v i))
+      (\fun (z: K) => (column z).apply v (Fin.succ one i))
+      (\fun (z: K) => sym!{K} _ _ (congr!{{Domain.Vector} K} (\fun (w: Domain.Vector) => w i) _ _ (Split.joinTail (coordinate.apply v) (Domain.space.smul z v))))
+      (Functions.multiplication topological.space (\fun (z: K) => z) (\fun (z: K) => v i) (Identity.continuous topological.space) (Functions.constant topological.space (v i))));
+\definition orthonormalization: \exists Gram.Rank[k := one].Factors[column, topological.space] :=
+  Gram.exists one topological.space column regular injective E.positive;
+\definition localFrames: \forall (factors: Gram.Rank[k := one].Factors[column, topological.space])(a: K) ->
+  \exists Vectors.ProjectionFrames[k := one, source := topological.space, P := \fun (x: K) => Vectors.Orthonormalized[k := one, source := topological.space, A := column, factors := factors].projection x].Local[a] :=
+  \fun (factors: Gram.Rank[k := one].Factors[column, topological.space]) =>
+    Vectors.Orthonormalized[k := one, source := topological.space, A := column, factors := factors].local;

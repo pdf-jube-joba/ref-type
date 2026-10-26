@@ -11,7 +11,8 @@
 接束・法束、微分形式、Clifford 代数、Spin・Spin-c の群、実 Gram–Schmidt も利用できる。
 一般のベクトル束、管状近傍、境界付き多様体、特性類、K 理論は今回のタスクで構成する。
 既存の Lp・Sobolev は主に定義で、Euclid 空間の Lebesgue 測度、完備性、Fourier 解析、楕円正則性も実装範囲に含める。
-個別タスクはすべて未着手として置き、既存 API と重なる部分は実装時に比較して再利用する。
+既存 API と重なる部分は実装時に比較して再利用する。
+完了した単位は公開 API の README に移し、未完了の単位を以下のタスク一覧に残す。
 
 ## 到達点と証明の経路
 
@@ -86,44 +87,60 @@ flowchart TD
 
 - [A01 測度積分の収束定理](a01-measure-convergence.md)
 - [A19 複素 Hilbert 空間とコンパクト作用素](a19-complex-hilbert.md)
-- [B01 一般の実・複素ベクトル束](b01-vector-bundles.md)
+- [B05 有限 Grassmannian と普遍束](b05-grassmannians.md)
+- [B09 閉部分空間からの束の延長](b09-bundle-extension.md)
 - [C01 cap 積と相対積](c01-cap-products.md)
 - [G01 滑らかな bump 関数と従属分割](g01-smooth-partitions.md)
 - [K02 CW cofibration と Puppe 列](k02-cofibration-puppe.md)
-- [K04 Stone–Weierstrass と Laurent 近似](k04-uniform-approximation.md)
-- [L01 行列式と可逆行列](l01-determinants.md)
+- [G02 逆関数・陰関数と正則値の局所形](g02-inverse-implicit.md)
 - [L04 対称多項式と特性級数](l04-symmetric-series.md)
 
-4エージェントなら、初手の例は B01・L01・G01・A01。
-L01 の後は L03 と G02 を別担当へ、B01 の後は B02 へ、A01 の後は A02 へ進められる。
-空いた担当には C01・K02・K04・L04・A19 を割り当て、長い解析の経路を早めに進める。
+L01 の行列式・逆行列、L02 の多項式分解、L03 の Hermitian 行列・局所枠が利用可能になり、G02 に着手できる。
+B03 の計量・補束と同型類の集合が利用可能になり、B05・B09 に着手できる。
+K06 の連続なスペクトル分離は B04 の束比較の基盤となり、B04 の clutching と合わせて K07 で再利用できる。
+K01 の Grothendieck 環・安定判定・反変引き戻しは K03・K07 で再利用する。
+K04 の実・複素 Stone–Weierstrass、Laurent 近似と行列・束の一様評価も K07 で利用できる。
+K07 の [clutching_linearization](../../libs/topology/clutching_linearization/README.md) は、選択に依存しないスペクトル逆クラス、自然性・直和・基本積の相互逆を公開し、K08 で利用できる。
+B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進められる。
+空いた担当には C01・K02・L04・A19 を割り当て、長い解析の経路を早めに進める。
 各節の番号は識別子で、実装順は依存リストから決まる。
+
+## 完了した単位
+
+| 単位 | 公開 API |
+| --- | --- |
+| L01 行列式と可逆行列 | [matrix_invariants](../../libs/algebra/matrix_invariants/README.md) |
+| L02 多項式の互除法と Cayley–Hamilton | [polynomial_linear_algebra](../../libs/algebra/polynomial_linear_algebra/README.md) |
+| L03 Hermitian 行列と連続な局所枠 | [hermitian_frames](../../libs/algebra/hermitian_frames/README.md) |
+| K13 複素多項式の根の存在 | [fundamental_algebra](../../libs/algebra/fundamental_algebra/README.md) |
+| K05 代数学の基本定理と根群の連続性 | [complex_polynomial_roots](../../libs/algebra/complex_polynomial_roots/README.md) |
+| B01 一般の実・複素ベクトル束 | [vector_bundles](../../libs/geometry/vector_bundles/README.md) |
+| B02 束の貼り合わせと線形演算 | [bundle_operations](../../libs/geometry/bundle_operations/README.md) |
+| B03 束の計量・補束と集合による表示 | [bundle_complements](../../libs/geometry/bundle_complements/README.md) |
+| K06 連続なスペクトル分離 | [spectral_splitting](../../libs/algebra/spectral_splitting/README.md) |
+| B04 束のホモトピー不変性と clutching | [bundle_homotopy](../../libs/geometry/bundle_homotopy/README.md) |
+| K01 束の Grothendieck 環 | [topological_k_theory](../../libs/topology/k_theory/README.md) |
+| K04 Stone–Weierstrass と Laurent 近似 | [uniform_approximation](../../libs/analysis/uniform_approximation/README.md) |
+| K07 clutching の安定線形化 | [clutching_linearization](../../libs/topology/clutching_linearization/README.md) |
 
 ## タスク一覧
 
-全92件、概算合計480千行。
+未完了79件、概算合計413千行。
 
 ### 線形代数と特性級数
 
-4件、概算20千行。
+1件、概算5千行。
 
 | タスク | 概算（千行） |
 | --- | ---: |
-| [L01 行列式と可逆行列](l01-determinants.md) | 5 |
-| [L02 多項式の互除法と Cayley–Hamilton](l02-polynomial-factorization.md) | 5 |
-| [L03 Hermitian 行列と連続な局所枠](l03-hermitian-frames.md) | 5 |
 | [L04 対称多項式と特性級数](l04-symmetric-series.md) | 5 |
 
 ### ベクトル束
 
-9件、概算46千行。
+5件、概算26千行。
 
 | タスク | 概算（千行） |
 | --- | ---: |
-| [B01 一般の実・複素ベクトル束](b01-vector-bundles.md) | 5 |
-| [B02 束の貼り合わせと線形演算](b02-bundle-operations.md) | 5 |
-| [B03 束の計量・補束と集合による表示](b03-bundle-complements.md) | 5 |
-| [B04 束のホモトピー不変性と clutching](b04-bundle-homotopy.md) | 5 |
 | [B05 有限 Grassmannian と普遍束](b05-grassmannians.md) | 5 |
 | [B06 束の分類写像と安定化](b06-bundle-classification.md) | 5 |
 | [B07 滑らかな束と既存の接束・法束との接続](b07-smooth-bundles.md) | 5 |
@@ -151,23 +168,17 @@ L01 の後は L03 と G02 を別担当へ、B01 の後は B02 へ、A01 の後�
 
 ### 位相的 K 理論
 
-13件、概算70千行。
+7件、概算38千行。
 
 | タスク | 概算（千行） |
 | --- | ---: |
-| [K01 束の Grothendieck 環](k01-grothendieck-k.md) | 5 |
 | [K02 CW cofibration と Puppe 列](k02-cofibration-puppe.md) | 5 |
 | [K03 相対 K 群と負次数の完全列](k03-relative-k.md) | 6 |
-| [K04 Stone–Weierstrass と Laurent 近似](k04-uniform-approximation.md) | 6 |
-| [K05 代数学の基本定理と根群の連続性](k05-complex-roots.md) | 5 |
-| [K06 連続なスペクトル分離](k06-spectral-splitting.md) | 5 |
-| [K07 clutching の安定線形化](k07-clutching-linearization.md) | 6 |
 | [K08 Bott の基本積定理](k08-bott-product.md) | 5 |
 | [K09 Bott 周期性と整数次数](k09-bott-periodicity.md) | 5 |
 | [K10 コンパクト台付き K 理論とシンボルの表示](k10-compact-support-k.md) | 6 |
 | [K11 K 理論の Thom 同型](k11-k-thom.md) | 5 |
 | [K12 Chern 指標と Thom 類の比較](k12-chern-character-thom.md) | 6 |
-| [K13 複素多項式の根の存在](k13-fundamental-algebra.md) | 5 |
 
 ### 微分位相
 

@@ -12,6 +12,20 @@ static ALLOCATOR: ProfileAllocator = ProfileAllocator;
 // the threshold. Neither allocator's pointer is passed to the other allocator.
 unsafe impl GlobalAlloc for ProfileAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        if layout.size() >= 128 * 1024 * 1024
+            && std::env::var_os("REF_TYPE_PROFILE_LARGE_STACK").is_some()
+        {
+            use std::sync::atomic::{AtomicBool, Ordering};
+            static REPORTING: AtomicBool = AtomicBool::new(false);
+            if !REPORTING.swap(true, Ordering::Relaxed) {
+                eprintln!(
+                    "large allocation bytes={}\n{}",
+                    layout.size(),
+                    std::backtrace::Backtrace::force_capture()
+                );
+                REPORTING.store(false, Ordering::Relaxed);
+            }
+        }
         #[cfg(feature = "small-allocation-profile")]
         {
             use std::sync::atomic::{AtomicUsize, Ordering};

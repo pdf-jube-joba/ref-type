@@ -1,0 +1,34 @@
+\definition ParameterSet[i: I]: \Set := \parent.In[c := chart i].Parameter;
+\definition parameterSpace[i: I]: topology.Topology[Carrier := ParameterSet i].Topology := \parent.In[c := chart i].topology;
+\definition parameterization[i: I][p: ParameterSet i]: Family.Point := \parent.In[c := chart i].parameter p;
+\import \root.Operations[].Final[I := I, E := Family.Point, P := ParameterSet, parameterSpaces := parameterSpace, parameter := parameterization] \as Generated;
+\definition Raw: Total.TopologyData := Generated.Raw;
+\definition laws: Total.TopologyLaws[Raw] := Generated.laws;
+\definition topology: Total.Topology := Generated.topology;
+\definition data: Family.Data := Family.Data { baseSpace := baseSpace, totalSpace := topology, space := space };
+\import Family.With[data := data] \as Charts;
+/* Compatibility is a condition entirely on coordinate spaces: the preimage
+ * in chart j of the image of an open coordinate set in chart i is open.
+ * It is the open-overlap formulation of continuous transition functions. */
+\structure Compatible: \Prop := {
+  openDomains: \forall (i: I) -> Base.IsOpenIn baseSpace (chart i).domain,
+  covers: \forall (x: X) -> \exists ( i: I \where Base.Member (chart i).domain x ),
+  transitions: \forall (i, j: I)(V: \Pow (\parent.In[c := chart i].Parameter)) ->
+    topology.Topology[Carrier := \parent.In[c := chart i].Parameter].IsOpenIn (\parent.In[c := chart i].topology) V ->
+    topology.Topology[Carrier := \parent.In[c := chart j].Parameter].IsOpenIn (\parent.In[c := chart j].topology)
+      (topology.Maps[A := \parent.In[c := chart j].Parameter, B := Family.Point].Preimage (\parent.In[c := chart j].parameter) (\parent.In[c := chart i].Image V)),
+};
+\definition imageOpen: \forall (compatible: Compatible)(i: I)(V: \Pow (\parent.In[c := chart i].Parameter)) ->
+  topology.Topology[Carrier := \parent.In[c := chart i].Parameter].IsOpenIn (\parent.In[c := chart i].topology) V -> Total.IsOpenIn topology (\parent.In[c := chart i].Image V) :=
+  \fun (compatible: Compatible)(i: I)(V: _)(open: _)(j: I) => compatible.transitions i j V open;
+\module Local(i: I);
+\definition bundle[compatible: Compatible]: Family.Bundle := \into[Family.Data](data, Family.Bundle) \by {
+  \fun (x: X) => \block {
+    \takefrom i: \Cast[I] ({ i: I \where Base.Member (chart i).domain x }) \by compatible.covers x \then
+    \return Logic.existsIntro[Charts.Chart, { c: Charts.Chart \where Base.Member c.domain x }] (Local[i := i].trivialization compatible)
+      (\bysub(I, { i: I \where Base.Member (chart i).domain x }, i))
+  }
+};
+\module Universal(Z: \Set);
+\module Mapping(Y: \Set, G: Y -> \Set,
+  target: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := Y, F := G].Bundle, f: X -> Y);

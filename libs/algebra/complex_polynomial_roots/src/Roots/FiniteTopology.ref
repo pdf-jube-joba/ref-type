@@ -1,0 +1,33 @@
+
+\import topological_algebra.Coordinates[K := C.Complex, I := Fin.Fin n] \as Coordinates;
+\import topology.Topology[Carrier := Vector n] \as Space;
+\definition topology: Space.Topology := Coordinates.topology Plane.topology;
+\import topology.Topology[Carrier := Real.Real] \as RealSpace;
+\import metric_spaces.RealLine[] \as Line;
+\import metric_spaces.RealMetric[] \as RealMetric;
+\import metric_spaces.MetricSpace[Carrier := Real.Real].Topology[].Hausdorff[] \as RealHausdorff;
+\import topology.Maps[A := C.Complex, B := C.Complex].Identity[] \as Identity;
+\import Plane.Functions[A := C.Complex] \as PlaneFunctions;
+\import topology.Maps[A := C.Complex, B := Real.Real].Separate[source := Plane.topology, target := Line.topology, f := C.re,
+  continuous := PlaneFunctions.realContinuous Plane.topology (\fun (z: C.Complex) => z) (Identity.continuous Plane.topology), hausdorff := RealHausdorff.topologyT2 RealMetric.metric] \as RealSeparation;
+\import topology.Maps[A := C.Complex, B := Real.Real].Separate[source := Plane.topology, target := Line.topology, f := C.im,
+  continuous := PlaneFunctions.imaginaryContinuous Plane.topology (\fun (z: C.Complex) => z) (Identity.continuous Plane.topology), hausdorff := RealHausdorff.topologyT2 RealMetric.metric] \as ImaginarySeparation;
+\definition planeHausdorff: Scalars.IsT2 Plane.topology :=
+  \fun (z, w: C.Complex)(different: _) => Logic.orElim _ _ _ (Classical.excludedMiddle (C.re z = C.re w))
+    (\fun (same: C.re z = C.re w) => ImaginarySeparation.neighborhood z w (\fun (imaginary: C.im z = C.im w) => different (Complex.ext z w same imaginary)))
+    (\fun (real: Logic.Not (C.re z = C.re w)) => RealSeparation.neighborhood z w real);
+\definition differentCoordinate: \forall (a, b: Vector n) -> Logic.Not (a = b) -> \exists ( i: Fin.Fin n \where Logic.Not (a i = b i) ) :=
+  \fun (a, b: Vector n)(different: _) => Order.byContradiction (\exists ( i: Fin.Fin n \where Logic.Not (a i = b i) ))
+    (\fun (none: _) => different (\axiom:funext(a, b, \fun (i: Fin.Fin n) => Order.byContradiction (a i = b i)
+      (\fun (unequal: _) => none (Logic.existsIntro[Fin.Fin n, { i: Fin.Fin n \where Logic.Not (a i = b i) }] i unequal)))));
+\module Coordinate(i: Fin.Fin n) {
+  \import topology.Maps[A := Vector n, B := C.Complex].Separate[source := topology, target := Plane.topology, f := \fun (a: Vector n) => a i,
+    continuous := Coordinates.evaluationContinuous Plane.topology i, hausdorff := planeHausdorff] \as Separation;
+  \definition separate: \forall (a, b: Vector n) -> Logic.Not (a i = b i) -> \exists ( U: \Pow (Vector n) \where Space.RegularChoice[topology, Space.Singleton b, a, U] ) := Separation.neighborhood;
+}
+\definition hausdorff: Space.IsT2 topology := \block {
+  \fun (a, b: Vector n)(different: _) \then
+  \takefrom i: \Cast[Fin.Fin n] ({ i: Fin.Fin n \where Logic.Not (a i = b i) }) \by differentCoordinate a b different \then
+  \return Coordinate[i := i].separate a b (\bysub(Fin.Fin n, { i: Fin.Fin n \where Logic.Not (a i = b i) }, i))
+};
+\module On(S: \Pow C.Complex);

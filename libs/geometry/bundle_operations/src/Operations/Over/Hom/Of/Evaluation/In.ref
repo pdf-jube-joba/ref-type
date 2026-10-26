@@ -1,0 +1,19 @@
+\import Parametric.In[p := p] \as Local;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Along[X := X, F := G, bundle := right, Y := Local.Point, source := Local.topology, base := \fun (y: Local.Point) => y.base] \as TargetAlong;
+\import topology.Continuity[A := DomainFamily.Point, B := Source.Point].Restriction[S := { y: DomainFamily.Point \where \In[X] (topology.Topology[Carrier := X].Intersection p.first.domain p.second.domain) y.base }] \as Restrict;
+\definition vector[y: Local.Point]: F y.base := Pair.second (Fiber y.base) (F y.base) y.vector;
+\definition vectorContinuous: topology.Continuity[A := Local.Point, B := Source.Point].Continuous Local.topology left.totalSpace (\fun (y: Local.Point) => Source.include y.base (vector y)) :=
+  Restrict.restrictContinuous Domain.topology left.totalSpace Domain.second Domain.secondContinuous;
+\import Dual.Pairing[Y := Local.Point, source := Local.topology, base := \fun (y: Local.Point) => y.base] \as Pairing;
+\definition scalarValue[i: Fin.Fin p.first.dimension][y: Local.Point]: K := Local.leftVector i y (vector y);
+\definition scalarContinuous: \forall (i: Fin.Fin p.first.dimension) -> topology.Continuity[A := Local.Point, B := K].Continuous Local.topology scalar.topological.space (scalarValue i) :=
+  \fun (i: Fin.Fin p.first.dimension) => Pairing.continuous (Local.leftVector i) vector (Local.baseContinuous baseContinuous) (Local.leftRegular baseContinuous i) vectorContinuous;
+\definition model[i: Fin.Fin p.first.dimension][j: Fin.Fin p.second.dimension]: TargetAlong.Vectors := TargetAlong.scale (scalarValue i) (Local.rightVector j);
+\definition formula: \forall (i: Fin.Fin p.first.dimension)(j: Fin.Fin p.second.dimension)(y: Local.Point) -> Local.pureValue operator i j y = model i j y :=
+  \fun (i: Fin.Fin p.first.dimension)(j: Fin.Fin p.second.dimension)(y: Local.Point) => \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Hom[X := X, F := F, G := G, left := left, right := right].At[x := y.base].onPure (Local.leftVector i y) (Local.rightVector j y) (vector y);
+\definition regular: Local.PureRegular operator := \fun (i: Fin.Fin p.first.dimension)(j: Fin.Fin p.second.dimension) =>
+  \idelim TargetAlong.total (model i j) = TargetAlong.total (Local.pureValue operator i j)
+    \with f: (Local.Point -> Target.Point) => topology.Continuity[A := Local.Point, B := Target.Point].Continuous Local.topology right.totalSpace f \by {
+      base: TargetAlong.scaling (scalarValue i) (Local.rightVector j) (Local.targetBaseContinuous baseContinuous) (scalarContinuous i) (Local.rightRegular baseContinuous j),
+      equality: \axiom:funext(TargetAlong.total (model i j), TargetAlong.total (Local.pureValue operator i j), \fun (y: Local.Point) => congr!{{G y.base} Target.Point} (Target.include y.base) _ _ (sym!{{G y.base}} _ _ (formula i j y)))
+    };

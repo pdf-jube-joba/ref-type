@@ -1,0 +1,62 @@
+\import \root.Linearization[].PolynomialCorrection[V := Vectors.Vector, space := Vectors.space] \as Algebra;
+\import Spaces.Laws[V := Vectors.Vector, space := Vectors.space] \as Values;
+\import \root.Linearization[].Companion[n := n, d := order] \as Common;
+\definition complement[x: X]: C.Complex := C.Def[].sub C.Def[].one (weight x);
+\definition leading[x: X]: C.Complex := Algebra.leading leftLeading rightLeading (complement x) (weight x);
+\definition leftDelta[x: X]: Row order := Rows.Operations[].plus (leftRows x) (Rows.Operations[].negative (left x));
+\definition rightDelta[x: X]: Row order := Rows.Operations[].plus (rightRows x) (Rows.Operations[].negative (right x));
+\definition corrected[x: X]: Row order := Rows.Operations[].plus (h x)
+  (Rows.Operations[].plus (Rows.Operations[].scale (complement x) (leftDelta x)) (Rows.Operations[].scale (weight x) (rightDelta x)));
+\definition complementRegular: topology.Continuity[A := X, B := C.Complex].Continuous source Plane.topology complement := Functions.additionContinuous source _ _
+  (topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology C.Def[].one) (Functions.negationContinuous source weight regularWeight);
+\definition leadingRegular: topology.Continuity[A := X, B := C.Complex].Continuous source Plane.topology leading := Functions.additionContinuous source _ _
+  (Functions.multiplicationContinuous source _ _ complementRegular (topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology leftLeading))
+  (Functions.multiplicationContinuous source _ _ regularWeight (topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology rightLeading));
+\definition negativeRegular: \forall (q: Family order) -> Regular order q -> Regular order (\fun (x: X) => Rows.Operations[].negative (q x)) :=
+  \fun (q: Family order)(regular: Regular order q)(v: Coordinates.Carrier (N.Nat^::succ order))(j: Fin.Fin n) => Functions.multiplicationContinuous source _ _
+    (topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology (C.Def[].neg C.Def[].one)) (regular v j);
+\definition correctedRegular: Regular order corrected := \fun (v: Coordinates.Carrier (N.Nat^::succ order))(j: Fin.Fin n) => Functions.additionContinuous source _ _ (regularH v j)
+  (Functions.additionContinuous source _ _
+    (Functions.multiplicationContinuous source _ _ complementRegular (Functions.additionContinuous source _ _ (leftRowsRegular v j) (negativeRegular left leftRegular v j)))
+    (Functions.multiplicationContinuous source _ _ regularWeight (Functions.additionContinuous source _ _ (rightRowsRegular v j) (negativeRegular right rightRegular v j))));
+\definition rowFormula: \forall (x: X)(v: Common.Carrier) -> (corrected x).apply v = Algebra.lower ((h x).apply v) ((leftRows x).apply v) ((rightRows x).apply v) ((left x).apply v) ((right x).apply v) (complement x) (weight x) :=
+  \fun (x: X)(v: Common.Carrier) => congr!{Vectors.Vector Vectors.Vector} (Vectors.plus ((h x).apply v)) _ _
+    (congr!{Vectors.Vector Vectors.Vector Vectors.Vector} Vectors.plus _ _ _ _
+      (congr!{Vectors.Vector Vectors.Vector} (Vectors.scale (complement x)) _ _ (congr!{Vectors.Vector Vectors.Vector} (Vectors.plus ((leftRows x).apply v)) _ _ (Values.minusOneScale ((left x).apply v))))
+      (congr!{Vectors.Vector Vectors.Vector} (Vectors.scale (weight x)) _ _ (congr!{Vectors.Vector Vectors.Vector} (Vectors.plus ((rightRows x).apply v)) _ _ (Values.minusOneScale ((right x).apply v)))));
+\definition original[x: X][z: C.Complex]: End.Map := evaluation order h x z;
+\definition raw[x: X][z: C.Complex]: End.Map := End.Operations[].plus
+  (End.Operations[].scale (leading x) (Spaces.Eigen[V := Vectors.Vector, space := Vectors.space].scalar (Powers.value z (N.Nat^::succ order)))) (evaluation order corrected x z);
+\definition leftFull: \forall (x: X)(z: C.Complex)(v: Vectors.Vector) -> Vectors.plus (Vectors.scale leftLeading (Vectors.scale (Powers.value z (N.Nat^::succ order)) v)) ((leftRows x).apply ((Common.geometric z).apply v)) =
+  Vectors.scale (Powers.value (factor z) leftExtra) ((polynomial d0 q0 x z).apply v) :=
+  \fun (x: X)(z: C.Complex)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _
+    (sym!{Vectors.Vector} _ _ (Vectors.space.vectorAdd leftLeading (Vectors.scale (Powers.value z (N.Nat^::succ order)) v) ((leftMonic x).apply ((Common.geometric z).apply v)))) (leftEvaluation x z v);
+\definition rightFull: \forall (x: X)(z: C.Complex)(v: Vectors.Vector) -> Vectors.plus (Vectors.scale rightLeading (Vectors.scale (Powers.value z (N.Nat^::succ order)) v)) ((rightRows x).apply ((Common.geometric z).apply v)) =
+  Vectors.scale (Powers.value (factor z) rightExtra) ((polynomial d1 q1 x z).apply v) :=
+  \fun (x: X)(z: C.Complex)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _
+    (sym!{Vectors.Vector} _ _ (Vectors.space.vectorAdd rightLeading (Vectors.scale (Powers.value z (N.Nat^::succ order)) v) ((rightMonic x).apply ((Common.geometric z).apply v)))) (rightEvaluation x z v);
+\definition leftTerm: \forall (x: X)(z: C.Complex)(v: Vectors.Vector) -> Algebra.difference
+  (Vectors.plus (Vectors.scale leftLeading (Vectors.scale (Powers.value z (N.Nat^::succ order)) v)) ((leftRows x).apply ((Common.geometric z).apply v)))
+  ((left x).apply ((Common.geometric z).apply v)) = Vectors.scale (C.Def[].sub (Powers.value (factor z) leftExtra) C.Def[].one) ((polynomial d0 q0 x z).apply v) :=
+  \fun (x: X)(z: C.Complex)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _
+    (congr!{Vectors.Vector Vectors.Vector Vectors.Vector} Algebra.difference _ _ _ _ (leftFull x z v) (leftEmbeddedEvaluation x z v))
+    (Algebra.scaledDifference (Powers.value (factor z) leftExtra) ((polynomial d0 q0 x z).apply v));
+\definition rightTerm: \forall (x: X)(z: C.Complex)(v: Vectors.Vector) -> Algebra.difference
+  (Vectors.plus (Vectors.scale rightLeading (Vectors.scale (Powers.value z (N.Nat^::succ order)) v)) ((rightRows x).apply ((Common.geometric z).apply v)))
+  ((right x).apply ((Common.geometric z).apply v)) = Vectors.scale (C.Def[].sub (Powers.value (factor z) rightExtra) C.Def[].one) ((polynomial d1 q1 x z).apply v) :=
+  \fun (x: X)(z: C.Complex)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _
+    (congr!{Vectors.Vector Vectors.Vector Vectors.Vector} Algebra.difference _ _ _ _ (rightFull x z v) (rightEmbeddedEvaluation x z v))
+    (Algebra.scaledDifference (Powers.value (factor z) rightExtra) ((polynomial d1 q1 x z).apply v));
+\definition evaluationFormula: \forall (x: X)(z: C.Complex)(v: Vectors.Vector) -> (raw x z).apply v =
+  Vectors.plus ((original x z).apply v) (Vectors.plus
+    (Vectors.scale (complement x) (Vectors.scale (C.Def[].sub (Powers.value (factor z) leftExtra) C.Def[].one) ((polynomial d0 q0 x z).apply v)))
+    (Vectors.scale (weight x) (Vectors.scale (C.Def[].sub (Powers.value (factor z) rightExtra) C.Def[].one) ((polynomial d1 q1 x z).apply v)))) :=
+  \fun (x: X)(z: C.Complex)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _
+    (congr!{Vectors.Vector Vectors.Vector} (Vectors.plus (Vectors.scale (leading x) (Vectors.scale (Powers.value z (N.Nat^::succ order)) v))) _ _ (rowFormula x ((Common.geometric z).apply v)))
+    (trans!{Vectors.Vector} _ _ _ (Algebra.formula leftLeading rightLeading (complement x) (weight x) (Vectors.scale (Powers.value z (N.Nat^::succ order)) v) ((h x).apply ((Common.geometric z).apply v)) ((leftRows x).apply ((Common.geometric z).apply v)) ((rightRows x).apply ((Common.geometric z).apply v)) ((left x).apply ((Common.geometric z).apply v)) ((right x).apply ((Common.geometric z).apply v)))
+      (congr!{Vectors.Vector Vectors.Vector} (Vectors.plus ((original x z).apply v)) _ _ (congr!{Vectors.Vector Vectors.Vector Vectors.Vector} Vectors.plus _ _ _ _
+        (congr!{Vectors.Vector Vectors.Vector} (Vectors.scale (complement x)) _ _ (leftTerm x z v))
+        (congr!{Vectors.Vector Vectors.Vector} (Vectors.scale (weight x)) _ _ (rightTerm x z v)))));
+\module Positive(time: X -> algebraic_topology.Interval[].Carrier,
+  weightFormula: \forall (x: X) -> weight x = C.Def[].ofReal (time x));
+\module Endpoints;

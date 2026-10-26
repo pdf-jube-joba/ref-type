@@ -1,0 +1,11 @@
+\import Spaces.Tensor[V := V, W := W, left := left, right := second] \as First;
+\import Spaces.Tensor[V := First.Carrier, W := U, left := First.space, right := third] \as Triple;
+\import Spaces.Tensor[V := Triple.Carrier, W := Q, left := Triple.space, right := fourth] \as Tensor;
+\import Spaces.Linear[V := Tensor.Carrier, W := T, source := Tensor.space, target := target] \as Maps;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TensorEquality[V := Triple.Carrier, W := Q, U := T, left := Triple.space, right := fourth, target := target] \as Outer;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TensorTripleEquality[V := First.Carrier, W := U, U := Q, T := T, left := First.space, middle := third, right := fourth, target := target] \as Slice;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TensorTripleEquality[V := V, W := W, U := U, T := T, left := left, middle := second, right := third, target := target] \as Inner;
+\definition pointwise: \forall (a, b: Maps.Map) -> (\forall (v: V)(w: W)(u: U)(q: Q) -> a.apply (Tensor.tensor (Triple.tensor (First.tensor v w) u) q) = b.apply (Tensor.tensor (Triple.tensor (First.tensor v w) u) q)) -> \forall (t: Tensor.Carrier) -> a.apply t = b.apply t :=
+  \fun (a, b: Maps.Map)(agrees: _) => Outer.pointwise a b (\fun (t: Triple.Carrier)(q: Q) => Inner.pointwise (Slice.at a q) (Slice.at b q) (\fun (v: V)(w: W)(u: U) => agrees v w u q) t);
+\definition ext: \forall (a, b: Maps.Map) -> (\forall (v: V)(w: W)(u: U)(q: Q) -> a.apply (Tensor.tensor (Triple.tensor (First.tensor v w) u) q) = b.apply (Tensor.tensor (Triple.tensor (First.tensor v w) u) q)) -> a = b :=
+  \fun (a, b: Maps.Map)(agrees: _) => Maps.ext a b (\axiom:funext(a.apply, b.apply, pointwise a b agrees));

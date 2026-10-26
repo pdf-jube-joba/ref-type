@@ -1,0 +1,29 @@
+\import linear_algebra.Commutative[K := K, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing K field] \as Linear;
+\import lie_algebras.Field[K := K, field := field].Endomorphisms[V := V, space := space] \as End;
+\definition Map: \Set := End.Carrier;
+\module At(T: Map) {
+  \import \root.Evaluation[K := K, coefficients := std.Alg[].Field[].fieldAsCommutativeRing K field,
+    A := End.Carrier, target := End.ring, f := End.scalarMap, central := End.scalarCentral, T := T] \as E;
+  \definition evaluate: Polynomial -> Map := E.apply;
+  \definition apply[p: Polynomial][v: V]: V := (evaluate p).apply v;
+  \definition addition: \forall (p, q: Polynomial)(v: V) -> apply (P.add p q) v = space.add (apply p v) (apply q v) :=
+    \fun (p, q: Polynomial)(v: V) => congr!{Map V} (\fun (f: Map) => f.apply v) _ _ (E.laws.add p q);
+  \definition multiplication: \forall (p, q: Polynomial)(v: V) -> apply (P.mul p q) v = apply p (apply q v) :=
+    \fun (p, q: Polynomial)(v: V) => congr!{Map V} (\fun (f: Map) => f.apply v) _ _ (E.laws.mul p q);
+  \definition unit: \forall (v: V) -> apply P.one v = v :=
+    \fun (v: V) => congr!{Map V} (\fun (f: Map) => f.apply v) _ _ E.laws.one;
+  \definition zero: \forall (v: V) -> apply P.zero v = space.zero :=
+    \fun (v: V) => congr!{Map V} (\fun (f: Map) => f.apply v) _ _ E.laws.zero;
+  \definition constants: \forall (a: K)(v: V) -> apply (P.constant a) v = space.smul a v :=
+    \fun (a: K)(v: V) => congr!{Map V} (\fun (f: Map) => f.apply v) _ _ (E.constants a);
+  \definition variable: \forall (v: V) -> apply P.X v = T.apply v :=
+    \fun (v: V) => congr!{Map V} (\fun (f: Map) => f.apply v) _ _ E.variable;
+  \definition negative: \forall (p: Polynomial)(v: V) -> apply (P.neg p) v = space.neg (apply p v) :=
+    \fun (p: Polynomial)(v: V) => trans!{V} _ _ _ (congr!{Map V} (\fun (f: Map) => f.apply v) _ _ (E.negative p))
+      (Linear.Laws[V := V, space := space].minusOneScale (apply p v));
+  \definition module: PolynomialAlgebra.VectorSpace V := Rings.RingModule[Polynomial, V, PolynomialAlgebra.ring] {
+    zero := space.zero, add := space.add, neg := space.neg, smul := apply,
+    additive := space.additive, scalarOne := unit, scalarAssoc := multiplication, scalarAdd := addition,
+    vectorAdd := \fun (p: Polynomial)(v, w: V) => (evaluate p).preservesAdd v w,
+  };
+}

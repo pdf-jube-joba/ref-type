@@ -1,0 +1,32 @@
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := X] \as Cylinder;
+\definition regularH: topology.Continuity[A := Cylinder.Carrier, B := Y].Continuous (Cylinder.topology source) bundle.baseSpace h := (H.relativeLaws source bundle.baseSpace A f g h).homotopy.continuous;
+\import \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Presentation[X := Y, F := F, bundle := bundle, embedding := embedding] \as Presented;
+\definition n: N.Nat^ := embedding.dimension;
+\definition projection[p: Cylinder.Carrier]: Hermitian.At[n := n].Projection := Presented.projection (h p);
+\definition regular: Hermitian.At[n := n].Families[X := Cylinder.Carrier].Matrix[m := n].Regular (Cylinder.topology source) (\fun (p: Cylinder.Carrier) => (projection p).map) :=
+  \fun (v: Vector n)(i: Fin.Fin n) => topology.Composition[A := Cylinder.Carrier, B := Y, C := K].composeContinuous (Cylinder.topology source) bundle.baseSpace scalar.topological.space h
+    (\fun (y: Y) => (Presented.projection y).map.apply v i) regularH (Presented.regular v i);
+\definition stationary: \forall (x: X) -> \In[X] A x -> \forall (s, t: I.Carrier) ->
+  (projection (Cylinder.at s x)).map = (projection (Cylinder.at t x)).map :=
+  \fun (x: X)(inside: \In[X] A x)(s, t: I.Carrier) => congr!{Y {Spaces.Linear[V := Vector n, W := Vector n, source := coordinates n, target := coordinates n].Map}}
+    (\fun (y: Y) => (Presented.projection y).map) _ _
+    (trans!{Y} _ _ _ ((H.relativeLaws source bundle.baseSpace A f g h).fixed s x inside) (sym!{Y} _ _ ((H.relativeLaws source bundle.baseSpace A f g h).fixed t x inside)));
+\import \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Projections[n := n].Homotopy[X := X, baseSpace := source, compact := compact, P := projection,
+  regular := regular, A := A, stationary := stationary] \as Motion;
+\module Endpoint(t: I.Carrier);
+\import Endpoint[t := I.start] \as Start;
+\import Endpoint[t := I.end] \as Finish;
+\module Compare(iso: Motion.RelativeIsomorphism[I.start, I.end]);
+\definition rawExists: \exists RelativeIsomorphism[A, Start.at, Finish.at] := \block {
+  \takefrom iso: Motion.RelativeIsomorphism[I.start, I.end] \by Motion.endpointComparisonExists \then
+  \return \exact(Compare[iso := iso].result, RelativeIsomorphism[A, Start.at, Finish.at])
+};
+\definition startEquality: Start.at = f := \axiom:funext(Start.at, f, (H.relativeLaws source bundle.baseSpace A f g h).homotopy.start);
+\definition endEquality: Finish.at = g := \axiom:funext(Finish.at, g, (H.relativeLaws source bundle.baseSpace A f g h).homotopy.end);
+\definition isomorphismExists: \exists RelativeIsomorphism[A, f, g] := \block {
+  \let first: \exists RelativeIsomorphism[A, f, Finish.at] := \idelim Start.at = f \with u: Map => \exists RelativeIsomorphism[A, u, Finish.at] \by {
+    base: rawExists, equality: startEquality
+  } \then
+  \return \idelim Finish.at = g \with v: Map => \exists RelativeIsomorphism[A, f, v] \by { base: first, equality: endEquality }
+};

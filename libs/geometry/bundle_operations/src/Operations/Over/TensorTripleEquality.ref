@@ -1,0 +1,16 @@
+\import Spaces.Tensor[V := V, W := W, left := left, right := middle] \as First;
+\import Spaces.Tensor[V := First.Carrier, W := U, left := First.space, right := right] \as Tensor;
+\import Spaces.Linear[V := Tensor.Carrier, W := T, source := Tensor.space, target := target] \as Maps;
+\import Spaces.Linear[V := First.Carrier, W := T, source := First.space, target := target] \as Partial;
+\definition at[h: Maps.Map][u: U]: Partial.Map := Partial.Map {
+  apply := \fun (t: First.Carrier) => h.apply (Tensor.tensor t u),
+  preservesAdd := \fun (s, t: First.Carrier) => trans!{T} _ _ _ (congr!{{Tensor.Carrier} T} h.apply _ _ (Tensor.bilinear.addLeft s t u)) (h.preservesAdd (Tensor.tensor s u) (Tensor.tensor t u)),
+  preservesScale := \fun (a: K)(t: First.Carrier) => trans!{T} _ _ _ (congr!{{Tensor.Carrier} T} h.apply _ _ (Tensor.bilinear.scaleLeft a t u)) (h.preservesScale a (Tensor.tensor t u))
+};
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TensorEquality[V := First.Carrier, W := U, U := T, left := First.space, right := right, target := target] \as Outer;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TensorEquality[V := V, W := W, U := T, left := left, right := middle, target := target] \as Inner;
+\definition pointwise: \forall (a, b: Maps.Map) -> (\forall (v: V)(w: W)(u: U) -> a.apply (Tensor.tensor (First.tensor v w) u) = b.apply (Tensor.tensor (First.tensor v w) u)) -> \forall (t: Tensor.Carrier) -> a.apply t = b.apply t :=
+  \fun (a, b: Maps.Map)(agrees: _) => Outer.pointwise a b (\fun (t: First.Carrier)(u: U) => Inner.pointwise (at a u) (at b u) (\fun (v: V)(w: W) => agrees v w u) t);
+\definition ext: \forall (a, b: Maps.Map) -> (\forall (v: V)(w: W)(u: U) -> a.apply (Tensor.tensor (First.tensor v w) u) = b.apply (Tensor.tensor (First.tensor v w) u)) -> a = b :=
+  \fun (a, b: Maps.Map)(agrees: _) => Maps.ext a b (\axiom:funext(a.apply, b.apply, pointwise a b agrees));
+\module Right;

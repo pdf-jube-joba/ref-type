@@ -1,0 +1,27 @@
+\definition identityNonzero: Field.Nonzero M.identity :=
+  \fun (zero: _) => Scalars.field.nontrivial (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ zero) M.atIdentity);
+\definition identityRegular: Top.Families[X := Compare.Parameters].Regular Compare.parameterTopology (\fun (_: Compare.Parameters) => M.identity) :=
+  \fun (i, j: M.Index) => topology.Maps[A := Compare.Parameters, B := C.Complex].constantContinuous Compare.parameterTopology Plane.topology (M.identity i j);
+\definition scalarRegular: Top.Families[X := Compare.Parameters].Regular Compare.parameterTopology (\fun (_: Compare.Parameters) => Scalar.scale s M.identity) :=
+  \fun (i, j: M.Index) => topology.Maps[A := Compare.Parameters, B := C.Complex].constantContinuous Compare.parameterTopology Plane.topology (Scalar.scale s M.identity i j);
+\import \root.Linearization[].MatrixUnits[n := n, Y := Compare.Parameters, source := Compare.parameterTopology, A := (\fun (_: Compare.Parameters) => M.identity),
+  regular := identityRegular, nonzero := (\fun (_: Compare.Parameters) => identityNonzero)] \as Positive;
+\import \root.Linearization[].MatrixUnits[n := n, Y := Compare.Parameters, source := Compare.parameterTopology, A := (\fun (_: Compare.Parameters) => Scalar.scale s M.identity),
+  regular := scalarRegular, nonzero := (\fun (_: Compare.Parameters) => Scalar.nonzero s nonzeroScalar M.identity identityNonzero)] \as Negative;
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Scalars.field, scalar := linear_algebra.Hermitian[].Complex[].scalar,
+  topological := hermitian_frames.Hermitian[].Complex[].topological].At[n := n].Square[] \as Square;
+\import Spaces.Coordinates[I := M.Index] \as Vectors;
+\import Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as End;
+\definition product: \forall (p: Circle.Domain) -> M.product (Scalar.scale s M.identity) (a p) = matrix p :=
+  \fun (p: Circle.Domain) => trans!{M.Matrix} _ _ _ (M.Operations[].scaleLeft s M.identity (a p))
+    (congr!{M.Matrix M.Matrix} (Scalar.scale s) _ _ (M.Operations[].leftIdentity (a p)));
+\definition compatible: \forall (p: Circle.Domain)(v: Vectors.Vector) ->
+  (M.linear (Scalar.scale s M.identity)).apply ((M.linear (a p)).apply v) = (M.linear (matrix p)).apply ((M.linear M.identity).apply v) :=
+  \fun (p: Circle.Domain)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _ (Square.applyProduct _ _ v)
+    (trans!{Vectors.Vector} _ _ _ (congr!{M.Matrix Vectors.Vector} (\fun (b: M.Matrix) => (M.linear b).apply v) _ _ (product p))
+      (sym!{Vectors.Vector} _ _ (congr!{Vectors.Vector Vectors.Vector} (M.linear (matrix p)).apply _ _
+        (congr!{End.Map Vectors.Vector} (\fun (f: End.Map) => f.apply v) _ _ Square.linearIdentity))));
+\definition gauge: Compare.Gauge := Compare.Gauge {
+  positive := Positive.map, negative := Negative.map, positiveContinuous := Positive.continuous, negativeContinuous := Negative.continuous,
+  compatible := compatible,
+};

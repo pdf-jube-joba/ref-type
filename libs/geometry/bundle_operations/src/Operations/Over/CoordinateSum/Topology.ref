@@ -1,0 +1,32 @@
+\import topological_constructions.Product[A := Vector n, B := Vector m] \as Product;
+\import Product.Maps[] \as Projections;
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin n] \as Left;
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin m] \as Right;
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin Indices.total] \as Total;
+\definition product: topology.Topology[Carrier := Sum.Carrier].Topology := Product.topology (coordinateTopology n) (coordinateTopology m);
+\definition scalarTopology: topology.Topology[Carrier := K].Topology := scalar.topological.space;
+\import topology.Composition[A := Sum.Carrier, B := Vector n, C := K] \as LeftComposition;
+\import topology.Composition[A := Sum.Carrier, B := Vector m, C := K] \as RightComposition;
+\definition leftRegular: \forall (i: Fin.Fin n) -> topology.Continuity[A := Sum.Carrier, B := K].Continuous product scalarTopology (\fun (p: Sum.Carrier) => Sum.first p i) :=
+  \fun (i: Fin.Fin n) => LeftComposition.composeContinuous product (coordinateTopology n) scalarTopology Sum.first (\fun (v: Vector n) => v i)
+    (Projections.firstContinuous (coordinateTopology n) (coordinateTopology m)) (Left.evaluationContinuous scalarTopology i);
+\definition rightRegular: \forall (i: Fin.Fin m) -> topology.Continuity[A := Sum.Carrier, B := K].Continuous product scalarTopology (\fun (p: Sum.Carrier) => Sum.second p i) :=
+  \fun (i: Fin.Fin m) => RightComposition.composeContinuous product (coordinateTopology m) scalarTopology Sum.second (\fun (v: Vector m) => v i)
+    (Projections.secondContinuous (coordinateTopology n) (coordinateTopology m)) (Right.evaluationContinuous scalarTopology i);
+\definition joinRegular: topology.Continuity[A := Sum.Carrier, B := Vector Indices.total].Continuous product (coordinateTopology Indices.total) join :=
+  Total.Universal[A := Sum.Carrier].continuous product scalarTopology join (\fun (i: Fin.Fin Indices.total) =>
+    (\induction (s: Indices.Index) \return topology.Continuity[A := Sum.Carrier, B := K].Continuous product scalarTopology
+      (\fun (p: Sum.Carrier) => Tuples.evaluate (Sum.first p) (Sum.second p) s) \with {
+        | inl: leftRegular
+        | inr: rightRegular
+      }) (Indices.split i));
+\definition first[v: Vector Indices.total]: Vector n := Sum.first (split v);
+\definition second[v: Vector Indices.total]: Vector m := Sum.second (split v);
+\definition firstRegular: topology.Continuity[A := Vector Indices.total, B := Vector n].Continuous (coordinateTopology Indices.total) (coordinateTopology n) first :=
+  Left.Universal[A := Vector Indices.total].continuous (coordinateTopology Indices.total) scalarTopology first
+    (\fun (i: Fin.Fin n) => Total.evaluationContinuous scalarTopology (Indices.left i));
+\definition secondRegular: topology.Continuity[A := Vector Indices.total, B := Vector m].Continuous (coordinateTopology Indices.total) (coordinateTopology m) second :=
+  Right.Universal[A := Vector Indices.total].continuous (coordinateTopology Indices.total) scalarTopology second
+    (\fun (i: Fin.Fin m) => Total.evaluationContinuous scalarTopology (Indices.right i));
+\definition splitRegular: topology.Continuity[A := Vector Indices.total, B := Sum.Carrier].Continuous (coordinateTopology Indices.total) product split :=
+  Product.Universal[X := Vector Indices.total].pairContinuous (coordinateTopology Indices.total) (coordinateTopology n) (coordinateTopology m) first second firstRegular secondRegular;

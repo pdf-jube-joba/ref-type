@@ -1,0 +1,23 @@
+\import \parent.\parent.\parent.ImageAutomorphism[X := SubCylinder.CarrierSet, baseSpace := subTopology, P := subProjection, regular := subRegular, a := a] \as Ambient;
+\import \parent.\parent.\parent.Operators[].Units[] \as Units;
+\import algebraic_topology.Cofibration[A := X, subset := A].ForTarget[B := Units.Carrier] \as Cofibration;
+\definition data: Cofibration.ProblemData := Cofibration.ProblemData { initial := (\fun (x: X) => Units.identity), family := Ambient.value };
+\definition problem: Cofibration.Problem[baseSpace, Units.topology] := \into[Cofibration.ProblemData](data, Cofibration.Problem[baseSpace, Units.topology]) \by {
+  Cofibration.ProblemLaws[baseSpace, Units.topology, data] {
+    initialContinuous := topology.Maps[A := X, B := Units.Carrier].constantContinuous baseSpace Units.topology Units.identity,
+    familyContinuous := Ambient.continuous,
+    agrees := \fun (x: Subset) => Ambient.At[x := Pair.pair I.Carrier Subset I.start x].identity (initial x)
+  }
+};
+\structure Result: \Set := {
+  value: Automorphisms.Isomorphism,
+  initial: \forall (x: X)(v: Fiber (Pair.pair I.Carrier X I.start x)) -> (value.forward.fiber (Pair.pair I.Carrier X I.start x)).apply v = v,
+  extends: \forall (t: I.Carrier)(x: Subset)(v: SubFiber (Pair.pair I.Carrier Subset t x)) ->
+    valueOf ((value.forward.fiber (Pair.pair I.Carrier X t x)).apply v) = valueOf ((a.forward.fiber (Pair.pair I.Carrier Subset t x)).apply v)
+};
+\module WithExtension(h: Cofibration.Extension[baseSpace, Units.topology, problem]);
+\definition exists: \exists Result := \block {
+  \takefrom h: Cofibration.Extension[baseSpace, Units.topology, problem] \by Cofibration.homotopyExtension baseSpace Units.topology cofibration problem \then
+  \let result: \exists Result := WithExtension[h := h].exists \then
+  \return result
+};

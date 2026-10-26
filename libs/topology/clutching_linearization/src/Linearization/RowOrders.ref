@@ -1,0 +1,41 @@
+\import std.Data[].FinSet[] \as Fin;
+\import Spaces.Coordinates[I := Fin.Fin n] \as Vectors;
+\import \root.Linearization[].Coordinates[n := n] \as Coordinates;
+\import Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as End;
+\import Equality.Transport[A := N.Nat^] \as Transport;
+\import topological_algebra.Complex[] \as Plane;
+\definition Row[d: N.Nat^]: \Set := Spaces.Linear[V := Coordinates.Carrier (N.Nat^::succ d), W := Vectors.Vector,
+  source := Coordinates.space (N.Nat^::succ d), target := Vectors.space].Map;
+\definition Family[d: N.Nat^]: \Set := X -> Row d;
+\definition Regular[d: N.Nat^][q: Family d]: \Prop := \forall (v: Coordinates.Carrier (N.Nat^::succ d))(j: Fin.Fin n) ->
+  topology.Continuity[A := X, B := C.Complex].Continuous source Plane.topology (\fun (x: X) => (q x).apply v j);
+\definition polynomial[d: N.Nat^][q: Family d][x: X][z: C.Complex]: End.Map :=
+  \root.Linearization[].Companion[n := n, d := d].FromRow[row := q x].polynomial z;
+\definition Kernel[d: N.Nat^][q: Family d]: \Prop := \forall (x: X)(z: C.Complex) -> C.Absolute[].abs z = R.one -> \forall (v: Vectors.Vector) ->
+  (polynomial d q x z).apply v = Vectors.origin -> v = Vectors.origin;
+\definition cast[d, e: N.Nat^][same: d = e][q: Family d]: Family e := Transport.cast Family d e same q;
+\definition castRegular[d, e: N.Nat^][same: d = e][q: Family d]: Regular d q -> Regular e (cast d e same q) :=
+  Transport.predicate Family Regular d e same q;
+\definition castKernel[d, e: N.Nat^][same: d = e][q: Family d]: Kernel d q -> Kernel e (cast d e same q) :=
+  Transport.predicate Family Kernel d e same q;
+\definition polynomialEquality: \forall (d, e: N.Nat^)(same: d = e)(q: Family d)(x: X)(z: C.Complex) ->
+  polynomial e (cast d e same q) x z = polynomial d q x z :=
+  \fun (d, e: N.Nat^)(same: d = e)(q: Family d)(x: X)(z: C.Complex) => trans!{End.Map} _ _ _
+    (sym!{End.Map} _ _ (Transport.natural Family (\fun (_: N.Nat^) => End.Map) (\fun (k: N.Nat^)(p: Family k) => polynomial k p x z) d e same q))
+    (Transport.Constant[C := End.Map].law d e (polynomial d q x z) same);
+\module Index(compact: topology.Topology[Carrier := X].IsCompact source, hausdorff: topology.Topology[Carrier := X].IsT2 source, removed: N.Nat^);
+\definition evaluation[d: N.Nat^][q: Family d][x: X][z: C.Complex]: End.Map :=
+  Spaces.Linear[V := Coordinates.Carrier (N.Nat^::succ d), W := Vectors.Vector, source := Coordinates.space (N.Nat^::succ d), target := Vectors.space].Composition[U := Vectors.Vector, domain := Vectors.space].compose
+    (q x) (\root.Linearization[].Companion[n := n, d := d].geometric z);
+\definition evaluationEquality: \forall (d, e: N.Nat^)(same: d = e)(q: Family d)(x: X)(z: C.Complex) ->
+  evaluation e (cast d e same q) x z = evaluation d q x z :=
+  \fun (d, e: N.Nat^)(same: d = e)(q: Family d)(x: X)(z: C.Complex) => trans!{End.Map} _ _ _
+    (sym!{End.Map} _ _ (Transport.natural Family (\fun (_: N.Nat^) => End.Map) (\fun (k: N.Nat^)(p: Family k) => evaluation k p x z) d e same q))
+    (Transport.Constant[C := End.Map].law d e (evaluation d q x z) same);
+\module DegreePair(d0, d1, padding: N.Nat^, q0: Family d0, q1: Family d1, regular0: Regular d0 q0, regular1: Regular d1 q1);
+\module Evaluation(d: N.Nat^, q: Family d, regular: Regular d q,
+  Y: \Set, target: topology.Topology[Carrier := Y].Topology, f: Y -> X,
+  regularF: topology.Continuity[A := Y, B := X].Continuous target source f,
+  z: Y -> C.Complex, regularZ: topology.Continuity[A := Y, B := C.Complex].Continuous target Plane.topology z);
+\module Monic(d: N.Nat^, q: Family d, regular: Regular d q, kernel: Kernel d q,
+  compact: topology.Topology[Carrier := X].IsCompact source, hausdorff: topology.Topology[Carrier := X].IsT2 source);

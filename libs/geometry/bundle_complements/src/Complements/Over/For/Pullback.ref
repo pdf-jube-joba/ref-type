@@ -1,0 +1,18 @@
+\import Family.Of[bundle := bundle].Pullback[Y := Y, source := source, f := f] \as Pull;
+\definition pulledBundle: Bundles.Family[X := Y, F := \fun (y: Y) => F (f y)].Bundle := Pull.pulled regularBase;
+\import \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].For[X := Y, F := \fun (y: Y) => F (f y), bundle := pulledBundle] \as Target;
+\import Bundles.Family[X := Y, F := \fun (y: Y) => Pair.Times^[F (f y), F (f y)]] \as NewPairs;
+\import PairBundle.Of[same := \refl(bundle.baseSpace)].Pullback[Y := Y, source := source, f := f, regular := regularBase] \as Comparison;
+\import PairFamily.Of[bundle := PairBundle.bundle (\refl(bundle.baseSpace))].Pullback[Y := Y, source := source, f := f] \as PairPull;
+\import Bundles.Morphisms[X := Y, Y := Y, F := \fun (y: Y) => Pair.Times^[F (f y), F (f y)], G := \fun (y: Y) => Pair.Times^[F (f y), F (f y)], source := Comparison.secondBundle, target := Comparison.firstBundle, f := \fun (y: Y) => y] \as Back;
+\definition originalPair[p: NewPairs.Point]: PairFamily.Point := PairPull.map (Back.total Comparison.isomorphism.backward p);
+\definition pairContinuous: topology.Continuity[A := NewPairs.Point, B := PairFamily.Point].Continuous Comparison.secondBundle.totalSpace PairBundle.topology originalPair :=
+  topology.Composition[A := NewPairs.Point, B := NewPairs.Point, C := PairFamily.Point].composeContinuous Comparison.secondBundle.totalSpace Comparison.firstBundle.totalSpace PairBundle.topology
+    (Back.total Comparison.isomorphism.backward) PairPull.map (Back.continuous Comparison.isomorphism.backward) PairPull.mapContinuous;
+\definition metric[original: Metric]: Target.Metric := Target.Metric {
+  form := \fun (y: Y) => original.form (f y), positive := \fun (y: Y) => original.positive (f y),
+  continuous := topology.Composition[A := NewPairs.Point, B := PairFamily.Point, C := K].composeContinuous Comparison.secondBundle.totalSpace PairBundle.topology scalar.topological.space originalPair
+    (evaluation original.form) pairContinuous original.continuous
+};
+\definition naturality: \forall (original: Metric)(y: Y)(v, w: F (f y)) -> ((metric original).form y).dot v w = (original.form (f y)).dot v w :=
+  \fun (original: Metric)(y: Y)(v, w: F (f y)) => \refl((original.form (f y)).dot v w);

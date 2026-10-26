@@ -1,0 +1,39 @@
+\import \root.Linearization[].RowOrders[n := n, X := X, source := source] \as Orders;
+\import Orders.Monic[d := N.Nat^::zero, q := row, regular := rowRegular, kernel := kernel, compact := compact, hausdorff := hausdorff] \as Monic;
+\import Companion.RowFamilies[X := X, source := source, rows := row, regular := rowRegular] \as Family;
+\import Family.Separated[kernel := kernel] \as Separated;
+\definition rank: N.Nat^ := Coordinates.dimension Companion.degree;
+\import Spaces.Coordinates[I := Fin.Fin rank] \as Flat;
+\import Spaces.Linear[V := Flat.Vector, W := Vectors.Vector, source := Flat.space, target := Vectors.space] \as Forward;
+\import Spaces.Linear[V := Vectors.Vector, W := Flat.Vector, source := Vectors.space, target := Flat.space] \as Backward;
+\import Coordinates.At[d := Companion.degree] \as Frame;
+\definition forward: Forward.Map := Row.Composition[U := Flat.Vector, domain := Flat.space].compose evaluate Frame.backward;
+\definition backward: Backward.Map := Spaces.Linear[V := Companion.Carrier, W := Flat.Vector, source := Companion.space, target := Flat.space].Composition[U := Vectors.Vector, domain := Vectors.space].compose Frame.forward constant;
+\import Spaces.Isomorphism[V := Flat.Vector, W := Vectors.Vector, source := Flat.space, target := Vectors.space] \as Iso;
+\definition iso: Iso.Isomorphism := Iso.Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := \fun (v: Flat.Vector) => trans!{Flat.Vector} _ _ _ (congr!{Companion.Carrier Flat.Vector} Frame.forward.apply _ _ (tupleLaw (Frame.backward.apply v))) (Coordinates.rightInverse Companion.degree v),
+  rightInverse := \fun (v: Vectors.Vector) => congr!{Companion.Carrier Vectors.Vector} evaluate.apply _ _ (Coordinates.leftInverse Companion.degree (constant.apply v)),
+};
+\definition operatorFormula: \forall (x: X)(v: Companion.Carrier) -> evaluate.apply ((Companion.FromRow[row := row x].operator).apply v) = (M.linear (A x)).apply (evaluate.apply v) :=
+  \fun (x: X)(v: Companion.Carrier) => trans!{Vectors.Vector} _ _ _ (Companion.atLast (\fun (i: Fin.Fin N.Nat^::zero) => v (Fin.succ N.Nat^::zero i)) ((Companion.FromRow[row := row x].negativeRow).apply v))
+    (trans!{Vectors.Vector} _ _ _ (Companion.FromRow[row := row x].negativeRowValue v)
+      (trans!{Vectors.Vector} _ _ _ (congr!{Vectors.Vector Vectors.Vector} Vectors.negative _ _ (Values.minusOneScale ((M.linear (A x)).apply (evaluate.apply v)))) (Group.negNeg ((M.linear (A x)).apply (evaluate.apply v)))));
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := rank] \as Large;
+\definition intertwines: \forall (x: X)(v: Flat.Vector) -> forward.apply ((Large.linear (Family.matrix x)).apply v) = (M.linear (A x)).apply (forward.apply v) :=
+  \fun (x: X)(v: Flat.Vector) => trans!{Vectors.Vector} _ _ _
+    (congr!{Flat.Vector Vectors.Vector} forward.apply _ _ (Companion.FromRow[row := row x].Spectral[].formula v))
+    (trans!{Vectors.Vector} _ _ _ (congr!{Companion.Carrier Vectors.Vector} evaluate.apply _ _ (Coordinates.leftInverse Companion.degree ((Companion.FromRow[row := row x].operator).apply (Frame.backward.apply v)))) (operatorFormula x (Frame.backward.apply v)));
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Scalars.field, scalar := linear_algebra.Hermitian[].Complex[].scalar,
+  topological := hermitian_frames.Hermitian[].Complex[].topological] \as Hermitian;
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff] \as On;
+\import On.SpectralIndex[n := rank, A := Family.matrix, regular := Family.matrixRegular, off := Separated.off, removed := N.Nat^::zero].Similarity[
+  m := n, B := A, regularB := regular, offB := off].With[iso := (\fun (_: X) => iso),
+  regularForward := Hermitian.At[n := n].Families[X := X].Matrix[m := rank].constant source forward,
+  regularBackward := Hermitian.At[n := rank].Families[X := X].Matrix[m := n].constant source backward, intertwines := intertwines] \as Similarity;
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := source, compact := compact, hausdorff := hausdorff] \as K;
+\definition recovery: Monic.inverse = On.SpectralIndex[n := n, A := A, regular := regular, off := off, removed := N.Nat^::zero].value :=
+  trans!{K.K0[].Carrier} _ _ _ Monic.recovery Similarity.invariant;
+\import uniform_approximation.Approximation[].Circle[].Coefficients[X := X, space := source, baseCompact := compact, baseHausdorff := hausdorff] \as Circle;
+\import \root.Linearization[].MatrixPaths[n := n, Y := Circle.Domain, source := Circle.source] \as Paths;
+\definition family: Paths.Family := Monic.family;

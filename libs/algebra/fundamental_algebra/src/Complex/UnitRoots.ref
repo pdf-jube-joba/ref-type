@@ -1,0 +1,48 @@
+\definition unit: \Pow C.Complex := { z: C.Complex \where Op.normSq z = Real.one };
+\definition Carrier: \Set := \Cast[C.Complex] unit;
+\definition norm: \forall (z: Carrier) -> Op.normSq z = Real.one := \fun (z: Carrier) => \bysub(C.Complex, unit, z);
+\definition identity: Carrier := \into[C.Complex](Op.one, unit) \by { \parent.Bounds[].normOne };
+\definition imaginary: Carrier := \into[C.Complex](Op.i, unit) \by {
+  trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Laws.fieldMulZeroLeft Real.zero) (Laws.fieldMulOneLeft Real.one)) (Laws.addZeroLeft Real.one)
+};
+\definition negative[z: Carrier]: Carrier := \into[C.Complex](Op.neg z, unit) \by { trans!{Real.Real} _ _ _ (\parent.Bounds[].normNeg z) (norm z) };
+\definition scaleOne: \forall (z: C.Complex) -> Op.scale Real.one z = z :=
+  \fun (z: C.Complex) => Complex.ext _ _ (Laws.fieldMulOneLeft (C.re z)) (Laws.fieldMulOneLeft (C.im z));
+\definition scaleAssoc: \forall (a, b: Real.Real)(z: C.Complex) -> Op.scale (Real.mul a b) z = Op.scale a (Op.scale b z) :=
+  \fun (a, b: Real.Real)(z: C.Complex) => Complex.ext _ _
+    (Laws.fieldMulAssoc a b (C.re z)) (Laws.fieldMulAssoc a b (C.im z));
+\definition normScale: \forall (a: Real.Real)(z: C.Complex) -> Op.normSq (Op.scale a z) = Real.mul (Real.mul a a) (Op.normSq z) :=
+  \fun (a: Real.Real)(z: C.Complex) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+      (Algebra.mulFour a (C.re z) a (C.re z))
+      (Algebra.mulFour a (C.im z) a (C.im z)))
+    (sym!{Real.Real} _ _ (Laws.fieldMulAdd (Real.mul a a) (Real.mul (C.re z) (C.re z)) (Real.mul (C.im z) (C.im z))));
+\definition productScale: \forall (a: Real.Real)(z: C.Complex) ->
+  Op.mul (Op.scale a z) (Op.scale a z) = Op.scale (Real.mul a a) (Op.mul z z) :=
+  \fun (a: Real.Real)(z: C.Complex) => eq_reason_in!{C.Complex _
+    "=" _ "by" { Complex.scaleMulLeft a z (Op.scale a z) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (Op.scale a) _ _
+        (trans!{C.Complex} _ _ _ (Complex.mulComm z (Op.scale a z)) (Complex.scaleMulLeft a z z)) }
+    "=" _ "by" { sym!{C.Complex} _ _ (scaleAssoc a a (Op.mul z z)) }
+  };
+\definition realTimes: \forall (a: Real.Real)(z: C.Complex) -> Op.mul (Op.ofReal a) z = Op.scale a z :=
+  \fun (a: Real.Real)(z: C.Complex) => Complex.ext _ _
+    (trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (Real.sub (Real.mul a (C.re z))) _ _ (Laws.fieldMulZeroLeft (C.im z)))
+      (Laws.subZeroRight (Real.mul a (C.re z))))
+    (trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (Real.add (Real.mul a (C.im z))) _ _ (Laws.fieldMulZeroLeft (C.re z)))
+      (Laws.addZeroRight (Real.mul a (C.im z))));
+\definition Nonzero: \Set := \Cast[C.Complex] ({ v: C.Complex \where Op.NonZero v });
+\module Normalize(v: Nonzero);
+\definition Ordinary: \Set := \Cast[Carrier] ({ z: Carrier \where Logic.Not (z = Op.neg Op.one) });
+\module Half(z: Ordinary);
+\definition exists: \forall (z: Carrier) -> \exists ( w: Carrier \where Op.mul w w = z ) :=
+  \fun (z: Carrier) => Logic.orElim _ _ _ (Classical.excludedMiddle (z = Op.neg Op.one))
+    (\fun (same: _) => Logic.existsIntro[Carrier, { w: Carrier \where Op.mul w w = z }] imaginary
+      (trans!{C.Complex} _ _ _ Complex.iSquared (sym!{C.Complex} _ _ same)))
+    (\block {
+      \fun (different: _) \then
+      \let ordinary: Ordinary := \into[Carrier](z, Ordinary) \by { different } \then
+      \return Logic.existsIntro[Carrier, { w: Carrier \where Op.mul w w = z }] Half[z := ordinary].value Half[z := ordinary].square
+    });

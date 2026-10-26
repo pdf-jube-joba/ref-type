@@ -1,0 +1,47 @@
+\import \parent.Parameter[X := X, source := source, compact := compact] \as Parameter;
+\definition Domain: \Set := Pair.Times^[R.Real, X];
+\import topological_constructions.Product[A := R.Real, B := X] \as Product;
+\definition topology: topology.Topology[Carrier := Domain].Topology := Product.topology metric_spaces.RealLine[].topology source;
+\definition base: Domain -> X := Pair.second R.Real X;
+\definition scalar[p: Domain]: C.Complex := C.Def[].ofReal (Pair.first R.Real X p);
+\import Plane.Functions[A := Domain] \as Functions;
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Scalars.field, scalar := linear_algebra.Hermitian[].Complex[].scalar,
+  topological := hermitian_frames.Hermitian[].Complex[].topological] \as Hermitian;
+\definition scalarRegular: topology.Continuity[A := Domain, B := C.Complex].Continuous topology Plane.topology scalar :=
+  Hermitian.Functions[X := Domain].embedding topology (Pair.first R.Real X) (Product.Maps[].firstContinuous metric_spaces.RealLine[].topology source);
+\definition alongZ: topology.Continuity[A := Domain, B := C.Complex].Continuous topology Plane.topology (\fun (p: Domain) => z (base p)) :=
+  topology.Composition[A := Domain, B := X, C := C.Complex].composeContinuous topology source Plane.topology base z (Product.Maps[].secondContinuous metric_spaces.RealLine[].topology source) regularZ;
+\definition alongWeight: topology.Continuity[A := Domain, B := C.Complex].Continuous topology Plane.topology (\fun (p: Domain) => weight (base p)) :=
+  topology.Composition[A := Domain, B := X, C := C.Complex].composeContinuous topology source Plane.topology base weight (Product.Maps[].secondContinuous metric_spaces.RealLine[].topology source) regularWeight;
+\definition complement[p: Domain]: C.Complex := C.Def[].sub C.Def[].one (weight (base p));
+\definition complementRegular: topology.Continuity[A := Domain, B := C.Complex].Continuous topology Plane.topology complement :=
+  Functions.additionContinuous topology _ _ (topology.Maps[A := Domain, B := C.Complex].constantContinuous topology Plane.topology C.Def[].one) (Functions.negationContinuous topology _ alongWeight);
+\definition factor[p: Domain]: C.Complex := C.Def[].add C.Def[].one (C.Def[].mul (scalar p) (z (base p)));
+\definition factorRegular: topology.Continuity[A := Domain, B := C.Complex].Continuous topology Plane.topology factor :=
+  Functions.additionContinuous topology _ _ (topology.Maps[A := Domain, B := C.Complex].constantContinuous topology Plane.topology C.Def[].one)
+    (Functions.multiplicationContinuous topology _ _ scalarRegular alongZ);
+\import \root.Linearization[].Powers[] \as Powers;
+\definition multiplier[k: N.Nat^][p: Domain]: C.Complex := C.Def[].sub (Powers.value (factor p) k) C.Def[].one;
+\definition multiplierRegular: \forall (k: N.Nat^) -> topology.Continuity[A := Domain, B := C.Complex].Continuous topology Plane.topology (multiplier k) :=
+  \fun (k: N.Nat^) => Functions.additionContinuous topology _ _ (Powers.Families[X := Domain, source := topology, z := factor, regular := factorRegular].continuous k)
+    (topology.Maps[A := Domain, B := C.Complex].constantContinuous topology Plane.topology (C.Def[].neg C.Def[].one));
+\definition blend[h, l, r, f, g, w: C.Complex]: C.Complex := C.Def[].add h
+  (C.Def[].add (C.Def[].mul (C.Def[].sub C.Def[].one w) (C.Def[].mul (C.Def[].sub f C.Def[].one) l))
+    (C.Def[].mul w (C.Def[].mul (C.Def[].sub g C.Def[].one) r)));
+\definition value[p: Domain]: Matrices.Matrix := \fun (i, j: Matrices.Index) =>
+  blend (original (base p) i j) (left (base p) i j) (right (base p) i j) (Powers.value (factor p) leftPower) (Powers.value (factor p) rightPower) (weight (base p));
+\definition along: \forall (family: X -> Matrices.Matrix) -> Top.Families[X := X].Regular source family -> Top.Families[X := Domain].Regular topology (\fun (p: Domain) => family (base p)) :=
+  \fun (family: X -> Matrices.Matrix)(continuous: _)(i, j: Matrices.Index) => topology.Composition[A := Domain, B := X, C := C.Complex].composeContinuous topology source Plane.topology base
+    (\fun (x: X) => family x i j) (Product.Maps[].secondContinuous metric_spaces.RealLine[].topology source) (continuous i j);
+\definition regular: Top.Families[X := Domain].Regular topology value := \fun (i, j: Matrices.Index) => Functions.additionContinuous topology _ _ (along original regularOriginal i j)
+  (Functions.additionContinuous topology _ _
+    (Functions.multiplicationContinuous topology _ _ complementRegular (Functions.multiplicationContinuous topology _ _ (multiplierRegular leftPower) (along left regularLeft i j)))
+    (Functions.multiplicationContinuous topology _ _ alongWeight (Functions.multiplicationContinuous topology _ _ (multiplierRegular rightPower) (along right regularRight i j))));
+\module AtZero(x: X);
+\definition atZero: \forall (x: X) -> value (Pair.pair R.Real X R.zero x) = original x := \fun (x: X) => AtZero[x := x].equality;
+\definition nonzeroAtZero: \forall (x: X) -> Field.Nonzero (value (Pair.pair R.Real X R.zero x)) :=
+  \fun (x: X)(zero: _) => nonzero x (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (congr!{Matrices.Matrix {C.Complex}} Matrices.determinant _ _ (atZero x))) zero);
+\import Parameter.With[family := value, regular := regular, atZero := nonzeroAtZero] \as Uniform;
+\definition Small: \Set := Uniform.Small[R.one];
+\definition exists: \exists Small := Uniform.smallExists R.one R.Estimates[].Product[].onePositive;
+\module Endpoints;

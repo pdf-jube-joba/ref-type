@@ -1,0 +1,31 @@
+\import \root.Spectral[].InFrame[V := V, space := space, T := T, n := m, frame := other] \as Other;
+\import Other.Separated[off := otherOff] \as OtherProjection;
+\import Spaces.Coordinates[I := Fin.Fin m] \as Target;
+\import Spaces.Linear[V := V, W := Target.Vector, source := space, target := Target.space].Composition[U := Coordinates.Vector, domain := Coordinates.space] \as Change;
+\import matrix_invariants.Ring[K := C.Complex, scalars := Fields.fieldAsCommutativeRing C.Complex Scalars.field].At[n := m] \as TargetMatrices;
+\definition change: Spaces.Linear[V := Coordinates.Vector, W := Target.Vector, source := Coordinates.space, target := Target.space].Map := Change.compose other.forward frame.backward;
+\definition intertwines: \forall (v: Coordinates.Vector) -> change.apply ((Matrices.linear matrix).apply v) = (TargetMatrices.linear Other.matrix).apply (change.apply v) :=
+  \fun (v: Coordinates.Vector) => eq_reason_in!{Target.Vector _
+    "=" _ "by" { congr!{Coordinates.Vector Target.Vector} change.apply _ _ (matrixFormula v) }
+    "=" { other.forward.apply (T.apply (frame.backward.apply v)) } "by" {
+      congr!{V Target.Vector} other.forward.apply _ _ (left (T.apply (frame.backward.apply v)))
+    }
+    "=" { other.forward.apply (T.apply (other.backward.apply (change.apply v))) } "by" {
+      congr!{V Target.Vector} (\fun (w: V) => other.forward.apply (T.apply w)) _ _ (sym!{V} _ _ (Other.left (frame.backward.apply v)))
+    }
+    "=" _ "by" { sym!{Target.Vector} _ _ (Other.matrixFormula (change.apply v)) }
+  };
+\import \root.Spectral[].Comparison[n := n, m := m, A := matrix, B := Other.matrix, sourceOff := off, targetOff := otherOff] \as Comparison;
+\import \root.Spectral[].Intertwining[V := Coordinates.Vector, W := Target.Vector, source := Coordinates.space, destination := Target.space,
+  S := Matrices.linear matrix, T := TargetMatrices.linear Other.matrix] \as Intertwining;
+\definition morphism: Comparison.Morphism := Intertwining.ofLinear change intertwines;
+\definition onForward: \forall (v: V) -> change.apply (frame.forward.apply v) = other.forward.apply v :=
+  \fun (v: V) => congr!{V Target.Vector} other.forward.apply _ _ (left v);
+\definition same: \forall (v: V) -> value.apply v = OtherProjection.value.apply v :=
+  \fun (v: V) => eq_reason_in!{V _
+    "=" { other.backward.apply (change.apply (Projection.projection.apply (frame.forward.apply v))) } "by" { sym!{V} _ _ (Other.left (value.apply v)) }
+    "=" { other.backward.apply (OtherProjection.coordinateProjection.apply (change.apply (frame.forward.apply v))) } "by" {
+      congr!{Target.Vector V} other.backward.apply _ _ (Comparison.natural morphism (frame.forward.apply v))
+    }
+    "=" _ "by" { congr!{Target.Vector V} (\fun (w: Target.Vector) => other.backward.apply (OtherProjection.coordinateProjection.apply w)) _ _ (onForward v) }
+  };

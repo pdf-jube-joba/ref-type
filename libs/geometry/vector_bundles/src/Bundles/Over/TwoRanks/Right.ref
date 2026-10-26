@@ -1,0 +1,67 @@
+
+\definition center: B.Bool^ := B.Bool^::false;
+\definition domain: \Pow B.Bool^ := Base.Singleton center;
+\import Spaces.Isomorphism[V := Vector m, W := Vector m, source := coordinates m, target := coordinates m] \as LinearIsomorphisms;
+\definition identity: LinearIsomorphisms.Isomorphism := LinearIsomorphisms.Isomorphism {
+  forward := Spaces.FiniteCoordinates[n := m].identity, backward := Spaces.FiniteCoordinates[n := m].identity,
+  leftInverse := \fun (v: Vector m) => \refl(v), rightInverse := \fun (v: Vector m) => \refl(v),
+};
+\definition frame[y: \Cast[B.Bool^] domain]: Charts.Frame m y :=
+  \idelim center = y \with b: B.Bool^ => Charts.Frame m b \by { base: identity, equality: sym!{B.Bool^} _ _ (\bysub(B.Bool^, domain, y)) };
+\definition chart: Charts.ChartData := Charts.ChartData { domain := domain, dimension := m, frame := frame };
+\import Charts.In[c := chart] \as Local;
+\import Base.Subspace[S := domain] \as BaseSubspace;
+\import Total.Subspace[S := { p: Family.Point \where Base.Member domain p.base }] \as TotalSubspace;
+\import Sum.Universal[C := Vector m] \as Reading;
+\definition read: Sum.Carrier -> Vector m := Reading.copair (\fun (v: Vector n) => (coordinates m).zero) (\fun (v: Vector m) => v);
+\definition readContinuous: topology.Continuity[A := Sum.Carrier, B := Vector m].Continuous (Sum.topology (coordinateTopology n) (coordinateTopology m)) (coordinateTopology m) read :=
+  Reading.continuous (coordinateTopology n) (coordinateTopology m) (coordinateTopology m) (\fun (v: Vector n) => (coordinates m).zero) (\fun (v: Vector m) => v) (topology.Maps[A := Vector n, B := Vector m].constantContinuous (coordinateTopology n) (coordinateTopology m) (coordinates m).zero) (topology.Maps[A := Vector m, B := Vector m].Identity[].continuous (coordinateTopology m));
+\definition frameAtCenter: \forall (equal: center = center) -> frame (\into[B.Bool^](center, domain) \by { equal }) = identity :=
+  \fun (equal: center = center) => \transporteq center \with b: B.Bool^ => Charts.Frame m b \by { base: identity };
+\definition coordinate: \forall (y: Local.BasePoint)(v: Fiber y) -> (frame y).forward.apply v = read (inject y v) :=
+  \fun (y: Local.BasePoint) => (\idelim center = y \with b: B.Bool^ => \forall (equal: b = center)(v: Fiber b) ->
+    (frame (\into[B.Bool^](b, domain) \by { equal })).forward.apply v = read (inject b v) \by {
+      base: \fun (equal: center = center)(v: Fiber center) => congr!{LinearIsomorphisms.Data {Vector m}} (\fun (h: LinearIsomorphisms.Data) => h.forward.apply v) _ _ (frameAtCenter equal), equality: sym!{B.Bool^} _ _ (\bysub(B.Bool^, domain, y))
+    }) (\bysub(B.Bool^, domain, y));
+\definition inverse: \forall (y: Local.BasePoint)(v: Vector m) -> Family.include y ((frame y).backward.apply v) = Family.include center v :=
+  \fun (y: Local.BasePoint) => (\idelim center = y \with b: B.Bool^ => \forall (equal: b = center)(v: Vector m) ->
+    Family.include b ((frame (\into[B.Bool^](b, domain) \by { equal })).backward.apply v) = Family.include center v \by {
+      base: \fun (equal: center = center)(v: Vector m) => congr!{LinearIsomorphisms.Data Family.Point} (\fun (h: LinearIsomorphisms.Data) => Family.include center (h.backward.apply v)) _ _ (frameAtCenter equal), equality: sym!{B.Bool^} _ _ (\bysub(B.Bool^, domain, y))
+    }) (\bysub(B.Bool^, domain, y));
+\import topology.Composition[A := Family.Point, B := Sum.Carrier, C := Vector m] \as Read;
+\definition vectorContinuous: topology.Continuity[A := Family.Point, B := Vector m].Continuous topology (coordinateTopology m) (\fun (p: Family.Point) => read (embedding p)) :=
+  Read.composeContinuous topology (Sum.topology (coordinateTopology n) (coordinateTopology m)) (coordinateTopology m) embedding read embeddingContinuous readContinuous;
+\import topology.Continuity[A := Family.Point, B := B.Bool^].Restriction[S := { p: Family.Point \where Base.Member domain p.base }] \as RestrictBase;
+\import topology.Continuity[A := Family.Point, B := Vector m].Restriction[S := { p: Family.Point \where Base.Member domain p.base }] \as RestrictVector;
+\import topology.Continuity[A := Local.TotalPoint, B := B.Bool^].Corestriction[S := domain] \as IntoBase;
+\import topological_constructions.Product[A := Local.BasePoint, B := Vector m] \as Product;
+\import Product.Universal[X := Local.TotalPoint] \as Pairing;
+\definition localVector[p: Local.TotalPoint]: Vector m := (frame (Local.base p)).forward.apply p.vector;
+\definition localVectorContinuous: topology.Continuity[A := Local.TotalPoint, B := Vector m].Continuous Local.localTopology (coordinateTopology m) localVector :=
+  \idelim (\fun (p: Local.TotalPoint) => read (embedding p)) = localVector \with f: (Local.TotalPoint -> Vector m) => topology.Continuity[A := Local.TotalPoint, B := Vector m].Continuous Local.localTopology (coordinateTopology m) f \by {
+    base: RestrictVector.restrictContinuous topology (coordinateTopology m) (\fun (p: Family.Point) => read (embedding p)) vectorContinuous,
+    equality: \axiom:funext((\fun (p: Local.TotalPoint) => read (embedding p)), localVector, \fun (p: Local.TotalPoint) => sym!{{Vector m}} _ _ (coordinate (Local.base p) p.vector))
+  };
+\definition forwardContinuous: topology.Continuity[A := Local.TotalPoint, B := Local.ProductPoint].Continuous Local.localTopology Local.productTopology Local.forward :=
+  Pairing.pairContinuous Local.localTopology (BaseSubspace.topology Base.Discrete) (coordinateTopology m) Local.base localVector
+    (IntoBase.corestrictContinuous Local.localTopology Base.Discrete (\fun (p: Local.TotalPoint) => Local.base p) (RestrictBase.restrictContinuous topology Base.Discrete Family.projection projectionContinuous)) localVectorContinuous;
+\definition include[v: Vector m]: Family.Point := Family.include center v;
+\definition inclusionContinuous: topology.Continuity[A := Vector m, B := Family.Point].Continuous (coordinateTopology m) topology include :=
+  Induced.Universal[Z := Vector m].continuous (coordinateTopology m) (Sum.topology (coordinateTopology n) (coordinateTopology m)) embedding include (Sum.inrContinuous (coordinateTopology n) (coordinateTopology m));
+\import Product.Maps[] \as Projections;
+\import topology.Composition[A := Local.ProductPoint, B := Vector m, C := Family.Point] \as Include;
+\definition model[p: Local.ProductPoint]: Family.Point := include (Pair.second Local.BasePoint (Vector m) p);
+\definition backward[p: Local.ProductPoint]: Family.Point := Local.backward p;
+\definition backwardContinuous: topology.Continuity[A := Local.ProductPoint, B := Family.Point].Continuous Local.productTopology topology backward :=
+  \idelim model = backward \with f: (Local.ProductPoint -> Family.Point) => topology.Continuity[A := Local.ProductPoint, B := Family.Point].Continuous Local.productTopology topology f \by {
+    base: Include.composeContinuous Local.productTopology (coordinateTopology m) topology (Pair.second Local.BasePoint (Vector m)) include (Projections.secondContinuous (BaseSubspace.topology Base.Discrete) (coordinateTopology m)) inclusionContinuous,
+    equality: \axiom:funext(model, backward, \fun (p: Local.ProductPoint) => sym!{Family.Point} _ _ (inverse (Pair.first Local.BasePoint (Vector m) p) (Pair.second Local.BasePoint (Vector m) p)))
+  };
+\import topology.Continuity[A := Local.ProductPoint, B := Family.Point].Corestriction[S := { p: Family.Point \where Base.Member domain p.base }] \as IntoLocal;
+\definition laws: Local.Laws := Local.Laws {
+  baseOpen := Base.discreteOpen domain,
+  totalOpen := projectionContinuous domain (Base.discreteOpen domain),
+  forwardContinuous := forwardContinuous,
+  backwardContinuous := IntoLocal.corestrictContinuous Local.productTopology topology (\fun (p: Local.ProductPoint) => Local.backward p) backwardContinuous,
+};
+\definition trivialization: Charts.Chart := \into[Charts.ChartData](chart, Charts.Chart) \by { laws };

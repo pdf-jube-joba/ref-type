@@ -1,0 +1,45 @@
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as NatLaws;
+\definition leftPadding: N.Nat^ := Nat.add d1 padding;
+\definition rightPadding: N.Nat^ := Nat.add d0 padding;
+\definition order: N.Nat^ := Nat.add d0 (N.Nat^::succ leftPadding);
+\definition leftExtra: N.Nat^ := N.Nat^::succ leftPadding;
+\definition rightExtra: N.Nat^ := N.Nat^::succ rightPadding;
+\definition middleOrder: Nat.add d1 rightPadding = Nat.add d0 leftPadding := trans!{{N.Nat^}} _ _ _
+  (sym!{{N.Nat^}} _ _ (NatLaws.addAssoc d1 d0 padding))
+  (trans!{{N.Nat^}} _ _ _ (congr!{{N.Nat^} {N.Nat^}} (\fun (k: N.Nat^) => Nat.add k padding) _ _ (NatLaws.addComm d1 d0)) (NatLaws.addAssoc d0 d1 padding));
+\definition rightOrder: Nat.add d1 rightExtra = order := congr!{{N.Nat^} {N.Nat^}} N.Nat^::succ _ _ middleOrder;
+\definition leftPaddingOrder: Nat.add (N.Nat^::succ d0) leftPadding = order := NatLaws.addSuccLeft d0 leftPadding;
+\definition rightPaddingOrder: Nat.add (N.Nat^::succ d1) rightPadding = order := trans!{{N.Nat^}} _ _ _ (NatLaws.addSuccLeft d1 rightPadding) rightOrder;
+\import \root.Linearization[].Companion[n := n, d := d0].RowFamilies[X := X, source := source, rows := q0, regular := regular0].Complete[] \as Left;
+\import \root.Linearization[].Companion[n := n, d := d1].RowFamilies[X := X, source := source, rows := q1, regular := regular1].Complete[] \as Right;
+\definition left: Family order := cast _ _ leftPaddingOrder (Left.padded leftPadding);
+\definition right: Family order := cast _ _ rightPaddingOrder (Right.padded rightPadding);
+\definition leftRegular: Regular order left := castRegular _ _ leftPaddingOrder (Left.padded leftPadding) (Left.paddedRegular leftPadding);
+\definition rightRegular: Regular order right := castRegular _ _ rightPaddingOrder (Right.padded rightPadding) (Right.paddedRegular rightPadding);
+\definition leftEmbeddedEvaluation: \forall (x: X)(z: C.Complex)(v: Vectors.Vector) -> (evaluation order left x z).apply v = (polynomial d0 q0 x z).apply v :=
+  \fun (x: X)(z: C.Complex)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _
+    (congr!{End.Map Vectors.Vector} (\fun (p: End.Map) => p.apply v) _ _ (evaluationEquality _ _ leftPaddingOrder (Left.padded leftPadding) x z)) (Left.evaluation leftPadding x z v);
+\definition rightEmbeddedEvaluation: \forall (x: X)(z: C.Complex)(v: Vectors.Vector) -> (evaluation order right x z).apply v = (polynomial d1 q1 x z).apply v :=
+  \fun (x: X)(z: C.Complex)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _
+    (congr!{End.Map Vectors.Vector} (\fun (p: End.Map) => p.apply v) _ _ (evaluationEquality _ _ rightPaddingOrder (Right.padded rightPadding) x z)) (Right.evaluation rightPadding x z v);
+\module Factors(delta: R.Real, positive: Real.Lt R.zero delta, belowOne: Real.Lt delta R.one);
+\module Perturbation(Y: \Set, target: topology.Topology[Carrier := Y].Topology, compact: topology.Topology[Carrier := Y].IsCompact target,
+  f: Y -> X, regularF: topology.Continuity[A := Y, B := X].Continuous target source f,
+  z: Y -> C.Complex, regularZ: topology.Continuity[A := Y, B := C.Complex].Continuous target Plane.topology z,
+  h: Family order, regularH: Regular order h,
+  weight: X -> C.Complex, regularWeight: topology.Continuity[A := X, B := C.Complex].Continuous source Plane.topology weight,
+  kernel: \forall (y: Y)(v: Vectors.Vector) -> (evaluation order h (f y) (z y)).apply v = Vectors.origin -> v = Vectors.origin);
+\module Circle(compact: topology.Topology[Carrier := X].IsCompact source, hausdorff: topology.Topology[Carrier := X].IsT2 source,
+  h: Family order, regularH: Regular order h,
+  weight: X -> C.Complex, regularWeight: topology.Continuity[A := X, B := C.Complex].Continuous source Plane.topology weight,
+  kernel: \forall (x: X)(z: C.Complex) -> C.Absolute[].abs z = R.one -> \forall (v: Vectors.Vector) -> (evaluation order h x z).apply v = Vectors.origin -> v = Vectors.origin);
+\module Homotopy(compact: topology.Topology[Carrier := X].IsCompact source, hausdorff: topology.Topology[Carrier := X].IsT2 source,
+  kernel0: Kernel d0 q0, kernel1: Kernel d1 q1);
+\module Segment(compact: topology.Topology[Carrier := X].IsCompact source, hausdorff: topology.Topology[Carrier := X].IsT2 source,
+  kernel0: Kernel d0 q0, kernel1: Kernel d1 q1, a, b: R.Real, positiveA: Real.Lt R.zero a, positiveB: Real.Lt R.zero b);
+
+\module LoopHomotopy(compact: topology.Topology[Carrier := X].IsCompact source, hausdorff: topology.Topology[Carrier := X].IsT2 source,
+  kernel0: Kernel d0 q0, kernel1: Kernel d1 q1);
+\module LoopPath(compact: topology.Topology[Carrier := X].IsCompact source, hausdorff: topology.Topology[Carrier := X].IsT2 source,
+  kernel0: Kernel d0 q0, kernel1: Kernel d1 q1);

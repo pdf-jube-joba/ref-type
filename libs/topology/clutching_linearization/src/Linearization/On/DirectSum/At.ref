@@ -1,0 +1,71 @@
+\import Left.Construction[parameters := first].Path[].Stabilized[k := second.normal.shift] \as L;
+\import Right.Construction[parameters := second].Path[].Stabilized[k := first.normal.shift] \as R;
+\import L.Padded[extraDegree := R.order] \as LP;
+\import R.Padded[extraDegree := L.order] \as RP;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as NatLaws;
+\import \root.Linearization[].RowOrders[n := m, X := X, source := source] \as RightOrders;
+\definition sameOrder: RP.order = LP.order := NatLaws.addComm R.order L.order;
+\definition rightRows: RightOrders.Family LP.order := RightOrders.cast RP.order LP.order sameOrder RP.rows;
+\definition rightRegular: RightOrders.Regular LP.order rightRows := RightOrders.castRegular RP.order LP.order sameOrder RP.rows RP.rowsRegular;
+\definition rightKernel: RightOrders.Kernel LP.order rightRows := RightOrders.castKernel RP.order LP.order sameOrder RP.rows RP.rowsKernel;
+\import \root.Linearization[].PolynomialSum[n := n, m := m, d := LP.order, X := X, source := source, q0 := LP.rows, q1 := rightRows,
+  regular0 := LP.rowsRegular, regular1 := rightRegular, kernel0 := LP.rowsKernel, kernel1 := rightKernel] \as Polynomials;
+\import Families.Motion[a := LP.start, c := LP.finish, b := RP.start, d := RP.finish, first := LP.path, second := RP.path] \as Motion;
+\import \root.Linearization[].MatrixPaths[n := total, Y := Circle.Domain, source := Circle.source] \as Paths;
+\import \root.Linearization[].Powers[] \as Powers;
+\import \root.Linearization[].ScalarMatrices[n := n] \as ScaleL;
+\import \root.Linearization[].ScalarMatrices[n := m] \as ScaleR;
+\import \root.Linearization[].ScalarMatrices[n := total] \as ScaleT;
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing] \as Matrices;
+\import Matrices.At[n := n] \as ML;
+\import Matrices.At[n := m] \as MR;
+\import Matrices.At[n := total] \as MT;
+\definition shift: N.Nat^ := Nat.add first.normal.shift second.normal.shift;
+\import Total.Representative[d := LP.order, q := Polynomials.rows, regularQ := Polynomials.regular, kernelQ := Polynomials.kernel, k := shift] \as Representative;
+\definition leftStart: \forall (p: Circle.Domain) -> LP.start.matrix p = ScaleL.scale (Powers.value (Circle.unit p) shift) (a.matrix p) :=
+  \fun (p: Circle.Domain) => ML.Operations[].ext (LP.start.matrix p) (ScaleL.scale (Powers.value (Circle.unit p) shift) (a.matrix p))
+    (\fun (i, j: ML.Index) => trans!{{C.Complex}} _ _ _
+      (sym!{{C.Complex}} _ _ (C.Prop[].mulAssoc (Powers.value (Circle.unit p) second.normal.shift) (Powers.value (Circle.unit p) first.normal.shift) (a.matrix p i j)))
+      (congr!{{C.Complex} {C.Complex}} (\fun (s: C.Complex) => C.Def[].mul s (a.matrix p i j)) _ _
+        (trans!{{C.Complex}} _ _ _ (C.Prop[].mulComm (Powers.value (Circle.unit p) second.normal.shift) (Powers.value (Circle.unit p) first.normal.shift))
+          (sym!{{C.Complex}} _ _ (Powers.add (Circle.unit p) first.normal.shift second.normal.shift)))));
+\definition rightStart: \forall (p: Circle.Domain) -> RP.start.matrix p = ScaleR.scale (Powers.value (Circle.unit p) shift) (b.matrix p) :=
+  \fun (p: Circle.Domain) => MR.Operations[].ext (RP.start.matrix p) (ScaleR.scale (Powers.value (Circle.unit p) shift) (b.matrix p))
+    (\fun (i, j: MR.Index) => trans!{{C.Complex}} _ _ _
+      (sym!{{C.Complex}} _ _ (C.Prop[].mulAssoc (Powers.value (Circle.unit p) first.normal.shift) (Powers.value (Circle.unit p) second.normal.shift) (b.matrix p i j)))
+      (congr!{{C.Complex} {C.Complex}} (\fun (s: C.Complex) => C.Def[].mul s (b.matrix p i j)) _ _ (sym!{{C.Complex}} _ _ (Powers.add (Circle.unit p) first.normal.shift second.normal.shift))));
+\definition start: \forall (p: Circle.Domain) -> (Families.sum LP.start RP.start).matrix p = Representative.shifted.matrix p :=
+  \fun (p: Circle.Domain) => trans!{MT.Matrix} _ _ _ (congr!{ML.Matrix MR.Matrix MT.Matrix} Blocks.matrix _ _ _ _ (leftStart p) (rightStart p))
+    (Blocks.scaled (Powers.value (Circle.unit p) shift) (a.matrix p) (b.matrix p));
+\definition rightEntries: \forall (p: Circle.Domain) -> MR.Representation[].entries (RightOrders.polynomial LP.order rightRows (Circle.first p) (Circle.unit p)) = RP.finish.matrix p :=
+  \fun (p: Circle.Domain) => trans!{MR.Matrix} _ _ _ (congr!{Spaces.Linear[V := Spaces.Coordinates[I := MR.Index].Vector, W := Spaces.Coordinates[I := MR.Index].Vector, source := Spaces.Coordinates[I := MR.Index].space, target := Spaces.Coordinates[I := MR.Index].space].Map MR.Matrix} MR.Representation[].entries _ _ (RightOrders.polynomialEquality RP.order LP.order sameOrder RP.rows (Circle.first p) (Circle.unit p))) (RP.entries p);
+\definition finish: \forall (p: Circle.Domain) -> (Families.sum LP.finish RP.finish).matrix p = Representative.polynomial.matrix p :=
+  \fun (p: Circle.Domain) => sym!{MT.Matrix} _ _ (trans!{MT.Matrix} _ _ _ (Polynomials.Matrices[].entries (Circle.first p) (Circle.unit p))
+    (congr!{ML.Matrix MR.Matrix MT.Matrix} Blocks.matrix _ _ _ _ (LP.entries p) (rightEntries p)));
+\definition path: Paths.Path[Representative.shifted, Representative.polynomial] := Paths.retarget (Families.sum LP.start RP.start) (Families.sum LP.finish RP.finish)
+  Representative.shifted Representative.polynomial Motion.path start finish;
+\definition rank: Nat.mul total shift = Nat.add RP.removed LP.removed := trans!{{N.Nat^}} _ _ _ (NatLaws.mulDistribRight m n shift)
+  (congr!{{N.Nat^} {N.Nat^} {N.Nat^}} Nat.add _ _ _ _
+    (NatLaws.mulDistribLeft m first.normal.shift second.normal.shift)
+    (trans!{{N.Nat^}} _ _ _ (NatLaws.mulDistribLeft n first.normal.shift second.normal.shift)
+      (NatLaws.addComm (Nat.mul n first.normal.shift) (Nat.mul n second.normal.shift))));
+\import Polynomials.Shape[].Flat[].Index[compact := compact, hausdorff := hausdorff, removed0 := LP.removed, removed1 := RP.removed] \as Addition;
+\import \root.Linearization[].RowOrders[n := total, X := X, source := source] \as TotalOrders;
+\import \root.Linearization[].RowOrders[n := n, X := X, source := source].Index[compact := compact, hausdorff := hausdorff, removed := LP.removed] \as LeftIndex;
+\import RightOrders.Index[compact := compact, hausdorff := hausdorff, removed := RP.removed] \as RightIndex;
+\definition rightCorrection: RightIndex.value LP.order rightRows rightRegular rightKernel = Right.Construction[parameters := second].inverseClass :=
+  trans!{K.K0[].Carrier} _ _ _ (RightIndex.invariant RP.order LP.order sameOrder RP.rows RP.rowsRegular RP.rowsKernel) RP.correction;
+\definition recovery: Total.Inverse[].value = K.K0[].add Left.Inverse[].value Right.Inverse[].value :=
+  eq_reason_in!{K.K0[].Carrier {Total.Inverse[].value}
+    "=" {TotalOrders.Index[compact := compact, hausdorff := hausdorff, removed := Nat.mul total shift].value LP.order Polynomials.rows Polynomials.regular Polynomials.kernel}
+      "by" {Representative.With[path := path].recovery}
+    "=" {TotalOrders.Index[compact := compact, hausdorff := hausdorff, removed := Nat.add RP.removed LP.removed].value LP.order Polynomials.rows Polynomials.regular Polynomials.kernel}
+      "by" {congr!{{N.Nat^} {K.K0[].Carrier}} (\fun (r: N.Nat^) => TotalOrders.Index[compact := compact, hausdorff := hausdorff, removed := r].value LP.order Polynomials.rows Polynomials.regular Polynomials.kernel) _ _ rank}
+    "=" {K.K0[].add (LeftIndex.value LP.order LP.rows LP.rowsRegular LP.rowsKernel) (RightIndex.value LP.order rightRows rightRegular rightKernel)}
+      "by" {sym!{K.K0[].Carrier} _ _ Addition.additivity}
+    "=" {K.K0[].add Left.Inverse[].value Right.Inverse[].value}
+      "by" {congr!{K.K0[].Carrier K.K0[].Carrier K.K0[].Carrier} K.K0[].add _ _ _ _
+        (trans!{K.K0[].Carrier} _ _ _ LP.correction (sym!{K.K0[].Carrier} _ _ (Left.Inverse[].comparison first)))
+        (trans!{K.K0[].Carrier} _ _ _ rightCorrection (sym!{K.K0[].Carrier} _ _ (Right.Inverse[].comparison second)))}
+  };

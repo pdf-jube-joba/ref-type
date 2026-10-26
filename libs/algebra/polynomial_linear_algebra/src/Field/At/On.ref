@@ -1,0 +1,54 @@
+\import \parent.\parent.Action[V := Vector, space := Vectors.space].At[T := Mat.linear A] \as Evaluation;
+\import \parent.\parent.MatrixModule[n := n, V := Vector, space := Evaluation.module] \as ModuleMatrices;
+\import Linear.Sums[I := Index].Vector[V := Vector, space := Vectors.space] \as Sum;
+\import Sum.Mapping[W := Vector, target := Vectors.space] \as Mapping;
+\import Linear.Laws[V := Vector, space := Vectors.space] \as Values;
+\definition relationTerm: \forall (i, j: Index) ->
+  Evaluation.apply (pencil A j i) (Coordinates.vectors j) =
+    Vectors.plus ((Mat.linear A).apply (Vectors.scale (Delta.delta i j) (Coordinates.vectors j)))
+      (Vectors.negative (Vectors.scale (A j i) (Coordinates.vectors j))) :=
+  \fun (i, j: Index) => eq_reason_in!{Vector _
+    "=" _ "by" { Evaluation.addition _ _ (Coordinates.vectors j) }
+    "=" _ "by" { congr!{Vector Vector Vector} Vectors.plus _ _ _ _
+      (trans!{Vector} _ _ _ (Evaluation.multiplication P.X (P.constant (Delta.delta i j)) (Coordinates.vectors j))
+        (trans!{Vector} _ _ _ (Evaluation.variable _) (congr!{Vector Vector} (Mat.linear A).apply _ _ (Evaluation.constants _ _))))
+      (trans!{Vector} _ _ _ (ModuleMatrices.negativeScalar (P.constant (A j i)) (Coordinates.vectors j))
+        (congr!{Vector Vector} Vectors.negative _ _ (Evaluation.constants _ _))) }
+  };
+\definition relation: \forall (i: Index) -> ModuleMatrices.action (Polynomials.transpose (pencil A)) Coordinates.vectors i = Vectors.origin :=
+  \fun (i: Index) => eq_reason_in!{Vector _
+    "=" { Sum.sum (Fin.elements n) (\fun (j: Index) => Vectors.plus ((Mat.linear A).apply (Vectors.scale (Delta.delta i j) (Coordinates.vectors j))) (Vectors.negative (Vectors.scale (A j i) (Coordinates.vectors j)))) } "by" {
+      Sum.congruent (Fin.elements n) (\fun (j: Index) => Evaluation.apply (pencil A j i) (Coordinates.vectors j))
+        (\fun (j: Index) => Vectors.plus ((Mat.linear A).apply (Vectors.scale (Delta.delta i j) (Coordinates.vectors j))) (Vectors.negative (Vectors.scale (A j i) (Coordinates.vectors j)))) (relationTerm i) }
+    "=" { Vectors.plus
+      (Sum.sum (Fin.elements n) (\fun (j: Index) => (Mat.linear A).apply (Vectors.scale (Delta.delta i j) (Coordinates.vectors j))))
+      (Sum.sum (Fin.elements n) (\fun (j: Index) => Vectors.negative (Vectors.scale (A j i) (Coordinates.vectors j)))) } "by" {
+      Sum.addition (Fin.elements n) _ _ }
+    "=" { Vectors.plus ((Mat.linear A).apply (Coordinates.vectors i)) (Vectors.negative (Mat.columns A i)) } "by" {
+      congr!{Vector Vector Vector} Vectors.plus _ _ _ _
+        (trans!{Vector} _ _ _ (sym!{Vector} _ _ (Mapping.law (Mat.linear A) (Fin.elements n) (\fun (j: Index) => Vectors.scale (Delta.delta i j) (Coordinates.vectors j))))
+          (congr!{Vector Vector} (Mat.linear A).apply _ _ (Coordinates.reconstruction (Coordinates.vectors i))))
+        (trans!{Vector} _ _ _ (Sum.negative (Fin.elements n) (\fun (j: Index) => Vectors.scale (A j i) (Coordinates.vectors j)))
+          (congr!{Vector Vector} Vectors.negative _ _ (Coordinates.reconstruction (\fun (j: Index) => A j i)))) }
+    "=" { Vectors.plus ((Mat.linear A).apply (Coordinates.vectors i)) (Vectors.negative ((Mat.linear A).apply (Coordinates.vectors i))) } "by" {
+      congr!{Vector Vector} (\fun (v: Vector) => Vectors.plus ((Mat.linear A).apply (Coordinates.vectors i)) (Vectors.negative v)) _ _ (sym!{Vector} _ _ (Mat.onBasis A i)) }
+    "=" _ "by" { Vectors.space.additive.group.rightInverse ((Mat.linear A).apply (Coordinates.vectors i)) }
+  };
+\definition onBasis: \forall (i: Index) -> Evaluation.apply (characteristic A) (Coordinates.vectors i) = Vectors.origin :=
+  \fun (i: Index) => trans!{Vector} _ _ _
+    (congr!{Polynomial Vector} (\fun (p: Polynomial) => Evaluation.apply p (Coordinates.vectors i)) _ _
+      (sym!{Polynomial} _ _ (Rows.transposeInvariant (pencil A))))
+    (ModuleMatrices.determinantTrick (Polynomials.transpose (pencil A)) Coordinates.vectors relation i);
+\definition annihilates: \forall (v: Vector) -> Evaluation.apply (characteristic A) v = Vectors.origin :=
+  \fun (v: Vector) => eq_reason_in!{Vector _
+    "=" { (Evaluation.evaluate (characteristic A)).apply (Sum.sum (Fin.elements n) (\fun (i: Index) => Vectors.scale (v i) (Coordinates.vectors i))) } "by" {
+      congr!{Vector Vector} (Evaluation.evaluate (characteristic A)).apply _ _ (sym!{Vector} _ _ (Coordinates.reconstruction v)) }
+    "=" { Sum.sum (Fin.elements n) (\fun (i: Index) => (Evaluation.evaluate (characteristic A)).apply (Vectors.scale (v i) (Coordinates.vectors i))) } "by" { Mapping.law (Evaluation.evaluate (characteristic A)) (Fin.elements n) _ }
+    "=" { Sum.sum (Fin.elements n) (\fun (i: Index) => Vectors.origin) } "by" {
+      Sum.congruent (Fin.elements n)
+        (\fun (i: Index) => (Evaluation.evaluate (characteristic A)).apply (Vectors.scale (v i) (Coordinates.vectors i))) (\fun (i: Index) => Vectors.origin)
+        (\fun (i: Index) => trans!{Vector} _ _ _ ((Evaluation.evaluate (characteristic A)).preservesScale (v i) (Coordinates.vectors i))
+          (trans!{Vector} _ _ _ (congr!{Vector Vector} (Vectors.scale (v i)) _ _ (onBasis i)) (Values.scaleZero (v i)))) }
+    "=" _ "by" { Sum.zero (Fin.elements n) }
+  };
+\module Splitting(factors: \root.Field[K := K, field := field].Factorization (characteristic A));

@@ -1,0 +1,24 @@
+\import Top.Families[X := X] \as Continuous;
+\import topology.Topology[Carrier := X] \as Source;
+\import topology.Continuity[A := X, B := Matrix.Matrix] \as MatrixMaps;
+\import metric_spaces.RealFunctions[A := X].Reciprocal[] \as Reciprocal;
+\definition reciprocalDeterminant: \forall (source: Source.Topology)(A: X -> Matrix.Matrix) -> Continuous.Regular source A ->
+  (\forall (x: X) -> Inversion.Nonzero (A x)) -> Continuous.Continuous source (\fun (x: X) => Scalars.field.inv (Matrix.determinant (A x))) :=
+  \fun (source: Source.Topology)(A: X -> Matrix.Matrix)(regular: Continuous.Regular source A)(nonzero: \forall (x: X) -> Inversion.Nonzero (A x)) =>
+    Reciprocal.continuous source (\fun (x: X) => Matrix.determinant (A x)) (Continuous.determinantContinuous source A regular) nonzero;
+\definition inverseRegular: \forall (source: Source.Topology)(A: X -> Matrix.Matrix) -> Continuous.Regular source A ->
+  (\forall (x: X) -> Inversion.Nonzero (A x)) -> Continuous.Regular source (\fun (x: X) => Inversion.formula (A x)) :=
+  \fun (source: Source.Topology)(A: X -> Matrix.Matrix)(regular: Continuous.Regular source A)(nonzero: \forall (x: X) -> Inversion.Nonzero (A x))(i, j: Matrix.Index) =>
+    Continuous.multiplication source (\fun (x: X) => Scalars.field.inv (Matrix.determinant (A x))) (\fun (x: X) => Matrix.cofactor (A x) j i)
+      (reciprocalDeterminant source A regular nonzero) (Continuous.cofactorContinuous source A regular j i);
+\definition inverseContinuous: \forall (source: Source.Topology)(A: X -> Matrix.Matrix) -> Continuous.Regular source A ->
+  (\forall (x: X) -> Inversion.Nonzero (A x)) -> MatrixMaps.Continuous source topology (\fun (x: X) => Inversion.formula (A x)) :=
+  \fun (source: Source.Topology)(A: X -> Matrix.Matrix)(regular: Continuous.Regular source A)(nonzero: \forall (x: X) -> Inversion.Nonzero (A x)) =>
+    Continuous.matrixContinuous source (\fun (x: X) => Inversion.formula (A x)) (inverseRegular source A regular nonzero);
+\definition certifiedInverseContinuous: \forall (source: Source.Topology)(A: X -> Matrix.Matrix)(B: \forall (x: X) -> Operations.Inverse (A x)) ->
+  Continuous.Regular source A -> MatrixMaps.Continuous source topology (\fun (x: X) => B x) :=
+  \fun (source: Source.Topology)(A: X -> Matrix.Matrix)(B: \forall (x: X) -> Operations.Inverse (A x))(regular: Continuous.Regular source A) =>
+    Continuous.matrixContinuous source (\fun (x: X) => B x) (\fun (i, j: Matrix.Index) =>
+      Continuous.transport source (\fun (x: X) => Inversion.formula (A x) i j) (\fun (x: X) => B x i j)
+        (\fun (x: X) => sym!{K} _ _ (Inversion.componentFormula (A x) (B x) i j))
+        (inverseRegular source A regular (\fun (x: X) => Inversion.nonzeroOfInverse (A x) (B x)) i j));

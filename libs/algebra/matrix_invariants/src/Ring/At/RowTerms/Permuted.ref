@@ -1,0 +1,44 @@
+\definition updatedFactors: \forall (A: Matrix)(i: Index)(v: Vector) ->
+  factors p.forward (Multilinear.update n A i v) = ScalarTuples.update n (factors p.forward A) (p.backward i) (v (p.backward i)) :=
+  \fun (A: Matrix)(i: Index)(v: Vector) => \axiom:funext(factors p.forward (Multilinear.update n A i v), ScalarTuples.update n (factors p.forward A) (p.backward i) (v (p.backward i)),
+    \fun (j: Index) => either!{{(Classical.excludedMiddle (p.forward j = i))} {factors p.forward (Multilinear.update n A i v) j = ScalarTuples.update n (factors p.forward A) (p.backward i) (v (p.backward i)) j}
+      {\block {
+        \fun (same: p.forward j = i) \then
+        \let slot: j = p.backward i := trans!{Index} _ _ _ (sym!{Index} _ _ ((Permutations.laws p).leftInverse j)) (congr!{Index Index} p.backward _ _ same) \then
+        \return eq_reason_in!{K _
+          "=" { v j } "by" { congr!{Vector K} (\fun (w: Vector) => w j) _ _ (trans!{Vector} _ _ _ (congr!{Index Vector} (Multilinear.update n A i v) _ _ same) (Updates.updateSelf n A i v)) }
+          "=" { v (p.backward i) } "by" { congr!{Index K} v _ _ slot }
+          "=" { ScalarTuples.update n (factors p.forward A) (p.backward i) (v (p.backward i)) (p.backward i) } "by" { sym!{K} _ _ (ScalarUpdates.updateSelf n (factors p.forward A) (p.backward i) (v (p.backward i))) }
+          "=" _ "by" { congr!{Index K} (ScalarTuples.update n (factors p.forward A) (p.backward i) (v (p.backward i))) _ _ (sym!{Index} _ _ slot) }
+        }
+      }}
+      {\fun (different: Logic.Not (p.forward j = i)) => trans!{K} _ _ _
+        (congr!{Vector K} (\fun (w: Vector) => w j) _ _ (Updates.updateOther n A i (p.forward j) v (\fun (same: i = p.forward j) => different (sym!{Index} _ _ same))))
+        (sym!{K} _ _ (ScalarUpdates.updateOther n (factors p.forward A) (p.backward i) j (v (p.backward i))
+          (\fun (same: p.backward i = j) => different (trans!{Index} _ _ _ (congr!{Index Index} p.forward _ _ (sym!{Index} _ _ same)) ((Permutations.laws p).rightInverse i)))))}
+    });
+\definition updatedMonomial: \forall (A: Matrix)(i: Index)(v: Vector) ->
+  monomial p.forward (Multilinear.update n A i v) = Products.product (ScalarTuples.update n (factors p.forward A) (p.backward i) (v (p.backward i))) :=
+  \fun (A: Matrix)(i: Index)(v: Vector) => congr!{{Index -> K} K} Products.product _ _ (updatedFactors A i v);
+\definition addition: \forall (A: Matrix)(i: Index)(v, w: Vector) ->
+  monomial p.forward (Multilinear.update n A i (Vectors.plus v w)) = add (monomial p.forward (Multilinear.update n A i v)) (monomial p.forward (Multilinear.update n A i w)) :=
+  \fun (A: Matrix)(i: Index)(v, w: Vector) => eq_reason_in!{K _
+    "=" _ "by" { updatedMonomial A i (Vectors.plus v w) }
+    "=" _ "by" { Products.addition (Fin.elements n) (Enumeration.distinct n) (p.backward i) (Indices.exhaustive (p.backward i)) (factors p.forward A) (v (p.backward i)) (w (p.backward i)) }
+    "=" _ "by" { congr!{K K K} add _ _ _ _ (sym!{K} _ _ (updatedMonomial A i v)) (sym!{K} _ _ (updatedMonomial A i w)) }
+  };
+\definition scalar: \forall (A: Matrix)(i: Index)(a: K)(v: Vector) ->
+  monomial p.forward (Multilinear.update n A i (Vectors.scale a v)) = mul a (monomial p.forward (Multilinear.update n A i v)) :=
+  \fun (A: Matrix)(i: Index)(a: K)(v: Vector) => eq_reason_in!{K _
+    "=" _ "by" { updatedMonomial A i (Vectors.scale a v) }
+    "=" _ "by" { Products.scalar (Fin.elements n) (Enumeration.distinct n) (p.backward i) (Indices.exhaustive (p.backward i)) (factors p.forward A) a (v (p.backward i)) }
+    "=" _ "by" { congr!{K K} (mul a) _ _ (sym!{K} _ _ (updatedMonomial A i v)) }
+  };
+\definition laws: Multilinear.Laws[n, term p.forward] := Multilinear.Laws[n, term p.forward] {
+  addition := \fun (A: Matrix)(i: Index)(v, w: Vector) => trans!{K} _ _ _
+    (congr!{K K} (\fun (a: K) => mul a (Weight p.forward)) _ _ (addition A i v w))
+    (Algebra.addMul (monomial p.forward (Multilinear.update n A i v)) (monomial p.forward (Multilinear.update n A i w)) (Weight p.forward)),
+  scalar := \fun (A: Matrix)(i: Index)(a: K)(v: Vector) => trans!{K} _ _ _
+    (congr!{K K} (\fun (b: K) => mul b (Weight p.forward)) _ _ (scalar A i a v))
+    (Algebra.mulAssoc a (monomial p.forward (Multilinear.update n A i v)) (Weight p.forward)),
+};

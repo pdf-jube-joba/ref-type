@@ -1,0 +1,42 @@
+\import std.Data[].FinSet[] \as Fin;
+\import topological_algebra.Complex[] \as Plane;
+\import Plane.Functions[A := Y] \as Functions;
+\import Spaces.Coordinates[I := Fin.Fin n] \as Vectors;
+\import \root.Linearization[].Rotation[V := Vectors.Vector, space := Vectors.space] \as Rotation;
+\import \root.Linearization[].Blocks[V := Vectors.Vector, W := Vectors.Vector, left := Vectors.space, right := Vectors.space] \as Blocks;
+\import Spaces.DirectSum[V := Vectors.Vector, W := Vectors.Vector, left := Vectors.space, right := Vectors.space] \as Sum;
+\import Spaces.Isomorphism[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as Single;
+\import bundle_operations.Operations[].Over[K := C.Complex, field := Scalars.field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Operations;
+\import Operations.CoordinateSum[n := n, m := n] \as Coordinates;
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Scalars.field, scalar := linear_algebra.Hermitian[].Complex[].scalar,
+  topological := hermitian_frames.Hermitian[].Complex[].topological] \as Hermitian;
+\import Hermitian.At[n := n].Families[X := Y].Matrix[m := n] \as Families;
+\definition Continuous[f: Y -> C.Complex]: \Prop := topology.Continuity[A := Y, B := C.Complex].Continuous source Plane.topology f;
+\structure Regular[v: Y -> Sum.Carrier]: \Prop := {
+  first: \forall (i: Fin.Fin n) -> Continuous (\fun (y: Y) => Sum.first (v y) i),
+  second: \forall (i: Fin.Fin n) -> Continuous (\fun (y: Y) => Sum.second (v y) i),
+};
+\definition upperRegular: \forall (s: Y -> C.Complex)(v: Y -> Sum.Carrier) -> Continuous s -> Regular[v] ->
+  Regular[\fun (y: Y) => (Blocks.upper Rotation.identity (s y)).apply (v y)] :=
+  \fun (s: Y -> C.Complex)(v: Y -> Sum.Carrier)(sc: Continuous s)(vc: Regular[v]) => Regular[\fun (y: Y) => (Blocks.upper Rotation.identity (s y)).apply (v y)] {
+    first := \fun (i: Fin.Fin n) => Functions.additionContinuous source _ _ (vc.first i) (Functions.multiplicationContinuous source _ _ sc (vc.second i)),
+    second := vc.second,
+  };
+\definition lowerRegular: \forall (s: Y -> C.Complex)(v: Y -> Sum.Carrier) -> Continuous s -> Regular[v] ->
+  Regular[\fun (y: Y) => (Blocks.lower Rotation.identity (s y)).apply (v y)] :=
+  \fun (s: Y -> C.Complex)(v: Y -> Sum.Carrier)(sc: Continuous s)(vc: Regular[v]) => Regular[\fun (y: Y) => (Blocks.lower Rotation.identity (s y)).apply (v y)] {
+    first := vc.first,
+    second := \fun (i: Fin.Fin n) => Functions.additionContinuous source _ _ (vc.second i) (Functions.multiplicationContinuous source _ _ sc (vc.first i)),
+  };
+\definition diagonalRegular: \forall (a: Y -> Single.Isomorphism)(v: Y -> Sum.Carrier) ->
+  Families.Regular source (\fun (y: Y) => (a y).forward) -> Regular[v] -> Regular[\fun (y: Y) => (Blocks.diagonal (a y).forward).apply (v y)] :=
+  \fun (a: Y -> Single.Isomorphism)(v: Y -> Sum.Carrier)(ac: Families.Regular source (\fun (y: Y) => (a y).forward))(vc: Regular[v]) =>
+    Regular[\fun (y: Y) => (Blocks.diagonal (a y).forward).apply (v y)] {
+      first := Families.evaluate source (\fun (y: Y) => (a y).forward) (\fun (y: Y) => Sum.first (v y))
+        (\fun (j: Fin.Fin n) => ac (Spaces.FiniteCoordinates[n := n].vectors j)) vc.first,
+      second := vc.second,
+    };
+\module With(a, b: Y -> Single.Isomorphism, t: Y -> C.Complex,
+  regularA: Families.Regular source (\fun (y: Y) => (a y).forward),
+  regularB: Families.Regular source (\fun (y: Y) => (b y).forward), continuousT: Continuous t);

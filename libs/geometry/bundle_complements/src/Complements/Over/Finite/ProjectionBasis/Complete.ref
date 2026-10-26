@@ -1,0 +1,23 @@
+\import \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Finite[n := n].Frame[k := result.rank, frame := result.frame] \as Span;
+\import End.Composition[U := Vector n, domain := coordinates n] \as Compose;
+\definition after: End.Map := Compose.compose Span.projection.map P.map;
+\definition onBasis: \forall (i: Fin.Fin n) -> after.apply (E.basis i) = P.map.apply (E.basis i) :=
+  \fun (i: Fin.Fin n) => \block {
+    \takefrom v: \Cast[Vector result.rank] ({ v: Vector result.rank \where result.frame.value.apply v = P.map.apply (E.basis i) }) \by result.covers i (Fin.exhaustive n i) \then
+    \let given: result.frame.value.apply v = P.map.apply (E.basis i) := \bysub(Vector result.rank, { v: Vector result.rank \where result.frame.value.apply v = P.map.apply (E.basis i) }, v) \then
+    \return trans!{{Vector n}} _ _ _ (congr!{{Vector n} {Vector n}} Span.projection.map.apply _ _ (sym!{{Vector n}} _ _ given))
+      (trans!{{Vector n}} _ _ _ (Hermitian.At[n := n].OnProjection[P := Span.projection].Rank[k := result.rank].fixed Span.basis v) given)
+  };
+\definition afterEqual: after = P.map := extOnBasis after P.map onBasis;
+\definition before: \forall (v: Vector n) -> P.map.apply (Span.projection.map.apply v) = Span.projection.map.apply v :=
+  \fun (v: Vector n) => result.fixed (Span.coordinate.apply v);
+\definition afterValue: \forall (v: Vector n) -> after.apply v = Span.projection.map.apply v :=
+  \fun (v: Vector n) => separate (after.apply v) (Span.projection.map.apply v)
+    (\fun (w: Vector n) => trans!{K} _ _ _ (Span.projection.selfAdjoint (P.map.apply v) w)
+      (trans!{K} _ _ _ (P.selfAdjoint v (Span.projection.map.apply w))
+        (trans!{K} _ _ _ (congr!{{Vector n} K} (E.dot v) _ _ (before w)) (sym!{K} _ _ (Span.projection.selfAdjoint v w)))));
+\definition reconstruction: \forall (v: Vector n) -> result.frame.value.apply (Span.coordinate.apply v) = P.map.apply v :=
+  \fun (v: Vector n) => trans!{{Vector n}} _ _ _ (sym!{{Vector n}} _ _ (afterValue v)) (congr!{End.Map {Vector n}} (\fun (f: End.Map) => f.apply v) _ _ afterEqual);
+\definition basis: Hermitian.At[n := n].OnProjection[P := P].Rank[k := result.rank].Basis := Hermitian.At[n := n].OnProjection[P := P].Rank[k := result.rank].Basis {
+  value := result.frame.value, coordinate := Span.coordinate, leftInverse := Span.leftInverse, reconstruction := reconstruction
+};

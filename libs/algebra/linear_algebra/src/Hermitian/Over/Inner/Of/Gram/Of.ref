@@ -1,0 +1,28 @@
+\import \parent.\parent.Matrix[k := k, map := factor.frame] \as Matrix;
+\definition coordinates: Spaces.Linear[V := V, W := Source.Vector, source := space, target := Source.space].Map := Matrix.coordinates;
+\definition adjoint: \forall (v: Source.Vector)(w: V) -> h.dot (factor.frame.apply v) w = Source.dot v (coordinates.apply w) := Matrix.adjoint;
+\import Spaces.Linear[V := V, W := Source.Vector, source := space, target := Source.space] \as Backward;
+\definition leftInverse: \forall (v: Source.Vector) -> coordinates.apply (factor.frame.apply v) = v :=
+  \fun (v: Source.Vector) => \axiom:funext((coordinates.apply (factor.frame.apply v)), v, \fun (i: Fin.Fin k) => trans!{K} _ _ _
+    (factor.isometry (Source.basis i) v) (Source.dotBasis i v));
+\import Spaces.Linear[V := Source.Vector, W := Source.Vector, source := Source.space, target := Source.space].Composition[U := V, domain := space] \as Compose;
+\definition inverse: Backward.Map := Compose.compose factor.change.backward coordinates;
+\definition frameFormula: \forall (v: Source.Vector) -> A.apply (factor.change.backward.apply v) = factor.frame.apply v :=
+  \fun (v: Source.Vector) => trans!{V} _ _ _ (factor.formula (factor.change.backward.apply v))
+    (congr!{{Source.Vector} V} factor.frame.apply _ _ (factor.change.rightInverse v));
+\definition inverseOnImage: \forall (v: Source.Vector) -> inverse.apply (A.apply v) = v :=
+  \fun (v: Source.Vector) => trans!{{Source.Vector}} _ _ _
+    (congr!{{Source.Vector} {Source.Vector}} factor.change.backward.apply _ _
+      (trans!{{Source.Vector}} _ _ _ (congr!{V {Source.Vector}} coordinates.apply _ _ (factor.formula v)) (leftInverse (factor.change.forward.apply v))))
+    (factor.change.leftInverse v);
+\import Maps.Composition[U := V, domain := space] \as Project;
+\definition projection: End.Map := Project.compose factor.frame coordinates;
+\definition idempotent: \forall (v: V) -> projection.apply (projection.apply v) = projection.apply v :=
+  \fun (v: V) => congr!{{Source.Vector} V} factor.frame.apply _ _ (leftInverse (coordinates.apply v));
+\definition selfAdjoint: \forall (v, w: V) -> h.dot (projection.apply v) w = h.dot v (projection.apply w) :=
+  \fun (v, w: V) => eq_reason_in!{K _
+    "=" _ "by" { adjoint (coordinates.apply v) w }
+    "=" _ "by" { Source.symmetric (coordinates.apply v) (coordinates.apply w) }
+    "=" _ "by" { congr!{K K} conj _ _ (sym!{K} _ _ (adjoint (coordinates.apply w) v)) }
+    "=" _ "by" { sym!{K} _ _ (h.symmetric v (projection.apply w)) }
+  };

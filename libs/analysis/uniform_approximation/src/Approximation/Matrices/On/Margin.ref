@@ -1,0 +1,15 @@
+\import topology.Topology[Carrier := X] \as Base;
+\import metric_spaces.RealFunctions[A := X] \as Reals;
+\import topological_algebra.Complex[].Functions[A := X] \as ComplexFunctions;
+\import R.Estimates[].Product[] \as Bounds;
+\definition determinantNorm: X -> R.Real := \fun (x: X) => Abs.abs (M.determinant (a x));
+\definition continuous: Reals.Continuous space determinantNorm := ComplexFunctions.absoluteContinuous space (\fun (x: X) => M.determinant (a x)) (NativeFamily.determinantContinuous space a regular);
+\structure Bound: \Set := { value: R.Real, positive: Real.Lt R.zero value, lower: \forall (x: X) -> Real.Le value (determinantNorm x) };
+\definition exists: \exists Bound := Logic.orElim[(\exists X), Logic.Not (\exists X), (\exists Bound)] (Classical.excludedMiddle (\exists X))
+  (\fun (inhabited: \exists X) => \block {
+    \let wholeInhabited: \exists \Cast[X] Base.Whole := \block { \takefrom x: X \by inhabited \then \return \exact(\into[X](x, Base.Whole) \by { \refl(x) }, \Cast[X] Base.Whole) } \then
+    \takefrom x: \Cast[X] ({ x: X \where Reals.Extrema[].Minimum[Base.Whole, determinantNorm, x] }) \by Reals.Extrema[].minimum space Base.Whole determinantNorm wholeInhabited compact continuous \then
+    \let minimum: Reals.Extrema[].Minimum[Base.Whole, determinantNorm, x] := \bysub(X, { x: X \where Reals.Extrema[].Minimum[Base.Whole, determinantNorm, x] }, x) \then
+    \return \exact(Bound { value := determinantNorm x, positive := Abs.positive (M.determinant (a x)) (nonzero x), lower := \fun (y: X) => minimum.lower y (\refl(y)) }, Bound)
+  })
+  (\fun (empty: Logic.Not (\exists X)) => \exact(Bound { value := R.one, positive := Bounds.onePositive, lower := \fun (x: X) => Logic.falseElim _ (empty (\exact(x, X))) }, Bound));

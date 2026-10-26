@@ -1,0 +1,19 @@
+\definition positive[x: PositiveSide.Carrier]: Units.Carrier := gauge.positive (Cover.positiveInverse x);
+\definition negative[x: NegativeSide.Carrier]: Units.Carrier := gauge.negative (Cover.negativeInverse x);
+\definition positiveContinuous: topology.Continuity[A := PositiveSide.Carrier, B := Units.Carrier].Continuous PositiveSide.topology Units.topology positive :=
+  topology.Composition[A := PositiveSide.Carrier, B := Disk.Disk, C := Units.Carrier].composeContinuous PositiveSide.topology Disk.diskTopology Units.topology Cover.positiveInverse gauge.positive
+    (topology.Homeomorphism[A := Disk.Disk, B := PositiveSide.Carrier].laws Disk.diskTopology PositiveSide.topology Cover.positiveHomeomorphism).backwardContinuous gauge.positiveContinuous;
+\definition negativeContinuous: topology.Continuity[A := NegativeSide.Carrier, B := Units.Carrier].Continuous NegativeSide.topology Units.topology negative :=
+  topology.Composition[A := NegativeSide.Carrier, B := Disk.Disk, C := Units.Carrier].composeContinuous NegativeSide.topology Disk.diskTopology Units.topology Cover.negativeInverse gauge.negative
+    (topology.Homeomorphism[A := Disk.Disk, B := NegativeSide.Carrier].laws Disk.diskTopology NegativeSide.topology Cover.negativeHomeomorphism).backwardContinuous gauge.negativeContinuous;
+\definition compatible: \forall (x: Sphere.Sphere)(inPositive: \In[Sphere.Sphere] Cover.PositiveHalf x)(inNegative: \In[Sphere.Sphere] Cover.NegativeHalf x)(v: Vector n) ->
+  (negative (\into[Sphere.Sphere](x, Cover.NegativeHalf) \by { inNegative })).apply ((g (boundary (Cover.overlapPoint x inPositive inNegative))).apply v) =
+  (g2 (boundary (Cover.overlapPoint x inPositive inNegative))).apply ((positive (\into[Sphere.Sphere](x, Cover.PositiveHalf) \by { inPositive })).apply v) :=
+  \fun (x: Sphere.Sphere)(inPositive: _)(inNegative: _)(v: Vector n) =>
+    \idelim Cover.intersectionBoundary x inPositive inNegative = boundary (Cover.overlapPoint x inPositive inNegative) \with s: Disk.Sphere =>
+      (gauge.negative (Cover.tailDisk x)).apply ((g s).apply v) = (g2 s).apply ((gauge.positive (Cover.tailDisk x)).apply v) \by {
+      base: gauge.compatible (Cover.intersectionBoundary x inPositive inNegative) v,
+      equality: sym!{Disk.Sphere} _ _ (Cover.boundaryOnIntersection x inPositive inNegative)
+    };
+\definition halfGauge: Gauge := Gauge { positive := positive, negative := negative, positiveContinuous := positiveContinuous, negativeContinuous := negativeContinuous, compatible := compatible };
+\definition value: Isomorphism := \parent.FromGauge[gauge := halfGauge].value;

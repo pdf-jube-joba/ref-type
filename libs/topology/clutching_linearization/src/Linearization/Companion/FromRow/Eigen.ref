@@ -1,0 +1,44 @@
+\definition front: \forall (i: Fin.Fin d) -> v (Fin.succ d i) = Vectors.scale z (v (Fin.widen d i)) :=
+  \fun (i: Fin.Fin d) => trans!{Vectors.Vector} _ _ _
+    (sym!{Vectors.Vector} _ _ (atFront (\fun (j: Fin.Fin d) => v (Fin.succ d j)) (negativeRow.apply v) i))
+    (congr!{Carrier Vectors.Vector} (\fun (w: Carrier) => w (Fin.widen d i)) _ _ equation);
+\definition lastEquation: negativeRow.apply v = Vectors.scale z (v last) :=
+  trans!{Vectors.Vector} _ _ _ (sym!{Vectors.Vector} _ _ (atLast (\fun (j: Fin.Fin d) => v (Fin.succ d j)) (negativeRow.apply v)))
+    (congr!{Carrier Vectors.Vector} (\fun (w: Carrier) => w last) _ _ equation);
+\definition atNatural: \forall (k: N.Nat^)(i: Fin.Fin degree) -> i = k -> v i = Vectors.scale (power z k) (v (Fin.zero d)) :=
+  \induction (k: N.Nat^) \return \forall (i: Fin.Fin degree) -> i = k -> v i = Vectors.scale (power z k) (v (Fin.zero d)) \with {
+    | zero: \fun (i: Fin.Fin degree)(same: _) => trans!{Vectors.Vector} _ _ _
+      (congr!{{Fin.Fin degree} Vectors.Vector} v i (Fin.zero d) same) (sym!{Vectors.Vector} _ _ (Vectors.space.scalarOne (v (Fin.zero d))))
+    | succ: \block {
+      \fun (k: N.Nat^)(previous: \forall (i: Fin.Fin degree) -> i = k -> v i = Vectors.scale (power z k) (v (Fin.zero d)))(i: Fin.Fin degree)(same: i = N.Nat^::succ k) \then
+      \let ambient: N.Nat^ := i \then
+      \let predecessorBound: NatLaws.Lt k d := \idelim ambient = N.Nat^::succ k \with j: N.Nat^ => NatLaws.Lt j degree \by {
+        base: Fin.bound degree i, equality: same
+      } \then
+      \let j: Fin.Fin d := \into[N.Nat^](k, Fin.Fin d) \by { predecessorBound } \then
+      \return eq_reason_in!{Vectors.Vector _
+        "=" { v (Fin.succ d j) } "by" { congr!{{Fin.Fin degree} Vectors.Vector} v i (Fin.succ d j) same }
+        "=" { Vectors.scale z (v (Fin.widen d j)) } "by" { front j }
+        "=" { Vectors.scale z (Vectors.scale (power z k) (v (Fin.zero d))) } "by" { congr!{Vectors.Vector Vectors.Vector} (Vectors.scale z) _ _ (previous (Fin.widen d j) (\refl(k))) }
+        "=" _ "by" { sym!{Vectors.Vector} _ _ (Vectors.space.scalarAssoc z (power z k) (v (Fin.zero d))) }
+      }
+    }
+  };
+\definition coordinates: \forall (i: Fin.Fin degree) -> v i = (geometric z).apply (v (Fin.zero d)) i :=
+  \fun (i: Fin.Fin degree) => atNatural i i (\refl(i));
+\definition asGeometric: v = (geometric z).apply (v (Fin.zero d)) := \axiom:funext(v, (geometric z).apply (v (Fin.zero d)), coordinates);
+\definition leading: Vectors.scale (power z degree) (v (Fin.zero d)) = Vectors.scale z (v last) :=
+  trans!{Vectors.Vector} _ _ _ (Vectors.space.scalarAssoc z (power z d) (v (Fin.zero d)))
+    (congr!{Vectors.Vector Vectors.Vector} (Vectors.scale z) _ _ (sym!{Vectors.Vector} _ _ (coordinates last)));
+\definition polynomialKernel: (polynomial z).apply (v (Fin.zero d)) = Vectors.origin :=
+  eq_reason_in!{Vectors.Vector _
+    "=" { Vectors.plus (Vectors.scale z (v last)) (row.apply v) } "by" { congr!{Vectors.Vector Vectors.Vector Vectors.Vector} Vectors.plus _ _ _ _ leading (congr!{Carrier Vectors.Vector} row.apply _ _ (sym!{Carrier} _ _ asGeometric)) }
+    "=" { Vectors.plus (Vectors.negative (row.apply v)) (row.apply v) } "by" { congr!{Vectors.Vector Vectors.Vector} (\fun (x: Vectors.Vector) => Vectors.plus x (row.apply v)) _ _ (trans!{Vectors.Vector} _ _ _ (sym!{Vectors.Vector} _ _ lastEquation) (negativeRowValue v)) }
+    "=" Vectors.origin "by" { Values.inverseLeft (row.apply v) }
+  };
+\definition zeroOfPolynomialKernel: (\forall (w: Vectors.Vector) -> (polynomial z).apply w = Vectors.origin -> w = Vectors.origin) -> v = space.zero :=
+  \fun (kernel: _) => \axiom:funext(v, space.zero, \fun (i: Fin.Fin degree) => eq_reason_in!{Vectors.Vector _
+    "=" { Vectors.scale (power z i) (v (Fin.zero d)) } "by" { coordinates i }
+    "=" { Vectors.scale (power z i) Vectors.origin } "by" { congr!{Vectors.Vector Vectors.Vector} (Vectors.scale (power z i)) _ _ (kernel (v (Fin.zero d)) polynomialKernel) }
+    "=" Vectors.origin "by" { Values.scaleZero (power z i) }
+  });

@@ -1,0 +1,78 @@
+\import std.Data[].FinSet[] \as Fin;
+\import matrix_invariants.Ring[K := Polynomial, scalars := P.ring].At[n := n] \as Mat;
+\import Mat.Cofactors[] \as Cofactors;
+\import module_theory.Module[].Over[R := Polynomial, ring := Raw.ring] \as Modules;
+\import Modules.Sums[I := Fin.Fin n] \as Sums;
+\import Sums.Vector[V := V, space := space] \as Sum;
+\import Sum.Single[] \as Single;
+\import PolynomialAlgebra.Laws[V := V, space := space] \as Values;
+\import PolynomialAlgebra.Coordinates[I := Fin.Fin n].Kronecker[] \as Delta;
+\import std.Data[].FinSet[].Enumeration[] \as Enumeration;
+\import PolynomialAlgebra.FiniteCoordinateEnumeration[].At[n := n] \as Indices;
+\definition Index: \Set := Fin.Fin n;
+\definition Matrix: \Set := Mat.Matrix;
+\definition action[A: Matrix][v: Index -> V][i: Index]: V := Sum.sum (Fin.elements n) (\fun (j: Index) => space.smul (A i j) (v j));
+\definition sumScalar: \forall (xs: Lists.List[Index])(a: Index -> Polynomial)(v: V) ->
+  space.smul (Sums.sum xs a) v = Sum.sum xs (\fun (i: Index) => space.smul (a i) v) :=
+  \induction (xs: Lists.List[Index]) \return \forall (a: Index -> Polynomial)(v: V) ->
+    space.smul (Sums.sum xs a) v = Sum.sum xs (\fun (i: Index) => space.smul (a i) v) \with {
+      | nil: \fun (a: Index -> Polynomial)(v: V) => Values.zeroScale v
+      | cons: \fun (head: Index)(tail: Lists.List[Index])(previous: _)(a: Index -> Polynomial)(v: V) =>
+        trans!{V} _ _ _ (space.scalarAdd (a head) (Sums.sum tail a) v)
+          (congr!{V V} (space.add (space.smul (a head) v)) _ _ (previous a v))
+    };
+\definition composition: \forall (A, B: Matrix)(v: Index -> V)(i: Index) -> action (Mat.product A B) v i = action A (action B v) i :=
+  \fun (A, B: Matrix)(v: Index -> V)(i: Index) => eq_reason_in!{V _
+    "=" { Sum.sum (Fin.elements n) (\fun (j: Index) => Sum.sum (Fin.elements n) (\fun (k: Index) => space.smul (A i k) (space.smul (B k j) (v j)))) } "by" {
+      Sum.congruent (Fin.elements n)
+        (\fun (j: Index) => space.smul (Mat.product A B i j) (v j))
+        (\fun (j: Index) => Sum.sum (Fin.elements n) (\fun (k: Index) => space.smul (A i k) (space.smul (B k j) (v j))))
+        (\fun (j: Index) => trans!{V} _ _ _ (sumScalar (Fin.elements n) (\fun (k: Index) => P.mul (A i k) (B k j)) (v j))
+        (Sum.congruent (Fin.elements n)
+          (\fun (k: Index) => space.smul (P.mul (A i k) (B k j)) (v j))
+          (\fun (k: Index) => space.smul (A i k) (space.smul (B k j) (v j)))
+          (\fun (k: Index) => space.scalarAssoc (A i k) (B k j) (v j)))) }
+    "=" { Sum.sum (Fin.elements n) (\fun (k: Index) => Sum.sum (Fin.elements n) (\fun (j: Index) => space.smul (A i k) (space.smul (B k j) (v j)))) } "by" { Sum.exchange (Fin.elements n) (Fin.elements n) (\fun (j, k: Index) => space.smul (A i k) (space.smul (B k j) (v j))) }
+    "=" _ "by" { Sum.congruent (Fin.elements n)
+      (\fun (k: Index) => Sum.sum (Fin.elements n) (\fun (j: Index) => space.smul (A i k) (space.smul (B k j) (v j))))
+      (\fun (k: Index) => space.smul (A i k) (action B v k))
+      (\fun (k: Index) => Sum.scalar (Fin.elements n) (A i k) (\fun (j: Index) => space.smul (B k j) (v j))) }
+  };
+\definition identityAction: \forall (v: Index -> V)(i: Index) -> action Mat.identity v i = v i :=
+  \fun (v: Index -> V)(i: Index) => trans!{V} _ _ _
+    (Single.select (Fin.elements n) (Enumeration.distinct n) i (Indices.exhaustive i)
+      (\fun (j: Index) => space.smul (Mat.identity i j) (v j))
+      (\fun (j: Index)(different: Logic.Not (i = j)) => trans!{V} _ _ _
+        (congr!{Polynomial V} (\fun (a: Polynomial) => space.smul a (v j)) _ _ (Delta.different j i (\fun (same: j = i) => different (sym!{Index} _ _ same))))
+        (Values.zeroScale (v j))))
+    (trans!{V} _ _ _ (congr!{Polynomial V} (\fun (a: Polynomial) => space.smul a (v i)) _ _ (Delta.self i)) (space.scalarOne (v i)));
+\definition scaledIdentity: \forall (a: Polynomial)(v: Index -> V)(i: Index) ->
+  action (\fun (j, k: Index) => P.mul a (Mat.identity j k)) v i = space.smul a (v i) :=
+  \fun (a: Polynomial)(v: Index -> V)(i: Index) => trans!{V} _ _ _
+    (Sum.congruent (Fin.elements n)
+      (\fun (j: Index) => space.smul (P.mul a (Mat.identity i j)) (v j))
+      (\fun (j: Index) => space.smul a (space.smul (Mat.identity i j) (v j)))
+      (\fun (j: Index) => space.scalarAssoc a (Mat.identity i j) (v j)))
+    (trans!{V} _ _ _ (Sum.scalar (Fin.elements n) a (\fun (j: Index) => space.smul (Mat.identity i j) (v j)))
+      (congr!{V V} (space.smul a) _ _ (identityAction v i)));
+\definition determinantTrick: \forall (A: Matrix)(v: Index -> V) -> (\forall (i: Index) -> action A v i = space.zero) ->
+  \forall (i: Index) -> space.smul (Mat.determinant A) (v i) = space.zero :=
+  \fun (A: Matrix)(v: Index -> V)(vanishes: _)(i: Index) => eq_reason_in!{V _
+    "=" { action (\fun (j, k: Index) => P.mul (Mat.determinant A) (Mat.identity j k)) v i } "by" { sym!{V} _ _ (scaledIdentity (Mat.determinant A) v i) }
+    "=" { action (Mat.product (Mat.adjugate A) A) v i } "by" {
+      congr!{Matrix V} (\fun (B: Matrix) => action B v i) _ _ (sym!{Matrix} _ _ (Cofactors.adjugateProduct A)) }
+    "=" { action (Mat.adjugate A) (action A v) i } "by" { composition (Mat.adjugate A) A v i }
+    "=" { Sum.sum (Fin.elements n) (\fun (j: Index) => space.zero) } "by" {
+      Sum.congruent (Fin.elements n)
+        (\fun (j: Index) => space.smul (Mat.adjugate A i j) (action A v j))
+        (\fun (j: Index) => space.zero)
+        (\fun (j: Index) => trans!{V} _ _ _ (congr!{V V} (space.smul (Mat.adjugate A i j)) _ _ (vanishes j)) (Values.scaleZero (Mat.adjugate A i j))) }
+    "=" _ "by" { Sum.zero (Fin.elements n) }
+  };
+\definition negativeScalar: \forall (p: Polynomial)(v: V) -> space.smul (P.neg p) v = space.neg (space.smul p v) :=
+  \fun (p: Polynomial)(v: V) => eq_reason_in!{V _
+    "=" { space.smul (P.mul (P.neg P.one) p) v } "by" {
+      congr!{Polynomial V} (\fun (a: Polynomial) => space.smul a v) _ _ (sym!{Polynomial} _ _ (PolynomialLaws.minusOneScale p)) }
+    "=" _ "by" { space.scalarAssoc (P.neg P.one) p v }
+    "=" _ "by" { Values.minusOneScale (space.smul p v) }
+  };

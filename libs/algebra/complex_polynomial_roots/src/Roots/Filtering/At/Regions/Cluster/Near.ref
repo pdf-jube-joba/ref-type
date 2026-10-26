@@ -1,0 +1,18 @@
+\import \root.Roots[].Filtering[test := test].At[n := n].Around[a := a] \as Around;
+\import \root.Roots[].Filtering[test := test].At[n := n].Regions[U := U, V := V] \as Regions;
+\import \root.Roots[].SymmetricCoefficients[] \as Formulas;
+\import Formulas.Families[X := RootBase] \as Regular;
+\import topology.Continuity[A := Vector n, B := C.Complex].Restriction[S := { a: Vector n \where Space.Member (Domain k) (Roots.coefficients a) }] \as CoordinateRestriction;
+\import topological_algebra.Coordinates[K := C.Complex, I := Fin.Fin k] \as Output;
+\import Output.Universal[A := RootBase] \as Into;
+\definition degree: Lists.length (Fin.Fin n) Around.selected = k := trans!{N.Nat^} _ _ _ (sym!{N.Nat^} _ _ Around.centerLength) (rootLaws a).count;
+\definition model[b: RootBase]: Vector k := Formulas.value k (Around.subtuple k degree b);
+\definition regular: Regular.Regular rootTopology k (\fun (b: RootBase) => Around.subtuple k degree b) :=
+  \fun (i: Fin.Fin k) => CoordinateRestriction.restrictContinuous Roots.topology Plane.topology (Coordinates.evaluate (Fin.FromList[A := Fin.Fin n].at k Around.selected degree i))
+    (Coordinates.evaluationContinuous Plane.topology (Fin.FromList[A := Fin.Fin n].at k Around.selected degree i));
+\definition continuous: topology.Continuity[A := RootBase, B := Vector k].Continuous rootTopology (Output.topology Plane.topology) model :=
+  Into.continuous rootTopology Plane.topology model (Regular.regular k rootTopology (\fun (b: RootBase) => Around.subtuple k degree b) regular);
+\definition equation: Laws -> \forall (b: RootBase) -> Space.Member (local a) b -> value (coefficient b) = model b :=
+  \fun (laws: Laws)(b: RootBase)(near: _) => \root.Roots[].MonicCoordinates[].injective k (value (coefficient b)) (model b)
+    (trans!{Polynomial.Carrier} _ _ _ (onRoots (coefficient b) b (\refl(Roots.coefficients b)))
+      (sym!{Polynomial.Carrier} _ _ (Around.subtupleFactor k degree b (Regions.localPattern laws a b near))));

@@ -1,0 +1,19 @@
+\import topology.Topology[Carrier := X].Subspace[S := A] \as Subspace;
+\definition Subset: \Set := Subspace.CarrierSet;
+\definition subspace: topology.Topology[Carrier := Subset].Topology := Subspace.topology baseSpace;
+\import topological_constructions.Product[A := I.Carrier, B := Subset] \as SubCylinder;
+\definition subTopology: topology.Topology[Carrier := SubCylinder.CarrierSet].Topology := SubCylinder.topology I.topology subspace;
+\definition subBase[z: SubCylinder.CarrierSet]: X := Pair.second I.Carrier Subset z;
+\definition subProjection[z: SubCylinder.CarrierSet]: Native.Projection := P (subBase z);
+\definition subBaseContinuous: topology.Continuity[A := SubCylinder.CarrierSet, B := X].Continuous subTopology baseSpace subBase :=
+  topology.Composition[A := SubCylinder.CarrierSet, B := Subset, C := X].composeContinuous subTopology subspace baseSpace (Pair.second I.Carrier Subset) (\fun (x: Subset) => x)
+    (SubCylinder.Maps[].secondContinuous I.topology subspace) (topology.Continuity[A := X, B := X].Restriction[S := A].restrictContinuous baseSpace baseSpace (\fun (x: X) => x) (topology.Maps[A := X, B := X].Identity[].continuous baseSpace));
+\definition subRegular: Native.Families[X := SubCylinder.CarrierSet].Matrix[m := n].Regular subTopology (\fun (z: SubCylinder.CarrierSet) => (subProjection z).map) :=
+  \fun (v: Vector n)(i: Fin.Fin n) => topology.Composition[A := SubCylinder.CarrierSet, B := X, C := K].composeContinuous subTopology baseSpace scalar.topological.space subBase
+    (\fun (x: X) => (P x).map.apply v i) subBaseContinuous (regular v i);
+\import Complements.Projection[X := SubCylinder.CarrierSet, n := n, baseSpace := subTopology, P := subProjection, regular := subRegular] \as Restricted;
+\definition SubFiber[z: SubCylinder.CarrierSet]: \Set := Restricted.Fiber z;
+\definition subBundle: Bundles.Family[X := SubCylinder.CarrierSet, F := SubFiber].Bundle := Restricted.bundle;
+\import Bundles.Isomorphisms[X := SubCylinder.CarrierSet, F := SubFiber, G := SubFiber, source := subBundle, target := subBundle] \as PartialAutomorphisms;
+\module Problem(a: PartialAutomorphisms.Isomorphism,
+  initial: \forall (x: Subset)(v: SubFiber (Pair.pair I.Carrier Subset I.start x)) -> (a.forward.fiber (Pair.pair I.Carrier Subset I.start x)).apply v = v);

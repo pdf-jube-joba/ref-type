@@ -1,0 +1,42 @@
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := F] \as Family;
+\import Family.With[data := bundle] \as Charts;
+\import Charts.In[c := c] \as Original;
+\import topology.Topology[Carrier := X] \as Base;
+\definition intoOriginal[x: \Cast[X] U]: \Cast[X] c.domain := \into[X](x, c.domain) \by { contained x };
+\definition chart: Charts.ChartData := Charts.ChartData { domain := U, dimension := c.dimension, frame := \fun (x: \Cast[X] U) => c.frame (intoOriginal x) };
+\import Charts.In[c := chart] \as Local;
+\import Base.Subspace[S := U] \as BaseSubspace;
+\import topology.Topology[Carrier := Family.Point].Subspace[S := { p: Family.Point \where Base.Member U p.base }] \as TotalSubspace;
+\definition ambient[p: Local.TotalPoint]: Family.Point := p;
+\definition inclusionContinuous: topology.Continuity[A := Local.TotalPoint, B := Family.Point].Continuous Local.localTopology bundle.totalSpace ambient :=
+  \fun (V: \Pow Family.Point)(open: _) => TotalSubspace.traceOpen bundle.totalSpace V open;
+\definition original[p: Local.TotalPoint]: Original.TotalPoint := \into[Family.Point](p, { q: Family.Point \where Base.Member c.domain q.base }) \by { contained (Local.base p) };
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Chart[X := X, F := F, bundle := bundle, chart := c] \as OriginalChart;
+\definition vector[p: Local.TotalPoint]: Vector c.dimension := OriginalChart.Maps[Y := Local.TotalPoint, source := Local.localTopology].vector original p;
+\definition vectorContinuous: topology.Continuity[A := Local.TotalPoint, B := Vector c.dimension].Continuous Local.localTopology (coordinateTopology c.dimension) vector :=
+  OriginalChart.Maps[Y := Local.TotalPoint, source := Local.localTopology].vectorContinuous original inclusionContinuous;
+\import topology.Continuity[A := Family.Point, B := X].Restriction[S := { p: Family.Point \where Base.Member U p.base }] \as RestrictProjection;
+\import topology.Continuity[A := Local.TotalPoint, B := X].Corestriction[S := U] \as IntoBase;
+\definition baseContinuous: topology.Continuity[A := Local.TotalPoint, B := Local.BasePoint].Continuous Local.localTopology (BaseSubspace.topology bundle.baseSpace) Local.base :=
+  IntoBase.corestrictContinuous Local.localTopology bundle.baseSpace Local.base
+    (RestrictProjection.restrictContinuous bundle.totalSpace bundle.baseSpace Family.projection Family.Of[bundle := bundle].projectionContinuous);
+\import topological_constructions.Product[A := Local.BasePoint, B := Vector c.dimension] \as Product;
+\definition forwardContinuous: topology.Continuity[A := Local.TotalPoint, B := Local.ProductPoint].Continuous Local.localTopology Local.productTopology Local.forward :=
+  Product.Universal[X := Local.TotalPoint].pairContinuous Local.localTopology (BaseSubspace.topology bundle.baseSpace) (coordinateTopology c.dimension) Local.base vector baseContinuous vectorContinuous;
+\import topology.Continuity[A := Local.BasePoint, B := X].Corestriction[S := c.domain] \as OriginalBase;
+\definition originalBaseContinuous: topology.Continuity[A := Local.BasePoint, B := Original.BasePoint].Continuous (BaseSubspace.topology bundle.baseSpace) (Base.Subspace[S := c.domain].topology bundle.baseSpace) intoOriginal :=
+  OriginalBase.corestrictContinuous (BaseSubspace.topology bundle.baseSpace) bundle.baseSpace intoOriginal
+    (\fun (V: \Pow X)(open: _) => BaseSubspace.traceOpen bundle.baseSpace V open);
+\definition center[p: Local.ProductPoint]: Original.BasePoint := intoOriginal (Pair.first Local.BasePoint (Vector c.dimension) p);
+\definition centerContinuous: topology.Continuity[A := Local.ProductPoint, B := Original.BasePoint].Continuous Local.productTopology (Base.Subspace[S := c.domain].topology bundle.baseSpace) center :=
+  topology.Composition[A := Local.ProductPoint, B := Local.BasePoint, C := Original.BasePoint].composeContinuous Local.productTopology (BaseSubspace.topology bundle.baseSpace) (Base.Subspace[S := c.domain].topology bundle.baseSpace)
+    (Pair.first Local.BasePoint (Vector c.dimension)) intoOriginal (Product.Maps[].firstContinuous (BaseSubspace.topology bundle.baseSpace) (coordinateTopology c.dimension)) originalBaseContinuous;
+\definition backwardAmbientContinuous: topology.Continuity[A := Local.ProductPoint, B := Family.Point].Continuous Local.productTopology bundle.totalSpace (\fun (p: Local.ProductPoint) => Local.backward p) :=
+  OriginalChart.Maps[Y := Local.ProductPoint, source := Local.productTopology].pointContinuous center (Pair.second Local.BasePoint (Vector c.dimension)) centerContinuous
+    (Product.Maps[].secondContinuous (BaseSubspace.topology bundle.baseSpace) (coordinateTopology c.dimension));
+\import topology.Continuity[A := Local.ProductPoint, B := Family.Point].Corestriction[S := { p: Family.Point \where Base.Member U p.base }] \as IntoLocal;
+\definition trivialization: Charts.Chart := \into[Charts.ChartData](chart, Charts.Chart) \by {
+  Local.Laws { baseOpen := open, totalOpen := Family.Of[bundle := bundle].projectionContinuous U open,
+    forwardContinuous := forwardContinuous,
+    backwardContinuous := IntoLocal.corestrictContinuous Local.productTopology bundle.totalSpace Local.backward backwardAmbientContinuous }
+};

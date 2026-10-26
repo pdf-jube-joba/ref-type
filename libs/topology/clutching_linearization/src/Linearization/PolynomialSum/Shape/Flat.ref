@@ -1,0 +1,60 @@
+\import \root.Linearization[].Coordinates[n := n] \as LeftCoordinates;
+\import \root.Linearization[].Coordinates[n := m] \as RightCoordinates;
+\definition leftRank: N.Nat^ := LeftCoordinates.dimension Left.degree;
+\definition rightRank: N.Nat^ := RightCoordinates.dimension Right.degree;
+\definition sourceRank: N.Nat^ := Coordinates.dimension Total.degree;
+\import Spaces.Coordinates[I := Fin.Fin sourceRank] \as Source;
+\import Spaces.Coordinates[I := Fin.Fin leftRank] \as L;
+\import Spaces.Coordinates[I := Fin.Fin rightRank] \as R;
+\import Spaces.CoordinateSum[n := leftRank, m := rightRank] \as FlatSum;
+\definition targetRank: N.Nat^ := FlatSum.dimension;
+\import Spaces.Coordinates[I := Fin.Fin targetRank] \as Target;
+\import Coordinates.At[d := Total.degree] \as SourceFrame;
+\import Spaces.Isomorphism[V := Total.Carrier, W := Source.Vector, source := Total.space, target := Source.space] \as SourceIso;
+\import FlatSum.Of[V := Left.Carrier, W := Right.Carrier, firstSpace := Left.space, secondSpace := Right.space,
+  first := LeftCoordinates.At[d := Left.degree].frame, second := RightCoordinates.At[d := Right.degree].frame] \as PairFrame;
+\import Spaces.Isomorphism[V := PairSpace.Carrier, W := Target.Vector, source := PairSpace.space, target := Target.space] \as PairIso;
+\definition combined: Spaces.Isomorphism[V := Total.Carrier, W := Target.Vector, source := Total.space, target := Target.space].Isomorphism :=
+  PairIso.Composition[U := Total.Carrier, domain := Total.space].compose PairFrame.isomorphism isomorphism;
+\import Spaces.Isomorphism[V := Source.Vector, W := Target.Vector, source := Source.space, target := Target.space] \as Iso;
+\definition frame: Iso.Isomorphism := Spaces.Isomorphism[V := Total.Carrier, W := Target.Vector, source := Total.space, target := Target.space].Composition[U := Source.Vector, domain := Source.space].compose combined (SourceIso.inverse SourceFrame.frame);
+\import Left.RowFamilies[X := X, source := source, rows := q0, regular := regular0] \as LeftFamily;
+\import Right.RowFamilies[X := X, source := source, rows := q1, regular := regular1] \as RightFamily;
+\import Total.RowFamilies[X := X, source := source, rows := rows, regular := regular] \as TotalFamily;
+\import LeftFamily.Separated[kernel := kernel0] \as LeftSeparated;
+\import RightFamily.Separated[kernel := kernel1] \as RightSeparated;
+\import TotalFamily.Separated[kernel := kernel] \as TotalSeparated;
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing] \as Matrices;
+\import Matrices.At[n := leftRank] \as ML;
+\import Matrices.At[n := rightRank] \as MR;
+\import Matrices.At[n := sourceRank] \as MS;
+\import Matrices.At[n := targetRank] \as MT;
+\definition targetMatrix[x: X]: MT.Matrix := \root.Linearization[].SpectralSum[n := leftRank, m := rightRank, A := LeftFamily.matrix x, B := RightFamily.matrix x, offA := LeftSeparated.off x, offB := RightSeparated.off x].matrix;
+\definition leftMatrixAction: \forall (x: X)(v: Left.Carrier) -> (ML.linear (LeftFamily.matrix x)).apply (LeftCoordinates.flatten Left.degree v) = LeftCoordinates.flatten Left.degree ((Left.FromRow[row := q0 x].operator).apply v) :=
+  \fun (x: X)(v: Left.Carrier) => trans!{L.Vector} _ _ _ (Left.FromRow[row := q0 x].Spectral[].formula (LeftCoordinates.flatten Left.degree v))
+    (congr!{Left.Carrier L.Vector} (\fun (u: Left.Carrier) => LeftCoordinates.flatten Left.degree ((Left.FromRow[row := q0 x].operator).apply u)) _ _ (LeftCoordinates.leftInverse Left.degree v));
+\definition rightMatrixAction: \forall (x: X)(v: Right.Carrier) -> (MR.linear (RightFamily.matrix x)).apply (RightCoordinates.flatten Right.degree v) = RightCoordinates.flatten Right.degree ((Right.FromRow[row := q1 x].operator).apply v) :=
+  \fun (x: X)(v: Right.Carrier) => trans!{R.Vector} _ _ _ (Right.FromRow[row := q1 x].Spectral[].formula (RightCoordinates.flatten Right.degree v))
+    (congr!{Right.Carrier R.Vector} (\fun (u: Right.Carrier) => RightCoordinates.flatten Right.degree ((Right.FromRow[row := q1 x].operator).apply u)) _ _ (RightCoordinates.leftInverse Right.degree v));
+\definition common[x: X][v: Source.Vector]: Target.Vector := FlatSum.join
+  (LeftCoordinates.flatten Left.degree ((Left.FromRow[row := q0 x].operator).apply (left (SourceFrame.backward.apply v))))
+  (RightCoordinates.flatten Right.degree ((Right.FromRow[row := q1 x].operator).apply (right (SourceFrame.backward.apply v))));
+\definition sourceAction: \forall (x: X)(v: Source.Vector) -> frame.forward.apply ((MS.linear (TotalFamily.matrix x)).apply v) = common x v :=
+  \fun (x: X)(v: Source.Vector) => trans!{Target.Vector} _ _ _
+    (congr!{Source.Vector Target.Vector} frame.forward.apply _ _ (Total.FromRow[row := rows x].Spectral[].formula v))
+    (trans!{Target.Vector} _ _ _ (congr!{Total.Carrier Target.Vector} (\fun (u: Total.Carrier) => PairFrame.forward.apply (split.apply u)) _ _
+      (Coordinates.leftInverse Total.degree ((Total.FromRow[row := rows x].operator).apply (SourceFrame.backward.apply v))))
+      (congr!{L.Vector R.Vector Target.Vector} FlatSum.join _ _ _ _
+        (congr!{Left.Carrier L.Vector} (LeftCoordinates.flatten Left.degree) _ _ (operatorLeft x (SourceFrame.backward.apply v)))
+        (congr!{Right.Carrier R.Vector} (RightCoordinates.flatten Right.degree) _ _ (operatorRight x (SourceFrame.backward.apply v)))));
+\definition targetAction: \forall (x: X)(v: Source.Vector) -> (MT.linear (targetMatrix x)).apply (frame.forward.apply v) = common x v :=
+  \fun (x: X)(v: Source.Vector) => trans!{Target.Vector} _ _ _
+    (\root.Linearization[].SpectralSum[n := leftRank, m := rightRank, A := LeftFamily.matrix x, B := RightFamily.matrix x, offA := LeftSeparated.off x, offB := RightSeparated.off x].action (frame.forward.apply v))
+    (congr!{L.Vector R.Vector Target.Vector} FlatSum.join _ _ _ _
+      (trans!{L.Vector} _ _ _ (congr!{L.Vector L.Vector} (ML.linear (LeftFamily.matrix x)).apply _ _
+        (FlatSum.leftJoin (LeftCoordinates.flatten Left.degree (left (SourceFrame.backward.apply v))) (RightCoordinates.flatten Right.degree (right (SourceFrame.backward.apply v))))) (leftMatrixAction x (left (SourceFrame.backward.apply v))))
+      (trans!{R.Vector} _ _ _ (congr!{R.Vector R.Vector} (MR.linear (RightFamily.matrix x)).apply _ _
+        (FlatSum.rightJoin (LeftCoordinates.flatten Left.degree (left (SourceFrame.backward.apply v))) (RightCoordinates.flatten Right.degree (right (SourceFrame.backward.apply v))))) (rightMatrixAction x (right (SourceFrame.backward.apply v)))));
+\definition intertwines: \forall (x: X)(v: Source.Vector) -> frame.forward.apply ((MS.linear (TotalFamily.matrix x)).apply v) = (MT.linear (targetMatrix x)).apply (frame.forward.apply v) :=
+  \fun (x: X)(v: Source.Vector) => trans!{Target.Vector} _ _ _ (sourceAction x v) (sym!{Target.Vector} _ _ (targetAction x v));
+\module Index(compact: topology.Topology[Carrier := X].IsCompact source, hausdorff: topology.Topology[Carrier := X].IsT2 source, removed0, removed1: N.Nat^);

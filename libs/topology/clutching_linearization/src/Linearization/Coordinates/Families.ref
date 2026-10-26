@@ -1,0 +1,61 @@
+\import topological_algebra.Complex[] \as Plane;
+\import \parent.Selections[] \as Selections;
+\import Plane.Functions[A := X] \as Functions;
+\definition Continuous[f: X -> C.Complex]: \Prop := topology.Continuity[A := X, B := C.Complex].Continuous source Plane.topology f;
+\definition Regular[d: N.Nat^][v: X -> Carrier d]: \Prop := \forall (i: Fin.Fin d)(j: Fin.Fin n) ->
+  topology.Continuity[A := X, B := C.Complex].Continuous source Plane.topology (\fun (x: X) => v x i j);
+\definition transport: \forall (f, g: X -> C.Complex) -> (\forall (x: X) -> f x = g x) -> Continuous f -> Continuous g :=
+  \fun (f, g: X -> C.Complex)(same: _)(regular: _) => \idelim f = g \with h: (X -> C.Complex) => Continuous h \by {
+    base: regular, equality: \axiom:funext(f, g, same)
+  };
+\definition constant: \forall (d: N.Nat^)(v: Carrier d) -> Regular d (\fun (_: X) => v) :=
+  \fun (d: N.Nat^)(v: Carrier d)(i: Fin.Fin d)(j: Fin.Fin n) => topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology (v i j);
+\definition addition: \forall (d: N.Nat^)(v, w: X -> Carrier d) -> Regular d v -> Regular d w -> Regular d (\fun (x: X) => (space d).add (v x) (w x)) :=
+  \fun (d: N.Nat^)(v, w: X -> Carrier d)(vr: _)(wr: _)(i: Fin.Fin d)(j: Fin.Fin n) => Functions.additionContinuous source _ _ (vr i j) (wr i j);
+\definition scaling: \forall (d: N.Nat^)(a: X -> C.Complex)(v: X -> Carrier d) -> Continuous a -> Regular d v -> Regular d (\fun (x: X) => (space d).smul (a x) (v x)) :=
+  \fun (d: N.Nat^)(a: X -> C.Complex)(v: X -> Carrier d)(ar: _)(vr: _)(i: Fin.Fin d)(j: Fin.Fin n) => Functions.multiplicationContinuous source _ _ ar (vr i j);
+\definition unflattenRegular: \forall (d: N.Nat^)(v: X -> Fin.Fin (dimension d) -> C.Complex) ->
+  (\forall (k: Fin.Fin (dimension d)) -> Continuous (\fun (x: X) => v x k)) -> Regular d (\fun (x: X) => unflatten d (v x)) :=
+  \induction (d: N.Nat^) \return \forall (v: X -> Fin.Fin (dimension d) -> C.Complex) ->
+    (\forall (k: Fin.Fin (dimension d)) -> Continuous (\fun (x: X) => v x k)) -> Regular d (\fun (x: X) => unflatten d (v x)) \with {
+      | zero: \fun (v: X -> Fin.Fin (dimension N.Nat^::zero) -> C.Complex)
+        (regular: \forall (k: Fin.Fin (dimension N.Nat^::zero)) -> Continuous (\fun (x: X) => v x k))(i: Fin.Fin N.Nat^::zero)(j: Fin.Fin n) =>
+          Logic.falseElim (Continuous (\fun (x: X) => unflatten N.Nat^::zero (v x) i j)) (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))
+      | succ: \fun (d: N.Nat^)
+        (previous: \forall (u: X -> Fin.Fin (dimension d) -> C.Complex) -> (\forall (k: Fin.Fin (dimension d)) -> Continuous (\fun (x: X) => u x k)) -> Regular d (\fun (x: X) => unflatten d (u x)))
+        (v: X -> Fin.Fin (dimension (N.Nat^::succ d)) -> C.Complex)
+        (regular: \forall (k: Fin.Fin (dimension (N.Nat^::succ d))) -> Continuous (\fun (x: X) => v x k)) => Fin.cases d
+          (\fun (i: Fin.Fin (N.Nat^::succ d)) => \forall (j: Fin.Fin n) -> Continuous (\fun (x: X) => unflatten (N.Nat^::succ d) (v x) i j))
+          (\fun (j: Fin.Fin n) => transport
+            (\fun (x: X) => v x (Fin.Sum[m := n, n := dimension d].left j))
+            (\fun (x: X) => unflatten (N.Nat^::succ d) (v x) (Fin.zero d) j)
+            (\fun (x: X) => sym!{{C.Complex}} _ _ (congr!{Vectors.Vector {C.Complex}} (\fun (w: Vectors.Vector) => w j) _ _
+              (Tuples.atZero d (Spaces.CoordinateSum[n := n, m := dimension d].left (v x)) (unflatten d (Spaces.CoordinateSum[n := n, m := dimension d].right (v x))))))
+            (regular (Fin.Sum[m := n, n := dimension d].left j)))
+          (\fun (i: Fin.Fin d)(j: Fin.Fin n) => transport
+            (\fun (x: X) => unflatten d (Spaces.CoordinateSum[n := n, m := dimension d].right (v x)) i j)
+            (\fun (x: X) => unflatten (N.Nat^::succ d) (v x) (Fin.succ d i) j)
+            (\fun (x: X) => sym!{{C.Complex}} _ _ (congr!{Vectors.Vector {C.Complex}} (\fun (w: Vectors.Vector) => w j) _ _
+              (Tuples.atSuccessor d (Spaces.CoordinateSum[n := n, m := dimension d].left (v x)) (unflatten d (Spaces.CoordinateSum[n := n, m := dimension d].right (v x))) i)))
+            (previous (\fun (x: X) => Spaces.CoordinateSum[n := n, m := dimension d].right (v x))
+              (\fun (k: Fin.Fin (dimension d)) => regular (Fin.Sum[m := n, n := dimension d].right k)) i j))
+    };
+\definition extension: \forall (d: N.Nat^)(v: X -> Vectors.Vector)(w: X -> Carrier d) ->
+  (\forall (j: Fin.Fin n) -> Continuous (\fun (x: X) => v x j)) -> Regular d w -> Regular (N.Nat^::succ d) (\fun (x: X) => Tuples.extend d (v x) (w x)) :=
+  \fun (d: N.Nat^)(v: X -> Vectors.Vector)(w: X -> Carrier d)
+    (vr: \forall (j: Fin.Fin n) -> Continuous (\fun (x: X) => v x j))(wr: Regular d w) => Fin.cases d
+      (\fun (i: Fin.Fin (N.Nat^::succ d)) => \forall (j: Fin.Fin n) -> Continuous (\fun (x: X) => Tuples.extend d (v x) (w x) i j))
+      (\fun (j: Fin.Fin n) => transport (\fun (x: X) => v x j) (\fun (x: X) => Tuples.extend d (v x) (w x) (Fin.zero d) j)
+        (\fun (x: X) => sym!{{C.Complex}} _ _ (congr!{Vectors.Vector {C.Complex}} (\fun (u: Vectors.Vector) => u j) _ _ (Tuples.atZero d (v x) (w x)))) (vr j))
+      (\fun (i: Fin.Fin d)(j: Fin.Fin n) => transport (\fun (x: X) => w x i j) (\fun (x: X) => Tuples.extend d (v x) (w x) (Fin.succ d i) j)
+        (\fun (x: X) => sym!{{C.Complex}} _ _ (congr!{Vectors.Vector {C.Complex}} (\fun (u: Vectors.Vector) => u j) _ _ (Tuples.atSuccessor d (v x) (w x) i))) (wr i j));
+\definition flattenRegular: \forall (d: N.Nat^)(v: X -> Carrier d) -> Regular d v ->
+  \forall (k: Fin.Fin (dimension d)) -> topology.Continuity[A := X, B := C.Complex].Continuous source Plane.topology (\fun (x: X) => flatten d (v x) k) := \block {
+    \fun (d: N.Nat^)(v: X -> Carrier d)(regular: _)(k: Fin.Fin (dimension d)) \then
+    \takefrom position: Selections.Position[d, k] \by Selections.exists d k \then
+    \return \idelim (\fun (x: X) => v x position.block position.component) = (\fun (x: X) => flatten d (v x) k)
+      \with f: (X -> C.Complex) => topology.Continuity[A := X, B := C.Complex].Continuous source Plane.topology f \by {
+        base: regular position.block position.component,
+        equality: \axiom:funext((\fun (x: X) => v x position.block position.component), (\fun (x: X) => flatten d (v x) k), \fun (x: X) => sym!{{C.Complex}} _ _ (position.equation (v x)))
+      }
+  };

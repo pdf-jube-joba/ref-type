@@ -1,0 +1,41 @@
+\import \parent.UnitRoots[] \as Units;
+\import galois.Field[].Over[K := Real.Real, field := Algebra.field] \as Reals;
+\definition atZero: \forall (z: C.Complex) -> Op.scale Real.zero z = Op.zero :=
+  \fun (z: C.Complex) => Complex.ext _ _ (Laws.fieldMulZeroLeft (C.re z)) (Laws.fieldMulZeroLeft (C.im z));
+\definition realPower: \forall (t: Real.Real)(n: N.Nat^) -> Field.power (Op.ofReal t) n = Op.ofReal (Reals.power t n) :=
+  \fun (t: Real.Real) => \induction (n: N.Nat^) \return Field.power (Op.ofReal t) n = Op.ofReal (Reals.power t n) \with {
+    | zero: \refl(Op.one)
+    | succ: \fun (n: N.Nat^)(previous: _) => trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} (Op.mul (Op.ofReal t)) _ _ previous)
+      (Complex.ofRealMul t (Reals.power t n))
+  };
+\definition power: \forall (t: Real.Real)(z: C.Complex)(n: N.Nat^) -> Field.power (Op.scale t z) n = Op.scale (Reals.power t n) (Field.power z n) :=
+  \fun (t: Real.Real)(z: C.Complex)(n: N.Nat^) => eq_reason_in!{C.Complex _
+    "=" { Field.power (Op.mul (Op.ofReal t) z) n } "by" { congr!{C.Complex C.Complex} (\fun (a: C.Complex) => Field.power a n) _ _ (sym!{C.Complex} _ _ (Units.realTimes t z)) }
+    "=" _ "by" { Arithmetic.powerMul (Op.ofReal t) z n }
+    "=" { Op.mul (Op.ofReal (Reals.power t n)) (Field.power z n) } "by" { congr!{C.Complex C.Complex} (\fun (a: C.Complex) => Op.mul a (Field.power z n)) _ _ (realPower t n) }
+    "=" _ "by" { Units.realTimes (Reals.power t n) (Field.power z n) }
+  };
+\definition innerProduct: \forall (a, b: C.Complex) -> Absolute.inner a b = C.re (Op.mul (Op.conj a) b) :=
+  \fun (a, b: C.Complex) => sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (Real.sub (Real.mul (C.re a) (C.re b))) _ _ (Laws.fieldMulNegLeft (C.im a) (C.im b)))
+    (Algebra.subNeg (Real.mul (C.re a) (C.re b)) (Real.mul (C.im a) (C.im b))));
+\definition inner: \forall (a, b: C.Complex)(t: Real.Real) -> Absolute.inner a (Op.scale t b) = Real.mul t (Absolute.inner a b) :=
+  \fun (a, b: C.Complex)(t: Real.Real) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Algebra.mulSwap (C.re a) t (C.re b)) (Algebra.mulSwap (C.im a) t (C.im b)))
+    (sym!{Real.Real} _ _ (Laws.fieldMulAdd t (Real.mul (C.re a) (C.re b)) (Real.mul (C.im a) (C.im b))));
+\definition normVariation: \forall (a, b: C.Complex)(t: Real.Real) -> Op.normSq (Op.add a (Op.scale t b)) =
+  Real.add (Op.normSq a) (Real.mul t (Real.add (Real.add (Absolute.inner a b) (Absolute.inner a b)) (Real.mul t (Op.normSq b)))) :=
+  \fun (a, b: C.Complex)(t: Real.Real) => eq_reason_in!{Real.Real _
+    "=" _ "by" { Absolute.normSqAdd a (Op.scale t b) }
+    "=" { Real.add (Real.add (Op.normSq a) (Real.mul (Real.mul t t) (Op.normSq b))) (Real.add (Real.mul t (Absolute.inner a b)) (Real.mul t (Absolute.inner a b))) } "by" {
+      congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+        (congr!{Real.Real Real.Real} (Real.add (Op.normSq a)) _ _ (Units.normScale t b))
+        (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (inner a b t) (inner a b t)) }
+    "=" { Real.add (Op.normSq a) (Real.add (Real.add (Real.mul t (Absolute.inner a b)) (Real.mul t (Absolute.inner a b))) (Real.mul t (Real.mul t (Op.normSq b)))) } "by" {
+      trans!{Real.Real} _ _ _ (Laws.addAssoc _ _ _) (congr!{Real.Real Real.Real} (Real.add (Op.normSq a)) _ _
+        (trans!{Real.Real} _ _ _ (Laws.addComm _ _)
+          (congr!{Real.Real Real.Real} (Real.add (Real.add (Real.mul t (Absolute.inner a b)) (Real.mul t (Absolute.inner a b)))) _ _ (Laws.fieldMulAssoc t t (Op.normSq b))))) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (Op.normSq a)) _ _ (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+      (Laws.fieldMulAdd t (Real.add (Absolute.inner a b) (Absolute.inner a b)) (Real.mul t (Op.normSq b)))
+      (congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.add x (Real.mul t (Real.mul t (Op.normSq b)))) _ _ (Laws.fieldMulAdd t (Absolute.inner a b) (Absolute.inner a b))))) }
+  };

@@ -1,0 +1,19 @@
+\import Motion.Slice[t := I.start] \as NativeStart;
+\import Motion.Slice[t := I.end] \as NativeFinish;
+\import Operations.IsomorphismComposition[X := X, F := Fiber Start.at, G := NativeStart.Fiber, H := NativeFinish.Fiber,
+  source := bundleAt Start.at, middle := NativeStart.bundle, target := NativeFinish.bundle] \as First;
+\import Operations.IsomorphismComposition[X := X, F := Fiber Start.at, G := NativeFinish.Fiber, H := Fiber Finish.at,
+  source := bundleAt Start.at, middle := NativeFinish.bundle, target := bundleAt Finish.at] \as Second;
+\import Bundles.Isomorphisms[X := X, F := Fiber Finish.at, G := NativeFinish.Fiber, source := bundleAt Finish.at, target := NativeFinish.bundle] \as Reverse;
+\definition value: Isomorphism Start.at Finish.at := Second.compose (First.compose Start.comparison iso.value) (Reverse.inverse Finish.comparison);
+\definition fixed: Fixed A Start.at Finish.at value := \fun (x: X)(inside: \In[X] A x)(v: Fiber Start.at x) =>
+  Presented.totalInjective (Finish.at x) (Start.at x)
+    (trans!{Y} _ _ _ ((H.relativeLaws source bundle.baseSpace A f g h).fixed I.end x inside) (sym!{Y} _ _ ((H.relativeLaws source bundle.baseSpace A f g h).fixed I.start x inside)))
+    ((value.forward.fiber x).apply v) v (eq_reason_in!{{Vector n} _
+      "=" { (iso.value.forward.fiber x).apply ((Start.comparison.forward.fiber x).apply v) } "by" {
+        Finish.backwardFormula x ((iso.value.forward.fiber x).apply ((Start.comparison.forward.fiber x).apply v))
+      }
+      "=" { (Start.comparison.forward.fiber x).apply v } "by" { iso.fixed x inside ((Start.comparison.forward.fiber x).apply v) }
+      "=" _ "by" { Start.forwardFormula x v }
+    });
+\definition result: RelativeIsomorphism[A, Start.at, Finish.at] := RelativeIsomorphism[A, Start.at, Finish.at] { value := value, fixed := fixed };

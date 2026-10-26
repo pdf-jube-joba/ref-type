@@ -1,0 +1,24 @@
+\import InnerLaws.Gram[k := k].Of[A := basis.value, factor := factor] \as Gram;
+\definition frameFixed: \forall (v: Domain.Vector) -> P.map.apply (factor.frame.apply v) = factor.frame.apply v :=
+  \fun (v: Domain.Vector) => eq_reason_in!{Vector _
+    "=" _ "by" { congr!{Vector Vector} P.map.apply _ _ (sym!{Vector} _ _ (Gram.frameFormula v)) }
+    "=" _ "by" { fixed basis (factor.change.backward.apply v) }
+    "=" _ "by" { Gram.frameFormula v }
+  };
+\definition coordinatesProjection: \forall (w: Vector) -> Gram.coordinates.apply (P.map.apply w) = Gram.coordinates.apply w :=
+  \fun (w: Vector) => \axiom:funext(Gram.coordinates.apply (P.map.apply w), Gram.coordinates.apply w,
+    \fun (i: Fin.Fin k) => trans!{K} _ _ _ (sym!{K} _ _ (P.selfAdjoint (factor.frame.apply (Domain.basis i)) w))
+      (congr!{Vector K} (\fun (v: Vector) => dot v w) _ _ (frameFixed (Domain.basis i))));
+\definition reconstruction: \forall (w: Vector) -> factor.frame.apply (Gram.coordinates.apply w) = P.map.apply w :=
+  \fun (w: Vector) => eq_reason_in!{Vector _
+    "=" _ "by" { congr!{{Domain.Vector} Vector} factor.frame.apply _ _ (sym!{{Domain.Vector}} _ _ (coordinatesProjection w)) }
+    "=" _ "by" { congr!{Vector Vector} Gram.projection.apply _ _ (sym!{Vector} _ _ (basis.reconstruction w)) }
+    "=" _ "by" { congr!{Vector Vector} Gram.projection.apply _ _ (factor.formula (basis.coordinate.apply w)) }
+    "=" _ "by" { congr!{{Domain.Vector} Vector} factor.frame.apply _ _ (Gram.leftInverse (factor.change.forward.apply (basis.coordinate.apply w))) }
+    "=" _ "by" { sym!{Vector} _ _ (factor.formula (basis.coordinate.apply w)) }
+    "=" _ "by" { basis.reconstruction w }
+  };
+\definition frame: Frame := Frame {
+  basis := Basis { value := factor.frame, coordinate := Gram.coordinates, leftInverse := Gram.leftInverse, reconstruction := reconstruction },
+  isometry := factor.isometry, adjoint := Gram.adjoint,
+};

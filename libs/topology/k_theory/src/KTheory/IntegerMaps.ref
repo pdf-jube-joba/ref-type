@@ -1,0 +1,22 @@
+\import std.Arithmetic[].Int[] \as I;
+\import algebra.Group[].Of[Carrier := K, group := group] \as Group;
+\import algebra.GroupCompletion[].Natural[] \as Natural;
+\import algebra.GroupCompletion[].Of[M := N.Nat^, monoid := Natural.monoid] \as Completion;
+\import Completion.Universal[K := K, target := group] \as Universal;
+\import algebra.Hom[A := Natural.Carrier, B := K] \as Hom;
+\structure Map: \Set := {
+  apply: I.Int^ -> K,
+  zero: apply I.Zero.specification = Group.zero,
+  addition: \forall (x, y: I.Int^) -> apply (I.Add.specification x y) = Group.add (apply x) (apply y)
+};
+\definition natural[n: N.Nat^]: I.Int^ := I.integer n N.Nat^::zero;
+\definition lift[h: Map]: Hom.MonoidMap Completion.asMonoid Universal.codomain :=
+  \into[Natural.Carrier -> K]((\fun (x: Natural.Carrier) => h.apply (Natural.toInt x)), Hom.MonoidMap Completion.asMonoid Universal.codomain) \by {
+    Hom.MonoidLaws[Completion.asMonoid, Universal.codomain, (\fun (x: Natural.Carrier) => h.apply (Natural.toInt x))] {
+      unit := trans!{K} _ _ _ (congr!{{I.Int^} K} h.apply _ _ (Natural.toIntClass Completion.zeroRep)) h.zero,
+      operation := \fun (x, y: Natural.Carrier) => trans!{K} _ _ _ (congr!{{I.Int^} K} h.apply _ _ (Natural.toIntAdd x y)) (h.addition (Natural.toInt x) (Natural.toInt y))
+    }
+  };
+\module Comparing(first, second: Map, sameOne: first.apply I.One.specification = second.apply I.One.specification);
+\definition ext: \forall (first, second: Map) -> first.apply I.One.specification = second.apply I.One.specification -> first.apply = second.apply :=
+  \fun (first, second: Map)(same: _) => Comparing[first := first, second := second, sameOne := same].equation;

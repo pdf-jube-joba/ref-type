@@ -1,0 +1,22 @@
+\import Constructed.Overlap[i := i, j := j] \as Change;
+\import Constructed.Coordinates[i := i] \as Left;
+\import Constructed.Coordinates[i := j] \as Right;
+\import SourceCharts.In[c := charts i] \as LeftChart;
+\import SourceCharts.In[c := charts j] \as RightChart;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Chart[X := X, F := F, bundle := bundle, chart := charts i] \as Read;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Chart[X := X, F := F, bundle := bundle, chart := charts j] \as Write;
+\import topology.Topology[Carrier := Right.Parameter].Subspace[S := Change.Domain] \as Subspace;
+\definition topology: topology.Topology[Carrier := Change.Point].Topology := Subspace.topology Right.topology;
+\definition parameter[q: Right.Parameter]: Source.Point := RightChart.backward q;
+\import topology.Continuity[A := Right.Parameter, B := Source.Point].Restriction[S := Change.Domain] \as Restrict;
+\definition point[p: Change.Point]: LeftChart.TotalPoint := \into[Source.Point](parameter p, { q: Source.Point \where Base.Member (domain i) q.base }) \by { \bysub(Right.Parameter, Change.Domain, p) };
+\definition pointContinuous: topology.Continuity[A := Change.Point, B := Source.Point].Continuous topology bundle.totalSpace (\fun (p: Change.Point) => point p) :=
+  Restrict.restrictContinuous Right.topology bundle.totalSpace parameter (Write.Maps[Y := Change.Point, source := topology].parameterContinuous);
+\definition vector[p: Change.Point]: Vector (dimension i) := Read.Maps[Y := Change.Point, source := topology].vector point p;
+\definition vectorContinuous: topology.Continuity[A := Change.Point, B := Vector (dimension i)].Continuous topology (coordinateTopology (dimension i)) vector := Read.Maps[Y := Change.Point, source := topology].vectorContinuous point pointContinuous;
+\definition base[p: Change.Point]: \Cast[X] (domain i) := \into[X](Right.base p, domain i) \by { \bysub(Right.Parameter, Change.Domain, p) };
+\import topology.Continuity[A := Right.Parameter, B := X].Restriction[S := Change.Domain] \as RestrictBase;
+\import topology.Continuity[A := Change.Point, B := X].Corestriction[S := domain i] \as IntoBase;
+\definition baseContinuous: topology.Continuity[A := Change.Point, B := \Cast[X] (domain i)].Continuous topology (Base.Subspace[S := domain i].topology bundle.baseSpace) base :=
+  IntoBase.corestrictContinuous topology bundle.baseSpace base (RestrictBase.restrictContinuous Right.topology bundle.baseSpace (\fun (p: Right.Parameter) => Right.base p) Change.baseContinuous);
+\definition regular: Change.Regular := topological_constructions.Product[A := \Cast[X] (domain i), B := Vector (dimension i)].Universal[X := Change.Point].pairContinuous topology (Base.Subspace[S := domain i].topology bundle.baseSpace) (coordinateTopology (dimension i)) base vector baseContinuous vectorContinuous;

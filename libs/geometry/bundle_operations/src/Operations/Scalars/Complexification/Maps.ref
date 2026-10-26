@@ -1,0 +1,36 @@
+\import RealBundles.Morphisms[X := X, Y := Y, F := F, G := G, source := source, target := target, f := f] \as Original;
+\import RealBundles.ArrowLaws[X := X, Y := Y, F := F, G := G, source := source, target := target, f := f] \as OriginalLaws;
+\import \root.Operations[].Scalars[].Complexification[X := Y, F := G, source := target] \as Other;
+\import Complex.ScalarLine[X := Y, baseSpace := target.baseSpace] \as TargetConstant;
+\import \root.Operations[].Scalars[].Realification[X := Y, F := \fun (y: Y) => C.Complex, source := TargetConstant.bundle] \as TargetRealConstant;
+\import ComplexBundles.Family[X := X, F := \fun (x: X) => C.Complex] \as ConstantFamily;
+\import ComplexBundles.Family[X := Y, F := \fun (y: Y) => C.Complex] \as TargetConstantFamily;
+\import ComplexBundles.Morphisms[X := X, Y := Y, F := \fun (x: X) => C.Complex, G := \fun (y: Y) => C.Complex, source := Constant.bundle, target := TargetConstant.bundle, f := f] \as ConstantMaps;
+\definition scalarIdentity: ComplexSpaces.Linear[V := C.Complex, W := C.Complex, source := ComplexSpaces.scalarSpace, target := ComplexSpaces.scalarSpace].Map :=
+  ComplexSpaces.Linear[V := C.Complex, W := C.Complex, source := ComplexSpaces.scalarSpace, target := ComplexSpaces.scalarSpace].Map {
+    apply := \fun (z: C.Complex) => z, preservesAdd := \fun (z, w: C.Complex) => \refl(CD.add z w), preservesScale := \fun (a, z: C.Complex) => \refl(CD.mul a z)
+  };
+\definition constantData: ConstantMaps.Data := ConstantMaps.Data { fiber := \fun (x: X) => scalarIdentity };
+\definition constant[a: Original.Map]: ConstantMaps.Map := \into[ConstantMaps.Data](constantData, ConstantMaps.Map) \by {
+  TargetConstant.Universal[Y := ConstantFamily.Point].continuous Constant.bundle.totalSpace (ConstantMaps.total constantData)
+    (topology.Composition[A := ConstantFamily.Point, B := X, C := Y].composeContinuous Constant.bundle.totalSpace source.baseSpace target.baseSpace ConstantFamily.projection f
+      (ConstantFamily.Of[bundle := Constant.bundle].projectionContinuous) (OriginalLaws.baseContinuous a)) Constant.valueContinuous
+};
+\import RealConstant.Maps[Y := Y, G := \fun (y: Y) => C.Complex, target := TargetConstant.bundle, f := f] \as Restrict;
+\import Tensor.Of[same := \refl(source.baseSpace)].Mapping[Y := Y, A := G, B := \fun (y: Y) => C.Complex, leftTarget := target, rightTarget := TargetRealConstant.bundle, f := f].Of[targetSame := \refl(target.baseSpace)] \as NativeMaps;
+\import ComplexBundles.Morphisms[X := X, Y := Y, F := Fiber, G := Other.Fiber, source := bundle, target := Other.bundle, f := f] \as Result;
+\definition data[a: Original.Map]: Result.Data := Result.Data {
+  fiber := \fun (x: X) => \root.Operations[].Scalars[].ComplexTensor[V := F x, source := source.space x].Maps[W := G (f x), target := target.space (f x)].map (a.fiber x)
+};
+\import RealBundles.Morphisms[X := X, Y := Y, F := Fiber, G := Other.Fiber, source := Tensor.bundle (\refl(source.baseSpace)), target := Real.Tensor[X := Y, F := G, G := \fun (y: Y) => C.Complex, left := target, right := TargetRealConstant.bundle].bundle (\refl(target.baseSpace)), f := f] \as UnderlyingMaps;
+\import RealBundles.Family[X := Y, F := Other.Fiber] \as TargetUnderlying;
+\import ComplexBundles.Family[X := Y, F := Other.Fiber] \as TargetFamily;
+\import \root.Operations[].Scalars[].Complexification[X := X, F := F, source := source].UnderlyingTopology[] \as SourceTopology;
+\definition map[a: Original.Map]: Result.Map := \into[Result.Data](data a, Result.Map) \by {
+  topology.Composition[A := Family.Point, B := TargetUnderlying.Point, C := TargetFamily.Point].composeContinuous topology (Real.Tensor[X := Y, F := G, G := \fun (y: Y) => C.Complex, left := target, right := TargetRealConstant.bundle].topology) Other.topology
+    (\fun (p: Family.Point) => UnderlyingMaps.total (NativeMaps.map a (Restrict.map (constant a))) (backward p)) Other.forward
+    (topology.Composition[A := Family.Point, B := Underlying.Point, C := TargetUnderlying.Point].composeContinuous topology Tensor.topology (Real.Tensor[X := Y, F := G, G := \fun (y: Y) => C.Complex, left := target, right := TargetRealConstant.bundle].topology)
+      backward (UnderlyingMaps.total (NativeMaps.map a (Restrict.map (constant a)))) SourceTopology.backwardContinuous (UnderlyingMaps.continuous (NativeMaps.map a (Restrict.map (constant a))))) Other.UnderlyingTopology[].forwardContinuous
+};
+\definition onPure: \forall (a: Original.Map)(x: X)(v: F x)(z: C.Complex) -> ((map a).fiber x).apply (pure x v z) = Other.pure (f x) ((a.fiber x).apply v) z :=
+  \fun (a: Original.Map)(x: X) => \root.Operations[].Scalars[].ComplexTensor[V := F x, source := source.space x].Maps[W := G (f x), target := target.space (f x)].onPure (a.fiber x);

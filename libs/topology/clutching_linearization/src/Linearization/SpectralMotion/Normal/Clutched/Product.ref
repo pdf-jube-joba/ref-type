@@ -1,0 +1,63 @@
+\import Native.Bundle[] \as Image;
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::succ (N.Nat^::succ (N.Nat^::succ N.Nat^::zero))] \as Sphere;
+\import topological_constructions.Product[A := X, B := Sphere.Sphere] \as BaseProduct;
+\definition baseContinuous: topology.Continuity[A := Last.Carrier, B := X].Continuous Last.topology source Last.first := BaseProduct.Maps[].firstContinuous source Sphere.sphereTopology;
+\definition projection[p: Last.Carrier]: spectral_splitting.Spectral[].Idempotents[n := n].Projection := Image.idempotent (Last.first p);
+\definition projectionRegular: Hermitian.At[n := n].Families[X := Last.Carrier].Matrix[m := n].Regular Last.topology (\fun (p: Last.Carrier) => (projection p).map) :=
+  \fun (v: M.Vector)(i: M.Index) => topology.Composition[A := Last.Carrier, B := X, C := C.Complex].composeContinuous Last.topology source Plane.topology
+    Last.first (\fun (x: X) => (Native.projection x).apply v i) baseContinuous (Native.projectionRegular v i);
+\definition scalar[p: Last.Overlap]: C.Complex := Pair.second X Circle.Carrier (Last.circlePoint p);
+\definition circleInclude[z: Circle.Carrier]: C.Complex := z;
+\definition circleIncludeContinuous: topology.Continuity[A := Circle.Carrier, B := C.Complex].Continuous Circle.topology Plane.topology circleInclude :=
+  \fun (U: \Pow C.Complex)(open: _) => topology.Topology[Carrier := C.Complex].Subspace[S := Circle.unit].traceOpen Plane.topology U open;
+\definition circleScalar[q: Circular.CarrierSet]: C.Complex := Pair.second X Circle.Carrier q;
+\definition circleScalarContinuous: topology.Continuity[A := Circular.CarrierSet, B := C.Complex].Continuous circleTopology Plane.topology circleScalar :=
+  topology.Composition[A := Circular.CarrierSet, B := Circle.Carrier, C := C.Complex].composeContinuous circleTopology Circle.topology Plane.topology
+    (Pair.second X Circle.Carrier) circleInclude (Circular.Maps[].secondContinuous source Circle.topology) circleIncludeContinuous;
+\definition scalarContinuous: topology.Continuity[A := Last.Overlap, B := C.Complex].Continuous Last.overlapTopology Plane.topology scalar :=
+  topology.Composition[A := Last.Overlap, B := Circular.CarrierSet, C := C.Complex].composeContinuous Last.overlapTopology circleTopology Plane.topology
+    Last.circlePoint circleScalar Last.circleContinuous circleScalarContinuous;
+\definition scalarUnit: \forall (p: Last.Overlap) -> C.Absolute[].abs (scalar p) = R.one :=
+  \fun (p: Last.Overlap) => \root.Linearization[].Powers[].unitOfNorm (scalar p) (Circle.norm (Pair.second X Circle.Carrier (Last.circlePoint p)));
+\definition scalarNonzero: \forall (p: Last.Overlap) -> C.Def[].NonZero (scalar p) :=
+  \fun (p: Last.Overlap)(zero: _) => Laws.zeroNeOne
+    (trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ (trans!{{R.Real}} _ _ _
+      (congr!{{C.Complex} {R.Real}} C.Absolute[].abs _ _ zero) uniform_approximation.Approximation[].FiniteComplex[].zeroAbsolute)) (scalarUnit p));
+\import \root.Linearization[].ProjectionBundle[n := n, X := Last.Carrier, source := Last.topology, P := projection, regular := projectionRegular].Clutching[
+  U := Last.U, V := Last.V, openU := Last.openU, openV := Last.openV, covers := Last.covers].With[a := scalar, continuous := scalarContinuous, nonzero := scalarNonzero] \as Model;
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := Scalars.field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar] \as Homotopy;
+\import Homotopy.Projections[n := n].Operators[].Units[] \as Units;
+\import Homotopy.Clutching[n := n, X := Last.Carrier, baseSpace := Last.topology, U := Last.U, V := Last.V,
+  openU := Last.openU, openV := Last.openV, covers := Last.covers].With[g := Last.transition, continuous := Last.transitionContinuous] \as Given;
+\definition action: \forall (p: Last.Overlap)(v: M.Vector) -> (Last.transition p).apply v = (Model.transition p).apply v :=
+  \fun (p: Last.Overlap)(v: M.Vector) => trans!{M.Vector} _ _ _
+    (congr!{End.Map M.Vector} (\fun (h: End.Map) => h.apply v) _ _ (M.Representation[].linearEntries (loopOnDomain (Start.include (Last.circlePoint p)))))
+    (trans!{M.Vector} _ _ _
+      (congr!{M.Vector M.Vector} (Vectors.plus (Vectors.scale (scalar p) ((projection p).map.apply v))) _ _ (sym!{M.Vector} _ _ (Image.outsideAction (Last.first p) v)))
+      (sym!{M.Vector} _ _ (Model.transitionFormula p v)));
+\definition transitionsEqual: Last.transition = Model.transition := \axiom:funext(Last.transition, Model.transition, \fun (p: Last.Overlap) =>
+  End.ext _ _ (\axiom:funext((Last.transition p).apply, (Model.transition p).apply, action p)));
+\import Given.Comparison[h := Model.transition, continuousH := Model.transitionContinuous] \as Compare;
+\definition modelComparisonExists: \exists Bundles.Isomorphisms[X := Last.Carrier, F := NormalFiber, G := Model.NormalFiber,
+  source := normalBundle, target := Model.normalBundle].Isomorphism := Compare.ofEquality transitionsEqual;
+\definition ProductFiber: Last.Carrier -> \Set := Model.ProductFiber;
+\definition productBundle: Bundles.Family[X := Last.Carrier, F := ProductFiber].Bundle := Model.productBundle;
+\import bundle_operations.Operations[].Over[K := C.Complex, field := Scalars.field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].IsomorphismComposition[
+  X := Last.Carrier, F := ProductFiber, G := Model.NormalFiber, H := NormalFiber, source := productBundle, middle := Model.normalBundle, target := normalBundle] \as Compose;
+\definition isomorphismExists: \exists Bundles.Isomorphisms[X := Last.Carrier, F := ProductFiber, G := NormalFiber, source := productBundle, target := normalBundle].Isomorphism :=
+  Compose.exists Model.isomorphismExists (Bundles.Isomorphisms[X := Last.Carrier, F := NormalFiber, G := Model.NormalFiber,
+    source := normalBundle, target := Model.normalBundle].inverseExists modelComparisonExists);
+\import topological_k_theory.KTheory[].On[X := Last.Carrier, baseSpace := Last.topology, compact := Last.productCompact, hausdorff := Last.productHausdorff] \as K;
+\import K.Bundle[F := NormalFiber, original := normalBundle, same := \refl(Last.topology)] \as ActualClass;
+\import K.Trivial[n := n] \as TrivialClass;
+\import K.Compare[F := NormalFiber, G := Model.NormalFiber, first := normalBundle, second := Model.normalBundle,
+  firstSame := \refl(Last.topology), secondSame := \refl(Last.topology)] \as Classes;
+\import Model.KClass[compact := Last.productCompact, hausdorff := Last.productHausdorff] \as ModelClass;
+\definition reducedClass: K.K0[].Carrier := K.K0[].difference ActualClass.value TrivialClass.value;
+\definition lineDifference: K.K0[].Carrier := ModelClass.lineDifference;
+\definition imageClass: K.K0[].Carrier := ModelClass.imageClass;
+\definition productClass: K.K0[].Carrier := K.K0[].mul lineDifference imageClass;
+\definition productFormula: reducedClass = productClass := trans!{K.K0[].Carrier} _ _ _
+  (congr!{K.Classes K.K0[].Carrier} (\fun (c: K.Classes) => K.K0[].difference c TrivialClass.value) _ _ (Classes.ofExists modelComparisonExists)) ModelClass.comparison;

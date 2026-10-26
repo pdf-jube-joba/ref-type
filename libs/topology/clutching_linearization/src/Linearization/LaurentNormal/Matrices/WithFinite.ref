@@ -1,0 +1,24 @@
+\import \root.Linearization[].FiniteBounds[] \as Bounds;
+\import N.Basic[].Prop[] \as Order;
+\import Finite.Padding[] \as Padding;
+\definition row[i: Fin.Fin n]: N.Nat^ := Bounds.sum m (\fun (j: Fin.Fin m) => Lists.length K (terms i j));
+\definition total: N.Nat^ := Bounds.sum n row;
+\definition degree: N.Nat^ := N.Nat^::succ total;
+\definition bounded: \forall (i: Fin.Fin n)(j: Fin.Fin m) -> Order.Le (Lists.length K (terms i j)) degree :=
+  \fun (i: Fin.Fin n)(j: Fin.Fin m) => Order.leTrans _ _ _
+    (Order.leTrans _ _ _ (Bounds.bound m (\fun (j: Fin.Fin m) => Lists.length K (terms i j)) j) (Bounds.bound n row i)) (Order.leSelfSucc total);
+\definition padded[i: Fin.Fin n][j: Fin.Fin m]: Finite.Coefficients := Padding.pad degree (terms i j);
+\definition array[i: Fin.Fin n][j: Fin.Fin m]: Fin.Fin degree -> K := FromList.at degree (padded i j) (Padding.length degree (terms i j));
+\definition recovery: \forall (i: Fin.Fin n)(j: Fin.Fin m) -> FromList.list degree (array i j) = padded i j :=
+  \fun (i: Fin.Fin n)(j: Fin.Fin m) => FromList.listAt degree (padded i j) (Padding.length degree (terms i j));
+\definition polynomialEquality: \forall (i: Fin.Fin n)(j: Fin.Fin m) -> Finite.asPolynomial (FromList.list degree (array i j)) = form.polynomials i j :=
+  \fun (i: Fin.Fin n)(j: Fin.Fin m) => eq_reason_in!{P.Carrier _
+    "=" { Finite.asPolynomial (padded i j) } "by" { congr!{Finite.Coefficients P.Carrier} Finite.asPolynomial _ _ (recovery i j) }
+    "=" { Finite.asPolynomial (terms i j) } "by" { Padding.preserves degree (terms i j) (bounded i j) }
+    "=" _ "by" { \bysub(Finite.Coefficients, Finite.Of (form.polynomials i j), terms i j) }
+  };
+\definition result: PolynomialMatrix := PolynomialMatrix {
+  shift := form.shift, order := total, coefficients := array,
+  equation := \fun (i: Fin.Fin n)(j: Fin.Fin m) => trans!{L.Carrier} _ _ _ (form.equation i j)
+    (congr!{P.Carrier L.Carrier} embed _ _ (sym!{P.Carrier} _ _ (polynomialEquality i j))),
+};

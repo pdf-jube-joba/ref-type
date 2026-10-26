@@ -1,0 +1,62 @@
+\import Ring.At[n := n] \as Matrix;
+\import Matrix.Operations[] \as Operations;
+\import Matrix.Cofactors[] \as Cofactors;
+\import Matrix.Adjugate[] \as Adjugate;
+\import linear_algebra.Commutative[K := K, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing K field] \as Algebra;
+\import Algebra.Matrix[I := Matrix.Index, J := Matrix.Index] \as Matrices;
+\definition Nonzero[A: Matrix.Matrix]: \Prop := Logic.Not (Matrix.determinant A = field.zero);
+\definition formula[A: Matrix.Matrix]: Matrix.Matrix := Matrices.scale (field.inv (Matrix.determinant A)) (Matrix.adjugate A);
+\definition normalizedScale: \forall (A: Matrix.Matrix) -> Nonzero A ->
+  Matrices.scale (field.inv (Matrix.determinant A)) (Matrices.scale (Matrix.determinant A) Matrix.identity) = Matrix.identity :=
+  \fun (A: Matrix.Matrix)(nonzero: Nonzero A) => Operations.ext _ _ (\fun (i, j: Matrix.Index) => eq_reason_in!{K _
+    "=" { field.mul (field.mul (field.inv (Matrix.determinant A)) (Matrix.determinant A)) (Matrix.identity i j) } "by" {
+      sym!{K} _ _ (Algebra.mulAssoc (field.inv (Matrix.determinant A)) (Matrix.determinant A) (Matrix.identity i j)) }
+    "=" { field.mul field.one (Matrix.identity i j) } "by" { congr!{K K} (\fun (a: K) => field.mul a (Matrix.identity i j)) _ _ (field.inverse (Matrix.determinant A) nonzero) }
+    "=" { Matrix.identity i j } "by" { Algebra.mulOneLeft (Matrix.identity i j) }
+  });
+\definition Nonsingular: \Set := \Cast[Matrix.Matrix] ({ A: Matrix.Matrix \where Nonzero A });
+\definition inverse[A: Nonsingular]: Operations.Inverse A := \block {
+  \let nonzero: Nonzero A := \bysub(Matrix.Matrix, Nonsingular, A) \then
+  \return \into[Matrix.Matrix](formula A, Operations.Inverse A) \by {
+    Operations.InverseLaws[A, formula A] {
+      left := eq_reason_in!{Matrix.Matrix _
+        "=" { Matrices.scale (field.inv (Matrix.determinant A)) (Matrix.product (Matrix.adjugate A) A) } "by" { Operations.scaleLeft (field.inv (Matrix.determinant A)) (Matrix.adjugate A) A }
+        "=" _ "by" { congr!{Matrix.Matrix Matrix.Matrix} (Matrices.scale (field.inv (Matrix.determinant A))) _ _ (Cofactors.adjugateProduct A) }
+        "=" Matrix.identity "by" { normalizedScale A nonzero }
+      },
+      right := eq_reason_in!{Matrix.Matrix _
+        "=" { Matrices.scale (field.inv (Matrix.determinant A)) (Matrix.product A (Matrix.adjugate A)) } "by" { Operations.scaleRight (field.inv (Matrix.determinant A)) A (Matrix.adjugate A) }
+        "=" _ "by" { congr!{Matrix.Matrix Matrix.Matrix} (Matrices.scale (field.inv (Matrix.determinant A))) _ _ (Adjugate.productAdjugate A) }
+        "=" Matrix.identity "by" { normalizedScale A nonzero }
+      },
+    }
+  }
+};
+\definition nonzeroOfInverse: \forall (A: Matrix.Matrix)(B: Operations.Inverse A) -> Nonzero A :=
+  \fun (A: Matrix.Matrix)(B: Operations.Inverse A)(zero: Matrix.determinant A = field.zero) => field.nontrivial (eq_reason_in!{K field.zero
+    "=" { field.mul (Matrix.determinant B) field.zero } "by" { sym!{K} _ _ (Algebra.mulZeroRight (Matrix.determinant B)) }
+    "=" { field.mul (Matrix.determinant B) (Matrix.determinant A) } "by" { congr!{K K} (field.mul (Matrix.determinant B)) _ _ (sym!{K} _ _ zero) }
+    "=" field.one "by" { Operations.determinantInverse A B }
+  });
+\definition invertibleIff: \forall (A: Matrix.Matrix) -> Logic.PropEquiv[\exists Operations.Inverse A, Nonzero A] :=
+  \fun (A: Matrix.Matrix) => Logic.PropEquiv[_, _] {
+    ltr := \block {
+      \fun (exists: \exists Operations.Inverse A) \then
+      \takefrom B: Operations.Inverse A \by exists \then
+      \return nonzeroOfInverse A B
+    },
+    rtl := \fun (nonzero: Nonzero A) => \exact(inverse (\into[Matrix.Matrix](A, Nonsingular) \by { nonzero }), Operations.Inverse A),
+  };
+\definition componentFormula: \forall (A: Matrix.Matrix)(B: Operations.Inverse A)(i, j: Matrix.Index) ->
+  B i j = field.mul (field.inv (Matrix.determinant A)) (Matrix.cofactor A j i) :=
+  \fun (A: Matrix.Matrix)(B: Operations.Inverse A)(i, j: Matrix.Index) => Operations.entry _ _ (Operations.inverseUnique A B (inverse (\into[Matrix.Matrix](A, Nonsingular) \by { nonzeroOfInverse A B }))) i j;
+\definition inverseDeterminant: \forall (A: Matrix.Matrix)(B: Operations.Inverse A) ->
+  Matrix.determinant B = field.inv (Matrix.determinant A) :=
+  \fun (A: Matrix.Matrix)(B: Operations.Inverse A) => eq_reason_in!{K _
+    "=" { field.mul (Matrix.determinant B) field.one } "by" { sym!{K} _ _ (Algebra.mulOneRight (Matrix.determinant B)) }
+    "=" { field.mul (Matrix.determinant B) (field.mul (Matrix.determinant A) (field.inv (Matrix.determinant A))) } "by" {
+      congr!{K K} (field.mul (Matrix.determinant B)) _ _ (sym!{K} _ _ (trans!{K} _ _ _ (Algebra.mulComm (Matrix.determinant A) (field.inv (Matrix.determinant A))) (field.inverse (Matrix.determinant A) (nonzeroOfInverse A B)))) }
+    "=" { field.mul (field.mul (Matrix.determinant B) (Matrix.determinant A)) (field.inv (Matrix.determinant A)) } "by" { sym!{K} _ _ (Algebra.mulAssoc (Matrix.determinant B) (Matrix.determinant A) (field.inv (Matrix.determinant A))) }
+    "=" { field.mul field.one (field.inv (Matrix.determinant A)) } "by" { congr!{K K} (\fun (a: K) => field.mul a (field.inv (Matrix.determinant A))) _ _ (Operations.determinantInverse A B) }
+    "=" _ "by" { Algebra.mulOneLeft (field.inv (Matrix.determinant A)) }
+  };

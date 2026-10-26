@@ -1,0 +1,25 @@
+\definition coefficient: R.Real := Bounds.coefficient firstBound.size secondBound.size;
+\definition positive: Real.Lt R.zero coefficient := Bounds.coefficientPositive firstBound.size secondBound.size;
+\definition coefficientBound: \forall (x: X) -> Real.Le (Bounds.coefficient (f x) (g x)) coefficient := \fun (x: X) =>
+  Estimates.addLe _ _ _ _
+    (Real.leReplaceRight (absolute (f x)) firstBound.size (absolute firstBound.size)
+      (sym!{{R.Real}} _ _ (Bounds.absOfNonnegative firstBound.size (Order.leOfLt R.zero firstBound.size firstBound.positive))) (firstBound.controls x))
+    (Laws.addMonotoneRight _ _ R.one
+      (Real.leReplaceRight (absolute (g x)) secondBound.size (absolute secondBound.size)
+        (sym!{{R.Real}} _ _ (Bounds.absOfNonnegative secondBound.size (Order.leOfLt R.zero secondBound.size secondBound.positive))) (secondBound.controls x)));
+\definition approximation: Approximates A (product f g) := \block {
+  \fun (epsilon: R.Real)(epsilonPositive: Real.Lt R.zero epsilon) \then
+  \let delta: R.Real := Bounds.radius coefficient epsilon \then
+  \let deltaPositive: Real.Lt R.zero delta := Bounds.radiusPositive coefficient epsilon positive epsilonPositive \then
+  \takefrom a: Candidate[f, delta] \by candidateExists f first.approximation delta deltaPositive \then
+  \takefrom b: Candidate[g, delta] \by candidateExists g second.approximation delta deltaPositive \then
+  \return fromCandidate (product f g) epsilon (Candidate[product f g, epsilon] {
+    value := product a.value b.value, member := laws.multiplication a.value b.value a.member b.member,
+    near := \fun (x: X) => Real.leLtTrans _ _ _
+      (Real.leTrans _ _ _ (Bounds.localProductDistance (f x) (g x) (a.value x) (b.value x) delta (Order.leOfLt R.zero delta deltaPositive) (Bounds.radiusBelowOne coefficient epsilon) (a.near x) (b.near x))
+        (Real.leReplace (R.mul delta (Bounds.coefficient (f x) (g x))) (R.mul (Bounds.coefficient (f x) (g x)) delta) (R.mul delta coefficient) (R.mul coefficient delta)
+          (Laws.fieldMulComm delta (Bounds.coefficient (f x) (g x))) (Laws.fieldMulComm delta coefficient)
+          (Estimates.mulMonotone delta (Bounds.coefficient (f x) (g x)) coefficient (Order.leOfLt R.zero delta deltaPositive) (coefficientBound x))))
+      (Bounds.radiusSmall coefficient epsilon positive epsilonPositive)
+  })
+};

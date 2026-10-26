@@ -1,0 +1,25 @@
+\definition nonzero: Op.NonZero v := \bysub(C.Complex, Nonzero, v);
+\use std.Logic[].Equality[].eq_reason_in;
+\definition radius: Real.Real := Absolute.abs v;
+\definition factor: Real.Real := Laws.fieldInv radius;
+\definition radiusNonzero: Logic.Not (radius = Real.zero) :=
+  \fun (same: radius = Real.zero) => nonzero (Absolute.zeroOfAbsZero v same);
+\definition factorNorm: Real.mul (Real.mul factor factor) (Op.normSq v) = Real.one :=
+  eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (Real.mul factor factor)) _ _ (sym!{Real.Real} _ _ (Absolute.square v)) }
+    "=" _ "by" { Algebra.mulFour factor factor radius radius }
+    "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (Laws.fieldInverseNonzero radius radiusNonzero) (Laws.fieldInverseNonzero radius radiusNonzero) }
+    "=" _ "by" { Laws.fieldMulOneLeft Real.one }
+  };
+\definition value: Carrier := \into[C.Complex](Op.scale factor v, unit) \by {
+  trans!{Real.Real} _ _ _ (normScale factor v) factorNorm
+};
+\definition square: \forall (w: C.Complex) -> Op.mul v v = Op.scale (Op.normSq v) w -> Op.mul value value = w :=
+  \fun (w: C.Complex)(equation: _) =>
+  eq_reason_in!{C.Complex _
+    "=" _ "by" { productScale factor v }
+    "=" _ "by" { congr!{C.Complex C.Complex} (Op.scale (Real.mul factor factor)) _ _ equation }
+    "=" _ "by" { sym!{C.Complex} _ _ (scaleAssoc (Real.mul factor factor) (Op.normSq v) w) }
+    "=" _ "by" { congr!{Real.Real C.Complex} (\fun (a: Real.Real) => Op.scale a w) _ _ factorNorm }
+    "=" _ "by" { scaleOne w }
+  };

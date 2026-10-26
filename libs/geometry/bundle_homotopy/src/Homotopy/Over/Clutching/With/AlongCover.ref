@@ -1,0 +1,50 @@
+\definition overlapY: \Pow Y := { y: Y \where Logic.And[\In[Y] UY y, \In[Y] VY y] };
+\definition OverlapY: \Set := \Cast[Y] overlapY;
+\definition overlapTopologyY: topology.Topology[Carrier := OverlapY].Topology := topology.Topology[Carrier := Y].Subspace[S := overlapY].topology source;
+\definition overlapMap[y: OverlapY]: \Cast[X] overlap := \into[X](f y, overlap) \by { Logic.And[_, _]::#
+  (containedU (\into[Y](y, UY) \by { (\bysub(Y, overlapY, y)).left }))
+  (containedV (\into[Y](y, VY) \by { (\bysub(Y, overlapY, y)).right })) };
+\definition overlapContinuous: topology.Continuity[A := OverlapY, B := \Cast[X] overlap].Continuous overlapTopologyY overlapTopology overlapMap :=
+  topology.Continuity[A := OverlapY, B := X].Corestriction[S := overlap].corestrictContinuous overlapTopologyY baseSpace overlapMap
+    (topology.Continuity[A := Y, B := X].Restriction[S := overlapY].restrictContinuous source baseSpace f continuousF);
+\definition pulledG[y: OverlapY]: Units.Carrier := g (overlapMap y);
+\definition pulledContinuous: topology.Continuity[A := OverlapY, B := Units.Carrier].Continuous overlapTopologyY Units.topology pulledG :=
+  topology.Composition[A := OverlapY, B := \Cast[X] overlap, C := Units.Carrier].composeContinuous overlapTopologyY overlapTopology Units.topology overlapMap g overlapContinuous continuous;
+\import \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Clutching[n := n, X := Y, baseSpace := source, U := UY, V := VY, openU := openUY, openV := openVY, covers := covered] \as OtherBase;
+\import OtherBase.With[g := pulledG, continuous := pulledContinuous] \as Other;
+\import Bundles.Family[X := X, F := Fiber].Of[bundle := bundle].Pullback[Y := Y, source := source, f := f] \as Pulled;
+\definition PulledFiber[y: Y]: \Set := Fiber (f y);
+\definition pulledBundle: Bundles.Family[X := Y, F := PulledFiber].Bundle := Pulled.pulled continuousF;
+\definition oldCharts[i: B.Bool^]: Bundles.Family[X := Y, F := PulledFiber].With[data := pulledBundle].Chart := Pulled.In[c := chart i].trivialization continuousF;
+\definition openDomainsY: \forall (i: B.Bool^) -> topology.Topology[Carrier := Y].IsOpenIn source (OtherBase.domain i) :=
+  B.cases (\fun (i: B.Bool^) => topology.Topology[Carrier := Y].IsOpenIn source (OtherBase.domain i)) openUY openVY;
+\definition contained: \forall (i: B.Bool^)(y: \Cast[Y] (OtherBase.domain i)) -> \In[Y] (oldCharts i).domain y :=
+  B.cases (\fun (i: B.Bool^) => \forall (y: \Cast[Y] (OtherBase.domain i)) -> \In[Y] (oldCharts i).domain y)
+    containedU containedV;
+\definition charts[i: B.Bool^]: Bundles.Family[X := Y, F := PulledFiber].With[data := pulledBundle].Chart :=
+  Operations.ChartRestriction[X := Y, F := PulledFiber, bundle := pulledBundle, c := oldCharts i, U := OtherBase.domain i, open := openDomainsY i, contained := contained i].trivialization;
+\import std.Set[].Extension[A := Y, B := Units.Carrier, domain := overlapY] \as ExtendY;
+\definition globalEquality: \forall (y: OverlapY) -> Other.global y = global (f y) := \fun (y: OverlapY) =>
+  trans!{{Units.Carrier}} _ _ _ (ExtendY.inside pulledG Units.identity y) (sym!{{Units.Carrier}} _ _ (Extend.inside g Units.identity (overlapMap y)));
+\definition domainY[i: B.Bool^]: \Pow Y := (charts i).domain;
+\module Point(y: Y);
+\import \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].FromCharts[X := Y, I := B.Bool^, F := PulledFiber, bundle := pulledBundle, charts := charts] \as From;
+\import Operations.Cocycle[X := Y, I := B.Bool^, baseSpace := source, domain := domainY, dimension := dimension] \as GlueY;
+\definition sourceIndex[y: Y][i: GlueY.Index y]: Cocycles.Index (f y) := \into[B.Bool^](i, Cocycles.Index (f y)) \by {
+  contained i (\into[Y](y, OtherBase.domain i) \by { \bysub(B.Bool^, { i: B.Bool^ \where \In[Y] (domainY i) y }, i) })
+};
+\definition transitions: \forall (y: Y)(i, j: GlueY.Index y)(v: Vector n) ->
+  (Other.cocycle.transition y i j).forward.apply v = ((charts j).frame (From.center y j)).forward.apply (((charts i).frame (From.center y i)).backward.apply v) :=
+  \fun (y: Y)(i, j: GlueY.Index y)(v: Vector n) =>
+    trans!{{Vector n}} _ _ _ (Point[y := y].rawEqual i j (\bysub(B.Bool^, { i: B.Bool^ \where \In[Y] (domainY i) y }, i)) (\bysub(B.Bool^, { i: B.Bool^ \where \In[Y] (domainY i) y }, j)) v)
+      (sym!{{Vector n}} _ _ (Constructed.At[x := f y].Frame[i := sourceIndex y i].assembledValue v (sourceIndex y j)));
+\import From.With[cocycle := Other.cocycle, regular := Other.regular, transition := transitions] \as Comparison;
+\definition AlignedIsomorphism: \Set := Comparison.For[c := Other.cocycle, r := Other.regular].Result;
+\definition alignedIsomorphismExists: \exists AlignedIsomorphism := Comparison.exists;
+\definition OtherFiber[y: Y]: \Set := Other.Fiber y;
+\definition otherBundle: Bundles.Family[X := Y, F := OtherFiber].Bundle := Other.bundle;
+\definition Isomorphism: \Set := Bundles.Isomorphisms[X := Y, F := PulledFiber, G := OtherFiber, source := pulledBundle, target := otherBundle].Isomorphism;
+\definition isomorphismExists: \exists Isomorphism := \block {
+  \takefrom result: Comparison.For[c := Other.cocycle, r := Other.regular].Result \by Comparison.exists \then
+  \return \exact(result.value, Isomorphism)
+};

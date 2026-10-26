@@ -1,0 +1,13 @@
+\import std.Data[].FinSet[] \as Fin;
+\import Fin.Choice[A := Function] \as Choice;
+\definition Family: \Set := Fin.Fin n -> Function;
+\definition Error[f, g: Family][epsilon: R.Real]: \Prop := \forall (i: Fin.Fin n)(x: X) -> Real.Lt (Abs.abs (O.sub (f i x) (g i x))) epsilon;
+\definition density: \forall (A: \Pow Function)(f: Family) -> (\forall (i: Fin.Fin n) -> Approximates A (f i)) -> \forall (epsilon: R.Real) -> Real.Lt R.zero epsilon ->
+  \exists (g: Family \where Logic.And[(\forall (i: Fin.Fin n) -> \In[Function] A (g i)), Error f g epsilon]) := \block {
+  \fun (A: \Pow Function)(f: Family)(each: \forall (i: Fin.Fin n) -> Approximates A (f i))(epsilon: R.Real)(positive: Real.Lt R.zero epsilon) \then
+  \takefrom g: \Cast[Family] ({ g: Family \where \forall (i: Fin.Fin n) -> Logic.And[\In[Function] A (g i), \forall (x: X) -> Real.Lt (Abs.abs (O.sub (f i x) (g i x))) epsilon] })
+    \by Choice.exists n (\fun (i: Fin.Fin n)(a: Function) => Logic.And[\In[Function] A a, \forall (x: X) -> Real.Lt (Abs.abs (O.sub (f i x) (a x))) epsilon]) (\fun (i: Fin.Fin n) => each i epsilon positive) \then
+  \let properties: \forall (i: Fin.Fin n) -> Logic.And[\In[Function] A (g i), \forall (x: X) -> Real.Lt (Abs.abs (O.sub (f i x) (g i x))) epsilon] := \bysub(Family, { g: Family \where \forall (i: Fin.Fin n) -> Logic.And[\In[Function] A (g i), \forall (x: X) -> Real.Lt (Abs.abs (O.sub (f i x) (g i x))) epsilon] }, g) \then
+  \return Logic.existsIntro[Family, { g: Family \where Logic.And[(\forall (i: Fin.Fin n) -> \In[Function] A (g i)), Error f g epsilon] }] g (Logic.And[_, _]::# (\fun (i: Fin.Fin n) => (properties i).left) (\fun (i: Fin.Fin n) => (properties i).right))
+};
+\module Grid(m: N.Nat^);

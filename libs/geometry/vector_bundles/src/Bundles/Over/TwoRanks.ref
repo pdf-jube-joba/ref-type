@@ -1,0 +1,41 @@
+
+\import std.Data[].Bool[] \as B;
+\definition rank[b: B.Bool^]: N.Nat^ := B.ite N.Nat^ b n m;
+\definition Fiber[b: B.Bool^]: \Set := Vector (rank b);
+\import \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := B.Bool^, F := Fiber] \as Family;
+\import topology.Topology[Carrier := B.Bool^] \as Base;
+\import topology.Topology[Carrier := Family.Point] \as Total;
+\import topological_constructions.Coproduct[A := Vector n, B := Vector m] \as Sum;
+\definition inject: \forall (b: B.Bool^) -> Fiber b -> Sum.Carrier := \induction (b: B.Bool^) \return Fiber b -> Sum.Carrier \with { | false: Sum.inr | true: Sum.inl };
+\definition embedding[p: Family.Point]: Sum.Carrier := inject p.base p.vector;
+\import topological_constructions.Induced[A := Family.Point, B := Sum.Carrier] \as Induced;
+\definition topology: Total.Topology := Induced.topology (Sum.topology (coordinateTopology n) (coordinateTopology m)) embedding;
+\definition embeddingContinuous: topology.Continuity[A := Family.Point, B := Sum.Carrier].Continuous topology (Sum.topology (coordinateTopology n) (coordinateTopology m)) embedding := Induced.continuous (Sum.topology (coordinateTopology n) (coordinateTopology m)) embedding;
+\definition data: Family.Data := Family.Data { baseSpace := Base.Discrete, totalSpace := topology, space := \fun (b: B.Bool^) => coordinates (rank b) };
+\import Family.With[data := data] \as Charts;
+\import std.Data[].Sum[] \as S;
+\definition tag: Sum.Carrier -> B.Bool^ := \induction (p: S.Sum[Vector n, Vector m]) \return B.Bool^ \with { | inl: \fun (v: Vector n) => B.Bool^::true | inr: \fun (v: Vector m) => B.Bool^::false };
+\import Sum.Universal[C := B.Bool^] \as Tags;
+\definition tagContinuous: topology.Continuity[A := Sum.Carrier, B := B.Bool^].Continuous (Sum.topology (coordinateTopology n) (coordinateTopology m)) Base.Discrete tag :=
+  Tags.continuous (coordinateTopology n) (coordinateTopology m) Base.Discrete (\fun (v: Vector n) => B.Bool^::true) (\fun (v: Vector m) => B.Bool^::false)
+    (topology.Maps[A := Vector n, B := B.Bool^].constantContinuous (coordinateTopology n) Base.Discrete B.Bool^::true)
+    (topology.Maps[A := Vector m, B := B.Bool^].constantContinuous (coordinateTopology m) Base.Discrete B.Bool^::false);
+\definition tagInject: \forall (b: B.Bool^)(v: Fiber b) -> tag (inject b v) = b :=
+  \induction (b: B.Bool^) \return \forall (v: Fiber b) -> tag (inject b v) = b \with {
+    | false: \fun (v: Fiber B.Bool^::false) => \refl(B.Bool^::false)
+    | true: \fun (v: Fiber B.Bool^::true) => \refl(B.Bool^::true)
+  };
+\import topology.Composition[A := Family.Point, B := Sum.Carrier, C := B.Bool^] \as Project;
+\definition projectionContinuous: topology.Continuity[A := Family.Point, B := B.Bool^].Continuous topology Base.Discrete Family.projection :=
+  \idelim (\fun (p: Family.Point) => tag (embedding p)) = Family.projection \with f: (Family.Point -> B.Bool^) => topology.Continuity[A := Family.Point, B := B.Bool^].Continuous topology Base.Discrete f \by {
+    base: Project.composeContinuous topology (Sum.topology (coordinateTopology n) (coordinateTopology m)) Base.Discrete embedding tag embeddingContinuous tagContinuous,
+    equality: \axiom:funext((\fun (p: Family.Point) => tag (embedding p)), Family.projection, \fun (p: Family.Point) => tagInject p.base p.vector)
+  };
+\module Left;
+\module Right;
+\definition bundle: Family.Bundle := \into[Family.Data](data, Family.Bundle) \by {
+  \induction (b: B.Bool^) \return \exists ( c: Charts.Chart \where Base.Member c.domain b ) \with {
+    | false: Logic.existsIntro[Charts.Chart, { c: Charts.Chart \where Base.Member c.domain B.Bool^::false }] Right[].trivialization (\refl(B.Bool^::false))
+    | true: Logic.existsIntro[Charts.Chart, { c: Charts.Chart \where Base.Member c.domain B.Bool^::true }] Left[].trivialization (\refl(B.Bool^::true))
+  }
+};

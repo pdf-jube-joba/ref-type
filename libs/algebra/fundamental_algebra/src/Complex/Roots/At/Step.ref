@@ -1,0 +1,20 @@
+\import galois.Field[].Over[K := Real.Real, field := Algebra.field] \as Reals;
+\import \root.Complex[].Variation[a := Difference.value, n := term.order, h := term.coefficients, w := w] \as Variation;
+\definition c: C.Complex := Op.mul (Op.conj Difference.value) (Monic.evaluate term.coefficients Op.zero);
+\definition contradiction: Minimum.Global[p, a] -> Logic.False := \block {
+  \fun (minimum: Minimum.Global[p, a]) \then
+    \let direction: R.Lt Variation.leading Real.zero := \bysub(Units.Carrier, { v: Units.Carrier \where R.Lt (C.re (Op.mul c (Field.power v term.order))) Real.zero }, w) \then
+    \takefrom t: \Cast[Real.Real] ({ t: Real.Real \where Variation.Decrease[].Improvement[t, Real.one] })
+      \by Variation.Decrease[].exists (Difference.orderPositive term) direction Real.one (\root.Complex[].Bounds[].onePositive) \then
+    \let improvement: Variation.Decrease[].Improvement[t, Real.one] := \bysub(Real.Real, { t: Real.Real \where Variation.Decrease[].Improvement[t, Real.one] }, t) \then
+    \let z: C.Complex := Op.scale t w \then
+    \let evaluation: Monic.monicEvaluate p (Op.add z a) = Variation.perturb t := eq_reason_in!{C.Complex { Monic.monicEvaluate p (Op.add z a) }
+      "=" _ "by" { Difference.recover z }
+      "=" { Op.add Difference.value (Op.mul (Field.power z term.order) (Monic.evaluate term.coefficients z)) } "by" { congr!{C.Complex C.Complex} (Op.add Difference.value) _ _ (Difference.termEvaluation term z) }
+      "=" { Op.add Difference.value (Op.mul (Op.scale (Reals.power t term.order) (Field.power w term.order)) (Monic.evaluate term.coefficients z)) } "by" { congr!{C.Complex C.Complex} (\fun (b: C.Complex) => Op.add Difference.value (Op.mul b (Monic.evaluate term.coefficients z))) _ _ (Scaling.power t w term.order) }
+      "=" _ "by" { congr!{C.Complex C.Complex} (Op.add Difference.value) _ _ (Complex.scaleMulLeft (Reals.power t term.order) (Field.power w term.order) (Monic.evaluate term.coefficients z)) }
+    } \then
+    \let lower: R.Le (Op.normSq Difference.value) (Op.normSq (Variation.perturb t)) :=
+      R.leReplaceRight _ _ _ (congr!{C.Complex Real.Real} Op.normSq _ _ evaluation) (normLower Difference.value (Monic.monicEvaluate p (Op.add z a)) (minimum.lower (Op.add z a))) \then
+    \return R.ltNotLeReverse _ _ improvement.lower lower
+};

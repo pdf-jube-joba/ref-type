@@ -1,0 +1,28 @@
+\definition left: \forall (xs: Monic.Coefficients) -> Monic.Over Allowed xs -> Monic.Over (\fun (z: C.Complex) => Space.Member Inside z) (Filtering.filter xs) :=
+  \induction (xs: Monic.Coefficients) \return Monic.Over Allowed xs -> Monic.Over (\fun (z: C.Complex) => Space.Member Inside z) (Filtering.filter xs) \with {
+    | nil: \fun (_: _) => Logic.True::intro
+    | cons: \fun (z: C.Complex)(tail: Monic.Coefficients)(previous: _)(all: Logic.And[Allowed z, Monic.Over Allowed tail]) =>
+      (\induction (b: B.Bool^) \return test z = b -> Monic.Over (\fun (w: C.Complex) => Space.Member Inside w)
+        (B.ite Monic.Coefficients b (Lists.List[C.Complex]::cons z (Filtering.filter tail)) (Filtering.filter tail)) \with {
+        | false: \fun (_: _) => previous all.right
+        | true: \fun (same: _) => Logic.And[_, _]::# (selected z same) (previous all.right)
+      }) (test z) (\refl(test z))
+  };
+\definition right: \forall (xs: Monic.Coefficients) -> Monic.Over Allowed xs -> Monic.Over (\fun (z: C.Complex) => Space.Member Outside z) (Filtering.other xs) :=
+  \induction (xs: Monic.Coefficients) \return Monic.Over Allowed xs -> Monic.Over (\fun (z: C.Complex) => Space.Member Outside z) (Filtering.other xs) \with {
+    | nil: \fun (_: _) => Logic.True::intro
+    | cons: \fun (z: C.Complex)(tail: Monic.Coefficients)(previous: _)(all: Logic.And[Allowed z, Monic.Over Allowed tail]) =>
+      (\induction (b: B.Bool^) \return test z = b -> Monic.Over (\fun (w: C.Complex) => Space.Member Outside w)
+        (B.ite Monic.Coefficients (B.Neg.specification b) (Lists.List[C.Complex]::cons z (Filtering.other tail)) (Filtering.other tail)) \with {
+        | false: \fun (same: _) => Logic.And[_, _]::# (rejected z all.left same) (previous all.right)
+        | true: \fun (_: _) => previous all.right
+      }) (test z) (\refl(test z))
+  };
+\definition nonzero: \forall (xs: Monic.Coefficients) -> Logic.Not (Monic.factors xs = P.zero) :=
+  \fun (xs: Monic.Coefficients)(zero: _) => Normalization.monicNonzero (RootProduct.coefficients xs)
+    (trans!{{P.Carrier}} _ _ _ (RootProduct.factorization xs) zero);
+\definition coprime: \forall (xs: Monic.Coefficients) -> Monic.Over Allowed xs -> Polynomials.Coprime (Monic.factors (Filtering.filter xs)) (Monic.factors (Filtering.other xs)) :=
+  \fun (xs: Monic.Coefficients)(all: _) => Coprime.exists _ _ (nonzero (Filtering.filter xs))
+    (\fun (z: C.Complex)(leftRoot: _)(rightRoot: _) => disjoint z
+      (Splitting.factorsRoot (\fun (w: C.Complex) => Space.Member Inside w) (Filtering.filter xs) (left xs all) z leftRoot)
+      (Splitting.factorsRoot (\fun (w: C.Complex) => Space.Member Outside w) (Filtering.other xs) (right xs all) z rightRoot));

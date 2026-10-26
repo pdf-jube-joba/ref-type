@@ -1,0 +1,25 @@
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Alg[].Ring[] \as Rings;
+\import algebra.Hom[A := Carrier, B := I.Int^] \as Hom;
+\import algebra.Hom[A := I.Int^, B := Carrier] \as Backward;
+\definition map: Hom.RingMap Group.ring Integers.ring := \into[Carrier -> I.Int^](forward, Hom.RingMap Group.ring Integers.ring) \by {
+  Hom.SemiringLaws[(Rings.ringAsSemiring Carrier Group.ring), (Rings.ringAsSemiring I.Int^ Integers.ring), forward] {
+    zero := zeroRank, one := oneRank, add := additive, mul := multiplicative
+  }
+};
+\definition backwardMul: \forall (a, b: I.Int^) -> backward (I.Mul.specification a b) = Group.mul (backward a) (backward b) := \fun (a, b: I.Int^) =>
+  injective _ _ (trans!{{I.Int^}} _ _ _ (rightInverse (I.Mul.specification a b))
+    (sym!{{I.Int^}} _ _ (trans!{{I.Int^}} _ _ _ (multiplicative (backward a) (backward b))
+      (congr!{{I.Int^} {I.Int^} {I.Int^}} I.Mul.specification _ _ _ _ (rightInverse a) (rightInverse b)))));
+\definition inverse: Backward.RingMap Integers.ring Group.ring := \into[I.Int^ -> Carrier](backward, Backward.RingMap Integers.ring Group.ring) \by {
+  Backward.SemiringLaws[(Rings.ringAsSemiring I.Int^ Integers.ring), (Rings.ringAsSemiring Carrier Group.ring), backward] {
+    zero := backwardZero, one := backwardOne, add := backwardAdd, mul := backwardMul
+  }
+};
+\structure Isomorphism: \Set := {
+  to: Hom.RingMap Group.ring Integers.ring,
+  from: Backward.RingMap Integers.ring Group.ring,
+  leftInverse: \forall (x: Carrier) -> from (to x) = x,
+  rightInverse: \forall (z: I.Int^) -> to (from z) = z
+};
+\definition isomorphism: Isomorphism := Isomorphism { to := map, from := inverse, leftInverse := leftInverse, rightInverse := rightInverse };

@@ -1,0 +1,42 @@
+\import \root.Linearization[].Powers[] \as Powers;
+\import Powers.Families[X := Overlap, source := overlapTopology, z := z, regular := continuousZ] \as Continuity;
+\import std.Data[].FinSet[] \as Fin;
+\import Spaces.Coordinates[I := Fin.Fin n] \as Vectors;
+\import Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as End;
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := source, compact := compact, hausdorff := hausdorff] \as K;
+\import K.K0[] \as K0;
+\module At(k: N.Nat^) {
+  \import \root.Linearization[].ScalarUnits[n := n, X := Overlap, source := overlapTopology,
+    a := (\fun (x: Overlap) => Powers.value (z x) k), continuous := Continuity.continuous k,
+    nonzero := (\fun (x: Overlap) => Powers.nonzero (z x) (unitZ x) k)] \as Scalar;
+  \definition transition: Overlap -> Units.Carrier := Scalar.value;
+  \definition regular: topology.Continuity[A := Overlap, B := Units.Carrier].Continuous overlapTopology Units.topology transition := Scalar.valueContinuous;
+  \definition formula: \forall (x: Overlap)(v: Vectors.Vector) -> (transition x).apply v = Vectors.space.smul (Powers.value (z x) k) v := Scalar.formula;
+  \import \parent.\parent.Class[g := transition, continuous := regular] \as Class;
+  \definition value: K0.Carrier := Class.value;
+}
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\import At[k := one] \as First;
+\definition generator: K0.Carrier := First.value;
+\definition multiple: N.Nat^ -> K0.Carrier := \induction (k: N.Nat^) \return K0.Carrier \with {
+  | zero: K0.zero
+  | succ: \fun (k: N.Nat^)(previous: K0.Carrier) => K0.add generator previous
+};
+\import At[k := N.Nat^::zero] \as Zero;
+\import Clutching.Identity[] \as Identity;
+\import \parent.Class[g := Zero.transition, continuous := Zero.regular] \as ZeroClass;
+\definition zeroEquality: \forall (x: Overlap) -> Zero.transition x = Identity.identity x :=
+  \fun (x: Overlap) => End.ext _ _ (\axiom:funext((Zero.transition x).apply, (Identity.identity x).apply,
+    \fun (v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _ (Zero.formula x v) (Vectors.space.scalarOne v)));
+\definition atZero: Zero.value = K0.zero :=
+  trans!{K0.Carrier} _ _ _ (ZeroClass.Compare[h := Identity.identity, continuousH := Identity.continuous].ofEquality zeroEquality) ZeroClass.identityClass;
+\module Step(k: N.Nat^);
+\definition formula: \forall (k: N.Nat^) -> At[k := k].value = multiple k :=
+  \induction (k: N.Nat^) \return At[k := k].value = multiple k \with {
+    | zero: atZero
+    | succ: \fun (k: N.Nat^)(previous: _) => trans!{K0.Carrier} _ _ _ Step[k := k].additivity
+      (congr!{K0.Carrier K0.Carrier} (K0.add generator) _ _ previous)
+  };
+\module Times(a: Overlap -> Units.Carrier,
+  continuousA: topology.Continuity[A := Overlap, B := Units.Carrier].Continuous overlapTopology Units.topology a);
+\module Rank;

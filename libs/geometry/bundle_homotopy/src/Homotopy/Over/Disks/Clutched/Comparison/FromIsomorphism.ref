@@ -1,0 +1,21 @@
+\import PositiveSide.FromIsomorphism[iso := iso] \as Left;
+\import NegativeSide.FromIsomorphism[iso := iso] \as Right;
+\module At(x: Sphere.Sphere, inPositive: \In[Sphere.Sphere] Cover.PositiveHalf x, inNegative: \In[Sphere.Sphere] Cover.NegativeHalf x);
+\definition compatible: \forall (x: Sphere.Sphere)(inPositive: \In[Sphere.Sphere] Cover.PositiveHalf x)(inNegative: \In[Sphere.Sphere] Cover.NegativeHalf x)(v: Vector n) ->
+  (Right.value (\into[Sphere.Sphere](x, Cover.NegativeHalf) \by { inNegative })).apply ((g (boundary (Cover.overlapPoint x inPositive inNegative))).apply v) =
+  (g2 (boundary (Cover.overlapPoint x inPositive inNegative))).apply ((Left.value (\into[Sphere.Sphere](x, Cover.PositiveHalf) \by { inPositive })).apply v) :=
+  \fun (x: Sphere.Sphere)(inPositive: _)(inNegative: _) => At[x := x, inPositive := inPositive, inNegative := inNegative].compatible;
+\definition value: Gauge := Gauge { positive := Left.value, negative := Right.value, positiveContinuous := Left.regular, negativeContinuous := Right.regular, compatible := compatible };
+
+\definition positiveDisk[v: Disk.Disk]: Units.Carrier := Left.value (Cover.positivePoint v);
+\definition negativeDisk[v: Disk.Disk]: Units.Carrier := Right.value (Cover.negativePoint v);
+\definition positiveDiskContinuous: topology.Continuity[A := Disk.Disk, B := Units.Carrier].Continuous Disk.diskTopology Units.topology positiveDisk :=
+  topology.Composition[A := Disk.Disk, B := PositiveSide.Carrier, C := Units.Carrier].composeContinuous Disk.diskTopology PositiveSide.topology Units.topology Cover.positivePoint Left.value
+    (topology.Homeomorphism[A := Disk.Disk, B := PositiveSide.Carrier].laws Disk.diskTopology PositiveSide.topology Cover.positiveHomeomorphism).forwardContinuous Left.regular;
+\definition negativeDiskContinuous: topology.Continuity[A := Disk.Disk, B := Units.Carrier].Continuous Disk.diskTopology Units.topology negativeDisk :=
+  topology.Composition[A := Disk.Disk, B := NegativeSide.Carrier, C := Units.Carrier].composeContinuous Disk.diskTopology NegativeSide.topology Units.topology Cover.negativePoint Right.value
+    (topology.Homeomorphism[A := Disk.Disk, B := NegativeSide.Carrier].laws Disk.diskTopology NegativeSide.topology Cover.negativeHomeomorphism).forwardContinuous Right.regular;
+\module Boundary(s: Disk.Sphere);
+\definition diskCompatible: \forall (s: Disk.Sphere)(v: Vector n) -> (negativeDisk (Halves.boundaryInclusion s)).apply ((g s).apply v) = (g2 s).apply ((positiveDisk (Halves.boundaryInclusion s)).apply v) :=
+  \fun (s: Disk.Sphere) => Boundary[s := s].diskLaw;
+\definition diskGauge: DiskGauge := DiskGauge { positive := positiveDisk, negative := negativeDisk, positiveContinuous := positiveDiskContinuous, negativeContinuous := negativeDiskContinuous, compatible := diskCompatible };

@@ -1,0 +1,29 @@
+\definition Of[p: Polynomial]: \Set := \Cast[Coefficients] ({ r: Coefficients \where Raw.asPolynomial r = p });
+\definition singleton[a: K]: Coefficients := Lists.List[K]::cons a Lists.List[K]::nil;
+\definition singletonLaw: \forall (a: K) -> Raw.asPolynomial (singleton a) = P.constant a :=
+  \fun (a: K) => trans!{Polynomial} _ _ _
+    (congr!{Polynomial Polynomial} (P.add (P.constant a)) _ _ (Raw.ring.semiring.zeroAbsorbsRight P.X)) (Sum.zeroRight (P.constant a));
+\definition exists: \forall (p: Polynomial) -> \exists Of p := P.Finite[].exists;
+\definition gcdExists: \forall (p, q: Polynomial) -> \exists Gcd[p, q] := \block {
+  \fun (p, q: Polynomial) \then
+  \takefrom a: Of p \by exists p \then
+  \takefrom b: Of q \by exists q \then
+  \return \idelim Raw.asPolynomial a = p \with x: Polynomial => \exists Gcd[x, q] \by {
+    base: \idelim Raw.asPolynomial b = q \with y: Polynomial => \exists Gcd[Raw.asPolynomial a, y] \by {
+      base: \parent.Euclid[].exists a b, equality: \bysub(Coefficients, Of q, b)
+    }, equality: \bysub(Coefficients, Of p, a)
+  }
+};
+\structure PresentedDivision[p, q: Polynomial]: \Set := {
+  dividend: Of p,
+  divisor: Of q,
+  result: DivisionResult[dividend, divisor],
+};
+\definition divisionExists: \forall (p, q: Polynomial) -> Logic.Not (q = P.zero) -> \exists PresentedDivision[p, q] := \block {
+  \fun (p, q: Polynomial)(nonzero: _) \then
+  \takefrom a: Of p \by exists p \then
+  \takefrom b: Of q \by exists q \then
+  \takefrom result: DivisionResult[a, b] \by \parent.Euclid[].divide a b
+    (\fun (zero: Raw.asPolynomial b = P.zero) => nonzero (trans!{Polynomial} _ _ _ (sym!{Polynomial} _ _ (\bysub(Coefficients, Of q, b))) zero)) \then
+  \return \exact(PresentedDivision[p, q] { dividend := a, divisor := b, result := result }, PresentedDivision[p, q])
+};

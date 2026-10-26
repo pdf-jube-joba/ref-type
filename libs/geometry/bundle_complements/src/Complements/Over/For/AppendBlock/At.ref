@@ -1,0 +1,16 @@
+\import Sum.Universal[U := F x, domain := bundle.space x] \as Pair;
+\definition pair: Spaces.Linear[V := F x, W := Sum.Carrier, source := bundle.space x, target := Sum.space].Map := Pair.pair (Head.map.fiber x) (previous.map.fiber x);
+\import Spaces.Linear[V := Sum.Carrier, W := Vector (dimension (Lists.List[WeightedChart]::cons head tail)), source := Sum.space, target := coordinates (dimension (Lists.List[WeightedChart]::cons head tail))].Composition[U := F x, domain := bundle.space x] \as Compose;
+\definition map: Spaces.Linear[V := F x, W := Vector (dimension (Lists.List[WeightedChart]::cons head tail)), source := bundle.space x, target := coordinates (dimension (Lists.List[WeightedChart]::cons head tail))].Map := Compose.compose Coordinates.forward pair;
+\definition componentsZero: \forall (v: F x) -> map.apply v = (coordinates (dimension (Lists.List[WeightedChart]::cons head tail))).zero -> pair.apply v = Sum.origin :=
+  \fun (v: F x)(zero: _) => trans!{{Sum.Carrier}} _ _ _ (sym!{{Sum.Carrier}} _ _ (Coordinates.isomorphism.leftInverse (pair.apply v)))
+    (trans!{{Sum.Carrier}} _ _ _ (congr!{{Vector (dimension (Lists.List[WeightedChart]::cons head tail))} {Sum.Carrier}} Coordinates.backward.apply _ _ zero) Coordinates.backward.preservesZero);
+\definition kernelMass: \forall (v: F x) -> map.apply v = (coordinates (dimension (Lists.List[WeightedChart]::cons head tail))).zero -> (bundle.space x).smul (conjugation.embed (mass (Lists.List[WeightedChart]::cons head tail) x)) v = (bundle.space x).zero :=
+  \fun (v: F x)(zero: _) => trans!{{F x}} _ _ _
+    (congr!{K {F x}} (\fun (a: K) => (bundle.space x).smul a v) _ _ (conjugation.embedAdd (head.weight x) (mass tail x)))
+    (trans!{{F x}} _ _ _ ((bundle.space x).scalarAdd (conjugation.embed (head.weight x)) (conjugation.embed (mass tail x)) v)
+      (trans!{{F x}} _ _ _
+        (congr!{{F x} {F x} {F x}} (bundle.space x).add _ _ _ _
+          (Head.Kernel[x := x].killsScaled v (congr!{{Sum.Carrier} {Vector n}} Sum.first _ _ (componentsZero v zero)))
+          (previous.kernelMass x v (congr!{{Sum.Carrier} {Vector m}} Sum.second _ _ (componentsZero v zero))))
+        (Spaces.Laws[V := F x, space := bundle.space x].zeroLeft (bundle.space x).zero)));

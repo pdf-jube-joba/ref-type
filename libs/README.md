@@ -34,7 +34,13 @@
 | [algebra/commutative_algebra](algebra/commutative_algebra/README.md) | `commutative_algebra` | Hom とテンソル積、射影性、有限自由加群の行列 |
 | [algebra/integer_matrices](algebra/integer_matrices/README.md) | `integer_matrices` | 整数行列の演算、Smith 標準形と変換行列 |
 | [algebra/finitely_generated_modules](algebra/finitely_generated_modules/README.md) | `finitely_generated_modules` | 整数の核・像・部分加群の基底、巡回加群、体上の有限次元部分空間 |
-| [algebra/linear_algebra](algebra/linear_algebra/README.md) | `linear_algebra` | 体上の線形代数、多重線形・外代数、実数・複素数への具体化 |
+| [algebra/linear_algebra](algebra/linear_algebra/README.md) | `linear_algebra` | 可換環上の線形・多重線形・外代数、実数・複素数への具体化 |
+| [algebra/matrix_invariants](algebra/matrix_invariants/README.md) | `matrix_invariants` | 行列式、余因子・随伴行列、逆行列、実・複素行列族の連続性と開性 |
+| [algebra/polynomial_linear_algebra](algebra/polynomial_linear_algebra/README.md) | `polynomial_linear_algebra` | 多項式の除法・互除法と Bézout 係数、中国剰余定理、Cayley–Hamilton、核の直和分解と係数変更 |
+| [algebra/fundamental_algebra](algebra/fundamental_algebra/README.md) | `fundamental_algebra` | 複素多項式の無限遠での評価・最小値・根の存在、重複度付き完全分解と一意な有限根族 |
+| [algebra/complex_polynomial_roots](algebra/complex_polynomial_roots/README.md) | `complex_polynomial_roots` | 根の有界性、有限対称積と係数空間の同相、分離した根群の連続な因子 |
+| [algebra/hermitian_frames](algebra/hermitian_frames/README.md) | `hermitian_frames` | Hermitian 形式、連続な正規直交化、射影の局所枠と逆座標、ユニタリ群 |
+| [algebra/spectral_splitting](algebra/spectral_splitting/README.md) | `spectral_splitting` | 単位円内外の根因子、連続なスペクトル射影、像束とホモトピー比較 |
 | [algebra/lie_algebras](algebra/lie_algebras/README.md) | `lie_algebras` | リー代数、随伴表現、交換子、部分リー代数、自己準同型代数 |
 | [algebra/clifford](algebra/clifford/README.md) | `clifford` | クリフォード代数の商構成と普遍性、Pin・Spin と複素拡張の群構造 |
 | [algebra/homological/chain_complexes](algebra/homological/chain_complexes/README.md) | `chain_complexes` | 自然数・整数次数の複体、ホモロジー、写像・ホモトピー・複体の圏 |
@@ -49,6 +55,7 @@
 
 | 配置 | パッケージ | 内容 |
 | --- | --- | --- |
+| [analysis/uniform_approximation](analysis/uniform_approximation/README.md) | `uniform_approximation` | 実・複素 Stone–Weierstrass、円周と積上の Laurent 近似、行列・束自己準同型の一様評価 |
 | [analysis/calculus](analysis/calculus/README.md) | `calculus` | 極限、平均値定理、多変数微分、滑らかな写像 |
 | [analysis/differential_equations](analysis/differential_equations/README.md) | `differential_equations` | Picard の積分作用素、常微分方程式の局所解の存在・一意性、滑らかなベクトル場の解の滑らかさ |
 | [analysis/functional](analysis/functional/README.md) | `functional_analysis` | 実ノルム空間・Hilbert 空間、Arzelà–Ascoli・Riesz 表現・Hahn–Banach・開写像定理、コンパクト台、\(L^p\)・弱微分・Sobolev 空間の定義 |
@@ -59,6 +66,10 @@
 | 配置 | パッケージ | 内容 |
 | --- | --- | --- |
 | [geometry/manifolds](geometry/manifolds/README.md) | `manifolds` | アトラス、滑らかな写像、接空間と微分 |
+| [geometry/vector_bundles](geometry/vector_bundles/README.md) | `vector_bundles` | 一般の実・複素束、局所定数ランク、束写像・切断・引き戻しと普遍性 |
+| [geometry/bundle_operations](geometry/bundle_operations/README.md) | `bundle_operations` | Cocycle の貼り合わせ、直和・テンソル・双対・Hom・外冪、実化・複素化と引き戻し |
+| [geometry/bundle_complements](geometry/bundle_complements/README.md) | `bundle_complements` | 有限分割からの計量・有限埋め込み、直交補束、連続射影の像と同型類の集合 |
+| [geometry/bundle_homotopy](geometry/bundle_homotopy/README.md) | `bundle_homotopy` | 束のホモトピー比較、cofibration に沿う相対延長、球面の clutching と gauge による同型判定 |
 | [geometry/tangent_bundles](geometry/tangent_bundles/README.md) | `tangent_bundles` | 接束の全空間、接写像、関手則、滑らかなファイバー演算 |
 | [geometry/normal_bundles](geometry/normal_bundles/README.md) | `normal_bundles` | はめ込みの法束、局所正規直交枠、直和分解、底空間変更と安定化 |
 | [geometry/examples/tangent_normal](geometry/examples/tangent_normal/README.md) | `tangent_normal` | ユークリッド接束、座標包含、放物線、退化次数の利用例 |
@@ -74,6 +85,8 @@
 | --- | --- | --- |
 | [topology/basic](topology/basic/README.md) | `topology` | 位相・部分空間、連続写像、コンパクト性、分離性 |
 | [topology/metric](topology/metric/README.md) | `metric_spaces` | 距離位相、距離化、実数直線、実数値関数、有限従属分割 |
+| [topology/clutching_linearization](topology/clutching_linearization/README.md) | `clutching_linearization` | Laurent 近似、companion 安定線形化、選択に依存しないスペクトル逆クラス、自然性・直和・基本積の相互逆 |
+| [topology/k_theory](topology/k_theory/README.md) | `topological_k_theory` | 複素束の Grothendieck 環、安定同型判定、反変引き戻し、ランクと被約群、有限離散計算 |
 | [topology/constructions](topology/constructions/README.md) | `topological_constructions` | 積、商、直和、貼り合わせ、compact-open 位相 |
 | [topology/algebra](topology/algebra/README.md) | `topological_algebra` | 位相的代数、座標空間・行列位相、連続性判定 |
 | [topology/homotopy](topology/homotopy/README.md) | `algebraic_topology` | ホモトピー、基点付き商、mapping cone、有限 CW 対、標準単体の座標 |

@@ -1,0 +1,17 @@
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := G, source := source, target := target, f := (\fun (x: X) => x)] \as Maps;
+\definition data: Maps.Data := Maps.Data { fiber := fiber };
+\import Left.Applying[map := left] \as LeftMap;
+\import Right.Applying[map := right] \as RightMap;
+\definition leftEquality: LeftMap.value = (\fun (p: Left.TotalPoint) => Maps.total data p) :=
+  \axiom:funext(LeftMap.value, (\fun (p: Left.TotalPoint) => Maps.total data p), \fun (p: Left.TotalPoint) => congr!{{G p.base} Target.Point} (Target.include p.base) _ _ (sym!{{G p.base}} _ _ (matchesLeft (Left.base p) p.vector)));
+\definition rightEquality: RightMap.value = (\fun (p: Right.TotalPoint) => Maps.total data p) :=
+  \axiom:funext(RightMap.value, (\fun (p: Right.TotalPoint) => Maps.total data p), \fun (p: Right.TotalPoint) => congr!{{G p.base} Target.Point} (Target.include p.base) _ _ (sym!{{G p.base}} _ _ (matchesRight (Right.base p) p.vector)));
+\definition leftContinuous: topology.Continuity[A := Left.TotalPoint, B := Target.Point].Continuous Left.localTopology target.totalSpace (\fun (p: Left.TotalPoint) => Maps.total data p) :=
+  \idelim LeftMap.value = (\fun (p: Left.TotalPoint) => Maps.total data p) \with f: (Left.TotalPoint -> Target.Point) => topology.Continuity[A := Left.TotalPoint, B := Target.Point].Continuous Left.localTopology target.totalSpace f \by { base: LeftMap.continuous, equality: leftEquality };
+\definition rightContinuous: topology.Continuity[A := Right.TotalPoint, B := Target.Point].Continuous Right.localTopology target.totalSpace (\fun (p: Right.TotalPoint) => Maps.total data p) :=
+  \idelim RightMap.value = (\fun (p: Right.TotalPoint) => Maps.total data p) \with f: (Right.TotalPoint -> Target.Point) => topology.Continuity[A := Right.TotalPoint, B := Target.Point].Continuous Right.localTopology target.totalSpace f \by { base: RightMap.continuous, equality: rightEquality };
+\definition continuous: topology.Continuity[A := Source.Point, B := Target.Point].Continuous source.totalSpace target.totalSpace (Maps.total data) :=
+  topological_constructions.Gluing[A := Source.Point, B := Target.Point].BinaryClosed[F := Left.totalSubset, G := Right.totalSubset].continuous source.totalSpace target.totalSpace (Maps.total data)
+    (projectionContinuous (topology.Topology[Carrier := X].Complement C) closedC) (projectionContinuous (topology.Topology[Carrier := X].Complement D) closedD)
+    (\fun (p: Source.Point) => covers p.base) leftContinuous rightContinuous;
+\definition map: Maps.Map := \into[Maps.Data](data, Maps.Map) \by { continuous };

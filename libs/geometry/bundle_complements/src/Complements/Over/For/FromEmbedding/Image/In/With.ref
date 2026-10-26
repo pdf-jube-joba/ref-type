@@ -1,0 +1,15 @@
+\import Native.Families[X := Carrier].Orthonormalized[k := k, source := source, A := A, factors := factors] \as Normalized;
+\import Hermitian.Functions[X := Carrier] \as Functions;
+\definition regular: Native.Families[X := Carrier].Matrix[m := n].Regular source (\fun (x: Carrier) => (projection x).map) :=
+  \fun (v: Vector n)(i: Fin.Fin n) => Functions.transport source
+    (\fun (x: Carrier) => (Normalized.projection x).map.apply v i) (\fun (x: Carrier) => (projection x).map.apply v i)
+    (\fun (x: Carrier) => sym!{K} _ _ (congr!{End.Map K} (\fun (f: End.Map) => f.apply v i) _ _
+      (\root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].For[X := X, F := F, bundle := bundle].FromEmbedding[embedding := embedding].Image[].In[chart := chart].Point[x := x].comparison (factors.value x))))
+    (Normalized.regular v i);
+\import \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Finite[n := n].InverseFamily[X := Carrier, k := k, source := source, A := A, regularA := matrixRegular, factors := factors] \as InverseFamily;
+\definition inverse[x: Carrier]: Spaces.Linear[V := Vector n, W := Vector k, source := coordinates n, target := coordinates k].Map := InverseFamily.inverse x;
+\definition inverseRegular: Hermitian.At[n := k].Families[X := Carrier].Matrix[m := n].Regular source inverse := InverseFamily.regular;
+\definition reconstruction: \forall (x: Carrier)(v: Vector n) -> (A x).apply ((inverse x).apply v) = (projection x).map.apply v :=
+  \fun (x: Carrier)(v: Vector n) => trans!{{Vector n}} _ _ _ (InverseFamily.reconstruction x v)
+    (sym!{{Vector n}} _ _ (congr!{End.Map {Vector n}} (\fun (f: End.Map) => f.apply v) _ _
+      (\root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].For[X := X, F := F, bundle := bundle].FromEmbedding[embedding := embedding].Image[].In[chart := chart].Point[x := x].comparison (factors.value x))));

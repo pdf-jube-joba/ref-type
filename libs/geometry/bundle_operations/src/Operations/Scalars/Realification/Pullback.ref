@@ -1,0 +1,26 @@
+\import Source.Of[bundle := source].Pullback[Y := Y, source := baseSpace, f := f] \as SourcePullback;
+\import Family.Of[bundle := bundle].Pullback[Y := Y, source := baseSpace, f := f] \as OperationPullback;
+\import \root.Operations[].Scalars[].Realification[X := Y, F := \fun (y: Y) => F (f y), source := SourcePullback.pulled regular] \as Other;
+\definition firstBundle: RealBundles.Family[X := Y, F := \fun (y: Y) => F (f y)].Bundle := OperationPullback.pulled regular;
+\definition secondBundle: RealBundles.Family[X := Y, F := \fun (y: Y) => F (f y)].Bundle := Other.bundle;
+\definition fiber[y: Y]: RealSpaces.Isomorphism[V := F (f y), W := F (f y), source := firstBundle.space y, target := secondBundle.space y].Isomorphism :=
+  RealSpaces.Isomorphism[V := F (f y), W := F (f y), source := firstBundle.space y, target := secondBundle.space y].Isomorphism {
+    forward := RealSpaces.Linear[V := F (f y), W := F (f y), source := firstBundle.space y, target := secondBundle.space y].Map {
+      apply := \fun (v: F (f y)) => v, preservesAdd := \fun (v, w: F (f y)) => \refl((firstBundle.space y).add v w), preservesScale := \fun (a: R.Real)(v: F (f y)) => \refl((firstBundle.space y).smul a v)
+    },
+    backward := RealSpaces.Linear[V := F (f y), W := F (f y), source := secondBundle.space y, target := firstBundle.space y].Map {
+      apply := \fun (v: F (f y)) => v, preservesAdd := \fun (v, w: F (f y)) => \refl((firstBundle.space y).add v w), preservesScale := \fun (a: R.Real)(v: F (f y)) => \refl((firstBundle.space y).smul a v)
+    },
+    leftInverse := \fun (v: F (f y)) => \refl(v), rightInverse := \fun (v: F (f y)) => \refl(v)
+  };
+\import Real.LocalMaps[X := Y, F := \fun (y: Y) => F (f y), G := \fun (y: Y) => F (f y), source := firstBundle, target := secondBundle, fiber := \fun (y: Y) => (fiber y).forward] \as Charts;
+\import Real.LocalIsomorphisms[X := Y, F := \fun (y: Y) => F (f y), G := \fun (y: Y) => F (f y), source := firstBundle, target := secondBundle, fiber := fiber] \as Comparison;
+\module In(c: SourceCharts.Chart);
+\definition covers: Charts.Covers := \fun (y: Y) => \block {
+  \takefrom c: \Cast[SourceCharts.Chart] ({ c: SourceCharts.Chart \where Base.Member c.domain (f y) }) \by Source.Of[bundle := source].locallyTrivial (f y) \then
+  \return Logic.existsIntro[Charts.Chart, { e: Charts.Chart \where topology.Topology[Carrier := Y].Member e.domain y }] (In[c := c].chart)
+    (\bysub(SourceCharts.Chart, { c: SourceCharts.Chart \where Base.Member c.domain (f y) }, c))
+};
+\definition isomorphism: RealBundles.Isomorphisms[X := Y, F := \fun (y: Y) => F (f y), G := \fun (y: Y) => F (f y), source := firstBundle, target := secondBundle].Isomorphism := Comparison.isomorphism (\refl(baseSpace)) covers;
+\definition onFiber: \forall (y: Y)(v: F (f y)) -> (isomorphism.forward.fiber y).apply v = v := \fun (y: Y)(v: F (f y)) => \refl(v);
+\definition inverseOnFiber: \forall (y: Y)(v: F (f y)) -> (isomorphism.backward.fiber y).apply v = v := \fun (y: Y)(v: F (f y)) => \refl(v);

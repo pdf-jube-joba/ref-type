@@ -1,0 +1,54 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import \parent.Laws[V := V, space := source] \as SourceLaws;
+\import \parent.Laws[V := W, space := target] \as TargetLaws;
+\structure MapData: \Set := {
+  apply: V -> W,
+};
+\structure MapLaws[data: MapData]: \Prop := {
+  preservesAdd: \forall (x, y: V) -> data.apply (source.add x y) = target.add (data.apply x) (data.apply y),
+  preservesZero: data.apply (source.zero) = target.zero :=
+    TargetLaws.idempotentZero (data.apply (source.zero))
+      (trans!{W} _ _ _
+        (sym!{W} _ _ (preservesAdd (source.zero) (source.zero)))
+        (congr!{V W} data.apply _ _ (SourceLaws.zeroLeft (source.zero)))),
+  preservesScale: \forall (a: K) (x: V) -> data.apply (source.smul a x) = target.smul a (data.apply x),
+};
+\definition Map: \Set := \Cast[MapData] ({ data: MapData \where MapLaws[data] });
+\module Composition(U: \Set, domain: VectorSpace U) {
+  \import \parent.\parent.Linear[V := U, W := V, source := domain, target := source] \as Before;
+  \import \parent.\parent.Linear[V := U, W := W, source := domain, target := target] \as Result;
+  \definition compose[f: Map] [g: Before.Map]: Result.Map := Result.Map {
+    apply := \fun (x: _) => f.apply (g.apply x),
+    preservesAdd := \fun (x, y: _) => trans!{W} _ _ _
+      (congr!{V W} (f.apply) _ _ (g.preservesAdd x y)) (f.preservesAdd (g.apply x) (g.apply y)),
+    preservesScale := \fun (a: _) (x: _) => trans!{W} _ _ _
+      (congr!{V W} (f.apply) _ _ (g.preservesScale a x)) (f.preservesScale a (g.apply x)),
+  };
+}
+\module Operations;
+
+\definition dataEta: \forall (data: MapData) -> MapData::# (data.apply) = data :=
+  \induction (data: MapData) \return MapData::# (data.apply) = data \with {
+    | # : \fun (f: V -> W) => \refl(MapData::# f)
+  };
+\definition ext: \forall (f, g: Map) -> f.apply = g.apply -> f = g :=
+  \fun (f, g: Map)(same: f.apply = g.apply) => eq_reason_in!{{MapData} f
+    "=" { MapData::# (f.apply) } "by" { sym!{{MapData}} (MapData::# (f.apply)) f (dataEta f) }
+    "=" { MapData::# (g.apply) } "by" { congr!{{V -> W} {MapData}} MapData::# (f.apply) (g.apply) same }
+    "=" g "by" { dataEta g }
+  };
+
+\import module_theory.Module[].Over[R := K, ring := ring].Hom[V := V, W := W, source := source, target := target] \as ModuleMaps;
+\definition asModuleMap[f: Map]: ModuleMaps.Map := ModuleMaps.Map {
+  apply := f.apply, addition := f.preservesAdd, scalar := f.preservesScale,
+};
+\definition fromModuleMap[f: ModuleMaps.Map]: Map := Map {
+  apply := f.apply, preservesAdd := f.addition, preservesScale := f.scalar,
+};
+\definition moduleRoundTrip: \forall (f: ModuleMaps.Map) -> asModuleMap (fromModuleMap f) = f :=
+  \fun (f: ModuleMaps.Map) => ModuleMaps.ext (asModuleMap (fromModuleMap f)) f (\fun (x: V) => \refl(f.apply x));
+\definition linearRoundTrip: \forall (f: Map) -> fromModuleMap (asModuleMap f) = f :=
+  \fun (f: Map) => ext (fromModuleMap (asModuleMap f)) f (\refl(f.apply));
+\definition injectiveOfZeroKernel: \forall (f: Map) -> (\forall (v: V) -> f.apply v = target.zero -> v = source.zero) ->
+  \forall (v, w: V) -> f.apply v = f.apply w -> v = w :=
+  \fun (f: Map) => ModuleMaps.injectiveOfZeroKernel (asModuleMap f);

@@ -1,0 +1,32 @@
+\definition value: End.Map := End.Operations[].plus (End.Operations[].scale z projection.map) (End.Operations[].scale w Complement.complementMap);
+\definition onProjection: \forall (v: M.Vector) -> projection.map.apply (value.apply v) = Vectors.scale z (projection.map.apply v) :=
+  \fun (v: M.Vector) => trans!{M.Vector} _ _ _ (projection.map.preservesAdd (Vectors.scale z (projection.map.apply v)) (Vectors.scale w (Complement.complementMap.apply v)))
+    (trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector M.Vector} Vectors.plus _ _ _ _
+      (trans!{M.Vector} _ _ _ (projection.map.preservesScale z (projection.map.apply v)) (congr!{M.Vector M.Vector} (Vectors.scale z) _ _ (projection.idempotent v)))
+      (trans!{M.Vector} _ _ _ (projection.map.preservesScale w (Complement.complementMap.apply v))
+        (trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector} (Vectors.scale w) _ _ (Complement.annihilates v)) (Values.scaleZero w))))
+      (Values.zeroRight (Vectors.scale z (projection.map.apply v))));
+\definition onComplement: \forall (v: M.Vector) -> Complement.complementMap.apply (value.apply v) = Vectors.scale w (Complement.complementMap.apply v) :=
+  \fun (v: M.Vector) => trans!{M.Vector} _ _ _ (Complement.complementMap.preservesAdd (Vectors.scale z (projection.map.apply v)) (Vectors.scale w (Complement.complementMap.apply v)))
+    (trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector M.Vector} Vectors.plus _ _ _ _
+      (trans!{M.Vector} _ _ _ (Complement.complementMap.preservesScale z (projection.map.apply v))
+        (trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector} (Vectors.scale z) _ _ (Complement.annihilatesRight v)) (Values.scaleZero z)))
+      (trans!{M.Vector} _ _ _ (Complement.complementMap.preservesScale w (Complement.complementMap.apply v))
+        (congr!{M.Vector M.Vector} (Vectors.scale w) _ _ (Complement.complementIdempotent v))))
+      (Values.zeroLeft (Vectors.scale w (Complement.complementMap.apply v))));
+\import galois.Field[].Over[K := C.Complex, field := Scalars.field].Arithmetic[] \as Arithmetic;
+\definition cancel: \forall (s: C.Complex) -> C.Def[].NonZero s -> \forall (v: M.Vector) -> Vectors.scale s v = Vectors.origin -> v = Vectors.origin :=
+  \fun (s: C.Complex)(sn: _)(v: M.Vector)(zero: _) => \axiom:funext(v, Vectors.origin, \fun (i: M.Index) => Arithmetic.cancelLeft s (v i) C.Def[].zero sn
+    (trans!{{C.Complex}} _ _ _ (congr!{M.Vector {C.Complex}} (\fun (u: M.Vector) => u i) _ _ zero) (sym!{{C.Complex}} _ _ (C.Prop[].mulZeroRight s))));
+\definition kernel: \forall (v: M.Vector) -> value.apply v = Vectors.origin -> v = Vectors.origin := \fun (v: M.Vector)(zero: _) => \block {
+  \let pzero: projection.map.apply v = Vectors.origin := cancel z nonzeroZ (projection.map.apply v)
+    (trans!{M.Vector} _ _ _ (sym!{M.Vector} _ _ (onProjection v))
+      (trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector} projection.map.apply _ _ zero) projection.map.preservesZero)) \then
+  \let qzero: Complement.complementMap.apply v = Vectors.origin := cancel w nonzeroW (Complement.complementMap.apply v)
+    (trans!{M.Vector} _ _ _ (sym!{M.Vector} _ _ (onComplement v))
+      (trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector} Complement.complementMap.apply _ _ zero) Complement.complementMap.preservesZero)) \then
+  \return trans!{M.Vector} _ _ _ (sym!{M.Vector} _ _ (Complement.splitting v))
+    (trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector M.Vector} Vectors.plus _ _ _ _ pzero qzero) (Values.zeroLeft Vectors.origin))
+};
+\definition nonzero: matrix_invariants.Field[K := C.Complex, field := Scalars.field].At[n := n].Nonzero (M.Representation[].entries value) :=
+  \root.Linearization[].ScalarMatrices[n := n].nonzeroOfZeroKernel value kernel;

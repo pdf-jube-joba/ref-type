@@ -1,0 +1,47 @@
+\import std.Alg[].Alg[] \as Alg;
+\import std.Alg[].Ring[] \as Rings;
+\import std.Alg[].Monoid[] \as Monoid;
+\import C.Algebra[] \as Native;
+\import topology.Maps[A := X, B := C.Complex] \as Constants;
+\definition Carrier: \Set := \Cast[Function] ({ f: Function \where Continuous f });
+\definition regular[f: Carrier]: Continuous f := \bysub(Function, { f: Function \where Continuous f }, f);
+\definition constant[a: C.Complex]: Carrier := \into[Function](\fun (x: X) => a, Carrier) \by { Constants.constantContinuous space Plane.topology a };
+\definition zero: Carrier := constant O.zero;
+\definition one: Carrier := constant O.one;
+\definition add[a, b: Carrier]: Carrier := \into[Function](\fun (x: X) => O.add (a x) (b x), Carrier) \by { Functions.additionContinuous space a b (regular a) (regular b) };
+\definition neg[a: Carrier]: Carrier := \into[Function](\fun (x: X) => O.neg (a x), Carrier) \by { Functions.negationContinuous space a (regular a) };
+\definition mul[a, b: Carrier]: Carrier := \into[Function](\fun (x: X) => O.mul (a x) (b x), Carrier) \by { Functions.multiplicationContinuous space a b (regular a) (regular b) };
+\definition conjugate[a: Carrier]: Carrier := \into[Function](\fun (x: X) => O.conj (a x), Carrier) \by { Functions.conjugateContinuous space a (regular a) };
+\definition ring: Rings.Ring[Carrier] := Rings.Ring[Carrier] {
+  zero := zero, one := one, add := add, neg := neg, mul := mul,
+  semiring := Alg.SemiringLaws[Carrier, (Alg.SemiringData[Carrier]::# zero one add mul)] {
+    additive := Monoid.CommutativeMonoidLaws[Carrier, (Monoid.CommutativeMonoidData[Carrier]::# (Monoid.MonoidData[Carrier]::# zero add))] {
+      monoid := Monoid.MonoidLaws[Carrier, (Monoid.MonoidData[Carrier]::# zero add)] {
+        leftIdentity := \fun (a: Carrier) => \axiom:funext(add zero a, a, \fun (x: X) => CP.addZeroLeft (a x)),
+        rightIdentity := \fun (a: Carrier) => \axiom:funext(add a zero, a, \fun (x: X) => CP.addZeroRight (a x)),
+        associative := \fun (a, b, c: Carrier) => \axiom:funext(add (add a b) c, add a (add b c), \fun (x: X) => CP.addAssoc (a x) (b x) (c x))
+      },
+      commutative := \fun (a, b: Carrier) => \axiom:funext(add a b, add b a, \fun (x: X) => CP.addComm (a x) (b x))
+    },
+    multiplicative := Monoid.MonoidLaws[Carrier, (Monoid.MonoidData[Carrier]::# one mul)] {
+      leftIdentity := \fun (a: Carrier) => \axiom:funext(mul one a, a, \fun (x: X) => CP.mulOneLeft (a x)),
+      rightIdentity := \fun (a: Carrier) => \axiom:funext(mul a one, a, \fun (x: X) => CP.mulOneRight (a x)),
+      associative := \fun (a, b, c: Carrier) => \axiom:funext(mul (mul a b) c, mul a (mul b c), \fun (x: X) => CP.mulAssoc (a x) (b x) (c x))
+    },
+    leftDistributive := \fun (a, b, c: Carrier) => \axiom:funext(mul a (add b c), add (mul a b) (mul a c), \fun (x: X) => CP.mulAddLeft (a x) (b x) (c x)),
+    rightDistributive := \fun (a, b, c: Carrier) => \axiom:funext(mul (add a b) c, add (mul a c) (mul b c), \fun (x: X) => CP.mulAddRight (a x) (b x) (c x)),
+    zeroAbsorbsLeft := \fun (a: Carrier) => \axiom:funext(mul zero a, zero, \fun (x: X) => CP.mulZeroLeft (a x)),
+    zeroAbsorbsRight := \fun (a: Carrier) => \axiom:funext(mul a zero, zero, \fun (x: X) => CP.mulZeroRight (a x))
+  },
+  additiveInverse := \fun (a: Carrier) => \axiom:funext(add (neg a) a, zero, \fun (x: X) => CP.addNegLeft (a x))
+};
+\definition commutativeRing: Rings.CommutativeRing[Carrier] := Rings.CommutativeRing[Carrier] {
+  base := ring, ring := \bysub(Rings.RingData[Carrier], Rings.Ring[Carrier], ring),
+  mulCommutative := \fun (a, b: Carrier) => \axiom:funext(mul a b, mul b a, \fun (x: X) => CP.mulComm (a x) (b x))
+};
+\import algebra.Hom[A := Carrier, B := C.Complex] \as Hom;
+\definition evaluation[x: X]: Hom.RingMap ring (Rings.commutativeRingAsRing C.Complex Native.commutativeRing) := \into[Carrier -> C.Complex](\fun (f: Carrier) => f x, Hom.RingMap ring (Rings.commutativeRingAsRing C.Complex Native.commutativeRing)) \by {
+  Hom.SemiringLaws[(Rings.ringAsSemiring Carrier ring), (Rings.ringAsSemiring C.Complex (Rings.commutativeRingAsRing C.Complex Native.commutativeRing)), (\fun (f: Carrier) => f x)] {
+    zero := \refl(O.zero), one := \refl(O.one), add := \fun (a, b: Carrier) => \refl(O.add (a x) (b x)), mul := \fun (a, b: Carrier) => \refl(O.mul (a x) (b x))
+  }
+};

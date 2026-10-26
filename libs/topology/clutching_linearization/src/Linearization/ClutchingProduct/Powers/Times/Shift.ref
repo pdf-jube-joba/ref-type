@@ -1,0 +1,23 @@
+\import \parent.\parent.At[k := k] \as Power;
+\import \parent.\parent.\parent.With[a := Power.transition, b := a, continuousA := Power.regular, continuousB := continuousA] \as Product;
+\definition transition: Overlap -> Units.Carrier := Product.product;
+\definition continuous: topology.Continuity[A := Overlap, B := Units.Carrier].Continuous overlapTopology Units.topology transition := Product.productContinuous;
+\definition action: \forall (x: Overlap)(v: Vectors.Vector) -> (transition x).apply v = Vectors.space.smul (Powers.value (z x) k) ((a x).apply v) :=
+  \fun (x: Overlap)(v: Vectors.Vector) => Power.formula x ((a x).apply v);
+\import Product.Comparison[].KClass[] \as Addition;
+\definition shiftedClass: K0.Carrier := Addition.productReduced;
+\definition shiftFormula: shiftedClass = K0.add (multiple k) originalClass :=
+  trans!{K0.Carrier} _ _ _ Addition.additivity
+    (congr!{K0.Carrier K0.Carrier} (\fun (v: K0.Carrier) => K0.add v originalClass) _ _ (formula k));
+\import algebra.Group[].Of[Carrier := K0.Carrier, group := K0.group] \as Group;
+\definition correction: Group.difference shiftedClass (multiple k) = originalClass :=
+  trans!{K0.Carrier} _ _ _
+    (congr!{K0.Carrier K0.Carrier} (\fun (v: K0.Carrier) => Group.difference v (multiple k)) _ _ shiftFormula)
+    (trans!{K0.Carrier} _ _ _
+      (congr!{K0.Carrier K0.Carrier} (\fun (v: K0.Carrier) => Group.difference v (multiple k)) _ _ (Group.comm (multiple k) originalClass))
+      (trans!{K0.Carrier} _ _ _ (Group.assoc originalClass (multiple k) (Group.neg (multiple k)))
+        (trans!{K0.Carrier} _ _ _ (congr!{K0.Carrier K0.Carrier} (K0.add originalClass) _ _ (Group.inverseRight (multiple k))) (Group.zeroRight originalClass))));
+\import \parent.\parent.Rank[] \as RankCorrection;
+\definition rankCorrection: Group.difference shiftedClass (K0.mul RankCorrection.lineDifference (K0.include (RankCorrection.rankClass k))) = originalClass :=
+  trans!{K0.Carrier} _ _ _
+    (congr!{K0.Carrier K0.Carrier} (Group.difference shiftedClass) _ _ (sym!{K0.Carrier} _ _ (RankCorrection.multipleFormula k))) correction;

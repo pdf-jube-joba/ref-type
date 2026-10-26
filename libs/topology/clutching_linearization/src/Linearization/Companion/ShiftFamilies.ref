@@ -1,0 +1,37 @@
+\import \root.Linearization[].Coordinates[n := n].Families[X := Y, source := source] \as Families;
+\import topological_algebra.Complex[] \as Plane;
+\import Plane.Functions[A := Y] \as Functions;
+\import Fin.Tuples[A := Vectors.Vector] \as Tuples;
+\definition map[y: Y]: Operators.Map := \root.Linearization[].Companion[n := n, d := d].Shift[z := z y].map;
+\definition iterate[k: N.Nat^][y: Y]: Operators.Map := \root.Linearization[].Companion[n := n, d := d].Shift[z := z y].iterate k;
+\definition partial[k: N.Nat^][y: Y]: Operators.Map := \root.Linearization[].Companion[n := n, d := d].Shift[z := z y].partial k;
+\definition mapRegular: \forall (v: Y -> Carrier) -> Families.Regular degree v -> Families.Regular degree
+  (\fun (y: Y) => (map y).apply (v y)) :=
+  \fun (v: Y -> Carrier)(regularV: Families.Regular degree v) => Fin.cases d
+    (\fun (i: Fin.Fin degree) => \forall (j: Fin.Fin n) -> Families.Continuous (\fun (y: Y) => (map y).apply (v y) i j))
+    (\fun (j: Fin.Fin n) => Families.transport (\fun (_: Y) => C.Def[].zero) (\fun (y: Y) => (map y).apply (v y) (Fin.zero d) j)
+      (\fun (y: Y) => sym!{{C.Complex}} _ _ (congr!{Vectors.Vector {C.Complex}} (\fun (w: Vectors.Vector) => w j) _ _
+        (Tuples.atZero d Vectors.origin (\fun (i: Fin.Fin d) => Vectors.scale (z y) (v y (Fin.widen d i))))))
+      (topology.Maps[A := Y, B := C.Complex].constantContinuous source Plane.topology C.Def[].zero))
+    (\fun (i: Fin.Fin d)(j: Fin.Fin n) => Families.transport
+      (\fun (y: Y) => C.Def[].mul (z y) (v y (Fin.widen d i) j)) (\fun (y: Y) => (map y).apply (v y) (Fin.succ d i) j)
+      (\fun (y: Y) => sym!{{C.Complex}} _ _ (congr!{Vectors.Vector {C.Complex}} (\fun (w: Vectors.Vector) => w j) _ _
+        (Tuples.atSuccessor d Vectors.origin (\fun (k: Fin.Fin d) => Vectors.scale (z y) (v y (Fin.widen d k))) i)))
+      (Functions.multiplicationContinuous source z (\fun (y: Y) => v y (Fin.widen d i) j) regularZ (regularV (Fin.widen d i) j)));
+\definition powerRegular: \forall (k: N.Nat^)(v: Y -> Carrier) -> Families.Regular degree v -> Families.Regular degree (\fun (y: Y) => (iterate k y).apply (v y)) :=
+  \induction (k: N.Nat^) \return \forall (v: Y -> Carrier) -> Families.Regular degree v -> Families.Regular degree (\fun (y: Y) => (iterate k y).apply (v y)) \with {
+    | zero: \fun (v: Y -> Carrier)(regularV: Families.Regular degree v) => regularV
+    | succ: \fun (k: N.Nat^)
+      (previous: \forall (w: Y -> Carrier) -> Families.Regular degree w -> Families.Regular degree (\fun (y: Y) => (iterate k y).apply (w y)))
+      (v: Y -> Carrier)(regularV: Families.Regular degree v) => mapRegular (\fun (y: Y) => (iterate k y).apply (v y)) (previous v regularV)
+  };
+\definition partialRegular: \forall (k: N.Nat^)(v: Y -> Carrier) -> Families.Regular degree v -> Families.Regular degree (\fun (y: Y) => (partial k y).apply (v y)) :=
+  \induction (k: N.Nat^) \return \forall (v: Y -> Carrier) -> Families.Regular degree v -> Families.Regular degree (\fun (y: Y) => (partial k y).apply (v y)) \with {
+    | zero: \fun (v: Y -> Carrier)(regularV: Families.Regular degree v) => Families.constant degree space.zero
+    | succ: \fun (k: N.Nat^)
+      (previous: \forall (w: Y -> Carrier) -> Families.Regular degree w -> Families.Regular degree (\fun (y: Y) => (partial k y).apply (w y)))
+      (v: Y -> Carrier)(regularV: Families.Regular degree v) => Families.addition degree
+        (\fun (y: Y) => (partial k y).apply (v y)) (\fun (y: Y) => (iterate k y).apply (v y)) (previous v regularV) (powerRegular k v regularV)
+  };
+\definition solveRegular: \forall (v: Y -> Carrier) -> Families.Regular degree v -> Families.Regular degree
+  (\fun (y: Y) => (\root.Linearization[].Companion[n := n, d := d].Shift[z := z y].solve).apply (v y)) := partialRegular degree;

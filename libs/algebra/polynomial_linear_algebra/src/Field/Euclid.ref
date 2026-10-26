@@ -1,0 +1,159 @@
+\definition divide: \forall (p, divisor: Coefficients) ->
+  Logic.Not (Raw.asPolynomial divisor = P.zero) -> \exists DivisionResult[p, divisor] := \block {
+  \fun (p, divisor: Coefficients)(nonzero: _) \then
+  \return Logic.orElim _ _ _ (Normalization.normalize whole closed divisor (all divisor))
+    (\fun (zero: _) => Logic.falseElim (\exists DivisionResult[p, divisor]) (nonzero (Normalization.zeroLaw divisor zero)))
+    (\block {
+      \fun (normalized: _) \then
+      \takefrom f: Normalization.NonzeroForm[whole, divisor] \by normalized \then
+      \takefrom divided: Division.Result[whole, p, f.coefficients] \by Division.exists whole closed f.coefficients f.over p (all p) \then
+      \let quotient: Polynomial := P.mul (P.constant (Scalars.inv f.leading)) (Raw.asPolynomial divided.quotient) \then
+      \let recover: P.mul (Raw.asPolynomial divisor) quotient = P.mul (Monic.asPolynomial f.coefficients) (Raw.asPolynomial divided.quotient) :=
+        eq_reason_in!{Polynomial _
+          "=" { P.mul (P.mul (P.constant f.leading) (Monic.asPolynomial f.coefficients)) quotient } "by" {
+            congr!{Polynomial Polynomial} (\fun (x: Polynomial) => P.mul x quotient) _ _ f.factorization }
+          "=" { P.mul (Monic.asPolynomial f.coefficients) (P.mul (P.constant f.leading) quotient) } "by" {
+            trans!{Polynomial} _ _ _
+              (congr!{Polynomial Polynomial} (\fun (x: Polynomial) => P.mul x quotient) _ _ (Product.comm (P.constant f.leading) (Monic.asPolynomial f.coefficients)))
+              (Product.assoc (Monic.asPolynomial f.coefficients) (P.constant f.leading) quotient) }
+          "=" { P.mul (Monic.asPolynomial f.coefficients) (Raw.asPolynomial divided.quotient) } "by" {
+            congr!{Polynomial Polynomial} (P.mul (Monic.asPolynomial f.coefficients)) _ _
+              (trans!{Polynomial} _ _ _
+                (sym!{Polynomial} _ _ (Product.assoc (P.constant f.leading) (P.constant (Scalars.inv f.leading)) (Raw.asPolynomial divided.quotient)))
+                (trans!{Polynomial} _ _ _
+                  (congr!{Polynomial Polynomial} (\fun (x: Polynomial) => P.mul x (Raw.asPolynomial divided.quotient)) _ _
+                    (trans!{Polynomial} _ _ _ (sym!{Polynomial} _ _ (Raw.coefficientLaws.mul f.leading (Scalars.inv f.leading)))
+                      (congr!{K Polynomial} P.constant _ _ (ScalarArithmetic.inverseRight f.leading f.leadingNonzero))))
+                  (Product.zeroLeft (Raw.asPolynomial divided.quotient)))) }
+        } \then
+      \return \exact(DivisionResult[p, divisor] {
+        quotient := quotient, remainder := divided.remainder,
+        normal := DivisorForm[divisor] {
+          leading := f.leading, coefficients := f.coefficients,
+          leadingNonzero := f.leadingNonzero, factorization := f.factorization,
+        }, degreeBound := divided.bound,
+        bound := Nat.leLtTrans _ _ _ divided.bound f.bound,
+        equation := trans!{Polynomial} _ _ _ divided.equation
+          (congr!{Polynomial Polynomial} (\fun (x: Polynomial) => P.add x (Raw.asPolynomial divided.remainder)) _ _ (sym!{Polynomial} _ _ recover)),
+      }, DivisionResult[p, divisor])
+    })
+};
+\definition dividesZero: \forall (p: Polynomial) -> Divides[p, P.zero] :=
+  \fun (p: Polynomial) => Divides[p, P.zero] {
+    multiplier := P.zero, equation := sym!{Polynomial} _ _ (Raw.ring.semiring.zeroAbsorbsRight p),
+  };
+\definition dividesSelf: \forall (p: Polynomial) -> Divides[p, p] :=
+  \fun (p: Polynomial) => Divides[p, p] { multiplier := P.one, equation := sym!{Polynomial} _ _ (Product.zeroRight p) };
+\definition dividesProduct: \forall (d, p, q: Polynomial) -> Divides[d, p] -> Divides[d, P.mul p q] :=
+  \fun (d, p, q: Polynomial)(h: Divides[d, p]) => Divides[d, P.mul p q] {
+    multiplier := P.mul h.multiplier q,
+    equation := trans!{Polynomial} _ _ _ (congr!{Polynomial Polynomial} (\fun (x: Polynomial) => P.mul x q) _ _ h.equation)
+      (Product.assoc d h.multiplier q),
+  };
+\definition dividesAdd: \forall (d, p, q: Polynomial) -> Divides[d, p] -> Divides[d, q] -> Divides[d, P.add p q] :=
+  \fun (d, p, q: Polynomial)(hp: Divides[d, p])(hq: Divides[d, q]) => Divides[d, P.add p q] {
+    multiplier := P.add hp.multiplier hq.multiplier,
+    equation := trans!{Polynomial} _ _ _ (congr!{Polynomial Polynomial Polynomial} P.add _ _ _ _ hp.equation hq.equation)
+      (sym!{Polynomial} _ _ (Raw.ring.semiring.leftDistributive d hp.multiplier hq.multiplier)),
+  };
+\definition dividesNeg: \forall (d, p: Polynomial) -> Divides[d, p] -> Divides[d, P.neg p] :=
+  \fun (d, p: Polynomial)(h: Divides[d, p]) => Divides[d, P.neg p] {
+    multiplier := P.neg h.multiplier,
+    equation := trans!{Polynomial} _ _ _ (congr!{Polynomial Polynomial} P.neg _ _ h.equation)
+      (sym!{Polynomial} _ _ (PolynomialLaws.scaleNegative d h.multiplier)),
+  };
+\definition remainderLaw: \forall (a, b, q, r: Polynomial) -> a = P.add (P.mul b q) r -> r = Sum.difference a (P.mul b q) :=
+  \fun (a, b, q, r: Polynomial)(equation: _) => trans!{Polynomial} r (Sum.difference r P.zero) (Sum.difference a (P.mul b q))
+    (sym!{Polynomial} _ _ (trans!{Polynomial} _ _ _ (congr!{Polynomial Polynomial} (P.add r) _ _ Sum.negZero) (Sum.zeroRight r)))
+    (sym!{Polynomial} _ _ (Sum.balancedDifference a (P.mul b q) r P.zero
+      (trans!{Polynomial} _ _ _ (Sum.zeroRight a) (trans!{Polynomial} _ _ _ equation (Sum.comm (P.mul b q) r)))));
+\definition substitute: \forall (a, b, q, r, u, v: Polynomial) -> a = P.add (P.mul b q) r ->
+  P.add (P.mul u b) (P.mul v r) = P.add (P.mul v a) (P.mul (Sum.difference u (P.mul v q)) b) :=
+  \fun (a, b, q, r, u, v: Polynomial)(equation: _) => eq_reason_in!{Polynomial _
+    "=" { P.add (P.mul u b) (P.mul v (Sum.difference a (P.mul b q))) } "by" {
+      congr!{Polynomial Polynomial} (\fun (x: Polynomial) => P.add (P.mul u b) (P.mul v x)) _ _ (remainderLaw a b q r equation) }
+    "=" { P.add (P.mul u b) (P.add (P.mul v a) (P.neg (P.mul v (P.mul b q)))) } "by" {
+      congr!{Polynomial Polynomial} (P.add (P.mul u b)) _ _
+        (trans!{Polynomial} _ _ _ (Raw.ring.semiring.leftDistributive v a (P.neg (P.mul b q)))
+          (congr!{Polynomial Polynomial} (P.add (P.mul v a)) _ _ (PolynomialLaws.scaleNegative v (P.mul b q)))) }
+    "=" { P.add (P.mul v a) (P.add (P.mul u b) (P.neg (P.mul (P.mul v q) b))) } "by" {
+      trans!{Polynomial} _ _ _
+        (congr!{Polynomial Polynomial} (\fun (x: Polynomial) => P.add (P.mul u b) (P.add (P.mul v a) (P.neg x))) _ _
+          (trans!{Polynomial} _ _ _ (congr!{Polynomial Polynomial} (P.mul v) _ _ (Product.comm b q))
+            (sym!{Polynomial} _ _ (Product.assoc v q b))))
+        (trans!{Polynomial} _ _ _
+          (sym!{Polynomial} _ _ (Sum.assoc (P.mul u b) (P.mul v a) (P.neg (P.mul (P.mul v q) b))))
+          (trans!{Polynomial} _ _ _
+            (congr!{Polynomial Polynomial} (\fun (x: Polynomial) => P.add x (P.neg (P.mul (P.mul v q) b))) _ _ (Sum.comm (P.mul u b) (P.mul v a)))
+            (Sum.assoc (P.mul v a) (P.mul u b) (P.neg (P.mul (P.mul v q) b))))) }
+    "=" _ "by" {
+      congr!{Polynomial Polynomial} (P.add (P.mul v a)) _ _
+        (sym!{Polynomial} _ _ (trans!{Polynomial} _ _ _
+          (Raw.ring.semiring.rightDistributive u (P.neg (P.mul v q)) b)
+          (congr!{Polynomial Polynomial} (P.add (P.mul u b)) _ _
+            (trans!{Polynomial} _ _ _ (Product.comm (P.neg (P.mul v q)) b)
+              (trans!{Polynomial} _ _ _ (PolynomialLaws.scaleNegative b (P.mul v q))
+                (congr!{Polynomial Polynomial} P.neg _ _ (Product.comm b (P.mul v q)))))))) }
+  };
+\definition terminal: \forall (a, b: Coefficients) -> Raw.asPolynomial b = P.zero -> \exists Gcd[Raw.asPolynomial a, Raw.asPolynomial b] :=
+  \fun (a, b: Coefficients)(zero: _) => \exact(Gcd[Raw.asPolynomial a, Raw.asPolynomial b] {
+          value := Raw.asPolynomial a,
+          leftDivisor := dividesSelf (Raw.asPolynomial a),
+          rightDivisor := Divides[Raw.asPolynomial a, Raw.asPolynomial b] {
+            multiplier := P.zero, equation := trans!{Polynomial} _ _ _ zero (sym!{Polynomial} _ _ (Raw.ring.semiring.zeroAbsorbsRight (Raw.asPolynomial a))),
+          },
+          bezout := Bezout[Raw.asPolynomial a, Raw.asPolynomial b, Raw.asPolynomial a] {
+            left := P.one, right := P.zero,
+            equation := sym!{Polynomial} _ _ (trans!{Polynomial} _ _ _
+              (congr!{Polynomial Polynomial Polynomial} P.add _ _ _ _ (Product.zeroLeft (Raw.asPolynomial a)) (Raw.ring.semiring.zeroAbsorbsLeft (Raw.asPolynomial b)))
+              (Sum.zeroRight (Raw.asPolynomial a))),
+          },
+        }, Gcd[Raw.asPolynomial a, Raw.asPolynomial b]);
+\definition exists: \forall (a, b: Coefficients) -> \exists Gcd[Raw.asPolynomial a, Raw.asPolynomial b] := \block {
+  \let byLength: \forall (n: N.Nat^)(a, b: Coefficients) -> Lists.length K b = n -> \exists Gcd[Raw.asPolynomial a, Raw.asPolynomial b] :=
+    Induction.strong (\fun (n: N.Nat^) => \forall (a, b: Coefficients) -> Lists.length K b = n -> \exists Gcd[Raw.asPolynomial a, Raw.asPolynomial b])
+      (\fun (n: N.Nat^)(previous: _)(a, b: Coefficients)(length: _) => Logic.orElim _ _ _
+        (std.Logic[].Classical[].excludedMiddle (Raw.asPolynomial b = P.zero))
+        (\fun (zero: _) => terminal a b zero)
+        (\block {
+          \fun (nonzero: _) \then
+          \takefrom divided: DivisionResult[a, b] \by divide a b nonzero \then
+          \let smaller: Nat.Lt (Lists.length K divided.remainder) n :=
+            \idelim Lists.length K b = n \with m: N.Nat^ => Nat.Lt (Lists.length K divided.remainder) m \by { base: divided.bound, equality: length } \then
+          \takefrom next: Gcd[Raw.asPolynomial b, Raw.asPolynomial divided.remainder] \by
+            previous (Lists.length K divided.remainder) smaller b divided.remainder (\refl(Lists.length K divided.remainder)) \then
+          \let left: Divides[next.value, Raw.asPolynomial a] :=
+            \idelim P.add (P.mul (Raw.asPolynomial b) divided.quotient) (Raw.asPolynomial divided.remainder) = Raw.asPolynomial a
+              \with p: Polynomial => Divides[next.value, p] \by {
+                base: dividesAdd next.value _ _ (dividesProduct next.value _ divided.quotient next.leftDivisor) next.rightDivisor,
+                equality: sym!{Polynomial} _ _ divided.equation
+              } \then
+          \return \exact(Gcd[Raw.asPolynomial a, Raw.asPolynomial b] {
+            value := next.value, leftDivisor := Divides[next.value, Raw.asPolynomial a] {
+              multiplier := left.multiplier, equation := left.equation,
+            }, rightDivisor := Divides[next.value, Raw.asPolynomial b] {
+              multiplier := next.leftDivisor.multiplier, equation := next.leftDivisor.equation,
+            },
+            bezout := Bezout[Raw.asPolynomial a, Raw.asPolynomial b, next.value] {
+              left := next.bezout.right,
+              right := Sum.difference next.bezout.left (P.mul next.bezout.right divided.quotient),
+              equation := trans!{Polynomial} _ _ _ next.bezout.equation
+                (substitute _ _ divided.quotient _ next.bezout.left next.bezout.right divided.equation),
+            },
+          }, Gcd[Raw.asPolynomial a, Raw.asPolynomial b])
+        })) \then
+  \return \fun (a, b: Coefficients) => byLength (Lists.length K b) a b (\refl(Lists.length K b))
+};
+\definition greatest: \forall (a, b: Polynomial)(g: Gcd[a, b])(d: Polynomial) -> Divides[d, a] -> Divides[d, b] -> Divides[d, g.value] :=
+  \block {
+  \fun (a, b: Polynomial)(g: Gcd[a, b])(d: Polynomial)(ha: Divides[d, a])(hb: Divides[d, b]) \then
+  \let result: Divides[d, g.value] := \idelim P.add (P.mul g.bezout.left a) (P.mul g.bezout.right b) = g.value \with p: Polynomial => Divides[d, p] \by {
+      base: dividesAdd d _ _
+        (\idelim P.mul a g.bezout.left = P.mul g.bezout.left a \with p: Polynomial => Divides[d, p] \by {
+          base: dividesProduct d a g.bezout.left ha, equality: Product.comm a g.bezout.left })
+        (\idelim P.mul b g.bezout.right = P.mul g.bezout.right b \with p: Polynomial => Divides[d, p] \by {
+          base: dividesProduct d b g.bezout.right hb, equality: Product.comm b g.bezout.right }),
+      equality: sym!{Polynomial} _ _ g.bezout.equation
+    } \then
+  \return Divides[d, g.value] { multiplier := result.multiplier, equation := result.equation }
+};

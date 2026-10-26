@@ -1,0 +1,37 @@
+\import topology.Topology[Carrier := X] \as Base;
+\import metric_spaces.RealLine[] \as Line;
+\import metric_spaces.RealMetric[] \as Metric;
+\import metric_spaces.MetricSpace[Carrier := R.Real] \as MetricSpace;
+\import topology.Topology[Carrier := R.Real] \as RealSpace;
+\definition domain: \Pow Domain := { p: Domain \where Field.Nonzero (family p) };
+\definition open: topology.Topology[Carrier := Domain].IsOpenIn topology domain :=
+  Top.Families[X := Domain].determinantContinuous topology family regular
+    (topology.Topology[Carrier := C.Complex].Complement (topology.Topology[Carrier := C.Complex].Singleton C.Def[].zero))
+    matrix_invariants.Complex[].At[n := n].ScalarOpen[].nonzeroOpen;
+\structure Small[upper: R.Real]: \Set := {
+  value: R.Real,
+  positive: Real.Lt R.zero value,
+  below: Real.Lt value upper,
+  preserves: \forall (x: X) -> Field.Nonzero (family (Pair.pair R.Real X value x)),
+};
+\definition smallExists: \forall (upper: R.Real) -> Real.Lt R.zero upper -> \exists Small[upper] := \block {
+  \fun (upper: R.Real)(upperPositive: _) \then
+  \takefrom tube: Product.Compactness[].Tube[Line.topology, R.zero, domain, Base.Whole] \by
+    Product.Compactness[].tubeLemma Line.topology source Base.Whole compact R.zero domain open (\fun (x: X)(_: _) => atZero x) \then
+  \takefrom radius: \Cast[R.Real] (MetricSpace.NeighborhoodRadius Metric.metric tube.neighborhood R.zero) \by
+    (MetricSpace.Topology[].openIff Metric.metric tube.neighborhood).ltr tube.open R.zero tube.contains \then
+  \let properties: Logic.And[Real.Lt R.zero radius, RealSpace.Subset (MetricSpace.Ball Metric.metric R.zero radius) tube.neighborhood] :=
+    \bysub(R.Real, MetricSpace.NeighborhoodRadius Metric.metric tube.neighborhood R.zero, radius) \then
+  \let minimum: R.Real := R.Distance[].min radius upper \then
+  \let minimumPositive: Real.Lt R.zero minimum := R.Estimates[].Product[].minPositive radius upper properties.left upperPositive \then
+  \let value: R.Real := R.mul R.half minimum \then
+  \let positive: Real.Lt R.zero value := R.Estimates[].halfOfPositive minimum minimumPositive \then
+  \let small: Real.Lt value minimum := R.Estimates[].halfStrict minimum minimumPositive \then
+  \let near: Real.Lt (R.distance R.zero value) radius := Real.ltReplaceLeft _ _ _
+    (sym!{{R.Real}} _ _ (R.Estimates[].Product[].absOfNonnegative value (Order.leOfLt _ _ positive)))
+    (Real.ltLeTrans _ _ _ small (R.Distance[].minLeft radius upper)) \then
+  \return \exact(Small[upper] {
+    value := value, positive := positive, below := Real.ltLeTrans _ _ _ small (R.Distance[].minRight radius upper),
+    preserves := \fun (x: X) => tube.within value (properties.right value near) x (\refl(x)),
+  }, Small[upper])
+};

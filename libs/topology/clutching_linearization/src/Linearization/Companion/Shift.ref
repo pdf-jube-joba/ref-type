@@ -1,0 +1,66 @@
+\import \parent.Splitting[] \as Splitting;
+\import Fin.Tuples[A := Vectors.Vector] \as Tuples;
+\definition map: Operators.Map := Operators.Map {
+  apply := \fun (v: Carrier) => Tuples.extend d Vectors.origin (\fun (i: Fin.Fin d) => Vectors.scale z (v (Fin.widen d i))),
+  preservesAdd := \fun (v, w: Carrier) => trans!{Carrier} _ _ _
+    (congr!{Vectors.Vector {Coordinates.Carrier d} Carrier} (Tuples.extend d) _ _ _ _
+      (sym!{Vectors.Vector} _ _ (Values.zeroLeft Vectors.origin))
+      (\axiom:funext((\fun (i: Fin.Fin d) => Vectors.scale z (Vectors.plus (v (Fin.widen d i)) (w (Fin.widen d i)))), (\fun (i: Fin.Fin d) => Vectors.plus (Vectors.scale z (v (Fin.widen d i))) (Vectors.scale z (w (Fin.widen d i)))), \fun (i: Fin.Fin d) => Vectors.space.vectorAdd z (v (Fin.widen d i)) (w (Fin.widen d i)))))
+    (Splitting.extendAddition Vectors.origin Vectors.origin (\fun (i: Fin.Fin d) => Vectors.scale z (v (Fin.widen d i))) (\fun (i: Fin.Fin d) => Vectors.scale z (w (Fin.widen d i)))),
+  preservesScale := \fun (a: C.Complex)(v: Carrier) => trans!{Carrier} _ _ _
+    (congr!{Vectors.Vector {Coordinates.Carrier d} Carrier} (Tuples.extend d) _ _ _ _ (sym!{Vectors.Vector} _ _ (Values.scaleZero a))
+      (\axiom:funext((\fun (i: Fin.Fin d) => Vectors.scale z (Vectors.scale a (v (Fin.widen d i)))), (\fun (i: Fin.Fin d) => Vectors.scale a (Vectors.scale z (v (Fin.widen d i)))), \fun (i: Fin.Fin d) => Values.scaleComm z a (v (Fin.widen d i)))))
+    (Splitting.extendScalar a Vectors.origin (\fun (i: Fin.Fin d) => Vectors.scale z (v (Fin.widen d i)))),
+};
+\import \root.Linearization[].Geometric[V := Carrier, space := space, A := map] \as Geometric;
+\definition atZero: \forall (k: N.Nat^)(v: Carrier) -> (Geometric.power (N.Nat^::succ k)).apply v (Fin.zero d) = Vectors.origin :=
+  \fun (k: N.Nat^)(v: Carrier) => Tuples.atZero d Vectors.origin (\fun (i: Fin.Fin d) => Vectors.scale z ((Geometric.power k).apply v (Fin.widen d i)));
+\definition atSuccessor: \forall (k: N.Nat^)(v: Carrier)(i: Fin.Fin d) -> (Geometric.power (N.Nat^::succ k)).apply v (Fin.succ d i) = Vectors.scale z ((Geometric.power k).apply v (Fin.widen d i)) :=
+  \fun (k: N.Nat^)(v: Carrier)(i: Fin.Fin d) => Tuples.atSuccessor d Vectors.origin (\fun (j: Fin.Fin d) => Vectors.scale z ((Geometric.power k).apply v (Fin.widen d j))) i;
+\definition before: \forall (k: N.Nat^)(v: Carrier)(i: Fin.Fin degree) -> NatLaws.Lt i k -> (Geometric.power k).apply v i = Vectors.origin :=
+  \induction (k: N.Nat^) \return \forall (v: Carrier)(i: Fin.Fin degree) -> NatLaws.Lt i k -> (Geometric.power k).apply v i = Vectors.origin \with {
+    | zero: \fun (v: Carrier)(i: Fin.Fin degree)(less: _) => Logic.falseElim _ (NatOrder.ltZero i less)
+    | succ: \fun (k: N.Nat^)(previous: _)(v: Carrier) => Fin.cases d
+      (\fun (i: Fin.Fin degree) => NatLaws.Lt i (N.Nat^::succ k) -> (Geometric.power (N.Nat^::succ k)).apply v i = Vectors.origin)
+      (\fun (less: _) => atZero k v)
+      (\fun (i: Fin.Fin d)(less: _) => eq_reason_in!{Vectors.Vector _
+        "=" { Vectors.scale z ((Geometric.power k).apply v (Fin.widen d i)) } "by" { atSuccessor k v i }
+        "=" { Vectors.scale z Vectors.origin } "by" { congr!{Vectors.Vector Vectors.Vector} (Vectors.scale z) _ _ (previous v (Fin.widen d i) less) }
+        "=" Vectors.origin "by" { Values.scaleZero z }
+      })
+  };
+\definition nilpotent: \forall (v: Carrier) -> (Geometric.power degree).apply v = space.zero :=
+  \fun (v: Carrier) => \axiom:funext((Geometric.power degree).apply v, space.zero, \fun (i: Fin.Fin degree) => before degree v i (Fin.bound degree i));
+\import Spaces.Isomorphism[V := Carrier, W := Carrier, source := space, target := space] \as Isomorphisms;
+\definition isomorphism: Isomorphisms.Isomorphism := Geometric.WithOrder[order := degree, nilpotent := nilpotent].isomorphism;
+\definition difference: Operators.Map := Geometric.difference;
+\definition solve: Operators.Map := Geometric.partial degree;
+\definition iterate[k: N.Nat^]: Operators.Map := Geometric.power k;
+\definition partial[k: N.Nat^]: Operators.Map := Geometric.partial k;
+\definition differenceAt: \forall (v: Carrier)(i: Fin.Fin degree) -> difference.apply v i = ValueGroup.difference (v i) (map.apply v i) :=
+  \fun (v: Carrier)(i: Fin.Fin degree) => congr!{Carrier Vectors.Vector} (\fun (w: Carrier) => w i) _ _ (Geometric.formula v);
+\definition differenceHead: \forall (v: Carrier) -> difference.apply v (Fin.zero d) = v (Fin.zero d) :=
+  \fun (v: Carrier) => eq_reason_in!{Vectors.Vector _
+    "=" { ValueGroup.difference (v (Fin.zero d)) (map.apply v (Fin.zero d)) } "by" { differenceAt v (Fin.zero d) }
+    "=" { ValueGroup.difference (v (Fin.zero d)) Vectors.origin } "by" { congr!{Vectors.Vector Vectors.Vector} (ValueGroup.difference (v (Fin.zero d))) _ _ (Tuples.atZero d Vectors.origin (\fun (i: Fin.Fin d) => Vectors.scale z (v (Fin.widen d i)))) }
+    "=" { Vectors.plus (v (Fin.zero d)) Vectors.origin } "by" { congr!{Vectors.Vector Vectors.Vector} (Vectors.plus (v (Fin.zero d))) _ _ ValueGroup.negZero }
+    "=" _ "by" { Values.zeroRight (v (Fin.zero d)) }
+  };
+\definition differenceTail: \forall (v: Carrier)(i: Fin.Fin d) -> difference.apply v (Fin.succ d i) = ValueGroup.difference (v (Fin.succ d i)) (Vectors.scale z (v (Fin.widen d i))) :=
+  \fun (v: Carrier)(i: Fin.Fin d) => trans!{Vectors.Vector} _ _ _ (differenceAt v (Fin.succ d i))
+    (congr!{Vectors.Vector Vectors.Vector} (ValueGroup.difference (v (Fin.succ d i))) _ _ (Tuples.atSuccessor d Vectors.origin (\fun (j: Fin.Fin d) => Vectors.scale z (v (Fin.widen d j))) i));
+\definition inject[v: Vectors.Vector]: Carrier := Tuples.extend d v (\fun (i: Fin.Fin d) => Vectors.origin);
+\definition differenceGeometric: \forall (v: Vectors.Vector) -> difference.apply ((geometric z).apply v) = inject v :=
+  \fun (v: Vectors.Vector) => \axiom:funext(difference.apply ((geometric z).apply v), inject v, Fin.cases d
+    (\fun (i: Fin.Fin degree) => difference.apply ((geometric z).apply v) i = inject v i)
+    (trans!{Vectors.Vector} _ _ _ (differenceHead ((geometric z).apply v)) (trans!{Vectors.Vector} _ _ _ (Vectors.space.scalarOne v) (sym!{Vectors.Vector} _ _ (Tuples.atZero d v (\fun (i: Fin.Fin d) => Vectors.origin)))))
+    (\fun (i: Fin.Fin d) => eq_reason_in!{Vectors.Vector _
+      "=" { ValueGroup.difference (Vectors.scale (power z (N.Nat^::succ i)) v) (Vectors.scale z (Vectors.scale (power z i) v)) } "by" { differenceTail ((geometric z).apply v) i }
+      "=" { ValueGroup.difference (Vectors.scale z (Vectors.scale (power z i) v)) (Vectors.scale z (Vectors.scale (power z i) v)) } "by" { congr!{Vectors.Vector Vectors.Vector} (\fun (w: Vectors.Vector) => ValueGroup.difference w (Vectors.scale z (Vectors.scale (power z i) v))) _ _ (Vectors.space.scalarAssoc z (power z i) v) }
+      "=" Vectors.origin "by" { ValueGroup.inverseRight (Vectors.scale z (Vectors.scale (power z i) v)) }
+      "=" _ "by" { sym!{Vectors.Vector} _ _ (Tuples.atSuccessor d v (\fun (j: Fin.Fin d) => Vectors.origin) i) }
+    }));
+\definition solveHead: \forall (v: Vectors.Vector) -> solve.apply (inject v) = (geometric z).apply v :=
+  \fun (v: Vectors.Vector) => trans!{Carrier} _ _ _
+    (congr!{Carrier Carrier} solve.apply _ _ (sym!{Carrier} _ _ (differenceGeometric v)))
+    ((Isomorphisms.laws isomorphism).leftInverse ((geometric z).apply v));

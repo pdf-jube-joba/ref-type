@@ -1,0 +1,21 @@
+\import topological_constructions.Pushout[A := Disk.Disk, B := Disk.Disk, C := Disk.Sphere].Of[u := boundaryInclusion, v := boundaryInclusion] \as Pushout;
+\definition Carrier: \Set := Pushout.Carrier;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Pushout.topology Disk.diskTopology Disk.diskTopology;
+\import Pushout.Universal[D := Sphere.Sphere] \as IntoSphere;
+\definition agrees: IntoSphere.Compatible positive negative := \fun (v: Disk.Sphere) => trans!{Sphere.Sphere} _ _ _ (positiveBoundary v) (sym!{Sphere.Sphere} _ _ (negativeBoundary v));
+\definition forward: Carrier -> Sphere.Sphere := IntoSphere.apply positive negative agrees;
+\import \parent.Universal[B := Carrier, target := topology, f := Pushout.inl, g := Pushout.inr,
+  continuousF := Pushout.inlContinuous Disk.diskTopology Disk.diskTopology, continuousG := Pushout.inrContinuous Disk.diskTopology Disk.diskTopology, agrees := Pushout.glued] \as Back;
+\definition backward: Sphere.Sphere -> Carrier := Back.apply;
+\definition leftInverse: \forall (p: Carrier) -> backward (forward p) = p := Pushout.induction (\fun (p: Carrier) => backward (forward p) = p)
+  (\fun (v: Disk.Disk) => trans!{Carrier} _ _ _ (congr!{Sphere.Sphere Carrier} backward _ _ (IntoSphere.onLeft positive negative agrees v)) (Back.onPositive v))
+  (\fun (v: Disk.Disk) => trans!{Carrier} _ _ _ (congr!{Sphere.Sphere Carrier} backward _ _ (IntoSphere.onRight positive negative agrees v)) (Back.onNegative v));
+\definition rightInverse: \forall (x: Sphere.Sphere) -> forward (backward x) = x := induction (\fun (x: Sphere.Sphere) => forward (backward x) = x)
+  (\fun (v: Disk.Disk) => trans!{Sphere.Sphere} _ _ _ (congr!{Carrier Sphere.Sphere} forward _ _ (Back.onPositive v)) (IntoSphere.onLeft positive negative agrees v))
+  (\fun (v: Disk.Disk) => trans!{Sphere.Sphere} _ _ _ (congr!{Carrier Sphere.Sphere} forward _ _ (Back.onNegative v)) (IntoSphere.onRight positive negative agrees v));
+\definition homeomorphism: topology.Homeomorphism[A := Carrier, B := Sphere.Sphere].Homeomorphism[topology, Sphere.sphereTopology] :=
+  topology.Homeomorphism[A := Carrier, B := Sphere.Sphere].Homeomorphism[topology, Sphere.sphereTopology] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := IntoSphere.continuous Disk.diskTopology Disk.diskTopology Sphere.sphereTopology positive negative agrees positiveContinuous negativeContinuous,
+    backwardContinuous := Back.continuous
+  };

@@ -1,0 +1,24 @@
+\import Bundles.Isomorphisms[X := Cylinder.CarrierSet, F := Fiber, G := Presentation.ImageFiber, source := cylinderBundle, target := Presentation.imageBundle] \as Comparison;
+\import Operations.IsomorphismComposition[X := Cylinder.CarrierSet, F := Fiber, G := Presentation.ImageFiber, H := Presentation.ImageFiber, source := cylinderBundle, middle := Presentation.imageBundle, target := Presentation.imageBundle] \as First;
+\import Operations.IsomorphismComposition[X := Cylinder.CarrierSet, F := Fiber, G := Presentation.ImageFiber, H := Fiber, source := cylinderBundle, middle := Presentation.imageBundle, target := cylinderBundle] \as Second;
+\definition isomorphism: Global.Isomorphism := Second.compose (First.compose Presentation.isomorphism result.value) (Comparison.inverse Presentation.isomorphism);
+\definition initial: \forall (y: Y)(v: F y) -> (isomorphism.forward.fiber (Pair.pair I.Carrier Y I.start y)).apply v = v :=
+  \fun (y: Y)(v: F y) => trans!{{F y}} _ _ _
+    (congr!{{Presentation.ImageFiber (Pair.pair I.Carrier Y I.start y)} {F y}} (Presentation.isomorphism.backward.fiber (Pair.pair I.Carrier Y I.start y)).apply _ _
+      (result.initial y ((Presentation.isomorphism.forward.fiber (Pair.pair I.Carrier Y I.start y)).apply v)))
+    ((\bysub(Comparison.Data, Comparison.Isomorphism, Presentation.isomorphism)).leftInverse (Pair.pair I.Carrier Y I.start y) v);
+\definition extends: \forall (t: I.Carrier)(y: Subset)(v: F y) -> (isomorphism.forward.fiber (Pair.pair I.Carrier Y t y)).apply v = (a.forward.fiber (Pair.pair I.Carrier Subset t y)).apply v :=
+  \fun (t: I.Carrier)(y: Subset)(v: F y) => embedding.injective y _ _ (eq_reason_in!{{Vector n} _
+    "=" { (result.value.forward.fiber (Pair.pair I.Carrier Y t y)).apply ((Presentation.isomorphism.forward.fiber (Pair.pair I.Carrier Y t y)).apply v) } "by" {
+      Presentation.backwardFormula (Pair.pair I.Carrier Y t y) ((result.value.forward.fiber (Pair.pair I.Carrier Y t y)).apply ((Presentation.isomorphism.forward.fiber (Pair.pair I.Carrier Y t y)).apply v))
+    }
+    "=" { (imageIsomorphism.forward.fiber (Pair.pair I.Carrier Subset t y)).apply ((SubPresentation.isomorphism.forward.fiber (Pair.pair I.Carrier Subset t y)).apply v) } "by" {
+      result.extends t y ((SubPresentation.isomorphism.forward.fiber (Pair.pair I.Carrier Subset t y)).apply v)
+    }
+    "=" { (SubPresentation.isomorphism.forward.fiber (Pair.pair I.Carrier Subset t y)).apply ((a.forward.fiber (Pair.pair I.Carrier Subset t y)).apply v) } "by" {
+      congr!{{F y} {Vector n}} (\fun (w: F y) => (SubPresentation.isomorphism.forward.fiber (Pair.pair I.Carrier Subset t y)).apply ((a.forward.fiber (Pair.pair I.Carrier Subset t y)).apply w)) _ _
+        ((\bysub(SubComparison.Data, SubComparison.Isomorphism, SubPresentation.isomorphism)).leftInverse (Pair.pair I.Carrier Subset t y) v)
+    }
+    "=" _ "by" { SubPresentation.forwardFormula (Pair.pair I.Carrier Subset t y) ((a.forward.fiber (Pair.pair I.Carrier Subset t y)).apply v) }
+  });
+\definition value: Result := Result { value := isomorphism, initial := initial, extends := extends };

@@ -1,0 +1,30 @@
+\import Spaces.Linear[V := Native.Vector n, W := Native.Vector n, source := Native.coordinates n, target := Native.coordinates n] \as End;
+\import End.Operations[] \as Operations;
+\import End.Composition[U := Native.Vector n, domain := Native.coordinates n] \as Compose;
+\import Spaces.Eigen[V := Native.Vector n, space := Native.coordinates n] \as Eigen;
+\import Spaces.Laws[V := Native.Vector n, space := Native.coordinates n] \as Laws;
+\module At(x: X);
+\definition operator[x: X]: End.Map := At[x := x].operator;
+\import Hermitian.At[n := n].Families[X := X].Matrix[m := n] \as Maps;
+\import Hermitian.Functions[X := X] \as Functions;
+\import Homotopy.Projections[n := n].Operators[].FromMorphism[X := X, baseSpace := bundle.baseSpace, h := projection] \as ProjectionRegular;
+\import \parent.MatrixMap[a := a, regular := regular] \as MatrixMap;
+\definition papRegular: Maps.Regular bundle.baseSpace (\fun (x: X) => At[x := x].pap) := \fun (v: Native.Vector n) =>
+  Maps.evaluate bundle.baseSpace projection.fiber (\fun (x: X) => (M.linear (a x)).apply ((projection.fiber x).apply v))
+    (\fun (j, i: M.Index) => ProjectionRegular.regular (linear_algebra.Hermitian[].Over[K := C.Complex, field := CA.field, scalar := Conjugation.scalar].Finite[n := n].basis j) i)
+    (Maps.evaluate bundle.baseSpace (\fun (x: X) => M.linear (a x)) (\fun (x: X) => (projection.fiber x).apply v)
+      (\fun (j, i: M.Index) => MatrixMap.linearRegular (linear_algebra.Hermitian[].Over[K := C.Complex, field := CA.field, scalar := Conjugation.scalar].Finite[n := n].basis j) i) (ProjectionRegular.regular v));
+\definition operatorRegular: Maps.Regular bundle.baseSpace operator := \fun (v: Native.Vector n)(i: M.Index) =>
+  Functions.transport bundle.baseSpace (\fun (x: X) => O.add ((At[x := x].pap).apply v i) (O.sub (v i) ((projection.fiber x).apply v i))) (\fun (x: X) => (operator x).apply v i)
+    (\fun (x: X) => sym!{{C.Complex}} _ _ (congr!{{Native.Vector n} {C.Complex}} (\fun (v: Native.Vector n) => v i) _ _ (At[x := x].formula v)))
+    (Functions.addition bundle.baseSpace (\fun (x: X) => (At[x := x].pap).apply v i) (\fun (x: X) => O.sub (v i) ((projection.fiber x).apply v i)) (papRegular v i)
+      (Functions.addition bundle.baseSpace (\fun (x: X) => v i) (\fun (x: X) => O.neg ((projection.fiber x).apply v i)) (Functions.constant bundle.baseSpace (v i))
+        (Functions.negation bundle.baseSpace (\fun (x: X) => (projection.fiber x).apply v i) (ProjectionRegular.regular v i))));
+\definition matrix[x: X]: M.Matrix := Representation.entries (operator x);
+\definition matrixRegular: MatrixFamilies.Regular bundle.baseSpace matrix := \fun (i, j: M.Index) => operatorRegular (linear_algebra.Hermitian[].Over[K := C.Complex, field := CA.field, scalar := Conjugation.scalar].Finite[n := n].basis j) i;
+\definition commutes: \forall (x: X)(v: Native.Vector n) -> (projection.fiber x).apply ((M.linear (matrix x)).apply v) = (M.linear (matrix x)).apply ((projection.fiber x).apply v) := \fun (x: X)(v: Native.Vector n) =>
+  trans!{{Native.Vector n}} _ _ _ (congr!{End.Map {Native.Vector n}} (\fun (f: End.Map) => (projection.fiber x).apply (f.apply v)) _ _ (Representation.linearEntries (operator x)))
+    (trans!{{Native.Vector n}} _ _ _ (At[x := x].commutes v) (sym!{{Native.Vector n}} _ _ (congr!{End.Map {Native.Vector n}} (\fun (f: End.Map) => f.apply ((projection.fiber x).apply v)) _ _ (Representation.linearEntries (operator x)))));
+\definition compressedSame: \forall (x: X)(v: F x) -> (project.fiber x).apply ((M.linear (matrix x)).apply ((include.fiber x).apply v)) = (project.fiber x).apply ((M.linear (a x)).apply ((include.fiber x).apply v)) := \fun (x: X)(v: F x) =>
+  trans!{{F x}} _ _ _ (congr!{End.Map {F x}} (\fun (f: End.Map) => (project.fiber x).apply (f.apply ((include.fiber x).apply v))) _ _ (Representation.linearEntries (operator x))) (At[x := x].compressedSame v);
+\module Invertible(reference: X -> M.Matrix, near: \forall (x: X) -> Real.Lt (Abs.abs (O.sub (M.determinant (reference x)) (M.determinant (matrix x)))) (Abs.abs (M.determinant (reference x))));

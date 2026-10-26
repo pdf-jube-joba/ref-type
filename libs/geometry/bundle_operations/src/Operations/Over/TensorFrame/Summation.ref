@@ -1,0 +1,18 @@
+\import LeftSums.Mapping[W := U, target := target] \as OuterMapping;
+\import RightSums.Mapping[W := U, target := target] \as InnerMapping;
+\import Spaces.Sums[I := Fin.Fin n].Vector[V := U, space := target] \as Outer;
+\import Spaces.Sums[I := Fin.Fin m].Vector[V := U, space := target] \as Inner;
+\import Spaces.Linear[V := Tensor.Carrier, W := U, source := Tensor.space, target := target] \as Maps;
+\definition law: \forall (h: Maps.Map)(f: Coefficients.Vector) -> h.apply (synthesis f) = Outer.sum (Fin.elements n) (\fun (a: Fin.Fin n) => Inner.sum (Fin.elements m) (\fun (b: Fin.Fin m) =>
+  target.smul (f (entry a b)) (h.apply (Tensor.tensor (firstBasis.vectors a) (secondBasis.vectors b))))) :=
+  \fun (h: Maps.Map)(f: Coefficients.Vector) => trans!{U} _ _ _
+    (OuterMapping.law h (Fin.elements n) (\fun (a: Fin.Fin n) => RightSums.sum (Fin.elements m) (\fun (b: Fin.Fin m) => Tensor.space.smul (f (entry a b)) (Tensor.tensor (firstBasis.vectors a) (secondBasis.vectors b)))))
+    (Outer.congruent (Fin.elements n)
+      (\fun (a: Fin.Fin n) => h.apply (RightSums.sum (Fin.elements m) (\fun (b: Fin.Fin m) => Tensor.space.smul (f (entry a b)) (Tensor.tensor (firstBasis.vectors a) (secondBasis.vectors b)))))
+      (\fun (a: Fin.Fin n) => Inner.sum (Fin.elements m) (\fun (b: Fin.Fin m) => target.smul (f (entry a b)) (h.apply (Tensor.tensor (firstBasis.vectors a) (secondBasis.vectors b)))))
+      (\fun (a: Fin.Fin n) => trans!{U} _ _ _
+        (InnerMapping.law h (Fin.elements m) (\fun (b: Fin.Fin m) => Tensor.space.smul (f (entry a b)) (Tensor.tensor (firstBasis.vectors a) (secondBasis.vectors b))))
+        (Inner.congruent (Fin.elements m)
+          (\fun (b: Fin.Fin m) => h.apply (Tensor.space.smul (f (entry a b)) (Tensor.tensor (firstBasis.vectors a) (secondBasis.vectors b))))
+          (\fun (b: Fin.Fin m) => target.smul (f (entry a b)) (h.apply (Tensor.tensor (firstBasis.vectors a) (secondBasis.vectors b))))
+          (\fun (b: Fin.Fin m) => h.preservesScale (f (entry a b)) (Tensor.tensor (firstBasis.vectors a) (secondBasis.vectors b))))));

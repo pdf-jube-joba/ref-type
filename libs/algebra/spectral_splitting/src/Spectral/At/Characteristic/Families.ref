@@ -1,0 +1,18 @@
+\import Coefficients.Families[X := X, source := source] \as Finite;
+\import Finite.Tensor[n := n, k := n] \as Tensor;
+\import Hermitian.Functions[X := X] \as Functions;
+\import topological_algebra.Complex[] \as Plane;
+\import topological_algebra.Coordinates[K := C.Complex, I := Fin.Fin n] \as Coordinates;
+\definition Regular[A: X -> Matrices.Matrix]: \Prop := \forall (i, j: Fin.Fin n) -> Functions.Continuous source (\fun (x: X) => A x i j);
+\definition regular: \forall (A: X -> Matrices.Matrix) -> Regular A -> Finite.Regular[n, \fun (x: X) => value (A x)] :=
+  \fun (A: X -> Matrices.Matrix)(ac: Regular A) => Tensor.regular n (\fun (indices: Fin.Fin n -> Fin.Fin n)(x: X) => term (A x) indices)
+    (\fun (indices: Fin.Fin n -> Fin.Fin n) => Finite.scaling n (\fun (_: X) => ScalarTerms.Weight indices) _
+      (Functions.constant source (ScalarTerms.Weight indices))
+      (Finite.productRegular n (\fun (x: X) => constants (A x) indices) (\fun (_: X) => variables indices)
+        (\fun (j: Fin.Fin n) => Functions.negation source _ (ac (indices j) j))
+        (\fun (j: Fin.Fin n) => Functions.constant source (variables indices j))));
+\definition coefficient: \forall (A: X -> Matrices.Matrix) -> Regular A -> \forall (i: Fin.Fin n) -> Functions.Continuous source (\fun (x: X) => coefficients (A x) i) :=
+  \fun (A: X -> Matrices.Matrix)(ac: Regular A) => (regular A ac).lower;
+\definition continuous: \forall (A: X -> Matrices.Matrix) -> Regular A ->
+  topology.Continuity[A := X, B := Roots.Vector n].Continuous source (Roots.At[n := n].topology) (\fun (x: X) => coefficients (A x)) :=
+  \fun (A: X -> Matrices.Matrix)(ac: Regular A) => Coordinates.Universal[A := X].continuous source Plane.topology _ (coefficient A ac);

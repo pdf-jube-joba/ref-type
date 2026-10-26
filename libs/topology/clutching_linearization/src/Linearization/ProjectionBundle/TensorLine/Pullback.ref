@@ -1,0 +1,55 @@
+\import Bundles.Family[X := X, F := L].Of[bundle := line].Pullback[Y := Y, source := space, f := f] \as LinePull;
+\definition lineContinuous: LinePull.BaseContinuous :=
+  \idelim source = line.baseSpace \with t: topology.Topology[Carrier := X].Topology => topology.Continuity[A := Y, B := X].Continuous space t f \by {
+    base: continuous, equality: sym!{{topology.Topology[Carrier := X].Topology}} _ _ sameBase
+  };
+\import Image.Pullback[Y := Y, source := space, f := f, regularBase := continuous] \as ImagePull;
+\import Other.Pullback[Y := Y, source := space, f := f, regularBase := continuous] \as OtherPull;
+\import \root.Linearization[].ProjectionBundle[n := n, X := Y, source := space, P := (\fun (y: Y) => P (f y)), regular := ImagePull.composedRegular] \as Local;
+\import Local.TensorLine[L := (\fun (y: Y) => L (f y)), line := LinePull.pulled lineContinuous, sameBase := \refl(space)] \as New;
+\import Tensor.Of[same := sameBase].Pullback[Y := Y, source := space, f := f, regular := lineContinuous] \as TensorPull;
+\import Product.Of[same := sameBase].Pullback[Y := Y, source := space, f := f, regular := lineContinuous] \as ProductPull;
+\import Operations.IdentityIsomorphism[X := Y, F := (\fun (y: Y) => L (f y)), bundle := LinePull.pulled lineContinuous] \as LineIdentity;
+\import Operations.TensorIsomorphisms[X := Y, F := (\fun (y: Y) => L (f y)), G := (\fun (y: Y) => ImageFiber (f y)),
+  A := (\fun (y: Y) => L (f y)), B := Local.ImageFiber,
+  first := LinePull.pulled lineContinuous, second := ImagePull.firstBundle,
+  newFirst := LinePull.pulled lineContinuous, newSecond := Local.imageBundle,
+  sameSource := \refl(space), sameTarget := \refl(space)] \as TensorChange;
+\import Operations.IsomorphismComposition[X := Y, F := (\fun (y: Y) => TensorFiber (f y)), G := TensorChange.SourceFiber, H := New.TensorFiber,
+  source := TensorPull.firstBundle, middle := TensorPull.secondBundle, target := New.tensorBundle] \as TensorCompose;
+\definition tensorIsomorphism: Bundles.Isomorphisms[X := Y, F := (\fun (y: Y) => TensorFiber (f y)), G := New.TensorFiber,
+  source := TensorPull.firstBundle, target := New.tensorBundle].Isomorphism :=
+  TensorCompose.compose TensorPull.isomorphism (TensorChange.isomorphism LineIdentity.isomorphism ImagePull.isomorphism);
+\import Operations.DirectSumIsomorphisms[X := Y, F := (\fun (y: Y) => TensorFiber (f y)), G := (\fun (y: Y) => ComplementFiber (f y)),
+  A := New.TensorFiber, B := Local.ComplementFiber,
+  first := TensorPull.firstBundle, second := OtherPull.firstBundle,
+  newFirst := New.tensorBundle, newSecond := Local.complementBundle, sameSource := \refl(space), sameTarget := \refl(space)] \as SumChange;
+\import Operations.IsomorphismComposition[X := Y, F := (\fun (y: Y) => ProductFiber (f y)), G := SumChange.SourceFiber, H := New.ProductFiber,
+  source := ProductPull.firstBundle, middle := ProductPull.secondBundle, target := New.productBundle] \as Compose;
+\definition pulledBundle: Bundles.Family[X := Y, F := (\fun (y: Y) => ProductFiber (f y))].Bundle := ProductPull.firstBundle;
+\definition LocalFiber: Y -> \Set := New.ProductFiber;
+\definition localBundle: Bundles.Family[X := Y, F := LocalFiber].Bundle := New.productBundle;
+\definition comparison: Bundles.Isomorphisms[X := Y, F := (\fun (y: Y) => ProductFiber (f y)), G := LocalFiber,
+  source := pulledBundle, target := localBundle].Isomorphism :=
+  Compose.compose ProductPull.isomorphism (SumChange.isomorphism tensorIsomorphism OtherPull.isomorphism);
+\definition tensorIdentity[y: Y]: Spaces.Linear[V := TensorFiber (f y), W := New.TensorFiber y,
+  source := TensorPull.firstBundle.space y, target := New.tensorBundle.space y].Map :=
+  Spaces.Linear[V := TensorFiber (f y), W := New.TensorFiber y, source := TensorPull.firstBundle.space y, target := New.tensorBundle.space y].Map {
+    apply := \fun (v: TensorFiber (f y)) => v,
+    preservesAdd := \fun (v, w: TensorFiber (f y)) => \refl((New.tensorBundle.space y).add v w),
+    preservesScale := \fun (a: C.Complex)(v: TensorFiber (f y)) => \refl((New.tensorBundle.space y).smul a v)
+  };
+\definition tensorOnFiber: \forall (y: Y)(v: TensorFiber (f y)) -> (tensorIsomorphism.forward.fiber y).apply v = v :=
+  \fun (y: Y) => Operations.TensorEquality[V := L (f y), W := ImageFiber (f y), U := New.TensorFiber y,
+    left := line.space (f y), right := imageBundle.space (f y), target := New.tensorBundle.space y].pointwise
+    (tensorIsomorphism.forward.fiber y) (tensorIdentity y)
+    (\fun (l: L (f y))(v: ImageFiber (f y)) => TensorChange.onPure LineIdentity.isomorphism ImagePull.isomorphism y l v);
+\definition onFiber: \forall (y: Y)(v: ProductFiber (f y)) -> (comparison.forward.fiber y).apply v = v :=
+  \fun (y: Y)(v: ProductFiber (f y)) => Pair.Prop[A := TensorFiber (f y), B := ComplementFiber (f y)].ext ((comparison.forward.fiber y).apply v) v
+    (tensorOnFiber y (Pair.first (TensorFiber (f y)) (ComplementFiber (f y)) v))
+    (\refl(Pair.second (TensorFiber (f y)) (ComplementFiber (f y)) v));
+\definition inverseOnFiber: \forall (y: Y)(v: LocalFiber y) -> (comparison.backward.fiber y).apply v = v :=
+  \fun (y: Y)(v: LocalFiber y) => trans!{{LocalFiber y}} _ _ _
+    (sym!{{LocalFiber y}} _ _ (onFiber y ((comparison.backward.fiber y).apply v))) (comparison.rightInverse y v);
+\definition LineFrame: \Set := New.Frame;
+\module Framed(frame: LineFrame);

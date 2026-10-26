@@ -1,0 +1,39 @@
+\import R.SquareRoot[] \as Squares;
+\definition error: R.Real := R.sub t p;
+\definition sum: R.Real := R.add t p;
+\definition increment: R.Real := R.mul R.half (R.sub (R.mul t t) (R.mul p p));
+\definition value: R.Real := R.add p increment;
+\definition factor: R.Real := R.sub R.one (R.mul R.half sum);
+\definition q: R.Real := R.sub R.one (R.mul R.half t);
+\definition errorNonnegative: Real.Le R.zero error := Distance.subNonnegative t p upper;
+\definition incrementNonnegative: Real.Le R.zero increment := Laws.fieldMulNonnegative R.half (R.sub (R.mul t t) (R.mul p p)) Estimates.halfNonnegative
+  (Distance.subNonnegative (R.mul t t) (R.mul p p) (Squares.squareMonotone p t lower nonnegative upper));
+\definition increasing: Real.Le p value := Algebra.leAddRight p increment incrementNonnegative;
+\definition valueNonnegative: Real.Le R.zero value := Real.leTrans R.zero p value lower increasing;
+\definition halfTwo: R.mul R.half (R.add R.one R.one) = R.one :=
+  trans!{{R.Real}} _ _ _ (Laws.fieldMulAdd R.half R.one R.one) (Estimates.halfTwice R.one);
+\definition factorNonnegative: Real.Le R.zero factor := Distance.subNonnegative R.one (R.mul R.half sum)
+  (Real.leReplaceRight _ _ R.one halfTwo
+    (Estimates.mulMonotone R.half sum (R.add R.one R.one) Estimates.halfNonnegative
+      (Estimates.addLe t p R.one R.one bounded (Real.leTrans p t R.one upper bounded))));
+\definition factorization: R.sub t value = R.mul error factor :=
+  eq_reason_in!{{R.Real} _
+    "=" { R.sub error increment } "by" { trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (R.add t) _ _ (Laws.negAdd p increment)) (sym!{{R.Real}} _ _ (Laws.addAssoc t (R.neg p) (R.neg increment))) }
+    "=" { R.sub error (R.mul R.half (R.mul error sum)) } "by" { congr!{{R.Real} {R.Real}} (R.sub error) _ _ (congr!{{R.Real} {R.Real}} (R.mul R.half) _ _ (sym!{{R.Real}} _ _ (Squares.differenceOfSquares p t))) }
+    "=" { R.sub error (R.mul error (R.mul R.half sum)) } "by" { congr!{{R.Real} {R.Real}} (R.sub error) _ _ (Algebra.mulSwap R.half error sum) }
+    "=" { R.sub (R.mul error R.one) (R.mul error (R.mul R.half sum)) } "by" { congr!{{R.Real} {R.Real}} (\fun (e: R.Real) => R.sub e (R.mul error (R.mul R.half sum))) _ _ (sym!{{R.Real}} _ _ (Algebra.mulOneRight error)) }
+    "=" { R.mul error factor } "by" { sym!{{R.Real}} _ _ (Algebra.mulSub error R.one (R.mul R.half sum)) }
+  };
+\definition errorAtNext: Real.Le R.zero (R.sub t value) := Real.leReplaceRight R.zero (R.mul error factor) (R.sub t value) (sym!{{R.Real}} _ _ factorization)
+  (Laws.fieldMulNonnegative error factor errorNonnegative factorNonnegative);
+\definition below: Real.Le value t :=
+  Real.leReplace (R.add value R.zero) value (R.add value (R.sub t value)) t (Laws.addZeroRight value) (Estimates.addSubCancel t value)
+    (Laws.addMonotoneLeft R.zero (R.sub t value) value errorAtNext);
+\definition errorDecreasing: Real.Le (R.sub t value) error := Laws.addMonotoneLeft (R.neg value) (R.neg p) t (Laws.negAntitone p value increasing);
+\definition factorBound: Real.Le factor q := Laws.addMonotoneLeft (R.neg (R.mul R.half sum)) (R.neg (R.mul R.half t)) R.one
+  (Laws.negAntitone (R.mul R.half t) (R.mul R.half sum)
+    (Estimates.mulMonotone R.half t sum Estimates.halfNonnegative (Algebra.leAddRight t p lower)));
+\definition contraction: Real.Le (R.sub t value) (R.mul q error) := Real.leReplaceLeft (R.mul error factor) (R.sub t value) (R.mul q error) (sym!{{R.Real}} _ _ factorization)
+  (Real.leReplaceRight _ _ _ (Laws.fieldMulComm error q) (Estimates.mulMonotone error factor q errorNonnegative factorBound));
+\definition qNonnegative: Real.Le R.zero q := Distance.subNonnegative R.one (R.mul R.half t) (Real.leTrans _ t R.one (Estimates.halfBelow t nonnegative) bounded);
+\definition qStrict: Real.Lt R.zero t -> Real.Lt q R.one := \fun (positive: Real.Lt R.zero t) => Squares.subBelow R.one (R.mul R.half t) (Estimates.halfOfPositive t positive);

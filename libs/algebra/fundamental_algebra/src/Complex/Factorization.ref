@@ -1,0 +1,27 @@
+\import \parent.Roots[] \as Roots;
+\import \parent.Normalization[] \as Normalization;
+\import Monic.Splitting[] \as Splitting;
+\import Monic.RootProduct[] \as RootProduct;
+\import algebra.Monoid[].Of[Carrier := Polynomial.Carrier, monoid := Raw.multiplicative] \as Product;
+\import algebra.Group[].Of[Carrier := Polynomial.Carrier, group := Rings.additiveGroup Polynomial.Carrier Raw.ring] \as PolynomialSum;
+\definition monic: \forall (p: Coefficients) -> Monic.Splits Normalization.whole p :=
+  \fun (p: Coefficients) => Splitting.splitsOverClosed Normalization.whole (Field.Subfield[].laws Field.Subfield[].whole) Roots.closed p (Monic.Nonzero[].allCoefficients p);
+\structure Data: \Set := { leading: C.Complex, roots: Coefficients };
+\structure Laws[p: Polynomial.Carrier, data: Data]: \Prop := {
+  nonzero: Op.NonZero data.leading,
+  equation: p = Polynomial.mul (Polynomial.constant data.leading) (Monic.factors data.roots),
+};
+\definition Result[p: Polynomial.Carrier]: \Set := \Cast[Data] ({ data: Data \where Laws[p, data] });
+\definition exists: \forall (p: Polynomial.Carrier) -> Logic.Not (p = Polynomial.zero) -> \exists Result p := \block {
+  \fun (p: Polynomial.Carrier)(nonzero: _) \then
+  \takefrom form: Normalization.Form p \by Normalization.exists p nonzero \then
+  \takefrom splitting: Monic.Splitting[Normalization.whole, form.coefficients] \by monic form.coefficients \then
+  \return \exact(Result[p] { leading := form.leading, roots := splitting.roots, nonzero := form.nonzero,
+    equation := trans!{Polynomial.Carrier} _ _ _ form.equation
+      (congr!{Polynomial.Carrier Polynomial.Carrier} (Polynomial.mul (Polynomial.constant form.leading)) _ _ splitting.factorization),
+  }, Result p)
+};
+\module Cancellation;
+\module Families;
+\module Uniqueness;
+\module Unordered;

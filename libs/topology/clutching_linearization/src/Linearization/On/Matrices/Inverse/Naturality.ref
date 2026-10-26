@@ -1,0 +1,23 @@
+\import sphere_maps.Circle[] \as NativeCircle;
+\import uniform_approximation.Approximation[].Circle[].Coefficients[X := Y, space := space, baseCompact := compactY, baseHausdorff := hausdorffY] \as TargetCircle;
+\import topological_constructions.Product[A := X, B := NativeCircle.Carrier] \as SourceProduct;
+\import topological_constructions.Product[A := Y, B := NativeCircle.Carrier] \as TargetProduct;
+\definition circleMap[p: TargetCircle.Domain]: Circle.Domain := Pair.pair X NativeCircle.Carrier (f (TargetCircle.first p)) (TargetCircle.second p);
+\definition circleContinuous: topology.Continuity[A := TargetCircle.Domain, B := Circle.Domain].Continuous TargetCircle.source Circle.source circleMap :=
+  SourceProduct.Universal[X := TargetCircle.Domain].pairContinuous TargetCircle.source source NativeCircle.topology
+    (\fun (p: TargetCircle.Domain) => f (TargetCircle.first p)) TargetCircle.second
+    (topology.Composition[A := TargetCircle.Domain, B := Y, C := X].composeContinuous TargetCircle.source space source TargetCircle.first f
+      (TargetProduct.Maps[].firstContinuous space NativeCircle.topology) continuous) (TargetProduct.Maps[].secondContinuous space NativeCircle.topology);
+\definition pulled[p: TargetCircle.Domain]: M.Matrix := a (circleMap p);
+\definition pulledRegular: Top.Families[X := TargetCircle.Domain].Regular TargetCircle.source pulled :=
+  \fun (i, j: M.Index) => topology.Composition[A := TargetCircle.Domain, B := Circle.Domain, C := C.Complex].composeContinuous TargetCircle.source Circle.source topological_algebra.Complex[].topology circleMap
+    (\fun (p: Circle.Domain) => a p i j) circleContinuous (regular i j);
+\definition pulledNonzero: \forall (p: TargetCircle.Domain) -> Field.Nonzero (pulled p) := \fun (p: TargetCircle.Domain) => nonzero (circleMap p);
+\import \root.Linearization[].On[X := Y, source := space, compact := compactY, hausdorff := hausdorffY].Matrices[n := n, a := pulled, regular := pulledRegular, nonzero := pulledNonzero] \as Target;
+\import K.Pullback[Y := Y, space := space, sourceCompact := compactY, sourceHausdorff := hausdorffY, f := f, regular := continuous] \as Pull;
+\import topological_k_theory.KTheory[].On[X := Y, baseSpace := space, compact := compactY, hausdorff := hausdorffY] \as TargetK;
+\module At(parameters: Parameters);
+\definition naturality: Pull.K0[].map value = Target.Inverse[].value := \block {
+  \takefrom parameters: Parameters \by parametersExist \then
+  \return trans!{TargetK.K0[].Carrier} _ _ _ (congr!{K.K0[].Carrier TargetK.K0[].Carrier} Pull.K0[].map _ _ (comparison parameters)) (At[parameters := parameters].naturality)
+};

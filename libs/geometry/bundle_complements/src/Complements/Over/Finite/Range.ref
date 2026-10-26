@@ -1,0 +1,18 @@
+\definition Image[z: Vector n]: \Prop := \exists ( v: V \where f.apply v = z );
+\structure Conditions[p: End.Map]: \Prop := {
+  selfAdjoint: \forall (v, w: Vector n) -> E.dot (p.apply v) w = E.dot v (p.apply w),
+  idempotent: \forall (v: Vector n) -> p.apply (p.apply v) = p.apply v,
+  range: \forall (z: Vector n) -> Logic.PropEquiv[p.apply z = z, Image z],
+};
+\definition Values: \Pow End.Map := { p: End.Map \where Conditions[p] };
+\definition Candidate: \Set := \Cast[End.Map] Values;
+\definition conditions[p: Candidate]: Conditions[p] := \bysub(End.Map, Values, p);
+\definition crossFix[a, b: Candidate][v: Vector n]: b.apply (a.apply v) = a.apply v :=
+  ((conditions b).range (a.apply v)).rtl (((conditions a).range (a.apply v)).ltr ((conditions a).idempotent v));
+\definition unique: \forall (a, b: Candidate) -> a = b := \fun (a, b: Candidate) => End.ext a b (\axiom:funext(a.apply, b.apply,
+  \fun (v: Vector n) => separate (a.apply v) (b.apply v) (\fun (w: Vector n) => trans!{K} _ _ _
+    (sym!{K} _ _ (congr!{{Vector n} K} (\fun (z: Vector n) => E.dot z w) _ _ (crossFix a b v)))
+    (trans!{K} _ _ _ ((conditions b).selfAdjoint (a.apply v) w)
+      (trans!{K} _ _ _ ((conditions a).selfAdjoint v (b.apply w))
+        (trans!{K} _ _ _ (congr!{{Vector n} K} (E.dot v) _ _ (crossFix b a w)) (sym!{K} _ _ ((conditions b).selfAdjoint v w))))))));
+\module WithFrame(k: N.Nat^, frame: Bundles.Dimension[V := V, space := space].Frame k);

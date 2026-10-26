@@ -1,0 +1,26 @@
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[n := n, a := a, regular := regular, nonzero := nonzero].Construction[parameters := parameters].Path[].Stabilized[k := k] \as Base;
+\import Paths.Outer[k := extraDegree, z := Circle.unit, regularZ := Circle.unitContinuous,
+  unit := (\fun (p: Circle.Domain) => Powers.unitOfNorm (Circle.unit p) (Circle.unitNorm p))] \as Outer;
+\import \root.Linearization[].CanonicalScalar[] \as Two;
+\import \root.Linearization[].Companion[n := n, d := Base.order].RowFamilies[X := X, source := source, rows := Base.rows, regular := Base.rowsRegular].Factors[r := Outer.root, offR := Outer.off] \as Factors;
+\definition order: N.Nat^ := Nat.add Base.order extraDegree;
+\definition rows: Orders.Family order := Factors.iterated extraDegree;
+\definition rowsRegular: Orders.Regular order rows := Factors.iteratedRegular extraDegree;
+\definition rowsKernel: Orders.Kernel order rows := Factors.iteratedKernel Base.rowsKernel extraDegree;
+\definition start: Paths.Family := Base.start;
+\definition finish: Paths.Family := Outer.target Base.finish;
+\definition path: Paths.Path[start, finish] := Paths.concatenate start Base.finish finish Base.path (Outer.path Base.finish);
+\definition factorEquality: \forall (p: Circle.Domain) -> C.Def[].add (Circle.unit p) (C.Def[].neg Outer.root) = C.Def[].add (Circle.unit p) Two.value :=
+  \fun (p: Circle.Domain) => congr!{{C.Complex} {C.Complex}} (C.Def[].add (Circle.unit p)) _ _ (C.Prop[].negNeg Two.value);
+\definition entries: \forall (p: Circle.Domain) -> M.Representation[].entries (Orders.polynomial order rows (Circle.first p) (Circle.unit p)) = finish.matrix p :=
+  \fun (p: Circle.Domain) => M.Operations[].ext (M.Representation[].entries (Orders.polynomial order rows (Circle.first p) (Circle.unit p))) (finish.matrix p)
+    (\fun (i, j: M.Index) => trans!{{C.Complex}} _ _ _
+      (congr!{Vectors.Vector {C.Complex}} (\fun (v: Vectors.Vector) => v i) _ _ (Factors.polynomialFormula extraDegree (Circle.first p) (Circle.unit p) (Spaces.FiniteCoordinates[n := n].vectors j)))
+      (congr!{{C.Complex} {C.Complex} {C.Complex}} C.Def[].mul _ _ _ _
+        (congr!{{C.Complex} {C.Complex}} (\fun (z: C.Complex) => Powers.value z extraDegree) _ _ (factorEquality p))
+        (congr!{M.Matrix {C.Complex}} (\fun (A: M.Matrix) => A i j) _ _ (Base.entries p))));
+\definition removed: N.Nat^ := Base.removed;
+\import Factors.Separated[initial := Base.rowsKernel].Outside[compact := compact, hausdorff := hausdorff, removed := removed, outside := Order.leOfLt R.one (C.Absolute[].abs Outer.root) Outer.outside] \as Outside;
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := source, compact := compact, hausdorff := hausdorff] \as K;
+\definition correction: Orders.Index[compact := compact, hausdorff := hausdorff, removed := removed].value order rows rowsRegular rowsKernel = inverseClass :=
+  trans!{K.K0[].Carrier} _ _ _ (Outside.invariant extraDegree) Base.correction;

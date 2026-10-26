@@ -1,0 +1,28 @@
+\import \root.Linearization[].ScalarMatrices[n := n] \as Scaling;
+\import Plane.Functions[A := X] \as BaseFunctions;
+\import \root.Linearization[].Powers[] \as Powers;
+\definition unitProduct: \forall (x: X) -> C.Def[].mul (s x) (C.Def[].conj (s x)) = C.Def[].one :=
+  \fun (x: X) => trans!{{C.Complex}} _ _ _ (C.Prop[].mulConjSelf (s x)) (congr!{{R.Real} {C.Complex}} C.Def[].ofReal _ _ (Powers.normOfUnit (s x) (unit x)));
+\definition scalarNonzero: \forall (x: X) -> C.Def[].NonZero (s x) := \fun (x: X)(zero: s x = C.Def[].zero) => C.Prop[].zeroNeOne
+  (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (C.Prop[].mulZeroLeft (C.Def[].conj (s x))))
+    (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (\fun (u: C.Complex) => C.Def[].mul u (C.Def[].conj (s x))) _ _ (sym!{{C.Complex}} _ _ zero)) (unitProduct x)));
+\definition scaled[x: X]: Matrices.Matrix := Scaling.scale (s x) (a x);
+\definition scaledRegular: Top.Families[X := X].Regular source scaled := \fun (i, j: Matrices.Index) => BaseFunctions.multiplicationContinuous source _ _ regularS (regular i j);
+\definition scaledNonzero: \forall (x: X) -> Field.Nonzero (scaled x) := \fun (x: X) => Scaling.nonzero (s x) (scalarNonzero x) (a x) (nonzero x);
+\import \root.Linearization[].MatrixNeighborhoods[n := n].Perturbation[X := X, source := source, compact := compact, a := scaled, regular := scaledRegular, nonzero := scaledNonzero] \as Target;
+\definition reverse[e: Matrices.Matrix][x: X]: Matrices.Matrix := Scaling.scale (C.Def[].conj (s x)) e;
+\definition reverseAbsolute: \forall (e: Matrices.Matrix)(x: X)(i, j: Matrices.Index) -> C.Absolute[].abs (reverse e x i j) = C.Absolute[].abs (e i j) :=
+  \fun (e: Matrices.Matrix)(x: X)(i, j: Matrices.Index) => trans!{{R.Real}} _ _ _ (C.Absolute[].multiplicative (C.Def[].conj (s x)) (e i j))
+    (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (\fun (r: R.Real) => R.mul r (C.Absolute[].abs (e i j))) _ _ (trans!{{R.Real}} _ _ _ (C.Absolute[].conjugate (s x)) (unit x))) (Laws.fieldMulOneLeft (C.Absolute[].abs (e i j))));
+\definition restoration: \forall (e: Matrices.Matrix)(x: X) -> Scaling.scale (s x) (perturb (reverse e x) x) = Target.perturb e x :=
+  \fun (e: Matrices.Matrix)(x: X) => Matrices.Operations[].ext (Scaling.scale (s x) (perturb (reverse e x) x)) (Target.perturb e x) (\fun (i, j: Matrices.Index) => trans!{{C.Complex}} _ _ _ (C.Prop[].mulAddLeft (s x) (a x i j) (reverse e x i j))
+    (congr!{{C.Complex} {C.Complex}} (C.Def[].add (scaled x i j)) _ _
+      (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (C.Prop[].mulAssoc (s x) (C.Def[].conj (s x)) (e i j)))
+        (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (\fun (u: C.Complex) => C.Def[].mul u (e i j)) _ _ (unitProduct x)) (C.Prop[].mulOneLeft (e i j))))));
+\definition bound[original: Bound]: Target.Bound := Target.Bound {
+  value := original.value, positive := original.positive,
+  preserves := \fun (e: Matrices.Matrix)(near: \forall (i, j: Matrices.Index) -> Real.Lt (C.Absolute[].abs (e i j)) original.value)(x: X)(zero: _) =>
+    Scaling.nonzero (s x) (scalarNonzero x) (perturb (reverse e x) x)
+      (original.preserves (reverse e x) (\fun (i, j: Matrices.Index) => Real.ltReplaceLeft _ _ _ (sym!{{R.Real}} _ _ (reverseAbsolute e x i j)) (near i j)) x)
+      (trans!{{C.Complex}} _ _ _ (congr!{Matrices.Matrix {C.Complex}} Matrices.determinant _ _ (restoration e x)) zero),
+};

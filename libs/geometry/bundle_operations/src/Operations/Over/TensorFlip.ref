@@ -1,0 +1,13 @@
+\import Spaces.Tensor[V := V, W := W, left := left, right := right] \as Tensor;
+\import Spaces.Tensor[V := W, W := V, left := right, right := left] \as Other;
+\definition value[v: V][w: W]: Other.Carrier := Other.tensor w v;
+\definition bilinear: Tensor.BilinearLaws[Other.Carrier, Other.space, value] := Tensor.BilinearLaws[Other.Carrier, Other.space, value] {
+  addLeft := \fun (v, z: V)(w: W) => Other.bilinear.addRight w v z,
+  addRight := \fun (v: V)(w, z: W) => Other.bilinear.addLeft w z v,
+  scaleLeft := \fun (a: K)(v: V)(w: W) => Other.bilinear.scaleRight a w v,
+  scaleRight := \fun (a: K)(v: V)(w: W) => Other.bilinear.scaleLeft a w v
+};
+\import Tensor.Universal[U := Other.Carrier, target := Other.space] \as Universal;
+\definition map: Spaces.Linear[V := Tensor.Carrier, W := Other.Carrier, source := Tensor.space, target := Other.space].Map := Universal.map value bilinear;
+\definition onPure: \forall (v: V)(w: W) -> map.apply (Tensor.tensor v w) = Other.tensor w v := Universal.onTensor value bilinear;
+\module Inverse;

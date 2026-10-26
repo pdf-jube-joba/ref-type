@@ -1,0 +1,29 @@
+\import Ring.At[n := n] \as Matrix;
+\import Matrix.Operations[] \as Operations;
+\import Field.At[n := n] \as Inversion;
+\import Topological.At[n := n] \as Top;
+\import topology.Topology[Carrier := Matrix.Matrix] \as Space;
+\import topology.Topology[Carrier := K] \as ScalarSpace;
+\import topological_algebra.Matrix[K := K, I := Matrix.Index, J := Matrix.Index] \as Matrices;
+\definition topology: Space.Topology := Top.topology;
+\definition InvertibleSet: \Pow Matrix.Matrix := { A: Matrix.Matrix \where \exists Operations.Inverse A };
+\definition nonvanishingEqualsInvertible: Top.Nonvanishing = InvertibleSet :=
+  \axiom:setext(Top.Nonvanishing, InvertibleSet,
+    \fun (A: Matrix.Matrix)(nonzero: Inversion.Nonzero A) => (Inversion.invertibleIff A).rtl nonzero,
+    \fun (A: Matrix.Matrix)(exists: \exists Operations.Inverse A) => (Inversion.invertibleIff A).ltr exists);
+\module ScalarOpen;
+\definition invertibleOpen: Space.IsOpenIn topology InvertibleSet :=
+  \idelim Top.Nonvanishing = InvertibleSet \with S: \Pow Matrix.Matrix => Space.IsOpenIn topology S \by {
+    base: Top.nonvanishingOpen ScalarOpen[].nonzeroOpen, equality: nonvanishingEqualsInvertible
+  };
+\definition Nonsingular: \Set := Inversion.Nonsingular;
+\import Space.Subspace[S := Top.Nonvanishing] \as Subspace;
+\definition inverseTopology: topology.Topology[Carrier := Nonsingular].Topology := Subspace.topology topology;
+\definition inverseMap[A: Nonsingular]: Matrix.Matrix := Inversion.inverse A;
+\module Families(X: \Set);
+\definition inverseContinuous: topology.Continuity[A := Nonsingular, B := Matrix.Matrix].Continuous inverseTopology topology inverseMap :=
+  Families[X := Nonsingular].inverseContinuous inverseTopology (\fun (A: Nonsingular) => A)
+    (\fun (i, j: Matrix.Index) => topology.Continuity[A := Matrix.Matrix, B := K].Restriction[S := Top.Nonvanishing].restrictContinuous
+      topology (ScalarOpen[].scalarTopology) (Matrices.entry i j) (Matrices.entryContinuous ScalarOpen[].scalarTopology i j))
+    (\fun (A: Nonsingular) => \bysub(Matrix.Matrix, Nonsingular, A));
+\module Smooth(d: N.Nat^);

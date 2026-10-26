@@ -1,0 +1,24 @@
+\definition left[x: PositiveSubspace.CarrierSet]: B := f (tailDisk x);
+\definition right[x: NegativeSubspace.CarrierSet]: B := g (tailDisk x);
+\import topological_constructions.Gluing[A := Sphere.Sphere, B := B].Pasting[F := PositiveHalf, G := NegativeHalf] \as Paste;
+\definition compatible: Paste.Compatible left right := \block {
+  \fun (a: PositiveSubspace.CarrierSet)(b: NegativeSubspace.CarrierSet)(same: a = b) \then
+  \let negative: \In[Sphere.Sphere] NegativeHalf a := \idelim b = a \with x: Sphere.Sphere => \In[Sphere.Sphere] NegativeHalf x \by { base: \bysub(Sphere.Sphere, NegativeHalf, b), equality: sym!{Sphere.Sphere} _ _ same } \then
+  \let positive: \In[Sphere.Sphere] PositiveHalf a := \bysub(Sphere.Sphere, PositiveHalf, a) \then
+  \return trans!{B} _ _ _ (agrees (intersectionBoundary a positive negative)) (congr!{{Disk.Disk} B} g _ _ (congr!{Sphere.Sphere {Disk.Disk}} tailDisk a b same))
+};
+\definition apply: Sphere.Sphere -> B := Paste.apply left right halvesCover compatible;
+\definition continuous: topology.Continuity[A := Sphere.Sphere, B := B].Continuous Sphere.sphereTopology target apply :=
+  Paste.continuous Sphere.sphereTopology target left right halvesCover compatible positiveClosed negativeClosed
+    (topology.Composition[A := PositiveSubspace.CarrierSet, B := Disk.Disk, C := B].composeContinuous (PositiveSubspace.topology Sphere.sphereTopology) Disk.diskTopology target positiveInverse f
+      (topology.Homeomorphism[A := Disk.Disk, B := PositiveSubspace.CarrierSet].laws Disk.diskTopology (PositiveSubspace.topology Sphere.sphereTopology) positiveHomeomorphism).backwardContinuous continuousF)
+    (topology.Composition[A := NegativeSubspace.CarrierSet, B := Disk.Disk, C := B].composeContinuous (NegativeSubspace.topology Sphere.sphereTopology) Disk.diskTopology target negativeInverse g
+      (topology.Homeomorphism[A := Disk.Disk, B := NegativeSubspace.CarrierSet].laws Disk.diskTopology (NegativeSubspace.topology Sphere.sphereTopology) negativeHomeomorphism).backwardContinuous continuousG);
+\definition onPositive: \forall (v: Disk.Disk) -> apply (positive v) = f v := \fun (v: Disk.Disk) =>
+  trans!{B} _ _ _ (Paste.onLeft left right halvesCover compatible (positivePoint v)) (congr!{{Disk.Disk} B} f (tailDisk (positive v)) v (Splitting.tailJoin (height v) v));
+\definition onNegative: \forall (v: Disk.Disk) -> apply (negative v) = g v := \fun (v: Disk.Disk) =>
+  trans!{B} _ _ _ (Paste.onRight left right halvesCover compatible (negativePoint v)) (congr!{{Disk.Disk} B} g (tailDisk (negative v)) v (Splitting.tailJoin (Real.neg (height v)) v));
+\definition unique: \forall (h: Sphere.Sphere -> B) -> (\forall (v: Disk.Disk) -> h (positive v) = f v) -> (\forall (v: Disk.Disk) -> h (negative v) = g v) -> h = apply :=
+  \fun (h: Sphere.Sphere -> B)(onLeft: _)(onRight: _) => \axiom:funext(h, apply, induction (\fun (x: Sphere.Sphere) => h x = apply x)
+    (\fun (v: Disk.Disk) => trans!{B} _ _ _ (onLeft v) (sym!{B} _ _ (onPositive v)))
+    (\fun (v: Disk.Disk) => trans!{B} _ _ _ (onRight v) (sym!{B} _ _ (onNegative v))));

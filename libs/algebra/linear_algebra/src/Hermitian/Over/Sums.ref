@@ -1,0 +1,80 @@
+\definition sum: \forall (n: N.Nat^) -> (Fin.Fin n -> K) -> K :=
+  \induction (n: N.Nat^) \return (Fin.Fin n -> K) -> K \with {
+    | zero: \fun (f: Fin.Fin N.Nat^::zero -> K) => Spaces.zero
+    | succ: \fun (n: N.Nat^)(previous: (Fin.Fin n -> K) -> K)(f: Fin.Fin (N.Nat^::succ n) -> K) =>
+      Spaces.add (f (Fin.zero n)) (previous (\fun (j: Fin.Fin n) => f (Fin.succ n j)))
+  };
+\definition congruent: \forall (n: N.Nat^)(f, g: Fin.Fin n -> K) -> (\forall (i: Fin.Fin n) -> f i = g i) -> sum n f = sum n g :=
+  \induction (n: N.Nat^) \return \forall (f, g: Fin.Fin n -> K) -> (\forall (i: Fin.Fin n) -> f i = g i) -> sum n f = sum n g \with {
+    | zero: \fun (f, g: _)(agrees: _) => \refl(Spaces.zero)
+    | succ: \fun (n: N.Nat^)(previous: _)(f, g: _)(agrees: _) => congr!{K K K} Spaces.add _ _ _ _ (agrees (Fin.zero n))
+      (previous (\fun (j: Fin.Fin n) => f (Fin.succ n j)) (\fun (j: Fin.Fin n) => g (Fin.succ n j)) (\fun (j: Fin.Fin n) => agrees (Fin.succ n j)))
+  };
+\definition zeroSum: \forall (n: N.Nat^) -> sum n (\fun (i: Fin.Fin n) => Spaces.zero) = Spaces.zero :=
+  \induction (n: N.Nat^) \return sum n (\fun (i: Fin.Fin n) => Spaces.zero) = Spaces.zero \with {
+    | zero: \refl(Spaces.zero)
+    | succ: \fun (n: N.Nat^)(previous: _) => trans!{K} _ _ _ (Spaces.addZeroLeft (sum n (\fun (i: Fin.Fin n) => Spaces.zero))) previous
+  };
+\definition addition: \forall (n: N.Nat^)(f, g: Fin.Fin n -> K) -> sum n (\fun (i: Fin.Fin n) => Spaces.add (f i) (g i)) = Spaces.add (sum n f) (sum n g) :=
+  \induction (n: N.Nat^) \return \forall (f, g: Fin.Fin n -> K) -> sum n (\fun (i: Fin.Fin n) => Spaces.add (f i) (g i)) = Spaces.add (sum n f) (sum n g) \with {
+    | zero: \fun (f, g: _) => sym!{K} _ _ (Spaces.addZeroLeft Spaces.zero)
+    | succ: \fun (n: N.Nat^)(previous: _)(f, g: _) => trans!{K} _ _ _
+      (congr!{K K} (Spaces.add (Spaces.add (f (Fin.zero n)) (g (Fin.zero n)))) _ _
+        (previous (\fun (j: Fin.Fin n) => f (Fin.succ n j)) (\fun (j: Fin.Fin n) => g (Fin.succ n j))))
+      (ScalarLaws.shuffle (f (Fin.zero n)) (g (Fin.zero n)) (sum n (\fun (j: Fin.Fin n) => f (Fin.succ n j))) (sum n (\fun (j: Fin.Fin n) => g (Fin.succ n j))))
+  };
+\definition scaleSum: \forall (n: N.Nat^)(c: K)(f: Fin.Fin n -> K) -> sum n (\fun (i: Fin.Fin n) => Spaces.mul c (f i)) = Spaces.mul c (sum n f) :=
+  \induction (n: N.Nat^) \return \forall (c: K)(f: Fin.Fin n -> K) -> sum n (\fun (i: Fin.Fin n) => Spaces.mul c (f i)) = Spaces.mul c (sum n f) \with {
+    | zero: \fun (c: _)(f: _) => sym!{K} _ _ (Spaces.mulZeroRight c)
+    | succ: \fun (n: N.Nat^)(previous: _)(c: _)(f: _) => trans!{K} _ _ _
+      (congr!{K K} (Spaces.add (Spaces.mul c (f (Fin.zero n)))) _ _ (previous c (\fun (j: Fin.Fin n) => f (Fin.succ n j))))
+      (sym!{K} _ _ (Spaces.mulAdd c (f (Fin.zero n)) (sum n (\fun (j: Fin.Fin n) => f (Fin.succ n j)))))
+  };
+\definition exchange: \forall (m, n: N.Nat^)(f: Fin.Fin m -> Fin.Fin n -> K) ->
+  sum m (\fun (i: Fin.Fin m) => sum n (f i)) = sum n (\fun (j: Fin.Fin n) => sum m (\fun (i: Fin.Fin m) => f i j)) :=
+  \induction (m: N.Nat^) \return \forall (n: N.Nat^)(f: Fin.Fin m -> Fin.Fin n -> K) ->
+    sum m (\fun (i: Fin.Fin m) => sum n (f i)) = sum n (\fun (j: Fin.Fin n) => sum m (\fun (i: Fin.Fin m) => f i j)) \with {
+      | zero: \fun (n: N.Nat^)(f: _) => sym!{K} _ _ (zeroSum n)
+      | succ: \fun (m: N.Nat^)(previous: _)(n: N.Nat^)(f: Fin.Fin (N.Nat^::succ m) -> Fin.Fin n -> K) =>
+          eq_reason!{
+            {sum (N.Nat^::succ m) (\fun (i: Fin.Fin (N.Nat^::succ m)) => sum n (f i))}
+            "=" {Spaces.add (sum n (f (Fin.zero m))) (sum n (\fun (j: Fin.Fin n) => sum m (\fun (i: Fin.Fin m) => f (Fin.succ m i) j)))} "by" {
+              congr!{K K} (Spaces.add (sum n (f (Fin.zero m)))) _ _
+                (previous n (\fun (i: Fin.Fin m) => f (Fin.succ m i)))}
+            "=" {sum n (\fun (j: Fin.Fin n) => Spaces.add (f (Fin.zero m) j) (sum m (\fun (i: Fin.Fin m) => f (Fin.succ m i) j)))} "by" {
+              sym!{K} _ _ (addition n (f (Fin.zero m)) (\fun (j: Fin.Fin n) => sum m (\fun (i: Fin.Fin m) => f (Fin.succ m i) j)))}
+          }
+    };
+\definition blocks: \forall (n, m: N.Nat^)(f: Fin.Fin (Fin.Sum[m := n, n := m].total) -> K) ->
+  sum (Fin.Sum[m := n, n := m].total) f = Spaces.add (sum n (\fun (i: Fin.Fin n) => f (Fin.Sum[m := n, n := m].left i)))
+    (sum m (\fun (j: Fin.Fin m) => f (Fin.Sum[m := n, n := m].right j))) :=
+  \induction (n: N.Nat^) \return \forall (m: N.Nat^)(f: Fin.Fin (Fin.Sum[m := n, n := m].total) -> K) ->
+    sum (Fin.Sum[m := n, n := m].total) f = Spaces.add (sum n (\fun (i: Fin.Fin n) => f (Fin.Sum[m := n, n := m].left i)))
+      (sum m (\fun (j: Fin.Fin m) => f (Fin.Sum[m := n, n := m].right j))) \with {
+    | zero: \fun (m: N.Nat^)(f: _) => trans!{K} (sum m f) (sum m (\fun (j: Fin.Fin m) => f j)) (Spaces.add Spaces.zero (sum m (\fun (j: Fin.Fin m) => f j)))
+      (congruent m f (\fun (j: Fin.Fin m) => f j) (\fun (j: Fin.Fin m) => \refl(f j)))
+      (sym!{K} (Spaces.add Spaces.zero (sum m (\fun (j: Fin.Fin m) => f j))) (sum m (\fun (j: Fin.Fin m) => f j)) (Spaces.addZeroLeft (sum m (\fun (j: Fin.Fin m) => f j))))
+    | succ: \fun (n: N.Nat^)(previous: _)(m: N.Nat^)(f: _) => trans!{K} _ _ _
+      (congr!{K K} (Spaces.add (f (Fin.zero (Fin.Sum[m := n, n := m].total)))) _ _
+        (previous m (\fun (i: Fin.Fin (Fin.Sum[m := n, n := m].total)) => f (Fin.succ (Fin.Sum[m := n, n := m].total) i))))
+      (sym!{K} _ _ (Spaces.addAssoc (f (Fin.zero (Fin.Sum[m := n, n := m].total)))
+        (sum n (\fun (i: Fin.Fin n) => f (Fin.Sum[m := N.Nat^::succ n, n := m].left (Fin.succ n i))))
+        (sum m (\fun (j: Fin.Fin m) => f (Fin.Sum[m := N.Nat^::succ n, n := m].right j)))))
+  };
+
+
+\definition conjugate: \forall (n: N.Nat^)(f: Fin.Fin n -> K) -> conj (sum n f) = sum n (\fun (i: Fin.Fin n) => conj (f i)) :=
+  \induction (n: N.Nat^) \return \forall (f: Fin.Fin n -> K) -> conj (sum n f) = sum n (\fun (i: Fin.Fin n) => conj (f i)) \with {
+    | zero: \fun (f: _) => conjugateZero
+    | succ: \fun (n: N.Nat^)(previous: _)(f: _) => trans!{K} _ _ _ (scalar.conjugateAdd _ _)
+      (congr!{K K} (Spaces.add (conj (f (Fin.zero n)))) _ _ (previous (\fun (i: Fin.Fin n) => f (Fin.succ n i))))
+  };
+\definition embedding: \forall (n: N.Nat^)(f: Fin.Fin n -> R.Real) -> sum n (\fun (i: Fin.Fin n) => embed (f i)) = embed (R.FiniteSums[].sum n f) :=
+  \induction (n: N.Nat^) \return \forall (f: Fin.Fin n -> R.Real) -> sum n (\fun (i: Fin.Fin n) => embed (f i)) = embed (R.FiniteSums[].sum n f) \with {
+    | zero: \fun (f: _) => sym!{K} _ _ scalar.embedZero
+    | succ: \fun (n: N.Nat^)(previous: _)(f: _) => trans!{K} _ _ _
+      (congr!{K K} (Spaces.add (embed (f (Fin.zero n)))) _ _ (previous (\fun (i: Fin.Fin n) => f (Fin.succ n i))))
+      (sym!{K} _ _ (scalar.embedAdd _ _))
+  };
+\definition enumeration: \forall (n: N.Nat^)(f: Fin.Fin n -> K) -> Spaces.FiniteCoordinateEnumeration[].sum n f = sum n f :=
+  Spaces.FiniteCoordinateEnumeration[].sumLaw;

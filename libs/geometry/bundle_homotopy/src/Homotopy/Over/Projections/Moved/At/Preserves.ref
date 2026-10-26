@@ -1,0 +1,21 @@
+\import Complements.Finite[n := n].Range[V := Original.Fiber x, space := Original.bundle.space x, f := embedding.map.fiber x, injective := embedding.injective x] \as Range;
+\definition candidate: Range.Candidate := \into[End.Map]((P x).map, Range.Values) \by {
+  Range.Conditions[(P x).map] { selfAdjoint := (P x).selfAdjoint, idempotent := (P x).idempotent,
+    range := \fun (z: Vector n) => Logic.PropEquiv[(P x).map.apply z = z, Range.Image z] {
+      ltr := \fun (fixed: _) => \block {
+        \let v: Original.Fiber x := \into[Vector n](z, Original.Image x) \by { fixed } \then
+        \return Logic.existsIntro[Original.Fiber x, { w: Original.Fiber x \where (embedding.map.fiber x).apply w = z }]
+          (b.backward.apply v) (trans!{{Vector n}} _ _ _ (same (b.backward.apply v))
+            (congr!{{Original.Fiber x} {Vector n}} (\fun (w: Original.Fiber x) => w) _ _ ((Automorphisms.laws b).rightInverse v)))
+      },
+      rtl := \fun (image: Range.Image z) => \block {
+        \takefrom v: \Cast[Original.Fiber x] ({ v: Original.Fiber x \where (embedding.map.fiber x).apply v = z }) \by image \then
+        \let equal: valueOf (b.forward.apply v) = z := trans!{{Vector n}} _ _ _ (sym!{{Vector n}} _ _ (same v))
+          (\bysub(Original.Fiber x, { v: Original.Fiber x \where (embedding.map.fiber x).apply v = z }, v)) \then
+        \return trans!{{Vector n}} _ _ _ (congr!{{Vector n} {Vector n}} (P x).map.apply _ _ (sym!{{Vector n}} _ _ equal))
+          (trans!{{Vector n}} _ _ _ (\bysub(Vector n, Original.Image x, b.forward.apply v)) equal)
+      }
+    }
+  }
+};
+\definition projectionEqual: (projection x).map = (P x).map := Range.unique Result.At[x := x].map candidate;

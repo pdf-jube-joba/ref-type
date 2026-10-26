@@ -1,0 +1,31 @@
+\import Base.Subspace[S := U] \as BaseSubspace;
+\definition BasePoint: \Set := \Cast[X] U;
+\import \parent.Pullback[Y := BasePoint, source := BaseSubspace.topology bundle.baseSpace, f := \fun (x: BasePoint) => x] \as Pullback;
+\definition regular: Pullback.BaseContinuous := \fun (V: \Pow X)(open: _) => BaseSubspace.traceOpen bundle.baseSpace V open;
+\definition restricted: \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := BasePoint, F := \fun (x: BasePoint) => F x].Bundle := Pullback.pulled regular;
+\definition totalMap: \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := BasePoint, F := \fun (x: BasePoint) => F x].Point -> Point := Pullback.map;
+\definition continuous: topology.Continuity[A := \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := BasePoint, F := \fun (x: BasePoint) => F x].Point, B := Point].Continuous restricted.totalSpace bundle.totalSpace totalMap := Pullback.mapContinuous;
+\import \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := BasePoint, F := \fun (x: BasePoint) => F x] \as Family;
+\definition TotalPoint: \Set := \Cast[Point] ({ p: Point \where Base.Member U p.base });
+\import Total.Subspace[S := { p: Point \where Base.Member U p.base }] \as TotalSubspace;
+\definition forward[p: Family.Point]: TotalPoint := \into[Point](Pullback.map p, { p: Point \where Base.Member U p.base }) \by { \bysub(X, U, p.base) };
+\import Pullback.Universal[Z := TotalPoint] \as Universal;
+\definition base[p: TotalPoint]: BasePoint := \into[X](p.base, U) \by { \bysub(Point, { p: Point \where Base.Member U p.base }, p) };
+\definition cone: Universal.Cone := Universal.Cone { base := base, total := \fun (p: TotalPoint) => p, commutes := \fun (p: TotalPoint) => \refl(p.base) };
+\definition backward: TotalPoint -> Family.Point := Universal.lift cone;
+\import topology.Continuity[A := Family.Point, B := Point].Corestriction[S := { p: Point \where Base.Member U p.base }] \as IntoTotal;
+\definition forwardContinuous: topology.Continuity[A := Family.Point, B := TotalPoint].Continuous restricted.totalSpace (TotalSubspace.topology bundle.totalSpace) forward :=
+  IntoTotal.corestrictContinuous restricted.totalSpace bundle.totalSpace (\fun (p: Family.Point) => forward p) Pullback.mapContinuous;
+\import topology.Continuity[A := Point, B := X].Restriction[S := { p: Point \where Base.Member U p.base }] \as RestrictBase;
+\import topology.Continuity[A := TotalPoint, B := X].Corestriction[S := U] \as IntoBase;
+\definition backwardContinuous: topology.Continuity[A := TotalPoint, B := Family.Point].Continuous (TotalSubspace.topology bundle.totalSpace) restricted.totalSpace backward :=
+  Universal.liftContinuous (TotalSubspace.topology bundle.totalSpace) cone
+    (IntoBase.corestrictContinuous (TotalSubspace.topology bundle.totalSpace) bundle.baseSpace base (RestrictBase.restrictContinuous bundle.totalSpace bundle.baseSpace projection projectionContinuous))
+    (\fun (O: \Pow Point)(open: _) => TotalSubspace.traceOpen bundle.totalSpace O open);
+\import topology.Homeomorphism[A := Family.Point, B := TotalPoint] \as Homeomorphisms;
+\definition homeomorphism: Homeomorphisms.Homeomorphism[restricted.totalSpace, TotalSubspace.topology bundle.totalSpace] := Homeomorphisms.Homeomorphism[restricted.totalSpace, TotalSubspace.topology bundle.totalSpace] {
+  forward := forward, backward := backward,
+  leftInverse := \fun (p: Family.Point) => Pullback.jointInjective (backward (forward p)) p (\refl(p.base)) (Universal.mapFormula cone (forward p)),
+  rightInverse := Universal.mapFormula cone,
+  forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
+};

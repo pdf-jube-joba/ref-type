@@ -1,0 +1,26 @@
+\import \root.Spectral[].BundleEndomorphism[X := X, F := F, bundle := bundle, T := T, gap := gap] \as Source;
+\import \root.Spectral[].BundleEndomorphism[X := Y, F := G, bundle := target, T := U, gap := targetGap] \as Target;
+\definition projectorNatural: \forall (x: X)(v: F x) -> (h.fiber x).apply ((Source.projector.fiber x).apply v) = (Target.projector.fiber (f x)).apply ((h.fiber x).apply v) :=
+  \fun (x: X) => \root.Spectral[].FiniteSpace[V := F x, space := bundle.space x, T := T.fiber x].On[finite := Source.At[x := x].finite].Naturality[
+    W := G (f x), destination := target.space (f x), U := U.fiber (f x), targetFinite := Target.At[x := f x].finite,
+    h := h.fiber x, intertwines := intertwines x].natural;
+\import Bundles.Morphisms[X := X, Y := Y, F := Source.Fiber, G := Target.Fiber, source := Source.imageBundle, target := Target.imageBundle, f := f] \as ImageMaps;
+\definition mapData: ImageMaps.Data := ImageMaps.Data { fiber := \fun (x: X) => Spaces.Linear[V := Source.Fiber x, W := Target.Fiber (f x), source := Source.imageBundle.space x, target := Target.imageBundle.space (f x)].Map {
+  apply := \fun (v: Source.Fiber x) => \into[G (f x)]((h.fiber x).apply v, { w: G (f x) \where (Target.projector.fiber (f x)).apply w = w }) \by {
+    trans!{{G (f x)}} _ _ _ (sym!{{G (f x)}} _ _ (projectorNatural x v))
+      (congr!{{F x} {G (f x)}} (h.fiber x).apply _ _ (\bysub(F x, { v: F x \where (Source.projector.fiber x).apply v = v }, v)))
+  }, preservesAdd := \fun (v, w: Source.Fiber x) => (h.fiber x).preservesAdd v w,
+  preservesScale := \fun (a: C.Complex)(v: Source.Fiber x) => (h.fiber x).preservesScale a v,
+} };
+\import Bundles.Family[X := X, F := Source.Fiber] \as SourceFamily;
+\import Bundles.Family[X := X, F := F] \as SourceAmbient;
+\import Bundles.Family[X := Y, F := G] \as TargetAmbient;
+\import Bundles.Morphisms[X := X, Y := Y, F := F, G := G, source := bundle, target := target, f := f] \as AmbientMaps;
+\import \root.Spectral[].BundleImage[X := X, F := F, bundle := bundle, P := Source.projector, idempotent := Source.idempotent] \as SourceImage;
+\import \root.Spectral[].BundleImage[X := Y, F := G, bundle := target, P := Target.projector, idempotent := Target.idempotent] \as TargetImage;
+\definition map: ImageMaps.Map := \into[ImageMaps.Data](mapData, ImageMaps.Map) \by {
+  TargetImage.Universal[Y := SourceFamily.Point, source := SourceImage.topology].continuous (ImageMaps.total mapData)
+    (topology.Composition[A := SourceFamily.Point, B := SourceAmbient.Point, C := TargetAmbient.Point].composeContinuous SourceImage.topology bundle.totalSpace target.totalSpace SourceImage.embedding (AmbientMaps.total h) SourceImage.inclusionContinuous (AmbientMaps.continuous h))
+};
+\definition inclusionNatural: \forall (x: X)(v: Source.Fiber x) -> (Target.inclusion.fiber (f x)).apply ((map.fiber x).apply v) = (h.fiber x).apply ((Source.inclusion.fiber x).apply v) :=
+  \fun (x: X)(v: Source.Fiber x) => \refl((h.fiber x).apply v);

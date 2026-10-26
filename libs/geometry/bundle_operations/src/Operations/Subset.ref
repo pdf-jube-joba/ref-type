@@ -1,0 +1,19 @@
+\import topology.Topology[Carrier := E] \as Total;
+\import Total.Subspace[S := U] \as Subspace;
+\import Subspace.Open[] \as Inclusion;
+\definition Point: \Set := \Cast[E] U;
+\import topology.Topology[Carrier := Point] \as Sub;
+\definition forget[p: Point]: E := p;
+\definition memberTransport: \forall (W: \Pow Point)(p, q: Point) -> forget p = forget q -> Sub.Member W p -> Sub.Member W q :=
+  \fun (W: \Pow Point)(p, q: Point)(same: forget p = forget q)(member: Sub.Member W p) =>
+    (\idelim forget p = forget q \with r: E => \forall (inside: Total.Member U r) -> Sub.Member W (\into[E](r, U) \by { inside }) \by {
+      base: \fun (inside: Total.Member U p) => member, equality: same
+    }) (\bysub(E, U, q));
+\definition traceImage: \forall (W: \Pow Point) -> Subspace.Trace (Inclusion.image W) = W :=
+  \fun (W: \Pow Point) => \axiom:setext(Subspace.Trace (Inclusion.image W), W,
+    \fun (p: Point)(member: _) => Inclusion.imageElim W p (Sub.Member W p)
+      (\fun (q: Point)(inW: _)(same: q = p) => memberTransport W q p same inW) member,
+    \fun (p: Point)(member: _) => Inclusion.imageMember W p member);
+\module Pullback(A: \Set, f: A -> E);
+\definition equality: \forall (p, q: Point) -> forget p = forget q -> p = q :=
+  \fun (p, q: Point)(same: _) => memberTransport ({ r: Point \where p = r }) p q same (\refl(p));

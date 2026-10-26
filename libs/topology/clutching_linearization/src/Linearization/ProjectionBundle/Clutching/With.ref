@@ -1,0 +1,43 @@
+\import \root.Linearization[].ScalarUnits[n := LineCoordinates.one, X := LineBase.Overlap, source := LineBase.overlapTopology,
+  a := a, continuous := continuous, nonzero := nonzero] \as ScalarsOnOverlap;
+\import LineBase.With[g := ScalarsOnOverlap.value, continuous := ScalarsOnOverlap.valueContinuous] \as Line;
+\import \parent.\parent.TensorLine[L := Line.Fiber, line := Line.bundle, sameBase := \refl(source)] \as TensorConstruction;
+\definition include[x: LineBase.Overlap]: X := x;
+\definition includeContinuous: topology.Continuity[A := LineBase.Overlap, B := X].Continuous LineBase.overlapTopology source include :=
+  \fun (W: \Pow X)(open: _) => topology.Topology[Carrier := X].Subspace[S := LineBase.overlap].traceOpen source W open;
+\import Image.Pullback[Y := LineBase.Overlap, source := LineBase.overlapTopology, f := include, regularBase := includeContinuous] \as OverlapImage;
+\import \root.Linearization[].ProjectionBundle[n := n, X := LineBase.Overlap, source := LineBase.overlapTopology, P := (\fun (x: LineBase.Overlap) => P x),
+  regular := OverlapImage.composedRegular].Scalar[a := a, continuous := continuous].Invertible[nonzero := nonzero] \as Normal;
+\import Homotopy.Clutching[n := n, X := X, baseSpace := source, U := U, V := V, openU := openU, openV := openV, covers := covers] \as NormalBase;
+\import NormalBase.With[g := Normal.unit, continuous := Normal.unitContinuous] \as Clutched;
+\definition LineFiber: X -> \Set := Line.Fiber;
+\definition lineBundle: Bundles.Family[X := X, F := LineFiber].Bundle := Line.bundle;
+\definition ProductFiber: X -> \Set := TensorConstruction.ProductFiber;
+\definition productBundle: Bundles.Family[X := X, F := ProductFiber].Bundle := TensorConstruction.productBundle;
+\definition NormalFiber: X -> \Set := Clutched.Fiber;
+\definition normalBundle: Bundles.Family[X := X, F := NormalFiber].Bundle := Clutched.bundle;
+\definition openDomains: \forall (i: B.Bool^) -> topology.Topology[Carrier := X].IsOpenIn source (LineBase.domain i) :=
+  B.cases (\fun (i: B.Bool^) => topology.Topology[Carrier := X].IsOpenIn source (LineBase.domain i)) openU openV;
+\module Side(i: B.Bool^);
+\module Boundary(x: LineBase.Overlap);
+\definition charts[i: B.Bool^]: Bundles.Family[X := X, F := ProductFiber].With[data := productBundle].Chart := Side[i := i].chart;
+\import Operations.Cocycle[X := X, I := B.Bool^, baseSpace := source, domain := LineBase.domain, dimension := (\fun (_: B.Bool^) => n)] \as Cocycles;
+\import Homotopy.FromCharts[X := X, I := B.Bool^, F := ProductFiber, bundle := productBundle, charts := charts] \as From;
+\import Homotopy.Projections[n := n].Operators[].Units[] \as Units;
+\import std.Set[].Extension[A := X, B := Units.Carrier, domain := LineBase.overlap] \as Extend;
+\module Point(x: X);
+\definition transitions: \forall (x: X)(i, j: Cocycles.Index x)(v: M.Vector) -> (Clutched.cocycle.transition x i j).forward.apply v =
+  ((charts j).frame (From.center x j)).forward.apply (((charts i).frame (From.center x i)).backward.apply v) :=
+  \fun (x: X)(i, j: Cocycles.Index x)(v: M.Vector) => Point[x := x].raw i j
+    (\bysub(B.Bool^, { i: B.Bool^ \where \In[X] (LineBase.domain i) x }, i))
+    (\bysub(B.Bool^, { j: B.Bool^ \where \In[X] (LineBase.domain j) x }, j)) v;
+\import From.With[cocycle := Clutched.cocycle, regular := Clutched.regular, transition := transitions] \as Comparison;
+\definition Isomorphism: \Set := Bundles.Isomorphisms[X := X, F := ProductFiber, G := NormalFiber, source := productBundle, target := normalBundle].Isomorphism;
+\definition isomorphismExists: \exists Isomorphism := \block {
+  \takefrom result: Comparison.For[c := Clutched.cocycle, r := Clutched.regular].Result \by Comparison.exists \then
+  \return \exact(result.value, Isomorphism)
+};
+\module KClass(compact: topology.Topology[Carrier := X].IsCompact source, hausdorff: topology.Topology[Carrier := X].IsT2 source);
+\definition transition: LineBase.Overlap -> Units.Carrier := Normal.unit;
+\definition transitionContinuous: topology.Continuity[A := LineBase.Overlap, B := Units.Carrier].Continuous LineBase.overlapTopology Units.topology transition := Normal.unitContinuous;
+\definition transitionFormula: \forall (x: LineBase.Overlap)(v: M.Vector) -> (transition x).apply v = (\root.Linearization[].ProjectionLoop[n := n, projection := P x].loop (a x)).apply v := Normal.unitFormula;

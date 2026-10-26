@@ -1,0 +1,70 @@
+
+\import algebra.Group[].Of[Carrier := Polynomial.Carrier, group := Rings.additiveGroup Polynomial.Carrier Raw.ring] \as PolynomialSum;
+\definition headValue: \forall (a: C.Complex)(tail: Coefficients) -> Monic.monicEvaluate (Lists.List[C.Complex]::cons a tail) Op.zero = a :=
+  \fun (a: C.Complex)(tail: Coefficients) => trans!{C.Complex} _ _ _
+    (congr!{C.Complex C.Complex} (Op.add a) _ _ (Complex.mulZeroLeft (Monic.monicEvaluate tail Op.zero))) (Complex.addZeroRight a);
+\definition linearZero: Monic.linearFactor Op.zero = Polynomial.X :=
+  trans!{Polynomial.Carrier} _ _ _ (congr!{C.Complex Polynomial.Carrier} (\fun (a: C.Complex) => Polynomial.add Polynomial.X (Polynomial.constant a)) _ _ Sum.negZero)
+    (trans!{Polynomial.Carrier} _ _ _ (congr!{Polynomial.Carrier Polynomial.Carrier} (Polynomial.add Polynomial.X) _ _ Raw.coefficientLaws.zero) (PolynomialSum.zeroRight Polynomial.X));
+\definition cancelX: \forall (p, q: Polynomial.Carrier) -> Polynomial.mul Polynomial.X p = Polynomial.mul Polynomial.X q -> p = q :=
+  \fun (p, q: Polynomial.Carrier)(same: _) => Cancellation.linear Op.zero p q
+    (\idelim Polynomial.X = Monic.linearFactor Op.zero \with x: Polynomial.Carrier => Polynomial.mul x p = Polynomial.mul x q \by { base: same, equality: sym!{Polynomial.Carrier} _ _ linearZero });
+\definition headEqual: \forall (a, b: C.Complex)(p, q: Coefficients) ->
+  Monic.asPolynomial (Lists.List[C.Complex]::cons a p) = Monic.asPolynomial (Lists.List[C.Complex]::cons b q) -> a = b :=
+  \fun (a, b: C.Complex)(p, q: Coefficients)(same: _) => eq_reason_in!{C.Complex a
+    "=" _ "by" { sym!{C.Complex} _ _ (headValue a p) }
+    "=" _ "by" { sym!{C.Complex} _ _ (Evaluation.agrees (Lists.List[C.Complex]::cons a p) Op.zero) }
+    "=" _ "by" { congr!{Polynomial.Carrier C.Complex} (Evaluation.apply Op.zero) _ _ same }
+    "=" _ "by" { Evaluation.agrees (Lists.List[C.Complex]::cons b q) Op.zero }
+    "=" b "by" { headValue b q }
+  };
+\definition tailEqual: \forall (a, b: C.Complex)(p, q: Coefficients) ->
+  Monic.asPolynomial (Lists.List[C.Complex]::cons a p) = Monic.asPolynomial (Lists.List[C.Complex]::cons b q) -> Monic.asPolynomial p = Monic.asPolynomial q :=
+  \fun (a, b: C.Complex)(p, q: Coefficients)(same: _) => cancelX (Monic.asPolynomial p) (Monic.asPolynomial q)
+    (PolynomialSum.cancelLeft (Polynomial.constant a) _ _ (trans!{Polynomial.Carrier} _ _ _ same
+      (congr!{C.Complex Polynomial.Carrier} (\fun (c: C.Complex) => Polynomial.add (Polynomial.constant c) (Polynomial.mul Polynomial.X (Monic.asPolynomial q))) _ _ (sym!{C.Complex} _ _ (headEqual a b p q same)))));
+\definition injective: \forall (n: N.Nat^)(p, q: Vector n) -> polynomial n p = polynomial n q -> p = q :=
+  \induction (n: N.Nat^) \return \forall (p, q: Vector n) -> polynomial n p = polynomial n q -> p = q \with {
+    | zero: \fun (p, q: Vector N.Nat^::zero)(same: _) => Fin.Empty[A := C.Complex].unique p q
+    | succ: \fun (n: N.Nat^)(previous: _)(p, q: Vector (N.Nat^::succ n))(same: _) => Extend.extensionality n p q
+      (headEqual (p (Fin.zero n)) (q (Fin.zero n)) (Tuples.list n (\fun (i: Fin.Fin n) => p (Fin.succ n i))) (Tuples.list n (\fun (i: Fin.Fin n) => q (Fin.succ n i))) same)
+      (\fun (i: Fin.Fin n) => congr!{{Vector n} C.Complex} (\fun (v: Vector n) => v i) _ _
+        (previous (\fun (j: Fin.Fin n) => p (Fin.succ n j)) (\fun (j: Fin.Fin n) => q (Fin.succ n j))
+          (tailEqual (p (Fin.zero n)) (q (Fin.zero n)) (Tuples.list n (\fun (j: Fin.Fin n) => p (Fin.succ n j))) (Tuples.list n (\fun (j: Fin.Fin n) => q (Fin.succ n j))) same)))
+  };
+\definition rootBound: \forall (p: Coefficients)(z: C.Complex) -> Monic.monicEvaluate p z = Op.zero ->
+  R.Lt (Absolute.abs z) (Real.add Real.one (Bounds.budget p)) :=
+  \fun (p: Coefficients)(z: C.Complex)(root: _) => Order.byContradiction (R.Lt (Absolute.abs z) (Real.add Real.one (Bounds.budget p))) (\fun (notLess: Logic.Not (R.Lt (Absolute.abs z) (Real.add Real.one (Bounds.budget p)))) => \block {
+    \let large: R.Le (Real.add Real.one (Bounds.budget p)) (Absolute.abs z) := Order.leOfNotLtReverse (Real.add Real.one (Bounds.budget p)) (Absolute.abs z) notLess \then
+    \return
+    R.ltNotLeReverse Real.zero Real.one Bounds.onePositive
+      (R.leReplaceRight Real.one (Absolute.abs (Monic.monicEvaluate p z)) Real.zero
+        (trans!{Real.Real} _ _ _ (congr!{C.Complex Real.Real} Absolute.abs _ _ root) Bounds.absZero) (Bounds.outsideUnit p z large)) });
+\import Lists.Membership[A := C.Complex] \as Membership;
+\definition occursRoot: \forall (xs: Coefficients)(z: C.Complex) -> Membership.Occurs z xs -> Evaluation.apply z (Monic.factors xs) = Op.zero :=
+  \induction (xs: Coefficients) \return \forall (z: C.Complex) -> Membership.Occurs z xs -> Evaluation.apply z (Monic.factors xs) = Op.zero \with {
+    | nil: \fun (z: C.Complex)(empty: Logic.False) => Logic.falseElim _ empty
+    | cons: \fun (a: C.Complex)(tail: Coefficients)(previous: _)(z: C.Complex)(member: _) => Logic.orElim _ _ _ member
+      (\fun (same: z = a) => \idelim a = z \with b: C.Complex => Evaluation.apply b (Monic.factors (Lists.List[C.Complex]::cons a tail)) = Op.zero
+        \by { base: Families.headRoot a tail, equality: sym!{C.Complex} _ _ same })
+      (\fun (rest: Membership.Occurs z tail) => trans!{C.Complex} _ _ _ ((Evaluation.homomorphism z).mul (Monic.linearFactor a) (Monic.factors tail))
+        (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} (Op.mul (Evaluation.apply z (Monic.linearFactor a))) _ _ (previous z rest)) (Complex.mulZeroRight _)))
+  };
+\import Lists.Prop[A := C.Complex] \as ListLaws;
+\definition deletionLength: \forall (x: C.Complex)(xs: Coefficients)(d: Families.Deletion x xs) -> Lists.length C.Complex xs = N.Nat^::succ (Lists.length C.Complex (Families.remainder d)) :=
+  \fun (x: C.Complex)(xs: Coefficients)(d: Families.Deletion x xs) => eq_reason_in!{N.Nat^ { Lists.length C.Complex xs }
+    "=" { Lists.length C.Complex (Families.source x d) } "by" { congr!{Coefficients N.Nat^} (Lists.length C.Complex) _ _ (sym!{Coefficients} _ _ (Families.deleted x xs d)) }
+    "=" _ "by" { ListLaws.lengthAppend d.before (Lists.List[C.Complex]::cons x d.after) }
+    "=" { N.Nat^::succ (NatOp.add (Lists.length C.Complex d.before) (Lists.length C.Complex d.after)) } "by" { Nat.addSuccRight _ _ }
+    "=" _ "by" { congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _ (sym!{N.Nat^} _ _ (ListLaws.lengthAppend d.before d.after)) }
+  };
+\definition permutationLength: \forall (xs, ys: Coefficients) -> Families.Permutation xs ys -> Lists.length C.Complex xs = Lists.length C.Complex ys :=
+  \induction (xs: Coefficients) \return \forall (ys: Coefficients) -> Families.Permutation xs ys -> Lists.length C.Complex xs = Lists.length C.Complex ys \with {
+    | nil: \fun (ys: Coefficients)(same: _) => congr!{Coefficients N.Nat^} (Lists.length C.Complex) _ _ (sym!{Coefficients} _ _ same)
+    | cons: \block {
+      \fun (x: C.Complex)(tail: Coefficients)(previous: \forall (ys: Coefficients) -> Families.Permutation tail ys -> Lists.length C.Complex tail = Lists.length C.Complex ys)(ys: Coefficients)(same: Families.Permutation (Lists.List[C.Complex]::cons x tail) ys) \then
+      \takefrom d: \Cast[Families.Deletion x ys] ({ d: Families.Deletion x ys \where Families.Permutation tail (Families.remainder d) }) \by same \then
+      \return trans!{N.Nat^} _ _ _ (congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _ (previous (Families.remainder d)
+        (\bysub(Families.Deletion x ys, { d: Families.Deletion x ys \where Families.Permutation tail (Families.remainder d) }, d)))) (sym!{N.Nat^} _ _ (deletionLength x ys d))
+    }
+  };

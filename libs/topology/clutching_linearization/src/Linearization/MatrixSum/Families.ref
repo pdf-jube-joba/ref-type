@@ -1,0 +1,15 @@
+\import \root.Linearization[].MatrixPaths[n := n, Y := Y, source := source] \as LeftPaths;
+\import \root.Linearization[].MatrixPaths[n := m, Y := Y, source := source] \as RightPaths;
+\import \root.Linearization[].MatrixPaths[n := total, Y := Y, source := source] \as TotalPaths;
+\import topological_algebra.Complex[] \as Plane;
+\definition regular: \forall (a: LeftPaths.Family)(b: RightPaths.Family) -> matrix_invariants.Topological[K := C.Complex, ring := Plane.Ring[].topologicalRing].At[n := total].Families[X := Y].Regular source (\fun (y: Y) => matrix (a.matrix y) (b.matrix y)) :=
+  \fun (a: LeftPaths.Family)(b: RightPaths.Family)(i, j: MT.Index) => (\induction (s: Indices.Index) \return topology.Continuity[A := Y, B := C.Complex].Continuous source Plane.topology
+    (\fun (y: Y) => Entries.evaluate ((ML.linear (a.matrix y)).apply (Sum.left (Spaces.FiniteCoordinates[n := total].vectors j))) ((MR.linear (b.matrix y)).apply (Sum.right (Spaces.FiniteCoordinates[n := total].vectors j))) s) \with {
+      | inl: \fun (l: Fin.Fin n) => \root.Linearization[].MatrixUnits[n := n, Y := Y, source := source, A := a.matrix, regular := a.regular, nonzero := a.nonzero].actionRegular (Sum.left (Spaces.FiniteCoordinates[n := total].vectors j)) l
+      | inr: \fun (r: Fin.Fin m) => \root.Linearization[].MatrixUnits[n := m, Y := Y, source := source, A := b.matrix, regular := b.regular, nonzero := b.nonzero].actionRegular (Sum.right (Spaces.FiniteCoordinates[n := total].vectors j)) r
+    }) (Indices.split i);
+\definition sum[a: LeftPaths.Family][b: RightPaths.Family]: TotalPaths.Family := TotalPaths.Family {
+  matrix := \fun (y: Y) => matrix (a.matrix y) (b.matrix y), regular := regular a b,
+  nonzero := \fun (y: Y) => nonzero (a.matrix y) (b.matrix y) (a.nonzero y) (b.nonzero y),
+};
+\module Motion(a, c: LeftPaths.Family, b, d: RightPaths.Family, first: LeftPaths.Path[a, c], second: RightPaths.Path[b, d]);

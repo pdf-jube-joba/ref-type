@@ -1,0 +1,65 @@
+\import linear_algebra.Commutative[K := K, scalarRing := Fields.fieldAsCommutativeRing K field] \as Spaces;
+\import linear_algebra.Hermitian[].Over[K := K, field := field, scalar := conjugation] \as Geometry;
+\import hermitian_frames.Hermitian[].Over[K := K, field := field, scalar := conjugation, topological := scalar.topological] \as Hermitian;
+\import BundleFields.Over[K := K, field := field, conjugation := conjugation, scalar := scalar] \as Bundles;
+\import bundle_operations.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar] \as Operations;
+\import bundle_complements.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar] \as Complements;
+\definition Vector[n: N.Nat^]: \Set := Bundles.Vector n;
+\definition coordinates[n: N.Nat^]: Spaces.VectorSpace (Vector n) := Bundles.coordinates n;
+\definition coordinateTopology[n: N.Nat^]: topology.Topology[Carrier := Vector n].Topology := Bundles.coordinateTopology n;
+\module ProjectionComparison(n: N.Nat^, X: \Set, baseSpace: topology.Topology[Carrier := X].Topology, P, Q: X -> Hermitian.At[n := n].Projection,
+  regularP: Hermitian.At[n := n].Families[X := X].Matrix[m := n].Regular baseSpace (\fun (x: X) => (P x).map),
+  regularQ: Hermitian.At[n := n].Families[X := X].Matrix[m := n].Regular baseSpace (\fun (x: X) => (Q x).map),
+  H: X -> Spaces.Linear[V := Vector n, W := Vector n, source := coordinates n, target := coordinates n].Map,
+  regularH: Hermitian.At[n := n].Families[X := X].Matrix[m := n].Regular baseSpace H,
+  nonsingular: \forall (x: X) -> matrix_invariants.Field[K := K, field := field].At[n := n].Nonzero (Hermitian.At[n := n].Square[].entries (H x)),
+  intertwines: \forall (x: X)(v: Vector n) -> (Q x).map.apply ((H x).apply v) = (H x).apply ((P x).map.apply v));
+\module Projections(n: N.Nat^);
+
+\module PullbackIsomorphism(X: \Set, F, G: X -> \Set, first: Bundles.Family[X := X, F := F].Bundle, second: Bundles.Family[X := X, F := G].Bundle,
+  iso: Bundles.Isomorphisms[X := X, F := F, G := G, source := first, target := second].Isomorphism,
+  Y: \Set, source: topology.Topology[Carrier := Y].Topology, f: Y -> X,
+  regularFirst: topology.Continuity[A := Y, B := X].Continuous source first.baseSpace f,
+  regularSecond: topology.Continuity[A := Y, B := X].Continuous source second.baseSpace f);
+\module Presentation(X: \Set, F: X -> \Set, bundle: Bundles.Family[X := X, F := F].Bundle,
+  embedding: Complements.For[X := X, F := F, bundle := bundle].Embedding);
+\module EmbeddedCylinder(X: \Set, baseSpace: topology.Topology[Carrier := X].Topology, compact: topology.Topology[Carrier := X].IsCompact baseSpace,
+  F: Pair.Times^[algebraic_topology.Interval[].Carrier, X] -> \Set,
+  bundle: Bundles.Family[X := Pair.Times^[algebraic_topology.Interval[].Carrier, X], F := F].Bundle,
+  sameBase: bundle.baseSpace = topological_constructions.Product[A := algebraic_topology.Interval[].Carrier, B := X].topology algebraic_topology.Interval[].topology baseSpace,
+  embedding: Complements.For[X := Pair.Times^[algebraic_topology.Interval[].Carrier, X], F := F, bundle := bundle].Embedding);
+\module Cylinder(X: \Set, baseSpace: topology.Topology[Carrier := X].Topology, compact: topology.Topology[Carrier := X].IsCompact baseSpace,
+  hausdorff: topology.Topology[Carrier := X].IsT2 baseSpace,
+  F: Pair.Times^[algebraic_topology.Interval[].Carrier, X] -> \Set,
+  bundle: Bundles.Family[X := Pair.Times^[algebraic_topology.Interval[].Carrier, X], F := F].Bundle,
+  sameBase: bundle.baseSpace = topological_constructions.Product[A := algebraic_topology.Interval[].Carrier, B := X].topology algebraic_topology.Interval[].topology baseSpace);
+\module For(Y: \Set, F: Y -> \Set, bundle: Bundles.Family[X := Y, F := F].Bundle);
+
+\module Clutching(n: N.Nat^, X: \Set, baseSpace: topology.Topology[Carrier := X].Topology, U, V: \Pow X,
+  openU: topology.Topology[Carrier := X].IsOpenIn baseSpace U,
+  openV: topology.Topology[Carrier := X].IsOpenIn baseSpace V,
+  covers: \forall (x: X) -> Logic.Or[\In[X] U x, \In[X] V x]);
+\module Disks(d: N.Nat^);
+
+\module ChartPullback(X: \Set, F: X -> \Set, bundle: Bundles.Family[X := X, F := F].Bundle,
+  chart: Bundles.Family[X := X, F := F].With[data := bundle].Chart,
+  Y: \Set, source: topology.Topology[Carrier := Y].Topology, f: Y -> X,
+  continuous: topology.Continuity[A := Y, B := X].Continuous source bundle.baseSpace f,
+  inside: \forall (y: Y) -> \In[X] chart.domain (f y));
+
+\module LinearEquality(V, W: \Set, source: Spaces.VectorSpace V, target: Spaces.VectorSpace W);
+\module FromCharts(X, I: \Set, F: X -> \Set, bundle: Bundles.Family[X := X, F := F].Bundle,
+  charts: I -> Bundles.Family[X := X, F := F].With[data := bundle].Chart);
+
+\module ClosedMaps(X: \Set, F, G: X -> \Set, baseSpace: topology.Topology[Carrier := X].Topology,
+  source: Bundles.Family[X := X, F := F].Bundle, target: Bundles.Family[X := X, F := G].Bundle,
+  sourceBase: source.baseSpace = baseSpace, targetBase: target.baseSpace = baseSpace,
+  C, D: \Pow X, closedC: topology.Topology[Carrier := X].IsClosedIn baseSpace C, closedD: topology.Topology[Carrier := X].IsClosedIn baseSpace D,
+  covers: \forall (x: X) -> Logic.Or[\In[X] C x, \In[X] D x]);
+\module ClosedCover(X: \Set, F, G: X -> \Set, baseSpace: topology.Topology[Carrier := X].Topology,
+  source: Bundles.Family[X := X, F := F].Bundle, target: Bundles.Family[X := X, F := G].Bundle,
+  sourceBase: source.baseSpace = baseSpace, targetBase: target.baseSpace = baseSpace,
+  C, D: \Pow X, closedC: topology.Topology[Carrier := X].IsClosedIn baseSpace C, closedD: topology.Topology[Carrier := X].IsClosedIn baseSpace D,
+  covers: \forall (x: X) -> Logic.Or[\In[X] C x, \In[X] D x]);
+\module BlockDiagonal(n, m: N.Nat^);
+\module ScalarUnits(n: N.Nat^);

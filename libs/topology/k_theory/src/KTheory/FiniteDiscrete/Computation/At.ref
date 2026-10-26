@@ -1,0 +1,25 @@
+\import N.Basic[].Def[] \as Nat;
+\definition f: IntegerFunctions := forward (Group.difference a b);
+\definition pos: K.Classes := Classes.realize (positive f);
+\definition neg: K.Classes := Classes.realize (negative f);
+\definition positiveRank: \forall (x: X) -> Classes.rank pos x = I.Positive.specification (f x) := \fun (x: X) =>
+  congr!{{Classes.NatFunctions} {N.Nat^}} (\fun (r: Classes.NatFunctions) => r x) _ _ (Classes.rankRealize (positive f));
+\definition negativeRank: \forall (x: X) -> Classes.rank neg x = I.Negative.specification (f x) := \fun (x: X) =>
+  congr!{{Classes.NatFunctions} {N.Nat^}} (\fun (r: Classes.NatFunctions) => r x) _ _ (Classes.rankRealize (negative f));
+\definition balanceRanks: \forall (x: X) -> Classes.rank (Add.add a neg) x = Classes.rank (Add.add pos b) x := \fun (x: X) =>
+  eq_reason_in!{{N.Nat^} _
+    "=" { Nat.add (Classes.rank a x) (Classes.rank neg x) } "by" { Classes.rankAdd a neg x }
+    "=" { Nat.add (Classes.rank a x) (I.Negative.specification (f x)) } "by" { congr!{{N.Nat^} {N.Nat^}} (Nat.add (Classes.rank a x)) _ _ (negativeRank x) }
+    "=" { Nat.add (Classes.rank a x) (I.Negative.specification (I.integer (Classes.rank a x) (Classes.rank b x))) } "by" { congr!{{I.Int^} {N.Nat^}} (\fun (z: I.Int^) => Nat.add (Classes.rank a x) (I.Negative.specification z)) _ _ (normalize a b x) }
+    "=" { Nat.add (I.Positive.specification (I.integer (Classes.rank a x) (Classes.rank b x))) (Classes.rank b x) } "by" { IntegerMath.diffBalance (Classes.rank b x) (Classes.rank a x) }
+    "=" { Nat.add (I.Positive.specification (f x)) (Classes.rank b x) } "by" { congr!{{I.Int^} {N.Nat^}} (\fun (z: I.Int^) => Nat.add (I.Positive.specification z) (Classes.rank b x)) _ _ (sym!{{I.Int^}} _ _ (normalize a b x)) }
+    "=" { Nat.add (Classes.rank pos x) (Classes.rank b x) } "by" { congr!{{N.Nat^} {N.Nat^}} (\fun (r: N.Nat^) => Nat.add r (Classes.rank b x)) _ _ (sym!{{N.Nat^}} _ _ (positiveRank x)) }
+    "=" { Classes.rank (Add.add pos b) x } "by" { sym!{{N.Nat^}} _ _ (Classes.rankAdd pos b x) }
+  };
+\definition balance: Add.add a neg = Add.add pos b := Classes.injective _ _ (\axiom:funext(Classes.rank (Add.add a neg), Classes.rank (Add.add pos b), balanceRanks));
+\definition equation: backward (forward (Group.difference a b)) = Group.difference a b :=
+  trans!{Carrier} _ _ _ (Group.differenceClass pos neg)
+    (trans!{Carrier} _ _ _ (Completion.classRelated (Completion.pair pos neg) (Completion.pair a b)
+      (Completion.related (Completion.pair pos neg) (Completion.pair a b) Add.zeroClass
+        (congr!{{K.Classes} {K.Classes}} (\fun (c: K.Classes) => Add.add c Add.zeroClass) _ _ (sym!{{K.Classes}} _ _ balance))))
+      (sym!{Carrier} _ _ (Group.differenceClass a b)));

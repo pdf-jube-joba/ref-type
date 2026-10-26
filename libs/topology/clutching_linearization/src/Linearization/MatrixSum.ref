@@ -1,0 +1,48 @@
+\import std.Data[].FinSet[] \as Fin;
+\import Spaces.CoordinateSum[n := n, m := m] \as Sum;
+\import Fin.Sum[m := n, n := m] \as Indices;
+\import Indices.Tuples[A := C.Complex] \as Entries;
+\definition total: N.Nat^ := Sum.dimension;
+\import Spaces.Coordinates[I := Fin.Fin n] \as V;
+\import Spaces.Coordinates[I := Fin.Fin m] \as W;
+\import Spaces.Coordinates[I := Fin.Fin total] \as T;
+\import Spaces.Linear[V := V.Vector, W := V.Vector, source := V.space, target := V.space] \as Left;
+\import Spaces.Linear[V := W.Vector, W := W.Vector, source := W.space, target := W.space] \as Right;
+\import Spaces.Linear[V := T.Vector, W := T.Vector, source := T.space, target := T.space] \as End;
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing] \as Matrices;
+\import Matrices.At[n := n] \as ML;
+\import Matrices.At[n := m] \as MR;
+\import Matrices.At[n := total] \as MT;
+\import matrix_invariants.Field[K := C.Complex, field := Scalars.field] \as Fields;
+\import \root.Linearization[].ScalarMatrices[n := n] \as ScaleL;
+\import \root.Linearization[].ScalarMatrices[n := m] \as ScaleR;
+\import \root.Linearization[].ScalarMatrices[n := total] \as ScaleT;
+\definition block[f: Left.Map][g: Right.Map]: End.Map := End.Map {
+  apply := \fun (v: T.Vector) => Sum.join (f.apply (Sum.left v)) (g.apply (Sum.right v)),
+  preservesAdd := \fun (v, w: T.Vector) => trans!{T.Vector} _ _ _ (congr!{V.Vector W.Vector T.Vector} Sum.join _ _ _ _ (f.preservesAdd (Sum.left v) (Sum.left w)) (g.preservesAdd (Sum.right v) (Sum.right w)))
+    (Sum.addition (f.apply (Sum.left v)) (f.apply (Sum.left w)) (g.apply (Sum.right v)) (g.apply (Sum.right w))),
+  preservesScale := \fun (s: C.Complex)(v: T.Vector) => trans!{T.Vector} _ _ _ (congr!{V.Vector W.Vector T.Vector} Sum.join _ _ _ _ (f.preservesScale s (Sum.left v)) (g.preservesScale s (Sum.right v)))
+    (Sum.scalar s (f.apply (Sum.left v)) (g.apply (Sum.right v))),
+};
+\definition matrix[A: ML.Matrix][B: MR.Matrix]: MT.Matrix := MT.Representation[].entries (block (ML.linear A) (MR.linear B));
+\definition action: \forall (A: ML.Matrix)(B: MR.Matrix)(v: T.Vector) -> (MT.linear (matrix A B)).apply v = (block (ML.linear A) (MR.linear B)).apply v :=
+  \fun (A: ML.Matrix)(B: MR.Matrix)(v: T.Vector) => congr!{End.Map T.Vector} (\fun (f: End.Map) => f.apply v) _ _ (MT.Representation[].linearEntries (block (ML.linear A) (MR.linear B)));
+\definition zeroJoin: Sum.join V.origin W.origin = T.origin := \axiom:funext(Sum.join V.origin W.origin, T.origin, \fun (i: Fin.Fin total) =>
+  (\induction (s: Indices.Index) \return Entries.evaluate V.origin W.origin s = C.Def[].zero \with {
+    | inl: \fun (_: Fin.Fin n) => \refl(C.Def[].zero)
+    | inr: \fun (_: Fin.Fin m) => \refl(C.Def[].zero)
+  }) (Indices.split i));
+\definition nonzero: \forall (A: ML.Matrix)(B: MR.Matrix) -> Fields.At[n := n].Nonzero A -> Fields.At[n := m].Nonzero B -> Fields.At[n := total].Nonzero (matrix A B) :=
+  \fun (A: ML.Matrix)(B: MR.Matrix)(an: _)(bn: _) => ScaleT.nonzeroOfZeroKernel (block (ML.linear A) (MR.linear B))
+    (\fun (v: T.Vector)(zero: _) => trans!{T.Vector} _ _ _ (sym!{T.Vector} _ _ (Sum.recover v))
+      (trans!{T.Vector} _ _ _ (congr!{V.Vector W.Vector T.Vector} Sum.join _ _ _ _
+        (ScaleL.zeroKernel A an (Sum.left v) (trans!{V.Vector} _ _ _ (sym!{V.Vector} _ _ (Sum.leftJoin ((ML.linear A).apply (Sum.left v)) ((MR.linear B).apply (Sum.right v)))) (congr!{T.Vector V.Vector} Sum.left _ _ zero)))
+        (ScaleR.zeroKernel B bn (Sum.right v) (trans!{W.Vector} _ _ _ (sym!{W.Vector} _ _ (Sum.rightJoin ((ML.linear A).apply (Sum.left v)) ((MR.linear B).apply (Sum.right v)))) (congr!{T.Vector W.Vector} Sum.right _ _ zero)))) zeroJoin));
+\definition scaled: \forall (s: C.Complex)(A: ML.Matrix)(B: MR.Matrix) -> matrix (ScaleL.scale s A) (ScaleR.scale s B) = ScaleT.scale s (matrix A B) :=
+  \fun (s: C.Complex)(A: ML.Matrix)(B: MR.Matrix) => MT.Operations[].ext (matrix (ScaleL.scale s A) (ScaleR.scale s B)) (ScaleT.scale s (matrix A B))
+    (\fun (i, j: MT.Index) => congr!{T.Vector {C.Complex}} (\fun (v: T.Vector) => v i) _ _
+      (trans!{T.Vector} _ _ _ (congr!{V.Vector W.Vector T.Vector} Sum.join _ _ _ _
+        (congr!{Left.Map V.Vector} (\fun (f: Left.Map) => f.apply (Sum.left (Spaces.FiniteCoordinates[n := total].vectors j))) _ _ (ScaleL.scaleLinear s A))
+        (congr!{Right.Map W.Vector} (\fun (g: Right.Map) => g.apply (Sum.right (Spaces.FiniteCoordinates[n := total].vectors j))) _ _ (ScaleR.scaleLinear s B)))
+        (Sum.scalar s ((ML.linear A).apply (Sum.left (Spaces.FiniteCoordinates[n := total].vectors j))) ((MR.linear B).apply (Sum.right (Spaces.FiniteCoordinates[n := total].vectors j))))));
+\module Families(Y: \Set, source: topology.Topology[Carrier := Y].Topology);

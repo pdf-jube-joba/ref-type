@@ -1,0 +1,81 @@
+\import \parent.Cancellation[] \as Cancellation;
+\structure DeletionData: \Set := { before: Coefficients, after: Coefficients };
+\definition source[x: C.Complex][d: DeletionData]: Coefficients := Lists.append C.Complex d.before (Lists.List[C.Complex]::cons x d.after);
+\definition remainder[d: DeletionData]: Coefficients := Lists.append C.Complex d.before d.after;
+\definition Deletion[x: C.Complex][xs: Coefficients]: \Set := \Cast[DeletionData] ({ d: DeletionData \where source x d = xs });
+\definition deleted: \forall (x: C.Complex)(xs: Coefficients)(d: Deletion x xs) -> source x d = xs :=
+  \fun (x: C.Complex)(xs: Coefficients)(d: Deletion x xs) => \bysub(DeletionData, { d: DeletionData \where source x d = xs }, d);
+\definition Permutation: Coefficients -> Coefficients -> \Prop :=
+  \induction (xs: Coefficients) \return Coefficients -> \Prop \with {
+    | nil: \fun (ys: Coefficients) => ys = Lists.List[C.Complex]::nil
+    | cons: \fun (x: C.Complex)(tail: Coefficients)(previous: Coefficients -> \Prop)(ys: Coefficients) =>
+      \exists ( d: Deletion x ys \where previous (remainder d) )
+  };
+\definition appendProduct: \forall (xs, ys: Coefficients) -> Monic.factors (Lists.append C.Complex xs ys) = Polynomial.mul (Monic.factors xs) (Monic.factors ys) :=
+  \induction (xs: Coefficients) \return \forall (ys: Coefficients) -> Monic.factors (Lists.append C.Complex xs ys) = Polynomial.mul (Monic.factors xs) (Monic.factors ys) \with {
+    | nil: \fun (ys: Coefficients) => sym!{Polynomial.Carrier} _ _ (Product.zeroLeft (Monic.factors ys))
+    | cons: \fun (x: C.Complex)(tail: Coefficients)(previous: _)(ys: Coefficients) => trans!{Polynomial.Carrier} _ _ _
+      (congr!{Polynomial.Carrier Polynomial.Carrier} (Polynomial.mul (Monic.linearFactor x)) _ _ (previous ys))
+      (sym!{Polynomial.Carrier} _ _ (Product.assoc (Monic.linearFactor x) (Monic.factors tail) (Monic.factors ys)))
+  };
+\definition deletionProduct: \forall (x: C.Complex)(xs: Coefficients)(d: Deletion x xs) -> Monic.factors xs = Polynomial.mul (Monic.linearFactor x) (Monic.factors (remainder d)) :=
+  \fun (x: C.Complex)(xs: Coefficients)(d: Deletion x xs) => eq_reason_in!{Polynomial.Carrier { Monic.factors xs }
+    "=" { Monic.factors (source x d) } "by" { congr!{Coefficients Polynomial.Carrier} Monic.factors _ _ (sym!{Coefficients} _ _ (deleted x xs d)) }
+    "=" _ "by" { appendProduct d.before (Lists.List[C.Complex]::cons x d.after) }
+    "=" { Polynomial.mul (Monic.linearFactor x) (Polynomial.mul (Monic.factors d.before) (Monic.factors d.after)) } "by" { Product.swap (Monic.factors d.before) (Monic.linearFactor x) (Monic.factors d.after) }
+    "=" _ "by" { congr!{Polynomial.Carrier Polynomial.Carrier} (Polynomial.mul (Monic.linearFactor x)) _ _ (sym!{Polynomial.Carrier} _ _ (appendProduct d.before d.after)) }
+  };
+\definition headRoot: \forall (x: C.Complex)(tail: Coefficients) -> Evaluation.apply x (Monic.factors (Lists.List[C.Complex]::cons x tail)) = Op.zero :=
+  \fun (x: C.Complex)(tail: Coefficients) => trans!{C.Complex} _ _ _ ((Evaluation.homomorphism x).mul (Monic.linearFactor x) (Monic.factors tail))
+    (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} (\fun (b: C.Complex) => Op.mul b (Evaluation.apply x (Monic.factors tail))) _ _
+      (trans!{C.Complex} _ _ _ (Splitting.linearValue x x) (Complex.addNegRight x))) (Complex.mulZeroLeft _));
+\definition extract: \forall (xs: Coefficients)(x: C.Complex) -> Evaluation.apply x (Monic.factors xs) = Op.zero -> \exists Deletion x xs :=
+  \induction (xs: Coefficients) \return \forall (x: C.Complex) -> Evaluation.apply x (Monic.factors xs) = Op.zero -> \exists Deletion x xs \with {
+    | nil: \fun (x: C.Complex)(root: _) => Logic.falseElim (\exists Deletion x Lists.List[C.Complex]::nil)
+      (Arithmetic.oneNonzero (trans!{C.Complex} _ _ _ (sym!{C.Complex} _ _ (Evaluation.homomorphism x).one) root))
+    | cons: \fun (a: C.Complex)(tail: Coefficients)(previous: _)(x: C.Complex)(root: _) => Logic.orElim _ _ _
+      (Arithmetic.zeroProduct (Op.add x (Op.neg a)) (Evaluation.apply x (Monic.factors tail))
+        (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} (\fun (b: C.Complex) => Op.mul b (Evaluation.apply x (Monic.factors tail))) _ _ (sym!{C.Complex} _ _ (Splitting.linearValue a x)))
+          (trans!{C.Complex} _ _ _ (sym!{C.Complex} _ _ ((Evaluation.homomorphism x).mul (Monic.linearFactor a) (Monic.factors tail))) root)))
+      (\fun (same: Op.add x (Op.neg a) = Op.zero) => \exact(\into[DeletionData](DeletionData { before := Lists.List[C.Complex]::nil, after := tail }, Deletion x (Lists.List[C.Complex]::cons a tail)) \by {
+        congr!{C.Complex Coefficients} (\fun (b: C.Complex) => Lists.List[C.Complex]::cons b tail) _ _ (Arithmetic.differenceZero x a same)
+      }, Deletion x (Lists.List[C.Complex]::cons a tail)))
+      (\block {
+        \fun (rootTail: _) \then
+        \takefrom d: Deletion x tail \by previous x rootTail \then
+        \return \exact(\into[DeletionData](DeletionData { before := Lists.List[C.Complex]::cons a d.before, after := d.after }, Deletion x (Lists.List[C.Complex]::cons a tail)) \by {
+          congr!{Coefficients Coefficients} (Lists.List[C.Complex]::cons a) _ _ (deleted x tail d)
+        }, Deletion x (Lists.List[C.Complex]::cons a tail))
+      })
+  };
+\definition empty: \forall (xs: Coefficients) -> Monic.factors xs = Polynomial.one -> xs = Lists.List[C.Complex]::nil :=
+  \induction (xs: Coefficients) \return Monic.factors xs = Polynomial.one -> xs = Lists.List[C.Complex]::nil \with {
+    | nil: \fun (equal: _) => \refl(Lists.List[C.Complex]::nil)
+    | cons: \fun (x: C.Complex)(tail: Coefficients)(previous: _)(equal: _) => Logic.falseElim _
+      (Arithmetic.oneNonzero (eq_reason_in!{C.Complex { Op.one }
+        "=" { Evaluation.apply x Polynomial.one } "by" { sym!{C.Complex} _ _ (Evaluation.homomorphism x).one }
+        "=" { Evaluation.apply x (Monic.factors (Lists.List[C.Complex]::cons x tail)) } "by" { congr!{Polynomial.Carrier C.Complex} (Evaluation.apply x) _ _ (sym!{Polynomial.Carrier} _ _ equal) }
+        "=" _ "by" { headRoot x tail }
+      }))
+  };
+\definition unique: \forall (xs, ys: Coefficients) -> Monic.factors xs = Monic.factors ys -> Permutation xs ys :=
+  \induction (xs: Coefficients) \return \forall (ys: Coefficients) -> Monic.factors xs = Monic.factors ys -> Permutation xs ys \with {
+    | nil: \fun (ys: Coefficients)(equal: _) => empty ys (sym!{Polynomial.Carrier} _ _ equal)
+    | cons: \block {
+      \fun (x: C.Complex)(tail: Coefficients)(previous: \forall (ys: Coefficients) -> Monic.factors tail = Monic.factors ys -> Permutation tail ys)(ys: Coefficients)(equal: Monic.factors (Lists.List[C.Complex]::cons x tail) = Monic.factors ys) \then
+      \takefrom d: Deletion x ys \by extract ys x (trans!{C.Complex} _ _ _ (congr!{Polynomial.Carrier C.Complex} (Evaluation.apply x) _ _ (sym!{Polynomial.Carrier} _ _ equal)) (headRoot x tail)) \then
+      \return Logic.existsIntro[Deletion x ys, { d: Deletion x ys \where Permutation tail (remainder d) }] d
+        (previous (remainder d) (Cancellation.linear x (Monic.factors tail) (Monic.factors (remainder d)) (trans!{Polynomial.Carrier} _ _ _ equal (deletionProduct x ys d))))
+    }
+  };
+\definition independent: \forall (xs, ys: Coefficients) -> Permutation xs ys -> Monic.factors xs = Monic.factors ys :=
+  \induction (xs: Coefficients) \return \forall (ys: Coefficients) -> Permutation xs ys -> Monic.factors xs = Monic.factors ys \with {
+    | nil: \fun (ys: Coefficients)(equal: ys = Lists.List[C.Complex]::nil) => congr!{Coefficients Polynomial.Carrier} Monic.factors _ _ (sym!{Coefficients} _ _ equal)
+    | cons: \block {
+      \fun (x: C.Complex)(tail: Coefficients)(previous: \forall (ys: Coefficients) -> Permutation tail ys -> Monic.factors tail = Monic.factors ys)(ys: Coefficients)(permutation: Permutation (Lists.List[C.Complex]::cons x tail) ys) \then
+      \takefrom d: \Cast[Deletion x ys] ({ d: Deletion x ys \where Permutation tail (remainder d) }) \by permutation \then
+      \return trans!{Polynomial.Carrier} _ _ _ (congr!{Polynomial.Carrier Polynomial.Carrier} (Polynomial.mul (Monic.linearFactor x)) _ _
+        (previous (remainder d) (\bysub(Deletion x ys, { d: Deletion x ys \where Permutation tail (remainder d) }, d)))) (sym!{Polynomial.Carrier} _ _ (deletionProduct x ys d))
+    }
+  };
+\module Quotient;

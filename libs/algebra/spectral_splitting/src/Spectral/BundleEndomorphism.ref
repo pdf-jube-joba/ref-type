@@ -1,0 +1,38 @@
+\import Bundles.Family[X := X, F := F] \as Family;
+\import Family.With[data := bundle] \as Charts;
+\import topology.Topology[Carrier := X] \as Base;
+\module At(x: X);
+\definition projection[x: X]: Spaces.Linear[V := F x, W := F x, source := bundle.space x, target := bundle.space x].Map := At[x := x].projection;
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := F, source := bundle, target := bundle, f := \fun (x: X) => x] \as Maps;
+\definition data: Maps.Data := Maps.Data { fiber := projection };
+\import BundleOperations.Along[X := X, F := F, bundle := bundle, Y := Family.Point, source := bundle.totalSpace, base := Family.projection] \as Along;
+\definition input[p: Family.Point]: F p.base := p.vector;
+\definition inputContinuous: Along.Continuous input := Maps.continuous (Bundles.Identity[X := X, F := F, bundle := bundle].map);
+\definition value[p: Family.Point]: F p.base := (projection p.base).apply p.vector;
+\module Local(c: Charts.Chart);
+\definition continuous: Along.Continuous value := Along.regular value Family.Of[bundle := bundle].projectionContinuous (\fun (c: Charts.Chart) => Local[c := c].regular);
+\definition projector: Maps.Map := \into[Maps.Data](data, Maps.Map) \by { continuous };
+\definition idempotent: \forall (x: X)(v: F x) -> (projector.fiber x).apply ((projector.fiber x).apply v) = (projector.fiber x).apply v :=
+  \fun (x: X) => At[x := x].idempotent;
+\import \root.Spectral[].BundleImage[X := X, F := F, bundle := bundle, P := projector, idempotent := idempotent] \as Image;
+\definition Fiber[x: X]: \Set := Image.Fiber x;
+\definition imageBundle: Bundles.Family[X := X, F := Fiber].Bundle := Image.imageBundle;
+\definition inclusion: Bundles.Morphisms[X := X, Y := X, F := Fiber, G := F, source := imageBundle, target := bundle, f := \fun (x: X) => x].Map := Image.inclusion;
+\definition project: Bundles.Morphisms[X := X, Y := X, F := F, G := Fiber, source := bundle, target := imageBundle, f := \fun (x: X) => x].Map := Image.project;
+
+\module Naturality(Y: \Set, G: Y -> \Set, target: Bundles.Family[X := Y, F := G].Bundle,
+  U: Bundles.Morphisms[X := Y, Y := Y, F := G, G := G, source := target, target := target, f := \fun (y: Y) => y].Map,
+  targetGap: \forall (y: Y) -> \root.Spectral[].NoUnitEigen (G y) (target.space y) (U.fiber y),
+  f: X -> Y, h: Bundles.Morphisms[X := X, Y := Y, F := F, G := G, source := bundle, target := target, f := f].Map,
+  intertwines: \forall (x: X)(v: F x) -> (h.fiber x).apply ((T.fiber x).apply v) = (U.fiber (f x)).apply ((h.fiber x).apply v));
+
+\definition commutes: \forall (x: X)(v: F x) -> (T.fiber x).apply ((projector.fiber x).apply v) = (projector.fiber x).apply ((T.fiber x).apply v) :=
+  Naturality[Y := X, G := F, target := bundle, U := T, targetGap := gap, f := (\fun (x: X) => x), h := T,
+    intertwines := (\fun (x: X)(v: F x) => \refl((T.fiber x).apply ((T.fiber x).apply v)))].projectorNatural;
+\definition restricted: Bundles.Morphisms[X := X, Y := X, F := Fiber, G := Fiber, source := imageBundle, target := imageBundle, f := \fun (x: X) => x].Map :=
+  Naturality[Y := X, G := F, target := bundle, U := T, targetGap := gap, f := (\fun (x: X) => x), h := T,
+    intertwines := (\fun (x: X)(v: F x) => \refl((T.fiber x).apply ((T.fiber x).apply v)))].map;
+\definition inclusionIntertwines: \forall (x: X)(v: Fiber x) -> (inclusion.fiber x).apply ((restricted.fiber x).apply v) = (T.fiber x).apply ((inclusion.fiber x).apply v) :=
+  \fun (x: X)(v: Fiber x) => \refl((T.fiber x).apply v);
+\module Pullback(Y: \Set, source: topology.Topology[Carrier := Y].Topology, f: Y -> X,
+  regularBase: topology.Continuity[A := Y, B := X].Continuous source bundle.baseSpace f);

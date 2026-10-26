@@ -1,0 +1,37 @@
+\import \parent.LoopHomotopy[compact := compact, hausdorff := hausdorff, kernel0 := kernel0, kernel1 := kernel1] \as Comparison;
+\import \parent.Homotopy[compact := compact, hausdorff := hausdorff, kernel0 := kernel0, kernel1 := kernel1] \as Cylinder;
+\import algebraic_topology.Interval[] \as Time;
+\import std.Data[].Pair[] \as Product;
+\import sphere_maps.Circle[] \as Native;
+\import uniform_approximation.Approximation[].Circle[].Coefficients[X := X, space := source, baseCompact := compact, baseHausdorff := hausdorff] \as Circle;
+\import uniform_approximation.Approximation[].Circle[].Coefficients[X := Cylinder.Domain, space := Cylinder.topology, baseCompact := Cylinder.domainCompact, baseHausdorff := Cylinder.domainHausdorff] \as OverCircle;
+\import topological_constructions.Product[A := X, B := Native.Carrier] \as BaseProduct;
+\import topological_constructions.Product[A := Cylinder.Domain, B := Native.Carrier] \as OverProduct;
+\import \root.Linearization[].RowOrders[n := n, X := X, source := source] \as Orders;
+\import Orders.Evaluation[d := d0, q := q0, regular := regular0, Y := Circle.Domain, target := Circle.source, f := Circle.first,
+  regularF := BaseProduct.Maps[].firstContinuous source Native.topology, z := Circle.unit, regularZ := Circle.unitContinuous] \as First;
+\import Orders.Evaluation[d := d1, q := q1, regular := regular1, Y := Circle.Domain, target := Circle.source, f := Circle.first,
+  regularF := BaseProduct.Maps[].firstContinuous source Native.topology, z := Circle.unit, regularZ := Circle.unitContinuous] \as Last;
+\import \root.Linearization[].MatrixPaths[n := n, Y := Circle.Domain, source := Circle.source] \as Paths;
+\import \root.Linearization[].ScalarMatrices[n := n] \as Scaling;
+\import \root.Linearization[].Powers[] \as Powers;
+\definition first: Paths.Family := Paths.Family { matrix := First.monic, regular := First.monicRegular,
+  nonzero := \fun (p: Circle.Domain) => Scaling.nonzeroOfZeroKernel (Orders.polynomial d0 q0 (Circle.first p) (Circle.unit p))
+    (kernel0 (Circle.first p) (Circle.unit p) (Powers.unitOfNorm (Circle.unit p) (Circle.unitNorm p))) };
+\definition last: Paths.Family := Paths.Family { matrix := Last.monic, regular := Last.monicRegular,
+  nonzero := \fun (p: Circle.Domain) => Scaling.nonzeroOfZeroKernel (Orders.polynomial d1 q1 (Circle.first p) (Circle.unit p))
+    (kernel1 (Circle.first p) (Circle.unit p) (Powers.unitOfNorm (Circle.unit p) (Circle.unitNorm p))) };
+\import algebraic_topology.Cylinder[A := Circle.Domain] \as PathDomain;
+\import topological_constructions.Product[A := Time.Carrier, B := Circle.Domain] \as PathProduct;
+\definition base[p: OverCircle.Domain]: Circle.Domain := Product.pair X Native.Carrier (Cylinder.base (OverCircle.first p)) (OverCircle.second p);
+\definition reindex[p: OverCircle.Domain]: PathDomain.Carrier := Product.pair Time.Carrier Circle.Domain (Cylinder.time (OverCircle.first p)) (base p);
+\definition baseContinuous: topology.Continuity[A := OverCircle.Domain, B := Circle.Domain].Continuous OverCircle.source Circle.source base :=
+  BaseProduct.Universal[X := OverCircle.Domain].pairContinuous OverCircle.source source Native.topology _ _
+    (topology.Composition[A := OverCircle.Domain, B := Cylinder.Domain, C := X].composeContinuous OverCircle.source Cylinder.topology source OverCircle.first Cylinder.base
+      (OverProduct.Maps[].firstContinuous Cylinder.topology Native.topology) Cylinder.baseContinuous)
+    (OverProduct.Maps[].secondContinuous Cylinder.topology Native.topology);
+\definition reindexContinuous: topology.Continuity[A := OverCircle.Domain, B := PathDomain.Carrier].Continuous OverCircle.source (PathDomain.topology Circle.source) reindex :=
+  PathProduct.Universal[X := OverCircle.Domain].pairContinuous OverCircle.source Time.topology Circle.source _ _
+    (topology.Composition[A := OverCircle.Domain, B := Cylinder.Domain, C := Time.Carrier].composeContinuous OverCircle.source Cylinder.topology Time.topology OverCircle.first Cylinder.time
+      (OverProduct.Maps[].firstContinuous Cylinder.topology Native.topology) Cylinder.timeContinuous) baseContinuous;
+\module With(path: Paths.Path[first, last]);

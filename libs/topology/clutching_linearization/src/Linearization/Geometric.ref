@@ -1,0 +1,48 @@
+\import Spaces.Linear[V := V, W := V, source := space, target := space] \as End;
+\import End.Operations[] \as Operations;
+\import End.Composition[U := V, domain := space] \as Compose;
+\import Spaces.Eigen[V := V, space := space] \as Identity;
+\import Spaces.Laws[V := V, space := space] \as Values;
+\import algebra.Group[].Of[Carrier := V, group := Rings.ringModuleAsCommutativeGroup C.Complex V Spaces.ring space] \as Group;
+\definition power: N.Nat^ -> End.Map := \induction (k: N.Nat^) \return End.Map \with {
+  | zero: Identity.identity
+  | succ: \fun (k: N.Nat^)(previous: End.Map) => Compose.compose A previous
+};
+\definition partial: N.Nat^ -> End.Map := \induction (k: N.Nat^) \return End.Map \with {
+  | zero: Operations.zeroMap
+  | succ: \fun (k: N.Nat^)(previous: End.Map) => Operations.plus previous (power k)
+};
+\definition difference: End.Map := Operations.plus Identity.identity (Operations.negative A);
+\definition formula: \forall (v: V) -> difference.apply v = Group.difference v (A.apply v) :=
+  \fun (v: V) => congr!{V V} (space.add v) _ _ (Values.minusOneScale (A.apply v));
+\definition commutes: \forall (k: N.Nat^)(v: V) -> (power k).apply (A.apply v) = A.apply ((power k).apply v) :=
+  \induction (k: N.Nat^) \return \forall (v: V) -> (power k).apply (A.apply v) = A.apply ((power k).apply v) \with {
+    | zero: \fun (v: V) => \refl(A.apply v)
+    | succ: \fun (k: N.Nat^)(previous: _)(v: V) => congr!{V V} A.apply _ _ (previous v)
+  };
+\definition powerDifference: \forall (k: N.Nat^)(v: V) -> (power k).apply (difference.apply v) = Group.difference ((power k).apply v) ((power (N.Nat^::succ k)).apply v) :=
+  \fun (k: N.Nat^)(v: V) => eq_reason_in!{V _
+    "=" { (power k).apply (Group.difference v (A.apply v)) } "by" { congr!{V V} (power k).apply _ _ (formula v) }
+    "=" { space.add ((power k).apply v) ((power k).apply (space.neg (A.apply v))) } "by" { (power k).preservesAdd v (space.neg (A.apply v)) }
+    "=" { Group.difference ((power k).apply v) ((power k).apply (A.apply v)) } "by" { congr!{V V} (space.add ((power k).apply v)) _ _ (Operations.preservesNeg (power k) (A.apply v)) }
+    "=" _ "by" { congr!{V V} (\fun (w: V) => Group.difference ((power k).apply v) w) _ _ (commutes k v) }
+  };
+\definition leftTelescoping: \forall (k: N.Nat^)(v: V) -> difference.apply ((partial k).apply v) = Group.difference v ((power k).apply v) :=
+  \induction (k: N.Nat^) \return \forall (v: V) -> difference.apply ((partial k).apply v) = Group.difference v ((power k).apply v) \with {
+    | zero: \fun (v: V) => trans!{V} _ _ _ difference.preservesZero (sym!{V} _ _ (Group.inverseRight v))
+    | succ: \fun (k: N.Nat^)(previous: _)(v: V) => eq_reason_in!{V _
+      "=" { space.add (difference.apply ((partial k).apply v)) (difference.apply ((power k).apply v)) } "by" { difference.preservesAdd ((partial k).apply v) ((power k).apply v) }
+      "=" { space.add (Group.difference v ((power k).apply v)) (Group.difference ((power k).apply v) ((power (N.Nat^::succ k)).apply v)) } "by" { congr!{V V V} space.add _ _ _ _ (previous v) (formula ((power k).apply v)) }
+      "=" _ "by" { Group.composeDifferences v ((power k).apply v) ((power (N.Nat^::succ k)).apply v) }
+    }
+  };
+\definition rightTelescoping: \forall (k: N.Nat^)(v: V) -> (partial k).apply (difference.apply v) = Group.difference v ((power k).apply v) :=
+  \induction (k: N.Nat^) \return \forall (v: V) -> (partial k).apply (difference.apply v) = Group.difference v ((power k).apply v) \with {
+    | zero: \fun (v: V) => sym!{V} _ _ (Group.inverseRight v)
+    | succ: \fun (k: N.Nat^)(previous: _)(v: V) => eq_reason_in!{V _
+      "=" { space.add (Group.difference v ((power k).apply v)) (Group.difference ((power k).apply v) ((power (N.Nat^::succ k)).apply v)) } "by" { congr!{V V V} space.add _ _ _ _ (previous v) (powerDifference k v) }
+      "=" _ "by" { Group.composeDifferences v ((power k).apply v) ((power (N.Nat^::succ k)).apply v) }
+    }
+  };
+\import Spaces.Isomorphism[V := V, W := V, source := space, target := space] \as Isomorphisms;
+\module WithOrder(order: N.Nat^, nilpotent: \forall (v: V) -> (power order).apply v = space.zero);

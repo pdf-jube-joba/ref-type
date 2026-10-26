@@ -1,0 +1,20 @@
+\import \parent.Characteristic[] \as Characteristic;
+\import \root.Spectral[].Circle[].At[n := n] \as Roots;
+\import Polynomials.Action[V := Vector, space := Coordinates.space].At[T := Matrices.linear A] \as Evaluation;
+\import complex_polynomial_roots.Roots[] \as ComplexRoots;
+\definition coefficients: ComplexRoots.Vector n := Characteristic.coefficients A;
+\definition inside: P.Carrier := Roots.left coefficients;
+\definition outside: P.Carrier := Roots.right coefficients;
+\definition OffSpectrum: \Prop := Roots.OffSpectrum coefficients;
+\definition factorization[b: Polynomials.Bezout[inside, outside, P.one]]: Polynomials.Factorization (PolynomialMatrices.characteristic A) :=
+  Polynomials.Factorization[PolynomialMatrices.characteristic A] {
+    left := inside, right := outside, bezout := b,
+    equation := trans!{{P.Carrier}} _ _ _ (Characteristic.monic A) (Roots.product coefficients),
+  };
+\definition middle: End.Map := Evaluation.evaluate (P.add inside outside);
+\definition nonzero: OffSpectrum -> Inversion.Nonzero (Square.entries middle) := \block {
+  \fun (off: OffSpectrum) \then
+  \takefrom b: Polynomials.Bezout[inside, outside, P.one] \by Roots.coprime coefficients off \then
+  \return \parent.On[A := A, factors := factorization b].nonsingular
+};
+\module Separated(off: OffSpectrum);

@@ -1,0 +1,40 @@
+\import Original.Normalized[data := chosen.nearData.data].With[form := chosen.form] \as Finite;
+\import Finite.Shifted[].Leading[bound := chosen.radius] \as Leading;
+\import Leading.Monic[] \as Monic;
+\import \root.Linearization[].Powers[] \as Powers;
+\import Powers.Families[X := Circle.Domain, source := Circle.source, z := Circle.unit, regular := Circle.unitContinuous] \as CirclePowers;
+\import \root.Linearization[].ComplexBounds[] \as Bounds;
+\definition scalar[p: Circle.Domain]: C.Complex := Powers.value (Circle.unit p) chosen.form.shift;
+\definition scalarRegular: topology.Continuity[A := Circle.Domain, B := C.Complex].Continuous Circle.source topological_algebra.Complex[].topology scalar := CirclePowers.continuous chosen.form.shift;
+\definition scalarUnit: \forall (p: Circle.Domain) -> C.Absolute[].abs (scalar p) = R.one := \fun (p: Circle.Domain) => Powers.unit (Circle.unit p) (Powers.unitOfNorm (Circle.unit p) (Circle.unitNorm p)) chosen.form.shift;
+\import Margin.UnitScale[s := scalar, regularS := scalarRegular, unit := scalarUnit] \as Shift;
+\definition original: Circle.Domain -> M.Matrix := Shift.scaled;
+\definition error[p: Circle.Domain][i, j: M.Index]: C.Complex := C.Def[].mul (scalar p) (C.Def[].sub (a p i j) (value chosen.nearData.data.coefficients p i j));
+\definition errorAbsolute: \forall (p: Circle.Domain)(i, j: M.Index) -> C.Absolute[].abs (error p i j) = C.Absolute[].abs (C.Def[].sub (a p i j) (value chosen.nearData.data.coefficients p i j)) :=
+  \fun (p: Circle.Domain)(i, j: M.Index) => trans!{{R.Real}} _ _ _ (C.Absolute[].multiplicative (scalar p) (C.Def[].sub (a p i j) (value chosen.nearData.data.coefficients p i j)))
+    (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (\fun (u: R.Real) => R.mul u (C.Absolute[].abs (C.Def[].sub (a p i j) (value chosen.nearData.data.coefficients p i j)))) _ _ (scalarUnit p))
+      (Laws.fieldMulOneLeft (C.Absolute[].abs (C.Def[].sub (a p i j) (value chosen.nearData.data.coefficients p i j)))));
+\definition errorSmall: \forall (p: Circle.Domain)(i, j: M.Index) -> Real.Lt (C.Absolute[].abs (error p i j)) (precision chosen.margin) :=
+  \fun (p: Circle.Domain)(i, j: M.Index) => Real.ltReplaceLeft _ _ _ (sym!{{R.Real}} _ _ (errorAbsolute p i j)) (chosen.nearData.near p i j);
+\definition leadingSmall: \forall (p: Circle.Domain)(i, j: M.Index) -> Real.Lt (C.Absolute[].abs (C.Def[].neg (Leading.error p i j))) (precision chosen.margin) :=
+  \fun (p: Circle.Domain)(i, j: M.Index) => Real.ltReplaceLeft _ _ _ (sym!{{R.Real}} _ _ (Bounds.negativeAbsolute (Leading.error p i j)))
+    (Real.ltLeTrans _ _ _ (Leading.errorBound p i j) chosen.smallRadius);
+\definition difference: \forall (p: Circle.Domain)(i, j: M.Index) -> C.Def[].sub (original p i j) (Leading.perturbed p i j) = C.Def[].add (error p i j) (C.Def[].neg (Leading.error p i j)) :=
+  \fun (p: Circle.Domain)(i, j: M.Index) => Bounds.shiftedDifference (scalar p) (a p i j) (value chosen.nearData.data.coefficients p i j) (Leading.error p i j);
+\definition near: \forall (p: Circle.Domain)(i, j: M.Index) -> Real.Lt (C.Absolute[].abs (C.Def[].sub (original p i j) (Leading.perturbed p i j))) chosen.margin.value :=
+  \fun (p: Circle.Domain)(i, j: M.Index) => Real.ltReplaceLeft _ _ _ (sym!{{R.Real}} _ _ (congr!{{C.Complex} {R.Real}} C.Absolute[].abs _ _ (difference p i j)))
+    (Order.ltTrans _ _ _
+      (Real.ltReplaceRight _ _ _ (R.Estimates[].halfTwice (R.mul R.half chosen.margin.value))
+        (Real.leLtTrans _ _ _ (C.Absolute[].triangle (error p i j) (C.Def[].neg (Leading.error p i j)))
+          (R.Estimates[].addLt _ _ _ _ (errorSmall p i j) (leadingSmall p i j))))
+      (R.Estimates[].halfStrict chosen.margin.value chosen.margin.positive));
+\import Neighborhoods.Perturbation[X := Circle.Domain, source := Circle.source, compact := Circle.domainCompact, a := original, regular := Shift.scaledRegular, nonzero := Shift.scaledNonzero] \as OriginalMargin;
+\import OriginalMargin.Nearby[b := Leading.perturbed, regularB := Leading.perturbedRegular, bound := Shift.bound chosen.margin, near := near] \as Path;
+\definition homotopy: Cylinder.CarrierSet -> M.Matrix := Path.homotopy;
+\definition continuous: Top.Families[X := Cylinder.CarrierSet].Regular cylinderTopology homotopy := Path.homotopyRegular;
+\definition invertible: \forall (p: Cylinder.CarrierSet) -> Field.Nonzero (homotopy p) := Path.nonzero;
+\definition atStart: \forall (p: Circle.Domain) -> homotopy (Pair.pair Time.Carrier Circle.Domain Time.start p) = original p := Path.atStart;
+\definition atEnd: \forall (p: Circle.Domain) -> homotopy (Pair.pair Time.Carrier Circle.Domain Time.end p) = Leading.perturbed p := Path.atEnd;
+\definition weighted: Cylinder.CarrierSet -> M.Matrix := Path.weighted;
+\definition weightedNonzero: \forall (p: Cylinder.CarrierSet) -> Field.Nonzero (weighted p) := Path.weightedNonzero;
+\module Model;

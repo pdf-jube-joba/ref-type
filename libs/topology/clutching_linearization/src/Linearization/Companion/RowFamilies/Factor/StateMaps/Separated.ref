@@ -1,0 +1,23 @@
+\import Template.CoordinateState[] \as Shape;
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := n] \as ScalarMatrix;
+\definition scalarMatrix[x: X]: ScalarMatrix.Matrix := Shape.scalarMatrix;
+\definition scalarRegular: matrix_invariants.Topological[K := C.Complex, ring := Plane.Ring[].topologicalRing].At[n := n].Families[X := X].Regular source scalarMatrix :=
+  \fun (i, j: Fin.Fin n) => topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology (Shape.scalarMatrix i j);
+\definition coupling[x: X]: Spaces.Linear[V := Vectors.Vector, W := OldFlat.Vector, source := Vectors.space, target := OldFlat.space].Map := Shape.coupling;
+\definition couplingRegular: Hermitian.At[n := Coordinates.dimension degree].Families[X := X].Matrix[m := n].Regular source coupling :=
+  \fun (v: Vectors.Vector)(i: Fin.Fin (Coordinates.dimension degree)) => topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology (Shape.coupling.apply v i);
+\definition originalOff: \forall (x: X) -> spectral_splitting.Spectral[].At[n := Coordinates.dimension degree].Splitting[A := matrix x].OffSpectrum :=
+  \fun (x: X) => \root.Linearization[].Companion[n := n, d := d].FromRow[row := rows x].Spectral[].off (kernel x);
+\definition scalarOff: \forall (x: X) -> spectral_splitting.Spectral[].At[n := n].Splitting[A := scalarMatrix x].OffSpectrum :=
+  \fun (_: X) => Shape.scalarOff offR;
+\definition enlargedOff: \forall (x: X) -> spectral_splitting.Spectral[].At[n := Coordinates.dimension Next.degree].Splitting[A := enlargedMatrix x].OffSpectrum :=
+  \fun (x: X) => Next.FromRow[row := newRows x].Spectral[].off (enlargedKernel kernel offR x);
+\import \root.Linearization[].TriangularFamily[n := Coordinates.dimension degree, m := n, X := X, source := source].With[
+  A := matrix, B := scalarMatrix, coupling := coupling, regularA := matrixRegular, regularB := scalarRegular, regularCoupling := couplingRegular, offA := originalOff, offB := scalarOff] \as Triangle;
+\definition intertwines: \forall (x: X)(v: NewFlat.Vector) ->
+  (isomorphism x).forward.apply ((matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := Coordinates.dimension Next.degree].linear (enlargedMatrix x)).apply v) =
+  (matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := total].linear (Triangle.matrix x)).apply ((isomorphism x).forward.apply v) :=
+  \fun (x: X) => \root.Linearization[].Companion[n := n, d := d].FromRow[row := rows x].Factor[r := r].CoordinateState[].Separated[kernel := kernel x, offR := offR].flatIntertwines;
+\module KClass(compact: topology.Topology[Carrier := X].IsCompact source, hausdorff: topology.Topology[Carrier := X].IsT2 source, removedA, removedB: N.Nat^);
+\module Inside(compact: topology.Topology[Carrier := X].IsCompact source, hausdorff: topology.Topology[Carrier := X].IsT2 source, removed: N.Nat^, bound: Real.Le (C.Absolute[].abs r) R.one);
+\module Outside(compact: topology.Topology[Carrier := X].IsCompact source, hausdorff: topology.Topology[Carrier := X].IsT2 source, removed: N.Nat^, bound: Real.Le R.one (C.Absolute[].abs r));

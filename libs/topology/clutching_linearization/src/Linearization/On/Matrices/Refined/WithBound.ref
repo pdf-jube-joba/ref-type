@@ -1,0 +1,16 @@
+\structure Near: \Set := {
+  data: Approximation,
+  near: \forall (x: Circle.Domain)(i, j: M.Index) -> Real.Lt (C.Absolute[].abs (C.Def[].sub (a x i j) (value data.coefficients x i j))) (precision bound),
+};
+\definition exists: \exists Near := \block {
+  \takefrom p: \Cast[PolynomialMatrix] ({ p: PolynomialMatrix \where \forall (i, j: M.Index) -> Functions.Error (\fun (x: Circle.Domain) => a x i j) (Circle.value (p i j)) (precision bound) })
+    \by Circle.Matrices[n := n, m := n, f := (\fun (i, j: M.Index)(x: Circle.Domain) => a x i j), regular := regular].exists (precision bound) (precisionPositive bound) \then
+  \let near: \forall (i, j: M.Index) -> Functions.Error (\fun (x: Circle.Domain) => a x i j) (Circle.value (p i j)) (precision bound) :=
+    \bysub(PolynomialMatrix, { p: PolynomialMatrix \where \forall (i, j: M.Index) -> Functions.Error (\fun (x: Circle.Domain) => a x i j) (Circle.value (p i j)) (precision bound) }, p) \then
+  \let widened: \forall (x: Circle.Domain)(i, j: M.Index) -> Real.Lt (C.Absolute[].abs (C.Def[].sub (a x i j) (value p x i j))) bound.value :=
+    \fun (x: Circle.Domain)(i, j: M.Index) => Order.ltTrans _ _ _ (near i j x) (precisionBelow bound) \then
+  \return \exact(Near {
+    data := \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[n := n, a := a, regular := regular, nonzero := nonzero].Candidate[bound := bound, coefficients := p, near := widened].result,
+    near := \fun (x: Circle.Domain)(i, j: M.Index) => near i j x,
+  }, Near)
+};

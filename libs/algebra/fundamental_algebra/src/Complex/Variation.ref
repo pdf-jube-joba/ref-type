@@ -1,0 +1,37 @@
+\import \parent.Scaling[] \as Scaling;
+\import \parent.UnitRoots[] \as Units;
+\import \parent.Bounds[] \as Bounds;
+\import \parent.EvaluationLaws[] \as Values;
+\import galois.Field[].Over[K := Real.Real, field := Algebra.field] \as Reals;
+\import Real.Estimates[].Product[] \as Products;
+\definition coefficient[t: Real.Real]: C.Complex := Op.mul (Field.power w n) (Monic.evaluate h (Op.scale t w));
+\definition leading: Real.Real := C.re (Op.mul (Op.mul (Op.conj a) (Monic.evaluate h Op.zero)) (Field.power w n));
+\definition variation[t: Real.Real]: Real.Real := Real.add (Real.add (Absolute.inner a (coefficient t)) (Absolute.inner a (coefficient t)))
+  (Real.mul (Reals.power t n) (Op.normSq (coefficient t)));
+\definition perturb[t: Real.Real]: C.Complex := Op.add a (Op.scale (Reals.power t n) (coefficient t));
+\definition identity: \forall (t: Real.Real) -> Op.normSq (perturb t) = Real.add (Op.normSq a) (Real.mul (Reals.power t n) (variation t)) :=
+  \fun (t: Real.Real) => Scaling.normVariation a (coefficient t) (Reals.power t n);
+\definition coefficientZero: coefficient Real.zero = Op.mul (Field.power w n) (Monic.evaluate h Op.zero) :=
+  congr!{C.Complex C.Complex} (\fun (z: C.Complex) => Op.mul (Field.power w n) (Monic.evaluate h z)) _ _ (Scaling.atZero w);
+\definition innerZero: Absolute.inner a (coefficient Real.zero) = leading :=
+  trans!{Real.Real} _ _ _ (congr!{C.Complex Real.Real} (Absolute.inner a) _ _ coefficientZero)
+    (trans!{Real.Real} _ _ _ (Scaling.innerProduct a (Op.mul (Field.power w n) (Monic.evaluate h Op.zero)))
+      (congr!{C.Complex Real.Real} C.re _ _ (trans!{C.Complex} _ _ _
+        (congr!{C.Complex C.Complex} (Op.mul (Op.conj a)) _ _ (Complex.mulComm (Field.power w n) (Monic.evaluate h Op.zero)))
+        (sym!{C.Complex} _ _ (Complex.mulAssoc (Op.conj a) (Monic.evaluate h Op.zero) (Field.power w n))))));
+\definition zeroPower: Logic.Not (n = N.Nat^::zero) -> Reals.power Real.zero n = Real.zero :=
+  (\induction (k: N.Nat^) \return Logic.Not (k = N.Nat^::zero) -> Reals.power Real.zero k = Real.zero \with {
+    | zero: \fun (positive: _) => Logic.falseElim _ (positive (\refl(N.Nat^::zero)))
+    | succ: \fun (k: N.Nat^)(unused: _)(positive: _) => Laws.fieldMulZeroLeft (Reals.power Real.zero k)
+  }) n;
+\definition negativeAtZero: Logic.Not (n = N.Nat^::zero) -> R.Lt leading Real.zero -> R.Lt (variation Real.zero) Real.zero :=
+  \fun (positive: _)(negative: _) => R.ltReplaceLeft (Real.add leading leading) (variation Real.zero) Real.zero
+    (sym!{Real.Real} _ _ (eq_reason_in!{Real.Real { variation Real.zero }
+      "=" { Real.add (Real.add leading leading) Real.zero } "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+        (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ innerZero innerZero)
+        (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.mul x (Op.normSq (coefficient Real.zero))) _ _ (zeroPower positive)) (Laws.fieldMulZeroLeft _)) }
+      "=" _ "by" { Laws.addZeroRight _ }
+    }))
+    (R.ltReplaceRight _ (Real.add Real.zero Real.zero) Real.zero (Laws.addZeroLeft Real.zero) (Estimates.addLt leading leading Real.zero Real.zero negative negative));
+\module Continuity;
+\module Decrease;

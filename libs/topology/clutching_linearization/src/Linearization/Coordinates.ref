@@ -1,0 +1,61 @@
+\import std.Data[].FinSet[] \as Fin;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as NatLaws;
+\import Spaces.Coordinates[I := Fin.Fin n] \as Vectors;
+\import module_theory.Module[].Over[R := C.Complex, ring := Spaces.ring] \as Modules;
+\definition dimension: N.Nat^ -> N.Nat^ := \induction (d: N.Nat^) \return N.Nat^ \with {
+  | zero: N.Nat^::zero
+  | succ: \fun (d: N.Nat^)(previous: N.Nat^) => Nat.add previous n
+};
+\definition dimensionFormula: \forall (d: N.Nat^) -> dimension d = Nat.mul n d :=
+  \induction (d: N.Nat^) \return dimension d = Nat.mul n d \with {
+    | zero: sym!{{N.Nat^}} _ _ (NatLaws.mulZeroRight n)
+    | succ: \fun (d: N.Nat^)(previous: dimension d = Nat.mul n d) => trans!{{N.Nat^}} _ _ _
+      (congr!{{N.Nat^} {N.Nat^}} (\fun (k: N.Nat^) => Nat.add k n) _ _ previous)
+      (trans!{{N.Nat^}} _ _ _ (NatLaws.addComm (Nat.mul n d) n) (sym!{{N.Nat^}} _ _ (NatLaws.mulSuccRight n d)))
+  };
+\definition Carrier[d: N.Nat^]: \Set := Fin.Fin d -> Vectors.Vector;
+\definition space[d: N.Nat^]: Spaces.VectorSpace (Carrier d) := Modules.Functions[X := Fin.Fin d, V := Vectors.Vector, target := Vectors.space].space;
+\import Fin.Tuples[A := Vectors.Vector] \as Tuples;
+\definition flatten: \forall (d: N.Nat^) -> Carrier d -> Fin.Fin (dimension d) -> C.Complex :=
+  \induction (d: N.Nat^) \return Carrier d -> Fin.Fin (dimension d) -> C.Complex \with {
+    | zero: \fun (x: Carrier N.Nat^::zero) => Fin.Empty[A := C.Complex].function
+    | succ: \fun (d: N.Nat^)(previous: Carrier d -> Fin.Fin (dimension d) -> C.Complex)(x: Carrier (N.Nat^::succ d)) => Spaces.CoordinateSum[n := n, m := dimension d].join (x (Fin.zero d)) (previous (\fun (i: Fin.Fin d) => x (Fin.succ d i)))
+  };
+\definition unflatten: \forall (d: N.Nat^) -> (Fin.Fin (dimension d) -> C.Complex) -> Carrier d :=
+  \induction (d: N.Nat^) \return (Fin.Fin (dimension d) -> C.Complex) -> Carrier d \with {
+    | zero: \fun (x: Fin.Fin (dimension N.Nat^::zero) -> C.Complex) => Fin.Empty[A := Vectors.Vector].function
+    | succ: \fun (d: N.Nat^)(previous: (Fin.Fin (dimension d) -> C.Complex) -> Carrier d)(x: Fin.Fin (dimension (N.Nat^::succ d)) -> C.Complex) => Tuples.extend d
+      (Spaces.CoordinateSum[n := n, m := dimension d].left x) (previous (Spaces.CoordinateSum[n := n, m := dimension d].right x))
+  };
+\module Successor(d: N.Nat^);
+\definition leftInverse: \forall (d: N.Nat^)(x: Carrier d) -> unflatten d (flatten d x) = x :=
+  \induction (d: N.Nat^) \return \forall (x: Carrier d) -> unflatten d (flatten d x) = x \with {
+    | zero: \fun (x: Carrier N.Nat^::zero) => \axiom:funext(unflatten N.Nat^::zero (flatten N.Nat^::zero x), x, \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)))
+    | succ: \fun (d: N.Nat^)(previous: _) => Successor[d := d].leftInverse previous
+  };
+\definition rightInverse: \forall (d: N.Nat^)(x: Fin.Fin (dimension d) -> C.Complex) -> flatten d (unflatten d x) = x :=
+  \induction (d: N.Nat^) \return \forall (x: Fin.Fin (dimension d) -> C.Complex) -> flatten d (unflatten d x) = x \with {
+    | zero: \fun (x: Fin.Fin (dimension N.Nat^::zero) -> C.Complex) => \axiom:funext(flatten N.Nat^::zero (unflatten N.Nat^::zero x), x, \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)))
+    | succ: \fun (d: N.Nat^)(previous: _) => Successor[d := d].rightInverse previous
+  };
+\definition addition: \forall (d: N.Nat^)(x, y: Carrier d) -> flatten d ((space d).add x y) = Spaces.Coordinates[I := Fin.Fin (dimension d)].plus (flatten d x) (flatten d y) :=
+  \induction (d: N.Nat^) \return \forall (x, y: Carrier d) -> flatten d ((space d).add x y) = Spaces.Coordinates[I := Fin.Fin (dimension d)].plus (flatten d x) (flatten d y) \with {
+    | zero: \fun (x, y: Carrier N.Nat^::zero) => \axiom:funext(flatten N.Nat^::zero ((space N.Nat^::zero).add x y), Spaces.Coordinates[I := Fin.Fin (dimension N.Nat^::zero)].plus (flatten N.Nat^::zero x) (flatten N.Nat^::zero y), \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)))
+    | succ: \fun (d: N.Nat^)(previous: _) => Successor[d := d].addition previous
+  };
+\definition scalar: \forall (d: N.Nat^)(a: C.Complex)(x: Carrier d) -> flatten d ((space d).smul a x) = Spaces.Coordinates[I := Fin.Fin (dimension d)].scale a (flatten d x) :=
+  \induction (d: N.Nat^) \return \forall (a: C.Complex)(x: Carrier d) -> flatten d ((space d).smul a x) = Spaces.Coordinates[I := Fin.Fin (dimension d)].scale a (flatten d x) \with {
+    | zero: \fun (a: C.Complex)(x: Carrier N.Nat^::zero) => \axiom:funext(flatten N.Nat^::zero ((space N.Nat^::zero).smul a x), Spaces.Coordinates[I := Fin.Fin (dimension N.Nat^::zero)].scale a (flatten N.Nat^::zero x), \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)))
+    | succ: \fun (d: N.Nat^)(previous: _) => Successor[d := d].scalar previous
+  };
+\definition injective: \forall (d: N.Nat^)(x, y: Carrier d) -> flatten d x = flatten d y -> x = y :=
+  \fun (d: N.Nat^)(x, y: Carrier d)(same: _) => eq_reason_in!{{Carrier d} x
+    "=" { unflatten d (flatten d x) } "by" { sym!{{Carrier d}} _ _ (leftInverse d x) }
+    "=" { unflatten d (flatten d y) } "by" { congr!{{Fin.Fin (dimension d) -> C.Complex} {Carrier d}} (unflatten d) _ _ same }
+    "=" y "by" { leftInverse d y }
+  };
+\module At(d: N.Nat^);
+\module Selections;
+\module Families(X: \Set, source: topology.Topology[Carrier := X].Topology);
+\module Diagonal(d: N.Nat^);

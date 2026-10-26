@@ -1,0 +1,75 @@
+\import algebraic_topology.Interval[] \as Time;
+\import topological_constructions.Product[A := Time.Carrier, B := X] \as Cylinder;
+\definition Domain: \Set := Cylinder.CarrierSet;
+\definition topology: topology.Topology[Carrier := Domain].Topology := Cylinder.topology Time.topology source;
+\definition base: Domain -> X := Pair.second Time.Carrier X;
+\definition time: Domain -> Time.Carrier := Pair.first Time.Carrier X;
+\definition scalar[p: Domain]: C.Complex := C.Def[].ofReal (time p);
+\definition timeContinuous: metric_spaces.RealFunctions[A := Domain].Continuous topology (\fun (p: Domain) => time p) :=
+  topology.Composition[A := Domain, B := Time.Carrier, C := R.Real].composeContinuous topology Time.topology metric_spaces.RealLine[].topology time (\fun (t: Time.Carrier) => t)
+    (Cylinder.Maps[].firstContinuous Time.topology source) Time.inclusionContinuous;
+\definition scalarContinuous: topology.Continuity[A := Domain, B := C.Complex].Continuous topology Plane.topology scalar :=
+  Hermitian.Functions[X := Domain].embedding topology (\fun (p: Domain) => time p) timeContinuous;
+\module At(x: X) {
+  \import \root.Linearization[].SpectralTriangular[n := n, m := m, A := A x, B := B x, coupling := coupling x, offA := offA x, offB := offB x] \as Native;
+  \definition matrix: M.Matrix := Native.matrix;
+  \definition off: spectral_splitting.Spectral[].At[n := total].Splitting[A := matrix].OffSpectrum := Native.off;
+  \module Scaled(t: C.Complex) {
+    \definition matrix: M.Matrix := Native.Path[].At[t := t].matrix;
+    \definition off: spectral_splitting.Spectral[].At[n := total].Splitting[A := matrix].OffSpectrum := Native.Path[].At[t := t].off;
+  }
+  \definition diagonal: M.Matrix := \root.Linearization[].SpectralSum[n := n, m := m, A := A x, B := B x, offA := offA x, offB := offB x].matrix;
+  \definition starts: Scaled[t := C.Def[].zero].matrix = diagonal := Native.Path[].starts;
+  \definition ends: Scaled[t := C.Def[].one].matrix = matrix := Native.Path[].ends;
+}
+\definition homotopy[p: Domain]: M.Matrix := At[x := base p].Scaled[t := scalar p].matrix;
+\definition off: \forall (p: Domain) -> spectral_splitting.Spectral[].At[n := total].Splitting[A := homotopy p].OffSpectrum :=
+  \fun (p: Domain) => At[x := base p].Scaled[t := scalar p].off;
+\import \root.Linearization[].MatrixContinuity[n := n, Y := X, source := source] \as EvaluationA;
+\import \root.Linearization[].MatrixContinuity[n := m, Y := X, source := source] \as EvaluationB;
+\definition actionA: \forall (v: V.Vector)(i: MA.Index) -> topology.Continuity[A := X, B := C.Complex].Continuous source Plane.topology (\fun (x: X) => (MA.linear (A x)).apply v i) :=
+  \fun (v: V.Vector) => EvaluationA.evaluate A (\fun (_: X) => v) regularA (\fun (i: MA.Index) => topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology (v i));
+\definition actionB: \forall (v: W.Vector)(i: MB.Index) -> topology.Continuity[A := X, B := C.Complex].Continuous source Plane.topology (\fun (x: X) => (MB.linear (B x)).apply v i) :=
+  \fun (v: W.Vector) => EvaluationB.evaluate B (\fun (_: X) => v) regularB (\fun (i: MB.Index) => topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology (v i));
+\definition alongA: \forall (v: V.Vector)(i: MA.Index) -> topology.Continuity[A := Domain, B := C.Complex].Continuous topology Plane.topology (\fun (p: Domain) => (MA.linear (A (base p))).apply v i) :=
+  \fun (v: V.Vector)(i: MA.Index) => topology.Composition[A := Domain, B := X, C := C.Complex].composeContinuous topology source Plane.topology base
+    (\fun (x: X) => (MA.linear (A x)).apply v i) (Cylinder.Maps[].secondContinuous Time.topology source) (actionA v i);
+\definition alongB: \forall (v: W.Vector)(i: MB.Index) -> topology.Continuity[A := Domain, B := C.Complex].Continuous topology Plane.topology (\fun (p: Domain) => (MB.linear (B (base p))).apply v i) :=
+  \fun (v: W.Vector)(i: MB.Index) => topology.Composition[A := Domain, B := X, C := C.Complex].composeContinuous topology source Plane.topology base
+    (\fun (x: X) => (MB.linear (B x)).apply v i) (Cylinder.Maps[].secondContinuous Time.topology source) (actionB v i);
+\definition alongCoupling: \forall (v: W.Vector)(i: MA.Index) -> topology.Continuity[A := Domain, B := C.Complex].Continuous topology Plane.topology (\fun (p: Domain) => (coupling (base p)).apply v i) :=
+  \fun (v: W.Vector)(i: MA.Index) => topology.Composition[A := Domain, B := X, C := C.Complex].composeContinuous topology source Plane.topology base
+    (\fun (x: X) => (coupling x).apply v i) (Cylinder.Maps[].secondContinuous Time.topology source) (regularCoupling v i);
+\import Spaces.FiniteCoordinates[n := total] \as Basis;
+\import Plane.Functions[A := Domain] \as Functions;
+\definition regular: MatrixTopology.At[n := total].Families[X := Domain].Regular topology homotopy :=
+  \fun (i, j: M.Index) =>
+    (\induction (s: Indices.Index) \return topology.Continuity[A := Domain, B := C.Complex].Continuous topology Plane.topology
+      (\fun (p: Domain) => Tuples.evaluate
+        (V.plus ((MA.linear (A (base p))).apply (Sum.first (Coordinates.split (Basis.vectors j))))
+          (V.scale (scalar p) ((coupling (base p)).apply (Sum.second (Coordinates.split (Basis.vectors j))))))
+        ((MB.linear (B (base p))).apply (Sum.second (Coordinates.split (Basis.vectors j)))) s) \with {
+      | inl: \fun (k: MA.Index) => Functions.additionContinuous topology _ _ (alongA (Sum.first (Coordinates.split (Basis.vectors j))) k)
+        (Functions.multiplicationContinuous topology _ _ scalarContinuous (alongCoupling (Sum.second (Coordinates.split (Basis.vectors j))) k))
+      | inr: \fun (k: MB.Index) => alongB (Sum.second (Coordinates.split (Basis.vectors j))) k
+    }) (Indices.split i);
+\definition atStart: \forall (x: X) -> homotopy (Pair.pair Time.Carrier X Time.start x) = At[x := x].diagonal := \fun (x: X) => At[x := x].starts;
+\definition atEnd: \forall (x: X) -> homotopy (Pair.pair Time.Carrier X Time.end x) = At[x := x].matrix := \fun (x: X) => At[x := x].ends;
+\module Endpoint(t: Time.Carrier);
+\import Endpoint[t := Time.start] \as Start;
+\import Endpoint[t := Time.end] \as Finish;
+\definition diagonal[x: X]: M.Matrix := At[x := x].diagonal;
+\definition matrix[x: X]: M.Matrix := At[x := x].matrix;
+\definition diagonalOff: \forall (x: X) -> spectral_splitting.Spectral[].At[n := total].Splitting[A := diagonal x].OffSpectrum :=
+  \fun (x: X) => \root.Linearization[].SpectralSum[n := n, m := m, A := A x, B := B x, offA := offA x, offB := offB x].off;
+\definition matrixOff: \forall (x: X) -> spectral_splitting.Spectral[].At[n := total].Splitting[A := matrix x].OffSpectrum := \fun (x: X) => At[x := x].off;
+\definition diagonalRegular: MatrixTopology.At[n := total].Families[X := X].Regular source diagonal :=
+  \fun (i, j: M.Index) => MatrixTopology.At[n := total].Families[X := X].transport source
+    (\fun (x: X) => Start.matrix x i j) (\fun (x: X) => diagonal x i j)
+    (\fun (x: X) => congr!{M.Matrix {C.Complex}} (\fun (v: M.Matrix) => v i j) _ _ (atStart x)) (Start.regular i j);
+\definition matrixRegular: MatrixTopology.At[n := total].Families[X := X].Regular source matrix :=
+  \fun (i, j: M.Index) => MatrixTopology.At[n := total].Families[X := X].transport source
+    (\fun (x: X) => Finish.matrix x i j) (\fun (x: X) => matrix x i j)
+    (\fun (x: X) => congr!{M.Matrix {C.Complex}} (\fun (v: M.Matrix) => v i j) _ _ (atEnd x)) (Finish.regular i j);
+\module KClass(compact: topology.Topology[Carrier := X].IsCompact source, hausdorff: topology.Topology[Carrier := X].IsT2 source, removed: N.Nat^);
+\module Additivity(compact: topology.Topology[Carrier := X].IsCompact source, hausdorff: topology.Topology[Carrier := X].IsT2 source, removedA, removedB: N.Nat^);

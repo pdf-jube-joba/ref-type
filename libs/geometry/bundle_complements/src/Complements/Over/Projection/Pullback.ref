@@ -1,0 +1,43 @@
+\import \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Projection[X := X, n := n, baseSpace := baseSpace, P := P, regular := regular] \as Original;
+\definition composedRegular: Hermitian.At[n := n].Families[X := Y].Matrix[m := n].Regular source (\fun (y: Y) => (P (f y)).map) :=
+  \fun (v: Vector n)(i: Fin.Fin n) => topology.Composition[A := Y, B := X, C := K].composeContinuous source baseSpace scalar.topological.space f (\fun (x: X) => (P x).map.apply v i) regularBase (regular v i);
+\import \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Projection[X := Y, n := n, baseSpace := source, P := \fun (y: Y) => P (f y), regular := composedRegular] \as Other;
+\import Family.Of[bundle := bundle].Pullback[Y := Y, source := source, f := f] \as Pulled;
+\import Bundles.Family[X := Y, F := \fun (y: Y) => Fiber (f y)] \as PulledFamily;
+\import Bundles.Family[X := Y, F := Other.Fiber] \as OtherFamily;
+\definition firstBundle: Bundles.Family[X := Y, F := \fun (y: Y) => Fiber (f y)].Bundle := Pulled.pulled regularBase;
+\definition secondBundle: Bundles.Family[X := Y, F := Other.Fiber].Bundle := Other.bundle;
+\import Bundles.Morphisms[X := Y, Y := Y, F := \fun (y: Y) => Fiber (f y), G := Other.Fiber, source := firstBundle, target := secondBundle, f := \fun (y: Y) => y] \as Forward;
+\import Bundles.Morphisms[X := Y, Y := Y, F := Other.Fiber, G := \fun (y: Y) => Fiber (f y), source := secondBundle, target := firstBundle, f := \fun (y: Y) => y] \as Backward;
+\definition forwardData: Forward.Data := Forward.Data { fiber := \fun (y: Y) => Spaces.Linear[V := Fiber (f y), W := Other.Fiber y, source := firstBundle.space y, target := secondBundle.space y].Map {
+  apply := \fun (v: Fiber (f y)) => v, preservesAdd := \fun (v, w: Fiber (f y)) => \refl((firstBundle.space y).add v w), preservesScale := \fun (a: K)(v: Fiber (f y)) => \refl((firstBundle.space y).smul a v)
+} };
+\definition backwardData: Backward.Data := Backward.Data { fiber := \fun (y: Y) => Spaces.Linear[V := Other.Fiber y, W := Fiber (f y), source := secondBundle.space y, target := firstBundle.space y].Map {
+  apply := \fun (v: Other.Fiber y) => v, preservesAdd := \fun (v, w: Other.Fiber y) => \refl((secondBundle.space y).add v w), preservesScale := \fun (a: K)(v: Other.Fiber y) => \refl((secondBundle.space y).smul a v)
+} };
+\definition forward: Forward.Map := \into[Forward.Data](forwardData, Forward.Map) \by {
+  Other.Universal[Y := PulledFamily.Point, source := Pulled.topology].continuous (Forward.total forwardData) Pulled.projectionContinuous
+    (topology.Composition[A := PulledFamily.Point, B := Family.Point, C := Vector n].composeContinuous Pulled.topology topology (coordinateTopology n) Pulled.map (\fun (p: Family.Point) => p.vector) Pulled.mapContinuous vectorContinuous)
+};
+\definition originalContinuous: topology.Continuity[A := OtherFamily.Point, B := Family.Point].Continuous Other.topology topology (\fun (p: OtherFamily.Point) => Family.include (f p.base) p.vector) :=
+  Original.Universal[Y := OtherFamily.Point, source := Other.topology].continuous (\fun (p: OtherFamily.Point) => Family.include (f p.base) p.vector)
+    (topology.Composition[A := OtherFamily.Point, B := Y, C := X].composeContinuous Other.topology source baseSpace OtherFamily.projection f Other.projectionContinuous regularBase) Other.vectorContinuous;
+\definition backward: Backward.Map := \into[Backward.Data](backwardData, Backward.Map) \by {
+  Pulled.Universal[Z := OtherFamily.Point].continuous Other.topology (Backward.total backwardData) Other.projectionContinuous originalContinuous
+};
+\definition isomorphism: Bundles.Isomorphisms[X := Y, F := \fun (y: Y) => Fiber (f y), G := Other.Fiber, source := firstBundle, target := secondBundle].Isomorphism :=
+  Bundles.Isomorphisms[X := Y, F := \fun (y: Y) => Fiber (f y), G := Other.Fiber, source := firstBundle, target := secondBundle].Isomorphism {
+    forward := forward, backward := backward, leftInverse := \fun (y: Y)(v: Fiber (f y)) => \refl(v), rightInverse := \fun (y: Y)(v: Other.Fiber y) => \refl(v)
+  };
+\definition onFiber: \forall (y: Y)(v: Fiber (f y)) -> (isomorphism.forward.fiber y).apply v = v := \fun (y: Y)(v: Fiber (f y)) => \refl(v);
+\definition projectNaturality: \forall (y: Y)(v: Vector n) -> (Other.projectMap.fiber y).apply v = (projectMap.fiber (f y)).apply v := \fun (y: Y)(v: Vector n) => \refl((projectMap.fiber (f y)).apply v);
+\definition complementNaturality: \forall (y: Y)(v: Vector n) -> (Other.Complement[].Q y).map.apply v = (Original.Complement[].Q (f y)).map.apply v := \fun (y: Y)(v: Vector n) => \refl((Original.Complement[].Q (f y)).map.apply v);
+\definition splitRightInverse: \forall (y: Y)(v: Vector n) -> (Other.Complement[].isomorphism.forward.fiber y).apply ((Other.Complement[].isomorphism.backward.fiber y).apply v) = v :=
+  \fun (y: Y)(v: Vector n) => Hermitian.At[n := n].OnProjection[P := P (f y)].splitting v;
+\definition inclusionNaturality: \forall (y: Y)(v: Fiber (f y)) -> (Other.inclusion.fiber y).apply v = (Original.inclusion.fiber (f y)).apply v :=
+  \fun (y: Y)(v: Fiber (f y)) => \refl(v);
+\definition SumFiber[y: Y]: \Set := Pair.Times^[Fiber (f y), Original.Complement[].ComplementFiber (f y)];
+\definition splitForwardNaturality: \forall (y: Y)(v: SumFiber y) -> (Other.Complement[].isomorphism.forward.fiber y).apply v = (Original.Complement[].isomorphism.forward.fiber (f y)).apply v :=
+  \fun (y: Y)(v: SumFiber y) => \refl((Original.Complement[].isomorphism.forward.fiber (f y)).apply v);
+\definition splitBackwardNaturality: \forall (y: Y)(v: Vector n) -> (Other.Complement[].isomorphism.backward.fiber y).apply v = (Original.Complement[].isomorphism.backward.fiber (f y)).apply v :=
+  \fun (y: Y)(v: Vector n) => \refl((Original.Complement[].isomorphism.backward.fiber (f y)).apply v);

@@ -1,0 +1,22 @@
+\definition column[x: X]: Vector := (A x).apply Split.first;
+\definition unit[x: X]: Vector := Algebra.Gram[k := k].Step[].On[A := A x, injective := injective x, positive := positive].unit;
+\definition columnPositive: \forall (x: X) -> dedekind_reals.DedekindReal[].Lt R.zero (Algebra.squared (column x)) :=
+  \fun (x: X) => Algebra.positiveNorm positive (column x) (Algebra.Gram[k := k].Step[].On[A := A x, injective := injective x, positive := positive].columnNonzero);
+\import \parent.\parent.Normalize[source := source, v := column, continuous := regular Split.first, positive := columnPositive] \as Normalize;
+\definition unitRegular: Continuous source unit := Normalize.regular;
+\definition residual[x: X]: Algebra.Gram[k := k].Map := Algebra.Gram[k := k].Step[].On[A := A x, injective := injective x, positive := positive].residual;
+\definition tail[x: X][v: Domain.Vector]: Vector := (A x).apply (Split.embedding.apply v);
+\definition residualRegular: Lower.Regular source residual := \fun (v: Domain.Vector) =>
+  Vectors.addition source (\fun (x: X) => tail x v)
+    (\fun (x: X) => E.space.neg (E.space.smul (h.dot (unit x) (tail x v)) (unit x)))
+    (regular (Split.embedding.apply v))
+    (Vectors.negative source (\fun (x: X) => E.space.smul (h.dot (unit x) (tail x v)) (unit x))
+      (Vectors.scale source (\fun (x: X) => h.dot (unit x) (tail x v)) unit
+        (dotContinuous source unit (\fun (x: X) => tail x v) unitRegular (regular (Split.embedding.apply v))) unitRegular));
+\definition residualInjective: Lower.Injective residual :=
+  \fun (x: X) => Algebra.Gram[k := k].Step[].On[A := A x, injective := injective x, positive := positive].residualInjective;
+\module With(prior: Lower.Factors[residual, source]);
+\definition exists: \exists Higher.Factors[A, source] := \block {
+  \takefrom prior: Lower.Factors[residual, source] \by previous source residual residualRegular residualInjective positive \then
+  \return \exact(With[prior := prior].factors, Higher.Factors[A, source])
+};

@@ -1,0 +1,20 @@
+\import \parent.\parent.Trivial[n := zero] \as Trivial;
+\import \parent.\parent.Realized[p := p] \as Realized;
+\import \parent.\parent.Product[F := Trivial.FiberAt, G := Fiber p, left := Trivial.trivialBundle, right := bundle p,
+  leftSame := \refl(baseSpace), rightSame := \refl(baseSpace)] \as Product;
+\import Operations.Zero[X := X, baseSpace := baseSpace] \as Zero;
+\import Zero.From[F := Product.FiberAt, source := Product.tensorBundle, sameBase := \refl(baseSpace)] \as Forward;
+\import Zero.To[F := Product.FiberAt, target := Product.tensorBundle, sameBase := \refl(baseSpace)] \as Backward;
+\import Fin.Empty[A := C.Complex] \as Empty;
+\module At(x: X);
+\definition isomorphism: Bundles.Isomorphisms[X := X, F := Product.FiberAt, G := Trivial.FiberAt, source := Product.tensorBundle, target := Trivial.trivialBundle].Isomorphism :=
+  Bundles.Isomorphisms[X := X, F := Product.FiberAt, G := Trivial.FiberAt, source := Product.tensorBundle, target := Trivial.trivialBundle].Isomorphism {
+    forward := Forward.map, backward := Backward.map,
+    leftInverse := \fun (x: X)(t: Product.FiberAt x) => sym!{{Product.FiberAt x}} _ _ (At[x := x].vanishes t),
+    rightInverse := \fun (x: X)(v: Trivial.FiberAt x) => Empty.unique _ v
+  };
+\import \parent.\parent.Compare[F := Product.FiberAt, G := Trivial.FiberAt, first := Product.tensorBundle, second := Trivial.trivialBundle,
+  firstSame := \refl(baseSpace), secondSame := \refl(baseSpace)] \as Comparison;
+\definition equation: mul zeroClass (class p) = zeroClass :=
+  trans!{Classes} _ _ _ (congr!{Classes Classes} (mul zeroClass) _ _ (sym!{Classes} _ _ Realized.equation))
+    (trans!{Classes} _ _ _ Product.onBundles (Comparison.ofIsomorphism isomorphism));

@@ -1,0 +1,68 @@
+
+\import std.Data[].Bool[] \as B;
+\import B.ConditionalLaws[A := Coefficients] \as Conditional;
+\import Lists.Prop[A := C.Complex] \as ListLaws;
+\import algebra.Monoid[].Of[Carrier := Polynomial.Carrier, monoid := Raw.multiplicative] \as Product;
+\import \root.Roots[].ListSelection[A := C.Complex, test := test] \as Selection;
+\definition filter: Coefficients -> Coefficients := Selection.filter;
+\definition append: \forall (xs, ys: Coefficients) -> filter (Lists.append C.Complex xs ys) = Lists.append C.Complex (filter xs) (filter ys) :=
+  \induction (xs: Coefficients) \return \forall (ys: Coefficients) -> filter (Lists.append C.Complex xs ys) = Lists.append C.Complex (filter xs) (filter ys) \with {
+    | nil: \fun (ys: Coefficients) => \refl(filter ys)
+    | cons: \fun (x: C.Complex)(tail: Coefficients)(previous: _)(ys: Coefficients) =>
+      (\induction (b: B.Bool^) \return test x = b -> filter (Lists.append C.Complex (Lists.List[C.Complex]::cons x tail) ys) = Lists.append C.Complex (filter (Lists.List[C.Complex]::cons x tail)) (filter ys) \with {
+        | false: \fun (same: _) => \idelim B.Bool^::false = test x \with b: B.Bool^ =>
+            B.ite Coefficients b (Lists.List[C.Complex]::cons x (filter (Lists.append C.Complex tail ys))) (filter (Lists.append C.Complex tail ys)) =
+            Lists.append C.Complex (B.ite Coefficients b (Lists.List[C.Complex]::cons x (filter tail)) (filter tail)) (filter ys)
+          \by { base: previous ys, equality: sym!{B.Bool^} _ _ same }
+        | true: \fun (same: _) => \idelim B.Bool^::true = test x \with b: B.Bool^ =>
+            B.ite Coefficients b (Lists.List[C.Complex]::cons x (filter (Lists.append C.Complex tail ys))) (filter (Lists.append C.Complex tail ys)) =
+            Lists.append C.Complex (B.ite Coefficients b (Lists.List[C.Complex]::cons x (filter tail)) (filter tail)) (filter ys)
+          \by { base: congr!{Coefficients Coefficients} (Lists.List[C.Complex]::cons x) _ _ (previous ys), equality: sym!{B.Bool^} _ _ same }
+      }) (test x) (\refl(test x))
+  };
+\module Weighted(w: C.Complex -> Polynomial.Carrier);
+\definition weight[x: C.Complex]: Polynomial.Carrier := B.ite Polynomial.Carrier (test x) (Monic.linearFactor x) Polynomial.one;
+\import \root.Roots[].Filtering[test := test].Weighted[w := weight] \as Weights;
+\definition productLaw: \forall (xs: Coefficients) -> Monic.factors (filter xs) = Weights.fold xs :=
+  \induction (xs: Coefficients) \return Monic.factors (filter xs) = Weights.fold xs \with {
+    | nil: \refl(Polynomial.one)
+    | cons: \fun (x: C.Complex)(tail: Coefficients)(previous: Monic.factors (filter tail) = Weights.fold tail) =>
+      (\induction (b: B.Bool^) \return test x = b -> Monic.factors (filter (Lists.List[C.Complex]::cons x tail)) = Weights.fold (Lists.List[C.Complex]::cons x tail) \with {
+        | false: \fun (same: _) => \idelim B.Bool^::false = test x \with b: B.Bool^ =>
+          Monic.factors (B.ite Coefficients b (Lists.List[C.Complex]::cons x (filter tail)) (filter tail)) = Polynomial.mul (B.ite Polynomial.Carrier b (Monic.linearFactor x) Polynomial.one) (Weights.fold tail)
+          \by { base: trans!{Polynomial.Carrier} _ _ _ previous (sym!{Polynomial.Carrier} _ _ (Product.zeroLeft (Weights.fold tail))), equality: sym!{B.Bool^} _ _ same }
+        | true: \fun (same: _) => \idelim B.Bool^::true = test x \with b: B.Bool^ =>
+          Monic.factors (B.ite Coefficients b (Lists.List[C.Complex]::cons x (filter tail)) (filter tail)) = Polynomial.mul (B.ite Polynomial.Carrier b (Monic.linearFactor x) Polynomial.one) (Weights.fold tail)
+          \by { base: congr!{Polynomial.Carrier Polynomial.Carrier} (Polynomial.mul (Monic.linearFactor x)) _ _ previous, equality: sym!{B.Bool^} _ _ same }
+      }) (test x) (\refl(test x))
+  };
+\definition invariant: \forall (xs, ys: Coefficients) -> Families.Permutation xs ys -> Monic.factors (filter xs) = Monic.factors (filter ys) :=
+  \fun (xs, ys: Coefficients)(same: _) => trans!{Polynomial.Carrier} _ _ _ (productLaw xs) (trans!{Polynomial.Carrier} _ _ _ (Weights.invariant xs ys same) (sym!{Polynomial.Carrier} _ _ (productLaw ys)));
+\definition countInvariant: \forall (xs, ys: Coefficients) -> Families.Permutation xs ys -> Lists.length C.Complex (filter xs) = Lists.length C.Complex (filter ys) :=
+  \fun (xs, ys: Coefficients)(same: _) => \root.Roots[].MonicCoordinates[].permutationLength (filter xs) (filter ys) (Families.unique (filter xs) (filter ys) (invariant xs ys same));
+
+\module At(n: N.Nat^);
+\definition opposite[z: C.Complex]: B.Bool^ := B.Neg.specification (test z);
+\import \root.Roots[].ListSelection[A := C.Complex, test := opposite] \as Opposite;
+\definition other: Coefficients -> Coefficients := Opposite.filter;
+\definition splitProduct: \forall (xs: Coefficients) -> Monic.factors xs = Polynomial.mul (Monic.factors (filter xs)) (Monic.factors (other xs)) :=
+  \induction (xs: Coefficients) \return Monic.factors xs = Polynomial.mul (Monic.factors (filter xs)) (Monic.factors (other xs)) \with {
+    | nil: sym!{Polynomial.Carrier} _ _ (Product.zeroLeft Polynomial.one)
+    | cons: \fun (x: C.Complex)(tail: Coefficients)(previous: Monic.factors tail = Polynomial.mul (Monic.factors (filter tail)) (Monic.factors (other tail))) =>
+      (\induction (b: B.Bool^) \return test x = b -> Monic.factors (Lists.List[C.Complex]::cons x tail) = Polynomial.mul (Monic.factors (filter (Lists.List[C.Complex]::cons x tail))) (Monic.factors (other (Lists.List[C.Complex]::cons x tail))) \with {
+        | false: \fun (same: _) => \idelim B.Bool^::false = test x \with b: B.Bool^ =>
+          Polynomial.mul (Monic.linearFactor x) (Monic.factors tail) = Polynomial.mul
+            (Monic.factors (B.ite Coefficients b (Lists.List[C.Complex]::cons x (filter tail)) (filter tail)))
+            (Monic.factors (B.ite Coefficients (B.Neg.specification b) (Lists.List[C.Complex]::cons x (other tail)) (other tail))) \by {
+              base: trans!{Polynomial.Carrier} _ _ _ (congr!{Polynomial.Carrier Polynomial.Carrier} (Polynomial.mul (Monic.linearFactor x)) _ _ previous)
+                (Product.swap (Monic.linearFactor x) (Monic.factors (filter tail)) (Monic.factors (other tail))), equality: sym!{B.Bool^} _ _ same
+            }
+        | true: \fun (same: _) => \idelim B.Bool^::true = test x \with b: B.Bool^ =>
+          Polynomial.mul (Monic.linearFactor x) (Monic.factors tail) = Polynomial.mul
+            (Monic.factors (B.ite Coefficients b (Lists.List[C.Complex]::cons x (filter tail)) (filter tail)))
+            (Monic.factors (B.ite Coefficients (B.Neg.specification b) (Lists.List[C.Complex]::cons x (other tail)) (other tail))) \by {
+              base: trans!{Polynomial.Carrier} _ _ _ (congr!{Polynomial.Carrier Polynomial.Carrier} (Polynomial.mul (Monic.linearFactor x)) _ _ previous)
+                (sym!{Polynomial.Carrier} _ _ (Product.assoc (Monic.linearFactor x) (Monic.factors (filter tail)) (Monic.factors (other tail)))), equality: sym!{B.Bool^} _ _ same
+            }
+      }) (test x) (\refl(test x))
+  };

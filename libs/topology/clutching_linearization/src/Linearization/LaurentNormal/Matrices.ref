@@ -1,0 +1,31 @@
+\structure MatrixForm: \Set := {
+  shift: N.Nat^,
+  polynomials: Fin.Fin n -> Fin.Fin m -> P.Carrier,
+  equation: \forall (i: Fin.Fin n)(j: Fin.Fin m) -> L.mul (power shift) (p i j) = embed (polynomials i j),
+};
+\definition Forms: \Set := \forall (i: Fin.Fin n)(j: Fin.Fin m) -> Form[p i j];
+\module Selected(forms: Forms);
+\definition commonExists: \exists MatrixForm := \block {
+  \takefrom forms: Forms \by \axiom:classicalIndefiniteChoice(Fin.Fin n,
+    (\fun (i: Fin.Fin n) => \forall (j: Fin.Fin m) -> Form[p i j]),
+    (\fun (i: Fin.Fin n) => \axiom:classicalIndefiniteChoice(Fin.Fin m, (\fun (j: Fin.Fin m) => Form[p i j]), (\fun (j: Fin.Fin m) => exists (p i j))))) \then
+  \return \exact(Selected[forms := forms].result, MatrixForm)
+};
+\import std.Data[].List[] \as Lists;
+\import Fin.FromList[A := K] \as FromList;
+\structure PolynomialMatrix: \Set := {
+  shift: N.Nat^,
+  order: N.Nat^,
+  coefficients: Fin.Fin n -> Fin.Fin m -> Fin.Fin (N.Nat^::succ order) -> K,
+  equation: \forall (i: Fin.Fin n)(j: Fin.Fin m) -> L.mul (power shift) (p i j) = embed (Finite.asPolynomial (FromList.list (N.Nat^::succ order) (coefficients i j))),
+};
+\module WithFinite(form: MatrixForm,
+  terms: \forall (i: Fin.Fin n)(j: Fin.Fin m) -> Finite.Of (form.polynomials i j));
+\definition finiteMatrixExists: \exists PolynomialMatrix := \block {
+  \takefrom form: MatrixForm \by commonExists \then
+  \takefrom terms: (\forall (i: Fin.Fin n)(j: Fin.Fin m) -> Finite.Of (form.polynomials i j))
+    \by \axiom:classicalIndefiniteChoice(Fin.Fin n,
+      (\fun (i: Fin.Fin n) => \forall (j: Fin.Fin m) -> Finite.Of (form.polynomials i j)),
+      (\fun (i: Fin.Fin n) => \axiom:classicalIndefiniteChoice(Fin.Fin m, (\fun (j: Fin.Fin m) => Finite.Of (form.polynomials i j)), (\fun (j: Fin.Fin m) => Finite.exists (form.polynomials i j))))) \then
+  \return \exact(WithFinite[form := form, terms := terms].result, PolynomialMatrix)
+};

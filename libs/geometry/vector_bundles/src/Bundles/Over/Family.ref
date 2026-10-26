@@ -1,0 +1,33 @@
+\structure Point: \Set := { base: X, vector: F base };
+\definition include[x: X][v: F x]: Point := Point { base := x, vector := v };
+\definition projection[p: Point]: X := p.base;
+\definition eta: \forall (p: Point) -> include p.base p.vector = p :=
+  \induction (p: Point) \return include p.base p.vector = p \with { | # : \fun (x: X)(v: F x) => \refl(include x v) };
+\import std.Logic[].Equality[].Transport[A := X] \as Transport;
+\definition includeTransport: \forall (x, y: X)(same: x = y)(v: F x) -> include y (Transport.cast F x y same v) = include x v :=
+  \fun (x, y: X)(same: x = y) =>
+    (\idelim x = y \with z: X => \forall (equal: x = z)(v: F x) -> include z (Transport.cast F x z equal v) = include x v \by {
+      base: \fun (equal: x = x)(v: F x) => congr!{{F x} Point} (include x) _ _ (Transport.castRefl F x v), equality: same
+    }) same;
+\definition vectorEquality: \forall (p, q: Point)(same: p = q) -> Transport.cast F p.base q.base (congr!{Point X} projection p q same) p.vector = q.vector :=
+  \fun (p, q: Point)(same: p = q) =>
+    (\idelim p = q \with r: Point => \forall (equal: p = r) -> Transport.cast F p.base r.base (congr!{Point X} projection p r equal) p.vector = r.vector \by {
+      base: \fun (equal: p = p) => Transport.castRefl F p.base p.vector, equality: same
+    }) same;
+\definition ext: \forall (p, q: Point)(same: p.base = q.base) -> Transport.cast F p.base q.base same p.vector = q.vector -> p = q :=
+  \fun (p, q: Point)(same: _)(vectors: _) => eq_reason_in!{Point p
+    "=" { include p.base p.vector } "by" { sym!{Point} _ _ (eta p) }
+    "=" { include q.base (Transport.cast F p.base q.base same p.vector) } "by" { sym!{Point} _ _ (includeTransport p.base q.base same p.vector) }
+    "=" { include q.base q.vector } "by" { congr!{{F q.base} Point} (include q.base) _ _ vectors }
+    "=" q "by" { eta q }
+  };
+\import topology.Topology[Carrier := X] \as Base;
+\import topology.Topology[Carrier := Point] \as Total;
+\structure Data: \Set := {
+  baseSpace: Base.Topology,
+  totalSpace: Total.Topology,
+  space: \forall (x: X) -> Spaces.VectorSpace (F x),
+};
+\module With(data: Data);
+\definition Bundle: \Set := \Cast[Data] ({ data: Data \where \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := F].With[data := data].LocallyTrivial });
+\module Of(bundle: Bundle);

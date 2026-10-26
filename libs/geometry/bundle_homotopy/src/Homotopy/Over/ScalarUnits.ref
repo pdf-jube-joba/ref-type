@@ -1,0 +1,17 @@
+\import \parent.Projections[n := n].Operators[].Units[] \as Units;
+\import Spaces.Linear[V := Vector n, W := Vector n, source := coordinates n, target := coordinates n] \as End;
+\import End.Operations[] \as EndOperations;
+\import Spaces.Eigen[V := Vector n, space := coordinates n] \as Eigen;
+\import Hermitian.At[n := n].Square[] \as Square;
+\definition Carrier: \Set := Units.Carrier;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Units.topology;
+\definition multiplication[a: K]: End.Map := EndOperations.scale a Eigen.identity;
+\definition left[a: K][nonzero: Logic.Not (a = field.zero)]: \forall (v: Vector n) -> (multiplication (field.inv a)).apply ((multiplication a).apply v) = v :=
+  \fun (v: Vector n) => trans!{{Vector n}} _ _ _ (sym!{{Vector n}} _ _ ((coordinates n).scalarAssoc (field.inv a) a v))
+    (trans!{{Vector n}} _ _ _ (congr!{K {Vector n}} (\fun (c: K) => (coordinates n).smul c v) _ _ (field.inverse a nonzero)) ((coordinates n).scalarOne v));
+\definition value[a: K][nonzero: Logic.Not (a = field.zero)]: Carrier := \into[End.Map](multiplication a, Units.Invertible) \by {
+  Square.LeftInverse[f := multiplication a, g := multiplication (field.inv a), left := left a nonzero].nonzero
+};
+\module Family(X: \Set, source: topology.Topology[Carrier := X].Topology, a: X -> K,
+  regular: topology.Continuity[A := X, B := K].Continuous source scalar.topological.space a,
+  nonzero: \forall (x: X) -> Logic.Not (a x = field.zero));

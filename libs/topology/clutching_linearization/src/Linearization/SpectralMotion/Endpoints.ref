@@ -1,0 +1,40 @@
+\import spectral_splitting.Spectral[].At[n := n].Splitting[A := A (Pair.first X Circle.Carrier q)].Separated[off := off (Pair.first X Circle.Carrier q)] \as Projection;
+\import Spaces.Laws[V := M.Vector, space := Vectors.space] \as Values;
+\import algebra.Group[].Of[Carrier := M.Vector, group := Rings.ringModuleAsCommutativeGroup C.Complex M.Vector Spaces.ring Vectors.space] \as Group;
+\definition z: C.Complex := Pair.second X Circle.Carrier q;
+\definition T: End.Map := M.linear (A (Pair.first X Circle.Carrier q));
+\definition start: Domain := Pair.pair Time.Carrier Circular.CarrierSet Time.start q;
+\definition finish: Domain := Pair.pair Time.Carrier Circular.CarrierSet Time.end q;
+\definition separated: End.Map := Operations.plus (Operations.scale z Projection.projection) (Operations.negative (Composition.compose T Projection.complementary));
+\definition startInner: \forall (v: M.Vector) ->
+  Vectors.plus (Vectors.scale z (Projection.projection.apply v)) (Vectors.scale (C.Def[].neg C.Def[].one) (Vectors.scale C.Def[].zero (T.apply (Projection.projection.apply v)))) = Vectors.scale z (Projection.projection.apply v) :=
+  \fun (v: M.Vector) => trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector} (Vectors.plus (Vectors.scale z (Projection.projection.apply v))) _ _
+    (trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector} (Vectors.scale (C.Def[].neg C.Def[].one)) _ _ (Values.zeroScale (T.apply (Projection.projection.apply v)))) (Values.scaleZero (C.Def[].neg C.Def[].one))))
+    (Values.zeroRight (Vectors.scale z (Projection.projection.apply v)));
+\definition startOuter: \forall (v: M.Vector) ->
+  Vectors.plus (Vectors.scale (C.Def[].mul C.Def[].zero z) (Projection.complementary.apply v)) (Vectors.scale (C.Def[].neg C.Def[].one) (T.apply (Projection.complementary.apply v))) = Vectors.scale (C.Def[].neg C.Def[].one) (T.apply (Projection.complementary.apply v)) :=
+  \fun (v: M.Vector) => trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector} (\fun (u: M.Vector) => Vectors.plus u (Vectors.scale (C.Def[].neg C.Def[].one) (T.apply (Projection.complementary.apply v)))) _ _
+    (trans!{M.Vector} _ _ _ (congr!{{C.Complex} M.Vector} (\fun (s: C.Complex) => Vectors.scale s (Projection.complementary.apply v)) _ _ (C.Prop[].mulZeroLeft z)) (Values.zeroScale (Projection.complementary.apply v))))
+    (Values.zeroLeft (Vectors.scale (C.Def[].neg C.Def[].one) (T.apply (Projection.complementary.apply v))));
+\definition atStart: \forall (v: M.Vector) -> (value start).apply v = separated.apply v :=
+  \fun (v: M.Vector) => congr!{M.Vector M.Vector M.Vector} Vectors.plus _ _ _ _ (startInner v) (startOuter v);
+\definition finishInner: \forall (v: M.Vector) ->
+  Vectors.plus (Vectors.scale z (Projection.projection.apply v)) (Vectors.scale (C.Def[].neg C.Def[].one) (Vectors.scale C.Def[].one (T.apply (Projection.projection.apply v)))) = Group.difference (Vectors.scale z (Projection.projection.apply v)) (T.apply (Projection.projection.apply v)) :=
+  \fun (v: M.Vector) => congr!{M.Vector M.Vector} (Vectors.plus (Vectors.scale z (Projection.projection.apply v))) _ _
+    (trans!{M.Vector} _ _ _ (congr!{M.Vector M.Vector} (Vectors.scale (C.Def[].neg C.Def[].one)) _ _ (Vectors.space.scalarOne (T.apply (Projection.projection.apply v)))) (Values.minusOneScale (T.apply (Projection.projection.apply v))));
+\definition finishOuter: \forall (v: M.Vector) ->
+  Vectors.plus (Vectors.scale (C.Def[].mul C.Def[].one z) (Projection.complementary.apply v)) (Vectors.scale (C.Def[].neg C.Def[].one) (T.apply (Projection.complementary.apply v))) = Group.difference (Vectors.scale z (Projection.complementary.apply v)) (T.apply (Projection.complementary.apply v)) :=
+  \fun (v: M.Vector) => congr!{M.Vector M.Vector M.Vector} Vectors.plus _ _ _ _
+    (congr!{{C.Complex} M.Vector} (\fun (s: C.Complex) => Vectors.scale s (Projection.complementary.apply v)) _ _ (C.Prop[].mulOneLeft z)) (Values.minusOneScale (T.apply (Projection.complementary.apply v)));
+\import spectral_splitting.Spectral[].At[n := n].Pencil[A := A (Pair.first X Circle.Carrier q), z := z] \as Pencil;
+\definition atEnd: \forall (v: M.Vector) -> (value finish).apply v = Pencil.value.apply v :=
+  \fun (v: M.Vector) => eq_reason_in!{M.Vector _
+    "=" { Vectors.plus (Group.difference (Vectors.scale z (Projection.projection.apply v)) (T.apply (Projection.projection.apply v))) (Group.difference (Vectors.scale z (Projection.complementary.apply v)) (T.apply (Projection.complementary.apply v))) } "by" {
+      congr!{M.Vector M.Vector M.Vector} Vectors.plus _ _ _ _ (finishInner v) (finishOuter v) }
+    "=" { Group.difference (Vectors.plus (Vectors.scale z (Projection.projection.apply v)) (Vectors.scale z (Projection.complementary.apply v))) (Vectors.plus (T.apply (Projection.projection.apply v)) (T.apply (Projection.complementary.apply v))) } "by" {
+      sym!{M.Vector} _ _ (Group.differenceAdd (Vectors.scale z (Projection.projection.apply v)) (Vectors.scale z (Projection.complementary.apply v)) (T.apply (Projection.projection.apply v)) (T.apply (Projection.complementary.apply v))) }
+    "=" { Group.difference (Vectors.scale z (Vectors.plus (Projection.projection.apply v) (Projection.complementary.apply v))) (T.apply (Vectors.plus (Projection.projection.apply v) (Projection.complementary.apply v))) } "by" {
+      congr!{M.Vector M.Vector M.Vector} Group.difference _ _ _ _ (sym!{M.Vector} _ _ (Vectors.space.vectorAdd z (Projection.projection.apply v) (Projection.complementary.apply v))) (sym!{M.Vector} _ _ (T.preservesAdd (Projection.projection.apply v) (Projection.complementary.apply v))) }
+    "=" { Group.difference (Vectors.scale z v) (T.apply v) } "by" { congr!{M.Vector M.Vector} (\fun (w: M.Vector) => Group.difference (Vectors.scale z w) (T.apply w)) _ _ (Projection.reconstruction v) }
+    "=" _ "by" { sym!{M.Vector} _ _ (Pencil.formula v) }
+  };

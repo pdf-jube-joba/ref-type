@@ -9,4 +9,4 @@
 
 ## 依存するタスク
 
-- [L01 行列式と可逆行列](l01-determinants.md)
+- [L01 行列式と可逆行列](../../libs/algebra/matrix_invariants/README.md)

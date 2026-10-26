@@ -10,5 +10,5 @@
 ## 依存するタスク
 
 - [C04 射影空間と標準線束のコホモロジー](c04-projective-cohomology.md)
-- [B02 束の貼り合わせと線形演算](b02-bundle-operations.md)
+- [束の貼り合わせと線形演算](../../libs/geometry/bundle_operations/README.md)
 - [C11 Leray–Hirsch の比較](c11-leray-hirsch.md)

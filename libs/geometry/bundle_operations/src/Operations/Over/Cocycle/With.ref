@@ -1,0 +1,35 @@
+\definition laws: Laws[cocycle] := \bysub(Data, Cocycle, cocycle);
+\module At(x: X);
+\definition Fiber[x: X]: \Set := At[x := x].Carrier;
+\definition fiberSpace[x: X]: Spaces.VectorSpace (Fiber x) := At[x := x].space;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Atlas[X := X, I := I, F := Fiber, baseSpace := baseSpace, space := fiberSpace] \as Atlas;
+\definition chart[i: I]: Atlas.Chart := Atlas.Chart { domain := domain i, dimension := dimension i, frame := \fun (x: \Cast[X] (domain i)) =>
+  At[x := x].Frame[i := \into[I](i, { i: I \where Base.Member (domain i) x }) \by { \bysub(X, domain i, x) }].isomorphism };
+\import Atlas.Using[chart := chart] \as Glued;
+\module Coordinates(i: I);
+\module Overlap(i, j: I);
+\structure Regular: \Prop := {
+  openDomains: \forall (i: I) -> Base.IsOpenIn baseSpace (domain i),
+  covers: \forall (x: X) -> \exists Index x,
+  transitions: \forall (i, j: I)(V: \Pow (Coordinates[i := i].Parameter)) ->
+    topology.Topology[Carrier := Coordinates[i := i].Parameter].IsOpenIn (Coordinates[i := i].topology) V ->
+    topology.Topology[Carrier := Coordinates[i := j].Parameter].IsOpenIn (Coordinates[i := j].topology) (Overlap[i := i, j := j].Preimage V),
+};
+\module Construction;
+\structure Continuous: \Prop := {
+  openDomains: \forall (i: I) -> Base.IsOpenIn baseSpace (domain i),
+  covers: \forall (x: X) -> \exists Index x,
+  transitions: \forall (i, j: I) -> Overlap[i := i, j := j].Regular,
+};
+\definition regular: \forall (continuous: Continuous) -> Regular := \fun (continuous: Continuous) => Regular {
+  openDomains := continuous.openDomains, covers := continuous.covers,
+  transitions := \fun (i, j: I) => Overlap[i := i, j := j].preimageOpen (continuous.openDomains i) (continuous.transitions i j),
+};
+\module Reframe(sourceRegular: Regular, J: \Set, refines: J -> I, domains: J -> \Pow X,
+  opens: \forall (j: J) -> Base.IsOpenIn baseSpace (domains j),
+  contained: \forall (j: J)(x: \Cast[X] (domains j)) -> Base.Member (domain (refines j)) x,
+  gauge: \forall (j: J)(x: \Cast[X] (domains j)) -> Spaces.Isomorphism[V := Vector (dimension (refines j)), W := Vector (dimension (refines j)), source := coordinates (dimension (refines j)), target := coordinates (dimension (refines j))].Isomorphism);
+\module Refine(sourceRegular: Regular, J: \Set, refines: J -> I, domains: J -> \Pow X,
+  opens: \forall (j: J) -> Base.IsOpenIn baseSpace (domains j),
+  contained: \forall (j: J)(x: \Cast[X] (domains j)) -> Base.Member (domain (refines j)) x,
+  covers: \forall (x: X) -> \exists ( j: J \where Base.Member (domains j) x ));

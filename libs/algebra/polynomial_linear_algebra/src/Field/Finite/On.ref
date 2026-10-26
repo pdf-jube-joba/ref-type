@@ -1,0 +1,41 @@
+\import \parent.\parent.At[n := n] \as Matrices;
+\import matrix_invariants.Ring[K := K, scalars := std.Alg[].Field[].fieldAsCommutativeRing K field].At[n := n] \as Mat;
+\import Mat.Representation[] \as Representation;
+\import \parent.\parent.Action[V := Coordinates.Vector, space := Coordinates.space] \as CoordinateEnd;
+\import \parent.\parent.Action[V := V, space := space].At[T := T] \as Evaluation;
+\definition coordinateOperator: CoordinateEnd.Map := CoordinateEnd.Map {
+  apply := \fun (x: Coordinates.Vector) => b.coordinates.apply (T.apply ((BasisLaws.synthesis b).apply x)),
+  preservesAdd := \fun (x, y: Coordinates.Vector) => eq_reason_in!{Coordinates.Vector _
+    "=" _ "by" { congr!{V Coordinates.Vector} (\fun (v: V) => b.coordinates.apply (T.apply v)) _ _ ((BasisLaws.synthesis b).preservesAdd x y) }
+    "=" _ "by" { congr!{V Coordinates.Vector} b.coordinates.apply _ _ (T.preservesAdd _ _) }
+    "=" _ "by" { b.coordinates.preservesAdd _ _ }
+  },
+  preservesScale := \fun (a: K)(x: Coordinates.Vector) => eq_reason_in!{Coordinates.Vector _
+    "=" _ "by" { congr!{V Coordinates.Vector} (\fun (v: V) => b.coordinates.apply (T.apply v)) _ _ ((BasisLaws.synthesis b).preservesScale a x) }
+    "=" _ "by" { congr!{V Coordinates.Vector} b.coordinates.apply _ _ (T.preservesScale a _) }
+    "=" _ "by" { b.coordinates.preservesScale a _ }
+  },
+};
+\definition matrix: Mat.Matrix := Representation.entries coordinateOperator;
+\definition characteristic: Polynomial := Matrices.characteristic matrix;
+\import \parent.\parent.IdentityChange[] \as Identity;
+\import \parent.\parent.Change[L := K, target := field, f := Identity.scalarIdentity] \as Change;
+\import Change.Intertwining[V := V, W := Coordinates.Vector, source := space, destination := Coordinates.space, S := T, T := coordinateOperator] \as Comparison;
+\import \parent.\parent.Action[V := Coordinates.Vector, space := Coordinates.space].At[T := coordinateOperator] \as CoordinateEvaluation;
+\definition coordinates: Comparison.Morphism := Comparison.Morphism {
+  apply := b.coordinates.apply, zero := b.coordinates.preservesZero,
+  addition := b.coordinates.preservesAdd, scalar := b.coordinates.preservesScale,
+  intertwines := \fun (v: V) => congr!{V Coordinates.Vector} (\fun (w: V) => b.coordinates.apply (T.apply w)) _ _ (sym!{V} _ _ (b.reconstruction v)),
+};
+\definition coordinateAnnihilation: \forall (x: Coordinates.Vector) -> CoordinateEvaluation.apply characteristic x = Coordinates.origin :=
+  \fun (x: Coordinates.Vector) => \idelim Mat.linear matrix = coordinateOperator
+    \with S: CoordinateEnd.Map => \parent.\parent.Action[V := Coordinates.Vector, space := Coordinates.space].At[T := S].apply characteristic x = Coordinates.origin \by {
+      base: Matrices.cayleyHamilton matrix x, equality: Representation.linearEntries coordinateOperator
+    };
+\definition cayleyHamilton: \forall (v: V) -> Evaluation.apply characteristic v = space.zero :=
+  \fun (v: V) => BasisLaws.coordinatesInjective b _ _ (eq_reason_in!{Coordinates.Vector _
+    "=" { CoordinateEvaluation.apply (Change.map characteristic) (b.coordinates.apply v) } "by" { Comparison.naturality coordinates characteristic v }
+    "=" { CoordinateEvaluation.apply characteristic (b.coordinates.apply v) } "by" { congr!{Polynomial Coordinates.Vector} (\fun (p: Polynomial) => CoordinateEvaluation.apply p (b.coordinates.apply v)) _ _ (Identity.mapIdentity characteristic) }
+    "=" { Coordinates.origin } "by" { coordinateAnnihilation (b.coordinates.apply v) }
+    "=" _ "by" { sym!{Coordinates.Vector} _ _ b.coordinates.preservesZero }
+  });

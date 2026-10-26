@@ -1,0 +1,91 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].List[] \as Lists;
+\import std.Data[].Pair[] \as Pair;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import std.Alg[].Field[] \as Fields;
+\import complex.Complex[] \as C;
+\import C.Algebra[] \as Scalars;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := Fields.fieldAsCommutativeRing C.Complex Scalars.field] \as Spaces;
+\import polynomial_linear_algebra.Field[K := C.Complex, field := Scalars.field] \as Polynomials;
+\import algebra.Polynomial[].Over[R := C.Complex, coefficients := Fields.fieldAsCommutativeRing C.Complex Scalars.field] \as P;
+\import linear_algebra.Commutative[K := P.Carrier, scalarRing := P.ring] \as PolynomialSpaces;
+\module Action(V: \Set, space: Spaces.VectorSpace V, T: Spaces.Linear[V := V, W := V, source := space, target := space].Map);
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Scalars.field, scalar := linear_algebra.Hermitian[].Complex[].scalar, topological := hermitian_frames.Hermitian[].Complex[].topological] \as Hermitian;
+\module At(n: N.Nat^);
+\module Coprime;
+\module Circle;
+\import complex_polynomial_roots.Roots[] \as Roots;
+\module Coefficients;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := Scalars.field, scalar := linear_algebra.Hermitian[].Complex[].scalar] \as Geometry;
+\module Intertwining(V, W: \Set, source: Spaces.VectorSpace V, destination: Spaces.VectorSpace W,
+  S: Spaces.Linear[V := V, W := V, source := source, target := source].Map,
+  T: Spaces.Linear[V := W, W := W, source := destination, target := destination].Map);
+\module Comparison(n, m: N.Nat^,
+  A: matrix_invariants.Ring[K := C.Complex, scalars := Fields.fieldAsCommutativeRing C.Complex Scalars.field].At[n := n].Matrix,
+  B: matrix_invariants.Ring[K := C.Complex, scalars := Fields.fieldAsCommutativeRing C.Complex Scalars.field].At[n := m].Matrix,
+  sourceOff: \root.Spectral[].At[n := n].Splitting[A := A].OffSpectrum,
+  targetOff: \root.Spectral[].At[n := m].Splitting[A := B].OffSpectrum);
+\module Idempotents(n: N.Nat^);
+\module InFrame(V: \Set, space: Spaces.VectorSpace V,
+  T: Spaces.Linear[V := V, W := V, source := space, target := space].Map, n: N.Nat^,
+  frame: Spaces.Isomorphism[V := V, W := Fin.Fin n -> C.Complex, source := space, target := Spaces.Coordinates[I := Fin.Fin n].space].Isomorphism);
+\module FiniteSpace(V: \Set, space: Spaces.VectorSpace V,
+  T: Spaces.Linear[V := V, W := V, source := space, target := space].Map);
+
+\import C.Absolute[] \as Absolute;
+\import real.Analysis[] \as Real;
+\definition NoUnitEigen[V: \Set][space: Spaces.VectorSpace V]
+  [T: Spaces.Linear[V := V, W := V, source := space, target := space].Map]: \Prop :=
+  \forall (z: C.Complex) -> Absolute.abs z = Real.one -> \forall (v: V) -> T.apply v = space.smul z v -> v = space.zero;
+
+\module IntervalRelations(R: algebraic_topology.Interval[].Carrier -> algebraic_topology.Interval[].Carrier -> \Prop);
+
+\import vector_bundles.Bundles[].Over[K := C.Complex, field := Scalars.field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar] \as Bundles;
+\import bundle_operations.Operations[].Over[K := C.Complex, field := Scalars.field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar] \as BundleOperations;
+\module BundleImage(X: \Set, F: X -> \Set, bundle: Bundles.Family[X := X, F := F].Bundle,
+  P: Bundles.Morphisms[X := X, Y := X, F := F, G := F, source := bundle, target := bundle, f := \fun (x: X) => x].Map,
+  idempotent: \forall (x: X)(v: F x) -> (P.fiber x).apply ((P.fiber x).apply v) = (P.fiber x).apply v);
+
+\module BundleCoordinates(X: \Set, F: X -> \Set, bundle: Bundles.Family[X := X, F := F].Bundle,
+  T: Bundles.Morphisms[X := X, Y := X, F := F, G := F, source := bundle, target := bundle, f := \fun (x: X) => x].Map,
+  c: Bundles.Family[X := X, F := F].With[data := bundle].Chart);
+\module BundleEndomorphism(X: \Set, F: X -> \Set, bundle: Bundles.Family[X := X, F := F].Bundle,
+  T: Bundles.Morphisms[X := X, Y := X, F := F, G := F, source := bundle, target := bundle, f := \fun (x: X) => x].Map,
+  gap: \forall (x: X) -> NoUnitEigen (F x) (bundle.space x) (T.fiber x));
+
+\module Nilpotent(V: \Set, space: Spaces.VectorSpace V,
+  T: Spaces.Linear[V := V, W := V, source := space, target := space].Map,
+  squareZero: \forall (v: V) -> T.apply (T.apply v) = space.zero);
+\module Examples;
+
+\import bundle_complements.Complements[].Over[K := C.Complex, field := Scalars.field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar] \as Complements;
+\module PullbackIsomorphism(X: \Set, F, G: X -> \Set, first: Bundles.Family[X := X, F := F].Bundle, second: Bundles.Family[X := X, F := G].Bundle,
+  iso: Bundles.Isomorphisms[X := X, F := F, G := G, source := first, target := second].Isomorphism,
+  Y: \Set, source: topology.Topology[Carrier := Y].Topology, f: Y -> X,
+  regularFirst: topology.Continuity[A := Y, B := X].Continuous source first.baseSpace f,
+  regularSecond: topology.Continuity[A := Y, B := X].Continuous source second.baseSpace f);
+\module EmbeddedCylinder(X: \Set, baseSpace: topology.Topology[Carrier := X].Topology, compact: topology.Topology[Carrier := X].IsCompact baseSpace,
+  F: std.Data[].Pair[].Times^[algebraic_topology.Interval[].Carrier, X] -> \Set,
+  bundle: Bundles.Family[X := std.Data[].Pair[].Times^[algebraic_topology.Interval[].Carrier, X], F := F].Bundle,
+  sameBase: bundle.baseSpace = topological_constructions.Product[A := algebraic_topology.Interval[].Carrier, B := X].topology algebraic_topology.Interval[].topology baseSpace,
+  embedding: Complements.For[X := std.Data[].Pair[].Times^[algebraic_topology.Interval[].Carrier, X], F := F, bundle := bundle].Embedding);
+
+\module ProductHausdorff(A, B: \Set, left: topology.Topology[Carrier := A].Topology, right: topology.Topology[Carrier := B].Topology,
+  hausdorffLeft: topology.Topology[Carrier := A].IsT2 left, hausdorffRight: topology.Topology[Carrier := B].IsT2 right);
+\module BundleHomotopy(X: \Set, baseSpace: topology.Topology[Carrier := X].Topology,
+  compact: topology.Topology[Carrier := X].IsCompact baseSpace, hausdorff: topology.Topology[Carrier := X].IsT2 baseSpace,
+  F: std.Data[].Pair[].Times^[algebraic_topology.Interval[].Carrier, X] -> \Set,
+  bundle: Bundles.Family[X := std.Data[].Pair[].Times^[algebraic_topology.Interval[].Carrier, X], F := F].Bundle,
+  sameBase: bundle.baseSpace = topological_constructions.Product[A := algebraic_topology.Interval[].Carrier, B := X].topology algebraic_topology.Interval[].topology baseSpace,
+  T: Bundles.Morphisms[X := std.Data[].Pair[].Times^[algebraic_topology.Interval[].Carrier, X], Y := std.Data[].Pair[].Times^[algebraic_topology.Interval[].Carrier, X], F := F, G := F,
+    source := bundle, target := bundle, f := \fun (p: std.Data[].Pair[].Times^[algebraic_topology.Interval[].Carrier, X]) => p].Map,
+  gap: \forall (p: std.Data[].Pair[].Times^[algebraic_topology.Interval[].Carrier, X]) -> NoUnitEigen (F p) (bundle.space p) (T.fiber p));

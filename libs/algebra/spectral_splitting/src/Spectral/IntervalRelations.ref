@@ -1,0 +1,34 @@
+\import algebraic_topology.Interval[] \as I;
+\import topology.Topology[Carrier := I.Carrier] \as Time;
+\import I.Subdivision[] \as Subdivision;
+\import I.Halves[] \as Halves;
+\use Equality.transport;
+\definition Good[U: \Pow I.Carrier]: \Prop := \forall (s, t: I.Carrier) -> Time.Member U s -> Time.Member U t -> R s t;
+\definition family: \Pow (\Pow I.Carrier) := { U: \Pow I.Carrier \where Logic.And[Time.IsOpenIn I.topology U, Good U] };
+\structure Neighborhood[t: I.Carrier]: \Set := {
+  domain: \Pow I.Carrier,
+  open: Time.IsOpenIn I.topology domain,
+  contains: Time.Member domain t,
+  related: Good domain,
+};
+\definition cover: (\forall (t: I.Carrier) -> \exists Neighborhood[t]) -> Time.IsOpenCover[I.topology, family, Time.Whole] :=
+  \fun (local: _) => Time.IsOpenCover[I.topology, family, Time.Whole] {
+    open := \fun (U: \Pow I.Carrier)(good: _) => good.left,
+    covers := \fun (t: I.Carrier)(_: _) => \block {
+      \takefrom n: Neighborhood[t] \by local t \then
+      \return Time.unionMemberOf family n.domain t (Logic.And[_, _]::# n.open n.related) n.contains
+    },
+  };
+\definition endpoints: (\forall (r, s, t: I.Carrier) -> R r s -> R s t -> R r t) ->
+  (\forall (t: I.Carrier) -> \exists Neighborhood[t]) -> R I.start I.end := \block {
+  \fun (transitive: _)(local: _) \then
+  \let property: Subdivision.Function -> \Prop := \fun (f: Subdivision.Function) => R (f I.start) (f I.end) \then
+  \return Subdivision.Cover[family := family].localToGlobal (cover local) property
+    (\fun (f: Subdivision.Function)(lower: property (Subdivision.left f))(upper: property (Subdivision.right f)) =>
+      transitive (f I.start) (f I.middle) (f I.end)
+        (transport!{I.Carrier} (\fun (t: I.Carrier) => R (f I.start) (f t)) _ _ Halves.lowerEnd
+          (transport!{I.Carrier} (\fun (t: I.Carrier) => R (f t) (f (Halves.lower I.end))) _ _ Halves.lowerStart lower))
+        (transport!{I.Carrier} (\fun (t: I.Carrier) => R (f I.middle) (f t)) _ _ Halves.upperEnd
+          (transport!{I.Carrier} (\fun (t: I.Carrier) => R (f t) (f (Halves.upper I.end))) _ _ Halves.upperStart upper)))
+    (\fun (f: Subdivision.Function)(continuous: _)(U: \Pow I.Carrier)(good: Logic.And[Time.IsOpenIn I.topology U, Good U])(within: Subdivision.Cover[family := family].Within f U) => good.right (f I.start) (f I.end) (within I.start) (within I.end))
+};

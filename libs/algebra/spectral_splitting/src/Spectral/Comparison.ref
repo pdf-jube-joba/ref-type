@@ -1,0 +1,43 @@
+\import \parent.At[n := n].Splitting[A := A] \as Source;
+\import \parent.At[n := m].Splitting[A := B] \as Target;
+\import Source.Separated[off := sourceOff] \as SourceProjection;
+\import Target.Separated[off := targetOff] \as TargetProjection;
+\import Spaces.Coordinates[I := Fin.Fin n] \as V;
+\import Spaces.Coordinates[I := Fin.Fin m] \as W;
+\import matrix_invariants.Ring[K := C.Complex, scalars := Fields.fieldAsCommutativeRing C.Complex Scalars.field] \as Matrices;
+\import \parent.Intertwining[V := V.Vector, W := W.Vector, source := V.space, destination := W.space, S := Matrices.At[n := n].linear A, T := Matrices.At[n := m].linear B] \as Maps;
+\import \parent.Circle[].At[n := n] \as SourceRoots;
+\import \parent.Circle[].At[n := m] \as TargetRoots;
+\import \parent.Circle[].Comparison[n := n, m := m] \as Cross;
+\import \parent.Circle[].Comparison[n := m, m := n] \as Reverse;
+\definition Morphism: \Set := Maps.Morphism;
+\definition natural: \forall (h: Morphism)(v: V.Vector) -> h.apply (SourceProjection.projection.apply v) = TargetProjection.projection.apply (h.apply v) := \block {
+  \fun (h: Morphism)(v: V.Vector) \then
+  \takefrom source: Polynomials.Bezout[Source.inside, Source.outside, P.one] \by SourceRoots.coprime Source.coefficients sourceOff \then
+  \takefrom target: Polynomials.Bezout[Target.inside, Target.outside, P.one] \by TargetRoots.coprime Target.coefficients targetOff \then
+  \takefrom pd: Polynomials.Bezout[Source.inside, Target.outside, P.one] \by Cross.cross Source.coefficients Target.coefficients sourceOff targetOff \then
+  \takefrom cq: Polynomials.Bezout[Target.inside, Source.outside, P.one] \by Reverse.cross Target.coefficients Source.coefficients targetOff sourceOff \then
+  \let qc: Polynomials.Bezout[Source.outside, Target.inside, P.one] := Polynomials.Bezout[Source.outside, Target.inside, P.one] {
+    left := cq.right, right := cq.left,
+    equation := trans!{{P.Carrier}} _ _ _ cq.equation (P.ring.ring.semiring.additive.commutative (P.mul cq.left Target.inside) (P.mul cq.right Source.outside)),
+  } \then
+  \return eq_reason_in!{W.Vector _
+    "=" _ "by" { congr!{V.Vector W.Vector} h.apply _ _ (SourceProjection.formula source v) }
+    "=" _ "by" { Maps.projectionNatural h Source.inside Source.outside source Target.inside Target.outside target pd qc v
+      (\parent.At[n := n].On[A := A, factors := Source.factorization source].annihilated v)
+      (\parent.At[n := m].On[A := B, factors := Target.factorization target].annihilated (h.apply v)) }
+    "=" _ "by" { sym!{W.Vector} _ _ (TargetProjection.formula target (h.apply v)) }
+  }
+};
+
+\import Spaces.Laws[V := W.Vector, space := W.space] \as Laws;
+\definition naturalComplement: \forall (h: Morphism)(v: V.Vector) -> h.apply (SourceProjection.complementary.apply v) = TargetProjection.complementary.apply (h.apply v) :=
+  \fun (h: Morphism)(v: V.Vector) => Laws.cancelLeft (TargetProjection.projection.apply (h.apply v))
+    (h.apply (SourceProjection.complementary.apply v)) (TargetProjection.complementary.apply (h.apply v)) (eq_reason_in!{W.Vector _
+      "=" { W.plus (h.apply (SourceProjection.projection.apply v)) (h.apply (SourceProjection.complementary.apply v)) } "by" {
+        congr!{W.Vector W.Vector} (\fun (w: W.Vector) => W.plus w (h.apply (SourceProjection.complementary.apply v))) _ _ (sym!{W.Vector} _ _ (natural h v))
+      }
+      "=" { h.apply (V.plus (SourceProjection.projection.apply v) (SourceProjection.complementary.apply v)) } "by" { sym!{W.Vector} _ _ (h.addition (SourceProjection.projection.apply v) (SourceProjection.complementary.apply v)) }
+      "=" { h.apply v } "by" { congr!{V.Vector W.Vector} h.apply _ _ (SourceProjection.reconstruction v) }
+      "=" _ "by" { sym!{W.Vector} _ _ (TargetProjection.reconstruction (h.apply v)) }
+    });

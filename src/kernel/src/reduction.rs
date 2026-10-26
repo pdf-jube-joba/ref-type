@@ -637,26 +637,49 @@ fn beta_head(
     e: Expression,
     erase: bool,
 ) -> Result<Expression, crate::error::Error> {
+    let _cost = timing::costs::Scope::enter("kernel.beta-head");
     match *env.arena.read(e) {
         Node::SubsetIntro { element, .. } if erase => beta_head(env, element, erase),
-        Node::App {
-            mode,
-            function,
-            argument,
-        } => {
-            let function = beta_head(env, function, erase)?;
-            if let Node::Lambda {
-                mode: actual, body, ..
-            } = *env.arena.read(function)
-                && mode == actual
-            {
-                return beta_head(env, env.instantiate(body, &[argument])?, erase);
-            }
-            Ok(env.arena.alloc(Node::App {
-                mode,
+        Node::App { mode, .. } => {
+            // Substitute a curried spine simultaneously. Substituting one
+            // argument at a time repeatedly traverses every remaining binder
+            // and all captured arguments in the same shared body.
+            let mut head = e;
+            let mut arguments = Vec::new();
+            while let Node::App {
+                mode: actual,
                 function,
                 argument,
-            }))
+            } = *env.arena.read(head)
+            {
+                if actual != mode {
+                    break;
+                }
+                arguments.push(argument);
+                head = function;
+            }
+            arguments.reverse();
+            head = beta_head(env, head, erase)?;
+            let mut consumed = 0;
+            while let Node::Lambda {
+                mode: actual, body, ..
+            } = *env.arena.read(head)
+            {
+                if actual != mode || consumed == arguments.len() {
+                    break;
+                }
+                consumed += 1;
+                head = body;
+            }
+            head = env.instantiate(head, &arguments[..consumed])?;
+            for &argument in &arguments[consumed..] {
+                head = app(env, mode, head, argument);
+            }
+            if consumed > 0 {
+                beta_head(env, head, erase)
+            } else {
+                Ok(head)
+            }
         }
         _ => Ok(e),
     }
@@ -689,7 +712,21 @@ fn conversion(
         right: Expression,
         erase: bool,
         seen: &mut rustc_hash::FxHashSet<(Expression, Expression)>,
+        profile: &mut Option<(usize, Expression, Expression)>,
     ) -> Result<bool, crate::error::Error> {
+        let _cost = timing::costs::Scope::enter("kernel.conversion-pair");
+        if let Some((calls, root_left, root_right)) = profile {
+            *calls += 1;
+            if *calls >= 65536 && calls.is_power_of_two() {
+                eprintln!(
+                    "conversion calls={calls} erase={erase} root_left={:?} root_right={:?} left={:?} right={:?}",
+                    env.arena.get(*root_left),
+                    env.arena.get(*root_right),
+                    env.arena.get(left),
+                    env.arena.get(right),
+                );
+            }
+        }
         let cacheable = !env.arena.contains_meta(left) && !env.arena.contains_meta(right);
         let key = if left.index() <= right.index() {
             (left, right, erase)
@@ -708,13 +745,39 @@ fn conversion(
             if alpha_equal(&env.arena, left, right) {
                 return Ok(true);
             }
-            if skeleton(&env.arena, left) == skeleton(&env.arena, right) {
+            if let (
+                Node::Definition {
+                    id: l,
+                    arguments: la,
+                },
+                Node::Definition {
+                    id: r,
+                    arguments: ra,
+                },
+            ) = (env.arena.get(left), env.arena.get(right))
+                && l == r
+            {
+                let arity = env.definition(l)?.context.len();
+                if la.len() != arity || ra.len() != arity {
+                    return Err(crate::error::Error::DefinitionParameterCountMismatch);
+                }
+                let mut congruent = true;
+                for &index in env.conversion_arguments(l)?.iter() {
+                    if !compare(env, la[index], ra[index], erase, &mut seen.clone(), profile)? {
+                        congruent = false;
+                        break;
+                    }
+                }
+                if congruent {
+                    return Ok(true);
+                }
+            } else if skeleton(&env.arena, left) == skeleton(&env.arena, right) {
                 let mut congruent = true;
                 for ((l, ld), (r, rd)) in comparison_children(&env.arena, left)
                     .into_iter()
                     .zip(comparison_children(&env.arena, right))
                 {
-                    if ld != rd || !compare(env, l, r, erase, &mut seen.clone())? {
+                    if ld != rd || !compare(env, l, r, erase, &mut seen.clone(), profile)? {
                         congruent = false;
                         break;
                     }
@@ -756,10 +819,14 @@ fn conversion(
             }
             match (definition_head(env, left), definition_head(env, right)) {
                 (Some(l), Some(r)) if l.index < r.index => {
-                    return compare(env, left, delta(env, right)?, erase, seen);
+                    return compare(env, left, delta(env, right)?, erase, seen, profile);
                 }
-                (Some(_), _) => return compare(env, delta(env, left)?, right, erase, seen),
-                (_, Some(_)) => return compare(env, left, delta(env, right)?, erase, seen),
+                (Some(_), _) => {
+                    return compare(env, delta(env, left)?, right, erase, seen, profile);
+                }
+                (_, Some(_)) => {
+                    return compare(env, left, delta(env, right)?, erase, seen, profile);
+                }
                 _ => {}
             }
             let left = if erase {
@@ -782,7 +849,7 @@ fn conversion(
                 .into_iter()
                 .zip(comparison_children(&env.arena, right))
             {
-                if ld != rd || !compare(env, l, r, erase, seen)? {
+                if ld != rd || !compare(env, l, r, erase, seen, profile)? {
                     return Ok(false);
                 }
             }
@@ -799,6 +866,7 @@ fn conversion(
         right,
         erase,
         &mut rustc_hash::FxHashSet::default(),
+        &mut std::env::var_os("REF_TYPE_PROFILE_CONVERSION").map(|_| (0, left, right)),
     )
 }
 

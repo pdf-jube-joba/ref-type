@@ -1,0 +1,19 @@
+\import Coordinates.In[c := c] \as Local;
+\definition Parameter: \Set := Local.ProductPoint;
+\definition topology: topology.Topology[Carrier := Parameter].Topology := Local.productTopology;
+\definition parameter[p: Parameter]: Family.Point := Local.backward p;
+\import topology.Maps[A := Parameter, B := Family.Point] \as Sets;
+\definition Image[V: \Pow Parameter]: \Pow Family.Point := Sets.Image parameter V;
+\definition imageMember: \forall (V: \Pow Parameter)(p: Parameter) -> \In[Parameter] V p -> Total.Member (Image V) (parameter p) := Sets.imageMember parameter;
+\definition parameterForward: \forall (p: Local.TotalPoint) -> parameter (Local.forward p) = p := Local.leftInverse;
+\definition forwardParameter: \forall (p: Parameter) -> Local.forward (Local.backward p) = p := Local.rightInverse;
+\definition forget[p: Local.TotalPoint]: Family.Point := p;
+\definition forwardEqual: \forall (p, q: Local.TotalPoint) -> forget p = forget q -> Local.forward p = Local.forward q :=
+  \fun (p, q: Local.TotalPoint)(same: forget p = forget q) =>
+    (\idelim forget p = forget q \with r: Family.Point => \forall (member: Base.Member c.domain r.base) ->
+      Local.forward p = Local.forward (\into[Family.Point](r, { p: Family.Point \where Base.Member c.domain p.base }) \by { member }) \by {
+        base: \fun (member: Base.Member c.domain p.base) => \refl(Local.forward p), equality: same
+      }) (\bysub(Family.Point, { p: Family.Point \where Base.Member c.domain p.base }, q));
+\definition injective: \forall (p, q: Parameter) -> parameter p = parameter q -> p = q :=
+  \fun (p, q: Parameter)(same: _) => trans!{Parameter} _ _ _ (sym!{Parameter} _ _ (forwardParameter p))
+    (trans!{Parameter} _ _ _ (forwardEqual (Local.backward p) (Local.backward q) same) (forwardParameter q));

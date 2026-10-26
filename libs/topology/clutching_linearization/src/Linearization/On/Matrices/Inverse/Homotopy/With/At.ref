@@ -1,0 +1,17 @@
+\import Original.Construction[parameters := parameters].Path[] \as ModelPath;
+\import ModelPath.Model[] \as Model;
+\import Target.Representative[d := parameters.normal.order, q := Model.rows, regularQ := Model.regular, kernelQ := Model.kernel, k := parameters.normal.shift] \as Representative;
+\import \root.Linearization[].Powers[] \as Powers;
+\import Powers.Families[X := Circle.Domain, source := Circle.source, z := Circle.unit, regular := Circle.unitContinuous] \as CirclePowers;
+\import Paths.Scale[s := ModelPath.scalar, regular := CirclePowers.continuous parameters.normal.shift, nonzero := ModelPath.scalarNonzero] \as Shift;
+\import Spaces.Coordinates[I := M.Index] \as Vectors;
+\import Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as End;
+\definition endpoint: \forall (p: Circle.Domain) -> ModelPath.polynomial.matrix p = Representative.polynomial.matrix p :=
+  \fun (p: Circle.Domain) => trans!{M.Matrix} _ _ _ (sym!{M.Matrix} _ _ (M.Representation[].entriesLinear (Model.polynomial p)))
+    (congr!{End.Map M.Matrix} M.Representation[].entries _ _ (Model.action p));
+\definition comparisonPath: Paths.Path[Representative.shifted, Representative.polynomial] := Paths.retarget (Shift.family second) ModelPath.polynomial Representative.shifted Representative.polynomial
+  (Paths.concatenate (Shift.family second) (Shift.family first) ModelPath.polynomial
+    (Paths.reverse (Shift.family first) (Shift.family second) (Shift.path first second path)) ModelPath.path)
+  (\fun (p: Circle.Domain) => \refl(Representative.shifted.matrix p)) endpoint;
+\import Representative.With[path := comparisonPath] \as Recovery;
+\definition invariant: Original.Construction[parameters := parameters].inverseClass = Target.Inverse[].value := sym!{K.K0[].Carrier} _ _ Recovery.recovery;

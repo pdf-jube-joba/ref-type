@@ -1,0 +1,18 @@
+\import \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].For[X := X, F := F, bundle := bundle].FromEmbedding[embedding := embedding].Image[].At[x := x] \as Point;
+\import Spaces.Linear[V := F x, W := ImageFiber x, source := bundle.space x, target := imageBundle.space x] \as Maps;
+\definition fixed: \forall (v: F x) -> (projection x).map.apply ((embedding.map.fiber x).apply v) = (embedding.map.fiber x).apply v :=
+  \fun (v: F x) => (Point.conditions.range ((embedding.map.fiber x).apply v)).rtl
+    (Logic.existsIntro[F x, { w: F x \where (embedding.map.fiber x).apply w = (embedding.map.fiber x).apply v }] v (\refl((embedding.map.fiber x).apply v)));
+\definition forward: Maps.Map := Maps.Map {
+  apply := \fun (v: F x) => \into[Vector n]((embedding.map.fiber x).apply v, ImageFiber x) \by { fixed v },
+  preservesAdd := (embedding.map.fiber x).preservesAdd,
+  preservesScale := (embedding.map.fiber x).preservesScale
+};
+\definition injection: \forall (v, w: F x) -> forward.apply v = forward.apply w -> v = w := \fun (v, w: F x)(same: _) => embedding.injective x v w same;
+\definition onto: \forall (z: ImageFiber x) -> \exists ( v: F x \where forward.apply v = z ) :=
+  \fun (z: ImageFiber x) => \block {
+    \takefrom v: \Cast[F x] ({ v: F x \where (embedding.map.fiber x).apply v = z }) \by (Point.conditions.range z).ltr (\bysub(Vector n, Projected.Image x, z)) \then
+    \return Logic.existsIntro[F x, { v: F x \where forward.apply v = z }] v (\bysub(F x, { v: F x \where (embedding.map.fiber x).apply v = z }, v))
+  };
+\definition iso: Spaces.Isomorphism[V := F x, W := ImageFiber x, source := bundle.space x, target := imageBundle.space x].Isomorphism :=
+  Spaces.Isomorphism[V := F x, W := ImageFiber x, source := bundle.space x, target := imageBundle.space x].OfBijective[f := forward].isomorphism injection onto;

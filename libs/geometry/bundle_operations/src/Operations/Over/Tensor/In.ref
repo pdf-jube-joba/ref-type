@@ -1,0 +1,27 @@
+\definition domain: \Pow X := Base.Intersection c.domain d.domain;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].PairIndices[n := c.dimension, m := d.dimension] \as Indices;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].FiniteIndex[A := Indices.Pair, S := Indices.Whole, enumeration := enumeration] \as Coefficients;
+\definition dimension: N.Nat^ := Coefficients.rank;
+\module At(x: \Cast[X] domain);
+\definition chart: Charts.ChartData := Charts.ChartData { domain := domain, dimension := dimension, frame := \fun (x: \Cast[X] domain) => At[x := x].frame };
+\import Charts.In[c := chart] \as Local;
+\import Base.Subspace[S := domain] \as BaseSubspace;
+\definition baseOpen: \forall (same: SameBase) -> Base.IsOpenIn left.baseSpace domain :=
+  \fun (same: SameBase) => (Base.topologyLaws left.baseSpace).intersectionOpen c.domain d.domain
+    (\bysub(LeftCharts.ChartData, LeftCharts.Chart, c)).baseOpen
+    (\idelim right.baseSpace = left.baseSpace \with source: Base.Topology => Base.IsOpenIn source d.domain \by {
+      base: (\bysub(RightCharts.ChartData, RightCharts.Chart, d)).baseOpen, equality: sym!{Base.Topology} _ _ same
+    });
+\definition totalOpen: \forall (same: SameBase) -> topology.Topology[Carrier := Family.Point].IsOpenIn topology ({ p: Family.Point \where Base.Member domain p.base }) :=
+  \fun (same: SameBase) => projectionContinuous domain (baseOpen same);
+\module Forward(r, s: N.Nat^);
+\definition forwardContinuous: \forall (same: SameBase) -> topology.Continuity[A := Local.TotalPoint, B := Local.ProductPoint].Continuous Local.localTopology Local.productTopology Local.forward :=
+  \fun (same: SameBase) => Final.Restriction[U := { p: Family.Point \where Base.Member domain p.base }].Universal[Z := Local.ProductPoint].continuous Local.productTopology Local.forward (totalOpen same)
+    (\fun (grid: Grid) => Forward[r := Pair.first N.Nat^ N.Nat^ grid, s := Pair.second N.Nat^ N.Nat^ grid].regular);
+\module Backward;
+\import topology.Continuity[A := Local.ProductPoint, B := Family.Point].Corestriction[S := { p: Family.Point \where Base.Member domain p.base }] \as IntoLocal;
+\definition trivialization[same: SameBase]: Charts.Chart := \into[Charts.ChartData](chart, Charts.Chart) \by {
+  Local.Laws { baseOpen := baseOpen same, totalOpen := totalOpen same, forwardContinuous := forwardContinuous same,
+    backwardContinuous := IntoLocal.corestrictContinuous Local.productTopology topology Local.backward (Backward[].continuous same)
+  }
+};

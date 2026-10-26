@@ -1,0 +1,16 @@
+\import \root.Approximation[].Bundles[].Over[X := X, F := F, bundle := bundle].Split[n := n, include := include, project := project, retraction := retraction].Approximate[h := h].Density[A := A, laws := laws, compact := compact, hausdorff := hausdorff, separates := separates].Using[epsilon := delta, candidate := candidate] \as Chosen;
+\definition boundError: \forall (x: X)(v: F x) -> UnitInput x v -> \forall (i: M.Index) -> Real.Lt
+  (Abs.abs (O.sub ((include.fiber x).apply ((h.fiber x).apply v) i) ((include.fiber x).apply ((Chosen.map.fiber x).apply v) i))) epsilon := \block {
+  \fun (x: X)(v: F x)(unit: UnitInput x v)(i: M.Index) \then
+  \let size: R.Real := R.FiniteSums[].sum n (\fun (j: M.Index) => Abs.abs ((include.fiber x).apply v j)) \then
+  \let row: R.Real := ProjectionBounds.rows i x \then
+  \let first: Real.Le (R.mul delta size) delta := Real.leReplaceRight _ (R.mul delta R.one) delta (Algebra.mulOneRight delta) (Estimates.mulMonotone delta size R.one deltaNonnegative unit) \then
+  \let scale: Real.Le (R.mul (R.mul delta size) row) (R.mul delta bound.value) := Real.leTrans _ (R.mul delta row) _
+    (Real.leReplace _ _ _ _ (Laws.fieldMulComm row (R.mul delta size)) (Laws.fieldMulComm row delta) (Estimates.mulMonotone row (R.mul delta size) delta (ProjectionBounds.nonnegative i x) first))
+    (Estimates.mulMonotone delta row bound.value deltaNonnegative (bound.controls i x)) \then
+  \return Real.leLtTrans _ _ _ (Real.leTrans _ _ _ (Chosen.error x v i) scale) (Real.ltReplaceLeft (R.mul bound.value delta) (R.mul delta bound.value) epsilon (Laws.fieldMulComm bound.value delta) (Bounds.radiusSmall bound.value epsilon bound.positive positive))
+};
+\definition result: UniformCandidate[epsilon] := UniformCandidate[epsilon] {
+  matrix := candidate.value, member := candidate.member, map := Chosen.map,
+  formula := \fun (x: X)(v: F x) => \refl((project.fiber x).apply ((M.linear (candidate.value x)).apply ((include.fiber x).apply v))), error := boundError
+};

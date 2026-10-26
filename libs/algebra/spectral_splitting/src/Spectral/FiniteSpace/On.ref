@@ -1,0 +1,31 @@
+\definition exists: \exists Candidate := \block {
+  \takefrom witness: Witness \by finite \then
+  \return \exact(\into[End.Map](\parent.In[witness := witness].value, Candidate) \by { \parent.In[witness := witness].agrees }, Candidate)
+};
+\definition unique: \forall (p, q: Candidate) -> p = q := \block {
+  \fun (p, q: Candidate) \then
+  \takefrom witness: Witness \by finite \then
+  \let left: Agreement p := \bysub(End.Map, Candidate, p) \then
+  \let right: Agreement q := \bysub(End.Map, Candidate, q) \then
+  \return End.ext p q (\axiom:funext(p.apply, q.apply, \fun (v: V) => trans!{V} _ _ _
+    (left witness.rank witness.frame witness.off v) (sym!{V} _ _ (right witness.rank witness.frame witness.off v))))
+};
+\definition value: Candidate := \choice Candidate \by { existence: exists, uniqueness: unique };
+\definition inFrame: Agreement value := \bysub(End.Map, Candidate, value);
+\definition idempotent: \forall (v: V) -> value.apply (value.apply v) = value.apply v := \block {
+  \fun (v: V) \then
+  \takefrom witness: Witness \by finite \then
+  \let selected: End.Map := \parent.In[witness := witness].value \then
+  \return eq_reason_in!{V _
+    "=" { selected.apply (value.apply v) } "by" { inFrame witness.rank witness.frame witness.off (value.apply v) }
+    "=" { selected.apply (selected.apply v) } "by" { congr!{V V} selected.apply _ _ (inFrame witness.rank witness.frame witness.off v) }
+    "=" _ "by" { \parent.In[witness := witness].idempotent v }
+    "=" _ "by" { sym!{V} _ _ (inFrame witness.rank witness.frame witness.off v) }
+  }
+};
+
+\module Naturality(W: \Set, destination: Spaces.VectorSpace W,
+  U: Spaces.Linear[V := W, W := W, source := destination, target := destination].Map,
+  targetFinite: \exists \root.Spectral[].FiniteSpace[V := W, space := destination, T := U].Witness,
+  h: Spaces.Linear[V := V, W := W, source := space, target := destination].Map,
+  intertwines: \forall (v: V) -> h.apply (T.apply v) = U.apply (h.apply v));

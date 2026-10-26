@@ -1,0 +1,48 @@
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].ScalarLine[X := X, baseSpace := bundle.baseSpace] \as Line;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := \fun (x: X) => K, G := F, left := Line.bundle, right := bundle] \as Tensor;
+\definition tensor: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := Tensor.Fiber].Bundle := Tensor.bundle (\refl(bundle.baseSpace));
+\import Tensor.Of[same := \refl(bundle.baseSpace)].Universal[Y := X, H := F, target := bundle, f := \fun (x: X) => x] \as Universal;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].DirectSum[X := X, F := \fun (x: X) => K, G := F, left := Line.bundle, right := bundle] \as Sum;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := Sum.Fiber] \as PairFamily;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := F] \as Family;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := \fun (x: X) => K] \as ScalarFamily;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := Tensor.Fiber] \as TensorFamily;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Along[X := X, F := F, bundle := bundle, Y := PairFamily.Point, source := Sum.topology, base := PairFamily.projection] \as Along;
+\definition scalarValue[p: PairFamily.Point]: K := Pair.first K (F p.base) p.vector;
+\definition vectorValue[p: PairFamily.Point]: F p.base := Pair.second K (F p.base) p.vector;
+\definition scalarContinuous: topology.Continuity[A := PairFamily.Point, B := K].Continuous Sum.topology scalar.topological.space scalarValue :=
+  topology.Composition[A := PairFamily.Point, B := ScalarFamily.Point, C := K].composeContinuous Sum.topology Line.bundle.totalSpace scalar.topological.space Sum.first Line.value Sum.firstContinuous Line.valueContinuous;
+\definition data: Universal.Data := Universal.Data {
+  fiber := \fun (x: X) => (bundle.space x).smul,
+  bilinear := \fun (x: X) => \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TensorScalarUnit[V := F x, space := bundle.space x].bilinear
+};
+\definition bilinear: Universal.Bilinear := \into[Universal.Data](data, Universal.Bilinear) \by {
+  Along.scaling scalarValue vectorValue Sum.projectionContinuous scalarContinuous Sum.secondContinuous
+};
+\definition forward: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := Tensor.Fiber, G := F, source := tensor, target := bundle, f := \fun (x: X) => x].Map := Universal.map bilinear;
+\definition pair[p: Family.Point]: PairFamily.Point := PairFamily.include p.base (Pair.pair K (F p.base) field.one p.vector);
+\definition unit[p: Family.Point]: ScalarFamily.Point := ScalarFamily.include p.base field.one;
+\definition unitContinuous: topology.Continuity[A := Family.Point, B := ScalarFamily.Point].Continuous bundle.totalSpace Line.bundle.totalSpace unit :=
+  Line.Universal[Y := Family.Point].continuous bundle.totalSpace unit Family.Of[bundle := bundle].projectionContinuous
+    (topology.Maps[A := Family.Point, B := K].constantContinuous bundle.totalSpace scalar.topological.space field.one);
+\definition pairContinuous: topology.Continuity[A := Family.Point, B := PairFamily.Point].Continuous bundle.totalSpace Sum.topology pair :=
+  Sum.Universal[Y := Family.Point].continuous bundle.totalSpace pair unitContinuous
+    (\idelim (\fun (p: Family.Point) => p) = (\fun (p: Family.Point) => Family.include p.base p.vector)
+      \with f: (Family.Point -> Family.Point) => topology.Continuity[A := Family.Point, B := Family.Point].Continuous bundle.totalSpace bundle.totalSpace f \by {
+        base: topology.Maps[A := Family.Point, B := Family.Point].Identity[].continuous bundle.totalSpace,
+        equality: \axiom:funext((\fun (p: Family.Point) => p), (\fun (p: Family.Point) => Family.include p.base p.vector), \fun (p: Family.Point) => sym!{{Family.Point}} _ _ (Family.eta p))
+      });
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := F, G := Tensor.Fiber, source := bundle, target := tensor, f := \fun (x: X) => x] \as Backward;
+\definition backwardData: Backward.Data := Backward.Data {
+  fiber := \fun (x: X) => \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TensorScalarUnit[V := F x, space := bundle.space x].backward
+};
+\definition backward: Backward.Map := \into[Backward.Data](backwardData, Backward.Map) \by {
+  topology.Composition[A := Family.Point, B := PairFamily.Point, C := TensorFamily.Point].composeContinuous bundle.totalSpace Sum.topology Tensor.topology pair (Tensor.Of[same := \refl(bundle.baseSpace)].Pure[].value) pairContinuous (Tensor.Of[same := \refl(bundle.baseSpace)].Pure[].continuous)
+};
+\definition isomorphism: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Isomorphisms[X := X, F := Tensor.Fiber, G := F, source := tensor, target := bundle].Isomorphism :=
+  vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Isomorphisms[X := X, F := Tensor.Fiber, G := F, source := tensor, target := bundle].Isomorphism {
+    forward := forward, backward := backward,
+    leftInverse := \fun (x: X) => \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TensorScalarUnit[V := F x, space := bundle.space x].leftInverse,
+    rightInverse := \fun (x: X) => \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TensorScalarUnit[V := F x, space := bundle.space x].rightInverse
+  };
+\definition onPure: \forall (x: X)(a: K)(v: F x) -> (forward.fiber x).apply (Tensor.pure x a v) = (bundle.space x).smul a v := Universal.onPure bilinear;

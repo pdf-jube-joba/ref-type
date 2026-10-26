@@ -1,0 +1,42 @@
+\definition BasePoint: \Set := \Cast[X] c.domain;
+\definition TotalPoint: \Set := \Cast[Point] ({ p: Point \where Base.Member c.domain p.base });
+\import Base.Subspace[S := c.domain] \as BaseSubspace;
+\import Total.Subspace[S := { p: Point \where Base.Member c.domain p.base }] \as TotalSubspace;
+\import topological_constructions.Product[A := BasePoint, B := Vector c.dimension] \as Product;
+\definition ProductPoint: \Set := Product.CarrierSet;
+\definition localTopology: topology.Topology[Carrier := TotalPoint].Topology := TotalSubspace.topology data.totalSpace;
+\definition productTopology: topology.Topology[Carrier := ProductPoint].Topology := Product.topology (BaseSubspace.topology data.baseSpace) (coordinateTopology c.dimension);
+\definition base[p: TotalPoint]: BasePoint := \into[X](p.base, c.domain) \by { \bysub(Point, { p: Point \where Base.Member c.domain p.base }, p) };
+\definition forward[p: TotalPoint]: ProductPoint := Pair.pair BasePoint (Vector c.dimension) (base p) ((c.frame (base p)).forward.apply p.vector);
+\definition backward[p: ProductPoint]: TotalPoint := \into[Point](include (Pair.first BasePoint (Vector c.dimension) p)
+  ((c.frame (Pair.first BasePoint (Vector c.dimension) p)).backward.apply (Pair.second BasePoint (Vector c.dimension) p)), { p: Point \where Base.Member c.domain p.base }) \by {
+    \bysub(X, c.domain, Pair.first BasePoint (Vector c.dimension) p)
+  };
+\structure Laws: \Prop := {
+  baseOpen: Base.IsOpenIn data.baseSpace c.domain,
+  totalOpen: Total.IsOpenIn data.totalSpace ({ p: Point \where Base.Member c.domain p.base }),
+  forwardContinuous: topology.Continuity[A := TotalPoint, B := ProductPoint].Continuous localTopology productTopology forward,
+  backwardContinuous: topology.Continuity[A := ProductPoint, B := TotalPoint].Continuous productTopology localTopology backward,
+};
+\import Pair.Prop[A := BasePoint, B := Vector c.dimension] \as PairLaws;
+\definition leftInverse: \forall (p: TotalPoint) -> backward (forward p) = p := \block {
+  \fun (p: TotalPoint) \then
+  \let equal: (c.frame (base p)).backward.apply ((c.frame (base p)).forward.apply p.vector) = p.vector :=
+    (Spaces.Isomorphism[V := F p.base, W := Vector c.dimension, source := data.space p.base, target := coordinates c.dimension].laws (c.frame (base p))).leftInverse p.vector \then
+  \return trans!{Point} _ _ _ (congr!{{F p.base} Point} (include p.base)
+    ((c.frame (base p)).backward.apply ((c.frame (base p)).forward.apply p.vector)) p.vector equal) (eta p)
+};
+\definition rightInverse: \forall (p: ProductPoint) -> forward (backward p) = p := \block {
+  \fun (p: ProductPoint) \then
+  \let x: BasePoint := Pair.first BasePoint (Vector c.dimension) p \then
+  \let v: Vector c.dimension := Pair.second BasePoint (Vector c.dimension) p \then
+  \let equal: (c.frame x).forward.apply ((c.frame x).backward.apply v) = v :=
+    (Spaces.Isomorphism[V := F x, W := Vector c.dimension, source := data.space x, target := coordinates c.dimension].laws (c.frame x)).rightInverse v \then
+  \return trans!{ProductPoint} _ _ _ (congr!{{Vector c.dimension} ProductPoint} (Pair.pair BasePoint (Vector c.dimension) x)
+    ((c.frame x).forward.apply ((c.frame x).backward.apply v)) v equal) (PairLaws.eta p)
+};
+\import topology.Homeomorphism[A := TotalPoint, B := ProductPoint] \as Homeomorphisms;
+\definition homeomorphism[laws: Laws]: Homeomorphisms.Homeomorphism[localTopology, productTopology] := Homeomorphisms.Homeomorphism[localTopology, productTopology] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := laws.forwardContinuous, backwardContinuous := laws.backwardContinuous,
+  };

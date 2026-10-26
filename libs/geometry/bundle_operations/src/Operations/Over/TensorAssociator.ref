@@ -1,0 +1,29 @@
+\definition lastBase: middle.baseSpace = right.baseSpace := trans!{{topology.Topology[Carrier := X].Topology}} _ _ _ (sym!{{topology.Topology[Carrier := X].Topology}} _ _ sameMiddle) sameRight;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := F, G := G, left := left, right := middle] \as First;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := G, G := H, left := middle, right := right] \as Last;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := First.Fiber, G := H, left := First.bundle sameMiddle, right := right] \as SourceTensor;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := F, G := Last.Fiber, left := left, right := Last.bundle lastBase] \as TargetTensor;
+\definition sourceBundle: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := SourceTensor.Fiber].Bundle := SourceTensor.bundle sameRight;
+\definition targetBundle: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := TargetTensor.Fiber].Bundle := TargetTensor.bundle sameMiddle;
+\module At(x: X);
+\definition fiberIsomorphism[x: X]: Spaces.Isomorphism[V := SourceTensor.Fiber x, W := TargetTensor.Fiber x, source := SourceTensor.fiberSpace x, target := TargetTensor.fiberSpace x].Isomorphism := At[x := x].isomorphism;
+\definition forwardParameter[x: X][u: H x]: Spaces.Linear[V := First.Fiber x, W := TargetTensor.Fiber x, source := First.fiberSpace x, target := TargetTensor.fiberSpace x].Map := At[x := x].forwardParameter u;
+\definition backwardParameter[x: X][v: F x]: Spaces.Linear[V := Last.Fiber x, W := SourceTensor.Fiber x, source := Last.fiberSpace x, target := SourceTensor.fiberSpace x].Map := At[x := x].backwardParameter v;
+\definition forwardOnTensor: \forall (x: X)(t: First.Fiber x)(u: H x) -> (fiberIsomorphism x).forward.apply (SourceTensor.pure x t u) = (forwardParameter x u).apply t := \fun (x: X) => At[x := x].forwardOnTensor;
+\definition backwardOnTensor: \forall (x: X)(v: F x)(t: Last.Fiber x) -> (fiberIsomorphism x).backward.apply (TargetTensor.pure x v t) = (backwardParameter x v).apply t := \fun (x: X) => At[x := x].backwardOnTensor;
+\definition forwardOnPure: \forall (x: X)(u: H x)(v: F x)(w: G x) -> (forwardParameter x u).apply (First.pure x v w) = TargetTensor.pure x v (Last.pure x w u) := \fun (x: X) => At[x := x].forwardOnPure;
+\definition backwardOnPure: \forall (x: X)(v: F x)(w: G x)(u: H x) -> (backwardParameter x v).apply (Last.pure x w u) = SourceTensor.pure x (First.pure x v w) u := \fun (x: X) => At[x := x].backwardOnPure;
+\module Forward;
+\module Backward;
+\definition isomorphism: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Isomorphisms[X := X, F := SourceTensor.Fiber, G := TargetTensor.Fiber, source := sourceBundle, target := targetBundle].Isomorphism :=
+  vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Isomorphisms[X := X, F := SourceTensor.Fiber, G := TargetTensor.Fiber, source := sourceBundle, target := targetBundle].Isomorphism {
+    forward := Forward[].map, backward := Backward[].map,
+    leftInverse := \fun (x: X) => (Spaces.Isomorphism[V := SourceTensor.Fiber x, W := TargetTensor.Fiber x, source := SourceTensor.fiberSpace x, target := TargetTensor.fiberSpace x].laws At[x := x].isomorphism).leftInverse,
+    rightInverse := \fun (x: X) => (Spaces.Isomorphism[V := SourceTensor.Fiber x, W := TargetTensor.Fiber x, source := SourceTensor.fiberSpace x, target := TargetTensor.fiberSpace x].laws At[x := x].isomorphism).rightInverse
+  };
+\definition SourceFiber[x: X]: \Set := SourceTensor.Fiber x;
+\definition TargetFiber[x: X]: \Set := TargetTensor.Fiber x;
+\definition onPure: \forall (x: X)(v: F x)(w: G x)(u: H x) -> (isomorphism.forward.fiber x).apply (SourceTensor.pure x (First.pure x v w) u) = TargetTensor.pure x v (Last.pure x w u) :=
+  \fun (x: X)(v: F x)(w: G x)(u: H x) => trans!{{TargetTensor.Fiber x}} _ _ _ (forwardOnTensor x (First.pure x v w) u) (forwardOnPure x u v w);
+\definition onReversePure: \forall (x: X)(v: F x)(w: G x)(u: H x) -> (isomorphism.backward.fiber x).apply (TargetTensor.pure x v (Last.pure x w u)) = SourceTensor.pure x (First.pure x v w) u :=
+  \fun (x: X)(v: F x)(w: G x)(u: H x) => trans!{{SourceTensor.Fiber x}} _ _ _ (backwardOnTensor x v (Last.pure x w u)) (backwardOnPure x v w u);

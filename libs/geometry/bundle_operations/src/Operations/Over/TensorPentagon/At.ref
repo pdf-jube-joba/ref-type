@@ -1,0 +1,31 @@
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := AB.Fiber, G := C, left := AB.bundle sameSecond, right := third] \as AB_C;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := A, G := BC.Fiber, left := first, right := BC.bundle bcBase] \as A_BC;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := BC.Fiber, G := D, left := BC.bundle bcBase, right := fourth] \as BC_D;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := B, G := CD.Fiber, left := second, right := CD.bundle cdBase] \as B_CD;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := AB_C.Fiber, G := D, left := ABC.sourceBundle, right := fourth] \as Source;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := ABC.TargetFiber, G := D, left := ABC.targetBundle, right := fourth] \as N;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := A, G := BCD.SourceFiber, left := first, right := BCD.sourceBundle] \as P;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := A, G := BCD.TargetFiber, left := first, right := BCD.targetBundle] \as Target;
+\definition input[v: A x][w: B x][u: C x][q: D x]: LeftFirst.SourceFiber x := Source.pure x (AB_C.pure x (AB.pure x v w) u) q;
+\definition normal[v: A x][w: B x][u: C x][q: D x]: LeftSecond.TargetFiber x := Target.pure x v (B_CD.pure x w (CD.pure x u q));
+\definition leftNormal: \forall (v: A x)(w: B x)(u: C x)(q: D x) -> (leftPath.forward.fiber x).apply (input v w u q) = normal v w u q :=
+  \fun (v: A x)(w: B x)(u: C x)(q: D x) => trans!{{LeftSecond.TargetFiber x}} _ _ _
+    (congr!{{LeftFirst.TargetFiber x} {LeftSecond.TargetFiber x}} (LeftSecond.isomorphism.forward.fiber x).apply _ _ (LeftFirst.onPure x (AB.pure x v w) u q))
+    (LeftSecond.onPure x v w (CD.pure x u q));
+\definition stepOne: \forall (v: A x)(w: B x)(u: C x)(q: D x) -> (firstStep.forward.fiber x).apply (input v w u q) = N.pure x (A_BC.pure x v (BC.pure x w u)) q :=
+  \fun (v: A x)(w: B x)(u: C x)(q: D x) => trans!{{RightFirst.TargetFiber x}} _ _ _
+    (RightFirst.onPure ABC.isomorphism FourthIdentity.isomorphism x (AB_C.pure x (AB.pure x v w) u) q)
+    (congr!{{ABC.TargetFiber x} {RightFirst.TargetFiber x}} (\fun (t: ABC.TargetFiber x) => N.pure x t q) _ _ (ABC.onPure x v w u));
+\definition stepTwo: \forall (v: A x)(w: B x)(u: C x)(q: D x) -> (middlePath.forward.fiber x).apply (input v w u q) = P.pure x v (BC_D.pure x (BC.pure x w u) q) :=
+  \fun (v: A x)(w: B x)(u: C x)(q: D x) => trans!{{RightMiddle.TargetFiber x}} _ _ _
+    (congr!{{RightFirst.TargetFiber x} {RightMiddle.TargetFiber x}} (RightMiddle.isomorphism.forward.fiber x).apply _ _ (stepOne v w u q))
+    (RightMiddle.onPure x v (BC.pure x w u) q);
+\definition rightNormal: \forall (v: A x)(w: B x)(u: C x)(q: D x) -> (rightPath.forward.fiber x).apply (input v w u q) = normal v w u q :=
+  \fun (v: A x)(w: B x)(u: C x)(q: D x) => trans!{{LeftSecond.TargetFiber x}} _ _ _
+    (congr!{{RightMiddle.TargetFiber x} {LeftSecond.TargetFiber x}} (lastStep.forward.fiber x).apply _ _ (stepTwo v w u q))
+    (trans!{{LeftSecond.TargetFiber x}} _ _ _
+      (RightLast.onPure FirstIdentity.isomorphism BCD.isomorphism x v (BC_D.pure x (BC.pure x w u) q))
+      (congr!{{BCD.TargetFiber x} {LeftSecond.TargetFiber x}} (Target.pure x v) _ _ (BCD.onPure x w u q)));
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TensorQuadEquality[V := A x, W := B x, U := C x, Q := D x, T := LeftSecond.TargetFiber x, left := first.space x, second := second.space x, third := third.space x, fourth := fourth.space x, target := LeftSecond.targetBundle.space x] \as Quad;
+\definition equality: \forall (t: LeftFirst.SourceFiber x) -> (leftPath.forward.fiber x).apply t = (rightPath.forward.fiber x).apply t := Quad.pointwise (leftPath.forward.fiber x) (rightPath.forward.fiber x)
+  (\fun (v: A x)(w: B x)(u: C x)(q: D x) => trans!{{LeftSecond.TargetFiber x}} _ _ _ (leftNormal v w u q) (sym!{{LeftSecond.TargetFiber x}} _ _ (rightNormal v w u q)));

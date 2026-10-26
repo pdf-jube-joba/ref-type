@@ -1,0 +1,43 @@
+\definition Domain: \Pow Local.ProductPoint := { p: Local.ProductPoint \where Base.Member s.domain (backwardBase p) };
+\definition Point: \Set := \Cast[Local.ProductPoint] Domain;
+\import topology.Topology[Carrier := Local.ProductPoint].Subspace[S := Domain] \as Subspace;
+\definition topology: topology.Topology[Carrier := Point].Topology := Subspace.topology Local.productTopology;
+\import Base.Subspace[S := s.domain] \as SectionBase;
+\definition center[p: Point]: \Cast[X] s.domain := \into[X](backwardBase p, s.domain) \by { \bysub(Local.ProductPoint, Domain, p) };
+\definition chartCenter[p: Point]: Local.BasePoint := Pair.first Local.BasePoint (Vector dimension) p;
+\import topology.Continuity[A := Local.ProductPoint, B := X].Restriction[S := Domain] \as RestrictBase;
+\import topology.Continuity[A := Point, B := X].Corestriction[S := s.domain] \as IntoSectionBase;
+\definition centerContinuous: topology.Continuity[A := Point, B := \Cast[X] s.domain].Continuous topology (SectionBase.topology bundle.baseSpace) center :=
+  IntoSectionBase.corestrictContinuous topology bundle.baseSpace center (RestrictBase.restrictContinuous Local.productTopology bundle.baseSpace backwardBase backwardBaseContinuous);
+\definition sectionPoint[i: Fin.Fin k][p: Point]: Source.Point := Source.include (backwardBase p) (s.value i (center p));
+\definition sectionContinuous: \forall (i: Fin.Fin k) -> topology.Continuity[A := Point, B := Source.Point].Continuous topology bundle.totalSpace (sectionPoint i) :=
+  \fun (i: Fin.Fin k) => topology.Composition[A := Point, B := \Cast[X] s.domain, C := Source.Point].composeContinuous topology (SectionBase.topology bundle.baseSpace) bundle.totalSpace center
+    (\fun (x: \Cast[X] s.domain) => Source.include x (s.value i x)) centerContinuous (s.regular i);
+\import SourceCharts.In[c := c] \as OriginalCoordinates;
+\definition original[i: Fin.Fin k][p: Point]: OriginalCoordinates.TotalPoint := \into[Source.Point](sectionPoint i p, { p: Source.Point \where Base.Member c.domain p.base }) \by { \bysub(X, c.domain, chartCenter p) };
+\definition coordinate[i: Fin.Fin k][p: Point]: Vector c.dimension := (c.frame (chartCenter p)).forward.apply (s.value i (center p));
+\definition coordinateContinuous: \forall (i: Fin.Fin k) -> topology.Continuity[A := Point, B := Vector c.dimension].Continuous topology (coordinateTopology c.dimension) (coordinate i) :=
+  \fun (i: Fin.Fin k) => SourceChart.Maps[Y := Point, source := topology].vectorContinuous (original i) (sectionContinuous i);
+\definition vector[p: Point]: Vector dimension := Pair.second Local.BasePoint (Vector dimension) p;
+\import topology.Continuity[A := Local.ProductPoint, B := Vector dimension].Restriction[S := Domain] \as RestrictVector;
+\definition vectorContinuous: topology.Continuity[A := Point, B := Vector dimension].Continuous topology (coordinateTopology dimension) vector :=
+  RestrictVector.restrictContinuous Local.productTopology (coordinateTopology dimension) (Pair.second Local.BasePoint (Vector dimension)) (Projections.secondContinuous (BaseSubspace.topology bundle.baseSpace) (coordinateTopology dimension));
+\import hermitian_frames.Hermitian[].Over[K := K, field := field, scalar := conjugation, topological := scalar.topological].Functions[X := Point] \as Functions;
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin dimension] \as VectorCoordinates;
+\definition scalarVector: \forall (i: Fin.Fin dimension) -> Functions.Continuous topology (\fun (p: Point) => vector p i) :=
+  \fun (i: Fin.Fin dimension) => topology.Composition[A := Point, B := Vector dimension, C := K].composeContinuous topology (coordinateTopology dimension) scalar.topological.space vector (\fun (v: Vector dimension) => v i) vectorContinuous (VectorCoordinates.evaluationContinuous scalar.topological.space i);
+\import Spaces.FiniteCoordinates[n := c.dimension].Exterior[] \as Words;
+\import Spaces.Multilinear[V := Vector c.dimension, space := coordinates c.dimension].Alternating[] \as CoordinateForms;
+\definition word[i: Fin.Fin dimension][p: Point]: K := Words.word k (Coordinates.enumerate i) (\fun (j: Fin.Fin k) => coordinate j p);
+\definition wordContinuous: \forall (i: Fin.Fin dimension) -> Functions.Continuous topology (word i) :=
+  \fun (i: Fin.Fin dimension) => \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].MultilinearContinuity[n := c.dimension, X := Point].continuous k topology
+    (CoordinateForms.asMultilinear k (Words.word k (Coordinates.enumerate i))) (\fun (j: Fin.Fin k)(p: Point) => coordinate j p) coordinateContinuous;
+\import Spaces.Sums[I := Fin.Fin dimension] \as Sums;
+\definition model[p: Point]: K := Sums.sum (Fin.elements dimension) (\fun (i: Fin.Fin dimension) => field.mul (vector p i) (word i p));
+\definition modelContinuous: Functions.Continuous topology model :=
+  \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].ScalarFunctions[X := Point].Sums[I := Fin.Fin dimension].continuous (Fin.elements dimension) topology
+    (\fun (i: Fin.Fin dimension)(p: Point) => field.mul (vector p i) (word i p))
+    (\fun (i: Fin.Fin dimension) => Functions.multiplication topology (\fun (p: Point) => vector p i) (word i) (scalarVector i) (wordContinuous i));
+\definition test[p: Point]: K := (backward p).vector (\fun (i: Fin.Fin k) => s.value i (center p));
+\definition formula: \forall (p: Point) -> test p = model p := \fun (p: Point) => \parent.At[x := chartCenter p].evaluation (vector p) (\fun (i: Fin.Fin k) => s.value i (center p));
+\definition continuous: Functions.Continuous topology test := Functions.transport topology model test (\fun (p: Point) => sym!{K} _ _ (formula p)) modelContinuous;

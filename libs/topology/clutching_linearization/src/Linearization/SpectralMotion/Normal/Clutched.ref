@@ -1,0 +1,54 @@
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[n := n,
+  a := Start.endpointMatrix, regular := Start.endpointRegular, nonzero := Start.invertible].Clutched[] \as First;
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[n := n,
+  a := loopMatrix, regular := loopMatrixRegular, nonzero := loopNonzero].Clutched[] \as Last;
+\import First.Comparison[b := loopMatrix, regularB := loopMatrixRegular, nonzeroB := loopNonzero] \as Comparison;
+\import topological_constructions.Product[A := X, B := C.Complex] \as Parameters;
+\definition parameterTopology: topology.Topology[Carrier := Parameters.CarrierSet].Topology := Parameters.topology source Plane.topology;
+\definition inverseOnPlane[p: Parameters.CarrierSet]: M.Matrix := Inverse.inverse (Pair.first X C.Complex p);
+\definition inverseRegular: matrix_invariants.Topological[K := C.Complex, ring := Plane.Ring[].topologicalRing].At[n := n].Families[X := Parameters.CarrierSet].Regular parameterTopology inverseOnPlane :=
+  \fun (i, j: M.Index) => topology.Composition[A := Parameters.CarrierSet, B := X, C := C.Complex].composeContinuous parameterTopology source Plane.topology
+    (Pair.first X C.Complex) (\fun (x: X) => Inverse.inverse x i j) (Parameters.Maps[].firstContinuous source Plane.topology) (Inverse.regular i j);
+\definition identityRegular: matrix_invariants.Topological[K := C.Complex, ring := Plane.Ring[].topologicalRing].At[n := n].Families[X := Parameters.CarrierSet].Regular parameterTopology (\fun (_: Parameters.CarrierSet) => M.identity) :=
+  \fun (i, j: M.Index) => topology.Maps[A := Parameters.CarrierSet, B := C.Complex].constantContinuous parameterTopology Plane.topology (M.identity i j);
+\import \root.Linearization[].MatrixUnits[n := n, Y := Parameters.CarrierSet, source := parameterTopology,
+  A := inverseOnPlane, regular := inverseRegular, nonzero := (\fun (p: Parameters.CarrierSet) => Inverse.nonzero (Pair.first X C.Complex p))] \as Negative;
+\definition identityNonzero: matrix_invariants.Field[K := C.Complex, field := Scalars.field].At[n := n].Nonzero M.identity :=
+  \fun (zero: _) => Scalars.field.nontrivial (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ zero) M.atIdentity);
+\import \root.Linearization[].MatrixUnits[n := n, Y := Parameters.CarrierSet, source := parameterTopology,
+  A := (\fun (_: Parameters.CarrierSet) => M.identity), regular := identityRegular,
+  nonzero := (\fun (_: Parameters.CarrierSet) => identityNonzero)] \as Positive;
+\definition cancels: \forall (q: Circular.CarrierSet) -> M.product (Inverse.inverse (Pair.first X Circle.Carrier q)) (Start.endpointMatrix q) = loopMatrix q :=
+  \fun (q: Circular.CarrierSet) => eq_reason_in!{M.Matrix _
+    "=" { M.product (Inverse.inverse (Pair.first X Circle.Carrier q)) (M.product (gaugeMatrix (Pair.first X Circle.Carrier q)) (loopMatrix q)) } "by" {
+      congr!{M.Matrix M.Matrix} (M.product (Inverse.inverse (Pair.first X Circle.Carrier q))) _ _ (sym!{M.Matrix} _ _ (intertwines q)) }
+    "=" { M.product (M.product (Inverse.inverse (Pair.first X Circle.Carrier q)) (gaugeMatrix (Pair.first X Circle.Carrier q))) (loopMatrix q) } "by" {
+      sym!{M.Matrix} _ _ (M.Operations[].associative _ _ _) }
+    "=" { M.product M.identity (loopMatrix q) } "by" {
+      congr!{M.Matrix M.Matrix} (\fun (m: M.Matrix) => M.product m (loopMatrix q)) _ _
+        (M.Operations[].inverseLaws (gaugeMatrix (Pair.first X Circle.Carrier q)) (Inverse.certificate (Pair.first X Circle.Carrier q))).left }
+    "=" _ "by" { M.Operations[].leftIdentity (loopMatrix q) }
+  };
+\import Hermitian.At[n := n].Square[] \as Square;
+\definition compatible: \forall (q: Circular.CarrierSet)(v: M.Vector) ->
+  (M.linear (Inverse.inverse (Pair.first X Circle.Carrier q))).apply ((M.linear (Start.endpointMatrix q)).apply v) =
+  (M.linear (loopMatrix q)).apply ((M.linear M.identity).apply v) :=
+  \fun (q: Circular.CarrierSet)(v: M.Vector) => eq_reason_in!{M.Vector _
+    "=" { (M.linear (M.product (Inverse.inverse (Pair.first X Circle.Carrier q)) (Start.endpointMatrix q))).apply v } "by" { Square.applyProduct _ _ v }
+    "=" { (M.linear (loopMatrix q)).apply v } "by" { congr!{M.Matrix M.Vector} (\fun (m: M.Matrix) => (M.linear m).apply v) _ _ (cancels q) }
+    "=" _ "by" { sym!{M.Vector} _ _ (congr!{M.Vector M.Vector} (M.linear (loopMatrix q)).apply _ _ (congr!{End.Map M.Vector} (\fun (f: End.Map) => f.apply v) _ _ Square.linearIdentity)) }
+  };
+\definition gauge: Comparison.Gauge := Comparison.Gauge {
+  positive := Positive.map, negative := Negative.map, positiveContinuous := Positive.continuous, negativeContinuous := Negative.continuous,
+  compatible := compatible,
+};
+\import vector_bundles.Bundles[].Over[K := C.Complex, field := Scalars.field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Bundles;
+\definition Base: \Set := First.Carrier;
+\definition StartFiber: Base -> \Set := First.Fiber;
+\definition startBundle: Bundles.Family[X := Base, F := StartFiber].Bundle := First.bundle;
+\definition NormalFiber: Base -> \Set := Last.Fiber;
+\definition normalBundle: Bundles.Family[X := Base, F := NormalFiber].Bundle := Last.bundle;
+\definition isomorphism: Bundles.Isomorphisms[X := Base, F := StartFiber, G := NormalFiber, source := startBundle, target := normalBundle].Isomorphism :=
+  Comparison.FromGauge[gauge := gauge].value;
+\module Product;

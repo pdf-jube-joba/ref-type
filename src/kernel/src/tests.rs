@@ -2198,3 +2198,112 @@ fn strengthening_reduces_only_dependencies_on_the_removed_binder() {
     ));
     assert_eq!(crate::reduction::strengthen(&env, set, 0).unwrap(), set);
 }
+
+#[test]
+fn curried_conversion_preserves_argument_order_and_free_variables() {
+    let env = Environment::new();
+    let a = &env.arena;
+    let set = a.sort(Sort::Base(BaseSort::Set(0)));
+    let mut term = a.alloc(Node::Equal {
+        left: a.bound(63),
+        right: a.bound(0),
+    });
+    for _ in 0..64 {
+        term = a.alloc(Node::Lambda {
+            mode: Mode::Pure,
+            var: SymbolId::ANONYMOUS,
+            domain: set,
+            body: term,
+        });
+    }
+    for index in 0..64 {
+        term = a.alloc(Node::App {
+            mode: Mode::Pure,
+            function: term,
+            argument: a.bound(index),
+        });
+    }
+    let expected = a.alloc(Node::Equal {
+        left: a.bound(0),
+        right: a.bound(63),
+    });
+    let different = a.alloc(Node::Equal {
+        left: a.bound(1),
+        right: a.bound(63),
+    });
+    assert!(reduction::erased_convertible(&env, term, expected).unwrap());
+    assert!(reduction::convertible(&env, term, expected).unwrap());
+    assert!(!reduction::erased_convertible(&env, term, different).unwrap());
+}
+
+#[test]
+fn transparent_congruence_ignores_unused_captures_but_checks_their_types() {
+    let mut env = Environment::new();
+    let a = env.arena.clone();
+    let set = a.sort(Sort::Base(BaseSort::Set(0)));
+    let mut metas = MetaContext::new();
+    let context = vec![binding(set), binding(a.bound(0)), binding(a.bound(1))];
+    let ty = a.alloc(Node::Product {
+        var: SymbolId::ANONYMOUS,
+        domain: a.bound(2),
+        body: a.bound(3),
+    });
+    let body = a.alloc(Node::Lambda {
+        mode: Mode::Pure,
+        var: SymbolId::ANONYMOUS,
+        domain: a.bound(2),
+        body: a.bound(2),
+    });
+    let base = env
+        .register_definition(
+            &mut metas,
+            Definition {
+                context: context.clone(),
+                ty,
+                body,
+            },
+        )
+        .unwrap();
+    let alias_body = env
+        .reference(base, vec![a.bound(2), a.bound(1), a.bound(0)])
+        .unwrap();
+    let alias = env
+        .register_definition(
+            &mut metas,
+            Definition {
+                context: context.clone(),
+                ty,
+                body: alias_body,
+            },
+        )
+        .unwrap();
+    let first = env
+        .reference(alias, vec![a.bound(3), a.bound(2), a.bound(1)])
+        .unwrap();
+    let second = env
+        .reference(alias, vec![a.bound(3), a.bound(2), a.bound(0)])
+        .unwrap();
+    let different = env
+        .reference(alias, vec![a.bound(3), a.bound(1), a.bound(0)])
+        .unwrap();
+    assert!(reduction::erased_convertible(&env, first, second).unwrap());
+    assert!(!reduction::erased_convertible(&env, first, different).unwrap());
+    let wrong_arity = a.alloc(Node::Definition {
+        id: alias,
+        arguments: vec![a.bound(3), a.bound(2)],
+    });
+    assert!(reduction::erased_convertible(&env, first, wrong_arity).is_err());
+    let mut outer = context;
+    outer.push(binding(a.bound(2)));
+    Checker::new(&env, &mut metas, outer.clone())
+        .infer(first)
+        .unwrap();
+    let ill_typed = env
+        .reference(alias, vec![a.bound(3), a.bound(2), set])
+        .unwrap();
+    assert!(
+        Checker::new(&env, &mut metas, outer)
+            .infer(ill_typed)
+            .is_err()
+    );
+}

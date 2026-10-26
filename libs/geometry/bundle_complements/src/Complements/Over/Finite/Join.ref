@@ -1,0 +1,40 @@
+\import Geometry.Finite[n := k] \as Source;
+\import Geometry.Finite[n := N.Nat^::succ k] \as Higher;
+\import Source.Successor[] \as Split;
+\definition apply[v: Higher.Vector]: E.Vector := E.space.add (E.space.smul (Split.head v) unit) (lower.value.apply (Split.tail v));
+\definition value: Spaces.Linear[V := Higher.Vector, W := E.Vector, source := Higher.space, target := E.space].Map := Spaces.Linear[V := Higher.Vector, W := E.Vector, source := Higher.space, target := E.space].Map {
+  apply := apply,
+  preservesAdd := \fun (v, w: Higher.Vector) => trans!{{E.Vector}} _ _ _
+    (congr!{{E.Vector} {E.Vector} {E.Vector}} E.space.add _ _ _ _ (E.space.scalarAdd (Split.head v) (Split.head w) unit) (lower.value.preservesAdd (Split.tail v) (Split.tail w))) (Laws.shuffle _ _ _ _),
+  preservesScale := \fun (a: K)(v: Higher.Vector) => trans!{{E.Vector}} _ _ _
+    (congr!{{E.Vector} {E.Vector} {E.Vector}} E.space.add _ _ _ _ (E.space.scalarAssoc a (Split.head v) unit) (lower.value.preservesScale a (Split.tail v)))
+    (sym!{{E.Vector}} _ _ (E.space.vectorAdd a _ _))
+};
+\definition unitDot: \forall (v: Higher.Vector) -> E.dot unit (apply v) = Split.head v :=
+  \fun (v: Higher.Vector) => trans!{K} _ _ _ (E.form.addRight unit _ _)
+    (trans!{K} _ _ _
+      (congr!{K K K} field.add _ _ _ _
+        (trans!{K} _ _ _ (E.form.scaleRight (Split.head v) unit unit) (trans!{K} _ _ _ (congr!{K K} (field.mul (Split.head v)) _ _ norm) (Spaces.mulOneRight (Split.head v))))
+        (orthogonal (Split.tail v)))
+      (Spaces.addZeroRight (Split.head v)));
+\definition lowerDot: \forall (v: Source.Vector)(w: Higher.Vector) -> E.dot (lower.value.apply v) (apply w) = Source.dot v (Split.tail w) :=
+  \fun (v: Source.Vector)(w: Higher.Vector) => trans!{K} _ _ _ (E.form.addRight (lower.value.apply v) _ _)
+    (trans!{K} _ _ _
+      (congr!{K K K} field.add _ _ _ _
+        (trans!{K} _ _ _ (E.form.scaleRight (Split.head w) (lower.value.apply v) unit)
+          (trans!{K} _ _ _ (congr!{K K} (field.mul (Split.head w)) _ _
+            (trans!{K} _ _ _ (E.form.symmetric (lower.value.apply v) unit)
+              (trans!{K} _ _ _ (congr!{K K} Geometry.conj _ _ (orthogonal v)) Geometry.conjugateZero)))
+            (Spaces.mulZeroRight (Split.head w))))
+        (lower.isometry v (Split.tail w)))
+      (Spaces.addZeroLeft (Source.dot v (Split.tail w))));
+\definition isometry: \forall (v, w: Higher.Vector) -> E.dot (value.apply v) (value.apply w) = Higher.dot v w :=
+  \fun (v, w: Higher.Vector) => trans!{K} _ _ _ (Inner.addLeft _ _ (apply w))
+    (congr!{K K K} field.add _ _ _ _
+      (trans!{K} _ _ _ (Inner.scaleLeft (Split.head v) unit (apply w)) (congr!{K K} (field.mul (Geometry.conj (Split.head v))) _ _ (unitDot w)))
+      (lowerDot (Split.tail v) w));
+\definition frame: Orthonormal[N.Nat^::succ k] := Orthonormal[N.Nat^::succ k] { value := value, isometry := isometry };
+\definition onJoin: \forall (a: K)(v: Vector k) -> value.apply (Split.join a v) = E.space.add (E.space.smul a unit) (lower.value.apply v) :=
+  \fun (a: K)(v: Vector k) => congr!{{E.Vector} {E.Vector} {E.Vector}} E.space.add _ _ _ _
+    (congr!{K {E.Vector}} (\fun (b: K) => E.space.smul b unit) _ _ (Split.joinHead a v))
+    (congr!{{Vector k} {E.Vector}} lower.value.apply _ _ (Split.joinTail a v));

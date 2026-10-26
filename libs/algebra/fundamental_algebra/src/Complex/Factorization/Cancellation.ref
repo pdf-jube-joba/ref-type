@@ -1,0 +1,32 @@
+\definition mulNegative: \forall (p, q: Polynomial.Carrier) -> Polynomial.mul p (Polynomial.neg q) = Polynomial.neg (Polynomial.mul p q) :=
+  \fun (p, q: Polynomial.Carrier) => PolynomialSum.inverseUnique (Polynomial.mul p q) (Polynomial.mul p (Polynomial.neg q))
+    (trans!{Polynomial.Carrier} _ _ _ (sym!{Polynomial.Carrier} _ _ (Raw.ring.semiring.leftDistributive p (Polynomial.neg q) q))
+      (trans!{Polynomial.Carrier} _ _ _ (congr!{Polynomial.Carrier Polynomial.Carrier} (Polynomial.mul p) _ _ (PolynomialSum.inverseLeft q)) (Raw.ring.semiring.zeroAbsorbsRight p)));
+\definition linearNonzeroProduct: \forall (x: C.Complex)(p: Polynomial.Carrier) -> Logic.Not (p = Polynomial.zero) ->
+  Logic.Not (Polynomial.mul (Monic.linearFactor x) p = Polynomial.zero) := \block {
+  \fun (x: C.Complex)(p: Polynomial.Carrier)(nonzero: _)(zero: _) \then
+  \takefrom f: Normalization.Form p \by Normalization.exists p nonzero \then
+  \let equation: Polynomial.mul (Monic.linearFactor x) p = Polynomial.mul (Polynomial.constant f.leading) (Monic.asPolynomial (RootProduct.list (RootProduct.linear x f.coefficients))) :=
+    eq_reason_in!{Polynomial.Carrier { Polynomial.mul (Monic.linearFactor x) p }
+      "=" _ "by" { congr!{Polynomial.Carrier Polynomial.Carrier} (Polynomial.mul (Monic.linearFactor x)) _ _ f.equation }
+      "=" { Polynomial.mul (Polynomial.constant f.leading) (Polynomial.mul (Monic.linearFactor x) (Monic.asPolynomial f.coefficients)) } "by" {
+        trans!{Polynomial.Carrier} _ _ _ (sym!{Polynomial.Carrier} _ _ (Product.assoc (Monic.linearFactor x) (Polynomial.constant f.leading) (Monic.asPolynomial f.coefficients)))
+          (trans!{Polynomial.Carrier} _ _ _ (congr!{Polynomial.Carrier Polynomial.Carrier} (\fun (q: Polynomial.Carrier) => Polynomial.mul q (Monic.asPolynomial f.coefficients)) _ _ (Product.comm (Monic.linearFactor x) (Polynomial.constant f.leading)))
+            (Product.assoc (Polynomial.constant f.leading) (Monic.linearFactor x) (Monic.asPolynomial f.coefficients))) }
+      "=" _ "by" { congr!{Polynomial.Carrier Polynomial.Carrier} (Polynomial.mul (Polynomial.constant f.leading)) _ _ (sym!{Polynomial.Carrier} _ _ (RootProduct.linearLaw x f.coefficients)) }
+    } \then
+  \return Normalization.factorNonzero f.leading f.nonzero (RootProduct.list (RootProduct.linear x f.coefficients)) (trans!{Polynomial.Carrier} _ _ _ (sym!{Polynomial.Carrier} _ _ equation) zero)
+};
+\definition linear: \forall (x: C.Complex)(p, q: Polynomial.Carrier) ->
+  Polynomial.mul (Monic.linearFactor x) p = Polynomial.mul (Monic.linearFactor x) q -> p = q := \block {
+  \fun (x: C.Complex)(p, q: Polynomial.Carrier)(equal: _) \then
+  \let d: Polynomial.Carrier := Polynomial.add p (Polynomial.neg q) \then
+  \let productZero: Polynomial.mul (Monic.linearFactor x) d = Polynomial.zero := eq_reason_in!{Polynomial.Carrier _
+    "=" _ "by" { Raw.ring.semiring.leftDistributive (Monic.linearFactor x) p (Polynomial.neg q) }
+    "=" { Polynomial.add (Polynomial.mul (Monic.linearFactor x) q) (Polynomial.neg (Polynomial.mul (Monic.linearFactor x) q)) } "by" {
+      congr!{Polynomial.Carrier Polynomial.Carrier Polynomial.Carrier} Polynomial.add _ _ _ _ equal (mulNegative (Monic.linearFactor x) q) }
+    "=" _ "by" { PolynomialSum.inverseRight (Polynomial.mul (Monic.linearFactor x) q) }
+  } \then
+  \let zero: d = Polynomial.zero := Order.byContradiction (d = Polynomial.zero) (\fun (nonzero: _) => linearNonzeroProduct x d nonzero productZero) \then
+  \return PolynomialSum.cancelRight (Polynomial.neg q) p q (trans!{Polynomial.Carrier} _ _ _ zero (sym!{Polynomial.Carrier} _ _ (PolynomialSum.inverseRight q)))
+};

@@ -274,6 +274,7 @@ Tor の比較同型では、親の比較写像と同型に区別できる別名�
 [18-01-module-function-value.ref](gaps/18-01-module-function-value.ref) は `apply Family[j := j].value` を使うが、捕捉した `j` が `Set` として扱われ、`inferred: Set, expected: Point` になる。
 [18-02-module-function-eta.ref](gaps/18-02-module-function-eta.ref) は `apply (\fun (i: Point) => Family[j := j].value i)` と明示的に eta 展開して型検査を通す。
 `quintic.Generic.Field.Over.Distinctness.independentImpliesDistinct` は、多項式の評価に渡す指示関数を局所 lambda で定義している。
+`hermitian_frames.Hermitian.Examples.MovingLine.localFrames` でも、量化した枠のデータに依存する射影族を別の module の引数に渡す際に eta 展開する。
 
 <a id="g19"></a>
 

@@ -1,0 +1,23 @@
+\import \root.Linearization[].Companion[n := n, d := d].With[coefficients := coefficients (base p)] \as Cyclic;
+\import Cyclic.Linearize[z := variable p] \as Native;
+\import \root.Linearization[].Companion[n := n, d := d].Shift[z := variable p] \as Shift;
+\import Spaces.Isomorphism[V := Carrier, W := Sum.Carrier, source := space, target := Sum.space] \as Out;
+\import Spaces.Isomorphism[V := Sum.Carrier, W := Carrier, source := Sum.space, target := space] \as Into;
+\import \root.Linearization[].Blocks[V := Vectors.Vector, W := Coordinates.Carrier d, left := Vectors.space, right := Coordinates.space d] \as Blocks;
+\definition pencil: Operators.Map := Native.pencil;
+\definition left: EndIso.Isomorphism := Into.Composition[U := Carrier, domain := space].compose (Out.inverse Splitting.isomorphism) Native.leftIsomorphism;
+\definition right: EndIso.Isomorphism := EndIso.inverse Shift.isomorphism;
+\import Spaces.Linear[V := Sum.Carrier, W := Carrier, source := Sum.space, target := space] \as LinearInto;
+\definition diagonal: Operators.Map := LinearInto.Composition[U := Carrier, domain := space].compose Splitting.backward
+  (Spaces.Linear[V := Sum.Carrier, W := Sum.Carrier, source := Sum.space, target := Sum.space].Composition[U := Carrier, domain := space].compose (Blocks.diagonal (Cyclic.polynomial (variable p))) Splitting.forward);
+\definition rightComparison: \forall (v: Carrier) -> Native.rightIsomorphism.forward.apply (Splitting.forward.apply v) = right.forward.apply v :=
+  \fun (v: Carrier) => congr!{Carrier Carrier} Shift.solve.apply _ _ (Tuples.recover d v);
+\definition comparison: \forall (v: Carrier) -> left.forward.apply (pencil.apply (right.forward.apply v)) = diagonal.apply v :=
+  \fun (v: Carrier) => trans!{Carrier} _ _ _
+    (congr!{Carrier Carrier} (\fun (w: Carrier) => left.forward.apply (pencil.apply w)) _ _ (sym!{Carrier} _ _ (rightComparison v)))
+    (congr!{Sum.Carrier Carrier} Splitting.backward.apply _ _ (Native.comparison (Splitting.forward.apply v)));
+\definition remainder: Spaces.Linear[V := Coordinates.Carrier d, W := Vectors.Vector, source := Coordinates.space d, target := Vectors.space].Map := Native.remainder;
+\definition operator: Operators.Map := Cyclic.operator;
+\definition operatorFormula: \forall (v: Carrier) -> (matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := Coordinates.dimension degree].linear Cyclic.Spectral[].matrix).apply (Coordinates.flatten degree v) = Coordinates.flatten degree (operator.apply v) :=
+  \fun (v: Carrier) => trans!{{Fin.Fin (Coordinates.dimension degree) -> C.Complex}} _ _ _ (Cyclic.Spectral[].formula (Coordinates.flatten degree v))
+    (congr!{Carrier {Fin.Fin (Coordinates.dimension degree) -> C.Complex}} (\fun (w: Carrier) => Coordinates.flatten degree (operator.apply w)) _ _ (Coordinates.leftInverse degree v));

@@ -1,0 +1,108 @@
+\import galois.Field[].Over[K := C.Complex, field := Scalars.field].Polynomial[].Raw[] \as Raw;
+\import algebra.Group[].Of[Carrier := P.Carrier, group := std.Alg[].Ring[].additiveGroup P.Carrier (std.Alg[].Ring[].commutativeRingAsRing P.Carrier P.ring)] \as Sum;
+\import algebra.Monoid[].Of[Carrier := P.Carrier, monoid := Raw.multiplicative] \as Product;
+\definition tailPrepend: \forall (k: N.Nat^)(a: C.Complex)(p: Data[k]) -> tail k (prepend k a p) = p :=
+  \fun (k: N.Nat^)(a: C.Complex) => \induction (p: Data[k]) \return tail k (prepend k a p) = p \with {
+    | # : \fun (top: C.Complex)(lower: Roots.Vector k) =>
+      congr!{{Roots.Vector k} {Data[k]}} (\fun (c: Roots.Vector k) => Data[k] { top := top, lower := c }) _ _
+        (\axiom:funext((\fun (i: Fin.Fin k) => Tuples.extend k a lower (Fin.succ k i)), lower, Tuples.atSuccessor k a lower))
+  };
+\definition prependPolynomial: \forall (k: N.Nat^)(a: C.Complex)(p: Data[k]) ->
+  polynomial (N.Nat^::succ k) (prepend k a p) = P.add (P.constant a) (P.mul P.X (polynomial k p)) :=
+  \fun (k: N.Nat^)(a: C.Complex)(p: Data[k]) => congr!{{P.Carrier} {P.Carrier} {P.Carrier}} P.add _ _ _ _
+    (congr!{{C.Complex} {P.Carrier}} P.constant _ _ (Tuples.atZero k a p.lower))
+    (congr!{{Data[k]} {P.Carrier}} (\fun (q: Data[k]) => P.mul P.X (polynomial k q)) _ _ (tailPrepend k a p));
+\definition addition: \forall (k: N.Nat^)(p, q: Data[k]) -> polynomial k (plus k p q) = P.add (polynomial k p) (polynomial k q) :=
+  \induction (k: N.Nat^) \return \forall (p, q: Data[k]) -> polynomial k (plus k p q) = P.add (polynomial k p) (polynomial k q) \with {
+    | zero: \fun (p, q: Data[N.Nat^::zero]) => Raw.coefficientLaws.add p.top q.top
+    | succ: \fun (k: N.Nat^)(previous: _)(p, q: Data[N.Nat^::succ k]) => eq_reason_in!{{P.Carrier} _
+      "=" { P.add (P.add (P.constant (p.lower (Fin.zero k))) (P.constant (q.lower (Fin.zero k)))) (P.mul P.X (P.add (polynomial k (tail k p)) (polynomial k (tail k q)))) } "by" {
+        congr!{{P.Carrier} {P.Carrier} {P.Carrier}} P.add _ _ _ _ (Raw.coefficientLaws.add (p.lower (Fin.zero k)) (q.lower (Fin.zero k)))
+          (congr!{{P.Carrier} {P.Carrier}} (P.mul P.X) _ _ (previous (tail k p) (tail k q)))
+      }
+      "=" _ "by" { congr!{{P.Carrier} {P.Carrier}} (P.add (P.add (P.constant (p.lower (Fin.zero k))) (P.constant (q.lower (Fin.zero k))))) _ _
+        (P.ring.ring.semiring.leftDistributive P.X (polynomial k (tail k p)) (polynomial k (tail k q))) }
+      "=" _ "by" { Sum.four (P.constant (p.lower (Fin.zero k))) (P.constant (q.lower (Fin.zero k))) (P.mul P.X (polynomial k (tail k p))) (P.mul P.X (polynomial k (tail k q))) }
+    }
+  };
+\definition scaling: \forall (k: N.Nat^)(a: C.Complex)(p: Data[k]) -> polynomial k (scale k a p) = P.mul (P.constant a) (polynomial k p) :=
+  \induction (k: N.Nat^) \return \forall (a: C.Complex)(p: Data[k]) -> polynomial k (scale k a p) = P.mul (P.constant a) (polynomial k p) \with {
+    | zero: \fun (a: C.Complex)(p: Data[N.Nat^::zero]) => Raw.coefficientLaws.mul a p.top
+    | succ: \fun (k: N.Nat^)(previous: _)(a: C.Complex)(p: Data[N.Nat^::succ k]) => eq_reason_in!{{P.Carrier} _
+      "=" { P.add (P.mul (P.constant a) (P.constant (p.lower (Fin.zero k)))) (P.mul P.X (P.mul (P.constant a) (polynomial k (tail k p)))) } "by" {
+        congr!{{P.Carrier} {P.Carrier} {P.Carrier}} P.add _ _ _ _ (Raw.coefficientLaws.mul a (p.lower (Fin.zero k)))
+          (congr!{{P.Carrier} {P.Carrier}} (P.mul P.X) _ _ (previous a (tail k p)))
+      }
+      "=" _ "by" { congr!{{P.Carrier} {P.Carrier}} (P.add (P.mul (P.constant a) (P.constant (p.lower (Fin.zero k))))) _ _ (Product.swap P.X (P.constant a) (polynomial k (tail k p))) }
+      "=" _ "by" { sym!{{P.Carrier}} _ _ (P.ring.ring.semiring.leftDistributive (P.constant a) (P.constant (p.lower (Fin.zero k))) (P.mul P.X (polynomial k (tail k p)))) }
+    }
+  };
+\definition constant: \forall (k: N.Nat^)(a: C.Complex)(p: Data[k]) -> polynomial k (addConstant k a p) = P.add (P.constant a) (polynomial k p) :=
+  \induction (k: N.Nat^) \return \forall (a: C.Complex)(p: Data[k]) -> polynomial k (addConstant k a p) = P.add (P.constant a) (polynomial k p) \with {
+    | zero: \fun (a: C.Complex)(p: Data[N.Nat^::zero]) => Raw.coefficientLaws.add a p.top
+    | succ: \fun (k: N.Nat^)(previous: _)(a: C.Complex)(p: Data[N.Nat^::succ k]) => trans!{{P.Carrier}} _ _ _
+      (prependPolynomial k (Scalars.field.add a (p.lower (Fin.zero k))) (tail k p))
+      (trans!{{P.Carrier}} _ _ _ (congr!{{P.Carrier} {P.Carrier}} (\fun (q: P.Carrier) => P.add q (P.mul P.X (polynomial k (tail k p)))) _ _ (Raw.coefficientLaws.add a (p.lower (Fin.zero k))))
+      (Sum.assoc (P.constant a) (P.constant (p.lower (Fin.zero k))) (P.mul P.X (polynomial k (tail k p)))))
+  };
+\definition leadingAddition: \forall (k: N.Nat^)(p, q: Data[k]) -> leading k (plus k p q) = Scalars.field.add (leading k p) (leading k q) :=
+  \fun (k: N.Nat^)(p, q: Data[k]) => \refl(Scalars.field.add p.top q.top);
+\definition leadingScale: \forall (k: N.Nat^)(a: C.Complex)(p: Data[k]) -> leading k (scale k a p) = Scalars.field.mul a (leading k p) :=
+  \fun (k: N.Nat^)(a: C.Complex)(p: Data[k]) => \refl(Scalars.field.mul a p.top);
+\definition hornerProduct: \forall (a, b, c, q: P.Carrier) ->
+  P.add (P.mul a c) (P.mul P.X (P.add (P.mul b c) (P.mul (P.add a (P.mul P.X b)) q))) =
+    P.mul (P.add a (P.mul P.X b)) (P.add c (P.mul P.X q)) :=
+  \fun (a, b, c, q: P.Carrier) => eq_reason_in!{{P.Carrier} _
+    "=" _ "by" { congr!{{P.Carrier} {P.Carrier}} (P.add (P.mul a c)) _ _
+      (P.ring.ring.semiring.leftDistributive P.X (P.mul b c) (P.mul (P.add a (P.mul P.X b)) q)) }
+    "=" { P.add (P.mul a c) (P.add (P.mul (P.mul P.X b) c) (P.mul (P.add a (P.mul P.X b)) (P.mul P.X q))) } "by" {
+      congr!{{P.Carrier} {P.Carrier}} (P.add (P.mul a c)) _ _
+        (congr!{{P.Carrier} {P.Carrier} {P.Carrier}} P.add _ _ _ _
+          (sym!{{P.Carrier}} _ _ (Product.assoc P.X b c)) (Product.swap P.X (P.add a (P.mul P.X b)) q))
+    }
+    "=" _ "by" { sym!{{P.Carrier}} _ _ (Sum.assoc (P.mul a c) (P.mul (P.mul P.X b) c) (P.mul (P.add a (P.mul P.X b)) (P.mul P.X q))) }
+    "=" _ "by" { congr!{{P.Carrier} {P.Carrier}} (\fun (v: P.Carrier) => P.add v (P.mul (P.add a (P.mul P.X b)) (P.mul P.X q))) _ _
+      (sym!{{P.Carrier}} _ _ (P.ring.ring.semiring.rightDistributive a (P.mul P.X b) c)) }
+    "=" _ "by" { sym!{{P.Carrier}} _ _ (P.ring.ring.semiring.leftDistributive (P.add a (P.mul P.X b)) c (P.mul P.X q)) }
+  };
+\definition affineProduct: \forall (k: N.Nat^)(a, b: C.Complex)(p: Data[k]) ->
+  polynomial (N.Nat^::succ k) (affine k a b p) = P.mul (P.add (P.constant a) (P.mul P.X (P.constant b))) (polynomial k p) :=
+  \induction (k: N.Nat^) \return \forall (a, b: C.Complex)(p: Data[k]) ->
+    polynomial (N.Nat^::succ k) (affine k a b p) = P.mul (P.add (P.constant a) (P.mul P.X (P.constant b))) (polynomial k p) \with {
+    | zero: \fun (a, b: C.Complex)(p: Data[N.Nat^::zero]) => eq_reason_in!{{P.Carrier} _
+      "=" _ "by" { prependPolynomial N.Nat^::zero (Scalars.field.mul a p.top) (Data[N.Nat^::zero] { top := Scalars.field.mul b p.top, lower := p.lower }) }
+      "=" { P.add (P.mul (P.constant a) (P.constant p.top)) (P.mul P.X (P.mul (P.constant b) (P.constant p.top))) } "by" {
+        congr!{{P.Carrier} {P.Carrier} {P.Carrier}} P.add _ _ _ _ (Raw.coefficientLaws.mul a p.top)
+          (congr!{{P.Carrier} {P.Carrier}} (P.mul P.X) _ _ (Raw.coefficientLaws.mul b p.top))
+      }
+      "=" _ "by" { congr!{{P.Carrier} {P.Carrier}} (P.add (P.mul (P.constant a) (P.constant p.top))) _ _ (sym!{{P.Carrier}} _ _ (Product.assoc P.X (P.constant b) (P.constant p.top))) }
+      "=" _ "by" { sym!{{P.Carrier}} _ _ (P.ring.ring.semiring.rightDistributive (P.constant a) (P.mul P.X (P.constant b)) (P.constant p.top)) }
+    }
+    | succ: \fun (k: N.Nat^)(previous: _)(a, b: C.Complex)(p: Data[N.Nat^::succ k]) => eq_reason_in!{{P.Carrier} _
+      "=" _ "by" { prependPolynomial (N.Nat^::succ k) (Scalars.field.mul a (p.lower (Fin.zero k)))
+        (addConstant (N.Nat^::succ k) (Scalars.field.mul b (p.lower (Fin.zero k))) (affine k a b (tail k p))) }
+      "=" { P.add (P.mul (P.constant a) (P.constant (p.lower (Fin.zero k))))
+        (P.mul P.X (P.add (P.constant (Scalars.field.mul b (p.lower (Fin.zero k)))) (polynomial (N.Nat^::succ k) (affine k a b (tail k p))))) } "by" {
+        congr!{{P.Carrier} {P.Carrier} {P.Carrier}} P.add _ _ _ _ (Raw.coefficientLaws.mul a (p.lower (Fin.zero k)))
+          (congr!{{P.Carrier} {P.Carrier}} (P.mul P.X) _ _ (constant (N.Nat^::succ k) (Scalars.field.mul b (p.lower (Fin.zero k))) (affine k a b (tail k p))))
+      }
+      "=" _ "by" { congr!{{P.Carrier} {P.Carrier}} (P.add (P.mul (P.constant a) (P.constant (p.lower (Fin.zero k))))) _ _
+        (congr!{{P.Carrier} {P.Carrier}} (P.mul P.X) _ _
+          (congr!{{P.Carrier} {P.Carrier} {P.Carrier}} P.add _ _ _ _ (Raw.coefficientLaws.mul b (p.lower (Fin.zero k))) (previous a b (tail k p)))) }
+      "=" _ "by" { hornerProduct (P.constant a) (P.constant b) (P.constant (p.lower (Fin.zero k))) (polynomial k (tail k p)) }
+    }
+  };
+\definition leadingAffine: \forall (k: N.Nat^)(a, b: C.Complex)(p: Data[k]) ->
+  leading (N.Nat^::succ k) (affine k a b p) = Scalars.field.mul b (leading k p) :=
+  \induction (k: N.Nat^) \return \forall (a, b: C.Complex)(p: Data[k]) ->
+    leading (N.Nat^::succ k) (affine k a b p) = Scalars.field.mul b (leading k p) \with {
+    | zero: \fun (a, b: C.Complex)(p: Data[N.Nat^::zero]) => \refl(Scalars.field.mul b p.top)
+    | succ: \fun (k: N.Nat^)(previous: _)(a, b: C.Complex)(p: Data[N.Nat^::succ k]) => previous a b (tail k p)
+  };
+\definition monic: \forall (k: N.Nat^)(p: Data[k]) -> p.top = Scalars.field.one -> polynomial k p = Roots.polynomial k p.lower :=
+  \induction (k: N.Nat^) \return \forall (p: Data[k]) -> p.top = Scalars.field.one -> polynomial k p = Roots.polynomial k p.lower \with {
+    | zero: \fun (p: Data[N.Nat^::zero])(one: _) => trans!{{P.Carrier}} _ _ _
+      (congr!{{C.Complex} {P.Carrier}} P.constant _ _ one) Raw.coefficientLaws.one
+    | succ: \fun (k: N.Nat^)(previous: _)(p: Data[N.Nat^::succ k])(one: _) =>
+      congr!{{P.Carrier} {P.Carrier}} (\fun (q: P.Carrier) => P.add (P.constant (p.lower (Fin.zero k))) (P.mul P.X q)) _ _ (previous (tail k p) one)
+  };

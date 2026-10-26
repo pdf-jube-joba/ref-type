@@ -1,0 +1,42 @@
+\import \root.Linearization[].IdentityImage[n := n, X := X, source := source] \as IdentityImage;
+\definition nonzeroZ: \forall (x: Overlap) -> C.Def[].NonZero (z x) :=
+  \fun (x: Overlap)(zero: _) => Powers.nonzero (z x) (unitZ x) one (trans!{{C.Complex}} _ _ _ (C.Prop[].mulOneRight (z x)) zero);
+\import \root.Linearization[].ProjectionBundle[n := n, X := X, source := source, P := (\fun (_: X) => IdentityImage.projection), regular := IdentityImage.regular].Clutching[
+  U := U, V := V, openU := openU, openV := openV, covers := covers].With[
+  a := z, continuous := continuousZ, nonzero := nonzeroZ] \as Model;
+\import Model.KClass[compact := compact, hausdorff := hausdorff] \as Product;
+\import vector_bundles.Bundles[].Over[K := C.Complex, field := Scalars.field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar].Trivial[X := X, n := n, baseSpace := source] \as Trivial;
+\import K.Compare[F := IdentityImage.Fiber, G := (\fun (_: X) => Vectors.Vector), first := IdentityImage.bundle, second := Trivial.bundle,
+  firstSame := \refl(source), secondSame := \refl(source)] \as ImageComparison;
+\import K.Trivial[n := n] \as Rank;
+\definition lineDifference: K0.Carrier := Product.lineDifference;
+\definition action: \forall (x: Overlap)(v: Vectors.Vector) -> (First.transition x).apply v = (Model.transition x).apply v :=
+  \fun (x: Overlap)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _ (First.formula x v)
+    (trans!{Vectors.Vector} _ _ _ (congr!{{C.Complex} Vectors.Vector} (\fun (c: C.Complex) => Vectors.space.smul c v) _ _ (C.Prop[].mulOneRight (z x)))
+      (sym!{Vectors.Vector} _ _ (trans!{Vectors.Vector} _ _ _ (Model.transitionFormula x v)
+        (\root.Linearization[].ProjectionLoop[n := n, projection := IdentityImage.projection].onImage (z x) v))));
+\import \parent.\parent.Class[g := First.transition, continuous := First.regular].Compare[h := Model.transition, continuousH := Model.transitionContinuous] \as Comparison;
+\definition generatorComparison: generator = Product.reducedClass := Comparison.ofEquality (\fun (x: Overlap) => End.ext _ _
+  (\axiom:funext((First.transition x).apply, (Model.transition x).apply, action x)));
+\definition generatorFormula: generator = K0.mul lineDifference (K0.include Rank.value) :=
+  trans!{K0.Carrier} _ _ _ generatorComparison (trans!{K0.Carrier} _ _ _ Product.comparison
+    (congr!{K0.Carrier K0.Carrier} (K0.mul lineDifference) _ _ (congr!{K.Classes K0.Carrier} K0.include _ _ (ImageComparison.ofIsomorphism IdentityImage.isomorphism))));
+\import N.Basic[].Def[] \as Nat;
+\import algebra.GroupCompletion[].Semiring[M := K.Classes, semiring := K.Semiring[].semiring] \as Ring;
+\definition rankClass[k: N.Nat^]: K.Classes := K.Trivial[n := Nat.mul n k].value;
+\module Step(k: N.Nat^) {
+  \import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].TrivialSum[n := Nat.mul n k, m := n] \as Sum;
+  \definition ranks: K.Addition[].add Rank.value (rankClass k) = rankClass (N.Nat^::succ k) :=
+    trans!{K.Classes} _ _ _ (K.AdditiveMonoid[].commutative Rank.value (rankClass k)) Sum.additivity;
+  \definition included: K0.add (K0.include Rank.value) (K0.include (rankClass k)) = K0.include (rankClass (N.Nat^::succ k)) :=
+    trans!{K0.Carrier} _ _ _ (sym!{K0.Carrier} _ _ (K0.includeAdd Rank.value (rankClass k))) (congr!{K.Classes K0.Carrier} K0.include _ _ ranks);
+}
+\definition multipleFormula: \forall (k: N.Nat^) -> multiple k = K0.mul lineDifference (K0.include (rankClass k)) :=
+  \induction (k: N.Nat^) \return multiple k = K0.mul lineDifference (K0.include (rankClass k)) \with {
+    | zero: sym!{K0.Carrier} _ _ (Ring.mulZeroRight lineDifference)
+    | succ: \fun (k: N.Nat^)(previous: _) => trans!{K0.Carrier} _ _ _
+      (congr!{K0.Carrier K0.Carrier K0.Carrier} K0.add _ _ _ _ generatorFormula previous)
+      (trans!{K0.Carrier} _ _ _ (sym!{K0.Carrier} _ _ (Ring.mulAddRight lineDifference (K0.include Rank.value) (K0.include (rankClass k))))
+        (congr!{K0.Carrier K0.Carrier} (K0.mul lineDifference) _ _ Step[k := k].included))
+  };

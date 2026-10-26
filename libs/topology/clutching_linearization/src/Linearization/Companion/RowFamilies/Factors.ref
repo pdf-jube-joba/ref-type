@@ -1,0 +1,31 @@
+\definition order[k: N.Nat^]: N.Nat^ := Nat.add d k;
+\definition length[k: N.Nat^]: N.Nat^ := N.Nat^::succ (order k);
+\definition RowAt[k: N.Nat^]: \Set := Spaces.Linear[V := Coordinates.Carrier (length k), W := Vectors.Vector, source := Coordinates.space (length k), target := Vectors.space].Map;
+\definition iterated: \forall (k: N.Nat^) -> X -> RowAt k := \induction (k: N.Nat^) \return X -> RowAt k \with {
+  | zero: rows
+  | succ: \fun (k: N.Nat^)(previous: X -> RowAt k)(x: X) => \root.Linearization[].Companion[n := n, d := order k].FromRow[row := previous x].Factor[r := r].newRow
+};
+\definition Regular[k: N.Nat^][family: X -> RowAt k]: \Prop := \forall (v: Coordinates.Carrier (length k))(j: Fin.Fin n) -> topology.Continuity[A := X, B := C.Complex].Continuous source Plane.topology (\fun (x: X) => (family x).apply v j);
+\definition iteratedRegular: \forall (k: N.Nat^) -> Regular k (iterated k) := \induction (k: N.Nat^) \return Regular k (iterated k) \with {
+  | zero: regular
+  | succ: \fun (k: N.Nat^)(previous: Regular k (iterated k)) => \root.Linearization[].Companion[n := n, d := order k].RowFamilies[X := X, source := source, rows := iterated k, regular := previous].Factor[r := r].regularRows
+};
+\definition Kernel[k: N.Nat^][family: X -> RowAt k]: \Prop := \forall (x: X)(z: C.Complex) -> C.Absolute[].abs z = R.one -> \forall (v: Vectors.Vector) ->
+  (\root.Linearization[].Companion[n := n, d := order k].FromRow[row := family x].polynomial z).apply v = Vectors.origin -> v = Vectors.origin;
+\definition iteratedKernel: Kernel N.Nat^::zero rows -> \forall (k: N.Nat^) -> Kernel k (iterated k) :=
+  \fun (initial: Kernel N.Nat^::zero rows) => \induction (k: N.Nat^) \return Kernel k (iterated k) \with {
+    | zero: initial
+    | succ: \fun (k: N.Nat^)(previous: Kernel k (iterated k))(x: X) => \root.Linearization[].Companion[n := n, d := order k].FromRow[row := iterated k x].Factor[r := r].polynomialKernel (previous x) offR
+  };
+\definition polynomial[k: N.Nat^][x: X][z: C.Complex]: End.Map := \root.Linearization[].Companion[n := n, d := order k].FromRow[row := iterated k x].polynomial z;
+\definition polynomialFormula: \forall (k: N.Nat^)(x: X)(z: C.Complex)(v: Vectors.Vector) -> (polynomial k x z).apply v =
+  Vectors.scale (power (C.Def[].add z (C.Def[].neg r)) k) ((polynomial N.Nat^::zero x z).apply v) :=
+  \induction (k: N.Nat^) \return \forall (x: X)(z: C.Complex)(v: Vectors.Vector) -> (polynomial k x z).apply v =
+    Vectors.scale (power (C.Def[].add z (C.Def[].neg r)) k) ((polynomial N.Nat^::zero x z).apply v) \with {
+      | zero: \fun (x: X)(z: C.Complex)(v: Vectors.Vector) => sym!{Vectors.Vector} _ _ (Vectors.space.scalarOne ((polynomial N.Nat^::zero x z).apply v))
+      | succ: \fun (k: N.Nat^)(previous: _)(x: X)(z: C.Complex)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _
+        (\root.Linearization[].Companion[n := n, d := order k].FromRow[row := iterated k x].Factor[r := r].polynomialFactor z v)
+        (trans!{Vectors.Vector} _ _ _ (congr!{Vectors.Vector Vectors.Vector} (Vectors.scale (C.Def[].add z (C.Def[].neg r))) _ _ (previous x z v))
+          (sym!{Vectors.Vector} _ _ (Vectors.space.scalarAssoc (C.Def[].add z (C.Def[].neg r)) (power (C.Def[].add z (C.Def[].neg r)) k) ((polynomial N.Nat^::zero x z).apply v))))
+    };
+\module Separated(initial: Kernel N.Nat^::zero rows);

@@ -1,0 +1,73 @@
+\import Local.In[c := c] \as Original;
+\definition domain: \Pow Y := { y: Y \where Base.Member c.domain (f y) };
+\definition frame[y: \Cast[Y] domain]: Charts.Frame c.dimension y := c.frame (\into[X](f y, c.domain) \by { \bysub(Y, domain, y) });
+\definition chart: Charts.ChartData := Charts.ChartData { domain := domain, dimension := c.dimension, frame := frame };
+\import Charts.In[c := chart] \as Pulled;
+\import Base.Subspace[S := c.domain] \as OriginalBase;
+\import BaseSpace.Subspace[S := domain] \as PulledBase;
+\import topology.Continuity[A := Y, B := X].Restriction[S := domain] \as RestrictBase;
+\import topology.Continuity[A := Pulled.BasePoint, B := X].Corestriction[S := c.domain] \as CorestrictBase;
+\definition base[y: Pulled.BasePoint]: Original.BasePoint := \into[X](f y, c.domain) \by { \bysub(Y, domain, y) };
+\definition baseContinuous: topology.Continuity[A := Y, B := X].Continuous source bundle.baseSpace f ->
+  topology.Continuity[A := Pulled.BasePoint, B := Original.BasePoint].Continuous (PulledBase.topology source) (OriginalBase.topology bundle.baseSpace) base :=
+  \fun (regular: _) => CorestrictBase.corestrictContinuous (PulledBase.topology source) bundle.baseSpace base (RestrictBase.restrictContinuous source bundle.baseSpace f regular);
+\import topology.Continuity[A := Family.Point, B := Point].Restriction[S := { p: Family.Point \where BaseSpace.Member domain p.base }] \as RestrictMap;
+\import topology.Continuity[A := Pulled.TotalPoint, B := Point].Corestriction[S := { p: Point \where Base.Member c.domain p.base }] \as IntoOriginal;
+\definition original[p: Pulled.TotalPoint]: Original.TotalPoint := \into[Point](map p, { p: Point \where Base.Member c.domain p.base }) \by {
+  \bysub(Family.Point, { p: Family.Point \where BaseSpace.Member domain p.base }, p)
+};
+\definition originalContinuous: topology.Continuity[A := Pulled.TotalPoint, B := Original.TotalPoint].Continuous Pulled.localTopology Original.localTopology original :=
+  IntoOriginal.corestrictContinuous Pulled.localTopology bundle.totalSpace original (RestrictMap.restrictContinuous topology bundle.totalSpace map mapContinuous);
+\import topology.Continuity[A := Family.Point, B := Y].Restriction[S := { p: Family.Point \where BaseSpace.Member domain p.base }] \as RestrictProjection;
+\import topology.Continuity[A := Pulled.TotalPoint, B := Y].Corestriction[S := domain] \as IntoBase;
+\definition localProjectionContinuous: topology.Continuity[A := Pulled.TotalPoint, B := Pulled.BasePoint].Continuous Pulled.localTopology (PulledBase.topology source) Pulled.base :=
+  IntoBase.corestrictContinuous Pulled.localTopology source (\fun (p: Pulled.TotalPoint) => Pulled.base p)
+    (RestrictProjection.restrictContinuous topology source Family.projection projectionContinuous);
+\import topological_constructions.Product[A := Original.BasePoint, B := Vector c.dimension] \as OriginalProduct;
+\import OriginalProduct.Maps[] \as OriginalProjections;
+\import topology.Composition[A := Pulled.TotalPoint, B := Original.TotalPoint, C := Original.ProductPoint] \as ReadOriginal;
+\import topology.Composition[A := Pulled.TotalPoint, B := Original.ProductPoint, C := Vector c.dimension] \as ReadVector;
+\import topological_constructions.Product[A := Pulled.BasePoint, B := Vector c.dimension] \as PulledProduct;
+\import PulledProduct.Universal[X := Pulled.TotalPoint] \as PairForward;
+\definition forwardContinuous: topology.Continuity[A := Pulled.TotalPoint, B := Pulled.ProductPoint].Continuous Pulled.localTopology Pulled.productTopology Pulled.forward :=
+  PairForward.pairContinuous Pulled.localTopology (PulledBase.topology source) (coordinateTopology c.dimension)
+    (\fun (p: Pulled.TotalPoint) => Pulled.base p) (\fun (p: Pulled.TotalPoint) => (frame (Pulled.base p)).forward.apply p.vector) localProjectionContinuous
+    (ReadVector.composeContinuous Pulled.localTopology Original.productTopology (coordinateTopology c.dimension)
+      (\fun (p: Pulled.TotalPoint) => Original.forward (original p)) (Pair.second Original.BasePoint (Vector c.dimension))
+      (ReadOriginal.composeContinuous Pulled.localTopology Original.localTopology Original.productTopology original (\fun (p: Original.TotalPoint) => Original.forward p) originalContinuous (chartLaws c).forwardContinuous)
+      (OriginalProjections.secondContinuous (OriginalBase.topology bundle.baseSpace) (coordinateTopology c.dimension)));
+\import PulledProduct.Maps[] \as PulledProjections;
+\import OriginalProduct.Universal[X := Pulled.ProductPoint] \as PairOriginal;
+\import topology.Composition[A := Pulled.ProductPoint, B := Pulled.BasePoint, C := Original.BasePoint] \as ChangeBase;
+\definition pair[p: Pulled.ProductPoint]: Original.ProductPoint := Pair.pair Original.BasePoint (Vector c.dimension)
+  (base (Pair.first Pulled.BasePoint (Vector c.dimension) p)) (Pair.second Pulled.BasePoint (Vector c.dimension) p);
+\definition pairContinuous: topology.Continuity[A := Y, B := X].Continuous source bundle.baseSpace f ->
+  topology.Continuity[A := Pulled.ProductPoint, B := Original.ProductPoint].Continuous Pulled.productTopology Original.productTopology pair :=
+  \fun (regular: _) => PairOriginal.pairContinuous Pulled.productTopology (OriginalBase.topology bundle.baseSpace) (coordinateTopology c.dimension)
+    (\fun (p: Pulled.ProductPoint) => base (Pair.first Pulled.BasePoint (Vector c.dimension) p)) (Pair.second Pulled.BasePoint (Vector c.dimension))
+    (ChangeBase.composeContinuous Pulled.productTopology (PulledBase.topology source) (OriginalBase.topology bundle.baseSpace) (Pair.first Pulled.BasePoint (Vector c.dimension)) base
+      (PulledProjections.firstContinuous (PulledBase.topology source) (coordinateTopology c.dimension)) (baseContinuous regular))
+    (PulledProjections.secondContinuous (PulledBase.topology source) (coordinateTopology c.dimension));
+\import topology.Composition[A := Pulled.ProductPoint, B := Original.ProductPoint, C := Original.TotalPoint] \as BackOriginal;
+\import topology.Composition[A := Pulled.ProductPoint, B := Original.TotalPoint, C := Point] \as BackInclude;
+\import topology.Composition[A := Pulled.ProductPoint, B := Pulled.BasePoint, C := Y] \as BackBase;
+\import Total.Subspace[S := { p: Point \where Base.Member c.domain p.base }] \as OriginalSubspace;
+\import \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := F].Of[bundle := bundle].Pullback[Y := Y, source := source, f := f].Universal[Z := Pulled.ProductPoint] \as IntoPullback;
+\definition backwardAmbientContinuous: topology.Continuity[A := Y, B := X].Continuous source bundle.baseSpace f ->
+  topology.Continuity[A := Pulled.ProductPoint, B := Family.Point].Continuous Pulled.productTopology topology (\fun (p: Pulled.ProductPoint) => Pulled.backward p) :=
+  \fun (regular: _) => IntoPullback.continuous Pulled.productTopology (\fun (p: Pulled.ProductPoint) => Pulled.backward p)
+    (BackBase.composeContinuous Pulled.productTopology (PulledBase.topology source) source (Pair.first Pulled.BasePoint (Vector c.dimension)) (\fun (y: Pulled.BasePoint) => y)
+      (PulledProjections.firstContinuous (PulledBase.topology source) (coordinateTopology c.dimension)) (\fun (U: \Pow Y)(open: _) => PulledBase.traceOpen source U open))
+    (BackInclude.composeContinuous Pulled.productTopology Original.localTopology bundle.totalSpace (\fun (p: Pulled.ProductPoint) => Original.backward (pair p)) (\fun (p: Original.TotalPoint) => p)
+      (BackOriginal.composeContinuous Pulled.productTopology Original.productTopology Original.localTopology pair (\fun (p: Original.ProductPoint) => Original.backward p) (pairContinuous regular) (chartLaws c).backwardContinuous)
+      (\fun (U: \Pow Point)(open: _) => OriginalSubspace.traceOpen bundle.totalSpace U open));
+\import topology.Continuity[A := Pulled.ProductPoint, B := Family.Point].Corestriction[S := { p: Family.Point \where BaseSpace.Member domain p.base }] \as IntoLocal;
+\definition laws: topology.Continuity[A := Y, B := X].Continuous source bundle.baseSpace f -> Pulled.Laws :=
+  \fun (regular: _) => Pulled.Laws {
+    baseOpen := regular c.domain (chartLaws c).baseOpen,
+    totalOpen := mapContinuous ({ p: Point \where Base.Member c.domain p.base }) (chartLaws c).totalOpen,
+    forwardContinuous := forwardContinuous,
+    backwardContinuous := IntoLocal.corestrictContinuous Pulled.productTopology topology (\fun (p: Pulled.ProductPoint) => Pulled.backward p) (backwardAmbientContinuous regular),
+  };
+\definition trivialization[regular: topology.Continuity[A := Y, B := X].Continuous source bundle.baseSpace f]: Charts.Chart :=
+  \into[Charts.ChartData](chart, Charts.Chart) \by { laws regular };

@@ -1,0 +1,76 @@
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := n] \as M;
+\import M.Operations[] \as Operations;
+\import matrix_invariants.Field[K := C.Complex, field := Scalars.field].At[n := n] \as Field;
+\import Spaces.Matrix[I := M.Index, J := M.Index] \as Matrices;
+\import Spaces.Laws[V := C.Complex, space := Spaces.scalarSpace] \as ScalarLaws;
+\import Spaces.Coordinates[I := M.Index].Kronecker[] \as Kronecker;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition scale: C.Complex -> M.Matrix -> M.Matrix := Matrices.scale;
+\definition inverseProduct: \forall (s, t: C.Complex) -> C.Def[].mul s t = C.Def[].one -> \forall (A, B: M.Matrix) -> M.product A B = M.identity ->
+  M.product (scale s A) (scale t B) = M.identity :=
+  \fun (s, t: C.Complex)(cancels: _)(A, B: M.Matrix)(inverse: _) => eq_reason_in!{M.Matrix _
+    "=" { scale s (M.product A (scale t B)) } "by" { Operations.scaleLeft s A (scale t B) }
+    "=" { scale s (scale t (M.product A B)) } "by" { congr!{M.Matrix M.Matrix} (scale s) _ _ (Operations.scaleRight t A B) }
+    "=" { scale s (scale t M.identity) } "by" { congr!{M.Matrix M.Matrix} (\fun (D: M.Matrix) => scale s (scale t D)) _ _ inverse }
+    "=" M.identity "by" { Operations.ext _ _ (\fun (i, j: M.Index) => trans!{{C.Complex}} _ _ _
+      (sym!{{C.Complex}} _ _ (C.Prop[].mulAssoc s t (M.identity i j)))
+      (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (\fun (v: C.Complex) => C.Def[].mul v (M.identity i j)) _ _ cancels) (C.Prop[].mulOneLeft (M.identity i j)))) }
+  };
+\definition scaledInverse[s: C.Complex, nonzero: C.Def[].NonZero s, A: M.Matrix, inverse: Operations.Inverse A]: Operations.Inverse (scale s A) :=
+  \into[M.Matrix](scale (C.Def[].inv s) inverse, Operations.Inverse (scale s A)) \by {
+    Operations.InverseLaws[scale s A, scale (C.Def[].inv s) inverse] {
+      left := inverseProduct (C.Def[].inv s) s (C.Prop[].inverseNonzero s nonzero) inverse A (Operations.inverseLaws A inverse).left,
+      right := inverseProduct s (C.Def[].inv s) (trans!{{C.Complex}} _ _ _ (C.Prop[].mulComm s (C.Def[].inv s)) (C.Prop[].inverseNonzero s nonzero)) A inverse (Operations.inverseLaws A inverse).right,
+    }
+  };
+\definition nonzero: \forall (s: C.Complex) -> C.Def[].NonZero s -> \forall (A: M.Matrix) -> Field.Nonzero A -> Field.Nonzero (scale s A) :=
+  \fun (s: C.Complex)(sn: _)(A: M.Matrix)(an: _) => Field.nonzeroOfInverse (scale s A)
+    (scaledInverse s sn A (Field.inverse (\into[M.Matrix](A, Field.Nonsingular) \by { an })));
+\definition productNonzero: \forall (A, B: M.Matrix) -> Field.Nonzero A -> Field.Nonzero B -> Field.Nonzero (M.product A B) :=
+  \fun (A, B: M.Matrix)(an: _)(bn: _)(zero: _) => galois.Field[].Over[K := C.Complex, field := Scalars.field].Arithmetic[].nonzeroProduct
+    (M.determinant A) (M.determinant B) an bn (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (M.multiplicative A B)) zero);
+\definition identityBound: \forall (i, j: M.Index) -> Real.Le (C.Absolute[].abs (M.identity i j)) R.one :=
+  \fun (i, j: M.Index) => either!{{(Classical.excludedMiddle (j = i))} {Real.Le (C.Absolute[].abs (M.identity i j)) R.one}
+    {\fun (same: _) => Real.leReplaceLeft _ _ _ (sym!{{R.Real}} _ _ (trans!{{R.Real}} _ _ _
+      (congr!{{C.Complex} {R.Real}} C.Absolute[].abs _ _ (Kronecker.equal j i same)) (\root.Linearization[].Powers[].oneAbsolute))) (Real.leRefl R.one)}
+    {\fun (different: _) => Real.leReplaceLeft _ _ _ (sym!{{R.Real}} _ _ (trans!{{R.Real}} _ _ _
+      (congr!{{C.Complex} {R.Real}} C.Absolute[].abs _ _ (Kronecker.different j i different)) uniform_approximation.Approximation[].FiniteComplex[].zeroAbsolute)) Laws.oneNonnegative}
+  };
+\import Spaces.Coordinates[I := M.Index] \as Vectors;
+\import Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as End;
+\import End.Composition[U := Vectors.Vector, domain := Vectors.space] \as Compose;
+\import Spaces.Eigen[V := Vectors.Vector, space := Vectors.space] \as Eigen;
+\import M.Representation[] \as Representation;
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Scalars.field, scalar := linear_algebra.Hermitian[].Complex[].scalar,
+  topological := hermitian_frames.Hermitian[].Complex[].topological].At[n := n].Square[] \as Square;
+\definition productLinear: \forall (A, B: M.Matrix) -> Compose.compose (M.linear A) (M.linear B) = M.linear (M.product A B) :=
+  \fun (A, B: M.Matrix) => sym!{End.Map} _ _ (Square.linearProduct A B);
+\definition identityLinear: M.linear M.identity = Eigen.identity := Square.linearIdentity;
+\definition zeroKernel: \forall (A: M.Matrix) -> Field.Nonzero A -> \forall (v: Vectors.Vector) -> (M.linear A).apply v = Vectors.origin -> v = Vectors.origin :=
+  \fun (A: M.Matrix)(nonzero: _)(v: Vectors.Vector)(zero: _) => \block {
+    \let B: Operations.Inverse A := Field.inverse (\into[M.Matrix](A, Field.Nonsingular) \by { nonzero }) \then
+    \let inverse: Compose.compose (M.linear B) (M.linear A) = Eigen.identity := trans!{End.Map} _ _ _ (productLinear B A)
+      (trans!{End.Map} _ _ _ (congr!{M.Matrix End.Map} M.linear _ _ (Operations.inverseLaws A B).left) identityLinear) \then
+    \return eq_reason_in!{Vectors.Vector v
+      "=" { (M.linear B).apply ((M.linear A).apply v) } "by" { sym!{Vectors.Vector} _ _ (congr!{End.Map Vectors.Vector} (\fun (f: End.Map) => f.apply v) _ _ inverse) }
+      "=" { (M.linear B).apply Vectors.origin } "by" { congr!{Vectors.Vector Vectors.Vector} (M.linear B).apply _ _ zero }
+      "=" Vectors.origin "by" { (M.linear B).preservesZero }
+    }
+  };
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := Scalars.field, scalar := linear_algebra.Hermitian[].Complex[].scalar] \as Geometry;
+\import Geometry.Finite[n := n] \as Basis;
+\import Geometry.Inner[V := M.Vector, space := Vectors.space].Of[h := Basis.form] \as Inner;
+\definition nonzeroOfZeroKernel: \forall (f: End.Map) -> (\forall (v: M.Vector) -> f.apply v = Vectors.origin -> v = Vectors.origin) -> Field.Nonzero (Representation.entries f) := \block {
+  \fun (f: End.Map)(kernel: _) \then
+  \takefrom factor: Inner.Gram[k := n].Factorization[f] \by Inner.Algorithm[].exists n f (End.injectiveOfZeroKernel f kernel) Basis.positive \then
+  \return Square.LeftInverse[f := f, g := Inner.Gram[k := n].Of[A := f, factor := factor].inverse,
+    left := Inner.Gram[k := n].Of[A := f, factor := factor].inverseOnImage].nonzero
+};
+\module InverseFamily(Y: \Set, source: topology.Topology[Carrier := Y].Topology, A: Y -> M.Matrix,
+  regularA: matrix_invariants.Topological[K := C.Complex, ring := topological_algebra.Complex[].Ring[].topologicalRing].At[n := n].Families[X := Y].Regular source A,
+  nonzeroA: \forall (y: Y) -> Field.Nonzero (A y));
+\definition scaleLinear: \forall (s: C.Complex)(A: M.Matrix) -> M.linear (scale s A) = End.Operations[].scale s (M.linear A) :=
+  \fun (s: C.Complex)(A: M.Matrix) => trans!{End.Map} _ _ _
+    (congr!{M.Matrix End.Map} M.linear _ _ (sym!{M.Matrix} _ _ (congr!{M.Matrix M.Matrix} (scale s) _ _ (Representation.entriesLinear A))))
+    (Representation.linearEntries (End.Operations[].scale s (M.linear A)));

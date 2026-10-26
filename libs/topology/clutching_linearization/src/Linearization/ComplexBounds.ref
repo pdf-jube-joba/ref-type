@@ -1,0 +1,75 @@
+\import C.Def[] \as O;
+\import C.Absolute[] \as Absolute;
+\import R.Algebra[] \as Algebra;
+\import R.Distance[] \as Distance;
+\import R.SquareRoot[] \as Root;
+\definition realBound: \forall (z: C.Complex) -> Real.Le (R.distance R.zero (C.re z)) (Absolute.abs z) :=
+  \fun (z: C.Complex) => Order.leOfNotLtReverse _ _ (\fun (less: Real.Lt (Absolute.abs z) (R.distance R.zero (C.re z))) =>
+    Real.ltNotLeReverse (R.mul (Absolute.abs z) (Absolute.abs z)) (R.mul (R.distance R.zero (C.re z)) (R.distance R.zero (C.re z)))
+      (Root.squareStrict _ _ (Absolute.nonnegative z) less)
+      (Real.leReplace _ _ _ _ (sym!{{R.Real}} _ _ (uniform_approximation.Approximation[].Absolute[].square (C.re z)))
+        (sym!{{R.Real}} _ _ (Absolute.square z))
+        (Algebra.leAddRight (R.mul (C.re z) (C.re z)) (R.mul (C.im z) (C.im z)) (Algebra.squareNonnegative (C.im z)))));
+\definition swap[z: C.Complex]: C.Complex := C.make (C.im z) (C.re z);
+\definition swapAbsolute: \forall (z: C.Complex) -> Absolute.abs (swap z) = Absolute.abs z :=
+  \fun (z: C.Complex) => congr!{{R.Real} {R.Real}} Root.sqrt _ _ (Laws.addComm (R.mul (C.im z) (C.im z)) (R.mul (C.re z) (C.re z)));
+\definition imaginaryBound: \forall (z: C.Complex) -> Real.Le (R.distance R.zero (C.im z)) (Absolute.abs z) :=
+  \fun (z: C.Complex) => Real.leReplaceRight _ _ _ (swapAbsolute z) (realBound (swap z));
+\definition realDistance: \forall (z, w: C.Complex) -> Real.Le (R.distance (C.re z) (C.re w)) (Absolute.abs (O.sub z w)) :=
+  \fun (z, w: C.Complex) => Real.leReplaceLeft _ _ _ (uniform_approximation.Approximation[].Lattice[].differenceAbsolute (C.re z) (C.re w)) (realBound (O.sub z w));
+\definition imaginaryDistance: \forall (z, w: C.Complex) -> Real.Le (R.distance (C.im z) (C.im w)) (Absolute.abs (O.sub z w)) :=
+  \fun (z, w: C.Complex) => Real.leReplaceLeft _ _ _ (uniform_approximation.Approximation[].Lattice[].differenceAbsolute (C.im z) (C.im w)) (imaginaryBound (O.sub z w));
+\definition negativeAbsolute: \forall (z: C.Complex) -> Absolute.abs (O.neg z) = Absolute.abs z :=
+  \fun (z: C.Complex) => congr!{{R.Real} {R.Real}} Root.sqrt _ _
+    (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (Laws.fieldMulNegBoth (C.re z) (C.re z)) (Laws.fieldMulNegBoth (C.im z) (C.im z)));
+\definition scaleZero: \forall (z: C.Complex) -> O.scale R.zero z = O.zero :=
+  \fun (z: C.Complex) => C.Prop[].ext _ _ (Laws.fieldMulZeroLeft (C.re z)) (Laws.fieldMulZeroLeft (C.im z));
+\definition scaleOne: \forall (z: C.Complex) -> O.scale R.one z = z :=
+  \fun (z: C.Complex) => C.Prop[].ext _ _ (Laws.fieldMulOneLeft (C.re z)) (Laws.fieldMulOneLeft (C.im z));
+\definition scaledAbsolute: \forall (t: R.Real)(z: C.Complex) -> Real.Le R.zero t -> Absolute.abs (O.scale t z) = R.mul t (Absolute.abs z) :=
+  \fun (t: R.Real)(z: C.Complex)(nonnegative: _) => eq_reason_in!{{R.Real} _
+    "=" { Absolute.abs (O.mul (O.ofReal t) z) } "by" { congr!{{C.Complex} {R.Real}} Absolute.abs _ _ (sym!{{C.Complex}} _ _ (uniform_approximation.Approximation[].ComplexScalars[].realProduct t z)) }
+    "=" { R.mul (Absolute.abs (O.ofReal t)) (Absolute.abs z) } "by" { Absolute.multiplicative (O.ofReal t) z }
+    "=" { R.mul t (Absolute.abs z) } "by" { congr!{{R.Real} {R.Real}} (\fun (a: R.Real) => R.mul a (Absolute.abs z)) _ _
+      (trans!{{R.Real}} _ _ _ (uniform_approximation.Approximation[].ComplexScalars[].absoluteReal t) (R.Estimates[].Product[].absOfNonnegative t nonnegative)) }
+  };
+\definition shrinks: \forall (t: R.Real)(z: C.Complex) -> Real.Le R.zero t -> Real.Le t R.one ->
+  Real.Le (Absolute.abs (O.neg (O.scale t z))) (Absolute.abs z) :=
+  \fun (t: R.Real)(z: C.Complex)(nonnegative: _)(bounded: _) => Real.leReplace _ _ _ _
+    (sym!{{R.Real}} _ _ (trans!{{R.Real}} _ _ _ (negativeAbsolute (O.scale t z)) (trans!{{R.Real}} _ _ _ (scaledAbsolute t z nonnegative) (Laws.fieldMulComm t (Absolute.abs z)))))
+    (Algebra.mulOneRight (Absolute.abs z))
+    (R.Estimates[].mulMonotone (Absolute.abs z) t R.one (Absolute.nonnegative z) bounded);
+\import Spaces.Sign[] \as Sign;
+\definition interpolationEnd: \forall (z, w: C.Complex) -> O.add z (O.neg (O.sub z w)) = w :=
+  \fun (z, w: C.Complex) => eq_reason_in!{{C.Complex} _
+    "=" { O.add z (O.add (O.neg z) (O.neg (O.neg w))) } "by" { congr!{{C.Complex} {C.Complex}} (O.add z) _ _ (Sign.negativeAddition z (O.neg w)) }
+    "=" { O.add z (O.add (O.neg z) w) } "by" { congr!{{C.Complex} {C.Complex}} (\fun (v: C.Complex) => O.add z (O.add (O.neg z) v)) _ _ (C.Prop[].negNeg w) }
+    "=" { O.add (O.add z (O.neg z)) w } "by" { sym!{{C.Complex}} _ _ (C.Prop[].addAssoc z (O.neg z) w) }
+    "=" { O.add O.zero w } "by" { congr!{{C.Complex} {C.Complex}} (\fun (v: C.Complex) => O.add v w) _ _ (C.Prop[].addNegRight z) }
+    "=" w "by" { C.Prop[].addZeroLeft w }
+  };
+\import Spaces.Laws[V := C.Complex, space := Spaces.scalarSpace] \as ScalarLaws;
+\import algebra.Group[].Of[Carrier := C.Complex, group := Scalars.additiveGroup] \as Additive;
+\definition multiplyDifference: \forall (u, p, q: C.Complex) -> O.mul u (O.sub p q) = O.sub (O.mul u p) (O.mul u q) :=
+  \fun (u, p, q: C.Complex) => trans!{{C.Complex}} _ _ _ (C.Prop[].mulAddLeft u p (O.neg q))
+    (congr!{{C.Complex} {C.Complex}} (O.add (O.mul u p)) _ _ (ScalarLaws.scaleNegative u q));
+\definition subtractSum: \forall (p, q, e: C.Complex) -> O.sub p (O.add q e) = O.add (O.sub p q) (O.neg e) :=
+  \fun (p, q, e: C.Complex) => trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (O.add p) _ _ (Additive.negAdd q e)) (sym!{{C.Complex}} _ _ (C.Prop[].addAssoc p (O.neg q) (O.neg e)));
+\definition shiftedDifference: \forall (u, p, q, e: C.Complex) -> O.sub (O.mul u p) (O.add (O.mul u q) e) = O.add (O.mul u (O.sub p q)) (O.neg e) :=
+  \fun (u, p, q, e: C.Complex) => trans!{{C.Complex}} _ _ _ (subtractSum (O.mul u p) (O.mul u q) e)
+    (congr!{{C.Complex} {C.Complex}} (\fun (v: C.Complex) => O.add v (O.neg e)) _ _ (sym!{{C.Complex}} _ _ (multiplyDifference u p q)));
+\definition negativeDifference: \forall (w, p, q: C.Complex) -> O.neg (O.mul w (O.sub p q)) = O.add (O.neg (O.mul w p)) (O.mul w q) :=
+  \fun (w, p, q: C.Complex) => trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} O.neg _ _ (multiplyDifference w p q))
+    (trans!{{C.Complex}} _ _ _ (Additive.negAdd (O.mul w p) (O.neg (O.mul w q)))
+      (congr!{{C.Complex} {C.Complex}} (O.add (O.neg (O.mul w p))) _ _ (C.Prop[].negNeg (O.mul w q))));
+\definition affine: \forall (w, p, q: C.Complex) -> O.add (O.mul (O.sub O.one w) p) (O.mul w q) = O.add p (O.neg (O.mul w (O.sub p q))) :=
+  \fun (w, p, q: C.Complex) => eq_reason_in!{{C.Complex} { O.add (O.mul (O.sub O.one w) p) (O.mul w q) }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (\fun (v: C.Complex) => O.add v (O.mul w q)) _ _
+      (trans!{{C.Complex}} _ _ _ (C.Prop[].mulAddRight O.one (O.neg w) p)
+        (congr!{{C.Complex} {C.Complex} {C.Complex}} O.add _ _ _ _ (C.Prop[].mulOneLeft p) (sym!{{C.Complex}} _ _ (Sign.negativeProduct w p)))) }
+    "=" _ "by" { C.Prop[].addAssoc p (O.neg (O.mul w p)) (O.mul w q) }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (O.add p) _ _ (sym!{{C.Complex}} _ _ (negativeDifference w p q)) }
+  };
+\definition realAffine: \forall (t: R.Real)(p, q: C.Complex) -> O.add (O.mul (O.sub O.one (O.ofReal t)) p) (O.mul (O.ofReal t) q) = O.add p (O.neg (O.scale t (O.sub p q))) :=
+  \fun (t: R.Real)(p, q: C.Complex) => trans!{{C.Complex}} _ _ _ (affine (O.ofReal t) p q)
+    (congr!{{C.Complex} {C.Complex}} (\fun (v: C.Complex) => O.add p (O.neg v)) _ _ (uniform_approximation.Approximation[].ComplexScalars[].realProduct t (O.sub p q)));

@@ -1,0 +1,34 @@
+\import Companion.With[coefficients := coefficients (Circle.first point)] \as Cyclic;
+\import Cyclic.PolynomialEntries[] \as Entries;
+\definition normalizedSum: \forall (i, j: M.Index) -> Sums.sum degree (\fun (k: Fin.Fin degree) => C.Def[].mul (power point k) (coefficient k (Circle.first point) i j)) =
+  C.Def[].mul reciprocal (sum point degree (\fun (k: Fin.Fin degree) => C.Def[].mul (power point k) (form.coefficients i j k (Circle.first point)))) :=
+  \fun (i, j: M.Index) => trans!{{C.Complex}} _ _ _
+    (Sums.congruent degree (\fun (k: Fin.Fin degree) => C.Def[].mul (power point k) (coefficient k (Circle.first point) i j))
+      (\fun (k: Fin.Fin degree) => C.Def[].mul reciprocal (C.Def[].mul (power point k) (form.coefficients i j k (Circle.first point))))
+      (\fun (k: Fin.Fin degree) => ScalarLaws.scaleComm (power point k) reciprocal (form.coefficients i j k (Circle.first point))))
+    (Sums.scaleSum degree reciprocal (\fun (k: Fin.Fin degree) => C.Def[].mul (power point k) (form.coefficients i j k (Circle.first point))));
+\definition entryFormula: \forall (i, j: M.Index) -> polynomial point i j = C.Def[].add (C.Def[].mul (power point degree) (M.identity i j))
+  (C.Def[].mul reciprocal (sum point degree (\fun (k: Fin.Fin degree) => C.Def[].mul (power point k) (form.coefficients i j k (Circle.first point))))) :=
+  \fun (i, j: M.Index) => eq_reason_in!{{C.Complex} _
+    "=" { C.Def[].add (C.Def[].mul reciprocal (value point i j)) (C.Def[].mul reciprocal (error point i j)) } "by" { C.Prop[].mulAddLeft reciprocal (value point i j) (error point i j) }
+    "=" { C.Def[].add (C.Def[].mul reciprocal (sum point degree (\fun (k: Fin.Fin degree) => C.Def[].mul (power point k) (form.coefficients i j k (Circle.first point))))) (C.Def[].mul (power point degree) (M.identity i j)) } "by" {
+      congr!{{C.Complex} {C.Complex} {C.Complex}} C.Def[].add _ _ _ _
+        (congr!{{C.Complex} {C.Complex}} (C.Def[].mul reciprocal) _ _ (shifted point i j))
+        (cancelScale (C.Def[].mul (power point degree) (M.identity i j))) }
+    "=" _ "by" { C.Prop[].addComm _ _ }
+  };
+\definition entriesComparison: Entries.entries (Circle.unit point) = polynomial point := M.Operations[].ext _ _ (\fun (i, j: M.Index) => eq_reason_in!{{C.Complex} _
+  "=" { C.Def[].add (C.Def[].mul (power point degree) (M.identity i j))
+    (Sums.sum degree (\fun (k: Fin.Fin degree) => C.Def[].mul (power point k) (Representation.entries (coefficients (Circle.first point) k) i j))) } "by" { Entries.formula (Circle.unit point) i j }
+  "=" { C.Def[].add (C.Def[].mul (power point degree) (M.identity i j))
+    (Sums.sum degree (\fun (k: Fin.Fin degree) => C.Def[].mul (power point k) (coefficient k (Circle.first point) i j))) } "by" {
+    congr!{{C.Complex} {C.Complex}} (C.Def[].add (C.Def[].mul (power point degree) (M.identity i j))) _ _
+      (Sums.congruent degree (\fun (k: Fin.Fin degree) => C.Def[].mul (power point k) (Representation.entries (coefficients (Circle.first point) k) i j))
+        (\fun (k: Fin.Fin degree) => C.Def[].mul (power point k) (coefficient k (Circle.first point) i j))
+        (\fun (k: Fin.Fin degree) => congr!{{C.Complex} {C.Complex}} (C.Def[].mul (power point k)) _ _
+          (M.Operations[].entry _ _ (Representation.entriesLinear (coefficient k (Circle.first point))) i j))) }
+  "=" _ "by" { congr!{{C.Complex} {C.Complex}} (C.Def[].add (C.Def[].mul (power point degree) (M.identity i j))) _ _ (normalizedSum i j) }
+  "=" _ "by" { sym!{{C.Complex}} _ _ (entryFormula i j) }
+});
+\definition action: M.linear (polynomial point) = Cyclic.polynomial (Circle.unit point) :=
+  trans!{End.Map} _ _ _ (congr!{M.Matrix End.Map} M.linear _ _ (sym!{M.Matrix} _ _ entriesComparison)) (Entries.action (Circle.unit point));

@@ -1,0 +1,20 @@
+
+\import Families.Quotient[] \as FiniteFamilies;
+\import Symmetric.Descent[C := FiniteFamilies.Family] \as Descent;
+\definition ofTuple[a: Vector n]: FiniteFamilies.Family := FiniteFamilies.family (Tuples.list n a);
+\definition respects: \forall (a, b: Vector n) -> Equivalent a b -> ofTuple a = ofTuple b :=
+  \fun (a, b: Vector n) => FiniteFamilies.equal (Tuples.list n a) (Tuples.list n b);
+\definition forget: Family -> FiniteFamilies.Family := Descent.apply equivalence ofTuple respects;
+\definition onClass: \forall (a: Vector n) -> forget (family a) = ofTuple a := Descent.onClass equivalence ofTuple respects;
+\definition polynomialOf: \forall (F: Family) -> FiniteFamilies.product (forget F) = polynomial n (coefficientMap F) :=
+  Symmetric.induction (\fun (F: Family) => FiniteFamilies.product (forget F) = polynomial n (coefficientMap F))
+    (\fun (a: Vector n) => eq_reason_in!{Polynomial.Carrier _
+      "=" { FiniteFamilies.product (ofTuple a) } "by" { congr!{FiniteFamilies.Family Polynomial.Carrier} (\fun (F: FiniteFamilies.Family) => FiniteFamilies.product F) _ _ (onClass a) }
+      "=" { product n a } "by" { FiniteFamilies.productOf (Tuples.list n a) }
+      "=" { polynomial n (coefficients a) } "by" { sym!{Polynomial.Carrier} _ _ (factorization a) }
+      "=" _ "by" { congr!{{Vector n} Polynomial.Carrier} (polynomial n) _ _ (sym!{{Vector n}} _ _ (\root.Roots[].At[n := n].onClass a)) }
+    });
+\definition injective: \forall (F, G: Family) -> forget F = forget G -> F = G :=
+  \fun (F, G: Family)(same: _) => coefficientInjective F G (MonicCoordinates.injective n _ _
+    (trans!{Polynomial.Carrier} _ _ _ (sym!{Polynomial.Carrier} _ _ (polynomialOf F))
+      (trans!{Polynomial.Carrier} _ _ _ (congr!{FiniteFamilies.Family Polynomial.Carrier} (\fun (F: FiniteFamilies.Family) => FiniteFamilies.product F) _ _ same) (polynomialOf G))));

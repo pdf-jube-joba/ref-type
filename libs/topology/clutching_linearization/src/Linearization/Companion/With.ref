@@ -1,0 +1,21 @@
+\import Spaces.Sums[I := Fin.Fin degree].Vector[V := Vectors.Vector, space := Vectors.space] \as Sums;
+\definition row: Row.Map := Row.Map {
+  apply := \fun (v: Carrier) => Sums.sum (Fin.elements degree) (\fun (i: Fin.Fin degree) => (coefficients i).apply (v i)),
+  preservesAdd := \fun (v, w: Carrier) => trans!{Vectors.Vector} _ _ _
+    (Sums.congruent (Fin.elements degree) _ _ (\fun (i: Fin.Fin degree) => (coefficients i).preservesAdd (v i) (w i)))
+    (Sums.addition (Fin.elements degree) (\fun (i: Fin.Fin degree) => (coefficients i).apply (v i)) (\fun (i: Fin.Fin degree) => (coefficients i).apply (w i))),
+  preservesScale := \fun (a: C.Complex)(v: Carrier) => trans!{Vectors.Vector} _ _ _
+    (Sums.congruent (Fin.elements degree) _ _ (\fun (i: Fin.Fin degree) => (coefficients i).preservesScale a (v i)))
+    (Sums.scalar (Fin.elements degree) a (\fun (i: Fin.Fin degree) => (coefficients i).apply (v i))),
+};
+\import \parent.FromRow[row := row] \as Native;
+\definition negativeRow: Row.Map := Native.negativeRow;
+\definition negativeRowValue: \forall (v: Carrier) -> negativeRow.apply v = Vectors.negative (row.apply v) := Native.negativeRowValue;
+\definition operator: Operators.Map := Native.operator;
+\definition polynomial: C.Complex -> End.Map := Native.polynomial;
+\definition noUnitEigen:
+  (\forall (z: C.Complex) -> C.Absolute[].abs z = R.one -> \forall (w: Vectors.Vector) -> (polynomial z).apply w = Vectors.origin -> w = Vectors.origin) ->
+  \forall (z: C.Complex) -> C.Absolute[].abs z = R.one -> \forall (v: Carrier) -> operator.apply v = space.smul z v -> v = space.zero := Native.noUnitEigen;
+\module Spectral;
+\module Linearize(z: C.Complex);
+\module PolynomialEntries;

@@ -1,0 +1,69 @@
+\import topology.Topology[Carrier := X] \as Source;
+\import topology.Continuity[A := X, B := K] \as Maps;
+\import topology.Maps[A := X, B := K] \as Constants;
+\import Scalar.Functions[A := X] \as Functions;
+\import Fin.Tuples[A := Matrix.Index] \as Tuples;
+\definition Continuous[source: Source.Topology][f: X -> K]: \Prop := Maps.Continuous source ring.topology f;
+\definition Regular[source: Source.Topology][A: X -> Matrix.Matrix]: \Prop :=
+  \forall (i, j: Matrix.Index) -> Continuous source (\fun (x: X) => A x i j);
+\definition transport: \forall (source: Source.Topology)(f, g: X -> K) ->
+  (\forall (x: X) -> f x = g x) -> Continuous source f -> Continuous source g :=
+  \fun (source: Source.Topology)(f, g: X -> K)(same: _)(continuous: _) =>
+    \idelim f = g \with h: (X -> K) => Continuous source h \by {
+      base: continuous, equality: \axiom:funext(f, g, same)
+    };
+\definition constant: \forall (source: Source.Topology)(a: K) -> Continuous source (\fun (x: X) => a) :=
+  \fun (source: Source.Topology)(a: K) => Constants.constantContinuous source ring.topology a;
+\definition addition: \forall (source: Source.Topology)(f, g: X -> K) -> Continuous source f -> Continuous source g ->
+  Continuous source (\fun (x: X) => Algebra.add (f x) (g x)) :=
+  \fun (source: Source.Topology)(f, g: X -> K) => Functions.ringAdditionContinuous source ring.topology ring.ring (Scalar.ringLaws ring) f g;
+\definition multiplication: \forall (source: Source.Topology)(f, g: X -> K) -> Continuous source f -> Continuous source g ->
+  Continuous source (\fun (x: X) => Algebra.mul (f x) (g x)) :=
+  \fun (source: Source.Topology)(f, g: X -> K) => Functions.multiplicationContinuous source ring.topology ring.ring (Scalar.ringLaws ring) f g;
+\module Indexed(I: \Set);
+\definition productsContinuous: \forall (xs: Lists.List[Matrix.Index])(source: Source.Topology)(f: Matrix.Index -> X -> K) ->
+  (\forall (i: Matrix.Index) -> Continuous source (f i)) -> Continuous source (\fun (x: X) => Products.value xs (\fun (i: Matrix.Index) => f i x)) :=
+  \induction (xs: Lists.List[Matrix.Index]) \return \forall (source: Source.Topology)(f: Matrix.Index -> X -> K) ->
+    (\forall (i: Matrix.Index) -> Continuous source (f i)) -> Continuous source (\fun (x: X) => Products.value xs (\fun (i: Matrix.Index) => f i x)) \with {
+      | nil: \fun (source: Source.Topology)(f: Matrix.Index -> X -> K)(continuous: _) => constant source Algebra.one
+      | cons: \fun (head: Matrix.Index)(tail: Lists.List[Matrix.Index])(previous: _)(source: Source.Topology)(f: Matrix.Index -> X -> K)(continuous: _) =>
+        multiplication source (f head) (\fun (x: X) => Products.value tail (\fun (i: Matrix.Index) => f i x)) (continuous head) (previous source f continuous)
+    };
+\definition tensorSumContinuous: \forall (k: N.Nat^)(source: Source.Topology)(f: TuplesSum.Tuple k -> X -> K) ->
+  (\forall (p: TuplesSum.Tuple k) -> Continuous source (f p)) -> Continuous source (\fun (x: X) => TuplesSum.sum k (\fun (p: TuplesSum.Tuple k) => f p x)) :=
+  \induction (k: N.Nat^) \return \forall (source: Source.Topology)(f: TuplesSum.Tuple k -> X -> K) ->
+    (\forall (p: TuplesSum.Tuple k) -> Continuous source (f p)) -> Continuous source (\fun (x: X) => TuplesSum.sum k (\fun (p: TuplesSum.Tuple k) => f p x)) \with {
+      | zero: \fun (source: Source.Topology)(f: TuplesSum.Tuple N.Nat^::zero -> X -> K)(continuous: _) => continuous (Fin.Empty[A := Matrix.Index].function)
+      | succ: \fun (k: N.Nat^)(previous: \forall (source: Source.Topology)(f: TuplesSum.Tuple k -> X -> K) -> (\forall (p: TuplesSum.Tuple k) -> Continuous source (f p)) -> Continuous source (\fun (x: X) => TuplesSum.sum k (\fun (p: TuplesSum.Tuple k) => f p x)))(source: Source.Topology)(f: TuplesSum.Tuple (N.Nat^::succ k) -> X -> K)(continuous: \forall (p: TuplesSum.Tuple (N.Nat^::succ k)) -> Continuous source (f p)) =>
+        Indexed[I := Matrix.Index].sumContinuous (Fin.elements n) source
+          (\fun (i: Matrix.Index)(x: X) => TuplesSum.sum k (\fun (p: TuplesSum.Tuple k) => f (Tuples.extend k i p) x))
+          (\fun (i: Matrix.Index) => previous source (\fun (p: TuplesSum.Tuple k) => f (Tuples.extend k i p)) (\fun (p: TuplesSum.Tuple k) => continuous (Tuples.extend k i p)))
+    };
+\definition termContinuous: \forall (source: Source.Topology)(A: X -> Matrix.Matrix) -> Regular source A ->
+  \forall (p: Matrix.Index -> Matrix.Index) -> Continuous source (\fun (x: X) => Terms.term p (A x)) :=
+  \fun (source: Source.Topology)(A: X -> Matrix.Matrix)(regular: Regular source A)(p: Matrix.Index -> Matrix.Index) =>
+    multiplication source (\fun (x: X) => Terms.monomial p (A x)) (\fun (x: X) => Terms.Weight p)
+      (productsContinuous (Fin.elements n) source (\fun (i: Matrix.Index)(x: X) => A x (p i) i) (\fun (i: Matrix.Index) => regular (p i) i))
+      (constant source (Terms.Weight p));
+\definition determinantContinuous: \forall (source: Source.Topology)(A: X -> Matrix.Matrix) -> Regular source A ->
+  Continuous source (\fun (x: X) => Matrix.determinant (A x)) :=
+  \fun (source: Source.Topology)(A: X -> Matrix.Matrix)(regular: Regular source A) => transport source
+    (\fun (x: X) => TuplesSum.sum n (\fun (p: Matrix.Index -> Matrix.Index) => Terms.term p (A x)))
+    (\fun (x: X) => Matrix.determinant (A x)) (\fun (x: X) => Expanded.determinantExpansion (A x))
+    (tensorSumContinuous n source (\fun (p: Matrix.Index -> Matrix.Index)(x: X) => Terms.term p (A x)) (termContinuous source A regular));
+\definition cofactorContinuous: \forall (source: Source.Topology)(A: X -> Matrix.Matrix) -> Regular source A ->
+  \forall (i, j: Matrix.Index) -> Continuous source (\fun (x: X) => Matrix.cofactor (A x) i j) :=
+  \fun (source: Source.Topology)(A: X -> Matrix.Matrix)(regular: Regular source A)(i, j: Matrix.Index) =>
+    determinantContinuous source (\fun (x: X) => Matrix.replaceColumn (A x) j (Algebra.FiniteCoordinates[n := n].vectors i))
+      (\fun (k, l: Matrix.Index) => std.Data[].Bool[].cases
+        (\fun (test: std.Data[].Bool[].Bool^) => Continuous source (\fun (x: X) => (std.Data[].Bool[].ite Matrix.Vector test (Algebra.FiniteCoordinates[n := n].vectors i) (Matrix.columns (A x) l)) k))
+        (regular k l) (constant source (Algebra.FiniteCoordinates[n := n].vectors i k))
+        (N.Basic[].Def[].eqb (Fin.value n l) (Fin.value n j)));
+\definition matrixContinuous: \forall (source: Source.Topology)(A: X -> Matrix.Matrix) -> Regular source A ->
+  topology.Continuity[A := X, B := Matrix.Matrix].Continuous source topology A :=
+  \fun (source: Source.Topology)(A: X -> Matrix.Matrix)(regular: Regular source A) => Matrices.Universal[A := X].continuous source ring.topology A regular;
+\definition replaceColumnRegular: \forall (source: Source.Topology)(A: X -> Matrix.Matrix)(v: X -> Matrix.Vector)(j: Matrix.Index) -> Regular source A ->
+  (\forall (i: Matrix.Index) -> Continuous source (\fun (x: X) => v x i)) -> Regular source (\fun (x: X) => Matrix.replaceColumn (A x) j (v x)) :=
+  \fun (source: Source.Topology)(A: X -> Matrix.Matrix)(v: X -> Matrix.Vector)(j: Matrix.Index)(regular: Regular source A)(continuous: _)(k, l: Matrix.Index) => std.Data[].Bool[].cases
+    (\fun (test: std.Data[].Bool[].Bool^) => Continuous source (\fun (x: X) => (std.Data[].Bool[].ite Matrix.Vector test (v x) (Matrix.columns (A x) l)) k))
+    (regular k l) (continuous k) (N.Basic[].Def[].eqb (Fin.value n l) (Fin.value n j));

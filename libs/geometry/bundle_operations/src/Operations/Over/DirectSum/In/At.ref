@@ -1,0 +1,41 @@
+\definition inLeft: \Cast[X] c.domain := \into[X](x, c.domain) \by { (\bysub(X, domain, x)).left };
+\definition inRight: \Cast[X] d.domain := \into[X](x, d.domain) \by { (\bysub(X, domain, x)).right };
+\import Spaces.DirectSum[V := F x, W := G x, left := left.space x, right := right.space x] \as Sum;
+\definition first[v: Fiber x]: Vector c.dimension := (c.frame inLeft).forward.apply (Sum.first v);
+\definition second[v: Fiber x]: Vector d.dimension := (d.frame inRight).forward.apply (Sum.second v);
+\definition pair[v: Fiber x]: CoordinatePair.Carrier := CoordinatePair.make (first v) (second v);
+\import Spaces.Linear[V := Fiber x, W := CoordinatePair.Carrier, source := fiberSpace x, target := CoordinatePair.space] \as PairMaps;
+\definition paired: PairMaps.Map := PairMaps.Map {
+  apply := pair,
+  preservesAdd := \fun (v, w: Fiber x) => Pair.Prop[A := Vector c.dimension, B := Vector d.dimension].pairCong _ _ _ _
+    ((c.frame inLeft).forward.preservesAdd (Sum.first v) (Sum.first w)) ((d.frame inRight).forward.preservesAdd (Sum.second v) (Sum.second w)),
+  preservesScale := \fun (a: K)(v: Fiber x) => Pair.Prop[A := Vector c.dimension, B := Vector d.dimension].pairCong _ _ _ _
+    ((c.frame inLeft).forward.preservesScale a (Sum.first v)) ((d.frame inRight).forward.preservesScale a (Sum.second v)),
+};
+\import Spaces.Linear[V := CoordinatePair.Carrier, W := Fiber x, source := CoordinatePair.space, target := fiberSpace x] \as UnpairMaps;
+\definition unpaired: UnpairMaps.Map := UnpairMaps.Map {
+  apply := \fun (v: CoordinatePair.Carrier) => Sum.make ((c.frame inLeft).backward.apply (CoordinatePair.first v)) ((d.frame inRight).backward.apply (CoordinatePair.second v)),
+  preservesAdd := \fun (v, w: CoordinatePair.Carrier) => Pair.Prop[A := F x, B := G x].pairCong _ _ _ _
+    ((c.frame inLeft).backward.preservesAdd (CoordinatePair.first v) (CoordinatePair.first w)) ((d.frame inRight).backward.preservesAdd (CoordinatePair.second v) (CoordinatePair.second w)),
+  preservesScale := \fun (a: K)(v: CoordinatePair.Carrier) => Pair.Prop[A := F x, B := G x].pairCong _ _ _ _
+    ((c.frame inLeft).backward.preservesScale a (CoordinatePair.first v)) ((d.frame inRight).backward.preservesScale a (CoordinatePair.second v)),
+};
+\import Spaces.Linear[V := CoordinatePair.Carrier, W := Vector Indices.total, source := CoordinatePair.space, target := coordinates Indices.total].Composition[U := Fiber x, domain := fiberSpace x] \as Forward;
+\import UnpairMaps.Composition[U := Vector Indices.total, domain := coordinates Indices.total] \as Backward;
+\import Spaces.Isomorphism[V := F x, W := Vector c.dimension, source := left.space x, target := coordinates c.dimension] \as LeftIso;
+\import Spaces.Isomorphism[V := G x, W := Vector d.dimension, source := right.space x, target := coordinates d.dimension] \as RightIso;
+\definition pairedLeftInverse: \forall (v: Fiber x) -> unpaired.apply (paired.apply v) = v :=
+  \fun (v: Fiber x) => Pair.Prop[A := F x, B := G x].ext _ _ ((LeftIso.laws (c.frame inLeft)).leftInverse (Sum.first v)) ((RightIso.laws (d.frame inRight)).leftInverse (Sum.second v));
+\definition pairedRightInverse: \forall (v: CoordinatePair.Carrier) -> paired.apply (unpaired.apply v) = v :=
+  \fun (v: CoordinatePair.Carrier) => Pair.Prop[A := Vector c.dimension, B := Vector d.dimension].ext _ _
+    ((LeftIso.laws (c.frame inLeft)).rightInverse (CoordinatePair.first v)) ((RightIso.laws (d.frame inRight)).rightInverse (CoordinatePair.second v));
+\import Spaces.Isomorphism[V := Fiber x, W := Vector Indices.total, source := fiberSpace x, target := coordinates Indices.total] \as Isomorphisms;
+\definition frame: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := Forward.compose CoordinateSum.forward paired, backward := Backward.compose unpaired CoordinateSum.backward,
+  leftInverse := \fun (v: Fiber x) => trans!{{Fiber x}} _ _ _
+    (congr!{CoordinatePair.Carrier {Fiber x}} unpaired.apply _ _ ((Spaces.Isomorphism[V := CoordinatePair.Carrier, W := Vector Indices.total, source := CoordinatePair.space, target := coordinates Indices.total].laws CoordinateSum.isomorphism).leftInverse (paired.apply v)))
+    (pairedLeftInverse v),
+  rightInverse := \fun (v: Vector Indices.total) => trans!{{Vector Indices.total}} _ _ _
+    (congr!{CoordinatePair.Carrier {Vector Indices.total}} CoordinateSum.forward.apply _ _ (pairedRightInverse (CoordinateSum.backward.apply v)))
+    ((Spaces.Isomorphism[V := CoordinatePair.Carrier, W := Vector Indices.total, source := CoordinatePair.space, target := coordinates Indices.total].laws CoordinateSum.isomorphism).rightInverse v),
+};

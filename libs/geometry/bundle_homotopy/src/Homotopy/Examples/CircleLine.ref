@@ -1,0 +1,22 @@
+\import algebraic_topology.Euclidean[].Dimension[n := two] \as E;
+\import R.Algebra[] \as RealAlgebra;
+\import C.Algebra[] \as Algebra;
+\import C.Def[] \as Def;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\definition coefficient[s: E.Sphere]: C.Complex := C.make (s (Fin.zero one)) (s (Fin.succ one (Fin.zero zero)));
+\definition norm: \forall (s: E.Sphere) -> Def.normSq (coefficient s) = R.one := \fun (s: E.Sphere) => trans!{R.Real} _ _ _
+  (congr!{R.Real R.Real} (R.add (R.mul (s (Fin.zero one)) (s (Fin.zero one)))) _ _ (sym!{R.Real} _ _ (Laws.addZeroRight (R.mul (s (Fin.succ one (Fin.zero zero))) (s (Fin.succ one (Fin.zero zero))))))) (\bysub(E.Coordinate, E.Boundary, s));
+\definition normZero: Def.normSq Def.zero = R.zero := trans!{R.Real} _ _ _
+  (congr!{R.Real R.Real R.Real} R.add _ _ _ _ (Laws.fieldMulZeroLeft R.zero) (Laws.fieldMulZeroLeft R.zero)) (Laws.addZeroLeft R.zero);
+\definition nonzero: \forall (s: E.Sphere) -> Logic.Not (coefficient s = Def.zero) := \fun (s: E.Sphere)(equal: _) => Laws.zeroNeOne
+  (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (trans!{R.Real} _ _ _ (congr!{C.Complex R.Real} Def.normSq _ _ equal) normZero)) (norm s));
+\import topological_constructions.Product[A := R.Real, B := R.Real] \as Product;
+\definition regular: topology.Continuity[A := E.Sphere, B := C.Complex].Continuous E.sphereTopology topological_algebra.Complex[].topology coefficient :=
+  Product.Universal[X := E.Sphere].pairContinuous E.sphereTopology metric_spaces.RealLine[].topology metric_spaces.RealLine[].topology
+    (\fun (s: E.Sphere) => s (Fin.zero one)) (\fun (s: E.Sphere) => s (Fin.succ one (Fin.zero zero)))
+    (E.Splitting[].Equator[].coordinateContinuous (Fin.zero one)) (E.Splitting[].Equator[].coordinateContinuous (Fin.succ one (Fin.zero zero)));
+\import Complex.ScalarUnits[n := one].Family[X := E.Sphere, source := E.sphereTopology, a := coefficient, regular := regular, nonzero := nonzero] \as Transition;
+\import Complex.Disks[d := two].Clutched[n := one, g := Transition.map, continuous := Transition.continuous] \as Construction;
+\definition three: N.Nat^ := N.Nat^::succ two;
+\definition Fiber[x: algebraic_topology.Euclidean[].Dimension[n := three].Sphere]: \Set := Construction.Fiber x;
+\definition bundle: vector_bundles.Bundles[].Over[K := C.Complex, field := Algebra.field, conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].Family[X := algebraic_topology.Euclidean[].Dimension[n := three].Sphere, F := Fiber].Bundle := Construction.bundle;

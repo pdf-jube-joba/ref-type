@@ -1,0 +1,41 @@
+\import \root.Linearization[].Companion[n := n, d := d].FromRow[row := row].Spectral[] \as OriginalSpectral;
+\import Next.FromRow[row := newRow].Spectral[] \as EnlargedSpectral;
+\import \root.Linearization[].SpectralTriangular[n := Coordinates.dimension degree, m := n,
+  A := OriginalSpectral.matrix, B := scalarMatrix, coupling := coupling, offA := OriginalSpectral.off kernel, offB := scalarOff offR] \as Block;
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := Coordinates.dimension degree] \as OldMatrix;
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := Coordinates.dimension Next.degree] \as NewMatrix;
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := total] \as TotalMatrix;
+\definition firstFrame: \forall (p: State.Carrier) -> Block.first.apply (stateFrame.forward.apply p) = Coordinates.flatten degree (State.first p) :=
+  \fun (p: State.Carrier) => congr!{FlatPair.Carrier OldFlat.Vector} FlatPair.first _ _ ((JoinIso.laws JoiningFlat.isomorphism).leftInverse (pairForward.apply p));
+\definition secondFrame: \forall (p: State.Carrier) -> Block.second.apply (stateFrame.forward.apply p) = State.second p :=
+  \fun (p: State.Carrier) => congr!{FlatPair.Carrier Vectors.Vector} FlatPair.second _ _ ((JoinIso.laws JoiningFlat.isomorphism).leftInverse (pairForward.apply p));
+\definition originalAction: \forall (v: Carrier) -> (OldMatrix.linear OriginalSpectral.matrix).apply (Coordinates.flatten degree v) = Coordinates.flatten degree (operator.apply v) :=
+  \fun (v: Carrier) => trans!{OldFlat.Vector} _ _ _ (OriginalSpectral.formula (Coordinates.flatten degree v))
+    (congr!{Carrier OldFlat.Vector} (\fun (w: Carrier) => Coordinates.flatten degree (operator.apply w)) _ _ (Coordinates.leftInverse degree v));
+\definition firstState: \forall (p: State.Carrier) ->
+  OldFlat.plus ((OldMatrix.linear OriginalSpectral.matrix).apply (Block.first.apply (stateFrame.forward.apply p))) (coupling.apply (Block.second.apply (stateFrame.forward.apply p))) =
+  Coordinates.flatten degree (space.add (operator.apply (State.first p)) (injection (State.second p))) :=
+  \fun (p: State.Carrier) => trans!{OldFlat.Vector} _ _ _
+    (congr!{OldFlat.Vector OldFlat.Vector OldFlat.Vector} OldFlat.plus _ _ _ _
+      (trans!{OldFlat.Vector} _ _ _ (congr!{OldFlat.Vector OldFlat.Vector} (OldMatrix.linear OriginalSpectral.matrix).apply _ _ (firstFrame p)) (originalAction (State.first p)))
+      (congr!{Vectors.Vector OldFlat.Vector} coupling.apply _ _ (secondFrame p)))
+    (sym!{OldFlat.Vector} _ _ (Coordinates.addition degree (operator.apply (State.first p)) (injection (State.second p))));
+\definition secondState: \forall (p: State.Carrier) -> (ScalarMatrices.linear scalarMatrix).apply (Block.second.apply (stateFrame.forward.apply p)) = Vectors.scale r (State.second p) :=
+  \fun (p: State.Carrier) => trans!{Vectors.Vector} _ _ _
+    (congr!{Vectors.Vector Vectors.Vector} (ScalarMatrices.linear scalarMatrix).apply _ _ (secondFrame p)) (scalarAction (State.second p));
+\definition blockState: \forall (p: State.Carrier) -> (TotalMatrix.linear Block.matrix).apply (stateFrame.forward.apply p) = stateFrame.forward.apply (triangularValue p) :=
+  \fun (p: State.Carrier) => trans!{Total.Vector} _ _ _ (Block.action (stateFrame.forward.apply p))
+    (congr!{FlatPair.Carrier Total.Vector} JoiningFlat.join _ _
+      (FlatPairs.ext (Block.pairMap.apply (stateFrame.forward.apply p)) (pairForward.apply (triangularValue p)) (firstState p) (secondState p)));
+\definition nativeState: \forall (v: NewFlat.Vector) -> flatIsomorphism.forward.apply ((NewMatrix.linear EnlargedSpectral.matrix).apply v) =
+  stateFrame.forward.apply (forward.apply (Enlarged.operator.apply (Coordinates.unflatten Next.degree v))) :=
+  \fun (v: NewFlat.Vector) => trans!{Total.Vector} _ _ _
+    (congr!{NewFlat.Vector Total.Vector} flatIsomorphism.forward.apply _ _ (EnlargedSpectral.formula v))
+    (congr!{Next.Carrier Total.Vector} (\fun (w: Next.Carrier) => stateFrame.forward.apply (forward.apply w)) _ _
+      (Coordinates.leftInverse Next.degree (Enlarged.operator.apply (Coordinates.unflatten Next.degree v))));
+\definition flatIntertwines: \forall (v: NewFlat.Vector) -> flatIsomorphism.forward.apply ((NewMatrix.linear EnlargedSpectral.matrix).apply v) = (TotalMatrix.linear Block.matrix).apply (flatIsomorphism.forward.apply v) :=
+  \fun (v: NewFlat.Vector) => trans!{Total.Vector} _ _ _ (nativeState v)
+    (trans!{Total.Vector} _ _ _ (congr!{State.Carrier Total.Vector} stateFrame.forward.apply _ _ (intertwines (Coordinates.unflatten Next.degree v)))
+      (sym!{Total.Vector} _ _ (blockState (forward.apply (Coordinates.unflatten Next.degree v)))));
+\definition enlargedOff: spectral_splitting.Spectral[].At[n := Coordinates.dimension Next.degree].Splitting[A := EnlargedSpectral.matrix].OffSpectrum :=
+  EnlargedSpectral.off (polynomialKernel kernel offR);

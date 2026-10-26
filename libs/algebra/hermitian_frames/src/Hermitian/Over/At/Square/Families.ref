@@ -1,0 +1,23 @@
+\import topology.Topology[Carrier := X] \as Source;
+\import \parent.\parent.\parent.Functions[X := X] \as Functions;
+\import matrix_invariants.Topological[K := K, ring := topologicalRing].At[n := n].Families[X := X] \as Matrices;
+\import \parent.\parent.Families[X := X].Matrix[m := n] \as Maps;
+\definition Regular[source: Source.Topology][A: X -> Matrix.Matrix]: \Prop := Matrices.Regular source A;
+\definition inverseRegular: \forall (source: Source.Topology)(A: X -> Matrix.Matrix) -> Regular source A ->
+  (\forall (x: X) -> Inversion.Nonzero (A x)) -> Regular source (\fun (x: X) => Inversion.formula (A x)) :=
+  \fun (source: Source.Topology)(A: X -> Matrix.Matrix)(regular: Regular source A)(nonzero: _)(i, j: Fin.Fin n) =>
+    Functions.multiplication source (\fun (x: X) => field.inv (Matrix.determinant (A x))) (\fun (x: X) => Matrix.cofactor (A x) j i)
+      (Functions.inversion source (\fun (x: X) => Matrix.determinant (A x)) (Matrices.determinantContinuous source A regular) nonzero)
+      (Matrices.cofactorContinuous source A regular j i);
+\definition inverseMaps: \forall (source: Source.Topology)(A: X -> Inversion.Nonsingular) -> Regular source (\fun (x: X) => A x) ->
+  Maps.Regular source (\fun (x: X) => \parent.Inverse[A := A x].value) :=
+  \fun (source: Source.Topology)(A: X -> Inversion.Nonsingular)(regular: _) => Maps.regularOfComponents source
+    (\fun (x: X) => \parent.Inverse[A := A x].value)
+    (\fun (j, i: Fin.Fin n) => Functions.transport source (\fun (x: X) => Inversion.formula (A x) i j)
+      (\fun (x: X) => (\parent.Inverse[A := A x].value).apply (E.basis j) i)
+      (\fun (x: X) => sym!{K} _ _ (congr!{Vector K} (\fun (v: Vector) => v i) _ _ (Matrix.onBasis (Inversion.formula (A x)) j)))
+      (inverseRegular source (\fun (x: X) => A x) regular (\fun (x: X) => \bysub(Matrix.Matrix, Inversion.Nonsingular, A x)) i j));
+\definition nonsingularOpen: \forall (source: Source.Topology)(A: X -> Matrix.Matrix) -> Regular source A ->
+  Source.IsOpenIn source ({ x: X \where Inversion.Nonzero (A x) }) :=
+  \fun (source: Source.Topology)(A: X -> Matrix.Matrix)(regular: _) =>
+    Matrices.determinantContinuous source A regular (\parent.\parent.\parent.\parent.Nonzero[K := K, field := field].points) topological.nonzeroOpen;

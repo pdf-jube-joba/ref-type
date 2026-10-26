@@ -1,0 +1,24 @@
+\import topology.Topology[Carrier := A] \as Source;
+\import topology.Topology[Carrier := B] \as Target;
+\import topology.Maps[A := A, B := B] \as Sets;
+\import topology.Continuity[A := A, B := B] \as Maps;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\definition Basis[target: Target.Topology][f: A -> B]: \Pow (\Pow A) := Sets.PullbackFamily f (Target.topologyData target).openSets;
+\definition topology[target: Target.Topology][f: A -> B]: Source.Topology := Source.generated (Basis target f);
+\definition continuous: \forall (target: Target.Topology)(f: A -> B) -> Maps.Continuous (topology target f) target f :=
+  \fun (target: Target.Topology)(f: A -> B)(U: \Pow B)(open: _) => Source.generatedBasisOpen (Basis target f) (Sets.Preimage f U)
+    (Sets.pullbackMember f (Target.topologyData target).openSets U open);
+\module Universal(Z: \Set) {
+  \import topology.Topology[Carrier := Z] \as Domain;
+  \import topology.Maps[A := Z, B := A] \as Into;
+  \import topology.Continuity[A := Z, B := A] \as IntoMaps;
+  \import topology.Continuity[A := Z, B := B] \as Composite;
+  \definition continuous: \forall (source: Domain.Topology)(target: Target.Topology)(f: A -> B)(g: Z -> A) ->
+    Composite.Continuous source target (\fun (z: Z) => f (g z)) -> IntoMaps.Continuous source (topology target f) g :=
+    \fun (source: Domain.Topology)(target: Target.Topology)(f: A -> B)(g: Z -> A)(regular: _) => Into.generatedContinuous source g (Basis target f)
+      (\fun (W: \Pow A)(member: _) => Sets.pullbackElim f (Target.topologyData target).openSets W (Domain.IsOpenIn source (Into.Preimage g W))
+        (\fun (U: \Pow B)(open: _)(same: W = Sets.Preimage f U) => \idelim Sets.Preimage f U = W
+          \with O: \Pow A => Domain.IsOpenIn source (Into.Preimage g O) \by { base: regular U open, equality: sym!{\Pow A} _ _ same }) member);
+}

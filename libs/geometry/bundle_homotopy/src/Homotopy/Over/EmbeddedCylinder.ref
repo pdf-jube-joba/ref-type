@@ -1,0 +1,25 @@
+\import algebraic_topology.Interval[] \as I;
+\import topological_constructions.Product[A := I.Carrier, B := X] \as Cylinder;
+\definition topology: topology.Topology[Carrier := Cylinder.CarrierSet].Topology := Cylinder.topology I.topology baseSpace;
+\import topology.Topology[Carrier := X] \as Base;
+\import \parent.Presentation[X := Cylinder.CarrierSet, F := F, bundle := bundle, embedding := embedding] \as Presentation;
+\definition n: N.Nat^ := embedding.dimension;
+\definition projection[p: Cylinder.CarrierSet]: Hermitian.At[n := n].Projection := Presentation.projection p;
+\definition regular: Hermitian.At[n := n].Families[X := Cylinder.CarrierSet].Matrix[m := n].Regular topology (\fun (p: Cylinder.CarrierSet) => (projection p).map) :=
+  \idelim bundle.baseSpace = topology \with space: topology.Topology[Carrier := Cylinder.CarrierSet].Topology =>
+    Hermitian.At[n := n].Families[X := Cylinder.CarrierSet].Matrix[m := n].Regular space (\fun (p: Cylinder.CarrierSet) => (projection p).map) \by {
+      base: Presentation.regular, equality: sameBase
+    };
+\definition stationaryEmpty: \forall (x: X) -> Base.Member Base.Empty x -> \forall (s, t: I.Carrier) ->
+  (projection (Pair.pair I.Carrier X s x)).map = (projection (Pair.pair I.Carrier X t x)).map :=
+  \fun (x: X)(empty: Logic.False)(s, t: I.Carrier) => Logic.falseElim ((projection (Pair.pair I.Carrier X s x)).map = (projection (Pair.pair I.Carrier X t x)).map) empty;
+\import \parent.Projections[n := n].Homotopy[X := X, baseSpace := baseSpace, compact := compact, P := projection, regular := regular, A := Base.Empty, stationary := stationaryEmpty] \as Motion;
+\definition originalBundle: Bundles.Family[X := Cylinder.CarrierSet, F := F].Bundle := bundle;
+\module Endpoint(t: I.Carrier);
+\definition Isomorphism: \Set := Bundles.Isomorphisms[X := X, F := (\fun (x: X) => Endpoint[t := I.start].Fiber x), G := (\fun (x: X) => Endpoint[t := I.end].Fiber x),
+  source := Endpoint[t := I.start].bundle, target := Endpoint[t := I.end].bundle].Isomorphism;
+\module Compare(iso: Motion.Isomorphism I.start I.end);
+\definition endpointIsomorphismExists: \exists Isomorphism := \block {
+  \takefrom iso: Motion.Isomorphism I.start I.end \by Motion.endpointIsomorphismExists \then
+  \return \exact(Compare[iso := iso].value, Isomorphism)
+};

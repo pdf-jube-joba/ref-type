@@ -1,0 +1,17 @@
+\import \root.Homotopy[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Projections[n := n].Operators[].Units[] \as Units;
+\import Spaces.Isomorphism[V := Vector n, W := Vector n, source := coordinates n, target := coordinates n] \as Linear;
+\definition regular: Native.Families[X := X].Matrix[m := n].Regular baseSpace (\fun (x: X) => H x) := Units.Family[X := X, source := baseSpace, H := H].regular continuousH;
+\definition injective: \forall (x: X)(v, w: Vector n) -> (H x).apply v = (H x).apply w -> v = w := \fun (x: X) => Linear.injective (Units.isomorphism (H x));
+\definition inverseContinuous: topology.Continuity[A := X, B := End.Map].Continuous baseSpace operatorTopology (\fun (x: X) => inverse (H x)) :=
+  topology.Composition[A := X, B := Carrier, C := End.Map].composeContinuous baseSpace topology operatorTopology H inverse continuousH Units.inverseContinuous;
+\definition inverseRegular: Native.Families[X := X].Matrix[m := n].Regular baseSpace (\fun (x: X) => inverse (H x)) :=
+  \parent.\parent.Family[X := X, source := baseSpace, H := (\fun (x: X) => inverse (H x))].regular inverseContinuous;
+\definition reverse[x: X]: Linear.Isomorphism := Linear.Isomorphism { forward := inverse (H x), backward := H x, leftInverse := right (H x), rightInverse := left (H x) };
+\definition inverseInjective: \forall (x: X)(v, w: Vector n) -> (inverse (H x)).apply v = (inverse (H x)).apply w -> v = w := \fun (x: X) => Linear.injective (reverse x);
+\import Complements.CoordinateEmbedding[X := X, m := n, n := n, baseSpace := baseSpace, A := (\fun (x: X) => H x), regular := regular, injective := injective] \as Forward;
+\import Complements.CoordinateEmbedding[X := X, m := n, n := n, baseSpace := baseSpace, A := (\fun (x: X) => inverse (H x)), regular := inverseRegular, injective := inverseInjective] \as Backward;
+\import Bundles.Trivial[X := X, n := n, baseSpace := baseSpace] \as Trivial;
+\definition isomorphism: Bundles.Isomorphisms[X := X, F := (\fun (x: X) => Vector n), G := (\fun (x: X) => Vector n), source := Trivial.bundle, target := Trivial.bundle].Isomorphism :=
+  Bundles.Isomorphisms[X := X, F := (\fun (x: X) => Vector n), G := (\fun (x: X) => Vector n), source := Trivial.bundle, target := Trivial.bundle].Isomorphism {
+    forward := Forward.map, backward := Backward.map, leftInverse := (\fun (x: X) => left (H x)), rightInverse := (\fun (x: X) => right (H x))
+  };

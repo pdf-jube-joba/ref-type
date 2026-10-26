@@ -1,0 +1,27 @@
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].DirectSum[X := X, F := F, G := G, left := first, right := second] \as Source;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].DirectSum[X := X, F := A, G := B, left := newFirst, right := newSecond] \as Target;
+\definition sourceBundle: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := Source.Fiber].Bundle := Source.bundle sameSource;
+\definition targetBundle: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := Target.Fiber].Bundle := Target.bundle sameTarget;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Isomorphisms[X := X, F := F, G := A, source := first, target := newFirst] \as Left;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Isomorphisms[X := X, F := G, G := B, source := second, target := newSecond] \as Right;
+\import Source.Of[same := sameSource].Mapping[Y := X, A := A, B := B, leftTarget := newFirst, rightTarget := newSecond, f := \fun (x: X) => x, targetSame := sameTarget] \as Forward;
+\import Target.Of[same := sameTarget].Mapping[Y := X, A := F, B := G, leftTarget := first, rightTarget := second, f := \fun (x: X) => x, targetSame := sameSource] \as Backward;
+\definition forward[a: Left.Isomorphism][b: Right.Isomorphism]: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := Source.Fiber, G := Target.Fiber, source := sourceBundle, target := targetBundle, f := \fun (x: X) => x].Map := Forward.map a.forward b.forward;
+\definition backward[a: Left.Isomorphism][b: Right.Isomorphism]: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := Target.Fiber, G := Source.Fiber, source := targetBundle, target := sourceBundle, f := \fun (x: X) => x].Map := Backward.map a.backward b.backward;
+\definition isomorphism[a: Left.Isomorphism][b: Right.Isomorphism]: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Isomorphisms[X := X, F := Source.Fiber, G := Target.Fiber, source := sourceBundle, target := targetBundle].Isomorphism :=
+  vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Isomorphisms[X := X, F := Source.Fiber, G := Target.Fiber, source := sourceBundle, target := targetBundle].Isomorphism {
+    forward := forward a b, backward := backward a b,
+    leftInverse := \fun (x: X)(v: Source.Fiber x) => Pair.Prop[A := F x, B := G x].ext (((backward a b).fiber x).apply (((forward a b).fiber x).apply v)) v
+      ((\bysub(Left.Data, Left.Isomorphism, a)).leftInverse x (Pair.first (F x) (G x) v)) ((\bysub(Right.Data, Right.Isomorphism, b)).leftInverse x (Pair.second (F x) (G x) v)),
+    rightInverse := \fun (x: X)(v: Target.Fiber x) => Pair.Prop[A := A x, B := B x].ext (((forward a b).fiber x).apply (((backward a b).fiber x).apply v)) v
+      ((\bysub(Left.Data, Left.Isomorphism, a)).rightInverse x (Pair.first (A x) (B x) v)) ((\bysub(Right.Data, Right.Isomorphism, b)).rightInverse x (Pair.second (A x) (B x) v))
+  };
+\definition SourceFiber[x: X]: \Set := Source.Fiber x;
+\definition TargetFiber[x: X]: \Set := Target.Fiber x;
+
+\definition exists: (\exists Left.Isomorphism) -> (\exists Right.Isomorphism) -> \exists vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Isomorphisms[X := X, F := Source.Fiber, G := Target.Fiber, source := sourceBundle, target := targetBundle].Isomorphism := \block {
+  \fun (first: \exists Left.Isomorphism)(second: \exists Right.Isomorphism) \then
+  \takefrom a: Left.Isomorphism \by first \then
+  \takefrom b: Right.Isomorphism \by second \then
+  \return \exact(isomorphism a b, vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Isomorphisms[X := X, F := Source.Fiber, G := Target.Fiber, source := sourceBundle, target := targetBundle].Isomorphism)
+};

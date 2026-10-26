@@ -6,6 +6,7 @@ use std::{cell::Cell, hash::Hash};
 struct Entry<V> {
     value: V,
     reused: Cell<bool>,
+    written: bool,
 }
 
 /// Records writes during a scratch operation so cleanup only visits changed entries.
@@ -45,18 +46,29 @@ impl<K: Copy + Eq + Hash, V, const LIMIT: usize> Cache<K, V, LIMIT> {
                 retained += usize::from(keep);
                 keep
             });
+            // Evicted scratch entries no longer need cleanup. A declaration
+            // can recycle this cache many times before its scratch ends.
+            self.writes.retain(|key| self.entries.contains_key(key));
             timing::costs::count("kernel.cache-recycles", || 1);
             timing::costs::count("kernel.cache-retained", || retained as u64);
         }
-        if self.tracking {
-            self.writes.push(key);
-        }
         match self.entries.entry(key) {
-            std::collections::hash_map::Entry::Occupied(mut entry) => entry.get_mut().value = value,
+            std::collections::hash_map::Entry::Occupied(mut entry) => {
+                let entry = entry.get_mut();
+                if self.tracking && !entry.written {
+                    self.writes.push(key);
+                    entry.written = true;
+                }
+                entry.value = value;
+            }
             std::collections::hash_map::Entry::Vacant(entry) => {
+                if self.tracking {
+                    self.writes.push(key);
+                }
                 entry.insert(Entry {
                     value,
                     reused: Cell::new(false),
+                    written: self.tracking,
                 });
             }
         }
@@ -83,6 +95,9 @@ impl<K: Copy + Eq + Hash, V, const LIMIT: usize> Cache<K, V, LIMIT> {
     pub fn finish_scratch(&mut self, mut keep: impl FnMut(&K, &V) -> bool) {
         self.tracking = false;
         for key in self.writes.drain(..) {
+            if let Some(entry) = self.entries.get_mut(&key) {
+                entry.written = false;
+            }
             if self
                 .entries
                 .get(&key)
@@ -288,5 +303,25 @@ mod tests {
         cache.insert(5, 5);
         assert_eq!(cache.len(), 2);
         assert_eq!(cache.get(&4), Some(&4));
+    }
+
+    #[test]
+    fn long_scratch_bounds_journal_and_checks_the_latest_value() {
+        let mut cache = Cache::<_, _, 8>::default();
+        cache.insert(0, true);
+        cache.begin_scratch();
+        for key in 1..10_000 {
+            cache.insert(key, false);
+            cache.insert(key, true);
+            assert!(cache.writes.len() <= 8);
+        }
+        cache.insert(9_999, false);
+        cache.finish_scratch(|_, &live| live);
+        assert_eq!(cache.get(&9_999), None);
+        cache.begin_scratch();
+        cache.insert(10_000, false);
+        cache.insert(10_000, true);
+        cache.finish_scratch(|_, &live| live);
+        assert_eq!(cache.get(&10_000), Some(&true));
     }
 }

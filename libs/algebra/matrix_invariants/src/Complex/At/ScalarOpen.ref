@@ -1,0 +1,25 @@
+\import topological_algebra.Complex[] \as ComplexTopology;
+\import ComplexTopology.Functions[A := K] \as Functions;
+\import Scalar.Def[] \as ComplexOperations;
+\import Scalar.Prop[] \as Laws;
+\import real.Analysis[] \as Real;
+\import metric_spaces.RealLine[] \as Line;
+\import Line.Rays[] \as Rays;
+\import topology.Maps[A := K, B := K].Identity[] \as Identity;
+\import dedekind_reals.DedekindReal[] \as Order;
+\definition scalarTopology: ScalarSpace.Topology := ComplexTopology.topology;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as RealLaws;
+\definition normZero: ComplexOperations.normSq Scalars.field.zero = Real.zero :=
+  trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (RealLaws.fieldMulZeroLeft Real.zero) (RealLaws.fieldMulZeroLeft Real.zero))
+    (RealLaws.addZeroLeft Real.zero);
+\definition nonzeroOpen: ScalarSpace.IsOpenIn scalarTopology (ScalarSpace.Complement (ScalarSpace.Singleton Scalars.field.zero)) :=
+  \idelim topology.Continuity[A := K, B := Real.Real].Preimage ComplexOperations.normSq (Rays.Above Real.zero) = ScalarSpace.Complement (ScalarSpace.Singleton Scalars.field.zero)
+    \with S: \Pow K => ScalarSpace.IsOpenIn scalarTopology S \by {
+      base: Functions.normSquaredContinuous scalarTopology (\fun (z: K) => z) (Identity.continuous scalarTopology) (Rays.Above Real.zero) (Rays.aboveOpen Real.zero),
+      equality: \axiom:setext(topology.Continuity[A := K, B := Real.Real].Preimage ComplexOperations.normSq (Rays.Above Real.zero), ScalarSpace.Complement (ScalarSpace.Singleton Scalars.field.zero),
+        \fun (z: K)(positive: Order.Lt Real.zero (ComplexOperations.normSq z))(zero: z = Scalars.field.zero) =>
+          Order.ltIrrefl Real.zero (Order.ltReplaceRight Real.zero (ComplexOperations.normSq z) Real.zero
+            (trans!{Real.Real} _ _ _ (congr!{K Real.Real} ComplexOperations.normSq _ _ zero) normZero) positive),
+        \fun (z: K)(nonzero: Logic.Not (z = Scalars.field.zero)) => Laws.normSqPositive z nonzero)
+    };

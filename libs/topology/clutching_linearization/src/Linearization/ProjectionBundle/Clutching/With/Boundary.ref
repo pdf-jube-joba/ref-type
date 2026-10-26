@@ -1,0 +1,30 @@
+\import \parent.Side[i := B.Bool^::false] \as Left;
+\import \parent.Side[i := B.Bool^::true] \as Right;
+\import Line.Boundary[x := x] \as LineBoundary;
+\definition leftPoint: \Cast[X] U := LineBoundary.leftPoint;
+\definition rightPoint: \Cast[X] V := LineBoundary.rightPoint;
+\definition coefficient: C.Complex := (Right.lineFrame.forward.fiber rightPoint).apply (Left.unit leftPoint);
+\definition coefficientFormula: coefficient = a x := trans!{{C.Complex}} _ _ _
+  (congr!{{Bundles.Vector LineCoordinates.one} {C.Complex}} LineCoordinates.evaluate _ _ (LineBoundary.transition (LineCoordinates.constant C.Def[].one)))
+  (trans!{{C.Complex}} _ _ _
+    (congr!{{Bundles.Vector LineCoordinates.one} {C.Complex}} LineCoordinates.evaluate _ _ (ScalarsOnOverlap.formula x (LineCoordinates.constant C.Def[].one)))
+    (C.Prop[].mulOneRight (a x)));
+\definition transition: \forall (v: M.Vector) -> (Right.chart.frame rightPoint).forward.apply ((Left.chart.frame leftPoint).backward.apply v) = (Normal.unit x).apply v :=
+  \fun (v: M.Vector) => trans!{M.Vector} _ _ _
+    (congr!{{ProductFiber x} M.Vector} (Right.chart.frame rightPoint).forward.apply _ _ (Left.backwardFormula leftPoint v))
+    (trans!{M.Vector} _ _ _ (Right.forwardPure rightPoint (Left.unit leftPoint) ((Image.projectMap.fiber x).apply v) ((Other.projectMap.fiber x).apply v))
+      (trans!{M.Vector} _ _ _
+        (congr!{{C.Complex} M.Vector} (\fun (z: C.Complex) => Vectors.plus (Vectors.scale z ((Image.projectMap.fiber x).apply v)) ((Other.projectMap.fiber x).apply v)) _ _ coefficientFormula)
+        (sym!{M.Vector} _ _ (Normal.unitFormula x v))));
+\definition onFiber: \forall (v: ProductFiber x) -> (Right.chart.frame rightPoint).forward.apply v = (Normal.unit x).apply ((Left.chart.frame leftPoint).forward.apply v) :=
+  \fun (v: ProductFiber x) => trans!{M.Vector} _ _ _
+    (congr!{{ProductFiber x} M.Vector} (Right.chart.frame rightPoint).forward.apply _ _
+      (sym!{{ProductFiber x}} _ _ ((Spaces.Isomorphism[V := ProductFiber x, W := M.Vector, source := productBundle.space x, target := Vectors.space].laws (Left.chart.frame leftPoint)).leftInverse v)))
+    (transition ((Left.chart.frame leftPoint).forward.apply v));
+\import Homotopy.Projections[n := n].Operators[].Units[] \as Units;
+\definition inverseTransition: \forall (v: M.Vector) -> (Left.chart.frame leftPoint).forward.apply ((Right.chart.frame rightPoint).backward.apply v) = (Units.inverse (Normal.unit x)).apply v :=
+  \fun (v: M.Vector) => trans!{M.Vector} _ _ _
+    (sym!{M.Vector} _ _ (Units.left (Normal.unit x) ((Left.chart.frame leftPoint).forward.apply ((Right.chart.frame rightPoint).backward.apply v))))
+    (congr!{M.Vector M.Vector} (Units.inverse (Normal.unit x)).apply _ _
+      (trans!{M.Vector} _ _ _ (sym!{M.Vector} _ _ (onFiber ((Right.chart.frame rightPoint).backward.apply v)))
+        ((Spaces.Isomorphism[V := ProductFiber x, W := M.Vector, source := productBundle.space x, target := Vectors.space].laws (Right.chart.frame rightPoint)).rightInverse v)));

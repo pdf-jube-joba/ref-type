@@ -1,0 +1,25 @@
+\import \root.Spectral[].BundleCoordinates[X := X, F := F, bundle := bundle, T := T, c := c] \as Coordinates;
+\import Charts.In[c := c] \as Chart;
+\definition off: \forall (x: Chart.BasePoint) -> \root.Spectral[].At[n := c.dimension].Splitting[A := Coordinates.matrix x].OffSpectrum :=
+  \fun (x: Chart.BasePoint) => \root.Spectral[].InFrame[V := F x, space := bundle.space x, T := T.fiber x, n := c.dimension, frame := c.frame x].Eigenvalues[].off (gap x);
+\import \root.Spectral[].At[n := c.dimension].Continuous[X := Chart.BasePoint, source := Coordinates.baseSpace, A := Coordinates.matrix, regular := Coordinates.matrixRegular, off := off] \as Native;
+\import Along.In[c := c] \as Local;
+\import Hermitian.At[n := c.dimension].Families[X := Local.Point] \as Vectors;
+\import Vectors.Matrix[m := c.dimension] \as LinearMaps;
+\definition centerContinuous: topology.Continuity[A := Local.Point, B := Chart.BasePoint].Continuous Local.topology Coordinates.baseSpace Local.center :=
+  Local.centerContinuous Family.Of[bundle := bundle].projectionContinuous;
+\definition components: LinearMaps.Components Local.topology (\fun (p: Local.Point) => Native.projection (Local.center p)) :=
+  \fun (j, i: Fin.Fin c.dimension) => topology.Composition[A := Local.Point, B := Chart.BasePoint, C := C.Complex].composeContinuous Local.topology Coordinates.baseSpace Bundles.scalarTopology Local.center
+    (\fun (x: Chart.BasePoint) => (Native.projection x).apply (Geometry.Finite[n := c.dimension].basis j) i) centerContinuous
+    (Native.projectionRegular (Geometry.Finite[n := c.dimension].basis j) i);
+\definition formula: \forall (p: Local.Point) -> Local.coordinate value p = (Native.projection (Local.center p)).apply (Local.coordinate input p) :=
+  \fun (p: Local.Point) => trans!{{Bundles.Vector c.dimension}} _ _ _
+    (congr!{{F p.base} {Bundles.Vector c.dimension}} (c.frame (Local.center p)).forward.apply _ _
+      (\root.Spectral[].BundleEndomorphism[X := X, F := F, bundle := bundle, T := T, gap := gap].At[x := p.base].inFrame c.dimension (c.frame (Local.center p)) (off (Local.center p)) p.vector))
+    (\root.Spectral[].InFrame[V := F p.base, space := bundle.space p.base, T := T.fiber p.base, n := c.dimension, frame := c.frame (Local.center p)].right ((Native.projection (Local.center p)).apply (Local.coordinate input p)));
+\definition regular: Local.Regular value := topological_algebra.Coordinates[K := C.Complex, I := Fin.Fin c.dimension].Universal[A := Local.Point].continuous Local.topology Bundles.scalarTopology (Local.coordinate value)
+  (\fun (i: Fin.Fin c.dimension) => Hermitian.Functions[X := Local.Point].transport Local.topology
+    (\fun (p: Local.Point) => (Native.projection (Local.center p)).apply (Local.coordinate input p) i)
+    (\fun (p: Local.Point) => Local.coordinate value p i)
+    (\fun (p: Local.Point) => sym!{{C.Complex}} _ _ (congr!{{Bundles.Vector c.dimension} {C.Complex}} (\fun (v: Bundles.Vector c.dimension) => v i) _ _ (formula p)))
+    (LinearMaps.evaluate Local.topology (\fun (p: Local.Point) => Native.projection (Local.center p)) (Local.coordinate input) components (Local.component input (Local.read input inputContinuous)) i));

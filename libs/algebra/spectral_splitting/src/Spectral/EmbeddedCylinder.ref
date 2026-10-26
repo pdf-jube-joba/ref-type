@@ -1,0 +1,22 @@
+\import algebraic_topology.Interval[] \as I;
+\import topological_constructions.Product[A := I.Carrier, B := X] \as Cylinder;
+\definition topology: topology.Topology[Carrier := Cylinder.CarrierSet].Topology := Cylinder.topology I.topology baseSpace;
+\import Complements.For[X := Cylinder.CarrierSet, F := F, bundle := bundle].FromEmbedding[embedding := embedding].Image[] \as Image;
+\definition n: N.Nat^ := embedding.dimension;
+\import \root.Spectral[].Idempotents[n := n] \as Idempotents;
+\definition projection[p: Cylinder.CarrierSet]: Idempotents.Projection := Idempotents.Projection { map := (Image.projection p).map, idempotent := (Image.projection p).idempotent };
+\definition regular: Hermitian.At[n := n].Families[X := Cylinder.CarrierSet].Matrix[m := n].Regular topology (\fun (p: Cylinder.CarrierSet) => (projection p).map) :=
+  \idelim bundle.baseSpace = topology \with space: topology.Topology[Carrier := Cylinder.CarrierSet].Topology =>
+    Hermitian.At[n := n].Families[X := Cylinder.CarrierSet].Matrix[m := n].Regular space (\fun (p: Cylinder.CarrierSet) => (projection p).map) \by {
+      base: Image.regular, equality: sameBase
+    };
+\import Idempotents.Homotopy[X := X, baseSpace := baseSpace, compact := compact, P := projection, regular := regular] \as Motion;
+\definition originalBundle: Bundles.Family[X := Cylinder.CarrierSet, F := F].Bundle := bundle;
+\module Endpoint(t: I.Carrier);
+\definition Isomorphism: \Set := Bundles.Isomorphisms[X := X, F := (\fun (x: X) => Endpoint[t := I.start].Fiber x), G := (\fun (x: X) => Endpoint[t := I.end].Fiber x),
+  source := Endpoint[t := I.start].bundle, target := Endpoint[t := I.end].bundle].Isomorphism;
+\module Compare(iso: Motion.Isomorphism I.start I.end);
+\definition endpointIsomorphismExists: \exists Isomorphism := \block {
+  \takefrom iso: Motion.Isomorphism I.start I.end \by Motion.endpointIsomorphismExists \then
+  \return \exact(Compare[iso := iso].value, Isomorphism)
+};

@@ -1,0 +1,41 @@
+\import Operations.TensorUnit[X := X, F := ImageFiber, bundle := imageBundle] \as Unit;
+\import Operations.Tensor[X := X, F := (\fun (_: X) => C.Complex), G := ImageFiber, left := ScalarLine.bundle, right := imageBundle] \as ScalarTensor;
+\import Operations.IdentityIsomorphism[X := X, F := ImageFiber, bundle := imageBundle] \as ImageIdentity;
+\import Operations.IdentityIsomorphism[X := X, F := ComplementFiber, bundle := complementBundle] \as ComplementIdentity;
+\import Operations.TensorIsomorphisms[X := X, F := L, G := ImageFiber, A := (\fun (_: X) => C.Complex), B := ImageFiber,
+  first := line, second := imageBundle, newFirst := ScalarLine.bundle, newSecond := imageBundle, sameSource := sameBase, sameTarget := \refl(source)] \as Change;
+\import Operations.IsomorphismComposition[X := X, F := Tensor.Fiber, G := ScalarTensor.Fiber, H := ImageFiber,
+  source := tensorBundle, middle := Unit.tensor, target := imageBundle] \as Contract;
+\definition contraction: Bundles.Isomorphisms[X := X, F := Tensor.Fiber, G := ImageFiber, source := tensorBundle, target := imageBundle].Isomorphism :=
+  Contract.compose (Change.isomorphism frame ImageIdentity.isomorphism) Unit.isomorphism;
+\import Operations.DirectSumIsomorphisms[X := X, F := Tensor.Fiber, G := ComplementFiber, A := ImageFiber, B := ComplementFiber,
+  first := tensorBundle, second := complementBundle, newFirst := imageBundle, newSecond := complementBundle,
+  sameSource := sameBase, sameTarget := \refl(source)] \as SumChange;
+\import Operations.IsomorphismComposition[X := X, F := ProductFiber, G := SumFiber, H := (\fun (_: X) => M.Vector),
+  source := productBundle, middle := sumBundle, target := Ambient.bundle] \as Compare;
+\definition trivialization: Bundles.Isomorphisms[X := X, F := ProductFiber, G := (\fun (_: X) => M.Vector), source := productBundle, target := Ambient.bundle].Isomorphism :=
+  Compare.compose (SumChange.isomorphism contraction ComplementIdentity.isomorphism) isomorphism;
+\definition onPure: \forall (x: X)(l: L x)(v: ImageFiber x) -> (contraction.forward.fiber x).apply (Tensor.pure x l v) =
+  (imageBundle.space x).smul ((frame.forward.fiber x).apply l) v :=
+  \fun (x: X)(l: L x)(v: ImageFiber x) => trans!{{ImageFiber x}} _ _ _
+    (congr!{{ScalarTensor.Fiber x} {ImageFiber x}} (Unit.forward.fiber x).apply _ _ (Change.onPure frame ImageIdentity.isomorphism x l v))
+    (Unit.onPure x ((frame.forward.fiber x).apply l) v);
+\definition pair[x: X][l: L x][v: ImageFiber x][w: ComplementFiber x]: ProductFiber x :=
+  Pair.pair (Tensor.Fiber x) (ComplementFiber x) (Tensor.pure x l v) w;
+\definition forwardPure: \forall (x: X)(l: L x)(v: ImageFiber x)(w: ComplementFiber x) ->
+  (trivialization.forward.fiber x).apply (pair x l v w) = Vectors.plus (Vectors.scale ((frame.forward.fiber x).apply l) v) w :=
+  \fun (x: X)(l: L x)(v: ImageFiber x)(w: ComplementFiber x) =>
+    congr!{M.Vector M.Vector} (\fun (u: M.Vector) => Vectors.plus u w) _ _ (onPure x l v);
+\definition unit[x: X]: L x := (frame.backward.fiber x).apply C.Def[].one;
+\definition reconstruction[x: X][v: M.Vector]: ProductFiber x := pair x (unit x) ((Image.projectMap.fiber x).apply v) ((Other.projectMap.fiber x).apply v);
+\definition reconstructs: \forall (x: X)(v: M.Vector) -> (trivialization.forward.fiber x).apply (reconstruction x v) = v :=
+  \fun (x: X)(v: M.Vector) => trans!{M.Vector} _ _ _ (forwardPure x (unit x) ((Image.projectMap.fiber x).apply v) ((Other.projectMap.fiber x).apply v))
+    (trans!{M.Vector} _ _ _
+      (congr!{M.Vector M.Vector} (\fun (u: M.Vector) => Vectors.plus u ((Other.projectMap.fiber x).apply v)) _ _
+        (trans!{M.Vector} _ _ _ (congr!{{C.Complex} M.Vector} (\fun (z: C.Complex) => Vectors.scale z ((Image.projectMap.fiber x).apply v)) _ _ (frame.rightInverse x C.Def[].one))
+          (Vectors.space.scalarOne ((Image.projectMap.fiber x).apply v))))
+      (spectral_splitting.Spectral[].Idempotents[n := n].With[P := P x].splitting v));
+\definition backwardFormula: \forall (x: X)(v: M.Vector) -> (trivialization.backward.fiber x).apply v = reconstruction x v :=
+  \fun (x: X)(v: M.Vector) => trans!{{ProductFiber x}} _ _ _
+    (congr!{M.Vector {ProductFiber x}} (trivialization.backward.fiber x).apply _ _ (sym!{M.Vector} _ _ (reconstructs x v)))
+    (trivialization.leftInverse x (reconstruction x v));

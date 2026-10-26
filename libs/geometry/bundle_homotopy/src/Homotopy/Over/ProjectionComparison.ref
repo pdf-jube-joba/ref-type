@@ -1,0 +1,61 @@
+\import Complements.Projection[X := X, n := n, baseSpace := baseSpace, P := P, regular := regularP] \as Source;
+\import Complements.Projection[X := X, n := n, baseSpace := baseSpace, P := Q, regular := regularQ] \as Target;
+\import Hermitian.At[n := n].Square[] \as Square;
+\import Spaces.Linear[V := Vector n, W := Vector n, source := coordinates n, target := coordinates n] \as End;
+\import matrix_invariants.Ring[K := K, scalars := Fields.fieldAsCommutativeRing K field].At[n := n] \as Matrices;
+\import Matrices.Representation[] \as Representation;
+\import matrix_invariants.Field[K := K, field := field].At[n := n] \as Inversion;
+\definition matrix[x: X]: Inversion.Nonsingular := \into[Matrices.Matrix](Square.entries (H x), Inversion.Nonsingular) \by { nonsingular x };
+\definition inverse[x: X]: End.Map := Square.Inverse[A := matrix x].value;
+\definition left: \forall (x: X)(v: Vector n) -> (inverse x).apply ((H x).apply v) = v :=
+  \fun (x: X)(v: Vector n) => trans!{{Vector n}} _ _ _
+    (congr!{{Vector n} {Vector n}} (inverse x).apply _ _ (sym!{{Vector n}} _ _ (congr!{End.Map {Vector n}} (\fun (f: End.Map) => f.apply v) _ _ (Representation.linearEntries (H x)))))
+    (Square.Inverse[A := matrix x].left v);
+\definition right: \forall (x: X)(v: Vector n) -> (H x).apply ((inverse x).apply v) = v :=
+  \fun (x: X)(v: Vector n) => trans!{{Vector n}} _ _ _
+    (sym!{{Vector n}} _ _ (congr!{End.Map {Vector n}} (\fun (f: End.Map) => f.apply ((inverse x).apply v)) _ _ (Representation.linearEntries (H x))))
+    (Square.Inverse[A := matrix x].right v);
+\definition inverseRegular: Hermitian.At[n := n].Families[X := X].Matrix[m := n].Regular baseSpace inverse :=
+  Square.Families[X := X].inverseMaps baseSpace matrix (\fun (i, j: Fin.Fin n) => regularH (Geometry.Finite[n := n].basis j) i);
+\definition inverseIntertwines: \forall (x: X)(v: Vector n) -> (P x).map.apply ((inverse x).apply v) = (inverse x).apply ((Q x).map.apply v) :=
+  \fun (x: X)(v: Vector n) => eq_reason_in!{{Vector n} _
+    "=" _ "by" { sym!{{Vector n}} _ _ (left x ((P x).map.apply ((inverse x).apply v))) }
+    "=" { (inverse x).apply ((Q x).map.apply ((H x).apply ((inverse x).apply v))) } "by" {
+      congr!{{Vector n} {Vector n}} (inverse x).apply _ _ (sym!{{Vector n}} _ _ (intertwines x ((inverse x).apply v)))
+    }
+    "=" _ "by" { congr!{{Vector n} {Vector n}} (\fun (w: Vector n) => (inverse x).apply ((Q x).map.apply w)) _ _ (right x v) }
+  };
+\import Bundles.Morphisms[X := X, Y := X, F := Source.Fiber, G := Target.Fiber, source := Source.bundle, target := Target.bundle, f := \fun (x: X) => x] \as Forward;
+\import Bundles.Morphisms[X := X, Y := X, F := Target.Fiber, G := Source.Fiber, source := Target.bundle, target := Source.bundle, f := \fun (x: X) => x] \as Backward;
+\definition forwardData: Forward.Data := Forward.Data { fiber := \fun (x: X) => Spaces.Linear[V := Source.Fiber x, W := Target.Fiber x, source := Source.bundle.space x, target := Target.bundle.space x].Map {
+  apply := \fun (v: Source.Fiber x) => \into[Vector n]((H x).apply v, Target.Image x) \by {
+    trans!{{Vector n}} _ _ _ (intertwines x v) (congr!{{Vector n} {Vector n}} (H x).apply _ _ (\bysub(Vector n, Source.Image x, v)))
+  }, preservesAdd := \fun (v, w: Source.Fiber x) => (H x).preservesAdd v w, preservesScale := \fun (a: K)(v: Source.Fiber x) => (H x).preservesScale a v,
+} };
+\definition backwardData: Backward.Data := Backward.Data { fiber := \fun (x: X) => Spaces.Linear[V := Target.Fiber x, W := Source.Fiber x, source := Target.bundle.space x, target := Source.bundle.space x].Map {
+  apply := \fun (v: Target.Fiber x) => \into[Vector n]((inverse x).apply v, Source.Image x) \by {
+    trans!{{Vector n}} _ _ _ (inverseIntertwines x v) (congr!{{Vector n} {Vector n}} (inverse x).apply _ _ (\bysub(Vector n, Target.Image x, v)))
+  }, preservesAdd := \fun (v, w: Target.Fiber x) => (inverse x).preservesAdd v w, preservesScale := \fun (a: K)(v: Target.Fiber x) => (inverse x).preservesScale a v,
+} };
+\module Applying(Y: \Set, source: topology.Topology[Carrier := Y].Topology, f: Y -> X, v: Y -> Vector n,
+  baseRegular: topology.Continuity[A := Y, B := X].Continuous source baseSpace f,
+  vectorRegular: topology.Continuity[A := Y, B := Vector n].Continuous source (coordinateTopology n) v,
+  M: X -> End.Map, regular: Hermitian.At[n := n].Families[X := X].Matrix[m := n].Regular baseSpace M);
+\import Bundles.Family[X := X, F := Source.Fiber] \as SourceFamily;
+\import Bundles.Family[X := X, F := Target.Fiber] \as TargetFamily;
+\definition forward: Forward.Map := \into[Forward.Data](forwardData, Forward.Map) \by {
+  Target.Universal[Y := SourceFamily.Point, source := Source.topology].continuous (Forward.total forwardData) Source.projectionContinuous
+    Applying[Y := SourceFamily.Point, source := Source.topology, f := SourceFamily.projection, v := (\fun (p: SourceFamily.Point) => p.vector),
+      baseRegular := Source.projectionContinuous, vectorRegular := Source.vectorContinuous, M := H, regular := regularH].continuous
+};
+\definition backward: Backward.Map := \into[Backward.Data](backwardData, Backward.Map) \by {
+  Source.Universal[Y := TargetFamily.Point, source := Target.topology].continuous (Backward.total backwardData) Target.projectionContinuous
+    Applying[Y := TargetFamily.Point, source := Target.topology, f := TargetFamily.projection, v := (\fun (p: TargetFamily.Point) => p.vector),
+      baseRegular := Target.projectionContinuous, vectorRegular := Target.vectorContinuous, M := inverse, regular := inverseRegular].continuous
+};
+\definition isomorphism: Bundles.Isomorphisms[X := X, F := Source.Fiber, G := Target.Fiber, source := Source.bundle, target := Target.bundle].Isomorphism :=
+  Bundles.Isomorphisms[X := X, F := Source.Fiber, G := Target.Fiber, source := Source.bundle, target := Target.bundle].Isomorphism {
+    forward := forward, backward := backward,
+    leftInverse := \fun (x: X)(v: Source.Fiber x) => left x v,
+    rightInverse := \fun (x: X)(v: Target.Fiber x) => right x v,
+  };

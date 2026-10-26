@@ -1,0 +1,20 @@
+\import topology.Topology[Carrier := A] \as S;
+\import topology.Topology[Carrier := B] \as T;
+\import topology.Maps[A := A, B := B] \as Maps;
+\definition separate: \forall (hausdorff: T.IsT2 target)(x, y: A) -> Logic.Not (f x = f y) -> \exists (U: \Pow A \where S.RegularChoice[source, S.Singleton y, x, U]) := \block {
+  \fun (hausdorff: T.IsT2 target)(x, y: A)(distinct: Logic.Not (f x = f y)) \then
+  \takefrom U: \Cast[\Pow B] ({ U: \Pow B \where T.RegularChoice[target, T.Singleton (f y), f x, U] }) \by hausdorff (f x) (f y) distinct \then
+  \let first: T.RegularChoice[target, T.Singleton (f y), f x, U] := \bysub(\Pow B, { U: \Pow B \where T.RegularChoice[target, T.Singleton (f y), f x, U] }, U) \then
+  \takefrom V: \Cast[\Pow B] ({ V: \Pow B \where T.NormalPartner[target, T.Singleton (f y), U, V] }) \by first.partner \then
+  \let second: T.NormalPartner[target, T.Singleton (f y), U, V] := \bysub(\Pow B, { V: \Pow B \where T.NormalPartner[target, T.Singleton (f y), U, V] }, V) \then
+  \return Logic.existsIntro[\Pow A, { W: \Pow A \where S.RegularChoice[source, S.Singleton y, x, W] }] (Maps.Preimage f U)
+    (S.RegularChoice[source, S.Singleton y, x, Maps.Preimage f U] {
+      open := continuous U first.open, contains := first.contains,
+      partner := Logic.existsIntro[\Pow A, { W: \Pow A \where S.NormalPartner[source, S.Singleton y, Maps.Preimage f U, W] }] (Maps.Preimage f V)
+        (S.NormalPartner[source, S.Singleton y, Maps.Preimage f U, Maps.Preimage f V] {
+          open := continuous V second.open,
+          covers := \fun (z: A)(equal: z = y) => second.covers (f z) (congr!{{A} {B}} f _ _ equal),
+          disjoint := \fun (z: A)(first: S.Member (Maps.Preimage f U) z)(last: S.Member (Maps.Preimage f V) z) => second.disjoint (f z) first last
+        })
+    })
+};

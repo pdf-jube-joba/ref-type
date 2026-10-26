@@ -15,3 +15,28 @@
 \definition coefficientMap: Coefficients.RingMap
   (Ring.commutativeRingAsRing R coefficients) (Ring.commutativeRingAsRing Carrier ring) := P.coefficientMap;
 \module Universal(K: \Set, target: Ring.CommutativeRing[K]);
+
+\import std.Set[].Quotient[A := Free.Expression, Equivalent := P.Equivalent] \as InductionClasses;
+\definition induction: \forall (Predicate: Carrier -> \Prop) ->
+  (\forall (a: R) -> Predicate (constant a)) -> Predicate X ->
+  (\forall (p, q: Carrier) -> Predicate p -> Predicate q -> Predicate (add p q)) ->
+  (\forall (p: Carrier) -> Predicate p -> Predicate (neg p)) ->
+  (\forall (p, q: Carrier) -> Predicate p -> Predicate q -> Predicate (mul p q)) ->
+  \forall (p: Carrier) -> Predicate p :=
+  \fun (Predicate: Carrier -> \Prop)(onConstant: _)(onVariable: _)(onAdd: _)(onNeg: _)(onMul: _) =>
+    InductionClasses.induction Predicate (\induction (expression: Free.Expression) \return Predicate (P.class expression) \with {
+      | constant: onConstant
+      | variable: \induction (v: Variable) \return Predicate (P.variable v) \with { | x: onVariable }
+      | sum: \fun (p: Free.Expression)(first: Predicate (P.class p))(q: Free.Expression)(second: Predicate (P.class q)) =>
+          \idelim add (P.class p) (P.class q) = P.class (Free.Expression::sum p q) \with r: Carrier => Predicate r \by {
+            base: onAdd (P.class p) (P.class q) first second, equality: P.addClass p q
+          }
+      | negative: \fun (p: Free.Expression)(previous: Predicate (P.class p)) =>
+          \idelim neg (P.class p) = P.class (Free.Expression::negative p) \with r: Carrier => Predicate r \by { base: onNeg (P.class p) previous, equality: P.negClass p }
+      | product: \fun (p: Free.Expression)(first: Predicate (P.class p))(q: Free.Expression)(second: Predicate (P.class q)) =>
+          \idelim mul (P.class p) (P.class q) = P.class (Free.Expression::product p q) \with r: Carrier => Predicate r \by {
+            base: onMul (P.class p) (P.class q) first second, equality: P.mulClass p q
+          }
+    });
+
+\module Finite;

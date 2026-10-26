@@ -1,0 +1,17 @@
+\import Bundles.Trivial[X := X, n := n, baseSpace := bundle.baseSpace] \as Standard;
+\import Bundles.Family[X := X, F := \fun (x: X) => Vector n] \as AmbientFamily;
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := \fun (x: X) => Vector n, source := bundle, target := Standard.bundle, f := \fun (x: X) => x] \as EmbeddingMaps;
+\definition vector[p: Family.Point]: Vector n := (embedding.map.fiber p.base).apply p.vector;
+\definition vectorContinuous: topology.Continuity[A := Family.Point, B := Vector n].Continuous bundle.totalSpace (coordinateTopology n) vector :=
+  topology.Composition[A := Family.Point, B := AmbientFamily.Point, C := Vector n].composeContinuous bundle.totalSpace Standard.topology (coordinateTopology n) (EmbeddingMaps.total embedding.map) (\fun (p: AmbientFamily.Point) => p.vector) (EmbeddingMaps.continuous embedding.map) Standard.vectorContinuous;
+\definition first[p: PairFamily.Point]: Vector n := vector (PairBundle.first p);
+\definition second[p: PairFamily.Point]: Vector n := vector (PairBundle.second p);
+\definition firstContinuous: topology.Continuity[A := PairFamily.Point, B := Vector n].Continuous PairBundle.topology (coordinateTopology n) first :=
+  topology.Composition[A := PairFamily.Point, B := Family.Point, C := Vector n].composeContinuous PairBundle.topology bundle.totalSpace (coordinateTopology n) PairBundle.first vector PairBundle.firstContinuous vectorContinuous;
+\definition secondContinuous: topology.Continuity[A := PairFamily.Point, B := Vector n].Continuous PairBundle.topology (coordinateTopology n) second :=
+  topology.Composition[A := PairFamily.Point, B := Family.Point, C := Vector n].composeContinuous PairBundle.topology bundle.totalSpace (coordinateTopology n) PairBundle.second vector PairBundle.secondContinuous vectorContinuous;
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin n] \as Coordinates;
+\import Hermitian.At[n := n].Families[X := PairFamily.Point] \as Families;
+\definition continuous: topology.Continuity[A := PairFamily.Point, B := K].Continuous PairBundle.topology scalar.topological.space (evaluation form) := Families.dotContinuous PairBundle.topology first second
+  (\fun (i: Fin.Fin n) => topology.Composition[A := PairFamily.Point, B := Vector n, C := K].composeContinuous PairBundle.topology (coordinateTopology n) scalar.topological.space first (\fun (v: Vector n) => v i) firstContinuous (Coordinates.evaluationContinuous scalar.topological.space i))
+  (\fun (i: Fin.Fin n) => topology.Composition[A := PairFamily.Point, B := Vector n, C := K].composeContinuous PairBundle.topology (coordinateTopology n) scalar.topological.space second (\fun (v: Vector n) => v i) secondContinuous (Coordinates.evaluationContinuous scalar.topological.space i));

@@ -1,0 +1,30 @@
+\import std.Data[].List[] \as Lists;
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := n] \as M;
+\import M.Representation[] \as Representation;
+\import Spaces.FiniteCoordinates[n := n] \as Basis;
+\import Spaces.Sums[I := Fin.Fin degree] \as ScalarSums;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := Scalars.field, scalar := linear_algebra.Hermitian[].Complex[].scalar].Sums[] \as Recursive;
+\definition coordinateSum: \forall (xs: Lists.List[Fin.Fin degree])(f: Fin.Fin degree -> Vectors.Vector)(i: M.Index) ->
+  Sums.sum xs f i = ScalarSums.sum xs (\fun (k: Fin.Fin degree) => f k i) :=
+  \induction (xs: Lists.List[Fin.Fin degree]) \return \forall (f: Fin.Fin degree -> Vectors.Vector)(i: M.Index) ->
+    Sums.sum xs f i = ScalarSums.sum xs (\fun (k: Fin.Fin degree) => f k i) \with {
+      | nil: \fun (f: Fin.Fin degree -> Vectors.Vector)(i: M.Index) => \refl(C.Def[].zero)
+      | cons: \fun (k: Fin.Fin degree)(xs: Lists.List[Fin.Fin degree])(previous: _)(f: Fin.Fin degree -> Vectors.Vector)(i: M.Index) =>
+        congr!{{C.Complex} {C.Complex}} (C.Def[].add (f k i)) _ _ (previous f i)
+    };
+\definition rowCoordinate: \forall (z: C.Complex)(v: Vectors.Vector)(i: M.Index) ->
+  row.apply ((geometric z).apply v) i = Recursive.sum degree (\fun (k: Fin.Fin degree) => C.Def[].mul (power z k) ((coefficients k).apply v i)) :=
+  \fun (z: C.Complex)(v: Vectors.Vector)(i: M.Index) => eq_reason_in!{{C.Complex} _
+    "=" { ScalarSums.sum (Fin.elements degree) (\fun (k: Fin.Fin degree) => (coefficients k).apply (Vectors.scale (power z k) v) i) } "by" {
+      coordinateSum (Fin.elements degree) (\fun (k: Fin.Fin degree) => (coefficients k).apply (Vectors.scale (power z k) v)) i }
+    "=" { ScalarSums.sum (Fin.elements degree) (\fun (k: Fin.Fin degree) => C.Def[].mul (power z k) ((coefficients k).apply v i)) } "by" {
+      ScalarSums.Prop[].congruent (Fin.elements degree) (\fun (k: Fin.Fin degree) => (coefficients k).apply (Vectors.scale (power z k) v) i) (\fun (k: Fin.Fin degree) => C.Def[].mul (power z k) ((coefficients k).apply v i)) (\fun (k: Fin.Fin degree) => congr!{Vectors.Vector {C.Complex}} (\fun (w: Vectors.Vector) => w i) _ _ ((coefficients k).preservesScale (power z k) v)) }
+    "=" _ "by" { Recursive.enumeration degree (\fun (k: Fin.Fin degree) => C.Def[].mul (power z k) ((coefficients k).apply v i)) }
+  };
+\definition entries[z: C.Complex]: M.Matrix := Representation.entries (polynomial z);
+\definition formula: \forall (z: C.Complex)(i, j: M.Index) -> entries z i j = C.Def[].add (C.Def[].mul (power z degree) (M.identity i j))
+  (Recursive.sum degree (\fun (k: Fin.Fin degree) => C.Def[].mul (power z k) (Representation.entries (coefficients k) i j))) :=
+  \fun (z: C.Complex)(i, j: M.Index) => congr!{{C.Complex} {C.Complex}} (C.Def[].add (C.Def[].mul (power z degree) (M.identity i j))) _ _
+    (rowCoordinate z (Basis.vectors j) i);
+\definition action: \forall (z: C.Complex) -> M.linear (entries z) = polynomial z :=
+  \fun (z: C.Complex) => Representation.linearEntries (polynomial z);

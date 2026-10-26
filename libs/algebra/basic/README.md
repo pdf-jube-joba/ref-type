@@ -31,7 +31,7 @@
 
 多項式環と Laurent 多項式環は、式の集合を最小の環合同関係で割って構成する。
 `FreeCommutativeRing` の表示は追加の関係を持つ係数環上の可換環にも利用できる。
-係数列による正規形、次数、体上の除法と互除法は次の実装単位となる。
+体上の係数列のモニック化とモニック除法は `galois.Field.Over.Polynomial.Raw`、一般の非零除数への除法・互除法と Bézout 係数は [polynomial_linear_algebra](../polynomial_linear_algebra/README.md) を参照。
 
 `Noncommutative` は一般の群、部分群、右作用、安定化部分群、左剰余類の右作用を扱う。
 `Actions.At` は、推移的な右作用と選んだ点の安定化部分群の剰余類作用の間の同変全単射を構成する。
@@ -39,3 +39,8 @@
 `AmalgamatedProduct` は群の融合積の普遍性と、普遍性を満たす二つの群の標準同型を提供する。
 `Noncommutative.Actions.PointedMaps` は推移的な群作用間の基点付き同変写像を安定化部分群の包含から構成する。
 `GroupTransport` は相互逆な全単射で群構造を移す。
+
+`Polynomial.Over.induction` と `LaurentPolynomial.Over.induction` は、定数・変数・和・負・積について閉じた命題をすべての多項式へ拡張する。
+
+`LaurentPolynomial.Over.Universal` の `onConstant`・`onVariable`・`onInverseVariable` は、評価の生成元での計算法則を公開する。
+[uniform_approximation](../../analysis/uniform_approximation/README.md) は多項式・Laurent 環の帰納法と評価を使い、実際の環の元として一様近似を構成する。

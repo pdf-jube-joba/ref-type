@@ -1,0 +1,20 @@
+\import Polynomial.Universal[K := Polynomial.Carrier, target := Polynomial.ring] \as Substitution;
+\import Polynomial.Universal[K := C.Complex, target := std.Alg[].Field[].fieldAsCommutativeRing C.Complex ComplexAlgebra.field] \as Universal;
+\import \parent.EvaluationLaws[] \as Values;
+\definition variable: Polynomial.Carrier := Polynomial.add Polynomial.X (Polynomial.constant a);
+\definition map: Polynomial.Carrier -> Polynomial.Carrier := Substitution.evaluate Polynomial.coefficientMap variable;
+\import algebra.Hom[A := Polynomial.Carrier, B := Polynomial.Carrier] \as Maps;
+\definition extension: Maps.RingMap Raw.ring Raw.ring := Substitution.extension Polynomial.coefficientMap variable;
+\import algebra.Hom[A := Polynomial.Carrier, B := Polynomial.Carrier].Composition[C := C.Complex] \as Composition;
+\definition evaluation[z: C.Complex]: algebra.Hom[A := Polynomial.Carrier, B := C.Complex].RingMap Raw.ring Evaluation.targetRing :=
+  Composition.ring Raw.ring Raw.ring Evaluation.targetRing extension (Universal.extension Evaluation.identity z);
+\definition constants: \forall (b: C.Complex) -> map (Polynomial.constant b) = Polynomial.constant b := Substitution.constants Polynomial.coefficientMap variable;
+\definition evaluates: \forall (z: C.Complex)(p: Polynomial.Carrier) -> Evaluation.apply z (map p) = Evaluation.apply (Op.add z a) p :=
+  \fun (z: C.Complex)(p: Polynomial.Carrier) => congr!{{Polynomial.Carrier -> C.Complex} C.Complex} (\fun (h: Polynomial.Carrier -> C.Complex) => h p) _ _
+    (Universal.unique Evaluation.identity (Op.add z a) (evaluation z)
+      (\fun (b: C.Complex) => trans!{C.Complex} _ _ _ (congr!{Polynomial.Carrier C.Complex} (Evaluation.apply z) _ _ (constants b)) (Values.constants z b))
+      (eq_reason_in!{C.Complex _
+        "=" { Evaluation.apply z variable } "by" { congr!{Polynomial.Carrier C.Complex} (Evaluation.apply z) _ _ (Substitution.variable Polynomial.coefficientMap variable) }
+        "=" _ "by" { (Evaluation.homomorphism z).add Polynomial.X (Polynomial.constant a) }
+        "=" _ "by" { congr!{C.Complex C.Complex C.Complex} Op.add _ _ _ _ (Values.variable z) (Values.constants z a) }
+      }));

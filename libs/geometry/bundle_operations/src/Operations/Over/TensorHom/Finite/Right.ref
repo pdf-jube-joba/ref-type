@@ -1,0 +1,31 @@
+\import Spaces.Linear[V := Hom.Carrier, W := W, source := Hom.space, target := target] \as Evaluation;
+\definition evaluation[v: V]: Evaluation.Map := Evaluation.Map {
+  apply := \fun (h: Hom.Carrier) => h.apply v,
+  preservesAdd := \fun (h, g: Hom.Carrier) => \refl(target.add (h.apply v) (g.apply v)),
+  preservesScale := \fun (a: K)(h: Hom.Carrier) => \refl(target.smul a (h.apply v))
+};
+\import Evaluation.Composition[U := Tensor.Carrier, domain := Tensor.space] \as Composition;
+\definition functional[v: V]: Spaces.Linear[V := Tensor.Carrier, W := W, source := Tensor.space, target := target].Map := Composition.compose (evaluation v) forward;
+\import Spaces.Sums[I := Fin.Fin n].Vector[V := W, space := target] \as TargetSums;
+\import Spaces.Sums[I := Fin.Fin n].Vector[V := V, space := source] \as SourceSums;
+\import SourceSums.Mapping[W := W, target := target] \as SourceMapping;
+\definition reconstruction: \forall (h: Hom.Carrier)(v: V) -> TargetSums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => target.smul (frame.forward.apply v i) (h.apply (basis.vectors i))) = h.apply v :=
+  \fun (h: Hom.Carrier)(v: V) => trans!{W} _ _ _
+    (TargetSums.congruent (Fin.elements n)
+      (\fun (i: Fin.Fin n) => target.smul (frame.forward.apply v i) (h.apply (basis.vectors i)))
+      (\fun (i: Fin.Fin n) => h.apply (source.smul (frame.forward.apply v i) (basis.vectors i)))
+      (\fun (i: Fin.Fin n) => sym!{W} _ _ (h.scalar (frame.forward.apply v i) (basis.vectors i))))
+    (trans!{W} _ _ _
+      (sym!{W} _ _ (SourceMapping.law (Spaces.Linear[V := V, W := W, source := source, target := target].fromModuleMap h) (Fin.elements n) (\fun (i: Fin.Fin n) => source.smul (frame.forward.apply v i) (basis.vectors i))))
+      (congr!{V W} h.apply _ _ (basis.reconstruction v)));
+\import Spaces.Sums[I := Fin.Fin n].Vector[V := Tensor.Carrier, space := Tensor.space].Mapping[W := W, target := target] \as Mapping;
+\definition pointwise: \forall (h: Hom.Carrier)(v: V) -> (forward.apply (synthesis h)).apply v = h.apply v :=
+  \fun (h: Hom.Carrier)(v: V) => trans!{W} _ _ _
+    (Mapping.law (functional v) (Fin.elements n) (\fun (i: Fin.Fin n) => Tensor.tensor (dualBasis.vectors i) (h.apply (basis.vectors i))))
+    (trans!{W} _ _ _
+      (TargetSums.congruent (Fin.elements n)
+        (\fun (i: Fin.Fin n) => (functional v).apply (Tensor.tensor (dualBasis.vectors i) (h.apply (basis.vectors i))))
+        (\fun (i: Fin.Fin n) => target.smul (frame.forward.apply v i) (h.apply (basis.vectors i)))
+        (\fun (i: Fin.Fin n) => congr!{Hom.Carrier W} (\fun (h: Hom.Carrier) => h.apply v) _ _ (onPure (dualBasis.vectors i) (h.apply (basis.vectors i)))))
+      (reconstruction h v));
+\definition law: \forall (h: Hom.Carrier) -> forward.apply (backward.apply h) = h := \fun (h: Hom.Carrier) => Native.ext _ _ (pointwise h);

@@ -1,0 +1,32 @@
+\import Geometry.Finite[n := k] \as Domain;
+\import Spaces.Linear[V := Domain.Vector, W := Vector, source := Domain.space, target := E.space] \as Forward;
+\import Spaces.Linear[V := Vector, W := Domain.Vector, source := E.space, target := Domain.space] \as Backward;
+/* A split presentation of the image is a basis, before orthonormalization. */
+\structure Basis: \Set := {
+  value: Forward.Map,
+  coordinate: Backward.Map,
+  leftInverse: \forall (v: Domain.Vector) -> coordinate.apply (value.apply v) = v,
+  reconstruction: \forall (v: Vector) -> value.apply (coordinate.apply v) = P.map.apply v,
+};
+\definition HasRank: \Prop := \exists Basis;
+\structure Frame: \Set := {
+  basis: Basis,
+  isometry: \forall (v, w: Domain.Vector) -> dot (basis.value.apply v) (basis.value.apply w) = Domain.dot v w,
+  adjoint: \forall (v: Domain.Vector)(w: Vector) -> dot (basis.value.apply v) w = Domain.dot v (basis.coordinate.apply w),
+};
+\definition fixed: \forall (basis: Basis)(v: Domain.Vector) -> P.map.apply (basis.value.apply v) = basis.value.apply v :=
+  \fun (basis: Basis)(v: Domain.Vector) => trans!{Vector} _ _ _ (sym!{Vector} _ _ (basis.reconstruction (basis.value.apply v)))
+    (congr!{{Domain.Vector} Vector} basis.value.apply _ _ (basis.leftInverse v));
+\definition injective: \forall (basis: Basis)(v, w: Domain.Vector) -> basis.value.apply v = basis.value.apply w -> v = w :=
+  \fun (basis: Basis)(v, w: Domain.Vector)(same: _) => eq_reason_in!{{Domain.Vector} v
+    "=" _ "by" { sym!{{Domain.Vector}} _ _ (basis.leftInverse v) }
+    "=" _ "by" { congr!{Vector {Domain.Vector}} basis.coordinate.apply _ _ same }
+    "=" _ "by" { basis.leftInverse w }
+  };
+\module Orthonormalize(basis: Basis, factor: InnerLaws.Gram[k := k].Factorization[basis.value]);
+\definition frameExists: HasRank -> \exists Frame := \block {
+  \fun (rank: HasRank) \then
+  \takefrom basis: Basis \by rank \then
+  \takefrom factor: InnerLaws.Gram[k := k].Factorization[basis.value] \by InnerLaws.Algorithm[].exists k basis.value (injective basis) E.positive \then
+  \return \exact(Orthonormalize[basis := basis, factor := factor].frame, Frame)
+};

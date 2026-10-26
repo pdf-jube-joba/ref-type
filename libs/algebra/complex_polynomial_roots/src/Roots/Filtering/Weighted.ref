@@ -1,0 +1,25 @@
+
+\definition fold: Coefficients -> Polynomial.Carrier := Lists.foldr C.Complex Polynomial.Carrier (\fun (x: C.Complex)(p: Polynomial.Carrier) => Polynomial.mul (w x) p) Polynomial.one;
+\definition appendFold: \forall (xs, ys: Coefficients) -> fold (Lists.append C.Complex xs ys) = Polynomial.mul (fold xs) (fold ys) :=
+  \induction (xs: Coefficients) \return \forall (ys: Coefficients) -> fold (Lists.append C.Complex xs ys) = Polynomial.mul (fold xs) (fold ys) \with {
+    | nil: \fun (ys: Coefficients) => sym!{Polynomial.Carrier} _ _ (Product.zeroLeft (fold ys))
+    | cons: \fun (x: C.Complex)(tail: Coefficients)(previous: _)(ys: Coefficients) => trans!{Polynomial.Carrier} _ _ _
+      (congr!{Polynomial.Carrier Polynomial.Carrier} (Polynomial.mul (w x)) _ _ (previous ys)) (sym!{Polynomial.Carrier} _ _ (Product.assoc (w x) (fold tail) (fold ys)))
+  };
+\definition deletion: \forall (x: C.Complex)(xs: Coefficients)(d: Families.Deletion x xs) -> fold xs = Polynomial.mul (w x) (fold (Families.remainder d)) :=
+  \fun (x: C.Complex)(xs: Coefficients)(d: Families.Deletion x xs) => eq_reason_in!{Polynomial.Carrier { fold xs }
+    "=" { fold (Families.source x d) } "by" { congr!{Coefficients Polynomial.Carrier} fold _ _ (sym!{Coefficients} _ _ (Families.deleted x xs d)) }
+    "=" _ "by" { appendFold d.before (Lists.List[C.Complex]::cons x d.after) }
+    "=" { Polynomial.mul (w x) (Polynomial.mul (fold d.before) (fold d.after)) } "by" { Product.swap (fold d.before) (w x) (fold d.after) }
+    "=" _ "by" { congr!{Polynomial.Carrier Polynomial.Carrier} (Polynomial.mul (w x)) _ _ (sym!{Polynomial.Carrier} _ _ (appendFold d.before d.after)) }
+  };
+\definition invariant: \forall (xs, ys: Coefficients) -> Families.Permutation xs ys -> fold xs = fold ys :=
+  \induction (xs: Coefficients) \return \forall (ys: Coefficients) -> Families.Permutation xs ys -> fold xs = fold ys \with {
+    | nil: \fun (ys: Coefficients)(same: ys = Lists.List[C.Complex]::nil) => congr!{Coefficients Polynomial.Carrier} fold _ _ (sym!{Coefficients} _ _ same)
+    | cons: \block {
+      \fun (x: C.Complex)(tail: Coefficients)(previous: \forall (ys: Coefficients) -> Families.Permutation tail ys -> fold tail = fold ys)(ys: Coefficients)(same: Families.Permutation (Lists.List[C.Complex]::cons x tail) ys) \then
+      \takefrom d: \Cast[Families.Deletion x ys] ({ d: Families.Deletion x ys \where Families.Permutation tail (Families.remainder d) }) \by same \then
+      \return trans!{Polynomial.Carrier} _ _ _ (congr!{Polynomial.Carrier Polynomial.Carrier} (Polynomial.mul (w x)) _ _
+        (previous (Families.remainder d) (\bysub(Families.Deletion x ys, { d: Families.Deletion x ys \where Families.Permutation tail (Families.remainder d) }, d)))) (sym!{Polynomial.Carrier} _ _ (deletion x ys d))
+    }
+  };

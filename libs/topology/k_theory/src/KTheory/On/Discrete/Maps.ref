@@ -1,0 +1,34 @@
+\definition sameBase: source.baseSpace = target.baseSpace := trans!{{topology.Topology[Carrier := X].Topology}} _ _ _ sourceSame (sym!{{topology.Topology[Carrier := X].Topology}} _ _ targetSame);
+\import Operations.Hom[X := X, F := F, G := G, left := source, right := target] \as Hom;
+\import Hom.Of[same := sameBase] \as Constructed;
+\import Bundles.Family[X := X, F := Hom.Fiber] \as HomFamily;
+\import Bundles.Family[X := X, F := F] \as Source;
+\import Bundles.Family[X := X, F := G] \as Target;
+\import Operations.DirectSum[X := X, F := Hom.Fiber, G := F, left := Constructed.hom, right := source] \as Pair;
+\import Bundles.Family[X := X, F := Pair.Fiber] \as Domain;
+\definition section[x: X]: HomFamily.Point := HomFamily.include x
+  (Spaces.Linear[V := F x, W := G x, source := source.space x, target := target.space x].asModuleMap (operators x));
+\definition discreteSource: source.baseSpace = topology.Topology[Carrier := X].Discrete := trans!{{topology.Topology[Carrier := X].Topology}} _ _ _ sourceSame discrete;
+\definition sectionContinuous: topology.Continuity[A := X, B := HomFamily.Point].Continuous source.baseSpace Constructed.hom.totalSpace section :=
+  \idelim topology.Topology[Carrier := X].Discrete = source.baseSpace \with t: topology.Topology[Carrier := X].Topology =>
+    topology.Continuity[A := X, B := HomFamily.Point].Continuous t Constructed.hom.totalSpace section \by {
+      base: \fun (U: \Pow HomFamily.Point)(open: topology.Topology[Carrier := HomFamily.Point].IsOpenIn Constructed.hom.totalSpace U) => topology.Topology[Carrier := X].discreteOpen (topology.Maps[A := X, B := HomFamily.Point].Preimage section U),
+      equality: sym!{{topology.Topology[Carrier := X].Topology}} _ _ discreteSource
+    };
+\definition pair[p: Source.Point]: Domain.Point := Domain.include p.base
+  (std.Data[].Pair[].pair (Hom.Fiber p.base) (F p.base) (section p.base).vector p.vector);
+\definition firstContinuous: topology.Continuity[A := Source.Point, B := HomFamily.Point].Continuous source.totalSpace Constructed.hom.totalSpace (\fun (p: Source.Point) => section p.base) :=
+  topology.Composition[A := Source.Point, B := X, C := HomFamily.Point].composeContinuous source.totalSpace source.baseSpace Constructed.hom.totalSpace Source.projection section Source.Of[bundle := source].projectionContinuous sectionContinuous;
+\definition etaContinuous: topology.Continuity[A := Source.Point, B := Source.Point].Continuous source.totalSpace source.totalSpace (\fun (p: Source.Point) => Source.include p.base p.vector) :=
+  \idelim (\fun (p: Source.Point) => p) = (\fun (p: Source.Point) => Source.include p.base p.vector)
+    \with f: (Source.Point -> Source.Point) => topology.Continuity[A := Source.Point, B := Source.Point].Continuous source.totalSpace source.totalSpace f \by {
+      base: topology.Maps[A := Source.Point, B := Source.Point].Identity[].continuous source.totalSpace,
+      equality: \axiom:funext((\fun (p: Source.Point) => p), (\fun (p: Source.Point) => Source.include p.base p.vector), \fun (p: Source.Point) => sym!{{Source.Point}} _ _ (Source.eta p))
+    };
+\definition pairContinuous: topology.Continuity[A := Source.Point, B := Domain.Point].Continuous source.totalSpace Pair.topology pair :=
+  Pair.Universal[Y := Source.Point].continuous source.totalSpace pair firstContinuous etaContinuous;
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := G, source := source, target := target, f := \fun (x: X) => x] \as Maps;
+\definition data: Maps.Data := Maps.Data { fiber := operators };
+\definition map: Maps.Map := \into[Maps.Data](data, Maps.Map) \by {
+  topology.Composition[A := Source.Point, B := Domain.Point, C := Target.Point].composeContinuous source.totalSpace Pair.topology target.totalSpace pair Constructed.Evaluation[].value pairContinuous Constructed.Evaluation[].continuous
+};

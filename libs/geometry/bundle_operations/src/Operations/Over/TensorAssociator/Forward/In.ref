@@ -1,0 +1,19 @@
+\import Parametric.In[p := p] \as Local;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := H] \as Third;
+\import topology.Continuity[A := DomainFamily.Point, B := Third.Point].Restriction[S := { y: DomainFamily.Point \where \In[X] (topology.Topology[Carrier := X].Intersection p.first.domain p.second.domain) y.base }] \as Restrict;
+\definition third[y: Local.Point]: H y.base := Pair.second (First.Fiber y.base) (H y.base) y.vector;
+\definition thirdContinuous: topology.Continuity[A := Local.Point, B := Third.Point].Continuous Local.topology right.totalSpace (\fun (y: Local.Point) => Third.include y.base (third y)) := Restrict.restrictContinuous Domain.topology right.totalSpace Domain.second Domain.secondContinuous;
+\import Last.Of[same := lastBase].Pure[].Along[Y := Local.Point, source := Local.topology, base := \fun (y: Local.Point) => y.base] \as LastPure;
+\import TargetTensor.Of[same := sameMiddle].Pure[].Along[Y := Local.Point, source := Local.topology, base := \fun (y: Local.Point) => y.base] \as TargetPure;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Along[X := X, F := TargetTensor.Fiber, bundle := targetBundle, Y := Local.Point, source := Local.topology, base := \fun (y: Local.Point) => y.base] \as Along;
+\definition model[i: Fin.Fin p.first.dimension][j: Fin.Fin p.second.dimension][y: Local.Point]: TargetTensor.Fiber y.base := TargetTensor.pure y.base (Local.leftVector i y) (Last.pure y.base (Local.rightVector j y) (third y));
+\definition modelContinuous: \forall (i: Fin.Fin p.first.dimension)(j: Fin.Fin p.second.dimension) -> Along.Continuous (model i j) :=
+  \fun (i: Fin.Fin p.first.dimension)(j: Fin.Fin p.second.dimension) => TargetPure.continuous (Local.leftVector i) (\fun (y: Local.Point) => Last.pure y.base (Local.rightVector j y) (third y))
+    (Local.leftRegular baseContinuous i) (LastPure.continuous (Local.rightVector j) third (Local.rightRegular baseContinuous j) thirdContinuous);
+\definition formula: \forall (i: Fin.Fin p.first.dimension)(j: Fin.Fin p.second.dimension)(y: Local.Point) -> Local.pureValue operator i j y = model i j y :=
+  \fun (i: Fin.Fin p.first.dimension)(j: Fin.Fin p.second.dimension)(y: Local.Point) => forwardOnPure y.base (third y) (Local.leftVector i y) (Local.rightVector j y);
+\definition regular: Local.PureRegular operator := \fun (i: Fin.Fin p.first.dimension)(j: Fin.Fin p.second.dimension) => \idelim Along.total (model i j) = Along.total (Local.pureValue operator i j)
+  \with f: (Local.Point -> TargetFamily.Point) => topology.Continuity[A := Local.Point, B := TargetFamily.Point].Continuous Local.topology targetBundle.totalSpace f \by {
+    base: modelContinuous i j,
+    equality: \axiom:funext(Along.total (model i j), Along.total (Local.pureValue operator i j), \fun (y: Local.Point) => congr!{{TargetTensor.Fiber y.base} TargetFamily.Point} (TargetFamily.include y.base) _ _ (sym!{{TargetTensor.Fiber y.base}} _ _ (formula i j y)))
+  };

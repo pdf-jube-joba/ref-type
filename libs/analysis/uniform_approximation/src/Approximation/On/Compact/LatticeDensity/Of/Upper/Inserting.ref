@@ -1,0 +1,14 @@
+\definition exists: (\forall (V: \Pow X) -> \In[\Pow X] (Finite.Insert U S) V -> Base.FamilyMember family V) -> \exists Envelope[Finite.Insert U S] := \block {
+  \fun (included: _) \then
+  \takefrom old: Envelope[S] \by previous (\fun (V: \Pow X)(member: \In[\Pow X] S V) => included V (Logic.Or[_, _]::right member)) \then
+  \takefrom i: \Cast[Index] ({ i: Index \where U = domain i }) \by included U (Logic.Or[_, _]::left (\refl(U))) \then
+  \return \exact(Envelope[Finite.Insert U S] {
+    value := minimum old.value i.support.value, member := laws.infimum old.value i.support.value old.member i.support.member,
+    lower := \fun (z: X) => ScalarLattice.subMinimumStrict (f z) (old.value z) (i.support.value z) epsilon (old.lower z) (i.support.lower z),
+    local := \fun (V: \Pow X)(member: \In[\Pow X] (Finite.Insert U S) V)(z: X)(inside: Base.Member V z) =>
+      Logic.orElim[(V = U), (\In[\Pow X] S V), Real.Lt (R.sub (Distance.min (old.value z) (i.support.value z)) (f z)) epsilon] member
+        (\fun (equal: V = U) => Real.leLtTrans _ _ _ (ScalarLattice.minimumSubRight (f z) (old.value z) (i.support.value z))
+          (\idelim V = domain i \with W: \Pow X => Base.Member W z \by { base: inside, equality: trans!{{\Pow X}} _ _ _ equal (\bysub(Index, { i: Index \where U = domain i }, i)) }))
+        (\fun (oldMember: \In[\Pow X] S V) => Real.leLtTrans _ _ _ (ScalarLattice.minimumSubLeft (f z) (old.value z) (i.support.value z)) (old.local V oldMember z inside))
+  }, Envelope[Finite.Insert U S])
+};

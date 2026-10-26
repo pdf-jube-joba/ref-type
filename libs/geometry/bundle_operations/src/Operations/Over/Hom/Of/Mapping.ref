@@ -1,0 +1,17 @@
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Hom[X := X, F := A, G := B, left := newLeft, right := newRight] \as Other;
+\definition newSame: newLeft.baseSpace = newRight.baseSpace := trans!{{topology.Topology[Carrier := X].Topology}} _ _ _ (sym!{{topology.Topology[Carrier := X].Topology}} _ _ sameLeft) sameRight;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Dual[X := X, F := A, bundle := newLeft] \as NewDual;
+\import NewDual.Contramap[G := F, target := left, sameBase := sym!{{topology.Topology[Carrier := X].Topology}} left.baseSpace newLeft.baseSpace sameLeft] \as Contramap;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := A, G := F, source := newLeft, target := left, f := \fun (x: X) => x] \as Input;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := G, G := B, source := right, target := newRight, f := \fun (x: X) => x] \as Output;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Tensor[X := X, F := NewDual.Fiber, G := B, left := NewDual.dual, right := newRight] \as NewTensor;
+\import Tensor.Of[same := same].Mapping[Y := X, A := NewDual.Fiber, B := B, leftTarget := NewDual.dual, rightTarget := newRight, f := \fun (x: X) => x].Of[targetSame := newSame] \as TensorMapping;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := Fiber, G := Tensor.Fiber, source := hom, target := Tensor.bundle same, f := \fun (x: X) => x].Composition[Z := X, H := NewTensor.Fiber, range := NewTensor.bundle newSame, g := \fun (x: X) => x] \as First;
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := Fiber, G := NewTensor.Fiber, source := hom, target := NewTensor.bundle newSame, f := \fun (x: X) => x].Composition[Z := X, H := Other.Fiber, range := Other.Of[same := newSame].hom, g := \fun (x: X) => x] \as Last;
+\definition map[a: Input.Map][b: Output.Map]: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := X, F := Fiber, G := Other.Fiber, source := hom, target := Other.Of[same := newSame].hom, f := \fun (x: X) => x].Map := Last.compose (First.compose tensorHom.backward (TensorMapping.map (Contramap.map a) b)) Other.Of[same := newSame].tensorHom.forward;
+\module At(a: Input.Map, b: Output.Map, x: X, v: A x);
+\definition evaluation: \forall (a: Input.Map)(b: Output.Map)(x: X)(h: Fiber x)(v: A x) -> (((map a b).fiber x).apply h).apply v = (b.fiber x).apply (h.apply ((a.fiber x).apply v)) :=
+  \fun (a: Input.Map)(b: Output.Map)(x: X)(h: Fiber x)(v: A x) => trans!{{B x}} _ _ _
+    (At[a := a, b := b, x := x, v := v].equality ((isomorphism x).backward.apply h))
+    (congr!{{Fiber x} {B x}} (\fun (h: Fiber x) => (b.fiber x).apply (h.apply ((a.fiber x).apply v))) _ _
+      ((Spaces.Isomorphism[V := Tensor.Fiber x, W := Fiber x, source := Tensor.fiberSpace x, target := fiberSpace x].laws (isomorphism x)).rightInverse h));

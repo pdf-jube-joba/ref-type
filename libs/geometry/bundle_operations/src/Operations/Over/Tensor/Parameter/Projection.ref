@@ -1,0 +1,26 @@
+\import Product.Maps[] \as Projections;
+\import Powers.Maps[] \as PowerProjections;
+\definition base[p: Point]: X := p.base;
+\definition vectors[p: Point]: Powers.CarrierSet := Pair.pair LeftPower.Carrier RightPower.Carrier (left p) (right p);
+\import topology.Composition[A := Point, B := Product.CarrierSet, C := X] \as BaseComposition;
+\import topology.Composition[A := Point, B := Product.CarrierSet, C := Powers.CarrierSet] \as PowerComposition;
+\definition baseContinuous: topology.Continuity[A := Point, B := X].Continuous topology leftBundle.baseSpace base :=
+  BaseComposition.composeContinuous topology productSpace leftBundle.baseSpace embedding (Pair.first X Powers.CarrierSet) regular (Projections.firstContinuous leftBundle.baseSpace powers);
+\definition vectorsContinuous: topology.Continuity[A := Point, B := Powers.CarrierSet].Continuous topology powers vectors :=
+  PowerComposition.composeContinuous topology productSpace powers embedding (Pair.second X Powers.CarrierSet) regular (Projections.secondContinuous leftBundle.baseSpace powers);
+\import topology.Composition[A := Point, B := Powers.CarrierSet, C := LeftPower.Carrier] \as LeftPowerComposition;
+\import topology.Composition[A := Point, B := Powers.CarrierSet, C := RightPower.Carrier] \as RightPowerComposition;
+\definition leftPowerContinuous: topology.Continuity[A := Point, B := LeftPower.Carrier].Continuous topology (LeftPower.topology leftBundle.totalSpace) left :=
+  LeftPowerComposition.composeContinuous topology powers (LeftPower.topology leftBundle.totalSpace) vectors (Pair.first LeftPower.Carrier RightPower.Carrier) vectorsContinuous
+    (PowerProjections.firstContinuous (LeftPower.topology leftBundle.totalSpace) (RightPower.topology rightBundle.totalSpace));
+\definition rightPowerContinuous: topology.Continuity[A := Point, B := RightPower.Carrier].Continuous topology (RightPower.topology rightBundle.totalSpace) right :=
+  RightPowerComposition.composeContinuous topology powers (RightPower.topology rightBundle.totalSpace) vectors (Pair.second LeftPower.Carrier RightPower.Carrier) vectorsContinuous
+    (PowerProjections.secondContinuous (LeftPower.topology leftBundle.totalSpace) (RightPower.topology rightBundle.totalSpace));
+\import topology.Composition[A := Point, B := LeftPower.Carrier, C := Left.Point] \as LeftComposition;
+\import topology.Composition[A := Point, B := RightPower.Carrier, C := Right.Point] \as RightComposition;
+\definition leftContinuous: \forall (i: Index) -> topology.Continuity[A := Point, B := Left.Point].Continuous topology leftBundle.totalSpace (\fun (p: Point) => left p i) :=
+  \fun (i: Index) => LeftComposition.composeContinuous topology (LeftPower.topology leftBundle.totalSpace) leftBundle.totalSpace left (\fun (f: LeftPower.Carrier) => f i)
+    leftPowerContinuous (LeftPower.evaluationContinuous leftBundle.totalSpace i);
+\definition rightContinuous: \forall (i: Index) -> topology.Continuity[A := Point, B := Right.Point].Continuous topology rightBundle.totalSpace (\fun (p: Point) => right p i) :=
+  \fun (i: Index) => RightComposition.composeContinuous topology (RightPower.topology rightBundle.totalSpace) rightBundle.totalSpace right (\fun (f: RightPower.Carrier) => f i)
+    rightPowerContinuous (RightPower.evaluationContinuous rightBundle.totalSpace i);

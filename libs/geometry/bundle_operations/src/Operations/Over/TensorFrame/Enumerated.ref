@@ -1,0 +1,16 @@
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].FiniteIndex[A := Indices.Pair, S := Indices.Whole, enumeration := enumeration] \as Coordinates;
+\definition dimension: N.Nat^ := Coordinates.rank;
+\import Spaces.Linear[V := Coefficients.Vector, W := Vector dimension, source := Coefficients.space, target := coordinates dimension].Composition[U := Tensor.Carrier, domain := Tensor.space] \as Forward;
+\import Spaces.Linear[V := Coefficients.Vector, W := Tensor.Carrier, source := Coefficients.space, target := Tensor.space].Composition[U := Vector dimension, domain := coordinates dimension] \as Backward;
+\import Spaces.Isomorphism[V := Coefficients.Vector, W := Vector dimension, source := Coefficients.space, target := coordinates dimension] \as CoordinateIso;
+\import Spaces.Isomorphism[V := Tensor.Carrier, W := Vector dimension, source := Tensor.space, target := coordinates dimension] \as Isomorphisms;
+\definition frame: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := Forward.compose Coordinates.forward forward,
+  backward := Backward.compose (\parent.Decoding[].backward) Coordinates.backward,
+  leftInverse := \fun (t: Tensor.Carrier) => trans!{Tensor.Carrier} _ _ _
+    (congr!{Coefficients.Vector Tensor.Carrier} synthesis _ _ ((CoordinateIso.laws Coordinates.isomorphism).leftInverse (forward.apply t)))
+    (\parent.Reconstruction[].leftInverse t),
+  rightInverse := \fun (v: Vector dimension) => trans!{{Vector dimension}} _ _ _
+    (congr!{Coefficients.Vector {Vector dimension}} Coordinates.encode _ _ (\parent.Recovery[].rightInverse (Coordinates.decode v)))
+    ((CoordinateIso.laws Coordinates.isomorphism).rightInverse v),
+};

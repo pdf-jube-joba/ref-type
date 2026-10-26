@@ -1,0 +1,16 @@
+\import \root.Linearization[].PositiveBlend[a := R.one, b := c, positiveA := R.Estimates[].Product[].onePositive, positiveB := positive] \as Blend;
+\import Blend.Normalized[] \as Weights;
+\import \root.Linearization[].ScalarMatrices[n := n] \as Scaling;
+\import Plane.Functions[A := Cylinder.Carrier] \as Functions;
+\import \parent.Scale[s := (\fun (_: Y) => C.Def[].ofReal c), regular := topology.Maps[A := Y, B := C.Complex].constantContinuous source Plane.topology (C.Def[].ofReal c), nonzero := (\fun (_: Y) => Weights.nonzeroB)] \as Scale;
+\definition target: Family := Scale.family a;
+\definition path: Path[a, target] := Path[a, target] {
+  homotopy := \fun (p: Cylinder.Carrier) => Scaling.scale (Blend.scalar (Cylinder.time p)) (a.matrix (Cylinder.point p)),
+  regular := \fun (i, j: M.Index) => Functions.multiplicationContinuous (Cylinder.topology source) (\fun (p: Cylinder.Carrier) => Blend.scalar (Cylinder.time p)) (\fun (p: Cylinder.Carrier) => a.matrix (Cylinder.point p) i j)
+    (topology.Composition[A := Cylinder.Carrier, B := Time.Carrier, C := C.Complex].composeContinuous (Cylinder.topology source) Time.topology Plane.topology Cylinder.time Blend.scalar (Cylinder.timeContinuous source) Weights.scalarRegular)
+    (topology.Composition[A := Cylinder.Carrier, B := Y, C := C.Complex].composeContinuous (Cylinder.topology source) source Plane.topology Cylinder.point (\fun (y: Y) => a.matrix y i j) (Cylinder.pointContinuous source) (a.regular i j)),
+  nonzero := \fun (p: Cylinder.Carrier) => Scaling.nonzero (Blend.scalar (Cylinder.time p)) (Blend.nonzero (Cylinder.time p)) (a.matrix (Cylinder.point p)) (a.nonzero (Cylinder.point p)),
+  atStart := \fun (y: Y) => M.Operations[].ext (Scaling.scale (Blend.scalar Time.start) (a.matrix y)) (a.matrix y) (\fun (i, j: M.Index) => trans!{{C.Complex}} _ _ _
+    (congr!{{C.Complex} {C.Complex}} (\fun (u: C.Complex) => C.Def[].mul u (a.matrix y i j)) _ _ Weights.scalarStart) (C.Prop[].mulOneLeft (a.matrix y i j))),
+  atEnd := \fun (y: Y) => congr!{{C.Complex} M.Matrix} (\fun (u: C.Complex) => Scaling.scale u (a.matrix y)) _ _ Weights.scalarEnd,
+};

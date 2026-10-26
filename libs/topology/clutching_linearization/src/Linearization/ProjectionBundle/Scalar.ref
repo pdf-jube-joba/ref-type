@@ -1,0 +1,34 @@
+\import bundle_operations.Operations[].Over[K := C.Complex, field := Scalars.field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar] \as Operations;
+\import Bundles.Family[X := X, F := ImageFiber] \as Family;
+\import Bundles.Morphisms[X := X, Y := X, F := ImageFiber, G := ImageFiber, source := imageBundle, target := imageBundle, f := (\fun (x: X) => x)] \as ImageMaps;
+\definition imageData: ImageMaps.Data := ImageMaps.Data { fiber := \fun (x: X) =>
+  Spaces.Linear[V := ImageFiber x, W := ImageFiber x, source := imageBundle.space x, target := imageBundle.space x].Map {
+    apply := (imageBundle.space x).smul (a x),
+    preservesAdd := (imageBundle.space x).vectorAdd (a x),
+    preservesScale := \fun (c: C.Complex)(v: ImageFiber x) => Spaces.Laws[V := ImageFiber x, space := imageBundle.space x].scaleComm (a x) c v
+  }
+};
+\import Operations.Along[X := X, F := ImageFiber, bundle := imageBundle, Y := Family.Point, source := imageBundle.totalSpace, base := Family.projection] \as Along;
+\definition factor[p: Family.Point]: C.Complex := a p.base;
+\definition factorContinuous: topology.Continuity[A := Family.Point, B := C.Complex].Continuous imageBundle.totalSpace topological_algebra.Complex[].topology factor :=
+  topology.Composition[A := Family.Point, B := X, C := C.Complex].composeContinuous imageBundle.totalSpace source topological_algebra.Complex[].topology
+    Family.projection a Image.projectionContinuous continuous;
+\definition imageMap: ImageMaps.Map := \into[ImageMaps.Data](imageData, ImageMaps.Map) \by {
+  Along.scaling factor (\fun (p: Family.Point) => p.vector) Image.projectionContinuous factorContinuous
+    (ImageMaps.continuous (Bundles.Identity[X := X, F := ImageFiber, bundle := imageBundle].map))
+};
+\import Operations.DirectSum[X := X, F := ImageFiber, G := ComplementFiber, left := imageBundle, right := complementBundle].Of[same := \refl(source)] \as Sum;
+\import Sum.Mapping[Y := X, A := ImageFiber, B := ComplementFiber, leftTarget := imageBundle, rightTarget := complementBundle,
+  f := (\fun (x: X) => x), targetSame := \refl(source)] \as Mapping;
+\definition sumMap: Bundles.Morphisms[X := X, Y := X, F := SumFiber, G := SumFiber, source := sumBundle, target := sumBundle, f := (\fun (x: X) => x)].Map :=
+  Mapping.map imageMap (Bundles.Identity[X := X, F := ComplementFiber, bundle := complementBundle].map);
+\import Bundles.Morphisms[X := X, Y := X, F := (\fun (_: X) => M.Vector), G := SumFiber, source := Ambient.bundle, target := sumBundle,
+  f := (\fun (x: X) => x)].Composition[Z := X, H := SumFiber, range := sumBundle, g := (\fun (x: X) => x)] \as Enter;
+\import Bundles.Morphisms[X := X, Y := X, F := (\fun (_: X) => M.Vector), G := SumFiber, source := Ambient.bundle, target := sumBundle,
+  f := (\fun (x: X) => x)].Composition[Z := X, H := (\fun (_: X) => M.Vector), range := Ambient.bundle, g := (\fun (x: X) => x)] \as Leave;
+\definition map: Bundles.Morphisms[X := X, Y := X, F := (\fun (_: X) => M.Vector), G := (\fun (_: X) => M.Vector),
+  source := Ambient.bundle, target := Ambient.bundle, f := (\fun (x: X) => x)].Map := Leave.compose (Enter.compose isomorphism.backward sumMap) isomorphism.forward;
+\definition formula: \forall (x: X)(v: M.Vector) -> (map.fiber x).apply v = (\root.Linearization[].ProjectionLoop[n := n, projection := P x].loop (a x)).apply v :=
+  \fun (x: X)(v: M.Vector) => \refl((\root.Linearization[].ProjectionLoop[n := n, projection := P x].loop (a x)).apply v);
+\module Invertible(nonzero: \forall (x: X) -> C.Def[].NonZero (a x));

@@ -1,0 +1,49 @@
+\import \root.Linearization[].MatrixContinuity[n := Coordinates.dimension degree, Y := Domain, source := topology] \as Evaluation;
+\import matrix_invariants.Topological[K := C.Complex, ring := Plane.Ring[].topologicalRing].At[n := Coordinates.dimension degree].Families[X := Domain] \as MatrixTop;
+\import Plane.Functions[A := Domain] \as Functions;
+\definition matrixRegular: MatrixTop.Regular topology (\fun (p: Domain) => baseMatrix (base p)) :=
+  \fun (i, j: Matrices.Index) => topology.Composition[A := Domain, B := X, C := C.Complex].composeContinuous topology source Plane.topology base
+    (\fun (x: X) => baseMatrix x i j) (Product.Maps[].firstContinuous source Plane.topology) (baseMatrixRegular i j);
+\definition operatorRegular: \forall (v: Domain -> Carrier) -> Families.Regular degree v -> Families.Regular degree (\fun (p: Domain) => (\parent.At[p := p].operator).apply (v p)) :=
+  \fun (v: Domain -> Carrier)(vr: Families.Regular degree v) => \block {
+    \let values: Domain -> Matrices.Vector := \fun (p: Domain) => (Matrices.linear (baseMatrix (base p))).apply (Coordinates.flatten degree (v p)) \then
+    \let valueRegular: \forall (i: Matrices.Index) -> Families.Continuous (\fun (p: Domain) => values p i) :=
+      Evaluation.evaluate (\fun (p: Domain) => baseMatrix (base p)) (\fun (p: Domain) => Coordinates.flatten degree (v p)) matrixRegular (Families.flattenRegular degree v vr) \then
+    \let blocks: Families.Regular degree (\fun (p: Domain) => Coordinates.unflatten degree (values p)) := Families.unflattenRegular degree values valueRegular \then
+    \return \fun (i: Fin.Fin degree)(j: Fin.Fin n) => Families.transport
+      (\fun (p: Domain) => Coordinates.unflatten degree (values p) i j)
+      (\fun (p: Domain) => (\parent.At[p := p].operator).apply (v p) i j) (\fun (p: Domain) => congr!{Carrier {C.Complex}} (\fun (w: Carrier) => w i j) _ _
+      (trans!{Carrier} _ _ _ (congr!{Matrices.Vector Carrier} (Coordinates.unflatten degree) _ _ (\parent.At[p := p].operatorFormula (v p))) (Coordinates.leftInverse degree ((\parent.At[p := p].operator).apply (v p))))) (blocks i j)
+  };
+\definition pencilRegular: \forall (v: Domain -> Carrier) -> Families.Regular degree v -> Families.Regular degree (\fun (p: Domain) => (pencil p).apply (v p)) :=
+  \fun (v: Domain -> Carrier)(vr: Families.Regular degree v) => Families.addition degree
+    (\fun (p: Domain) => space.smul (variable p) (v p))
+    (\fun (p: Domain) => space.smul (C.Def[].neg C.Def[].one) ((\parent.At[p := p].operator).apply (v p)))
+    (Families.scaling degree variable v (Product.Maps[].secondContinuous source Plane.topology) vr)
+    (Families.scaling degree (\fun (_: Domain) => C.Def[].neg C.Def[].one) (\fun (p: Domain) => (\parent.At[p := p].operator).apply (v p))
+      (topology.Maps[A := Domain, B := C.Complex].constantContinuous topology Plane.topology (C.Def[].neg C.Def[].one)) (operatorRegular v vr));
+\definition remainderRegular: \forall (v: Domain -> Coordinates.Carrier d) -> Families.Regular d v -> \forall (j: Fin.Fin n) ->
+  Families.Continuous (\fun (p: Domain) => (\parent.At[p := p].remainder).apply (v p) j) :=
+  \fun (v: Domain -> Coordinates.Carrier d)(vr: Families.Regular d v) => pencilRegular
+    (\fun (p: Domain) => (\root.Linearization[].Companion[n := n, d := d].Shift[z := variable p].solve).apply (Tuples.extend d Vectors.origin (v p)))
+    (Shift.solveRegular (\fun (p: Domain) => Tuples.extend d Vectors.origin (v p))
+      (Families.extension d (\fun (_: Domain) => Vectors.origin) v
+        (\fun (j: Fin.Fin n) => topology.Maps[A := Domain, B := C.Complex].constantContinuous topology Plane.topology C.Def[].zero) vr)) last;
+\definition rightRegular: \forall (v: Domain -> Carrier) -> Families.Regular degree v -> Families.Regular degree (\fun (p: Domain) => (right p).forward.apply (v p)) := Shift.solveRegular;
+\definition negativeFront[v: Domain -> Carrier][p: Domain]: Coordinates.Carrier d := \fun (i: Fin.Fin d) => Vectors.negative (v p (Fin.widen d i));
+\definition negativeFrontRegular: \forall (v: Domain -> Carrier) -> Families.Regular degree v -> Families.Regular d (negativeFront v) :=
+  \fun (v: Domain -> Carrier)(vr: Families.Regular degree v)(i: Fin.Fin d)(j: Fin.Fin n) => Functions.negationContinuous topology _ (vr (Fin.widen d i) j);
+\definition leftRegular: \forall (v: Domain -> Carrier) -> Families.Regular degree v -> Families.Regular degree (\fun (p: Domain) => (left p).forward.apply (v p)) :=
+  \fun (v: Domain -> Carrier)(vr: Families.Regular degree v) => Families.extension d
+    (\fun (p: Domain) => Vectors.plus (v p last) (Vectors.scale (C.Def[].neg C.Def[].one) ((\parent.At[p := p].remainder).apply (negativeFront v p)))) (negativeFront v)
+    (\fun (j: Fin.Fin n) => Functions.additionContinuous topology _ _ (vr last j)
+      (Functions.multiplicationContinuous topology (\fun (_: Domain) => C.Def[].neg C.Def[].one) _
+        (topology.Maps[A := Domain, B := C.Complex].constantContinuous topology Plane.topology (C.Def[].neg C.Def[].one)) (remainderRegular (negativeFront v) (negativeFrontRegular v vr) j)))
+    (negativeFrontRegular v vr);
+\definition diagonalRegular: \forall (v: Domain -> Carrier) -> Families.Regular degree v -> Families.Regular degree (\fun (p: Domain) => (diagonal p).apply (v p)) :=
+  \fun (v: Domain -> Carrier)(vr: Families.Regular degree v)(i: Fin.Fin degree)(j: Fin.Fin n) => Families.transport
+    (\fun (p: Domain) => (left p).forward.apply ((pencil p).apply ((right p).forward.apply (v p))) i j)
+    (\fun (p: Domain) => (diagonal p).apply (v p) i j)
+    (\fun (p: Domain) => congr!{Carrier {C.Complex}} (\fun (w: Carrier) => w i j) _ _ (comparison p (v p)))
+    (leftRegular (\fun (p: Domain) => (pencil p).apply ((right p).forward.apply (v p)))
+      (pencilRegular (\fun (p: Domain) => (right p).forward.apply (v p)) (rightRegular v vr)) i j);

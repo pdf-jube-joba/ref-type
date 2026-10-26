@@ -1,0 +1,23 @@
+\import \root.Linearization[].Powers[].Families[X := X, source := source, z := z, regular := regularZ] \as Powers;
+\import Spaces.Coordinates[I := Fin.Fin (Coordinates.dimension degree)] \as Flat;
+\import Spaces.Linear[V := Flat.Vector, W := Vectors.Vector, source := Flat.space, target := Vectors.space] \as FlatRows;
+\definition flatRows[x: X]: FlatRows.Map := Row.Composition[U := Flat.Vector, domain := Flat.space].compose (rows x) (Coordinates.At[d := degree].backward);
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Scalars.field, scalar := linear_algebra.Hermitian[].Complex[].scalar,
+  topological := hermitian_frames.Hermitian[].Complex[].topological] \as Hermitian;
+\import Hermitian.At[n := n].Families[X := X].Matrix[m := Coordinates.dimension degree] \as Evaluation;
+\import Spaces.FiniteCoordinates[n := Coordinates.dimension degree] \as Basis;
+\definition components: Evaluation.Components source flatRows := \fun (j: Fin.Fin (Coordinates.dimension degree)) => regular (Coordinates.unflatten degree (Basis.vectors j));
+\definition geometricRegular: \forall (v: Vectors.Vector) -> Flatten.Regular degree (\fun (x: X) => (geometric (z x)).apply v) :=
+  \fun (v: Vectors.Vector)(i: Fin.Fin degree)(j: Fin.Fin n) => Functions.multiplicationContinuous source _ _ (Powers.continuous i)
+    (topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology (v j));
+\definition flatGeometricRegular: \forall (v: Vectors.Vector) -> Hermitian.At[n := Coordinates.dimension degree].Families[X := X].Continuous source (\fun (x: X) => Coordinates.flatten degree ((geometric (z x)).apply v)) :=
+  \fun (v: Vectors.Vector) => Flatten.flattenRegular degree (\fun (x: X) => (geometric (z x)).apply v) (geometricRegular v);
+\definition rowRegular: \forall (v: Vectors.Vector)(j: Fin.Fin n) -> Flatten.Continuous (\fun (x: X) => (rows x).apply ((geometric (z x)).apply v) j) :=
+  \fun (v: Vectors.Vector)(j: Fin.Fin n) => Flatten.transport
+    (\fun (x: X) => (flatRows x).apply (Coordinates.flatten degree ((geometric (z x)).apply v)) j)
+    (\fun (x: X) => (rows x).apply ((geometric (z x)).apply v) j)
+    (\fun (x: X) => congr!{Carrier {C.Complex}} (\fun (w: Carrier) => (rows x).apply w j) _ _ (Coordinates.leftInverse degree ((geometric (z x)).apply v)))
+    (Evaluation.evaluate source flatRows (\fun (x: X) => Coordinates.flatten degree ((geometric (z x)).apply v)) components (flatGeometricRegular v) j);
+\definition polynomialRegular: \forall (v: Vectors.Vector)(j: Fin.Fin n) -> Flatten.Continuous (\fun (x: X) => (\root.Linearization[].Companion[n := n, d := d].FromRow[row := rows x].polynomial (z x)).apply v j) :=
+  \fun (v: Vectors.Vector)(j: Fin.Fin n) => Functions.additionContinuous source _ _
+    (Functions.multiplicationContinuous source _ _ (Powers.continuous degree) (topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology (v j))) (rowRegular v j);

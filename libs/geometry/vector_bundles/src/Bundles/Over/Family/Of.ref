@@ -1,0 +1,56 @@
+\import \parent.With[data := bundle] \as Local;
+\definition locallyTrivial: Local.LocallyTrivial := \bysub(Data, Bundle, bundle);
+\definition chartLaws: \forall (c: Local.Chart) -> Local.In[c := c].Laws := \fun (c: Local.Chart) => \bysub(Local.ChartData, Local.Chart, c);
+\definition Frame[n: N.Nat^][x: X]: \Set := Local.Frame n x;
+\definition RankAt[x: X]: \Set := \Cast[N.Nat^] ({ n: N.Nat^ \where \exists Frame n x });
+\definition rankExists: \forall (x: X) -> \exists RankAt x := \block {
+  \fun (x: X) \then
+  \takefrom c: \Cast[Local.Chart] ({ c: Local.Chart \where Base.Member c.domain x }) \by locallyTrivial x \then
+  \let point: \Cast[X] c.domain := \into[X](x, c.domain) \by { \bysub(Local.Chart, { c: Local.Chart \where Base.Member c.domain x }, c) } \then
+  \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists Frame n x }] c.dimension (\exact(c.frame point, Frame c.dimension x))
+};
+\definition frameUnique: \forall (x: X)(n, m: N.Nat^)(f: Frame n x)(g: Frame m x) -> n = m :=
+  \fun (x: X)(n, m: N.Nat^)(f: Frame n x)(g: Frame m x) =>
+    \root.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Dimension[V := F x, space := bundle.space x].At[n := n].Comparison[m := m].unique f g;
+\definition rankUnique: \forall (x: X)(n, m: RankAt x) -> n = m := \block {
+  \fun (x: X)(n, m: RankAt x) \then
+  \takefrom f: Frame n x \by \bysub(N.Nat^, RankAt x, n) \then
+  \takefrom g: Frame m x \by \bysub(N.Nat^, RankAt x, m) \then
+  \return frameUnique x n m f g
+};
+\definition rank[x: X]: RankAt x := \choice RankAt x \by { existence: rankExists x, uniqueness: rankUnique x };
+\definition rankFrame: \forall (x: X)(n: N.Nat^)(f: Frame n x) -> rank x = n := \block {
+  \fun (x: X)(n: N.Nat^)(f: Frame n x) \then
+  \takefrom g: Frame (rank x) x \by \bysub(N.Nat^, RankAt x, rank x) \then
+  \return frameUnique x (rank x) n g f
+};
+\structure RankNeighborhood[x: X]: \Set := {
+  domain: \Pow X,
+  open: Base.IsOpenIn bundle.baseSpace domain,
+  contains: Base.Member domain x,
+  constant: \forall (y: X) -> Base.Member domain y -> rank y = rank x,
+};
+\definition rankLocallyConstant: \forall (x: X) -> \exists RankNeighborhood[x] := \block {
+  \fun (x: X) \then
+  \takefrom c: \Cast[Local.Chart] ({ c: Local.Chart \where Base.Member c.domain x }) \by locallyTrivial x \then
+  \let center: Base.Member c.domain x := \bysub(Local.Chart, { c: Local.Chart \where Base.Member c.domain x }, c) \then
+  \return \exact(RankNeighborhood[x] {
+    domain := c.domain, open := (chartLaws c).baseOpen, contains := center,
+    constant := \fun (y: X)(member: _) => trans!{N.Nat^} _ _ _
+      (rankFrame y c.dimension (c.frame (\into[X](y, c.domain) \by { member })))
+      (sym!{N.Nat^} _ _ (rankFrame x c.dimension (c.frame (\into[X](x, c.domain) \by { center })))),
+  }, RankNeighborhood[x])
+};
+\definition domains[c: Local.Chart]: \Pow Point := { p: Point \where Base.Member c.domain p.base };
+\module In(c: Local.Chart);
+\import topology.Continuity[A := Point, B := X].Covered[I := Local.Chart, domains := domains] \as Covered;
+\definition projectionContinuous: topology.Continuity[A := Point, B := X].Continuous bundle.totalSpace bundle.baseSpace projection :=
+  Covered.continuous bundle.totalSpace bundle.baseSpace projection
+    (\fun (c: Local.Chart) => (chartLaws c).totalOpen)
+    (\fun (p: Point) => locallyTrivial p.base) (\fun (c: Local.Chart) => In[c := c].projectionContinuous);
+\module Pullback(Y: \Set, source: topology.Topology[Carrier := Y].Topology, f: Y -> X);
+\module Sections;
+\module PullbackIdentity;
+\module Restriction(U: \Pow X);
+\module PullbackComposition(Y, Z: \Set, first: topology.Topology[Carrier := Y].Topology, second: topology.Topology[Carrier := Z].Topology, f: Y -> X, g: Z -> Y);
+\module Fiber(x: X);

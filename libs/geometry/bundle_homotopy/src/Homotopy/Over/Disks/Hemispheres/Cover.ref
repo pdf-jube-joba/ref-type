@@ -1,0 +1,85 @@
+\definition unitAt: \forall (x: Sphere.Sphere) -> Real.add (Real.mul (head x) (head x)) (tailSquared x) = Real.one :=
+  \fun (x: Sphere.Sphere) => trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Splitting.normSplit x)) (\bysub(Sphere.Coordinate, Sphere.Boundary, x));
+\definition tailBound: \forall (x: Sphere.Sphere) -> R.Le (tailSquared x) Real.one := \fun (x: Sphere.Sphere) =>
+  R.leReplaceRight (tailSquared x) (Real.add (Real.mul (head x) (head x)) (tailSquared x)) Real.one (unitAt x)
+    (Distance.leAddRightOfNonnegative (Real.mul (head x) (head x)) (tailSquared x) (Algebra.squareNonnegative (head x)));
+\definition tailDisk[x: Sphere.Sphere]: Disk.Disk := \into[Disk.Coordinate](tail x, Disk.ClosedBall) \by { tailBound x };
+\definition tailDiskContinuous: topology.Continuity[A := Sphere.Sphere, B := Disk.Disk].Continuous Sphere.sphereTopology Disk.diskTopology tailDisk :=
+  topology.Continuity[A := Sphere.Sphere, B := Disk.Coordinate].Corestriction[S := Disk.ClosedBall].corestrictContinuous Sphere.sphereTopology Disk.topology tailDisk tailContinuous;
+\definition radicandTail: \forall (x: Sphere.Sphere) -> Real.sub Real.one (tailSquared x) = Real.mul (head x) (head x) :=
+  \fun (x: Sphere.Sphere) => Laws.addCancelRight _ _ (tailSquared x) (trans!{Real.Real} _ _ _ (Distance.subAddCancel Real.one (tailSquared x)) (sym!{Real.Real} _ _ (unitAt x)));
+\definition positiveHeight[x: Sphere.Sphere][nonnegative: R.Le Real.zero (head x)]: height (tailDisk x) = head x :=
+  trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Root.sqrt _ _ (radicandTail x)) (Root.sqrtSquared (head x) nonnegative);
+\definition negativeHeight[x: Sphere.Sphere][nonpositive: R.Le (head x) Real.zero]: height (tailDisk x) = Real.neg (head x) :=
+  trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Root.sqrt _ _ (trans!{Real.Real} _ _ _ (radicandTail x) (sym!{Real.Real} _ _ (Laws.fieldMulNegBoth (head x) (head x)))))
+    (Root.sqrtSquared (Real.neg (head x)) (R.leReplaceLeft (Real.neg Real.zero) Real.zero (Real.neg (head x)) Laws.negZero (Laws.negAntitone (head x) Real.zero nonpositive)));
+\definition recoverPositive[x: Sphere.Sphere][nonnegative: R.Le Real.zero (head x)]: positive (tailDisk x) = x :=
+  Splitting.ext _ _ (trans!{Real.Real} _ _ _ (Splitting.headJoin (height (tailDisk x)) (tail x)) (positiveHeight x nonnegative)) (Splitting.tailJoin (height (tailDisk x)) (tail x));
+\definition recoverNegative[x: Sphere.Sphere][nonpositive: R.Le (head x) Real.zero]: negative (tailDisk x) = x :=
+  Splitting.ext _ _ (trans!{Real.Real} _ _ _ (Splitting.headJoin (Real.neg (height (tailDisk x))) (tail x))
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Real.neg _ _ (negativeHeight x nonpositive)) (Laws.negInvolutive (head x)))) (Splitting.tailJoin (Real.neg (height (tailDisk x))) (tail x));
+\definition PositiveHalf: \Pow Sphere.Sphere := { x: Sphere.Sphere \where R.Le Real.zero (head x) };
+\definition NegativeHalf: \Pow Sphere.Sphere := { x: Sphere.Sphere \where R.Le (head x) Real.zero };
+\definition positiveClosed: Base.IsClosedIn Sphere.sphereTopology PositiveHalf := headContinuous ({ r: Real.Real \where Logic.Not (R.Le Real.zero r) }) (Line.Rays[].atLeastClosed Real.zero);
+\definition negativeClosed: Base.IsClosedIn Sphere.sphereTopology NegativeHalf := headContinuous ({ r: Real.Real \where Logic.Not (R.Le r Real.zero) }) (Line.Rays[].atMostClosed Real.zero);
+\definition halvesCover: \forall (x: Sphere.Sphere) -> Logic.Or[\In[Sphere.Sphere] PositiveHalf x, \In[Sphere.Sphere] NegativeHalf x] := \fun (x: Sphere.Sphere) => Order.leTotal Real.zero (head x);
+\import Base.Subspace[S := PositiveHalf] \as PositiveSubspace;
+\import Base.Subspace[S := NegativeHalf] \as NegativeSubspace;
+\definition positivePoint[v: Disk.Disk]: PositiveSubspace.CarrierSet := \into[Sphere.Sphere](positive v, PositiveHalf) \by {
+  R.leReplaceRight Real.zero (height v) (head (positive v)) (sym!{Real.Real} _ _ (Splitting.headJoin (height v) v)) (Root.nonnegative (Real.sub Real.one (Disk.normSquared v)))
+};
+\definition negativePoint[v: Disk.Disk]: NegativeSubspace.CarrierSet := \into[Sphere.Sphere](negative v, NegativeHalf) \by {
+  R.leReplace (Real.neg (height v)) (head (negative v)) (Real.neg Real.zero) Real.zero (sym!{Real.Real} _ _ (Splitting.headJoin (Real.neg (height v)) v)) Laws.negZero
+    (Laws.negAntitone Real.zero (height v) (Root.nonnegative (Real.sub Real.one (Disk.normSquared v))))
+};
+\definition positiveInverse[x: PositiveSubspace.CarrierSet]: Disk.Disk := tailDisk x;
+\definition negativeInverse[x: NegativeSubspace.CarrierSet]: Disk.Disk := tailDisk x;
+\definition positiveHomeomorphism: topology.Homeomorphism[A := Disk.Disk, B := PositiveSubspace.CarrierSet].Homeomorphism[Disk.diskTopology, PositiveSubspace.topology Sphere.sphereTopology] :=
+  topology.Homeomorphism[A := Disk.Disk, B := PositiveSubspace.CarrierSet].Homeomorphism[Disk.diskTopology, PositiveSubspace.topology Sphere.sphereTopology] {
+    forward := positivePoint, backward := positiveInverse,
+    leftInverse := (\fun (v: Disk.Disk) => Splitting.tailJoin (height v) v), rightInverse := (\fun (x: PositiveSubspace.CarrierSet) => recoverPositive x (\bysub(Sphere.Sphere, PositiveHalf, x))),
+    forwardContinuous := topology.Continuity[A := Disk.Disk, B := Sphere.Sphere].Corestriction[S := PositiveHalf].corestrictContinuous Disk.diskTopology Sphere.sphereTopology positivePoint positiveContinuous,
+    backwardContinuous := topology.Continuity[A := Sphere.Sphere, B := Disk.Disk].Restriction[S := PositiveHalf].restrictContinuous Sphere.sphereTopology Disk.diskTopology tailDisk tailDiskContinuous
+  };
+\definition negativeHomeomorphism: topology.Homeomorphism[A := Disk.Disk, B := NegativeSubspace.CarrierSet].Homeomorphism[Disk.diskTopology, NegativeSubspace.topology Sphere.sphereTopology] :=
+  topology.Homeomorphism[A := Disk.Disk, B := NegativeSubspace.CarrierSet].Homeomorphism[Disk.diskTopology, NegativeSubspace.topology Sphere.sphereTopology] {
+    forward := negativePoint, backward := negativeInverse,
+    leftInverse := (\fun (v: Disk.Disk) => Splitting.tailJoin (Real.neg (height v)) v), rightInverse := (\fun (x: NegativeSubspace.CarrierSet) => recoverNegative x (\bysub(Sphere.Sphere, NegativeHalf, x))),
+    forwardContinuous := topology.Continuity[A := Disk.Disk, B := Sphere.Sphere].Corestriction[S := NegativeHalf].corestrictContinuous Disk.diskTopology Sphere.sphereTopology negativePoint negativeContinuous,
+    backwardContinuous := topology.Continuity[A := Sphere.Sphere, B := Disk.Disk].Restriction[S := NegativeHalf].restrictContinuous Sphere.sphereTopology Disk.diskTopology tailDisk tailDiskContinuous
+  };
+\definition intersectionHead: \forall (x: Sphere.Sphere) -> \In[Sphere.Sphere] PositiveHalf x -> \In[Sphere.Sphere] NegativeHalf x -> head x = Real.zero :=
+  \fun (x: Sphere.Sphere)(positive: _)(negative: _) => R.leAntisym _ _ negative positive;
+\definition intersectionBoundary[x: Sphere.Sphere][positive: \In[Sphere.Sphere] PositiveHalf x][negative: \In[Sphere.Sphere] NegativeHalf x]: Disk.Sphere :=
+  \into[Disk.Coordinate](tail x, Disk.Boundary) \by {
+    trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.addZeroLeft (tailSquared x)))
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add r (tailSquared x)) _ _
+        (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (intersectionHead x positive negative) (intersectionHead x positive negative)) (Laws.fieldMulZeroLeft Real.zero)))) (unitAt x))
+  };
+\definition intersectionEquator: \forall (x: Sphere.Sphere)(positive: \In[Sphere.Sphere] PositiveHalf x)(negative: \In[Sphere.Sphere] NegativeHalf x) -> Splitting.equator (intersectionBoundary x positive negative) = x :=
+  \fun (x: Sphere.Sphere)(positive: _)(negative: _) => Splitting.ext _ _
+    (trans!{Real.Real} _ _ _ (Splitting.headJoin Real.zero (tail x)) (sym!{Real.Real} _ _ (intersectionHead x positive negative))) (Splitting.tailJoin Real.zero (tail x));
+
+\definition induction[P: Sphere.Sphere -> \Prop]: (\forall (v: Disk.Disk) -> P (positive v)) -> (\forall (v: Disk.Disk) -> P (negative v)) -> \forall (x: Sphere.Sphere) -> P x :=
+  \fun (left: _)(right: _)(x: Sphere.Sphere) => Logic.orElim[\In[Sphere.Sphere] PositiveHalf x, \In[Sphere.Sphere] NegativeHalf x, P x] (halvesCover x)
+    (\fun (inHalf: \In[Sphere.Sphere] PositiveHalf x) => \idelim positive (tailDisk x) = x \with y: Sphere.Sphere => P y \by { base: left (tailDisk x), equality: recoverPositive x inHalf })
+    (\fun (inHalf: \In[Sphere.Sphere] NegativeHalf x) => \idelim negative (tailDisk x) = x \with y: Sphere.Sphere => P y \by { base: right (tailDisk x), equality: recoverNegative x inHalf });
+\module Universal(B: \Set, target: topology.Topology[Carrier := B].Topology, f, g: Disk.Disk -> B,
+  continuousF: topology.Continuity[A := Disk.Disk, B := B].Continuous Disk.diskTopology target f,
+  continuousG: topology.Continuity[A := Disk.Disk, B := B].Continuous Disk.diskTopology target g,
+  agrees: \forall (v: Disk.Sphere) -> f (boundaryInclusion v) = g (boundaryInclusion v));
+\module DoubleDisk;
+
+\definition positiveInside: \forall (x: \Cast[Sphere.Sphere] PositiveHalf) -> \In[Sphere.Sphere] U x :=
+  \fun (x: \Cast[Sphere.Sphere] PositiveHalf) => \idelim positive (tailDisk x) = x \with y: Sphere.Sphere => \In[Sphere.Sphere] U y \by {
+    base: positiveInU (tailDisk x), equality: recoverPositive x (\bysub(Sphere.Sphere, PositiveHalf, x))
+  };
+\definition negativeInside: \forall (x: \Cast[Sphere.Sphere] NegativeHalf) -> \In[Sphere.Sphere] V x :=
+  \fun (x: \Cast[Sphere.Sphere] NegativeHalf) => \idelim negative (tailDisk x) = x \with y: Sphere.Sphere => \In[Sphere.Sphere] V y \by {
+    base: negativeInV (tailDisk x), equality: recoverNegative x (\bysub(Sphere.Sphere, NegativeHalf, x))
+  };
+\definition overlapPoint[x: Sphere.Sphere][inPositive: \In[Sphere.Sphere] PositiveHalf x][inNegative: \In[Sphere.Sphere] NegativeHalf x]: Overlap :=
+  \into[Sphere.Sphere](x, overlap) \by { Logic.And[_, _]::# (positiveInside (\into[Sphere.Sphere](x, PositiveHalf) \by { inPositive })) (negativeInside (\into[Sphere.Sphere](x, NegativeHalf) \by { inNegative })) };
+\definition boundaryOnIntersection: \forall (x: Sphere.Sphere)(inPositive: \In[Sphere.Sphere] PositiveHalf x)(inNegative: \In[Sphere.Sphere] NegativeHalf x) ->
+  boundary (overlapPoint x inPositive inNegative) = intersectionBoundary x inPositive inNegative :=
+  \fun (x: Sphere.Sphere)(inPositive: _)(inNegative: _) => Normalization.normalizesUnit (intersectionBoundary x inPositive inNegative);

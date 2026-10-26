@@ -1,0 +1,46 @@
+\import RealSpaces.Finite[V := V, I := Fin.Fin n, space := source] \as Basis;
+\definition basis: Basis.Basis := RealBundles.Dimension[V := V, space := source].At[n := n].basis frame;
+\import Complex.RealScalars[V := Complex.Vector n, space := Complex.coordinates n] \as CoordinateScalars;
+\definition coefficients[v: V][z: C.Complex]: Complex.Vector n := \fun (i: Fin.Fin n) => CD.mul (CD.ofReal (frame.forward.apply v i)) z;
+\definition coefficientLaws: Tensor.BilinearLaws[Complex.Vector n, CoordinateScalars.realSpace, coefficients] := Tensor.BilinearLaws[Complex.Vector n, CoordinateScalars.realSpace, coefficients] {
+  addLeft := \fun (v, w: V)(z: C.Complex) => \axiom:funext(coefficients (source.add v w) z, CoordinateScalars.realSpace.add (coefficients v z) (coefficients w z), \fun (i: Fin.Fin n) =>
+    trans!{{C.Complex}} _ _ _ (congr!{{R.Real} {C.Complex}} (\fun (a: R.Real) => CD.mul (CD.ofReal a) z) _ _ (congr!{{Real.Vector n} {R.Real}} (\fun (v: Real.Vector n) => v i) _ _ (frame.forward.preservesAdd v w)))
+      (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (\fun (a: C.Complex) => CD.mul a z) _ _ (CP.ofRealAdd (frame.forward.apply v i) (frame.forward.apply w i))) (ComplexSpaces.addMul _ _ z))),
+  addRight := \fun (v: V)(z, w: C.Complex) => \axiom:funext(coefficients v (CD.add z w), CoordinateScalars.realSpace.add (coefficients v z) (coefficients v w), \fun (i: Fin.Fin n) => ComplexSpaces.mulAdd (CD.ofReal (frame.forward.apply v i)) z w),
+  scaleLeft := \fun (r: R.Real)(v: V)(z: C.Complex) => \axiom:funext(coefficients (source.smul r v) z, CoordinateScalars.realSpace.smul r (coefficients v z), \fun (i: Fin.Fin n) =>
+    trans!{{C.Complex}} _ _ _ (congr!{{R.Real} {C.Complex}} (\fun (a: R.Real) => CD.mul (CD.ofReal a) z) _ _ (congr!{{Real.Vector n} {R.Real}} (\fun (v: Real.Vector n) => v i) _ _ (frame.forward.preservesScale r v)))
+      (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (\fun (a: C.Complex) => CD.mul a z) _ _ (sym!{{C.Complex}} _ _ (CP.ofRealMul r (frame.forward.apply v i)))) (CP.mulAssoc (CD.ofReal r) (CD.ofReal (frame.forward.apply v i)) z))),
+  scaleRight := \fun (r: R.Real)(v: V)(z: C.Complex) => \axiom:funext(coefficients v (Scalar.realSpace.smul r z), CoordinateScalars.realSpace.smul r (coefficients v z), \fun (i: Fin.Fin n) => ComplexSpaces.Laws[V := C.Complex, space := ComplexSpaces.scalarSpace].scaleComm (CD.ofReal (frame.forward.apply v i)) (CD.ofReal r) z)
+};
+\import Tensor.Universal[U := Complex.Vector n, target := CoordinateScalars.realSpace] \as CoordinateUniversal;
+\import RealSpaces.Linear[V := Carrier, W := Complex.Vector n, source := Tensor.space, target := CoordinateScalars.realSpace] \as RealForward;
+\definition realForward: RealForward.Map := CoordinateUniversal.map coefficients coefficientLaws;
+\definition onPure: \forall (v: V)(z: C.Complex) -> realForward.apply (pure v z) = coefficients v z := CoordinateUniversal.onTensor coefficients coefficientLaws;
+\import Real.TensorEquality[V := V, W := C.Complex, U := Complex.Vector n, left := source, right := Scalar.realSpace, target := CoordinateScalars.realSpace] \as CoordinateEquality;
+\import RealForward.Composition[U := Carrier, domain := Tensor.space] \as Before;
+\import RealSpaces.Linear[V := Complex.Vector n, W := Complex.Vector n, source := CoordinateScalars.realSpace, target := CoordinateScalars.realSpace].Composition[U := Carrier, domain := Tensor.space] \as After;
+\definition coordinateScale[a: C.Complex]: RealSpaces.Linear[V := Complex.Vector n, W := Complex.Vector n, source := CoordinateScalars.realSpace, target := CoordinateScalars.realSpace].Map :=
+  Complex.RealScalars[V := Complex.Vector n, space := Complex.coordinates n].Maps[W := Complex.Vector n, target := Complex.coordinates n].map
+    (ComplexSpaces.Linear[V := Complex.Vector n, W := Complex.Vector n, source := Complex.coordinates n, target := Complex.coordinates n].Operations[].scale a
+      (ComplexSpaces.FiniteCoordinates[n := n].identity));
+\definition preservesComplex: \forall (a: C.Complex)(t: Carrier) -> realForward.apply (space.smul a t) = (Complex.coordinates n).smul a (realForward.apply t) :=
+  \fun (a: C.Complex) => CoordinateEquality.pointwise (Before.compose realForward (action a)) (After.compose (coordinateScale a) realForward)
+    (\fun (v: V)(z: C.Complex) => trans!{{Complex.Vector n}} _ _ _ (congr!{Carrier {Complex.Vector n}} realForward.apply _ _ (\root.Operations[].Scalars[].ComplexTensor[V := V, source := source].onPure a v z))
+      (trans!{{Complex.Vector n}} _ _ _ (onPure v (CD.mul a z))
+        (trans!{{Complex.Vector n}} _ _ _ (\axiom:funext(coefficients v (CD.mul a z), (Complex.coordinates n).smul a (coefficients v z), \fun (i: Fin.Fin n) => ComplexSpaces.Laws[V := C.Complex, space := ComplexSpaces.scalarSpace].scaleComm (CD.ofReal (frame.forward.apply v i)) a z))
+          (congr!{{Complex.Vector n} {Complex.Vector n}} ((Complex.coordinates n).smul a) _ _ (sym!{{Complex.Vector n}} _ _ (onPure v z))))));
+\import ComplexSpaces.Linear[V := Carrier, W := Complex.Vector n, source := space, target := Complex.coordinates n] \as Forward;
+\definition forward: Forward.Map := Forward.Map { apply := realForward.apply, preservesAdd := realForward.preservesAdd, preservesScale := preservesComplex };
+\import RealSpaces.Sums[I := Fin.Fin n].Vector[V := Carrier, space := Tensor.space] \as Sums;
+\definition synthesis[z: Complex.Vector n]: Carrier := Sums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => pure (basis.vectors i) (z i));
+\module Right;
+\module Left;
+\import ComplexSpaces.Isomorphism[V := Carrier, W := Complex.Vector n, source := space, target := Complex.coordinates n] \as Isomorphisms;
+\import Isomorphisms.OfBijective[f := forward] \as Bijective;
+\definition injective: Bijective.Injective := \fun (s, t: Carrier)(same: forward.apply s = forward.apply t) => trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (Left[].law s))
+  (trans!{Carrier} _ _ _ (congr!{{Complex.Vector n} Carrier} synthesis _ _ same) (Left[].law t));
+\definition onto: Bijective.Onto := \fun (z: Complex.Vector n) => Logic.existsIntro[Carrier, { t: Carrier \where forward.apply t = z }] (synthesis z) (Right[].law z);
+\definition isomorphism: Isomorphisms.Isomorphism := Bijective.isomorphism injective onto;
+\definition backwardFormula: \forall (z: Complex.Vector n) -> isomorphism.backward.apply z = synthesis z := \fun (z: Complex.Vector n) => injective _ _
+  (trans!{{Complex.Vector n}} _ _ _ ((Isomorphisms.laws isomorphism).rightInverse z) (sym!{{Complex.Vector n}} _ _ (Right[].law z)));
+\module Grid(r, s: N.Nat^);

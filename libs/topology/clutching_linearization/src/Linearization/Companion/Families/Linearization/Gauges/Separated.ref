@@ -1,0 +1,28 @@
+\import std.Data[].Pair[] \as Pair;
+\import sphere_maps.Circle[] \as Circle;
+\import topological_constructions.Product[A := X, B := Circle.Carrier] \as Circular;
+\definition Carrier: \Set := Circular.CarrierSet;
+\definition circleTopology: topology.Topology[Carrier := Carrier].Topology := Circular.topology source Circle.topology;
+\definition include[p: Carrier]: Domain := Pair.pair X C.Complex (Pair.first X Circle.Carrier p) (Pair.second X Circle.Carrier p);
+\definition inclusionContinuous: topology.Continuity[A := Carrier, B := Domain].Continuous circleTopology topology include :=
+  Product.Universal[X := Carrier].pairContinuous circleTopology source Plane.topology (Pair.first X Circle.Carrier) (\fun (p: Carrier) => Pair.second X Circle.Carrier p)
+    (Circular.Maps[].firstContinuous source Circle.topology)
+    (topology.Composition[A := Carrier, B := Circle.Carrier, C := C.Complex].composeContinuous circleTopology Circle.topology Plane.topology
+      (Pair.second X Circle.Carrier) (\fun (z: Circle.Carrier) => z) (Circular.Maps[].secondContinuous source Circle.topology)
+      (topology.Continuity[A := C.Complex, B := C.Complex].Corestriction[S := Circle.unit].inclusionContinuous Plane.topology));
+\module AtUnit(x: X, z: C.Complex, unit: C.Absolute[].abs z = R.one);
+\definition pencil[p: Carrier]: Matrices.Matrix := pencilMatrix (include p);
+\definition diagonal[p: Carrier]: Matrices.Matrix := diagonalMatrix (include p);
+\definition nonzeroPencil: \forall (p: Carrier) -> Field.Nonzero (pencil p) := \fun (p: Carrier) =>
+  AtUnit[x := Pair.first X Circle.Carrier p, z := Pair.second X Circle.Carrier p,
+    unit := \root.Linearization[].Powers[].unitOfNorm (Pair.second X Circle.Carrier p) (Circle.norm (Pair.second X Circle.Carrier p))].pencilNonzero;
+\definition nonzeroDiagonal: \forall (p: Carrier) -> Field.Nonzero (diagonal p) := \fun (p: Carrier) =>
+  AtUnit[x := Pair.first X Circle.Carrier p, z := Pair.second X Circle.Carrier p,
+    unit := \root.Linearization[].Powers[].unitOfNorm (Pair.second X Circle.Carrier p) (Circle.norm (Pair.second X Circle.Carrier p))].diagonalNonzero;
+\definition pencilContinuous: matrix_invariants.Topological[K := C.Complex, ring := Plane.Ring[].topologicalRing].At[n := Coordinates.dimension degree].Families[X := Carrier].Regular circleTopology pencil :=
+  \fun (i, j: Matrices.Index) => topology.Composition[A := Carrier, B := Domain, C := C.Complex].composeContinuous circleTopology topology Plane.topology include
+    (\fun (p: Domain) => pencilMatrix p i j) inclusionContinuous (pencilRegular i j);
+\definition diagonalContinuous: matrix_invariants.Topological[K := C.Complex, ring := Plane.Ring[].topologicalRing].At[n := Coordinates.dimension degree].Families[X := Carrier].Regular circleTopology diagonal :=
+  \fun (i, j: Matrices.Index) => topology.Composition[A := Carrier, B := Domain, C := C.Complex].composeContinuous circleTopology topology Plane.topology include
+    (\fun (p: Domain) => diagonalMatrix p i j) inclusionContinuous (diagonalRegular i j);
+\module Bundles(compact: topology.Topology[Carrier := X].IsCompact source, hausdorff: topology.Topology[Carrier := X].IsT2 source);

@@ -1,0 +1,48 @@
+\import Spaces.Linear[V := Domain.Vector, W := Domain.Vector, source := Domain.space, target := Domain.space] \as Small;
+\import End.Composition[U := Domain.Vector, domain := Domain.space] \as Project;
+\import Backward.Composition[U := Domain.Vector, domain := Domain.space] \as ToSmall;
+\import Backward.Composition[U := Vector, domain := E.space] \as Restrict;
+\import Small.Composition[U := Vector, domain := E.space] \as CoordinateCompose;
+\import Small.Composition[U := Domain.Vector, domain := Domain.space] \as SmallCompose;
+\definition forward[x: X]: Forward.Map := Project.compose (P x).map center.value;
+\definition comparison[x: X]: Small.Map := ToSmall.compose center.coordinate (forward x);
+\definition matrix[x: X]: Matrices.Matrix := Square.entries (comparison x);
+\import \parent.\parent.\parent.OnProjection[P := P a].Rank[k := k] \as Center;
+\definition atCenter: comparison a = Spaces.Eigen[V := Domain.Vector, space := Domain.space].identity :=
+  Small.ext _ _ (\axiom:funext((comparison a).apply, (\fun (v: Domain.Vector) => v),
+    \fun (v: Domain.Vector) => trans!{{Domain.Vector}} _ _ _ (congr!{Vector {Domain.Vector}} center.coordinate.apply _ _ (Center.fixed center v)) (center.leftInverse v)));
+\definition centerMatrix: matrix a = Matrices.identity :=
+  congr!{{Small.Map} {Matrices.Matrix}} Square.entries _ _ atCenter;
+\definition domain: \Pow X := { x: X \where Inversion.Nonzero (matrix x) };
+\definition Carrier: \Set := \Cast[X] domain;
+\import Source.Subspace[S := domain] \as Subspace;
+\definition localTopology: topology.Topology[Carrier := Carrier].Topology := Subspace.topology source;
+\definition nonsingular[x: Carrier]: Inversion.Nonsingular := \into[Matrices.Matrix](matrix x, Inversion.Nonsingular) \by { \bysub(X, domain, x) };
+\definition backward[x: Carrier]: Backward.Map := CoordinateCompose.compose (Square.Inverse[A := nonsingular x].value) (Restrict.compose center.coordinate (P x).map);
+\definition comparisonLeft: \forall (x: Carrier)(v: Domain.Vector) -> (Square.Inverse[A := nonsingular x].value).apply ((comparison x).apply v) = v :=
+  \fun (x: Carrier)(v: Domain.Vector) => trans!{{Domain.Vector}} _ _ _
+    (congr!{{Small.Map} {Domain.Vector}} (\fun (f: Small.Map) => (Square.Inverse[A := nonsingular x].value).apply (f.apply v)) _ _
+      (sym!{{Small.Map}} _ _ (matrix_invariants.Ring[K := K, scalars := Fields.fieldAsCommutativeRing K field].At[n := k].Representation[].linearEntries (comparison x))))
+    (Square.Inverse[A := nonsingular x].left v);
+\definition leftInverse: \forall (x: Carrier)(v: Domain.Vector) -> (backward x).apply ((forward x).apply v) = v :=
+  \fun (x: Carrier)(v: Domain.Vector) => trans!{{Domain.Vector}} _ _ _
+    (congr!{Vector {Domain.Vector}} (\fun (w: Vector) => (Square.Inverse[A := nonsingular x].value).apply (center.coordinate.apply w)) _ _ ((P x).idempotent (center.value.apply v)))
+    (comparisonLeft x v);
+\module Point(x: Carrier);
+\definition reconstruction: \forall (x: Carrier)(w: Vector) -> (forward x).apply ((backward x).apply w) = (P x).map.apply w := \block {
+  \fun (x: Carrier)(w: Vector) \then
+  \takefrom basis: BasisAt (P x) \by rank x \then
+  \return Point[x := x].With[basis := basis].reconstruction w
+};
+\definition basis[x: Carrier]: BasisAt (P x) := \parent.\parent.\parent.OnProjection[P := P x].Rank[k := k].Basis {
+  value := forward x, coordinate := backward x, leftInverse := leftInverse x, reconstruction := reconstruction x,
+};
+\module Continuous;
+\import \parent.\parent.\parent.Forms[h := E.form].Families[X := Carrier] \as Orthonormalize;
+\module With(factors: Orthonormalize.Rank[k := k].Factors[\fun (x: Carrier) => forward x, localTopology]);
+\definition exists: \exists Local[a] := \block {
+  \takefrom factors: Orthonormalize.Rank[k := k].Factors[\fun (x: Carrier) => forward x, localTopology]
+    \by Orthonormalize.exists k localTopology (\fun (x: Carrier) => forward x) Continuous[].forwardRegular
+      (\fun (x: Carrier) => \parent.\parent.\parent.OnProjection[P := P x].Rank[k := k].injective (basis x)) E.positive \then
+  \return \exact(With[factors := factors].local, Local[a])
+};

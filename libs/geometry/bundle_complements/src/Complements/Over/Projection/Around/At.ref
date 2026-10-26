@@ -1,0 +1,31 @@
+\import Spaces.Linear[V := Vector k, W := Vector n, source := coordinates k, target := coordinates n] \as Forward;
+\import Spaces.Linear[V := Vector n, W := Vector k, source := coordinates n, target := coordinates k] \as Backward;
+\import End.Composition[U := Vector k, domain := coordinates k] \as ForwardComposition;
+\import Backward.Composition[U := Vector n, domain := coordinates n] \as BackwardComposition;
+\definition forward: Forward.Map := ForwardComposition.compose (h x) center.basis.value;
+\definition backward: Backward.Map := BackwardComposition.compose center.basis.coordinate (inverse x);
+\definition fixed: \forall (v: Vector k) -> (P x).map.apply (forward.apply v) = forward.apply v :=
+  \fun (v: Vector k) => trans!{{Vector n}} _ _ _ (intertwines x (center.basis.value.apply v))
+    (congr!{{Vector n} {Vector n}} (h x).apply _ _ (Native.OnProjection[P := P a].Rank[k := k].fixed center.basis v));
+\definition leftInverse: \forall (v: Vector k) -> backward.apply (forward.apply v) = v :=
+  \fun (v: Vector k) => trans!{{Vector k}} _ _ _ (congr!{{Vector n} {Vector k}} center.basis.coordinate.apply _ _ (inverseLeft x (center.basis.value.apply v))) (center.basis.leftInverse v);
+\definition reconstruction: \forall (v: Vector n) -> forward.apply (backward.apply v) = (P x).map.apply v :=
+  \fun (v: Vector n) => trans!{{Vector n}} _ _ _ (congr!{{Vector n} {Vector n}} (h x).apply _ _ (center.basis.reconstruction ((inverse x).apply v)))
+    (trans!{{Vector n}} _ _ _ (sym!{{Vector n}} _ _ (intertwines x ((inverse x).apply v))) (congr!{{Vector n} {Vector n}} (P x).map.apply _ _ (inverseRight x v)));
+\definition basis: Native.OnProjection[P := P x].Rank[k := k].Basis := Native.OnProjection[P := P x].Rank[k := k].Basis {
+  value := forward, coordinate := backward, leftInverse := leftInverse, reconstruction := reconstruction
+};
+\definition frame: Spaces.Isomorphism[V := Fiber x, W := Vector k, source := fiberSpace x, target := coordinates k].Isomorphism :=
+  Spaces.Isomorphism[V := Fiber x, W := Vector k, source := fiberSpace x, target := coordinates k].Isomorphism {
+    forward := Spaces.Linear[V := Fiber x, W := Vector k, source := fiberSpace x, target := coordinates k].Map {
+      apply := \fun (v: Fiber x) => backward.apply v,
+      preservesAdd := \fun (v, w: Fiber x) => backward.preservesAdd v w,
+      preservesScale := \fun (a: K)(v: Fiber x) => backward.preservesScale a v
+    },
+    backward := Spaces.Linear[V := Vector k, W := Fiber x, source := coordinates k, target := fiberSpace x].Map {
+      apply := \fun (v: Vector k) => \into[Vector n](forward.apply v, Image x) \by { fixed v },
+      preservesAdd := forward.preservesAdd, preservesScale := forward.preservesScale
+    },
+    leftInverse := \fun (v: Fiber x) => trans!{{Vector n}} _ _ _ (reconstruction v) (\bysub(Vector n, Image x, v)),
+    rightInverse := leftInverse
+  };

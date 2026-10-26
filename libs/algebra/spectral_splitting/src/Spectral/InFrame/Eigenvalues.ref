@@ -1,0 +1,25 @@
+\import \root.Spectral[].At[n := n].Eigenvalues[A := matrix] \as Matrix;
+\definition fromSpace: \root.Spectral[].NoUnitEigen V space T -> Matrix.NoUnitEigen :=
+  \fun (absence: \root.Spectral[].NoUnitEigen V space T)(z: C.Complex)(circle: _)(v: Coordinates.Vector)(eigen: _) => \block {
+    \let original: T.apply (frame.backward.apply v) = space.smul z (frame.backward.apply v) := eq_reason_in!{V _
+      "=" { frame.backward.apply (frame.forward.apply (T.apply (frame.backward.apply v))) } "by" { sym!{V} _ _ (left (T.apply (frame.backward.apply v))) }
+      "=" { frame.backward.apply ((Matrices.linear matrix).apply v) } "by" { congr!{Coordinates.Vector V} frame.backward.apply _ _ (sym!{Coordinates.Vector} _ _ (matrixFormula v)) }
+      "=" { frame.backward.apply (Coordinates.scale z v) } "by" { congr!{Coordinates.Vector V} frame.backward.apply _ _ eigen }
+      "=" _ "by" { frame.backward.preservesScale z v }
+    } \then
+    \return trans!{Coordinates.Vector} _ _ _ (sym!{Coordinates.Vector} _ _ (right v))
+      (trans!{Coordinates.Vector} _ _ _ (congr!{V Coordinates.Vector} frame.forward.apply _ _ (absence z circle (frame.backward.apply v) original)) frame.forward.preservesZero)
+  };
+\definition toSpace: Matrix.NoUnitEigen -> \root.Spectral[].NoUnitEigen V space T :=
+  \fun (absence: Matrix.NoUnitEigen)(z: C.Complex)(circle: _)(v: V)(eigen: _) => \block {
+    \let represented: (Matrices.linear matrix).apply (frame.forward.apply v) = Coordinates.scale z (frame.forward.apply v) := eq_reason_in!{Coordinates.Vector _
+      "=" _ "by" { matrixFormula (frame.forward.apply v) }
+      "=" { frame.forward.apply (T.apply v) } "by" { congr!{V Coordinates.Vector} (\fun (w: V) => frame.forward.apply (T.apply w)) _ _ (left v) }
+      "=" { frame.forward.apply (space.smul z v) } "by" { congr!{V Coordinates.Vector} frame.forward.apply _ _ eigen }
+      "=" _ "by" { frame.forward.preservesScale z v }
+    } \then
+    \return trans!{V} _ _ _ (sym!{V} _ _ (left v))
+      (trans!{V} _ _ _ (congr!{Coordinates.Vector V} frame.backward.apply _ _ (absence z circle (frame.forward.apply v) represented)) frame.backward.preservesZero)
+  };
+\definition off: \root.Spectral[].NoUnitEigen V space T -> OffSpectrum := \fun (absence: _) => Matrix.off (fromSpace absence);
+\definition noUnitEigen: OffSpectrum -> \root.Spectral[].NoUnitEigen V space T := \fun (gap: OffSpectrum) => toSpace (Matrix.noUnitEigen gap);

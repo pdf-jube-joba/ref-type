@@ -1,0 +1,33 @@
+\import topology.Topology[Carrier := X] \as Base;
+\definition Domain: \Pow Y := { y: Y \where Base.Member s.domain (base y) };
+\definition Point: \Set := \Cast[Y] Domain;
+\import topology.Topology[Carrier := Y].Subspace[S := Domain] \as Subspace;
+\definition topology: topology.Topology[Carrier := Point].Topology := Subspace.topology source;
+\definition center[y: Point]: \Cast[X] s.domain := \into[X](base y, s.domain) \by { \bysub(Y, Domain, y) };
+\import topology.Continuity[A := Y, B := X].Restriction[S := Domain] \as RestrictBase;
+\import topology.Continuity[A := Point, B := X].Corestriction[S := s.domain] \as IntoBase;
+\definition baseRegular: Vectors.BaseContinuous -> topology.Continuity[A := Point, B := X].Continuous topology bundle.baseSpace (\fun (y: Point) => base y) :=
+  \fun (regular: _) => RestrictBase.restrictContinuous source bundle.baseSpace base regular;
+\definition centerContinuous: Vectors.BaseContinuous -> topology.Continuity[A := Point, B := \Cast[X] s.domain].Continuous topology (Base.Subspace[S := s.domain].topology bundle.baseSpace) center :=
+  \fun (regular: _) => IntoBase.corestrictContinuous topology bundle.baseSpace center (baseRegular regular);
+\import vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Family[X := X, F := Dual.Fiber] \as Covectors;
+\definition tester[j: Fin.Fin k][y: Point]: Dual.Fiber (base y) := s.value j (center y);
+\definition testerContinuous: \forall (j: Fin.Fin k) -> Vectors.BaseContinuous -> topology.Continuity[A := Point, B := Covectors.Point].Continuous topology Dual.topology (\fun (y: Point) => Covectors.include (base y) (tester j y)) :=
+  \fun (j: Fin.Fin k)(regular: _) => topology.Composition[A := Point, B := \Cast[X] s.domain, C := Covectors.Point].composeContinuous topology (Base.Subspace[S := s.domain].topology bundle.baseSpace) Dual.topology center
+    (\fun (x: \Cast[X] s.domain) => Covectors.include x (s.value j x)) (centerContinuous regular) (s.regular j);
+\import topology.Continuity[A := Y, B := Original.Point].Restriction[S := Domain] \as RestrictVectors;
+\definition vectorContinuous: \forall (v: Tuple)(i: Fin.Fin k) -> Vectors.Continuous (v i) -> topology.Continuity[A := Point, B := Original.Point].Continuous topology bundle.totalSpace
+  (\fun (y: Point) => Original.include (base y) (v i y)) :=
+  \fun (v: Tuple)(i: Fin.Fin k)(regular: _) => RestrictVectors.restrictContinuous source bundle.totalSpace (Vectors.total (v i)) regular;
+\import Dual.Pairing[Y := Point, source := topology, base := \fun (y: Point) => base y] \as Pairing;
+\definition row[v: Tuple][j: Fin.Fin k][y: Point]: Vector k := \fun (i: Fin.Fin k) => tester j y (v i y);
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin k] \as Coordinates;
+\definition rowContinuous: \forall (v: Tuple)(j: Fin.Fin k) -> Vectors.BaseContinuous -> (\forall (i: Fin.Fin k) -> Vectors.Continuous (v i)) -> topology.Continuity[A := Point, B := Vector k].Continuous topology (coordinateTopology k) (row v j) :=
+  \fun (v: Tuple)(j: Fin.Fin k)(base: _)(regular: _) => Coordinates.Universal[A := Point].continuous topology scalar.topological.space (row v j)
+    (\fun (i: Fin.Fin k) => Pairing.continuous (tester j) (\fun (y: Point) => v i y) (baseRegular base) (testerContinuous j base) (vectorContinuous v i (regular i)));
+\import Spaces.FiniteCoordinates[n := k].Top[] \as Top;
+\import Spaces.Multilinear[V := Vector k, space := coordinates k].Alternating[] \as CoordinateForms;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].MultilinearContinuity[n := k, X := Point] \as MultilinearContinuity;
+\definition continuous: \forall (v: Tuple) -> Vectors.BaseContinuous -> (\forall (i: Fin.Fin k) -> Vectors.Continuous (v i)) -> topology.Continuity[A := Point, B := K].Continuous topology scalar.topological.space
+  (\fun (y: Point) => Alternating.evaluate s (\into[Family.Point](total v y, { p: Family.Point \where Base.Member s.domain p.base }) \by { \bysub(Y, Domain, y) })) :=
+  \fun (v: Tuple)(base: _)(regular: _) => MultilinearContinuity.continuous k topology (CoordinateForms.asMultilinear k Top.volume) (row v) (\fun (j: Fin.Fin k) => rowContinuous v j base regular);

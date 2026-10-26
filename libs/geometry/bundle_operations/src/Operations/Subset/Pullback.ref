@@ -1,0 +1,26 @@
+\import topology.Topology[Carrier := A] \as Source;
+\import topology.Maps[A := A, B := E] \as Sets;
+\definition Domain: \Pow A := Sets.Preimage f U;
+\definition Point: \Set := \Cast[A] Domain;
+\import Source.Subspace[S := Domain] \as Subspace;
+\import Subspace.Open[] \as Into;
+\import \root.Operations[].Subset[E := E, U := U] \as Target;
+\definition restricted[p: Point]: Target.Point := \into[E](f p, U) \by { \bysub(A, Domain, p) };
+\import topology.Maps[A := Point, B := Target.Point] \as Restricted;
+\definition preimageImage: \forall (W: \Pow Target.Point) -> Sets.Preimage f (Inclusion.image W) = Into.image (Restricted.Preimage restricted W) :=
+  \fun (W: \Pow Target.Point) => \axiom:setext(Sets.Preimage f (Inclusion.image W), Into.image (Restricted.Preimage restricted W),
+    \fun (p: A)(member: _) => Inclusion.imageElim W (f p) (Source.Member (Into.image (Restricted.Preimage restricted W)) p)
+      (\fun (q: Target.Point)(inW: _)(same: q = f p) => \block {
+        \let included: Total.Member U (f p) := \idelim q = f p \with e: E => Total.Member U e \by { base: \bysub(E, U, q), equality: same } \then
+        \let local: Point := \into[A](p, Domain) \by { included } \then
+        \return Into.imageMember (Restricted.Preimage restricted W) local (memberTransport W q (restricted local) same inW)
+      }) member,
+    \fun (p: A)(member: _) => Into.imageElim (Restricted.Preimage restricted W) p (Total.Member (Inclusion.image W) (f p))
+      (\fun (q: Point)(inW: _)(same: q = p) => \idelim q = p \with r: A => Total.Member (Inclusion.image W) (f r) \by {
+        base: Inclusion.imageMember W (restricted q) inW, equality: same
+      }) member);
+\definition open: \forall (source: Source.Topology)(W: \Pow Target.Point) -> topology.Topology[Carrier := Point].IsOpenIn (Subspace.topology source) (Restricted.Preimage restricted W) -> Source.IsOpenIn source Domain -> Source.IsOpenIn source (Sets.Preimage f (Inclusion.image W)) :=
+  \fun (source: _)(W: _)(regular: _)(openDomain: _) => \idelim Into.image (Restricted.Preimage restricted W) = Sets.Preimage f (Inclusion.image W)
+    \with V: \Pow A => Source.IsOpenIn source V \by {
+      base: Into.imageOpen source openDomain (Restricted.Preimage restricted W) regular, equality: sym!{\Pow A} _ _ (preimageImage W)
+    };

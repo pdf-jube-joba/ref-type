@@ -1,0 +1,26 @@
+\import \parent.\parent.Universal[Y := Y, H := TargetTensor.Fiber, target := TargetTensor.bundle targetSame, f := f] \as Universal;
+\definition data[a: LeftMaps.Map][b: RightMaps.Map]: Universal.Data := Universal.Data {
+  fiber := \fun (x: X)(v: F x)(w: G x) => TargetTensor.pure (f x) ((a.fiber x).apply v) ((b.fiber x).apply w),
+  bilinear := \fun (x: X) => Spaces.Tensor[V := F x, W := G x, left := left.space x, right := right.space x].BilinearLaws[TargetTensor.Fiber (f x), TargetTensor.fiberSpace (f x), \fun (v: F x)(w: G x) => TargetTensor.pure (f x) ((a.fiber x).apply v) ((b.fiber x).apply w)] {
+    addLeft := \fun (v, z: F x)(w: G x) => trans!{{TargetTensor.Fiber (f x)}} _ _ _
+      (congr!{{A (f x)} {TargetTensor.Fiber (f x)}} (\fun (u: A (f x)) => TargetTensor.pure (f x) u ((b.fiber x).apply w)) _ _ ((a.fiber x).preservesAdd v z))
+      (Spaces.Tensor[V := A (f x), W := B (f x), left := leftTarget.space (f x), right := rightTarget.space (f x)].bilinear.addLeft ((a.fiber x).apply v) ((a.fiber x).apply z) ((b.fiber x).apply w)),
+    addRight := \fun (v: F x)(w, z: G x) => trans!{{TargetTensor.Fiber (f x)}} _ _ _
+      (congr!{{B (f x)} {TargetTensor.Fiber (f x)}} (TargetTensor.pure (f x) ((a.fiber x).apply v)) _ _ ((b.fiber x).preservesAdd w z))
+      (Spaces.Tensor[V := A (f x), W := B (f x), left := leftTarget.space (f x), right := rightTarget.space (f x)].bilinear.addRight ((a.fiber x).apply v) ((b.fiber x).apply w) ((b.fiber x).apply z)),
+    scaleLeft := \fun (s: K)(v: F x)(w: G x) => trans!{{TargetTensor.Fiber (f x)}} _ _ _
+      (congr!{{A (f x)} {TargetTensor.Fiber (f x)}} (\fun (u: A (f x)) => TargetTensor.pure (f x) u ((b.fiber x).apply w)) _ _ ((a.fiber x).preservesScale s v))
+      (Spaces.Tensor[V := A (f x), W := B (f x), left := leftTarget.space (f x), right := rightTarget.space (f x)].bilinear.scaleLeft s ((a.fiber x).apply v) ((b.fiber x).apply w)),
+    scaleRight := \fun (s: K)(v: F x)(w: G x) => trans!{{TargetTensor.Fiber (f x)}} _ _ _
+      (congr!{{B (f x)} {TargetTensor.Fiber (f x)}} (TargetTensor.pure (f x) ((a.fiber x).apply v)) _ _ ((b.fiber x).preservesScale s w))
+      (Spaces.Tensor[V := A (f x), W := B (f x), left := leftTarget.space (f x), right := rightTarget.space (f x)].bilinear.scaleRight s ((a.fiber x).apply v) ((b.fiber x).apply w)),
+  }
+};
+\definition bilinear[a: LeftMaps.Map][b: RightMaps.Map]: Universal.Bilinear := \into[Universal.Data](data a b, Universal.Bilinear) \by {
+  topology.Composition[A := SourcePair.Point, B := TargetPair.Point, C := TargetFamily.Point].composeContinuous SourceSum.topology TargetSum.topology TargetTensor.topology (pair a b) (TargetTensor.Of[same := targetSame].Pure[].value)
+    (pairContinuous a b) (TargetTensor.Of[same := targetSame].Pure[].continuous)
+};
+\definition map[a: LeftMaps.Map][b: RightMaps.Map]: vector_bundles.Bundles[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Morphisms[X := X, Y := Y, F := Fiber, G := TargetTensor.Fiber, source := tensor, target := TargetTensor.bundle targetSame, f := f].Map :=
+  Universal.map (bilinear a b);
+\definition onPure: \forall (a: LeftMaps.Map)(b: RightMaps.Map)(x: X)(v: F x)(w: G x) -> ((map a b).fiber x).apply (pure x v w) = TargetTensor.pure (f x) ((a.fiber x).apply v) ((b.fiber x).apply w) :=
+  \fun (a: LeftMaps.Map)(b: RightMaps.Map) => Universal.onPure (bilinear a b);

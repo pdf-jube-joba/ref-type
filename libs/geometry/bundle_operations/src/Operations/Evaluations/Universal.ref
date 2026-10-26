@@ -1,0 +1,23 @@
+\import topology.Topology[Carrier := A] \as Source;
+\import topology.Maps[A := A, B := E] \as Maps;
+\import topology.Maps[A := A, B := X] \as BaseMaps;
+\definition BaseContinuous[source: Source.Topology][f: A -> E]: \Prop := topology.Continuity[A := A, B := X].Continuous source baseSpace (\fun (a: A) => projection (f a));
+\module At(i: I, f: A -> E);
+\definition Local[source: Source.Topology][f: A -> E]: \Prop := \forall (i: I) -> At[i := i, f := f].Regular source;
+\definition continuous: \forall (source: Source.Topology)(f: A -> E) -> BaseContinuous source f -> Local source f -> topology.Continuity[A := A, B := E].Continuous source topology f :=
+  \fun (source: _)(f: _)(baseRegular: _)(regular: Local source f) => Maps.generatedContinuous source f Basis
+    (\fun (W: \Pow E)(member: Total.FamilyMember Basis W) => Logic.orElim _ _ (Source.IsOpenIn source (Maps.Preimage f W)) member
+      (\block {
+        \fun (exists: \exists BaseWitness[W]) \then
+        \takefrom w: BaseWitness[W] \by exists \then
+        \return \idelim Sets.Preimage projection w.openSet = W \with V: \Pow E => Source.IsOpenIn source (Maps.Preimage f V) \by {
+          base: baseRegular w.openSet w.open, equality: sym!{\Pow E} _ _ w.equality
+        }
+      })
+      (\block {
+        \fun (exists: \exists ValueWitness[W]) \then
+        \takefrom w: ValueWitness[W] \by exists \then
+        \return \idelim Test w.index w.openSet = W \with V: \Pow E => Source.IsOpenIn source (Maps.Preimage f V) \by {
+          base: At[i := w.index, f := f].open source w.openSet w.open baseRegular (regular w.index), equality: sym!{\Pow E} _ _ w.equality
+        }
+      }));

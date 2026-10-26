@@ -1,0 +1,19 @@
+\definition k: N.Nat^ := chart.dimension;
+\import Original.With[factors := factors] \as Local;
+\definition base[p: Carrier]: Original.Carrier := \into[X](p.base, chart.domain) \by { \bysub(TargetFamily.Point, domains chart, p) };
+\definition coefficient[p: Carrier]: Vector k := (Local.inverse (base p)).apply p.vector;
+\definition candidate[p: Carrier]: F p.base := (chart.frame (base p)).backward.apply (coefficient p);
+\definition candidateTotal[p: Carrier]: Family.Point := Family.include p.base (candidate p);
+\module Continuity;
+\definition candidateImage: \forall (p: Carrier) -> (embedding.map.fiber p.base).apply (candidate p) = p.vector :=
+  \fun (p: Carrier) => trans!{{Vector n}} _ _ _ (Local.reconstruction (base p) p.vector) (\bysub(Vector n, Projected.Image p.base, p.vector));
+\definition inverseFormula: \forall (p: Carrier) -> ((backwardData.fiber p.base).apply p.vector) = candidate p :=
+  \fun (p: Carrier) => embedding.injective p.base ((backwardData.fiber p.base).apply p.vector) (candidate p)
+    (trans!{{Vector n}} _ _ _ (\root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].For[X := X, F := F, bundle := bundle].FromEmbedding[embedding := embedding].Image[].Comparison[].At[x := p.base].iso.rightInverse p.vector)
+      (sym!{{Vector n}} _ _ (candidateImage p)));
+\definition regular: topology.Continuity[A := Carrier, B := Family.Point].Continuous source bundle.totalSpace (\fun (p: Carrier) => BackwardMaps.total backwardData p) :=
+  \idelim candidateTotal = (\fun (p: Carrier) => BackwardMaps.total backwardData p)
+  \with f: (Carrier -> Family.Point) => topology.Continuity[A := Carrier, B := Family.Point].Continuous source bundle.totalSpace f \by {
+    base: Continuity[].regular,
+    equality: \axiom:funext(candidateTotal, (\fun (p: Carrier) => BackwardMaps.total backwardData p), \fun (p: Carrier) => congr!{{F p.base} Family.Point} (Family.include p.base) _ _ (sym!{{F p.base}} _ _ (inverseFormula p)))
+  };
