@@ -19,7 +19,9 @@
 一点付加商と負次数群 `Relative.Pair.Quotient` は対象検査 accepted・終了0・キャッシュ保存失敗0。
 対の写像が誘導する商写像・負次数の引き戻しを追加した。
 引き戻しの恒等則・合成則、B04 によるホモトピー不変性も構成し、これらと三つ組の群は未検証。
-検査には最新の `work/k03-resume/homotopy.source.json` を使う。
+直近の全入口検査は三つ組の eta 輸送不足で終了1となり、逆元証明を修正した。
+崩壊商の基点の補集合と元の閉部分空間の補集合の同相 `Collapse.Outside` を追加し、これも未検証。
+検査には最新の `work/k03-resume/group-fixed.source.json` を使う。
 各検査には `--source-snapshot` を指定する。
 作業の保存先は [Draft PR #50](https://github.com/pdf-jube-joba/ref-type/pull/50)。
 対象検査は `target/debug/cli libs --module topological_constructions.Coproduct.Properties --memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact --report-json work/k03-resume/coproduct.json`。
