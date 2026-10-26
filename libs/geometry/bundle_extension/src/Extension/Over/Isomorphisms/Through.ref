@@ -1,0 +1,47 @@
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := G, source := source, target := target, f := \fun (x: X) => x].Composition[Z := X, H := F, range := source, g := \fun (x: X) => x] \as LeftComposition;
+\import Bundles.Morphisms[X := X, Y := X, F := G, G := F, source := target, target := source, f := \fun (x: X) => x].Composition[Z := X, H := G, range := target, g := \fun (x: X) => x] \as RightComposition;
+\definition leftMap: Bundles.Morphisms[X := X, Y := X, F := F, G := F, source := source, target := source, f := \fun (x: X) => x].Map := LeftComposition.compose h.map g.map;
+\definition rightMap: Bundles.Morphisms[X := X, Y := X, F := G, G := G, source := target, target := target, f := \fun (x: X) => x].Map := RightComposition.compose g.map h.map;
+\definition leftIdentity[x: Subspace.CarrierSet][v: F x]: (leftMap.fiber x).apply v = v :=
+  trans!{{F x}} _ _ _ (congr!{{G x} {F x}} (g.map.fiber x).apply _ _ (h.extends x v))
+    (trans!{{F x}} _ _ _ (g.extends x ((a.forward.fiber x).apply v)) (a.leftInverse x v));
+\definition rightIdentity[x: Subspace.CarrierSet][v: G x]: (rightMap.fiber x).apply v = v :=
+  trans!{{G x}} _ _ _ (congr!{{F x} {G x}} (h.map.fiber x).apply _ _ (g.extends x v))
+    (trans!{{G x}} _ _ _ (h.extends x ((a.backward.fiber x).apply v)) (a.rightInverse x v));
+\import \parent.\parent.Endomorphisms[X := X, F := F, bundle := source, t := leftMap, embedding := first] \as Left;
+\import \parent.\parent.Endomorphisms[X := X, F := G, bundle := target, t := rightMap, embedding := second] \as Right;
+\definition domain: \Pow X := Base.Intersection Left.domain Right.domain;
+\definition open: Base.IsOpenIn topology domain := Base.intersectionOpen topology Left.domain Right.domain Left.open
+  (\idelim target.baseSpace = source.baseSpace \with t: Base.Topology => Base.IsOpenIn t Right.domain \by { base: Right.open, equality: sym!{{Base.Topology}} _ _ same });
+\definition contains: Base.Subset subset domain := \fun (x: X)(member: Base.Member subset x) =>
+  Logic.And[Base.Member Left.domain x, Base.Member Right.domain x]::# (Left.identityContains subset leftIdentity x member) (Right.identityContains subset rightIdentity x member);
+\import \parent.Neighborhood[U := domain] \as Neighborhood;
+\definition intoLeft[x: Neighborhood.Point]: Left.Near[].Point := \into[X](x, Left.domain) \by { (\bysub(X, domain, x)).left };
+\definition intoRight[x: Neighborhood.Point]: Right.Near[].Point := \into[X](x, Right.domain) \by { (\bysub(X, domain, x)).right };
+\definition leftContinuous: topology.Continuity[A := Neighborhood.Point, B := Left.Near[].Point].Continuous Neighborhood.space Left.Near[].space intoLeft :=
+  topology.Continuity[A := Neighborhood.Point, B := X].Corestriction[S := Left.domain].corestrictContinuous Neighborhood.space topology intoLeft Neighborhood.continuous;
+\definition rightContinuous: topology.Continuity[A := Neighborhood.Point, B := Right.Near[].Point].Continuous Neighborhood.space Right.Near[].space intoRight :=
+  topology.Continuity[A := Neighborhood.Point, B := X].Corestriction[S := Right.domain].corestrictContinuous Neighborhood.space target.baseSpace intoRight Neighborhood.targetContinuous;
+\import Left.Near[].Pullback[Y := Neighborhood.Point, baseSpace := Neighborhood.space, f := intoLeft, regular := leftContinuous] \as LeftInverse;
+\import Right.Near[].Pullback[Y := Neighborhood.Point, baseSpace := Neighborhood.space, f := intoRight, regular := rightContinuous] \as RightInverse;
+\definition forward: Bundles.Morphisms[X := Neighborhood.Point, Y := Neighborhood.Point, F := (\fun (x: Neighborhood.Point) => F x), G := (\fun (x: Neighborhood.Point) => G x), source := Neighborhood.first, target := Neighborhood.second, f := \fun (x: Neighborhood.Point) => x].Map :=
+  Bundles.ArrowLaws[X := X, Y := X, F := F, G := G, source := source, target := target, f := \fun (x: X) => x].Pullback[Z := Neighborhood.Point, space := Neighborhood.space, g := Neighborhood.inclusion].Of[a := h.map, regular := Neighborhood.continuous].map;
+\definition reverse: Bundles.Morphisms[X := Neighborhood.Point, Y := Neighborhood.Point, F := (\fun (x: Neighborhood.Point) => G x), G := (\fun (x: Neighborhood.Point) => F x), source := Neighborhood.second, target := Neighborhood.first, f := \fun (x: Neighborhood.Point) => x].Map :=
+  Bundles.ArrowLaws[X := X, Y := X, F := G, G := F, source := target, target := source, f := \fun (x: X) => x].Pullback[Z := Neighborhood.Point, space := Neighborhood.space, g := Neighborhood.inclusion].Of[a := g.map, regular := Neighborhood.targetContinuous].map;
+\import Bundles.Morphisms[X := Neighborhood.Point, Y := Neighborhood.Point, F := (\fun (x: Neighborhood.Point) => G x), G := (\fun (x: Neighborhood.Point) => F x), source := Neighborhood.second, target := Neighborhood.first, f := \fun (x: Neighborhood.Point) => x].Composition[Z := Neighborhood.Point, H := (\fun (x: Neighborhood.Point) => F x), range := Neighborhood.first, g := \fun (x: Neighborhood.Point) => x] \as MakeLeft;
+\import Bundles.Morphisms[X := Neighborhood.Point, Y := Neighborhood.Point, F := (\fun (x: Neighborhood.Point) => G x), G := (\fun (x: Neighborhood.Point) => G x), source := Neighborhood.second, target := Neighborhood.second, f := \fun (x: Neighborhood.Point) => x].Composition[Z := Neighborhood.Point, H := (\fun (x: Neighborhood.Point) => F x), range := Neighborhood.first, g := \fun (x: Neighborhood.Point) => x] \as MakeRight;
+\definition backward: Bundles.Morphisms[X := Neighborhood.Point, Y := Neighborhood.Point, F := (\fun (x: Neighborhood.Point) => G x), G := (\fun (x: Neighborhood.Point) => F x), source := Neighborhood.second, target := Neighborhood.first, f := \fun (x: Neighborhood.Point) => x].Map := MakeLeft.compose reverse LeftInverse.iso.backward;
+\definition other: Bundles.Morphisms[X := Neighborhood.Point, Y := Neighborhood.Point, F := (\fun (x: Neighborhood.Point) => G x), G := (\fun (x: Neighborhood.Point) => F x), source := Neighborhood.second, target := Neighborhood.first, f := \fun (x: Neighborhood.Point) => x].Map := MakeRight.compose RightInverse.iso.backward reverse;
+\definition left[x: Neighborhood.Point][v: F x]: (backward.fiber x).apply ((forward.fiber x).apply v) = v := LeftInverse.left x v;
+\definition otherRight[x: Neighborhood.Point][v: G x]: (forward.fiber x).apply ((other.fiber x).apply v) = v := RightInverse.right x v;
+\definition equal[x: Neighborhood.Point][v: G x]: (backward.fiber x).apply v = (other.fiber x).apply v :=
+  trans!{{F x}} _ _ _ (congr!{{G x} {F x}} (backward.fiber x).apply _ _ (sym!{{G x}} _ _ (otherRight x v))) (left x ((other.fiber x).apply v));
+\definition right[x: Neighborhood.Point][v: G x]: (forward.fiber x).apply ((backward.fiber x).apply v) = v :=
+  trans!{{G x}} _ _ _ (congr!{{F x} {G x}} (forward.fiber x).apply _ _ (equal x v)) (otherRight x v);
+\definition extension: Extension[a] := Extension[a] {
+  domain := domain, open := open, contains := contains,
+  isomorphism := Bundles.Isomorphisms[X := Neighborhood.Point, F := (\fun (x: Neighborhood.Point) => F x), G := (\fun (x: Neighborhood.Point) => G x), source := Neighborhood.first, target := Neighborhood.second].Isomorphism {
+    forward := forward, backward := backward, leftInverse := left, rightInverse := right,
+  },
+  extends := h.extends,
+};
