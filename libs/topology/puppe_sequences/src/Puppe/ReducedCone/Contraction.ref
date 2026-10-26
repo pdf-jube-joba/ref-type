@@ -1,0 +1,58 @@
+\import I.Arithmetic[] \as Times;
+\import algebraic_topology.Cylinder[A := Cylinder.Carrier] \as Double;
+\import algebraic_topology.Cylinder[A := Carrier] \as ConeCylinder;
+\import algebraic_topology.Homotopy[A := Cylinder.Carrier, B := Cylinder.Carrier] \as Original;
+\import algebraic_topology.IntervalFunctions[A := Double.Carrier] \as TimeFunctions;
+\import topology.Composition[A := Double.Carrier, B := Cylinder.Carrier, C := I.Carrier] \as InnerTime;
+\import topology.Composition[A := Double.Carrier, B := Cylinder.Carrier, C := A] \as InnerPoint;
+\import topological_constructions.Product[A := I.Carrier, B := A].Universal[X := Double.Carrier] \as Product;
+\import std.Data[].Pair[].Prop[A := I.Carrier, B := A] \as Pairs;
+\definition raw[p: Double.Carrier]: Cylinder.Carrier := Cylinder.at (Times.advance (Double.time p) (Cylinder.time (Double.point p))) (Cylinder.point (Double.point p));
+\definition rawContinuous: topology.Continuity[A := Double.Carrier, B := Cylinder.Carrier].Continuous
+  (Double.topology (Cylinder.topology source.topology)) (Cylinder.topology source.topology) raw :=
+  Product.pairContinuous (Double.topology (Cylinder.topology source.topology)) I.topology source.topology
+    (\fun (p: Double.Carrier) => Times.advance (Double.time p) (Cylinder.time (Double.point p)))
+    (\fun (p: Double.Carrier) => Cylinder.point (Double.point p))
+    (TimeFunctions.advanceContinuous (Double.topology (Cylinder.topology source.topology)) Double.time
+      (\fun (p: Double.Carrier) => Cylinder.time (Double.point p))
+      (Double.timeContinuous (Cylinder.topology source.topology))
+      (InnerTime.composeContinuous (Double.topology (Cylinder.topology source.topology)) (Cylinder.topology source.topology) I.topology
+        Double.point Cylinder.time (Double.pointContinuous (Cylinder.topology source.topology)) (Cylinder.timeContinuous source.topology)))
+    (InnerPoint.composeContinuous (Double.topology (Cylinder.topology source.topology)) (Cylinder.topology source.topology) source.topology
+      Double.point Cylinder.point (Double.pointContinuous (Cylinder.topology source.topology)) (Cylinder.pointContinuous source.topology));
+\definition identity[p: Cylinder.Carrier]: Cylinder.Carrier := p;
+\definition end[p: Cylinder.Carrier]: Cylinder.Carrier := Cylinder.at I.end (Cylinder.point p);
+\definition start: \forall (p: Cylinder.Carrier) -> raw (Double.at I.start p) = p := \fun (p: Cylinder.Carrier) =>
+  trans!{Cylinder.Carrier} _ _ _ (congr!{I.Carrier Cylinder.Carrier} (\fun (t: I.Carrier) => Cylinder.at t (Cylinder.point p)) _ _ (Times.advanceStart (Cylinder.time p))) (Pairs.eta p);
+\definition finish: \forall (p: Cylinder.Carrier) -> raw (Double.at I.end p) = end p := \fun (p: Cylinder.Carrier) =>
+  congr!{I.Carrier Cylinder.Carrier} (\fun (t: I.Carrier) => Cylinder.at t (Cylinder.point p)) _ _ (Times.advanceEnd (Cylinder.time p));
+\definition original: Original.Homotopy[Cylinder.topology source.topology, Cylinder.topology source.topology, identity, end] :=
+  \into[Original.Family](raw, Original.Homotopy[Cylinder.topology source.topology, Cylinder.topology source.topology, identity, end]) \by {
+    Original.Laws[Cylinder.topology source.topology, Cylinder.topology source.topology, identity, end, raw] { continuous := rawContinuous, start := start, end := finish }
+  };
+\import Quotient.Mapping[B := Cylinder.Carrier, targetSubset := Collapsed].Homotopy[].Over[
+  source := Cylinder.topology source.topology, target := Cylinder.topology source.topology, f := identity, g := end] \as Descent;
+\definition data: Descent.Data := Descent.Data {
+  homotopy := original,
+  preserves := \fun (t: I.Carrier)(p: Cylinder.Carrier)(inside: \In[Cylinder.Carrier] Collapsed p) =>
+    either!{inside {\In[Cylinder.Carrier] Collapsed (raw (Double.at t p))}
+      {\fun (top: Cylinder.time p = I.end) => Logic.Or[_, _]::left (trans!{I.Carrier} _ _ _ (congr!{I.Carrier I.Carrier} (Times.advance t) _ _ top) (Times.advanceTop t))}
+      {\fun (line: Cylinder.point p = source.basepoint) => Logic.Or[_, _]::right line}
+    },
+};
+\import Descent.On[h := data] \as Descended;
+\definition family: ConeCylinder.Carrier -> Carrier := Descended.apply;
+\definition continuous: topology.Continuity[A := ConeCylinder.Carrier, B := Carrier].Continuous (ConeCylinder.topology topology) topology family := Descended.continuous;
+\definition onClass: \forall (t: I.Carrier)(p: Cylinder.Carrier) -> family (ConeCylinder.at t (class p)) = class (raw (Double.at t p)) :=
+  \fun (t: I.Carrier)(p: Cylinder.Carrier) => Descended.onLift (Double.at t p);
+\definition onBase: \forall (t: I.Carrier)(x: A) -> family (ConeCylinder.at t (base x)) = class (Cylinder.at t x) :=
+  \fun (t: I.Carrier)(x: A) => trans!{Carrier} _ _ _ (onClass t (Cylinder.at I.start x))
+    (congr!{Cylinder.Carrier Carrier} class _ _ (congr!{I.Carrier Cylinder.Carrier} (\fun (s: I.Carrier) => Cylinder.at s x) _ _ (Times.advanceBottom t)));
+\definition atStart: \forall (c: Carrier) -> family (ConeCylinder.at I.start c) = c :=
+  Quotient.induction (\fun (c: Carrier) => family (ConeCylinder.at I.start c) = c)
+    (\fun (p: Cylinder.Carrier) => trans!{Carrier} _ _ _ (onClass I.start p) (congr!{Cylinder.Carrier Carrier} class _ _ (start p)));
+\definition atEnd: \forall (c: Carrier) -> family (ConeCylinder.at I.end c) = point :=
+  Quotient.induction (\fun (c: Carrier) => family (ConeCylinder.at I.end c) = point)
+    (\fun (p: Cylinder.Carrier) => trans!{Carrier} _ _ _ (onClass I.end p) (trans!{Carrier} _ _ _ (congr!{Cylinder.Carrier Carrier} class _ _ (finish p)) (apex (Cylinder.point p))));
+\definition atPoint: \forall (t: I.Carrier) -> family (ConeCylinder.at t point) = point :=
+  \fun (t: I.Carrier) => trans!{Carrier} _ _ _ (onBase t source.basepoint) (line t);
