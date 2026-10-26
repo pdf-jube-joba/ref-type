@@ -1,0 +1,52 @@
+\definition Index: \Set := \Cast[X] ({ x: X \where Quotient.projection x = q });
+\definition over[x: Subspace.CarrierSet][same: Quotient.projection x = q]: Index := \into[X](x, { x: X \where Quotient.projection x = q }) \by { same };
+\import Spaces.DependentProduct[I := Index, F := (\fun (x: Index) => F x), familySpace := (\fun (x: Index) => bundle.space x)] \as Sections;
+\import Spaces.DirectSum[V := Vector, W := Sections.Carrier, left := coordinates, right := Sections.space] \as Ambient;
+\import Spaces.Laws[V := Vector, space := coordinates] \as CoordinateLaws;
+\structure Compatible[d: Ambient.Carrier]: \Prop := {
+  outside: Logic.Not (q = Quotient.point) -> Ambient.first d = coordinates.zero,
+  boundary: \forall (x: Subspace.CarrierSet)(same: Quotient.projection x = q) ->
+    (comparison.forward.fiber x).apply (Ambient.second d (over x same)) = Ambient.first d
+};
+\definition valid: \Pow Ambient.Carrier := { d: Ambient.Carrier \where Compatible[d] };
+\import Spaces.Subspace[V := Ambient.Carrier, space := Ambient.space] \as Subspaces;
+\definition closed: Subspaces.Subspace := Subspaces.Subspace {
+  carrier := valid,
+  containsZero := Compatible[Ambient.origin] {
+    outside := \fun (outside: _) => \refl(coordinates.zero),
+    boundary := \fun (x: Subspace.CarrierSet)(same: _) => (comparison.forward.fiber x).preservesZero
+  },
+  closedAdd := \fun (d, e: Ambient.Carrier)(first: Compatible[d])(second: Compatible[e]) => Compatible[Ambient.plus d e] {
+    outside := \fun (outside: _) => trans!{Vector} _ _ _
+      (congr!{Vector Vector Vector} coordinates.add _ _ _ _ (first.outside outside) (second.outside outside)) (CoordinateLaws.zeroLeft coordinates.zero),
+    boundary := \fun (x: Subspace.CarrierSet)(same: _) => trans!{Vector} _ _ _
+      ((comparison.forward.fiber x).preservesAdd (Ambient.second d (over x same)) (Ambient.second e (over x same)))
+      (congr!{Vector Vector Vector} coordinates.add _ _ _ _ (first.boundary x same) (second.boundary x same))
+  },
+  closedScale := \fun (a: C.Complex)(d: Ambient.Carrier)(first: Compatible[d]) => Compatible[Ambient.scale a d] {
+    outside := \fun (outside: _) => trans!{Vector} _ _ _
+      (congr!{Vector Vector} (coordinates.smul a) _ _ (first.outside outside)) (CoordinateLaws.scaleZero a),
+    boundary := \fun (x: Subspace.CarrierSet)(same: _) => trans!{Vector} _ _ _
+      ((comparison.forward.fiber x).preservesScale a (Ambient.second d (over x same)))
+      (congr!{Vector Vector} (coordinates.smul a) _ _ (first.boundary x same))
+  }
+};
+\import Subspaces.Of[subspace := closed] \as Induced;
+\definition Carrier: \Set := Induced.Carrier;
+\definition space: Spaces.VectorSpace Carrier := Induced.induced;
+\definition anchor[v: Carrier]: Vector := Ambient.first v;
+\definition section[v: Carrier]: Sections.Carrier := Ambient.second v;
+\definition laws[v: Carrier]: Compatible[v] := \bysub(Ambient.Carrier, valid, v);
+\definition evaluation[x: Index]: Spaces.Linear[V := Carrier, W := F x, source := space, target := bundle.space x].Map :=
+  Spaces.Linear[V := Carrier, W := F x, source := space, target := bundle.space x].Map {
+    apply := \fun (v: Carrier) => section v x,
+    preservesAdd := \fun (v, w: Carrier) => \refl((bundle.space x).add (section v x) (section w x)),
+    preservesScale := \fun (a: C.Complex)(v: Carrier) => \refl((bundle.space x).smul a (section v x))
+  };
+\definition atBase: Spaces.Linear[V := Carrier, W := Vector, source := space, target := coordinates].Map :=
+  Spaces.Linear[V := Carrier, W := Vector, source := space, target := coordinates].Map {
+    apply := anchor,
+    preservesAdd := \fun (v, w: Carrier) => \refl(coordinates.add (anchor v) (anchor w)),
+    preservesScale := \fun (a: C.Complex)(v: Carrier) => \refl(coordinates.smul a (anchor v))
+  };
+\module Anchor;

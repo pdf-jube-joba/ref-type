@@ -1,0 +1,24 @@
+\definition Carrier: \Set := \forall (i: I) -> F i;
+\definition zero: Carrier := \fun (i: I) => (familySpace i).zero;
+\definition add[x, y: Carrier]: Carrier := \fun (i: I) => (familySpace i).add (x i) (y i);
+\definition neg[x: Carrier]: Carrier := \fun (i: I) => (familySpace i).neg (x i);
+\definition scale[a: K][x: Carrier]: Carrier := \fun (i: I) => (familySpace i).smul a (x i);
+\definition space: VectorSpace Carrier := Ring.RingModule[K, Carrier, ring] {
+  zero := zero, add := add, neg := neg, smul := scale,
+  additive := Alg.CommutativeGroupLaws[Carrier, Alg.CommutativeGroupData[Carrier]::# (Alg.GroupData[Carrier]::# zero add neg)] {
+    group := Alg.GroupLaws[Carrier, Alg.GroupData[Carrier]::# zero add neg] {
+      monoid := Monoid.MonoidLaws[Carrier, Monoid.MonoidData[Carrier]::# zero add] {
+        leftIdentity := \fun (x: Carrier) => \axiom:funext(add zero x, x, \fun (i: I) => \parent.Laws[V := F i, space := familySpace i].zeroLeft (x i)),
+        rightIdentity := \fun (x: Carrier) => \axiom:funext(add x zero, x, \fun (i: I) => \parent.Laws[V := F i, space := familySpace i].zeroRight (x i)),
+        associative := \fun (x, y, z: Carrier) => \axiom:funext(add (add x y) z, add x (add y z), \fun (i: I) => \parent.Laws[V := F i, space := familySpace i].assoc (x i) (y i) (z i))
+      },
+      leftInverse := \fun (x: Carrier) => \axiom:funext(add (neg x) x, zero, \fun (i: I) => \parent.Laws[V := F i, space := familySpace i].inverseLeft (x i)),
+      rightInverse := \fun (x: Carrier) => \axiom:funext(add x (neg x), zero, \fun (i: I) => ((familySpace i).additive.group).rightInverse (x i))
+    },
+    commutative := \fun (x, y: Carrier) => \axiom:funext(add x y, add y x, \fun (i: I) => \parent.Laws[V := F i, space := familySpace i].comm (x i) (y i))
+  },
+  scalarOne := \fun (x: Carrier) => \axiom:funext(scale one x, x, \fun (i: I) => (familySpace i).scalarOne (x i)),
+  scalarAssoc := \fun (a, b: K)(x: Carrier) => \axiom:funext(scale (mul a b) x, scale a (scale b x), \fun (i: I) => (familySpace i).scalarAssoc a b (x i)),
+  scalarAdd := \fun (a, b: K)(x: Carrier) => \axiom:funext(scale (\parent.add a b) x, add (scale a x) (scale b x), \fun (i: I) => (familySpace i).scalarAdd a b (x i)),
+  vectorAdd := \fun (a: K)(x, y: Carrier) => \axiom:funext(scale a (add x y), add (scale a x) (scale a y), \fun (i: I) => (familySpace i).vectorAdd a (x i) (y i))
+};
