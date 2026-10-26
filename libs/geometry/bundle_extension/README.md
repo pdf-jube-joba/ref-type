@@ -8,7 +8,8 @@
 
 基点は K02 の PR #47 を統合した main `29f3f43b7a760485ad516dec1c6835d6e09aa41e`。
 K02 は公開入口・依存閉包・例393モジュール、および workspace 全体8,149モジュールで accepted・終了0・保存失敗0を確認済み。
-B09 の作業ブランチは `math/b09-bundle-extension`、[PR #48](https://github.com/pdf-jube-joba/ref-type/pull/48) は draft。
+[PR #48](https://github.com/pdf-jube-joba/ref-type/pull/48) は main `d6ecc14d499efbd782a70ae5c837c4da97c7abc8` に統合済みである。
+残作業はこの main からの専用ブランチ `math/b09-complete-extension` で継続する。
 `topology.Topology.Subspace.Closed.imageClosed` は依存閉包を含め accepted・終了0・保存失敗0（`closed.json`）。
 `bundle_extension.Extension.Real.Separation.exists` に、閉集合上の連続実関数の二つの水準集合を分離する連続関数を構成した。依存を含む192モジュールで accepted・終了0・保存失敗0（`separation.json`）。
 `Correction.error` と `Real.Approximation.exists` は、補正の大きさを半径の半分以下、誤差を4分の3以下にする近似を構成し、accepted・終了0・保存失敗0（`correction.json`・`approximation.json`）。
@@ -20,5 +21,6 @@ B09 の作業ブランチは `math/b09-bundle-extension`、[PR #48](https://gith
 共有キャッシュは `libs/refcache`。
 束の延長と具体例、全体検証は未完了。K03 は未着手。
 
-現在の実・複素関数の延長まで個別検証済みで、未検証の数学変更と実行中の検査はない。
-最終保存の SHA は PR head を参照する。
+今回の追加は `Real.Components`・`Complex.Components` の成分族の延長と、`Real.Matrices`・`Complex.Matrices` の有限矩形行列の延長であり、まだ未検証である。
+既存 CLI は現在の引数形式に対応しない古い版だったため、`source /workspace/ref-type-env.sh` 後に `cargo build -p cli --locked` でビルドしている。
+次は新しい CLI で追加入口と依存閉包を検査し、行列から束への延長を続ける。

@@ -1,0 +1,26 @@
+\definition Matrix: \Set := Fin.Fin n -> Fin.Fin m -> R.Real;
+\structure Function: \Set := {
+  value: Subspace.CarrierSet -> Matrix,
+  continuous: \forall (i: Fin.Fin n)(j: Fin.Fin m) -> SubFunctions.Continuous (Subspace.topology source) (\fun (x: Subspace.CarrierSet) => value x i j),
+};
+\structure Extension[f: Function]: \Set := {
+  value: A -> Matrix,
+  continuous: \forall (i: Fin.Fin n)(j: Fin.Fin m) -> Functions.Continuous source (\fun (x: A) => value x i j),
+  extends: \forall (x: Subspace.CarrierSet) -> value x = f.value x,
+};
+\import \parent.Components[I := Pair.Times^[Fin.Fin n, Fin.Fin m]] \as Entries;
+\definition entries[f: Function]: Entries.Function := Entries.Function {
+  value := \fun (x: Subspace.CarrierSet)(p: Pair.Times^[Fin.Fin n, Fin.Fin m]) => f.value x p.fst p.snd,
+  continuous := \fun (p: Pair.Times^[Fin.Fin n, Fin.Fin m]) => f.continuous p.fst p.snd,
+};
+\definition tietze[f: Function]: Space.IsCompact source -> Space.IsT2 source -> Space.IsClosedIn source subset -> \exists Extension[f] := \block {
+  \fun (compact: _)(hausdorff: _)(closed: _) \then
+  \takefrom e: Entries.Extension[entries f] \by Entries.tietze (entries f) compact hausdorff closed \then
+  \return \exact(Extension[f] {
+    value := \fun (x: A)(i: Fin.Fin n)(j: Fin.Fin m) => e.value x (Pair.Times^[Fin.Fin n, Fin.Fin m]::pair i j),
+    continuous := \fun (i: Fin.Fin n)(j: Fin.Fin m) => e.continuous (Pair.Times^[Fin.Fin n, Fin.Fin m]::pair i j),
+    extends := \fun (x: Subspace.CarrierSet) => \axiom:funext(_, f.value x,
+      \fun (i: Fin.Fin n) => \axiom:funext(_, f.value x i,
+        \fun (j: Fin.Fin m) => e.extends x (Pair.Times^[Fin.Fin n, Fin.Fin m]::pair i j))),
+  }, Extension[f])
+};

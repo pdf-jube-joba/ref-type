@@ -1,0 +1,26 @@
+\import topology.Continuity[A := A, B := C.Complex] \as Functions;
+\import topology.Continuity[A := Subspace.CarrierSet, B := C.Complex] \as SubFunctions;
+\structure Function: \Set := {
+  value: Subspace.CarrierSet -> I -> C.Complex,
+  continuous: \forall (i: I) -> SubFunctions.Continuous (Subspace.topology source) Scalars.topology (\fun (x: Subspace.CarrierSet) => value x i),
+};
+\structure Extension[f: Function]: \Set := {
+  value: A -> I -> C.Complex,
+  continuous: \forall (i: I) -> Functions.Continuous source Scalars.topology (\fun (x: A) => value x i),
+  extends: \forall (x: Subspace.CarrierSet)(i: I) -> value x i = f.value x i,
+};
+\definition component[f: Function][i: I]: \parent.Function := \parent.Function {
+  value := \fun (x: Subspace.CarrierSet) => f.value x i,
+  continuous := f.continuous i,
+};
+\definition tietze[f: Function]: Space.IsCompact source -> Space.IsT2 source -> Space.IsClosedIn source subset -> \exists Extension[f] := \block {
+  \fun (compact: _)(hausdorff: _)(closed: _) \then
+  \takefrom selected: (\forall (i: I) -> \parent.Extension[component f i])
+    \by \axiom:classicalIndefiniteChoice(I, (\fun (i: I) => \parent.Extension[component f i]),
+      (\fun (i: I) => \parent.tietze (component f i) compact hausdorff closed)) \then
+  \return \exact(Extension[f] {
+    value := \fun (x: A)(i: I) => (selected i).value x,
+    continuous := \fun (i: I) => (selected i).continuous,
+    extends := \fun (x: Subspace.CarrierSet)(i: I) => (selected i).extends x,
+  }, Extension[f])
+};
