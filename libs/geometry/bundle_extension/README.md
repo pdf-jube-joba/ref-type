@@ -76,8 +76,11 @@ K07 の `76e6084094f810eaf51e18663bb33d111dd409d7`、K02 の `29f3f43b7a760485ad
 実・複素の束・束写像・同型、開近傍上の比較、自然性・安定化、閉端面上の線束の例を含む。
 worker 復旧・重複・再実行・未保存ステップ・保存失敗は0。
 空の閉部分空間の利用例を加えた実装の保存先は `fb8cc1a36a3f343e4e88fbd44ae75790e5c8567f`。
-このソースの package・依存閉包を、固定 snapshot `work/b09-resume/package-final.source.json` と共有キャッシュ `libs/refcache` で検査中である。
-workspace 全体の検査と最終差分確認は未完了で、PR は draft のままである。
+このソースの package・依存閉包5,580 module は、固定 snapshot `work/b09-resume/package-final.source.json` と共有キャッシュ `libs/refcache` で検査し、保存完了・終了0。
+4,677 checked、903 disk hits、58,745ソース検査ステップ、worker 1、最大 RSS 5,967,440 KiBであった。
+復旧・重複・再実行・未保存ステップ・キャッシュ保存失敗は0。
+末尾空行を整えた `c5632cf7bf185d6c0d47ea290e7e8973c32c1c04` と同じ数学入力の workspace 全体を、`work/b09-resume/workspace-final.source.json` で検査中である。
+最終差分確認は未完了で、PR は draft のままである。
 K03 は B09 の検証・main 統合後に着手する。
 
 再検査はリポジトリルートから行う。
@@ -88,6 +91,3 @@ target/debug/cli libs --memory-mib 10240 --cache-dir libs/refcache --cache-budge
 ```
 
 CLI は `cargo build -p cli --locked` でビルド済み（終了0）。
-
-検査開始後、`Over.Idempotents` の末尾の余分な空行を整えた。
-固定 snapshot の検査後、現在のソースとの一致を改めて確認する。
