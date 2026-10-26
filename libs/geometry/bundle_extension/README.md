@@ -48,7 +48,10 @@ CLI は `source /workspace/ref-type-env.sh` 後の `cargo build -p cli --locked`
 `RealMaps.extend` と共通の `Over.Morphisms` は終了0・626 module（32 checked、594 reused）で検証済み。
 キャッシュ保存失敗・worker 復旧・重複・再実行・未保存ステップは0。
 `ComplexMaps` は同じ共通構成へ複素 Tietze を接続するが、単独入口の検査は未実施。
-同型延長に使う `Over.Endomorphisms` の可逆近傍を追加中で、これは未検証。
+`Over.Endomorphisms` の可逆近傍と連続な逆写像は終了0・598 module（12 checked、586 reused）で検証済み。
+キャッシュ保存失敗・worker 復旧・重複・再実行・未保存ステップは0。
+`RealMaps`・`ComplexMaps` は共通の底位相を明示する形へ拡張しており、その変更後の検査は未実施。
+`RealIsomorphisms`・`ComplexIsomorphisms`、同型の引き戻し・安定化は検査待ち。
 package・workspace 全体の検査も残る。
 初回の実成分検査の中断終了130、および宣言順・親参照・型推論の修正前の失敗は上記成功検査で解消した。
 
