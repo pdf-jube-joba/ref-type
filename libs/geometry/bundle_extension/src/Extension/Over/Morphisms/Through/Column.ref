@@ -1,0 +1,28 @@
+\definition initial[x: Subspace.CarrierSet]: FirstFamily.Point := FirstFamily.include x v;
+\definition initialContinuous: topology.Continuity[A := Subspace.CarrierSet, B := FirstFamily.Point].Continuous (Subspace.topology topology) FirstAmbient.topology initial :=
+  Complements.TrivialMaps[X := X, n := m, baseSpace := source.baseSpace].Into[Y := Subspace.CarrierSet, source := Subspace.topology topology].continuous inclusion (\fun (_: Subspace.CarrierSet) => v)
+    inclusionContinuous (topology.Maps[A := Subspace.CarrierSet, B := Bundles.Vector m].constantContinuous (Subspace.topology topology) (Bundles.coordinateTopology m) v);
+\definition projected[x: Subspace.CarrierSet]: RestrictedSource.Point := RestrictedSource.include x ((First.project.fiber x).apply v);
+\definition projectedContinuous: topology.Continuity[A := Subspace.CarrierSet, B := RestrictedSource.Point].Continuous (Subspace.topology topology) SourcePullback.topology projected :=
+  SourcePullback.Universal[Z := Subspace.CarrierSet].continuous (Subspace.topology topology) projected
+    (topology.Maps[A := Subspace.CarrierSet, B := Subspace.CarrierSet].Identity[].continuous (Subspace.topology topology))
+    (topology.Composition[A := Subspace.CarrierSet, B := FirstFamily.Point, C := Source.Point].composeContinuous (Subspace.topology topology) FirstAmbient.topology source.totalSpace initial (Project.total First.project) initialContinuous (Project.continuous First.project));
+\definition mapped[x: Subspace.CarrierSet]: RestrictedTarget.Point := RestrictedMaps.total h (projected x);
+\definition mappedContinuous: topology.Continuity[A := Subspace.CarrierSet, B := RestrictedTarget.Point].Continuous (Subspace.topology topology) TargetPullback.topology mapped :=
+  topology.Composition[A := Subspace.CarrierSet, B := RestrictedSource.Point, C := RestrictedTarget.Point].composeContinuous
+    (Subspace.topology topology) SourcePullback.topology TargetPullback.topology projected (RestrictedMaps.total h) projectedContinuous (RestrictedMaps.continuous h);
+\definition original[x: Subspace.CarrierSet]: Target.Point := TargetPullback.map (mapped x);
+\definition originalContinuous: topology.Continuity[A := Subspace.CarrierSet, B := Target.Point].Continuous (Subspace.topology topology) target.totalSpace original :=
+  topology.Composition[A := Subspace.CarrierSet, B := RestrictedTarget.Point, C := Target.Point].composeContinuous
+    (Subspace.topology topology) TargetPullback.topology target.totalSpace mapped TargetPullback.map mappedContinuous TargetPullback.mapContinuous;
+\definition included[x: Subspace.CarrierSet]: SecondFamily.Point := Include.total second.map (original x);
+\definition includedContinuous: topology.Continuity[A := Subspace.CarrierSet, B := SecondFamily.Point].Continuous (Subspace.topology topology) SecondAmbient.topology included :=
+  topology.Composition[A := Subspace.CarrierSet, B := Target.Point, C := SecondFamily.Point].composeContinuous
+    (Subspace.topology topology) target.totalSpace SecondAmbient.topology original (Include.total second.map) originalContinuous (Include.continuous second.map);
+\definition vectorContinuous: topology.Continuity[A := Subspace.CarrierSet, B := Bundles.Vector n].Continuous (Subspace.topology topology) (Bundles.coordinateTopology n) (\fun (x: Subspace.CarrierSet) => (encoded x).apply v) :=
+  topology.Composition[A := Subspace.CarrierSet, B := SecondFamily.Point, C := Bundles.Vector n].composeContinuous
+    (Subspace.topology topology) SecondAmbient.topology (Bundles.coordinateTopology n) included (\fun (p: SecondFamily.Point) => p.vector) includedContinuous SecondAmbient.vectorContinuous;
+\definition continuous[i: Fin.Fin n]: topology.Continuity[A := Subspace.CarrierSet, B := K].Continuous (Subspace.topology topology) scalar.topological.space (\fun (x: Subspace.CarrierSet) => (encoded x).apply v i) :=
+  topology.Composition[A := Subspace.CarrierSet, B := Bundles.Vector n, C := K].composeContinuous
+    (Subspace.topology topology) (Bundles.coordinateTopology n) scalar.topological.space (\fun (x: Subspace.CarrierSet) => (encoded x).apply v) (\fun (w: Bundles.Vector n) => w i) vectorContinuous
+    (topological_algebra.Coordinates[K := K, I := Fin.Fin n].evaluationContinuous scalar.topological.space i);

@@ -1,0 +1,21 @@
+\definition Matrix: \Set := Fin.Fin n -> Fin.Fin m -> C.Complex;
+\structure Function: \Set := {
+  value: Subspace.CarrierSet -> Matrix,
+  continuous: \forall (i: Fin.Fin n)(j: Fin.Fin m) -> SubMaps.Continuous (Subspace.topology source) Scalars.topology (\fun (x: Subspace.CarrierSet) => value x i j),
+};
+\structure Extension[f: Function]: \Set := {
+  value: A -> Matrix,
+  continuous: \forall (i: Fin.Fin n)(j: Fin.Fin m) -> Maps.Continuous source Scalars.topology (\fun (x: A) => value x i j),
+  extends: \forall (x: Subspace.CarrierSet) -> value x = f.value x,
+};
+\import \parent.Components[I := Pair.Times^[Fin.Fin n, Fin.Fin m]] \as Entries;
+\definition entries[f: Function]: Entries.Function := Entries.Function {
+  value := \fun (x: Subspace.CarrierSet)(p: Pair.Times^[Fin.Fin n, Fin.Fin m]) => f.value x (Pair.first (Fin.Fin n) (Fin.Fin m) p) (Pair.second (Fin.Fin n) (Fin.Fin m) p),
+  continuous := \fun (p: Pair.Times^[Fin.Fin n, Fin.Fin m]) => f.continuous (Pair.first (Fin.Fin n) (Fin.Fin m) p) (Pair.second (Fin.Fin n) (Fin.Fin m) p),
+};
+\module With(f: Function, e: Entries.Extension[entries f]);
+\definition tietze[f: Function]: Space.IsCompact source -> Space.IsT2 source -> Space.IsClosedIn source subset -> \exists Extension[f] := \block {
+  \fun (compact: _)(hausdorff: _)(closed: _) \then
+  \takefrom e: Entries.Extension[entries f] \by Entries.tietze (entries f) compact hausdorff closed \then
+  \return \exact(With[f := f, e := e].extension, Extension[f])
+};

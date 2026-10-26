@@ -1,0 +1,26 @@
+\import Hermitian.At[n := n].Families[X := RestrictedFamily.Point].Matrix[m := n] \as Matrices;
+\import Complements.For[X := X, F := F, bundle := bundle].FromEmbedding[embedding := embedding].Continuity[] \as EmbeddingContinuity;
+\definition input[p: RestrictedFamily.Point]: Bundles.Vector n := (embedding.map.fiber p.base).apply p.vector;
+\definition inputContinuous: topology.Continuity[A := RestrictedFamily.Point, B := Bundles.Vector n].Continuous Pulled.topology (Bundles.coordinateTopology n) input :=
+  topology.Composition[A := RestrictedFamily.Point, B := Family.Point, C := Bundles.Vector n].composeContinuous Pulled.topology bundle.totalSpace (Bundles.coordinateTopology n)
+    Pulled.map (\fun (p: Family.Point) => (embedding.map.fiber p.base).apply p.vector) Pulled.mapContinuous EmbeddingContinuity.vectorContinuous;
+\definition components: Matrices.Components Pulled.topology (\fun (p: RestrictedFamily.Point) => inverse p.base) :=
+  \fun (j, i: Fin.Fin n) => topology.Composition[A := RestrictedFamily.Point, B := Point, C := K].composeContinuous Pulled.topology space scalar.topological.space RestrictedFamily.projection
+    (\fun (x: Point) => (inverse x).apply (linear_algebra.Hermitian[].Over[K := K, field := field, scalar := conjugation].Finite[n := n].basis j) i) Pulled.projectionContinuous
+    (inverseRegular (linear_algebra.Hermitian[].Over[K := K, field := field, scalar := conjugation].Finite[n := n].basis j) i);
+\definition inputs: Hermitian.At[n := n].Families[X := RestrictedFamily.Point].Continuous Pulled.topology input :=
+  \fun (i: Fin.Fin n) => topology.Composition[A := RestrictedFamily.Point, B := Bundles.Vector n, C := K].composeContinuous Pulled.topology (Bundles.coordinateTopology n) scalar.topological.space input
+    (\fun (v: Bundles.Vector n) => v i) inputContinuous (topological_algebra.Coordinates[K := K, I := Fin.Fin n].evaluationContinuous scalar.topological.space i);
+\definition vectorContinuous: topology.Continuity[A := RestrictedFamily.Point, B := Bundles.Vector n].Continuous Pulled.topology (Bundles.coordinateTopology n) (\fun (p: RestrictedFamily.Point) => (inverse p.base).apply (input p)) :=
+  topological_algebra.Coordinates[K := K, I := Fin.Fin n].Universal[A := RestrictedFamily.Point].continuous Pulled.topology scalar.topological.space _
+    (Matrices.evaluate Pulled.topology (\fun (p: RestrictedFamily.Point) => inverse p.base) input components inputs);
+\definition baseContinuous: topology.Continuity[A := RestrictedFamily.Point, B := X].Continuous Pulled.topology topology (\fun (p: RestrictedFamily.Point) => p.base) :=
+  topology.Composition[A := RestrictedFamily.Point, B := Point, C := X].composeContinuous Pulled.topology space topology RestrictedFamily.projection inclusion Pulled.projectionContinuous inclusionContinuous;
+\definition ambient[p: RestrictedFamily.Point]: AmbientFamily.Point := AmbientFamily.include p.base ((inverse p.base).apply (input p));
+\definition ambientContinuous: topology.Continuity[A := RestrictedFamily.Point, B := AmbientFamily.Point].Continuous Pulled.topology Ambient.topology ambient :=
+  Complements.TrivialMaps[X := X, n := n, baseSpace := topology].Into[Y := RestrictedFamily.Point, source := Pulled.topology].continuous
+    (\fun (p: RestrictedFamily.Point) => p.base) (\fun (p: RestrictedFamily.Point) => (inverse p.base).apply (input p)) baseContinuous vectorContinuous;
+\definition continuous: topology.Continuity[A := RestrictedFamily.Point, B := RestrictedFamily.Point].Continuous Pulled.topology Pulled.topology (Maps.total backwardData) :=
+  Pulled.Universal[Z := RestrictedFamily.Point].continuous Pulled.topology (Maps.total backwardData) Pulled.projectionContinuous
+    (topology.Composition[A := RestrictedFamily.Point, B := AmbientFamily.Point, C := Family.Point].composeContinuous Pulled.topology Ambient.topology bundle.totalSpace ambient
+      (Project.total Retraction.project) ambientContinuous (Project.continuous Retraction.project));

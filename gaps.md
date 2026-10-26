@@ -125,3 +125,29 @@ B03 の `Representations.Representing` はこの配置を使う。
   \definition zero: N.Nat^ := N.Nat^::zero;
 }
 ```
+
+## 親 module 内の定義への直接参照
+
+次のように子 module から `\parent.identity` を項として使いたい。
+現在は `Module instantiation path must contain at least one module` で失敗する。
+
+```ref
+\module Test {
+  \definition identity[A: \Set][x: A]: A := x;
+  \module Child {
+    \definition result[A: \Set][x: A]: A := \parent.identity A x;
+  }
+}
+```
+
+現在は親 module を明示的に import してから定義を参照する。
+
+```ref
+\module Test {
+  \definition identity[A: \Set][x: A]: A := x;
+  \module Child {
+    \import \root.Test[] \as Parent;
+    \definition result[A: \Set][x: A]: A := Parent.identity A x;
+  }
+}
+```

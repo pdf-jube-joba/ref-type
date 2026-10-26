@@ -1,0 +1,27 @@
+\definition realEquation: RM.product (RealRepresentation.entries P) (RealRepresentation.entries P) = RealRepresentation.entries P := trans!{RM.Matrix} _ _ _
+  (sym!{RM.Matrix} _ _ (RealRepresentation.composition P P))
+  (congr!{{RealEnd.Map} {RM.Matrix}} RealRepresentation.entries _ _
+    (RealEnd.ext (RealCompose.compose P P) P (\axiom:funext((RealCompose.compose P P).apply, P.apply, idempotent))));
+\definition equation: CM.product (matrix (RealRepresentation.entries P)) (matrix (RealRepresentation.entries P)) = matrix (RealRepresentation.entries P) := trans!{CM.Matrix} _ _ _
+  (sym!{CM.Matrix} _ _ (product (RealRepresentation.entries P) (RealRepresentation.entries P)))
+  (congr!{RM.Matrix CM.Matrix} matrix _ _ realEquation);
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := linear_algebra.Hermitian[].Complex[].scalar, topological := hermitian_frames.Hermitian[].Complex[].topological].At[n := n].Square[] \as Square;
+\definition complexIdempotent[v: ComplexVector]: (complexify P).apply ((complexify P).apply v) = (complexify P).apply v := trans!{ComplexVector} _ _ _
+  (Square.applyProduct (matrix (RealRepresentation.entries P)) (matrix (RealRepresentation.entries P)) v)
+  (congr!{CM.Matrix ComplexVector} (\fun (A: CM.Matrix) => (CM.linear A).apply v) _ _ equation);
+\definition projection: spectral_splitting.Spectral[].Idempotents[n := n].Projection := spectral_splitting.Spectral[].Idempotents[n := n].Projection { map := complexify P, idempotent := complexIdempotent };
+\import spectral_splitting.Spectral[].At[n := n].ProjectionRecovery[P := complexify P, idempotent := complexIdempotent] \as Recovery;
+\definition two: R.Real := R.add R.one R.one;
+\definition scaled: RM.Matrix := \fun (i, j: Fin.Fin n) => R.mul two (R.sub (RealBasis.vectors j i) (P.apply (RealBasis.vectors j) i));
+\definition onBasis[j: Fin.Fin n]: (complexify P).apply (ComplexBasis.vectors j) = embed (P.apply (RealBasis.vectors j)) := trans!{ComplexVector} _ _ _
+  (congr!{ComplexVector ComplexVector} (complexify P).apply _ _ (sym!{ComplexVector} _ _ (basis j))) (onReal P (RealBasis.vectors j));
+\definition scaledEntry[i, j: Fin.Fin n]: Recovery.matrix i j = matrix scaled i j := trans!{{C.Complex}} _ _ _
+  (congr!{{C.Complex} {C.Complex}} (Complex.mul (Complex.ofReal two)) _ _
+    (trans!{{C.Complex}} _ _ _
+      (congr!{{C.Complex} {C.Complex} {C.Complex}} Complex.sub _ _ _ _
+        (congr!{ComplexVector {C.Complex}} (\fun (v: ComplexVector) => v i) _ _ (sym!{ComplexVector} _ _ (basis j)))
+        (congr!{ComplexVector {C.Complex}} (\fun (v: ComplexVector) => v i) _ _ (onBasis j)))
+      (sym!{{C.Complex}} _ _ (embedSubtract (RealBasis.vectors j i) (P.apply (RealBasis.vectors j) i)))))
+  (ComplexLaws.ofRealMul two (R.sub (RealBasis.vectors j i) (P.apply (RealBasis.vectors j) i)));
+\definition scaledFormula: Recovery.matrix = matrix scaled := \axiom:funext(Recovery.matrix, matrix scaled,
+  \fun (i: Fin.Fin n) => \axiom:funext(Recovery.matrix i, matrix scaled i, scaledEntry i));

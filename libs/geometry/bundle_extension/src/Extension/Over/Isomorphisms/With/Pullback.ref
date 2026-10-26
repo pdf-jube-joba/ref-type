@@ -1,0 +1,14 @@
+\import Bundles.Family[X := X, F := F].Of[bundle := source].PullbackComposition[Y := Local.Point, Z := Y, first := Local.space, second := space, f := Local.inclusion, g := f].Of[fRegular := Local.continuous, gRegular := regular] \as SourceComposition;
+\import Bundles.Family[X := X, F := G].Of[bundle := target].PullbackComposition[Y := Local.Point, Z := Y, first := Local.space, second := space, f := Local.inclusion, g := f].Of[fRegular := Local.targetContinuous, gRegular := regular] \as TargetComposition;
+\import Complements.PulledIsomorphism[X := Local.Point, Y := Y, F := (\fun (x: Local.Point) => F x), G := (\fun (x: Local.Point) => G x),
+  source := Local.first, target := Local.second, base := space, f := f, sourceRegular := regular, targetRegular := regular] \as Pulled;
+\import bundle_operations.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar] \as Operations;
+\definition first: Bundles.Family[X := Y, F := (\fun (y: Y) => F (f y))].Bundle := SourceComposition.direct;
+\definition second: Bundles.Family[X := Y, F := (\fun (y: Y) => G (f y))].Bundle := TargetComposition.direct;
+\definition isomorphism: Bundles.Isomorphisms[X := Y, F := (\fun (y: Y) => F (f y)), G := (\fun (y: Y) => G (f y)), source := first, target := second].Isomorphism :=
+  Operations.IsomorphismComposition[X := Y, F := (\fun (y: Y) => F (f y)), G := (\fun (y: Y) => F (f y)), H := (\fun (y: Y) => G (f y)), source := first, middle := SourceComposition.nested, target := second].compose SourceComposition.isomorphism
+    (Operations.IsomorphismComposition[X := Y, F := (\fun (y: Y) => F (f y)), G := (\fun (y: Y) => G (f y)), H := (\fun (y: Y) => G (f y)), source := SourceComposition.nested, middle := TargetComposition.nested, target := second].compose (Pulled.isomorphism e.isomorphism)
+      (Bundles.Isomorphisms[X := Y, F := (\fun (y: Y) => G (f y)), G := (\fun (y: Y) => G (f y)), source := second, target := TargetComposition.nested].inverse TargetComposition.isomorphism));
+\definition restricted: \Pow Y := { y: Y \where Base.Member subset (f y) };
+\definition onSubset[y: \Cast[Y] restricted][v: F (f y)]: (isomorphism.forward.fiber y).apply v = (a.forward.fiber (\into[X](f y, subset) \by { \bysub(Y, restricted, y) })).apply v :=
+  e.extends (\into[X](f y, subset) \by { \bysub(Y, restricted, y) }) v;

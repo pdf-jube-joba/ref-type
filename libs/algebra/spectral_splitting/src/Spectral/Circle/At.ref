@@ -106,6 +106,21 @@
       equality: at
     })
 };
+\definition domainOff: \forall (index: Index)(p: Roots.Vector n) -> \In[Roots.Vector n] (Domain index) p -> OffSpectrum p := \block {
+  \fun (index: Index)(p: Roots.Vector n)(inside: \In[Roots.Vector n] (Domain index) p) \then
+  \takefrom a: \Cast[Roots.Vector n] ({ a: Roots.Vector n \where Coefficients.coefficients a = p }) \by Coefficients.onto p \then
+  \let at: Coefficients.coefficients a = p := \bysub(Roots.Vector n, { a: Roots.Vector n \where Coefficients.coefficients a = p }, a) \then
+  \let all: Monic.Over Allowed (Tuples.list n a) := Tuples.all n a Allowed ((inside.left a at).allowed) \then
+  \return \fun (z: C.Complex)(zero: Evaluation.apply z (Roots.polynomial n p) = Scalars.field.zero) =>
+    Logic.orElim (Space.Member Inside z) (Space.Member Outside z) (Off z)
+    (Splitting.factorsRoot Allowed (Tuples.list n a) all z (eq_reason_in!{{C.Complex} { Evaluation.apply z (Monic.factors (Tuples.list n a)) }
+      "=" _ "by" { sym!{{C.Complex}} _ _ (congr!{{P.Carrier} {C.Complex}} (Evaluation.apply z) _ _ (Coefficients.factorization a)) }
+      "=" _ "by" { congr!{{Roots.Vector n} {C.Complex}} (\fun (c: Roots.Vector n) => Evaluation.apply z (Roots.polynomial n c)) _ _ at }
+      "=" _ "by" { zero }
+    }))
+    (\fun (lower: _) => Order.ltNotEq (Absolute.abs z) Real.one lower)
+    (\fun (upper: _) => \fun (same: Absolute.abs z = Real.one) => Order.ltNotEq Real.one (Absolute.abs z) upper (sym!{{Real.Real}} _ _ same))
+};
 \definition region[b: B.Bool^]: \Pow C.Complex := B.ite (\Pow C.Complex) b Inside Outside;
 \definition chosenRoot: \forall (b: B.Bool^)(xs: Monic.Coefficients) -> Monic.Over Allowed xs ->
   \forall (z: C.Complex) -> Evaluation.apply z (chosen b xs) = Scalars.field.zero -> \In[C.Complex] (region b) z :=

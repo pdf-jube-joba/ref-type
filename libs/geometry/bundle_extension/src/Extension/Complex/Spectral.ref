@@ -1,0 +1,24 @@
+\import \parent.Matrices[m := n, n := n] \as Entries;
+\import spectral_splitting.Spectral[].At[n := n] \as Matrices;
+\definition domain[f: Entries.Function][e: Entries.Extension[f]]: \Pow A := { x: A \where Matrices.Splitting[A := e.value x].OffSpectrum };
+\definition open[f: Entries.Function][e: Entries.Extension[f]]: Space.IsOpenIn source (domain f e) :=
+  Matrices.Neighborhood[X := A, source := source, A := e.value, regular := e.continuous].open;
+\definition contains[f: Entries.Function][e: Entries.Extension[f]]:
+  (\forall (x: Subspace.CarrierSet) -> Matrices.Splitting[A := f.value x].OffSpectrum) -> Space.Subset subset (domain f e) :=
+  \fun (off: _)(x: A)(inside: Space.Member subset x) => \block {
+    \let point: Subspace.CarrierSet := \into[A](x, subset) \by { inside } \then
+    \return \idelim f.value point = e.value point \with a: Entries.Matrix => Matrices.Splitting[A := a].OffSpectrum \by {
+      base: off point, equality: sym!{Entries.Matrix} _ _ (e.extends point)
+    }
+  };
+\structure Witness[f: Entries.Function]: \Set := {
+  extension: Entries.Extension[f],
+  contains: Space.Subset subset (domain f extension),
+};
+\definition exists[f: Entries.Function]: Space.IsCompact source -> Space.IsT2 source -> Space.IsClosedIn source subset ->
+  (\forall (x: Subspace.CarrierSet) -> Matrices.Splitting[A := f.value x].OffSpectrum) -> \exists Witness[f] := \block {
+  \fun (compact: _)(hausdorff: _)(closed: _)(off: _) \then
+  \takefrom e: Entries.Extension[f] \by Entries.tietze f compact hausdorff closed \then
+  \return \exact(Witness[f] { extension := e, contains := contains f e off }, Witness[f])
+};
+\module Near(f: Entries.Function, e: Entries.Extension[f]);

@@ -1,0 +1,28 @@
+\import vector_bundles.Bundles[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar] \as Bundles;
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar] \as Complements;
+\import Complements.For[X := Subspace.CarrierSet, F := F, bundle := bundle] \as Embeddings;
+\import Complements.Representations[X := Subspace.CarrierSet, baseSpace := Subspace.topology source] \as Presentations;
+\import Presentations.Representing[F := F, original := bundle] \as Representatives;
+\import Presentations.Of[F := F, original := bundle, same := same] \as Classification;
+\definition projector[p: Presentations.Presentation][x: Subspace.CarrierSet]: spectral_splitting.Spectral[].Idempotents[n := p.dimension].Projection :=
+  spectral_splitting.Spectral[].Idempotents[n := p.dimension].Projection { map := (p.projection x).map, idempotent := (p.projection x).idempotent };
+\definition MatrixExtension[r: Representatives.Representative]: \Set := \parent.Projections[n := r.presentation.dimension, P := projector r.presentation, regular := r.presentation.regular].Witness;
+\structure Witness: \Set := {
+  representative: Representatives.Representative,
+  extension: MatrixExtension representative,
+};
+\module Through(r: Representatives.Representative);
+\definition exists: Space.IsCompact source -> Space.IsT2 source -> Space.IsClosedIn source subset -> \exists Witness := \block {
+  \fun (compact: _)(hausdorff: _)(closed: _) \then
+  \let subCompact: topology.Topology[Carrier := Subspace.CarrierSet].IsCompact (Subspace.topology source) := Subspace.Properties[].compact source (Space.Compactness[].closedCompact source compact subset closed) \then
+  \let subHausdorff: topology.Topology[Carrier := Subspace.CarrierSet].IsT2 (Subspace.topology source) := Subspace.Properties[].hausdorff source hausdorff \then
+  \let bundleCompact: topology.Topology[Carrier := Subspace.CarrierSet].IsCompact bundle.baseSpace := \idelim Subspace.topology source = bundle.baseSpace
+    \with t: topology.Topology[Carrier := Subspace.CarrierSet].Topology => topology.Topology[Carrier := Subspace.CarrierSet].IsCompact t \by { base: subCompact, equality: sym!{{topology.Topology[Carrier := Subspace.CarrierSet].Topology}} _ _ same } \then
+  \let bundleHausdorff: topology.Topology[Carrier := Subspace.CarrierSet].IsT2 bundle.baseSpace := \idelim Subspace.topology source = bundle.baseSpace
+    \with t: topology.Topology[Carrier := Subspace.CarrierSet].Topology => topology.Topology[Carrier := Subspace.CarrierSet].IsT2 t \by { base: subHausdorff, equality: sym!{{topology.Topology[Carrier := Subspace.CarrierSet].Topology}} _ _ same } \then
+  \takefrom embedding: Embeddings.Embedding \by Embeddings.embeddingExists bundleCompact bundleHausdorff \then
+  \let r: Representatives.Representative := Classification.FromEmbedding[embedding := embedding].representative \then
+  \takefrom e: MatrixExtension r \by Through[r := r].exists compact hausdorff closed \then
+  \return \exact(Witness { representative := r, extension := e }, Witness)
+};
+\module With(w: Witness);

@@ -1,0 +1,21 @@
+\definition annihilated[v: Vector]: Action.apply (P.mul Source.inside Source.outside) v = Coordinates.origin :=
+  \root.Spectral[].At[n := n].On[A := A, factors := Source.factorization b].annihilated v;
+\definition mappedAnnihilated[v: Vector]: Action.apply (P.mul (Change.map Source.inside) (Change.map Source.outside)) (conjugate v) = Coordinates.origin :=
+  trans!{Vector} _ _ _
+    (congr!{{P.Carrier} Vector} (\fun (p: P.Carrier) => Action.apply p (conjugate v)) _ _ (sym!{{P.Carrier}} _ _ (Change.laws.mul Source.inside Source.outside)))
+    (trans!{Vector} _ _ _ (sym!{Vector} _ _ (Intertwining.naturality morphism (P.mul Source.inside Source.outside) v))
+      (trans!{Vector} _ _ _ (congr!{Vector Vector} conjugate _ _ (annihilated v)) morphism.zero));
+\definition natural[v: Vector]: conjugate (Recovered.projection.apply v) = Recovered.projection.apply (conjugate v) := \block {
+  \takefrom pd: Polynomials.Bezout[Source.inside, Change.map Source.outside, P.one] \by crossLeft \then
+  \takefrom qc: Polynomials.Bezout[Source.outside, Change.map Source.inside, P.one] \by crossRight \then
+  \return eq_reason_in!{Vector _
+    "=" { conjugate (Primary.projection Source.inside Source.outside b v) } "by" { congr!{Vector Vector} conjugate _ _ (Recovered.formula b v) }
+    "=" { Primary.projection (Change.map Source.inside) (Change.map Source.outside) (Change.bezout Source.inside Source.outside b) (conjugate v) } "by" { Intertwining.projectionNatural morphism Source.inside Source.outside b v }
+    "=" { Primary.projection Source.inside Source.outside b (conjugate v) } "by" {
+      sym!{Vector} _ _ (\root.Spectral[].Action[V := Vector, space := Coordinates.space, T := M.linear A].Comparison[
+        p := Source.inside, q := Source.outside, b := b, c := Change.map Source.inside, d := Change.map Source.outside, other := Change.bezout Source.inside Source.outside b].same
+        pd qc (conjugate v) (annihilated (conjugate v)) (mappedAnnihilated v))
+    }
+    "=" _ "by" { sym!{Vector} _ _ (Recovered.formula b (conjugate v)) }
+  }
+};

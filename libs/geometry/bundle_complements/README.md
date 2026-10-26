@@ -74,8 +74,13 @@ target/debug/cli libs/geometry/bundle_complements --memory-mib 8192 --cache-stat
 ```
 
 K06 の workspace 全体の検査と再開情報は [spectral_splitting の引き継ぎ欄](../../algebra/spectral_splitting/README.md#検証と再開) にまとめる。
-B03 に続く実装候補は B04・B05・B09・K01 である。
+[B09](../bundle_extension/README.md) は有限埋め込み・像束・レトラクションを使い、閉部分空間からの束と束写像の延長を構成する。
 
 `CoordinateFamily` は単射性を要求しない連続な座標線形写像族を、自明束間の束写像へ移す。
 `CoordinateEmbedding` はこの写像構成を共有し、単射な場合に有限埋め込みも公開する。
 [uniform_approximation](../../analysis/uniform_approximation/README.md) はこの API と像への比較同型を使い、行列の近似を束自己準同型へ戻す。
+
+`Over.Idempotents[n]` は自己随伴性を要求しない冪等写像を実・複素で扱う。
+`Algebra`・`With` は補射影、像の有限基底、両方の核と直和分解を与える。
+`Image` は像束と包含・射影・補束・引き戻し比較、`Comparison` は連続な可逆 intertwiner による同型、`Gap` は近接比較の可逆領域の開性を与える。
+B09 で追加したこの入口は、K06 の像束構成を同じ `Finite.ImageBasis` と一般のスカラーに適用したもので、依存を含む569 module、終了0・キャッシュ保存失敗0で検証した。
