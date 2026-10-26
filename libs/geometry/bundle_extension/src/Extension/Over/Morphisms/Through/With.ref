@@ -1,0 +1,18 @@
+\import Matrices.Families[X := X, baseSpace := topology, A := e.value, regular := e.continuous] \as Extended;
+\definition coordinates: Extended.Changed[target.baseSpace] := Extended.change target.baseSpace same;
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := \fun (_: X) => Bundles.Vector m, source := source, target := FirstAmbient.bundle, f := \fun (x: X) => x].Composition[Z := X, H := (\fun (_: X) => Bundles.Vector n), range := SecondAmbient.bundle, g := \fun (x: X) => x] \as FirstComposition;
+\definition included: Bundles.Morphisms[X := X, Y := X, F := F, G := \fun (_: X) => Bundles.Vector n, source := source, target := SecondAmbient.bundle, f := \fun (x: X) => x].Map := FirstComposition.compose first.map coordinates.map;
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := \fun (_: X) => Bundles.Vector n, source := source, target := SecondAmbient.bundle, f := \fun (x: X) => x].Composition[Z := X, H := G, range := target, g := \fun (x: X) => x] \as LastComposition;
+\definition map: Maps.Map := LastComposition.compose included Second.project;
+\definition formula[x: X][v: F x]: (map.fiber x).apply v = (Second.project.fiber x).apply ((Matrices.linear (e.value x)).apply ((first.map.fiber x).apply v)) :=
+  congr!{{Bundles.Vector n} {G x}} (Second.project.fiber x).apply _ _ (coordinates.formula x ((first.map.fiber x).apply v));
+\definition onSubset[x: Subspace.CarrierSet][v: F x]: (map.fiber x).apply v = (h.fiber x).apply v := trans!{{G x}} _ _ _ (formula x v)
+  (trans!{{G x}} _ _ _
+    (congr!{{Bundles.Vector n} {G x}} (Second.project.fiber x).apply _ _
+      (trans!{{Bundles.Vector n}} _ _ _
+        (congr!{Matrices.Matrix {Bundles.Vector n}} (\fun (A: Matrices.Matrix) => (Matrices.linear A).apply ((first.map.fiber x).apply v)) _ _ (e.extends x))
+        (Matrices.roundTrip (encoded x) ((first.map.fiber x).apply v))))
+    (trans!{{G x}} _ _ _
+      (congr!{{F x} {G x}} (\fun (w: F x) => (Second.project.fiber x).apply ((second.map.fiber x).apply ((h.fiber x).apply w))) _ _ (First.retraction x v))
+      (Second.retraction x ((h.fiber x).apply v))));
+\definition extension: Extension[h] := Extension[h] { map := map, extends := onSubset };
