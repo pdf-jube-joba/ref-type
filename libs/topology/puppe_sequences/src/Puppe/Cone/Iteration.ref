@@ -1,0 +1,21 @@
+\import \root.Puppe[].Cone[A := B, B := Carrier, source := target, target := pointed, f := inclusionMap] \as Next;
+\import \root.Puppe[].ReducedCone[A := B, source := target] \as SecondCone;
+\import \root.Puppe[].Suspension[A := A, source := source] \as Suspension;
+\import \parent.Connecting[] \as Connecting;
+\import topological_constructions.Pushout[A := Carrier, B := SecondCone.Carrier, C := B].Of[u := inclusionMap, v := SecondCone.base] \as NextAttached;
+\import NextAttached.Universal[D := Suspension.Carrier] \as Gluing;
+\definition constant[c: SecondCone.Carrier]: Suspension.Carrier := Suspension.point;
+\definition compatible: Gluing.Compatible Connecting.apply constant := Connecting.onTarget;
+\definition projection: Next.Carrier -> Suspension.Carrier := Gluing.apply Connecting.apply constant compatible;
+\definition onOriginal: \forall (x: Carrier) -> projection (Next.inclusion x) = Connecting.apply x := Gluing.onLeft Connecting.apply constant compatible;
+\definition onSecondCone: \forall (c: SecondCone.Carrier) -> projection (Next.cone c) = Suspension.point := Gluing.onRight Connecting.apply constant compatible;
+\definition continuous: topology.Continuity[A := Next.Carrier, B := Suspension.Carrier].Continuous Next.topology Suspension.topology projection :=
+  Gluing.continuous topology SecondCone.topology Suspension.topology Connecting.apply constant compatible Connecting.continuous
+    (topology.Maps[A := SecondCone.Carrier, B := Suspension.Carrier].constantContinuous SecondCone.topology Suspension.topology Suspension.point);
+\import algebraic_topology.Pointed[A := Next.Carrier].Maps[B := Suspension.Carrier] \as Pointed;
+\definition projectionMap: Pointed.Map[Next.pointed, Suspension.pointed] := \into[Next.Carrier -> Suspension.Carrier](projection, Pointed.Map[Next.pointed, Suspension.pointed]) \by {
+  Pointed.Laws[Next.pointed, Suspension.pointed, projection] { continuous := continuous,
+    pointed := trans!{Suspension.Carrier} _ _ _ (onOriginal point) (Connecting.onTarget target.basepoint) }
+};
+\definition modelTopology: topology.Topology[Carrier := Carrier].Topology := topology;
+\module Raw;

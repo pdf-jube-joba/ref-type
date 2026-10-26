@@ -1,0 +1,84 @@
+\import algebraic_topology.Cylinder[A := Cylinder.Carrier] \as Double;
+\import algebraic_topology.Cylinder[A := B] \as TargetCylinder;
+\import I.Halves[] \as Halves;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import metric_spaces.RealLine[] \as Line;
+\import metric_spaces.RealFunctions[A := Double.Carrier] \as Functions;
+\import Functions.Product[] \as Product;
+\import topology.Topology[Carrier := Double.Carrier] \as Domain;
+\definition domainTopology: Domain.Topology := Double.topology (Cylinder.topology source.topology);
+\definition time: Double.Carrier -> I.Carrier := Double.time;
+\definition height[p: Double.Carrier]: I.Carrier := Cylinder.time (Double.point p);
+\definition point[p: Double.Carrier]: A := Cylinder.point (Double.point p);
+\definition half[p: Double.Carrier]: Real.Real := Halves.lower (time p);
+\definition denominator[p: Double.Carrier]: Real.Real := Real.sub Real.one (half p);
+\definition coefficient[p: Double.Carrier]: Real.Real := Laws.fieldInv (denominator p);
+\definition Low: \Pow Double.Carrier := { p: Double.Carrier \where R.Le (height p) (half p) };
+\definition High: \Pow Double.Carrier := { p: Double.Carrier \where R.Le (half p) (height p) };
+\definition covered: \forall (p: Double.Carrier) -> Logic.Or[\In[Double.Carrier] Low p, \In[Double.Carrier] High p] :=
+  \fun (p: Double.Carrier) => Order.leTotal (height p) (half p);
+\definition timeContinuous: Functions.Continuous domainTopology (\fun (p: Double.Carrier) => time p) :=
+  topology.Composition[A := Double.Carrier, B := I.Carrier, C := Real.Real].composeContinuous domainTopology I.topology Line.topology time (\fun (t: I.Carrier) => t)
+    (Double.timeContinuous (Cylinder.topology source.topology)) I.inclusionContinuous;
+\definition heightIntervalContinuous: topology.Continuity[A := Double.Carrier, B := I.Carrier].Continuous domainTopology I.topology height :=
+  topology.Composition[A := Double.Carrier, B := Cylinder.Carrier, C := I.Carrier].composeContinuous domainTopology (Cylinder.topology source.topology) I.topology
+    Double.point Cylinder.time (Double.pointContinuous (Cylinder.topology source.topology)) (Cylinder.timeContinuous source.topology);
+\definition heightContinuous: Functions.Continuous domainTopology (\fun (p: Double.Carrier) => height p) :=
+  topology.Composition[A := Double.Carrier, B := I.Carrier, C := Real.Real].composeContinuous domainTopology I.topology Line.topology height (\fun (t: I.Carrier) => t)
+    heightIntervalContinuous I.inclusionContinuous;
+\definition originalPointContinuous: topology.Continuity[A := Double.Carrier, B := A].Continuous domainTopology source.topology point :=
+  topology.Composition[A := Double.Carrier, B := Cylinder.Carrier, C := A].composeContinuous domainTopology (Cylinder.topology source.topology) source.topology
+    Double.point Cylinder.point (Double.pointContinuous (Cylinder.topology source.topology)) (Cylinder.pointContinuous source.topology);
+\definition halfContinuous: Functions.Continuous domainTopology half := Product.continuous domainTopology (\fun (_: Double.Carrier) => Real.half)
+  (\fun (p: Double.Carrier) => time p) (Functions.constantContinuous domainTopology Real.half) timeContinuous;
+\definition denominatorContinuous: Functions.Continuous domainTopology denominator := Functions.subContinuous domainTopology
+  (\fun (_: Double.Carrier) => Real.one) half (Functions.constantContinuous domainTopology Real.one) halfContinuous;
+\definition coefficientContinuous: Functions.Continuous domainTopology coefficient := Functions.Reciprocal[].continuousPositive domainTopology denominator denominatorContinuous
+  (\fun (p: Double.Carrier) => \root.Puppe[].ConeTimes[t := time p, u := height p].positive);
+\definition lowClosed: Domain.IsClosedIn domainTopology Low := Functions.Comparison[].leClosed domainTopology (\fun (p: Double.Carrier) => height p) half heightContinuous halfContinuous;
+\definition highClosed: Domain.IsClosedIn domainTopology High := Functions.Comparison[].leClosed domainTopology half (\fun (p: Double.Carrier) => height p) halfContinuous heightContinuous;
+
+\definition leftReal[p: Double.Carrier]: Real.Real := Real.add (Real.sub (half p) (height p)) (Real.sub (half p) (height p));
+\definition rightReal[p: Double.Carrier]: Real.Real := Real.mul (coefficient p) (Real.sub (height p) (half p));
+\definition leftRealContinuous: Functions.Continuous domainTopology leftReal := Functions.sumContinuous domainTopology
+  (\fun (p: Double.Carrier) => Real.sub (half p) (height p)) (\fun (p: Double.Carrier) => Real.sub (half p) (height p))
+  (Functions.subContinuous domainTopology half (\fun (p: Double.Carrier) => height p) halfContinuous heightContinuous)
+  (Functions.subContinuous domainTopology half (\fun (p: Double.Carrier) => height p) halfContinuous heightContinuous);
+\definition rightRealContinuous: Functions.Continuous domainTopology rightReal := Product.continuous domainTopology coefficient
+  (\fun (p: Double.Carrier) => Real.sub (height p) (half p)) coefficientContinuous
+  (Functions.subContinuous domainTopology (\fun (p: Double.Carrier) => height p) half heightContinuous halfContinuous);
+\module Left;
+\module Right;
+
+\use Equality.eq_reason_in;
+\import topological_constructions.Gluing[A := Double.Carrier, B := Next.Carrier].Pasting[F := Low, G := High] \as Pasting;
+\definition leftBoundary: \forall (p: \Cast[Double.Carrier] Low) -> height p = half p -> Left[].value p = Next.inclusion (inclusion (f (point p))) :=
+  \fun (p: \Cast[Double.Carrier] Low)(same: _) => trans!{Next.Carrier} _ _ _
+    (congr!{I.Carrier Next.Carrier} (\fun (t: I.Carrier) => Next.nullFamily (TargetCylinder.at t (f (point p)))) (Left[].scaled p) I.start
+      (\root.Puppe[].ConeTimes[t := time p, u := height p].leftAtBoundary (\bysub(Double.Carrier, Low, p)) same)) (Next.nullStart (f (point p)));
+\definition rightBoundary: \forall (p: \Cast[Double.Carrier] High) -> height p = half p -> Right[].value p = Next.inclusion (inclusion (f (point p))) :=
+  \fun (p: \Cast[Double.Carrier] High)(same: _) => trans!{Next.Carrier} _ _ _
+    (congr!{I.Carrier Next.Carrier} (\fun (t: I.Carrier) => Next.inclusion (nullFamily (Cylinder.at t (point p)))) (Right[].scaled p) I.start
+      (\root.Puppe[].ConeTimes[t := time p, u := height p].rightAtBoundary (\bysub(Double.Carrier, High, p)) same))
+    (congr!{Carrier Next.Carrier} Next.inclusion _ _ (nullStart (point p)));
+\definition compatible: Pasting.Compatible Left[].value Right[].value := \block {
+  \fun (p: \Cast[Double.Carrier] Low)(q: \Cast[Double.Carrier] High)(same: p = q) \then
+  \let high: \In[Double.Carrier] High p := \idelim q = p \with r: Double.Carrier => \In[Double.Carrier] High r \by {
+    base: \bysub(Double.Carrier, High, q), equality: sym!{Double.Carrier} p q same } \then
+  \let low: \In[Double.Carrier] Low q := \idelim p = q \with r: Double.Carrier => \In[Double.Carrier] Low r \by {
+    base: \bysub(Double.Carrier, Low, p), equality: same } \then
+  \return eq_reason_in!{Next.Carrier {Left[].value p}
+    "=" {Next.inclusion (inclusion (f (point p)))} "by" { leftBoundary p (R.leAntisym (height p) (half p) (\bysub(Double.Carrier, Low, p)) high) }
+    "=" {Next.inclusion (inclusion (f (point q)))} "by" { congr!{Double.Carrier Next.Carrier} (\fun (r: Double.Carrier) => Next.inclusion (inclusion (f (point r)))) p q same }
+    "=" {Right[].value q} "by" { sym!{Next.Carrier} _ _ (rightBoundary q (R.leAntisym (height q) (half q) low (\bysub(Double.Carrier, High, q)))) }
+  }
+};
+\definition value: Double.Carrier -> Next.Carrier := Pasting.apply Left[].value Right[].value covered compatible;
+\definition continuous: topology.Continuity[A := Double.Carrier, B := Next.Carrier].Continuous domainTopology Next.topology value :=
+  Pasting.continuous domainTopology Next.topology Left[].value Right[].value covered compatible lowClosed highClosed Left[].continuous Right[].continuous;
+\definition onLeft: \forall (p: \Cast[Double.Carrier] Low) -> value p = Left[].value p := Pasting.onLeft Left[].value Right[].value covered compatible;
+\definition onRight: \forall (p: \Cast[Double.Carrier] High) -> value p = Right[].value p := Pasting.onRight Left[].value Right[].value covered compatible;
+\module Endpoints;

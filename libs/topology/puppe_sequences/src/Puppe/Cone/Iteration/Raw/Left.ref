@@ -1,0 +1,19 @@
+\import Domain.Subspace[S := Low] \as Part;
+\definition topology: topology.Topology[Carrier := Part.CarrierSet].Topology := Part.topology domainTopology;
+\definition scaled[p: Part.CarrierSet]: I.Carrier := \root.Puppe[].ConeTimes[t := time p, u := height p].left (\bysub(Double.Carrier, Low, p));
+\definition scalarContinuous: topology.Continuity[A := Part.CarrierSet, B := Real.Real].Continuous topology Line.topology (\fun (p: Part.CarrierSet) => scaled p) :=
+  \fun (U: \Pow Real.Real)(open: _) => Part.traceOpen domainTopology ({ p: Double.Carrier \where \In[Real.Real] U (leftReal p) }) (leftRealContinuous U open);
+\definition scaledContinuous: topology.Continuity[A := Part.CarrierSet, B := I.Carrier].Continuous topology I.topology scaled :=
+  topology.Continuity[A := Part.CarrierSet, B := Real.Real].Corestriction[S := Line.ClosedInterval Real.zero Real.one].corestrictContinuous topology Line.topology scaled scalarContinuous;
+\definition pointContinuous: topology.Continuity[A := Part.CarrierSet, B := A].Continuous topology source.topology (\fun (p: Part.CarrierSet) => point p) :=
+  \fun (U: \Pow A)(open: _) => Part.traceOpen domainTopology ({ p: Double.Carrier \where \In[A] U (point p) }) (originalPointContinuous U open);
+\import topological_constructions.Product[A := I.Carrier, B := B].Universal[X := Part.CarrierSet] \as Pairing;
+\definition inner[p: Part.CarrierSet]: TargetCylinder.Carrier := TargetCylinder.at (scaled p) (f (point p));
+\definition innerContinuous: topology.Continuity[A := Part.CarrierSet, B := TargetCylinder.Carrier].Continuous topology (TargetCylinder.topology target.topology) inner :=
+  Pairing.pairContinuous topology I.topology target.topology scaled (\fun (p: Part.CarrierSet) => f (point p)) scaledContinuous
+    (topology.Composition[A := Part.CarrierSet, B := A, C := B].composeContinuous topology source.topology target.topology
+      (\fun (p: Part.CarrierSet) => point p) f pointContinuous (Original.laws source target f).continuous);
+\definition value[p: Part.CarrierSet]: Next.Carrier := Next.nullFamily (inner p);
+\definition continuous: topology.Continuity[A := Part.CarrierSet, B := Next.Carrier].Continuous topology Next.topology value :=
+  topology.Composition[A := Part.CarrierSet, B := TargetCylinder.Carrier, C := Next.Carrier].composeContinuous topology (TargetCylinder.topology target.topology)
+    Next.topology inner Next.nullFamily innerContinuous Next.nullContinuous;

@@ -23,5 +23,6 @@ reduced suspension と接続写像、対の写像による cone・suspension の
 有限 CW 部分複体の `CW.Subcomplex.Pointed.equivalence` まで accepted・終了0・保存失敗0（`cw-pointed-comparison.json`）。
 次は反復 cofiber と suspension の比較・Puppe 列全体、具体例・最終 workspace 検証へ進む。
 
-次は有限 CW 部分複体への拡張、基点付き mapping cone・reduced suspension の比較、自然性・商との比較・反変 Hom の完全性を依存順に証明する。
+円錐反復の比較射影と二領域の変形は、連続性・端点・基点まで accepted・保存失敗0（`cone-iteration-raw.json`）。
+次は変形を商へ降ろし、反復 cofiber と suspension の両側逆を構成する。
 共有キャッシュは `libs/refcache`。
