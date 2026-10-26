@@ -1,0 +1,59 @@
+\use Equality.eq_reason_in;
+\import \root.Puppe[].ReducedCone[A := C, source := nextSource] \as NextCone;
+\import Cone.Mapping[B := C, target := nextSource, f := square.left] \as ConeMap;
+\import Attached.Universal[D := Next.Carrier] \as Gluing;
+\definition left[x: B]: Next.Carrier := Next.inclusion (square.right x);
+\definition right[x: Cone.Carrier]: Next.Carrier := Next.cone (ConeMap.apply x);
+\definition compatible: Gluing.Compatible left right := \fun (x: A) => eq_reason_in!{Next.Carrier {left (f x)}
+  "=" {Next.inclusion (next (square.left x))} "by" { congr!{D Next.Carrier} Next.inclusion _ _ (sym!{D} _ _ (square.commutes x)) }
+  "=" {Next.cone (NextCone.base (square.left x))} "by" { Next.attached (square.left x) }
+  "=" {right (Cone.base x)} "by" { congr!{{NextCone.Carrier} Next.Carrier} Next.cone _ _ (sym!{{NextCone.Carrier}} _ _ (ConeMap.onBase x)) }
+};
+\definition apply: Carrier -> Next.Carrier := Gluing.apply left right compatible;
+\definition onTarget: \forall (x: B) -> apply (inclusion x) = Next.inclusion (square.right x) := Gluing.onLeft left right compatible;
+\definition onCone: \forall (x: Cone.Carrier) -> apply (cone x) = Next.cone (ConeMap.apply x) := Gluing.onRight left right compatible;
+\definition continuous: topology.Continuity[A := Carrier, B := Next.Carrier].Continuous topology Next.topology apply :=
+  Gluing.continuous target.topology Cone.topology Next.topology left right compatible
+    (topology.Composition[A := B, B := D, C := Next.Carrier].composeContinuous target.topology nextTarget.topology Next.topology square.right Next.inclusion
+      (Right.laws target nextTarget square.right).continuous
+      (algebraic_topology.Pointed[A := D].Maps[B := Next.Carrier].laws nextTarget Next.pointed Next.inclusionMap).continuous)
+    (topology.Composition[A := Cone.Carrier, B := NextCone.Carrier, C := Next.Carrier].composeContinuous
+      Cone.topology (NextCone.topology) Next.topology ConeMap.apply Next.cone ConeMap.continuous
+      Next.coneContinuous);
+\import algebraic_topology.Pointed[A := Carrier].Maps[B := Next.Carrier] \as Pointed;
+\definition map: Pointed.Map[pointed, Next.pointed] := \into[Carrier -> Next.Carrier](apply, Pointed.Map[pointed, Next.pointed]) \by {
+  Pointed.Laws[pointed, Next.pointed, apply] { continuous := continuous,
+    pointed := trans!{Next.Carrier} _ _ _ (onTarget target.basepoint) (congr!{D Next.Carrier} Next.inclusion _ _ (Right.laws target nextTarget square.right).pointed) }
+};
+
+\import \root.Puppe[].Suspension[A := A, source := source] \as Suspension;
+\import \root.Puppe[].Suspension[A := C, source := nextSource] \as NextSuspension;
+\import Suspension.Mapping[B := C, target := nextSource, f := square.left] \as SuspensionMap;
+\import \parent.\parent.Connecting[] \as Connecting;
+\import Next.Connecting[] \as NextConnecting;
+\import algebraic_topology.Cylinder[A := C] \as NextCylinder;
+\definition quotientNatural: \forall (c: Cone.Carrier) -> SuspensionMap.apply (Suspension.quotient c) = NextSuspension.quotient (ConeMap.apply c) :=
+  algebraic_topology.Collapse[A := Cylinder.Carrier, subset := Cone.Collapsed].induction
+    (\fun (c: Cone.Carrier) => SuspensionMap.apply (Suspension.quotient c) = NextSuspension.quotient (ConeMap.apply c))
+    (\fun (p: Cylinder.Carrier) => eq_reason_in!{NextSuspension.Carrier {SuspensionMap.apply (Suspension.quotient (Cone.class p))}
+      "=" {SuspensionMap.apply (Suspension.class p)} "by" { congr!{Suspension.Carrier NextSuspension.Carrier} SuspensionMap.apply _ _ (Suspension.onClass p) }
+      "=" {NextSuspension.class (NextCylinder.at (Cylinder.time p) (square.left (Cylinder.point p)))} "by" { SuspensionMap.onClass p }
+      "=" {NextSuspension.quotient (NextCone.class (NextCylinder.at (Cylinder.time p) (square.left (Cylinder.point p))))} "by" {
+        sym!{NextSuspension.Carrier} _ _ (NextSuspension.onClass (NextCylinder.at (Cylinder.time p) (square.left (Cylinder.point p)))) }
+      "=" {NextSuspension.quotient (ConeMap.apply (Cone.class p))} "by" { congr!{NextCone.Carrier NextSuspension.Carrier} NextSuspension.quotient _ _ (sym!{NextCone.Carrier} _ _ (ConeMap.onClass p)) }
+    });
+\definition connectingNatural: \forall (x: Carrier) -> NextConnecting.apply (apply x) = SuspensionMap.apply (Connecting.apply x) :=
+  Attached.induction (\fun (x: Carrier) => NextConnecting.apply (apply x) = SuspensionMap.apply (Connecting.apply x))
+    (\fun (x: B) => eq_reason_in!{NextSuspension.Carrier {NextConnecting.apply (apply (inclusion x))}
+      "=" {NextConnecting.apply (Next.inclusion (square.right x))} "by" { congr!{Next.Carrier NextSuspension.Carrier} NextConnecting.apply _ _ (onTarget x) }
+      "=" {NextSuspension.point} "by" { NextConnecting.onTarget (square.right x) }
+      "=" {SuspensionMap.apply Suspension.point} "by" { sym!{NextSuspension.Carrier} _ _
+        (algebraic_topology.Pointed[A := Suspension.Carrier].Maps[B := NextSuspension.Carrier].laws Suspension.pointed NextSuspension.pointed SuspensionMap.map).pointed }
+      "=" {SuspensionMap.apply (Connecting.apply (inclusion x))} "by" { congr!{Suspension.Carrier NextSuspension.Carrier} SuspensionMap.apply _ _ (sym!{Suspension.Carrier} _ _ (Connecting.onTarget x)) }
+    })
+    (\fun (c: Cone.Carrier) => eq_reason_in!{NextSuspension.Carrier {NextConnecting.apply (apply (cone c))}
+      "=" {NextConnecting.apply (Next.cone (ConeMap.apply c))} "by" { congr!{Next.Carrier NextSuspension.Carrier} NextConnecting.apply _ _ (onCone c) }
+      "=" {NextSuspension.quotient (ConeMap.apply c)} "by" { NextConnecting.onCone (ConeMap.apply c) }
+      "=" {SuspensionMap.apply (Suspension.quotient c)} "by" { sym!{NextSuspension.Carrier} _ _ (quotientNatural c) }
+      "=" {SuspensionMap.apply (Connecting.apply (cone c))} "by" { congr!{Suspension.Carrier NextSuspension.Carrier} SuspensionMap.apply _ _ (sym!{Suspension.Carrier} _ _ (Connecting.onCone c)) }
+    });

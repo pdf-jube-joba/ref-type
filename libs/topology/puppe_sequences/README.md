@@ -16,7 +16,9 @@
 `CW.Subcomplex.Extension` の空骨格とセル単位の拡張（初期値・低次骨格・部分複体上の指定値を保持）も accepted・終了0・保存失敗0。
 `CW.Subcomplex.homotopyExtension` と `CW.Subcomplex.cofibration` は、セルの重なり・骨格への貼り合わせ・有限段の帰納法を含め accepted・終了0・保存失敗0（`cw-cofibration.json`）。
 基点固定ホモトピー類 `Maps`、基点付き円錐 `ReducedCone`、mapping cone `Cone`、零ホモトピーからの延長と `Cone.Exactness.exact`（反変 Hom の基本三項）は accepted・終了0・保存失敗0（`cone-exactness.json`）。
-次は reduced suspension、cone の自然性、反復 cofiber・商との比較と Puppe 列全体へ進む。
+reduced suspension と接続写像、対の写像による cone・suspension の誘導写像、接続写像との可換性も実装済み。
+現時点の `puppe_sequences.Puppe` 全体は accepted・終了0・保存失敗0（`puppe-connecting-naturality.json`）。
+次は反復 cofiber・商との比較と Puppe 列全体、具体例・最終 workspace 検証へ進む。
 
 次は有限 CW 部分複体への拡張、基点付き mapping cone・reduced suspension の比較、自然性・商との比較・反変 Hom の完全性を依存順に証明する。
 共有キャッシュは `libs/refcache`。

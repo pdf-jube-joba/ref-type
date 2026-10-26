@@ -1,0 +1,31 @@
+\import \root.Puppe[].ReducedCone[A := B, source := target] \as Target;
+\import algebraic_topology.Cylinder[A := B] \as TargetCylinder;
+\import algebraic_topology.Pointed[A := A].Maps[B := B] \as Given;
+\import Quotient.Mapping[B := TargetCylinder.Carrier, targetSubset := Target.Collapsed] \as Descent;
+\definition raw[p: Cylinder.Carrier]: TargetCylinder.Carrier := TargetCylinder.at (Cylinder.time p) (f (Cylinder.point p));
+\definition preserves: Descent.Preserves raw := \fun (p: Cylinder.Carrier)(inside: \In[Cylinder.Carrier] Collapsed p) =>
+  either!{inside {\In[TargetCylinder.Carrier] Target.Collapsed (raw p)}
+    {\fun (top: Cylinder.time p = I.end) => Logic.Or[_, _]::left top}
+    {\fun (line: Cylinder.point p = source.basepoint) => Logic.Or[_, _]::right
+      (trans!{B} _ _ _ (congr!{A B} f _ _ line) (Given.laws source target f).pointed)}
+  };
+\import topological_constructions.Product[A := I.Carrier, B := B].Universal[X := Cylinder.Carrier] \as Product;
+\import topology.Composition[A := Cylinder.Carrier, B := A, C := B] \as Points;
+\definition rawContinuous: topology.Continuity[A := Cylinder.Carrier, B := TargetCylinder.Carrier].Continuous
+  (Cylinder.topology source.topology) (TargetCylinder.topology target.topology) raw :=
+  Product.pairContinuous (Cylinder.topology source.topology) I.topology target.topology Cylinder.time
+    (\fun (p: Cylinder.Carrier) => f (Cylinder.point p)) (Cylinder.timeContinuous source.topology)
+    (Points.composeContinuous (Cylinder.topology source.topology) source.topology target.topology Cylinder.point f
+      (Cylinder.pointContinuous source.topology) (Given.laws source target f).continuous);
+\definition apply: Carrier -> Target.Carrier := Descent.apply raw preserves;
+\definition onClass: \forall (p: Cylinder.Carrier) -> apply (class p) = Target.class (raw p) := Descent.onClass raw preserves;
+\definition onBase: \forall (x: A) -> apply (base x) = Target.base (f x) := \fun (x: A) => onClass (Cylinder.at I.start x);
+\definition continuous: topology.Continuity[A := Carrier, B := Target.Carrier].Continuous topology Target.topology apply :=
+  Descent.continuous (Cylinder.topology source.topology) (TargetCylinder.topology target.topology) raw preserves rawContinuous;
+\import algebraic_topology.Pointed[A := Carrier].Maps[B := Target.Carrier] \as Pointed;
+\definition map: Pointed.Map[pointed, Target.pointed] := \into[Carrier -> Target.Carrier](apply, Pointed.Map[pointed, Target.pointed]) \by {
+  Pointed.Laws[pointed, Target.pointed, apply] {
+    continuous := continuous,
+    pointed := trans!{Target.Carrier} _ _ _ (onBase source.basepoint) (congr!{B Target.Carrier} Target.base _ _ (Given.laws source target f).pointed),
+  }
+};
