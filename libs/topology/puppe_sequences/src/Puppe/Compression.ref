@@ -1,0 +1,37 @@
+\import algebraic_topology.Interval[] \as I;
+\import I.Halves[] \as Halves;
+\import real.Analysis[] \as Real;
+\import Real.Distance[] \as Distance;
+\import Real.Estimates[] \as Estimates;
+\import Real.Estimates[].Product[] \as Products;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import metric_spaces.RealLine[] \as Line;
+\import metric_spaces.RealFunctions[A := I.Carrier] \as Functions;
+\definition half: I.Carrier := Halves.lower I.end;
+\definition difference[u: I.Carrier]: Real.Real := Real.sub half u;
+\definition twice[u: I.Carrier]: Real.Real := Real.add (difference u) (difference u);
+\definition bound: \forall (u: I.Carrier) -> R.Le (twice u) Real.one := \fun (u: I.Carrier) =>
+  R.leReplaceRight _ (Real.add half half) Real.one (Halves.lowerDouble I.end)
+    (Estimates.addLe _ _ _ _ (\root.Puppe[].ConeTimes[t := I.end, u := u].differenceBound) (\root.Puppe[].ConeTimes[t := I.end, u := u].differenceBound));
+\definition apply[u: I.Carrier]: I.Carrier := \into[Real.Real](Distance.max (twice u) Real.zero, Line.ClosedInterval Real.zero Real.one) \by {
+  Logic.And[_, _]::# (Distance.maxRight (twice u) Real.zero) (Distance.maxLeast (twice u) Real.zero Real.one (bound u) (I.bounds I.start).right)
+};
+\definition onLow: \forall (u: I.Carrier)(low: R.Le u half) -> apply u = \root.Puppe[].ConeTimes[t := I.end, u := u].left low :=
+  \fun (u: I.Carrier)(low: _) => Distance.maxOfGe (twice u) Real.zero
+    (I.bounds (\root.Puppe[].ConeTimes[t := I.end, u := u].left low)).left;
+\definition onHigh: \forall (u: I.Carrier) -> R.Le half u -> apply u = I.start := \fun (u: I.Carrier)(high: _) =>
+  Distance.maxOfLe (twice u) Real.zero (R.leReplaceRight _ (Real.add Real.zero Real.zero) Real.zero (Laws.addZeroLeft Real.zero)
+    (Estimates.addLe _ _ _ _
+      (R.leReplaceRight _ (Real.sub u u) Real.zero (Laws.subSelf u) (Laws.addMonotoneRight half u (Real.neg u) high))
+      (R.leReplaceRight _ (Real.sub u u) Real.zero (Laws.subSelf u) (Laws.addMonotoneRight half u (Real.neg u) high))));
+\definition atStart: apply I.start = I.end := trans!{I.Carrier} _ _ _ (onLow I.start (I.bounds half).left)
+  (\root.Puppe[].ConeTimes[t := I.end, u := I.start].leftAtBottom (I.bounds half).left (\refl(I.start)));
+\definition atEnd: apply I.end = I.start := onHigh I.end (I.bounds half).right;
+\definition differenceContinuous: Functions.Continuous I.topology difference := Functions.subContinuous I.topology
+  (\fun (_: I.Carrier) => half) (\fun (u: I.Carrier) => u) (Functions.constantContinuous I.topology half) I.inclusionContinuous;
+\definition scalarContinuous: Functions.Continuous I.topology (\fun (u: I.Carrier) => apply u) :=
+  Functions.Lattice[].maximumContinuous I.topology twice (\fun (_: I.Carrier) => Real.zero)
+    (Functions.sumContinuous I.topology difference difference differenceContinuous differenceContinuous) (Functions.constantContinuous I.topology Real.zero);
+\definition continuous: topology.Continuity[A := I.Carrier, B := I.Carrier].Continuous I.topology I.topology apply :=
+  topology.Continuity[A := I.Carrier, B := Real.Real].Corestriction[S := Line.ClosedInterval Real.zero Real.one].corestrictContinuous I.topology Line.topology apply scalarContinuous;

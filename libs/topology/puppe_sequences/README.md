@@ -25,5 +25,7 @@ reduced suspension と接続写像、対の写像による cone・suspension の
 
 円錐反復の比較射影と二領域の変形は、連続性・端点・基点まで accepted・保存失敗0（`cone-iteration-raw.json`）。
 `Cone.Iteration.Inverse.equivalence` は反復 cofiber と reduced suspension の比較射影・逆写像・基点固定の両側ホモトピーを構成済みで、accepted・終了0・保存失敗0（`cone-iteration-equivalence.json`）。
-次はこの比較による Puppe 列の接続写像と完全性、具体例・最終検証。
+`Equivalence.Contravariant` の両側逆と `Cone.Iteration.Exactness.exact` による接続写像の位置の完全性も accepted・終了0・保存失敗0。
+`Compression` と `Suspension.TimeChange` は端点を交換する連続再パラメータ化とその基点固定ホモトピーを構成・検査済み。
+次は反復の次の接続写像と時間反転を伴う suspension 写像の比較、列全体・具体例・最終検証。
 共有キャッシュは `libs/refcache`。

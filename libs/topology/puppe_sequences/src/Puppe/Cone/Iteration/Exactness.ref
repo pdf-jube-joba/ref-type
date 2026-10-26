@@ -1,0 +1,46 @@
+\use Equality.eq_reason_in;
+\import \parent.Inverse[] \as Inverse;
+\import \root.Puppe[].Maps[A := Next.Carrier, B := C, source := Next.pointed, target := range] \as NextMaps;
+\import \root.Puppe[].Maps[A := Suspension.Carrier, B := C, source := Suspension.pointed, target := range] \as SuspensionMaps;
+\import \root.Puppe[].Maps[A := Carrier, B := C, source := pointed, target := range] \as ModelMaps;
+\import \root.Puppe[].Maps[A := B, B := C, source := target, target := range] \as TargetMaps;
+\import NextMaps.Precompose[C := Carrier, domain := pointed, f := Next.inclusionMap] \as Restriction;
+\import ModelMaps.Precompose[C := B, domain := target, f := inclusionMap] \as Pullback;
+\import SuspensionMaps.Precompose[C := Carrier, domain := pointed, f := Connecting.map] \as ConnectingPull;
+\import \root.Puppe[].Equivalence[A := Next.Carrier, B := Suspension.Carrier, source := Next.pointed, target := Suspension.pointed]
+  .Contravariant[C := C, range := range, e := Inverse.equivalence] \as Action;
+\import Next.Exactness[C := C, range := range] \as Basic;
+\import SuspensionMaps.Precompose[C := Next.Carrier, domain := Next.pointed, f := projectionMap] \as ComparisonPull;
+\definition restrictionNatural: \forall (x: SuspensionMaps.Class) -> Restriction.apply (Action.forward x) = ConnectingPull.apply x :=
+  SuspensionMaps.induction (\fun (x: SuspensionMaps.Class) => Restriction.apply (Action.forward x) = ConnectingPull.apply x)
+    (\fun (h: SuspensionMaps.Map) => eq_reason_in!{ModelMaps.Class {Restriction.apply (Action.forward (SuspensionMaps.class h))}
+      "=" {Restriction.apply (NextMaps.class (ComparisonPull.map h))} "by" { congr!{NextMaps.Class ModelMaps.Class} Restriction.apply _ _ (ComparisonPull.onClass h) }
+      "=" {ModelMaps.class (Restriction.map (ComparisonPull.map h))} "by" { Restriction.onClass (ComparisonPull.map h) }
+      "=" {ModelMaps.class (ConnectingPull.map h)} "by" { congr!{ModelMaps.Map ModelMaps.Class} ModelMaps.class _ _
+        (ModelMaps.ext (Restriction.map (ComparisonPull.map h)) (ConnectingPull.map h) (\fun (c: Carrier) => congr!{Suspension.Carrier C} h _ _ (onOriginal c))) }
+      "=" {ConnectingPull.apply (SuspensionMaps.class h)} "by" { sym!{ModelMaps.Class} _ _ (ConnectingPull.onClass h) }
+    });
+\definition imageInKernel: \forall (x: SuspensionMaps.Class) -> Pullback.apply (ConnectingPull.apply x) = TargetMaps.zero :=
+  \fun (x: SuspensionMaps.Class) => trans!{TargetMaps.Class} _ _ _
+    (congr!{ModelMaps.Class TargetMaps.Class} Pullback.apply _ _ (sym!{ModelMaps.Class} _ _ (restrictionNatural x))) (Basic.imageInKernel (Action.forward x));
+\definition kernelInImage: \forall (x: ModelMaps.Class) -> Pullback.apply x = TargetMaps.zero ->
+  \exists ( y: SuspensionMaps.Class \where ConnectingPull.apply y = x ) := \block {
+  \fun (x: ModelMaps.Class)(null: Pullback.apply x = TargetMaps.zero) \then
+  \takefrom j: \Cast[NextMaps.Class] ({ j: NextMaps.Class \where Restriction.apply j = x }) \by Basic.kernelInImage x null \then
+  \return Logic.existsIntro[SuspensionMaps.Class, { y: SuspensionMaps.Class \where ConnectingPull.apply y = x }] (Action.backward j)
+    (eq_reason_in!{ModelMaps.Class {ConnectingPull.apply (Action.backward j)}
+      "=" {Restriction.apply (Action.forward (Action.backward j))} "by" { sym!{ModelMaps.Class} _ _ (restrictionNatural (Action.backward j)) }
+      "=" {Restriction.apply j} "by" { congr!{NextMaps.Class ModelMaps.Class} Restriction.apply _ _ (Action.leftInverse j) }
+      "=" {x} "by" { \bysub(NextMaps.Class, { j: NextMaps.Class \where Restriction.apply j = x }, j) }
+    })
+};
+\definition exact[x: ModelMaps.Class]: Logic.PropEquiv[Pullback.apply x = TargetMaps.zero,
+  \exists ( y: SuspensionMaps.Class \where ConnectingPull.apply y = x )] := Logic.PropEquiv[_, _] {
+    ltr := kernelInImage x,
+    rtl := \block {
+      \fun (image: \exists ( y: SuspensionMaps.Class \where ConnectingPull.apply y = x )) \then
+      \takefrom y: \Cast[SuspensionMaps.Class] ({ y: SuspensionMaps.Class \where ConnectingPull.apply y = x }) \by image \then
+      \return trans!{TargetMaps.Class} _ _ _ (congr!{ModelMaps.Class TargetMaps.Class} Pullback.apply _ _
+        (sym!{ModelMaps.Class} _ _ (\bysub(SuspensionMaps.Class, { y: SuspensionMaps.Class \where ConnectingPull.apply y = x }, y)))) (imageInKernel y)
+    },
+  };
