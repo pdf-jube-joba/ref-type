@@ -1,0 +1,37 @@
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import Modules.Presentation[Generators := Triple] \as Expressions;
+\definition Expression: \Set := Expressions.Expression;
+\definition symbol[t: Triple]: Expression := Expressions.Expression::generator t;
+\inductive Relation: \forall (x, y: Expression) -> \Prop :=
+  | global: \forall (t: Triple) -> \parent.Global[t := t].Witness -> Relation (symbol t) Expressions.Expression::zero
+  | sum: \forall (t, u, v: Triple) -> \parent.Sum[t := t, u := u, v := v].Witness ->
+      Relation (Expressions.Expression::sum (symbol t) (symbol u)) (symbol v)
+  | compose: \forall (p, q, r: Presentation)(first: \parent.Between[p := p, q := q].Isomorphism)(second: \parent.Between[p := q, q := r].Isomorphism) ->
+      Relation (Expressions.Expression::sum (symbol (\parent.Compose[p := p, q := q, r := r, first := first, second := second].left))
+        (symbol (\parent.Compose[p := p, q := q, r := r, first := first, second := second].right)))
+        (symbol (\parent.Compose[p := p, q := q, r := r, first := first, second := second].triple))
+  | homotopy: \forall (p, q: Presentation)(first, second: \parent.Between[p := p, q := q].Isomorphism) ->
+      \parent.Homotopy[p := p, q := q, first := first, second := second].Family ->
+      Relation (symbol (\parent.Homotopy[p := p, q := q, first := first, second := second].left))
+        (symbol (\parent.Homotopy[p := p, q := q, first := first, second := second].right));
+\import Expressions.Of[relations := Relation] \as Presented;
+\import algebra.Quotient[A := Expression, relation := Presented.Equivalent] \as Quotient;
+\definition Carrier: \Set := Presented.Carrier;
+\definition value: Triple -> Carrier := Presented.generator;
+\definition zero: Carrier := Presented.zero;
+\definition add: Carrier -> Carrier -> Carrier := Presented.add;
+\definition neg: Carrier -> Carrier := Presented.neg;
+\definition group: std.Alg[].Alg[].CommutativeGroup[Carrier] := Modules.Laws[V := Carrier, space := Presented.space].additive;
+\definition relationEquality: \forall (x, y: Expression) -> Relation x y -> Presented.class x = Presented.class y :=
+  \fun (x, y: Expression)(related: _) => Quotient.classRelated Presented.equivalence x y (Presented.relationIncluded x y related);
+\definition globalZero: \forall (t: Triple) -> \parent.Global[t := t].Witness -> value t = zero :=
+  \fun (t: Triple)(global: _) => relationEquality (symbol t) Expressions.Expression::zero (Relation::global t global);
+\definition sum: \forall (t, u, v: Triple) -> \parent.Sum[t := t, u := u, v := v].Witness -> add (value t) (value u) = value v :=
+  \fun (t, u, v: Triple)(witness: _) => trans!{Carrier} _ _ _ (Presented.addClass (symbol t) (symbol u))
+    (relationEquality _ _ (Relation::sum t u v witness));
+\module Composition(p, q, r: Presentation, first: \parent.Between[p := p, q := q].Isomorphism, second: \parent.Between[p := q, q := r].Isomorphism);
+\module Homotopy(p, q: Presentation, first, second: \parent.Between[p := p, q := q].Isomorphism);
+\module Diagonal(p: Presentation);
+\module Inverse(t: Triple);

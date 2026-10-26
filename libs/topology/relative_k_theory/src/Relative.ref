@@ -12,13 +12,25 @@
 \import vector_bundles.Bundles[].Complex[] \as Scalar;
 \import vector_bundles.Bundles[].Over[K := C.Complex, field := Algebra.field, conjugation := Hermitian.scalar, scalar := Scalar.scalar] \as Bundles;
 \import bundle_operations.Operations[].Over[K := C.Complex, field := Algebra.field, conjugation := Hermitian.scalar, scalar := Scalar.scalar] \as Operations;
-\structure CompactPointed: \Set := {
-  Carrier: \Set,
-  topology: topology.Topology[Carrier := Carrier].Topology,
-  compact: topology.Topology[Carrier := Carrier].IsCompact topology,
-  hausdorff: topology.Topology[Carrier := Carrier].IsT2 topology,
-  point: Carrier
+\structure PointedDetails[X: \Set]: \Set := {
+  topology: topology.Topology[Carrier := X].Topology,
+  compact: topology.Topology[Carrier := X].IsCompact topology,
+  hausdorff: topology.Topology[Carrier := X].IsT2 topology,
+  point: X
 };
+\structure CompactPointed: \Set(1) := {
+  Carrier: \Set,
+  dataLift: \forall (X: \Set) -> (PointedDetails[Carrier] -> X) -> X
+};
+\definition details[model: CompactPointed]: PointedDetails[model.Carrier] := model.dataLift PointedDetails[model.Carrier] (\fun (d: PointedDetails[model.Carrier]) => d);
+\definition pack[X: \Set][data: PointedDetails[X]]: CompactPointed := CompactPointed {
+  Carrier := X, dataLift := \fun (Y: \Set)(f: PointedDetails[X] -> Y) => f data
+};
+\definition pointed[model: CompactPointed]: algebraic_topology.Pointed[A := model.Carrier].Space :=
+  algebraic_topology.Pointed[A := model.Carrier].Space { topology := (details model).topology, basepoint := (details model).point };
+\definition Map[source, target: CompactPointed]: \Set := algebraic_topology.Pointed[A := source.Carrier].Maps[B := target.Carrier].Map[pointed source, pointed target];
+\module Identity(model: CompactPointed);
+\module Composition(source, middle, target: CompactPointed, first: Map source middle, second: Map middle target);
 \module Reduced(model: CompactPointed);
 \module Suspension(original: CompactPointed);
 \definition iterate[n: N.Nat^][original: CompactPointed]: CompactPointed :=
@@ -31,3 +43,12 @@
   compact: topology.Topology[Carrier := X].IsCompact space,
   hausdorff: topology.Topology[Carrier := X].IsT2 space,
   subset: \Pow X, closed: topology.Topology[Carrier := X].IsClosedIn space subset);
+\module Pullback(source, target: CompactPointed, f: Map source target);
+\module SuspendedMap(source, target: CompactPointed, f: Map source target);
+\definition iterateMap[degree: N.Nat^][source, target: CompactPointed][f: Map source target]: Map (iterate degree source) (iterate degree target) :=
+  (\induction (degree: N.Nat^) \return Map (iterate degree source) (iterate degree target) \with {
+    | zero: f
+    | succ: \fun (n: N.Nat^)(previous: Map (iterate n source) (iterate n target)) =>
+      SuspendedMap[source := iterate n source, target := iterate n target, f := previous].map
+  }) degree;
+\module NegativeMap(source, target: CompactPointed, f: Map source target, degree: N.Nat^);
