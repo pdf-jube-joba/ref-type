@@ -1,0 +1,38 @@
+\definition Point: \Set := Fin.Fin KTheory.one;
+\import topology.Topology[Carrier := Point] \as PointSpace;
+\import KTheory.FiniteDiscrete[n := KTheory.one] \as FinitePoint;
+\definition distinguished: Point := Fin.zero KTheory.zero;
+\import topological_constructions.Coproduct[A := X, B := Point] \as Sum;
+\import Sum.Properties[left := space, right := PointSpace.Discrete] \as SumProperties;
+\definition Augmented: \Set := Sum.Carrier;
+\definition augmentedSpace: topology.Topology[Carrier := Augmented].Topology := SumProperties.space;
+\definition collapsedPart: \Pow Augmented := SumProperties.Joined subset PointSpace.Whole;
+\import topology.Topology[Carrier := Augmented] \as AugmentedSpace;
+\definition augmentedCompact: AugmentedSpace.IsCompact augmentedSpace := SumProperties.compact compact FinitePoint.compact;
+\definition augmentedHausdorff: AugmentedSpace.IsT2 augmentedSpace := SumProperties.hausdorff hausdorff FinitePoint.hausdorff;
+\definition collapsedClosed: AugmentedSpace.IsClosedIn augmentedSpace collapsedPart := Logic.And[_, _]::# closed
+  (PointSpace.discreteOpen ({ y: Point \where Logic.Not (y = y) }));
+\import algebraic_topology.Collapse[A := Augmented, subset := collapsedPart] \as Native;
+\import Native.Closed[source := augmentedSpace, compact := augmentedCompact, hausdorff := augmentedHausdorff, closed := collapsedClosed] \as Properties;
+\definition Carrier: \Set := Native.Carrier;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Native.topology augmentedSpace;
+\definition quotientCompact: topology.Topology[Carrier := Carrier].IsCompact topology := Properties.compactQuotient;
+\definition quotientHausdorff: topology.Topology[Carrier := Carrier].IsT2 topology := Properties.hausdorffQuotient;
+\definition point: Carrier := Native.class (Sum.inr distinguished);
+\definition pointed: algebraic_topology.Pointed[A := Carrier].Space := algebraic_topology.Pointed[A := Carrier].Space { topology := topology, basepoint := point };
+\definition projection[x: X]: Carrier := Native.class (Sum.inl x);
+\definition onSubset: \forall (x: A) -> projection x = point := \fun (x: A) => Native.collapsed (Sum.inl x) (Sum.inr distinguished)
+  (\bysub(X, subset, x)) (\refl(distinguished));
+\definition continuous: topology.Continuity[A := X, B := Carrier].Continuous space topology projection :=
+  topology.Composition[A := X, B := Augmented, C := Carrier].composeContinuous space augmentedSpace topology Sum.inl Native.class
+    (Sum.inlContinuous space PointSpace.Discrete) (Native.projectionContinuous augmentedSpace);
+\import KTheory.On[X := Carrier, baseSpace := topology, compact := quotientCompact, hausdorff := quotientHausdorff] \as K;
+\import K.Ranks[].Reduced[point := point] \as Reduced;
+\definition Relative: \Set := Reduced.Carrier;
+\definition group: std.Alg[].Alg[].CommutativeGroup[Relative] := Reduced.group;
+\definition model: CompactPointed := CompactPointed { Carrier := Carrier, topology := topology, compact := quotientCompact, hausdorff := quotientHausdorff, point := point };
+\module Negative(degree: N.Nat^) {
+  \import \root.Relative[].Negative[original := model, degree := degree] \as Native;
+  \definition Carrier: \Set := Native.Carrier;
+  \definition group: std.Alg[].Alg[].CommutativeGroup[Carrier] := Native.group;
+}
