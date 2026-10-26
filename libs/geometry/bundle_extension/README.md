@@ -9,7 +9,7 @@
 - `Real.Matrices`・`Complex.Matrices` は有限矩形行列を成分ごとに延長する。
 - `Real.Square`・`Complex.Square` は可逆行列を開近傍へ延長し、`Near` で逆行列の連続性と閉部分空間上の制限式を与える。
 - K06 の `Circle.At.domainOff`・`At.Neighborhood.open` は単位円上のスペクトルを避ける領域の開性を与える。
-- `Spectral.At.ProjectionRecovery` では冪等写像から作る \(2(I-P)\) のスペクトル射影が元の \(P\) に戻ることを証明中である。
+- `Spectral.At.ProjectionRecovery` は複素冪等写像から作る \(2(I-P)\) のスペクトル射影が元の \(P\) に戻ることを証明する。
 - `Complex.Spectral` はこの領域へ行列を制限し、K06 のスペクトル射影と像束へ接続する。
 - `Sections.Through`・`RealSections.extend`・`ComplexSections.extend` は有限埋め込み、座標の Tietze 延長、束への射影を組み合わせて切断を延長する。
 - `Examples` は一点空間上の実・複素恒等行列に次元0と1で適用する。
@@ -27,13 +27,15 @@ CLI は `source /workspace/ref-type-env.sh` 後の `cargo build -p cli --locked`
 | `bundle_extension.Extension.Real.Components` | 443（19 checked、424 reused） | 0 |
 | `bundle_extension.Extension.Real` | 489（44 checked、445 reused） | 0 |
 | `bundle_extension.Extension.Complex` | 957（295 checked、662 reused） | 未取得 |
+| `spectral_splitting.Spectral.At.ProjectionRecovery` | 609（31 checked、578 reused） | 0 |
 
 両検査ともキャッシュ保存失敗・worker 復旧・重複・再実行・未保存ステップは0。
 レポートは `work/b09-resume/real-components.json` と `real-entry.json`、ログ・レポート・snapshot は追跡しない。
 実数値の入口は `beeaefaac7ff31e64e34d2f28a199285f4fa2dd4` までのソースで検証済み。
 複素入口とスペクトル領域の開性・像束はレポートが accepted、キャッシュ保存失敗0である。
 実行セッションが失効したため複素入口のシェル終了コードは未取得であり、後続の package 全体検査で改めて確認する。
-`ProjectionRecovery`、切断の延長、今回の利用例と package・workspace 全体は検査待ち。
+`ProjectionRecovery` は `ab5afe450b4649561dbc7bd60281e5fde9dde57f` で型検査が通り、保存失敗・復旧・重複・再実行・未保存ステップは0。
+切断の延長、今回の利用例と package・workspace 全体は検査待ち。
 初回の実成分検査の中断終了130、および宣言順・親参照・型推論の修正前の失敗は上記成功検査で解消した。
 
 残件は一般の実・複素射影表示の近傍への延長と元の束との比較、束写像・同型の延長、安定化と縮小による比較、自然性、具体例、公開 API・登録・ロードマップ・下流リンクと全体検証。
