@@ -25,5 +25,7 @@ K02 は公開入口・依存閉包・例393モジュール、および workspace
 `Real.Square`・`Complex.Square` に可逆行列の近傍への延長と連続な逆行列を追加した。
 `Complex.Spectral` は単位円上のスペクトルを避ける行列族を開近傍へ延長し、K06 のスペクトル射影と像束へ接続する。
 K06 の `Circle.At.domainOff` と `At.Neighborhood.open` も追加したが、これらを含め今回の数学変更はすべて検査待ちである。
+一点空間上の実・複素恒等行列（次元0と1）の延長を `Extension.Examples` に追加した。
+`Square.Near` では近傍から閉部分空間への制限について、行列と逆行列の一致も公開する。
 既存 CLI は現在の引数形式に対応しない古い版だったため、`source /workspace/ref-type-env.sh` 後に `cargo build -p cli --locked` でビルドしている。
 次は新しい CLI で追加入口と依存閉包を検査し、行列から束への延長を続ける。
