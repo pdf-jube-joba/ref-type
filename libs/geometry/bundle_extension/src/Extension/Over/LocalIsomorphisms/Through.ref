@@ -1,0 +1,43 @@
+\import Shrinking.With[w := w] \as Compact;
+\definition ClosedPoint: \Set := Compact.Point;
+\definition closedSpace: topology.Topology[Carrier := ClosedPoint].Topology := Compact.space;
+\definition toOpen[x: ClosedPoint]: OpenPoint := Compact.toOpen x;
+\definition sourceRegular: topology.Continuity[A := ClosedPoint, B := OpenPoint].Continuous closedSpace source.baseSpace toOpen :=
+  \idelim openSpace = source.baseSpace \with t: topology.Topology[Carrier := OpenPoint].Topology => topology.Continuity[A := ClosedPoint, B := OpenPoint].Continuous closedSpace t toOpen \by {
+    base: Compact.toOpenContinuous, equality: sym!{{topology.Topology[Carrier := OpenPoint].Topology}} _ _ sameSource
+  };
+\definition targetRegular: topology.Continuity[A := ClosedPoint, B := OpenPoint].Continuous closedSpace target.baseSpace toOpen :=
+  \idelim openSpace = target.baseSpace \with t: topology.Topology[Carrier := OpenPoint].Topology => topology.Continuity[A := ClosedPoint, B := OpenPoint].Continuous closedSpace t toOpen \by {
+    base: Compact.toOpenContinuous, equality: sym!{{topology.Topology[Carrier := OpenPoint].Topology}} _ _ sameTarget
+  };
+\import Bundles.Family[X := OpenPoint, F := F].Of[bundle := source].Pullback[Y := ClosedPoint, source := closedSpace, f := toOpen] \as SourceClosed;
+\import Bundles.Family[X := OpenPoint, F := G].Of[bundle := target].Pullback[Y := ClosedPoint, source := closedSpace, f := toOpen] \as TargetClosed;
+\definition first: Bundles.Family[X := ClosedPoint, F := (\fun (x: ClosedPoint) => F (toOpen x))].Bundle := SourceClosed.pulled sourceRegular;
+\definition second: Bundles.Family[X := ClosedPoint, F := (\fun (x: ClosedPoint) => G (toOpen x))].Bundle := TargetClosed.pulled targetRegular;
+\definition closedSubset: \Pow ClosedPoint := { x: ClosedPoint \where Base.Member subset x };
+\import \parent.\parent.Isomorphisms[X := ClosedPoint, subset := closedSubset, F := (\fun (x: ClosedPoint) => F (toOpen x)), G := (\fun (x: ClosedPoint) => G (toOpen x)), source := first, target := second, same := \refl(closedSpace)] \as Reduced;
+\definition SmallPoint: \Set := \Cast[ClosedPoint] closedSubset;
+\definition smallSpace: topology.Topology[Carrier := SmallPoint].Topology := topology.Topology[Carrier := ClosedPoint].Subspace[S := closedSubset].topology closedSpace;
+\definition inclusion[x: SmallPoint]: ClosedPoint := x;
+\definition inclusionContinuous: topology.Continuity[A := SmallPoint, B := ClosedPoint].Continuous smallSpace closedSpace inclusion :=
+  topology.Continuity[A := SmallPoint, B := ClosedPoint].Corestriction[S := closedSubset].inclusionContinuous closedSpace;
+\definition OriginalPoint: \Set := \Cast[OpenPoint] boundary;
+\definition originalSpace: topology.Topology[Carrier := OriginalPoint].Topology := topology.Topology[Carrier := OpenPoint].Subspace[S := boundary].topology source.baseSpace;
+\definition boundaryMap[x: SmallPoint]: OriginalPoint := \into[OpenPoint](toOpen x, boundary) \by { \bysub(ClosedPoint, closedSubset, x) };
+\definition boundaryContinuous: topology.Continuity[A := SmallPoint, B := OriginalPoint].Continuous smallSpace originalSpace boundaryMap :=
+  topology.Continuity[A := SmallPoint, B := OpenPoint].Corestriction[S := boundary].corestrictContinuous smallSpace source.baseSpace boundaryMap
+    (topology.Composition[A := SmallPoint, B := ClosedPoint, C := OpenPoint].composeContinuous smallSpace closedSpace source.baseSpace inclusion toOpen inclusionContinuous sourceRegular);
+\definition OriginalFirst: Bundles.Family[X := OriginalPoint, F := (\fun (x: OriginalPoint) => F x)].Bundle := Original.firstRestriction;
+\definition OriginalSecond: Bundles.Family[X := OriginalPoint, F := (\fun (x: OriginalPoint) => G x)].Bundle := Original.secondRestriction;
+\module SourceComparison;
+\module TargetComparison;
+\import Complements.PulledIsomorphism[X := OriginalPoint, Y := SmallPoint, F := (\fun (x: OriginalPoint) => F x), G := (\fun (x: OriginalPoint) => G x), source := OriginalFirst, target := OriginalSecond,
+  base := smallSpace, f := boundaryMap, sourceRegular := boundaryContinuous, targetRegular := boundaryContinuous] \as Pullback;
+\import bundle_operations.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar] \as Operations;
+\definition reduced: Reduced.OnSubset :=
+  Operations.IsomorphismComposition[X := SmallPoint, F := (\fun (x: SmallPoint) => F (toOpen x)), G := (\fun (x: SmallPoint) => F (toOpen x)), H := (\fun (x: SmallPoint) => G (toOpen x)),
+    source := SourceComparison.closed, middle := SourceComparison.original, target := TargetComparison.closed].compose SourceComparison.comparison
+    (Operations.IsomorphismComposition[X := SmallPoint, F := (\fun (x: SmallPoint) => F (toOpen x)), G := (\fun (x: SmallPoint) => G (toOpen x)), H := (\fun (x: SmallPoint) => G (toOpen x)),
+      source := SourceComparison.original, middle := TargetComparison.original, target := TargetComparison.closed].compose (Pullback.isomorphism a)
+      (Bundles.Isomorphisms[X := SmallPoint, F := (\fun (x: SmallPoint) => G (toOpen x)), G := (\fun (x: SmallPoint) => G (toOpen x)), source := TargetComparison.closed, target := TargetComparison.original].inverse TargetComparison.comparison));
+\module WithExtension(e: Reduced.Extension[reduced]);

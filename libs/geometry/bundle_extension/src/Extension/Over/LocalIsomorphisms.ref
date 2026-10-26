@@ -1,0 +1,23 @@
+\import topology.Topology[Carrier := X] \as Base;
+\definition OpenPoint: \Set := \Cast[X] U;
+\definition openSpace: topology.Topology[Carrier := OpenPoint].Topology := Base.Subspace[S := U].topology topology;
+\definition boundary: \Pow OpenPoint := { x: OpenPoint \where Base.Member subset x };
+\definition sameBase: source.baseSpace = target.baseSpace := trans!{{topology.Topology[Carrier := OpenPoint].Topology}} _ _ _ sameSource (sym!{{topology.Topology[Carrier := OpenPoint].Topology}} _ _ sameTarget);
+\import \parent.Isomorphisms[X := OpenPoint, subset := boundary, F := F, G := G, source := source, target := target, same := sameBase] \as Original;
+\definition OnSubset: \Set := Original.OnSubset;
+\structure Domain: \Set := {
+  value: \Pow X,
+  open: Base.IsOpenIn topology value,
+  contains: Base.Subset subset value,
+  within: Base.Subset value U,
+};
+\module Neighborhood(d: Domain);
+\structure Extension[a: OnSubset]: \Set := {
+  neighborhood: Domain,
+  isomorphism: Neighborhood[d := neighborhood].Isomorphism,
+  extends: \forall (x: \Cast[X] subset)(v: F (\into[X](x, U) \by { inside x (\bysub(X, subset, x)) })) ->
+    (isomorphism.forward.fiber (\into[X](x, neighborhood.value) \by { neighborhood.contains x (\bysub(X, subset, x)) })).apply v =
+    (a.forward.fiber (\into[OpenPoint](\into[X](x, U) \by { inside x (\bysub(X, subset, x)) }, boundary) \by { \bysub(X, subset, x) })).apply v,
+};
+\import \root.Extension[].CompactNeighborhood[X := X, topology := topology, subset := subset, U := U] \as Shrinking;
+\module Through(a: OnSubset, w: Shrinking.Witness);

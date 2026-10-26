@@ -53,7 +53,9 @@ CLI は `source /workspace/ref-type-env.sh` 後の `cargo build -p cli --locked`
 `RealIsomorphisms.extend` と共通の同型延長構成は終了0・651 module（44 checked、607 reused）で検証済み。
 共通底位相への `RealMaps` の拡張もこの依存検査に含む。
 キャッシュ保存失敗・worker 復旧・重複・再実行・未保存ステップは0。
-複素版入口、同型の引き戻し・安定化、および `CompactNeighborhood` の閉近傍への縮小と開近傍への持ち上げは検査待ち。
+`ad41f1c14fdb4dbb88b91aed23c26cb2cb054454` の全公開入口は終了0・831 module（91 checked、740 reused）。
+実・複素版、同型の引き戻し・安定化、`CompactNeighborhood` の縮小と持ち上げを含み、キャッシュ保存失敗・worker 復旧・重複・再実行・未保存ステップは0。
+引き戻しの比較を一段の引き戻しへ整理する変更と、開近傍上の同型を縮小して延長する `RealLocalIsomorphisms`・`ComplexLocalIsomorphisms` は未検証。
 package・workspace 全体の検査も残る。
 初回の実成分検査の中断終了130、および宣言順・親参照・型推論の修正前の失敗は上記成功検査で解消した。
 
