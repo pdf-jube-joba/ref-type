@@ -87,5 +87,7 @@ target/debug/cli libs/geometry/bundle_extension --memory-mib 10240 --cache-dir l
 target/debug/cli libs --memory-mib 10240 --cache-dir libs/refcache --cache-budget-mib 12288 --cache-stats --diagnostics compact --report-json work/b09-resume/workspace.json
 ```
 
-snapshot・キャッシュ・ログ・レポートは追跡しない。
-CLI は `source /workspace/ref-type-env.sh` 後の `cargo build -p cli --locked` でビルド済み（終了0）。
+CLI は `cargo build -p cli --locked` でビルド済み（終了0）。
+
+検査開始後、`Over.Idempotents` の末尾の余分な空行を整えた。
+固定 snapshot の検査後、現在のソースとの一致を改めて確認する。
