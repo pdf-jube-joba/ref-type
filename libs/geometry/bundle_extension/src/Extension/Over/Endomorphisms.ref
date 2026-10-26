@@ -1,0 +1,43 @@
+\import topology.Topology[Carrier := X] \as Base;
+\definition topology: Base.Topology := bundle.baseSpace;
+\definition n: N.Nat^ := embedding.dimension;
+\import \parent.Retraction[X := X, F := F, bundle := bundle, embedding := embedding] \as Retraction;
+\import Complements.For[X := X, F := F, bundle := bundle].FromEmbedding[embedding := embedding].Image[] \as Image;
+\import Complements.Idempotents[n := n] \as Idempotents;
+\definition P[x: X]: Idempotents.Projection := Idempotents.Projection { map := (Image.projection x).map, idempotent := (Image.projection x).idempotent };
+\import Spaces.Linear[V := Bundles.Vector n, W := Bundles.Vector n, source := Bundles.coordinates n, target := Bundles.coordinates n] \as End;
+\import End.Operations[] \as EndOperations;
+\import Hermitian.At[n := n].Families[X := X] \as Vectors;
+\import Vectors.Matrix[m := n] \as Matrices;
+\import Hermitian.At[n := n].Square[] \as Square;
+\import matrix_invariants.Field[K := K, field := field].At[n := n] \as Inversion;
+\import Bundles.Family[X := X, F := F] \as Family;
+\import Bundles.Trivial[X := X, n := n, baseSpace := topology] \as Ambient;
+\import Bundles.Family[X := X, F := \fun (_: X) => Bundles.Vector n] \as AmbientFamily;
+\import Bundles.Morphisms[X := X, Y := X, F := \fun (_: X) => Bundles.Vector n, G := F, source := Ambient.bundle, target := bundle, f := \fun (x: X) => x] \as Project;
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := F, source := bundle, target := bundle, f := \fun (x: X) => x] \as OriginalMaps;
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := \fun (_: X) => Bundles.Vector n, source := bundle, target := Ambient.bundle, f := \fun (x: X) => x] \as Include;
+\module At(x: X);
+\definition encoded[x: X]: End.Map := At[x := x].encoded;
+\definition complement[x: X]: Idempotents.Projection := Idempotents.With[P := P x].complement;
+\definition full[x: X]: End.Map := EndOperations.plus (encoded x) (complement x).map;
+\module Algebra(x: X);
+\module Column(v: Bundles.Vector n);
+\definition encodedRegular: Matrices.Regular topology encoded := \fun (v: Bundles.Vector n) => Column[v := v].continuous;
+\definition complementRegular: Matrices.Regular topology (\fun (x: X) => (complement x).map) :=
+  \fun (v: Bundles.Vector n) => Vectors.addition topology (\fun (_: X) => v)
+    (\fun (x: X) => (Bundles.coordinates n).neg ((P x).map.apply v)) (Vectors.constant topology v)
+    (Vectors.negative topology (\fun (x: X) => (P x).map.apply v) (Image.regular v));
+\definition regular: Matrices.Regular topology full := \fun (v: Bundles.Vector n) => Vectors.addition topology
+  (\fun (x: X) => (encoded x).apply v) (\fun (x: X) => (complement x).map.apply v) (encodedRegular v) (complementRegular v);
+\definition domain: \Pow X := { x: X \where Inversion.Nonzero (Square.entries (full x)) };
+\definition open: Base.IsOpenIn topology domain := Square.Families[X := X].nonsingularOpen topology
+  (\fun (x: X) => Square.entries (full x)) (\fun (i, j: Fin.Fin n) => regular (linear_algebra.Hermitian[].Over[K := K, field := field, scalar := conjugation].Finite[n := n].basis j) i);
+\definition identityContains[subset: \Pow X][fixed: \forall (x: \Cast[X] subset)(v: F x) -> (t.fiber x).apply v = v]: Base.Subset subset domain :=
+  \fun (x: X)(member: Base.Member subset x) => \block {
+    \let point: \Cast[X] subset := \into[X](x, subset) \by { member } \then
+    \let identity: \forall (v: Bundles.Vector n) -> (full x).apply v = v := Algebra[x := x].identity (fixed point) \then
+    \return Square.LeftInverse[f := full x, g := full x,
+      left := (\fun (v: Bundles.Vector n) => trans!{{Bundles.Vector n}} _ _ _ (identity ((full x).apply v)) (identity v))].nonzero
+  };
+\module Near;

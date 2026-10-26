@@ -1,0 +1,24 @@
+\import Spaces.Laws[V := Bundles.Vector n, space := Bundles.coordinates n] \as VectorLaws;
+\import Spaces.Laws[V := F x, space := bundle.space x] \as FiberLaws;
+\definition inclusionProject[v: Bundles.Vector n]: (embedding.map.fiber x).apply ((Retraction.project.fiber x).apply v) = (P x).map.apply v :=
+  congr!{{Image.ImageFiber x} {Bundles.Vector n}} (\fun (w: Image.ImageFiber x) => w) _ _
+    (Image.isomorphism.rightInverse x ((Complements.Projection[X := X, n := n, baseSpace := topology, P := Image.projection, regular := Image.regular].projectMap.fiber x).apply v));
+\definition projectComplement[v: Bundles.Vector n]: (Retraction.project.fiber x).apply ((complement x).map.apply v) = (bundle.space x).zero :=
+  embedding.injective x _ _ (trans!{{Bundles.Vector n}} _ _ _ (inclusionProject ((complement x).map.apply v))
+    (trans!{{Bundles.Vector n}} _ _ _ (Idempotents.With[P := P x].annihilates v) (sym!{{Bundles.Vector n}} _ _ (embedding.map.fiber x).preservesZero)));
+\definition complementInclusion[v: F x]: (complement x).map.apply ((embedding.map.fiber x).apply v) = (Bundles.coordinates n).zero :=
+  trans!{{Bundles.Vector n}} _ _ _
+    (congr!{{Bundles.Vector n} {Bundles.Vector n}} (complement x).map.apply _ _ (sym!{{Bundles.Vector n}} _ _ (Image.Comparison[].At[x := x].fixed v)))
+    (Idempotents.With[P := P x].annihilatesRight ((embedding.map.fiber x).apply v));
+\definition fullInclusion[v: F x]: (full x).apply ((embedding.map.fiber x).apply v) = (embedding.map.fiber x).apply ((t.fiber x).apply v) :=
+  trans!{{Bundles.Vector n}} _ _ _ (congr!{{Bundles.Vector n} {Bundles.Vector n} {Bundles.Vector n}} (Bundles.coordinates n).add _ _ _ _
+    (congr!{{F x} {Bundles.Vector n}} (\fun (w: F x) => (embedding.map.fiber x).apply ((t.fiber x).apply w)) _ _ (Retraction.retraction x v))
+    (complementInclusion v)) (VectorLaws.zeroRight _);
+\definition projectFull[v: Bundles.Vector n]: (Retraction.project.fiber x).apply ((full x).apply v) = (t.fiber x).apply ((Retraction.project.fiber x).apply v) :=
+  trans!{{F x}} _ _ _ ((Retraction.project.fiber x).preservesAdd ((encoded x).apply v) ((complement x).map.apply v))
+    (trans!{{F x}} _ _ _ (congr!{{F x} {F x} {F x}} (bundle.space x).add _ _ _ _
+      (Retraction.retraction x ((t.fiber x).apply ((Retraction.project.fiber x).apply v))) (projectComplement v)) (FiberLaws.zeroRight _));
+\definition identity[fixed: \forall (v: F x) -> (t.fiber x).apply v = v][v: Bundles.Vector n]: (full x).apply v = v :=
+  trans!{{Bundles.Vector n}} _ _ _ (congr!{{Bundles.Vector n} {Bundles.Vector n}} (\fun (w: Bundles.Vector n) => (Bundles.coordinates n).add w ((complement x).map.apply v)) _ _
+    (trans!{{Bundles.Vector n}} _ _ _ (congr!{{F x} {Bundles.Vector n}} (embedding.map.fiber x).apply _ _ (fixed ((Retraction.project.fiber x).apply v))) (inclusionProject v)))
+    (Idempotents.With[P := P x].splitting v);

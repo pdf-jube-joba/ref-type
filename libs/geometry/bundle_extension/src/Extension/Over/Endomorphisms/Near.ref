@@ -1,0 +1,35 @@
+\definition Point: \Set := \Cast[X] domain;
+\import Base.Subspace[S := domain] \as Subspace;
+\definition space: topology.Topology[Carrier := Point].Topology := Subspace.topology topology;
+\definition inclusion[x: Point]: X := x;
+\definition continuous: topology.Continuity[A := Point, B := X].Continuous space topology inclusion :=
+  topology.Continuity[A := Point, B := X].Corestriction[S := domain].inclusionContinuous topology;
+\import Family.Of[bundle := bundle].Pullback[Y := Point, source := space, f := inclusion] \as Pulled;
+\definition restricted: Bundles.Family[X := Point, F := (\fun (x: Point) => F x)].Bundle := Pulled.pulled continuous;
+\import Bundles.Family[X := Point, F := (\fun (x: Point) => F x)] \as RestrictedFamily;
+\import Bundles.Morphisms[X := Point, Y := Point, F := (\fun (x: Point) => F x), G := (\fun (x: Point) => F x), source := restricted, target := restricted, f := \fun (x: Point) => x] \as Maps;
+\definition forward: Maps.Map := Bundles.ArrowLaws[X := X, Y := X, F := F, G := F, source := bundle, target := bundle, f := \fun (x: X) => x].Pullback[Z := Point, space := space, g := inclusion].Of[a := t, regular := continuous].map;
+\definition matrix[x: Point]: Inversion.Nonsingular := \into[matrix_invariants.Ring[K := K, scalars := Fields.fieldAsCommutativeRing K field].At[n := n].Matrix](Square.entries (full x), Inversion.Nonsingular) \by { \bysub(X, domain, x) };
+\definition inverse[x: Point]: End.Map := Square.Inverse[A := matrix x].value;
+\definition left[x: Point][v: Bundles.Vector n]: (inverse x).apply ((full x).apply v) = v := trans!{{Bundles.Vector n}} _ _ _
+  (congr!{{Bundles.Vector n} {Bundles.Vector n}} (inverse x).apply _ _ (sym!{{Bundles.Vector n}} _ _ (congr!{{End.Map} {Bundles.Vector n}} (\fun (f: End.Map) => f.apply v) _ _
+    (matrix_invariants.Ring[K := K, scalars := Fields.fieldAsCommutativeRing K field].At[n := n].Representation[].linearEntries (full x)))))
+  (Square.Inverse[A := matrix x].left v);
+\definition right[x: Point][v: Bundles.Vector n]: (full x).apply ((inverse x).apply v) = v := trans!{{Bundles.Vector n}} _ _ _
+  (sym!{{Bundles.Vector n}} _ _ (congr!{{End.Map} {Bundles.Vector n}} (\fun (f: End.Map) => f.apply ((inverse x).apply v)) _ _
+    (matrix_invariants.Ring[K := K, scalars := Fields.fieldAsCommutativeRing K field].At[n := n].Representation[].linearEntries (full x))))
+  (Square.Inverse[A := matrix x].right v);
+\definition inverseRegular: Hermitian.At[n := n].Families[X := Point].Matrix[m := n].Regular space inverse :=
+  Square.Families[X := Point].inverseMaps space matrix (\fun (i, j: Fin.Fin n) => topology.Continuity[A := X, B := K].Restriction[S := domain].restrictContinuous topology scalar.topological.space
+    (\fun (x: X) => Square.entries (full x) i j) (regular (linear_algebra.Hermitian[].Over[K := K, field := field, scalar := conjugation].Finite[n := n].basis j) i));
+\definition inverseLeft[x: Point][v: Bundles.Vector n]: (inverse x).apply ((full x).apply v) = v := left x v;
+\definition inverseRight[x: Point][v: Bundles.Vector n]: (full x).apply ((inverse x).apply v) = v := right x v;
+\definition inclusionContinuous: topology.Continuity[A := Point, B := X].Continuous space topology inclusion := continuous;
+\module At(x: Point);
+\definition backwardData: Maps.Data := Maps.Data { fiber := \fun (x: Point) => At[x := x].backward };
+\module Continuity;
+\definition backward: Maps.Map := \into[Maps.Data](backwardData, Maps.Map) \by { Continuity[].continuous };
+\definition isomorphism: Bundles.Isomorphisms[X := Point, F := (\fun (x: Point) => F x), G := (\fun (x: Point) => F x), source := restricted, target := restricted].Isomorphism :=
+  Bundles.Isomorphisms[X := Point, F := (\fun (x: Point) => F x), G := (\fun (x: Point) => F x), source := restricted, target := restricted].Isomorphism {
+    forward := forward, backward := backward, leftInverse := \fun (x: Point) => At[x := x].left, rightInverse := \fun (x: Point) => At[x := x].right,
+  };

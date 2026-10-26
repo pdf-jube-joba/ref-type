@@ -45,7 +45,10 @@ CLI は `source /workspace/ref-type-env.sh` 後の `cargo build -p cli --locked`
 `RealLinear` は終了0・628 module、`RealBundleExtension` は終了0・821 module（141 checked、680 reused）で検証済み。
 両検査のキャッシュ保存失敗・worker 復旧・重複・再実行・未保存ステップは0。
 実射影の延長と実束との比較を公開する `RealProjections`・`RealBundleExtension` が使える。
-束写像の延長に必要な有限矩形行列と埋め込みのレトラクションによる構成を `Over` に追加中で、これは未検証。
+`RealMaps.extend` と共通の `Over.Morphisms` は終了0・626 module（32 checked、594 reused）で検証済み。
+キャッシュ保存失敗・worker 復旧・重複・再実行・未保存ステップは0。
+`ComplexMaps` は同じ共通構成へ複素 Tietze を接続するが、単独入口の検査は未実施。
+同型延長に使う `Over.Endomorphisms` の可逆近傍を追加中で、これは未検証。
 package・workspace 全体の検査も残る。
 初回の実成分検査の中断終了130、および宣言順・親参照・型推論の修正前の失敗は上記成功検査で解消した。
 
