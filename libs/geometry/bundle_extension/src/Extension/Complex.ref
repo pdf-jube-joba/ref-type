@@ -1,0 +1,38 @@
+\import complex.Complex[] \as C;
+\import C.Prop[] \as ComplexLaws;
+\import topological_algebra.Complex[] \as Scalars;
+\import topology.Topology[Carrier := A] \as Space;
+\import Space.Subspace[S := subset] \as Subspace;
+\import topology.Continuity[A := A, B := C.Complex] \as Maps;
+\import topology.Continuity[A := Subspace.CarrierSet, B := C.Complex] \as SubMaps;
+\import Scalars.Functions[A := Subspace.CarrierSet] \as SubFunctions;
+\import \root.Extension[].Real[A := A, source := source, subset := subset] \as Reals;
+\import topological_constructions.Product[A := R.Real, B := R.Real].Universal[X := A] \as Pairing;
+\structure Function: \Set := {
+  value: Subspace.CarrierSet -> C.Complex,
+  continuous: SubMaps.Continuous (Subspace.topology source) Scalars.topology value,
+};
+\structure Extension[f: Function]: \Set := {
+  value: A -> C.Complex,
+  continuous: Maps.Continuous source Scalars.topology value,
+  extends: \forall (x: Subspace.CarrierSet) -> value x = f.value x,
+};
+\definition realPart[f: Function]: Reals.Function := Reals.Function {
+  value := \fun (x: Subspace.CarrierSet) => C.re (f.value x),
+  continuous := SubFunctions.realContinuous (Subspace.topology source) f.value f.continuous,
+};
+\definition imaginaryPart[f: Function]: Reals.Function := Reals.Function {
+  value := \fun (x: Subspace.CarrierSet) => C.im (f.value x),
+  continuous := SubFunctions.imaginaryContinuous (Subspace.topology source) f.value f.continuous,
+};
+\definition tietze[f: Function]: Space.IsCompact source -> Space.IsT2 source -> Space.IsClosedIn source subset -> \exists Extension[f] := \block {
+  \fun (compact: _)(hausdorff: _)(closed: _) \then
+  \takefrom re: Reals.Extension[realPart f] \by Reals.tietze (realPart f) compact hausdorff closed \then
+  \takefrom im: Reals.Extension[imaginaryPart f] \by Reals.tietze (imaginaryPart f) compact hausdorff closed \then
+  \return \exact(Extension[f] {
+    value := \fun (x: A) => C.make (re.value x) (im.value x),
+    continuous := Pairing.pairContinuous source metric_spaces.RealLine[].topology metric_spaces.RealLine[].topology
+      re.value im.value re.continuous im.continuous,
+    extends := \fun (x: Subspace.CarrierSet) => ComplexLaws.ext (C.make (re.value x) (im.value x)) (f.value x) (re.extends x) (im.extends x),
+  }, Extension[f])
+};
