@@ -1,0 +1,26 @@
+\import \parent.Matrices[m := n, n := n] \as Entries;
+\import std.Alg[].Field[] \as Fields;
+\import matrix_invariants.Ring[K := R.Real, scalars := Fields.fieldAsCommutativeRing R.Real R.Algebra[].field].At[n := n] \as M;
+\import matrix_invariants.Field[K := R.Real, field := R.Algebra[].field].At[n := n] \as Inversion;
+\import hermitian_frames.Hermitian[].Over[K := R.Real, field := R.Algebra[].field, scalar := linear_algebra.Hermitian[].Real[].scalar, topological := hermitian_frames.Hermitian[].Real[].topological].At[n := n] \as Hermitian;
+\import Hermitian.Square[].Families[X := A] \as Families;
+\definition domain[f: Entries.Function][e: Entries.Extension[f]]: \Pow A := { x: A \where Inversion.Nonzero (e.value x) };
+\definition open[f: Entries.Function][e: Entries.Extension[f]]: Space.IsOpenIn source (domain f e) := Families.nonsingularOpen source e.value e.continuous;
+\definition contains[f: Entries.Function][e: Entries.Extension[f]]: (\forall (x: Subspace.CarrierSet) -> Inversion.Nonzero (f.value x)) -> Space.Subset subset (domain f e) :=
+  \fun (nonzero: _)(x: A)(inside: Space.Member subset x) => \block {
+    \let point: Subspace.CarrierSet := \into[A](x, subset) \by { inside } \then
+    \return \idelim f.value point = e.value point \with a: M.Matrix => Inversion.Nonzero a \by {
+      base: nonzero point, equality: sym!{M.Matrix} _ _ (e.extends point)
+    }
+  };
+\structure Witness[f: Entries.Function]: \Set := {
+  extension: Entries.Extension[f],
+  contains: Space.Subset subset (domain f extension),
+};
+\definition exists[f: Entries.Function]: Space.IsCompact source -> Space.IsT2 source -> Space.IsClosedIn source subset ->
+  (\forall (x: Subspace.CarrierSet) -> Inversion.Nonzero (f.value x)) -> \exists Witness[f] := \block {
+  \fun (compact: _)(hausdorff: _)(closed: _)(nonzero: _) \then
+  \takefrom e: Entries.Extension[f] \by Entries.tietze f compact hausdorff closed \then
+  \return \exact(Witness[f] { extension := e, contains := contains f e nonzero }, Witness[f])
+};
+\module Near(f: Entries.Function, e: Entries.Extension[f]);

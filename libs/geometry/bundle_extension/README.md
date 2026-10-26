@@ -22,5 +22,8 @@ K02 は公開入口・依存閉包・例393モジュール、および workspace
 束の延長と具体例、全体検証は未完了。K03 は未着手。
 
 今回の追加は `Real.Components`・`Complex.Components` の成分族の延長と、`Real.Matrices`・`Complex.Matrices` の有限矩形行列の延長であり、まだ未検証である。
+`Real.Square`・`Complex.Square` に可逆行列の近傍への延長と連続な逆行列を追加した。
+`Complex.Spectral` は単位円上のスペクトルを避ける行列族を開近傍へ延長し、K06 のスペクトル射影と像束へ接続する。
+K06 の `Circle.At.domainOff` と `At.Neighborhood.open` も追加したが、これらを含め今回の数学変更はすべて検査待ちである。
 既存 CLI は現在の引数形式に対応しない古い版だったため、`source /workspace/ref-type-env.sh` 後に `cargo build -p cli --locked` でビルドしている。
 次は新しい CLI で追加入口と依存閉包を検査し、行列から束への延長を続ける。
