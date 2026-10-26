@@ -1,0 +1,82 @@
+\import std.Data[].List[] \as Lists;
+\import complex.Complex[].Def[] \as Complex;
+\import complex.Complex[].Prop[] \as ComplexLaws;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := Fields.fieldAsCommutativeRing R.Real R.Algebra[].field] \as RS;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := Fields.fieldAsCommutativeRing C.Complex C.Algebra[].field] \as CS;
+\import RS.Coordinates[I := Fin.Fin n] \as Reals;
+\import CS.Coordinates[I := Fin.Fin n] \as Complexes;
+\import RS.FiniteCoordinates[n := n] \as RealBasis;
+\import CS.FiniteCoordinates[n := n] \as ComplexBasis;
+\import RS.Linear[V := Reals.Vector, W := Reals.Vector, source := Reals.space, target := Reals.space] \as RealEnd;
+\import CS.Linear[V := Complexes.Vector, W := Complexes.Vector, source := Complexes.space, target := Complexes.space] \as ComplexEnd;
+\import RealEnd.Composition[U := Reals.Vector, domain := Reals.space] \as RealCompose;
+\import matrix_invariants.Ring[K := R.Real, scalars := Fields.fieldAsCommutativeRing R.Real R.Algebra[].field].At[n := n] \as RM;
+\import matrix_invariants.Ring[K := C.Complex, scalars := Fields.fieldAsCommutativeRing C.Complex C.Algebra[].field].At[n := n] \as CM;
+\import RM.Representation[] \as RealRepresentation;
+\import RS.Sums[I := Fin.Fin n] \as RealSums;
+\import CS.Sums[I := Fin.Fin n] \as ComplexSums;
+\import ComplexSums.Prop[] \as SumLaws;
+\import spectral_splitting.Spectral[].Conjugation[].At[n := n] \as Conjugation;
+\definition RealVector: \Set := Reals.Vector;
+\definition ComplexVector: \Set := Complexes.Vector;
+\definition embed[v: RealVector]: ComplexVector := \fun (i: Fin.Fin n) => Complex.ofReal (v i);
+\definition parts[v: ComplexVector]: RealVector := \fun (i: Fin.Fin n) => C.re (v i);
+\definition partsEmbed[v: RealVector]: parts (embed v) = v := \axiom:funext(parts (embed v), v, \fun (i: Fin.Fin n) => \refl(v i));
+\definition embedAddition[v, w: RealVector]: embed (Reals.plus v w) = Complexes.plus (embed v) (embed w) :=
+  \axiom:funext(embed (Reals.plus v w), Complexes.plus (embed v) (embed w), \fun (i: Fin.Fin n) => ComplexLaws.ofRealAdd (v i) (w i));
+\definition embedScale[a: R.Real][v: RealVector]: embed (Reals.scale a v) = Complexes.scale (Complex.ofReal a) (embed v) :=
+  \axiom:funext(embed (Reals.scale a v), Complexes.scale (Complex.ofReal a) (embed v), \fun (i: Fin.Fin n) => ComplexLaws.ofRealMul a (v i));
+\definition embedConjugate[v: RealVector]: Conjugation.conjugate (embed v) = embed v :=
+  \axiom:funext(Conjugation.conjugate (embed v), embed v, \fun (i: Fin.Fin n) => ComplexLaws.conjOfReal (v i));
+\definition embedSum: \forall (xs: Lists.List[Fin.Fin n])(f: Fin.Fin n -> R.Real) ->
+  Complex.ofReal (RealSums.sum xs f) = ComplexSums.sum xs (\fun (i: Fin.Fin n) => Complex.ofReal (f i)) :=
+  \induction (xs: Lists.List[Fin.Fin n]) \return \forall (f: Fin.Fin n -> R.Real) ->
+    Complex.ofReal (RealSums.sum xs f) = ComplexSums.sum xs (\fun (i: Fin.Fin n) => Complex.ofReal (f i)) \with {
+    | nil: \fun (f: _) => \refl(Complex.zero)
+    | cons: \fun (i: Fin.Fin n)(tail: Lists.List[Fin.Fin n])(previous: _)(f: _) => trans!{{C.Complex}} _ _ _
+      (ComplexLaws.ofRealAdd (f i) (RealSums.sum tail f))
+      (congr!{{C.Complex} {C.Complex}} (CS.add (Complex.ofReal (f i))) _ _ (previous f))
+  };
+\definition conjugateSum: \forall (xs: Lists.List[Fin.Fin n])(f: Fin.Fin n -> C.Complex) ->
+  Complex.conj (ComplexSums.sum xs f) = ComplexSums.sum xs (\fun (i: Fin.Fin n) => Complex.conj (f i)) :=
+  \induction (xs: Lists.List[Fin.Fin n]) \return \forall (f: Fin.Fin n -> C.Complex) ->
+    Complex.conj (ComplexSums.sum xs f) = ComplexSums.sum xs (\fun (i: Fin.Fin n) => Complex.conj (f i)) \with {
+    | nil: \fun (f: _) => ComplexLaws.conjOfReal R.zero
+    | cons: \fun (i: Fin.Fin n)(tail: Lists.List[Fin.Fin n])(previous: _)(f: _) => trans!{{C.Complex}} _ _ _
+      (ComplexLaws.conjAdd (f i) (ComplexSums.sum tail f))
+      (congr!{{C.Complex} {C.Complex}} (CS.add (Complex.conj (f i))) _ _ (previous f))
+  };
+\definition matrix[A: RM.Matrix]: CM.Matrix := \fun (i, j: Fin.Fin n) => Complex.ofReal (A i j);
+\definition product[A, B: RM.Matrix]: matrix (RM.product A B) = CM.product (matrix A) (matrix B) :=
+  \axiom:funext(matrix (RM.product A B), CM.product (matrix A) (matrix B), \fun (i: Fin.Fin n) =>
+    \axiom:funext(matrix (RM.product A B) i, CM.product (matrix A) (matrix B) i, \fun (j: Fin.Fin n) => trans!{{C.Complex}} _ _ _
+      (embedSum (Fin.elements n) (\fun (k: Fin.Fin n) => R.mul (A i k) (B k j)))
+      (SumLaws.congruent (Fin.elements n) _ _ (\fun (k: Fin.Fin n) => ComplexLaws.ofRealMul (A i k) (B k j)))));
+\definition linear[A: RM.Matrix][v: RealVector]: (CM.linear (matrix A)).apply (embed v) = embed ((RM.linear A).apply v) :=
+  \axiom:funext((CM.linear (matrix A)).apply (embed v), embed ((RM.linear A).apply v), \fun (i: Fin.Fin n) => sym!{{C.Complex}} _ _
+    (trans!{{C.Complex}} _ _ _ (embedSum (Fin.elements n) (\fun (j: Fin.Fin n) => R.mul (A i j) (v j)))
+      (SumLaws.congruent (Fin.elements n) _ _ (\fun (j: Fin.Fin n) => ComplexLaws.ofRealMul (A i j) (v j)))));
+\definition conjugation[A: RM.Matrix][v: ComplexVector]: Conjugation.conjugate ((CM.linear (matrix A)).apply v) = (CM.linear (matrix A)).apply (Conjugation.conjugate v) :=
+  \axiom:funext(Conjugation.conjugate ((CM.linear (matrix A)).apply v), (CM.linear (matrix A)).apply (Conjugation.conjugate v), \fun (i: Fin.Fin n) => trans!{{C.Complex}} _ _ _
+    (conjugateSum (Fin.elements n) (\fun (j: Fin.Fin n) => CS.mul (Complex.ofReal (A i j)) (v j)))
+    (SumLaws.congruent (Fin.elements n) _ _ (\fun (j: Fin.Fin n) => trans!{{C.Complex}} _ _ _
+      (ComplexLaws.conjMul (Complex.ofReal (A i j)) (v j))
+      (congr!{{C.Complex} {C.Complex}} (\fun (z: C.Complex) => CS.mul z (Complex.conj (v j))) _ _ (ComplexLaws.conjOfReal (A i j))))));
+\import Reals.Kronecker[] \as RK;
+\import Complexes.Kronecker[] \as CK;
+\definition delta[i, j: Fin.Fin n]: Complex.ofReal (RK.delta i j) = CK.delta i j :=
+  CK.uniqueness i j (\into[C.Complex](Complex.ofReal (RK.delta i j), CK.Value i j) \by {
+    CK.ValueLaws[i, j, Complex.ofReal (RK.delta i j)] {
+      equal := \fun (same: i = j) => congr!{R.Real {C.Complex}} Complex.ofReal _ _ (RK.equal i j same),
+      different := \fun (different: Logic.Not (i = j)) => congr!{R.Real {C.Complex}} Complex.ofReal _ _ (RK.different i j different),
+    }
+  }) (CK.delta i j);
+\definition basis[j: Fin.Fin n]: embed (RealBasis.vectors j) = ComplexBasis.vectors j :=
+  \axiom:funext(embed (RealBasis.vectors j), ComplexBasis.vectors j, \fun (i: Fin.Fin n) => delta j i);
+\definition complexify[P: RealEnd.Map]: ComplexEnd.Map := CM.linear (matrix (RealRepresentation.entries P));
+\definition onReal[P: RealEnd.Map][v: RealVector]: (complexify P).apply (embed v) = embed (P.apply v) := trans!{ComplexVector} _ _ _
+  (linear (RealRepresentation.entries P) v)
+  (congr!{RealVector ComplexVector} embed _ _ (congr!{{RealEnd.Map} RealVector} (\fun (f: RealEnd.Map) => f.apply v) _ _ (RealRepresentation.linearEntries P)));
+\module Projection(P: RealEnd.Map, idempotent: \forall (v: RealVector) -> P.apply (P.apply v) = P.apply v);
+\module Restrict(P: ComplexEnd.Map, real: \forall (v: ComplexVector) -> Conjugation.conjugate (P.apply v) = P.apply (Conjugation.conjugate v),
+  idempotent: \forall (v: ComplexVector) -> P.apply (P.apply v) = P.apply v);

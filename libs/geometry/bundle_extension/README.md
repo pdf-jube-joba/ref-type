@@ -31,6 +31,7 @@ CLI は `source /workspace/ref-type-env.sh` 後の `cargo build -p cli --locked`
 | `bundle_extension.Extension.RealSections` | 614（24 checked、590 reused） | 0 |
 | `bundle_extension.Extension`（全公開入口・利用例） | 846（46 checked、800 reused） | 0 |
 | `spectral_splitting.Spectral.Conjugation` | 598（7 checked、591 reused） | 0 |
+| `bundle_complements.Complements.Over.Idempotents` | 569（110 checked、459 reused） | 0 |
 
 両検査ともキャッシュ保存失敗・worker 復旧・重複・再実行・未保存ステップは0。
 レポートは `work/b09-resume/real-components.json` と `real-entry.json`、ログ・レポート・snapshot は追跡しない。
@@ -40,7 +41,8 @@ CLI は `source /workspace/ref-type-env.sh` 後の `cargo build -p cli --locked`
 実束の切断の延長は `d803245bb9fc66202020b6a02486428ec0738260` で検証済み（保存失敗・復旧・重複・再実行・未保存ステップ0）。
 複素束の近傍への延長・比較、実・複素束の切断、行列の利用例は `7a216d4c8c198cc0a12f78fd740db9275d93d670` の全公開入口検査で検証済み（保存失敗・復旧・重複・再実行・未保存ステップ0）。
 実射影の延長で使う `Spectral.Conjugation` は `9159d8070d26c1e06fe867072c60e14769b1109b` で検証済み（保存失敗・復旧・重複・再実行・未保存ステップ0）。
-実・複素の共通の像束構成を `bundle_complements.Complements.Over.Idempotents` に追加中であり、まだ検査待ち。package・workspace 全体の検査も残る。
+実・複素の共通の像束構成 `bundle_complements.Complements.Over.Idempotents` は `0dccec10ae48b7bda1ffed3b947402a3afb102b4` で検証済み（保存失敗・復旧・重複・再実行・未保存ステップ0）。
+実行列の複素化と、共役に保たれる複素射影から実射影へ戻す `RealLinear` を追加したが、まだ検査待ち。package・workspace 全体の検査も残る。
 初回の実成分検査の中断終了130、および宣言順・親参照・型推論の修正前の失敗は上記成功検査で解消した。
 
 残件は実射影表示の近傍への延長と元の実束との比較、束写像・同型の延長、安定化と縮小による比較、自然性、束の具体例、公開 API・登録・ロードマップ・下流リンクと全体検証。
