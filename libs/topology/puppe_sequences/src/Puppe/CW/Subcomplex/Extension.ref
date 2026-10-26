@@ -5,3 +5,21 @@
 \definition problemLaws: HEP.ProblemLaws[source, target, problem] := HEP.problemLaws source target problem;
 \module Stage(k: N.Nat^);
 \module Base;
+
+\definition stages: \forall (k: N.Nat^) -> \exists Stage[k := k].Extension :=
+  \induction (k: N.Nat^) \return \exists Stage[k := k].Extension \with {
+    | zero: \exact(Base[].result, Stage[k := N.Nat^::zero].Extension)
+    | succ: \block {
+      \fun (k: N.Nat^)(previous: \exists Stage[k := k].Extension) \then
+      \takefrom h: Stage[k := k].Extension \by previous \then
+      \return Stage[k := k].Step[h := h].existence
+    }
+  };
+
+\import Filtration.Exhaustion[] \as Exhaustion;
+\definition height: N.Nat^ := Exhaustion.height complex.cells;
+\module Final(h: \parent.Stage[k := height].Extension);
+\definition existence: \exists HEP.Extension[source, target, problem] := \block {
+  \takefrom h: Stage[k := height].Extension \by stages height \then
+  \return \exact(Final[h := h].result, HEP.Extension[source, target, problem])
+};

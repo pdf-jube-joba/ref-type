@@ -14,7 +14,8 @@
 部分複体の追加はリモート `cbd07bdc9cfb6af91678773c9197aae900fbb62a` に保存済み。
 `Quotient.Descent` と `CW.Assembly` による骨格 cylinder 上の貼り合わせは accepted・終了0・保存失敗0。
 `CW.Subcomplex.Extension` の空骨格とセル単位の拡張（初期値・低次骨格・部分複体上の指定値を保持）も accepted・終了0・保存失敗0。
-次はセルの重なりでの一致、骨格への貼り合わせ、有限段の帰納法を構成する。
+`CW.Subcomplex.homotopyExtension` と `CW.Subcomplex.cofibration` は、セルの重なり・骨格への貼り合わせ・有限段の帰納法を含め accepted・終了0・保存失敗0（`cw-cofibration.json`）。
+次は基点付き mapping cone と reduced suspension の構成・比較へ進む。
 
 次は有限 CW 部分複体への拡張、基点付き mapping cone・reduced suspension の比較、自然性・商との比較・反変 Hom の完全性を依存順に証明する。
 共有キャッシュは `libs/refcache`。
