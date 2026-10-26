@@ -10,4 +10,4 @@
 ## 依存するタスク
 
 - [B05 有限 Grassmannian と普遍束](b05-grassmannians.md)
-- [K02 CW cofibration と Puppe 列](k02-cofibration-puppe.md)
+- [K02 CW cofibration と Puppe 列](../../libs/topology/puppe_sequences/README.md)

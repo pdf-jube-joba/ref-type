@@ -46,18 +46,15 @@ target/debug/cli libs --memory-mib 10240 --cache-dir libs/refcache --cache-budge
 積と商の交換にはコンパクト Hausdorff な区間を使う。
 [相対 K 群の K03](../../../_plans/math/k03-relative-k.md) はこの列と有限 CW 対の比較を利用する。
 
-## 保存・再開
+## 検証と保存
 
 基点は K07 統合済み main `76e6084094f810eaf51e18663bb33d111dd409d7`。
 作業ブランチは `math/k02-cofibration-puppe`、[PR #47](https://github.com/pdf-jube-joba/ref-type/pull/47)。
-公開入口・依存閉包・例は `puppe-public.json` で accepted・終了0・保存失敗0。
-反復列の完全性・自然性と次の接続写像の比較まで実装・検査済み。
-検査対象の保存済みリモートは `f80715fe5b7589282492bcad2ad9d2000fc19c22`（記録更新後の最新 SHA は PR head を参照）。
-workspace 全体は `workspace-final.json` で1200秒、`workspace-resume-final.json` で180秒の上限に達し、いずれも time-limit・終了2・保存失敗0。
-前者の最終箇所は `uniform_approximation.Approximation.On.AlgebraEvaluation.At`、`lost_steps` は535。
-後者の最終箇所は `derived_functors.Tor.Over.Of.TensorTerm`、`lost_steps` は7074。
-全体検査は未完了なので PR は draft、main は未変更。実行中の検査はない。
-次は同じ共有キャッシュで workspace 全体を検査し、accepted・終了0・保存失敗0を確認する。
-続いてロードマップと K03・B08・C02・T02 の依存リンクを更新し、差分・CI・最新 main を確認して PR #47 を ready・merge し、main への反映を確認する。
+公開入口・依存閉包・例393モジュールは accepted・終了0・保存失敗0。
+2026-10-26 の workspace 全体検査も、共有キャッシュ `libs/refcache` を使い8,149モジュールで accepted・終了0・保存失敗0を確認した（約3,037秒）。
+検査対象のリモートは `5d90703b376cb27ad0273821eda2e28f5ba65a87`、ソースの tree は `848d26bfebe5268fbcf58c954098857afd021b4a`。
+全体検査の報告は `workspace-unbounded.json`、自動復旧1回・`lost_steps` 4,322・再実行0・重複0で、最終 worker は保存済み8,149モジュールを再利用して正常終了した。
+前回の時間制限による未完了状態は、この正常終了で解消した。
+ロードマップと K03・B08・C02・T02 の依存リンクは公開 API に更新済み。
+次は最終保存後の PR head・CI・最新 main を確認し、PR #47 を ready・merge して main への反映を確認する。
 B09・K03 は未着手。
-共有キャッシュは `libs/refcache`。

@@ -91,7 +91,6 @@ flowchart TD
 - [B09 閉部分空間からの束の延長](b09-bundle-extension.md)
 - [C01 cap 積と相対積](c01-cap-products.md)
 - [G01 滑らかな bump 関数と従属分割](g01-smooth-partitions.md)
-- [K02 CW cofibration と Puppe 列](k02-cofibration-puppe.md)
 - [G02 逆関数・陰関数と正則値の局所形](g02-inverse-implicit.md)
 - [L04 対称多項式と特性級数](l04-symmetric-series.md)
 
@@ -101,8 +100,9 @@ K06 の連続なスペクトル分離は B04 の束比較の基盤となり、B0
 K01 の Grothendieck 環・安定判定・反変引き戻しは K03・K07 で再利用する。
 K04 の実・複素 Stone–Weierstrass、Laurent 近似と行列・束の一様評価も K07 で利用できる。
 K07 の [clutching_linearization](../../libs/topology/clutching_linearization/README.md) は、選択に依存しないスペクトル逆クラス、自然性・直和・基本積の相互逆を公開し、K08 で利用できる。
+K02 の [puppe_sequences](../../libs/topology/puppe_sequences/README.md) は、有限 CW 対の cofibration、自然な Puppe 列と反変 Hom の完全性を公開し、K03・B08・C02・T02 で利用できる。
 B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進められる。
-空いた担当には C01・K02・L04・A19 を割り当て、長い解析の経路を早めに進める。
+空いた担当には C01・L04・A19 を割り当て、長い解析の経路を早めに進める。
 各節の番号は識別子で、実装順は依存リストから決まる。
 
 ## 完了した単位
@@ -122,10 +122,11 @@ B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進め�
 | K01 束の Grothendieck 環 | [topological_k_theory](../../libs/topology/k_theory/README.md) |
 | K04 Stone–Weierstrass と Laurent 近似 | [uniform_approximation](../../libs/analysis/uniform_approximation/README.md) |
 | K07 clutching の安定線形化 | [clutching_linearization](../../libs/topology/clutching_linearization/README.md) |
+| K02 CW cofibration と Puppe 列 | [puppe_sequences](../../libs/topology/puppe_sequences/README.md) |
 
 ## タスク一覧
 
-未完了79件、概算合計413千行。
+未完了78件、概算合計408千行。
 
 ### 線形代数と特性級数
 
@@ -168,11 +169,10 @@ B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進め�
 
 ### 位相的 K 理論
 
-7件、概算38千行。
+6件、概算33千行。
 
 | タスク | 概算（千行） |
 | --- | ---: |
-| [K02 CW cofibration と Puppe 列](k02-cofibration-puppe.md) | 5 |
 | [K03 相対 K 群と負次数の完全列](k03-relative-k.md) | 6 |
 | [K08 Bott の基本積定理](k08-bott-product.md) | 5 |
 | [K09 Bott 周期性と整数次数](k09-bott-periodicity.md) | 5 |
