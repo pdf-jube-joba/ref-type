@@ -1,36 +1,36 @@
 # 閉部分空間からの束の延長（B09）
 
 作業中。実数値・複素数値の Tietze 延長は `bundle_extension.Extension.Real.tietze` と `Complex.tietze`。
-まず閉部分空間内の閉集合の像が周囲の空間でも閉じることを証明し、Urysohn の分離関数による実関数の一様近似と Tietze 延長を構成する。
-続いて実・複素射影行列の近傍への延長、束写像・同型、安定化と縮小による比較を構成する。
+閉部分空間内の閉集合の像の閉性、Urysohn の分離関数、幾何級数で制御した一様近似列と連続な極限から構成する。
 
-## 保存・再開
+## 追加中の API
 
-基点は K02 の PR #47 を統合した main `29f3f43b7a760485ad516dec1c6835d6e09aa41e`。
-K02 は公開入口・依存閉包・例393モジュール、および workspace 全体8,149モジュールで accepted・終了0・保存失敗0を確認済み。
-[PR #48](https://github.com/pdf-jube-joba/ref-type/pull/48) は main `d6ecc14d499efbd782a70ae5c837c4da97c7abc8` に統合済みである。
-残作業はこの main からの専用ブランチ `math/b09-complete-extension` で継続する。
-継続作業の [PR #49](https://github.com/pdf-jube-joba/ref-type/pull/49) は draft である。
-`topology.Topology.Subspace.Closed.imageClosed` は依存閉包を含め accepted・終了0・保存失敗0（`closed.json`）。
-`bundle_extension.Extension.Real.Separation.exists` に、閉集合上の連続実関数の二つの水準集合を分離する連続関数を構成した。依存を含む192モジュールで accepted・終了0・保存失敗0（`separation.json`）。
-`Correction.error` と `Real.Approximation.exists` は、補正の大きさを半径の半分以下、誤差を4分の3以下にする近似を構成し、accepted・終了0・保存失敗0（`correction.json`・`approximation.json`）。
-`Radii`・`MetricBudget`・`Real.Iteration.Sequence.Limit` で反復列の有界性・一様 Cauchy 性・連続な極限と元の関数への一致を証明した。
-実数値の `Real.tietze` は空の場合も含め accepted・終了0・保存失敗0（`real-tietze.json`）。
-複素数値の `Complex.tietze` は実部・虚部の延長を組み合わせ、accepted・終了0・保存失敗0（`complex-tietze.json`）。
-次は `Extension.Real.tietze`・`Complex.tietze` を各行列成分へ適用し、閉集合上の射影行列の延長を構成する。
-その後、開近傍上で射影性を回復する構成を証明し、束・束写像・同型の延長、安定化と縮小による比較、具体例、全体検証へ進む。
+- `Real.Components`・`Complex.Components` は任意の成分族を延長する。
+- `Real.Matrices`・`Complex.Matrices` は有限矩形行列を成分ごとに延長する。
+- `Real.Square`・`Complex.Square` は可逆行列を開近傍へ延長し、`Near` で逆行列の連続性と閉部分空間上の制限式を与える。
+- K06 の `Circle.At.domainOff`・`At.Neighborhood.open` は単位円上のスペクトルを避ける領域の開性を与える。
+- `Complex.Spectral` はこの領域へ行列を制限し、K06 のスペクトル射影と像束へ接続する。
+- `Sections.Through`・`RealSections.extend`・`ComplexSections.extend` は有限埋め込み、座標の Tietze 延長、束への射影を組み合わせて切断を延長する。
+- `Examples` は一点空間上の実・複素恒等行列に次元0と1で適用する。
+
+## 検証と再開
+
+基点は PR #48 統合済み main `d6ecc14d499efbd782a70ae5c837c4da97c7abc8`。
+K07 の `76e6084094f810eaf51e18663bb33d111dd409d7`、K02 の `29f3f43b7a760485ad516dec1c6835d6e09aa41e`、B09 初期実装の `96731109fb2466c72de286aee73ab659e30743a2` が祖先に含まれることを確認した。
+継続ブランチは `math/b09-complete-extension`、[PR #49](https://github.com/pdf-jube-joba/ref-type/pull/49) は draft である。
+CLI は `source /workspace/ref-type-env.sh` 後の `cargo build -p cli --locked` でビルド済み（終了0）。
 共有キャッシュは `libs/refcache`。
-束の延長と具体例、全体検証は未完了。K03 は未着手。
 
-今回の追加は `Real.Components`・`Complex.Components` の成分族の延長と、`Real.Matrices`・`Complex.Matrices` の有限矩形行列の延長であり、まだ未検証である。
-`Real.Square`・`Complex.Square` に可逆行列の近傍への延長と連続な逆行列を追加した。
-`Complex.Spectral` は単位円上のスペクトルを避ける行列族を開近傍へ延長し、K06 のスペクトル射影と像束へ接続する。
-K06 の `Circle.At.domainOff` と `At.Neighborhood.open` も追加したが、これらを含め今回の数学変更はすべて検査待ちである。
-一点空間上の実・複素恒等行列（次元0と1）の延長を `Extension.Examples` に追加した。
-`Square.Near` では近傍から閉部分空間への制限について、行列と逆行列の一致も公開する。
-`Sections.Through` に有限埋め込みと射影による切断の延長を追加し、`RealSections.extend`・`ComplexSections.extend` で成分ごとの Tietze 延長と組み合わせた。
-切断の延長も未検証である。
-既存 CLI は現在の引数形式に対応しない古い版だったため、`source /workspace/ref-type-env.sh` 後に `cargo build -p cli --locked` でビルドし、終了0を確認した。
-`Complex.Spectral.Near` の型の参照パスを修正した後の package の構文検査は終了0である。
-実成分延長の型検査は中断終了130であり、成功扱いにはしていない。
-次は固定 snapshot と共有キャッシュで追加入口と依存閉包を検査し、行列から束への延長を続ける。
+| 今回の検査範囲 | module 数 | 終了コード |
+| --- | ---: | ---: |
+| `bundle_extension.Extension.Real.Components` | 443（19 checked、424 reused） | 0 |
+| `bundle_extension.Extension.Real` | 489（44 checked、445 reused） | 0 |
+
+両検査ともキャッシュ保存失敗・worker 復旧・重複・再実行・未保存ステップは0。
+レポートは `work/b09-resume/real-components.json` と `real-entry.json`、ログ・レポート・snapshot は追跡しない。
+実数値の入口は `beeaefaac7ff31e64e34d2f28a199285f4fa2dd4` までのソースで検証済み。
+複素入口、スペクトル領域の開性、切断の延長、今回の利用例と package・workspace 全体は検査待ち。
+初回の実成分検査の中断終了130、および宣言順・親参照・型推論の修正前の失敗は上記成功検査で解消した。
+
+残件は一般の実・複素射影表示の近傍への延長と元の束との比較、束写像・同型の延長、安定化と縮小による比較、自然性、具体例、公開 API・登録・ロードマップ・下流リンクと全体検証。
+B09 完成・検証・main 統合の後に K03 へ進む。K03 は未着手。
