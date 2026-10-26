@@ -10,6 +10,7 @@
 K02 は公開入口・依存閉包・例393モジュール、および workspace 全体8,149モジュールで accepted・終了0・保存失敗0を確認済み。
 [PR #48](https://github.com/pdf-jube-joba/ref-type/pull/48) は main `d6ecc14d499efbd782a70ae5c837c4da97c7abc8` に統合済みである。
 残作業はこの main からの専用ブランチ `math/b09-complete-extension` で継続する。
+継続作業の [PR #49](https://github.com/pdf-jube-joba/ref-type/pull/49) は draft である。
 `topology.Topology.Subspace.Closed.imageClosed` は依存閉包を含め accepted・終了0・保存失敗0（`closed.json`）。
 `bundle_extension.Extension.Real.Separation.exists` に、閉集合上の連続実関数の二つの水準集合を分離する連続関数を構成した。依存を含む192モジュールで accepted・終了0・保存失敗0（`separation.json`）。
 `Correction.error` と `Real.Approximation.exists` は、補正の大きさを半径の半分以下、誤差を4分の3以下にする近似を構成し、accepted・終了0・保存失敗0（`correction.json`・`approximation.json`）。
@@ -29,5 +30,7 @@ K06 の `Circle.At.domainOff` と `At.Neighborhood.open` も追加したが、�
 `Square.Near` では近傍から閉部分空間への制限について、行列と逆行列の一致も公開する。
 `Sections.Through` に有限埋め込みと射影による切断の延長を追加し、`RealSections.extend`・`ComplexSections.extend` で成分ごとの Tietze 延長と組み合わせた。
 切断の延長も未検証である。
-既存 CLI は現在の引数形式に対応しない古い版だったため、`source /workspace/ref-type-env.sh` 後に `cargo build -p cli --locked` でビルドしている。
-次は新しい CLI で追加入口と依存閉包を検査し、行列から束への延長を続ける。
+既存 CLI は現在の引数形式に対応しない古い版だったため、`source /workspace/ref-type-env.sh` 後に `cargo build -p cli --locked` でビルドし、終了0を確認した。
+`Complex.Spectral.Near` の型の参照パスを修正した後の package の構文検査は終了0である。
+実成分延長の型検査は中断終了130であり、成功扱いにはしていない。
+次は固定 snapshot と共有キャッシュで追加入口と依存閉包を検査し、行列から束への延長を続ける。
