@@ -1,0 +1,34 @@
+\import \parent.Open[] \as Image;
+\import \parent.\parent.Finite[] \as Finite;
+\definition imageComplement[W: \Pow CarrierSet][U: \Pow Carrier]:
+  Sub.Complement W = Trace U -> Image.image W = Intersection S (Complement U) :=
+  \fun (same: Sub.Complement W = Trace U) => \axiom:setext(Image.image W, Intersection S (Complement U),
+    \fun (x: Carrier)(inside: Member (Image.image W) x) => Image.imageElim W x (Member (Intersection S (Complement U)) x)
+      (\fun (y: CarrierSet)(inW: Sub.Member W y)(equal: y = x) => \idelim y = x
+        \with z: Carrier => Member (Intersection S (Complement U)) z \by {
+          base: Logic.And[_, _]::# (\bysub(Carrier, S, y))
+            (\fun (inU: Member U y) => (\idelim Trace U = Sub.Complement W
+              \with V: \Pow CarrierSet => Sub.Member V y \by {
+                base: inU, equality: sym!{\Pow CarrierSet} _ _ same
+              }) inW),
+          equality: equal
+        }) inside,
+    \block {
+      \fun (x: Carrier)(inside: Member (Intersection S (Complement U)) x) \then
+      \let y: CarrierSet := \into[Carrier](x, S) \by { inside.left } \then
+      \return Image.imageMember W y (Finite.doubleNegElim (Sub.Member W y)
+        (\fun (outside: Sub.Member (Sub.Complement W) y) => inside.right
+          (\idelim Sub.Complement W = Trace U \with V: \Pow CarrierSet => Sub.Member V y \by {
+            base: outside, equality: same
+          })))
+    });
+\definition imageClosed: \forall (ambient: Topology) -> IsClosedIn ambient S -> \forall (W: \Pow CarrierSet) ->
+  Sub.IsClosedIn (topology ambient) W -> IsClosedIn ambient (Image.image W) :=
+  \fun (ambient: _)(closedS: _)(W: _)(closedW: _) =>
+    openTraceElim ambient (Sub.Complement W) (IsClosedIn ambient (Image.image W))
+      (\fun (U: _)(openU: _)(same: Sub.Complement W = Trace U) =>
+        \idelim Intersection S (Complement U) = Image.image W
+          \with V: \Pow Carrier => IsClosedIn ambient V \by {
+            base: Finite.intersectionClosed ambient S (Complement U) closedS (Finite.openComplementClosed ambient U openU),
+            equality: sym!{\Pow Carrier} _ _ (imageComplement W U same)
+          }) (openRepresentation ambient (Sub.Complement W) closedW);

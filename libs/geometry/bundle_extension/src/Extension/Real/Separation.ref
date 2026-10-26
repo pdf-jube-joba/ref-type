@@ -1,0 +1,41 @@
+\definition Low: \Pow Subspace.CarrierSet := { x: Subspace.CarrierSet \where D.Le (f.value x) lower };
+\definition High: \Pow Subspace.CarrierSet := { x: Subspace.CarrierSet \where D.Le upper (f.value x) };
+\definition lowClosed: Sub.IsClosedIn (Subspace.topology source) Low :=
+  Comparison.leClosed (Subspace.topology source) f.value (\fun (_: Subspace.CarrierSet) => lower)
+    f.continuous (SubFunctions.constantContinuous (Subspace.topology source) lower);
+\definition highClosed: Sub.IsClosedIn (Subspace.topology source) High :=
+  Comparison.leClosed (Subspace.topology source) (\fun (_: Subspace.CarrierSet) => upper) f.value
+    (SubFunctions.constantContinuous (Subspace.topology source) upper) f.continuous;
+\definition disjoint: D.Lt lower upper -> Space.Disjoint (Image.image Low) (Image.image High) :=
+  \fun (ordered: D.Lt lower upper)(x: A)(low: Space.Member (Image.image Low) x)(high: Space.Member (Image.image High) x) =>
+    Image.imageElim Low x Logic.False
+      (\fun (a: Subspace.CarrierSet)(la: Sub.Member Low a)(ae: a = x) =>
+        Image.imageElim High x Logic.False
+          (\fun (b: Subspace.CarrierSet)(hb: Sub.Member High b)(be: b = x) =>
+            D.ltNotLeReverse lower upper ordered (D.leTrans upper (f.value a) lower
+              (D.leReplaceRight upper (f.value b) (f.value a)
+                (congr!{Subspace.CarrierSet R.Real} f.value b a
+                  (trans!{A} b x a be (sym!{A} a x ae))) hb) la)) high) low;
+\structure Separator: \Set := {
+  value: A -> R.Real,
+  continuous: Functions.Continuous source value,
+  nonnegative: \forall (x: A) -> D.Le R.zero (value x),
+  bounded: \forall (x: A) -> D.Le (value x) R.one,
+  low: \forall (x: Subspace.CarrierSet) -> Sub.Member Low x -> value x = R.zero,
+  high: \forall (x: Subspace.CarrierSet) -> Sub.Member High x -> value x = R.one,
+};
+\import Space.Urysohn[] \as Urysohn;
+\definition exists: Space.IsNormal source -> Space.IsClosedIn source subset -> D.Lt lower upper -> \exists Separator := \block {
+  \fun (normal: Space.IsNormal source)(closed: Space.IsClosedIn source subset)(ordered: D.Lt lower upper) \then
+  \takefrom u: Urysohn.UrysohnFunction[source, Image.image Low, Image.image High]
+    \by Urysohn.normalUrysohn source normal (Image.image Low) (Image.image High)
+      (Closed.imageClosed source closed Low lowClosed) (Closed.imageClosed source closed High highClosed) (disjoint ordered) \then
+  \return \exact(Separator {
+    value := u.value,
+    continuous := Functions.Urysohn[].continuous source (Image.image Low) (Image.image High) u,
+    nonnegative := u.nonnegative,
+    bounded := u.bounded,
+    low := \fun (x: Subspace.CarrierSet)(inside: Sub.Member Low x) => u.zeroOn x (Image.imageMember Low x inside),
+    high := \fun (x: Subspace.CarrierSet)(inside: Sub.Member High x) => u.oneOn x (Image.imageMember High x inside),
+  }, Separator)
+};

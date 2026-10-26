@@ -1,0 +1,62 @@
+\import Estimates.Product[] \as Product;
+\definition q: R.Real := R.add R.half (R.mul R.half R.half);
+\definition halfPositive: D.Lt R.zero R.half := D.ltReplaceRight R.zero (R.mul R.half R.one) R.half (Algebra.mulOneRight R.half)
+  (Estimates.halfOfPositive R.one Product.onePositive);
+\definition qNonnegative: D.Le R.zero q := Laws.addNonnegative R.half (R.mul R.half R.half) Estimates.halfNonnegative
+  (Laws.fieldMulNonnegative R.half R.half Estimates.halfNonnegative Estimates.halfNonnegative);
+\definition qPositive: D.Lt R.zero q := D.ltLeTrans R.zero R.half q halfPositive
+  (Algebra.leAddRight R.half (R.mul R.half R.half) (Laws.fieldMulNonnegative R.half R.half Estimates.halfNonnegative Estimates.halfNonnegative));
+\definition qBelowOne: D.Lt q R.one := D.ltReplaceRight q (R.add R.half R.half) R.one Estimates.halfDouble
+  (Laws.ltAddLeft R.half (R.mul R.half R.half) R.half (Estimates.halfStrict R.half halfPositive));
+\import R.Geometric[q := q] \as Geometric;
+\definition value[n: N.Nat^]: R.Real := R.mul r (Geometric.value n);
+\definition initial: value N.Nat^::zero = r := Algebra.mulOneRight r;
+\definition step[n: N.Nat^]: value (N.Nat^::succ n) = R.mul q (value n) := Algebra.mulSwap r q (Geometric.value n);
+\definition positive: D.Lt R.zero r -> \forall (n: N.Nat^) -> D.Lt R.zero (value n) :=
+  \fun (rp: _) => \induction (n: N.Nat^) \return D.Lt R.zero (value n) \with {
+    | zero: D.ltReplaceRight R.zero r (value N.Nat^::zero) (sym!{R.Real} _ _ initial) rp
+    | succ: \fun (n: N.Nat^)(previous: _) => D.ltReplaceRight R.zero (R.mul q (value n)) (value (N.Nat^::succ n))
+      (sym!{R.Real} _ _ (step n)) (Product.mulPositive q (value n) qPositive previous)
+  };
+\definition nonnegative: D.Le R.zero r -> \forall (n: N.Nat^) -> D.Le R.zero (value n) :=
+  \fun (rn: _)(n: N.Nat^) => Laws.fieldMulNonnegative r (Geometric.value n) rn (Geometric.nonnegative qNonnegative n);
+\definition antitone: D.Le R.zero r -> \forall (m, n: N.Nat^) -> Nat.Le n m -> D.Le (value m) (value n) :=
+  \fun (rn: _)(m, n: N.Nat^)(later: _) => Estimates.mulMonotone r (Geometric.value m) (Geometric.value n) rn
+    (Geometric.antitone qNonnegative (Order.leOfLt q R.one qBelowOne) m n later);
+\definition eventuallySmall: D.Le R.zero r -> \forall (epsilon: R.Real) -> D.Lt R.zero epsilon ->
+  \exists ( n: N.Nat^ \where D.Lt (value n) epsilon ) :=
+  \fun (rn: _)(epsilon: R.Real)(ep: _) => Geometric.scaledEventual qNonnegative qBelowOne r epsilon rn ep;
+\module At(n: N.Nat^) {
+  \import \root.Extension[].Correction[r := value n] \as Numeric;
+  \definition next: value (N.Nat^::succ n) = Numeric.slack := eq_reason_in!{R.Real _
+    "=" _ "by" { step n }
+    "=" _ "by" { Algebra.mulAddRight R.half (R.mul R.half R.half) (value n) }
+    "=" _ "by" { congr!{R.Real R.Real} (R.add Numeric.half) _ _ (Laws.fieldMulAssoc R.half R.half (value n)) }
+  };
+  \definition doubleSlack: R.add Numeric.slack Numeric.slack = R.add (value n) Numeric.half := eq_reason_in!{R.Real _
+    "=" _ "by" { Algebra.addFour Numeric.half Numeric.quarter Numeric.half Numeric.quarter }
+    "=" _ "by" { congr!{R.Real R.Real R.Real} R.add _ _ _ _ (Estimates.halfTwice (value n)) (Estimates.halfTwice Numeric.half) }
+  };
+}
+\definition budget[n: N.Nat^]: R.Real := R.add (value n) (value n);
+\definition budgetNonnegative: D.Le R.zero r -> \forall (n: N.Nat^) -> D.Le R.zero (budget n) :=
+  \fun (rn: _)(n: N.Nat^) => Laws.addNonnegative (value n) (value n) (nonnegative rn n) (nonnegative rn n);
+\definition budgetStep[n: N.Nat^]: R.add (R.mul R.half (value n)) (budget (N.Nat^::succ n)) = budget n :=
+  eq_reason_in!{R.Real _
+    "=" _ "by" { congr!{R.Real R.Real} (R.add (R.mul R.half (value n))) _ _
+      (congr!{R.Real R.Real R.Real} R.add _ _ _ _ (At[n := n].next) (At[n := n].next)) }
+    "=" _ "by" { congr!{R.Real R.Real} (R.add (R.mul R.half (value n))) _ _ (At[n := n].doubleSlack) }
+    "=" _ "by" { Algebra.addSwap (R.mul R.half (value n)) (value n) (R.mul R.half (value n)) }
+    "=" _ "by" { congr!{R.Real R.Real} (R.add (value n)) _ _ (Estimates.halfTwice (value n)) }
+  };
+\definition budgetAntitone: D.Le R.zero r -> \forall (m, n: N.Nat^) -> Nat.Le n m -> D.Le (budget m) (budget n) :=
+  \fun (rn: _)(m, n: N.Nat^)(later: _) => Estimates.addLe _ _ _ _ (antitone rn m n later) (antitone rn m n later);
+\definition budgetSmall: D.Le R.zero r -> \forall (epsilon: R.Real) -> D.Lt R.zero epsilon ->
+  \exists ( n: N.Nat^ \where D.Lt (budget n) epsilon ) := \block {
+  \fun (rn: _)(epsilon: R.Real)(ep: _) \then
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where D.Lt (value n) (R.mul R.half epsilon) })
+    \by eventuallySmall rn (R.mul R.half epsilon) (Estimates.halfOfPositive epsilon ep) \then
+  \let small: D.Lt (value n) (R.mul R.half epsilon) := \bysub(N.Nat^, { n: N.Nat^ \where D.Lt (value n) (R.mul R.half epsilon) }, n) \then
+  \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where D.Lt (budget n) epsilon }] n
+    (D.ltReplaceRight _ _ epsilon (Estimates.halfTwice epsilon) (Estimates.addLt _ _ _ _ small small))
+};

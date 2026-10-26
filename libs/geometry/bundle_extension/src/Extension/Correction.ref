@@ -1,0 +1,74 @@
+\definition half: R.Real := R.mul R.half r;
+\definition quarter: R.Real := R.mul R.half half;
+\definition slack: R.Real := R.add half quarter;
+\definition halfNonnegative: D.Le R.zero r -> D.Le R.zero half :=
+  \fun (nonnegative: _) => Laws.fieldMulNonnegative R.half r Estimates.halfNonnegative nonnegative;
+\definition quarterNonnegative: D.Le R.zero r -> D.Le R.zero quarter :=
+  \fun (nonnegative: _) => Laws.fieldMulNonnegative R.half half Estimates.halfNonnegative (halfNonnegative nonnegative);
+\definition halfBelowSlack: D.Le R.zero r -> D.Le half slack :=
+  \fun (nonnegative: _) => Algebra.leAddRight half quarter (quarterNonnegative nonnegative);
+\definition negQuarterNonpositive: D.Le R.zero r -> D.Le (R.neg quarter) R.zero :=
+  \fun (nonnegative: _) => D.leReplaceRight _ (R.neg R.zero) R.zero Laws.negZero
+    (Laws.negAntitone R.zero quarter (quarterNonnegative nonnegative));
+\definition absoluteBound[x, b: R.Real]: D.Le (R.neg b) x -> D.Le x b -> D.Le (R.distance R.zero x) b :=
+  \fun (lower: _)(upper: _) => Estimates.distanceLeOfInterval R.zero x b
+    (D.leReplaceLeft (R.neg b) (R.sub R.zero b) x (sym!{R.Real} _ _ (Laws.addZeroLeft (R.neg b))) lower)
+    (D.leReplaceRight x b (R.add R.zero b) (sym!{R.Real} _ _ (Laws.addZeroLeft b)) upper);
+\definition lowerOfAbsolute[x, b: R.Real]: D.Le (R.distance R.zero x) b -> D.Le (R.neg b) x :=
+  \fun (bound: _) => D.leReplaceLeft (R.sub R.zero b) (R.neg b) x (Laws.addZeroLeft (R.neg b))
+    (Estimates.distanceLeLower R.zero x b bound);
+\definition upperOfAbsolute[x, b: R.Real]: D.Le (R.distance R.zero x) b -> D.Le x b :=
+  \fun (bound: _) => D.leReplaceRight x (R.add R.zero b) b (Laws.addZeroLeft b)
+    (Estimates.distanceLeUpper R.zero x b bound);
+\definition value[u: R.Real]: R.Real := R.sub (R.mul r u) half;
+\definition atZero: value R.zero = R.neg half := trans!{R.Real} _ _ _
+  (congr!{R.Real R.Real} (\fun (x: R.Real) => R.sub x half) _ _ (Laws.fieldMulZeroRight r)) (Laws.addZeroLeft (R.neg half));
+\definition atOne: value R.one = half := trans!{R.Real} _ _ _
+  (congr!{R.Real R.Real} (\fun (x: R.Real) => R.sub x half) _ _ (Algebra.mulOneRight r))
+  (trans!{R.Real} _ _ _
+    (congr!{R.Real R.Real} (\fun (x: R.Real) => R.sub x half) _ _ (sym!{R.Real} _ _ (Estimates.halfTwice r)))
+    (Laws.addNegCancelRight half half));
+\definition positiveHalfBound[x: R.Real]: D.Le R.zero x -> D.Le x r -> D.Le (R.distance x half) half :=
+  \fun (lower: _)(upper: _) => D.leReplaceLeft (R.distance half x) (R.distance x half) half (Distance.distanceSymmetric half x)
+    (Estimates.distanceLeOfInterval half x half
+      (D.leReplaceLeft R.zero (R.sub half half) x (sym!{R.Real} _ _ (Laws.subSelf half)) lower)
+      (D.leReplaceRight x r (R.add half half) (sym!{R.Real} _ _ (Estimates.halfTwice r)) upper));
+\definition valueBound[u: R.Real]: D.Le R.zero r -> D.Le R.zero u -> D.Le u R.one -> D.Le (R.distance R.zero (value u)) half :=
+  \fun (nonnegative: _)(lower: _)(upper: _) =>
+    D.leReplaceLeft (R.distance (R.mul r u) half) (R.distance R.zero (value u)) half
+      (sym!{R.Real} _ _ (trans!{R.Real} _ _ _ (Distance.distanceSymmetric R.zero (value u)) (Estimates.distanceDifference (R.mul r u) half)))
+      (positiveHalfBound (R.mul r u) (Laws.fieldMulNonnegative r u nonnegative lower)
+        (D.leReplaceRight _ (R.mul r R.one) r (Algebra.mulOneRight r) (Estimates.mulMonotone r u R.one nonnegative upper)));
+\definition negativeHalfBound[x: R.Real]: D.Le (R.neg r) x -> D.Le x R.zero -> D.Le (R.distance x (R.neg half)) half :=
+  \fun (lower: _)(upper: _) => D.leReplaceLeft (R.distance (R.neg x) half) (R.distance x (R.neg half)) half
+    (trans!{R.Real} _ _ _
+      (sym!{R.Real} _ _ (Estimates.Product[].distanceNeg (R.neg x) half))
+      (congr!{R.Real R.Real} (\fun (a: R.Real) => R.distance a (R.neg half)) _ _ (Laws.negInvolutive x)))
+    (positiveHalfBound (R.neg x)
+      (D.leReplaceLeft (R.neg R.zero) R.zero (R.neg x) Laws.negZero (Laws.negAntitone x R.zero upper))
+      (D.leReplaceRight (R.neg x) (R.neg (R.neg r)) r (Laws.negInvolutive r) (Laws.negAntitone (R.neg r) x lower)));
+\definition error[t, v: R.Real]: D.Le R.zero r -> D.Le (R.distance R.zero t) r -> D.Le (R.distance R.zero v) half ->
+  (D.Le t (R.neg quarter) -> v = R.neg half) -> (D.Le quarter t -> v = half) -> D.Le (R.distance t v) slack :=
+  \fun (nonnegative: _)(tBound: _)(vBound: _)(low: _)(high: _) =>
+    either!{{Classical.excludedMiddle (D.Le t (R.neg quarter))} {D.Le (R.distance t v) slack}
+      {\fun (below: _) => D.leTrans _ half slack
+        (D.leReplaceLeft (R.distance t (R.neg half)) (R.distance t v) half
+          (congr!{R.Real R.Real} (R.distance t) _ _ (sym!{R.Real} _ _ (low below)))
+          (negativeHalfBound t (lowerOfAbsolute t r tBound) (D.leTrans _ _ _ below (negQuarterNonpositive nonnegative))))
+        (halfBelowSlack nonnegative)}
+      {\fun (notBelow: _) => either!{{Classical.excludedMiddle (D.Le quarter t)} {D.Le (R.distance t v) slack}
+        {\fun (above: _) => D.leTrans _ half slack
+          (D.leReplaceLeft (R.distance t half) (R.distance t v) half
+            (congr!{R.Real R.Real} (R.distance t) _ _ (sym!{R.Real} _ _ (high above)))
+            (positiveHalfBound t (D.leTrans _ _ _ (quarterNonnegative nonnegative) above) (upperOfAbsolute t r tBound)))
+          (halfBelowSlack nonnegative)}
+        {\fun (notAbove: _) => D.leTrans _ (R.add (R.distance t R.zero) (R.distance R.zero v)) slack
+          (Distance.distanceTriangle t R.zero v)
+          (D.leReplaceRight _ (R.add quarter half) slack (Laws.addComm quarter half)
+            (Estimates.addLe _ _ quarter half
+              (D.leReplaceLeft (R.distance R.zero t) (R.distance t R.zero) quarter (Distance.distanceSymmetric R.zero t)
+                (absoluteBound t quarter
+                  (Order.leOfNotLtReverse (R.neg quarter) t (\fun (less: D.Lt t (R.neg quarter)) => notBelow (Order.leOfLt _ _ less)))
+                  (Order.leOfNotLtReverse t quarter (\fun (less: D.Lt quarter t) => notAbove (Order.leOfLt _ _ less))))) vBound))}
+      }}
+    };

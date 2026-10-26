@@ -1,0 +1,26 @@
+\definition residual: Subspace.CarrierSet -> R.Real := \fun (x: Subspace.CarrierSet) => R.sub (f.value x) (s.value x);
+\import topology.Composition[A := Subspace.CarrierSet, B := A, C := R.Real] \as Compose;
+\definition continuous: SubFunctions.Continuous (Subspace.topology source) residual :=
+  SubFunctions.subContinuous (Subspace.topology source) f.value (\fun (x: Subspace.CarrierSet) => s.value x) f.continuous
+    (Compose.composeContinuous (Subspace.topology source) source metric_spaces.RealLine[].topology
+      (\fun (x: Subspace.CarrierSet) => x) s.value
+      (topology.Continuity[A := Subspace.CarrierSet, B := A].Corestriction[S := subset].inclusionContinuous source) s.continuous);
+\definition problem: Function := Function { value := residual, continuous := continuous };
+\definition bounded: \forall (x: Subspace.CarrierSet) -> D.Le (R.distance R.zero (residual x)) (Radii.value n) :=
+  \fun (x: Subspace.CarrierSet) => D.leReplaceLeft (R.distance (f.value x) (s.value x)) (R.distance R.zero (residual x)) _
+    (sym!{R.Real} _ _ (Translation.residual (f.value x) (s.value x))) (s.error x);
+\import \root.Extension[].Real[A := A, source := source, subset := subset].Approximation[f := problem, r := Radii.value n] \as Approximation;
+\definition exists: Space.IsNormal source -> Space.IsClosedIn source subset -> D.Lt R.zero r -> \exists Next[n, s] := \block {
+  \fun (normal: _)(closed: _)(positive: _) \then
+  \takefrom h: Approximation.Approximation \by Approximation.exists normal closed (Radii.positive positive n) bounded \then
+  \return \exact(Next[n, s] {
+    state := State[N.Nat^::succ n] {
+      value := \fun (x: A) => R.add (s.value x) (h.value x),
+      continuous := Functions.sumContinuous source s.value h.value s.continuous h.continuous,
+      error := \fun (x: Subspace.CarrierSet) => D.leReplaceRight _ _ (Radii.value (N.Nat^::succ n))
+        (sym!{R.Real} _ _ (Radii.At[n := n].next))
+        (D.leTrans _ _ _ (Translation.subtract (f.value x) (s.value x) (h.value x)) (h.error x)),
+    },
+    increment := \fun (x: A) => D.leTrans _ _ _ (Translation.increment (s.value x) (h.value x)) (h.bounded x),
+  }, Next[n, s])
+};

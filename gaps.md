@@ -102,3 +102,26 @@ B03 の `Representations.Representing` はこの配置を使う。
     d.pointLift d.Carrier (\fun (x: d.Carrier) => x);
 }
 ```
+
+## ブロック内部での module の別名
+
+局所的に使う module をブロック内で import したいが、次の形は構文解析で `expected block statement or \return` となる。
+
+```ref
+\module Test {
+  \definition zero: std.Data[].Nat[].Nat^ := \block {
+    \import std.Data[].Nat[] \as N \then
+    \return N.Nat^::zero
+  };
+}
+```
+
+現在は module のスコープに import を置く。
+局所値に依存する import は、その値を引数に取る補助 module に移す。
+
+```ref
+\module Test {
+  \import std.Data[].Nat[] \as N;
+  \definition zero: N.Nat^ := N.Nat^::zero;
+}
+```

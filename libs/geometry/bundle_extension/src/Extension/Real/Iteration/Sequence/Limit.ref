@@ -1,0 +1,41 @@
+\import metric_spaces.BoundedFunctions[A := R.Real, I := A] \as Bounded;
+\definition radius: Bounded.Radius := \into[R.Real](Radii.budget N.Nat^::zero, { b: R.Real \where D.Le R.zero b }) \by {
+  Radii.budgetNonnegative nonnegative N.Nat^::zero
+};
+\import Bounded.On[base := metric_spaces.RealMetric[].complete, anchor := anchor, center := start.value, radius := radius] \as Uniform;
+\definition sequence[n: N.Nat^]: Uniform.Carrier := \into[A -> R.Real](value n, { g: A -> R.Real \where Uniform.Within g }) \by {
+  \fun (x: A) => \parent.At[x := x].bound nonnegative N.Nat^::zero n (Nat.zeroLe n)
+};
+\import \root.Extension[].MetricBudget[A := Uniform.Carrier, metric := Uniform.metric, s := sequence, b := Radii.budget] \as Budget;
+\definition step: Budget.Step := \fun (n: N.Nat^) => D.leReplaceRight _ _ (Radii.budget n) (Radii.budgetStep n)
+  (Laws.addMonotoneRight _ _ (Radii.budget (N.Nat^::succ n))
+    (Uniform.distanceLe (sequence n) (sequence (N.Nat^::succ n)) (R.mul R.half (Radii.value n)) (increment n)));
+\import metric_spaces.MetricSpace[Carrier := Uniform.Carrier].Sequences[metric := Uniform.metric] \as UniformSequences;
+\definition cauchy: UniformSequences.Cauchy sequence := Budget.cauchy (Radii.budgetNonnegative nonnegative) step (Radii.budgetSmall nonnegative);
+\definition input: Uniform.CauchySequence := \into[N.Nat^ -> Uniform.Carrier](sequence, { s: N.Nat^ -> Uniform.Carrier \where UniformSequences.Cauchy s }) \by { cauchy };
+\import Uniform.Limit[s := input] \as Result;
+\definition value: A -> R.Real := Result.value;
+\definition continuous: Functions.Continuous source value := Uniform.Continuous[source := source].uniformLimit sequence Result.value Result.converges
+  (\fun (n: N.Nat^) => (states n).continuous);
+\import metric_spaces.MetricSpace[Carrier := R.Real].Sequences[metric := metric_spaces.RealMetric[].metric] \as RealSequences;
+\definition pointwise[x: A]: RealSequences.Converges (\fun (n: N.Nat^) => sequence n x) (value x) := \block {
+  \fun (epsilon: R.Real)(positive: D.Lt R.zero epsilon) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where UniformSequences.Near sequence Result.value epsilon k }) \by Result.converges epsilon positive \then
+  \let near: UniformSequences.Near sequence Result.value epsilon k :=
+    \bysub(N.Nat^, { k: N.Nat^ \where UniformSequences.Near sequence Result.value epsilon k }, k) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where RealSequences.Near (\fun (n: N.Nat^) => sequence n x) (value x) epsilon k }] k
+    (\fun (n: N.Nat^)(later: Nat.Le k n) => D.leLtTrans _ _ epsilon (Uniform.pointwiseLe (sequence n) Result.value x) (near n later))
+};
+\definition onSubsetLimit[x: Subspace.CarrierSet]: RealSequences.Converges (\fun (n: N.Nat^) => sequence n x) (f.value x) := \block {
+  \fun (epsilon: R.Real)(positive: D.Lt R.zero epsilon) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where D.Lt (Radii.value k) epsilon }) \by Radii.eventuallySmall nonnegative epsilon positive \then
+  \let small: D.Lt (Radii.value k) epsilon := \bysub(N.Nat^, { k: N.Nat^ \where D.Lt (Radii.value k) epsilon }, k) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where RealSequences.Near (\fun (n: N.Nat^) => sequence n x) (f.value x) epsilon k }] k
+    (\fun (n: N.Nat^)(later: Nat.Le k n) => D.leLtTrans _ (Radii.value k) epsilon
+      (D.leTrans _ (Radii.value n) _
+        (D.leReplaceLeft (R.distance (f.value x) (sequence n x)) (R.distance (sequence n x) (f.value x)) (Radii.value n)
+          (Distance.distanceSymmetric (f.value x) (sequence n x)) (error n x))
+        (Radii.antitone nonnegative n k later)) small)
+};
+\definition extends: \forall (x: Subspace.CarrierSet) -> value x = f.value x :=
+  \fun (x: Subspace.CarrierSet) => RealSequences.limitUnique (\fun (n: N.Nat^) => sequence n x) (value x) (f.value x) (pointwise x) (onSubsetLimit x);

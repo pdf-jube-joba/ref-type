@@ -1,0 +1,25 @@
+\import \root.Extension[].Radii[r := r] \as Radii;
+\import \root.Extension[].Translation[] \as Translation;
+\structure State[n: N.Nat^]: \Set := {
+  value: A -> R.Real,
+  continuous: Functions.Continuous source value,
+  error: \forall (x: Subspace.CarrierSet) -> D.Le (R.distance (f.value x) (value x)) (Radii.value n),
+};
+\definition initial[bounded: \forall (x: Subspace.CarrierSet) -> D.Le (R.distance R.zero (f.value x)) r]: State[N.Nat^::zero] := State[N.Nat^::zero] {
+  value := \fun (_: A) => R.zero,
+  continuous := Functions.constantContinuous source R.zero,
+  error := \fun (x: Subspace.CarrierSet) => D.leReplaceRight _ r (Radii.value N.Nat^::zero) (sym!{R.Real} _ _ Radii.initial)
+    (D.leReplaceLeft (R.distance R.zero (f.value x)) (R.distance (f.value x) R.zero) r (Distance.distanceSymmetric R.zero (f.value x)) (bounded x)),
+};
+\structure Next[n: N.Nat^, s: State[n]]: \Set := {
+  state: State[N.Nat^::succ n],
+  increment: \forall (x: A) -> D.Le (R.distance (s.value x) (state.value x)) (R.mul R.half (Radii.value n)),
+};
+\module Step(n: N.Nat^, s: State[n]);
+\definition Selector: \Set := \forall (n: N.Nat^)(s: State[n]) -> Next[n, s];
+\definition selectorExists: Space.IsNormal source -> Space.IsClosedIn source subset -> D.Lt R.zero r -> \exists Selector :=
+  \fun (normal: _)(closed: _)(positive: _) => \axiom:classicalIndefiniteChoice(N.Nat^,
+    (\fun (n: N.Nat^) => \forall (s: State[n]) -> Next[n, s]),
+    (\fun (n: N.Nat^) => \axiom:classicalIndefiniteChoice(State[n],
+      (\fun (s: State[n]) => Next[n, s]), (\fun (s: State[n]) => Step[n := n, s := s].exists normal closed positive))));
+\module Sequence(start: State[N.Nat^::zero], select: Selector);
