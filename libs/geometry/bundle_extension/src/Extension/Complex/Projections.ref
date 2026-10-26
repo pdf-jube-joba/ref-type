@@ -1,0 +1,33 @@
+\import spectral_splitting.Spectral[] \as Spectral;
+\import Spectral.At[n := n] \as Matrices;
+\import Spectral.Idempotents[n := n] \as Idempotents;
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := linear_algebra.Hermitian[].Complex[].scalar, topological := hermitian_frames.Hermitian[].Complex[].topological] \as Hermitian;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing C.Complex C.Algebra[].field] \as Spaces;
+\import Spaces.Coordinates[I := Fin.Fin n] \as Coordinates;
+\import Spaces.Linear[V := Matrices.Vector, W := Matrices.Vector, source := Coordinates.space, target := Coordinates.space] \as End;
+\import Spaces.Eigen[V := Matrices.Vector, space := Coordinates.space] \as Eigen;
+\import Hermitian.At[n := n].Families[X := Subspace.CarrierSet].Matrix[m := n] \as Maps;
+\import Hermitian.Functions[X := Subspace.CarrierSet] \as Functions;
+\import \parent.Matrices[m := n, n := n] \as Entries;
+\import \parent.Spectral[n := n] \as Extension;
+\import complex.Complex[].Def[] \as Complex;
+\definition two: C.Complex := Complex.ofReal (R.add R.one R.one);
+\definition complementary[x: Subspace.CarrierSet]: End.Map := Matrices.Idempotent[P := (P x).map, idempotent := (P x).idempotent].complementMap;
+\definition complementaryRegular: Maps.Regular (Subspace.topology source) complementary := \fun (v: Matrices.Vector)(i: Fin.Fin n) =>
+  Functions.addition (Subspace.topology source) (\fun (_: Subspace.CarrierSet) => v i) (\fun (x: Subspace.CarrierSet) => Spaces.neg ((P x).map.apply v i))
+    (Functions.constant (Subspace.topology source) (v i))
+    (Functions.negation (Subspace.topology source) (\fun (x: Subspace.CarrierSet) => (P x).map.apply v i) (regular v i));
+\definition operator[x: Subspace.CarrierSet]: End.Map := Matrices.ProjectionRecovery[P := (P x).map, idempotent := (P x).idempotent].T;
+\definition operatorRegular: Maps.Regular (Subspace.topology source) operator := \fun (v: Matrices.Vector)(i: Fin.Fin n) =>
+  Functions.multiplication (Subspace.topology source) (\fun (_: Subspace.CarrierSet) => two) (\fun (x: Subspace.CarrierSet) => (complementary x).apply v i)
+    (Functions.constant (Subspace.topology source) two) (complementaryRegular v i);
+\definition encoded[x: Subspace.CarrierSet]: Entries.Matrix := Matrices.ProjectionRecovery[P := (P x).map, idempotent := (P x).idempotent].matrix;
+\definition input: Entries.Function := Entries.Function {
+  value := encoded,
+  continuous := \fun (i, j: Fin.Fin n) => operatorRegular (linear_algebra.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := linear_algebra.Hermitian[].Complex[].scalar].Finite[n := n].basis j) i,
+};
+\definition off[x: Subspace.CarrierSet]: Matrices.Splitting[A := encoded x].OffSpectrum := Matrices.ProjectionRecovery[P := (P x).map, idempotent := (P x).idempotent].off;
+\definition Witness: \Set := Extension.Witness[input];
+\definition exists: Space.IsCompact source -> Space.IsT2 source -> Space.IsClosedIn source subset -> \exists Witness :=
+  \fun (compact: _)(hausdorff: _)(closed: _) => Extension.exists input compact hausdorff closed off;
+\module With(e: Witness);
