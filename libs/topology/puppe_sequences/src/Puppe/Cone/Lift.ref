@@ -1,0 +1,18 @@
+\import algebraic_topology.Pointed[A := A].Maps[B := B].Composition[C := C] \as Compose;
+\definition composite: algebraic_topology.Pointed[A := A].Maps[B := C].Map[source, range] := Compose.compose source target range f g;
+\import Cone.Lift[B := C, target := range, f := composite, h := h] \as ConeLift;
+\import Attached.Universal[D := C] \as Gluing;
+\definition compatible: Gluing.Compatible g ConeLift.apply := \fun (x: A) => sym!{C} _ _ (ConeLift.onBase x);
+\definition apply: Carrier -> C := Gluing.apply g ConeLift.apply compatible;
+\definition onTarget: \forall (x: B) -> apply (inclusion x) = g x := Gluing.onLeft g ConeLift.apply compatible;
+\definition onCone: \forall (x: Cone.Carrier) -> apply (cone x) = ConeLift.apply x := Gluing.onRight g ConeLift.apply compatible;
+\import algebraic_topology.Pointed[A := B].Maps[B := C] \as Given;
+\import algebraic_topology.Pointed[A := Carrier].Maps[B := C] \as Result;
+\definition continuous: topology.Continuity[A := Carrier, B := C].Continuous topology range.topology apply :=
+  Gluing.continuous target.topology Cone.topology range.topology g ConeLift.apply compatible (Given.laws target range g).continuous ConeLift.continuous;
+\definition map: Result.Map[pointed, range] := \into[Carrier -> C](apply, Result.Map[pointed, range]) \by {
+  Result.Laws[pointed, range, apply] {
+    continuous := continuous,
+    pointed := trans!{C} _ _ _ (onTarget target.basepoint) (Given.laws target range g).pointed,
+  }
+};
