@@ -1,0 +1,35 @@
+\definition n: N.Nat^ := embedding.dimension;
+\import Bundles.Trivial[X := A, n := n, baseSpace := source] \as Ambient;
+\import Bundles.Family[X := A, F := \fun (_: A) => Bundles.Vector n] \as AmbientFamily;
+\import Bundles.Morphisms[X := A, Y := A, F := F, G := \fun (_: A) => Bundles.Vector n, source := bundle, target := Ambient.bundle, f := \fun (x: A) => x] \as Inclusion;
+\import Embeddings.FromEmbedding[embedding := embedding].Image[] \as Image;
+\import Complements.Projection[X := A, n := n, baseSpace := source, P := Image.projection, regular := Image.regular] \as Projected;
+\import Bundles.Morphisms[X := A, Y := A, F := \fun (_: A) => Bundles.Vector n, G := Image.ImageFiber, source := Ambient.bundle, target := Image.imageBundle, f := \fun (x: A) => x] \as ToImage;
+\import Bundles.Morphisms[X := A, Y := A, F := \fun (_: A) => Bundles.Vector n, G := F, source := Ambient.bundle, target := bundle, f := \fun (x: A) => x] \as Retraction;
+\definition project: Retraction.Map := ToImage.Composition[Z := A, H := F, range := bundle, g := \fun (x: A) => x].compose Projected.projectMap Image.isomorphism.backward;
+\definition retraction[x: A][v: F x]: (project.fiber x).apply ((embedding.map.fiber x).apply v) = v :=
+  trans!{{F x}} _ _ _
+    (congr!{{Image.ImageFiber x} {F x}} (Image.isomorphism.backward.fiber x).apply _ _ (Image.Comparison[].At[x := x].fixed v))
+    (Image.isomorphism.leftInverse x v);
+\definition encoded[x: Subspace.CarrierSet]: Bundles.Vector n := (embedding.map.fiber x).apply (s.value x);
+\definition encodedContinuous: topology.Continuity[A := Subspace.CarrierSet, B := Bundles.Vector n].Continuous
+  (Subspace.topology source) (Bundles.coordinateTopology n) encoded :=
+  topology.Composition[A := Subspace.CarrierSet, B := AmbientFamily.Point, C := Bundles.Vector n].composeContinuous
+    (Subspace.topology source) Ambient.topology (Bundles.coordinateTopology n)
+    (\fun (x: Subspace.CarrierSet) => Inclusion.total embedding.map (Family.include x (s.value x)))
+    (\fun (p: AmbientFamily.Point) => p.vector)
+    (topology.Composition[A := Subspace.CarrierSet, B := Family.Point, C := AmbientFamily.Point].composeContinuous
+      (Subspace.topology source) bundle.totalSpace Ambient.topology (\fun (x: Subspace.CarrierSet) => Family.include x (s.value x))
+      (Inclusion.total embedding.map) s.continuous (Inclusion.continuous embedding.map)) Ambient.vectorContinuous;
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin n] \as Coordinates;
+\definition componentContinuous[i: Fin.Fin n]: topology.Continuity[A := Subspace.CarrierSet, B := K].Continuous
+  (Subspace.topology source) scalar.topological.space (\fun (x: Subspace.CarrierSet) => encoded x i) :=
+  topology.Composition[A := Subspace.CarrierSet, B := Bundles.Vector n, C := K].composeContinuous
+    (Subspace.topology source) (Bundles.coordinateTopology n) scalar.topological.space encoded (\fun (v: Bundles.Vector n) => v i)
+    encodedContinuous (Coordinates.evaluationContinuous scalar.topological.space i);
+\structure CoordinatesExtension: \Set := {
+  value: A -> Bundles.Vector n,
+  continuous: topology.Continuity[A := A, B := Bundles.Vector n].Continuous source (Bundles.coordinateTopology n) value,
+  extends: \forall (x: Subspace.CarrierSet) -> value x = encoded x,
+};
+\module FromCoordinates(e: CoordinatesExtension);
