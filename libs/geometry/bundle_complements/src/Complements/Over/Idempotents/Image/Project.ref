@@ -1,0 +1,18 @@
+\import \root.Complements[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Idempotents[n := n].Image[X := X, baseSpace := baseSpace, P := P, regular := regular] \as Original;
+\import Bundles.Morphisms[X := X, Y := X, F := \fun (x: X) => Vector n, G := Fiber, source := Ambient.bundle, target := bundle, f := \fun (x: X) => x] \as Maps;
+\definition data: Maps.Data := Maps.Data { fiber := \fun (x: X) => Original.At[x := x].project };
+\definition baseContinuous: topology.Continuity[A := AmbientFamily.Point, B := X].Continuous Ambient.topology baseSpace AmbientFamily.projection := AmbientFamily.Of[bundle := Ambient.bundle].projectionContinuous;
+\import Hermitian.At[n := n].Families[X := AmbientFamily.Point].Matrix[m := n] \as Matrices;
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin n] \as Coordinates;
+\definition components: Matrices.Components Ambient.topology (\fun (p: AmbientFamily.Point) => (P p.base).map) :=
+  \fun (j, i: Fin.Fin n) => topology.Composition[A := AmbientFamily.Point, B := X, C := K].composeContinuous Ambient.topology baseSpace scalar.topological.space AmbientFamily.projection
+    (\fun (x: X) => (P x).map.apply (Geometry.Finite[n := n].basis j) i) baseContinuous (regular (Geometry.Finite[n := n].basis j) i);
+\definition vectorRegular: Hermitian.At[n := n].Families[X := AmbientFamily.Point].Continuous Ambient.topology (\fun (p: AmbientFamily.Point) => p.vector) :=
+  \fun (i: Fin.Fin n) => topology.Composition[A := AmbientFamily.Point, B := Vector n, C := K].composeContinuous Ambient.topology (coordinateTopology n) scalar.topological.space (\fun (p: AmbientFamily.Point) => p.vector)
+    (\fun (v: Vector n) => v i) Ambient.vectorContinuous (Coordinates.evaluationContinuous scalar.topological.space i);
+\definition projected[p: AmbientFamily.Point]: Vector n := (P p.base).map.apply p.vector;
+\definition projectedContinuous: topology.Continuity[A := AmbientFamily.Point, B := Vector n].Continuous Ambient.topology (coordinateTopology n) projected :=
+  Coordinates.Universal[A := AmbientFamily.Point].continuous Ambient.topology scalar.topological.space projected (Matrices.evaluate Ambient.topology (\fun (p: AmbientFamily.Point) => (P p.base).map) (\fun (p: AmbientFamily.Point) => p.vector) components vectorRegular);
+\definition map: Maps.Map := \into[Maps.Data](data, Maps.Map) \by {
+  Original.Universal[Y := AmbientFamily.Point, source := Ambient.topology].continuous (Maps.total data) baseContinuous projectedContinuous
+};
