@@ -1,0 +1,42 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].Bool[] \as Bool;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition two: N.Nat^ := N.Nat^::succ one;
+\import algebraic_topology.Euclidean[].Dimension[n := one] \as IntervalDisk;
+\import algebraic_topology.Euclidean[].Dimension[n := two] \as PlaneDisk;
+\definition intervalBoundary: algebraic_topology.Cofibration[A := IntervalDisk.Disk,
+  subset := \root.Puppe[].Disk[n := one].Boundary[].subset].IsCofibration IntervalDisk.diskTopology := \root.Puppe[].Disk[n := one].Boundary[].cofibration;
+\definition planeBoundary: algebraic_topology.Cofibration[A := PlaneDisk.Disk,
+  subset := \root.Puppe[].Disk[n := two].Boundary[].subset].IsCofibration PlaneDisk.diskTopology := \root.Puppe[].Disk[n := two].Boundary[].cofibration;
+\definition twoPoints: algebraic_topology.Pointed[A := Bool.Bool^].Space := algebraic_topology.Pointed[A := Bool.Bool^].Space {
+  topology := topology.Topology[Carrier := Bool.Bool^].Discrete, basepoint := Bool.Bool^::false,
+};
+\import \root.Puppe[].Maps[A := Bool.Bool^, B := Bool.Bool^, source := twoPoints, target := twoPoints] \as Maps;
+\import \root.Puppe[].Identity[A := Bool.Bool^, source := twoPoints] \as Identity;
+\import \root.Puppe[].Sequence[] \as Sequence;
+\definition identityArrow: Sequence.Arrow := Sequence.pack Bool.Bool^ Bool.Bool^ (Sequence.Details[Bool.Bool^, Bool.Bool^] {
+  source := twoPoints, target := twoPoints, map := Identity.map,
+});
+\definition constantArrow: Sequence.Arrow := Sequence.pack Bool.Bool^ Bool.Bool^ (Sequence.Details[Bool.Bool^, Bool.Bool^] {
+  source := twoPoints, target := twoPoints, map := Maps.constant,
+});
+\import Sequence.Of[initial := identityArrow] \as IdentitySequence;
+\import Sequence.Of[initial := constantArrow] \as ConstantSequence;
+\import \root.Puppe[].Suspension[A := Bool.Bool^, source := twoPoints] \as Suspension;
+\definition identityComparison: \root.Puppe[].Equivalence[
+  A := (IdentitySequence.arrows two).B, B := Suspension.Carrier,
+  source := (Sequence.data (IdentitySequence.arrows two)).target, target := Suspension.pointed].Data := IdentitySequence.At[n := N.Nat^::zero].comparison;
+\definition constantComparison: \root.Puppe[].Equivalence[
+  A := (ConstantSequence.arrows two).B, B := Suspension.Carrier,
+  source := (Sequence.data (ConstantSequence.arrows two)).target, target := Suspension.pointed].Data := ConstantSequence.At[n := N.Nat^::zero].comparison;
+\import Maps.Precompose[C := Bool.Bool^, domain := twoPoints, f := Identity.map] \as IdentityPull;
+\definition identityOnClasses: \forall (x: Maps.Class) -> IdentityPull.apply x = x :=
+  Maps.induction (\fun (x: Maps.Class) => IdentityPull.apply x = x)
+    (\fun (g: Maps.Map) => trans!{Maps.Class} _ _ _ (IdentityPull.onClass g)
+      (congr!{Maps.Map Maps.Class} Maps.class _ _ (Maps.ext (IdentityPull.map g) g (\fun (x: Bool.Bool^) => \refl(g x)))));
+\import Maps.Precompose[C := Bool.Bool^, domain := twoPoints, f := Maps.constant] \as ConstantPull;
+\definition constantOnClasses: \forall (x: Maps.Class) -> ConstantPull.apply x = Maps.zero :=
+  Maps.induction (\fun (x: Maps.Class) => ConstantPull.apply x = Maps.zero)
+    (\fun (g: Maps.Map) => trans!{Maps.Class} _ _ _ (ConstantPull.onClass g)
+      (congr!{Maps.Map Maps.Class} Maps.class _ _ (Maps.ext (ConstantPull.map g) Maps.constant
+        (\fun (x: Bool.Bool^) => (algebraic_topology.Pointed[A := Bool.Bool^].Maps[B := Bool.Bool^].laws twoPoints twoPoints g).pointed))));

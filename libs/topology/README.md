@@ -18,3 +18,5 @@
 例えば `singular/cohomology` は `singular_cohomology`、`homotopy` は `algebraic_topology` として参照する。
 
 基本群と被覆については [fundamental](fundamental/README.md) と [coverings](coverings/README.md) を参照する。
+
+CW 部分複体のホモトピー拡張性、基点付き cofiber の反復と反変 Hom の完全性は [puppe_sequences](puppe_sequences/README.md) にまとめる。

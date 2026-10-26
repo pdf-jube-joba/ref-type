@@ -1,31 +1,56 @@
-# CW cofibration と Puppe 列（K02、実装中）
+# CW cofibration と Puppe 列（K02）
 
 入口は `puppe_sequences.Puppe`。
-基点は K07 統合済み main `76e6084094f810eaf51e18663bb33d111dd409d7`、作業ブランチは `math/k02-cofibration-puppe`。
+円板境界と有限 CW 部分複体のホモトピー拡張性、基点付き cofiber の反復、reduced suspension との比較、基点固定ホモトピー類の反変 Hom の完全性を提供する。
 
-最初の証明義務は、既存の cylinder の貼り合わせへの retraction による cofibration の定義と、ホモトピー拡張性の逆方向の同値である。
-`Cofibration.fromExtension` は貼り合わせ空間自体への拡張問題を使って retraction を構成する。
-`5b7cbe2b` の個別検査は accepted・終了0・保存失敗0。
-[PR #47](https://github.com/pdf-jube-joba/ref-type/pull/47) は draft。
-`d50d55ce` の円板 scaling 評価、`0c83afde` の radial パラメータの正値性・区間評価、`2e3c2c89` の端点公式、`9f0e1abf` の円板 cylinder の底面・境界への写像は各 accepted・終了0・保存失敗0。
-`e4fa67d7` の連続性、`a6aa2276` の閉集合貼り合わせ、`ec1c454d` の `Disk.Boundary.cofibration` と任意の対象へのホモトピー拡張性は各 accepted・終了0・保存失敗0。
-`5e7595a2` の `CW.Cylinder.continuous` は accepted・終了0・保存失敗0。
-ローカル `5f5def60` の部分複体の内部セルによる被覆・閉性も accepted・終了0・保存失敗0（`cw-subcomplex.json`、302 modules）。
-部分複体の追加はリモート `cbd07bdc9cfb6af91678773c9197aae900fbb62a` に保存済み。
-`Quotient.Descent` と `CW.Assembly` による骨格 cylinder 上の貼り合わせは accepted・終了0・保存失敗0。
-`CW.Subcomplex.Extension` の空骨格とセル単位の拡張（初期値・低次骨格・部分複体上の指定値を保持）も accepted・終了0・保存失敗0。
-`CW.Subcomplex.homotopyExtension` と `CW.Subcomplex.cofibration` は、セルの重なり・骨格への貼り合わせ・有限段の帰納法を含め accepted・終了0・保存失敗0（`cw-cofibration.json`）。
-基点固定ホモトピー類 `Maps`、基点付き円錐 `ReducedCone`、mapping cone `Cone`、零ホモトピーからの延長と `Cone.Exactness.exact`（反変 Hom の基本三項）は accepted・終了0・保存失敗0（`cone-exactness.json`）。
-reduced suspension と接続写像、対の写像による cone・suspension の誘導写像、接続写像との可換性も実装済み。
-現時点の `puppe_sequences.Puppe` 全体は accepted・終了0・保存失敗0（`puppe-connecting-naturality.json`）。
-比較証明用の `Coproduct.ProductUniversal`、`Pushout.Of.Families`、`RelationQuotient.Families`、`ReducedCone.Contraction` も個別検査 accepted・終了0・保存失敗0。
-`Pair.equivalence` は cofibration のホモトピー拡張から商との比較写像の逆と基点固定の両側ホモトピーを構成する。
-有限 CW 部分複体の `CW.Subcomplex.Pointed.equivalence` まで accepted・終了0・保存失敗0（`cw-pointed-comparison.json`）。
-次は反復 cofiber と suspension の比較・Puppe 列全体、具体例・最終 workspace 検証へ進む。
+## 公開 API
 
-円錐反復の比較射影と二領域の変形は、連続性・端点・基点まで accepted・保存失敗0（`cone-iteration-raw.json`）。
-`Cone.Iteration.Inverse.equivalence` は反復 cofiber と reduced suspension の比較射影・逆写像・基点固定の両側ホモトピーを構成済みで、accepted・終了0・保存失敗0（`cone-iteration-equivalence.json`）。
-`Equivalence.Contravariant` の両側逆と `Cone.Iteration.Exactness.exact` による接続写像の位置の完全性も accepted・終了0・保存失敗0。
-`Compression` と `Suspension.TimeChange` は端点を交換する連続再パラメータ化とその基点固定ホモトピーを構成・検査済み。
-次は反復の次の接続写像と時間反転を伴う suspension 写像の比較、列全体・具体例・最終検証。
+| API | 内容 |
+| --- | --- |
+| `Cofibration.fromExtension` | 既存のホモトピー拡張性から cylinder の貼り合わせへの retraction を構成 |
+| `Disk.Boundary.cofibration` | 任意次元の閉円板の境界包含が cofibration |
+| `CW.Subcomplex.cofibration` | 有限 CW 部分複体の包含が cofibration。セル境界の拡張と骨格の帰納法で証明 |
+| `Maps` | 基点を固定するホモトピーとその商集合、前合成・後合成 |
+| `ReducedCone`、`Cone`、`Suspension` | 基点付き円錐・mapping cone・reduced suspension と連続な誘導写像 |
+| `Cone.Exactness.exact` | \([C_f,Z]\to[B,Z]\to[A,Z]\) の核と像の一致 |
+| `Cone.Connecting`、`Cone.Morphisms.Of` | 接続写像と、対の可換図式が誘導する写像・自然性 |
+| `Cone.Iteration.Inverse.equivalence` | \(C_{B\to C_f}\simeq\Sigma A\)。比較射影・逆・基点固定の両側ホモトピーを構成 |
+| `Cone.Iteration.Successor.homotopy` | 次の接続写像と、区間の時間反転を伴う \(\Sigma f\) の比較 |
+| `Cone.Iteration.Exactness.exact` | \([\Sigma A,Z]\to[C_f,Z]\to[B,Z]\) の完全性 |
+| `Pair.equivalence` | cofibration に対する mapping cone と商空間の比較写像のホモトピー同値 |
+| `CW.Subcomplex.Pointed.equivalence` | 基点を含む有限 CW 部分複体への商比較の適用 |
+| `Sequence.Of.At` | 自然数で反復した cofiber 列の各段、suspension との比較、`Hom.exact` と `Hom.connectingExact` |
+| `Sequence.Natural` | 対の写像から各段の可換図式を帰納的に構成 |
+| `Equivalence.Contravariant` | ホモトピー同値が反変ホモトピー類に誘導する両側逆 |
+
+`Sequence.Arrow` は基点付き写像をまとめる。
+`Sequence.pack` に二つの台集合と `Sequence.Details` を渡し、`Sequence.Of` で列を作る。
+第0段は与えた写像、第1段は mapping cone への包含、第2段の終域は元の始域の suspension と比較される。
+各段で同じ比較を反復でき、`successorComparison` が次の写像の時間反転を明示する。
+この向きの規約は、円錐の底面を区間の0、頂点を1とする定義による。
+
+`Pair.equivalence` は既存の `algebraic_topology.Cofibration.IsCofibration` を受け取り、指定の比較写像を前向き写像に持つ同値の存在を返す。
+逆写像はホモトピー拡張から構成し、存在を仮定しない。
+
+## 例と検査
+
+`Examples.intervalBoundary` と `Examples.planeBoundary` は1次元・2次元円板の境界包含を検査する。
+`Examples.identityComparison` と `Examples.constantComparison` は二点離散空間の恒等写像・定数写像からの反復比較であり、`identityOnClasses` と `constantOnClasses` は実際のホモトピー類上の作用を確認する。
+
+```sh
+target/debug/cli libs/topology/puppe_sequences --module puppe_sequences.Puppe --memory-mib 10240 --cache-dir libs/refcache --cache-budget-mib 12288 --diagnostics compact
+target/debug/cli libs --memory-mib 10240 --cache-dir libs/refcache --cache-budget-mib 12288 --diagnostics compact
+```
+
+依存する共通 API として `topological_constructions.Quotient.Descent`、`Coproduct.ProductUniversal`、`Pushout.Of.Families`、`RelationQuotient.Families` を追加した。
+積と商の交換にはコンパクト Hausdorff な区間を使う。
+[相対 K 群の K03](../../../_plans/math/k03-relative-k.md) はこの列と有限 CW 対の比較を利用する。
+
+## 保存・再開
+
+基点は K07 統合済み main `76e6084094f810eaf51e18663bb33d111dd409d7`。
+作業ブランチは `math/k02-cofibration-puppe`、[PR #47](https://github.com/pdf-jube-joba/ref-type/pull/47)。
+公開入口・依存閉包・例は `puppe-public.json` で accepted・終了0・保存失敗0。
+反復列の完全性・自然性と次の接続写像の比較まで実装・検査済み。
+最終 workspace 検証、差分・CI 確認、PR の ready・merge・main 反映確認が残る。
 共有キャッシュは `libs/refcache`。

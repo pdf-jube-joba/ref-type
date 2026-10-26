@@ -78,3 +78,27 @@ B03 の `Representations.Representing` はこの配置を使う。
   }
 }
 ```
+
+## 大きな構造体からの小さな依存データの取り出し
+
+次の自然な表示では `point` の生成で `forbidden large elimination` となる。
+
+```ref
+\module Test {
+  \structure Data: \Set(1) := { Carrier: \Set, point: Carrier };
+}
+```
+
+現在は小さな結果型への関数を受け取るフィールドを使い、必要なデータを復元する。
+次の形は通常検査で終了0となり、`puppe_sequences.Puppe.Sequence.Arrow` も同じ方法を使う。
+
+```ref
+\module Test {
+  \structure Data: \Set(1) := {
+    Carrier: \Set,
+    pointLift: \forall (X: \Set) -> (Carrier -> X) -> X,
+  };
+  \definition point[d: Data]: d.Carrier :=
+    d.pointLift d.Carrier (\fun (x: d.Carrier) => x);
+}
+```
