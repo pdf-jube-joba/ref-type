@@ -1,0 +1,18 @@
+\definition states: \forall (n: N.Nat^) -> State[n] := \induction (n: N.Nat^) \return State[n] \with {
+  | zero: start
+  | succ: \fun (n: N.Nat^)(previous: State[n]) => (select n previous).state
+};
+\definition value[n: N.Nat^]: A -> R.Real := (states n).value;
+\definition continuous[n: N.Nat^]: Functions.Continuous source (value n) := (states n).continuous;
+\definition error[n: N.Nat^][x: Subspace.CarrierSet]: D.Le (R.distance (f.value x) (value n x)) (Radii.value n) := (states n).error x;
+\definition increment[n: N.Nat^][x: A]: D.Le (R.distance (value n x) (value (N.Nat^::succ n) x)) (R.mul R.half (Radii.value n)) :=
+  (select n (states n)).increment x;
+\module At(x: A) {
+  \import \root.Extension[].MetricBudget[A := R.Real, metric := metric_spaces.RealMetric[].metric,
+    s := (\fun (n: N.Nat^) => value n x), b := Radii.budget] \as Budget;
+  \definition step: Budget.Step := \fun (n: N.Nat^) => D.leReplaceRight _ _ (Radii.budget n) (Radii.budgetStep n)
+    (Laws.addMonotoneRight _ _ (Radii.budget (N.Nat^::succ n)) (increment n x));
+  \definition bound: D.Le R.zero r -> \forall (n, m: N.Nat^) -> Nat.Le n m -> D.Le (R.distance (value n x) (value m x)) (Radii.budget n) :=
+    \fun (rn: _) => Budget.bound (Radii.budgetNonnegative rn) step;
+}
+\module Limit(anchor: A, nonnegative: D.Le R.zero r);

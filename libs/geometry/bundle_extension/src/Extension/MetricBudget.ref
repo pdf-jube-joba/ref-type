@@ -1,0 +1,45 @@
+\definition Step: \Prop := \forall (n: N.Nat^) ->
+  D.Le (R.add (metric.distance (s n) (s (N.Nat^::succ n))) (b (N.Nat^::succ n))) (b n);
+\definition offset: Step -> \forall (n, k: N.Nat^) ->
+  D.Le (R.add (metric.distance (s n) (s (NatOp.add n k))) (b (NatOp.add n k))) (b n) :=
+  \fun (step: Step)(n: N.Nat^) => \induction (k: N.Nat^) \return
+    D.Le (R.add (metric.distance (s n) (s (NatOp.add n k))) (b (NatOp.add n k))) (b n) \with {
+    | zero: D.leReplaceLeft (b n) (R.add (metric.distance (s n) (s n)) (b n)) (b n)
+      (sym!{R.Real} _ _ (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (x: R.Real) => R.add x (b n)) _ _ (metric.self (s n)))
+        (Laws.addZeroLeft (b n)))) (D.leRefl (b n))
+    | succ: \fun (k: N.Nat^)(previous: _) => D.leTrans _ _ (b n)
+      (D.leTrans _ _ _
+        (Laws.addMonotoneRight _ _ (b (N.Nat^::succ (NatOp.add n k)))
+          (metric.triangle (s n) (s (NatOp.add n k)) (s (N.Nat^::succ (NatOp.add n k)))))
+        (D.leReplaceLeft _ _ _
+          (sym!{R.Real} _ _ (Laws.addAssoc (metric.distance (s n) (s (NatOp.add n k)))
+            (metric.distance (s (NatOp.add n k)) (s (N.Nat^::succ (NatOp.add n k)))) (b (N.Nat^::succ (NatOp.add n k)))))
+          (Laws.addMonotoneLeft _ _ (metric.distance (s n) (s (NatOp.add n k))) (step (NatOp.add n k))))) previous
+  };
+\definition tail: Step -> \forall (n, m: N.Nat^) -> Nat.Le n m ->
+  D.Le (R.add (metric.distance (s n) (s m)) (b m)) (b n) :=
+  \fun (step: Step)(n, m: N.Nat^)(later: Nat.Le n m) =>
+    \idelim NatOp.add n (NatOp.sub m n) = m \with k: N.Nat^ =>
+      D.Le (R.add (metric.distance (s n) (s k)) (b k)) (b n) \by {
+        base: offset step n (NatOp.sub m n), equality: Nat.addSubOfLe n m later
+      };
+\definition bound: (\forall (n: N.Nat^) -> D.Le R.zero (b n)) -> Step ->
+  \forall (n, m: N.Nat^) -> Nat.Le n m -> D.Le (metric.distance (s n) (s m)) (b n) :=
+  \fun (nonnegative: _)(step: Step)(n, m: N.Nat^)(later: _) => D.leTrans _ _ (b n)
+    (Algebra.leAddRight (metric.distance (s n) (s m)) (b m) (nonnegative m)) (tail step n m later);
+\import metric_spaces.MetricSpace[Carrier := A].Sequences[metric := metric] \as Sequences;
+\definition cauchy: (\forall (n: N.Nat^) -> D.Le R.zero (b n)) -> Step ->
+  (\forall (epsilon: R.Real) -> D.Lt R.zero epsilon -> \exists ( n: N.Nat^ \where D.Lt (b n) epsilon )) -> Sequences.Cauchy s := \block {
+  \fun (nonnegative: _)(step: Step)(small: _)(epsilon: R.Real)(positive: D.Lt R.zero epsilon) \then
+  \let h: R.Real := R.mul R.half epsilon \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where D.Lt (b k) h }) \by small h (Estimates.halfOfPositive epsilon positive) \then
+  \let bk: D.Lt (b k) h := \bysub(N.Nat^, { k: N.Nat^ \where D.Lt (b k) h }, k) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequences.Control s epsilon k }] k
+    (\fun (m, n: N.Nat^)(km: Nat.Le k m)(kn: Nat.Le k n) => D.leLtTrans _ _ epsilon
+      (metric.triangle (s m) (s k) (s n))
+      (D.ltReplaceRight _ (R.add h h) epsilon (Estimates.halfTwice epsilon)
+        (Estimates.addLt _ _ h h
+          (D.leLtTrans _ (b k) h (D.leReplaceLeft (metric.distance (s k) (s m)) (metric.distance (s m) (s k)) (b k)
+            (metric.symmetric (s k) (s m)) (bound nonnegative step k m km)) bk)
+          (D.leLtTrans _ (b k) h (bound nonnegative step k n kn) bk))))
+};
