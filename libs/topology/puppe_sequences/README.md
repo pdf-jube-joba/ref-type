@@ -52,5 +52,9 @@ target/debug/cli libs --memory-mib 10240 --cache-dir libs/refcache --cache-budge
 作業ブランチは `math/k02-cofibration-puppe`、[PR #47](https://github.com/pdf-jube-joba/ref-type/pull/47)。
 公開入口・依存閉包・例は `puppe-public.json` で accepted・終了0・保存失敗0。
 反復列の完全性・自然性と次の接続写像の比較まで実装・検査済み。
-最終 workspace 検証、差分・CI 確認、PR の ready・merge・main 反映確認が残る。
+実装の保存済みリモートは `29fc8e5490ef3cb4deaab6f9011e7e0b26c0b1e3`（以後の検査記録更新は PR head を参照）。
+workspace 全体は `workspace-final.json` で1200秒上限に達し、time-limit・終了2・保存失敗0。
+最後の検査箇所は `uniform_approximation.Approximation.On.AlgebraEvaluation.At`、終了時の未完了 step は535。
+全体検査は未完了なので PR は draft、main は未変更。
+同じ共有キャッシュで workspace 検査を再開し、accepted・終了0・保存失敗0を確認してからロードマップ・下流リンク、PR の ready・merge・main 反映確認へ進む。
 共有キャッシュは `libs/refcache`。
