@@ -51,10 +51,18 @@ K06 の公開入口は `spectral_splitting.Spectral`。
 その `Homotopy` は区間上の族にも適用し、両端の像束の比較を使用する。
 `Examples.MixedRanksHomotopy` はランク0と1の二つの成分を持つ束を円柱へ引き戻し、零自己準同型のスペクトル像に一般の束の比較を適用する。
 
+## B09 向けの射影回復と共役
+
+`Circle.At.domainOff` は、単位円を避ける領域の点から `OffSpectrum` を得る。
+`At.Neighborhood.open` は、行列空間内で単位円上のスペクトルを避ける領域が開であることを与える。
+`At.ProjectionRecovery[P, idempotent]` は \(2(I-P)\) の行列、単位円を避ける証明、スペクトル射影を \(P\) に戻す `recovers` を公開する。
+`Conjugation.At.On[A, off, real].natural` は、実行列の作用と座標ごとの共役が可換なら、そのスペクトル射影も共役と可換であることを示す。
+これらは [B09](../../geometry/bundle_extension/README.md) の実・複素束の近傍延長に用い、追加分の検証記録は同 README にまとめる。
+
 ## 検証と再開
 
 K06 の構成・証明・自然性・比較・利用例は完了した。
-数学コードは `1b012836`、workspace の最終検証は `cdc57da7` と同一の数学入力であり、未検証の数学変更と残る実装作業はない。
+K06 統合時の数学コードは `1b012836`、workspace の最終検証は `cdc57da7` と同一の数学入力であった。
 ブランチは `math/k06-spectral-splitting`、統合状態は [PR #42](https://github.com/pdf-jube-joba/ref-type/pull/42) を参照する。
 Rust の変更はない。
 
