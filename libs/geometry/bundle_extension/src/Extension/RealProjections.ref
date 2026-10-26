@@ -1,0 +1,43 @@
+\import topology.Topology[Carrier := A] \as Space;
+\import Space.Subspace[S := subset] \as Subspace;
+\import \root.Extension[].RealLinear[n := n] \as Lift;
+\import bundle_complements.Complements[].Over[K := R.Real, field := R.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar].Idempotents[n := n] \as Idempotents;
+\import hermitian_frames.Hermitian[].Over[K := R.Real, field := R.Algebra[].field, scalar := linear_algebra.Hermitian[].Real[].scalar, topological := hermitian_frames.Hermitian[].Real[].topological] \as Hermitian;
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := linear_algebra.Hermitian[].Complex[].scalar, topological := hermitian_frames.Hermitian[].Complex[].topological] \as ComplexHermitian;
+\import Hermitian.Functions[X := Subspace.CarrierSet] \as RF;
+\import ComplexHermitian.Functions[X := Subspace.CarrierSet] \as CF;
+\import Hermitian.At[n := n].Families[X := Subspace.CarrierSet].Matrix[m := n] \as Maps;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := Fields.fieldAsCommutativeRing R.Real R.Algebra[].field] \as Spaces;
+\import Spaces.Coordinates[I := Fin.Fin n] \as Coordinates;
+\import Spaces.FiniteCoordinates[n := n] \as Basis;
+\import Spaces.Eigen[V := Coordinates.Vector, space := Coordinates.space] \as Eigen;
+\import \root.Extension[].Real[A := A, source := source, subset := subset].Matrices[m := n, n := n] \as Entries;
+\import \root.Extension[].Complex[A := A, source := source, subset := subset].Matrices[m := n, n := n] \as ComplexEntries;
+\import \root.Extension[].Complex[A := A, source := source, subset := subset].Spectral[n := n] \as NeighborhoodAPI;
+\import spectral_splitting.Spectral[] \as Spectral;
+\import Spectral.At[n := n] \as SpectralMatrices;
+\definition complexProjection[x: Subspace.CarrierSet]: Spectral.Idempotents[n := n].Projection := Lift.Projection[P := (P x).map, idempotent := (P x).idempotent].projection;
+\definition input: Entries.Function := Entries.Function {
+  value := \fun (x: Subspace.CarrierSet) => Lift.Projection[P := (P x).map, idempotent := (P x).idempotent].scaled,
+  continuous := \fun (i, j: Fin.Fin n) => RF.multiplication (Subspace.topology source)
+    (\fun (_: Subspace.CarrierSet) => R.add R.one R.one)
+    (\fun (x: Subspace.CarrierSet) => R.sub (Basis.vectors j i) ((P x).map.apply (Basis.vectors j) i))
+    (RF.constant (Subspace.topology source) (R.add R.one R.one))
+    (RF.addition (Subspace.topology source) (\fun (_: Subspace.CarrierSet) => Basis.vectors j i)
+      (\fun (x: Subspace.CarrierSet) => R.neg ((P x).map.apply (Basis.vectors j) i))
+      (RF.constant (Subspace.topology source) (Basis.vectors j i))
+      (RF.negation (Subspace.topology source) (\fun (x: Subspace.CarrierSet) => (P x).map.apply (Basis.vectors j) i) (regular (Basis.vectors j) i))),
+};
+\definition complexInput: ComplexEntries.Function := ComplexEntries.Function {
+  value := \fun (x: Subspace.CarrierSet) => Lift.matrix (input.value x),
+  continuous := \fun (i, j: Fin.Fin n) => CF.embedding (Subspace.topology source) (\fun (x: Subspace.CarrierSet) => input.value x i j) (input.continuous i j),
+};
+\definition off[x: Subspace.CarrierSet]: SpectralMatrices.Splitting[A := complexInput.value x].OffSpectrum :=
+  \idelim SpectralMatrices.ProjectionRecovery[P := (complexProjection x).map, idempotent := (complexProjection x).idempotent].matrix = complexInput.value x
+    \with a: ComplexEntries.Matrix => SpectralMatrices.Splitting[A := a].OffSpectrum \by {
+      base: SpectralMatrices.ProjectionRecovery[P := (complexProjection x).map, idempotent := (complexProjection x).idempotent].off,
+      equality: Lift.Projection[P := (P x).map, idempotent := (P x).idempotent].scaledFormula
+    };
+\definition Witness: \Set := Entries.Extension[input];
+\definition exists: Space.IsCompact source -> Space.IsT2 source -> Space.IsClosedIn source subset -> \exists Witness := Entries.tietze input;
+\module With(e: Witness);

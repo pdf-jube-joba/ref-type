@@ -1,0 +1,59 @@
+\import vector_bundles.Bundles[].Over[K := R.Real, field := R.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar] \as Bundles;
+\import ComplexHermitian.Functions[X := A] \as AmbientCF;
+\definition complexExtension: ComplexEntries.Extension[complexInput] := ComplexEntries.Extension[complexInput] {
+  value := \fun (x: A) => Lift.matrix (e.value x),
+  continuous := \fun (i, j: Fin.Fin n) => AmbientCF.embedding source (\fun (x: A) => e.value x i j) (e.continuous i j),
+  extends := \fun (x: Subspace.CarrierSet) => congr!{Entries.Matrix ComplexEntries.Matrix} Lift.matrix _ _ (e.extends x),
+};
+\definition domain: \Pow A := NeighborhoodAPI.domain complexInput complexExtension;
+\definition open: Space.IsOpenIn source domain := NeighborhoodAPI.open complexInput complexExtension;
+\definition contains: Space.Subset subset domain := NeighborhoodAPI.contains complexInput complexExtension off;
+\import NeighborhoodAPI.Near[f := complexInput, e := complexExtension] \as Recovered;
+\definition Base: \Set := Recovered.Base;
+\definition topology: topology.Topology[Carrier := Base].Topology := Recovered.topology;
+\definition embed[x: Subspace.CarrierSet]: Base := \into[A](x, domain) \by { contains x (\bysub(A, subset, x)) };
+\definition embedContinuous: topology.Continuity[A := Subspace.CarrierSet, B := Base].Continuous (Subspace.topology source) topology embed :=
+  topology.Continuity[A := Subspace.CarrierSet, B := A].Corestriction[S := domain].corestrictContinuous (Subspace.topology source) source embed
+    (topology.Continuity[A := Subspace.CarrierSet, B := A].Corestriction[S := subset].inclusionContinuous source);
+\module At(x: Base);
+\definition projection[x: Base]: Idempotents.Projection := At[x := x].projection;
+\import ComplexHermitian.Functions[X := Base] \as LocalCF;
+\definition projectionRegular: Hermitian.At[n := n].Families[X := Base].Matrix[m := n].Regular topology (\fun (x: Base) => (projection x).map) :=
+  \fun (v: Coordinates.Vector)(i: Fin.Fin n) => LocalCF.realPart topology
+    (\fun (x: Base) => (Recovered.projection x).apply (Lift.embed v) i) (Recovered.projectionRegular (Lift.embed v) i);
+\import Idempotents.Image[X := Base, baseSpace := topology, P := projection, regular := projectionRegular] \as Image;
+\definition Fiber[x: Base]: \Set := Image.Fiber x;
+\definition bundle: Bundles.Family[X := Base, F := Fiber].Bundle := Image.bundle;
+\definition matrixOnSubset[x: Subspace.CarrierSet]: SpectralMatrices.ProjectionRecovery[P := (complexProjection x).map, idempotent := (complexProjection x).idempotent].matrix = complexExtension.value x :=
+  trans!{ComplexEntries.Matrix} _ _ _ (Lift.Projection[P := (P x).map, idempotent := (P x).idempotent].scaledFormula)
+    (congr!{Entries.Matrix ComplexEntries.Matrix} Lift.matrix _ _ (sym!{Entries.Matrix} _ _ (e.extends x)));
+\definition complexOnSubset[x: Subspace.CarrierSet][v: Lift.ComplexVector]: (Recovered.projection (embed x)).apply v = (complexProjection x).map.apply v :=
+  (\idelim SpectralMatrices.ProjectionRecovery[P := (complexProjection x).map, idempotent := (complexProjection x).idempotent].matrix = complexExtension.value x
+    \with a: ComplexEntries.Matrix => \forall (gap: SpectralMatrices.Splitting[A := a].OffSpectrum) ->
+      SpectralMatrices.Splitting[A := a].Separated[off := gap].projection.apply v = (complexProjection x).map.apply v \by {
+        base: \fun (gap: SpectralMatrices.Splitting[A := SpectralMatrices.ProjectionRecovery[P := (complexProjection x).map, idempotent := (complexProjection x).idempotent].matrix].OffSpectrum) =>
+          SpectralMatrices.ProjectionRecovery[P := (complexProjection x).map, idempotent := (complexProjection x).idempotent].recovers v,
+        equality: matrixOnSubset x
+      }) (Recovered.off (embed x));
+\definition onSubset[x: Subspace.CarrierSet][v: Coordinates.Vector]: (projection (embed x)).map.apply v = (P x).map.apply v :=
+  trans!{Coordinates.Vector} _ _ _ (congr!{Lift.ComplexVector {Coordinates.Vector}} Lift.parts _ _ (complexOnSubset x (Lift.embed v)))
+    (trans!{Coordinates.Vector} _ _ _ (congr!{Lift.ComplexVector {Coordinates.Vector}} Lift.parts _ _ (Lift.onReal (P x).map v)) (Lift.partsEmbed ((P x).map.apply v)));
+\definition restricted[x: Subspace.CarrierSet]: Idempotents.Projection := projection (embed x);
+\definition restrictedRegular: Maps.Regular (Subspace.topology source) (\fun (x: Subspace.CarrierSet) => (restricted x).map) :=
+  \fun (v: Coordinates.Vector)(i: Fin.Fin n) => topology.Composition[A := Subspace.CarrierSet, B := Base, C := R.Real].composeContinuous
+    (Subspace.topology source) topology metric_spaces.RealLine[].topology embed (\fun (x: Base) => (projection x).map.apply v i) embedContinuous (projectionRegular v i);
+\import Idempotents.Image[X := Subspace.CarrierSet, baseSpace := Subspace.topology source, P := P, regular := regular] \as Original;
+\import Idempotents.Image[X := Subspace.CarrierSet, baseSpace := Subspace.topology source, P := restricted, regular := restrictedRegular] \as Restricted;
+\import Hermitian.At[n := n].Square[] \as Square;
+\import Idempotents.Comparison[X := Subspace.CarrierSet, baseSpace := Subspace.topology source, P := P, Q := restricted,
+  regularP := regular, regularQ := restrictedRegular, H := (\fun (_: Subspace.CarrierSet) => Eigen.identity),
+  regularH := Maps.constant (Subspace.topology source) Eigen.identity,
+  nonsingular := (\fun (_: Subspace.CarrierSet) => Square.LeftInverse[f := Eigen.identity, g := Eigen.identity, left := (\fun (v: Coordinates.Vector) => \refl(v))].nonzero),
+  intertwines := onSubset] \as Compare;
+\import Image.Pullback[Y := Subspace.CarrierSet, source := Subspace.topology source, f := embed, regularBase := embedContinuous] \as Pullback;
+\import Bundles.Isomorphisms[X := Subspace.CarrierSet, F := Restricted.Fiber, G := (\fun (x: Subspace.CarrierSet) => Fiber (embed x)), source := Restricted.bundle, target := Pullback.firstBundle] \as InversePullback;
+\definition inversePullback: InversePullback.Isomorphism := Bundles.Isomorphisms[X := Subspace.CarrierSet, F := (\fun (x: Subspace.CarrierSet) => Fiber (embed x)), G := Restricted.Fiber, source := Pullback.firstBundle, target := Restricted.bundle].inverse Pullback.isomorphism;
+\import bundle_operations.Operations[].Over[K := R.Real, field := R.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar] \as Operations;
+\definition comparison: Bundles.Isomorphisms[X := Subspace.CarrierSet, F := Original.Fiber, G := (\fun (x: Subspace.CarrierSet) => Fiber (embed x)), source := Original.bundle, target := Pullback.firstBundle].Isomorphism :=
+  Operations.IsomorphismComposition[X := Subspace.CarrierSet, F := Original.Fiber, G := Restricted.Fiber, H := (\fun (x: Subspace.CarrierSet) => Fiber (embed x)),
+    source := Original.bundle, middle := Restricted.bundle, target := Pullback.firstBundle].compose Compare.isomorphism inversePullback;
