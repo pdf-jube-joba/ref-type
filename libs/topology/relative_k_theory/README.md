@@ -21,9 +21,12 @@
 引き戻しの恒等則・合成則、B04 によるホモトピー不変性も構成し、これらと三つ組の群は未検証。
 三つ組の eta 輸送不足を修正した全入口検査 `work/k03-resume/group-fixed` は accepted・終了0・キャッシュ保存失敗0（追加検査546 module、共有キャッシュ617 module）。
 束の降下には、基点での座標と商の各ファイバー上の整合するベクトルを用いる。
-そのベクトル空間、従属積の線形代数、基点でのみ値を保つ座標を追加し、これらはまだ未検証。
+そのベクトル空間、従属積の線形代数、基点でのみ値を保つ座標を追加した。
+基点での座標空間との線形同型、基点外で元の束のファイバーとの線形同型も追加した。
+従属積の最初の検査は親定義への直接参照の解決エラーで終了1となり、既存の `ring.add` 参照へ修正した。
+降下のこれらの構成は未検証であり、次は `Relative.Descent` を固定 snapshot と共有キャッシュで検査する。
 崩壊商の基点の補集合と元の閉部分空間の補集合の同相 `Collapse.Outside` を追加し、これも未検証。
-検査には最新の `work/k03-resume/descent-current.source.json` を使う。
+検査には最新の `work/k03-resume/descent-fibers.source.json` を使う。
 各検査には `--source-snapshot` を指定する。
 作業の保存先は [Draft PR #50](https://github.com/pdf-jube-joba/ref-type/pull/50)。
 対象検査は `target/debug/cli libs --module topological_constructions.Coproduct.Properties --memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact --report-json work/k03-resume/coproduct.json`。
