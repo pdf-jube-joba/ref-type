@@ -1,0 +1,27 @@
+\use Logic.either;
+\import topological_constructions.Coproduct[A := X, B := Quotient.Point] \as Sum;
+\import Sum.Properties[left := bundle.baseSpace, right := topology.Topology[Carrier := Quotient.Point].Discrete] \as SumProperties;
+\import topology.Topology[Carrier := Quotient.Augmented] \as Augmented;
+\import topology.Topology[Carrier := Quotient.Carrier] \as Base;
+\import algebraic_topology.Collapse[A := Quotient.Augmented, subset := Quotient.collapsedPart] \as Collapse;
+\import Collapse.Closed[source := Quotient.augmentedSpace, compact := Quotient.augmentedCompact, hausdorff := Quotient.augmentedHausdorff,
+  closed := Quotient.collapsedClosed] \as Images;
+\definition augmented: \Pow Quotient.Augmented := SumProperties.Joined extension.domain (topology.Topology[Carrier := Quotient.Point].Whole);
+\definition augmentedOpen: Augmented.IsOpenIn Quotient.augmentedSpace augmented := SumProperties.joinedOpen extension.domain
+  (topology.Topology[Carrier := Quotient.Point].Whole) extension.open (topology.Topology[Carrier := Quotient.Point].topologyLaws (topology.Topology[Carrier := Quotient.Point].Discrete)).wholeOpen;
+\definition contains: Augmented.Subset Quotient.collapsedPart augmented := \induction (p: Quotient.Augmented) \return
+  Augmented.Member Quotient.collapsedPart p -> Augmented.Member augmented p \with {
+    | inl: extension.contains
+    | inr: \fun (p: Quotient.Point)(inside: _) => inside
+  };
+\definition domain: \Pow Quotient.Carrier := Images.Image augmented;
+\definition open: Base.IsOpenIn Quotient.topology domain := Images.imageOpen augmented augmentedOpen (Images.containingSaturated augmented contains);
+\definition atPoint: Base.Member domain Quotient.point := topology.Maps[A := Quotient.Augmented, B := Quotient.Carrier].imageMember Collapse.class augmented
+  (Sum.inr Quotient.distinguished) (\refl(Quotient.distinguished));
+\definition fromOriginal: \forall (x: \Cast[X] extension.domain) -> Base.Member domain (Quotient.projection x) :=
+  \fun (x: \Cast[X] extension.domain) => topology.Maps[A := Quotient.Augmented, B := Quotient.Carrier].imageMember Collapse.class augmented
+    (Sum.inl x) (\bysub(X, extension.domain, x));
+\import Base.Subspace[S := domain] \as Subspace;
+\definition Point: \Set := Subspace.CarrierSet;
+\definition topology: topology.Topology[Carrier := Point].Topology := Subspace.topology Quotient.topology;
+\module At(q: Point);
