@@ -17,6 +17,7 @@
 | `Exponential` | 階乗の逆数による形式的指数と切断整合性 |
 | `Characteristic` | Chern・Todd・L・A-hat の生成級数、精度変更との整合性、次数8までの係数表 |
 | `Genus[R, ring, coefficient]` | 根ごとの因子の有限多項式、乗法列、Chern 指標の加法列、置換不変性、有限係数表現と切断 |
+| `Genus.Precision` | 生成級数と乗法列の両方の精度変更との整合性 |
 | `Genus.DegreeEight` | 基本対称式によるコホモロジー次数8までの普遍公式 |
 | `Examples` | 対称多項式、空の根族、二つの線の Todd 多項式、幾何級数の逆、精度変更の利用例 |
 
@@ -24,6 +25,7 @@
 基本対称式は根の列について再帰的に構成し、隣接交換と列への付加から生成した置換について不変性を証明する。
 `Symmetric.Change.elementaryNatural` が形式多項式と評価後の基本対称式を結ぶ。
 
+`Symmetric.Newton.PowerSums.powerSum k xs` は通常の次数 \(k\) の冪和である。
 Newton 恒等式は \(p_k=\sum_i x_i^k\)、\(e_0=1\) として
 \[
 \sum_{i=0}^{n}(-1)^i e_{n-i}p_{i+1}=(n+1)e_{n+1}
@@ -46,6 +48,7 @@ Newton 恒等式は \(p_k=\sum_i x_i^k\)、\(e_0=1\) として
 `Genus.product` と `Genus.sum` は既存の抽象多項式環の元を返す。
 `productRepresentation`・`sumRepresentation` が有限係数列による表現を与え、`finiteBridge`・`finiteSumBridge` が切断級数での計算と一致させる。
 `multiplicative` は根の列の連結に対する積の法則、`additive` は Chern 指標の和の法則である。
+`Genus.Precision.cutCh`・`cutTodd`・`cutL`・`cutAhat` は、生成級数と結果の両方の精度を変更する場合の整合性を証明する。
 
 ## 次数4・8の計算
 
