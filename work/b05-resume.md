@@ -64,3 +64,5 @@ Model.Graph.Reconstruction は任意の直交グラフの連続な射影族の�
 Graph.Reconstruction.homeomorphismExists は指定したグラフ座標写像を順写像とする同相写像の存在を、連続正規直交化から証明した。実側個別検査は accepted、複素側と対象全体を再検査する。
 
 b1ca875f の対象全体検査は複素側で `C` の名前衝突により失敗した。局所の写像を `coordinateMap` に改名後、複素側個別検査は accepted。修正後の全体検査とキャッシュ保存結果を確認する。
+
+Model.Family で任意の連続な一定階数の射影族に対する分類写像と、普遍束の引き戻しからその像束への同型を構成した。実側個別検査は accepted。階数1のモデルの Hausdorff 性も公開した。複素側・対象全体を再検査する。
