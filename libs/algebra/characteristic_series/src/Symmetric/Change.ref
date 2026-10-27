@@ -1,0 +1,18 @@
+\import algebra.Hom[A := R, B := T] \as Maps;
+\import \root.Symmetric[R := T, ring := target] \as Target;
+\definition laws: Maps.SemiringLaws[Rings.ringAsSemiring R (Rings.commutativeRingAsRing R ring), Rings.ringAsSemiring T (Rings.commutativeRingAsRing T target), map] := Maps.semiringLaws _ _ map;
+\definition elementaryNatural: \forall (xs: Roots)(k: N.Nat^) -> map (elementary xs k) = Target.elementary (L.map R T map xs) k :=
+  \induction (xs: Roots) \return \forall (k: N.Nat^) -> map (elementary xs k) = Target.elementary (L.map R T map xs) k \with {
+    | nil: \induction (k: N.Nat^) \return map (elementary nil k) = Target.elementary (L.map R T map nil) k \with {
+      | zero: laws.one
+      | succ: \fun (k: N.Nat^)(unused: _) => laws.zero
+    }
+    | cons: \fun (x: R)(xs: Roots)(previous: _) => \induction (k: N.Nat^) \return map (elementary (cons x xs) k) = Target.elementary (L.map R T map (cons x xs)) k \with {
+      | zero: laws.one
+      | succ: \fun (k: N.Nat^)(unused: _) => eq_reason_in!{T _
+        "=" _ "by" { laws.add (elementary xs (N.Nat^::succ k)) (mul x (elementary xs k)) }
+        "=" _ "by" { congr!{T T T} Target.add _ _ _ _ (previous (N.Nat^::succ k))
+          (trans!{T} _ _ _ (laws.mul x (elementary xs k)) (congr!{T T} (Target.mul (map x)) _ _ (previous k))) }
+      }
+    }
+  };

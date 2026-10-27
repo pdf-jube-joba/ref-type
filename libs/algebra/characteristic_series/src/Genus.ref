@@ -6,6 +6,7 @@
 \import \root.Symmetric[R := R, ring := ring] \as Symmetric;
 \import algebra.Polynomial[].Over[R := R, coefficients := ring] \as P;
 \import P.Finite[] \as F;
+\definition Polynomial: \Set := P.Carrier;
 \import std.Alg[].Ring[] \as Rings;
 \import algebra.Group[].Of[Carrier := P.Carrier, group := Rings.additiveGroup P.Carrier (Rings.commutativeRingAsRing P.Carrier P.ring)] \as Sum;
 \import std.Alg[].Monoid[] \as Monoids;
@@ -83,4 +84,27 @@
   Lists.foldr R S.Coefficients (\fun (x: R)(p: S.Coefficients) => S.times n (rootCoefficients q x) p) (S.constant n S.one);
 \definition truncatedSum[n: N.Nat^][q: Coefficients]: Symmetric.Roots -> S.Coefficients :=
   Lists.foldr R S.Coefficients (\fun (x: R)(p: S.Coefficients) => S.plus n (rootCoefficients q x) p) (S.cut n S.nil);
+\import S.Finite[] \as Compatibility;
+\definition finiteBridge: \forall (n: N.Nat^)(q: Coefficients)(xs: Symmetric.Roots) -> finite n q xs = truncatedProduct n q xs :=
+  \fun (n: N.Nat^)(q: Coefficients) => \induction (xs: Symmetric.Roots) \return finite n q xs = truncatedProduct n q xs \with {
+    | nil: \refl(S.constant n S.one)
+    | cons: \fun (x: R)(xs: Symmetric.Roots)(previous: _) => eq_reason_in!{S.Coefficients _
+      "=" _ "by" { Compatibility.cutTimes n (rootCoefficients q x) (productCoefficients q xs) }
+      "=" _ "by" { sym!{S.Coefficients} _ _ (S.trimTimes n (rootCoefficients q x) (productCoefficients q xs)) }
+      "=" _ "by" { congr!{S.Coefficients S.Coefficients} (S.times n (S.cut n (rootCoefficients q x))) _ _ previous }
+      "=" _ "by" { S.sameTimes n (S.cut n (rootCoefficients q x)) (truncatedProduct n q xs) (rootCoefficients q x) (truncatedProduct n q xs)
+        (S.cutIdempotent n (rootCoefficients q x)) (\refl(S.cut n (truncatedProduct n q xs))) }
+    }
+  };
+\definition finiteSumBridge: \forall (n: N.Nat^)(q: Coefficients)(xs: Symmetric.Roots) -> finiteSum n q xs = truncatedSum n q xs :=
+  \fun (n: N.Nat^)(q: Coefficients) => \induction (xs: Symmetric.Roots) \return finiteSum n q xs = truncatedSum n q xs \with {
+    | nil: \refl(S.cut n S.nil)
+    | cons: \fun (x: R)(xs: Symmetric.Roots)(previous: _) => eq_reason_in!{S.Coefficients _
+      "=" _ "by" { Compatibility.cutPlus n (rootCoefficients q x) (sumCoefficients q xs) }
+      "=" _ "by" { sym!{S.Coefficients} _ _ (S.trimPlus n (rootCoefficients q x) (sumCoefficients q xs)) }
+      "=" _ "by" { congr!{S.Coefficients S.Coefficients} (S.plus n (S.cut n (rootCoefficients q x))) _ _ previous }
+      "=" _ "by" { S.samePlus n (S.cut n (rootCoefficients q x)) (truncatedSum n q xs) (rootCoefficients q x) (truncatedSum n q xs)
+        (S.cutIdempotent n (rootCoefficients q x)) (\refl(S.cut n (truncatedSum n q xs))) }
+    }
+  };
 \module DegreeEight;

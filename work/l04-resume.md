@@ -31,3 +31,16 @@ workspace の libs/refcache を再利用する。
 最初の全対象検査は具体的な大きい分母の乗算証明で stack overflow になった。
 修正後の証明は `scaleClass` を通し、約分前の分母までの小さい整数等式だけを簡約する。
 `Genus.DegreeEight` は生成済みの根追加の等式証明を根の列の帰納法へ接続し、Chern/Todd/L/A-hat の普遍公式を与える。
+
+公開対称多項式 API、通常の冪和による Newton 恒等式、全非零定数項の形式級数の逆、既存の有限多項式との切断ブリッジ、利用例、README を追加した。
+対象全体の直近の検査は work/examples-check.log で成功。
+生成器は `libs/algebra/characteristic_series/tools/generate.py` に保存し、リポジトリのルートから再生成できる。
+直近の変更は冪和の引数を通常の次数へ統一し、Chern の係数列と指数演算の係数列の一致を追加した。
+
+最終検査:
+```sh
+/workspace/ref-type/target/debug/cli libs/algebra/characteristic_series --module characteristic_series --full-check-local --cache-stats --diagnostics compact --report-json work/l04-target-final.json > work/l04-target-final.log 2>&1
+/workspace/ref-type/target/debug/cli libs/algebra/characteristic_series --cache-stats --diagnostics compact --report-json work/l04-dependencies-final.json > work/l04-dependencies-final.log 2>&1
+```
+
+両方が通ったら検証統計を README・PR に記録し、PR を作成する。
