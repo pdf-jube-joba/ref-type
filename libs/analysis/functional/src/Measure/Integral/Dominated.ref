@@ -4,6 +4,7 @@
 \import real.Analysis[].Sequence[] \as Sequence;
 \import Sequence.Operations[] \as Operations;
 \import real.Analysis[].Distance[] \as Distance;
+\import real.Analysis[].Algebra[] \as Algebra;
 \import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
 \use std.Logic[].Equality[].sym;
 \definition functions: Convergence.MeasurableSequence := \into[N.Nat^ -> A -> Real.Real]
@@ -36,3 +37,36 @@
     (sym!{Real.Real} _ _ (Product.absOfNonnegative (d.bound x) (R.leTrans Real.zero (Product.abs (d.sequence N.Nat^::zero x)) (d.bound x)
       (Product.absNonnegative (d.sequence N.Nat^::zero x)) (d.dominated N.Nat^::zero x)))) (limitBound x));
 \definition limitRepresentative: Representatives := \into[A -> Real.Real] (d.limit, { f: A -> Real.Real \where Integrable f }) \by { limitIntegrable };
+\import \root.Measure[A := A].Integral[mu := mu].Linear[] \as Linear;
+\import \root.Measure[A := A].Integral[mu := mu].Negation[] \as Negation;
+\definition negativeUpper: \forall (k: N.Nat^) (x: A) -> R.Le (Real.neg (d.sequence k x)) (d.bound x) :=
+  \fun (k: N.Nat^) (x: A) => R.leTrans _ (Product.abs (d.sequence k x)) _
+    (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Product.absExpression (d.sequence k x)))
+      (Distance.maxLeft (Real.neg (d.sequence k x)) (d.sequence k x))) (d.dominated k x);
+\definition plus[k: N.Nat^]: Representatives := Linear.addRepresentative d.bound (d.sequence k);
+\definition minus[k: N.Nat^]: Representatives := Linear.addRepresentative d.bound (Negation.representative (d.sequence k));
+\definition plusLimit: Representatives := Linear.addRepresentative d.bound limitRepresentative;
+\definition minusLimit: Representatives := Linear.addRepresentative d.bound (Negation.representative limitRepresentative);
+\definition plusNonnegative: \forall (k: N.Nat^) (x: A) -> R.Le Real.zero (plus k x) :=
+  \fun (k: N.Nat^) (x: A) => R.leReplaceRight Real.zero (Real.sub (d.bound x) (Real.neg (d.sequence k x))) (plus k x)
+    (Algebra.subNeg (d.bound x) (d.sequence k x)) (Distance.subNonnegative (d.bound x) (Real.neg (d.sequence k x)) (negativeUpper k x));
+\definition minusNonnegative: \forall (k: N.Nat^) (x: A) -> R.Le Real.zero (minus k x) :=
+  \fun (k: N.Nat^) (x: A) => Distance.subNonnegative (d.bound x) (d.sequence k x) (valueUpper k x);
+\definition plusLimitNonnegative: \forall (x: A) -> R.Le Real.zero (plusLimit x) := \fun (x: A) =>
+  R.leReplaceRight Real.zero (Real.sub (d.bound x) (Real.neg (d.limit x))) (plusLimit x)
+    (Algebra.subNeg (d.bound x) (d.limit x)) (Distance.subNonnegative (d.bound x) (Real.neg (d.limit x))
+      (R.leTrans _ (Product.abs (d.limit x)) _
+        (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Product.absExpression (d.limit x))) (Distance.maxLeft _ _)) (limitBound x)));
+\definition minusLimitNonnegative: \forall (x: A) -> R.Le Real.zero (minusLimit x) := \fun (x: A) =>
+  Distance.subNonnegative (d.bound x) (d.limit x) (R.leTrans _ (Product.abs (d.limit x)) _
+    (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Product.absExpression (d.limit x))) (Distance.maxRight _ _)) (limitBound x));
+\definition plusData: NonnegativeRepresentativeSequence := NonnegativeRepresentativeSequence { sequence := plus, nonnegative := plusNonnegative };
+\definition minusData: NonnegativeRepresentativeSequence := NonnegativeRepresentativeSequence { sequence := minus, nonnegative := minusNonnegative };
+\import \root.Measure[A := A].Integral[mu := mu].FatouIntegral[f := plusData, g := plusLimit] \as PlusFatou;
+\import \root.Measure[A := A].Integral[mu := mu].FatouIntegral[f := minusData, g := minusLimit] \as MinusFatou;
+\definition plusConverges: \forall (x: A) -> Sequence.Converges (\fun (k: N.Nat^) => plus k x) (plusLimit x) :=
+  \fun (x: A) => Operations.addConverges (\fun (_: N.Nat^) => d.bound x) (\fun (k: N.Nat^) => d.sequence k x)
+    (d.bound x) (d.limit x) (Sequence.constantConverges (d.bound x)) (d.converges x);
+\definition minusConverges: \forall (x: A) -> Sequence.Converges (\fun (k: N.Nat^) => minus k x) (minusLimit x) :=
+  \fun (x: A) => Operations.addConverges (\fun (_: N.Nat^) => d.bound x) (\fun (k: N.Nat^) => Real.neg (d.sequence k x))
+    (d.bound x) (Real.neg (d.limit x)) (Sequence.constantConverges (d.bound x)) (Operations.negConverges _ _ (d.converges x));
