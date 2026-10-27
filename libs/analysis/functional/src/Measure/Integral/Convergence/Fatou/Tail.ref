@@ -28,3 +28,52 @@
       \return R.leReplaceRight (value n x) (f k x) y (sym!{Real.Real} _ _ data.right)
         (lower n k (Nat.leTrans n (N.Nat^::succ n) k (Nat.leSelfSucc n) data.left) x)
     });
+
+\import real.Analysis[].Geometric[q := Real.half] \as Dyadic;
+\import real.Analysis[].SquareRoot[] \as SquareRoot;
+\import real.Analysis[].Estimates[] \as E;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import \root.ScalarLimits[] \as Limits;
+\definition test[n: N.Nat^] [r: Real.Real] [j, k: N.Nat^]: \Pow A :=
+  { x: A \where Nat.Le n k -> R.Lt (Real.add r (Dyadic.value j)) (f k x) };
+\definition tests[n: N.Nat^] [r: Real.Real] [j: N.Nat^]: \Pow A := Sigma.intersection (test n r j);
+\definition testMeasurable: \forall (n: N.Nat^) (r: Real.Real) (j, k: N.Nat^) -> Measurable mu.sigma (test n r j k) :=
+  \fun (n: N.Nat^) (r: Real.Real) (j, k: N.Nat^) =>
+    Sigma.conditionalMeasurable mu.sigma ({ x: A \where R.Lt (Real.add r (Dyadic.value j)) (f k x) }) (Nat.Le n k)
+      ((sequenceLaw f).left k (Real.add r (Dyadic.value j)));
+\definition superlevel: \forall (n: N.Nat^) (r: Real.Real) ->
+  { x: A \where R.Lt r (value n x) } = union (tests n r) :=
+  \fun (n: N.Nat^) (r: Real.Real) => \axiom:setext({ x: A \where R.Lt r (value n x) }, union (tests n r),
+    \fun (x: A) (less: R.Lt r (value n x)) => \block {
+      \let gap: Real.Real := Real.sub (value n x) r \then
+      \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where \forall (k: N.Nat^) -> Nat.Le j k -> R.Lt (Dyadic.value k) gap })
+        \by Limits.dyadicSmall gap (SquareRoot.subPositive (value n x) r less) \then
+      \let small: R.Lt (Dyadic.value j) gap :=
+        (\bysub(N.Nat^, { j: N.Nat^ \where \forall (k: N.Nat^) -> Nat.Le j k -> R.Lt (Dyadic.value k) gap }, j)) j (Nat.leRefl j) \then
+      \let inside: R.Lt (Real.add r (Dyadic.value j)) (value n x) :=
+        R.ltReplaceRight (Real.add r (Dyadic.value j)) (Real.add r gap) (value n x) (E.addSubCancel (value n x) r)
+          (Laws.ltAddLeft r (Dyadic.value j) gap small) \then
+      \return Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Sets.Member (tests n r j) x }] j
+        (\fun (k: N.Nat^) (later: Nat.Le n k) => R.ltLeTrans (Real.add r (Dyadic.value j)) (value n x) (f k x) inside (lower n k later x))
+    },
+    \fun (x: A) (member: Sets.Member (union (tests n r)) x) => \block {
+      \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where Sets.Member (tests n r j) x }) \by member \then
+      \let all: Sets.Member (tests n r j) x := \bysub(N.Nat^, { j: N.Nat^ \where Sets.Member (tests n r j) x }, j) \then
+      \let bound: Complete.LowerBound (values n x) (Real.add r (Dyadic.value j)) := \fun (y: Real.Real) (member: Complete.Member (values n x) y) => \block {
+        \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Logic.And[Nat.Le n k, y = f k x] }) \by member \then
+        \let data: Logic.And[Nat.Le n k, y = f k x] := \bysub(N.Nat^, { k: N.Nat^ \where Logic.And[Nat.Le n k, y = f k x] }, k) \then
+        \return R.leReplaceRight (Real.add r (Dyadic.value j)) (f k x) y (sym!{Real.Real} _ _ data.right)
+          (RealOrder.leOfLt (Real.add r (Dyadic.value j)) (f k x) (all k data.left))
+      } \then
+      \return R.ltLeTrans r (Real.add r (Dyadic.value j)) (value n x)
+        (SquareRoot.addPositive r (Dyadic.value j) (Limits.dyadicPositive j)) ((valueLaw n x).right (Real.add r (Dyadic.value j)) bound)
+    });
+\definition measurable: \forall (n: N.Nat^) -> IsMeasurable mu (value n) :=
+  \fun (n: N.Nat^) (r: Real.Real) => \idelim union (tests n r) = { x: A \where R.Lt r (value n x) }
+    \with S: \Pow A => Measurable mu.sigma S \by {
+      base: (Sigma.laws mu.sigma).countableUnion (tests n r)
+        (\fun (j: N.Nat^) => Sigma.intersectionCountableMeasurable mu.sigma (test n r j) (testMeasurable n r j)),
+      equality: sym!{{\Pow A}} _ _ (superlevel n r)
+    };
+\definition envelope: MeasurableSequence := \into[N.Nat^ -> A -> Real.Real](value,
+  { g: N.Nat^ -> A -> Real.Real \where \forall (n: N.Nat^) -> IsMeasurable mu (g n) }) \by { measurable };
