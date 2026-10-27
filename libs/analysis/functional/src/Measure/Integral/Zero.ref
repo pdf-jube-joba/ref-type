@@ -41,3 +41,64 @@
     \let data: Logic.And[Dominated n s function, below (simpleIntegral n s) r] := \bysub(Simple[n], { s: Simple[n] \where Logic.And[Dominated n s function, below (simpleIntegral n s) r] }, s) \then
     \return \idelim simpleIntegral n s = zero \with v: Value => below v r \by { base: data.right, equality: simpleZero n s data.left }
   }, lowerIntegralNegative function);
+
+\import \root.Measure[A := A].Sigma[] \as Sigma;
+\import dedekind_reals.DedekindReal[].Order[] \as Order;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import real.Analysis[].Distance[] \as Distance;
+\use std.Logic[].Equality[].sym;
+\definition measurable: IsMeasurable mu function := \fun (r: Real.Real) =>
+  Logic.orElim _ _ (Measurable mu.sigma ({ x: A \where R.Lt r Real.zero })) (Classical.excludedMiddle (R.Lt r Real.zero))
+    (\fun (less: R.Lt r Real.zero) => \idelim Sets.Whole = { x: A \where R.Lt r Real.zero } \with S: \Pow A => Measurable mu.sigma S \by {
+      base: Sigma.wholeMeasurable mu.sigma,
+      equality: \axiom:setext(Sets.Whole, { x: A \where R.Lt r Real.zero }, \fun (x: A) (_: x = x) => less, \fun (x: A) (_: R.Lt r Real.zero) => \refl(x))
+    })
+    (\fun (notLess: Logic.Not (R.Lt r Real.zero)) => \idelim Sets.Empty = { x: A \where R.Lt r Real.zero } \with S: \Pow A => Measurable mu.sigma S \by {
+      base: (Sigma.laws mu.sigma).empty,
+      equality: \axiom:setext(Sets.Empty, { x: A \where R.Lt r Real.zero }, \fun (x: A) (empty: Logic.False) => Logic.falseElim _ empty,
+        \fun (x: A) (less: R.Lt r Real.zero) => notLess less)
+    });
+\definition finite: Finite function := Logic.And[_, _]::# (\fun (_: A) => R.leRefl Real.zero)
+  (Logic.existsIntro[Real.Real, { b: Real.Real \where IntegralBound[function, b] }] Real.zero (IntegralBound[function, Real.zero] {
+    nonnegative := R.leRefl Real.zero,
+    bound := \fun (r: Real.Real) (member: below (lowerIntegral function) r) => Order.leOfLt r Real.zero
+      (\idelim lowerIntegral function = zero \with v: Value => below v r \by { base: member, equality: lowerZero }),
+  }));
+\definition absoluteZero: (\fun (x: A) => Product.abs (function x)) = function :=
+  \axiom:funext((\fun (x: A) => Product.abs (function x)), function, \fun (x: A) => Distance.distanceSelf Real.zero);
+\definition integrable: Integrable function := Logic.And[_, _]::# measurable
+  (\idelim function = (\fun (x: A) => Product.abs (function x)) \with f: A -> Real.Real => Finite f
+    \by { base: finite, equality: sym!{{A -> Real.Real}} _ _ absoluteZero });
+\definition zeroSup: Complete.LeastUpperBound[zero, Real.zero] := Complete.LeastUpperBound[zero, Real.zero] {
+  upper := \fun (r: Real.Real) (negative: below zero r) => Order.leOfLt r Real.zero negative,
+  least := \fun (b: Real.Real) (upper: Complete.UpperBound zero b) => Order.leOfNotLtReverse Real.zero b
+    (\fun (negative: R.Lt b Real.zero) => R.ltNotLeReverse b (Real.midpoint b Real.zero)
+      (Values.midpointStrictLeft b Real.zero negative) (upper (Real.midpoint b Real.zero) (Values.midpointStrictRight b Real.zero negative))),
+};
+\definition positiveZero: positivePart function = function :=
+  \axiom:funext(positivePart function, function, \fun (x: A) => Distance.maxSame Real.zero);
+\definition negativeZero: negativePart function = function :=
+  \axiom:funext(negativePart function, function, \fun (x: A) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} (Distance.max Real.zero) _ _ Laws.negZero }
+    "=" _ "by" { Distance.maxSame Real.zero }
+  });
+\definition hasIntegral: HasIntegral[function, Real.zero] := HasIntegral[function, Real.zero] {
+  integrable := integrable,
+  parts := Logic.existsIntro[Real.Real, { p: Real.Real \where \exists ( n: Real.Real \where Parts[function, Real.zero, p, n] ) }] Real.zero
+    (Logic.existsIntro[Real.Real, { n: Real.Real \where Parts[function, Real.zero, Real.zero, n] }] Real.zero
+      (Parts[function, Real.zero, Real.zero, Real.zero] {
+        positiveLaw := \idelim zero = lowerIntegral (positivePart function) \with v: Value => Complete.LeastUpperBound[v, Real.zero]
+          \by { base: zeroSup, equality: sym!{Value} _ _ (eq_reason_in!{Value _
+            "=" _ "by" { congr!{{A -> Real.Real} Value} lowerIntegral _ _ positiveZero }
+            "=" _ "by" { lowerZero }
+          }) },
+        negativeLaw := \idelim zero = lowerIntegral (negativePart function) \with v: Value => Complete.LeastUpperBound[v, Real.zero]
+          \by { base: zeroSup, equality: sym!{Value} _ _ (eq_reason_in!{Value _
+            "=" _ "by" { congr!{{A -> Real.Real} Value} lowerIntegral _ _ negativeZero }
+            "=" _ "by" { lowerZero }
+          }) },
+        difference := sym!{Real.Real} _ _ (Laws.subSelf Real.zero),
+      })),
+};
+\definition representative: Representatives := \into[A -> Real.Real](function, { f: A -> Real.Real \where Integrable f }) \by { integrable };
+\definition integralZero: integral representative = Real.zero := integralUnique function (integral representative) Real.zero (integralLaw representative) hasIntegral;
