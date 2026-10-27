@@ -40,3 +40,38 @@
         }),
       equality: unionPair S T
     };
+
+\import std.Logic[].Classical[] \as Classical;
+\definition doubleNegative: \forall (P: \Prop) -> Logic.Not (Logic.Not P) -> P :=
+  \fun (P: \Prop) (nn: Logic.Not (Logic.Not P)) =>
+    Logic.orElim P (Logic.Not P) P (Classical.excludedMiddle P)
+      (\fun (p: P) => p) (\fun (np: Logic.Not P) => Logic.falseElim P (nn np));
+
+\definition intersectionComplement: \forall (S, T: \Pow A) ->
+  Sets.Complement (pairUnion (Sets.Complement S) (Sets.Complement T)) = Sets.Intersection S T :=
+  \fun (S, T: _) => \axiom:setext(Sets.Complement (pairUnion (Sets.Complement S) (Sets.Complement T)), Sets.Intersection S T,
+    \fun (x: A) (member: Sets.Member (Sets.Complement (pairUnion (Sets.Complement S) (Sets.Complement T))) x) =>
+      Logic.And[_, _]::#
+        (doubleNegative (Sets.Member S x) (\fun (notS: Logic.Not (Sets.Member S x)) => member (Logic.Or[_, _]::left notS)))
+        (doubleNegative (Sets.Member T x) (\fun (notT: Logic.Not (Sets.Member T x)) => member (Logic.Or[_, _]::right notT))),
+    \fun (x: A) (member: Sets.Member (Sets.Intersection S T) x) (outside: Sets.Member (pairUnion (Sets.Complement S) (Sets.Complement T)) x) =>
+      Logic.orElim _ _ Logic.False outside
+        (\fun (notS: Logic.Not (Sets.Member S x)) => notS member.left)
+        (\fun (notT: Logic.Not (Sets.Member T x)) => notT member.right));
+
+\definition intersectionMeasurable: \forall (sigma: SigmaAlgebra) (S, T: \Pow A) ->
+  Measurable sigma S -> Measurable sigma T -> Measurable sigma (Sets.Intersection S T) :=
+  \fun (sigma: SigmaAlgebra) (S, T: \Pow A) (s: Measurable sigma S) (t: Measurable sigma T) =>
+    \idelim Sets.Complement (pairUnion (Sets.Complement S) (Sets.Complement T)) = Sets.Intersection S T
+      \with U: \Pow A => Measurable sigma U \by {
+        base: (laws sigma).complement (pairUnion (Sets.Complement S) (Sets.Complement T))
+          (pairMeasurable sigma (Sets.Complement S) (Sets.Complement T)
+            ((laws sigma).complement S s) ((laws sigma).complement T t)),
+        equality: intersectionComplement S T
+      };
+
+\definition difference[S, T: \Pow A]: \Pow A := Sets.Intersection S (Sets.Complement T);
+\definition differenceMeasurable: \forall (sigma: SigmaAlgebra) (S, T: \Pow A) ->
+  Measurable sigma S -> Measurable sigma T -> Measurable sigma (difference S T) :=
+  \fun (sigma: _) (S, T: _) (s, t: _) =>
+    intersectionMeasurable sigma S (Sets.Complement T) s ((laws sigma).complement T t);
