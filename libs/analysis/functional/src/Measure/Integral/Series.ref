@@ -1,0 +1,28 @@
+\import \root.Measure[A := A].Integral[mu := mu].Zero[] \as Zero;
+\import \root.Measure[A := A].Integral[mu := mu].Linear[] \as Linear;
+\import real.Analysis[].Sequence[] \as Sequence;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition partial: N.Nat^ -> Representatives := \induction (n: N.Nat^) \return Representatives \with {
+  | zero: Zero.representative
+  | succ: \fun (n: N.Nat^) (previous: Representatives) => Linear.addRepresentative previous (terms n)
+};
+\definition scalarPartial: N.Nat^ -> Real.Real := \induction (n: N.Nat^) \return Real.Real \with {
+  | zero: Real.zero
+  | succ: \fun (n: N.Nat^) (previous: Real.Real) => Real.add previous (integral (terms n))
+};
+\definition partialIntegral: \forall (n: N.Nat^) -> integral (partial n) = scalarPartial n :=
+  \induction (n: N.Nat^) \return integral (partial n) = scalarPartial n \with {
+    | zero: Zero.integralZero
+    | succ: \fun (n: N.Nat^) (previous: _) => eq_reason_in!{Real.Real _
+      "=" _ "by" { Linear.integralAdd (partial n) (terms n) }
+      "=" _ "by" { congr!{Real.Real Real.Real} (\fun (z: Real.Real) => Real.add z (integral (terms n))) _ _ previous }
+    }
+  };
+\structure Conditions: \Set := {
+  limit: A -> Real.Real,
+  bound: Representatives,
+  dominated: \forall (n: N.Nat^) (x: A) -> R.Le (Product.abs (partial n x)) (bound x),
+  converges: \forall (x: A) -> Sequence.Converges (\fun (n: N.Nat^) => partial n x) (limit x),
+};
+\module Exchange(c: Conditions);
