@@ -22,3 +22,27 @@
     R.leTrans (Real.add (s.coefficients i) (t.coefficients j)) (Real.add (f x) (t.coefficients j)) (Real.add (f x) (g x))
       (Laws.addMonotoneRight (s.coefficients i) (f x) (t.coefficients j) (sf i x member.left))
       (Laws.addMonotoneLeft (t.coefficients j) (g x) (f x) (tg j x member.right));
+\import \root.Measure[A := A].ValueLaws[] \as Values;
+\import Values.ScalarAdd[] \as ScalarAdd;
+\import \root.Measure[A := A].Finite[mu := mu] \as FiniteMeasure;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].congr;
+\definition rowIntegral: \forall (j: Fin.Fin n) ->
+  simpleIntegral m (row j) = add
+    (sum m (\fun (i: Fin.Fin m) => scale (s.coefficients i) (mu.value (Sets.Intersection (s.cells i) (t.cells j)))))
+    (sum m (\fun (i: Fin.Fin m) => scale (t.coefficients j) (mu.value (Sets.Intersection (s.cells i) (t.cells j))))) :=
+  \fun (j: Fin.Fin n) => \block {
+    \let v: Fin.Fin m -> Value := \fun (i: Fin.Fin m) => mu.value (Sets.Intersection (s.cells i) (t.cells j)) \then
+    \let vn: \forall (i: Fin.Fin m) -> NonnegativeValue[v i] := \fun (i: Fin.Fin m) => FiniteMeasure.laws.nonnegative
+      (Sets.Intersection (s.cells i) (t.cells j)) ((row j).measurable i) \then
+    \return eq_reason_in!{Value _
+      "=" _ "by" { congr!{{Fin.Fin m -> Value} Value} (sum m) _ _
+        (\axiom:funext((\fun (i: Fin.Fin m) => scale (Real.add (s.coefficients i) (t.coefficients j)) (v i)),
+          (\fun (i: Fin.Fin m) => add (scale (s.coefficients i) (v i)) (scale (t.coefficients j) (v i))),
+          \fun (i: Fin.Fin m) => ScalarAdd.scalarAdd (s.coefficients i) (t.coefficients j) (v i) (s.nonnegative i) (t.nonnegative j))) }
+      "=" _ "by" { Values.sumAdd m (\fun (i: Fin.Fin m) => scale (s.coefficients i) (v i))
+        (\fun (i: Fin.Fin m) => scale (t.coefficients j) (v i))
+        (\fun (i: Fin.Fin m) => Values.scaleNonnegative (s.coefficients i) (v i) (s.nonnegative i) (vn i))
+        (\fun (i: Fin.Fin m) => Values.scaleNonnegative (t.coefficients j) (v i) (t.nonnegative j) (vn i)) }
+    }
+  };
