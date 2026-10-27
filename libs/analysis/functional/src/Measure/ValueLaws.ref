@@ -460,3 +460,26 @@
         }, equality: sym!{Real.Real} _ _ eq })
       (\fun (different: Logic.Not (c = Real.zero)) => positiveScaleCompose c d v
         (Order.ltOfLeNotEq Real.zero c cp (\fun (eq: Real.zero = c) => different (sym!{Real.Real} _ _ eq))));
+
+\definition addShuffle: \forall (a, b, c, d: Value) -> add (add a b) (add c d) = add (add a c) (add b d) :=
+  \fun (a, b, c, d: Value) => eq_reason_in!{Value _
+    "=" _ "by" { addAssoc a b (add c d) }
+    "=" _ "by" { congr!{Value Value} (add a) _ _ (sym!{Value} _ _ (addAssoc b c d)) }
+    "=" _ "by" { congr!{Value Value} (add a) _ _ (congr!{Value Value} (\fun (x: Value) => add x d) _ _ (addComm b c)) }
+    "=" _ "by" { congr!{Value Value} (add a) _ _ (addAssoc c b d) }
+    "=" _ "by" { sym!{Value} _ _ (addAssoc a c (add b d)) }
+  };
+\definition sumAdd: \forall (n: N.Nat^) (f, g: Fin.Fin n -> Value) ->
+  (\forall (i: Fin.Fin n) -> NonnegativeValue[f i]) -> (\forall (i: Fin.Fin n) -> NonnegativeValue[g i]) ->
+  sum n (\fun (i: Fin.Fin n) => add (f i) (g i)) = add (sum n f) (sum n g) :=
+  \induction (n: N.Nat^) \return \forall (f, g: Fin.Fin n -> Value) ->
+    (\forall (i: Fin.Fin n) -> NonnegativeValue[f i]) -> (\forall (i: Fin.Fin n) -> NonnegativeValue[g i]) ->
+    sum n (\fun (i: Fin.Fin n) => add (f i) (g i)) = add (sum n f) (sum n g) \with {
+      | zero: \fun (f, g: Fin.Fin N.Nat^::zero -> Value) (_: _) (_: _) => sym!{Value} _ _ (addZero zero zeroNonnegative)
+      | succ: \fun (n: N.Nat^) (previous: _) (f, g: Fin.Fin (N.Nat^::succ n) -> Value) (fl: _) (gl: _) => eq_reason_in!{Value _
+        "=" _ "by" { congr!{Value Value} (add (add (f (Fin.zero n)) (g (Fin.zero n)))) _ _
+          (previous (\fun (i: Fin.Fin n) => f (Fin.succ n i)) (\fun (i: Fin.Fin n) => g (Fin.succ n i))
+            (\fun (i: Fin.Fin n) => fl (Fin.succ n i)) (\fun (i: Fin.Fin n) => gl (Fin.succ n i))) }
+        "=" _ "by" { addShuffle (f (Fin.zero n)) (g (Fin.zero n)) (sum n (\fun (i: Fin.Fin n) => f (Fin.succ n i))) (sum n (\fun (i: Fin.Fin n) => g (Fin.succ n i))) }
+      }
+    };
