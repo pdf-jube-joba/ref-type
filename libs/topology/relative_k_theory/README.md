@@ -122,10 +122,12 @@ K07 の影響先検査は最終検査に含める。
 それぞれ負側が自明な三つ組の一般の枠付き束への比較、等しい基点間のファイバーの移送、商上の枠を引き戻して作る指定した延長を構成する。
 `QuotientReconstruction.In` の各ファイバーの同型・局所枠との整合性・束の同型は `quotient-reconstruction-near` で accepted・終了0・キャッシュ保存失敗0。
 基点上と基点の外の候補から一意な値を定め、元の商上の枠と降下の近傍・外部の枠を比較して連続性を示す。
-最新の未検証変更は `FramedTriple` と `QuotientComparison`。
+最新の未検証変更は `FramedTriple`・`QuotientComparison`・`ReducedRetraction`・`Comparison`。
 枠付き束の三つ組を被約群へ戻すと元の枠付き束の値になり、商上の束の三つ組の値がその束と基点ランクの自明束との差へ戻ることを示す。
-固定 snapshot は `work/k03-resume/quotient-comparison.source.json`。
-次は `relative_k_theory.Relative.Pair.FramedTriple` と `relative_k_theory.Relative.Pair.QuotientComparison` を順に検査する。
+`ReducedRetraction` はランク零の束の差で自明束の次元が一致することを使って逆向きの往復を示し、`Comparison` は両方向の準同型と逆の等式を公開する。
+`quotient-comparison-FramedTriple` は import 名 `Map` と上位の値の名前の衝突で失敗し、`ReducedMap` へ修正した。
+固定 snapshot は `work/k03-resume/reduced-retraction.source.json`。
+次は `relative_k_theory.Relative.Pair` 内の `FramedTriple`・`QuotientComparison`・`ReducedRetraction`・`Comparison` を順に検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。
