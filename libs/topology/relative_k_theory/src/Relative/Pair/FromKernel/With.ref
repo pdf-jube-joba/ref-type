@@ -1,0 +1,43 @@
+\import Bundles.Trivial[X := X, n := n, baseSpace := space] \as Trivial;
+\import Bundles.Trivial[X := A, n := n, baseSpace := subspace] \as BoundaryTrivial;
+\import Absolute.Trivial[n := n] \as TrivialClass;
+\import Operations.TrivialPullback[X := X, Y := A, n := n, original := space, base := subspace, f := inclusion, regular := regular] \as TrivialPull;
+\import Operations.DirectSum[X := X, F := Absolute.Fiber p, G := (\fun (x: X) => Bundles.Vector n), left := Absolute.bundle p, right := Trivial.bundle] \as GlobalPositive;
+\import Operations.DirectSum[X := X, F := Absolute.Fiber q, G := (\fun (x: X) => Bundles.Vector n), left := Absolute.bundle q, right := Trivial.bundle] \as GlobalNegative;
+\definition positiveBundle: Bundles.Family[X := X, F := GlobalPositive.Fiber].Bundle := GlobalPositive.bundle (\refl(space));
+\definition negativeBundle: Bundles.Family[X := X, F := GlobalNegative.Fiber].Bundle := GlobalNegative.bundle (\refl(space));
+\import \parent.\parent.FromBundles[F := GlobalPositive.Fiber, G := GlobalNegative.Fiber, source := positiveBundle, target := negativeBundle, sourceSame := \refl(space), targetSame := \refl(space)] \as Represent;
+\import Operations.DirectSum[X := A, F := Positive.Fiber, G := (\fun (x: A) => Bundles.Vector n), left := Positive.bundle, right := BoundaryTrivial.bundle] \as StablePositive;
+\import Operations.DirectSum[X := A, F := Negative.Fiber, G := (\fun (x: A) => Bundles.Vector n), left := Negative.bundle, right := BoundaryTrivial.bundle] \as StableNegative;
+\definition stablePositiveBundle: Bundles.Family[X := A, F := StablePositive.Fiber].Bundle := StablePositive.bundle (\refl(subspace));
+\definition stableNegativeBundle: Bundles.Family[X := A, F := StableNegative.Fiber].Bundle := StableNegative.bundle (\refl(subspace));
+\import GlobalPositive.Of[same := \refl(space)].Pullback[Y := A, source := subspace, f := inclusion, regular := regular] \as PositivePull;
+\import GlobalNegative.Of[same := \refl(space)].Pullback[Y := A, source := subspace, f := inclusion, regular := regular] \as NegativePull;
+\import Operations.IdentityIsomorphism[X := A, F := Positive.Fiber, bundle := Positive.bundle] \as PositiveIdentity;
+\import Operations.IdentityIsomorphism[X := A, F := Negative.Fiber, bundle := Negative.bundle] \as NegativeIdentity;
+\import Operations.DirectSumIsomorphisms[X := A, F := Positive.Fiber, G := (\fun (x: A) => Bundles.Vector n), A := Positive.Fiber, B := (\fun (x: A) => Bundles.Vector n),
+  first := Positive.bundle, second := TrivialPull.pulled, newFirst := Positive.bundle, newSecond := BoundaryTrivial.bundle, sameSource := \refl(subspace), sameTarget := \refl(subspace)] \as AdjustPositive;
+\import Operations.DirectSumIsomorphisms[X := A, F := Negative.Fiber, G := (\fun (x: A) => Bundles.Vector n), A := Negative.Fiber, B := (\fun (x: A) => Bundles.Vector n),
+  first := Negative.bundle, second := TrivialPull.pulled, newFirst := Negative.bundle, newSecond := BoundaryTrivial.bundle, sameSource := \refl(subspace), sameTarget := \refl(subspace)] \as AdjustNegative;
+\import Operations.IsomorphismComposition[X := A, F := (\fun (x: A) => GlobalPositive.Fiber x), G := (\fun (x: A) => GlobalPositive.Fiber x), H := StablePositive.Fiber,
+  source := Represent.restrictedSource, middle := AdjustPositive.sourceBundle, target := stablePositiveBundle] \as PositiveComposition;
+\definition positiveComparison: PositiveComposition.Isomorphism := PositiveComposition.compose PositivePull.isomorphism (AdjustPositive.isomorphism PositiveIdentity.isomorphism TrivialPull.isomorphism);
+\import Operations.IsomorphismComposition[X := A, F := (\fun (x: A) => GlobalNegative.Fiber x), G := (\fun (x: A) => GlobalNegative.Fiber x), H := StableNegative.Fiber,
+  source := Represent.restrictedTarget, middle := AdjustNegative.sourceBundle, target := stableNegativeBundle] \as NegativeComposition;
+\definition negativeComparison: NegativeComposition.Isomorphism := NegativeComposition.compose NegativePull.isomorphism (AdjustNegative.isomorphism NegativeIdentity.isomorphism TrivialPull.isomorphism);
+\import Absolute.Sum[F := Absolute.Fiber p, G := (\fun (x: X) => Bundles.Vector n), left := Absolute.bundle p, right := Trivial.bundle, leftSame := \refl(space), rightSame := \refl(space)] \as PositiveSumClass;
+\import Absolute.Sum[F := Absolute.Fiber q, G := (\fun (x: X) => Bundles.Vector n), left := Absolute.bundle q, right := Trivial.bundle, leftSame := \refl(space), rightSame := \refl(space)] \as NegativeSumClass;
+\import Absolute.Addition[] \as Addition;
+\definition positiveClass: Addition.add (Absolute.class p) TrivialClass.value = Represent.positiveValue :=
+  trans!{{Absolute.Classes}} _ _ _ (congr!{{Absolute.Classes} {Absolute.Classes}} (\fun (a: Absolute.Classes) => Addition.add a TrivialClass.value) _ _ (sym!{{Absolute.Classes}} _ _ (Absolute.Realized[p := p].equation))) PositiveSumClass.onBundles;
+\definition negativeClass: Addition.add (Absolute.class q) TrivialClass.value = Represent.negativeValue :=
+  trans!{{Absolute.Classes}} _ _ _ (congr!{{Absolute.Classes} {Absolute.Classes}} (\fun (a: Absolute.Classes) => Addition.add a TrivialClass.value) _ _ (sym!{{Absolute.Classes}} _ _ (Absolute.Realized[p := q].equation))) NegativeSumClass.onBundles;
+\definition positiveK: K.include Represent.positiveValue = K.add (K.include (Absolute.class p)) (K.include TrivialClass.value) :=
+  trans!{{K.Carrier}} _ _ _ (congr!{{Absolute.Classes} {K.Carrier}} K.include _ _ (sym!{{Absolute.Classes}} _ _ positiveClass)) (K.includeAdd (Absolute.class p) TrivialClass.value);
+\definition negativeK: K.include Represent.negativeValue = K.add (K.include (Absolute.class q)) (K.include TrivialClass.value) :=
+  trans!{{K.Carrier}} _ _ _ (congr!{{Absolute.Classes} {K.Carrier}} K.include _ _ (sym!{{Absolute.Classes}} _ _ negativeClass)) (K.includeAdd (Absolute.class q) TrivialClass.value);
+\definition stabilized: K.difference Represent.positiveValue Represent.negativeValue = difference :=
+  trans!{{K.Carrier}} _ _ _ (congr!{{K.Carrier} {K.Carrier} {K.Carrier}} Additive.difference _ _ _ _ positiveK negativeK)
+    (trans!{{K.Carrier}} _ _ _ (Additive.differenceAdd (K.include (Absolute.class p)) (K.include TrivialClass.value) (K.include (Absolute.class q)) (K.include TrivialClass.value))
+      (trans!{{K.Carrier}} _ _ _ (congr!{{K.Carrier} {K.Carrier}} (Additive.add difference) _ _ (Additive.inverseRight (K.include TrivialClass.value))) (Additive.zeroRight difference)));
+\module On(alpha: Stable.At[n := n].Isomorphism);
