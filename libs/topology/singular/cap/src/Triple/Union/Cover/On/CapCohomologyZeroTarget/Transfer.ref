@@ -1,0 +1,19 @@
+\import \parent.Descent[] \as Descent;
+\import \parent.\parent.Comparison[] \as SmallComparison;
+\import SmallComparison.Homology[z := I.Int^::ofNat Geometry.total] \as Comparison;
+\import Complexes.At[C := Relative.complex, z := I.Int^::ofNat Geometry.total] \as Input;
+\import commutative_algebra.Modules[R := I.Int^, ring := Integers.commutativeRing].HomSpace[V := Input.Homology, W := Target.Homology, source := Input.homologySpace, target := Target.homologySpace] \as InputActions;
+\import Modules.Hom[V := Input.Homology, W := Target.Homology, source := Input.homologySpace, target := Target.homologySpace] \as InputMaps;
+\import Modules.Hom[V := Source.Homology, W := Target.Homology, source := Source.homologySpace, target := Target.homologySpace].Composition[U := Input.Homology, domain := Input.homologySpace] \as Composition;
+\definition precompose[f: Actions.Carrier]: InputActions.Carrier := Composition.compose f (Comparison.isomorphism.backward);
+\import Modules.Hom[V := Actions.Carrier, W := InputActions.Carrier, source := Actions.space, target := InputActions.space] \as BetweenActions;
+\definition linear: BetweenActions.Map := BetweenActions.Map {
+  apply := precompose,
+  addition := \fun (f, g: Actions.Carrier) => InputMaps.ext (precompose (Actions.add f g)) (InputActions.add (precompose f) (precompose g)) (\fun (x: Input.Homology) => \refl((Target.homologySpace).add (f.apply ((Comparison.isomorphism.backward).apply x)) (g.apply ((Comparison.isomorphism.backward).apply x)))),
+  scalar := \fun (a: I.Int^)(f: Actions.Carrier) => InputMaps.ext (precompose (Actions.scale a f)) (InputActions.scale a (precompose f)) (\fun (x: Input.Homology) => \refl((Target.homologySpace).smul a (f.apply ((Comparison.isomorphism.backward).apply x)))),
+};
+\import BetweenActions.Composition[U := Cochain.Cohomology, domain := Cochain.cohomologySpace] \as Composite;
+\definition map: Modules.Hom[V := Cochain.Cohomology, W := InputActions.Carrier, source := Cochain.cohomologySpace, target := InputActions.space].Map := Composite.compose linear Descent.map;
+\definition onSmall: \forall (alpha: Cochain.Cohomology)(x: Source.Homology) ->
+  ((map).apply alpha).apply ((Comparison.isomorphism.forward).apply x) = ((Descent.map).apply alpha).apply x :=
+  \fun (alpha: Cochain.Cohomology)(x: Source.Homology) => congr!{Source.Homology Target.Homology} (((Descent.map).apply alpha).apply) _ _ (Comparison.isomorphism.leftInverse x);
