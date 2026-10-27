@@ -1,0 +1,19 @@
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\definition stage[k: N.Nat^]: Simple[n] := Simple[n] {
+  cells := \fun (i: Fin.Fin n) => threshold f (s.cells i) (Real.mul c (s.coefficients i)) k,
+  coefficients := \fun (i: Fin.Fin n) => Real.mul c (s.coefficients i),
+  measurable := \fun (i: Fin.Fin n) => thresholdMeasurable f (s.cells i) (Real.mul c (s.coefficients i)) (sequenceMeasurable f) (s.measurable i) k,
+  nonnegative := \fun (i: Fin.Fin n) => Laws.fieldMulNonnegative c (s.coefficients i) (shrinkLaw c).left (s.nonnegative i),
+  disjoint := \fun (i, j: Fin.Fin n) (different: Logic.Not (i = j)) (x: A)
+    (left: Sets.Member (threshold f (s.cells i) (Real.mul c (s.coefficients i)) k) x)
+    (right: Sets.Member (threshold f (s.cells j) (Real.mul c (s.coefficients j)) k) x) =>
+      s.disjoint i j different x left.left right.left,
+};
+\definition stageDominated: \forall (k: N.Nat^) -> Dominated n (stage k) (f k) :=
+  \fun (k: N.Nat^) (i: Fin.Fin n) (x: A) (member: Sets.Member (threshold f (s.cells i) (Real.mul c (s.coefficients i)) k) x) =>
+    RealOrder.leOfLt (Real.mul c (s.coefficients i)) (f k x) member.right;
+\definition stageBelowIntegral: \forall (k: N.Nat^) -> Values.Included (simpleIntegral n (stage k)) (lowerIntegral (f k)) :=
+  \fun (k: N.Nat^) (r: Real.Real) (member: below (simpleIntegral n (stage k)) r) =>
+    Logic.existsIntro[N.Nat^, { m: N.Nat^ \where \exists ( t: Simple[m] \where Logic.And[Dominated m t (f k), below (simpleIntegral m t) r] ) }] n
+      (Logic.existsIntro[Simple[n], { t: Simple[n] \where Logic.And[Dominated n t (f k), below (simpleIntegral n t) r] }] (stage k)
+        (Logic.And[_, _]::# (stageDominated k) member));
