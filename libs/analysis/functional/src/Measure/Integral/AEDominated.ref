@@ -1,0 +1,55 @@
+\import \root.Measure[A := A].Integral[mu := mu].Null[] \as NullIntegral;
+\import std.Logic[].Classical[] \as Classical;
+\import real.Analysis[].Sequence[] \as Sequence;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\definition masked[k: N.Nat^]: Representatives := \into[A -> Real.Real]
+  (\root.Measure[A := A].Integral[mu := mu].Mask[N := d.exception, f := d.sequence k].value, { f: A -> Real.Real \where Integrable f }) \by {
+    \root.Measure[A := A].Integral[mu := mu].Mask[N := d.exception, f := d.sequence k].integrable
+      (\bysub(A -> Real.Real, { f: A -> Real.Real \where Integrable f }, d.sequence k))
+  };
+\import \root.Measure[A := A].Integral[mu := mu].Mask[N := d.exception, f := d.bound] \as MaskBound;
+\import \root.Measure[A := A].Integral[mu := mu].Mask[N := d.exception, f := d.limit] \as MaskLimit;
+\definition maskedBound: Representatives := \into[A -> Real.Real] (MaskBound.value, { f: A -> Real.Real \where Integrable f }) \by {
+  MaskBound.integrable (\bysub(A -> Real.Real, { f: A -> Real.Real \where Integrable f }, d.bound))
+};
+\definition dominated: \forall (k: N.Nat^) (x: A) -> R.Le (Product.abs (masked k x)) (maskedBound x) :=
+  \fun (k: N.Nat^) (x: A) => Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member d.exception x))
+    (\fun (inside: Sets.Member d.exception x) => R.leReplace (Product.abs Real.zero) (Product.abs (masked k x)) Real.zero (maskedBound x)
+      (congr!{Real.Real Real.Real} Product.abs _ _ (sym!{Real.Real} _ _ ((\root.Measure[A := A].Integral[mu := mu].Mask[N := d.exception, f := d.sequence k].laws x).left inside)))
+      (sym!{Real.Real} _ _ ((MaskBound.laws x).left inside))
+      (R.leReplaceLeft Real.zero (Product.abs Real.zero) Real.zero (sym!{Real.Real} _ _ (Product.absOfNonnegative Real.zero (R.leRefl Real.zero))) (R.leRefl Real.zero)))
+    (\fun (outside: Logic.Not (Sets.Member d.exception x)) => R.leReplace (Product.abs (d.sequence k x)) (Product.abs (masked k x)) (d.bound x) (maskedBound x)
+      (congr!{Real.Real Real.Real} Product.abs _ _ (sym!{Real.Real} _ _ ((\root.Measure[A := A].Integral[mu := mu].Mask[N := d.exception, f := d.sequence k].laws x).right outside)))
+      (sym!{Real.Real} _ _ ((MaskBound.laws x).right outside)) (d.dominated k x outside));
+\definition converges: \forall (x: A) -> Sequence.Converges (\fun (k: N.Nat^) => masked k x) (MaskLimit.value x) :=
+  \fun (x: A) => Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member d.exception x))
+    (\fun (inside: Sets.Member d.exception x) => \idelim (\fun (_: N.Nat^) => Real.zero) = (\fun (k: N.Nat^) => masked k x)
+      \with s: (N.Nat^ -> Real.Real) => Sequence.Converges s (MaskLimit.value x) \by {
+        base: \idelim Real.zero = MaskLimit.value x \with y: Real.Real => Sequence.Converges (\fun (_: N.Nat^) => Real.zero) y \by {
+          base: Sequence.constantConverges Real.zero, equality: sym!{Real.Real} _ _ ((MaskLimit.laws x).left inside) },
+        equality: \axiom:funext((\fun (_: N.Nat^) => Real.zero), (\fun (k: N.Nat^) => masked k x),
+          \fun (k: N.Nat^) => sym!{Real.Real} _ _ ((\root.Measure[A := A].Integral[mu := mu].Mask[N := d.exception, f := d.sequence k].laws x).left inside))
+      })
+    (\fun (outside: Logic.Not (Sets.Member d.exception x)) => \idelim (\fun (k: N.Nat^) => d.sequence k x) = (\fun (k: N.Nat^) => masked k x)
+      \with s: (N.Nat^ -> Real.Real) => Sequence.Converges s (MaskLimit.value x) \by {
+        base: \idelim d.limit x = MaskLimit.value x \with y: Real.Real => Sequence.Converges (\fun (k: N.Nat^) => d.sequence k x) y \by {
+          base: d.converges x outside, equality: sym!{Real.Real} _ _ ((MaskLimit.laws x).right outside) },
+        equality: \axiom:funext((\fun (k: N.Nat^) => d.sequence k x), (\fun (k: N.Nat^) => masked k x),
+          \fun (k: N.Nat^) => sym!{Real.Real} _ _ ((\root.Measure[A := A].Integral[mu := mu].Mask[N := d.exception, f := d.sequence k].laws x).right outside))
+      });
+\definition data: DominatedSequence := DominatedSequence { sequence := masked, limit := MaskLimit.value, bound := maskedBound, dominated := dominated, converges := converges };
+\import \root.Measure[A := A].Integral[mu := mu].Dominated[d := data] \as Dominated;
+\definition representative: Representatives := Dominated.limitRepresentative;
+\definition almostLimit: AlmostEqual mu representative d.limit := MaskLimit.almost;
+\definition integralEquality: \forall (k: N.Nat^) -> integral (masked k) = integral (d.sequence k) :=
+  \fun (k: N.Nat^) => NullIntegral.integralAlmost (masked k) (d.sequence k)
+    (\root.Measure[A := A].Integral[mu := mu].Mask[N := d.exception, f := d.sequence k].almost);
+\definition convergence: Sequence.Converges (\fun (k: N.Nat^) => integral (d.sequence k)) (integral representative) :=
+  \idelim (\fun (k: N.Nat^) => integral (masked k)) = (\fun (k: N.Nat^) => integral (d.sequence k))
+    \with s: (N.Nat^ -> Real.Real) => Sequence.Converges s (integral representative) \by {
+      base: Dominated.convergence, equality: \axiom:funext((\fun (k: N.Nat^) => integral (masked k)), (\fun (k: N.Nat^) => integral (d.sequence k)), integralEquality)
+    };
+\definition originalIntegrable: IsMeasurable mu d.limit -> Integrable d.limit := \fun (measurable: IsMeasurable mu d.limit) =>
+  NullIntegral.integrableAlmost representative d.limit almostLimit
+    (\bysub(A -> Real.Real, { f: A -> Real.Real \where Integrable f }, representative)) measurable;
