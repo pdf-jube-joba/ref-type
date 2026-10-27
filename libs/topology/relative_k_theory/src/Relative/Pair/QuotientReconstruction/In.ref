@@ -30,3 +30,34 @@
 };
 \import Descended.Neighborhood[extension := extension] \as Near;
 \import Descended.Construction[extension := extension] \as Construction;
+\module At(q: Quotient.Carrier);
+\definition fiber[q: Quotient.Carrier]: Spaces.Isomorphism[V := Descended.Fiber q, W := F q, source := Descended.fiberSpace q, target := bundle.space q].Isomorphism := At[q := q].isomorphism;
+\import Operations.LocalIsomorphisms[X := Quotient.Carrier, F := Descended.Fiber, G := F, source := Construction.bundleOnQuotient, target := bundle, fiber := fiber] \as LocalIsomorphisms;
+\import Operations.LocalMaps[X := Quotient.Carrier, F := Descended.Fiber, G := F, source := Construction.bundleOnQuotient, target := bundle, fiber := (\fun (q: Quotient.Carrier) => (fiber q).forward)] \as LocalMaps;
+\import Bundles.Family[X := Quotient.Carrier, F := Descended.Fiber].With[data := Construction.bundleOnQuotient] \as SourceCharts;
+\definition onBundleOpen: \forall (U: \Pow Quotient.Carrier) -> QuotientBase.IsOpenIn Quotient.topology U -> QuotientBase.IsOpenIn bundle.baseSpace U :=
+  \fun (U: \Pow Quotient.Carrier)(open: QuotientBase.IsOpenIn Quotient.topology U) =>
+    \idelim Quotient.topology = bundle.baseSpace \with t: QuotientBase.Topology => QuotientBase.IsOpenIn t U \by {
+      base: open, equality: sym!{{QuotientBase.Topology}} _ _ same
+    };
+\import Quotient.Outside[] \as Exterior;
+\module NearChart;
+\module OutsideChart(d: Charts.Chart);
+\definition covers: LocalIsomorphisms.Covers := \fun (q: Quotient.Carrier) =>
+  Logic.orElim[q = Quotient.point, Logic.Not (q = Quotient.point), \exists (chart: LocalMaps.Chart \where QuotientBase.Member chart.domain q)]
+    (std.Logic[].Classical[].excludedMiddle (q = Quotient.point))
+    (\fun (same: q = Quotient.point) => \idelim Quotient.point = q \with z: Quotient.Carrier => \exists (chart: LocalMaps.Chart \where QuotientBase.Member chart.domain z) \by {
+      base: Logic.existsIntro[LocalMaps.Chart, { chart: LocalMaps.Chart \where QuotientBase.Member chart.domain Quotient.point }] NearChart[].trivialization Near.atPoint,
+      equality: sym!{{Quotient.Carrier}} _ _ same
+    })
+    (\block {
+      \fun (different: Logic.Not (q = Quotient.point)) \then
+      \takefrom d: \Cast[Charts.Chart] ({ d: Charts.Chart \where QuotientBase.Member d.domain q }) \by Bundles.Family[X := Quotient.Carrier, F := F].Of[bundle := bundle].locallyTrivial q \then
+      \return Logic.existsIntro[LocalMaps.Chart, { chart: LocalMaps.Chart \where QuotientBase.Member chart.domain q }] OutsideChart[d := d].trivialization
+        (OutsideChart[d := d].coverPoint (\into[Quotient.Carrier](q, QuotientBase.Complement (QuotientBase.Singleton Quotient.point)) \by { different })
+          (\bysub(Charts.Chart, { d: Charts.Chart \where QuotientBase.Member d.domain q }, d)))
+    });
+\definition sameBase: Construction.bundleOnQuotient.baseSpace = bundle.baseSpace :=
+  trans!{{QuotientBase.Topology}} _ _ _ Construction.sameBaseSpace (sym!{{QuotientBase.Topology}} _ _ same);
+\definition isomorphism: Bundles.Isomorphisms[X := Quotient.Carrier, F := Descended.Fiber, G := F, source := Construction.bundleOnQuotient, target := bundle].Isomorphism :=
+  LocalIsomorphisms.isomorphism sameBase covers;

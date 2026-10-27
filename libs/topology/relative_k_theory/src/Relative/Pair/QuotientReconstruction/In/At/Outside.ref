@@ -1,0 +1,20 @@
+\import Model.Outside[different := different] \as Away;
+\definition index: Model.Index := Away.index;
+\definition over: Quotient.projection index = q := \bysub(X, { x: X \where Quotient.projection x = q }, index);
+\import Spaces.Isomorphism[V := F (Quotient.projection index), W := F q, source := bundle.space (Quotient.projection index), target := bundle.space q].Composition[
+  U := Model.Carrier, domain := Model.space] \as Return;
+\definition candidate: Isomorphisms.Isomorphism := Return.compose (Transport.isomorphism (Quotient.projection index) q over) Away.isomorphism;
+\definition evaluations: \forall (d: Model.Carrier)(x: Model.Index) ->
+  Transport.cast q (Quotient.projection x) (sym!{{Quotient.Carrier}} _ _ (\bysub(X, { x: X \where Quotient.projection x = q }, x))) (candidate.forward.apply d) = Model.section d x :=
+  \fun (d: Model.Carrier)(x: Model.Index) => \idelim index = x \with y: Model.Index =>
+    Transport.cast q (Quotient.projection y) (sym!{{Quotient.Carrier}} _ _ (\bysub(X, { x: X \where Quotient.projection x = q }, y))) (candidate.forward.apply d) = Model.section d y
+  \by {
+    base: Equality.Transport[A := Quotient.Carrier].castInverse F (Quotient.projection index) q over (Model.section d index), equality: Away.unique index x
+  };
+\definition result: Candidate := Candidate {
+  isomorphism := candidate,
+  condition := \fun (d: Model.Carrier) => Condition[d, candidate.forward.apply d] {
+    atPoint := \fun (same: q = Quotient.point) => Logic.falseElim (pointFrame.forward.apply (Transport.cast q Quotient.point same (candidate.forward.apply d)) = Model.anchor d) (different same),
+    evaluations := evaluations d
+  }
+};
