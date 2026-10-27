@@ -219,3 +219,42 @@
       \return Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[below v a, R.Lt r (Real.mul Real.one a)] }] a
         (Logic.And[_, _]::# data.right (R.ltReplaceRight r a (Real.mul Real.one a) (sym!{Real.Real} _ _ (Laws.fieldMulOneLeft a)) data.left))
     });
+
+\definition positiveScaleZero: \forall (c: Real.Real) -> R.Lt Real.zero c -> scale c zero = zero :=
+  \fun (c: Real.Real) (positive: R.Lt Real.zero c) => \axiom:setext(scale c zero, zero,
+    \fun (r: Real.Real) (member: below (scale c zero) r) => \block {
+      \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[below zero a, R.Lt r (Real.mul c a)] }) \by member \then
+      \let data: Logic.And[below zero a, R.Lt r (Real.mul c a)] := \bysub(Real.Real, { a: Real.Real \where Logic.And[below zero a, R.Lt r (Real.mul c a)] }, a) \then
+      \return Order.ltTrans r (Real.mul c a) Real.zero data.right
+        (R.ltReplaceRight (Real.mul c a) (Real.mul c Real.zero) Real.zero (Laws.fieldMulZeroRight c)
+          (ProductLaws.mulStrict c a Real.zero positive data.left))
+    },
+    \fun (r: Real.Real) (negative: below zero r) => \block {
+      \let m: Real.Real := Real.midpoint r Real.zero \then
+      \let inverse: Real.Real := Laws.fieldInv c \then
+      \let a: Real.Real := Real.mul inverse m \then
+      \let aNegative: R.Lt a Real.zero := R.ltReplaceRight a (Real.mul inverse Real.zero) Real.zero (Laws.fieldMulZeroRight inverse)
+        (ProductLaws.mulStrict inverse m Real.zero (ProductLaws.invPositive c positive) (midpointStrictRight r Real.zero negative)) \then
+      \let cancel: Real.mul c a = m := eq_reason_in!{Real.Real _
+        "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulAssoc c inverse m) }
+        "=" _ "by" { congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.mul x m) _ _ (Laws.fieldMulComm c inverse) }
+        "=" _ "by" { congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.mul x m) _ _
+          (Laws.fieldInverseNonzero c (\fun (eq: c = Real.zero) => Order.ltNotEq Real.zero c positive (sym!{Real.Real} _ _ eq))) }
+        "=" _ "by" { Laws.fieldMulOneLeft m }
+      } \then
+      \return Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[below zero a, R.Lt r (Real.mul c a)] }] a
+        (Logic.And[_, _]::# aNegative (R.ltReplaceRight r m (Real.mul c a) (sym!{Real.Real} _ _ cancel) (midpointStrictLeft r Real.zero negative)))
+    });
+\definition scaleZeroValue: \forall (c: Real.Real) -> R.Le Real.zero c -> scale c zero = zero :=
+  \fun (c: Real.Real) (nonnegative: R.Le Real.zero c) =>
+    Logic.orElim _ _ (scale c zero = zero) (std.Logic[].Classical[].excludedMiddle (c = Real.zero))
+      (\fun (equal: c = Real.zero) => \idelim Real.zero = c \with x: Real.Real => scale x zero = zero
+        \by { base: zeroScale zero (NonnegativeValue[zero] {
+          negative := \fun (r: _) (negative: _) => negative,
+          downward := \fun (r, s: _) (less: _) (negative: _) => Order.ltTrans r s Real.zero less negative,
+          rounded := \fun (r: Real.Real) (negative: R.Lt r Real.zero) =>
+            Logic.existsIntro[Real.Real, { s: Real.Real \where Logic.And[R.Lt r s, below zero s] }] (Real.midpoint r Real.zero)
+              (Logic.And[_, _]::# (midpointStrictLeft r Real.zero negative) (midpointStrictRight r Real.zero negative)),
+        }), equality: sym!{Real.Real} _ _ equal })
+      (\fun (nonzero: Logic.Not (c = Real.zero)) => positiveScaleZero c
+        (Order.ltOfLeNotEq Real.zero c nonnegative (\fun (equal: Real.zero = c) => nonzero (sym!{Real.Real} _ _ equal))));
