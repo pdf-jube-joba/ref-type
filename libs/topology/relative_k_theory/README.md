@@ -105,3 +105,9 @@ Mayer–Vietoris の交叉部分の完全性も証明コードを追加し、構
 `Glued` は交叉上の共役の式に沿って冪等写像を閉被覆で貼り、`Glued.Image` はその像束と K01 の射影表示の存在を構成する。
 ここまでは `patching-image.source.json` で構文解析を通過したが、型検査は未完了。
 像束と元の両側の束との制限同型、および K 群の次数0の完全性への接続を続ける。
+
+`direct-whole-*` の `QuotientStep`・`WholeStep`・`SubsetStep`・`InclusionStep`・`ProjectionStep`・`PairIteration` はすべて accepted・終了0・保存失敗0。
+続く `PairIteration.Sequence` を同じ snapshot で検査中。
+`Patching.ImagePair` は矩形の交差写像から射影像の束同型を構成する。
+`Glued.Image.Left`・`Right` には像束の両側の制限同型と K 群の制限式を追加した（`patching-restrictions.source.json`、構文解析のみ完了）。
+安定同型判定を通して仮想束の貼り合わせへ移す証明を続ける。

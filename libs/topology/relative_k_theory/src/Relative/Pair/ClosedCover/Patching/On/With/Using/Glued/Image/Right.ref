@@ -1,0 +1,78 @@
+\use Equality.eq_reason_in;
+\import \parent.Local[S := V] \as Coordinate;
+\import \parent.\parent.\parent.Local[S := V] \as Original;
+\import Bundles.Trivial[X := Y, n := q.dimension, baseSpace := source] \as Domain;
+\import Bundles.Trivial[X := Y, n := dimension, baseSpace := source] \as Range;
+\import Complements.CoordinateFamily[X := Y, m := q.dimension, n := q.dimension, baseSpace := source,
+  A := (\fun (y: Y) => (q.projection y).map), regular := q.regular] \as Project;
+\import Bundles.Morphisms[X := Y, Y := Y, F := (\fun (y: Y) => Vector q.dimension), G := (\fun (y: Y) => Vector q.dimension),
+  source := Domain.bundle, target := Domain.bundle, f := (\fun (y: Y) => y)].Composition[
+  Z := Y, H := (\fun (y: Y) => Sum.Fiber y), range := Original.pulledBundle, g := (\fun (y: Y) => y)] \as F1;
+\import Bundles.Morphisms[X := Y, Y := Y, F := (\fun (y: Y) => Vector q.dimension), G := (\fun (y: Y) => Sum.Fiber y),
+  source := Domain.bundle, target := Original.pulledBundle, f := (\fun (y: Y) => y)].Composition[
+  Z := Y, H := (\fun (y: Y) => Vector dimension), range := Range.bundle, g := (\fun (y: Y) => y)] \as F2;
+\import Bundles.Morphisms[X := Y, Y := Y, F := (\fun (y: Y) => Vector dimension), G := (\fun (y: Y) => Sum.Fiber y),
+  source := Range.bundle, target := Original.pulledBundle, f := (\fun (y: Y) => y)].Composition[
+  Z := Y, H := (\fun (y: Y) => Vector q.dimension), range := Domain.bundle, g := (\fun (y: Y) => y)] \as G1;
+\import Bundles.Morphisms[X := Y, Y := Y, F := (\fun (y: Y) => Vector q.dimension), G := (\fun (y: Y) => Vector dimension),
+  source := Domain.bundle, target := Range.bundle, f := (\fun (y: Y) => y)] \as Forward;
+\import Bundles.Morphisms[X := Y, Y := Y, F := (\fun (y: Y) => Vector dimension), G := (\fun (y: Y) => Vector q.dimension),
+  source := Range.bundle, target := Domain.bundle, f := (\fun (y: Y) => y)] \as Backward;
+\definition forward: Forward.Map := F2.compose (F1.compose Project.map Original.includeSecond) Coordinate.comparison.forward;
+\definition backward: Backward.Map := G1.compose Coordinate.comparison.backward Original.secondMap;
+\import Patcher.LinearMapFamily[Y := Y, baseSpace := source, m := q.dimension, n := dimension, map := forward] \as ForwardRegular;
+\import Patcher.LinearMapFamily[Y := Y, baseSpace := source, m := dimension, n := q.dimension, map := backward] \as BackwardRegular;
+\definition forwardFormula: \forall (y: Y)(v: Vector q.dimension) -> (forward.fiber y).apply v =
+  (Frame.isomorphism.forward.fiber y).apply (Pair.pair (Vector p.dimension) (Vector q.dimension) (coordinates p.dimension).zero ((q.projection y).map.apply v)) :=
+  \fun (y: Y)(v: Vector q.dimension) => trans!{{Vector dimension}} _ _ _
+    (Coordinate.forwardFormula y ((Original.includeSecond.fiber y).apply ((q.projection y).map.apply v)))
+    (congr!{H {Vector dimension}} (Frame.isomorphism.forward.fiber y).apply _ _ (Original.includeSecondFormula y ((q.projection y).map.apply v)));
+\definition backwardFormula: \forall (y: Y)(v: Vector dimension) -> (backward.fiber y).apply v =
+  Pair.second (Vector p.dimension) (Vector q.dimension) ((Frame.isomorphism.backward.fiber y).apply v) :=
+  \fun (y: Y)(v: Vector dimension) => trans!{{Vector q.dimension}} _ _ _
+    (Original.secondFormula y ((Coordinate.comparison.backward.fiber y).apply v))
+    (congr!{H {Vector q.dimension}} (Pair.second (Vector p.dimension) (Vector q.dimension)) _ _ (Coordinate.backwardFormula y v));
+\definition left: \forall (y: Y)(v: Vector q.dimension) -> (backward.fiber y).apply ((forward.fiber y).apply v) = (q.projection y).map.apply v :=
+  \fun (y: Y)(v: Vector q.dimension) => trans!{{Vector q.dimension}} _ _ _
+    (congr!{{Vector dimension} {Vector q.dimension}} (backward.fiber y).apply _ _ (forwardFormula y v))
+    (trans!{{Vector q.dimension}} _ _ _
+      (backwardFormula y ((Frame.isomorphism.forward.fiber y).apply (Pair.pair (Vector p.dimension) (Vector q.dimension) (coordinates p.dimension).zero ((q.projection y).map.apply v))))
+      (congr!{H {Vector q.dimension}} (Pair.second (Vector p.dimension) (Vector q.dimension)) _ _
+        (frameLaws.leftInverse y (Pair.pair (Vector p.dimension) (Vector q.dimension) (coordinates p.dimension).zero ((q.projection y).map.apply v)))));
+\definition matrixOnV: \forall (y: Y)(v: Vector dimension) -> (matrix y).apply v =
+  (Frame.isomorphism.forward.fiber y).apply (Pair.pair (Vector p.dimension) (Vector q.dimension) (coordinates p.dimension).zero
+    ((q.projection y).map.apply (Pair.second (Vector p.dimension) (Vector q.dimension) ((Frame.isomorphism.backward.fiber y).apply v)))) :=
+  \fun (y: Y)(v: Vector dimension) => trans!{{Vector dimension}} _ _ _
+    (congr!{End.Map {Vector dimension}} (\fun (m: End.Map) => (Frame.isomorphism.forward.fiber y).apply (m.apply ((Frame.isomorphism.backward.fiber y).apply v))) _ _ (onV y))
+    (congr!{H {Vector dimension}} (Frame.isomorphism.forward.fiber y).apply _ _ (VBlock.formula y ((Frame.isomorphism.backward.fiber y).apply v)));
+\definition right: \forall (y: Y)(v: Vector dimension) -> (forward.fiber y).apply ((backward.fiber y).apply v) = (matrix y).apply v :=
+  \fun (y: Y)(v: Vector dimension) => trans!{{Vector dimension}} _ _ _ (forwardFormula y ((backward.fiber y).apply v))
+    (trans!{{Vector dimension}} _ _ _
+      (congr!{{Vector q.dimension} {Vector dimension}} (\fun (z: Vector q.dimension) => (Frame.isomorphism.forward.fiber y).apply
+        (Pair.pair (Vector p.dimension) (Vector q.dimension) (coordinates p.dimension).zero ((q.projection y).map.apply z))) _ _ (backwardFormula y v))
+      (sym!{{Vector dimension}} _ _ (matrixOnV y v)));
+\import Native.Pullback[Y := Y, source := source, f := inclusion, regularBase := inclusionContinuous] \as GlobalPull;
+\import Complements.Idempotents[n := q.dimension] \as SourceIdempotents;
+\definition sourceProjection[y: Y]: SourceIdempotents.Projection := SourceIdempotents.Projection { map := (q.projection y).map, idempotent := (q.projection y).idempotent };
+\import Patcher.ImagePair[Y := Y, baseSpace := source, m := q.dimension, n := dimension] \as Images;
+\definition data: Images.Data := Images.Data {
+  source := sourceProjection, target := (\fun (y: Y) => projection y),
+  sourceRegular := q.regular, targetRegular := GlobalPull.composedRegular,
+  forward := (\fun (y: Y) => forward.fiber y), backward := (\fun (y: Y) => backward.fiber y),
+  forwardRegular := ForwardRegular.regular, backwardRegular := BackwardRegular.regular,
+  left := left, right := right
+};
+\import Images.With[d := data] \as Comparison;
+\import Bundles.Isomorphisms[X := Y, F := (\fun (y: Y) => Fiber y), G := (\fun (y: Y) => Fiber y),
+  source := GlobalPull.firstBundle, target := GlobalPull.secondBundle] \as RestrictionComparison;
+\import Operations.IsomorphismComposition[X := Y, F := VTheory.Fiber q, G := (\fun (y: Y) => Fiber y), H := (\fun (y: Y) => Fiber y),
+  source := VTheory.bundle q, middle := GlobalPull.secondBundle, target := GlobalPull.firstBundle] \as Composition;
+\import Bundles.Isomorphisms[X := Y, F := VTheory.Fiber q, G := (\fun (y: Y) => Fiber y),
+  source := VTheory.bundle q, target := GlobalPull.firstBundle] \as Isomorphisms;
+\definition isomorphism: Isomorphisms.Isomorphism := Composition.compose Comparison.isomorphism (RestrictionComparison.inverse GlobalPull.isomorphism);
+\import VTheory.Bundle[F := (\fun (y: Y) => Fiber y), original := GlobalPull.firstBundle, same := (\refl(source))] \as RestrictedClass;
+\import Absolute.Pullback[Y := Y, space := source, sourceCompact := compactSource, sourceHausdorff := hausdorffSource,
+  f := inclusion, regular := inclusionContinuous] \as Restrict;
+\import Restrict.Of[F := Fiber, original := imageBundle, same := (\refl(space))] \as PullClass;
+\definition classEquation: Restrict.map value = VTheory.class q := trans!{{VTheory.Classes}} _ _ _ PullClass.naturality
+  (RestrictedClass.identified q (Isomorphisms.inverse isomorphism));
