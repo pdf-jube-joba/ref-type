@@ -4,3 +4,44 @@
 \definition zeroClassIntegral: integral (QuotientIntegral.class Zero.representative) = Real.zero :=
   \idelim Integral.integral Zero.representative = Real.zero \with x: Real.Real => integral (QuotientIntegral.class Zero.representative) = x
     \by { base: IntegralExamples.classValue Zero.representative, equality: Zero.integralZero };
+\import real.Analysis[].Sequence[] \as Sequence;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].trans;
+\definition addClassValue: \forall (f, g: Integral.Representatives) ->
+  integral (addClasses (QuotientIntegral.class f) (QuotientIntegral.class g)) = Real.add (Integral.integral f) (Integral.integral g) :=
+  \fun (f, g: Integral.Representatives) => trans!{Real.Real} _ _ _
+    (integralClassAdd (QuotientIntegral.class f) (QuotientIntegral.class g))
+    (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (classIntegral f) (classIntegral g));
+\definition zeroData: Integral.DominatedSequence := Integral.DominatedSequence {
+  sequence := \fun (_: N.Nat^) => Zero.representative,
+  limit := Zero.function,
+  bound := Zero.representative,
+  dominated := \fun (_: N.Nat^) (_: A) => R.leReplaceLeft Real.zero (Product.abs Real.zero) Real.zero
+    (sym!{Real.Real} _ _ (Product.absOfNonnegative Real.zero (R.leRefl Real.zero))) (R.leRefl Real.zero),
+  converges := \fun (_: A) => Sequence.constantConverges Real.zero,
+};
+\import \root.On[A := A, mu := mu].Dominated[d := zeroData] \as ZeroDominated;
+\definition zeroDominatedConvergence: Sequence.Converges (\fun (_: N.Nat^) => Integral.integral Zero.representative)
+  (Integral.integral ZeroDominated.limitRepresentative) := ZeroDominated.convergence;
+\import Integral.Series[terms := \fun (_: N.Nat^) => Zero.representative] \as ZeroSeries;
+\definition zeroPartial: \forall (k: N.Nat^) (x: A) -> ZeroSeries.partial k x = Real.zero :=
+  \induction (k: N.Nat^) \return \forall (x: A) -> ZeroSeries.partial k x = Real.zero \with {
+    | zero: \fun (x: A) => \refl(Real.zero)
+    | succ: \fun (k: N.Nat^) (previous: _) (x: A) => trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (\fun (z: Real.Real) => Real.add z Real.zero) _ _ (previous x)) (Laws.addZeroLeft Real.zero)
+  };
+\definition zeroSeriesConditions: ZeroSeries.Conditions := ZeroSeries.Conditions {
+  limit := Zero.function, bound := Zero.representative,
+  dominated := \fun (k: N.Nat^) (x: A) => R.leReplaceLeft (Product.abs Real.zero) (Product.abs (ZeroSeries.partial k x)) Real.zero
+    (congr!{Real.Real Real.Real} Product.abs _ _ (sym!{Real.Real} _ _ (zeroPartial k x)))
+    (R.leReplaceLeft Real.zero (Product.abs Real.zero) Real.zero (sym!{Real.Real} _ _ (Product.absOfNonnegative Real.zero (R.leRefl Real.zero))) (R.leRefl Real.zero)),
+  converges := \fun (x: A) => \idelim (\fun (_: N.Nat^) => Real.zero) = (\fun (k: N.Nat^) => ZeroSeries.partial k x)
+    \with s: (N.Nat^ -> Real.Real) => Sequence.Converges s Real.zero \by {
+      base: Sequence.constantConverges Real.zero,
+      equality: \axiom:funext((\fun (_: N.Nat^) => Real.zero), (\fun (k: N.Nat^) => ZeroSeries.partial k x), \fun (k: N.Nat^) => sym!{Real.Real} _ _ (zeroPartial k x))
+    },
+};
+\import ZeroSeries.Exchange[c := zeroSeriesConditions] \as ZeroSeriesExchange;
+\definition zeroSeriesExchange: Sequence.Converges ZeroSeries.scalarPartial (Integral.integral ZeroSeriesExchange.representative) := ZeroSeriesExchange.exchange;
