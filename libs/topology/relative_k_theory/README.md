@@ -104,10 +104,12 @@ K07 の影響先検査は最終検査に含める。
 `Commutative.DirectSum.Symmetry`・`CoordinateSum.Symmetry`・`DirectSumMiddleSwap` は直和と座標ブロックの交換・並べ替えを構成する。
 `TripleFraming` と `TripleClass.canonicalEquality` は `triple-framing-*` で accepted・終了0・キャッシュ保存失敗0。
 前者は負側と補助束の直和の自明化を引数として被約群の元を作り、後者は標準補束を使った場合の既存構成との一致を示す。
-最新の未検証変更は `ComplementChoice`。
+`ComplementChoice` は `complement-choice-fixed` で accepted・終了0・キャッシュ保存失敗0。
 全体の束の交換自己同型と座標ブロックの交換により、補助束・自明化の選択によらず被約群の元が一致することを示す。
-固定 snapshot は `work/k03-resume/complement-choice.source.json`。
-次は `relative_k_theory.Relative.Pair.ComplementChoice` を検査する。
+最新の未検証変更は `TripleIsomorphic`。
+三つ組の正負の束を境界同型と両立する全体の同型で取り替えた場合の不変性を、共通の補助束へ移して証明する。
+固定 snapshot は `work/k03-resume/triple-isomorphic.source.json`。
+次は `relative_k_theory.Relative.Pair.TripleIsomorphic` を検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。
