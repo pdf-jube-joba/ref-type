@@ -26,3 +26,5 @@ cd /workspace/ref-type-b05
 任意の連続写像について、普遍束の引き戻しと合成射影族の像束の同型を既存 API から公開し、通常検査は accepted。
 
 連続な一定階数の射影族から Grassmannian への連続写像 `Family.map` とその連続性を証明し通常検査に成功。workspace の package 登録と公開一覧を追加した。
+
+直和のブロック射影と、基底の直和による階数の加法を実・複素用に実装した。実の `grassmannians.Real.Sum` は通常検査で accepted。複素側・直和写像の連続性と束の比較を続ける。
