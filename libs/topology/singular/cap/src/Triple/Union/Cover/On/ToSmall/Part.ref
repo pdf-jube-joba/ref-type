@@ -25,3 +25,20 @@
     "=" _ "by" { congr!{{singular_products.Cochains[A := Part.SubspaceCarrier, source := PartSpace.topology source, R := I.Int^, ring := Integers.commutativeRing].Carrier n} I.Int^}
       (\fun (f: singular_products.Cochains[A := Part.SubspaceCarrier, source := PartSpace.topology source, R := I.Int^, ring := Integers.commutativeRing].Carrier n) => (f).apply (singular_cohomology.Chains[A := Part.SubspaceCarrier, source := PartSpace.topology source].generator n (simplex sigma contained))) _ _ zero }
   };
+\import singular_cohomology.Chains[A := Part.SubspaceCarrier, source := PartSpace.topology source] \as PartChains;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import Nonnegative.ZeroExtension[C := PartChains.complex] \as PartExtension;
+\import Nonnegative.ZeroExtension[C := Chains.complex] \as WholeExtension;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as IntegerChains;
+\import IntegerChains.Quotient[C := PartExtension.complex, D := WholeExtension.complex].On[f := Part.inclusionMap].At[k := I.Int^::ofNat n] \as Q;
+\import IntegerChains.Map[C := PartExtension.complex, D := WholeExtension.complex].At[k := I.Int^::ofNat n] \as InclusionAt;
+\import Modules.Of[V := WholeExtension.Carrier (I.Int^::ofNat n), space := WholeExtension.space (I.Int^::ofNat n)].Submodule[].Image[U := PartExtension.Carrier (I.Int^::ofNat n), source := PartExtension.space (I.Int^::ofNat n)] \as Images;
+\definition image: \forall (sigma: SmallSimplices.Carrier n)(contained: \forall (x: Simplex.Carrier n) -> \In[A] S (sigma x)) ->
+  \In[WholeExtension.Carrier (I.Int^::ofNat n)] Q.image (WholeExtension.Positive[n := n].intro ((inclusion).apply n (Small.generator n sigma))) :=
+  \fun (sigma: SmallSimplices.Carrier n)(contained: _) => Images.introduce (InclusionAt.linear Part.inclusionMap) _
+    (PartExtension.Positive[n := n].intro (PartChains.generator n (simplex sigma contained)))
+    (congr!{{Chains.Carrier n} {WholeExtension.Carrier (I.Int^::ofNat n)}} WholeExtension.Positive[n := n].intro _ _ (eq_reason_in!{{Chains.Carrier n} _
+      "=" _ "by" { PartMaps.At[n := n].onGenerator Part.inclusion Part.inclusionContinuous (simplex sigma contained) }
+      "=" _ "by" { congr!{{WholeSimplices.Carrier n} {Chains.Carrier n}} (Chains.generator n) _ _ (same sigma contained) }
+      "=" _ "by" { sym!{{Chains.Carrier n}} _ _ (onGenerator sigma) }
+    }));
