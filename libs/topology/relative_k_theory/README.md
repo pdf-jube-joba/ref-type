@@ -111,3 +111,8 @@ Mayer–Vietoris の交叉部分の完全性も証明コードを追加し、構
 `Patching.ImagePair` は矩形の交差写像から射影像の束同型を構成する。
 `Glued.Image.Left`・`Right` には像束の両側の制限同型と K 群の制限式を追加した（`patching-restrictions.source.json`、構文解析のみ完了）。
 安定同型判定を通して仮想束の貼り合わせへ移す証明を続ける。
+
+`PairIteration.Sequence` は制限写像の値域の照合で不一致を検出した。
+列の端の群に元の対を明示して `iteration-base-pair.source.json` に固定した（未検証）。
+先に `PairIteration.Groups`・`WholeGroups`・`SubsetGroups` をそれぞれ `--module-only` で保存し、その後 `Sequence` を検査する。
+通常の K 群には `K0.NormalForm` として、任意の元を束の表示と有限次元自明束との差へ直す構成も追加した（未検証）。
