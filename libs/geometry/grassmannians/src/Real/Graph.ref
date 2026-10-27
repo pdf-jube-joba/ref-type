@@ -48,3 +48,18 @@
     (congr!{{E.Vector} R.Real} (\fun (u: E.Vector) => At.dot u (graph x w)) _ _ (sym!{{E.Vector}} _ _ (At.OnProjection[P := a].Rank[k := k].fixed center v)))
     (trans!{R.Real} _ _ _ (a.selfAdjoint (center.value.apply v) (graph x w))
       (trans!{R.Real} _ _ _ (congr!{{E.Vector} R.Real} (At.dot (center.value.apply v)) _ _ (graphProjectionZero x w)) (E.form.zeroRight (center.value.apply v))));
+
+\import Square.Families[X := Carrier] \as SmallMatrices;
+\import At.Families[X := Carrier] \as LocalVectors;
+\import LocalVectors.Matrix[m := k] \as LocalMaps;
+\definition inverseRegular: H.Over[K := R.Real, field := R.Algebra[].field, scalar := H.Real[].scalar, topological := H.Real[].topological].At[n := k].Families[X := Carrier].Matrix[m := k].Regular localTopology (\fun (x: Carrier) => Square.Inverse[A := Local.nonsingular x].value) :=
+  SmallMatrices.inverseMaps localTopology (\fun (x: Carrier) => Local.nonsingular x)
+    (\fun (i, j: Fin.Fin k) => topology.Continuity[A := Grassmannian, B := R.Real].Restriction[S := domain].restrictContinuous
+      topology H.Real[].topological.space (\fun (x: Grassmannian) => Local.matrix x i j) (Local.Continuous[].matrixRegular i j));
+\definition normalizedRegular: LocalMaps.Regular localTopology normalized :=
+  \fun (v: Domain.Vector) => LocalMaps.evaluate localTopology (\fun (x: Carrier) => Local.forward x)
+    (\fun (x: Carrier) => (Square.Inverse[A := Local.nonsingular x].value).apply v)
+    (\fun (j: Fin.Fin k) => Local.Continuous[].forwardRegular (Domain.basis j)) (inverseRegular v);
+\definition graphRegular: \forall (v: Domain.Vector) -> LocalVectors.Continuous localTopology (\fun (x: Carrier) => graph x v) :=
+  \fun (v: Domain.Vector) => LocalVectors.addition localTopology (\fun (x: Carrier) => (normalized x).apply v) (\fun (_: Carrier) => E.space.neg (center.value.apply v))
+    (normalizedRegular v) (LocalVectors.constant localTopology (E.space.neg (center.value.apply v)));
