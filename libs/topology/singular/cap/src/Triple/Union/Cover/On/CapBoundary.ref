@@ -1,0 +1,37 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import singular_cohomology.Simplices[A := A, source := source].CutFaces[p := p, q := q] \as Geometry;
+\import \parent.SmallDegree[] \as SourceDegree;
+\import SecondCap.Degree[] \as TargetDegree;
+\import \parent.Cap[p := p, q := q] \as Lower;
+\import \parent.Cap[p := N.Nat^::succ p, q := q] \as Upper;
+\import \root.Integral[A := A, source := source].At[p := N.Nat^::succ p, q := q] \as WholeUpper;
+\import \root.Integral[A := A, source := source].Diagonal[].Boundary[p := p, q := q].Closed[] \as WholeClosed;
+\import FirstCap.RelativeCochainBoundary[p := p, q := q] \as FirstBoundary;
+\import FirstPair.Comparison[n := q] \as FirstComparison;
+\import Chains.DegreeTransport[] \as ChainDegrees;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import Nonnegative.ZeroExtension[C := Chains.complex] \as Extension;
+\import Nonnegative.ZeroExtension[C := Small.complex] \as SmallExtension;
+\import Nonnegative.Map[C := Small.complex, D := Chains.complex].ZeroExtension[f := inclusion] \as SmallMap;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring].Quotient[C := SmallExtension.complex, D := Extension.complex].On[f := SmallMap.map].At[k := I.Int^::ofNat Geometry.higher] \as SourceQ;
+\definition closed[beta: FirstCochains.Carrier (I.Int^::ofNat q)]: \Prop := FirstBoundary.Closed beta;
+\definition law: \forall (beta: FirstCochains.Carrier (I.Int^::ofNat q)) -> closed beta -> \forall (x: SourceDegree.Carrier Geometry.higher) ->
+  (Lower.map beta).apply ((SourceDegree.boundary Geometry.total).apply x) =
+  (TargetDegree.boundary p).apply ((Upper.map beta).apply (SourceDegree.apply Geometry.higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) x)) :=
+  \fun (beta: FirstCochains.Carrier (I.Int^::ofNat q))(cocycle: closed beta) => SourceQ.induction
+    (\fun (x: SourceDegree.Carrier Geometry.higher) => (Lower.map beta).apply ((SourceDegree.boundary Geometry.total).apply x) =
+      (TargetDegree.boundary p).apply ((Upper.map beta).apply (SourceDegree.apply Geometry.higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) x)))
+    (\fun (x: Extension.Carrier (I.Int^::ofNat Geometry.higher)) => eq_reason_in!{{TargetDegree.Carrier p} _
+      "=" _ "by" { congr!{{SourceDegree.Carrier Geometry.total} {TargetDegree.Carrier p}} ((Lower.map beta).apply) _ _ (SourceDegree.boundaryOnClass Geometry.total x) }
+      "=" _ "by" { Lower.onClass beta (Extension.Positive[n := Geometry.total].intro ((Chains.boundary Geometry.total).apply x)) }
+      "=" _ "by" { congr!{{Chains.Carrier p} {TargetDegree.Carrier p}} (TargetDegree.class p) _ _ (WholeClosed.law (FirstComparison.from beta) (FirstBoundary.underlyingClosed beta cocycle) x) }
+      "=" _ "by" { sym!{{TargetDegree.Carrier p}} _ _ (TargetDegree.boundaryOnClass p ((WholeUpper.map (FirstComparison.from beta)).apply (ChainDegrees.apply Geometry.higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) x))) }
+      "=" _ "by" { congr!{{TargetDegree.Carrier (N.Nat^::succ p)} {TargetDegree.Carrier p}} ((TargetDegree.boundary p).apply) _ _
+        (sym!{{TargetDegree.Carrier (N.Nat^::succ p)}} _ _ (Upper.onClass beta (Extension.Positive[n := Geometry.leftDegree].intro (ChainDegrees.apply Geometry.higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) x)))) }
+      "=" _ "by" { congr!{{SourceDegree.Carrier Geometry.leftDegree} {TargetDegree.Carrier p}} (\fun (z: SourceDegree.Carrier Geometry.leftDegree) => (TargetDegree.boundary p).apply ((Upper.map beta).apply z)) _ _
+        (sym!{{SourceDegree.Carrier Geometry.leftDegree}} _ _ (SourceDegree.onClass Geometry.higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) x)) }
+    });
