@@ -1,0 +1,33 @@
+\import \root.Measure[A := A].Sigma[] \as Sigma;
+\import \root.Measure[A := A].Finite[mu := mu] \as Finite;
+\use std.Logic[].Equality[].congr;
+
+\structure NullSetLaw[N: \Pow A]: \Prop := {
+  measurable: Measurable mu.sigma N,
+  zeroMeasure: mu.value N = zero,
+};
+\definition NullSet: \Set := \Cast[\Pow A] ({ N: \Pow A \where NullSetLaw[N] });
+\definition nullSetLaw[N: NullSet]: NullSetLaw[N] := \bysub(\Pow A, { N: \Pow A \where NullSetLaw[N] }, N);
+
+\definition restrict[N: NullSet] [n: N.Nat^] [s: Simple[n]]: Simple[n] := Simple[n] {
+  cells := \fun (i: Fin.Fin n) => Sigma.difference (s.cells i) N,
+  coefficients := s.coefficients,
+  measurable := \fun (i: Fin.Fin n) => Sigma.differenceMeasurable mu.sigma (s.cells i) N (s.measurable i) (nullSetLaw N).measurable,
+  nonnegative := s.nonnegative,
+  disjoint := \fun (i, j: Fin.Fin n) (different: Logic.Not (i = j)) (x: A)
+    (left: Sets.Member (Sigma.difference (s.cells i) N) x) (right: Sets.Member (Sigma.difference (s.cells j) N) x) =>
+      s.disjoint i j different x left.left right.left,
+};
+\definition restrictIntegral: \forall (N: NullSet) (n: N.Nat^) (s: Simple[n]) -> simpleIntegral n (restrict N n s) = simpleIntegral n s :=
+  \fun (N: NullSet) (n: N.Nat^) (s: Simple[n]) =>
+    congr!{{Fin.Fin n -> Value} Value} (sum n) _ _
+      (\axiom:funext((\fun (i: Fin.Fin n) => scale (s.coefficients i) (mu.value (Sigma.difference (s.cells i) N))),
+        (\fun (i: Fin.Fin n) => scale (s.coefficients i) (mu.value (s.cells i))),
+        \fun (i: Fin.Fin n) => congr!{Value Value} (scale (s.coefficients i)) _ _
+          (Finite.removeNull (s.cells i) N (s.measurable i) (nullSetLaw N).measurable (nullSetLaw N).zeroMeasure)));
+\definition restrictDominated: \forall (N: NullSet) (n: N.Nat^) (s: Simple[n]) (f, g: A -> Real.Real) ->
+  Dominated n s f -> (\forall (x: A) -> Logic.Not (Sets.Member N x) -> f x = g x) -> Dominated n (restrict N n s) g :=
+  \fun (N: NullSet) (n: N.Nat^) (s: Simple[n]) (f, g: A -> Real.Real) (dominated: Dominated n s f)
+    (agree: \forall (x: A) -> Logic.Not (Sets.Member N x) -> f x = g x)
+    (i: Fin.Fin n) (x: A) (member: Sets.Member (Sigma.difference (s.cells i) N) x) =>
+      R.leReplaceRight (s.coefficients i) (f x) (g x) (agree x member.right) (dominated i x member.left);
