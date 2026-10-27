@@ -6,14 +6,15 @@
 ```ref
 \import measure_convergence.On[A := A, mu := mu] \as Integration;
 \import functional_analysis.Measure[A := A].Integral[mu := mu] \as RealIntegral;
+\import RealIntegral.Linear[] \as Linear;
 
 \definition addExample: \forall (f, g: RealIntegral.Representatives) ->
-  RealIntegral.integral (Integration.Linear.addRepresentative f g) =
+  RealIntegral.integral (Linear.addRepresentative f g) =
     Real.add (RealIntegral.integral f) (RealIntegral.integral g) := Integration.integralAdd;
 ```
 
 `monotone` は可測な増加実関数列の各点上限に対する下積分の単調収束を示す。
-`FatouFor[f].inequality` は非負可測関数列について、末尾下限の下積分からなる上極限を積分値の下極限で評価する。
+`FatouFor[f].inequality` は非負可測関数列について、末尾下限の下積分からなる上限を積分値の下極限で評価する。
 有限の各点下極限が存在する場合、`finiteLiminf` と `finiteInequality` はその関数の下積分について述べる。
 `NonnegativeAdd[p, q].lowerIntegralAdd` は非負可測関数の下積分の加法性を示す。
 
