@@ -31,3 +31,66 @@
   \fun (f, g: A -> Real.Real) (equal: AlmostEqual mu f g) =>
     nullSubset ({ x: A \where Logic.Not (g x = f x) }) ({ x: A \where Logic.Not (f x = g x) })
       (\fun (x: A) (different: Logic.Not (g x = f x)) (same: f x = g x) => different (sym!{Real.Real} _ _ same)) equal;
+
+\import \root.Measure[A := A].Finite[mu := mu] \as Finite;
+\import \root.Measure[A := A].ValueLaws[] \as V;
+\import std.Logic[].Classical[] \as Classical;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].congr;
+
+\definition unionDifference: \forall (S, T: \Pow A) ->
+  Sigma.pairUnion S T = Sigma.pairUnion S (Sigma.difference T S) :=
+  \fun (S, T: \Pow A) => \axiom:setext(Sigma.pairUnion S T, Sigma.pairUnion S (Sigma.difference T S),
+    \fun (x: A) (member: Sets.Member (Sigma.pairUnion S T) x) =>
+      Logic.orElim _ _ (Sets.Member (Sigma.pairUnion S (Sigma.difference T S)) x) member
+        (\fun (inS: Sets.Member S x) => Logic.Or[_, _]::left inS)
+        (\fun (inT: Sets.Member T x) => Logic.orElim _ _ (Sets.Member (Sigma.pairUnion S (Sigma.difference T S)) x)
+          (Classical.excludedMiddle (Sets.Member S x))
+          (\fun (inS: Sets.Member S x) => Logic.Or[_, _]::left inS)
+          (\fun (notS: Logic.Not (Sets.Member S x)) => Logic.Or[_, _]::right (Logic.And[_, _]::# inT notS))),
+    \fun (x: A) (member: Sets.Member (Sigma.pairUnion S (Sigma.difference T S)) x) =>
+      Logic.orElim _ _ (Sets.Member (Sigma.pairUnion S T) x) member
+        (\fun (inS: Sets.Member S x) => Logic.Or[_, _]::left inS)
+        (\fun (inDiff: Sets.Member (Sigma.difference T S) x) => Logic.Or[_, _]::right inDiff.left));
+\definition measurableNullUnion: \forall (S, T: \Pow A) -> Measurable mu.sigma S -> Measurable mu.sigma T ->
+  mu.value S = zero -> mu.value T = zero -> mu.value (Sigma.pairUnion S T) = zero :=
+  \fun (S, T: \Pow A) (s: Measurable mu.sigma S) (t: Measurable mu.sigma T) (sz: mu.value S = zero) (tz: mu.value T = zero) => \block {
+    \let diff: Measurable mu.sigma (Sigma.difference T S) := Sigma.differenceMeasurable mu.sigma T S t s \then
+    \let dz: mu.value (Sigma.difference T S) = zero := Finite.subsetZero (Sigma.difference T S) T diff t
+      (\fun (x: A) (member: Sets.Member (Sigma.difference T S) x) => member.left) tz \then
+    \let zeroLaw: NonnegativeValue[zero] := \idelim mu.value S = zero \with v: Value => NonnegativeValue[v]
+      \by { base: laws.nonnegative S s, equality: sz } \then
+    \return eq_reason_in!{Value _
+      "=" _ "by" { congr!{{\Pow A} Value} mu.value _ _ (unionDifference S T) }
+      "=" _ "by" { Finite.additivity S (Sigma.difference T S) s diff (Finite.subsetDisjoint S T) }
+      "=" _ "by" { congr!{Value Value Value} add _ _ _ _ sz dz }
+      "=" _ "by" { V.addZero zero zeroLaw }
+    }
+  };
+\definition nullUnion: \forall (S, T: \Pow A) -> Null mu S -> Null mu T -> Null mu (Sigma.pairUnion S T) :=
+  \fun (S, T: \Pow A) (s: Null mu S) (t: Null mu T) => \block {
+    \takefrom U: \Cast[\Pow A] ({ U: \Pow A \where NullCover[mu, S, U] }) \by s \then
+    \takefrom V: \Cast[\Pow A] ({ V: \Pow A \where NullCover[mu, T, V] }) \by t \then
+    \let u: NullCover[mu, S, U] := \bysub(\Pow A, { U: \Pow A \where NullCover[mu, S, U] }, U) \then
+    \let v: NullCover[mu, T, V] := \bysub(\Pow A, { V: \Pow A \where NullCover[mu, T, V] }, V) \then
+    \return Logic.existsIntro[\Pow A, { N: \Pow A \where NullCover[mu, Sigma.pairUnion S T, N] }] (Sigma.pairUnion U V)
+      (NullCover[mu, Sigma.pairUnion S T, Sigma.pairUnion U V] {
+        measurable := Sigma.pairMeasurable mu.sigma U V u.measurable v.measurable,
+        measure := measurableNullUnion U V u.measurable v.measurable u.measure v.measure,
+        included := \fun (x: A) (member: Sets.Member (Sigma.pairUnion S T) x) =>
+          Logic.orElim _ _ (Sets.Member (Sigma.pairUnion U V) x) member
+            (\fun (inS: Sets.Member S x) => Logic.Or[_, _]::left (u.included x inS))
+            (\fun (inT: Sets.Member T x) => Logic.Or[_, _]::right (v.included x inT)),
+      })
+  };
+\definition transitive: \forall (f, g, h: A -> Real.Real) -> AlmostEqual mu f g -> AlmostEqual mu g h -> AlmostEqual mu f h :=
+  \fun (f, g, h: A -> Real.Real) (fg: AlmostEqual mu f g) (gh: AlmostEqual mu g h) =>
+    nullSubset ({ x: A \where Logic.Not (f x = h x) })
+      (Sigma.pairUnion ({ x: A \where Logic.Not (f x = g x) }) ({ x: A \where Logic.Not (g x = h x) }))
+      (\fun (x: A) (different: Logic.Not (f x = h x)) =>
+        Logic.orElim _ _ (Logic.Or[Logic.Not (f x = g x), Logic.Not (g x = h x)])
+          (Classical.excludedMiddle (f x = g x))
+          (\fun (same: f x = g x) => Logic.Or[_, _]::right (\fun (other: g x = h x) =>
+            different (\idelim g x = h x \with y: Real.Real => f x = y \by { base: same, equality: other })))
+          (\fun (notSame: Logic.Not (f x = g x)) => Logic.Or[_, _]::left notSame))
+      (nullUnion _ _ fg gh);
