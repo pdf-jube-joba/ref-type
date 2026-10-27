@@ -115,11 +115,14 @@ K07 の影響先検査は最終検査に含める。
 これで `TripleClass` は三つ組の四種類の関係式を保つ。
 `Group.ToReduced` は `to-reduced` で accepted・終了0・キャッシュ保存失敗0。
 関係式を保つ生成元の値を、整数加群の表示の普遍性で被約群への準同型へ拡張する。
-最新の未検証変更は `TripleReconstruction`・`GroupRetraction`。
+`TripleReconstruction`・`GroupRetraction` は `group-retraction-fixed-*` で accepted・終了0・キャッシュ保存失敗0。
 標準補束の構成と正規化した射影表示の構成を比較し、三つ組を被約群へ写してから戻すと元に一致することを示す。
 `Reconstruction.Normalized.With` は、固定した延長に対する復元等式も公開する。
-固定 snapshot は `work/k03-resume/group-retraction.source.json`。
-次は `relative_k_theory.Relative.Pair.TripleReconstruction` と `relative_k_theory.Relative.Pair.GroupRetraction` を順に検査する。
+最新の未検証変更は `TrivialNegative`・`FiberTransport` と `QuotientReconstruction.In` の局所枠からの延長。
+それぞれ負側が自明な三つ組の一般の枠付き束への比較、等しい基点間のファイバーの移送、商上の枠を引き戻して作る指定した延長を構成する。
+商上の束とその引き戻しの降下との同型は引き続き構成する。
+固定 snapshot は `work/k03-resume/quotient-reconstruction-start.source.json`。
+次は `relative_k_theory.Relative.FiberTransport`・`relative_k_theory.Relative.Pair.TrivialNegative`・`relative_k_theory.Relative.Pair.QuotientReconstruction` を順に検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。

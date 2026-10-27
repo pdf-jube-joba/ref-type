@@ -1,0 +1,32 @@
+\import Raw.In[c := c, contains := contains] \as Boundary;
+\definition dimension: N.Nat^ := c.dimension;
+\import Bundles.Trivial[X := X, n := dimension, baseSpace := space] \as Trivial;
+\import \root.Relative[].Descent[X := X, F := Raw.Fiber, bundle := Raw.pulled, compact := compact, hausdorff := hausdorff,
+  subset := subset, closed := closed, dimension := dimension] \as Descent;
+\import Descent.With[comparison := Boundary.comparison] \as Descended;
+\import bundle_extension.Extension[].Over[K := C.Complex, field := Algebra.field, conjugation := Hermitian.scalar, scalar := Scalar.scalar].Isomorphisms[
+  X := X, subset := subset, F := Raw.Fiber, G := (\fun (x: X) => Bundles.Vector dimension), source := Raw.pulled, target := Trivial.bundle, same := (\refl(space))] \as Extensions;
+\definition domain: \Pow X := Boundary.pulledChart.domain;
+\import Bundles.Family[X := X, F := Raw.Fiber].With[data := Raw.pulled] \as PulledCharts;
+\definition open: Base.IsOpenIn space domain := (\bysub(PulledCharts.ChartData, PulledCharts.Chart, Boundary.pulledChart)).baseOpen;
+\definition coversBoundary: Base.Subset subset domain := \fun (x: X)(member: Base.Member subset x) =>
+  Boundary.containsAll (\into[X](x, subset) \by { member });
+\import Extensions.Neighborhood[U := domain] \as Local;
+\import Bundles.Family[X := X, F := Raw.Fiber].Of[bundle := Raw.pulled].Pullback[Y := Local.Point, source := Local.space, f := Local.inclusion] \as Restriction;
+\import Bundles.Family[X := Local.Point, F := (\fun (x: Local.Point) => Raw.Fiber x)].With[data := Local.first] \as RestrictedCharts;
+\definition localChart: RestrictedCharts.Chart := Restriction.In[c := Boundary.pulledChart].trivialization Local.continuous;
+\import Operations.GlobalFrame[X := Local.Point, F := (\fun (x: Local.Point) => Raw.Fiber x), bundle := Local.first,
+  chart := localChart, covers := (\fun (x: Local.Point) => \bysub(X, domain, x))] \as Frame;
+\import Operations.TrivialPullback[X := X, Y := Local.Point, n := dimension, original := space, base := Local.space, f := Local.inclusion, regular := Local.continuous] \as TrivialPull;
+\import Bundles.Trivial[X := Local.Point, n := dimension, baseSpace := Local.space] \as LocalTrivial;
+\import Bundles.Isomorphisms[X := Local.Point, F := (\fun (x: Local.Point) => Bundles.Vector dimension), G := (\fun (x: Local.Point) => Bundles.Vector dimension),
+  source := Local.second, target := LocalTrivial.bundle] \as TrivialMaps;
+\import Operations.IsomorphismComposition[X := Local.Point, F := (\fun (x: Local.Point) => Raw.Fiber x), G := (\fun (x: Local.Point) => Bundles.Vector dimension), H := (\fun (x: Local.Point) => Bundles.Vector dimension),
+  source := Local.first, middle := LocalTrivial.bundle, target := Local.second] \as Composition;
+\definition localIsomorphism: Composition.Isomorphism := Composition.compose Frame.isomorphism (TrivialMaps.inverse TrivialPull.isomorphism);
+\definition extension: Descended.Result := Extensions.Extension[Boundary.comparison] {
+  domain := domain, open := open, contains := coversBoundary, isomorphism := localIsomorphism,
+  extends := \fun (x: A)(v: Raw.Fiber x) => \refl((Boundary.comparison.forward.fiber x).apply v)
+};
+\import Descended.Neighborhood[extension := extension] \as Near;
+\import Descended.Construction[extension := extension] \as Construction;
