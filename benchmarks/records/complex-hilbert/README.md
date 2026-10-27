@@ -62,3 +62,10 @@ A19 全体の完了を示す検査記録ではない。
 | functional_analysis.Metric.Geometry、full-check-local | accepted、終了 0 | 17 | 234 | 176 | 0 |
 
 [対象](resume-target.json)、[依存先](resume-dependencies.json)、[距離空間](resume-geometry.json)。
+
+## 有限階数近似と恒等作用素（ソース commit 30530a22）
+
+対象 full-check-local: accepted、終了 0、35 モジュール・561 ステップ、283 再利用。
+依存先: accepted、終了 0、1,347 モジュールを再利用。
+両検査ともキャッシュ保存失敗 0。
+[対象](identity-target.json)、[依存先](identity-dependencies.json)。

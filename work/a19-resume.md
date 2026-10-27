@@ -55,3 +55,5 @@ workspace の libs/refcache を共有する。
 有限ネットを固定する有限階数射影を用い、任意のコンパクト作用素の単位球上一様な有限階数近似を Compact.Approximation.existsApproximation で証明した。対象モジュールの個別検査は終了 0。次は有限階数作用素のコンパクト性、随伴の有限階数性、恒等作用素への適用。
 
 恒等作用素がコンパクトなら有限次元となることを Compact.Identity.finiteDimensional で証明した。有限次元は恒等写像が有限個の複素座標を通って因子分解するという明示的な線形 retract として定義する。有限ネットを固定する有限階数射影が恒等写像でなければ、直交する単位ベクトルの距離が 1 以上となる矛盾を利用する。対象と零空間の例の個別検査は終了 0。残りは有限階数作用素のコンパクト性と随伴による閉性。
+
+ソース commit 30530a22 の対象 full-check-local と依存先検査は accepted、終了 0、キャッシュ保存失敗 0。詳細は benchmarks/records/complex-hilbert/README.md。
