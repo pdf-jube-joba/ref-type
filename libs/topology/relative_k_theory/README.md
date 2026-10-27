@@ -90,4 +90,7 @@ K02・K07・単体/胞体・近似理論・B09 の影響先と workspace 全体�
 修正 snapshot は `iteration-identities.source.json`、対象は `PairIteration --module-only`、診断は `detailed` を使う。
 `mayer-positive.source.json` では差の写像と正の負次数側の和の位置の完全性まで構文解析を通過した。
 この追加、一般の対の自然性、群の補助計算はいずれも未検証。
-Mayer–Vietoris の交叉部分の完全性、次数0の和の位置の完全性、外積はまだ構成中。
+Mayer–Vietoris の交叉部分の完全性も証明コードを追加し、構文解析を通過した（未検証、`mayer-intersection.source.json`）。
+次数0の和の位置の完全性には、閉被覆上の束の貼り合わせを構成する。
+`ClosedCover.Patching` に交叉上の同型から有限次元の交差写像を作り、Tietze で全体へ延長する入口を書いた。
+延長写像による剪断・射影の貼り合わせ、次数0の完全性、外積は構成中。

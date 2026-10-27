@@ -1,0 +1,51 @@
+\import Bundles.Trivial[X := W, n := p.dimension, baseSpace := wSpace] \as UAmbient;
+\import Bundles.Trivial[X := W, n := q.dimension, baseSpace := wSpace] \as VAmbient;
+\import Bundles.Family[X := W, F := (\fun (w: W) => Vector p.dimension)] \as UFamily;
+\import Bundles.Family[X := W, F := (\fun (w: W) => Vector q.dimension)] \as VFamily;
+\import Bundles.Morphisms[X := W, Y := W, F := (\fun (w: W) => Vector p.dimension), G := PU.Fiber,
+  source := UAmbient.bundle, target := PU.bundle, f := (\fun (w: W) => w)].Composition[
+  Z := W, H := PV.Fiber, range := PV.bundle, g := (\fun (w: W) => w)] \as Forward1;
+\import Bundles.Morphisms[X := W, Y := W, F := (\fun (w: W) => Vector p.dimension), G := PV.Fiber,
+  source := UAmbient.bundle, target := PV.bundle, f := (\fun (w: W) => w)].Composition[
+  Z := W, H := (\fun (w: W) => Vector q.dimension), range := VAmbient.bundle, g := (\fun (w: W) => w)] \as Forward2;
+\import Bundles.Morphisms[X := W, Y := W, F := (\fun (w: W) => Vector q.dimension), G := PV.Fiber,
+  source := VAmbient.bundle, target := PV.bundle, f := (\fun (w: W) => w)].Composition[
+  Z := W, H := PU.Fiber, range := PU.bundle, g := (\fun (w: W) => w)] \as Backward1;
+\import Bundles.Morphisms[X := W, Y := W, F := (\fun (w: W) => Vector q.dimension), G := PU.Fiber,
+  source := VAmbient.bundle, target := PU.bundle, f := (\fun (w: W) => w)].Composition[
+  Z := W, H := (\fun (w: W) => Vector p.dimension), range := UAmbient.bundle, g := (\fun (w: W) => w)] \as Backward2;
+\import Bundles.Morphisms[X := W, Y := W, F := (\fun (w: W) => Vector p.dimension), G := (\fun (w: W) => Vector q.dimension),
+  source := UAmbient.bundle, target := VAmbient.bundle, f := (\fun (w: W) => w)] \as Forward;
+\import Bundles.Morphisms[X := W, Y := W, F := (\fun (w: W) => Vector q.dimension), G := (\fun (w: W) => Vector p.dimension),
+  source := VAmbient.bundle, target := UAmbient.bundle, f := (\fun (w: W) => w)] \as Backward;
+\definition forward: Forward.Map := Forward2.compose (Forward1.compose PU.projectMap alpha.forward) PV.inclusion;
+\definition backward: Backward.Map := Backward2.compose (Backward1.compose PV.projectMap alpha.backward) PU.inclusion;
+\definition g[w: W]: Linear p.dimension q.dimension := forward.fiber w;
+\definition f[w: W]: Linear q.dimension p.dimension := backward.fiber w;
+\definition alphaLaws: Isomorphisms.Laws[alpha] := \bysub(Isomorphisms.Data, OnIntersection, alpha);
+\module ForwardColumn(v: Vector p.dimension);
+\module BackwardColumn(v: Vector q.dimension);
+\definition gRegular: Frames.At[n := q.dimension].Families[X := W].Matrix[m := p.dimension].Regular wSpace g :=
+  \fun (v: Vector p.dimension) => ForwardColumn[v := v].regular;
+\definition fRegular: Frames.At[n := p.dimension].Families[X := W].Matrix[m := q.dimension].Regular wSpace f :=
+  \fun (v: Vector q.dimension) => BackwardColumn[v := v].regular;
+\import \parent.\parent.LinearExtension[m := p.dimension, n := q.dimension, f := g, regular := gRegular] \as ForwardExtension;
+\import \parent.\parent.LinearExtension[m := q.dimension, n := p.dimension, f := f, regular := fRegular] \as BackwardExtension;
+\definition pFixed: \forall (w: W)(v: PU.Fiber w) -> (PU.projectMap.fiber w).apply v = v :=
+  \fun (w: W)(v: PU.Fiber w) => \bysub(Vector p.dimension, PU.Image w, v);
+\definition qFixed: \forall (w: W)(v: PV.Fiber w) -> (PV.projectMap.fiber w).apply v = v :=
+  \fun (w: W)(v: PV.Fiber w) => \bysub(Vector q.dimension, PV.Image w, v);
+\definition fg: \forall (w: W)(v: Vector p.dimension) -> (f w).apply ((g w).apply v) = (p.projection (toU w)).map.apply v :=
+  \fun (w: W)(v: Vector p.dimension) => trans!{{Vector p.dimension}} _ _ _
+    (congr!{{PV.Fiber w} {Vector p.dimension}} (\fun (z: PV.Fiber w) => (alpha.backward.fiber w).apply z)
+      ((PV.projectMap.fiber w).apply ((alpha.forward.fiber w).apply ((PU.projectMap.fiber w).apply v)))
+      ((alpha.forward.fiber w).apply ((PU.projectMap.fiber w).apply v))
+      (qFixed w ((alpha.forward.fiber w).apply ((PU.projectMap.fiber w).apply v))))
+    (alphaLaws.leftInverse w ((PU.projectMap.fiber w).apply v));
+\definition gf: \forall (w: W)(v: Vector q.dimension) -> (g w).apply ((f w).apply v) = (q.projection (toV w)).map.apply v :=
+  \fun (w: W)(v: Vector q.dimension) => trans!{{Vector q.dimension}} _ _ _
+    (congr!{{PU.Fiber w} {Vector q.dimension}} (\fun (z: PU.Fiber w) => (alpha.forward.fiber w).apply z)
+      ((PU.projectMap.fiber w).apply ((alpha.backward.fiber w).apply ((PV.projectMap.fiber w).apply v)))
+      ((alpha.backward.fiber w).apply ((PV.projectMap.fiber w).apply v))
+      (pFixed w ((alpha.backward.fiber w).apply ((PV.projectMap.fiber w).apply v))))
+    (alphaLaws.rightInverse w ((PV.projectMap.fiber w).apply v));

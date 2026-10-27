@@ -68,3 +68,61 @@
 };
 \definition exactPieces[p: Next.Pieces]: Logic.PropEquiv[Next.difference p = VNext.fifthGroup.base.unit, PiecesImage p] :=
   Logic.PropEquiv[_, _] { ltr := piecesPreimage p, rtl := piecesKernel p };
+\import \root.Relative[].GroupCalculus[X := IntersectionNext, group := intersectionNextGroup] \as WNextGroup;
+\import WNextGroup.Mapping[Y := Whole, target := wholeGroup, f := boundary,
+  additive := boundaryAdd, preservesZero := boundaryZero] \as BoundaryLaws;
+\import WNextGroup.Mapping[Y := VTerm.Third, target := VTerm.thirdGroup, f := VTerm.boundary,
+  additive := VTerm.boundaryAdd, preservesZero := VTerm.boundaryZero] \as VBoundaryLaws;
+\import \root.Relative[].GroupCalculus[X := VTerm.Third, group := VTerm.thirdGroup] \as VRelativeGroup;
+\import \root.Relative[].GroupCalculus[X := Whole, group := wholeGroup] \as WholeGroup;
+\definition boundaryFromU: \forall (u: XTerm.Second) -> boundary (Naturality.subsetNext u) = wholeGroup.base.unit :=
+  \fun (u: XTerm.Second) => trans!{Whole} _ _ _
+    (congr!{{VTerm.Third} Whole} (\fun (v: VTerm.Third) => XTerm.forget (Relative.backward v)) _ _ (boundaryNaturality u))
+    (trans!{Whole} _ _ _ (congr!{{XTerm.Third} Whole} XTerm.forget _ _ (Relative.rightInverse (XTerm.boundary u)))
+      ((XTerm.exactThird (XTerm.boundary u)).rtl
+        (Logic.existsIntro[XTerm.Second, { w: XTerm.Second \where XTerm.boundary w = XTerm.boundary u }] u (\refl(XTerm.boundary u)))));
+\definition boundaryFromV: \forall (v: VNext.Fourth) -> boundary (VNext.restriction v) = wholeGroup.base.unit :=
+  \fun (v: VNext.Fourth) => trans!{Whole} _ _ _
+    (congr!{{VTerm.Third} Whole} (\fun (q: VTerm.Third) => XTerm.forget (Relative.backward q)) _ _ (boundaryAfterRestriction v))
+    (trans!{Whole} _ _ _ (congr!{{XTerm.Third} Whole} XTerm.forget _ _ Relative.backwardZero) XTerm.forgetZero);
+\definition boundaryDifference: \forall (p: Next.Pieces) -> boundary (Next.difference p) = wholeGroup.base.unit :=
+  \fun (p: Next.Pieces) => trans!{Whole} _ _ _ (BoundaryLaws.difference (Naturality.subsetNext p.first) (VNext.restriction p.second))
+    (trans!{Whole} _ _ _ (congr!{Whole Whole} (\fun (x: Whole) => WholeGroup.sub x (boundary (VNext.restriction p.second))) _ _ (boundaryFromU p.first))
+      (trans!{Whole} _ _ _ (congr!{Whole Whole} (WholeGroup.sub wholeGroup.base.unit) _ _ (boundaryFromV p.second)) (WholeGroup.subSelf wholeGroup.base.unit)));
+\definition IntersectionImage[w: IntersectionNext]: \Prop := \exists (p: Next.Pieces \where Next.difference p = w);
+\definition intersectionPreimage: \forall (w: IntersectionNext) -> boundary w = wholeGroup.base.unit -> IntersectionImage w := \block {
+  \fun (w: IntersectionNext)(zero: boundary w = wholeGroup.base.unit) \then
+  \let q: XTerm.Third := Relative.backward (VTerm.boundary w) \then
+  \takefrom u: \Cast[XTerm.Second] ({ u: XTerm.Second \where XTerm.boundary u = q }) \by (XTerm.exactThird q).ltr zero \then
+  \let sameBoundary: VTerm.boundary (Naturality.subsetNext u) = VTerm.boundary w :=
+    trans!{{VTerm.Third}} _ _ _ (boundaryNaturality u)
+      (trans!{{VTerm.Third}} _ _ _ (congr!{{XTerm.Third} {VTerm.Third}} Relative.forward _ _
+        (\bysub(XTerm.Second, { u: XTerm.Second \where XTerm.boundary u = q }, u))) (Relative.leftInverse (VTerm.boundary w))) \then
+  \let error: IntersectionNext := WNextGroup.sub w (Naturality.subsetNext u) \then
+  \let vanished: VTerm.boundary error = VTerm.thirdGroup.base.unit := trans!{{VTerm.Third}} _ _ _
+    (VBoundaryLaws.difference w (Naturality.subsetNext u))
+    (trans!{{VTerm.Third}} _ _ _ (congr!{{VTerm.Third} {VTerm.Third}} (VRelativeGroup.sub (VTerm.boundary w)) _ _ sameBoundary)
+      (VRelativeGroup.subSelf (VTerm.boundary w))) \then
+  \takefrom v: \Cast[VTerm.First] ({ v: VTerm.First \where VTerm.restrictionNegative v = error }) \by (VTerm.exactSecond error).ltr vanished \then
+  \let vOnW: VNext.restriction v = error := trans!{{IntersectionNext}} _ _ _ (sym!{{IntersectionNext}} _ _ (VTerm.restrictionLink v))
+    (\bysub(VTerm.First, { v: VTerm.First \where VTerm.restrictionNegative v = error }, v)) \then
+  \let p: Next.Pieces := NextProduct.Pair { first := u, second := VGroup.negate v } \then
+  \return Logic.existsIntro[Next.Pieces, { p: Next.Pieces \where Next.difference p = w }] p (eq_reason_in!{{IntersectionNext} _
+    "=" { WNextGroup.sub (Naturality.subsetNext u) (WNextGroup.negate (VNext.restriction v)) } "by" {
+      congr!{{IntersectionNext} {IntersectionNext}} (WNextGroup.sub (Naturality.subsetNext u)) _ _ (RestrictionLaws.inverse v) }
+    "=" { intersectionNextGroup.base.op (Naturality.subsetNext u) (VNext.restriction v) } "by" {
+      congr!{{IntersectionNext} {IntersectionNext}} (intersectionNextGroup.base.op (Naturality.subsetNext u)) _ _ (WNextGroup.negateNegate (VNext.restriction v)) }
+    "=" { intersectionNextGroup.base.op (Naturality.subsetNext u) error } "by" {
+      congr!{{IntersectionNext} {IntersectionNext}} (intersectionNextGroup.base.op (Naturality.subsetNext u)) _ _ vOnW }
+    "=" w "by" { WNextGroup.restore w (Naturality.subsetNext u) }
+  })
+};
+\definition intersectionKernel: \forall (w: IntersectionNext) -> IntersectionImage w -> boundary w = wholeGroup.base.unit := \block {
+  \fun (w: IntersectionNext)(image: IntersectionImage w) \then
+  \takefrom p: \Cast[Next.Pieces] ({ p: Next.Pieces \where Next.difference p = w }) \by image \then
+  \return \idelim Next.difference p = w \with w: IntersectionNext => boundary w = wholeGroup.base.unit \by {
+    base: boundaryDifference p, equality: \bysub(Next.Pieces, { p: Next.Pieces \where Next.difference p = w }, p)
+  }
+};
+\definition exactIntersection[w: IntersectionNext]: Logic.PropEquiv[boundary w = wholeGroup.base.unit, IntersectionImage w] :=
+  Logic.PropEquiv[_, _] { ltr := intersectionPreimage w, rtl := intersectionKernel w };
