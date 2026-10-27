@@ -45,3 +45,5 @@ workspace の libs/refcache を共有する。
 完備距離空間の閉・全有界集合のコンパクト性と、全有界集合の閉包のコンパクト性を functional_analysis.Metric.Geometry.TotalBoundedCompact に追加した。有限ネットと既存の ultrafilter・既存の classicalIndefiniteChoice を使用し、新しい公理は追加していない。個別検査は終了 0。次はノルム極限のコンパクト性への適用、有限次元性と随伴。
 
 完備値域でのコンパクト作用素のノルム極限を、単位球上一様の距離近似から全有界性を得て証明した。Compact.Limit と零空間の例は個別検査で終了 0。残りは随伴のコンパクト性、恒等作用素のコンパクト性から有限次元性、および有限次元・有限階数近似の基礎補題。
+
+ソース commit 2584ef40 に対する対象・依存先・functional_analysis.Metric.Geometry の検査はいずれも accepted、終了 0、キャッシュ保存失敗 0。結果は benchmarks/records/complex-hilbert/README.md を参照。

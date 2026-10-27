@@ -52,3 +52,13 @@ A19 全体の完了を示す検査記録ではない。
 対象 full-check-local: accepted、終了 0、27 モジュール・399 ステップ、270 再利用。
 依存先: accepted、終了 0、1,337 モジュールを再利用。両検査ともキャッシュ保存失敗 0。
 [対象](addition-target.json)、[依存先](addition-dependencies.json)。
+
+## 前合成とノルム極限（ソース commit 2584ef40）
+
+| 対象 | 結果 | 検査モジュール | ステップ | 再利用 | キャッシュ保存失敗 |
+| --- | --- | ---: | ---: | ---: | ---: |
+| complex_hilbert、full-check-local | accepted、終了 0 | 28 | 441 | 280 | 0 |
+| 依存先を含むプロジェクト | accepted、終了 0 | 1032 | 11888 | 1309 | 0 |
+| functional_analysis.Metric.Geometry、full-check-local | accepted、終了 0 | 17 | 234 | 176 | 0 |
+
+[対象](resume-target.json)、[依存先](resume-dependencies.json)、[距離空間](resume-geometry.json)。
