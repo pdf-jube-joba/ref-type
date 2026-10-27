@@ -1,0 +1,51 @@
+\import \root.Measure[A := A].Sigma[] \as Sigma;
+\import \root.Measure[A := A].FiniteUnion[mu := mu] \as FiniteUnion;
+\import \root.Measure[A := A].Integral[mu := mu].Partition[] \as Partition;
+\import \root.Measure[A := A].Integral[mu := mu].Overlap[m := m, n := n, s := s, t := t] \as Overlap;
+\import \root.Measure[A := A].Integral[mu := mu].Assembly[m := m] \as Assembly;
+\import Fin.Sum[m := Assembly.count n, n := m] \as FirstIndices;
+\import Fin.Sum[m := FirstIndices.total, n := n] \as AllIndices;
+\definition sUnion: \Pow A := FiniteUnion.union m s.cells;
+\definition tUnion: \Pow A := FiniteUnion.union n t.cells;
+\definition sSet: Partition.MeasurableSet := \into[\Pow A] (sUnion, { S: \Pow A \where Measurable mu.sigma S }) \by { FiniteUnion.measurable m s.cells s.measurable };
+\definition tSet: Partition.MeasurableSet := \into[\Pow A] (tUnion, { S: \Pow A \where Measurable mu.sigma S }) \by { FiniteUnion.measurable n t.cells t.measurable };
+\definition left: Simple[m] := Partition.outside tSet m s;
+\definition right: Simple[n] := Partition.outside sSet n t;
+\definition overlapInS: \forall (k: Fin.Fin (Assembly.count n)) -> Sets.Subset (Overlap.matrix.simple.cells k) sUnion :=
+  Overlap.matrix.contained sUnion (\fun (j: Fin.Fin n) (i: Fin.Fin m) (x: A)
+    (member: Sets.Member (Sets.Intersection (s.cells i) (t.cells j)) x) => FiniteUnion.contains m s.cells i x member.left);
+\definition overlapInT: \forall (k: Fin.Fin (Assembly.count n)) -> Sets.Subset (Overlap.matrix.simple.cells k) tUnion :=
+  Overlap.matrix.contained tUnion (\fun (j: Fin.Fin n) (i: Fin.Fin m) (x: A)
+    (member: Sets.Member (Sets.Intersection (s.cells i) (t.cells j)) x) => FiniteUnion.contains n t.cells j x member.right);
+\definition firstPair: SimplePair[Assembly.count n, m] := SimplePair[Assembly.count n, m] { left := Overlap.matrix.simple, right := left };
+\definition firstSeparated: SeparatedPairs[Assembly.count n, m] := \into[SimplePair[Assembly.count n, m]] (firstPair,
+  { p: SimplePair[Assembly.count n, m] \where \forall (i: Fin.Fin (Assembly.count n)) (j: Fin.Fin m) -> Sets.Disjoint (p.left.cells i) (p.right.cells j) }) \by {
+    \fun (i: Fin.Fin (Assembly.count n)) (j: Fin.Fin m) (x: A) (a: Sets.Member (Overlap.matrix.simple.cells i) x)
+      (b: Sets.Member (Sigma.difference (s.cells j) tUnion) x) => b.right (overlapInT i x a)
+  };
+\import \root.Measure[A := A].Integral[mu := mu].Combined[m := Assembly.count n, n := m, p := firstSeparated] \as First;
+\definition firstInS: \forall (k: Fin.Fin FirstIndices.total) -> Sets.Subset (First.simple.cells k) sUnion :=
+  First.contained sUnion overlapInS (\fun (i: Fin.Fin m) (x: A) (member: Sets.Member (Sigma.difference (s.cells i) tUnion) x) =>
+    FiniteUnion.contains m s.cells i x member.left);
+\definition allPair: SimplePair[FirstIndices.total, n] := SimplePair[FirstIndices.total, n] { left := First.simple, right := right };
+\definition allSeparated: SeparatedPairs[FirstIndices.total, n] := \into[SimplePair[FirstIndices.total, n]] (allPair,
+  { p: SimplePair[FirstIndices.total, n] \where \forall (i: Fin.Fin FirstIndices.total) (j: Fin.Fin n) -> Sets.Disjoint (p.left.cells i) (p.right.cells j) }) \by {
+    \fun (i: Fin.Fin FirstIndices.total) (j: Fin.Fin n) (x: A) (a: Sets.Member (First.simple.cells i) x)
+      (b: Sets.Member (Sigma.difference (t.cells j) sUnion) x) => b.right (firstInS i x a)
+  };
+\import \root.Measure[A := A].Integral[mu := mu].Combined[m := FirstIndices.total, n := n, p := allSeparated] \as All;
+\definition simple: Simple[AllIndices.total] := All.simple;
+\definition dominated: \forall (f, g: A -> Real.Real) ->
+  (\forall (x: A) -> R.Le Real.zero (f x)) -> (\forall (x: A) -> R.Le Real.zero (g x)) ->
+  Dominated m s f -> Dominated n t g -> Dominated AllIndices.total simple (\fun (x: A) => Real.add (f x) (g x)) :=
+  \fun (f, g: A -> Real.Real) (fn: _) (gn: _) (sf: Dominated m s f) (tg: Dominated n t g) =>
+    All.dominatedSame (\fun (x: A) => Real.add (f x) (g x))
+      (First.dominatedSame (\fun (x: A) => Real.add (f x) (g x)) (Overlap.matrixDominated f g sf tg)
+        (dominatedMono m left f (\fun (x: A) => Real.add (f x) (g x))
+          (\fun (i: Fin.Fin m) (x: A) (member: Sets.Member (Sigma.difference (s.cells i) tUnion) x) => sf i x member.left)
+          (\fun (x: A) => Real.Distance[].leAddOfNonnegative (f x) (g x) (gn x))))
+      (dominatedMono n right g (\fun (x: A) => Real.add (f x) (g x))
+        (\fun (i: Fin.Fin n) (x: A) (member: Sets.Member (Sigma.difference (t.cells i) sUnion) x) => tg i x member.left)
+        (\fun (x: A) => R.leReplaceRight (g x) (Real.add (g x) (f x)) (Real.add (f x) (g x))
+          (dedekind_reals.DedekindReal[].Arithmetic[].Prop[].addComm (g x) (f x))
+          (Real.Distance[].leAddOfNonnegative (g x) (f x) (fn x))));
