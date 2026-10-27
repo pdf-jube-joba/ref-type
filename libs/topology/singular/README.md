@@ -9,6 +9,7 @@
 | [subdivision](subdivision/README.md) | 重心細分、小鎖、開被覆と部分空間の比較 |
 | [excision](excision/README.md) | 切除、Mayer–Vietoris、良い対と商空間 |
 | [products](products/README.md) | カップ積、Leibniz 則、単位・結合・自然性 |
+| [cap](cap/README.md) | cap 積、相対積と Kronecker 評価 |
 | [eilenberg_zilber](eilenberg_zilber/README.md) | Alexander–Whitney と shuffle の鎖ホモトピー同値 |
 | [symmetry](symmetry/README.md) | 積の交換ホモトピーと次数付き可換性 |
 | [cech](cech/README.md) | 被覆の二重複体と射影的複体の比較 |
