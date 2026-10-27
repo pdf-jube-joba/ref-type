@@ -135,8 +135,8 @@
         (\fun (_: NatOrder.Trichotomy m n) => Sets.Member (prefix f (N.Nat^::succ n)) x) \with {
           | less earlier: Logic.Or[_, _]::left (previous m earlier x member)
           | equal same: Logic.Or[_, _]::right (\idelim m = n \with k: N.Nat^ => Sets.Member (f k) x \by { base: member, equality: same })
-          | greater later: Logic.falseElim _ (Nat.ltIrrefl (N.Nat^::succ n)
-              (Nat.ltLeTrans (N.Nat^::succ n) m (N.Nat^::succ n) less (Nat.succLeOfLt m n later)))
+          | greater later: Logic.falseElim _ (Nat.ltIrrefl m
+              (Nat.ltLeTrans m (N.Nat^::succ n) m less (Nat.succLeOfLt m n later)))
         }
   };
 \definition increments[f: N.Nat^ -> \Pow A]: N.Nat^ -> \Pow A :=
@@ -153,3 +153,26 @@
       | equal same: different same
       | greater later: inM.right (prefixContainsEarlier f m n later x inN.left)
     };
+
+\definition prefixCoveredByIncrements: \forall (f: N.Nat^ -> \Pow A) (n: N.Nat^) -> Sets.Subset (prefix f n) (union (increments f)) :=
+  \fun (f: N.Nat^ -> \Pow A) => \induction (n: N.Nat^) \return Sets.Subset (prefix f n) (union (increments f)) \with {
+    | zero: \fun (x: A) (empty: Logic.False) => Logic.falseElim _ empty
+    | succ: \fun (n: N.Nat^) (previous: _) (x: A) (member: Sets.Member (prefix f (N.Nat^::succ n)) x) =>
+      Logic.orElim _ _ (Sets.Member (union (increments f)) x) member (previous x)
+        (\fun (current: Sets.Member (f n) x) => Logic.orElim _ _ (Sets.Member (union (increments f)) x)
+          (Classical.excludedMiddle (Sets.Member (prefix f n) x)) (previous x)
+          (\fun (outside: Logic.Not (Sets.Member (prefix f n) x)) =>
+            Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (increments f k) x }] n (Logic.And[_, _]::# current outside)))
+  };
+\definition incrementUnion: \forall (f: N.Nat^ -> \Pow A) -> union (increments f) = union f :=
+  \fun (f: N.Nat^ -> \Pow A) => \axiom:setext(union (increments f), union f,
+    \fun (x: A) (member: Sets.Member (union (increments f)) x) => \block {
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Sets.Member (increments f n) x }) \by member \then
+      \let inIncrement: Sets.Member (increments f n) x := \bysub(N.Nat^, { n: N.Nat^ \where Sets.Member (increments f n) x }, n) \then
+      \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where Sets.Member (f n) x }] n inIncrement.left
+    },
+    \fun (x: A) (member: Sets.Member (union f) x) => \block {
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Sets.Member (f n) x }) \by member \then
+      \let inF: Sets.Member (f n) x := \bysub(N.Nat^, { n: N.Nat^ \where Sets.Member (f n) x }, n) \then
+      \return prefixCoveredByIncrements f (N.Nat^::succ n) x (prefixContainsCurrent f n x inF)
+    });
