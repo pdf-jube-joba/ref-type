@@ -1,0 +1,43 @@
+\import N.Basic[].Def[] \as Nat;
+\definition degree: N.Nat^ := Nat.add secondDegree firstDegree;
+\import \root.Relative[].Smash[left := left, right := iterate secondDegree right] \as RightShifted;
+\import \root.Relative[].Smash[left := iterate firstDegree left, right := iterate secondDegree right] \as BothShifted;
+\definition regroup[outer: N.Nat^]: iterate (Nat.add secondDegree outer) result = iterate outer (iterate secondDegree result) :=
+  (\induction (outer: N.Nat^) \return iterate (Nat.add secondDegree outer) result = iterate outer (iterate secondDegree result) \with {
+    | zero: \refl(iterate secondDegree result)
+    | succ: \fun (n: N.Nat^)(previous: iterate (Nat.add secondDegree n) result = iterate n (iterate secondDegree result)) =>
+      congr!{{CompactPointed} {CompactPointed}} (\fun (m: CompactPointed) => \root.Relative[].Suspension[original := m].result) _ _ previous
+  }) outer;
+\definition regrouping: \root.Relative[].Equivalence[source := iterate degree result, target := iterate firstDegree (iterate secondDegree result)].Data :=
+  \idelim iterate degree result = iterate firstDegree (iterate secondDegree result)
+    \with target: CompactPointed => \root.Relative[].Equivalence[source := iterate degree result, target := target].Data \by {
+      base: \root.Relative[].Identity[model := iterate degree result].equivalence, equality: regroup firstDegree
+    };
+\definition liftedRight: \root.Relative[].Equivalence[source := iterate firstDegree (iterate secondDegree result), target := iterate firstDegree RightShifted.result].Data :=
+  \root.Relative[].Equivalence[source := iterate secondDegree result, target := RightShifted.result].With[e := rightIteration secondDegree].iterate firstDegree;
+\definition shifted: \root.Relative[].Equivalence[source := iterate firstDegree (iterate secondDegree result), target := BothShifted.result].Data :=
+  \root.Relative[].Equivalence[source := iterate firstDegree (iterate secondDegree result), target := BothShifted.result].Compose[
+    middle := iterate firstDegree RightShifted.result, first := liftedRight, second := RightShifted.leftIteration firstDegree].result;
+\definition equivalence: \root.Relative[].Equivalence[source := iterate degree result, target := BothShifted.result].Data :=
+  \root.Relative[].Equivalence[source := iterate degree result, target := BothShifted.result].Compose[
+    middle := iterate firstDegree (iterate secondDegree result), first := regrouping, second := shifted].result;
+\import \root.Relative[].Equivalence[source := iterate degree result, target := BothShifted.result].With[e := equivalence].Groups[] \as Transport;
+\import BothShifted.External[] \as Native;
+\import \root.Relative[].Negative[original := left, degree := firstDegree] \as First;
+\import \root.Relative[].Negative[original := right, degree := secondDegree] \as Second;
+\import \root.Relative[].Negative[original := result, degree := degree] \as Result;
+\definition product[a: First.Carrier][b: Second.Carrier]: Result.Carrier := Transport.forward (Native.product a b);
+\definition additiveLeft: \forall (a, c: First.Carrier)(b: Second.Carrier) -> product (First.group.base.op a c) b = Result.group.base.op (product a b) (product c b) :=
+  \fun (a, c: First.Carrier)(b: Second.Carrier) => trans!{{Result.Carrier}} _ _ _
+    (congr!{{\root.Relative[].Reduced[model := BothShifted.result].Carrier} {Result.Carrier}} Transport.forward _ _ (Native.additiveLeft a c b))
+    (Transport.forwardAdd (Native.product a b) (Native.product c b));
+\definition additiveRight: \forall (a: First.Carrier)(b, c: Second.Carrier) -> product a (Second.group.base.op b c) = Result.group.base.op (product a b) (product a c) :=
+  \fun (a: First.Carrier)(b, c: Second.Carrier) => trans!{{Result.Carrier}} _ _ _
+    (congr!{{\root.Relative[].Reduced[model := BothShifted.result].Carrier} {Result.Carrier}} Transport.forward _ _ (Native.additiveRight a b c))
+    (Transport.forwardAdd (Native.product a b) (Native.product a c));
+\definition zeroLeft: \forall (b: Second.Carrier) -> product First.group.base.unit b = Result.group.base.unit :=
+  \fun (b: Second.Carrier) => trans!{{Result.Carrier}} _ _ _
+    (congr!{{\root.Relative[].Reduced[model := BothShifted.result].Carrier} {Result.Carrier}} Transport.forward _ _ (Native.zeroLeft b)) Transport.forwardZero;
+\definition zeroRight: \forall (a: First.Carrier) -> product a Second.group.base.unit = Result.group.base.unit :=
+  \fun (a: First.Carrier) => trans!{{Result.Carrier}} _ _ _
+    (congr!{{\root.Relative[].Reduced[model := BothShifted.result].Carrier} {Result.Carrier}} Transport.forward _ _ (Native.zeroRight a)) Transport.forwardZero;

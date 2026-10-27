@@ -31,6 +31,7 @@
 \definition result: CompactPointed := Native.quotientModel;
 \definition wedgeModel: CompactPointed := Native.subsetModel;
 \definition projection: Map model result := Native.projection;
+\definition projectionOnto: \forall (q: result.Carrier) -> \exists (z: model.Carrier \where projection z = q) := Native.quotientOnto;
 \definition wedgeInclusion: Map wedgeModel model := Native.inclusion;
 \import algebraic_topology.Pointed[A := Cartesian.CarrierSet].Maps[B := left.Carrier] \as LeftPointed;
 \import algebraic_topology.Pointed[A := Cartesian.CarrierSet].Maps[B := right.Carrier] \as RightPointed;
@@ -74,3 +75,27 @@
 \module WedgeDecomposition(degree: N.Nat^);
 \module External;
 \module Mapping(targetLeft, targetRight: CompactPointed, f: Map left targetLeft, g: Map right targetRight);
+\module Suspension;
+\module Symmetry;
+\module RightSuspension;
+\module LeftIterationStep(degree: N.Nat^, previous: \root.Relative[].Equivalence[source := iterate degree result,
+  target := \root.Relative[].Smash[left := iterate degree left, right := right].result].Data);
+\definition leftIteration[degree: N.Nat^]: \root.Relative[].Equivalence[source := iterate degree result,
+  target := \root.Relative[].Smash[left := iterate degree left, right := right].result].Data :=
+  (\induction (degree: N.Nat^) \return \root.Relative[].Equivalence[source := iterate degree result,
+    target := \root.Relative[].Smash[left := iterate degree left, right := right].result].Data \with {
+    | zero: \root.Relative[].Identity[model := result].equivalence
+    | succ: \fun (n: N.Nat^)(previous: \root.Relative[].Equivalence[source := iterate n result,
+        target := \root.Relative[].Smash[left := iterate n left, right := right].result].Data) => LeftIterationStep[degree := n, previous := previous].result
+  }) degree;
+\module RightIterationStep(degree: N.Nat^, previous: \root.Relative[].Equivalence[source := iterate degree result,
+  target := \root.Relative[].Smash[left := left, right := iterate degree right].result].Data);
+\definition rightIteration[degree: N.Nat^]: \root.Relative[].Equivalence[source := iterate degree result,
+  target := \root.Relative[].Smash[left := left, right := iterate degree right].result].Data :=
+  (\induction (degree: N.Nat^) \return \root.Relative[].Equivalence[source := iterate degree result,
+    target := \root.Relative[].Smash[left := left, right := iterate degree right].result].Data \with {
+    | zero: \root.Relative[].Identity[model := result].equivalence
+    | succ: \fun (n: N.Nat^)(previous: \root.Relative[].Equivalence[source := iterate n result,
+        target := \root.Relative[].Smash[left := left, right := iterate n right].result].Data) => RightIterationStep[degree := n, previous := previous].result
+  }) degree;
+\module Graded(firstDegree, secondDegree: N.Nat^);

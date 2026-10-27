@@ -1,0 +1,37 @@
+\definition source: \forall (r, s: R) -> Logic.Not (Collapsed r) -> f r = f s -> r = s :=
+  \fun (r, s: R)(outside: Logic.Not (Collapsed r))(same: f r = f s) =>
+    Logic.orElim[sourceRaw r = sourceRaw s,
+      Logic.And[\In[SourceCylinder.Carrier] Source.Collapsed (sourceRaw r), \In[SourceCylinder.Carrier] Source.Collapsed (sourceRaw s)], r = s]
+      (Source.separates (sourceRaw r) (sourceRaw s) same)
+      (\fun (cylinders: sourceRaw r = sourceRaw s) =>
+        Logic.orElim[base r = base s, Logic.And[\In[model.Carrier] \parent.\parent.\parent.wedge (base r),
+          \In[model.Carrier] \parent.\parent.\parent.wedge (base s)], r = s]
+          (OriginalQuotient.separates (base r) (base s) (congr!{{SourceCylinder.Carrier} {result.Carrier}} SourceCylinder.point _ _ cylinders))
+          (\fun (bases: base r = base s) => Pair.Prop[A := I.Carrier, B := model.Carrier].ext r s
+            (congr!{{SourceCylinder.Carrier} {I.Carrier}} SourceCylinder.time _ _ cylinders) bases)
+          (\fun (both: Logic.And[\In[model.Carrier] \parent.\parent.\parent.wedge (base r), \In[model.Carrier] \parent.\parent.\parent.wedge (base s)]) =>
+            Logic.falseElim (r = s) (outside (Logic.Or[_, _]::right (Logic.Or[_, _]::right both.left)))))
+      (\fun (both: Logic.And[\In[SourceCylinder.Carrier] Source.Collapsed (sourceRaw r), \In[SourceCylinder.Carrier] Source.Collapsed (sourceRaw s)]) =>
+        Logic.falseElim (r = s) (outside (fromSource r both.left)));
+\definition target: \forall (r, s: R) -> Logic.Not (Collapsed r) -> g r = g s -> r = s :=
+  \fun (r, s: R)(outside: Logic.Not (Collapsed r))(same: g r = g s) =>
+    Logic.orElim[targetRaw r = targetRaw s,
+      Logic.And[\In[Target.model.Carrier] Target.wedge (targetRaw r), \In[Target.model.Carrier] Target.wedge (targetRaw s)], r = s]
+      (TargetQuotient.separates (targetRaw r) (targetRaw s) same)
+      (\fun (products: targetRaw r = targetRaw s) =>
+        Logic.orElim[LeftCylinder.at (time r) (a r) = LeftCylinder.at (time s) (a s),
+          Logic.And[\In[LeftCylinder.Carrier] LeftSuspension.Collapsed (LeftCylinder.at (time r) (a r)),
+            \In[LeftCylinder.Carrier] LeftSuspension.Collapsed (LeftCylinder.at (time s) (a s))], r = s]
+          (LeftSuspension.separates (LeftCylinder.at (time r) (a r)) (LeftCylinder.at (time s) (a s))
+            (congr!{{Target.model.Carrier} {LeftSuspension.result.Carrier}} Target.first _ _ products))
+          (\fun (cylinders: LeftCylinder.at (time r) (a r) = LeftCylinder.at (time s) (a s)) =>
+            Pair.Prop[A := I.Carrier, B := model.Carrier].ext r s
+              (congr!{{LeftCylinder.Carrier} {I.Carrier}} LeftCylinder.time _ _ cylinders)
+              (Pair.Prop[A := left.Carrier, B := right.Carrier].ext (base r) (base s)
+                (congr!{{LeftCylinder.Carrier} {left.Carrier}} LeftCylinder.point _ _ cylinders)
+                (congr!{{Target.model.Carrier} {right.Carrier}} Target.second _ _ products)))
+          (\fun (both: Logic.And[\In[LeftCylinder.Carrier] LeftSuspension.Collapsed (LeftCylinder.at (time r) (a r)),
+            \In[LeftCylinder.Carrier] LeftSuspension.Collapsed (LeftCylinder.at (time s) (a s))]) =>
+            Logic.falseElim (r = s) (outside (leftCollapsed r both.left))))
+      (\fun (both: Logic.And[\In[Target.model.Carrier] Target.wedge (targetRaw r), \In[Target.model.Carrier] Target.wedge (targetRaw s)]) =>
+        Logic.falseElim (r = s) (outside (fromTarget r both.left)));

@@ -1,0 +1,76 @@
+\definition sourceCollapsed: \forall (r: R) -> Collapsed r -> \In[SourceCylinder.Carrier] Source.Collapsed (sourceRaw r) :=
+  \fun (r: R)(member: Collapsed r) => Logic.orElim[time r = I.start,
+    Logic.Or[time r = I.end, Logic.Or[a r = (details left).point, b r = (details right).point]],
+    \In[SourceCylinder.Carrier] Source.Collapsed (sourceRaw r)] member
+    (\fun (same: time r = I.start) => Logic.Or[_, _]::left same)
+    (\fun (other: Logic.Or[time r = I.end, Logic.Or[a r = (details left).point, b r = (details right).point]]) => Logic.Or[_, _]::right
+      (Logic.orElim[time r = I.end, Logic.Or[a r = (details left).point, b r = (details right).point],
+        Logic.Or[time r = I.end, projection (base r) = OriginalQuotient.point]] other
+        (\fun (same: time r = I.end) => Logic.Or[_, _]::left same)
+        (\fun (wedge: Logic.Or[a r = (details left).point, b r = (details right).point]) => Logic.Or[_, _]::right
+          (OriginalQuotient.onSubset (\into[model.Carrier](base r, \parent.\parent.wedge) \by { wedge })))));
+\definition fromSource: \forall (r: R) -> \In[SourceCylinder.Carrier] Source.Collapsed (sourceRaw r) -> Collapsed r :=
+  \fun (r: R)(member: \In[SourceCylinder.Carrier] Source.Collapsed (sourceRaw r)) =>
+    Logic.orElim[time r = I.start, Logic.Or[time r = I.end, projection (base r) = OriginalQuotient.point], Collapsed r] member
+      (\fun (same: time r = I.start) => Logic.Or[_, _]::left same)
+      (\fun (other: Logic.Or[time r = I.end, projection (base r) = OriginalQuotient.point]) => Logic.Or[_, _]::right
+        (Logic.orElim[time r = I.end, projection (base r) = OriginalQuotient.point,
+          Logic.Or[time r = I.end, Logic.Or[a r = (details left).point, b r = (details right).point]]] other
+          (\fun (same: time r = I.end) => Logic.Or[_, _]::left same)
+          (\fun (same: projection (base r) = OriginalQuotient.point) => Logic.Or[_, _]::right (OriginalQuotient.atPoint (base r) same))));
+\definition leftCollapsed: \forall (r: R) -> \In[LeftCylinder.Carrier] LeftSuspension.Collapsed (LeftCylinder.at (time r) (a r)) -> Collapsed r :=
+  \fun (r: R)(member: \In[LeftCylinder.Carrier] LeftSuspension.Collapsed (LeftCylinder.at (time r) (a r))) =>
+    Logic.orElim[time r = I.start, Logic.Or[time r = I.end, a r = (details left).point], Collapsed r] member
+      (\fun (same: time r = I.start) => Logic.Or[_, _]::left same)
+      (\fun (other: Logic.Or[time r = I.end, a r = (details left).point]) => Logic.Or[_, _]::right
+        (Logic.orElim[time r = I.end, a r = (details left).point,
+          Logic.Or[time r = I.end, Logic.Or[a r = (details left).point, b r = (details right).point]]] other
+          (\fun (same: time r = I.end) => Logic.Or[_, _]::left same)
+          (\fun (same: a r = (details left).point) => Logic.Or[_, _]::right (Logic.Or[_, _]::left same))));
+\definition fromTarget: \forall (r: R) -> \In[Target.model.Carrier] Target.wedge (targetRaw r) -> Collapsed r :=
+  \fun (r: R)(member: \In[Target.model.Carrier] Target.wedge (targetRaw r)) =>
+    Logic.orElim[LeftSuspension.class (LeftCylinder.at (time r) (a r)) = LeftSuspension.point, b r = (details right).point, Collapsed r] member
+      (\fun (same: LeftSuspension.class (LeftCylinder.at (time r) (a r)) = LeftSuspension.point) =>
+        leftCollapsed r (LeftSuspension.atPoint (LeftCylinder.at (time r) (a r)) same))
+      (\fun (same: b r = (details right).point) => Logic.Or[_, _]::right (Logic.Or[_, _]::right (Logic.Or[_, _]::right same)));
+\definition targetCollapsed: \forall (r: R) -> Collapsed r -> \In[Target.model.Carrier] Target.wedge (targetRaw r) :=
+  \fun (r: R)(member: Collapsed r) => Logic.orElim[time r = I.start,
+    Logic.Or[time r = I.end, Logic.Or[a r = (details left).point, b r = (details right).point]],
+    \In[Target.model.Carrier] Target.wedge (targetRaw r)] member
+    (\fun (same: time r = I.start) => Logic.Or[_, _]::left
+      (LeftSuspension.collapsed (LeftCylinder.at (time r) (a r)) (Logic.Or[_, _]::left same)))
+    (\fun (other: Logic.Or[time r = I.end, Logic.Or[a r = (details left).point, b r = (details right).point]]) =>
+      Logic.orElim[time r = I.end, Logic.Or[a r = (details left).point, b r = (details right).point],
+        \In[Target.model.Carrier] Target.wedge (targetRaw r)] other
+        (\fun (same: time r = I.end) => Logic.Or[_, _]::left
+          (LeftSuspension.collapsed (LeftCylinder.at (time r) (a r)) (Logic.Or[_, _]::right (Logic.Or[_, _]::left same))))
+        (\fun (wedge: Logic.Or[a r = (details left).point, b r = (details right).point]) =>
+          Logic.orElim[a r = (details left).point, b r = (details right).point,
+            \In[Target.model.Carrier] Target.wedge (targetRaw r)] wedge
+            (\fun (same: a r = (details left).point) => Logic.Or[_, _]::left
+              (LeftSuspension.collapsed (LeftCylinder.at (time r) (a r)) (Logic.Or[_, _]::right (Logic.Or[_, _]::right same))))
+            (\fun (same: b r = (details right).point) => Logic.Or[_, _]::right same)));
+\definition sourcePoint: \forall (r: R) -> Collapsed r -> f r = (details Source.result).point :=
+  \fun (r: R)(member: Collapsed r) => Source.collapsed (sourceRaw r) (sourceCollapsed r member);
+\definition targetPoint: \forall (r: R) -> Collapsed r -> g r = (details Target.result).point :=
+  \fun (r: R)(member: Collapsed r) => TargetQuotient.onSubset
+    (\into[Target.model.Carrier](targetRaw r, Target.wedge) \by { targetCollapsed r member });
+\definition sourceReflect: \forall (r: R) -> f r = (details Source.result).point -> Collapsed r :=
+  \fun (r: R)(same: f r = (details Source.result).point) => fromSource r (Source.atPoint (sourceRaw r) same);
+\definition targetReflect: \forall (r: R) -> g r = (details Target.result).point -> Collapsed r :=
+  \fun (r: R)(same: g r = (details Target.result).point) => fromTarget r (TargetQuotient.atPoint (targetRaw r) same);
+\module Outside;
+\definition forward: \forall (r, s: R) -> f r = f s -> g r = g s :=
+  \fun (r, s: R)(same: f r = f s) => Logic.orElim[Collapsed r, Logic.Not (Collapsed r), g r = g s]
+    (std.Logic[].Classical[].excludedMiddle (Collapsed r))
+    (\fun (member: Collapsed r) => trans!{{Target.result.Carrier}} _ _ _ (targetPoint r member)
+      (sym!{{Target.result.Carrier}} _ _ (targetPoint s (sourceReflect s
+        (trans!{{Source.result.Carrier}} _ _ _ (sym!{{Source.result.Carrier}} _ _ same) (sourcePoint r member))))))
+    (\fun (outside: Logic.Not (Collapsed r)) => congr!{R {Target.result.Carrier}} g r s (Outside[].source r s outside same));
+\definition backward: \forall (r, s: R) -> g r = g s -> f r = f s :=
+  \fun (r, s: R)(same: g r = g s) => Logic.orElim[Collapsed r, Logic.Not (Collapsed r), f r = f s]
+    (std.Logic[].Classical[].excludedMiddle (Collapsed r))
+    (\fun (member: Collapsed r) => trans!{{Source.result.Carrier}} _ _ _ (sourcePoint r member)
+      (sym!{{Source.result.Carrier}} _ _ (sourcePoint s (targetReflect s
+        (trans!{{Target.result.Carrier}} _ _ _ (sym!{{Target.result.Carrier}} _ _ same) (targetPoint r member))))))
+    (\fun (outside: Logic.Not (Collapsed r)) => congr!{R {Source.result.Carrier}} f r s (Outside[].target r s outside same));
