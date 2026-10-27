@@ -1,0 +1,30 @@
+\import singular_cohomology.Cochains[A := A, source := source].With[coefficients := Cochains.integerCoefficients] \as Theory;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\definition family: Complexes.Family := Complexes.Family {
+  Carrier := \fun (n: N.Nat^) => \parent.Common[n := n].Carrier,
+  space := \fun (n: N.Nat^) => \parent.Common[n := n].space,
+};
+\definition differential: Complexes.DifferentialData[family] := Complexes.DifferentialData[family] {
+  apply := \fun (n: N.Nat^)(x: family.Carrier n) => \parent.Common[n := n].differential x,
+};
+\definition complex: Complexes.Complex := Complexes.Complex {
+  family := family,
+  differential := differential,
+  laws := Complexes.DifferentialLaws[family, differential] {
+    addition := \fun (n: N.Nat^)(x, y: family.Carrier n) => (Theory.complex.laws).addition n x y,
+    scalar := \fun (n: N.Nat^)(a: I.Int^)(x: family.Carrier n) => (Theory.complex.laws).scalar n a x,
+    squareZero := \fun (n: N.Nat^)(x: family.Carrier n) => (Theory.complex.laws).squareZero n x,
+  },
+};
+\import Complexes.Map[C := complex, D := Theory.complex] \as Maps;
+\definition inclusion: Maps.Map := Maps.Map {
+  apply := \fun (n: N.Nat^)(x: family.Carrier n) => x,
+  addition := \fun (n: N.Nat^)(x, y: family.Carrier n) => \refl((Theory.space n).add x y),
+  scalar := \fun (n: N.Nat^)(a: I.Int^)(x: family.Carrier n) => \refl((Theory.space n).smul a x),
+  commutes := \fun (n: N.Nat^)(x: family.Carrier n) => \refl(Theory.coboundary n x),
+};
+\module At(n: N.Nat^) {
+  \import Complexes.At[C := complex, k := n] \as Native;
+  \definition cohomology: \Set := Native.Cohomology;
+  \definition space: Modules.Space cohomology := Native.cohomologySpace;
+}
