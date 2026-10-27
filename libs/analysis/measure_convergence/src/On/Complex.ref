@@ -107,3 +107,46 @@
 };
 \module Dominated(d: DominatedData);
 \module Series(terms: N.Nat^ -> Representatives);
+\import C.Absolute[] \as ComplexAbs;
+\import C.Prop[] \as ComplexLaws;
+\import real.Analysis[].SquareRoot[] \as Root;
+\import real.Analysis[].Algebra[] \as RealAlgebra;
+\import real.Analysis[].Estimates[] \as Estimates;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as RealLaws;
+\use Equality.sym;
+\definition squareAbs: \forall (x: Real.Real) -> Real.mul (Product.abs x) (Product.abs x) = Real.mul x x :=
+  \fun (x: Real.Real) => eq_reason_in!{Real.Real _
+    "=" _ "by" { sym!{Real.Real} _ _ (Product.absProduct x x) }
+    "=" _ "by" { Product.absOfNonnegative (Real.mul x x) (RealAlgebra.squareNonnegative x) }
+  };
+\definition rootSquare: \forall (x: Real.Real) -> Root.sqrt (Real.mul x x) = Product.abs x :=
+  \fun (x: Real.Real) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} Root.sqrt _ _ (sym!{Real.Real} _ _ (squareAbs x)) }
+    "=" _ "by" { Root.sqrtSquared (Product.abs x) (Product.absNonnegative x) }
+  };
+\definition realAxisAbs: \forall (x: Real.Real) -> ComplexAbs.abs (C.make x Real.zero) = Product.abs x :=
+  \fun (x: Real.Real) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} Root.sqrt _ _
+      (congr!{Real.Real Real.Real} (Real.add (Real.mul x x)) _ _ (RealLaws.fieldMulZeroLeft Real.zero)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} Root.sqrt _ _ (RealLaws.addZeroRight (Real.mul x x)) }
+    "=" _ "by" { rootSquare x }
+  };
+\definition imaginaryAxisAbs: \forall (x: Real.Real) -> ComplexAbs.abs (C.make Real.zero x) = Product.abs x :=
+  \fun (x: Real.Real) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} Root.sqrt _ _
+      (congr!{Real.Real Real.Real} (\fun (y: Real.Real) => Real.add y (Real.mul x x)) _ _ (RealLaws.fieldMulZeroLeft Real.zero)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} Root.sqrt _ _ (RealLaws.addZeroLeft (Real.mul x x)) }
+    "=" _ "by" { rootSquare x }
+  };
+\definition absComponents: \forall (z: C.Complex) -> R.Le (ComplexAbs.abs z) (Real.add (Product.abs (C.re z)) (Product.abs (C.im z))) :=
+  \fun (z: C.Complex) => R.leReplace
+    (ComplexAbs.abs (ComplexOp.add (C.make (C.re z) Real.zero) (C.make Real.zero (C.im z)))) (ComplexAbs.abs z)
+    (Real.add (ComplexAbs.abs (C.make (C.re z) Real.zero)) (ComplexAbs.abs (C.make Real.zero (C.im z))))
+    (Real.add (Product.abs (C.re z)) (Product.abs (C.im z)))
+    (congr!{C.Complex Real.Real} ComplexAbs.abs _ _ (ComplexLaws.ext _ _ (RealLaws.addZeroRight (C.re z)) (RealLaws.addZeroLeft (C.im z))))
+    (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (realAxisAbs (C.re z)) (imaginaryAxisAbs (C.im z)))
+    (ComplexAbs.triangle (C.make (C.re z) Real.zero) (C.make Real.zero (C.im z)));
+\definition integralNormBound: \forall (f: Representatives) -> R.Le (ComplexAbs.abs (integral f))
+  (Real.add (Integral.integral (Absolute.representative (realPart f))) (Integral.integral (Absolute.representative (imaginaryPart f)))) :=
+  \fun (f: Representatives) => R.leTrans _ _ _ (absComponents (integral f))
+    (Estimates.addLe _ _ _ _ (Absolute.integralAbsBound (realPart f)) (Absolute.integralAbsBound (imaginaryPart f)));
