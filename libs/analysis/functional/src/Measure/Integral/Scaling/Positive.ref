@@ -11,10 +11,34 @@
     (i: Fin.Fin n) (x: A) (member: Sets.Member (s.cells i) x) =>
       R.leReplaceRight (Real.mul inverse (s.coefficients i)) (Real.mul inverse (Real.mul c (f x))) (f x) (inverseCancels (f x))
         (E.mulMonotone inverse (s.coefficients i) (Real.mul c (f x)) (nonnegative inverse) (dominated i x member));
+\definition productOne: Real.mul c inverse = Real.one := eq_reason_in!{Real.Real _
+  "=" _ "by" { Laws.fieldMulComm c inverse }
+  "=" _ "by" { Laws.fieldInverseNonzero c (\fun (eq: c = Real.zero) => Order.ltNotEq Real.zero c positive (sym!{Real.Real} _ _ eq)) }
+};
 \definition undoIntegral: \forall (n: N.Nat^) (s: Simple[n]) -> scale c (simpleIntegral n (scaled inverse n s)) = simpleIntegral n s :=
   \fun (n: N.Nat^) (s: Simple[n]) => eq_reason_in!{Value _
     "=" _ "by" { congr!{Value Value} (scale c) _ _ (simpleScale inverse n s) }
     "=" _ "by" { Values.scaleCompose c inverse (simpleIntegral n s) (nonnegative scalar) (nonnegative inverse) (SimpleLaws.integralNonnegative n s) }
-    "=" _ "by" { congr!{Real.Real Value} (\fun (x: Real.Real) => scale x (simpleIntegral n s)) _ _ (Values.inverseProduct c Real.one positive) }
+    "=" _ "by" { congr!{Real.Real Value} (\fun (x: Real.Real) => scale x (simpleIntegral n s)) _ _ productOne }
     "=" _ "by" { Values.oneScale (simpleIntegral n s) (SimpleLaws.integralNonnegative n s) }
   };
+\definition reverse: \forall (f: A -> Real.Real) -> Values.Included (lowerIntegral (\fun (x: A) => Real.mul c (f x))) (scale c (lowerIntegral f)) :=
+  \fun (f: A -> Real.Real) (r: Real.Real) (member: below (lowerIntegral (\fun (x: A) => Real.mul c (f x))) r) => \block {
+    \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s (\fun (x: A) => Real.mul c (f x)), below (simpleIntegral n s) r] ) }) \by member \then
+    \takefrom s: \Cast[Simple[n]] ({ s: Simple[n] \where Logic.And[Dominated n s (\fun (x: A) => Real.mul c (f x)), below (simpleIntegral n s) r] })
+      \by (\bysub(N.Nat^, { n: N.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s (\fun (x: A) => Real.mul c (f x)), below (simpleIntegral n s) r] ) }, n)) \then
+    \let data: Logic.And[Dominated n s (\fun (x: A) => Real.mul c (f x)), below (simpleIntegral n s) r] :=
+      \bysub(Simple[n], { s: Simple[n] \where Logic.And[Dominated n s (\fun (x: A) => Real.mul c (f x)), below (simpleIntegral n s) r] }, s) \then
+    \let inScaled: below (scale c (simpleIntegral n (scaled inverse n s))) r :=
+      \idelim simpleIntegral n s = scale c (simpleIntegral n (scaled inverse n s)) \with v: Value => below v r
+        \by { base: data.right, equality: sym!{Value} _ _ (undoIntegral n s) } \then
+    \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[below (simpleIntegral n (scaled inverse n s)) a, R.Lt r (Real.mul c a)] }) \by inScaled \then
+    \let evidence: Logic.And[below (simpleIntegral n (scaled inverse n s)) a, R.Lt r (Real.mul c a)] :=
+      \bysub(Real.Real, { a: Real.Real \where Logic.And[below (simpleIntegral n (scaled inverse n s)) a, R.Lt r (Real.mul c a)] }, a) \then
+    \return Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[below (lowerIntegral f) a, R.Lt r (Real.mul c a)] }] a
+      (Logic.And[_, _]::# (Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists ( t: Simple[n] \where Logic.And[Dominated n t f, below (simpleIntegral n t) a] ) }] n
+        (Logic.existsIntro[Simple[n], { t: Simple[n] \where Logic.And[Dominated n t f, below (simpleIntegral n t) a] }] (scaled inverse n s)
+          (Logic.And[_, _]::# (undoDominated n s f data.left) evidence.left))) evidence.right)
+  };
+\definition lowerScale: \forall (f: A -> Real.Real) -> lowerIntegral (\fun (x: A) => Real.mul c (f x)) = scale c (lowerIntegral f) :=
+  \fun (f: A -> Real.Real) => \axiom:setext(lowerIntegral (\fun (x: A) => Real.mul c (f x)), scale c (lowerIntegral f), reverse f, lowerScaleForward scalar f);
