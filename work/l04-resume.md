@@ -15,11 +15,13 @@ cd /workspace/ref-type-l04
 
 workspace 共通の `libs/refcache/` を再利用する。
 処理系がない場合は `CARGO_TARGET_DIR=/workspace/ref-type/target cargo build -p cli --locked --offline` でビルドする。
-対象27 module の再検査と依存込み421 module のキャッシュ検査は成功済み。
-最後に追加した `Genus.Precision` も単独検査で成功済みで、上記コマンドで最終統計を更新する。
+対象28 module・14,572ステップの再検査と、依存込み422 module のキャッシュ検査が成功済み。
+最終レポートは `benchmarks/records/characteristic-series/` に保存した。
+生成器の再実行による差分がないことと `git diff --check` も確認済み。
 
 初期の具体的な有理数証明では180秒の時間上限と stack overflow が発生した。
 分数の拡大・約分と同分母加算の一般補題を用いる証明へ置き換え、その後の全対象検査は約21秒で完了した。
 検査規則は変更していない。
 
-最終検証後、JSON と実行条件を benchmarks/records/characteristic-series に保存し、PR に結果と未解決事項を記載する。
+証明と検査に未解決事項はない。
+PR に検証結果を記載し、作成後は停止する。

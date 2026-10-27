@@ -100,3 +100,5 @@ mkdir -p work
 
 キャッシュは workspace 共通の `libs/refcache/` を利用する。
 精度の表記と再開・資源制限の詳細は [CLI の利用方法](../../../src/USAGE.md#検査とキャッシュ) を参照。
+
+検査結果と実行条件は [L04 検証記録](../../../benchmarks/records/characteristic-series/README.md) にある。
