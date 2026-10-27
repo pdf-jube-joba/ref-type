@@ -66,7 +66,10 @@ worker 内のログは共有キャッシュ直下の `.check-<PID>-0/stderr` と
 読み込む依存閉包は旧 snapshot の6,470 modules から2,683 modules に減った。
 この共通化も未検証で、近似理論と clutching の影響先を最終検査に含める。
 `common-Pointed` はマクロ参照不足で rejected・終了1になったが、修正した `common-pointed-fixed` は accepted・終了0・キャッシュ保存失敗0。
-最新 snapshot は `work/k03-resume/common-pointed-fixed.source.json`。
+`framed-outside-lean` は104秒で K03 の行列降下に到達し、`constantContinuous` の参照先誤りで rejected・終了1になった。
+該当3箇所を `topology.Maps.constantContinuous` へ直した。
+`Pair.Restriction` と `Group.Forget.ToSubset` に制限写像と生成元での零性を追加したが未検証。
+最新 snapshot は `work/k03-resume/matrix-descent-fixed.source.json`。
 次は共有 suspension と列挙 API、基点外の写像、行列の降下、基点近傍の写像、選択独立性、忘却準同型、切除の順に対象検査を行う。
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定し、JSON 報告と実行シェルの終了コードも保存する。
 
