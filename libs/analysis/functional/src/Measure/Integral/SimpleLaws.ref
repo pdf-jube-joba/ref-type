@@ -44,3 +44,17 @@
           (Logic.existsIntro[Simple[n], { s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) t] }] s (Logic.And[_, _]::# data.left rounded.right))))
     },
   };
+\import Values.ScalarAdd[] \as ScalarAdd;
+\definition integralMonoCoefficients: \forall (n: N.Nat^) (s, t: Simple[n]) ->
+  (\forall (i: Fin.Fin n) -> s.cells i = t.cells i) ->
+  (\forall (i: Fin.Fin n) -> R.Le (s.coefficients i) (t.coefficients i)) ->
+  Values.Included (simpleIntegral n s) (simpleIntegral n t) :=
+  \fun (n: N.Nat^) (s, t: Simple[n]) (cells: _) (order: _) =>
+    Values.sumMono n (\fun (i: Fin.Fin n) => scale (s.coefficients i) (mu.value (s.cells i)))
+      (\fun (i: Fin.Fin n) => scale (t.coefficients i) (mu.value (t.cells i)))
+      (\fun (i: Fin.Fin n) (r: Real.Real) (member: below (scale (s.coefficients i) (mu.value (s.cells i))) r) =>
+        \idelim s.cells i = t.cells i \with S: \Pow A => below (scale (t.coefficients i) (mu.value S)) r \by {
+          base: ScalarAdd.monotone (s.coefficients i) (t.coefficients i) (mu.value (s.cells i)) (s.nonnegative i) (order i)
+            (MeasureFinite.laws.nonnegative (s.cells i) (s.measurable i)) r member,
+          equality: cells i
+        });
