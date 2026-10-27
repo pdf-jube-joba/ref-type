@@ -1,0 +1,42 @@
+\import \root.Measure[A := A].Sigma[] \as Sigma;
+\import \root.Measure[A := A].Functions[mu := mu] \as Functions;
+\import real.Analysis[].Distance[] \as Distance;
+\definition datum: \forall (k: N.Nat^) -> StepData := \fun (k: N.Nat^) => StepData {
+  set := { x: A \where R.Lt (Functions.rational k) (f.function x) },
+  coefficient := Distance.max Real.zero (Functions.rational k),
+  measurable := f.measurable (Functions.rational k),
+  nonnegative := Distance.maxLeft Real.zero (Functions.rational k),
+};
+\definition zeroDatum: StepData := StepData {
+  set := Sets.Empty, coefficient := Real.zero, measurable := (Sigma.laws mu.sigma).empty, nonnegative := R.leRefl Real.zero,
+};
+\structure Stage: \Set := { size: N.Nat^, simple: CompleteSimple[size] };
+\definition stages: N.Nat^ -> Stage := \induction (k: N.Nat^) \return Stage \with {
+  | zero: Stage { size := \root.Measure[A := A].Integral[mu := mu].Step[p := zeroDatum].size,
+    simple := \root.Measure[A := A].Integral[mu := mu].Step[p := zeroDatum].simple }
+  | succ: \fun (k: N.Nat^) (previous: Stage) => Stage {
+    size := \root.Measure[A := A].Integral[mu := mu].Maximum[m := previous.size,
+      n := \root.Measure[A := A].Integral[mu := mu].Step[p := datum k].size, s := previous.simple,
+      t := \root.Measure[A := A].Integral[mu := mu].Step[p := datum k].simple].count,
+    simple := \root.Measure[A := A].Integral[mu := mu].Maximum[m := previous.size,
+      n := \root.Measure[A := A].Integral[mu := mu].Step[p := datum k].size, s := previous.simple,
+      t := \root.Measure[A := A].Integral[mu := mu].Step[p := datum k].simple].simple,
+  }
+};
+\definition value[k: N.Nat^] [x: A]: Real.Real :=
+  \root.Measure[A := A].Integral[mu := mu].Evaluation[n := (stages k).size, s := (stages k).simple].value x;
+\definition measurable: \forall (k: N.Nat^) -> IsMeasurable mu (value k) :=
+  \fun (k: N.Nat^) => \root.Measure[A := A].Integral[mu := mu].Evaluation[n := (stages k).size, s := (stages k).simple].measurable;
+\definition nonnegative: \forall (k: N.Nat^) (x: A) -> R.Le Real.zero (value k x) :=
+  \fun (k: N.Nat^) => \root.Measure[A := A].Integral[mu := mu].Evaluation[n := (stages k).size, s := (stages k).simple].nonnegative;
+\definition nextValue: \forall (k: N.Nat^) (x: A) -> value (N.Nat^::succ k) x = Distance.max (value k x)
+  (\root.Measure[A := A].Integral[mu := mu].Evaluation[n := \root.Measure[A := A].Integral[mu := mu].Step[p := datum k].size,
+    s := \root.Measure[A := A].Integral[mu := mu].Step[p := datum k].simple].value x) :=
+  \fun (k: N.Nat^) (x: A) => \root.Measure[A := A].Integral[mu := mu].Maximum[m := (stages k).size,
+    n := \root.Measure[A := A].Integral[mu := mu].Step[p := datum k].size, s := (stages k).simple,
+    t := \root.Measure[A := A].Integral[mu := mu].Step[p := datum k].simple].value x;
+\use std.Logic[].Equality[].sym;
+\definition increasing: \forall (k: N.Nat^) (x: A) -> R.Le (value k x) (value (N.Nat^::succ k) x) :=
+  \fun (k: N.Nat^) (x: A) => R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (nextValue k x))
+    (Distance.maxLeft (value k x) (\root.Measure[A := A].Integral[mu := mu].Evaluation[n := \root.Measure[A := A].Integral[mu := mu].Step[p := datum k].size,
+      s := \root.Measure[A := A].Integral[mu := mu].Step[p := datum k].simple].value x));
