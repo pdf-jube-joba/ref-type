@@ -13,8 +13,16 @@
 \definition local: Local.ChartData := Local.ChartData {
   domain := chart.domain, dimension := dimension, sourceFrame := chart.frame, targetFrame := Restricted.trivialization.frame
 };
+\definition chartEta: \forall (c: SourceCharts.ChartData) -> SourceCharts.ChartData { domain := c.domain, dimension := c.dimension, frame := c.frame } = c :=
+  \induction (c: SourceCharts.ChartData) \return SourceCharts.ChartData { domain := c.domain, dimension := c.dimension, frame := c.frame } = c \with {
+    | # : \fun (domain: \Pow X)(dimension: N.Nat^)(frame: \forall (x: \Cast[X] domain) -> SourceCharts.Frame dimension x) => \refl(SourceCharts.ChartData { domain := domain, dimension := dimension, frame := frame })
+  };
+\definition sourceLaws: SourceCharts.In[c := Local.In[c := local].sourceChart].Laws :=
+  \idelim chart = Local.In[c := local].sourceChart \with c: SourceCharts.ChartData => SourceCharts.In[c := c].Laws \by {
+    base: \bysub(SourceCharts.ChartData, SourceCharts.Chart, chart), equality: sym!{{SourceCharts.ChartData}} _ _ (chartEta chart)
+  };
 \definition laws: Local.In[c := local].Laws := Local.In[c := local].Laws {
-  source := \bysub(SourceCharts.ChartData, SourceCharts.Chart, chart),
+  source := sourceLaws,
   target := \bysub(TargetCharts.ChartData, TargetCharts.Chart, Restricted.trivialization),
   alignment := \fun (x: \Cast[X] chart.domain)(v: F x) => \refl((frame x).forward.apply v)
 };
