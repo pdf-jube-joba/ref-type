@@ -1,0 +1,31 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import \parent.\parent.\parent.At[p := p, q := q] \as SourceAt;
+\import SourceAt.Quotient[] \as SourceCap;
+\import TargetCap.At[p := p, q := q].Quotient[] \as TargetCapAt;
+\import WholeNatural.At[p := p, q := q] \as Formula;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import Nonnegative.ZeroExtension[C := Chains.complex] \as WholeExtension;
+\import singular_cohomology.Chains[A := B, source := target] \as TargetChains;
+\import Nonnegative.ZeroExtension[C := TargetChains.complex] \as TargetExtension;
+\import singular_cohomology.Chains[A := Relative.SubspaceCarrier, source := Subspace.topology source] \as SubChains;
+\import Nonnegative.ZeroExtension[C := SubChains.complex] \as SubExtension;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.Quotient[C := SubExtension.complex, D := WholeExtension.complex].On[f := Relative.inclusionMap].At[k := I.Int^::ofNat SourceAt.Whole.total] \as SourceQ;
+\definition law: \forall (beta: TargetCochains.Carrier q)(x: Relative.Carrier (I.Int^::ofNat SourceAt.Whole.total)) ->
+  (PairMap.map).apply (I.Int^::ofNat p) ((SourceCap.map (Pull.apply q f (PairMaps.laws f).continuous beta)).apply x) =
+  (TargetCapAt.map beta).apply ((PairMap.map).apply (I.Int^::ofNat SourceAt.Whole.total) x) :=
+  \fun (beta: TargetCochains.Carrier q) => SourceQ.induction (\fun (x: Relative.Carrier (I.Int^::ofNat SourceAt.Whole.total)) ->
+    (PairMap.map).apply (I.Int^::ofNat p) ((SourceCap.map (Pull.apply q f (PairMaps.laws f).continuous beta)).apply x) =
+    (TargetCapAt.map beta).apply ((PairMap.map).apply (I.Int^::ofNat SourceAt.Whole.total) x))
+    (\fun (x: WholeExtension.Carrier (I.Int^::ofNat SourceAt.Whole.total)) => eq_reason_in!{{TargetPair.Carrier (I.Int^::ofNat p)} _
+      "=" _ "by" { congr!{{Relative.Carrier (I.Int^::ofNat p)} {TargetPair.Carrier (I.Int^::ofNat p)}} ((PairMap.map).apply (I.Int^::ofNat p)) _ _ (SourceCap.onClass (Pull.apply q f (PairMaps.laws f).continuous beta) x) }
+      "=" _ "by" { PairMap.At[z := I.Int^::ofNat p].quotientOnClass (WholeExtension.Positive[n := p].intro ((SourceAt.Whole.map (Pull.apply q f (PairMaps.laws f).continuous beta)).apply x)) }
+      "=" _ "by" { congr!{{TargetChains.Carrier p} {TargetPair.Carrier (I.Int^::ofNat p)}} (\fun (y: TargetChains.Carrier p) => TargetPair.class (I.Int^::ofNat p) (TargetExtension.Positive[n := p].intro y)) _ _ (Formula.projectionFormula f (PairMaps.laws f).continuous beta x) }
+      "=" _ "by" { sym!{{TargetPair.Carrier (I.Int^::ofNat p)}} _ _ (TargetCapAt.onClass beta (TargetExtension.Positive[n := SourceAt.Whole.total].intro ((WholeMap.At[n := SourceAt.Whole.total].push f (PairMaps.laws f).continuous).apply x))) }
+      "=" _ "by" { congr!{{TargetPair.Carrier (I.Int^::ofNat SourceAt.Whole.total)} {TargetPair.Carrier (I.Int^::ofNat p)}} ((TargetCapAt.map beta).apply) _ _
+        (sym!{{TargetPair.Carrier (I.Int^::ofNat SourceAt.Whole.total)}} _ _ (PairMap.At[z := I.Int^::ofNat SourceAt.Whole.total].quotientOnClass x)) }
+    });
