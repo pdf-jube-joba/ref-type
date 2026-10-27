@@ -45,12 +45,13 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 | 基点付き同値と切除の負次数群の同型 | `invariance-Equivalence` / `invariance-Excision` |
 | 自明束の引き戻し、一般の束からの三つ組の表示 | `bundles-TrivialPullback` / `bundles-FromBundles` |
 | 制限核の元の安定化と通常の K 群における完全性 | `kernel-FromKernel` / `kernel-Exact` |
+| 三つ組の同型不変性と射影表示の選択独立性 | `change-Isomorphic` / `change-PresentationChange` |
 
-最新の未検証変更は `Pair.Group.Isomorphic` と `Pair.PresentationChange`。
-全体の束の同型が境界の比較同型と可換な二つの三つ組について、群の元の一致を合成関係式から示す。
-一般の束を異なる射影表示で表しても同じ群の元になることを、この同型不変性から導く。
-固定 snapshot は `work/k03-resume/presentation-change.source.json`。
-次は `relative_k_theory.Relative.Pair.Group.Isomorphic` と `relative_k_theory.Relative.Pair.PresentationChange` を順に検査する。
+`change-Isomorphic` と `change-PresentationChange` は accepted・終了0・キャッシュ保存失敗0。
+最新の未検証変更は反復 suspension の同値の写像と通常の引き戻しの一致、および `Pair.FromQuotient`。
+`FromQuotient` は商上の束の基点での局所枠を使い、引き戻した束と自明束の境界同型から三つ組を作る。
+固定 snapshot は `work/k03-resume/from-quotient.source.json`。
+次は `relative_k_theory.Relative.Equivalence`、`relative_k_theory.Relative.Pair.Excision`、`relative_k_theory.Relative.Pair.FromQuotient` を順に検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。
