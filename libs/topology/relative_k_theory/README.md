@@ -84,3 +84,10 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 残る構成は Mayer–Vietoris の残る位置での完全性、外積と自然性。
 検査完了後、公開登録・ロードマップ・下流リンクを整備する。
 K02・K07・単体/胞体・近似理論・B09 の影響先と workspace 全体を最終検証に含める。
+
+`qualified-PairIteration` は部分空間の恒等比較の構成を拒否した（型不一致）。
+恒等比較を任意の `CompactPointed` 上で一度構成し、部分空間へ実体化する形に整理した。
+修正 snapshot は `iteration-identities.source.json`、対象は `PairIteration --module-only`、診断は `detailed` を使う。
+`mayer-positive.source.json` では差の写像と正の負次数側の和の位置の完全性まで構文解析を通過した。
+この追加、一般の対の自然性、群の補助計算はいずれも未検証。
+Mayer–Vietoris の交叉部分の完全性、次数0の和の位置の完全性、外積はまだ構成中。
