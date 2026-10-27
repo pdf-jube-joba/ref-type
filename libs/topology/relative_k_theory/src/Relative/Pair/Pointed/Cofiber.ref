@@ -1,0 +1,83 @@
+\import algebraic_topology.Interval[] \as Interval;
+\import algebraic_topology.Cylinder[A := X] \as Cylinder;
+\import topology.Topology[Carrier := Cylinder.Carrier] \as CylinderSpace;
+\import topology.Topology[Carrier := Interval.Carrier] \as Time;
+\import topological_constructions.Product[A := Interval.Carrier, B := X] \as Product;
+\definition cylinderCompact: CylinderSpace.IsCompact (Cylinder.topology space) := Product.Compactness[].productCompact Interval.topology space Interval.compact compact;
+\definition cylinderHausdorff: CylinderSpace.IsT2 (Cylinder.topology space) := topological_constructions.Separation[].Product[A := Interval.Carrier, B := X].On[
+  left := Interval.topology, right := space, leftHausdorff := Interval.hausdorff, rightHausdorff := hausdorff].hausdorff;
+\import topology.Continuity[A := Cylinder.Carrier, B := Interval.Carrier] \as CylinderTime;
+\import topology.Continuity[A := Cylinder.Carrier, B := X] \as CylinderPoint;
+\definition bottomClosed: CylinderSpace.IsClosedIn (Cylinder.topology space) (CylinderTime.Preimage Cylinder.time (Time.Singleton Interval.start)) :=
+  CylinderTime.closedPreimage (Cylinder.topology space) Interval.topology Cylinder.time (Cylinder.timeContinuous space) (Time.Singleton Interval.start)
+    (Time.Compactness[].hausdorffT1 Interval.topology Interval.hausdorff Interval.start);
+\definition verticalClosed: CylinderSpace.IsClosedIn (Cylinder.topology space) (CylinderPoint.Preimage Cylinder.point subset) :=
+  CylinderPoint.closedPreimage (Cylinder.topology space) space Cylinder.point (Cylinder.pointContinuous space) subset closed;
+\definition domain: \Pow Cylinder.Carrier := { z: Cylinder.Carrier \where Logic.Or[Cylinder.time z = Interval.start, Base.Member subset (Cylinder.point z)] };
+\definition domainClosed: CylinderSpace.IsClosedIn (Cylinder.topology space) domain := CylinderSpace.Finite[].joinClosed (Cylinder.topology space)
+  (CylinderTime.Preimage Cylinder.time (Time.Singleton Interval.start)) (CylinderPoint.Preimage Cylinder.point subset) bottomClosed verticalClosed;
+\import CylinderSpace.Subspace[S := domain] \as Domain;
+\definition DomainPoint: \Set := Domain.CarrierSet;
+\definition domainTopology: topology.Topology[Carrier := DomainPoint].Topology := Domain.topology (Cylinder.topology space);
+\definition domainCompact: topology.Topology[Carrier := DomainPoint].IsCompact domainTopology := Domain.Properties[].compact (Cylinder.topology space)
+  (CylinderSpace.Compactness[].closedCompact (Cylinder.topology space) cylinderCompact domain domainClosed);
+\definition domainHausdorff: topology.Topology[Carrier := DomainPoint].IsT2 domainTopology := Domain.Properties[].hausdorff (Cylinder.topology space) cylinderHausdorff;
+\definition inclusion[z: DomainPoint]: Cylinder.Carrier := z;
+\definition inclusionContinuous: topology.Continuity[A := DomainPoint, B := Cylinder.Carrier].Continuous domainTopology (Cylinder.topology space) inclusion :=
+  topology.Continuity[A := DomainPoint, B := Cylinder.Carrier].Corestriction[S := domain].inclusionContinuous (Cylinder.topology space);
+\definition time[z: DomainPoint]: Interval.Carrier := Cylinder.time z;
+\definition point[z: DomainPoint]: X := Cylinder.point z;
+\definition timeContinuous: topology.Continuity[A := DomainPoint, B := Interval.Carrier].Continuous domainTopology Interval.topology time :=
+  topology.Composition[A := DomainPoint, B := Cylinder.Carrier, C := Interval.Carrier].composeContinuous domainTopology (Cylinder.topology space) Interval.topology inclusion Cylinder.time inclusionContinuous (Cylinder.timeContinuous space);
+\definition pointContinuous: topology.Continuity[A := DomainPoint, B := X].Continuous domainTopology space point :=
+  topology.Composition[A := DomainPoint, B := Cylinder.Carrier, C := X].composeContinuous domainTopology (Cylinder.topology space) space inclusion Cylinder.point inclusionContinuous (Cylinder.pointContinuous space);
+\import topology.Topology[Carrier := DomainPoint] \as DomainSpace;
+\import topology.Continuity[A := DomainPoint, B := Interval.Carrier] \as TimeMaps;
+\import topology.Continuity[A := DomainPoint, B := X] \as PointMaps;
+\definition topClosed: DomainSpace.IsClosedIn domainTopology (TimeMaps.Preimage time (Time.Singleton Interval.end)) :=
+  TimeMaps.closedPreimage domainTopology Interval.topology time timeContinuous (Time.Singleton Interval.end) (Time.Compactness[].hausdorffT1 Interval.topology Interval.hausdorff Interval.end);
+\definition lineClosed: DomainSpace.IsClosedIn domainTopology (PointMaps.Preimage point (Base.Singleton a0)) :=
+  PointMaps.closedPreimage domainTopology space point pointContinuous (Base.Singleton a0) (Base.Compactness[].hausdorffT1 space hausdorff a0);
+\definition collapsedPart: \Pow DomainPoint := { z: DomainPoint \where Logic.Or[time z = Interval.end, point z = a0] };
+\definition collapsedClosed: DomainSpace.IsClosedIn domainTopology collapsedPart := DomainSpace.Finite[].joinClosed domainTopology
+  (TimeMaps.Preimage time (Time.Singleton Interval.end)) (PointMaps.Preimage point (Base.Singleton a0)) topClosed lineClosed;
+\import algebraic_topology.Collapse[A := DomainPoint, subset := collapsedPart] \as Native;
+\import Native.Closed[source := domainTopology, compact := domainCompact, hausdorff := domainHausdorff, closed := collapsedClosed] \as Properties;
+\definition Carrier: \Set := Native.Carrier;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Native.topology domainTopology;
+\definition bottom[x: X]: DomainPoint := \into[Cylinder.Carrier](Cylinder.at Interval.start x, domain) \by {
+  Logic.Or[Interval.start = Interval.start, Base.Member subset x]::left (\refl(Interval.start))
+};
+\definition base[x: X]: Carrier := Native.class (bottom x);
+\definition bottomContinuous: topology.Continuity[A := X, B := DomainPoint].Continuous space domainTopology bottom :=
+  topology.Continuity[A := X, B := Cylinder.Carrier].Corestriction[S := domain].corestrictContinuous space (Cylinder.topology space) bottom (Cylinder.atContinuous space Interval.start);
+\definition baseContinuous: topology.Continuity[A := X, B := Carrier].Continuous space topology base :=
+  topology.Composition[A := X, B := DomainPoint, C := Carrier].composeContinuous space domainTopology topology bottom Native.class bottomContinuous (Native.projectionContinuous domainTopology);
+\definition result: CompactPointed := pack Carrier (PointedDetails[Carrier] {
+  topology := topology, compact := Properties.compactQuotient, hausdorff := Properties.hausdorffQuotient, point := base a0
+});
+\import algebraic_topology.Pointed[A := X].Maps[B := Carrier] \as Maps;
+\definition baseMap: Map model result := \into[X -> Carrier](base, Map model result) \by {
+  Maps.Laws[pointed model, pointed result, base] { continuous := baseContinuous, pointed := \refl(base a0) }
+};
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as RealLaws;
+\definition endsDifferent: Logic.Not (Interval.start = Interval.end) := \fun (same: Interval.start = Interval.end) => RealLaws.zeroNeOne same;
+\definition collapsedBottom: \forall (x: X) -> DomainSpace.Member collapsedPart (bottom x) -> x = a0 :=
+  \fun (x: X)(member: DomainSpace.Member collapsedPart (bottom x)) => Logic.orElim[Interval.start = Interval.end, x = a0, x = a0] member
+    (\fun (bad: Interval.start = Interval.end) => Logic.falseElim (x = a0) (endsDifferent bad)) (\fun (same: x = a0) => same);
+\definition baseInjective: \forall (x, y: X) -> base x = base y -> x = y :=
+  \fun (x, y: X)(same: base x = base y) => Logic.orElim[bottom x = bottom y,
+    Logic.And[DomainSpace.Member collapsedPart (bottom x), DomainSpace.Member collapsedPart (bottom y)], x = y]
+    (Native.equalRelated (bottom x) (bottom y) same)
+    (\fun (equal: bottom x = bottom y) => congr!{{DomainPoint} {X}} point _ _ equal)
+    (\fun (both: Logic.And[DomainSpace.Member collapsedPart (bottom x), DomainSpace.Member collapsedPart (bottom y)]) =>
+      trans!{X} _ _ _ (collapsedBottom x both.left) (sym!{X} _ _ (collapsedBottom y both.right)));
+\import topology.Topology[Carrier := Carrier] \as Space;
+\import topology.Maps[A := X, B := Carrier] \as BaseSets;
+\definition baseImage: \Pow Carrier := BaseSets.Image base Base.Whole;
+\definition baseImageClosed: Space.IsClosedIn topology baseImage := Space.Compactness[].compactClosed topology Properties.hausdorffQuotient baseImage
+  (topology.Compactness[A := X, B := Carrier].continuousImage space topology base baseContinuous Base.Whole compact);
+\definition collapsed: \forall (z: DomainPoint) -> DomainSpace.Member collapsedPart z -> Native.class z = base a0 :=
+  \fun (z: DomainPoint)(member: DomainSpace.Member collapsedPart z) => Native.collapsed z (bottom a0) member
+    (Logic.Or[Interval.start = Interval.end, a0 = a0]::right (\refl(a0)));
+\module Projection;

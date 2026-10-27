@@ -137,11 +137,14 @@ K07 の影響先検査は最終検査に含める。
 `TrivialBoundary.model`・`With.value` はこの比較で使う束のモデルと値を公開する。
 `Group.Forget.Contractible` は `contractible-forget` で accepted・終了0・キャッシュ保存失敗0。
 三つ組の表示・正規化・安定自明化・比較同型を使い、収縮可能な閉部分空間に対して忘却写像の核が零であり、忘却が単射であることを示す。
-最新の未検証変更は `Exact.Contractible` と `Relative.Cone`。
+`Exact.Contractible` と `Relative.Cone` は `contractible-comparison-*` で accepted・終了0・キャッシュ保存失敗0。
 前者は相対群と全体の基点での被約群との両方向の準同型と逆の等式、後者は K02 の円錐のコンパクト Hausdorff 性・収縮・被約群の零性を構成する。
 円錐の収縮を利用するため、`puppe_sequences` の直接依存を追加した。
-固定 snapshot は `work/k03-resume/contractible-comparison.source.json`。
-次は `relative_k_theory.Relative` 内の `Pair.Exact.Contractible` と `Cone` を順に検査する。
+最新の未検証変更は `Pair.Pointed.Cofiber` と `Equivalence.FromMap`。
+前者は閉部分空間の円柱と底面の和から cofiber を構成し、コンパクト Hausdorff 性・底面の埋め込みと閉性・元の商空間への射影を示す。
+後者はコンパクト Hausdorff 空間間の連続な基点付き全単射から連続な逆写像を構成する。
+固定 snapshot は `work/k03-resume/compact-cofiber.source.json`。
+次は `relative_k_theory.Relative` 内の `Equivalence.FromMap` と `Pair.Pointed.Cofiber` を順に検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。
