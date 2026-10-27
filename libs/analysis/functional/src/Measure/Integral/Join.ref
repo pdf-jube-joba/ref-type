@@ -1,0 +1,42 @@
+\import Fin.Sum[m := m, n := n] \as Indices;
+\import Indices.Tuples[A := \Pow A] \as SetTuples;
+\import Indices.Tuples[A := Real.Real] \as ScalarTuples;
+\import std.Data[].Sum[] \as Sum;
+\use std.Logic[].Equality[].congr;
+\definition CrossDisjoint: \Prop := \forall (i: Fin.Fin m) (j: Fin.Fin n) -> Sets.Disjoint (s.cells i) (t.cells j);
+\definition cells: Fin.Fin Indices.total -> \Pow A := SetTuples.join s.cells t.cells;
+\definition coefficients: Fin.Fin Indices.total -> Real.Real := ScalarTuples.join s.coefficients t.coefficients;
+\definition cellMeasurable: \forall (i: Fin.Fin Indices.total) -> Measurable mu.sigma (cells i) :=
+  \fun (i: Fin.Fin Indices.total) => (\induction (u: Indices.Index) \return Measurable mu.sigma (SetTuples.evaluate s.cells t.cells u) \with {
+    | inl: \fun (j: Fin.Fin m) => s.measurable j
+    | inr: \fun (j: Fin.Fin n) => t.measurable j
+  }) (Indices.split i);
+\definition coefficientNonnegative: \forall (i: Fin.Fin Indices.total) -> R.Le Real.zero (coefficients i) :=
+  \fun (i: Fin.Fin Indices.total) => (\induction (u: Indices.Index) \return R.Le Real.zero (ScalarTuples.evaluate s.coefficients t.coefficients u) \with {
+    | inl: \fun (j: Fin.Fin m) => s.nonnegative j
+    | inr: \fun (j: Fin.Fin n) => t.nonnegative j
+  }) (Indices.split i);
+\definition disjointAt: CrossDisjoint -> \forall (u, v: Indices.Index) -> Logic.Not (Indices.inflate u = Indices.inflate v) ->
+  Sets.Disjoint (SetTuples.evaluate s.cells t.cells u) (SetTuples.evaluate s.cells t.cells v) :=
+  \fun (cross: CrossDisjoint) => \induction (u: Indices.Index) \return \forall (v: Indices.Index) -> Logic.Not (Indices.inflate u = Indices.inflate v) ->
+    Sets.Disjoint (SetTuples.evaluate s.cells t.cells u) (SetTuples.evaluate s.cells t.cells v) \with {
+    | inl: \fun (i: Fin.Fin m) => \induction (v: Indices.Index) \return Logic.Not (Indices.inflate (Sum.Sum[Fin.Fin m, Fin.Fin n]::inl i) = Indices.inflate v) ->
+      Sets.Disjoint (s.cells i) (SetTuples.evaluate s.cells t.cells v) \with {
+        | inl: \fun (j: Fin.Fin m) (different: _) => s.disjoint i j (\fun (eq: i = j) => different (congr!{{Fin.Fin m} {Fin.Fin Indices.total}} Indices.left _ _ eq))
+        | inr: \fun (j: Fin.Fin n) (_: _) => cross i j
+      }
+    | inr: \fun (i: Fin.Fin n) => \induction (v: Indices.Index) \return Logic.Not (Indices.inflate (Sum.Sum[Fin.Fin m, Fin.Fin n]::inr i) = Indices.inflate v) ->
+      Sets.Disjoint (t.cells i) (SetTuples.evaluate s.cells t.cells v) \with {
+        | inl: \fun (j: Fin.Fin m) (_: _) (x: A) (right: Sets.Member (t.cells i) x) (left: Sets.Member (s.cells j) x) => cross j i x left right
+        | inr: \fun (j: Fin.Fin n) (different: _) => t.disjoint i j (\fun (eq: i = j) => different (congr!{{Fin.Fin n} {Fin.Fin Indices.total}} Indices.right _ _ eq))
+      }
+  };
+\definition cellsDisjoint: CrossDisjoint -> \forall (i, j: Fin.Fin Indices.total) -> Logic.Not (i = j) -> Sets.Disjoint (cells i) (cells j) :=
+  \fun (cross: CrossDisjoint) (i, j: Fin.Fin Indices.total) (different: Logic.Not (i = j)) =>
+    disjointAt cross (Indices.split i) (Indices.split j)
+      (\fun (same: Indices.inflate (Indices.split i) = Indices.inflate (Indices.split j)) => different
+        (\idelim Indices.inflate (Indices.split j) = j \with k: Fin.Fin Indices.total => i = k \by {
+          base: \idelim Indices.inflate (Indices.split i) = i \with k: Fin.Fin Indices.total => k = Indices.inflate (Indices.split j) -> i = Indices.inflate (Indices.split j)
+            \by { base: \fun (eq: i = Indices.inflate (Indices.split j)) => eq, equality: Indices.inflateSplit i } same,
+          equality: Indices.inflateSplit j
+        }));
