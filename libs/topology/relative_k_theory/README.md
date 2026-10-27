@@ -188,3 +188,10 @@ K07 の影響先検査は最終検査に含める。
 通常の suspension の包含の像との照合には `Rotation.Endpoints.equation` と反転の自然性を使う。
 比較写像と接続写像の零元の保存も追加した。
 固定 snapshot は `work/k03-resume/left-exact-natural.source.json`。
+
+`BaseQuotient` の比較では、明示的な逆写像の連続性を円柱から直接示し、一般の全単射から逆写像を再度選ぶ構成を省いた。
+旧 `cofiber-exact` snapshot の長い検査は、この変更を保存後に中断として記録し、新しい snapshot で再開する。
+追加の未検証変更 `BaseQuotient.Forgetting` と `Connecting.pullbackEquation` は、接続写像を cofiber からの商写像による引き戻しとして表す。
+次の固定 snapshot は `work/k03-resume/direct-inverse.source.json`。
+旧 `cofiber-exact-Pair-Pointed-Cofiber-BaseQuotient` は終了130・`interrupted`・キャッシュ保存失敗0で中断した。
+同じ batch の後続二対象は未実行。
