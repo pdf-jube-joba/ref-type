@@ -47,3 +47,5 @@ workspace の libs/refcache を共有する。
 完備値域でのコンパクト作用素のノルム極限を、単位球上一様の距離近似から全有界性を得て証明した。Compact.Limit と零空間の例は個別検査で終了 0。残りは随伴のコンパクト性、恒等作用素のコンパクト性から有限次元性、および有限次元・有限階数近似の基礎補題。
 
 ソース commit 2584ef40 に対する対象・依存先・functional_analysis.Metric.Geometry の検査はいずれも accepted、終了 0、キャッシュ保存失敗 0。結果は benchmarks/records/complex-hilbert/README.md を参照。
+
+有限集合が張る部分空間に向けて、既存の Hermitian.Inner.Of.Unit の階数 1 射影を複素 Hilbert 空間へ接続し、縮小性、有界作用素としての構成、有限自由座標を通る因子分解を Space.Hilbert.RankOne に追加した。個別検査は終了 0。次は有限生成集合への拡張、有限階数近似、随伴と恒等作用素の有限次元性。
