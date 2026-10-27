@@ -1,0 +1,19 @@
+\import Relative.Maps[B := B].Over[target := target, targetSubset := targetSubset] \as PairMaps;
+\import singular_cohomology.Relative[A := B, source := target, subset := targetSubset] \as TargetPair;
+\import \root.RelativeEvaluation[A := B, source := target, subset := targetSubset].With[coefficients := coefficients] \as TargetEvaluation;
+\import Modules.End[V := coefficients.Carrier, space := coefficients.space] \as Identity;
+\module On(f: PairMaps.Map) {
+  \import PairMaps.On[f := f].Integer[] \as Map;
+  \import Map.With[coefficients := coefficients] \as Pull;
+  \import derived_functors.UniversalCoefficient[].Over[R := I.Int^, ring := Integers.commutativeRing]
+    .Morphism[C := Relative.complex, D := TargetPair.complex, A := coefficients, B := coefficients].On[f := Map.map, u := Identity.identity] \as Naturality;
+  \module At(z: I.Int^) {
+    \import Naturality.At[z := z] \as Native;
+    \import \parent.\parent.At[z := z] \as Source;
+    \import TargetEvaluation.At[z := z] \as Target;
+    \definition law: \forall (alpha: Target.Cohomology.Carrier)(x: Source.Homology.Carrier) ->
+      Source.apply (Pull.At[z := z].induced.apply alpha) x = Target.apply alpha (Map.At[z := z].induced.apply x) :=
+      \fun (alpha: Target.Cohomology.Carrier)(x: Source.Homology.Carrier) =>
+        congr!{Native.Target.ValueCarrier coefficients.Carrier} (\fun (g: Native.Target.ValueCarrier) => (g).apply x) _ _ (Native.naturality alpha);
+  }
+}
