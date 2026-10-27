@@ -1,0 +1,51 @@
+\import \root.Measure[A := A].Sigma[] \as Sigma;
+\import \root.Measure[A := A].ValueLaws[] \as Values;
+\import \root.Measure[A := A].Finite[mu := mu] \as FiniteMeasure;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\definition MeasurableSet: \Set := \Cast[\Pow A] ({ S: \Pow A \where Measurable mu.sigma S });
+\definition measurable[S: MeasurableSet]: Measurable mu.sigma S := \bysub(\Pow A, { S: \Pow A \where Measurable mu.sigma S }, S);
+\definition inside[S: MeasurableSet] [n: N.Nat^] [s: Simple[n]]: Simple[n] := Simple[n] {
+  cells := \fun (i: Fin.Fin n) => Sets.Intersection (s.cells i) S,
+  coefficients := s.coefficients,
+  measurable := \fun (i: Fin.Fin n) => Sigma.intersectionMeasurable mu.sigma (s.cells i) S (s.measurable i) (measurable S),
+  nonnegative := s.nonnegative,
+  disjoint := \fun (i, j: Fin.Fin n) (different: Logic.Not (i = j)) (x: A)
+    (left: Sets.Member (Sets.Intersection (s.cells i) S) x) (right: Sets.Member (Sets.Intersection (s.cells j) S) x) => s.disjoint i j different x left.left right.left,
+};
+\definition outside[S: MeasurableSet] [n: N.Nat^] [s: Simple[n]]: Simple[n] := Simple[n] {
+  cells := \fun (i: Fin.Fin n) => Sigma.difference (s.cells i) S,
+  coefficients := s.coefficients,
+  measurable := \fun (i: Fin.Fin n) => Sigma.differenceMeasurable mu.sigma (s.cells i) S (s.measurable i) (measurable S),
+  nonnegative := s.nonnegative,
+  disjoint := \fun (i, j: Fin.Fin n) (different: Logic.Not (i = j)) (x: A)
+    (left: Sets.Member (Sigma.difference (s.cells i) S) x) (right: Sets.Member (Sigma.difference (s.cells j) S) x) => s.disjoint i j different x left.left right.left,
+};
+\definition cellSplit: \forall (S: MeasurableSet) (T: \Pow A) -> Measurable mu.sigma T ->
+  mu.value T = add (mu.value (Sets.Intersection T S)) (mu.value (Sigma.difference T S)) :=
+  \fun (S: MeasurableSet) (T: \Pow A) (t: Measurable mu.sigma T) => eq_reason_in!{Value _
+    "=" _ "by" { congr!{{\Pow A} Value} mu.value _ _ (FiniteMeasure.partitionBy T S) }
+    "=" _ "by" { FiniteMeasure.additivity (Sigma.difference T S) (Sets.Intersection T S)
+      (Sigma.differenceMeasurable mu.sigma T S t (measurable S)) (Sigma.intersectionMeasurable mu.sigma T S t (measurable S)) (FiniteMeasure.partitionDisjoint T S) }
+    "=" _ "by" { Values.addComm (mu.value (Sigma.difference T S)) (mu.value (Sets.Intersection T S)) }
+  };
+\definition integralSplit: \forall (S: MeasurableSet) (n: N.Nat^) (s: Simple[n]) ->
+  simpleIntegral n s = add (simpleIntegral n (inside S n s)) (simpleIntegral n (outside S n s)) :=
+  \fun (S: MeasurableSet) (n: N.Nat^) (s: Simple[n]) => eq_reason_in!{Value _
+    "=" _ "by" { congr!{{Fin.Fin n -> Value} Value} (sum n) _ _
+      (\axiom:funext((\fun (i: Fin.Fin n) => scale (s.coefficients i) (mu.value (s.cells i))),
+        (\fun (i: Fin.Fin n) => add (scale (s.coefficients i) (mu.value (Sets.Intersection (s.cells i) S))) (scale (s.coefficients i) (mu.value (Sigma.difference (s.cells i) S)))),
+        \fun (i: Fin.Fin n) => eq_reason_in!{Value _
+          "=" _ "by" { congr!{Value Value} (scale (s.coefficients i)) _ _ (cellSplit S (s.cells i) (s.measurable i)) }
+          "=" _ "by" { Values.scaleAdd (s.coefficients i) (mu.value (Sets.Intersection (s.cells i) S)) (mu.value (Sigma.difference (s.cells i) S)) (s.nonnegative i)
+            (FiniteMeasure.laws.nonnegative (Sets.Intersection (s.cells i) S) (inside S n s).measurable i)
+            (FiniteMeasure.laws.nonnegative (Sigma.difference (s.cells i) S) (outside S n s).measurable i) }
+        })) }
+    "=" _ "by" { Values.sumAdd n (\fun (i: Fin.Fin n) => scale (s.coefficients i) (mu.value (Sets.Intersection (s.cells i) S)))
+      (\fun (i: Fin.Fin n) => scale (s.coefficients i) (mu.value (Sigma.difference (s.cells i) S)))
+      (\fun (i: Fin.Fin n) => Values.scaleNonnegative (s.coefficients i) (mu.value (Sets.Intersection (s.cells i) S)) (s.nonnegative i)
+        (FiniteMeasure.laws.nonnegative (Sets.Intersection (s.cells i) S) (inside S n s).measurable i))
+      (\fun (i: Fin.Fin n) => Values.scaleNonnegative (s.coefficients i) (mu.value (Sigma.difference (s.cells i) S)) (s.nonnegative i)
+        (FiniteMeasure.laws.nonnegative (Sigma.difference (s.cells i) S) (outside S n s).measurable i)) }
+  };
