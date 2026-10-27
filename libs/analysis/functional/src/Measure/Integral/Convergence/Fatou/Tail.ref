@@ -1,0 +1,30 @@
+\use std.Logic[].Equality[].sym;
+\definition values[n: N.Nat^] [x: A]: \Pow Real.Real :=
+  { y: Real.Real \where \exists ( k: N.Nat^ \where Logic.And[Nat.Le n k, y = f k x] ) };
+\definition valueMember: \forall (n, k: N.Nat^) (x: A) -> Nat.Le n k -> Complete.Member (values n x) (f k x) :=
+  \fun (n, k: N.Nat^) (x: A) (later: Nat.Le n k) =>
+    Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Logic.And[Nat.Le n j, f k x = f j x] }] k (Logic.And[_, _]::# later (\refl(f k x)));
+\definition valueNonempty: \forall (n: N.Nat^) (x: A) -> Complete.Nonempty (values n x) :=
+  \fun (n: N.Nat^) (x: A) => \exact(\into[Real.Real](f n x, values n x) \by { valueMember n n x (Nat.leRefl n) }, \Cast[Real.Real] (values n x));
+\definition valueBoundedBelow: \forall (n: N.Nat^) (x: A) -> Complete.BoundedBelow (values n x) :=
+  \fun (n: N.Nat^) (x: A) => Logic.existsIntro[Real.Real, { l: Real.Real \where Complete.LowerBound (values n x) l }] Real.zero
+    (\fun (y: Real.Real) (member: Complete.Member (values n x) y) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Logic.And[Nat.Le n k, y = f k x] }) \by member \then
+      \let data: Logic.And[Nat.Le n k, y = f k x] := \bysub(N.Nat^, { k: N.Nat^ \where Logic.And[Nat.Le n k, y = f k x] }, k) \then
+      \return R.leReplaceRight Real.zero (f k x) y (sym!{Real.Real} _ _ data.right) (sequenceLaw f).right k x
+    });
+\definition domain[n: N.Nat^] [x: A]: Complete.InfimumDomain :=
+  \into[\Pow Real.Real](values n x, Complete.InfimumDomainSet) \by { Logic.And[_, _]::# (valueNonempty n x) (valueBoundedBelow n x) };
+\definition value[n: N.Nat^] [x: A]: Real.Real := Complete.infimum (domain n x);
+\definition valueLaw: \forall (n: N.Nat^) (x: A) -> Complete.GreatestLowerBound (values n x) (value n x) :=
+  \fun (n: N.Nat^) (x: A) => Complete.infimumLaw (domain n x);
+\definition lower: \forall (n, k: N.Nat^) -> Nat.Le n k -> \forall (x: A) -> R.Le (value n x) (f k x) :=
+  \fun (n, k: N.Nat^) (later: Nat.Le n k) (x: A) => (valueLaw n x).left (f k x) (valueMember n k x later);
+\definition increasing: FunctionIncreasing value :=
+  \fun (n: N.Nat^) (x: A) => (valueLaw (N.Nat^::succ n) x).right (value n x)
+    (\fun (y: Real.Real) (member: Complete.Member (values (N.Nat^::succ n) x) y) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Logic.And[Nat.Le (N.Nat^::succ n) k, y = f k x] }) \by member \then
+      \let data: Logic.And[Nat.Le (N.Nat^::succ n) k, y = f k x] := \bysub(N.Nat^, { k: N.Nat^ \where Logic.And[Nat.Le (N.Nat^::succ n) k, y = f k x] }, k) \then
+      \return R.leReplaceRight (value n x) (f k x) y (sym!{Real.Real} _ _ data.right)
+        (lower n k (Nat.leTrans n (N.Nat^::succ n) k (Nat.leSelfSucc n) data.left) x)
+    });
