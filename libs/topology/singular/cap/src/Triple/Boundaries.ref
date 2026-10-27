@@ -43,3 +43,63 @@
             (Laws.leftZero (SecondComparison.from beta))))
       };
 }
+\module LeftStep(k, q: N.Nat^) {
+  \import singular_cohomology.Simplices[A := A, source := source].CutFaces[p := k, q := q] \as Geometry;
+  \import \parent.\parent.Cup[p := N.Nat^::succ k, q := q].Both[] \as Product;
+  \import \parent.\parent.LeftPrimitive[k := k, q := q] \as Primitive;
+  \definition law: LeftProperty (N.Nat^::succ k) q := \block {
+    \fun (alpha: FirstDegree.Carrier (N.Nat^::succ k))(beta: SecondDegree.Carrier q)(closed: _)(member: _) \then
+    \takefrom gamma: \Cast[FirstDegree.Carrier k] ({ h: FirstDegree.Carrier k \where FirstDegree.differential k h = alpha }) \by member \then
+    \let equal: FirstDegree.differential k gamma = alpha := \bysub(FirstDegree.Carrier k, { h: FirstDegree.Carrier k \where FirstDegree.differential k h = alpha }, gamma) \then
+    \let exact: Member Geometry.leftDegree (Product.product (FirstDegree.differential k gamma) beta) := reflects Geometry.leftDegree Geometry.higher Geometry.same _ (Primitive.boundary gamma beta closed) \then
+    \return \idelim Product.product (FirstDegree.differential k gamma) beta = Product.product alpha beta \with x: Common.family.Carrier Geometry.leftDegree => Member Geometry.leftDegree x \by {
+      base: exact,
+      equality: congr!{{FirstDegree.Carrier (N.Nat^::succ k)} {Common.family.Carrier Geometry.leftDegree}} (\fun (x: FirstDegree.Carrier (N.Nat^::succ k)) => Product.product x beta) _ _ equal
+    }
+  };
+}
+\definition left: \forall (p, q: N.Nat^) -> LeftProperty p q :=
+  \induction (p: N.Nat^) \return \forall (q: N.Nat^) -> LeftProperty p q \with {
+    | zero: \fun (q: N.Nat^) => LeftZero[q := q].law
+    | succ: \fun (k: N.Nat^)(unused: _)(q: N.Nat^) => LeftStep[k := k, q := q].law
+  };
+\definition RightProperty[p, q: N.Nat^]: \Prop := \forall (alpha: FirstDegree.Carrier p)(beta: SecondDegree.Carrier q) ->
+  FirstDegree.differential p alpha = (FirstDegree.space (N.Nat^::succ p)).zero -> SecondBoundaries.Member q beta ->
+  Member (Nat.add p q) (\parent.Cup[p := p, q := q].Both[].product alpha beta);
+\module RightZero(p: N.Nat^) {
+  \import \parent.\parent.Cup[p := p, q := N.Nat^::zero].Both[] \as Product;
+  \import FirstPair.Comparison[n := p] \as FirstComparison;
+  \import SecondPair.Comparison[n := N.Nat^::zero] \as SecondComparison;
+  \import Cochains.Cup[p := p, q := N.Nat^::zero] \as WholeProduct;
+  \import WholeProduct.Bilinear[] \as Laws;
+  \definition law: RightProperty p N.Nat^::zero :=
+    \fun (alpha: FirstDegree.Carrier p)(beta: SecondDegree.Carrier N.Nat^::zero)(closed: _)(member: _) =>
+      \idelim (Common.family.space (Nat.add p N.Nat^::zero)).zero = Product.product alpha beta \with x: Common.family.Carrier (Nat.add p N.Nat^::zero) => Member (Nat.add p N.Nat^::zero) x \by {
+        base: zero (Nat.add p N.Nat^::zero),
+        equality: sym!{{Cochains.Carrier (Nat.add p N.Nat^::zero)}} _ _ (trans!{{Cochains.Carrier (Nat.add p N.Nat^::zero)}} _ _ _
+          (congr!{{SecondDegree.Carrier N.Nat^::zero} {Cochains.Carrier (Nat.add p N.Nat^::zero)}} (Product.product alpha) _ _ (SecondZero.law beta member))
+          (trans!{{Cochains.Carrier (Nat.add p N.Nat^::zero)}} _ _ _
+            (congr!{{Cochains.Carrier N.Nat^::zero} {Cochains.Carrier (Nat.add p N.Nat^::zero)}} (WholeProduct.apply (FirstComparison.from alpha)) _ _ SecondComparison.zero)
+            (Laws.rightZero (FirstComparison.from alpha))))
+      };
+}
+\module RightStep(p, r: N.Nat^) {
+  \import singular_cohomology.Simplices[A := A, source := source].CutFaces[p := p, q := r] \as Geometry;
+  \import \parent.\parent.Cup[p := p, q := N.Nat^::succ r].Both[] \as Product;
+  \import \parent.\parent.RightPrimitive[p := p, r := r] \as Primitive;
+  \definition law: RightProperty p (N.Nat^::succ r) := \block {
+    \fun (alpha: FirstDegree.Carrier p)(beta: SecondDegree.Carrier (N.Nat^::succ r))(closed: _)(member: _) \then
+    \takefrom gamma: \Cast[SecondDegree.Carrier r] ({ h: SecondDegree.Carrier r \where SecondDegree.differential r h = beta }) \by member \then
+    \let equal: SecondDegree.differential r gamma = beta := \bysub(SecondDegree.Carrier r, { h: SecondDegree.Carrier r \where SecondDegree.differential r h = beta }, gamma) \then
+    \let exact: Member Geometry.higher (Product.product alpha (SecondDegree.differential r gamma)) := Primitive.boundary alpha gamma closed \then
+    \return \idelim Product.product alpha (SecondDegree.differential r gamma) = Product.product alpha beta \with x: Common.family.Carrier Geometry.higher => Member Geometry.higher x \by {
+      base: exact,
+      equality: congr!{{SecondDegree.Carrier (N.Nat^::succ r)} {Common.family.Carrier Geometry.higher}} (Product.product alpha) _ _ equal
+    }
+  };
+}
+\definition right: \forall (p, q: N.Nat^) -> RightProperty p q :=
+  \fun (p: N.Nat^) => \induction (q: N.Nat^) \return RightProperty p q \with {
+    | zero: RightZero[p := p].law
+    | succ: \fun (r: N.Nat^)(unused: _) => RightStep[p := p, r := r].law
+  };
