@@ -5,6 +5,13 @@
 \use Equality.eq_reason_in;
 \import \root.Integral[A := A, source := source].Pair[subset := subset].ZeroHomology[q := q] \as SourceCap;
 \import TargetCap.ZeroHomology[q := q] \as DestinationCap;
+\import \root.Integral[A := A, source := source].Pair[subset := subset].Boundary[p := N.Nat^::zero, q := q] \as SourceBoundary;
+\import \root.Integral[A := A, source := source].At[p := N.Nat^::zero, q := q] \as WholeCap;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.At[C := Relative.complex, z := I.Int^::ofNat WholeCap.total] \as Input;
+\import Complexes.At[C := Relative.complex, z := I.Int^::ofNat N.Nat^::zero] \as Output;
+\import Complexes.At[C := TargetPair.complex, z := I.Int^::ofNat WholeCap.total] \as TargetInput;
+\import Complexes.At[C := TargetPair.complex, z := I.Int^::ofNat N.Nat^::zero] \as TargetOutput;
 \import \parent.At[p := N.Nat^::zero, q := q] \as Formula;
 \import singular_cohomology.Cochains[A := B, source := target].With[coefficients := Cochains.integerCoefficients] \as TargetTheory;
 \import singular_cohomology.Cochains[A := A, source := source].With[coefficients := Cochains.integerCoefficients] \as SourceTheory;
@@ -13,27 +20,26 @@
 \import WholeMap.Coefficients[M := Cochains.integerCoefficients, L := Cochains.integerCoefficients] \as Pullback;
 \import Modules.End[V := I.Int^, space := Cochains.integerCoefficients.space] \as CoefficientMaps;
 \import CochainComplexes.Map[C := TargetTheory.complex, D := SourceTheory.complex].At[k := q] \as PullbackAt;
-\definition pulledClosed[beta: TargetCochain.CycleCarrier]: SourceCap.Boundary.closed (Pull.apply q f (PairMaps.laws f).continuous beta) :=
+\definition pulledClosed[beta: TargetCochain.CycleCarrier]: SourceBoundary.closed (Pull.apply q f (PairMaps.laws f).continuous beta) :=
   PullbackAt.preservesClosed (Pullback.map f (PairMaps.laws f).continuous CoefficientMaps.identity) beta;
 \module On(beta: TargetCochain.CycleCarrier) {
   \import SourceCap.On[beta := Pull.apply q f (PairMaps.laws f).continuous beta, closed := pulledClosed beta] \as Before;
   \import DestinationCap.On[beta := beta, closed := \bysub(TargetCochains.Carrier q, TargetCochain.cycles.carrier, beta)] \as After;
   \import Before.Induced[] \as BeforeInduced;
   \import After.Induced[] \as AfterInduced;
-  \import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
-  \import Complexes.Map[C := Relative.complex, D := TargetPair.complex].At[k := I.Int^::ofNat SourceCap.WholeCap.total] \as InputMap;
+  \import Complexes.Map[C := Relative.complex, D := TargetPair.complex].At[k := I.Int^::ofNat WholeCap.total] \as InputMap;
   \import Complexes.Map[C := Relative.complex, D := TargetPair.complex].At[k := I.Int^::ofNat N.Nat^::zero] \as OutputMap;
-  \definition law: \forall (x: SourceCap.Source.Homology) ->
+  \definition law: \forall (x: Input.Homology) ->
     (OutputMap.induced PairMap.map).apply ((BeforeInduced.map).apply x) =
     (AfterInduced.map).apply ((InputMap.induced PairMap.map).apply x) :=
-    SourceCap.Source.classInduction (\fun (x: SourceCap.Source.Homology) =>
+    Input.classInduction (\fun (x: Input.Homology) =>
       (OutputMap.induced PairMap.map).apply ((BeforeInduced.map).apply x) =
       (AfterInduced.map).apply ((InputMap.induced PairMap.map).apply x))
-      (\fun (x: SourceCap.Source.Cycle) => eq_reason_in!{DestinationCap.Target.Homology _
-        "=" _ "by" { congr!{SourceCap.Target.Homology DestinationCap.Target.Homology} ((OutputMap.induced PairMap.map).apply) _ _ (BeforeInduced.onClass x) }
+      (\fun (x: Input.Cycle) => eq_reason_in!{TargetOutput.Homology _
+        "=" _ "by" { congr!{Output.Homology TargetOutput.Homology} ((OutputMap.induced PairMap.map).apply) _ _ (BeforeInduced.onClass x) }
         "=" _ "by" { OutputMap.onClass PairMap.map (Before.cycle x) }
-        "=" _ "by" { DestinationCap.Target.cycleClassExt _ _ (Formula.law beta x) }
-        "=" _ "by" { sym!{DestinationCap.Target.Homology} _ _ (AfterInduced.onClass ((InputMap.cyclesMap PairMap.map).apply x)) }
-        "=" _ "by" { congr!{DestinationCap.Source.Homology DestinationCap.Target.Homology} ((AfterInduced.map).apply) _ _ (sym!{DestinationCap.Source.Homology} _ _ (InputMap.onClass PairMap.map x)) }
+        "=" _ "by" { TargetOutput.cycleClassExt _ _ (Formula.law beta x) }
+        "=" _ "by" { sym!{TargetOutput.Homology} _ _ (AfterInduced.onClass ((InputMap.cyclesMap PairMap.map).apply x)) }
+        "=" _ "by" { congr!{TargetInput.Homology TargetOutput.Homology} ((AfterInduced.map).apply) _ _ (sym!{TargetInput.Homology} _ _ (InputMap.onClass PairMap.map x)) }
       });
 }
