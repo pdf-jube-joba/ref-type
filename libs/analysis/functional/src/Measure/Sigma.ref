@@ -99,3 +99,27 @@
         equality: (\idelim intersection f = Sets.Complement (union (\fun (n: N.Nat^) => Sets.Complement (f n)))
           \with S: \Pow A => S = intersection f \by { base: \refl(intersection f), equality: intersectionAsComplement f })
       };
+
+\definition prefix[f: N.Nat^ -> \Pow A]: N.Nat^ -> \Pow A :=
+  \induction (n: N.Nat^) \return \Pow A \with {
+    | zero: Sets.Empty
+    | succ: \fun (n: N.Nat^) (previous: \Pow A) => pairUnion previous (f n)
+  };
+\definition prefixMeasurable: \forall (sigma: SigmaAlgebra) (f: N.Nat^ -> \Pow A) ->
+  (\forall (n: N.Nat^) -> Measurable sigma (f n)) -> \forall (n: N.Nat^) -> Measurable sigma (prefix f n) :=
+  \fun (sigma: SigmaAlgebra) (f: N.Nat^ -> \Pow A) (measurable: \forall (n: N.Nat^) -> Measurable sigma (f n)) =>
+    \induction (n: N.Nat^) \return Measurable sigma (prefix f n) \with {
+      | zero: (laws sigma).empty
+      | succ: \fun (n: N.Nat^) (previous: _) => pairMeasurable sigma (prefix f n) (f n) previous (measurable n)
+    };
+\definition prefixGrowing: \forall (f: N.Nat^ -> \Pow A) (n: N.Nat^) -> Sets.Subset (prefix f n) (prefix f (N.Nat^::succ n)) :=
+  \fun (f: N.Nat^ -> \Pow A) (n: N.Nat^) (x: A) (member: Sets.Member (prefix f n) x) => Logic.Or[_, _]::left member;
+\definition prefixContainsCurrent: \forall (f: N.Nat^ -> \Pow A) (n: N.Nat^) -> Sets.Subset (f n) (prefix f (N.Nat^::succ n)) :=
+  \fun (f: N.Nat^ -> \Pow A) (n: N.Nat^) (x: A) (member: Sets.Member (f n) x) => Logic.Or[_, _]::right member;
+\definition prefixContainedInUnion: \forall (f: N.Nat^ -> \Pow A) (n: N.Nat^) -> Sets.Subset (prefix f n) (union f) :=
+  \fun (f: N.Nat^ -> \Pow A) => \induction (n: N.Nat^) \return Sets.Subset (prefix f n) (union f) \with {
+    | zero: \fun (x: A) (empty: Logic.False) => Logic.falseElim _ empty
+    | succ: \fun (n: N.Nat^) (previous: _) (x: A) (member: Sets.Member (prefix f (N.Nat^::succ n)) x) =>
+      Logic.orElim _ _ (Sets.Member (union f) x) member (previous x)
+        (\fun (current: Sets.Member (f n) x) => Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (f k) x }] n current)
+  };
