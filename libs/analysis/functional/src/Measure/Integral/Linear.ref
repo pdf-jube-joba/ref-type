@@ -60,3 +60,38 @@
     "=" _ "by" { congr!{Real.Real Real.Real} (\fun (z: Real.Real) => Real.add z (Real.add (negativePart f x) (negativePart g x))) _ _
       (sym!{Real.Real} _ _ (partsDecompose (\fun (y: A) => Real.add (f y) (g y)) x)) }
   };
+\import \root.Measure[A := A].Integral[mu := mu].Zero[] \as Zero;
+\definition positiveData: \forall (f: Representatives) -> NonnegativeMeasurable := \fun (f: Representatives) => NonnegativeMeasurable {
+  function := positivePart f,
+  measurable := Functions.maxMeasurable Zero.function f Zero.measurable (\bysub(A -> Real.Real, { h: A -> Real.Real \where Integrable h }, f)).left,
+  nonnegative := positivePartNonnegative f,
+};
+\definition negativeData: \forall (f: Representatives) -> NonnegativeMeasurable := \fun (f: Representatives) => NonnegativeMeasurable {
+  function := negativePart f,
+  measurable := Functions.maxMeasurable Zero.function (\fun (x: A) => Real.neg (f x)) Zero.measurable
+    (Functions.negMeasurable f (\bysub(A -> Real.Real, { h: A -> Real.Real \where Integrable h }, f)).left),
+  nonnegative := negativePartNonnegative f,
+};
+\definition sumData: \forall (p, q: NonnegativeMeasurable) -> NonnegativeMeasurable := \fun (p, q: NonnegativeMeasurable) => NonnegativeMeasurable {
+  function := \fun (x: A) => Real.add (p.function x) (q.function x),
+  measurable := Functions.addMeasurable p.function q.function p.measurable q.measurable,
+  nonnegative := \fun (x: A) => Laws.addNonnegative (p.function x) (q.function x) (p.nonnegative x) (q.nonnegative x),
+};
+\definition sumSup: \forall (p, q: NonnegativeMeasurable) (a, b: Real.Real) ->
+  Complete.LeastUpperBound[lowerIntegral p.function, a] -> Complete.LeastUpperBound[lowerIntegral q.function, b] ->
+  Complete.LeastUpperBound[lowerIntegral ((sumData p q).function), Real.add a b] :=
+  \fun (p, q: NonnegativeMeasurable) (a, b: Real.Real) =>
+    \root.Measure[A := A].Integral[mu := mu].Additive[].Measured[p := p, q := q].supremum a b;
+\definition subtractBalance: \forall (a, b, c, d, e, f: Real.Real) ->
+  Real.add (Real.add a b) c = Real.add d (Real.add e f) -> Real.sub d c = Real.add (Real.sub a e) (Real.sub b f) :=
+  \fun (a, b, c, d, e, f: Real.Real) (balance: Real.add (Real.add a b) c = Real.add d (Real.add e f)) => eq_reason_in!{Real.Real _
+    "=" _ "by" { sym!{Real.Real} _ _ (Laws.addZeroRight (Real.sub d c)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (Real.sub d c)) _ _ (sym!{Real.Real} _ _ (Laws.subSelf (Real.add e f))) }
+    "=" _ "by" { sym!{Real.Real} _ _ (Algebra.subAdd d (Real.add e f) c (Real.add e f)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (z: Real.Real) => Real.sub z (Real.add c (Real.add e f))) _ _ (sym!{Real.Real} _ _ balance) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.sub (Real.add (Real.add a b) c)) _ _ (Laws.addComm c (Real.add e f)) }
+    "=" _ "by" { Algebra.subAdd (Real.add a b) c (Real.add e f) c }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (Real.sub (Real.add a b) (Real.add e f))) _ _ (Laws.subSelf c) }
+    "=" _ "by" { Laws.addZeroRight (Real.sub (Real.add a b) (Real.add e f)) }
+    "=" _ "by" { Algebra.subAdd a b e f }
+  };
