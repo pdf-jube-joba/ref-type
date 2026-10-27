@@ -23,3 +23,24 @@
 \module At(z: I.Int^) {
   \definition quotientOnClass: _ := QuotientMap.At[k := z].onClass compatible;
 }
+\import Split.On[pair := pair] \as SmallPair;
+\import IntegerChains.ShortExact[A := SmallExtension.complex, B := WholeExtension.complex, C := SmallQuotient.complex]
+  .Morphism[A1 := UnionExtension.complex, B1 := WholeExtension.complex, C1 := Relative.complex]
+  .Diagram[s := SmallPair.sequence, t := Relative.sequence, a := SubMap.map, b := WholeMaps.identity, c := map] \as Diagram;
+\definition diagram: Diagram.Commutative := Diagram.Commutative {
+  left := compatible,
+  right := \fun (z: I.Int^)(x: WholeExtension.Carrier z) => sym!{{Relative.Carrier z}} _ _ (QuotientMap.At[k := z].onClass compatible x),
+};
+\import Complexes.Equivalence[C := Small.complex, D := UnionChains.complex].ZeroExtension[e := equivalence] \as SubEquivalence;
+\import IntegerChains.Isomorphism[C := WholeExtension.complex, D := WholeExtension.complex] \as WholeIsomorphisms;
+\definition wholeData: WholeIsomorphisms.Data := WholeIsomorphisms.Data { forward := WholeMaps.identity, backward := WholeMaps.identity };
+\definition wholeIsomorphism: WholeIsomorphisms.Isomorphism := \into[WholeIsomorphisms.Data](wholeData, WholeIsomorphisms.Isomorphism) \by {
+  WholeIsomorphisms.Laws[wholeData] { leftInverse := \fun (z: I.Int^)(x: WholeExtension.Carrier z) => \refl(x), rightInverse := \fun (z: I.Int^)(x: WholeExtension.Carrier z) => \refl(x) }
+};
+\import IntegerChains.Equivalence[C := WholeExtension.complex, D := WholeExtension.complex].FromIsomorphism[] \as WholeEquivalence;
+\definition quasiIsomorphism: IntegerChains.Map[C := SmallQuotient.complex, D := Relative.complex].QuasiIsomorphism map :=
+  Diagram.rightQuasiIsomorphism diagram SubEquivalence.quasiIsomorphism (IntegerChains.Equivalence[C := WholeExtension.complex, D := WholeExtension.complex].quasiIsomorphism (WholeEquivalence.apply wholeIsomorphism));
+\module Homology(z: I.Int^) {
+  \import IntegerChains.Map[C := SmallQuotient.complex, D := Relative.complex].At[k := z].Invert[f := map] \as Inverse;
+  \definition isomorphism: _ := Inverse.isomorphism (quasiIsomorphism z);
+}
