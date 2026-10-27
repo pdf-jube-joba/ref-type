@@ -1,0 +1,29 @@
+\import Modules.Hom[V := Source.Cycle, W := Target.Homology, source := Source.cycleSpace, target := Target.homologySpace] \as CycleMaps;
+\definition raw: CycleMaps.Map := CycleMaps.Map {
+  apply := \fun (x: Source.Cycle) => Target.classOf ((Cap.map beta).apply x),
+  addition := \fun (x, y: Source.Cycle) => trans!{Target.Homology} _ _ _
+    (congr!{{Chains.Carrier N.Nat^::zero} Target.Homology} Target.classOf _ _ ((Cap.map beta).addition x y))
+    ((Target.classLinear).addition ((Cap.map beta).apply x) ((Cap.map beta).apply y)),
+  scalar := \fun (a: I.Int^)(x: Source.Cycle) => trans!{Target.Homology} _ _ _
+    (congr!{{Chains.Carrier N.Nat^::zero} Target.Homology} Target.classOf _ _ ((Cap.map beta).scalar a x))
+    ((Target.classLinear).scalar a ((Cap.map beta).apply x)),
+};
+\import Modules.Of[V := Chains.Carrier N.Nat^::zero, space := Chains.space N.Nat^::zero].Submodule[] \as TargetSub;
+\import TargetSub.Quotient[S := Target.boundaries] \as TargetQuotient;
+\import TargetSub.Image[U := Chains.Carrier (N.Nat^::succ N.Nat^::zero), source := Chains.space (N.Nat^::succ N.Nat^::zero)] \as TargetImages;
+\import Modules.Of[V := Source.Cycle, space := Source.cycleSpace].Submodule[].Quotient[S := Source.boundariesInside].To[W := Target.Homology, target := Target.homologySpace] \as Descent;
+\definition witness[y: Degree.Carrier (N.Nat^::succ WholeCap.total)]: Chains.Carrier (N.Nat^::succ N.Nat^::zero) :=
+  (Upper.map beta).apply (Degree.apply Geometry.higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) y);
+\definition vanishes: Descent.Vanishes raw := \block {
+  \fun (x: Source.Cycle)(member: _) \then
+  \takefrom y: \Cast[Degree.Carrier (N.Nat^::succ WholeCap.total)] ({ y: Degree.Carrier (N.Nat^::succ WholeCap.total) \where (Source.prior).apply y = x }) \by member \then
+  \let result: (raw).apply x = (Target.homologySpace).zero := TargetQuotient.classZero ((Cap.map beta).apply x) (TargetImages.introduce Target.prior ((Cap.map beta).apply x) (witness y)
+    (trans!{{Chains.Carrier N.Nat^::zero}} _ _ _ (sym!{{Chains.Carrier N.Nat^::zero}} _ _ (Boundary.law beta closed y))
+      (trans!{{Chains.Carrier N.Nat^::zero}} _ _ _
+        (congr!{{Degree.Carrier WholeCap.total} {Chains.Carrier N.Nat^::zero}} ((Cap.map beta).apply) _ _ (sym!{{Degree.Carrier WholeCap.total}} _ _ (RelativeHomology.sourcePrior y)))
+        (congr!{{Degree.Carrier WholeCap.total} {Chains.Carrier N.Nat^::zero}} ((Cap.map beta).apply) _ _
+          (\bysub(Degree.Carrier (N.Nat^::succ WholeCap.total), { y: Degree.Carrier (N.Nat^::succ WholeCap.total) \where (Source.prior).apply y = x }, y))))) \then
+  \return result
+};
+\definition map: Modules.Hom[V := Source.Homology, W := Target.Homology, source := Source.homologySpace, target := Target.homologySpace].Map := Descent.descend raw vanishes;
+\definition onClass: \forall (x: Source.Cycle) -> (map).apply (Source.classOf x) = Target.classOf ((Cap.map beta).apply x) := Descent.onClass raw vanishes;
