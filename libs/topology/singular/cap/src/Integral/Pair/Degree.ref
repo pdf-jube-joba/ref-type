@@ -1,0 +1,38 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import Nonnegative.ZeroExtension[C := Chains.complex] \as Extension;
+\import singular_cohomology.Chains[A := Relative.SubspaceCarrier, source := Subspace.topology source] \as SubChains;
+\import Nonnegative.ZeroExtension[C := SubChains.complex] \as SubExtension;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.Quotient[C := SubExtension.complex, D := Extension.complex].On[f := Relative.inclusionMap] \as Q;
+\definition Carrier[n: N.Nat^]: \Set := Relative.Carrier (I.Int^::ofNat n);
+\definition space[n: N.Nat^]: Modules.Space (Carrier n) := Relative.space (I.Int^::ofNat n);
+\definition class[n: N.Nat^][x: Chains.Carrier n]: Carrier n := Relative.class (I.Int^::ofNat n) (Extension.Positive[n := n].intro x);
+\definition apply[m, n: N.Nat^][same: m = n]: Carrier m -> Carrier n := Transport.cast Carrier m n same;
+\definition addition: \forall (m, n: N.Nat^)(same: m = n)(x, y: Carrier m) ->
+  apply m n same ((space m).add x y) = (space n).add (apply m n same x) (apply m n same y) :=
+  Transport.binaryNatural Carrier Carrier Carrier (\fun (k: N.Nat^) => (space k).add);
+\definition scalar: \forall (m, n: N.Nat^)(same: m = n)(a: I.Int^)(x: Carrier m) ->
+  apply m n same ((space m).smul a x) = (space n).smul a (apply m n same x) :=
+  \fun (m, n: N.Nat^)(same: m = n)(a: I.Int^) => Transport.natural Carrier Carrier (\fun (k: N.Nat^) => (space k).smul a) m n same;
+\definition linear[m, n: N.Nat^][same: m = n]: Modules.Hom[V := Carrier m, W := Carrier n, source := space m, target := space n].Map :=
+  Modules.Hom[V := Carrier m, W := Carrier n, source := space m, target := space n].Map { apply := apply m n same, addition := addition m n same, scalar := scalar m n same };
+\definition zero: \forall (m, n: N.Nat^)(same: m = n) -> apply m n same (space m).zero = (space n).zero :=
+  Transport.pointNatural Carrier (\fun (k: N.Nat^) => (space k).zero);
+\import Chains.DegreeTransport[] \as ChainDegrees;
+\definition onClass: \forall (m, n: N.Nat^)(same: m = n)(x: Chains.Carrier m) ->
+  apply m n same (class m x) = class n (ChainDegrees.apply m n same x) :=
+  Transport.natural Chains.Carrier Carrier class;
+\definition boundary[n: N.Nat^]: Modules.Hom[V := Carrier (N.Nat^::succ n), W := Carrier n, source := space (N.Nat^::succ n), target := space n].Map := Q.At[k := I.Int^::ofNat (N.Nat^::succ n)].differential;
+\definition boundaryOnClass: \forall (n: N.Nat^)(x: Chains.Carrier (N.Nat^::succ n)) ->
+  (boundary n).apply (class (N.Nat^::succ n) x) = class n ((Chains.boundary n).apply x) :=
+  \fun (n: N.Nat^)(x: Chains.Carrier (N.Nat^::succ n)) => Q.At[k := I.Int^::ofNat (N.Nat^::succ n)].onClass (Extension.Positive[n := N.Nat^::succ n].intro x);
+\definition boundaryNatural: \forall (m, n: N.Nat^)(same: m = n)(x: Carrier (N.Nat^::succ m)) ->
+  apply m n same ((boundary m).apply x) = (boundary n).apply (apply (N.Nat^::succ m) (N.Nat^::succ n) (congr!{N.Nat^ N.Nat^} N.Nat^::succ m n same) x) :=
+  \fun (m, n: N.Nat^)(same: m = n)(x: Carrier (N.Nat^::succ m)) => trans!{{Carrier n}} _ _ _
+    (Transport.natural (\fun (k: N.Nat^) => Carrier (N.Nat^::succ k)) Carrier (\fun (k: N.Nat^) => (boundary k).apply) m n same x)
+    (congr!{{Carrier (N.Nat^::succ n)} {Carrier n}} ((boundary n).apply) _ _ (Transport.reindex Carrier N.Nat^::succ m n same x));
