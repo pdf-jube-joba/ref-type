@@ -1,0 +1,36 @@
+\use std.Logic[].Equality[].trans;
+\use std.Logic[].Equality[].congr;
+\import \root.Real[n := n, k := k].Model[] \as Model;
+\import Original.Graph[a := toOriginal a, center := center] \as Old;
+\import topology.Maps[A := Model.Carrier, B := Original.Grassmannian] \as Sets;
+\definition domain: \Pow Model.Carrier := Sets.Preimage toOriginal Old.domain;
+\import topology.Topology[Carrier := Model.Carrier] \as Base;
+\import Base.Subspace[S := domain] \as Sub;
+\definition Local: \Set := Sub.CarrierSet;
+\definition localTopology: topology.Topology[Carrier := Local].Topology := Sub.topology topology;
+\definition open: Base.IsOpenIn topology domain := toOriginalContinuous Old.domain Old.open;
+\definition contains: \In[Model.Carrier] domain a := Old.contains;
+\definition toOld[x: Local]: Old.Carrier := \into[Original.Grassmannian](toOriginal x, Old.domain) \by { \bysub(Model.Carrier, domain, x) };
+\import topology.Continuity[A := Model.Carrier, B := Original.Grassmannian].Restriction[S := domain] \as Restrict;
+\import topology.Continuity[A := Local, B := Original.Grassmannian].Corestriction[S := Old.domain] \as Corestrict;
+\definition toOldContinuous: topology.Continuity[A := Local, B := Old.Carrier].Continuous localTopology Old.localTopology toOld :=
+  Corestrict.corestrictContinuous localTopology Original.topology toOld (Restrict.restrictContinuous topology Original.topology toOriginal toOriginalContinuous);
+\import linear_algebra.Hermitian[].Over[K := R.Real, field := R.Algebra[].field, scalar := H.Real[].scalar].Finite[n := k] \as Domain;
+\import std.Alg[].Field[] \as Fields;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := Fields.fieldAsCommutativeRing R.Real R.Algebra[].field] \as Spaces;
+\import Spaces.Linear[V := Domain.Vector, W := E.Vector, source := Domain.space, target := E.space] \as Maps;
+\definition graph[x: Local]: Maps.Map := Old.graphMap (toOld x);
+\import At.Families[X := Local].Matrix[m := k] \as MatricesLocal;
+\definition regular: MatricesLocal.Regular localTopology graph := \fun (v: Domain.Vector)(i: Fin.Fin n) =>
+  topology.Composition[A := Local, B := Old.Carrier, C := R.Real].composeContinuous localTopology Old.localTopology H.Real[].topological.space toOld (\fun (x: Old.Carrier) => (Old.graphMap x).apply v i) toOldContinuous (Old.graphMapRegular v i);
+\definition orthogonal: \forall (x: Local)(v, w: Domain.Vector) -> At.dot (center.value.apply v) ((graph x).apply w) = R.Algebra[].field.zero :=
+  \fun (x: Local)(v, w: Domain.Vector) => trans!{R.Real} _ _ _
+    (congr!{{E.Vector} R.Real} (At.dot (center.value.apply v)) _ _ (Old.graphMapFormula (toOld x) w)) (Old.graphOrthogonal (toOld x) v w);
+
+\definition normalized[x: Local]: Maps.Map := Old.normalized (toOld x);
+\definition imageCoordinates[x: Local][w: E.Vector]: Domain.Vector := Old.imageCoordinates (toOld x) w;
+\definition imageRepresentation: \forall (x: Local)(w: E.Vector) -> (normalized x).apply (imageCoordinates x w) = (projection x).map.apply w :=
+  \fun (x: Local)(w: E.Vector) => Old.imageRepresentation (toOld x) w;
+\definition graphFormula: \forall (x: Local)(v: Domain.Vector) -> E.space.add (center.value.apply v) ((graph x).apply v) = (normalized x).apply v :=
+  \fun (x: Local)(v: Domain.Vector) => trans!{{E.Vector}} _ _ _
+    (congr!{{E.Vector} {E.Vector}} (E.space.add (center.value.apply v)) _ _ (Old.graphMapFormula (toOld x) v)) (Old.graphFormula (toOld x) v);
