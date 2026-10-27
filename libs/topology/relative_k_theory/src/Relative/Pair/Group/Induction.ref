@@ -1,0 +1,45 @@
+\import module_theory.Module[].IntegerGroup[Carrier := Carrier, group := group] \as Action;
+\import Modules.Laws[V := Carrier, space := Presented.space] \as Laws;
+\import algebra.Hom[A := I.Int^, B := Carrier] \as Scalars;
+\module At(x: Carrier);
+\definition repeats: \forall (n: N.Nat^)(x: Carrier) -> P x -> P (Action.repeat n x) :=
+  \induction (n: N.Nat^) \return \forall (x: Carrier) -> P x -> P (Action.repeat n x) \with {
+    | zero: \fun (x: Carrier)(px: P x) => atZero
+    | succ: \fun (n: N.Nat^)(previous: \forall (x: Carrier) -> P x -> P (Action.repeat n x))(x: Carrier)(px: P x) => underAdd x (Action.repeat n x) px (previous x px)
+  };
+\definition naturals: \forall (n: N.Nat^)(x: Carrier) -> P x -> P (Action.action (I.Int^::ofNat n) x) :=
+  \fun (n: N.Nat^)(x: Carrier)(px: P x) => \idelim Action.repeat n x = Action.action (I.Int^::ofNat n) x \with y: Carrier => P y \by {
+    base: repeats n x px, equality: sym!{Carrier} _ _ (Action.onNatural n x)
+  };
+\definition integers: \forall (a: I.Int^)(x: Carrier) -> P x -> P (Action.action a x) :=
+  \induction (a: I.Int^) \return \forall (x: Carrier) -> P x -> P (Action.action a x) \with {
+    | ofNat: naturals
+    | negSucc: \fun (n: N.Nat^)(x: Carrier)(px: P x) =>
+      \idelim neg (Action.action (I.Int^::ofNat (N.Nat^::succ n)) x) = Action.action (I.Int^::negSucc n) x \with y: Carrier => P y \by {
+        base: underNeg (Action.action (I.Int^::ofNat (N.Nat^::succ n)) x) (naturals (N.Nat^::succ n) x px),
+        equality: sym!{Carrier} _ _ (Action.preservesNegative (Action.integerMap x) (I.Int^::ofNat (N.Nat^::succ n)))
+      }
+  };
+\definition scalars: \forall (a: I.Int^)(x: Carrier) -> P x -> P (Presented.scale a x) :=
+  \fun (a: I.Int^)(x: Carrier)(px: P x) => \idelim Action.action a x = Presented.scale a x \with y: Carrier => P y \by {
+    base: integers a x px, equality: sym!{Carrier} _ _ (At[x := x].equation a)
+  };
+\definition expressions: \forall (e: Expression) -> P (Presented.class e) :=
+  \induction (e: Expression) \return P (Presented.class e) \with {
+    | zero: atZero
+    | generator: atSymbol
+    | sum: \fun (e, f: Expression)(pe: P (Presented.class e))(pf: P (Presented.class f)) =>
+      \idelim add (Presented.class e) (Presented.class f) = Presented.class (Expressions.Expression::sum e f) \with x: Carrier => P x \by {
+        base: underAdd (Presented.class e) (Presented.class f) pe pf, equality: Presented.addClass e f
+      }
+    | negative: \fun (e: Expression)(pe: P (Presented.class e)) =>
+      \idelim neg (Presented.class e) = Presented.class (Expressions.Expression::negative e) \with x: Carrier => P x \by {
+        base: underNeg (Presented.class e) pe, equality: Presented.negClass e
+      }
+    | scale: \fun (a: I.Int^)(e: Expression)(pe: P (Presented.class e)) =>
+      \idelim Presented.scale a (Presented.class e) = Presented.class (Expressions.Expression::scale a e) \with x: Carrier => P x \by {
+        base: scalars a (Presented.class e) pe, equality: Presented.scaleClass a e
+      }
+  };
+\import std.Set[].Quotient[A := Expression, Equivalent := Presented.Equivalent] \as Classes;
+\definition principle: \forall (x: Carrier) -> P x := Classes.induction P expressions;
