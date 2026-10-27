@@ -6,7 +6,7 @@
 \[
  (\partial c)\frown\beta=\partial(c\frown\beta)+(-1)^p c\frown\delta\beta
 \]
-を表す。ここで右辺の出力次数は \(p\) である。`Integral.Natural` は連続写像に関する射影公式を与え、`Integral.Pair.Natural` は対写像に関してホモロジー上の射影公式を与える。`Integral.Excision` は切除同型とその順写像に関する cap 積の可換式を提供する。`Integral.Unit` は零次の単位余鎖の作用を扱う。
+を表す。ここで右辺の出力次数は \(p\) である。`Integral.Natural` は連続写像に関する射影公式を与え、`Integral.Pair.Natural` は対写像に関してホモロジー・余コホモロジー上の射影公式を与える。`Integral.Excision` は切除同型とその順写像に関する cap 積の可換式を提供する。`Integral.Unit` は零次の単位余鎖の作用を扱う。
 
 `Integral.Pair.At.Quotient` は相対鎖への絶対余鎖の作用、`RelativeCochain` は相対余鎖と相対鎖から絶対鎖への作用を構成する。両方の境界公式はそれぞれ `Pair.Boundary.Formula` と `Pair.RelativeCochainBoundary.Formula`、相対 cup との随伴は `Pair.At.Adjunction` にある。閉余鎖による作用は `Pair.CohomologyAction` と `Pair.RelativeCohomologyAction` および対応する零次数のモジュールでホモロジー・余コホモロジーへ降下する。
 
