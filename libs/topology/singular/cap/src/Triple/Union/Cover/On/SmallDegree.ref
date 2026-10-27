@@ -1,0 +1,26 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import Nonnegative.ZeroExtension[C := Small.complex] \as SmallExtension;
+\import Nonnegative.ZeroExtension[C := Chains.complex] \as WholeExtension;
+\import Nonnegative.Map[C := Small.complex, D := Chains.complex].ZeroExtension[f := inclusion] \as Inclusion;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.Quotient[C := SmallExtension.complex, D := WholeExtension.complex].On[f := Inclusion.map] \as Q;
+\import Chains.DegreeTransport[] \as ChainDegrees;
+\definition Carrier[n: N.Nat^]: \Set := Q.Carrier (I.Int^::ofNat n);
+\definition space[n: N.Nat^]: Modules.Space (Carrier n) := Q.space (I.Int^::ofNat n);
+\definition class[n: N.Nat^][x: Chains.Carrier n]: Carrier n := Q.At[k := I.Int^::ofNat n].class (WholeExtension.Positive[n := n].intro x);
+\definition apply[m, n: N.Nat^][same: m = n]: Carrier m -> Carrier n := Transport.cast Carrier m n same;
+\definition linear[m, n: N.Nat^][same: m = n]: Modules.Hom[V := Carrier m, W := Carrier n, source := space m, target := space n].Map := Modules.Hom[V := Carrier m, W := Carrier n, source := space m, target := space n].Map {
+  apply := apply m n same,
+  addition := Transport.binaryNatural Carrier Carrier Carrier (\fun (k: N.Nat^) => (space k).add) m n same,
+  scalar := \fun (a: I.Int^) => Transport.natural Carrier Carrier (\fun (k: N.Nat^) => (space k).smul a) m n same,
+};
+\definition onClass: \forall (m, n: N.Nat^)(same: m = n)(x: Chains.Carrier m) ->
+  apply m n same (class m x) = class n (ChainDegrees.apply m n same x) := Transport.natural Chains.Carrier Carrier class;
+\definition boundary[n: N.Nat^]: Modules.Hom[V := Carrier (N.Nat^::succ n), W := Carrier n, source := space (N.Nat^::succ n), target := space n].Map := Q.At[k := I.Int^::ofNat (N.Nat^::succ n)].differential;
+\definition boundaryOnClass: \forall (n: N.Nat^)(x: Chains.Carrier (N.Nat^::succ n)) ->
+  (boundary n).apply (class (N.Nat^::succ n) x) = class n ((Chains.boundary n).apply x) :=
+  \fun (n: N.Nat^)(x: Chains.Carrier (N.Nat^::succ n)) => Q.At[k := I.Int^::ofNat (N.Nat^::succ n)].onClass (WholeExtension.Positive[n := N.Nat^::succ n].intro x);
