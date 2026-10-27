@@ -30,3 +30,5 @@ cd /workspace/ref-type-b05
 直和のブロック射影と、基底の直和による階数の加法を実・複素用に実装した。実の `grassmannians.Real.Sum` は通常検査で accepted。複素側・直和写像の連続性と束の比較を続ける。
 
 直和写像の連続性を実装中。`Real.DirectSum` の個別検査を work/b05-directsum.log に実行し、終了コードと診断を確認してから修正する。実・複素ともこの段階では未検証。
+
+直和写像 `Real.DirectSum` の連続性は個別検査で accepted。複素側、全体、直和束の比較は未検査・未完了。
