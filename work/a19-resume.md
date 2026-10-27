@@ -64,3 +64,5 @@ workspace の libs/refcache を共有する。
 任意の複素 Hilbert 空間内の実線分がコンパクトであることを、実数の閉区間のコンパクト性と線形スカラー倍の連続性から Space.Hilbert.ScalarLines.segmentCompact として証明した。個別検査は終了 0。階数 1 射影の像を二つの実線分の和に含める証明へ進む。
 階数 1 の直交射影がコンパクトであることを Space.Hilbert.RankOne.Compact で証明した。単位球の像を 2 本のコンパクトな実線分の和に含める。対象モジュールの個別検査は終了 0。次は有限階数射影の帰納構成にコンパクト性を付け、任意の有限階数有界作用素へ拡張する。
 有限集合を固定する射影を、階数 1 コンパクト射影の和として帰納的に構成し、コンパクト性も同時に保持する定理 Space.Hilbert.FiniteProjection.Compact.coversFinite を証明した。個別検査は終了 0。次は任意の有限階数作用素の像の有限生成元をこの射影で固定し、前合成によってコンパクト性を得る。
+
+有限階数作用素のコンパクト性、有限階数近似の同値、コンパクト作用素の随伴のコンパクト性を実装し、各モジュールと零 Hilbert 空間の例は個別検査で終了 0。次は commit・push したソースを固定して対象 full-check-local、依存先、functional_analysis.Metric.Geometry と metric_spaces.MetricSpace.Compactness の回帰を検査し、終了コードとキャッシュ保存結果を記録する。
