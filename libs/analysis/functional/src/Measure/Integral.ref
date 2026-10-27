@@ -33,3 +33,22 @@
   integrable: Integrable f,
   parts: \exists ( positive: Real.Real \where \exists ( negative: Real.Real \where Parts[f, value, positive, negative] ) ),
 };
+
+\definition dominatedMono: \forall (n: N.Nat^) (s: Simple[n]) (f, g: A -> Real.Real) ->
+  Dominated n s f -> (\forall (x: A) -> R.Le (f x) (g x)) -> Dominated n s g :=
+  \fun (n: _) (s: _) (f, g: _) (dominated: _) (order: _) (i: _) (x: _) (member: _) =>
+    R.leTrans (s.coefficients i) (f x) (g x) (dominated i x member) (order x);
+
+\definition lowerIntegralMono: \forall (f, g: A -> Real.Real) ->
+  (\forall (x: A) -> R.Le (f x) (g x)) ->
+  \forall (r: Real.Real) -> below (lowerIntegral f) r -> below (lowerIntegral g) r :=
+  \fun (f, g: _) (order: _) (r: _) (inIntegral: _) => \block {
+    \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] ) }) \by inIntegral \then
+    \takefrom s: \Cast[Simple[n]] ({ s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] })
+      \by (\bysub(N.Nat^, { n: N.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] ) }, n)) \then
+    \let data: Logic.And[Dominated n s f, below (simpleIntegral n s) r] :=
+      \bysub(Simple[n], { s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] }, s);
+    \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s g, below (simpleIntegral n s) r] ) }] n
+      (Logic.existsIntro[Simple[n], { s: Simple[n] \where Logic.And[Dominated n s g, below (simpleIntegral n s) r] }] s
+        (Logic.And[_, _]::# (dominatedMono n s f g (data.left) order) (data.right)))
+  };
