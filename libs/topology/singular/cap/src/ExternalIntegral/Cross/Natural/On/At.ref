@@ -1,0 +1,60 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import \parent.\parent.\parent.At[p := p, q := q].Relative[] \as Source;
+\import Target.Cross[].At[p := p, q := q].Relative[] \as Destination;
+\import LeftPairMaps.On[f := f].Integer[] \as LeftMap;
+\import RightPairMaps.On[f := g].Integer[] \as RightMap;
+\import UnionPairMaps.On[f := unionMap].Integer[] \as UnionMap;
+\import ProductMapping.Cross[p := p, q := q, f := product] \as WholeNatural;
+\import singular_products.Cross[A := A, B := B, left := left, right := right] \as Whole;
+\import Whole.At[p := p, q := q] \as SourceProduct;
+\import singular_products.Cross[A := C, B := D, left := leftTarget, right := rightTarget] \as FinalWhole;
+\import FinalWhole.At[p := p, q := q] \as FinalProduct;
+\import singular_cohomology.Maps[A := A, B := C, source := left, target := leftTarget] \as LeftMaps;
+\import singular_cohomology.Maps[A := B, B := D, source := right, target := rightTarget] \as RightMaps;
+\import singular_cohomology.Relative[A := TargetProduct.CarrierSet, source := ProductMapping.target, subset := TargetUnion.subset] \as DestinationRelative;
+\import singular_cohomology.Chains[A := A, source := left] \as LeftChains;
+\import singular_cohomology.Chains[A := B, source := right] \as RightChains;
+\import singular_cohomology.Chains[A := C, source := leftTarget] \as FinalLeft;
+\import singular_cohomology.Chains[A := D, source := rightTarget] \as FinalRight;
+\import singular_cohomology.Chains[A := Product.CarrierSet, source := External.topology] \as ProductChains;
+\import singular_cohomology.Chains[A := TargetProduct.CarrierSet, source := ProductMapping.target] \as FinalProductChains;
+\import singular_cohomology.Chains[A := Left.SubspaceCarrier, source := LeftSpace.topology left] \as LeftSub;
+\import singular_cohomology.Chains[A := Right.SubspaceCarrier, source := RightSpace.topology right] \as RightSub;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import Nonnegative.ZeroExtension[C := LeftChains.complex] \as LE;
+\import Nonnegative.ZeroExtension[C := RightChains.complex] \as RE;
+\import Nonnegative.ZeroExtension[C := ProductChains.complex] \as PE;
+\import Nonnegative.ZeroExtension[C := FinalLeft.complex] \as FL;
+\import Nonnegative.ZeroExtension[C := FinalRight.complex] \as FR;
+\import Nonnegative.ZeroExtension[C := FinalProductChains.complex] \as FP;
+\import Nonnegative.ZeroExtension[C := LeftSub.complex] \as LS;
+\import Nonnegative.ZeroExtension[C := RightSub.complex] \as RS;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.Quotient[C := LS.complex, D := LE.complex].On[f := Left.inclusionMap].At[k := I.Int^::ofNat p] \as LQ;
+\import Complexes.Quotient[C := RS.complex, D := RE.complex].On[f := Right.inclusionMap].At[k := I.Int^::ofNat q] \as RQ;
+\import commutative_algebra.Modules[R := I.Int^, ring := Integers.commutativeRing].Bilinear[A := SourceProduct.leftBundle, B := SourceProduct.rightBundle, C := FinalProduct.targetBundle] \as Forms;
+\definition law: \forall (x: Left.Carrier (I.Int^::ofNat p))(y: Right.Carrier (I.Int^::ofNat q)) ->
+  (UnionMap.map).apply (I.Int^::ofNat (Whole.degree p q)) (Source.apply x y) =
+  Destination.apply ((LeftMap.map).apply (I.Int^::ofNat p) x) ((RightMap.map).apply (I.Int^::ofNat q) y) :=
+  LQ.induction (\fun (x: Left.Carrier (I.Int^::ofNat p)) => \forall (y: Right.Carrier (I.Int^::ofNat q)) ->
+    (UnionMap.map).apply (I.Int^::ofNat (Whole.degree p q)) (Source.apply x y) =
+    Destination.apply ((LeftMap.map).apply (I.Int^::ofNat p) x) ((RightMap.map).apply (I.Int^::ofNat q) y))
+    (\fun (x: LE.Carrier (I.Int^::ofNat p)) => RQ.induction (\fun (y: Right.Carrier (I.Int^::ofNat q)) =>
+      (UnionMap.map).apply (I.Int^::ofNat (Whole.degree p q)) (Source.apply (LQ.class x) y) =
+      Destination.apply ((LeftMap.map).apply (I.Int^::ofNat p) (LQ.class x)) ((RightMap.map).apply (I.Int^::ofNat q) y))
+      (\fun (y: RE.Carrier (I.Int^::ofNat q)) => eq_reason_in!{{singular_cohomology.Relative[A := TargetProduct.CarrierSet, source := ProductMapping.target, subset := TargetUnion.subset].Carrier (I.Int^::ofNat (Whole.degree p q))} _
+        "=" _ "by" { congr!{{TargetRelative.Carrier (I.Int^::ofNat (Whole.degree p q))} {singular_cohomology.Relative[A := TargetProduct.CarrierSet, source := ProductMapping.target, subset := TargetUnion.subset].Carrier (I.Int^::ofNat (Whole.degree p q))}} ((UnionMap.map).apply (I.Int^::ofNat (Whole.degree p q))) _ _ (Source.onClasses x y) }
+        "=" _ "by" { UnionMap.At[z := I.Int^::ofNat (Whole.degree p q)].quotientOnClass (PE.Positive[n := Whole.degree p q].intro (SourceProduct.apply x y)) }
+        "=" _ "by" { congr!{{FinalProductChains.Carrier (Whole.degree p q)} {singular_cohomology.Relative[A := TargetProduct.CarrierSet, source := ProductMapping.target, subset := TargetUnion.subset].Carrier (I.Int^::ofNat (Whole.degree p q))}} (\fun (z: FinalProductChains.Carrier (Whole.degree p q)) => DestinationRelative.class (I.Int^::ofNat (Whole.degree p q)) (FP.Positive[n := Whole.degree p q].intro z)) _ _
+          (congr!{Forms.Map {FinalProductChains.Carrier (Whole.degree p q)}} (\fun (h: Forms.Map) => h.apply x y) _ _ WholeNatural.equation) }
+        "=" _ "by" { sym!{{singular_cohomology.Relative[A := TargetProduct.CarrierSet, source := ProductMapping.target, subset := TargetUnion.subset].Carrier (I.Int^::ofNat (Whole.degree p q))}} _ _
+          (Destination.onClasses ((LeftMaps.At[n := p].push f (LeftPairMaps.laws f).continuous).apply x) ((RightMaps.At[n := q].push g (RightPairMaps.laws g).continuous).apply y)) }
+        "=" _ "by" { congr!{{TargetLeft.Carrier (I.Int^::ofNat p)} {TargetRight.Carrier (I.Int^::ofNat q)} {singular_cohomology.Relative[A := TargetProduct.CarrierSet, source := ProductMapping.target, subset := TargetUnion.subset].Carrier (I.Int^::ofNat (Whole.degree p q))}} Destination.apply _ _ _ _
+          (sym!{{TargetLeft.Carrier (I.Int^::ofNat p)}} _ _ (LeftMap.At[z := I.Int^::ofNat p].quotientOnClass x))
+          (sym!{{TargetRight.Carrier (I.Int^::ofNat q)}} _ _ (RightMap.At[z := I.Int^::ofNat q].quotientOnClass y)) }
+      }));
