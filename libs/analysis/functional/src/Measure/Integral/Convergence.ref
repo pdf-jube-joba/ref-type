@@ -126,3 +126,41 @@
         }
       }
     };
+
+\import \root.Measure[A := A].Continuity[mu := mu] \as MeasureContinuity;
+\definition FunctionIncreasing[f: N.Nat^ -> A -> Real.Real]: \Prop :=
+  \forall (n: N.Nat^) (x: A) -> R.Le (f n x) (f (N.Nat^::succ n) x);
+\definition threshold[f: N.Nat^ -> A -> Real.Real] [S: \Pow A] [b: Real.Real] [n: N.Nat^]: \Pow A :=
+  Sets.Intersection S ({ x: A \where R.Lt b (f n x) });
+\definition thresholdMeasurable: \forall (f: N.Nat^ -> A -> Real.Real) (S: \Pow A) (b: Real.Real) ->
+  (\forall (n: N.Nat^) -> IsMeasurable mu (f n)) -> Measurable mu.sigma S ->
+  \forall (n: N.Nat^) -> Measurable mu.sigma (threshold f S b n) :=
+  \fun (f: N.Nat^ -> A -> Real.Real) (S: \Pow A) (b: Real.Real) (measurable: \forall (n: N.Nat^) -> IsMeasurable mu (f n))
+    (s: Measurable mu.sigma S) (n: N.Nat^) => Sigma.intersectionMeasurable mu.sigma S ({ x: A \where R.Lt b (f n x) }) s (measurable n b);
+\definition thresholdIncreasing: \forall (f: N.Nat^ -> A -> Real.Real) (S: \Pow A) (b: Real.Real) -> FunctionIncreasing f ->
+  MeasureContinuity.Increasing (threshold f S b) :=
+  \fun (f: N.Nat^ -> A -> Real.Real) (S: \Pow A) (b: Real.Real) (increasing: FunctionIncreasing f) (n: N.Nat^) (x: A)
+    (member: Sets.Member (threshold f S b n) x) => Logic.And[_, _]::# member.left
+      (R.ltLeTrans b (f n x) (f (N.Nat^::succ n) x) member.right (increasing n x));
+\definition thresholdUnion: \forall (f: N.Nat^ -> A -> Real.Real) (g: A -> Real.Real) (S: \Pow A) (b: Real.Real) ->
+  PointwiseSup f g -> (\forall (x: A) -> Sets.Member S x -> R.Lt b (g x)) -> union (threshold f S b) = S :=
+  \fun (f: N.Nat^ -> A -> Real.Real) (g: A -> Real.Real) (S: \Pow A) (b: Real.Real) (sup: PointwiseSup f g)
+    (strict: \forall (x: A) -> Sets.Member S x -> R.Lt b (g x)) => \axiom:setext(union (threshold f S b), S,
+      \fun (x: A) (member: Sets.Member (union (threshold f S b)) x) => \block {
+        \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Sets.Member (threshold f S b n) x }) \by member \then
+        \return (\bysub(N.Nat^, { n: N.Nat^ \where Sets.Member (threshold f S b n) x }, n)).left
+      },
+      \fun (x: A) (member: Sets.Member S x) => \block {
+        \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where R.Lt b (f n x) }) \by abovePointwiseSup f g sup x b (strict x member) \then
+        \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where Sets.Member (threshold f S b n) x }] n
+          (Logic.And[_, _]::# member (\bysub(N.Nat^, { n: N.Nat^ \where R.Lt b (f n x) }, n)))
+      });
+\definition thresholdMeasure: \forall (f: N.Nat^ -> A -> Real.Real) (g: A -> Real.Real) (S: \Pow A) (b: Real.Real) ->
+  PointwiseSup f g -> FunctionIncreasing f -> (\forall (n: N.Nat^) -> IsMeasurable mu (f n)) -> Measurable mu.sigma S ->
+  (\forall (x: A) -> Sets.Member S x -> R.Lt b (g x)) -> mu.value S = Sup (\fun (n: N.Nat^) => mu.value (threshold f S b n)) :=
+  \fun (f: N.Nat^ -> A -> Real.Real) (g: A -> Real.Real) (S: \Pow A) (b: Real.Real) (sup: PointwiseSup f g)
+    (increasing: FunctionIncreasing f) (measurable: \forall (n: N.Nat^) -> IsMeasurable mu (f n)) (s: Measurable mu.sigma S)
+    (strict: \forall (x: A) -> Sets.Member S x -> R.Lt b (g x)) => eq_reason_in!{Value _
+      "=" _ "by" { congr!{{\Pow A} Value} mu.value _ _ (sym!{{\Pow A}} _ _ (thresholdUnion f g S b sup strict)) }
+      "=" _ "by" { MeasureContinuity.increasingSup (threshold f S b) (thresholdMeasurable f S b measurable s) (thresholdIncreasing f S b increasing) }
+    };
