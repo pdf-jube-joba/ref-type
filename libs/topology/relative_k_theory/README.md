@@ -34,15 +34,16 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 | 降下の存在、ランク、境界上の整合式 | `descent-public-fixed` |
 | 三つ組の直和の存在と比較 | `triple-sums` |
 | 補束による三つ組の正規化と降下への接続 | `triple-normalize` |
+| 境界の自明化と両立する写像のファイバー上の構成 | `framed-maps` |
 
 `Pair.Normalize` は補射影から補束を作り、対角三つ組を加えて群の元を保ち、負側を自明束にした後 `Descent` へ渡す。
-最新の未検証変更は `Pair.FramedMaps` のファイバー上の線形写像。
-境界の自明化と定数行列に両立する束写像を、商上のアンカーと各ベクトルへ点ごとに適用する。
-束写像としての連続性はまだ未実装。
-固定 snapshot は `work/k03-resume/framed-maps.source.json`。
-次はこの snapshot と共有キャッシュで `relative_k_theory.Relative.Pair.FramedMaps` を検査する。
-例: `target/debug/cli libs/topology/relative_k_theory --source-snapshot work/k03-resume/framed-maps.source.json --module relative_k_theory.Relative.Pair.FramedMaps --memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact --report-json work/k03-resume/framed-maps.json`。
-実行シェルで終了コードも保存する。
+`Pair.FramedMaps` は境界の自明化と定数行列に両立する束写像を、商上のアンカーと各ベクトルへ点ごとに適用する。
+その束写像としての連続性はまだ未実装。
+最新の未検証変更は共通 API `bundle_operations.Operations.Over.LocalMatrices`。
+異なる次元の二つの枠の間の連続な行列表示から、束写像の連続性を導く。
+固定 snapshot は `work/k03-resume/local-matrices-fixed.source.json`。
+次はこの snapshot と共有キャッシュで `bundle_operations.Operations.Over.LocalMatrices` を検査する。
+検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定し、JSON 報告と実行シェルの終了コードも保存する。
 
 残る主な要件は、選択に依存しない三つ組の群と商空間の被約群の比較、完全列・切除・Mayer–Vietoris・外積と自然性、円板球面対への適用と具体例。
 package・依存閉包・影響先・workspace 全体の最終検証と公開登録の仕上げも未実施。

@@ -1,0 +1,56 @@
+\definition sourceChart: SourceCharts.ChartData := SourceCharts.ChartData { domain := c.domain, dimension := c.sourceDimension, frame := c.sourceFrame };
+\definition targetChart: TargetCharts.ChartData := TargetCharts.ChartData { domain := c.domain, dimension := c.targetDimension, frame := c.targetFrame };
+\import SourceCharts.In[c := sourceChart] \as Left;
+\import TargetCharts.In[c := targetChart] \as Right;
+\import Base.Subspace[S := c.domain] \as BaseSubspace;
+\import Hermitian.At[n := c.targetDimension].Families[X := Left.BasePoint].Matrix[m := c.sourceDimension] \as Matrices;
+\structure Laws: \Prop := {
+  sourceLaws: Left.Laws, targetLaws: Right.Laws,
+  regular: Matrices.Regular (BaseSubspace.topology source.baseSpace) c.coefficients,
+  alignment: \forall (x: Left.BasePoint)(v: F x) ->
+    (c.targetFrame x).forward.apply ((fiber x).apply v) = (c.coefficients x).apply ((c.sourceFrame x).forward.apply v)
+};
+\import topological_constructions.Product[A := Left.BasePoint, B := Vector c.sourceDimension] \as Product;
+\import Product.Maps[] \as Projections;
+\definition base[p: Left.TotalPoint]: Left.BasePoint := Left.base p;
+\definition vector[p: Left.TotalPoint]: Vector c.sourceDimension := (c.sourceFrame (base p)).forward.apply p.vector;
+\definition baseContinuous[laws: Laws]: topology.Continuity[A := Left.TotalPoint, B := Left.BasePoint].Continuous Left.localTopology (BaseSubspace.topology source.baseSpace) base :=
+  topology.Composition[A := Left.TotalPoint, B := Left.ProductPoint, C := Left.BasePoint].composeContinuous Left.localTopology Left.productTopology (BaseSubspace.topology source.baseSpace)
+    Left.forward (std.Data[].Pair[].first Left.BasePoint (Vector c.sourceDimension)) laws.sourceLaws.forwardContinuous
+    (Projections.firstContinuous (BaseSubspace.topology source.baseSpace) (coordinateTopology c.sourceDimension));
+\definition vectorContinuous[laws: Laws]: topology.Continuity[A := Left.TotalPoint, B := Vector c.sourceDimension].Continuous Left.localTopology (coordinateTopology c.sourceDimension) vector :=
+  topology.Composition[A := Left.TotalPoint, B := Left.ProductPoint, C := Vector c.sourceDimension].composeContinuous Left.localTopology Left.productTopology (coordinateTopology c.sourceDimension)
+    Left.forward (std.Data[].Pair[].second Left.BasePoint (Vector c.sourceDimension)) laws.sourceLaws.forwardContinuous
+    (Projections.secondContinuous (BaseSubspace.topology source.baseSpace) (coordinateTopology c.sourceDimension));
+\import Hermitian.At[n := c.targetDimension].Families[X := Left.TotalPoint].Matrix[m := c.sourceDimension] \as Values;
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin c.sourceDimension] \as SourceCoordinates;
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin c.targetDimension] \as TargetCoordinates;
+\definition components[laws: Laws]: Values.Components Left.localTopology (\fun (p: Left.TotalPoint) => c.coefficients (base p)) :=
+  \fun (j: Fin.Fin c.sourceDimension)(i: Fin.Fin c.targetDimension) =>
+    topology.Composition[A := Left.TotalPoint, B := Left.BasePoint, C := K].composeContinuous Left.localTopology (BaseSubspace.topology source.baseSpace) scalar.topological.space
+      base (\fun (x: Left.BasePoint) => (c.coefficients x).apply (linear_algebra.Hermitian[].Over[K := K, field := field, scalar := conjugation].Finite[n := c.sourceDimension].basis j) i)
+      (baseContinuous laws) (laws.regular (linear_algebra.Hermitian[].Over[K := K, field := field, scalar := conjugation].Finite[n := c.sourceDimension].basis j) i);
+\definition evaluate[p: Left.TotalPoint]: Vector c.targetDimension := (c.coefficients (base p)).apply (vector p);
+\definition evaluateContinuous[laws: Laws]: topology.Continuity[A := Left.TotalPoint, B := Vector c.targetDimension].Continuous Left.localTopology (coordinateTopology c.targetDimension) evaluate :=
+  TargetCoordinates.Universal[A := Left.TotalPoint].continuous Left.localTopology scalar.topological.space evaluate
+    (Values.evaluate Left.localTopology (\fun (p: Left.TotalPoint) => c.coefficients (base p)) vector (components laws)
+      (\fun (j: Fin.Fin c.sourceDimension) => topology.Composition[A := Left.TotalPoint, B := Vector c.sourceDimension, C := K].composeContinuous
+        Left.localTopology (coordinateTopology c.sourceDimension) scalar.topological.space vector (\fun (v: Vector c.sourceDimension) => v j)
+        (vectorContinuous laws) (SourceCoordinates.evaluationContinuous scalar.topological.space j)));
+\definition targetTrivialization[laws: Laws]: TargetCharts.Chart := \into[TargetCharts.ChartData](targetChart, TargetCharts.Chart) \by { laws.targetLaws };
+\definition targetBaseContinuous[same: source.baseSpace = target.baseSpace][laws: Laws]: topology.Continuity[A := Left.TotalPoint, B := Left.BasePoint].Continuous Left.localTopology (BaseSubspace.topology target.baseSpace) base :=
+  \idelim source.baseSpace = target.baseSpace \with t: Base.Topology => topology.Continuity[A := Left.TotalPoint, B := Left.BasePoint].Continuous Left.localTopology (BaseSubspace.topology t) base
+    \by { base: baseContinuous laws, equality: same };
+\definition model[p: Left.TotalPoint]: Target.Point := Target.include p.base ((c.targetFrame (base p)).backward.apply (evaluate p));
+\definition modelContinuous[same: source.baseSpace = target.baseSpace][laws: Laws]: topology.Continuity[A := Left.TotalPoint, B := Target.Point].Continuous Left.localTopology target.totalSpace model :=
+  \parent.\parent.Chart[X := X, F := G, bundle := target, chart := targetTrivialization laws].Maps[Y := Left.TotalPoint, source := Left.localTopology].pointContinuous
+    base evaluate (targetBaseContinuous same laws) (evaluateContinuous laws);
+\definition formula: \forall (laws: Laws)(p: Left.TotalPoint) -> model p = Target.include p.base ((fiber p.base).apply p.vector) :=
+  \fun (laws: Laws)(p: Left.TotalPoint) => congr!{{G p.base} Target.Point} (Target.include p.base) _ _
+    (trans!{{G p.base}} _ _ _ (congr!{{Vector c.targetDimension} {G p.base}} (c.targetFrame (base p)).backward.apply _ _ (sym!{{Vector c.targetDimension}} _ _ (laws.alignment (base p) p.vector)))
+      ((Spaces.Isomorphism[V := G p.base, W := Vector c.targetDimension, source := target.space p.base, target := coordinates c.targetDimension].laws (c.targetFrame (base p))).leftInverse ((fiber p.base).apply p.vector)));
+\definition continuous[same: source.baseSpace = target.baseSpace][laws: Laws]: topology.Continuity[A := Left.TotalPoint, B := Target.Point].Continuous Left.localTopology target.totalSpace
+  (\fun (p: Left.TotalPoint) => Target.include p.base ((fiber p.base).apply p.vector)) :=
+  \idelim model = (\fun (p: Left.TotalPoint) => Target.include p.base ((fiber p.base).apply p.vector)) \with f: (Left.TotalPoint -> Target.Point) =>
+    topology.Continuity[A := Left.TotalPoint, B := Target.Point].Continuous Left.localTopology target.totalSpace f
+    \by { base: modelContinuous same laws, equality: \axiom:funext(model, (\fun (p: Left.TotalPoint) => Target.include p.base ((fiber p.base).apply p.vector)), formula laws) };
