@@ -39,3 +39,31 @@
     (sym!{Value} _ _ (Monotone.monotone pSequence p.function P.pointwiseSup P.increasing))
     (sym!{Value} _ _ (Monotone.monotone qSequence q.function Q.pointwiseSup Q.increasing)) }
 };
+\import real.Analysis[].Estimates[] \as E;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import dedekind_reals.DedekindReal[].Order[] \as Order;
+\definition finite: Finite p.function -> Finite q.function -> Finite (\fun (x: A) => Real.add (p.function x) (q.function x)) :=
+  \fun (pf: Finite p.function) (qf: Finite q.function) => \block {
+    \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where IntegralBound[p.function, a] }) \by pf.right \then
+    \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where IntegralBound[q.function, b] }) \by qf.right \then
+    \let pa: IntegralBound[p.function, a] := \bysub(Real.Real, { a: Real.Real \where IntegralBound[p.function, a] }, a) \then
+    \let qb: IntegralBound[q.function, b] := \bysub(Real.Real, { b: Real.Real \where IntegralBound[q.function, b] }, b) \then
+    \return Logic.And[_, _]::# (\fun (x: A) => Laws.addNonnegative (p.function x) (q.function x) (p.nonnegative x) (q.nonnegative x))
+      (Logic.existsIntro[Real.Real, { c: Real.Real \where IntegralBound[(\fun (x: A) => Real.add (p.function x) (q.function x)), c] }] (Real.add a b)
+        (IntegralBound[(\fun (x: A) => Real.add (p.function x) (q.function x)), Real.add a b] {
+          nonnegative := Laws.addNonnegative a b pa.nonnegative qb.nonnegative,
+          bound := \fun (r: Real.Real) (member: below (lowerIntegral (\fun (x: A) => Real.add (p.function x) (q.function x))) r) => \block {
+            \let inAdd: below (add (lowerIntegral p.function) (lowerIntegral q.function)) r :=
+              \idelim lowerIntegral (\fun (x: A) => Real.add (p.function x) (q.function x)) = add (lowerIntegral p.function) (lowerIntegral q.function)
+                \with v: Value => below v r \by { base: member, equality: add } \then
+            \takefrom x: \Cast[Real.Real] ({ x: Real.Real \where Logic.And[below (lowerIntegral p.function) x,
+              \exists ( y: Real.Real \where Logic.And[below (lowerIntegral q.function) y, R.Lt r (Real.add x y)] )] }) \by inAdd \then
+            \let first: Logic.And[below (lowerIntegral p.function) x, \exists ( y: Real.Real \where Logic.And[below (lowerIntegral q.function) y, R.Lt r (Real.add x y)] )] :=
+              \bysub(Real.Real, { x: Real.Real \where Logic.And[below (lowerIntegral p.function) x, \exists ( y: Real.Real \where Logic.And[below (lowerIntegral q.function) y, R.Lt r (Real.add x y)] )] }, x) \then
+            \takefrom y: \Cast[Real.Real] ({ y: Real.Real \where Logic.And[below (lowerIntegral q.function) y, R.Lt r (Real.add x y)] }) \by first.right \then
+            \let second: Logic.And[below (lowerIntegral q.function) y, R.Lt r (Real.add x y)] :=
+              \bysub(Real.Real, { y: Real.Real \where Logic.And[below (lowerIntegral q.function) y, R.Lt r (Real.add x y)] }, y) \then
+            \return Order.leOfLt r (Real.add a b) (R.ltLeTrans r (Real.add x y) (Real.add a b) second.right (E.addLe x y a b (pa.bound x first.left) (qb.bound y second.left)))
+          },
+        }))
+  };
