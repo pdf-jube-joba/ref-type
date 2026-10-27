@@ -61,6 +61,8 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 参照修正後の検査は約64秒でルート宣言のエラーを報告した（終了1・`rejected`・保存失敗0）。
 `ClosedPointedPair` の小さい集合への射影が large elimination に該当したため、既存の `CompactPointed` と同じ消去形式で詳細を保持するよう修正した。
 空の空間の K 群の消滅と、空の境界での三つ組の忘却の逆写像も追加したが、対象検査は未完了。
+`Absolute` は一点付加空間と通常の K 群との比較を、`Pair.Augmented` は一般の対への基点付加と元の相対商との同相を構成した。
+これらも構文解析のみ完了し、対象検査は未完了。
 次の固定 snapshot で検査を続ける。
 
 ```bash
@@ -75,7 +77,8 @@ result=$?
 printf '%s\n' "$result" > work/k03-resume/closed-pair-raw.exit
 ```
 
-`closed-pair-lift.source.json` は現在の数学コードの固定 snapshot。
+`closed-pair-lift.source.json` は `b334fd01` 時点の数学コードの固定 snapshot。
+その後の一点付加の構成は `augmentation.source.json` に固定した。
 対象検査の完了時は終了コード・JSON の `outcome`・`storage.save_failures`・`checking.cache_write_failures` を確認する。
 次に `BaseQuotient.Backward`・`BaseQuotient` の比較全体、新しい五項の列と反復の対象検査を進める。
 
