@@ -10,3 +10,30 @@
 \import Quotient.Outside[] \as Exterior;
 \import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Algebra.field, scalar := Hermitian.scalar, topological := Scalar.scalar.topological] \as Regular;
 \module Outside(i: From.Index, j: To.Index);
+
+\definition common: \Pow X := Base.Intersection first.domain second.domain;
+\definition commonOpen: Base.IsOpenIn space common := (Base.topologyLaws space).intersectionOpen first.domain second.domain first.open second.open;
+\definition commonContains: Base.Subset subset common := \fun (x: X)(member: Base.Member subset x) => Logic.And[_, _]::# (first.contains x member) (second.contains x member);
+\import bundle_extension.Extension[].CompactNeighborhood[X := X, topology := space, subset := subset, U := common] \as Shrink;
+\module Near(w: Shrink.Witness);
+
+\definition nearExists: \exists (c: LocalMatrices.Chart \where QuotientBase.Member c.domain Quotient.point) := \block {
+  \takefrom w: Shrink.Witness \by Shrink.exists compact hausdorff closed commonOpen commonContains \then
+  \takefrom e: Near[w := w].Tietze.Extension[Near[w := w].function] \by Near[w := w].Tietze.tietze (Near[w := w].function) compact hausdorff w.envelopeClosed \then
+  \return Logic.existsIntro[LocalMatrices.Chart, { c: LocalMatrices.Chart \where QuotientBase.Member c.domain Quotient.point }]
+    Near[w := w].Extended[e := e].trivialization Near[w := w].Extended[e := e].atPoint
+};
+\definition covers: LocalMatrices.Covers := \fun (z: Quotient.Carrier) =>
+  Logic.orElim[z = Quotient.point, Logic.Not (z = Quotient.point), \exists (c: LocalMatrices.Chart \where QuotientBase.Member c.domain z)]
+    (std.Logic[].Classical[].excludedMiddle (z = Quotient.point))
+    (\fun (same: z = Quotient.point) => \idelim Quotient.point = z \with q: Quotient.Carrier => \exists (c: LocalMatrices.Chart \where QuotientBase.Member c.domain q) \by {
+      base: nearExists, equality: sym!{{Quotient.Carrier}} _ _ same })
+    (\block {
+      \fun (different: Logic.Not (z = Quotient.point)) \then
+      \takefrom i: \Cast[From.Index] ({ i: From.Index \where QuotientBase.Member (From.domain i) z }) \by From.covers z \then
+      \takefrom j: \Cast[To.Index] ({ j: To.Index \where QuotientBase.Member (To.domain j) z }) \by To.covers z \then
+      \return Logic.existsIntro[LocalMatrices.Chart, { c: LocalMatrices.Chart \where QuotientBase.Member c.domain z }] Outside[i := i, j := j].trivialization
+        (Logic.And[_, _]::# (\bysub(From.Index, { i: From.Index \where QuotientBase.Member (From.domain i) z }, i))
+          (Logic.And[_, _]::# (\bysub(To.Index, { j: To.Index \where QuotientBase.Member (To.domain j) z }, j)) different))
+    });
+\definition morphism: Morphisms.Map := LocalMatrices.map (\refl(Quotient.topology)) covers;

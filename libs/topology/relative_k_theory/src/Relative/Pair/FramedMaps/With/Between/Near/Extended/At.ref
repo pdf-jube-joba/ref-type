@@ -1,0 +1,22 @@
+\use Logic.either;
+\import Source.At[q := z] \as FirstFiber;
+\import Target.At[q := z] \as SecondFiber;
+\definition leftPoint: From.Near.Point := \into[Quotient.Carrier](z, From.Near.domain) \by { leftContains z };
+\definition rightPoint: To.Near.Point := \into[Quotient.Carrier](z, To.Near.domain) \by { rightContains z };
+\import From.Near[].At[q := leftPoint] \as LeftNear;
+\import To.Near[].At[q := rightPoint] \as RightNear;
+\definition atBase[same: z = Quotient.point][v: Bundles.Vector n]: (coefficients z).apply v = (Descended.linear z).apply v :=
+  trans!{{Bundles.Vector m}} _ _ _
+    (sym!{{Bundles.Vector m}} _ _ ((RightNear.condition ((map z).apply ((Left.trivialization.frame z).backward.apply v))).atPoint same))
+    (trans!{{Bundles.Vector m}} _ _ _ (congr!{{Bundles.Vector n} {Bundles.Vector m}} c.apply _ _ (FirstFiber.Anchor[].atPoint v same))
+      (trans!{{Bundles.Vector m}} _ _ _ (sym!{{Bundles.Vector m}} _ _ (Rectangular.roundTrip c v))
+        (congr!{{Rectangular.Matrix} {Bundles.Vector m}} (\fun (M: Rectangular.Matrix) => (Rectangular.linear M).apply v) _ _
+          (sym!{{Rectangular.Matrix}} _ _
+            (\idelim Quotient.point = z \with q: Quotient.Carrier => Descended.value q = Rectangular.entries c
+              \by { base: Descended.atPoint, equality: sym!{{Quotient.Carrier}} _ _ same })))));
+\module OffBase(different: Logic.Not (z = Quotient.point));
+\definition formula[v: Bundles.Vector n]: (coefficients z).apply v = (Descended.linear z).apply v :=
+  either!{{(std.Logic[].Classical[].excludedMiddle (z = Quotient.point))} {(coefficients z).apply v = (Descended.linear z).apply v}
+    {\fun (same: z = Quotient.point) => atBase same v}
+    {\fun (different: Logic.Not (z = Quotient.point)) => OffBase[different := different].formula v}
+  };

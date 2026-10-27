@@ -1,0 +1,44 @@
+\import Shrink.With[w := w] \as Compact;
+\definition ClosedPoint: \Set := Compact.Point;
+\definition closedSpace: topology.Topology[Carrier := ClosedPoint].Topology := Compact.space;
+\definition leftBase[x: ClosedPoint]: \Cast[X] first.domain := \into[X](x, first.domain) \by { (w.within x (\bysub(X, w.envelope, x))).left };
+\definition rightBase[x: ClosedPoint]: \Cast[X] second.domain := \into[X](x, second.domain) \by { (w.within x (\bysub(X, w.envelope, x))).right };
+\definition leftContinuous: topology.Continuity[A := ClosedPoint, B := \Cast[X] first.domain].Continuous closedSpace (Base.Subspace[S := first.domain].topology space) leftBase :=
+  topology.Continuity[A := ClosedPoint, B := X].Corestriction[S := first.domain].corestrictContinuous closedSpace space leftBase
+    (topology.Continuity[A := ClosedPoint, B := X].Corestriction[S := w.envelope].inclusionContinuous space);
+\definition rightContinuous: topology.Continuity[A := ClosedPoint, B := \Cast[X] second.domain].Continuous closedSpace (Base.Subspace[S := second.domain].topology space) rightBase :=
+  topology.Continuity[A := ClosedPoint, B := X].Corestriction[S := second.domain].corestrictContinuous closedSpace space rightBase
+    (topology.Continuity[A := ClosedPoint, B := X].Corestriction[S := w.envelope].inclusionContinuous space);
+\import Spaces.Linear[V := Bundles.Vector n, W := Bundles.Vector m, source := Bundles.coordinates n, target := Bundles.coordinates m] \as Linear;
+\definition originalCoefficients[x: ClosedPoint]: Linear.Map :=
+  Spaces.Linear[V := Absolute.Fiber q x, W := Bundles.Vector m, source := (Absolute.bundle q).space x, target := Bundles.coordinates m].Composition[
+    U := Bundles.Vector n, domain := Bundles.coordinates n].compose
+    (second.isomorphism.forward.fiber (rightBase x))
+    (Spaces.Linear[V := Absolute.Fiber p x, W := Absolute.Fiber q x, source := (Absolute.bundle p).space x, target := (Absolute.bundle q).space x].Composition[
+      U := Bundles.Vector n, domain := Bundles.coordinates n].compose (h.fiber x) (first.isomorphism.backward.fiber (leftBase x)));
+\import bundle_extension.Extension[].Over[K := C.Complex, field := Algebra.field, conjugation := Hermitian.scalar, scalar := Scalar.scalar].Rectangular[m := n, n := m] \as Rectangular;
+\import bundle_extension.Extension[].Complex[A := X, source := space, subset := w.envelope].Matrices[m := n, n := m] \as Tietze;
+\import Bundles.Family[X := X, F := Absolute.Fiber p] \as FirstFamily;
+\import Bundles.Family[X := X, F := Absolute.Fiber q] \as SecondFamily;
+\module Vector(v: Bundles.Vector n);
+\definition regular: Regular.At[n := m].Families[X := ClosedPoint].Matrix[m := n].Regular closedSpace originalCoefficients :=
+  \fun (v: Bundles.Vector n)(i: Fin.Fin m) => Vector[v := v].continuous i;
+\definition entryFormula[f: Linear.Map][i: Fin.Fin m][j: Fin.Fin n]: Rectangular.entries f i j = f.apply (Rectangular.DomainBasis.vectors j) i :=
+  trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (Rectangular.entry (Rectangular.entries f) i j))
+    (congr!{{Bundles.Vector m} {C.Complex}} (\fun (v: Bundles.Vector m) => v i) _ _ (Rectangular.roundTrip f (Rectangular.DomainBasis.vectors j)));
+\definition function: Tietze.Function := Tietze.Function {
+  value := \fun (x: ClosedPoint) => Rectangular.entries (originalCoefficients x),
+  continuous := \fun (i: Fin.Fin m)(j: Fin.Fin n) =>
+    \idelim (\fun (x: ClosedPoint) => (originalCoefficients x).apply (Rectangular.DomainBasis.vectors j) i) = (\fun (x: ClosedPoint) => Rectangular.entries (originalCoefficients x) i j)
+      \with f: (ClosedPoint -> C.Complex) => topology.Continuity[A := ClosedPoint, B := C.Complex].Continuous closedSpace Scalar.scalar.topological.space f \by {
+        base: regular (Rectangular.DomainBasis.vectors j) i,
+        equality: \axiom:funext((\fun (x: ClosedPoint) => (originalCoefficients x).apply (Rectangular.DomainBasis.vectors j) i),
+          (\fun (x: ClosedPoint) => Rectangular.entries (originalCoefficients x) i j), \fun (x: ClosedPoint) => sym!{{C.Complex}} _ _ (entryFormula (originalCoefficients x) i j))
+      }
+};
+\definition closedPoint[x: A]: ClosedPoint := \into[X](x, w.envelope) \by { Compact.contains x (\bysub(X, subset, x)) };
+\module Boundary(x: A);
+\definition boundary: \forall (x: A) -> function.value (closedPoint x) = Rectangular.entries c := \fun (x: A) =>
+  congr!{{Linear.Map} {Rectangular.Matrix}} Rectangular.entries _ _ (Linear.ext (originalCoefficients (closedPoint x)) c
+    (\axiom:funext((originalCoefficients (closedPoint x)).apply, c.apply, Boundary[x := x].formula)));
+\module Extended(e: Tietze.Extension[function]);
