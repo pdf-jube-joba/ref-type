@@ -1,0 +1,34 @@
+\import \root.Space[V := V, space := space].Hilbert[norm := norm, inner := sourceInner] \as SourceHilbert;
+\import \root.Space[V := V, space := space].Operators[W := W, target := target, norm := norm, targetNorm := targetNorm].Adjoints[inner := sourceInner, targetInner := targetInner] \as Adjoint;
+\import End.Compact[].After[U := V, codomain := space, codomainNorm := norm] \as ReverseComposition;
+\import \root.Space[V := W, space := target].Operators[W := V, target := space, norm := targetNorm, targetNorm := norm] \as Reverse;
+\import \root.FiniteRank[V := W, W := V, source := target, target := space] \as ReverseFinite;
+\import EndFinite.After[U := V, codomain := space] \as FiniteAfter;
+\import ComplexLinear.Linear[V := W, W := V, source := target, target := space] \as ReverseMaps;
+\import std.Logic[].Equality[] \as E;
+\use E.sym;
+\use E.trans;
+\use E.congr;
+\definition projectedAdjoint: \forall (sourceComplete: SourceHilbert.Complete)(targetComplete: Hilbert.Complete)(f: Map)(P: Projection.Projection)(y: W) ->
+  (Adjoint.adjoint sourceComplete targetComplete (Composition.compose f (Projection.operator targetComplete P))).apply y =
+    (Adjoint.adjoint sourceComplete targetComplete f).apply (P.map.apply y) := \block {
+  \fun (sourceComplete: SourceHilbert.Complete)(targetComplete: Hilbert.Complete)(f: Map)(P: Projection.Projection)(y: W) \then
+  \let g: Map := Composition.compose f (Projection.operator targetComplete P) \then
+  \let candidate: Reverse.Map := ReverseComposition.compose (Projection.operator targetComplete P) (Adjoint.adjoint sourceComplete targetComplete f) \then
+  \return sym!{V} _ _ (Adjoint.unique sourceComplete targetComplete g candidate
+    (\fun (x: V)(z: W) => trans!{C.Complex} _ _ _ (P.symmetric (f.apply x) z)
+      (Adjoint.adjointLaw sourceComplete targetComplete f x (P.map.apply z))) y)
+};
+\definition projectedAdjointFinite: \forall (sourceComplete: SourceHilbert.Complete)(targetComplete: Hilbert.Complete)(f: Map)(P: Projection.Projection) ->
+  ReverseFinite.FiniteRank (Adjoint.adjoint sourceComplete targetComplete (Composition.compose f (Projection.operator targetComplete P))) := \block {
+  \fun (sourceComplete: SourceHilbert.Complete)(targetComplete: Hilbert.Complete)(f: Map)(P: Projection.Projection) \then
+  \let candidate: Reverse.Map := ReverseComposition.compose (Projection.operator targetComplete P) (Adjoint.adjoint sourceComplete targetComplete f) \then
+  \let same: (Adjoint.adjoint sourceComplete targetComplete (Composition.compose f (Projection.operator targetComplete P))) = candidate :=
+    ReverseMaps.ext _ _ (\axiom:funext((Adjoint.adjoint sourceComplete targetComplete (Composition.compose f (Projection.operator targetComplete P))).apply,
+      candidate.apply, projectedAdjoint sourceComplete targetComplete f P)) \then
+  \return \idelim candidate = (Adjoint.adjoint sourceComplete targetComplete (Composition.compose f (Projection.operator targetComplete P)))
+    \with g: ReverseMaps.Map => ReverseFinite.FiniteRank g \by {
+      base: FiniteAfter.finite P.map (Adjoint.adjoint sourceComplete targetComplete f) P.finite,
+      equality: sym!{ReverseMaps.Map} _ _ same
+    }
+};
