@@ -1,0 +1,41 @@
+\import \root.Measure[A := A].Integral[mu := mu].Approximation[f := p] \as P;
+\import \root.Measure[A := A].Integral[mu := mu].Approximation[f := q] \as Q;
+\import \root.Measure[A := A].Integral[mu := mu].Convergence[] \as Convergence;
+\import Convergence.Monotone[] \as Monotone;
+\import Convergence.PointwiseSum[] \as PointwiseSum;
+\import \root.Measure[A := A].Functions[mu := mu] \as Functions;
+\import N.Basic[].Prop[] \as Nat;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition sumValues: N.Nat^ -> A -> Real.Real := \fun (k: N.Nat^) (x: A) => Real.add (P.value k x) (Q.value k x);
+\definition pSequence: Convergence.MeasurableSequence := \into[N.Nat^ -> A -> Real.Real] (P.value,
+  { f: N.Nat^ -> A -> Real.Real \where \forall (k: N.Nat^) -> IsMeasurable mu (f k) }) \by { P.measurable };
+\definition qSequence: Convergence.MeasurableSequence := \into[N.Nat^ -> A -> Real.Real] (Q.value,
+  { f: N.Nat^ -> A -> Real.Real \where \forall (k: N.Nat^) -> IsMeasurable mu (f k) }) \by { Q.measurable };
+\definition sumSequence: Convergence.MeasurableSequence := \into[N.Nat^ -> A -> Real.Real] (sumValues,
+  { f: N.Nat^ -> A -> Real.Real \where \forall (k: N.Nat^) -> IsMeasurable mu (f k) }) \by {
+    \fun (k: N.Nat^) => Functions.addMeasurable (P.value k) (Q.value k) (P.measurable k) (Q.measurable k)
+  };
+\definition pIncrease: Convergence.ValueIncreasing (\fun (k: N.Nat^) => lowerIntegral (P.value k)) :=
+  \fun (i, j: N.Nat^) (order: Nat.Le i j) => lowerIntegralMono (P.value i) (P.value j)
+    (\fun (x: A) => PointwiseSum.increasingAll P.value P.increasing j i order x);
+\definition qIncrease: Convergence.ValueIncreasing (\fun (k: N.Nat^) => lowerIntegral (Q.value k)) :=
+  \fun (i, j: N.Nat^) (order: Nat.Le i j) => lowerIntegralMono (Q.value i) (Q.value j)
+    (\fun (x: A) => PointwiseSum.increasingAll Q.value Q.increasing j i order x);
+\definition finiteAdd: \forall (k: N.Nat^) -> lowerIntegral (sumValues k) = add (lowerIntegral (P.value k)) (lowerIntegral (Q.value k)) :=
+  \fun (k: N.Nat^) => \root.Measure[A := A].Integral[mu := mu].CompleteAdd[m := (P.stages k).size, n := (Q.stages k).size,
+    s := (P.stages k).simple, t := (Q.stages k).simple].lowerIntegralAdd;
+\definition add: lowerIntegral (\fun (x: A) => Real.add (p.function x) (q.function x)) = add (lowerIntegral p.function) (lowerIntegral q.function) := eq_reason_in!{Value _
+  "=" _ "by" { Monotone.monotone sumSequence (\fun (x: A) => Real.add (p.function x) (q.function x))
+    (PointwiseSum.sup P.value Q.value p.function q.function P.pointwiseSup Q.pointwiseSup P.increasing Q.increasing)
+    (PointwiseSum.increasing P.value Q.value P.increasing Q.increasing) }
+  "=" _ "by" { congr!{{N.Nat^ -> Value} Value} Convergence.Sup _ _
+    (\axiom:funext((\fun (k: N.Nat^) => lowerIntegral (sumValues k)),
+      (\fun (k: N.Nat^) => add (lowerIntegral (P.value k)) (lowerIntegral (Q.value k))), finiteAdd)) }
+  "=" _ "by" { sym!{Value} _ _ (Convergence.addSup (\fun (k: N.Nat^) => lowerIntegral (P.value k))
+    (\fun (k: N.Nat^) => lowerIntegral (Q.value k)) pIncrease qIncrease) }
+  "=" _ "by" { congr!{Value Value Value} add _ _ _ _
+    (sym!{Value} _ _ (Monotone.monotone pSequence p.function P.pointwiseSup P.increasing))
+    (sym!{Value} _ _ (Monotone.monotone qSequence q.function Q.pointwiseSup Q.increasing)) }
+};
