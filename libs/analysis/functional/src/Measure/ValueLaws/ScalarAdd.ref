@@ -51,3 +51,24 @@
   scale (Real.add c d) v = add (scale c v) (scale d v) :=
   \fun (c, d: Real.Real) (v: Value) (cn: R.Le Real.zero c) (dn: R.Le Real.zero d) =>
     \axiom:setext(scale (Real.add c d) v, add (scale c v) (scale d v), forward c d v, reverse c d v cn dn);
+\import real.Analysis[].Distance[] \as Distance;
+\definition monotone: \forall (c, d: Real.Real) (v: Value) -> R.Le Real.zero c -> R.Le c d -> NonnegativeValue[v] ->
+  Included (scale c v) (scale d v) :=
+  \fun (c, d: Real.Real) (v: Value) (cn: R.Le Real.zero c) (cd: R.Le c d) (vn: NonnegativeValue[v]) => \block {
+    \let difference: Real.Real := Real.sub d c \then
+    \let dn: R.Le Real.zero difference := Distance.subNonnegative d c cd \then
+    \let first: Included (scale c v) (add (scale c v) (scale difference v)) := \fun (r: Real.Real) (member: below (scale c v) r) =>
+      addMono (scale c v) (scale c v) zero (scale difference v)
+        (\fun (q: Real.Real) (qv: below (scale c v) q) => qv)
+        (scaleNonnegative difference v dn vn).negative r
+        (\idelim add (scale c v) zero = scale c v \with w: Value => below w r \by {
+          base: member, equality: sym!{Value} _ _ (addZero (scale c v) (scaleNonnegative c v cn vn)) }) \then
+    \return \fun (r: Real.Real) (member: below (scale c v) r) =>
+      \idelim add (scale c v) (scale difference v) = scale d v \with w: Value => below w r \by {
+        base: first r member,
+        equality: eq_reason_in!{Value _
+          "=" _ "by" { sym!{Value} _ _ (scalarAdd c difference v cn dn) }
+          "=" _ "by" { congr!{Real.Real Value} (\fun (x: Real.Real) => scale x v) _ _ (E.addSubCancel d c) }
+        }
+      }
+  };
