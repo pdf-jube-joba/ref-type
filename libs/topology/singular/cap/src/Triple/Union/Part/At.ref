@@ -1,0 +1,16 @@
+\import Pair.Comparison[n := n] \as Comparison;
+\import RelativeCochains.Vanishing[z := I.Int^::ofNat n] \as Vanishing;
+\import Modules.Free[Generators := PartSimplices.Carrier n].To[W := I.Int^, target := Cochains.integerCoefficients.space] \as Free;
+\import Modules.Hom[V := PartChains.Carrier n, W := I.Int^, source := PartChains.space n, target := Cochains.integerCoefficients.space] \as PartMapsLinear;
+\import algebraic_topology.Simplex[] \as Simplex;
+\definition sameSimplex: \forall (sigma: PartSimplices.Carrier n) ->
+  PartMaps.postcompose n Part.inclusion Part.inclusionContinuous sigma =
+  UnionMaps.postcompose n Relative.inclusion Relative.inclusionContinuous (IntoMaps.postcompose n intoUnion continuous sigma) :=
+  \fun (sigma: PartSimplices.Carrier n) => \axiom:funext(_, _, \fun (x: Simplex.Carrier n) => \refl(sigma x));
+\definition vanishes: \forall (h: RelativeCochains.Carrier (I.Int^::ofNat n)) -> PartPair.Vanishes n (Comparison.from h) :=
+  \fun (h: RelativeCochains.Carrier (I.Int^::ofNat n)) => Free.ext _ _ (\fun (sigma: PartSimplices.Carrier n) => eq_reason_in!{I.Int^ _
+    "=" _ "by" { PartPull.onSimplex n Part.inclusion Part.inclusionContinuous (Comparison.from h) sigma }
+    "=" _ "by" { congr!{{singular_cohomology.Simplices[A := A, source := source].Carrier n} I.Int^} (\fun (s: singular_cohomology.Simplices[A := A, source := source].Carrier n) => (Comparison.from h).apply (Chains.generator n s)) _ _ (sameSimplex sigma) }
+    "=" _ "by" { congr!{{Chains.Carrier n} I.Int^} (\fun (x: Chains.Carrier n) => (Comparison.from h).apply x) _ _ (sym!{{Chains.Carrier n}} _ _ (UnionMaps.At[n := n].onGenerator Relative.inclusion Relative.inclusionContinuous (IntoMaps.postcompose n intoUnion continuous sigma))) }
+    "=" _ "by" { Vanishing.precomposeVanishes h (UnionExtension.Positive[n := n].intro (UnionChains.generator n (IntoMaps.postcompose n intoUnion continuous sigma))) }
+  });
