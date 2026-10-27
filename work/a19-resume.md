@@ -59,3 +59,5 @@ workspace の libs/refcache を共有する。
 ソース commit 30530a22 の対象 full-check-local と依存先検査は accepted、終了 0、キャッシュ保存失敗 0。詳細は benchmarks/records/complex-hilbert/README.md。
 
 有限階数自己随伴射影 P による近似 P T の随伴について、(P T)* = T* P と、その随伴が有限階数であることを Compact.Approximation.Adjoint に追加した。対象モジュールの個別検査は終了 0。残りは随伴のノルム近似評価および有限階数作用素のコンパクト性。
+
+単位球上の評価から有界作用素の全体評価を導く UnitBounds と、随伴のノルム近似の保存を Adjoints.NormContinuity で証明した。コンパクト作用素の随伴が有限階数作用素で任意精度に近似できることを Compact.Approximation.Adjoint.approximate で証明し、各モジュールの個別検査は終了 0。残りは有限階数作用素のコンパクト性を証明し、ノルム極限定理へ接続すること。
