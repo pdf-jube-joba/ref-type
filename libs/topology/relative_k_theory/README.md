@@ -233,3 +233,6 @@ K07 の影響先検査は最終検査に含める。
 次の固定 snapshot は `work/k03-resume/constant-raw.source.json`。
 旧 `direct-inverse-Pair-Pointed-Cofiber-BaseQuotient-Raw` は終了130・`interrupted`・キャッシュ保存失敗0で中断した。
 同じ batch の `ForgetProjection`・`Pointed.Exact` は accepted・終了0・キャッシュ保存失敗0で、後続の `Backward`・比較全体は未実行。
+
+`constant-raw` の通常検査は宣言ごとの時間計測を付けて再開する。
+処理系の既存の `REF_TYPE_PROFILE_DECLARATIONS` と `REF_TYPE_PROFILE_PHASES` を使い、固定 snapshot `constant-raw.source.json` と共有キャッシュを維持する。
