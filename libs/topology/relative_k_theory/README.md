@@ -65,8 +65,12 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 `Reconstruction` は各三つ組を正規化して商へ降ろした束の差が、元の三つ組へ戻ることを示す。
 最新の未検証変更は `Group.Induction`、`Surjectivity`、`FromReduced.preservesNeg`。
 `Group.Induction` は和と逆元に関する帰納法を整数作用から証明し、`Surjectivity` は各三つ組の復元を群全体へ拡張する。
-次の固定 snapshot は `work/k03-resume/surjectivity.source.json`。
-次は `relative_k_theory.Relative.Pair.Group.Induction` と `relative_k_theory.Relative.Pair.Surjectivity` を順に検査する。
+帰納法の再帰引数の並びを修正した。
+一般の束の枠と両立する写像・同型へ `FramedBundles`・`FramedBundleIsomorphisms` を一般化し、射影表示の `FramedMaps` はその入口として残した。
+`BundleModel` は基底位相を明示した束のデータを持つ。
+この一般化も未検証。
+次の固定 snapshot は `work/k03-resume/framed-bundles.source.json`。
+次は `relative_k_theory.Relative.Pair.Group.Induction`、`Surjectivity`、`BundleModel`、`FramedBundles`、`FramedBundleIsomorphisms`、`FramedChoices` を順に検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。
