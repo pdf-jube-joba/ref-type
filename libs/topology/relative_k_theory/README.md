@@ -52,6 +52,7 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 | 忘却と射影の引き戻しの一致、基点付き被約群の完全性 | `direct-inverse-Pair-ForgetProjection` / `direct-inverse-Pair-Pointed-Exact` |
 | 束写像の剪断、交換、直和の並べ替え | `shears-*` / `reordering-*` |
 | 底面の商の raw 写像・一意性・連続性 | `subset-raw` |
+| 底面の商と suspension の比較全体・明示的な逆・忘却の式 | `subset-comparison` |
 
 長い `cofiber-exact-…BaseQuotient`・`direct-inverse-…BaseQuotient-Raw`・`constant-raw-…BaseQuotient-Raw` は、構成の整理と計測のため中断した検査。
 いずれも終了130・`interrupted`・キャッシュ保存失敗0で、成功した対象検査とは区別する。
@@ -70,21 +71,26 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 次の検査は約166秒で `Raw.existence` の部分空間の点の型を拒否した（終了1・`rejected`・保存失敗0）。
 合同式の引数に部分空間内の点を明示して修正した。
 修正後の `subset-raw` は約92秒で accepted・終了0・保存失敗0だった。
-同じ snapshot で `BaseQuotient` 全体を検査中。
+同じ snapshot の `BaseQuotient` 全体も約611秒で accepted・終了0・保存失敗0だった。
 一般の対の列には、包含・射影の引き戻しとの一致と隣接次数の制限写像の一致も追加した（構文解析のみ完了、`unbased-formulas.source.json`）。
 `Pair.Augmented.OrdinaryEnd` は通常の K 群を端に持つ列と完全性、既存の忘却・制限との一致を構成した（未検証、`ordinary-end.source.json`）。
+`Pair.Mapping.Based` には cofiber の写像、射影・suspension の可換性と接続写像の自然性を書いた（構文解析のみ完了、`based-mapping.source.json`）。
+五項の列の対象検査は約160秒で乗法則の定理名を拒否し、終了1・`rejected`・保存失敗0だった。
+既存の `real.Analysis.Algebra.mulOneRight` へ修正した。
+`five-term-repair.source.json` は検査済みの `subset-raw` snapshot の `Rotation/Inner.ref` だけをこの修正で更新したもの。
+後から追加した一点付加・自然性の API を含む現在の package 全体は、別途最終検査する。
 次の固定 snapshot で検査を続ける。
 
 ```bash
 REF_TYPE_PROFILE_DECLARATIONS=1 REF_TYPE_PROFILE_PHASES=1 \
   target/debug/cli libs/topology/relative_k_theory \
-  --module relative_k_theory.Relative.Pair.Pointed.Cofiber.BaseQuotient \
+  --module relative_k_theory.Relative.Pair.Pointed.FiveTerm \
   --memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 \
-  --diagnostics compact --report-json work/k03-resume/subset-comparison.json \
-  --source-snapshot work/k03-resume/subset-raw.source.json \
-  > work/k03-resume/subset-comparison.log 2>&1
+  --diagnostics compact --report-json work/k03-resume/repaired-five-term.json \
+  --source-snapshot work/k03-resume/five-term-repair.source.json \
+  > work/k03-resume/repaired-five-term.log 2>&1
 result=$?
-printf '%s\n' "$result" > work/k03-resume/subset-comparison.exit
+printf '%s\n' "$result" > work/k03-resume/repaired-five-term.exit
 ```
 
 `closed-pair-lift.source.json` は `b334fd01` 時点の数学コードの固定 snapshot。
