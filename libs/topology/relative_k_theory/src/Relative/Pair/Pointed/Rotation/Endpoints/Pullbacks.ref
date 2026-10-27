@@ -1,0 +1,59 @@
+\use Equality.eq_reason_in;
+\import \root.Relative[].Equivalence[source := model, target := Image.imageModel].With[e := Image.equivalence].Suspended[] \as ImageEquivalence;
+\import \root.Relative[].Equivalence[source := Suspended.result, target := ImageSuspended.result].With[e := ImageEquivalence.result].Groups[] \as ImageGroups;
+\import \root.Relative[].Equivalence[source := Suspended.result, target := Suspended.result].With[e := Reverse.equivalence].Groups[] \as ReverseGroups;
+\import \root.Relative[].Reduced[model := Suspended.result] \as OriginalReduced;
+\import \root.Relative[].Reduced[model := ImageSuspended.result] \as ImageReduced;
+\import \root.Relative[].Reduced[model := \root.Relative[].Suspension[original := subsetModel].result] \as SubsetReduced;
+\import \root.Relative[].Reduced[model := Second.result] \as SecondReduced;
+\import \root.Relative[].Pullback[source := Second.result, target := Suspended.result, f := startMap] \as StartPull;
+\import \root.Relative[].Pullback[source := Second.result, target := Suspended.result, f := endMap] \as EndPull;
+\import \root.Relative[].Pullback[source := Suspended.result, target := Suspended.result, f := Reverse.map] \as ReversePull;
+\import \root.Relative[].Pullback[source := \root.Relative[].Suspension[original := subsetModel].result, target := Suspended.result, f := Included.map] \as IncludedPull;
+\import \root.Relative[].Pullback[source := Second.result, target := Suspended.result, f := BeforeReverse.map] \as BeforeReversePull;
+\import \root.Relative[].Pullback[source := Second.result, target := \root.Relative[].Suspension[original := subsetModel].result, f := BeforeInclusion.map] \as BeforeInclusionPull;
+\import \root.Relative[].Pullback[source := Second.result, target := SecondPair.Quotient[].model, f := SecondProjection.map] \as ProjectionPull;
+\import Second.ConeQuotient[] \as ConeCompare;
+\import ConeCompare.Forgetting[] \as ConeForgetting;
+\import Second.BaseQuotient[].Forgetting[] \as SecondForgetting;
+\import First.BaseQuotient[] \as BaseCompare;
+\import SecondPointed.Connecting[] \as Connecting;
+\import \parent.\parent.\parent.LeftExact[] \as Left;
+\definition toImage: OriginalReduced.Carrier -> ImageReduced.Carrier := ImageGroups.backward;
+\definition fromImage: ImageReduced.Carrier -> OriginalReduced.Carrier := ImageGroups.forward;
+\definition toFrom: \forall (v: ImageReduced.Carrier) -> toImage (fromImage v) = v := ImageGroups.rightInverse;
+\definition fromTo: \forall (v: OriginalReduced.Carrier) -> fromImage (toImage v) = v := ImageGroups.leftInverse;
+\definition reverse: OriginalReduced.Carrier -> OriginalReduced.Carrier := ReversePull.map;
+\definition reverseInvolutive: \forall (v: OriginalReduced.Carrier) -> reverse (reverse v) = v := ReverseGroups.leftInverse;
+\definition restriction: OriginalReduced.Carrier -> SubsetReduced.Carrier := IncludedPull.map;
+\definition startEquation: \forall (v: OriginalReduced.Carrier) -> StartPull.map v = SecondForgetting.pullback (toImage v) :=
+  \fun (v: OriginalReduced.Carrier) => \root.Relative[].PullbackComposition[source := Second.result, middle := ImageSuspended.result, target := Suspended.result,
+    first := quotientMap, second := ImageToOriginal.map].equation v;
+\definition endEquation: \forall (v: OriginalReduced.Carrier) -> EndPull.map v = ConeCompare.forward (BaseCompare.forward (restriction (reverse v))) :=
+  \fun (v: OriginalReduced.Carrier) => eq_reason_in!{{SecondReduced.Carrier} _
+    "=" { BeforeReversePull.map (ReversePull.map v) } "by" {
+      \root.Relative[].PullbackComposition[source := Second.result, middle := Suspended.result, target := Suspended.result,
+        first := BeforeReverse.map, second := Reverse.map].equation v }
+    "=" { BeforeInclusionPull.map (IncludedPull.map (ReversePull.map v)) } "by" {
+      \root.Relative[].PullbackComposition[source := Second.result, middle := \root.Relative[].Suspension[original := subsetModel].result, target := Suspended.result,
+        first := BeforeInclusion.map, second := Included.map].equation (ReversePull.map v) }
+    "=" { ProjectionPull.map (BaseCompare.forward (IncludedPull.map (ReversePull.map v))) } "by" {
+      \root.Relative[].PullbackComposition[source := Second.result, middle := SecondPair.Quotient[].model, target := \root.Relative[].Suspension[original := subsetModel].result,
+        first := SecondProjection.map, second := FirstForward.map].equation (IncludedPull.map (ReversePull.map v)) }
+    "=" { ConeCompare.forward (BaseCompare.forward (restriction (reverse v))) } "by" {
+      sym!{{SecondReduced.Carrier}} _ _ (ConeForgetting.equation (BaseCompare.forward (restriction (reverse v)))) }
+  };
+\definition injective: \forall (v, w: SecondPair.Quotient[].Relative) -> ConeCompare.forward v = ConeCompare.forward w -> v = w :=
+  \fun (v, w: SecondPair.Quotient[].Relative)(same: ConeCompare.forward v = ConeCompare.forward w) =>
+    trans!{{SecondPair.Quotient[].Relative}} _ _ _ (sym!{{SecondPair.Quotient[].Relative}} _ _ (ConeCompare.leftInverse v))
+      (trans!{{SecondPair.Quotient[].Relative}} _ _ _ (congr!{{SecondReduced.Carrier} {SecondPair.Quotient[].Relative}} ConeCompare.backward _ _ same) (ConeCompare.leftInverse w));
+\definition bridge: \forall (v: OriginalReduced.Carrier) -> Left.map (toImage v) = restriction (reverse v) := \block {
+  \fun (v: OriginalReduced.Carrier) \then
+  \let same: Connecting.map (toImage v) = BaseCompare.forward (restriction (reverse v)) := injective _ _
+    (trans!{{SecondReduced.Carrier}} _ _ _ (Connecting.pullbackEquation (toImage v))
+      (trans!{{SecondReduced.Carrier}} _ _ _ (sym!{{SecondReduced.Carrier}} _ _ (startEquation v))
+        (trans!{{SecondReduced.Carrier}} _ _ _ (\parent.equation v) (endEquation v)))) \then
+  \return trans!{{SubsetReduced.Carrier}} _ _ _
+    (congr!{{SecondPair.Quotient[].Relative} {SubsetReduced.Carrier}} BaseCompare.backward _ _ same)
+    (BaseCompare.rightInverse (restriction (reverse v)))
+};

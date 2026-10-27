@@ -195,3 +195,9 @@ K07 の影響先検査は最終検査に含める。
 次の固定 snapshot は `work/k03-resume/direct-inverse.source.json`。
 旧 `cofiber-exact-Pair-Pointed-Cofiber-BaseQuotient` は終了130・`interrupted`・キャッシュ保存失敗0で中断した。
 同じ batch の後続二対象は未実行。
+
+`Rotation.Endpoints.Pullbacks` は変形の引き戻しの式から、二段目の接続写像と通常の suspension の包含による写像を時間反転を介して比較する未検証変更。
+`LeftExact.Suspension` は反転の可逆性と底面の同相を使って、suspension の包含の像と接続写像の核の一致を示す。
+`Pointed.FiveTerm` は基点が閉部分空間にある対について、負一次から被約零次までの五項の群・加法的写像・中間三箇所の完全性を公開する。
+これらも未検証で、固定 snapshot は `work/k03-resume/five-term-public.source.json`。
+現在の `direct-inverse` 検査には、この後に追加した証明を含めていない。
