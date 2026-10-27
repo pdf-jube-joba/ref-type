@@ -1,0 +1,66 @@
+\import \parent.BundleModel[F := F] \as FirstModel;
+\import \parent.BundleModel[F := G] \as SecondModel;
+\definition source: Bundles.Family[X := X, F := F].Bundle := FirstModel.bundle sourceModel;
+\definition target: Bundles.Family[X := X, F := G].Bundle := SecondModel.bundle targetModel;
+\import Operations.DirectSum[X := X, F := F, G := G, left := source, right := target] \as Sum;
+\definition sumBundle: Bundles.Family[X := X, F := Sum.Fiber].Bundle := Sum.bundle (\refl(space));
+\import \parent.BundleModel[F := Sum.Fiber].From[original := sumBundle, same := (\refl(space))] \as SumModel;
+\import Fin.Sum[m := n, n := m] \as Indices;
+\definition dimension: N.Nat^ := Indices.total;
+\import Operations.CoordinateSum[n := n, m := m] \as Coordinates;
+\import Spaces.DirectSum[V := Bundles.Vector n, W := Bundles.Vector m, left := Bundles.coordinates n, right := Bundles.coordinates m] \as CoordinatePair;
+\import Spaces.Linear[V := Bundles.Vector n, W := Bundles.Vector m, source := Bundles.coordinates n, target := Bundles.coordinates m].Operations[] \as RightZero;
+\import Spaces.Linear[V := Bundles.Vector m, W := Bundles.Vector n, source := Bundles.coordinates m, target := Bundles.coordinates n].Operations[] \as LeftZero;
+\definition pairLeft: Spaces.Linear[V := Bundles.Vector n, W := CoordinatePair.Carrier, source := Bundles.coordinates n, target := CoordinatePair.space].Map :=
+  CoordinatePair.Universal[U := (Bundles.Vector n), domain := (Bundles.coordinates n)].pair (Spaces.FiniteCoordinates[n := n].identity) RightZero.zeroMap;
+\definition pairRight: Spaces.Linear[V := Bundles.Vector m, W := CoordinatePair.Carrier, source := Bundles.coordinates m, target := CoordinatePair.space].Map :=
+  CoordinatePair.Universal[U := (Bundles.Vector m), domain := (Bundles.coordinates m)].pair LeftZero.zeroMap (Spaces.FiniteCoordinates[n := m].identity);
+\definition includeLeft: Spaces.Linear[V := Bundles.Vector n, W := Bundles.Vector dimension, source := Bundles.coordinates n, target := Bundles.coordinates dimension].Map :=
+  Spaces.Linear[V := CoordinatePair.Carrier, W := Bundles.Vector dimension, source := CoordinatePair.space, target := Bundles.coordinates dimension].Composition[U := (Bundles.Vector n), domain := (Bundles.coordinates n)].compose Coordinates.forward pairLeft;
+\definition includeRight: Spaces.Linear[V := Bundles.Vector m, W := Bundles.Vector dimension, source := Bundles.coordinates m, target := Bundles.coordinates dimension].Map :=
+  Spaces.Linear[V := CoordinatePair.Carrier, W := Bundles.Vector dimension, source := CoordinatePair.space, target := Bundles.coordinates dimension].Composition[U := (Bundles.Vector m), domain := (Bundles.coordinates m)].compose Coordinates.forward pairRight;
+\definition firstCoordinate: Spaces.Linear[V := Bundles.Vector dimension, W := Bundles.Vector n, source := Bundles.coordinates dimension, target := Bundles.coordinates n].Map :=
+  Spaces.Linear[V := Bundles.Vector dimension, W := Bundles.Vector n, source := Bundles.coordinates dimension, target := Bundles.coordinates n].Map {
+    apply := \fun (v: Bundles.Vector dimension)(i: Fin.Fin n) => v (Indices.left i),
+    preservesAdd := \fun (v, w: Bundles.Vector dimension) => \refl((Bundles.coordinates n).add (\fun (i: Fin.Fin n) => v (Indices.left i)) (\fun (i: Fin.Fin n) => w (Indices.left i))),
+    preservesScale := \fun (a: C.Complex)(v: Bundles.Vector dimension) => \refl((Bundles.coordinates n).smul a (\fun (i: Fin.Fin n) => v (Indices.left i)))
+  };
+\definition secondCoordinate: Spaces.Linear[V := Bundles.Vector dimension, W := Bundles.Vector m, source := Bundles.coordinates dimension, target := Bundles.coordinates m].Map :=
+  Spaces.Linear[V := Bundles.Vector dimension, W := Bundles.Vector m, source := Bundles.coordinates dimension, target := Bundles.coordinates m].Map {
+    apply := \fun (v: Bundles.Vector dimension)(i: Fin.Fin m) => v (Indices.right i),
+    preservesAdd := \fun (v, w: Bundles.Vector dimension) => \refl((Bundles.coordinates m).add (\fun (i: Fin.Fin m) => v (Indices.right i)) (\fun (i: Fin.Fin m) => w (Indices.right i))),
+    preservesScale := \fun (a: C.Complex)(v: Bundles.Vector dimension) => \refl((Bundles.coordinates m).smul a (\fun (i: Fin.Fin m) => v (Indices.right i)))
+  };
+\import Spaces.Isomorphism[V := CoordinatePair.Carrier, W := Bundles.Vector dimension, source := CoordinatePair.space, target := Bundles.coordinates dimension] \as CoordinateIsomorphism;
+\definition firstJoin: \forall (v: Bundles.Vector n)(w: Bundles.Vector m) -> firstCoordinate.apply (Coordinates.join (CoordinatePair.make v w)) = v :=
+  \fun (v: Bundles.Vector n)(w: Bundles.Vector m) => congr!{CoordinatePair.Carrier {Bundles.Vector n}} CoordinatePair.first _ _ ((CoordinateIsomorphism.laws Coordinates.isomorphism).leftInverse (CoordinatePair.make v w));
+\definition secondJoin: \forall (v: Bundles.Vector n)(w: Bundles.Vector m) -> secondCoordinate.apply (Coordinates.join (CoordinatePair.make v w)) = w :=
+  \fun (v: Bundles.Vector n)(w: Bundles.Vector m) => congr!{CoordinatePair.Carrier {Bundles.Vector m}} CoordinatePair.second _ _ ((CoordinateIsomorphism.laws Coordinates.isomorphism).leftInverse (CoordinatePair.make v w));
+\import \root.Relative[].Descent[X := X, F := F, bundle := source, compact := compact, hausdorff := hausdorff, subset := subset, closed := closed, dimension := n] \as First;
+\import \root.Relative[].Descent[X := X, F := G, bundle := target, compact := compact, hausdorff := hausdorff, subset := subset, closed := closed, dimension := m] \as Second;
+\import \root.Relative[].Descent[X := X, F := Sum.Fiber, bundle := sumBundle, compact := compact, hausdorff := hausdorff, subset := subset, closed := closed, dimension := dimension] \as SumDescent;
+\definition inclusion[x: A]: X := x;
+\definition regular: topology.Continuity[A := A, B := X].Continuous subspace space inclusion := topology.Continuity[A := A, B := X].Corestriction[S := subset].inclusionContinuous space;
+\import Bundles.Trivial[X := X, n := n, baseSpace := space] \as FirstTrivial;
+\import Bundles.Trivial[X := X, n := m, baseSpace := space] \as SecondTrivial;
+\import Bundles.Trivial[X := X, n := dimension, baseSpace := space] \as SumTrivial;
+\import Bundles.Family[X := X, F := F].Of[bundle := source].Restriction[U := subset] \as FirstRestriction;
+\import Bundles.Family[X := X, F := G].Of[bundle := target].Restriction[U := subset] \as SecondRestriction;
+\import Bundles.Family[X := X, F := (\fun (x: X) => Bundles.Vector n)].Of[bundle := FirstTrivial.bundle].Restriction[U := subset] \as FirstTrivialRestriction;
+\import Bundles.Family[X := X, F := (\fun (x: X) => Bundles.Vector m)].Of[bundle := SecondTrivial.bundle].Restriction[U := subset] \as SecondTrivialRestriction;
+\import Bundles.Family[X := X, F := Sum.Fiber].Of[bundle := sumBundle].Restriction[U := subset] \as SumRestriction;
+\import Bundles.Family[X := X, F := (\fun (x: X) => Bundles.Vector dimension)].Of[bundle := SumTrivial.bundle].Restriction[U := subset] \as SumTrivialRestriction;
+\import Sum.Of[same := (\refl(space))].Pullback[Y := A, source := subspace, f := inclusion, regular := regular] \as SumPull;
+\import Operations.DirectSum[X := X, F := (\fun (x: X) => Bundles.Vector n), G := (\fun (x: X) => Bundles.Vector m), left := FirstTrivial.bundle, right := SecondTrivial.bundle] \as TrivialSum;
+\definition trivialSumBundle: Bundles.Family[X := X, F := TrivialSum.Fiber].Bundle := TrivialSum.bundle (\refl(space));
+\import Operations.GlobalFrame[X := X, F := TrivialSum.Fiber, bundle := trivialSumBundle,
+  chart := (TrivialSum.In[c := FirstTrivial.trivialization, d := SecondTrivial.trivialization].trivialization (\refl(space))),
+  covers := (\fun (x: X) => Logic.And[x = x, x = x]::# (\refl(x)) (\refl(x)))] \as Join;
+\import TrivialSum.Of[same := (\refl(space))].Pullback[Y := A, source := subspace, f := inclusion, regular := regular] \as TrivialSumPull;
+\import Complements.PulledIsomorphism[X := X, Y := A, F := TrivialSum.Fiber, G := (\fun (x: X) => Bundles.Vector dimension),
+  source := trivialSumBundle, target := SumTrivial.bundle, base := subspace, f := inclusion, sourceRegular := regular, targetRegular := regular] \as JoinedPull;
+\import Operations.DirectSumIsomorphisms[X := A, F := (\fun (x: A) => F x), G := (\fun (x: A) => G x),
+  A := (\fun (x: A) => Bundles.Vector n), B := (\fun (x: A) => Bundles.Vector m),
+  first := FirstRestriction.restricted, second := SecondRestriction.restricted, newFirst := FirstTrivialRestriction.restricted, newSecond := SecondTrivialRestriction.restricted,
+  sameSource := (\refl(subspace)), sameTarget := (\refl(subspace))] \as BoundarySums;
+\module With(alpha: First.OnSubset, beta: Second.OnSubset);

@@ -85,12 +85,17 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 最新の未検証変更は `CylinderSum`・`CylinderHomotopy`・`TripleHomotopy`。
 それぞれ直和と円柱への引き戻しの比較、三つ組のホモトピーの円柱内の部分空間への移動、三つ組のホモトピーに対する被約群の元の不変性を示す。
 `TripleClass` は正側を安定化した束のモデルも公開する。
-`CylinderSum` と `CylinderHomotopy` は `triple-homotopy-CylinderSum`・`triple-homotopy-CylinderHomotopy` で検査済み。
-固定 snapshot `work/k03-resume/triple-homotopy.source.json` の `TripleHomotopy` は検査中。
+`CylinderSum`・`CylinderHomotopy`・`TripleHomotopy` は `triple-homotopy-*` で accepted・終了0・キャッシュ保存失敗0。
+したがって `TripleClass` の全体延長とホモトピーの関係式については被約群の元が保たれる。
+直和・合成の関係式の証明はまだ残る。
 K07 の剪断写像と符号付き交換の族を、任意の可換環上の `linear_algebra.Commutative.Blocks`・`Rotation` へ移し、K07 の参照先を更新した。
-これらの共通化は未検証で、K07 の影響先検査にも含める。
-次の固定 snapshot は `work/k03-resume/common-rotation.source.json`。
-現在の検査を回収した後に `linear_algebra.Commutative.Blocks` と `linear_algebra.Commutative.Rotation` を順に検査する。
+共通 API 自体は `common-Blocks`・`common-Rotation` で accepted・終了0・キャッシュ保存失敗0。
+K07 の影響先検査は最終検査に含める。
+最新の未検証変更は `FramedSum`。
+座標の包含・射影と、二つの境界枠の直和を構成する。
+降下した束の直和との比較と被約群での加法性は続けて実装する。
+固定 snapshot は `work/k03-resume/framed-sum.source.json`。
+次は `relative_k_theory.Relative.Pair.FramedSum` を検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。
