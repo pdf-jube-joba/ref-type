@@ -169,3 +169,22 @@
               (Logic.And[_, _]::# second.left (midpointStrictRight r (Real.add a b) second.right))))))
     },
   };
+
+\definition scaleMono: \forall (c: Real.Real) (v, w: Value) -> Included v w -> Included (scale c v) (scale c w) :=
+  \fun (c: Real.Real) (v, w: Value) (included: Included v w) (r: Real.Real) (member: below (scale c v) r) => \block {
+    \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[below v a, R.Lt r (Real.mul c a)] }) \by member \then
+    \let data: Logic.And[below v a, R.Lt r (Real.mul c a)] :=
+      \bysub(Real.Real, { a: Real.Real \where Logic.And[below v a, R.Lt r (Real.mul c a)] }, a) \then
+    \return Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[below w a, R.Lt r (Real.mul c a)] }] a
+      (Logic.And[_, _]::# (included a data.left) data.right)
+  };
+\definition sumMono: \forall (n: N.Nat^) (f, g: Fin.Fin n -> Value) ->
+  (\forall (i: Fin.Fin n) -> Included (f i) (g i)) -> Included (sum n f) (sum n g) :=
+  \induction (n: N.Nat^) \return \forall (f, g: Fin.Fin n -> Value) ->
+    (\forall (i: Fin.Fin n) -> Included (f i) (g i)) -> Included (sum n f) (sum n g) \with {
+      | zero: \fun (f, g: Fin.Fin N.Nat^::zero -> Value) (_: _) (r: Real.Real) (member: below zero r) => member
+      | succ: \fun (n: N.Nat^) (previous: _) (f, g: Fin.Fin (N.Nat^::succ n) -> Value) (included: _) =>
+        addMono (f (Fin.zero n)) (g (Fin.zero n)) (sum n (\fun (i: Fin.Fin n) => f (Fin.succ n i))) (sum n (\fun (i: Fin.Fin n) => g (Fin.succ n i)))
+          (included (Fin.zero n)) (previous (\fun (i: Fin.Fin n) => f (Fin.succ n i)) (\fun (i: Fin.Fin n) => g (Fin.succ n i))
+            (\fun (i: Fin.Fin n) => included (Fin.succ n i)))
+    };
