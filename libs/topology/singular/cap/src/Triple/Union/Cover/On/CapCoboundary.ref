@@ -1,0 +1,71 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import N.Basic[].Prop[] \as Bounds;
+\import Simplices.CutFaces[p := p, q := N.Nat^::succ r] \as Geometry;
+\import Simplices.CutFaces[p := N.Nat^::succ p, q := r] \as UpperGeometry;
+\import \parent.SmallDegree[] \as Degree;
+\import SecondCap.Degree[] \as TargetDegree;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import Nonnegative.ZeroExtension[C := Small.complex] \as SmallExtension;
+\import Nonnegative.ZeroExtension[C := Chains.complex] \as WholeExtension;
+\import Nonnegative.Map[C := Small.complex, D := Chains.complex].ZeroExtension[f := inclusion] \as SmallMap;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring].Quotient[C := SmallExtension.complex, D := WholeExtension.complex].On[f := SmallMap.map] \as Q;
+\import \parent.CapHomology[p := p, q := N.Nat^::succ r] \as Homology;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.At[C := Q.complex, z := I.Int^::ofNat Geometry.higher] \as Source;
+\import \parent.CapBoundary[p := N.Nat^::succ p, q := r].Formula[] \as Formula;
+\import \parent.Cap[p := N.Nat^::succ p, q := r][] \as Lower;
+\import \parent.Cap[p := N.Nat^::succ (N.Nat^::succ p), q := r][] \as Higher;
+\import \parent.Cap[p := N.Nat^::succ p, q := N.Nat^::succ r][] \as Right;
+\import First.With[coefficients := Cochains.integerCoefficients] \as RelativeCochains;
+\import Modules.Hom[V := Degree.Carrier UpperGeometry.total, W := TargetDegree.Carrier (N.Nat^::succ p), source := Degree.space UpperGeometry.total, target := TargetDegree.space (N.Nat^::succ p)] \as LowerMaps;
+\import Modules.Laws[V := TargetDegree.Carrier (N.Nat^::succ p), space := TargetDegree.space (N.Nat^::succ p)] \as Values;
+\import algebra.Group[].Of[Carrier := TargetDegree.Carrier (N.Nat^::succ p), group := Values.additive] \as Group;
+\import Modules.Alternating[V := TargetDegree.Carrier (N.Nat^::succ p), space := TargetDegree.space (N.Nat^::succ p)].Concatenation[] \as Signs;
+\import Modules.Alternating[V := TargetDegree.Carrier (N.Nat^::succ (N.Nat^::succ p)), space := TargetDegree.space (N.Nat^::succ (N.Nat^::succ p))].Concatenation[] \as UpperSigns;
+\import UpperSigns.Mapping[W := TargetDegree.Carrier (N.Nat^::succ p), target := TargetDegree.space (N.Nat^::succ p)] \as SignMapping;
+\import Modules.Hom[V := TargetDegree.Carrier (N.Nat^::succ (N.Nat^::succ p)), W := TargetDegree.Carrier (N.Nat^::succ p), source := TargetDegree.space (N.Nat^::succ (N.Nat^::succ p)), target := TargetDegree.space (N.Nat^::succ p)] \as BoundaryMaps;
+\definition same: Geometry.total = UpperGeometry.total := sym!{N.Nat^} _ _ (Bounds.addSuccLeft p r);
+\definition input[x: Source.Cycle]: Degree.Carrier UpperGeometry.higher :=
+  Degree.apply Geometry.higher UpperGeometry.higher (congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _ same) x;
+\definition boundaryZero: \forall (x: Source.Cycle) -> (Degree.boundary UpperGeometry.total).apply (input x) = (Degree.space UpperGeometry.total).zero :=
+  \fun (x: Source.Cycle) => eq_reason_in!{{Degree.Carrier UpperGeometry.total} _
+    "=" _ "by" { sym!{{Degree.Carrier UpperGeometry.total}} _ _ (Degree.boundaryNatural Geometry.total UpperGeometry.total same x) }
+    "=" _ "by" { congr!{{Degree.Carrier Geometry.total} {Degree.Carrier UpperGeometry.total}} (Degree.apply Geometry.total UpperGeometry.total same) _ _
+      (\bysub(Degree.Carrier Geometry.higher, (Source.cycles).carrier, x)) }
+    "=" _ "by" { Degree.zero Geometry.total UpperGeometry.total same }
+  };
+\definition witness[gamma: RelativeCochains.Carrier (I.Int^::ofNat r)][x: Source.Cycle]: TargetDegree.Carrier (N.Nat^::succ (N.Nat^::succ p)) :=
+  (Higher.map gamma).apply (Degree.apply UpperGeometry.higher UpperGeometry.leftDegree (sym!{N.Nat^} _ _ UpperGeometry.same) (input x));
+\definition value[gamma: RelativeCochains.Carrier (I.Int^::ofNat r)][x: Source.Cycle]: TargetDegree.Carrier (N.Nat^::succ p) := (Right.map ((RelativeCochains.complex.differential).apply (I.Int^::ofNat r) gamma)).apply (input x);
+\definition sumZero: \forall (gamma: RelativeCochains.Carrier (I.Int^::ofNat r))(x: Source.Cycle) ->
+  (TargetDegree.space (N.Nat^::succ p)).add ((TargetDegree.boundary (N.Nat^::succ p)).apply (witness gamma x)) (Signs.twist (N.Nat^::succ p) (value gamma x)) = (TargetDegree.space (N.Nat^::succ p)).zero :=
+  \fun (gamma: RelativeCochains.Carrier (I.Int^::ofNat r))(x: Source.Cycle) => trans!{{TargetDegree.Carrier (N.Nat^::succ p)}} _ _ _
+    (sym!{{TargetDegree.Carrier (N.Nat^::succ p)}} _ _ (Formula.law gamma (input x)))
+    (trans!{{TargetDegree.Carrier (N.Nat^::succ p)}} _ _ _
+      (congr!{{Degree.Carrier UpperGeometry.total} {TargetDegree.Carrier (N.Nat^::succ p)}} ((Lower.map gamma).apply) _ _ (boundaryZero x))
+      (LowerMaps.zeroPreserved (Lower.map gamma)));
+\definition signedValue: \forall (gamma: RelativeCochains.Carrier (I.Int^::ofNat r))(x: Source.Cycle) ->
+  Signs.twist (N.Nat^::succ p) (value gamma x) = (TargetDegree.space (N.Nat^::succ p)).neg ((TargetDegree.boundary (N.Nat^::succ p)).apply (witness gamma x)) :=
+  \fun (gamma: RelativeCochains.Carrier (I.Int^::ofNat r))(x: Source.Cycle) => Group.inverseUnique _ _
+    (trans!{{TargetDegree.Carrier (N.Nat^::succ p)}} _ _ _
+      (Group.comm (Signs.twist (N.Nat^::succ p) (value gamma x)) ((TargetDegree.boundary (N.Nat^::succ p)).apply (witness gamma x))) (sumZero gamma x));
+\definition boundaryWitness[gamma: RelativeCochains.Carrier (I.Int^::ofNat r)][x: Source.Cycle]: TargetDegree.Carrier (N.Nat^::succ (N.Nat^::succ p)) :=
+  (TargetDegree.space (N.Nat^::succ (N.Nat^::succ p))).neg (UpperSigns.twist (N.Nat^::succ p) (witness gamma x));
+\definition boundary: \forall (gamma: RelativeCochains.Carrier (I.Int^::ofNat r))(x: Source.Cycle) ->
+  (TargetDegree.boundary (N.Nat^::succ p)).apply (boundaryWitness gamma x) = value gamma x :=
+  \fun (gamma: RelativeCochains.Carrier (I.Int^::ofNat r))(x: Source.Cycle) => eq_reason_in!{{TargetDegree.Carrier (N.Nat^::succ p)} _
+    "=" _ "by" { BoundaryMaps.negativePreserved (TargetDegree.boundary (N.Nat^::succ p)) (UpperSigns.twist (N.Nat^::succ p) (witness gamma x)) }
+    "=" _ "by" { congr!{{TargetDegree.Carrier (N.Nat^::succ p)} {TargetDegree.Carrier (N.Nat^::succ p)}} ((TargetDegree.space (N.Nat^::succ p)).neg) _ _
+      (SignMapping.law (TargetDegree.boundary (N.Nat^::succ p)) (N.Nat^::succ p) (witness gamma x)) }
+    "=" _ "by" { sym!{{TargetDegree.Carrier (N.Nat^::succ p)}} _ _ (Signs.twistNeg (N.Nat^::succ p) ((TargetDegree.boundary (N.Nat^::succ p)).apply (witness gamma x))) }
+    "=" _ "by" { congr!{{TargetDegree.Carrier (N.Nat^::succ p)} {TargetDegree.Carrier (N.Nat^::succ p)}} (Signs.twist (N.Nat^::succ p)) _ _ (sym!{{TargetDegree.Carrier (N.Nat^::succ p)}} _ _ (signedValue gamma x)) }
+    "=" _ "by" { Signs.involution (N.Nat^::succ p) (value gamma x) }
+  };
+\definition sameValue: \forall (gamma: RelativeCochains.Carrier (I.Int^::ofNat r))(x: Source.Cycle) ->
+  (Homology.cap ((RelativeCochains.complex.differential).apply (I.Int^::ofNat r) gamma)).apply x = value gamma x :=
+  \fun (gamma: RelativeCochains.Carrier (I.Int^::ofNat r))(x: Source.Cycle) => \refl(value gamma x);
+
