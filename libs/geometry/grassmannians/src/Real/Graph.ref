@@ -63,3 +63,13 @@
 \definition graphRegular: \forall (v: Domain.Vector) -> LocalVectors.Continuous localTopology (\fun (x: Carrier) => graph x v) :=
   \fun (v: Domain.Vector) => LocalVectors.addition localTopology (\fun (x: Carrier) => (normalized x).apply v) (\fun (_: Carrier) => E.space.neg (center.value.apply v))
     (normalizedRegular v) (LocalVectors.constant localTopology (E.space.neg (center.value.apply v)));
+
+\import Forward.Operations[] \as ForwardOperations;
+\import Spaces.Laws[V := E.Vector, space := E.space] \as AmbientLaws;
+\definition graphMap[x: Carrier]: Forward.Map := ForwardOperations.plus (normalized x) (ForwardOperations.negative center.value);
+\definition graphMapFormula: \forall (x: Carrier)(v: Domain.Vector) -> (graphMap x).apply v = graph x v :=
+  \fun (x: Carrier)(v: Domain.Vector) => congr!{{E.Vector} {E.Vector}} (E.space.add ((normalized x).apply v)) _ _ (AmbientLaws.minusOneScale (center.value.apply v));
+\definition graphMapRegular: LocalMaps.Regular localTopology graphMap :=
+  \fun (v: Domain.Vector)(i: Fin.Fin n) => H.Over[K := R.Real, field := R.Algebra[].field, scalar := H.Real[].scalar, topological := H.Real[].topological].Functions[X := Carrier].transport localTopology
+    (\fun (x: Carrier) => graph x v i) (\fun (x: Carrier) => (graphMap x).apply v i)
+    (\fun (x: Carrier) => sym!{R.Real} _ _ (congr!{{E.Vector} R.Real} (\fun (w: E.Vector) => w i) _ _ (graphMapFormula x v))) (graphRegular v i);
