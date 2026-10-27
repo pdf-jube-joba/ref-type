@@ -1,0 +1,143 @@
+\import \parent.Sequence[degree := N.Nat^::zero] \as Term;
+\import Whole.Additive[] \as WholeAdditive;
+\import Subset.Additive[] \as SubsetAdditive;
+\import Absolute.K0[] \as WholeK;
+\import KTheory.On[X := A, baseSpace := subspace, compact := Restriction.compactSubset, hausdorff := Restriction.hausdorffSubset].K0[] \as SubsetK;
+\definition First: \Set := Term.First;
+\definition Second: \Set := Term.Second;
+\definition Third: \Set := Term.Third;
+\definition Fourth: \Set := WholeK.Carrier;
+\definition Fifth: \Set := SubsetK.Carrier;
+\definition firstGroup: std.Alg[].Alg[].CommutativeGroup[First] := Term.firstGroup;
+\definition secondGroup: std.Alg[].Alg[].CommutativeGroup[Second] := Term.secondGroup;
+\definition thirdGroup: std.Alg[].Alg[].CommutativeGroup[Third] := Term.thirdGroup;
+\definition fourthGroup: std.Alg[].Alg[].CommutativeGroup[Fourth] := WholeK.group;
+\definition fifthGroup: std.Alg[].Alg[].CommutativeGroup[Fifth] := SubsetK.group;
+\definition restrictionNegative: First -> Second := Term.restrictionNegative;
+\definition boundary: Second -> Third := Term.boundary;
+\definition forget[v: Third]: Fourth := Whole.backward (Term.forget v);
+\definition restriction[v: Fourth]: Fifth := Subset.backward (Term.restriction (Whole.forward v));
+\definition restrictionNegativeAdd: \forall (v, w: First) -> restrictionNegative (firstGroup.base.op v w) = secondGroup.base.op (restrictionNegative v) (restrictionNegative w) := Term.restrictionNegativeAdd;
+\definition restrictionNegativeZero: restrictionNegative firstGroup.base.unit = secondGroup.base.unit := Term.restrictionNegativeZero;
+\definition boundaryAdd: \forall (v, w: Second) -> boundary (secondGroup.base.op v w) = thirdGroup.base.op (boundary v) (boundary w) := Term.boundaryAdd;
+\definition boundaryZero: boundary secondGroup.base.unit = thirdGroup.base.unit := Term.boundaryZero;
+\definition forgetAdd: \forall (v, w: Third) -> forget (thirdGroup.base.op v w) = fourthGroup.base.op (forget v) (forget w) :=
+  \fun (v, w: Third) => trans!{{Fourth}} _ _ _ (congr!{{Term.Fourth} {Fourth}} Whole.backward _ _ (Term.forgetAdd v w))
+    (WholeAdditive.backwardAdd (Term.forget v) (Term.forget w));
+\definition forgetZero: forget thirdGroup.base.unit = fourthGroup.base.unit :=
+  trans!{{Fourth}} _ _ _ (congr!{{Term.Fourth} {Fourth}} Whole.backward _ _ Term.forgetZero) WholeAdditive.backwardZero;
+\definition restrictionAdd: \forall (v, w: Fourth) -> restriction (fourthGroup.base.op v w) = fifthGroup.base.op (restriction v) (restriction w) :=
+  \fun (v, w: Fourth) => trans!{{Fifth}} _ _ _
+    (congr!{{Term.Fifth} {Fifth}} Subset.backward _ _ (trans!{{Term.Fifth}} _ _ _
+      (congr!{{Term.Fourth} {Term.Fifth}} Term.restriction _ _ (WholeAdditive.forwardAdd v w))
+      (Term.restrictionAdd (Whole.forward v) (Whole.forward w))))
+    (SubsetAdditive.backwardAdd (Term.restriction (Whole.forward v)) (Term.restriction (Whole.forward w)));
+\definition restrictionZero: restriction fourthGroup.base.unit = fifthGroup.base.unit :=
+  trans!{{Fifth}} _ _ _ (congr!{{Term.Fifth} {Fifth}} Subset.backward _ _
+    (trans!{{Term.Fifth}} _ _ _ (congr!{{Term.Fourth} {Term.Fifth}} Term.restriction _ _ WholeAdditive.forwardZero) Term.restrictionZero)) SubsetAdditive.backwardZero;
+\definition exactSecond[v: Second]: Logic.PropEquiv[boundary v = thirdGroup.base.unit, \exists (w: First \where restrictionNegative w = v)] := Term.exactSecond v;
+\definition RelativeImage[v: Third]: \Prop := \exists (w: Second \where boundary w = v);
+\definition relativePreimage: \forall (v: Third) -> forget v = fourthGroup.base.unit -> RelativeImage v :=
+  \fun (v: Third)(zero: forget v = fourthGroup.base.unit) => (Term.exactThird v).ltr
+    (trans!{{Term.Fourth}} _ _ _ (sym!{{Term.Fourth}} _ _ (Whole.rightInverse (Term.forget v)))
+      (trans!{{Term.Fourth}} _ _ _ (congr!{{Fourth} {Term.Fourth}} Whole.forward _ _ zero) WholeAdditive.forwardZero));
+\definition relativeKernel: \forall (v: Third) -> RelativeImage v -> forget v = fourthGroup.base.unit :=
+  \fun (v: Third)(image: RelativeImage v) => trans!{{Fourth}} _ _ _
+    (congr!{{Term.Fourth} {Fourth}} Whole.backward _ _ ((Term.exactThird v).rtl image)) WholeAdditive.backwardZero;
+\definition exactThird[v: Third]: Logic.PropEquiv[forget v = fourthGroup.base.unit, RelativeImage v] :=
+  Logic.PropEquiv[_, _] { ltr := relativePreimage v, rtl := relativeKernel v };
+\definition ordinaryKernel: \forall (v: Third) -> restriction (forget v) = fifthGroup.base.unit :=
+  \fun (v: Third) => trans!{{Fifth}} _ _ _
+    (congr!{{Term.Fifth} {Fifth}} Subset.backward _ _ (trans!{{Term.Fifth}} _ _ _
+      (congr!{{Term.Fourth} {Term.Fifth}} Term.restriction _ _ (Whole.rightInverse (Term.forget v)))
+      ((Term.exactFourth (Term.forget v)).rtl
+        (Logic.existsIntro[Third, { w: Third \where Term.forget w = Term.forget v }] v (\refl(Term.forget v)))))) SubsetAdditive.backwardZero;
+\definition OrdinaryImage[v: Fourth]: \Prop := \exists (w: Third \where forget w = v);
+\definition ordinaryPreimage: \forall (v: Fourth) -> restriction v = fifthGroup.base.unit -> OrdinaryImage v := \block {
+  \fun (v: Fourth)(zero: restriction v = fifthGroup.base.unit) \then
+  \let oldZero: Term.restriction (Whole.forward v) = Term.fifthGroup.base.unit := trans!{{Term.Fifth}} _ _ _
+    (sym!{{Term.Fifth}} _ _ (Subset.rightInverse (Term.restriction (Whole.forward v))))
+    (trans!{{Term.Fifth}} _ _ _ (congr!{{Fifth} {Term.Fifth}} Subset.forward _ _ zero) SubsetAdditive.forwardZero) \then
+  \takefrom w: \Cast[Third] ({ w: Third \where Term.forget w = Whole.forward v }) \by (Term.exactFourth (Whole.forward v)).ltr oldZero \then
+  \return Logic.existsIntro[Third, { w: Third \where forget w = v }] w
+    (trans!{{Fourth}} _ _ _ (congr!{{Term.Fourth} {Fourth}} Whole.backward _ _ (\bysub(Third, { w: Third \where Term.forget w = Whole.forward v }, w)))
+      (Whole.leftInverse v))
+};
+\definition ordinaryInKernel: \forall (v: Fourth) -> OrdinaryImage v -> restriction v = fifthGroup.base.unit := \block {
+  \fun (v: Fourth)(image: OrdinaryImage v) \then
+  \takefrom w: \Cast[Third] ({ w: Third \where forget w = v }) \by image \then
+  \return \idelim forget w = v \with x: Fourth => restriction x = fifthGroup.base.unit \by {
+    base: ordinaryKernel w, equality: \bysub(Third, { w: Third \where forget w = v }, w)
+  }
+};
+\definition exactFourth[v: Fourth]: Logic.PropEquiv[restriction v = fifthGroup.base.unit, OrdinaryImage v] :=
+  Logic.PropEquiv[_, _] { ltr := ordinaryPreimage v, rtl := ordinaryInKernel v };
+\use Equality.eq_reason_in;
+\import KTheory.On[X := Original.Carrier, baseSpace := Original.topology, compact := Original.quotientCompact, hausdorff := Original.quotientHausdorff] \as OriginalK;
+\import KTheory.On[X := Whole.model.Carrier, baseSpace := (details Whole.model).topology, compact := (details Whole.model).compact, hausdorff := (details Whole.model).hausdorff] \as WholeAugmentedK;
+\import WholeAugmentedK.Pullback[Y := X, space := space, sourceCompact := compact, sourceHausdorff := hausdorff,
+  f := Whole.inclusion, regular := Whole.inclusionContinuous].K0[] \as WholeInclusion;
+\import Whole.Projection[] \as WholeProjection;
+\import OriginalK.Pullback[Y := Whole.model.Carrier, space := (details Whole.model).topology,
+  sourceCompact := (details Whole.model).compact, sourceHausdorff := (details Whole.model).hausdorff,
+  f := projection, regular := projectionContinuous] \as AlongProjection;
+\import AlongProjection.Composition[Z := X, nextSpace := space, nextCompact := compact, nextHausdorff := hausdorff,
+  g := Whole.inclusion, nextRegular := Whole.inclusionContinuous] \as FromOriginal;
+\definition FunctionsToQuotient: \Set := \Cast[X -> Original.Carrier] ({ f: (X -> Original.Carrier) \where
+  topology.Continuity[A := X, B := Original.Carrier].Continuous space Original.topology f });
+\definition originalPull[f: FunctionsToQuotient][v: Third]: Fourth := OriginalK.Pullback[Y := X, space := space, sourceCompact := compact, sourceHausdorff := hausdorff,
+  f := f, regular := (\bysub((X -> Original.Carrier), FunctionsToQuotient, f))].K0[].map v;
+\definition compositeOriginal: FunctionsToQuotient := \into[X -> Original.Carrier]((\fun (x: X) => projection (Whole.inclusion x)), FunctionsToQuotient) \by { FromOriginal.compositeRegular };
+\definition quotientOriginal: FunctionsToQuotient := \into[X -> Original.Carrier](Original.projection, FunctionsToQuotient) \by { Original.continuous };
+\definition originalSquare: compositeOriginal = quotientOriginal :=
+  \axiom:funext((\fun (x: X) => projection (Whole.inclusion x)), Original.projection, projectionOnOriginal);
+\definition originalSquarePull: \forall (v: Third) -> originalPull compositeOriginal v = originalPull quotientOriginal v :=
+  \fun (v: Third) => congr!{{FunctionsToQuotient} {Fourth}} (\fun (f: FunctionsToQuotient) => originalPull f v) compositeOriginal quotientOriginal originalSquare;
+\import \parent.\parent.ForgetProjection[] \as OriginalProjection;
+\import \parent.\parent.Exact[] \as OriginalExact;
+\definition forgetFormula: \forall (v: Third) -> forget v = OriginalExact.forget v := \fun (v: Third) => eq_reason_in!{{Fourth} _
+  "=" { WholeInclusion.map (Term.forget v) } "by" { WholeProjection.equation (Term.forget v) }
+  "=" { WholeInclusion.map (AlongProjection.K0[].map v) } "by" { congr!{{Term.Fourth} {Fourth}} WholeInclusion.map _ _ (Term.forgetFormula v) }
+  "=" { originalPull compositeOriginal v } "by" { sym!{{Fourth}} _ _ (FromOriginal.onK0 v) }
+  "=" { originalPull quotientOriginal v } "by" { originalSquarePull v }
+  "=" { OriginalExact.forget v } "by" { OriginalProjection.equation v }
+};
+\import KTheory.On[X := Subset.model.Carrier, baseSpace := (details Subset.model).topology, compact := (details Subset.model).compact, hausdorff := (details Subset.model).hausdorff].Pullback[
+  Y := A, space := subspace, sourceCompact := Restriction.compactSubset, sourceHausdorff := Restriction.hausdorffSubset,
+  f := Subset.inclusion, regular := Subset.inclusionContinuous].K0[] \as SubsetInclusion;
+\import Subset.Projection[] \as SubsetProjection;
+\import WholeAugmentedK.Pullback[Y := Subset.model.Carrier, space := (details Subset.model).topology,
+  sourceCompact := (details Subset.model).compact, sourceHausdorff := (details Subset.model).hausdorff,
+  f := inclusion, regular := inclusionContinuous].Composition[Z := A, nextSpace := subspace,
+  nextCompact := Restriction.compactSubset, nextHausdorff := Restriction.hausdorffSubset,
+  g := Subset.inclusion, nextRegular := Subset.inclusionContinuous] \as ThroughSubset;
+\import WholeAugmentedK.Pullback[Y := X, space := space, sourceCompact := compact, sourceHausdorff := hausdorff,
+  f := Whole.inclusion, regular := Whole.inclusionContinuous].Composition[Z := A, nextSpace := subspace,
+  nextCompact := Restriction.compactSubset, nextHausdorff := Restriction.hausdorffSubset,
+  g := Restriction.inclusion, nextRegular := Restriction.regular] \as ThroughWhole;
+\import WholeAugmentedK.Pullback[Y := Subset.model.Carrier, space := (details Subset.model).topology,
+  sourceCompact := (details Subset.model).compact, sourceHausdorff := (details Subset.model).hausdorff,
+  f := inclusion, regular := inclusionContinuous].K0[] \as AlongInclusion;
+\definition FunctionsToWhole: \Set := \Cast[A -> Whole.model.Carrier] ({ f: (A -> Whole.model.Carrier) \where
+  topology.Continuity[A := A, B := Whole.model.Carrier].Continuous subspace (details Whole.model).topology f });
+\definition subsetPull[f: FunctionsToWhole][v: Term.Fourth]: Fifth := WholeAugmentedK.Pullback[Y := A, space := subspace,
+  sourceCompact := Restriction.compactSubset, sourceHausdorff := Restriction.hausdorffSubset,
+  f := f, regular := (\bysub((A -> Whole.model.Carrier), FunctionsToWhole, f))].K0[].map v;
+\definition fromSubset: FunctionsToWhole := \into[A -> Whole.model.Carrier]((\fun (a: A) => inclusion (Subset.inclusion a)), FunctionsToWhole) \by { ThroughSubset.compositeRegular };
+\definition fromWhole: FunctionsToWhole := \into[A -> Whole.model.Carrier]((\fun (a: A) => Whole.inclusion (Restriction.inclusion a)), FunctionsToWhole) \by { ThroughWhole.compositeRegular };
+\definition inclusionSquare: fromSubset = fromWhole :=
+  \axiom:funext((\fun (a: A) => inclusion (Subset.inclusion a)), (\fun (a: A) => Whole.inclusion (Restriction.inclusion a)), inclusionOnOriginal);
+\definition inclusionSquarePull: \forall (v: Term.Fourth) -> subsetPull fromSubset v = subsetPull fromWhole v :=
+  \fun (v: Term.Fourth) => congr!{{FunctionsToWhole} {Fifth}} (\fun (f: FunctionsToWhole) => subsetPull f v) fromSubset fromWhole inclusionSquare;
+\definition restrictionFormula: \forall (v: Fourth) -> restriction v = Restriction.map v := \fun (v: Fourth) => eq_reason_in!{{Fifth} _
+  "=" { SubsetInclusion.map (Term.restriction (Whole.forward v)) } "by" { SubsetProjection.equation (Term.restriction (Whole.forward v)) }
+  "=" { SubsetInclusion.map (AlongInclusion.map (Whole.forward v)) } "by" { congr!{{Term.Fifth} {Fifth}} SubsetInclusion.map _ _ (Term.restrictionFormula (Whole.forward v)) }
+  "=" { subsetPull fromSubset (Whole.forward v) } "by" { sym!{{Fifth}} _ _ (ThroughSubset.onK0 (Whole.forward v)) }
+  "=" { subsetPull fromWhole (Whole.forward v) } "by" { inclusionSquarePull (Whole.forward v) }
+  "=" { Restriction.map (WholeInclusion.map (Whole.forward v)) } "by" { ThroughWhole.onK0 (Whole.forward v) }
+  "=" { Restriction.map (Whole.backward (Whole.forward v)) } "by" { congr!{{Fourth} {Fifth}} Restriction.map _ _ (sym!{{Fourth}} _ _ (WholeProjection.equation (Whole.forward v))) }
+  "=" { Restriction.map v } "by" { congr!{{Fourth} {Fifth}} Restriction.map _ _ (Whole.leftInverse v) }
+};
+\definition restrictionNegativeFormula: \forall (v: First) -> restrictionNegative v =
+  \root.Relative[].NegativeMap[source := Subset.model, target := Whole.model, f := inclusion, degree := KTheory.one].map v := Term.restrictionNegativeFormula;
+\definition restrictionLink: \forall (v: First) -> restrictionNegative v = \parent.Sequence[degree := KTheory.one].restriction v := Term.restrictionLink;

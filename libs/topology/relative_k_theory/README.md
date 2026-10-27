@@ -72,6 +72,7 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 修正後の `subset-raw` は約92秒で accepted・終了0・保存失敗0だった。
 同じ snapshot で `BaseQuotient` 全体を検査中。
 一般の対の列には、包含・射影の引き戻しとの一致と隣接次数の制限写像の一致も追加した（構文解析のみ完了、`unbased-formulas.source.json`）。
+`Pair.Augmented.OrdinaryEnd` は通常の K 群を端に持つ列と完全性、既存の忘却・制限との一致を構成した（未検証、`ordinary-end.source.json`）。
 次の固定 snapshot で検査を続ける。
 
 ```bash
