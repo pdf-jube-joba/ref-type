@@ -30,3 +30,37 @@
       (\fun (n: N.Nat^) (later: Nat.Le k n) => Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[below v a, R.Lt r (Real.mul (coeff n) a)] }] a
         (Logic.And[_, _]::# data.left ((\bysub(N.Nat^, { k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt r (Real.mul (coeff n) a) }, k)) n later)))
   };
+
+\definition addApproaches: \forall (u, v: N.Nat^ -> Value) (a, b: Value) -> Approaches u a -> Approaches v b ->
+  Approaches (\fun (n: N.Nat^) => add (u n) (v n)) (add a b) :=
+  \fun (u, v: N.Nat^ -> Value) (a, b: Value) (ua: Approaches u a) (vb: Approaches v b) (r: Real.Real) (member: below (add a b) r) => \block {
+    \takefrom x: \Cast[Real.Real] ({ x: Real.Real \where Logic.And[below a x, \exists ( y: Real.Real \where Logic.And[below b y, R.Lt r (Real.add x y)] )] }) \by member \then
+    \let first: Logic.And[below a x, \exists ( y: Real.Real \where Logic.And[below b y, R.Lt r (Real.add x y)] )] :=
+      \bysub(Real.Real, { x: Real.Real \where Logic.And[below a x, \exists ( y: Real.Real \where Logic.And[below b y, R.Lt r (Real.add x y)] )] }, x) \then
+    \takefrom y: \Cast[Real.Real] ({ y: Real.Real \where Logic.And[below b y, R.Lt r (Real.add x y)] }) \by first.right \then
+    \let second: Logic.And[below b y, R.Lt r (Real.add x y)] := \bysub(Real.Real, { y: Real.Real \where Logic.And[below b y, R.Lt r (Real.add x y)] }, y) \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> below (u n) x }) \by ua x first.left \then
+    \takefrom l: \Cast[N.Nat^] ({ l: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le l n -> below (v n) y }) \by vb y second.left \then
+    \return Logic.existsIntro[N.Nat^, { p: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le p n -> below (add (u n) (v n)) r }] (NatOrder.commonBound k l)
+      (\fun (n: N.Nat^) (later: Nat.Le (NatOrder.commonBound k l) n) =>
+        Logic.existsIntro[Real.Real, { x: Real.Real \where Logic.And[below (u n) x, \exists ( y: Real.Real \where Logic.And[below (v n) y, R.Lt r (Real.add x y)] )] }] x
+          (Logic.And[_, _]::# ((\bysub(N.Nat^, { k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> below (u n) x }, k)) n
+              (Nat.leTrans k (NatOrder.commonBound k l) n (NatOrder.leftLeCommonBound k l) later))
+            (Logic.existsIntro[Real.Real, { y: Real.Real \where Logic.And[below (v n) y, R.Lt r (Real.add x y)] }] y
+              (Logic.And[_, _]::# ((\bysub(N.Nat^, { l: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le l n -> below (v n) y }, l)) n
+                (Nat.leTrans l (NatOrder.commonBound k l) n (NatOrder.rightLeCommonBound k l) later)) second.right))))
+  };
+\definition sumApproaches: \forall (n: N.Nat^) (f: N.Nat^ -> Fin.Fin n -> Value) (g: Fin.Fin n -> Value) ->
+  (\forall (i: Fin.Fin n) -> Approaches (\fun (k: N.Nat^) => f k i) (g i)) ->
+  Approaches (\fun (k: N.Nat^) => sum n (f k)) (sum n g) :=
+  \induction (n: N.Nat^) \return \forall (f: N.Nat^ -> Fin.Fin n -> Value) (g: Fin.Fin n -> Value) ->
+    (\forall (i: Fin.Fin n) -> Approaches (\fun (k: N.Nat^) => f k i) (g i)) -> Approaches (\fun (k: N.Nat^) => sum n (f k)) (sum n g) \with {
+      | zero: \fun (f: N.Nat^ -> Fin.Fin N.Nat^::zero -> Value) (g: Fin.Fin N.Nat^::zero -> Value) (_: _) (r: Real.Real) (member: below zero r) =>
+        Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> below zero r }] N.Nat^::zero
+          (\fun (n: N.Nat^) (_: Nat.Le N.Nat^::zero n) => member)
+      | succ: \fun (n: N.Nat^) (previous: _) (f: N.Nat^ -> Fin.Fin (N.Nat^::succ n) -> Value) (g: Fin.Fin (N.Nat^::succ n) -> Value) (approaches: _) =>
+        addApproaches (\fun (k: N.Nat^) => f k (Fin.zero n)) (\fun (k: N.Nat^) => sum n (\fun (i: Fin.Fin n) => f k (Fin.succ n i)))
+          (g (Fin.zero n)) (sum n (\fun (i: Fin.Fin n) => g (Fin.succ n i))) (approaches (Fin.zero n))
+          (previous (\fun (k: N.Nat^) (i: Fin.Fin n) => f k (Fin.succ n i)) (\fun (i: Fin.Fin n) => g (Fin.succ n i))
+            (\fun (i: Fin.Fin n) => approaches (Fin.succ n i)))
+    };
