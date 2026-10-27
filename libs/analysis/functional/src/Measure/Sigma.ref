@@ -176,3 +176,27 @@
       \let inF: Sets.Member (f n) x := \bysub(N.Nat^, { n: N.Nat^ \where Sets.Member (f n) x }, n) \then
       \return prefixCoveredByIncrements f (N.Nat^::succ n) x (prefixContainsCurrent f n x inF)
     });
+
+\definition wholeMeasurable: \forall (sigma: SigmaAlgebra) -> Measurable sigma Sets.Whole :=
+  \fun (sigma: SigmaAlgebra) => \idelim Sets.Complement Sets.Empty = Sets.Whole \with S: \Pow A => Measurable sigma S \by {
+    base: (laws sigma).complement Sets.Empty (laws sigma).empty,
+    equality: \axiom:setext(Sets.Complement Sets.Empty, Sets.Whole,
+      \fun (x: A) (_: Logic.Not Logic.False) => \refl(x),
+      \fun (x: A) (_: x = x) (empty: Logic.False) => empty)
+  };
+\definition conditionalMeasurable: \forall (sigma: SigmaAlgebra) (S: \Pow A) (P: \Prop) -> Measurable sigma S ->
+  Measurable sigma ({ x: A \where P -> Sets.Member S x }) :=
+  \fun (sigma: SigmaAlgebra) (S: \Pow A) (P: \Prop) (measurable: Measurable sigma S) =>
+    Logic.orElim _ _ (Measurable sigma ({ x: A \where P -> Sets.Member S x })) (Classical.excludedMiddle P)
+      (\fun (p: P) => \idelim S = { x: A \where P -> Sets.Member S x } \with T: \Pow A => Measurable sigma T \by {
+        base: measurable,
+        equality: \axiom:setext(S, { x: A \where P -> Sets.Member S x },
+          \fun (x: A) (member: Sets.Member S x) (_: P) => member,
+          \fun (x: A) (member: P -> Sets.Member S x) => member p)
+      })
+      (\fun (notP: Logic.Not P) => \idelim Sets.Whole = { x: A \where P -> Sets.Member S x } \with T: \Pow A => Measurable sigma T \by {
+        base: wholeMeasurable sigma,
+        equality: \axiom:setext(Sets.Whole, { x: A \where P -> Sets.Member S x },
+          \fun (x: A) (_: x = x) (p: P) => Logic.falseElim _ (notP p),
+          \fun (x: A) (_: P -> Sets.Member S x) => \refl(x))
+      });
