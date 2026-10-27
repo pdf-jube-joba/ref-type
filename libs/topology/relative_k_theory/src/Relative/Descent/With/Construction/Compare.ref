@@ -1,0 +1,37 @@
+\import Bundles.Family[X := Quotient.Carrier, F := Fiber] \as Descended;
+\import Descended.Of[bundle := bundleOnQuotient].Pullback[Y := X, source := bundle.baseSpace, f := Quotient.projection] \as Pull;
+\import Bundles.Family[X := X, F := (\fun (x: X) => Fiber (Quotient.projection x))] \as Source;
+\definition pulled: Source.Bundle := Pull.pulled Quotient.continuous;
+\definition evaluation[x: X]: Spaces.Linear[V := Fiber (Quotient.projection x), W := F x, source := fiberSpace (Quotient.projection x), target := bundle.space x].Map := \parent.Evaluation[x := x].map;
+\definition inverse[x: X]: Spaces.Linear[V := F x, W := Fiber (Quotient.projection x), source := bundle.space x, target := fiberSpace (Quotient.projection x)].Map := \parent.Evaluation[x := x].isomorphism.backward;
+\import Bundles.Morphisms[X := X, Y := X, F := (\fun (x: X) => Fiber (Quotient.projection x)), G := F, source := pulled, target := bundle, f := (\fun (x: X) => x)] \as Forward;
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := (\fun (x: X) => Fiber (Quotient.projection x)), source := bundle, target := pulled, f := (\fun (x: X) => x)] \as Backward;
+\definition forwardData: Forward.Data := Forward.Data { fiber := evaluation };
+\definition backwardData: Backward.Data := Backward.Data { fiber := inverse };
+\definition quotientDomain[i: Index]: \Pow Quotient.Carrier := domain i;
+\definition domains[i: Index]: \Pow X := { x: X \where Base.Member (domain i) (Quotient.projection x) };
+\module At(x: X, i: Index, contains: Base.Member (domain i) (Quotient.projection x));
+\module ForwardChart(i: Index);
+\module BackwardChart(i: Index);
+\definition sourceDomains[i: Index]: \Pow Source.Point := { p: Source.Point \where Base.Member (quotientDomain i) (Quotient.projection p.base) };
+\definition targetDomains[i: Index]: \Pow Original.Point := { p: Original.Point \where Base.Member (quotientDomain i) (Quotient.projection p.base) };
+\import topology.Continuity[A := Source.Point, B := Original.Point].Covered[I := Index, domains := sourceDomains] \as ForwardCover;
+\import topology.Continuity[A := Original.Point, B := Source.Point].Covered[I := Index, domains := targetDomains] \as BackwardCover;
+\definition forwardContinuous: topology.Continuity[A := Source.Point, B := Original.Point].Continuous pulled.totalSpace bundle.totalSpace (Forward.total forwardData) :=
+  ForwardCover.continuous pulled.totalSpace bundle.totalSpace (Forward.total forwardData)
+    (\fun (i: Index) => topology.Composition[A := Source.Point, B := X, C := Quotient.Carrier].composeContinuous pulled.totalSpace bundle.baseSpace Quotient.topology Source.projection Quotient.projection
+      (Source.Of[bundle := pulled].projectionContinuous) Quotient.continuous (quotientDomain i) (openDomains i))
+    (\fun (p: Source.Point) => covers (Quotient.projection p.base)) (\fun (i: Index) => ForwardChart[i := i].continuous);
+\definition backwardContinuous: topology.Continuity[A := Original.Point, B := Source.Point].Continuous bundle.totalSpace pulled.totalSpace (Backward.total backwardData) :=
+  BackwardCover.continuous bundle.totalSpace pulled.totalSpace (Backward.total backwardData)
+    (\fun (i: Index) => topology.Composition[A := Original.Point, B := X, C := Quotient.Carrier].composeContinuous bundle.totalSpace bundle.baseSpace Quotient.topology Original.projection Quotient.projection
+      (Original.Of[bundle := bundle].projectionContinuous) Quotient.continuous (quotientDomain i) (openDomains i))
+    (\fun (p: Original.Point) => covers (Quotient.projection p.base)) (\fun (i: Index) => BackwardChart[i := i].continuous);
+\definition forward: Forward.Map := \into[Forward.Data](forwardData, Forward.Map) \by { forwardContinuous };
+\definition backward: Backward.Map := \into[Backward.Data](backwardData, Backward.Map) \by { backwardContinuous };
+\import Bundles.Isomorphisms[X := X, F := (\fun (x: X) => Fiber (Quotient.projection x)), G := F, source := pulled, target := bundle] \as Isomorphisms;
+\definition isomorphism: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := \fun (x: X) => (Spaces.Isomorphism[V := Fiber (Quotient.projection x), W := F x, source := fiberSpace (Quotient.projection x), target := bundle.space x].laws (\parent.Evaluation[x := x].isomorphism)).leftInverse,
+  rightInverse := \fun (x: X) => (Spaces.Isomorphism[V := Fiber (Quotient.projection x), W := F x, source := fiberSpace (Quotient.projection x), target := bundle.space x].laws (\parent.Evaluation[x := x].isomorphism)).rightInverse
+};

@@ -43,11 +43,13 @@ B09 の指定同型の近傍延長から、商の基点の開近傍とその上�
 枠の整合式を、商の各ファイバーの任意の代表点で使えるように一般化した。
 座標変換の等式で積の点の型推論が止まって終了1となり、点と型を明示した。
 元の束の各点への評価写像と、その線形同型を構成した。
-最新の束の構成・整合式・評価写像は未検証。
+評価写像の検査はモジュール引数内の型の省略で終了1となり、型を明示した。
+局所座標による評価写像・逆写像の連続性と、降下した束の引き戻しを元の束へ送る比較同型まで追加した。
+最新の束の構成・整合式・比較同型は未検証。
 引き戻した束と元の束の比較、三つ組の群との比較、完全列以降の要件は未完成。
 次は座標変換と `Relative.Descent` を固定 snapshot と共有キャッシュで順番に検査する。
 崩壊商の基点の補集合と元の閉部分空間の補集合の同相 `Collapse.Outside` を追加し、これも未検証。
-検査には最新の `work/k03-resume/descent-evaluation-fixed.source.json` を使う。
+検査には最新の `work/k03-resume/descent-comparison-fixed.source.json` を使う。
 各検査には `--source-snapshot` を指定する。
 作業の保存先は [Draft PR #50](https://github.com/pdf-jube-joba/ref-type/pull/50)。
 対象検査は `target/debug/cli libs --module topological_constructions.Coproduct.Properties --memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact --report-json work/k03-resume/coproduct.json`。

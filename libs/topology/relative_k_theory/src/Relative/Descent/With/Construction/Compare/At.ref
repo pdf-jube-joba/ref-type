@@ -1,0 +1,19 @@
+\import \parent.\parent.AlignmentGeneral[q := Quotient.projection x] \as Alignment;
+\import \parent.\parent.Evaluation[x := x] \as Evaluation;
+\definition agreement: Alignment.Agreement[i, contains, Evaluation.point] := Alignment.agreement i contains Evaluation.point;
+\definition sourceBase: \Cast[X] (sourceChart i).domain := \into[X](x, (sourceChart i).domain) \by { agreement.inside };
+\import Spaces.Isomorphism[V := F x, W := Bundles.Vector (sourceChart i).dimension, source := bundle.space x, target := Bundles.coordinates (sourceChart i).dimension] \as SourceIsomorphisms;
+\definition sourceFrame: SourceIsomorphisms.Isomorphism := (sourceChart i).frame sourceBase;
+\definition quotientBase: \Cast[Quotient.Carrier] (domain i) := \into[Quotient.Carrier](Quotient.projection x, domain i) \by { contains };
+\definition forwardFormula: \forall (v: Fiber (Quotient.projection x)) -> sourceFrame.backward.apply ((frame i quotientBase).forward.apply v) = (evaluation x).apply v :=
+  \fun (v: Fiber (Quotient.projection x)) => trans!{{F x}} _ _ _
+    (congr!{{Bundles.Vector (sourceChart i).dimension} {F x}} sourceFrame.backward.apply _ _ (agreement.reading v))
+    ((SourceIsomorphisms.laws sourceFrame).leftInverse ((evaluation x).apply v));
+\import Spaces.Isomorphism[V := Fiber (Quotient.projection x), W := F x, source := fiberSpace (Quotient.projection x), target := bundle.space x] \as Isomorphisms;
+\definition inverseFormula: \forall (w: F x) -> (inverse x).apply w = (frame i quotientBase).backward.apply (sourceFrame.forward.apply w) := \block {
+  \fun (w: F x) \then
+  \let computed: (evaluation x).apply ((frame i quotientBase).backward.apply (sourceFrame.forward.apply w)) = w :=
+    trans!{{F x}} _ _ _ (agreement.writing (sourceFrame.forward.apply w)) ((SourceIsomorphisms.laws sourceFrame).leftInverse w) \then
+  \return Isomorphisms.injective Evaluation.isomorphism _ _
+    (trans!{{F x}} _ _ _ ((Isomorphisms.laws Evaluation.isomorphism).rightInverse w) (sym!{{F x}} _ _ computed))
+};
