@@ -118,3 +118,30 @@
         equality: \axiom:funext((\fun (x: A) => Distance.max (Real.neg (f x)) (f x)), (\fun (x: A) => Product.abs (f x)),
           \fun (x: A) => sym!{Real.Real} _ _ (Product.absExpression (f x)))
       };
+
+\import \root.Measure[A := A].ValueLaws[] \as Values;
+\import \root.Measure[A := A].Integral[mu := mu].Zero[] \as Zero;
+\definition positiveScaleMeasurable: \forall (c: Real.Real) -> R.Lt Real.zero c -> \forall (f: A -> Real.Real) -> IsMeasurable mu f ->
+  IsMeasurable mu (\fun (x: A) => Real.mul c (f x)) :=
+  \fun (c: Real.Real) (positive: R.Lt Real.zero c) (f: A -> Real.Real) (measurable: IsMeasurable mu f) (r: Real.Real) =>
+    \idelim { x: A \where R.Lt (Real.mul (Laws.fieldInv c) r) (f x) } = { x: A \where R.Lt r (Real.mul c (f x)) } \with S: \Pow A => Measurable mu.sigma S \by {
+      base: measurable (Real.mul (Laws.fieldInv c) r),
+      equality: \axiom:setext({ x: A \where R.Lt (Real.mul (Laws.fieldInv c) r) (f x) }, { x: A \where R.Lt r (Real.mul c (f x)) },
+        \fun (x: A) (less: R.Lt (Real.mul (Laws.fieldInv c) r) (f x)) =>
+          R.ltReplaceLeft (Real.mul c (Real.mul (Laws.fieldInv c) r)) r (Real.mul c (f x)) (Values.inverseProduct c r positive)
+            (Product.mulStrict c (Real.mul (Laws.fieldInv c) r) (f x) positive less),
+        \fun (x: A) (less: R.Lt r (Real.mul c (f x))) =>
+          R.ltReplaceRight (Real.mul (Laws.fieldInv c) r) (Real.mul (Laws.fieldInv c) (Real.mul c (f x))) (f x)
+            (Values.inverseProductLeft c (f x) positive) (Product.mulStrict (Laws.fieldInv c) r (Real.mul c (f x)) (Product.invPositive c positive) less))
+    };
+\definition scaleMeasurable: \forall (c: Real.Real) -> R.Le Real.zero c -> \forall (f: A -> Real.Real) -> IsMeasurable mu f ->
+  IsMeasurable mu (\fun (x: A) => Real.mul c (f x)) :=
+  \fun (c: Real.Real) (nonnegative: R.Le Real.zero c) (f: A -> Real.Real) (measurable: IsMeasurable mu f) =>
+    Logic.orElim _ _ (IsMeasurable mu (\fun (x: A) => Real.mul c (f x))) (Classical.excludedMiddle (c = Real.zero))
+      (\fun (eq: c = Real.zero) => \idelim Zero.function = (\fun (x: A) => Real.mul c (f x)) \with g: (A -> Real.Real) => IsMeasurable mu g \by {
+        base: Zero.measurable,
+        equality: \axiom:funext(Zero.function, (\fun (x: A) => Real.mul c (f x)), \fun (x: A) =>
+          sym!{Real.Real} _ _ (\idelim c = Real.zero \with t: Real.Real => Real.mul t (f x) = Real.zero \by { base: Laws.fieldMulZeroLeft (f x), equality: sym!{Real.Real} _ _ eq }))
+      })
+      (\fun (different: Logic.Not (c = Real.zero)) => positiveScaleMeasurable c
+        (Order.ltOfLeNotEq Real.zero c nonnegative (\fun (eq: Real.zero = c) => different (sym!{Real.Real} _ _ eq))) f measurable);
