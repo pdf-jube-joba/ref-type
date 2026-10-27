@@ -3,6 +3,8 @@
 \import Indices.Tuples[A := Real.Real] \as ScalarTuples;
 \import std.Data[].Sum[] \as Sum;
 \use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].trans;
 \definition CrossDisjoint: \Prop := \forall (i: Fin.Fin m) (j: Fin.Fin n) -> Sets.Disjoint (s.cells i) (t.cells j);
 \definition cells: Fin.Fin Indices.total -> \Pow A := SetTuples.join s.cells t.cells;
 \definition coefficients: Fin.Fin Indices.total -> Real.Real := ScalarTuples.join s.coefficients t.coefficients;
@@ -35,8 +37,6 @@
   \fun (cross: CrossDisjoint) (i, j: Fin.Fin Indices.total) (different: Logic.Not (i = j)) =>
     disjointAt cross (Indices.split i) (Indices.split j)
       (\fun (same: Indices.inflate (Indices.split i) = Indices.inflate (Indices.split j)) => different
-        (\idelim Indices.inflate (Indices.split j) = j \with k: Fin.Fin Indices.total => i = k \by {
-          base: \idelim Indices.inflate (Indices.split i) = i \with k: Fin.Fin Indices.total => k = Indices.inflate (Indices.split j) -> i = Indices.inflate (Indices.split j)
-            \by { base: \fun (eq: i = Indices.inflate (Indices.split j)) => eq, equality: Indices.inflateSplit i } same,
-          equality: Indices.inflateSplit j
-        }));
+        (trans!{{Fin.Fin Indices.total}} i (Indices.inflate (Indices.split i)) j
+          (sym!{{Fin.Fin Indices.total}} _ _ (Indices.inflateSplit i))
+          (trans!{{Fin.Fin Indices.total}} _ _ _ same (Indices.inflateSplit j))));

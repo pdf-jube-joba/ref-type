@@ -1,0 +1,38 @@
+\import \root.Measure[A := A].Integral[mu := mu].Join[m := m, n := n, s := p.left, t := p.right] \as Join;
+\import Fin.Sum[m := m, n := n] \as Indices;
+\import Indices.Tuples[A := Value] \as ValueTuples;
+\import \root.Measure[A := A].ValueLaws[] \as Values;
+\import Values.Append[m := m, n := n] \as Append;
+\import Values.AppendLaws[n := n] \as AppendLaws;
+\import \root.Measure[A := A].Finite[mu := mu] \as FiniteMeasure;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].congr;
+\definition separated: Join.CrossDisjoint := \bysub(SimplePair[m, n], { p: SimplePair[m, n] \where
+  \forall (i: Fin.Fin m) (j: Fin.Fin n) -> Sets.Disjoint (p.left.cells i) (p.right.cells j) }, p);
+\definition simple: Simple[Indices.total] := Simple[Indices.total] {
+  cells := Join.cells,
+  coefficients := Join.coefficients,
+  measurable := Join.cellMeasurable,
+  nonnegative := Join.coefficientNonnegative,
+  disjoint := Join.cellsDisjoint separated,
+};
+\definition terms: (\fun (i: Fin.Fin Indices.total) => scale (simple.coefficients i) (mu.value (simple.cells i))) =
+  Append.join (\fun (i: Fin.Fin m) => scale (p.left.coefficients i) (mu.value (p.left.cells i)))
+    (\fun (j: Fin.Fin n) => scale (p.right.coefficients j) (mu.value (p.right.cells j))) :=
+  \axiom:funext((\fun (i: Fin.Fin Indices.total) => scale (simple.coefficients i) (mu.value (simple.cells i))),
+    Append.join (\fun (i: Fin.Fin m) => scale (p.left.coefficients i) (mu.value (p.left.cells i))) (\fun (j: Fin.Fin n) => scale (p.right.coefficients j) (mu.value (p.right.cells j))),
+    \fun (i: Fin.Fin Indices.total) => (\induction (u: Indices.Index) \return
+      scale (Join.ScalarTuples.evaluate (p.left.coefficients) (p.right.coefficients) u) (mu.value (Join.SetTuples.evaluate (p.left.cells) (p.right.cells) u)) =
+      ValueTuples.evaluate (\fun (i: Fin.Fin m) => scale (p.left.coefficients i) (mu.value (p.left.cells i))) (\fun (j: Fin.Fin n) => scale (p.right.coefficients j) (mu.value (p.right.cells j))) u \with {
+        | inl: \fun (i: Fin.Fin m) => \refl(scale (p.left.coefficients i) (mu.value (p.left.cells i)))
+        | inr: \fun (j: Fin.Fin n) => \refl(scale (p.right.coefficients j) (mu.value (p.right.cells j)))
+      }) (Indices.split i));
+\definition integral: simpleIntegral Indices.total simple = add (simpleIntegral m p.left) (simpleIntegral n p.right) := eq_reason_in!{Value _
+  "=" _ "by" { congr!{{Fin.Fin Indices.total -> Value} Value} (sum Indices.total) _ _ terms }
+  "=" _ "by" { AppendLaws.joinedSum m (\fun (i: Fin.Fin m) => scale (p.left.coefficients i) (mu.value (p.left.cells i)))
+    (\fun (j: Fin.Fin n) => scale (p.right.coefficients j) (mu.value (p.right.cells j)))
+    (\fun (i: Fin.Fin m) => Values.scaleNonnegative (p.left.coefficients i) (mu.value (p.left.cells i)) (p.left.nonnegative i)
+      (FiniteMeasure.laws.nonnegative (p.left.cells i) (p.left.measurable i)))
+    (\fun (j: Fin.Fin n) => Values.scaleNonnegative (p.right.coefficients j) (mu.value (p.right.cells j)) (p.right.nonnegative j)
+      (FiniteMeasure.laws.nonnegative (p.right.cells j) (p.right.measurable j))) }
+};
