@@ -421,3 +421,29 @@
             (previous c (\fun (i: Fin.Fin n) => f (Fin.succ n i)) nonnegative (\fun (i: Fin.Fin n) => laws (Fin.succ n i))) }
         }
     };
+
+\definition positiveScaleCompose: \forall (c, d: Real.Real) (v: Value) -> R.Lt Real.zero c -> scale c (scale d v) = scale (Real.mul c d) v :=
+  \fun (c, d: Real.Real) (v: Value) (positive: R.Lt Real.zero c) => \axiom:setext(scale c (scale d v), scale (Real.mul c d) v,
+    \fun (r: Real.Real) (member: below (scale c (scale d v)) r) => \block {
+      \takefrom t: \Cast[Real.Real] ({ t: Real.Real \where Logic.And[below (scale d v) t, R.Lt r (Real.mul c t)] }) \by member \then
+      \let outer: Logic.And[below (scale d v) t, R.Lt r (Real.mul c t)] := \bysub(Real.Real, { t: Real.Real \where Logic.And[below (scale d v) t, R.Lt r (Real.mul c t)] }, t) \then
+      \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[below v a, R.Lt t (Real.mul d a)] }) \by outer.left \then
+      \let inner: Logic.And[below v a, R.Lt t (Real.mul d a)] := \bysub(Real.Real, { a: Real.Real \where Logic.And[below v a, R.Lt t (Real.mul d a)] }, a) \then
+      \return Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[below v a, R.Lt r (Real.mul (Real.mul c d) a)] }] a
+        (Logic.And[_, _]::# inner.left (R.ltReplaceRight r (Real.mul c (Real.mul d a)) (Real.mul (Real.mul c d) a)
+          (sym!{Real.Real} _ _ (Laws.fieldMulAssoc c d a)) (Order.ltTrans r (Real.mul c t) _ outer.right (ProductLaws.mulStrict c t (Real.mul d a) positive inner.right))))
+    },
+    \fun (r: Real.Real) (member: below (scale (Real.mul c d) v) r) => \block {
+      \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[below v a, R.Lt r (Real.mul (Real.mul c d) a)] }) \by member \then
+      \let data: Logic.And[below v a, R.Lt r (Real.mul (Real.mul c d) a)] := \bysub(Real.Real, { a: Real.Real \where Logic.And[below v a, R.Lt r (Real.mul (Real.mul c d) a)] }, a) \then
+      \let total: R.Lt r (Real.mul c (Real.mul d a)) := R.ltReplaceRight r (Real.mul (Real.mul c d) a) (Real.mul c (Real.mul d a)) (Laws.fieldMulAssoc c d a) data.right \then
+      \let lower: Real.Real := Real.mul (Laws.fieldInv c) r \then
+      \let bound: R.Lt lower (Real.mul d a) := R.ltReplaceRight lower (Real.mul (Laws.fieldInv c) (Real.mul c (Real.mul d a))) (Real.mul d a)
+        (inverseProductLeft c (Real.mul d a) positive) (ProductLaws.mulStrict (Laws.fieldInv c) r (Real.mul c (Real.mul d a)) (ProductLaws.invPositive c positive) total) \then
+      \let t: Real.Real := Real.midpoint lower (Real.mul d a) \then
+      \let inner: below (scale d v) t := Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[below v a, R.Lt t (Real.mul d a)] }] a
+        (Logic.And[_, _]::# data.left (midpointStrictRight lower (Real.mul d a) bound)) \then
+      \return Logic.existsIntro[Real.Real, { t: Real.Real \where Logic.And[below (scale d v) t, R.Lt r (Real.mul c t)] }] t
+        (Logic.And[_, _]::# inner (R.ltReplaceLeft (Real.mul c lower) r (Real.mul c t) (inverseProduct c r positive)
+          (ProductLaws.mulStrict c lower t positive (midpointStrictLeft lower (Real.mul d a) bound))))
+    });
