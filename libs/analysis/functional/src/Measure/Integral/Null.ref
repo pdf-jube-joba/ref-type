@@ -114,3 +114,20 @@
 \definition quotientIntegral[C: Space]: Real.Real := Maps.value equivalence integral integralAlmost C;
 \definition quotientIntegralOfClass: \forall (f: Representatives) -> quotientIntegral (class f) = integral f :=
   \fun (f: Representatives) => Maps.onClass equivalence integral integralAlmost f;
+
+\definition integrableAlmost: \forall (f, g: A -> Real.Real) -> AlmostEqual mu f g -> Integrable f -> IsMeasurable mu g -> Integrable g :=
+  \fun (f, g: A -> Real.Real) (equal: AlmostEqual mu f g) (integrable: Integrable f) (measurable: IsMeasurable mu g) => \block {
+    \let same: lowerIntegral (\fun (x: A) => Product.abs (f x)) = lowerIntegral (\fun (x: A) => Product.abs (g x)) :=
+      lowerAlmostEqual (\fun (x: A) => Product.abs (f x)) (\fun (x: A) => Product.abs (g x)) (mapAlmost Product.abs f g equal) \then
+    \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where IntegralBound[\fun (x: A) => Product.abs (f x), b] }) \by integrable.right.right \then
+    \let bound: IntegralBound[\fun (x: A) => Product.abs (f x), b] :=
+      \bysub(Real.Real, { b: Real.Real \where IntegralBound[\fun (x: A) => Product.abs (f x), b] }, b) \then
+    \return Logic.And[_, _]::# measurable (Logic.And[_, _]::# (\fun (x: A) => Product.absNonnegative (g x))
+      (Logic.existsIntro[Real.Real, { b: Real.Real \where IntegralBound[\fun (x: A) => Product.abs (g x), b] }] b
+        (IntegralBound[\fun (x: A) => Product.abs (g x), b] {
+          nonnegative := bound.nonnegative,
+          bound := \fun (r: Real.Real) (member: below (lowerIntegral (\fun (x: A) => Product.abs (g x))) r) => bound.bound r
+            (\idelim lowerIntegral (\fun (x: A) => Product.abs (g x)) = lowerIntegral (\fun (x: A) => Product.abs (f x)) \with v: Value => below v r
+              \by { base: member, equality: sym!{Value} _ _ same }),
+        })))
+  };
