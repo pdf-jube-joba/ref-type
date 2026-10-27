@@ -1,0 +1,45 @@
+\import \root.Measure[A := A].Functions[mu := mu] \as Functions;
+\import real.Analysis[].Algebra[] \as Algebra;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition neg[f: A -> Real.Real]: A -> Real.Real := \fun (x: A) => Real.neg (f x);
+\definition absNeg: \forall (f: A -> Real.Real) -> (\fun (x: A) => Product.abs (neg f x)) = (\fun (x: A) => Product.abs (f x)) :=
+  \fun (f: A -> Real.Real) => \axiom:funext((\fun (x: A) => Product.abs (neg f x)), (\fun (x: A) => Product.abs (f x)),
+    \fun (x: A) => Product.absNeg (f x));
+\definition integrable: \forall (f: A -> Real.Real) -> Integrable f -> Integrable (neg f) :=
+  \fun (f: A -> Real.Real) (h: Integrable f) => Logic.And[_, _]::# (Functions.negMeasurable f h.left)
+    (\idelim (\fun (x: A) => Product.abs (f x)) = (\fun (x: A) => Product.abs (neg f x)) \with g: (A -> Real.Real) => Finite g
+      \by { base: h.right, equality: sym!{{A -> Real.Real}} _ _ (absNeg f) });
+\definition positiveNeg: \forall (f: A -> Real.Real) -> positivePart (neg f) = negativePart f := \fun (f: A -> Real.Real) => \refl(negativePart f);
+\definition negativeNeg: \forall (f: A -> Real.Real) -> negativePart (neg f) = positivePart f :=
+  \fun (f: A -> Real.Real) => \axiom:funext(negativePart (neg f), positivePart f,
+    \fun (x: A) => congr!{Real.Real Real.Real} (Distance.max Real.zero) _ _ (Laws.negInvolutive (f x)));
+\definition hasIntegral: \forall (f: A -> Real.Real) (value: Real.Real) -> HasIntegral[f, value] -> HasIntegral[neg f, Real.neg value] :=
+  \fun (f: A -> Real.Real) (value: Real.Real) (h: HasIntegral[f, value]) => \block {
+    \takefrom p: \Cast[Real.Real] ({ p: Real.Real \where \exists ( q: Real.Real \where Parts[f, value, p, q] ) }) \by h.parts \then
+    \takefrom q: \Cast[Real.Real] ({ q: Real.Real \where Parts[f, value, p, q] })
+      \by (\bysub(Real.Real, { p: Real.Real \where \exists ( q: Real.Real \where Parts[f, value, p, q] ) }, p)) \then
+    \let old: Parts[f, value, p, q] := \bysub(Real.Real, { q: Real.Real \where Parts[f, value, p, q] }, q) \then
+    \return HasIntegral[neg f, Real.neg value] {
+      integrable := integrable f h.integrable,
+      parts := Logic.existsIntro[Real.Real, { a: Real.Real \where \exists ( b: Real.Real \where Parts[neg f, Real.neg value, a, b] ) }] q
+        (Logic.existsIntro[Real.Real, { b: Real.Real \where Parts[neg f, Real.neg value, q, b] }] p
+          (Parts[neg f, Real.neg value, q, p] {
+            positiveLaw := \idelim lowerIntegral (negativePart f) = lowerIntegral (positivePart (neg f)) \with S: Value => Complete.LeastUpperBound[S, q]
+              \by { base: old.negativeLaw, equality: congr!{{A -> Real.Real} Value} lowerIntegral _ _ (sym!{{A -> Real.Real}} _ _ (positiveNeg f)) },
+            negativeLaw := \idelim lowerIntegral (positivePart f) = lowerIntegral (negativePart (neg f)) \with S: Value => Complete.LeastUpperBound[S, p]
+              \by { base: old.positiveLaw, equality: congr!{{A -> Real.Real} Value} lowerIntegral _ _ (sym!{{A -> Real.Real}} _ _ (negativeNeg f)) },
+            difference := eq_reason_in!{Real.Real _
+              "=" _ "by" { congr!{Real.Real Real.Real} Real.neg _ _ old.difference }
+              "=" _ "by" { Algebra.negSub p q }
+            },
+          })),
+    }
+  };
+\definition representative[f: Representatives]: Representatives := \into[A -> Real.Real](neg f, { g: A -> Real.Real \where Integrable g })
+  \by { integrable f (\bysub(A -> Real.Real, { g: A -> Real.Real \where Integrable g }, f)) };
+\definition integralNeg: \forall (f: Representatives) -> integral (representative f) = Real.neg (integral f) :=
+  \fun (f: Representatives) => integralUnique (neg f) (integral (representative f)) (Real.neg (integral f))
+    (integralLaw (representative f)) (hasIntegral f (integral f) (integralLaw f));
