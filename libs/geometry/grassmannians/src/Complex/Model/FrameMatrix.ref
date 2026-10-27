@@ -1,0 +1,43 @@
+\import std.Data[].FinSet[] \as Fin;
+\import std.Alg[].Field[] \as Fields;
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := Fields.fieldAsCommutativeRing C.Complex C.Algebra[].field] \as Spaces;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := H.Complex[].scalar] \as Geometry;
+\import Geometry.Finite[n := k] \as Domain;
+\import Geometry.Sums[] \as Sums;
+\import Spaces.FiniteCoordinates[n := k] \as Basis;
+\import Spaces.Linear[V := Domain.Vector, W := E.Vector, source := Domain.space, target := E.space] \as Forward;
+\import topological_algebra.Matrix[K := C.Complex, I := Fin.Fin k, J := Fin.Fin n] \as Matrix;
+\definition linear[A: Matrix.Carrier]: Forward.Map := Forward.Map {
+  apply := \fun (v: Domain.Vector)(j: Fin.Fin n) => Sums.sum k (\fun (i: Fin.Fin k) => Spaces.mul (v i) (A i j)),
+  preservesAdd := \fun (v, w: Domain.Vector) => \axiom:funext((\fun (j: Fin.Fin n) => Sums.sum k (\fun (i: Fin.Fin k) => Spaces.mul (Spaces.add (v i) (w i)) (A i j))),
+    (\fun (j: Fin.Fin n) => Spaces.add (Sums.sum k (\fun (i: Fin.Fin k) => Spaces.mul (v i) (A i j))) (Sums.sum k (\fun (i: Fin.Fin k) => Spaces.mul (w i) (A i j)))),
+    \fun (j: Fin.Fin n) => trans!{C.Complex} _ _ _
+      (Sums.congruent k _ _ (\fun (i: Fin.Fin k) => Spaces.addMul (v i) (w i) (A i j)))
+      (Sums.addition k (\fun (i: Fin.Fin k) => Spaces.mul (v i) (A i j)) (\fun (i: Fin.Fin k) => Spaces.mul (w i) (A i j)))),
+  preservesScale := \fun (c: C.Complex)(v: Domain.Vector) => \axiom:funext((\fun (j: Fin.Fin n) => Sums.sum k (\fun (i: Fin.Fin k) => Spaces.mul (Spaces.mul c (v i)) (A i j))),
+    (\fun (j: Fin.Fin n) => Spaces.mul c (Sums.sum k (\fun (i: Fin.Fin k) => Spaces.mul (v i) (A i j)))),
+    \fun (j: Fin.Fin n) => trans!{C.Complex} _ _ _ (Sums.congruent k _ _ (\fun (i: Fin.Fin k) => Spaces.mulAssoc c (v i) (A i j)))
+      (Sums.scaleSum k c (\fun (i: Fin.Fin k) => Spaces.mul (v i) (A i j)))),
+};
+\definition onBasis: \forall (A: Matrix.Carrier)(i: Fin.Fin k)(j: Fin.Fin n) -> (linear A).apply (Domain.basis i) j = A i j :=
+  \fun (A: Matrix.Carrier)(i: Fin.Fin k)(j: Fin.Fin n) => trans!{C.Complex} _ _ _
+    (Sums.congruent k _ (\fun (u: Fin.Fin k) => Spaces.mul (A u j) (Domain.basis i u)) (\fun (u: Fin.Fin k) => Spaces.mulComm (Domain.basis i u) (A u j)))
+    (trans!{C.Complex} _ _ _ (sym!{C.Complex} _ _ (Sums.enumeration k (\fun (u: Fin.Fin k) => Spaces.mul (A u j) (Domain.basis i u)))) (Basis.dualReconstruction (\fun (u: Fin.Fin k) => A u j) i));
+\import H.Over[K := C.Complex, field := C.Algebra[].field, scalar := H.Complex[].scalar, topological := H.Complex[].topological].Functions[X := Matrix.Carrier] \as Functions;
+\import At.Families[X := Matrix.Carrier].Matrix[m := k] \as Families;
+\import topology.Maps[A := Matrix.Carrier, B := C.Complex] \as Constants;
+\definition regular: Families.Regular (Matrix.topology H.Complex[].topological.space) linear :=
+  \fun (v: Domain.Vector)(j: Fin.Fin n) => Functions.finiteSum k (Matrix.topology H.Complex[].topological.space)
+    (\fun (i: Fin.Fin k)(A: Matrix.Carrier) => Spaces.mul (v i) (A i j))
+    (\fun (i: Fin.Fin k) => Functions.multiplication (Matrix.topology H.Complex[].topological.space) (\fun (_: Matrix.Carrier) => v i) (Matrix.entry i j)
+      (Constants.constantContinuous (Matrix.topology H.Complex[].topological.space) H.Complex[].topological.space (v i)) (Matrix.entryContinuous H.Complex[].topological.space i j));
+
+\definition entries[f: Forward.Map][i: Fin.Fin k][j: Fin.Fin n]: C.Complex := f.apply (Domain.basis i) j;
+\definition linearEntries: \forall (f: Forward.Map) -> linear (entries f) = f :=
+  \fun (f: Forward.Map) => Forward.ext (linear (entries f)) f
+    (\axiom:funext((linear (entries f)).apply, f.apply, \fun (v: Domain.Vector) => \axiom:funext((linear (entries f)).apply v, f.apply v,
+      \fun (j: Fin.Fin n) => sym!{C.Complex} _ _ (Families.Expansion[A := f, v := v, i := j].formula))));
