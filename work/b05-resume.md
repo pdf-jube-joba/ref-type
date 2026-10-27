@@ -34,3 +34,5 @@ cd /workspace/ref-type-b05
 直和写像 `Real.DirectSum` の連続性は個別検査で accepted。複素側、全体、直和束の比較は未検査・未完了。
 
 80281272 の対象 full-check-local は accepted。workspace 全体の通常検査は300秒で未完了。対象依存閉包の通常検査を別途行った。グラフ表示を記述する Graph の途中実装を追加し、個別検査で診断を確認する。
+
+Graph は基準点近傍での正規化、像の復元、グラフ項が基準像に直交することを証明。実側の個別検査は accepted、複素側と全体の再検査が必要。Graph の逆写像と位相同型、直和束の比較、直交補と安定化、コンパクト Hausdorff 性が残る。

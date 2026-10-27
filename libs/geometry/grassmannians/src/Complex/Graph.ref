@@ -21,3 +21,30 @@
   \fun (x: Carrier)(w: E.Vector) => trans!{{E.Vector}} _ _ _
     (congr!{{Domain.Vector} {E.Vector}} (Local.forward x).apply _ _ (Local.comparisonLeft x ((Local.backward x).apply w)))
     (Local.reconstruction x w);
+
+\import Spaces.Linear[V := E.Vector, W := Domain.Vector, source := E.space, target := Domain.space].Operations[] \as Coordinates;
+\import Spaces.Laws[V := Domain.Vector, space := Domain.space] \as DomainLaws;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := H.Complex[].scalar].Inner[V := E.Vector, space := E.space].Of[h := E.form] \as Inner;
+\definition graph[x: Carrier][v: Domain.Vector]: E.Vector := Inner.subtract ((normalized x).apply v) (center.value.apply v);
+\definition graphInComplement: \forall (x: Carrier)(v: Domain.Vector) -> center.coordinate.apply (graph x v) = Domain.space.zero :=
+  \fun (x: Carrier)(v: Domain.Vector) => trans!{{Domain.Vector}} _ _ _
+    (center.coordinate.preservesAdd ((normalized x).apply v) (E.space.neg (center.value.apply v)))
+    (trans!{{Domain.Vector}} _ _ _
+      (congr!{{Domain.Vector} {Domain.Vector} {Domain.Vector}} Domain.space.add _ _ _ _ (centerCoordinates x v)
+        (trans!{{Domain.Vector}} _ _ _ (Coordinates.preservesNeg center.coordinate (center.value.apply v))
+          (congr!{{Domain.Vector} {Domain.Vector}} Domain.space.neg _ _ (center.leftInverse v))))
+      (trans!{{Domain.Vector}} _ _ _ (DomainLaws.comm v (Domain.space.neg v)) (DomainLaws.inverseLeft v)));
+\definition graphFormula: \forall (x: Carrier)(v: Domain.Vector) -> E.space.add (center.value.apply v) (graph x v) = (normalized x).apply v :=
+  \fun (x: Carrier)(v: Domain.Vector) => Inner.addSubtract ((normalized x).apply v) (center.value.apply v);
+
+\use Eq.sym;
+\definition graphProjectionZero: \forall (x: Carrier)(v: Domain.Vector) -> a.map.apply (graph x v) = E.space.zero :=
+  \fun (x: Carrier)(v: Domain.Vector) => trans!{{E.Vector}} _ _ _
+    (sym!{{E.Vector}} _ _ (center.reconstruction (graph x v)))
+    (trans!{{E.Vector}} _ _ _
+      (congr!{{Domain.Vector} {E.Vector}} center.value.apply _ _ (graphInComplement x v)) center.value.preservesZero);
+\definition graphOrthogonal: \forall (x: Carrier)(v, w: Domain.Vector) -> At.dot (center.value.apply v) (graph x w) = C.Algebra[].field.zero :=
+  \fun (x: Carrier)(v, w: Domain.Vector) => trans!{C.Complex} _ _ _
+    (congr!{{E.Vector} C.Complex} (\fun (u: E.Vector) => At.dot u (graph x w)) _ _ (sym!{{E.Vector}} _ _ (At.OnProjection[P := a].Rank[k := k].fixed center v)))
+    (trans!{C.Complex} _ _ _ (a.selfAdjoint (center.value.apply v) (graph x w))
+      (trans!{C.Complex} _ _ _ (congr!{{E.Vector} C.Complex} (At.dot (center.value.apply v)) _ _ (graphProjectionZero x w)) (E.form.zeroRight (center.value.apply v))));
