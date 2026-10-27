@@ -42,3 +42,29 @@
   };
 \definition lowerScale: \forall (f: A -> Real.Real) -> lowerIntegral (\fun (x: A) => Real.mul c (f x)) = scale c (lowerIntegral f) :=
   \fun (f: A -> Real.Real) => \axiom:setext(lowerIntegral (\fun (x: A) => Real.mul c (f x)), scale c (lowerIntegral f), reverse f, lowerScaleForward scalar f);
+\definition supScale: \forall (v: Value) (p: Real.Real) -> Complete.LeastUpperBound[v, p] -> Complete.LeastUpperBound[scale c v, Real.mul c p] :=
+  \fun (v: Value) (p: Real.Real) (sup: Complete.LeastUpperBound[v, p]) => Complete.LeastUpperBound[scale c v, Real.mul c p] {
+    upper := \fun (r: Real.Real) (member: below (scale c v) r) => \block {
+      \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[below v a, R.Lt r (Real.mul c a)] }) \by member \then
+      \let data: Logic.And[below v a, R.Lt r (Real.mul c a)] := \bysub(Real.Real, { a: Real.Real \where Logic.And[below v a, R.Lt r (Real.mul c a)] }, a) \then
+      \return Order.leOfLt r (Real.mul c p) (R.ltLeTrans r (Real.mul c a) (Real.mul c p) data.right (E.mulMonotone c a p (nonnegative scalar) (sup.upper a data.left)))
+    },
+    least := \fun (b: Real.Real) (upper: Complete.UpperBound (scale c v) b) => Order.leOfNotLtReverse (Real.mul c p) b
+      (\fun (less: R.Lt b (Real.mul c p)) => \block {
+        \let t: Real.Real := Real.mul inverse b \then
+        \let tBelow: R.Lt t p := R.ltReplaceRight t (Real.mul inverse (Real.mul c p)) p (inverseCancels p)
+          (ProductLaws.mulStrict inverse b (Real.mul c p) (ProductLaws.invPositive c positive) less) \then
+        \let exists: \exists ( a: Real.Real \where Logic.And[below v a, R.Lt t a] ) := Order.byContradiction _
+          (\fun (none: Logic.Not (\exists ( a: Real.Real \where Logic.And[below v a, R.Lt t a] ))) =>
+            R.ltNotLeReverse t p tBelow (sup.least t (\fun (a: Real.Real) (member: below v a) =>
+              Order.leOfNotLtReverse a t (\fun (above: R.Lt t a) => none (Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[below v a, R.Lt t a] }] a (Logic.And[_, _]::# member above)))))) \then
+        \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[below v a, R.Lt t a] }) \by exists \then
+        \let data: Logic.And[below v a, R.Lt t a] := \bysub(Real.Real, { a: Real.Real \where Logic.And[below v a, R.Lt t a] }, a) \then
+        \let ba: R.Lt b (Real.mul c a) := R.ltReplaceLeft (Real.mul c t) b (Real.mul c a) (Values.inverseProduct c b positive)
+          (ProductLaws.mulStrict c t a positive data.right) \then
+        \let m: Real.Real := Real.midpoint b (Real.mul c a) \then
+        \let member: below (scale c v) m := Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[below v a, R.Lt m (Real.mul c a)] }] a
+          (Logic.And[_, _]::# data.left (Values.midpointStrictRight b (Real.mul c a) ba)) \then
+        \return R.ltNotLeReverse b m (Values.midpointStrictLeft b (Real.mul c a) ba) (upper m member)
+      }),
+  };
