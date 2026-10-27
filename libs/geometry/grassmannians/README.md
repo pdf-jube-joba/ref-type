@@ -11,3 +11,5 @@ B05 の作業中パッケージである。
 これらと Grassmannian の接続、階数の挙動、座標と位相の証明が残る。
 
 検査と再開方法は `work/b05-resume.md` に記載する。
+
+対象と依存先の検査結果は [検査記録](../../../benchmarks/records/grassmannians/README.md) にある。

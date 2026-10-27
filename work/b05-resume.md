@@ -15,3 +15,6 @@ cd /workspace/ref-type-b05
 既存 API: `hermitian_frames.Hermitian.Over.At.OnProjection.Rank.HasRank`、`OnProjection.complement`、`At.Blocks.projection`、`bundle_complements.Complements.Over.Projection` と `Projection.Pullback`。
 射影族の連続性・階数の局所一定性・グラフ座標を構成し、像束の API と接続する。
 `topology/homotopy/src/Euclidean/Dimension/Compactness.ref` に実有限次元のコンパクト性があり、再利用可能性の調査が必要。
+
+検査対象 commit `08599c12` の対象検査と依存込み検査は accepted。
+詳細は benchmarks/records/grassmannians/README.md と JSON を参照。
