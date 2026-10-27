@@ -1,0 +1,42 @@
+\definition laws[sigma: SigmaAlgebra]: SigmaAlgebraLaws[sigma] :=
+  \bysub(SigmaAlgebraData, SigmaAlgebra, sigma);
+
+\definition pairSequence[S, T: \Pow A]: N.Nat^ -> \Pow A :=
+  \induction (n: N.Nat^) \return \Pow A \with {
+    | zero: S
+    | succ: \fun (_: N.Nat^) (_: \Pow A) => T
+  };
+
+\definition pairUnion[S, T: \Pow A]: \Pow A :=
+  { x: A \where Logic.Or[Sets.Member S x, Sets.Member T x] };
+
+\definition pairSequenceMember: \forall (S, T: \Pow A) (x: A) (n: N.Nat^) ->
+  Sets.Member (pairSequence S T n) x -> Sets.Member (pairUnion S T) x :=
+  \fun (S, T: _) (x: _) => \induction (n: N.Nat^) \return
+    Sets.Member (pairSequence S T n) x -> Sets.Member (pairUnion S T) x \with {
+      | zero: \fun (member: _) => Logic.Or[_, _]::left member
+      | succ: \fun (n: _) (previous: _) (member: _) => Logic.Or[_, _]::right member
+    };
+
+\definition unionPair: \forall (S, T: \Pow A) -> union (pairSequence S T) = pairUnion S T :=
+  \fun (S, T: _) => \axiom:setext(union (pairSequence S T), pairUnion S T,
+    \fun (x: A) (member: Sets.Member (union (pairSequence S T)) x) => \block {
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Sets.Member (pairSequence S T n) x }) \by member \then
+      \return pairSequenceMember S T x n (\bysub(N.Nat^, { n: N.Nat^ \where Sets.Member (pairSequence S T n) x }, n))
+    },
+    \fun (x: A) (member: Sets.Member (pairUnion S T) x) =>
+      Logic.orElim _ _ (Sets.Member (union (pairSequence S T)) x) member
+        (\fun (left: Sets.Member S x) => Logic.existsIntro[N.Nat^, { n: N.Nat^ \where Sets.Member (pairSequence S T n) x }] N.Nat^::zero left)
+        (\fun (right: Sets.Member T x) => Logic.existsIntro[N.Nat^, { n: N.Nat^ \where Sets.Member (pairSequence S T n) x }] (N.Nat^::succ N.Nat^::zero) right));
+
+\definition pairMeasurable: \forall (sigma: SigmaAlgebra) (S, T: \Pow A) ->
+  Measurable sigma S -> Measurable sigma T -> Measurable sigma (pairUnion S T) :=
+  \fun (sigma: SigmaAlgebra) (S, T: \Pow A) (s: Measurable sigma S) (t: Measurable sigma T) =>
+    \idelim union (pairSequence S T) = pairUnion S T \with U: \Pow A => Measurable sigma U \by {
+      base: (laws sigma).countableUnion (pairSequence S T)
+        (\induction (n: N.Nat^) \return Measurable sigma (pairSequence S T n) \with {
+          | zero: s
+          | succ: \fun (_: N.Nat^) (_: _) => t
+        }),
+      equality: unionPair S T
+    };
