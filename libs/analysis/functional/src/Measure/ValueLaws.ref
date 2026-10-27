@@ -258,3 +258,39 @@
         }), equality: sym!{Real.Real} _ _ equal })
       (\fun (nonzero: Logic.Not (c = Real.zero)) => positiveScaleZero c
         (Order.ltOfLeNotEq Real.zero c nonnegative (\fun (equal: Real.zero = c) => nonzero (sym!{Real.Real} _ _ equal))));
+
+\definition scaleNonnegative: \forall (c: Real.Real) (v: Value) -> R.Le Real.zero c -> NonnegativeValue[v] -> NonnegativeValue[scale c v] :=
+  \fun (c: Real.Real) (v: Value) (nonnegative: R.Le Real.zero c) (law: NonnegativeValue[v]) => NonnegativeValue[scale c v] {
+    negative := \fun (r: Real.Real) (negative: R.Lt r Real.zero) => scaleMono c zero v law.negative r
+      (\idelim zero = scale c zero \with w: Value => below w r \by { base: negative, equality: sym!{Value} _ _ (scaleZeroValue c nonnegative) }),
+    downward := \fun (r, s: Real.Real) (less: R.Lt r s) (member: below (scale c v) s) => \block {
+      \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[below v a, R.Lt s (Real.mul c a)] }) \by member \then
+      \let data: Logic.And[below v a, R.Lt s (Real.mul c a)] := \bysub(Real.Real, { a: Real.Real \where Logic.And[below v a, R.Lt s (Real.mul c a)] }, a) \then
+      \return Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[below v a, R.Lt r (Real.mul c a)] }] a
+        (Logic.And[_, _]::# data.left (Order.ltTrans r s (Real.mul c a) less data.right))
+    },
+    rounded := \fun (r: Real.Real) (member: below (scale c v) r) => \block {
+      \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[below v a, R.Lt r (Real.mul c a)] }) \by member \then
+      \let data: Logic.And[below v a, R.Lt r (Real.mul c a)] := \bysub(Real.Real, { a: Real.Real \where Logic.And[below v a, R.Lt r (Real.mul c a)] }, a) \then
+      \let s: Real.Real := Real.midpoint r (Real.mul c a) \then
+      \return Logic.existsIntro[Real.Real, { s: Real.Real \where Logic.And[R.Lt r s, below (scale c v) s] }] s
+        (Logic.And[_, _]::# (midpointStrictLeft r (Real.mul c a) data.right)
+          (Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[below v a, R.Lt s (Real.mul c a)] }] a
+            (Logic.And[_, _]::# data.left (midpointStrictRight r (Real.mul c a) data.right))))
+    },
+  };
+\definition zeroNonnegative: NonnegativeValue[zero] := NonnegativeValue[zero] {
+  negative := \fun (r: _) (negative: _) => negative,
+  downward := \fun (r, s: _) (less: _) (negative: _) => Order.ltTrans r s Real.zero less negative,
+  rounded := \fun (r: Real.Real) (negative: R.Lt r Real.zero) =>
+    Logic.existsIntro[Real.Real, { s: Real.Real \where Logic.And[R.Lt r s, below zero s] }] (Real.midpoint r Real.zero)
+      (Logic.And[_, _]::# (midpointStrictLeft r Real.zero negative) (midpointStrictRight r Real.zero negative)),
+};
+\definition sumNonnegative: \forall (n: N.Nat^) (f: Fin.Fin n -> Value) ->
+  (\forall (i: Fin.Fin n) -> NonnegativeValue[f i]) -> NonnegativeValue[sum n f] :=
+  \induction (n: N.Nat^) \return \forall (f: Fin.Fin n -> Value) -> (\forall (i: Fin.Fin n) -> NonnegativeValue[f i]) -> NonnegativeValue[sum n f] \with {
+    | zero: \fun (f: Fin.Fin N.Nat^::zero -> Value) (_: _) => zeroNonnegative
+    | succ: \fun (n: N.Nat^) (previous: _) (f: Fin.Fin (N.Nat^::succ n) -> Value) (laws: _) =>
+      addNonnegative (f (Fin.zero n)) (sum n (\fun (i: Fin.Fin n) => f (Fin.succ n i))) (laws (Fin.zero n))
+        (previous (\fun (i: Fin.Fin n) => f (Fin.succ n i)) (\fun (i: Fin.Fin n) => laws (Fin.succ n i)))
+  };
