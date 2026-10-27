@@ -32,10 +32,13 @@ B09 の指定同型の近傍延長から、商の基点の開近傍とその上�
 束としての貼り合わせ、元の束との比較と商群比較はまだ未完成。
 共通 API `Atlas.Using.Overlap` と `fromTransitions` を追加し、最初の検査で残っていた cocycle 用の参照名を修正した（終了1）。
 基点外のファイバー比較を任意の代表点で使えるように整理し、近傍の座標の読み書きの連続性を追加した。
-これらの変更は未検証。
+座標の読み書き `Relative.Descent` は `coordinates-batch-Descent` で accepted・終了0・キャッシュ保存失敗0。
+座標変換の共通 API の検査は、基点の型が部分空間の要素であることを保持しきれず終了1となり、型を修正した。
+商上の近傍の枠と基点外の元のチャートからなる開被覆を構成し、元の束の座標の読み書きの連続性を共通化した。
+これらの新しい被覆と共通 API は未検証。
 次は座標変換と `Relative.Descent` を固定 snapshot と共有キャッシュで順番に検査する。
 崩壊商の基点の補集合と元の閉部分空間の補集合の同相 `Collapse.Outside` を追加し、これも未検証。
-検査には最新の `work/k03-resume/atlas-fixed.source.json` を使う。
+検査には最新の `work/k03-resume/descent-cover-regular.source.json` を使う。
 各検査には `--source-snapshot` を指定する。
 作業の保存先は [Draft PR #50](https://github.com/pdf-jube-joba/ref-type/pull/50)。
 対象検査は `target/debug/cli libs --module topological_constructions.Coproduct.Properties --memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact --report-json work/k03-resume/coproduct.json`。
