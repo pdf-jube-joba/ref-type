@@ -81,3 +81,18 @@
       \let both: Logic.And[Sets.Member S x, Sets.Member (f i) x] := \bysub(Fin.Fin n, { i: Fin.Fin n \where Sets.Member (Sets.Intersection S (f i)) x }, i) \then
       \return Logic.And[_, _]::# both.left (contains n f i x both.right)
     });
+\definition intersectionMeasure: \forall (n: N.Nat^) (S: \Pow A) (f: Fin.Fin n -> \Pow A) ->
+  Measurable mu.sigma S -> (\forall (i: Fin.Fin n) -> Measurable mu.sigma (f i)) -> Disjoint n f ->
+  mu.value (Sets.Intersection S (union n f)) = sum n (\fun (i: Fin.Fin n) => mu.value (Sets.Intersection S (f i))) :=
+  \fun (n: N.Nat^) (S: \Pow A) (f: Fin.Fin n -> \Pow A) (sm: Measurable mu.sigma S)
+    (fm: \forall (i: Fin.Fin n) -> Measurable mu.sigma (f i)) (disjoint: Disjoint n f) => \block {
+    \let cells: Fin.Fin n -> \Pow A := \fun (i: Fin.Fin n) => Sets.Intersection S (f i) \then
+    \let cellMeasurable: \forall (i: Fin.Fin n) -> Measurable mu.sigma (cells i) :=
+      \fun (i: Fin.Fin n) => Sigma.intersectionMeasurable mu.sigma S (f i) sm (fm i) \then
+    \let cellDisjoint: Disjoint n cells := \fun (i, j: Fin.Fin n) (different: Logic.Not (i = j)) (x: A)
+      (left: Sets.Member (cells i) x) (right: Sets.Member (cells j) x) => disjoint i j different x left.right right.right \then
+    \return eq_reason_in!{Value _
+      "=" _ "by" { congr!{{\Pow A} Value} mu.value _ _ (intersectionUnion n S f) }
+      "=" _ "by" { measure n cells cellMeasurable cellDisjoint }
+    }
+  };
