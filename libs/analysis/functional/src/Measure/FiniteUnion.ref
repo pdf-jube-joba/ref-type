@@ -57,3 +57,27 @@
         }
       }
     };
+
+\definition contains: \forall (n: N.Nat^) (f: Fin.Fin n -> \Pow A) (i: Fin.Fin n) -> Sets.Subset (f i) (union n f) :=
+  \induction (n: N.Nat^) \return \forall (f: Fin.Fin n -> \Pow A) (i: Fin.Fin n) -> Sets.Subset (f i) (union n f) \with {
+    | zero: \fun (f: Fin.Fin N.Nat^::zero -> \Pow A) (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))
+    | succ: \fun (n: N.Nat^) (previous: _) (f: Fin.Fin (N.Nat^::succ n) -> \Pow A) =>
+      Fin.cases n (\fun (i: Fin.Fin (N.Nat^::succ n)) => Sets.Subset (f i) (union (N.Nat^::succ n) f))
+        (\fun (x: A) (member: Sets.Member (f (Fin.zero n)) x) => Logic.Or[_, _]::left member)
+        (\fun (i: Fin.Fin n) (x: A) (member: Sets.Member (f (Fin.succ n i)) x) =>
+          Logic.Or[_, _]::right (previous (\fun (j: Fin.Fin n) => f (Fin.succ n j)) i x member))
+    };
+\definition intersectionUnion: \forall (n: N.Nat^) (S: \Pow A) (f: Fin.Fin n -> \Pow A) ->
+  Sets.Intersection S (union n f) = union n (\fun (i: Fin.Fin n) => Sets.Intersection S (f i)) :=
+  \fun (n: N.Nat^) (S: \Pow A) (f: Fin.Fin n -> \Pow A) => \axiom:setext(Sets.Intersection S (union n f), union n (\fun (i: Fin.Fin n) => Sets.Intersection S (f i)),
+    \fun (x: A) (both: Sets.Member (Sets.Intersection S (union n f)) x) => \block {
+      \takefrom i: \Cast[Fin.Fin n] ({ i: Fin.Fin n \where Sets.Member (f i) x }) \by member n f x both.right \then
+      \return contains n (\fun (i: Fin.Fin n) => Sets.Intersection S (f i)) i x
+        (Logic.And[_, _]::# both.left (\bysub(Fin.Fin n, { i: Fin.Fin n \where Sets.Member (f i) x }, i)))
+    },
+    \fun (x: A) (inUnion: Sets.Member (union n (\fun (i: Fin.Fin n) => Sets.Intersection S (f i))) x) => \block {
+      \takefrom i: \Cast[Fin.Fin n] ({ i: Fin.Fin n \where Sets.Member (Sets.Intersection S (f i)) x })
+        \by member n (\fun (i: Fin.Fin n) => Sets.Intersection S (f i)) x inUnion \then
+      \let both: Logic.And[Sets.Member S x, Sets.Member (f i) x] := \bysub(Fin.Fin n, { i: Fin.Fin n \where Sets.Member (Sets.Intersection S (f i)) x }, i) \then
+      \return Logic.And[_, _]::# both.left (contains n f i x both.right)
+    });
