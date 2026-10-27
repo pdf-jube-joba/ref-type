@@ -1,0 +1,35 @@
+\import \root.Measure[A := A].Integral[mu := mu].Convergence[] \as Convergence;
+\import Convergence.PointwiseLimit[] \as PointwiseLimit;
+\import \root.Measure[A := A].Integral[mu := mu].Absolute[] \as Absolute;
+\import real.Analysis[].Sequence[] \as Sequence;
+\import Sequence.Operations[] \as Operations;
+\import real.Analysis[].Distance[] \as Distance;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\use std.Logic[].Equality[].sym;
+\definition functions: Convergence.MeasurableSequence := \into[N.Nat^ -> A -> Real.Real]
+  ((\fun (k: N.Nat^) (x: A) => d.sequence k x), { f: N.Nat^ -> A -> Real.Real \where \forall (k: N.Nat^) -> IsMeasurable mu (f k) }) \by {
+    \fun (k: N.Nat^) => (\bysub(A -> Real.Real, { f: A -> Real.Real \where Integrable f }, d.sequence k)).left
+  };
+\definition limitMeasurable: IsMeasurable mu d.limit := PointwiseLimit.measurableLimit functions d.limit d.converges;
+\definition valueUpper: \forall (k: N.Nat^) (x: A) -> R.Le (d.sequence k x) (d.bound x) :=
+  \fun (k: N.Nat^) (x: A) => R.leTrans (d.sequence k x) (Product.abs (d.sequence k x)) (d.bound x)
+    (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Product.absExpression (d.sequence k x)))
+      (Distance.maxRight (Real.neg (d.sequence k x)) (d.sequence k x))) (d.dominated k x);
+\definition valueLower: \forall (k: N.Nat^) (x: A) -> R.Le (Real.neg (d.bound x)) (d.sequence k x) :=
+  \fun (k: N.Nat^) (x: A) => R.leReplaceRight (Real.neg (d.bound x)) (Real.neg (Real.neg (d.sequence k x))) (d.sequence k x)
+    (Laws.negInvolutive (d.sequence k x)) (Laws.negAntitone (Real.neg (d.sequence k x)) (d.bound x)
+      (R.leTrans (Real.neg (d.sequence k x)) (Product.abs (d.sequence k x)) (d.bound x)
+        (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Product.absExpression (d.sequence k x)))
+          (Distance.maxLeft (Real.neg (d.sequence k x)) (d.sequence k x))) (d.dominated k x)));
+\definition limitBound: \forall (x: A) -> R.Le (Product.abs (d.limit x)) (d.bound x) := \fun (x: A) => \block {
+  \let above: R.Le (d.limit x) (d.bound x) := Operations.upperBoundLimit (\fun (k: N.Nat^) => d.sequence k x) (d.limit x) (d.bound x) N.Nat^::zero (d.converges x)
+    (\fun (k: N.Nat^) (_: _) => valueUpper k x) \then
+  \let below: R.Le (Real.neg (d.bound x)) (d.limit x) := Operations.lowerBoundLimit (\fun (k: N.Nat^) => d.sequence k x) (d.limit x) (Real.neg (d.bound x)) N.Nat^::zero (d.converges x)
+    (\fun (k: N.Nat^) (_: _) => valueLower k x) \then
+  \let negative: R.Le (Real.neg (d.limit x)) (d.bound x) := R.leReplaceRight _ _ _ (Laws.negInvolutive (d.bound x)) (Laws.negAntitone _ _ below) \then
+  \return R.leReplaceLeft (Distance.max (Real.neg (d.limit x)) (d.limit x)) (Product.abs (d.limit x)) (d.bound x)
+    (sym!{Real.Real} _ _ (Product.absExpression (d.limit x))) (Distance.maxLeast _ _ _ negative above)
+};
+\definition limitIntegrable: Integrable d.limit := Absolute.dominatedIntegrable d.limit d.bound limitMeasurable
+  (\bysub(A -> Real.Real, { f: A -> Real.Real \where Integrable f }, d.bound)) limitBound;
+\definition limitRepresentative: Representatives := \into[A -> Real.Real] (d.limit, { f: A -> Real.Real \where Integrable f }) \by { limitIntegrable };
