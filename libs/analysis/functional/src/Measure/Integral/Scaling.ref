@@ -138,3 +138,42 @@
       "=" _ "by" { congr!{Real.Real Real.Real} (\fun (y: Real.Real) => Distance.max y (Real.mul c (Real.neg (f x)))) _ _ (sym!{Real.Real} _ _ (Laws.fieldMulZeroRight c)) }
       "=" _ "by" { sym!{Real.Real} _ _ (ProductLaws.mulMax c Real.zero (Real.neg (f x)) (nonnegative c)) }
     });
+
+\definition hasIntegralScale: \forall (c: NonnegativeScalar) (f: A -> Real.Real) (value: Real.Real) -> HasIntegral[f, value] ->
+  HasIntegral[\fun (x: A) => Real.mul c (f x), Real.mul c value] :=
+  \fun (c: NonnegativeScalar) (f: A -> Real.Real) (value: Real.Real) (h: HasIntegral[f, value]) => \block {
+    \takefrom p: \Cast[Real.Real] ({ p: Real.Real \where \exists ( q: Real.Real \where Parts[f, value, p, q] ) }) \by h.parts \then
+    \takefrom q: \Cast[Real.Real] ({ q: Real.Real \where Parts[f, value, p, q] })
+      \by (\bysub(Real.Real, { p: Real.Real \where \exists ( q: Real.Real \where Parts[f, value, p, q] ) }, p)) \then
+    \let parts: Parts[f, value, p, q] := \bysub(Real.Real, { q: Real.Real \where Parts[f, value, p, q] }, q) \then
+    \let posEq: lowerIntegral (positivePart (\fun (x: A) => Real.mul c (f x))) = scale c (lowerIntegral (positivePart f)) := eq_reason_in!{Value _
+      "=" _ "by" { congr!{{A -> Real.Real} Value} lowerIntegral _ _ (positivePartScale c f) }
+      "=" _ "by" { lowerScale c (positivePart f) }
+    } \then
+    \let negEq: lowerIntegral (negativePart (\fun (x: A) => Real.mul c (f x))) = scale c (lowerIntegral (negativePart f)) := eq_reason_in!{Value _
+      "=" _ "by" { congr!{{A -> Real.Real} Value} lowerIntegral _ _ (negativePartScale c f) }
+      "=" _ "by" { lowerScale c (negativePart f) }
+    } \then
+    \return HasIntegral[\fun (x: A) => Real.mul c (f x), Real.mul c value] {
+      integrable := integrableScale c f h.integrable,
+      parts := Logic.existsIntro[Real.Real, { a: Real.Real \where \exists ( b: Real.Real \where Parts[\fun (x: A) => Real.mul c (f x), Real.mul c value, a, b] ) }] (Real.mul c p)
+        (Logic.existsIntro[Real.Real, { b: Real.Real \where Parts[\fun (x: A) => Real.mul c (f x), Real.mul c value, Real.mul c p, b] }] (Real.mul c q)
+          (Parts[\fun (x: A) => Real.mul c (f x), Real.mul c value, Real.mul c p, Real.mul c q] {
+            positiveLaw := \idelim scale c (lowerIntegral (positivePart f)) = lowerIntegral (positivePart (\fun (x: A) => Real.mul c (f x)))
+              \with S: Value => Complete.LeastUpperBound[S, Real.mul c p] \by { base: supScale c (lowerIntegral (positivePart f)) p (SimpleLaws.lowerNonnegative (positivePart f)) parts.positiveLaw, equality: sym!{Value} _ _ posEq },
+            negativeLaw := \idelim scale c (lowerIntegral (negativePart f)) = lowerIntegral (negativePart (\fun (x: A) => Real.mul c (f x)))
+              \with S: Value => Complete.LeastUpperBound[S, Real.mul c q] \by { base: supScale c (lowerIntegral (negativePart f)) q (SimpleLaws.lowerNonnegative (negativePart f)) parts.negativeLaw, equality: sym!{Value} _ _ negEq },
+            difference := eq_reason_in!{Real.Real _
+              "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul c) _ _ parts.difference }
+              "=" _ "by" { E.mulSub c p q }
+            },
+          })),
+    }
+  };
+\definition representative[c: NonnegativeScalar] [f: Representatives]: Representatives :=
+  \into[A -> Real.Real](\fun (x: A) => Real.mul c (f x), { g: A -> Real.Real \where Integrable g }) \by {
+    integrableScale c f (\bysub(A -> Real.Real, { f: A -> Real.Real \where Integrable f }, f))
+  };
+\definition integralScale: \forall (c: NonnegativeScalar) (f: Representatives) -> integral (representative c f) = Real.mul c (integral f) :=
+  \fun (c: NonnegativeScalar) (f: Representatives) => integralUnique (representative c f) (integral (representative c f)) (Real.mul c (integral f))
+    (integralLaw (representative c f)) (hasIntegralScale c f (integral f) (integralLaw f));
