@@ -81,7 +81,8 @@ f(x)=\langle y,x\rangle\qquad(x\in V)
 
 `Integral.lowerIntegral` は互いに素な可測集合と非負係数による有限単関数を使う非負積分である。
 `Integral.Finite` は関数の非負性と積分の有限性を要求する。
-`Integral.HasIntegral` は絶対可積分性と正負部分の積分の差を表す。
+`Integral.HasIntegral` は絶対可積分性と正負部分の積分の差を表し、`integralUnique` が積分値の一意性を示す。
+`lowerIntegralMono` は下積分の単調性、`finiteMono` は非負関数の有限性の下方継承を示す。
 
 `Powers.Exponent` は実数 \(p\ge1\) である。
 `PositivePower[a,p,y]` は非負実数の \(y=a^p\) を自然数冪の有理数比較で表す。
