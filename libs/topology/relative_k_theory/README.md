@@ -1,61 +1,45 @@
 # 相対 K 群（K03）
 
-基点は B09 の統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623`、ブランチは `math/k03-relative-k`。
-[計画](../../../_plans/math/k03-relative-k.md)の実装中で、完成・検証済みの単位ではない。
+B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/k03-relative-k` / [Draft PR #50](https://github.com/pdf-jube-joba/ref-type/pull/50) で実装中。
+[計画](../../../_plans/math/k03-relative-k.md)は未完成。
 
-## 構成と再開
+## 現在の構成
 
 入口は `relative_k_theory.Relative`。
-空の閉部分空間も扱うため、まず一点を付加してから閉部分空間とともに潰す。
-共通の位相的補題は `Coproduct.Properties` と `Collapse.Closed` に配置する。
-次に射影表示による束の三つ組とその関係、商空間の被約群との比較、負次数、完全列・切除・Mayer–Vietoris・外積、円板球面対への適用を構成する。
+`Pair.Quotient` は一点を付加してから閉部分空間とともに潰すため、空の部分空間も同じ定義で扱う。
+その被約 K 群と反復 suspension による負次数群、対の写像による引き戻しを構成した。
+`PullbackIdentity`・`PullbackComposition`・`HomotopyInvariance` が基本的な関手性を与える。
 
-`Collapse.Closed` は対象検査 accepted・終了0・キャッシュ保存失敗0。
-`Coproduct.Properties` は宣言順と開集合の輸送を修正し、対象検査 accepted・終了0・キャッシュ保存失敗0。
-束の三つ組の群表示、直和・合成・ホモトピー・全体に延長する同型の関係式、逆元の比較を追加した。
-一点付加商、反復 suspension、負次数群と引き戻しも未検証の構成。
-基点付きコンパクト空間の上位宇宙のパッケージは、K02 と同じ継続による表現へ修正した。
-`Relative.Suspension` の対象と依存閉包は accepted・終了0・キャッシュ保存失敗0（共有キャッシュ436 module、追加検査4 module）。
-一点付加商と負次数群 `Relative.Pair.Quotient` は対象検査 accepted・終了0・キャッシュ保存失敗0。
-対の写像が誘導する商写像・負次数の引き戻しを追加した。
-引き戻しの恒等則・合成則、B04 によるホモトピー不変性も構成し、これらと三つ組の群は未検証。
-三つ組の eta 輸送不足を修正した全入口検査 `work/k03-resume/group-fixed` は accepted・終了0・キャッシュ保存失敗0（追加検査546 module、共有キャッシュ617 module）。
-束の降下には、基点での座標と商の各ファイバー上の整合するベクトルを用いる。
-そのベクトル空間、従属積の線形代数、基点でのみ値を保つ座標を追加した。
-基点での座標空間との線形同型、基点外で元の束のファイバーとの線形同型も追加した。
-従属積の最初の検査は親定義への直接参照の解決エラーで終了1となり、既存の `ring.add` 参照へ修正した。
-降下のファイバー検査は基点判定の型注釈不足で終了1となり、注釈を補った。
-次の検査は近傍の枠で親の `Fiber` 定義と import alias が衝突して終了1となり、alias を `FiberModel` へ変更した。
-B09 の指定同型の近傍延長から、商の基点の開近傍とその上の枠を構成した。
-一点付加商の基点の補集合と元の閉部分空間の補集合の同相も構成した。
-降下のファイバー・近傍の枠 `Relative.Descent` と基点外の同相 `Relative.Pair.Quotient.Outside` は、`work/k03-resume/outside-batch-*` で accepted・終了0・キャッシュ保存失敗0。
-束としての貼り合わせ、元の束との比較と商群比較はまだ未完成。
-共通 API `Atlas.Using.Overlap` と `fromTransitions` を追加し、最初の検査で残っていた cocycle 用の参照名を修正した（終了1）。
-基点外のファイバー比較を任意の代表点で使えるように整理し、近傍の座標の読み書きの連続性を追加した。
-座標の読み書き `Relative.Descent` は `coordinates-batch-Descent` で accepted・終了0・キャッシュ保存失敗0。
-座標変換の共通 API の検査は、基点の型が部分空間の要素であることを保持しきれず終了1となり、型を修正した。
-商上の近傍の枠と基点外の元のチャートからなる開被覆を構成し、元の束の座標の読み書きの連続性を共通化した。
-座標変換の共通 API は `cover-batch-Overlap` で accepted・終了0・キャッシュ保存失敗0。
-開被覆と元の束の座標の連続性は `cover-batch-Construction` で accepted・終了0・キャッシュ保存失敗0。
-元の束の座標との整合式から、近傍間・近傍と基点外・基点外同士の座標変換の連続性を構成した。
-降下した束 `Construction.bundleOnQuotient` まで追加した。
-最初の検査は子モジュールから兄弟への参照に不備があり終了1となり、参照を修正した。
-枠の整合式を、商の各ファイバーの任意の代表点で使えるように一般化した。
-座標変換の等式で積の点の型推論が止まって終了1となり、点と型を明示した。
-元の束の各点への評価写像と、その線形同型を構成した。
-評価写像の検査はモジュール引数内の型の省略で終了1となり、型を明示した。
-局所座標による評価写像・逆写像の連続性と、降下した束の引き戻しを元の束へ送る比較同型まで追加した。
-束の構成・整合式・比較同型は `descent-comparison-fixed` で accepted・終了0・キャッシュ保存失敗0。
-基点でのランク、閉部分空間上の指定同型との整合式、B09 の存在定理から降下の結果を返す `Descent.descend` を追加した。
-降下の公開 API `Relative.Descent` は `descent-public-fixed` で accepted・終了0・キャッシュ保存失敗0。
-任意の二つの三つ組に対して、射影表示を選び直して直和を構成する `Pair.SumConstruction` を追加した。
-この直和の構成は未検証。
-引き戻した束と元の束の比較、三つ組の群との比較、完全列以降の要件は未完成。
-次は座標変換と `Relative.Descent` を固定 snapshot と共有キャッシュで順番に検査する。
-崩壊商の基点の補集合と元の閉部分空間の補集合の同相 `Collapse.Outside` を追加し、これも未検証。
-検査には最新の `work/k03-resume/triple-sums.source.json` を使う。
-各検査には `--source-snapshot` を指定する。
-作業の保存先は [Draft PR #50](https://github.com/pdf-jube-joba/ref-type/pull/50)。
-対象検査は `target/debug/cli libs --module topological_constructions.Coproduct.Properties --memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact --report-json work/k03-resume/coproduct.json`。
-`Collapse.Closed` も同じ共有キャッシュで検査し、検査結果と終了コードを `work/k03-resume` に保存する。
-長い検査には固定 source snapshot を保存し、実行シェルで終了コードもファイルへ保存する。
+`Pair.Triple` は射影表示による二つの束と、閉部分空間上の同型を持つ。
+`Pair.Group` は全体に延長する同型・直和・合成・ホモトピーの関係式による群で、対角三つ組の零性と逆元を証明した。
+`Pair.SumConstruction` は任意の二つの三つ組の直和を、比較同型とともに構成する。
+
+`Descent.descend` は閉部分空間上で自明化された束を商空間へ降ろす。
+`Descent.With.Construction` は商上の束・基点でのランク・元の束との引き戻し比較・境界上の整合式を提供する。
+降下のファイバーは基点での座標と商のファイバー上の整合するベクトルから作り、B09 の近傍延長と基点外の同相で局所自明化する。
+共通の位相と線形代数の補題は `Coproduct.Properties`・`Collapse.Closed`・`Collapse.Outside`・`Commutative.DependentProduct`・`Atlas.Using.Overlap` に置いた。
+
+## 検証と再開
+
+共有キャッシュは `libs/refcache`。
+以下の対象検査はすべて accepted・終了0・キャッシュ保存失敗0で、報告・ログ・終了コードは `work/k03-resume` に保存した。
+
+| 範囲 | 報告の接頭辞 |
+| --- | --- |
+| 三つ組の群、引き戻し、ホモトピー不変性 | `group-fixed` |
+| 一点付加商の基点外の同相、降下のファイバーと枠 | `outside-batch-*` |
+| 座標の読み書きの連続性 | `coordinates-batch-Descent` |
+| 座標変換の共通 API、降下の開被覆 | `cover-batch-*` |
+| 降下した束と元の束の比較同型 | `descent-comparison-fixed` |
+| 降下の存在、ランク、境界上の整合式 | `descent-public-fixed` |
+| 三つ組の直和の存在と比較 | `triple-sums` |
+
+最新の未検証変更は `Pair.Normalize`。
+補射影から補束を作り、対角三つ組を加えて群の元を保ち、負側を自明束にした後 `Descent` へ渡す。
+固定 snapshot は `work/k03-resume/triple-normalize.source.json`。
+次はこの snapshot と共有キャッシュで `relative_k_theory.Relative.Pair.Normalize` を検査する。
+例: `target/debug/cli libs/topology/relative_k_theory --source-snapshot work/k03-resume/triple-normalize.source.json --module relative_k_theory.Relative.Pair.Normalize --memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact --report-json work/k03-resume/triple-normalize.json`。
+実行シェルで終了コードも保存する。
+
+残る主な要件は、選択に依存しない三つ組の群と商空間の被約群の比較、完全列・切除・Mayer–Vietoris・外積と自然性、円板球面対への適用と具体例。
+package・依存閉包・影響先・workspace 全体の最終検証と公開登録の仕上げも未実施。
