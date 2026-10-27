@@ -119,6 +119,7 @@
   \fun (u, v, w: Value) => \axiom:setext(add (add u v) w, add u (add v w), addAssocForward u v w, addAssocReverse u v w);
 
 \import real.Analysis[].SquareRoot[] \as SquareRoot;
+\import real.Analysis[].Distance[] \as Distance;
 \import real.Analysis[].Estimates[].Product[] \as ProductLaws;
 \definition midpointStrictLeft: \forall (a, b: Real.Real) -> R.Lt a b -> R.Lt a (Real.midpoint a b) :=
   \fun (a, b: _) (less: _) => SquareRoot.addPositive a (Real.mul Real.half (Real.sub b a))
@@ -314,7 +315,7 @@
   \fun (r, a, b: Real.Real) (less: R.Lt r (Real.add a b)) => \block {
     \let leftGap: R.Lt (Real.sub r b) a := Distance.addLtToSub r b a less \then
     \let p: Real.Real := Real.midpoint (Real.sub r b) a \then
-    \let rpBelowB: R.Lt (Real.sub r p) b := Distance.subLtOfLower r b p (midpointStrictLeft (Real.sub r b) a leftGap) \then
+    \let rpBelowB: R.Lt (Real.sub r p) b := Distance.subLtOfLower r p b (midpointStrictLeft (Real.sub r b) a leftGap) \then
     \let q: Real.Real := Real.midpoint (Real.sub r p) b \then
     \let total: R.Lt r (Real.add p q) := R.ltReplaceRight r (Real.add q p) (Real.add p q) (Laws.addComm q p)
       (Distance.subLtToAdd r p q (midpointStrictLeft (Real.sub r p) b rpBelowB)) \then
@@ -324,4 +325,41 @@
         right := midpointStrictRight (Real.sub r p) b rpBelowB,
         total := total,
       }))
+  };
+
+\definition inverseProduct: \forall (c, x: Real.Real) -> R.Lt Real.zero c -> Real.mul c (Real.mul (Laws.fieldInv c) x) = x :=
+  \fun (c, x: Real.Real) (positive: R.Lt Real.zero c) => eq_reason_in!{Real.Real _
+    "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulAssoc c (Laws.fieldInv c) x) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (t: Real.Real) => Real.mul t x) _ _ (Laws.fieldMulComm c (Laws.fieldInv c)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (t: Real.Real) => Real.mul t x) _ _
+      (Laws.fieldInverseNonzero c (\fun (equal: c = Real.zero) => Order.ltNotEq Real.zero c positive (sym!{Real.Real} _ _ equal))) }
+    "=" _ "by" { Laws.fieldMulOneLeft x }
+  };
+\definition inverseProductLeft: \forall (c, x: Real.Real) -> R.Lt Real.zero c -> Real.mul (Laws.fieldInv c) (Real.mul c x) = x :=
+  \fun (c, x: Real.Real) (positive: R.Lt Real.zero c) => eq_reason_in!{Real.Real _
+    "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulAssoc (Laws.fieldInv c) c x) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (t: Real.Real) => Real.mul t x) _ _
+      (Laws.fieldInverseNonzero c (\fun (equal: c = Real.zero) => Order.ltNotEq Real.zero c positive (sym!{Real.Real} _ _ equal))) }
+    "=" _ "by" { Laws.fieldMulOneLeft x }
+  };
+\definition positiveScaleAddForward: \forall (c: Real.Real) (v, w: Value) -> R.Lt Real.zero c ->
+  Included (scale c (add v w)) (add (scale c v) (scale c w)) :=
+  \fun (c: Real.Real) (v, w: Value) (positive: R.Lt Real.zero c) (r: Real.Real) (member: below (scale c (add v w)) r) => \block {
+    \takefrom d: \Cast[Real.Real] ({ d: Real.Real \where Logic.And[below (add v w) d, R.Lt r (Real.mul c d)] }) \by member \then
+    \let outer: Logic.And[below (add v w) d, R.Lt r (Real.mul c d)] := \bysub(Real.Real, { d: Real.Real \where Logic.And[below (add v w) d, R.Lt r (Real.mul c d)] }, d) \then
+    \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[below v a, \exists ( b: Real.Real \where Logic.And[below w b, R.Lt d (Real.add a b)] )] }) \by outer.left \then
+    \let first: Logic.And[below v a, \exists ( b: Real.Real \where Logic.And[below w b, R.Lt d (Real.add a b)] )] :=
+      \bysub(Real.Real, { a: Real.Real \where Logic.And[below v a, \exists ( b: Real.Real \where Logic.And[below w b, R.Lt d (Real.add a b)] )] }, a) \then
+    \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where Logic.And[below w b, R.Lt d (Real.add a b)] }) \by first.right \then
+    \let second: Logic.And[below w b, R.Lt d (Real.add a b)] := \bysub(Real.Real, { b: Real.Real \where Logic.And[below w b, R.Lt d (Real.add a b)] }, b) \then
+    \let total: R.Lt r (Real.add (Real.mul c a) (Real.mul c b)) := Order.ltTrans r (Real.mul c d) _ outer.right
+      (R.ltReplaceRight _ (Real.mul c (Real.add a b)) _ (Laws.fieldMulAdd c a b) (ProductLaws.mulStrict c d (Real.add a b) positive second.right)) \then
+    \takefrom p: \Cast[Real.Real] ({ p: Real.Real \where \exists ( q: Real.Real \where SplitBelow[r, Real.mul c a, Real.mul c b, p, q] ) }) \by splitBelow r (Real.mul c a) (Real.mul c b) total \then
+    \takefrom q: \Cast[Real.Real] ({ q: Real.Real \where SplitBelow[r, Real.mul c a, Real.mul c b, p, q] })
+      \by (\bysub(Real.Real, { p: Real.Real \where \exists ( q: Real.Real \where SplitBelow[r, Real.mul c a, Real.mul c b, p, q] ) }, p)) \then
+    \let split: SplitBelow[r, Real.mul c a, Real.mul c b, p, q] := \bysub(Real.Real, { q: Real.Real \where SplitBelow[r, Real.mul c a, Real.mul c b, p, q] }, q) \then
+    \return Logic.existsIntro[Real.Real, { p: Real.Real \where Logic.And[below (scale c v) p, \exists ( q: Real.Real \where Logic.And[below (scale c w) q, R.Lt r (Real.add p q)] )] }] p
+      (Logic.And[_, _]::# (Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[below v a, R.Lt p (Real.mul c a)] }] a (Logic.And[_, _]::# first.left split.left))
+        (Logic.existsIntro[Real.Real, { q: Real.Real \where Logic.And[below (scale c w) q, R.Lt r (Real.add p q)] }] q
+          (Logic.And[_, _]::# (Logic.existsIntro[Real.Real, { b: Real.Real \where Logic.And[below w b, R.Lt q (Real.mul c b)] }] b (Logic.And[_, _]::# second.left split.right)) split.total)))
   };
