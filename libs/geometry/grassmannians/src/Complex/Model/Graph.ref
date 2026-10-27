@@ -34,3 +34,25 @@
 \definition graphFormula: \forall (x: Local)(v: Domain.Vector) -> E.space.add (center.value.apply v) ((graph x).apply v) = (normalized x).apply v :=
   \fun (x: Local)(v: Domain.Vector) => trans!{{E.Vector}} _ _ _
     (congr!{{E.Vector} {E.Vector}} (E.space.add (center.value.apply v)) _ _ (Old.graphMapFormula (toOld x) v)) (Old.graphFormula (toOld x) v);
+
+\definition normalizedFixed: \forall (x: Local)(v: Domain.Vector) -> (projection x).map.apply ((normalized x).apply v) = (normalized x).apply v :=
+  \fun (x: Local)(v: Domain.Vector) => Old.normalizedFixed (toOld x) v;
+\definition centerCoordinates: \forall (x: Local)(v: Domain.Vector) -> center.coordinate.apply ((normalized x).apply v) = v :=
+  \fun (x: Local)(v: Domain.Vector) => Old.centerCoordinates (toOld x) v;
+\definition graphZero: \forall (x: Local)(v: Domain.Vector) -> center.coordinate.apply ((graph x).apply v) = Domain.space.zero :=
+  \fun (x: Local)(v: Domain.Vector) => trans!{{Domain.Vector}} _ _ _
+    (congr!{{E.Vector} {Domain.Vector}} center.coordinate.apply _ _ (Old.graphMapFormula (toOld x) v)) (Old.graphInComplement (toOld x) v);
+\definition GraphSpace: \Set := \Cast[Maps.Map] ({ t: Maps.Map \where \forall (v: Domain.Vector) -> center.coordinate.apply (t.apply v) = Domain.space.zero });
+\definition point[x: Local]: GraphSpace := \into[Maps.Map](graph x, GraphSpace) \by { graphZero x };
+\module Injectivity(x, y: Local, same: point x = point y);
+\definition injective: \forall (x, y: Local) -> point x = point y -> x = y :=
+  \fun (x, y: Local)(same: point x = point y) => Injectivity[x := x, y := y, same := same].equal;
+
+\import topological_algebra.Matrix[K := C.Complex, I := Fin.Fin n, J := Fin.Fin k] \as GraphMatrix;
+\definition entries[t: GraphSpace]: GraphMatrix.Carrier := \fun (i: Fin.Fin n)(j: Fin.Fin k) => t.apply (Domain.basis j) i;
+\import topological_constructions.Induced[A := GraphSpace, B := GraphMatrix.Carrier] \as GraphInduced;
+\definition graphTopology: topology.Topology[Carrier := GraphSpace].Topology := GraphInduced.topology (GraphMatrix.topology H.Complex[].topological.space) entries;
+\definition continuous: topology.Continuity[A := Local, B := GraphSpace].Continuous localTopology graphTopology point :=
+  GraphInduced.Universal[Z := Local].continuous localTopology (GraphMatrix.topology H.Complex[].topological.space) entries point
+    (GraphMatrix.Universal[A := Local].continuous localTopology H.Complex[].topological.space (\fun (x: Local) => entries (point x))
+      (\fun (i: Fin.Fin n)(j: Fin.Fin k) => regular (Domain.basis j) i));
