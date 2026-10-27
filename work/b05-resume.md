@@ -52,3 +52,5 @@ Model に普遍束・補束と元の型への連続写像、元の型からの�
 直和を Model 上に移し、元の直和と二方向の連続写像を合成して連続性を証明した。実 Model.DirectSum の個別検査は accepted。階数1の射影空間は Model を台とするよう切り替えた。複素側と全体の検査が必要。
 
 8054ce96 の対象 full-check-local は accepted（28 module、464 steps）、対象依存閉包は accepted（578 module 再利用）。キャッシュ保存失敗0。
+
+Examples に任意次元の恒等射影の点を追加し、階数1の実・複素射影空間の具体的な点を個別検査で確認した。
