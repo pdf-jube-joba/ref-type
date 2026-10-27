@@ -1,0 +1,27 @@
+\import std.Logic[].Proposition[] \as Logic;
+\use Logic.either;
+\import std.Data[].Pair[] \as Pair;
+\import singular_cohomology.Relative[A := C, source := leftTarget, subset := leftTargetSubset] \as TargetLeft;
+\import singular_cohomology.Relative[A := D, source := rightTarget, subset := rightTargetSubset] \as TargetRight;
+\import Left.Maps[B := C].Over[target := leftTarget, targetSubset := leftTargetSubset] \as LeftPairMaps;
+\import Right.Maps[B := D].Over[target := rightTarget, targetSubset := rightTargetSubset] \as RightPairMaps;
+\import singular_products.ProductMapping[A := A, B := B, C := C, D := D, leftSource := left, rightSource := right, leftTarget := leftTarget, rightTarget := rightTarget] \as ProductMapping;
+\import \root.ExternalIntegral[A := C, B := D, left := leftTarget, right := rightTarget, leftSubset := leftTargetSubset, rightSubset := rightTargetSubset] \as Target;
+\import \root.External[A := C, B := D, left := leftTarget, right := rightTarget, R := I.Int^, ring := Integers.commutativeRing].Relative[leftSubset := leftTargetSubset, rightSubset := rightTargetSubset] \as TargetExternal;
+\import topological_constructions.Product[A := C, B := D] \as TargetProduct;
+\import \root.Triple[A := TargetProduct.CarrierSet, source := ProductMapping.target, first := TargetExternal.leftInverse, second := TargetExternal.rightInverse].Union[] \as TargetUnion;
+\import TargetRelative.Maps[B := TargetProduct.CarrierSet].Over[target := ProductMapping.target, targetSubset := TargetUnion.subset] \as UnionPairMaps;
+\module On(f: LeftPairMaps.Map, g: RightPairMaps.Map) {
+  \definition product: ProductMapping.Map := ProductMapping.Map { leftFunction := f, rightFunction := g, leftContinuous := (LeftPairMaps.laws f).continuous, rightContinuous := (RightPairMaps.laws g).continuous };
+  \definition contained: \forall (x: TargetRelative.SubspaceCarrier) -> \In[TargetProduct.CarrierSet] TargetUnion.subset (ProductMapping.function product x) :=
+    \fun (x: TargetRelative.SubspaceCarrier) => Logic.orElim (\In[Product.CarrierSet] Relative.leftInverse x) (\In[Product.CarrierSet] Relative.rightInverse x)
+      (\In[TargetProduct.CarrierSet] TargetUnion.subset (ProductMapping.function product x)) (\bysub(Product.CarrierSet, Union.subset, x))
+      (\fun (member: \In[Product.CarrierSet] Relative.leftInverse x) => Logic.Or[\In[TargetProduct.CarrierSet] TargetExternal.leftInverse (ProductMapping.function product x), \In[TargetProduct.CarrierSet] TargetExternal.rightInverse (ProductMapping.function product x)]::left
+        ((LeftPairMaps.laws f).contained (\into[A](Pair.first A B x, leftSubset) \by { member })))
+      (\fun (member: \In[Product.CarrierSet] Relative.rightInverse x) => Logic.Or[\In[TargetProduct.CarrierSet] TargetExternal.leftInverse (ProductMapping.function product x), \In[TargetProduct.CarrierSet] TargetExternal.rightInverse (ProductMapping.function product x)]::right
+        ((RightPairMaps.laws g).contained (\into[B](Pair.second A B x, rightSubset) \by { member })));
+
+  \definition unionMap: UnionPairMaps.Map := \into[Product.CarrierSet -> TargetProduct.CarrierSet](ProductMapping.function product, { h: Product.CarrierSet -> TargetProduct.CarrierSet \where UnionPairMaps.Laws[h] }) \by {
+    UnionPairMaps.Laws[ProductMapping.function product] { continuous := ProductMapping.continuous product, contained := contained }
+  };
+}
