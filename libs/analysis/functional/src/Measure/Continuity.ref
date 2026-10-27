@@ -123,3 +123,17 @@
         },
       })
   };
+
+\import N.Basic[].Prop[] \as Nat;
+\import N.Induction[] \as NatInduction;
+\definition increasingAll: \forall (f: N.Nat^ -> \Pow A) -> Increasing f ->
+  \forall (m, n: N.Nat^) -> Nat.Le m n -> Sets.Subset (f m) (f n) :=
+  \fun (f: N.Nat^ -> \Pow A) (increasing: Increasing f) =>
+    \induction (n: N.Nat^) \return \forall (m: N.Nat^) -> Nat.Le m n -> Sets.Subset (f m) (f n) \with {
+      | zero: \fun (m: N.Nat^) (bound: Nat.Le m N.Nat^::zero) (x: A) (member: Sets.Member (f m) x) =>
+        \idelim m = N.Nat^::zero \with k: N.Nat^ => Sets.Member (f k) x \by { base: member, equality: Nat.leZeroEq m bound }
+      | succ: \fun (n: N.Nat^) (previous: _) (m: N.Nat^) (bound: Nat.Le m (N.Nat^::succ n)) (x: A) (member: Sets.Member (f m) x) =>
+        Logic.orElim _ _ (Sets.Member (f (N.Nat^::succ n)) x) (NatInduction.leCases m (N.Nat^::succ n) bound)
+          (\fun (less: Nat.Lt m (N.Nat^::succ n)) => increasing n x (previous m (NatInduction.belowSuccessor m n less) x member))
+          (\fun (same: m = N.Nat^::succ n) => \idelim m = N.Nat^::succ n \with k: N.Nat^ => Sets.Member (f k) x \by { base: member, equality: same })
+    };
