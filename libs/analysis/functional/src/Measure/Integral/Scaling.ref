@@ -53,3 +53,24 @@
   };
 \definition PositiveScalar: \Set := \Cast[Real.Real] ({ c: Real.Real \where R.Lt Real.zero c });
 \module Positive(c: PositiveScalar);
+
+\import \root.Measure[A := A].Integral[mu := mu].Zero[] \as Zero;
+\import \root.Measure[A := A].Integral[mu := mu].SimpleLaws[] \as SimpleLaws;
+\import std.Logic[].Classical[] \as Classical;
+\definition lowerScale: \forall (c: NonnegativeScalar) (f: A -> Real.Real) ->
+  lowerIntegral (\fun (x: A) => Real.mul c (f x)) = scale c (lowerIntegral f) :=
+  \fun (c: NonnegativeScalar) (f: A -> Real.Real) =>
+    Logic.orElim _ _ (lowerIntegral (\fun (x: A) => Real.mul c (f x)) = scale c (lowerIntegral f)) (Classical.excludedMiddle (c = Real.zero))
+      (\fun (eq: c = Real.zero) => \idelim Real.zero = c \with t: Real.Real =>
+        lowerIntegral (\fun (x: A) => Real.mul t (f x)) = scale t (lowerIntegral f) \by {
+          base: eq_reason_in!{Value _
+            "=" _ "by" { congr!{{A -> Real.Real} Value} lowerIntegral _ _
+              (\axiom:funext((\fun (x: A) => Real.mul Real.zero (f x)), Zero.function, \fun (x: A) => Laws.fieldMulZeroLeft (f x))) }
+            "=" _ "by" { Zero.lowerZero }
+            "=" _ "by" { sym!{Value} _ _ (Values.zeroScale (lowerIntegral f) (SimpleLaws.lowerNonnegative f)) }
+          }, equality: sym!{Real.Real} _ _ eq })
+      (\fun (different: Logic.Not (c = Real.zero)) => \block {
+        \let pc: PositiveScalar := \into[Real.Real](c, { c: Real.Real \where R.Lt Real.zero c }) \by {
+          Order.ltOfLeNotEq Real.zero c (nonnegative c) (\fun (eq: Real.zero = c) => different (sym!{Real.Real} _ _ eq)) } \then
+        \return Positive[c := pc].lowerScale f
+      });
