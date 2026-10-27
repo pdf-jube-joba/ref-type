@@ -1,0 +1,36 @@
+\use Equality.eq_reason_in;
+\import UTheory.Trivial[n := first.dimension] \as UDenominator;
+\import VTheory.Trivial[n := second.dimension] \as VDenominator;
+\import WTheory.Trivial[n := first.dimension] \as WFirst;
+\import WTheory.Trivial[n := second.dimension] \as WSecond;
+\import UPull.Trivial[n := first.dimension] \as UTrivialPull;
+\import VPull.Trivial[n := second.dimension] \as VTrivialPull;
+\import WTheory.AdditiveMonoid[] \as WAdd;
+\import WK.Stability[] \as Stable;
+\definition sourceClass: WTheory.Classes := UPull.map (UTheory.class first.positive);
+\definition targetClass: WTheory.Classes := VPull.map (VTheory.class second.positive);
+\definition sourcePositive: WTheory.Classes := WAdd.add sourceClass WSecond.value;
+\definition targetPositive: WTheory.Classes := WAdd.add targetClass WFirst.value;
+\definition sourceNormal: UMap.map u = WK.difference sourceClass WFirst.value := eq_reason_in!{{WK.Carrier} _
+  "=" { UMap.map (UK.difference (UTheory.class first.positive) UDenominator.value) } "by" {
+    congr!{{UK.Carrier} {WK.Carrier}} UMap.map _ _ (sym!{{UK.Carrier}} _ _ first.equation) }
+  "=" { WK.difference sourceClass (UPull.map UDenominator.value) } "by" { UMap.onDifferences (UTheory.class first.positive) UDenominator.value }
+  "=" { WK.difference sourceClass WFirst.value } "by" { congr!{{WTheory.Classes} {WK.Carrier}} (WK.difference sourceClass) _ _ UTrivialPull.equation }
+};
+\definition targetNormal: VMap.map v = WK.difference targetClass WSecond.value := eq_reason_in!{{WK.Carrier} _
+  "=" { VMap.map (VK.difference (VTheory.class second.positive) VDenominator.value) } "by" {
+    congr!{{VK.Carrier} {WK.Carrier}} VMap.map _ _ (sym!{{VK.Carrier}} _ _ second.equation) }
+  "=" { WK.difference targetClass (VPull.map VDenominator.value) } "by" { VMap.onDifferences (VTheory.class second.positive) VDenominator.value }
+  "=" { WK.difference targetClass WSecond.value } "by" { congr!{{WTheory.Classes} {WK.Carrier}} (WK.difference targetClass) _ _ VTrivialPull.equation }
+};
+\definition positiveEquality: Compatible u v -> WK.include sourcePositive = WK.include targetPositive :=
+  \fun (same: Compatible u v) => Stable.crossSumEqual sourceClass WFirst.value targetClass WSecond.value
+    (trans!{{WK.Carrier}} _ _ _ (sym!{{WK.Carrier}} _ _ sourceNormal) (trans!{{WK.Carrier}} _ _ _ same targetNormal));
+\definition stableExists: Compatible u v -> \exists (k: N.Nat^ \where Stable.Stable sourcePositive targetPositive k) :=
+  \fun (same: Compatible u v) => Stable.stabilizes sourcePositive targetPositive (positiveEquality same);
+\module At(k: N.Nat^, stable: Stable.Stable sourcePositive targetPositive k);
+\definition existence: Compatible u v -> \exists Result[u, v] := \block {
+  \fun (same: Compatible u v) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Stable.Stable sourcePositive targetPositive k }) \by stableExists same \then
+  \return At[k := k, stable := (\bysub(N.Nat^, { k: N.Nat^ \where Stable.Stable sourcePositive targetPositive k }, k))].existence
+};

@@ -116,3 +116,9 @@ Mayer–Vietoris の交叉部分の完全性も証明コードを追加し、構
 列の端の群に元の対を明示して `iteration-base-pair.source.json` に固定した（未検証）。
 先に `PairIteration.Groups`・`WholeGroups`・`SubsetGroups` をそれぞれ `--module-only` で保存し、その後 `Sequence` を検査する。
 通常の K 群には `K0.NormalForm` として、任意の元を束の表示と有限次元自明束との差へ直す構成も追加した（未検証）。
+
+`Patching.Ordinary.existence` は、交叉上で一致する通常の K 群の二つの元に、大域的な元と両側の制限式を構成する。
+`K0.NormalForm`・安定同型判定で正側の束をそろえ、射影の貼り合わせ後に共通の自明束を差し引く。
+自明束の引き戻し、K 群の加法・逆元・差の引き戻しの式も追加した。
+`ordinary-patching.source.json` で構文解析を通過したが、型検査は未完了。
+既存の Mayer–Vietoris の次数0の端への比較と、外積の構成を続ける。
