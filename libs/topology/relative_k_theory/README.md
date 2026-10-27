@@ -39,10 +39,11 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 `Pair.Normalize` は補射影から補束を作り、対角三つ組を加えて群の元を保ち、負側を自明束にした後 `Descent` へ渡す。
 `Pair.FramedMaps` は境界の自明化と定数行列に両立する束写像を、商上のアンカーと各ベクトルへ点ごとに適用する。
 その束写像としての連続性はまだ未実装。
-最新の未検証変更は共通 API `bundle_operations.Operations.Over.LocalMatrices`。
+共通 API `bundle_operations.Operations.Over.LocalMatrices` は `local-matrices-fixed` で accepted・終了0・キャッシュ保存失敗0。
 異なる次元の二つの枠の間の連続な行列表示から、束写像の連続性を導く。
-固定 snapshot は `work/k03-resume/local-matrices-fixed.source.json`。
-次はこの snapshot と共有キャッシュで `bundle_operations.Operations.Over.LocalMatrices` を検査する。
+最新の未検証変更は `Pair.FramedMaps.With.Between.Outside` で、基点外の二つの枠による行列の連続性を構成する。
+固定 snapshot は `work/k03-resume/framed-outside.source.json`。
+次はこの snapshot と共有キャッシュで `relative_k_theory.Relative.Pair.FramedMaps.With.Between.Outside` を検査する。
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定し、JSON 報告と実行シェルの終了コードも保存する。
 
 残る主な要件は、選択に依存しない三つ組の群と商空間の被約群の比較、完全列・切除・Mayer–Vietoris・外積と自然性、円板球面対への適用と具体例。

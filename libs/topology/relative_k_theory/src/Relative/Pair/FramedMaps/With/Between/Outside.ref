@@ -1,0 +1,62 @@
+\definition domain: \Pow Quotient.Carrier := { z: Quotient.Carrier \where
+  Logic.And[QuotientBase.Member (From.domain i) z, Logic.And[QuotientBase.Member (To.domain j) z, Logic.Not (z = Quotient.point)]] };
+\definition open: QuotientBase.IsOpenIn Quotient.topology domain :=
+  (QuotientBase.topologyLaws Quotient.topology).intersectionOpen (From.domain i)
+    (QuotientBase.Intersection (To.domain j) (QuotientBase.Complement (QuotientBase.Singleton Quotient.point))) (From.openDomains i)
+    ((QuotientBase.topologyLaws Quotient.topology).intersectionOpen (To.domain j) (QuotientBase.Complement (QuotientBase.Singleton Quotient.point))
+      (To.openDomains j) From.outsideOpen);
+\definition Point: \Set := \Cast[Quotient.Carrier] domain;
+\definition topology: topology.Topology[Carrier := Point].Topology := QuotientBase.Subspace[S := domain].topology Quotient.topology;
+\definition leftContains[z: Point]: QuotientBase.Member (From.domain i) z := (\bysub(Quotient.Carrier, domain, z)).left;
+\definition rightContains[z: Point]: QuotientBase.Member (To.domain j) z := (\bysub(Quotient.Carrier, domain, z)).right.left;
+\definition different[z: Point]: Logic.Not (z = Quotient.point) := (\bysub(Quotient.Carrier, domain, z)).right.right;
+\import Operations.ChartRestriction[X := Quotient.Carrier, F := Source.Fiber, bundle := From.bundleOnQuotient, c := From.trivialization i,
+  U := domain, open := open, contained := leftContains] \as Left;
+\import Operations.ChartRestriction[X := Quotient.Carrier, F := Target.Fiber, bundle := To.bundleOnQuotient, c := To.trivialization j,
+  U := domain, open := open, contained := rightContains] \as Right;
+\definition coefficients[z: Point]: Spaces.Linear[V := Bundles.Vector (From.sourceChart i).dimension, W := Bundles.Vector (To.sourceChart j).dimension,
+  source := Bundles.coordinates (From.sourceChart i).dimension, target := Bundles.coordinates (To.sourceChart j).dimension].Map :=
+  Spaces.Linear[V := Target.Fiber z, W := Bundles.Vector (To.sourceChart j).dimension, source := Target.fiberSpace z, target := Bundles.coordinates (To.sourceChart j).dimension].Composition[
+    U := Bundles.Vector (From.sourceChart i).dimension, domain := Bundles.coordinates (From.sourceChart i).dimension].compose
+    (Right.trivialization.frame z).forward
+    (Spaces.Linear[V := Source.Fiber z, W := Target.Fiber z, source := Source.fiberSpace z, target := Target.fiberSpace z].Composition[
+      U := Bundles.Vector (From.sourceChart i).dimension, domain := Bundles.coordinates (From.sourceChart i).dimension].compose
+      (map z) (Left.trivialization.frame z).backward);
+\definition chart: LocalMatrices.ChartData := LocalMatrices.ChartData {
+  domain := domain, sourceDimension := (From.sourceChart i).dimension, targetDimension := (To.sourceChart j).dimension,
+  sourceFrame := Left.trivialization.frame, targetFrame := Right.trivialization.frame, coefficients := coefficients
+};
+\definition exterior[z: Point]: Exterior.Point := \into[Quotient.Carrier](z, QuotientBase.Complement (QuotientBase.Singleton Quotient.point)) \by { different z };
+\definition exteriorContinuous: topology.Continuity[A := Point, B := Exterior.Point].Continuous topology Exterior.rangeTopology exterior :=
+  topology.Continuity[A := Point, B := Quotient.Carrier].Corestriction[S := QuotientBase.Complement (QuotientBase.Singleton Quotient.point)].corestrictContinuous topology Quotient.topology exterior
+    (topology.Continuity[A := Point, B := Quotient.Carrier].Corestriction[S := domain].inclusionContinuous Quotient.topology);
+\definition original[z: Point]: X := Exterior.inverse (exterior z);
+\definition originalContinuous: topology.Continuity[A := Point, B := X].Continuous topology space original :=
+  topology.Composition[A := Point, B := Exterior.Point, C := X].composeContinuous topology Exterior.rangeTopology space exterior (\fun (z: Exterior.Point) => Exterior.inverse z) exteriorContinuous
+    (topology.Composition[A := Exterior.Point, B := Base.Subspace[S := Base.Complement subset].CarrierSet, C := X].composeContinuous
+      Exterior.rangeTopology Exterior.sourceTopology space Exterior.inverse (\fun (x: Base.Subspace[S := Base.Complement subset].CarrierSet) => x)
+      Exterior.inverseContinuous (topology.Continuity[A := Base.Subspace[S := Base.Complement subset].CarrierSet, B := X].Corestriction[S := Base.Complement subset].inclusionContinuous space));
+\module At(z: Point);
+\definition leftBase[z: Point]: \Cast[X] (From.sourceChart i).domain := At[z := z].leftBase;
+\definition rightBase[z: Point]: \Cast[X] (To.sourceChart j).domain := At[z := z].rightBase;
+\definition leftContinuous: topology.Continuity[A := Point, B := \Cast[X] (From.sourceChart i).domain].Continuous topology
+  (Base.Subspace[S := (From.sourceChart i).domain].topology space) leftBase :=
+  topology.Continuity[A := Point, B := X].Corestriction[S := (From.sourceChart i).domain].corestrictContinuous topology space leftBase originalContinuous;
+\definition rightContinuous: topology.Continuity[A := Point, B := \Cast[X] (To.sourceChart j).domain].Continuous topology
+  (Base.Subspace[S := (To.sourceChart j).domain].topology space) rightBase :=
+  topology.Continuity[A := Point, B := X].Corestriction[S := (To.sourceChart j).domain].corestrictContinuous topology space rightBase originalContinuous;
+\import Bundles.Family[X := X, F := Absolute.Fiber p] \as FirstFamily;
+\import Bundles.Family[X := X, F := Absolute.Fiber q] \as SecondFamily;
+\module Vector(v: Bundles.Vector (From.sourceChart i).dimension);
+\definition regular: Regular.At[n := (To.sourceChart j).dimension].Families[X := Point].Matrix[m := (From.sourceChart i).dimension].Regular topology coefficients :=
+  \fun (v: Bundles.Vector (From.sourceChart i).dimension)(k: Fin.Fin (To.sourceChart j).dimension) => Vector[v := v].continuous k;
+\definition laws: LocalMatrices.In[c := chart].Laws := LocalMatrices.In[c := chart].Laws {
+  sourceLaws := \bysub(LocalMatrices.SourceCharts.ChartData, LocalMatrices.SourceCharts.Chart, Left.trivialization),
+  targetLaws := \bysub(LocalMatrices.TargetCharts.ChartData, LocalMatrices.TargetCharts.Chart, Right.trivialization),
+  regular := regular,
+  alignment := \fun (z: Point)(v: Source.Fiber z) =>
+    congr!{{Source.Fiber z} {Bundles.Vector (To.sourceChart j).dimension}} (\fun (w: Source.Fiber z) => (Right.trivialization.frame z).forward.apply ((map z).apply w)) _ _
+      (sym!{{Source.Fiber z}} _ _ ((Spaces.Isomorphism[V := Source.Fiber z, W := Bundles.Vector (From.sourceChart i).dimension,
+        source := Source.fiberSpace z, target := Bundles.coordinates (From.sourceChart i).dimension].laws (Left.trivialization.frame z)).leftInverse v))
+};
+\definition trivialization: LocalMatrices.Chart := \into[LocalMatrices.ChartData](chart, LocalMatrices.Chart) \by { laws };
