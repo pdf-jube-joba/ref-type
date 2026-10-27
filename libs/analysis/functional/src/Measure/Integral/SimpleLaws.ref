@@ -1,0 +1,17 @@
+\import \root.Measure[A := A].ValueLaws[] \as Values;
+\import \root.Measure[A := A].Finite[mu := mu] \as MeasureFinite;
+
+\definition integralMonoCells: \forall (n: N.Nat^) (s, t: Simple[n]) ->
+  (\forall (i: Fin.Fin n) -> s.coefficients i = t.coefficients i) ->
+  (\forall (i: Fin.Fin n) -> Sets.Subset (s.cells i) (t.cells i)) ->
+  Values.Included (simpleIntegral n s) (simpleIntegral n t) :=
+  \fun (n: N.Nat^) (s, t: Simple[n]) (coefficients: \forall (i: Fin.Fin n) -> s.coefficients i = t.coefficients i)
+    (cells: \forall (i: Fin.Fin n) -> Sets.Subset (s.cells i) (t.cells i)) =>
+    Values.sumMono n (\fun (i: Fin.Fin n) => scale (s.coefficients i) (mu.value (s.cells i)))
+      (\fun (i: Fin.Fin n) => scale (t.coefficients i) (mu.value (t.cells i)))
+      (\fun (i: Fin.Fin n) (r: Real.Real) (member: below (scale (s.coefficients i) (mu.value (s.cells i))) r) =>
+        \idelim s.coefficients i = t.coefficients i \with c: Real.Real => below (scale c (mu.value (t.cells i))) r \by {
+          base: Values.scaleMono (s.coefficients i) (mu.value (s.cells i)) (mu.value (t.cells i))
+            (MeasureFinite.monotone (s.cells i) (t.cells i) (s.measurable i) (t.measurable i) (cells i)) r member,
+          equality: coefficients i
+        });
