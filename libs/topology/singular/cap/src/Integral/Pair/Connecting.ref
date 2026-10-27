@@ -1,0 +1,27 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import Simplices.CutFaces[p := p, q := q] \as Geometry;
+\import singular_cohomology.Chains[A := Relative.SubspaceCarrier, source := Subspace.topology source] \as SubChains;
+\import singular_products.Cochains[A := Relative.SubspaceCarrier, source := Subspace.topology source, R := I.Int^, ring := Integers.commutativeRing].Pullback[B := A, target := source] \as Pull;
+\import \root.Integral[A := Relative.SubspaceCarrier, source := Subspace.topology source].At[p := p, q := q] \as SubAction;
+\import \root.Integral[A := A, source := source].At[p := p, q := q] \as Lower;
+\import \root.Integral[A := A, source := source].At[p := N.Nat^::succ p, q := q] \as Upper;
+\import \root.Integral[A := A, source := source].Diagonal[].Boundary[p := p, q := q].Closed[] \as Closed;
+\import \root.Integral[A := Relative.SubspaceCarrier, source := Subspace.topology source].Natural[B := A, target := source].At[p := p, q := q] \as Natural;
+\import singular_cohomology.Maps[A := Relative.SubspaceCarrier, B := A, source := Subspace.topology source, target := source] \as Inclusion;
+\import Chains.DegreeTransport[] \as Degree;
+\import singular_cohomology.Cochains[A := A, source := source].With[coefficients := Cochains.integerCoefficients] \as Theory;
+\definition liftBoundary: \forall (beta: Cochains.Carrier q) ->
+  Theory.coboundary q beta = (Cochains.space (N.Nat^::succ q)).zero ->
+  \forall (c: Chains.Carrier Geometry.higher)(a: SubChains.Carrier Geometry.total) ->
+  (Inclusion.At[n := Geometry.total].push Relative.inclusion Relative.inclusionContinuous).apply a = (Chains.boundary Geometry.total).apply c ->
+  (Inclusion.At[n := p].push Relative.inclusion Relative.inclusionContinuous).apply ((SubAction.map (Pull.apply q Relative.inclusion Relative.inclusionContinuous beta)).apply a) =
+  (Chains.boundary p).apply ((Upper.map beta).apply (Degree.apply Geometry.higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) c)) :=
+  \fun (beta: Cochains.Carrier q)(closed: _)(c: Chains.Carrier Geometry.higher)(a: SubChains.Carrier Geometry.total)(boundary: _) => eq_reason_in!{{Chains.Carrier p} _
+    "=" _ "by" { Natural.projectionFormula Relative.inclusion Relative.inclusionContinuous beta a }
+    "=" _ "by" { congr!{{Chains.Carrier Geometry.total} {Chains.Carrier p}} ((Lower.map beta).apply) _ _ boundary }
+    "=" _ "by" { Closed.law beta closed c }
+  };
