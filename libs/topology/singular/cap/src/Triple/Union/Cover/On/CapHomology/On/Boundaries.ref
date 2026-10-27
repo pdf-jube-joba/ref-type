@@ -1,0 +1,25 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import \root.Triple[A := A, source := source, first := first, second := second].Union[].Cover[].On[conditions := conditions].CapBoundary[p := N.Nat^::succ p, q := q] \as UpperBoundary;
+\import \root.Triple[A := A, source := source, first := first, second := second].Union[].Cover[].On[conditions := conditions].Cap[p := N.Nat^::succ (N.Nat^::succ p), q := q] \as NextCap;
+\import singular_cohomology.Simplices[A := A, source := source].CutFaces[p := N.Nat^::succ p, q := q] \as UpperGeometry;
+\definition degreeEquality: N.Nat^::succ Geometry.higher = N.Nat^::succ Geometry.leftDegree := congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _ (sym!{N.Nat^} _ _ Geometry.same);
+\definition input[y: Degree.Carrier (N.Nat^::succ Geometry.higher)]: Degree.Carrier UpperGeometry.higher := Degree.apply (N.Nat^::succ Geometry.higher) UpperGeometry.higher degreeEquality y;
+\definition witness[y: Degree.Carrier (N.Nat^::succ Geometry.higher)]: TargetDegree.Carrier (N.Nat^::succ (N.Nat^::succ p)) :=
+  (NextCap.map beta).apply (Degree.apply UpperGeometry.higher UpperGeometry.leftDegree (sym!{N.Nat^} _ _ UpperGeometry.same) (input y));
+\definition law: \forall (y: Degree.Carrier (N.Nat^::succ Geometry.higher)) -> (cap beta).apply ((Source.prior).apply y) = (Target.prior).apply (witness y) :=
+  \fun (y: Degree.Carrier (N.Nat^::succ Geometry.higher)) => eq_reason_in!{{TargetDegree.Carrier (N.Nat^::succ p)} _
+    "=" _ "by" { congr!{{Degree.Carrier Geometry.higher} {TargetDegree.Carrier (N.Nat^::succ p)}} ((cap beta).apply) _ _ (sourcePrior y) }
+    "=" _ "by" { congr!{{Degree.Carrier Geometry.leftDegree} {TargetDegree.Carrier (N.Nat^::succ p)}} ((Upper.map beta).apply) _ _ (Degree.boundaryNatural Geometry.higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) y) }
+    "=" _ "by" { UpperBoundary.law beta closed (input y) }
+    "=" _ "by" { sym!{{TargetDegree.Carrier (N.Nat^::succ p)}} _ _ (targetPrior (witness y)) }
+  };
+\import Modules.Of[V := TargetDegree.Carrier (N.Nat^::succ p), space := TargetDegree.space (N.Nat^::succ p)].Submodule[] \as TargetSub;
+\import TargetSub.Image[U := TargetDegree.Carrier (N.Nat^::succ (N.Nat^::succ p)), source := TargetDegree.space (N.Nat^::succ (N.Nat^::succ p))] \as Images;
+\definition preserves: \forall (x: Source.Cycle) -> \In[Source.Cycle] (Source.boundariesInside).carrier x -> \In[Target.Cycle] (Target.boundariesInside).carrier (cycle x) := \block {
+  \fun (x: Source.Cycle)(member: _) \then
+  \takefrom y: \Cast[Degree.Carrier (N.Nat^::succ Geometry.higher)] ({ y: Degree.Carrier (N.Nat^::succ Geometry.higher) \where (Source.prior).apply y = x }) \by member \then
+  \return Images.introduce Target.prior (cycle x) (witness y)
+    (trans!{{TargetDegree.Carrier (N.Nat^::succ p)}} _ _ _ (sym!{{TargetDegree.Carrier (N.Nat^::succ p)}} _ _ (law y))
+      (congr!{{Degree.Carrier Geometry.higher} {TargetDegree.Carrier (N.Nat^::succ p)}} ((cap beta).apply) _ _
+        (\bysub(Degree.Carrier (N.Nat^::succ Geometry.higher), { y: Degree.Carrier (N.Nat^::succ Geometry.higher) \where (Source.prior).apply y = x }, y)))
+};
