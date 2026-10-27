@@ -85,8 +85,12 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 最新の未検証変更は `CylinderSum`・`CylinderHomotopy`・`TripleHomotopy`。
 それぞれ直和と円柱への引き戻しの比較、三つ組のホモトピーの円柱内の部分空間への移動、三つ組のホモトピーに対する被約群の元の不変性を示す。
 `TripleClass` は正側を安定化した束のモデルも公開する。
-固定 snapshot は `work/k03-resume/triple-homotopy.source.json`。
-次は `relative_k_theory.Relative.Pair.CylinderSum`、`relative_k_theory.Relative.Pair.CylinderHomotopy`、`relative_k_theory.Relative.Pair.TripleHomotopy` を順に検査する。
+`CylinderSum` と `CylinderHomotopy` は `triple-homotopy-CylinderSum`・`triple-homotopy-CylinderHomotopy` で検査済み。
+固定 snapshot `work/k03-resume/triple-homotopy.source.json` の `TripleHomotopy` は検査中。
+K07 の剪断写像と符号付き交換の族を、任意の可換環上の `linear_algebra.Commutative.Blocks`・`Rotation` へ移し、K07 の参照先を更新した。
+これらの共通化は未検証で、K07 の影響先検査にも含める。
+次の固定 snapshot は `work/k03-resume/common-rotation.source.json`。
+現在の検査を回収した後に `linear_algebra.Commutative.Blocks` と `linear_algebra.Commutative.Rotation` を順に検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。
