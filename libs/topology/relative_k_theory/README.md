@@ -223,3 +223,11 @@ K07 の影響先検査は最終検査に含める。
 `PairIteration.inclusionNaturality`・`projectionNaturality` は、反復した対の包含・商への射影と、元の写像の反復 suspension との可換性を示す未検証変更。
 包含の帰納段階では suspension の像との同相の逆写像を使い、射影の帰納段階では `PointedPair.suspendedProjectionEquation` を使う。
 固定 snapshot は `work/k03-resume/iteration-coherence.source.json`。
+
+`InclusionPullback`・`ProjectionPullback`・`SuspendedInclusion` は、包含・射影の可換図式を K 群の引き戻しの等式へ移す未検証変更。
+`PairIteration.Sequence` は各次数の五項の列を比較同型で移し、加法性・零元の保存・中間三箇所の完全性を構成する。
+写像と通常の負次数の引き戻しとの一致、隣り合う次数の制限写像の一致も構成したが未検証。
+`BaseQuotient.Raw` の長い検査を受け、公開写像の戻り値型を一定の商空間にそろえ、一意選択の証拠を内部の `chosen` に分けた。
+その module の宣言を K 群の import より前へ移し、位相的な構成に不要な依存を除いた。
+旧 `direct-inverse` batch の `Raw` の検査は、この変更を保存した後に中断として記録する。
+次の固定 snapshot は `work/k03-resume/constant-raw.source.json`。
