@@ -1,0 +1,47 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\definition p: N.Nat^ := N.Nat^::zero;
+\definition q: N.Nat^ := N.Nat^::zero;
+\import \parent.\parent.\parent.Homology[].ZeroZero[] \as S;
+\import S.Descent[] \as SourceProduct;
+\import Target.Cross[].Homology[].ZeroZero[] \as D;
+\import D.Descent[] \as FinalProduct;
+\import \parent.At[p := p, q := q] \as ChainNatural;
+\import LeftPairMaps.On[f := f].Integer[] \as LeftMap;
+\import RightPairMaps.On[f := g].Integer[] \as RightMap;
+\import UnionPairMaps.On[f := unionMap].Integer[] \as UnionMap;
+\import singular_products.Cross[A := A, B := B, left := left, right := right] \as Whole;
+\import singular_cohomology.Relative[A := TargetProduct.CarrierSet, source := ProductMapping.target, subset := TargetUnion.subset] \as DestinationRelative;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.At[C := Left.complex, z := I.Int^::ofNat p] \as L;
+\import Complexes.At[C := Right.complex, z := I.Int^::ofNat q] \as R;
+\import Complexes.At[C := TargetRelative.complex, z := I.Int^::ofNat (Whole.degree p q)] \as T;
+\import Complexes.At[C := TargetLeft.complex, z := I.Int^::ofNat p] \as DL;
+\import Complexes.At[C := TargetRight.complex, z := I.Int^::ofNat q] \as DR;
+\import Complexes.At[C := DestinationRelative.complex, z := I.Int^::ofNat (Whole.degree p q)] \as DT;
+\import Complexes.Map[C := Left.complex, D := TargetLeft.complex].At[k := I.Int^::ofNat p] \as LA;
+\import Complexes.Map[C := Right.complex, D := TargetRight.complex].At[k := I.Int^::ofNat q] \as RA;
+\import Complexes.Map[C := TargetRelative.complex, D := DestinationRelative.complex].At[k := I.Int^::ofNat (Whole.degree p q)] \as UA;
+\definition mapLeft[x: L.Cycle]: DL.Cycle := (LA.cyclesMap LeftMap.map).apply x;
+\definition mapRight[y: R.Cycle]: DR.Cycle := (RA.cyclesMap RightMap.map).apply y;
+\definition law: \forall (x: L.Homology)(y: R.Homology) ->
+  (UnionMap.At[z := I.Int^::ofNat (Whole.degree p q)].induced).apply (SourceProduct.apply x y) =
+  FinalProduct.apply ((LeftMap.At[z := I.Int^::ofNat p].induced).apply x) ((RightMap.At[z := I.Int^::ofNat q].induced).apply y) :=
+  L.classInduction (\fun (x: L.Homology) => \forall (y: R.Homology) ->
+    (UnionMap.At[z := I.Int^::ofNat (Whole.degree p q)].induced).apply (SourceProduct.apply x y) =
+    FinalProduct.apply ((LeftMap.At[z := I.Int^::ofNat p].induced).apply x) ((RightMap.At[z := I.Int^::ofNat q].induced).apply y))
+    (\fun (x: L.Cycle) => R.classInduction (\fun (y: R.Homology) =>
+      (UnionMap.At[z := I.Int^::ofNat (Whole.degree p q)].induced).apply (SourceProduct.apply (L.classOf x) y) =
+      FinalProduct.apply ((LeftMap.At[z := I.Int^::ofNat p].induced).apply (L.classOf x)) ((RightMap.At[z := I.Int^::ofNat q].induced).apply y))
+      (\fun (y: R.Cycle) => eq_reason_in!{DT.Homology _
+        "=" _ "by" { congr!{T.Homology DT.Homology} ((UnionMap.At[z := I.Int^::ofNat (Whole.degree p q)].induced).apply) _ _ (SourceProduct.onClasses x y) }
+        "=" _ "by" { UnionMap.At[z := I.Int^::ofNat (Whole.degree p q)].onClass (S.cycle x y) }
+        "=" _ "by" { DT.cycleClassExt ((UA.cyclesMap UnionMap.map).apply (S.cycle x y)) (D.cycle (mapLeft x) (mapRight y)) (ChainNatural.law x y) }
+        "=" _ "by" { sym!{DT.Homology} _ _ (FinalProduct.onClasses (mapLeft x) (mapRight y)) }
+        "=" _ "by" { congr!{DL.Homology DR.Homology DT.Homology} FinalProduct.apply _ _ _ _
+          (sym!{DL.Homology} _ _ (LeftMap.At[z := I.Int^::ofNat p].onClass x))
+          (sym!{DR.Homology} _ _ (RightMap.At[z := I.Int^::ofNat q].onClass y)) }
+      }));
