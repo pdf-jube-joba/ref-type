@@ -49,3 +49,5 @@ workspace の libs/refcache を共有する。
 ソース commit 2584ef40 に対する対象・依存先・functional_analysis.Metric.Geometry の検査はいずれも accepted、終了 0、キャッシュ保存失敗 0。結果は benchmarks/records/complex-hilbert/README.md を参照。
 
 有限集合が張る部分空間に向けて、既存の Hermitian.Inner.Of.Unit の階数 1 射影を複素 Hilbert 空間へ接続し、縮小性、有界作用素としての構成、有限自由座標を通る因子分解を Space.Hilbert.RankOne に追加した。個別検査は終了 0。次は有限生成集合への拡張、有限階数近似、随伴と恒等作用素の有限次元性。
+
+有限階数自己随伴射影を有限集合の各元を固定するよう帰納的に拡大する構成を作業中。Extend.Nonzero の個別検査は成功したが、全体の最初の検査は import 解決エラーで失敗し修正中。検査対象は Space.Hilbert.FiniteProjection。長い検査はこの保存状態を push 後に再開する。

@@ -1,0 +1,61 @@
+\import ComplexLinear.Linear[V := V, W := V, source := space, target := space] \as EndMaps;
+\import EndMaps.Operations[] \as Operations;
+\import \root.FiniteRank[V := V, W := V, source := space, target := space] \as Finite;
+\import \root.Space[V := V, space := space].Operators[W := V, target := space, norm := norm, targetNorm := norm] \as End;
+\import \parent.Estimates[] \as Estimates;
+\import \parent.Geometry[] \as Geometry;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := linear_algebra.Hermitian[].Complex[].scalar] \as Hermitian;
+\import Hermitian.Inner[V := V, space := space].Of[h := Geometry.form] \as Facts;
+\import ComplexLinear.Laws[V := V, space := space] \as Vectors;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import R.Estimates[].Product[] \as Product;
+\import std.Logic[].Proposition[] \as Logic;
+\use Logic.either;
+\structure Projection: \Set := {
+  map: EndMaps.Map,
+  finite: Finite.FiniteRank map,
+  idempotent: \forall (x: V) -> map.apply (map.apply x) = map.apply x,
+  symmetric: \forall (x, y: V) -> inner.inner (map.apply x) y = inner.inner x (map.apply y),
+};
+\definition zero: Projection := Projection {
+  map := Operations.zeroMap, finite := Finite.zero,
+  idempotent := \fun (x: V) => \refl(space.zero),
+  symmetric := \fun (x, y: V) => trans!{C.Complex} _ _ _ (Facts.zeroLeft y) (sym!{C.Complex} _ _ (inner.zeroRight x)),
+};
+\definition contractive: \forall (complete: Complete)(P: Projection)(x: V) -> Order.Le (norm.realNorm.norm (P.map.apply x)) (norm.realNorm.norm x) :=
+  \fun (complete: Complete)(P: Projection)(x: V) => Estimates.factorCancel (norm.realNorm.norm (P.map.apply x)) (norm.realNorm.norm x) (norm.realNorm.nonnegative x)
+    (Order.leReplaceLeft (C.re (inner.inner x (P.map.apply x))) _ _
+      (trans!{R.Real} _ _ _ (congr!{C.Complex R.Real} C.re _ _
+        (trans!{C.Complex} _ _ _ (congr!{V C.Complex} (inner.inner x) _ _ (sym!{V} _ _ (P.idempotent x)))
+          (sym!{C.Complex} _ _ (P.symmetric x (P.map.apply x))))) (complete.normSquared (P.map.apply x)))
+      (Order.leTrans _ _ _
+        (Order.leReplaceRight _ (R.Distance[].max (R.neg (C.re (inner.inner x (P.map.apply x)))) (C.re (inner.inner x (P.map.apply x)))) _
+          (sym!{R.Real} _ _ (Product.absExpression (C.re (inner.inner x (P.map.apply x)))))
+          (R.Distance[].maxRight (R.neg (C.re (inner.inner x (P.map.apply x)))) (C.re (inner.inner x (P.map.apply x)))))
+        (Estimates.cauchySchwarz complete x (P.map.apply x))));
+\definition operator[complete: Complete][P: Projection]: End.Map := \into[EndMaps.Map](P.map, End.Map) \by {
+  Logic.existsIntro[R.Real, { c: R.Real \where End.Bound[P.map, c] }] R.one (End.Bound[P.map, R.one] {
+    nonnegative := Laws.oneNonnegative,
+    estimate := \fun (x: V) => Order.leReplaceRight _ (norm.realNorm.norm x) (R.mul R.one (norm.realNorm.norm x))
+      (sym!{R.Real} _ _ (Laws.fieldMulOneLeft (norm.realNorm.norm x))) (contractive complete P x),
+  })
+};
+\module Extend(P: Projection, x: V);
+\import std.Set[].FiniteSubset[A := V] \as Points;
+\definition Covers[P: Projection, S: \Pow V]: \Prop := \forall (x: V) -> \In[V] S x -> P.map.apply x = x;
+\definition coversFinite: \forall (finite: Points.FiniteSubset) -> \exists ( P: Projection \where Covers[P, finite] ) :=
+  Points.induction ({ S: \Pow V \where \exists ( P: Projection \where Covers[P, S] ) })
+    (Logic.existsIntro[Projection, { P: Projection \where Covers[P, Points.Empty] }] zero
+      (\fun (x: V)(empty: \In[V] Points.Empty x) => Logic.falseElim _ empty))
+    (\block {
+      \fun (S: \Pow V)(ih: \exists ( P: Projection \where Covers[P, S] ))(x: V) \then
+      \takefrom P: \Cast[Projection] ({ P: Projection \where Covers[P, S] }) \by ih \then
+      \let covered: Covers[P, S] := \bysub(Projection, { P: Projection \where Covers[P, S] }, P) \then
+      \takefrom Q: \Cast[Projection] ({ Q: Projection \where Extend[P := P, x := x].Enlarges[Q] }) \by Extend[P := P, x := x].existsProjection \then
+      \let extension: Extend[P := P, x := x].Enlarges[Q] := \bysub(Projection, { Q: Projection \where Extend[P := P, x := x].Enlarges[Q] }, Q) \then
+      \return Logic.existsIntro[Projection, { Q: Projection \where Covers[Q, Points.Insert x S] }] Q
+        (\fun (y: V)(member: \In[V] (Points.Insert x S) y) => either!{member {Q.map.apply y = y}
+          {\fun (same: y = x) => \idelim x = y \with z: V => Q.map.apply z = z \by { base: extension.fixesNew, equality: sym!{V} _ _ same }}
+          {\fun (old: \In[V] S y) => extension.fixesOld y (covered y old)}
+        })
+    });
