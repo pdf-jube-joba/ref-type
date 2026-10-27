@@ -1,0 +1,49 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import \parent.Degree[] \as Degree;
+\import Simplices.CutFaces[p := p, q := q] \as Geometry;
+\import \parent.At[p := p, q := q].RelativeCochain[] \as Lower;
+\import \parent.At[p := N.Nat^::succ p, q := q].RelativeCochain[] \as Upper;
+\import \root.Integral[A := A, source := source].At[p := p, q := q] \as WholeLower;
+\import \root.Integral[A := A, source := source].At[p := N.Nat^::succ p, q := q] \as WholeUpper;
+\import \root.Integral[A := A, source := source].Diagonal[].Boundary[p := p, q := q].Closed[] \as WholeClosed;
+\import \root.CochainPair[A := A, source := source, subset := subset, R := I.Int^, ring := Integers.commutativeRing] \as PairCochains;
+\import PairCochains.Comparison[n := q] \as Comparison;
+\import PairCochains.Comparison[n := N.Nat^::succ q] \as HigherComparison;
+\import Comparison.Commutes[] \as Commutes;
+\import Relative.With[coefficients := Cochains.integerCoefficients] \as RelativeCochains;
+\import singular_cohomology.Cochains[A := A, source := source].With[coefficients := Cochains.integerCoefficients] \as Ordinary;
+\import Chains.DegreeTransport[] \as ChainDegrees;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import Nonnegative.ZeroExtension[C := Chains.complex] \as Extension;
+\import singular_cohomology.Chains[A := Relative.SubspaceCarrier, source := Subspace.topology source] \as SubChains;
+\import Nonnegative.ZeroExtension[C := SubChains.complex] \as SubExtension;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.Quotient[C := SubExtension.complex, D := Extension.complex].On[f := Relative.inclusionMap].At[k := I.Int^::ofNat Geometry.higher] \as SourceQ;
+\definition Closed[beta: RelativeCochains.Carrier (I.Int^::ofNat q)]: \Prop :=
+  (RelativeCochains.complex.differential).apply (I.Int^::ofNat q) beta = (RelativeCochains.space (I.Int^::ofNat (N.Nat^::succ q))).zero;
+\definition underlyingClosed: \forall (beta: RelativeCochains.Carrier (I.Int^::ofNat q)) -> Closed beta ->
+  Ordinary.coboundary q (Comparison.from beta) = (Cochains.space (N.Nat^::succ q)).zero :=
+  \fun (beta: RelativeCochains.Carrier (I.Int^::ofNat q))(closed: _) => eq_reason_in!{{Cochains.Carrier (N.Nat^::succ q)} _
+    "=" _ "by" { sym!{{Cochains.Carrier (N.Nat^::succ q)}} _ _ (Commutes.law beta) }
+    "=" _ "by" { congr!{{RelativeCochains.Carrier (I.Int^::ofNat (N.Nat^::succ q))} {Cochains.Carrier (N.Nat^::succ q)}} HigherComparison.from _ _ closed }
+    "=" _ "by" { HigherComparison.zero }
+  };
+\definition law: \forall (beta: RelativeCochains.Carrier (I.Int^::ofNat q)) -> Closed beta -> \forall (x: Degree.Carrier Geometry.higher) ->
+  (Lower.map beta).apply ((Degree.boundary Geometry.total).apply x) =
+  (Chains.boundary p).apply ((Upper.map beta).apply (Degree.apply Geometry.higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) x)) :=
+  \fun (beta: RelativeCochains.Carrier (I.Int^::ofNat q))(closed: Closed beta) => SourceQ.induction
+    (\fun (x: Degree.Carrier Geometry.higher) => (Lower.map beta).apply ((Degree.boundary Geometry.total).apply x) =
+      (Chains.boundary p).apply ((Upper.map beta).apply (Degree.apply Geometry.higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) x)))
+    (\fun (x: Extension.Carrier (I.Int^::ofNat Geometry.higher)) => eq_reason_in!{{Chains.Carrier p} _
+      "=" _ "by" { congr!{{Degree.Carrier Geometry.total} {Chains.Carrier p}} ((Lower.map beta).apply) _ _ (Degree.boundaryOnClass Geometry.total x) }
+      "=" _ "by" { Lower.onClass beta (Extension.Positive[n := Geometry.total].intro ((Chains.boundary Geometry.total).apply x)) }
+      "=" _ "by" { WholeClosed.law (Comparison.from beta) (underlyingClosed beta closed) x }
+      "=" _ "by" { congr!{{Chains.Carrier (N.Nat^::succ p)} {Chains.Carrier p}} ((Chains.boundary p).apply) _ _
+        (sym!{{Chains.Carrier (N.Nat^::succ p)}} _ _ (Upper.onClass beta (Extension.Positive[n := Geometry.leftDegree].intro (ChainDegrees.apply Geometry.higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) x)))) }
+      "=" _ "by" { congr!{{Degree.Carrier Geometry.leftDegree} {Chains.Carrier p}} (\fun (z: Degree.Carrier Geometry.leftDegree) => (Chains.boundary p).apply ((Upper.map beta).apply z)) _ _
+        (sym!{{Degree.Carrier Geometry.leftDegree}} _ _ (Degree.onClass Geometry.higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) x)) }
+    });
