@@ -1,0 +1,20 @@
+\import \root.Measure[A := A].Integral[mu := mu].SimpleLaws[] \as SimpleLaws;
+\definition positive: R.Lt Real.zero c := \bysub(Real.Real, { c: Real.Real \where R.Lt Real.zero c }, c);
+\definition scalar: NonnegativeScalar := \into[Real.Real](c, { c: Real.Real \where R.Le Real.zero c }) \by { Order.leOfLt Real.zero c positive };
+\definition inverse: NonnegativeScalar := \into[Real.Real](Laws.fieldInv c, { c: Real.Real \where R.Le Real.zero c }) \by {
+  Order.leOfLt Real.zero (Laws.fieldInv c) (ProductLaws.invPositive c positive)
+};
+\definition inverseCancels: \forall (x: Real.Real) -> Real.mul inverse (Real.mul c x) = x := \fun (x: Real.Real) => Values.inverseProductLeft c x positive;
+\definition undoDominated: \forall (n: N.Nat^) (s: Simple[n]) (f: A -> Real.Real) ->
+  Dominated n s (\fun (x: A) => Real.mul c (f x)) -> Dominated n (scaled inverse n s) f :=
+  \fun (n: N.Nat^) (s: Simple[n]) (f: A -> Real.Real) (dominated: Dominated n s (\fun (x: A) => Real.mul c (f x)))
+    (i: Fin.Fin n) (x: A) (member: Sets.Member (s.cells i) x) =>
+      R.leReplaceRight (Real.mul inverse (s.coefficients i)) (Real.mul inverse (Real.mul c (f x))) (f x) (inverseCancels (f x))
+        (E.mulMonotone inverse (s.coefficients i) (Real.mul c (f x)) (nonnegative inverse) (dominated i x member));
+\definition undoIntegral: \forall (n: N.Nat^) (s: Simple[n]) -> scale c (simpleIntegral n (scaled inverse n s)) = simpleIntegral n s :=
+  \fun (n: N.Nat^) (s: Simple[n]) => eq_reason_in!{Value _
+    "=" _ "by" { congr!{Value Value} (scale c) _ _ (simpleScale inverse n s) }
+    "=" _ "by" { Values.scaleCompose c inverse (simpleIntegral n s) (nonnegative scalar) (nonnegative inverse) (SimpleLaws.integralNonnegative n s) }
+    "=" _ "by" { congr!{Real.Real Value} (\fun (x: Real.Real) => scale x (simpleIntegral n s)) _ _ (Values.inverseProduct c Real.one positive) }
+    "=" _ "by" { Values.oneScale (simpleIntegral n s) (SimpleLaws.integralNonnegative n s) }
+  };

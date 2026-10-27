@@ -23,7 +23,7 @@
       (\axiom:funext((\fun (i: Fin.Fin n) => scale (Real.mul c (s.coefficients i)) (mu.value (s.cells i))),
         (\fun (i: Fin.Fin n) => scale c (scale (s.coefficients i) (mu.value (s.cells i)))),
         \fun (i: Fin.Fin n) => sym!{Value} _ _ (Values.scaleCompose c (s.coefficients i) (mu.value (s.cells i))
-          (nonnegative c) (s.nonnegative i) (FiniteMeasure.laws.nonnegative (s.cells i) (s.measurable i)))) }
+          (nonnegative c) (s.nonnegative i) (FiniteMeasure.laws.nonnegative (s.cells i) (s.measurable i))))) }
     "=" _ "by" { sym!{Value} _ _ (Values.scaleSum n c (\fun (i: Fin.Fin n) => scale (s.coefficients i) (mu.value (s.cells i))) (nonnegative c)
       (\fun (i: Fin.Fin n) => Values.scaleNonnegative (s.coefficients i) (mu.value (s.cells i)) (s.nonnegative i)
         (FiniteMeasure.laws.nonnegative (s.cells i) (s.measurable i)))) }
@@ -32,3 +32,24 @@
   Dominated n (scaled c n s) (\fun (x: A) => Real.mul c (f x)) :=
   \fun (c: NonnegativeScalar) (n: N.Nat^) (s: Simple[n]) (f: A -> Real.Real) (dominated: Dominated n s f) (i: Fin.Fin n) (x: A) (member: Sets.Member (s.cells i) x) =>
     E.mulMonotone c (s.coefficients i) (f x) (nonnegative c) (dominated i x member);
+
+\definition lowerScaleForward: \forall (c: NonnegativeScalar) (f: A -> Real.Real) ->
+  Values.Included (scale c (lowerIntegral f)) (lowerIntegral (\fun (x: A) => Real.mul c (f x))) :=
+  \fun (c: NonnegativeScalar) (f: A -> Real.Real) (r: Real.Real) (member: below (scale c (lowerIntegral f)) r) => \block {
+    \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[below (lowerIntegral f) a, R.Lt r (Real.mul c a)] }) \by member \then
+    \let outer: Logic.And[below (lowerIntegral f) a, R.Lt r (Real.mul c a)] :=
+      \bysub(Real.Real, { a: Real.Real \where Logic.And[below (lowerIntegral f) a, R.Lt r (Real.mul c a)] }, a) \then
+    \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) a] ) }) \by outer.left \then
+    \takefrom s: \Cast[Simple[n]] ({ s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) a] })
+      \by (\bysub(N.Nat^, { n: N.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) a] ) }, n)) \then
+    \let data: Logic.And[Dominated n s f, below (simpleIntegral n s) a] := \bysub(Simple[n], { s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) a] }, s) \then
+    \let inScaled: below (scale c (simpleIntegral n s)) r :=
+      Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[below (simpleIntegral n s) a, R.Lt r (Real.mul c a)] }] a (Logic.And[_, _]::# data.right outer.right) \then
+    \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s (\fun (x: A) => Real.mul c (f x)), below (simpleIntegral n s) r] ) }] n
+      (Logic.existsIntro[Simple[n], { t: Simple[n] \where Logic.And[Dominated n t (\fun (x: A) => Real.mul c (f x)), below (simpleIntegral n t) r] }] (scaled c n s)
+        (Logic.And[_, _]::# (dominatedScale c n s f data.left)
+          (\idelim scale c (simpleIntegral n s) = simpleIntegral n (scaled c n s) \with v: Value => below v r
+            \by { base: inScaled, equality: sym!{Value} _ _ (simpleScale c n s) })))
+  };
+\definition PositiveScalar: \Set := \Cast[Real.Real] ({ c: Real.Real \where R.Lt Real.zero c });
+\module Positive(c: PositiveScalar);
