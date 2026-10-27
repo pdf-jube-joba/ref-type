@@ -1,0 +1,78 @@
+\import ComplexLinear.Laws[V := V, space := space] \as Vectors;
+\definition subspace: LinearSubspaces.Subspace := LinearSubspaces.Subspace {
+  carrier := { x: V \where \forall (s: Point) -> inner.inner s x = D.zero },
+  containsZero := \fun (s: Point) => inner.zeroRight s,
+  closedAdd := \fun (x, y: V)(hx: _)(hy: _)(s: Point) => eq_reason_in!{C.Complex _
+    "=" _ "by" { inner.addRight s x y }
+    "=" _ "by" { congr!{C.Complex C.Complex C.Complex} D.add _ _ _ _ (hx s) (hy s) }
+    "=" _ "by" { CL.addZeroLeft D.zero }
+  },
+  closedScale := \fun (a: C.Complex)(x: V)(hx: _)(s: Point) => trans!{C.Complex} _ _ _ (inner.scaleRight a s x)
+    (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} (D.mul a) _ _ (hx s)) (CL.mulZeroRight a)),
+};
+\import LinearSubspaces.Of[subspace := subspace] \as Orthogonal;
+\definition residual[x: V]: Orthogonal.Carrier := \into[V](RealNormed.sub x (point x), subspace.carrier) \by { orthogonal x };
+\import ComplexLinear.Linear[V := V, W := Orthogonal.Carrier, source := space, target := Orthogonal.induced] \as ResidualMaps;
+\definition linear: ResidualMaps.Map := ResidualMaps.Map {
+  apply := residual,
+  preservesAdd := \fun (x, y: V) => trans!{V} _ _ _
+    (congr!{V V} (RealNormed.sub (space.add x y)) _ _ (inclusion.preservesAdd x y))
+    (RealNormed.addSub x y (point x) (point y)),
+  preservesScale := \fun (a: C.Complex)(x: V) => eq_reason_in!{V _
+    "=" _ "by" { congr!{V V} (RealNormed.sub (space.smul a x)) _ _ (inclusion.preservesScale a x) }
+    "=" _ "by" { congr!{V V} (space.add (space.smul a x)) _ _ (sym!{V} _ _ (Vectors.scaleNegative a (point x))) }
+    "=" _ "by" { sym!{V} _ _ (space.vectorAdd a x (space.neg (point x))) }
+  },
+};
+\definition projectionZero: \forall (x: Orthogonal.Carrier) -> point x = space.zero :=
+  \fun (x: Orthogonal.Carrier) => inner.definite (point x) (eq_reason_in!{C.Complex _
+    "=" _ "by" { sym!{C.Complex} _ _ (equation x (point x)) }
+    "=" _ "by" { inner.conjugateSymmetric x (point x) }
+    "=" _ "by" { congr!{C.Complex C.Complex} D.conj _ _ ((\bysub(V, subspace.carrier, x)) (point x)) }
+    "=" _ "by" { CL.conjOfReal R.zero }
+  });
+\definition residualFixes: \forall (x: Orthogonal.Carrier) -> residual x = x :=
+  \fun (x: Orthogonal.Carrier) => trans!{V} _ _ _
+    (congr!{V V} (RealNormed.sub x) _ _ (projectionZero x)) (RealNormed.subZeroRight x);
+\import ComplexLinear.Quotient[V := V, space := space].Of[S := S] \as Quotient;
+\import Quotient.Universal[U := Orthogonal.Carrier, target := Orthogonal.induced] \as Descent;
+\definition vanishes: Descent.Vanishes linear :=
+  \fun (x: V)(member: LinearSubspaces.Member S x) => trans!{V} _ _ _
+    (congr!{V V} (RealNormed.sub x) _ _ (fixes (\into[V](x, S.carrier) \by { member }))) (RealNormed.subSelf x);
+\definition forward: ComplexLinear.Linear[V := Quotient.Carrier, W := Orthogonal.Carrier, source := Quotient.vectorSpace, target := Orthogonal.induced].Map := Descent.map linear vanishes;
+\import ComplexLinear.Linear[V := Orthogonal.Carrier, W := Quotient.Carrier, source := Orthogonal.induced, target := Quotient.vectorSpace] \as Backward;
+\definition backward: Backward.Map := Backward.Map {
+  apply := \fun (x: Orthogonal.Carrier) => Quotient.class x,
+  preservesAdd := \fun (x, y: Orthogonal.Carrier) => Quotient.projection.preservesAdd x y,
+  preservesScale := \fun (a: C.Complex)(x: Orthogonal.Carrier) => Quotient.projection.preservesScale a x,
+};
+\import ComplexLinear.Linear[V := V, W := Quotient.Carrier, source := space, target := Quotient.vectorSpace] \as ProjectionMaps;
+\import ProjectionMaps.Operations[] \as ProjectionOperations;
+\import ComplexLinear.Laws[V := Quotient.Carrier, space := Quotient.vectorSpace] \as QuotientLaws;
+\definition classResidual: \forall (x: V) -> Quotient.class (residual x) = Quotient.class x :=
+  \fun (x: V) => eq_reason_in!{Quotient.Carrier _
+    "=" _ "by" { Quotient.projection.preservesAdd x (space.neg (point x)) }
+    "=" _ "by" { congr!{Quotient.Carrier Quotient.Carrier} (Quotient.vectorSpace.add (Quotient.class x)) _ _ (ProjectionOperations.preservesNeg Quotient.projection (point x)) }
+    "=" _ "by" { congr!{Quotient.Carrier Quotient.Carrier} (\fun (q: Quotient.Carrier) => Quotient.vectorSpace.add (Quotient.class x) (Quotient.vectorSpace.neg q)) _ _
+      (Quotient.classZero (point x) (\bysub(V, S.carrier, point x))) }
+    "=" _ "by" { congr!{Quotient.Carrier Quotient.Carrier} (Quotient.vectorSpace.add (Quotient.class x)) _ _ (trans!{Quotient.Carrier} _ _ _ (sym!{Quotient.Carrier} _ _ (QuotientLaws.minusOneScale Quotient.vectorSpace.zero)) (QuotientLaws.scaleZero (D.neg D.one))) }
+    "=" _ "by" { QuotientLaws.zeroRight (Quotient.class x) }
+  };
+\import Quotient.Universal[U := Quotient.Carrier, target := Quotient.vectorSpace] \as IntoQuotient;
+\definition zeroOnSubspace: IntoQuotient.Vanishes Quotient.projection := Quotient.classZero;
+\definition leftInverse: \forall (q: Quotient.Carrier) -> backward.apply (forward.apply q) = q := \block {
+  \let through: (\fun (q: Quotient.Carrier) => backward.apply (forward.apply q)) = (IntoQuotient.map Quotient.projection zeroOnSubspace).apply :=
+    IntoQuotient.unique Quotient.projection zeroOnSubspace (\fun (q: Quotient.Carrier) => backward.apply (forward.apply q))
+      (\fun (x: V) => trans!{Quotient.Carrier} _ _ _
+        (congr!{Orthogonal.Carrier Quotient.Carrier} backward.apply _ _ (Descent.onClass linear vanishes x)) (classResidual x)) \then
+  \let identity: (\fun (q: Quotient.Carrier) => q) = (IntoQuotient.map Quotient.projection zeroOnSubspace).apply :=
+    IntoQuotient.unique Quotient.projection zeroOnSubspace (\fun (q: Quotient.Carrier) => q) (\fun (x: V) => \refl(Quotient.class x)) \then
+  \return \fun (q: Quotient.Carrier) => congr!{{Quotient.Carrier -> Quotient.Carrier} Quotient.Carrier} (\fun (f: Quotient.Carrier -> Quotient.Carrier) => f q) _ _
+    (trans!{{Quotient.Carrier -> Quotient.Carrier}} _ _ _ through (sym!{{Quotient.Carrier -> Quotient.Carrier}} _ _ identity))
+};
+\definition rightInverse: \forall (x: Orthogonal.Carrier) -> forward.apply (backward.apply x) = x :=
+  \fun (x: Orthogonal.Carrier) => trans!{Orthogonal.Carrier} _ _ _ (Descent.onClass linear vanishes x) (residualFixes x);
+\import ComplexLinear.Isomorphism[V := Quotient.Carrier, W := Orthogonal.Carrier, source := Quotient.vectorSpace, target := Orthogonal.induced] \as Comparison;
+\definition isomorphism: Comparison.Isomorphism := Comparison.Isomorphism {
+  forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+};
