@@ -1,0 +1,85 @@
+\import \root.Measure[A := A].Sigma[] \as Sigma;
+\import \root.Measure[A := A].ValueLaws[] \as V;
+\import \root.Measure[A := A].SeriesLaws[] \as Series;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].congr;
+
+\definition laws: MeasureLaws[mu] := \bysub(MeasureData, Measure, mu);
+\definition pair[S, T: \Pow A]: N.Nat^ -> \Pow A :=
+  \induction (n: N.Nat^) \return \Pow A \with {
+    | zero: S
+    | succ: \fun (n: N.Nat^) (_: \Pow A) =>
+      (\induction (n: N.Nat^) \return \Pow A \with {
+        | zero: T
+        | succ: \fun (_: N.Nat^) (_: \Pow A) => Sets.Empty
+      }) n
+  };
+\definition pairMeasurable: \forall (S, T: \Pow A) -> Measurable mu.sigma S -> Measurable mu.sigma T ->
+  \forall (n: N.Nat^) -> Measurable mu.sigma (pair S T n) :=
+  \fun (S, T: \Pow A) (s: Measurable mu.sigma S) (t: Measurable mu.sigma T) =>
+    \induction (n: N.Nat^) \return Measurable mu.sigma (pair S T n) \with {
+      | zero: s
+      | succ: \fun (n: N.Nat^) (_: _) => (\induction (n: N.Nat^) \return Measurable mu.sigma (pair S T (N.Nat^::succ n)) \with {
+        | zero: t
+        | succ: \fun (_: N.Nat^) (_: _) => (Sigma.laws mu.sigma).empty
+      }) n
+    };
+\definition pairMember: \forall (S, T: \Pow A) (x: A) (n: N.Nat^) ->
+  Sets.Member (pair S T n) x -> Sets.Member (Sigma.pairUnion S T) x :=
+  \fun (S, T: \Pow A) (x: A) => \induction (n: N.Nat^) \return
+    Sets.Member (pair S T n) x -> Sets.Member (Sigma.pairUnion S T) x \with {
+      | zero: \fun (s: _) => Logic.Or[_, _]::left s
+      | succ: \fun (n: N.Nat^) (_: _) => (\induction (n: N.Nat^) \return
+        Sets.Member (pair S T (N.Nat^::succ n)) x -> Sets.Member (Sigma.pairUnion S T) x \with {
+          | zero: \fun (t: _) => Logic.Or[_, _]::right t
+          | succ: \fun (_: N.Nat^) (_: _) (empty: Logic.False) => Logic.falseElim _ empty
+        }) n
+    };
+\definition pairUnion: \forall (S, T: \Pow A) -> union (pair S T) = Sigma.pairUnion S T :=
+  \fun (S, T: \Pow A) => \axiom:setext(union (pair S T), Sigma.pairUnion S T,
+    \fun (x: A) (member: Sets.Member (union (pair S T)) x) => \block {
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Sets.Member (pair S T n) x }) \by member \then
+      \return pairMember S T x n (\bysub(N.Nat^, { n: N.Nat^ \where Sets.Member (pair S T n) x }, n))
+    },
+    \fun (x: A) (member: Sets.Member (Sigma.pairUnion S T) x) =>
+      Logic.orElim _ _ (Sets.Member (union (pair S T)) x) member
+        (\fun (left: Sets.Member S x) => Logic.existsIntro[N.Nat^, { n: N.Nat^ \where Sets.Member (pair S T n) x }] N.Nat^::zero left)
+        (\fun (right: Sets.Member T x) => Logic.existsIntro[N.Nat^, { n: N.Nat^ \where Sets.Member (pair S T n) x }] (N.Nat^::succ N.Nat^::zero) right));
+\definition pairDisjoint: \forall (S, T: \Pow A) -> Sets.Disjoint S T -> Disjoint (pair S T) :=
+  \fun (S, T: \Pow A) (disjoint: Sets.Disjoint S T) =>
+    \induction (m: N.Nat^) \return \forall (n: N.Nat^) -> Logic.Not (m = n) -> Sets.Disjoint (pair S T m) (pair S T n) \with {
+      | zero: \induction (n: N.Nat^) \return Logic.Not (N.Nat^::zero = n) -> Sets.Disjoint (pair S T N.Nat^::zero) (pair S T n) \with {
+        | zero: \fun (different: _) (x: A) (_: _) (_: _) => different (\refl(N.Nat^::zero))
+        | succ: \fun (n: N.Nat^) (_: _) => (\induction (n: N.Nat^) \return Logic.Not (N.Nat^::zero = N.Nat^::succ n) -> Sets.Disjoint (pair S T N.Nat^::zero) (pair S T (N.Nat^::succ n)) \with {
+          | zero: \fun (_: _) => disjoint
+          | succ: \fun (_: N.Nat^) (_: _) (_: _) (x: A) (_: _) (empty: Logic.False) => empty
+        }) n
+      }
+      | succ: \fun (m: N.Nat^) (_: _) => (\induction (m: N.Nat^) \return \forall (n: N.Nat^) -> Logic.Not (N.Nat^::succ m = n) -> Sets.Disjoint (pair S T (N.Nat^::succ m)) (pair S T n) \with {
+        | zero: \induction (n: N.Nat^) \return Logic.Not (N.Nat^::succ N.Nat^::zero = n) -> Sets.Disjoint (pair S T (N.Nat^::succ N.Nat^::zero)) (pair S T n) \with {
+          | zero: \fun (_: _) (x: A) (t: Sets.Member T x) (s: Sets.Member S x) => disjoint x s t
+          | succ: \fun (n: N.Nat^) (_: _) => (\induction (n: N.Nat^) \return Logic.Not (N.Nat^::succ N.Nat^::zero = N.Nat^::succ n) -> Sets.Disjoint (pair S T (N.Nat^::succ N.Nat^::zero)) (pair S T (N.Nat^::succ n)) \with {
+            | zero: \fun (different: _) (x: A) (_: _) (_: _) => different (\refl(N.Nat^::succ N.Nat^::zero))
+            | succ: \fun (_: N.Nat^) (_: _) (_: _) (x: A) (_: _) (empty: Logic.False) => empty
+          }) n
+        }
+        | succ: \fun (_: N.Nat^) (_: _) (n: N.Nat^) (_: _) (x: A) (empty: Logic.False) (_: _) => empty
+      }) m
+    };
+\definition valuesPair: \forall (S, T: \Pow A) -> (\fun (n: N.Nat^) => mu.value (pair S T n)) = Series.pair (mu.value S) (mu.value T) :=
+  \fun (S, T: \Pow A) => \axiom:funext((\fun (n: N.Nat^) => mu.value (pair S T n)), Series.pair (mu.value S) (mu.value T),
+    \induction (n: N.Nat^) \return mu.value (pair S T n) = Series.pair (mu.value S) (mu.value T) n \with {
+      | zero: \refl(mu.value S)
+      | succ: \fun (n: N.Nat^) (_: _) => (\induction (n: N.Nat^) \return mu.value (pair S T (N.Nat^::succ n)) = Series.pair (mu.value S) (mu.value T) (N.Nat^::succ n) \with {
+        | zero: \refl(mu.value T)
+        | succ: \fun (_: N.Nat^) (_: _) => laws.empty
+      }) n
+    });
+\definition additivity: \forall (S, T: \Pow A) -> Measurable mu.sigma S -> Measurable mu.sigma T -> Sets.Disjoint S T ->
+  mu.value (Sigma.pairUnion S T) = add (mu.value S) (mu.value T) :=
+  \fun (S, T: \Pow A) (s: Measurable mu.sigma S) (t: Measurable mu.sigma T) (disjoint: Sets.Disjoint S T) => eq_reason_in!{Value _
+    "=" _ "by" { congr!{{\Pow A} Value} mu.value _ _ (std.Logic[].Equality[].sym!{{\Pow A}} _ _ (pairUnion S T)) }
+    "=" _ "by" { laws.countableAdditivity (pair S T) (pairMeasurable S T s t) (pairDisjoint S T disjoint) }
+    "=" _ "by" { congr!{{N.Nat^ -> Value} Value} series _ _ (valuesPair S T) }
+    "=" _ "by" { Series.pairSeries (mu.value S) (mu.value T) (laws.nonnegative S s) (laws.nonnegative T t) }
+  };
