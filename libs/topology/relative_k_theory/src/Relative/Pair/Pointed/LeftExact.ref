@@ -1,0 +1,44 @@
+\import \parent.Cofiber[] \as First;
+\import First.BaseImage[] \as BaseImage;
+\import First.BaseQuotient[] \as BaseCompare;
+\import First.ConeQuotient[] \as ConeCompare;
+\import First.Restriction[] \as Restriction;
+\import \parent.Connecting[] \as Connecting;
+\import \parent.\parent.Quotient[] \as Quotient;
+\import \root.Relative[].Pair[X := First.Carrier, space := First.topology, compact := (details First.result).compact, hausdorff := (details First.result).hausdorff,
+  subset := First.baseImage, closed := First.baseImageClosed] \as SecondPair;
+\import SecondPair.Pointed[a0 := (BaseImage.into a0)].Connecting[] \as SecondConnecting;
+\import \root.Relative[].Reduced[model := \root.Relative[].Suspension[original := BaseImage.imageModel].result] \as Source;
+\import \root.Relative[].Reduced[model := \root.Relative[].Suspension[original := subsetModel].result] \as Middle;
+\import \root.Relative[].Reduced[model := First.result] \as CofiberReduced;
+\definition map[v: Source.Carrier]: Middle.Carrier := BaseCompare.backward (SecondConnecting.map v);
+\definition kernel: \forall (v: Source.Carrier) -> Connecting.map (map v) = Quotient.group.base.unit :=
+  \fun (v: Source.Carrier) => trans!{{Quotient.Relative}} _ _ _
+    (congr!{{CofiberReduced.Carrier} {Quotient.Relative}} ConeCompare.backward _ _
+      (trans!{{CofiberReduced.Carrier}} _ _ _
+        (congr!{{SecondPair.Quotient[].Relative} {CofiberReduced.Carrier}} Restriction.forget _ _ (BaseCompare.leftInverse (SecondConnecting.map v)))
+        (SecondConnecting.kernel v))) ConeCompare.backwardZero;
+\definition vanishing: \forall (v: Middle.Carrier) -> Connecting.map v = Quotient.group.base.unit -> Restriction.forget (BaseCompare.forward v) = CofiberReduced.group.base.unit :=
+  \fun (v: Middle.Carrier)(zero: Connecting.map v = Quotient.group.base.unit) => trans!{{CofiberReduced.Carrier}} _ _ _
+    (sym!{{CofiberReduced.Carrier}} _ _ (ConeCompare.rightInverse (Restriction.forget (BaseCompare.forward v))))
+    (trans!{{CofiberReduced.Carrier}} _ _ _ (congr!{{Quotient.Relative} {CofiberReduced.Carrier}} ConeCompare.forward _ _ zero) ConeCompare.forwardZero);
+\definition Image[v: Middle.Carrier]: \Prop := \exists (w: Source.Carrier \where map w = v);
+\definition preimage: \forall (v: Middle.Carrier) -> Connecting.map v = Quotient.group.base.unit -> Image v := \block {
+  \fun (v: Middle.Carrier)(zero: Connecting.map v = Quotient.group.base.unit) \then
+  \takefrom w: \Cast[Source.Carrier] ({ w: Source.Carrier \where SecondConnecting.map w = BaseCompare.forward v })
+    \by SecondConnecting.preimage (BaseCompare.forward v) (vanishing v zero) \then
+  \return Logic.existsIntro[Source.Carrier, { w: Source.Carrier \where map w = v }] w
+    (trans!{{Middle.Carrier}} _ _ _
+      (congr!{{SecondPair.Quotient[].Relative} {Middle.Carrier}} BaseCompare.backward _ _
+        (\bysub(Source.Carrier, { w: Source.Carrier \where SecondConnecting.map w = BaseCompare.forward v }, w))) (BaseCompare.rightInverse v))
+};
+\definition inKernel: \forall (v: Middle.Carrier) -> Image v -> Connecting.map v = Quotient.group.base.unit := \block {
+  \fun (v: Middle.Carrier)(image: Image v) \then
+  \takefrom w: \Cast[Source.Carrier] ({ w: Source.Carrier \where map w = v }) \by image \then
+  \return \idelim map w = v \with x: Middle.Carrier => Connecting.map x = Quotient.group.base.unit \by {
+    base: kernel w, equality: \bysub(Source.Carrier, { w: Source.Carrier \where map w = v }, w)
+  }
+};
+\definition exact[v: Middle.Carrier]: Logic.PropEquiv[Connecting.map v = Quotient.group.base.unit, Image v] := Logic.PropEquiv[_, _] {
+  ltr := preimage v, rtl := inKernel v
+};

@@ -182,3 +182,9 @@ K07 の影響先検査は最終検査に含める。
 `Endpoints.homotopy` と `equation` は両端の写像のホモトピーと被約群への引き戻しの一致を公開する。
 固定 snapshot は `work/k03-resume/rotation-endpoints.source.json`。
 対象検査は既存の `cofiber-exact` の終了後に行う。
+
+`Suspension.Reversal.Naturality` は suspension の写像と時間反転の可換性を示す未検証変更。
+`Pointed.LeftExact` は二段目の接続写像と底面の商の比較から、接続写像の核をその合成写像の像として表す未検証変更。
+通常の suspension の包含の像との照合には `Rotation.Endpoints.equation` と反転の自然性を使う。
+比較写像と接続写像の零元の保存も追加した。
+固定 snapshot は `work/k03-resume/left-exact-natural.source.json`。
