@@ -363,3 +363,35 @@
         (Logic.existsIntro[Real.Real, { q: Real.Real \where Logic.And[below (scale c w) q, R.Lt r (Real.add p q)] }] q
           (Logic.And[_, _]::# (Logic.existsIntro[Real.Real, { b: Real.Real \where Logic.And[below w b, R.Lt q (Real.mul c b)] }] b (Logic.And[_, _]::# second.left split.right)) split.total)))
   };
+
+\definition positiveScaleAddReverse: \forall (c: Real.Real) (v, w: Value) -> R.Lt Real.zero c ->
+  Included (add (scale c v) (scale c w)) (scale c (add v w)) :=
+  \fun (c: Real.Real) (v, w: Value) (positive: R.Lt Real.zero c) (r: Real.Real) (member: below (add (scale c v) (scale c w)) r) => \block {
+    \takefrom p: \Cast[Real.Real] ({ p: Real.Real \where Logic.And[below (scale c v) p, \exists ( q: Real.Real \where Logic.And[below (scale c w) q, R.Lt r (Real.add p q)] )] }) \by member \then
+    \let first: Logic.And[below (scale c v) p, \exists ( q: Real.Real \where Logic.And[below (scale c w) q, R.Lt r (Real.add p q)] )] :=
+      \bysub(Real.Real, { p: Real.Real \where Logic.And[below (scale c v) p, \exists ( q: Real.Real \where Logic.And[below (scale c w) q, R.Lt r (Real.add p q)] )] }, p) \then
+    \takefrom q: \Cast[Real.Real] ({ q: Real.Real \where Logic.And[below (scale c w) q, R.Lt r (Real.add p q)] }) \by first.right \then
+    \let second: Logic.And[below (scale c w) q, R.Lt r (Real.add p q)] :=
+      \bysub(Real.Real, { q: Real.Real \where Logic.And[below (scale c w) q, R.Lt r (Real.add p q)] }, q) \then
+    \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[below v a, R.Lt p (Real.mul c a)] }) \by first.left \then
+    \let left: Logic.And[below v a, R.Lt p (Real.mul c a)] := \bysub(Real.Real, { a: Real.Real \where Logic.And[below v a, R.Lt p (Real.mul c a)] }, a) \then
+    \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where Logic.And[below w b, R.Lt q (Real.mul c b)] }) \by second.left \then
+    \let right: Logic.And[below w b, R.Lt q (Real.mul c b)] := \bysub(Real.Real, { b: Real.Real \where Logic.And[below w b, R.Lt q (Real.mul c b)] }, b) \then
+    \let total: R.Lt r (Real.mul c (Real.add a b)) := Order.ltTrans r (Real.add p q) _ second.right
+      (R.ltReplaceRight _ (Real.add (Real.mul c a) (Real.mul c b)) _ (sym!{Real.Real} _ _ (Laws.fieldMulAdd c a b))
+        (E.addLt p q (Real.mul c a) (Real.mul c b) left.right right.right)) \then
+    \let inverse: Real.Real := Laws.fieldInv c \then
+    \let lower: Real.Real := Real.mul inverse r \then
+    \let lowerBound: R.Lt lower (Real.add a b) := R.ltReplaceRight lower (Real.mul inverse (Real.mul c (Real.add a b))) _
+      (inverseProductLeft c (Real.add a b) positive) (ProductLaws.mulStrict inverse r (Real.mul c (Real.add a b)) (ProductLaws.invPositive c positive) total) \then
+    \let d: Real.Real := Real.midpoint lower (Real.add a b) \then
+    \let inside: below (add v w) d := Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[below v a, \exists ( b: Real.Real \where Logic.And[below w b, R.Lt d (Real.add a b)] )] }] a
+      (Logic.And[_, _]::# left.left (Logic.existsIntro[Real.Real, { b: Real.Real \where Logic.And[below w b, R.Lt d (Real.add a b)] }] b
+        (Logic.And[_, _]::# right.left (midpointStrictRight lower (Real.add a b) lowerBound)))) \then
+    \let final: R.Lt r (Real.mul c d) := R.ltReplaceLeft (Real.mul c lower) r (Real.mul c d) (inverseProduct c r positive)
+      (ProductLaws.mulStrict c lower d positive (midpointStrictLeft lower (Real.add a b) lowerBound)) \then
+    \return Logic.existsIntro[Real.Real, { d: Real.Real \where Logic.And[below (add v w) d, R.Lt r (Real.mul c d)] }] d (Logic.And[_, _]::# inside final)
+  };
+\definition positiveScaleAdd: \forall (c: Real.Real) (v, w: Value) -> R.Lt Real.zero c -> scale c (add v w) = add (scale c v) (scale c w) :=
+  \fun (c: Real.Real) (v, w: Value) (positive: R.Lt Real.zero c) =>
+    \axiom:setext(scale c (add v w), add (scale c v) (scale c w), positiveScaleAddForward c v w positive, positiveScaleAddReverse c v w positive);
