@@ -1,0 +1,85 @@
+\import Q.Computed[] \as D;
+\import Characteristic.Tables[] \as Tables;
+\import \root.PolynomialCalculation[R := R, ring := ring, coefficient := coefficient] \as Calculations;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition two: N.Nat^ := N.Nat^::succ one;
+\definition three: N.Nat^ := N.Nat^::succ two;
+\definition four: N.Nat^ := N.Nat^::succ three;
+\definition five: N.Nat^ := N.Nat^::succ four;
+\definition squares[xs: Symmetric.Roots]: Symmetric.Roots := Lists.map R R (\fun (x: R) => S.mul x x) xs;
+\definition toddFormula[xs: Symmetric.Roots]: S.Coefficients := Calculations.Todd[x := S.zero, e1 := Symmetric.elementary xs one, e2 := Symmetric.elementary xs two, e3 := Symmetric.elementary xs three, e4 := Symmetric.elementary xs four].formula;
+\definition toddCalculation: \forall (xs: Symmetric.Roots) -> truncatedProduct five Tables.toddCoefficients xs = toddFormula xs :=
+  \induction (xs: Symmetric.Roots) \return truncatedProduct five Tables.toddCoefficients xs = toddFormula xs \with {
+    | nil: sym!{S.Coefficients} _ _ (Calculations.Todd[x := S.zero, e1 := S.zero, e2 := S.zero, e3 := S.zero, e4 := S.zero].empty)
+    | cons: \fun (x: R)(xs: Symmetric.Roots)(previous: _) => eq_reason_in!{S.Coefficients _
+      "=" _ "by" { congr!{S.Coefficients S.Coefficients} (S.times five (rootCoefficients Tables.toddCoefficients x)) _ _ previous }
+      "=" _ "by" { Calculations.Todd[x := x, e1 := Symmetric.elementary xs one, e2 := Symmetric.elementary xs two, e3 := Symmetric.elementary xs three, e4 := Symmetric.elementary xs four].step }
+      "=" _ "by" { congr!{R S.Coefficients}
+        (\fun (a: R) => Calculations.Todd[x := S.zero, e1 := a,
+          e2 := S.add (Symmetric.elementary xs two) (S.mul x (Symmetric.elementary xs one)),
+          e3 := S.add (Symmetric.elementary xs three) (S.mul x (Symmetric.elementary xs two)),
+          e4 := S.add (Symmetric.elementary xs four) (S.mul x (Symmetric.elementary xs three))].formula)
+        _ _ (congr!{R R} (S.add (Symmetric.elementary xs one)) _ _
+          (congr!{R R} (S.mul x) _ _ (sym!{R} _ _ (Symmetric.elementaryZero xs)))) }
+    }
+  };
+\definition toddThroughEight: \forall (xs: Symmetric.Roots) -> truncatedProduct five (Characteristic.todd five) xs = toddFormula xs :=
+  \fun (xs: Symmetric.Roots) => trans!{S.Coefficients} _ _ _
+    (congr!{Coefficients S.Coefficients} (\fun (q: Coefficients) => truncatedProduct five q xs) _ _ Tables.toddThroughEight) (toddCalculation xs);
+\definition lFormula[xs: Symmetric.Roots]: S.Coefficients := Calculations.L[x := S.zero, e1 := Symmetric.elementary (squares xs) one, e2 := Symmetric.elementary (squares xs) two, e3 := Symmetric.elementary (squares xs) three, e4 := Symmetric.elementary (squares xs) four].formula;
+\definition lCalculation: \forall (xs: Symmetric.Roots) -> truncatedProduct five Tables.lCoefficients xs = lFormula xs :=
+  \induction (xs: Symmetric.Roots) \return truncatedProduct five Tables.lCoefficients xs = lFormula xs \with {
+    | nil: sym!{S.Coefficients} _ _ (Calculations.L[x := S.zero, e1 := S.zero, e2 := S.zero, e3 := S.zero, e4 := S.zero].empty)
+    | cons: \fun (x: R)(xs: Symmetric.Roots)(previous: _) => eq_reason_in!{S.Coefficients _
+      "=" _ "by" { congr!{S.Coefficients S.Coefficients} (S.times five (rootCoefficients Tables.lCoefficients x)) _ _ previous }
+      "=" _ "by" { Calculations.L[x := x, e1 := Symmetric.elementary (squares xs) one, e2 := Symmetric.elementary (squares xs) two, e3 := Symmetric.elementary (squares xs) three, e4 := Symmetric.elementary (squares xs) four].step }
+      "=" _ "by" { congr!{R S.Coefficients}
+        (\fun (a: R) => Calculations.L[x := S.zero, e1 := a,
+          e2 := S.add (Symmetric.elementary (squares xs) two) (S.mul (S.mul x x) (Symmetric.elementary (squares xs) one)),
+          e3 := S.add (Symmetric.elementary (squares xs) three) (S.mul (S.mul x x) (Symmetric.elementary (squares xs) two)),
+          e4 := S.add (Symmetric.elementary (squares xs) four) (S.mul (S.mul x x) (Symmetric.elementary (squares xs) three))].formula)
+        _ _ (congr!{R R} (S.add (Symmetric.elementary (squares xs) one)) _ _
+          (congr!{R R} (S.mul (S.mul x x)) _ _ (sym!{R} _ _ (Symmetric.elementaryZero (squares xs))))) }
+    }
+  };
+\definition lThroughEight: \forall (xs: Symmetric.Roots) -> truncatedProduct five (Characteristic.l five) xs = lFormula xs :=
+  \fun (xs: Symmetric.Roots) => trans!{S.Coefficients} _ _ _
+    (congr!{Coefficients S.Coefficients} (\fun (q: Coefficients) => truncatedProduct five q xs) _ _ Tables.lThroughEight) (lCalculation xs);
+\definition ahatFormula[xs: Symmetric.Roots]: S.Coefficients := Calculations.Ahat[x := S.zero, e1 := Symmetric.elementary (squares xs) one, e2 := Symmetric.elementary (squares xs) two, e3 := Symmetric.elementary (squares xs) three, e4 := Symmetric.elementary (squares xs) four].formula;
+\definition ahatCalculation: \forall (xs: Symmetric.Roots) -> truncatedProduct five Tables.ahatCoefficients xs = ahatFormula xs :=
+  \induction (xs: Symmetric.Roots) \return truncatedProduct five Tables.ahatCoefficients xs = ahatFormula xs \with {
+    | nil: sym!{S.Coefficients} _ _ (Calculations.Ahat[x := S.zero, e1 := S.zero, e2 := S.zero, e3 := S.zero, e4 := S.zero].empty)
+    | cons: \fun (x: R)(xs: Symmetric.Roots)(previous: _) => eq_reason_in!{S.Coefficients _
+      "=" _ "by" { congr!{S.Coefficients S.Coefficients} (S.times five (rootCoefficients Tables.ahatCoefficients x)) _ _ previous }
+      "=" _ "by" { Calculations.Ahat[x := x, e1 := Symmetric.elementary (squares xs) one, e2 := Symmetric.elementary (squares xs) two, e3 := Symmetric.elementary (squares xs) three, e4 := Symmetric.elementary (squares xs) four].step }
+      "=" _ "by" { congr!{R S.Coefficients}
+        (\fun (a: R) => Calculations.Ahat[x := S.zero, e1 := a,
+          e2 := S.add (Symmetric.elementary (squares xs) two) (S.mul (S.mul x x) (Symmetric.elementary (squares xs) one)),
+          e3 := S.add (Symmetric.elementary (squares xs) three) (S.mul (S.mul x x) (Symmetric.elementary (squares xs) two)),
+          e4 := S.add (Symmetric.elementary (squares xs) four) (S.mul (S.mul x x) (Symmetric.elementary (squares xs) three))].formula)
+        _ _ (congr!{R R} (S.add (Symmetric.elementary (squares xs) one)) _ _
+          (congr!{R R} (S.mul (S.mul x x)) _ _ (sym!{R} _ _ (Symmetric.elementaryZero (squares xs))))) }
+    }
+  };
+\definition ahatThroughEight: \forall (xs: Symmetric.Roots) -> truncatedProduct five (Characteristic.ahat five) xs = ahatFormula xs :=
+  \fun (xs: Symmetric.Roots) => trans!{S.Coefficients} _ _ _
+    (congr!{Coefficients S.Coefficients} (\fun (q: Coefficients) => truncatedProduct five q xs) _ _ Tables.ahatThroughEight) (ahatCalculation xs);
+\definition rank: Symmetric.Roots -> R := Lists.foldr R R (\fun (x, n: R) => S.add S.one n) S.zero;
+\definition chFormula[xs: Symmetric.Roots]: S.Coefficients := S.cons (rank xs)
+  (S.cons Calculations.Ch[x := S.zero, e1 := Symmetric.elementary xs one, e2 := Symmetric.elementary xs two, e3 := Symmetric.elementary xs three, e4 := Symmetric.elementary xs four].coefficient1
+  (S.cons Calculations.Ch[x := S.zero, e1 := Symmetric.elementary xs one, e2 := Symmetric.elementary xs two, e3 := Symmetric.elementary xs three, e4 := Symmetric.elementary xs four].coefficient2
+  (S.cons Calculations.Ch[x := S.zero, e1 := Symmetric.elementary xs one, e2 := Symmetric.elementary xs two, e3 := Symmetric.elementary xs three, e4 := Symmetric.elementary xs four].coefficient3
+  (S.cons Calculations.Ch[x := S.zero, e1 := Symmetric.elementary xs one, e2 := Symmetric.elementary xs two, e3 := Symmetric.elementary xs three, e4 := Symmetric.elementary xs four].coefficient4 S.nil))));
+\definition chCalculation: \forall (xs: Symmetric.Roots) -> truncatedSum five Tables.chCoefficients xs = chFormula xs :=
+  \induction (xs: Symmetric.Roots) \return truncatedSum five Tables.chCoefficients xs = chFormula xs \with {
+    | nil: sym!{S.Coefficients} _ _ (congr!{R S.Coefficients S.Coefficients} S.cons _ _ _ _ (\refl(S.zero)) (congr!{R S.Coefficients S.Coefficients} S.cons _ _ _ _ (Calculations.Ch[x := S.zero, e1 := S.zero, e2 := S.zero, e3 := S.zero, e4 := S.zero].empty1) (congr!{R S.Coefficients S.Coefficients} S.cons _ _ _ _ (Calculations.Ch[x := S.zero, e1 := S.zero, e2 := S.zero, e3 := S.zero, e4 := S.zero].empty2) (congr!{R S.Coefficients S.Coefficients} S.cons _ _ _ _ (Calculations.Ch[x := S.zero, e1 := S.zero, e2 := S.zero, e3 := S.zero, e4 := S.zero].empty3) (congr!{R S.Coefficients S.Coefficients} S.cons _ _ _ _ (Calculations.Ch[x := S.zero, e1 := S.zero, e2 := S.zero, e3 := S.zero, e4 := S.zero].empty4) (\refl(S.nil)))))))
+    | cons: \fun (x: R)(xs: Symmetric.Roots)(previous: _) => eq_reason_in!{S.Coefficients _
+      "=" _ "by" { congr!{S.Coefficients S.Coefficients} (S.plus five (rootCoefficients Tables.chCoefficients x)) _ _ previous }
+      "=" _ "by" { congr!{R S.Coefficients S.Coefficients} S.cons _ _ _ _ (congr!{R R} (\fun (a: R) => S.add a (rank xs)) _ _ (trans!{R} _ _ _ (congr!{R R} (\fun (a: R) => S.mul a S.one) _ _ Calculations.coefficientLaws.one) (ring.ring.semiring.multiplicative.leftIdentity S.one))) (congr!{R S.Coefficients S.Coefficients} S.cons _ _ _ _ (Calculations.Ch[x := x, e1 := Symmetric.elementary xs one, e2 := Symmetric.elementary xs two, e3 := Symmetric.elementary xs three, e4 := Symmetric.elementary xs four].step1) (congr!{R S.Coefficients S.Coefficients} S.cons _ _ _ _ (Calculations.Ch[x := x, e1 := Symmetric.elementary xs one, e2 := Symmetric.elementary xs two, e3 := Symmetric.elementary xs three, e4 := Symmetric.elementary xs four].step2) (congr!{R S.Coefficients S.Coefficients} S.cons _ _ _ _ (Calculations.Ch[x := x, e1 := Symmetric.elementary xs one, e2 := Symmetric.elementary xs two, e3 := Symmetric.elementary xs three, e4 := Symmetric.elementary xs four].step3) (congr!{R S.Coefficients S.Coefficients} S.cons _ _ _ _ (Calculations.Ch[x := x, e1 := Symmetric.elementary xs one, e2 := Symmetric.elementary xs two, e3 := Symmetric.elementary xs three, e4 := Symmetric.elementary xs four].step4) (\refl(S.nil)))))) }
+      "=" _ "by" { congr!{R S.Coefficients} (\fun (a: R) => S.cons (S.add S.one (rank xs)) (S.cons Calculations.Ch[x := S.zero, e1 := a, e2 := S.add (Symmetric.elementary xs two) (S.mul x (Symmetric.elementary xs one)), e3 := S.add (Symmetric.elementary xs three) (S.mul x (Symmetric.elementary xs two)), e4 := S.add (Symmetric.elementary xs four) (S.mul x (Symmetric.elementary xs three))].coefficient1 (S.cons Calculations.Ch[x := S.zero, e1 := a, e2 := S.add (Symmetric.elementary xs two) (S.mul x (Symmetric.elementary xs one)), e3 := S.add (Symmetric.elementary xs three) (S.mul x (Symmetric.elementary xs two)), e4 := S.add (Symmetric.elementary xs four) (S.mul x (Symmetric.elementary xs three))].coefficient2 (S.cons Calculations.Ch[x := S.zero, e1 := a, e2 := S.add (Symmetric.elementary xs two) (S.mul x (Symmetric.elementary xs one)), e3 := S.add (Symmetric.elementary xs three) (S.mul x (Symmetric.elementary xs two)), e4 := S.add (Symmetric.elementary xs four) (S.mul x (Symmetric.elementary xs three))].coefficient3 (S.cons Calculations.Ch[x := S.zero, e1 := a, e2 := S.add (Symmetric.elementary xs two) (S.mul x (Symmetric.elementary xs one)), e3 := S.add (Symmetric.elementary xs three) (S.mul x (Symmetric.elementary xs two)), e4 := S.add (Symmetric.elementary xs four) (S.mul x (Symmetric.elementary xs three))].coefficient4 S.nil))))) _ _
+        (congr!{R R} (S.add (Symmetric.elementary xs one)) _ _ (congr!{R R} (S.mul x) _ _ (sym!{R} _ _ (Symmetric.elementaryZero xs)))) }
+    }
+  };
+\definition chThroughEight: \forall (xs: Symmetric.Roots) -> truncatedSum five (Characteristic.ch five) xs = chFormula xs :=
+  \fun (xs: Symmetric.Roots) => trans!{S.Coefficients} _ _ _
+    (congr!{Coefficients S.Coefficients} (\fun (q: Coefficients) => truncatedSum five q xs) _ _ Tables.chThroughEight) (chCalculation xs);
