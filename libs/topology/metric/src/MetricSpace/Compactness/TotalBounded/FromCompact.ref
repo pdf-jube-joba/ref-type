@@ -1,0 +1,33 @@
+\definition BallFamily: \Pow (\Pow Carrier) := { U: \Pow Carrier \where \exists ( x: Carrier \where U = Ball metric x epsilon ) };
+\definition cover: T.IsOpenCover[Topology.topology metric, BallFamily, S] := T.IsOpenCover[Topology.topology metric, BallFamily, S] {
+  open := \block {
+    \fun (U: \Pow Carrier)(member: T.FamilyMember BallFamily U) \then
+    \takefrom x: \Cast[Carrier] ({ x: Carrier \where U = Ball metric x epsilon }) \by member \then
+    \return \idelim Ball metric x epsilon = U \with V: \Pow Carrier => T.IsOpenIn (Topology.topology metric) V \by {
+      base: Topology.ballOpenIn metric x epsilon, equality: sym!{\Pow Carrier} _ _ (\bysub(Carrier, { x: Carrier \where U = Ball metric x epsilon }, x))
+    }
+  },
+  covers := \fun (x: Carrier)(_: \In[Carrier] S x) => T.unionMemberOf BallFamily (Ball metric x epsilon) x
+    (Logic.existsIntro[Carrier, { y: Carrier \where Ball metric x epsilon = Ball metric y epsilon }] x (\refl(Ball metric x epsilon)))
+    (ballCenter metric x epsilon positive),
+};
+\definition Relation[U: \Pow Carrier][x: Carrier]: \Prop := U = Ball metric x epsilon;
+\definition net: T.IsCompactIn (Topology.topology metric) S -> \exists ( centres: Points.FiniteSubset \where Net[S, epsilon, centres] ) := \block {
+  \fun (compact: T.IsCompactIn (Topology.topology metric) S) \then
+  \takefrom F: \Cast[OpenSets.FiniteSubset] ({ F: OpenSets.FiniteSubset \where T.FiniteSubcover[BallFamily, S, F] }) \by compact BallFamily cover \then
+  \let subcover: T.FiniteSubcover[BallFamily, S, F] := \bysub(OpenSets.FiniteSubset, { F: OpenSets.FiniteSubset \where T.FiniteSubcover[BallFamily, S, F] }, F) \then
+  \takefrom choice: Selection.Selection[Relation, F] \by Selection.existsSelection Relation F (\fun (U: \Pow Carrier)(member: OpenSets.Member F U) => subcover.included U member) \then
+  \let laws: Selection.SelectionLaws[Relation, F, choice] := \bysub(Selection.SelectionData, { d: Selection.SelectionData \where Selection.SelectionLaws[Relation, F, d] }, choice) \then
+  \return Logic.existsIntro[Points.FiniteSubset, { centres: Points.FiniteSubset \where Net[S, epsilon, centres] }] choice.finite
+    (Net[S, epsilon, choice.finite] {
+      covers := \block {
+        \fun (x: Carrier)(member: \In[Carrier] S x) \then
+        \takefrom U: \Cast[\Pow Carrier] ({ U: \Pow Carrier \where Logic.And[OpenSets.Member F U, T.Member U x] }) \by subcover.covers x member \then
+        \let hit: Logic.And[OpenSets.Member F U, T.Member U x] := \bysub(\Pow Carrier, { U: \Pow Carrier \where Logic.And[OpenSets.Member F U, T.Member U x] }, U) \then
+        \takefrom centre: Selection.CoveredWitness[Relation, choice.finite, U] \by laws.covers U hit.left \then
+        \let chosen: Logic.And[Points.Member choice.finite centre, Relation U centre] := \bysub(Carrier, { y: Carrier \where Logic.And[Points.Member choice.finite y, Relation U y] }, centre) \then
+        \return Logic.existsIntro[Carrier, { y: Carrier \where Logic.And[Points.Member choice.finite y, R.Lt (metric.distance y x) epsilon] }] centre
+          (Logic.And[_, _]::# (chosen.left) (\idelim U = Ball metric centre epsilon \with V: \Pow Carrier => T.Member V x \by { base: hit.right, equality: chosen.right }))
+      }
+    })
+};

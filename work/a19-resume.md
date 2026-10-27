@@ -12,7 +12,7 @@ A19 に該当する既存 PR・ブランチ・パッケージがないことを�
 
 未完了: コンパクト作用素と有限階数近似の同値、コンパクト作用素の和・合成・ノルム極限・随伴による閉性、恒等作用素のコンパクト性から有限次元性。
 必要な共通 API と理由は公開 README の「コンパクト性に必要な共通 API」に記載した。
-全有界性・完備性からのコンパクト性と、有限次元ノルム空間の閉球のコンパクト性・部分空間の閉性の構築は未着手。
+距離空間の有限ネットと全有界性を追加し、コンパクト集合の全有界性を個別検査した。全有界性・完備性からのコンパクト性と、有限次元ノルム空間の閉球のコンパクト性・部分空間の閉性は引き続き構築する。
 
 検査対象 commit: cdf279257b140afb3e1a158356e513da5e12af9e。
 最終検査は両方 accepted。対象22モジュール・315ステップ、依存込み1,057モジュール・12,241ステップを再検査した。
@@ -27,5 +27,5 @@ cd /workspace/ref-type-a19
 
 workspace の libs/refcache を共有する。
 処理系が必要なら `CARGO_TARGET_DIR=/workspace/ref-type/target cargo build -p cli --locked --offline` でビルドする。
-未完了のコンパクト性の証明は共有 API の追加が必要なため保留中。
-公開 README の最小 API を整備した後、相対コンパクト性と有限階数近似の比較から再開する。
+次は標準的な相対コンパクト性から始め、全有界性・完備性と有限次元部分空間の補題を既存 API から証明する。K03 の既存束基盤は変更しない。
+全有界性の個別検査: `cli libs/topology/metric --module metric_spaces.MetricSpace.Compactness.TotalBounded --cache-stats --diagnostics compact --time-limit-seconds 90` は終了コード 0。
