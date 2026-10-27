@@ -3,6 +3,7 @@
 \import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
 \use std.Logic[].Equality[].sym;
 \use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
 \definition abs[f: A -> Real.Real]: A -> Real.Real := \fun (x: A) => Product.abs (f x);
 \definition absAbs: \forall (f: A -> Real.Real) -> abs (abs f) = abs f :=
   \fun (f: A -> Real.Real) => \axiom:funext(abs (abs f), abs f, \fun (x: A) => Product.absOfNonnegative (Product.abs (f x)) (Product.absNonnegative (f x)));
@@ -38,3 +39,58 @@
 \definition absoluteIntegralNonnegative: \forall (f: Representatives) -> R.Le Real.zero (integral (representative f)) :=
   \fun (f: Representatives) => integralNonnegative (abs f) (integral (representative f))
     (\fun (x: A) => Product.absNonnegative (f x)) (integralLaw (representative f));
+
+\definition positivePartOfNonnegative: \forall (f: A -> Real.Real) -> (\forall (x: A) -> R.Le Real.zero (f x)) -> positivePart f = f :=
+  \fun (f: A -> Real.Real) (nonnegative: \forall (x: A) -> R.Le Real.zero (f x)) =>
+    \axiom:funext(positivePart f, f, \fun (x: A) => Distance.maxOfLe Real.zero (f x) (nonnegative x));
+\definition nonnegativeIntegralSup: \forall (f: A -> Real.Real) (v: Real.Real) ->
+  (\forall (x: A) -> R.Le Real.zero (f x)) -> HasIntegral[f, v] -> Complete.LeastUpperBound[lowerIntegral f, v] :=
+  \fun (f: A -> Real.Real) (v: Real.Real) (nonnegative: \forall (x: A) -> R.Le Real.zero (f x)) (h: HasIntegral[f, v]) => \block {
+    \takefrom p: \Cast[Real.Real] ({ p: Real.Real \where \exists ( q: Real.Real \where Parts[f, v, p, q] ) }) \by h.parts \then
+    \takefrom q: \Cast[Real.Real] ({ q: Real.Real \where Parts[f, v, p, q] })
+      \by (\bysub(Real.Real, { p: Real.Real \where \exists ( q: Real.Real \where Parts[f, v, p, q] ) }, p)) \then
+    \let parts: Parts[f, v, p, q] := \bysub(Real.Real, { q: Real.Real \where Parts[f, v, p, q] }, q) \then
+    \let negZero: lowerIntegral (negativePart f) = zero := \idelim lowerIntegral Zero.function = lowerIntegral (negativePart f)
+      \with S: Value => S = zero \by { base: Zero.lowerZero, equality: sym!{Value} _ _ (congr!{{A -> Real.Real} Value} lowerIntegral _ _ (negativePartOfNonnegative f nonnegative)) } \then
+    \let qZero: q = Real.zero := Complete.leastUpperBoundUnique zero q Real.zero
+      (\idelim lowerIntegral (negativePart f) = zero \with S: Value => Complete.LeastUpperBound[S, q] \by { base: parts.negativeLaw, equality: negZero }) Zero.zeroSup \then
+    \let vEqP: v = p := eq_reason_in!{Real.Real _
+      "=" _ "by" { parts.difference }
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.sub p) _ _ qZero }
+      "=" _ "by" { Laws.subZeroRight p }
+    } \then
+    \let positiveLaw: Complete.LeastUpperBound[lowerIntegral f, p] :=
+      \idelim lowerIntegral (positivePart f) = lowerIntegral f \with S: Value => Complete.LeastUpperBound[S, p]
+        \by { base: parts.positiveLaw, equality: congr!{{A -> Real.Real} Value} lowerIntegral _ _ (positivePartOfNonnegative f nonnegative) } \then
+    \return \idelim p = v \with t: Real.Real => Complete.LeastUpperBound[lowerIntegral f, t]
+      \by { base: positiveLaw, equality: sym!{Real.Real} _ _ vEqP }
+  };
+\definition subLeLeft: \forall (a, b: Real.Real) -> R.Le Real.zero b -> R.Le (Real.sub a b) a :=
+  \fun (a, b: Real.Real) (nonnegative: R.Le Real.zero b) => R.leReplaceRight (Real.sub a b) (Real.add a Real.zero) a (Laws.addZeroRight a)
+    (Laws.addMonotoneLeft (Real.neg b) Real.zero a (Product.negNonnegative b nonnegative));
+\definition integralAbsBound: \forall (f: Representatives) -> R.Le (Product.abs (integral f)) (integral (representative f)) :=
+  \fun (f: Representatives) => \block {
+    \let absoluteSup: Complete.LeastUpperBound[lowerIntegral (abs f), integral (representative f)] :=
+      nonnegativeIntegralSup (abs f) (integral (representative f)) (\fun (x: A) => Product.absNonnegative (f x)) (integralLaw (representative f)) \then
+    \takefrom p: \Cast[Real.Real] ({ p: Real.Real \where \exists ( q: Real.Real \where Parts[f, integral f, p, q] ) }) \by (integralLaw f).parts \then
+    \takefrom q: \Cast[Real.Real] ({ q: Real.Real \where Parts[f, integral f, p, q] })
+      \by (\bysub(Real.Real, { p: Real.Real \where \exists ( q: Real.Real \where Parts[f, integral f, p, q] ) }, p)) \then
+    \let parts: Parts[f, integral f, p, q] := \bysub(Real.Real, { q: Real.Real \where Parts[f, integral f, p, q] }, q) \then
+    \let pBound: R.Le p (integral (representative f)) := parts.positiveLaw.least (integral (representative f))
+      (\fun (r: Real.Real) (member: below (lowerIntegral (positivePart f)) r) => absoluteSup.upper r
+        (lowerIntegralMono (positivePart f) (abs f) (positivePartBound f) r member)) \then
+    \let qBound: R.Le q (integral (representative f)) := parts.negativeLaw.least (integral (representative f))
+      (\fun (r: Real.Real) (member: below (lowerIntegral (negativePart f)) r) => absoluteSup.upper r
+        (lowerIntegralMono (negativePart f) (abs f) (negativePartBound f) r member)) \then
+    \let pNonnegative: R.Le Real.zero p := supremumNonnegative (positivePart f) p parts.positiveLaw \then
+    \let qNonnegative: R.Le Real.zero q := supremumNonnegative (negativePart f) q parts.negativeLaw \then
+    \let forward: R.Le (Real.sub p q) (integral (representative f)) := R.leTrans _ p _ (subLeLeft p q qNonnegative) pBound \then
+    \let backward: R.Le (Real.neg (Real.sub p q)) (integral (representative f)) := R.leReplaceLeft (Real.sub q p) (Real.neg (Real.sub p q)) _
+      (sym!{Real.Real} _ _ (Real.Algebra[].negSub p q)) (R.leTrans _ q _ (subLeLeft q p pNonnegative) qBound) \then
+    \return R.leReplaceLeft (Distance.max (Real.neg (Real.sub p q)) (Real.sub p q)) (Product.abs (integral f)) _
+      (eq_reason_in!{Real.Real _
+        "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Distance.max _ _ _ _
+          (congr!{Real.Real Real.Real} Real.neg _ _ (sym!{Real.Real} _ _ parts.difference)) (sym!{Real.Real} _ _ parts.difference) }
+        "=" _ "by" { sym!{Real.Real} _ _ (Product.absExpression (integral f)) }
+      }) (Distance.maxLeast _ _ _ backward forward)
+  };
