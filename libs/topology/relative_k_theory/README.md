@@ -231,3 +231,5 @@ K07 の影響先検査は最終検査に含める。
 その module の宣言を K 群の import より前へ移し、位相的な構成に不要な依存を除いた。
 旧 `direct-inverse` batch の `Raw` の検査は、この変更を保存した後に中断として記録する。
 次の固定 snapshot は `work/k03-resume/constant-raw.source.json`。
+旧 `direct-inverse-Pair-Pointed-Cofiber-BaseQuotient-Raw` は終了130・`interrupted`・キャッシュ保存失敗0で中断した。
+同じ batch の `ForgetProjection`・`Pointed.Exact` は accepted・終了0・キャッシュ保存失敗0で、後続の `Backward`・比較全体は未実行。
