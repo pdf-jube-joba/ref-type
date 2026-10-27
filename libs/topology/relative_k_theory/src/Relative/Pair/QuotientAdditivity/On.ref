@@ -1,0 +1,41 @@
+\definition firstContains: QuotientBase.Member first.chart.domain Quotient.point :=
+  \bysub(SourceCharts.Chart, { c: SourceCharts.Chart \where QuotientBase.Member c.domain Quotient.point }, first.chart);
+\definition secondContains: QuotientBase.Member second.chart.domain Quotient.point :=
+  \bysub(TargetCharts.Chart, { c: TargetCharts.Chart \where QuotientBase.Member c.domain Quotient.point }, second.chart);
+\import First.In[c := first.chart, contains := firstContains] \as FirstModel;
+\import Second.In[c := second.chart, contains := secondContains] \as SecondModel;
+\import Bundles.Family[X := Quotient.Carrier, F := Sum.Fiber].With[data := sumBundle] \as SumCharts;
+\definition chart: SumCharts.Chart := Sum.In[c := first.chart, d := second.chart].trivialization sameBase;
+\definition contains: QuotientBase.Member chart.domain Quotient.point := Logic.And[_, _]::# firstContains secondContains;
+\import SumRaw.In[c := chart, contains := contains] \as SumModel;
+\import Sum.Of[same := sameBase].Pullback[Y := X, source := space, f := Quotient.projection, regular := First.regular] \as SumPull;
+\import Bundles.Trivial[X := X, n := FirstModel.dimension, baseSpace := space] \as FirstTrivial;
+\import Bundles.Trivial[X := X, n := SecondModel.dimension, baseSpace := space] \as SecondTrivial;
+\import Bundles.Trivial[X := X, n := SumModel.dimension, baseSpace := space] \as SumTrivial;
+\import Operations.DirectSum[X := X, F := (\fun (x: X) => Bundles.Vector FirstModel.dimension), G := (\fun (x: X) => Bundles.Vector SecondModel.dimension),
+  left := FirstTrivial.bundle, right := SecondTrivial.bundle] \as TrivialSum;
+\import Operations.GlobalFrame[X := X, F := TrivialSum.Fiber, bundle := (TrivialSum.bundle (\refl(space))),
+  chart := (TrivialSum.In[c := FirstTrivial.trivialization, d := SecondTrivial.trivialization].trivialization (\refl(space))),
+  covers := (\fun (x: X) => Logic.And[_, _]::# (\refl(x)) (\refl(x)))] \as Joined;
+\import Operations.DirectSumIsomorphisms[X := X, F := First.Fiber, G := Second.Fiber,
+  A := Absolute.Fiber first.result.value.positive, B := Absolute.Fiber second.result.value.positive,
+  first := First.pulled, second := Second.pulled, newFirst := Absolute.bundle first.result.value.positive, newSecond := Absolute.bundle second.result.value.positive,
+  sameSource := \refl(space), sameTarget := \refl(space)] \as PositiveModels;
+\import Bundles.Isomorphisms[X := X, F := PositiveModels.SourceFiber, G := PositiveModels.TargetFiber, source := PositiveModels.sourceBundle, target := PositiveModels.targetBundle] \as PositiveReverse;
+\import Bundles.Isomorphisms[X := X, F := SumRaw.Fiber, G := PositiveModels.SourceFiber, source := SumRaw.pulled, target := PositiveModels.sourceBundle] \as PullReverse;
+\import Operations.DirectSumIsomorphisms[X := X,
+  F := (\fun (x: X) => Bundles.Vector FirstModel.dimension), G := (\fun (x: X) => Bundles.Vector SecondModel.dimension),
+  A := Absolute.Fiber first.result.value.negative, B := Absolute.Fiber second.result.value.negative,
+  first := FirstTrivial.bundle, second := SecondTrivial.bundle, newFirst := Absolute.bundle first.result.value.negative, newSecond := Absolute.bundle second.result.value.negative,
+  sameSource := \refl(space), sameTarget := \refl(space)] \as NegativeModels;
+\import Bundles.Isomorphisms[X := X, F := NegativeModels.SourceFiber, G := NegativeModels.TargetFiber, source := NegativeModels.sourceBundle, target := NegativeModels.targetBundle] \as NegativeReverse;
+\module With(result: SumModel.Result);
+\definition equation: RelativeGroup.add FirstClass.value SecondClass.value = SumClass.value := \block {
+  \takefrom result: SumModel.Result \by SumModel.existence \then
+  \return trans!{{RelativeGroup.Carrier}} _ _ _
+    (congr!{{RelativeGroup.Carrier} {RelativeGroup.Carrier} {RelativeGroup.Carrier}} RelativeGroup.add _ _ _ _ (FirstClass.agreement first) (SecondClass.agreement second))
+    (trans!{{RelativeGroup.Carrier}} _ _ _ (With[result := result].equation)
+      (sym!{{RelativeGroup.Carrier}} _ _ (SumClass.agreement (SumRaw.Witness {
+        chart := \into[SumCharts.Chart](chart, { c: SumCharts.Chart \where QuotientBase.Member c.domain Quotient.point }) \by { contains }, result := result
+      }))))
+};
