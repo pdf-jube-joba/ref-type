@@ -79,6 +79,10 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 既存の `real.Analysis.Algebra.mulOneRight` へ修正した。
 `five-term-repair.source.json` は検査済みの `subset-raw` snapshot の `Rotation/Inner.ref` だけをこの修正で更新したもの。
 後から追加した一点付加・自然性の API を含む現在の package 全体は、別途最終検査する。
+`DiskPair` は射影の固定部分を有限次元実座標の単位閉球内に取り、コンパクトな円板・閉じた球面・相対群を構成した。
+`BundleDisk` は一般の束の射影表示の存在と同型を使ってこの対と負次数の列を公開する。
+`Examples.TrivialDisk` には有限ランク自明束の円板の比較を、`zeroBoundaryEmpty` にはランク0の球面が空である証明を書いた。
+これらは構文解析のみ完了し、型検査は未完了（`bundle-disk.source.json`）。
 次の固定 snapshot で検査を続ける。
 
 ```bash

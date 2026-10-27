@@ -1,0 +1,30 @@
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Algebra.field, scalar := Hermitian.scalar, topological := Scalar.scalar.topological].At[n := n] \as Frames;
+\definition identity: Frames.Projection := Frames.Projection {
+  map := Spaces.FiniteCoordinates[n := n].identity,
+  selfAdjoint := \fun (v, w: Bundles.Vector n) => \refl(Frames.dot v w),
+  idempotent := \fun (v: Bundles.Vector n) => \refl(v)
+};
+\import KTheory.On[X := Point, baseSpace := pointTopology, compact := PointProperties.compact, hausdorff := PointProperties.hausdorff] \as Absolute;
+\definition presentation: Absolute.Presentation := Absolute.Presentation {
+  dimension := n, projection := \fun (x: Point) => identity,
+  regular := \fun (v: Bundles.Vector n)(i: Fin.Fin n) => topology.Maps[A := Point, B := C.Complex].constantContinuous pointTopology topological_algebra.Complex[].topology (v i)
+};
+\import \root.Relative[].DiskPair[X := Point, space := pointTopology, compact := PointProperties.compact, hausdorff := PointProperties.hausdorff, p := presentation] \as Native;
+\definition Disk: \Set := Native.Disk;
+\definition topology: topology.Topology[Carrier := Disk].Topology := Native.topology;
+\definition boundary: \Pow Disk := Native.boundary;
+\definition Relative: \Set := Native.Relative;
+\definition group: std.Alg[].Alg[].CommutativeGroup[Relative] := Native.group;
+\definition forget[z: Disk]: Native.Container := z;
+\definition include[z: Native.Container]: Disk := \into[Native.Container](z, Native.domain) \by { Native.fixedMember z (\refl(Native.vector z)) };
+\definition forwardContinuous: topology.Continuity[A := Disk, B := Native.Container].Continuous topology Native.containerTopology forget :=
+  topology.Continuity[A := Disk, B := Native.Container].Corestriction[S := Native.domain].inclusionContinuous Native.containerTopology;
+\definition backwardContinuous: topology.Continuity[A := Native.Container, B := Disk].Continuous Native.containerTopology topology include :=
+  topology.Continuity[A := Native.Container, B := Native.Container].Corestriction[S := Native.domain].corestrictContinuous Native.containerTopology Native.containerTopology include
+    (topology.Maps[A := Native.Container, B := Native.Container].Identity[].continuous Native.containerTopology);
+\import topology.Homeomorphism[A := Disk, B := Native.Container] \as Homeomorphisms;
+\definition diskHomeomorphism: Homeomorphisms.Homeomorphism[topology, Native.containerTopology] := Homeomorphisms.Homeomorphism[topology, Native.containerTopology] {
+  forward := forget, backward := include,
+  leftInverse := \fun (z: Disk) => \refl(z), rightInverse := \fun (z: Native.Container) => \refl(z),
+  forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous
+};
