@@ -106,3 +106,35 @@
   \fun (c: NonnegativeScalar) (f: A -> Real.Real) (h: Integrable f) => Logic.And[_, _]::# (Functions.scaleMeasurable c (nonnegative c) f h.left)
     (\idelim (\fun (x: A) => Real.mul c (Product.abs (f x))) = (\fun (x: A) => Product.abs (Real.mul c (f x))) \with g: (A -> Real.Real) => Finite g
       \by { base: finiteScale c (\fun (x: A) => Product.abs (f x)) h.right, equality: sym!{{A -> Real.Real}} _ _ (absScale c f) });
+
+\definition supScale: \forall (c: NonnegativeScalar) (v: Value) (p: Real.Real) -> NonnegativeValue[v] ->
+  Complete.LeastUpperBound[v, p] -> Complete.LeastUpperBound[scale c v, Real.mul c p] :=
+  \fun (c: NonnegativeScalar) (v: Value) (p: Real.Real) (vl: NonnegativeValue[v]) (sup: Complete.LeastUpperBound[v, p]) =>
+    Logic.orElim _ _ (Complete.LeastUpperBound[scale c v, Real.mul c p]) (Classical.excludedMiddle (c = Real.zero))
+      (\fun (eq: c = Real.zero) => \idelim Real.zero = c \with t: Real.Real => Complete.LeastUpperBound[scale t v, Real.mul t p] \by {
+        base: \idelim zero = scale Real.zero v \with w: Value => Complete.LeastUpperBound[w, Real.mul Real.zero p] \by {
+          base: \idelim Real.zero = Real.mul Real.zero p \with x: Real.Real => Complete.LeastUpperBound[zero, x] \by {
+            base: Zero.zeroSup, equality: sym!{Real.Real} _ _ (Laws.fieldMulZeroLeft p) },
+          equality: sym!{Value} _ _ (Values.zeroScale v vl) },
+        equality: sym!{Real.Real} _ _ eq
+      })
+      (\fun (different: Logic.Not (c = Real.zero)) => \block {
+        \let pc: PositiveScalar := \into[Real.Real](c, { c: Real.Real \where R.Lt Real.zero c }) \by {
+          Order.ltOfLeNotEq Real.zero c (nonnegative c) (\fun (eq: Real.zero = c) => different (sym!{Real.Real} _ _ eq)) } \then
+        \return Positive[c := pc].supScale v p sup
+      });
+\definition positivePartScale: \forall (c: NonnegativeScalar) (f: A -> Real.Real) ->
+  positivePart (\fun (x: A) => Real.mul c (f x)) = (\fun (x: A) => Real.mul c (positivePart f x)) :=
+  \fun (c: NonnegativeScalar) (f: A -> Real.Real) => \axiom:funext(positivePart (\fun (x: A) => Real.mul c (f x)),
+    (\fun (x: A) => Real.mul c (positivePart f x)), \fun (x: A) => eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{Real.Real Real.Real} (\fun (y: Real.Real) => Distance.max y (Real.mul c (f x))) _ _ (sym!{Real.Real} _ _ (Laws.fieldMulZeroRight c)) }
+      "=" _ "by" { sym!{Real.Real} _ _ (ProductLaws.mulMax c Real.zero (f x) (nonnegative c)) }
+    });
+\definition negativePartScale: \forall (c: NonnegativeScalar) (f: A -> Real.Real) ->
+  negativePart (\fun (x: A) => Real.mul c (f x)) = (\fun (x: A) => Real.mul c (negativePart f x)) :=
+  \fun (c: NonnegativeScalar) (f: A -> Real.Real) => \axiom:funext(negativePart (\fun (x: A) => Real.mul c (f x)),
+    (\fun (x: A) => Real.mul c (negativePart f x)), \fun (x: A) => eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{Real.Real Real.Real} (Distance.max Real.zero) _ _ (sym!{Real.Real} _ _ (Laws.fieldMulNegRight c (f x))) }
+      "=" _ "by" { congr!{Real.Real Real.Real} (\fun (y: Real.Real) => Distance.max y (Real.mul c (Real.neg (f x)))) _ _ (sym!{Real.Real} _ _ (Laws.fieldMulZeroRight c)) }
+      "=" _ "by" { sym!{Real.Real} _ _ (ProductLaws.mulMax c Real.zero (Real.neg (f x)) (nonnegative c)) }
+    });
