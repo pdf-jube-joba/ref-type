@@ -35,3 +35,42 @@
       } \then
     \return unique x (\choice Candidate x \by { existence: exists x, uniqueness: unique x }) candidate
   };
+\import \root.Measure[A := A].FiniteUnion[mu := mu] \as FiniteUnion;
+\import \root.Measure[A := A].Sigma[] \as Sigma;
+\definition nonnegative: \forall (x: A) -> R.Le Real.zero (value x) := \fun (x: A) => \block {
+  \takefrom i: \Cast[Fin.Fin n] ({ i: Fin.Fin n \where Sets.Member (s.cells i) x }) \by covers x \then
+  \return R.leReplaceRight Real.zero (s.coefficients i) (value x) (sym!{Real.Real} _ _ (atCell i x (\bysub(Fin.Fin n, { i: Fin.Fin n \where Sets.Member (s.cells i) x }, i)))) (s.nonnegative i)
+};
+\definition selected[r: Real.Real] [i: Fin.Fin n]: \Pow A :=
+  { x: A \where Logic.And[Sets.Member (s.cells i) x, R.Lt r (s.coefficients i)] };
+\definition selectedMeasurable: \forall (r: Real.Real) (i: Fin.Fin n) -> Measurable mu.sigma (selected r i) :=
+  \fun (r: Real.Real) (i: Fin.Fin n) => Logic.orElim _ _ _ (Classical.excludedMiddle (R.Lt r (s.coefficients i)))
+    (\fun (less: R.Lt r (s.coefficients i)) => \idelim s.cells i = selected r i \with S: \Pow A => Measurable mu.sigma S \by {
+      base: s.measurable i,
+      equality: \axiom:setext(s.cells i, selected r i,
+        \fun (x: A) (member: Sets.Member (s.cells i) x) => Logic.And[_, _]::# member less,
+        \fun (x: A) (member: Sets.Member (selected r i) x) => member.left)
+    })
+    (\fun (notLess: Logic.Not (R.Lt r (s.coefficients i))) => \idelim Sets.Empty = selected r i \with S: \Pow A => Measurable mu.sigma S \by {
+      base: (Sigma.laws mu.sigma).empty,
+      equality: \axiom:setext(Sets.Empty, selected r i,
+        \fun (x: A) (impossible: Logic.False) => Logic.falseElim _ impossible,
+        \fun (x: A) (member: Sets.Member (selected r i) x) => notLess member.right)
+    });
+\definition superlevel: \forall (r: Real.Real) -> FiniteUnion.union n (selected r) = { x: A \where R.Lt r (value x) } :=
+  \fun (r: Real.Real) => \axiom:setext(FiniteUnion.union n (selected r), { x: A \where R.Lt r (value x) },
+    \fun (x: A) (member: Sets.Member (FiniteUnion.union n (selected r)) x) => \block {
+      \takefrom i: \Cast[Fin.Fin n] ({ i: Fin.Fin n \where Sets.Member (selected r i) x }) \by FiniteUnion.member n (selected r) x member \then
+      \let data: Sets.Member (selected r i) x := \bysub(Fin.Fin n, { i: Fin.Fin n \where Sets.Member (selected r i) x }, i) \then
+      \return R.ltReplaceRight r (s.coefficients i) (value x) (sym!{Real.Real} _ _ (atCell i x data.left)) data.right
+    },
+    \fun (x: A) (less: R.Lt r (value x)) => \block {
+      \takefrom i: \Cast[Fin.Fin n] ({ i: Fin.Fin n \where Sets.Member (s.cells i) x }) \by covers x \then
+      \let member: Sets.Member (s.cells i) x := \bysub(Fin.Fin n, { i: Fin.Fin n \where Sets.Member (s.cells i) x }, i) \then
+      \return FiniteUnion.contains n (selected r) i x
+        (Logic.And[_, _]::# member (R.ltReplaceRight r (value x) (s.coefficients i) (atCell i x member) less))
+    });
+\definition measurable: IsMeasurable mu value := \fun (r: Real.Real) =>
+  \idelim FiniteUnion.union n (selected r) = { x: A \where R.Lt r (value x) } \with S: \Pow A => Measurable mu.sigma S \by {
+    base: FiniteUnion.measurable n (selected r) (selectedMeasurable r), equality: superlevel r
+  };
