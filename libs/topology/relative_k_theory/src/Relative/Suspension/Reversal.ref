@@ -1,0 +1,37 @@
+\import algebraic_topology.Collapse[A := Cylinder.Carrier, subset := Model.Collapsed] \as Collapse;
+\import Collapse.Mapping[B := Cylinder.Carrier, targetSubset := Model.Collapsed] \as Descend;
+\definition raw[z: Cylinder.Carrier]: Cylinder.Carrier := Cylinder.at (I.reverse (Cylinder.time z)) (Cylinder.point z);
+\definition preserves: Descend.Preserves raw := \fun (z: Cylinder.Carrier)(member: \In[Cylinder.Carrier] Model.Collapsed z) =>
+  Logic.orElim[Cylinder.time z = I.start, Logic.Or[Cylinder.time z = I.end, Cylinder.point z = (details original).point], \In[Cylinder.Carrier] Model.Collapsed (raw z)] member
+    (\fun (same: Cylinder.time z = I.start) => Logic.Or[_, _]::right (Logic.Or[_, _]::left
+      (trans!{{I.Carrier}} _ _ _ (congr!{{I.Carrier} {I.Carrier}} I.reverse _ _ same) I.reverseStart)))
+    (\fun (rest: Logic.Or[Cylinder.time z = I.end, Cylinder.point z = (details original).point]) =>
+      Logic.orElim[Cylinder.time z = I.end, Cylinder.point z = (details original).point, \In[Cylinder.Carrier] Model.Collapsed (raw z)] rest
+        (\fun (same: Cylinder.time z = I.end) => Logic.Or[_, _]::left
+          (trans!{{I.Carrier}} _ _ _ (congr!{{I.Carrier} {I.Carrier}} I.reverse _ _ same) I.reverseEnd))
+        (\fun (same: Cylinder.point z = (details original).point) => Logic.Or[_, _]::right (Logic.Or[_, _]::right same)));
+\definition rawContinuous: topology.Continuity[A := Cylinder.Carrier, B := Cylinder.Carrier].Continuous (Cylinder.topology (details original).topology) (Cylinder.topology (details original).topology) raw :=
+  Product.Universal[X := Cylinder.Carrier].pairContinuous (Cylinder.topology (details original).topology) I.topology (details original).topology
+    (\fun (z: Cylinder.Carrier) => I.reverse (Cylinder.time z)) Cylinder.point
+    (topology.Composition[A := Cylinder.Carrier, B := I.Carrier, C := I.Carrier].composeContinuous (Cylinder.topology (details original).topology) I.topology I.topology
+      Cylinder.time I.reverse (Cylinder.timeContinuous (details original).topology) I.reverseContinuous) (Cylinder.pointContinuous (details original).topology);
+\definition projection: Native.Carrier -> Native.Carrier := Descend.apply raw preserves;
+\definition onClass: \forall (z: Cylinder.Carrier) -> projection (Native.class z) = Native.class (raw z) := Descend.onClass raw preserves;
+\definition continuous: topology.Continuity[A := Native.Carrier, B := Native.Carrier].Continuous Native.topology Native.topology projection :=
+  Descend.continuous (Cylinder.topology (details original).topology) (Cylinder.topology (details original).topology) raw preserves rawContinuous;
+\definition onPoint: projection Native.point = Native.point := trans!{{Native.Carrier}} _ _ _
+  (onClass (Cylinder.at I.start (details original).point))
+  (Native.line (I.reverse I.start));
+\import algebraic_topology.Pointed[A := Native.Carrier].Maps[B := Native.Carrier] \as PointedMaps;
+\definition map: Map result result := \into[Native.Carrier -> Native.Carrier](projection, Map result result) \by {
+  PointedMaps.Laws[\root.Relative[].pointed result, \root.Relative[].pointed result, projection] { continuous := continuous, pointed := onPoint }
+};
+\import std.Data[].Pair[].Prop[A := I.Carrier, B := original.Carrier] \as Pairs;
+\definition rawInvolutive: \forall (z: Cylinder.Carrier) -> raw (raw z) = z :=
+  \fun (z: Cylinder.Carrier) => Pairs.ext (raw (raw z)) z (I.reverseInvolutive (Cylinder.time z)) (\refl(Cylinder.point z));
+\definition involutive: \forall (z: Native.Carrier) -> map (map z) = z :=
+  Collapse.induction (\fun (z: Native.Carrier) => map (map z) = z)
+    (\fun (z: Cylinder.Carrier) => trans!{{Native.Carrier}} _ _ _ (congr!{{Native.Carrier} {Native.Carrier}} projection _ _ (onClass z))
+      (trans!{{Native.Carrier}} _ _ _ (onClass (raw z)) (congr!{{Cylinder.Carrier} {Native.Carrier}} Native.class _ _ (rawInvolutive z))));
+\definition equivalence: \root.Relative[].Equivalence[source := result, target := result].Data :=
+  \root.Relative[].Equivalence[source := result, target := result].Data { forward := map, backward := map, leftInverse := involutive, rightInverse := involutive };

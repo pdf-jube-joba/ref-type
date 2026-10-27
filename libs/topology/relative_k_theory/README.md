@@ -172,3 +172,9 @@ K07 の影響先検査は最終検査に含める。
 
 残る主な要件は、負次数までの長完全列、Mayer–Vietoris、外積と自然性、束の円板球面対への適用と具体例。
 公開登録・ロードマップ・下流リンクと、package・依存閉包・影響先・workspace 全体の最終検証も未完了。
+
+時間反転の未検証変更は `Suspension.Reversal` で、反転写像・連続性・二回反転の等式と基点付き同相を構成する。
+`Pointed.Rotation.Inner`・`Outer` は二段の cofiber から全体空間の suspension への連続な族を構成する。
+その時間座標は `multiply (advance h t) (reverse s)` で、内外の円錐の潰される部分で値が基点になることを示して商へ降ろす。
+現在の固定 snapshot は `work/k03-resume/rotation.source.json`。
+時間両端を suspension の包含・反転と照合し、K 群の写像の等式にする部分は引き続き実装する。

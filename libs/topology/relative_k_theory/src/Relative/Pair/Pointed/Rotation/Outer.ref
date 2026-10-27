@@ -1,0 +1,37 @@
+\import algebraic_topology.Cylinder[A := Second.DomainPoint] \as Domain;
+\import algebraic_topology.Cylinder[A := Second.Carrier] \as Result;
+\definition domainTopology: topology.Topology[Carrier := Domain.Carrier].Topology := Domain.topology Second.domainTopology;
+\definition resultTopology: topology.Topology[Carrier := Result.Carrier].Topology := Result.topology Second.topology;
+\definition parameter[p: Domain.Carrier]: Square.CarrierSet := square (Domain.time p) (Second.time (Domain.point p));
+\definition input[p: Domain.Carrier]: topological_constructions.Product[A := Square.CarrierSet, B := First.Carrier].CarrierSet :=
+  Pair.pair Square.CarrierSet First.Carrier (parameter p) (Second.point (Domain.point p));
+\definition raw[p: Domain.Carrier]: Target.Carrier := Inner[].map (input p);
+\definition onTop: \forall (h: Interval.Carrier)(z: Second.DomainPoint) -> Second.time z = Interval.end -> raw (Domain.at h z) = Target.point := \block {
+  \fun (h: Interval.Carrier)(z: Second.DomainPoint)(top: Second.time z = Interval.end) \then
+  \takefrom x: \Cast[X] ({ x: X \where Logic.And[x = x, First.base x = Second.point z] }) \by SecondProjection.topInside z top \then
+  \return trans!{{Target.Carrier}} _ _ _
+    (congr!{{First.Carrier} {Target.Carrier}} (\fun (w: First.Carrier) => Inner[].map (Pair.pair Square.CarrierSet First.Carrier (square h (Second.time z)) w)) _ _
+      (sym!{{First.Carrier}} _ _ ((\bysub(X, { x: X \where Logic.And[x = x, First.base x = Second.point z] }, x)).right)))
+    (trans!{{Target.Carrier}} _ _ _ (Inner[].Formulas[].atBase h (Second.time z) x)
+      (trans!{{Target.Carrier}} _ _ _
+        (congr!{{Interval.Carrier} {Target.Carrier}} (\fun (u: Interval.Carrier) => Target.class (TargetCylinder.at u x)) _ _
+          (trans!{{Interval.Carrier}} _ _ _ (congr!{{Interval.Carrier} {Interval.Carrier}} (Times.advance h) _ _ top) (Times.advanceTop h))) (Target.top x)))
+};
+\definition onLine: \forall (h: Interval.Carrier)(z: Second.DomainPoint) -> Second.point z = First.base a0 -> raw (Domain.at h z) = Target.point :=
+  \fun (h: Interval.Carrier)(z: Second.DomainPoint)(same: Second.point z = First.base a0) => trans!{{Target.Carrier}} _ _ _
+    (congr!{{First.Carrier} {Target.Carrier}} (\fun (w: First.Carrier) => Inner[].map (Pair.pair Square.CarrierSet First.Carrier (square h (Second.time z)) w)) _ _ same)
+    (Inner[].Formulas[].atLine h (Second.time z));
+\definition onCollapsed: \forall (h: Interval.Carrier)(z: Second.DomainPoint) -> \In[Second.DomainPoint] Second.collapsedPart z -> raw (Domain.at h z) = Target.point :=
+  \fun (h: Interval.Carrier)(z: Second.DomainPoint)(member: \In[Second.DomainPoint] Second.collapsedPart z) =>
+    Logic.orElim[Second.time z = Interval.end, Second.point z = First.base a0, raw (Domain.at h z) = Target.point] member (onTop h z) (onLine h z);
+\import SecondQuotient.Families[X := Interval.Carrier, C := Target.Carrier, factor := Interval.topology, source := Second.domainTopology, target := Target.topology, laws := SecondCollapse.equivalence] \as Family;
+\definition respects: Family.Respects raw := \fun (h: Interval.Carrier)(z, w: Second.DomainPoint)(related: SecondCollapse.Related z w) =>
+  Logic.orElim[z = w, Logic.And[\In[Second.DomainPoint] Second.collapsedPart z, \In[Second.DomainPoint] Second.collapsedPart w], raw (Domain.at h z) = raw (Domain.at h w)] related
+    (\fun (same: z = w) => congr!{{Second.DomainPoint} {Target.Carrier}} (\fun (v: Second.DomainPoint) => raw (Domain.at h v)) _ _ same)
+    (\fun (both: Logic.And[\In[Second.DomainPoint] Second.collapsedPart z, \In[Second.DomainPoint] Second.collapsedPart w]) =>
+      trans!{{Target.Carrier}} _ _ _ (onCollapsed h z both.left) (sym!{{Target.Carrier}} _ _ (onCollapsed h w both.right)));
+\definition map: Result.Carrier -> Target.Carrier := Family.apply raw respects;
+\definition onClass: \forall (h: Interval.Carrier)(z: Second.DomainPoint) -> map (Result.at h (SecondCollapse.class z)) = raw (Domain.at h z) := Family.onClass raw respects;
+\module Continuity;
+\definition continuous: topology.Continuity[A := Result.Carrier, B := Target.Carrier].Continuous resultTopology Target.topology map :=
+  Family.continuous Interval.compact Interval.hausdorff raw respects Continuity[].continuous;
