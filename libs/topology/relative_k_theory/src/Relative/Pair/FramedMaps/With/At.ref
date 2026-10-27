@@ -1,0 +1,19 @@
+\import Source.At[q := z] \as From;
+\import Target.At[q := z] \as To;
+\definition data[v: From.Carrier]: To.Datum := To.make (c.apply (From.anchor v)) (\fun (x: To.Index) => (h.fiber x).apply (From.section v x));
+\definition valid: \forall (v: From.Carrier) -> To.Compatible[data v] := \fun (v: From.Carrier) => To.Compatible[data v] {
+  outside := \fun (outside: _) => trans!{{Bundles.Vector m}} _ _ _ (congr!{{Bundles.Vector n} {Bundles.Vector m}} c.apply _ _ ((From.laws v).outside outside)) c.preservesZero,
+  boundary := \fun (x: A)(same: Quotient.projection x = z) => trans!{{Bundles.Vector m}} _ _ _
+    (compatible x (From.section v (From.over x same)))
+    (congr!{{Bundles.Vector n} {Bundles.Vector m}} c.apply _ _ ((From.laws v).boundary x same))
+};
+\definition apply[v: From.Carrier]: To.Carrier := \into[To.Datum](data v, To.valid) \by { valid v };
+\definition map: Spaces.Linear[V := From.Carrier, W := To.Carrier, source := From.space, target := To.space].Map :=
+  Spaces.Linear[V := From.Carrier, W := To.Carrier, source := From.space, target := To.space].Map {
+    apply := apply,
+    preservesAdd := \fun (v, w: From.Carrier) => To.ext (apply (From.space.add v w)) (To.space.add (apply v) (apply w))
+      (c.preservesAdd (From.anchor v) (From.anchor w))
+      (\fun (x: To.Index) => (h.fiber x).preservesAdd (From.section v x) (From.section w x)),
+    preservesScale := \fun (a: C.Complex)(v: From.Carrier) => To.ext (apply (From.space.smul a v)) (To.space.smul a (apply v))
+      (c.preservesScale a (From.anchor v)) (\fun (x: To.Index) => (h.fiber x).preservesScale a (From.section v x))
+  };
