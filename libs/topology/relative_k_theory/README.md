@@ -63,12 +63,15 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 
 現在の検査は `iteration-foundations.source.json` を固定して順番に実行する。
 `SuspendedPair` 自身とその `Quotient` 全体は accepted・終了0・保存失敗0。
-続く `PointedPair`、`PairIteration`、`PairIteration.Sequence` の結果を回収する。
+`PointedPair` も accepted・終了0・保存失敗0。
+`PairIteration` の検査は最初の反復定義の module 参照を拒否した（終了1・保存失敗0）。
+ルートからの参照を明示し、`iteration-qualified.source.json` で `PairIteration` と `PairIteration.Sequence` を再検査する。
 この snapshot は検査済みの `forget-square` に反復部分の修正を加えたもので、後述の追加全体は含まない。
 プロセスが残っていれば重複起動せず、`work/k03-resume/iteration-stage-*.{log,json,exit}` を確認する。
 終了時は終了コード・JSON の `outcome`・`storage.save_failures`・`checking.cache_write_failures` を確認する。
 
-最新の追加全体の構文解析 snapshot は `negative-boundary-naturality.source.json`。
+自然性の追加は `negative-boundary-naturality.source.json` まで構文解析を通過した。
+その後 `Absolute.Mapping.Naturality` に通常の K 群との比較の自然性を書いた（未検証）。
 次の追加は型検査未完了で、現在の package 全体の最終検証も未実施。
 
 - `KTheory.On.Empty`、空の境界での三つ組の忘却の逆写像、`Absolute` の一点付加と通常の K 群との比較。
