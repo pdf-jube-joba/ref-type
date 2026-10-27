@@ -18,3 +18,27 @@
 \import \parent.\parent.FramedClass[F := Sum.Fiber, sourceModel := SumModel.model, n := dimension].With[alpha := comparison] \as SumClass;
 \import \parent.\parent.Quotient[] \as Quotient;
 \definition value: Quotient.Relative := SumClass.value;
+\import First.With[comparison := alpha] \as Source;
+\import Second.With[comparison := beta] \as Target;
+\import SumDescent.With[comparison := comparison] \as Whole;
+\import Sum.Of[same := (\refl(space))].Inclusions[] \as Inclusions;
+\import Sum.Of[same := (\refl(space))] \as Projections;
+\definition leftCompatible: \forall (x: A)(v: F x) -> (comparison.forward.fiber x).apply ((Inclusions.first.fiber x).apply v) = includeLeft.apply ((alpha.forward.fiber x).apply v) :=
+  \fun (x: A)(v: F x) => trans!{{Bundles.Vector dimension}} _ _ _ (formula x v (target.space x).zero)
+    (congr!{{Bundles.Vector m} {Bundles.Vector dimension}} (\fun (w: Bundles.Vector m) => Coordinates.join (CoordinatePair.make ((alpha.forward.fiber x).apply v) w)) _ _ (beta.forward.fiber x).preservesZero);
+\definition rightCompatible: \forall (x: A)(v: G x) -> (comparison.forward.fiber x).apply ((Inclusions.second.fiber x).apply v) = includeRight.apply ((beta.forward.fiber x).apply v) :=
+  \fun (x: A)(v: G x) => trans!{{Bundles.Vector dimension}} _ _ _ (formula x (source.space x).zero v)
+    (congr!{{Bundles.Vector n} {Bundles.Vector dimension}} (\fun (w: Bundles.Vector n) => Coordinates.join (CoordinatePair.make w ((beta.forward.fiber x).apply v))) _ _ (alpha.forward.fiber x).preservesZero);
+\definition firstCompatible: \forall (x: A)(v: Sum.Fiber x) -> (alpha.forward.fiber x).apply ((Projections.firstMap.fiber x).apply v) = firstCoordinate.apply ((comparison.forward.fiber x).apply v) :=
+  \fun (x: A)(v: Sum.Fiber x) => sym!{{Bundles.Vector n}} _ _ (firstJoin ((alpha.forward.fiber x).apply (Pair.first (F x) (G x) v)) ((beta.forward.fiber x).apply (Pair.second (F x) (G x) v)));
+\definition secondCompatible: \forall (x: A)(v: Sum.Fiber x) -> (beta.forward.fiber x).apply ((Projections.secondMap.fiber x).apply v) = secondCoordinate.apply ((comparison.forward.fiber x).apply v) :=
+  \fun (x: A)(v: Sum.Fiber x) => sym!{{Bundles.Vector m}} _ _ (secondJoin ((alpha.forward.fiber x).apply (Pair.first (F x) (G x) v)) ((beta.forward.fiber x).apply (Pair.second (F x) (G x) v)));
+\import \parent.\parent.FramedBundles[F := F, G := Sum.Fiber, sourceModel := sourceModel, targetModel := SumModel.model, n := n, m := dimension].With[
+  alpha := alpha, beta := comparison, h := Inclusions.first, c := includeLeft, compatible := leftCompatible] \as IncludeFirst;
+\import \parent.\parent.FramedBundles[F := G, G := Sum.Fiber, sourceModel := targetModel, targetModel := SumModel.model, n := m, m := dimension].With[
+  alpha := beta, beta := comparison, h := Inclusions.second, c := includeRight, compatible := rightCompatible] \as IncludeSecond;
+\import \parent.\parent.FramedBundles[F := Sum.Fiber, G := F, sourceModel := SumModel.model, targetModel := sourceModel, n := dimension, m := n].With[
+  alpha := comparison, beta := alpha, h := Projections.firstMap, c := firstCoordinate, compatible := firstCompatible] \as ProjectFirst;
+\import \parent.\parent.FramedBundles[F := Sum.Fiber, G := G, sourceModel := SumModel.model, targetModel := targetModel, n := dimension, m := m].With[
+  alpha := comparison, beta := beta, h := Projections.secondMap, c := secondCoordinate, compatible := secondCompatible] \as ProjectSecond;
+\module Between(first: Source.Result, second: Target.Result, third: Whole.Result);

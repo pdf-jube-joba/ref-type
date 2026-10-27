@@ -36,6 +36,24 @@
   \fun (v: Bundles.Vector n)(w: Bundles.Vector m) => congr!{CoordinatePair.Carrier {Bundles.Vector n}} CoordinatePair.first _ _ ((CoordinateIsomorphism.laws Coordinates.isomorphism).leftInverse (CoordinatePair.make v w));
 \definition secondJoin: \forall (v: Bundles.Vector n)(w: Bundles.Vector m) -> secondCoordinate.apply (Coordinates.join (CoordinatePair.make v w)) = w :=
   \fun (v: Bundles.Vector n)(w: Bundles.Vector m) => congr!{CoordinatePair.Carrier {Bundles.Vector m}} CoordinatePair.second _ _ ((CoordinateIsomorphism.laws Coordinates.isomorphism).leftInverse (CoordinatePair.make v w));
+\import Spaces.Laws[V := Bundles.Vector n, space := (Bundles.coordinates n)] \as LeftLaws;
+\import Spaces.Laws[V := Bundles.Vector m, space := (Bundles.coordinates m)] \as RightLaws;
+\definition firstPair: \forall (v: Bundles.Vector n)(w: Bundles.Vector m) -> firstCoordinate.apply ((Bundles.coordinates dimension).add (includeLeft.apply v) (includeRight.apply w)) = v :=
+  \fun (v: Bundles.Vector n)(w: Bundles.Vector m) => trans!{{Bundles.Vector n}} _ _ _ (firstCoordinate.preservesAdd (includeLeft.apply v) (includeRight.apply w))
+    (trans!{{Bundles.Vector n}} _ _ _ (congr!{{Bundles.Vector n} {Bundles.Vector n} {Bundles.Vector n}} (Bundles.coordinates n).add _ _ _ _
+      (firstJoin v (Bundles.coordinates m).zero) (firstJoin (Bundles.coordinates n).zero w)) (LeftLaws.zeroRight v));
+\definition secondPair: \forall (v: Bundles.Vector n)(w: Bundles.Vector m) -> secondCoordinate.apply ((Bundles.coordinates dimension).add (includeLeft.apply v) (includeRight.apply w)) = w :=
+  \fun (v: Bundles.Vector n)(w: Bundles.Vector m) => trans!{{Bundles.Vector m}} _ _ _ (secondCoordinate.preservesAdd (includeLeft.apply v) (includeRight.apply w))
+    (trans!{{Bundles.Vector m}} _ _ _ (congr!{{Bundles.Vector m} {Bundles.Vector m} {Bundles.Vector m}} (Bundles.coordinates m).add _ _ _ _
+      (secondJoin v (Bundles.coordinates m).zero) (secondJoin (Bundles.coordinates n).zero w)) (RightLaws.zeroLeft w));
+\definition joinPair: \forall (v: Bundles.Vector n)(w: Bundles.Vector m) -> (Bundles.coordinates dimension).add (includeLeft.apply v) (includeRight.apply w) = Coordinates.join (CoordinatePair.make v w) :=
+  \fun (v: Bundles.Vector n)(w: Bundles.Vector m) => trans!{{Bundles.Vector dimension}} _ _ _
+    (sym!{{Bundles.Vector dimension}} _ _ (Coordinates.forward.preservesAdd (pairLeft.apply v) (pairRight.apply w)))
+    (congr!{CoordinatePair.Carrier {Bundles.Vector dimension}} Coordinates.forward.apply _ _
+      (std.Data[].Pair[].Prop[A := Bundles.Vector n, B := Bundles.Vector m].pairCong _ _ _ _ (LeftLaws.zeroRight v) (RightLaws.zeroLeft w)));
+\definition recover: \forall (v: Bundles.Vector dimension) -> (Bundles.coordinates dimension).add (includeLeft.apply (firstCoordinate.apply v)) (includeRight.apply (secondCoordinate.apply v)) = v :=
+  \fun (v: Bundles.Vector dimension) => trans!{{Bundles.Vector dimension}} _ _ _ (joinPair (firstCoordinate.apply v) (secondCoordinate.apply v))
+    ((CoordinateIsomorphism.laws Coordinates.isomorphism).rightInverse v);
 \import \root.Relative[].Descent[X := X, F := F, bundle := source, compact := compact, hausdorff := hausdorff, subset := subset, closed := closed, dimension := n] \as First;
 \import \root.Relative[].Descent[X := X, F := G, bundle := target, compact := compact, hausdorff := hausdorff, subset := subset, closed := closed, dimension := m] \as Second;
 \import \root.Relative[].Descent[X := X, F := Sum.Fiber, bundle := sumBundle, compact := compact, hausdorff := hausdorff, subset := subset, closed := closed, dimension := dimension] \as SumDescent;

@@ -93,8 +93,9 @@ K07 の剪断写像と符号付き交換の族を、任意の可換環上の `li
 K07 の影響先検査は最終検査に含める。
 最新の未検証変更は `FramedSum`。
 座標の包含・射影と、二つの境界枠の直和を構成する。
-降下した束の直和との比較と被約群での加法性は続けて実装する。
-固定 snapshot は `work/k03-resume/framed-sum.source.json`。
+`With.Between` は包含・射影を商へ降ろして、降下した束の直和と直和の降下との同型を作る。
+被約群での加法性は続けて実装する。
+固定 snapshot は `work/k03-resume/framed-sum-descent.source.json`。
 次は `relative_k_theory.Relative.Pair.FramedSum` を検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
