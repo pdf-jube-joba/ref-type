@@ -1,0 +1,42 @@
+\import algebraic_topology.Interval[] \as Interval;
+\import algebraic_topology.Cylinder[A := X] \as Cylinder;
+\import algebraic_topology.Cylinder[A := A] \as BoundaryCylinder;
+\import topology.Topology[Carrier := Cylinder.Carrier] \as CylinderBase;
+\import topology.Topology[Carrier := BoundaryCylinder.Carrier] \as BoundaryBase;
+\definition subsetCylinder: \Pow Cylinder.Carrier := { z: Cylinder.Carrier \where Base.Member subset (Cylinder.point z) };
+\import CylinderBase.Subspace[S := subsetCylinder] \as Subset;
+\definition Carrier: \Set := Subset.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Subset.topology (Cylinder.topology space);
+\definition point[z: Carrier]: X := Cylinder.point z;
+\definition time[z: Carrier]: Interval.Carrier := Cylinder.time z;
+\definition boundary[z: Carrier]: A := \into[X](point z, subset) \by { \bysub(Cylinder.Carrier, subsetCylinder, z) };
+\definition inclusion[z: Carrier]: Cylinder.Carrier := z;
+\definition inclusionContinuous: topology.Continuity[A := Carrier, B := Cylinder.Carrier].Continuous topology (Cylinder.topology space) inclusion :=
+  topology.Continuity[A := Carrier, B := Cylinder.Carrier].Corestriction[S := subsetCylinder].inclusionContinuous (Cylinder.topology space);
+\definition pointContinuous: topology.Continuity[A := Carrier, B := X].Continuous topology space point :=
+  topology.Composition[A := Carrier, B := Cylinder.Carrier, C := X].composeContinuous topology (Cylinder.topology space) space inclusion Cylinder.point inclusionContinuous (Cylinder.pointContinuous space);
+\definition timeContinuous: topology.Continuity[A := Carrier, B := Interval.Carrier].Continuous topology Interval.topology time :=
+  topology.Composition[A := Carrier, B := Cylinder.Carrier, C := Interval.Carrier].composeContinuous topology (Cylinder.topology space) Interval.topology inclusion Cylinder.time inclusionContinuous (Cylinder.timeContinuous space);
+\definition boundaryContinuous: topology.Continuity[A := Carrier, B := A].Continuous topology subspace boundary :=
+  topology.Continuity[A := Carrier, B := X].Corestriction[S := subset].corestrictContinuous topology space boundary pointContinuous;
+\definition inverse[z: Carrier]: BoundaryCylinder.Carrier := BoundaryCylinder.at (time z) (boundary z);
+\import topological_constructions.Product[A := Interval.Carrier, B := A] \as BoundaryProduct;
+\definition inverseContinuous: topology.Continuity[A := Carrier, B := BoundaryCylinder.Carrier].Continuous topology (BoundaryCylinder.topology subspace) inverse :=
+  BoundaryProduct.Universal[X := Carrier].pairContinuous topology Interval.topology subspace time boundary timeContinuous boundaryContinuous;
+\definition ambient[z: BoundaryCylinder.Carrier]: Cylinder.Carrier := Cylinder.at (BoundaryCylinder.time z) (BoundaryCylinder.point z);
+\import topological_constructions.Product[A := Interval.Carrier, B := X] \as CylinderProduct;
+\definition ambientContinuous: topology.Continuity[A := BoundaryCylinder.Carrier, B := Cylinder.Carrier].Continuous (BoundaryCylinder.topology subspace) (Cylinder.topology space) ambient :=
+  CylinderProduct.Universal[X := BoundaryCylinder.Carrier].pairContinuous (BoundaryCylinder.topology subspace) Interval.topology space BoundaryCylinder.time
+    (\fun (z: BoundaryCylinder.Carrier) => BoundaryCylinder.point z) (BoundaryCylinder.timeContinuous subspace)
+    (topology.Composition[A := BoundaryCylinder.Carrier, B := A, C := X].composeContinuous (BoundaryCylinder.topology subspace) subspace space BoundaryCylinder.point
+      (\fun (x: A) => x) (BoundaryCylinder.pointContinuous subspace) (topology.Continuity[A := A, B := X].Corestriction[S := subset].inclusionContinuous space));
+\definition forward[z: BoundaryCylinder.Carrier]: Carrier := \into[Cylinder.Carrier](ambient z, subsetCylinder) \by { \bysub(X, subset, BoundaryCylinder.point z) };
+\definition forwardContinuous: topology.Continuity[A := BoundaryCylinder.Carrier, B := Carrier].Continuous (BoundaryCylinder.topology subspace) topology forward :=
+  topology.Continuity[A := BoundaryCylinder.Carrier, B := Cylinder.Carrier].Corestriction[S := subsetCylinder].corestrictContinuous (BoundaryCylinder.topology subspace) (Cylinder.topology space) forward ambientContinuous;
+\import std.Data[].Pair[] \as Pair;
+\definition leftInverse: \forall (z: BoundaryCylinder.Carrier) -> inverse (forward z) = z :=
+  \fun (z: BoundaryCylinder.Carrier) => Pair.Prop[A := Interval.Carrier, B := A].eta z;
+\definition rightInverse: \forall (z: Carrier) -> forward (inverse z) = z :=
+  \fun (z: Carrier) => Pair.Prop[A := Interval.Carrier, B := X].eta z;
+\definition subsetClosed: CylinderBase.IsClosedIn (Cylinder.topology space) subsetCylinder :=
+  topology.Continuity[A := Cylinder.Carrier, B := X].closedPreimage (Cylinder.topology space) space Cylinder.point (Cylinder.pointContinuous space) subset closed;

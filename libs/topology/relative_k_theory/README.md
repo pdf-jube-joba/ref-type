@@ -71,11 +71,13 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 `FramedClass` は一般の境界自明化された束について近傍延長の選択によらない被約群の元を定め、全体の枠へ延長する場合の零性を示す。
 `TripleClass` は三つ組に負側の補束を加えてこの構成を適用する。
 `TripleClass.Global` は全体に延びる比較同型の零性を示す。
-新しい未検証変更は `FramedClass.To` と `CylinderNeighborhood`。
+`FramedClass.To` と `CylinderNeighborhood` は `framed-natural-fixed-To`・`framed-natural-fixed-CylinderNeighborhood` で accepted・終了0・キャッシュ保存失敗0。
 前者は枠と両立する束の同型と座標同型に対する被約群の元の不変性。
 後者は閉部分空間上の円柱全体と時刻0を含む開近傍内に入り、閉部分空間上で時刻1となる連続な時間関数を作る。
-固定 snapshot は `work/k03-resume/framed-natural.source.json`。
-次は `relative_k_theory.Relative.Pair.CylinderNeighborhood` と `relative_k_theory.Relative.Pair.FramedClass.To` を順に検査する。
+最新の未検証変更は `CylinderSubset`。
+閉部分空間の円柱と全体の円柱内の対応する部分空間との互いに逆な連続写像を作る。
+固定 snapshot は `work/k03-resume/cylinder-subset.source.json`。
+次は `relative_k_theory.Relative.Pair.CylinderSubset` を検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。
