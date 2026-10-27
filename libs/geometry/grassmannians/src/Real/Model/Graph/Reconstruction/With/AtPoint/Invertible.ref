@@ -9,7 +9,7 @@
 \import linear_algebra.Hermitian[].Over[K := R.Real, field := R.Algebra[].field, scalar := H.Real[].scalar].Inner[V := E.Vector, space := E.space].Of[h := E.form] \as Inner;
 \import H.Over[K := R.Real, field := R.Algebra[].field, scalar := H.Real[].scalar, topological := H.Real[].topological].At[n := k] \as SmallAt;
 \import SmallAt.Square[] \as Square;
-\definition C: Small.Map := ToSmall.compose (Ortho.Point[x := t].basis).coordinate center.value;
+\definition coordinateMap: Small.Map := ToSmall.compose (Ortho.Point[x := t].basis).coordinate center.value;
 \definition D: Small.Map := ToSmall.compose center.coordinate (factors.value t).frame;
 \definition dLeft: \forall (v: Domain.Vector) -> D.apply ((factors.value t).change.forward.apply v) = v :=
   \fun (v: Domain.Vector) => trans!{{Domain.Vector}} _ _ _
@@ -24,7 +24,7 @@
     (congr!{{E.Vector} R.Real} (\fun (u: E.Vector) => E.dot u (t.apply w)) _ _ (sym!{{E.Vector}} _ _ (At.OnProjection[P := Model.projection a].Rank[k := k].fixed center v)))
     (trans!{R.Real} _ _ _ ((Model.projection a).selfAdjoint (center.value.apply v) (t.apply w))
       (trans!{R.Real} _ _ _ (congr!{{E.Vector} R.Real} (E.dot (center.value.apply v)) _ _ (baseProjectionZero w)) (E.form.zeroRight (center.value.apply v))));
-\definition projectionCenterZero: \forall (v: Domain.Vector) -> C.apply v = Domain.space.zero -> (Ortho.projection t).map.apply (center.value.apply v) = E.space.zero :=
+\definition projectionCenterZero: \forall (v: Domain.Vector) -> coordinateMap.apply v = Domain.space.zero -> (Ortho.projection t).map.apply (center.value.apply v) = E.space.zero :=
   \fun (v: Domain.Vector)(zero: _) => trans!{{E.Vector}} _ _ _ (sym!{{E.Vector}} _ _ ((Ortho.Point[x := t].basis).reconstruction (center.value.apply v)))
     (trans!{{E.Vector}} _ _ _ (congr!{{Domain.Vector} {E.Vector}} (factors.value t).frame.apply _ _ zero) (factors.value t).frame.preservesZero);
 \import At.OnProjection[P := Ortho.projection t].Rank[k := k] \as PointRank;
@@ -33,8 +33,8 @@
     (congr!{{E.Vector} {E.Vector}} (Ortho.projection t).map.apply _ _ ((factors.value t).formula v))
     (trans!{{E.Vector}} _ _ _ (PointRank.fixed (Ortho.Point[x := t].basis) ((factors.value t).change.forward.apply v))
       (sym!{{E.Vector}} _ _ ((factors.value t).formula v)));
-\definition cZero: \forall (v: Domain.Vector) -> C.apply v = Domain.space.zero -> v = Domain.space.zero := \block {
-  \fun (v: Domain.Vector)(zero: C.apply v = Domain.space.zero) \then
+\definition cZero: \forall (v: Domain.Vector) -> coordinateMap.apply v = Domain.space.zero -> v = Domain.space.zero := \block {
+  \fun (v: Domain.Vector)(zero: coordinateMap.apply v = Domain.space.zero) \then
   \let dotZero: E.dot (center.value.apply v) ((family t).apply v) = R.Algebra[].field.zero :=
     trans!{R.Real} _ _ _ (congr!{{E.Vector} R.Real} (E.dot (center.value.apply v)) _ _ (sym!{{E.Vector}} _ _ (fixedGraph v)))
       (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ ((Ortho.projection t).selfAdjoint (center.value.apply v) ((family t).apply v)))
@@ -47,16 +47,16 @@
   \return trans!{{Domain.Vector}} _ _ _ (sym!{{Domain.Vector}} _ _ (center.leftInverse v))
     (trans!{{Domain.Vector}} _ _ _ (congr!{{E.Vector} {Domain.Vector}} center.coordinate.apply _ _ baseZero) center.coordinate.preservesZero)
 };
-\definition cInjective: \forall (v, w: Domain.Vector) -> C.apply v = C.apply w -> v = w := Small.injectiveOfZeroKernel C cZero;
+\definition cInjective: \forall (v, w: Domain.Vector) -> coordinateMap.apply v = coordinateMap.apply w -> v = w := Small.injectiveOfZeroKernel coordinateMap cZero;
 
 \import linear_algebra.Hermitian[].Over[K := R.Real, field := R.Algebra[].field, scalar := H.Real[].scalar].Inner[V := Domain.Vector, space := Domain.space].Of[h := Domain.form].Gram[k := k] \as Gram;
 \import SmallAt.Forms[h := Domain.form].Gram[k := k] \as GramExistence;
 \definition domainMember: \In[Model.Carrier] domain (value t) := \block {
-  \takefrom factor: Gram.Factorization[C] \by GramExistence.exists C cInjective Domain.positive \then
-  \let inverse: Small.Map := Gram.Of[A := C, factor := factor].inverse \then
+  \takefrom factor: Gram.Factorization[coordinateMap] \by GramExistence.exists coordinateMap cInjective Domain.positive \then
+  \let inverse: Small.Map := Gram.Of[A := coordinateMap, factor := factor].inverse \then
   \let back: Small.Map := Compose.compose inverse (factors.value t).change.forward \then
   \let forward: Small.Map := Old.comparison (toOriginal (value t)) \then
   \let left: \forall (v: Domain.Vector) -> back.apply (forward.apply v) = v := \fun (v: Domain.Vector) =>
-    trans!{{Domain.Vector}} _ _ _ (congr!{{Domain.Vector} {Domain.Vector}} inverse.apply _ _ (dRight (C.apply v))) (Gram.Of[A := C, factor := factor].inverseOnImage v) \then
+    trans!{{Domain.Vector}} _ _ _ (congr!{{Domain.Vector} {Domain.Vector}} inverse.apply _ _ (dRight (coordinateMap.apply v))) (Gram.Of[A := coordinateMap, factor := factor].inverseOnImage v) \then
   \return Square.LeftInverse[f := forward, g := back, left := left].nonzero
 };
