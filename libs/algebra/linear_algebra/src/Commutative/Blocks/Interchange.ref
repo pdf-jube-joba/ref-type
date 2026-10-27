@@ -1,0 +1,33 @@
+\import Spaces.Isomorphism[V := V, W := W, source := left, target := right] \as Original;
+\import Spaces.Rotation[V := V, space := left] \as LeftRotation;
+\import Spaces.Rotation[V := W, space := right] \as RightRotation;
+\definition laws: Original.Laws[iso] := Original.laws iso;
+\definition isomorphism: Isomorphisms.Isomorphism := compose (upperIsomorphism iso.backward Spaces.one)
+  (compose (lowerIsomorphism iso.forward (Spaces.neg Spaces.one)) (upperIsomorphism iso.backward Spaces.one));
+\definition upperOne: \forall (p: Sum.Carrier) -> (upper iso.backward Spaces.one).apply p = Sum.make (left.add (Sum.first p) (iso.backward.apply (Sum.second p))) (Sum.second p) :=
+  \fun (p: Sum.Carrier) => Pairs.pairCong _ _ _ _
+    (congr!{V V} (left.add (Sum.first p)) _ _ (left.scalarOne (iso.backward.apply (Sum.second p)))) (\refl(Sum.second p));
+\definition lowerMinusOne: \forall (p: Sum.Carrier) -> (lower iso.forward (Spaces.neg Spaces.one)).apply p = Sum.make (Sum.first p) (right.add (Sum.second p) (right.neg (iso.forward.apply (Sum.first p)))) :=
+  \fun (p: Sum.Carrier) => Pairs.pairCong _ _ _ _ (\refl(Sum.first p))
+    (congr!{W W} (right.add (Sum.second p)) _ _ (Right.minusOneScale (iso.forward.apply (Sum.first p))));
+\definition middle: \forall (v: V)(w: W) -> right.add w (right.neg (iso.forward.apply (left.add v (iso.backward.apply w)))) = right.neg (iso.forward.apply v) :=
+  \fun (v: V)(w: W) => trans!{W} _ _ _
+    (congr!{W W} (\fun (u: W) => right.add w (right.neg u)) _ _
+      (trans!{W} _ _ _ (iso.forward.preservesAdd v (iso.backward.apply w)) (congr!{W W} (right.add (iso.forward.apply v)) _ _ (laws.rightInverse w))))
+    (RightRotation.middle (iso.forward.apply v) w);
+\definition finish: \forall (v: V)(w: W) -> left.add (left.add v (iso.backward.apply w)) (iso.backward.apply (right.neg (iso.forward.apply v))) = iso.backward.apply w :=
+  \fun (v: V)(w: W) => trans!{V} _ _ _
+    (congr!{V V} (left.add (left.add v (iso.backward.apply w))) _ _
+      (trans!{V} _ _ _ (Spaces.Linear[V := W, W := V, source := right, target := left].Operations[].preservesNeg iso.backward (iso.forward.apply v))
+        (congr!{V V} left.neg _ _ (laws.leftInverse v))))
+    (LeftRotation.finish v (iso.backward.apply w));
+\definition formula: \forall (p: Sum.Carrier) -> isomorphism.forward.apply p = Sum.make (iso.backward.apply (Sum.second p)) (right.neg (iso.forward.apply (Sum.first p))) :=
+  \fun (p: Sum.Carrier) => trans!{Sum.Carrier} _ _ _
+    (congr!{Sum.Carrier Sum.Carrier} (\fun (q: Sum.Carrier) => (upper iso.backward Spaces.one).apply ((lower iso.forward (Spaces.neg Spaces.one)).apply q)) _ _ (upperOne p))
+    (trans!{Sum.Carrier} _ _ _
+      (congr!{Sum.Carrier Sum.Carrier} (upper iso.backward Spaces.one).apply _ _ (lowerMinusOne (Sum.make (left.add (Sum.first p) (iso.backward.apply (Sum.second p))) (Sum.second p))))
+      (trans!{Sum.Carrier} _ _ _
+        (congr!{Sum.Carrier Sum.Carrier} (upper iso.backward Spaces.one).apply _ _
+          (Pairs.pairCong _ _ _ _ (\refl(left.add (Sum.first p) (iso.backward.apply (Sum.second p)))) (middle (Sum.first p) (Sum.second p))))
+        (trans!{Sum.Carrier} _ _ _ (upperOne (Sum.make (left.add (Sum.first p) (iso.backward.apply (Sum.second p))) (right.neg (iso.forward.apply (Sum.first p)))))
+          (Pairs.pairCong _ _ _ _ (finish (Sum.first p) (Sum.second p)) (\refl(right.neg (iso.forward.apply (Sum.first p))))))));

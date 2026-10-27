@@ -91,14 +91,14 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 K07 の剪断写像と符号付き交換の族を、任意の可換環上の `linear_algebra.Commutative.Blocks`・`Rotation` へ移し、K07 の参照先を更新した。
 共通 API 自体は `common-Blocks`・`common-Rotation` で accepted・終了0・キャッシュ保存失敗0。
 K07 の影響先検査は最終検査に含める。
-最新の未検証変更は `FramedSum`。
-座標の包含・射影と、二つの境界枠の直和を構成する。
-`With.Between` は包含・射影を商へ降ろして、降下した束の直和と直和の降下との同型を作る。
-固定 snapshot `work/k03-resume/framed-sum-descent.source.json` の束の同型までの検査を実行中。
-`With.additivity` は束の同型類と自明束の直和の等式から、被約群での加法性を導く。
-この最新変更も未検証。
-次の固定 snapshot は `work/k03-resume/framed-sum-additive.source.json`。
-現在の結果を回収してから `relative_k_theory.Relative.Pair.FramedSum` を再検査する。
+`FramedSum` の束の同型は `framed-sum-descent`、被約群の加法性は `framed-sum-additive` で accepted・終了0・キャッシュ保存失敗0。
+`With.Between` は包含・射影を商へ降ろし、降下した束の直和と直和の降下との同型を作る。
+`With.additivity` は束の同型類と自明束の直和の等式から被約群の加法性を導く。
+最新の未検証変更は `FramedClass.With.Stabilized`、共通の `MapOperations`・`Shear` と `Commutative.Blocks.Interchange`。
+前者は恒等的な枠を持つ自明束を加えても被約群の元が変わらないことを示す。
+共通 API は束写像の加法・定数倍と連続な可逆剪断写像、および同型で結ばれた二つの空間を符号付きで交換する剪断写像の積を作る。
+固定 snapshot は `work/k03-resume/shears.source.json`。
+次は `linear_algebra.Commutative.Blocks.Interchange`、`bundle_operations.Operations.Over.MapOperations`、`bundle_operations.Operations.Over.Shear`、`relative_k_theory.Relative.Pair.FramedClass.With.Stabilized` を順に検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。

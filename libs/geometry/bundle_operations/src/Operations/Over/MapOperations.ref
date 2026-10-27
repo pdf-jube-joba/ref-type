@@ -1,0 +1,24 @@
+\import Bundles.Family[X := X, F := F] \as Source;
+\import Bundles.Family[X := X, F := G] \as Target;
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := G, source := source, target := target, f := (\fun (x: X) => x)] \as Maps;
+\definition Map: \Set := Maps.Map;
+\import \parent.Along[X := X, F := G, bundle := target, Y := Source.Point, source := source.totalSpace, base := Source.projection] \as Along;
+\definition vector[a: Map][p: Source.Point]: G p.base := (a.fiber p.base).apply p.vector;
+\definition regular[a: Map]: Along.Continuous (vector a) := Maps.continuous a;
+\definition baseRegular[a: Map]: Along.BaseContinuous :=
+  topology.Composition[A := Source.Point, B := Target.Point, C := X].composeContinuous source.totalSpace target.totalSpace target.baseSpace (Maps.total a) Target.projection
+    (Maps.continuous a) (Target.Of[bundle := target].projectionContinuous);
+\definition addData[a, b: Map]: Maps.Data := Maps.Data {
+  fiber := \fun (x: X) => Spaces.Linear[V := F x, W := G x, source := source.space x, target := target.space x].Operations[].plus (a.fiber x) (b.fiber x)
+};
+\definition add[a, b: Map]: Map := \into[Maps.Data](addData a b, Map) \by {
+  Along.addition (vector a) (vector b) (baseRegular a) (regular a) (regular b)
+};
+\definition scaleData[s: K][a: Map]: Maps.Data := Maps.Data {
+  fiber := \fun (x: X) => Spaces.Linear[V := F x, W := G x, source := source.space x, target := target.space x].Operations[].scale s (a.fiber x)
+};
+\definition scale[s: K][a: Map]: Map := \into[Maps.Data](scaleData s a, Map) \by {
+  Along.scaling (\fun (p: Source.Point) => s) (vector a) (baseRegular a)
+    (topology.Maps[A := Source.Point, B := K].constantContinuous source.totalSpace scalar.topological.space s) (regular a)
+};
+\definition negative[a: Map]: Map := scale (field.neg field.one) a;
