@@ -1,0 +1,57 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import \root.Integral[A := A, source := source].Pair[subset := subset].Homology[p := p, q := q] \as SourceCap;
+\import TargetCap.Homology[p := p, q := q] \as DestinationCap;
+\import \root.Integral[A := A, source := source].Pair[subset := subset].Boundary[p := p, q := q] \as SourceBoundary;
+\import Simplices.CutFaces[p := p, q := q] \as Geometry;
+\import \root.Integral[A := A, source := source].Pair[subset := subset].Degree[] \as SourceDegree;
+\import TargetCap.Degree[] \as TargetDegree;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.At[C := Relative.complex, z := I.Int^::ofNat Geometry.higher] \as Input;
+\import Complexes.At[C := Relative.complex, z := I.Int^::ofNat (N.Nat^::succ p)] \as Output;
+\import Complexes.At[C := TargetPair.complex, z := I.Int^::ofNat Geometry.higher] \as TargetInput;
+\import Complexes.At[C := TargetPair.complex, z := I.Int^::ofNat (N.Nat^::succ p)] \as TargetOutput;
+\import \parent.At[p := N.Nat^::succ p, q := q] \as Formula;
+\import singular_cohomology.Cochains[A := B, source := target].With[coefficients := Cochains.integerCoefficients] \as TargetTheory;
+\import singular_cohomology.Cochains[A := A, source := source].With[coefficients := Cochains.integerCoefficients] \as SourceTheory;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring] \as CochainComplexes;
+\import CochainComplexes.At[C := TargetTheory.complex, k := q] \as TargetCochain;
+\import WholeMap.Coefficients[M := Cochains.integerCoefficients, L := Cochains.integerCoefficients] \as Pullback;
+\import Modules.End[V := I.Int^, space := Cochains.integerCoefficients.space] \as CoefficientMaps;
+\import CochainComplexes.Map[C := TargetTheory.complex, D := SourceTheory.complex].At[k := q] \as PullbackAt;
+\definition pulledClosed[beta: TargetCochain.CycleCarrier]: SourceBoundary.closed (Pull.apply q f (PairMaps.laws f).continuous beta) :=
+  PullbackAt.preservesClosed (Pullback.map f (PairMaps.laws f).continuous CoefficientMaps.identity) beta;
+\module On(beta: TargetCochain.CycleCarrier) {
+  \import SourceCap.On[beta := Pull.apply q f (PairMaps.laws f).continuous beta, closed := pulledClosed beta] \as Before;
+  \import DestinationCap.On[beta := beta, closed := \bysub(TargetCochains.Carrier q, TargetCochain.cycles.carrier, beta)] \as After;
+  \import Before.Induced[] \as BeforeInduced;
+  \import After.Induced[] \as AfterInduced;
+  \import Complexes.Map[C := Relative.complex, D := TargetPair.complex].At[k := I.Int^::ofNat Geometry.higher] \as InputMap;
+  \import Complexes.Map[C := Relative.complex, D := TargetPair.complex].At[k := I.Int^::ofNat (N.Nat^::succ p)] \as OutputMap;
+  \definition transport: \forall (x: SourceDegree.Carrier Geometry.higher) ->
+    (PairMap.map).apply (I.Int^::ofNat Geometry.leftDegree) (SourceDegree.apply Geometry.higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) x) =
+    TargetDegree.apply Geometry.higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) ((PairMap.map).apply (I.Int^::ofNat Geometry.higher) x) :=
+    Transport.natural SourceDegree.Carrier TargetDegree.Carrier (\fun (n: N.Nat^) => (PairMap.map).apply (I.Int^::ofNat n)) Geometry.higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same);
+  \definition cycleLaw: \forall (x: Input.Cycle) ->
+    TargetOutput.forget ((OutputMap.cyclesMap PairMap.map).apply (Before.cycle x)) = TargetOutput.forget (After.cycle ((InputMap.cyclesMap PairMap.map).apply x)) :=
+    \fun (x: Input.Cycle) => trans!{{TargetDegree.Carrier (N.Nat^::succ p)}} _ _ _
+      (Formula.law beta (SourceDegree.apply Geometry.higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) x))
+      (congr!{{TargetDegree.Carrier Geometry.leftDegree} {TargetDegree.Carrier (N.Nat^::succ p)}} (TargetCap.At[p := N.Nat^::succ p, q := q].Quotient[].map beta).apply _ _ (transport x));
+  \definition law: \forall (x: Input.Homology) ->
+    (OutputMap.induced PairMap.map).apply ((BeforeInduced.map).apply x) =
+    (AfterInduced.map).apply ((InputMap.induced PairMap.map).apply x) :=
+    Input.classInduction (\fun (x: Input.Homology) =>
+      (OutputMap.induced PairMap.map).apply ((BeforeInduced.map).apply x) =
+      (AfterInduced.map).apply ((InputMap.induced PairMap.map).apply x))
+      (\fun (x: Input.Cycle) => eq_reason_in!{TargetOutput.Homology _
+        "=" _ "by" { congr!{Output.Homology TargetOutput.Homology} ((OutputMap.induced PairMap.map).apply) _ _ (BeforeInduced.onClass x) }
+        "=" _ "by" { OutputMap.onClass PairMap.map (Before.cycle x) }
+        "=" _ "by" { TargetOutput.cycleClassExt ((OutputMap.cyclesMap PairMap.map).apply (Before.cycle x)) (After.cycle ((InputMap.cyclesMap PairMap.map).apply x)) (cycleLaw x) }
+        "=" _ "by" { sym!{TargetOutput.Homology} _ _ (AfterInduced.onClass ((InputMap.cyclesMap PairMap.map).apply x)) }
+        "=" _ "by" { congr!{TargetInput.Homology TargetOutput.Homology} ((AfterInduced.map).apply) _ _ (sym!{TargetInput.Homology} _ _ (InputMap.onClass PairMap.map x)) }
+      });
+}
