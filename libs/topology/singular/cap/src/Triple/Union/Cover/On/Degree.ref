@@ -17,12 +17,16 @@
 \import Modules.Hom[V := Small.Carrier n, W := Chains.Carrier n, source := Small.space n, target := Chains.space n] \as PushMaps;
 \import Modules.Free[Generators := SmallSimplices.Carrier n].To[W := Chains.Carrier n, target := Chains.space n] \as Free;
 \definition equality: PushMaps.Map := Reindex.push simplex;
-\definition same: \forall (x: Small.Carrier n) -> (inclusion).apply n x = (equality).apply x :=
-  Free.induction (\fun (x: Small.Carrier n) => (inclusion).apply n x = (equality).apply x)
-    (\fun (sigma: SmallSimplices.Carrier n) => trans!{{Chains.Carrier n}} _ _ _
+\definition included: PushMaps.Map := PushMaps.Map {
+  apply := (inclusion).apply n, addition := (inclusion).addition n, scalar := (inclusion).scalar n,
+};
+\definition mapsEqual: included = equality :=
+  Free.ext included equality (\fun (sigma: SmallSimplices.Carrier n) => trans!{{Chains.Carrier n}} _ _ _
       (congr!{{UnionChains.Carrier n} {Chains.Carrier n}} ((UnionMaps.At[n := n].push Relative.inclusion Relative.inclusionContinuous).apply) _ _ (Small.At[n := n].onGenerator sigma))
       (trans!{{Chains.Carrier n}} _ _ _ (UnionMaps.At[n := n].onGenerator Relative.inclusion Relative.inclusionContinuous sigma)
         (sym!{{Chains.Carrier n}} _ _ (Reindex.onGenerator simplex sigma))));
+\definition same: \forall (x: Small.Carrier n) -> (inclusion).apply n x = (equality).apply x :=
+  \fun (x: Small.Carrier n) => congr!{PushMaps.Map {Chains.Carrier n}} (\fun (f: PushMaps.Map) => f.apply x) _ _ mapsEqual;
 \import Modules.Hom[V := Small.Carrier n, W := Small.Carrier n, source := Small.space n, target := Small.space n] \as End;
 \definition leftInverse: \forall (x: Small.Carrier n) -> (retraction).apply ((inclusion).apply n x) = x :=
   \fun (x: Small.Carrier n) => trans!{{Small.Carrier n}} _ _ _
