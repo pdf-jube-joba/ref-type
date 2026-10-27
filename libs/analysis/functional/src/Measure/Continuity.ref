@@ -102,3 +102,24 @@
         (\fun (x: A) (member: Sets.Member (Sigma.increments f n) x) => member.left) (null n))) }
     "=" _ "by" { zeroSeries }
   };
+
+\definition Covers[f: N.Nat^ -> \Pow A] [n: N.Nat^]: \Set :=
+  \Cast[\Pow A] ({ U: \Pow A \where NullCover[mu, f n, U] });
+\definition nullUnion: \forall (f: N.Nat^ -> \Pow A) -> (\forall (n: N.Nat^) -> Null mu (f n)) -> Null mu (union f) :=
+  \fun (f: N.Nat^ -> \Pow A) (null: \forall (n: N.Nat^) -> Null mu (f n)) => \block {
+    \takefrom covers: \forall (n: N.Nat^) -> Covers f n \by
+      \axiom:classicalIndefiniteChoice(N.Nat^, (\fun (n: N.Nat^) => Covers f n), null) \then
+    \let law: \forall (n: N.Nat^) -> NullCover[mu, f n, covers n] :=
+      \fun (n: N.Nat^) => \bysub(\Pow A, { U: \Pow A \where NullCover[mu, f n, U] }, covers n) \then
+    \let sets: N.Nat^ -> \Pow A := \fun (n: N.Nat^) => covers n \then
+    \return Logic.existsIntro[\Pow A, { U: \Pow A \where NullCover[mu, union f, U] }] (union sets)
+      (NullCover[mu, union f, union sets] {
+        measurable := (Sigma.laws mu.sigma).countableUnion sets (\fun (n: N.Nat^) => (law n).measurable),
+        measure := measurableNullUnion sets (\fun (n: N.Nat^) => (law n).measurable) (\fun (n: N.Nat^) => (law n).measure),
+        included := \fun (x: A) (member: Sets.Member (union f) x) => \block {
+          \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Sets.Member (f n) x }) \by member \then
+          \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where Sets.Member (sets n) x }] n
+            ((law n).included x (\bysub(N.Nat^, { n: N.Nat^ \where Sets.Member (f n) x }, n)))
+        },
+      })
+  };
