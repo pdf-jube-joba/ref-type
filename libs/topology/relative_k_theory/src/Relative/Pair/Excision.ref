@@ -13,25 +13,29 @@
   topology.Continuity[A := Y, B := X].closedPreimage source space inclusion inclusionContinuous subset closed;
 \import \parent.Mapping[Y := Y, source := source, sourceCompact := compactSource, sourceHausdorff := hausdorffSource,
   sourceSubset := sourceSubset, sourceClosed := closedSource, f := inclusion, regular := inclusionContinuous, preserves := (\fun (y: Y)(member: \In[Y] sourceSubset y) => member)] \as Inclusion;
-\import Inclusion.Domain[] \as Domain;
-\import Inclusion.Range[] \as Range;
-\import Domain.SumProperties[] \as SourceSum;
-\import Range.SumProperties[] \as TargetSum;
+\import \root.Relative[].Pair[X := Y, space := source, compact := compactSource, hausdorff := hausdorffSource, subset := sourceSubset, closed := closedSource] \as DomainPair;
+\import DomainPair.Quotient[] \as Domain;
+\import \parent.Quotient[] \as Range;
+\import topological_constructions.Coproduct[A := Y, B := Domain.Point] \as DomainSum;
+\import topology.Topology[Carrier := Domain.Point] \as DomainPointSpace;
+\import DomainSum.Properties[left := source, right := DomainPointSpace.Discrete] \as SourceSum;
+\import topological_constructions.Coproduct[A := X, B := Range.Point] \as RangeSum;
+\import RangeSum.Properties[left := space, right := topology.Topology[Carrier := Range.Point].Discrete] \as TargetSum;
 \definition rawInjective: \forall (p, q: Domain.Augmented) -> Inclusion.raw p = Inclusion.raw q -> p = q :=
   \induction (p: Domain.Augmented) \return \forall (q: Domain.Augmented) -> Inclusion.raw p = Inclusion.raw q -> p = q \with {
-    | inl: \fun (x: Y) => \induction (q: Domain.Augmented) \return Inclusion.raw (Inclusion.SourceSum.inl x) = Inclusion.raw q -> Inclusion.SourceSum.inl x = q \with {
-      | inl: \fun (y: Y)(same: Inclusion.TargetSum.inl x = Inclusion.TargetSum.inl y) => congr!{Y {Domain.Augmented}} Inclusion.SourceSum.inl _ _ (TargetSum.leftInjective x y same)
-      | inr: \fun (y: Domain.Point)(same: Inclusion.TargetSum.inl x = Inclusion.TargetSum.inr y) => Logic.falseElim _ (TargetSum.leftRightDifferent x y same)
+    | inl: \fun (x: Y) => \induction (q: Domain.Augmented) \return Inclusion.raw (DomainSum.inl x) = Inclusion.raw q -> DomainSum.inl x = q \with {
+      | inl: \fun (y: Y)(same: RangeSum.inl x = RangeSum.inl y) => congr!{Y {Domain.Augmented}} DomainSum.inl _ _ (TargetSum.leftInjective x y same)
+      | inr: \fun (y: Domain.Point)(same: RangeSum.inl x = RangeSum.inr y) => Logic.falseElim _ (TargetSum.leftRightDifferent x y same)
     }
-    | inr: \fun (x: Domain.Point) => \induction (q: Domain.Augmented) \return Inclusion.raw (Inclusion.SourceSum.inr x) = Inclusion.raw q -> Inclusion.SourceSum.inr x = q \with {
-      | inl: \fun (y: Y)(same: Inclusion.TargetSum.inr x = Inclusion.TargetSum.inl y) => Logic.falseElim _ (TargetSum.leftRightDifferent y x (sym!{{Range.Augmented}} _ _ same))
-      | inr: \fun (y: Domain.Point)(same: Inclusion.TargetSum.inr x = Inclusion.TargetSum.inr y) => congr!{{Domain.Point} {Domain.Augmented}} Inclusion.SourceSum.inr _ _ (TargetSum.rightInjective x y same)
+    | inr: \fun (x: Domain.Point) => \induction (q: Domain.Augmented) \return Inclusion.raw (DomainSum.inr x) = Inclusion.raw q -> DomainSum.inr x = q \with {
+      | inl: \fun (y: Y)(same: RangeSum.inr x = RangeSum.inl y) => Logic.falseElim _ (TargetSum.leftRightDifferent y x (sym!{{Range.Augmented}} _ _ same))
+      | inr: \fun (y: Domain.Point)(same: RangeSum.inr x = RangeSum.inr y) => congr!{{Domain.Point} {Domain.Augmented}} DomainSum.inr _ _ (TargetSum.rightInjective x y same)
     }
   };
 \definition reflects: \forall (p: Domain.Augmented) -> \In[Range.Augmented] Range.collapsedPart (Inclusion.raw p) -> \In[Domain.Augmented] Domain.collapsedPart p :=
   \induction (p: Domain.Augmented) \return \In[Range.Augmented] Range.collapsedPart (Inclusion.raw p) -> \In[Domain.Augmented] Domain.collapsedPart p \with {
     | inl: \fun (x: Y)(member: Base.Member subset x) => member
-    | inr: \fun (x: Domain.Point)(member: Domain.PointSpace.Member Domain.PointSpace.Whole x) => member
+    | inr: \fun (x: Domain.Point)(member: DomainPointSpace.Member DomainPointSpace.Whole x) => member
   };
 \definition injective: \forall (q, r: Domain.Carrier) -> Inclusion.quotient q = Inclusion.quotient r -> q = r :=
   algebraic_topology.Collapse[A := Domain.Augmented, subset := Domain.collapsedPart].Mapping[B := Range.Augmented, targetSubset := Range.collapsedPart].injective
