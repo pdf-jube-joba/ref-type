@@ -1,0 +1,46 @@
+\import std.Alg[].Field[] \as Fields;
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := Fields.fieldAsCommutativeRing C.Complex C.Algebra[].field] \as Spaces;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := H.Complex[].scalar] \as Geometry;
+\import Geometry.Finite[n := m] \as RightE;
+\import Geometry.Finite[n := Ambient.dimension] \as TotalE;
+\import H.Over[K := C.Complex, field := C.Algebra[].field, scalar := H.Complex[].scalar, topological := H.Complex[].topological].At[n := n].Blocks[m := m] \as Block;
+\import H.Over[K := C.Complex, field := C.Algebra[].field, scalar := H.Complex[].scalar, topological := H.Complex[].topological].At[n := Ambient.dimension] \as TotalAt;
+\definition P[x: Source]: TotalAt.Projection := OldSum.P (oldPair x);
+\definition regularP: TotalAt.Families[X := Source].Matrix[m := Ambient.dimension].Regular sourceTopology (\fun (x: Source) => (P x).map) :=
+  \fun (v: TotalE.Vector)(i: Fin.Fin Ambient.dimension) => topology.Composition[A := Source, B := OldProduct.CarrierSet, C := C.Complex].composeContinuous sourceTopology
+    (OldProduct.topology Original.topology \root.Complex[n := m, k := l].topology) H.Complex[].topological.space oldPair
+    (\fun (x: OldProduct.CarrierSet) => (OldSum.P x).map.apply v i) oldPairContinuous (OldSum.regularP v i);
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := H.Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].Projection[X := Source, n := Ambient.dimension, baseSpace := sourceTopology, P := P, regular := regularP] \as Image;
+\import Bundles.Family[X := Carrier, F := Fiber].Of[bundle := bundle].Pullback[Y := Source, source := sourceTopology, f := left] \as LeftPull;
+\import Bundles.Family[X := Right.Carrier, F := Right.Fiber].Of[bundle := Right.bundle].Pullback[Y := Source, source := sourceTopology, f := right] \as RightPull;
+\definition leftContinuous: topology.Continuity[A := Source, B := Carrier].Continuous sourceTopology topology left := SourceMaps.firstContinuous topology Right.topology;
+\definition rightContinuous: topology.Continuity[A := Source, B := Right.Carrier].Continuous sourceTopology Right.topology right := SourceMaps.secondContinuous topology Right.topology;
+\definition LeftFiber[x: Source]: \Set := Fiber (left x);
+\definition RightFiber[x: Source]: \Set := Right.Fiber (right x);
+\definition leftBundle: Bundles.Family[X := Source, F := LeftFiber].Bundle := LeftPull.pulled leftContinuous;
+\definition rightBundle: Bundles.Family[X := Source, F := RightFiber].Bundle := RightPull.pulled rightContinuous;
+\import bundle_operations.Operations[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := H.Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].DirectSum[X := Source, F := LeftFiber, G := RightFiber, left := leftBundle, right := rightBundle] \as Sum;
+\definition sumBundle: Bundles.Family[X := Source, F := Sum.Fiber].Bundle := Sum.bundle (\refl(sourceTopology));
+\import Pair.Prop[A := E.Vector, B := RightE.Vector] \as VectorPair;
+\module At(x: Source);
+\module Forward;
+\module Backward;
+
+\import Bundles.Isomorphisms[X := Source, F := Sum.Fiber, G := Image.Fiber, source := sumBundle, target := Image.bundle] \as ImageIso;
+\definition imageIsomorphism: ImageIso.Isomorphism := ImageIso.Isomorphism {
+  forward := Forward[].map, backward := Backward[].map,
+  leftInverse := \fun (x: Source) => At[x := x].leftInverse,
+  rightInverse := \fun (x: Source) => At[x := x].rightInverse,
+};
+\import Target.Family[Y := Source, source := sourceTopology, P := P, regularP := regularP, rankP := \fun (x: Source) => OldSum.rankP (oldPair x)] \as TargetFamily;
+\import Bundles.Family[X := Target.Carrier, F := Target.Fiber].Of[bundle := Target.bundle].Pullback[Y := Source, source := sourceTopology, f := map] \as Pulled;
+\definition pulledBundle: Bundles.Family[X := Source, F := \fun (x: Source) => Target.Fiber (map x)].Bundle := Pulled.pulled continuous;
+\import Bundles.Isomorphisms[X := Source, F := \fun (x: Source) => Target.Fiber (map x), G := Image.Fiber, source := pulledBundle, target := Image.bundle] \as PullbackIso;
+\definition pullbackToImage: PullbackIso.Isomorphism := TargetFamily.isomorphism;
+
+\import bundle_operations.Operations[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := H.Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].IsomorphismComposition[X := Source, F := \fun (x: Source) => Target.Fiber (map x), G := Image.Fiber, H := Sum.Fiber, source := pulledBundle, middle := Image.bundle, target := sumBundle] \as Compose;
+\definition isomorphism: Bundles.Isomorphisms[X := Source, F := \fun (x: Source) => Target.Fiber (map x), G := Sum.Fiber, source := pulledBundle, target := sumBundle].Isomorphism := Compose.compose pullbackToImage (ImageIso.inverse imageIsomorphism);
