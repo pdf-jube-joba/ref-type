@@ -1,0 +1,28 @@
+\import E.Blocks[m := m] \as Ambient;
+\import linear_algebra.Hermitian[].Over[K := R.Real, field := R.Algebra[].field, scalar := H.Real[].scalar].Finite[n := k].Blocks[m := l] \as Domain;
+\import std.Data[].Pair[] \as Pair;
+\import \root.Real[n := m, k := l].Model[] \as Right;
+\import Original.DirectSum[m := m, l := l] \as OldSum;
+\import topological_constructions.Product[A := Carrier, B := Right.Carrier] \as SourceProduct;
+\import SourceProduct.Maps[] \as SourceMaps;
+\definition Source: \Set := SourceProduct.CarrierSet;
+\definition sourceTopology: topology.Topology[Carrier := Source].Topology := SourceProduct.topology topology Right.topology;
+\definition left[x: Source]: Carrier := Pair.first Carrier Right.Carrier x;
+\definition right[x: Source]: Right.Carrier := Pair.second Carrier Right.Carrier x;
+\import \root.Real[n := Ambient.dimension, k := Domain.dimension].Model[] \as Target;
+\import \root.Real[n := Ambient.dimension, k := Domain.dimension] \as OriginalTarget;
+\import topological_constructions.Product[A := Original.Grassmannian, B := \root.Real[n := m, k := l].Grassmannian] \as OldProduct;
+\import OldProduct.Universal[X := Source] \as Pairing;
+\definition oldLeft[x: Source]: Original.Grassmannian := toOriginal (left x);
+\definition oldRight[x: Source]: \root.Real[n := m, k := l].Grassmannian := Right.toOriginal (right x);
+\definition oldPair[x: Source]: OldProduct.CarrierSet := Pair.pair Original.Grassmannian \root.Real[n := m, k := l].Grassmannian (oldLeft x) (oldRight x);
+\definition oldPairContinuous: topology.Continuity[A := Source, B := OldProduct.CarrierSet].Continuous sourceTopology (OldProduct.topology Original.topology \root.Real[n := m, k := l].topology) oldPair :=
+  Pairing.pairContinuous sourceTopology Original.topology \root.Real[n := m, k := l].topology oldLeft oldRight
+    (topology.Composition[A := Source, B := Carrier, C := Original.Grassmannian].composeContinuous sourceTopology topology Original.topology left toOriginal (SourceMaps.firstContinuous topology Right.topology) toOriginalContinuous)
+    (topology.Composition[A := Source, B := Right.Carrier, C := \root.Real[n := m, k := l].Grassmannian].composeContinuous sourceTopology Right.topology \root.Real[n := m, k := l].topology right Right.toOriginal (SourceMaps.secondContinuous topology Right.topology) Right.toOriginalContinuous);
+\definition map[x: Source]: Target.Carrier := Target.fromOriginal (OldSum.map (oldPair x));
+\definition continuous: topology.Continuity[A := Source, B := Target.Carrier].Continuous sourceTopology Target.topology map :=
+  topology.Composition[A := Source, B := OriginalTarget.Grassmannian, C := Target.Carrier].composeContinuous sourceTopology OriginalTarget.topology Target.topology
+    (\fun (x: Source) => OldSum.map (oldPair x)) Target.fromOriginal
+    (topology.Composition[A := Source, B := OldProduct.CarrierSet, C := OriginalTarget.Grassmannian].composeContinuous sourceTopology (OldProduct.topology Original.topology \root.Real[n := m, k := l].topology) OriginalTarget.topology oldPair OldSum.map oldPairContinuous OldSum.continuous)
+    Target.fromOriginalContinuous;
