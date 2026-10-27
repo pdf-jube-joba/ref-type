@@ -395,3 +395,29 @@
 \definition positiveScaleAdd: \forall (c: Real.Real) (v, w: Value) -> R.Lt Real.zero c -> scale c (add v w) = add (scale c v) (scale c w) :=
   \fun (c: Real.Real) (v, w: Value) (positive: R.Lt Real.zero c) =>
     \axiom:setext(scale c (add v w), add (scale c v) (scale c w), positiveScaleAddForward c v w positive, positiveScaleAddReverse c v w positive);
+
+\definition scaleAdd: \forall (c: Real.Real) (v, w: Value) -> R.Le Real.zero c -> NonnegativeValue[v] -> NonnegativeValue[w] ->
+  scale c (add v w) = add (scale c v) (scale c w) :=
+  \fun (c: Real.Real) (v, w: Value) (nonnegative: R.Le Real.zero c) (vl: NonnegativeValue[v]) (wl: NonnegativeValue[w]) =>
+    Logic.orElim _ _ (scale c (add v w) = add (scale c v) (scale c w)) (std.Logic[].Classical[].excludedMiddle (c = Real.zero))
+      (\fun (eq: c = Real.zero) => \idelim Real.zero = c \with t: Real.Real => scale t (add v w) = add (scale t v) (scale t w)
+        \by { base: eq_reason_in!{Value _
+          "=" _ "by" { zeroScale (add v w) (addNonnegative v w vl wl) }
+          "=" _ "by" { sym!{Value} _ _ (addZero zero zeroNonnegative) }
+          "=" _ "by" { congr!{Value Value Value} add _ _ _ _ (sym!{Value} _ _ (zeroScale v vl)) (sym!{Value} _ _ (zeroScale w wl)) }
+        }, equality: sym!{Real.Real} _ _ eq })
+      (\fun (notZero: Logic.Not (c = Real.zero)) => positiveScaleAdd c v w
+        (Order.ltOfLeNotEq Real.zero c nonnegative (\fun (eq: Real.zero = c) => notZero (sym!{Real.Real} _ _ eq))));
+\definition scaleSum: \forall (n: N.Nat^) (c: Real.Real) (f: Fin.Fin n -> Value) -> R.Le Real.zero c ->
+  (\forall (i: Fin.Fin n) -> NonnegativeValue[f i]) -> scale c (sum n f) = sum n (\fun (i: Fin.Fin n) => scale c (f i)) :=
+  \induction (n: N.Nat^) \return \forall (c: Real.Real) (f: Fin.Fin n -> Value) -> R.Le Real.zero c ->
+    (\forall (i: Fin.Fin n) -> NonnegativeValue[f i]) -> scale c (sum n f) = sum n (\fun (i: Fin.Fin n) => scale c (f i)) \with {
+      | zero: \fun (c: Real.Real) (f: Fin.Fin N.Nat^::zero -> Value) (nonnegative: R.Le Real.zero c) (_: _) => scaleZeroValue c nonnegative
+      | succ: \fun (n: N.Nat^) (previous: _) (c: Real.Real) (f: Fin.Fin (N.Nat^::succ n) -> Value) (nonnegative: R.Le Real.zero c) (laws: _) =>
+        eq_reason_in!{Value _
+          "=" _ "by" { scaleAdd c (f (Fin.zero n)) (sum n (\fun (i: Fin.Fin n) => f (Fin.succ n i))) nonnegative
+            (laws (Fin.zero n)) (sumNonnegative n (\fun (i: Fin.Fin n) => f (Fin.succ n i)) (\fun (i: Fin.Fin n) => laws (Fin.succ n i))) }
+          "=" _ "by" { congr!{Value Value} (add (scale c (f (Fin.zero n)))) _ _
+            (previous c (\fun (i: Fin.Fin n) => f (Fin.succ n i)) nonnegative (\fun (i: Fin.Fin n) => laws (Fin.succ n i))) }
+        }
+    };
