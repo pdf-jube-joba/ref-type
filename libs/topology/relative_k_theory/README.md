@@ -126,10 +126,13 @@ K07 の影響先検査は最終検査に含める。
 枠付き束の三つ組を被約群へ戻すと元の枠付き束の値になり、商上の束の三つ組の値がその束と基点ランクの自明束との差へ戻ることを示す。
 `ReducedRetraction` はランク零の束の差で自明束の次元が一致することを使って逆向きの往復を示し、`Comparison` は両方向の準同型と逆の等式を公開する。
 これにより三つ組の群と商の被約群との比較同型は対象検査を完了した。
-最新の未検証変更は `Pair.Exact`・`Reduced.Constant` と `Composition.Suspended`・`Identity.Suspended`。
-それぞれ被約群側の忘却・制限の完全性、定数写像の零性と収縮可能な空間での被約群の零性、suspension の合成・恒等写像の法則を示す。
-固定 snapshot は `work/k03-resume/sequence-foundations.source.json`。
-次は `relative_k_theory.Relative` 内の `Pair.Exact`・`Reduced.Constant`・`Composition.Suspended`・`Identity.Suspended` を順に検査する。
+`Pair.Exact` は `sequence-foundations-Pair-Exact` で accepted・終了0・キャッシュ保存失敗0。
+被約群側の忘却・制限の完全性と、忘却の加法性・零性・三つ組上の式を公開する。
+最新の未検証変更は `Reduced.Constant`、`Composition`・`Identity` の suspension・反復・負次数の法則、`Group.NormalForm`。
+定数写像の零性と収縮可能な空間での被約群の零性、負次数の恒等・合成則、任意の群の元を一つの三つ組で表すことを示す。
+`sequence-foundations-Reduced-Constant` は一点の通常の K 群の零元を被約群の等式として渡す部分で失敗し、被約群上の `pointZero` を明示した。
+固定 snapshot は `work/k03-resume/sequence-functors.source.json`。
+次は `relative_k_theory.Relative` 内の `Reduced.Constant`・`Composition`・`Identity`・`Pair.Group.NormalForm` を順に検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。
