@@ -1,0 +1,51 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import singular_cohomology.Cochains[A := A, source := source].With[coefficients := Whole.integerCoefficients] \as Theory;
+\import \parent.\parent.Comparison[n := N.Nat^::succ p] \as LeftHigher;
+\import \parent.\parent.Comparison[n := N.Nat^::succ q] \as RightHigher;
+\import \parent.\parent.Comparison[n := N.Nat^::succ WholeProduct.total] \as ResultHigher;
+\import Left.Commutes[] \as LeftCommutes;
+\import Right.Commutes[] \as RightCommutes;
+\import Result.Commutes[] \as ResultCommutes;
+\import WholeProduct.Closed[] \as CupClosed;
+\definition leftUnderlying: \forall (alpha: RelativeCochains.Carrier (I.Int^::ofNat p)) ->
+  (RelativeCochains.complex.differential).apply (I.Int^::ofNat p) alpha = (RelativeCochains.space (I.Int^::ofNat (N.Nat^::succ p))).zero ->
+  Theory.coboundary p (Left.from alpha) = (Whole.space (N.Nat^::succ p)).zero :=
+  \fun (alpha: RelativeCochains.Carrier (I.Int^::ofNat p))(closed: _) => eq_reason_in!{{Whole.Carrier (N.Nat^::succ p)} _
+    "=" _ "by" { sym!{{Whole.Carrier (N.Nat^::succ p)}} _ _ (LeftCommutes.law alpha) }
+    "=" _ "by" { congr!{{RelativeCochains.Carrier (I.Int^::ofNat (N.Nat^::succ p))} {Whole.Carrier (N.Nat^::succ p)}} LeftHigher.from _ _ closed }
+    "=" _ "by" { LeftHigher.zero }
+  };
+\definition rightUnderlying: \forall (beta: RelativeCochains.Carrier (I.Int^::ofNat q)) ->
+  (RelativeCochains.complex.differential).apply (I.Int^::ofNat q) beta = (RelativeCochains.space (I.Int^::ofNat (N.Nat^::succ q))).zero ->
+  Theory.coboundary q (Right.from beta) = (Whole.space (N.Nat^::succ q)).zero :=
+  \fun (beta: RelativeCochains.Carrier (I.Int^::ofNat q))(closed: _) => eq_reason_in!{{Whole.Carrier (N.Nat^::succ q)} _
+    "=" _ "by" { sym!{{Whole.Carrier (N.Nat^::succ q)}} _ _ (RightCommutes.law beta) }
+    "=" _ "by" { congr!{{RelativeCochains.Carrier (I.Int^::ofNat (N.Nat^::succ q))} {Whole.Carrier (N.Nat^::succ q)}} RightHigher.from _ _ closed }
+    "=" _ "by" { RightHigher.zero }
+  };
+\definition leftLaw: \forall (alpha: RelativeCochains.Carrier (I.Int^::ofNat p))(beta: Whole.Carrier q) ->
+  (RelativeCochains.complex.differential).apply (I.Int^::ofNat p) alpha = (RelativeCochains.space (I.Int^::ofNat (N.Nat^::succ p))).zero ->
+  Theory.coboundary q beta = (Whole.space (N.Nat^::succ q)).zero ->
+  (RelativeCochains.complex.differential).apply (I.Int^::ofNat WholeProduct.total) (left alpha beta) = (RelativeCochains.space (I.Int^::ofNat (N.Nat^::succ WholeProduct.total))).zero :=
+  \fun (alpha: RelativeCochains.Carrier (I.Int^::ofNat p))(beta: Whole.Carrier q)(aClosed: _)(bClosed: _) =>
+    ResultHigher.injective _ _ (eq_reason_in!{{Whole.Carrier (N.Nat^::succ WholeProduct.total)} _
+      "=" _ "by" { ResultCommutes.law (left alpha beta) }
+      "=" _ "by" { congr!{{Whole.Carrier WholeProduct.total} {Whole.Carrier (N.Nat^::succ WholeProduct.total)}} (Theory.coboundary WholeProduct.total) _ _ (leftRestriction alpha beta) }
+      "=" _ "by" { CupClosed.law (Left.from alpha) beta (leftUnderlying alpha aClosed) bClosed }
+      "=" _ "by" { sym!{{Whole.Carrier (N.Nat^::succ WholeProduct.total)}} _ _ ResultHigher.zero }
+    });
+\definition rightLaw: \forall (alpha: Whole.Carrier p)(beta: RelativeCochains.Carrier (I.Int^::ofNat q)) ->
+  Theory.coboundary p alpha = (Whole.space (N.Nat^::succ p)).zero ->
+  (RelativeCochains.complex.differential).apply (I.Int^::ofNat q) beta = (RelativeCochains.space (I.Int^::ofNat (N.Nat^::succ q))).zero ->
+  (RelativeCochains.complex.differential).apply (I.Int^::ofNat WholeProduct.total) (right alpha beta) = (RelativeCochains.space (I.Int^::ofNat (N.Nat^::succ WholeProduct.total))).zero :=
+  \fun (alpha: Whole.Carrier p)(beta: RelativeCochains.Carrier (I.Int^::ofNat q))(aClosed: _)(bClosed: _) =>
+    ResultHigher.injective _ _ (eq_reason_in!{{Whole.Carrier (N.Nat^::succ WholeProduct.total)} _
+      "=" _ "by" { ResultCommutes.law (right alpha beta) }
+      "=" _ "by" { congr!{{Whole.Carrier WholeProduct.total} {Whole.Carrier (N.Nat^::succ WholeProduct.total)}} (Theory.coboundary WholeProduct.total) _ _ (rightRestriction alpha beta) }
+      "=" _ "by" { CupClosed.law alpha (Right.from beta) aClosed (rightUnderlying beta bClosed) }
+      "=" _ "by" { sym!{{Whole.Carrier (N.Nat^::succ WholeProduct.total)}} _ _ ResultHigher.zero }
+    });
