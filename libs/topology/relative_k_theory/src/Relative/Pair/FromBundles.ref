@@ -1,0 +1,33 @@
+\definition inclusion[x: A]: X := x;
+\definition regular: topology.Continuity[A := A, B := X].Continuous subspace space inclusion := topology.Continuity[A := A, B := X].Corestriction[S := subset].inclusionContinuous space;
+\definition sourceRegular: topology.Continuity[A := A, B := X].Continuous subspace source.baseSpace inclusion :=
+  \idelim space = source.baseSpace \with t: Base.Topology => topology.Continuity[A := A, B := X].Continuous subspace t inclusion \by {
+    base: regular, equality: sym!{{Base.Topology}} _ _ sourceSame };
+\definition targetRegular: topology.Continuity[A := A, B := X].Continuous subspace target.baseSpace inclusion :=
+  \idelim space = target.baseSpace \with t: Base.Topology => topology.Continuity[A := A, B := X].Continuous subspace t inclusion \by {
+    base: regular, equality: sym!{{Base.Topology}} _ _ targetSame };
+\import Bundles.Family[X := X, F := F].Of[bundle := source].Pullback[Y := A, source := subspace, f := inclusion] \as FirstPull;
+\import Bundles.Family[X := X, F := G].Of[bundle := target].Pullback[Y := A, source := subspace, f := inclusion] \as SecondPull;
+\definition restrictedSource: Bundles.Family[X := A, F := (\fun (x: A) => F x)].Bundle := FirstPull.pulled sourceRegular;
+\definition restrictedTarget: Bundles.Family[X := A, F := (\fun (x: A) => G x)].Bundle := SecondPull.pulled targetRegular;
+\import Bundles.Isomorphisms[X := A, F := (\fun (x: A) => F x), G := (\fun (x: A) => G x), source := restrictedSource, target := restrictedTarget] \as Boundary;
+\definition OnSubset: \Set := Boundary.Isomorphism;
+\import Absolute.Bundle[F := F, original := source, same := sourceSame] \as FirstClass;
+\import Absolute.Bundle[F := G, original := target, same := targetSame] \as SecondClass;
+\definition positiveValue: Absolute.Classes := FirstClass.value;
+\definition negativeValue: Absolute.Classes := SecondClass.value;
+\structure Result[alpha: OnSubset]: \Set := {
+  value: Triple,
+  positive: FirstClass.Isomorphism value.positive,
+  negative: SecondClass.Isomorphism value.negative,
+  agrees: \forall (x: A)(v: F x) ->
+    (value.comparison.forward.fiber x).apply ((positive.forward.fiber x).apply v) = (negative.forward.fiber x).apply ((alpha.forward.fiber x).apply v)
+};
+\module With(alpha: OnSubset, p, q: Presentation, positive: FirstClass.Isomorphism p, negative: SecondClass.Isomorphism q);
+\definition existence[alpha: OnSubset]: \exists Result[alpha] := \block {
+  \takefrom p: FirstClass.Representative \by FirstClass.representativeExists \then
+  \takefrom q: SecondClass.Representative \by SecondClass.representativeExists \then
+  \return \exact(With[alpha := alpha, p := p.presentation, q := q.presentation, positive := p.isomorphism, negative := q.isomorphism].result, Result[alpha])
+};
+\definition positiveClass[alpha: OnSubset][result: Result[alpha]]: positiveValue = Absolute.class result.value.positive := FirstClass.identified result.value.positive result.positive;
+\definition negativeClass[alpha: OnSubset][result: Result[alpha]]: negativeValue = Absolute.class result.value.negative := SecondClass.identified result.value.negative result.negative;

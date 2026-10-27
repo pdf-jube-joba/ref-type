@@ -42,6 +42,7 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 | 忘却・制限写像、生成元の制限先での零性 | `exactness-linear` |
 | 基点付き同値と反復 suspension の K 群の同型 | `invariance-Equivalence` |
 | 切除の商の同相と負次数群の同型 | `invariance-Excision` |
+| 忘却写像の像が制限写像の核に入ること | `restriction-kernel` |
 | 補束による三つ組の正規化と降下への接続 | `triple-normalize` |
 | 境界の自明化と両立する写像のファイバー上の構成 | `framed-maps` |
 
@@ -83,8 +84,10 @@ worker 内のログは共有キャッシュ直下の `.check-<PID>-0/stderr` と
 忘却・制限・切除・基点付き同値の各 module でも内部 import alias の参照を修正したが、これらは未検証。
 `exactness-linear` で忘却・制限と生成元での零性が accepted・終了0・キャッシュ保存失敗0。
 `invariance-Equivalence` と `invariance-Excision` はどちらも accepted・終了0・キャッシュ保存失敗0。
-`Group.Forget.Kernel` に制限先での零性を群全体へ拡張する証明を追加したが未検証。
-固定 snapshot は `work/k03-resume/restriction-kernel.source.json` で、次は `Relative.Pair.Group.Forget.Kernel` を検査する。
+`restriction-kernel` は accepted・終了0・キャッシュ保存失敗0。
+`Pair.FromBundles` に一般の二つの束と境界上の同型から三つ組を構成し、元の束との比較を返す API を追加したが未検証。
+`bundle_operations.Operations.Over.TrivialPullback` に自明束の標準的な引き戻し同型を追加したが未検証。
+固定 snapshot は `work/k03-resume/bundles-representatives.source.json` で、次は自明束の引き戻しと一般の束の表示を順に検査する。
 次は共有 suspension と列挙 API、基点外の写像、行列の降下、基点近傍の写像、選択独立性、忘却準同型、切除の順に対象検査を行う。
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定し、JSON 報告と実行シェルの終了コードも保存する。
 

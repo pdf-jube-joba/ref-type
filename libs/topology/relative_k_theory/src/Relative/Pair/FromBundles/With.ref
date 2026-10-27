@@ -1,0 +1,19 @@
+\import \parent.\parent.Restricted[p := p] \as Positive;
+\import \parent.\parent.Restricted[p := q] \as Negative;
+\import Complements.PulledIsomorphism[X := X, Y := A, F := F, G := Absolute.Fiber p, source := source, target := Absolute.bundle p,
+  base := subspace, f := inclusion, sourceRegular := sourceRegular, targetRegular := regular] \as PositivePull;
+\import Complements.PulledIsomorphism[X := X, Y := A, F := G, G := Absolute.Fiber q, source := target, target := Absolute.bundle q,
+  base := subspace, f := inclusion, sourceRegular := targetRegular, targetRegular := regular] \as NegativePull;
+\import Bundles.Isomorphisms[X := A, F := (\fun (x: A) => F x), G := Positive.Fiber, source := restrictedSource, target := Positive.bundle] \as PositiveIsomorphisms;
+\import Operations.IsomorphismComposition[X := A, F := Positive.Fiber, G := (\fun (x: A) => F x), H := (\fun (x: A) => G x),
+  source := Positive.bundle, middle := restrictedSource, target := restrictedTarget] \as First;
+\definition start: First.Isomorphism := First.compose (PositiveIsomorphisms.inverse (PositivePull.isomorphism positive)) alpha;
+\import Operations.IsomorphismComposition[X := A, F := Positive.Fiber, G := (\fun (x: A) => G x), H := Negative.Fiber,
+  source := Positive.bundle, middle := restrictedTarget, target := Negative.bundle] \as Second;
+\definition triple: Triple := Triple { positive := p, negative := q, comparison := Second.compose start (NegativePull.isomorphism negative) };
+\import Bundles.Isomorphisms[X := X, F := F, G := Absolute.Fiber p, source := source, target := Absolute.bundle p] \as GlobalPositive;
+\definition agreement: \forall (x: A)(v: F x) -> (triple.comparison.forward.fiber x).apply ((positive.forward.fiber x).apply v) =
+  (negative.forward.fiber x).apply ((alpha.forward.fiber x).apply v) :=
+  \fun (x: A)(v: F x) => congr!{{F x} {Absolute.Fiber q x}} (\fun (w: F x) => (negative.forward.fiber x).apply ((alpha.forward.fiber x).apply w)) _ _
+    ((\bysub(GlobalPositive.Data, GlobalPositive.Isomorphism, positive)).leftInverse x v);
+\definition result: Result[alpha] := Result[alpha] { value := triple, positive := positive, negative := negative, agrees := agreement };
