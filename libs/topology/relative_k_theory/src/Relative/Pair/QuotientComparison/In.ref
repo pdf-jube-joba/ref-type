@@ -1,0 +1,23 @@
+\import Raw.In[c := c, contains := contains] \as Boundary;
+\import \parent.\parent.QuotientReconstruction[F := F, bundle := bundle, same := same].In[c := c, contains := contains] \as Reconstruction;
+\import \parent.\parent.FramedTriple[F := Raw.Fiber, sourceModel := Based.model, n := c.dimension].With[alpha := Boundary.comparison, result := result] \as TripleComparison;
+\import \parent.\parent.FramedClass[F := Raw.Fiber, sourceModel := Based.model, n := c.dimension].With[alpha := Boundary.comparison] \as Framed;
+\import \root.Relative[].Descent[X := X, F := Raw.Fiber, bundle := Raw.pulled, compact := compact, hausdorff := hausdorff,
+  subset := subset, closed := closed, dimension := c.dimension].With[comparison := Boundary.comparison] \as Descended;
+\import Descended.Construction[extension := Reconstruction.extension] \as Construction;
+\import K.Compare[F := Descended.Fiber, G := F, first := Construction.bundleOnQuotient, second := bundle, firstSame := Construction.sameBaseSpace, secondSame := same] \as Compare;
+\definition raw: Raw.Witness := Raw.Witness {
+  chart := \into[Charts.Chart](c, { c: Charts.Chart \where QuotientBase.Member c.domain Quotient.point }) \by { contains }, result := result
+};
+\definition equation: underlying (Forward.map Class.value) = K0.difference BundleClass.value (K.Trivial[n := c.dimension].value) :=
+  trans!{{K0.Carrier}} _ _ _
+    (congr!{{Quotient.Relative} {K0.Carrier}} underlying _ _
+      (trans!{{Quotient.Relative}} _ _ _ (congr!{{\parent.\parent.Group[].Carrier} {Quotient.Relative}} Forward.map _ _ (Class.agreement raw)) TripleComparison.mapEquation))
+    (trans!{{K0.Carrier}} _ _ _ (congr!{{Quotient.Relative} {K0.Carrier}} underlying _ _ (Framed.agreement Reconstruction.extension))
+      (congr!{{K.Classes} {K0.Carrier}} (\fun (a: K.Classes) => K0.difference a (K.Trivial[n := c.dimension].value)) _ _ (Compare.ofIsomorphism Reconstruction.isomorphism)));
+\definition rankEquation: Ranks.classes BundleClass.value Quotient.point = Ranks.natural c.dimension :=
+  trans!{{std.Arithmetic[].Int[].Int^}} _ _ _
+    (congr!{{K.IntegerFunctions[].Carrier} {std.Arithmetic[].Int[].Int^}} (\fun (f: K.IntegerFunctions[].Carrier) => f Quotient.point) _ _ BundleRank.onBundle)
+    (congr!{{N.Nat^} {std.Arithmetic[].Int[].Int^}} Ranks.natural _ _
+      (Bundles.Family[X := Quotient.Carrier, F := F].Of[bundle := bundle].rankFrame Quotient.point c.dimension
+        (c.frame (\into[Quotient.Carrier](Quotient.point, c.domain) \by { contains }))));
