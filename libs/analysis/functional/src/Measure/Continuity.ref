@@ -72,3 +72,33 @@
             (Sigma.prefixContainsCurrent f n) r (\bysub(N.Nat^, { n: N.Nat^ \where below (mu.value (f n)) r }, n)))
       }) }
   };
+
+\import \root.Measure[A := A].ValueLaws[] \as Values;
+\definition zeroLaw: NonnegativeValue[zero] := \idelim mu.value Sets.Empty = zero \with v: Value => NonnegativeValue[v]
+  \by { base: Finite.laws.nonnegative Sets.Empty (Sigma.laws mu.sigma).empty, equality: Finite.laws.empty };
+\definition zeroPartial: \forall (n: N.Nat^) -> partialSum (\fun (_: N.Nat^) => zero) n = zero :=
+  \induction (n: N.Nat^) \return partialSum (\fun (_: N.Nat^) => zero) n = zero \with {
+    | zero: \refl(zero)
+    | succ: \fun (n: N.Nat^) (previous: _) => eq_reason_in!{Value _
+      "=" _ "by" { congr!{Value Value} (\fun (v: Value) => add v zero) _ _ previous }
+      "=" _ "by" { Values.addZero zero zeroLaw }
+    }
+  };
+\definition zeroSeries: series (\fun (_: N.Nat^) => zero) = zero :=
+  \axiom:setext(series (\fun (_: N.Nat^) => zero), zero,
+    \fun (r: Real.Real) (member: below (series (\fun (_: N.Nat^) => zero)) r) => \block {
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where below (partialSum (\fun (_: N.Nat^) => zero) n) r }) \by member \then
+      \return \idelim partialSum (\fun (_: N.Nat^) => zero) n = zero \with v: Value => below v r
+        \by { base: \bysub(N.Nat^, { n: N.Nat^ \where below (partialSum (\fun (_: N.Nat^) => zero) n) r }, n), equality: zeroPartial n }
+    },
+    \fun (r: Real.Real) (member: below zero r) => Logic.existsIntro[N.Nat^, { n: N.Nat^ \where below (partialSum (\fun (_: N.Nat^) => zero) n) r }] N.Nat^::zero member);
+\definition measurableNullUnion: \forall (f: N.Nat^ -> \Pow A) -> (\forall (n: N.Nat^) -> Measurable mu.sigma (f n)) ->
+  (\forall (n: N.Nat^) -> mu.value (f n) = zero) -> mu.value (union f) = zero :=
+  \fun (f: N.Nat^ -> \Pow A) (measurable: \forall (n: N.Nat^) -> Measurable mu.sigma (f n)) (null: \forall (n: N.Nat^) -> mu.value (f n) = zero) => eq_reason_in!{Value _
+    "=" _ "by" { congr!{{\Pow A} Value} mu.value _ _ (sym!{{\Pow A}} _ _ (Sigma.incrementUnion f)) }
+    "=" _ "by" { Finite.laws.countableAdditivity (Sigma.increments f) (Sigma.incrementsMeasurable mu.sigma f measurable) (Sigma.incrementsDisjoint f) }
+    "=" _ "by" { congr!{{N.Nat^ -> Value} Value} series _ _ (\axiom:funext((\fun (n: N.Nat^) => mu.value (Sigma.increments f n)), (\fun (_: N.Nat^) => zero),
+      \fun (n: N.Nat^) => Finite.subsetZero (Sigma.increments f n) (f n) (Sigma.incrementsMeasurable mu.sigma f measurable n) (measurable n)
+        (\fun (x: A) (member: Sets.Member (Sigma.increments f n) x) => member.left) (null n))) }
+    "=" _ "by" { zeroSeries }
+  };
