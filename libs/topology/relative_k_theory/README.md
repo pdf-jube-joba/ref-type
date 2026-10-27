@@ -28,9 +28,11 @@
 次の検査は近傍の枠で親の `Fiber` 定義と import alias が衝突して終了1となり、alias を `FiberModel` へ変更した。
 B09 の指定同型の近傍延長から、商の基点の開近傍とその上の枠を構成した。
 一点付加商の基点の補集合と元の閉部分空間の補集合の同相も構成した。
-降下のこれらの構成は未検証であり、次は `Relative.Descent` を固定 snapshot と共有キャッシュで検査する。
+降下のファイバー・近傍の枠 `Relative.Descent` と基点外の同相 `Relative.Pair.Quotient.Outside` は、`work/k03-resume/outside-batch-*` で accepted・終了0・キャッシュ保存失敗0。
+束としての貼り合わせ、元の束との比較と商群比較はまだ未完成。
+共通 API `Atlas.Using.Overlap` と `fromTransitions` を追加したため、次はこの座標変換の構成を固定 snapshot と共有キャッシュで検査する。
 崩壊商の基点の補集合と元の閉部分空間の補集合の同相 `Collapse.Outside` を追加し、これも未検証。
-検査には最新の `work/k03-resume/descent-outside.source.json` を使う。
+検査には最新の `work/k03-resume/atlas.source.json` を使う。
 各検査には `--source-snapshot` を指定する。
 作業の保存先は [Draft PR #50](https://github.com/pdf-jube-joba/ref-type/pull/50)。
 対象検査は `target/debug/cli libs --module topological_constructions.Coproduct.Properties --memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact --report-json work/k03-resume/coproduct.json`。

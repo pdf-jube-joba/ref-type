@@ -1,0 +1,56 @@
+\import \parent.\parent.In[c := chart i] \as Left;
+\import \parent.\parent.In[c := chart j] \as Right;
+\import std.Data[].Pair[] \as Pair;
+\import topology.Topology[Carrier := Right.Parameter] \as Parameters;
+\definition Domain: \Pow Right.Parameter := { p: Right.Parameter \where Base.Member (chart i).domain (Right.base p) };
+\definition Point: \Set := \Cast[Right.Parameter] Domain;
+\definition leftCenter[p: Point]: \Cast[X] (chart i).domain := \into[X](Right.base p, (chart i).domain) \by { \bysub(Right.Parameter, Domain, p) };
+\definition rightCenter[p: Point]: \Cast[X] (chart j).domain := Pair.first (\Cast[X] (chart j).domain) (Vector (chart j).dimension) p;
+\definition change[p: Point]: Left.Parameter := Pair.pair (\Cast[X] (chart i).domain) (Vector (chart i).dimension) (leftCenter p)
+  (((chart i).frame (leftCenter p)).forward.apply (((chart j).frame (rightCenter p)).backward.apply (Right.vector p)));
+\import topology.Maps[A := Point, B := Left.Parameter] \as Changes;
+\import Parameters.Subspace[S := Domain].Open[] \as Inclusion;
+\definition Preimage[V: \Pow Left.Parameter]: \Pow Right.Parameter := Inclusion.image (Changes.Preimage change V);
+\import \parent.\parent.In[c := chart i] \as LeftParameter;
+\import \parent.\parent.In[c := chart j] \as RightParameter;
+\import topology.Topology[Carrier := Family.Point] \as Total;
+\definition agreement: \forall (p: Point) -> LeftParameter.parameter (change p) = RightParameter.parameter p :=
+  \fun (p: Point) => congr!{{F (Right.base p)} Family.Point} (Family.include (Right.base p)) _ _
+    (((chart i).frame (leftCenter p)).leftInverse (((chart j).frame (rightCenter p)).backward.apply (Right.vector p)));
+\import topology.Maps[A := Right.Parameter, B := Family.Point] \as RightSets;
+\import topology.Maps[A := Left.Parameter, B := Family.Point] \as LeftSets;
+\definition preimageFormula: \forall (V: \Pow Left.Parameter) -> Preimage V = RightSets.Preimage RightParameter.parameter (LeftParameter.Image V) :=
+  \fun (V: \Pow Left.Parameter) => \axiom:setext(Preimage V, RightSets.Preimage RightParameter.parameter (LeftParameter.Image V),
+    \fun (p: Right.Parameter)(member: _) => Inclusion.imageElim (Changes.Preimage change V) p (Total.Member (LeftParameter.Image V) (RightParameter.parameter p))
+      (\fun (q: Point)(inV: _)(same: q = p) => \idelim q = p \with r: Right.Parameter => Total.Member (LeftParameter.Image V) (RightParameter.parameter r) \by {
+        base: \idelim LeftParameter.parameter (change q) = RightParameter.parameter q \with e: Family.Point => Total.Member (LeftParameter.Image V) e \by {
+          base: LeftParameter.imageMember V (change q) inV, equality: agreement q
+        }, equality: same
+      }) member,
+    \fun (p: Right.Parameter)(member: _) => LeftSets.imageElim LeftParameter.parameter V (RightParameter.parameter p) (Parameters.Member (Preimage V) p)
+      (\fun (q: Left.Parameter)(inV: _)(same: LeftParameter.parameter q = RightParameter.parameter p) => \block {
+        \let center: Base.Member ((chart i).domain) (Right.base p) := \idelim (LeftParameter.parameter q).base = (RightParameter.parameter p).base
+          \with x: X => Base.Member ((chart i).domain) x \by {
+            base: \bysub(X, domain i, Left.base q), equality: congr!{Family.Point X} Family.projection _ _ same
+          } \then
+        \let overlap: Point := \into[Right.Parameter](p, Domain) \by { center } \then
+        \let coordinate: q = change overlap := LeftParameter.injective q (change overlap)
+          (trans!{Family.Point} _ _ _ same (sym!{Family.Point} _ _ (agreement overlap))) \then
+        \return Inclusion.imageMember (Changes.Preimage change V) overlap
+          (\idelim q = change overlap \with r: Left.Parameter => topology.Topology[Carrier := Left.Parameter].Member V r \by { base: inV, equality: coordinate })
+      }) member);
+\import topological_constructions.Product[A := \Cast[X] ((chart j).domain), B := Vector ((chart j).dimension)] \as Product;
+\import Product.Maps[] \as Projections;
+\import Base.Subspace[S := domain j] \as BaseSubspace;
+\import topology.Composition[A := Right.Parameter, B := \Cast[X] ((chart j).domain), C := X] \as BaseComposition;
+\definition baseContinuous: topology.Continuity[A := Right.Parameter, B := X].Continuous Right.topology baseSpace Right.base :=
+  BaseComposition.composeContinuous Right.topology (BaseSubspace.topology baseSpace) baseSpace
+    (Pair.first (\Cast[X] ((chart j).domain)) (Vector ((chart j).dimension))) (\fun (x: \Cast[X] ((chart j).domain)) => x)
+    (Projections.firstContinuous (BaseSubspace.topology baseSpace) (coordinateTopology ((chart j).dimension)))
+    (\fun (U: \Pow X)(open: _) => BaseSubspace.traceOpen baseSpace U open);
+\definition domainOpen: \forall (open: Base.IsOpenIn baseSpace ((chart i).domain)) -> Parameters.IsOpenIn Right.topology Domain :=
+  \fun (open: _) => baseContinuous ((chart i).domain) open;
+\definition Regular: \Prop := topology.Continuity[A := Point, B := Left.Parameter].Continuous (Parameters.Subspace[S := Domain].topology Right.topology) Left.topology change;
+\definition preimageOpen: \forall (open: Base.IsOpenIn baseSpace ((chart i).domain)) -> Regular -> \forall (V: \Pow Left.Parameter) ->
+  topology.Topology[Carrier := Left.Parameter].IsOpenIn Left.topology V -> Parameters.IsOpenIn Right.topology (Preimage V) :=
+  \fun (open: _)(regular: Regular)(V: _)(openV: _) => Inclusion.imageOpen Right.topology (domainOpen open) (Changes.Preimage change V) (regular V openV);
