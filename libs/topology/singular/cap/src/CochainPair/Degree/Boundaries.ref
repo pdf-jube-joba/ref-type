@@ -1,0 +1,33 @@
+\import chain_complexes.Integer[].Over[R := R, ring := Rings.commutativeRingAsRing R ring] \as Complexes;
+\module At(n: N.Nat^) {
+  \import Complexes.At[C := RelativeRing.complex, z := I.Int^::ofNat n] \as Native;
+  \import Modules.Of[V := Carrier n, space := space n].Submodule[] \as Submodules;
+  \definition Member[x: Carrier n]: \Prop := Submodules.Member Native.boundaries x;
+  \definition zero: Member (space n).zero := Submodules.zeroClosed Native.boundaries;
+}
+\definition Member[n: N.Nat^][x: Carrier n]: \Prop := At[n := n].Member x;
+\definition zero[n: N.Nat^]: Member n (space n).zero := At[n := n].zero;
+\definition preserves: \forall (m, n: N.Nat^)(same: m = n)(x: Carrier m) -> Member m x -> Member n (apply m n same x) :=
+  \fun (m, n: N.Nat^)(same: m = n)(x: Carrier m) => Transport.predicate Carrier (\fun (k: N.Nat^)(y: Carrier k) => Member k y) m n same x;
+\definition reflects: \forall (m, n: N.Nat^)(same: m = n)(x: Carrier m) -> Member n (apply m n same x) -> Member m x :=
+  \fun (m, n: N.Nat^)(same: m = n)(x: Carrier m)(member: Member n (apply m n same x)) =>
+    \idelim apply n m (sym!{N.Nat^} m n same) (apply m n same x) = x \with y: Carrier m => Member m y \by {
+      base: preserves n m (sym!{N.Nat^} m n same) (apply m n same x) member,
+      equality: Transport.castInverse Carrier m n same x
+    };
+\module Signs(n: N.Nat^) {
+  \import Modules.Alternating[V := Carrier n, space := space n].Concatenation[] \as Alternating;
+  \import Modules.Of[V := Carrier n, space := space n].Submodule[] \as Submodules;
+  \import Complexes.At[C := RelativeRing.complex, z := I.Int^::ofNat n] \as Native;
+  \definition preserves: \forall (p: N.Nat^)(x: Carrier n) -> Member n x -> Member n (Alternating.twist p x) :=
+    \induction (p: N.Nat^) \return \forall (x: Carrier n) -> Member n x -> Member n (Alternating.twist p x) \with {
+      | zero: \fun (x: Carrier n)(member: Member n x) => member
+      | succ: \fun (p: N.Nat^)(previous: _)(x: Carrier n)(member: Member n x) => Submodules.negativeClosed Native.boundaries (Alternating.twist p x) (previous x member)
+    };
+  \definition reflects: \forall (p: N.Nat^)(x: Carrier n) -> Member n (Alternating.twist p x) -> Member n x :=
+    \fun (p: N.Nat^)(x: Carrier n)(member: Member n (Alternating.twist p x)) =>
+      \idelim Alternating.twist p (Alternating.twist p x) = x \with y: Carrier n => Member n y \by {
+        base: preserves p (Alternating.twist p x) member,
+        equality: Alternating.involution p x
+      };
+}
