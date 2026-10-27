@@ -1,0 +1,25 @@
+\definition original: Triple := normalized.value;
+\import \parent.\parent.\parent.\parent.\parent.TrivialNegative[t := original, n := normalized.dimension] \as FramingModel;
+\import FramingModel.With[h := normalized.trivialization] \as Framing;
+\import \parent.\parent.\parent.\parent.\parent.FramedClass[F := (Absolute.Fiber original.positive), sourceModel := FramingModel.model, n := normalized.dimension].With[
+  alpha := Framing.comparison].EmptyKernel[empty := empty] \as Vanishing;
+\import Bundles.Trivial[X := X, n := normalized.dimension, baseSpace := space] \as Trivial;
+\import Absolute.Compare[F := (Absolute.Fiber original.negative), G := (\fun (x: X) => Bundles.Vector normalized.dimension),
+  first := (Absolute.bundle original.negative), second := Trivial.bundle, firstSame := (\refl(space)), secondSame := (\refl(space))] \as Negative;
+\definition negativeClass: Absolute.class original.negative = Absolute.Trivial[n := normalized.dimension].value :=
+  trans!{{Absolute.Classes}} _ _ _ (sym!{{Absolute.Classes}} _ _ (Absolute.Realized[p := original.negative].equation)) (Negative.ofIsomorphism normalized.trivialization);
+\definition normalizedForget: map (value original) = map (value t) := congr!{{Carrier} {K.Carrier}} map _ _ (sym!{{Carrier}} _ _ normalized.equality);
+\definition differenceZero: map (value t) = K.zero -> K.difference (Absolute.class original.positive) (Absolute.class original.negative) = K.zero :=
+  \fun (given: map (value t) = K.zero) => trans!{{K.Carrier}} _ _ _ (sym!{{K.Carrier}} _ _ (onTriple original)) (trans!{{K.Carrier}} _ _ _ normalizedForget given);
+\definition originalEquality: map (value t) = K.zero -> K.include (Absolute.class original.positive) = K.include (Absolute.class original.negative) :=
+  \fun (given: map (value t) = K.zero) => Additive.cancelRight (K.neg (K.include (Absolute.class original.negative))) _ _
+    (trans!{{K.Carrier}} _ _ _ (differenceZero given) (sym!{{K.Carrier}} _ _ (Additive.inverseRight (K.include (Absolute.class original.negative)))));
+\definition positiveEquality: map (value t) = K.zero -> K.include (Absolute.Realized[p := original.positive].value) = K.include (Absolute.Trivial[n := normalized.dimension].value) :=
+  \fun (given: map (value t) = K.zero) => trans!{{K.Carrier}} _ _ _ (congr!{{Absolute.Classes} {K.Carrier}} K.include _ _ (Absolute.Realized[p := original.positive].equation))
+    (trans!{{K.Carrier}} _ _ _ (originalEquality given) (congr!{{Absolute.Classes} {K.Carrier}} K.include _ _ negativeClass));
+\definition imageZero: map (value t) = K.zero -> Forward.map (value t) = ReducedGroup.zero :=
+  \fun (given: map (value t) = K.zero) => trans!{{ReducedQuotient.Relative}} _ _ _ (congr!{{Carrier} {ReducedQuotient.Relative}} Forward.map _ _ normalized.equality)
+    (trans!{{ReducedQuotient.Relative}} _ _ _ (Forward.onTriple original)
+      (trans!{{ReducedQuotient.Relative}} _ _ _ Framing.equation (Vanishing.equation (positiveEquality given))));
+\definition equation: map (value t) = K.zero -> value t = zero := \fun (given: map (value t) = K.zero) => Compare.injective (value t) zero
+  (trans!{{ReducedQuotient.Relative}} _ _ _ (imageZero given) (sym!{{ReducedQuotient.Relative}} _ _ Forward.preservesZero));

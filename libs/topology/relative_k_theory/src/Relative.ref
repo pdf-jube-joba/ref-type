@@ -65,11 +65,19 @@
 \module Equivalence(source, target: CompactPointed);
 \module FiberTransport(Y: \Set, F: Y -> \Set, bundle: Bundles.Family[X := Y, F := F].Bundle);
 \module Cone(original: CompactPointed);
-\structure ClosedPointedPair: \Set(1) := {
-  model: CompactPointed,
+\structure ClosedPairDetails[model: CompactPointed]: \Set := {
   subset: \Pow model.Carrier,
   closed: topology.Topology[Carrier := model.Carrier].IsClosedIn (details model).topology subset,
   containsPoint: topology.Topology[Carrier := model.Carrier].Member subset (details model).point
+};
+\structure ClosedPointedPair: \Set(1) := {
+  model: CompactPointed,
+  dataLift: \forall (X: \Set) -> (ClosedPairDetails[model] -> X) -> X
+};
+\definition pairDetails[pair: ClosedPointedPair]: ClosedPairDetails[pair.model] :=
+  pair.dataLift ClosedPairDetails[pair.model] (\fun (d: ClosedPairDetails[pair.model]) => d);
+\definition packPair[model: CompactPointed][data: ClosedPairDetails[model]]: ClosedPointedPair := ClosedPointedPair {
+  model := model, dataLift := \fun (X: \Set)(f: ClosedPairDetails[model] -> X) => f data
 };
 \module PointedPair(pair: ClosedPointedPair);
 \definition iteratePair[n: N.Nat^][original: ClosedPointedPair]: ClosedPointedPair :=

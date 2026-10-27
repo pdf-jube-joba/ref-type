@@ -57,21 +57,25 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 最後の中断の後続対象 `Backward`・比較全体は未実行。
 計測により、未確定の module 参照から依存範囲が無関係のコホモロジーへ広がっていることを確認した。
 `RawMap` の明示 import と `Rotation` 内の兄弟 module の明示参照を追加した。
-旧プロセスの終了と報告を確認し、次の固定 snapshot で計測付き検査を行う。
+旧プロセスは終了130・`interrupted`・保存失敗0で回収した。
+参照修正後の検査は約64秒でルート宣言のエラーを報告した（終了1・`rejected`・保存失敗0）。
+`ClosedPointedPair` の小さい集合への射影が large elimination に該当したため、既存の `CompactPointed` と同じ消去形式で詳細を保持するよう修正した。
+空の空間の K 群の消滅と、空の境界での三つ組の忘却の逆写像も追加したが、対象検査は未完了。
+次の固定 snapshot で検査を続ける。
 
 ```bash
 REF_TYPE_PROFILE_DECLARATIONS=1 REF_TYPE_PROFILE_PHASES=1 \
   target/debug/cli libs/topology/relative_k_theory \
   --module relative_k_theory.Relative.Pair.Pointed.Cofiber.BaseQuotient.Raw \
   --memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 \
-  --diagnostics compact --report-json work/k03-resume/raw-profile.json \
-  --source-snapshot work/k03-resume/explicit-imports.source.json \
-  > work/k03-resume/raw-profile.log 2>&1
+  --diagnostics compact --report-json work/k03-resume/closed-pair-raw.json \
+  --source-snapshot work/k03-resume/closed-pair-lift.source.json \
+  > work/k03-resume/closed-pair-raw.log 2>&1
 result=$?
-printf '%s\n' "$result" > work/k03-resume/raw-profile.exit
+printf '%s\n' "$result" > work/k03-resume/closed-pair-raw.exit
 ```
 
-`explicit-imports.source.json` は現在の数学コードの固定 snapshot。
+`closed-pair-lift.source.json` は現在の数学コードの固定 snapshot。
 対象検査の完了時は終了コード・JSON の `outcome`・`storage.save_failures`・`checking.cache_write_failures` を確認する。
 次に `BaseQuotient.Backward`・`BaseQuotient` の比較全体、新しい五項の列と反復の対象検査を進める。
 

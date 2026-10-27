@@ -1,0 +1,37 @@
+\import \parent.\parent.\parent.Group[] \as Triples;
+\import Triples.NormalForm[] \as NormalForm;
+\import Triples.ToReduced[] \as Forward;
+\import \parent.\parent.\parent.Comparison[] \as Compare;
+\import \parent.\parent.\parent.Quotient[] \as ReducedQuotient;
+\import algebra.Group[].Of[Carrier := ReducedQuotient.Relative, group := ReducedQuotient.group] \as ReducedGroup;
+\import algebra.Group[].Of[Carrier := Carrier, group := group] \as GroupOperations;
+\module On(t: Triple);
+\definition kernel: \forall (x: Carrier) -> map x = K.zero -> x = zero := \block {
+  \fun (x: Carrier)(zeroValue: map x = K.zero) \then
+  \takefrom t: \Cast[Triple] ({ t: Triple \where value t = x }) \by NormalForm.existence x \then
+  \return trans!{{Carrier}} _ _ _ (sym!{{Carrier}} _ _ (\bysub(Triple, { t: Triple \where value t = x }, t)))
+    (On[t := t].equation (trans!{{K.Carrier}} _ _ _ (congr!{{Carrier} {K.Carrier}} map _ _ (\bysub(Triple, { t: Triple \where value t = x }, t))) zeroValue))
+};
+\definition differenceZero: \forall (x, y: Carrier) -> map x = map y -> map (GroupOperations.difference x y) = K.zero :=
+  \fun (x, y: Carrier)(same: map x = map y) => trans!{{K.Carrier}} _ _ _ (additive x (neg y))
+    (trans!{{K.Carrier}} _ _ _ (congr!{{K.Carrier} {K.Carrier}} (K.add (map x)) _ _ (Linear.negativePreserved linear y))
+      (trans!{{K.Carrier}} _ _ _ (congr!{{K.Carrier} {K.Carrier}} (\fun (z: K.Carrier) => K.add z (K.neg (map y))) _ _ same) (Additive.inverseRight (map y))));
+\definition injective: \forall (x, y: Carrier) -> map x = map y -> x = y :=
+  \fun (x, y: Carrier)(same: map x = map y) => GroupOperations.cancelRight (neg y) x y
+    (trans!{{Carrier}} _ _ _ (kernel (GroupOperations.difference x y) (differenceZero x y same)) (sym!{{Carrier}} _ _ (GroupOperations.inverseRight y)));
+\import \parent.Exact[] \as Existence;
+\import \parent.\parent.\parent.Restriction[] \as Restriction;
+\import KTheory.On[X := A, baseSpace := subspace, compact := Restriction.compactSubset, hausdorff := Restriction.hausdorffSubset].Empty[empty := empty] \as EmptySubset;
+\definition onto: \forall (x: K.Carrier) -> \exists (v: Carrier \where map v = x) :=
+  \fun (x: K.Carrier) => Existence.preimage x (EmptySubset.equation (Restriction.map x));
+\definition Values[x: K.Carrier]: \Set := \Cast[Carrier] ({ v: Carrier \where map v = x });
+\definition inverse[x: K.Carrier]: Values x := \choice (Values x) \by {
+  existence: onto x,
+  uniqueness: \fun (v, w: Values x) => injective v w
+    (trans!{{K.Carrier}} _ _ _ (\bysub(Carrier, { v: Carrier \where map v = x }, v))
+      (sym!{{K.Carrier}} _ _ (\bysub(Carrier, { w: Carrier \where map w = x }, w))))
+};
+\definition leftInverse: \forall (v: Carrier) -> inverse (map v) = v :=
+  \fun (v: Carrier) => injective _ v (\bysub(Carrier, { w: Carrier \where map w = map v }, inverse (map v)));
+\definition rightInverse: \forall (x: K.Carrier) -> map (inverse x) = x :=
+  \fun (x: K.Carrier) => \bysub(Carrier, { v: Carrier \where map v = x }, inverse x);
