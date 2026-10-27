@@ -64,3 +64,34 @@
           (previous (\fun (k: N.Nat^) (i: Fin.Fin n) => f k (Fin.succ n i)) (\fun (i: Fin.Fin n) => g (Fin.succ n i))
             (\fun (i: Fin.Fin n) => approaches (Fin.succ n i)))
     };
+
+\import real.Analysis[].Geometric[q := Real.half] \as Dyadic;
+\import real.Analysis[].Estimates[] \as E;
+\import real.Analysis[].Estimates[].Product[] \as Product;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].congr;
+\definition shrinkValue[k: N.Nat^]: Real.Real := Real.sub Real.one (Dyadic.value (N.Nat^::succ k));
+\definition shrink[k: N.Nat^]: Shrink := \into[Real.Real](shrinkValue k, { c: Real.Real \where Logic.And[R.Le Real.zero c, R.Lt c Real.one] }) \by {
+  Logic.And[_, _]::#
+    (Distance.subNonnegative Real.one (Dyadic.value (N.Nat^::succ k))
+      (Limits.dyadicDecreasing (N.Nat^::succ k) N.Nat^::zero (Nat.zeroLe (N.Nat^::succ k))))
+    (SquareRoot.subBelow Real.one (Dyadic.value (N.Nat^::succ k)) (Limits.dyadicPositive (N.Nat^::succ k)))
+};
+\definition shrinkDistance: \forall (k: N.Nat^) -> Real.distance (shrinkValue k) Real.one = Dyadic.value (N.Nat^::succ k) :=
+  \fun (k: N.Nat^) => eq_reason_in!{Real.Real _
+    "=" _ "by" { Distance.distanceSymmetric (shrinkValue k) Real.one }
+    "=" _ "by" { sym!{Real.Real} _ _ (E.distanceDifference Real.one (shrinkValue k)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.distance x Real.zero) _ _ (Algebra.subSub Real.one (Dyadic.value (N.Nat^::succ k))) }
+    "=" _ "by" { Distance.distanceSymmetric (Dyadic.value (N.Nat^::succ k)) Real.zero }
+    "=" _ "by" { Product.absOfNonnegative (Dyadic.value (N.Nat^::succ k)) (RealOrder.leOfLt Real.zero _ (Limits.dyadicPositive (N.Nat^::succ k))) }
+  };
+\definition shrinkConverges: Sequence.Converges shrinkValue Real.one :=
+  \fun (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) => \block {
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt (Dyadic.value n) epsilon }) \by Limits.dyadicSmall epsilon positive \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequence.LimitControl shrinkValue Real.one epsilon k }] k
+      (\fun (n: N.Nat^) (later: Nat.Le k n) => R.ltReplaceLeft (Dyadic.value (N.Nat^::succ n)) (Real.distance (shrinkValue n) Real.one) epsilon
+        (sym!{Real.Real} _ _ (shrinkDistance n))
+        ((\bysub(N.Nat^, { k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt (Dyadic.value n) epsilon }, k)) (N.Nat^::succ n)
+          (Nat.leTrans k n (N.Nat^::succ n) later (Nat.leSelfSucc n))))
+  };
