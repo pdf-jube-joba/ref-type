@@ -23,6 +23,9 @@
 `hermitian_frames` は射影の直交補とブロック和を提供する。
 元の `Real.Grassmannian`・`Complex.Grassmannian` は射影構造体に基づく補助表現で、Model との両方向の連続写像と Model 側の往復等式を提供する。
 
+`Stabilization.ambientBundleIsomorphism` と `dimensionBundleIsomorphism` の右辺は、各因子の普遍束を直和の基底から安定化の基底へ順に引き戻した束の直和である。
+同型の基底写像が公開する安定化写像と一致することは `ambientMapFormula` と `dimensionMapFormula` が示す。
+
 検査と再開方法は `work/b05-resume.md` に記載する。
 
 対象と依存先の検査結果は [検査記録](../../../benchmarks/records/grassmannians/README.md) にある。

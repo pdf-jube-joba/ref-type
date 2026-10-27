@@ -1,24 +1,30 @@
 # B05 検査記録
 
-検査対象 commit: `08599c12`。基点 main: `bd8fd86d5368968ff22e06f81beb5469bc348623`。
-専用 worktree の `libs/refcache/` を利用し、300秒上限で実行した。
+検査対象の実装 commit: `f95b954edfc59eb2616b977863e49bd3e43606ea`。基点 main: `bd8fd86d5368968ff22e06f81beb5469bc348623`。
+処理系 SHA-256: `6ad1ed33c8ada906086b47d9367becfe019fc4631522ee4d7bc4fb5594e57630`。
+対象の `.ref` と manifest の SHA-256: `442cb6e9fe8eefc3e567caaef0e8aa99707983450296a241cb08580541424363`。
+入力ハッシュはパスの辞書順で `path + NUL + contents + NUL` を連結して計算した。
 
-| 検査 | 結果 | 再検査 module | 再利用 module | ソースステップ |
-| --- | --- | --- | --- | --- |
-| 対象 `--full-check-local` | accepted | 4 | 421 | 19 |
-| 依存込み通常検査 | accepted | 0 | 1396 | 0 |
+専用 worktree の `libs/refcache/` を共有し、既定の3072 MiB制限、worker 1、各300秒上限で実行した。
+対象の全宣言を `--full-check-local` で再検査し、依存閉包は入力を照合したキャッシュを利用した。
+束基盤の回帰検査も同じキャッシュ運用で実施した。
 
-依存込み検査の最初の実行は、実行中のソース変更を検出して中断された。
-ソースを commit・push した後、対象・依存込みの順に再実行して上記の結果を得た。
-グラフ座標、コンパクト性、普遍束、安定化、直和、直交補、射影空間と束の比較は未実装であり、それらの検査は未実行。
+| 検査 | 結果 | 再検査 module | ソースステップ | 再利用 module | 経過秒 | 最大 RSS MiB |
+| --- | --- | --- | --- | --- | --- | --- |
+| 対象 full-check-local | accepted | 90 | 1433 | 621 | 25.625 | 2056.9 |
+| 対象依存閉包 | accepted | 0 | 0 | 711 | 3.607 | 661.3 |
+| bundle_complements 回帰 | accepted | 109 | 1337 | 511 | 19.430 | 1578.5 |
 
-## 継続作業の検査
+三検査とも終了コード0、キャッシュ保存失敗・worker 復旧・重複実行・再実行・失われたステップは0。
+生の記録は [対象](final-target.json)、[依存閉包](final-closure.json)、[束回帰](final-bundle.json)。
 
-`80281272` の対象 `--full-check-local` は accepted、16 module・235 steps を再検査し543 module を再利用した。
-同じ commit の workspace 全体の通常検査は300秒の時間上限で未完了、終了コード2。
-対象依存閉包の `--module grassmannians` の通常検査は accepted、559 module を再利用しキャッシュ保存失敗は0。
-グラフ表示の追加後は実モジュールの個別検査が accepted、複素側と全体の検査はまだ必要。
+```sh
+/workspace/ref-type/target/debug/cli libs/geometry/grassmannians --module grassmannians --full-check-local --cache-stats --diagnostics compact --time-limit-seconds 300 --report-json work/b05-finish-target.json
+/workspace/ref-type/target/debug/cli libs/geometry/grassmannians --module grassmannians --cache-stats --diagnostics compact --time-limit-seconds 300 --report-json work/b05-finish-closure.json
+/workspace/ref-type/target/debug/cli libs/geometry/bundle_complements --module bundle_complements --cache-stats --diagnostics compact --time-limit-seconds 300 --report-json work/b05-finish-bundle.json
+```
 
-`8054ce96` の対象 `--full-check-local` は accepted、28 module・464 steps を再検査し550 module を再利用した。
-対象依存閉包の通常検査は accepted、578 module を再利用し、両検査のキャッシュ保存失敗は0。
-結果は [model6-target.json](model6-target.json) と [model6-closure.json](model6-closure.json) に保存した。
+開発中にはソース変更を検出した依存検査の中断、複素側の名前衝突・型推論エラーがあり、修正して最終検査で再検査した。
+workspace 全体を対象にした通常検査は300秒上限で未完了だったため、対象依存閉包の結果と区別する。
+Rust 処理系は変更しておらず、Rust テストは未実行。
+他の履歴 JSON は各時点の中間検査である。
