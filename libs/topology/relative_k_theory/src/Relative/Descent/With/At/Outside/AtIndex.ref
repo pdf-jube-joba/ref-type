@@ -1,0 +1,29 @@
+\definition Family[x: Index]: \Set := F x;
+\import std.Logic[].Equality[].Transport[A := Index] \as Transport;
+\definition vectors[v: F index][x: Index]: F x := Transport.cast Family index x (unique index x) v;
+\definition data[v: F index]: Ambient.Carrier := Ambient.make coordinates.zero (vectors v);
+\definition compatible: \forall (v: F index) -> Compatible[data v] := \fun (v: F index) => Compatible[data v] {
+  outside := \fun (outside: _) => \refl(coordinates.zero),
+  boundary := \fun (x: Subspace.CarrierSet)(same: Quotient.projection x = q) =>
+    Logic.falseElim ((comparison.forward.fiber x).apply (vectors v (over x same)) = coordinates.zero)
+      (different (trans!{{Quotient.Carrier}} _ _ _ (sym!{{Quotient.Carrier}} _ _ same) (Quotient.onSubset x)))
+};
+\definition backward[v: F index]: Carrier := \into[Ambient.Carrier](data v, valid) \by { compatible v };
+\definition leftInverse: \forall (v: Carrier) -> backward (section v index) = v := \fun (v: Carrier) => ext (backward (section v index)) v
+  (sym!{Vector} _ _ ((laws v).outside different))
+  (\fun (x: Index) => Transport.pointNatural Family (section v) index x (unique index x));
+\definition rightInverse: \forall (v: F index) -> section (backward v) index = v := \fun (v: F index) => Transport.castRefl Family index v;
+\definition backwardLinear: Spaces.Linear[V := F index, W := Carrier, source := bundle.space index, target := space].Map :=
+  Spaces.Linear[V := F index, W := Carrier, source := bundle.space index, target := space].Map {
+    apply := backward,
+    preservesAdd := \fun (v, w: F index) => ext (backward ((bundle.space index).add v w)) (space.add (backward v) (backward w))
+      (sym!{Vector} _ _ (CoordinateLaws.zeroLeft coordinates.zero))
+      (\fun (x: Index) => Transport.binaryNatural Family Family Family (\fun (x: Index) => (bundle.space x).add) index x (unique index x) v w),
+    preservesScale := \fun (a: C.Complex)(v: F index) => ext (backward ((bundle.space index).smul a v)) (space.smul a (backward v))
+      (sym!{Vector} _ _ (CoordinateLaws.scaleZero a))
+      (\fun (x: Index) => Transport.natural Family Family (\fun (x: Index) => (bundle.space x).smul a) index x (unique index x) v)
+  };
+\definition isomorphism: Spaces.Isomorphism[V := Carrier, W := F index, source := space, target := bundle.space index].Isomorphism :=
+  Spaces.Isomorphism[V := Carrier, W := F index, source := space, target := bundle.space index].Isomorphism {
+    forward := evaluation index, backward := backwardLinear, leftInverse := leftInverse, rightInverse := rightInverse
+  };
