@@ -47,7 +47,11 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 同じ検査の成功は未確認で、診断ログ付きで原因を確認する。
 次は新しい snapshot を保存し、共有キャッシュで `relative_k_theory.Relative.Pair.FramedMaps.With.Between` を検査する。
 `Pair.FramedIsomorphisms` は逆写像の境界整合性と降下上の逆法則、`Pair.FramedChoices` は同じ境界枠での近傍の選択によらない同型を追加したが未検証。
-最新の構文検査 snapshot は `work/k03-resume/framed-comparison-fixed.source.json`。
+`FramedChoices.With.Value` は基点ランク零の差の元を構成するが未検証。
+`Pair.Excision` は開集合を閉部分空間の内部から取り除いた対と元の対の商の間の同相を構成するが未検証。
+共通の `Collapse.Mapping.injective` と `Coproduct.Properties.rightInjective` を併せて追加した。
+診断付きの `framed-outside-diagnostic` は snapshot `framed-comparison-fixed.source.json` の検査中で、依存先の検査が進行している。
+次の範囲を検査する前に、最新のソースから snapshot を作り直す。
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定し、JSON 報告と実行シェルの終了コードも保存する。
 
 残る主な要件は、選択に依存しない三つ組の群と商空間の被約群の比較、完全列・切除・Mayer–Vietoris・外積と自然性、円板球面対への適用と具体例。

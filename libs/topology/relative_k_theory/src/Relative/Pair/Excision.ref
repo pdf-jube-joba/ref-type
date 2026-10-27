@@ -1,0 +1,59 @@
+\use Logic.either;
+\import Base.Subspace[S := Base.Complement U] \as Complement;
+\definition Y: \Set := Complement.CarrierSet;
+\definition source: topology.Topology[Carrier := Y].Topology := Complement.topology space;
+\definition compactSource: topology.Topology[Carrier := Y].IsCompact source := Complement.Properties[].compact space
+  (Base.Compactness[].closedCompact space compact (Base.Complement U) (Base.Finite[].openComplementClosed space U open));
+\definition hausdorffSource: topology.Topology[Carrier := Y].IsT2 source := Complement.Properties[].hausdorff space hausdorff;
+\definition sourceSubset: \Pow Y := { y: Y \where Base.Member subset y };
+\definition inclusion[y: Y]: X := y;
+\definition inclusionContinuous: topology.Continuity[A := Y, B := X].Continuous source space inclusion :=
+  topology.Continuity[A := Y, B := X].Corestriction[S := Base.Complement U].inclusionContinuous space;
+\definition closedSource: topology.Topology[Carrier := Y].IsClosedIn source sourceSubset :=
+  topology.Continuity[A := Y, B := X].closedPreimage source space inclusion inclusionContinuous subset closed;
+\import \parent.Mapping[Y := Y, source := source, sourceCompact := compactSource, sourceHausdorff := hausdorffSource,
+  sourceSubset := sourceSubset, sourceClosed := closedSource, f := inclusion, regular := inclusionContinuous, preserves := (\fun (y: Y)(member: \In[Y] sourceSubset y) => member)] \as Inclusion;
+\import Inclusion.Domain[] \as Domain;
+\import Inclusion.Range[] \as Range;
+\import Domain.SumProperties[] \as SourceSum;
+\import Range.SumProperties[] \as TargetSum;
+\definition rawInjective: \forall (p, q: Domain.Augmented) -> Inclusion.raw p = Inclusion.raw q -> p = q :=
+  \induction (p: Domain.Augmented) \return \forall (q: Domain.Augmented) -> Inclusion.raw p = Inclusion.raw q -> p = q \with {
+    | inl: \fun (x: Y) => \induction (q: Domain.Augmented) \return Inclusion.raw (Inclusion.SourceSum.inl x) = Inclusion.raw q -> Inclusion.SourceSum.inl x = q \with {
+      | inl: \fun (y: Y)(same: Inclusion.TargetSum.inl x = Inclusion.TargetSum.inl y) => congr!{Y {Domain.Augmented}} Inclusion.SourceSum.inl _ _ (TargetSum.leftInjective x y same)
+      | inr: \fun (y: Domain.Point)(same: Inclusion.TargetSum.inl x = Inclusion.TargetSum.inr y) => Logic.falseElim _ (TargetSum.leftRightDifferent x y same)
+    }
+    | inr: \fun (x: Domain.Point) => \induction (q: Domain.Augmented) \return Inclusion.raw (Inclusion.SourceSum.inr x) = Inclusion.raw q -> Inclusion.SourceSum.inr x = q \with {
+      | inl: \fun (y: Y)(same: Inclusion.TargetSum.inr x = Inclusion.TargetSum.inl y) => Logic.falseElim _ (TargetSum.leftRightDifferent y x (sym!{{Range.Augmented}} _ _ same))
+      | inr: \fun (y: Domain.Point)(same: Inclusion.TargetSum.inr x = Inclusion.TargetSum.inr y) => congr!{{Domain.Point} {Domain.Augmented}} Inclusion.SourceSum.inr _ _ (TargetSum.rightInjective x y same)
+    }
+  };
+\definition reflects: \forall (p: Domain.Augmented) -> \In[Range.Augmented] Range.collapsedPart (Inclusion.raw p) -> \In[Domain.Augmented] Domain.collapsedPart p :=
+  \induction (p: Domain.Augmented) \return \In[Range.Augmented] Range.collapsedPart (Inclusion.raw p) -> \In[Domain.Augmented] Domain.collapsedPart p \with {
+    | inl: \fun (x: Y)(member: Base.Member subset x) => member
+    | inr: \fun (x: Domain.Point)(member: Domain.PointSpace.Member Domain.PointSpace.Whole x) => member
+  };
+\definition injective: \forall (q, r: Domain.Carrier) -> Inclusion.quotient q = Inclusion.quotient r -> q = r :=
+  algebraic_topology.Collapse[A := Domain.Augmented, subset := Domain.collapsedPart].Mapping[B := Range.Augmented, targetSubset := Range.collapsedPart].injective
+    Inclusion.raw Inclusion.respects rawInjective reflects;
+\definition onto: \forall (q: Range.Carrier) -> \exists (p: Domain.Carrier \where Inclusion.quotient p = q) :=
+  \fun (q: Range.Carrier) => either!{{(std.Logic[].Classical[].excludedMiddle (q = Range.point))} {\exists (p: Domain.Carrier \where Inclusion.quotient p = q)}
+    {\fun (same: q = Range.point) => Logic.existsIntro[Domain.Carrier, { p: Domain.Carrier \where Inclusion.quotient p = q }] Domain.point
+      (trans!{{Range.Carrier}} _ _ _ (algebraic_topology.Pointed[A := Domain.Carrier].Maps[B := Range.Carrier].laws Domain.pointed Range.pointed Inclusion.quotientMap).pointed (sym!{{Range.Carrier}} _ _ same))}
+    {\block {
+      \fun (different: Logic.Not (q = Range.point)) \then
+      \takefrom x: \Cast[X] ({ x: X \where Range.projection x = q }) \by Range.representative q different \then
+      \let same: Range.projection x = q := \bysub(X, { x: X \where Range.projection x = q }, x) \then
+      \let y: Y := \into[X](x, Base.Complement U) \by {
+        \fun (member: Base.Member U x) => different (trans!{{Range.Carrier}} _ _ _ (sym!{{Range.Carrier}} _ _ same)
+          (Range.onSubset (\into[X](x, subset) \by { included x member })))
+      } \then
+      \return Logic.existsIntro[Domain.Carrier, { p: Domain.Carrier \where Inclusion.quotient p = q }] (Domain.projection y)
+        (trans!{{Range.Carrier}} _ _ _ (Inclusion.onProjection y) same)
+    }}
+  };
+\import topological_constructions.CompactQuotient[A := Domain.Carrier, B := Range.Carrier, source := Domain.topology, target := Range.topology, q := Inclusion.quotient] \as CompactQuotient;
+\import topology.Homeomorphism[A := Domain.Carrier, B := Range.Carrier] \as Homeomorphisms;
+\definition homeomorphism: Homeomorphisms.Homeomorphism[Domain.topology, Range.topology] :=
+  Homeomorphisms.OfQuotient[f := Inclusion.quotient].homeomorphism Domain.topology Range.topology injective onto Inclusion.quotientContinuous
+    (CompactQuotient.quotientMap Domain.quotientCompact Range.quotientHausdorff Inclusion.quotientContinuous onto).reflectsOpen;
