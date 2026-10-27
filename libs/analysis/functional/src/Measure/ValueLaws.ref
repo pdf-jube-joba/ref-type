@@ -188,3 +188,19 @@
           (included (Fin.zero n)) (previous (\fun (i: Fin.Fin n) => f (Fin.succ n i)) (\fun (i: Fin.Fin n) => g (Fin.succ n i))
             (\fun (i: Fin.Fin n) => included (Fin.succ n i)))
     };
+
+\definition negativeOne: R.Lt (Real.neg Real.one) Real.zero :=
+  R.ltReplaceRight (Real.neg Real.one) (Real.neg Real.zero) Real.zero Laws.negZero
+    (Laws.negStrictAntitone Real.zero Real.one ProductLaws.onePositive);
+\definition zeroScale: \forall (v: Value) -> NonnegativeValue[v] -> scale Real.zero v = zero :=
+  \fun (v: Value) (law: NonnegativeValue[v]) => \axiom:setext(scale Real.zero v, zero,
+    \fun (r: Real.Real) (member: below (scale Real.zero v) r) => \block {
+      \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[below v a, R.Lt r (Real.mul Real.zero a)] }) \by member \then
+      \let data: Logic.And[below v a, R.Lt r (Real.mul Real.zero a)] :=
+        \bysub(Real.Real, { a: Real.Real \where Logic.And[below v a, R.Lt r (Real.mul Real.zero a)] }, a) \then
+      \return R.ltReplaceRight r (Real.mul Real.zero a) Real.zero (Laws.fieldMulZeroLeft a) data.right
+    },
+    \fun (r: Real.Real) (negative: below zero r) =>
+      Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[below v a, R.Lt r (Real.mul Real.zero a)] }] (Real.neg Real.one)
+        (Logic.And[_, _]::# (law.negative (Real.neg Real.one) negativeOne)
+          (R.ltReplaceRight r Real.zero (Real.mul Real.zero (Real.neg Real.one)) (sym!{Real.Real} _ _ (Laws.fieldMulZeroLeft (Real.neg Real.one))) negative)));
