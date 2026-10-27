@@ -135,10 +135,13 @@ K07 の影響先検査は最終検査に含める。
 `FramedClass.With.ContractibleKernel` は `contractible-kernel` で accepted・終了0・キャッシュ保存失敗0。
 通常の K 群で自明束と一致する枠付き束を安定自明化し、閉部分空間が収縮可能な場合の被約群の零性を示す。
 `TrivialBoundary.model`・`With.value` はこの比較で使う束のモデルと値を公開する。
-最新の未検証変更は `Group.Forget.Contractible`。
+`Group.Forget.Contractible` は `contractible-forget` で accepted・終了0・キャッシュ保存失敗0。
 三つ組の表示・正規化・安定自明化・比較同型を使い、収縮可能な閉部分空間に対して忘却写像の核が零であり、忘却が単射であることを示す。
-固定 snapshot は `work/k03-resume/contractible-forget.source.json`。
-次は `relative_k_theory.Relative.Pair.Group.Forget.Contractible` を検査する。
+最新の未検証変更は `Exact.Contractible` と `Relative.Cone`。
+前者は相対群と全体の基点での被約群との両方向の準同型と逆の等式、後者は K02 の円錐のコンパクト Hausdorff 性・収縮・被約群の零性を構成する。
+円錐の収縮を利用するため、`puppe_sequences` の直接依存を追加した。
+固定 snapshot は `work/k03-resume/contractible-comparison.source.json`。
+次は `relative_k_theory.Relative` 内の `Pair.Exact.Contractible` と `Cone` を順に検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。
