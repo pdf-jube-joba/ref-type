@@ -18,3 +18,5 @@ cd /workspace/ref-type-b05
 
 検査対象 commit `08599c12` の対象検査と依存込み検査は accepted。
 詳細は benchmarks/records/grassmannians/README.md と JSON を参照。
+
+射影の行列成分から誘導位相を定義し、成分の連続性から既存の射影像束へ接続した。Real モジュールの個別検査は成功。Complex と全体の検査、残る位相・座標・自然性の証明を続ける。
