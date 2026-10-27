@@ -42,3 +42,33 @@
     "=" _ "by" { Finite.laws.countableAdditivity (Sigma.increments f) (Sigma.incrementsMeasurable mu.sigma f measurable) (Sigma.incrementsDisjoint f) }
     "=" _ "by" { prefixSeries f measurable }
   };
+
+\definition Increasing[f: N.Nat^ -> \Pow A]: \Prop :=
+  \forall (n: N.Nat^) -> Sets.Subset (f n) (f (N.Nat^::succ n));
+\definition prefixBelow: \forall (f: N.Nat^ -> \Pow A) -> Increasing f -> \forall (n: N.Nat^) -> Sets.Subset (Sigma.prefix f n) (f n) :=
+  \fun (f: N.Nat^ -> \Pow A) (increasing: Increasing f) => \induction (n: N.Nat^) \return Sets.Subset (Sigma.prefix f n) (f n) \with {
+    | zero: \fun (x: A) (empty: Logic.False) => Logic.falseElim _ empty
+    | succ: \fun (n: N.Nat^) (previous: _) (x: A) (member: Sets.Member (Sigma.prefix f (N.Nat^::succ n)) x) =>
+      Logic.orElim _ _ (Sets.Member (f (N.Nat^::succ n)) x) member
+        (\fun (before: Sets.Member (Sigma.prefix f n) x) => increasing n x (previous x before))
+        (\fun (current: Sets.Member (f n) x) => increasing n x current)
+  };
+\definition increasingSup: \forall (f: N.Nat^ -> \Pow A) -> (\forall (n: N.Nat^) -> Measurable mu.sigma (f n)) -> Increasing f ->
+  mu.value (union f) = { r: Real.Real \where \exists ( n: N.Nat^ \where below (mu.value (f n)) r ) } :=
+  \fun (f: N.Nat^ -> \Pow A) (measurable: \forall (n: N.Nat^) -> Measurable mu.sigma (f n)) (increasing: Increasing f) => eq_reason_in!{Value _
+    "=" _ "by" { unionAsPrefixSup f measurable }
+    "=" _ "by" { \axiom:setext({ r: Real.Real \where \exists ( n: N.Nat^ \where below (mu.value (Sigma.prefix f n)) r ) },
+      { r: Real.Real \where \exists ( n: N.Nat^ \where below (mu.value (f n)) r ) },
+      \fun (r: Real.Real) (member: \exists ( n: N.Nat^ \where below (mu.value (Sigma.prefix f n)) r )) => \block {
+        \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where below (mu.value (Sigma.prefix f n)) r }) \by member \then
+        \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where below (mu.value (f n)) r }] n
+          (Finite.monotone (Sigma.prefix f n) (f n) (Sigma.prefixMeasurable mu.sigma f measurable n) (measurable n) (prefixBelow f increasing n) r
+            (\bysub(N.Nat^, { n: N.Nat^ \where below (mu.value (Sigma.prefix f n)) r }, n)))
+      },
+      \fun (r: Real.Real) (member: \exists ( n: N.Nat^ \where below (mu.value (f n)) r )) => \block {
+        \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where below (mu.value (f n)) r }) \by member \then
+        \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where below (mu.value (Sigma.prefix f k)) r }] (N.Nat^::succ n)
+          (Finite.monotone (f n) (Sigma.prefix f (N.Nat^::succ n)) (measurable n) (Sigma.prefixMeasurable mu.sigma f measurable (N.Nat^::succ n))
+            (Sigma.prefixContainsCurrent f n) r (\bysub(N.Nat^, { n: N.Nat^ \where below (mu.value (f n)) r }, n)))
+      }) }
+  };
