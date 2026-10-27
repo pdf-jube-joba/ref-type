@@ -1,0 +1,41 @@
+\import topological_constructions.Coproduct[A := X, B := CylinderA.Carrier] \as Cover;
+\import Cover.Properties[left := space, right := (CylinderA.topology subspace)] \as CoverProperties;
+\import Cover.Universal[C := DomainPoint] \as IntoDomain;
+\definition projection: Cover.Carrier -> DomainPoint := IntoDomain.copair bottom Piece.vertical;
+\definition regular: topology.Continuity[A := Cover.Carrier, B := DomainPoint].Continuous CoverProperties.space domainTopology projection :=
+  IntoDomain.continuous space (CylinderA.topology subspace) domainTopology bottom Piece.vertical bottomContinuous Piece.verticalContinuous;
+\definition onto: \forall (z: DomainPoint) -> \exists (p: Cover.Carrier \where projection p = z) :=
+  \fun (z: DomainPoint) => Logic.orElim[time z = Interval.start, Base.Member subset (point z), \exists (p: Cover.Carrier \where projection p = z)]
+    (\bysub(Cylinder.Carrier, domain, z))
+    (\fun (same: time z = Interval.start) => Logic.existsIntro[Cover.Carrier, { p: Cover.Carrier \where projection p = z }] (Cover.inl (point z)) (bottomEta z same))
+    (\block {
+      \fun (member: Base.Member subset (point z)) \then
+      \let a: A := \into[X](point z, subset) \by { member } \then
+      \let raw: CylinderA.Carrier := CylinderA.at (time z) a \then
+      \return Logic.existsIntro[Cover.Carrier, { p: Cover.Carrier \where projection p = z }] (Cover.inr raw) (Pair.Prop[A := Interval.Carrier, B := X].eta z)
+    });
+\import topological_constructions.Product[A := Interval.Carrier, B := A] \as VerticalProduct;
+\definition coverCompact: topology.Topology[Carrier := Cover.Carrier].IsCompact CoverProperties.space :=
+  CoverProperties.compact compact (VerticalProduct.Compactness[].productCompact Interval.topology subspace Interval.compact (details subsetModel).compact);
+\import Cover.Universal[C := Suspension.Carrier] \as IntoSuspension;
+\definition composite: Cover.Carrier -> Suspension.Carrier := IntoSuspension.copair (\fun (x: X) => Suspension.point) Suspension.class;
+\definition compositeContinuous: topology.Continuity[A := Cover.Carrier, B := Suspension.Carrier].Continuous CoverProperties.space Suspension.topology composite :=
+  IntoSuspension.continuous space (CylinderA.topology subspace) Suspension.topology (\fun (x: X) => Suspension.point) Suspension.class
+    (topology.Maps[A := X, B := Suspension.Carrier].constantContinuous space Suspension.topology Suspension.point)
+    (SuspensionCollapse.projectionContinuous (CylinderA.topology subspace));
+\definition agrees: composite = (\fun (p: Cover.Carrier) => map (projection p)) :=
+  \axiom:funext(composite, (\fun (p: Cover.Carrier) => map (projection p)),
+    \induction (p: Cover.Carrier) \return composite p = map (projection p) \with {
+      | inl: \fun (x: X) => sym!{{Suspension.Carrier}} _ _ (atBottom x)
+      | inr: \fun (z: CylinderA.Carrier) => sym!{{Suspension.Carrier}} _ _ (atVertical z)
+    });
+\definition afterContinuous: topology.Continuity[A := Cover.Carrier, B := Suspension.Carrier].Continuous CoverProperties.space Suspension.topology (\fun (p: Cover.Carrier) => map (projection p)) :=
+  \idelim composite = (\fun (p: Cover.Carrier) => map (projection p)) \with f: (Cover.Carrier -> Suspension.Carrier) =>
+    topology.Continuity[A := Cover.Carrier, B := Suspension.Carrier].Continuous CoverProperties.space Suspension.topology f \by {
+      base: compositeContinuous, equality: agrees
+    };
+\import topological_constructions.CompactQuotient[A := Cover.Carrier, B := DomainPoint, source := CoverProperties.space, target := domainTopology, q := projection] \as ClosedCover;
+\definition continuous: topology.Continuity[A := DomainPoint, B := Suspension.Carrier].Continuous domainTopology Suspension.topology map :=
+  \fun (U: \Pow Suspension.Carrier)(open: topology.Topology[Carrier := Suspension.Carrier].IsOpenIn Suspension.topology U) =>
+    ClosedCover.reflectsOpen (ClosedCover.closedMap coverCompact domainHausdorff regular) onto
+      (topology.Continuity[A := DomainPoint, B := Suspension.Carrier].Preimage map U) (afterContinuous U open);

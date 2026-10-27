@@ -1,0 +1,48 @@
+\definition onBottom: \forall (z: DomainPoint)(a: A) -> time z = Interval.start -> Suspension.class (CylinderA.at (time z) a) = Suspension.point :=
+  \fun (z: DomainPoint)(a: A)(same: time z = Interval.start) => trans!{{Suspension.Carrier}} _ _ _
+    (congr!{{Interval.Carrier} {Suspension.Carrier}} (\fun (t: Interval.Carrier) => Suspension.class (CylinderA.at t a)) _ _ same) (Suspension.bottom a);
+\structure Condition[z: DomainPoint, v: Suspension.Carrier]: \Prop := {
+  bottom: time z = Interval.start -> v = Suspension.point,
+  vertical: \forall (a: A) -> point z = a -> v = Suspension.class (CylinderA.at (time z) a)
+};
+\definition Values[z: DomainPoint]: \Set := \Cast[Suspension.Carrier] ({ v: Suspension.Carrier \where Condition[z, v] });
+\definition existence: \forall (z: DomainPoint) -> \exists (Values z) := \fun (z: DomainPoint) =>
+  Logic.orElim[time z = Interval.start, Base.Member subset (point z), \exists (Values z)] (\bysub(Cylinder.Carrier, domain, z))
+    (\fun (same: time z = Interval.start) => \exact(\into[Suspension.Carrier](Suspension.point, Values z) \by {
+      Condition[z, Suspension.point] {
+        bottom := \fun (bottom: time z = Interval.start) => \refl(Suspension.point),
+        vertical := \fun (a: A)(equal: point z = a) => sym!{{Suspension.Carrier}} _ _ (onBottom z a same)
+      }
+    }, Values z))
+    (\block {
+      \fun (member: Base.Member subset (point z)) \then
+      \let a: A := \into[X](point z, subset) \by { member } \then
+      \let v: Suspension.Carrier := Suspension.class (CylinderA.at (time z) a) \then
+      \return \exact(\into[Suspension.Carrier](v, Values z) \by {
+        Condition[z, v] {
+          bottom := \fun (same: time z = Interval.start) => onBottom z a same,
+          vertical := \fun (b: A)(same: point z = b) => congr!{{A} {Suspension.Carrier}}
+            (\fun (c: A) => Suspension.class (CylinderA.at (time z) c)) _ _ same
+        }
+      }, Values z)
+    });
+\definition unique: \forall (z: DomainPoint)(v, w: Values z) -> v = w :=
+  \fun (z: DomainPoint)(v, w: Values z) => Logic.orElim[time z = Interval.start, Base.Member subset (point z), v = w]
+    (\bysub(Cylinder.Carrier, domain, z))
+    (\fun (same: time z = Interval.start) => trans!{{Suspension.Carrier}} _ _ _
+      ((\bysub(Suspension.Carrier, { v: Suspension.Carrier \where Condition[z, v] }, v)).bottom same)
+      (sym!{{Suspension.Carrier}} _ _ ((\bysub(Suspension.Carrier, { w: Suspension.Carrier \where Condition[z, w] }, w)).bottom same)))
+    (\block {
+      \fun (member: Base.Member subset (point z)) \then
+      \let a: A := \into[X](point z, subset) \by { member } \then
+      \return trans!{{Suspension.Carrier}} _ _ _
+        ((\bysub(Suspension.Carrier, { v: Suspension.Carrier \where Condition[z, v] }, v)).vertical a (\refl(point z)))
+        (sym!{{Suspension.Carrier}} _ _ ((\bysub(Suspension.Carrier, { w: Suspension.Carrier \where Condition[z, w] }, w)).vertical a (\refl(point z))))
+    });
+\definition map[z: DomainPoint]: Values z := \choice (Values z) \by { existence: existence z, uniqueness: unique z };
+\definition condition[z: DomainPoint]: Condition[z, map z] := \bysub(Suspension.Carrier, { v: Suspension.Carrier \where Condition[z, v] }, map z);
+\definition atBottom: \forall (x: X) -> map (bottom x) = Suspension.point := \fun (x: X) => (condition (bottom x)).bottom (\refl(Interval.start));
+\definition atVertical: \forall (z: CylinderA.Carrier) -> map (Piece.vertical z) = Suspension.class z :=
+  \fun (z: CylinderA.Carrier) => trans!{{Suspension.Carrier}} _ _ _ ((condition (Piece.vertical z)).vertical (CylinderA.point z) (\refl(point (Piece.vertical z))))
+    (congr!{{CylinderA.Carrier} {Suspension.Carrier}} Suspension.class _ _ (Pair.Prop[A := Interval.Carrier, B := A].eta z));
+\module Continuity;

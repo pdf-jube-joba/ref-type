@@ -148,10 +148,15 @@ K07 の影響先検査は最終検査に含める。
 最新の未検証変更は `Pair.Pointed.Cofiber.ConeQuotient` と、射影・円錐像・底面の計算補題。
 円錐像を潰した商と元の相対商との同相を作り、相対群と cofiber の被約群との比較へ合成する。
 固定 snapshot は `work/k03-resume/cone-quotient.source.json`。
-`cone-quotient` はこの固定 snapshot の検査中。
+`ConeQuotient` は `cone-quotient` で accepted・終了0・キャッシュ保存失敗0。
 追加の未検証変更は `FramedClass.With.Pullback` と `Pair.ForgetProjection`。
 降下した束の引き戻しの同型と三つ組の正規化から、忘却写像が商への射影による引き戻しに一致することを示す。
-その固定 snapshot は `work/k03-resume/forget-projection.source.json` で、前の検査終了後に両 module を順に検査する。
+`FramedClass.With.Pullback` は `forget-projection-Pair-FramedClass-With-Pullback` で accepted・終了0・キャッシュ保存失敗0。
+`ForgetProjection` は module parameter の相対参照で停止し、`On` に正規化 module の import を追加して修正した。
+追加の未検証変更は `Pair.Pointed.Cofiber.BaseQuotient`。
+底面を潰した商と部分空間の suspension との同相を、円柱と底面からの全射・商の普遍性・両方向の逆の等式で構成する。
+`BaseQuotient` の関数型を使う等号除去の構文も修正した。
+修正後の固定 snapshot は `work/k03-resume/cofiber-diagrams.source.json` で、`Pair.ForgetProjection` と `Pair.Pointed.Cofiber.BaseQuotient` を順に検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。

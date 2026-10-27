@@ -1,0 +1,41 @@
+\import \parent.Forward[] \as Fwd;
+\import \parent.Backward[] \as Back;
+\definition onDomain: \forall (z: DomainPoint) -> Back.projection (Raw.map z) = Q.projection (Native.class z) :=
+  \fun (z: DomainPoint) => Logic.orElim[time z = Interval.start, Base.Member subset (point z), Back.projection (Raw.map z) = Q.projection (Native.class z)]
+    (\bysub(Cylinder.Carrier, domain, z))
+    (\fun (same: time z = Interval.start) => trans!{{Q.Carrier}} _ _ _
+      (congr!{{Suspension.Carrier} {Q.Carrier}} Back.projection _ _ ((Raw.condition z).bottom same))
+      (trans!{{Q.Carrier}} _ _ _ Back.onPoint
+        (sym!{{Q.Carrier}} _ _ (trans!{{Q.Carrier}} _ _ _
+          (congr!{{Carrier} {Q.Carrier}} Q.projection _ _ (atBottom z same)) (quotientBase (point z))))))
+    (\block {
+      \fun (member: Base.Member subset (point z)) \then
+      \let a: A := \into[X](point z, subset) \by { member } \then
+      \let raw: CylinderA.Carrier := CylinderA.at (time z) a \then
+      \let same: Piece.vertical raw = z := Pair.Prop[A := Interval.Carrier, B := X].eta z \then
+      \return trans!{{Q.Carrier}} _ _ _
+        (congr!{{Suspension.Carrier} {Q.Carrier}} Back.projection _ _ ((Raw.condition z).vertical a (\refl(point z))))
+        (trans!{{Q.Carrier}} _ _ _ (Back.onClass raw)
+          (congr!{{DomainPoint} {Q.Carrier}} (\fun (p: DomainPoint) => Q.projection (Native.class p)) _ _ same))
+    });
+\definition onCofiber: \forall (z: Carrier) -> Back.projection (Fwd.cofiber z) = Q.projection z :=
+  Native.induction (\fun (z: Carrier) => Back.projection (Fwd.cofiber z) = Q.projection z)
+    (\fun (p: DomainPoint) => trans!{{Q.Carrier}} _ _ _
+      (congr!{{Suspension.Carrier} {Q.Carrier}} Back.projection _ _ (Fwd.onClass p)) (onDomain p));
+\definition star: \forall (p: Q.Point) -> BaseCollapse.class (Augment.inr p) = Q.point :=
+  \fun (p: Q.Point) => BaseCollapse.collapsed (Augment.inr p) (Augment.inr Q.distinguished) (\refl(p)) (\refl(Q.distinguished));
+\definition leftInverse: \forall (x: Q.Carrier) -> Back.projection (Fwd.projection x) = x :=
+  BaseCollapse.induction (\fun (x: Q.Carrier) => Back.projection (Fwd.projection x) = x)
+    (\induction (p: Q.Augmented) \return Back.projection (Fwd.projection (BaseCollapse.class p)) = BaseCollapse.class p \with {
+      | inl: \fun (z: Carrier) => trans!{{Q.Carrier}} _ _ _
+        (congr!{{Suspension.Carrier} {Q.Carrier}} Back.projection _ _ (Fwd.onProjection z)) (onCofiber z)
+      | inr: \fun (p: Q.Point) => trans!{{Q.Carrier}} _ _ _
+        (congr!{{Suspension.Carrier} {Q.Carrier}} Back.projection _ _ (Fwd.onStar p))
+        (trans!{{Q.Carrier}} _ _ _ Back.onPoint (sym!{{Q.Carrier}} _ _ (star p)))
+    });
+\definition rightInverse: \forall (x: Suspension.Carrier) -> Fwd.projection (Back.projection x) = x :=
+  SuspensionCollapse.induction (\fun (x: Suspension.Carrier) => Fwd.projection (Back.projection x) = x)
+    (\fun (z: CylinderA.Carrier) => trans!{{Suspension.Carrier}} _ _ _
+      (congr!{{Q.Carrier} {Suspension.Carrier}} Fwd.projection _ _ (Back.onClass z))
+      (trans!{{Suspension.Carrier}} _ _ _ (Fwd.onProjection (Native.class (Piece.vertical z)))
+        (trans!{{Suspension.Carrier}} _ _ _ (Fwd.onClass (Piece.vertical z)) (Raw.atVertical z))));
