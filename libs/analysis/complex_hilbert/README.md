@@ -28,6 +28,7 @@ A19 の作業中パッケージである。
 | `Space[V, space]` | 複素ベクトル空間の実スカラー制限、複素斉次性を持つノルム |
 | `Space.Hilbert[norm, inner]` | 既存の Hermitian 内積の実部、ノルムとの整合性、完備性、実 Hilbert 構造 |
 | `Space.Hilbert.Riesz` | 有界複素線形汎関数の Riesz ベクトル、表現式、存在、一意性 |
+| `Space.Hilbert.FiniteProjection` | 有限集合を固定する有限階数自己随伴射影の構成 |
 | `Space.Hilbert.RankOne` | 単位ベクトルによる直交射影、縮小性、有界性、有限階数因子分解 |
 | `Space.Hilbert.Estimates` | 平方完成、実部内積の Cauchy–Schwarz 評価 |
 | `Space.Operators[W, target, norm, targetNorm]` | 有界複素線形作用素、実有界作用素への変換 |
