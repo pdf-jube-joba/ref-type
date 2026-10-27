@@ -1,0 +1,44 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import \parent.Quotient[] \as RelativeChains;
+\import singular_cap.CochainPair[A := A, source := source, subset := subset, R := I.Int^, ring := Integers.commutativeRing] \as PairCochains;
+\import PairCochains.Comparison[n := q] \as Comparison;
+\import Relative.With[coefficients := Cochains.integerCoefficients] \as RelativeCochains;
+\import Sub.Zero[] \as SubZero;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import Nonnegative.ZeroExtension[C := Chains.complex] \as WholeExtension;
+\import Nonnegative.ZeroExtension[C := SubChains.complex] \as SubExtension;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.Quotient[C := SubExtension.complex, D := WholeExtension.complex].On[f := Relative.inclusionMap] \as Q;
+\import Q.At[k := I.Int^::ofNat Whole.total] \as SourceQ;
+\import WholeExtension.Positive[n := Whole.total] \as Positive;
+\import Modules.Hom[V := Chains.Carrier Whole.total, W := Chains.Carrier p, source := Chains.space Whole.total, target := Chains.space p].Composition[U := WholeExtension.Carrier (I.Int^::ofNat Whole.total), domain := WholeExtension.space (I.Int^::ofNat Whole.total)] \as Composition;
+\import Modules.Hom[V := WholeExtension.Carrier (I.Int^::ofNat Whole.total), W := Chains.Carrier p, source := WholeExtension.space (I.Int^::ofNat Whole.total), target := Chains.space p] \as RawMaps;
+\definition raw[beta: PairCochains.Carrier q]: RawMaps.Map := Composition.compose (Whole.map beta) Positive.backward;
+\import Modules.Of[V := WholeExtension.Carrier (I.Int^::ofNat Whole.total), space := WholeExtension.space (I.Int^::ofNat Whole.total)].Submodule[] \as SourceSub;
+\import SourceSub.Quotient[S := SourceQ.image].To[W := Chains.Carrier p, target := Chains.space p] \as Descent;
+\import SourceSub.Image[U := SubExtension.Carrier (I.Int^::ofNat Whole.total), source := SubExtension.space (I.Int^::ofNat Whole.total)] \as Images;
+\import Complexes.Map[C := SubExtension.complex, D := WholeExtension.complex].At[k := I.Int^::ofNat Whole.total] \as InclusionAt;
+\import Modules.Hom[V := SubChains.Carrier p, W := Chains.Carrier p, source := SubChains.space p, target := Chains.space p] \as Push;
+\import Modules.Hom[V := SubChains.Carrier Whole.total, W := SubChains.Carrier p, source := SubChains.space Whole.total, target := SubChains.space p] \as SubMaps;
+\definition vanishes: \forall (beta: PairCochains.Carrier q) -> Descent.Vanishes (raw beta) :=
+  \fun (beta: PairCochains.Carrier q)(y: WholeExtension.Carrier (I.Int^::ofNat Whole.total))(member: SourceSub.Member SourceQ.image y) =>
+    Images.eliminate (InclusionAt.linear Relative.inclusionMap) y ((raw beta).apply y = (Chains.space p).zero)
+      (\fun (x: SubExtension.Carrier (I.Int^::ofNat Whole.total))(equal: (Relative.inclusionMap).apply (I.Int^::ofNat Whole.total) x = y) => eq_reason_in!{{Chains.Carrier p} _
+        "=" _ "by" { congr!{{WholeExtension.Carrier (I.Int^::ofNat Whole.total)} {Chains.Carrier p}} ((raw beta).apply) _ _ (sym!{{WholeExtension.Carrier (I.Int^::ofNat Whole.total)}} _ _ equal) }
+        "=" _ "by" { law beta x }
+        "=" _ "by" { congr!{{SubChains.Carrier p} {Chains.Carrier p}} ((Inclusion.At[n := p].push Relative.inclusion Relative.inclusionContinuous).apply) _ _
+          (congr!{SubMaps.Map {SubChains.Carrier p}} (\fun (f: SubMaps.Map) => (f).apply x) _ _
+            (trans!{SubMaps.Map} _ _ _
+              (congr!{{SubCochains.Carrier q} SubMaps.Map} Sub.map _ _ (\bysub(Cochains.Carrier q, { h: Cochains.Carrier q \where PairCochains.Vanishes q h }, beta)))
+              SubZero.equation)) }
+        "=" _ "by" { Push.zeroPreserved (Inclusion.At[n := p].push Relative.inclusion Relative.inclusionContinuous) }
+      }) member;
+\definition map[beta: RelativeCochains.Carrier (I.Int^::ofNat q)]: Modules.Hom[V := SourceQ.Carrier, W := Chains.Carrier p, source := SourceQ.space, target := Chains.space p].Map :=
+  Descent.descend (raw (Comparison.from beta)) (vanishes (Comparison.from beta));
+\definition onClass: \forall (beta: RelativeCochains.Carrier (I.Int^::ofNat q))(x: WholeExtension.Carrier (I.Int^::ofNat Whole.total)) ->
+  (map beta).apply (SourceQ.class x) = (Whole.map (Comparison.from beta)).apply x :=
+  \fun (beta: RelativeCochains.Carrier (I.Int^::ofNat q)) => Descent.onClass (raw (Comparison.from beta)) (vanishes (Comparison.from beta));
