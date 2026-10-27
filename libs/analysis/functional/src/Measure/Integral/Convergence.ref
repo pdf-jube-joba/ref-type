@@ -56,3 +56,43 @@
       \return \idelim union sets = { x: A \where R.Lt r (g x) } \with S: \Pow A => Measurable mu.sigma S
         \by { base: (Sigma.laws mu.sigma).countableUnion sets (\fun (n: N.Nat^) => measurable n r), equality: equal }
     };
+
+\import N.Basic[].Prop[] \as Nat;
+\import N.Order[].Prop[] \as NatOrder;
+\definition ValueIncreasing[values: N.Nat^ -> Value]: \Prop :=
+  \forall (m, n: N.Nat^) -> Nat.Le m n -> Values.Included (values m) (values n);
+\definition scaleSup: \forall (c: Real.Real) (values: N.Nat^ -> Value) ->
+  scale c (Sup values) = Sup (\fun (n: N.Nat^) => scale c (values n)) :=
+  \fun (c: Real.Real) (values: N.Nat^ -> Value) => \axiom:setext(scale c (Sup values), Sup (\fun (n: N.Nat^) => scale c (values n)),
+    \fun (r: Real.Real) (member: below (scale c (Sup values)) r) => \block {
+      \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[below (Sup values) a, R.Lt r (Real.mul c a)] }) \by member \then
+      \let data: Logic.And[below (Sup values) a, R.Lt r (Real.mul c a)] := \bysub(Real.Real, { a: Real.Real \where Logic.And[below (Sup values) a, R.Lt r (Real.mul c a)] }, a) \then
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where below (values n) a }) \by data.left \then
+      \return supUpper (\fun (n: N.Nat^) => scale c (values n)) n r
+        (Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[below (values n) a, R.Lt r (Real.mul c a)] }] a
+          (Logic.And[_, _]::# (\bysub(N.Nat^, { n: N.Nat^ \where below (values n) a }, n)) data.right))
+    },
+    supLeast (\fun (n: N.Nat^) => scale c (values n)) (scale c (Sup values))
+      (\fun (n: N.Nat^) => Values.scaleMono c (values n) (Sup values) (supUpper values n)));
+\definition addSup: \forall (v, w: N.Nat^ -> Value) -> ValueIncreasing v -> ValueIncreasing w ->
+  add (Sup v) (Sup w) = Sup (\fun (n: N.Nat^) => add (v n) (w n)) :=
+  \fun (v, w: N.Nat^ -> Value) (vi: ValueIncreasing v) (wi: ValueIncreasing w) =>
+    \axiom:setext(add (Sup v) (Sup w), Sup (\fun (n: N.Nat^) => add (v n) (w n)),
+      \fun (r: Real.Real) (member: below (add (Sup v) (Sup w)) r) => \block {
+        \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[below (Sup v) a, \exists ( b: Real.Real \where Logic.And[below (Sup w) b, R.Lt r (Real.add a b)] )] }) \by member \then
+        \let first: Logic.And[below (Sup v) a, \exists ( b: Real.Real \where Logic.And[below (Sup w) b, R.Lt r (Real.add a b)] )] :=
+          \bysub(Real.Real, { a: Real.Real \where Logic.And[below (Sup v) a, \exists ( b: Real.Real \where Logic.And[below (Sup w) b, R.Lt r (Real.add a b)] )] }, a) \then
+        \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where Logic.And[below (Sup w) b, R.Lt r (Real.add a b)] }) \by first.right \then
+        \let second: Logic.And[below (Sup w) b, R.Lt r (Real.add a b)] :=
+          \bysub(Real.Real, { b: Real.Real \where Logic.And[below (Sup w) b, R.Lt r (Real.add a b)] }, b) \then
+        \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where below (v m) a }) \by first.left \then
+        \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where below (w n) b }) \by second.left \then
+        \let k: N.Nat^ := NatOrder.commonBound m n \then
+        \return supUpper (\fun (k: N.Nat^) => add (v k) (w k)) k r
+          (Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[below (v k) a, \exists ( b: Real.Real \where Logic.And[below (w k) b, R.Lt r (Real.add a b)] )] }] a
+            (Logic.And[_, _]::# (vi m k (NatOrder.leftLeCommonBound m n) a (\bysub(N.Nat^, { m: N.Nat^ \where below (v m) a }, m)))
+              (Logic.existsIntro[Real.Real, { b: Real.Real \where Logic.And[below (w k) b, R.Lt r (Real.add a b)] }] b
+                (Logic.And[_, _]::# (wi n k (NatOrder.rightLeCommonBound m n) b (\bysub(N.Nat^, { n: N.Nat^ \where below (w n) b }, n))) second.right))))
+      },
+      supLeast (\fun (n: N.Nat^) => add (v n) (w n)) (add (Sup v) (Sup w))
+        (\fun (n: N.Nat^) => Values.addMono (v n) (Sup v) (w n) (Sup w) (supUpper v n) (supUpper w n)));
