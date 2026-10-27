@@ -1,0 +1,74 @@
+\import std.Data[].Pair[] \as Pair;
+\import topological_constructions.Product[A := W, B := W] \as Product;
+\import Product.Universal[X := Product.CarrierSet] \as ProductUniversal;
+\import Product.Compactness[] \as ProductCompact;
+\import topology.Topology[Carrier := Product.CarrierSet] \as P;
+\import topology.Continuity[A := Product.CarrierSet, B := W] \as Continuous;
+\import topology.Compactness[A := Product.CarrierSet, B := W] \as Images;
+\import topology.Maps[A := Product.CarrierSet, B := W] \as ProductMaps;
+\import topology.Topology[Carrier := W].Closure[] \as Closure;
+\import real.Analysis[].Estimates[] \as Estimates;
+\import dedekind_reals.DedekindReal[].Order[] \as Ordered;
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.congr;
+\definition topology: T.Topology := Topology.topology (TargetNormed.metric targetNorm.realNorm);
+\definition pairTopology: P.Topology := Product.topology topology topology;
+\definition add[p: Product.CarrierSet]: W := target.add (Pair.first W W p) (Pair.second W W p);
+\definition addContinuous: Continuous.Continuous pairTopology topology add := \block {
+  \fun (O: \Pow W)(open: T.IsOpenIn topology O) \then
+  \enough _ \by { P.openOfNeighborhoods pairTopology (Continuous.Preimage add O) } \then
+  \fun (p: Product.CarrierSet)(inO: T.Member O (add p)) \then
+  \takefrom epsilon: \Cast[R.Real] (Metrics.NeighborhoodRadius (TargetNormed.metric targetNorm.realNorm) O (add p)) \by open (add p) inO \then
+  \let radius: Logic.And[Order.Lt R.zero epsilon, T.Subset (Metrics.Ball (TargetNormed.metric targetNorm.realNorm) (add p) epsilon) O] :=
+    \bysub(R.Real, Metrics.NeighborhoodRadius (TargetNormed.metric targetNorm.realNorm) O (add p), epsilon) \then
+  \let half: R.Real := R.mul R.half epsilon \then
+  \let hp: Order.Lt R.zero half := Estimates.halfOfPositive epsilon radius.left \then
+  \let U: \Pow W := Metrics.Ball (TargetNormed.metric targetNorm.realNorm) (Pair.first W W p) half \then
+  \let V: \Pow W := Metrics.Ball (TargetNormed.metric targetNorm.realNorm) (Pair.second W W p) half \then
+  \return Logic.existsIntro[\Pow Product.CarrierSet, { N: \Pow Product.CarrierSet \where P.OpenNeighborhood[pairTopology, p, Continuous.Preimage add O, N] }] (Product.Rectangle U V)
+    (P.OpenNeighborhood[pairTopology, p, Continuous.Preimage add O, Product.Rectangle U V] {
+      open := P.generatedBasisOpen (Product.Basis topology topology) (Product.Rectangle U V)
+        (ProductUniversal.rectangleBasisMember topology topology U V (Topology.ballOpen (TargetNormed.metric targetNorm.realNorm) (Pair.first W W p) half) (Topology.ballOpen (TargetNormed.metric targetNorm.realNorm) (Pair.second W W p) half)),
+      contains := Logic.And[_, _]::# (Metrics.ballCenter (TargetNormed.metric targetNorm.realNorm) (Pair.first W W p) half hp) (Metrics.ballCenter (TargetNormed.metric targetNorm.realNorm) (Pair.second W W p) half hp),
+      within := \block {
+        \fun (q: Product.CarrierSet)(near: P.Member (Product.Rectangle U V) q) \then
+        \return radius.right (add q) (Order.leLtTrans _ _ epsilon
+          (Order.leReplaceLeft _ _ _ (congr!{W R.Real} (targetNorm.realNorm.norm) _ _ (sym!{W} _ _ (TargetNormed.addSub (Pair.first W W p) (Pair.second W W p) (Pair.first W W q) (Pair.second W W q))))
+            (targetNorm.realNorm.triangle (TargetNormed.sub (Pair.first W W p) (Pair.first W W q)) (TargetNormed.sub (Pair.second W W p) (Pair.second W W q))))
+          (Order.ltReplaceRight _ (R.add half half) epsilon (Estimates.halfTwice epsilon) (Estimates.addLt _ _ half half near.left near.right)))
+      },
+    })
+};
+\import Linear.Operations[] \as LinearOperations;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import real.Analysis[].Algebra[] \as Algebra;
+\definition plus[f, g: Map]: Map := \into[Linear.Map](LinearOperations.plus f g, Map) \by { \block {
+  \takefrom c: \Cast[R.Real] ({ c: R.Real \where Bound[f, c] }) \by bounded f \then
+  \takefrom d: \Cast[R.Real] ({ d: R.Real \where Bound[g, d] }) \by bounded g \then
+  \let fb: Bound[f, c] := \bysub(R.Real, { c: R.Real \where Bound[f, c] }, c) \then
+  \let gb: Bound[g, d] := \bysub(R.Real, { d: R.Real \where Bound[g, d] }, d) \then
+  \return Logic.existsIntro[R.Real, { q: R.Real \where Bound[LinearOperations.plus f g, q] }] (R.add c d)
+    (Bound[LinearOperations.plus f g, R.add c d] {
+      nonnegative := Order.leReplaceLeft (R.add R.zero R.zero) R.zero (R.add c d) (Laws.addZeroLeft R.zero) (Estimates.addLe R.zero R.zero c d fb.nonnegative gb.nonnegative),
+      estimate := \fun (x: V) => Order.leReplaceRight _ (R.add (R.mul c (norm.realNorm.norm x)) (R.mul d (norm.realNorm.norm x)))
+        (R.mul (R.add c d) (norm.realNorm.norm x)) (sym!{R.Real} _ _ (Algebra.mulAddRight c d (norm.realNorm.norm x)))
+        (Order.leTrans _ _ _ (targetNorm.realNorm.triangle (f.apply x) (g.apply x)) (Estimates.addLe _ _ _ _ (fb.estimate x) (gb.estimate x))),
+    })
+} };
+\definition compact: \forall (f, g: Map) -> Compact f -> Compact g -> Compact (plus f g) := \block {
+  \fun (f, g: Map)(fc: Compact f)(gc: Compact g) \then
+  \let F: \Pow W := Closure.closure topology (Image f) \then
+  \let G: \Pow W := Closure.closure topology (Image g) \then
+  \let K: \Pow Product.CarrierSet := Product.Rectangle F G \then
+  \let kc: P.IsCompactIn pairTopology K := ProductCompact.productCompactIn topology topology F G fc gc \then
+  \let sumCompact: T.IsCompactIn topology (ProductMaps.Image add K) := Images.continuousImage pairTopology topology add addContinuous K kc \then
+  \return Relative.containedInCompact (Image (plus f g)) (ProductMaps.Image add K)
+    (\fun (y: W)(member: T.Member (Image (plus f g)) y) => Sets.imageElim ((plus f g).apply) UnitBall y (T.Member (ProductMaps.Image add K) y)
+      (\fun (x: V)(inside: _)(same: _) => \idelim add (Pair.pair W W (f.apply x) (g.apply x)) = y
+        \with z: W => T.Member (ProductMaps.Image add K) z
+        \by { base: ProductMaps.imageMember add K (Pair.pair W W (f.apply x) (g.apply x))
+          (Logic.And[_, _]::# (Closure.contains topology (Image f) (f.apply x) (Sets.imageMember (f.apply) UnitBall x inside))
+            (Closure.contains topology (Image g) (g.apply x) (Sets.imageMember (g.apply) UnitBall x inside))), equality: same }) member)
+    sumCompact
+};

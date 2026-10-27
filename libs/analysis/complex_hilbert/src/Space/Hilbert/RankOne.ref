@@ -1,0 +1,51 @@
+\import \parent.Geometry[] \as Geometry;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := linear_algebra.Hermitian[].Complex[].scalar] \as Hermitian;
+\import Hermitian.Inner[V := V, space := space].Of[h := Geometry.form] \as Facts;
+\import Facts.Unit[v := v, norm := unit] \as Unit;
+\import \parent.Estimates[] \as Estimates;
+\import ComplexLinear.Linear[V := V, W := V, source := space, target := space] \as EndMaps;
+\import \root.Space[V := V, space := space].Operators[W := V, target := space, norm := norm, targetNorm := norm] \as End;
+\import \root.FiniteRank[V := V, W := V, source := space, target := space] \as Finite;
+\import ComplexLinear.CoordinateLine[] \as Line;
+\import std.Data[].FinSet[] \as Fin;
+\import ComplexLinear.Coordinates[I := Fin.Fin Line.one] \as Coordinates;
+\import ComplexLinear.Linear[V := V, W := Coordinates.Vector, source := space, target := Coordinates.space] \as Into;
+\import ComplexLinear.Linear[V := Coordinates.Vector, W := V, source := Coordinates.space, target := space] \as Out;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import R.Estimates[].Product[] \as Product;
+\import std.Logic[].Proposition[] \as Logic;
+\definition contractive: \forall (complete: Complete)(x: V) -> Order.Le (norm.realNorm.norm (Unit.rankOne.apply x)) (norm.realNorm.norm x) :=
+  \fun (complete: Complete)(x: V) => Estimates.factorCancel (norm.realNorm.norm (Unit.rankOne.apply x)) (norm.realNorm.norm x) (norm.realNorm.nonnegative x)
+    (Order.leReplaceLeft (C.re (inner.inner x (Unit.rankOne.apply x))) _ _
+      (trans!{R.Real} _ _ _ (congr!{C.Complex R.Real} C.re _ _
+        (trans!{C.Complex} _ _ _ (congr!{V C.Complex} (inner.inner x) _ _ (sym!{V} _ _ (Unit.idempotent x)))
+          (sym!{C.Complex} _ _ (Unit.symmetric x (Unit.rankOne.apply x)))))
+        (complete.normSquared (Unit.rankOne.apply x)))
+      (Order.leTrans _ _ _
+        (Order.leReplaceRight _ (R.Distance[].max (R.neg (C.re (inner.inner x (Unit.rankOne.apply x)))) (C.re (inner.inner x (Unit.rankOne.apply x)))) _
+          (sym!{R.Real} _ _ (Product.absExpression (C.re (inner.inner x (Unit.rankOne.apply x)))))
+          (R.Distance[].maxRight (R.neg (C.re (inner.inner x (Unit.rankOne.apply x)))) (C.re (inner.inner x (Unit.rankOne.apply x)))))
+        (Estimates.cauchySchwarz complete x (Unit.rankOne.apply x))));
+\definition operator[complete: Complete]: End.Map := \into[EndMaps.Map](Unit.rankOne, End.Map) \by {
+  Logic.existsIntro[R.Real, { c: R.Real \where End.Bound[Unit.rankOne, c] }] R.one (End.Bound[Unit.rankOne, R.one] {
+    nonnegative := Laws.oneNonnegative,
+    estimate := \fun (x: V) => Order.leReplaceRight _ (norm.realNorm.norm x) (R.mul R.one (norm.realNorm.norm x))
+      (sym!{R.Real} _ _ (Laws.fieldMulOneLeft (norm.realNorm.norm x))) (contractive complete x),
+  })
+};
+\definition into: Into.Map := Into.Map {
+  apply := \fun (x: V) => Line.forward.apply (inner.inner v x),
+  preservesAdd := \fun (x, y: V) => congr!{C.Complex Coordinates.Vector} (Line.forward.apply) _ _ (inner.addRight v x y),
+  preservesScale := \fun (a: C.Complex)(x: V) => congr!{C.Complex Coordinates.Vector} (Line.forward.apply) _ _ (inner.scaleRight a v x),
+};
+\definition out: Out.Map := Out.Map {
+  apply := \fun (z: Coordinates.Vector) => space.smul (Line.backward.apply z) v,
+  preservesAdd := \fun (z, w: Coordinates.Vector) => space.scalarAdd (Line.backward.apply z) (Line.backward.apply w) v,
+  preservesScale := \fun (a: C.Complex)(z: Coordinates.Vector) => space.scalarAssoc a (Line.backward.apply z) v,
+};
+\definition factor: Finite.Through[n := Line.one].Factor Unit.rankOne := Finite.Through[n := Line.one].Factor[Unit.rankOne] {
+  into := into, out := out, equation := \fun (x: V) => \refl(Unit.rankOne.apply x),
+};
+\definition finite: Finite.FiniteRank Unit.rankOne := Logic.existsIntro[std.Data[].Nat[].Nat^, { n: std.Data[].Nat[].Nat^ \where \exists Finite.Through[n := n].Factor Unit.rankOne }] Line.one
+  (\exact(factor, Finite.Through[n := Line.one].Factor Unit.rankOne));
+\module Compact;

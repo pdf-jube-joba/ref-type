@@ -1,0 +1,95 @@
+\import \root.Space[V := V, space := space].Hilbert[norm := norm, inner := inner] \as Ambient;
+\import RH.Riesz[] \as Riesz;
+\import functional_analysis.Normed[V := Point, space := Restricted.realSpace].Hilbert[norm := realNorm].Riesz[inner := RH.realInner] \as RR;
+\import \root.Space[V := V, space := space].Hilbert[norm := norm, inner := inner].Estimates[] \as Estimates;
+\import RealLinear.Linear[V := Point, W := R.Real, source := Restricted.realSpace, target := RealLinear.scalarSpace] \as RealFunctions;
+\import RestrictedNormed.Operators[W := R.Real, target := RealLinear.scalarSpace, norm := realNorm, targetNorm := RR.realNorm] \as RealBounded;
+\import ComplexLinear.Linear[V := Point, W := C.Complex, source := Points.induced, target := ComplexLinear.scalarSpace] \as Functionals;
+\import ComplexLinear.Linear[V := V, W := Point, source := space, target := Points.induced] \as Maps;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as L;
+\import dedekind_reals.DedekindReal[].Order[] \as RO;
+\import R.Estimates[].Product[] \as Product;
+\definition functional[x: V]: Functionals.Map := Functionals.Map {
+  apply := \fun (s: Point) => inner.inner x s,
+  preservesAdd := \fun (s, t: Point) => inner.addRight x s t,
+  preservesScale := \fun (a: C.Complex)(s: Point) => inner.scaleRight a x s,
+};
+\definition realFunction[x: V]: RealFunctions.Map := RealFunctions.Map {
+  apply := \fun (s: Point) => C.re (inner.inner x s),
+  preservesAdd := \fun (s, t: Point) => congr!{C.Complex R.Real} C.re _ _ (inner.addRight x s t),
+  preservesScale := \fun (a: R.Real)(s: Point) => trans!{R.Real} _ _ _
+    (congr!{C.Complex R.Real} C.re _ _ (inner.scaleRight (D.ofReal a) x s)) (Scalar.realProduct a (inner.inner x s)),
+};
+\definition realFunctional[x: V]: RR.Functional := \into[RealFunctions.Map](realFunction x, RR.Functional) \by {
+  Logic.existsIntro[R.Real, { c: R.Real \where RealBounded.Bound[realFunction x, c] }] (norm.realNorm.norm x)
+    (RealBounded.Bound[realFunction x, norm.realNorm.norm x] {
+      nonnegative := norm.realNorm.nonnegative x,
+      estimate := \fun (s: Point) => Estimates.cauchySchwarz complete x s,
+    })
+};
+\definition point[x: V]: Point := RR.vector (RH.realHilbert (hilbert complete)) (realFunctional x);
+\definition equation: \forall (x: V)(s: Point) -> inner.inner x s = inner.inner (point x) s :=
+  \fun (x: V) => Riesz.fromReal (hilbert complete) (functional x) (realFunctional x) (\fun (s: Point) => \refl(C.re (inner.inner x s)));
+\definition linear: Maps.Map := Maps.Map {
+  apply := point,
+  preservesAdd := \fun (x, y: V) => RH.separated (point (space.add x y)) (Points.plus (point x) (point y))
+    (\fun (s: Point) => eq_reason_in!{C.Complex _
+      "=" _ "by" { sym!{C.Complex} _ _ (equation (space.add x y) s) }
+      "=" _ "by" { Ambient.addLeft x y s }
+      "=" _ "by" { congr!{C.Complex C.Complex C.Complex} D.add _ _ _ _ (equation x s) (equation y s) }
+      "=" _ "by" { sym!{C.Complex} _ _ (RH.addLeft (point x) (point y) s) }
+    }),
+  preservesScale := \fun (a: C.Complex)(x: V) => RH.separated (point (space.smul a x)) (Points.scale a (point x))
+    (\fun (s: Point) => eq_reason_in!{C.Complex _
+      "=" _ "by" { sym!{C.Complex} _ _ (equation (space.smul a x) s) }
+      "=" _ "by" { Inner.scaleLeft inner a x s }
+      "=" _ "by" { congr!{C.Complex C.Complex} (D.mul (D.conj a)) _ _ (equation x s) }
+      "=" _ "by" { sym!{C.Complex} _ _ (RestrictedInner.scaleLeft restrictedInner a (point x) s) }
+    }),
+};
+\definition fixes: \forall (s: Point) -> point s = s :=
+  \fun (s: Point) => RH.separated (point s) s (\fun (t: Point) => sym!{C.Complex} _ _ (equation s t));
+\definition contractive: \forall (x: V) -> Order.Le (norm.realNorm.norm (point x)) (norm.realNorm.norm x) :=
+  \fun (x: V) => Estimates.factorCancel (norm.realNorm.norm (point x)) (norm.realNorm.norm x) (norm.realNorm.nonnegative x)
+    (Order.leReplaceLeft (C.re (inner.inner x (point x))) _ _
+      (trans!{R.Real} _ _ _ (congr!{C.Complex R.Real} C.re _ _ (equation x (point x))) (complete.normSquared (point x)))
+      (Order.leTrans _ _ _
+        (Order.leReplaceRight _ (R.Distance[].max (R.neg (C.re (inner.inner x (point x)))) (C.re (inner.inner x (point x)))) _
+          (sym!{R.Real} _ _ (Product.absExpression (C.re (inner.inner x (point x)))))
+          (R.Distance[].maxRight (R.neg (C.re (inner.inner x (point x)))) (C.re (inner.inner x (point x)))))
+        (Estimates.cauchySchwarz complete x (point x))));
+\import Ambient.Geometry[] \as Geometry;
+\import \root.Space[V := V, space := space].Operators[W := V, target := space, norm := norm, targetNorm := norm] \as End;
+\import ComplexLinear.Linear[V := V, W := V, source := space, target := space] \as EndMaps;
+\definition inclusion: EndMaps.Map := EndMaps.Map {
+  apply := \fun (x: V) => point x,
+  preservesAdd := \fun (x, y: V) => linear.preservesAdd x y,
+  preservesScale := \fun (a: C.Complex)(x: V) => linear.preservesScale a x,
+};
+\definition projection: End.Map := \into[EndMaps.Map](inclusion, End.Map) \by {
+  Logic.existsIntro[R.Real, { c: R.Real \where End.Bound[inclusion, c] }] R.one (End.Bound[inclusion, R.one] {
+    nonnegative := L.oneNonnegative,
+    estimate := \fun (x: V) => Order.leReplaceRight _ (norm.realNorm.norm x) (R.mul R.one (norm.realNorm.norm x))
+      (sym!{R.Real} _ _ (L.fieldMulOneLeft (norm.realNorm.norm x))) (contractive x),
+  })
+};
+\definition orthogonal: \forall (x: V)(s: Point) -> inner.inner s (RealNormed.sub x (point x)) = D.zero :=
+  \fun (x: V)(s: Point) => eq_reason_in!{C.Complex _
+    "=" _ "by" { Geometry.differenceRight s x (point x) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (a: C.Complex) => D.sub a (inner.inner s (point x))) _ _
+      (eq_reason_in!{C.Complex _
+        "=" _ "by" { inner.conjugateSymmetric s x }
+        "=" _ "by" { congr!{C.Complex C.Complex} D.conj _ _ (equation x s) }
+        "=" _ "by" { sym!{C.Complex} _ _ (inner.conjugateSymmetric s (point x)) }
+      }) }
+    "=" _ "by" { CL.subSelf (inner.inner s (point x)) }
+  };
+\definition idempotent: \forall (x: V) -> projection.apply (projection.apply x) = projection.apply x := \fun (x: V) => fixes (point x);
+\definition selfAdjoint: \forall (x, y: V) -> inner.inner (projection.apply x) y = inner.inner x (projection.apply y) :=
+  \fun (x, y: V) => eq_reason_in!{C.Complex _
+    "=" _ "by" { inner.conjugateSymmetric (point x) y }
+    "=" _ "by" { congr!{C.Complex C.Complex} D.conj _ _ (equation y (point x)) }
+    "=" _ "by" { sym!{C.Complex} _ _ (inner.conjugateSymmetric (point x) (point y)) }
+    "=" _ "by" { sym!{C.Complex} _ _ (equation x (point y)) }
+  };
+\module Complement;
