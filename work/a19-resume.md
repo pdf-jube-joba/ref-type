@@ -41,3 +41,5 @@ workspace の libs/refcache を共有する。
 ソース commit bf8fcfd9 の対象 full-check-local と依存先検査は accepted、終了コード 0、キャッシュ保存失敗 0。詳細は benchmarks/records/complex-hilbert/README.md を参照。
 
 コンパクト作用素の有界作用素との前合成を、単位球の像の正規化と相対コンパクト集合の連続像によって証明した。対象モジュールと零空間の例の個別検査は終了 0。次はノルム極限・随伴・恒等作用素の有限次元性と基礎補題。
+
+完備距離空間の閉・全有界集合のコンパクト性と、全有界集合の閉包のコンパクト性を functional_analysis.Metric.Geometry.TotalBoundedCompact に追加した。有限ネットと既存の ultrafilter・既存の classicalIndefiniteChoice を使用し、新しい公理は追加していない。個別検査は終了 0。次はノルム極限のコンパクト性への適用、有限次元性と随伴。

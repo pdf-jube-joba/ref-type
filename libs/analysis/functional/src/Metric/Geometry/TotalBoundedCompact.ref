@@ -1,0 +1,163 @@
+\import \root.Filters[A := Carrier] \as Filters;
+\import Filters.Compactness[topology := topology] \as FilterCompact;
+\import M.Compactness[].TotalBounded[metric := d] \as Total;
+\import M.Compactness[].RelativelyCompact[metric := d] \as Relative;
+\import topology.Topology[Carrier := Carrier].Closure[] \as Closure;
+\import std.Set[].FiniteSubset[A := Carrier] \as Points;
+\import std.Logic[].Proposition[] \as Logic;
+\use Logic.either;
+\definition Balls[X: \Pow Carrier, r: Real.Real]: \Pow Carrier :=
+  { x: Carrier \where \exists ( y: Carrier \where Logic.And[\In[Carrier] X y, T.Member (M.Ball d y r) x] ) };
+\definition avoid: \forall (F: Filters.Ultrafilter)(r: Real.Real)(finite: Points.FiniteSubset) ->
+  (\forall (y: Carrier) -> Points.Member finite y -> Logic.Not (Filters.Member F (M.Ball d y r))) ->
+  Filters.Member F (T.Complement (Balls finite r)) := \block {
+  \fun (F: Filters.Ultrafilter)(r: Real.Real) \then
+  \let empty: (\forall (y: Carrier) -> \In[Carrier] Points.Empty y -> Logic.Not (Filters.Member F (M.Ball d y r))) -> Filters.Member F (T.Complement (Balls Points.Empty r)) :=
+    \fun (absent: _) => (Filters.laws F).upward T.Whole (T.Complement (Balls Points.Empty r)) (Filters.laws F).whole
+      (\fun (x: Carrier)(_: T.Member T.Whole x)(inside: T.Member (Balls Points.Empty r) x) => \block {
+        \takefrom y: \Cast[Carrier] ({ y: Carrier \where Logic.And[\In[Carrier] Points.Empty y, T.Member (M.Ball d y r) x] }) \by inside \then
+        \return (\bysub(Carrier, { y: Carrier \where Logic.And[\In[Carrier] Points.Empty y, T.Member (M.Ball d y r) x] }, y)).left
+      }) \then
+  \return Points.induction ({ X: \Pow Carrier \where
+    (\forall (y: Carrier) -> \In[Carrier] X y -> Logic.Not (Filters.Member F (M.Ball d y r))) -> Filters.Member F (T.Complement (Balls X r)) }) empty
+    (\block {
+      \fun (X: \Pow Carrier)(ih: (\forall (y: Carrier) -> \In[Carrier] X y -> Logic.Not (Filters.Member F (M.Ball d y r))) -> Filters.Member F (T.Complement (Balls X r)))(a: Carrier)(absent: \forall (y: Carrier) -> \In[Carrier] (Points.Insert a X) y -> Logic.Not (Filters.Member F (M.Ball d y r))) \then
+      \let first: Filters.Member F (T.Complement (M.Ball d a r)) := Filters.complementMember F (M.Ball d a r) (absent a (Points.inInsertNew a X)) \then
+      \let rest: Filters.Member F (T.Complement (Balls X r)) := ih (\fun (y: Carrier)(member: \In[Carrier] X y) => absent y (Points.inInsertOld a X y member)) \then
+      \return (Filters.laws F).upward (T.Intersection (T.Complement (M.Ball d a r)) (T.Complement (Balls X r)))
+        (T.Complement (Balls (Points.Insert a X) r)) ((Filters.laws F).intersection _ _ first rest)
+        (\block {
+          \fun (x: Carrier)(both: T.Member (T.Intersection (T.Complement (M.Ball d a r)) (T.Complement (Balls X r))) x)
+            (inside: T.Member (Balls (Points.Insert a X) r) x) \then
+          \takefrom y: \Cast[Carrier] ({ y: Carrier \where Logic.And[\In[Carrier] (Points.Insert a X) y, T.Member (M.Ball d y r) x] }) \by inside \then
+          \let hit: Logic.And[\In[Carrier] (Points.Insert a X) y, T.Member (M.Ball d y r) x] := \bysub(Carrier, { y: Carrier \where Logic.And[\In[Carrier] (Points.Insert a X) y, T.Member (M.Ball d y r) x] }, y) \then
+          \return either!{hit.left {Logic.False}
+            {\fun (same: y = a) => both.left (\idelim y = a \with z: Carrier => T.Member (M.Ball d z r) x \by { base: hit.right, equality: same })}
+            {\fun (old: \In[Carrier] X y) => both.right (Logic.existsIntro[Carrier, { y: Carrier \where Logic.And[\In[Carrier] X y, T.Member (M.Ball d y r) x] }] y (Logic.And[_, _]::# old hit.right))}
+          }
+        })
+    })
+};
+\definition chooseBall: \forall (S: \Pow Carrier)(bounded: Total.TotallyBounded S)(F: Filters.Ultrafilter) -> Filters.Member F S ->
+  \forall (r: Real.Real) -> R.Lt Real.zero r -> \exists ( y: Carrier \where Filters.Member F (M.Ball d y r) ) := \block {
+  \fun (S: \Pow Carrier)(bounded: Total.TotallyBounded S)(F: Filters.Ultrafilter)(member: Filters.Member F S)(r: Real.Real)(positive: R.Lt Real.zero r) \then
+  \takefrom finite: \Cast[Points.FiniteSubset] ({ finite: Points.FiniteSubset \where Total.Net[S, r, finite] }) \by bounded r positive \then
+  \let net: Total.Net[S, r, finite] := \bysub(Points.FiniteSubset, { finite: Points.FiniteSubset \where Total.Net[S, r, finite] }, finite) \then
+  \enough _ \by { Filters.byContradiction (\exists ( y: Carrier \where Filters.Member F (M.Ball d y r) )) } \then
+  \fun (none: Logic.Not (\exists ( y: Carrier \where Filters.Member F (M.Ball d y r) ))) \then
+  \let omitted: Filters.Member F (T.Complement (Balls finite r)) := avoid F r finite
+    (\fun (y: Carrier)(_: Points.Member finite y)(ball: Filters.Member F (M.Ball d y r)) => none (Logic.existsIntro[Carrier, { y: Carrier \where Filters.Member F (M.Ball d y r) }] y ball)) \then
+  \takefrom x: \Cast[Carrier] (T.Intersection S (T.Complement (Balls finite r))) \by (Filters.laws F).proper _ ((Filters.laws F).intersection _ _ member omitted) \then
+  \let both: T.Member (T.Intersection S (T.Complement (Balls finite r))) x := \bysub(Carrier, T.Intersection S (T.Complement (Balls finite r)), x) \then
+  \return both.right (net.covers x both.left)
+};
+\definition Centre[F: Filters.Ultrafilter, n: N.Nat^]: \Set :=
+  \Cast[Carrier] ({ x: Carrier \where Filters.Member F (M.Ball d x (Dyadic.value n)) });
+\definition centresExist: \forall (S: \Pow Carrier) -> Total.TotallyBounded S -> \forall (F: Filters.Ultrafilter) -> Filters.Member F S ->
+  \exists ( \forall (n: N.Nat^) -> Centre[F, n] ) :=
+  \fun (S: \Pow Carrier)(bounded: Total.TotallyBounded S)(F: Filters.Ultrafilter)(member: Filters.Member F S) =>
+    \axiom:classicalIndefiniteChoice(N.Nat^, (\fun (n: N.Nat^) => Centre[F, n]),
+      \fun (n: N.Nat^) => chooseBall S bounded F member (Dyadic.value n) (Limits.dyadicPositive n));
+\definition centreMember: \forall (F: Filters.Ultrafilter)(n: N.Nat^)(x: Centre[F, n]) -> Filters.Member F (M.Ball d x (Dyadic.value n)) :=
+  \fun (F: Filters.Ultrafilter)(n: N.Nat^)(x: Centre[F, n]) =>
+    \bysub(Carrier, { x: Carrier \where Filters.Member F (M.Ball d x (Dyadic.value n)) }, x);
+\definition centreDistance: \forall (F: Filters.Ultrafilter)(m, n: N.Nat^)(x: Centre[F, m])(y: Centre[F, n]) ->
+  R.Lt (d.distance x y) (Real.add (Dyadic.value m) (Dyadic.value n)) := \block {
+  \fun (F: Filters.Ultrafilter)(m, n: N.Nat^)(x: Centre[F, m])(y: Centre[F, n]) \then
+  \takefrom z: \Cast[Carrier] (T.Intersection (M.Ball d x (Dyadic.value m)) (M.Ball d y (Dyadic.value n)))
+    \by (Filters.laws F).proper _ ((Filters.laws F).intersection _ _ (centreMember F m x) (centreMember F n y)) \then
+  \let both: T.Member (T.Intersection (M.Ball d x (Dyadic.value m)) (M.Ball d y (Dyadic.value n))) z :=
+    \bysub(Carrier, T.Intersection (M.Ball d x (Dyadic.value m)) (M.Ball d y (Dyadic.value n)), z) \then
+  \return R.leLtTrans _ _ _ (d.triangle x z y) (E.addLt _ _ _ _ both.left (R.ltReplaceLeft _ _ _ (d.symmetric y z) both.right))
+};
+\definition centresCauchy: \forall (F: Filters.Ultrafilter)(centres: \forall (n: N.Nat^) -> Centre[F, n]) -> Cauchy d (\fun (n: N.Nat^) => centres n) := \block {
+  \fun (F: Filters.Ultrafilter)(centres: \forall (n: N.Nat^) -> Centre[F, n])(epsilon: Real.Real)(positive: R.Lt Real.zero epsilon) \then
+  \let half: Real.Real := Real.mul Real.half epsilon \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt (Dyadic.value n) half })
+    \by Limits.dyadicSmall half (E.halfOfPositive epsilon positive) \then
+  \let small: \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt (Dyadic.value n) half :=
+    \bysub(N.Nat^, { k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt (Dyadic.value n) half }, k) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where CauchyControl d (\fun (n: N.Nat^) => centres n) epsilon k }] k
+    (\fun (m, n: N.Nat^)(km: Nat.Le k m)(kn: Nat.Le k n) => Order.ltTrans _ _ _ (centreDistance F m n (centres m) (centres n))
+      (R.ltReplaceRight _ (Real.add half half) epsilon (E.halfTwice epsilon) (E.addLt _ _ _ _ (small m km) (small n kn))))
+};
+\definition filterBalls: \forall (F: Filters.Ultrafilter)(centres: \forall (n: N.Nat^) -> Centre[F, n])(x: Carrier) ->
+  Converges d (\fun (n: N.Nat^) => centres n) x ->
+  \forall (epsilon: Real.Real) -> R.Lt Real.zero epsilon -> Filters.Member F (M.Ball d x epsilon) := \block {
+  \fun (F: Filters.Ultrafilter)(centres: \forall (n: N.Nat^) -> Centre[F, n])(x: Carrier)(converges: Converges d (\fun (n: N.Nat^) => centres n) x)
+    (epsilon: Real.Real)(positive: R.Lt Real.zero epsilon) \then
+  \let half: Real.Real := Real.mul Real.half epsilon \then
+  \let hp: R.Lt Real.zero half := E.halfOfPositive epsilon positive \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where LimitControl d (\fun (n: N.Nat^) => centres n) x half k }) \by converges half hp \then
+  \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le j n -> R.Lt (Dyadic.value n) half }) \by Limits.dyadicSmall half hp \then
+  \let n: N.Nat^ := Bounds.commonBound k j \then
+  \let near: R.Lt (d.distance (centres n) x) half :=
+    (\bysub(N.Nat^, { k: N.Nat^ \where LimitControl d (\fun (n: N.Nat^) => centres n) x half k }, k)) n (Bounds.leftLeCommonBound k j) \then
+  \let small: R.Lt (Dyadic.value n) half :=
+    (\bysub(N.Nat^, { j: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le j n -> R.Lt (Dyadic.value n) half }, j)) n (Bounds.rightLeCommonBound k j) \then
+  \return (Filters.laws F).upward (M.Ball d (centres n) (Dyadic.value n)) (M.Ball d x epsilon) (centreMember F n (centres n))
+    (\fun (y: Carrier)(inside: T.Member (M.Ball d (centres n) (Dyadic.value n)) y) =>
+      R.leLtTrans _ _ epsilon (d.triangle x (centres n) y)
+        (R.ltReplaceRight _ (Real.add half half) epsilon (E.halfTwice epsilon)
+          (E.addLt _ _ half half (R.ltReplaceLeft _ _ _ (d.symmetric (centres n) x) near) (Order.ltTrans _ _ _ inside small))))
+};
+\definition filterLimit: \forall (F: Filters.Ultrafilter)(centres: \forall (n: N.Nat^) -> Centre[F, n])(x: Carrier) ->
+  Converges d (\fun (n: N.Nat^) => centres n) x -> FilterCompact.Limit[F, x] := \block {
+  \fun (F: Filters.Ultrafilter)(centres: \forall (n: N.Nat^) -> Centre[F, n])(x: Carrier)(converges: Converges d (\fun (n: N.Nat^) => centres n) x)
+    (U: \Pow Carrier)(open: T.IsOpenIn topology U)(inside: T.Member U x) \then
+  \takefrom radius: \Cast[Real.Real] (M.NeighborhoodRadius d U x) \by (Topology.openIff d U).ltr open x inside \then
+  \let data: Logic.And[R.Lt Real.zero radius, T.Subset (M.Ball d x radius) U] := \bysub(Real.Real, M.NeighborhoodRadius d U x, radius) \then
+  \return (Filters.laws F).upward (M.Ball d x radius) U (filterBalls F centres x converges radius data.left) data.right
+};
+\definition closedLimit: \forall (S: \Pow Carrier)(closed: T.IsClosedIn topology S)(F: Filters.Ultrafilter) -> Filters.Member F S ->
+  \forall (x: Carrier) -> FilterCompact.Limit[F, x] -> T.Member S x :=
+  \fun (S: \Pow Carrier)(closed: T.IsClosedIn topology S)(F: Filters.Ultrafilter)(member: Filters.Member F S)(x: Carrier)(limit: FilterCompact.Limit[F, x]) =>
+    Filters.byContradiction (T.Member S x) (\fun (outside: Logic.Not (T.Member S x)) =>
+      Filters.incompatible F S member (limit (T.Complement S) closed outside));
+\definition closedCompact: Complete d -> \forall (S: \Pow Carrier) -> T.IsClosedIn topology S -> Total.TotallyBounded S -> T.IsCompactIn topology S := \block {
+  \fun (complete: Complete d)(S: \Pow Carrier)(closed: T.IsClosedIn topology S)(bounded: Total.TotallyBounded S) \then
+  \return FilterCompact.compactOfLimits S (\block {
+    \fun (F: Filters.Ultrafilter)(member: Filters.Member F S) \then
+    \takefrom centres: (\forall (n: N.Nat^) -> Centre[F, n]) \by centresExist S bounded F member \then
+    \takefrom x: \Cast[Carrier] ({ x: Carrier \where Converges d (\fun (n: N.Nat^) => centres n) x }) \by complete (\fun (n: N.Nat^) => centres n) (centresCauchy F centres) \then
+    \let converges: Converges d (\fun (n: N.Nat^) => centres n) x := \bysub(Carrier, { x: Carrier \where Converges d (\fun (n: N.Nat^) => centres n) x }, x) \then
+    \let limit: FilterCompact.Limit[F, x] := filterLimit F centres x converges \then
+    \return Logic.existsIntro[Carrier, { x: Carrier \where FilterCompact.LimitIn[F, S, x] }] x
+      (FilterCompact.LimitIn[F, S, x] { member := closedLimit S closed F member x limit, limit := limit })
+  })
+};
+\definition closureNear: \forall (S: \Pow Carrier)(x: Carrier) -> T.Member (Closure.closure topology S) x ->
+  \forall (radius: Real.Real) -> R.Lt Real.zero radius -> \exists ( y: Carrier \where Logic.And[T.Member S y, T.Member (M.Ball d x radius) y] ) := \block {
+  \fun (S: \Pow Carrier)(x: Carrier)(inClosure: T.Member (Closure.closure topology S) x)(radius: Real.Real)(positive: R.Lt Real.zero radius) \then
+  \enough _ \by { Filters.byContradiction (\exists ( y: Carrier \where Logic.And[T.Member S y, T.Member (M.Ball d x radius) y] )) } \then
+  \fun (none: Logic.Not (\exists ( y: Carrier \where Logic.And[T.Member S y, T.Member (M.Ball d x radius) y] ))) \then
+  \return inClosure (T.unionMemberOf (Closure.Avoiding topology S) (M.Ball d x radius) x
+    (Logic.And[_, _]::# (Topology.ballOpenIn d x radius)
+      (\fun (y: Carrier)(near: T.Member (M.Ball d x radius) y)(inside: T.Member S y) => none
+        (Logic.existsIntro[Carrier, { y: Carrier \where Logic.And[T.Member S y, T.Member (M.Ball d x radius) y] }] y (Logic.And[_, _]::# inside near))))
+    (M.ballCenter d x radius positive))
+};
+\definition closureBounded: \forall (S: \Pow Carrier) -> Total.TotallyBounded S -> Total.TotallyBounded (Closure.closure topology S) := \block {
+  \fun (S: \Pow Carrier)(bounded: Total.TotallyBounded S)(epsilon: Real.Real)(positive: R.Lt Real.zero epsilon) \then
+  \let half: Real.Real := Real.mul Real.half epsilon \then
+  \let hp: R.Lt Real.zero half := E.halfOfPositive epsilon positive \then
+  \takefrom finite: \Cast[Points.FiniteSubset] ({ finite: Points.FiniteSubset \where Total.Net[S, half, finite] }) \by bounded half hp \then
+  \let net: Total.Net[S, half, finite] := \bysub(Points.FiniteSubset, { finite: Points.FiniteSubset \where Total.Net[S, half, finite] }, finite) \then
+  \return Logic.existsIntro[Points.FiniteSubset, { finite: Points.FiniteSubset \where Total.Net[Closure.closure topology S, epsilon, finite] }] finite
+    (Total.Net[Closure.closure topology S, epsilon, finite] {
+      covers := \block {
+        \fun (x: Carrier)(inside: T.Member (Closure.closure topology S) x) \then
+        \takefrom y: \Cast[Carrier] ({ y: Carrier \where Logic.And[T.Member S y, T.Member (M.Ball d x half) y] }) \by closureNear S x inside half hp \then
+        \let near: Logic.And[T.Member S y, T.Member (M.Ball d x half) y] := \bysub(Carrier, { y: Carrier \where Logic.And[T.Member S y, T.Member (M.Ball d x half) y] }, y) \then
+        \takefrom z: \Cast[Carrier] ({ z: Carrier \where Logic.And[Points.Member finite z, R.Lt (d.distance z y) half] }) \by net.covers y near.left \then
+        \let centre: Logic.And[Points.Member finite z, R.Lt (d.distance z y) half] := \bysub(Carrier, { z: Carrier \where Logic.And[Points.Member finite z, R.Lt (d.distance z y) half] }, z) \then
+        \return Logic.existsIntro[Carrier, { z: Carrier \where Logic.And[Points.Member finite z, R.Lt (d.distance z x) epsilon] }] z
+          (Logic.And[_, _]::# centre.left (R.leLtTrans _ _ epsilon (d.triangle z y x)
+            (R.ltReplaceRight _ (Real.add half half) epsilon (E.halfTwice epsilon)
+              (E.addLt _ _ half half centre.right (R.ltReplaceLeft _ _ _ (d.symmetric x y) near.right)))))
+      },
+    })
+};
+\definition relativelyCompact: Complete d -> \forall (S: \Pow Carrier) -> Total.TotallyBounded S -> Relative.RelativelyCompact S :=
+  \fun (complete: Complete d)(S: \Pow Carrier)(bounded: Total.TotallyBounded S) =>
+    closedCompact complete (Closure.closure topology S) (Closure.closed topology S) (closureBounded S bounded);

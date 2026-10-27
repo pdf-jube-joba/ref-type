@@ -69,7 +69,7 @@ Riesz 表現は実部の有界実線形汎関数に既存の実 Riesz 定理を�
 | `metric_spaces.MetricSpace.Compactness` | 有限 \(\varepsilon\)-ネットによる `TotallyBounded metric S`、コンパクト集合の全有界性、完備空間での全有界集合の閉包のコンパクト性 | 作用素像の相対コンパクト性とノルム極限を扱う |
 | `functional_analysis.Normed.FiniteDimensional` | 既存の有限基底とノルムから、閉有界球のコンパクト性と有限次元線形部分空間の閉性を証明する | 有限階数作用素のコンパクト性、有限ネットが張る空間への射影を扱う |
 
-距離空間の `Compactness.TotalBounded` と `Compactness.RelativelyCompact` で有限ネット、コンパクト集合の全有界性、相対コンパクト集合の部分集合と連続像を構築・個別検査した。完備性からの逆方向と有限次元の場合は未実装である。
+距離空間の `Compactness.TotalBounded` と `Compactness.RelativelyCompact` で有限ネット、コンパクト集合の全有界性、相対コンパクト集合の部分集合と連続像を構築・個別検査した。`functional_analysis.Metric.Geometry.TotalBoundedCompact` に完備空間での全有界集合の閉包のコンパクト性を追加した。有限次元の場合は未実装である。
 共通 API の整備後に、有限階数近似との同値、コンパクト性の四つの閉性、恒等作用素からの有限次元性を完成させる。
 
 ## 検査
