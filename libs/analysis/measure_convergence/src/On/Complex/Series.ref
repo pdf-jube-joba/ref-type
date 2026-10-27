@@ -1,0 +1,48 @@
+\import Integral.Zero[] \as Zero;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition zero: Representatives := \into[Function] ((\fun (_: A) => ComplexOp.zero), { f: Function \where Integrable f }) \by {
+  Logic.And[_, _]::# Zero.integrable Zero.integrable
+};
+\definition partial: N.Nat^ -> Representatives := \induction (k: N.Nat^) \return Representatives \with {
+  | zero: zero
+  | succ: \fun (k: N.Nat^) (previous: Representatives) => addRepresentative previous (terms k)
+};
+\definition scalarPartial: N.Nat^ -> C.Complex := \induction (k: N.Nat^) \return C.Complex \with {
+  | zero: ComplexOp.zero
+  | succ: \fun (k: N.Nat^) (previous: C.Complex) => ComplexOp.add previous (integral (terms k))
+};
+\definition partialIntegral: \forall (k: N.Nat^) -> integral (partial k) = scalarPartial k :=
+  \induction (k: N.Nat^) \return integral (partial k) = scalarPartial k \with {
+    | zero: congr!{Real.Real Real.Real C.Complex} C.make _ _ _ _ Zero.integralZero Zero.integralZero
+    | succ: \fun (k: N.Nat^) (previous: _) => eq_reason_in!{C.Complex _
+      "=" _ "by" { integralAdd (partial k) (terms k) }
+      "=" _ "by" { congr!{C.Complex C.Complex} (\fun (v: C.Complex) => ComplexOp.add v (integral (terms k))) _ _ previous }
+    }
+  };
+\structure Conditions: \Set := {
+  limit: Function,
+  bound: Integral.Representatives,
+  realBound: \forall (k: N.Nat^) (x: A) -> R.Le (Product.abs (C.re (partial k x))) (bound x),
+  imaginaryBound: \forall (k: N.Nat^) (x: A) -> R.Le (Product.abs (C.im (partial k x))) (bound x),
+  realConverges: \forall (x: A) -> Sequence.Converges (\fun (k: N.Nat^) => C.re (partial k x)) (C.re (limit x)),
+  imaginaryConverges: \forall (x: A) -> Sequence.Converges (\fun (k: N.Nat^) => C.im (partial k x)) (C.im (limit x)),
+};
+\module Exchange(c: Conditions) {
+  \definition data: DominatedData := DominatedData { sequence := partial, limit := c.limit, bound := c.bound,
+    realBound := c.realBound, imaginaryBound := c.imaginaryBound, realConverges := c.realConverges, imaginaryConverges := c.imaginaryConverges };
+  \import \root.On[A := A, mu := mu].Complex[].Dominated[d := data] \as Proof;
+  \definition representative: Representatives := Proof.representative;
+  \definition realExchange: Sequence.Converges (\fun (k: N.Nat^) => C.re (scalarPartial k)) (C.re (integral representative)) :=
+    \idelim (\fun (k: N.Nat^) => C.re (integral (partial k))) = (\fun (k: N.Nat^) => C.re (scalarPartial k))
+      \with s: (N.Nat^ -> Real.Real) => Sequence.Converges s (C.re (integral representative)) \by {
+        base: Proof.realConvergence, equality: \axiom:funext((\fun (k: N.Nat^) => C.re (integral (partial k))),
+          (\fun (k: N.Nat^) => C.re (scalarPartial k)), \fun (k: N.Nat^) => congr!{C.Complex Real.Real} C.re _ _ (partialIntegral k))
+      };
+  \definition imaginaryExchange: Sequence.Converges (\fun (k: N.Nat^) => C.im (scalarPartial k)) (C.im (integral representative)) :=
+    \idelim (\fun (k: N.Nat^) => C.im (integral (partial k))) = (\fun (k: N.Nat^) => C.im (scalarPartial k))
+      \with s: (N.Nat^ -> Real.Real) => Sequence.Converges s (C.im (integral representative)) \by {
+        base: Proof.imaginaryConvergence, equality: \axiom:funext((\fun (k: N.Nat^) => C.im (integral (partial k))),
+          (\fun (k: N.Nat^) => C.im (scalarPartial k)), \fun (k: N.Nat^) => congr!{C.Complex Real.Real} C.im _ _ (partialIntegral k))
+      };
+}
