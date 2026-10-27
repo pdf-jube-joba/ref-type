@@ -94,3 +94,9 @@ Mayer–Vietoris の交叉部分の完全性も証明コードを追加し、構
 次数0の和の位置の完全性には、閉被覆上の束の貼り合わせを構成する。
 `ClosedCover.Patching` に交叉上の同型から有限次元の交差写像を作り、Tietze で全体へ延長する入口を書いた。
 延長写像による剪断・射影の貼り合わせ、次数0の完全性、外積は構成中。
+
+恒等比較の整理後は `InclusionStep.pointwise` まで進み、`WholeStep` の移送された写像と直接 suspension した写像との不一致を検出した。
+`WholeStep.result` を定義上同じ型の `Suspended.result` から直接取るよう整理した（未検証）。
+再検査 snapshot は `iteration-direct-whole.source.json`。
+`PairIteration.WholeStep`・`SubsetStep`・`InclusionStep`・`ProjectionStep` をそれぞれ `--module-only` で先に保存し、その後 `PairIteration` と `PairIteration.Sequence` を検査する。
+`Patching` の剪断の構成と射影との交叉上の可換式も追加したが、型検査は未完了。
