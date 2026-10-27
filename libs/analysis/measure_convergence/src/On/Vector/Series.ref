@@ -1,0 +1,41 @@
+\import Integral.Zero[] \as Zero;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition zero: Representatives := \into[Function] ((\fun (_: A) (_: Fin.Fin n) => Real.zero), { f: Function \where Integrable f }) \by {
+  \fun (_: Fin.Fin n) => Zero.integrable
+};
+\definition partial: N.Nat^ -> Representatives := \induction (k: N.Nat^) \return Representatives \with {
+  | zero: zero
+  | succ: \fun (k: N.Nat^) (previous: Representatives) => addRepresentative previous (terms k)
+};
+\definition scalarPartial: \forall (i: Fin.Fin n) -> N.Nat^ -> Real.Real := \fun (i: Fin.Fin n) =>
+  \induction (k: N.Nat^) \return Real.Real \with {
+    | zero: Real.zero
+    | succ: \fun (k: N.Nat^) (previous: Real.Real) => Real.add previous (integral (terms k) i)
+  };
+\definition partialIntegral: \forall (k: N.Nat^) (i: Fin.Fin n) -> integral (partial k) i = scalarPartial i k :=
+  \induction (k: N.Nat^) \return \forall (i: Fin.Fin n) -> integral (partial k) i = scalarPartial i k \with {
+    | zero: \fun (i: Fin.Fin n) => Zero.integralZero
+    | succ: \fun (k: N.Nat^) (previous: _) (i: Fin.Fin n) => eq_reason_in!{Real.Real _
+      "=" _ "by" { Linear.integralAdd (component (partial k) i) (component (terms k) i) }
+      "=" _ "by" { congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.add v (integral (terms k) i)) _ _ (previous i) }
+    }
+  };
+\structure Conditions: \Set := {
+  limit: Function,
+  bound: Integral.Representatives,
+  dominated: \forall (k: N.Nat^) (x: A) (i: Fin.Fin n) -> R.Le (Product.abs (partial k x i)) (bound x),
+  converges: \forall (x: A) (i: Fin.Fin n) -> Sequence.Converges (\fun (k: N.Nat^) => partial k x i) (limit x i),
+};
+\module Exchange(c: Conditions) {
+  \definition data: DominatedData := DominatedData { sequence := partial, limit := c.limit, bound := c.bound,
+    dominated := c.dominated, converges := c.converges };
+  \import \root.On[mu := mu].Vector[n := n].Dominated[d := data] \as Proof;
+  \definition representative: Representatives := Proof.representative;
+  \definition exchange: \forall (i: Fin.Fin n) -> Sequence.Converges (scalarPartial i) (integral representative i) :=
+    \fun (i: Fin.Fin n) => \idelim (\fun (k: N.Nat^) => integral (partial k) i) = scalarPartial i
+      \with s: (N.Nat^ -> Real.Real) => Sequence.Converges s (integral representative i) \by {
+        base: Proof.convergence i, equality: \axiom:funext((\fun (k: N.Nat^) => integral (partial k) i), scalarPartial i,
+          \fun (k: N.Nat^) => partialIntegral k i)
+      };
+}
