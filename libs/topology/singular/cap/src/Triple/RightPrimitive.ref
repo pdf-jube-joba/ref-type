@@ -1,0 +1,46 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import singular_cohomology.Simplices[A := A, source := source] \as Simplices;
+\import Simplices.CutFaces[p := p, q := r] \as Geometry;
+\import \parent.Cup[p := p, q := r].Both[] \as Lower;
+\import \parent.Cup[p := p, q := N.Nat^::succ r].Both[] \as Upper;
+\import SecondPair.Degree[] \as SecondDegree;
+\import SecondPair.Comparison[n := r] \as SecondComparison;
+\import SecondComparison.Commutes[] \as Commutes;
+\import FirstPair.Comparison[n := p] \as FirstComparison;
+\import FirstPair.RelativeCup[p := p, q := r].Closed[] \as FirstClosed;
+\import Cochains.Cup[p := p, q := r].Closed[] \as WholeClosed;
+\import Cochains.Cup[p := p, q := N.Nat^::succ r] \as WholeUpper;
+\import \parent.CommonComplex[] \as Common;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring].At[C := Common.complex, k := Geometry.higher] \as Output;
+\import Modules.Alternating[V := Common.family.Carrier Geometry.higher, space := Common.family.space Geometry.higher].Concatenation[] \as Signs;
+\import Modules.Of[V := Common.family.Carrier Geometry.higher, space := Common.family.space Geometry.higher].Submodule[] \as Submodules;
+\definition signed: \forall (alpha: FirstCochains.Carrier (I.Int^::ofNat p))(gamma: SecondDegree.Carrier r) ->
+  (FirstCochains.complex.differential).apply (I.Int^::ofNat p) alpha = (FirstCochains.space (I.Int^::ofNat (N.Nat^::succ p))).zero ->
+  Common.complex.differential.apply Geometry.total (Lower.product alpha gamma) =
+  Signs.twist p (Upper.product alpha (SecondDegree.differential r gamma)) :=
+  \fun (alpha: FirstCochains.Carrier (I.Int^::ofNat p))(gamma: SecondDegree.Carrier r)(closed: _) => eq_reason_in!{{Cochains.Carrier Geometry.higher} _
+    "=" _ "by" { WholeClosed.leftClosed (FirstComparison.from alpha) (SecondComparison.from gamma) (FirstClosed.leftUnderlying alpha closed) }
+    "=" _ "by" { congr!{{Cochains.Carrier Geometry.higher} {Cochains.Carrier Geometry.higher}} (Cochains.Signs[n := Geometry.higher].apply p) _ _
+      (congr!{{Cochains.Carrier (N.Nat^::succ r)} {Cochains.Carrier Geometry.higher}} (WholeUpper.apply (FirstComparison.from alpha)) _ _ (sym!{{Cochains.Carrier (N.Nat^::succ r)}} _ _ (Commutes.law gamma))) }
+  };
+\definition preserves: \forall (n: N.Nat^)(x: Common.family.Carrier Geometry.higher) -> Submodules.Member Output.boundaries x -> Submodules.Member Output.boundaries (Signs.twist n x) :=
+  \induction (n: N.Nat^) \return \forall (x: Common.family.Carrier Geometry.higher) -> Submodules.Member Output.boundaries x -> Submodules.Member Output.boundaries (Signs.twist n x) \with {
+    | zero: \fun (x: Common.family.Carrier Geometry.higher)(member: _) => member
+    | succ: \fun (n: N.Nat^)(previous: _)(x: Common.family.Carrier Geometry.higher)(member: _) => Submodules.negativeClosed Output.boundaries (Signs.twist n x) (previous x member)
+  };
+\definition boundary: \forall (alpha: FirstCochains.Carrier (I.Int^::ofNat p))(gamma: SecondDegree.Carrier r) ->
+  (FirstCochains.complex.differential).apply (I.Int^::ofNat p) alpha = (FirstCochains.space (I.Int^::ofNat (N.Nat^::succ p))).zero ->
+  Submodules.Member Output.boundaries (Upper.product alpha (SecondDegree.differential r gamma)) :=
+  \fun (alpha: FirstCochains.Carrier (I.Int^::ofNat p))(gamma: SecondDegree.Carrier r)(closed: _) =>
+    \idelim Signs.twist p (Signs.twist p (Upper.product alpha (SecondDegree.differential r gamma))) = Upper.product alpha (SecondDegree.differential r gamma)
+      \with x: Common.family.Carrier Geometry.higher => Submodules.Member Output.boundaries x \by {
+        base: preserves p (Signs.twist p (Upper.product alpha (SecondDegree.differential r gamma)))
+          (std.Logic[].Proposition[].existsIntro[Common.family.Carrier Geometry.total,
+            { x: Common.family.Carrier Geometry.total \where Common.complex.differential.apply Geometry.total x = Signs.twist p (Upper.product alpha (SecondDegree.differential r gamma)) }]
+            (Lower.product alpha gamma) (signed alpha gamma closed)),
+        equality: Signs.involution p (Upper.product alpha (SecondDegree.differential r gamma))
+      };
