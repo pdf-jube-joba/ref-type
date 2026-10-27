@@ -102,11 +102,12 @@ K07 の影響先検査は最終検査に含める。
 `FramedClass.To.Stable` は両側へ自明束を加えた後の枠と両立する同型から、元の被約群の元の一致を導く。
 `FramedSum` と `Stabilized` は安定化した束のモデル・枠・次元も公開する。
 `Commutative.DirectSum.Symmetry`・`CoordinateSum.Symmetry`・`DirectSumMiddleSwap` は直和と座標ブロックの交換・並べ替えを構成する。
-最新の未検証変更は `TripleFraming` と `TripleClass.canonicalEquality`。
+`TripleFraming` と `TripleClass.canonicalEquality` は `triple-framing-*` で accepted・終了0・キャッシュ保存失敗0。
 前者は負側と補助束の直和の自明化を引数として被約群の元を作り、後者は標準補束を使った場合の既存構成との一致を示す。
-補助束・自明化の選択独立性は続けて証明する。
-固定 snapshot は `work/k03-resume/triple-framing.source.json`。
-次は `relative_k_theory.Relative.Pair.TripleFraming` と `relative_k_theory.Relative.Pair.TripleClass` を順に検査する。
+最新の未検証変更は `ComplementChoice`。
+全体の束の交換自己同型と座標ブロックの交換により、補助束・自明化の選択によらず被約群の元が一致することを示す。
+固定 snapshot は `work/k03-resume/complement-choice.source.json`。
+次は `relative_k_theory.Relative.Pair.ComplementChoice` を検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。
