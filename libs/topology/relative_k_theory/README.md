@@ -52,6 +52,8 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 | 束写像の剪断、交換、直和の並べ替え | `shears-*` / `reordering-*` |
 | 底面の商の raw 写像・一意性・連続性 | `subset-raw` |
 | 底面の商と suspension の比較全体・明示的な逆・忘却の式 | `subset-comparison` |
+| 接続写像・相対群での完全性（module 自身と依存先） | `forget-square-connecting` |
+| 二段目の接続写像の候補像と核（module 自身と依存先） | `forget-square-left-exact` |
 
 長い `cofiber-exact-…BaseQuotient`・`direct-inverse-…BaseQuotient-Raw`・`constant-raw-…BaseQuotient-Raw` は、構成の整理と計測のため中断した検査。
 いずれも終了130・`interrupted`・キャッシュ保存失敗0で、成功した対象検査とは区別する。
@@ -88,18 +90,22 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 両写像を射影の引き戻しへ比較して結ぶ証明を追加した。
 `forget-square.source.json` で、まず `Pointed.Connecting`、次に `Pointed.LeftExact` をそれぞれ `--module-only` で検査し、通った依存先を保存する。
 一般の束の円板から元の束の全空間への連続な単射とノルム条件、および閉被覆の商の比較も追加した（いずれも未検証、`closed-cover-current.source.json`）。
+忘却の比較を加えた検査は、`Pointed.Connecting`・`Pointed.LeftExact` とも accepted・終了0・保存失敗0だった。
+次に同じ snapshot で変形の `Inner`・`Outer`・`Endpoints`、`LeftExact.Suspension`、`FiveTerm` を順に検査する。
+`Absolute.Mapping` と `ClosedCover.MayerVietoris` の境界写像・全体の群での完全性も追加したが、型検査は未実施（`mayer-whole.source.json`）。
+Mayer–Vietoris の残りの位置での完全性はまだ構成中。
 次の固定 snapshot で検査を続ける。
 
 ```bash
 REF_TYPE_PROFILE_DECLARATIONS=1 REF_TYPE_PROFILE_PHASES=1 \
   target/debug/cli libs/topology/relative_k_theory \
-  --module relative_k_theory.Relative.Pair.Pointed.Connecting --module-only \
+  --module relative_k_theory.Relative.Pair.Pointed.Rotation.Inner --module-only \
   --memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 \
-  --diagnostics compact --report-json work/k03-resume/forget-square-connecting.json \
+  --diagnostics compact --report-json work/k03-resume/rotation-stage-Rotation-Inner.json \
   --source-snapshot work/k03-resume/forget-square.source.json \
-  > work/k03-resume/forget-square-connecting.log 2>&1
+  > work/k03-resume/rotation-stage-Rotation-Inner.log 2>&1
 result=$?
-printf '%s\n' "$result" > work/k03-resume/forget-square-connecting.exit
+printf '%s\n' "$result" > work/k03-resume/rotation-stage-Rotation-Inner.exit
 ```
 
 `closed-pair-lift.source.json` は `b334fd01` 時点の数学コードの固定 snapshot。

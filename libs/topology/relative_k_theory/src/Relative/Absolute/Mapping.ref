@@ -1,0 +1,24 @@
+\import \root.Relative[].Absolute[X := Y, space := source, compact := sourceCompact, hausdorff := sourceHausdorff] \as Source;
+\import topological_constructions.Coproduct[A := Y, B := Q.Point] \as SourceSum;
+\import SourceSum.Universal[C := model.Carrier] \as Copair;
+\definition left[y: Y]: model.Carrier := Sum.inl (f y);
+\definition apply: Source.model.Carrier -> model.Carrier := Copair.copair left Sum.inr;
+\definition leftContinuous: topology.Continuity[A := Y, B := model.Carrier].Continuous source (details model).topology left :=
+  topology.Composition[A := Y, B := X, C := model.Carrier].composeContinuous source space (details model).topology f inclusion regular inclusionContinuous;
+\definition continuous: topology.Continuity[A := Source.model.Carrier, B := model.Carrier].Continuous (details Source.model).topology (details model).topology apply :=
+  Copair.continuous source (topology.Topology[Carrier := Q.Point].Discrete) (details model).topology left Sum.inr leftContinuous
+    (Sum.inrContinuous space (topology.Topology[Carrier := Q.Point].Discrete));
+\import algebraic_topology.Pointed[A := Source.model.Carrier].Maps[B := model.Carrier] \as Pointed;
+\definition map: Map Source.model model := \into[Source.model.Carrier -> model.Carrier](apply, Map Source.model model) \by {
+  Pointed.Laws[pointed Source.model, pointed model, apply] { continuous := continuous, pointed := \refl((details model).point) }
+};
+\definition onOriginal: \forall (y: Y) -> map (Source.inclusion y) = inclusion (f y) := \fun (y: Y) => \refl(inclusion (f y));
+\definition onStar: \forall (p: Q.Point) -> map (SourceSum.inr p) = Sum.inr p := \fun (p: Q.Point) => \refl(Sum.inr p);
+\module Negative(degree: N.Nat^) {
+  \import \root.Relative[].NegativeMap[source := Source.model, target := model, f := map, degree := degree] \as Native;
+  \import \root.Relative[].Negative[original := model, degree := degree] \as From;
+  \import \root.Relative[].Negative[original := Source.model, degree := degree] \as To;
+  \definition map: From.Carrier -> To.Carrier := Native.map;
+  \definition additive: \forall (v, w: From.Carrier) -> map (From.group.base.op v w) = To.group.base.op (map v) (map w) := Native.additive;
+  \definition preservesZero: map From.group.base.unit = To.group.base.unit := Native.preservesZero;
+}

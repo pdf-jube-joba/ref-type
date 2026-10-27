@@ -1,0 +1,108 @@
+\use Equality.eq_reason_in;
+\import \parent.\parent.Augmented[] \as XPair;
+\import DomainPair.Augmented[] \as VPair;
+\import XPair.Sequence[degree := degree] \as XTerm;
+\import VPair.Sequence[degree := degree] \as VTerm;
+\import Invariance.Negative[degree := degree] \as Relative;
+\import \root.Relative[].Absolute[X := X, space := space, compact := compact, hausdorff := hausdorff] \as WholeSpace;
+\import \root.Relative[].Absolute[X := Y, space := source, compact := compactSource, hausdorff := hausdorffSource] \as Piece;
+\import WholeSpace.Mapping[Y := Y, source := source, sourceCompact := compactSource, sourceHausdorff := hausdorffSource,
+  f := inclusion, regular := inclusionContinuous] \as VInclusion;
+\import VInclusion.Negative[degree := degree] \as VRestriction;
+\definition IntersectionNext: \Set := VTerm.Second;
+\definition Whole: \Set := XTerm.Fourth;
+\definition intersectionNextGroup: std.Alg[].Alg[].CommutativeGroup[IntersectionNext] := VTerm.secondGroup;
+\definition wholeGroup: std.Alg[].Alg[].CommutativeGroup[Whole] := XTerm.fourthGroup;
+\import std.Alg[].Alg[] \as Alg;
+\import algebra.Groups[].On[G := XTerm.Fifth, group := (Alg.asGroup XTerm.Fifth XTerm.fifthGroup)].Product[
+  H := VTerm.Fourth, other := (Alg.asGroup VTerm.Fourth VTerm.fourthGroup)] \as Product;
+\definition Pieces: \Set := Product.Pair;
+\definition piecesGroup: Alg.CommutativeGroup[Pieces] := Alg.CommutativeGroup[Pieces] {
+  base := Product.group, group := (\bysub(Alg.GroupData[Pieces], Alg.Group[Pieces], Product.group)),
+  commutative := \fun (p, q: Pieces) => Product.ext (Product.product p q) (Product.product q p)
+    (XTerm.fifthGroup.commutative p.first q.first) (VTerm.fourthGroup.commutative p.second q.second)
+};
+\definition restriction[v: Whole]: Pieces := Product.Pair { first := XTerm.restriction v, second := VRestriction.map v };
+\definition boundary[v: IntersectionNext]: Whole := XTerm.forget (Relative.backward (VTerm.boundary v));
+\definition restrictionAdd: \forall (v, w: Whole) -> restriction (wholeGroup.base.op v w) = piecesGroup.base.op (restriction v) (restriction w) :=
+  \fun (v, w: Whole) => Product.ext _ _ (XTerm.restrictionAdd v w) (VRestriction.additive v w);
+\definition restrictionZero: restriction wholeGroup.base.unit = piecesGroup.base.unit := Product.ext _ _ XTerm.restrictionZero VRestriction.preservesZero;
+\definition boundaryAdd: \forall (v, w: IntersectionNext) -> boundary (intersectionNextGroup.base.op v w) = wholeGroup.base.op (boundary v) (boundary w) :=
+  \fun (v, w: IntersectionNext) => trans!{Whole} _ _ _
+    (congr!{{XTerm.Third} Whole} XTerm.forget _ _ (trans!{{XTerm.Third}} _ _ _
+      (congr!{{VTerm.Third} {XTerm.Third}} Relative.backward _ _ (VTerm.boundaryAdd v w))
+      (Relative.inverseAdditive (VTerm.boundary v) (VTerm.boundary w))))
+    (XTerm.forgetAdd (Relative.backward (VTerm.boundary v)) (Relative.backward (VTerm.boundary w)));
+\definition boundaryZero: boundary intersectionNextGroup.base.unit = wholeGroup.base.unit := trans!{Whole} _ _ _
+  (congr!{{XTerm.Third} Whole} XTerm.forget _ _ (trans!{{XTerm.Third}} _ _ _
+    (congr!{{VTerm.Third} {XTerm.Third}} Relative.backward _ _ VTerm.boundaryZero) Relative.backwardZero)) XTerm.forgetZero;
+\import \root.Relative[].Composition[source := Piece.model, middle := WholeSpace.model, target := Range.model,
+  first := VInclusion.map, second := XPair.projection] \as Left;
+\import \root.Relative[].Composition[source := Piece.model, middle := Domain.model, target := Range.model,
+  first := VPair.projection, second := Inclusion.quotientMap] \as Right;
+\import topological_constructions.Coproduct[A := Y, B := Domain.Point] \as Augment;
+\definition onOriginal: \forall (y: Y) -> Left.map (Piece.inclusion y) = Right.map (Piece.inclusion y) := \fun (y: Y) => eq_reason_in!{{Range.Carrier} _
+  "=" { XPair.projection (WholeSpace.inclusion (inclusion y)) } "by" { congr!{{WholeSpace.model.Carrier} {Range.Carrier}} XPair.projection _ _ (VInclusion.onOriginal y) }
+  "=" { Range.projection (inclusion y) } "by" { XPair.projectionOnOriginal (inclusion y) }
+  "=" { Inclusion.quotientMap (Domain.projection y) } "by" { sym!{{Range.Carrier}} _ _ (Inclusion.onProjection y) }
+  "=" { Right.map (Piece.inclusion y) } "by" { sym!{{Range.Carrier}} _ _ (congr!{{Domain.Carrier} {Range.Carrier}} Inclusion.quotientMap _ _ (VPair.projectionOnOriginal y)) }
+};
+\import algebraic_topology.Pointed[A := Piece.model.Carrier].Maps[B := Range.Carrier] \as Maps;
+\definition onStar: \forall (p: Domain.Point) -> Left.map (Augment.inr p) = Right.map (Augment.inr p) := \block {
+  \fun (p: Domain.Point) \then
+  \let same: Augment.inr p = (details Piece.model).point := congr!{{Domain.Point} {Piece.model.Carrier}} Augment.inr p Domain.distinguished (Fin.singletonValue p) \then
+  \return trans!{{Range.Carrier}} _ _ _
+    (trans!{{Range.Carrier}} _ _ _ (congr!{{Piece.model.Carrier} {Range.Carrier}} Left.map (Augment.inr p) (details Piece.model).point same)
+      ((Maps.laws (pointed Piece.model) (pointed Range.model) Left.map).pointed))
+    (sym!{{Range.Carrier}} _ _ (trans!{{Range.Carrier}} _ _ _ (congr!{{Piece.model.Carrier} {Range.Carrier}} Right.map (Augment.inr p) (details Piece.model).point same)
+      ((Maps.laws (pointed Piece.model) (pointed Range.model) Right.map).pointed)))
+};
+\definition square: Left.map = Right.map := \axiom:funext(Left.map, Right.map,
+  \induction (z: Piece.model.Carrier) \return Left.map z = Right.map z \with {
+    | inl: onOriginal
+    | inr: onStar
+  });
+\import \root.Relative[].NegativeMap[source := Piece.model, target := Range.model, f := Left.map, degree := degree] \as LeftPull;
+\import \root.Relative[].NegativeMap[source := Piece.model, target := Range.model, f := Right.map, degree := degree] \as RightPull;
+\import \root.Relative[].NegativeMap[source := Piece.model, target := Domain.model, f := VPair.projection, degree := degree] \as Projection;
+\definition changed: \forall (v: XTerm.Third) -> LeftPull.map v = RightPull.map v := \fun (v: XTerm.Third) =>
+  congr!{{Map Piece.model Range.model} {VTerm.Fourth}}
+    (\fun (f: Map Piece.model Range.model) => \root.Relative[].NegativeMap[source := Piece.model, target := Range.model, f := f, degree := degree].map v) Left.map Right.map square;
+\definition relativeFormula: \forall (v: XTerm.Third) -> Relative.forward v = Inclusion.Negative[degree := degree].map v :=
+  \fun (v: XTerm.Third) => congr!{{XTerm.Third -> VTerm.Third} {VTerm.Third}} (\fun (f: XTerm.Third -> VTerm.Third) => f v) _ _ Relative.forwardEquality;
+\definition forgetDiagram: \forall (v: XTerm.Third) -> VRestriction.map (XTerm.forget v) = VTerm.forget (Relative.forward v) := \fun (v: XTerm.Third) => eq_reason_in!{{VTerm.Fourth} _
+  "=" { VRestriction.map (\root.Relative[].NegativeMap[source := WholeSpace.model, target := Range.model, f := XPair.projection, degree := degree].map v) } "by" { congr!{Whole {VTerm.Fourth}} VRestriction.map _ _ (XTerm.forgetFormula v) }
+  "=" { LeftPull.map v } "by" { sym!{{VTerm.Fourth}} _ _ (Left.Negative[degree := degree].equation v) }
+  "=" { RightPull.map v } "by" { changed v }
+  "=" { Projection.map (Inclusion.Negative[degree := degree].map v) } "by" { Right.Negative[degree := degree].equation v }
+  "=" { Projection.map (Relative.forward v) } "by" { congr!{{VTerm.Third} {VTerm.Fourth}} Projection.map _ _ (sym!{{VTerm.Third}} _ _ (relativeFormula v)) }
+  "=" { VTerm.forget (Relative.forward v) } "by" { sym!{{VTerm.Fourth}} _ _ (VTerm.forgetFormula (Relative.forward v)) }
+};
+\definition kernel: \forall (v: IntersectionNext) -> restriction (boundary v) = piecesGroup.base.unit := \fun (v: IntersectionNext) => Product.ext _ _
+  ((XTerm.exactFourth (boundary v)).rtl (Logic.existsIntro[XTerm.Third, { q: XTerm.Third \where XTerm.forget q = boundary v }]
+    (Relative.backward (VTerm.boundary v)) (\refl(boundary v))))
+  (trans!{{VTerm.Fourth}} _ _ _ (forgetDiagram (Relative.backward (VTerm.boundary v)))
+    (trans!{{VTerm.Fourth}} _ _ _ (congr!{{VTerm.Third} {VTerm.Fourth}} VTerm.forget _ _ (Relative.leftInverse (VTerm.boundary v)))
+      ((VTerm.exactThird (VTerm.boundary v)).rtl (Logic.existsIntro[IntersectionNext, { w: IntersectionNext \where VTerm.boundary w = VTerm.boundary v }] v (\refl(VTerm.boundary v))))));
+\definition Image[v: Whole]: \Prop := \exists (w: IntersectionNext \where boundary w = v);
+\definition preimage: \forall (v: Whole) -> restriction v = piecesGroup.base.unit -> Image v := \block {
+  \fun (v: Whole)(zero: restriction v = piecesGroup.base.unit) \then
+  \let zeroU: XTerm.restriction v = XTerm.fifthGroup.base.unit := congr!{Pieces {XTerm.Fifth}} (\fun (p: Pieces) => p.first) (restriction v) piecesGroup.base.unit zero \then
+  \let zeroV: VRestriction.map v = VTerm.fourthGroup.base.unit := congr!{Pieces {VTerm.Fourth}} (\fun (p: Pieces) => p.second) (restriction v) piecesGroup.base.unit zero \then
+  \takefrom q: \Cast[XTerm.Third] ({ q: XTerm.Third \where XTerm.forget q = v }) \by (XTerm.exactFourth v).ltr zeroU \then
+  \let vanished: VTerm.forget (Relative.forward q) = VTerm.fourthGroup.base.unit := trans!{{VTerm.Fourth}} _ _ _ (sym!{{VTerm.Fourth}} _ _ (forgetDiagram q))
+    (trans!{{VTerm.Fourth}} _ _ _ (congr!{Whole {VTerm.Fourth}} VRestriction.map _ _ (\bysub(XTerm.Third, { q: XTerm.Third \where XTerm.forget q = v }, q))) zeroV) \then
+  \takefrom w: \Cast[IntersectionNext] ({ w: IntersectionNext \where VTerm.boundary w = Relative.forward q }) \by (VTerm.exactThird (Relative.forward q)).ltr vanished \then
+  \return Logic.existsIntro[IntersectionNext, { w: IntersectionNext \where boundary w = v }] w
+    (trans!{Whole} _ _ _ (congr!{{XTerm.Third} Whole} XTerm.forget _ _ (trans!{{XTerm.Third}} _ _ _
+      (congr!{{VTerm.Third} {XTerm.Third}} Relative.backward _ _ (\bysub(IntersectionNext, { w: IntersectionNext \where VTerm.boundary w = Relative.forward q }, w))) (Relative.rightInverse q)))
+      (\bysub(XTerm.Third, { q: XTerm.Third \where XTerm.forget q = v }, q)))
+};
+\definition inKernel: \forall (v: Whole) -> Image v -> restriction v = piecesGroup.base.unit := \block {
+  \fun (v: Whole)(image: Image v) \then
+  \takefrom w: \Cast[IntersectionNext] ({ w: IntersectionNext \where boundary w = v }) \by image \then
+  \return \idelim boundary w = v \with x: Whole => restriction x = piecesGroup.base.unit \by {
+    base: kernel w, equality: \bysub(IntersectionNext, { w: IntersectionNext \where boundary w = v }, w)
+  }
+};
+\definition exactWhole[v: Whole]: Logic.PropEquiv[restriction v = piecesGroup.base.unit, Image v] := Logic.PropEquiv[_, _] { ltr := preimage v, rtl := inKernel v };
