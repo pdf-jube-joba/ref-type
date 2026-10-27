@@ -128,11 +128,13 @@ K07 の影響先検査は最終検査に含める。
 これにより三つ組の群と商の被約群との比較同型は対象検査を完了した。
 `Pair.Exact` は `sequence-foundations-Pair-Exact` で accepted・終了0・キャッシュ保存失敗0。
 被約群側の忘却・制限の完全性と、忘却の加法性・零性・三つ組上の式を公開する。
-最新の未検証変更は `Reduced.Constant`、`Composition`・`Identity` の suspension・反復・負次数の法則、`Group.NormalForm`。
+最新の未検証変更は `Reduced.Constant`、`Composition`・`Identity` の suspension・反復・負次数の法則、`Group.NormalForm`・`TrivialBoundary`。
 定数写像の零性と収縮可能な空間での被約群の零性、負次数の恒等・合成則、任意の群の元を一つの三つ組で表すことを示す。
+`TrivialBoundary.With.Contraction` は、自明束の境界の枠を閉部分空間の収縮に沿って動かし、全体へ延びる定数の枠と比較して被約群の零性を示す。
 `sequence-foundations-Reduced-Constant` は一点の通常の K 群の零元を被約群の等式として渡す部分で失敗し、被約群上の `pointZero` を明示した。
-固定 snapshot は `work/k03-resume/sequence-functors.source.json`。
-次は `relative_k_theory.Relative` 内の `Reduced.Constant`・`Composition`・`Identity`・`Pair.Group.NormalForm` を順に検査する。
+`sequence-functors-Reduced-Constant` は上位の反復 suspension 定義が宣言時点で見えない問題で失敗し、新しい参照を完全なパスへ修正した。
+固定 snapshot は `work/k03-resume/sequence-qualified.source.json`。
+次は `relative_k_theory.Relative` 内の `Identity`・`Composition`・`Reduced.Constant`・`Pair.Group.NormalForm`・`Pair.TrivialBoundary` を順に検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。
