@@ -110,10 +110,13 @@ K07 の影響先検査は最終検査に含める。
 三つ組の正負の束を境界同型と両立する全体の同型で取り替えた場合の不変性を、共通の補助束へ移して証明する。
 `TripleSum` は `triple-sum` で accepted・終了0・キャッシュ保存失敗0。
 補助束の直和の射影表示と正負の束の並べ替えにより、三つ組の直和関係が被約群の加法へ移ることを示す。
-最新の未検証変更は `TripleComposition`。
+`TripleComposition` は `triple-composition` で accepted・終了0・キャッシュ保存失敗0。
 境界同型に沿う全体の交換自己同型を使い、二つの三つ組の和と合成三つ組に対角三つ組を加えたものを比較する。
-固定 snapshot は `work/k03-resume/triple-composition.source.json`。
-次は `relative_k_theory.Relative.Pair.TripleComposition` を検査する。
+これで `TripleClass` は三つ組の四種類の関係式を保つ。
+最新の未検証変更は `Group.ToReduced`。
+関係式を保つ生成元の値を、整数加群の表示の普遍性で被約群への準同型へ拡張する。
+固定 snapshot は `work/k03-resume/to-reduced.source.json`。
+次は `relative_k_theory.Relative.Pair.Group.ToReduced` を検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。
