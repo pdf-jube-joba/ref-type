@@ -39,6 +39,7 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 | 境界上一定の行列の商への降下 | `matrix-descent-fixed` |
 | 境界枠と両立する束写像の商への降下 | `framed-public` |
 | 降下の同型、近傍の選択独立性、被約群の元 | `framed-choices-public` |
+| 忘却・制限写像、生成元の制限先での零性 | `exactness-linear` |
 | 補束による三つ組の正規化と降下への接続 | `triple-normalize` |
 | 境界の自明化と両立する写像のファイバー上の構成 | `framed-maps` |
 
@@ -78,7 +79,8 @@ worker 内のログは共有キャッシュ直下の `.check-<PID>-0/stderr` と
 `FramedIsomorphisms` と `FramedChoices` についても、内部 import alias に依存しない参照へ修正した。
 `framed-choices-public` は accepted・終了0・キャッシュ保存失敗0。
 忘却・制限・切除・基点付き同値の各 module でも内部 import alias の参照を修正したが、これらは未検証。
-次は最新 snapshot を作り、`Relative.Pair.Group.Forget`・`Relative.Equivalence`・`Relative.Pair.Excision` を順に検査する。
+`exactness-linear` で忘却・制限と生成元での零性が accepted・終了0・キャッシュ保存失敗0。
+次は `exactness-linear.source.json` で `Relative.Equivalence` と `Relative.Pair.Excision` を順に検査する。
 次は共有 suspension と列挙 API、基点外の写像、行列の降下、基点近傍の写像、選択独立性、忘却準同型、切除の順に対象検査を行う。
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定し、JSON 報告と実行シェルの終了コードも保存する。
 
