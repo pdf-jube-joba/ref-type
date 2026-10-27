@@ -10,7 +10,7 @@
 
 `Integral.Pair.At.Quotient` は相対鎖への絶対余鎖の作用、`RelativeCochain` は相対余鎖と相対鎖から絶対鎖への作用を構成する。両方の境界公式はそれぞれ `Pair.Boundary.Formula` と `Pair.RelativeCochainBoundary.Formula`、相対 cup との随伴は `Pair.At.Adjunction` にある。閉余鎖による作用は `Pair.CohomologyAction` と `Pair.RelativeCohomologyAction` および対応する零次数のモジュールでホモロジー・余コホモロジーへ降下する。
 
-`CochainPair` は相対余鎖の商表示と部分空間上で消える余鎖の表示を比較し、左右の相対 cup 積とその Leibniz 公式を与える。`RelativeEvaluation.With` は任意の整数加群係数で相対 Kronecker 評価を構成する。`External` は絶対外部 cup 積を、`Triple` は二つの部分空間に対する鎖・余鎖レベルの演算を提供する。
+`CochainPair` は相対余鎖の商表示と部分空間上で消える余鎖の表示を比較し、左右の相対 cup 積とその Leibniz 公式、および任意の可換環係数でのコホモロジーへの降下を与える。`CochainPair.Comparison.Cohomology` は相対類から絶対類への写像である。`RelativeEvaluation.With` は任意の整数加群係数で相対 Kronecker 評価を構成する。`External` は絶対外部 cup 積を、`Triple` は二つの部分空間それぞれを保つ鎖・余鎖とコホモロジー上の演算を提供する。
 
 点空間の単位の利用例は [examples/cap](../../examples/cap) にある。個別の通常検査は例えば次で実行できる。
 
