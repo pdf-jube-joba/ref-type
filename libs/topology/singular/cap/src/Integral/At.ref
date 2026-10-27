@@ -8,3 +8,23 @@
 \definition onGenerator: \forall (beta: Cochains.Carrier q)(sigma: Simplices.Carrier total) ->
   (map beta).apply (Chains.generator total sigma) = value beta sigma := 
   \fun (beta: Cochains.Carrier q) => Free.onGenerator (value beta);
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import Cochains.Cup[p := p, q := q] \as Cup;
+\import Modules.Hom[V := Chains.Carrier p, W := I.Int^, source := Chains.space p, target := Cochains.integerCoefficients.space].Composition[U := Chains.Carrier total, domain := Chains.space total] \as Composition;
+\import Modules.Free[Generators := Simplices.Carrier total].To[W := I.Int^, target := Cochains.integerCoefficients.space] \as Evaluation;
+\definition adjunction: \forall (alpha: Cochains.Carrier p)(beta: Cochains.Carrier q)(chain: Chains.Carrier total) ->
+  (alpha).apply ((map beta).apply chain) = (Cup.apply alpha beta).apply chain :=
+  \fun (alpha: Cochains.Carrier p)(beta: Cochains.Carrier q)(chain: Chains.Carrier total) =>
+    congr!{{Chains.Carrier total -> I.Int^} I.Int^} (\fun (f: Chains.Carrier total -> I.Int^) => f chain) _ _
+      (congr!{_ {Chains.Carrier total -> I.Int^}} (\fun (f: Cochains.Carrier total) => (f).apply) _ _
+        (Evaluation.ext (Composition.compose alpha (map beta)) (Cup.apply alpha beta)
+          (\fun (sigma: Simplices.Carrier total) => eq_reason_in!{I.Int^ _
+            "=" _ "by" { congr!{(Chains.Carrier p) I.Int^} ((alpha).apply) _ _ (onGenerator beta sigma) }
+            "=" _ "by" { (alpha).scalar ((beta).apply (Chains.generator q (Cut.back sigma))) (Chains.generator p (Cut.front sigma)) }
+            "=" _ "by" { (Integers.commutativeRing).mulCommutative ((beta).apply (Chains.generator q (Cut.back sigma))) ((alpha).apply (Chains.generator p (Cut.front sigma))) }
+            "=" _ "by" { sym!{I.Int^} _ _ (Cup.onSimplex alpha beta sigma) }
+          })));
