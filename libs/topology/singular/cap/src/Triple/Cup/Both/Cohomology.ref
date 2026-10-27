@@ -66,3 +66,15 @@
   scaleLeft := \fun (a: I.Int^)(x: FirstInput.Closed)(z: SecondInput.Closed) => trans!{Output.Cohomology} _ _ _ (congr!{Output.CycleCarrier Output.Cohomology} Output.classOf _ _ (cycleScaleLeft a x z)) (Output.classLinear.scalar a (Closed.cycle x z)),
   scaleRight := \fun (a: I.Int^)(x: FirstInput.Closed)(z: SecondInput.Closed) => trans!{Output.Cohomology} _ _ _ (congr!{Output.CycleCarrier Output.Cohomology} Output.classOf _ _ (cycleScaleRight a x z)) (Output.classLinear.scalar a (Closed.cycle x z)),
 };
+\import \root.Triple[A := A, source := source, first := first, second := second].Boundaries[] \as Boundaries;
+\import Bilinear.Quotients[S := FirstInput.boundariesInside, T := SecondInput.boundariesInside] \as Quotients;
+\definition leftVanishes: Quotients.VanishesLeft onCycles :=
+  \fun (x: FirstInput.Closed)(y: SecondInput.Closed)(boundary: _) => Output.boundaryClassZero (Closed.cycle x y)
+    (Boundaries.left p q x y (\bysub(SecondCochains.Carrier (I.Int^::ofNat q), SecondInput.cycles.carrier, y)) boundary);
+\definition rightVanishes: Quotients.VanishesRight onCycles :=
+  \fun (x: FirstInput.Closed)(y: SecondInput.Closed)(boundary: _) => Output.boundaryClassZero (Closed.cycle x y)
+    (Boundaries.right p q x y (\bysub(FirstCochains.Carrier (I.Int^::ofNat p), FirstInput.cycles.carrier, x)) boundary);
+\definition bilinear: Quotients.QuotientMap := Quotients.descend onCycles leftVanishes rightVanishes;
+\definition apply: FirstInput.Cohomology -> SecondInput.Cohomology -> Output.Cohomology := bilinear.apply;
+\definition onClasses: \forall (x: FirstInput.Closed)(y: SecondInput.Closed) ->
+  apply (FirstInput.classOf x) (SecondInput.classOf y) = Output.classOf (Closed.cycle x y) := Quotients.onClasses onCycles leftVanishes rightVanishes;
