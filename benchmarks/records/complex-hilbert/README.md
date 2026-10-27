@@ -35,3 +35,14 @@
 未完了の理由と必要な共通 API は [公開 README](../../../libs/analysis/complex_hilbert/README.md#コンパクト性に必要な共通-api) に記載した。
 未完了部分は全有界性と有限次元ノルム空間のコンパクト性に関する共有基盤の追加を必要とし、その追加は保留している。
 A19 全体の完了を示す検査記録ではない。
+
+## 追加チェックポイント（ソース commit 80cf421c）
+
+| 対象 | 結果 | 検査モジュール | ステップ | 再利用 | キャッシュ保存失敗 |
+| --- | --- | ---: | ---: | ---: | ---: |
+| complex_hilbert、full-check-local | accepted、終了 0 | 25 | 371 | 265 | 0 |
+| 依存先を含むプロジェクト | accepted、終了 0 | 1046 | 12110 | 993 | 0 |
+| metric_spaces.MetricSpace.Compactness、full-check-local | accepted、終了 0 | 14 | 127 | 161 | 0 |
+
+記録: [対象](checkpoint-target.json)、[依存先](checkpoint-dependencies.json)、[metric](checkpoint-metric.json)。
+コンパクト作用素の未実装部分の検査結果ではない。
