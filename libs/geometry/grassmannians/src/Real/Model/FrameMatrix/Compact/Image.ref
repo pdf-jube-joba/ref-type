@@ -1,0 +1,39 @@
+\import \root.Real[n := n, k := k].Model[] \as Model;
+\import topology.Continuity[A := Matrix.Carrier, B := R.Real].Restriction[S := points] \as Restrict;
+\import At.Families[X := Carrier].Matrix[m := k] \as FrameFamilies;
+\definition frameRegular: FrameFamilies.Regular topology (\fun (A: Carrier) => linear A) :=
+  \fun (v: Domain.Vector)(j: Fin.Fin n) => Restrict.restrictContinuous matrixTopology H.Real[].topological.space (\fun (A: Matrix.Carrier) => (linear A).apply v j) (regular v j);
+\import At.Forms[h := E.form].Families[X := Carrier] \as GramFamilies;
+\definition factors: GramFamilies.Rank[k := k].Factors[\fun (A: Carrier) => linear A, topology] :=
+  GramFamilies.Rank[k := k].Factors[\fun (A: Carrier) => linear A, topology] {
+    value := \fun (A: Carrier) => Finite.Frame[k := k, frame := frame A].factor,
+    frame := frameRegular,
+  };
+\import At.Families[X := Carrier].Orthonormalized[k := k, source := topology, A := \fun (A: Carrier) => linear A, factors := factors] \as Ortho;
+\import Model.Family[Y := Carrier, source := topology, P := Ortho.projection, regularP := Ortho.regular, rankP := Ortho.rank] \as Family;
+\definition map[A: Carrier]: Model.Carrier := Family.map A;
+\definition continuous: topology.Continuity[A := Carrier, B := Model.Carrier].Continuous topology Model.topology map := Family.continuous;
+
+\module Surjective(p: Model.Carrier, b: At.OnProjection[P := Model.projection p].Rank[k := k].Frame);
+\definition onto: \forall (p: Model.Carrier) -> \exists (A: Carrier \where map A = p) := \block {
+  \fun (p: Model.Carrier) \then
+  \takefrom b: At.OnProjection[P := Model.projection p].Rank[k := k].Frame \by At.OnProjection[P := Model.projection p].Rank[k := k].frameExists (Model.rank p) \then
+  \return Logic.existsIntro[Carrier, { A: Carrier \where map A = p }] (Surjective[p := p, b := b].point) (Surjective[p := p, b := b].equal)
+};
+
+\import topology.Topology[Carrier := Carrier] \as FrameSpace;
+\import topology.Topology[Carrier := Model.Carrier] \as ModelSpace;
+\import topology.Maps[A := Carrier, B := Model.Carrier] \as Sets;
+\definition image: \Pow Model.Carrier := Sets.Image map FrameSpace.Whole;
+\definition imageIsWhole: image = ModelSpace.Whole := \axiom:setext(image, ModelSpace.Whole,
+  (\fun (p: Model.Carrier)(_: \In[Model.Carrier] image p) => \refl(p)),
+  (\block {
+    \fun (p: Model.Carrier)(_: \In[Model.Carrier] ModelSpace.Whole p) \then
+    \takefrom A: \Cast[Carrier] ({ A: Carrier \where map A = p }) \by onto p \then
+    \return Logic.existsIntro[Carrier, { A: Carrier \where Logic.And[FrameSpace.Member FrameSpace.Whole A, map A = p] }] A
+      (Logic.And[_, _]::# (\refl(A)) (\bysub(Carrier, { A: Carrier \where map A = p }, A)))
+  }));
+\definition imageCompact: ModelSpace.IsCompactIn Model.topology image :=
+  topology.Compactness[A := Carrier, B := Model.Carrier].continuousImage topology Model.topology map continuous FrameSpace.Whole compact;
+\definition compact: ModelSpace.IsCompact Model.topology :=
+  \idelim image = ModelSpace.Whole \with S: \Pow Model.Carrier => ModelSpace.IsCompactIn Model.topology S \by { base: imageCompact, equality: imageIsWhole };
