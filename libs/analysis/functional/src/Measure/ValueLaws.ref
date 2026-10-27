@@ -447,3 +447,16 @@
         (Logic.And[_, _]::# inner (R.ltReplaceLeft (Real.mul c lower) r (Real.mul c t) (inverseProduct c r positive)
           (ProductLaws.mulStrict c lower t positive (midpointStrictLeft lower (Real.mul d a) bound))))
     });
+
+\definition scaleCompose: \forall (c, d: Real.Real) (v: Value) -> R.Le Real.zero c -> R.Le Real.zero d -> NonnegativeValue[v] ->
+  scale c (scale d v) = scale (Real.mul c d) v :=
+  \fun (c, d: Real.Real) (v: Value) (cp: R.Le Real.zero c) (dp: R.Le Real.zero d) (vl: NonnegativeValue[v]) =>
+    Logic.orElim _ _ (scale c (scale d v) = scale (Real.mul c d) v) (std.Logic[].Classical[].excludedMiddle (c = Real.zero))
+      (\fun (eq: c = Real.zero) => \idelim Real.zero = c \with t: Real.Real => scale t (scale d v) = scale (Real.mul t d) v \by {
+        base: eq_reason_in!{Value _
+          "=" _ "by" { zeroScale (scale d v) (scaleNonnegative d v dp vl) }
+          "=" _ "by" { sym!{Value} _ _ (zeroScale v vl) }
+          "=" _ "by" { congr!{Real.Real Value} (\fun (x: Real.Real) => scale x v) _ _ (sym!{Real.Real} _ _ (Laws.fieldMulZeroLeft d)) }
+        }, equality: sym!{Real.Real} _ _ eq })
+      (\fun (different: Logic.Not (c = Real.zero)) => positiveScaleCompose c d v
+        (Order.ltOfLeNotEq Real.zero c cp (\fun (eq: Real.zero = c) => different (sym!{Real.Real} _ _ eq))));
