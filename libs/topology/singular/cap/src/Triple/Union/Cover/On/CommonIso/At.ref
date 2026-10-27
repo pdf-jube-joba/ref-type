@@ -1,0 +1,23 @@
+\import \parent.\parent.FromSmall[n := n].Apply[] \as From;
+\import From.Linear[] \as FromLinear;
+\import From.Commutes[] \as FromCommutes;
+\import \parent.\parent.ToSmall[n := n].Descent[] \as To;
+\import To.Linear[] \as ToLinear;
+\import To.Commutes[] \as ToCommutes;
+\import Modules.Hom[V := SmallRelative.Carrier (I.Int^::ofNat n), W := CommonExtension.Carrier (I.Int^::ofNat n), source := SmallRelative.space (I.Int^::ofNat n), target := CommonExtension.space (I.Int^::ofNat n)] \as Forward;
+\import Modules.Hom[V := CommonExtension.Carrier (I.Int^::ofNat n), W := SmallRelative.Carrier (I.Int^::ofNat n), source := CommonExtension.space (I.Int^::ofNat n), target := SmallRelative.space (I.Int^::ofNat n)] \as Backward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (h: SmallRelative.Carrier (I.Int^::ofNat n)) => CommonExtension.Positive[n := n].intro (From.apply h),
+  addition := FromLinear.addition, scalar := FromLinear.scalar,
+};
+\definition backward: Backward.Map := Backward.Map { apply := To.apply, addition := ToLinear.addition, scalar := ToLinear.scalar };
+\definition leftInverse: \forall (h: SmallRelative.Carrier (I.Int^::ofNat n)) -> (backward).apply ((forward).apply h) = h := From.toFrom;
+\definition rightInverse: \forall (h: CommonExtension.Carrier (I.Int^::ofNat n)) -> (forward).apply ((backward).apply h) = h := From.fromTo;
+\definition forwardCommutes: \forall (h: SmallRelative.Carrier (I.Int^::ofNat n)) ->
+  (CommonExtension.complex.differential).apply (I.Int^::ofNat n) ((forward).apply h) =
+  (\parent.At[n := N.Nat^::succ n].forward).apply ((SmallRelative.complex.differential).apply (I.Int^::ofNat n) h) :=
+  \fun (h: SmallRelative.Carrier (I.Int^::ofNat n)) => sym!{{CommonExtension.Carrier (I.Int^::ofNat (N.Nat^::succ n))}} _ _ (FromCommutes.law h);
+\definition backwardCommutes: \forall (h: CommonExtension.Carrier (I.Int^::ofNat n)) ->
+  (SmallRelative.complex.differential).apply (I.Int^::ofNat n) ((backward).apply h) =
+  (\parent.At[n := N.Nat^::succ n].backward).apply ((CommonExtension.complex.differential).apply (I.Int^::ofNat n) h) :=
+  \fun (h: CommonExtension.Carrier (I.Int^::ofNat n)) => sym!{{SmallRelative.Carrier (I.Int^::ofNat (N.Nat^::succ n))}} _ _ (ToCommutes.law h);
