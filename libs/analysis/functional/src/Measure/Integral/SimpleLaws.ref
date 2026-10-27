@@ -15,3 +15,32 @@
             (MeasureFinite.monotone (s.cells i) (t.cells i) (s.measurable i) (t.measurable i) (cells i)) r member,
           equality: coefficients i
         });
+
+\definition integralNonnegative: \forall (n: N.Nat^) (s: Simple[n]) -> NonnegativeValue[simpleIntegral n s] :=
+  \fun (n: N.Nat^) (s: Simple[n]) => Values.sumNonnegative n (\fun (i: Fin.Fin n) => scale (s.coefficients i) (mu.value (s.cells i)))
+    (\fun (i: Fin.Fin n) => Values.scaleNonnegative (s.coefficients i) (mu.value (s.cells i)) (s.nonnegative i)
+      (MeasureFinite.laws.nonnegative (s.cells i) (s.measurable i)));
+\definition lowerNonnegative: \forall (f: A -> Real.Real) -> NonnegativeValue[lowerIntegral f] :=
+  \fun (f: A -> Real.Real) => NonnegativeValue[lowerIntegral f] {
+    negative := lowerIntegralNegative f,
+    downward := \fun (r, t: Real.Real) (less: R.Lt r t) (member: below (lowerIntegral f) t) => \block {
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) t] ) }) \by member \then
+      \takefrom s: \Cast[Simple[n]] ({ s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) t] })
+        \by (\bysub(N.Nat^, { n: N.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) t] ) }, n)) \then
+      \let data: Logic.And[Dominated n s f, below (simpleIntegral n s) t] := \bysub(Simple[n], { s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) t] }, s) \then
+      \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] ) }] n
+        (Logic.existsIntro[Simple[n], { s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] }] s
+          (Logic.And[_, _]::# data.left ((integralNonnegative n s).downward r t less data.right)))
+    },
+    rounded := \fun (r: Real.Real) (member: below (lowerIntegral f) r) => \block {
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] ) }) \by member \then
+      \takefrom s: \Cast[Simple[n]] ({ s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] })
+        \by (\bysub(N.Nat^, { n: N.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] ) }, n)) \then
+      \let data: Logic.And[Dominated n s f, below (simpleIntegral n s) r] := \bysub(Simple[n], { s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] }, s) \then
+      \takefrom t: \Cast[Real.Real] ({ t: Real.Real \where Logic.And[R.Lt r t, below (simpleIntegral n s) t] }) \by (integralNonnegative n s).rounded r data.right \then
+      \let rounded: Logic.And[R.Lt r t, below (simpleIntegral n s) t] := \bysub(Real.Real, { t: Real.Real \where Logic.And[R.Lt r t, below (simpleIntegral n s) t] }, t) \then
+      \return Logic.existsIntro[Real.Real, { t: Real.Real \where Logic.And[R.Lt r t, below (lowerIntegral f) t] }] t
+        (Logic.And[_, _]::# rounded.left (Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) t] ) }] n
+          (Logic.existsIntro[Simple[n], { s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) t] }] s (Logic.And[_, _]::# data.left rounded.right))))
+    },
+  };
