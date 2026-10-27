@@ -12,6 +12,19 @@
 \import \root.Relative[].Reduced[model := \root.Relative[].Suspension[original := subsetModel].result] \as Middle;
 \import \root.Relative[].Reduced[model := First.result] \as CofiberReduced;
 \import SecondPair.Quotient[] \as SecondQuotient;
+\import SecondPair.Pointed[a0 := (BaseImage.into a0)].Exact[] \as SecondExact;
+\definition projectionEquality: Restriction.projectionMap = SecondExact.projectionMap :=
+  \axiom:funext(Restriction.projectionMap, SecondExact.projectionMap, \fun (x: First.Carrier) => \refl(SecondQuotient.projection x));
+\import \root.Relative[].Pullback[source := First.result, target := SecondQuotient.model, f := Restriction.projectionMap] \as FirstProjectionPull;
+\import \root.Relative[].Pullback[source := First.result, target := SecondQuotient.model, f := SecondExact.projectionMap] \as SecondProjectionPull;
+\definition forgetAgreement: \forall (v: SecondQuotient.Relative) -> Restriction.forget v = SecondExact.forget v :=
+  \fun (v: SecondQuotient.Relative) => trans!{{CofiberReduced.Carrier}} _ _ _
+    (sym!{{CofiberReduced.Carrier}} _ _ (Restriction.projectionEquation v))
+    (trans!{{CofiberReduced.Carrier}} _ _ _
+      (congr!{{Map First.result SecondQuotient.model} {CofiberReduced.Carrier}}
+        (\fun (f: Map First.result SecondQuotient.model) => \root.Relative[].Pullback[source := First.result, target := SecondQuotient.model, f := f].map v)
+        Restriction.projectionMap SecondExact.projectionMap projectionEquality)
+      (SecondExact.projectionEquation v));
 \definition map[v: Source.Carrier]: Middle.Carrier := BaseCompare.backward (SecondConnecting.map v);
 \definition candidateKernel: \forall (v: Source.Carrier) -> Connecting.map (map v) = Quotient.group.base.unit := \block {
   \fun (v: Source.Carrier) \then
@@ -19,7 +32,9 @@
   \let restored: SecondQuotient.Relative := BaseCompare.forward (BaseCompare.backward image) \then
   \let agrees: Restriction.forget restored = Restriction.forget image :=
     congr!{{SecondQuotient.Relative} {CofiberReduced.Carrier}} Restriction.forget restored image (BaseCompare.leftInverse image) \then
-  \let zero: Restriction.forget image = CofiberReduced.group.base.unit := SecondConnecting.kernel v \then
+  \let zero: Restriction.forget image = CofiberReduced.group.base.unit :=
+    trans!{{CofiberReduced.Carrier}} (Restriction.forget image) (SecondExact.forget image) CofiberReduced.group.base.unit
+      (forgetAgreement image) (SecondConnecting.kernel v) \then
   \return trans!{{Quotient.Relative}} (Connecting.map (map v)) (ConeCompare.backward CofiberReduced.group.base.unit) Quotient.group.base.unit
     (congr!{{CofiberReduced.Carrier} {Quotient.Relative}} ConeCompare.backward (Restriction.forget restored) CofiberReduced.group.base.unit
       (trans!{{CofiberReduced.Carrier}} (Restriction.forget restored) (Restriction.forget image) CofiberReduced.group.base.unit agrees zero)) ConeCompare.backwardZero
@@ -32,7 +47,8 @@
 \definition candidatePreimage: \forall (v: Middle.Carrier) -> Connecting.map v = Quotient.group.base.unit -> Image v := \block {
   \fun (v: Middle.Carrier)(zero: Connecting.map v = Quotient.group.base.unit) \then
   \takefrom w: \Cast[Source.Carrier] ({ w: Source.Carrier \where SecondConnecting.map w = BaseCompare.forward v })
-    \by SecondConnecting.preimage (BaseCompare.forward v) (vanishing v zero) \then
+    \by SecondConnecting.preimage (BaseCompare.forward v)
+      (trans!{{CofiberReduced.Carrier}} _ _ _ (sym!{{CofiberReduced.Carrier}} _ _ (forgetAgreement (BaseCompare.forward v))) (vanishing v zero)) \then
   \return Logic.existsIntro[Source.Carrier, { w: Source.Carrier \where map w = v }] w
     (trans!{{Middle.Carrier}} _ _ _
       (congr!{{SecondPair.Quotient[].Relative} {Middle.Carrier}} BaseCompare.backward _ _

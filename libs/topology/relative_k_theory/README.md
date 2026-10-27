@@ -84,18 +84,22 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 これらは構文解析のみ完了し、型検査は未完了（`bundle-disk.source.json`）。
 修正後の五項の列の検査は `LeftExact.candidateKernel` の合同式の型推論を拒否した（終了1・`rejected`・保存失敗0）。
 中間値と部分群の型を明示した `candidate-kernel.source.json` で、この module 自身を先に検査する。
+この検査は終了1・`rejected`・保存失敗0で、二つの忘却写像を定義上同じとして扱う部分の不一致を特定した。
+両写像を射影の引き戻しへ比較して結ぶ証明を追加した。
+`forget-square.source.json` で、まず `Pointed.Connecting`、次に `Pointed.LeftExact` をそれぞれ `--module-only` で検査し、通った依存先を保存する。
+一般の束の円板から元の束の全空間への連続な単射とノルム条件、および閉被覆の商の比較も追加した（いずれも未検証、`closed-cover-current.source.json`）。
 次の固定 snapshot で検査を続ける。
 
 ```bash
 REF_TYPE_PROFILE_DECLARATIONS=1 REF_TYPE_PROFILE_PHASES=1 \
   target/debug/cli libs/topology/relative_k_theory \
-  --module relative_k_theory.Relative.Pair.Pointed.LeftExact --module-only \
+  --module relative_k_theory.Relative.Pair.Pointed.Connecting --module-only \
   --memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 \
-  --diagnostics compact --report-json work/k03-resume/candidate-kernel.json \
-  --source-snapshot work/k03-resume/candidate-kernel.source.json \
-  > work/k03-resume/candidate-kernel.log 2>&1
+  --diagnostics compact --report-json work/k03-resume/forget-square-connecting.json \
+  --source-snapshot work/k03-resume/forget-square.source.json \
+  > work/k03-resume/forget-square-connecting.log 2>&1
 result=$?
-printf '%s\n' "$result" > work/k03-resume/candidate-kernel.exit
+printf '%s\n' "$result" > work/k03-resume/forget-square-connecting.exit
 ```
 
 `closed-pair-lift.source.json` は `b334fd01` 時点の数学コードの固定 snapshot。

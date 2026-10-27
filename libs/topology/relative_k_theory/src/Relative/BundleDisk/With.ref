@@ -24,3 +24,58 @@
   \definition exactThird: \forall (v: Third) -> Logic.PropEquiv[forget v = Native.fourthGroup.base.unit, \exists (w: Second \where boundary w = v)] := Native.exactThird;
   \definition exactFourth: \forall (v: Fourth) -> Logic.PropEquiv[restriction v = Native.fifthGroup.base.unit, \exists (w: Third \where forget w = v)] := Native.exactFourth;
 }
+\import Bundles.Family[X := X, F := F] \as Original;
+\import Bundles.Family[X := X, F := Absolute.Fiber r.presentation] \as Represented;
+\import Bundles.Isomorphisms[X := X, F := F, G := Absolute.Fiber r.presentation, source := bundle, target := Absolute.bundle r.presentation] \as Isomorphisms;
+\definition isomorphismLaws: Isomorphisms.Laws[r.isomorphism] := \bysub(Isomorphisms.Data, Isomorphisms.Isomorphism, r.isomorphism);
+\definition representedVector[z: Disk]: Absolute.Fiber r.presentation (Native.base z) :=
+  \into[Bundles.Vector r.presentation.dimension](Native.vector z, Absolute.Fiber r.presentation (Native.base z)) \by { Native.fixed z };
+\definition representedPoint[z: Disk]: Represented.Point := Represented.include (Native.base z) (representedVector z);
+\import Bundles.Morphisms[X := X, Y := X, F := Absolute.Fiber r.presentation, G := F, source := Absolute.bundle r.presentation, target := bundle,
+  f := (\fun (x: X) => x)] \as Backward;
+\definition originalPoint[z: Disk]: Original.Point := Backward.total r.isomorphism.backward (representedPoint z);
+\definition baseEquation: \forall (z: Disk) -> (originalPoint z).base = Native.base z := \fun (z: Disk) => \refl(Native.base z);
+\import Complements.Projection[X := X, n := r.presentation.dimension, baseSpace := bundle.baseSpace,
+  P := r.presentation.projection, regular := r.presentation.regular] \as Projection;
+\definition baseContinuous: topology.Continuity[A := Disk, B := X].Continuous topology bundle.baseSpace (\fun (z: Disk) => Native.base z) :=
+  topology.Composition[A := Disk, B := Native.Container, C := X].composeContinuous topology Native.containerTopology bundle.baseSpace
+    (\fun (z: Disk) => z) Native.base (topology.Continuity[A := Disk, B := Native.Container].Corestriction[S := Native.domain].inclusionContinuous Native.containerTopology) Native.baseContinuous;
+\definition vectorContinuous: topology.Continuity[A := Disk, B := Bundles.Vector r.presentation.dimension].Continuous topology (Bundles.coordinateTopology r.presentation.dimension) (\fun (z: Disk) => Native.vector z) :=
+  topology.Composition[A := Disk, B := Native.Container, C := Bundles.Vector r.presentation.dimension].composeContinuous topology Native.containerTopology (Bundles.coordinateTopology r.presentation.dimension)
+    (\fun (z: Disk) => z) Native.vector (topology.Continuity[A := Disk, B := Native.Container].Corestriction[S := Native.domain].inclusionContinuous Native.containerTopology) Native.vectorContinuous;
+\definition representedContinuous: topology.Continuity[A := Disk, B := Represented.Point].Continuous topology (Absolute.bundle r.presentation).totalSpace representedPoint :=
+  Projection.Universal[Y := Disk, source := topology].continuous representedPoint baseContinuous vectorContinuous;
+\definition continuous: topology.Continuity[A := Disk, B := Original.Point].Continuous topology bundle.totalSpace originalPoint :=
+  topology.Composition[A := Disk, B := Represented.Point, C := Original.Point].composeContinuous topology (Absolute.bundle r.presentation).totalSpace bundle.totalSpace
+    representedPoint (Backward.total r.isomorphism.backward) representedContinuous (Backward.continuous r.isomorphism.backward);
+\definition normEquation: \forall (z: Disk) -> normSquared (Native.base z) (originalPoint z).vector = Native.squaredNorm (Native.vector z) :=
+  \fun (z: Disk) => congr!{{Absolute.Fiber r.presentation (Native.base z)} {real.Analysis[].Real}}
+    (\fun (v: Absolute.Fiber r.presentation (Native.base z)) => Native.squaredNorm v)
+    ((r.isomorphism.forward.fiber (Native.base z)).apply (originalPoint z).vector) (representedVector z)
+    (isomorphismLaws.rightInverse (Native.base z) (representedVector z));
+\definition normBound: \forall (z: Disk) -> dedekind_reals.DedekindReal[].Le (normSquared (Native.base z) (originalPoint z).vector) real.Analysis[].one :=
+  \fun (z: Disk) => dedekind_reals.DedekindReal[].leReplaceLeft (Native.squaredNorm (Native.vector z)) (normSquared (Native.base z) (originalPoint z).vector) real.Analysis[].one
+    (sym!{{real.Analysis[].Real}} _ _ (normEquation z)) (Native.unitBound z);
+\definition sphereNorm: \forall (z: \Cast[Disk] boundary) -> normSquared (Native.base z) (originalPoint z).vector = real.Analysis[].one :=
+  \fun (z: \Cast[Disk] boundary) => trans!{{real.Analysis[].Real}} _ _ _ (normEquation z) (Native.onSphere z);
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := Absolute.Fiber r.presentation, source := bundle, target := Absolute.bundle r.presentation,
+  f := (\fun (x: X) => x)] \as Forward;
+\import bundle_operations.Operations[].Scalars[].RealCoordinates[n := r.presentation.dimension] \as Coordinates;
+\import algebraic_topology.Euclidean[].Dimension[n := Coordinates.dimension] \as Ambient;
+\definition representedInjective: \forall (z, w: Disk) -> originalPoint z = originalPoint w -> representedPoint z = representedPoint w :=
+  \fun (z, w: Disk)(same: originalPoint z = originalPoint w) => trans!{{Represented.Point}} _ _ _
+    (sym!{{Represented.Point}} _ _ (Isomorphisms.rightInverse r.isomorphism (representedPoint z)))
+    (trans!{{Represented.Point}} _ _ _ (congr!{{Original.Point} {Represented.Point}} (Forward.total r.isomorphism.forward) (originalPoint z) (originalPoint w) same)
+      (Isomorphisms.rightInverse r.isomorphism (representedPoint w)));
+\definition injective: \forall (z, w: Disk) -> originalPoint z = originalPoint w -> z = w := \block {
+  \fun (z, w: Disk)(same: originalPoint z = originalPoint w) \then
+  \let represented: representedPoint z = representedPoint w := representedInjective z w same \then
+  \let base: Native.base z = Native.base w := congr!{{Represented.Point} X} (\fun (q: Represented.Point) => q.base) (representedPoint z) (representedPoint w) represented \then
+  \let vector: Native.vector z = Native.vector w := congr!{{Represented.Point} {Bundles.Vector r.presentation.dimension}}
+    (\fun (q: Represented.Point) => q.vector) (representedPoint z) (representedPoint w) represented \then
+  \let real: Native.realVector z = Native.realVector w := trans!{{Ambient.Coordinate}} _ _ _
+    (sym!{{Ambient.Coordinate}} _ _ (Coordinates.frame.rightInverse (Native.realVector z)))
+    (trans!{{Ambient.Coordinate}} _ _ _ (congr!{{Bundles.Vector r.presentation.dimension} {Ambient.Coordinate}} Coordinates.frame.forward.apply (Native.vector z) (Native.vector w) vector)
+      (Coordinates.frame.rightInverse (Native.realVector w))) \then
+  \return std.Data[].Pair[].Prop[A := X, B := Ambient.Disk].ext z w base real
+};
