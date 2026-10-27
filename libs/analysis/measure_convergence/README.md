@@ -7,6 +7,7 @@
 \import measure_convergence.On[A := A, mu := mu] \as Integration;
 \import functional_analysis.Measure[A := A].Integral[mu := mu] \as RealIntegral;
 \import RealIntegral.Linear[] \as Linear;
+\import real.Analysis[] \as Real;
 
 \definition addExample: \forall (f, g: RealIntegral.Representatives) ->
   RealIntegral.integral (Linear.addRepresentative f g) =
@@ -36,4 +37,5 @@
 `Complex.integralNormBound` は複素積分の絶対値を実部と虚部の絶対値積分の和で評価し、`Vector[n].integralL1Bound` は座標の ℓ¹ ノルムを各座標の絶対値積分の和で評価する。
 これらは成分ごとの評価であり、右辺をベクトル値関数のノルムの積分に置き換える主張ではない。
 
-`On.Examples` には零関数の積分、商上の加法、零列の優収束と級数交換の利用例がある。
+`Indicator[p]` は可測集合上で非負定数、外で零となる関数と、その下積分が係数と集合の測度の積になる等式を提供する。
+`On.Examples` には指示関数、零関数の積分、商上の加法、零列の優収束と級数交換の利用例がある。
