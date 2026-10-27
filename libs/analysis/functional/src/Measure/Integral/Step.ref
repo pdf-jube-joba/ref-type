@@ -1,0 +1,45 @@
+\import \root.Measure[A := A].Sigma[] \as Sigma;
+\import std.Logic[].Classical[] \as Classical;
+\import Fin.Sum[m := N.Nat^::succ N.Nat^::zero, n := N.Nat^::succ N.Nat^::zero] \as Indices;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].trans;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition singleton: \forall (i, j: Fin.Fin one) -> i = j :=
+  \fun (i, j: Fin.Fin one) => trans!{{Fin.Fin one}} i (Fin.zero N.Nat^::zero) j (Fin.singletonValue i) (sym!{{Fin.Fin one}} _ _ (Fin.singletonValue j));
+\definition left: Simple[one] := Simple[one] {
+  cells := \fun (_: Fin.Fin one) => p.set, coefficients := \fun (_: Fin.Fin one) => p.coefficient,
+  measurable := \fun (_: Fin.Fin one) => p.measurable, nonnegative := \fun (_: Fin.Fin one) => p.nonnegative,
+  disjoint := \fun (i, j: Fin.Fin one) (different: Logic.Not (i = j)) => Logic.falseElim _ (different (singleton i j)),
+};
+\definition right: Simple[one] := Simple[one] {
+  cells := \fun (_: Fin.Fin one) => Sets.Complement p.set, coefficients := \fun (_: Fin.Fin one) => Real.zero,
+  measurable := \fun (_: Fin.Fin one) => (Sigma.laws mu.sigma).complement p.set p.measurable,
+  nonnegative := \fun (_: Fin.Fin one) => R.leRefl Real.zero,
+  disjoint := \fun (i, j: Fin.Fin one) (different: Logic.Not (i = j)) => Logic.falseElim _ (different (singleton i j)),
+};
+\definition pair: SimplePair[one, one] := SimplePair[one, one] { left := left, right := right };
+\definition separated: SeparatedPairs[one, one] := \into[SimplePair[one, one]] (pair,
+  { pair: SimplePair[one, one] \where \forall (i, j: Fin.Fin one) -> Sets.Disjoint (pair.left.cells i) (pair.right.cells j) }) \by {
+    \fun (_: Fin.Fin one) (_: Fin.Fin one) (x: A) (inside: Sets.Member p.set x) (outside: Sets.Member (Sets.Complement p.set) x) => outside inside
+  };
+\import \root.Measure[A := A].Integral[mu := mu].Combined[m := one, n := one, p := separated] \as Combined;
+\definition covers: \forall (x: A) -> \exists ( i: Fin.Fin Indices.total \where Sets.Member (Combined.simple.cells i) x ) :=
+  \fun (x: A) => Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member p.set x))
+    (\fun (inside: Sets.Member p.set x) =>
+      Logic.existsIntro[Fin.Fin Indices.total, { i: Fin.Fin Indices.total \where Sets.Member (Combined.simple.cells i) x }]
+        (Indices.left (Fin.zero N.Nat^::zero)) (Combined.containsLeft (Fin.zero N.Nat^::zero) x inside))
+    (\fun (outside: Sets.Member (Sets.Complement p.set) x) =>
+      Logic.existsIntro[Fin.Fin Indices.total, { i: Fin.Fin Indices.total \where Sets.Member (Combined.simple.cells i) x }]
+        (Indices.right (Fin.zero N.Nat^::zero)) (Combined.containsRight (Fin.zero N.Nat^::zero) x outside));
+\definition size: N.Nat^ := Indices.total;
+\definition simple: CompleteSimple[size] := \into[Simple[size]] (Combined.simple,
+  { s: Simple[size] \where \forall (x: A) -> \exists ( i: Fin.Fin size \where Sets.Member (s.cells i) x ) }) \by { covers };
+\import \root.Measure[A := A].Integral[mu := mu].Evaluation[n := size, s := simple] \as Eval;
+\definition inside: \forall (x: A) -> Sets.Member p.set x -> Eval.value x = p.coefficient :=
+  \fun (x: A) (member: Sets.Member p.set x) => trans!{Real.Real} _ _ _
+    (Eval.atCell (Indices.left (Fin.zero N.Nat^::zero)) x (Combined.containsLeft (Fin.zero N.Nat^::zero) x member))
+    (Combined.coefficientLeft (Fin.zero N.Nat^::zero));
+\definition outside: \forall (x: A) -> Sets.Member (Sets.Complement p.set) x -> Eval.value x = Real.zero :=
+  \fun (x: A) (member: Sets.Member (Sets.Complement p.set) x) => trans!{Real.Real} _ _ _
+    (Eval.atCell (Indices.right (Fin.zero N.Nat^::zero)) x (Combined.containsRight (Fin.zero N.Nat^::zero) x member))
+    (Combined.coefficientRight (Fin.zero N.Nat^::zero));
