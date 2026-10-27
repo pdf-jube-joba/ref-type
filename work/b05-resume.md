@@ -84,3 +84,5 @@ FrameMatrix で任意の矩形行列から線形写像を構成し、基底上�
 モデルのコンパクト性をコンパクトな正規直交フレーム空間からの連続全射として証明し、Real・Complex の個別検査は accepted。Model.compact と Projective の compact を公開した。対象全体・依存閉包を再検査する。
 
 Model.Trace で正規直交フレームから射影のトレースが階数に対応するスカラー和に等しいことを証明し、実側個別検査は accepted。複素側の検査と、補射影のトレース・階数 n-k への適用を続ける。
+
+補射影のトレースと有限基底を用いて階数 n-k を証明し、Model.OrthogonalComplement の連続写像と普遍束引き戻し同型を実装した。実側個別検査は accepted。複素側と全体を再検査する。
