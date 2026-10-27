@@ -3,6 +3,7 @@
 \import \root.Measure[A := A].SeriesLaws[] \as Series;
 \use std.Logic[].Equality[].eq_reason_in;
 \use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].sym;
 
 \definition laws: MeasureLaws[mu] := \bysub(MeasureData, Measure, mu);
 \definition pair[S, T: \Pow A]: N.Nat^ -> \Pow A :=
@@ -78,8 +79,45 @@
 \definition additivity: \forall (S, T: \Pow A) -> Measurable mu.sigma S -> Measurable mu.sigma T -> Sets.Disjoint S T ->
   mu.value (Sigma.pairUnion S T) = add (mu.value S) (mu.value T) :=
   \fun (S, T: \Pow A) (s: Measurable mu.sigma S) (t: Measurable mu.sigma T) (disjoint: Sets.Disjoint S T) => eq_reason_in!{Value _
-    "=" _ "by" { congr!{{\Pow A} Value} mu.value _ _ (std.Logic[].Equality[].sym!{{\Pow A}} _ _ (pairUnion S T)) }
+    "=" _ "by" { congr!{{\Pow A} Value} mu.value _ _ (sym!{{\Pow A}} _ _ (pairUnion S T)) }
     "=" _ "by" { laws.countableAdditivity (pair S T) (pairMeasurable S T s t) (pairDisjoint S T disjoint) }
     "=" _ "by" { congr!{{N.Nat^ -> Value} Value} series _ _ (valuesPair S T) }
     "=" _ "by" { Series.pairSeries (mu.value S) (mu.value T) (laws.nonnegative S s) (laws.nonnegative T t) }
   };
+
+\import std.Logic[].Classical[] \as Classical;
+\definition subsetDecomposition: \forall (S, T: \Pow A) -> Sets.Subset S T ->
+  T = Sigma.pairUnion S (Sigma.difference T S) :=
+  \fun (S, T: \Pow A) (subset: Sets.Subset S T) =>
+    \axiom:setext(T, Sigma.pairUnion S (Sigma.difference T S),
+      \fun (x: A) (inT: Sets.Member T x) => Logic.orElim _ _ (Sets.Member (Sigma.pairUnion S (Sigma.difference T S)) x)
+        (Classical.excludedMiddle (Sets.Member S x))
+        (\fun (inS: Sets.Member S x) => Logic.Or[_, _]::left inS)
+        (\fun (notS: Logic.Not (Sets.Member S x)) => Logic.Or[_, _]::right (Logic.And[_, _]::# inT notS)),
+      \fun (x: A) (member: Sets.Member (Sigma.pairUnion S (Sigma.difference T S)) x) =>
+        Logic.orElim _ _ (Sets.Member T x) member
+          (\fun (inS: Sets.Member S x) => subset x inS)
+          (\fun (inDiff: Sets.Member (Sigma.difference T S) x) => inDiff.left));
+\definition subsetDisjoint: \forall (S, T: \Pow A) -> Sets.Disjoint S (Sigma.difference T S) :=
+  \fun (S, T: \Pow A) (x: A) (inS: Sets.Member S x) (inDiff: Sets.Member (Sigma.difference T S) x) => inDiff.right inS;
+\definition monotone: \forall (S, T: \Pow A) -> Measurable mu.sigma S -> Measurable mu.sigma T -> Sets.Subset S T ->
+  V.Included (mu.value S) (mu.value T) :=
+  \fun (S, T: \Pow A) (s: Measurable mu.sigma S) (t: Measurable mu.sigma T) (subset: Sets.Subset S T) (r: Real.Real) (member: below (mu.value S) r) => \block {
+    \let differenceMeasurable: Measurable mu.sigma (Sigma.difference T S) := Sigma.differenceMeasurable mu.sigma T S t s \then
+    \let summed: below (add (mu.value S) (mu.value (Sigma.difference T S))) r :=
+      Series.pairLeftIncluded (mu.value S) (mu.value (Sigma.difference T S)) (laws.nonnegative S s)
+        (laws.nonnegative (Sigma.difference T S) differenceMeasurable) r member \then
+    \let equality: mu.value T = add (mu.value S) (mu.value (Sigma.difference T S)) := eq_reason_in!{Value _
+      "=" _ "by" { congr!{{\Pow A} Value} mu.value _ _ (subsetDecomposition S T subset) }
+      "=" _ "by" { additivity S (Sigma.difference T S) s differenceMeasurable (subsetDisjoint S T) }
+    } \then
+    \return \idelim add (mu.value S) (mu.value (Sigma.difference T S)) = mu.value T \with v: Value => below v r
+      \by { base: summed, equality: sym!{Value} _ _ equality }
+  };
+\definition subsetZero: \forall (S, T: \Pow A) -> Measurable mu.sigma S -> Measurable mu.sigma T -> Sets.Subset S T ->
+  mu.value T = zero -> mu.value S = zero :=
+  \fun (S, T: \Pow A) (s: Measurable mu.sigma S) (t: Measurable mu.sigma T) (subset: Sets.Subset S T) (null: mu.value T = zero) =>
+    \axiom:setext(mu.value S, zero,
+      \fun (r: Real.Real) (member: below (mu.value S) r) =>
+        \idelim mu.value T = zero \with v: Value => below v r \by { base: monotone S T s t subset r member, equality: null },
+      Series.zeroIncluded (mu.value S) (laws.nonnegative S s));
