@@ -1,0 +1,42 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import singular_cohomology.Chains[A := LeftProduct.CarrierSet, source := LeftMapping.source] \as LeftProductChains;
+\import singular_cohomology.Chains[A := RightProduct.CarrierSet, source := RightMapping.source] \as RightProductChains;
+\import singular_cohomology.Chains[A := Product.CarrierSet, source := External.topology] \as ProductChains;
+\import singular_cohomology.Maps[A := LeftProduct.CarrierSet, B := TargetRelative.SubspaceCarrier, source := LeftMapping.source, target := UnionSpace.topology External.topology] \as LeftIntoMaps;
+\import singular_cohomology.Maps[A := RightProduct.CarrierSet, B := TargetRelative.SubspaceCarrier, source := RightMapping.source, target := UnionSpace.topology External.topology] \as RightIntoMaps;
+\import TargetRelative.Inclusion[] \as Inclusion;
+\import LeftIntoMaps.Composition[C := Product.CarrierSet, final := External.topology].At[n := n] \as LeftCompose;
+\import RightIntoMaps.Composition[C := Product.CarrierSet, final := External.topology].At[n := n] \as RightCompose;
+\import singular_cohomology.Maps[A := LeftProduct.CarrierSet, B := Product.CarrierSet, source := LeftMapping.source, target := External.topology] \as LeftDirect;
+\import singular_cohomology.Maps[A := RightProduct.CarrierSet, B := Product.CarrierSet, source := RightMapping.source, target := External.topology] \as RightDirect;
+\import LeftDirect.FunctionEquality[] \as LeftEquality;
+\import RightDirect.FunctionEquality[] \as RightEquality;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].Map[C := LeftProductChains.complex, D := ProductChains.complex] \as LeftChainMaps;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].Map[C := RightProductChains.complex, D := ProductChains.complex] \as RightChainMaps;
+\import Modules.Hom[V := LeftProductChains.Carrier n, W := ProductChains.Carrier n, source := LeftProductChains.space n, target := ProductChains.space n] \as LeftLinear;
+\import Modules.Hom[V := RightProductChains.Carrier n, W := ProductChains.Carrier n, source := RightProductChains.space n, target := ProductChains.space n] \as RightLinear;
+\import topology.Composition[A := LeftProduct.CarrierSet, B := TargetRelative.SubspaceCarrier, C := Product.CarrierSet] \as LeftTopology;
+\import topology.Composition[A := RightProduct.CarrierSet, B := TargetRelative.SubspaceCarrier, C := Product.CarrierSet] \as RightTopology;
+\definition left: \forall (x: LeftProductChains.Carrier n) ->
+  (LeftDirect.At[n := n].push (LeftMapping.function leftMap) (LeftMapping.continuous leftMap)).apply x =
+  (Inclusion.At[n := n].push TargetRelative.inclusion TargetRelative.inclusionContinuous).apply ((LeftIntoMaps.At[n := n].push leftInto leftContinuous).apply x) :=
+  \fun (x: LeftProductChains.Carrier n) => trans!{{ProductChains.Carrier n}} _ _ _
+    (congr!{LeftChainMaps.Map {ProductChains.Carrier n}} (\fun (f: LeftChainMaps.Map) => (f).apply n x) _ _
+      (LeftEquality.law (LeftMapping.function leftMap) (LeftMapping.continuous leftMap) (\fun (y: LeftProduct.CarrierSet) => TargetRelative.inclusion (leftInto y))
+        (LeftTopology.composeContinuous LeftMapping.source (UnionSpace.topology External.topology) External.topology leftInto TargetRelative.inclusion leftContinuous TargetRelative.inclusionContinuous)
+        (\fun (y: LeftProduct.CarrierSet) => \refl(LeftMapping.function leftMap y))))
+    (congr!{LeftLinear.Map {ProductChains.Carrier n}} (\fun (f: LeftLinear.Map) => f.apply x) _ _
+      (sym!{LeftLinear.Map} _ _ (LeftCompose.law leftInto leftContinuous TargetRelative.inclusion TargetRelative.inclusionContinuous)));
+\definition right: \forall (x: RightProductChains.Carrier n) ->
+  (RightDirect.At[n := n].push (RightMapping.function rightMap) (RightMapping.continuous rightMap)).apply x =
+  (Inclusion.At[n := n].push TargetRelative.inclusion TargetRelative.inclusionContinuous).apply ((RightIntoMaps.At[n := n].push rightInto rightContinuous).apply x) :=
+  \fun (x: RightProductChains.Carrier n) => trans!{{ProductChains.Carrier n}} _ _ _
+    (congr!{RightChainMaps.Map {ProductChains.Carrier n}} (\fun (f: RightChainMaps.Map) => (f).apply n x) _ _
+      (RightEquality.law (RightMapping.function rightMap) (RightMapping.continuous rightMap) (\fun (y: RightProduct.CarrierSet) => TargetRelative.inclusion (rightInto y))
+        (RightTopology.composeContinuous RightMapping.source (UnionSpace.topology External.topology) External.topology rightInto TargetRelative.inclusion rightContinuous TargetRelative.inclusionContinuous)
+        (\fun (y: RightProduct.CarrierSet) => \refl(RightMapping.function rightMap y))))
+    (congr!{RightLinear.Map {ProductChains.Carrier n}} (\fun (f: RightLinear.Map) => f.apply x) _ _
+      (sym!{RightLinear.Map} _ _ (RightCompose.law rightInto rightContinuous TargetRelative.inclusion TargetRelative.inclusionContinuous)));
