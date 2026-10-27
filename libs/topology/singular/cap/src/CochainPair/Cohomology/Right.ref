@@ -1,31 +1,31 @@
-\import OrdinaryComplexes.At[C := OrdinaryRing.complex, k := p] \as A;
-\import RelativeComplexes.At[C := RelativeRing.complex, z := I.Int^::ofNat q] \as B;
-\definition cycle[alpha: A.CycleCarrier][beta: B.Closed]: Output.Closed :=
-  Output.cycle (Product.right alpha beta) (ProductClosed.rightLaw alpha beta (\bysub(Whole.Carrier p, (A.cycles).carrier, alpha)) (\bysub(Degree.Carrier q, (B.cycles).carrier, beta)));
-\definition leftCycles: Modules.Bundle := Modules.Bundle { Carrier := A.CycleCarrier, space := A.cycleSpace };
-\definition rightCycles: Modules.Bundle := Modules.Bundle { Carrier := B.Closed, space := B.cycleSpace };
+\import OrdinaryComplexes.At[C := OrdinaryRing.complex, k := p] \as LeftTheory;
+\import RelativeComplexes.At[C := RelativeRing.complex, z := I.Int^::ofNat q] \as RightTheory;
+\definition cycle[alpha: LeftTheory.CycleCarrier][beta: RightTheory.Closed]: Output.Closed :=
+  Output.cycle (Product.right alpha beta) (ProductClosed.rightLaw alpha beta (\bysub(Whole.Carrier p, (LeftTheory.cycles).carrier, alpha)) (\bysub(Degree.Carrier q, (RightTheory.cycles).carrier, beta)));
+\definition leftCycles: Modules.Bundle := Modules.Bundle { Carrier := LeftTheory.CycleCarrier, space := LeftTheory.cycleSpace };
+\definition rightCycles: Modules.Bundle := Modules.Bundle { Carrier := RightTheory.Closed, space := RightTheory.cycleSpace };
 \import Commutative.Bilinear[A := leftCycles, B := rightCycles, C := outputBundle] \as Bilinear;
 \definition onCycles: Bilinear.Map := Bilinear.Map {
-  apply := \fun (x: A.CycleCarrier)(y: B.Closed) => Output.classOf (cycle x y),
-  addLeft := \fun (x, y: A.CycleCarrier)(z: B.Closed) => trans!{Output.Cohomology} _ _ _
+  apply := \fun (x: LeftTheory.CycleCarrier)(y: RightTheory.Closed) => Output.classOf (cycle x y),
+  addLeft := \fun (x, y: LeftTheory.CycleCarrier)(z: RightTheory.Closed) => trans!{Output.Cohomology} _ _ _
     (congr!{Output.Closed Output.Cohomology} Output.classOf _ _ (ProductLaws.rightLeftAdd x y z))
     ((Output.classLinear).addition (cycle x z) (cycle y z)),
-  addRight := \fun (x: A.CycleCarrier)(y, z: B.Closed) => trans!{Output.Cohomology} _ _ _
+  addRight := \fun (x: LeftTheory.CycleCarrier)(y, z: RightTheory.Closed) => trans!{Output.Cohomology} _ _ _
     (congr!{Output.Closed Output.Cohomology} Output.classOf _ _ (ProductLaws.rightRightAdd x y z))
     ((Output.classLinear).addition (cycle x y) (cycle x z)),
-  scaleLeft := \fun (a: R)(x: A.CycleCarrier)(z: B.Closed) => trans!{Output.Cohomology} _ _ _
+  scaleLeft := \fun (a: R)(x: LeftTheory.CycleCarrier)(z: RightTheory.Closed) => trans!{Output.Cohomology} _ _ _
     (congr!{Output.Closed Output.Cohomology} Output.classOf _ _ (ProductLaws.rightLeftScale a x z))
     ((Output.classLinear).scalar a (cycle x z)),
-  scaleRight := \fun (a: R)(x: A.CycleCarrier)(z: B.Closed) => trans!{Output.Cohomology} _ _ _
+  scaleRight := \fun (a: R)(x: LeftTheory.CycleCarrier)(z: RightTheory.Closed) => trans!{Output.Cohomology} _ _ _
     (congr!{Output.Closed Output.Cohomology} Output.classOf _ _ (ProductLaws.rightRightScale a x z))
     ((Output.classLinear).scalar a (cycle x z)),
 };
-\import Bilinear.Quotients[S := A.boundariesInside, T := B.boundariesInside] \as Quotients;
+\import Bilinear.Quotients[S := LeftTheory.boundariesInside, T := RightTheory.boundariesInside] \as Quotients;
 \definition leftVanishes: Quotients.VanishesLeft onCycles :=
-  \fun (x: A.CycleCarrier)(y: B.Closed)(boundary: _) => Output.boundaryClassZero (cycle x y) (Boundaries.rightFirst p q x y (\bysub(Degree.Carrier q, (B.cycles).carrier, y)) boundary);
+  \fun (x: LeftTheory.CycleCarrier)(y: RightTheory.Closed)(boundary: _) => Output.boundaryClassZero (cycle x y) (Boundaries.rightFirst p q x y (\bysub(Degree.Carrier q, (RightTheory.cycles).carrier, y)) boundary);
 \definition rightVanishes: Quotients.VanishesRight onCycles :=
-  \fun (x: A.CycleCarrier)(y: B.Closed)(boundary: _) => Output.boundaryClassZero (cycle x y) (Boundaries.rightSecond p q x y (\bysub(Whole.Carrier p, (A.cycles).carrier, x)) boundary);
+  \fun (x: LeftTheory.CycleCarrier)(y: RightTheory.Closed)(boundary: _) => Output.boundaryClassZero (cycle x y) (Boundaries.rightSecond p q x y (\bysub(Whole.Carrier p, (LeftTheory.cycles).carrier, x)) boundary);
 \definition bilinear: Quotients.QuotientMap := Quotients.descend onCycles leftVanishes rightVanishes;
-\definition apply: A.Cohomology -> B.Cohomology -> Output.Cohomology := (bilinear).apply;
-\definition onClasses: \forall (x: A.CycleCarrier)(y: B.Closed) -> apply (A.classOf x) (B.classOf y) = Output.classOf (cycle x y) :=
+\definition apply: LeftTheory.Cohomology -> RightTheory.Cohomology -> Output.Cohomology := (bilinear).apply;
+\definition onClasses: \forall (x: LeftTheory.CycleCarrier)(y: RightTheory.Closed) -> apply (LeftTheory.classOf x) (RightTheory.classOf y) = Output.classOf (cycle x y) :=
   Quotients.onClasses onCycles leftVanishes rightVanishes;
