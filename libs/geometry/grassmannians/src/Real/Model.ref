@@ -38,3 +38,27 @@
 \import metric_spaces.MetricSpace[Carrier := RealNumbers.Real].Topology[].Hausdorff[] \as RealHausdorff;
 \definition realHausdorff: topology.Topology[Carrier := RealNumbers.Real].IsT2 metric_spaces.RealLine[].topology := RealHausdorff.topologyT2 RealMetric.metric;
 \definition hausdorff: topology.Topology[Carrier := Carrier].IsT2 topology := Hausdorff[separated := realHausdorff].law;
+
+\import At.Families[X := Carrier].Matrix[m := n] \as Families;
+\definition regular: Families.Regular topology (\fun (p: Carrier) => p.map) :=
+  Families.regularOfComponents topology (\fun (p: Carrier) => p.map)
+    (\fun (j, i: Fin.Fin n) => topology.Composition[A := Carrier, B := Matrices.Carrier, C := R.Real].composeContinuous topology (Matrices.topology H.Real[].topological.space) H.Real[].topological.space entries (Matrices.entry i j) entriesContinuous (Matrices.entryContinuous H.Real[].topological.space i j));
+\import bundle_complements.Complements[].Over[K := R.Real, field := R.Algebra[].field, conjugation := H.Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar].Projection[X := Carrier, n := n, baseSpace := topology, P := projection, regular := regular] \as UniversalBundle;
+\definition Fiber[p: Carrier]: \Set := UniversalBundle.Fiber p;
+\definition bundle: Bundles.Family[X := Carrier, F := Fiber].Bundle := UniversalBundle.bundle;
+\import UniversalBundle.Complement[] \as Complement;
+\definition ComplementFiber[p: Carrier]: \Set := Complement.ComplementFiber p;
+\definition complementBundle: Bundles.Family[X := Carrier, F := ComplementFiber].Bundle := Complement.complementBundle;
+\import \root.Real[n := n, k := k] \as Original;
+\module Convert(p: Original.Grassmannian);
+\definition fromOriginal[p: Original.Grassmannian]: Carrier :=
+  \into[Data](Data { map := p.map }, points) \by { Laws[Data { map := p.map }] {
+    selfAdjoint := p.selfAdjoint, idempotent := p.idempotent, rank := Convert[p := p].rank
+  } };
+\definition toOriginal[p: Carrier]: Original.Grassmannian := \into[At.Projection](projection p, Original.points) \by { rank p };
+\definition roundTrip: \forall (p: Carrier) -> fromOriginal (toOriginal p) = p := \fun (p: Carrier) => ext (fromOriginal (toOriginal p)) p (\refl(p.map));
+
+\import Original.Family[Y := Carrier, source := topology, P := projection, regularP := regular, rank := rank] \as ToOriginal;
+\definition toOriginalContinuous: topology.Continuity[A := Carrier, B := Original.Grassmannian].Continuous topology Original.topology toOriginal := ToOriginal.continuous;
+\definition fromOriginalContinuous: topology.Continuity[A := Original.Grassmannian, B := Carrier].Continuous Original.topology topology fromOriginal :=
+  InducedModel.Universal[Z := Original.Grassmannian].continuous Original.topology (Matrices.topology H.Real[].topological.space) entries fromOriginal Original.entriesContinuous;
