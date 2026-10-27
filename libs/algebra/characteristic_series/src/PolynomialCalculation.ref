@@ -1,0 +1,26 @@
+\import \root.Rational[] \as Q;
+\import Q.Computed[] \as D;
+\import \root.Calculation[R := R, ring := ring] \as C;
+\import std.Alg[].Ring[] \as Rings;
+\import algebra.Group[].Of[Carrier := R, group := Rings.additiveGroup R (Rings.commutativeRingAsRing R ring)] \as Sum;
+\import algebra.Hom[A := Q.Carrier, B := R] \as Maps;
+\definition coefficientLaws: Maps.SemiringLaws[Rings.ringAsSemiring Q.Carrier (Rings.commutativeRingAsRing Q.Carrier Q.ring), Rings.ringAsSemiring R (Rings.commutativeRingAsRing R ring), coefficient] := Maps.semiringLaws _ _ coefficient;
+\import std.Logic[].Equality[] \as E;
+\use E.congr;
+\use E.sym;
+\use E.trans;
+\use E.eq_reason_in;
+\definition zero: R := ring.base.zero;
+\definition one: R := ring.base.one;
+\definition add: R -> R -> R := ring.base.add;
+\definition mul: R -> R -> R := ring.base.mul;
+\definition neg: R -> R := ring.base.neg;
+\definition mulSwap: \forall (a, b, c: R) -> mul a (mul b c) = mul b (mul a c) := C.mulSwap;
+\definition negMulLeft: \forall (a, b: R) -> mul (neg a) b = neg (mul a b) := C.negMulLeft;
+\definition coefficientNeg: \forall (a: Q.Carrier) -> coefficient (Q.neg a) = neg (coefficient a) :=
+  \fun (a: Q.Carrier) => Sum.inverseUnique (coefficient a) (coefficient (Q.neg a)) (eq_reason_in!{R _
+    "=" _ "by" { sym!{R} _ _ (coefficientLaws.add (Q.neg a) a) }
+    "=" _ "by" { congr!{Q.Carrier R} coefficient _ _ (Q.ring.ring.additiveInverse a) }
+    "=" _ "by" { coefficientLaws.zero }
+  });
+\module Example(x: R);

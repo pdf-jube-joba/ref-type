@@ -16,3 +16,8 @@ workspace の libs/refcache を再利用する。
 単位逆の積の法則、基本対称式の置換不変性、任意の根数・任意次数での Newton 恒等式を検査済み。
 直近の対象検査は work/newton-check.log で成功。
 残作業は特性級数・乗法列・次数4/8の係数計算、公開多項式 API、利用例、README、依存を含む最終検査、PR。
+
+特性級数を生成関数から構成し、任意の精度変更との整合性を実装した。
+`work/generate_l04.py` は次数8まで（Chern 根の次数4）の表に対する具体的な等式証明を生成する。
+`Rational/Computed.ref` の各算術補題も商と交差積の等式を通常の kernel で検査する。
+次の検査対象は `characteristic_series.Characteristic`、ログは `work/tables-check.log`。
