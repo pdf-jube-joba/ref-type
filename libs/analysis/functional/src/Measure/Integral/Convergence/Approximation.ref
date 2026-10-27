@@ -36,9 +36,9 @@
         (MeasureContinuity.increasingAll (threshold f (s.cells i) (weight i)) (thresholdIncreasing f (s.cells i) (weight i) increasing) k m order));
 \definition weightBelowPositive: \forall (i: Fin.Fin n) -> R.Lt Real.zero (s.coefficients i) -> R.Lt (weight i) (s.coefficients i) :=
   \fun (i: Fin.Fin n) (positive: R.Lt Real.zero (s.coefficients i)) =>
-    R.ltReplace (Real.mul (s.coefficients i) c) (weight i) (Real.mul (s.coefficients i) Real.one) (s.coefficients i)
-      (Laws.fieldMulComm (s.coefficients i) c) (Real.Algebra[].mulOneRight (s.coefficients i))
-      (Product.mulStrict (s.coefficients i) c Real.one positive (shrinkLaw c).right);
+    R.ltReplaceRight (weight i) (Real.mul (s.coefficients i) Real.one) (s.coefficients i) (Real.Algebra[].mulOneRight (s.coefficients i))
+      (R.ltReplaceLeft (Real.mul (s.coefficients i) c) (weight i) (Real.mul (s.coefficients i) Real.one)
+        (Laws.fieldMulComm (s.coefficients i) c) (Product.mulStrict (s.coefficients i) c Real.one positive (shrinkLaw c).right));
 \definition positiveCellLimit: \forall (g: A -> Real.Real) -> PointwiseSup f g -> FunctionIncreasing f -> Dominated n s g ->
   \forall (i: Fin.Fin n) -> R.Lt Real.zero (s.coefficients i) ->
   scale (weight i) (mu.value (s.cells i)) = Sup (\fun (k: N.Nat^) => scale (weight i) (mu.value (cell k i))) :=
@@ -50,3 +50,46 @@
             R.ltLeTrans (weight i) (s.coefficients i) (g x) (weightBelowPositive i positive) (dominated i x member))) }
       "=" _ "by" { scaleSup (weight i) (\fun (k: N.Nat^) => mu.value (cell k i)) }
     };
+
+\definition zeroWeight: \forall (i: Fin.Fin n) -> s.coefficients i = Real.zero -> weight i = Real.zero :=
+  \fun (i: Fin.Fin n) (zero: s.coefficients i = Real.zero) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul c) _ _ zero }
+    "=" _ "by" { Laws.fieldMulZeroRight c }
+  };
+\definition zeroCellLimit: \forall (i: Fin.Fin n) -> s.coefficients i = Real.zero ->
+  scale (weight i) (mu.value (s.cells i)) = Sup (\fun (k: N.Nat^) => scale (weight i) (mu.value (cell k i))) :=
+  \fun (i: Fin.Fin n) (zero: s.coefficients i = Real.zero) => \block {
+    \let wz: weight i = Real.zero := zeroWeight i zero \then
+    \let original: scale (weight i) (mu.value (s.cells i)) = zero := eq_reason_in!{Value _
+      "=" _ "by" { congr!{Real.Real Value} (\fun (a: Real.Real) => scale a (mu.value (s.cells i))) _ _ wz }
+      "=" _ "by" { Values.zeroScale (mu.value (s.cells i)) (MeasureFinite.laws.nonnegative (s.cells i) (s.measurable i)) }
+    } \then
+    \let stages: (\fun (k: N.Nat^) => scale (weight i) (mu.value (cell k i))) = (\fun (_: N.Nat^) => zero) :=
+      \axiom:funext((\fun (k: N.Nat^) => scale (weight i) (mu.value (cell k i))), (\fun (_: N.Nat^) => zero),
+        \fun (k: N.Nat^) => eq_reason_in!{Value _
+          "=" _ "by" { congr!{Real.Real Value} (\fun (a: Real.Real) => scale a (mu.value (cell k i))) _ _ wz }
+          "=" _ "by" { Values.zeroScale (mu.value (cell k i))
+            (MeasureFinite.laws.nonnegative (cell k i) (thresholdMeasurable f (s.cells i) (weight i) (sequenceMeasurable f) (s.measurable i) k)) }
+        }) \then
+    \return eq_reason_in!{Value _
+      "=" _ "by" { original }
+      "=" _ "by" { sym!{Value} _ _ (supConstant zero) }
+      "=" _ "by" { congr!{{N.Nat^ -> Value} Value} Sup _ _ (sym!{{N.Nat^ -> Value}} _ _ stages) }
+    }
+  };
+\definition cellLimit: \forall (g: A -> Real.Real) -> PointwiseSup f g -> FunctionIncreasing f -> Dominated n s g ->
+  \forall (i: Fin.Fin n) -> scale (weight i) (mu.value (s.cells i)) = Sup (\fun (k: N.Nat^) => scale (weight i) (mu.value (cell k i))) :=
+  \fun (g: A -> Real.Real) (sup: PointwiseSup f g) (increasing: FunctionIncreasing f) (dominated: Dominated n s g) (i: Fin.Fin n) =>
+    Logic.orElim _ _ _ (Classical.excludedMiddle (s.coefficients i = Real.zero))
+      (zeroCellLimit i)
+      (\fun (nonzero: Logic.Not (s.coefficients i = Real.zero)) => positiveCellLimit g sup increasing dominated i
+        (RealOrder.ltOfLeNotEq Real.zero (s.coefficients i) (s.nonnegative i)
+          (\fun (equal: Real.zero = s.coefficients i) => nonzero (sym!{Real.Real} _ _ equal))));
+\definition scaledIntegralSup: \forall (g: A -> Real.Real) -> PointwiseSup f g -> FunctionIncreasing f -> Dominated n s g ->
+  sum n (\fun (i: Fin.Fin n) => scale (weight i) (mu.value (s.cells i))) = Sup (\fun (k: N.Nat^) => simpleIntegral n (stage k)) :=
+  \fun (g: A -> Real.Real) (sup: PointwiseSup f g) (increasing: FunctionIncreasing f) (dominated: Dominated n s g) => eq_reason_in!{Value _
+    "=" _ "by" { congr!{{Fin.Fin n -> Value} Value} (sum n) _ _
+      (\axiom:funext((\fun (i: Fin.Fin n) => scale (weight i) (mu.value (s.cells i))),
+        (\fun (i: Fin.Fin n) => Sup (\fun (k: N.Nat^) => scale (weight i) (mu.value (cell k i)))), cellLimit g sup increasing dominated)) }
+    "=" _ "by" { sumSup n (\fun (k: N.Nat^) (i: Fin.Fin n) => scale (weight i) (mu.value (cell k i))) (cellMeasureIncreasing increasing) }
+  };
