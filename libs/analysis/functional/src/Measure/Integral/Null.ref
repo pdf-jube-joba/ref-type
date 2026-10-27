@@ -1,5 +1,6 @@
+\import std.Data[].Nat[] \as Nat;
 \import \root.Measure[A := A].Sigma[] \as Sigma;
-\import \root.Measure[A := A].Finite[mu := mu] \as Finite;
+\import \root.Measure[A := A].Finite[mu := mu] \as MeasureFinite;
 \use std.Logic[].Equality[].congr;
 
 \structure NullSetLaw[N: \Pow A]: \Prop := {
@@ -9,7 +10,7 @@
 \definition NullSet: \Set := \Cast[\Pow A] ({ N: \Pow A \where NullSetLaw[N] });
 \definition nullSetLaw[N: NullSet]: NullSetLaw[N] := \bysub(\Pow A, { N: \Pow A \where NullSetLaw[N] }, N);
 
-\definition restrict[N: NullSet] [n: N.Nat^] [s: Simple[n]]: Simple[n] := Simple[n] {
+\definition restrict[N: NullSet] [n: Nat.Nat^] [s: Simple[n]]: Simple[n] := Simple[n] {
   cells := \fun (i: Fin.Fin n) => Sigma.difference (s.cells i) N,
   coefficients := s.coefficients,
   measurable := \fun (i: Fin.Fin n) => Sigma.differenceMeasurable mu.sigma (s.cells i) N (s.measurable i) (nullSetLaw N).measurable,
@@ -18,16 +19,49 @@
     (left: Sets.Member (Sigma.difference (s.cells i) N) x) (right: Sets.Member (Sigma.difference (s.cells j) N) x) =>
       s.disjoint i j different x left.left right.left,
 };
-\definition restrictIntegral: \forall (N: NullSet) (n: N.Nat^) (s: Simple[n]) -> simpleIntegral n (restrict N n s) = simpleIntegral n s :=
-  \fun (N: NullSet) (n: N.Nat^) (s: Simple[n]) =>
+\definition restrictIntegral: \forall (N: NullSet) (n: Nat.Nat^) (s: Simple[n]) -> simpleIntegral n (restrict N n s) = simpleIntegral n s :=
+  \fun (N: NullSet) (n: Nat.Nat^) (s: Simple[n]) =>
     congr!{{Fin.Fin n -> Value} Value} (sum n) _ _
       (\axiom:funext((\fun (i: Fin.Fin n) => scale (s.coefficients i) (mu.value (Sigma.difference (s.cells i) N))),
         (\fun (i: Fin.Fin n) => scale (s.coefficients i) (mu.value (s.cells i))),
         \fun (i: Fin.Fin n) => congr!{Value Value} (scale (s.coefficients i)) _ _
-          (Finite.removeNull (s.cells i) N (s.measurable i) (nullSetLaw N).measurable (nullSetLaw N).zeroMeasure)));
-\definition restrictDominated: \forall (N: NullSet) (n: N.Nat^) (s: Simple[n]) (f, g: A -> Real.Real) ->
+          (MeasureFinite.removeNull (s.cells i) N (s.measurable i) (nullSetLaw N).measurable (nullSetLaw N).zeroMeasure)));
+\definition restrictDominated: \forall (N: NullSet) (n: Nat.Nat^) (s: Simple[n]) (f, g: A -> Real.Real) ->
   Dominated n s f -> (\forall (x: A) -> Logic.Not (Sets.Member N x) -> f x = g x) -> Dominated n (restrict N n s) g :=
-  \fun (N: NullSet) (n: N.Nat^) (s: Simple[n]) (f, g: A -> Real.Real) (dominated: Dominated n s f)
+  \fun (N: NullSet) (n: Nat.Nat^) (s: Simple[n]) (f, g: A -> Real.Real) (dominated: Dominated n s f)
     (agree: \forall (x: A) -> Logic.Not (Sets.Member N x) -> f x = g x)
     (i: Fin.Fin n) (x: A) (member: Sets.Member (Sigma.difference (s.cells i) N) x) =>
       R.leReplaceRight (s.coefficients i) (f x) (g x) (agree x member.right) (dominated i x member.left);
+
+\use std.Logic[].Equality[].sym;
+\definition lowerIncludedOutside: \forall (N: NullSet) (f, g: A -> Real.Real) ->
+  (\forall (x: A) -> Logic.Not (Sets.Member N x) -> f x = g x) ->
+  \forall (r: Real.Real) -> below (lowerIntegral f) r -> below (lowerIntegral g) r :=
+  \fun (N: NullSet) (f, g: A -> Real.Real) (agree: \forall (x: A) -> Logic.Not (Sets.Member N x) -> f x = g x)
+    (r: Real.Real) (member: below (lowerIntegral f) r) => \block {
+      \takefrom n: \Cast[Nat.Nat^] ({ n: Nat.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] ) }) \by member \then
+      \takefrom s: \Cast[Simple[n]] ({ s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] })
+        \by (\bysub(Nat.Nat^, { n: Nat.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] ) }, n)) \then
+      \let data: Logic.And[Dominated n s f, below (simpleIntegral n s) r] :=
+        \bysub(Simple[n], { s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] }, s) \then
+      \return Logic.existsIntro[Nat.Nat^, { n: Nat.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s g, below (simpleIntegral n s) r] ) }] n
+        (Logic.existsIntro[Simple[n], { t: Simple[n] \where Logic.And[Dominated n t g, below (simpleIntegral n t) r] }] (restrict N n s)
+          (Logic.And[_, _]::# (restrictDominated N n s f g data.left agree)
+            (\idelim simpleIntegral n s = simpleIntegral n (restrict N n s) \with v: Value => below v r
+              \by { base: data.right, equality: sym!{Value} _ _ (restrictIntegral N n s) })))
+    };
+\definition lowerEqualOutside: \forall (N: NullSet) (f, g: A -> Real.Real) ->
+  (\forall (x: A) -> Logic.Not (Sets.Member N x) -> f x = g x) -> lowerIntegral f = lowerIntegral g :=
+  \fun (N: NullSet) (f, g: A -> Real.Real) (agree: \forall (x: A) -> Logic.Not (Sets.Member N x) -> f x = g x) =>
+    \axiom:setext(lowerIntegral f, lowerIntegral g, lowerIncludedOutside N f g agree,
+      lowerIncludedOutside N g f (\fun (x: A) (outside: Logic.Not (Sets.Member N x)) => sym!{Real.Real} _ _ (agree x outside)));
+\definition lowerAlmostEqual: \forall (f, g: A -> Real.Real) -> AlmostEqual mu f g -> lowerIntegral f = lowerIntegral g :=
+  \fun (f, g: A -> Real.Real) (equal: AlmostEqual mu f g) => \block {
+    \takefrom N: \Cast[\Pow A] ({ N: \Pow A \where NullCover[mu, { x: A \where Logic.Not (f x = g x) }, N] }) \by equal \then
+    \let cover: NullCover[mu, { x: A \where Logic.Not (f x = g x) }, N] :=
+      \bysub(\Pow A, { N: \Pow A \where NullCover[mu, { x: A \where Logic.Not (f x = g x) }, N] }, N) \then
+    \let nullSet: NullSet := \into[\Pow A](N, { N: \Pow A \where NullSetLaw[N] }) \by {
+      NullSetLaw[N] { measurable := cover.measurable, zeroMeasure := cover.measure } } \then
+    \return lowerEqualOutside nullSet f g (\fun (x: A) (outside: Logic.Not (Sets.Member nullSet x)) =>
+      Sigma.doubleNegative (f x = g x) (\fun (different: Logic.Not (f x = g x)) => outside (cover.included x different)))
+  };
