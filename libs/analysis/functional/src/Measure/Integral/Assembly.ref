@@ -3,6 +3,7 @@
 \import \root.Measure[A := A].ValueLaws[] \as Values;
 \use std.Logic[].Equality[].eq_reason_in;
 \use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].trans;
 \definition count: \forall (n: N.Nat^) -> N.Nat^ :=
   \induction (n: N.Nat^) \return N.Nat^ \with {
     | zero: N.Nat^::zero
@@ -19,7 +20,7 @@
   contained: \forall (S: \Pow A) -> (\forall (j: Fin.Fin n) (i: Fin.Fin m) -> Sets.Subset ((rows j).cells i) S) ->
     \forall (k: Fin.Fin (count n)) -> Sets.Subset (simple.cells k) S,
   origin: \forall (j: Fin.Fin n) (i: Fin.Fin m) (x: A) -> Sets.Member ((rows j).cells i) x ->
-    \exists ( k: Fin.Fin (count n) \where Sets.Member (simple.cells k) x ),
+    \exists ( k: Fin.Fin (count n) \where Logic.And[Sets.Member (simple.cells k) x, simple.coefficients k = (rows j).coefficients i] ),
   dominated: \forall (f: A -> Real.Real) -> (\forall (j: Fin.Fin n) -> Dominated m (rows j) f) -> Dominated (count n) simple f,
 };
 \definition assemble: \forall (n: N.Nat^) (rows: Rows n) -> Data[n, rows] :=
@@ -57,20 +58,26 @@
           \root.Measure[A := A].Integral[mu := mu].Combined[m := m, n := count n, p := separated].contained S
             (covers (Fin.zero n)) (rest.contained S (\fun (j: Fin.Fin n) => covers (Fin.succ n j))),
         origin := Fin.cases n (\fun (j: Fin.Fin (N.Nat^::succ n)) => \forall (i: Fin.Fin m) (x: A) ->
-          Sets.Member ((rows j).cells i) x -> \exists ( k: Fin.Fin (count (N.Nat^::succ n)) \where Sets.Member
-            ((\root.Measure[A := A].Integral[mu := mu].Combined[m := m, n := count n, p := separated].simple).cells k) x ))
+          Sets.Member ((rows j).cells i) x -> \exists ( k: Fin.Fin (count (N.Nat^::succ n)) \where Logic.And[Sets.Member
+            ((\root.Measure[A := A].Integral[mu := mu].Combined[m := m, n := count n, p := separated].simple).cells k) x,
+            (\root.Measure[A := A].Integral[mu := mu].Combined[m := m, n := count n, p := separated].simple).coefficients k = (rows j).coefficients i] ))
           (\fun (i: Fin.Fin m) (x: A) (member: Sets.Member (head.cells i) x) =>
-            Logic.existsIntro[Fin.Fin (count (N.Nat^::succ n)), { k: Fin.Fin (count (N.Nat^::succ n)) \where Sets.Member
-              ((\root.Measure[A := A].Integral[mu := mu].Combined[m := m, n := count n, p := separated].simple).cells k) x }]
+            Logic.existsIntro[Fin.Fin (count (N.Nat^::succ n)), { k: Fin.Fin (count (N.Nat^::succ n)) \where Logic.And[Sets.Member
+              ((\root.Measure[A := A].Integral[mu := mu].Combined[m := m, n := count n, p := separated].simple).cells k) x,
+              (\root.Measure[A := A].Integral[mu := mu].Combined[m := m, n := count n, p := separated].simple).coefficients k = head.coefficients i] }]
               (Fin.Sum[m := m, n := count n].left i)
-              (\root.Measure[A := A].Integral[mu := mu].Combined[m := m, n := count n, p := separated].containsLeft i x member))
+              (Logic.And[_, _]::# (\root.Measure[A := A].Integral[mu := mu].Combined[m := m, n := count n, p := separated].containsLeft i x member)
+                (\root.Measure[A := A].Integral[mu := mu].Combined[m := m, n := count n, p := separated].coefficientLeft i)))
           (\fun (j: Fin.Fin n) (i: Fin.Fin m) (x: A) (member: Sets.Member ((tail j).cells i) x) => \block {
-            \takefrom k: \Cast[Fin.Fin (count n)] ({ k: Fin.Fin (count n) \where Sets.Member (rest.simple.cells k) x }) \by rest.origin j i x member \then
-            \return Logic.existsIntro[Fin.Fin (count (N.Nat^::succ n)), { l: Fin.Fin (count (N.Nat^::succ n)) \where Sets.Member
-              ((\root.Measure[A := A].Integral[mu := mu].Combined[m := m, n := count n, p := separated].simple).cells l) x }]
+            \takefrom k: \Cast[Fin.Fin (count n)] ({ k: Fin.Fin (count n) \where Logic.And[Sets.Member (rest.simple.cells k) x, rest.simple.coefficients k = (tail j).coefficients i] }) \by rest.origin j i x member \then
+            \return Logic.existsIntro[Fin.Fin (count (N.Nat^::succ n)), { l: Fin.Fin (count (N.Nat^::succ n)) \where Logic.And[Sets.Member
+              ((\root.Measure[A := A].Integral[mu := mu].Combined[m := m, n := count n, p := separated].simple).cells l) x,
+              (\root.Measure[A := A].Integral[mu := mu].Combined[m := m, n := count n, p := separated].simple).coefficients l = (tail j).coefficients i] }]
                 (Fin.Sum[m := m, n := count n].right k)
-                (\root.Measure[A := A].Integral[mu := mu].Combined[m := m, n := count n, p := separated].containsRight k x
-                  (\bysub(Fin.Fin (count n), { k: Fin.Fin (count n) \where Sets.Member (rest.simple.cells k) x }, k)))
+                (Logic.And[_, _]::# (\root.Measure[A := A].Integral[mu := mu].Combined[m := m, n := count n, p := separated].containsRight k x
+                  (\bysub(Fin.Fin (count n), { k: Fin.Fin (count n) \where Logic.And[Sets.Member (rest.simple.cells k) x, rest.simple.coefficients k = (tail j).coefficients i] }, k)).left)
+                  (trans!{Real.Real} _ _ _ (\root.Measure[A := A].Integral[mu := mu].Combined[m := m, n := count n, p := separated].coefficientRight k)
+                    (\bysub(Fin.Fin (count n), { k: Fin.Fin (count n) \where Logic.And[Sets.Member (rest.simple.cells k) x, rest.simple.coefficients k = (tail j).coefficients i] }, k)).right))
           }),
         dominated := \fun (f: A -> Real.Real) (law: _) =>
           \root.Measure[A := A].Integral[mu := mu].Combined[m := m, n := count n, p := separated].dominatedSame f
