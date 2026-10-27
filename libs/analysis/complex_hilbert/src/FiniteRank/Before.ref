@@ -1,0 +1,20 @@
+\import Algebraic.Linear[V := U, W := V, source := domain, target := source] \as Inputs;
+\import Algebraic.Linear[V := U, W := W, source := domain, target := target] \as Outputs;
+\import \root.FiniteRank[V := U, W := W, source := domain, target := target] \as Result;
+\module Through(n: N.Nat^) {
+  \import Algebraic.Coordinates[I := Fin.Fin n] \as Coordinates;
+  \definition compose[f: Maps.Map][factor: \parent.\parent.Through[n := n].Factor f][g: Inputs.Map]: Result.Through[n := n].Factor (Maps.Composition[U := U, domain := domain].compose f g) :=
+    Result.Through[n := n].Factor[Maps.Composition[U := U, domain := domain].compose f g] {
+      into := Algebraic.Linear[V := V, W := Coordinates.Vector, source := source, target := Coordinates.space].Composition[U := U, domain := domain].compose factor.into g,
+      out := factor.out,
+      equation := \fun (x: U) => factor.equation (g.apply x),
+    };
+}
+\definition finite: \forall (f: Maps.Map)(g: Inputs.Map) -> FiniteRank f -> Result.FiniteRank (Maps.Composition[U := U, domain := domain].compose f g) := \block {
+  \fun (f: Maps.Map)(g: Inputs.Map)(finite: FiniteRank f) \then
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \exists \root.FiniteRank[V := V, W := W, source := source, target := target].Through[n := n].Factor f }) \by finite \then
+  \takefrom factor: \root.FiniteRank[V := V, W := W, source := source, target := target].Through[n := n].Factor f
+    \by \bysub(N.Nat^, { n: N.Nat^ \where \exists \root.FiniteRank[V := V, W := W, source := source, target := target].Through[n := n].Factor f }, n) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \exists Result.Through[n := k].Factor (Maps.Composition[U := U, domain := domain].compose f g) }] n
+    (\exact(Through[n := n].compose f factor g, Result.Through[n := n].Factor (Maps.Composition[U := U, domain := domain].compose f g)))
+};

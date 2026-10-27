@@ -1,0 +1,44 @@
+\import End.Compact[] \as Operators;
+\import Operators.Addition[] \as Addition;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition CompactMap[f: EndMaps.Map]: \Prop :=
+  \exists ( g: End.Map \where Logic.And[g.apply = f.apply, Operators.Compact g] );
+\definition zeroMap: End.Map := \into[EndMaps.Map](Operations.zeroMap, End.Map) \by {
+  Logic.existsIntro[R.Real, { c: R.Real \where End.Bound[Operations.zeroMap, c] }] R.zero (End.Bound[Operations.zeroMap, R.zero] {
+    nonnegative := Order.leRefl R.zero,
+    estimate := \fun (x: V) => Order.leReplace _ _ _ _ (sym!{R.Real} _ _ norm.realNorm.zero)
+      (sym!{R.Real} _ _ (Laws.fieldMulZeroLeft (norm.realNorm.norm x))) (Order.leRefl R.zero),
+  })
+};
+\definition zeroCompact: CompactMap zero.map := Logic.existsIntro[End.Map, { g: End.Map \where Logic.And[g.apply = zero.map.apply, Operators.Compact g] }] zeroMap
+  (Logic.And[_, _]::# (\refl(zero.map.apply)) (Operators.zeroImage zeroMap (\fun (_: V) => \refl(space.zero))));
+\module Extend(P: Projection, x: V, different: Logic.Not (P.map.apply x = x));
+\definition CoversCompact[S: \Pow V]: \Prop := \exists ( P: Projection \where Logic.And[Covers[P, S], CompactMap P.map] );
+\definition coversFinite: \forall (finite: Points.FiniteSubset) -> CoversCompact finite :=
+  Points.induction ({ S: \Pow V \where CoversCompact S })
+    (Logic.existsIntro[Projection, { P: Projection \where Logic.And[Covers[P, Points.Empty], CompactMap P.map] }] zero
+      (Logic.And[_, _]::# (\fun (x: V)(empty: \In[V] Points.Empty x) => Logic.falseElim _ empty) zeroCompact))
+    (\block {
+      \fun (S: \Pow V)(ih: CoversCompact S)(x: V) \then
+      \takefrom P: \Cast[Projection] ({ P: Projection \where Logic.And[Covers[P, S], CompactMap P.map] }) \by ih \then
+      \let data: Logic.And[Covers[P, S], CompactMap P.map] := \bysub(Projection, { P: Projection \where Logic.And[Covers[P, S], CompactMap P.map] }, P) \then
+      \return either!{{(Classical.excludedMiddle (P.map.apply x = x))} {CoversCompact (Points.Insert x S)}
+        {\fun (fixed: P.map.apply x = x) => Logic.existsIntro[Projection, { Q: Projection \where Logic.And[Covers[Q, Points.Insert x S], CompactMap Q.map] }] P
+          (Logic.And[_, _]::# (\fun (y: V)(member: \In[V] (Points.Insert x S) y) => either!{member {P.map.apply y = y}
+            {\fun (same: y = x) => \idelim x = y \with z: V => P.map.apply z = z \by { base: fixed, equality: sym!{V} _ _ same }}
+            {data.left y}}) data.right)}
+        {\block {
+          \fun (different: Logic.Not (P.map.apply x = x)) \then
+          \let Q: Projection := \parent.Extend[P := P, x := x].Nonzero[different := different].projection \then
+          \let extension: \parent.Extend[P := P, x := x].Enlarges[Q] := \parent.Extend[P := P, x := x].Enlarges[Q] {
+            fixesNew := \parent.Extend[P := P, x := x].Nonzero[different := different].fixesNew,
+            fixesOld := \parent.Extend[P := P, x := x].Nonzero[different := different].fixesOld,
+          } \then
+          \return Logic.existsIntro[Projection, { Q: Projection \where Logic.And[Covers[Q, Points.Insert x S], CompactMap Q.map] }] Q
+            (Logic.And[_, _]::# (\fun (y: V)(member: \In[V] (Points.Insert x S) y) => either!{member {Q.map.apply y = y}
+              {\fun (same: y = x) => \idelim x = y \with z: V => Q.map.apply z = z \by { base: extension.fixesNew, equality: sym!{V} _ _ same }}
+              {\fun (old: \In[V] S y) => extension.fixesOld y (data.left y old)}})
+              (Extend[P := P, x := x, different := different].compact data.right))
+        }}}
+    });

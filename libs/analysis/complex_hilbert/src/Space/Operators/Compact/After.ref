@@ -1,0 +1,43 @@
+\import \root.Space[V := W, space := target] \as Middle;
+\import \root.Space[V := U, space := codomain] \as Last;
+\import Middle.Operators[W := U, target := codomain, norm := targetNorm, targetNorm := codomainNorm] \as Next;
+\import \root.Space[V := V, space := space].Operators[W := U, target := codomain, norm := norm, targetNorm := codomainNorm] \as Result;
+\import Result.Compact[] \as ResultCompact;
+\import Next.Continuous[] \as Continuity;
+\import ComplexLinear.Linear[V := W, W := U, source := target, target := codomain] \as NextLinear;
+\import ComplexLinear.Linear[V := V, W := U, source := space, target := codomain] \as ResultLinear;
+\import NextLinear.Composition[U := V, domain := space] \as Composition;
+\import metric_spaces.MetricSpace[Carrier := U] \as TargetMetric;
+\import functional_analysis.Normed[V := U, space := Last.realSpace] \as LastNormed;
+\import Relative.ContinuousImage[B := U, other := LastNormed.metric codomainNorm.realNorm] \as ImageCompact;
+\import TargetMetric.Compactness[].RelativelyCompact[metric := LastNormed.metric codomainNorm.realNorm] \as LastRelative;
+\import topology.Maps[A := V, B := U] \as ResultSets;
+\import topology.Maps[A := W, B := U] \as OuterSets;
+\import topology.Topology[Carrier := U] \as TargetSets;
+\import real.Analysis[].Estimates[] \as Estimates;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\definition compose[f: Map][g: Next.Map]: Result.Map := \into[ResultLinear.Map](Composition.compose g f, Result.Map) \by { \block {
+  \takefrom c: \Cast[R.Real] ({ c: R.Real \where Bound[f, c] }) \by bounded f \then
+  \takefrom d: \Cast[R.Real] ({ d: R.Real \where Next.Bound[g, d] }) \by Next.bounded g \then
+  \let fb: Bound[f, c] := \bysub(R.Real, { c: R.Real \where Bound[f, c] }, c) \then
+  \let gb: Next.Bound[g, d] := \bysub(R.Real, { d: R.Real \where Next.Bound[g, d] }, d) \then
+  \return Logic.existsIntro[R.Real, { q: R.Real \where Result.Bound[Composition.compose g f, q] }] (R.mul d c)
+    (Result.Bound[Composition.compose g f, R.mul d c] {
+      nonnegative := Order.leReplaceRight R.zero (Order.Arithmetic[].Def[].mul d c) (R.mul d c) (sym!{R.Real} _ _ (Laws.fieldMulNN d c gb.nonnegative fb.nonnegative)) (Laws.nonnegativeMul d c gb.nonnegative fb.nonnegative),
+      estimate := \fun (x: V) => Order.leReplaceRight _ (R.mul d (R.mul c (norm.realNorm.norm x))) (R.mul (R.mul d c) (norm.realNorm.norm x))
+        (sym!{R.Real} _ _ (Laws.fieldMulAssoc d c (norm.realNorm.norm x)))
+        (Order.leTrans _ _ _ (gb.estimate (f.apply x)) (Estimates.mulMonotone d _ _ gb.nonnegative (fb.estimate x))),
+    })
+} };
+\definition compact: \forall (f: Map)(g: Next.Map) -> Compact f -> ResultCompact.Compact (compose f g) :=
+  \fun (f: Map)(g: Next.Map)(compact: Compact f) =>
+    LastRelative.subset (ResultCompact.Image (compose f g)) (OuterSets.Image (g.apply) (Image f))
+      (\fun (z: U)(member: TargetSets.Member (ResultCompact.Image (compose f g)) z) =>
+        ResultSets.imageElim ((compose f g).apply) ResultCompact.UnitBall z (TargetSets.Member (OuterSets.Image (g.apply) (Image f)) z)
+          (\fun (x: V)(inside: _)(same: _) => \idelim g.apply (f.apply x) = z
+            \with y: U => TargetSets.Member (OuterSets.Image (g.apply) (Image f)) y
+            \by { base: OuterSets.imageMember (g.apply) (Image f) (f.apply x) (Sets.imageMember (f.apply) UnitBall x inside), equality: same }) member)
+      (ImageCompact.preserves (g.apply) (Continuity.continuous g) (Image f) compact);

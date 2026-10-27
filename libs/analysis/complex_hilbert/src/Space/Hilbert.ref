@@ -1,0 +1,39 @@
+\import linear_algebra.Complex[].InnerProduct[V := V, space := space] \as Inner;
+\import linear_algebra.Real[].InnerProduct[V := V, space := realSpace] \as RealInner;
+\import functional_analysis.Normed[V := V, space := realSpace].Hilbert[norm := norm.realNorm] \as RealHilbert;
+\definition selfReal: \forall (x: V) -> inner.inner x x = D.ofReal (C.re (inner.inner x x)) :=
+  \fun (x: V) => Inner.conjugateFixedReal (inner.inner x x) (sym!{C.Complex} _ _ (inner.conjugateSymmetric x x));
+\definition realInner: RealInner.InnerProduct := RealInner.InnerProduct {
+  inner := \fun (x, y: V) => C.re (inner.inner x y),
+  symmetric := \fun (x, y: V) => congr!{C.Complex R.Real} C.re _ _ (inner.conjugateSymmetric x y),
+  zeroRight := \fun (x: V) => congr!{C.Complex R.Real} C.re _ _ (inner.zeroRight x),
+  addRight := \fun (x, y, z: V) => congr!{C.Complex R.Real} C.re _ _ (inner.addRight x y z),
+  scaleRight := \fun (a: R.Real)(x, y: V) => trans!{R.Real} _ _ _
+    (congr!{C.Complex R.Real} C.re _ _ (inner.scaleRight (D.ofReal a) x y)) (Scalar.realProduct a (inner.inner x y)),
+  nonnegative := inner.nonnegative,
+  definite := \fun (x: V)(zero: C.re (inner.inner x x) = R.zero) => inner.definite x
+    (trans!{C.Complex} _ _ _ (selfReal x) (congr!{R.Real C.Complex} D.ofReal _ _ zero)),
+};
+\structure Complete: \Prop := {
+  normSquared: \forall (x: V) -> C.re (inner.inner x x) = R.mul (norm.realNorm.norm x) (norm.realNorm.norm x),
+  complete: RealNormed.IsBanach norm.realNorm,
+};
+\definition realHilbert: Complete -> RealHilbert.Hilbert[realInner] :=
+  \fun (hilbert: Complete) => RealHilbert.Hilbert[realInner] { normSquared := hilbert.normSquared, complete := hilbert.complete };
+\module Riesz;
+\module Estimates;
+\definition addLeft: \forall (x, y, z: V) -> inner.inner (space.add x y) z = D.add (inner.inner x z) (inner.inner y z) :=
+  \fun (x, y, z: V) => eq_reason_in!{C.Complex _
+    "=" _ "by" { inner.conjugateSymmetric (space.add x y) z }
+    "=" _ "by" { congr!{C.Complex C.Complex} D.conj _ _ (inner.addRight z x y) }
+    "=" _ "by" { CL.conjAdd (inner.inner z x) (inner.inner z y) }
+    "=" _ "by" { congr!{C.Complex C.Complex C.Complex} D.add _ _ _ _ (sym!{C.Complex} _ _ (inner.conjugateSymmetric x z)) (sym!{C.Complex} _ _ (inner.conjugateSymmetric y z)) }
+  };
+\definition separated: \forall (y, z: V) -> (\forall (x: V) -> inner.inner y x = inner.inner z x) -> y = z :=
+  \fun (y, z: V)(same: _) => RealHilbert.representingVectorUnique realInner (\fun (x: V) => C.re (inner.inner y x)) y z
+    (\fun (x: V) => \refl(C.re (inner.inner y x))) (\fun (x: V) => congr!{C.Complex R.Real} C.re _ _ (same x));
+\module Subspaces;
+\module Geometry;
+\module RankOne(v: V, unit: inner.inner v v = D.one);
+\module FiniteProjection;
+\module ScalarLines;

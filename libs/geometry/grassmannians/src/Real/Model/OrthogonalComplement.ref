@@ -1,0 +1,36 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as NatLaws;
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\import \root.Real[n := n, k := k].Model[] \as Model;
+\import Model.Trace[] \as Trace;
+\import std.Alg[].Field[] \as Fields;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := Fields.fieldAsCommutativeRing R.Real R.Algebra[].field] \as Spaces;
+\import UniversalBundle.Complement[] \as Complement;
+\definition Q[p: Carrier]: At.Projection := Complement.Q p;
+\module AtPoint(p: Carrier) {
+  \import Trace.Complement[P := Model.projection p] \as Sum;
+  \import At.OnProjection[P := Q p].Rank[k := Nat.sub n k] \as Expected;
+  \definition rank: Expected.HasRank := \block {
+    \takefrom b: Finite.ProjectionBasis[P := Q p].BasisWitness \by Finite.ProjectionBasis[P := Q p].basisExists \then
+    \let qRank: At.OnProjection[P := Q p].Rank[k := b.rank].HasRank := \exact(b.basis, At.OnProjection[P := Q p].Rank[k := b.rank].Basis) \then
+    \let traceP: Trace.trace (Model.projection p) = Trace.count k := Trace.On[P := Model.projection p, r := k].rankTrace (Model.rank p) \then
+    \let traceQ: Trace.trace (Q p) = Trace.count b.rank := Trace.On[P := Q p, r := b.rank].rankTrace qRank \then
+    \let equality: Trace.count (Nat.add b.rank k) = Trace.count n := trans!{R.Real} _ _ _ (Trace.countAdd k b.rank)
+      (trans!{R.Real} _ _ _ (congr!{R.Real R.Real R.Real} Spaces.add _ _ _ _ (sym!{R.Real} _ _ traceP) (sym!{R.Real} _ _ traceQ)) Sum.traceSum) \then
+    \let dimension: Nat.add b.rank k = n := Trace.countInjective (Nat.add b.rank k) n equality \then
+    \let difference: Nat.sub n k = b.rank := trans!{N.Nat^} _ _ _ (congr!{N.Nat^ N.Nat^} (\fun (x: N.Nat^) => Nat.sub x k) _ _ (sym!{N.Nat^} _ _ dimension)) (NatLaws.subAddCancel k b.rank) \then
+    \return \idelim b.rank = Nat.sub n k \with r: N.Nat^ => At.OnProjection[P := Q p].Rank[k := r].HasRank \by { base: qRank, equality: sym!{N.Nat^} _ _ difference }
+  };
+}
+\import \root.Real[n := n, k := Nat.sub n k].Model[] \as Target;
+\import Target.Family[Y := Carrier, source := topology, P := Q, regularP := Complement.qRegular, rankP := \fun (p: Carrier) => AtPoint[p := p].rank] \as Family;
+\definition map[p: Carrier]: Target.Carrier := Family.map p;
+\definition continuous: topology.Continuity[A := Carrier, B := Target.Carrier].Continuous topology Target.topology map := Family.continuous;
+
+\import Bundles.Family[X := Target.Carrier, F := Target.Fiber].Of[bundle := Target.bundle].Pullback[Y := Carrier, source := topology, f := map] \as Pulled;
+\definition pulledBundle: Bundles.Family[X := Carrier, F := \fun (p: Carrier) => Target.Fiber (map p)].Bundle := Pulled.pulled continuous;
+\definition isomorphism: Bundles.Isomorphisms[X := Carrier, F := \fun (p: Carrier) => Target.Fiber (map p), G := ComplementFiber, source := pulledBundle, target := complementBundle].Isomorphism := Family.isomorphism;

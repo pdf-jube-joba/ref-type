@@ -1,0 +1,30 @@
+\import \root.Real[n := m, k := l].Model[] \as Right;
+\import \root.Real[n := Nat.add m n, k := Nat.add l k].Model[] \as Target;
+\import \parent.\parent.DirectSum[m := m, l := l] \as SumMap;
+\import \parent.\parent.DirectSum[m := m, l := l].Bundle[] \as SumBundle;
+\definition embed[p: Carrier]: SumMap.Source := Pair.pair Carrier Right.Carrier p q;
+\import topology.Maps[A := Carrier, B := Right.Carrier] \as Constant;
+\import topological_constructions.Product[A := Carrier, B := Right.Carrier].Universal[X := Carrier] \as Pairing;
+\definition embedContinuous: topology.Continuity[A := Carrier, B := SumMap.Source].Continuous topology SumMap.sourceTopology embed :=
+  Pairing.pairContinuous topology topology Right.topology (\fun (p: Carrier) => p) (\fun (_: Carrier) => q)
+    (Identity.continuous topology) (Constant.constantContinuous topology Right.topology q);
+\definition map[p: Carrier]: Target.Carrier := SumMap.map (embed p);
+\definition continuous: topology.Continuity[A := Carrier, B := Target.Carrier].Continuous topology Target.topology map :=
+  topology.Composition[A := Carrier, B := SumMap.Source, C := Target.Carrier].composeContinuous topology SumMap.sourceTopology Target.topology embed SumMap.map embedContinuous SumMap.continuous;
+\import Bundles.Family[X := Target.Carrier, F := Target.Fiber].Of[bundle := Target.bundle].PullbackComposition[Y := SumMap.Source, Z := Carrier, first := SumMap.sourceTopology, second := topology, f := SumMap.map, g := embed].Of[fRegular := SumMap.continuous, gRegular := embedContinuous] \as Composition;
+\import bundle_operations.Operations[].Over[K := R.Real, field := R.Algebra[].field, conjugation := H.Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar] \as Operations;
+\import Operations.DirectSum[X := SumMap.Source, F := SumBundle.LeftFiber, G := SumBundle.RightFiber, left := SumBundle.leftBundle, right := SumBundle.rightBundle] \as BundleSum;
+\import bundle_complements.Complements[].Over[K := R.Real, field := R.Algebra[].field, conjugation := H.Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar].PulledIsomorphism[X := SumMap.Source, Y := Carrier,
+  F := \fun (x: SumMap.Source) => Target.Fiber (SumMap.map x), G := BundleSum.Fiber,
+  source := SumBundle.pulledBundle, target := SumBundle.sumBundle, base := topology, f := embed,
+  sourceRegular := embedContinuous, targetRegular := embedContinuous] \as PullIso;
+\import BundleSum.Of[same := \refl(SumMap.sourceTopology)].Pullback[Y := Carrier, source := topology, f := embed, regular := embedContinuous] \as SumPullback;
+\import Operations.IsomorphismComposition[X := Carrier, F := \fun (p: Carrier) => Target.Fiber (map p),
+  G := \fun (p: Carrier) => Target.Fiber (map p), H := \fun (p: Carrier) => BundleSum.Fiber (embed p),
+  source := Composition.direct, middle := Composition.nested, target := SumPullback.firstBundle] \as FirstCompose;
+\import Operations.IsomorphismComposition[X := Carrier, F := \fun (p: Carrier) => Target.Fiber (map p),
+  G := \fun (p: Carrier) => BundleSum.Fiber (embed p), H := \fun (p: Carrier) => BundleSum.Fiber (embed p),
+  source := Composition.direct, middle := SumPullback.firstBundle, target := SumPullback.secondBundle] \as SecondCompose;
+\definition Comparison: \Set := Bundles.Isomorphisms[X := Carrier, F := \fun (p: Carrier) => Target.Fiber (map p), G := \fun (p: Carrier) => BundleSum.Fiber (embed p), source := Composition.direct, target := SumPullback.secondBundle].Isomorphism;
+\definition isomorphism: Comparison :=
+  SecondCompose.compose (FirstCompose.compose Composition.isomorphism (PullIso.isomorphism SumBundle.isomorphism)) SumPullback.isomorphism;

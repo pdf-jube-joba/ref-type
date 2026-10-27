@@ -1,0 +1,58 @@
+\import functional_analysis.Metric[Carrier := W] \as Metric;
+\import Metric.Geometry[d := TargetNormed.metric targetNorm.realNorm].TotalBoundedCompact[] \as CompleteCompact;
+\import std.Set[].FiniteSubset[A := W] \as Points;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\import real.Analysis[].Estimates[] \as Estimates;
+\import dedekind_reals.DedekindReal[].Order[] \as Ordered;
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\definition Near[f, g: Map, epsilon: R.Real]: \Prop :=
+  \forall (x: V) -> \In[V] UnitBall x -> Order.Lt ((TargetNormed.metric targetNorm.realNorm).distance (f.apply x) (g.apply x)) epsilon;
+\definition Approximable[f: Map]: \Prop := \forall (epsilon: R.Real) -> Order.Lt R.zero epsilon ->
+  \exists ( g: Map \where Logic.And[Compact g, Near[f, g, epsilon]] );
+\definition totallyBounded: \forall (f: Map) -> Approximable f -> Total.TotallyBounded (Image f) := \block {
+  \fun (f: Map)(approximable: Approximable f)(epsilon: R.Real)(positive: Order.Lt R.zero epsilon) \then
+  \let half: R.Real := R.mul R.half epsilon \then
+  \let hp: Order.Lt R.zero half := Estimates.halfOfPositive epsilon positive \then
+  \takefrom g: \Cast[Map] ({ g: Map \where Logic.And[Compact g, Near[f, g, half]] }) \by approximable half hp \then
+  \let data: Logic.And[Compact g, Near[f, g, half]] := \bysub(Map, { g: Map \where Logic.And[Compact g, Near[f, g, half]] }, g) \then
+  \takefrom finite: \Cast[Points.FiniteSubset] ({ finite: Points.FiniteSubset \where Total.Net[Image g, half, finite] }) \by totallyBounded g data.left half hp \then
+  \let net: Total.Net[Image g, half, finite] := \bysub(Points.FiniteSubset, { finite: Points.FiniteSubset \where Total.Net[Image g, half, finite] }, finite) \then
+  \return Logic.existsIntro[Points.FiniteSubset, { finite: Points.FiniteSubset \where Total.Net[Image f, epsilon, finite] }] finite
+    (Total.Net[Image f, epsilon, finite] {
+      covers := \fun (y: W)(member: T.Member (Image f) y) => Sets.imageElim (f.apply) UnitBall y
+        (\exists ( z: W \where Logic.And[Points.Member finite z, Order.Lt ((TargetNormed.metric targetNorm.realNorm).distance z y) epsilon] ))
+        (\block {
+          \fun (x: V)(inside: \In[V] UnitBall x)(same: f.apply x = y) \then
+          \takefrom z: \Cast[W] ({ z: W \where Logic.And[Points.Member finite z, Order.Lt ((TargetNormed.metric targetNorm.realNorm).distance z (g.apply x)) half] })
+            \by net.covers (g.apply x) (Sets.imageMember (g.apply) UnitBall x inside) \then
+          \let chosen: Logic.And[Points.Member finite z, Order.Lt ((TargetNormed.metric targetNorm.realNorm).distance z (g.apply x)) half] :=
+            \bysub(W, { z: W \where Logic.And[Points.Member finite z, Order.Lt ((TargetNormed.metric targetNorm.realNorm).distance z (g.apply x)) half] }, z) \then
+          \let distance: Order.Lt ((TargetNormed.metric targetNorm.realNorm).distance z (f.apply x)) epsilon :=
+            Order.leLtTrans _ _ epsilon ((TargetNormed.metric targetNorm.realNorm).triangle z (g.apply x) (f.apply x))
+              (Order.ltReplaceRight _ (R.add half half) epsilon (Estimates.halfTwice epsilon)
+                (Estimates.addLt _ _ half half chosen.right (Order.ltReplaceLeft _ _ _ ((TargetNormed.metric targetNorm.realNorm).symmetric (f.apply x) (g.apply x)) (data.right x inside)))) \then
+          \return Logic.existsIntro[W, { z: W \where Logic.And[Points.Member finite z, Order.Lt ((TargetNormed.metric targetNorm.realNorm).distance z y) epsilon] }] z
+            (Logic.And[_, _]::# chosen.left (\idelim f.apply x = y \with w: W => Order.Lt ((TargetNormed.metric targetNorm.realNorm).distance z w) epsilon \by { base: distance, equality: same }))
+        }) member,
+    })
+};
+\definition compact: Metric.Complete (TargetNormed.metric targetNorm.realNorm) -> \forall (f: Map) -> Approximable f -> Compact f :=
+  \fun (complete: Metric.Complete (TargetNormed.metric targetNorm.realNorm))(f: Map)(approximable: Approximable f) =>
+    CompleteCompact.relativelyCompact complete (Image f) (totallyBounded f approximable);
+\definition NormConverges[sequence: N.Nat^ -> Map, f: Map]: \Prop :=
+  \forall (epsilon: R.Real) -> Order.Lt R.zero epsilon -> \exists ( k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> Near[f, sequence n, epsilon] );
+\definition sequential: Metric.Complete (TargetNormed.metric targetNorm.realNorm) -> \forall (sequence: N.Nat^ -> Map)(f: Map) ->
+  (\forall (n: N.Nat^) -> Compact (sequence n)) -> NormConverges sequence f -> Compact f := \block {
+  \fun (complete: Metric.Complete (TargetNormed.metric targetNorm.realNorm))(sequence: N.Nat^ -> Map)(f: Map)
+    (compactSequence: \forall (n: N.Nat^) -> Compact (sequence n))(converges: NormConverges sequence f) \then
+  \return compact complete f (\block {
+    \fun (epsilon: R.Real)(positive: Order.Lt R.zero epsilon) \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> Near[f, sequence n, epsilon] }) \by converges epsilon positive \then
+    \let near: \forall (n: N.Nat^) -> Nat.Le k n -> Near[f, sequence n, epsilon] :=
+      \bysub(N.Nat^, { k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> Near[f, sequence n, epsilon] }, k) \then
+    \return Logic.existsIntro[Map, { g: Map \where Logic.And[Compact g, Near[f, g, epsilon]] }] (sequence k)
+      (Logic.And[_, _]::# (compactSequence k) (near k (Nat.leRefl k)))
+  })
+};

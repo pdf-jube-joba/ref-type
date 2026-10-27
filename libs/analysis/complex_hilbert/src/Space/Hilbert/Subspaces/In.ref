@@ -1,0 +1,44 @@
+\import functional_analysis.Metric[Carrier := \Cast[V] S.carrier] \as PointSequences;
+\import LinearSubspaces.Of[subspace := S] \as Points;
+\import \root.Space[V := Points.Carrier, space := Points.induced] \as Restricted;
+\import functional_analysis.Normed[V := Points.Carrier, space := Restricted.realSpace] \as RestrictedNormed;
+\import linear_algebra.Complex[].InnerProduct[V := Points.Carrier, space := Points.induced] \as RestrictedInner;
+\import std.Logic[].Proposition[] \as Logic;
+\definition Point: \Set := Points.Carrier;
+\definition realNorm: RestrictedNormed.Norm := RestrictedNormed.Norm {
+  norm := \fun (x: Point) => norm.realNorm.norm x,
+  nonnegative := \fun (x: Point) => norm.realNorm.nonnegative x,
+  zero := norm.realNorm.zero,
+  definite := \fun (x: Point)(zero: _) => norm.realNorm.definite x zero,
+  triangle := \fun (x, y: Point) => norm.realNorm.triangle x y,
+  homogeneous := \fun (a: R.Real)(x: Point) => norm.realNorm.homogeneous a x,
+};
+\definition restrictedNorm: Restricted.Norm := Restricted.Norm {
+  realNorm := realNorm, homogeneous := \fun (a: C.Complex)(x: Point) => norm.homogeneous a x,
+};
+\definition restrictedInner: RestrictedInner.InnerProduct := RestrictedInner.InnerProduct {
+  inner := \fun (x, y: Point) => inner.inner x y,
+  conjugateSymmetric := \fun (x, y: Point) => inner.conjugateSymmetric x y,
+  zeroRight := \fun (x: Point) => inner.zeroRight x,
+  addRight := \fun (x, y, z: Point) => inner.addRight x y z,
+  scaleRight := \fun (a: C.Complex)(x, y: Point) => inner.scaleRight a x y,
+  nonnegative := \fun (x: Point) => inner.nonnegative x,
+  definite := \fun (x: Point)(zero: _) => inner.definite x zero,
+};
+\import Restricted.Hilbert[norm := restrictedNorm, inner := restrictedInner] \as RH;
+\definition closed: Closed S := \bysub(LinearSubspaces.Subspace, ClosedSubspace, S);
+\definition hilbert: Complete -> RH.Complete := \fun (complete: Complete) => RH.Complete {
+  normSquared := \fun (x: Point) => complete.normSquared x,
+  complete := \block {
+    \fun (s: N.Nat^ -> Point)(cauchy: PointSequences.Cauchy (RestrictedNormed.metric realNorm) s) \then
+    \let ambient: N.Nat^ -> V := \fun (n: N.Nat^) => s n \then
+    \let isCauchy: Sequences.Cauchy (RealNormed.metric norm.realNorm) ambient := cauchy \then
+    \takefrom x: \Cast[V] ({ x: V \where Sequences.Converges (RealNormed.metric norm.realNorm) ambient x }) \by complete.complete ambient isCauchy \then
+    \let converges: Sequences.Converges (RealNormed.metric norm.realNorm) ambient x :=
+      \bysub(V, { x: V \where Sequences.Converges (RealNormed.metric norm.realNorm) ambient x }, x) \then
+    \let inS: LinearSubspaces.Member S x := closed ambient x (\fun (n: N.Nat^) => \bysub(V, S.carrier, s n)) converges \then
+    \let point: Point := \into[V](x, S.carrier) \by { inS } \then
+    \return Logic.existsIntro[Point, { p: Point \where PointSequences.Converges (RestrictedNormed.metric realNorm) s p }] point converges
+  },
+};
+\module Projection(complete: Complete);

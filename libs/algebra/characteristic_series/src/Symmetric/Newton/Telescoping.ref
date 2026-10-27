@@ -1,0 +1,103 @@
+\definition shiftExt: \forall (f, g: Sequence) -> (\forall (k: N.Nat^) -> f k = g k) -> \forall (n: N.Nat^) -> shift f n = shift g n :=
+  \fun (f, g: Sequence)(same: _) => \induction (n: N.Nat^) \return shift f n = shift g n \with {
+    | zero: \refl(zero)
+    | succ: \fun (n: N.Nat^)(unused: _) => same n
+  };
+\definition convolutionExpand: \forall (n: N.Nat^)(f, g: Sequence) -> convolution n f g =
+  add (mul (f N.Nat^::zero) (g n)) (shift (\fun (k: N.Nat^) => convolution k (\fun (i: N.Nat^) => f (N.Nat^::succ i)) g) n) :=
+  \induction (n: N.Nat^) \return \forall (f, g: Sequence) -> convolution n f g =
+    add (mul (f N.Nat^::zero) (g n)) (shift (\fun (k: N.Nat^) => convolution k (\fun (i: N.Nat^) => f (N.Nat^::succ i)) g) n) \with {
+    | zero: \fun (f, g: Sequence) => sym!{R} _ _ (Sum.zeroRight (mul (f N.Nat^::zero) (g N.Nat^::zero)))
+    | succ: \fun (n: N.Nat^)(unused: _)(f, g: Sequence) => \refl(convolution (N.Nat^::succ n) f g)
+  };
+\definition cancellation: \forall (x, a, g, t, u: R) ->
+  add (add (mul a (mul (neg x) g)) t) (mul x (add (mul a g) u)) = add t (mul x u) :=
+  \fun (x, a, g, t, u: R) => eq_reason_in!{R _
+    "=" _ "by" { congr!{R R R} add _ _ _ _
+      (congr!{R R} (\fun (b: R) => add b t) _ _
+        (trans!{R} _ _ _ (C.mulSwap a (neg x) g) (C.negMulLeft x (mul a g))))
+      (ring.ring.semiring.leftDistributive x (mul a g) u) }
+    "=" _ "by" { Sum.four (neg (mul x (mul a g))) t (mul x (mul a g)) (mul x u) }
+    "=" _ "by" { congr!{R R} (\fun (b: R) => add b (add t (mul x u))) _ _ (Sum.inverseLeft (mul x (mul a g))) }
+    "=" _ "by" { Sum.zeroLeft (add t (mul x u)) }
+  };
+\definition geometricCancel: \forall (n: N.Nat^)(x: R)(f: Sequence) ->
+  add (convolution n f (geometric x)) (mul x (shift (\fun (k: N.Nat^) => convolution k f (geometric x)) n)) = mul x (f n) :=
+  \induction (n: N.Nat^) \return \forall (x: R)(f: Sequence) ->
+    add (convolution n f (geometric x)) (mul x (shift (\fun (k: N.Nat^) => convolution k f (geometric x)) n)) = mul x (f n) \with {
+    | zero: \fun (x: R)(f: Sequence) => eq_reason_in!{R _
+      "=" _ "by" { congr!{R R} (add (mul (f N.Nat^::zero) x)) _ _ (ring.ring.semiring.zeroAbsorbsRight x) }
+      "=" _ "by" { Sum.zeroRight (mul (f N.Nat^::zero) x) }
+      "=" _ "by" { ring.mulCommutative (f N.Nat^::zero) x }
+    }
+    | succ: \fun (n: N.Nat^)(previous: _)(x: R)(f: Sequence) => eq_reason_in!{R _
+      "=" _ "by" { congr!{R R} (\fun (b: R) => add (convolution (N.Nat^::succ n) f (geometric x)) (mul x b)) _ _ (convolutionExpand n f (geometric x)) }
+      "=" _ "by" { cancellation x (f N.Nat^::zero) (geometric x n)
+        (convolution n (\fun (i: N.Nat^) => f (N.Nat^::succ i)) (geometric x))
+        (shift (\fun (k: N.Nat^) => convolution k (\fun (i: N.Nat^) => f (N.Nat^::succ i)) (geometric x)) n) }
+      "=" _ "by" { previous x (\fun (i: N.Nat^) => f (N.Nat^::succ i)) }
+    }
+  };
+\definition linearConvolution: \forall (n: N.Nat^)(x: R)(f, g: Sequence) ->
+  convolution n (sum f (scalar x (shift f))) g = add (convolution n f g) (mul x (shift (\fun (k: N.Nat^) => convolution k f g) n)) :=
+  \fun (n: N.Nat^)(x: R)(f, g: Sequence) => eq_reason_in!{R _
+    "=" _ "by" { convolutionAddLeft n f (scalar x (shift f)) g }
+    "=" _ "by" { congr!{R R} (add (convolution n f g)) _ _ (convolutionScalar n x (shift f) g) }
+    "=" _ "by" { congr!{R R} (\fun (a: R) => add (convolution n f g) (mul x a)) _ _ (convolutionShift n f g) }
+  };
+\definition elementaryConvolution: \forall (n: N.Nat^)(x: R)(xs: Roots)(g: Sequence) ->
+  convolution n (elementary (cons x xs)) g = add (convolution n (elementary xs) g)
+    (mul x (shift (\fun (k: N.Nat^) => convolution k (elementary xs) g) n)) :=
+  \fun (n: N.Nat^)(x: R)(xs: Roots)(g: Sequence) => trans!{R} _ _ _
+    (convolutionExt n (elementary (cons x xs)) g (sum (elementary xs) (scalar x (shift (elementary xs)))) g
+      (elementaryStep x xs) (\fun (k: N.Nat^) => \refl(g k)))
+    (linearConvolution n x (elementary xs) g);
+\definition geometricElementary: \forall (n: N.Nat^)(x: R)(xs: Roots) -> convolution n (elementary (cons x xs)) (geometric x) = mul x (elementary xs n) :=
+  \fun (n: N.Nat^)(x: R)(xs: Roots) => trans!{R} _ _ _ (elementaryConvolution n x xs (geometric x)) (geometricCancel n x (elementary xs));
+\definition countAdd: \forall (n: N.Nat^)(a, b: R) -> count n (add a b) = add (count n a) (count n b) :=
+  \induction (n: N.Nat^) \return \forall (a, b: R) -> count n (add a b) = add (count n a) (count n b) \with {
+    | zero: \fun (a, b: R) => sym!{R} _ _ (Sum.zeroLeft zero)
+    | succ: \fun (n: N.Nat^)(previous: _)(a, b: R) => trans!{R} _ _ _
+      (congr!{R R} (add (add a b)) _ _ (previous a b)) (Sum.four a b (count n a) (count n b))
+  };
+\definition countMul: \forall (n: N.Nat^)(a, b: R) -> count n (mul a b) = mul a (count n b) :=
+  \induction (n: N.Nat^) \return \forall (a, b: R) -> count n (mul a b) = mul a (count n b) \with {
+    | zero: \fun (a, b: R) => sym!{R} _ _ (ring.ring.semiring.zeroAbsorbsRight a)
+    | succ: \fun (n: N.Nat^)(previous: _)(a, b: R) => trans!{R} _ _ _
+      (congr!{R R} (add (mul a b)) _ _ (previous a b)) (sym!{R} _ _ (ring.ring.semiring.leftDistributive a b (count n b)))
+  };
+\definition shiftedWeight: \forall (f: Sequence)(n: N.Nat^) -> shift (weighted f) n = count n (f n) :=
+  \fun (f: Sequence) => \induction (n: N.Nat^) \return shift (weighted f) n = count n (f n) \with {
+    | zero: \refl(zero)
+    | succ: \fun (n: N.Nat^)(unused: _) => \refl(count (N.Nat^::succ n) (f (N.Nat^::succ n)))
+  };
+\definition convolutionZeroRight: \forall (n: N.Nat^)(f: Sequence) -> convolution n f (\fun (k: N.Nat^) => zero) = zero :=
+  \induction (n: N.Nat^) \return \forall (f: Sequence) -> convolution n f (\fun (k: N.Nat^) => zero) = zero \with {
+    | zero: \fun (f: Sequence) => ring.ring.semiring.zeroAbsorbsRight (f N.Nat^::zero)
+    | succ: \fun (n: N.Nat^)(previous: _)(f: Sequence) => trans!{R} _ _ _
+      (congr!{R R R} add _ _ _ _ (ring.ring.semiring.zeroAbsorbsRight (f N.Nat^::zero)) (previous (\fun (k: N.Nat^) => f (N.Nat^::succ k)))) (Sum.zeroLeft zero)
+  };
+\definition countZero: \forall (n: N.Nat^) -> count n zero = zero :=
+  \induction (n: N.Nat^) \return count n zero = zero \with {
+    | zero: \refl(zero)
+    | succ: \fun (n: N.Nat^)(previous: _) => trans!{R} _ _ _ (congr!{R R} (add zero) _ _ previous) (Sum.zeroLeft zero)
+  };
+\definition newton: \forall (xs: Roots)(n: N.Nat^) -> convolution n (elementary xs) (signedPowers xs) = weighted (elementary xs) n :=
+  \induction (xs: Roots) \return \forall (n: N.Nat^) -> convolution n (elementary xs) (signedPowers xs) = weighted (elementary xs) n \with {
+    | nil: \fun (n: N.Nat^) => trans!{R} _ _ _ (convolutionZeroRight n (elementary nil)) (sym!{R} _ _ (countZero (N.Nat^::succ n)))
+    | cons: \fun (x: R)(xs: Roots)(previous: _)(n: N.Nat^) => eq_reason_in!{R _
+      "=" _ "by" { convolutionAddRight n (elementary (cons x xs)) (geometric x) (signedPowers xs) }
+      "=" _ "by" { congr!{R R R} add _ _ _ _ (geometricElementary n x xs) (elementaryConvolution n x xs (signedPowers xs)) }
+      "=" _ "by" { congr!{R R} (add (mul x (elementary xs n))) _ _
+        (congr!{R R R} add _ _ _ _ (previous n)
+          (congr!{R R} (mul x) _ _ (trans!{R} _ _ _
+            (shiftExt (\fun (k: N.Nat^) => convolution k (elementary xs) (signedPowers xs)) (weighted (elementary xs)) previous n)
+            (shiftedWeight (elementary xs) n)))) }
+      "=" _ "by" { trans!{R} _ _ _
+        (trans!{R} _ _ _ (sym!{R} _ _ (Sum.assoc (mul x (elementary xs n)) (weighted (elementary xs) n) (mul x (count n (elementary xs n)))))
+          (congr!{R R} (\fun (a: R) => add a (mul x (count n (elementary xs n)))) _ _ (Sum.comm (mul x (elementary xs n)) (weighted (elementary xs) n))))
+        (Sum.assoc (weighted (elementary xs) n) (mul x (elementary xs n)) (mul x (count n (elementary xs n)))) }
+      "=" _ "by" { congr!{R R} (add (weighted (elementary xs) n)) _ _ (congr!{R R} (add (mul x (elementary xs n))) _ _ (sym!{R} _ _ (countMul n x (elementary xs n)))) }
+      "=" _ "by" { sym!{R} _ _ (countAdd (N.Nat^::succ n) (elementary xs (N.Nat^::succ n)) (mul x (elementary xs n))) }
+    }
+  };

@@ -1,0 +1,112 @@
+\import \root.Rational[] \as Q;
+\import \root.Characteristic[] \as Characteristic;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].List[] \as Lists;
+\import \root.Series[R := R, ring := ring] \as S;
+\import \root.Symmetric[R := R, ring := ring] \as Symmetric;
+\import algebra.Polynomial[].Over[R := R, coefficients := ring] \as P;
+\import P.Finite[] \as F;
+\definition Polynomial: \Set := P.Carrier;
+\import std.Alg[].Ring[] \as Rings;
+\import algebra.Group[].Of[Carrier := P.Carrier, group := Rings.additiveGroup P.Carrier (Rings.commutativeRingAsRing P.Carrier P.ring)] \as Sum;
+\import std.Alg[].Monoid[] \as Monoids;
+\definition productMonoid: Monoids.CommutativeMonoid[P.Carrier] := Monoids.CommutativeMonoid[P.Carrier] {
+  base := Monoids.MonoidData[P.Carrier]::# P.one P.mul,
+  monoid := P.ring.ring.semiring.multiplicative, commutative := P.ring.mulCommutative,
+};
+\import algebra.Monoid[].Of[Carrier := P.Carrier, monoid := productMonoid] \as Product;
+\import std.Logic[].Equality[] \as E;
+\use E.congr;
+\use E.sym;
+\use E.trans;
+\use E.eq_reason_in;
+\definition Coefficients: \Set := Lists.List[Q.Carrier];
+\definition rootCoefficientsFrom[q: Coefficients][x, initial: R]: S.Coefficients :=
+  (\induction (q: Coefficients) \return R -> S.Coefficients \with {
+    | nil: \fun (power: R) => S.nil
+    | cons: \fun (a: Q.Carrier)(q: Coefficients)(previous: _)(power: R) =>
+      S.cons (S.mul (coefficient a) power) (previous (S.mul x power))
+  }) q initial;
+\definition rootCoefficients[q: Coefficients][x: R]: S.Coefficients := rootCoefficientsFrom q x S.one;
+\definition factor[q: Coefficients][x: R]: P.Carrier := F.asPolynomial (rootCoefficients q x);
+\definition product[q: Coefficients]: Symmetric.Roots -> P.Carrier :=
+  Lists.foldr R P.Carrier (\fun (x: R)(p: P.Carrier) => P.mul (factor q x) p) P.one;
+\definition sum[q: Coefficients]: Symmetric.Roots -> P.Carrier :=
+  Lists.foldr R P.Carrier (\fun (x: R)(p: P.Carrier) => P.add (factor q x) p) P.zero;
+\definition productCoefficients[q: Coefficients]: Symmetric.Roots -> S.Coefficients :=
+  Lists.foldr R S.Coefficients (\fun (x: R)(p: S.Coefficients) => F.times (rootCoefficients q x) p) (F.singleton S.one);
+\definition sumCoefficients[q: Coefficients]: Symmetric.Roots -> S.Coefficients :=
+  Lists.foldr R S.Coefficients (\fun (x: R)(p: S.Coefficients) => F.plus (rootCoefficients q x) p) S.nil;
+\definition finite[n: N.Nat^][q: Coefficients][xs: Symmetric.Roots]: S.Coefficients := S.cut n (productCoefficients q xs);
+\definition finiteSum[n: N.Nat^][q: Coefficients][xs: Symmetric.Roots]: S.Coefficients := S.cut n (sumCoefficients q xs);
+\definition finiteCut: \forall (n, m: N.Nat^)(q: Coefficients)(xs: Symmetric.Roots) -> S.cut n (finite (S.extend n m) q xs) = finite n q xs :=
+  \fun (n, m: N.Nat^)(q: Coefficients)(xs: Symmetric.Roots) => S.cutCut n m (productCoefficients q xs);
+\definition productRepresentation: \forall (q: Coefficients)(xs: Symmetric.Roots) -> F.asPolynomial (productCoefficients q xs) = product q xs :=
+  \fun (q: Coefficients) => \induction (xs: Symmetric.Roots) \return F.asPolynomial (productCoefficients q xs) = product q xs \with {
+    | nil: trans!{P.Carrier} _ _ _ (F.singletonLaw S.one) P.coefficientMap.one
+    | cons: \fun (x: R)(xs: Symmetric.Roots)(previous: _) => trans!{P.Carrier} _ _ _
+      (F.timesLaw (rootCoefficients q x) (productCoefficients q xs)) (congr!{P.Carrier P.Carrier} (P.mul (factor q x)) _ _ previous)
+  };
+\definition sumRepresentation: \forall (q: Coefficients)(xs: Symmetric.Roots) -> F.asPolynomial (sumCoefficients q xs) = sum q xs :=
+  \fun (q: Coefficients) => \induction (xs: Symmetric.Roots) \return F.asPolynomial (sumCoefficients q xs) = sum q xs \with {
+    | nil: \refl(P.zero)
+    | cons: \fun (x: R)(xs: Symmetric.Roots)(previous: _) => trans!{P.Carrier} _ _ _
+      (F.plusLaw (rootCoefficients q x) (sumCoefficients q xs)) (congr!{P.Carrier P.Carrier} (P.add (factor q x)) _ _ previous)
+  };
+\definition multiplicative: \forall (q: Coefficients)(xs, ys: Symmetric.Roots) -> product q (Lists.append R xs ys) = P.mul (product q xs) (product q ys) :=
+  \fun (q: Coefficients) => \induction (xs: Symmetric.Roots) \return \forall (ys: Symmetric.Roots) -> product q (Lists.append R xs ys) = P.mul (product q xs) (product q ys) \with {
+    | nil: \fun (ys: Symmetric.Roots) => sym!{P.Carrier} _ _ (Product.zeroLeft (product q ys))
+    | cons: \fun (x: R)(xs: Symmetric.Roots)(previous: _)(ys: Symmetric.Roots) => trans!{P.Carrier} _ _ _
+      (congr!{P.Carrier P.Carrier} (P.mul (factor q x)) _ _ (previous ys)) (sym!{P.Carrier} _ _ (Product.assoc (factor q x) (product q xs) (product q ys)))
+  };
+\definition additive: \forall (q: Coefficients)(xs, ys: Symmetric.Roots) -> sum q (Lists.append R xs ys) = P.add (sum q xs) (sum q ys) :=
+  \fun (q: Coefficients) => \induction (xs: Symmetric.Roots) \return \forall (ys: Symmetric.Roots) -> sum q (Lists.append R xs ys) = P.add (sum q xs) (sum q ys) \with {
+    | nil: \fun (ys: Symmetric.Roots) => sym!{P.Carrier} _ _ (Sum.zeroLeft (sum q ys))
+    | cons: \fun (x: R)(xs: Symmetric.Roots)(previous: _)(ys: Symmetric.Roots) => trans!{P.Carrier} _ _ _
+      (congr!{P.Carrier P.Carrier} (P.add (factor q x)) _ _ (previous ys)) (sym!{P.Carrier} _ _ (Sum.assoc (factor q x) (sum q xs) (sum q ys)))
+  };
+\definition ProductEqual[q: Coefficients][xs, ys: Symmetric.Roots]: \Prop := product q xs = product q ys;
+\definition productRules[q: Coefficients]: Symmetric.PermutationRules[ProductEqual q] := Symmetric.PermutationRules[ProductEqual q] {
+  equivalence := std.Logic[].Relation[].Equivalence[Symmetric.Roots, ProductEqual q] {
+    refl := \fun (xs: Symmetric.Roots) => \refl(product q xs),
+    sym := \fun (xs, ys: Symmetric.Roots) => sym!{P.Carrier} _ _,
+    trans := \fun (xs, ys, zs: Symmetric.Roots) => trans!{P.Carrier} _ _ _,
+  },
+  prepend := \fun (x: R)(xs, ys: Symmetric.Roots) => congr!{P.Carrier P.Carrier} (P.mul (factor q x)) _ _,
+  swap := \fun (x, y: R)(xs: Symmetric.Roots) => Product.swap (factor q x) (factor q y) (product q xs),
+};
+\definition symmetric: \forall (q: Coefficients)(xs, ys: Symmetric.Roots) -> Symmetric.Permutation xs ys -> product q xs = product q ys :=
+  \fun (q: Coefficients)(xs, ys: Symmetric.Roots)(permuted: _) => permuted (ProductEqual q) (productRules q);
+\definition ch[n: N.Nat^][xs: Symmetric.Roots]: P.Carrier := sum (Characteristic.ch n) xs;
+\definition todd[n: N.Nat^][xs: Symmetric.Roots]: P.Carrier := product (Characteristic.todd n) xs;
+\definition l[n: N.Nat^][xs: Symmetric.Roots]: P.Carrier := product (Characteristic.l n) xs;
+\definition ahat[n: N.Nat^][xs: Symmetric.Roots]: P.Carrier := product (Characteristic.ahat n) xs;
+\definition truncatedProduct[n: N.Nat^][q: Coefficients]: Symmetric.Roots -> S.Coefficients :=
+  Lists.foldr R S.Coefficients (\fun (x: R)(p: S.Coefficients) => S.times n (rootCoefficients q x) p) (S.constant n S.one);
+\definition truncatedSum[n: N.Nat^][q: Coefficients]: Symmetric.Roots -> S.Coefficients :=
+  Lists.foldr R S.Coefficients (\fun (x: R)(p: S.Coefficients) => S.plus n (rootCoefficients q x) p) (S.cut n S.nil);
+\import S.Finite[] \as Compatibility;
+\definition finiteBridge: \forall (n: N.Nat^)(q: Coefficients)(xs: Symmetric.Roots) -> finite n q xs = truncatedProduct n q xs :=
+  \fun (n: N.Nat^)(q: Coefficients) => \induction (xs: Symmetric.Roots) \return finite n q xs = truncatedProduct n q xs \with {
+    | nil: \refl(S.constant n S.one)
+    | cons: \fun (x: R)(xs: Symmetric.Roots)(previous: _) => eq_reason_in!{S.Coefficients _
+      "=" _ "by" { Compatibility.cutTimes n (rootCoefficients q x) (productCoefficients q xs) }
+      "=" _ "by" { sym!{S.Coefficients} _ _ (S.trimTimes n (rootCoefficients q x) (productCoefficients q xs)) }
+      "=" _ "by" { congr!{S.Coefficients S.Coefficients} (S.times n (S.cut n (rootCoefficients q x))) _ _ previous }
+      "=" _ "by" { S.sameTimes n (S.cut n (rootCoefficients q x)) (truncatedProduct n q xs) (rootCoefficients q x) (truncatedProduct n q xs)
+        (S.cutIdempotent n (rootCoefficients q x)) (\refl(S.cut n (truncatedProduct n q xs))) }
+    }
+  };
+\definition finiteSumBridge: \forall (n: N.Nat^)(q: Coefficients)(xs: Symmetric.Roots) -> finiteSum n q xs = truncatedSum n q xs :=
+  \fun (n: N.Nat^)(q: Coefficients) => \induction (xs: Symmetric.Roots) \return finiteSum n q xs = truncatedSum n q xs \with {
+    | nil: \refl(S.cut n S.nil)
+    | cons: \fun (x: R)(xs: Symmetric.Roots)(previous: _) => eq_reason_in!{S.Coefficients _
+      "=" _ "by" { Compatibility.cutPlus n (rootCoefficients q x) (sumCoefficients q xs) }
+      "=" _ "by" { sym!{S.Coefficients} _ _ (S.trimPlus n (rootCoefficients q x) (sumCoefficients q xs)) }
+      "=" _ "by" { congr!{S.Coefficients S.Coefficients} (S.plus n (S.cut n (rootCoefficients q x))) _ _ previous }
+      "=" _ "by" { S.samePlus n (S.cut n (rootCoefficients q x)) (truncatedSum n q xs) (rootCoefficients q x) (truncatedSum n q xs)
+        (S.cutIdempotent n (rootCoefficients q x)) (\refl(S.cut n (truncatedSum n q xs))) }
+    }
+  };
+\module DegreeEight;
+\module Precision;

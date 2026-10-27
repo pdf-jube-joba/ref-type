@@ -1,0 +1,144 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].List[] \as L;
+\import std.Logic[].Equality[] \as E;
+\use E.congr;
+\use E.sym;
+\use E.trans;
+\use E.eq_reason_in;
+\definition Coefficients: \Set := L.List[R];
+\definition nil: Coefficients := L.List[R]::nil;
+\definition cons: R -> Coefficients -> Coefficients := L.List[R]::cons;
+\definition zero: R := ring.base.zero;
+\definition one: R := ring.base.one;
+\definition add: R -> R -> R := ring.base.add;
+\definition mul: R -> R -> R := ring.base.mul;
+\definition neg: R -> R := ring.base.neg;
+\definition head: Coefficients -> R := \induction (p: Coefficients) \return R \with {
+  | nil: zero
+  | cons: \fun (a: R)(p: Coefficients)(unused: R) => a
+};
+\definition tail: Coefficients -> Coefficients := \induction (p: Coefficients) \return Coefficients \with {
+  | nil: nil
+  | cons: \fun (a: R)(p: Coefficients)(unused: Coefficients) => p
+};
+/* Precision counts coefficients: cut (succ d) retains degrees 0,...,d. */
+\definition cut: N.Nat^ -> Coefficients -> Coefficients :=
+  \induction (n: N.Nat^) \return Coefficients -> Coefficients \with {
+    | zero: \fun (p: Coefficients) => nil
+    | succ: \fun (n: N.Nat^)(previous: _) (p: Coefficients) => cons (head p) (previous (tail p))
+  };
+\definition extend: N.Nat^ -> N.Nat^ -> N.Nat^ :=
+  \induction (n: N.Nat^) \return N.Nat^ -> N.Nat^ \with {
+    | zero: \fun (m: N.Nat^) => m
+    | succ: \fun (n: N.Nat^)(previous: _)(m: N.Nat^) => N.Nat^::succ (previous m)
+  };
+\definition plus: N.Nat^ -> Coefficients -> Coefficients -> Coefficients :=
+  \induction (n: N.Nat^) \return Coefficients -> Coefficients -> Coefficients \with {
+    | zero: \fun (p, q: Coefficients) => nil
+    | succ: \fun (n: N.Nat^)(previous: _)(p, q: Coefficients) => cons (add (head p) (head q)) (previous (tail p) (tail q))
+  };
+\definition scale: N.Nat^ -> R -> Coefficients -> Coefficients :=
+  \induction (n: N.Nat^) \return R -> Coefficients -> Coefficients \with {
+    | zero: \fun (a: R)(p: Coefficients) => nil
+    | succ: \fun (n: N.Nat^)(previous: _)(a: R)(p: Coefficients) => cons (mul a (head p)) (previous a (tail p))
+  };
+\definition negative[n: N.Nat^][p: Coefficients]: Coefficients := scale n (neg one) p;
+\definition times: N.Nat^ -> Coefficients -> Coefficients -> Coefficients :=
+  \induction (n: N.Nat^) \return Coefficients -> Coefficients -> Coefficients \with {
+    | zero: \fun (p, q: Coefficients) => nil
+    | succ: \fun (n: N.Nat^)(previous: _)(p, q: Coefficients) =>
+      cons (mul (head p) (head q)) (plus n (scale n (head p) (tail q)) (previous (tail p) q))
+  };
+\definition constant[n: N.Nat^][a: R]: Coefficients := cut n (cons a nil);
+/* The input is the tail u of the unit 1+t*u. */
+\definition inverseUnit: N.Nat^ -> Coefficients -> Coefficients :=
+  \induction (n: N.Nat^) \return Coefficients -> Coefficients \with {
+    | zero: \fun (u: Coefficients) => nil
+    | succ: \fun (n: N.Nat^)(previous: _)(u: Coefficients) => cons one (negative n (times n u (previous u)))
+  };
+/* compose n p u substitutes t*u into p. */
+\definition compose: N.Nat^ -> Coefficients -> Coefficients -> Coefficients :=
+  \induction (n: N.Nat^) \return Coefficients -> Coefficients -> Coefficients \with {
+    | zero: \fun (p, u: Coefficients) => nil
+    | succ: \fun (n: N.Nat^)(previous: _)(p, u: Coefficients) => cons (head p) (times n u (previous (tail p) u))
+  };
+\definition power[n: N.Nat^]: N.Nat^ -> Coefficients -> Coefficients :=
+  \induction (k: N.Nat^) \return Coefficients -> Coefficients \with {
+    | zero: \fun (p: Coefficients) => constant n one
+    | succ: \fun (k: N.Nat^)(previous: _)(p: Coefficients) => times n p (previous p)
+  };
+\definition cutCut: \forall (n, m: N.Nat^)(p: Coefficients) -> cut n (cut (extend n m) p) = cut n p :=
+  \induction (n: N.Nat^) \return \forall (m: N.Nat^)(p: Coefficients) -> cut n (cut (extend n m) p) = cut n p \with {
+    | zero: \fun (m: N.Nat^)(p: Coefficients) => \refl(nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(m: N.Nat^)(p: Coefficients) => congr!{Coefficients Coefficients} (cons (head p)) _ _ (previous m (tail p))
+  };
+\definition cutPlus: \forall (n, m: N.Nat^)(p, q: Coefficients) -> cut n (plus (extend n m) p q) = plus n p q :=
+  \induction (n: N.Nat^) \return \forall (m: N.Nat^)(p, q: Coefficients) -> cut n (plus (extend n m) p q) = plus n p q \with {
+    | zero: \fun (m: N.Nat^)(p, q: Coefficients) => \refl(nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(m: N.Nat^)(p, q: Coefficients) => congr!{Coefficients Coefficients} (cons (add (head p) (head q))) _ _ (previous m (tail p) (tail q))
+  };
+\definition trimPlus: \forall (n: N.Nat^)(p, q: Coefficients) -> plus n (cut n p) (cut n q) = plus n p q :=
+  \induction (n: N.Nat^) \return \forall (p, q: Coefficients) -> plus n (cut n p) (cut n q) = plus n p q \with {
+    | zero: \fun (p, q: Coefficients) => \refl(nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(p, q: Coefficients) => congr!{Coefficients Coefficients} (cons (add (head p) (head q))) _ _ (previous (tail p) (tail q))
+  };
+\definition cutScale: \forall (n, m: N.Nat^)(a: R)(p: Coefficients) -> cut n (scale (extend n m) a p) = scale n a p :=
+  \induction (n: N.Nat^) \return \forall (m: N.Nat^)(a: R)(p: Coefficients) -> cut n (scale (extend n m) a p) = scale n a p \with {
+    | zero: \fun (m: N.Nat^)(a: R)(p: Coefficients) => \refl(nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(m: N.Nat^)(a: R)(p: Coefficients) => congr!{Coefficients Coefficients} (cons (mul a (head p))) _ _ (previous m a (tail p))
+  };
+\definition trimScale: \forall (n: N.Nat^)(a: R)(p: Coefficients) -> scale n a (cut n p) = scale n a p :=
+  \induction (n: N.Nat^) \return \forall (a: R)(p: Coefficients) -> scale n a (cut n p) = scale n a p \with {
+    | zero: \fun (a: R)(p: Coefficients) => \refl(nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(a: R)(p: Coefficients) => congr!{Coefficients Coefficients} (cons (mul a (head p))) _ _ (previous a (tail p))
+  };
+\definition cutTimes: \forall (n, m: N.Nat^)(p, q: Coefficients) -> cut n (times (extend n m) p q) = times n p q :=
+  \induction (n: N.Nat^) \return \forall (m: N.Nat^)(p, q: Coefficients) -> cut n (times (extend n m) p q) = times n p q \with {
+    | zero: \fun (m: N.Nat^)(p, q: Coefficients) => \refl(nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(m: N.Nat^)(p, q: Coefficients) =>
+      congr!{Coefficients Coefficients} (cons (mul (head p) (head q))) _ _ (eq_reason_in!{Coefficients _
+        "=" _ "by" { cutPlus n m (scale (extend n m) (head p) (tail q)) (times (extend n m) (tail p) q) }
+        "=" _ "by" { sym!{Coefficients} _ _ (trimPlus n (scale (extend n m) (head p) (tail q)) (times (extend n m) (tail p) q)) }
+        "=" _ "by" { congr!{Coefficients Coefficients Coefficients} (plus n) _ _ _ _ (cutScale n m (head p) (tail q)) (previous m (tail p) q) }
+      })
+  };
+\definition sameHead: \forall (n: N.Nat^)(p, q: Coefficients) -> cut (N.Nat^::succ n) p = cut (N.Nat^::succ n) q -> head p = head q :=
+  \fun (n: N.Nat^)(p, q: Coefficients)(same: _) => congr!{Coefficients R} head _ _ same;
+\definition sameTail: \forall (n: N.Nat^)(p, q: Coefficients) -> cut (N.Nat^::succ n) p = cut (N.Nat^::succ n) q -> cut n (tail p) = cut n (tail q) :=
+  \fun (n: N.Nat^)(p, q: Coefficients)(same: _) => congr!{Coefficients Coefficients} tail _ _ same;
+\definition shorten: \forall (n: N.Nat^)(p, q: Coefficients) -> cut (N.Nat^::succ n) p = cut (N.Nat^::succ n) q -> cut n p = cut n q :=
+  \induction (n: N.Nat^) \return \forall (p, q: Coefficients) -> cut (N.Nat^::succ n) p = cut (N.Nat^::succ n) q -> cut n p = cut n q \with {
+    | zero: \fun (p, q: Coefficients)(same: _) => \refl(nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(p, q: Coefficients)(same: _) => congr!{R Coefficients Coefficients} cons _ _ _ _
+      (sameHead (N.Nat^::succ n) p q same) (previous (tail p) (tail q) (sameTail (N.Nat^::succ n) p q same))
+  };
+\definition cutIdempotent: \forall (n: N.Nat^)(p: Coefficients) -> cut n (cut n p) = cut n p :=
+  \induction (n: N.Nat^) \return \forall (p: Coefficients) -> cut n (cut n p) = cut n p \with {
+    | zero: \fun (p: Coefficients) => \refl(nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(p: Coefficients) => congr!{Coefficients Coefficients} (cons (head p)) _ _ (previous (tail p))
+  };
+\definition samePlus: \forall (n: N.Nat^)(p, q, a, b: Coefficients) -> cut n p = cut n a -> cut n q = cut n b -> plus n p q = plus n a b :=
+  \induction (n: N.Nat^) \return \forall (p, q, a, b: Coefficients) -> cut n p = cut n a -> cut n q = cut n b -> plus n p q = plus n a b \with {
+    | zero: \fun (p, q, a, b: Coefficients)(hp: _)(hq: _) => \refl(nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(p, q, a, b: Coefficients)(hp: _)(hq: _) => congr!{R Coefficients Coefficients} cons _ _ _ _ (congr!{R R R} add _ _ _ _ (sameHead n p a hp) (sameHead n q b hq)) (previous (tail p) (tail q) (tail a) (tail b) (sameTail n p a hp) (sameTail n q b hq))
+  };
+\definition sameScale: \forall (n: N.Nat^)(c: R)(p, q: Coefficients) -> cut n p = cut n q -> scale n c p = scale n c q :=
+  \induction (n: N.Nat^) \return \forall (c: R)(p, q: Coefficients) -> cut n p = cut n q -> scale n c p = scale n c q \with {
+    | zero: \fun (c: R)(p, q: Coefficients)(hp: _) => \refl(nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(c: R)(p, q: Coefficients)(hp: _) => congr!{R Coefficients Coefficients} cons _ _ _ _ (congr!{R R} (mul c) _ _ (sameHead n p q hp)) (previous c (tail p) (tail q) (sameTail n p q hp))
+  };
+\definition sameTimes: \forall (n: N.Nat^)(p, q, a, b: Coefficients) -> cut n p = cut n a -> cut n q = cut n b -> times n p q = times n a b :=
+  \induction (n: N.Nat^) \return \forall (p, q, a, b: Coefficients) -> cut n p = cut n a -> cut n q = cut n b -> times n p q = times n a b \with {
+    | zero: \fun (p, q, a, b: Coefficients)(hp: _)(hq: _) => \refl(nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(p, q, a, b: Coefficients)(hp: _)(hq: _) =>
+      congr!{R Coefficients Coefficients} cons _ _ _ _
+        (congr!{R R R} mul _ _ _ _ (sameHead n p a hp) (sameHead n q b hq))
+        (congr!{Coefficients Coefficients Coefficients} (plus n) _ _ _ _
+          (trans!{Coefficients} _ _ _ (sameScale n (head p) (tail q) (tail b) (sameTail n q b hq))
+            (congr!{R Coefficients} (\fun (c: R) => scale n c (tail b)) _ _ (sameHead n p a hp)))
+          (previous (tail p) q (tail a) b (sameTail n p a hp) (shorten n q b hq)))
+  };
+\definition trimTimes: \forall (n: N.Nat^)(p, q: Coefficients) -> times n (cut n p) (cut n q) = times n p q :=
+  \fun (n: N.Nat^)(p, q: Coefficients) => sameTimes n (cut n p) (cut n q) p q (cutIdempotent n p) (cutIdempotent n q);
+\module Laws;
+\module Finite;

@@ -1,0 +1,25 @@
+\import EndMaps.Composition[U := Coordinates.Vector, domain := Coordinates.space] \as Composition;
+\definition combined: Decode.Map := Composition.compose P.map factor.out;
+\definition agrees: \forall (i: Fin.Fin n) -> combined.apply (Basis.vectors i) = factor.out.apply (Basis.vectors i) :=
+  \fun (i: Fin.Fin n) => covers (generator i) (generatorMember i);
+\definition sameSum: \forall (xs: Lists.List[Fin.Fin n])(a: Coordinates.Vector) ->
+  combined.apply (FiniteBasis.vectorSum xs (\fun (i: Fin.Fin n) => Coordinates.space.smul (a i) (Basis.vectors i))) =
+    factor.out.apply (FiniteBasis.vectorSum xs (\fun (i: Fin.Fin n) => Coordinates.space.smul (a i) (Basis.vectors i))) :=
+  \induction (xs: Lists.List[Fin.Fin n]) \return \forall (a: Coordinates.Vector) ->
+    combined.apply (FiniteBasis.vectorSum xs (\fun (i: Fin.Fin n) => Coordinates.space.smul (a i) (Basis.vectors i))) =
+      factor.out.apply (FiniteBasis.vectorSum xs (\fun (i: Fin.Fin n) => Coordinates.space.smul (a i) (Basis.vectors i))) \with {
+    | nil: \fun (a: Coordinates.Vector) => trans!{W} _ _ _ combined.preservesZero (sym!{W} _ _ factor.out.preservesZero)
+    | cons: \fun (i: Fin.Fin n)(tail: Lists.List[Fin.Fin n])(ih: _)(a: Coordinates.Vector) => eq_reason_in!{W _
+      "=" _ "by" { combined.preservesAdd _ _ }
+      "=" _ "by" { congr!{W W W} target.add _ _ _ _
+        (trans!{W} _ _ _ (combined.preservesScale (a i) (Basis.vectors i))
+          (trans!{W} _ _ _ (congr!{W W} (target.smul (a i)) _ _ (agrees i)) (sym!{W} _ _ (factor.out.preservesScale (a i) (Basis.vectors i))))) (ih a) }
+      "=" _ "by" { sym!{W} _ _ (factor.out.preservesAdd _ _) }
+    }
+  };
+\definition fixed: \forall (a: Coordinates.Vector) -> P.map.apply (factor.out.apply a) = factor.out.apply a :=
+  \fun (a: Coordinates.Vector) => eq_reason_in!{W _
+    "=" _ "by" { congr!{Coordinates.Vector W} combined.apply _ _ (sym!{Coordinates.Vector} _ _ (Basis.reconstruction a)) }
+    "=" _ "by" { sameSum (Fin.elements n) a }
+    "=" _ "by" { congr!{Coordinates.Vector W} factor.out.apply _ _ (Basis.reconstruction a) }
+  };

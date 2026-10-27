@@ -1,0 +1,66 @@
+\import functional_analysis.Normed[V := V, space := realSpace].Hilbert[norm := norm.realNorm].Riesz[inner := realInner] \as Riesz;
+\import functional_analysis.Normed[V := R.Real, space := RealLinear.scalarSpace] \as ScalarNormed;
+\import RealLinear.Linear[V := R.Real, W := V, source := RealLinear.scalarSpace, target := realSpace] \as Maps;
+\import ScalarNormed.Operators[W := V, target := realSpace, norm := Riesz.realNorm, targetNorm := norm.realNorm] \as Operators;
+\import metric_spaces.RealLine[] \as Line;
+\import metric_spaces.RealMetric[] \as RealMetric;
+\import metric_spaces.MetricSpace[Carrier := R.Real] \as RealMetricSpace;
+\import RealMetricSpace.Topology[] \as RealTopology;
+\import metric_spaces.MetricSpace[Carrier := V] \as TargetMetric;
+\import TargetMetric.Topology[] \as TargetTopology;
+\import topology.Topology[Carrier := R.Real] \as ScalarSets;
+\import topology.Topology[Carrier := V] \as TargetSets;
+\import topology.Continuity[A := R.Real, B := V] \as Continuity;
+\import R.Estimates[] \as Estimates;
+\import Estimates.Product[] \as Product;
+\import R.Distance[] \as Distance;
+\import R.Algebra[] \as Algebra;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import dedekind_reals.DedekindReal[].Order[] \as RO;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as E;
+\use E.sym;
+\use E.trans;
+\use E.congr;
+\definition linear[v: V]: Maps.Map := Maps.Map {
+  apply := \fun (a: R.Real) => realSpace.smul a v,
+  preservesAdd := \fun (a, b: R.Real) => realSpace.scalarAdd a b v,
+  preservesScale := \fun (a, b: R.Real) => realSpace.scalarAssoc a b v,
+};
+\definition bound[v: V]: Operators.Bound[linear v, norm.realNorm.norm v] := Operators.Bound[linear v, norm.realNorm.norm v] {
+  nonnegative := norm.realNorm.nonnegative v,
+  estimate := \fun (a: R.Real) => Order.leReplace _ _ _ _
+    (sym!{R.Real} _ _ (norm.realNorm.homogeneous a v)) (Laws.fieldMulComm (R.Estimates[].Product[].abs a) (norm.realNorm.norm v)) (Order.leRefl _),
+};
+\definition continuous: \forall (v: V) -> Continuity.Continuous Line.topology (TargetTopology.topology (RealNormed.metric norm.realNorm)) (linear v).apply := \block {
+  \fun (v: V)(U: \Pow V)(open: TargetSets.IsOpenIn (TargetTopology.topology (RealNormed.metric norm.realNorm)) U)
+    (a: R.Real)(inside: TargetSets.Member U ((linear v).apply a)) \then
+  \takefrom epsilon: \Cast[R.Real] (TargetMetric.NeighborhoodRadius (RealNormed.metric norm.realNorm) U ((linear v).apply a)) \by open ((linear v).apply a) inside \then
+  \let radius: Logic.And[Order.Lt R.zero epsilon, TargetSets.Subset (TargetMetric.Ball (RealNormed.metric norm.realNorm) ((linear v).apply a) epsilon) U] :=
+    \bysub(R.Real, TargetMetric.NeighborhoodRadius (RealNormed.metric norm.realNorm) U ((linear v).apply a), epsilon) \then
+  \let c: R.Real := norm.realNorm.norm v \then
+  \let coeff: R.Real := R.add c R.one \then
+  \let positive: Order.Lt R.zero coeff := Order.ltLeTrans R.zero R.one coeff Product.onePositive (Distance.leAddRightOfNonnegative c R.one (norm.realNorm.nonnegative v)) \then
+  \let delta: R.Real := Product.radius coeff epsilon \then
+  \return RealTopology.openOfRadius RealMetric.metric (Continuity.Preimage (linear v).apply U) a delta
+    (Product.radiusPositive coeff epsilon positive radius.left)
+    (\block {
+      \fun (b: R.Real)(near: ScalarSets.Member (RealMetricSpace.Ball RealMetric.metric a delta) b) \then
+      \let d: R.Real := R.distance a b \then
+      \let larger: Order.Le (R.mul c d) (R.mul coeff d) := Order.leReplace _ _ _ _
+        (Laws.fieldMulComm d c) (Laws.fieldMulComm d coeff)
+        (Estimates.mulMonotone d c coeff (Distance.distanceNonnegative a b) (Algebra.leAddRight c R.one Laws.oneNonnegative)) \then
+      \return radius.right ((linear v).apply b) (Order.leLtTrans _ (R.mul c d) epsilon
+        (Order.leReplaceRight _ (R.mul c ((ScalarNormed.metric Riesz.realNorm).distance a b)) (R.mul c d)
+          (congr!{R.Real R.Real} (R.mul c) _ _ (Riesz.distanceLaw a b)) (Operators.distanceBound (linear v) c (bound v) a b))
+        (Order.leLtTrans _ (R.mul coeff d) epsilon larger
+          (RO.ltTrans _ (R.mul coeff delta) epsilon (Product.mulStrict coeff d delta positive near) (Product.radiusSmall coeff epsilon positive radius.left))))
+    })
+};
+\import topology.Compactness[A := R.Real, B := V] \as CompactImages;
+\import topology.Maps[A := R.Real, B := V] \as SetMaps;
+\import Line.CompactIntervals[] \as Intervals;
+\definition segment[v: V]: \Pow V := SetMaps.Image (linear v).apply (Line.ClosedInterval (R.neg R.one) R.one);
+\definition segmentCompact: \forall (v: V) -> TargetSets.IsCompactIn (TargetTopology.topology (RealNormed.metric norm.realNorm)) (segment v) :=
+  \fun (v: V) => CompactImages.continuousImage Line.topology (TargetTopology.topology (RealNormed.metric norm.realNorm)) (linear v).apply
+    (continuous v) (Line.ClosedInterval (R.neg R.one) R.one) (Intervals.intervalCompact (R.neg R.one) R.one);

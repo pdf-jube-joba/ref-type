@@ -1,0 +1,82 @@
+\import \root.Rational[] \as Q;
+\import \root.Series[R := Q.Carrier, ring := Q.ring] \as S;
+\import S.Laws[] \as Laws;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].Bool[] \as B;
+\import std.Logic[].Equality[] \as E;
+\use E.congr;
+\use E.trans;
+\use E.sym;
+\use E.eq_reason_in;
+\definition Sequence: \Set := N.Nat^ -> Q.Carrier;
+\definition range: N.Nat^ -> N.Nat^ -> Sequence -> S.Coefficients :=
+  \induction (n: N.Nat^) \return N.Nat^ -> Sequence -> S.Coefficients \with {
+    | zero: \fun (k: N.Nat^)(f: Sequence) => S.nil
+    | succ: \fun (n: N.Nat^)(previous: _)(k: N.Nat^)(f: Sequence) => S.cons (f k) (previous (N.Nat^::succ k) f)
+  };
+\definition factorialInverse: Sequence := \induction (n: N.Nat^) \return Q.Carrier \with {
+  | zero: Q.one
+  | succ: \fun (n: N.Nat^)(previous: Q.Carrier) => Q.mul previous (Q.reciprocalSuccessor n)
+};
+\definition power[a: Q.Carrier]: Sequence := \induction (n: N.Nat^) \return Q.Carrier \with {
+  | zero: Q.one
+  | succ: \fun (n: N.Nat^)(previous: Q.Carrier) => Q.mul a previous
+};
+\definition alternate: N.Nat^ -> Q.Carrier -> Q.Carrier := \induction (n: N.Nat^) \return Q.Carrier -> Q.Carrier \with {
+  | zero: \fun (a: Q.Carrier) => a
+  | succ: \fun (n: N.Nat^)(previous: _)(a: Q.Carrier) => Q.neg (previous a)
+};
+\definition parity: N.Nat^ -> B.Bool^ := \induction (n: N.Nat^) \return B.Bool^ \with {
+  | zero: B.Bool^::true
+  | succ: \fun (n: N.Nat^)(previous: B.Bool^) => B.Neg.specification previous
+};
+\definition even: B.Bool^ -> Q.Carrier -> Q.Carrier := \induction (b: B.Bool^) \return Q.Carrier -> Q.Carrier \with {
+  | false: \fun (a: Q.Carrier) => Q.zero
+  | true: \fun (a: Q.Carrier) => a
+};
+\definition toddDenominator[k: N.Nat^]: Q.Carrier := alternate k (factorialInverse (N.Nat^::succ k));
+\definition sinhc[k: N.Nat^]: Q.Carrier := even (parity k) (factorialInverse (N.Nat^::succ k));
+\definition cosh[k: N.Nat^]: Q.Carrier := even (parity k) (factorialInverse k);
+\definition half: Q.Carrier := Q.reciprocalSuccessor (N.Nat^::succ N.Nat^::zero);
+\definition sinhcHalf[k: N.Nat^]: Q.Carrier := Q.mul (power half k) (sinhc k);
+\definition ch[n: N.Nat^]: S.Coefficients := range n N.Nat^::zero factorialInverse;
+\definition todd[n: N.Nat^]: S.Coefficients := S.inverseUnit n (range n (N.Nat^::succ N.Nat^::zero) toddDenominator);
+\definition l[n: N.Nat^]: S.Coefficients := S.times n (range n N.Nat^::zero cosh) (S.inverseUnit n (range n (N.Nat^::succ N.Nat^::zero) sinhc));
+\definition ahat[n: N.Nat^]: S.Coefficients := S.inverseUnit n (range n (N.Nat^::succ N.Nat^::zero) sinhcHalf);
+\definition cutRange: \forall (n, m, k: N.Nat^)(f: Sequence) -> S.cut n (range (S.extend n m) k f) = range n k f :=
+  \induction (n: N.Nat^) \return \forall (m, k: N.Nat^)(f: Sequence) -> S.cut n (range (S.extend n m) k f) = range n k f \with {
+    | zero: \fun (m, k: N.Nat^)(f: Sequence) => \refl(S.nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(m, k: N.Nat^)(f: Sequence) => congr!{S.Coefficients S.Coefficients} (S.cons (f k)) _ _ (previous m (N.Nat^::succ k) f)
+  };
+\definition rangeSelf: \forall (n, k: N.Nat^)(f: Sequence) -> S.cut n (range n k f) = range n k f :=
+  \fun (n, k: N.Nat^)(f: Sequence) =>
+    \idelim S.extend n N.Nat^::zero = n \with d: N.Nat^ => S.cut n (range d k f) = range n k f
+      \by { base: cutRange n N.Nat^::zero k f, equality: Laws.extendZero n };
+\definition cutInverseRange: \forall (n, m, k: N.Nat^)(f: Sequence) -> S.cut n (S.inverseUnit (S.extend n m) (range (S.extend n m) k f)) = S.inverseUnit n (range n k f) :=
+  \fun (n, m, k: N.Nat^)(f: Sequence) => eq_reason_in!{S.Coefficients _
+    "=" _ "by" { Laws.cutInverseUnit n m (range (S.extend n m) k f) }
+    "=" _ "by" { Laws.sameInverseUnit n (range (S.extend n m) k f) (range n k f)
+      (trans!{S.Coefficients} _ _ _ (cutRange n m k f) (sym!{S.Coefficients} _ _ (rangeSelf n k f))) }
+  };
+\definition cutCh: \forall (n, m: N.Nat^) -> S.cut n (ch (S.extend n m)) = ch n := \fun (n, m: N.Nat^) => cutRange n m N.Nat^::zero factorialInverse;
+\definition cutTodd: \forall (n, m: N.Nat^) -> S.cut n (todd (S.extend n m)) = todd n := \fun (n, m: N.Nat^) => cutInverseRange n m (N.Nat^::succ N.Nat^::zero) toddDenominator;
+\definition cutAhat: \forall (n, m: N.Nat^) -> S.cut n (ahat (S.extend n m)) = ahat n := \fun (n, m: N.Nat^) => cutInverseRange n m (N.Nat^::succ N.Nat^::zero) sinhcHalf;
+\definition cutL: \forall (n, m: N.Nat^) -> S.cut n (l (S.extend n m)) = l n :=
+  \fun (n, m: N.Nat^) => eq_reason_in!{S.Coefficients _
+    "=" _ "by" { S.cutTimes n m (range (S.extend n m) N.Nat^::zero cosh) (S.inverseUnit (S.extend n m) (range (S.extend n m) (N.Nat^::succ N.Nat^::zero) sinhc)) }
+    "=" _ "by" { sym!{S.Coefficients} _ _ (S.trimTimes n (range (S.extend n m) N.Nat^::zero cosh) (S.inverseUnit (S.extend n m) (range (S.extend n m) (N.Nat^::succ N.Nat^::zero) sinhc))) }
+    "=" _ "by" { congr!{S.Coefficients S.Coefficients S.Coefficients} (S.times n) _ _ _ _ (cutRange n m N.Nat^::zero cosh) (cutInverseRange n m (N.Nat^::succ N.Nat^::zero) sinhc) }
+    "=" _ "by" { S.sameTimes n (range n N.Nat^::zero cosh) (S.inverseUnit n (range n (N.Nat^::succ N.Nat^::zero) sinhc)) (range n N.Nat^::zero cosh) (S.inverseUnit n (range n (N.Nat^::succ N.Nat^::zero) sinhc)) (\refl(S.cut n (range n N.Nat^::zero cosh))) (\refl(S.cut n (S.inverseUnit n (range n (N.Nat^::succ N.Nat^::zero) sinhc)))) }
+  };
+\module Tables;
+\definition toddDenominatorZero: toddDenominator N.Nat^::zero = Q.one := Q.ring.ring.semiring.multiplicative.leftIdentity Q.one;
+\definition sinhcZero: sinhc N.Nat^::zero = Q.one := toddDenominatorZero;
+\definition sinhcHalfZero: sinhcHalf N.Nat^::zero = Q.one := trans!{Q.Carrier} _ _ _
+  (congr!{Q.Carrier Q.Carrier} (Q.mul Q.one) _ _ sinhcZero) (Q.ring.ring.semiring.multiplicative.leftIdentity Q.one);
+\import \root.Exponential[] \as Exp;
+\definition factorialRange: \forall (n, k: N.Nat^) -> range n k factorialInverse = Exp.coefficients n k (factorialInverse k) :=
+  \induction (n: N.Nat^) \return \forall (k: N.Nat^) -> range n k factorialInverse = Exp.coefficients n k (factorialInverse k) \with {
+    | zero: \fun (k: N.Nat^) => \refl(S.nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(k: N.Nat^) => congr!{S.Coefficients S.Coefficients} (S.cons (factorialInverse k)) _ _ (previous (N.Nat^::succ k))
+  };
+\definition chExponential: \forall (n: N.Nat^) -> ch n = Exp.factorials n := \fun (n: N.Nat^) => factorialRange n N.Nat^::zero;

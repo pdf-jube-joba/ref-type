@@ -1,0 +1,77 @@
+\import functional_analysis.Normed[V := V, space := realSpace].Hilbert[norm := norm.realNorm].Quadratic[inner := realInner] \as Quadratic;
+\import \parent.Riesz[] \as Riesz;
+\import RealHilbert.Riesz[inner := realInner] \as RR;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as L;
+\import dedekind_reals.DedekindReal[].Order[] \as RO;
+\import R.Estimates[] \as E;
+\import E.Product[] \as Product;
+\import R.Distance[] \as Distance;
+\import R.SquareRoot[] \as Root;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\definition energy[x: V]: R.Real := C.re (inner.inner x x);
+\definition realDot[x, y: V]: R.Real := C.re (inner.inner x y);
+\definition sub[x, y: V]: V := realSpace.add x (realSpace.neg y);
+\definition completingSquare: \forall (x, y: V) -> Logic.Not (energy y = R.zero) ->
+  energy (sub x (realSpace.smul (R.mul (L.fieldInv (energy y)) (realDot x y)) y)) =
+    R.sub (energy x) (R.mul (L.fieldInv (energy y)) (R.mul (realDot x y) (realDot x y))) := \block {
+  \fun (x, y: V)(nonzero: Logic.Not (energy y = R.zero)) \then
+  \let a: R.Real := energy y \then
+  \let h: R.Real := realDot x y \then
+  \let b: R.Real := R.mul (L.fieldInv a) h \then
+  \let q: R.Real := R.mul (L.fieldInv a) (R.mul h h) \then
+  \let cross: realDot x (realSpace.smul b y) = q := trans!{R.Real} _ _ _ (realInner.scaleRight b x y) (L.fieldMulAssoc (L.fieldInv a) h h) \then
+  \let scaleEnergy: energy (realSpace.smul b y) = q := eq_reason_in!{R.Real _
+    "=" _ "by" { RR.energyScale b y }
+    "=" _ "by" { congr!{R.Real R.Real} (R.mul b) _ _ (RR.coefficientCancel a h nonzero) }
+    "=" _ "by" { L.fieldMulAssoc (L.fieldInv a) h h }
+  } \then
+  \return eq_reason_in!{R.Real _
+    "=" _ "by" { Quadratic.difference x (realSpace.smul b y) }
+    "=" _ "by" { congr!{R.Real R.Real R.Real} R.sub _ _ _ _ (congr!{R.Real R.Real} (R.add (energy x)) _ _ scaleEnergy) (congr!{R.Real R.Real R.Real} R.add _ _ _ _ cross cross) }
+    "=" _ "by" { RR.subtractDouble (energy x) q }
+  }
+};
+\definition subNonnegative[a, b: R.Real]: Order.Le R.zero (R.sub a b) -> Order.Le b a :=
+  \fun (nonnegative: _) => Order.leReplaceLeft (R.add R.zero b) b a (L.addZeroLeft b)
+    (Order.leReplaceRight _ (R.add (R.sub a b) b) a (Distance.subAddCancel a b)
+      (L.addMonotoneRight R.zero (R.sub a b) b nonnegative));
+\definition squaredBound: \forall (x, y: V) -> Order.Le (R.mul (realDot x y) (realDot x y)) (R.mul (energy x) (energy y)) :=
+  \fun (x, y: V) => Logic.orElim _ _ _ (Classical.excludedMiddle (energy y = R.zero))
+    (\fun (zero: energy y = R.zero) => Order.leReplace _ _ _ _
+      (sym!{R.Real} _ _ (trans!{R.Real} _ _ _
+        (congr!{R.Real R.Real} (\fun (a: R.Real) => R.mul a a) _ _
+          (trans!{R.Real} _ _ _ (congr!{V R.Real} (realInner.inner x) _ _ (realInner.definite y zero)) (realInner.zeroRight x))) (L.fieldMulZeroLeft R.zero)))
+      (sym!{R.Real} _ _ (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul (energy x)) _ _ zero) (L.fieldMulZeroRight (energy x)))) (Order.leRefl R.zero))
+    (\block {
+      \fun (nonzero: Logic.Not (energy y = R.zero)) \then
+      \let a: R.Real := energy y \then
+      \let h: R.Real := realDot x y \then
+      \let q: R.Real := R.mul (L.fieldInv a) (R.mul h h) \then
+      \let upper: Order.Le q (energy x) := subNonnegative (energy x) q
+        (Order.leReplaceRight R.zero _ _ (completingSquare x y nonzero)
+          (realInner.nonnegative (sub x (realSpace.smul (R.mul (L.fieldInv a) h) y)))) \then
+      \return Order.leReplace (R.mul a q) (R.mul h h) (R.mul a (energy x)) (R.mul (energy x) a)
+        (RR.inverseCancel a (R.mul h h) nonzero) (L.fieldMulComm a (energy x))
+        (E.mulMonotone a q (energy x) (realInner.nonnegative y) upper)
+    });
+\definition absSquare: \forall (a: R.Real) -> R.mul (Product.abs a) (Product.abs a) = R.mul a a :=
+  \fun (a: R.Real) => trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (Product.absProduct a a)) (Product.absOfNonnegative (R.mul a a) (A.squareNonnegative a));
+\definition cauchySchwarz: \forall (hilbert: Complete)(x, y: V) -> Order.Le (Product.abs (realDot x y)) (R.mul (norm.realNorm.norm x) (norm.realNorm.norm y)) := \block {
+  \fun (hilbert: Complete)(x, y: V) \then
+  \let a: R.Real := Product.abs (realDot x y) \then
+  \let b: R.Real := R.mul (norm.realNorm.norm x) (norm.realNorm.norm y) \then
+  \let squared: Order.Le (R.mul a a) (R.mul b b) := Order.leReplace _ _ _ _
+    (sym!{R.Real} _ _ (absSquare (realDot x y)))
+    (eq_reason_in!{R.Real _
+      "=" _ "by" { congr!{R.Real R.Real R.Real} R.mul _ _ _ _ (hilbert.normSquared x) (hilbert.normSquared y) }
+      "=" _ "by" { A.mulFour (norm.realNorm.norm x) (norm.realNorm.norm x) (norm.realNorm.norm y) (norm.realNorm.norm y) }
+    }) (squaredBound x y) \then
+  \return RO.leOfNotLtReverse a b (\fun (less: Order.Lt b a) => Order.ltNotLeReverse (R.mul b b) (R.mul a a)
+    (Root.squareStrict b a (L.fieldMulNonnegative (norm.realNorm.norm x) (norm.realNorm.norm y) (norm.realNorm.nonnegative x) (norm.realNorm.nonnegative y)) less) squared)
+};
+\definition factorCancel: \forall (a, b: R.Real) -> Order.Le R.zero b -> Order.Le (R.mul a a) (R.mul b a) -> Order.Le a b :=
+  \fun (a, b: R.Real)(bp: _)(bound: _) => RO.leOfNotLtReverse a b (\fun (less: Order.Lt b a) =>
+    Order.ltNotLeReverse (R.mul b a) (R.mul a a)
+      (Order.ltReplaceLeft (R.mul a b) (R.mul b a) (R.mul a a) (L.fieldMulComm a b)
+        (Product.mulStrict a b a (Order.leLtTrans R.zero b a bp less) less)) bound);

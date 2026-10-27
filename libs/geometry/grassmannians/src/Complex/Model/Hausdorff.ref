@@ -1,0 +1,22 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import topology.Topology[Carrier := Carrier] \as Space;
+\definition Bad[p, q: Carrier]: \Prop := \exists (i: Fin.Fin n \where \exists (j: Fin.Fin n \where Logic.Not (entries p i j = entries q i j)));
+\definition differs: \forall (p, q: Carrier) -> Logic.Not (p = q) -> Bad p q :=
+  \fun (p, q: Carrier)(different: Logic.Not (p = q)) => Logic.orElim[Bad p q, Logic.Not (Bad p q), Bad p q]
+    (Classical.excludedMiddle (Bad p q)) (\fun (bad: Bad p q) => bad)
+    (\fun (none: Logic.Not (Bad p q)) => Logic.falseElim[Bad p q] (different (entriesInjective p q
+      (\axiom:funext(entries p, entries q, \fun (i: Fin.Fin n) => \axiom:funext(entries p i, entries q i, \fun (j: Fin.Fin n) =>
+        Logic.orElim[entries p i j = entries q i j, Logic.Not (entries p i j = entries q i j), entries p i j = entries q i j]
+          (Classical.excludedMiddle (entries p i j = entries q i j)) (\fun (equal: entries p i j = entries q i j) => equal)
+          (\fun (unequal: Logic.Not (entries p i j = entries q i j)) => Logic.falseElim[entries p i j = entries q i j]
+            (none (Logic.existsIntro[Fin.Fin n, { i: Fin.Fin n \where \exists (j: Fin.Fin n \where Logic.Not (entries p i j = entries q i j)) }] i
+              (Logic.existsIntro[Fin.Fin n, { j: Fin.Fin n \where Logic.Not (entries p i j = entries q i j) }] j unequal))))))))));
+\module Coordinate(i, j: Fin.Fin n);
+\definition law: Space.IsT2 topology := \block {
+  \fun (p, q: Carrier)(different: Logic.Not (p = q)) \then
+  \takefrom i: \Cast[Fin.Fin n] ({ i: Fin.Fin n \where \exists (j: Fin.Fin n \where Logic.Not (entries p i j = entries q i j)) }) \by differs p q different \then
+  \let existsJ: \exists (j: Fin.Fin n \where Logic.Not (entries p i j = entries q i j)) := \bysub(Fin.Fin n, { i: Fin.Fin n \where \exists (j: Fin.Fin n \where Logic.Not (entries p i j = entries q i j)) }, i) \then
+  \takefrom j: \Cast[Fin.Fin n] ({ j: Fin.Fin n \where Logic.Not (entries p i j = entries q i j) }) \by existsJ \then
+  \return Coordinate[i := i, j := j].separate p q (\bysub(Fin.Fin n, { j: Fin.Fin n \where Logic.Not (entries p i j = entries q i j) }, j))
+};
