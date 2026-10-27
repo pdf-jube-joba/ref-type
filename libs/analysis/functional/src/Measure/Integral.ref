@@ -123,7 +123,7 @@
   \fun (f: A -> Real.Real) (finite: Finite f) => \block {
     \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where IntegralBound[f, b] }) \by finite.right \then
     \let bound: IntegralBound[f, b] := \bysub(Real.Real, { b: Real.Real \where IntegralBound[f, b] }, b) \then
-    \return Complete.existsLeastUpperBound (lowerIntegral f) (lowerIntegralNonempty f)
+    \return Complete.complete (lowerIntegral f) (lowerIntegralNonempty f)
       (Logic.existsIntro[Real.Real, { u: Real.Real \where Complete.UpperBound (lowerIntegral f) u }] b bound.bound)
   };
 
@@ -151,8 +151,8 @@
     \return Logic.existsIntro[Real.Real, { value: Real.Real \where HasIntegral[f, value] }] (Real.sub p n)
       (HasIntegral[f, Real.sub p n] {
         integrable := integrable,
-        parts := Logic.existsIntro[Real.Real, { p: Real.Real \where \exists ( n: Real.Real \where Parts[f, Real.sub p n, p, n] ) }] p
-          (Logic.existsIntro[Real.Real, { n: Real.Real \where Parts[f, Real.sub p n, p, n] }] n
+        parts := Logic.existsIntro[Real.Real, { q: Real.Real \where \exists ( t: Real.Real \where Parts[f, Real.sub p n, q, t] ) }] p
+          (Logic.existsIntro[Real.Real, { t: Real.Real \where Parts[f, Real.sub p n, p, t] }] n
             (Parts[f, Real.sub p n, p, n] {
               positiveLaw := \bysub(Real.Real, { p: Real.Real \where Complete.LeastUpperBound[lowerIntegral (positivePart f), p] }, p),
               negativeLaw := \bysub(Real.Real, { n: Real.Real \where Complete.LeastUpperBound[lowerIntegral (negativePart f), n] }, n),
@@ -160,3 +160,21 @@
             })),
       })
   };
+
+\definition Representatives: \Set := \Cast[A -> Real.Real] ({ f: A -> Real.Real \where Integrable f });
+\definition IntegralValue[f: Representatives]: \Set := \Cast[Real.Real] ({ value: Real.Real \where HasIntegral[f, value] });
+\definition integralCandidateUnique: \forall (f: Representatives) (u, v: IntegralValue f) -> u = v :=
+  \fun (f: Representatives) (u, v: IntegralValue f) => integralUnique f u v
+    (\bysub(Real.Real, { value: Real.Real \where HasIntegral[f, value] }, u))
+    (\bysub(Real.Real, { value: Real.Real \where HasIntegral[f, value] }, v));
+\definition integral[f: Representatives]: Real.Real :=
+  \choice IntegralValue f \by {
+    existence: integralExists f (\bysub(A -> Real.Real, { f: A -> Real.Real \where Integrable f }, f)),
+    uniqueness: integralCandidateUnique f,
+  };
+\definition integralLaw: \forall (f: Representatives) -> HasIntegral[f, integral f] :=
+  \fun (f: Representatives) => \bysub(Real.Real, { value: Real.Real \where HasIntegral[f, value] },
+    \choice IntegralValue f \by {
+      existence: integralExists f (\bysub(A -> Real.Real, { f: A -> Real.Real \where Integrable f }, f)),
+      uniqueness: integralCandidateUnique f,
+    });
