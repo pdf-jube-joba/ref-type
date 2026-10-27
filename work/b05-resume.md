@@ -88,3 +88,5 @@ Model.Trace で正規直交フレームから射影のトレースが階数に�
 補射影のトレースと有限基底を用いて階数 n-k を証明し、Model.OrthogonalComplement の連続写像と普遍束引き戻し同型を実装した。実側個別検査は accepted。複素側と全体を再検査する。
 
 Model.DirectSum.Bundle は普遍束の引き戻しと両因子の普遍束の引き戻しの直和との同型を構成し、実側個別検査は accepted。複素側と全体を再検査する。安定化への特殊化が残る。
+
+Model.Stabilization.Along で直和の束同型を安定化の埋め込みに沿って引き戻し、普遍束の引き戻しと因子束の引き戻しの直和の同型を構成した。零射影・恒等射影に特殊化した ambientBundleIsomorphism と dimensionBundleIsomorphism の実側個別検査は accepted。複素側・全体を検査する。
