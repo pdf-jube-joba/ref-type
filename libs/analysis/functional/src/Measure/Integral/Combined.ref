@@ -1,6 +1,8 @@
 \import \root.Measure[A := A].Integral[mu := mu].Join[m := m, n := n, s := p.left, t := p.right] \as Join;
 \import Fin.Sum[m := m, n := n] \as Indices;
 \import Indices.Tuples[A := Value] \as ValueTuples;
+\import Indices.Tuples[A := Real.Real] \as ScalarTuples;
+\import Indices.Tuples[A := \Pow A] \as SetTuples;
 \import \root.Measure[A := A].ValueLaws[] \as Values;
 \import Values.Append[m := m, n := n] \as Append;
 \import Values.AppendLaws[n := n] \as AppendLaws;
@@ -22,7 +24,7 @@
   \axiom:funext((\fun (i: Fin.Fin Indices.total) => scale (simple.coefficients i) (mu.value (simple.cells i))),
     Append.join (\fun (i: Fin.Fin m) => scale (p.left.coefficients i) (mu.value (p.left.cells i))) (\fun (j: Fin.Fin n) => scale (p.right.coefficients j) (mu.value (p.right.cells j))),
     \fun (i: Fin.Fin Indices.total) => (\induction (u: Indices.Index) \return
-      scale (Join.ScalarTuples.evaluate (p.left.coefficients) (p.right.coefficients) u) (mu.value (Join.SetTuples.evaluate (p.left.cells) (p.right.cells) u)) =
+      scale (ScalarTuples.evaluate (p.left.coefficients) (p.right.coefficients) u) (mu.value (SetTuples.evaluate (p.left.cells) (p.right.cells) u)) =
       ValueTuples.evaluate (\fun (i: Fin.Fin m) => scale (p.left.coefficients i) (mu.value (p.left.cells i))) (\fun (j: Fin.Fin n) => scale (p.right.coefficients j) (mu.value (p.right.cells j))) u \with {
         | inl: \fun (i: Fin.Fin m) => \refl(scale (p.left.coefficients i) (mu.value (p.left.cells i)))
         | inr: \fun (j: Fin.Fin n) => \refl(scale (p.right.coefficients j) (mu.value (p.right.cells j)))
@@ -36,3 +38,19 @@
     (\fun (j: Fin.Fin n) => Values.scaleNonnegative (p.right.coefficients j) (mu.value (p.right.cells j)) (p.right.nonnegative j)
       (FiniteMeasure.laws.nonnegative (p.right.cells j) (p.right.measurable j))) }
 };
+\import real.Analysis[].Distance[] \as Distance;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\use std.Logic[].Equality[].sym;
+\definition dominated: \forall (f, g: A -> Real.Real) ->
+  (\forall (x: A) -> R.Le Real.zero (f x)) -> (\forall (x: A) -> R.Le Real.zero (g x)) ->
+  Dominated m p.left f -> Dominated n p.right g -> Dominated Indices.total simple (\fun (x: A) => Real.add (f x) (g x)) :=
+  \fun (f, g: A -> Real.Real) (fn: \forall (x: A) -> R.Le Real.zero (f x)) (gn: \forall (x: A) -> R.Le Real.zero (g x))
+    (sf: Dominated m p.left f) (tg: Dominated n p.right g) (i: Fin.Fin Indices.total) (x: A) =>
+    (\induction (u: Indices.Index) \return Sets.Member (SetTuples.evaluate p.left.cells p.right.cells u) x ->
+      R.Le (ScalarTuples.evaluate p.left.coefficients p.right.coefficients u) (Real.add (f x) (g x)) \with {
+        | inl: \fun (j: Fin.Fin m) (member: Sets.Member (p.left.cells j) x) => R.leTrans (p.left.coefficients j) (f x) (Real.add (f x) (g x))
+          (sf j x member) (Distance.leAddOfNonnegative (f x) (g x) (gn x))
+        | inr: \fun (j: Fin.Fin n) (member: Sets.Member (p.right.cells j) x) => R.leTrans (p.right.coefficients j) (g x) (Real.add (f x) (g x))
+          (tg j x member) (R.leReplaceRight (g x) (Real.add (g x) (f x)) (Real.add (f x) (g x)) (Laws.addComm (g x) (f x))
+            (Distance.leAddOfNonnegative (g x) (f x) (fn x)))
+      }) (Indices.split i);
