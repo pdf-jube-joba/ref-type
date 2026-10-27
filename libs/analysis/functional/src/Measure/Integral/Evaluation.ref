@@ -1,0 +1,37 @@
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].trans;
+\use std.Logic[].Equality[].congr;
+\definition covers: \forall (x: A) -> \exists ( i: Fin.Fin n \where Sets.Member (s.cells i) x ) :=
+  \bysub(Simple[n], { t: Simple[n] \where \forall (x: A) -> \exists ( i: Fin.Fin n \where Sets.Member (t.cells i) x ) }, s);
+\definition Candidate[x: A]: \Set := \Cast[Real.Real] ({ r: Real.Real \where
+  \exists ( i: Fin.Fin n \where Logic.And[Sets.Member (s.cells i) x, r = s.coefficients i] ) });
+\definition exists: \forall (x: A) -> \exists ( r: Real.Real \where \exists ( i: Fin.Fin n \where Logic.And[Sets.Member (s.cells i) x, r = s.coefficients i] ) ) :=
+  \fun (x: A) => \block {
+    \takefrom i: \Cast[Fin.Fin n] ({ i: Fin.Fin n \where Sets.Member (s.cells i) x }) \by covers x \then
+    \return Logic.existsIntro[Real.Real, { r: Real.Real \where \exists ( i: Fin.Fin n \where Logic.And[Sets.Member (s.cells i) x, r = s.coefficients i] ) }] (s.coefficients i)
+      (Logic.existsIntro[Fin.Fin n, { j: Fin.Fin n \where Logic.And[Sets.Member (s.cells j) x, s.coefficients i = s.coefficients j] }] i
+        (Logic.And[_, _]::# (\bysub(Fin.Fin n, { i: Fin.Fin n \where Sets.Member (s.cells i) x }, i)) (\refl(s.coefficients i))))
+  };
+\import std.Logic[].Classical[] \as Classical;
+\definition unique: \forall (x: A) (u, v: Candidate x) -> u = v :=
+  \fun (x: A) (u, v: Candidate x) => \block {
+    \takefrom i: \Cast[Fin.Fin n] ({ i: Fin.Fin n \where Logic.And[Sets.Member (s.cells i) x, u = s.coefficients i] })
+      \by (\bysub(Real.Real, { r: Real.Real \where \exists ( i: Fin.Fin n \where Logic.And[Sets.Member (s.cells i) x, r = s.coefficients i] ) }, u)) \then
+    \takefrom j: \Cast[Fin.Fin n] ({ j: Fin.Fin n \where Logic.And[Sets.Member (s.cells j) x, v = s.coefficients j] })
+      \by (\bysub(Real.Real, { r: Real.Real \where \exists ( j: Fin.Fin n \where Logic.And[Sets.Member (s.cells j) x, r = s.coefficients j] ) }, v)) \then
+    \let ui: Logic.And[Sets.Member (s.cells i) x, u = s.coefficients i] := \bysub(Fin.Fin n, { i: Fin.Fin n \where Logic.And[Sets.Member (s.cells i) x, u = s.coefficients i] }, i) \then
+    \let vj: Logic.And[Sets.Member (s.cells j) x, v = s.coefficients j] := \bysub(Fin.Fin n, { j: Fin.Fin n \where Logic.And[Sets.Member (s.cells j) x, v = s.coefficients j] }, j) \then
+    \let equal: i = j := Classical.byContradiction (i = j) (\fun (different: Logic.Not (i = j)) => s.disjoint i j different x ui.left vj.left) \then
+    \return trans!{Real.Real} u (s.coefficients i) v ui.right
+      (trans!{Real.Real} (s.coefficients i) (s.coefficients j) v (congr!{{Fin.Fin n} Real.Real} s.coefficients i j equal) (sym!{Real.Real} v (s.coefficients j) vj.right))
+  };
+\definition value: A -> Real.Real := \fun (x: A) => \choice Candidate x \by { existence: exists x, uniqueness: unique x };
+\definition atCell: \forall (i: Fin.Fin n) (x: A) -> Sets.Member (s.cells i) x -> value x = s.coefficients i :=
+  \fun (i: Fin.Fin n) (x: A) (member: Sets.Member (s.cells i) x) => \block {
+    \let candidate: Candidate x := \into[Real.Real] (s.coefficients i, { r: Real.Real \where
+      \exists ( j: Fin.Fin n \where Logic.And[Sets.Member (s.cells j) x, r = s.coefficients j] ) }) \by {
+        Logic.existsIntro[Fin.Fin n, { j: Fin.Fin n \where Logic.And[Sets.Member (s.cells j) x, s.coefficients i = s.coefficients j] }] i
+          (Logic.And[_, _]::# member (\refl(s.coefficients i)))
+      } \then
+    \return unique x (\choice Candidate x \by { existence: exists x, uniqueness: unique x }) candidate
+  };
