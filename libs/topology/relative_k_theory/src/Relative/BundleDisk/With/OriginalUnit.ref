@@ -1,0 +1,48 @@
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import std.Data[].Pair[] \as Pair;
+\definition domain: \Pow Original.Point := { p: Original.Point \where R.Le (normSquared p.base p.vector) Real.one };
+\import topology.Topology[Carrier := Original.Point].Subspace[S := domain] \as Subspace;
+\definition Carrier: \Set := Subspace.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Subspace.topology bundle.totalSpace;
+\definition represented[p: Original.Point]: Absolute.Fiber r.presentation p.base := (r.isomorphism.forward.fiber p.base).apply p.vector;
+\definition realVector[p: Original.Point]: Ambient.Coordinate := Coordinates.frame.forward.apply (represented p);
+\definition candidate[p: Carrier]: Native.Container := Pair.pair X Ambient.Disk p.base
+  (\into[Ambient.Coordinate](realVector p, Ambient.ClosedBall) \by { \bysub(Original.Point, domain, p) });
+\definition vectorEquation: \forall (p: Carrier) -> Native.vector (candidate p) = represented p :=
+  \fun (p: Carrier) => Coordinates.frame.leftInverse (represented p);
+\definition fixedEquation: \forall (p: Carrier) -> Native.projected (candidate p) = Native.vector (candidate p) :=
+  \fun (p: Carrier) => trans!{{Bundles.Vector r.presentation.dimension}} _ _ _
+    (congr!{{Bundles.Vector r.presentation.dimension} {Bundles.Vector r.presentation.dimension}} (r.presentation.projection p.base).map.apply _ _ (vectorEquation p))
+    (trans!{{Bundles.Vector r.presentation.dimension}} _ _ _ (\bysub(Bundles.Vector r.presentation.dimension, Projection.Image p.base, represented p))
+      (sym!{{Bundles.Vector r.presentation.dimension}} _ _ (vectorEquation p)));
+\definition inverse[p: Carrier]: Disk := \into[Native.Container](candidate p, Native.domain) \by { Native.fixedMember (candidate p) (fixedEquation p) };
+\definition representedEquation: \forall (p: Carrier) -> representedPoint (inverse p) = Forward.total r.isomorphism.forward p :=
+  \fun (p: Carrier) => congr!{{Absolute.Fiber r.presentation p.base} {Represented.Point}} (Represented.include p.base) _ _ (vectorEquation p);
+\definition originalEquation: \forall (p: Carrier) -> originalPoint (inverse p) = p :=
+  \fun (p: Carrier) => trans!{{Original.Point}} _ _ _
+    (congr!{{Represented.Point} {Original.Point}} (Backward.total r.isomorphism.backward) _ _ (representedEquation p))
+    (Isomorphisms.leftInverse r.isomorphism p);
+\definition include[z: Disk]: Carrier := \into[Original.Point](originalPoint z, domain) \by { normBound z };
+\definition leftInverse: \forall (z: Disk) -> inverse (include z) = z :=
+  \fun (z: Disk) => injective _ _ (originalEquation (include z));
+\definition rightInverse: \forall (p: Carrier) -> include (inverse p) = p := originalEquation;
+\definition forwardContinuous: topology.Continuity[A := Disk, B := Carrier].Continuous \root.Relative[].BundleDisk[X := X, F := F, bundle := bundle,
+  compact := compact, hausdorff := hausdorff].With[r := r].topology topology include :=
+  topology.Continuity[A := Disk, B := Original.Point].Corestriction[S := domain].corestrictContinuous
+    \root.Relative[].BundleDisk[X := X, F := F, bundle := bundle, compact := compact, hausdorff := hausdorff].With[r := r].topology bundle.totalSpace include continuous;
+\module Continuity;
+\import topology.Homeomorphism[A := Disk, B := Carrier] \as Homeomorphisms;
+\definition homeomorphism: Homeomorphisms.Homeomorphism[\root.Relative[].BundleDisk[X := X, F := F, bundle := bundle,
+  compact := compact, hausdorff := hausdorff].With[r := r].topology, topology] :=
+  Homeomorphisms.Homeomorphism[\root.Relative[].BundleDisk[X := X, F := F, bundle := bundle,
+    compact := compact, hausdorff := hausdorff].With[r := r].topology, topology] {
+    forward := include, backward := inverse, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := forwardContinuous, backwardContinuous := Continuity[].inverseContinuous
+  };
+\definition sphere: \Pow Carrier := { p: Carrier \where normSquared p.base p.vector = Real.one };
+\definition sphereEquation[z: Disk]: Logic.PropEquiv[\In[Disk] boundary z, \In[Carrier] sphere (include z)] := Logic.PropEquiv[_, _] {
+  ltr := \fun (member: \In[Disk] boundary z) => sphereNorm (\into[Disk](z, boundary) \by { member }),
+  rtl := \fun (member: \In[Carrier] sphere (include z)) => trans!{{Real.Real}} _ _ _ (sym!{{Real.Real}} _ _ (Native.normEquation z))
+    (trans!{{Real.Real}} _ _ _ (sym!{{Real.Real}} _ _ (normEquation z)) member)
+};
