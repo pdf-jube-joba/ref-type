@@ -16,3 +16,7 @@ cd /workspace/ref-type-a19
 
 workspace の libs/refcache を共有する。
 処理系が必要なら `CARGO_TARGET_DIR=/workspace/ref-type/target cargo build -p cli --locked --offline` でビルドする。
+
+実スカラー制限、実内積・実 Hilbert 構造の接続は work/a19-core.log で検査成功。
+複素 Riesz 表現の構成・表現式・一意性を追加した。
+次の検査では既存の実 Riesz・最小化の依存も検査される。
