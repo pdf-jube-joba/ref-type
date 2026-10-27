@@ -36,6 +36,7 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 | 標準ライブラリへ移した有限列挙 API | `common-ListIndex` |
 | 共通化した Hausdorff 性の補題 | `common-Separation` |
 | 共通化した基点付き suspension と写像 | `common-pointed-fixed` |
+| 境界上一定の行列の商への降下 | `matrix-descent-fixed` |
 | 補束による三つ組の正規化と降下への接続 | `triple-normalize` |
 | 境界の自明化と両立する写像のファイバー上の構成 | `framed-maps` |
 
@@ -69,7 +70,9 @@ worker 内のログは共有キャッシュ直下の `.check-<PID>-0/stderr` と
 `framed-outside-lean` は104秒で K03 の行列降下に到達し、`constantContinuous` の参照先誤りで rejected・終了1になった。
 該当3箇所を `topology.Maps.constantContinuous` へ直した。
 `Pair.Restriction` と `Group.Forget.ToSubset` に制限写像と生成元での零性を追加したが未検証。
-最新 snapshot は `work/k03-resume/matrix-descent-fixed.source.json`。
+`matrix-descent-fixed` は accepted・終了0・キャッシュ保存失敗0。
+束写像の対象検査で、他 module の内部 import alias を公開名として参照していた箇所が見つかり、直接 import と公開された型・存在定理へ修正している。
+次は最新 snapshot を作り、`Relative.Pair.FramedMaps.With.Between` を再検査する。
 次は共有 suspension と列挙 API、基点外の写像、行列の降下、基点近傍の写像、選択独立性、忘却準同型、切除の順に対象検査を行う。
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定し、JSON 報告と実行シェルの終了コードも保存する。
 

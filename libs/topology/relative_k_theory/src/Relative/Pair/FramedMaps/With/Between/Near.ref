@@ -23,16 +23,17 @@
 \module Vector(v: Bundles.Vector n);
 \definition regular: Regular.At[n := m].Families[X := ClosedPoint].Matrix[m := n].Regular closedSpace originalCoefficients :=
   \fun (v: Bundles.Vector n)(i: Fin.Fin m) => Vector[v := v].continuous i;
-\definition entryFormula[f: Linear.Map][i: Fin.Fin m][j: Fin.Fin n]: Rectangular.entries f i j = f.apply (Rectangular.DomainBasis.vectors j) i :=
+\import Spaces.FiniteCoordinates[n := n] \as Basis;
+\definition entryFormula[f: Linear.Map][i: Fin.Fin m][j: Fin.Fin n]: Rectangular.entries f i j = f.apply (Basis.vectors j) i :=
   trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (Rectangular.entry (Rectangular.entries f) i j))
-    (congr!{{Bundles.Vector m} {C.Complex}} (\fun (v: Bundles.Vector m) => v i) _ _ (Rectangular.roundTrip f (Rectangular.DomainBasis.vectors j)));
+    (congr!{{Bundles.Vector m} {C.Complex}} (\fun (v: Bundles.Vector m) => v i) _ _ (Rectangular.roundTrip f (Basis.vectors j)));
 \definition function: Tietze.Function := Tietze.Function {
   value := \fun (x: ClosedPoint) => Rectangular.entries (originalCoefficients x),
   continuous := \fun (i: Fin.Fin m)(j: Fin.Fin n) =>
-    \idelim (\fun (x: ClosedPoint) => (originalCoefficients x).apply (Rectangular.DomainBasis.vectors j) i) = (\fun (x: ClosedPoint) => Rectangular.entries (originalCoefficients x) i j)
+    \idelim (\fun (x: ClosedPoint) => (originalCoefficients x).apply (Basis.vectors j) i) = (\fun (x: ClosedPoint) => Rectangular.entries (originalCoefficients x) i j)
       \with f: (ClosedPoint -> C.Complex) => topology.Continuity[A := ClosedPoint, B := C.Complex].Continuous closedSpace Scalar.scalar.topological.space f \by {
-        base: regular (Rectangular.DomainBasis.vectors j) i,
-        equality: \axiom:funext((\fun (x: ClosedPoint) => (originalCoefficients x).apply (Rectangular.DomainBasis.vectors j) i),
+        base: regular (Basis.vectors j) i,
+        equality: \axiom:funext((\fun (x: ClosedPoint) => (originalCoefficients x).apply (Basis.vectors j) i),
           (\fun (x: ClosedPoint) => Rectangular.entries (originalCoefficients x) i j), \fun (x: ClosedPoint) => sym!{{C.Complex}} _ _ (entryFormula (originalCoefficients x) i j))
       }
 };
@@ -41,4 +42,6 @@
 \definition boundary: \forall (x: A) -> function.value (closedPoint x) = Rectangular.entries c := \fun (x: A) =>
   congr!{{Linear.Map} {Rectangular.Matrix}} Rectangular.entries _ _ (Linear.ext (originalCoefficients (closedPoint x)) c
     (\axiom:funext((originalCoefficients (closedPoint x)).apply, c.apply, Boundary[x := x].formula)));
-\module Extended(e: Tietze.Extension[function]);
+\definition Extension: \Set := Tietze.Extension[function];
+\definition extensionExists: \exists Extension := Tietze.tietze function compact hausdorff w.envelopeClosed;
+\module Extended(e: Extension);
