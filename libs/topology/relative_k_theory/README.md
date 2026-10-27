@@ -122,12 +122,14 @@ K07 の影響先検査は最終検査に含める。
 それぞれ負側が自明な三つ組の一般の枠付き束への比較、等しい基点間のファイバーの移送、商上の枠を引き戻して作る指定した延長を構成する。
 `QuotientReconstruction.In` の各ファイバーの同型・局所枠との整合性・束の同型は `quotient-reconstruction-near` で accepted・終了0・キャッシュ保存失敗0。
 基点上と基点の外の候補から一意な値を定め、元の商上の枠と降下の近傍・外部の枠を比較して連続性を示す。
-最新の未検証変更は `FramedTriple`・`QuotientComparison`・`ReducedRetraction`・`Comparison`。
+`FramedTriple`・`QuotientComparison`・`ReducedRetraction`・`Comparison` は `reduced-retraction-*` で accepted・終了0・キャッシュ保存失敗0。
 枠付き束の三つ組を被約群へ戻すと元の枠付き束の値になり、商上の束の三つ組の値がその束と基点ランクの自明束との差へ戻ることを示す。
 `ReducedRetraction` はランク零の束の差で自明束の次元が一致することを使って逆向きの往復を示し、`Comparison` は両方向の準同型と逆の等式を公開する。
-`quotient-comparison-FramedTriple` は import 名 `Map` と上位の値の名前の衝突で失敗し、`ReducedMap` へ修正した。
-固定 snapshot は `work/k03-resume/reduced-retraction.source.json`。
-次は `relative_k_theory.Relative.Pair` 内の `FramedTriple`・`QuotientComparison`・`ReducedRetraction`・`Comparison` を順に検査する。
+これにより三つ組の群と商の被約群との比較同型は対象検査を完了した。
+最新の未検証変更は `Pair.Exact`・`Reduced.Constant` と `Composition.Suspended`・`Identity.Suspended`。
+それぞれ被約群側の忘却・制限の完全性、定数写像の零性と収縮可能な空間での被約群の零性、suspension の合成・恒等写像の法則を示す。
+固定 snapshot は `work/k03-resume/sequence-foundations.source.json`。
+次は `relative_k_theory.Relative` 内の `Pair.Exact`・`Reduced.Constant`・`Composition.Suspended`・`Identity.Suspended` を順に検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。
@@ -136,5 +138,5 @@ K07 の影響先検査は最終検査に含める。
 汎用の有限列挙・基点付き suspension・Hausdorff 分離を共通層へ移し、局所検査の依存閉包を縮小した。
 移動元を含む K02・単体・胞体座標・近似理論・clutching の影響先は最終検査に含める。
 
-残る主な要件は、三つ組の群と商の被約群の全比較、負次数までの長完全列、Mayer–Vietoris、外積と自然性、束の円板球面対への適用と具体例。
+残る主な要件は、負次数までの長完全列、Mayer–Vietoris、外積と自然性、束の円板球面対への適用と具体例。
 公開登録・ロードマップ・下流リンクと、package・依存閉包・影響先・workspace 全体の最終検証も未完了。

@@ -1,0 +1,17 @@
+\import algebraic_topology.Suspension[A := source.Carrier].Pointed[source := (details source).topology, basepoint := (details source).point] \as Domain;
+\import algebraic_topology.Suspension[A := middle.Carrier].Pointed[source := (details middle).topology, basepoint := (details middle).point] \as Middle;
+\import Domain.Mapping[B := middle.Carrier, target := (pointed middle), f := first] \as First;
+\import Middle.Mapping[B := target.Carrier, target := (pointed target), f := second] \as Second;
+\import Domain.Mapping[B := target.Carrier, target := (pointed target), f := map] \as Direct;
+\import \parent.\parent.Composition[source := \parent.\parent.Suspension[original := source].result,
+  middle := \parent.\parent.Suspension[original := middle].result, target := \parent.\parent.Suspension[original := target].result,
+  first := First.map, second := Second.map] \as Composite;
+\import algebraic_topology.Cylinder[A := source.Carrier] \as Cylinder;
+\import algebraic_topology.Collapse[A := Cylinder.Carrier, subset := Domain.Collapsed] \as Quotient;
+\import \parent.\parent.Suspension[original := target] \as Target;
+\definition equation: \parent.\parent.SuspendedMap[source := source, target := target, f := map].map = Composite.map :=
+  \axiom:funext(Direct.map, Composite.map,
+    Quotient.induction (\fun (q: Domain.Carrier) => Direct.map q = Composite.map q)
+      (\fun (p: Cylinder.Carrier) => trans!{{Target.result.Carrier}} _ _ _ (Direct.onClass p)
+        (trans!{{Target.result.Carrier}} _ _ _ (sym!{{Target.result.Carrier}} _ _ (Second.onClass (First.raw p)))
+          (sym!{{Target.result.Carrier}} _ _ (congr!{{Middle.Carrier} {Target.result.Carrier}} Second.map _ _ (First.onClass p))))));
