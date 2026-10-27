@@ -7,6 +7,7 @@
 \import std.Logic[].Equality[] \as E;
 \use E.congr;
 \use E.sym;
+\use E.trans;
 \use E.eq_reason_in;
 \definition Carrier: \Set := Q.Rat;
 \definition zero: Carrier := Q.zeroRat;
@@ -61,4 +62,27 @@
     "=" _ "by" { Q.mulRatClass (F.Fraction::# (I.Int^::ofNat (N.Nat^::succ k)) I.zeroNat) (F.Fraction::# I.oneInteger k) }
     "=" _ "by" { classEqual _ _ (FL.positiveReciprocalLaw I.zeroNat k) }
   };
+/* Scaling a numerator and denominator preserves its rational class. */
+\definition scaleClass: \forall (x, y: F.Fraction)(k: I.Integer) ->
+  y.numerator = I.mulInteger x.numerator k -> F.denominator y = I.mulInteger (F.denominator x) k -> Q.class x = Q.class y :=
+  \fun (x, y: F.Fraction)(k: I.Integer)(hn: _)(hd: _) => classEqual x y (eq_reason_in!{I.Integer _
+    "=" _ "by" { congr!{I.Integer I.Integer} (I.mulInteger x.numerator) _ _ hd }
+    "=" _ "by" { sym!{I.Integer} _ _ (I.mulIntegerAssoc x.numerator (F.denominator x) k) }
+    "=" _ "by" { congr!{I.Integer I.Integer} (\fun (a: I.Integer) => I.mulInteger a k) _ _ (I.mulIntegerComm x.numerator (F.denominator x)) }
+    "=" _ "by" { I.mulIntegerAssoc (F.denominator x) x.numerator k }
+    "=" _ "by" { I.mulIntegerComm (F.denominator x) (I.mulInteger x.numerator k) }
+    "=" _ "by" { congr!{I.Integer I.Integer} (\fun (a: I.Integer) => I.mulInteger a (F.denominator x)) _ _ (sym!{I.Integer} _ _ hn) }
+  });
+\definition addSameDenominator: \forall (a, b: I.Integer)(d: N.Nat^) ->
+  add (Q.class (F.Fraction::# a d)) (Q.class (F.Fraction::# b d)) = Q.class (F.Fraction::# (I.addInteger a b) d) :=
+  \fun (a, b: I.Integer)(d: N.Nat^) => trans!{Carrier} _ _ _
+    (Q.addRatClass (F.Fraction::# a d) (F.Fraction::# b d))
+    (classEqual (Q.addFraction (F.Fraction::# a d) (F.Fraction::# b d)) (F.Fraction::# (I.addInteger a b) d) (eq_reason_in!{I.Integer _
+      "=" _ "by" { congr!{I.Integer I.Integer} (\fun (n: I.Integer) => I.mulInteger n (F.denominator (F.Fraction::# a d))) _ _
+        (sym!{I.Integer} _ _ (I.mulIntegerDistribRight a b (F.denominator (F.Fraction::# a d)))) }
+      "=" _ "by" { I.mulIntegerAssoc (I.addInteger a b) (F.denominator (F.Fraction::# a d)) (F.denominator (F.Fraction::# a d)) }
+      "=" _ "by" { congr!{I.Integer I.Integer} (I.mulInteger (I.addInteger a b)) _ _
+        (sym!{I.Integer} _ _ (FL.denominatorAdd (F.Fraction::# a d) (F.Fraction::# b d))) }
+    }));
 \module Computed;
+

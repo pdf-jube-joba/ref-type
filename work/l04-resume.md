@@ -21,3 +21,8 @@ workspace の libs/refcache を再利用する。
 `work/generate_l04.py` は次数8まで（Chern 根の次数4）の表に対する具体的な等式証明を生成する。
 `Rational/Computed.ref` の各算術補題も商と交差積の等式を通常の kernel で検査する。
 次の検査対象は `characteristic_series.Characteristic`、ログは `work/tables-check.log`。
+
+任意の有理係数可換環で Todd・L・A-hat の根追加に対する次数8の公式と、Chern 指標の正次数の公式を生成した。
+`PolynomialCalculation` の証明は primitive な環の法則と具体的な有理数の等式だけを使う。
+同分母加算と分数拡大の補題を追加し、大きい交差積の直接簡約を除いた。
+最初の係数表検査は180秒の時間上限となったため、この補題を用いた新しい証明で再検査する。
