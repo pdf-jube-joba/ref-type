@@ -43,9 +43,11 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 異なる次元の二つの枠の間の連続な行列表示から、束写像の連続性を導く。
 未検証変更は `Pair.FramedMaps.With.Between` の連続性の証明。
 `Outside` は基点外の二つの枠による連続性、`Near` は共通のコンパクト近傍における行列の Tietze 延長、`Quotient.Matrices` は境界上一定の行列の商への降下を構成する。
-`framed-outside` の対象検査が実行中なら終了を回収する。
+`framed-outside` は一つの module の検査が長引いたため中断し、終了130を確認した。
+同じ検査の成功は未確認で、診断ログ付きで原因を確認する。
 次は新しい snapshot を保存し、共有キャッシュで `relative_k_theory.Relative.Pair.FramedMaps.With.Between` を検査する。
-構文検査済みの snapshot は `work/k03-resume/framed-continuity.source.json` だが、`Outside.Vector` の兄弟 module 参照修正はその後のため作り直す。
+`Pair.FramedIsomorphisms` は逆写像の境界整合性と降下上の逆法則、`Pair.FramedChoices` は同じ境界枠での近傍の選択によらない同型を追加したが未検証。
+最新の構文検査 snapshot は `work/k03-resume/framed-comparison-fixed.source.json`。
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定し、JSON 報告と実行シェルの終了コードも保存する。
 
 残る主な要件は、選択に依存しない三つ組の群と商空間の被約群の比較、完全列・切除・Mayer–Vietoris・外積と自然性、円板球面対への適用と具体例。
