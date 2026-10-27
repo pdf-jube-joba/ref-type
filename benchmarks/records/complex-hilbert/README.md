@@ -69,3 +69,17 @@ A19 全体の完了を示す検査記録ではない。
 依存先: accepted、終了 0、1,347 モジュールを再利用。
 両検査ともキャッシュ保存失敗 0。
 [対象](identity-target.json)、[依存先](identity-dependencies.json)。
+
+## 完了検査（ソース commit 8f29c194）
+
+| 対象 | 結果 | 検査モジュール | ステップ | 再利用 | キャッシュ保存失敗 |
+| --- | --- | ---: | ---: | ---: | ---: |
+| complex_hilbert、full-check-local | accepted、終了 0 | 47 | 733 | 296 | 0 |
+| 依存先を含むプロジェクト | accepted、終了 0 | 0 | 0 | 1359 | 0 |
+| functional_analysis.Metric.Geometry、full-check-local | accepted、終了 0 | 17 | 234 | 176 | 0 |
+| metric_spaces.MetricSpace.Compactness、full-check-local | accepted、終了 0 | 14 | 127 | 161 | 0 |
+
+[対象](final-target.json)、[依存先](final-dependencies.json)、[関数解析](final-geometry.json)、[距離空間](final-metric.json)。
+依存先はキャッシュを再利用して検証されたため、再検査モジュール数は 0 である。
+途中の個別検査で名前解決・型のエラーが発生したものは修正後に再検査した。
+全 workspace の独立した再検査は実行していない。
