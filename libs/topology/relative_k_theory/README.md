@@ -63,6 +63,9 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 空の空間の K 群の消滅と、空の境界での三つ組の忘却の逆写像も追加したが、対象検査は未完了。
 `Absolute` は一点付加空間と通常の K 群との比較を、`Pair.Augmented` は一般の対への基点付加と元の相対商との同相を構成した。
 これらも構文解析のみ完了し、対象検査は未完了。
+一般の対の各負次数の列を `Pair.Augmented.Sequence` に追加し、基点付加と商の比較で写像と完全性を移す証明を書いた（未検証）。
+`closed-pair-lift` の検査は約626秒で新しい suspension の商の親参照を拒否し、終了1・`rejected`・保存失敗0だった。
+同種の親参照を修正し、対の反復を `PairIteration` 内へ移して、基礎の検査が反復の構成全体へ依存する範囲を整理した。
 次の固定 snapshot で検査を続ける。
 
 ```bash
@@ -70,15 +73,16 @@ REF_TYPE_PROFILE_DECLARATIONS=1 REF_TYPE_PROFILE_PHASES=1 \
   target/debug/cli libs/topology/relative_k_theory \
   --module relative_k_theory.Relative.Pair.Pointed.Cofiber.BaseQuotient.Raw \
   --memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 \
-  --diagnostics compact --report-json work/k03-resume/closed-pair-raw.json \
-  --source-snapshot work/k03-resume/closed-pair-lift.source.json \
-  > work/k03-resume/closed-pair-raw.log 2>&1
+  --diagnostics compact --report-json work/k03-resume/scoped-raw.json \
+  --source-snapshot work/k03-resume/scoped-iteration.source.json \
+  > work/k03-resume/scoped-raw.log 2>&1
 result=$?
-printf '%s\n' "$result" > work/k03-resume/closed-pair-raw.exit
+printf '%s\n' "$result" > work/k03-resume/scoped-raw.exit
 ```
 
 `closed-pair-lift.source.json` は `b334fd01` 時点の数学コードの固定 snapshot。
 その後の一点付加の構成は `augmentation.source.json` に固定した。
+最新の数学コードは `scoped-iteration.source.json` に固定した。
 対象検査の完了時は終了コード・JSON の `outcome`・`storage.save_failures`・`checking.cache_write_failures` を確認する。
 次に `BaseQuotient.Backward`・`BaseQuotient` の比較全体、新しい五項の列と反復の対象検査を進める。
 

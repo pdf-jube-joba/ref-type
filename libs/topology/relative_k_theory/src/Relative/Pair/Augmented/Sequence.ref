@@ -1,0 +1,82 @@
+\import \root.Relative[].PairIteration[pair := pair].Sequence[degree := degree] \as Term;
+\import \parent.SubsetEquivalence[] \as SubsetCompare;
+\import \parent.QuotientEquivalence[] \as QuotientCompare;
+\import \root.Relative[].Negative[original := Whole.model, degree := (N.Nat^::succ degree)] \as WholeNext;
+\import \root.Relative[].Negative[original := Subset.model, degree := (N.Nat^::succ degree)] \as SubsetNext;
+\import \root.Relative[].Negative[original := Original.model, degree := degree] \as Relative;
+\import \root.Relative[].Negative[original := Whole.model, degree := degree] \as WholeDegree;
+\import \root.Relative[].Negative[original := Subset.model, degree := degree] \as SubsetDegree;
+\module NextWhole;
+\module NextSubset;
+\module RelativeGroups;
+\module CurrentWhole;
+\module CurrentSubset;
+\import NextWhole[] \as X1;
+\import NextSubset[] \as A1;
+\import RelativeGroups[] \as Q;
+\import CurrentWhole[] \as X0;
+\import CurrentSubset[] \as A0;
+\definition First: \Set := WholeNext.Carrier;
+\definition Second: \Set := SubsetNext.Carrier;
+\definition Third: \Set := Relative.Carrier;
+\definition Fourth: \Set := WholeDegree.Carrier;
+\definition Fifth: \Set := SubsetDegree.Carrier;
+\definition firstGroup: std.Alg[].Alg[].CommutativeGroup[First] := WholeNext.group;
+\definition secondGroup: std.Alg[].Alg[].CommutativeGroup[Second] := SubsetNext.group;
+\definition thirdGroup: std.Alg[].Alg[].CommutativeGroup[Third] := Relative.group;
+\definition fourthGroup: std.Alg[].Alg[].CommutativeGroup[Fourth] := WholeDegree.group;
+\definition fifthGroup: std.Alg[].Alg[].CommutativeGroup[Fifth] := SubsetDegree.group;
+\definition restrictionNegative[v: First]: Second := A1.backward (Term.restrictionNegative (X1.forward v));
+\definition boundary[v: Second]: Third := Q.backward (Term.boundary (A1.forward v));
+\definition forget[v: Third]: Fourth := X0.backward (Term.forget (Q.forward v));
+\definition restriction[v: Fourth]: Fifth := A0.backward (Term.restriction (X0.forward v));
+\definition restrictionNegativeAdd: \forall (v, w: First) -> restrictionNegative (firstGroup.base.op v w) = secondGroup.base.op (restrictionNegative v) (restrictionNegative w) :=
+  \fun (v, w: First) => trans!{{Second}} _ _ _
+    (congr!{{Term.Second} {Second}} A1.backward _ _
+      (trans!{{Term.Second}} _ _ _
+        (congr!{{Term.First} {Term.Second}} Term.restrictionNegative _ _ (X1.forwardAdd v w))
+        (Term.restrictionNegativeAdd (X1.forward v) (X1.forward w))))
+    (A1.backwardAdd (Term.restrictionNegative (X1.forward v)) (Term.restrictionNegative (X1.forward w)));
+\definition restrictionNegativeZero: restrictionNegative firstGroup.base.unit = secondGroup.base.unit :=
+  trans!{{Second}} _ _ _
+    (congr!{{Term.Second} {Second}} A1.backward _ _
+      (trans!{{Term.Second}} _ _ _ (congr!{{Term.First} {Term.Second}} Term.restrictionNegative _ _ X1.forwardZero) Term.restrictionNegativeZero)) A1.backwardZero;
+\definition boundaryAdd: \forall (v, w: Second) -> boundary (secondGroup.base.op v w) = thirdGroup.base.op (boundary v) (boundary w) :=
+  \fun (v, w: Second) => trans!{{Third}} _ _ _
+    (congr!{{Term.Third} {Third}} Q.backward _ _
+      (trans!{{Term.Third}} _ _ _
+        (congr!{{Term.Second} {Term.Third}} Term.boundary _ _ (A1.forwardAdd v w))
+        (Term.boundaryAdd (A1.forward v) (A1.forward w))))
+    (Q.backwardAdd (Term.boundary (A1.forward v)) (Term.boundary (A1.forward w)));
+\definition boundaryZero: boundary secondGroup.base.unit = thirdGroup.base.unit :=
+  trans!{{Third}} _ _ _
+    (congr!{{Term.Third} {Third}} Q.backward _ _
+      (trans!{{Term.Third}} _ _ _ (congr!{{Term.Second} {Term.Third}} Term.boundary _ _ A1.forwardZero) Term.boundaryZero)) Q.backwardZero;
+\definition forgetAdd: \forall (v, w: Third) -> forget (thirdGroup.base.op v w) = fourthGroup.base.op (forget v) (forget w) :=
+  \fun (v, w: Third) => trans!{{Fourth}} _ _ _
+    (congr!{{Term.Fourth} {Fourth}} X0.backward _ _
+      (trans!{{Term.Fourth}} _ _ _
+        (congr!{{Term.Third} {Term.Fourth}} Term.forget _ _ (Q.forwardAdd v w))
+        (Term.forgetAdd (Q.forward v) (Q.forward w))))
+    (X0.backwardAdd (Term.forget (Q.forward v)) (Term.forget (Q.forward w)));
+\definition forgetZero: forget thirdGroup.base.unit = fourthGroup.base.unit :=
+  trans!{{Fourth}} _ _ _
+    (congr!{{Term.Fourth} {Fourth}} X0.backward _ _
+      (trans!{{Term.Fourth}} _ _ _ (congr!{{Term.Third} {Term.Fourth}} Term.forget _ _ Q.forwardZero) Term.forgetZero)) X0.backwardZero;
+\definition restrictionAdd: \forall (v, w: Fourth) -> restriction (fourthGroup.base.op v w) = fifthGroup.base.op (restriction v) (restriction w) :=
+  \fun (v, w: Fourth) => trans!{{Fifth}} _ _ _
+    (congr!{{Term.Fifth} {Fifth}} A0.backward _ _
+      (trans!{{Term.Fifth}} _ _ _
+        (congr!{{Term.Fourth} {Term.Fifth}} Term.restriction _ _ (X0.forwardAdd v w))
+        (Term.restrictionAdd (X0.forward v) (X0.forward w))))
+    (A0.backwardAdd (Term.restriction (X0.forward v)) (Term.restriction (X0.forward w)));
+\definition restrictionZero: restriction fourthGroup.base.unit = fifthGroup.base.unit :=
+  trans!{{Fifth}} _ _ _
+    (congr!{{Term.Fifth} {Fifth}} A0.backward _ _
+      (trans!{{Term.Fifth}} _ _ _ (congr!{{Term.Fourth} {Term.Fifth}} Term.restriction _ _ X0.forwardZero) Term.restrictionZero)) A0.backwardZero;
+\module AtSecond;
+\definition exactSecond[v: Second]: Logic.PropEquiv[boundary v = thirdGroup.base.unit, \exists (w: First \where restrictionNegative w = v)] := AtSecond[].exact v;
+\module AtThird;
+\definition exactThird[v: Third]: Logic.PropEquiv[forget v = fourthGroup.base.unit, \exists (w: Second \where boundary w = v)] := AtThird[].exact v;
+\module AtFourth;
+\definition exactFourth[v: Fourth]: Logic.PropEquiv[restriction v = fifthGroup.base.unit, \exists (w: Third \where forget w = v)] := AtFourth[].exact v;
