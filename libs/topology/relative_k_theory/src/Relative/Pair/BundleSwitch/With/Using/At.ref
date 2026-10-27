@@ -1,0 +1,23 @@
+\import Spaces.Linear[V := F x, W := G x, source := source.space x, target := target.space x] \as Columns;
+\import Spaces.Linear[V := G x, W := F x, source := target.space x, target := source.space x] \as Rows;
+\import Spaces.Linear[V := Sum.Fiber x, W := Sum.Fiber x, source := Sum.fiberSpace x, target := Sum.fiberSpace x] \as End;
+\import End.Composition[U := (Sum.Fiber x), domain := (Sum.fiberSpace x)] \as Compose;
+\import Spaces.Blocks[V := F x, W := G x, left := source.space x, right := target.space x] \as Blocks;
+\import Spaces.Isomorphism[V := F x, W := G x, source := source.space x, target := target.space x] \as Original;
+\definition boundaryIsomorphism: Original.Isomorphism := Original.Isomorphism {
+  forward := alpha.forward.fiber x, backward := alpha.backward.fiber x,
+  leftInverse := boundaryLaws.leftInverse x, rightInverse := boundaryLaws.rightInverse x
+};
+\import Blocks.Interchange[iso := boundaryIsomorphism] \as Interchange;
+\definition forwardEquality: f.map.fiber x = alpha.forward.fiber x := Columns.ext (f.map.fiber x) (alpha.forward.fiber x)
+  (\axiom:funext((f.map.fiber x).apply, (alpha.forward.fiber x).apply, f.extends x));
+\definition backwardEquality: g.map.fiber x = alpha.backward.fiber x := Rows.ext (g.map.fiber x) (alpha.backward.fiber x)
+  (\axiom:funext((g.map.fiber x).apply, (alpha.backward.fiber x).apply, g.extends x));
+\definition word[row: Rows.Map][column: Columns.Map]: End.Map := Compose.compose (Blocks.upper row Algebra.field.one)
+  (Compose.compose (Blocks.lower column (Algebra.field.neg Algebra.field.one)) (Blocks.upper row Algebra.field.one));
+\definition wordEquality: word (g.map.fiber x) (f.map.fiber x) = word (alpha.backward.fiber x) (alpha.forward.fiber x) :=
+  congr!{{Rows.Map} {Columns.Map} {End.Map}} word _ _ _ _ backwardEquality forwardEquality;
+\definition formula: \forall (v: Sum.Fiber x) -> (isomorphism.forward.fiber x).apply v = Pair.pair (F x) (G x)
+  ((alpha.backward.fiber x).apply (Pair.second (F x) (G x) v)) ((target.space x).neg ((alpha.forward.fiber x).apply (Pair.first (F x) (G x) v))) :=
+  \fun (v: Sum.Fiber x) => trans!{{Sum.Fiber x}} _ _ _
+    (congr!{{End.Map} {Sum.Fiber x}} (\fun (a: End.Map) => a.apply v) _ _ wordEquality) (Interchange.formula v);
