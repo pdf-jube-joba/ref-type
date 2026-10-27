@@ -9,8 +9,21 @@
 \import \root.Relative[].NegativeMap[source := SourceLeftQ.model, target := Left.model, f := LeftMap.quotientMap, degree := firstDegree] \as FirstPull;
 \import \root.Relative[].NegativeMap[source := SourceRightQ.model, target := Right.model, f := RightMap.quotientMap, degree := secondDegree] \as SecondPull;
 \import \root.Relative[].Equivalence[source := Domain.model, target := SourceSmash.result].With[e := SourceComparison.equivalence].Negative[degree := degree] \as Transport;
+\import \root.Relative[].Equivalence[source := model, target := Smash.result].With[e := TargetComparison.equivalence].Negative[degree := degree] \as TargetTransport;
+\import \root.Relative[].Negative[original := model, degree := degree] \as TargetGroup;
+\import \root.Relative[].Negative[original := Smash.result, degree := degree] \as TargetSmashGroup;
+\import \root.Relative[].Negative[original := SourceSmash.result, degree := degree] \as SourceSmashGroup;
+\import \root.Relative[].NegativeMap[source := Domain.model, target := SourceSmash.result, f := SourceComparison.equivalence.forward, degree := degree] \as SourceCanonical;
+\import \root.Relative[].NegativeMap[source := model, target := Smash.result, f := TargetComparison.equivalence.forward, degree := degree] \as TargetCanonical;
+\import \root.Relative[].NegativeMap[source := SourceSmash.result, target := Smash.result, f := SmashMap.map, degree := degree] \as SmashPull;
 \definition naturality: \forall (a: First.Carrier)(b: Second.Carrier) -> Pull.map (TargetProduct.product a b) = SourceProduct.product (FirstPull.map a) (SecondPull.map b) :=
   \fun (a: First.Carrier)(b: Second.Carrier) => trans!{{Result.Carrier}} _ _ _
-    (Square.Negative[degree := degree].equation (TargetSmashProduct.product a b))
-    (congr!{{\root.Relative[].Negative[original := SourceSmash.result, degree := degree].Carrier} {Result.Carrier}} Transport.forward _ _
-      (SmashMap.GradedNaturality[firstDegree := firstDegree, secondDegree := secondDegree].naturality a b));
+    (congr!{{TargetGroup.Carrier} {Result.Carrier}} Pull.map _ _
+      (congr!{{TargetSmashGroup.Carrier -> TargetGroup.Carrier} {TargetGroup.Carrier}}
+        (\fun (m: TargetSmashGroup.Carrier -> TargetGroup.Carrier) => m (TargetSmashProduct.product a b)) _ _ TargetTransport.forwardEquality))
+    (trans!{{Result.Carrier}} _ _ _ (Square.Negative[degree := degree].equation (TargetSmashProduct.product a b))
+      (trans!{{Result.Carrier}} _ _ _
+        (sym!{{Result.Carrier}} _ _ (congr!{{SourceSmashGroup.Carrier -> Result.Carrier} {Result.Carrier}}
+          (\fun (m: SourceSmashGroup.Carrier -> Result.Carrier) => m (SmashPull.map (TargetSmashProduct.product a b))) _ _ Transport.forwardEquality))
+        (congr!{{SourceSmashGroup.Carrier} {Result.Carrier}} Transport.forward _ _
+          (SmashMap.GradedNaturality[firstDegree := firstDegree, secondDegree := secondDegree].naturality a b))));

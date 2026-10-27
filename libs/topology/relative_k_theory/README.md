@@ -147,3 +147,5 @@ Mayer–Vietoris の交叉部分の完全性も証明コードを追加し、構
 再開記録（K03、構成の接続）: 閉被覆の写像について `ClosedCover.Mapping.Negative` が切除・制限・差・境界の自然性を構成した。`BundleDisk.With.OriginalUnit` は表現から作った円板と元の束の単位円板との同相、球面条件の一致を構成する。`Pair.Mapping.Group` は商の被約群の引き戻しを比較同型で三つ組の群へ運び、加法・零元と比較の自然性を示す。これらは型検査未完了。最新ソース snapshot は `group-natural.source.json`（構文解析中）。修正後の `qualified-stage-IterationAddition` と `qualified-stage-Square` は accepted・終了0・保存失敗0・書込失敗0。`qualified-stage-Absolute` 以降の逐次検査が session 97607 で進行中のため先に回収する。
 
 再開記録（K03、公開名の修正）: `qualified-stage-Absolute` は終了1・rejected・保存失敗0・書込失敗0で、`Absolute.Mapping.Naturality` が非公開の `Source.Ordinary` を参照していた。公開 `KTheory.On.K0` を `SourceOrdinary` として明示 import する修正を加えた。現在までの追加全体は `group-natural.source.json` で構文解析終了0。次は修正と最新の数学ソースを `implementation-complete.source.json` に固定し、`Absolute`、`Pair.Augmented`、`PairMapping`、`Smash`、`Pair.ClosedCover`、`Pair.Product`、`BundleDisk`、`Examples` の順に `complete-stage-*` を検査する。これらが通った後に package の依存閉包・全 workspace の最終検査へ進む。
+
+再開記録（K03、負次数比較の式）: 差分レビューで `Pair.Product.Pullback.Negative` の自然性に、同相から運んだ負次数の準同型と標準引き戻しの間の `forwardEquality` を明示する補足を加えた。進行中の `complete-stage-*` は修正前の固定入力であり、この一ファイルは次の `product-comparison.source.json` 以降で検査する。
