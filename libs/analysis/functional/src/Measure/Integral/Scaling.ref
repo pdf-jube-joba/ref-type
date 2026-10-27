@@ -177,3 +177,45 @@
 \definition integralScale: \forall (c: NonnegativeScalar) (f: Representatives) -> integral (representative c f) = Real.mul c (integral f) :=
   \fun (c: NonnegativeScalar) (f: Representatives) => integralUnique (representative c f) (integral (representative c f)) (Real.mul c (integral f))
     (integralLaw (representative c f)) (hasIntegralScale c f (integral f) (integralLaw f));
+
+\import \root.Measure[A := A].Integral[mu := mu].Negation[] \as Negation;
+\definition negativeScalarIdentity: \forall (c: Real.Real) (f: A -> Real.Real) ->
+  Negation.neg (\fun (x: A) => Real.mul (Real.neg c) (f x)) = (\fun (x: A) => Real.mul c (f x)) :=
+  \fun (c: Real.Real) (f: A -> Real.Real) => \axiom:funext(Negation.neg (\fun (x: A) => Real.mul (Real.neg c) (f x)),
+    (\fun (x: A) => Real.mul c (f x)), \fun (x: A) => eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulNegLeft c (f x)) }
+      "=" _ "by" { Laws.negInvolutive (Real.mul c (f x)) }
+    });
+\definition integrableScalar: \forall (c: Real.Real) (f: A -> Real.Real) -> Integrable f -> Integrable (\fun (x: A) => Real.mul c (f x)) :=
+  \fun (c: Real.Real) (f: A -> Real.Real) (h: Integrable f) =>
+    Logic.orElim _ _ (Integrable (\fun (x: A) => Real.mul c (f x))) (Laws.nonnegativeOrNegativeReal c)
+      (\fun (nonnegative: R.Le Real.zero c) => \block {
+        \let sc: NonnegativeScalar := \into[Real.Real](c, { c: Real.Real \where R.Le Real.zero c }) \by { nonnegative } \then
+        \return integrableScale sc f h
+      })
+      (\fun (negative: R.Lt c Real.zero) => \block {
+        \let sc: NonnegativeScalar := \into[Real.Real](Real.neg c, { c: Real.Real \where R.Le Real.zero c }) \by { Laws.nonnegativeNegOfNegative c negative } \then
+        \return \idelim Negation.neg (\fun (x: A) => Real.mul (Real.neg c) (f x)) = (\fun (x: A) => Real.mul c (f x))
+          \with g: (A -> Real.Real) => Integrable g \by { base: Negation.integrable (\fun (x: A) => Real.mul (Real.neg c) (f x)) (integrableScale sc f h), equality: negativeScalarIdentity c f }
+      });
+\definition scalarRepresentative[c: Real.Real] [f: Representatives]: Representatives :=
+  \into[A -> Real.Real](\fun (x: A) => Real.mul c (f x), { g: A -> Real.Real \where Integrable g }) \by {
+    integrableScalar c f (\bysub(A -> Real.Real, { f: A -> Real.Real \where Integrable f }, f)
+  };
+\definition integralScalar: \forall (c: Real.Real) (f: Representatives) -> integral (scalarRepresentative c f) = Real.mul c (integral f) :=
+  \fun (c: Real.Real) (f: Representatives) => Logic.orElim _ _ (integral (scalarRepresentative c f) = Real.mul c (integral f))
+    (Laws.nonnegativeOrNegativeReal c)
+    (\fun (nonnegative: R.Le Real.zero c) => \block {
+      \let sc: NonnegativeScalar := \into[Real.Real](c, { c: Real.Real \where R.Le Real.zero c }) \by { nonnegative } \then
+      \return integralScale sc f
+    })
+    (\fun (negative: R.Lt c Real.zero) => \block {
+      \let sc: NonnegativeScalar := \into[Real.Real](Real.neg c, { c: Real.Real \where R.Le Real.zero c }) \by { Laws.nonnegativeNegOfNegative c negative } \then
+      \return eq_reason_in!{Real.Real _
+        "=" _ "by" { congr!{{A -> Real.Real} Real.Real} integral _ _ (sym!{{A -> Real.Real}} _ _ (negativeScalarIdentity c f)) }
+        "=" _ "by" { Negation.integralNeg (representative sc f) }
+        "=" _ "by" { congr!{Real.Real Real.Real} Real.neg _ _ (integralScale sc f) }
+        "=" _ "by" { congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulNegLeft c (integral f)) }
+        "=" _ "by" { Laws.negInvolutive (Real.mul c (integral f)) }
+      }
+    });
