@@ -132,10 +132,13 @@ K07 の影響先検査は最終検査に含める。
 定数写像の零性と収縮可能な空間での被約群の零性、負次数の恒等・合成則、任意の群の元を一つの三つ組で表すことを示す。
 `TrivialBoundary.With.Contraction` は、自明束の境界の枠を閉部分空間の収縮に沿って動かし、全体へ延びる定数の枠と比較して被約群の零性を示す。
 反復の定義が `Identity`・`Composition` の宣言より前に来るよう、上位の宣言順も整えた。
-最新の未検証変更は `FramedClass.With.ContractibleKernel` と `TrivialBoundary.model`・`With.value` の公開。
+`FramedClass.With.ContractibleKernel` は `contractible-kernel` で accepted・終了0・キャッシュ保存失敗0。
 通常の K 群で自明束と一致する枠付き束を安定自明化し、閉部分空間が収縮可能な場合の被約群の零性を示す。
-固定 snapshot は `work/k03-resume/contractible-kernel.source.json`。
-次は `relative_k_theory.Relative.Pair.FramedClass.With.ContractibleKernel` を検査する。
+`TrivialBoundary.model`・`With.value` はこの比較で使う束のモデルと値を公開する。
+最新の未検証変更は `Group.Forget.Contractible`。
+三つ組の表示・正規化・安定自明化・比較同型を使い、収縮可能な閉部分空間に対して忘却写像の核が零であり、忘却が単射であることを示す。
+固定 snapshot は `work/k03-resume/contractible-forget.source.json`。
+次は `relative_k_theory.Relative.Pair.Group.Forget.Contractible` を検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。
