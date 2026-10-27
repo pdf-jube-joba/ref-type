@@ -1,0 +1,30 @@
+\import \root.Measure[A := A].Functions[mu := mu] \as Functions;
+\import \root.Measure[A := A].Integral[mu := mu].Absolute[] \as Absolute;
+\import real.Analysis[].Estimates[] \as E;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\definition absTriangle: \forall (a, b: Real.Real) -> R.Le (Product.abs (Real.add a b)) (Real.add (Product.abs a) (Product.abs b)) :=
+  \fun (a, b: Real.Real) => R.leReplaceLeft (Real.distance (Real.add Real.zero Real.zero) (Real.add a b)) (Product.abs (Real.add a b)) _
+    (congr!{Real.Real Real.Real} (\fun (z: Real.Real) => Real.distance z (Real.add a b)) _ _ (Laws.addZeroLeft Real.zero))
+    (E.distanceAdd Real.zero a Real.zero b);
+\definition integrableAdd: \forall (f, g: A -> Real.Real) -> Integrable f -> Integrable g ->
+  Integrable (\fun (x: A) => Real.add (f x) (g x)) :=
+  \fun (f, g: A -> Real.Real) (fi: Integrable f) (gi: Integrable g) => \block {
+    \let p: NonnegativeMeasurable := NonnegativeMeasurable { function := Absolute.abs f,
+      measurable := Functions.absMeasurable f fi.left, nonnegative := \fun (x: A) => Product.absNonnegative (f x) } \then
+    \let q: NonnegativeMeasurable := NonnegativeMeasurable { function := Absolute.abs g,
+      measurable := Functions.absMeasurable g gi.left, nonnegative := \fun (x: A) => Product.absNonnegative (g x) } \then
+    \let finiteSum: Finite (\fun (x: A) => Real.add (Product.abs (f x)) (Product.abs (g x))) :=
+      \root.Measure[A := A].Integral[mu := mu].Additive[].Measured[p := p, q := q].finite fi.right gi.right \then
+    \return Logic.And[_, _]::# (Functions.addMeasurable f g fi.left gi.left)
+      (finiteMono (\fun (x: A) => Product.abs (Real.add (f x) (g x)))
+        (\fun (x: A) => Real.add (Product.abs (f x)) (Product.abs (g x)))
+        (\fun (x: A) => Product.absNonnegative (Real.add (f x) (g x))) (\fun (x: A) => absTriangle (f x) (g x)) finiteSum)
+  };
+\definition addRepresentative: \forall (f, g: Representatives) -> Representatives :=
+  \fun (f, g: Representatives) => \into[A -> Real.Real] ((\fun (x: A) => Real.add (f x) (g x)),
+    { h: A -> Real.Real \where Integrable h }) \by {
+      integrableAdd f g (\bysub(A -> Real.Real, { h: A -> Real.Real \where Integrable h }, f))
+        (\bysub(A -> Real.Real, { h: A -> Real.Real \where Integrable h }, g))
+    };
