@@ -1,0 +1,44 @@
+\import \root.Relative[].Smash[left := targetLeft, right := targetRight] \as Target;
+\import algebraic_topology.Pointed[A := left.Carrier].Maps[B := targetLeft.Carrier] \as LeftMaps;
+\import algebraic_topology.Pointed[A := right.Carrier].Maps[B := targetRight.Carrier] \as RightMaps;
+\definition raw[z: model.Carrier]: Target.model.Carrier := Pair.pair targetLeft.Carrier targetRight.Carrier (f (first z)) (g (second z));
+\definition regular: topology.Continuity[A := model.Carrier, B := Target.model.Carrier].Continuous (details model).topology (details Target.model).topology raw :=
+  topological_constructions.Product[A := targetLeft.Carrier, B := targetRight.Carrier].Universal[X := model.Carrier].pairContinuous
+    (details model).topology (details targetLeft).topology (details targetRight).topology
+    (\fun (z: model.Carrier) => f (first z)) (\fun (z: model.Carrier) => g (second z))
+    (topology.Composition[A := model.Carrier, B := left.Carrier, C := targetLeft.Carrier].composeContinuous
+      (details model).topology (details left).topology (details targetLeft).topology first f
+      (Projections.firstContinuous (details left).topology (details right).topology)
+      (LeftMaps.laws (pointed left) (pointed targetLeft) f).continuous)
+    (topology.Composition[A := model.Carrier, B := right.Carrier, C := targetRight.Carrier].composeContinuous
+      (details model).topology (details right).topology (details targetRight).topology second g
+      (Projections.secondContinuous (details left).topology (details right).topology)
+      (RightMaps.laws (pointed right) (pointed targetRight) g).continuous);
+\import Pair.Prop[A := targetLeft.Carrier, B := targetRight.Carrier] \as TargetPairs;
+\definition pointedEquation: raw (details model).point = (details Target.model).point :=
+  TargetPairs.ext _ _
+    (LeftMaps.laws (pointed left) (pointed targetLeft) f).pointed
+    (RightMaps.laws (pointed right) (pointed targetRight) g).pointed;
+\import algebraic_topology.Pointed[A := model.Carrier].Maps[B := Target.model.Carrier] \as Maps;
+\definition productMap: Map model Target.model := \into[model.Carrier -> Target.model.Carrier](raw, Map model Target.model) \by {
+  Maps.Laws[pointed model, pointed Target.model, raw] { continuous := regular, pointed := pointedEquation }
+};
+\definition preserves: \forall (z: model.Carrier) -> \In[model.Carrier] wedge z -> \In[Target.model.Carrier] Target.wedge (productMap z) :=
+  \fun (z: model.Carrier)(member: \In[model.Carrier] wedge z) =>
+    Logic.orElim[first z = (details left).point, second z = (details right).point,
+      \In[Target.model.Carrier] Target.wedge (productMap z)] member
+      (\fun (e: first z = (details left).point) => Logic.Or[_, _]::left (trans!{{targetLeft.Carrier}} _ _ _
+        (congr!{{left.Carrier} {targetLeft.Carrier}} f _ _ e) (LeftMaps.laws (pointed left) (pointed targetLeft) f).pointed))
+      (\fun (e: second z = (details right).point) => Logic.Or[_, _]::right (trans!{{targetRight.Carrier}} _ _ _
+        (congr!{{right.Carrier} {targetRight.Carrier}} g _ _ e) (RightMaps.laws (pointed right) (pointed targetRight) g).pointed));
+\definition data: PairMapData[pair, Target.pair] := PairMapData[pair, Target.pair] { function := productMap, preserves := preserves };
+\import \root.Relative[].PairMapping[source := pair, target := Target.pair, f := data] \as Induced;
+\definition map: Map result Target.result := Induced.quotientMap;
+\definition onProjection: \forall (z: model.Carrier) -> map (projection z) = Target.projection (productMap z) := Induced.onProjection;
+\import \root.Relative[].Square[A := model, B := Target.model, C := left, D := targetLeft,
+  f := productMap, g := Target.firstMap, h := firstMap, k := f,
+  commutes := (\fun (z: model.Carrier) => \refl(f (first z)))] \as LeftSquare;
+\import \root.Relative[].Square[A := model, B := Target.model, C := right, D := targetRight,
+  f := productMap, g := Target.secondMap, h := secondMap, k := g,
+  commutes := (\fun (z: model.Carrier) => \refl(g (second z)))] \as RightSquare;
+\module External;

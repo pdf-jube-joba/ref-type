@@ -1,0 +1,36 @@
+\use Equality.eq_reason_in;
+\import \parent.\parent.External[] \as SourceProduct;
+\import Target.External[] \as TargetProduct;
+\import \root.Relative[].Reduced[model := targetLeft] \as LeftGroup;
+\import \root.Relative[].Reduced[model := targetRight] \as RightGroup;
+\import \root.Relative[].Reduced[model := model] \as ProductGroup;
+\import \root.Relative[].Reduced[model := result] \as ResultGroup;
+\import \root.Relative[].Reduced[model := Target.model] \as TargetGroup;
+\import \root.Relative[].Pullback[source := left, target := targetLeft, f := f] \as LeftPull;
+\import \root.Relative[].Pullback[source := right, target := targetRight, f := g] \as RightPull;
+\import \root.Relative[].Pullback[source := model, target := Target.model, f := productMap] \as ProductPull;
+\import \root.Relative[].Pullback[source := result, target := Target.result, f := map] \as ResultPull;
+\import \root.Relative[].Pullback[source := model, target := left, f := firstMap] \as FirstPull;
+\import \root.Relative[].Pullback[source := model, target := right, f := secondMap] \as SecondPull;
+\import \root.Relative[].Pullback[source := Target.model, target := targetLeft, f := Target.firstMap] \as TargetFirst;
+\import \root.Relative[].Pullback[source := Target.model, target := targetRight, f := Target.secondMap] \as TargetSecond;
+\import ProductPull.Multiplication[] \as PullProduct;
+\import ProductGroup.Multiplication[] \as Multiplication;
+\definition rawNaturality: \forall (a: LeftGroup.Carrier)(b: RightGroup.Carrier) ->
+  ProductPull.map (TargetProduct.raw a b) = SourceProduct.raw (LeftPull.map a) (RightPull.map b) :=
+  \fun (a: LeftGroup.Carrier)(b: RightGroup.Carrier) => trans!{{ProductGroup.Carrier}} _ _ _
+    (PullProduct.equation (TargetFirst.map a) (TargetSecond.map b))
+    (congr!{{ProductGroup.Carrier} {ProductGroup.Carrier} {ProductGroup.Carrier}} Multiplication.mul _ _ _ _
+      (LeftSquare.Negative[degree := N.Nat^::zero].equation a)
+      (RightSquare.Negative[degree := N.Nat^::zero].equation b));
+\definition naturality: \forall (a: LeftGroup.Carrier)(b: RightGroup.Carrier) ->
+  ResultPull.map (TargetProduct.product a b) = SourceProduct.product (LeftPull.map a) (RightPull.map b) :=
+  \fun (a: LeftGroup.Carrier)(b: RightGroup.Carrier) => SourceProduct.forgetInjective _ _ (eq_reason_in!{{ProductGroup.Carrier} _
+    "=" { ProductPull.map (TargetProduct.forget (TargetProduct.product a b)) } "by" {
+      Induced.Naturality[].Negative[degree := N.Nat^::zero].forget (TargetProduct.product a b) }
+    "=" { ProductPull.map (TargetProduct.raw a b) } "by" {
+      congr!{{TargetGroup.Carrier} {ProductGroup.Carrier}} ProductPull.map _ _ (TargetProduct.formula a b) }
+    "=" { SourceProduct.raw (LeftPull.map a) (RightPull.map b) } "by" { rawNaturality a b }
+    "=" { SourceProduct.forget (SourceProduct.product (LeftPull.map a) (RightPull.map b)) } "by" {
+      sym!{{ProductGroup.Carrier}} _ _ (SourceProduct.formula (LeftPull.map a) (RightPull.map b)) }
+  });

@@ -1,0 +1,65 @@
+\definition originalEqual: \forall (p, q: Z) -> original p = original q -> Quotient.projection p = Quotient.projection q :=
+  \fun (p, q: Z)(same: original p = original q) => either!{{(std.Logic[].Classical[].excludedMiddle (\In[Z] boundary p))}
+    {Quotient.projection p = Quotient.projection q}
+    | inside: \fun (member: \In[Z] boundary p) => \block {
+      \let other: \In[Z] boundary q := reflectsPoint q
+        (trans!{{Smash.result.Carrier}} _ _ _ (sym!{{Smash.result.Carrier}} _ _ same) (onBoundary p member)) \then
+      \return trans!{{Quotient.Carrier}} _ _ _ (Quotient.onSubset (\into[Z](p, boundary) \by { member }))
+        (sym!{{Quotient.Carrier}} _ _ (Quotient.onSubset (\into[Z](q, boundary) \by { other })))
+    }
+    | outside: \fun (outside: Logic.Not (\In[Z] boundary p)) => \block {
+      \let images: image p = image q := Logic.orElim[image p = image q,
+        Logic.And[\In[Smash.model.Carrier] Smash.wedge (image p), \In[Smash.model.Carrier] Smash.wedge (image q)], image p = image q]
+        (Target.separates (image p) (image q) same) (\fun (same: image p = image q) => same)
+        (\fun (both: Logic.And[\In[Smash.model.Carrier] Smash.wedge (image p), \In[Smash.model.Carrier] Smash.wedge (image q)]) =>
+          Logic.falseElim (image p = image q) (outside (reflectsWedge p both.left))) \then
+      \let firstEqual: first p = first q := Logic.orElim[first p = first q,
+        Logic.And[\In[X] subset (first p), \In[X] subset (first q)], first p = first q]
+        (Left.separates (first p) (first q) (congr!{{Smash.model.Carrier} {Left.Carrier}} (Pair.first Left.Carrier Right.Carrier) _ _ images))
+        (\fun (same: first p = first q) => same)
+        (\fun (both: Logic.And[\In[X] subset (first p), \In[X] subset (first q)]) =>
+          Logic.falseElim (first p = first q) (outside (Logic.Or[_, _]::left both.left))) \then
+      \let secondEqual: second p = second q := Logic.orElim[second p = second q,
+        Logic.And[\In[Y] otherSubset (second p), \In[Y] otherSubset (second q)], second p = second q]
+        (Right.separates (second p) (second q) (congr!{{Smash.model.Carrier} {Right.Carrier}} (Pair.second Left.Carrier Right.Carrier) _ _ images))
+        (\fun (same: second p = second q) => same)
+        (\fun (both: Logic.And[\In[Y] otherSubset (second p), \In[Y] otherSubset (second q)]) =>
+          Logic.falseElim (second p = second q) (outside (Logic.Or[_, _]::right both.left))) \then
+      \return congr!{Z {Quotient.Carrier}} Quotient.projection p q (Pairs.ext p q firstEqual secondEqual)
+    }
+  };
+\definition star[p: Quotient.Point]: Collapse.class (Augment.inr p) = Quotient.point :=
+  Collapse.collapsed (Augment.inr p) (Augment.inr Quotient.distinguished) (\refl(p)) (\refl(Quotient.distinguished));
+\definition originalStar: \forall (p: Z)(q: Quotient.Point) -> forward (Quotient.projection p) = forward (Collapse.class (Augment.inr q)) ->
+  Quotient.projection p = Collapse.class (Augment.inr q) := \block {
+  \fun (p: Z)(q: Quotient.Point)(same: forward (Quotient.projection p) = forward (Collapse.class (Augment.inr q))) \then
+  \let originalPoint: original p = Target.point := trans!{{Smash.result.Carrier}} _ _ _ (sym!{{Smash.result.Carrier}} _ _ (onProjection p))
+    (trans!{{Smash.result.Carrier}} _ _ _ same (Descent.onClass raw respects (Augment.inr q))) \then
+  \return trans!{{Quotient.Carrier}} _ _ _
+    (Quotient.onSubset (\into[Z](p, boundary) \by { reflectsPoint p originalPoint })) (sym!{{Quotient.Carrier}} _ _ (star q))
+};
+\definition onOriginal[p: Z]: \forall (q: Quotient.Augmented) -> forward (Quotient.projection p) = forward (Collapse.class q) -> Quotient.projection p = Collapse.class q :=
+  \induction (q: Quotient.Augmented) \return forward (Quotient.projection p) = forward (Collapse.class q) -> Quotient.projection p = Collapse.class q \with {
+    | inl: \fun (q: Z)(same: forward (Quotient.projection p) = forward (Quotient.projection q)) => originalEqual p q
+      (trans!{{Smash.result.Carrier}} _ _ _ (sym!{{Smash.result.Carrier}} _ _ (onProjection p))
+        (trans!{{Smash.result.Carrier}} _ _ _ same (onProjection q)))
+    | inr: originalStar p
+  };
+\definition onStar[p: Quotient.Point]: \forall (q: Quotient.Augmented) -> forward (Collapse.class (Augment.inr p)) = forward (Collapse.class q) ->
+  Collapse.class (Augment.inr p) = Collapse.class q :=
+  \induction (q: Quotient.Augmented) \return forward (Collapse.class (Augment.inr p)) = forward (Collapse.class q) ->
+    Collapse.class (Augment.inr p) = Collapse.class q \with {
+    | inl: \fun (q: Z)(same: forward (Collapse.class (Augment.inr p)) = forward (Quotient.projection q)) =>
+      sym!{{Quotient.Carrier}} _ _ (originalStar q p (sym!{{Smash.result.Carrier}} _ _ same))
+    | inr: \fun (q: Quotient.Point)(same: _) => trans!{{Quotient.Carrier}} _ _ _ (star p) (sym!{{Quotient.Carrier}} _ _ (star q))
+  };
+\definition onAugment: \forall (p, q: Quotient.Augmented) -> forward (Collapse.class p) = forward (Collapse.class q) -> Collapse.class p = Collapse.class q :=
+  \induction (p: Quotient.Augmented) \return \forall (q: Quotient.Augmented) -> forward (Collapse.class p) = forward (Collapse.class q) -> Collapse.class p = Collapse.class q \with {
+    | inl: onOriginal
+    | inr: onStar
+  };
+\definition result: \forall (p, q: Quotient.Carrier) -> forward p = forward q -> p = q :=
+  Collapse.induction (\fun (p: Quotient.Carrier) => \forall (q: Quotient.Carrier) -> forward p = forward q -> p = q)
+    (\fun (p: Quotient.Augmented) => Collapse.induction
+      (\fun (q: Quotient.Carrier) => forward (Collapse.class p) = forward q -> Collapse.class p = q)
+      (onAugment p));
