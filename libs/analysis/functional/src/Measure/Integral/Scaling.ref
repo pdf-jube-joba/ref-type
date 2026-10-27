@@ -1,0 +1,34 @@
+\import \root.Measure[A := A].ValueLaws[] \as Values;
+\import \root.Measure[A := A].Finite[mu := mu] \as FiniteMeasure;
+\import real.Analysis[].Estimates[] \as E;
+\import real.Analysis[].Estimates[].Product[] \as ProductLaws;
+\import dedekind_reals.DedekindReal[].Order[] \as Order;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition NonnegativeScalar: \Set := \Cast[Real.Real] ({ c: Real.Real \where R.Le Real.zero c });
+\definition nonnegative[c: NonnegativeScalar]: R.Le Real.zero c := \bysub(Real.Real, { c: Real.Real \where R.Le Real.zero c }, c);
+\definition scaled[c: NonnegativeScalar] [n: N.Nat^] [s: Simple[n]]: Simple[n] := Simple[n] {
+  cells := s.cells,
+  coefficients := \fun (i: Fin.Fin n) => Real.mul c (s.coefficients i),
+  measurable := s.measurable,
+  nonnegative := \fun (i: Fin.Fin n) => Laws.fieldMulNonnegative c (s.coefficients i) (nonnegative c) (s.nonnegative i),
+  disjoint := s.disjoint,
+};
+\definition simpleScale: \forall (c: NonnegativeScalar) (n: N.Nat^) (s: Simple[n]) ->
+  simpleIntegral n (scaled c n s) = scale c (simpleIntegral n s) :=
+  \fun (c: NonnegativeScalar) (n: N.Nat^) (s: Simple[n]) => eq_reason_in!{Value _
+    "=" _ "by" { congr!{{Fin.Fin n -> Value} Value} (sum n) _ _
+      (\axiom:funext((\fun (i: Fin.Fin n) => scale (Real.mul c (s.coefficients i)) (mu.value (s.cells i))),
+        (\fun (i: Fin.Fin n) => scale c (scale (s.coefficients i) (mu.value (s.cells i)))),
+        \fun (i: Fin.Fin n) => sym!{Value} _ _ (Values.scaleCompose c (s.coefficients i) (mu.value (s.cells i))
+          (nonnegative c) (s.nonnegative i) (FiniteMeasure.laws.nonnegative (s.cells i) (s.measurable i)))) }
+    "=" _ "by" { sym!{Value} _ _ (Values.scaleSum n c (\fun (i: Fin.Fin n) => scale (s.coefficients i) (mu.value (s.cells i))) (nonnegative c)
+      (\fun (i: Fin.Fin n) => Values.scaleNonnegative (s.coefficients i) (mu.value (s.cells i)) (s.nonnegative i)
+        (FiniteMeasure.laws.nonnegative (s.cells i) (s.measurable i)))) }
+  };
+\definition dominatedScale: \forall (c: NonnegativeScalar) (n: N.Nat^) (s: Simple[n]) (f: A -> Real.Real) -> Dominated n s f ->
+  Dominated n (scaled c n s) (\fun (x: A) => Real.mul c (f x)) :=
+  \fun (c: NonnegativeScalar) (n: N.Nat^) (s: Simple[n]) (f: A -> Real.Real) (dominated: Dominated n s f) (i: Fin.Fin n) (x: A) (member: Sets.Member (s.cells i) x) =>
+    E.mulMonotone c (s.coefficients i) (f x) (nonnegative c) (dominated i x member);
