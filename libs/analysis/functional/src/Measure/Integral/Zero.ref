@@ -1,0 +1,43 @@
+\import \root.Measure[A := A].ValueLaws[] \as Values;
+\import \root.Measure[A := A].Finite[mu := mu] \as FiniteMeasure;
+\import std.Logic[].Classical[] \as Classical;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].congr;
+\definition function: A -> Real.Real := \fun (_: A) => Real.zero;
+\definition termZero: \forall (n: N.Nat^) (s: Simple[n]) -> Dominated n s function -> \forall (i: Fin.Fin n) ->
+  scale (s.coefficients i) (mu.value (s.cells i)) = zero :=
+  \fun (n: N.Nat^) (s: Simple[n]) (dominated: Dominated n s function) (i: Fin.Fin n) =>
+    Logic.orElim _ _ (scale (s.coefficients i) (mu.value (s.cells i)) = zero) (Classical.excludedMiddle (\exists \Cast[A] (s.cells i)))
+      (\fun (inhabited: \exists \Cast[A] (s.cells i)) => \block {
+        \takefrom x: \Cast[A] (s.cells i) \by inhabited \then
+        \let coefficientZero: s.coefficients i = Real.zero := R.leAntisym (s.coefficients i) Real.zero
+          (dominated i x (\bysub(A, s.cells i, x))) (s.nonnegative i) \then
+        \return eq_reason_in!{Value _
+          "=" _ "by" { congr!{Real.Real Value} (\fun (c: Real.Real) => scale c (mu.value (s.cells i))) _ _ coefficientZero }
+          "=" _ "by" { Values.zeroScale (mu.value (s.cells i)) (FiniteMeasure.laws.nonnegative (s.cells i) (s.measurable i)) }
+        }
+      })
+      (\fun (empty: Logic.Not (\exists \Cast[A] (s.cells i))) => \block {
+        \let equal: s.cells i = Sets.Empty := \axiom:setext(s.cells i, Sets.Empty,
+          \fun (x: A) (member: Sets.Member (s.cells i) x) => empty (\exact(\into[A](x, s.cells i) \by { member }, \Cast[A] (s.cells i))),
+          \fun (x: A) (impossible: Logic.False) => Logic.falseElim _ impossible) \then
+        \return eq_reason_in!{Value _
+          "=" _ "by" { congr!{{\Pow A} Value} (\fun (S: \Pow A) => scale (s.coefficients i) (mu.value S)) _ _ equal }
+          "=" _ "by" { congr!{Value Value} (scale (s.coefficients i)) _ _ FiniteMeasure.laws.empty }
+          "=" _ "by" { Values.scaleZeroValue (s.coefficients i) (s.nonnegative i) }
+        }
+      });
+\definition simpleZero: \forall (n: N.Nat^) (s: Simple[n]) -> Dominated n s function -> simpleIntegral n s = zero :=
+  \fun (n: N.Nat^) (s: Simple[n]) (dominated: Dominated n s function) => eq_reason_in!{Value _
+    "=" _ "by" { congr!{{Fin.Fin n -> Value} Value} (sum n) _ _
+      (\axiom:funext((\fun (i: Fin.Fin n) => scale (s.coefficients i) (mu.value (s.cells i))), (\fun (_: Fin.Fin n) => zero), termZero n s dominated)) }
+    "=" _ "by" { Values.sumZero n }
+  };
+\definition lowerZero: lowerIntegral function = zero := \axiom:setext(lowerIntegral function, zero,
+  \fun (r: Real.Real) (member: below (lowerIntegral function) r) => \block {
+    \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s function, below (simpleIntegral n s) r] ) }) \by member \then
+    \takefrom s: \Cast[Simple[n]] ({ s: Simple[n] \where Logic.And[Dominated n s function, below (simpleIntegral n s) r] })
+      \by (\bysub(N.Nat^, { n: N.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s function, below (simpleIntegral n s) r] ) }, n)) \then
+    \let data: Logic.And[Dominated n s function, below (simpleIntegral n s) r] := \bysub(Simple[n], { s: Simple[n] \where Logic.And[Dominated n s function, below (simpleIntegral n s) r] }, s) \then
+    \return \idelim simpleIntegral n s = zero \with v: Value => below v r \by { base: data.right, equality: simpleZero n s data.left }
+  }, lowerIntegralNegative function);
