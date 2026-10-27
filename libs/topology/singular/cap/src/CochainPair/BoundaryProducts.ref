@@ -1,0 +1,142 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.trans;
+\import \parent.Degree[] \as Degree;
+\import Degree.Boundaries[] \as RelativeBoundaries;
+\import Degree.BoundaryZero[] \as RelativeZero;
+\import Whole.Boundaries[] \as WholeBoundaries;
+\import singular_cohomology.Cochains[A := A, source := source].With[coefficients := Whole.integerCoefficients] \as Ordinary;
+\import N.Basic[].Def[] \as Nat;
+\definition leftFirstProperty[p, q: N.Nat^]: \Prop := \forall (alpha: Degree.Carrier p)(beta: Whole.Carrier q) -> Ordinary.coboundary q beta = (Whole.space (N.Nat^::succ q)).zero -> RelativeBoundaries.Member p alpha -> RelativeBoundaries.Member (Nat.add p q) (\parent.RelativeCup[p := p, q := q].left alpha beta);
+\module leftFirstZero(q: N.Nat^) {
+  \import \parent.\parent.RelativeCup[p := N.Nat^::zero, q := q] \as Product;
+  \import Product.Zero[] \as Zero;
+  \definition law: leftFirstProperty N.Nat^::zero, q :=
+    \fun (alpha: Degree.Carrier N.Nat^::zero)(beta: Whole.Carrier q)(closed: _)(member: _) =>
+      \idelim (Degree.space Product.total).zero = Product.left alpha beta \with x: Degree.Carrier Product.total => RelativeBoundaries.Member Product.total x \by {
+        base: RelativeBoundaries.zero Product.total,
+        equality: sym!{{Degree.Carrier Product.total}} _ _ (trans!{{Degree.Carrier Product.total}} _ _ _
+          (congr!{{Degree.Carrier N.Nat^::zero} {Degree.Carrier Product.total}} (\fun (x: Degree.Carrier N.Nat^::zero) => Product.left x beta) _ _ (RelativeZero.law alpha member)) (Zero.leftFirst beta))
+      };
+}
+\module leftFirstStep(k, q: N.Nat^) {
+  \import \parent.\parent.RelativeCup[p := k, q := q] \as Lower;
+  \import Lower.ExactLeft[] \as Exact;
+  \import \parent.\parent.RelativeCup[p := N.Nat^::succ k, q := q] \as Upper;
+  \definition law: leftFirstProperty N.Nat^::succ k, q := \block {
+    \fun (alpha: Degree.Carrier (N.Nat^::succ k))(beta: Whole.Carrier q)(closed: _)(member: _) \then
+    \takefrom primitive: \Cast[Degree.Carrier k] ({ c: Degree.Carrier k \where Degree.differential k c = alpha }) \by member \then
+    \let equal: Degree.differential k primitive = alpha := \bysub(Degree.Carrier k, { c: Degree.Carrier k \where Degree.differential k c = alpha }, primitive) \then
+    \let result: RelativeBoundaries.Member Nat.add (N.Nat^::succ k) q (Upper.left alpha beta) :=
+      \idelim Upper.left (Degree.differential k primitive) beta = Upper.left alpha beta \with x: Degree.Carrier Nat.add (N.Nat^::succ k) q => RelativeBoundaries.Member Nat.add (N.Nat^::succ k) q x \by {
+        base: Exact.left primitive beta closed,
+        equality: congr!{{Degree.Carrier (N.Nat^::succ k)} {Degree.Carrier Nat.add (N.Nat^::succ k) q}} (\fun (x: Degree.Carrier N.Nat^::succ k) => Upper.left x beta) _ _ equal
+      } \then
+    \return result
+  };
+}
+\definition leftFirst: \forall (p, q: N.Nat^) -> leftFirstProperty p q :=
+  \fun (p: N.Nat^)(q: N.Nat^) => \induction (p: N.Nat^) \return leftFirstProperty p q \with {
+    | zero: leftFirstZero[q := q].law
+    | succ: \fun (k: N.Nat^)(unused: _) => leftFirstStep[k := k, q := q].law
+  };
+\definition leftSecondProperty[p, q: N.Nat^]: \Prop := \forall (alpha: Degree.Carrier p)(beta: Whole.Carrier q) -> Degree.differential p alpha = (Degree.space (N.Nat^::succ p)).zero -> WholeBoundaries.Member q beta -> RelativeBoundaries.Member (Nat.add p q) (\parent.RelativeCup[p := p, q := q].left alpha beta);
+\module leftSecondZero(p: N.Nat^) {
+  \import \parent.\parent.RelativeCup[p := p, q := N.Nat^::zero] \as Product;
+  \import Product.Zero[] \as Zero;
+  \definition law: leftSecondProperty p, N.Nat^::zero :=
+    \fun (alpha: Degree.Carrier p)(beta: Whole.Carrier N.Nat^::zero)(closed: _)(member: _) =>
+      \idelim (Degree.space Product.total).zero = Product.left alpha beta \with x: Degree.Carrier Product.total => RelativeBoundaries.Member Product.total x \by {
+        base: RelativeBoundaries.zero Product.total,
+        equality: sym!{{Degree.Carrier Product.total}} _ _ (trans!{{Degree.Carrier Product.total}} _ _ _
+          (congr!{{Whole.Carrier N.Nat^::zero} {Degree.Carrier Product.total}} (Product.left alpha) _ _ (member)) (Zero.leftSecond alpha))
+      };
+}
+\module leftSecondStep(k, p: N.Nat^) {
+  \import \parent.\parent.RelativeCup[p := p, q := k] \as Lower;
+  \import Lower.ExactRight[] \as Exact;
+  \import \parent.\parent.RelativeCup[p := p, q := N.Nat^::succ k] \as Upper;
+  \definition law: leftSecondProperty p, N.Nat^::succ k := \block {
+    \fun (alpha: Degree.Carrier p)(beta: Whole.Carrier (N.Nat^::succ k))(closed: _)(member: _) \then
+    \takefrom primitive: \Cast[Whole.Carrier k] ({ c: Whole.Carrier k \where Ordinary.coboundary k c = beta }) \by member \then
+    \let equal: Ordinary.coboundary k primitive = beta := \bysub(Whole.Carrier k, { c: Whole.Carrier k \where Ordinary.coboundary k c = beta }, primitive) \then
+    \let result: RelativeBoundaries.Member Nat.add p (N.Nat^::succ k) (Upper.left alpha beta) :=
+      \idelim Upper.left alpha (Ordinary.coboundary k primitive) = Upper.left alpha beta \with x: Degree.Carrier Nat.add p (N.Nat^::succ k) => RelativeBoundaries.Member Nat.add p (N.Nat^::succ k) x \by {
+        base: Exact.left alpha primitive closed,
+        equality: congr!{{Whole.Carrier (N.Nat^::succ k)} {Degree.Carrier Nat.add p (N.Nat^::succ k)}} (Upper.left alpha) _ _ equal
+      } \then
+    \return result
+  };
+}
+\definition leftSecond: \forall (p, q: N.Nat^) -> leftSecondProperty p q :=
+  \fun (p: N.Nat^)(q: N.Nat^) => \induction (q: N.Nat^) \return leftSecondProperty p q \with {
+    | zero: leftSecondZero[p := p].law
+    | succ: \fun (k: N.Nat^)(unused: _) => leftSecondStep[k := k, p := p].law
+  };
+\definition rightFirstProperty[p, q: N.Nat^]: \Prop := \forall (alpha: Whole.Carrier p)(beta: Degree.Carrier q) -> Degree.differential q beta = (Degree.space (N.Nat^::succ q)).zero -> WholeBoundaries.Member p alpha -> RelativeBoundaries.Member (Nat.add p q) (\parent.RelativeCup[p := p, q := q].right alpha beta);
+\module rightFirstZero(q: N.Nat^) {
+  \import \parent.\parent.RelativeCup[p := N.Nat^::zero, q := q] \as Product;
+  \import Product.Zero[] \as Zero;
+  \definition law: rightFirstProperty N.Nat^::zero, q :=
+    \fun (alpha: Whole.Carrier N.Nat^::zero)(beta: Degree.Carrier q)(closed: _)(member: _) =>
+      \idelim (Degree.space Product.total).zero = Product.right alpha beta \with x: Degree.Carrier Product.total => RelativeBoundaries.Member Product.total x \by {
+        base: RelativeBoundaries.zero Product.total,
+        equality: sym!{{Degree.Carrier Product.total}} _ _ (trans!{{Degree.Carrier Product.total}} _ _ _
+          (congr!{{Whole.Carrier N.Nat^::zero} {Degree.Carrier Product.total}} (\fun (x: Whole.Carrier N.Nat^::zero) => Product.right x beta) _ _ (member)) (Zero.rightFirst beta))
+      };
+}
+\module rightFirstStep(k, q: N.Nat^) {
+  \import \parent.\parent.RelativeCup[p := k, q := q] \as Lower;
+  \import Lower.ExactLeft[] \as Exact;
+  \import \parent.\parent.RelativeCup[p := N.Nat^::succ k, q := q] \as Upper;
+  \definition law: rightFirstProperty N.Nat^::succ k, q := \block {
+    \fun (alpha: Whole.Carrier (N.Nat^::succ k))(beta: Degree.Carrier q)(closed: _)(member: _) \then
+    \takefrom primitive: \Cast[Whole.Carrier k] ({ c: Whole.Carrier k \where Ordinary.coboundary k c = alpha }) \by member \then
+    \let equal: Ordinary.coboundary k primitive = alpha := \bysub(Whole.Carrier k, { c: Whole.Carrier k \where Ordinary.coboundary k c = alpha }, primitive) \then
+    \let result: RelativeBoundaries.Member Nat.add (N.Nat^::succ k) q (Upper.right alpha beta) :=
+      \idelim Upper.right (Ordinary.coboundary k primitive) beta = Upper.right alpha beta \with x: Degree.Carrier Nat.add (N.Nat^::succ k) q => RelativeBoundaries.Member Nat.add (N.Nat^::succ k) q x \by {
+        base: Exact.right primitive beta closed,
+        equality: congr!{{Whole.Carrier (N.Nat^::succ k)} {Degree.Carrier Nat.add (N.Nat^::succ k) q}} (\fun (x: Whole.Carrier N.Nat^::succ k) => Upper.right x beta) _ _ equal
+      } \then
+    \return result
+  };
+}
+\definition rightFirst: \forall (p, q: N.Nat^) -> rightFirstProperty p q :=
+  \fun (p: N.Nat^)(q: N.Nat^) => \induction (p: N.Nat^) \return rightFirstProperty p q \with {
+    | zero: rightFirstZero[q := q].law
+    | succ: \fun (k: N.Nat^)(unused: _) => rightFirstStep[k := k, q := q].law
+  };
+\definition rightSecondProperty[p, q: N.Nat^]: \Prop := \forall (alpha: Whole.Carrier p)(beta: Degree.Carrier q) -> Ordinary.coboundary p alpha = (Whole.space (N.Nat^::succ p)).zero -> RelativeBoundaries.Member q beta -> RelativeBoundaries.Member (Nat.add p q) (\parent.RelativeCup[p := p, q := q].right alpha beta);
+\module rightSecondZero(p: N.Nat^) {
+  \import \parent.\parent.RelativeCup[p := p, q := N.Nat^::zero] \as Product;
+  \import Product.Zero[] \as Zero;
+  \definition law: rightSecondProperty p, N.Nat^::zero :=
+    \fun (alpha: Whole.Carrier p)(beta: Degree.Carrier N.Nat^::zero)(closed: _)(member: _) =>
+      \idelim (Degree.space Product.total).zero = Product.right alpha beta \with x: Degree.Carrier Product.total => RelativeBoundaries.Member Product.total x \by {
+        base: RelativeBoundaries.zero Product.total,
+        equality: sym!{{Degree.Carrier Product.total}} _ _ (trans!{{Degree.Carrier Product.total}} _ _ _
+          (congr!{{Degree.Carrier N.Nat^::zero} {Degree.Carrier Product.total}} (Product.right alpha) _ _ (RelativeZero.law beta member)) (Zero.rightSecond alpha))
+      };
+}
+\module rightSecondStep(k, p: N.Nat^) {
+  \import \parent.\parent.RelativeCup[p := p, q := k] \as Lower;
+  \import Lower.ExactRight[] \as Exact;
+  \import \parent.\parent.RelativeCup[p := p, q := N.Nat^::succ k] \as Upper;
+  \definition law: rightSecondProperty p, N.Nat^::succ k := \block {
+    \fun (alpha: Whole.Carrier p)(beta: Degree.Carrier (N.Nat^::succ k))(closed: _)(member: _) \then
+    \takefrom primitive: \Cast[Degree.Carrier k] ({ c: Degree.Carrier k \where Degree.differential k c = beta }) \by member \then
+    \let equal: Degree.differential k primitive = beta := \bysub(Degree.Carrier k, { c: Degree.Carrier k \where Degree.differential k c = beta }, primitive) \then
+    \let result: RelativeBoundaries.Member Nat.add p (N.Nat^::succ k) (Upper.right alpha beta) :=
+      \idelim Upper.right alpha (Degree.differential k primitive) = Upper.right alpha beta \with x: Degree.Carrier Nat.add p (N.Nat^::succ k) => RelativeBoundaries.Member Nat.add p (N.Nat^::succ k) x \by {
+        base: Exact.right alpha primitive closed,
+        equality: congr!{{Degree.Carrier (N.Nat^::succ k)} {Degree.Carrier Nat.add p (N.Nat^::succ k)}} (Upper.right alpha) _ _ equal
+      } \then
+    \return result
+  };
+}
+\definition rightSecond: \forall (p, q: N.Nat^) -> rightSecondProperty p q :=
+  \fun (p: N.Nat^)(q: N.Nat^) => \induction (q: N.Nat^) \return rightSecondProperty p q \with {
+    | zero: rightSecondZero[p := p].law
+    | succ: \fun (k: N.Nat^)(unused: _) => rightSecondStep[k := k, p := p].law
+  };
