@@ -1,0 +1,29 @@
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import real.Analysis[] \as Reals;
+\import linear_algebra.Hermitian[].Over[K := R.Real, field := R.Algebra[].field, scalar := H.Real[].scalar] \as Geometry;
+\import Geometry.Finite[n := k] \as Domain;
+\import std.Alg[].Field[] \as Fields;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := Fields.fieldAsCommutativeRing R.Real R.Algebra[].field].Coordinates[I := Fin.Fin k].Kronecker[] \as Delta;
+\definition unitSquared: \forall (i: Fin.Fin k) -> E.squared (frame.value.apply (Domain.basis i)) = Reals.one :=
+  \fun (i: Fin.Fin k) => trans!{Reals.Real} _ _ _ (sym!{Reals.Real} _ _ (E.squaredFormula (frame.value.apply (Domain.basis i))))
+    (trans!{Reals.Real} _ _ _ (congr!{R.Real Reals.Real} H.Real[].scalar.realPart _ _ (frame.isometry (Domain.basis i) (Domain.basis i)))
+      (trans!{Reals.Real} _ _ _ (congr!{R.Real Reals.Real} H.Real[].scalar.realPart _ _ (Domain.dotBasis i (Domain.basis i)))
+        (trans!{Reals.Real} _ _ _ (congr!{R.Real Reals.Real} H.Real[].scalar.realPart _ _ (Delta.self i))
+          (trans!{Reals.Real} _ _ _ (congr!{R.Real Reals.Real} H.Real[].scalar.realPart _ _ (sym!{R.Real} _ _ H.Real[].scalar.embedOne)) (H.Real[].scalar.realEmbed Reals.one)))));
+\definition coordinateBound: \forall (i: Fin.Fin k)(j: Fin.Fin n) -> Order.Le
+  (H.Real[].scalar.realPart (R.Algebra[].field.mul (H.Real[].scalar.conjugate (frame.value.apply (Domain.basis i) j)) (frame.value.apply (Domain.basis i) j))) Reals.one :=
+  \fun (i: Fin.Fin k)(j: Fin.Fin n) => Order.leReplaceRight _ (E.squared (frame.value.apply (Domain.basis i))) Reals.one (unitSquared i)
+    (Reals.FiniteSums[].coordinateUpper n (\fun (j: Fin.Fin n) => H.Real[].scalar.realPart (R.Algebra[].field.mul (H.Real[].scalar.conjugate (frame.value.apply (Domain.basis i) j)) (frame.value.apply (Domain.basis i) j)))
+      (\fun (j: Fin.Fin n) => H.Real[].scalar.scalarNonnegative (frame.value.apply (Domain.basis i) j)) j);
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::zero].Geometry[] \as RealGeometry;
+\import \root.CompactScalar[] \as Boxes;
+\import \root.CompactCubes[K := R.Real, scalar := H.Real[].topological.space, Box := Boxes.realBox, compact := Boxes.realCompact, m := k, n := n] \as Cube;
+\definition entries[i: Fin.Fin k][j: Fin.Fin n]: R.Real := frame.value.apply (Domain.basis i) j;
+\definition inBox: \forall (i: Fin.Fin k)(j: Fin.Fin n) -> \In[R.Real] Boxes.realBox (entries i j) :=
+  \fun (i: Fin.Fin k)(j: Fin.Fin n) => RealGeometry.unitBounds (entries i j) (coordinateBound i j);
+\definition inCube: \In[topological_algebra.Matrix[K := R.Real, I := Fin.Fin k, J := Fin.Fin n].Carrier] Cube.cube entries := Cube.contains entries inBox;
