@@ -51,6 +51,7 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 | 枠付き束の降下の引き戻し計算 | `forget-projection-Pair-FramedClass-With-Pullback` |
 | 忘却と射影の引き戻しの一致、基点付き被約群の完全性 | `direct-inverse-Pair-ForgetProjection` / `direct-inverse-Pair-Pointed-Exact` |
 | 束写像の剪断、交換、直和の並べ替え | `shears-*` / `reordering-*` |
+| 底面の商の raw 写像・一意性・連続性 | `subset-raw` |
 
 長い `cofiber-exact-…BaseQuotient`・`direct-inverse-…BaseQuotient-Raw`・`constant-raw-…BaseQuotient-Raw` は、構成の整理と計測のため中断した検査。
 いずれも終了130・`interrupted`・キャッシュ保存失敗0で、成功した対象検査とは区別する。
@@ -68,18 +69,21 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 同種の親参照を修正し、対の反復を `PairIteration` 内へ移して、基礎の検査が反復の構成全体へ依存する範囲を整理した。
 次の検査は約166秒で `Raw.existence` の部分空間の点の型を拒否した（終了1・`rejected`・保存失敗0）。
 合同式の引数に部分空間内の点を明示して修正した。
+修正後の `subset-raw` は約92秒で accepted・終了0・保存失敗0だった。
+同じ snapshot で `BaseQuotient` 全体を検査中。
+一般の対の列には、包含・射影の引き戻しとの一致と隣接次数の制限写像の一致も追加した（構文解析のみ完了、`unbased-formulas.source.json`）。
 次の固定 snapshot で検査を続ける。
 
 ```bash
 REF_TYPE_PROFILE_DECLARATIONS=1 REF_TYPE_PROFILE_PHASES=1 \
   target/debug/cli libs/topology/relative_k_theory \
-  --module relative_k_theory.Relative.Pair.Pointed.Cofiber.BaseQuotient.Raw \
+  --module relative_k_theory.Relative.Pair.Pointed.Cofiber.BaseQuotient \
   --memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 \
-  --diagnostics compact --report-json work/k03-resume/subset-raw.json \
+  --diagnostics compact --report-json work/k03-resume/subset-comparison.json \
   --source-snapshot work/k03-resume/subset-raw.source.json \
-  > work/k03-resume/subset-raw.log 2>&1
+  > work/k03-resume/subset-comparison.log 2>&1
 result=$?
-printf '%s\n' "$result" > work/k03-resume/subset-raw.exit
+printf '%s\n' "$result" > work/k03-resume/subset-comparison.exit
 ```
 
 `closed-pair-lift.source.json` は `b334fd01` 時点の数学コードの固定 snapshot。
