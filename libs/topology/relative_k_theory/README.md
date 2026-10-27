@@ -177,4 +177,8 @@ K07 の影響先検査は最終検査に含める。
 `Pointed.Rotation.Inner`・`Outer` は二段の cofiber から全体空間の suspension への連続な族を構成する。
 その時間座標は `multiply (advance h t) (reverse s)` で、内外の円錐の潰される部分で値が基点になることを示して商へ降ろす。
 現在の固定 snapshot は `work/k03-resume/rotation.source.json`。
-時間両端を suspension の包含・反転と照合し、K 群の写像の等式にする部分は引き続き実装する。
+時間両端を suspension の包含・反転と照合する未検証変更を `Pointed.Rotation.Endpoints` に追加した。
+始点は二段目の底面の商と底面の同相の suspension から、終点は二段目の円錐像を潰す商・一段目の底面の商・包含の suspension・時間反転から構成する。
+`Endpoints.homotopy` と `equation` は両端の写像のホモトピーと被約群への引き戻しの一致を公開する。
+固定 snapshot は `work/k03-resume/rotation-endpoints.source.json`。
+対象検査は既存の `cofiber-exact` の終了後に行う。

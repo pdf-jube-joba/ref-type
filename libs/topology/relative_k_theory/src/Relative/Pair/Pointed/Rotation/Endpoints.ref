@@ -1,0 +1,48 @@
+\import Outer[] \as Family;
+\import Inner[] \as Interior;
+\import Interior.Formulas[] \as Formulas;
+\import Second.BaseQuotient[].Forward[] \as SecondForward;
+\import Second.BaseQuotient[].Raw[] \as SecondRaw;
+\import First.BaseQuotient[].Forward[] \as FirstForward;
+\import First.BaseQuotient[].Raw[] \as FirstRaw;
+\import \root.Relative[].Suspension[original := Image.imageModel] \as ImageSuspended;
+\import algebraic_topology.Suspension[A := Image.ImagePoint].Pointed[source := Image.imageTopology, basepoint := (Image.into a0)] \as ImageSuspension;
+\import ImageSuspension.Mapping[B := X, target := (pointed model), f := Image.equivalence.backward] \as ImageToOriginal;
+\import \parent.\parent.Exact[] \as OriginalExact;
+\import algebraic_topology.Cylinder[A := A] \as SubsetCylinder;
+\import algebraic_topology.Suspension[A := A].Pointed[source := subspace, basepoint := a0] \as SubsetSuspension;
+\import SubsetSuspension.Mapping[B := X, target := (pointed model), f := OriginalExact.inclusion] \as Included;
+\import Suspended.Reversal[] \as Reverse;
+\import algebraic_topology.Pointed[A := Second.Carrier].Maps[B := ImageSuspension.Carrier] \as QuotientMaps;
+\definition quotientMap: Map Second.result ImageSuspended.result := \into[Second.Carrier -> ImageSuspension.Carrier](SecondForward.cofiber, Map Second.result ImageSuspended.result) \by {
+  QuotientMaps.Laws[pointed Second.result, pointed ImageSuspended.result, SecondForward.cofiber] {
+    continuous := SecondForward.cofiberContinuous, pointed := SecondForward.onBase (First.base a0)
+  }
+};
+\import \root.Relative[].Composition[source := Second.result, middle := ImageSuspended.result, target := Suspended.result,
+  first := quotientMap, second := ImageToOriginal.map] \as StartComposite;
+\definition startMap: Map Second.result Suspended.result := StartComposite.map;
+\import \root.Relative[].Composition[source := Second.result, middle := SecondPair.Quotient[].model, target := \root.Relative[].Suspension[original := subsetModel].result,
+  first := SecondProjection.map, second := FirstForward.map] \as BeforeInclusion;
+\import \root.Relative[].Composition[source := Second.result, middle := \root.Relative[].Suspension[original := subsetModel].result, target := Suspended.result,
+  first := BeforeInclusion.map, second := Included.map] \as BeforeReverse;
+\import \root.Relative[].Composition[source := Second.result, middle := Suspended.result, target := Suspended.result,
+  first := BeforeReverse.map, second := Reverse.map] \as EndComposite;
+\definition endMap: Map Second.result Suspended.result := EndComposite.map;
+\import algebraic_topology.Cylinder[A := Second.DomainPoint] \as RawCylinder;
+\import algebraic_topology.Cylinder[A := Second.Carrier] \as HomotopyCylinder;
+\module Start;
+\module End;
+\import algebraic_topology.Homotopy[A := Second.Carrier, B := Target.Carrier] \as Homotopy;
+\definition homotopy: Homotopy.Homotopy[Second.topology, Target.topology, startMap, endMap] :=
+  \into[Homotopy.Family](Family.map, Homotopy.Homotopy[Second.topology, Target.topology, startMap, endMap]) \by {
+    Homotopy.Laws[Second.topology, Target.topology, startMap, endMap, Family.map] {
+      continuous := Family.continuous, start := Start[].equation, end := End[].equation
+    }
+  };
+\definition atPoint: \forall (h: Interval.Carrier) -> Family.map (HomotopyCylinder.at h (details Second.result).point) = Target.point :=
+  \fun (h: Interval.Carrier) => trans!{{Target.Carrier}} _ _ _ (Family.onClass h (Second.bottom (First.base a0))) (Formulas.atLine h Interval.start);
+\import \root.Relative[].HomotopyInvariance[source := Second.result, target := Suspended.result, first := startMap, second := endMap, homotopy := homotopy] \as Invariance;
+\definition equation: \forall (v: \root.Relative[].Reduced[model := Suspended.result].Carrier) ->
+  \root.Relative[].Pullback[source := Second.result, target := Suspended.result, f := startMap].map v =
+  \root.Relative[].Pullback[source := Second.result, target := Suspended.result, f := endMap].map v := Invariance.equation;
