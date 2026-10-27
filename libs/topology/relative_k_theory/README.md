@@ -98,15 +98,15 @@ K07 の影響先検査は最終検査に含める。
 共通 API は束写像の加法・定数倍と、同型で結ばれた二つの空間を符号付きで交換する剪断写像の積を作る。
 `FramedClass.With.Stabilized`・`Shear`・`BundleSwitch` の符号付き交換は `shears-fixed-*` で accepted・終了0・キャッシュ保存失敗0。
 `BundleSwitch` は B09 により境界同型と逆写像を全体の束写像へ延ばし、可逆な剪断写像の積から境界上での符号付き交換を実現する全体の自己同型を作る。
-最新の未検証変更は共通の `Negation`、`BundleSwitch.Result.exchange`、`FramedClass.To.Stable`。
-前二者は第二成分の符号を戻した交換写像も提供する。
-後者は両側へ自明束を加えた後の枠と両立する同型から、元の被約群の元の一致を導く。
+`Negation`・`BundleSwitch.Result.exchange`・`FramedClass.To.Stable` と三つの並べ替えは `reordering-*` ですべて accepted・終了0・キャッシュ保存失敗0。
+`FramedClass.To.Stable` は両側へ自明束を加えた後の枠と両立する同型から、元の被約群の元の一致を導く。
 `FramedSum` と `Stabilized` は安定化した束のモデル・枠・次元も公開する。
-`Negation` の検査で不足した `bundle_operations` の直接依存 `algebra` を追加した。
-新しい `Commutative.DirectSum.Symmetry`・`CoordinateSum.Symmetry`・`DirectSumMiddleSwap` は直和と座標ブロックの交換・並べ替えを構成する。
-これらも未検証。
-固定 snapshot は `work/k03-resume/reordering-fixed.source.json`。
-次は共通の三つの並べ替え、`Negation`、`BundleSwitch`、`FramedClass.To.Stable` を順に検査する。
+`Commutative.DirectSum.Symmetry`・`CoordinateSum.Symmetry`・`DirectSumMiddleSwap` は直和と座標ブロックの交換・並べ替えを構成する。
+最新の未検証変更は `TripleFraming` と `TripleClass.canonicalEquality`。
+前者は負側と補助束の直和の自明化を引数として被約群の元を作り、後者は標準補束を使った場合の既存構成との一致を示す。
+補助束・自明化の選択独立性は続けて証明する。
+固定 snapshot は `work/k03-resume/triple-framing.source.json`。
+次は `relative_k_theory.Relative.Pair.TripleFraming` と `relative_k_theory.Relative.Pair.TripleClass` を順に検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。
