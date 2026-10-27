@@ -131,3 +131,5 @@ Mayer–Vietoris の交叉部分の完全性も証明コードを追加し、構
 `ConstantMap.Negative` は基点への定数写像が各負次数で零になることを示す。
 いずれも `smash-external.source.json` で構文解析を通過したが、型検査は未完了。
 外積の自然性、元の二つの対の積の商との比較、suspension との比較を続ける。
+
+再開記録（K03、2026-10-27）: 外積の零次数構成を commit `e950e890` に保存した。`PairIteration.Sequence` の再検査は終了コード1、キャッシュ保存失敗0、書込失敗0で、最後の制限写像の戻り型を拒否した。第五項を完全修飾した負次数群へ直接指定する修正を加えた。次は `work/k03-resume/iteration-canonical-fifth.source.json` の同 module を検査し、最新全体の検証とは区別する。外積・貼合せの追加分は構文解析のみで型検査は未完了。
