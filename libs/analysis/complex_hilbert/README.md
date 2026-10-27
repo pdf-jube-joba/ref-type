@@ -15,8 +15,8 @@ A19 の作業中パッケージである。
 | 有限階数の因子分解、零作用素、和、前後の合成 | 実装・検査済み |
 | コンパクト作用素の定義、零値作用素、像の全有界性 | 実装・個別検査済み |
 | コンパクト作用素と有限階数近似の比較 | 未実装 |
-| コンパクト作用素の有界作用素との後合成 | 実装・個別検査済み |
-| 和・前合成・ノルム極限・随伴による閉性 | 未実装・検査未実行 |
+| コンパクト作用素の和、有界作用素との後合成 | 実装・個別検査済み |
+| 前合成・ノルム極限・随伴による閉性 | 未実装・検査未実行 |
 | 恒等作用素のコンパクト性から有限次元性 | 未実装・検査未実行 |
 
 ## 公開 API
@@ -30,7 +30,7 @@ A19 の作業中パッケージである。
 | `Space.Hilbert.Estimates` | 平方完成、実部内積の Cauchy–Schwarz 評価 |
 | `Space.Operators[W, target, norm, targetNorm]` | 有界複素線形作用素、実有界作用素への変換 |
 | `Space.Operators.Continuous` | 有界作用素の連続性 |
-| `Space.Operators.Compact` / `Compact.After` | 単位球の像の閉包によるコンパクト性、零値作用素、像の全有界性、有界作用素との後合成 |
+| `Space.Operators.Compact` / `Compact.After` / `Compact.Addition` | 単位球の像の閉包によるコンパクト性、零値作用素、像の全有界性、和、有界作用素との後合成 |
 | `Space.Operators.Adjoints[inner, targetInner]` | 随伴の構成・複素線形性・有界性・一意性 |
 | `Space.Hilbert.Subspaces` | 閉部分空間、位相的閉性からの接続 |
 | `Space.Hilbert.Subspaces.In[S].Projection[complete]` | 閉部分空間上の Riesz 表現からの直交射影 |
