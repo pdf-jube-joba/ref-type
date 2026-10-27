@@ -17,3 +17,42 @@
   \fun (f: N.Nat^ -> A -> Real.Real) (g: A -> Real.Real) (bound: \forall (n: N.Nat^) (x: A) -> R.Le (f n x) (g x)) =>
     supLeast (\fun (n: N.Nat^) => lowerIntegral (f n)) (lowerIntegral g)
       (\fun (n: N.Nat^) => lowerIntegralMono (f n) g (bound n));
+
+\import \root.Measure[A := A].Sigma[] \as Sigma;
+\import dedekind_reals.DedekindReal[].Order[] \as RealOrder;
+\definition PointValues[f: N.Nat^ -> A -> Real.Real] [x: A]: \Pow Real.Real :=
+  { y: Real.Real \where \exists ( n: N.Nat^ \where y = f n x ) };
+\definition PointwiseSup[f: N.Nat^ -> A -> Real.Real] [g: A -> Real.Real]: \Prop :=
+  \forall (x: A) -> Complete.LeastUpperBound[PointValues f x, g x];
+\definition pointValueMember: \forall (f: N.Nat^ -> A -> Real.Real) (x: A) (n: N.Nat^) ->
+  Complete.Member (PointValues f x) (f n x) :=
+  \fun (f: _) (x: _) (n: _) => Logic.existsIntro[N.Nat^, { k: N.Nat^ \where f n x = f k x }] n (\refl(f n x));
+\definition pointwiseUpper: \forall (f: N.Nat^ -> A -> Real.Real) (g: A -> Real.Real) -> PointwiseSup f g ->
+  \forall (n: N.Nat^) (x: A) -> R.Le (f n x) (g x) :=
+  \fun (f: N.Nat^ -> A -> Real.Real) (g: A -> Real.Real) (sup: PointwiseSup f g) (n: N.Nat^) (x: A) =>
+    (sup x).upper (f n x) (pointValueMember f x n);
+\definition abovePointwiseSup: \forall (f: N.Nat^ -> A -> Real.Real) (g: A -> Real.Real) -> PointwiseSup f g ->
+  \forall (x: A) (r: Real.Real) -> R.Lt r (g x) -> \exists ( n: N.Nat^ \where R.Lt r (f n x) ) :=
+  \fun (f: N.Nat^ -> A -> Real.Real) (g: A -> Real.Real) (sup: PointwiseSup f g) (x: A) (r: Real.Real) (less: R.Lt r (g x)) =>
+    RealOrder.byContradiction (\exists ( n: N.Nat^ \where R.Lt r (f n x) )) (\fun (none: Logic.Not (\exists ( n: N.Nat^ \where R.Lt r (f n x) ))) =>
+      R.ltNotLeReverse r (g x) less ((sup x).least r (\fun (y: Real.Real) (member: Complete.Member (PointValues f x) y) => \block {
+        \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where y = f n x }) \by member \then
+        \let equal: y = f n x := \bysub(N.Nat^, { n: N.Nat^ \where y = f n x }, n) \then
+        \let bound: R.Le (f n x) r := RealOrder.leOfNotLtReverse (f n x) r
+          (\fun (greater: R.Lt r (f n x)) => none (Logic.existsIntro[N.Nat^, { n: N.Nat^ \where R.Lt r (f n x) }] n greater)) \then
+        \return R.leReplaceLeft (f n x) y r (\idelim y = f n x \with z: Real.Real => z = y \by { base: \refl(y), equality: equal }) bound
+      })));
+\definition pointwiseSupMeasurable: \forall (f: N.Nat^ -> A -> Real.Real) (g: A -> Real.Real) -> PointwiseSup f g ->
+  (\forall (n: N.Nat^) -> IsMeasurable mu (f n)) -> IsMeasurable mu g :=
+  \fun (f: N.Nat^ -> A -> Real.Real) (g: A -> Real.Real) (sup: PointwiseSup f g)
+    (measurable: \forall (n: N.Nat^) -> IsMeasurable mu (f n)) (r: Real.Real) => \block {
+      \let sets: N.Nat^ -> \Pow A := \fun (n: N.Nat^) => { x: A \where R.Lt r (f n x) } \then
+      \let equal: union sets = { x: A \where R.Lt r (g x) } := \axiom:setext(union sets, { x: A \where R.Lt r (g x) },
+        \fun (x: A) (member: Sets.Member (union sets) x) => \block {
+          \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where R.Lt r (f n x) }) \by member \then
+          \return R.ltLeTrans r (f n x) (g x) (\bysub(N.Nat^, { n: N.Nat^ \where R.Lt r (f n x) }, n)) (pointwiseUpper f g sup n x)
+        },
+        \fun (x: A) (less: R.Lt r (g x)) => abovePointwiseSup f g sup x r less) \then
+      \return \idelim union sets = { x: A \where R.Lt r (g x) } \with S: \Pow A => Measurable mu.sigma S
+        \by { base: (Sigma.laws mu.sigma).countableUnion sets (\fun (n: N.Nat^) => measurable n r), equality: equal }
+    };
