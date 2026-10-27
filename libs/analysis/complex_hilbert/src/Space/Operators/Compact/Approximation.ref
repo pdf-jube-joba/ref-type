@@ -1,0 +1,55 @@
+\import Target.Hilbert[norm := targetNorm, inner := targetInner] \as Hilbert;
+\import Hilbert.FiniteProjection[] \as Projection;
+\import \parent.After[U := W, codomain := target, codomainNorm := targetNorm] \as Composition;
+\import \parent.Limit[] \as Limits;
+\import \root.FiniteRank[V := W, W := W, source := target, target := target] \as EndFinite;
+\import EndFinite.Before[U := V, domain := space] \as Before;
+\import \root.FiniteRank[V := V, W := W, source := space, target := target] \as Finite;
+\import Target.Operators[W := W, target := target, norm := targetNorm, targetNorm := targetNorm] \as End;
+\import functional_analysis.Normed[V := W, space := Target.realSpace].Operators[W := W, target := Target.realSpace, norm := targetNorm.realNorm, targetNorm := targetNorm.realNorm] \as RealEnd;
+\import std.Set[].FiniteSubset[A := W] \as Points;
+\import real.Analysis[].Estimates[] \as Estimates;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.congr;
+\structure Approximation[f: Map, epsilon: R.Real, g: Map]: \Prop := {
+  finite: Finite.FiniteRank g,
+  near: Limits.Near[f, g, epsilon],
+};
+\definition existsApproximation: \forall (complete: Hilbert.Complete)(f: Map) -> Compact f ->
+  \forall (epsilon: R.Real) -> Order.Lt R.zero epsilon -> \exists ( g: Map \where Approximation[f, epsilon, g] ) := \block {
+  \fun (complete: Hilbert.Complete)(f: Map)(compact: Compact f)(epsilon: R.Real)(positive: Order.Lt R.zero epsilon) \then
+  \let half: R.Real := R.mul R.half epsilon \then
+  \let hp: Order.Lt R.zero half := Estimates.halfOfPositive epsilon positive \then
+  \takefrom finite: \Cast[Points.FiniteSubset] ({ finite: Points.FiniteSubset \where Total.Net[Image f, half, finite] }) \by totallyBounded f compact half hp \then
+  \let net: Total.Net[Image f, half, finite] := \bysub(Points.FiniteSubset, { finite: Points.FiniteSubset \where Total.Net[Image f, half, finite] }, finite) \then
+  \takefrom P: \Cast[Projection.Projection] ({ P: Projection.Projection \where Projection.Covers[P, finite] }) \by Projection.coversFinite finite \then
+  \let covers: Projection.Covers[P, finite] := \bysub(Projection.Projection, { P: Projection.Projection \where Projection.Covers[P, finite] }, P) \then
+  \let g: Map := Composition.compose f (Projection.operator complete P) \then
+  \let pb: End.Bound[P.map, R.one] := End.Bound[P.map, R.one] {
+    nonnegative := Laws.oneNonnegative,
+    estimate := \fun (y: W) => Order.leReplaceRight _ (targetNorm.realNorm.norm y) (R.mul R.one (targetNorm.realNorm.norm y))
+      (sym!{R.Real} _ _ (Laws.fieldMulOneLeft (targetNorm.realNorm.norm y))) (Projection.contractive complete P y),
+  } \then
+  \return Logic.existsIntro[Map, { g: Map \where Approximation[f, epsilon, g] }] g (Approximation[f, epsilon, g] {
+    finite := Before.finite P.map f P.finite,
+    near := \block {
+      \fun (x: V)(inside: \In[V] UnitBall x) \then
+      \takefrom z: \Cast[W] ({ z: W \where Logic.And[Points.Member finite z, Order.Lt ((TargetNormed.metric targetNorm.realNorm).distance z (f.apply x)) half] })
+        \by net.covers (f.apply x) (Sets.imageMember (f.apply) UnitBall x inside) \then
+      \let chosen: Logic.And[Points.Member finite z, Order.Lt ((TargetNormed.metric targetNorm.realNorm).distance z (f.apply x)) half] :=
+        \bysub(W, { z: W \where Logic.And[Points.Member finite z, Order.Lt ((TargetNormed.metric targetNorm.realNorm).distance z (f.apply x)) half] }, z) \then
+      \let endMap: RealEnd.Map := End.asReal (Projection.operator complete P) \then
+      \let distance: Order.Le ((TargetNormed.metric targetNorm.realNorm).distance z (P.map.apply (f.apply x))) ((TargetNormed.metric targetNorm.realNorm).distance z (f.apply x)) :=
+        Order.leReplaceRight _ (R.mul R.one ((TargetNormed.metric targetNorm.realNorm).distance z (f.apply x))) _
+          (Laws.fieldMulOneLeft ((TargetNormed.metric targetNorm.realNorm).distance z (f.apply x)))
+          (Order.leReplaceLeft _ _ _ (congr!{W R.Real} (\fun (w: W) => (TargetNormed.metric targetNorm.realNorm).distance w (P.map.apply (f.apply x))) _ _ (covers z chosen.left))
+            (RealEnd.distanceBound endMap R.one (RealEnd.Bound[endMap, R.one] { nonnegative := pb.nonnegative, estimate := pb.estimate }) z (f.apply x))) \then
+      \return Order.leLtTrans _ _ epsilon ((TargetNormed.metric targetNorm.realNorm).triangle (f.apply x) z (g.apply x))
+        (Order.ltReplaceRight _ (R.add half half) epsilon (Estimates.halfTwice epsilon)
+          (Estimates.addLt _ _ half half (Order.ltReplaceLeft _ _ _ ((TargetNormed.metric targetNorm.realNorm).symmetric z (f.apply x)) chosen.right)
+            (Order.leLtTrans _ _ half distance chosen.right)))
+    },
+  })
+};
