@@ -8,3 +8,5 @@
 
 `Complex` は実部と虚部、`Vector[n]` は有限個の座標をそれぞれ実可積分関数として積分し、a.e. 一致に対する不変性を提供する。
 `Examples.zeroIntegral` と `Examples.zeroClassIntegral` は零関数の積分と商上の計算を示す。
+
+`integralNeg` は積分と符号反転の交換、`integralMono` は順序保存、`integralAbsBound` は \(\lvert\int f\rvert\leq\int\lvert f\rvert\) を示す。
