@@ -141,3 +141,5 @@ Mayer–Vietoris の交叉部分の完全性も証明コードを追加し、構
 再開記録（K03、外積の自然性）: 円柱上の式から `Smash.Mapping.SuspensionNaturality` と対称性・右 suspension の自然性を追加し、左右の反復比較を帰納した。反復次数の組替えは `IterationAddition` の帰納的同相へ変更し、`Smash.Mapping.GradedNaturality` で負次数外積を通常の引き戻しと比較するコードを追加した。これらは型検査未完了。`canonical-fifth-Sequence` は第五項と全写像の式を通過し、検査後の直列化・保存処理中なので、終了コード・JSON を回収してから成功を確定する。
 
 検証結果（K03）: `canonical-fifth-Sequence` は `accepted`・終了0・保存失敗0・書込失敗0を確認した。固定 snapshot `iteration-canonical-fifth.source.json` に対する `PairIteration.Sequence` 全体の検査で、316 modules / 4,317 steps を検査した。最新の自然性・外積・貼合せ全体の成功とは区別する。次の検査は `graded-natural.source.json` を固定し、`IterationAddition`、`Square`、`Absolute`、`Pair.Augmented`、`PairMapping`、`Smash`、`Pair.ClosedCover` の順に進める。共有キャッシュは `libs/refcache`、メモリ14336 MiB・キャッシュ上限16384 MiB、各 `graded-stage-*.{log,json,exit}` を回収し、拒否ならその範囲を修正する。
+
+再開記録（K03、対象検査の修正）: `graded-stage-IterationAddition` は終了1・rejected・保存失敗0・書込失敗0。親への直接の値参照が module のパスとして解釈されるため、`IterationAddition.Mapping.At` と smash 比較の同形参照を完全修飾へ直した。次は `graded-qualified.source.json` の同じ検査順を `qualified-stage-*` へ記録する。閉対の積の `Pullback` と零次数・負次数外積の自然性も追加したが、こちらは `pair-external-natural.source.json` の構文解析のみで、修正後の最終全体検証は未完了。
