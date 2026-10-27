@@ -115,3 +115,22 @@
   "=" _ "by" { Values.addShuffle (simpleIntegral m insideS) (simpleIntegral n insideT) (simpleIntegral m left) (simpleIntegral n right) }
   "=" _ "by" { congr!{Value Value Value} add _ _ _ _ (sym!{Value} _ _ (Partition.integralSplit tSet m s)) (sym!{Value} _ _ (Partition.integralSplit sSet n t)) }
 };
+\use std.Logic[].Equality[].trans;
+\definition overlapCell: \forall (i: Fin.Fin m) (j: Fin.Fin n) (x: A) ->
+  Sets.Member (s.cells i) x -> Sets.Member (t.cells j) x ->
+  \exists ( k: Fin.Fin count \where Logic.And[Sets.Member (simple.cells k) x, simple.coefficients k = Real.add (s.coefficients i) (t.coefficients j)] ) :=
+  \fun (i: Fin.Fin m) (j: Fin.Fin n) (x: A) (si: Sets.Member (s.cells i) x) (tj: Sets.Member (t.cells j) x) => \block {
+    \takefrom k: \Cast[Fin.Fin (Assembly.count n)] ({ k: Fin.Fin (Assembly.count n) \where Logic.And[Sets.Member (Overlap.matrix.simple.cells k) x,
+      Overlap.matrix.simple.coefficients k = (Overlap.row j).coefficients i] }) \by Overlap.matrix.origin j i x (Logic.And[_, _]::# si tj) \then
+    \let data: Logic.And[Sets.Member (Overlap.matrix.simple.cells k) x, Overlap.matrix.simple.coefficients k = (Overlap.row j).coefficients i] :=
+      \bysub(Fin.Fin (Assembly.count n), { k: Fin.Fin (Assembly.count n) \where Logic.And[Sets.Member (Overlap.matrix.simple.cells k) x,
+        Overlap.matrix.simple.coefficients k = (Overlap.row j).coefficients i] }, k) \then
+    \let a: Fin.Fin FirstIndices.total := FirstIndices.left k \then
+    \let b: Fin.Fin count := AllIndices.left a \then
+    \let firstMember: Sets.Member (First.simple.cells a) x := First.containsLeft k x data.left \then
+    \let firstCoefficient: First.simple.coefficients a = Real.add (s.coefficients i) (t.coefficients j) :=
+      trans!{Real.Real} _ _ _ (First.coefficientLeft k) data.right \then
+    \return Logic.existsIntro[Fin.Fin count, { b: Fin.Fin count \where Logic.And[Sets.Member (simple.cells b) x,
+      simple.coefficients b = Real.add (s.coefficients i) (t.coefficients j)] }] b
+      (Logic.And[_, _]::# (All.containsLeft a x firstMember) (trans!{Real.Real} _ _ _ (All.coefficientLeft a) firstCoefficient))
+  };
