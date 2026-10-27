@@ -1,0 +1,44 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\import std.Data[].Nat[].Basic[].Def[] \as Nat;
+\import \parent.CommonComplex[] \as Common;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import FirstPair.Degree[] \as FirstDegree;
+\import FirstDegree.Boundaries[] \as FirstBoundaries;
+\import FirstDegree.BoundaryZero[] \as FirstZero;
+\import SecondPair.Degree[] \as SecondDegree;
+\import SecondDegree.Boundaries[] \as SecondBoundaries;
+\import SecondDegree.BoundaryZero[] \as SecondZero;
+\definition Member[n: N.Nat^][x: Common.family.Carrier n]: \Prop :=
+  \In[Common.family.Carrier n] (Complexes.At[C := Common.complex, k := n].Boundaries n) x;
+\definition zero[n: N.Nat^]: Member n (Common.family.space n).zero := Complexes.At[C := Common.complex, k := n].boundaryZero n;
+\definition preserves: \forall (m, n: N.Nat^)(same: m = n)(x: Common.family.Carrier m) -> Member m x -> Member n (Transport.cast Common.family.Carrier m n same x) :=
+  \fun (m, n: N.Nat^)(same: m = n)(x: Common.family.Carrier m) => Transport.predicate Common.family.Carrier (\fun (k: N.Nat^)(y: Common.family.Carrier k) => Member k y) m n same x;
+\definition reflects: \forall (m, n: N.Nat^)(same: m = n)(x: Common.family.Carrier m) -> Member n (Transport.cast Common.family.Carrier m n same x) -> Member m x :=
+  \fun (m, n: N.Nat^)(same: m = n)(x: Common.family.Carrier m)(member: _) =>
+    \idelim Transport.cast Common.family.Carrier n m (sym!{N.Nat^} m n same) (Transport.cast Common.family.Carrier m n same x) = x \with y: Common.family.Carrier m => Member m y \by {
+      base: preserves n m (sym!{N.Nat^} m n same) _ member,
+      equality: Transport.castInverse Common.family.Carrier m n same x
+    };
+\definition LeftProperty[p, q: N.Nat^]: \Prop := \forall (alpha: FirstDegree.Carrier p)(beta: SecondDegree.Carrier q) ->
+  SecondDegree.differential q beta = (SecondDegree.space (N.Nat^::succ q)).zero -> FirstBoundaries.Member p alpha ->
+  Member (Nat.add p q) (\parent.Cup[p := p, q := q].Both[].product alpha beta);
+\module LeftZero(q: N.Nat^) {
+  \import \parent.\parent.Cup[p := N.Nat^::zero, q := q].Both[] \as Product;
+  \import FirstPair.Comparison[n := N.Nat^::zero] \as FirstComparison;
+  \import SecondPair.Comparison[n := q] \as SecondComparison;
+  \import Cochains.Cup[p := N.Nat^::zero, q := q].Bilinear[] \as Laws;
+  \definition law: LeftProperty N.Nat^::zero q :=
+    \fun (alpha: FirstDegree.Carrier N.Nat^::zero)(beta: SecondDegree.Carrier q)(closed: _)(member: _) =>
+      \idelim (Common.family.space (Nat.add N.Nat^::zero q)).zero = Product.product alpha beta \with x: Common.family.Carrier (Nat.add N.Nat^::zero q) => Member (Nat.add N.Nat^::zero q) x \by {
+        base: zero (Nat.add N.Nat^::zero q),
+        equality: sym!{{Common.family.Carrier (Nat.add N.Nat^::zero q)}} _ _ (trans!{{Cochains.Carrier (Nat.add N.Nat^::zero q)}} _ _ _
+          (congr!{{FirstDegree.Carrier N.Nat^::zero} {Cochains.Carrier (Nat.add N.Nat^::zero q)}} (\fun (x: FirstDegree.Carrier N.Nat^::zero) => Product.product x beta) _ _ (FirstZero.law alpha member))
+          (trans!{{Cochains.Carrier (Nat.add N.Nat^::zero q)}} _ _ _
+            (congr!{{Cochains.Carrier N.Nat^::zero} {Cochains.Carrier (Nat.add N.Nat^::zero q)}} (\fun (x: Cochains.Carrier N.Nat^::zero) => \parent.\parent.Cup[p := N.Nat^::zero, q := q].Both[].product (FirstPair.Comparison[n := N.Nat^::zero].to (FirstComparison.from (FirstDegree.space N.Nat^::zero).zero)) beta) _ _ FirstComparison.zero)
+            (Laws.leftZero (SecondComparison.from beta))))
+      };
+}
