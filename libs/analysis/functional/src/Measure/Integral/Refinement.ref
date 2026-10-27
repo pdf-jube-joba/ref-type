@@ -49,3 +49,67 @@
         (\fun (x: A) => R.leReplaceRight (g x) (Real.add (g x) (f x)) (Real.add (f x) (g x))
           (dedekind_reals.DedekindReal[].Arithmetic[].Prop[].addComm (g x) (f x))
           (Real.Distance[].leAddOfNonnegative (g x) (f x) (fn x))));
+\import \root.Measure[A := A].ValueLaws[] \as Values;
+\import Values.Matrix[] \as Matrix;
+\import \root.Measure[A := A].Finite[mu := mu] \as MeasureFinite;
+\import \root.Measure[A := A].Integral[mu := mu].SimpleLaws[] \as SimpleLaws;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\definition insideS: Simple[m] := Partition.inside tSet m s;
+\definition insideT: Simple[n] := Partition.inside sSet n t;
+\definition inter: \forall (j: Fin.Fin n) (i: Fin.Fin m) -> Value :=
+  \fun (j: Fin.Fin n) (i: Fin.Fin m) => mu.value (Sets.Intersection (s.cells i) (t.cells j));
+\definition interNonnegative: \forall (j: Fin.Fin n) (i: Fin.Fin m) -> NonnegativeValue[inter j i] :=
+  \fun (j: Fin.Fin n) (i: Fin.Fin m) => MeasureFinite.laws.nonnegative _ ((Overlap.row j).measurable i);
+\definition a: \forall (j: Fin.Fin n) (i: Fin.Fin m) -> Value := \fun (j: Fin.Fin n) (i: Fin.Fin m) => scale (s.coefficients i) (inter j i);
+\definition b: \forall (j: Fin.Fin n) (i: Fin.Fin m) -> Value := \fun (j: Fin.Fin n) (i: Fin.Fin m) => scale (t.coefficients j) (inter j i);
+\definition aNonnegative: \forall (j: Fin.Fin n) (i: Fin.Fin m) -> NonnegativeValue[a j i] :=
+  \fun (j: Fin.Fin n) (i: Fin.Fin m) => Values.scaleNonnegative (s.coefficients i) (inter j i) (s.nonnegative i) (interNonnegative j i);
+\definition bNonnegative: \forall (j: Fin.Fin n) (i: Fin.Fin m) -> NonnegativeValue[b j i] :=
+  \fun (j: Fin.Fin n) (i: Fin.Fin m) => Values.scaleNonnegative (t.coefficients j) (inter j i) (t.nonnegative j) (interNonnegative j i);
+\definition sumA: sum n (\fun (j: Fin.Fin n) => sum m (a j)) = simpleIntegral m insideS := eq_reason_in!{Value _
+  "=" _ "by" { Matrix.transpose n m a aNonnegative }
+  "=" _ "by" { congr!{{Fin.Fin m -> Value} Value} (sum m) _ _
+    (\axiom:funext((\fun (i: Fin.Fin m) => sum n (\fun (j: Fin.Fin n) => a j i)),
+      (\fun (i: Fin.Fin m) => scale (s.coefficients i) (mu.value (Sets.Intersection (s.cells i) tUnion))),
+      \fun (i: Fin.Fin m) => eq_reason_in!{Value _
+        "=" _ "by" { sym!{Value} _ _ (Values.scaleSum n (s.coefficients i) (\fun (j: Fin.Fin n) => inter j i) (s.nonnegative i) (\fun (j: Fin.Fin n) => interNonnegative j i)) }
+        "=" _ "by" { congr!{Value Value} (scale (s.coefficients i)) _ _ (sym!{Value} _ _
+          (FiniteUnion.intersectionMeasure n (s.cells i) t.cells (s.measurable i) t.measurable t.disjoint)) }
+      })) }
+};
+\definition swap: \forall (S, T: \Pow A) -> Sets.Intersection S T = Sets.Intersection T S :=
+  \fun (S, T: \Pow A) => \axiom:setext(Sets.Intersection S T, Sets.Intersection T S,
+    \fun (x: A) (both: Sets.Member (Sets.Intersection S T) x) => Logic.And[_, _]::# both.right both.left,
+    \fun (x: A) (both: Sets.Member (Sets.Intersection T S) x) => Logic.And[_, _]::# both.right both.left);
+\definition sumB: sum n (\fun (j: Fin.Fin n) => sum m (b j)) = simpleIntegral n insideT :=
+  congr!{{Fin.Fin n -> Value} Value} (sum n) _ _
+    (\axiom:funext((\fun (j: Fin.Fin n) => sum m (b j)),
+      (\fun (j: Fin.Fin n) => scale (t.coefficients j) (mu.value (Sets.Intersection (t.cells j) sUnion))),
+      \fun (j: Fin.Fin n) => eq_reason_in!{Value _
+        "=" _ "by" { sym!{Value} _ _ (Values.scaleSum m (t.coefficients j) (inter j) (t.nonnegative j) (interNonnegative j)) }
+        "=" _ "by" { congr!{Value Value} (scale (t.coefficients j)) _ _
+          (congr!{{Fin.Fin m -> Value} Value} (sum m) _ _
+            (\axiom:funext((inter j), (\fun (i: Fin.Fin m) => mu.value (Sets.Intersection (t.cells j) (s.cells i))),
+              \fun (i: Fin.Fin m) => congr!{{\Pow A} Value} mu.value _ _ (swap (s.cells i) (t.cells j))))) }
+        "=" _ "by" { congr!{Value Value} (scale (t.coefficients j)) _ _ (sym!{Value} _ _
+          (FiniteUnion.intersectionMeasure m (t.cells j) s.cells (t.measurable j) s.measurable s.disjoint)) }
+      }));
+\definition overlapIntegral: simpleIntegral (Assembly.count n) Overlap.matrix.simple = add (simpleIntegral m insideS) (simpleIntegral n insideT) := eq_reason_in!{Value _
+  "=" _ "by" { Overlap.matrix.integral }
+  "=" _ "by" { congr!{{Fin.Fin n -> Value} Value} (sum n) _ _
+    (\axiom:funext((\fun (j: Fin.Fin n) => simpleIntegral m (Overlap.row j)),
+      (\fun (j: Fin.Fin n) => add (sum m (a j)) (sum m (b j))), Overlap.rowIntegral)) }
+  "=" _ "by" { Values.sumAdd n (\fun (j: Fin.Fin n) => sum m (a j)) (\fun (j: Fin.Fin n) => sum m (b j))
+    (\fun (j: Fin.Fin n) => Values.sumNonnegative m (a j) (aNonnegative j))
+    (\fun (j: Fin.Fin n) => Values.sumNonnegative m (b j) (bNonnegative j)) }
+  "=" _ "by" { congr!{Value Value Value} add _ _ _ _ sumA sumB }
+};
+\definition integral: simpleIntegral AllIndices.total simple = add (simpleIntegral m s) (simpleIntegral n t) := eq_reason_in!{Value _
+  "=" _ "by" { All.integral }
+  "=" _ "by" { congr!{Value Value} (\fun (v: Value) => add v (simpleIntegral n right)) _ _ First.integral }
+  "=" _ "by" { congr!{Value Value} (\fun (v: Value) => add (add v (simpleIntegral m left)) (simpleIntegral n right)) _ _ overlapIntegral }
+  "=" _ "by" { Values.addShuffle (simpleIntegral m insideS) (simpleIntegral n insideT) (simpleIntegral m left) (simpleIntegral n right) }
+  "=" _ "by" { congr!{Value Value Value} add _ _ _ _ (sym!{Value} _ _ (Partition.integralSplit tSet m s)) (sym!{Value} _ _ (Partition.integralSplit sSet n t)) }
+};
