@@ -86,3 +86,21 @@
         \by { base: \idelim nu = nv \with n: Real.Real => u = Real.sub pu n
           \by { base: up.difference, equality: negatives }, equality: positives })
   };
+
+\definition emptySimple: Simple[N.Nat^::zero] := Simple[N.Nat^::zero] {
+  cells := \fun (_: Fin.Fin N.Nat^::zero) => Sets.Empty,
+  coefficients := \fun (_: Fin.Fin N.Nat^::zero) => Real.zero,
+  measurable := \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)),
+  nonnegative := \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)),
+  disjoint := \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)),
+};
+
+\definition emptyDominated: \forall (f: A -> Real.Real) -> Dominated N.Nat^::zero emptySimple f :=
+  \fun (f: _) (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i));
+
+\definition lowerIntegralNegative: \forall (f: A -> Real.Real) (r: Real.Real) ->
+  R.Lt r Real.zero -> below (lowerIntegral f) r :=
+  \fun (f: _) (r: _) (negative: _) =>
+    Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] ) }] N.Nat^::zero
+      (Logic.existsIntro[Simple[N.Nat^::zero], { s: Simple[N.Nat^::zero] \where Logic.And[Dominated N.Nat^::zero s f, below (simpleIntegral N.Nat^::zero s) r] }]
+        emptySimple (Logic.And[_, _]::# (emptyDominated f) negative));
