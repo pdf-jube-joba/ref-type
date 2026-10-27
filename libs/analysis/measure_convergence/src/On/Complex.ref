@@ -15,3 +15,20 @@
   \fun (f: Representatives) => Integral.integralLaw (realPart f);
 \definition imaginaryLaw: \forall (f: Representatives) -> Integral.HasIntegral[\fun (x: A) => C.im (f x), C.im (integral f)] :=
   \fun (f: Representatives) => Integral.integralLaw (imaginaryPart f);
+\import Measures.AlmostEverywhere[mu := mu] \as AE;
+\use std.Logic[].Equality[].congr;
+\definition almostEqual[f, g: Representatives]: \Prop := Measures.Null mu ({ x: A \where Logic.Not (f x = g x) });
+\definition integralAlmost: \forall (f, g: Representatives) -> almostEqual f g -> integral f = integral g :=
+  \fun (f, g: Representatives) (equal: almostEqual f g) => \block {
+    \let realEqual: Measures.AlmostEqual mu (realPart f) (realPart g) := AE.nullSubset
+      ({ x: A \where Logic.Not (C.re (f x) = C.re (g x)) }) ({ x: A \where Logic.Not (f x = g x) })
+      (\fun (x: A) (different: Logic.Not (C.re (f x) = C.re (g x))) (same: f x = g x) =>
+        different (congr!{C.Complex Real.Real} C.re _ _ same)) equal \then
+    \let imaginaryEqual: Measures.AlmostEqual mu (imaginaryPart f) (imaginaryPart g) := AE.nullSubset
+      ({ x: A \where Logic.Not (C.im (f x) = C.im (g x)) }) ({ x: A \where Logic.Not (f x = g x) })
+      (\fun (x: A) (different: Logic.Not (C.im (f x) = C.im (g x))) (same: f x = g x) =>
+        different (congr!{C.Complex Real.Real} C.im _ _ same)) equal \then
+    \return congr!{Real.Real Real.Real C.Complex} C.make _ _ _ _
+      (QuotientIntegral.integralAlmost (realPart f) (realPart g) realEqual)
+      (QuotientIntegral.integralAlmost (imaginaryPart f) (imaginaryPart g) imaginaryEqual)
+  };
