@@ -1,0 +1,18 @@
+\import \root.MetricSpace[Carrier := B] \as Other;
+\import Other.Topology[] \as OtherTopology;
+\import Other.Compactness[].RelativelyCompact[metric := other] \as OtherRelative;
+\import topology.Topology[Carrier := B] \as Target;
+\import topology.Maps[A := Carrier, B := B] \as Maps;
+\import topology.Continuity[A := Carrier, B := B] \as Continuous;
+\import topology.Compactness[A := Carrier, B := B] \as Images;
+\definition preserves: \forall (f: Carrier -> B) -> Continuous.Continuous (Topology.topology metric) (OtherTopology.topology other) f ->
+  \forall (S: \Pow Carrier) -> RelativelyCompact S -> OtherRelative.RelativelyCompact (Maps.Image f S) :=
+  \fun (f: Carrier -> B)(continuous: Continuous.Continuous (Topology.topology metric) (OtherTopology.topology other) f)
+    (S: \Pow Carrier)(compact: RelativelyCompact S) =>
+    OtherRelative.containedInCompact (Maps.Image f S) (Maps.Image f (Closure.closure (Topology.topology metric) S))
+      (\fun (y: B)(member: Target.Member (Maps.Image f S) y) => Maps.imageElim f S y
+        (Target.Member (Maps.Image f (Closure.closure (Topology.topology metric) S)) y)
+        (\fun (x: Carrier)(inside: T.Member S x)(same: f x = y) =>
+          \idelim f x = y \with z: B => Target.Member (Maps.Image f (Closure.closure (Topology.topology metric) S)) z
+            \by { base: Maps.imageMember f (Closure.closure (Topology.topology metric) S) x (Closure.contains (Topology.topology metric) S x inside), equality: same }) member)
+      (Images.continuousImage (Topology.topology metric) (OtherTopology.topology other) f continuous (Closure.closure (Topology.topology metric) S) compact);

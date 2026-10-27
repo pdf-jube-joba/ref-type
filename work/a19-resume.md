@@ -29,3 +29,5 @@ workspace の libs/refcache を共有する。
 処理系が必要なら `CARGO_TARGET_DIR=/workspace/ref-type/target cargo build -p cli --locked --offline` でビルドする。
 次は標準的な相対コンパクト性から始め、全有界性・完備性と有限次元部分空間の補題を既存 API から証明する。K03 の既存束基盤は変更しない。
 全有界性の個別検査: `cli libs/topology/metric --module metric_spaces.MetricSpace.Compactness.TotalBounded --cache-stats --diagnostics compact --time-limit-seconds 90` は終了コード 0。
+
+追加進捗: 距離空間の相対コンパクト性、部分集合・連続像による保存、コンパクト作用素の標準定義、像の全有界性、零値作用素のコンパクト性を実装し、各対象および零空間の例を個別検査した。次は有界作用素の連続性を構成し合成に適用する。さらに完備・全有界から閉包コンパクト、有限次元閉球と有限次元部分空間の閉性を証明する。
