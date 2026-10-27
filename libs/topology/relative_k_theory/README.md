@@ -22,11 +22,10 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 
 `Pointed.Cofiber` は、底面と閉部分空間の円柱の和を潰してコンパクト Hausdorff cofiber を作る。
 円錐像の閉埋め込みと収縮、円錐像を潰した商と元の相対商との比較は対象検査済み。
+`BaseQuotient` は底面を潰した商と部分空間の suspension を、連続な明示的逆写像によって比較し、対象検査を完了した。
 
 ## 未検証の追加
 
-`BaseQuotient` は底面を潰した商と部分空間の suspension を比較する。
-明示的な逆写像の連続性を直接示し、点の一意選択は一定の戻り値型を持つ写像の内部へ分けた。
 `Connecting`・`Rotation`・`LeftExact`・`FiveTerm` は、基点が部分空間に含まれる対の接続写像、二段の cofiber の変形、五項の群と写像と完全性を構成する。
 `SuspendedPair` は suspension の閉埋め込みと、対の商と商の suspension との同相を構成する。
 `ClosedPointedPair`・`PointedPair`・`PairIteration` は対を反復し、全体・部分空間・相対商の比較、包含と射影の可換性、各負次数の列と通常の引き戻しとの一致を構成する。
@@ -83,18 +82,20 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 `BundleDisk` は一般の束の射影表示の存在と同型を使ってこの対と負次数の列を公開する。
 `Examples.TrivialDisk` には有限ランク自明束の円板の比較を、`zeroBoundaryEmpty` にはランク0の球面が空である証明を書いた。
 これらは構文解析のみ完了し、型検査は未完了（`bundle-disk.source.json`）。
+修正後の五項の列の検査は `LeftExact.candidateKernel` の合同式の型推論を拒否した（終了1・`rejected`・保存失敗0）。
+中間値と部分群の型を明示した `candidate-kernel.source.json` で、この module 自身を先に検査する。
 次の固定 snapshot で検査を続ける。
 
 ```bash
 REF_TYPE_PROFILE_DECLARATIONS=1 REF_TYPE_PROFILE_PHASES=1 \
   target/debug/cli libs/topology/relative_k_theory \
-  --module relative_k_theory.Relative.Pair.Pointed.FiveTerm \
+  --module relative_k_theory.Relative.Pair.Pointed.LeftExact --module-only \
   --memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 \
-  --diagnostics compact --report-json work/k03-resume/repaired-five-term.json \
-  --source-snapshot work/k03-resume/five-term-repair.source.json \
-  > work/k03-resume/repaired-five-term.log 2>&1
+  --diagnostics compact --report-json work/k03-resume/candidate-kernel.json \
+  --source-snapshot work/k03-resume/candidate-kernel.source.json \
+  > work/k03-resume/candidate-kernel.log 2>&1
 result=$?
-printf '%s\n' "$result" > work/k03-resume/repaired-five-term.exit
+printf '%s\n' "$result" > work/k03-resume/candidate-kernel.exit
 ```
 
 `closed-pair-lift.source.json` は `b334fd01` 時点の数学コードの固定 snapshot。

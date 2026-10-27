@@ -11,13 +11,19 @@
 \import \root.Relative[].Reduced[model := \root.Relative[].Suspension[original := BaseImage.imageModel].result] \as Source;
 \import \root.Relative[].Reduced[model := \root.Relative[].Suspension[original := subsetModel].result] \as Middle;
 \import \root.Relative[].Reduced[model := First.result] \as CofiberReduced;
+\import SecondPair.Quotient[] \as SecondQuotient;
 \definition map[v: Source.Carrier]: Middle.Carrier := BaseCompare.backward (SecondConnecting.map v);
-\definition candidateKernel: \forall (v: Source.Carrier) -> Connecting.map (map v) = Quotient.group.base.unit :=
-  \fun (v: Source.Carrier) => trans!{{Quotient.Relative}} _ _ _
-    (congr!{{CofiberReduced.Carrier} {Quotient.Relative}} ConeCompare.backward _ _
-      (trans!{{CofiberReduced.Carrier}} _ _ _
-        (congr!{{SecondPair.Quotient[].Relative} {CofiberReduced.Carrier}} Restriction.forget _ _ (BaseCompare.leftInverse (SecondConnecting.map v)))
-        (SecondConnecting.kernel v))) ConeCompare.backwardZero;
+\definition candidateKernel: \forall (v: Source.Carrier) -> Connecting.map (map v) = Quotient.group.base.unit := \block {
+  \fun (v: Source.Carrier) \then
+  \let image: SecondQuotient.Relative := SecondConnecting.map v \then
+  \let restored: SecondQuotient.Relative := BaseCompare.forward (BaseCompare.backward image) \then
+  \let agrees: Restriction.forget restored = Restriction.forget image :=
+    congr!{{SecondQuotient.Relative} {CofiberReduced.Carrier}} Restriction.forget restored image (BaseCompare.leftInverse image) \then
+  \let zero: Restriction.forget image = CofiberReduced.group.base.unit := SecondConnecting.kernel v \then
+  \return trans!{{Quotient.Relative}} (Connecting.map (map v)) (ConeCompare.backward CofiberReduced.group.base.unit) Quotient.group.base.unit
+    (congr!{{CofiberReduced.Carrier} {Quotient.Relative}} ConeCompare.backward (Restriction.forget restored) CofiberReduced.group.base.unit
+      (trans!{{CofiberReduced.Carrier}} (Restriction.forget restored) (Restriction.forget image) CofiberReduced.group.base.unit agrees zero)) ConeCompare.backwardZero
+};
 \definition vanishing: \forall (v: Middle.Carrier) -> Connecting.map v = Quotient.group.base.unit -> Restriction.forget (BaseCompare.forward v) = CofiberReduced.group.base.unit :=
   \fun (v: Middle.Carrier)(zero: Connecting.map v = Quotient.group.base.unit) => trans!{{CofiberReduced.Carrier}} _ _ _
     (sym!{{CofiberReduced.Carrier}} _ _ (ConeCompare.rightInverse (Restriction.forget (BaseCompare.forward v))))
