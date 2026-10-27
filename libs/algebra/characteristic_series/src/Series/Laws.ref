@@ -1,0 +1,125 @@
+\import std.Alg[].Ring[] \as Rings;
+\import algebra.Group[].Of[Carrier := R, group := Rings.additiveGroup R (Rings.commutativeRingAsRing R ring)] \as Sum;
+\definition plusComm: \forall (n: N.Nat^)(p, q: Coefficients) -> plus n p q = plus n q p :=
+  \induction (n: N.Nat^) \return \forall (p, q: Coefficients) -> plus n p q = plus n q p \with {
+    | zero: \fun (p, q: Coefficients) => \refl(nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(p, q: Coefficients) => congr!{R Coefficients Coefficients} cons _ _ _ _ (Sum.comm (head p) (head q)) (previous (tail p) (tail q))
+  };
+\definition plusAssoc: \forall (n: N.Nat^)(p, q, r: Coefficients) -> plus n (plus n p q) r = plus n p (plus n q r) :=
+  \induction (n: N.Nat^) \return \forall (p, q, r: Coefficients) -> plus n (plus n p q) r = plus n p (plus n q r) \with {
+    | zero: \fun (p, q, r: Coefficients) => \refl(nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(p, q, r: Coefficients) => congr!{R Coefficients Coefficients} cons _ _ _ _ (Sum.assoc (head p) (head q) (head r)) (previous (tail p) (tail q) (tail r))
+  };
+\definition plusZeroLeft: \forall (n: N.Nat^)(p: Coefficients) -> plus n nil p = cut n p :=
+  \induction (n: N.Nat^) \return \forall (p: Coefficients) -> plus n nil p = cut n p \with {
+    | zero: \fun (p: Coefficients) => \refl(nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(p: Coefficients) => congr!{R Coefficients Coefficients} cons _ _ _ _ (Sum.zeroLeft (head p)) (previous (tail p))
+  };
+\definition scaleZero: \forall (n: N.Nat^)(p: Coefficients) -> scale n zero p = cut n nil :=
+  \induction (n: N.Nat^) \return \forall (p: Coefficients) -> scale n zero p = cut n nil \with {
+    | zero: \fun (p: Coefficients) => \refl(nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(p: Coefficients) => congr!{R Coefficients Coefficients} cons _ _ _ _ (ring.ring.semiring.zeroAbsorbsLeft (head p)) (previous (tail p))
+  };
+\definition scaleOne: \forall (n: N.Nat^)(p: Coefficients) -> scale n one p = cut n p :=
+  \induction (n: N.Nat^) \return \forall (p: Coefficients) -> scale n one p = cut n p \with {
+    | zero: \fun (p: Coefficients) => \refl(nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(p: Coefficients) => congr!{R Coefficients Coefficients} cons _ _ _ _ (ring.ring.semiring.multiplicative.leftIdentity (head p)) (previous (tail p))
+  };
+\definition scalePlus: \forall (n: N.Nat^)(a: R)(p, q: Coefficients) -> scale n a (plus n p q) = plus n (scale n a p) (scale n a q) :=
+  \induction (n: N.Nat^) \return \forall (a: R)(p, q: Coefficients) -> scale n a (plus n p q) = plus n (scale n a p) (scale n a q) \with {
+    | zero: \fun (a: R)(p, q: Coefficients) => \refl(nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(a: R)(p, q: Coefficients) => congr!{R Coefficients Coefficients} cons _ _ _ _ (ring.ring.semiring.leftDistributive a (head p) (head q)) (previous a (tail p) (tail q))
+  };
+\definition scaleAssoc: \forall (n: N.Nat^)(a, b: R)(p: Coefficients) -> scale n a (scale n b p) = scale n (mul a b) p :=
+  \induction (n: N.Nat^) \return \forall (a, b: R)(p: Coefficients) -> scale n a (scale n b p) = scale n (mul a b) p \with {
+    | zero: \fun (a, b: R)(p: Coefficients) => \refl(nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(a, b: R)(p: Coefficients) => congr!{R Coefficients Coefficients} cons _ _ _ _ (sym!{R} _ _ (ring.ring.semiring.multiplicative.associative a b (head p))) (previous a b (tail p))
+  };
+\definition cutInverseUnit: \forall (n, m: N.Nat^)(u: Coefficients) -> cut n (inverseUnit (extend n m) u) = inverseUnit n u :=
+  \induction (n: N.Nat^) \return \forall (m: N.Nat^)(u: Coefficients) -> cut n (inverseUnit (extend n m) u) = inverseUnit n u \with {
+    | zero: \fun (m: N.Nat^)(u: Coefficients) => \refl(nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(m: N.Nat^)(u: Coefficients) => congr!{Coefficients Coefficients} (cons one) _ _ (eq_reason_in!{Coefficients _
+      "=" _ "by" { cutScale n m (neg one) (times (extend n m) u (inverseUnit (extend n m) u)) }
+      "=" _ "by" { sym!{Coefficients} _ _ (trimScale n (neg one) (times (extend n m) u (inverseUnit (extend n m) u))) }
+      "=" _ "by" { congr!{Coefficients Coefficients} (negative n) _ _ (cutTimes n m u (inverseUnit (extend n m) u)) }
+      "=" _ "by" { congr!{Coefficients Coefficients} (negative n) _ _ (sym!{Coefficients} _ _ (trimTimes n u (inverseUnit (extend n m) u))) }
+      "=" _ "by" { congr!{Coefficients Coefficients} (\fun (v: Coefficients) => negative n (times n (cut n u) v)) _ _ (previous m u) }
+      "=" _ "by" { congr!{Coefficients Coefficients} (negative n) _ _ (sameTimes n (cut n u) (inverseUnit n u) u (inverseUnit n u) (cutIdempotent n u) (\refl(cut n (inverseUnit n u)))) }
+    })
+  };
+\definition cutCompose: \forall (n, m: N.Nat^)(p, u: Coefficients) -> cut n (compose (extend n m) p u) = compose n p u :=
+  \induction (n: N.Nat^) \return \forall (m: N.Nat^)(p, u: Coefficients) -> cut n (compose (extend n m) p u) = compose n p u \with {
+    | zero: \fun (m: N.Nat^)(p, u: Coefficients) => \refl(nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(m: N.Nat^)(p, u: Coefficients) => congr!{Coefficients Coefficients} (cons (head p)) _ _ (eq_reason_in!{Coefficients _
+      "=" _ "by" { cutTimes n m u (compose (extend n m) (tail p) u) }
+      "=" _ "by" { sym!{Coefficients} _ _ (trimTimes n u (compose (extend n m) (tail p) u)) }
+      "=" _ "by" { congr!{Coefficients Coefficients} (times n (cut n u)) _ _ (previous m (tail p) u) }
+      "=" _ "by" { sameTimes n (cut n u) (compose n (tail p) u) u (compose n (tail p) u) (cutIdempotent n u) (\refl(cut n (compose n (tail p) u))) }
+    })
+  };
+\definition sameInverseUnit: \forall (n: N.Nat^)(u, v: Coefficients) -> cut n u = cut n v -> inverseUnit n u = inverseUnit n v :=
+  \induction (n: N.Nat^) \return \forall (u, v: Coefficients) -> cut n u = cut n v -> inverseUnit n u = inverseUnit n v \with {
+    | zero: \fun (u, v: Coefficients)(same: _) => \refl(nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(u, v: Coefficients)(same: _) => congr!{Coefficients Coefficients} (cons one) _ _
+      (congr!{Coefficients Coefficients} (negative n) _ _ (trans!{Coefficients} _ _ _
+        (sameTimes n u (inverseUnit n u) v (inverseUnit n u) (shorten n u v same) (\refl(cut n (inverseUnit n u))))
+        (congr!{Coefficients Coefficients} (times n v) _ _ (previous u v (shorten n u v same)))))
+  };
+\definition sameCompose: \forall (n: N.Nat^)(p, q, u, v: Coefficients) -> cut n p = cut n q -> cut n u = cut n v -> compose n p u = compose n q v :=
+  \induction (n: N.Nat^) \return \forall (p, q, u, v: Coefficients) -> cut n p = cut n q -> cut n u = cut n v -> compose n p u = compose n q v \with {
+    | zero: \fun (p, q, u, v: Coefficients)(hp: _)(hu: _) => \refl(nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(p, q, u, v: Coefficients)(hp: _)(hu: _) => congr!{R Coefficients Coefficients} cons _ _ _ _ (sameHead n p q hp)
+      (trans!{Coefficients} _ _ _
+        (sameTimes n u (compose n (tail p) u) v (compose n (tail p) u) (shorten n u v hu) (\refl(cut n (compose n (tail p) u))))
+        (congr!{Coefficients Coefficients} (times n v) _ _ (previous (tail p) (tail q) u v (sameTail n p q hp) (shorten n u v hu))))
+  };
+\definition extendZero: \forall (n: N.Nat^) -> extend n N.Nat^::zero = n :=
+  \induction (n: N.Nat^) \return extend n N.Nat^::zero = n \with {
+    | zero: \refl(N.Nat^::zero)
+    | succ: \fun (n: N.Nat^)(previous: _) => congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _ previous
+  };
+\definition extendOne: \forall (n: N.Nat^) -> extend n (N.Nat^::succ N.Nat^::zero) = N.Nat^::succ n :=
+  \induction (n: N.Nat^) \return extend n (N.Nat^::succ N.Nat^::zero) = N.Nat^::succ n \with {
+    | zero: \refl(N.Nat^::succ N.Nat^::zero)
+    | succ: \fun (n: N.Nat^)(previous: _) => congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _ previous
+  };
+\definition cutScaleSelf: \forall (n: N.Nat^)(a: R)(p: Coefficients) -> cut n (scale n a p) = scale n a p :=
+  \fun (n: N.Nat^)(a: R)(p: Coefficients) =>
+    \idelim extend n N.Nat^::zero = n \with k: N.Nat^ => cut n (scale k a p) = scale n a p
+      \by { base: cutScale n N.Nat^::zero a p, equality: extendZero n };
+\definition cutInverseSelf: \forall (n: N.Nat^)(u: Coefficients) -> cut n (inverseUnit n u) = inverseUnit n u :=
+  \fun (n: N.Nat^)(u: Coefficients) =>
+    \idelim extend n N.Nat^::zero = n \with k: N.Nat^ => cut n (inverseUnit k u) = inverseUnit n u
+      \by { base: cutInverseUnit n N.Nat^::zero u, equality: extendZero n };
+\definition cutInverseNext: \forall (n: N.Nat^)(u: Coefficients) -> cut n (inverseUnit (N.Nat^::succ n) u) = inverseUnit n u :=
+  \fun (n: N.Nat^)(u: Coefficients) =>
+    \idelim extend n (N.Nat^::succ N.Nat^::zero) = N.Nat^::succ n \with k: N.Nat^ => cut n (inverseUnit k u) = inverseUnit n u
+      \by { base: cutInverseUnit n (N.Nat^::succ N.Nat^::zero) u, equality: extendOne n };
+\definition minusOne: \forall (a: R) -> mul (neg one) a = neg a :=
+  \fun (a: R) => Sum.inverseUnique a (mul (neg one) a) (eq_reason_in!{R _
+    "=" _ "by" { congr!{R R} (add (mul (neg one) a)) _ _ (sym!{R} _ _ (ring.ring.semiring.multiplicative.leftIdentity a)) }
+    "=" _ "by" { sym!{R} _ _ (ring.ring.semiring.rightDistributive (neg one) one a) }
+    "=" _ "by" { congr!{R R} (\fun (x: R) => mul x a) _ _ (Sum.inverseLeft one) }
+    "=" _ "by" { ring.ring.semiring.zeroAbsorbsLeft a }
+  });
+\definition plusNegative: \forall (n: N.Nat^)(p: Coefficients) -> plus n (negative n p) p = cut n nil :=
+  \induction (n: N.Nat^) \return \forall (p: Coefficients) -> plus n (negative n p) p = cut n nil \with {
+    | zero: \fun (p: Coefficients) => \refl(nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(p: Coefficients) => congr!{R Coefficients Coefficients} cons _ _ _ _
+      (trans!{R} _ _ _ (congr!{R R} (\fun (x: R) => add x (head p)) _ _ (minusOne (head p))) (Sum.inverseLeft (head p)))
+      (previous (tail p))
+  };
+\definition inverseUnitLaw: \forall (n: N.Nat^)(u: Coefficients) -> times n (cons one u) (inverseUnit n u) = constant n one :=
+  \induction (n: N.Nat^) \return \forall (u: Coefficients) -> times n (cons one u) (inverseUnit n u) = constant n one \with {
+    | zero: \fun (u: Coefficients) => \refl(nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(u: Coefficients) => congr!{R Coefficients Coefficients} cons _ _ _ _
+      (ring.ring.semiring.multiplicative.leftIdentity one)
+      (eq_reason_in!{Coefficients _
+        "=" _ "by" { congr!{Coefficients Coefficients} (\fun (p: Coefficients) => plus n p (times n u (inverseUnit (N.Nat^::succ n) u))) _ _
+          (trans!{Coefficients} _ _ _ (scaleOne n (negative n (times n u (inverseUnit n u)))) (cutScaleSelf n (neg one) (times n u (inverseUnit n u)))) }
+        "=" _ "by" { congr!{Coefficients Coefficients} (plus n (negative n (times n u (inverseUnit n u)))) _ _
+          (sameTimes n u (inverseUnit (N.Nat^::succ n) u) u (inverseUnit n u) (\refl(cut n u))
+            (trans!{Coefficients} _ _ _ (cutInverseNext n u) (sym!{Coefficients} _ _ (cutInverseSelf n u)))) }
+        "=" _ "by" { plusNegative n (times n u (inverseUnit n u)) }
+      })
+  };

@@ -1,0 +1,74 @@
+\import algebra.Polynomial[].Over[R := R, coefficients := ring].Finite[] \as F;
+\import \parent.Laws[] \as Laws;
+\import std.Alg[].Ring[] \as Rings;
+\import algebra.Group[].Of[Carrier := R, group := Rings.additiveGroup R (Rings.commutativeRingAsRing R ring)] \as Sum;
+\definition plusNilRight: \forall (p: Coefficients) -> F.plus p nil = p :=
+  \induction (p: Coefficients) \return F.plus p nil = p \with {
+    | nil: \refl(nil)
+    | cons: \fun (a: R)(p: Coefficients)(unused: _) => \refl(cons a p)
+  };
+\definition plusHead: \forall (p, q: Coefficients) -> head (F.plus p q) = add (head p) (head q) :=
+  \induction (p: Coefficients) \return \forall (q: Coefficients) -> head (F.plus p q) = add (head p) (head q) \with {
+    | nil: \fun (q: Coefficients) => sym!{R} _ _ (Sum.zeroLeft (head q))
+    | cons: \fun (a: R)(p: Coefficients)(unused: _) => \induction (q: Coefficients) \return head (F.plus (cons a p) q) = add a (head q) \with {
+      | nil: sym!{R} _ _ (Sum.zeroRight a)
+      | cons: \fun (b: R)(q: Coefficients)(unused: _) => \refl(add a b)
+    }
+  };
+\definition plusTail: \forall (p, q: Coefficients) -> tail (F.plus p q) = F.plus (tail p) (tail q) :=
+  \induction (p: Coefficients) \return \forall (q: Coefficients) -> tail (F.plus p q) = F.plus (tail p) (tail q) \with {
+    | nil: \fun (q: Coefficients) => \refl(tail q)
+    | cons: \fun (a: R)(p: Coefficients)(unused: _) => \induction (q: Coefficients) \return tail (F.plus (cons a p) q) = F.plus p (tail q) \with {
+      | nil: sym!{Coefficients} _ _ (plusNilRight p)
+      | cons: \fun (b: R)(q: Coefficients)(unused: _) => \refl(F.plus p q)
+    }
+  };
+\definition scaleHead: \forall (a: R)(p: Coefficients) -> head (F.scale a p) = mul a (head p) :=
+  \fun (a: R) => \induction (p: Coefficients) \return head (F.scale a p) = mul a (head p) \with {
+    | nil: sym!{R} _ _ (ring.ring.semiring.zeroAbsorbsRight a)
+    | cons: \fun (b: R)(p: Coefficients)(unused: _) => \refl(mul a b)
+  };
+\definition scaleTail: \forall (a: R)(p: Coefficients) -> tail (F.scale a p) = F.scale a (tail p) :=
+  \fun (a: R) => \induction (p: Coefficients) \return tail (F.scale a p) = F.scale a (tail p) \with {
+    | nil: \refl(nil)
+    | cons: \fun (b: R)(p: Coefficients)(unused: _) => \refl(F.scale a p)
+  };
+\definition cutPlus: \forall (n: N.Nat^)(p, q: Coefficients) -> cut n (F.plus p q) = plus n p q :=
+  \induction (n: N.Nat^) \return \forall (p, q: Coefficients) -> cut n (F.plus p q) = plus n p q \with {
+    | zero: \fun (p, q: Coefficients) => \refl(nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(p, q: Coefficients) => congr!{R Coefficients Coefficients} cons _ _ _ _ (plusHead p q)
+      (trans!{Coefficients} _ _ _ (congr!{Coefficients Coefficients} (cut n) _ _ (plusTail p q)) (previous (tail p) (tail q)))
+  };
+\definition cutScale: \forall (n: N.Nat^)(a: R)(p: Coefficients) -> cut n (F.scale a p) = scale n a p :=
+  \induction (n: N.Nat^) \return \forall (a: R)(p: Coefficients) -> cut n (F.scale a p) = scale n a p \with {
+    | zero: \fun (a: R)(p: Coefficients) => \refl(nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(a: R)(p: Coefficients) => congr!{R Coefficients Coefficients} cons _ _ _ _ (scaleHead a p)
+      (trans!{Coefficients} _ _ _ (congr!{Coefficients Coefficients} (cut n) _ _ (scaleTail a p)) (previous a (tail p)))
+  };
+\definition timesZeroLeft: \forall (n: N.Nat^)(p: Coefficients) -> times n nil p = cut n nil :=
+  \induction (n: N.Nat^) \return \forall (p: Coefficients) -> times n nil p = cut n nil \with {
+    | zero: \fun (p: Coefficients) => \refl(nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(p: Coefficients) => congr!{R Coefficients Coefficients} cons _ _ _ _
+      (ring.ring.semiring.zeroAbsorbsLeft (head p)) (eq_reason_in!{Coefficients _
+        "=" _ "by" { congr!{Coefficients Coefficients Coefficients} (plus n) _ _ _ _ (Laws.scaleZero n (tail p)) (previous p) }
+        "=" _ "by" { trimPlus n nil nil }
+        "=" _ "by" { Laws.plusZeroLeft n nil }
+      })
+  };
+\definition cutTimes: \forall (n: N.Nat^)(p, q: Coefficients) -> cut n (F.times p q) = times n p q :=
+  \induction (n: N.Nat^) \return \forall (p, q: Coefficients) -> cut n (F.times p q) = times n p q \with {
+    | zero: \fun (p, q: Coefficients) => \refl(nil)
+    | succ: \fun (n: N.Nat^)(previous: _) => \induction (p: Coefficients) \return \forall (q: Coefficients) -> cut (N.Nat^::succ n) (F.times p q) = times (N.Nat^::succ n) p q \with {
+      | nil: \fun (q: Coefficients) => sym!{Coefficients} _ _ (timesZeroLeft (N.Nat^::succ n) q)
+      | cons: \fun (a: R)(p: Coefficients)(unused: _)(q: Coefficients) => eq_reason_in!{Coefficients _
+        "=" _ "by" { cutPlus (N.Nat^::succ n) (F.scale a q) (cons zero (F.times p q)) }
+        "=" _ "by" { congr!{R Coefficients Coefficients} cons _ _ _ _
+          (trans!{R} _ _ _ (congr!{R R} (\fun (b: R) => add b zero) _ _ (scaleHead a q)) (Sum.zeroRight (mul a (head q))))
+          (eq_reason_in!{Coefficients _
+            "=" _ "by" { congr!{Coefficients Coefficients} (\fun (r: Coefficients) => plus n r (F.times p q)) _ _ (scaleTail a q) }
+            "=" _ "by" { sym!{Coefficients} _ _ (trimPlus n (F.scale a (tail q)) (F.times p q)) }
+            "=" _ "by" { congr!{Coefficients Coefficients Coefficients} (plus n) _ _ _ _ (cutScale n a (tail q)) (previous p q) }
+          }) }
+      }
+    }
+  };

@@ -1,0 +1,61 @@
+\import \root.Rational[] \as Q;
+\import Q.Inverse[] \as Scalars;
+\import \root.Series[R := Q.Carrier, ring := Q.ring] \as S;
+\import S.Laws[] \as Laws;
+\import \root.Calculation[R := Q.Carrier, ring := Q.ring] \as C;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Equality[] \as E;
+\use E.congr;
+\use E.trans;
+\use E.sym;
+\use E.eq_reason_in;
+/* Inverse of a+t*u, where a is a nonzero rational number. */
+\definition inverse: N.Nat^ -> Scalars.Nonzero -> S.Coefficients -> S.Coefficients :=
+  \induction (n: N.Nat^) \return Scalars.Nonzero -> S.Coefficients -> S.Coefficients \with {
+    | zero: \fun (a: Scalars.Nonzero)(u: S.Coefficients) => S.nil
+    | succ: \fun (n: N.Nat^)(previous: _)(a: Scalars.Nonzero)(u: S.Coefficients) =>
+      S.cons (Scalars.inverse a) (S.scale n (Q.neg (Scalars.inverse a)) (S.times n u (previous a u)))
+  };
+\definition cutInverse: \forall (n, m: N.Nat^)(a: Scalars.Nonzero)(u: S.Coefficients) -> S.cut n (inverse (S.extend n m) a u) = inverse n a u :=
+  \induction (n: N.Nat^) \return \forall (m: N.Nat^)(a: Scalars.Nonzero)(u: S.Coefficients) -> S.cut n (inverse (S.extend n m) a u) = inverse n a u \with {
+    | zero: \fun (m: N.Nat^)(a: Scalars.Nonzero)(u: S.Coefficients) => \refl(S.nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(m: N.Nat^)(a: Scalars.Nonzero)(u: S.Coefficients) => congr!{S.Coefficients S.Coefficients} (S.cons (Scalars.inverse a)) _ _ (eq_reason_in!{S.Coefficients _
+      "=" _ "by" { S.cutScale n m (Q.neg (Scalars.inverse a)) (S.times (S.extend n m) u (inverse (S.extend n m) a u)) }
+      "=" _ "by" { sym!{S.Coefficients} _ _ (S.trimScale n (Q.neg (Scalars.inverse a)) (S.times (S.extend n m) u (inverse (S.extend n m) a u))) }
+      "=" _ "by" { congr!{S.Coefficients S.Coefficients} (S.scale n (Q.neg (Scalars.inverse a))) _ _ (S.cutTimes n m u (inverse (S.extend n m) a u)) }
+      "=" _ "by" { congr!{S.Coefficients S.Coefficients} (S.scale n (Q.neg (Scalars.inverse a))) _ _ (sym!{S.Coefficients} _ _ (S.trimTimes n u (inverse (S.extend n m) a u))) }
+      "=" _ "by" { congr!{S.Coefficients S.Coefficients} (\fun (v: S.Coefficients) => S.scale n (Q.neg (Scalars.inverse a)) (S.times n (S.cut n u) v)) _ _ (previous m a u) }
+      "=" _ "by" { congr!{S.Coefficients S.Coefficients} (S.scale n (Q.neg (Scalars.inverse a))) _ _ (S.sameTimes n (S.cut n u) (inverse n a u) u (inverse n a u) (S.cutIdempotent n u) (\refl(S.cut n (inverse n a u)))) }
+    })
+  };
+\definition cutSelf: \forall (n: N.Nat^)(a: Scalars.Nonzero)(u: S.Coefficients) -> S.cut n (inverse n a u) = inverse n a u :=
+  \fun (n: N.Nat^)(a: Scalars.Nonzero)(u: S.Coefficients) =>
+    \idelim S.extend n N.Nat^::zero = n \with k: N.Nat^ => S.cut n (inverse k a u) = inverse n a u
+      \by { base: cutInverse n N.Nat^::zero a u, equality: Laws.extendZero n };
+\definition cutNext: \forall (n: N.Nat^)(a: Scalars.Nonzero)(u: S.Coefficients) -> S.cut n (inverse (N.Nat^::succ n) a u) = inverse n a u :=
+  \fun (n: N.Nat^)(a: Scalars.Nonzero)(u: S.Coefficients) =>
+    \idelim S.extend n (N.Nat^::succ N.Nat^::zero) = N.Nat^::succ n \with k: N.Nat^ => S.cut n (inverse k a u) = inverse n a u
+      \by { base: cutInverse n (N.Nat^::succ N.Nat^::zero) a u, equality: Laws.extendOne n };
+\definition inverseLaw: \forall (n: N.Nat^)(a: Scalars.Nonzero)(u: S.Coefficients) -> S.times n (S.cons a u) (inverse n a u) = S.constant n Q.one :=
+  \induction (n: N.Nat^) \return \forall (a: Scalars.Nonzero)(u: S.Coefficients) -> S.times n (S.cons a u) (inverse n a u) = S.constant n Q.one \with {
+    | zero: \fun (a: Scalars.Nonzero)(u: S.Coefficients) => \refl(S.nil)
+    | succ: \fun (n: N.Nat^)(unused: _)(a: Scalars.Nonzero)(u: S.Coefficients) => congr!{Q.Carrier S.Coefficients S.Coefficients} S.cons _ _ _ _ (Scalars.inverseLaw a)
+      (eq_reason_in!{S.Coefficients _
+        "=" _ "by" { congr!{S.Coefficients S.Coefficients} (\fun (p: S.Coefficients) => S.plus n p (S.times n u (inverse (N.Nat^::succ n) a u))) _ _
+          (trans!{S.Coefficients} _ _ _ (Laws.scaleAssoc n a (Q.neg (Scalars.inverse a)) (S.times n u (inverse n a u)))
+            (congr!{Q.Carrier S.Coefficients} (\fun (b: Q.Carrier) => S.scale n b (S.times n u (inverse n a u))) _ _
+              (trans!{Q.Carrier} _ _ _ (C.negMulRight a (Scalars.inverse a)) (congr!{Q.Carrier Q.Carrier} Q.neg _ _ (Scalars.inverseLaw a))))) }
+        "=" _ "by" { congr!{S.Coefficients S.Coefficients} (S.plus n (S.negative n (S.times n u (inverse n a u)))) _ _
+          (S.sameTimes n u (inverse (N.Nat^::succ n) a u) u (inverse n a u) (\refl(S.cut n u))
+            (trans!{S.Coefficients} _ _ _ (cutNext n a u) (sym!{S.Coefficients} _ _ (cutSelf n a u)))) }
+        "=" _ "by" { Laws.plusNegative n (S.times n u (inverse n a u)) }
+      })
+  };
+\definition sameInverse: \forall (n: N.Nat^)(a: Scalars.Nonzero)(u, v: S.Coefficients) -> S.cut n u = S.cut n v -> inverse n a u = inverse n a v :=
+  \induction (n: N.Nat^) \return \forall (a: Scalars.Nonzero)(u, v: S.Coefficients) -> S.cut n u = S.cut n v -> inverse n a u = inverse n a v \with {
+    | zero: \fun (a: Scalars.Nonzero)(u, v: S.Coefficients)(same: _) => \refl(S.nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(a: Scalars.Nonzero)(u, v: S.Coefficients)(same: _) => congr!{S.Coefficients S.Coefficients} (S.cons (Scalars.inverse a)) _ _
+      (congr!{S.Coefficients S.Coefficients} (S.scale n (Q.neg (Scalars.inverse a))) _ _ (trans!{S.Coefficients} _ _ _
+        (S.sameTimes n u (inverse n a u) v (inverse n a u) (S.shorten n u v same) (\refl(S.cut n (inverse n a u))))
+        (congr!{S.Coefficients S.Coefficients} (S.times n v) _ _ (previous a u v (S.shorten n u v same)))))
+  };

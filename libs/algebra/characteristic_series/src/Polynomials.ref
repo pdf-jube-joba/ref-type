@@ -1,0 +1,91 @@
+\import \root.Rational[] \as Q;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].List[] \as Lists;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as E;
+\use E.congr;
+\use E.sym;
+\use E.trans;
+\use E.eq_reason_in;
+\import std.Alg[].Ring[] \as Rings;
+\definition Index: \Set := Fin.Fin n;
+\import algebra.FreeCommutativeRing[].Over[R := Q.Carrier, coefficients := Q.ring, Variables := Index] \as Free;
+\import Free.Presentation[relations := (\fun (p, q: Free.Expression) => Logic.False)] \as P;
+\definition Carrier: \Set := P.Carrier;
+\definition ring: Rings.CommutativeRing[Carrier] := P.ring;
+\definition variable: Index -> Carrier := P.variable;
+\import \root.Symmetric[R := Carrier, ring := ring] \as S;
+\import \root.Symmetric[R := Q.Carrier, ring := Q.ring] \as SQ;
+\import Fin.FromList[A := Carrier] \as Tuples;
+\import Fin.FromList[A := Q.Carrier] \as RationalTuples;
+\definition roots: S.Roots := Tuples.list n variable;
+\definition elementary[k: N.Nat^]: Carrier := S.elementary roots k;
+\definition powerSum[k: N.Nat^]: Carrier := S.Newton[].PowerSums[].powerSum k roots;
+\definition newton[k: N.Nat^]: S.Newton[].convolution k (S.elementary roots) (\fun (i: N.Nat^) => S.Newton[].PowerSums[].alternate i (powerSum (N.Nat^::succ i))) = S.Newton[].count (N.Nat^::succ k) (elementary (N.Nat^::succ k)) := S.Newton[].PowerSums[].newton roots k;
+
+\import algebra.Hom[A := Q.Carrier, B := Q.Carrier] \as Maps;
+\definition identity: Maps.RingMap (Rings.commutativeRingAsRing Q.Carrier Q.ring) (Rings.commutativeRingAsRing Q.Carrier Q.ring) :=
+  \into[Q.Carrier -> Q.Carrier]((\fun (a: Q.Carrier) => a), Maps.RingMap (Rings.commutativeRingAsRing Q.Carrier Q.ring) (Rings.commutativeRingAsRing Q.Carrier Q.ring)) \by {
+    Maps.SemiringLaws[Rings.ringAsSemiring Q.Carrier (Rings.commutativeRingAsRing Q.Carrier Q.ring), Rings.ringAsSemiring Q.Carrier (Rings.commutativeRingAsRing Q.Carrier Q.ring), (\fun (a: Q.Carrier) => a)] {
+      zero := \refl(Q.zero), one := \refl(Q.one), add := \fun (a, b: Q.Carrier) => \refl(Q.add a b), mul := \fun (a, b: Q.Carrier) => \refl(Q.mul a b),
+    }
+  };
+\import P.Universal[K := Q.Carrier, target := Q.ring] \as U;
+\definition Values: \Set := Index -> Q.Carrier;
+\definition accepts[a: Values]: U.RespectsRelations identity a := \fun (p, q: Free.Expression)(impossible: Logic.False) => Logic.falseElim _ impossible;
+\definition evaluate[a: Values]: Carrier -> Q.Carrier := U.apply identity a (accepts a);
+\definition onVariable: \forall (a: Values)(i: Index) -> evaluate a (variable i) = a i :=
+  \fun (a: Values)(i: Index) => U.onClass identity a (accepts a) (Free.Expression::variable i);
+\import Tuples.Mapping[B := Q.Carrier] \as Mapping;
+\definition valuesList: \forall (a: Values) -> Lists.map Carrier Q.Carrier (evaluate a) roots = RationalTuples.list n a :=
+  \fun (a: Values) => eq_reason_in!{SQ.Roots _
+    "=" _ "by" { sym!{SQ.Roots} _ _ (Mapping.listMap n (evaluate a) variable) }
+    "=" _ "by" { congr!{Values SQ.Roots} (RationalTuples.list n) _ _
+      (\axiom:funext((\fun (i: Index) => evaluate a (variable i)), a, onVariable a)) }
+  };
+\definition elementaryEvaluation: \forall (a: Values)(k: N.Nat^) -> evaluate a (elementary k) = SQ.elementary (RationalTuples.list n a) k :=
+  \fun (a: Values)(k: N.Nat^) => trans!{Q.Carrier} _ _ _
+    (S.Change[T := Q.Carrier, target := Q.ring, map := U.extension identity a (accepts a)].elementaryNatural roots k)
+    (congr!{SQ.Roots Q.Carrier} (\fun (xs: SQ.Roots) => SQ.elementary xs k) _ _ (valuesList a));
+\definition Invariant[p: Carrier]: \Prop := \forall (a, b: Values) -> SQ.Permutation (RationalTuples.list n a) (RationalTuples.list n b) -> evaluate a p = evaluate b p;
+\definition SymmetricPolynomial: \Set := \Cast[Carrier] ({ p: Carrier \where Invariant p });
+\definition elementaryInvariant: \forall (k: N.Nat^) -> Invariant (elementary k) :=
+  \fun (k: N.Nat^)(a, b: Values)(permuted: _) => eq_reason_in!{Q.Carrier _
+    "=" _ "by" { elementaryEvaluation a k }
+    "=" _ "by" { SQ.elementarySymmetric (RationalTuples.list n a) (RationalTuples.list n b) permuted k }
+    "=" _ "by" { sym!{Q.Carrier} _ _ (elementaryEvaluation b k) }
+  };
+\definition elementarySymmetric[k: N.Nat^]: SymmetricPolynomial := \into[Carrier](elementary k, SymmetricPolynomial) \by { elementaryInvariant k };
+\definition invariant[p: SymmetricPolynomial]: Invariant p := \bysub(Carrier, SymmetricPolynomial, p);
+\definition plus[p, q: SymmetricPolynomial]: SymmetricPolynomial := \into[Carrier](P.add p q, SymmetricPolynomial) \by {
+  \fun (a, b: Values)(permuted: _) => eq_reason_in!{Q.Carrier _
+    "=" _ "by" { (U.homLaws (U.extension identity a (accepts a))).add p q }
+    "=" _ "by" { congr!{Q.Carrier Q.Carrier Q.Carrier} Q.add _ _ _ _ (invariant p a b permuted) (invariant q a b permuted) }
+    "=" _ "by" { sym!{Q.Carrier} _ _ ((U.homLaws (U.extension identity b (accepts b))).add p q) }
+  }
+};
+\definition times[p, q: SymmetricPolynomial]: SymmetricPolynomial := \into[Carrier](P.mul p q, SymmetricPolynomial) \by {
+  \fun (a, b: Values)(permuted: _) => eq_reason_in!{Q.Carrier _
+    "=" _ "by" { (U.homLaws (U.extension identity a (accepts a))).mul p q }
+    "=" _ "by" { congr!{Q.Carrier Q.Carrier Q.Carrier} Q.mul _ _ _ _ (invariant p a b permuted) (invariant q a b permuted) }
+    "=" _ "by" { sym!{Q.Carrier} _ _ ((U.homLaws (U.extension identity b (accepts b))).mul p q) }
+  }
+};
+\import \root.Genus[R := Carrier, ring := ring, coefficient := P.coefficientMap] \as G;
+\definition todd[n: N.Nat^]: G.Polynomial := G.todd n roots;
+\definition l[n: N.Nat^]: G.Polynomial := G.l n roots;
+\definition ahat[n: N.Nat^]: G.Polynomial := G.ahat n roots;
+\definition ch[n: N.Nat^]: G.Polynomial := G.ch n roots;
+\definition constant[a: Q.Carrier]: SymmetricPolynomial := \into[Carrier](P.constant a, SymmetricPolynomial) \by {
+  \fun (x, y: Values)(permuted: _) => trans!{Q.Carrier} _ _ _
+    (U.onClass identity x (accepts x) (Free.Expression::constant a))
+    (sym!{Q.Carrier} _ _ (U.onClass identity y (accepts y) (Free.Expression::constant a)))
+};
+\definition negative[p: SymmetricPolynomial]: SymmetricPolynomial := \into[Carrier](P.neg p, SymmetricPolynomial) \by {
+  \fun (a, b: Values)(permuted: _) => eq_reason_in!{Q.Carrier _
+    "=" _ "by" { U.homNeg (U.extension identity a (accepts a)) p }
+    "=" _ "by" { congr!{Q.Carrier Q.Carrier} Q.neg _ _ (invariant p a b permuted) }
+    "=" _ "by" { sym!{Q.Carrier} _ _ (U.homNeg (U.extension identity b (accepts b)) p) }
+  }
+};
