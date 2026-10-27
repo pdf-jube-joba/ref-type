@@ -1,0 +1,61 @@
+\definition convolution: N.Nat^ -> Sequence -> Sequence -> R :=
+  \induction (n: N.Nat^) \return Sequence -> Sequence -> R \with {
+    | zero: \fun (f, g: Sequence) => mul (f N.Nat^::zero) (g N.Nat^::zero)
+    | succ: \fun (n: N.Nat^)(previous: _)(f, g: Sequence) => add (mul (f N.Nat^::zero) (g (N.Nat^::succ n))) (previous (\fun (k: N.Nat^) => f (N.Nat^::succ k)) g)
+  };
+\definition convolutionExt: \forall (n: N.Nat^)(f, g, a, b: Sequence) ->
+  (\forall (k: N.Nat^) -> f k = a k) -> (\forall (k: N.Nat^) -> g k = b k) -> convolution n f g = convolution n a b :=
+  \induction (n: N.Nat^) \return \forall (f, g, a, b: Sequence) ->
+    (\forall (k: N.Nat^) -> f k = a k) -> (\forall (k: N.Nat^) -> g k = b k) -> convolution n f g = convolution n a b \with {
+    | zero: \fun (f, g, a, b: Sequence)(hf: _)(hg: _) => congr!{R R R} mul _ _ _ _ (hf N.Nat^::zero) (hg N.Nat^::zero)
+    | succ: \fun (n: N.Nat^)(previous: _)(f, g, a, b: Sequence)(hf: _)(hg: _) => congr!{R R R} add _ _ _ _
+      (congr!{R R R} mul _ _ _ _ (hf N.Nat^::zero) (hg (N.Nat^::succ n)))
+      (previous (\fun (k: N.Nat^) => f (N.Nat^::succ k)) g (\fun (k: N.Nat^) => a (N.Nat^::succ k)) b (\fun (k: N.Nat^) => hf (N.Nat^::succ k)) hg)
+  };
+\definition convolutionAddLeft: \forall (n: N.Nat^)(f, g, h: Sequence) -> convolution n (sum f g) h = add (convolution n f h) (convolution n g h) :=
+  \induction (n: N.Nat^) \return \forall (f, g, h: Sequence) -> convolution n (sum f g) h = add (convolution n f h) (convolution n g h) \with {
+    | zero: \fun (f, g, h: Sequence) => ring.ring.semiring.rightDistributive (f N.Nat^::zero) (g N.Nat^::zero) (h N.Nat^::zero)
+    | succ: \fun (n: N.Nat^)(previous: _)(f, g, h: Sequence) => eq_reason_in!{R _
+      "=" _ "by" { congr!{R R R} add _ _ _ _ (ring.ring.semiring.rightDistributive (f N.Nat^::zero) (g N.Nat^::zero) (h (N.Nat^::succ n)))
+        (previous (\fun (k: N.Nat^) => f (N.Nat^::succ k)) (\fun (k: N.Nat^) => g (N.Nat^::succ k)) h) }
+      "=" _ "by" { Sum.four (mul (f N.Nat^::zero) (h (N.Nat^::succ n))) (mul (g N.Nat^::zero) (h (N.Nat^::succ n)))
+        (convolution n (\fun (k: N.Nat^) => f (N.Nat^::succ k)) h) (convolution n (\fun (k: N.Nat^) => g (N.Nat^::succ k)) h) }
+    }
+  };
+\definition convolutionAddRight: \forall (n: N.Nat^)(f, g, h: Sequence) -> convolution n f (sum g h) = add (convolution n f g) (convolution n f h) :=
+  \induction (n: N.Nat^) \return \forall (f, g, h: Sequence) -> convolution n f (sum g h) = add (convolution n f g) (convolution n f h) \with {
+    | zero: \fun (f, g, h: Sequence) => ring.ring.semiring.leftDistributive (f N.Nat^::zero) (g N.Nat^::zero) (h N.Nat^::zero)
+    | succ: \fun (n: N.Nat^)(previous: _)(f, g, h: Sequence) => eq_reason_in!{R _
+      "=" _ "by" { congr!{R R R} add _ _ _ _ (ring.ring.semiring.leftDistributive (f N.Nat^::zero) (g (N.Nat^::succ n)) (h (N.Nat^::succ n)))
+        (previous (\fun (k: N.Nat^) => f (N.Nat^::succ k)) g h) }
+      "=" _ "by" { Sum.four (mul (f N.Nat^::zero) (g (N.Nat^::succ n))) (mul (f N.Nat^::zero) (h (N.Nat^::succ n)))
+        (convolution n (\fun (k: N.Nat^) => f (N.Nat^::succ k)) g) (convolution n (\fun (k: N.Nat^) => f (N.Nat^::succ k)) h) }
+    }
+  };
+\definition convolutionScalar: \forall (n: N.Nat^)(a: R)(f, g: Sequence) -> convolution n (scalar a f) g = mul a (convolution n f g) :=
+  \induction (n: N.Nat^) \return \forall (a: R)(f, g: Sequence) -> convolution n (scalar a f) g = mul a (convolution n f g) \with {
+    | zero: \fun (a: R)(f, g: Sequence) => ring.ring.semiring.multiplicative.associative a (f N.Nat^::zero) (g N.Nat^::zero)
+    | succ: \fun (n: N.Nat^)(previous: _)(a: R)(f, g: Sequence) => eq_reason_in!{R _
+      "=" _ "by" { congr!{R R R} add _ _ _ _ (ring.ring.semiring.multiplicative.associative a (f N.Nat^::zero) (g (N.Nat^::succ n)))
+        (previous a (\fun (k: N.Nat^) => f (N.Nat^::succ k)) g) }
+      "=" _ "by" { sym!{R} _ _ (ring.ring.semiring.leftDistributive a (mul (f N.Nat^::zero) (g (N.Nat^::succ n))) (convolution n (\fun (k: N.Nat^) => f (N.Nat^::succ k)) g)) }
+    }
+  };
+\definition convolutionShift: \forall (n: N.Nat^)(f, g: Sequence) -> convolution n (shift f) g = shift (\fun (k: N.Nat^) => convolution k f g) n :=
+  \induction (n: N.Nat^) \return \forall (f, g: Sequence) -> convolution n (shift f) g = shift (\fun (k: N.Nat^) => convolution k f g) n \with {
+    | zero: \fun (f, g: Sequence) => ring.ring.semiring.zeroAbsorbsLeft (g N.Nat^::zero)
+    | succ: \fun (n: N.Nat^)(unused: _)(f, g: Sequence) => trans!{R} _ _ _
+      (congr!{R R R} add _ _ _ _ (ring.ring.semiring.zeroAbsorbsLeft (g (N.Nat^::succ n)))
+        (convolutionExt n (\fun (k: N.Nat^) => shift f (N.Nat^::succ k)) g f g (\fun (k: N.Nat^) => \refl(f k)) (\fun (k: N.Nat^) => \refl(g k)))) (Sum.zeroLeft (convolution n f g))
+  };
+\definition geometric[x: R]: Sequence := \induction (n: N.Nat^) \return R \with {
+  | zero: x
+  | succ: \fun (n: N.Nat^)(previous: R) => mul (neg x) previous
+};
+\definition signedPowers[xs: Roots]: Sequence := L.foldr R Sequence (\fun (x: R)(previous: Sequence) => sum (geometric x) previous) (\fun (n: N.Nat^) => zero) xs;
+\definition count: N.Nat^ -> R -> R := \induction (n: N.Nat^) \return R -> R \with {
+  | zero: \fun (a: R) => zero
+  | succ: \fun (n: N.Nat^)(previous: _)(a: R) => add a (previous a)
+};
+\definition weighted[f: Sequence]: Sequence := \fun (n: N.Nat^) => count (N.Nat^::succ n) (f (N.Nat^::succ n));
+\module Telescoping;

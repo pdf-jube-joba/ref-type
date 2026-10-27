@@ -1,0 +1,90 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].List[] \as L;
+\import \root.Calculation[R := R, ring := ring] \as C;
+\import std.Alg[].Ring[] \as Rings;
+\import algebra.Group[].Of[Carrier := R, group := Rings.additiveGroup R (Rings.commutativeRingAsRing R ring)] \as Sum;
+\import std.Logic[].Equality[] \as E;
+\use E.congr;
+\use E.sym;
+\use E.trans;
+\use E.eq_reason_in;
+\definition zero: R := ring.base.zero;
+\definition one: R := ring.base.one;
+\definition add: R -> R -> R := ring.base.add;
+\definition mul: R -> R -> R := ring.base.mul;
+\definition neg: R -> R := ring.base.neg;
+\definition Roots: \Set := L.List[R];
+\definition nil: Roots := L.List[R]::nil;
+\definition cons: R -> Roots -> Roots := L.List[R]::cons;
+\definition Sequence: \Set := N.Nat^ -> R;
+\definition elementary: Roots -> Sequence :=
+  \induction (xs: Roots) \return Sequence \with {
+    | nil: \induction (k: N.Nat^) \return R \with { | zero: one | succ: \fun (k: N.Nat^)(unused: R) => zero }
+    | cons: \fun (x: R)(xs: Roots)(previous: Sequence) =>
+      \induction (k: N.Nat^) \return R \with {
+        | zero: one
+        | succ: \fun (k: N.Nat^)(unused: R) => add (previous (N.Nat^::succ k)) (mul x (previous k))
+      }
+  };
+\definition elementaryZero: \forall (xs: Roots) -> elementary xs N.Nat^::zero = one :=
+  \induction (xs: Roots) \return elementary xs N.Nat^::zero = one \with {
+    | nil: \refl(one)
+    | cons: \fun (x: R)(xs: Roots)(previous: _) => \refl(one)
+  };
+\definition shift[f: Sequence]: Sequence := \induction (k: N.Nat^) \return R \with {
+  | zero: zero
+  | succ: \fun (k: N.Nat^)(unused: R) => f k
+};
+\definition sum[f, g: Sequence]: Sequence := \fun (k: N.Nat^) => add (f k) (g k);
+\definition scalar[a: R][f: Sequence]: Sequence := \fun (k: N.Nat^) => mul a (f k);
+\definition elementaryStep: \forall (x: R)(xs: Roots)(k: N.Nat^) ->
+  elementary (cons x xs) k = sum (elementary xs) (scalar x (shift (elementary xs))) k :=
+  \fun (x: R)(xs: Roots) => \induction (k: N.Nat^) \return elementary (cons x xs) k = sum (elementary xs) (scalar x (shift (elementary xs))) k \with {
+    | zero: sym!{R} _ _ (eq_reason_in!{R _
+      "=" _ "by" { congr!{R R R} add _ _ _ _ (elementaryZero xs) (ring.ring.semiring.zeroAbsorbsRight x) }
+      "=" _ "by" { Sum.zeroRight one }
+    })
+    | succ: \fun (k: N.Nat^)(unused: _) => \refl(add (elementary xs (N.Nat^::succ k)) (mul x (elementary xs k)))
+  };
+\definition elementarySwap: \forall (k: N.Nat^)(x, y: R)(xs: Roots) -> elementary (cons x (cons y xs)) k = elementary (cons y (cons x xs)) k :=
+  \induction (k: N.Nat^) \return \forall (x, y: R)(xs: Roots) -> elementary (cons x (cons y xs)) k = elementary (cons y (cons x xs)) k \with {
+    | zero: \fun (x, y: R)(xs: Roots) => \refl(one)
+    | succ: \fun (k: N.Nat^)(unused: _) =>
+      \induction (k: N.Nat^) \return \forall (x, y: R)(xs: Roots) -> elementary (cons x (cons y xs)) (N.Nat^::succ k) = elementary (cons y (cons x xs)) (N.Nat^::succ k) \with {
+        | zero: \fun (x, y: R)(xs: Roots) => eq_reason_in!{R _
+          "=" _ "by" { Sum.assoc (elementary xs (N.Nat^::succ N.Nat^::zero)) (mul y (elementary xs N.Nat^::zero)) (mul x one) }
+          "=" _ "by" { congr!{R R} (add (elementary xs (N.Nat^::succ N.Nat^::zero))) _ _
+            (eq_reason_in!{R _
+              "=" _ "by" { congr!{R R} (\fun (a: R) => add (mul y a) (mul x one)) _ _ (elementaryZero xs) }
+              "=" _ "by" { Sum.comm (mul y one) (mul x one) }
+              "=" _ "by" { congr!{R R} (\fun (a: R) => add (mul x a) (mul y one)) _ _ (sym!{R} _ _ (elementaryZero xs)) }
+            }) }
+          "=" _ "by" { sym!{R} _ _ (Sum.assoc (elementary xs (N.Nat^::succ N.Nat^::zero)) (mul x (elementary xs N.Nat^::zero)) (mul y one)) }
+        }
+        | succ: \fun (k: N.Nat^)(unused: _)(x, y: R)(xs: Roots) =>
+          C.ElementarySwap[x := x, y := y, a := elementary xs (N.Nat^::succ (N.Nat^::succ k)), b := elementary xs (N.Nat^::succ k), c := elementary xs k].equation
+      } k
+  };
+\import std.Logic[].Relation[] \as Relation;
+\structure PermutationRules[p: Roots -> Roots -> \Prop]: \Prop := {
+  equivalence: Relation.Equivalence[Roots, p],
+  prepend: \forall (x: R)(xs, ys: Roots) -> p xs ys -> p (cons x xs) (cons x ys),
+  swap: \forall (x, y: R)(xs: Roots) -> p (cons x (cons y xs)) (cons y (cons x xs)),
+};
+\definition Permutation[xs, ys: Roots]: \Prop := \forall (p: Roots -> Roots -> \Prop) -> PermutationRules[p] -> p xs ys;
+\definition ElementaryEqual[xs, ys: Roots]: \Prop := \forall (k: N.Nat^) -> elementary xs k = elementary ys k;
+\definition elementaryRules: PermutationRules[ElementaryEqual] := PermutationRules[ElementaryEqual] {
+  equivalence := Relation.Equivalence[Roots, ElementaryEqual] {
+    refl := \fun (xs: Roots)(k: N.Nat^) => \refl(elementary xs k),
+    sym := \fun (xs, ys: Roots)(same: _)(k: N.Nat^) => sym!{R} _ _ (same k),
+    trans := \fun (xs, ys, zs: Roots)(xy: _)(yz: _)(k: N.Nat^) => trans!{R} _ _ _ (xy k) (yz k),
+  },
+  prepend := \fun (x: R)(xs, ys: Roots)(same: _) => \induction (k: N.Nat^) \return elementary (cons x xs) k = elementary (cons x ys) k \with {
+    | zero: \refl(one)
+    | succ: \fun (k: N.Nat^)(unused: _) => congr!{R R R} add _ _ _ _ (same (N.Nat^::succ k)) (congr!{R R} (mul x) _ _ (same k))
+  },
+  swap := \fun (x, y: R)(xs: Roots)(k: N.Nat^) => elementarySwap k x y xs,
+};
+\definition elementarySymmetric: \forall (xs, ys: Roots) -> Permutation xs ys -> ElementaryEqual xs ys :=
+  \fun (xs, ys: Roots)(permuted: _) => permuted ElementaryEqual elementaryRules;
+\module Newton;

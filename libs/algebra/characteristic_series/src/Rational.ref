@@ -14,6 +14,7 @@
 \definition add: Carrier -> Carrier -> Carrier := Q.addRat;
 \definition neg: Carrier -> Carrier := Q.neg;
 \definition mul: Carrier -> Carrier -> Carrier := Q.mulRat;
+\definition classEqual: \forall (x, y: F.Fraction) -> F.FractionEq x y -> Q.class x = Q.class y := Q.classOfEq;
 \definition leftDistributive: \forall (x, y, z: Carrier) -> mul x (add y z) = add (mul x y) (mul x z) :=
   Q.quotientInduction (\fun (x: Carrier) => \forall (y, z: Carrier) -> mul x (add y z) = add (mul x y) (mul x z))
     (\fun (x: F.Fraction) => Q.quotientInduction
@@ -23,7 +24,7 @@
         (\fun (z: F.Fraction) => eq_reason_in!{Carrier _
           "=" _ "by" { congr!{Carrier Carrier} (mul (Q.class x)) _ _ (Q.addRatClass y z) }
           "=" _ "by" { Q.mulRatClass x (Q.addFraction y z) }
-          "=" _ "by" { Q.classOfEq _ _ (FL.fractionMulAddLeft x y z) }
+          "=" _ "by" { classEqual _ _ (FL.fractionMulAddLeft x y z) }
           "=" _ "by" { sym!{Carrier} _ _ (Q.addRatClass (Q.mulFraction x y) (Q.mulFraction x z)) }
           "=" _ "by" { congr!{Carrier Carrier Carrier} add _ _ _ _ (sym!{Carrier} _ _ (Q.mulRatClass x y)) (sym!{Carrier} _ _ (Q.mulRatClass x z)) }
         })));
@@ -37,7 +38,7 @@
   base := Rings.RingData[Carrier]::# zero one add neg mul,
   ring := Rings.RingLaws[Carrier, Rings.RingData[Carrier]::# zero one add neg mul] {
     semiring := A.SemiringLaws[Carrier, A.SemiringData[Carrier]::# zero one add mul] {
-      additive := M.CommutativeMonoidLaws[Carrier, M.MonoidData[Carrier]::# zero add] {
+      additive := M.CommutativeMonoidLaws[Carrier, M.CommutativeMonoidData[Carrier]::# (M.MonoidData[Carrier]::# zero add)] {
         monoid := M.MonoidLaws[Carrier, M.MonoidData[Carrier]::# zero add] {
           leftIdentity := Q.addRatZeroLeft, rightIdentity := Q.addRatZeroRight, associative := Q.addRatAssoc,
         }, commutative := Q.addRatComm,
@@ -50,3 +51,13 @@
     }, additiveInverse := Q.addRatNegLeft,
   }, mulCommutative := Q.mulRatComm,
 };
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import F.Arithmetic[].Def[] \as FD;
+\definition reciprocalSuccessor[k: N.Nat^]: Carrier := Q.class (F.Fraction::# I.oneInteger k);
+\definition natural[k: N.Nat^]: Carrier := Q.class (F.Fraction::# (I.Int^::ofNat k) I.zeroNat);
+\definition successorInverse: \forall (k: N.Nat^) -> mul (natural (N.Nat^::succ k)) (reciprocalSuccessor k) = one :=
+  \fun (k: N.Nat^) => eq_reason_in!{Carrier _
+    "=" _ "by" { Q.mulRatClass (F.Fraction::# (I.Int^::ofNat (N.Nat^::succ k)) I.zeroNat) (F.Fraction::# I.oneInteger k) }
+    "=" _ "by" { classEqual _ _ (FL.positiveReciprocalLaw I.zeroNat k) }
+  };
