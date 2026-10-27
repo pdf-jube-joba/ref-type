@@ -20,7 +20,7 @@
       \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sets.Member (addSets f g r k) x }) \by member \then
       \let data: Sets.Member (addSets f g r k) x := \bysub(N.Nat^, { k: N.Nat^ \where Sets.Member (addSets f g r k) x }, k) \then
       \return R.ltReplaceLeft (Real.add (rational k) (Real.sub r (rational k))) r (Real.add (f x) (g x)) (E.addSubCancel r (rational k))
-        (E.addLt (rational k) (f x) (Real.sub r (rational k)) (g x) data.left data.right)
+        (E.addLt (rational k) (Real.sub r (rational k)) (f x) (g x) data.left data.right)
     },
     \fun (x: A) (less: R.Lt r (Real.add (f x) (g x))) => \block {
       \let first: R.Lt (Real.sub r (g x)) (f x) := Distance.addLtToSub r (g x) (f x) less \then
@@ -41,3 +41,45 @@
   \fun (f, g: A -> Real.Real) (mf: IsMeasurable mu f) (mg: IsMeasurable mu g) (r: Real.Real) =>
     \idelim union (addSets f g r) = { x: A \where R.Lt r (Real.add (f x) (g x)) } \with S: \Pow A => Measurable mu.sigma S
       \by { base: (Sigma.laws mu.sigma).countableUnion (addSets f g r) (addSetsMeasurable f g mf mg r), equality: addSuperlevel f g r };
+
+\import real.Analysis[].Geometric[q := Real.half] \as Dyadic;
+\import real.Analysis[].SquareRoot[] \as SquareRoot;
+\import \root.ScalarLimits[] \as Limits;
+\import dedekind_reals.DedekindReal[].Order[] \as Order;
+\definition belowSets[f: A -> Real.Real] [r: Real.Real] [k: N.Nat^]: \Pow A :=
+  Sets.Complement ({ x: A \where R.Lt (Real.sub r (Dyadic.value k)) (f x) });
+\definition belowSuperlevel: \forall (f: A -> Real.Real) (r: Real.Real) -> union (belowSets f r) = { x: A \where R.Lt (f x) r } :=
+  \fun (f: A -> Real.Real) (r: Real.Real) => \axiom:setext(union (belowSets f r), { x: A \where R.Lt (f x) r },
+    \fun (x: A) (member: Sets.Member (union (belowSets f r)) x) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sets.Member (belowSets f r k) x }) \by member \then
+      \let outside: Logic.Not (R.Lt (Real.sub r (Dyadic.value k)) (f x)) := \bysub(N.Nat^, { k: N.Nat^ \where Sets.Member (belowSets f r k) x }, k) \then
+      \return R.leLtTrans (f x) (Real.sub r (Dyadic.value k)) r (Order.leOfNotLtReverse (f x) (Real.sub r (Dyadic.value k)) outside)
+        (SquareRoot.subBelow r (Dyadic.value k) (Limits.dyadicPositive k))
+    },
+    \fun (x: A) (less: R.Lt (f x) r) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (j: N.Nat^) -> N.Basic[].Prop[].Le k j -> R.Lt (Dyadic.value j) (Real.sub r (f x)) })
+        \by Limits.dyadicSmall (Real.sub r (f x)) (SquareRoot.subPositive r (f x) less) \then
+      \let small: R.Lt (Dyadic.value k) (Real.sub r (f x)) :=
+        (\bysub(N.Nat^, { k: N.Nat^ \where \forall (j: N.Nat^) -> N.Basic[].Prop[].Le k j -> R.Lt (Dyadic.value j) (Real.sub r (f x)) }, k)) k (N.Basic[].Prop[].leRefl k) \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (belowSets f r k) x }] k
+        (\fun (above: R.Lt (Real.sub r (Dyadic.value k)) (f x)) =>
+          Order.ltAsym (Dyadic.value k) (Real.sub r (f x)) small (Distance.subLtOfLower r (f x) (Dyadic.value k) above))
+    });
+\definition belowMeasurable: \forall (f: A -> Real.Real) -> IsMeasurable mu f -> \forall (r: Real.Real) ->
+  Measurable mu.sigma ({ x: A \where R.Lt (f x) r }) :=
+  \fun (f: A -> Real.Real) (measurable: IsMeasurable mu f) (r: Real.Real) =>
+    \idelim union (belowSets f r) = { x: A \where R.Lt (f x) r } \with S: \Pow A => Measurable mu.sigma S \by {
+      base: (Sigma.laws mu.sigma).countableUnion (belowSets f r) (\fun (k: N.Nat^) =>
+        (Sigma.laws mu.sigma).complement ({ x: A \where R.Lt (Real.sub r (Dyadic.value k)) (f x) }) (measurable (Real.sub r (Dyadic.value k)))),
+      equality: belowSuperlevel f r
+    };
+\definition negMeasurable: \forall (f: A -> Real.Real) -> IsMeasurable mu f -> IsMeasurable mu (\fun (x: A) => Real.neg (f x)) :=
+  \fun (f: A -> Real.Real) (measurable: IsMeasurable mu f) (r: Real.Real) =>
+    \idelim { x: A \where R.Lt (f x) (Real.neg r) } = { x: A \where R.Lt r (Real.neg (f x)) } \with S: \Pow A => Measurable mu.sigma S \by {
+      base: belowMeasurable f measurable (Real.neg r),
+      equality: \axiom:setext({ x: A \where R.Lt (f x) (Real.neg r) }, { x: A \where R.Lt r (Real.neg (f x)) },
+        \fun (x: A) (less: R.Lt (f x) (Real.neg r)) => R.ltReplaceLeft (Real.neg (Real.neg r)) r (Real.neg (f x)) (Laws.negInvolutive r)
+          (Laws.negStrictAntitone (f x) (Real.neg r) less),
+        \fun (x: A) (less: R.Lt r (Real.neg (f x))) => R.ltReplaceLeft (Real.neg (Real.neg (f x))) (f x) (Real.neg r) (Laws.negInvolutive (f x))
+          (Laws.negStrictAntitone r (Real.neg (f x)) less))
+    };
