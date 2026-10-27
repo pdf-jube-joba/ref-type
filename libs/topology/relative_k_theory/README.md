@@ -151,3 +151,5 @@ Mayer–Vietoris の交叉部分の完全性も証明コードを追加し、構
 再開記録（K03、負次数比較の式）: 差分レビューで `Pair.Product.Pullback.Negative` の自然性に、同相から運んだ負次数の準同型と標準引き戻しの間の `forwardEquality` を明示する補足を加えた。進行中の `complete-stage-*` は修正前の固定入力であり、この一ファイルは次の `product-comparison.source.json` 以降で検査する。
 
 再開記録（K03、通常の群の端）: `complete-stage-Absolute` は accepted・終了0・保存失敗0・書込失敗0（447 modules検査、957再利用）。`complete-stage-Pair-Augmented` は終了1・rejected・保存失敗0・書込失敗0で、`OrdinaryEnd.forgetFormula` の合同則へ被約群を定義域とする関数として通常の環準同型を渡せなかった。`WholeInclusion.map`・`SubsetInclusion.map` を被約群の元に適用するラムダへ明示化した。次は `ordinary-restriction.source.json` を固定し、`Pair.Augmented` から同じ順で検査する。この入力は前回の負次数外積の比較式の修正も含む。
+
+再開記録（K03、まとめて検査）: `restriction-stage-Pair-Augmented` は accepted・終了0・保存失敗0・書込失敗0（450 modules検査、1,128再利用）。`restriction-stage-PairMapping` は終了1・rejected・保存失敗0・書込失敗0で、`Iteration.Step.Quotients.sourceStep` の商側の suspension が部分空間側の別名へ解釈されていた。商側の import 別名を一意な名前へ分けた。次は最新入力を `audit-01.source.json` に固定し、詳細診断で package・依存閉包・例をまとめて検査する。独立したエラーを同時に回収し、式ページの常駐予算は既存設定 `REF_TYPE_GRAPH_RESIDENT_MIB=1024`、総メモリ上限14336 MiB、共有キャッシュ `libs/refcache`・上限16384 MiBとする。報告は `package-audit-01.{log,json,exit}`。
