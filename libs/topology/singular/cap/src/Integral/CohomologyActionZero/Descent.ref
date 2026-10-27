@@ -5,16 +5,19 @@
 \import \root.Integral[A := A, source := source].At[p := N.Nat^::succ p, q := N.Nat^::zero].Zero[] \as Zero;
 \import Modules.Hom[V := Target.Cycle, W := Target.Homology, source := Target.cycleSpace, target := Target.homologySpace] \as Classes;
 \import Modules.Hom[V := Chains.Carrier Geometry.leftDegree, W := Chains.Carrier (N.Nat^::succ p), source := Chains.space Geometry.leftDegree, target := Chains.space (N.Nat^::succ p)] \as CapMaps;
+\definition cycleZero: \forall (x: Source.Cycle) -> \parent.On[alpha := (Cochain.cycleSpace).zero].cycle x = (Target.cycleSpace).zero :=
+  \fun (x: Source.Cycle) => congr!{CapMaps.Map {Chains.Carrier (N.Nat^::succ p)}} (\fun (f: CapMaps.Map) => (f).apply (Degrees.apply Geometry.higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) x)) _ _ Zero.equation;
 \definition zeroValue: value (Cochain.cycleSpace).zero = Actions.zero := ActionMaps.ext _ _
   (Source.classInduction (\fun (x: Source.Homology) => (value (Cochain.cycleSpace).zero).apply x = (Target.homologySpace).zero)
     (\fun (x: Source.Cycle) => eq_reason_in!{Target.Homology _
       "=" _ "by" { \parent.On[alpha := (Cochain.cycleSpace).zero].onClass x }
-      "=" _ "by" { congr!{Target.Cycle Target.Homology} Target.classOf _ _
-        (congr!{CapMaps.Map {Chains.Carrier (N.Nat^::succ p)}} (\fun (f: CapMaps.Map) => (f).apply (Degrees.apply Geometry.higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) x)) _ _ Zero.equation) }
+      "=" _ "by" { congr!{Target.Cycle Target.Homology} Target.classOf _ _ (cycleZero x) }
       "=" _ "by" { Classes.zeroPreserved Target.classLinear }
     }));
 \definition vanishes: Quotient.Vanishes raw :=
-  \fun (alpha: Cochain.CycleCarrier)(member: \In[Cochain.CycleCarrier] (Cochain.boundariesInside).carrier alpha) =>
-    trans!{Actions.Carrier} _ _ _ (congr!{Cochain.CycleCarrier Actions.Carrier} value _ _ member) zeroValue;
+  \fun (alpha: Cochain.CycleCarrier)(member: \In[Cochain.CycleCarrier] (Cochain.boundariesInside).carrier alpha) => \block {
+    \let equal: alpha = (Cochain.cycleSpace).zero := member \then
+    \return trans!{Actions.Carrier} _ _ _ (congr!{Cochain.CycleCarrier Actions.Carrier} value _ _ equal) zeroValue
+  };
 \definition map: Modules.Hom[V := Cochain.Cohomology, W := Actions.Carrier, source := Cochain.cohomologySpace, target := Actions.space].Map := Quotient.descend raw vanishes;
 \definition onClass: \forall (alpha: Cochain.CycleCarrier) -> (map).apply (Cochain.classOf alpha) = value alpha := Quotient.onClass raw vanishes;
