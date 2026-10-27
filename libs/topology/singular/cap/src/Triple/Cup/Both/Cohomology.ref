@@ -1,0 +1,44 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.congr;
+\import \parent.Closed[] \as Closed;
+\import \root.Triple[A := A, source := source, first := first, second := second].CommonComplex[] \as CommonComplex;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as IntegerComplexes;
+\import IntegerComplexes.At[C := FirstCochains.complex, z := I.Int^::ofNat p] \as FirstInput;
+\import IntegerComplexes.At[C := SecondCochains.complex, z := I.Int^::ofNat q] \as SecondInput;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring].At[C := CommonComplex.complex, k := total] \as Output;
+\import FirstComparison.Linear[] \as FirstLinear;
+\import SecondComparison.Linear[] \as SecondLinear;
+\import Whole.Bilinear[] \as ProductLaws;
+\import commutative_algebra.Modules[R := I.Int^, ring := Integers.commutativeRing] \as Commutative;
+\definition firstCycles: Modules.Bundle := Modules.Bundle { Carrier := FirstInput.Closed, space := FirstInput.cycleSpace };
+\definition secondCycles: Modules.Bundle := Modules.Bundle { Carrier := SecondInput.Closed, space := SecondInput.cycleSpace };
+\definition output: Modules.Bundle := Modules.Bundle { Carrier := Output.Cohomology, space := Output.cohomologySpace };
+\import Commutative.Bilinear[A := firstCycles, B := secondCycles, C := output] \as Bilinear;
+\definition cycleAddLeft: \forall (x, y: FirstInput.Closed)(z: SecondInput.Closed) ->
+  Closed.cycle (FirstInput.cycleSpace.add x y) z = Output.cycleSpace.add (Closed.cycle x z) (Closed.cycle y z) :=
+  \fun (x, y: FirstInput.Closed)(z: SecondInput.Closed) => trans!{{Cochains.Carrier total}} _ _ _
+    (congr!{{Cochains.Carrier p} {Cochains.Carrier total}} (\fun (a: Cochains.Carrier p) => Whole.apply a (SecondComparison.from z)) _ _ (FirstLinear.addition x y))
+    (ProductLaws.leftAdd (FirstComparison.from x) (FirstComparison.from y) (SecondComparison.from z));
+\definition cycleAddRight: \forall (x: FirstInput.Closed)(y, z: SecondInput.Closed) ->
+  Closed.cycle x (SecondInput.cycleSpace.add y z) = Output.cycleSpace.add (Closed.cycle x y) (Closed.cycle x z) :=
+  \fun (x: FirstInput.Closed)(y, z: SecondInput.Closed) => trans!{{Cochains.Carrier total}} _ _ _
+    (congr!{{Cochains.Carrier q} {Cochains.Carrier total}} (Whole.apply (FirstComparison.from x)) _ _ (SecondLinear.addition y z))
+    (ProductLaws.rightAdd (FirstComparison.from x) (SecondComparison.from y) (SecondComparison.from z));
+\definition cycleScaleLeft: \forall (a: I.Int^)(x: FirstInput.Closed)(z: SecondInput.Closed) ->
+  Closed.cycle (FirstInput.cycleSpace.smul a x) z = Output.cycleSpace.smul a (Closed.cycle x z) :=
+  \fun (a: I.Int^)(x: FirstInput.Closed)(z: SecondInput.Closed) => trans!{{Cochains.Carrier total}} _ _ _
+    (congr!{{Cochains.Carrier p} {Cochains.Carrier total}} (\fun (v: Cochains.Carrier p) => Whole.apply v (SecondComparison.from z)) _ _ (FirstLinear.scalar a x))
+    (ProductLaws.leftScale a (FirstComparison.from x) (SecondComparison.from z));
+\definition cycleScaleRight: \forall (a: I.Int^)(x: FirstInput.Closed)(z: SecondInput.Closed) ->
+  Closed.cycle x (SecondInput.cycleSpace.smul a z) = Output.cycleSpace.smul a (Closed.cycle x z) :=
+  \fun (a: I.Int^)(x: FirstInput.Closed)(z: SecondInput.Closed) => trans!{{Cochains.Carrier total}} _ _ _
+    (congr!{{Cochains.Carrier q} {Cochains.Carrier total}} (Whole.apply (FirstComparison.from x)) _ _ (SecondLinear.scalar a z))
+    (ProductLaws.rightScale a (FirstComparison.from x) (SecondComparison.from z));
+\definition onCycles: Bilinear.Map := Bilinear.Map {
+  apply := \fun (x: FirstInput.Closed)(y: SecondInput.Closed) => Closed.onCycles x y,
+  addLeft := \fun (x, y: FirstInput.Closed)(z: SecondInput.Closed) => trans!{Output.Cohomology} _ _ _ (congr!{Output.CycleCarrier Output.Cohomology} Output.classOf _ _ (cycleAddLeft x y z)) (Output.classLinear.addition (Closed.cycle x z) (Closed.cycle y z)),
+  addRight := \fun (x: FirstInput.Closed)(y, z: SecondInput.Closed) => trans!{Output.Cohomology} _ _ _ (congr!{Output.CycleCarrier Output.Cohomology} Output.classOf _ _ (cycleAddRight x y z)) (Output.classLinear.addition (Closed.cycle x y) (Closed.cycle x z)),
+  scaleLeft := \fun (a: I.Int^)(x: FirstInput.Closed)(z: SecondInput.Closed) => trans!{Output.Cohomology} _ _ _ (congr!{Output.CycleCarrier Output.Cohomology} Output.classOf _ _ (cycleScaleLeft a x z)) (Output.classLinear.scalar a (Closed.cycle x z)),
+  scaleRight := \fun (a: I.Int^)(x: FirstInput.Closed)(z: SecondInput.Closed) => trans!{Output.Cohomology} _ _ _ (congr!{Output.CycleCarrier Output.Cohomology} Output.classOf _ _ (cycleScaleRight a x z)) (Output.classLinear.scalar a (Closed.cycle x z)),
+};
