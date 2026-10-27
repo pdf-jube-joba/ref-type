@@ -1,0 +1,19 @@
+\import \root.Measure[A := A].ValueLaws[] \as Values;
+\definition Sup[values: N.Nat^ -> Value]: Value :=
+  { r: Real.Real \where \exists ( n: N.Nat^ \where below (values n) r ) };
+\definition supUpper: \forall (values: N.Nat^ -> Value) (n: N.Nat^) -> Values.Included (values n) (Sup values) :=
+  \fun (values: N.Nat^ -> Value) (n: N.Nat^) (r: Real.Real) (member: below (values n) r) =>
+    Logic.existsIntro[N.Nat^, { k: N.Nat^ \where below (values k) r }] n member;
+\definition supLeast: \forall (values: N.Nat^ -> Value) (bound: Value) ->
+  (\forall (n: N.Nat^) -> Values.Included (values n) bound) -> Values.Included (Sup values) bound :=
+  \fun (values: N.Nat^ -> Value) (bound: Value) (upper: \forall (n: N.Nat^) -> Values.Included (values n) bound)
+    (r: Real.Real) (member: below (Sup values) r) => \block {
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where below (values n) r }) \by member \then
+      \return upper n r (\bysub(N.Nat^, { n: N.Nat^ \where below (values n) r }, n))
+    };
+\definition lowerSupBound: \forall (f: N.Nat^ -> A -> Real.Real) (g: A -> Real.Real) ->
+  (\forall (n: N.Nat^) (x: A) -> R.Le (f n x) (g x)) ->
+  Values.Included (Sup (\fun (n: N.Nat^) => lowerIntegral (f n))) (lowerIntegral g) :=
+  \fun (f: N.Nat^ -> A -> Real.Real) (g: A -> Real.Real) (bound: \forall (n: N.Nat^) (x: A) -> R.Le (f n x) (g x)) =>
+    supLeast (\fun (n: N.Nat^) => lowerIntegral (f n)) (lowerIntegral g)
+      (\fun (n: N.Nat^) => lowerIntegralMono (f n) g (bound n));
