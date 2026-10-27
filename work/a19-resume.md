@@ -61,3 +61,4 @@ workspace の libs/refcache を共有する。
 有限階数自己随伴射影 P による近似 P T の随伴について、(P T)* = T* P と、その随伴が有限階数であることを Compact.Approximation.Adjoint に追加した。対象モジュールの個別検査は終了 0。残りは随伴のノルム近似評価および有限階数作用素のコンパクト性。
 
 単位球上の評価から有界作用素の全体評価を導く UnitBounds と、随伴のノルム近似の保存を Adjoints.NormContinuity で証明した。コンパクト作用素の随伴が有限階数作用素で任意精度に近似できることを Compact.Approximation.Adjoint.approximate で証明し、各モジュールの個別検査は終了 0。残りは有限階数作用素のコンパクト性を証明し、ノルム極限定理へ接続すること。
+任意の複素 Hilbert 空間内の実線分がコンパクトであることを、実数の閉区間のコンパクト性と線形スカラー倍の連続性から Space.Hilbert.ScalarLines.segmentCompact として証明した。個別検査は終了 0。階数 1 射影の像を二つの実線分の和に含める証明へ進む。
