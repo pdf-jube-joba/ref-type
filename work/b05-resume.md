@@ -50,3 +50,5 @@ Graph の基準座標・直交グラフ項・復元に加え、正規化行列�
 Model に普遍束・補束と元の型への連続写像、元の型からの連続写像、Model に戻る合成の恒等性を追加し、実側個別検査で accepted。元の型に戻る合成の等式は未証明。
 
 直和を Model 上に移し、元の直和と二方向の連続写像を合成して連続性を証明した。実 Model.DirectSum の個別検査は accepted。階数1の射影空間は Model を台とするよう切り替えた。複素側と全体の検査が必要。
+
+8054ce96 の対象 full-check-local は accepted（28 module、464 steps）、対象依存閉包は accepted（578 module 再利用）。キャッシュ保存失敗0。

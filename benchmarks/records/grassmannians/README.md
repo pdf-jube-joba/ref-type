@@ -18,3 +18,7 @@
 同じ commit の workspace 全体の通常検査は300秒の時間上限で未完了、終了コード2。
 対象依存閉包の `--module grassmannians` の通常検査は accepted、559 module を再利用しキャッシュ保存失敗は0。
 グラフ表示の追加後は実モジュールの個別検査が accepted、複素側と全体の検査はまだ必要。
+
+`8054ce96` の対象 `--full-check-local` は accepted、28 module・464 steps を再検査し550 module を再利用した。
+対象依存閉包の通常検査は accepted、578 module を再利用し、両検査のキャッシュ保存失敗は0。
+結果は [model6-target.json](model6-target.json) と [model6-closure.json](model6-closure.json) に保存した。
