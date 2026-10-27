@@ -1,0 +1,42 @@
+\import \parent.\parent.Quotient[] \as Quotient;
+\import \parent.\parent.Exact[] \as Native;
+\import \root.Relative[].Reduced[model := model] \as Source;
+\import \root.Relative[].Reduced[model := subsetModel] \as Target;
+\import Absolute.K0[] \as Ordinary;
+\import Absolute.Ranks[] \as Ranks;
+\import KTheory.On[X := A, baseSpace := subspace, compact := Restrict.compactSubset, hausdorff := Restrict.hausdorffSubset] \as SubsetAbsolute;
+\import SubsetAbsolute.K0[] \as SubsetK;
+\import SubsetAbsolute.Ranks[] \as SubsetRanks;
+\import Absolute.Pullback[Y := A, space := subspace, sourceCompact := Restrict.compactSubset, sourceHausdorff := Restrict.hausdorffSubset,
+  f := Restrict.inclusion, regular := Restrict.regular].Ranks[] \as Naturality;
+\import std.Arithmetic[].Int[] \as Integer;
+\import algebra.Group[].Of[Carrier := Source.Carrier, group := Source.group] \as SourceGroup;
+\import algebra.Group[].Of[Carrier := Target.Carrier, group := Target.group] \as TargetGroup;
+\import algebra.Group[].Of[Carrier := Quotient.Relative, group := Quotient.group] \as RelativeGroup;
+\definition subsetZeroRank: SubsetRanks.rank SubsetK.zero a0 = Integer.Zero.specification :=
+  congr!{{SubsetAbsolute.IntegerFunctions[].Carrier} {Integer.Int^}} (\fun (f: SubsetAbsolute.IntegerFunctions[].Carrier) => f a0) _ _ SubsetRanks.rankZero;
+\definition rankZero: \forall (v: Quotient.Relative) -> Ranks.rank (Native.forget v) a0 = Integer.Zero.specification :=
+  \fun (v: Quotient.Relative) => trans!{{Integer.Int^}} _ _ _ (sym!{{Integer.Int^}} _ _ (Naturality.naturality (Native.forget v) a0))
+    (trans!{{Integer.Int^}} _ _ _ (congr!{{SubsetK.Carrier} {Integer.Int^}} (\fun (x: SubsetK.Carrier) => SubsetRanks.rank x a0) _ _ (Native.kernel v)) subsetZeroRank);
+\definition forget[v: Quotient.Relative]: Source.Carrier := \into[Ordinary.Carrier](Native.forget v, Source.Carrier) \by { rankZero v };
+\definition forgetAdd: \forall (v, w: Quotient.Relative) -> forget (RelativeGroup.add v w) = SourceGroup.add (forget v) (forget w) := Native.forgetAdd;
+\definition forgetZero: forget RelativeGroup.zero = SourceGroup.zero := Native.forgetZero;
+\import algebraic_topology.Pointed[A := A].Maps[B := X] \as PointedMaps;
+\definition inclusion: Map subsetModel model := \into[A -> X](Restrict.inclusion, Map subsetModel model) \by {
+  PointedMaps.Laws[pointed subsetModel, pointed model, Restrict.inclusion] { continuous := Restrict.regular, pointed := \refl(a0) }
+};
+\import \root.Relative[].Pullback[source := subsetModel, target := model, f := inclusion] \as Pull;
+\definition restriction: Source.Carrier -> Target.Carrier := Pull.map;
+\definition restrictionAdd: \forall (x, y: Source.Carrier) -> restriction (SourceGroup.add x y) = TargetGroup.add (restriction x) (restriction y) := Pull.additive;
+\definition restrictionZero: restriction SourceGroup.zero = TargetGroup.zero := Pull.preservesZero;
+\definition kernel: \forall (v: Quotient.Relative) -> restriction (forget v) = TargetGroup.zero := Native.kernel;
+\definition Image[x: Source.Carrier]: \Prop := \exists (v: Quotient.Relative \where forget v = x);
+\definition preimage: \forall (x: Source.Carrier) -> restriction x = TargetGroup.zero -> Image x :=
+  \fun (x: Source.Carrier)(zero: restriction x = TargetGroup.zero) => Native.preimage x zero;
+\definition inKernel: \forall (x: Source.Carrier) -> Image x -> restriction x = TargetGroup.zero :=
+  \fun (x: Source.Carrier)(image: Image x) => Native.inKernel x image;
+\definition exact[x: Source.Carrier]: Logic.PropEquiv[restriction x = TargetGroup.zero, Image x] := Logic.PropEquiv[_, _] {
+  ltr := preimage x, rtl := inKernel x
+};
+\import \parent.\parent.ForgetProjection[] \as QuotientPullback;
+\definition pullbackEquation: \forall (v: Quotient.Relative) -> QuotientPullback.projectionPull v = forget v := QuotientPullback.equation;

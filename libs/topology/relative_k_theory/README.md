@@ -156,7 +156,9 @@ K07 の影響先検査は最終検査に含める。
 追加の未検証変更は `Pair.Pointed.Cofiber.BaseQuotient`。
 底面を潰した商と部分空間の suspension との同相を、円柱と底面からの全射・商の普遍性・両方向の逆の等式で構成する。
 `BaseQuotient` の関数型を使う等号除去の構文も修正した。
-修正後の固定 snapshot は `work/k03-resume/cofiber-diagrams.source.json` で、`Pair.ForgetProjection` と `Pair.Pointed.Cofiber.BaseQuotient` を順に検査する。
+忘却写像の再検査は等式変形マクロの import 不足で終了1となり、局所 import を補った。
+追加の未検証変更は `Pair.Pointed.Exact` で、忘却像のランク零性と基点付き被約群での制限核の完全性を公開する。
+修正後の固定 snapshot は `work/k03-resume/cofiber-exact.source.json` で、`Pair.Pointed.Cofiber.BaseQuotient`、`Pair.ForgetProjection`、`Pair.Pointed.Exact` を順に検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。
