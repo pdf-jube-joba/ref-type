@@ -1,0 +1,38 @@
+\import \root.Measure[A := A].Sigma[] \as Sigma;
+\import \root.Measure[A := A].ValueLaws[] \as Values;
+\import Values.ScalarAdd[] \as ScalarAdd;
+\import \root.Measure[A := A].Finite[mu := mu] \as FiniteMeasure;
+\import std.Logic[].Classical[] \as Classical;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\definition intersection[i: Fin.Fin m] [j: Fin.Fin n]: \Pow A := Sets.Intersection (t.cells i) (s.cells j);
+\definition measurable: \forall (i: Fin.Fin m) (j: Fin.Fin n) -> Measurable mu.sigma (intersection i j) :=
+  \fun (i: Fin.Fin m) (j: Fin.Fin n) => Sigma.intersectionMeasurable mu.sigma (t.cells i) (s.cells j) (t.measurable i) (s.measurable j);
+\definition term: Dominated m t value -> \forall (i: Fin.Fin m) (j: Fin.Fin n) ->
+  Values.Included (scale (t.coefficients i) (mu.value (intersection i j))) (scale (s.coefficients j) (mu.value (intersection i j))) :=
+  \fun (dominated: Dominated m t value) (i: Fin.Fin m) (j: Fin.Fin n) =>
+    Logic.orElim _ _ _ (Classical.excludedMiddle (\exists \Cast[A] (intersection i j)))
+      (\fun (inhabited: \exists \Cast[A] (intersection i j)) => \block {
+        \takefrom x: \Cast[A] (intersection i j) \by inhabited \then
+        \let member: Sets.Member (intersection i j) x := \bysub(A, intersection i j, x) \then
+        \let ordered: R.Le (t.coefficients i) (s.coefficients j) := R.leReplaceRight (t.coefficients i) (value x) (s.coefficients j)
+          (atCell j x member.right) (dominated i x member.left) \then
+        \return ScalarAdd.monotone (t.coefficients i) (s.coefficients j) (mu.value (intersection i j)) (t.nonnegative i) ordered
+          (FiniteMeasure.laws.nonnegative (intersection i j) (measurable i j))
+      })
+      (\fun (empty: Logic.Not (\exists \Cast[A] (intersection i j))) => \block {
+        \let eq: intersection i j = Sets.Empty := \axiom:setext(intersection i j, Sets.Empty,
+          \fun (x: A) (member: Sets.Member (intersection i j) x) => empty (\exact(\into[A](x, intersection i j) \by { member }, \Cast[A] (intersection i j))),
+          \fun (x: A) (impossible: Logic.False) => Logic.falseElim _ impossible) \then
+        \let measureZero: mu.value (intersection i j) = zero :=
+          std.Logic[].Equality[].trans!{Value} _ _ _ (congr!{{\Pow A} Value} mu.value _ _ eq) FiniteMeasure.laws.empty \then
+        \return \fun (r: Real.Real) (member: below (scale (t.coefficients i) (mu.value (intersection i j))) r) =>
+          \idelim zero = scale (s.coefficients j) (mu.value (intersection i j)) \with v: Value => below v r \by {
+            base: \idelim scale (t.coefficients i) (mu.value (intersection i j)) = zero \with v: Value => below v r \by {
+              base: member, equality: std.Logic[].Equality[].trans!{Value} _ _ _
+                (congr!{Value Value} (scale (t.coefficients i)) _ _ measureZero) (Values.scaleZeroValue (t.coefficients i) (t.nonnegative i))
+            },
+            equality: sym!{Value} _ _ (std.Logic[].Equality[].trans!{Value} _ _ _
+              (congr!{Value Value} (scale (s.coefficients j)) _ _ measureZero) (Values.scaleZeroValue (s.coefficients j) (s.nonnegative j)))
+          }
+      });
