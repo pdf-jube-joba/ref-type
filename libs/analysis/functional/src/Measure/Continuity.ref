@@ -1,0 +1,44 @@
+\import \root.Measure[A := A].Sigma[] \as Sigma;
+\import \root.Measure[A := A].Finite[mu := mu] \as Finite;
+\import \root.Measure[A := A].AlmostEverywhere[mu := mu] \as AE;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].sym;
+\definition prefixIncrementDisjoint: \forall (f: N.Nat^ -> \Pow A) (n: N.Nat^) -> Sets.Disjoint (Sigma.prefix f n) (Sigma.increments f n) :=
+  \fun (f: N.Nat^ -> \Pow A) (n: N.Nat^) (x: A) (previous: Sets.Member (Sigma.prefix f n) x)
+    (increment: Sets.Member (Sigma.increments f n) x) => increment.right previous;
+\definition prefixSum: \forall (f: N.Nat^ -> \Pow A) -> (\forall (n: N.Nat^) -> Measurable mu.sigma (f n)) ->
+  \forall (n: N.Nat^) -> mu.value (Sigma.prefix f n) = partialSum (\fun (k: N.Nat^) => mu.value (Sigma.increments f k)) n :=
+  \fun (f: N.Nat^ -> \Pow A) (measurable: \forall (n: N.Nat^) -> Measurable mu.sigma (f n)) =>
+    \induction (n: N.Nat^) \return mu.value (Sigma.prefix f n) = partialSum (\fun (k: N.Nat^) => mu.value (Sigma.increments f k)) n \with {
+      | zero: Finite.laws.empty
+      | succ: \fun (n: N.Nat^) (previous: _) => eq_reason_in!{Value _
+        "=" _ "by" { congr!{{\Pow A} Value} mu.value _ _ (AE.unionDifference (Sigma.prefix f n) (f n)) }
+        "=" _ "by" { Finite.additivity (Sigma.prefix f n) (Sigma.increments f n)
+          (Sigma.prefixMeasurable mu.sigma f measurable n) (Sigma.incrementsMeasurable mu.sigma f measurable n) (prefixIncrementDisjoint f n) }
+        "=" _ "by" { congr!{Value Value} (\fun (v: Value) => add v (mu.value (Sigma.increments f n))) _ _ previous }
+      }
+    };
+\definition prefixSeries: \forall (f: N.Nat^ -> \Pow A) -> (\forall (n: N.Nat^) -> Measurable mu.sigma (f n)) ->
+  series (\fun (n: N.Nat^) => mu.value (Sigma.increments f n)) = { r: Real.Real \where \exists ( n: N.Nat^ \where below (mu.value (Sigma.prefix f n)) r ) } :=
+  \fun (f: N.Nat^ -> \Pow A) (measurable: \forall (n: N.Nat^) -> Measurable mu.sigma (f n)) =>
+    \axiom:setext(series (\fun (n: N.Nat^) => mu.value (Sigma.increments f n)), { r: Real.Real \where \exists ( n: N.Nat^ \where below (mu.value (Sigma.prefix f n)) r ) },
+      \fun (r: Real.Real) (member: below (series (\fun (n: N.Nat^) => mu.value (Sigma.increments f n))) r) => \block {
+        \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where below (partialSum (\fun (k: N.Nat^) => mu.value (Sigma.increments f k)) n) r }) \by member \then
+        \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where below (mu.value (Sigma.prefix f n)) r }] n
+          (\idelim partialSum (\fun (k: N.Nat^) => mu.value (Sigma.increments f k)) n = mu.value (Sigma.prefix f n) \with v: Value => below v r
+            \by { base: \bysub(N.Nat^, { n: N.Nat^ \where below (partialSum (\fun (k: N.Nat^) => mu.value (Sigma.increments f k)) n) r }, n), equality: sym!{Value} _ _ (prefixSum f measurable n) })
+      },
+      \fun (r: Real.Real) (member: \exists ( n: N.Nat^ \where below (mu.value (Sigma.prefix f n)) r )) => \block {
+        \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where below (mu.value (Sigma.prefix f n)) r }) \by member \then
+        \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where below (partialSum (\fun (k: N.Nat^) => mu.value (Sigma.increments f k)) n) r }] n
+          (\idelim mu.value (Sigma.prefix f n) = partialSum (\fun (k: N.Nat^) => mu.value (Sigma.increments f k)) n \with v: Value => below v r
+            \by { base: \bysub(N.Nat^, { n: N.Nat^ \where below (mu.value (Sigma.prefix f n)) r }, n), equality: prefixSum f measurable n })
+      });
+\definition unionAsPrefixSup: \forall (f: N.Nat^ -> \Pow A) -> (\forall (n: N.Nat^) -> Measurable mu.sigma (f n)) ->
+  mu.value (union f) = { r: Real.Real \where \exists ( n: N.Nat^ \where below (mu.value (Sigma.prefix f n)) r ) } :=
+  \fun (f: N.Nat^ -> \Pow A) (measurable: \forall (n: N.Nat^) -> Measurable mu.sigma (f n)) => eq_reason_in!{Value _
+    "=" _ "by" { congr!{{\Pow A} Value} mu.value _ _ (sym!{{\Pow A}} _ _ (Sigma.incrementUnion f)) }
+    "=" _ "by" { Finite.laws.countableAdditivity (Sigma.increments f) (Sigma.incrementsMeasurable mu.sigma f measurable) (Sigma.incrementsDisjoint f) }
+    "=" _ "by" { prefixSeries f measurable }
+  };
