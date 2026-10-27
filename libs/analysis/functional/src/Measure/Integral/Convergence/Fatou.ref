@@ -23,3 +23,18 @@
 \definition sequenceLaw[f: NonnegativeSequence]: Logic.And[\forall (k: N.Nat^) -> IsMeasurable mu (f k), \forall (k: N.Nat^) (x: A) -> R.Le Real.zero (f k x)] :=
   \bysub(N.Nat^ -> A -> Real.Real, { f: N.Nat^ -> A -> Real.Real \where Logic.And[\forall (k: N.Nat^) -> IsMeasurable mu (f k), \forall (k: N.Nat^) (x: A) -> R.Le Real.zero (f k x)] }, f);
 \module Tail(f: NonnegativeSequence);
+
+\definition liminfLowerIntegral[f: NonnegativeSequence]: Value :=
+  Sup (\fun (n: N.Nat^) => lowerIntegral (Tail[f := f].value n));
+\definition fatou: \forall (f: NonnegativeSequence) ->
+  Values.Included (liminfLowerIntegral f) (Liminf (\fun (k: N.Nat^) => lowerIntegral (f k))) :=
+  \fun (f: NonnegativeSequence) => supLeast (\fun (n: N.Nat^) => lowerIntegral (Tail[f := f].value n))
+    (Liminf (\fun (k: N.Nat^) => lowerIntegral (f k)))
+    (\fun (n: N.Nat^) (r: Real.Real) (member: below (lowerIntegral (Tail[f := f].value n)) r) =>
+      supUpper (TailInf (\fun (k: N.Nat^) => lowerIntegral (f k))) n r
+        (\fun (k: N.Nat^) (later: Nat.Le n k) =>
+          lowerIntegralMono (Tail[f := f].value n) (f k) (Tail[f := f].lower n k later) r member));
+\definition finiteLiminf: \forall (f: NonnegativeSequence) (g: A -> Real.Real) -> PointwiseSup (Tail[f := f].envelope) g ->
+  lowerIntegral g = liminfLowerIntegral f :=
+  \fun (f: NonnegativeSequence) (g: A -> Real.Real) (sup: PointwiseSup (Tail[f := f].envelope) g) =>
+    Monotone.monotone (Tail[f := f].envelope) g sup (Tail[f := f].increasing);
