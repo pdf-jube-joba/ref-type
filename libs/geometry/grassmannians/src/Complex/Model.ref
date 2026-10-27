@@ -1,0 +1,33 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\definition isSelfAdjoint[map: At.Map]: \Prop := \forall (v, w: At.Vector) -> At.dot (map.apply v) w = At.dot v (map.apply w);
+\definition isIdempotent[map: At.Map]: \Prop := \forall (v: At.Vector) -> map.apply (map.apply v) = map.apply v;
+\definition asProjection[map: At.Map][selfAdjoint: isSelfAdjoint map][idempotent: isIdempotent map]: At.Projection := At.Projection { map := map, selfAdjoint := selfAdjoint, idempotent := idempotent };
+\structure Data: \Set := { map: At.Map };
+\structure Laws[data: Data]: \Prop := {
+  selfAdjoint: isSelfAdjoint data.map,
+  idempotent: isIdempotent data.map,
+  rank: At.OnProjection[P := asProjection data.map selfAdjoint idempotent].Rank[k := k].HasRank,
+};
+\definition points: \Pow Data := { d: Data \where Laws[d] };
+\definition Carrier: \Set := \Cast[Data] points;
+\definition laws[p: Carrier]: Laws[p] := \bysub(Data, points, p);
+\definition projection[p: Carrier]: At.Projection := asProjection p.map (laws p).selfAdjoint (laws p).idempotent;
+\definition rank[p: Carrier]: At.OnProjection[P := projection p].Rank[k := k].HasRank := (laws p).rank;
+\definition dataEta: \forall (d: Data) -> Data { map := d.map } = d :=
+  \induction (d: Data) \return Data { map := d.map } = d \with { | # : \fun (m: At.Map) => \refl(Data { map := m }) };
+\definition ext: \forall (p, q: Carrier) -> p.map = q.map -> p = q :=
+  \fun (p, q: Carrier)(same: p.map = q.map) => trans!{Data} _ _ _ (sym!{Data} _ _ (dataEta p))
+    (trans!{Data} _ _ _ (congr!{At.Map Data} Data::# _ _ same) (dataEta q));
+
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := H.Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].Finite[n := n] \as Finite;
+\definition entries[p: Carrier]: Matrices.Carrier := \fun (i, j: Fin.Fin n) => p.map.apply (E.basis j) i;
+\definition entriesInjective: \forall (p, q: Carrier) -> entries p = entries q -> p = q :=
+  \fun (p, q: Carrier)(same: entries p = entries q) => ext p q
+    (Finite.extOnBasis p.map q.map (\fun (j: Fin.Fin n) => \axiom:funext(p.map.apply (E.basis j), q.map.apply (E.basis j),
+      \fun (i: Fin.Fin n) => congr!{{Matrices.Carrier} C.Complex} (\fun (A: Matrices.Carrier) => A i j) _ _ same)));
+\import topological_constructions.Induced[A := Carrier, B := Matrices.Carrier] \as InducedModel;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := InducedModel.topology (Matrices.topology H.Complex[].topological.space) entries;
+\definition entriesContinuous: topology.Continuity[A := Carrier, B := Matrices.Carrier].Continuous topology (Matrices.topology H.Complex[].topological.space) entries := InducedModel.continuous (Matrices.topology H.Complex[].topological.space) entries;
