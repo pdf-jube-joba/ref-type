@@ -11,3 +11,7 @@ cd /workspace/ref-type-b05
 ```
 
 グラフ座標、位相的性質、普遍束と引き戻し比較、安定化、直和、直交補、射影空間は未実装。
+
+既存 API: `hermitian_frames.Hermitian.Over.At.OnProjection.Rank.HasRank`、`OnProjection.complement`、`At.Blocks.projection`、`bundle_complements.Complements.Over.Projection` と `Projection.Pullback`。
+射影族の連続性・階数の局所一定性・グラフ座標を構成し、像束の API と接続する。
+`topology/homotopy/src/Euclidean/Dimension/Compactness.ref` に実有限次元のコンパクト性があり、再利用可能性の調査が必要。
