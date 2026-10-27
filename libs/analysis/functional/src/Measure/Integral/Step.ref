@@ -43,3 +43,23 @@
   \fun (x: A) (member: Sets.Member (Sets.Complement p.set) x) => trans!{Real.Real} _ _ _
     (Eval.atCell (Indices.right (Fin.zero N.Nat^::zero)) x (Combined.containsRight (Fin.zero N.Nat^::zero) x member))
     (Combined.coefficientRight (Fin.zero N.Nat^::zero));
+\import \root.Measure[A := A].ValueLaws[] \as Values;
+\import \root.Measure[A := A].Finite[mu := mu] \as MeasureFinite;
+\import Eval.Exact[] \as Exact;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition leftIntegral: simpleIntegral one left = scale p.coefficient (mu.value p.set) :=
+  Values.addZero (scale p.coefficient (mu.value p.set))
+    (Values.scaleNonnegative p.coefficient (mu.value p.set) p.nonnegative (MeasureFinite.laws.nonnegative p.set p.measurable));
+\definition rightIntegral: simpleIntegral one right = zero := eq_reason_in!{Value _
+  "=" _ "by" { congr!{Value Value} (\fun (v: Value) => add v zero) _ _
+    (Values.zeroScale (mu.value (Sets.Complement p.set)) (MeasureFinite.laws.nonnegative (Sets.Complement p.set) ((Sigma.laws mu.sigma).complement p.set p.measurable))) }
+  "=" _ "by" { Values.addZero zero Values.zeroNonnegative }
+};
+\definition lowerIntegral: \root.Measure[A := A].Integral[mu := mu].lowerIntegral Eval.value = scale p.coefficient (mu.value p.set) := eq_reason_in!{Value _
+  "=" _ "by" { Exact.lower }
+  "=" _ "by" { Combined.integral }
+  "=" _ "by" { congr!{Value Value Value} add _ _ _ _ leftIntegral rightIntegral }
+  "=" _ "by" { Values.addZero (scale p.coefficient (mu.value p.set))
+    (Values.scaleNonnegative p.coefficient (mu.value p.set) p.nonnegative (MeasureFinite.laws.nonnegative p.set p.measurable)) }
+};
