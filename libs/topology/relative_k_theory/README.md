@@ -219,3 +219,7 @@ K07 の影響先検査は最終検査に含める。
 部分空間側は suspension の像との同相を逆向きに使い、前段の比較の suspension と合成する。
 `WholeGroups`・`SubsetGroups` と相対群の `Groups` は両方向の写像・加法性・零元の保存・逆の等式を公開する。
 固定 snapshot は `work/k03-resume/pair-iteration.source.json`。
+
+`PairIteration.inclusionNaturality`・`projectionNaturality` は、反復した対の包含・商への射影と、元の写像の反復 suspension との可換性を示す未検証変更。
+包含の帰納段階では suspension の像との同相の逆写像を使い、射影の帰納段階では `PointedPair.suspendedProjectionEquation` を使う。
+固定 snapshot は `work/k03-resume/iteration-coherence.source.json`。

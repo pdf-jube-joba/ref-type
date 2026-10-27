@@ -1,0 +1,35 @@
+\use Equality.eq_reason_in;
+\import \root.Relative[].PointedPair[pair := iteratePair degree pair] \as Current;
+\import \root.Relative[].PointedPair[pair := iteratePair (N.Nat^::succ degree) pair] \as Next;
+\import \parent.ProjectionAt[degree := degree] \as Before;
+\import \parent.ProjectionAt[degree := (N.Nat^::succ degree)] \as After;
+\import \root.Relative[].Suspension[original := (iteratePair degree pair).model] \as CurrentX;
+\import \root.Relative[].Suspension[original := Current.quotientModel] \as CurrentQ;
+\import \root.Relative[].Suspension[original := iterate degree Original.quotientModel] \as TargetQ;
+\import \root.Relative[].SuspendedMap[source := (iteratePair degree pair).model, target := Current.quotientModel, f := Current.projection] \as Projection;
+\import \root.Relative[].SuspendedMap[source := Current.quotientModel, target := iterate degree Original.quotientModel, f := (quotientComparison degree).forward] \as Quotient;
+\import \root.Relative[].SuspendedMap[source := (iteratePair degree pair).model, target := iterate degree pair.model, f := (wholeComparison degree).forward] \as Whole;
+\import \root.Relative[].SuspendedMap[source := iterate degree pair.model, target := iterate degree Original.quotientModel,
+  f := iterateMap degree pair.model Original.quotientModel Original.projection] \as Iterated;
+\import \root.Relative[].SuspendedMap[source := (iteratePair degree pair).model, target := iterate degree Original.quotientModel, f := Before.left] \as SuspendedLeft;
+\import \root.Relative[].SuspendedMap[source := (iteratePair degree pair).model, target := iterate degree Original.quotientModel, f := Before.right] \as SuspendedRight;
+\import \root.Relative[].Composition[source := (iteratePair degree pair).model, middle := Current.quotientModel, target := iterate degree Original.quotientModel,
+  first := Current.projection, second := (quotientComparison degree).forward].Suspended[] \as LeftComposite;
+\import \root.Relative[].Composition[source := (iteratePair degree pair).model, middle := iterate degree pair.model, target := iterate degree Original.quotientModel,
+  first := (wholeComparison degree).forward, second := iterateMap degree pair.model Original.quotientModel Original.projection].Suspended[] \as RightComposite;
+\definition changed: SuspendedLeft.map = SuspendedRight.map :=
+  congr!{{Map (iteratePair degree pair).model (iterate degree Original.quotientModel)} {Map CurrentX.result TargetQ.result}}
+    (\fun (f: Map (iteratePair degree pair).model (iterate degree Original.quotientModel)) =>
+      \root.Relative[].SuspendedMap[source := (iteratePair degree pair).model, target := iterate degree Original.quotientModel, f := f].map) _ _ previous;
+\definition pointwise: \forall (x: (iteratePair (N.Nat^::succ degree) pair).model.Carrier) -> After.left x = After.right x :=
+  \fun (x: (iteratePair (N.Nat^::succ degree) pair).model.Carrier) => eq_reason_in!{{TargetQ.result.Carrier} _
+    "=" { Quotient.map (Projection.map x) } "by" {
+      congr!{{CurrentQ.result.Carrier} {TargetQ.result.Carrier}} Quotient.map _ _ (Current.suspendedProjectionEquation x) }
+    "=" { SuspendedLeft.map x } "by" {
+      sym!{{TargetQ.result.Carrier}} _ _ (congr!{{Map CurrentX.result TargetQ.result} {TargetQ.result.Carrier}} (\fun (f: Map CurrentX.result TargetQ.result) => f x) _ _ LeftComposite.equation) }
+    "=" { SuspendedRight.map x } "by" {
+      congr!{{Map CurrentX.result TargetQ.result} {TargetQ.result.Carrier}} (\fun (f: Map CurrentX.result TargetQ.result) => f x) _ _ changed }
+    "=" { Iterated.map (Whole.map x) } "by" {
+      congr!{{Map CurrentX.result TargetQ.result} {TargetQ.result.Carrier}} (\fun (f: Map CurrentX.result TargetQ.result) => f x) _ _ RightComposite.equation }
+  };
+\definition equation: After.Equation := \axiom:funext(After.left, After.right, pointwise);
