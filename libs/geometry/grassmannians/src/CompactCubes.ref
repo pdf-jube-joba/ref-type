@@ -1,0 +1,43 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import topology.Topology[Carrier := K] \as Scalar;
+\import Scalar.Subspace[S := Box] \as Small;
+\definition SmallScalar: \Set := Small.CarrierSet;
+\definition smallTopology: topology.Topology[Carrier := SmallScalar].Topology := Small.topology scalar;
+\definition smallCompact: topology.Topology[Carrier := SmallScalar].IsCompact smallTopology := Small.Properties[].compact scalar compact;
+\import topological_algebra.FinitePower[K := SmallScalar] \as InnerPower;
+\import InnerPower.At[n := n] \as Inner;
+\definition InnerCarrier: \Set := InnerPower.Carrier n;
+\definition innerTopology: topology.Topology[Carrier := InnerCarrier].Topology := Inner.topology smallTopology;
+\definition innerCompact: topology.Topology[Carrier := InnerCarrier].IsCompact innerTopology := InnerPower.compact smallTopology smallCompact n;
+\import topological_algebra.FinitePower[K := InnerCarrier] \as OuterPower;
+\import OuterPower.At[n := m] \as Outer;
+\definition Domain: \Set := OuterPower.Carrier m;
+\definition domainTopology: topology.Topology[Carrier := Domain].Topology := Outer.topology innerTopology;
+\definition domainCompact: topology.Topology[Carrier := Domain].IsCompact domainTopology := OuterPower.compact innerTopology innerCompact m;
+\import topological_algebra.Matrix[K := K, I := Fin.Fin m, J := Fin.Fin n] \as Matrices;
+\import Matrices.Universal[A := Domain] \as MatrixMaps;
+\import topology.Topology[Carrier := Domain] \as DomainSpace;
+\import topology.Topology[Carrier := Matrices.Carrier] \as MatrixSpace;
+\import topological_algebra.Coordinates[K := InnerCarrier, I := Fin.Fin m] \as OuterCoordinates;
+\import topological_algebra.Coordinates[K := SmallScalar, I := Fin.Fin n] \as InnerCoordinates;
+\import topology.Continuity[A := SmallScalar, B := K].Corestriction[S := Box] \as Inclusion;
+\definition embed[x: Domain][i: Fin.Fin m][j: Fin.Fin n]: K := x i j;
+\definition continuous: topology.Continuity[A := Domain, B := Matrices.Carrier].Continuous domainTopology (Matrices.topology scalar) embed :=
+  MatrixMaps.continuous domainTopology scalar embed (\fun (i: Fin.Fin m)(j: Fin.Fin n) =>
+    topology.Composition[A := Domain, B := SmallScalar, C := K].composeContinuous domainTopology smallTopology scalar
+      (\fun (x: Domain) => x i j) (\fun (z: SmallScalar) => z)
+      (topology.Composition[A := Domain, B := InnerCarrier, C := SmallScalar].composeContinuous domainTopology innerTopology smallTopology
+        (OuterCoordinates.evaluate i) (InnerCoordinates.evaluate j) (OuterCoordinates.evaluationContinuous innerTopology i) (InnerCoordinates.evaluationContinuous smallTopology j))
+      (Inclusion.inclusionContinuous scalar));
+\import topology.Maps[A := Domain, B := Matrices.Carrier] \as Sets;
+\definition cube: \Pow Matrices.Carrier := Sets.Image embed DomainSpace.Whole;
+\definition cubeCompact: MatrixSpace.IsCompactIn (Matrices.topology scalar) cube :=
+  topology.Compactness[A := Domain, B := Matrices.Carrier].continuousImage domainTopology (Matrices.topology scalar) embed continuous DomainSpace.Whole domainCompact;
+\definition contains: \forall (A: Matrices.Carrier) -> (\forall (i: Fin.Fin m)(j: Fin.Fin n) -> \In[K] Box (A i j)) -> \In[Matrices.Carrier] cube A :=
+  \fun (A: Matrices.Carrier)(bounded: _) => Logic.existsIntro[Domain, { x: Domain \where Logic.And[DomainSpace.Member DomainSpace.Whole x, embed x = A] }]
+    (\fun (i: Fin.Fin m)(j: Fin.Fin n) => \into[K](A i j, Box) \by { bounded i j })
+    (Logic.And[_, _]::# (\refl(\fun (i: Fin.Fin m)(j: Fin.Fin n) => \into[K](A i j, Box) \by { bounded i j }))
+      (\axiom:funext(embed (\fun (i: Fin.Fin m)(j: Fin.Fin n) => \into[K](A i j, Box) \by { bounded i j }), A,
+        \fun (i: Fin.Fin m) => \axiom:funext((\fun (j: Fin.Fin n) => A i j), A i, \fun (j: Fin.Fin n) => \refl(A i j)))));

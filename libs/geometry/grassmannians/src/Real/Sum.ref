@@ -1,0 +1,59 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.trans;
+\use Eq.congr;
+\import linear_algebra.Hermitian[].Over[K := R.Real, field := R.Algebra[].field, scalar := H.Real[].scalar] \as Geometry;
+\import std.Alg[].Field[] \as Fields;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := Fields.fieldAsCommutativeRing R.Real R.Algebra[].field] \as Spaces;
+\import Geometry.Finite[n := m] \as RightE;
+\import Geometry.Finite[n := k] \as LeftD;
+\import Geometry.Finite[n := l] \as RightD;
+\import E.Blocks[m := m] \as Ambient;
+\import LeftD.Blocks[m := l] \as Domain;
+\import Geometry.Finite[n := Ambient.dimension] \as TotalE;
+\import Geometry.Finite[n := Domain.dimension] \as TotalD;
+\import H.Over[K := R.Real, field := R.Algebra[].field, scalar := H.Real[].scalar, topological := H.Real[].topological].At[n := m] \as RightAt;
+\import H.Over[K := R.Real, field := R.Algebra[].field, scalar := H.Real[].scalar, topological := H.Real[].topological].At[n := Ambient.dimension] \as TotalAt;
+\import At.Blocks[m := m] \as Block;
+\definition projection: TotalAt.Projection := Block.projection p q;
+\import At.OnProjection[P := p].Rank[k := k] \as LeftRank;
+\import RightAt.OnProjection[P := q].Rank[k := l] \as RightRank;
+\import TotalAt.OnProjection[P := projection].Rank[k := Domain.dimension] \as TotalRank;
+\import Spaces.Linear[V := TotalD.Vector, W := TotalE.Vector, source := TotalD.space, target := TotalE.space] \as Forward;
+\import Spaces.Linear[V := TotalE.Vector, W := TotalD.Vector, source := TotalE.space, target := TotalD.space] \as Backward;
+\module With(a: LeftRank.Basis, b: RightRank.Basis) {
+  \definition value: Forward.Map := Forward.Map {
+    apply := \fun (v: TotalD.Vector) => Ambient.join (a.value.apply (Domain.left v)) (b.value.apply (Domain.right v)),
+    preservesAdd := \fun (v, w: TotalD.Vector) => trans!{{TotalE.Vector}} _ _ _
+      (congr!{{E.Vector} {RightE.Vector} {TotalE.Vector}} Ambient.join _ _ _ _ (a.value.preservesAdd (Domain.left v) (Domain.left w)) (b.value.preservesAdd (Domain.right v) (Domain.right w)))
+      (Ambient.addition (a.value.apply (Domain.left v)) (a.value.apply (Domain.left w)) (b.value.apply (Domain.right v)) (b.value.apply (Domain.right w))),
+    preservesScale := \fun (c: R.Real)(v: TotalD.Vector) => trans!{{TotalE.Vector}} _ _ _
+      (congr!{{E.Vector} {RightE.Vector} {TotalE.Vector}} Ambient.join _ _ _ _ (a.value.preservesScale c (Domain.left v)) (b.value.preservesScale c (Domain.right v)))
+      (Ambient.scalar c (a.value.apply (Domain.left v)) (b.value.apply (Domain.right v))),
+  };
+  \definition coordinate: Backward.Map := Backward.Map {
+    apply := \fun (v: TotalE.Vector) => Domain.join (a.coordinate.apply (Ambient.left v)) (b.coordinate.apply (Ambient.right v)),
+    preservesAdd := \fun (v, w: TotalE.Vector) => trans!{{TotalD.Vector}} _ _ _
+      (congr!{{LeftD.Vector} {RightD.Vector} {TotalD.Vector}} Domain.join _ _ _ _ (a.coordinate.preservesAdd (Ambient.left v) (Ambient.left w)) (b.coordinate.preservesAdd (Ambient.right v) (Ambient.right w)))
+      (Domain.addition (a.coordinate.apply (Ambient.left v)) (a.coordinate.apply (Ambient.left w)) (b.coordinate.apply (Ambient.right v)) (b.coordinate.apply (Ambient.right w))),
+    preservesScale := \fun (c: R.Real)(v: TotalE.Vector) => trans!{{TotalD.Vector}} _ _ _
+      (congr!{{LeftD.Vector} {RightD.Vector} {TotalD.Vector}} Domain.join _ _ _ _ (a.coordinate.preservesScale c (Ambient.left v)) (b.coordinate.preservesScale c (Ambient.right v)))
+      (Domain.scalar c (a.coordinate.apply (Ambient.left v)) (b.coordinate.apply (Ambient.right v))),
+  };
+  \definition basis: TotalRank.Basis := TotalRank.Basis {
+    value := value, coordinate := coordinate,
+    leftInverse := \fun (v: TotalD.Vector) => trans!{{TotalD.Vector}} _ _ _
+      (congr!{{LeftD.Vector} {RightD.Vector} {TotalD.Vector}} Domain.join _ _ _ _
+        (trans!{{LeftD.Vector}} _ _ _ (congr!{{E.Vector} {LeftD.Vector}} a.coordinate.apply _ _ (Ambient.leftJoin (a.value.apply (Domain.left v)) (b.value.apply (Domain.right v)))) (a.leftInverse (Domain.left v)))
+        (trans!{{RightD.Vector}} _ _ _ (congr!{{RightE.Vector} {RightD.Vector}} b.coordinate.apply _ _ (Ambient.rightJoin (a.value.apply (Domain.left v)) (b.value.apply (Domain.right v)))) (b.leftInverse (Domain.right v)))) (Domain.recover v),
+    reconstruction := \fun (v: TotalE.Vector) => congr!{{E.Vector} {RightE.Vector} {TotalE.Vector}} Ambient.join _ _ _ _
+      (trans!{{E.Vector}} _ _ _ (congr!{{LeftD.Vector} {E.Vector}} a.value.apply _ _ (Domain.leftJoin (a.coordinate.apply (Ambient.left v)) (b.coordinate.apply (Ambient.right v)))) (a.reconstruction (Ambient.left v)))
+      (trans!{{RightE.Vector}} _ _ _ (congr!{{RightD.Vector} {RightE.Vector}} b.value.apply _ _ (Domain.rightJoin (a.coordinate.apply (Ambient.left v)) (b.coordinate.apply (Ambient.right v)))) (b.reconstruction (Ambient.right v))),
+  };
+}
+\definition rank: TotalRank.HasRank := \block {
+  \takefrom a: LeftRank.Basis \by \bysub(At.Projection, points, p) \then
+  \takefrom b: RightRank.Basis \by \bysub(RightAt.Projection, \root.Real[n := m, k := l].points, q) \then
+  \return \exact(With[a := a, b := b].basis, TotalRank.Basis)
+};
+\definition point: \root.Real[n := Ambient.dimension, k := Domain.dimension].Grassmannian :=
+  \into[TotalAt.Projection](projection, \root.Real[n := Ambient.dimension, k := Domain.dimension].points) \by { rank };

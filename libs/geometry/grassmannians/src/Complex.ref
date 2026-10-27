@@ -1,0 +1,40 @@
+\import hermitian_frames.Hermitian[] \as H;
+\import complex.Complex[] \as C;
+\import H.Over[K := C.Complex, field := C.Algebra[].field, scalar := H.Complex[].scalar, topological := H.Complex[].topological].At[n := n] \as At;
+\definition points: \Pow At.Projection := { p: At.Projection \where At.OnProjection[P := p].Rank[k := k].HasRank };
+\definition Grassmannian: \Set := \Cast[At.Projection] points;
+
+\import std.Data[].FinSet[] \as Fin;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := H.Complex[].scalar].Finite[n := n] \as E;
+\import topological_algebra.Matrix[K := C.Complex, I := Fin.Fin n, J := Fin.Fin n] \as Matrices;
+\definition entries[p: Grassmannian]: Matrices.Carrier := \fun (i, j: Fin.Fin n) => p.map.apply (E.basis j) i;
+\import topological_constructions.Induced[A := Grassmannian, B := Matrices.Carrier] \as Induced;
+\definition topology: topology.Topology[Carrier := Grassmannian].Topology := Induced.topology (Matrices.topology H.Complex[].topological.space) entries;
+\definition entriesContinuous: topology.Continuity[A := Grassmannian, B := Matrices.Carrier].Continuous topology (Matrices.topology H.Complex[].topological.space) entries := Induced.continuous (Matrices.topology H.Complex[].topological.space) entries;
+\import At.Families[X := Grassmannian].Matrix[m := n] \as Families;
+\definition regular: Families.Regular topology (\fun (p: Grassmannian) => p.map) :=
+  Families.regularOfComponents topology (\fun (p: Grassmannian) => p.map)
+    (\fun (j, i: Fin.Fin n) => topology.Composition[A := Grassmannian, B := Matrices.Carrier, C := C.Complex].composeContinuous topology (Matrices.topology H.Complex[].topological.space) H.Complex[].topological.space entries (Matrices.entry i j) entriesContinuous (Matrices.entryContinuous H.Complex[].topological.space i j));
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := H.Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].Projection[X := Grassmannian, n := n, baseSpace := topology, P := \fun (p: Grassmannian) => p, regular := regular] \as Tautological;
+\definition Fiber[p: Grassmannian]: \Set := Tautological.Fiber p;
+\definition bundle: vector_bundles.Bundles[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := H.Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].Family[X := Grassmannian, F := Fiber].Bundle := Tautological.bundle;
+
+\import At.Families[X := Grassmannian].ProjectionFrames[k := k, source := topology, P := \fun (p: Grassmannian) => p] \as Frames;
+\definition hasRank: Frames.HasRank := \fun (p: Grassmannian) => \bysub(At.Projection, points, p);
+\definition localFrame: \forall (p: Grassmannian) -> \exists Frames.Local[p] := Frames.exists regular hasRank;
+
+\import Tautological.Complement[] \as Orthogonal;
+\definition ComplementFiber[p: Grassmannian]: \Set := Orthogonal.ComplementFiber p;
+\definition complementBundle: vector_bundles.Bundles[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := H.Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].Family[X := Grassmannian, F := ComplementFiber].Bundle := Orthogonal.complementBundle;
+
+\import vector_bundles.Bundles[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := H.Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar] \as Bundles;
+\module Pullback(Y: \Set, source: topology.Topology[Carrier := Y].Topology, f: Y -> Grassmannian,
+  continuous: topology.Continuity[A := Y, B := Grassmannian].Continuous source topology f);
+
+\module Family(Y: \Set, source: topology.Topology[Carrier := Y].Topology, P: Y -> At.Projection,
+  regularP: At.Families[X := Y].Matrix[m := n].Regular source (\fun (y: Y) => (P y).map),
+  rank: \forall (y: Y) -> At.OnProjection[P := P y].Rank[k := k].HasRank);
+\module Sum(m, l: std.Data[].Nat[].Nat^, p: Grassmannian, q: \root.Complex[n := m, k := l].Grassmannian);
+\module DirectSum(m, l: std.Data[].Nat[].Nat^);
+\module Graph(a: Grassmannian, center: At.OnProjection[P := a].Rank[k := k].Basis);
+\module Model;

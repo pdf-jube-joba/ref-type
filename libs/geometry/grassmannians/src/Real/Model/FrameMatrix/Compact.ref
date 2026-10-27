@@ -1,0 +1,59 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import topology.Topology[Carrier := Matrix.Carrier] \as MatrixSpace;
+\import topology.Topology[Carrier := R.Real] \as ScalarSpace;
+\import ScalarSpace.Compactness[] \as ScalarCompact;
+\import topology.Continuity[A := Matrix.Carrier, B := R.Real] \as ScalarMaps;
+\import topology.Maps[A := Matrix.Carrier, B := R.Real] \as Sets;
+\import At.Families[X := Matrix.Carrier] \as Vectors;
+\definition matrixTopology: MatrixSpace.Topology := Matrix.topology H.Real[].topological.space;
+\definition Isometry[A: Matrix.Carrier]: \Prop := \forall (v, w: Domain.Vector) -> E.dot ((linear A).apply v) ((linear A).apply w) = Domain.dot v w;
+\definition points: \Pow Matrix.Carrier := { A: Matrix.Carrier \where Isometry A };
+\definition Carrier: \Set := \Cast[Matrix.Carrier] points;
+\definition frame[A: Carrier]: Finite.Orthonormal[k] := Finite.Orthonormal[k] { value := linear A, isometry := \bysub(Matrix.Carrier, points, A) };
+\definition Bad[A: Matrix.Carrier]: \Prop := \exists (v: Domain.Vector \where \exists (w: Domain.Vector \where Logic.Not (E.dot ((linear A).apply v) ((linear A).apply w) = Domain.dot v w)));
+\definition badOfNotIsometry: \forall (A: Matrix.Carrier) -> Logic.Not (Isometry A) -> Bad A :=
+  \fun (A: Matrix.Carrier)(notIso: Logic.Not (Isometry A)) => Logic.orElim[Bad A, Logic.Not (Bad A), Bad A]
+    (Classical.excludedMiddle (Bad A)) (\fun (bad: Bad A) => bad)
+    (\fun (none: Logic.Not (Bad A)) => Logic.falseElim[Bad A] (notIso (\fun (v, w: Domain.Vector) =>
+      Logic.orElim[E.dot ((linear A).apply v) ((linear A).apply w) = Domain.dot v w, Logic.Not (E.dot ((linear A).apply v) ((linear A).apply w) = Domain.dot v w), E.dot ((linear A).apply v) ((linear A).apply w) = Domain.dot v w]
+        (Classical.excludedMiddle (E.dot ((linear A).apply v) ((linear A).apply w) = Domain.dot v w))
+        (\fun (same: _) => same) (\fun (different: _) => Logic.falseElim[_]
+          (none (Logic.existsIntro[Domain.Vector, { v: Domain.Vector \where \exists (w: Domain.Vector \where Logic.Not (E.dot ((linear A).apply v) ((linear A).apply w) = Domain.dot v w)) }] v
+            (Logic.existsIntro[Domain.Vector, { w: Domain.Vector \where Logic.Not (E.dot ((linear A).apply v) ((linear A).apply w) = Domain.dot v w) }] w different)))))));
+\definition scalarHausdorff: ScalarSpace.IsT2 H.Real[].topological.space := realHausdorff;
+\module Test(v, w: Domain.Vector) {
+  \definition value[A: Matrix.Carrier]: R.Real := E.dot ((linear A).apply v) ((linear A).apply w);
+  \definition continuous: ScalarMaps.Continuous matrixTopology H.Real[].topological.space value :=
+    Vectors.dotContinuous matrixTopology (\fun (A: Matrix.Carrier) => (linear A).apply v) (\fun (A: Matrix.Carrier) => (linear A).apply w) (regular v) (regular w);
+  \definition openSet: \Pow Matrix.Carrier := Sets.Preimage value (ScalarSpace.Complement (ScalarSpace.Singleton (Domain.dot v w)));
+  \definition open: MatrixSpace.IsOpenIn matrixTopology openSet := continuous (ScalarSpace.Complement (ScalarSpace.Singleton (Domain.dot v w)))
+    (ScalarCompact.hausdorffT1 H.Real[].topological.space scalarHausdorff (Domain.dot v w));
+}
+\definition closed: MatrixSpace.IsClosedIn matrixTopology points := MatrixSpace.openOfNeighborhoods matrixTopology (MatrixSpace.Complement points) (\block {
+  \fun (A: Matrix.Carrier)(notIso: Logic.Not (Isometry A)) \then
+  \takefrom v: \Cast[Domain.Vector] ({ v: Domain.Vector \where \exists (w: Domain.Vector \where Logic.Not (E.dot ((linear A).apply v) ((linear A).apply w) = Domain.dot v w)) }) \by badOfNotIsometry A notIso \then
+  \let hasW: \exists (w: Domain.Vector \where Logic.Not (E.dot ((linear A).apply v) ((linear A).apply w) = Domain.dot v w)) := \bysub(Domain.Vector, { v: Domain.Vector \where \exists (w: Domain.Vector \where Logic.Not (E.dot ((linear A).apply v) ((linear A).apply w) = Domain.dot v w)) }, v) \then
+  \takefrom w: \Cast[Domain.Vector] ({ w: Domain.Vector \where Logic.Not (E.dot ((linear A).apply v) ((linear A).apply w) = Domain.dot v w) }) \by hasW \then
+  \let unequal: Logic.Not (E.dot ((linear A).apply v) ((linear A).apply w) = Domain.dot v w) := \bysub(Domain.Vector, { w: Domain.Vector \where Logic.Not (E.dot ((linear A).apply v) ((linear A).apply w) = Domain.dot v w) }, w) \then
+  \return Logic.existsIntro[\Pow Matrix.Carrier, { U: \Pow Matrix.Carrier \where MatrixSpace.OpenNeighborhood[matrixTopology, A, MatrixSpace.Complement points, U] }] (Test[v := v, w := w].openSet)
+    (MatrixSpace.OpenNeighborhood[matrixTopology, A, MatrixSpace.Complement points, Test[v := v, w := w].openSet] {
+      open := Test[v := v, w := w].open, contains := unequal,
+      within := \fun (B: Matrix.Carrier)(different: Logic.Not (E.dot ((linear B).apply v) ((linear B).apply w) = Domain.dot v w))(iso: Isometry B) => different (iso v w)
+    })
+});
+
+\import \root.CompactScalar[] \as Boxes;
+\import \root.CompactCubes[K := R.Real, scalar := H.Real[].topological.space, Box := Boxes.realBox, compact := Boxes.realCompact, m := k, n := n] \as Cube;
+\definition contained: MatrixSpace.Subset points Cube.cube := \block {
+  \fun (A: Matrix.Carrier)(iso: Isometry A) \then
+  \let point: Carrier := \into[Matrix.Carrier](A, points) \by { iso } \then
+  \return Cube.contains A (\fun (i: Fin.Fin k)(j: Fin.Fin n) => \idelim (linear A).apply (Domain.basis i) j = A i j
+    \with x: R.Real => \In[R.Real] Boxes.realBox x \by { base: \root.Real[n := n, k := k].Model[].FrameBounds[frame := frame point].inBox i j, equality: onBasis A i j })
+};
+\import MatrixSpace.Compactness[] \as Compactness;
+\definition compactIn: MatrixSpace.IsCompactIn matrixTopology points := Compactness.closedSubset matrixTopology Cube.cube points Cube.cubeCompact closed contained;
+\import MatrixSpace.Subspace[S := points] \as Sub;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Sub.topology matrixTopology;
+\definition compact: topology.Topology[Carrier := Carrier].IsCompact topology := Sub.Properties[].compact matrixTopology compactIn;
+\module Image;

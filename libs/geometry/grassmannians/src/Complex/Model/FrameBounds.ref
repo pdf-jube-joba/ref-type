@@ -1,0 +1,40 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import real.Analysis[] \as Reals;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := H.Complex[].scalar] \as Geometry;
+\import Geometry.Finite[n := k] \as Domain;
+\import std.Alg[].Field[] \as Fields;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := Fields.fieldAsCommutativeRing C.Complex C.Algebra[].field].Coordinates[I := Fin.Fin k].Kronecker[] \as Delta;
+\definition unitSquared: \forall (i: Fin.Fin k) -> E.squared (frame.value.apply (Domain.basis i)) = Reals.one :=
+  \fun (i: Fin.Fin k) => trans!{Reals.Real} _ _ _ (sym!{Reals.Real} _ _ (E.squaredFormula (frame.value.apply (Domain.basis i))))
+    (trans!{Reals.Real} _ _ _ (congr!{C.Complex Reals.Real} H.Complex[].scalar.realPart _ _ (frame.isometry (Domain.basis i) (Domain.basis i)))
+      (trans!{Reals.Real} _ _ _ (congr!{C.Complex Reals.Real} H.Complex[].scalar.realPart _ _ (Domain.dotBasis i (Domain.basis i)))
+        (trans!{Reals.Real} _ _ _ (congr!{C.Complex Reals.Real} H.Complex[].scalar.realPart _ _ (Delta.self i))
+          (trans!{Reals.Real} _ _ _ (congr!{C.Complex Reals.Real} H.Complex[].scalar.realPart _ _ (sym!{C.Complex} _ _ H.Complex[].scalar.embedOne)) (H.Complex[].scalar.realEmbed Reals.one)))));
+\definition coordinateBound: \forall (i: Fin.Fin k)(j: Fin.Fin n) -> Order.Le
+  (H.Complex[].scalar.realPart (C.Algebra[].field.mul (H.Complex[].scalar.conjugate (frame.value.apply (Domain.basis i) j)) (frame.value.apply (Domain.basis i) j))) Reals.one :=
+  \fun (i: Fin.Fin k)(j: Fin.Fin n) => Order.leReplaceRight _ (E.squared (frame.value.apply (Domain.basis i))) Reals.one (unitSquared i)
+    (Reals.FiniteSums[].coordinateUpper n (\fun (j: Fin.Fin n) => H.Complex[].scalar.realPart (C.Algebra[].field.mul (H.Complex[].scalar.conjugate (frame.value.apply (Domain.basis i) j)) (frame.value.apply (Domain.basis i) j)))
+      (\fun (j: Fin.Fin n) => H.Complex[].scalar.scalarNonnegative (frame.value.apply (Domain.basis i) j)) j);
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::zero].Geometry[] \as RealGeometry;
+\import C.Def[] \as ComplexOperations;
+\import C.Prop[] \as ComplexLaws;
+\import C.Absolute[] \as Absolute;
+\import fundamental_algebra.Complex[].Minimum[] \as Minimum;
+\import \root.CompactScalar[] \as Boxes;
+\import \root.CompactCubes[K := C.Complex, scalar := H.Complex[].topological.space, Box := Boxes.complexBox, compact := Boxes.complexCompact, m := k, n := n] \as Cube;
+\definition entries[i: Fin.Fin k][j: Fin.Fin n]: C.Complex := frame.value.apply (Domain.basis i) j;
+\definition absBound: \forall (i: Fin.Fin k)(j: Fin.Fin n) -> Order.Le (Absolute.abs (entries i j)) Reals.one :=
+  \fun (i: Fin.Fin k)(j: Fin.Fin n) => (RealGeometry.unitBounds (Absolute.abs (entries i j))
+    (Order.leReplaceLeft (ComplexOperations.normSq (entries i j)) (Reals.mul (Absolute.abs (entries i j)) (Absolute.abs (entries i j))) Reals.one
+      (sym!{Reals.Real} _ _ (Absolute.square (entries i j)))
+      (Order.leReplaceLeft (H.Complex[].scalar.realPart (C.Algebra[].field.mul (H.Complex[].scalar.conjugate (entries i j)) (entries i j))) (ComplexOperations.normSq (entries i j)) Reals.one
+        (congr!{C.Complex Reals.Real} C.re _ _ (ComplexLaws.conjMulSelf (entries i j))) (coordinateBound i j)))).right;
+\definition inBox: \forall (i: Fin.Fin k)(j: Fin.Fin n) -> \In[C.Complex] Boxes.complexBox (entries i j) :=
+  \fun (i: Fin.Fin k)(j: Fin.Fin n) => Minimum.contains Reals.one (entries i j) (absBound i j);
+\definition inCube: \In[topological_algebra.Matrix[K := C.Complex, I := Fin.Fin k, J := Fin.Fin n].Carrier] Cube.cube entries := Cube.contains entries inBox;
