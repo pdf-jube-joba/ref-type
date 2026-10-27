@@ -1,0 +1,50 @@
+\import N.Basic[].Prop[] \as Nat;
+\import N.Induction[] \as NatInduction;
+\import N.Order[] \as NatOrder;
+\import real.Analysis[].Estimates[] \as E;
+\import dedekind_reals.DedekindReal[].Order[] \as Order;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\definition increasingAll: \forall (f: N.Nat^ -> A -> Real.Real) -> FunctionIncreasing f ->
+  \forall (n, m: N.Nat^) -> Nat.Le m n -> \forall (x: A) -> R.Le (f m x) (f n x) :=
+  \fun (f: N.Nat^ -> A -> Real.Real) (increasing: FunctionIncreasing f) =>
+    \induction (n: N.Nat^) \return \forall (m: N.Nat^) -> Nat.Le m n -> \forall (x: A) -> R.Le (f m x) (f n x) \with {
+      | zero: \fun (m: N.Nat^) (bound: Nat.Le m N.Nat^::zero) (x: A) =>
+        \idelim m = N.Nat^::zero \with k: N.Nat^ => R.Le (f k x) (f N.Nat^::zero x) \by {
+          base: R.leRefl (f N.Nat^::zero x), equality: sym!{N.Nat^} _ _ (Nat.leZeroEq m bound) }
+      | succ: \fun (n: N.Nat^) (previous: _) (m: N.Nat^) (bound: Nat.Le m (N.Nat^::succ n)) (x: A) =>
+        Logic.orElim _ _ _ (NatInduction.leCases m (N.Nat^::succ n) bound)
+          (\fun (less: Nat.Lt m (N.Nat^::succ n)) => R.leTrans (f m x) (f n x) (f (N.Nat^::succ n) x)
+            (previous m (NatInduction.belowSuccessor m n less) x) (increasing n x))
+          (\fun (same: m = N.Nat^::succ n) => R.leReplaceLeft (f (N.Nat^::succ n) x) (f m x) (f (N.Nat^::succ n) x)
+            (sym!{Real.Real} _ _ (congr!{N.Nat^ Real.Real} (\fun (k: N.Nat^) => f k x) _ _ same)) (R.leRefl _))
+    };
+\definition increasing: \forall (f, g: N.Nat^ -> A -> Real.Real) -> FunctionIncreasing f -> FunctionIncreasing g ->
+  FunctionIncreasing (\fun (k: N.Nat^) (x: A) => Real.add (f k x) (g k x)) :=
+  \fun (f, g: _) (fi, gi: _) (k: N.Nat^) (x: A) => E.addLe _ _ _ _ (fi k x) (gi k x);
+\definition sup: \forall (f, g: N.Nat^ -> A -> Real.Real) (u, v: A -> Real.Real) ->
+  PointwiseSup f u -> PointwiseSup g v -> FunctionIncreasing f -> FunctionIncreasing g ->
+  PointwiseSup (\fun (k: N.Nat^) (x: A) => Real.add (f k x) (g k x)) (\fun (x: A) => Real.add (u x) (v x)) :=
+  \fun (f, g: _) (u, v: _) (fs, gs: _) (fi, gi: _) (x: A) => Complete.LeastUpperBound[_, _] {
+    upper := \fun (r: Real.Real) (member: Complete.Member (PointValues (\fun (k: N.Nat^) (x: A) => Real.add (f k x) (g k x)) x) r) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where r = Real.add (f k x) (g k x) }) \by member \then
+      \return R.leReplaceLeft _ r _ (sym!{Real.Real} _ _ (\bysub(N.Nat^, { k: N.Nat^ \where r = Real.add (f k x) (g k x) }, k)))
+        (E.addLe _ _ _ _ (pointwiseUpper f u fs k x) (pointwiseUpper g v gs k x))
+    },
+    least := \fun (b: Real.Real) (upper: _) => Order.leOfNotLtReverse (Real.add (u x) (v x)) b (\fun (less: R.Lt b (Real.add (u x) (v x))) => \block {
+      \takefrom p: \Cast[Real.Real] ({ p: Real.Real \where \exists ( q: Real.Real \where Values.SplitBelow[b, u x, v x, p, q] ) }) \by Values.splitBelow b (u x) (v x) less \then
+      \takefrom q: \Cast[Real.Real] ({ q: Real.Real \where Values.SplitBelow[b, u x, v x, p, q] })
+        \by (\bysub(Real.Real, { p: Real.Real \where \exists ( q: Real.Real \where Values.SplitBelow[b, u x, v x, p, q] ) }, p)) \then
+      \let split: Values.SplitBelow[b, u x, v x, p, q] := \bysub(Real.Real, { q: Real.Real \where Values.SplitBelow[b, u x, v x, p, q] }, q) \then
+      \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where R.Lt p (f i x) }) \by abovePointwiseSup f u fs x p split.left \then
+      \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where R.Lt q (g j x) }) \by abovePointwiseSup g v gs x q split.right \then
+      \let k: N.Nat^ := NatOrder.commonBound i j \then
+      \let pl: R.Lt p (f k x) := R.ltLeTrans p (f i x) (f k x) (\bysub(N.Nat^, { i: N.Nat^ \where R.Lt p (f i x) }, i))
+        (increasingAll f fi k i (NatOrder.leftLeCommonBound i j) x) \then
+      \let ql: R.Lt q (g k x) := R.ltLeTrans q (g j x) (g k x) (\bysub(N.Nat^, { j: N.Nat^ \where R.Lt q (g j x) }, j))
+        (increasingAll g gi k j (NatOrder.rightLeCommonBound i j) x) \then
+      \let strict: R.Lt b (Real.add (f k x) (g k x)) := Order.ltTrans b (Real.add p q) _ split.total (E.addLt p q _ _ pl ql) \then
+      \return R.ltNotLeReverse b _ strict (upper (Real.add (f k x) (g k x))
+        (pointValueMember (\fun (k: N.Nat^) (x: A) => Real.add (f k x) (g k x)) x k))
+    }),
+  };
