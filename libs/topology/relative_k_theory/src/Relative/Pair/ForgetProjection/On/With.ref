@@ -1,0 +1,28 @@
+\definition normalized: Triple := result.value;
+\import \parent.\parent.\parent.TrivialNegative[t := normalized, n := result.dimension] \as Normal;
+\import Normal.With[h := result.trivialization] \as Frame;
+\import \parent.\parent.\parent.FramedClass[F := Normal.E, sourceModel := Normal.model, n := result.dimension].With[alpha := Frame.comparison].Pullback[] \as FramedPullback;
+\import Absolute.Trivial[n := result.dimension] \as Trivial;
+\import Absolute.Bundle[F := Normal.E, original := \parent.\parent.\parent.BundleModel[F := Normal.E].bundle Normal.model, same := (\refl(space))] \as PositiveClass;
+\import Absolute.Bundle[F := Absolute.Fiber normalized.negative, original := Absolute.bundle normalized.negative, same := (\refl(space))] \as NegativeClass;
+\import Absolute.Compare[F := Absolute.Fiber normalized.negative, G := (\fun (x: X) => Bundles.Vector result.dimension),
+  first := Absolute.bundle normalized.negative, second := Bundles.Trivial[X := X, n := result.dimension, baseSpace := space].bundle,
+  firstSame := (\refl(space)), secondSame := (\refl(space))] \as NegativeCompare;
+\definition positiveEquation: PositiveClass.value = Absolute.class normalized.positive := Absolute.Realized[p := normalized.positive].equation;
+\definition negativeEquation: Absolute.class normalized.negative = Trivial.value :=
+  trans!{{Absolute.Classes}} _ _ _ (sym!{{Absolute.Classes}} _ _ (Absolute.Realized[p := normalized.negative].equation))
+    (NegativeCompare.ofIsomorphism result.trivialization);
+\definition normalizedEquation: Pull.map (ReducedMap.map (Triples.value normalized)) = Forget.map (Triples.value normalized) :=
+  eq_reason_in!{{Ordinary.Carrier} _
+    "=" { Pull.map Frame.value } "by" { congr!{{Quotient.Relative} {Ordinary.Carrier}} (\fun (v: Quotient.Relative) => Pull.map v) _ _
+      (trans!{{Quotient.Relative}} _ _ _ (ReducedMap.onTriple normalized) Frame.equation) }
+    "=" { Ordinary.difference PositiveClass.value Trivial.value } "by" { FramedPullback.equation }
+    "=" { Ordinary.difference (Absolute.class normalized.positive) (Absolute.class normalized.negative) } "by" {
+      congr!{{Absolute.Classes} {Absolute.Classes} {Ordinary.Carrier}} Ordinary.difference _ _ _ _ positiveEquation (sym!{{Absolute.Classes}} _ _ negativeEquation) }
+    "=" { Forget.map (Triples.value normalized) } "by" { sym!{{Ordinary.Carrier}} _ _ (Forget.onTriple normalized) }
+  };
+\definition equation: Pull.map (ReducedMap.map (Triples.value t)) = Forget.map (Triples.value t) :=
+  trans!{{Ordinary.Carrier}} _ _ _
+    (congr!{{Triples.Carrier} {Ordinary.Carrier}} (\fun (z: Triples.Carrier) => Pull.map (ReducedMap.map z)) _ _ result.equality)
+    (trans!{{Ordinary.Carrier}} _ _ _ normalizedEquation
+      (congr!{{Triples.Carrier} {Ordinary.Carrier}} Forget.map _ _ (sym!{{Triples.Carrier}} _ _ result.equality)));

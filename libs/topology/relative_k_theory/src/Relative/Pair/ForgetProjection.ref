@@ -1,0 +1,28 @@
+\import \parent.Quotient[] \as Quotient;
+\import KTheory.On[X := Quotient.Carrier, baseSpace := Quotient.topology, compact := Quotient.quotientCompact, hausdorff := Quotient.quotientHausdorff] \as K;
+\import K.Pullback[Y := X, space := space, sourceCompact := compact, sourceHausdorff := hausdorff,
+  f := Quotient.projection, regular := Quotient.continuous].K0[] \as Pull;
+\import Absolute.K0[] \as Ordinary;
+\import \parent.Group[] \as Triples;
+\import Triples.Forget[] \as Forget;
+\import Triples.ToReduced[] \as ReducedMap;
+\import \parent.Comparison[] \as Compare;
+\module On(t: Triple);
+\definition onTriple: \forall (t: Triple) -> Pull.map (ReducedMap.map (Triples.value t)) = Forget.map (Triples.value t) := \block {
+  \fun (t: Triple) \then
+  \takefrom normalized: \parent.Normalize[t := t].Result \by \parent.Normalize[t := t].existence \then
+  \return On[t := t].With[result := normalized].equation
+};
+\definition onGroup: \forall (z: Triples.Carrier) -> Pull.map (ReducedMap.map z) = Forget.map z := \block {
+  \fun (z: Triples.Carrier) \then
+  \takefrom t: \Cast[Triple] ({ t: Triple \where Triples.value t = z }) \by Triples.NormalForm[].existence z \then
+  \return \idelim Triples.value t = z \with w: Triples.Carrier => Pull.map (ReducedMap.map w) = Forget.map w \by {
+    base: onTriple t, equality: \bysub(Triple, { t: Triple \where Triples.value t = z }, t)
+  }
+};
+\import \parent.Exact[] \as Exact;
+\definition equation: \forall (v: Quotient.Relative) -> Pull.map v = Exact.forget v := \fun (v: Quotient.Relative) =>
+  trans!{{Ordinary.Carrier}} _ _ _
+    (congr!{{Quotient.Relative} {Ordinary.Carrier}} (\fun (w: Quotient.Relative) => Pull.map w) _ _
+      (sym!{{Quotient.Relative}} _ _ (Compare.isomorphism.rightInverse v)))
+    (onGroup (Compare.isomorphism.backward v));

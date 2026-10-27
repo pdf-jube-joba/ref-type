@@ -148,7 +148,10 @@ K07 の影響先検査は最終検査に含める。
 最新の未検証変更は `Pair.Pointed.Cofiber.ConeQuotient` と、射影・円錐像・底面の計算補題。
 円錐像を潰した商と元の相対商との同相を作り、相対群と cofiber の被約群との比較へ合成する。
 固定 snapshot は `work/k03-resume/cone-quotient.source.json`。
-次は `relative_k_theory.Relative.Pair.Pointed.Cofiber.ConeQuotient` を検査する。
+`cone-quotient` はこの固定 snapshot の検査中。
+追加の未検証変更は `FramedClass.With.Pullback` と `Pair.ForgetProjection`。
+降下した束の引き戻しの同型と三つ組の正規化から、忘却写像が商への射影による引き戻しに一致することを示す。
+その固定 snapshot は `work/k03-resume/forget-projection.source.json` で、前の検査終了後に両 module を順に検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。
