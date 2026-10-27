@@ -1,0 +1,28 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import std.Data[].Pair[] \as Pair;
+\import \root.BasepointsReal[m := m] \as Basepoints;
+\import \root.Real[n := m, k := N.Nat^::zero].Model[] \as ZeroModel;
+\import \root.Real[n := m, k := m].Model[] \as FullModel;
+\import \root.Real[n := Nat.add m n, k := Nat.add N.Nat^::zero k].Model[] \as AmbientTarget;
+\import \root.Real[n := Nat.add m n, k := Nat.add m k].Model[] \as RankTarget;
+\import \parent.DirectSum[m := m, l := N.Nat^::zero] \as AmbientSum;
+\import \parent.DirectSum[m := m, l := m] \as RankSum;
+\definition ambient[p: Carrier]: AmbientTarget.Carrier := AmbientSum.map (Pair.pair Carrier ZeroModel.Carrier p Basepoints.zero);
+\definition dimension[p: Carrier]: RankTarget.Carrier := RankSum.map (Pair.pair Carrier FullModel.Carrier p Basepoints.full);
+\import topology.Maps[A := Carrier, B := Carrier].Identity[] \as Identity;
+\import topology.Maps[A := Carrier, B := ZeroModel.Carrier] \as ZeroMaps;
+\import topology.Maps[A := Carrier, B := FullModel.Carrier] \as FullMaps;
+\import topological_constructions.Product[A := Carrier, B := ZeroModel.Carrier].Universal[X := Carrier] \as ZeroPair;
+\import topological_constructions.Product[A := Carrier, B := FullModel.Carrier].Universal[X := Carrier] \as FullPair;
+\definition ambientContinuous: topology.Continuity[A := Carrier, B := AmbientTarget.Carrier].Continuous topology AmbientTarget.topology ambient :=
+  topology.Composition[A := Carrier, B := AmbientSum.Source, C := AmbientTarget.Carrier].composeContinuous topology AmbientSum.sourceTopology AmbientTarget.topology
+    (\fun (p: Carrier) => Pair.pair Carrier ZeroModel.Carrier p Basepoints.zero) AmbientSum.map
+    (ZeroPair.pairContinuous topology topology ZeroModel.topology (\fun (p: Carrier) => p) (\fun (_: Carrier) => Basepoints.zero)
+      (Identity.continuous topology) (ZeroMaps.constantContinuous topology ZeroModel.topology Basepoints.zero)) AmbientSum.continuous;
+\definition dimensionContinuous: topology.Continuity[A := Carrier, B := RankTarget.Carrier].Continuous topology RankTarget.topology dimension :=
+  topology.Composition[A := Carrier, B := RankSum.Source, C := RankTarget.Carrier].composeContinuous topology RankSum.sourceTopology RankTarget.topology
+    (\fun (p: Carrier) => Pair.pair Carrier FullModel.Carrier p Basepoints.full) RankSum.map
+    (FullPair.pairContinuous topology topology FullModel.topology (\fun (p: Carrier) => p) (\fun (_: Carrier) => Basepoints.full)
+      (Identity.continuous topology) (FullMaps.constantContinuous topology FullModel.topology Basepoints.full)) RankSum.continuous;
+\definition ambientRank: Nat.add N.Nat^::zero k = k := N.Basic[].Prop[].addZeroLeft k;
