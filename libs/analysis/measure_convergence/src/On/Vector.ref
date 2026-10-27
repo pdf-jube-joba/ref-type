@@ -1,0 +1,17 @@
+\import std.Data[].FinSet[] \as Fin;
+\definition Function: \Set := A -> Fin.Fin n -> Real.Real;
+\definition Integrable[f: Function]: \Prop := \forall (i: Fin.Fin n) -> Integral.Integrable (\fun (x: A) => f x i);
+\definition Representatives: \Set := \Cast[Function] ({ f: Function \where Integrable f });
+\definition component[f: Representatives] [i: Fin.Fin n]: Integral.Representatives :=
+  \into[A -> Real.Real](\fun (x: A) => f x i, { g: A -> Real.Real \where Integral.Integrable g }) \by {
+    (\bysub(Function, { f: Function \where Integrable f }, f)) i
+  };
+\definition integral[f: Representatives]: Fin.Fin n -> Real.Real := \fun (i: Fin.Fin n) => Integral.integral (component f i);
+\definition componentLaw: \forall (f: Representatives) (i: Fin.Fin n) ->
+  Integral.HasIntegral[\fun (x: A) => f x i, integral f i] :=
+  \fun (f: Representatives) (i: Fin.Fin n) => Integral.integralLaw (component f i);
+\definition almostEqual[f, g: Representatives]: \Prop :=
+  \forall (i: Fin.Fin n) -> Measures.AlmostEqual mu (\fun (x: A) => f x i) (\fun (x: A) => g x i);
+\definition integralAlmost: \forall (f, g: Representatives) -> almostEqual f g -> integral f = integral g :=
+  \fun (f, g: Representatives) (equal: almostEqual f g) => \axiom:funext(integral f, integral g,
+    \fun (i: Fin.Fin n) => QuotientIntegral.integralAlmost (component f i) (component g i) (equal i));
