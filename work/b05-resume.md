@@ -92,3 +92,5 @@ Model.DirectSum.Bundle は普遍束の引き戻しと両因子の普遍束の引
 Model.Stabilization.Along で直和の束同型を安定化の埋め込みに沿って引き戻し、普遍束の引き戻しと因子束の引き戻しの直和の同型を構成した。零射影・恒等射影に特殊化した ambientBundleIsomorphism と dimensionBundleIsomorphism の実側個別検査は accepted。複素側・全体を検査する。
 
 Model.Charts.exists は各点で基準基底とグラフ同相写像が存在することを証明する。実側個別検査は accepted、複素側と対象全体を再検査する。
+
+b15671a2 の対象 full-check-local は accepted（90 module、1429 steps）、依存閉包は accepted（711 module 再利用）、キャッシュ保存失敗0。安定化写像と束同型の基底写像の一致式を追加したので、最終検査と bundle_complements の回帰検査を行う。
