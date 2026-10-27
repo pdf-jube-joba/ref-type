@@ -121,3 +121,32 @@
       \fun (r: Real.Real) (member: below (mu.value S) r) =>
         \idelim mu.value T = zero \with v: Value => below v r \by { base: monotone S T s t subset r member, equality: null },
       Series.zeroIncluded (mu.value S) (laws.nonnegative S s));
+
+\definition partitionBy: \forall (S, T: \Pow A) -> S = Sigma.pairUnion (Sigma.difference S T) (Sets.Intersection S T) :=
+  \fun (S, T: \Pow A) => \axiom:setext(S, Sigma.pairUnion (Sigma.difference S T) (Sets.Intersection S T),
+    \fun (x: A) (inS: Sets.Member S x) => Logic.orElim _ _ (Sets.Member (Sigma.pairUnion (Sigma.difference S T) (Sets.Intersection S T)) x)
+      (Classical.excludedMiddle (Sets.Member T x))
+      (\fun (inT: Sets.Member T x) => Logic.Or[_, _]::right (Logic.And[_, _]::# inS inT))
+      (\fun (notT: Logic.Not (Sets.Member T x)) => Logic.Or[_, _]::left (Logic.And[_, _]::# inS notT)),
+    \fun (x: A) (member: Sets.Member (Sigma.pairUnion (Sigma.difference S T) (Sets.Intersection S T)) x) =>
+      Logic.orElim _ _ (Sets.Member S x) member
+        (\fun (inDiff: Sets.Member (Sigma.difference S T) x) => inDiff.left)
+        (\fun (inBoth: Sets.Member (Sets.Intersection S T) x) => inBoth.left));
+\definition partitionDisjoint: \forall (S, T: \Pow A) -> Sets.Disjoint (Sigma.difference S T) (Sets.Intersection S T) :=
+  \fun (S, T: \Pow A) (x: A) (inDiff: Sets.Member (Sigma.difference S T) x) (inBoth: Sets.Member (Sets.Intersection S T) x) =>
+    inDiff.right inBoth.right;
+\definition removeNull: \forall (S, T: \Pow A) -> Measurable mu.sigma S -> Measurable mu.sigma T -> mu.value T = zero ->
+  mu.value (Sigma.difference S T) = mu.value S :=
+  \fun (S, T: \Pow A) (s: Measurable mu.sigma S) (t: Measurable mu.sigma T) (tz: mu.value T = zero) => \block {
+    \let diff: Measurable mu.sigma (Sigma.difference S T) := Sigma.differenceMeasurable mu.sigma S T s t \then
+    \let both: Measurable mu.sigma (Sets.Intersection S T) := Sigma.intersectionMeasurable mu.sigma S T s t \then
+    \let bothZero: mu.value (Sets.Intersection S T) = zero := subsetZero (Sets.Intersection S T) T both t
+      (\fun (x: A) (member: Sets.Member (Sets.Intersection S T) x) => member.right) tz \then
+    \let equality: mu.value S = mu.value (Sigma.difference S T) := eq_reason_in!{Value _
+      "=" _ "by" { congr!{{\Pow A} Value} mu.value _ _ (partitionBy S T) }
+      "=" _ "by" { additivity (Sigma.difference S T) (Sets.Intersection S T) diff both (partitionDisjoint S T) }
+      "=" _ "by" { congr!{Value Value} (add (mu.value (Sigma.difference S T))) _ _ bothZero }
+      "=" _ "by" { V.addZero (mu.value (Sigma.difference S T)) (laws.nonnegative (Sigma.difference S T) diff) }
+    } \then
+    \return sym!{Value} _ _ equality
+  };
