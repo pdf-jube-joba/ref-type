@@ -1,0 +1,35 @@
+\import real.Analysis[].Algebra[] \as Algebra;
+\import real.Analysis[].Algebra[].Laws[] \as Laws;
+
+\definition Included[v, w: Value]: \Prop := \forall (r: Real.Real) -> below v r -> below w r;
+
+\definition addMono: \forall (v, v2, w, w2: Value) -> Included v v2 -> Included w w2 ->
+  Included (add v w) (add v2 w2) :=
+  \fun (v, v2, w, w2: Value) (left: Included v v2) (right: Included w w2) (r: Real.Real) (member: below (add v w) r) => \block {
+    \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[below v a, \exists ( b: Real.Real \where Logic.And[below w b, R.Lt r (Real.add a b)] )] }) \by member \then
+    \let first: Logic.And[below v a, \exists ( b: Real.Real \where Logic.And[below w b, R.Lt r (Real.add a b)] )] :=
+      \bysub(Real.Real, { a: Real.Real \where Logic.And[below v a, \exists ( b: Real.Real \where Logic.And[below w b, R.Lt r (Real.add a b)] )] }, a) \then
+    \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where Logic.And[below w b, R.Lt r (Real.add a b)] }) \by first.right \then
+    \let second: Logic.And[below w b, R.Lt r (Real.add a b)] :=
+      \bysub(Real.Real, { b: Real.Real \where Logic.And[below w b, R.Lt r (Real.add a b)] }, b) \then
+    \return Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[below v2 a, \exists ( b: Real.Real \where Logic.And[below w2 b, R.Lt r (Real.add a b)] )] }] a
+      (Logic.And[_, _]::# (left a first.left)
+        (Logic.existsIntro[Real.Real, { b: Real.Real \where Logic.And[below w2 b, R.Lt r (Real.add a b)] }] b
+          (Logic.And[_, _]::# (right b second.left) second.right)))
+  };
+
+\definition addSwap: \forall (v, w: Value) -> Included (add v w) (add w v) :=
+  \fun (v, w: Value) (r: Real.Real) (member: below (add v w) r) => \block {
+    \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[below v a, \exists ( b: Real.Real \where Logic.And[below w b, R.Lt r (Real.add a b)] )] }) \by member \then
+    \let first: Logic.And[below v a, \exists ( b: Real.Real \where Logic.And[below w b, R.Lt r (Real.add a b)] )] :=
+      \bysub(Real.Real, { a: Real.Real \where Logic.And[below v a, \exists ( b: Real.Real \where Logic.And[below w b, R.Lt r (Real.add a b)] )] }, a) \then
+    \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where Logic.And[below w b, R.Lt r (Real.add a b)] }) \by first.right \then
+    \let second: Logic.And[below w b, R.Lt r (Real.add a b)] :=
+      \bysub(Real.Real, { b: Real.Real \where Logic.And[below w b, R.Lt r (Real.add a b)] }, b) \then
+    \return Logic.existsIntro[Real.Real, { b: Real.Real \where Logic.And[below w b, \exists ( a: Real.Real \where Logic.And[below v a, R.Lt r (Real.add b a)] )] }] b
+      (Logic.And[_, _]::# second.left
+        (Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[below v a, R.Lt r (Real.add b a)] }] a
+          (Logic.And[_, _]::# first.left (R.ltReplaceRight r (Real.add a b) (Real.add b a) (Laws.addComm a b) second.right))))
+  };
+\definition addComm: \forall (v, w: Value) -> add v w = add w v :=
+  \fun (v, w: Value) => \axiom:setext(add v w, add w v, addSwap v w, addSwap w v);
