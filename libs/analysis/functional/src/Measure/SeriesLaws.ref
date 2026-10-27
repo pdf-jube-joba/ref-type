@@ -1,0 +1,67 @@
+\import \root.Measure[A := A].ValueLaws[] \as V;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].sym;
+
+\definition pair[v, w: Value]: N.Nat^ -> Value :=
+  \induction (n: N.Nat^) \return Value \with {
+    | zero: v
+    | succ: \fun (n: N.Nat^) (_: Value) =>
+      (\induction (n: N.Nat^) \return Value \with {
+        | zero: w
+        | succ: \fun (_: N.Nat^) (_: Value) => zero
+      }) n
+  };
+\definition zeroIncluded: \forall (v: Value) -> NonnegativeValue[v] -> V.Included zero v :=
+  \fun (v: Value) (law: NonnegativeValue[v]) (r: Real.Real) (negative: below zero r) => law.negative r negative;
+\definition zeroAdd: \forall (v: Value) -> NonnegativeValue[v] -> add zero v = v :=
+  \fun (v: Value) (law: NonnegativeValue[v]) => eq_reason_in!{Value _
+    "=" _ "by" { V.addComm zero v }
+    "=" _ "by" { V.addZero v law }
+  };
+\definition pairPartialOne: \forall (v, w: Value) -> NonnegativeValue[v] ->
+  partialSum (pair v w) (N.Nat^::succ N.Nat^::zero) = v :=
+  \fun (v, w: _) (vl: _) => zeroAdd v vl;
+\definition pairPartialTwo: \forall (v, w: Value) -> NonnegativeValue[v] ->
+  partialSum (pair v w) (N.Nat^::succ (N.Nat^::succ N.Nat^::zero)) = add v w :=
+  \fun (v, w: _) (vl: _) => congr!{Value Value} (\fun (x: Value) => add x w) _ _ (zeroAdd v vl);
+\definition pairPartialTail: \forall (v, w: Value) -> NonnegativeValue[v] -> NonnegativeValue[w] ->
+  \forall (n: N.Nat^) -> partialSum (pair v w) (N.Nat^::succ (N.Nat^::succ n)) = add v w :=
+  \fun (v, w: Value) (vl: NonnegativeValue[v]) (wl: NonnegativeValue[w]) =>
+    \induction (n: N.Nat^) \return partialSum (pair v w) (N.Nat^::succ (N.Nat^::succ n)) = add v w \with {
+      | zero: pairPartialTwo v w vl
+      | succ: \fun (n: N.Nat^) (previous: _) => eq_reason_in!{Value _
+        "=" _ "by" { congr!{Value Value} (\fun (x: Value) => add x zero) _ _ previous }
+        "=" _ "by" { V.addZero (add v w) (V.addNonnegative v w vl wl) }
+      }
+    };
+\definition pairLeftIncluded: \forall (v, w: Value) -> NonnegativeValue[v] -> NonnegativeValue[w] -> V.Included v (add v w) :=
+  \fun (v, w: Value) (vl: NonnegativeValue[v]) (wl: NonnegativeValue[w]) (r: Real.Real) (member: below v r) =>
+    V.addMono v v zero w (\fun (s: _) (inV: _) => inV) (zeroIncluded w wl) r
+      (\idelim v = add v zero \with x: Value => below x r \by { base: member, equality: sym!{Value} _ _ (V.addZero v vl) });
+\definition pairPartialIncluded: \forall (v, w: Value) -> NonnegativeValue[v] -> NonnegativeValue[w] ->
+  \forall (n: N.Nat^) -> V.Included (partialSum (pair v w) n) (add v w) :=
+  \fun (v, w: Value) (vl: NonnegativeValue[v]) (wl: NonnegativeValue[w]) =>
+    \induction (n: N.Nat^) \return V.Included (partialSum (pair v w) n) (add v w) \with {
+      | zero: zeroIncluded (add v w) (V.addNonnegative v w vl wl)
+      | succ: \fun (n: N.Nat^) (_: _) =>
+        (\induction (n: N.Nat^) \return V.Included (partialSum (pair v w) (N.Nat^::succ n)) (add v w) \with {
+          | zero: \fun (r: Real.Real) (member: _) => pairLeftIncluded v w vl wl r
+            (\idelim partialSum (pair v w) (N.Nat^::succ N.Nat^::zero) = v \with x: Value => below x r
+              \by { base: member, equality: pairPartialOne v w vl })
+          | succ: \fun (n: N.Nat^) (_: _) (r: Real.Real) (member: _) =>
+            \idelim partialSum (pair v w) (N.Nat^::succ (N.Nat^::succ n)) = add v w \with x: Value => below x r
+              \by { base: member, equality: pairPartialTail v w vl wl n }
+        }) n
+    };
+\definition pairSeries: \forall (v, w: Value) -> NonnegativeValue[v] -> NonnegativeValue[w] -> series (pair v w) = add v w :=
+  \fun (v, w: Value) (vl: NonnegativeValue[v]) (wl: NonnegativeValue[w]) =>
+    \axiom:setext(series (pair v w), add v w,
+      \fun (r: Real.Real) (member: below (series (pair v w)) r) => \block {
+        \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where below (partialSum (pair v w) n) r }) \by member \then
+        \return pairPartialIncluded v w vl wl n r (\bysub(N.Nat^, { n: N.Nat^ \where below (partialSum (pair v w) n) r }, n))
+      },
+      \fun (r: Real.Real) (member: below (add v w) r) =>
+        Logic.existsIntro[N.Nat^, { n: N.Nat^ \where below (partialSum (pair v w) n) r }] (N.Nat^::succ (N.Nat^::succ N.Nat^::zero))
+          (\idelim add v w = partialSum (pair v w) (N.Nat^::succ (N.Nat^::succ N.Nat^::zero)) \with x: Value => below x r
+            \by { base: member, equality: sym!{Value} _ _ (pairPartialTwo v w vl) }));
