@@ -96,3 +96,33 @@
       },
       supLeast (\fun (n: N.Nat^) => add (v n) (w n)) (add (Sup v) (Sup w))
         (\fun (n: N.Nat^) => Values.addMono (v n) (Sup v) (w n) (Sup w) (supUpper v n) (supUpper w n)));
+
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\definition supConstant: \forall (v: Value) -> Sup (\fun (_: N.Nat^) => v) = v :=
+  \fun (v: Value) => \axiom:setext(Sup (\fun (_: N.Nat^) => v), v,
+    supLeast (\fun (_: N.Nat^) => v) v (\fun (n: N.Nat^) (r: Real.Real) (member: below v r) => member),
+    supUpper (\fun (_: N.Nat^) => v) N.Nat^::zero);
+\definition sumValueIncreasing: \forall (n: N.Nat^) (f: N.Nat^ -> Fin.Fin n -> Value) ->
+  (\forall (i: Fin.Fin n) -> ValueIncreasing (\fun (k: N.Nat^) => f k i)) ->
+  ValueIncreasing (\fun (k: N.Nat^) => sum n (f k)) :=
+  \fun (n: N.Nat^) (f: N.Nat^ -> Fin.Fin n -> Value) (increasing: \forall (i: Fin.Fin n) -> ValueIncreasing (\fun (k: N.Nat^) => f k i))
+    (m, k: N.Nat^) (order: Nat.Le m k) => Values.sumMono n (f m) (f k) (\fun (i: Fin.Fin n) => increasing i m k order);
+\definition sumSup: \forall (n: N.Nat^) (f: N.Nat^ -> Fin.Fin n -> Value) ->
+  (\forall (i: Fin.Fin n) -> ValueIncreasing (\fun (k: N.Nat^) => f k i)) ->
+  sum n (\fun (i: Fin.Fin n) => Sup (\fun (k: N.Nat^) => f k i)) = Sup (\fun (k: N.Nat^) => sum n (f k)) :=
+  \induction (n: N.Nat^) \return \forall (f: N.Nat^ -> Fin.Fin n -> Value) ->
+    (\forall (i: Fin.Fin n) -> ValueIncreasing (\fun (k: N.Nat^) => f k i)) ->
+    sum n (\fun (i: Fin.Fin n) => Sup (\fun (k: N.Nat^) => f k i)) = Sup (\fun (k: N.Nat^) => sum n (f k)) \with {
+      | zero: \fun (f: N.Nat^ -> Fin.Fin N.Nat^::zero -> Value) (_: _) => sym!{Value} _ _ (supConstant zero)
+      | succ: \fun (n: N.Nat^) (previous: _) (f: N.Nat^ -> Fin.Fin (N.Nat^::succ n) -> Value) (increasing: _) => \block {
+        \let tail: N.Nat^ -> Fin.Fin n -> Value := \fun (k: N.Nat^) (i: Fin.Fin n) => f k (Fin.succ n i) \then
+        \let tailIncreasing: \forall (i: Fin.Fin n) -> ValueIncreasing (\fun (k: N.Nat^) => tail k i) := \fun (i: Fin.Fin n) => increasing (Fin.succ n i) \then
+        \return eq_reason_in!{Value _
+          "=" _ "by" { congr!{Value Value} (add (Sup (\fun (k: N.Nat^) => f k (Fin.zero n)))) _ _ (previous tail tailIncreasing) }
+          "=" _ "by" { addSup (\fun (k: N.Nat^) => f k (Fin.zero n)) (\fun (k: N.Nat^) => sum n (tail k))
+            (increasing (Fin.zero n)) (sumValueIncreasing n tail tailIncreasing) }
+        }
+      }
+    };
