@@ -94,3 +94,33 @@
         "=" _ "by" { sym!{Real.Real} _ _ (Product.absExpression (integral f)) }
       }) (Distance.maxLeast _ _ _ backward forward)
   };
+
+\definition lowerSupMono: \forall (f, g: A -> Real.Real) (u, v: Real.Real) ->
+  (\forall (x: A) -> R.Le (f x) (g x)) -> Complete.LeastUpperBound[lowerIntegral f, u] -> Complete.LeastUpperBound[lowerIntegral g, v] -> R.Le u v :=
+  \fun (f, g: A -> Real.Real) (u, v: Real.Real) (order: \forall (x: A) -> R.Le (f x) (g x))
+    (lf: Complete.LeastUpperBound[lowerIntegral f, u]) (lg: Complete.LeastUpperBound[lowerIntegral g, v]) =>
+      lf.least v (\fun (r: Real.Real) (member: below (lowerIntegral f) r) => lg.upper r (lowerIntegralMono f g order r member));
+\definition positiveMono: \forall (f, g: A -> Real.Real) -> (\forall (x: A) -> R.Le (f x) (g x)) ->
+  \forall (x: A) -> R.Le (positivePart f x) (positivePart g x) :=
+  \fun (f, g: A -> Real.Real) (order: \forall (x: A) -> R.Le (f x) (g x)) (x: A) =>
+    Distance.maxMonotone Real.zero (f x) Real.zero (g x) (R.leRefl Real.zero) (order x);
+\definition negativeAntitone: \forall (f, g: A -> Real.Real) -> (\forall (x: A) -> R.Le (f x) (g x)) ->
+  \forall (x: A) -> R.Le (negativePart g x) (negativePart f x) :=
+  \fun (f, g: A -> Real.Real) (order: \forall (x: A) -> R.Le (f x) (g x)) (x: A) =>
+    Distance.maxMonotone Real.zero (Real.neg (g x)) Real.zero (Real.neg (f x)) (R.leRefl Real.zero) (Laws.negAntitone (f x) (g x) (order x));
+\definition integralMono: \forall (f, g: Representatives) -> (\forall (x: A) -> R.Le (f x) (g x)) -> R.Le (integral f) (integral g) :=
+  \fun (f, g: Representatives) (order: \forall (x: A) -> R.Le (f x) (g x)) => \block {
+    \takefrom pf: \Cast[Real.Real] ({ p: Real.Real \where \exists ( q: Real.Real \where Parts[f, integral f, p, q] ) }) \by (integralLaw f).parts \then
+    \takefrom qf: \Cast[Real.Real] ({ q: Real.Real \where Parts[f, integral f, pf, q] })
+      \by (\bysub(Real.Real, { p: Real.Real \where \exists ( q: Real.Real \where Parts[f, integral f, p, q] ) }, pf)) \then
+    \takefrom pg: \Cast[Real.Real] ({ p: Real.Real \where \exists ( q: Real.Real \where Parts[g, integral g, p, q] ) }) \by (integralLaw g).parts \then
+    \takefrom qg: \Cast[Real.Real] ({ q: Real.Real \where Parts[g, integral g, pg, q] })
+      \by (\bysub(Real.Real, { p: Real.Real \where \exists ( q: Real.Real \where Parts[g, integral g, p, q] ) }, pg)) \then
+    \let left: Parts[f, integral f, pf, qf] := \bysub(Real.Real, { q: Real.Real \where Parts[f, integral f, pf, q] }, qf) \then
+    \let right: Parts[g, integral g, pg, qg] := \bysub(Real.Real, { q: Real.Real \where Parts[g, integral g, pg, q] }, qg) \then
+    \let positives: R.Le pf pg := lowerSupMono (positivePart f) (positivePart g) pf pg (positiveMono f g order) left.positiveLaw right.positiveLaw \then
+    \let negatives: R.Le qg qf := lowerSupMono (negativePart g) (negativePart f) qg qf (negativeAntitone f g order) right.negativeLaw left.negativeLaw \then
+    \return R.leReplace (Real.sub pf qf) (integral f) (Real.sub pg qg) (integral g)
+      (sym!{Real.Real} _ _ left.difference) (sym!{Real.Real} _ _ right.difference)
+      (Real.Estimates[].addLe pf (Real.neg qf) pg (Real.neg qg) positives (Laws.negAntitone qg qf negatives))
+  };
