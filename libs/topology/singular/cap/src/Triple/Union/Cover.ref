@@ -1,0 +1,21 @@
+\import topology.Topology[Carrier := Relative.SubspaceCarrier] \as UnionTopology;
+\definition left: \Pow Relative.SubspaceCarrier := { x: Relative.SubspaceCarrier \where \In[A] first x };
+\definition right: \Pow Relative.SubspaceCarrier := { x: Relative.SubspaceCarrier \where \In[A] second x };
+\structure Conditions: \Prop := {
+  leftOpen: UnionTopology.IsOpenIn (Space.topology source) left,
+  rightOpen: UnionTopology.IsOpenIn (Space.topology source) right,
+};
+\import singular_excision.MayerVietoris[A := Relative.SubspaceCarrier].Over[source := Space.topology source] \as MV;
+\definition data: MV.Data := MV.Data { left := left, right := right };
+\definition cover[conditions: Conditions]: MV.Cover := \into[MV.Data](data, { d: MV.Data \where MV.Laws[d] }) \by {
+  MV.Laws[data] {
+    leftOpen := conditions.leftOpen,
+    rightOpen := conditions.rightOpen,
+    covered := \fun (x: Relative.SubspaceCarrier) => \bysub(A, subset, x),
+  }
+};
+\module On(conditions: Conditions) {
+  \import MV.On[cover := cover conditions] \as Covered;
+  \import Covered.Chains[] \as Chains;
+  \definition small: _ := Chains.Small.complex;
+}
