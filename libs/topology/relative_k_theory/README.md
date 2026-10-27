@@ -96,11 +96,14 @@ K07 の影響先検査は最終検査に含める。
 `With.additivity` は束の同型類と自明束の直和の等式から被約群の加法性を導く。
 `MapOperations` と `Commutative.Blocks.Interchange` は `shears-MapOperations`・`shears-Interchange` で accepted・終了0・キャッシュ保存失敗0。
 共通 API は束写像の加法・定数倍と、同型で結ばれた二つの空間を符号付きで交換する剪断写像の積を作る。
-最新の未検証変更は `FramedClass.With.Stabilized`、`Shear` の下側の加算順序の修正、`BundleSwitch`。
-前者は恒等的な枠を持つ自明束を加えても被約群の元が変わらないことを示す。
+`FramedClass.With.Stabilized`・`Shear`・`BundleSwitch` の符号付き交換は `shears-fixed-*` で accepted・終了0・キャッシュ保存失敗0。
 `BundleSwitch` は B09 により境界同型と逆写像を全体の束写像へ延ばし、可逆な剪断写像の積から境界上での符号付き交換を実現する全体の自己同型を作る。
-固定 snapshot は `work/k03-resume/shears-fixed.source.json`。
-次は `bundle_operations.Operations.Over.Shear`、`relative_k_theory.Relative.Pair.FramedClass.With.Stabilized`、`relative_k_theory.Relative.Pair.BundleSwitch` を順に検査する。
+最新の未検証変更は共通の `Negation`、`BundleSwitch.Result.exchange`、`FramedClass.To.Stable`。
+前二者は第二成分の符号を戻した交換写像も提供する。
+後者は両側へ自明束を加えた後の枠と両立する同型から、元の被約群の元の一致を導く。
+`FramedSum` と `Stabilized` は安定化した束のモデル・枠・次元も公開する。
+固定 snapshot は `work/k03-resume/stable-framed.source.json`。
+次は `bundle_operations.Operations.Over.Negation`、`relative_k_theory.Relative.Pair.BundleSwitch`、`relative_k_theory.Relative.Pair.FramedClass.To.Stable` を順に検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。
