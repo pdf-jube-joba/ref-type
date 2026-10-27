@@ -1,0 +1,22 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as IntegerChains;
+\import Complexes.ZeroExtension[C := Small.complex] \as SmallExtension;
+\import Complexes.ZeroExtension[C := UnionChains.complex] \as UnionExtension;
+\import Complexes.ZeroExtension[C := Chains.complex] \as WholeExtension;
+\import Complexes.Map[C := Small.complex, D := Chains.complex].ZeroExtension[f := inclusion] \as SmallInclusion;
+\import Complexes.Map[C := Small.complex, D := UnionChains.complex].ZeroExtension[f := smallToUnion] \as SubMap;
+\import IntegerChains.End[C := WholeExtension.complex] \as WholeMaps;
+\import IntegerChains.Quotient[C := SmallExtension.complex, D := WholeExtension.complex].On[f := SmallInclusion.map] \as SmallQuotient;
+\definition Compatible: \Prop := \forall (z: I.Int^)(x: SmallExtension.Carrier z) ->
+  (WholeMaps.identity).apply z ((SmallInclusion.map).apply z x) = (Relative.inclusionMap).apply z ((SubMap.map).apply z x);
+\definition compatible: Compatible := \induction (z: I.Int^) \return \forall (x: SmallExtension.Carrier z) ->
+  (WholeMaps.identity).apply z ((SmallInclusion.map).apply z x) = (Relative.inclusionMap).apply z ((SubMap.map).apply z x) \with {
+    | ofNat: \fun (n: N.Nat^)(x: SmallExtension.Carrier (I.Int^::ofNat n)) => \refl((SmallInclusion.map).apply (I.Int^::ofNat n) x)
+    | negSucc: \fun (n: N.Nat^)(x: SmallExtension.Carrier (I.Int^::negSucc n)) => \refl((WholeExtension.space (I.Int^::negSucc n)).zero)
+  };
+\import IntegerChains.QuotientMapping[C := SmallExtension.complex, D := WholeExtension.complex, C1 := UnionExtension.complex, D1 := WholeExtension.complex]
+  .On[f := SmallInclusion.map, g := Relative.inclusionMap, a := SubMap.map, b := WholeMaps.identity] \as QuotientMap;
+\definition map: IntegerChains.Map[C := SmallQuotient.complex, D := Relative.complex].Map := QuotientMap.map compatible;
+\module With(coefficients: Modules.Bundle);
