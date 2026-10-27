@@ -1,0 +1,19 @@
+\import real.Analysis[] \as Real;
+\import metric_spaces.RealLine[] \as Line;
+\import metric_spaces.RealFunctions[A := X] \as Functions;
+\definition time[x: X]: Interval.Carrier := \into[Real.Real](u.value x, Line.ClosedInterval Real.zero Real.one) \by { Logic.And[_, _]::# (u.nonnegative x) (u.bounded x) };
+\definition continuous: topology.Continuity[A := X, B := Interval.Carrier].Continuous space Interval.topology time :=
+  topology.Continuity[A := X, B := Real.Real].Corestriction[S := Line.ClosedInterval Real.zero Real.one].corestrictContinuous space Line.topology time
+    (Functions.Urysohn[].continuous space (Base.Complement tubes) subset u);
+\definition graphInside: \forall (x: X) -> CylinderBase.Member U (Cylinder.at (time x) x) := \fun (x: X) =>
+  Logic.orElim[Base.Member tubes x, Logic.Not (Base.Member tubes x), CylinderBase.Member U (Cylinder.at (time x) x)]
+    (std.Logic[].Classical[].excludedMiddle (Base.Member tubes x))
+    (\fun (inside: Base.Member tubes x) => inside (time x))
+    (\fun (outside: Logic.Not (Base.Member tubes x)) =>
+      \idelim Interval.start = time x \with t: Interval.Carrier => CylinderBase.Member U (Cylinder.at t x) \by {
+        base: atStart x, equality: sym!{Interval.Carrier} _ _ (u.zeroOn x outside)
+      });
+\definition witness: Witness := Witness {
+  time := time, continuous := continuous,
+  endpoint := \fun (x: A) => u.oneOn x (\bysub(X, subset, x)), graphInside := graphInside
+};
