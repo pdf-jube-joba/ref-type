@@ -59,7 +59,14 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 `QuotientClass` は商上の束から三つ組の群の元を一意に定め、束の同型で保たれることを示す。
 `BundleGlobal` は境界同型が全体の束の同型に延びる場合の零性を示す。
 `FromQuotient` は商上の束の基点での局所枠を使い、引き戻した束と自明束の境界同型から三つ組を作る。
-次の固定 snapshot は `work/k03-resume/quotient-additive.source.json`。
+`GlobalFrame` はレコードの同一性を明示し、`quotient-additive-fixed-GlobalFrame` で検査済み。
+`QuotientTrivial` も `quotient-additive-fixed-QuotientTrivial` で検査済み。
+固定 snapshot `work/k03-resume/quotient-additive-fixed.source.json` の `QuotientAdditivity` は検査中。
+新しい未検証変更は `FromReduced` と `Reconstruction`。
+`FromReduced` は同型類と群完成を経て商の被約群から三つ組の群へ写す。
+`Reconstruction` は正規化した三つ組を商へ降ろした束の差が元の三つ組に戻ることを示す。
+次の固定 snapshot は `work/k03-resume/reconstruction.source.json`。
+現在の加法性の検査を回収した後に `relative_k_theory.Relative.Pair.FromReduced` と `relative_k_theory.Relative.Pair.Reconstruction` を順に検査する。
 `bundle_operations.Operations.Over.GlobalFrame`、`relative_k_theory.Relative.Pair.QuotientTrivial`、`relative_k_theory.Relative.Pair.QuotientAdditivity` を順に検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
