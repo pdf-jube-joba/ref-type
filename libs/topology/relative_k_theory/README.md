@@ -94,9 +94,11 @@ K07 の影響先検査は最終検査に含める。
 最新の未検証変更は `FramedSum`。
 座標の包含・射影と、二つの境界枠の直和を構成する。
 `With.Between` は包含・射影を商へ降ろして、降下した束の直和と直和の降下との同型を作る。
-被約群での加法性は続けて実装する。
-固定 snapshot は `work/k03-resume/framed-sum-descent.source.json`。
-次は `relative_k_theory.Relative.Pair.FramedSum` を検査する。
+固定 snapshot `work/k03-resume/framed-sum-descent.source.json` の束の同型までの検査を実行中。
+`With.additivity` は束の同型類と自明束の直和の等式から、被約群での加法性を導く。
+この最新変更も未検証。
+次の固定 snapshot は `work/k03-resume/framed-sum-additive.source.json`。
+現在の結果を回収してから `relative_k_theory.Relative.Pair.FramedSum` を再検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。
