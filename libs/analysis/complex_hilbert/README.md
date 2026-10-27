@@ -78,4 +78,6 @@ target/debug/cli libs/analysis/complex_hilbert --cache-stats --diagnostics compa
 ```
 
 workspace の `libs/refcache/` を共有する。
+対象・依存先ともに最終検査は成功した。
+詳細と未実行の要件は [検査記録](../../../benchmarks/records/complex-hilbert/README.md) を参照。
 全要件が完了するまでは Draft として扱う。
