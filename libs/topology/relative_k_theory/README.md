@@ -52,10 +52,13 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 `Pair.FromQuotient` は局所枠の証明を持つ表示の型を修正し、再検査する。
 `Pair.BundleChange` は元の二つの束と境界同型をともに取り替えたときの群の元の一致を証明する。
 共通の `Operations.Over.TrivialMap` と `TrivialIsomorphism` は定数の線形写像・同型から自明束の写像・同型を作る。
-これら三つの最新変更は未検証。
+これらの対象検査は `bundle-change-*` ですべて accepted・終了0・キャッシュ保存失敗0。
+最新の未検証変更は `QuotientIsomorphisms`・`QuotientClass` と `BundleGlobal`。
+`QuotientClass` は商上の束から三つ組の群の元を一意に定め、束の同型で保たれることを示す。
+`BundleGlobal` は境界同型が全体の束の同型に延びる場合の零性を示す。
 `FromQuotient` は商上の束の基点での局所枠を使い、引き戻した束と自明束の境界同型から三つ組を作る。
-固定 snapshot は `work/k03-resume/bundle-change.source.json`。
-次は `bundle_operations.Operations.Over.TrivialMap`、`bundle_operations.Operations.Over.TrivialIsomorphism`、`relative_k_theory.Relative.Pair.BundleChange`、`relative_k_theory.Relative.Pair.FromQuotient` を順に検査する。
+次の固定 snapshot は `work/k03-resume/quotient-class-all.source.json`。
+`relative_k_theory.Relative.Pair.QuotientIsomorphisms`、`relative_k_theory.Relative.Pair.QuotientClass`、`relative_k_theory.Relative.Pair.BundleGlobal` を順に検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。
