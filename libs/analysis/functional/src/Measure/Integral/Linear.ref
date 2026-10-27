@@ -95,3 +95,48 @@
     "=" _ "by" { Laws.addZeroRight (Real.sub (Real.add a b) (Real.add e f)) }
     "=" _ "by" { Algebra.subAdd a b e f }
   };
+\definition partsSum: \forall (f, g: Representatives) (u, v, w, pf, nf, pg, ng, ph, nh: Real.Real) ->
+  Parts[f, u, pf, nf] -> Parts[g, v, pg, ng] -> Parts[(addRepresentative f g), w, ph, nh] -> w = Real.add u v :=
+  \fun (f, g: Representatives) (u, v, w, pf, nf, pg, ng, ph, nh: Real.Real)
+    (fp: Parts[f, u, pf, nf]) (gp: Parts[g, v, pg, ng]) (hp: Parts[(addRepresentative f g), w, ph, nh]) => \block {
+    \let p: NonnegativeMeasurable := positiveData f \then
+    \let q: NonnegativeMeasurable := positiveData g \then
+    \let r: NonnegativeMeasurable := negativeData (addRepresentative f g) \then
+    \let s: NonnegativeMeasurable := positiveData (addRepresentative f g) \then
+    \let t: NonnegativeMeasurable := negativeData f \then
+    \let z: NonnegativeMeasurable := negativeData g \then
+    \let lhs: NonnegativeMeasurable := sumData (sumData p q) r \then
+    \let rhs: NonnegativeMeasurable := sumData s (sumData t z) \then
+    \let equalFunctions: lhs.function = rhs.function := \axiom:funext(lhs.function, rhs.function, partsBalance f g) \then
+    \let leftSup: Complete.LeastUpperBound[lowerIntegral lhs.function, Real.add (Real.add pf pg) nh] :=
+      sumSup (sumData p q) r (Real.add pf pg) nh (sumSup p q pf pg fp.positiveLaw gp.positiveLaw) hp.negativeLaw \then
+    \let rightSup: Complete.LeastUpperBound[lowerIntegral lhs.function, Real.add ph (Real.add nf ng)] :=
+      \idelim lowerIntegral rhs.function = lowerIntegral lhs.function \with cut: Value => Complete.LeastUpperBound[cut, Real.add ph (Real.add nf ng)] \by {
+        base: sumSup s (sumData t z) ph (Real.add nf ng) hp.positiveLaw (sumSup t z nf ng fp.negativeLaw gp.negativeLaw),
+        equality: sym!{Value} _ _ (congr!{{A -> Real.Real} Value} lowerIntegral _ _ equalFunctions)
+      } \then
+    \let balance: Real.add (Real.add pf pg) nh = Real.add ph (Real.add nf ng) :=
+      Complete.leastUpperBoundUnique (lowerIntegral lhs.function) (Real.add (Real.add pf pg) nh) (Real.add ph (Real.add nf ng)) leftSup rightSup \then
+    \return eq_reason_in!{Real.Real _
+      "=" _ "by" { hp.difference }
+      "=" _ "by" { subtractBalance pf pg nh ph nf ng balance }
+      "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (sym!{Real.Real} _ _ fp.difference) (sym!{Real.Real} _ _ gp.difference) }
+    }
+  };
+\definition integralAdd: \forall (f, g: Representatives) -> integral (addRepresentative f g) = Real.add (integral f) (integral g) :=
+  \fun (f, g: Representatives) => \block {
+    \let h: Representatives := addRepresentative f g \then
+    \takefrom pf: \Cast[Real.Real] ({ p: Real.Real \where \exists ( n: Real.Real \where Parts[f, integral f, p, n] ) }) \by (integralLaw f).parts \then
+    \takefrom nf: \Cast[Real.Real] ({ n: Real.Real \where Parts[f, integral f, pf, n] })
+      \by (\bysub(Real.Real, { p: Real.Real \where \exists ( n: Real.Real \where Parts[f, integral f, p, n] ) }, pf)) \then
+    \takefrom pg: \Cast[Real.Real] ({ p: Real.Real \where \exists ( n: Real.Real \where Parts[g, integral g, p, n] ) }) \by (integralLaw g).parts \then
+    \takefrom ng: \Cast[Real.Real] ({ n: Real.Real \where Parts[g, integral g, pg, n] })
+      \by (\bysub(Real.Real, { p: Real.Real \where \exists ( n: Real.Real \where Parts[g, integral g, p, n] ) }, pg)) \then
+    \takefrom ph: \Cast[Real.Real] ({ p: Real.Real \where \exists ( n: Real.Real \where Parts[h, integral h, p, n] ) }) \by (integralLaw h).parts \then
+    \takefrom nh: \Cast[Real.Real] ({ n: Real.Real \where Parts[h, integral h, ph, n] })
+      \by (\bysub(Real.Real, { p: Real.Real \where \exists ( n: Real.Real \where Parts[h, integral h, p, n] ) }, ph)) \then
+    \return partsSum f g (integral f) (integral g) (integral h) pf nf pg ng ph nh
+      (\bysub(Real.Real, { n: Real.Real \where Parts[f, integral f, pf, n] }, nf))
+      (\bysub(Real.Real, { n: Real.Real \where Parts[g, integral g, pg, n] }, ng))
+      (\bysub(Real.Real, { n: Real.Real \where Parts[h, integral h, ph, n] }, nh))
+  };
