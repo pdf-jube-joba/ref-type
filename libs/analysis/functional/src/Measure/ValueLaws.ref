@@ -65,3 +65,43 @@
   };
 \definition addZero: \forall (v: Value) -> NonnegativeValue[v] -> add v zero = v :=
   \fun (v: Value) (law: NonnegativeValue[v]) => \axiom:setext(add v zero, v, addZeroContained v law, containedAddZero v law);
+
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].congr;
+\definition reassociateWitness: \forall (a, b, c, d: Real.Real) ->
+  R.Lt d (Real.add a b) -> R.Lt (Real.add (Real.sub d a) c) (Real.add b c) :=
+  \fun (a, b, c, d: Real.Real) (less: R.Lt d (Real.add a b)) =>
+    Laws.ltAddRight (Real.sub d a) b c
+      (Laws.ltAddCancelLeft a (Real.sub d a) b
+        (R.ltReplaceLeft d (Real.add a (Real.sub d a)) (Real.add a b)
+          (sym!{Real.Real} _ _ (E.addSubCancel d a)) less));
+\definition reassociateValue: \forall (a, c, d: Real.Real) ->
+  Real.add a (Real.add (Real.sub d a) c) = Real.add d c :=
+  \fun (a, c, d: Real.Real) => eq_reason_in!{Real.Real _
+    "=" _ "by" { sym!{Real.Real} _ _ (Laws.addAssoc a (Real.sub d a) c) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.add x c) _ _ (E.addSubCancel d a) }
+  };
+\definition addAssocForward: \forall (u, v, w: Value) -> Included (add (add u v) w) (add u (add v w)) :=
+  \fun (u, v, w: Value) (r: Real.Real) (member: below (add (add u v) w) r) => \block {
+    \takefrom d: \Cast[Real.Real] ({ d: Real.Real \where Logic.And[below (add u v) d, \exists ( c: Real.Real \where Logic.And[below w c, R.Lt r (Real.add d c)] )] }) \by member \then
+    \let outer: Logic.And[below (add u v) d, \exists ( c: Real.Real \where Logic.And[below w c, R.Lt r (Real.add d c)] )] :=
+      \bysub(Real.Real, { d: Real.Real \where Logic.And[below (add u v) d, \exists ( c: Real.Real \where Logic.And[below w c, R.Lt r (Real.add d c)] )] }, d) \then
+    \takefrom c: \Cast[Real.Real] ({ c: Real.Real \where Logic.And[below w c, R.Lt r (Real.add d c)] }) \by outer.right \then
+    \let last: Logic.And[below w c, R.Lt r (Real.add d c)] :=
+      \bysub(Real.Real, { c: Real.Real \where Logic.And[below w c, R.Lt r (Real.add d c)] }, c) \then
+    \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[below u a, \exists ( b: Real.Real \where Logic.And[below v b, R.Lt d (Real.add a b)] )] }) \by outer.left \then
+    \let first: Logic.And[below u a, \exists ( b: Real.Real \where Logic.And[below v b, R.Lt d (Real.add a b)] )] :=
+      \bysub(Real.Real, { a: Real.Real \where Logic.And[below u a, \exists ( b: Real.Real \where Logic.And[below v b, R.Lt d (Real.add a b)] )] }, a) \then
+    \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where Logic.And[below v b, R.Lt d (Real.add a b)] }) \by first.right \then
+    \let second: Logic.And[below v b, R.Lt d (Real.add a b)] :=
+      \bysub(Real.Real, { b: Real.Real \where Logic.And[below v b, R.Lt d (Real.add a b)] }, b) \then
+    \let q: Real.Real := Real.add (Real.sub d a) c \then
+    \let inTail: below (add v w) q :=
+      Logic.existsIntro[Real.Real, { b: Real.Real \where Logic.And[below v b, \exists ( c: Real.Real \where Logic.And[below w c, R.Lt q (Real.add b c)] )] }] b
+        (Logic.And[_, _]::# second.left (Logic.existsIntro[Real.Real, { c: Real.Real \where Logic.And[below w c, R.Lt q (Real.add b c)] }] c
+          (Logic.And[_, _]::# last.left (reassociateWitness a b c d second.right)))) \then
+    \return Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[below u a, \exists ( q: Real.Real \where Logic.And[below (add v w) q, R.Lt r (Real.add a q)] )] }] a
+      (Logic.And[_, _]::# first.left (Logic.existsIntro[Real.Real, { q: Real.Real \where Logic.And[below (add v w) q, R.Lt r (Real.add a q)] }] q
+        (Logic.And[_, _]::# inTail (R.ltReplaceRight r (Real.add d c) (Real.add a q) (sym!{Real.Real} _ _ (reassociateValue a c d)) last.right))))
+  };
