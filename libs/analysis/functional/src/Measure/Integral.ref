@@ -47,8 +47,42 @@
     \takefrom s: \Cast[Simple[n]] ({ s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] })
       \by (\bysub(N.Nat^, { n: N.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] ) }, n)) \then
     \let data: Logic.And[Dominated n s f, below (simpleIntegral n s) r] :=
-      \bysub(Simple[n], { s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] }, s);
+      \bysub(Simple[n], { s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] }, s) \then
     \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s g, below (simpleIntegral n s) r] ) }] n
       (Logic.existsIntro[Simple[n], { s: Simple[n] \where Logic.And[Dominated n s g, below (simpleIntegral n s) r] }] s
         (Logic.And[_, _]::# (dominatedMono n s f g (data.left) order) (data.right)))
+  };
+
+\definition finiteMono: \forall (f, g: A -> Real.Real) ->
+  (\forall (x: A) -> R.Le Real.zero (f x)) ->
+  (\forall (x: A) -> R.Le (f x) (g x)) -> Finite g -> Finite f :=
+  \fun (f, g: _) (nonnegative: _) (order: _) (finite: _) => \block {
+    \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where IntegralBound[g, b] }) \by finite.right \then
+    \let bound: IntegralBound[g, b] := \bysub(Real.Real, { b: Real.Real \where IntegralBound[g, b] }, b) \then
+    \return Logic.And[_, _]::# nonnegative
+      (Logic.existsIntro[Real.Real, { b: Real.Real \where IntegralBound[f, b] }] b
+        (IntegralBound[f, b] {
+          nonnegative := bound.nonnegative,
+          bound := \fun (r: _) (member: _) => bound.bound r (lowerIntegralMono f g order r member),
+        }))
+  };
+
+\definition integralUnique: \forall (f: A -> Real.Real) (u, v: Real.Real) ->
+  HasIntegral[f, u] -> HasIntegral[f, v] -> u = v :=
+  \fun (f: _) (u, v: _) (hu, hv: _) => \block {
+    \takefrom pu: \Cast[Real.Real] ({ p: Real.Real \where \exists ( n: Real.Real \where Parts[f, u, p, n] ) }) \by hu.parts \then
+    \takefrom nu: \Cast[Real.Real] ({ n: Real.Real \where Parts[f, u, pu, n] })
+      \by (\bysub(Real.Real, { p: Real.Real \where \exists ( n: Real.Real \where Parts[f, u, p, n] ) }, pu)) \then
+    \takefrom pv: \Cast[Real.Real] ({ p: Real.Real \where \exists ( n: Real.Real \where Parts[f, v, p, n] ) }) \by hv.parts \then
+    \takefrom nv: \Cast[Real.Real] ({ n: Real.Real \where Parts[f, v, pv, n] })
+      \by (\bysub(Real.Real, { p: Real.Real \where \exists ( n: Real.Real \where Parts[f, v, p, n] ) }, pv)) \then
+    \let up: Parts[f, u, pu, nu] := \bysub(Real.Real, { n: Real.Real \where Parts[f, u, pu, n] }, nu) \then
+    \let vp: Parts[f, v, pv, nv] := \bysub(Real.Real, { n: Real.Real \where Parts[f, v, pv, n] }, nv) \then
+    \let positives: pu = pv := Complete.leastUpperBoundUnique (lowerIntegral (positivePart f)) pu pv up.positiveLaw vp.positiveLaw \then
+    \let negatives: nu = nv := Complete.leastUpperBoundUnique (lowerIntegral (negativePart f)) nu nv up.negativeLaw vp.negativeLaw \then
+    \return (\idelim v = Real.sub pv nv \with t: Real.Real => u = t -> u = v
+      \by { base: \fun (equal: u = v) => equal, equality: vp.difference })
+      (\idelim pu = pv \with p: Real.Real => u = Real.sub p nv
+        \by { base: \idelim nu = nv \with n: Real.Real => u = Real.sub pu n
+          \by { base: up.difference, equality: negatives }, equality: positives })
   };
