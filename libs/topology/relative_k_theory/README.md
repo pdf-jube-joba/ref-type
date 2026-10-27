@@ -143,10 +143,12 @@ K07 の影響先検査は最終検査に含める。
 `Pair.Pointed.Cofiber` と `Equivalence.FromMap` は `compact-cofiber-*` で accepted・終了0・キャッシュ保存失敗0。
 前者は閉部分空間の円柱と底面の和から cofiber を構成し、コンパクト Hausdorff 性・底面の埋め込みと閉性・元の商空間への射影を示す。
 後者はコンパクト Hausdorff 空間間の連続な基点付き全単射から連続な逆写像を構成する。
-最新の未検証変更は `Equivalence.FromMap.Contraction` と `Pair.Pointed.Cofiber.ConeImage`。
+`Equivalence.FromMap.Contraction` と `Pair.Pointed.Cofiber.ConeImage` は `cone-image-*` で accepted・終了0・キャッシュ保存失敗0。
 円錐を cofiber の閉部分空間として埋め込み、像と元の円錐との同相を構成し、収縮を像へ移す。
-固定 snapshot は `work/k03-resume/cone-image.source.json`。
-次は `relative_k_theory.Relative` 内の `Equivalence.FromMap.Contraction` と `Pair.Pointed.Cofiber.ConeImage` を順に検査する。
+最新の未検証変更は `Pair.Pointed.Cofiber.ConeQuotient` と、射影・円錐像・底面の計算補題。
+円錐像を潰した商と元の相対商との同相を作り、相対群と cofiber の被約群との比較へ合成する。
+固定 snapshot は `work/k03-resume/cone-quotient.source.json`。
+次は `relative_k_theory.Relative.Pair.Pointed.Cofiber.ConeQuotient` を検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。

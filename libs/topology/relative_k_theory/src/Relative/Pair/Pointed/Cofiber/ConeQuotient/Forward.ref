@@ -1,0 +1,43 @@
+\import algebraic_topology.Cylinder[A := A] \as CylinderA;
+\import puppe_sequences.Puppe[].ReducedCone[A := A, source := (pointed subsetModel)] \as Cone;
+\import algebraic_topology.Collapse[A := CylinderA.Carrier, subset := Cone.Collapsed] \as SourceCollapse;
+\definition coneZero: \forall (z: Cone.Carrier) -> Project.projection (Piece.map z) = Original.point :=
+  SourceCollapse.induction (\fun (z: Cone.Carrier) => Project.projection (Piece.map z) = Original.point)
+    (\fun (p: CylinderA.Carrier) => trans!{{Original.Carrier}} _ _ _ (congr!{{Carrier} {Original.Carrier}} Project.projection _ _ (Piece.onClass p))
+      (trans!{{Original.Carrier}} _ _ _ (Project.onClass (Piece.vertical p)) (Original.onSubset (CylinderA.point p))));
+\definition onPiece: \forall (z: Carrier) -> Space.Member Piece.image z -> Project.projection z = Original.point := \block {
+  \fun (z: Carrier)(member: Space.Member Piece.image z) \then
+  \takefrom w: \Cast[Cone.Carrier] ({ w: Cone.Carrier \where Logic.And[w = w, Piece.map w = z] }) \by member \then
+  \return trans!{{Original.Carrier}} _ _ _
+    (sym!{{Original.Carrier}} _ _ (congr!{{Carrier} {Original.Carrier}} Project.projection _ _
+      ((\bysub(Cone.Carrier, { w: Cone.Carrier \where Logic.And[w = w, Piece.map w = z] }, w)).right))) (coneZero w)
+};
+\definition raw: Q.Augmented -> Original.Carrier := \induction (p: Q.Augmented) \return Original.Carrier \with {
+  | inl: \fun (z: Carrier) => Project.projection z
+  | inr: \fun (p: Q.Point) => Original.point
+};
+\definition rawCollapsed: \forall (p: Q.Augmented) -> \In[Q.Augmented] Q.collapsedPart p -> raw p = Original.point :=
+  \induction (p: Q.Augmented) \return \In[Q.Augmented] Q.collapsedPart p -> raw p = Original.point \with {
+    | inl: \fun (z: Carrier)(member: Space.Member Piece.image z) => onPiece z member
+    | inr: \fun (p: Q.Point)(member: p = p) => \refl(Original.point)
+  };
+\import ConeCollapse.Descent[B := Original.Carrier] \as Descend;
+\definition respects: Descend.Respects raw := \fun (p, q: Q.Augmented)(related: ConeCollapse.Related p q) =>
+  Logic.orElim[p = q, Logic.And[\In[Q.Augmented] Q.collapsedPart p, \In[Q.Augmented] Q.collapsedPart q], raw p = raw q] related
+    (\fun (same: p = q) => congr!{{Q.Augmented} {Original.Carrier}} raw _ _ same)
+    (\fun (both: Logic.And[\In[Q.Augmented] Q.collapsedPart p, \In[Q.Augmented] Q.collapsedPart q]) =>
+      trans!{{Original.Carrier}} _ _ _ (rawCollapsed p both.left) (sym!{{Original.Carrier}} _ _ (rawCollapsed q both.right)));
+\import LeftSum.Universal[C := Original.Carrier] \as Copair;
+\definition rawContinuous: topology.Continuity[A := Q.Augmented, B := Original.Carrier].Continuous Q.augmentedSpace Original.topology raw :=
+  Copair.continuous topology (topology.Topology[Carrier := Q.Point].Discrete) Original.topology Project.projection (\fun (p: Q.Point) => Original.point)
+    Project.continuous (topology.Maps[A := Q.Point, B := Original.Carrier].constantContinuous (topology.Topology[Carrier := Q.Point].Discrete) Original.topology Original.point);
+\definition projection: Q.Carrier -> Original.Carrier := Descend.apply raw respects;
+\definition continuous: topology.Continuity[A := Q.Carrier, B := Original.Carrier].Continuous Q.topology Original.topology projection :=
+  Descend.continuous Q.augmentedSpace Original.topology raw respects rawContinuous;
+\definition onProjection: \forall (z: Carrier) -> projection (Q.projection z) = Project.projection z := \fun (z: Carrier) => Descend.onClass raw respects (LeftSum.inl z);
+\definition onPoint: projection Q.point = Original.point := Descend.onClass raw respects (LeftSum.inr Q.distinguished);
+\definition onStar: \forall (p: Q.Point) -> projection (ConeCollapse.class (LeftSum.inr p)) = Original.point := \fun (p: Q.Point) => Descend.onClass raw respects (LeftSum.inr p);
+\import algebraic_topology.Pointed[A := Q.Carrier].Maps[B := Original.Carrier] \as PointedMaps;
+\definition map: Map Q.model Original.model := \into[Q.Carrier -> Original.Carrier](projection, Map Q.model Original.model) \by {
+  PointedMaps.Laws[pointed Q.model, pointed Original.model, projection] { continuous := continuous, pointed := onPoint }
+};

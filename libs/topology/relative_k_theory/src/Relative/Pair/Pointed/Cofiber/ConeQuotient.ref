@@ -1,0 +1,42 @@
+\import \parent.ConeImage[] \as Piece;
+\import \parent.Projection[] \as Project;
+\import \parent.\parent.\parent.Quotient[] \as Original;
+\import \root.Relative[].Pair[X := Carrier, space := topology, compact := Properties.compactQuotient, hausdorff := Properties.hausdorffQuotient,
+  subset := Piece.image, closed := Piece.imageClosed] \as ConePair;
+\import ConePair.Quotient[] \as Q;
+\import algebraic_topology.Collapse[A := Q.Augmented, subset := Q.collapsedPart] \as ConeCollapse;
+\import algebraic_topology.Collapse[A := Original.Augmented, subset := Original.collapsedPart] \as OriginalCollapse;
+\import topological_constructions.Coproduct[A := Carrier, B := Q.Point] \as LeftSum;
+\import topological_constructions.Coproduct[A := X, B := Original.Point] \as RightSum;
+\module Forward;
+\module Backward;
+\module Inverses;
+\import Forward[] \as Fwd;
+\import Backward[] \as Back;
+\import Inverses[] \as Inverse;
+\definition injective: \forall (x, y: Q.Carrier) -> Fwd.map x = Fwd.map y -> x = y :=
+  \fun (x, y: Q.Carrier)(same: Fwd.map x = Fwd.map y) => trans!{{Q.Carrier}} _ _ _ (sym!{{Q.Carrier}} _ _ (Inverse.leftInverse x))
+    (trans!{{Q.Carrier}} _ _ _ (congr!{{Original.Carrier} {Q.Carrier}} Back.projection _ _ same) (Inverse.leftInverse y));
+\definition onto: \forall (x: Original.Carrier) -> \exists (y: Q.Carrier \where Fwd.map y = x) :=
+  \fun (x: Original.Carrier) => Logic.existsIntro[Q.Carrier, { y: Q.Carrier \where Fwd.map y = x }] (Back.projection x) (Inverse.rightInverse x);
+\import \root.Relative[].Equivalence[source := Q.model, target := Original.model].FromMap[f := Fwd.map, injective := injective, onto := onto] \as Homeomorphism;
+\definition equivalence: \root.Relative[].Equivalence[source := Q.model, target := Original.model].Data := Homeomorphism.equivalence;
+\import \root.Relative[].Equivalence[source := Q.model, target := Original.model].With[e := equivalence].Groups[] \as Groups;
+\import ConePair.Exact[].Contractible[a0 := Piece.distinguished, homotopy := Piece.contraction] \as ConeComparison;
+\import \root.Relative[].Reduced[model := result] \as CofiberReduced;
+\import algebra.Group[].Of[Carrier := Original.Relative, group := Original.group] \as OriginalGroup;
+\import algebra.Group[].Of[Carrier := CofiberReduced.Carrier, group := CofiberReduced.group] \as CofiberGroup;
+\definition forward[v: Original.Relative]: CofiberReduced.Carrier := ConeComparison.forward (Groups.forward v);
+\definition backward[v: CofiberReduced.Carrier]: Original.Relative := Groups.backward (ConeComparison.backward v);
+\definition leftInverse: \forall (v: Original.Relative) -> backward (forward v) = v :=
+  \fun (v: Original.Relative) => trans!{{Original.Relative}} _ _ _ (congr!{{Q.Relative} {Original.Relative}} Groups.backward _ _ (ConeComparison.leftInverse (Groups.forward v)))
+    (Groups.rightInverse v);
+\definition rightInverse: \forall (v: CofiberReduced.Carrier) -> forward (backward v) = v :=
+  \fun (v: CofiberReduced.Carrier) => trans!{{CofiberReduced.Carrier}} _ _ _
+    (congr!{{Q.Relative} {CofiberReduced.Carrier}} ConeComparison.forward _ _ (Groups.leftInverse (ConeComparison.backward v))) (ConeComparison.rightInverse v);
+\definition forwardAdd: \forall (v, w: Original.Relative) -> forward (OriginalGroup.add v w) = CofiberGroup.add (forward v) (forward w) :=
+  \fun (v, w: Original.Relative) => trans!{{CofiberReduced.Carrier}} _ _ _ (congr!{{Q.Relative} {CofiberReduced.Carrier}} ConeComparison.forward _ _ (Groups.additive v w))
+    (ConeComparison.forwardAdd (Groups.forward v) (Groups.forward w));
+\definition backwardAdd: \forall (v, w: CofiberReduced.Carrier) -> backward (CofiberGroup.add v w) = OriginalGroup.add (backward v) (backward w) :=
+  \fun (v, w: CofiberReduced.Carrier) => trans!{{Original.Relative}} _ _ _ (congr!{{Q.Relative} {Original.Relative}} Groups.backward _ _ (ConeComparison.backwardAdd v w))
+    (Groups.inverseAdditive (ConeComparison.backward v) (ConeComparison.backward w));

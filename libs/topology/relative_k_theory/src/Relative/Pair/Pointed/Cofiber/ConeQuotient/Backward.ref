@@ -1,0 +1,19 @@
+\definition raw: Original.Augmented -> Q.Carrier := \induction (p: Original.Augmented) \return Q.Carrier \with {
+  | inl: \fun (x: X) => Q.projection (base x)
+  | inr: \fun (p: Original.Point) => Q.point
+};
+\definition rawCollapsed: \forall (p: Original.Augmented) -> \In[Original.Augmented] Original.collapsedPart p -> raw p = Q.point :=
+  \induction (p: Original.Augmented) \return \In[Original.Augmented] Original.collapsedPart p -> raw p = Q.point \with {
+    | inl: \fun (x: X)(member: Base.Member subset x) => Q.onSubset (\into[Carrier](base x, Piece.image) \by { Piece.containsBase (\into[X](x, subset) \by { member }) })
+    | inr: \fun (p: Original.Point)(member: p = p) => \refl(Q.point)
+  };
+\import OriginalCollapse.Descent[B := Q.Carrier] \as Descend;
+\definition respects: Descend.Respects raw := \fun (p, q: Original.Augmented)(related: OriginalCollapse.Related p q) =>
+  Logic.orElim[p = q, Logic.And[\In[Original.Augmented] Original.collapsedPart p, \In[Original.Augmented] Original.collapsedPart q], raw p = raw q] related
+    (\fun (same: p = q) => congr!{{Original.Augmented} {Q.Carrier}} raw _ _ same)
+    (\fun (both: Logic.And[\In[Original.Augmented] Original.collapsedPart p, \In[Original.Augmented] Original.collapsedPart q]) =>
+      trans!{{Q.Carrier}} _ _ _ (rawCollapsed p both.left) (sym!{{Q.Carrier}} _ _ (rawCollapsed q both.right)));
+\definition projection: Original.Carrier -> Q.Carrier := Descend.apply raw respects;
+\definition onProjection: \forall (x: X) -> projection (Original.projection x) = Q.projection (base x) := \fun (x: X) => Descend.onClass raw respects (RightSum.inl x);
+\definition onPoint: projection Original.point = Q.point := Descend.onClass raw respects (RightSum.inr Original.distinguished);
+\definition onStar: \forall (p: Original.Point) -> projection (OriginalCollapse.class (RightSum.inr p)) = Q.point := \fun (p: Original.Point) => Descend.onClass raw respects (RightSum.inr p);
