@@ -1,0 +1,38 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\import Simplices.CutFaces[p := k, q := q] \as Geometry;
+\import \parent.Cup[p := k, q := q].Both[] \as Lower;
+\import \parent.Cup[p := N.Nat^::succ k, q := q].Both[] \as Upper;
+\import \parent.Cup[p := k, q := q] \as Product;
+\import FirstPair.Degree[] \as FirstDegree;
+\import FirstPair.Comparison[n := k] \as FirstComparison;
+\import FirstComparison.Commutes[] \as Commutes;
+\import FirstPair.Comparison[n := N.Nat^::succ k] \as FirstHigher;
+\import SecondPair.Comparison[n := q] \as SecondComparison;
+\import SecondPair.RelativeCup[p := k, q := q].Closed[] \as SecondClosed;
+\import Cochains.Cup[p := k, q := q].Closed[] \as WholeClosed;
+\import Cochains.Cup[p := N.Nat^::succ k, q := q] \as WholeUpper;
+\import \parent.CommonComplex[] \as Common;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring].At[C := Common.complex, k := Geometry.higher] \as Output;
+\definition castProduct: \forall (gamma: FirstDegree.Carrier k)(beta: SecondCochains.Carrier (I.Int^::ofNat q)) ->
+  (SecondCochains.complex.differential).apply (I.Int^::ofNat q) beta = (SecondCochains.space (I.Int^::ofNat (N.Nat^::succ q))).zero ->
+  Transport.cast Common.family.Carrier Geometry.leftDegree Geometry.higher Geometry.same (Upper.product (FirstDegree.differential k gamma) beta) =
+  Common.complex.differential.apply Geometry.total (Lower.product gamma beta) :=
+  \fun (gamma: FirstDegree.Carrier k)(beta: SecondCochains.Carrier (I.Int^::ofNat q))(closed: _) => eq_reason_in!{{Cochains.Carrier Geometry.higher} _
+    "=" _ "by" { Transport.natural Common.family.Carrier Cochains.Carrier (\fun (n: N.Nat^)(x: Common.family.Carrier n) => x) Geometry.leftDegree Geometry.higher Geometry.same (Upper.product (FirstDegree.differential k gamma) beta) }
+    "=" _ "by" { congr!{{Cochains.Carrier Geometry.leftDegree} {Cochains.Carrier Geometry.higher}} (Transport.cast Cochains.Carrier Geometry.leftDegree Geometry.higher Geometry.same) _ _
+      (congr!{{Cochains.Carrier (N.Nat^::succ k)} {Cochains.Carrier Geometry.leftDegree}} (\fun (x: Cochains.Carrier (N.Nat^::succ k)) => WholeUpper.apply x (SecondComparison.from beta)) _ _ (Commutes.law gamma)) }
+    "=" _ "by" { sym!{{Cochains.Carrier Geometry.higher}} _ _ (WholeClosed.rightClosed (FirstComparison.from gamma) (SecondComparison.from beta) (SecondClosed.rightUnderlying beta closed)) }
+  };
+\definition boundary: \forall (gamma: FirstDegree.Carrier k)(beta: SecondCochains.Carrier (I.Int^::ofNat q)) ->
+  (SecondCochains.complex.differential).apply (I.Int^::ofNat q) beta = (SecondCochains.space (I.Int^::ofNat (N.Nat^::succ q))).zero ->
+  \In[Common.family.Carrier Geometry.higher] (Output.Boundaries Geometry.higher)
+    (Transport.cast Common.family.Carrier Geometry.leftDegree Geometry.higher Geometry.same (Upper.product (FirstDegree.differential k gamma) beta)) :=
+  \fun (gamma: FirstDegree.Carrier k)(beta: SecondCochains.Carrier (I.Int^::ofNat q))(closed: _) =>
+    std.Logic[].Proposition[].existsIntro[Common.family.Carrier Geometry.total,
+      { x: Common.family.Carrier Geometry.total \where Common.complex.differential.apply Geometry.total x = Transport.cast Common.family.Carrier Geometry.leftDegree Geometry.higher Geometry.same (Upper.product (FirstDegree.differential k gamma) beta) }]
+      (Lower.product gamma beta) (sym!{{Common.family.Carrier Geometry.higher}} _ _ (castProduct gamma beta closed));
