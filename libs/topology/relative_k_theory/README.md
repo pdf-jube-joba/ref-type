@@ -201,3 +201,10 @@ K07 の影響先検査は最終検査に含める。
 `Pointed.FiveTerm` は基点が閉部分空間にある対について、負一次から被約零次までの五項の群・加法的写像・中間三箇所の完全性を公開する。
 これらも未検証で、固定 snapshot は `work/k03-resume/five-term-public.source.json`。
 現在の `direct-inverse` 検査には、この後に追加した証明を含めていない。
+
+`Pair.ForgetProjection` と `Pointed.Exact` は `direct-inverse-*` で accepted・終了0・キャッシュ保存失敗0。
+現在は同じ batch の `BaseQuotient.Raw`、`Backward`、比較全体の順に検査を進めている。
+追加の未検証変更 `Pointed.SuspendedPair` は、閉部分空間の suspension を全体の suspension に閉埋め込みし、その像との基点付き同相を構成する。
+`ClosedPointedPair`・`PointedPair`・`iteratePair` は suspension を繰り返すための対のデータと反復を公開する。
+固定 snapshot は `work/k03-resume/suspended-pair.source.json`。
+対の商と商の suspension の同相、および反復した五項の列との照合は次に実装する。
