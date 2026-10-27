@@ -104,3 +104,59 @@
     Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] ) }] N.Nat^::zero
       (Logic.existsIntro[Simple[N.Nat^::zero], { s: Simple[N.Nat^::zero] \where Logic.And[Dominated N.Nat^::zero s f, below (simpleIntegral N.Nat^::zero s) r] }]
         emptySimple (Logic.And[_, _]::# (emptyDominated f) negative));
+
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Arithmetic;
+\import real.Analysis[].Distance[] \as Distance;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\definition negativeOne: R.Lt (Real.neg Real.one) Real.zero :=
+  R.ltReplaceRight (Real.neg Real.one) (Real.neg Real.zero) Real.zero Arithmetic.negZero
+    (Arithmetic.negStrictAntitone Real.zero Real.one Product.onePositive);
+
+\definition lowerIntegralNonempty: \forall (f: A -> Real.Real) -> Complete.Nonempty (lowerIntegral f) :=
+  \fun (f: A -> Real.Real) =>
+    \exact(\into[Real.Real](Real.neg Real.one, lowerIntegral f) \by { lowerIntegralNegative f (Real.neg Real.one) negativeOne },
+      \Cast[Real.Real] (lowerIntegral f));
+
+\definition finiteSupExists: \forall (f: A -> Real.Real) -> Finite f ->
+  \exists ( u: Real.Real \where Complete.LeastUpperBound[lowerIntegral f, u] ) :=
+  \fun (f: A -> Real.Real) (finite: Finite f) => \block {
+    \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where IntegralBound[f, b] }) \by finite.right \then
+    \let bound: IntegralBound[f, b] := \bysub(Real.Real, { b: Real.Real \where IntegralBound[f, b] }, b) \then
+    \return Complete.existsLeastUpperBound (lowerIntegral f) (lowerIntegralNonempty f)
+      (Logic.existsIntro[Real.Real, { u: Real.Real \where Complete.UpperBound (lowerIntegral f) u }] b bound.bound)
+  };
+
+\definition positivePartNonnegative: \forall (f: A -> Real.Real) (x: A) -> R.Le Real.zero (positivePart f x) :=
+  \fun (f: _) (x: _) => Distance.maxLeft Real.zero (f x);
+\definition negativePartNonnegative: \forall (f: A -> Real.Real) (x: A) -> R.Le Real.zero (negativePart f x) :=
+  \fun (f: _) (x: _) => Distance.maxLeft Real.zero (Real.neg (f x));
+\definition positivePartBound: \forall (f: A -> Real.Real) (x: A) -> R.Le (positivePart f x) (Product.abs (f x)) :=
+  \fun (f: _) (x: _) => Distance.maxLeast Real.zero (f x) (Product.abs (f x)) (Product.absNonnegative (f x))
+    (R.leReplaceRight (f x) (Distance.max (Real.neg (f x)) (f x)) (Product.abs (f x))
+      (sym!{Real.Real} _ _ (Product.absExpression (f x))) (Distance.maxRight (Real.neg (f x)) (f x)));
+\definition negativePartBound: \forall (f: A -> Real.Real) (x: A) -> R.Le (negativePart f x) (Product.abs (f x)) :=
+  \fun (f: _) (x: _) => Distance.maxLeast Real.zero (Real.neg (f x)) (Product.abs (f x)) (Product.absNonnegative (f x))
+    (R.leReplaceRight (Real.neg (f x)) (Distance.max (Real.neg (f x)) (f x)) (Product.abs (f x))
+      (sym!{Real.Real} _ _ (Product.absExpression (f x))) (Distance.maxLeft (Real.neg (f x)) (f x)));
+\definition integralExists: \forall (f: A -> Real.Real) -> Integrable f ->
+  \exists ( value: Real.Real \where HasIntegral[f, value] ) :=
+  \fun (f: A -> Real.Real) (integrable: Integrable f) => \block {
+    \takefrom p: \Cast[Real.Real] ({ p: Real.Real \where Complete.LeastUpperBound[lowerIntegral (positivePart f), p] })
+      \by finiteSupExists (positivePart f) (finiteMono (positivePart f) (\fun (x: A) => Product.abs (f x))
+        (positivePartNonnegative f) (positivePartBound f) integrable.right) \then
+    \takefrom n: \Cast[Real.Real] ({ n: Real.Real \where Complete.LeastUpperBound[lowerIntegral (negativePart f), n] })
+      \by finiteSupExists (negativePart f) (finiteMono (negativePart f) (\fun (x: A) => Product.abs (f x))
+        (negativePartNonnegative f) (negativePartBound f) integrable.right) \then
+    \return Logic.existsIntro[Real.Real, { value: Real.Real \where HasIntegral[f, value] }] (Real.sub p n)
+      (HasIntegral[f, Real.sub p n] {
+        integrable := integrable,
+        parts := Logic.existsIntro[Real.Real, { p: Real.Real \where \exists ( n: Real.Real \where Parts[f, Real.sub p n, p, n] ) }] p
+          (Logic.existsIntro[Real.Real, { n: Real.Real \where Parts[f, Real.sub p n, p, n] }] n
+            (Parts[f, Real.sub p n, p, n] {
+              positiveLaw := \bysub(Real.Real, { p: Real.Real \where Complete.LeastUpperBound[lowerIntegral (positivePart f), p] }, p),
+              negativeLaw := \bysub(Real.Real, { n: Real.Real \where Complete.LeastUpperBound[lowerIntegral (negativePart f), n] }, n),
+              difference := \refl(Real.sub p n),
+            })),
+      })
+  };
