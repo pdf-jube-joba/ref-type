@@ -1,0 +1,22 @@
+\import \parent.Projection[] \as Project;
+\import \parent.ConeQuotient[] \as ConeCompare;
+\import ConeCompare.Forgetting[] \as ConeForgetting;
+\import \parent.\parent.Exact[] \as OriginalExact;
+\import \parent.\parent.\parent.Quotient[] \as Quotient;
+\import \root.Relative[].Reduced[model := model] \as OriginalReduced;
+\import \root.Relative[].Pullback[source := model, target := result, f := baseMap] \as BasePull;
+\import \root.Relative[].Pullback[source := result, target := Quotient.model, f := Project.map] \as ProjectionPull;
+\import \root.Relative[].Composition[source := model, middle := result, target := Quotient.model, first := baseMap, second := Project.map] \as Composite;
+\import \root.Relative[].Pullback[source := model, target := Quotient.model, f := Composite.map] \as Direct;
+\import \root.Relative[].Pullback[source := model, target := Quotient.model, f := OriginalExact.projectionMap] \as OriginalPull;
+\definition sameMap: Composite.map = OriginalExact.projectionMap := \axiom:funext(Composite.map, OriginalExact.projectionMap, Project.onBase);
+\definition changed: \forall (v: Quotient.Relative) -> Direct.map v = OriginalPull.map v :=
+  \fun (v: Quotient.Relative) => congr!{{Map model Quotient.model} {OriginalReduced.Carrier}}
+    (\fun (f: Map model Quotient.model) => \root.Relative[].Pullback[source := model, target := Quotient.model, f := f].map v) _ _ sameMap;
+\definition equation: \forall (v: Quotient.Relative) -> BasePull.map (ConeCompare.forward v) = OriginalExact.forget v :=
+  \fun (v: Quotient.Relative) => trans!{{OriginalReduced.Carrier}} _ _ _
+    (congr!{{\root.Relative[].Reduced[model := result].Carrier} {OriginalReduced.Carrier}} BasePull.map _ _ (ConeForgetting.equation v))
+    (trans!{{OriginalReduced.Carrier}} _ _ _
+      (sym!{{OriginalReduced.Carrier}} _ _ (\root.Relative[].PullbackComposition[source := model, middle := result, target := Quotient.model,
+        first := baseMap, second := Project.map].equation v))
+      (trans!{{OriginalReduced.Carrier}} _ _ _ (changed v) (OriginalExact.projectionEquation v)));

@@ -158,7 +158,10 @@ K07 の影響先検査は最終検査に含める。
 `BaseQuotient` の関数型を使う等号除去の構文も修正した。
 忘却写像の再検査は等式変形マクロの import 不足で終了1となり、局所 import を補った。
 追加の未検証変更は `Pair.Pointed.Exact` で、忘却像のランク零性と基点付き被約群での制限核の完全性を公開する。
-修正後の固定 snapshot は `work/k03-resume/cofiber-exact.source.json` で、`Pair.Pointed.Cofiber.BaseQuotient`、`Pair.ForgetProjection`、`Pair.Pointed.Exact` を順に検査する。
+修正後の固定 snapshot は `work/k03-resume/cofiber-exact.source.json` で、`Pair.Pointed.Cofiber.BaseQuotient`、`Pair.ForgetProjection`、`Pair.Pointed.Exact` を順に検査中。
+追加の未検証変更は cofiber の底面との同相 `BaseImage`、射影との可換図式 `ConeQuotient.Forgetting`・`OriginalDiagram`、底面への制限の完全性 `Restriction`、接続写像と相対群での完全性 `Pointed.Connecting`。
+これらの固定 snapshot は `work/k03-resume/connecting.source.json`。
+現在の検査終了後、`Pair.Pointed.Cofiber.ConeQuotient.Forgetting`、`Pair.Pointed.Cofiber.BaseImage`、`Pair.Pointed.Cofiber.Restriction`、`Pair.Pointed.Cofiber.OriginalDiagram`、`Pair.Pointed.Connecting` を順に検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。
