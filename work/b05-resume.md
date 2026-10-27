@@ -32,3 +32,5 @@ cd /workspace/ref-type-b05
 直和写像の連続性を実装中。`Real.DirectSum` の個別検査を work/b05-directsum.log に実行し、終了コードと診断を確認してから修正する。実・複素ともこの段階では未検証。
 
 直和写像 `Real.DirectSum` の連続性は個別検査で accepted。複素側、全体、直和束の比較は未検査・未完了。
+
+80281272 の対象 full-check-local は accepted。workspace 全体の通常検査は300秒で未完了。対象依存閉包の通常検査を別途行った。グラフ表示を記述する Graph の途中実装を追加し、個別検査で診断を確認する。

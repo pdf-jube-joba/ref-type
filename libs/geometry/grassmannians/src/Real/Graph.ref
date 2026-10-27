@@ -1,0 +1,23 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.trans;
+\use Eq.congr;
+\import linear_algebra.Hermitian[].Over[K := R.Real, field := R.Algebra[].field, scalar := H.Real[].scalar].Finite[n := k] \as Domain;
+\import H.Over[K := R.Real, field := R.Algebra[].field, scalar := H.Real[].scalar, topological := H.Real[].topological].At[n := k].Square[] \as Square;
+\import std.Alg[].Field[] \as Fields;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := Fields.fieldAsCommutativeRing R.Real R.Algebra[].field] \as Spaces;
+\import Spaces.Linear[V := Domain.Vector, W := E.Vector, source := Domain.space, target := E.space] \as Forward;
+\import Forward.Composition[U := Domain.Vector, domain := Domain.space] \as Compose;
+\import Frames.On[a := a, center := center, regular := regular, rank := hasRank] \as Local;
+\definition domain: \Pow Grassmannian := Local.domain;
+\definition Carrier: \Set := Local.Carrier;
+\definition localTopology: topology.Topology[Carrier := Carrier].Topology := Local.localTopology;
+\definition open: topology.Topology[Carrier := Grassmannian].IsOpenIn topology domain := Local.Continuous[].open;
+\definition contains: \In[Grassmannian] domain a := Local.Continuous[].contains;
+\definition normalized[x: Carrier]: Forward.Map := Compose.compose (Local.forward x) (Square.Inverse[A := Local.nonsingular x].value);
+\definition centerCoordinates: \forall (x: Carrier)(v: Domain.Vector) -> center.coordinate.apply ((normalized x).apply v) = v :=
+  \fun (x: Carrier)(v: Domain.Vector) => Square.leftInverseRight (Local.comparison x) (Square.Inverse[A := Local.nonsingular x].value) (Local.comparisonLeft x) v;
+\definition imageRepresentation: \forall (x: Carrier)(w: E.Vector) ->
+  (normalized x).apply ((Local.comparison x).apply ((Local.backward x).apply w)) = (x.map.apply w) :=
+  \fun (x: Carrier)(w: E.Vector) => trans!{{E.Vector}} _ _ _
+    (congr!{{Domain.Vector} {E.Vector}} (Local.forward x).apply _ _ (Local.comparisonLeft x ((Local.backward x).apply w)))
+    (Local.reconstruction x w);
