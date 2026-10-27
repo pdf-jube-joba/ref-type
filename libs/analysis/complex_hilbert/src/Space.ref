@@ -1,0 +1,35 @@
+\import \root.Scalars[] \as Scalar;
+\import complex.Complex[] \as C;
+\import C.Def[] \as D;
+\import C.Prop[] \as CL;
+\import real.Analysis[] \as R;
+\import R.Algebra[] \as A;
+\import std.Alg[].Field[] \as Fields;
+\import std.Alg[].Ring[] \as Rings;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := Fields.fieldAsCommutativeRing R.Real A.field] \as RealLinear;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := Fields.fieldAsCommutativeRing C.Complex C.Algebra[].field] \as ComplexLinear;
+\import std.Logic[].Equality[] \as E;
+\use E.congr;
+\use E.sym;
+\use E.trans;
+\use E.eq_reason_in;
+\definition realSpace: RealLinear.VectorSpace V := RealLinear.VectorSpace V {
+  zero := space.zero, add := space.add, neg := space.neg,
+  smul := \fun (a: R.Real)(x: V) => space.smul (D.ofReal a) x,
+  additive := space.additive,
+  scalarOne := space.scalarOne,
+  scalarAssoc := \fun (a, b: R.Real)(x: V) => trans!{V} _ _ _
+    (congr!{C.Complex V} (\fun (c: C.Complex) => space.smul c x) _ _ (sym!{C.Complex} _ _ (CL.ofRealMul a b)))
+    (space.scalarAssoc (D.ofReal a) (D.ofReal b) x),
+  scalarAdd := \fun (a, b: R.Real)(x: V) => trans!{V} _ _ _
+    (congr!{C.Complex V} (\fun (c: C.Complex) => space.smul c x) _ _ (CL.ofRealAdd a b))
+    (space.scalarAdd (D.ofReal a) (D.ofReal b) x),
+  vectorAdd := \fun (a: R.Real)(x, y: V) => space.vectorAdd (D.ofReal a) x y,
+};
+\import functional_analysis.Normed[V := V, space := realSpace] \as RealNormed;
+\import dedekind_reals.DedekindReal[] \as Order;
+\structure Norm: \Set := {
+  realNorm: RealNormed.Norm,
+  homogeneous: \forall (a: C.Complex)(x: V) -> realNorm.norm (space.smul a x) = R.mul (C.Absolute[].abs a) (realNorm.norm x),
+};
+\module Hilbert(norm: Norm, inner: linear_algebra.Complex[].InnerProduct[V := V, space := space].InnerProduct);
