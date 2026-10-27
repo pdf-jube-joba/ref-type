@@ -66,3 +66,32 @@
   C.make (Real.add (C.re (integral f)) (C.re (integral g))) (Real.add (C.im (integral f)) (C.im (integral g))) :=
   \fun (f, g: Representatives) => congr!{Real.Real Real.Real C.Complex} C.make _ _ _ _
     (Linear.integralAdd (realPart f) (realPart g)) (Linear.integralAdd (imaginaryPart f) (imaginaryPart g));
+\import C.Def[] \as ComplexOp;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.eq_reason_in;
+\definition complexScalarFunction[c: C.Complex] [f: Representatives]: Function := \fun (x: A) => ComplexOp.mul c (f x);
+\definition complexScalarRepresentative[c: C.Complex] [f: Representatives]: Representatives :=
+  \into[Function] (complexScalarFunction c f, { h: Function \where Integrable h }) \by {
+    Logic.And[_, _]::#
+      (Linear.integrableAdd (Scaling.scalarRepresentative (C.re c) (realPart f))
+        (Negation.representative (Scaling.scalarRepresentative (C.im c) (imaginaryPart f)))
+        (\bysub(A -> Real.Real, { h: A -> Real.Real \where Integral.Integrable h }, Scaling.scalarRepresentative (C.re c) (realPart f)))
+        (\bysub(A -> Real.Real, { h: A -> Real.Real \where Integral.Integrable h }, Negation.representative (Scaling.scalarRepresentative (C.im c) (imaginaryPart f)))))
+      (Linear.integrableAdd (Scaling.scalarRepresentative (C.re c) (imaginaryPart f)) (Scaling.scalarRepresentative (C.im c) (realPart f))
+        (\bysub(A -> Real.Real, { h: A -> Real.Real \where Integral.Integrable h }, Scaling.scalarRepresentative (C.re c) (imaginaryPart f)))
+        (\bysub(A -> Real.Real, { h: A -> Real.Real \where Integral.Integrable h }, Scaling.scalarRepresentative (C.im c) (realPart f))))
+  };
+\definition integralComplexScalar: \forall (c: C.Complex) (f: Representatives) -> integral (complexScalarRepresentative c f) = ComplexOp.mul c (integral f) :=
+  \fun (c: C.Complex) (f: Representatives) => congr!{Real.Real Real.Real C.Complex} C.make _ _ _ _
+    (eq_reason_in!{Real.Real _
+      "=" _ "by" { Linear.integralAdd (Scaling.scalarRepresentative (C.re c) (realPart f))
+        (Negation.representative (Scaling.scalarRepresentative (C.im c) (imaginaryPart f))) }
+      "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Scaling.integralScalar (C.re c) (realPart f))
+        (Negation.integralNeg (Scaling.scalarRepresentative (C.im c) (imaginaryPart f))) }
+      "=" _ "by" { congr!{Real.Real Real.Real} Real.add _ _ _ _ (\refl(Real.mul (C.re c) (Integral.integral (realPart f))))
+        (congr!{Real.Real Real.Real} Real.neg _ _ (Scaling.integralScalar (C.im c) (imaginaryPart f))) }
+    })
+    (eq_reason_in!{Real.Real _
+      "=" _ "by" { Linear.integralAdd (Scaling.scalarRepresentative (C.re c) (imaginaryPart f)) (Scaling.scalarRepresentative (C.im c) (realPart f)) }
+      "=" _ "by" { congr!{Real.Real Real.Real C.Real} Real.add _ _ _ _ (Scaling.integralScalar (C.re c) (imaginaryPart f)) (Scaling.integralScalar (C.im c) (realPart f)) }
+    });
