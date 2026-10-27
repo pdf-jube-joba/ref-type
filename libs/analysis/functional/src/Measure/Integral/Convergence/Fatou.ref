@@ -1,0 +1,20 @@
+\import \root.Measure[A := A].Integral[mu := mu].Convergence[].Monotone[] \as Monotone;
+\definition TailInf[values: N.Nat^ -> Value] [n: N.Nat^]: Value :=
+  { r: Real.Real \where \forall (k: N.Nat^) -> Nat.Le n k -> below (values k) r };
+\definition Liminf[values: N.Nat^ -> Value]: Value := Sup (TailInf values);
+\definition lowerEnvelopeBound: \forall (f: N.Nat^ -> A -> Real.Real) (envelope: MeasurableSequence) (limit: A -> Real.Real) ->
+  PointwiseSup envelope limit -> FunctionIncreasing envelope ->
+  (\forall (n, k: N.Nat^) -> Nat.Le n k -> \forall (x: A) -> R.Le (envelope n x) (f k x)) ->
+  Values.Included (lowerIntegral limit) (Liminf (\fun (k: N.Nat^) => lowerIntegral (f k))) :=
+  \fun (f: N.Nat^ -> A -> Real.Real) (envelope: MeasurableSequence) (limit: A -> Real.Real)
+    (sup: PointwiseSup envelope limit) (increasing: FunctionIncreasing envelope)
+    (lower: \forall (n, k: N.Nat^) -> Nat.Le n k -> \forall (x: A) -> R.Le (envelope n x) (f k x))
+    (r: Real.Real) (member: below (lowerIntegral limit) r) => \block {
+      \let inSup: below (Sup (\fun (n: N.Nat^) => lowerIntegral (envelope n))) r :=
+        \idelim lowerIntegral limit = Sup (\fun (n: N.Nat^) => lowerIntegral (envelope n)) \with v: Value => below v r
+          \by { base: member, equality: Monotone.monotone envelope limit sup increasing } \then
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where below (lowerIntegral (envelope n)) r }) \by inSup \then
+      \let inEnvelope: below (lowerIntegral (envelope n)) r := \bysub(N.Nat^, { n: N.Nat^ \where below (lowerIntegral (envelope n)) r }, n) \then
+      \return supUpper (TailInf (\fun (k: N.Nat^) => lowerIntegral (f k))) n r
+        (\fun (k: N.Nat^) (later: Nat.Le n k) => lowerIntegralMono (envelope n) (f k) (lower n k later) r inEnvelope)
+    };
