@@ -24,12 +24,13 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 円錐像の閉埋め込みと収縮、円錐像を潰した商と元の相対商との比較は対象検査済み。
 `BaseQuotient` は底面を潰した商と部分空間の suspension を、連続な明示的逆写像によって比較し、対象検査を完了した。
 
-## 未検証の追加
+## 追加と検証状況
 
-`Connecting`・`Rotation`・`LeftExact`・`FiveTerm` は、基点が部分空間に含まれる対の接続写像、二段の cofiber の変形、五項の群と写像と完全性を構成する。
-`SuspendedPair` は suspension の閉埋め込みと、対の商と商の suspension との同相を構成する。
-`ClosedPointedPair`・`PointedPair`・`PairIteration` は対を反復し、全体・部分空間・相対商の比較、包含と射影の可換性、各負次数の列と通常の引き戻しとの一致を構成する。
-これらの追加は構文解析を通過したが、対象検査は完了していない。
+基点が部分空間に含まれる対の `Connecting`・`Rotation`・`LeftExact`・`FiveTerm` は対象検査を完了した。
+`SuspendedPair` の閉埋め込みと商の suspension との比較も対象検査を完了した。
+`ClosedPointedPair`・`PointedPair`・`PairIteration` は対を反復し、全体・部分空間・相対商の比較、包含と射影の可換性、各負次数の列を構成する。
+`PairMapping.Iteration` は対の写像を反復し、比較写像との可換性を帰納的に示す。
+`PairMapping.Naturality.Negative` と `PairMapping.Iteration.Naturality` は制限・忘却・接続写像の自然性を構成するが、対象検査は未完了。
 
 ## 検証と再開
 
@@ -56,70 +57,26 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 | 二段目の接続写像の候補像と核（module 自身と依存先） | `forget-square-left-exact` |
 | 変形の内部・全体・両端、suspension の制限の完全性、基点付き五項の列 | `rotation-stage-*` |
 
-長い `cofiber-exact-…BaseQuotient`・`direct-inverse-…BaseQuotient-Raw`・`constant-raw-…BaseQuotient-Raw` は、構成の整理と計測のため中断した検査。
-いずれも終了130・`interrupted`・キャッシュ保存失敗0で、成功した対象検査とは区別する。
-最後の中断の後続対象 `Backward`・比較全体は未実行。
-計測により、未確定の module 参照から依存範囲が無関係のコホモロジーへ広がっていることを確認した。
-`RawMap` の明示 import と `Rotation` 内の兄弟 module の明示参照を追加した。
-旧プロセスは終了130・`interrupted`・保存失敗0で回収した。
-参照修正後の検査は約64秒でルート宣言のエラーを報告した（終了1・`rejected`・保存失敗0）。
-`ClosedPointedPair` の小さい集合への射影が large elimination に該当したため、既存の `CompactPointed` と同じ消去形式で詳細を保持するよう修正した。
-空の空間の K 群の消滅と、空の境界での三つ組の忘却の逆写像も追加したが、対象検査は未完了。
-`Absolute` は一点付加空間と通常の K 群との比較を、`Pair.Augmented` は一般の対への基点付加と元の相対商との同相を構成した。
-これらも構文解析のみ完了し、対象検査は未完了。
-一般の対の各負次数の列を `Pair.Augmented.Sequence` に追加し、基点付加と商の比較で写像と完全性を移す証明を書いた（未検証）。
-`closed-pair-lift` の検査は約626秒で新しい suspension の商の親参照を拒否し、終了1・`rejected`・保存失敗0だった。
-同種の親参照を修正し、対の反復を `PairIteration` 内へ移して、基礎の検査が反復の構成全体へ依存する範囲を整理した。
-次の検査は約166秒で `Raw.existence` の部分空間の点の型を拒否した（終了1・`rejected`・保存失敗0）。
-合同式の引数に部分空間内の点を明示して修正した。
-修正後の `subset-raw` は約92秒で accepted・終了0・保存失敗0だった。
-同じ snapshot の `BaseQuotient` 全体も約611秒で accepted・終了0・保存失敗0だった。
-一般の対の列には、包含・射影の引き戻しとの一致と隣接次数の制限写像の一致も追加した（構文解析のみ完了、`unbased-formulas.source.json`）。
-`Pair.Augmented.OrdinaryEnd` は通常の K 群を端に持つ列と完全性、既存の忘却・制限との一致を構成した（未検証、`ordinary-end.source.json`）。
-`Pair.Mapping.Based` には cofiber の写像、射影・suspension の可換性と接続写像の自然性を書いた（構文解析のみ完了、`based-mapping.source.json`）。
-五項の列の対象検査は約160秒で乗法則の定理名を拒否し、終了1・`rejected`・保存失敗0だった。
-既存の `real.Analysis.Algebra.mulOneRight` へ修正した。
-`five-term-repair.source.json` は検査済みの `subset-raw` snapshot の `Rotation/Inner.ref` だけをこの修正で更新したもの。
-後から追加した一点付加・自然性の API を含む現在の package 全体は、別途最終検査する。
-`DiskPair` は射影の固定部分を有限次元実座標の単位閉球内に取り、コンパクトな円板・閉じた球面・相対群を構成した。
-`BundleDisk` は一般の束の射影表示の存在と同型を使ってこの対と負次数の列を公開する。
-`Examples.TrivialDisk` には有限ランク自明束の円板の比較を、`zeroBoundaryEmpty` にはランク0の球面が空である証明を書いた。
-これらは構文解析のみ完了し、型検査は未完了（`bundle-disk.source.json`）。
-修正後の五項の列の検査は `LeftExact.candidateKernel` の合同式の型推論を拒否した（終了1・`rejected`・保存失敗0）。
-中間値と部分群の型を明示した `candidate-kernel.source.json` で、この module 自身を先に検査する。
-この検査は終了1・`rejected`・保存失敗0で、二つの忘却写像を定義上同じとして扱う部分の不一致を特定した。
-両写像を射影の引き戻しへ比較して結ぶ証明を追加した。
-`forget-square.source.json` で、まず `Pointed.Connecting`、次に `Pointed.LeftExact` をそれぞれ `--module-only` で検査し、通った依存先を保存する。
-一般の束の円板から元の束の全空間への連続な単射とノルム条件、および閉被覆の商の比較も追加した（いずれも未検証、`closed-cover-current.source.json`）。
-忘却の比較を加えた検査は、`Pointed.Connecting`・`Pointed.LeftExact` とも accepted・終了0・保存失敗0だった。
-次に同じ snapshot で変形の `Inner`・`Outer`・`Endpoints`、`LeftExact.Suspension`、`FiveTerm` を順に検査する。
-`Absolute.Mapping` と `ClosedCover.MayerVietoris` の境界写像・全体の群での完全性も追加したが、型検査は未実施（`mayer-whole.source.json`）。
-Mayer–Vietoris の残りの位置での完全性はまだ構成中。
-`rotation-stage-*` の5段階はすべて accepted・終了0・保存失敗0で、基点付き五項の列まで対象検査を完了した。
-次数間の制限の一致は `PairIteration.Sequence.restrictionLink` へ移し、反復の基礎を先に検査できるようにした。
-`iteration-foundations.source.json` は `forget-square` snapshot の `PairIteration.ref` とその `Sequence.ref` だけをこの移動で更新したもの。
-`PairMapData`・`PairMapping`・`Square` には、対の写像の反復と全体・部分空間・商の比較との可換性を書いた（構文解析のみ完了、`pair-coherence.source.json`）。
-次の固定 snapshot で検査を続ける。
+検査を中断した旧報告は `outcome=interrupted`・終了130として保存し、成功した検査とは区別している。
+検査中に見つかった親参照、部分空間の点の型推論、large elimination の不一致を修正した。
+二つの忘却写像は射影の引き戻しへ比較して結び、その修正を含む五項の列を検査した。
 
-```bash
-REF_TYPE_PROFILE_DECLARATIONS=1 REF_TYPE_PROFILE_PHASES=1 \
-  target/debug/cli libs/topology/relative_k_theory \
-  --module relative_k_theory.Relative.Pair.Pointed.SuspendedPair --module-only \
-  --memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 \
-  --diagnostics compact --report-json work/k03-resume/iteration-stage-Pair-Pointed-SuspendedPair.json \
-  --source-snapshot work/k03-resume/iteration-foundations.source.json \
-  > work/k03-resume/iteration-stage-Pair-Pointed-SuspendedPair.log 2>&1
-result=$?
-printf '%s\n' "$result" > work/k03-resume/iteration-stage-Pair-Pointed-SuspendedPair.exit
-```
+現在の検査は `iteration-foundations.source.json` を固定して順番に実行する。
+`SuspendedPair` 自身とその `Quotient` 全体は accepted・終了0・保存失敗0。
+続く `PointedPair`、`PairIteration`、`PairIteration.Sequence` の結果を回収する。
+この snapshot は検査済みの `forget-square` に反復部分の修正を加えたもので、後述の追加全体は含まない。
+プロセスが残っていれば重複起動せず、`work/k03-resume/iteration-stage-*.{log,json,exit}` を確認する。
+終了時は終了コード・JSON の `outcome`・`storage.save_failures`・`checking.cache_write_failures` を確認する。
 
-`closed-pair-lift.source.json` は `b334fd01` 時点の数学コードの固定 snapshot。
-その後の一点付加の構成は `augmentation.source.json` に固定した。
-最新の数学コードは `scoped-iteration.source.json` に固定した。
-`Raw.existence` の修正後は `subset-raw.source.json` を使う。
-対象検査の完了時は終了コード・JSON の `outcome`・`storage.save_failures`・`checking.cache_write_failures` を確認する。
-次に `BaseQuotient.Backward`・`BaseQuotient` の比較全体、新しい五項の列と反復の対象検査を進める。
+最新の追加全体の構文解析 snapshot は `negative-boundary-naturality.source.json`。
+次の追加は型検査未完了で、現在の package 全体の最終検証も未実施。
 
-残る計画要件は、一般の対で通常の K 群を端に持つ負次数の長完全列と自然性、Mayer–Vietoris、外積と自然性、束の円板球面対と具体例。
-公開登録・ロードマップ・下流リンクも整備する。
-共通 API を整理した K02・K07・単体/胞体・近似理論・B09 の影響先と、workspace 全体を最終検証に含める。
+- `KTheory.On.Empty`、空の境界での三つ組の忘却の逆写像、`Absolute` の一点付加と通常の K 群との比較。
+- `Pair.Augmented.Sequence`・`OrdinaryEnd` の一般の対の列、通常の忘却・制限との一致。
+- `Pair.Mapping.Based`、`PairMapping`、`Square` の写像と自然性。
+- `Pair.ClosedCover` の商の比較、`MayerVietoris` の境界写像と全体の群での完全性。
+- `DiskPair`・`BundleDisk` の円板球面対、元の束への連続単射とノルム条件、`Examples.TrivialDisk` のランク0・1の例。
+
+残る構成は一般の対での自然性、Mayer–Vietoris の残る位置での完全性、外積と自然性。
+検査完了後、公開登録・ロードマップ・下流リンクを整備する。
+K02・K07・単体/胞体・近似理論・B09 の影響先と workspace 全体を最終検証に含める。
