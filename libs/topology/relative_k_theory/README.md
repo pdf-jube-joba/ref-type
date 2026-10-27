@@ -159,3 +159,7 @@ Mayer–Vietoris の交叉部分の完全性も証明コードを追加し、構
 検証再開記録: `audit-02-Smash-Symmetry` は終了1、キャッシュ保存失敗0でした。
 `Suspension.Onto` の積の外延性で比較する二点を明記し、検査時の推論が同一点へ固定される問題を修正しています。
 共有キャッシュを保持して対象検査から再開します。
+
+検証結果: `audit-03-Smash-Symmetry` は accepted・終了0・保存失敗0・書込失敗0。
+`audit-03-PairMapping` は終了1・保存失敗0・書込失敗0で、商側の suspension の別名が部分空間側へ解釈される不一致が残った。
+`Iteration.Step.Quotients` では商の suspension の型を完全修飾で直接指定し、`audit-04.source.json` で再検査する。
