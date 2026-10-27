@@ -1,0 +1,24 @@
+\import \root.Relative[].PointedPair[pair := pair] \as Original;
+\definition modelEquation[degree: N.Nat^]: (iteratePair degree pair).model = iterate degree pair.model :=
+  (\induction (degree: N.Nat^) \return (iteratePair degree pair).model = iterate degree pair.model \with {
+    | zero: \refl(pair.model)
+    | succ: \fun (n: N.Nat^)(previous: (iteratePair n pair).model = iterate n pair.model) =>
+      trans!{{CompactPointed}} _ _ _ (\root.Relative[].PointedPair[pair := iteratePair n pair].suspendedModel)
+        (congr!{{CompactPointed} {CompactPointed}} (\fun (model: CompactPointed) => \root.Relative[].Suspension[original := model].result) _ _ previous)
+  }) degree;
+\import \root.Relative[].Identity[model := Original.quotientModel] \as Identity;
+\definition identity: \root.Relative[].Equivalence[source := Original.quotientModel, target := Original.quotientModel].Data :=
+  \root.Relative[].Equivalence[source := Original.quotientModel, target := Original.quotientModel].Data {
+    forward := Identity.map, backward := Identity.map, leftInverse := \fun (x: Original.quotientModel.Carrier) => \refl(x), rightInverse := \fun (x: Original.quotientModel.Carrier) => \refl(x)
+  };
+\module QuotientStep(degree: N.Nat^, previous: \root.Relative[].Equivalence[source := \root.Relative[].PointedPair[pair := iteratePair degree pair].quotientModel,
+  target := iterate degree Original.quotientModel].Data);
+\definition quotientComparison[degree: N.Nat^]: \root.Relative[].Equivalence[source := \root.Relative[].PointedPair[pair := iteratePair degree pair].quotientModel,
+  target := iterate degree Original.quotientModel].Data :=
+  (\induction (degree: N.Nat^) \return \root.Relative[].Equivalence[source := \root.Relative[].PointedPair[pair := iteratePair degree pair].quotientModel,
+    target := iterate degree Original.quotientModel].Data \with {
+      | zero: identity
+      | succ: \fun (n: N.Nat^)(previous: \root.Relative[].Equivalence[source := \root.Relative[].PointedPair[pair := iteratePair n pair].quotientModel,
+        target := iterate n Original.quotientModel].Data) => QuotientStep[degree := n, previous := previous].result
+    }) degree;
+\module Groups(degree: N.Nat^);

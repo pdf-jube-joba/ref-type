@@ -208,3 +208,9 @@ K07 の影響先検査は最終検査に含める。
 `ClosedPointedPair`・`PointedPair`・`iteratePair` は suspension を繰り返すための対のデータと反復を公開する。
 固定 snapshot は `work/k03-resume/suspended-pair.source.json`。
 対の商と商の suspension の同相、および反復した五項の列との照合は次に実装する。
+
+`SuspendedPair.Quotient` は対の商と商空間の suspension の同相を構成する未検証変更。
+射影の suspension を商へ降ろし、商の関係式から単射性を示し、元の商への射影の全射性から全射性を示す。
+`QuotientSurjective` は基点が部分空間に含まれる対で、付加した基点も元の空間からの射影で表せることを示す。
+`Equivalence.Compose` と `PairIteration` は比較同相を反復し、反復した対の相対群と元の商の負次数群との両方向の加法的写像を公開する。
+固定 snapshot は `work/k03-resume/iterated-quotient.source.json` で、これらは未検証。
