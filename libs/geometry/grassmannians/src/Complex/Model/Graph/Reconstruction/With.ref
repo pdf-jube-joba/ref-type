@@ -1,0 +1,22 @@
+\use std.Logic[].Equality[].sym;
+\import At.Families[X := GraphSpace].Orthonormalized[k := k, source := graphTopology, A := family, factors := factors] \as Ortho;
+\import Original.Family[Y := GraphSpace, source := graphTopology, P := Ortho.projection, regularP := Ortho.regular, rank := Ortho.rank] \as OldFamily;
+\definition value[t: GraphSpace]: Model.Carrier := Model.fromOriginal (OldFamily.map t);
+\definition continuous: topology.Continuity[A := GraphSpace, B := Model.Carrier].Continuous graphTopology Model.topology value :=
+  topology.Composition[A := GraphSpace, B := Original.Grassmannian, C := Model.Carrier].composeContinuous graphTopology Original.topology Model.topology OldFamily.map Model.fromOriginal OldFamily.continuous Model.fromOriginalContinuous;
+\module AtPoint(t: GraphSpace) {
+  \import At.OnProjection[P := Ortho.projection t].Rank[k := k] \as Rank;
+  \definition fixed: \forall (v: Domain.Vector) -> (Model.projection (value t)).map.apply ((family t).apply v) = (family t).apply v :=
+    \fun (v: Domain.Vector) => trans!{{E.Vector}} _ _ _
+      (congr!{{E.Vector} {E.Vector}} (Ortho.projection t).map.apply _ _ ((factors.value t).formula v))
+      (trans!{{E.Vector}} _ _ _ (Rank.fixed (Ortho.Point[x := t].basis) ((factors.value t).change.forward.apply v))
+        (sym!{{E.Vector}} _ _ ((factors.value t).formula v)));
+}
+
+\definition imageIsGraph: \forall (t: GraphSpace)(w: E.Vector) -> (Model.projection (value t)).map.apply w = w -> \exists (v: Domain.Vector \where (family t).apply v = w) :=
+  \fun (t: GraphSpace)(w: E.Vector)(fixed: _) => Logic.existsIntro[Domain.Vector, { v: Domain.Vector \where (family t).apply v = w }]
+    ((factors.value t).change.backward.apply ((Ortho.Point[x := t].basis).coordinate.apply w))
+    (trans!{{E.Vector}} _ _ _ ((factors.value t).formula ((factors.value t).change.backward.apply ((Ortho.Point[x := t].basis).coordinate.apply w)))
+      (trans!{{E.Vector}} _ _ _ (congr!{{Domain.Vector} {E.Vector}} (factors.value t).frame.apply _ _ ((factors.value t).change.rightInverse ((Ortho.Point[x := t].basis).coordinate.apply w)))
+        (trans!{{E.Vector}} _ _ _ ((Ortho.Point[x := t].basis).reconstruction w) fixed)));
+\definition realization: Realization := Realization { value := value, continuous := continuous, fixesGraph := \fun (t: GraphSpace) => AtPoint[t := t].fixed, imageIsGraph := imageIsGraph };

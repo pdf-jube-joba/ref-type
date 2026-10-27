@@ -1,0 +1,37 @@
+\import std.Logic[].Proposition[] \as Logic;
+\use std.Logic[].Equality[].sym;
+\import Spaces.Laws[V := Domain.Vector, space := Domain.space] \as DomainLaws;
+\import Maps.Operations[] \as Operations;
+\definition family[t: GraphSpace]: Maps.Map := Operations.plus center.value t;
+\definition zeroCondition: \forall (t: GraphSpace)(v: Domain.Vector) -> center.coordinate.apply (t.apply v) = Domain.space.zero :=
+  \fun (t: GraphSpace) => \bysub(Maps.Map, { t: Maps.Map \where \forall (v: Domain.Vector) -> center.coordinate.apply (t.apply v) = Domain.space.zero }, t);
+\definition centerFormula: \forall (t: GraphSpace)(v: Domain.Vector) -> center.coordinate.apply ((family t).apply v) = v :=
+  \fun (t: GraphSpace)(v: Domain.Vector) => trans!{{Domain.Vector}} _ _ _ (center.coordinate.preservesAdd (center.value.apply v) (t.apply v))
+    (trans!{{Domain.Vector}} _ _ _ (congr!{{Domain.Vector} {Domain.Vector} {Domain.Vector}} Domain.space.add _ _ _ _ (center.leftInverse v) (zeroCondition t v)) (DomainLaws.zeroRight v));
+\definition injective: \forall (t: GraphSpace)(v, w: Domain.Vector) -> (family t).apply v = (family t).apply w -> v = w :=
+  \fun (t: GraphSpace)(v, w: Domain.Vector)(same: _) => trans!{{Domain.Vector}} _ _ _ (sym!{{Domain.Vector}} _ _ (centerFormula t v))
+    (trans!{{Domain.Vector}} _ _ _ (congr!{{E.Vector} {Domain.Vector}} center.coordinate.apply _ _ same) (centerFormula t w));
+\import At.Families[X := GraphSpace] \as Vectors;
+\import Vectors.Matrix[m := k] \as Families;
+\definition graphRegularEntry: \forall (j: Fin.Fin k)(i: Fin.Fin n) -> H.Over[K := C.Complex, field := C.Algebra[].field, scalar := H.Complex[].scalar, topological := H.Complex[].topological].Functions[X := GraphSpace].Continuous graphTopology (\fun (t: GraphSpace) => t.apply (Domain.basis j) i) :=
+  \fun (j: Fin.Fin k)(i: Fin.Fin n) => topology.Composition[A := GraphSpace, B := GraphMatrix.Carrier, C := C.Complex].composeContinuous graphTopology (GraphMatrix.topology H.Complex[].topological.space) H.Complex[].topological.space entries (GraphMatrix.entry i j) (GraphInduced.continuous (GraphMatrix.topology H.Complex[].topological.space) entries) (GraphMatrix.entryContinuous H.Complex[].topological.space i j);
+\definition graphRegular: Families.Regular graphTopology (\fun (t: GraphSpace) => t) :=
+  Families.regularOfComponents graphTopology (\fun (t: GraphSpace) => t) graphRegularEntry;
+\definition familyRegular: Families.Regular graphTopology family := \fun (v: Domain.Vector) =>
+  Vectors.addition graphTopology (\fun (_: GraphSpace) => center.value.apply v) (\fun (t: GraphSpace) => t.apply v)
+    (Vectors.constant graphTopology (center.value.apply v)) (graphRegular v);
+\import At.Forms[h := E.form].Families[X := GraphSpace] \as GramFamilies;
+\definition factorsExist: \exists GramFamilies.Rank[k := k].Factors[family, graphTopology] :=
+  GramFamilies.exists k graphTopology family familyRegular injective E.positive;
+
+\structure Realization: \Set := {
+  value: GraphSpace -> Model.Carrier,
+  continuous: topology.Continuity[A := GraphSpace, B := Model.Carrier].Continuous graphTopology Model.topology value,
+  fixesGraph: \forall (t: GraphSpace)(v: Domain.Vector) -> (Model.projection (value t)).map.apply ((family t).apply v) = (family t).apply v,
+  imageIsGraph: \forall (t: GraphSpace)(w: E.Vector) -> (Model.projection (value t)).map.apply w = w -> \exists (v: Domain.Vector \where (family t).apply v = w),
+};
+\module With(factors: GramFamilies.Rank[k := k].Factors[family, graphTopology]);
+\definition exists: \exists Realization := \block {
+  \takefrom factors: GramFamilies.Rank[k := k].Factors[family, graphTopology] \by factorsExist \then
+  \return \exact(With[factors := factors].realization, Realization)
+};
