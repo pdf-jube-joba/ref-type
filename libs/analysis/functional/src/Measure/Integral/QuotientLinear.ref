@@ -38,3 +38,20 @@
       "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
         (sym!{Real.Real} _ _ (QIntegral.quotientIntegralOfClass f)) (sym!{Real.Real} _ _ (QIntegral.quotientIntegralOfClass g)) }
     });
+\import \root.Measure[A := A].Integral[mu := mu].Scaling[] \as Scaling;
+\import Quotient.Maps[B := QIntegral.Space] \as ClassMaps;
+\definition classScalar[c: Real.Real] [f: Representatives]: QIntegral.Space := QIntegral.class (Scaling.scalarRepresentative c f);
+\definition scalarRespects: \forall (c: Real.Real) (f, g: Representatives) -> AlmostEqual mu f g -> classScalar c f = classScalar c g :=
+  \fun (c: Real.Real) (f, g: Representatives) (equal: AlmostEqual mu f g) =>
+    classEqual (Scaling.scalarRepresentative c f) (Scaling.scalarRepresentative c g) (QIntegral.mapAlmost (Real.mul c) f g equal);
+\definition scalar[c: Real.Real] [C: QIntegral.Space]: QIntegral.Space := ClassMaps.value QIntegral.equivalence (classScalar c) (scalarRespects c) C;
+\definition scalarClass: \forall (c: Real.Real) (f: Representatives) -> scalar c (QIntegral.class f) = QIntegral.class (Scaling.scalarRepresentative c f) :=
+  \fun (c: Real.Real) (f: Representatives) => ClassMaps.onClass QIntegral.equivalence (classScalar c) (scalarRespects c) f;
+\definition integralScalar: \forall (c: Real.Real) (C: QIntegral.Space) -> QIntegral.quotientIntegral (scalar c C) = Real.mul c (QIntegral.quotientIntegral C) :=
+  \fun (c: Real.Real) => Quotient.induction (\fun (C: QIntegral.Space) => QIntegral.quotientIntegral (scalar c C) = Real.mul c (QIntegral.quotientIntegral C))
+    (\fun (f: Representatives) => eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{QIntegral.Space Real.Real} QIntegral.quotientIntegral _ _ (scalarClass c f) }
+      "=" _ "by" { QIntegral.quotientIntegralOfClass (Scaling.scalarRepresentative c f) }
+      "=" _ "by" { Scaling.integralScalar c f }
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul c) _ _ (sym!{Real.Real} _ _ (QIntegral.quotientIntegralOfClass f)) }
+    });
