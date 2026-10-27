@@ -200,7 +200,7 @@
       });
 \definition scalarRepresentative[c: Real.Real] [f: Representatives]: Representatives :=
   \into[A -> Real.Real](\fun (x: A) => Real.mul c (f x), { g: A -> Real.Real \where Integrable g }) \by {
-    integrableScalar c f (\bysub(A -> Real.Real, { f: A -> Real.Real \where Integrable f }, f)
+    integrableScalar c f (\bysub(A -> Real.Real, { f: A -> Real.Real \where Integrable f }, f))
   };
 \definition integralScalar: \forall (c: Real.Real) (f: Representatives) -> integral (scalarRepresentative c f) = Real.mul c (integral f) :=
   \fun (c: Real.Real) (f: Representatives) => Logic.orElim _ _ (integral (scalarRepresentative c f) = Real.mul c (integral f))
@@ -211,9 +211,13 @@
     })
     (\fun (negative: R.Lt c Real.zero) => \block {
       \let sc: NonnegativeScalar := \into[Real.Real](Real.neg c, { c: Real.Real \where R.Le Real.zero c }) \by { Laws.nonnegativeNegOfNegative c negative } \then
+      \let negLaw: HasIntegral[Negation.neg (representative sc f), Real.neg (integral (representative sc f))] :=
+        Negation.hasIntegral (representative sc f) (integral (representative sc f)) (integralLaw (representative sc f)) \then
+      \let transported: HasIntegral[scalarRepresentative c f, Real.neg (integral (representative sc f))] :=
+        \idelim Negation.neg (representative sc f) = scalarRepresentative c f \with g: (A -> Real.Real) => HasIntegral[g, Real.neg (integral (representative sc f))]
+          \by { base: negLaw, equality: negativeScalarIdentity c f } \then
       \return eq_reason_in!{Real.Real _
-        "=" _ "by" { congr!{{A -> Real.Real} Real.Real} integral _ _ (sym!{{A -> Real.Real}} _ _ (negativeScalarIdentity c f)) }
-        "=" _ "by" { Negation.integralNeg (representative sc f) }
+        "=" _ "by" { integralUnique (scalarRepresentative c f) (integral (scalarRepresentative c f)) (Real.neg (integral (representative sc f))) (integralLaw (scalarRepresentative c f)) transported }
         "=" _ "by" { congr!{Real.Real Real.Real} Real.neg _ _ (integralScale sc f) }
         "=" _ "by" { congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulNegLeft c (integral f)) }
         "=" _ "by" { Laws.negInvolutive (Real.mul c (integral f)) }
