@@ -1,0 +1,17 @@
+\import Spaces.Coordinates[I := Fin.Fin r].Kronecker[] \as Delta;
+\import At.Families[X := C.Complex].Matrix[m := r] \as Matrices;
+\definition coordinateFormula: \forall (i: Fin.Fin r)(j: Fin.Fin n) -> (b.basis.coordinate.apply (E.basis j)) i = H.Complex[].scalar.conjugate (b.basis.value.apply (Domain.basis i) j) :=
+  \fun (i: Fin.Fin r)(j: Fin.Fin n) => trans!{C.Complex} _ _ _ (sym!{C.Complex} _ _ (Domain.dotBasis i (b.basis.coordinate.apply (E.basis j))))
+    (trans!{C.Complex} _ _ _ (sym!{C.Complex} _ _ (b.adjoint (Domain.basis i) (E.basis j)))
+      (trans!{C.Complex} _ _ _ (E.symmetric (b.basis.value.apply (Domain.basis i)) (E.basis j))
+        (congr!{C.Complex C.Complex} H.Complex[].scalar.conjugate _ _ (E.dotBasis j (b.basis.value.apply (Domain.basis i))))));
+\definition diagonal: \forall (j: Fin.Fin n) -> P.map.apply (E.basis j) j =
+  Sums.sum r (\fun (i: Fin.Fin r) => Spaces.mul (H.Complex[].scalar.conjugate (b.basis.value.apply (Domain.basis i) j)) (b.basis.value.apply (Domain.basis i) j)) :=
+  \fun (j: Fin.Fin n) => trans!{C.Complex} _ _ _
+    (congr!{{E.Vector} C.Complex} (\fun (v: E.Vector) => v j) _ _ (sym!{{E.Vector}} _ _ (b.basis.reconstruction (E.basis j))))
+    (trans!{C.Complex} _ _ _ (Matrices.Expansion[A := b.basis.value, v := b.basis.coordinate.apply (E.basis j), i := j].formula)
+      (Sums.congruent r _ _ (\fun (i: Fin.Fin r) => congr!{C.Complex C.Complex} (\fun (c: C.Complex) => Spaces.mul c (b.basis.value.apply (Domain.basis i) j)) _ _ (coordinateFormula i j))));
+\definition traceFormula: trace P = count r := trans!{C.Complex} _ _ _ (Sums.congruent n _ _ diagonal)
+  (trans!{C.Complex} _ _ _ (Sums.exchange n r (\fun (j: Fin.Fin n)(i: Fin.Fin r) => Spaces.mul (H.Complex[].scalar.conjugate (b.basis.value.apply (Domain.basis i) j)) (b.basis.value.apply (Domain.basis i) j)))
+    (Sums.congruent r _ (\fun (_: Fin.Fin r) => Spaces.one) (\fun (i: Fin.Fin r) => trans!{C.Complex} _ _ _ (b.isometry (Domain.basis i) (Domain.basis i))
+      (trans!{C.Complex} _ _ _ (Domain.dotBasis i (Domain.basis i)) (Delta.self i)))));
