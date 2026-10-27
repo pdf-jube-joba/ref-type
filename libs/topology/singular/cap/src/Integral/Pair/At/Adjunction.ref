@@ -1,0 +1,32 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import \parent.Quotient[] \as Quotient;
+\import \parent.RelativeCochain[] \as RelativeCap;
+\import Whole.Adjunction[] \as Absolute;
+\import singular_cap.CochainPair[A := A, source := source, subset := subset, R := I.Int^, ring := Integers.commutativeRing] \as PairCochains;
+\import PairCochains.Comparison[n := p] \as Left;
+\import PairCochains.Comparison[n := q] \as Right;
+\import PairCochains.Comparison[n := Whole.total] \as Result;
+\import PairCochains.RelativeCup[p := p, q := q] \as Cup;
+\import Relative.With[coefficients := Cochains.integerCoefficients] \as RelativeCochains;
+\definition left: \forall (alpha: RelativeCochains.Carrier (I.Int^::ofNat p))(beta: Cochains.Carrier q)(x: Quotient.SourceQ.Carrier) ->
+  (alpha).apply ((Quotient.map beta).apply x) = (Cup.left alpha beta).apply x :=
+  \fun (alpha: RelativeCochains.Carrier (I.Int^::ofNat p))(beta: Cochains.Carrier q) => Quotient.SourceQ.induction
+    (\fun (x: Quotient.SourceQ.Carrier) => (alpha).apply ((Quotient.map beta).apply x) = (Cup.left alpha beta).apply x)
+    (\fun (x: Quotient.WholeExtension.Carrier (I.Int^::ofNat Whole.total)) => eq_reason_in!{I.Int^ _
+      "=" _ "by" { congr!{Quotient.TargetQ.Carrier I.Int^} ((alpha).apply) _ _ (Quotient.onClass beta x) }
+      "=" _ "by" { Absolute.law (Left.from alpha) beta x }
+      "=" _ "by" { sym!{I.Int^} _ _ (congr!{{Cochains.Carrier Whole.total} I.Int^} (\fun (h: Cochains.Carrier Whole.total) => (h).apply x) _ _ (Cup.leftRestriction alpha beta)) }
+    });
+\definition right: \forall (alpha: Cochains.Carrier p)(beta: RelativeCochains.Carrier (I.Int^::ofNat q))(x: RelativeCap.SourceQ.Carrier) ->
+  (alpha).apply ((RelativeCap.map beta).apply x) = (Cup.right alpha beta).apply x :=
+  \fun (alpha: Cochains.Carrier p)(beta: RelativeCochains.Carrier (I.Int^::ofNat q)) => RelativeCap.SourceQ.induction
+    (\fun (x: RelativeCap.SourceQ.Carrier) => (alpha).apply ((RelativeCap.map beta).apply x) = (Cup.right alpha beta).apply x)
+    (\fun (x: RelativeCap.WholeExtension.Carrier (I.Int^::ofNat Whole.total)) => eq_reason_in!{I.Int^ _
+      "=" _ "by" { congr!{{Chains.Carrier p} I.Int^} ((alpha).apply) _ _ (RelativeCap.onClass beta x) }
+      "=" _ "by" { Absolute.law alpha (Right.from beta) x }
+      "=" _ "by" { sym!{I.Int^} _ _ (congr!{{Cochains.Carrier Whole.total} I.Int^} (\fun (h: Cochains.Carrier Whole.total) => (h).apply x) _ _ (Cup.rightRestriction alpha beta)) }
+    });
