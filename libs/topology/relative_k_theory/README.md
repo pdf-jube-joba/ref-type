@@ -54,6 +54,7 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 | 底面の商と suspension の比較全体・明示的な逆・忘却の式 | `subset-comparison` |
 | 接続写像・相対群での完全性（module 自身と依存先） | `forget-square-connecting` |
 | 二段目の接続写像の候補像と核（module 自身と依存先） | `forget-square-left-exact` |
+| 変形の内部・全体・両端、suspension の制限の完全性、基点付き五項の列 | `rotation-stage-*` |
 
 長い `cofiber-exact-…BaseQuotient`・`direct-inverse-…BaseQuotient-Raw`・`constant-raw-…BaseQuotient-Raw` は、構成の整理と計測のため中断した検査。
 いずれも終了130・`interrupted`・キャッシュ保存失敗0で、成功した対象検査とは区別する。
@@ -94,18 +95,22 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 次に同じ snapshot で変形の `Inner`・`Outer`・`Endpoints`、`LeftExact.Suspension`、`FiveTerm` を順に検査する。
 `Absolute.Mapping` と `ClosedCover.MayerVietoris` の境界写像・全体の群での完全性も追加したが、型検査は未実施（`mayer-whole.source.json`）。
 Mayer–Vietoris の残りの位置での完全性はまだ構成中。
+`rotation-stage-*` の5段階はすべて accepted・終了0・保存失敗0で、基点付き五項の列まで対象検査を完了した。
+次数間の制限の一致は `PairIteration.Sequence.restrictionLink` へ移し、反復の基礎を先に検査できるようにした。
+`iteration-foundations.source.json` は `forget-square` snapshot の `PairIteration.ref` とその `Sequence.ref` だけをこの移動で更新したもの。
+`PairMapData`・`PairMapping`・`Square` には、対の写像の反復と全体・部分空間・商の比較との可換性を書いた（構文解析のみ完了、`pair-coherence.source.json`）。
 次の固定 snapshot で検査を続ける。
 
 ```bash
 REF_TYPE_PROFILE_DECLARATIONS=1 REF_TYPE_PROFILE_PHASES=1 \
   target/debug/cli libs/topology/relative_k_theory \
-  --module relative_k_theory.Relative.Pair.Pointed.Rotation.Inner --module-only \
+  --module relative_k_theory.Relative.Pair.Pointed.SuspendedPair --module-only \
   --memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 \
-  --diagnostics compact --report-json work/k03-resume/rotation-stage-Rotation-Inner.json \
-  --source-snapshot work/k03-resume/forget-square.source.json \
-  > work/k03-resume/rotation-stage-Rotation-Inner.log 2>&1
+  --diagnostics compact --report-json work/k03-resume/iteration-stage-Pair-Pointed-SuspendedPair.json \
+  --source-snapshot work/k03-resume/iteration-foundations.source.json \
+  > work/k03-resume/iteration-stage-Pair-Pointed-SuspendedPair.log 2>&1
 result=$?
-printf '%s\n' "$result" > work/k03-resume/rotation-stage-Rotation-Inner.exit
+printf '%s\n' "$result" > work/k03-resume/iteration-stage-Pair-Pointed-SuspendedPair.exit
 ```
 
 `closed-pair-lift.source.json` は `b334fd01` 時点の数学コードの固定 snapshot。

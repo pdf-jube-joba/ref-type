@@ -1,0 +1,39 @@
+\import \root.Relative[].Suspension[original := FromNow.quotientModel] \as SourceSuspension;
+\import \root.Relative[].Suspension[original := ToNow.quotientModel] \as TargetSuspension;
+\import \root.Relative[].SuspendedMap[source := FromNow.quotientModel, target := ToNow.quotientModel, f := Current.quotientMap] \as CurrentLift;
+\definition sourceStep: \root.Relative[].Equivalence[source := FromNext.quotientModel, target := SourceSuspension.result].Data := FromNow.suspendedQuotientEquivalence;
+\definition targetStep: \root.Relative[].Equivalence[source := ToNext.quotientModel, target := TargetSuspension.result].Data := ToNow.suspendedQuotientEquivalence;
+\import \root.Relative[].Square[A := Now.sourceData.model, B := FromNow.quotientModel, C := Now.targetData.model, D := ToNow.quotientModel,
+  f := FromNow.projection, g := Current.quotientMap, h := (data degree).function, k := ToNow.projection, commutes := Current.onProjection] \as Projection;
+\definition onProjection: \forall (z: Next.sourceData.model.Carrier) ->
+  targetStep.forward (NextMap.quotientMap (FromNext.projection z)) = CurrentLift.map (sourceStep.forward (FromNext.projection z)) :=
+  \fun (z: Next.sourceData.model.Carrier) => trans!{{TargetSuspension.result.Carrier}} _ _ _
+    (congr!{{ToNext.quotientModel.Carrier} {TargetSuspension.result.Carrier}} targetStep.forward
+      (NextMap.quotientMap (FromNext.projection z)) (ToNext.projection ((data (N.Nat^::succ degree)).function z)) (NextMap.onProjection z))
+    (trans!{{TargetSuspension.result.Carrier}} _ _ _ (ToNow.suspendedProjectionEquation ((data (N.Nat^::succ degree)).function z))
+      (trans!{{TargetSuspension.result.Carrier}} _ _ _ (sym!{{TargetSuspension.result.Carrier}} _ _ (Projection.suspended z))
+        (sym!{{TargetSuspension.result.Carrier}} _ _ (congr!{{SourceSuspension.result.Carrier} {TargetSuspension.result.Carrier}} CurrentLift.map _ _ (FromNow.suspendedProjectionEquation z)))));
+\definition stepNaturality: \forall (x: FromNext.quotientModel.Carrier) -> targetStep.forward (NextMap.quotientMap x) = CurrentLift.map (sourceStep.forward x) := \block {
+  \fun (x: FromNext.quotientModel.Carrier) \then
+  \takefrom z: \Cast[Next.sourceData.model.Carrier] ({ z: Next.sourceData.model.Carrier \where FromNext.projection z = x }) \by FromNext.quotientOnto x \then
+  \return \idelim FromNext.projection z = x \with q: FromNext.quotientModel.Carrier =>
+    targetStep.forward (NextMap.quotientMap q) = CurrentLift.map (sourceStep.forward q) \by {
+      base: onProjection z, equality: \bysub(Next.sourceData.model.Carrier, { z: Next.sourceData.model.Carrier \where FromNext.projection z = x }, z)
+    }
+};
+\definition previousAt: \forall (x: FromNow.quotientModel.Carrier) ->
+  (TargetIteration.quotientComparison degree).forward (Current.quotientMap x) =
+  iterateMap degree From.quotientModel To.quotientModel quotientMap ((SourceIteration.quotientComparison degree).forward x) :=
+  \fun (x: FromNow.quotientModel.Carrier) => congr!{{Map FromNow.quotientModel (iterate degree To.quotientModel)} {(iterate degree To.quotientModel).Carrier}}
+    (\fun (m: Map FromNow.quotientModel (iterate degree To.quotientModel)) => m x) Now.quotientLeft Now.quotientRight previous.quotient;
+\import \root.Relative[].Square[A := FromNow.quotientModel, B := ToNow.quotientModel, C := iterate degree From.quotientModel, D := iterate degree To.quotientModel,
+  f := Current.quotientMap, g := (TargetIteration.quotientComparison degree).forward, h := (SourceIteration.quotientComparison degree).forward,
+  k := iterateMap degree From.quotientModel To.quotientModel quotientMap, commutes := previousAt] \as Lifted;
+\import \root.Relative[].SuspendedMap[source := ToNow.quotientModel, target := iterate degree To.quotientModel,
+  f := (TargetIteration.quotientComparison degree).forward] \as TargetComparison;
+\definition atPoint: \forall (x: FromNext.quotientModel.Carrier) -> Next.quotientLeft x = Next.quotientRight x :=
+  \fun (x: FromNext.quotientModel.Carrier) => trans!{{(iterate (N.Nat^::succ degree) To.quotientModel).Carrier}} _ _ _
+    (congr!{{TargetSuspension.result.Carrier} {(iterate (N.Nat^::succ degree) To.quotientModel).Carrier}} TargetComparison.map
+      (targetStep.forward (NextMap.quotientMap x)) (CurrentLift.map (sourceStep.forward x)) (stepNaturality x))
+    (Lifted.suspended (sourceStep.forward x));
+\definition equation: Next.QuotientEquation := \axiom:funext(Next.quotientLeft, Next.quotientRight, atPoint);

@@ -1,0 +1,27 @@
+\import \root.Relative[].PairIteration[pair := source] \as SourceIteration;
+\import \root.Relative[].PairIteration[pair := target] \as TargetIteration;
+\definition data[degree: N.Nat^]: PairMapData[SourceIteration.iteratePair degree source, TargetIteration.iteratePair degree target] :=
+  (\induction (degree: N.Nat^) \return PairMapData[SourceIteration.iteratePair degree source, TargetIteration.iteratePair degree target] \with {
+    | zero: f
+    | succ: \fun (n: N.Nat^)(previous: PairMapData[SourceIteration.iteratePair n source, TargetIteration.iteratePair n target]) =>
+      \root.Relative[].PairMapping[source := SourceIteration.iteratePair n source, target := TargetIteration.iteratePair n target, f := previous].suspended
+  }) degree;
+\module At(degree: N.Nat^);
+\structure Coherence[degree: N.Nat^]: \Prop := {
+  whole: At[degree := degree].WholeEquation,
+  subset: At[degree := degree].SubsetEquation,
+  quotient: At[degree := degree].QuotientEquation
+};
+\module Step(degree: N.Nat^, previous: Coherence[degree]);
+\definition coherence[degree: N.Nat^]: Coherence[degree] :=
+  (\induction (degree: N.Nat^) \return Coherence[degree] \with {
+    | zero: Coherence[N.Nat^::zero] {
+      whole := \axiom:funext(At[degree := N.Nat^::zero].wholeLeft, At[degree := N.Nat^::zero].wholeRight,
+        \fun (x: source.model.Carrier) => \refl(f.function x)),
+      subset := \axiom:funext(At[degree := N.Nat^::zero].subsetLeft, At[degree := N.Nat^::zero].subsetRight,
+        \fun (x: From.subsetModel.Carrier) => \refl(subsetMap x)),
+      quotient := \axiom:funext(At[degree := N.Nat^::zero].quotientLeft, At[degree := N.Nat^::zero].quotientRight,
+        \fun (x: From.quotientModel.Carrier) => \refl(quotientMap x))
+    }
+    | succ: \fun (n: N.Nat^)(previous: Coherence[n]) => Step[degree := n, previous := previous].result
+  }) degree;

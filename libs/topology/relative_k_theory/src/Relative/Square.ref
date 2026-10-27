@@ -1,0 +1,36 @@
+\import \root.Relative[].Composition[source := A, middle := B, target := D, first := f, second := g] \as Left;
+\import \root.Relative[].Composition[source := A, middle := C, target := D, first := h, second := k] \as Right;
+\definition mapEquality: Left.map = Right.map := \axiom:funext(Left.map, Right.map, commutes);
+\import \root.Relative[].Suspension[original := A] \as Source;
+\import \root.Relative[].Suspension[original := D] \as Target;
+\import \root.Relative[].SuspendedMap[source := A, target := B, f := f] \as F;
+\import \root.Relative[].SuspendedMap[source := B, target := D, f := g] \as G;
+\import \root.Relative[].SuspendedMap[source := A, target := C, f := h] \as H;
+\import \root.Relative[].SuspendedMap[source := C, target := D, f := k] \as K;
+\definition liftedEquality: \root.Relative[].SuspendedMap[source := A, target := D, f := Left.map].map =
+  \root.Relative[].SuspendedMap[source := A, target := D, f := Right.map].map :=
+  congr!{{Map A D} {Map Source.result Target.result}}
+    (\fun (m: Map A D) => \root.Relative[].SuspendedMap[source := A, target := D, f := m].map) Left.map Right.map mapEquality;
+\definition suspended: \forall (x: Source.result.Carrier) -> G.map (F.map x) = K.map (H.map x) :=
+  \fun (x: Source.result.Carrier) => trans!{{Target.result.Carrier}} _ _ _
+    (sym!{{Target.result.Carrier}} _ _ (congr!{{Map Source.result Target.result} {Target.result.Carrier}}
+      (\fun (m: Map Source.result Target.result) => m x) _ _ Left.Suspended[].equation))
+    (trans!{{Target.result.Carrier}} _ _ _
+      (congr!{{Map Source.result Target.result} {Target.result.Carrier}} (\fun (m: Map Source.result Target.result) => m x) _ _ liftedEquality)
+      (congr!{{Map Source.result Target.result} {Target.result.Carrier}} (\fun (m: Map Source.result Target.result) => m x) _ _ Right.Suspended[].equation));
+\module Negative(degree: N.Nat^) {
+  \import \root.Relative[].NegativeMap[source := A, target := B, f := f, degree := degree] \as F;
+  \import \root.Relative[].NegativeMap[source := B, target := D, f := g, degree := degree] \as G;
+  \import \root.Relative[].NegativeMap[source := A, target := C, f := h, degree := degree] \as H;
+  \import \root.Relative[].NegativeMap[source := C, target := D, f := k, degree := degree] \as K;
+  \import \root.Relative[].NegativeMap[source := A, target := D, f := Left.map, degree := degree] \as LeftPull;
+  \import \root.Relative[].NegativeMap[source := A, target := D, f := Right.map, degree := degree] \as RightPull;
+  \import \root.Relative[].Negative[original := D, degree := degree] \as From;
+  \import \root.Relative[].Negative[original := A, degree := degree] \as To;
+  \definition changed: \forall (v: From.Carrier) -> LeftPull.map v = RightPull.map v :=
+    \fun (v: From.Carrier) => congr!{{Map A D} {To.Carrier}}
+      (\fun (m: Map A D) => \root.Relative[].NegativeMap[source := A, target := D, f := m, degree := degree].map v) Left.map Right.map mapEquality;
+  \definition equation: \forall (v: From.Carrier) -> F.map (G.map v) = H.map (K.map v) :=
+    \fun (v: From.Carrier) => trans!{{To.Carrier}} _ _ _ (sym!{{To.Carrier}} _ _ (Left.Negative[degree := degree].equation v))
+      (trans!{{To.Carrier}} _ _ _ (changed v) (Right.Negative[degree := degree].equation v));
+}
