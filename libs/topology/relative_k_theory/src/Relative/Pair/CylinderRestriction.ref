@@ -1,0 +1,23 @@
+\import \parent.BundleModel[F := F] \as Model;
+\definition bundle: Bundles.Family[X := X, F := F].Bundle := Model.bundle sourceModel;
+\import \parent.CylinderSubset[] \as Boundary;
+\import algebraic_topology.Cylinder[A := X] \as Cylinder;
+\definition inclusion[x: A]: X := x;
+\definition inclusionContinuous: topology.Continuity[A := A, B := X].Continuous subspace space inclusion := topology.Continuity[A := A, B := X].Corestriction[S := subset].inclusionContinuous space;
+\import Bundles.Family[X := X, F := F].Of[bundle := bundle].Restriction[U := subset] \as SubsetPull;
+\definition boundaryBundle: Bundles.Family[X := A, F := (\fun (x: A) => F x)].Bundle := SubsetPull.restricted;
+\import Bundles.Family[X := X, F := F].Of[bundle := bundle].PullbackComposition[
+  Y := A, Z := Boundary.Carrier, first := subspace, second := Boundary.topology, f := inclusion, g := Boundary.boundary].Of[
+  fRegular := inclusionContinuous, gRegular := Boundary.boundaryContinuous] \as FromSubset;
+\import Bundles.Family[X := X, F := F].Of[bundle := bundle].PullbackComposition[
+  Y := Cylinder.Carrier, Z := Boundary.Carrier, first := (Cylinder.topology space), second := Boundary.topology, f := Cylinder.point, g := Boundary.inclusion].Of[
+  fRegular := (Cylinder.pointContinuous space), gRegular := Boundary.inclusionContinuous] \as FromCylinder;
+\definition CylinderFiber[z: Cylinder.Carrier]: \Set := F (Cylinder.point z);
+\definition Fiber[z: Boundary.Carrier]: \Set := F (Boundary.point z);
+\definition cylinderRestriction: Bundles.Family[X := Boundary.Carrier, F := Fiber].Bundle := FromCylinder.nested;
+\definition subsetCylinder: Bundles.Family[X := Boundary.Carrier, F := Fiber].Bundle := FromSubset.nested;
+\import Bundles.Isomorphisms[X := Boundary.Carrier, F := Fiber, G := Fiber, source := FromCylinder.direct, target := FromCylinder.nested] \as CylinderReverse;
+\import Operations.IsomorphismComposition[X := Boundary.Carrier, F := Fiber, G := Fiber, H := Fiber,
+  source := cylinderRestriction, middle := FromCylinder.direct, target := subsetCylinder] \as Composition;
+\definition comparison: Composition.Isomorphism := Composition.compose (CylinderReverse.inverse FromCylinder.isomorphism) FromSubset.isomorphism;
+\definition formula: \forall (z: Boundary.Carrier)(v: Fiber z) -> (comparison.forward.fiber z).apply v = v := \fun (z: Boundary.Carrier)(v: Fiber z) => \refl(v);

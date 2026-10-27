@@ -76,11 +76,14 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 後者は閉部分空間上の円柱全体と時刻0を含む開近傍内に入り、閉部分空間上で時刻1となる連続な時間関数を作る。
 `CylinderSubset` は `cylinder-subset` で accepted・終了0・キャッシュ保存失敗0。
 閉部分空間の円柱と全体の円柱内の対応する部分空間との互いに逆な連続写像を作る。
-最新の未検証変更は `GaugeExtension`。
+`GaugeExtension` は `gauge-extension` で accepted・終了0・キャッシュ保存失敗0。
 閉部分空間上で恒等写像から始まる束の自己同型のホモトピーを、全体の束の終点の自己同型へ延長する。
 閉被覆上の貼り合わせ・B09 の近傍延長・`CylinderNeighborhood` の時間関数を使う。
-固定 snapshot は `work/k03-resume/gauge-extension.source.json`。
-次は `relative_k_theory.Relative.Pair.GaugeExtension` を検査する。
+最新の未検証変更は `CylinderRestriction`・`FramedClass.Cylinder`・`FramedClass.With.Homotopy`。
+前二者は部分空間への制限と円柱への引き戻しを比較し、固定した境界の枠を円柱上へ引き戻す。
+後者は `GaugeExtension` を使い、境界の枠のホモトピーに対する被約群の元の不変性を示す。
+固定 snapshot は `work/k03-resume/framed-homotopy.source.json`。
+次は `relative_k_theory.Relative.Pair.CylinderRestriction`、`relative_k_theory.Relative.Pair.FramedClass.Cylinder`、`relative_k_theory.Relative.Pair.FramedClass.With.Homotopy` を順に検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。
