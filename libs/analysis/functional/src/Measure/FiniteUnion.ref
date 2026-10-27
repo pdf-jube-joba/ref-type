@@ -1,0 +1,98 @@
+\import \root.Measure[A := A].Sigma[] \as Sigma;
+\import \root.Measure[A := A].Finite[mu := mu] \as MeasureFinite;
+\import N.Basic[].Prop[] \as Nat;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].congr;
+\definition union: \forall (n: N.Nat^) -> (Fin.Fin n -> \Pow A) -> \Pow A :=
+  \induction (n: N.Nat^) \return (Fin.Fin n -> \Pow A) -> \Pow A \with {
+    | zero: \fun (_: Fin.Fin N.Nat^::zero -> \Pow A) => Sets.Empty
+    | succ: \fun (n: N.Nat^) (previous: _) (f: Fin.Fin (N.Nat^::succ n) -> \Pow A) =>
+      Sigma.pairUnion (f (Fin.zero n)) (previous (\fun (i: Fin.Fin n) => f (Fin.succ n i)))
+  };
+\definition measurable: \forall (n: N.Nat^) (f: Fin.Fin n -> \Pow A) ->
+  (\forall (i: Fin.Fin n) -> Measurable mu.sigma (f i)) -> Measurable mu.sigma (union n f) :=
+  \induction (n: N.Nat^) \return \forall (f: Fin.Fin n -> \Pow A) ->
+    (\forall (i: Fin.Fin n) -> Measurable mu.sigma (f i)) -> Measurable mu.sigma (union n f) \with {
+      | zero: \fun (f: Fin.Fin N.Nat^::zero -> \Pow A) (_: _) => (Sigma.laws mu.sigma).empty
+      | succ: \fun (n: N.Nat^) (previous: _) (f: Fin.Fin (N.Nat^::succ n) -> \Pow A) (law: _) =>
+        Sigma.pairMeasurable mu.sigma (f (Fin.zero n)) (union n (\fun (i: Fin.Fin n) => f (Fin.succ n i)))
+          (law (Fin.zero n)) (previous (\fun (i: Fin.Fin n) => f (Fin.succ n i)) (\fun (i: Fin.Fin n) => law (Fin.succ n i)))
+    };
+\definition member: \forall (n: N.Nat^) (f: Fin.Fin n -> \Pow A) (x: A) -> Sets.Member (union n f) x ->
+  \exists ( i: Fin.Fin n \where Sets.Member (f i) x ) :=
+  \induction (n: N.Nat^) \return \forall (f: Fin.Fin n -> \Pow A) (x: A) -> Sets.Member (union n f) x ->
+    \exists ( i: Fin.Fin n \where Sets.Member (f i) x ) \with {
+      | zero: \fun (f: Fin.Fin N.Nat^::zero -> \Pow A) (x: A) (empty: Logic.False) => Logic.falseElim _ empty
+      | succ: \fun (n: N.Nat^) (previous: _) (f: Fin.Fin (N.Nat^::succ n) -> \Pow A) (x: A) (inUnion: Sets.Member (union (N.Nat^::succ n) f) x) =>
+        Logic.orElim _ _ (\exists ( i: Fin.Fin (N.Nat^::succ n) \where Sets.Member (f i) x )) inUnion
+          (\fun (head: Sets.Member (f (Fin.zero n)) x) => Logic.existsIntro[Fin.Fin (N.Nat^::succ n), { i: Fin.Fin (N.Nat^::succ n) \where Sets.Member (f i) x }] (Fin.zero n) head)
+          (\fun (tail: Sets.Member (union n (\fun (i: Fin.Fin n) => f (Fin.succ n i))) x) => \block {
+            \takefrom i: \Cast[Fin.Fin n] ({ i: Fin.Fin n \where Sets.Member (f (Fin.succ n i)) x })
+              \by previous (\fun (i: Fin.Fin n) => f (Fin.succ n i)) x tail \then
+            \return Logic.existsIntro[Fin.Fin (N.Nat^::succ n), { j: Fin.Fin (N.Nat^::succ n) \where Sets.Member (f j) x }] (Fin.succ n i)
+              (\bysub(Fin.Fin n, { i: Fin.Fin n \where Sets.Member (f (Fin.succ n i)) x }, i))
+          })
+    };
+\definition Disjoint[n: N.Nat^] [f: Fin.Fin n -> \Pow A]: \Prop :=
+  \forall (i, j: Fin.Fin n) -> Logic.Not (i = j) -> Sets.Disjoint (f i) (f j);
+\definition measure: \forall (n: N.Nat^) (f: Fin.Fin n -> \Pow A) ->
+  (\forall (i: Fin.Fin n) -> Measurable mu.sigma (f i)) -> Disjoint n f ->
+  mu.value (union n f) = sum n (\fun (i: Fin.Fin n) => mu.value (f i)) :=
+  \induction (n: N.Nat^) \return \forall (f: Fin.Fin n -> \Pow A) ->
+    (\forall (i: Fin.Fin n) -> Measurable mu.sigma (f i)) -> Disjoint n f ->
+    mu.value (union n f) = sum n (\fun (i: Fin.Fin n) => mu.value (f i)) \with {
+      | zero: \fun (f: Fin.Fin N.Nat^::zero -> \Pow A) (_: _) (_: _) => MeasureFinite.laws.empty
+      | succ: \fun (n: N.Nat^) (previous: _) (f: Fin.Fin (N.Nat^::succ n) -> \Pow A) (law: _) (disjoint: Disjoint (N.Nat^::succ n) f) => \block {
+        \let tail: Fin.Fin n -> \Pow A := \fun (i: Fin.Fin n) => f (Fin.succ n i) \then
+        \let tailMeasurable: \forall (i: Fin.Fin n) -> Measurable mu.sigma (tail i) := \fun (i: Fin.Fin n) => law (Fin.succ n i) \then
+        \let tailDisjoint: Disjoint n tail := \fun (i, j: Fin.Fin n) (different: Logic.Not (i = j)) =>
+          disjoint (Fin.succ n i) (Fin.succ n j) (\fun (equal: Fin.succ n i = Fin.succ n j) => different (Nat.succInjective i j equal)) \then
+        \let apart: Sets.Disjoint (f (Fin.zero n)) (union n tail) := \fun (x: A) (head: Sets.Member (f (Fin.zero n)) x) (inTail: Sets.Member (union n tail) x) => \block {
+          \takefrom i: \Cast[Fin.Fin n] ({ i: Fin.Fin n \where Sets.Member (tail i) x }) \by member n tail x inTail \then
+          \return disjoint (Fin.zero n) (Fin.succ n i) (Nat.zeroNeSucc i) x head (\bysub(Fin.Fin n, { i: Fin.Fin n \where Sets.Member (tail i) x }, i))
+        } \then
+        \return eq_reason_in!{Value _
+          "=" _ "by" { MeasureFinite.additivity (f (Fin.zero n)) (union n tail) (law (Fin.zero n)) (measurable n tail tailMeasurable) apart }
+          "=" _ "by" { congr!{Value Value} (add (mu.value (f (Fin.zero n)))) _ _ (previous tail tailMeasurable tailDisjoint) }
+        }
+      }
+    };
+
+\definition contains: \forall (n: N.Nat^) (f: Fin.Fin n -> \Pow A) (i: Fin.Fin n) -> Sets.Subset (f i) (union n f) :=
+  \induction (n: N.Nat^) \return \forall (f: Fin.Fin n -> \Pow A) (i: Fin.Fin n) -> Sets.Subset (f i) (union n f) \with {
+    | zero: \fun (f: Fin.Fin N.Nat^::zero -> \Pow A) (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))
+    | succ: \fun (n: N.Nat^) (previous: _) (f: Fin.Fin (N.Nat^::succ n) -> \Pow A) =>
+      Fin.cases n (\fun (i: Fin.Fin (N.Nat^::succ n)) => Sets.Subset (f i) (union (N.Nat^::succ n) f))
+        (\fun (x: A) (member: Sets.Member (f (Fin.zero n)) x) => Logic.Or[_, _]::left member)
+        (\fun (i: Fin.Fin n) (x: A) (member: Sets.Member (f (Fin.succ n i)) x) =>
+          Logic.Or[_, _]::right (previous (\fun (j: Fin.Fin n) => f (Fin.succ n j)) i x member))
+    };
+\definition intersectionUnion: \forall (n: N.Nat^) (S: \Pow A) (f: Fin.Fin n -> \Pow A) ->
+  Sets.Intersection S (union n f) = union n (\fun (i: Fin.Fin n) => Sets.Intersection S (f i)) :=
+  \fun (n: N.Nat^) (S: \Pow A) (f: Fin.Fin n -> \Pow A) => \axiom:setext(Sets.Intersection S (union n f), union n (\fun (i: Fin.Fin n) => Sets.Intersection S (f i)),
+    \fun (x: A) (both: Sets.Member (Sets.Intersection S (union n f)) x) => \block {
+      \takefrom i: \Cast[Fin.Fin n] ({ i: Fin.Fin n \where Sets.Member (f i) x }) \by member n f x both.right \then
+      \return contains n (\fun (i: Fin.Fin n) => Sets.Intersection S (f i)) i x
+        (Logic.And[_, _]::# both.left (\bysub(Fin.Fin n, { i: Fin.Fin n \where Sets.Member (f i) x }, i)))
+    },
+    \fun (x: A) (inUnion: Sets.Member (union n (\fun (i: Fin.Fin n) => Sets.Intersection S (f i))) x) => \block {
+      \takefrom i: \Cast[Fin.Fin n] ({ i: Fin.Fin n \where Sets.Member (Sets.Intersection S (f i)) x })
+        \by member n (\fun (i: Fin.Fin n) => Sets.Intersection S (f i)) x inUnion \then
+      \let both: Logic.And[Sets.Member S x, Sets.Member (f i) x] := \bysub(Fin.Fin n, { i: Fin.Fin n \where Sets.Member (Sets.Intersection S (f i)) x }, i) \then
+      \return Logic.And[_, _]::# both.left (contains n f i x both.right)
+    });
+\definition intersectionMeasure: \forall (n: N.Nat^) (S: \Pow A) (f: Fin.Fin n -> \Pow A) ->
+  Measurable mu.sigma S -> (\forall (i: Fin.Fin n) -> Measurable mu.sigma (f i)) -> Disjoint n f ->
+  mu.value (Sets.Intersection S (union n f)) = sum n (\fun (i: Fin.Fin n) => mu.value (Sets.Intersection S (f i))) :=
+  \fun (n: N.Nat^) (S: \Pow A) (f: Fin.Fin n -> \Pow A) (sm: Measurable mu.sigma S)
+    (fm: \forall (i: Fin.Fin n) -> Measurable mu.sigma (f i)) (disjoint: Disjoint n f) => \block {
+    \let cells: Fin.Fin n -> \Pow A := \fun (i: Fin.Fin n) => Sets.Intersection S (f i) \then
+    \let cellMeasurable: \forall (i: Fin.Fin n) -> Measurable mu.sigma (cells i) :=
+      \fun (i: Fin.Fin n) => Sigma.intersectionMeasurable mu.sigma S (f i) sm (fm i) \then
+    \let cellDisjoint: Disjoint n cells := \fun (i, j: Fin.Fin n) (different: Logic.Not (i = j)) (x: A)
+      (left: Sets.Member (cells i) x) (right: Sets.Member (cells j) x) => disjoint i j different x left.right right.right \then
+    \return eq_reason_in!{Value _
+      "=" _ "by" { congr!{{\Pow A} Value} mu.value _ _ (intersectionUnion n S f) }
+      "=" _ "by" { measure n cells cellMeasurable cellDisjoint }
+    }
+  };

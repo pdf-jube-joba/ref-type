@@ -1,0 +1,47 @@
+\import \root.Measure[A := A].Integral[mu := mu].Refinement[m := m, n := n, s := s, t := t] \as Refinement;
+\import \root.Measure[A := A].Integral[mu := mu].Evaluation[n := m, s := s] \as S;
+\import \root.Measure[A := A].Integral[mu := mu].Evaluation[n := n, s := t] \as T;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].trans;
+\use std.Logic[].Equality[].congr;
+\definition covers: \forall (x: A) -> \exists ( k: Fin.Fin Refinement.count \where Sets.Member (Refinement.simple.cells k) x ) :=
+  \fun (x: A) => \block {
+    \takefrom i: \Cast[Fin.Fin m] ({ i: Fin.Fin m \where Sets.Member (s.cells i) x }) \by S.covers x \then
+    \takefrom j: \Cast[Fin.Fin n] ({ j: Fin.Fin n \where Sets.Member (t.cells j) x }) \by T.covers x \then
+    \takefrom k: \Cast[Fin.Fin Refinement.count] ({ k: Fin.Fin Refinement.count \where Logic.And[Sets.Member (Refinement.simple.cells k) x,
+      Refinement.simple.coefficients k = Real.add (s.coefficients i) (t.coefficients j)] }) \by Refinement.overlapCell i j x
+        (\bysub(Fin.Fin m, { i: Fin.Fin m \where Sets.Member (s.cells i) x }, i))
+        (\bysub(Fin.Fin n, { j: Fin.Fin n \where Sets.Member (t.cells j) x }, j)) \then
+    \return Logic.existsIntro[Fin.Fin Refinement.count, { k: Fin.Fin Refinement.count \where Sets.Member (Refinement.simple.cells k) x }] k
+      (\bysub(Fin.Fin Refinement.count, { k: Fin.Fin Refinement.count \where Logic.And[Sets.Member (Refinement.simple.cells k) x,
+        Refinement.simple.coefficients k = Real.add (s.coefficients i) (t.coefficients j)] }, k)).left
+  };
+\definition size: N.Nat^ := Refinement.count;
+\definition simple: CompleteSimple[size] := \into[Simple[size]] (Refinement.simple,
+  { u: Simple[size] \where \forall (x: A) -> \exists ( k: Fin.Fin size \where Sets.Member (u.cells k) x ) }) \by { covers };
+\import \root.Measure[A := A].Integral[mu := mu].Evaluation[n := size, s := simple] \as Result;
+\import Result.Exact[] \as Exact;
+\import S.Exact[] \as SExact;
+\import T.Exact[] \as TExact;
+\definition value: \forall (x: A) -> Result.value x = Real.add (S.value x) (T.value x) := \fun (x: A) => \block {
+  \takefrom i: \Cast[Fin.Fin m] ({ i: Fin.Fin m \where Sets.Member (s.cells i) x }) \by S.covers x \then
+  \takefrom j: \Cast[Fin.Fin n] ({ j: Fin.Fin n \where Sets.Member (t.cells j) x }) \by T.covers x \then
+  \let si: Sets.Member (s.cells i) x := \bysub(Fin.Fin m, { i: Fin.Fin m \where Sets.Member (s.cells i) x }, i) \then
+  \let tj: Sets.Member (t.cells j) x := \bysub(Fin.Fin n, { j: Fin.Fin n \where Sets.Member (t.cells j) x }, j) \then
+  \takefrom k: \Cast[Fin.Fin size] ({ k: Fin.Fin size \where Logic.And[Sets.Member (Refinement.simple.cells k) x,
+    Refinement.simple.coefficients k = Real.add (s.coefficients i) (t.coefficients j)] }) \by Refinement.overlapCell i j x si tj \then
+  \let data: Logic.And[Sets.Member (Refinement.simple.cells k) x, Refinement.simple.coefficients k = Real.add (s.coefficients i) (t.coefficients j)] :=
+    \bysub(Fin.Fin size, { k: Fin.Fin size \where Logic.And[Sets.Member (Refinement.simple.cells k) x,
+      Refinement.simple.coefficients k = Real.add (s.coefficients i) (t.coefficients j)] }, k) \then
+  \return trans!{Real.Real} _ _ _ (Result.atCell k x data.left)
+    (trans!{Real.Real} _ _ _ data.right (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+      (sym!{Real.Real} _ _ (S.atCell i x si)) (sym!{Real.Real} _ _ (T.atCell j x tj))))
+};
+\use std.Logic[].Equality[].eq_reason_in;
+\definition lowerIntegralAdd: lowerIntegral (\fun (x: A) => Real.add (S.value x) (T.value x)) = add (lowerIntegral S.value) (lowerIntegral T.value) := eq_reason_in!{Value _
+  "=" _ "by" { congr!{{A -> Real.Real} Value} lowerIntegral _ _ (sym!{{A -> Real.Real}} _ _
+    (\axiom:funext(Result.value, (\fun (x: A) => Real.add (S.value x) (T.value x)), value))) }
+  "=" _ "by" { Exact.lower }
+  "=" _ "by" { Refinement.integral }
+  "=" _ "by" { congr!{Value Value Value} add _ _ _ _ (sym!{Value} _ _ SExact.lower) (sym!{Value} _ _ TExact.lower) }
+};

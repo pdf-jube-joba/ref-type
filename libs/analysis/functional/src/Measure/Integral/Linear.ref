@@ -1,0 +1,142 @@
+\import \root.Measure[A := A].Functions[mu := mu] \as Functions;
+\import \root.Measure[A := A].Integral[mu := mu].Absolute[] \as Absolute;
+\import real.Analysis[].Estimates[] \as E;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\definition absTriangle: \forall (a, b: Real.Real) -> R.Le (Product.abs (Real.add a b)) (Real.add (Product.abs a) (Product.abs b)) :=
+  \fun (a, b: Real.Real) => R.leReplaceLeft (Real.distance (Real.add Real.zero Real.zero) (Real.add a b)) (Product.abs (Real.add a b)) _
+    (congr!{Real.Real Real.Real} (\fun (z: Real.Real) => Real.distance z (Real.add a b)) _ _ (Laws.addZeroLeft Real.zero))
+    (E.distanceAdd Real.zero Real.zero a b);
+\definition integrableAdd: \forall (f, g: A -> Real.Real) -> Integrable f -> Integrable g ->
+  Integrable (\fun (x: A) => Real.add (f x) (g x)) :=
+  \fun (f, g: A -> Real.Real) (fi: Integrable f) (gi: Integrable g) => \block {
+    \let p: NonnegativeMeasurable := NonnegativeMeasurable { function := Absolute.abs f,
+      measurable := Functions.absMeasurable f fi.left, nonnegative := \fun (x: A) => Product.absNonnegative (f x) } \then
+    \let q: NonnegativeMeasurable := NonnegativeMeasurable { function := Absolute.abs g,
+      measurable := Functions.absMeasurable g gi.left, nonnegative := \fun (x: A) => Product.absNonnegative (g x) } \then
+    \let finiteSum: Finite (\fun (x: A) => Real.add (Product.abs (f x)) (Product.abs (g x))) :=
+      \root.Measure[A := A].Integral[mu := mu].Additive[].Measured[p := p, q := q].finite fi.right gi.right \then
+    \return Logic.And[_, _]::# (Functions.addMeasurable f g fi.left gi.left)
+      (finiteMono (\fun (x: A) => Product.abs (Real.add (f x) (g x)))
+        (\fun (x: A) => Real.add (Product.abs (f x)) (Product.abs (g x)))
+        (\fun (x: A) => Product.absNonnegative (Real.add (f x) (g x))) (\fun (x: A) => absTriangle (f x) (g x)) finiteSum)
+  };
+\definition addRepresentative: \forall (f, g: Representatives) -> Representatives :=
+  \fun (f, g: Representatives) => \into[A -> Real.Real] ((\fun (x: A) => Real.add (f x) (g x)),
+    { h: A -> Real.Real \where Integrable h }) \by {
+      integrableAdd f g (\bysub(A -> Real.Real, { h: A -> Real.Real \where Integrable h }, f))
+        (\bysub(A -> Real.Real, { h: A -> Real.Real \where Integrable h }, g))
+    };
+\import real.Analysis[].Distance[] \as Distance;
+\import real.Analysis[].Algebra[] \as Algebra;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition partsDecompose: \forall (f: A -> Real.Real) (x: A) -> positivePart f x = Real.add (f x) (negativePart f x) :=
+  \fun (f: A -> Real.Real) (x: A) => Logic.orElim _ _ _ (Laws.nonnegativeOrNegativeReal (f x))
+    (\fun (positive: R.Le Real.zero (f x)) => eq_reason_in!{Real.Real _
+      "=" _ "by" { Distance.maxOfLe Real.zero (f x) positive }
+      "=" _ "by" { sym!{Real.Real} _ _ (Laws.addZeroRight (f x)) }
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (f x)) _ _ (sym!{Real.Real} _ _
+        (Distance.maxOfGe Real.zero (Real.neg (f x)) (Product.negNonnegative (f x) positive))) }
+    })
+    (\fun (negative: R.Lt (f x) Real.zero) => eq_reason_in!{Real.Real _
+      "=" _ "by" { Distance.maxOfGe Real.zero (f x) (dedekind_reals.DedekindReal[].Order[].leOfLt (f x) Real.zero negative) }
+      "=" _ "by" { sym!{Real.Real} _ _ (Laws.addNegRight (f x)) }
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (f x)) _ _ (sym!{Real.Real} _ _
+        (Distance.maxOfLe Real.zero (Real.neg (f x)) (Laws.nonnegativeNegOfNegative (f x) negative))) }
+    });
+\definition partsBalance: \forall (f, g: A -> Real.Real) (x: A) ->
+  Real.add (Real.add (positivePart f x) (positivePart g x)) (negativePart (\fun (y: A) => Real.add (f y) (g y)) x) =
+  Real.add (positivePart (\fun (y: A) => Real.add (f y) (g y)) x) (Real.add (negativePart f x) (negativePart g x)) :=
+  \fun (f, g: A -> Real.Real) (x: A) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (z: Real.Real) => Real.add z (negativePart (\fun (y: A) => Real.add (f y) (g y)) x)) _ _
+      (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (partsDecompose f x) (partsDecompose g x)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (z: Real.Real) => Real.add z (negativePart (\fun (y: A) => Real.add (f y) (g y)) x)) _ _
+      (Algebra.addFour (f x) (negativePart f x) (g x) (negativePart g x)) }
+    "=" _ "by" { Laws.addAssoc (Real.add (f x) (g x)) (Real.add (negativePart f x) (negativePart g x)) (negativePart (\fun (y: A) => Real.add (f y) (g y)) x) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (Real.add (f x) (g x))) _ _
+      (Laws.addComm (Real.add (negativePart f x) (negativePart g x)) (negativePart (\fun (y: A) => Real.add (f y) (g y)) x)) }
+    "=" _ "by" { sym!{Real.Real} _ _ (Laws.addAssoc (Real.add (f x) (g x)) (negativePart (\fun (y: A) => Real.add (f y) (g y)) x) (Real.add (negativePart f x) (negativePart g x))) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (z: Real.Real) => Real.add z (Real.add (negativePart f x) (negativePart g x))) _ _
+      (sym!{Real.Real} _ _ (partsDecompose (\fun (y: A) => Real.add (f y) (g y)) x)) }
+  };
+\import \root.Measure[A := A].Integral[mu := mu].Zero[] \as Zero;
+\definition positiveData: \forall (f: Representatives) -> NonnegativeMeasurable := \fun (f: Representatives) => NonnegativeMeasurable {
+  function := positivePart f,
+  measurable := Functions.maxMeasurable Zero.function f Zero.measurable (\bysub(A -> Real.Real, { h: A -> Real.Real \where Integrable h }, f)).left,
+  nonnegative := positivePartNonnegative f,
+};
+\definition negativeData: \forall (f: Representatives) -> NonnegativeMeasurable := \fun (f: Representatives) => NonnegativeMeasurable {
+  function := negativePart f,
+  measurable := Functions.maxMeasurable Zero.function (\fun (x: A) => Real.neg (f x)) Zero.measurable
+    (Functions.negMeasurable f (\bysub(A -> Real.Real, { h: A -> Real.Real \where Integrable h }, f)).left),
+  nonnegative := negativePartNonnegative f,
+};
+\definition sumData: \forall (p, q: NonnegativeMeasurable) -> NonnegativeMeasurable := \fun (p, q: NonnegativeMeasurable) => NonnegativeMeasurable {
+  function := \fun (x: A) => Real.add (p.function x) (q.function x),
+  measurable := Functions.addMeasurable p.function q.function p.measurable q.measurable,
+  nonnegative := \fun (x: A) => Laws.addNonnegative (p.function x) (q.function x) (p.nonnegative x) (q.nonnegative x),
+};
+\definition sumSup: \forall (p, q: NonnegativeMeasurable) (a, b: Real.Real) ->
+  Complete.LeastUpperBound[lowerIntegral p.function, a] -> Complete.LeastUpperBound[lowerIntegral q.function, b] ->
+  Complete.LeastUpperBound[lowerIntegral ((sumData p q).function), Real.add a b] :=
+  \fun (p, q: NonnegativeMeasurable) (a, b: Real.Real) =>
+    \root.Measure[A := A].Integral[mu := mu].Additive[].Measured[p := p, q := q].supremum a b;
+\definition subtractBalance: \forall (a, b, c, d, e, f: Real.Real) ->
+  Real.add (Real.add a b) c = Real.add d (Real.add e f) -> Real.sub d c = Real.add (Real.sub a e) (Real.sub b f) :=
+  \fun (a, b, c, d, e, f: Real.Real) (balance: Real.add (Real.add a b) c = Real.add d (Real.add e f)) => eq_reason_in!{Real.Real _
+    "=" _ "by" { sym!{Real.Real} _ _ (Laws.addZeroRight (Real.sub d c)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (Real.sub d c)) _ _ (sym!{Real.Real} _ _ (Laws.subSelf (Real.add e f))) }
+    "=" _ "by" { sym!{Real.Real} _ _ (Algebra.subAdd d (Real.add e f) c (Real.add e f)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (z: Real.Real) => Real.sub z (Real.add c (Real.add e f))) _ _ (sym!{Real.Real} _ _ balance) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.sub (Real.add (Real.add a b) c)) _ _ (Laws.addComm c (Real.add e f)) }
+    "=" _ "by" { Algebra.subAdd (Real.add a b) c (Real.add e f) c }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (Real.sub (Real.add a b) (Real.add e f))) _ _ (Laws.subSelf c) }
+    "=" _ "by" { Laws.addZeroRight (Real.sub (Real.add a b) (Real.add e f)) }
+    "=" _ "by" { Algebra.subAdd a b e f }
+  };
+\definition partsSum: \forall (f, g: Representatives) (u, v, w, pf, nf, pg, ng, ph, nh: Real.Real) ->
+  Parts[f, u, pf, nf] -> Parts[g, v, pg, ng] -> Parts[(addRepresentative f g), w, ph, nh] -> w = Real.add u v :=
+  \fun (f, g: Representatives) (u, v, w, pf, nf, pg, ng, ph, nh: Real.Real)
+    (fp: Parts[f, u, pf, nf]) (gp: Parts[g, v, pg, ng]) (hp: Parts[(addRepresentative f g), w, ph, nh]) => \block {
+    \let p: NonnegativeMeasurable := positiveData f \then
+    \let q: NonnegativeMeasurable := positiveData g \then
+    \let r: NonnegativeMeasurable := negativeData (addRepresentative f g) \then
+    \let s: NonnegativeMeasurable := positiveData (addRepresentative f g) \then
+    \let t: NonnegativeMeasurable := negativeData f \then
+    \let z: NonnegativeMeasurable := negativeData g \then
+    \let lhs: NonnegativeMeasurable := sumData (sumData p q) r \then
+    \let rhs: NonnegativeMeasurable := sumData s (sumData t z) \then
+    \let equalFunctions: lhs.function = rhs.function := \axiom:funext(lhs.function, rhs.function, partsBalance f g) \then
+    \let leftSup: Complete.LeastUpperBound[lowerIntegral lhs.function, Real.add (Real.add pf pg) nh] :=
+      sumSup (sumData p q) r (Real.add pf pg) nh (sumSup p q pf pg fp.positiveLaw gp.positiveLaw) hp.negativeLaw \then
+    \let rightSup: Complete.LeastUpperBound[lowerIntegral lhs.function, Real.add ph (Real.add nf ng)] :=
+      \idelim lowerIntegral rhs.function = lowerIntegral lhs.function \with cut: Value => Complete.LeastUpperBound[cut, Real.add ph (Real.add nf ng)] \by {
+        base: sumSup s (sumData t z) ph (Real.add nf ng) hp.positiveLaw (sumSup t z nf ng fp.negativeLaw gp.negativeLaw),
+        equality: sym!{Value} _ _ (congr!{{A -> Real.Real} Value} lowerIntegral _ _ equalFunctions)
+      } \then
+    \let balance: Real.add (Real.add pf pg) nh = Real.add ph (Real.add nf ng) :=
+      Complete.leastUpperBoundUnique (lowerIntegral lhs.function) (Real.add (Real.add pf pg) nh) (Real.add ph (Real.add nf ng)) leftSup rightSup \then
+    \return eq_reason_in!{Real.Real _
+      "=" _ "by" { hp.difference }
+      "=" _ "by" { subtractBalance pf pg nh ph nf ng balance }
+      "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (sym!{Real.Real} _ _ fp.difference) (sym!{Real.Real} _ _ gp.difference) }
+    }
+  };
+\definition integralAdd: \forall (f, g: Representatives) -> integral (addRepresentative f g) = Real.add (integral f) (integral g) :=
+  \fun (f, g: Representatives) => \block {
+    \let h: Representatives := addRepresentative f g \then
+    \takefrom pf: \Cast[Real.Real] ({ p: Real.Real \where \exists ( n: Real.Real \where Parts[f, integral f, p, n] ) }) \by (integralLaw f).parts \then
+    \takefrom nf: \Cast[Real.Real] ({ n: Real.Real \where Parts[f, integral f, pf, n] })
+      \by (\bysub(Real.Real, { p: Real.Real \where \exists ( n: Real.Real \where Parts[f, integral f, p, n] ) }, pf)) \then
+    \takefrom pg: \Cast[Real.Real] ({ p: Real.Real \where \exists ( n: Real.Real \where Parts[g, integral g, p, n] ) }) \by (integralLaw g).parts \then
+    \takefrom ng: \Cast[Real.Real] ({ n: Real.Real \where Parts[g, integral g, pg, n] })
+      \by (\bysub(Real.Real, { p: Real.Real \where \exists ( n: Real.Real \where Parts[g, integral g, p, n] ) }, pg)) \then
+    \takefrom ph: \Cast[Real.Real] ({ p: Real.Real \where \exists ( n: Real.Real \where Parts[h, integral h, p, n] ) }) \by (integralLaw h).parts \then
+    \takefrom nh: \Cast[Real.Real] ({ n: Real.Real \where Parts[h, integral h, ph, n] })
+      \by (\bysub(Real.Real, { p: Real.Real \where \exists ( n: Real.Real \where Parts[h, integral h, p, n] ) }, ph)) \then
+    \return partsSum f g (integral f) (integral g) (integral h) pf nf pg ng ph nh
+      (\bysub(Real.Real, { n: Real.Real \where Parts[f, integral f, pf, n] }, nf))
+      (\bysub(Real.Real, { n: Real.Real \where Parts[g, integral g, pg, n] }, ng))
+      (\bysub(Real.Real, { n: Real.Real \where Parts[h, integral h, ph, n] }, nh))
+  };

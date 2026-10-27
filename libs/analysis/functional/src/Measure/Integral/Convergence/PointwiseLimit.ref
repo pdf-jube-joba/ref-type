@@ -1,0 +1,67 @@
+\import real.Analysis[].Sequence[] \as Sequence;
+\import Sequence.Operations[] \as Operations;
+\import real.Analysis[].Estimates[] \as E;
+\import real.Analysis[].Distance[] \as Distance;
+\import dedekind_reals.DedekindReal[].Order[] \as Order;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import \root.Measure[A := A].Functions[mu := mu] \as Functions;
+\import \root.Measure[A := A].Integral[mu := mu].Zero[] \as Zero;
+\import \root.Measure[A := A].Integral[mu := mu].Linear[] \as Linear;
+\import \root.Measure[A := A].Integral[mu := mu].Convergence[].Fatou[] \as Fatou;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition positiveConverges: \forall (s: N.Nat^ -> Real.Real) (v: Real.Real) -> Sequence.Converges s v ->
+  Sequence.Converges (\fun (k: N.Nat^) => Distance.max Real.zero (s k)) (Distance.max Real.zero v) :=
+  \fun (s: N.Nat^ -> Real.Real) (v: Real.Real) (converges: Sequence.Converges s v) (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) => \block {
+    \let radius: Real.Real := Real.mul Real.half epsilon \then
+    \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Sequence.LimitControl s v radius n }) \by converges radius (E.halfOfPositive epsilon positive) \then
+    \let control: Sequence.LimitControl s v radius n := \bysub(N.Nat^, { n: N.Nat^ \where Sequence.LimitControl s v radius n }, n) \then
+    \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where Sequence.LimitControl (\fun (k: N.Nat^) => Distance.max Real.zero (s k)) (Distance.max Real.zero v) epsilon n }] n
+      (\fun (k: N.Nat^) (later: Nat.Le n k) => R.leLtTrans _ radius epsilon
+        (E.maxDistance Real.zero (s k) Real.zero v radius
+          (R.leReplaceLeft Real.zero (Real.distance Real.zero Real.zero) radius (sym!{Real.Real} _ _ (Distance.distanceSelf Real.zero))
+            (Order.leOfLt Real.zero radius (E.halfOfPositive epsilon positive)))
+          (Order.leOfLt _ _ (control k later))) (E.halfStrict epsilon positive))
+  };
+\definition positiveSequence: \forall (f: MeasurableSequence) -> Fatou.NonnegativeSequence := \fun (f: MeasurableSequence) =>
+  \into[N.Nat^ -> A -> Real.Real] ((\fun (k: N.Nat^) (x: A) => positivePart (f k) x),
+    { h: N.Nat^ -> A -> Real.Real \where Logic.And[\forall (k: N.Nat^) -> IsMeasurable mu (h k), \forall (k: N.Nat^) (x: A) -> R.Le Real.zero (h k x)] }) \by {
+      Logic.And[_, _]::# (\fun (k: N.Nat^) => Functions.maxMeasurable Zero.function (f k) Zero.measurable (sequenceMeasurable f k))
+        (\fun (k: N.Nat^) => positivePartNonnegative (f k))
+    };
+\definition negativeSequence: \forall (f: MeasurableSequence) -> Fatou.NonnegativeSequence := \fun (f: MeasurableSequence) =>
+  \into[N.Nat^ -> A -> Real.Real] ((\fun (k: N.Nat^) (x: A) => negativePart (f k) x),
+    { h: N.Nat^ -> A -> Real.Real \where Logic.And[\forall (k: N.Nat^) -> IsMeasurable mu (h k), \forall (k: N.Nat^) (x: A) -> R.Le Real.zero (h k x)] }) \by {
+      Logic.And[_, _]::# (\fun (k: N.Nat^) => Functions.maxMeasurable Zero.function (\fun (x: A) => Real.neg (f k x)) Zero.measurable
+        (Functions.negMeasurable (f k) (sequenceMeasurable f k))) (\fun (k: N.Nat^) => negativePartNonnegative (f k))
+    };
+\definition recover: \forall (g: A -> Real.Real) (x: A) -> Real.sub (positivePart g x) (negativePart g x) = g x :=
+  \fun (g: A -> Real.Real) (x: A) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (z: Real.Real) => Real.sub z (negativePart g x)) _ _ (Linear.partsDecompose g x) }
+    "=" _ "by" { Laws.addAssoc (g x) (negativePart g x) (Real.neg (negativePart g x)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (g x)) _ _ (Laws.addNegRight (negativePart g x)) }
+    "=" _ "by" { Laws.addZeroRight (g x) }
+  };
+\definition measurableLimit: \forall (f: MeasurableSequence) (g: A -> Real.Real) ->
+  (\forall (x: A) -> Sequence.Converges (\fun (k: N.Nat^) => f k x) (g x)) -> IsMeasurable mu g :=
+  \fun (f: MeasurableSequence) (g: A -> Real.Real) (converges: _) => \block {
+    \let pos: Fatou.NonnegativeSequence := positiveSequence f \then
+    \let neg: Fatou.NonnegativeSequence := negativeSequence f \then
+    \let posSup: PointwiseSup (\root.Measure[A := A].Integral[mu := mu].Convergence[].Fatou[].Tail[f := pos].envelope) (positivePart g) :=
+      \root.Measure[A := A].Integral[mu := mu].Convergence[].Fatou[].Tail[f := pos].Converges[].sup (positivePart g)
+        (\fun (x: A) => positiveConverges (\fun (k: N.Nat^) => f k x) (g x) (converges x)) \then
+    \let negSup: PointwiseSup (\root.Measure[A := A].Integral[mu := mu].Convergence[].Fatou[].Tail[f := neg].envelope) (negativePart g) :=
+      \root.Measure[A := A].Integral[mu := mu].Convergence[].Fatou[].Tail[f := neg].Converges[].sup (negativePart g)
+        (\fun (x: A) => positiveConverges (\fun (k: N.Nat^) => Real.neg (f k x)) (Real.neg (g x))
+          (Operations.negConverges (\fun (k: N.Nat^) => f k x) (g x) (converges x))) \then
+    \let posMeasurable: IsMeasurable mu (positivePart g) := pointwiseSupMeasurable _ (positivePart g) posSup
+      (\root.Measure[A := A].Integral[mu := mu].Convergence[].Fatou[].Tail[f := pos].measurable) \then
+    \let negMeasurable: IsMeasurable mu (negativePart g) := pointwiseSupMeasurable _ (negativePart g) negSup
+      (\root.Measure[A := A].Integral[mu := mu].Convergence[].Fatou[].Tail[f := neg].measurable) \then
+    \return \idelim (\fun (x: A) => Real.sub (positivePart g x) (negativePart g x)) = g \with h: (A -> Real.Real) => IsMeasurable mu h \by {
+      base: Functions.addMeasurable (positivePart g) (\fun (x: A) => Real.neg (negativePart g x)) posMeasurable
+        (Functions.negMeasurable (negativePart g) negMeasurable),
+      equality: \axiom:funext((\fun (x: A) => Real.sub (positivePart g x) (negativePart g x)), g, recover g)
+    }
+  };

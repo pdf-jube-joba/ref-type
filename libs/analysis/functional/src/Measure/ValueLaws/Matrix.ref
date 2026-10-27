@@ -1,0 +1,30 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\definition sumZero: \forall (n: N.Nat^) -> sum n (\fun (_: Fin.Fin n) => zero) = zero :=
+  \induction (n: N.Nat^) \return sum n (\fun (_: Fin.Fin n) => zero) = zero \with {
+    | zero: \refl(zero)
+    | succ: \fun (n: N.Nat^) (previous: _) => eq_reason_in!{Value _
+      "=" _ "by" { congr!{Value Value} (add zero) _ _ previous }
+      "=" _ "by" { addZero zero zeroNonnegative }
+    }
+  };
+\definition transpose: \forall (n, m: N.Nat^) (f: Fin.Fin n -> Fin.Fin m -> Value) ->
+  (\forall (j: Fin.Fin n) (i: Fin.Fin m) -> NonnegativeValue[f j i]) ->
+  sum n (\fun (j: Fin.Fin n) => sum m (f j)) = sum m (\fun (i: Fin.Fin m) => sum n (\fun (j: Fin.Fin n) => f j i)) :=
+  \induction (n: N.Nat^) \return \forall (m: N.Nat^) (f: Fin.Fin n -> Fin.Fin m -> Value) ->
+    (\forall (j: Fin.Fin n) (i: Fin.Fin m) -> NonnegativeValue[f j i]) ->
+    sum n (\fun (j: Fin.Fin n) => sum m (f j)) = sum m (\fun (i: Fin.Fin m) => sum n (\fun (j: Fin.Fin n) => f j i)) \with {
+      | zero: \fun (m: N.Nat^) (f: Fin.Fin N.Nat^::zero -> Fin.Fin m -> Value) (_: _) => sym!{Value} _ _ (sumZero m)
+      | succ: \fun (n: N.Nat^) (previous: _) (m: N.Nat^) (f: Fin.Fin (N.Nat^::succ n) -> Fin.Fin m -> Value) (law: _) => \block {
+        \let head: Fin.Fin m -> Value := f (Fin.zero n) \then
+        \let tail: Fin.Fin m -> Value := \fun (i: Fin.Fin m) => sum n (\fun (j: Fin.Fin n) => f (Fin.succ n j) i) \then
+        \return eq_reason_in!{Value _
+          "=" _ "by" { congr!{Value Value} (add (sum m head)) _ _
+            (previous m (\fun (j: Fin.Fin n) => f (Fin.succ n j)) (\fun (j: Fin.Fin n) (i: Fin.Fin m) => law (Fin.succ n j) i)) }
+          "=" _ "by" { sym!{Value} _ _ (sumAdd m head tail (law (Fin.zero n))
+            (\fun (i: Fin.Fin m) => sumNonnegative n (\fun (j: Fin.Fin n) => f (Fin.succ n j) i)
+              (\fun (j: Fin.Fin n) => law (Fin.succ n j) i))) }
+        }
+      }
+    };

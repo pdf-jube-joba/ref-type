@@ -1,0 +1,65 @@
+\import \root.Measure[A := A].Integral[mu := mu].Null[] \as NullIntegral;
+\import \root.Measure[A := A].AlmostEverywhere[mu := mu] \as AE;
+\import \root.Measure[A := A].Sigma[] \as Sigma;
+\import std.Logic[].Classical[] \as Classical;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].trans;
+\definition Candidate[x: A]: \Set := \Cast[Real.Real] ({ y: Real.Real \where Logic.And[Sets.Member exception x -> y = Real.zero, Logic.Not (Sets.Member exception x) -> y = f x] });
+\definition exists: \forall (x: A) -> \exists ( y: Real.Real \where Logic.And[Sets.Member exception x -> y = Real.zero, Logic.Not (Sets.Member exception x) -> y = f x] ) :=
+  \fun (x: A) => Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member exception x))
+    (\fun (inside: Sets.Member exception x) => Logic.existsIntro[Real.Real, { y: Real.Real \where Logic.And[Sets.Member exception x -> y = Real.zero, Logic.Not (Sets.Member exception x) -> y = f x] }] Real.zero
+      (Logic.And[_, _]::# (\fun (_: Sets.Member exception x) => \refl(Real.zero)) (\fun (outside: Logic.Not (Sets.Member exception x)) => Logic.falseElim _ (outside inside))))
+    (\fun (outside: Logic.Not (Sets.Member exception x)) => Logic.existsIntro[Real.Real, { y: Real.Real \where Logic.And[Sets.Member exception x -> y = Real.zero, Logic.Not (Sets.Member exception x) -> y = f x] }] (f x)
+      (Logic.And[_, _]::# (\fun (inside: Sets.Member exception x) => Logic.falseElim _ (outside inside)) (\fun (_: Logic.Not (Sets.Member exception x)) => \refl(f x))));
+\definition unique: \forall (x: A) (u, v: Candidate x) -> u = v := \fun (x: A) (u, v: Candidate x) => \block {
+  \let a: Logic.And[Sets.Member exception x -> u = Real.zero, Logic.Not (Sets.Member exception x) -> u = f x] :=
+    \bysub(Real.Real, { y: Real.Real \where Logic.And[Sets.Member exception x -> y = Real.zero, Logic.Not (Sets.Member exception x) -> y = f x] }, u) \then
+  \let b: Logic.And[Sets.Member exception x -> v = Real.zero, Logic.Not (Sets.Member exception x) -> v = f x] :=
+    \bysub(Real.Real, { y: Real.Real \where Logic.And[Sets.Member exception x -> y = Real.zero, Logic.Not (Sets.Member exception x) -> y = f x] }, v) \then
+  \return Logic.orElim _ _ (u = v) (Classical.excludedMiddle (Sets.Member exception x))
+    (\fun (inside: Sets.Member exception x) => trans!{Real.Real} u Real.zero v (a.left inside) (sym!{Real.Real} _ _ (b.left inside)))
+    (\fun (outside: Logic.Not (Sets.Member exception x)) => trans!{Real.Real} u (f x) v (a.right outside) (sym!{Real.Real} _ _ (b.right outside)))
+};
+\definition value[x: A]: Real.Real := \choice Candidate x \by { existence: exists x, uniqueness: unique x };
+\definition laws: \forall (x: A) -> Logic.And[Sets.Member exception x -> value x = Real.zero, Logic.Not (Sets.Member exception x) -> value x = f x] :=
+  \fun (x: A) => \bysub(Real.Real, { y: Real.Real \where Logic.And[Sets.Member exception x -> y = Real.zero, Logic.Not (Sets.Member exception x) -> y = f x] },
+    \choice Candidate x \by { existence: exists x, uniqueness: unique x });
+\definition almost: AlmostEqual mu value f := AE.nullSubset ({ x: A \where Logic.Not (value x = f x) }) exception
+  (\fun (x: A) (different: Logic.Not (value x = f x)) => Sigma.doubleNegative (Sets.Member exception x)
+    (\fun (outside: Logic.Not (Sets.Member exception x)) => different ((laws x).right outside)))
+  (Logic.existsIntro[\Pow A, { S: \Pow A \where NullCover[mu, exception, S] }] exception (NullCover[mu, exception, exception] {
+    measurable := (NullIntegral.nullSetLaw exception).measurable, measure := (NullIntegral.nullSetLaw exception).zeroMeasure,
+    included := \fun (x: A) (member: Sets.Member exception x) => member,
+  }));
+\definition test[r: Real.Real]: \Pow A := { x: A \where R.Lt r Real.zero };
+\definition testMeasurable: \forall (r: Real.Real) -> Measurable mu.sigma (test r) := \fun (r: Real.Real) =>
+  Logic.orElim _ _ (Measurable mu.sigma (test r)) (Classical.excludedMiddle (R.Lt r Real.zero))
+    (\fun (less: R.Lt r Real.zero) => \idelim Sets.Whole = test r \with S: \Pow A => Measurable mu.sigma S \by {
+      base: Sigma.wholeMeasurable mu.sigma, equality: \axiom:setext(Sets.Whole, test r,
+        \fun (x: A) (_: x = x) => less, \fun (x: A) (_: R.Lt r Real.zero) => \refl(x)) })
+    (\fun (notLess: Logic.Not (R.Lt r Real.zero)) => \idelim Sets.Empty = test r \with S: \Pow A => Measurable mu.sigma S \by {
+      base: (Sigma.laws mu.sigma).empty, equality: \axiom:setext(Sets.Empty, test r,
+        \fun (x: A) (impossible: Logic.False) => Logic.falseElim _ impossible, \fun (x: A) (less: R.Lt r Real.zero) => notLess less) });
+\definition superlevel: \forall (r: Real.Real) -> { x: A \where R.Lt r (value x) } =
+  Sigma.pairUnion (Sets.Intersection exception (test r)) (Sets.Intersection (Sets.Complement exception) ({ x: A \where R.Lt r (f x) })) :=
+  \fun (r: Real.Real) => \axiom:setext({ x: A \where R.Lt r (value x) },
+    Sigma.pairUnion (Sets.Intersection exception (test r)) (Sets.Intersection (Sets.Complement exception) ({ x: A \where R.Lt r (f x) })),
+    \fun (x: A) (less: R.Lt r (value x)) => Logic.orElim _ _ (Sets.Member (Sigma.pairUnion (Sets.Intersection exception (test r)) (Sets.Intersection (Sets.Complement exception) ({ x: A \where R.Lt r (f x) }))) x) (Classical.excludedMiddle (Sets.Member exception x))
+      (\fun (inside: Sets.Member exception x) => Logic.Or[_, _]::left (Logic.And[_, _]::# inside (R.ltReplaceRight r (value x) Real.zero ((laws x).left inside) less)))
+      (\fun (outside: Logic.Not (Sets.Member exception x)) => Logic.Or[_, _]::right (Logic.And[_, _]::# outside (R.ltReplaceRight r (value x) (f x) ((laws x).right outside) less))),
+    \fun (x: A) (member: Sets.Member (Sigma.pairUnion (Sets.Intersection exception (test r)) (Sets.Intersection (Sets.Complement exception) ({ x: A \where R.Lt r (f x) }))) x) =>
+      Logic.orElim _ _ (R.Lt r (value x)) member
+        (\fun (inside: Sets.Member (Sets.Intersection exception (test r)) x) => R.ltReplaceRight r Real.zero (value x) (sym!{Real.Real} _ _ ((laws x).left inside.left)) inside.right)
+        (\fun (outside: Sets.Member (Sets.Intersection (Sets.Complement exception) ({ x: A \where R.Lt r (f x) })) x) => R.ltReplaceRight r (f x) (value x) (sym!{Real.Real} _ _ ((laws x).right outside.left)) outside.right));
+\definition measurable: IsMeasurable mu f -> IsMeasurable mu value := \fun (fm: IsMeasurable mu f) (r: Real.Real) =>
+  \idelim Sigma.pairUnion (Sets.Intersection exception (test r)) (Sets.Intersection (Sets.Complement exception) ({ x: A \where R.Lt r (f x) })) = { x: A \where R.Lt r (value x) }
+    \with S: \Pow A => Measurable mu.sigma S \by {
+      base: Sigma.pairMeasurable mu.sigma _ _
+        (Sigma.intersectionMeasurable mu.sigma exception (test r) (NullIntegral.nullSetLaw exception).measurable
+          (testMeasurable r))
+        (Sigma.intersectionMeasurable mu.sigma (Sets.Complement exception) ({ x: A \where R.Lt r (f x) })
+          ((Sigma.laws mu.sigma).complement exception (NullIntegral.nullSetLaw exception).measurable) (fm r)),
+      equality: sym!{\Pow A} _ _ (superlevel r)
+    };
+\definition integrable: Integrable f -> Integrable value := \fun (fi: Integrable f) =>
+  NullIntegral.integrableAlmost f value (AE.symmetric value f almost) fi (measurable fi.left);
