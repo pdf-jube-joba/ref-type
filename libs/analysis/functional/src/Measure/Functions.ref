@@ -1,0 +1,43 @@
+\import \root.Measure[A := A].Sigma[] \as Sigma;
+\import std.Arithmetic[].Rat[].Enumeration[] \as Enumeration;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Def[] \as Op;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import real.Analysis[].Distance[] \as Distance;
+\import real.Analysis[].Estimates[] \as E;
+\use std.Logic[].Equality[].sym;
+\definition rational[k: N.Nat^]: Real.Real := Op.ofRat (Enumeration.fraction k);
+\definition addSets[f, g: A -> Real.Real] [r: Real.Real] [k: N.Nat^]: \Pow A :=
+  Sets.Intersection ({ x: A \where R.Lt (rational k) (f x) }) ({ x: A \where R.Lt (Real.sub r (rational k)) (g x) });
+\definition addSetsMeasurable: \forall (f, g: A -> Real.Real) -> IsMeasurable mu f -> IsMeasurable mu g ->
+  \forall (r: Real.Real) (k: N.Nat^) -> Measurable mu.sigma (addSets f g r k) :=
+  \fun (f, g: A -> Real.Real) (mf: IsMeasurable mu f) (mg: IsMeasurable mu g) (r: Real.Real) (k: N.Nat^) =>
+    Sigma.intersectionMeasurable mu.sigma ({ x: A \where R.Lt (rational k) (f x) }) ({ x: A \where R.Lt (Real.sub r (rational k)) (g x) })
+      (mf (rational k)) (mg (Real.sub r (rational k)));
+\definition addSuperlevel: \forall (f, g: A -> Real.Real) (r: Real.Real) ->
+  union (addSets f g r) = { x: A \where R.Lt r (Real.add (f x) (g x)) } :=
+  \fun (f, g: A -> Real.Real) (r: Real.Real) => \axiom:setext(union (addSets f g r), { x: A \where R.Lt r (Real.add (f x) (g x)) },
+    \fun (x: A) (member: Sets.Member (union (addSets f g r)) x) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sets.Member (addSets f g r k) x }) \by member \then
+      \let data: Sets.Member (addSets f g r k) x := \bysub(N.Nat^, { k: N.Nat^ \where Sets.Member (addSets f g r k) x }, k) \then
+      \return R.ltReplaceLeft (Real.add (rational k) (Real.sub r (rational k))) r (Real.add (f x) (g x)) (E.addSubCancel r (rational k))
+        (E.addLt (rational k) (f x) (Real.sub r (rational k)) (g x) data.left data.right)
+    },
+    \fun (x: A) (less: R.Lt r (Real.add (f x) (g x))) => \block {
+      \let first: R.Lt (Real.sub r (g x)) (f x) := Distance.addLtToSub r (g x) (f x) less \then
+      \takefrom q: \Cast[R.Rat] ({ q: R.Rat \where Logic.And[R.Lt (Real.sub r (g x)) (Op.ofRat q), R.Lt (Op.ofRat q) (f x)] })
+        \by Laws.rationalDensity (Real.sub r (g x)) (f x) first \then
+      \let between: Logic.And[R.Lt (Real.sub r (g x)) (Op.ofRat q), R.Lt (Op.ofRat q) (f x)] :=
+        \bysub(R.Rat, { q: R.Rat \where Logic.And[R.Lt (Real.sub r (g x)) (Op.ofRat q), R.Lt (Op.ofRat q) (f x)] }, q) \then
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Enumeration.fraction k = q }) \by Enumeration.exhaustive q \then
+      \let equal: Enumeration.fraction k = q := \bysub(N.Nat^, { k: N.Nat^ \where Enumeration.fraction k = q }, k) \then
+      \let inFirst: R.Lt (rational k) (f x) := \idelim q = Enumeration.fraction k \with z: R.Rat => R.Lt (Op.ofRat z) (f x)
+        \by { base: between.right, equality: sym!{R.Rat} _ _ equal } \then
+      \let inSecond: R.Lt (Real.sub r (rational k)) (g x) := \idelim q = Enumeration.fraction k \with z: R.Rat => R.Lt (Real.sub r (Op.ofRat z)) (g x)
+        \by { base: Distance.subLtOfLower r (Op.ofRat q) (g x) between.left, equality: sym!{R.Rat} _ _ equal } \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (addSets f g r k) x }] k (Logic.And[_, _]::# inFirst inSecond)
+    });
+\definition addMeasurable: \forall (f, g: A -> Real.Real) -> IsMeasurable mu f -> IsMeasurable mu g ->
+  IsMeasurable mu (\fun (x: A) => Real.add (f x) (g x)) :=
+  \fun (f, g: A -> Real.Real) (mf: IsMeasurable mu f) (mg: IsMeasurable mu g) (r: Real.Real) =>
+    \idelim union (addSets f g r) = { x: A \where R.Lt r (Real.add (f x) (g x)) } \with S: \Pow A => Measurable mu.sigma S
+      \by { base: (Sigma.laws mu.sigma).countableUnion (addSets f g r) (addSetsMeasurable f g mf mg r), equality: addSuperlevel f g r };
