@@ -74,3 +74,35 @@
           Order.ltOfLeNotEq Real.zero c (nonnegative c) (\fun (eq: Real.zero = c) => different (sym!{Real.Real} _ _ eq)) } \then
         \return Positive[c := pc].lowerScale f
       });
+
+\import \root.Measure[A := A].Functions[mu := mu] \as Functions;
+\definition finiteScale: \forall (c: NonnegativeScalar) (f: A -> Real.Real) -> Finite f -> Finite (\fun (x: A) => Real.mul c (f x)) :=
+  \fun (c: NonnegativeScalar) (f: A -> Real.Real) (finite: Finite f) => \block {
+    \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where IntegralBound[f, b] }) \by finite.right \then
+    \let bound: IntegralBound[f, b] := \bysub(Real.Real, { b: Real.Real \where IntegralBound[f, b] }, b) \then
+    \return Logic.And[_, _]::# (\fun (x: A) => Laws.fieldMulNonnegative c (f x) (nonnegative c) (finite.left x))
+      (Logic.existsIntro[Real.Real, { b: Real.Real \where IntegralBound[\fun (x: A) => Real.mul c (f x), b] }] (Real.mul c b)
+        (IntegralBound[\fun (x: A) => Real.mul c (f x), Real.mul c b] {
+          nonnegative := Laws.fieldMulNonnegative c b (nonnegative c) bound.nonnegative,
+          bound := \fun (r: Real.Real) (member: below (lowerIntegral (\fun (x: A) => Real.mul c (f x))) r) => \block {
+            \let inScaled: below (scale c (lowerIntegral f)) r :=
+              \idelim lowerIntegral (\fun (x: A) => Real.mul c (f x)) = scale c (lowerIntegral f) \with v: Value => below v r
+                \by { base: member, equality: lowerScale c f } \then
+            \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[below (lowerIntegral f) a, R.Lt r (Real.mul c a)] }) \by inScaled \then
+            \let data: Logic.And[below (lowerIntegral f) a, R.Lt r (Real.mul c a)] :=
+              \bysub(Real.Real, { a: Real.Real \where Logic.And[below (lowerIntegral f) a, R.Lt r (Real.mul c a)] }, a) \then
+            \return Order.leOfLt r (Real.mul c b) (R.ltLeTrans r (Real.mul c a) (Real.mul c b) data.right (E.mulMonotone c a b (nonnegative c) (bound.bound a data.left)))
+          },
+        }))
+  };
+\definition absScale: \forall (c: NonnegativeScalar) (f: A -> Real.Real) ->
+  (\fun (x: A) => Product.abs (Real.mul c (f x))) = (\fun (x: A) => Real.mul c (Product.abs (f x))) :=
+  \fun (c: NonnegativeScalar) (f: A -> Real.Real) => \axiom:funext((\fun (x: A) => Product.abs (Real.mul c (f x))),
+    (\fun (x: A) => Real.mul c (Product.abs (f x))), \fun (x: A) => eq_reason_in!{Real.Real _
+      "=" _ "by" { Product.absProduct c (f x) }
+      "=" _ "by" { congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (Product.abs (f x))) _ _ (Product.absOfNonnegative c (nonnegative c)) }
+    });
+\definition integrableScale: \forall (c: NonnegativeScalar) (f: A -> Real.Real) -> Integrable f -> Integrable (\fun (x: A) => Real.mul c (f x)) :=
+  \fun (c: NonnegativeScalar) (f: A -> Real.Real) (h: Integrable f) => Logic.And[_, _]::# (Functions.scaleMeasurable c (nonnegative c) f h.left)
+    (\idelim (\fun (x: A) => Real.mul c (Product.abs (f x))) = (\fun (x: A) => Product.abs (Real.mul c (f x))) \with g: (A -> Real.Real) => Finite g
+      \by { base: finiteScale c (\fun (x: A) => Product.abs (f x)) h.right, equality: sym!{{A -> Real.Real}} _ _ (absScale c f) });
