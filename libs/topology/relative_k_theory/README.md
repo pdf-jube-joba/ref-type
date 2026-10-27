@@ -113,10 +113,13 @@ K07 の影響先検査は最終検査に含める。
 `TripleComposition` は `triple-composition` で accepted・終了0・キャッシュ保存失敗0。
 境界同型に沿う全体の交換自己同型を使い、二つの三つ組の和と合成三つ組に対角三つ組を加えたものを比較する。
 これで `TripleClass` は三つ組の四種類の関係式を保つ。
-最新の未検証変更は `Group.ToReduced`。
+`Group.ToReduced` は `to-reduced` で accepted・終了0・キャッシュ保存失敗0。
 関係式を保つ生成元の値を、整数加群の表示の普遍性で被約群への準同型へ拡張する。
-固定 snapshot は `work/k03-resume/to-reduced.source.json`。
-次は `relative_k_theory.Relative.Pair.Group.ToReduced` を検査する。
+最新の未検証変更は `TripleReconstruction`・`GroupRetraction`。
+標準補束の構成と正規化した射影表示の構成を比較し、三つ組を被約群へ写してから戻すと元に一致することを示す。
+`Reconstruction.Normalized.With` は、固定した延長に対する復元等式も公開する。
+固定 snapshot は `work/k03-resume/group-retraction.source.json`。
+次は `relative_k_theory.Relative.Pair.TripleReconstruction` と `relative_k_theory.Relative.Pair.GroupRetraction` を順に検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。
