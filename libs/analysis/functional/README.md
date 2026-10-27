@@ -83,6 +83,8 @@ f(x)=\langle y,x\rangle\qquad(x\in V)
 `Integral.Finite` は関数の非負性と積分の有限性を要求する。
 `Integral.HasIntegral` は絶対可積分性と正負部分の積分の差を表し、`integralUnique` が積分値の一意性を示す。
 `lowerIntegralMono` は下積分の単調性、`finiteMono` は非負関数の有限性の下方継承を示す。
+`Integral.integral` は可積分関数の積分を与え、`Integral.Null.quotientIntegral` はほとんど至る所一致する代表元の商上の積分である。
+`Measure.Finite` は可測集合について測度の有限加法性と単調性を示し、`Measure.AlmostEverywhere` は零集合の有限合併と a.e. 一致の同値関係を示す。
 
 `Powers.Exponent` は実数 \(p\ge1\) である。
 `PositivePower[a,p,y]` は非負実数の \(y=a^p\) を自然数冪の有理数比較で表す。
