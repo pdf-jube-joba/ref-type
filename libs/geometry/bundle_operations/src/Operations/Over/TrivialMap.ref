@@ -1,0 +1,23 @@
+\import Bundles.Trivial[X := X, n := n, baseSpace := base] \as Source;
+\import Bundles.Trivial[X := X, n := m, baseSpace := base] \as Target;
+\import Bundles.Family[X := X, F := (\fun (x: X) => Vector n)].With[data := Source.bundle] \as SourceCharts;
+\import Bundles.Family[X := X, F := (\fun (x: X) => Vector m)].With[data := Target.bundle] \as TargetCharts;
+\import topology.Topology[Carrier := X] \as Base;
+\import Base.Subspace[S := Base.Whole] \as Whole;
+\import \parent.LocalMatrices[X := X, F := (\fun (x: X) => Vector n), G := (\fun (x: X) => Vector m),
+  source := Source.bundle, target := Target.bundle, fiber := (\fun (x: X) => linear)] \as Matrices;
+\definition chart: Matrices.ChartData := Matrices.ChartData {
+  domain := Base.Whole, sourceDimension := n, targetDimension := m,
+  sourceFrame := Source.trivialization.frame, targetFrame := Target.trivialization.frame,
+  coefficients := \fun (x: Whole.CarrierSet) => linear
+};
+\definition chartLaws: Matrices.In[c := chart].Laws := Matrices.In[c := chart].Laws {
+  sourceLaws := \bysub(SourceCharts.ChartData, SourceCharts.Chart, Source.trivialization),
+  targetLaws := \bysub(TargetCharts.ChartData, TargetCharts.Chart, Target.trivialization),
+  regular := \fun (v: Vector n)(i: Fin.Fin m) => topology.Maps[A := Whole.CarrierSet, B := K].constantContinuous (Whole.topology base) scalar.topological.space (linear.apply v i),
+  alignment := \fun (x: Whole.CarrierSet)(v: Vector n) => \refl(linear.apply v)
+};
+\definition trivialization: Matrices.Chart := \into[Matrices.ChartData](chart, Matrices.Chart) \by { chartLaws };
+\definition covers: Matrices.Covers := \fun (x: X) => Logic.existsIntro[Matrices.Chart, { c: Matrices.Chart \where Base.Member c.domain x }] trivialization (\refl(x));
+\definition map: Bundles.Morphisms[X := X, Y := X, F := (\fun (x: X) => Vector n), G := (\fun (x: X) => Vector m),
+  source := Source.bundle, target := Target.bundle, f := (\fun (x: X) => x)].Map := Matrices.map (\refl(base)) covers;

@@ -48,10 +48,14 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 | 三つ組の同型不変性と射影表示の選択独立性 | `change-Isomorphic` / `change-PresentationChange` |
 
 `change-Isomorphic` と `change-PresentationChange` は accepted・終了0・キャッシュ保存失敗0。
-最新の未検証変更は反復 suspension の同値の写像と通常の引き戻しの一致、および `Pair.FromQuotient`。
+反復 suspension の同値の写像と通常の引き戻しの一致、および切除の写像の一致は `quotient-Equivalence`・`quotient-Excision` で検査済み。
+`Pair.FromQuotient` は局所枠の証明を持つ表示の型を修正し、再検査する。
+`Pair.BundleChange` は元の二つの束と境界同型をともに取り替えたときの群の元の一致を証明する。
+共通の `Operations.Over.TrivialMap` と `TrivialIsomorphism` は定数の線形写像・同型から自明束の写像・同型を作る。
+これら三つの最新変更は未検証。
 `FromQuotient` は商上の束の基点での局所枠を使い、引き戻した束と自明束の境界同型から三つ組を作る。
-固定 snapshot は `work/k03-resume/from-quotient.source.json`。
-次は `relative_k_theory.Relative.Equivalence`、`relative_k_theory.Relative.Pair.Excision`、`relative_k_theory.Relative.Pair.FromQuotient` を順に検査する。
+固定 snapshot は `work/k03-resume/bundle-change.source.json`。
+次は `bundle_operations.Operations.Over.TrivialMap`、`bundle_operations.Operations.Over.TrivialIsomorphism`、`relative_k_theory.Relative.Pair.BundleChange`、`relative_k_theory.Relative.Pair.FromQuotient` を順に検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。
