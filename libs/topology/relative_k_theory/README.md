@@ -80,6 +80,7 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 - `Pair.ClosedCover` の商の比較、`MayerVietoris` の境界写像と全体の群での完全性。
 - `DiskPair`・`BundleDisk` の円板球面対、元の束への連続単射とノルム条件、`Examples.TrivialDisk` のランク0・1の例。
 
-残る構成は一般の対での自然性、Mayer–Vietoris の残る位置での完全性、外積と自然性。
+`Pair.Mapping.Augmented.Negative` に一般の対の接続・忘却・制限の自然性を書いた（未検証）。
+残る構成は Mayer–Vietoris の残る位置での完全性、外積と自然性。
 検査完了後、公開登録・ロードマップ・下流リンクを整備する。
 K02・K07・単体/胞体・近似理論・B09 の影響先と workspace 全体を最終検証に含める。
