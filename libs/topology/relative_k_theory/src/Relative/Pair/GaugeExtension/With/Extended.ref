@@ -1,0 +1,20 @@
+\import bundle_extension.Extension[].Over[K := C.Complex, field := Algebra.field, conjugation := Hermitian.scalar, scalar := Scalar.scalar].Isomorphisms[
+  X := Cylinder.Carrier, subset := region, F := CylinderFiber, G := CylinderFiber, source := cylinderBundle, target := cylinderBundle, same := (\refl(Cylinder.topology space))].Neighborhood[U := e.domain] \as Local;
+\definition alongSubset: \forall (x: A)(t: Interval.Carrier) -> CylinderBase.Member e.domain (Cylinder.at t x) :=
+  \fun (x: A)(t: Interval.Carrier) => e.contains (Cylinder.at t x) (Logic.Or[_, _]::left (\bysub(X, subset, x)));
+\definition atStart: \forall (x: X) -> CylinderBase.Member e.domain (Cylinder.at Interval.start x) :=
+  \fun (x: X) => e.contains (Cylinder.at Interval.start x) (Logic.Or[_, _]::right (\refl(Interval.start)));
+\import \parent.\parent.\parent.CylinderNeighborhood[U := e.domain, open := e.open, alongSubset := alongSubset, atStart := atStart] \as Cutoff;
+\definition regionPoint[x: A][t: Interval.Carrier]: RegionPoint := \into[Cylinder.Carrier](Cylinder.at t x, region) \by {
+  Logic.Or[_, _]::left (\bysub(X, subset, x))
+};
+\definition localPoint[x: A][t: Interval.Carrier]: Local.Point := \into[Cylinder.Carrier](Cylinder.at t x, e.domain) \by { alongSubset x t };
+\definition boundaryFormula: \forall (x: A)(t: Interval.Carrier)(v: F x) ->
+  (e.isomorphism.forward.fiber (localPoint x t)).apply v = (path.isomorphism.forward.fiber (boundary x t)).apply v :=
+  \fun (x: A)(t: Interval.Carrier)(v: F x) => trans!{{F x}} _ _ _ (e.extends (regionPoint x t) v)
+    (Glued.matchesLeftForward (\into[RegionPoint](regionPoint x t, left) \by { \bysub(X, subset, x) }) v);
+\module Using(w: Cutoff.Witness);
+\definition existence: \exists Result := \block {
+  \takefrom w: Cutoff.Witness \by Cutoff.existence \then
+  \return \exact(Using[w := w].result, Result)
+};
