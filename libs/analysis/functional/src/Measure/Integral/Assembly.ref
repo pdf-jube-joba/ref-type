@@ -18,6 +18,8 @@
   integral: simpleIntegral (count n) simple = sum n (\fun (j: Fin.Fin n) => simpleIntegral m (rows j)),
   contained: \forall (S: \Pow A) -> (\forall (j: Fin.Fin n) (i: Fin.Fin m) -> Sets.Subset ((rows j).cells i) S) ->
     \forall (k: Fin.Fin (count n)) -> Sets.Subset (simple.cells k) S,
+  origin: \forall (j: Fin.Fin n) (i: Fin.Fin m) (x: A) -> Sets.Member ((rows j).cells i) x ->
+    \exists ( k: Fin.Fin (count n) \where Sets.Member (simple.cells k) x ),
   dominated: \forall (f: A -> Real.Real) -> (\forall (j: Fin.Fin n) -> Dominated m (rows j) f) -> Dominated (count n) simple f,
 };
 \definition assemble: \forall (n: N.Nat^) (rows: Rows n) -> Data[n, rows] :=
@@ -26,6 +28,7 @@
       simple := emptySimple,
       integral := \refl(zero),
       contained := \fun (S: \Pow A) (_: _) (k: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible k (Fin.bound N.Nat^::zero k)),
+      origin := \fun (j: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible j (Fin.bound N.Nat^::zero j)),
       dominated := \fun (f: A -> Real.Real) (_: _) => emptyDominated f,
     }
     | succ: \fun (n: N.Nat^) (previous: _) (rows: Rows (N.Nat^::succ n)) => \block {
@@ -53,6 +56,22 @@
         contained := \fun (S: \Pow A) (covers: _) =>
           \root.Measure[A := A].Integral[mu := mu].Combined[m := m, n := count n, p := separated].contained S
             (covers (Fin.zero n)) (rest.contained S (\fun (j: Fin.Fin n) => covers (Fin.succ n j))),
+        origin := Fin.cases n (\fun (j: Fin.Fin (N.Nat^::succ n)) => \forall (i: Fin.Fin m) (x: A) ->
+          Sets.Member ((rows j).cells i) x -> \exists ( k: Fin.Fin (count (N.Nat^::succ n)) \where Sets.Member
+            ((\root.Measure[A := A].Integral[mu := mu].Combined[m := m, n := count n, p := separated].simple).cells k) x ))
+          (\fun (i: Fin.Fin m) (x: A) (member: Sets.Member (head.cells i) x) =>
+            Logic.existsIntro[Fin.Fin (count (N.Nat^::succ n)), { k: Fin.Fin (count (N.Nat^::succ n)) \where Sets.Member
+              ((\root.Measure[A := A].Integral[mu := mu].Combined[m := m, n := count n, p := separated].simple).cells k) x }]
+              (Fin.Sum[m := m, n := count n].left i)
+              (\root.Measure[A := A].Integral[mu := mu].Combined[m := m, n := count n, p := separated].containsLeft i x member))
+          (\fun (j: Fin.Fin n) (i: Fin.Fin m) (x: A) (member: Sets.Member ((tail j).cells i) x) => \block {
+            \takefrom k: \Cast[Fin.Fin (count n)] ({ k: Fin.Fin (count n) \where Sets.Member (rest.simple.cells k) x }) \by rest.origin j i x member \then
+            \return Logic.existsIntro[Fin.Fin (count (N.Nat^::succ n)), { l: Fin.Fin (count (N.Nat^::succ n)) \where Sets.Member
+              ((\root.Measure[A := A].Integral[mu := mu].Combined[m := m, n := count n, p := separated].simple).cells l) x }]
+                (Fin.Sum[m := m, n := count n].right k)
+                (\root.Measure[A := A].Integral[mu := mu].Combined[m := m, n := count n, p := separated].containsRight k x
+                  (\bysub(Fin.Fin (count n), { k: Fin.Fin (count n) \where Sets.Member (rest.simple.cells k) x }, k)))
+          }),
         dominated := \fun (f: A -> Real.Real) (law: _) =>
           \root.Measure[A := A].Integral[mu := mu].Combined[m := m, n := count n, p := separated].dominatedSame f
             (law (Fin.zero n)) (rest.dominated f (\fun (j: Fin.Fin n) => law (Fin.succ n j))),
