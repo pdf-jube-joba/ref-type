@@ -1,5 +1,5 @@
 \import real.Analysis[].Algebra[] \as Algebra;
-\import real.Analysis[].Algebra[].Laws[] \as Laws;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
 
 \definition Included[v, w: Value]: \Prop := \forall (r: Real.Real) -> below v r -> below w r;
 
@@ -33,3 +33,35 @@
   };
 \definition addComm: \forall (v, w: Value) -> add v w = add w v :=
   \fun (v, w: Value) => \axiom:setext(add v w, add w v, addSwap v w, addSwap w v);
+
+\import real.Analysis[].Estimates[] \as E;
+\import dedekind_reals.DedekindReal[].Order[] \as Order;
+\definition addZeroContained: \forall (v: Value) -> NonnegativeValue[v] -> Included (add v zero) v :=
+  \fun (v: Value) (law: NonnegativeValue[v]) (r: Real.Real) (member: below (add v zero) r) => \block {
+    \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[below v a, \exists ( b: Real.Real \where Logic.And[below zero b, R.Lt r (Real.add a b)] )] }) \by member \then
+    \let first: Logic.And[below v a, \exists ( b: Real.Real \where Logic.And[below zero b, R.Lt r (Real.add a b)] )] :=
+      \bysub(Real.Real, { a: Real.Real \where Logic.And[below v a, \exists ( b: Real.Real \where Logic.And[below zero b, R.Lt r (Real.add a b)] )] }, a) \then
+    \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where Logic.And[below zero b, R.Lt r (Real.add a b)] }) \by first.right \then
+    \let second: Logic.And[below zero b, R.Lt r (Real.add a b)] :=
+      \bysub(Real.Real, { b: Real.Real \where Logic.And[below zero b, R.Lt r (Real.add a b)] }, b) \then
+    \return law.downward r a (Order.ltTrans r (Real.add a b) a second.right
+      (R.ltReplaceRight (Real.add a b) (Real.add a Real.zero) a (Laws.addZeroRight a)
+        (Laws.ltAddLeft a b Real.zero second.left))) first.left
+  };
+\definition containedAddZero: \forall (v: Value) -> NonnegativeValue[v] -> Included v (add v zero) :=
+  \fun (v: Value) (law: NonnegativeValue[v]) (r: Real.Real) (member: below v r) => \block {
+    \takefrom s: \Cast[Real.Real] ({ s: Real.Real \where Logic.And[R.Lt r s, below v s] }) \by law.rounded r member \then
+    \let first: Logic.And[R.Lt r s, below v s] := \bysub(Real.Real, { s: Real.Real \where Logic.And[R.Lt r s, below v s] }, s) \then
+    \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[R.Lt s a, below v a] }) \by law.rounded s first.right \then
+    \let second: Logic.And[R.Lt s a, below v a] := \bysub(Real.Real, { a: Real.Real \where Logic.And[R.Lt s a, below v a] }, a) \then
+    \let negative: R.Lt (Real.sub s a) Real.zero :=
+      R.ltReplaceRight (Real.sub s a) (Real.sub a a) Real.zero (Laws.subSelf a)
+        (Laws.ltAddRight s a (Real.neg a) second.left) \then
+    \return Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[below v a, \exists ( b: Real.Real \where Logic.And[below zero b, R.Lt r (Real.add a b)] )] }] a
+      (Logic.And[_, _]::# second.right
+        (Logic.existsIntro[Real.Real, { b: Real.Real \where Logic.And[below zero b, R.Lt r (Real.add a b)] }] (Real.sub s a)
+          (Logic.And[_, _]::# negative (R.ltReplaceRight r s (Real.add a (Real.sub s a))
+            (\idelim Real.add a (Real.sub s a) = s \with x: Real.Real => s = x \by { base: \refl(s), equality: E.addSubCancel s a }) first.left))))
+  };
+\definition addZero: \forall (v: Value) -> NonnegativeValue[v] -> add v zero = v :=
+  \fun (v: Value) (law: NonnegativeValue[v]) => \axiom:setext(add v zero, v, addZeroContained v law, containedAddZero v law);
