@@ -1,0 +1,30 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import algebraic_topology.Simplex[] \as Simplex;
+\import Small.Simplices[] \as SmallSimplices;
+\import singular_cohomology.Simplices[A := A, source := source] \as WholeSimplices;
+\definition simplex[sigma: SmallSimplices.Carrier n]: WholeSimplices.Carrier n :=
+  UnionMaps.postcompose n Relative.inclusion Relative.inclusionContinuous sigma;
+\definition injective: \forall (sigma, tau: SmallSimplices.Carrier n) -> simplex sigma = simplex tau -> sigma = tau :=
+  \fun (sigma, tau: SmallSimplices.Carrier n)(same: _) => \axiom:funext(sigma, tau,
+    \fun (x: Simplex.Carrier n) => congr!{{WholeSimplices.Carrier n} A} (\fun (s: WholeSimplices.Carrier n) => s x) _ _ same);
+\import Modules.Free[Generators := SmallSimplices.Carrier n].Reindex[TargetGenerators := WholeSimplices.Carrier n] \as Reindex;
+\import Reindex.Injection[f := simplex].Retraction[] \as Retraction;
+\import Modules.Hom[V := Chains.Carrier n, W := Small.Carrier n, source := Chains.space n, target := Small.space n] \as Maps;
+\definition retraction: Maps.Map := Retraction.retraction injective;
+\import Modules.Hom[V := Small.Carrier n, W := Chains.Carrier n, source := Small.space n, target := Chains.space n] \as PushMaps;
+\import Modules.Free[Generators := SmallSimplices.Carrier n].To[W := Chains.Carrier n, target := Chains.space n] \as Free;
+\definition equality: PushMaps.Map := Reindex.push simplex;
+\definition same: \forall (x: Small.Carrier n) -> (inclusion).apply n x = (equality).apply x :=
+  Free.induction (\fun (x: Small.Carrier n) => (inclusion).apply n x = (equality).apply x)
+    (\fun (sigma: SmallSimplices.Carrier n) => trans!{{Chains.Carrier n}} _ _ _
+      (congr!{{UnionChains.Carrier n} {Chains.Carrier n}} ((UnionMaps.At[n := n].push Relative.inclusion Relative.inclusionContinuous).apply) _ _ (Small.At[n := n].onGenerator sigma))
+      (trans!{{Chains.Carrier n}} _ _ _ (UnionMaps.At[n := n].onGenerator Relative.inclusion Relative.inclusionContinuous sigma)
+        (sym!{{Chains.Carrier n}} _ _ (Reindex.onGenerator simplex sigma))));
+\import Modules.Hom[V := Small.Carrier n, W := Small.Carrier n, source := Small.space n, target := Small.space n] \as End;
+\definition leftInverse: \forall (x: Small.Carrier n) -> (retraction).apply ((inclusion).apply n x) = x :=
+  \fun (x: Small.Carrier n) => trans!{{Small.Carrier n}} _ _ _
+    (congr!{{Chains.Carrier n} {Small.Carrier n}} ((retraction).apply) _ _ (same x))
+    (congr!{End.Map {Small.Carrier n}} (\fun (f: End.Map) => f.apply x) _ _ (Retraction.leftInverse injective));
