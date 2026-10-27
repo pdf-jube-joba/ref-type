@@ -1,0 +1,46 @@
+\import \parent.\parent.Suspension[] \as SourceComparison;
+\import Target.Suspension[] \as TargetComparison;
+\import \root.Relative[].Suspension[original := result] \as SourceSuspension;
+\import \root.Relative[].Suspension[original := Target.result] \as TargetSuspension;
+\import \root.Relative[].Suspension[original := left] \as LeftSuspension;
+\import \root.Relative[].Suspension[original := targetLeft] \as TargetLeftSuspension;
+\import \root.Relative[].Smash[left := LeftSuspension.result, right := right] \as SourceShifted;
+\import \root.Relative[].Smash[left := TargetLeftSuspension.result, right := targetRight] \as TargetShifted;
+\import \root.Relative[].SuspendedMap[source := result, target := Target.result, f := map] \as Lift;
+\import \root.Relative[].SuspendedMap[source := left, target := targetLeft, f := f] \as LeftLift;
+\import SourceShifted.Mapping[targetLeft := TargetLeftSuspension.result, targetRight := targetRight, f := LeftLift.map, g := g] \as Shifted;
+\import algebraic_topology.Suspension[A := result.Carrier].Pointed[source := (details result).topology, basepoint := (details result).point].Mapping[
+  B := Target.result.Carrier, target := pointed Target.result, f := map] \as NativeLift;
+\import algebraic_topology.Suspension[A := left.Carrier].Pointed[source := (details left).topology, basepoint := (details left).point].Mapping[
+  B := targetLeft.Carrier, target := pointed targetLeft, f := f] \as NativeLeftLift;
+\import algebraic_topology.Cylinder[A := Target.model.Carrier] \as TargetDomain;
+\import algebraic_topology.Cylinder[A := Target.result.Carrier] \as TargetCylinder;
+\import algebraic_topology.Cylinder[A := targetLeft.Carrier] \as TargetLeftCylinder;
+\import algebraic_topology.Cylinder[A := left.Carrier] \as SourceLeftCylinder;
+\definition image[r: SourceComparison.R]: TargetComparison.R := TargetDomain.at (SourceComparison.time r) (productMap (SourceComparison.base r));
+\definition liftOnR: \forall (r: SourceComparison.R) -> Lift.map (SourceComparison.f r) = TargetComparison.f (image r) :=
+  \fun (r: SourceComparison.R) => trans!{{TargetSuspension.result.Carrier}} _ _ _ (NativeLift.onClass (SourceComparison.sourceRaw r))
+    (congr!{{Target.result.Carrier} {TargetSuspension.result.Carrier}}
+      (\fun (q: Target.result.Carrier) => TargetSuspension.class (TargetCylinder.at (SourceComparison.time r) q)) _ _
+      (onProjection (SourceComparison.base r)));
+\definition shiftedOnR: \forall (r: SourceComparison.R) -> Shifted.map (SourceComparison.g r) = TargetComparison.g (image r) :=
+  \fun (r: SourceComparison.R) => trans!{{TargetShifted.result.Carrier}} _ _ _ (Shifted.onProjection (SourceComparison.targetRaw r))
+    (congr!{{TargetShifted.model.Carrier} {TargetShifted.result.Carrier}} TargetShifted.projection _ _
+      (Pair.Prop[A := TargetLeftSuspension.result.Carrier, B := targetRight.Carrier].ext _ _
+        (NativeLeftLift.onClass (SourceLeftCylinder.at (SourceComparison.time r) (SourceComparison.a r)))
+        (\refl(g (SourceComparison.b r)))));
+\definition onR: \forall (r: SourceComparison.R) -> TargetComparison.equivalence.forward (Lift.map (SourceComparison.f r)) =
+  Shifted.map (SourceComparison.equivalence.forward (SourceComparison.f r)) :=
+  \fun (r: SourceComparison.R) => trans!{{TargetShifted.result.Carrier}} _ _ _
+    (congr!{{TargetSuspension.result.Carrier} {TargetShifted.result.Carrier}} TargetComparison.equivalence.forward _ _ (liftOnR r))
+    (trans!{{TargetShifted.result.Carrier}} _ _ _ (TargetComparison.onCylinder (image r))
+      (sym!{{TargetShifted.result.Carrier}} _ _ (trans!{{TargetShifted.result.Carrier}} _ _ _
+        (congr!{{SourceShifted.result.Carrier} {TargetShifted.result.Carrier}} Shifted.map _ _ (SourceComparison.onCylinder r)) (shiftedOnR r))));
+\definition equation: \forall (x: SourceSuspension.result.Carrier) -> TargetComparison.equivalence.forward (Lift.map x) = Shifted.map (SourceComparison.equivalence.forward x) := \block {
+  \fun (x: SourceSuspension.result.Carrier) \then
+  \takefrom r: \Cast[SourceComparison.R] ({ r: SourceComparison.R \where SourceComparison.f r = x }) \by SourceComparison.Onto[].source x \then
+  \return \idelim SourceComparison.f r = x \with x: SourceSuspension.result.Carrier =>
+    TargetComparison.equivalence.forward (Lift.map x) = Shifted.map (SourceComparison.equivalence.forward x) \by {
+      base: onR r, equality: \bysub(SourceComparison.R, { r: SourceComparison.R \where SourceComparison.f r = x }, r)
+    }
+};

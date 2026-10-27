@@ -137,3 +137,5 @@ Mayer–Vietoris の交叉部分の完全性も証明コードを追加し、構
 再開記録（K03、続き）: `Smash.Mapping.External.naturality`、`ClosedCover.MayerVietorisZero.exactPieces`、閉対の積と smash の商比較、および零次数外積のコードを追加した。いずれも型検査は未完了で、`work/k03-resume/relative-external.source.json` が構文解析用スナップショット。進行中の型検査は `canonical-fifth-Sequence.{log,json,exit}` を回収し、同じ範囲を重複起動しない。商比較の単射・全射は商の同値関係と代表元から構成する。
 
 再開記録（K03、負次数外積）: `CommonQuotient` は既存の商写像の descent を使い、同じファイバーを持つ二つのコンパクト商を比較する。`Smash.Suspension` は円柱上でその同値関係を証明し、`Symmetry`・左右の反復から `Smash.Graded` と `Pair.Product.Negative` を構成した。結果の次数は `secondDegree + firstDegree`。双加法性と零元の式を含む追加分は型検査未完了。構文解析用の最新 snapshot は `graded-external.source.json`。継続中の対象検査は `canonical-fifth-Sequence` を先に回収する。負次数外積の自然性、閉被覆の写像に対する自然性、対象・依存・影響先・全 workspace の最終検証、公開情報の整備が残る。
+
+再開記録（K03、外積の自然性）: 円柱上の式から `Smash.Mapping.SuspensionNaturality` と対称性・右 suspension の自然性を追加し、左右の反復比較を帰納した。反復次数の組替えは `IterationAddition` の帰納的同相へ変更し、`Smash.Mapping.GradedNaturality` で負次数外積を通常の引き戻しと比較するコードを追加した。これらは型検査未完了。`canonical-fifth-Sequence` は第五項と全写像の式を通過し、検査後の直列化・保存処理中なので、終了コード・JSON を回収してから成功を確定する。

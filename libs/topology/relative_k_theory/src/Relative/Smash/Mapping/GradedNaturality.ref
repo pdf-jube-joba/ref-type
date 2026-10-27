@@ -1,0 +1,68 @@
+\use Equality.eq_reason_in;
+\import \parent.\parent.Graded[firstDegree := firstDegree, secondDegree := secondDegree] \as SourceGrade;
+\import Target.Graded[firstDegree := firstDegree, secondDegree := secondDegree] \as TargetGrade;
+\definition degree: N.Nat^ := SourceGrade.degree;
+\import \root.Relative[].Smash[left := left, right := iterate secondDegree right] \as RightSource;
+\import \root.Relative[].Smash[left := targetLeft, right := iterate secondDegree targetRight] \as RightTarget;
+\import RightSource.Mapping[targetLeft := targetLeft, targetRight := iterate secondDegree targetRight,
+  f := f, g := \root.Relative[].iterateMap secondDegree right targetRight g] \as RightMap;
+\import \root.Relative[].Smash[left := iterate firstDegree left, right := iterate secondDegree right] \as BothSource;
+\import \root.Relative[].Smash[left := iterate firstDegree targetLeft, right := iterate secondDegree targetRight] \as BothTarget;
+\import BothSource.Mapping[targetLeft := iterate firstDegree targetLeft, targetRight := iterate secondDegree targetRight,
+  f := \root.Relative[].iterateMap firstDegree left targetLeft f, g := \root.Relative[].iterateMap secondDegree right targetRight g] \as BothMap;
+\definition sourceRight: \root.Relative[].Equivalence[source := iterate secondDegree result, target := RightSource.result].Data := \parent.\parent.rightIteration secondDegree;
+\definition targetRightComparison: \root.Relative[].Equivalence[source := iterate secondDegree Target.result, target := RightTarget.result].Data := Target.rightIteration secondDegree;
+\import \root.Relative[].Square[A := iterate secondDegree result, B := iterate secondDegree Target.result,
+  C := RightSource.result, D := RightTarget.result, f := \root.Relative[].iterateMap secondDegree result Target.result map,
+  g := targetRightComparison.forward, h := sourceRight.forward, k := RightMap.map,
+  commutes := \parent.rightIterationNaturality secondDegree] \as RightSquare;
+\definition A: CompactPointed := iterate firstDegree (iterate secondDegree result);
+\definition B: CompactPointed := iterate firstDegree (iterate secondDegree Target.result);
+\definition C: CompactPointed := iterate firstDegree RightSource.result;
+\definition D: CompactPointed := iterate firstDegree RightTarget.result;
+\definition nested: Map A B := \root.Relative[].iterateMap firstDegree (iterate secondDegree result) (iterate secondDegree Target.result)
+  (\root.Relative[].iterateMap secondDegree result Target.result map);
+\definition shiftedMap: Map C D := \root.Relative[].iterateMap firstDegree RightSource.result RightTarget.result RightMap.map;
+\definition sourceRightMap: Map A C := \root.Relative[].iterateMap firstDegree (iterate secondDegree result) RightSource.result sourceRight.forward;
+\definition targetRightMap: Map B D := \root.Relative[].iterateMap firstDegree (iterate secondDegree Target.result) RightTarget.result targetRightComparison.forward;
+\definition sourceForward: SourceGrade.liftedRight.forward = sourceRightMap :=
+  \root.Relative[].Equivalence[source := iterate secondDegree result, target := RightSource.result].With[e := sourceRight].forwardAt firstDegree;
+\definition targetForward: TargetGrade.liftedRight.forward = targetRightMap :=
+  \root.Relative[].Equivalence[source := iterate secondDegree Target.result, target := RightTarget.result].With[e := targetRightComparison].forwardAt firstDegree;
+\definition liftedRightNaturality: \forall (x: A.Carrier) -> TargetGrade.liftedRight.forward (nested x) = shiftedMap (SourceGrade.liftedRight.forward x) :=
+  \fun (x: A.Carrier) => eq_reason_in!{{D.Carrier} _
+    "=" { targetRightMap (nested x) } "by" { congr!{{Map B D} {D.Carrier}} (\fun (m: Map B D) => m (nested x)) _ _ targetForward }
+    "=" { shiftedMap (sourceRightMap x) } "by" { RightSquare.iteratedEquation firstDegree x }
+    "=" { shiftedMap (SourceGrade.liftedRight.forward x) } "by" {
+      congr!{{C.Carrier} {D.Carrier}} shiftedMap _ _
+        (sym!{{C.Carrier}} _ _ (congr!{{Map A C} {C.Carrier}} (\fun (m: Map A C) => m x) _ _ sourceForward)) }
+  };
+\import \root.Relative[].IterationAddition[original := result, inner := secondDegree].Mapping[target := Target.result, f := map] \as Regroup;
+\definition wholeMap: Map (iterate degree result) (iterate degree Target.result) := \root.Relative[].iterateMap degree result Target.result map;
+\definition equation: \forall (x: (iterate degree result).Carrier) -> TargetGrade.equivalence.forward (wholeMap x) = BothMap.map (SourceGrade.equivalence.forward x) :=
+  \fun (x: (iterate degree result).Carrier) => eq_reason_in!{{BothTarget.result.Carrier} _
+    "=" { (RightTarget.leftIteration firstDegree).forward (TargetGrade.liftedRight.forward (nested (SourceGrade.regrouping.forward x))) } "by" {
+      congr!{{B.Carrier} {BothTarget.result.Carrier}}
+        (\fun (y: B.Carrier) => (RightTarget.leftIteration firstDegree).forward (TargetGrade.liftedRight.forward y)) _ _ (Regroup.naturality firstDegree x) }
+    "=" { (RightTarget.leftIteration firstDegree).forward (shiftedMap (SourceGrade.liftedRight.forward (SourceGrade.regrouping.forward x))) } "by" {
+      congr!{{D.Carrier} {BothTarget.result.Carrier}} (RightTarget.leftIteration firstDegree).forward _ _
+        (liftedRightNaturality (SourceGrade.regrouping.forward x)) }
+    "=" { BothMap.map ((RightSource.leftIteration firstDegree).forward (SourceGrade.liftedRight.forward (SourceGrade.regrouping.forward x))) } "by" {
+      RightMap.leftIterationNaturality firstDegree (SourceGrade.liftedRight.forward (SourceGrade.regrouping.forward x)) }
+  };
+\import \root.Relative[].Square[A := iterate degree result, B := iterate degree Target.result, C := BothSource.result, D := BothTarget.result,
+  f := wholeMap, g := TargetGrade.equivalence.forward, h := SourceGrade.equivalence.forward, k := BothMap.map, commutes := equation] \as GradeSquare;
+\import \root.Relative[].Negative[original := targetLeft, degree := firstDegree] \as First;
+\import \root.Relative[].Negative[original := targetRight, degree := secondDegree] \as Second;
+\import \root.Relative[].Negative[original := result, degree := degree] \as Result;
+\import \root.Relative[].NegativeMap[source := left, target := targetLeft, f := f, degree := firstDegree] \as FirstPull;
+\import \root.Relative[].NegativeMap[source := right, target := targetRight, f := g, degree := secondDegree] \as SecondPull;
+\import \root.Relative[].NegativeMap[source := result, target := Target.result, f := map, degree := degree] \as ResultPull;
+\import BothTarget.External[] \as TargetProduct;
+\import \root.Relative[].Equivalence[source := iterate degree result, target := BothSource.result].With[e := SourceGrade.equivalence].Groups[] \as Transport;
+\definition naturality: \forall (a: First.Carrier)(b: Second.Carrier) ->
+  ResultPull.map (TargetGrade.product a b) = SourceGrade.product (FirstPull.map a) (SecondPull.map b) :=
+  \fun (a: First.Carrier)(b: Second.Carrier) => trans!{{Result.Carrier}} _ _ _
+    (GradeSquare.Negative[degree := N.Nat^::zero].equation (TargetProduct.product a b))
+    (congr!{{\root.Relative[].Reduced[model := BothSource.result].Carrier} {Result.Carrier}} Transport.forward _ _
+      (BothMap.External[].naturality a b));

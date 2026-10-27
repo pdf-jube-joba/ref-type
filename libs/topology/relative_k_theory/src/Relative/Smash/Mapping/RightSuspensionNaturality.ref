@@ -1,0 +1,45 @@
+\use Equality.eq_reason_in;
+\import \parent.\parent.Symmetry[] \as SourceSymmetry;
+\import Target.Symmetry[] \as TargetSymmetry;
+\import \root.Relative[].Smash[left := right, right := left] \as Reverse;
+\import \root.Relative[].Smash[left := targetRight, right := targetLeft] \as TargetReverse;
+\import Reverse.Mapping[targetLeft := targetRight, targetRight := targetLeft, f := g, g := f] \as ReverseMap;
+\import \root.Relative[].Suspension[original := result] \as SourceSuspension;
+\import \root.Relative[].Suspension[original := Target.result] \as TargetSuspension;
+\import \root.Relative[].Suspension[original := Reverse.result] \as ReverseSuspension;
+\import \root.Relative[].Suspension[original := TargetReverse.result] \as TargetReverseSuspension;
+\import \root.Relative[].Suspension[original := right] \as RightSuspension;
+\import \root.Relative[].Suspension[original := targetRight] \as TargetRightSuspension;
+\import \root.Relative[].Smash[left := RightSuspension.result, right := left] \as Middle;
+\import \root.Relative[].Smash[left := TargetRightSuspension.result, right := targetLeft] \as TargetMiddle;
+\import \root.Relative[].Smash[left := left, right := RightSuspension.result] \as Final;
+\import \root.Relative[].Smash[left := targetLeft, right := TargetRightSuspension.result] \as TargetFinal;
+\import \root.Relative[].SuspendedMap[source := right, target := targetRight, f := g] \as RightLift;
+\import Middle.Mapping[targetLeft := TargetRightSuspension.result, targetRight := targetLeft, f := RightLift.map, g := f] \as MiddleMap;
+\import Final.Mapping[targetLeft := targetLeft, targetRight := TargetRightSuspension.result, f := f, g := RightLift.map] \as FinalMap;
+\import \root.Relative[].SuspendedMap[source := result, target := Target.result, f := map] \as Lift;
+\import \root.Relative[].SuspendedMap[source := result, target := Reverse.result, f := SourceSymmetry.equivalence.forward] \as SourceSymmetryLift;
+\import \root.Relative[].SuspendedMap[source := Reverse.result, target := TargetReverse.result, f := ReverseMap.map] \as ReverseLift;
+\import \root.Relative[].SuspendedMap[source := Target.result, target := TargetReverse.result, f := TargetSymmetry.equivalence.forward] \as TargetSymmetryLift;
+\import Reverse.Suspension[] \as ReverseComparison;
+\import TargetReverse.Suspension[] \as TargetReverseComparison;
+\import Middle.Symmetry[] \as MiddleSymmetry;
+\import TargetMiddle.Symmetry[] \as TargetMiddleSymmetry;
+\import \parent.\parent.RightSuspension[] \as SourceComparison;
+\import Target.RightSuspension[] \as TargetComparison;
+\import \root.Relative[].Square[A := result, B := Target.result, C := Reverse.result, D := TargetReverse.result,
+  f := map, g := TargetSymmetry.equivalence.forward, h := SourceSymmetry.equivalence.forward, k := ReverseMap.map,
+  commutes := \parent.SymmetryNaturality[].equation] \as SymmetrySquare;
+\definition equation: \forall (x: SourceSuspension.result.Carrier) -> TargetComparison.equivalence.forward (Lift.map x) =
+  FinalMap.map (SourceComparison.equivalence.forward x) :=
+  \fun (x: SourceSuspension.result.Carrier) => eq_reason_in!{{TargetFinal.result.Carrier} _
+    "=" { TargetMiddleSymmetry.equivalence.forward (TargetReverseComparison.equivalence.forward (ReverseLift.map (SourceSymmetryLift.map x))) } "by" {
+      congr!{{TargetReverseSuspension.result.Carrier} {TargetFinal.result.Carrier}}
+        (\fun (y: TargetReverseSuspension.result.Carrier) => TargetMiddleSymmetry.equivalence.forward (TargetReverseComparison.equivalence.forward y)) _ _
+        (SymmetrySquare.suspended x) }
+    "=" { TargetMiddleSymmetry.equivalence.forward (MiddleMap.map (ReverseComparison.equivalence.forward (SourceSymmetryLift.map x))) } "by" {
+      congr!{{TargetMiddle.result.Carrier} {TargetFinal.result.Carrier}} TargetMiddleSymmetry.equivalence.forward _ _
+        (ReverseMap.SuspensionNaturality[].equation (SourceSymmetryLift.map x)) }
+    "=" { FinalMap.map (MiddleSymmetry.equivalence.forward (ReverseComparison.equivalence.forward (SourceSymmetryLift.map x))) } "by" {
+      MiddleMap.SymmetryNaturality[].equation (ReverseComparison.equivalence.forward (SourceSymmetryLift.map x)) }
+  };

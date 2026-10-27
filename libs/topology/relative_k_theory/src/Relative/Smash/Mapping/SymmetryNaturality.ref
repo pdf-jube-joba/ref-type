@@ -1,0 +1,21 @@
+\import \parent.\parent.Symmetry[] \as SourceSymmetry;
+\import Target.Symmetry[] \as TargetSymmetry;
+\import \root.Relative[].Smash[left := right, right := left] \as Reverse;
+\import \root.Relative[].Smash[left := targetRight, right := targetLeft] \as TargetReverse;
+\import Reverse.Mapping[targetLeft := targetRight, targetRight := targetLeft, f := g, g := f] \as ReverseMap;
+\definition onOriginal: \forall (z: model.Carrier) -> TargetSymmetry.equivalence.forward (map (projection z)) =
+  ReverseMap.map (SourceSymmetry.equivalence.forward (projection z)) :=
+  \fun (z: model.Carrier) => trans!{{TargetReverse.result.Carrier}} _ _ _
+    (congr!{{Target.result.Carrier} {TargetReverse.result.Carrier}} TargetSymmetry.equivalence.forward _ _ (onProjection z))
+    (trans!{{TargetReverse.result.Carrier}} _ _ _ (TargetSymmetry.onProjection (productMap z))
+      (sym!{{TargetReverse.result.Carrier}} _ _ (trans!{{TargetReverse.result.Carrier}} _ _ _
+        (congr!{{Reverse.result.Carrier} {TargetReverse.result.Carrier}} ReverseMap.map _ _ (SourceSymmetry.onProjection z))
+        (ReverseMap.onProjection (SourceSymmetry.swap z)))));
+\definition equation: \forall (x: result.Carrier) -> TargetSymmetry.equivalence.forward (map x) = ReverseMap.map (SourceSymmetry.equivalence.forward x) := \block {
+  \fun (x: result.Carrier) \then
+  \takefrom z: \Cast[model.Carrier] ({ z: model.Carrier \where projection z = x }) \by projectionOnto x \then
+  \return \idelim projection z = x \with x: result.Carrier =>
+    TargetSymmetry.equivalence.forward (map x) = ReverseMap.map (SourceSymmetry.equivalence.forward x) \by {
+      base: onOriginal z, equality: \bysub(model.Carrier, { z: model.Carrier \where projection z = x }, z)
+    }
+};
