@@ -149,3 +149,5 @@ Mayer–Vietoris の交叉部分の完全性も証明コードを追加し、構
 再開記録（K03、公開名の修正）: `qualified-stage-Absolute` は終了1・rejected・保存失敗0・書込失敗0で、`Absolute.Mapping.Naturality` が非公開の `Source.Ordinary` を参照していた。公開 `KTheory.On.K0` を `SourceOrdinary` として明示 import する修正を加えた。現在までの追加全体は `group-natural.source.json` で構文解析終了0。次は修正と最新の数学ソースを `implementation-complete.source.json` に固定し、`Absolute`、`Pair.Augmented`、`PairMapping`、`Smash`、`Pair.ClosedCover`、`Pair.Product`、`BundleDisk`、`Examples` の順に `complete-stage-*` を検査する。これらが通った後に package の依存閉包・全 workspace の最終検査へ進む。
 
 再開記録（K03、負次数比較の式）: 差分レビューで `Pair.Product.Pullback.Negative` の自然性に、同相から運んだ負次数の準同型と標準引き戻しの間の `forwardEquality` を明示する補足を加えた。進行中の `complete-stage-*` は修正前の固定入力であり、この一ファイルは次の `product-comparison.source.json` 以降で検査する。
+
+再開記録（K03、通常の群の端）: `complete-stage-Absolute` は accepted・終了0・保存失敗0・書込失敗0（447 modules検査、957再利用）。`complete-stage-Pair-Augmented` は終了1・rejected・保存失敗0・書込失敗0で、`OrdinaryEnd.forgetFormula` の合同則へ被約群を定義域とする関数として通常の環準同型を渡せなかった。`WholeInclusion.map`・`SubsetInclusion.map` を被約群の元に適用するラムダへ明示化した。次は `ordinary-restriction.source.json` を固定し、`Pair.Augmented` から同じ順で検査する。この入力は前回の負次数外積の比較式の修正も含む。
