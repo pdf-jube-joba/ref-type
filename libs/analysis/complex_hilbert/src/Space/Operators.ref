@@ -1,0 +1,24 @@
+\import \root.Space[V := W, space := target] \as Target;
+\import ComplexLinear.Linear[V := V, W := W, source := space, target := target] \as Linear;
+\import RealLinear.Linear[V := V, W := W, source := realSpace, target := Target.realSpace] \as RealMaps;
+\import RealNormed.Operators[W := W, target := Target.realSpace, norm := norm.realNorm, targetNorm := targetNorm.realNorm] \as RealOperators;
+\import std.Logic[].Proposition[] \as Logic;
+\structure Bound[f: Linear.Map, c: R.Real]: \Prop := {
+  nonnegative: Order.Le R.zero c,
+  estimate: \forall (x: V) -> Order.Le (targetNorm.realNorm.norm (f.apply x)) (R.mul c (norm.realNorm.norm x)),
+};
+\definition Bounded[f: Linear.Map]: \Prop := \exists ( c: R.Real \where Bound[f, c] );
+\definition Map: \Set := \Cast[Linear.Map] ({ f: Linear.Map \where Bounded f });
+\definition bounded[f: Map]: Bounded f := \bysub(Linear.Map, Map, f);
+\definition realMap[f: Linear.Map]: RealMaps.Map := RealMaps.Map {
+  apply := f.apply, preservesAdd := f.preservesAdd,
+  preservesScale := \fun (a: R.Real)(x: V) => f.preservesScale (D.ofReal a) x,
+};
+\definition asReal[f: Map]: RealOperators.Map := \into[RealMaps.Map](realMap f, RealOperators.Map) \by { \block {
+  \takefrom c: \Cast[R.Real] ({ c: R.Real \where Bound[f, c] }) \by bounded f \then
+  \let bound: Bound[f, c] := \bysub(R.Real, { c: R.Real \where Bound[f, c] }, c) \then
+  \return Logic.existsIntro[R.Real, { c: R.Real \where RealOperators.Bound[realMap f, c] }] c
+    (RealOperators.Bound[realMap f, c] { nonnegative := bound.nonnegative, estimate := bound.estimate })
+} };
+\module Adjoints(inner: linear_algebra.Complex[].InnerProduct[V := V, space := space].InnerProduct,
+  targetInner: linear_algebra.Complex[].InnerProduct[V := W, space := target].InnerProduct);

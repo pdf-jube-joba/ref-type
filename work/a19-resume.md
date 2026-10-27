@@ -20,3 +20,8 @@ workspace の libs/refcache を共有する。
 実スカラー制限、実内積・実 Hilbert 構造の接続は work/a19-core.log で検査成功。
 複素 Riesz 表現の構成・表現式・一意性を追加した。
 次の検査では既存の実 Riesz・最小化の依存も検査される。
+
+複素 Riesz の表現式・一意性は work/a19-target.log で成功。
+実部内積の Cauchy–Schwarz は work/a19-estimates.log で成功。
+有界作用素の随伴の構成・複素線形性・同じ定数による有界性・随伴等式・一意性は work/a19-adjoint.log で成功。
+射影、直交補と商、有限階数、コンパクト作用素の要求はまだ未実装。
