@@ -55,7 +55,11 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 診断付きの `framed-outside-diagnostic` は snapshot `framed-comparison-fixed.source.json` の検査中で、依存先の検査が進行している。
 worker 内のログは共有キャッシュ直下の `.check-<PID>-0/stderr` と `events.jsonl` にあり、完了後には監督プロセスが外側のログへ回収する。
 `events.jsonl` の Planned 行は大きいため、必要なイベントだけ JSON として読む。
-次の範囲を検査する前に、最新のソースから snapshot を作り直す。
+局所検査の依存閉包を小さくするため、基点付き suspension を `algebraic_topology.Suspension.Pointed` へ共通化し、K02 と K03 から参照するようにした。
+有限列挙の汎用 API `ListIndex` を単体ホモロジー package から `std.Data.ListIndex` へ移し、束演算のホモロジー依存を外した。
+これらの共通化も未検証で、最終的に K02・単体・胞体座標を含む影響先と workspace 全体を検査する。
+最新の構文検査 snapshot は `work/k03-resume/lean-dependencies.source.json`。
+次は共有 suspension と列挙 API、基点外の写像、行列の降下、基点近傍の写像、選択独立性、忘却準同型、切除の順に対象検査を行う。
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定し、JSON 報告と実行シェルの終了コードも保存する。
 
 残る主な要件は、選択に依存しない三つ組の群と商空間の被約群の比較、完全列・切除・Mayer–Vietoris・外積と自然性、円板球面対への適用と具体例。
