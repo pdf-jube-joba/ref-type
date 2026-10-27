@@ -17,3 +17,36 @@
     Logic.existsIntro[N.Nat^, { m: N.Nat^ \where \exists ( t: Simple[m] \where Logic.And[Dominated m t (f k), below (simpleIntegral m t) r] ) }] n
       (Logic.existsIntro[Simple[n], { t: Simple[n] \where Logic.And[Dominated n t (f k), below (simpleIntegral n t) r] }] (stage k)
         (Logic.And[_, _]::# (stageDominated k) member));
+
+\import real.Analysis[].Estimates[].Product[] \as Product;
+\import std.Logic[].Classical[] \as Classical;
+\import \root.Measure[A := A].Finite[mu := mu] \as MeasureFinite;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\definition weight[i: Fin.Fin n]: Real.Real := Real.mul c (s.coefficients i);
+\definition cell[k: N.Nat^] [i: Fin.Fin n]: \Pow A := threshold f (s.cells i) (weight i) k;
+\definition cellMeasureIncreasing: \forall (increasing: FunctionIncreasing f) (i: Fin.Fin n) ->
+  ValueIncreasing (\fun (k: N.Nat^) => scale (weight i) (mu.value (cell k i))) :=
+  \fun (increasing: FunctionIncreasing f) (i: Fin.Fin n) (m, k: N.Nat^) (order: Nat.Le m k) =>
+    Values.scaleMono (weight i) (mu.value (cell m i)) (mu.value (cell k i))
+      (MeasureFinite.monotone (cell m i) (cell k i)
+        (thresholdMeasurable f (s.cells i) (weight i) (sequenceMeasurable f) (s.measurable i) m)
+        (thresholdMeasurable f (s.cells i) (weight i) (sequenceMeasurable f) (s.measurable i) k)
+        (MeasureContinuity.increasingAll (threshold f (s.cells i) (weight i)) (thresholdIncreasing f (s.cells i) (weight i) increasing) k m order));
+\definition weightBelowPositive: \forall (i: Fin.Fin n) -> R.Lt Real.zero (s.coefficients i) -> R.Lt (weight i) (s.coefficients i) :=
+  \fun (i: Fin.Fin n) (positive: R.Lt Real.zero (s.coefficients i)) =>
+    R.ltReplace (Real.mul (s.coefficients i) c) (weight i) (Real.mul (s.coefficients i) Real.one) (s.coefficients i)
+      (Laws.fieldMulComm (s.coefficients i) c) (Real.Algebra[].mulOneRight (s.coefficients i))
+      (Product.mulStrict (s.coefficients i) c Real.one positive (shrinkLaw c).right);
+\definition positiveCellLimit: \forall (g: A -> Real.Real) -> PointwiseSup f g -> FunctionIncreasing f -> Dominated n s g ->
+  \forall (i: Fin.Fin n) -> R.Lt Real.zero (s.coefficients i) ->
+  scale (weight i) (mu.value (s.cells i)) = Sup (\fun (k: N.Nat^) => scale (weight i) (mu.value (cell k i))) :=
+  \fun (g: A -> Real.Real) (sup: PointwiseSup f g) (increasing: FunctionIncreasing f) (dominated: Dominated n s g)
+    (i: Fin.Fin n) (positive: R.Lt Real.zero (s.coefficients i)) => eq_reason_in!{Value _
+      "=" _ "by" { congr!{Value Value} (scale (weight i)) _ _
+        (thresholdMeasure f g (s.cells i) (weight i) sup increasing (sequenceMeasurable f) (s.measurable i)
+          (\fun (x: A) (member: Sets.Member (s.cells i) x) =>
+            R.ltLeTrans (weight i) (s.coefficients i) (g x) (weightBelowPositive i positive) (dominated i x member))) }
+      "=" _ "by" { scaleSup (weight i) (\fun (k: N.Nat^) => mu.value (cell k i)) }
+    };
