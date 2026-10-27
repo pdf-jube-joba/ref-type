@@ -1,0 +1,54 @@
+\import Base.Subspace[S := S] \as Subspace;
+\definition Carrier: \Set := Subspace.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Subspace.topology space;
+\definition inclusion[y: Carrier]: X := y;
+\definition regular: topology.Continuity[A := Carrier, B := X].Continuous topology space inclusion :=
+  topology.Continuity[A := Carrier, B := X].Corestriction[S := S].inclusionContinuous space;
+\import Sum.Of[same := (\refl(space))].Pullback[Y := Carrier, source := topology, f := inclusion, regular := regular] \as SumPull;
+\definition pulledBundle: Bundles.Family[X := Carrier, F := (\fun (y: Carrier) => Sum.Fiber y)].Bundle := SumPull.firstBundle;
+\import Operations.TrivialPullback[X := X, Y := Carrier, n := p.dimension, original := space, base := topology, f := inclusion, regular := regular] \as FirstPull;
+\import Operations.TrivialPullback[X := X, Y := Carrier, n := q.dimension, original := space, base := topology, f := inclusion, regular := regular] \as SecondPull;
+\import Bundles.Trivial[X := Carrier, n := p.dimension, baseSpace := topology] \as First;
+\import Bundles.Trivial[X := Carrier, n := q.dimension, baseSpace := topology] \as Second;
+\import Operations.DirectSum[X := Carrier, F := (\fun (y: Carrier) => Vector p.dimension), G := (\fun (y: Carrier) => Vector q.dimension),
+  left := First.bundle, right := Second.bundle] \as Canonical;
+\definition canonicalBundle: Bundles.Family[X := Carrier, F := Canonical.Fiber].Bundle := Canonical.bundle (\refl(topology));
+\import Operations.DirectSumIsomorphisms[X := Carrier, F := (\fun (y: Carrier) => Vector p.dimension), G := (\fun (y: Carrier) => Vector q.dimension),
+  A := (\fun (y: Carrier) => Vector p.dimension), B := (\fun (y: Carrier) => Vector q.dimension),
+  first := FirstPull.pulled, second := SecondPull.pulled, newFirst := First.bundle, newSecond := Second.bundle,
+  sameSource := (\refl(topology)), sameTarget := (\refl(topology))] \as SumComparison;
+\import Operations.IsomorphismComposition[X := Carrier, F := (\fun (y: Carrier) => Sum.Fiber y), G := (\fun (y: Carrier) => Sum.Fiber y), H := Canonical.Fiber,
+  source := pulledBundle, middle := SumPull.secondBundle, target := canonicalBundle] \as Compare;
+\import Bundles.Isomorphisms[X := Carrier, F := (\fun (y: Carrier) => Sum.Fiber y), G := Canonical.Fiber, source := pulledBundle, target := canonicalBundle] \as Comparisons;
+\definition canonical: Comparisons.Isomorphism := Compare.compose SumPull.isomorphism (SumComparison.isomorphism FirstPull.isomorphism SecondPull.isomorphism);
+\import std.Data[].Pair[] \as Pair;
+\import Pair.Prop[A := Vector p.dimension, B := Vector q.dimension] \as Pairs;
+\definition canonicalForward: \forall (y: Carrier)(z: Sum.Fiber y) -> (canonical.forward.fiber y).apply z = z :=
+  \fun (y: Carrier)(z: Sum.Fiber y) => Pairs.ext _ _ (\refl(Pair.first (Vector p.dimension) (Vector q.dimension) z)) (\refl(Pair.second (Vector p.dimension) (Vector q.dimension) z));
+\definition canonicalBackward: \forall (y: Carrier)(z: Canonical.Fiber y) -> (canonical.backward.fiber y).apply z = z :=
+  \fun (y: Carrier)(z: Canonical.Fiber y) => Pairs.ext _ _ (\refl(Pair.first (Vector p.dimension) (Vector q.dimension) z)) (\refl(Pair.second (Vector p.dimension) (Vector q.dimension) z));
+\import Bundles.Morphisms[X := Carrier, Y := Carrier, F := (\fun (y: Carrier) => Sum.Fiber y), G := (\fun (y: Carrier) => Sum.Fiber y),
+  source := pulledBundle, target := pulledBundle, f := (\fun (y: Carrier) => y)] \as Endomorphisms;
+\definition EndMap: \Set := Endomorphisms.Map;
+\import Complements.PulledIsomorphism[X := X, Y := Carrier, F := Sum.Fiber, G := Sum.Fiber, source := bundle, target := bundle,
+  base := topology, f := inclusion, sourceRegular := regular, targetRegular := regular] \as PullExchange;
+\definition pulledExchange: Bundles.Isomorphisms[X := Carrier, F := (\fun (y: Carrier) => Sum.Fiber y), G := (\fun (y: Carrier) => Sum.Fiber y), source := pulledBundle, target := pulledBundle].Isomorphism := PullExchange.isomorphism exchange;
+\import Endomorphisms.Composition[Z := Carrier, H := (\fun (y: Carrier) => Sum.Fiber y), range := pulledBundle, g := (\fun (y: Carrier) => y)] \as Composition;
+\definition conjugate[map: Endomorphisms.Map]: Endomorphisms.Map := Composition.compose (Composition.compose pulledExchange.backward map) pulledExchange.forward;
+\definition conjugateFormula: \forall (map: Endomorphisms.Map)(y: Carrier)(z: Sum.Fiber y) -> ((conjugate map).fiber y).apply z =
+  (exchange.forward.fiber y).apply ((map.fiber y).apply ((exchange.backward.fiber y).apply z)) :=
+  \fun (map: Endomorphisms.Map)(y: Carrier)(z: Sum.Fiber y) => \refl((exchange.forward.fiber y).apply ((map.fiber y).apply ((exchange.backward.fiber y).apply z)));
+\module Block(P: Carrier -> Linear p.dimension p.dimension, Q: Carrier -> Linear q.dimension q.dimension,
+  regularP: Frames.At[n := p.dimension].Families[X := Carrier].Matrix[m := p.dimension].Regular topology P,
+  regularQ: Frames.At[n := q.dimension].Families[X := Carrier].Matrix[m := q.dimension].Regular topology Q);
+\definition pulledLaws: Bundles.Isomorphisms[X := Carrier, F := (\fun (y: Carrier) => Sum.Fiber y), G := (\fun (y: Carrier) => Sum.Fiber y), source := pulledBundle, target := pulledBundle].Laws[pulledExchange] :=
+  \bysub(Bundles.Isomorphisms[X := Carrier, F := (\fun (y: Carrier) => Sum.Fiber y), G := (\fun (y: Carrier) => Sum.Fiber y), source := pulledBundle, target := pulledBundle].Data,
+    Bundles.Isomorphisms[X := Carrier, F := (\fun (y: Carrier) => Sum.Fiber y), G := (\fun (y: Carrier) => Sum.Fiber y), source := pulledBundle, target := pulledBundle].Isomorphism, pulledExchange);
+\definition conjugateIdempotent: \forall (map: Endomorphisms.Map) ->
+  (\forall (y: Carrier)(z: Sum.Fiber y) -> (map.fiber y).apply ((map.fiber y).apply z) = (map.fiber y).apply z) ->
+  \forall (y: Carrier)(z: Sum.Fiber y) -> ((conjugate map).fiber y).apply (((conjugate map).fiber y).apply z) = ((conjugate map).fiber y).apply z :=
+  \fun (map: Endomorphisms.Map)(idempotent: _)(y: Carrier)(z: Sum.Fiber y) => trans!{{Sum.Fiber y}} _ _ _
+    (congr!{{Sum.Fiber y} {Sum.Fiber y}} (\fun (v: Sum.Fiber y) => (pulledExchange.forward.fiber y).apply ((map.fiber y).apply v)) _ _
+      (pulledLaws.leftInverse y ((map.fiber y).apply ((pulledExchange.backward.fiber y).apply z))))
+    (congr!{{Sum.Fiber y} {Sum.Fiber y}} (pulledExchange.forward.fiber y).apply _ _
+      (idempotent y ((pulledExchange.backward.fiber y).apply z)));

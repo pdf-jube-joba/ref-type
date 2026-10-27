@@ -100,3 +100,8 @@ Mayer–Vietoris の交叉部分の完全性も証明コードを追加し、構
 再検査 snapshot は `iteration-direct-whole.source.json`。
 `PairIteration.WholeStep`・`SubsetStep`・`InclusionStep`・`ProjectionStep` をそれぞれ `--module-only` で先に保存し、その後 `PairIteration` と `PairIteration.Sequence` を検査する。
 `Patching` の剪断の構成と射影との交叉上の可換式も追加したが、型検査は未完了。
+
+`Patching.On.With.Using.Local` では、共通の束の引き戻しと自明束の直和を比較し、両側の射影を連続な束写像にした。
+`Glued` は交叉上の共役の式に沿って冪等写像を閉被覆で貼り、`Glued.Image` はその像束と K01 の射影表示の存在を構成する。
+ここまでは `patching-image.source.json` で構文解析を通過したが、型検査は未完了。
+像束と元の両側の束との制限同型、および K 群の次数0の完全性への接続を続ける。

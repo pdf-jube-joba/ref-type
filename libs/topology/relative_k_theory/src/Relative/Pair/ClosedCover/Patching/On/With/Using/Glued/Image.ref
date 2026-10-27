@@ -1,0 +1,36 @@
+\import Operations.GlobalFrame[X := X, F := Sum.Fiber, bundle := bundle,
+  chart := Sum.In[c := FirstAmbient.trivialization, d := SecondAmbient.trivialization].trivialization (\refl(space)),
+  covers := (\fun (x: X) => Logic.And[_, _] { left := \refl(x), right := \refl(x) })] \as Frame;
+\definition dimension: N.Nat^ := Frame.dimension;
+\import Bundles.Trivial[X := X, n := dimension, baseSpace := space] \as Ambient;
+\import Bundles.Family[X := X, F := (\fun (x: X) => Vector dimension)] \as AmbientFamily;
+\import Bundles.Isomorphisms[X := X, F := Sum.Fiber, G := (\fun (x: X) => Vector dimension), source := bundle, target := Ambient.bundle] \as Frames;
+\definition frameLaws: Frames.Laws[Frame.isomorphism] := \bysub(Frames.Data, Frames.Isomorphism, Frame.isomorphism);
+\import Bundles.Morphisms[X := X, Y := X, F := (\fun (x: X) => Vector dimension), G := Sum.Fiber,
+  source := Ambient.bundle, target := bundle, f := (\fun (x: X) => x)].Composition[
+  Z := X, H := Sum.Fiber, range := bundle, g := (\fun (x: X) => x)] \as FirstComposition;
+\import Bundles.Morphisms[X := X, Y := X, F := (\fun (x: X) => Vector dimension), G := Sum.Fiber,
+  source := Ambient.bundle, target := bundle, f := (\fun (x: X) => x)].Composition[
+  Z := X, H := (\fun (x: X) => Vector dimension), range := Ambient.bundle, g := (\fun (x: X) => x)] \as SecondComposition;
+\import Bundles.Morphisms[X := X, Y := X, F := (\fun (x: X) => Vector dimension), G := (\fun (x: X) => Vector dimension),
+  source := Ambient.bundle, target := Ambient.bundle, f := (\fun (x: X) => x)] \as NativeMaps;
+\definition vectorMap: NativeMaps.Map := SecondComposition.compose (FirstComposition.compose Frame.isomorphism.backward map) Frame.isomorphism.forward;
+\definition matrix[x: X]: Linear dimension dimension := vectorMap.fiber x;
+\definition matrixIdempotent: \forall (x: X)(v: Vector dimension) -> (matrix x).apply ((matrix x).apply v) = (matrix x).apply v :=
+  \fun (x: X)(v: Vector dimension) => trans!{{Vector dimension}} _ _ _
+    (congr!{H {Vector dimension}} (\fun (z: H) => (Frame.isomorphism.forward.fiber x).apply ((family x).apply z)) _ _
+      (frameLaws.leftInverse x ((family x).apply ((Frame.isomorphism.backward.fiber x).apply v))))
+    (congr!{H {Vector dimension}} (Frame.isomorphism.forward.fiber x).apply _ _ (idempotent x ((Frame.isomorphism.backward.fiber x).apply v)));
+\module Column(v: Vector dimension);
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Algebra.field, scalar := Hermitian.scalar, topological := Scalar.scalar.topological] \as HermitianFrames;
+\definition regular: HermitianFrames.At[n := dimension].Families[X := X].Matrix[m := dimension].Regular space matrix :=
+  \fun (v: Vector dimension) => Column[v := v].regular;
+\import Complements.Idempotents[n := dimension] \as Idempotents;
+\definition projection[x: X]: Idempotents.Projection := Idempotents.Projection { map := matrix x, idempotent := matrixIdempotent x };
+\import Idempotents.Image[X := X, baseSpace := space, P := projection, regular := regular] \as Native;
+\definition Fiber[x: X]: \Set := Native.Fiber x;
+\definition imageBundle: Bundles.Family[X := X, F := Fiber].Bundle := Native.bundle;
+\import Absolute.Bundle[F := Fiber, original := imageBundle, same := (\refl(space))] \as Class;
+\definition value: Absolute.Classes := Class.value;
+\definition Representative: \Set := Class.Representative;
+\definition representativeExists: \exists Representative := Class.representativeExists;

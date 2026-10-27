@@ -1,0 +1,35 @@
+\import Complements.CoordinateFamily[X := Carrier, m := p.dimension, n := p.dimension, baseSpace := topology, A := P, regular := regularP] \as FirstMap;
+\import Complements.CoordinateFamily[X := Carrier, m := q.dimension, n := q.dimension, baseSpace := topology, A := Q, regular := regularQ] \as SecondMap;
+\import Canonical.Of[same := (\refl(topology))].Mapping[Y := Carrier, A := (\fun (y: Carrier) => Vector p.dimension), B := (\fun (y: Carrier) => Vector q.dimension),
+  leftTarget := First.bundle, rightTarget := Second.bundle, f := (\fun (y: Carrier) => y), targetSame := (\refl(topology))] \as Pairing;
+\import Bundles.Morphisms[X := Carrier, Y := Carrier, F := (\fun (y: Carrier) => Sum.Fiber y), G := Canonical.Fiber,
+  source := pulledBundle, target := canonicalBundle, f := (\fun (y: Carrier) => y)].Composition[
+  Z := Carrier, H := Canonical.Fiber, range := canonicalBundle, g := (\fun (y: Carrier) => y)] \as FirstComposition;
+\import Bundles.Morphisms[X := Carrier, Y := Carrier, F := (\fun (y: Carrier) => Sum.Fiber y), G := Canonical.Fiber,
+  source := pulledBundle, target := canonicalBundle, f := (\fun (y: Carrier) => y)].Composition[
+  Z := Carrier, H := (\fun (y: Carrier) => Sum.Fiber y), range := pulledBundle, g := (\fun (y: Carrier) => y)] \as SecondComposition;
+\definition map: Endomorphisms.Map := SecondComposition.compose
+  (FirstComposition.compose canonical.forward (Pairing.map FirstMap.map SecondMap.map)) canonical.backward;
+\definition formula: \forall (y: Carrier)(z: Sum.Fiber y) -> (map.fiber y).apply z =
+  Pair.pair (Vector p.dimension) (Vector q.dimension) ((P y).apply (Pair.first (Vector p.dimension) (Vector q.dimension) z))
+    ((Q y).apply (Pair.second (Vector p.dimension) (Vector q.dimension) z)) :=
+  \fun (y: Carrier)(z: Sum.Fiber y) => trans!{{Sum.Fiber y}} _ _ _
+    (congr!{{Canonical.Fiber y} {Sum.Fiber y}}
+      (\fun (v: Canonical.Fiber y) => (canonical.backward.fiber y).apply (((Pairing.map FirstMap.map SecondMap.map).fiber y).apply v))
+      ((canonical.forward.fiber y).apply z) z (canonicalForward y z))
+    (canonicalBackward y (((Pairing.map FirstMap.map SecondMap.map).fiber y).apply z));
+\definition idempotent:
+  (\forall (y: Carrier)(v: Vector p.dimension) -> (P y).apply ((P y).apply v) = (P y).apply v) ->
+  (\forall (y: Carrier)(v: Vector q.dimension) -> (Q y).apply ((Q y).apply v) = (Q y).apply v) ->
+  \forall (y: Carrier)(z: Sum.Fiber y) -> (map.fiber y).apply ((map.fiber y).apply z) = (map.fiber y).apply z :=
+  \fun (idempotentP: _)(idempotentQ: _)(y: Carrier)(z: Sum.Fiber y) => trans!{{Sum.Fiber y}} _ _ _
+    (formula y ((map.fiber y).apply z))
+    (trans!{{Sum.Fiber y}} _ _ _
+      (congr!{{Sum.Fiber y} {Sum.Fiber y}}
+        (\fun (v: Sum.Fiber y) => Pair.pair (Vector p.dimension) (Vector q.dimension)
+          ((P y).apply (Pair.first (Vector p.dimension) (Vector q.dimension) v))
+          ((Q y).apply (Pair.second (Vector p.dimension) (Vector q.dimension) v))) _ _ (formula y z))
+      (trans!{{Sum.Fiber y}} _ _ _ (Pairs.pairCong _ _ _ _
+        (idempotentP y (Pair.first (Vector p.dimension) (Vector q.dimension) z))
+        (idempotentQ y (Pair.second (Vector p.dimension) (Vector q.dimension) z)))
+        (sym!{{Sum.Fiber y}} _ _ (formula y z))));
