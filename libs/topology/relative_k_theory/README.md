@@ -58,7 +58,10 @@ worker 内のログは共有キャッシュ直下の `.check-<PID>-0/stderr` と
 局所検査の依存閉包を小さくするため、基点付き suspension を `algebraic_topology.Suspension.Pointed` へ共通化し、K02 と K03 から参照するようにした。
 有限列挙の汎用 API `ListIndex` を単体ホモロジー package から `std.Data.ListIndex` へ移し、束演算のホモロジー依存を外した。
 これらの共通化も未検証で、最終的に K02・単体・胞体座標を含む影響先と workspace 全体を検査する。
-最新の構文検査 snapshot は `work/k03-resume/lean-dependencies.source.json`。
+積空間の Hausdorff 性の汎用補題も `topological_constructions.Separation` へ移し、B09 と K03 から近似理論への依存を外した。
+読み込む依存閉包は旧 snapshot の6,470 modules から2,683 modules に減った。
+この共通化も未検証で、近似理論と clutching の影響先を最終検査に含める。
+最新の構文検査 snapshot は `work/k03-resume/elementary-dependencies.source.json`。
 次は共有 suspension と列挙 API、基点外の写像、行列の降下、基点近傍の写像、選択独立性、忘却準同型、切除の順に対象検査を行う。
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定し、JSON 報告と実行シェルの終了コードも保存する。
 
