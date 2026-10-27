@@ -1,0 +1,32 @@
+\import real.Analysis[].Sequence[] \as Sequence;
+\import real.Analysis[].SquareRoot[] \as SquareRoot;
+\import real.Analysis[].Algebra[] \as Algebra;
+\import \root.ScalarLimits[] \as Limits;
+\use std.Logic[].Equality[].sym;
+\definition Approaches[values: N.Nat^ -> Value] [limit: Value]: \Prop :=
+  \forall (r: Real.Real) -> below limit r -> \exists ( k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> below (values n) r );
+\definition eventuallyAbove: \forall (s: N.Nat^ -> Real.Real) (value, r: Real.Real) -> Sequence.Converges s value -> R.Lt r value ->
+  \exists ( k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt r (s n) ) :=
+  \fun (s: N.Nat^ -> Real.Real) (value, r: Real.Real) (converges: Sequence.Converges s value) (less: R.Lt r value) => \block {
+    \let gap: Real.Real := Real.sub value r \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sequence.LimitControl s value gap k })
+      \by converges gap (SquareRoot.subPositive value r less) \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt r (s n) }] k
+      (\fun (n: N.Nat^) (later: Nat.Le k n) =>
+        R.ltReplaceLeft (Real.sub value gap) r (s n) (Algebra.subSub value r)
+          (Distance.distanceLtLower value (s n) gap
+            (R.ltReplaceLeft (Real.distance (s n) value) (Real.distance value (s n)) gap (Distance.distanceSymmetric (s n) value)
+              ((\bysub(N.Nat^, { k: N.Nat^ \where Sequence.LimitControl s value gap k }, k)) n later))))
+  };
+\definition scaleApproaches: \forall (coeff: N.Nat^ -> Real.Real) (c: Real.Real) -> Sequence.Converges coeff c ->
+  \forall (v: Value) -> Approaches (\fun (n: N.Nat^) => scale (coeff n) v) (scale c v) :=
+  \fun (coeff: N.Nat^ -> Real.Real) (c: Real.Real) (converges: Sequence.Converges coeff c) (v: Value) (r: Real.Real) (member: below (scale c v) r) => \block {
+    \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[below v a, R.Lt r (Real.mul c a)] }) \by member \then
+    \let data: Logic.And[below v a, R.Lt r (Real.mul c a)] := \bysub(Real.Real, { a: Real.Real \where Logic.And[below v a, R.Lt r (Real.mul c a)] }, a) \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt r (Real.mul (coeff n) a) }) \by
+      eventuallyAbove (\fun (n: N.Nat^) => Real.mul (coeff n) a) (Real.mul c a) r
+        (Limits.productConverges coeff (\fun (_: N.Nat^) => a) c a converges (Sequence.constantConverges a)) data.right \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> below (scale (coeff n) v) r }] k
+      (\fun (n: N.Nat^) (later: Nat.Le k n) => Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[below v a, R.Lt r (Real.mul (coeff n) a)] }] a
+        (Logic.And[_, _]::# data.left ((\bysub(N.Nat^, { k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt r (Real.mul (coeff n) a) }, k)) n later)))
+  };
