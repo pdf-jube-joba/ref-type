@@ -1,0 +1,73 @@
+\import algebraic_topology.Cylinder[A := A] \as CylinderA;
+\import puppe_sequences.Puppe[].ReducedCone[A := A, source := (pointed subsetModel)] \as Original;
+\import algebraic_topology.Collapse[A := CylinderA.Carrier, subset := Original.Collapsed] \as SourceCollapse;
+\import SourceCollapse.Mapping[B := DomainPoint, targetSubset := collapsedPart] \as Descend;
+\import \root.Relative[].Cone[original := subsetModel] \as Source;
+\definition ambient[z: CylinderA.Carrier]: Cylinder.Carrier := Cylinder.at (CylinderA.time z) (CylinderA.point z);
+\definition vertical[z: CylinderA.Carrier]: DomainPoint := \into[Cylinder.Carrier](ambient z, domain) \by {
+  Logic.Or[CylinderA.time z = Interval.start, Base.Member subset (CylinderA.point z)]::right (\bysub(X, subset, CylinderA.point z))
+};
+\definition pointRegular: topology.Continuity[A := CylinderA.Carrier, B := X].Continuous (CylinderA.topology subspace) space (\fun (z: CylinderA.Carrier) => CylinderA.point z) :=
+  topology.Composition[A := CylinderA.Carrier, B := A, C := X].composeContinuous (CylinderA.topology subspace) subspace space CylinderA.point Restrict.inclusion
+    (CylinderA.pointContinuous subspace) Restrict.regular;
+\definition ambientContinuous: topology.Continuity[A := CylinderA.Carrier, B := Cylinder.Carrier].Continuous (CylinderA.topology subspace) (Cylinder.topology space) ambient :=
+  Product.Universal[X := CylinderA.Carrier].pairContinuous (CylinderA.topology subspace) Interval.topology space CylinderA.time
+    (\fun (z: CylinderA.Carrier) => CylinderA.point z) (CylinderA.timeContinuous subspace) pointRegular;
+\definition verticalContinuous: topology.Continuity[A := CylinderA.Carrier, B := DomainPoint].Continuous (CylinderA.topology subspace) domainTopology vertical :=
+  topology.Continuity[A := CylinderA.Carrier, B := Cylinder.Carrier].Corestriction[S := domain].corestrictContinuous (CylinderA.topology subspace) (Cylinder.topology space) vertical ambientContinuous;
+\definition preserves: Descend.Preserves vertical := \fun (z: CylinderA.Carrier)(inside: \In[CylinderA.Carrier] Original.Collapsed z) => inside;
+\definition map: Original.Carrier -> Carrier := Descend.apply vertical preserves;
+\definition onClass: \forall (z: CylinderA.Carrier) -> map (Original.class z) = Native.class (vertical z) := Descend.onClass vertical preserves;
+\definition continuous: topology.Continuity[A := Original.Carrier, B := Carrier].Continuous Original.topology topology map :=
+  Descend.continuous (CylinderA.topology subspace) domainTopology vertical preserves verticalContinuous;
+\import std.Data[].Pair[] \as Pair;
+\definition verticalInjective: \forall (z, w: CylinderA.Carrier) -> vertical z = vertical w -> z = w :=
+  \fun (z, w: CylinderA.Carrier)(same: vertical z = vertical w) => Pair.Prop[A := Interval.Carrier, B := A].ext z w
+    (congr!{{DomainPoint} {Interval.Carrier}} time _ _ same) (congr!{{DomainPoint} {X}} point _ _ same);
+\definition onRaw: \forall (z, w: CylinderA.Carrier) -> map (Original.class z) = map (Original.class w) -> Original.class z = Original.class w :=
+  \fun (z, w: CylinderA.Carrier)(same: map (Original.class z) = map (Original.class w)) =>
+    Logic.orElim[vertical z = vertical w, Logic.And[DomainSpace.Member collapsedPart (vertical z), DomainSpace.Member collapsedPart (vertical w)], Original.class z = Original.class w]
+      (Native.equalRelated (vertical z) (vertical w) (trans!{{Carrier}} _ _ _ (sym!{{Carrier}} _ _ (onClass z)) (trans!{{Carrier}} _ _ _ same (onClass w))))
+      (\fun (equal: vertical z = vertical w) => congr!{{CylinderA.Carrier} {Original.Carrier}} Original.class _ _ (verticalInjective z w equal))
+      (\fun (both: Logic.And[DomainSpace.Member collapsedPart (vertical z), DomainSpace.Member collapsedPart (vertical w)]) => SourceCollapse.collapsed z w both.left both.right);
+\definition injective: \forall (x, y: Original.Carrier) -> map x = map y -> x = y :=
+  SourceCollapse.induction (\fun (x: Original.Carrier) => \forall (y: Original.Carrier) -> map x = map y -> x = y)
+    (\fun (z: CylinderA.Carrier) => SourceCollapse.induction (\fun (y: Original.Carrier) => map (Original.class z) = map y -> Original.class z = y)
+      (\fun (w: CylinderA.Carrier) => onRaw z w));
+\definition onPoint: map Original.point = base a0 := onClass (CylinderA.at Interval.start a0);
+\import topology.Topology[Carrier := Original.Carrier] \as SourceSpace;
+\import topology.Maps[A := Original.Carrier, B := Carrier] \as Images;
+\definition image: \Pow Carrier := Images.Image map SourceSpace.Whole;
+\definition imageClosed: Space.IsClosedIn topology image := Space.Compactness[].compactClosed topology Properties.hausdorffQuotient image
+  (topology.Compactness[A := Original.Carrier, B := Carrier].continuousImage Original.topology topology map continuous SourceSpace.Whole (details Source.result).compact);
+\definition containsPoint: Space.Member image (base a0) := \idelim map Original.point = base a0 \with y: Carrier => Space.Member image y \by {
+  base: Images.imageMember map SourceSpace.Whole Original.point (\refl(Original.point)), equality: onPoint
+};
+\import Space.Subspace[S := image] \as ImageSubspace;
+\definition ImagePoint: \Set := ImageSubspace.CarrierSet;
+\definition imageTopology: topology.Topology[Carrier := ImagePoint].Topology := ImageSubspace.topology topology;
+\definition distinguished: ImagePoint := \into[Carrier](base a0, image) \by { containsPoint };
+\definition imageModel: CompactPointed := pack ImagePoint (PointedDetails[ImagePoint] {
+  topology := imageTopology,
+  compact := ImageSubspace.Properties[].compact topology (Space.Compactness[].closedCompact topology Properties.compactQuotient image imageClosed),
+  hausdorff := ImageSubspace.Properties[].hausdorff topology Properties.hausdorffQuotient, point := distinguished
+});
+\definition into[z: Original.Carrier]: ImagePoint := \into[Carrier](map z, image) \by { Images.imageMember map SourceSpace.Whole z (\refl(z)) };
+\definition intoContinuous: topology.Continuity[A := Original.Carrier, B := ImagePoint].Continuous Original.topology imageTopology into :=
+  topology.Continuity[A := Original.Carrier, B := Carrier].Corestriction[S := image].corestrictContinuous Original.topology topology into continuous;
+\import algebraic_topology.Pointed[A := Original.Carrier].Maps[B := ImagePoint] \as PointedMaps;
+\definition pointedMap: Map Source.result imageModel := \into[Original.Carrier -> ImagePoint](into, Map Source.result imageModel) \by {
+  PointedMaps.Laws[pointed Source.result, pointed imageModel, into] { continuous := intoContinuous, pointed := onPoint }
+};
+\definition intoInjective: \forall (x, y: Original.Carrier) -> into x = into y -> x = y :=
+  \fun (x, y: Original.Carrier)(same: into x = into y) => injective x y same;
+\definition onto: \forall (y: ImagePoint) -> \exists (x: Original.Carrier \where into x = y) := \block {
+  \fun (y: ImagePoint) \then
+  \takefrom x: \Cast[Original.Carrier] ({ x: Original.Carrier \where Logic.And[SourceSpace.Member SourceSpace.Whole x, map x = y] }) \by \bysub(Carrier, image, y) \then
+  \return Logic.existsIntro[Original.Carrier, { x: Original.Carrier \where into x = y }] x
+    ((\bysub(Original.Carrier, { x: Original.Carrier \where Logic.And[SourceSpace.Member SourceSpace.Whole x, map x = y] }, x)).right)
+};
+\import \root.Relative[].Equivalence[source := Source.result, target := imageModel].FromMap[f := pointedMap, injective := intoInjective, onto := onto] \as Homeomorphism;
+\definition equivalence: \root.Relative[].Equivalence[source := Source.result, target := imageModel].Data := Homeomorphism.equivalence;
+\definition contraction: algebraic_topology.Homotopy[A := ImagePoint, B := ImagePoint].Homotopy[imageTopology, imageTopology, (\fun (x: ImagePoint) => x), (\fun (x: ImagePoint) => distinguished)] :=
+  Homeomorphism.Contraction[h := Source.contraction].result;

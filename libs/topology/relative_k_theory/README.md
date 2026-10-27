@@ -140,11 +140,13 @@ K07 の影響先検査は最終検査に含める。
 `Exact.Contractible` と `Relative.Cone` は `contractible-comparison-*` で accepted・終了0・キャッシュ保存失敗0。
 前者は相対群と全体の基点での被約群との両方向の準同型と逆の等式、後者は K02 の円錐のコンパクト Hausdorff 性・収縮・被約群の零性を構成する。
 円錐の収縮を利用するため、`puppe_sequences` の直接依存を追加した。
-最新の未検証変更は `Pair.Pointed.Cofiber` と `Equivalence.FromMap`。
+`Pair.Pointed.Cofiber` と `Equivalence.FromMap` は `compact-cofiber-*` で accepted・終了0・キャッシュ保存失敗0。
 前者は閉部分空間の円柱と底面の和から cofiber を構成し、コンパクト Hausdorff 性・底面の埋め込みと閉性・元の商空間への射影を示す。
 後者はコンパクト Hausdorff 空間間の連続な基点付き全単射から連続な逆写像を構成する。
-固定 snapshot は `work/k03-resume/compact-cofiber.source.json`。
-次は `relative_k_theory.Relative` 内の `Equivalence.FromMap` と `Pair.Pointed.Cofiber` を順に検査する。
+最新の未検証変更は `Equivalence.FromMap.Contraction` と `Pair.Pointed.Cofiber.ConeImage`。
+円錐を cofiber の閉部分空間として埋め込み、像と元の円錐との同相を構成し、収縮を像へ移す。
+固定 snapshot は `work/k03-resume/cone-image.source.json`。
+次は `relative_k_theory.Relative` 内の `Equivalence.FromMap.Contraction` と `Pair.Pointed.Cofiber.ConeImage` を順に検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。
