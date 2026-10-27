@@ -46,3 +46,9 @@ A19 全体の完了を示す検査記録ではない。
 
 記録: [対象](checkpoint-target.json)、[依存先](checkpoint-dependencies.json)、[metric](checkpoint-metric.json)。
 コンパクト作用素の未実装部分の検査結果ではない。
+
+## 和のチェックポイント（ソース commit bf8fcfd9）
+
+対象 full-check-local: accepted、終了 0、27 モジュール・399 ステップ、270 再利用。
+依存先: accepted、終了 0、1,337 モジュールを再利用。両検査ともキャッシュ保存失敗 0。
+[対象](addition-target.json)、[依存先](addition-dependencies.json)。

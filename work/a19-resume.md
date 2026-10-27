@@ -37,3 +37,5 @@ workspace の libs/refcache を共有する。
 ソース commit 80cf421c の対象・依存先・metric 回帰は accepted、全て終了コード 0、キャッシュ保存失敗 0。詳細は benchmarks/records/complex-hilbert/README.md のチェックポイントを参照。
 
 コンパクト作用素の和をコンパクト集合の積と加法の連続性で証明し、和の定理と零空間での例を個別検査した。次は前合成、ノルム極限、随伴、恒等作用素の有限次元性。
+
+ソース commit bf8fcfd9 の対象 full-check-local と依存先検査は accepted、終了コード 0、キャッシュ保存失敗 0。詳細は benchmarks/records/complex-hilbert/README.md を参照。
