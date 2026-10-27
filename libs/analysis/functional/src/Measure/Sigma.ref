@@ -75,3 +75,27 @@
   Measurable sigma S -> Measurable sigma T -> Measurable sigma (difference S T) :=
   \fun (sigma: SigmaAlgebra) (S, T: \Pow A) (s: Measurable sigma S) (t: Measurable sigma T) =>
     intersectionMeasurable sigma S (Sets.Complement T) s ((laws sigma).complement T t);
+
+\definition intersection[f: N.Nat^ -> \Pow A]: \Pow A :=
+  { x: A \where \forall (n: N.Nat^) -> Sets.Member (f n) x };
+\definition intersectionAsComplement: \forall (f: N.Nat^ -> \Pow A) ->
+  intersection f = Sets.Complement (union (\fun (n: N.Nat^) => Sets.Complement (f n))) :=
+  \fun (f: N.Nat^ -> \Pow A) => \axiom:setext(intersection f, Sets.Complement (union (\fun (n: N.Nat^) => Sets.Complement (f n))),
+    \fun (x: A) (all: Sets.Member (intersection f) x) (outside: Sets.Member (union (\fun (n: N.Nat^) => Sets.Complement (f n))) x) => \block {
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Sets.Member (Sets.Complement (f n)) x }) \by outside \then
+      \return (\bysub(N.Nat^, { n: N.Nat^ \where Sets.Member (Sets.Complement (f n)) x }, n)) (all n)
+    },
+    \fun (x: A) (none: Sets.Member (Sets.Complement (union (\fun (n: N.Nat^) => Sets.Complement (f n)))) x) (n: N.Nat^) =>
+      doubleNegative (Sets.Member (f n) x) (\fun (outside: Logic.Not (Sets.Member (f n) x)) =>
+        none (Logic.existsIntro[N.Nat^, { n: N.Nat^ \where Sets.Member (Sets.Complement (f n)) x }] n outside)));
+\definition intersectionCountableMeasurable: \forall (sigma: SigmaAlgebra) (f: N.Nat^ -> \Pow A) ->
+  (\forall (n: N.Nat^) -> Measurable sigma (f n)) -> Measurable sigma (intersection f) :=
+  \fun (sigma: SigmaAlgebra) (f: N.Nat^ -> \Pow A) (measurable: \forall (n: N.Nat^) -> Measurable sigma (f n)) =>
+    \idelim Sets.Complement (union (\fun (n: N.Nat^) => Sets.Complement (f n))) = intersection f
+      \with S: \Pow A => Measurable sigma S \by {
+        base: (laws sigma).complement (union (\fun (n: N.Nat^) => Sets.Complement (f n)))
+          ((laws sigma).countableUnion (\fun (n: N.Nat^) => Sets.Complement (f n))
+            (\fun (n: N.Nat^) => (laws sigma).complement (f n) (measurable n))),
+        equality: (\idelim intersection f = Sets.Complement (union (\fun (n: N.Nat^) => Sets.Complement (f n)))
+          \with S: \Pow A => S = intersection f \by { base: \refl(intersection f), equality: intersectionAsComplement f })
+      };
