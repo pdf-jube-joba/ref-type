@@ -102,8 +102,11 @@ K07 の影響先検査は最終検査に含める。
 前二者は第二成分の符号を戻した交換写像も提供する。
 後者は両側へ自明束を加えた後の枠と両立する同型から、元の被約群の元の一致を導く。
 `FramedSum` と `Stabilized` は安定化した束のモデル・枠・次元も公開する。
-固定 snapshot は `work/k03-resume/stable-framed.source.json`。
-次は `bundle_operations.Operations.Over.Negation`、`relative_k_theory.Relative.Pair.BundleSwitch`、`relative_k_theory.Relative.Pair.FramedClass.To.Stable` を順に検査する。
+`Negation` の検査で不足した `bundle_operations` の直接依存 `algebra` を追加した。
+新しい `Commutative.DirectSum.Symmetry`・`CoordinateSum.Symmetry`・`DirectSumMiddleSwap` は直和と座標ブロックの交換・並べ替えを構成する。
+これらも未検証。
+固定 snapshot は `work/k03-resume/reordering-fixed.source.json`。
+次は共通の三つの並べ替え、`Negation`、`BundleSwitch`、`FramedClass.To.Stable` を順に検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。

@@ -1,0 +1,15 @@
+\import \parent.\parent.CoordinateSum[n := m, m := n] \as Opposite;
+\import Fin.Sum[m := m, n := n] \as OppositeIndices;
+\import Spaces.DirectSum[V := Vector m, W := Vector n, left := coordinates m, right := coordinates n] \as OppositePair;
+\import Sum.Symmetry[] \as Pairs;
+\import Spaces.Isomorphism[V := Sum.Carrier, W := OppositePair.Carrier, source := Sum.space, target := OppositePair.space].Composition[
+  U := Vector Indices.total, domain := coordinates Indices.total] \as FirstCompose;
+\definition intoOpposite: Spaces.Isomorphism[V := Vector Indices.total, W := OppositePair.Carrier, source := coordinates Indices.total, target := OppositePair.space].Isomorphism :=
+  FirstCompose.compose Pairs.isomorphism (Isomorphisms.inverse isomorphism);
+\import Spaces.Isomorphism[V := OppositePair.Carrier, W := Vector OppositeIndices.total, source := OppositePair.space, target := coordinates OppositeIndices.total].Composition[
+  U := Vector Indices.total, domain := coordinates Indices.total] \as LastCompose;
+\definition swap: Spaces.Isomorphism[V := Vector Indices.total, W := Vector OppositeIndices.total, source := coordinates Indices.total, target := coordinates OppositeIndices.total].Isomorphism :=
+  LastCompose.compose Opposite.isomorphism intoOpposite;
+\definition formula: \forall (v: Vector n)(w: Vector m) -> swap.forward.apply (join (Sum.make v w)) = Opposite.join (OppositePair.make w v) :=
+  \fun (v: Vector n)(w: Vector m) => congr!{Sum.Carrier {Vector OppositeIndices.total}}
+    (\fun (p: Sum.Carrier) => Opposite.forward.apply (Pairs.isomorphism.forward.apply p)) _ _ ((Isomorphisms.laws isomorphism).leftInverse (Sum.make v w));
