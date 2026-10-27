@@ -1,0 +1,24 @@
+\import \root.Measure[A := A].Sigma[] \as Sigma;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\definition row: \forall (j: Fin.Fin n) -> Simple[m] :=
+  \fun (j: Fin.Fin n) => Simple[m] {
+    cells := \fun (i: Fin.Fin m) => Sets.Intersection (s.cells i) (t.cells j),
+    coefficients := \fun (i: Fin.Fin m) => Real.add (s.coefficients i) (t.coefficients j),
+    measurable := \fun (i: Fin.Fin m) => Sigma.intersectionMeasurable mu.sigma (s.cells i) (t.cells j) (s.measurable i) (t.measurable j),
+    nonnegative := \fun (i: Fin.Fin m) => Laws.addNonnegative (s.coefficients i) (t.coefficients j) (s.nonnegative i) (t.nonnegative j),
+    disjoint := \fun (i, k: Fin.Fin m) (different: Logic.Not (i = k)) (x: A)
+      (left: Sets.Member (Sets.Intersection (s.cells i) (t.cells j)) x)
+      (right: Sets.Member (Sets.Intersection (s.cells k) (t.cells j)) x) => s.disjoint i k different x left.left right.left,
+  };
+\definition rowsDisjoint: \forall (j, k: Fin.Fin n) -> Logic.Not (j = k) ->
+  \forall (i, h: Fin.Fin m) -> Sets.Disjoint ((row j).cells i) ((row k).cells h) :=
+  \fun (j, k: Fin.Fin n) (different: Logic.Not (j = k)) (i, h: Fin.Fin m) (x: A)
+    (left: Sets.Member (Sets.Intersection (s.cells i) (t.cells j)) x)
+    (right: Sets.Member (Sets.Intersection (s.cells h) (t.cells k)) x) => t.disjoint j k different x left.right right.right;
+\definition dominated: \forall (f, g: A -> Real.Real) -> Dominated m s f -> Dominated n t g ->
+  \forall (j: Fin.Fin n) -> Dominated m (row j) (\fun (x: A) => Real.add (f x) (g x)) :=
+  \fun (f, g: A -> Real.Real) (sf: Dominated m s f) (tg: Dominated n t g) (j: Fin.Fin n) (i: Fin.Fin m) (x: A)
+    (member: Sets.Member (Sets.Intersection (s.cells i) (t.cells j)) x) =>
+    R.leTrans (Real.add (s.coefficients i) (t.coefficients j)) (Real.add (f x) (t.coefficients j)) (Real.add (f x) (g x))
+      (Laws.addMonotoneRight (s.coefficients i) (f x) (t.coefficients j) (sf i x member.left))
+      (Laws.addMonotoneLeft (t.coefficients j) (g x) (f x) (tg j x member.right));
