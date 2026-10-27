@@ -214,3 +214,8 @@ K07 の影響先検査は最終検査に含める。
 `QuotientSurjective` は基点が部分空間に含まれる対で、付加した基点も元の空間からの射影で表せることを示す。
 `Equivalence.Compose` と `PairIteration` は比較同相を反復し、反復した対の相対群と元の商の負次数群との両方向の加法的写像を公開する。
 固定 snapshot は `work/k03-resume/iterated-quotient.source.json` で、これらは未検証。
+
+`PairIteration.wholeComparison`・`subsetComparison` は、全体空間と部分空間についても反復 suspension との基点付き同相を構成する未検証変更。
+部分空間側は suspension の像との同相を逆向きに使い、前段の比較の suspension と合成する。
+`WholeGroups`・`SubsetGroups` と相対群の `Groups` は両方向の写像・加法性・零元の保存・逆の等式を公開する。
+固定 snapshot は `work/k03-resume/pair-iteration.source.json`。
