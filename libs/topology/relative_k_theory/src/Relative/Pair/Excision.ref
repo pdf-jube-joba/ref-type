@@ -57,3 +57,28 @@
 \definition homeomorphism: Homeomorphisms.Homeomorphism[Domain.topology, Range.topology] :=
   Homeomorphisms.OfQuotient[f := Inclusion.quotient].homeomorphism Domain.topology Range.topology injective onto Inclusion.quotientContinuous
     (CompactQuotient.quotientMap Domain.quotientCompact Range.quotientHausdorff Inclusion.quotientContinuous onto).reflectsOpen;
+
+\definition homeomorphismLaws: Homeomorphisms.Laws[Domain.topology, Range.topology, homeomorphism] := Homeomorphisms.laws Domain.topology Range.topology homeomorphism;
+\import algebraic_topology.Pointed[A := Range.Carrier].Maps[B := Domain.Carrier] \as ReversePointed;
+\definition inverse: \root.Relative[].Map Range.model Domain.model :=
+  \into[Range.Carrier -> Domain.Carrier](homeomorphism.backward, \root.Relative[].Map Range.model Domain.model) \by {
+    ReversePointed.Laws[Range.pointed, Domain.pointed, homeomorphism.backward] {
+      continuous := homeomorphismLaws.backwardContinuous,
+      pointed := injective (homeomorphism.backward Range.point) Domain.point
+        (trans!{{Range.Carrier}} _ _ _ (homeomorphismLaws.rightInverse Range.point)
+          (sym!{{Range.Carrier}} _ _ (algebraic_topology.Pointed[A := Domain.Carrier].Maps[B := Range.Carrier].laws Domain.pointed Range.pointed Inclusion.quotientMap).pointed))
+    }
+  };
+\definition equivalence: \root.Relative[].Equivalence[source := Domain.model, target := Range.model].Data :=
+  \root.Relative[].Equivalence[source := Domain.model, target := Range.model].Data {
+    forward := Inclusion.quotientMap, backward := inverse,
+    leftInverse := homeomorphismLaws.leftInverse, rightInverse := homeomorphismLaws.rightInverse
+  };
+\import \root.Relative[].Equivalence[source := Domain.model, target := Range.model].With[e := equivalence] \as Invariance;
+\module Negative(degree: N.Nat^) {
+  \import Invariance.Negative[degree := degree] \as Model;
+  \definition forward: \root.Relative[].Negative[original := Range.model, degree := degree].Carrier -> \root.Relative[].Negative[original := Domain.model, degree := degree].Carrier := Model.forward;
+  \definition backward: \root.Relative[].Negative[original := Domain.model, degree := degree].Carrier -> \root.Relative[].Negative[original := Range.model, degree := degree].Carrier := Model.backward;
+  \definition leftInverse: \forall (x: \root.Relative[].Negative[original := Domain.model, degree := degree].Carrier) -> forward (backward x) = x := Model.leftInverse;
+  \definition rightInverse: \forall (x: \root.Relative[].Negative[original := Range.model, degree := degree].Carrier) -> backward (forward x) = x := Model.rightInverse;
+}

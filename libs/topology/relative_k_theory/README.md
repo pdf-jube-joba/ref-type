@@ -50,7 +50,11 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 `FramedChoices.With.Value` は基点ランク零の差の元を構成するが未検証。
 `Pair.Excision` は開集合を閉部分空間の内部から取り除いた対と元の対の商の間の同相を構成するが未検証。
 共通の `Collapse.Mapping.injective` と `Coproduct.Properties.rightInjective` を併せて追加した。
+`Relative.Equivalence` は基点付き同相の引き戻しと suspension の反復による負次数群の同型を構成し、`Pair.Excision` へ接続したが未検証。
+`Pair.Group.Forget` は三つ組から正側と負側の差を取る準同型を構成したが未検証。
 診断付きの `framed-outside-diagnostic` は snapshot `framed-comparison-fixed.source.json` の検査中で、依存先の検査が進行している。
+worker 内のログは共有キャッシュ直下の `.check-<PID>-0/stderr` と `events.jsonl` にあり、完了後には監督プロセスが外側のログへ回収する。
+`events.jsonl` の Planned 行は大きいため、必要なイベントだけ JSON として読む。
 次の範囲を検査する前に、最新のソースから snapshot を作り直す。
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定し、JSON 報告と実行シェルの終了コードも保存する。
 
