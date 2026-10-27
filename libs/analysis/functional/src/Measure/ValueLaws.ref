@@ -303,3 +303,25 @@
       "=" _ "by" { addZero zero zeroNonnegative }
     }
   };
+
+\structure SplitBelow[r, a, b, p, q: Real.Real]: \Prop := {
+  left: R.Lt p a,
+  right: R.Lt q b,
+  total: R.Lt r (Real.add p q),
+};
+\definition splitBelow: \forall (r, a, b: Real.Real) -> R.Lt r (Real.add a b) ->
+  \exists ( p: Real.Real \where \exists ( q: Real.Real \where SplitBelow[r, a, b, p, q] ) ) :=
+  \fun (r, a, b: Real.Real) (less: R.Lt r (Real.add a b)) => \block {
+    \let leftGap: R.Lt (Real.sub r b) a := Distance.addLtToSub r b a less \then
+    \let p: Real.Real := Real.midpoint (Real.sub r b) a \then
+    \let rpBelowB: R.Lt (Real.sub r p) b := Distance.subLtOfLower r b p (midpointStrictLeft (Real.sub r b) a leftGap) \then
+    \let q: Real.Real := Real.midpoint (Real.sub r p) b \then
+    \let total: R.Lt r (Real.add p q) := R.ltReplaceRight r (Real.add q p) (Real.add p q) (Laws.addComm q p)
+      (Distance.subLtToAdd r p q (midpointStrictLeft (Real.sub r p) b rpBelowB)) \then
+    \return Logic.existsIntro[Real.Real, { p: Real.Real \where \exists ( q: Real.Real \where SplitBelow[r, a, b, p, q] ) }] p
+      (Logic.existsIntro[Real.Real, { q: Real.Real \where SplitBelow[r, a, b, p, q] }] q (SplitBelow[r, a, b, p, q] {
+        left := midpointStrictRight (Real.sub r b) a leftGap,
+        right := midpointStrictRight (Real.sub r p) b rpBelowB,
+        total := total,
+      }))
+  };
