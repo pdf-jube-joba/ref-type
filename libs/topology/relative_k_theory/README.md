@@ -33,6 +33,9 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 | 降下した束と元の束の比較同型 | `descent-comparison-fixed` |
 | 降下の存在、ランク、境界上の整合式 | `descent-public-fixed` |
 | 三つ組の直和の存在と比較 | `triple-sums` |
+| 標準ライブラリへ移した有限列挙 API | `common-ListIndex` |
+| 共通化した Hausdorff 性の補題 | `common-Separation` |
+| 共通化した基点付き suspension と写像 | `common-pointed-fixed` |
 | 補束による三つ組の正規化と降下への接続 | `triple-normalize` |
 | 境界の自明化と両立する写像のファイバー上の構成 | `framed-maps` |
 
@@ -52,7 +55,8 @@ B09 統合済み main `bd8fd86d5368968ff22e06f81beb5469bc348623` から、`math/
 共通の `Collapse.Mapping.injective` と `Coproduct.Properties.rightInjective` を併せて追加した。
 `Relative.Equivalence` は基点付き同相の引き戻しと suspension の反復による負次数群の同型を構成し、`Pair.Excision` へ接続したが未検証。
 `Pair.Group.Forget` は三つ組から正側と負側の差を取る準同型を構成したが未検証。
-診断付きの `framed-outside-diagnostic` は snapshot `framed-comparison-fixed.source.json` の検査中で、依存先の検査が進行している。
+診断付きの `framed-outside-diagnostic` は依存整理後の入力へ切り替えるため中断し、終了130・outcome interrupted・キャッシュ保存失敗0を確認した。
+K03 の追加部分に到達する前の中断で、成功扱いにはしていない。
 worker 内のログは共有キャッシュ直下の `.check-<PID>-0/stderr` と `events.jsonl` にあり、完了後には監督プロセスが外側のログへ回収する。
 `events.jsonl` の Planned 行は大きいため、必要なイベントだけ JSON として読む。
 局所検査の依存閉包を小さくするため、基点付き suspension を `algebraic_topology.Suspension.Pointed` へ共通化し、K02 と K03 から参照するようにした。
@@ -61,7 +65,8 @@ worker 内のログは共有キャッシュ直下の `.check-<PID>-0/stderr` と
 積空間の Hausdorff 性の汎用補題も `topological_constructions.Separation` へ移し、B09 と K03 から近似理論への依存を外した。
 読み込む依存閉包は旧 snapshot の6,470 modules から2,683 modules に減った。
 この共通化も未検証で、近似理論と clutching の影響先を最終検査に含める。
-最新の構文検査 snapshot は `work/k03-resume/elementary-dependencies.source.json`。
+`common-Pointed` はマクロ参照不足で rejected・終了1になったが、修正した `common-pointed-fixed` は accepted・終了0・キャッシュ保存失敗0。
+最新 snapshot は `work/k03-resume/common-pointed-fixed.source.json`。
 次は共有 suspension と列挙 API、基点外の写像、行列の降下、基点近傍の写像、選択独立性、忘却準同型、切除の順に対象検査を行う。
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定し、JSON 報告と実行シェルの終了コードも保存する。
 
