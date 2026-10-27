@@ -1,0 +1,38 @@
+\import \parent.Constant[] \as Point;
+\import Absolute.K0[] \as Ordinary;
+\import Absolute.Ranks[] \as Ranks;
+\import algebraic_topology.Pointed[A := Point.pointModel.Carrier].Maps[B := model.Carrier] \as Pointed;
+\definition pointRegular: topology.Continuity[A := Point.pointModel.Carrier, B := model.Carrier].Continuous (details Point.pointModel).topology (details model).topology Point.fromPoint :=
+  (Pointed.laws (pointed Point.pointModel) (pointed model) Point.fromPoint).continuous;
+\import Absolute.Pullback[Y := Point.pointModel.Carrier, space := (details Point.pointModel).topology, sourceCompact := (details Point.pointModel).compact,
+  sourceHausdorff := (details Point.pointModel).hausdorff, f := Point.fromPoint, regular := pointRegular] \as Restriction;
+\import Restriction.K0[] \as Restrict;
+\import Restriction.Ranks[] \as RankNaturality;
+\import KTheory.On[X := Point.pointModel.Carrier, baseSpace := (details Point.pointModel).topology,
+  compact := (details Point.pointModel).compact, hausdorff := (details Point.pointModel).hausdorff] \as PointTheory;
+\import PointTheory.K0[] \as PointGroup;
+\import PointTheory.Ranks[] \as PointRanks;
+\import \root.Relative[].Pullback[source := Point.pointModel, target := model, f := Point.fromPoint] \as PointPull;
+\definition atPointZero: \forall (v: Carrier) -> Restrict.map v = PointGroup.zero :=
+  \fun (v: Carrier) => Point.pointZero (PointPull.map v);
+\import algebra.Hom[A := Ordinary.Carrier, B := PointGroup.Carrier] \as Hom;
+\import std.Alg[].Ring[] \as Rings;
+\definition productAtPoint: \forall (v, w: Carrier) -> Restrict.map (Ordinary.mul v w) = PointGroup.zero :=
+  \fun (v, w: Carrier) => trans!{{PointGroup.Carrier}} _ _ _
+    ((Hom.semiringLaws (Rings.ringAsSemiring Ordinary.Carrier Ordinary.ring) (Rings.ringAsSemiring PointGroup.Carrier PointGroup.ring) Restrict.map).mul v w)
+    (trans!{{PointGroup.Carrier}} _ _ _ (congr!{{PointGroup.Carrier} {PointGroup.Carrier} {PointGroup.Carrier}} PointGroup.mul _ _ _ _ (atPointZero v) (atPointZero w))
+      (PointGroup.ring.semiring.zeroAbsorbsLeft PointGroup.zero));
+\definition closed: \forall (v, w: Carrier) -> \In[Ordinary.Carrier] Native.kernel (Ordinary.mul v w) :=
+  \fun (v, w: Carrier) => trans!{{std.Arithmetic[].Int[].Int^}} _ _ _
+    (sym!{{std.Arithmetic[].Int[].Int^}} _ _ (RankNaturality.naturality (Ordinary.mul v w) (details Point.pointModel).point))
+    (trans!{{std.Arithmetic[].Int[].Int^}} _ _ _
+      (congr!{{PointGroup.Carrier} {std.Arithmetic[].Int[].Int^}} (\fun (v: PointGroup.Carrier) => PointRanks.rank v (details Point.pointModel).point) _ _ (productAtPoint v w))
+      (congr!{{Point.pointModel.Carrier -> std.Arithmetic[].Int[].Int^} {std.Arithmetic[].Int[].Int^}}
+        (\fun (f: Point.pointModel.Carrier -> std.Arithmetic[].Int[].Int^) => f (details Point.pointModel).point) _ _ PointRanks.rankZero));
+\definition mul[v, w: Carrier]: Carrier := \into[Ordinary.Carrier](Ordinary.mul v w, Native.kernel) \by { closed v w };
+\definition leftDistributive: \forall (v, w, z: Carrier) -> mul v (group.base.op w z) = group.base.op (mul v w) (mul v z) :=
+  \fun (v, w, z: Carrier) => Ordinary.ring.semiring.leftDistributive v w z;
+\definition rightDistributive: \forall (v, w, z: Carrier) -> mul (group.base.op v w) z = group.base.op (mul v z) (mul w z) :=
+  \fun (v, w, z: Carrier) => Ordinary.ring.semiring.rightDistributive v w z;
+\definition zeroLeft: \forall (v: Carrier) -> mul group.base.unit v = group.base.unit := \fun (v: Carrier) => Ordinary.ring.semiring.zeroAbsorbsLeft v;
+\definition zeroRight: \forall (v: Carrier) -> mul v group.base.unit = group.base.unit := \fun (v: Carrier) => Ordinary.ring.semiring.zeroAbsorbsRight v;

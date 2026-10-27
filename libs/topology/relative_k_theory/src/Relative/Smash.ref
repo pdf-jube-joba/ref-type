@@ -1,0 +1,75 @@
+\import std.Data[].Pair[] \as Pair;
+\import topological_constructions.Product[A := left.Carrier, B := right.Carrier] \as Cartesian;
+\import Cartesian.Maps[] \as Projections;
+\import topology.Topology[Carrier := Cartesian.CarrierSet] \as Base;
+\import topology.Topology[Carrier := left.Carrier] \as LeftSpace;
+\import topology.Topology[Carrier := right.Carrier] \as RightSpace;
+\definition topology: Base.Topology := Cartesian.topology (details left).topology (details right).topology;
+\definition compact: Base.IsCompact topology := Cartesian.Compactness[].productCompact (details left).topology (details right).topology (details left).compact (details right).compact;
+\definition hausdorff: Base.IsT2 topology := topological_constructions.Separation[].Product[A := left.Carrier, B := right.Carrier].On[
+  left := (details left).topology, right := (details right).topology, leftHausdorff := (details left).hausdorff, rightHausdorff := (details right).hausdorff].hausdorff;
+\definition point: Cartesian.CarrierSet := Pair.pair left.Carrier right.Carrier (details left).point (details right).point;
+\definition model: CompactPointed := pack Cartesian.CarrierSet (PointedDetails[Cartesian.CarrierSet] { topology := topology, compact := compact, hausdorff := hausdorff, point := point });
+\definition first: Cartesian.CarrierSet -> left.Carrier := Pair.first left.Carrier right.Carrier;
+\definition second: Cartesian.CarrierSet -> right.Carrier := Pair.second left.Carrier right.Carrier;
+\definition wedge: \Pow Cartesian.CarrierSet := { z: Cartesian.CarrierSet \where Logic.Or[first z = (details left).point, second z = (details right).point] };
+\import topology.Continuity[A := Cartesian.CarrierSet, B := left.Carrier] \as FirstMaps;
+\import topology.Continuity[A := Cartesian.CarrierSet, B := right.Carrier] \as SecondMaps;
+\definition leftClosed: Base.IsClosedIn topology (FirstMaps.Preimage first (LeftSpace.Singleton (details left).point)) :=
+  FirstMaps.closedPreimage topology (details left).topology first (Projections.firstContinuous (details left).topology (details right).topology)
+    (LeftSpace.Singleton (details left).point) (LeftSpace.Compactness[].hausdorffT1 (details left).topology (details left).hausdorff (details left).point);
+\definition rightClosed: Base.IsClosedIn topology (SecondMaps.Preimage second (RightSpace.Singleton (details right).point)) :=
+  SecondMaps.closedPreimage topology (details right).topology second (Projections.secondContinuous (details left).topology (details right).topology)
+    (RightSpace.Singleton (details right).point) (RightSpace.Compactness[].hausdorffT1 (details right).topology (details right).hausdorff (details right).point);
+\definition wedgeClosed: Base.IsClosedIn topology wedge := Base.Finite[].joinClosed topology
+  (FirstMaps.Preimage first (LeftSpace.Singleton (details left).point)) (SecondMaps.Preimage second (RightSpace.Singleton (details right).point)) leftClosed rightClosed;
+\definition data: ClosedPairDetails[model] := ClosedPairDetails[model] { subset := wedge, closed := wedgeClosed, containsPoint := Logic.Or[_, _]::left (\refl((details left).point)) };
+\definition pair: ClosedPointedPair := packPair model data;
+\import \root.Relative[].PointedPair[pair := pair] \as Native;
+\import \root.Relative[].Pair[X := Cartesian.CarrierSet, space := topology, compact := compact, hausdorff := hausdorff, subset := wedge, closed := wedgeClosed] \as Whole;
+\import Whole.Quotient[] \as Quotient;
+\definition result: CompactPointed := Native.quotientModel;
+\definition wedgeModel: CompactPointed := Native.subsetModel;
+\definition projection: Map model result := Native.projection;
+\definition wedgeInclusion: Map wedgeModel model := Native.inclusion;
+\import algebraic_topology.Pointed[A := Cartesian.CarrierSet].Maps[B := left.Carrier] \as LeftPointed;
+\import algebraic_topology.Pointed[A := Cartesian.CarrierSet].Maps[B := right.Carrier] \as RightPointed;
+\definition firstMap: Map model left := \into[Cartesian.CarrierSet -> left.Carrier](first, Map model left) \by {
+  LeftPointed.Laws[pointed model, pointed left, first] { continuous := Projections.firstContinuous (details left).topology (details right).topology, pointed := \refl((details left).point) }
+};
+\definition secondMap: Map model right := \into[Cartesian.CarrierSet -> right.Carrier](second, Map model right) \by {
+  RightPointed.Laws[pointed model, pointed right, second] { continuous := Projections.secondContinuous (details left).topology (details right).topology, pointed := \refl((details right).point) }
+};
+\import \root.Relative[].Composition[source := wedgeModel, middle := model, target := left, first := wedgeInclusion, second := firstMap] \as LeftProjection;
+\import \root.Relative[].Composition[source := wedgeModel, middle := model, target := right, first := wedgeInclusion, second := secondMap] \as RightProjection;
+\definition wedgeFirst: Map wedgeModel left := LeftProjection.map;
+\definition wedgeSecond: Map wedgeModel right := RightProjection.map;
+\definition leftRaw[a: left.Carrier]: Cartesian.CarrierSet := Pair.pair left.Carrier right.Carrier a (details right).point;
+\definition rightRaw[b: right.Carrier]: Cartesian.CarrierSet := Pair.pair left.Carrier right.Carrier (details left).point b;
+\definition leftIn[a: left.Carrier]: wedgeModel.Carrier := \into[Cartesian.CarrierSet](leftRaw a, wedge) \by { Logic.Or[_, _]::right (\refl((details right).point)) };
+\definition rightIn[b: right.Carrier]: wedgeModel.Carrier := \into[Cartesian.CarrierSet](rightRaw b, wedge) \by { Logic.Or[_, _]::left (\refl((details left).point)) };
+\definition leftRegular: topology.Continuity[A := left.Carrier, B := wedgeModel.Carrier].Continuous (details left).topology (details wedgeModel).topology leftIn :=
+  topology.Continuity[A := left.Carrier, B := Cartesian.CarrierSet].Corestriction[S := wedge].corestrictContinuous (details left).topology topology leftIn
+    (Cartesian.Universal[X := left.Carrier].pairContinuous (details left).topology (details left).topology (details right).topology (\fun (a: left.Carrier) => a) (\fun (a: left.Carrier) => (details right).point)
+      (topology.Maps[A := left.Carrier, B := left.Carrier].Identity[].continuous (details left).topology)
+      (topology.Maps[A := left.Carrier, B := right.Carrier].constantContinuous (details left).topology (details right).topology (details right).point));
+\definition rightRegular: topology.Continuity[A := right.Carrier, B := wedgeModel.Carrier].Continuous (details right).topology (details wedgeModel).topology rightIn :=
+  topology.Continuity[A := right.Carrier, B := Cartesian.CarrierSet].Corestriction[S := wedge].corestrictContinuous (details right).topology topology rightIn
+    (Cartesian.Universal[X := right.Carrier].pairContinuous (details right).topology (details left).topology (details right).topology (\fun (b: right.Carrier) => (details left).point) (\fun (b: right.Carrier) => b)
+      (topology.Maps[A := right.Carrier, B := left.Carrier].constantContinuous (details right).topology (details left).topology (details left).point)
+      (topology.Maps[A := right.Carrier, B := right.Carrier].Identity[].continuous (details right).topology));
+\import algebraic_topology.Pointed[A := left.Carrier].Maps[B := wedgeModel.Carrier] \as LeftInclusions;
+\import algebraic_topology.Pointed[A := right.Carrier].Maps[B := wedgeModel.Carrier] \as RightInclusions;
+\definition leftInclusion: Map left wedgeModel := \into[left.Carrier -> wedgeModel.Carrier](leftIn, Map left wedgeModel) \by {
+  LeftInclusions.Laws[pointed left, pointed wedgeModel, leftIn] { continuous := leftRegular, pointed := \refl(leftIn (details left).point) }
+};
+\definition rightInclusion: Map right wedgeModel := \into[right.Carrier -> wedgeModel.Carrier](rightIn, Map right wedgeModel) \by {
+  RightInclusions.Laws[pointed right, pointed wedgeModel, rightIn] { continuous := rightRegular, pointed := \refl(rightIn (details right).point) }
+};
+\definition leftCollapsed: \forall (b: right.Carrier) -> projection (rightRaw b) = (details result).point :=
+  \fun (b: right.Carrier) => Quotient.onSubset (\into[Cartesian.CarrierSet](rightRaw b, wedge) \by { Logic.Or[_, _]::left (\refl((details left).point)) });
+\definition rightCollapsed: \forall (a: left.Carrier) -> projection (leftRaw a) = (details result).point :=
+  \fun (a: left.Carrier) => Quotient.onSubset (\into[Cartesian.CarrierSet](leftRaw a, wedge) \by { Logic.Or[_, _]::right (\refl((details right).point)) });
+\module Split;
+\module WedgeDecomposition(degree: N.Nat^);
+\module External;

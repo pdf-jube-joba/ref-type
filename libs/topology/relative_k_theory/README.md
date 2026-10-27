@@ -122,3 +122,12 @@ Mayer–Vietoris の交叉部分の完全性も証明コードを追加し、構
 自明束の引き戻し、K 群の加法・逆元・差の引き戻しの式も追加した。
 `ordinary-patching.source.json` で構文解析を通過したが、型検査は未完了。
 既存の Mayer–Vietoris の次数0の端への比較と、外積の構成を続ける。
+
+`Reduced.Multiplication` と `Pullback.Multiplication` に被約群の積とその自然性を書いた。
+`Smash` はコンパクトな積空間と閉じた wedge の相対商を構成する。
+`Smash.Split.QuotientEquivalence` は wedge の一方の軸を潰した商と他方の空間の同相を構成する。
+`WedgeDecomposition` では各負次数の類を二軸からの引き戻しの和に分解し、積から wedge への制限の全射性を示す。
+`Smash.External` は積上の被約 K 類の積を相対群へ一意に持ち上げ、双加法性と零の式を構成する。
+`ConstantMap.Negative` は基点への定数写像が各負次数で零になることを示す。
+いずれも `smash-external.source.json` で構文解析を通過したが、型検査は未完了。
+外積の自然性、元の二つの対の積の商との比較、suspension との比較を続ける。
