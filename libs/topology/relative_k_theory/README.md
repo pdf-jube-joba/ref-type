@@ -108,10 +108,12 @@ K07 の影響先検査は最終検査に含める。
 全体の束の交換自己同型と座標ブロックの交換により、補助束・自明化の選択によらず被約群の元が一致することを示す。
 `TripleIsomorphic` は `triple-isomorphic-fixed` で accepted・終了0・キャッシュ保存失敗0。
 三つ組の正負の束を境界同型と両立する全体の同型で取り替えた場合の不変性を、共通の補助束へ移して証明する。
-最新の未検証変更は `TripleSum`。
+`TripleSum` は `triple-sum` で accepted・終了0・キャッシュ保存失敗0。
 補助束の直和の射影表示と正負の束の並べ替えにより、三つ組の直和関係が被約群の加法へ移ることを示す。
-固定 snapshot は `work/k03-resume/triple-sum.source.json`。
-次は `relative_k_theory.Relative.Pair.TripleSum` を検査する。
+最新の未検証変更は `TripleComposition`。
+境界同型に沿う全体の交換自己同型を使い、二つの三つ組の和と合成三つ組に対角三つ組を加えたものを比較する。
+固定 snapshot は `work/k03-resume/triple-composition.source.json`。
+次は `relative_k_theory.Relative.Pair.TripleComposition` を検査する。
 
 検査には `--memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact` を指定する。
 固定 snapshot、JSON 報告、実行シェルの終了コードを `work/k03-resume` に保存する。
