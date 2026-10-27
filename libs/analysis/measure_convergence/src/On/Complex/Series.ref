@@ -46,3 +46,29 @@
           (\fun (k: N.Nat^) => C.im (scalarPartial k)), \fun (k: N.Nat^) => congr!{C.Complex Real.Real} C.im _ _ (partialIntegral k))
       };
 }
+\structure AEConditions: \Set := {
+  limit: Function, bound: Integral.Representatives, exception: Integral.Null[].NullSet,
+  realBound: \forall (k: N.Nat^) (x: A) -> Logic.Not (Sets.Member exception x) -> R.Le (Product.abs (C.re (partial k x))) (bound x),
+  imaginaryBound: \forall (k: N.Nat^) (x: A) -> Logic.Not (Sets.Member exception x) -> R.Le (Product.abs (C.im (partial k x))) (bound x),
+  realConverges: \forall (x: A) -> Logic.Not (Sets.Member exception x) -> Sequence.Converges (\fun (k: N.Nat^) => C.re (partial k x)) (C.re (limit x)),
+  imaginaryConverges: \forall (x: A) -> Logic.Not (Sets.Member exception x) -> Sequence.Converges (\fun (k: N.Nat^) => C.im (partial k x)) (C.im (limit x)),
+};
+\module AEExchange(c: AEConditions) {
+  \definition data: AEDominatedData := AEDominatedData { sequence := partial, limit := c.limit, bound := c.bound, exception := c.exception,
+    realBound := c.realBound, imaginaryBound := c.imaginaryBound, realConverges := c.realConverges, imaginaryConverges := c.imaginaryConverges };
+  \import \root.On[A := A, mu := mu].Complex[].AEDominated[d := data] \as Proof;
+  \definition representative: Representatives := Proof.representative;
+  \definition almostLimit: Measures.Null mu ({ x: A \where Logic.Not (representative x = c.limit x) }) := Proof.almostLimit;
+  \definition realExchange: Sequence.Converges (\fun (k: N.Nat^) => C.re (scalarPartial k)) (C.re (integral representative)) :=
+    \idelim (\fun (k: N.Nat^) => C.re (integral (partial k))) = (\fun (k: N.Nat^) => C.re (scalarPartial k))
+      \with s: (N.Nat^ -> Real.Real) => Sequence.Converges s (C.re (integral representative)) \by {
+        base: Proof.realConvergence, equality: \axiom:funext((\fun (k: N.Nat^) => C.re (integral (partial k))),
+          (\fun (k: N.Nat^) => C.re (scalarPartial k)), \fun (k: N.Nat^) => congr!{C.Complex Real.Real} C.re _ _ (partialIntegral k))
+      };
+  \definition imaginaryExchange: Sequence.Converges (\fun (k: N.Nat^) => C.im (scalarPartial k)) (C.im (integral representative)) :=
+    \idelim (\fun (k: N.Nat^) => C.im (integral (partial k))) = (\fun (k: N.Nat^) => C.im (scalarPartial k))
+      \with s: (N.Nat^ -> Real.Real) => Sequence.Converges s (C.im (integral representative)) \by {
+        base: Proof.imaginaryConvergence, equality: \axiom:funext((\fun (k: N.Nat^) => C.im (integral (partial k))),
+          (\fun (k: N.Nat^) => C.im (scalarPartial k)), \fun (k: N.Nat^) => congr!{C.Complex Real.Real} C.im _ _ (partialIntegral k))
+      };
+}

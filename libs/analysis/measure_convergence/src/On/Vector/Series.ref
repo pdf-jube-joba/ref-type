@@ -39,3 +39,21 @@
           \fun (k: N.Nat^) => partialIntegral k i)
       };
 }
+\structure AEConditions: \Set := {
+  limit: Function, bound: Integral.Representatives, exception: Integral.Null[].NullSet,
+  dominated: \forall (k: N.Nat^) (x: A) (i: Fin.Fin n) -> Logic.Not (Sets.Member exception x) -> R.Le (Product.abs (partial k x i)) (bound x),
+  converges: \forall (x: A) (i: Fin.Fin n) -> Logic.Not (Sets.Member exception x) -> Sequence.Converges (\fun (k: N.Nat^) => partial k x i) (limit x i),
+};
+\module AEExchange(c: AEConditions) {
+  \definition data: AEDominatedData := AEDominatedData { sequence := partial, limit := c.limit, bound := c.bound,
+    exception := c.exception, dominated := c.dominated, converges := c.converges };
+  \import \root.On[A := A, mu := mu].Vector[n := n].AEDominated[d := data] \as Proof;
+  \definition representative: Representatives := Proof.representative;
+  \definition almost: \forall (i: Fin.Fin n) -> Measures.AlmostEqual mu (\fun (x: A) => representative x i) (\fun (x: A) => c.limit x i) := Proof.almost;
+  \definition exchange: \forall (i: Fin.Fin n) -> Sequence.Converges (scalarPartial i) (integral representative i) :=
+    \fun (i: Fin.Fin n) => \idelim (\fun (k: N.Nat^) => integral (partial k) i) = scalarPartial i
+      \with s: (N.Nat^ -> Real.Real) => Sequence.Converges s (integral representative i) \by {
+        base: Proof.convergence i, equality: \axiom:funext((\fun (k: N.Nat^) => integral (partial k) i), scalarPartial i,
+          \fun (k: N.Nat^) => partialIntegral k i)
+      };
+}
