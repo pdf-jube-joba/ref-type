@@ -1,0 +1,57 @@
+\import Glued.Overlap[i := i, j := j] \as Overlap;
+\import Atlas.In[c := chart i] \as Left;
+\import Atlas.In[c := chart j] \as Right;
+\import topology.Topology[Carrier := Right.Parameter] \as Parameters;
+\import Parameters.Subspace[S := Overlap.Domain] \as Subspace;
+\definition Point: \Set := Overlap.Point;
+\definition topology: topology.Topology[Carrier := Point].Topology := Subspace.topology Right.topology;
+\definition quotientBase[p: Point]: Quotient.Carrier := Right.base p;
+\definition quotientBaseContinuous: topology.Continuity[A := Point, B := Quotient.Carrier].Continuous topology Quotient.topology quotientBase :=
+  topology.Continuity[A := Right.Parameter, B := Quotient.Carrier].Restriction[S := Overlap.Domain].restrictContinuous
+    Right.topology Quotient.topology Right.base Overlap.baseContinuous;
+\definition exterior[p: Point]: Exterior.Point := \into[Quotient.Carrier](quotientBase p, Base.Complement (Base.Singleton Quotient.point)) \by { outside p };
+\definition exteriorContinuous: topology.Continuity[A := Point, B := Exterior.Point].Continuous topology Exterior.rangeTopology exterior :=
+  topology.Continuity[A := Point, B := Quotient.Carrier].Corestriction[S := Base.Complement (Base.Singleton Quotient.point)].corestrictContinuous
+    topology Quotient.topology exterior quotientBaseContinuous;
+\definition original[p: Point]: X := Exterior.inverse (exterior p);
+\import topology.Topology[Carrier := X] \as OriginalBase;
+\import OriginalBase.Subspace[S := OriginalBase.Complement subset] \as OriginalOutside;
+\definition originalContinuous: topology.Continuity[A := Point, B := X].Continuous topology bundle.baseSpace original :=
+  topology.Composition[A := Point, B := OriginalOutside.CarrierSet, C := X].composeContinuous topology Exterior.sourceTopology bundle.baseSpace
+    (\fun (p: Point) => Exterior.inverse (exterior p)) (\fun (x: OriginalOutside.CarrierSet) => x)
+    (topology.Composition[A := Point, B := Exterior.Point, C := OriginalOutside.CarrierSet].composeContinuous topology Exterior.rangeTopology Exterior.sourceTopology exterior Exterior.inverse exteriorContinuous Exterior.inverseContinuous)
+    (topology.Continuity[A := OriginalOutside.CarrierSet, B := X].Corestriction[S := OriginalBase.Complement subset].inclusionContinuous bundle.baseSpace);
+\definition leftContains[p: Point]: Base.Member (domain i) (quotientBase p) := \bysub(Right.Parameter, Overlap.Domain, p);
+\definition rightContains[p: Point]: Base.Member (domain j) (quotientBase p) := \bysub(Quotient.Carrier, domain j, Right.base p);
+\module At(p: Point);
+\definition leftBase[p: Point]: \Cast[X] (sourceChart i).domain := At[p := p].leftBase;
+\definition rightBase[p: Point]: \Cast[X] (sourceChart j).domain := At[p := p].rightBase;
+\definition leftRegular: topology.Continuity[A := Point, B := \Cast[X] (sourceChart i).domain].Continuous topology
+  (OriginalBase.Subspace[S := (sourceChart i).domain].topology bundle.baseSpace) leftBase :=
+  topology.Continuity[A := Point, B := X].Corestriction[S := (sourceChart i).domain].corestrictContinuous topology bundle.baseSpace leftBase originalContinuous;
+\definition rightRegular: topology.Continuity[A := Point, B := \Cast[X] (sourceChart j).domain].Continuous topology
+  (OriginalBase.Subspace[S := (sourceChart j).domain].topology bundle.baseSpace) rightBase :=
+  topology.Continuity[A := Point, B := X].Corestriction[S := (sourceChart j).domain].corestrictContinuous topology bundle.baseSpace rightBase originalContinuous;
+\definition vector[p: Point]: Bundles.Vector (sourceChart j).dimension := Right.vector p;
+\definition vectorContinuous: topology.Continuity[A := Point, B := Bundles.Vector (sourceChart j).dimension].Continuous topology (Bundles.coordinateTopology (sourceChart j).dimension) vector :=
+  topology.Continuity[A := Right.Parameter, B := Bundles.Vector (sourceChart j).dimension].Restriction[S := Overlap.Domain].restrictContinuous
+    Right.topology (Bundles.coordinateTopology (sourceChart j).dimension) Right.vector
+    (topological_constructions.Product[A := \Cast[Quotient.Carrier] (domain j), B := Bundles.Vector (sourceChart j).dimension].Maps[].secondContinuous
+      (Base.Subspace[S := domain j].topology Quotient.topology) (Bundles.coordinateTopology (sourceChart j).dimension));
+\definition values[p: Point]: F (leftBase p) := ((sourceChart j).frame (rightBase p)).backward.apply (vector p);
+\definition totalContinuous: topology.Continuity[A := Point, B := Original.Point].Continuous topology bundle.totalSpace (\fun (p: Point) => Original.include (leftBase p) (values p)) :=
+  (regularFrame j).writing Point topology rightBase rightRegular vector vectorContinuous;
+\definition coordinate[p: Point]: Bundles.Vector (sourceChart i).dimension := ((sourceChart i).frame (leftBase p)).forward.apply (values p);
+\definition coordinateContinuous: topology.Continuity[A := Point, B := Bundles.Vector (sourceChart i).dimension].Continuous topology (Bundles.coordinateTopology (sourceChart i).dimension) coordinate :=
+  (regularFrame i).reading Point topology leftBase leftRegular values totalContinuous;
+\definition targetBase[p: Point]: \Cast[Quotient.Carrier] (domain i) := \into[Quotient.Carrier](quotientBase p, domain i) \by { leftContains p };
+\definition targetBaseContinuous: topology.Continuity[A := Point, B := \Cast[Quotient.Carrier] (domain i)].Continuous topology
+  (Base.Subspace[S := domain i].topology Quotient.topology) targetBase :=
+  topology.Continuity[A := Point, B := Quotient.Carrier].Corestriction[S := domain i].corestrictContinuous topology Quotient.topology targetBase quotientBaseContinuous;
+\definition change[p: Point]: Left.Parameter := std.Data[].Pair[].pair (\Cast[Quotient.Carrier] (domain i)) (Bundles.Vector (sourceChart i).dimension) (targetBase p) (coordinate p);
+\definition changeContinuous: topology.Continuity[A := Point, B := Left.Parameter].Continuous topology Left.topology change :=
+  topological_constructions.Product[A := \Cast[Quotient.Carrier] (domain i), B := Bundles.Vector (sourceChart i).dimension].Universal[X := Point].pairContinuous
+    topology (Base.Subspace[S := domain i].topology Quotient.topology) (Bundles.coordinateTopology (sourceChart i).dimension) targetBase coordinate targetBaseContinuous coordinateContinuous;
+\definition equal: Overlap.change = change := \axiom:funext(Overlap.change, change, \fun (p: Point) => At[p := p].equation);
+\definition regular: Overlap.Regular := \idelim change = Overlap.change \with f: Point -> Left.Parameter =>
+  topology.Continuity[A := Point, B := Left.Parameter].Continuous topology Left.topology f \by { base: changeContinuous, equality: sym!{{Point -> Left.Parameter}} _ _ equal };

@@ -86,3 +86,23 @@
     | inl: \fun (p: Quotient.Point) => nearRegular
     | inr: \fun (c: OriginalCharts.Chart) => OriginalFrame[c := c].regular
   };
+\module Alignment(q: Exterior.Point);
+\module Cross(i, j: Index, outside: \forall (p: Glued.Overlap[i := i, j := j].Point) ->
+  Logic.Not (Atlas.In[c := chart j].base p = Quotient.point));
+\module NearNear(left, right: Quotient.Point);
+\module RightExterior(i: Index, c: OriginalCharts.Chart);
+\module LeftExterior(c: OriginalCharts.Chart, right: Quotient.Point);
+\definition transitionRegular: \forall (i, j: Index) -> Glued.Overlap[i := i, j := j].Regular :=
+  \induction (i: Index) \return \forall (j: Index) -> Glued.Overlap[i := i, j := j].Regular \with {
+    | inl: \fun (left: Quotient.Point) => \induction (j: Index) \return Glued.Overlap[i := (Sum.Sum[Quotient.Point, OriginalCharts.Chart]::inl left), j := j].Regular \with {
+      | inl: \fun (right: Quotient.Point) => NearNear[left := left, right := right].regular
+      | inr: \fun (c: OriginalCharts.Chart) => RightExterior[i := (Sum.Sum[Quotient.Point, OriginalCharts.Chart]::inl left), c := c].regular
+    }
+    | inr: \fun (c: OriginalCharts.Chart) => \induction (j: Index) \return Glued.Overlap[i := (Sum.Sum[Quotient.Point, OriginalCharts.Chart]::inr c), j := j].Regular \with {
+      | inl: \fun (right: Quotient.Point) => LeftExterior[c := c, right := right].regular
+      | inr: \fun (d: OriginalCharts.Chart) => RightExterior[i := (Sum.Sum[Quotient.Point, OriginalCharts.Chart]::inr c), c := d].regular
+    }
+  };
+\definition compatible: Glued.Compatible := Glued.fromTransitions openDomains covers transitionRegular;
+\definition bundleOnQuotient: Bundles.Family[X := Quotient.Carrier, F := Fiber].Bundle := Glued.bundle compatible;
+\definition trivialization[i: Index]: Bundles.Family[X := Quotient.Carrier, F := Fiber].With[data := bundleOnQuotient].Chart := Glued.Local[i := i].trivialization compatible;

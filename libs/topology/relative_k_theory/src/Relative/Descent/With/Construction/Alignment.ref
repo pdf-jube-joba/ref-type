@@ -1,0 +1,29 @@
+\import \parent.\parent.At[q := q] \as Model;
+\definition point: Model.Index := \into[X](Exterior.inverse q, { x: X \where Quotient.projection x = q }) \by { Exterior.inverseProjection q };
+\structure Agreement[i: Index, contains: Base.Member (domain i) q]: \Prop := {
+  inside: topology.Topology[Carrier := X].Member (sourceChart i).domain (Exterior.inverse q),
+  reading: \forall (v: Model.Carrier) -> (frame i (\into[Quotient.Carrier](q, domain i) \by { contains })).forward.apply v =
+    ((sourceChart i).frame (\into[X](Exterior.inverse q, (sourceChart i).domain) \by { inside })).forward.apply (Model.section v point),
+  writing: \forall (w: Bundles.Vector (sourceChart i).dimension) ->
+    Model.section ((frame i (\into[Quotient.Carrier](q, domain i) \by { contains })).backward.apply w) point =
+    ((sourceChart i).frame (\into[X](Exterior.inverse q, (sourceChart i).domain) \by { inside })).backward.apply w
+};
+\definition agreement: \forall (i: Index)(contains: Base.Member (domain i) q) -> Agreement[i, contains] :=
+  \induction (i: Index) \return \forall (contains: Base.Member (domain i) q) -> Agreement[i, contains] \with {
+    | inl: \fun (p: Quotient.Point)(contains: Base.Member Near.domain q) =>
+      Agreement[Sum.Sum[Quotient.Point, OriginalCharts.Chart]::inl p, contains] {
+        inside := Near.At[q := (\into[Quotient.Carrier](q, Near.domain) \by { contains })].within point,
+        reading := \fun (v: Model.Carrier) => sym!{Vector} _ _
+          ((Near.At[q := (\into[Quotient.Carrier](q, Near.domain) \by { contains })].condition v).evaluations point),
+        writing := \fun (w: Vector) => \refl((extension.isomorphism.backward.fiber
+          (\into[X](Exterior.inverse q, extension.domain) \by { Near.At[q := (\into[Quotient.Carrier](q, Near.domain) \by { contains })].within point })).apply w)
+      }
+    | inr: \fun (c: OriginalCharts.Chart)(contains: Base.Member (OriginalChart[c := c].domain) q) =>
+      Agreement[Sum.Sum[Quotient.Point, OriginalCharts.Chart]::inr c, contains] {
+        inside := OriginalChart[c := c].member (\into[Quotient.Carrier](q, OriginalChart[c := c].domain) \by { contains }),
+        reading := \fun (v: Model.Carrier) => \refl((c.frame (OriginalChart[c := c].base (\into[Quotient.Carrier](q, OriginalChart[c := c].domain) \by { contains }))).forward.apply (Model.section v point)),
+        writing := \fun (w: Bundles.Vector c.dimension) =>
+          Model.Outside[different := (\bysub(Quotient.Carrier, Base.Complement (Base.Singleton Quotient.point), q))].AtIndex[index := point].rightInverse
+            ((c.frame (OriginalChart[c := c].base (\into[Quotient.Carrier](q, OriginalChart[c := c].domain) \by { contains }))).backward.apply w)
+      }
+  };

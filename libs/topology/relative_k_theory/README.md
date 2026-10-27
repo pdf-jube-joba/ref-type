@@ -35,10 +35,13 @@ B09 の指定同型の近傍延長から、商の基点の開近傍とその上�
 座標の読み書き `Relative.Descent` は `coordinates-batch-Descent` で accepted・終了0・キャッシュ保存失敗0。
 座標変換の共通 API の検査は、基点の型が部分空間の要素であることを保持しきれず終了1となり、型を修正した。
 商上の近傍の枠と基点外の元のチャートからなる開被覆を構成し、元の束の座標の読み書きの連続性を共通化した。
-これらの新しい被覆と共通 API は未検証。
+座標変換の共通 API は `cover-batch-Overlap` で accepted・終了0・キャッシュ保存失敗0。
+元の束の座標との整合式から、近傍間・近傍と基点外・基点外同士の座標変換の連続性を構成した。
+降下した束 `Construction.bundleOnQuotient` まで追加したが、最新の構成は未検証。
+引き戻した束と元の束の比較、三つ組の群との比較、完全列以降の要件は未完成。
 次は座標変換と `Relative.Descent` を固定 snapshot と共有キャッシュで順番に検査する。
 崩壊商の基点の補集合と元の閉部分空間の補集合の同相 `Collapse.Outside` を追加し、これも未検証。
-検査には最新の `work/k03-resume/descent-cover-regular.source.json` を使う。
+検査には最新の `work/k03-resume/descent-bundle.source.json` を使う。
 各検査には `--source-snapshot` を指定する。
 作業の保存先は [Draft PR #50](https://github.com/pdf-jube-joba/ref-type/pull/50)。
 対象検査は `target/debug/cli libs --module topological_constructions.Coproduct.Properties --memory-mib 14336 --cache-dir libs/refcache --cache-budget-mib 16384 --diagnostics compact --report-json work/k03-resume/coproduct.json`。
