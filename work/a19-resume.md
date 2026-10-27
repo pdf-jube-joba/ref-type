@@ -62,3 +62,4 @@ workspace の libs/refcache を共有する。
 
 単位球上の評価から有界作用素の全体評価を導く UnitBounds と、随伴のノルム近似の保存を Adjoints.NormContinuity で証明した。コンパクト作用素の随伴が有限階数作用素で任意精度に近似できることを Compact.Approximation.Adjoint.approximate で証明し、各モジュールの個別検査は終了 0。残りは有限階数作用素のコンパクト性を証明し、ノルム極限定理へ接続すること。
 任意の複素 Hilbert 空間内の実線分がコンパクトであることを、実数の閉区間のコンパクト性と線形スカラー倍の連続性から Space.Hilbert.ScalarLines.segmentCompact として証明した。個別検査は終了 0。階数 1 射影の像を二つの実線分の和に含める証明へ進む。
+階数 1 の直交射影がコンパクトであることを Space.Hilbert.RankOne.Compact で証明した。単位球の像を 2 本のコンパクトな実線分の和に含める。対象モジュールの個別検査は終了 0。次は有限階数射影の帰納構成にコンパクト性を付け、任意の有限階数有界作用素へ拡張する。
