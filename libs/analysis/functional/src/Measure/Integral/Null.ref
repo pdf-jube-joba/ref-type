@@ -65,3 +65,52 @@
     \return lowerEqualOutside nullSet f g (\fun (x: A) (outside: Logic.Not (Sets.Member nullSet x)) =>
       Sigma.doubleNegative (f x = g x) (\fun (different: Logic.Not (f x = g x)) => outside (cover.included x different)))
   };
+
+\import \root.Measure[A := A].AlmostEverywhere[mu := mu] \as AE;
+\definition mapAlmost: \forall (h: Real.Real -> Real.Real) (f, g: A -> Real.Real) -> AlmostEqual mu f g ->
+  AlmostEqual mu (\fun (x: A) => h (f x)) (\fun (x: A) => h (g x)) :=
+  \fun (h: Real.Real -> Real.Real) (f, g: A -> Real.Real) (equal: AlmostEqual mu f g) =>
+    AE.nullSubset ({ x: A \where Logic.Not (h (f x) = h (g x)) }) ({ x: A \where Logic.Not (f x = g x) })
+      (\fun (x: A) (different: Logic.Not (h (f x) = h (g x))) (same: f x = g x) =>
+        different (congr!{Real.Real Real.Real} h _ _ same)) equal;
+\definition positiveAlmost: \forall (f, g: A -> Real.Real) -> AlmostEqual mu f g -> AlmostEqual mu (positivePart f) (positivePart g) :=
+  \fun (f, g: A -> Real.Real) (equal: AlmostEqual mu f g) => mapAlmost (\fun (x: Real.Real) => Distance.max Real.zero x) f g equal;
+\definition negativeAlmost: \forall (f, g: A -> Real.Real) -> AlmostEqual mu f g -> AlmostEqual mu (negativePart f) (negativePart g) :=
+  \fun (f, g: A -> Real.Real) (equal: AlmostEqual mu f g) => mapAlmost (\fun (x: Real.Real) => Distance.max Real.zero (Real.neg x)) f g equal;
+\definition hasIntegralAlmost: \forall (f, g: A -> Real.Real) (value: Real.Real) ->
+  AlmostEqual mu f g -> Integrable g -> HasIntegral[f, value] -> HasIntegral[g, value] :=
+  \fun (f, g: A -> Real.Real) (value: Real.Real) (equal: AlmostEqual mu f g) (integrable: Integrable g) (given: HasIntegral[f, value]) => \block {
+    \takefrom p: \Cast[Real.Real] ({ p: Real.Real \where \exists ( n: Real.Real \where Parts[f, value, p, n] ) }) \by given.parts \then
+    \takefrom n: \Cast[Real.Real] ({ n: Real.Real \where Parts[f, value, p, n] })
+      \by (\bysub(Real.Real, { p: Real.Real \where \exists ( n: Real.Real \where Parts[f, value, p, n] ) }, p)) \then
+    \let parts: Parts[f, value, p, n] := \bysub(Real.Real, { n: Real.Real \where Parts[f, value, p, n] }, n) \then
+    \let positive: Complete.LeastUpperBound[lowerIntegral (positivePart g), p] :=
+      \idelim lowerIntegral (positivePart f) = lowerIntegral (positivePart g) \with S: Value => Complete.LeastUpperBound[S, p]
+        \by { base: parts.positiveLaw, equality: lowerAlmostEqual (positivePart f) (positivePart g) (positiveAlmost f g equal) } \then
+    \let negative: Complete.LeastUpperBound[lowerIntegral (negativePart g), n] :=
+      \idelim lowerIntegral (negativePart f) = lowerIntegral (negativePart g) \with S: Value => Complete.LeastUpperBound[S, n]
+        \by { base: parts.negativeLaw, equality: lowerAlmostEqual (negativePart f) (negativePart g) (negativeAlmost f g equal) } \then
+    \return HasIntegral[g, value] {
+      integrable := integrable,
+      parts := Logic.existsIntro[Real.Real, { p: Real.Real \where \exists ( n: Real.Real \where Parts[g, value, p, n] ) }] p
+        (Logic.existsIntro[Real.Real, { n: Real.Real \where Parts[g, value, p, n] }] n
+          (Parts[g, value, p, n] { positiveLaw := positive, negativeLaw := negative, difference := parts.difference })),
+    }
+  };
+\definition integralAlmost: \forall (f, g: Representatives) -> AlmostEqual mu f g -> integral f = integral g :=
+  \fun (f, g: Representatives) (equal: AlmostEqual mu f g) => integralUnique g (integral f) (integral g)
+    (hasIntegralAlmost f g (integral f) equal (\bysub(A -> Real.Real, { f: A -> Real.Real \where Integrable f }, g)) (integralLaw f))
+    (integralLaw g);
+
+\import std.Set[].Quotient[A := Representatives, Equivalent := \fun (f, g: Representatives) => AlmostEqual mu f g] \as Quotient;
+\import Quotient.Maps[B := Real.Real] \as Maps;
+\definition equivalence: Quotient.EquivalenceLaws := Quotient.EquivalenceLaws {
+  refl := \fun (f: Representatives) => AE.reflexive f,
+  sym := \fun (f, g: Representatives) => AE.symmetric f g,
+  trans := \fun (f, g, h: Representatives) => AE.transitive f g h,
+};
+\definition Space: \Set := Quotient.Carrier;
+\definition class[f: Representatives]: Space := Quotient.class f;
+\definition quotientIntegral[C: Space]: Real.Real := Maps.value equivalence integral integralAlmost C;
+\definition quotientIntegralOfClass: \forall (f: Representatives) -> quotientIntegral (class f) = integral f :=
+  \fun (f: Representatives) => Maps.onClass equivalence integral integralAlmost f;
