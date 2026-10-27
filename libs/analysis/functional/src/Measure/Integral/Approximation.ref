@@ -40,3 +40,63 @@
   \fun (k: N.Nat^) (x: A) => R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (nextValue k x))
     (Distance.maxLeft (value k x) (\root.Measure[A := A].Integral[mu := mu].Evaluation[n := \root.Measure[A := A].Integral[mu := mu].Step[p := datum k].size,
       s := \root.Measure[A := A].Integral[mu := mu].Step[p := datum k].simple].value x));
+\import std.Logic[].Classical[] \as Classical;
+\import dedekind_reals.DedekindReal[].Order[] \as Order;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Def[] \as Op;
+\import std.Arithmetic[].Rat[].Enumeration[] \as Enumeration;
+\import dedekind_reals.DedekindReal[].Completeness[] \as Complete;
+\import \root.Measure[A := A].Integral[mu := mu].Convergence[] \as Convergence;
+\use std.Logic[].Equality[].congr;
+\definition zeroValue: \forall (x: A) -> value N.Nat^::zero x = Real.zero :=
+  \fun (x: A) => \root.Measure[A := A].Integral[mu := mu].Step[p := zeroDatum].outside x (\fun (impossible: Logic.False) => impossible);
+\definition stepBound: \forall (k: N.Nat^) (x: A) -> R.Le
+  (\root.Measure[A := A].Integral[mu := mu].Evaluation[n := \root.Measure[A := A].Integral[mu := mu].Step[p := datum k].size,
+    s := \root.Measure[A := A].Integral[mu := mu].Step[p := datum k].simple].value x) (f.function x) :=
+  \fun (k: N.Nat^) (x: A) => Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member (datum k).set x))
+    (\fun (inside: Sets.Member (datum k).set x) => R.leReplaceLeft _ _ _
+      (sym!{Real.Real} _ _ (\root.Measure[A := A].Integral[mu := mu].Step[p := datum k].inside x inside))
+      (Distance.maxLeast Real.zero (Functions.rational k) (f.function x) (f.nonnegative x) (Order.leOfLt _ _ inside)))
+    (\fun (outside: Sets.Member (Sets.Complement (datum k).set) x) => R.leReplaceLeft _ _ _
+      (sym!{Real.Real} _ _ (\root.Measure[A := A].Integral[mu := mu].Step[p := datum k].outside x outside)) (f.nonnegative x));
+\definition bounded: \forall (k: N.Nat^) (x: A) -> R.Le (value k x) (f.function x) :=
+  \induction (k: N.Nat^) \return \forall (x: A) -> R.Le (value k x) (f.function x) \with {
+    | zero: \fun (x: A) => R.leReplaceLeft Real.zero (value N.Nat^::zero x) (f.function x) (sym!{Real.Real} _ _ (zeroValue x)) (f.nonnegative x)
+    | succ: \fun (k: N.Nat^) (previous: _) (x: A) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (nextValue k x))
+      (Distance.maxLeast (value k x) _ (f.function x) (previous x) (stepBound k x))
+  };
+\definition witness: \forall (x: A) (r: Real.Real) -> R.Lt r (f.function x) ->
+  \exists ( k: N.Nat^ \where R.Lt r (value k x) ) :=
+  \fun (x: A) (r: Real.Real) (less: R.Lt r (f.function x)) => \block {
+    \takefrom q: \Cast[R.Rat] ({ q: R.Rat \where Logic.And[R.Lt r (Op.ofRat q), R.Lt (Op.ofRat q) (f.function x)] })
+      \by Laws.rationalDensity r (f.function x) less \then
+    \let between: Logic.And[R.Lt r (Op.ofRat q), R.Lt (Op.ofRat q) (f.function x)] :=
+      \bysub(R.Rat, { q: R.Rat \where Logic.And[R.Lt r (Op.ofRat q), R.Lt (Op.ofRat q) (f.function x)] }, q) \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Enumeration.fraction k = q }) \by Enumeration.exhaustive q \then
+    \let eq: Enumeration.fraction k = q := \bysub(N.Nat^, { k: N.Nat^ \where Enumeration.fraction k = q }, k) \then
+    \let realEq: Functions.rational k = Op.ofRat q := congr!{R.Rat Real.Real} Op.ofRat _ _ eq \then
+    \let inSet: Sets.Member (datum k).set x := R.ltReplaceLeft (Op.ofRat q) (Functions.rational k) (f.function x) (sym!{Real.Real} _ _ realEq) between.right \then
+    \let belowCoefficient: R.Lt r (Distance.max Real.zero (Functions.rational k)) :=
+      R.ltLeTrans r (Functions.rational k) (Distance.max Real.zero (Functions.rational k))
+        (R.ltReplaceRight r (Op.ofRat q) (Functions.rational k) (sym!{Real.Real} _ _ realEq) between.left)
+        (Distance.maxRight Real.zero (Functions.rational k)) \then
+    \let belowStep: R.Lt r (\root.Measure[A := A].Integral[mu := mu].Evaluation[n := \root.Measure[A := A].Integral[mu := mu].Step[p := datum k].size,
+      s := \root.Measure[A := A].Integral[mu := mu].Step[p := datum k].simple].value x) :=
+      R.ltReplaceRight r _ _ (sym!{Real.Real} _ _ (\root.Measure[A := A].Integral[mu := mu].Step[p := datum k].inside x inSet)) belowCoefficient \then
+    \let stepBelowNext: R.Le (\root.Measure[A := A].Integral[mu := mu].Evaluation[n := \root.Measure[A := A].Integral[mu := mu].Step[p := datum k].size,
+      s := \root.Measure[A := A].Integral[mu := mu].Step[p := datum k].simple].value x) (value (N.Nat^::succ k) x) :=
+      R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (nextValue k x)) (Distance.maxRight (value k x) _) \then
+    \return Logic.existsIntro[N.Nat^, { j: N.Nat^ \where R.Lt r (value j x) }] (N.Nat^::succ k) (R.ltLeTrans r _ _ belowStep stepBelowNext)
+  };
+\definition pointwiseSup: Convergence.PointwiseSup value f.function := \fun (x: A) => Complete.LeastUpperBound[Convergence.PointValues value x, f.function x] {
+  upper := \fun (y: Real.Real) (member: Complete.Member (Convergence.PointValues value x) y) => \block {
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where y = value k x }) \by member \then
+    \return R.leReplaceLeft (value k x) y (f.function x) (sym!{Real.Real} _ _ (\bysub(N.Nat^, { k: N.Nat^ \where y = value k x }, k))) (bounded k x)
+  },
+  least := \fun (b: Real.Real) (upper: Complete.UpperBound (Convergence.PointValues value x) b) =>
+    Order.leOfNotLtReverse (f.function x) b (\fun (less: R.Lt b (f.function x)) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where R.Lt b (value k x) }) \by witness x b less \then
+      \return R.ltNotLeReverse b (value k x) (\bysub(N.Nat^, { k: N.Nat^ \where R.Lt b (value k x) }, k))
+        (upper (value k x) (Convergence.pointValueMember value x k))
+    }),
+};
