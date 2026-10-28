@@ -1,0 +1,50 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.trans;
+\use Eq.sym;
+\use Eq.congr;
+\import complex.Complex[] \as C;
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Homotopy;
+\import Homotopy.Disks[d := two] \as Disks;
+\import algebraic_topology.Euclidean[].Dimension[n := two] \as Circle;
+\import topology.Topology[Carrier := Sphere.Sphere] \as Base;
+\import Homotopy.Clutching[n := one, X := Sphere.Sphere, baseSpace := Sphere.sphereTopology,
+  U := Disks.U, V := Disks.V, openU := Disks.openU, openV := Disks.openV, covers := Disks.covers] \as Clutch;
+\definition z[p: Clutch.Overlap]: C.Complex := Line.coefficient (Disks.boundary p);
+\definition regular: topology.Continuity[A := Clutch.Overlap, B := C.Complex].Continuous Clutch.overlapTopology topological_algebra.Complex[].topology z :=
+  topology.Composition[A := Clutch.Overlap, B := Circle.Sphere, C := C.Complex].composeContinuous Clutch.overlapTopology Circle.sphereTopology topological_algebra.Complex[].topology
+    Disks.boundary Line.coefficient Disks.boundaryContinuous Line.regular;
+\definition unit: \forall (p: Clutch.Overlap) -> C.Absolute[].abs (z p) = real.Analysis[].one :=
+  \fun (p: Clutch.Overlap) => clutching_linearization.Linearization[].Powers[].unitOfNorm (z p) (Line.norm (Disks.boundary p));
+\import clutching_linearization.Linearization[].ClutchingProduct[n := one, X := Sphere.Sphere, source := Sphere.sphereTopology,
+  compact := Compactness.sphere, hausdorff := Compactness.sphereHausdorff, U := Disks.U, V := Disks.V,
+  openU := Disks.openU, openV := Disks.openV, covers := Disks.covers].Powers[z := z, continuousZ := regular, unitZ := unit] \as Powers;
+\import Homotopy.ScalarUnits[n := one].Family[X := Circle.Sphere, source := Circle.sphereTopology,
+  a := Line.coefficient, regular := Line.regular, nonzero := Line.nonzero] \as Scalar;
+\import Homotopy.Disks[d := two].Clutched[n := one, g := Scalar.map, continuous := Scalar.continuous] \as Native;
+\import Powers.At[k := one] \as First;
+\import clutching_linearization.Linearization[].ClutchingProduct[n := one, X := Sphere.Sphere, source := Sphere.sphereTopology,
+  compact := Compactness.sphere, hausdorff := Compactness.sphereHausdorff, U := Disks.U, V := Disks.V,
+  openU := Disks.openU, openV := Disks.openV, covers := Disks.covers] \as Product;
+\import Product.Class[g := First.transition, continuous := First.regular].Compare[h := Native.transition, continuousH := Native.transitionContinuous] \as Compare;
+\import std.Data[].FinSet[] \as Fin;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := C.Algebra[].commutativeRing].Coordinates[I := Fin.Fin one] \as Vectors;
+\definition action: \forall (p: Clutch.Overlap)(v: Vectors.Vector) -> (First.transition p).apply v = (Native.transition p).apply v :=
+  \fun (p: Clutch.Overlap)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _ (First.formula p v)
+    (congr!{C.Complex Vectors.Vector} (\fun (c: C.Complex) => Vectors.scale c v) _ _ (C.Prop[].mulOneRight (z p)));
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := C.Algebra[].commutativeRing].Linear[V := Vectors.Vector, W := Vectors.Vector,
+  source := Vectors.space, target := Vectors.space] \as End;
+\import bundle_operations.Operations[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar].ScalarLine[X := Sphere.Sphere, baseSpace := Sphere.sphereTopology] \as ScalarLine;
+\definition rankLine: K.Trivial[n := one].value = K.Line[].value :=
+  K.Compare[F := K.Trivial[n := one].FiberAt, G := K.Line[].FiberAt, first := K.Trivial[n := one].trivialBundle, second := K.Line[].lineBundle,
+    firstSame := \refl(Sphere.sphereTopology), secondSame := \refl(Sphere.sphereTopology)].ofIsomorphism ScalarLine.coordinateIsomorphism;
+\definition firstComparison: Powers.generator = generator :=
+  trans!{K0.Carrier} _ _ _ (Compare.ofEquality (\fun (p: Clutch.Overlap) => End.ext _ _
+    (\axiom:funext((First.transition p).apply, (Native.transition p).apply, action p))))
+    (congr!{K.Classes K0.Carrier} (\fun (c: K.Classes) => K0.difference lineClass c) _ _ rankLine);
+\import algebra.Group[].Of[Carrier := K0.Carrier, group := K0.group] \as Group;
+\definition squareLoop: Powers.At[k := two].value = K0.add generator generator :=
+  trans!{K0.Carrier} _ _ _ (Powers.formula two)
+    (congr!{K0.Carrier K0.Carrier K0.Carrier} K0.add _ _ _ _ firstComparison
+      (trans!{K0.Carrier} _ _ _ (Group.zeroRight Powers.generator) firstComparison));
