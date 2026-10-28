@@ -1,0 +1,23 @@
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\import Algebra.Laws[V := Total.Carrier, space := Total.totalSpace] \as TotalLaws;
+\import \root.Over[K := C.Complex, scalarRing := ring].On[V := Finite.Vector, space := Finite.space].Total[].Finite[n := n, b := Basis.basis] \as FiniteTotal;
+\definition Bounded[m: N.Nat^][f: Total.Carrier]: \Prop := \forall (l: N.Nat^) -> NatLaws.Le m l -> f l = Forms.At[k := l].origin;
+\definition Property[m: N.Nat^]: \Prop := \forall (u: Unitary.Carrier)(f: Total.Carrier) -> Bounded m f ->
+  (Phase.actionC (lift u)).value.apply f = (action u).value.apply f;
+\definition zero: Property N.Nat^::zero := \fun (u: Unitary.Carrier)(f: Total.Carrier)(bounded: Bounded N.Nat^::zero f) => \block {
+  \let vanishes: f = Total.zero := \axiom:funext(f, Total.zero, \fun (l: N.Nat^) => bounded l (NatLaws.zeroLe l)) \then
+  \return eq_reason_in!{{Total.Carrier} _
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} ((Phase.actionC (lift u)).value.apply) _ _ vanishes }
+    "=" _ "by" { (Phase.actionC (lift u)).value.preservesZero }
+    "=" _ "by" { sym!{{Total.Carrier}} _ _ ((action u).value.preservesZero) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} ((action u).value.apply) _ _ (sym!{{Total.Carrier}} _ _ vanishes) }
+  }
+};
+\module Step(k: N.Nat^);
+\definition all: \forall (m: N.Nat^) -> Property m := \induction (m: N.Nat^) \return Property m \with {
+  | zero: zero
+  | succ: \fun (m: N.Nat^)(previous: Property m) => Step[k := m].law previous
+};
+\definition actionEqual: \forall (u: Unitary.Carrier)(f: Total.Carrier) -> (Phase.actionC (lift u)).value.apply f = (action u).value.apply f :=
+  \fun (u: Unitary.Carrier)(f: Total.Carrier) => all (N.Nat^::succ n) u f (\fun (l: N.Nat^)(large: NatLaws.Le (N.Nat^::succ n) l) => FiniteTotal.zeroAbove f l (NatLaws.ltOfSuccLe l n large));
