@@ -3,3 +3,22 @@
 \import linear_algebra.Hermitian[].Over[K := C.Complex, field := Field.field, scalar := Hermitian.scalar].Inner[V := Forms.Form k, space := FormsAt.vectorSpace].Of[h := GradeInner.form] \as Laws;
 \definition zeroOfReal: \forall (f: Forms.Form k) -> C.re (GradeInner.dot f f) = R.zero -> f = FormsAt.origin :=
   \fun (f: Forms.Form k) => Laws.squaredDefinite GradeInner.positive f;
+\import Algebra.Sign[] \as Sign;
+\import C.Prop[] \as LawsScalar;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].trans;
+\definition realSign: \forall (j: N.Nat^) -> Def.conj (Sign.value j) = Sign.value j :=
+  \induction (j: N.Nat^) \return Def.conj (Sign.value j) = Sign.value j \with {
+    | zero: LawsScalar.conjOfReal R.one
+    | succ: \fun (j: N.Nat^)(previous: Def.conj (Sign.value j) = Sign.value j) => congr!{C.Complex C.Complex} Def.neg _ _ previous
+  };
+\definition parityIsometry: \forall (f, g: Forms.Form k) -> GradeInner.dot (FormsAt.scale (Sign.value k) f) (FormsAt.scale (Sign.value k) g) = GradeInner.dot f g :=
+  \fun (f, g: Forms.Form k) => eq_reason_in!{C.Complex _
+    "=" _ "by" { Laws.scaleLeft (Sign.value k) f (FormsAt.scale (Sign.value k) g) }
+    "=" _ "by" { congr!{C.Complex C.Complex C.Complex} Algebra.mul _ _ _ _ (realSign k) (GradeInner.form.scaleRight (Sign.value k) f g) }
+    "=" _ "by" { sym!{C.Complex} _ _ (Algebra.mulAssoc (Sign.value k) (Sign.value k) (GradeInner.dot f g)) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (a: C.Complex) => Algebra.mul a (GradeInner.dot f g)) _ _ (Sign.square k) }
+    "=" _ "by" { Algebra.mulOneLeft (GradeInner.dot f g) }
+  };
