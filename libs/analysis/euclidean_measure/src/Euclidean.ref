@@ -1004,3 +1004,36 @@
 \module Flatten;
 \module SeriesBounds;
 \module Countable;
+\module CaratheodorySets;
+\module MeasureConstruction;
+\import std.Data[].Option[] \as Option;
+\definition productZero: \forall (k: N.Nat^) (f: Fin.Fin k -> Real.Real) (i: Fin.Fin k) -> f i = Real.zero -> product k f = Real.zero :=
+  \induction (k: N.Nat^) \return \forall (f: Fin.Fin k -> Real.Real) (i: Fin.Fin k) -> f i = Real.zero -> product k f = Real.zero \with {
+    | zero: \fun (f: Fin.Fin N.Nat^::zero -> Real.Real) (i: Fin.Fin N.Nat^::zero) (_: _) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))
+    | succ: \fun (k: N.Nat^) (prior: \forall (f: Fin.Fin k -> Real.Real) (i: Fin.Fin k) -> f i = Real.zero -> product k f = Real.zero)
+      (f: Fin.Fin (N.Nat^::succ k) -> Real.Real) (i: Fin.Fin (N.Nat^::succ k)) => \block {
+        \let cases: \forall (o: Option.Option[Fin.Fin k]) -> f (Fin.inflate k o) = Real.zero -> product (N.Nat^::succ k) f = Real.zero :=
+          \induction (o: Option.Option[Fin.Fin k]) \return f (Fin.inflate k o) = Real.zero -> product (N.Nat^::succ k) f = Real.zero \with {
+            | none: \fun (equal: f (Fin.zero k) = Real.zero) => eq_reason_in!{Real.Real _
+              "=" _ "by" { congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.mul v (product k (\fun (j: Fin.Fin k) => f (Fin.succ k j)))) _ _ equal }
+              "=" _ "by" { Laws.fieldMulZeroLeft (product k (\fun (j: Fin.Fin k) => f (Fin.succ k j))) }
+            }
+            | some: \fun (j: Fin.Fin k) (equal: f (Fin.succ k j) = Real.zero) => eq_reason_in!{Real.Real _
+              "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (f (Fin.zero k))) _ _ (prior (\fun (l: Fin.Fin k) => f (Fin.succ k l)) j equal) }
+              "=" _ "by" { Laws.fieldMulZeroRight (f (Fin.zero k)) }
+            }
+          } \then
+        \return \idelim Fin.inflate k (Fin.split k i) = i \with j: Fin.Fin (N.Nat^::succ k) => f j = Real.zero -> product (N.Nat^::succ k) f = Real.zero
+          \by { base: cases (Fin.split k i), equality: Fin.inflateSplit k i }
+      }
+  };
+\definition degenerateVolume: \forall (b: Box) (i: Fin.Fin n) -> b.right i = b.left i -> volume b = Real.zero :=
+  \fun (b: Box) (i: Fin.Fin n) (same: b.right i = b.left i) => Bool.cases (\fun (active: Bool.Bool^) =>
+    (\match active \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with {
+      | false: Real.zero
+      | true: product n (\fun (j: Fin.Fin n) => Real.sub (b.right j) (b.left j))
+    }) = Real.zero) (\refl(Real.zero))
+    (productZero n (\fun (j: Fin.Fin n) => Real.sub (b.right j) (b.left j)) i (eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.sub x (b.left i)) _ _ same }
+      "=" _ "by" { Laws.subSelf (b.left i) }
+    })) b.active;
