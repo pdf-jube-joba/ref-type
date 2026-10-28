@@ -79,3 +79,18 @@
 \import Integral.AEDominated[d := data] \as Proof;
 \definition representative: Integral.Representatives := Proof.representative;
 \definition almostLimit: Measure.AlmostEqual Line.measure representative limit := Proof.almostLimit;
+\import integration.Real[].Lebesgue[interval := interval].Def[] \as Completion;
+\import integration.Real[].Lebesgue[interval := interval].Prop[] \as CompletionProp;
+\definition subsequenceIntegral: Sequence.Converges (\fun (k: N.Nat^) => Integral.integral (Comparison.mapped s (index k)))
+  (CompletionProp.integral (Completion.class s)) :=
+  \fun (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) => \block {
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sequence.LimitControl (\fun (j: N.Nat^) => Integral.integral (Comparison.mapped s j)) (CompletionProp.integral (Completion.class s)) epsilon k })
+      \by Comparison.integralSequence s epsilon positive \then
+    \let control: Sequence.LimitControl (\fun (j: N.Nat^) => Integral.integral (Comparison.mapped s j)) (CompletionProp.integral (Completion.class s)) epsilon k :=
+      \bysub(N.Nat^, { k: N.Nat^ \where Sequence.LimitControl (\fun (j: N.Nat^) => Integral.integral (Comparison.mapped s j)) (CompletionProp.integral (Completion.class s)) epsilon k }, k) \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequence.LimitControl (\fun (j: N.Nat^) => Integral.integral (Comparison.mapped s (index j))) (CompletionProp.integral (Completion.class s)) epsilon k }] k
+      (\fun (j: N.Nat^) (later: Nat.Le k j) => control (index j) (Nat.leTrans k j (index j) later (good j).left))
+  };
+\definition integral: Integral.integral representative = CompletionProp.integral (Completion.class s) :=
+  Sequence.limitUnique (\fun (k: N.Nat^) => Integral.integral (Comparison.mapped s (index k)))
+    (Integral.integral representative) (CompletionProp.integral (Completion.class s)) Proof.convergence subsequenceIntegral;
