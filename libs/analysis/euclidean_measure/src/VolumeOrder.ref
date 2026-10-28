@@ -1,0 +1,84 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Data[].Bool[] \as Bool;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\import \root.Euclidean[n := n] \as E;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\import real.Analysis[] \as Real;
+\import Real.Distance[] \as Distance;
+\import Real.Estimates[] \as Estimates;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\definition productMonotone: \forall (k: N.Nat^) (f, g: Fin.Fin k -> Real.Real) ->
+  (\forall (i: Fin.Fin k) -> R.Le Real.zero (f i)) -> (\forall (i: Fin.Fin k) -> R.Le (f i) (g i)) ->
+  R.Le (E.product k f) (E.product k g) :=
+  \induction (k: N.Nat^) \return \forall (f, g: Fin.Fin k -> Real.Real) ->
+    (\forall (i: Fin.Fin k) -> R.Le Real.zero (f i)) -> (\forall (i: Fin.Fin k) -> R.Le (f i) (g i)) ->
+    R.Le (E.product k f) (E.product k g) \with {
+      | zero: \fun (_: _) (_: _) (_: _) (_: _) => R.leRefl Real.one
+      | succ: \fun (k: N.Nat^) (prior: \forall (f, g: Fin.Fin k -> Real.Real) -> (\forall (i: Fin.Fin k) -> R.Le Real.zero (f i)) -> (\forall (i: Fin.Fin k) -> R.Le (f i) (g i)) -> R.Le (E.product k f) (E.product k g)) (f, g: Fin.Fin (N.Nat^::succ k) -> Real.Real) (nonnegative: \forall (i: Fin.Fin (N.Nat^::succ k)) -> R.Le Real.zero (f i)) (less: \forall (i: Fin.Fin (N.Nat^::succ k)) -> R.Le (f i) (g i)) => \block {
+        \let ft: Fin.Fin k -> Real.Real := \fun (i: Fin.Fin k) => f (Fin.succ k i) \then
+        \let gt: Fin.Fin k -> Real.Real := \fun (i: Fin.Fin k) => g (Fin.succ k i) \then
+        \let tailPositive: R.Le Real.zero (E.product k ft) := E.productNonnegative k ft (\fun (i: Fin.Fin k) => nonnegative (Fin.succ k i)) \then
+        \let headPositive: R.Le Real.zero (g (Fin.zero k)) := R.leTrans Real.zero (f (Fin.zero k)) (g (Fin.zero k)) (nonnegative (Fin.zero k)) (less (Fin.zero k)) \then
+        \let first: R.Le (Real.mul (f (Fin.zero k)) (E.product k ft)) (Real.mul (g (Fin.zero k)) (E.product k ft)) :=
+          R.leReplace (Real.mul (E.product k ft) (f (Fin.zero k))) (Real.mul (f (Fin.zero k)) (E.product k ft))
+            (Real.mul (E.product k ft) (g (Fin.zero k))) (Real.mul (g (Fin.zero k)) (E.product k ft))
+            (Laws.fieldMulComm (E.product k ft) (f (Fin.zero k))) (Laws.fieldMulComm (E.product k ft) (g (Fin.zero k)))
+            (Estimates.mulMonotone (E.product k ft) (f (Fin.zero k)) (g (Fin.zero k)) tailPositive (less (Fin.zero k))) \then
+        \let second: R.Le (Real.mul (g (Fin.zero k)) (E.product k ft)) (Real.mul (g (Fin.zero k)) (E.product k gt)) :=
+          Estimates.mulMonotone (g (Fin.zero k)) (E.product k ft) (E.product k gt) headPositive
+            (prior ft gt (\fun (i: Fin.Fin k) => nonnegative (Fin.succ k i)) (\fun (i: Fin.Fin k) => less (Fin.succ k i))) \then
+        \return R.leTrans _ _ _ first second
+      }
+    };
+\definition endpointVolumeMonotone: \forall (b, c: E.Box) ->
+  (\forall (i: Fin.Fin n) -> R.Le (c.left i) (b.left i)) ->
+  (\forall (i: Fin.Fin n) -> R.Le (b.right i) (c.right i)) ->
+  Bool.IsTrue b.active -> Bool.IsTrue c.active -> R.Le (E.volume b) (E.volume c) :=
+  \fun (b, c: E.Box) (left: \forall (i: Fin.Fin n) -> R.Le (c.left i) (b.left i))
+    (right: \forall (i: Fin.Fin n) -> R.Le (b.right i) (c.right i)) (ba: Bool.IsTrue b.active) (ca: Bool.IsTrue c.active) =>
+    \idelim Bool.Bool^::true = b.active \with active: Bool.Bool^ =>
+      R.Le (\match active \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with {
+        | false: Real.zero | true: E.product n (\fun (i: Fin.Fin n) => Real.sub (b.right i) (b.left i)) }) (E.volume c) \by { base:
+        \idelim Bool.Bool^::true = c.active \with active: Bool.Bool^ =>
+          R.Le (E.product n (\fun (i: Fin.Fin n) => Real.sub (b.right i) (b.left i)))
+          (\match active \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with {
+            | false: Real.zero | true: E.product n (\fun (i: Fin.Fin n) => Real.sub (c.right i) (c.left i)) }) \by {
+              base: productMonotone n (\fun (i: Fin.Fin n) => Real.sub (b.right i) (b.left i)) (\fun (i: Fin.Fin n) => Real.sub (c.right i) (c.left i))
+                (\fun (i: Fin.Fin n) => Distance.subNonnegative (b.right i) (b.left i) (b.ordered i))
+                (\fun (i: Fin.Fin n) => Estimates.addLe (b.right i) (Real.neg (b.left i)) (c.right i) (Real.neg (c.left i)) (right i) (Laws.negAntitone (c.left i) (b.left i) (left i))),
+              equality: sym!{Bool.Bool^} _ _ ca },
+        equality: sym!{Bool.Bool^} _ _ ba };
+\definition leftCorner: \forall (b: E.Box) -> Bool.IsTrue b.active -> Sets.Member (E.points b) b.left :=
+  \fun (b: E.Box) (active: Bool.IsTrue b.active) => Logic.And[_, _]::# active
+    (\fun (i: Fin.Fin n) => Logic.And[_, _]::# (R.leRefl (b.left i)) (b.ordered i));
+\definition rightCorner: \forall (b: E.Box) -> Bool.IsTrue b.active -> Sets.Member (E.points b) b.right :=
+  \fun (b: E.Box) (active: Bool.IsTrue b.active) => Logic.And[_, _]::# active
+    (\fun (i: Fin.Fin n) => Logic.And[_, _]::# (b.ordered i) (R.leRefl (b.right i)));
+\definition includedActive: \forall (b, c: E.Box) -> Bool.IsTrue b.active -> Sets.Subset (E.points b) (E.points c) -> R.Le (E.volume b) (E.volume c) :=
+  \fun (b, c: E.Box) (active: Bool.IsTrue b.active) (included: Sets.Subset (E.points b) (E.points c)) => \block {
+    \let first: Sets.Member (E.points c) b.left := included b.left (leftCorner b active) \then
+    \let second: Sets.Member (E.points c) b.right := included b.right (rightCorner b active) \then
+    \return endpointVolumeMonotone b c (\fun (i: Fin.Fin n) => (first.right i).left)
+      (\fun (i: Fin.Fin n) => (second.right i).right) active first.left
+  };
+\import std.Logic[].Classical[] \as Classical;
+\import Bool.Prop[] \as BoolLaws;
+\definition inactiveIsFalse: \forall (b: E.Box) -> Logic.Not (Bool.IsTrue b.active) -> b.active = Bool.Bool^::false :=
+  \fun (b: E.Box) (inactive: Logic.Not (Bool.IsTrue b.active)) => Bool.cases (\fun (active: Bool.Bool^) =>
+    Logic.Not (Bool.IsTrue active) -> active = Bool.Bool^::false)
+    (\fun (_: _) => \refl(Bool.Bool^::false))
+    (\fun (bad: Logic.Not (Bool.IsTrue Bool.Bool^::true)) => Logic.falseElim _ (bad (\refl(Bool.Bool^::true)))) b.active inactive;
+\definition included: \forall (b, c: E.Box) -> Sets.Subset (E.points b) (E.points c) -> R.Le (E.volume b) (E.volume c) :=
+  \fun (b, c: E.Box) (subset: Sets.Subset (E.points b) (E.points c)) =>
+    Logic.orElim (Bool.IsTrue b.active) (Logic.Not (Bool.IsTrue b.active)) (R.Le (E.volume b) (E.volume c))
+      (Classical.excludedMiddle (Bool.IsTrue b.active))
+      (\fun (active: Bool.IsTrue b.active) => includedActive b c active subset)
+      (\fun (inactive: Logic.Not (Bool.IsTrue b.active)) =>
+        \idelim Bool.Bool^::false = b.active \with active: Bool.Bool^ => R.Le
+          (\match active \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with {
+            | false: Real.zero | true: E.product n (\fun (i: Fin.Fin n) => Real.sub (b.right i) (b.left i)) }) (E.volume c)
+          \by { base: E.volumeNonnegative c, equality: sym!{Bool.Bool^} _ _ (inactiveIsFalse b inactive) });
