@@ -1,0 +1,63 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Arithmetic;
+\import algebra.Groups[].On[G := Units.Unit, group := Units.group] \as Ambient;
+\import algebra.Groups[].On[G := E.Pin, group := E.pinGroup] \as PinOps;
+\import algebra.Groups[].On[G := E.O, group := E.orthogonalGroup] \as OrthogonalOps;
+\definition intoPin[g: Units.Unit][member: \In[Units.Unit] Pin.predicate g]: E.Pin := \into[Units.Unit](g, Pin.predicate) \by { member };
+\structure Law[g: Units.Unit]: \Prop := {
+  member: \In[Units.Unit] Pin.predicate g,
+  determinant: \forall (witness: \In[Units.Unit] Pin.predicate g) -> Orientation.determinant (Projection.map (intoPin g witness)) = R.one,
+};
+\definition predicate: \Pow Units.Unit := { g: Units.Unit \where Law[g] };
+\definition closed: Ambient.Closed[predicate] := Ambient.Closed[predicate] {
+  one := Law[Units.unit] { member := Pin.closed.one, determinant := \fun (witness: _) => trans!{R.Real} _ _ _
+    (congr!{E.O R.Real} Orientation.determinant _ _ Projection.atOne) Orientation.atOne },
+  mul := \fun (g, h: Units.Unit)(left: Law[g])(right: Law[h]) => Law[Units.product g h] {
+    member := Pin.closed.mul g h left.member right.member,
+    determinant := \fun (witness: _) => eq_reason_in!{R.Real _
+      "=" _ "by" { congr!{E.O R.Real} Orientation.determinant _ _ (Projection.multiplication (intoPin g left.member) (intoPin h right.member)) }
+      "=" _ "by" { Orientation.multiplication (Projection.map (intoPin g left.member)) (Projection.map (intoPin h right.member)) }
+      "=" _ "by" { congr!{R.Real R.Real R.Real} R.mul _ _ _ _ (left.determinant left.member) (right.determinant right.member) }
+      "=" _ "by" { Arithmetic.fieldMulOneLeft R.one }
+    },
+  },
+  inv := \fun (g: Units.Unit)(previous: Law[g]) => Law[Units.inverse g] {
+    member := Pin.closed.inv g previous.member,
+    determinant := \fun (witness: _) => eq_reason_in!{R.Real _
+      "=" _ "by" { sym!{R.Real} _ _ (Arithmetic.fieldMulOneLeft (Orientation.determinant (Projection.map (intoPin (Units.inverse g) witness)))) }
+      "=" _ "by" { congr!{R.Real R.Real} (\fun (a: R.Real) => R.mul a (Orientation.determinant (Projection.map (intoPin (Units.inverse g) witness)))) _ _ (sym!{R.Real} _ _ (previous.determinant previous.member)) }
+      "=" _ "by" { congr!{R.Real R.Real} (R.mul (Orientation.determinant (Projection.map (intoPin g previous.member)))) _ _
+        (congr!{E.O R.Real} Orientation.determinant _ _ (Projection.inverseImage (intoPin g previous.member))) }
+      "=" _ "by" { Orientation.inverseProduct (Projection.map (intoPin g previous.member)) }
+    },
+  },
+};
+\definition vectorSign: \forall (g: Units.Unit)(generator: Pin.VectorGenerator g)(member: \In[Units.Unit] Pin.predicate g) -> Orientation.determinant (Projection.map (intoPin g member)) = R.neg R.one :=
+  \induction (g: Units.Unit)(generator: Pin.VectorGenerator g) \return \forall (member: \In[Units.Unit] Pin.predicate g) -> Orientation.determinant (Projection.map (intoPin g member)) = R.neg R.one \with {
+    | positive: \fun (v: Pin.Positive)(member: _) => \root.Orientation[].positiveSign d v
+    | negative: \fun (v: Pin.Negative)(member: _) => Logic.falseElim _ (Projection.negativeImpossible v)
+  };
+\definition generators: \forall (g: Units.Unit) -> Pin.EvenGenerator g -> \In[Units.Unit] predicate g :=
+  \induction (g: Units.Unit)(generator: Pin.EvenGenerator g) \return \In[Units.Unit] predicate g \with {
+    | sign: Law[Units.minusOne] { member := Pin.generatorInPin Units.minusOne Pin.Generator::sign,
+      determinant := \fun (member: _) => trans!{R.Real} _ _ _ (congr!{E.O R.Real} Orientation.determinant _ _ Projection.atSign) Orientation.atOne }
+    | pair: \fun (g, h: Units.Unit)(hg: Pin.VectorGenerator g)(hh: Pin.VectorGenerator h) => Law[Units.product g h] {
+      member := Pin.evenGeneratorInPin (Units.product g h) (Pin.EvenGenerator::pair g h hg hh),
+      determinant := \fun (member: _) => eq_reason_in!{R.Real _
+        "=" _ "by" { congr!{E.O R.Real} Orientation.determinant _ _ (Projection.multiplication
+          (intoPin g (Pin.vectorInPin g hg)) (intoPin h (Pin.vectorInPin h hh))) }
+        "=" _ "by" { Orientation.multiplication (Projection.map (intoPin g (Pin.vectorInPin g hg))) (Projection.map (intoPin h (Pin.vectorInPin h hh))) }
+        "=" _ "by" { congr!{R.Real R.Real R.Real} R.mul _ _ _ _ (vectorSign g hg (Pin.vectorInPin g hg)) (vectorSign h hh (Pin.vectorInPin h hh)) }
+        "=" _ "by" { Arithmetic.fieldMulNegBoth R.one R.one }
+        "=" _ "by" { Arithmetic.fieldMulOneLeft R.one }
+      },
+    }
+  };
+\definition determinant: \forall (g: Pin.Spin) -> Orientation.determinant (Projection.spinMap g) = R.one :=
+  \fun (g: Pin.Spin) => ((Pin.evenMembership g) predicate closed generators).determinant (Pin.spinInPin g);
+\module Surjectivity;

@@ -126,3 +126,17 @@
   ProjectionHom.MonoidLaws[_, _, projection] { unit := projectionUnit, operation := projectionProduct }
 };
 \module Equivariance;
+\import \root.Orientation[].Dimension[d := Sum.dimension].Even[] \as OrientationEven;
+\import Geometry.Orientation[] \as Orientation;
+\import lie_groups.Classical[].On[V := E.Vector, space := E.space].Orthogonal[form := E.form].Special[n := Sum.dimension] \as Special;
+\definition preservesOrientation: \forall (g: SpinC.Carrier) -> Special.PreservesVolume (projection g) :=
+  SpinC.induction (\fun (g: SpinC.Carrier) => Special.PreservesVolume (projection g))
+    (\fun (g: Pin.Spin)(z: Circle.Circle) => \idelim OrthogonalAction.spinMap g = projection (SpinC.class g z) \with q: Geometry.O => Special.PreservesVolume q \by {
+      base: (Orientation.preservesIff (OrthogonalAction.spinMap g)).rtl (OrientationEven.determinant g),
+      equality: sym!{Geometry.O} _ _ (projectionOnClass g z)
+    });
+\definition specialProjection[g: SpinC.Carrier]: Special.SO := \into[Geometry.O](projection g, Special.subset) \by { preservesOrientation g };
+\import algebra.Hom[A := SpinC.Carrier, B := Special.SO] \as SpecialHom;
+\definition specialProjectionHomomorphism: SpecialHom.GroupMap SpinC.group Special.group := \into[SpinC.Carrier -> Special.SO](specialProjection, SpecialHom.GroupMap SpinC.group Special.group) \by {
+  SpecialHom.MonoidLaws[_, _, specialProjection] { unit := projectionUnit, operation := projectionProduct }
+};
