@@ -61,3 +61,43 @@
               (sym!{Real.Real} _ _ (Distance.distanceSelf _)) (sym!{Real.Real} _ _ (Laws.subSelf _)) (R.leRefl Real.zero),
             equality: sym!{N.Nat^} _ _ same })
   };
+\import Measure.Integral[mu := Line.measure].Convergence[] \as Convergence;
+\import Convergence.PointwiseSum[] \as PointwiseSum;
+\import Real.Sequence[] \as Sequence;
+\import Real.SquareRoot[] \as Root;
+\import R.Order[] \as Order;
+\import N.Order[].Prop[] \as NatOrder;
+\import topology.Topology[Carrier := Real.Real] \as Sets;
+\definition cauchy: Logic.Not (Sets.Member Divergence.exception x) -> Sequence.Cauchy value :=
+  \fun (outside: Logic.Not (Sets.Member Divergence.exception x)) (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) => \block {
+    \let half: Real.Real := Real.mul Real.half epsilon \then
+    \let hp: R.Lt Real.zero half := Estimates.halfOfPositive epsilon positive \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where R.Lt (Real.sub (Sum.value x) half) (Sum.sequence k x) }) \by
+      Convergence.abovePointwiseSup Sum.sequence Sum.value Sum.supremum x (Real.sub (Sum.value x) half) (Root.subBelow (Sum.value x) half hp) \then
+    \let atK: R.Lt (Real.sub (Sum.value x) half) (Sum.sequence k x) :=
+      \bysub(N.Nat^, { k: N.Nat^ \where R.Lt (Real.sub (Sum.value x) half) (Sum.sequence k x) }, k) \then
+    \let close: \forall (m, n: N.Nat^) -> Nat.Le k m -> Nat.Le m n -> R.Lt (Real.distance (value m) (value n)) half :=
+      \fun (m, n: N.Nat^) (later: Nat.Le k m) (ordered: Nat.Le m n) => \block {
+        \let low: R.Lt (Real.sub (Sum.value x) half) (Partial.partial m x) :=
+          R.ltReplaceRight _ (Sum.sequence m x) (Partial.partial m x)
+            ((\root.RealLine[].CompletionSum[interval := interval, s := s, index := index, good := good].At[k := m].law x).right outside)
+            (R.ltLeTrans _ (Sum.sequence k x) (Sum.sequence m x) atK (PointwiseSum.increasingAll Sum.sequence Sum.increasing m k later x)) \then
+        \let upper: R.Le (Partial.partial n x) (Sum.value x) := R.leReplaceLeft (Sum.sequence n x) (Partial.partial n x) (Sum.value x)
+          ((\root.RealLine[].CompletionSum[interval := interval, s := s, index := index, good := good].At[k := n].law x).right outside)
+          (Convergence.pointwiseUpper Sum.sequence Sum.value Sum.supremum n x) \then
+        \return R.leLtTrans _ (Real.sub (Sum.value x) (Partial.partial m x)) half
+          (R.leTrans _ (Real.sub (Partial.partial n x) (Partial.partial m x)) _ (tail n m ordered)
+            (Laws.addMonotoneRight (Partial.partial n x) (Sum.value x) (Real.neg (Partial.partial m x)) upper))
+          (Distance.subLtOfLower (Sum.value x) (Partial.partial m x) half low)
+      } \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequence.Control value epsilon k }] k
+      (\fun (m, n: N.Nat^) (ml: Nat.Le k m) (nl: Nat.Le k n) => \block {
+        \let q: N.Nat^ := NatOrder.commonBound m n \then
+        \return R.leLtTrans _ (Real.add (Real.distance (value m) (value q)) (Real.distance (value q) (value n))) epsilon
+          (Distance.distanceTriangle (value m) (value q) (value n))
+          (R.ltReplaceRight _ (Real.add half half) epsilon (Estimates.halfTwice epsilon)
+            (Estimates.addLt _ _ _ _ (close m q ml (NatOrder.leftLeCommonBound m n))
+              (R.ltReplaceLeft (Real.distance (value n) (value q)) (Real.distance (value q) (value n)) half
+                (Distance.distanceSymmetric (value n) (value q)) (close n q nl (NatOrder.rightLeCommonBound m n)))))
+      })
+  };
