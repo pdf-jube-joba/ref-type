@@ -1,0 +1,42 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\import std.Data[].List[] \as Lists;
+\import std.Data[].Nat[].Basic[].Def[] \as Nat;
+\import Algebra.Exterior[V := V, space := space] \as Exterior;
+\import Algebra.Shuffle[I := V] \as Shuffle;
+\import Shuffle.Laws[] \as ShuffleLaws;
+\import \root.Over[K := C.Complex, scalarRing := ring].On[V := V, space := space].LeftCreation[k := k] \as First;
+\import \root.Over[K := C.Complex, scalarRing := ring].On[V := V, space := space].LeftCreation[k := N.Nat^::succ k] \as Second;
+\import Exterior.Degrees[p := N.Nat^::succ N.Nat^::zero, q := k] \as FirstWedge;
+\import Exterior.Degrees[p := N.Nat^::succ N.Nat^::zero, q := N.Nat^::succ k] \as SecondWedge;
+\import Exterior.Regrade[k := Nat.add (N.Nat^::succ N.Nat^::zero) k, l := N.Nat^::succ k] \as FirstRegrade;
+\import Exterior.Regrade[k := Nat.add (N.Nat^::succ N.Nat^::zero) (N.Nat^::succ k), l := N.Nat^::succ (N.Nat^::succ k)] \as SecondRegrade;
+\import Exterior.Components[k := N.Nat^::succ (N.Nat^::succ k)] \as Components;
+\import Alternating.At[k := N.Nat^::succ (N.Nat^::succ k)] \as Target;
+\import Algebra.Multilinear[V := V, space := space].ListSeries[k := N.Nat^::succ (N.Nat^::succ N.Nat^::zero)] \as TwoSeries;
+\import Algebra.Multilinear[V := V, space := space].ListSeries[k := N.Nat^::succ (N.Nat^::succ k)] \as ResultSeries;
+\definition law: \forall (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Alternating.Form k) ->
+  Second.apply alpha (First.apply alpha f) = Target.origin := \block {
+  \fun (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Alternating.Form k) \then
+  \let a: Shuffle.Function := Exterior.component (N.Nat^::succ N.Nat^::zero) alpha \then
+  \let g: Shuffle.Function := Exterior.component k f \then
+  \let h: Shuffle.Function := Exterior.component (N.Nat^::succ k) (First.apply alpha f) \then
+  \let w: Shuffle.Function := Exterior.component (N.Nat^::succ (N.Nat^::succ N.Nat^::zero)) (Wedge.wedge alpha alpha) \then
+  \let hEq: h = Shuffle.product a g := trans!{{Shuffle.Function}} _ _ _ (FirstRegrade.series (FirstWedge.wedge alpha f) First.degree) (FirstWedge.componentWedge alpha f) \then
+  \let wEq: w = Shuffle.origin := \axiom:funext(w, Shuffle.origin, \fun (xs: Lists.List[V]) => trans!{C.Complex} _ _ _
+    (congr!{{Alternating.Form (N.Nat^::succ (N.Nat^::succ N.Nat^::zero))} C.Complex} (\fun (u: Alternating.Form (N.Nat^::succ (N.Nat^::succ N.Nat^::zero))) => Exterior.component (N.Nat^::succ (N.Nat^::succ N.Nat^::zero)) u xs) _ _ (square alpha))
+    (TwoSeries.zeroComponent xs)) \then
+  \return Components.ext (Second.apply alpha (First.apply alpha f)) Target.origin
+    (\axiom:funext(Exterior.component (N.Nat^::succ (N.Nat^::succ k)) (Second.apply alpha (First.apply alpha f)), Exterior.component (N.Nat^::succ (N.Nat^::succ k)) Target.origin,
+      \fun (xs: Lists.List[V]) => eq_reason_in!{C.Complex {Exterior.component (N.Nat^::succ (N.Nat^::succ k)) (Second.apply alpha (First.apply alpha f)) xs}
+        "=" {Exterior.component (Nat.add (N.Nat^::succ N.Nat^::zero) (N.Nat^::succ k)) (SecondWedge.wedge alpha (First.apply alpha f)) xs} "by" { congr!{{Shuffle.Function} C.Complex} (\fun (u: Shuffle.Function) => u xs) _ _ (SecondRegrade.series (SecondWedge.wedge alpha (First.apply alpha f)) Second.degree) }
+        "=" {Shuffle.product a h xs} "by" { congr!{{Shuffle.Function} C.Complex} (\fun (u: Shuffle.Function) => u xs) _ _ (SecondWedge.componentWedge alpha (First.apply alpha f)) }
+        "=" {Shuffle.product a (Shuffle.product a g) xs} "by" { congr!{{Shuffle.Function} C.Complex} (\fun (u: Shuffle.Function) => Shuffle.product a u xs) _ _ hEq }
+        "=" {Shuffle.product (Shuffle.product a a) g xs} "by" { sym!{C.Complex} _ _ (ShuffleLaws.associative xs a a g) }
+        "=" {Shuffle.product w g xs} "by" { congr!{{Shuffle.Function} C.Complex} (\fun (u: Shuffle.Function) => Shuffle.product u g xs) _ _ (sym!{{Shuffle.Function}} _ _ (Wedge.componentWedge alpha alpha)) }
+        "=" {Shuffle.product Shuffle.origin g xs} "by" { congr!{{Shuffle.Function} C.Complex} (\fun (u: Shuffle.Function) => Shuffle.product u g xs) _ _ wEq }
+        "=" {Algebra.zero} "by" { ShuffleLaws.zeroLeft g xs }
+        "=" {Exterior.component (N.Nat^::succ (N.Nat^::succ k)) Target.origin xs} "by" { sym!{C.Complex} _ _ (ResultSeries.zeroComponent xs) }
+      }))
+};
