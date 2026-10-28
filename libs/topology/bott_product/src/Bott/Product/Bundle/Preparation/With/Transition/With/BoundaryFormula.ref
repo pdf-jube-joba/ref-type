@@ -1,0 +1,22 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\import Eq.Transport[A := Carrier] \as Transport;
+\definition change[v: Product.Fiber (negativeMap p)]: Product.Fiber (positiveMap p) := Transport.cast Product.Fiber (negativeMap p) (positiveMap p)
+  (sym!{Carrier} _ _ (Boundary.equality p)) v;
+\definition positiveFormula: \forall (v: Product.Fiber (positiveMap p)) -> (positiveAtBoundary.forward.fiber p).apply v =
+  (positive.forward.fiber (Boundary.intoDisk p)).apply v := \fun (v: Product.Fiber (positiveMap p)) => \refl((positive.forward.fiber (Boundary.intoDisk p)).apply v);
+\definition negativeFormula: \forall (v: Product.Fiber (negativeMap p)) -> (negativeAtBoundary.forward.fiber p).apply v =
+  (negative.forward.fiber (Boundary.intoDisk p)).apply v := \fun (v: Product.Fiber (negativeMap p)) => \refl((negative.forward.fiber (Boundary.intoDisk p)).apply v);
+\import \parent.BoundaryTransport[] \as BoundaryTransport;
+\definition transitionFormula: \forall (v: Product.Fiber (negativeMap p)) -> (loop p).apply ((positive.forward.fiber (Boundary.intoDisk p)).apply (change v)) =
+  (negative.forward.fiber (Boundary.intoDisk p)).apply v := \fun (v: Product.Fiber (negativeMap p)) =>
+  trans!{{Vectors.Vector}} _ _ _
+    (congr!{{Vectors.Vector} {Vectors.Vector}} (loop p).apply _ _ (sym!{{Vectors.Vector}} _ _ (positiveFormula (change v))))
+    (trans!{{Vectors.Vector}} _ _ _
+      (congr!{{Product.Fiber (positiveMap p)} {Vectors.Vector}} (alignedNegative.forward.fiber p).apply _ _
+        ((\bysub(PositiveIso.Data, PositiveIso.Isomorphism, positiveAtBoundary)).leftInverse p (change v)))
+      (trans!{{Vectors.Vector}} _ _ _
+        (BoundaryTransport.At[f := negativeMap, g := positiveMap, iso := negativeAtBoundary, p := p, v := v].forward (sym!{BoundaryPullbacks.Map} _ _ mapsEqual))
+        (negativeFormula v)));

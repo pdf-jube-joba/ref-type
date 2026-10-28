@@ -1,0 +1,31 @@
+\import sphere_maps.Circle[] \as Circle;
+\import Circle.Coordinates[] \as Coordinates;
+\import topological_constructions.Product[A := X, B := Circle.Carrier] \as CircleProduct;
+\definition Carrier: \Set := CircleProduct.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := CircleProduct.topology source Circle.topology;
+\definition first: Carrier -> X := Pair.first X Circle.Carrier;
+\definition second: Carrier -> Circle.Carrier := Pair.second X Circle.Carrier;
+\definition circle[p: Carrier]: Disk.Sphere := Coordinates.backward (second p);
+\definition circleContinuous: topology.Continuity[A := Carrier, B := Disk.Sphere].Continuous topology Disk.sphereTopology circle :=
+  topology.Composition[A := Carrier, B := Circle.Carrier, C := Disk.Sphere].composeContinuous topology Circle.topology Disk.sphereTopology second Coordinates.backward
+    (CircleProduct.Maps[].secondContinuous source Circle.topology) Coordinates.backwardContinuous;
+\definition disk[p: Carrier]: Disk.Disk := Halves.boundaryInclusion (circle p);
+\definition boundaryInclusionContinuous: topology.Continuity[A := Disk.Sphere, B := Disk.Disk].Continuous Disk.sphereTopology Disk.diskTopology Halves.boundaryInclusion :=
+  topology.Continuity[A := Disk.Sphere, B := Disk.Coordinate].Corestriction[S := Disk.ClosedBall].corestrictContinuous Disk.sphereTopology Disk.topology Halves.boundaryInclusion
+    (topology.Continuity[A := Disk.Coordinate, B := Disk.Coordinate].Corestriction[S := Disk.Boundary].inclusionContinuous Disk.topology);
+\definition diskContinuous: topology.Continuity[A := Carrier, B := Disk.Disk].Continuous topology Disk.diskTopology disk :=
+  topology.Composition[A := Carrier, B := Disk.Sphere, C := Disk.Disk].composeContinuous topology Disk.sphereTopology Disk.diskTopology circle Halves.boundaryInclusion circleContinuous boundaryInclusionContinuous;
+\definition intoDisk[p: Carrier]: ProductDisk.CarrierSet := Pair.pair X Disk.Disk (first p) (disk p);
+\definition intoDiskContinuous: topology.Continuity[A := Carrier, B := ProductDisk.CarrierSet].Continuous topology (ProductDisk.topology source Disk.diskTopology) intoDisk :=
+  ProductDisk.Universal[X := Carrier].pairContinuous topology source Disk.diskTopology first disk (CircleProduct.Maps[].firstContinuous source Circle.topology) diskContinuous;
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Hemisphere[] \as Positive;
+\import Positive.Negative[] \as Negative;
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\definition equality: \forall (p: Carrier) -> Positive.included (intoDisk p) = Negative.included (intoDisk p) :=
+  \fun (p: Carrier) => congr!{Sphere.Sphere Space.CarrierSet} (Pair.pair X Sphere.Sphere (first p)) _ _
+    (trans!{Sphere.Sphere} _ _ _ (Halves.positiveBoundary (circle p)) (sym!{Sphere.Sphere} _ _ (Halves.negativeBoundary (circle p))));
+\definition mapsEqual: (\fun (p: Carrier) => Positive.included (intoDisk p)) = (\fun (p: Carrier) => Negative.included (intoDisk p)) :=
+  \axiom:funext((\fun (p: Carrier) => Positive.included (intoDisk p)), (\fun (p: Carrier) => Negative.included (intoDisk p)), equality);

@@ -1,0 +1,27 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\use Eq.eq_reason_in;
+\import std.Logic[].Proposition[] \as Logic;
+\import algebraic_topology.Euclidean[].Dimension[n := two] \as Disk;
+\import Disk.Normalization[] \as Norm;
+\import Homotopy.Disks[d := two] \as Disks;
+\import Disks.Hemispheres[].Cover[] \as Geometry;
+\import sphere_maps.Circle[] \as Circle;
+\import Circle.Coordinates[] \as Coordinates;
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Hemisphere[].Boundary[] \as Boundary;
+\definition leftPoint: Cover.PositiveCarrier := \into[Carrier](p, Cover.positive) \by { leftMember };
+\definition rightPoint: Cover.NegativeCarrier := \into[Carrier](p, Cover.negative) \by { rightMember };
+\definition overlap: Clutched.Overlap := \into[Carrier](p, Clutched.overlap) \by { Logic.And[_, _]::# (Cover.positiveInside leftPoint) (Cover.negativeInside rightPoint) };
+\definition boundaryPoint: Disk.Sphere := Geometry.intersectionBoundary (second p) leftMember rightMember;
+\definition point: Boundary.Carrier := Cover.onIntersection p leftMember rightMember;
+\definition sphereBoundary: Disks.boundary (Clutched.spherePoint overlap) = boundaryPoint :=
+  trans!{Disk.Sphere} _ _ _ (congr!{Norm.Nonzero Disk.Sphere} Norm.normalize _ _ (\refl(Norm.ofSphere boundaryPoint))) (Norm.normalizesUnit boundaryPoint);
+\definition circlePoint: Clutched.circlePoint overlap = point :=
+  congr!{Disk.Sphere {Boundary.Carrier}} (\fun (x: Disk.Sphere) => Pair.pair X Circle.Carrier (first p) (Coordinates.forward x)) _ _ sphereBoundary;
+\definition diskPoint: Boundary.intoDisk point = Cover.positiveToDisk leftPoint := Cover.diskOnIntersection p leftMember rightMember;
+\definition action: \forall (v: Vectors.Vector) -> (Clutched.transition overlap).apply v = (loop point).apply v :=
+  \fun (v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _
+    (congr!{{Boundary.Carrier} {Vectors.Vector}} (\fun (q: Boundary.Carrier) => (M.linear (matrix q)).apply v) _ _ circlePoint)
+    (congr!{End.Map {Vectors.Vector}} (\fun (h: End.Map) => h.apply v) _ _ (M.Representation[].linearEntries (loop point)));

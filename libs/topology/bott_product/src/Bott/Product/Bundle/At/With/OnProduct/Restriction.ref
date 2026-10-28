@@ -1,0 +1,24 @@
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Bundle[F := F, bundle := bundle, same := same].At[point := point] \as OriginalAt;
+\import Operations.DirectSum[X := Carrier, F := F, G := PulledFiber, left := bundle, right := pulled].Of[same := same].Pullback[
+  Y := X, source := source, f := Section.section, regular := regular] \as SumPull;
+\import Bundles.Family[X := X, F := ComplementFiber].Of[bundle := complement] \as ComplementOf;
+\import ComplementOf.PullbackComposition[Y := Carrier, Z := X, first := topology, second := source, f := first, g := Section.section].Of[
+  fRegular := Space.Maps[].firstContinuous source Sphere.sphereTopology, gRegular := Section.continuous] \as Composition;
+\import ComplementOf.PullbackIdentity[] \as IdentityPull;
+\import Bundles.Isomorphisms[X := X, F := ComplementFiber, G := ComplementFiber, source := Composition.direct, target := Composition.nested] \as PullIsomorphism;
+\import Bundles.Isomorphisms[X := X, F := ComplementFiber, G := ComplementFiber, source := complement, target := IdentityPull.target] \as IdentityIsomorphism;
+\import Operations.IsomorphismComposition[X := X, F := ComplementFiber, G := ComplementFiber, H := ComplementFiber,
+  source := Composition.nested, middle := Composition.direct, target := complement] \as CompositionOfIsomorphisms;
+\definition complementIsomorphism: Bundles.Isomorphisms[X := X, F := ComplementFiber, G := ComplementFiber, source := Composition.nested, target := complement].Isomorphism :=
+  CompositionOfIsomorphisms.compose (PullIsomorphism.inverse Composition.isomorphism) (IdentityIsomorphism.inverse IdentityPull.isomorphism);
+\import Operations.IdentityIsomorphism[X := X, F := OriginalAt.Fiber, bundle := restriction] \as Identity;
+\import Operations.DirectSumIsomorphisms[X := X, F := OriginalAt.Fiber, G := ComplementFiber, A := OriginalAt.Fiber, B := ComplementFiber,
+  first := restriction, second := Composition.nested, newFirst := restriction, newSecond := complement,
+  sameSource := \refl(source), sameTarget := \refl(source)] \as Direct;
+\import Operations.IsomorphismComposition[X := X, F := Direct.SourceFiber, G := Direct.TargetFiber, H := (\fun (_: X) => Vectors.Vector),
+  source := Direct.sourceBundle, middle := Direct.targetBundle, target := Trivial.bundle] \as Final;
+\import Operations.IsomorphismComposition[X := X, F := Direct.SourceFiber, G := Direct.SourceFiber, H := (\fun (_: X) => Vectors.Vector),
+  source := SumPull.firstBundle, middle := Direct.sourceBundle, target := Trivial.bundle] \as Result;
+\definition trivialization: Bundles.Isomorphisms[X := X, F := Direct.SourceFiber, G := (\fun (_: X) => Vectors.Vector),
+  source := SumPull.firstBundle, target := Trivial.bundle].Isomorphism := Result.compose SumPull.isomorphism
+    (Final.compose (Direct.isomorphism Identity.isomorphism complementIsomorphism) Complement.isomorphism);

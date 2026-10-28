@@ -1,0 +1,13 @@
+# Bott の基本積
+
+`Bott.ProjectiveLine.Homeomorphism.homeomorphism` は、複素2次元空間の階数1直交射影の空間と \(S^2\) の具体的な同相を与える。
+順写像は射影行列の成分から実3座標を作り、逆写像は球面上の点から跡1のエルミート冪等行列を作る。
+`ProjectiveLine.SphereLine` は普遍線束をこの同相に沿って球面へ引き戻す。
+
+`Bott.generator` は単位円の座標による clutching 線束と自明線束の差である。
+`Rank.zero` と `Restriction.vanishes` は、この類のランクと一点への制限が零であることを示す。
+`Product.forward` は2つの射影に沿う引き戻しと積によって \(a+b u\) を与え、`Product.At.restrictForward` と `Product.Naturality.equation` は基点への制限と自然性を示す。
+
+`Product.Loops.With.forwardFormula` は K07 の行列ループの逆クラスをこの積に結び付ける。
+`Product.Bundle.Preparation.With` は基点制限の補束による安定化と両半球上の自明化を構成する。
+`Transition.With` は境界上の自明化から連続可逆行列ループを構成する。
