@@ -28,6 +28,8 @@
 
 `BoxVolume.boxVolume` は、閉直方体の外測度が辺の長さの積と一致することを示す。
 `Hyperplane.null` は座標超平面が零集合であることを示す。
-`Euclidean.SignedReflection` と `Diagonal` は座標ごとに符号の異なる非零拡大の変換則を、`SingularScale` は零係数を持つ対角写像の像が零集合になることを示す。
+`GeneralDiagonal.formula` は符号と零係数を含む任意の対角拡大について、可測性と測度の変換則を示す。
 `RealLine` は実数直線への測度の移送と区間の長さを提供する。
-`RealLine.IntervalIntegral` は区間上の定数関数について、新しい測度積分と既存の Riemann 積分・L1 完備化積分の一致を示す。
+`RealLine.RiemannMap` は任意の Riemann 可積分関数の区間制限を測度可積分関数として構成し、その積分値の一致を示す。
+`RealLine.CompletionAgreement.agreement` は既存の L1 完備化の任意の元について、同じ積分値を持つ測度可積分な代表の存在を示す。
+この代表は完備化の Cauchy 列から、差の L1 ノルムが総和可能な部分列を選び、その概至る所での極限を取って構成する。
