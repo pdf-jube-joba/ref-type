@@ -1,0 +1,21 @@
+\import Relative.With[coefficients := Cochains.integerCoefficients] \as RelativeCochains;
+\import RelativeCochains.PairSequence[] \as Sequence;
+\import \root.CochainPair[A := A, source := source, subset := subset, R := I.Int^, ring := Integers.commutativeRing].Comparison[n := N.Nat^::succ q] \as Comparison;
+\import singular_cohomology.Cochains[A := A, source := source].With[coefficients := Cochains.integerCoefficients] \as Theory;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing].ZeroExtension[P := Chains.complex, N := Cochains.integerCoefficients] \as WholeConversion;
+\import WholeConversion.Positive[n := q] \as Positive;
+\import WholeConversion.PositiveCommutes[n := q] \as Commutes;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].ZeroExtension[C := Chains.complex] \as Extension;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing].Integer[P := Extension.complex, N := Cochains.integerCoefficients] \as Whole;
+\import Extension.Positive[n := N.Nat^::succ q] \as HigherExtension;
+\import Modules.Hom[V := Chains.Carrier (N.Nat^::succ q), W := I.Int^, source := Chains.space (N.Nat^::succ q), target := Cochains.integerCoefficients.space] \as WholeMaps;
+\definition pointwise: \forall (h: RelativeCochains.Carrier (I.Int^::ofNat (N.Nat^::succ q)))(lift: Whole.Carrier (I.Int^::ofNat q))(x: Chains.Carrier (N.Nat^::succ q)) ->
+  (Sequence.inclusion).apply (I.Int^::ofNat (N.Nat^::succ q)) h = (Whole.complex.differential).apply (I.Int^::ofNat q) lift ->
+  (Comparison.from h).apply x = (Theory.coboundary q (Positive.from lift)).apply x :=
+  \fun (h: RelativeCochains.Carrier (I.Int^::ofNat (N.Nat^::succ q)))(lift: Whole.Carrier (I.Int^::ofNat q))(x: Chains.Carrier (N.Nat^::succ q))(same: _) => trans!{I.Int^} _ _ _
+      (congr!{{Whole.Carrier (I.Int^::ofNat (N.Nat^::succ q))} I.Int^} (\fun (v: Whole.Carrier (I.Int^::ofNat (N.Nat^::succ q))) => (v).apply (HigherExtension.intro x)) _ _ same)
+      (congr!{{Extension.Carrier (I.Int^::ofNat q)} I.Int^} ((lift).apply) _ _ (Commutes.prior (HigherExtension.intro x)));
+\definition law: \forall (h: RelativeCochains.Carrier (I.Int^::ofNat (N.Nat^::succ q)))(lift: Whole.Carrier (I.Int^::ofNat q)) ->
+  (Sequence.inclusion).apply (I.Int^::ofNat (N.Nat^::succ q)) h = (Whole.complex.differential).apply (I.Int^::ofNat q) lift ->
+  Comparison.from h = Theory.coboundary q (Positive.from lift) :=
+  \fun (h: RelativeCochains.Carrier (I.Int^::ofNat (N.Nat^::succ q)))(lift: Whole.Carrier (I.Int^::ofNat q))(same: _) => WholeMaps.ext _ _ (\fun (x: _) => pointwise h lift x same);
