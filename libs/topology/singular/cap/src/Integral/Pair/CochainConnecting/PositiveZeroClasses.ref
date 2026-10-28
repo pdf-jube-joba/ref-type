@@ -1,0 +1,46 @@
+\import \parent.\parent.CochainConnecting[p := N.Nat^::zero, q := N.Nat^::succ r].CochainLift[].ZeroClasses[] \as Formula;
+\import std.Data[].Nat[].Basic[].Def[] \as Nat;
+\import singular_cohomology.Simplices[A := A, source := source].CutFaces[p := N.Nat^::zero, q := N.Nat^::succ r] \as Geometry;
+\import singular_cohomology.Chains[A := Relative.SubspaceCarrier, source := Subspace.topology source] \as SubChains;
+\import singular_cohomology.Maps[A := Relative.SubspaceCarrier, B := A, source := Subspace.topology source, target := source] \as Inclusion;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import Nonnegative.ZeroExtension[C := SubChains.complex] \as SubExtension;
+\import Nonnegative.ZeroExtension[C := Chains.complex] \as WholeExtension;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing].ZeroExtension[P := SubChains.complex, N := Cochains.integerCoefficients] \as SubConversion;
+\import SubConversion.Cohomology[n := N.Nat^::succ r] \as CochainCompare;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing].Integer[P := SubExtension.complex, N := Cochains.integerCoefficients] \as Sub;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as IntegerComplexes;
+\import IntegerComplexes.At[C := Sub.complex, z := I.Int^::ofNat (N.Nat^::succ r)] \as InputCochain;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.At[C := Relative.complex, z := I.Int^::ofNat Geometry.higher] \as InputChain;
+\import Complexes.At[C := SubExtension.complex, z := I.Int^::ofNat Geometry.total] \as SubChain;
+\import Complexes.ShortExact[A := SubExtension.complex, B := WholeExtension.complex, C := Relative.complex].At[s := Relative.sequence, k := I.Int^::ofNat Geometry.higher] \as Exact;
+\import Nonnegative.Positive[C := SubChains.complex, n := Nat.add N.Nat^::zero r] \as SubH;
+\import Nonnegative.DegreeZero[C := SubChains.complex] \as SubTarget;
+\import Nonnegative.DegreeZero[C := Chains.complex] \as WholeH;
+\import SubExtension.PositiveHomology[n := Nat.add N.Nat^::zero r] \as ChainCompare;
+\import Nonnegative.Map[C := SubChains.complex, D := Chains.complex].DegreeZero[] \as Maps;
+\import Maps.On[f := Inclusion.push Relative.inclusion Relative.inclusionContinuous] \as Push;
+\import \root.Integral[A := Relative.SubspaceCarrier, source := Subspace.topology source].CohomologyActionZeroTarget[r := r] \as SubAction;
+\import SubAction.Descent[] \as SubDescent;
+\import \parent.\parent.RelativeCohomologyActionZeroTarget[r := N.Nat^::succ r] \as Action;
+\import Action.Descent[] \as Descent;
+\import Relative.With[coefficients := Cochains.integerCoefficients] \as RelativeCochains;
+\import RelativeCochains.PairSequence[] \as Sequence;
+\import \parent.\parent.Degree[] \as Degree;
+\import WholeExtension.Positive[n := Geometry.higher] \as Upper;
+\import SubExtension.Positive[n := Geometry.total] \as Lower;
+\import std.Logic[].Proposition[] \as Logic;
+\definition left[alpha: InputCochain.Closed][z: SubChain.Homology]: WholeH.Homology :=
+  (Push.map).apply (((SubDescent.map).apply ((CochainCompare.isomorphism.forward).apply (InputCochain.classOf alpha))).apply ((ChainCompare.homologyIsomorphism.backward).apply z));
+\definition sourceLaw: \forall (x: InputChain.Cycle)(c: Chains.Carrier Geometry.higher)(a: SubChains.Carrier Geometry.total) ->
+  Degree.class Geometry.higher c = x ->
+  \forall (boundary: (Inclusion.At[n := Geometry.total].push Relative.inclusion Relative.inclusionContinuous).apply a = (Chains.boundary Geometry.total).apply c) ->
+  (Relative.LongExact[z := I.Int^::ofNat Geometry.higher].connecting).apply (InputChain.classOf x) =
+  (ChainCompare.homologyIsomorphism.forward).apply (SubH.classOf (SubH.cycle a (Exact.lowerClosed (Upper.intro c) (Lower.intro a) boundary))) :=
+  \fun (x: InputChain.Cycle)(c: Chains.Carrier Geometry.higher)(a: SubChains.Carrier Geometry.total)(same: _)(boundary: _) => eq_reason_in!{SubChain.Homology _
+    "=" _ "by" { Exact.onClass x }
+    "=" _ "by" { Exact.onLift x (Upper.intro c) (Lower.intro a) same boundary (Exact.lowerClosed (Upper.intro c) (Lower.intro a) boundary) }
+    "=" _ "by" { SubChain.cycleClassExt (SubChain.cycle (Lower.intro a) (Exact.lowerClosed (Upper.intro c) (Lower.intro a) boundary)) (ChainCompare.cycleIsomorphism.forward.apply (SubH.cycle a (Exact.lowerClosed (Upper.intro c) (Lower.intro a) boundary))) (\refl(Lower.intro a)) }
+    "=" _ "by" { sym!{SubChain.Homology} _ _ (ChainCompare.onClass (SubH.cycle a (Exact.lowerClosed (Upper.intro c) (Lower.intro a) boundary))) }
+  };
