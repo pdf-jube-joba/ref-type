@@ -1,0 +1,49 @@
+\import \parent.RealCoordinates[] \as RC;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing R.Real R.Algebra[].field] \as Reals;
+\import \root.Complex[].On[V := Finite.Vector, space := Finite.space].Realification[] \as Realify;
+\import Reals.Linear[V := Finite.Vector, W := Finite.Vector, source := Realify.spaceReal, target := Realify.spaceReal] \as RealMap;
+\import Reals.Isomorphism[V := Finite.Vector, W := Finite.Vector, source := Realify.spaceReal, target := Realify.spaceReal] \as RealIso;
+\definition realMap[f: VectorMaps.Map]: RealMap.Map := RealMap.Map {
+  apply := f.apply,
+  preservesAdd := f.preservesAdd,
+  preservesScale := \fun (a: R.Real)(v: Finite.Vector) => f.preservesScale (Def.ofReal a) v,
+};
+\definition realIso[u: Unitary.Carrier]: RealIso.Isomorphism := RealIso.Isomorphism {
+  forward := realMap u.forward, backward := realMap u.backward,
+  leftInverse := u.leftInverse, rightInverse := u.rightInverse,
+};
+\import std.Data[].FinSet[] \as Fin;
+\import linear_algebra.Euclidean[n := Fin.Sum[m := n, n := n].total] \as E;
+\import Reals.Isomorphism[V := Finite.Vector, W := E.Vector, source := Realify.spaceReal, target := E.space] \as StandardIso;
+\import RealIso.Composition[U := E.Vector, domain := E.space] \as FirstCompose;
+\import Reals.Isomorphism[V := Finite.Vector, W := E.Vector, source := Realify.spaceReal, target := E.space].Composition[U := E.Vector, domain := E.space] \as SecondCompose;
+\definition iso[u: Unitary.Carrier]: Reals.Isomorphism[V := E.Vector, W := E.Vector, source := E.space, target := E.space].Isomorphism :=
+  SecondCompose.compose RC.standardIsomorphism (FirstCompose.compose (realIso u) (StandardIso.inverse RC.standardIsomorphism));
+\import lie_algebras.Field[K := R.Real, field := R.Algebra[].field].Endomorphisms[V := E.Vector, space := E.space] \as End;
+\import algebra.Groups[].Units[A := End.Carrier, ring := End.ring] \as Units;
+\import lie_groups.Classical[].On[V := E.Vector, space := E.space].Orthogonal[form := E.form] \as Orthogonal;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].trans;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].sym;
+\definition unit[u: Unitary.Carrier]: Units.Unit := Units.Unit {
+  value := (iso u).forward, inverse := (iso u).backward,
+  left := End.ext _ _ (iso u).leftInverse,
+  right := End.ext _ _ (iso u).rightInverse,
+};
+\definition preserves: \forall (u: Unitary.Carrier)(x, y: E.Vector) -> E.dot ((iso u).forward.apply x) ((iso u).forward.apply y) = E.dot x y :=
+  \fun (u: Unitary.Carrier)(x, y: E.Vector) => eq_reason_in!{R.Real _
+    "=" _ "by" { RC.isometry (u.forward.apply (RC.standardIsomorphism.backward.apply x)) (u.forward.apply (RC.standardIsomorphism.backward.apply y)) }
+    "=" _ "by" { congr!{C.Complex R.Real} C.re _ _ (Unitary.isometry u (RC.standardIsomorphism.backward.apply x) (RC.standardIsomorphism.backward.apply y)) }
+    "=" _ "by" { sym!{R.Real} _ _ (RC.isometry (RC.standardIsomorphism.backward.apply x) (RC.standardIsomorphism.backward.apply y)) }
+    "=" _ "by" { congr!{E.Vector E.Vector R.Real} E.dot _ _ _ _ (RC.standardIsomorphism.rightInverse x) (RC.standardIsomorphism.rightInverse y) }
+  };
+\definition map[u: Unitary.Carrier]: Orthogonal.O := \into[Units.Unit](unit u, Orthogonal.predicate) \by { preserves u };
+\definition atOne: map Unitary.identity = Orthogonal.group.unit := Units.ext _ _ (End.ext _ _ RC.standardIsomorphism.rightInverse);
+\definition multiplication: \forall (u, v: Unitary.Carrier) -> map (Unitary.multiply u v) = Orthogonal.group.op (map u) (map v) :=
+  \fun (u, v: Unitary.Carrier) => Units.ext _ _ (End.ext _ _ (\fun (x: E.Vector) => congr!{Finite.Vector E.Vector} RC.standardIsomorphism.forward.apply _ _
+    (congr!{Finite.Vector Finite.Vector} u.forward.apply _ _ (sym!{Finite.Vector} _ _ (RC.standardIsomorphism.leftInverse (v.forward.apply (RC.standardIsomorphism.backward.apply x)))))));
+\import algebra.Hom[A := Unitary.Carrier, B := Orthogonal.O] \as GroupHom;
+\definition homomorphism: GroupHom.GroupMap group Orthogonal.group := \into[Unitary.Carrier -> Orthogonal.O](map, GroupHom.GroupMap group Orthogonal.group) \by {
+  GroupHom.MonoidLaws[_, _, map] { unit := atOne, operation := multiplication }
+};

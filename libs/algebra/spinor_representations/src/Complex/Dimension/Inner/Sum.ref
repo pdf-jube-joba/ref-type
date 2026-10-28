@@ -1,0 +1,38 @@
+\import Fin.FromList[A := Exterior.Tuple] \as ListTuple;
+\import Fin.Tuples[A := Exterior.Tuple] \as Tuples;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := Field.field, scalar := Hermitian.scalar].Sums[] \as ComplexSums;
+\import Algebra.Sums[I := Exterior.Tuple] \as Sums;
+\import Sums.Prop[] \as Laws;
+\import Sums.Single[] \as Single;
+\import Algebra.Coordinates[I := Exterior.Tuple].Kronecker[] \as Delta;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\definition listSum: \forall (xs: Lists.List[Exterior.Tuple])(f: Exterior.Tuple -> C.Complex) ->
+  ComplexSums.sum (Lists.length Exterior.Tuple xs) (\fun (i: Fin.Fin (Lists.length Exterior.Tuple xs)) => f (ListTuple.tuple xs i)) = Sums.sum xs f :=
+  \induction (xs: Lists.List[Exterior.Tuple]) \return \forall (f: Exterior.Tuple -> C.Complex) ->
+    ComplexSums.sum (Lists.length Exterior.Tuple xs) (\fun (i: Fin.Fin (Lists.length Exterior.Tuple xs)) => f (ListTuple.tuple xs i)) = Sums.sum xs f \with {
+      | nil: \fun (f: Exterior.Tuple -> C.Complex) => \refl(Algebra.zero)
+      | cons: \fun (head: Exterior.Tuple)(tail: Lists.List[Exterior.Tuple])(previous: \forall (f: Exterior.Tuple -> C.Complex) -> ComplexSums.sum (Lists.length Exterior.Tuple tail) (\fun (i: Fin.Fin (Lists.length Exterior.Tuple tail)) => f (ListTuple.tuple tail i)) = Sums.sum tail f)(f: Exterior.Tuple -> C.Complex) => congr!{C.Complex C.Complex C.Complex} Algebra.add _ _ _ _
+          (congr!{{Exterior.Tuple} C.Complex} f _ _ (Tuples.atZero (Lists.length Exterior.Tuple tail) head (ListTuple.tuple tail)))
+          (trans!{C.Complex} _ _ _
+            (ComplexSums.congruent (Lists.length Exterior.Tuple tail) (\fun (i: Fin.Fin (Lists.length Exterior.Tuple tail)) => f (ListTuple.tuple (Lists.List[Exterior.Tuple]::cons head tail) (Fin.succ (Lists.length Exterior.Tuple tail) i))) (\fun (i: Fin.Fin (Lists.length Exterior.Tuple tail)) => f (ListTuple.tuple tail i)) (\fun (i: Fin.Fin (Lists.length Exterior.Tuple tail)) => congr!{{Exterior.Tuple} C.Complex} f _ _ (Tuples.atSuccessor (Lists.length Exterior.Tuple tail) head (ListTuple.tuple tail) i)))
+            (previous f))
+    };
+\import Algebra.Multilinear[V := Finite.Vector, space := Finite.space].Alternating[].Dimension[n := n, b := Basis.basis].Increasing[k := k] \as Increasing;
+\import Sums.Prop[].Exchange[J := Exterior.Tuple] \as Exchange;
+\definition sameSum: \forall (xs, ys: Exterior.Enumeration)(f: Exterior.Tuple -> C.Complex) -> Sums.sum xs f = Sums.sum ys f :=
+  \fun (xs, ys: Exterior.Enumeration)(f: Exterior.Tuple -> C.Complex) => eq_reason_in!{C.Complex {Sums.sum xs f}
+    "=" {Sums.sum xs (\fun (i: Exterior.Tuple) => Sums.sum ys (\fun (j: Exterior.Tuple) => Algebra.mul (Delta.delta i j) (f j)))} "by" { Laws.congruentOnKeys xs f (\fun (i: Exterior.Tuple) => Sums.sum ys (\fun (j: Exterior.Tuple) => Algebra.mul (Delta.delta i j) (f j)))
+      (\fun (i: Exterior.Tuple)(member: \In[Exterior.Tuple] (Sums.keys xs) i) => sym!{C.Complex} _ _ (Single.extract ys (Increasing.distinct ys)
+        (\into[Exterior.Tuple](i, Increasing.Index) \by { Increasing.included xs i member })
+        (Increasing.exhaustive ys (\into[Exterior.Tuple](i, Increasing.Index) \by { Increasing.included xs i member })) f)) }
+    "=" {Sums.sum ys (\fun (j: Exterior.Tuple) => Sums.sum xs (\fun (i: Exterior.Tuple) => Algebra.mul (Delta.delta i j) (f j)))} "by" { Exchange.exchange xs ys (\fun (i, j: Exterior.Tuple) => Algebra.mul (Delta.delta i j) (f j)) }
+    "=" {Sums.sum ys f} "by" { Laws.congruentOnKeys ys (\fun (j: Exterior.Tuple) => Sums.sum xs (\fun (i: Exterior.Tuple) => Algebra.mul (Delta.delta i j) (f j))) f
+      (\fun (j: Exterior.Tuple)(member: \In[Exterior.Tuple] (Sums.keys ys) j) => trans!{C.Complex} _ _ _
+        (Laws.congruent xs (\fun (i: Exterior.Tuple) => Algebra.mul (Delta.delta i j) (f j)) (\fun (i: Exterior.Tuple) => Algebra.mul (Delta.delta j i) (f j)) (\fun (i: Exterior.Tuple) => congr!{C.Complex C.Complex} (\fun (z: C.Complex) => Algebra.mul z (f j)) _ _ (Delta.symmetric i j)))
+        (Single.extract xs (Increasing.distinct xs) (\into[Exterior.Tuple](j, Increasing.Index) \by { Increasing.included ys j member })
+          (Increasing.exhaustive xs (\into[Exterior.Tuple](j, Increasing.Index) \by { Increasing.included ys j member })) (\fun (i: Exterior.Tuple) => f j))) }
+  };
