@@ -6,6 +6,7 @@
 \import \root.HeadCut[k := k] \as Head;
 \import topology.Topology[Carrier := E.Point] \as Sets;
 \import real.Analysis[] \as Real;
+\import Fin.Tuples[A := Real.Real] \as Tuple;
 \import dedekind_reals.DedekindReal[] \as R;
 \definition head[b: E.Box] [t: Real.Real]: Cut.Result b (Fin.zero k) t :=
   \into[Cut.Pair](Cut.Pair { left := Head.left b t, right := Head.right b t }, Cut.Result b (Fin.zero k) t) \by {
@@ -20,13 +21,17 @@
       containedRight := Head.rightContained b t,
       leftSide := Head.leftSide b t,
       rightSide := Head.rightSide b t,
+      leftLower := \refl(b.left (Fin.zero k)),
+      rightUpper := \refl(b.right (Fin.zero k)),
+      leftUpper := Tuple.atZero k (Head.splitPoint b t) (\fun (j: Fin.Fin k) => b.right (Fin.succ k j)),
+      rightLower := Tuple.atZero k (Head.splitPoint b t) (\fun (j: Fin.Fin k) => b.left (Fin.succ k j)),
       volumes := Head.volumes b t,
     }
   };
 \import \root.Euclidean[n := k] \as Small;
 \import \root.BoxCut[n := k] \as SmallCut;
-\import Fin.Tuples[A := Real.Real] \as Tuple;
 \use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].trans;
 \use std.Logic[].Equality[].congr;
 \use std.Logic[].Equality[].eq_reason_in;
 \definition tailBox[b: E.Box]: Small.Box := Small.Box {
@@ -150,6 +155,14 @@
       rightSide := \fun (lo: R.Le (b.left (Fin.succ k i)) t) (hi: R.Le t (b.right (Fin.succ k i))) (x: E.Point) (inside: Sets.Member (E.points (liftBox b small.right)) x) =>
         (SmallCut.laws (tailBox b) i t small).rightSide lo hi (tailPoint x)
           (liftedTail b small.right (SmallCut.laws (tailBox b) i t small).activeRight x inside),
+      leftLower := trans!{Real.Real} _ _ _ (Tuple.atSuccessor k (b.left (Fin.zero k)) small.left.left i)
+        (SmallCut.laws (tailBox b) i t small).leftLower,
+      rightUpper := trans!{Real.Real} _ _ _ (Tuple.atSuccessor k (b.right (Fin.zero k)) small.right.right i)
+        (SmallCut.laws (tailBox b) i t small).rightUpper,
+      leftUpper := trans!{Real.Real} _ _ _ (Tuple.atSuccessor k (b.right (Fin.zero k)) small.left.right i)
+        (SmallCut.laws (tailBox b) i t small).leftUpper,
+      rightLower := trans!{Real.Real} _ _ _ (Tuple.atSuccessor k (b.left (Fin.zero k)) small.right.left i)
+        (SmallCut.laws (tailBox b) i t small).rightLower,
       volumes := eq_reason_in!{Real.Real _
         "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
           (liftVolume b small.left (SmallCut.laws (tailBox b) i t small).activeLeft)
