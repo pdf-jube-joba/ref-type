@@ -1,0 +1,55 @@
+\import Algebra.Tensor[V := V, W := W, left := left, right := right] \as Tensor;
+\import Tensor.Universal[U := Tensor.Carrier, target := Tensor.space] \as Universal;
+\import Algebra.Linear[V := V, W := V, source := left, target := left] \as LeftEnd;
+\import Algebra.Linear[V := W, W := W, source := right, target := right] \as RightEnd;
+\import Algebra.Linear[V := Tensor.Carrier, W := Tensor.Carrier, source := Tensor.space, target := Tensor.space] \as End;
+\import LeftEnd.Composition[U := V, domain := left] \as LeftComposition;
+\import RightEnd.Composition[U := W, domain := right] \as RightComposition;
+\import End.Composition[U := Tensor.Carrier, domain := Tensor.space] \as Composition;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].trans;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition pure[a: LeftEnd.Map][b: RightEnd.Map][v: V][w: W]: Tensor.Carrier := Tensor.tensor (a.apply v) (b.apply w);
+\definition laws[a: LeftEnd.Map][b: RightEnd.Map]: Tensor.BilinearLaws[Tensor.Carrier, Tensor.space, pure a b] := Tensor.BilinearLaws[Tensor.Carrier, Tensor.space, pure a b] {
+  addLeft := \fun (v, w: V)(z: W) => trans!{Tensor.Carrier} _ _ _ (congr!{V Tensor.Carrier} (\fun (x: V) => Tensor.tensor x (b.apply z)) _ _ (a.preservesAdd v w)) (Tensor.bilinear.addLeft (a.apply v) (a.apply w) (b.apply z)),
+  addRight := \fun (v: V)(w, z: W) => trans!{Tensor.Carrier} _ _ _ (congr!{W Tensor.Carrier} (Tensor.tensor (a.apply v)) _ _ (b.preservesAdd w z)) (Tensor.bilinear.addRight (a.apply v) (b.apply w) (b.apply z)),
+  scaleLeft := \fun (c: K)(v: V)(w: W) => trans!{Tensor.Carrier} _ _ _ (congr!{V Tensor.Carrier} (\fun (x: V) => Tensor.tensor x (b.apply w)) _ _ (a.preservesScale c v)) (Tensor.bilinear.scaleLeft c (a.apply v) (b.apply w)),
+  scaleRight := \fun (c: K)(v: V)(w: W) => trans!{Tensor.Carrier} _ _ _ (congr!{W Tensor.Carrier} (Tensor.tensor (a.apply v)) _ _ (b.preservesScale c w)) (Tensor.bilinear.scaleRight c (a.apply v) (b.apply w)),
+};
+\definition map[a: LeftEnd.Map][b: RightEnd.Map]: End.Map := Universal.map (pure a b) (laws a b);
+\definition onTensor: \forall (a: LeftEnd.Map)(b: RightEnd.Map)(v: V)(w: W) -> (map a b).apply (Tensor.tensor v w) = Tensor.tensor (a.apply v) (b.apply w) :=
+  \fun (a: LeftEnd.Map)(b: RightEnd.Map)(v: V)(w: W) => Universal.onTensor (pure a b) (laws a b) v w;
+\definition composition: \forall (a, b: LeftEnd.Map)(c, d: RightEnd.Map) ->
+  Composition.compose (map a c) (map b d) = map (LeftComposition.compose a b) (RightComposition.compose c d) :=
+  \fun (a, b: LeftEnd.Map)(c, d: RightEnd.Map) => End.ext _ _ (Universal.unique (pure (LeftComposition.compose a b) (RightComposition.compose c d)) (laws (LeftComposition.compose a b) (RightComposition.compose c d))
+    (Composition.compose (map a c) (map b d)) (\fun (v: V)(w: W) => trans!{Tensor.Carrier} _ _ _
+      (congr!{Tensor.Carrier Tensor.Carrier} ((map a c).apply) _ _ (onTensor b d v w)) (onTensor a c (b.apply v) (d.apply w))));
+\import LeftEnd.Operations[] \as LeftOps;
+\import RightEnd.Operations[] \as RightOps;
+\import End.Operations[] \as EndOps;
+\definition addLeft: \forall (a, b: LeftEnd.Map)(c: RightEnd.Map) -> map (LeftOps.plus a b) c = EndOps.plus (map a c) (map b c) :=
+  \fun (a, b: LeftEnd.Map)(c: RightEnd.Map) => sym!{End.Map} _ _ (End.ext _ _ (Universal.unique (pure (LeftOps.plus a b) c) (laws (LeftOps.plus a b) c)
+    (EndOps.plus (map a c) (map b c)) (\fun (v: V)(w: W) => eq_reason_in!{Tensor.Carrier _
+      "=" _ "by" { congr!{Tensor.Carrier Tensor.Carrier Tensor.Carrier} Tensor.space.add _ _ _ _ (onTensor a c v w) (onTensor b c v w) }
+      "=" _ "by" { sym!{Tensor.Carrier} _ _ (Tensor.bilinear.addLeft (a.apply v) (b.apply v) (c.apply w)) }
+    })));
+\definition addRight: \forall (a: LeftEnd.Map)(b, c: RightEnd.Map) -> map a (RightOps.plus b c) = EndOps.plus (map a b) (map a c) :=
+  \fun (a: LeftEnd.Map)(b, c: RightEnd.Map) => sym!{End.Map} _ _ (End.ext _ _ (Universal.unique (pure a (RightOps.plus b c)) (laws a (RightOps.plus b c))
+    (EndOps.plus (map a b) (map a c)) (\fun (v: V)(w: W) => eq_reason_in!{Tensor.Carrier _
+      "=" _ "by" { congr!{Tensor.Carrier Tensor.Carrier Tensor.Carrier} Tensor.space.add _ _ _ _ (onTensor a b v w) (onTensor a c v w) }
+      "=" _ "by" { sym!{Tensor.Carrier} _ _ (Tensor.bilinear.addRight (a.apply v) (b.apply w) (c.apply w)) }
+    })));
+\definition scaleLeft: \forall (z: K)(a: LeftEnd.Map)(b: RightEnd.Map) -> map (LeftOps.scale z a) b = EndOps.scale z (map a b) :=
+  \fun (z: K)(a: LeftEnd.Map)(b: RightEnd.Map) => sym!{End.Map} _ _ (End.ext _ _ (Universal.unique (pure (LeftOps.scale z a) b) (laws (LeftOps.scale z a) b)
+    (EndOps.scale z (map a b)) (\fun (v: V)(w: W) => eq_reason_in!{Tensor.Carrier _
+      "=" _ "by" { congr!{Tensor.Carrier Tensor.Carrier} (Tensor.space.smul z) _ _ (onTensor a b v w) }
+      "=" _ "by" { sym!{Tensor.Carrier} _ _ (Tensor.bilinear.scaleLeft z (a.apply v) (b.apply w)) }
+    })));
+\definition scaleRight: \forall (z: K)(a: LeftEnd.Map)(b: RightEnd.Map) -> map a (RightOps.scale z b) = EndOps.scale z (map a b) :=
+  \fun (z: K)(a: LeftEnd.Map)(b: RightEnd.Map) => sym!{End.Map} _ _ (End.ext _ _ (Universal.unique (pure a (RightOps.scale z b)) (laws a (RightOps.scale z b))
+    (EndOps.scale z (map a b)) (\fun (v: V)(w: W) => eq_reason_in!{Tensor.Carrier _
+      "=" _ "by" { congr!{Tensor.Carrier Tensor.Carrier} (Tensor.space.smul z) _ _ (onTensor a b v w) }
+      "=" _ "by" { sym!{Tensor.Carrier} _ _ (Tensor.bilinear.scaleRight z (a.apply v) (b.apply w)) }
+    })));
+\module Graded;

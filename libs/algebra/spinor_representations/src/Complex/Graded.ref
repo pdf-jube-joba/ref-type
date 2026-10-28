@@ -1,0 +1,28 @@
+\import \root.Over[K := C.Complex, scalarRing := ring].On[V := V, space := left].Total[] \as L;
+\import \root.Over[K := C.Complex, scalarRing := ring].On[V := W, space := right].Total[] \as RTotal;
+\import \root.Complex[].On[V := V, space := left].Realification[].With[h := h] \as LMetric;
+\import \root.Complex[].On[V := W, space := right].Realification[].With[h := j] \as RMetric;
+\import L.Parity[] \as Parity;
+\import \root.Over[K := C.Complex, scalarRing := ring].TensorOperators[V := L.Carrier, W := RTotal.Carrier, left := L.totalSpace, right := RTotal.totalSpace] \as Tensor;
+\import Tensor.Graded[] \as Graded;
+\import Algebra.Linear[V := L.Carrier, W := L.Carrier, source := L.totalSpace, target := L.totalSpace] \as LeftEnd;
+\import LeftEnd.Composition[U := L.Carrier, domain := L.totalSpace] \as LeftComposition;
+\import LeftEnd.Operations[] \as LeftOps;
+\import Algebra.Tensor[V := L.Carrier, W := RTotal.Carrier, left := L.totalSpace, right := RTotal.totalSpace] \as Product;
+\import Algebra.Linear[V := Product.Carrier, W := Product.Carrier, source := Product.space, target := Product.space] \as End;
+\import End.Composition[U := Product.Carrier, domain := Product.space] \as Composition;
+\import End.Operations[] \as EndOps;
+
+\import Algebra.Laws[V := L.Carrier, space := L.totalSpace] \as LeftLaws;
+\import algebra.Group[].Of[Carrier := L.Carrier, group := std.Alg[].Ring[].ringModuleAsCommutativeGroup C.Complex L.Carrier Algebra.ring L.totalSpace] \as LeftGroup;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition leftOdd: \forall (v: V) -> LeftComposition.compose (LMetric.cliffordOperator v) L.grading = LeftOps.negative (LeftComposition.compose L.grading (LMetric.cliffordOperator v)) :=
+  \fun (v: V) => LeftEnd.ext _ _ (\axiom:funext((LeftComposition.compose (LMetric.cliffordOperator v) L.grading).apply, (LeftOps.negative (LeftComposition.compose L.grading (LMetric.cliffordOperator v))).apply, \fun (f: L.Carrier) => eq_reason_in!{{L.Carrier} _
+    "=" _ "by" { sym!{{L.Carrier}} _ _ (LeftGroup.negNeg ((LMetric.cliffordOperator v).apply (L.parity f))) }
+    "=" _ "by" { congr!{{L.Carrier} {L.Carrier}} L.totalSpace.neg _ _ (sym!{{L.Carrier}} _ _ (Parity.operatorOdd v (LMetric.form v) f)) }
+    "=" _ "by" { sym!{{L.Carrier}} _ _ (LeftLaws.minusOneScale (L.parity ((LMetric.cliffordOperator v).apply f))) }
+  }));
+\definition leftAction[v: V]: End.Map := Graded.leftAction (LMetric.cliffordOperator v);
+\definition rightAction[w: W]: End.Map := Graded.rightAction L.grading (RMetric.cliffordOperator w);
+\definition anticommute: \forall (v: V)(w: W) -> Composition.compose (leftAction v) (rightAction w) = EndOps.negative (Composition.compose (rightAction w) (leftAction v)) :=
+  \fun (v: V)(w: W) => Graded.anticommute (LMetric.cliffordOperator v) L.grading (RMetric.cliffordOperator w) (leftOdd v);
