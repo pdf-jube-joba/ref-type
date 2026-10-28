@@ -31,3 +31,33 @@
           (control i later (Division.leftTags i interval.left interval.right) (Division.leftTagsLevel i interval.left interval.right)
             (Division.leftTagsValid i interval.left interval.right interval.ordered)))
   };
+\import Real.Estimates[] \as Estimates;
+\import Real.Distance[] \as Distance;
+\use Equality.trans;
+\use Equality.eq_reason_in;
+\definition PairControl[f: Riemann.Function] [epsilon: Real.Real] [threshold: N.Nat^]: \Prop :=
+  \forall (n: N.Nat^) -> Nat.Le threshold n -> \forall (left, right: Division.Tags) -> Division.Level left n -> Division.Level right n ->
+    Division.Valid left interval.left interval.right -> Division.Valid right interval.left interval.right ->
+    R.Lt (Real.distance (Division.sum f.function left interval.left interval.right) (Division.sum f.function right interval.left interval.right)) epsilon;
+\definition pairControl: \forall (f: Riemann.Function) (epsilon: Real.Real) -> R.Lt Real.zero epsilon ->
+  \exists ( k: N.Nat^ \where PairControl f epsilon k ) :=
+  \fun (f: Riemann.Function) (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) => \block {
+    \let half: Real.Real := Real.mul Real.half epsilon \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Riemann.Control f.function f.integral half k })
+      \by f.hasIntegral.approximation half (Estimates.halfOfPositive epsilon positive) \then
+    \let control: Riemann.Control f.function f.integral half k :=
+      \bysub(N.Nat^, { k: N.Nat^ \where Riemann.Control f.function f.integral half k }, k) \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where PairControl f epsilon k }] k
+      (\fun (n: N.Nat^) (later: Nat.Le k n) (left, right: Division.Tags) (ll: Division.Level left n) (rl: Division.Level right n)
+        (lv: Division.Valid left interval.left interval.right) (rv: Division.Valid right interval.left interval.right) => \block {
+          \let a: Real.Real := Division.sum f.function left interval.left interval.right \then
+          \let b: Real.Real := Division.sum f.function right interval.left interval.right \then
+          \let nearA: R.Lt (Real.distance a f.integral) half := control n later left ll lv \then
+          \let nearB: R.Lt (Real.distance f.integral b) half := R.ltReplaceLeft (Real.distance b f.integral) (Real.distance f.integral b) half
+            (Distance.distanceSymmetric b f.integral) (control n later right rl rv) \then
+          \return R.leLtTrans (Real.distance a b) (Real.add (Real.distance a f.integral) (Real.distance f.integral b)) epsilon
+            (Distance.distanceTriangle a f.integral b)
+            (R.ltReplaceRight _ (Real.add half half) epsilon (Estimates.halfTwice epsilon)
+              (Estimates.addLt _ _ _ _ nearA nearB))
+        })
+  };
