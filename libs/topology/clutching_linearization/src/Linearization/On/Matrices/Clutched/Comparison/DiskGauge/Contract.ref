@@ -1,0 +1,63 @@
+\import Disk.Contraction[] \as Contract;
+\import algebraic_topology.Cylinder[A := Circle.Domain] \as Cylinder;
+\import algebraic_topology.Cylinder[A := Disk.Disk] \as DiskCylinder;
+\import topological_constructions.Product[A := Time.Carrier, B := Disk.Disk] \as TimeDisk;
+\import topological_constructions.Product[A := X, B := NativeCircle.Carrier] \as CircleProduct;
+\import topology.Continuity[A := Disk.Sphere, B := Disk.Coordinate] \as DiskInclusion;
+\definition boundary[p: Circle.Domain]: Disk.Disk := H.boundaryInclusion (CircleCoordinates.backward (Circle.second p));
+\definition boundaryContinuous: topology.Continuity[A := Circle.Domain, B := Disk.Disk].Continuous Circle.source Disk.diskTopology boundary :=
+  topology.Composition[A := Circle.Domain, B := Disk.Sphere, C := Disk.Disk].composeContinuous Circle.source Disk.sphereTopology Disk.diskTopology
+    (\fun (p: Circle.Domain) => CircleCoordinates.backward (Circle.second p)) H.boundaryInclusion
+    (topology.Composition[A := Circle.Domain, B := NativeCircle.Carrier, C := Disk.Sphere].composeContinuous Circle.source NativeCircle.topology Disk.sphereTopology Circle.second CircleCoordinates.backward
+      (CircleProduct.Maps[].secondContinuous source NativeCircle.topology) CircleCoordinates.backwardContinuous)
+    (DiskInclusion.Corestriction[S := Disk.ClosedBall].corestrictContinuous Disk.sphereTopology Disk.topology H.boundaryInclusion
+      (topology.Continuity[A := Disk.Coordinate, B := Disk.Coordinate].Corestriction[S := Disk.Boundary].inclusionContinuous Disk.topology));
+\definition timeDisk[p: Cylinder.Carrier]: DiskCylinder.Carrier := DiskCylinder.at (Cylinder.time p) (boundary (Cylinder.point p));
+\definition timeDiskContinuous: topology.Continuity[A := Cylinder.Carrier, B := DiskCylinder.Carrier].Continuous (Cylinder.topology Circle.source) (DiskCylinder.topology Disk.diskTopology) timeDisk :=
+  TimeDisk.Universal[X := Cylinder.Carrier].pairContinuous (Cylinder.topology Circle.source) Time.topology Disk.diskTopology Cylinder.time (\fun (p: Cylinder.Carrier) => boundary (Cylinder.point p))
+    (Cylinder.timeContinuous Circle.source)
+    (topology.Composition[A := Cylinder.Carrier, B := Circle.Domain, C := Disk.Disk].composeContinuous (Cylinder.topology Circle.source) Circle.source Disk.diskTopology Cylinder.point boundary
+      (Cylinder.pointContinuous Circle.source) boundaryContinuous);
+\definition diskPath[p: Cylinder.Carrier]: DiskCarrier := Pair.pair X Disk.Disk (Circle.first (Cylinder.point p)) (Contract.family (timeDisk p));
+\definition diskPathContinuous: topology.Continuity[A := Cylinder.Carrier, B := DiskCarrier].Continuous (Cylinder.topology Circle.source) diskTopology diskPath :=
+  DiskProduct.Universal[X := Cylinder.Carrier].pairContinuous (Cylinder.topology Circle.source) source Disk.diskTopology
+    (\fun (p: Cylinder.Carrier) => Circle.first (Cylinder.point p)) (\fun (p: Cylinder.Carrier) => Contract.family (timeDisk p))
+    (topology.Composition[A := Cylinder.Carrier, B := Circle.Domain, C := X].composeContinuous (Cylinder.topology Circle.source) Circle.source source Cylinder.point Circle.first
+      (Cylinder.pointContinuous Circle.source) (CircleProduct.Maps[].firstContinuous source NativeCircle.topology))
+    (topology.Composition[A := Cylinder.Carrier, B := DiskCylinder.Carrier, C := Disk.Disk].composeContinuous (Cylinder.topology Circle.source) (DiskCylinder.topology Disk.diskTopology) Disk.diskTopology
+      timeDisk Contract.family timeDiskContinuous Contract.continuous);
+\definition unit[p: Cylinder.Carrier]: Units.Carrier := f (diskPath p);
+\definition unitContinuous: topology.Continuity[A := Cylinder.Carrier, B := Units.Carrier].Continuous (Cylinder.topology Circle.source) Units.topology unit :=
+  topology.Composition[A := Cylinder.Carrier, B := DiskCarrier, C := Units.Carrier].composeContinuous (Cylinder.topology Circle.source) diskTopology Units.topology diskPath f diskPathContinuous continuous;
+\import Units.Family[X := Cylinder.Carrier, source := Cylinder.topology Circle.source, H := unit] \as UnitFamily;
+\import Spaces.FiniteCoordinates[n := n] \as Basis;
+\definition matrix[p: Cylinder.Carrier]: M.Matrix := Units.matrix (unit p);
+\definition matrixRegular: Top.Families[X := Cylinder.Carrier].Regular (Cylinder.topology Circle.source) matrix :=
+  \fun (i, j: M.Index) => UnitFamily.regular unitContinuous (Basis.vectors j) i;
+\definition matrixNonzero: \forall (p: Cylinder.Carrier) -> Field.Nonzero (matrix p) :=
+  \fun (p: Cylinder.Carrier) => \bysub(M.Matrix, Field.Nonsingular, Units.matrix (unit p));
+\import \root.Linearization[].MatrixPaths[n := n, Y := Circle.Domain, source := Circle.source] \as Paths;
+\definition initial: Paths.Family := Paths.Family {
+  matrix := \fun (p: Circle.Domain) => matrix (Cylinder.at Time.start p),
+  regular := \fun (i, j: M.Index) => topology.Composition[A := Circle.Domain, B := Cylinder.Carrier, C := C.Complex].composeContinuous Circle.source (Cylinder.topology Circle.source) topological_algebra.Complex[].topology (Cylinder.at Time.start)
+    (\fun (p: Cylinder.Carrier) => matrix p i j) (Cylinder.atContinuous Circle.source Time.start) (matrixRegular i j),
+  nonzero := \fun (p: Circle.Domain) => matrixNonzero (Cylinder.at Time.start p),
+};
+\definition final: Paths.Family := Paths.Family {
+  matrix := \fun (p: Circle.Domain) => matrix (Cylinder.at Time.end p),
+  regular := \fun (i, j: M.Index) => topology.Composition[A := Circle.Domain, B := Cylinder.Carrier, C := C.Complex].composeContinuous Circle.source (Cylinder.topology Circle.source) topological_algebra.Complex[].topology (Cylinder.at Time.end)
+    (\fun (p: Cylinder.Carrier) => matrix p i j) (Cylinder.atContinuous Circle.source Time.end) (matrixRegular i j),
+  nonzero := \fun (p: Circle.Domain) => matrixNonzero (Cylinder.at Time.end p),
+};
+\definition path: Paths.Path[initial, final] := Paths.Path[initial, final] {
+  homotopy := matrix, regular := matrixRegular, nonzero := matrixNonzero,
+  atStart := \fun (p: Circle.Domain) => \refl(initial.matrix p), atEnd := \fun (p: Circle.Domain) => \refl(final.matrix p)
+};
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[n := n, a := initial.matrix, regular := initial.regular, nonzero := initial.nonzero].Inverse[].Homotopy[
+  b := final.matrix, regularB := final.regular, nonzeroB := final.nonzero].With[path := path] \as Invariance;
+\definition indexInvariant: \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[n := n, a := initial.matrix, regular := initial.regular, nonzero := initial.nonzero].Inverse[].value =
+  \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[n := n, a := final.matrix, regular := final.regular, nonzero := final.nonzero].Inverse[].value := Invariance.invariant;
+\definition initialFormula: \forall (p: Circle.Domain) -> initial.matrix p = Units.matrix (f (Pair.pair X Disk.Disk (Circle.first p) (boundary p))) :=
+  \fun (p: Circle.Domain) => congr!{Disk.Disk M.Matrix} (\fun (d: Disk.Disk) => Units.matrix (f (Pair.pair X Disk.Disk (Circle.first p) d))) _ _ (Contract.atStart (boundary p));
+\definition finalFormula: \forall (p: Circle.Domain) -> final.matrix p = Units.matrix (f (Pair.pair X Disk.Disk (Circle.first p) Contract.origin)) :=
+  \fun (p: Circle.Domain) => congr!{Disk.Disk M.Matrix} (\fun (d: Disk.Disk) => Units.matrix (f (Pair.pair X Disk.Disk (Circle.first p) d))) _ _ (Contract.atEnd (boundary p));

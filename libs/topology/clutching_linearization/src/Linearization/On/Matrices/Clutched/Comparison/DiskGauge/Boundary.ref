@@ -1,0 +1,36 @@
+\import Disk.Splitting[] \as Splitting;
+\definition circle: Disk.Sphere := CircleCoordinates.backward (Circle.second p);
+\definition disk: Disk.Disk := H.boundaryInclusion circle;
+\definition onDisk: DiskCarrier := Pair.pair X Disk.Disk (Circle.first p) disk;
+\definition sphere: Sphere.Sphere := Splitting.equator circle;
+\definition base: Carrier := Pair.pair X Sphere.Sphere (Circle.first p) sphere;
+\definition leftMember: \In[Carrier] PositiveHalf base :=
+  \idelim H.positive disk = sphere \with s: Sphere.Sphere => \In[Sphere.Sphere] Halves.PositiveHalf s \by {
+    base: \bysub(Sphere.Sphere, Halves.PositiveHalf, Halves.positivePoint disk), equality: H.positiveBoundary circle
+  };
+\definition rightMember: \In[Carrier] NegativeHalf base :=
+  \idelim H.negative disk = sphere \with s: Sphere.Sphere => \In[Sphere.Sphere] Halves.NegativeHalf s \by {
+    base: \bysub(Sphere.Sphere, Halves.NegativeHalf, Halves.negativePoint disk), equality: H.negativeBoundary circle
+  };
+\definition positiveEquality: positivePoint onDisk = \into[Carrier](base, PositiveHalf) \by { leftMember } :=
+  congr!{Sphere.Sphere Carrier} (Pair.pair X Sphere.Sphere (Circle.first p)) _ _ (H.positiveBoundary circle);
+\definition negativeEquality: negativePoint onDisk = \into[Carrier](base, NegativeHalf) \by { rightMember } :=
+  congr!{Sphere.Sphere Carrier} (Pair.pair X Sphere.Sphere (Circle.first p)) _ _ (H.negativeBoundary circle);
+\definition overlap: Overlap := Closed.overlapPoint base leftMember rightMember;
+\definition sphereOverlap: Disks.Overlap := spherePoint overlap;
+\definition circleEquality: circlePoint overlap = p := Pair.Prop[A := X, B := NativeCircle.Carrier].ext (circlePoint overlap) p (\refl(Circle.first p))
+  (trans!{NativeCircle.Carrier} _ _ _ (congr!{Disk.Sphere NativeCircle.Carrier} CircleCoordinates.forward _ _ (Disks.boundaryEquator circle)) (CircleCoordinates.rightInverse (Circle.second p)));
+\definition atOverlap: \forall (v: Fin.Fin n -> C.Complex) ->
+  (negative onDisk).apply ((transition overlap).apply v) = (Other.transition overlap).apply ((positive onDisk).apply v) :=
+  \fun (v: Fin.Fin n -> C.Complex) => trans!{{Fin.Fin n -> C.Complex}} _ _ _
+    (congr!{NegativeCarrier {Fin.Fin n -> C.Complex}} (\fun (q: NegativeCarrier) => (gauge.negative q).apply ((transition overlap).apply v)) _ _ negativeEquality)
+    (trans!{{Fin.Fin n -> C.Complex}} _ _ _ (gauge.compatible base leftMember rightMember v)
+      (congr!{PositiveCarrier {Fin.Fin n -> C.Complex}} (\fun (q: PositiveCarrier) => (Other.transition overlap).apply ((gauge.positive q).apply v)) _ _ (sym!{PositiveCarrier} _ _ positiveEquality)));
+\definition compatible: \forall (v: Fin.Fin n -> C.Complex) ->
+  (negative onDisk).apply ((Matrices.map p).apply v) =
+  (\root.Linearization[].MatrixUnits[n := n, Y := Circle.Domain, source := Circle.source, A := b, regular := regularB, nonzero := nonzeroB].map p).apply ((positive onDisk).apply v) :=
+  \fun (v: Fin.Fin n -> C.Complex) => \idelim circlePoint overlap = p \with q: Circle.Domain =>
+    (negative onDisk).apply ((Matrices.map q).apply v) =
+    (\root.Linearization[].MatrixUnits[n := n, Y := Circle.Domain, source := Circle.source, A := b, regular := regularB, nonzero := nonzeroB].map q).apply ((positive onDisk).apply v) \by {
+    base: atOverlap v, equality: circleEquality
+  };
