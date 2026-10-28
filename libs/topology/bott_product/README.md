@@ -11,3 +11,4 @@
 `Product.Loops.With.forwardFormula` は K07 の行列ループの逆クラスをこの積に結び付ける。
 `Product.Bundle.Preparation.With` は基点制限の補束による安定化と両半球上の自明化を構成する。
 `Transition.With` は境界上の自明化から連続可逆行列ループを構成する。
+`Product.Surjective.exists` は任意の \(K^0(X\times S^2)\) の類について、標準積による表示の存在を示す。
