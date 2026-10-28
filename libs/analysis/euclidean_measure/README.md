@@ -17,4 +17,5 @@
 `MeasureConstruction` は平行移動不変性と零集合の可算和を提供する。
 `Scaling` は正の座標ごとの拡大について、可測性と測度の変換を示す。
 `Borel` は Euclid 位相の開集合を含む最小の σ-代数を構成する。
+`EuclideanBorel` はすべての次元で開集合と Borel 集合の可測性を示す。
 `Examples` はこれらの利用例を含む。

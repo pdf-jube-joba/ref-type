@@ -1,0 +1,16 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Option[] \as Option;
+\import real.Analysis[] \as Real;
+\definition construct: \forall (n: N.Nat^) (b: \root.Euclidean[n := n].Box) (i: Fin.Fin n) (t: Real.Real) -> \root.BoxCut[n := n].Result b i t :=
+  \induction (n: N.Nat^) \return \forall (b: \root.Euclidean[n := n].Box) (i: Fin.Fin n) (t: Real.Real) -> \root.BoxCut[n := n].Result b i t \with {
+    | zero: \fun (b: \root.Euclidean[n := N.Nat^::zero].Box) (i: Fin.Fin N.Nat^::zero) (t: Real.Real) =>
+      Fin.Empty[A := \root.BoxCut[n := N.Nat^::zero].Result b i t].value i
+    | succ: \fun (k: N.Nat^) (prior: \forall (b: \root.Euclidean[n := k].Box) (i: Fin.Fin k) (t: Real.Real) -> \root.BoxCut[n := k].Result b i t)
+      (b: \root.Euclidean[n := N.Nat^::succ k].Box) (i: Fin.Fin (N.Nat^::succ k)) (t: Real.Real) =>
+        \idelim Fin.inflate k (Fin.split k i) = i \with j: Fin.Fin (N.Nat^::succ k) => \root.BoxCut[n := N.Nat^::succ k].Result b j t
+          \by { base: (\induction (part: Option.Option[Fin.Fin k]) \return \root.BoxCut[n := N.Nat^::succ k].Result b (Fin.inflate k part) t \with {
+            | none: \root.CutStep[k := k].head b t
+            | some: \fun (j: Fin.Fin k) => \root.CutStep[k := k].tail b j t (prior (\root.CutStep[k := k].tailBox b) j t)
+          }) (Fin.split k i), equality: Fin.inflateSplit k i }
+  };

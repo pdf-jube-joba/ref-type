@@ -1,0 +1,120 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import \root.Euclidean[n := N.Nat^::succ k] \as E;
+\import \root.BoxCut[n := N.Nat^::succ k] \as Cut;
+\import \root.HeadCut[k := k] \as Head;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\definition head[b: E.Box] [t: Real.Real]: Cut.Result b (Fin.zero k) t :=
+  \into[Cut.Pair](Cut.Pair { left := Head.left b t, right := Head.right b t }, Cut.Result b (Fin.zero k) t) \by {
+    Cut.Laws[b, Fin.zero k, t, Cut.Pair { left := Head.left b t, right := Head.right b t }] {
+      activeLeft := \refl(b.active),
+      activeRight := \refl(b.active),
+      insideLeft := \fun (x: E.Point) (inside: Sets.Member (E.points b) x) (below: R.Le (x (Fin.zero k)) t) =>
+        Head.insideLeft b t x inside (Head.clipAbove b t x inside below),
+      insideRight := \fun (x: E.Point) (inside: Sets.Member (E.points b) x) (above: R.Le t (x (Fin.zero k))) =>
+        Head.insideRight b t x inside (Head.clipBelow b t x inside above),
+      volumes := Head.volumes b t,
+    }
+  };
+\import \root.Euclidean[n := k] \as Small;
+\import \root.BoxCut[n := k] \as SmallCut;
+\import Fin.Tuples[A := Real.Real] \as Tuple;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition tailBox[b: E.Box]: Small.Box := Small.Box {
+  active := b.active,
+  left := \fun (i: Fin.Fin k) => b.left (Fin.succ k i),
+  right := \fun (i: Fin.Fin k) => b.right (Fin.succ k i),
+  ordered := \fun (i: Fin.Fin k) => b.ordered (Fin.succ k i),
+};
+\definition tailPoint[x: E.Point]: Small.Point := \fun (i: Fin.Fin k) => x (Fin.succ k i);
+\import topology.Topology[Carrier := Small.Point] \as SmallSets;
+\definition insideTail: \forall (b: E.Box) (x: E.Point) -> Sets.Member (E.points b) x -> SmallSets.Member (Small.points (tailBox b)) (tailPoint x) :=
+  \fun (b: E.Box) (x: E.Point) (inside: Sets.Member (E.points b) x) =>
+    Logic.And[_, _]::# inside.left (\fun (i: Fin.Fin k) => inside.right (Fin.succ k i));
+\definition liftLeft[b: E.Box] [q: Small.Box]: Fin.Fin (N.Nat^::succ k) -> Real.Real := Tuple.extend k (b.left (Fin.zero k)) q.left;
+\definition liftRight[b: E.Box] [q: Small.Box]: Fin.Fin (N.Nat^::succ k) -> Real.Real := Tuple.extend k (b.right (Fin.zero k)) q.right;
+\definition liftOrdered: \forall (b: E.Box) (q: Small.Box) (i: Fin.Fin (N.Nat^::succ k)) -> R.Le (liftLeft b q i) (liftRight b q i) :=
+  \fun (b: E.Box) (q: Small.Box) => Fin.cases k (\fun (i: Fin.Fin (N.Nat^::succ k)) => R.Le (liftLeft b q i) (liftRight b q i))
+    (R.leReplace (b.left (Fin.zero k)) (liftLeft b q (Fin.zero k)) (b.right (Fin.zero k)) (liftRight b q (Fin.zero k))
+      (sym!{Real.Real} _ _ (Tuple.atZero k (b.left (Fin.zero k)) q.left)) (sym!{Real.Real} _ _ (Tuple.atZero k (b.right (Fin.zero k)) q.right)) (b.ordered (Fin.zero k)))
+    (\fun (i: Fin.Fin k) => R.leReplace (q.left i) (liftLeft b q (Fin.succ k i)) (q.right i) (liftRight b q (Fin.succ k i))
+      (sym!{Real.Real} _ _ (Tuple.atSuccessor k (b.left (Fin.zero k)) q.left i)) (sym!{Real.Real} _ _ (Tuple.atSuccessor k (b.right (Fin.zero k)) q.right i)) (q.ordered i));
+\definition liftBox[b: E.Box] [q: Small.Box]: E.Box := E.Box { active := b.active, left := liftLeft b q, right := liftRight b q, ordered := liftOrdered b q };
+\definition liftMember: \forall (b: E.Box) (q: Small.Box) (x: E.Point) -> Sets.Member (E.points b) x ->
+  SmallSets.Member (Small.points q) (tailPoint x) -> Sets.Member (E.points (liftBox b q)) x :=
+  \fun (b: E.Box) (q: Small.Box) (x: E.Point) (inside: Sets.Member (E.points b) x) (tail: SmallSets.Member (Small.points q) (tailPoint x)) =>
+    Logic.And[_, _]::# inside.left (Fin.cases k (\fun (i: Fin.Fin (N.Nat^::succ k)) =>
+      Logic.And[R.Le (liftLeft b q i) (x i), R.Le (x i) (liftRight b q i)])
+      (Logic.And[_, _]::#
+        (\idelim b.left (Fin.zero k) = liftLeft b q (Fin.zero k) \with a: Real.Real => R.Le a (x (Fin.zero k))
+          \by { base: (inside.right (Fin.zero k)).left, equality: sym!{Real.Real} _ _ (Tuple.atZero k (b.left (Fin.zero k)) q.left) })
+        (\idelim b.right (Fin.zero k) = liftRight b q (Fin.zero k) \with a: Real.Real => R.Le (x (Fin.zero k)) a
+          \by { base: (inside.right (Fin.zero k)).right, equality: sym!{Real.Real} _ _ (Tuple.atZero k (b.right (Fin.zero k)) q.right) }))
+      (\fun (i: Fin.Fin k) => Logic.And[_, _]::#
+        (\idelim q.left i = liftLeft b q (Fin.succ k i) \with a: Real.Real => R.Le a (x (Fin.succ k i))
+          \by { base: (tail.right i).left, equality: sym!{Real.Real} _ _ (Tuple.atSuccessor k (b.left (Fin.zero k)) q.left i) })
+        (\idelim q.right i = liftRight b q (Fin.succ k i) \with a: Real.Real => R.Le (x (Fin.succ k i)) a
+          \by { base: (tail.right i).right, equality: sym!{Real.Real} _ _ (Tuple.atSuccessor k (b.right (Fin.zero k)) q.right i) })));
+\import std.Data[].Bool[] \as Bool;
+\import R.Arithmetic[].Prop[] \as Laws;
+\definition headWidth[b: E.Box]: Real.Real := Real.sub (b.right (Fin.zero k)) (b.left (Fin.zero k));
+\definition tailProduct[q: Small.Box]: Real.Real := Small.product k (\fun (i: Fin.Fin k) => Real.sub (q.right i) (q.left i));
+\definition liftProduct: \forall (b: E.Box) (q: Small.Box) ->
+  E.product (N.Nat^::succ k) (\fun (i: Fin.Fin (N.Nat^::succ k)) => Real.sub (liftRight b q i) (liftLeft b q i)) = Real.mul (headWidth b) (tailProduct q) :=
+  \fun (b: E.Box) (q: Small.Box) => congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _
+    (congr!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _ (Tuple.atZero k (b.right (Fin.zero k)) q.right) (Tuple.atZero k (b.left (Fin.zero k)) q.left))
+    (E.productCongruent k (\fun (i: Fin.Fin k) => Real.sub (liftRight b q (Fin.succ k i)) (liftLeft b q (Fin.succ k i)))
+      (\fun (i: Fin.Fin k) => Real.sub (q.right i) (q.left i))
+      (\fun (i: Fin.Fin k) => congr!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _
+        (Tuple.atSuccessor k (b.right (Fin.zero k)) q.right i) (Tuple.atSuccessor k (b.left (Fin.zero k)) q.left i)));
+\definition liftFormula: \forall (b: E.Box) (q: Small.Box) ->
+  E.volume (liftBox b q) = Real.mul (headWidth b)
+    (\match b.active \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with { | false: Real.zero | true: tailProduct q }) :=
+  \fun (b: E.Box) (q: Small.Box) => Bool.cases (\fun (active: Bool.Bool^) =>
+    (\match active \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with {
+      | false: Real.zero
+      | true: E.product (N.Nat^::succ k) (\fun (i: Fin.Fin (N.Nat^::succ k)) => Real.sub (liftRight b q i) (liftLeft b q i))
+    }) = Real.mul (headWidth b) (\match active \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with { | false: Real.zero | true: tailProduct q }))
+    (sym!{Real.Real} _ _ (Laws.fieldMulZeroRight (headWidth b))) (liftProduct b q) b.active;
+\definition liftVolume: \forall (b: E.Box) (q: Small.Box) -> q.active = b.active -> E.volume (liftBox b q) = Real.mul (headWidth b) (Small.volume q) :=
+  \fun (b: E.Box) (q: Small.Box) (active: q.active = b.active) => eq_reason_in!{Real.Real _
+    "=" _ "by" { liftFormula b q }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (headWidth b)) _ _
+      (\idelim q.active = b.active \with v: Bool.Bool^ =>
+        (\match v \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with { | false: Real.zero | true: tailProduct q }) = Small.volume q
+        \by { base: \refl(Small.volume q), equality: active }) }
+  };
+\definition originalVolume: \forall (b: E.Box) -> E.volume b = Real.mul (headWidth b) (Small.volume (tailBox b)) :=
+  \fun (b: E.Box) => Bool.cases (\fun (active: Bool.Bool^) =>
+    (\match active \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with {
+      | false: Real.zero
+      | true: E.product (N.Nat^::succ k) (\fun (i: Fin.Fin (N.Nat^::succ k)) => Real.sub (b.right i) (b.left i))
+    }) = Real.mul (headWidth b) (\match active \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with {
+      | false: Real.zero
+      | true: tailProduct (tailBox b)
+    })) (sym!{Real.Real} _ _ (Laws.fieldMulZeroRight (headWidth b)))
+    (\refl(Real.mul (headWidth b) (tailProduct (tailBox b)))) b.active;
+\definition tail[b: E.Box] [i: Fin.Fin k] [t: Real.Real] [small: SmallCut.Result (tailBox b) i t]: Cut.Result b (Fin.succ k i) t :=
+  \into[Cut.Pair](Cut.Pair { left := liftBox b small.left, right := liftBox b small.right }, Cut.Result b (Fin.succ k i) t) \by {
+    Cut.Laws[b, Fin.succ k i, t, Cut.Pair { left := liftBox b small.left, right := liftBox b small.right }] {
+      activeLeft := \refl(b.active),
+      activeRight := \refl(b.active),
+      insideLeft := \fun (x: E.Point) (inside: Sets.Member (E.points b) x) (below: R.Le (x (Fin.succ k i)) t) =>
+        liftMember b small.left x inside ((SmallCut.laws (tailBox b) i t small).insideLeft (tailPoint x) (insideTail b x inside) below),
+      insideRight := \fun (x: E.Point) (inside: Sets.Member (E.points b) x) (above: R.Le t (x (Fin.succ k i))) =>
+        liftMember b small.right x inside ((SmallCut.laws (tailBox b) i t small).insideRight (tailPoint x) (insideTail b x inside) above),
+      volumes := eq_reason_in!{Real.Real _
+        "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+          (liftVolume b small.left (SmallCut.laws (tailBox b) i t small).activeLeft)
+          (liftVolume b small.right (SmallCut.laws (tailBox b) i t small).activeRight) }
+        "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulAdd (headWidth b) (Small.volume small.left) (Small.volume small.right)) }
+        "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (headWidth b)) _ _ (SmallCut.laws (tailBox b) i t small).volumes }
+        "=" _ "by" { sym!{Real.Real} _ _ (originalVolume b) }
+      },
+    }
+  };
