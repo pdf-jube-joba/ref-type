@@ -1,0 +1,145 @@
+\import \root.RealLine[] \as Line;
+\import \root.RealLine[].Outer[] \as Outer;
+\import \root.RealLine[].TaggedIntegral[] \as Tagged;
+\import integration.Real[] \as Integration;
+\import Integration.Division[] \as Division;
+\import real.Analysis[] \as Real;
+\import Real.Distance[] \as Distance;
+\import Real.Algebra[] \as Algebra;
+\import Real.Estimates[] \as Estimates;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Completeness[] \as Complete;
+\import functional_analysis.Measure[A := Real.Real] \as Measure;
+\import Measure.Sigma[] \as Sigma;
+\import topology.Topology[Carrier := Real.Real] \as Sets;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\definition BadCell[f: Real.Real -> Real.Real] [I: Integration.Interval] [d: Real.Real]: \Prop :=
+  \exists ( hi: Real.Real \where Logic.And[Sets.Member (Line.interval I.left I.right) hi,
+    \exists ( lo: Real.Real \where Logic.And[Sets.Member (Line.interval I.left I.right) lo, R.Lt d (Real.sub (f hi) (f lo))] )] );
+\definition badSet: \forall (k: N.Nat^) (f: Real.Real -> Real.Real) (I: Integration.Interval) (d: Real.Real) -> \Pow Real.Real :=
+  \induction (k: N.Nat^) \return (Real.Real -> Real.Real) -> Integration.Interval -> Real.Real -> \Pow Real.Real \with {
+    | zero: \fun (f: Real.Real -> Real.Real) (I: Integration.Interval) (d: Real.Real) =>
+      { x: Real.Real \where Logic.And[BadCell f I d, Sets.Member (Line.interval I.left I.right) x] }
+    | succ: \fun (k: N.Nat^) (prior: (Real.Real -> Real.Real) -> Integration.Interval -> Real.Real -> \Pow Real.Real)
+      (f: Real.Real -> Real.Real) (I: Integration.Interval) (d: Real.Real) =>
+        Sigma.pairUnion (prior f (Tagged.left I) d) (prior f (Tagged.right I) d)
+  };
+\structure TreeData: \Set := { high: Division.Tags, low: Division.Tags, cost: Real.Real };
+\structure TreeLaws[k: N.Nat^, f: Real.Real -> Real.Real, I: Integration.Interval, d: Real.Real, data: TreeData]: \Prop := {
+  highLevel: Division.Level data.high k,
+  lowLevel: Division.Level data.low k,
+  highValid: Division.Valid data.high I.left I.right,
+  lowValid: Division.Valid data.low I.left I.right,
+  costNonnegative: R.Le Real.zero data.cost,
+  costUpper: Complete.UpperBound (Line.measure.value (badSet k f I d)) data.cost,
+  gap: R.Le (Real.mul d data.cost) (Real.sub (Division.sum f data.high I.left I.right) (Division.sum f data.low I.left I.right)),
+};
+\definition Tree[k: N.Nat^] [f: Real.Real -> Real.Real] [I: Integration.Interval] [d: Real.Real]: \Set :=
+  \Cast[TreeData] ({ tree: TreeData \where TreeLaws[k, f, I, d, tree] });
+\definition laws[k: N.Nat^] [f: Real.Real -> Real.Real] [I: Integration.Interval] [d: Real.Real] [tree: Tree k f I d]: TreeLaws[k, f, I, d, tree] :=
+  \bysub(TreeData, { tree: TreeData \where TreeLaws[k, f, I, d, tree] }, tree);
+\definition zeroBad: \forall (f: Real.Real -> Real.Real) (I: Integration.Interval) (d: Real.Real) -> Logic.Not (BadCell f I d) -> badSet N.Nat^::zero f I d = Sets.Empty :=
+  \fun (f: Real.Real -> Real.Real) (I: Integration.Interval) (d: Real.Real) (none: Logic.Not (BadCell f I d)) =>
+    \axiom:setext(badSet N.Nat^::zero f I d, Sets.Empty,
+      \fun (x: Real.Real) (member: Sets.Member (badSet N.Nat^::zero f I d) x) => none member.left,
+      \fun (_: Real.Real) (bad: Logic.False) => Logic.falseElim _ bad);
+\definition zeroUpper: \forall (f: Real.Real -> Real.Real) (I: Integration.Interval) (d: Real.Real) -> Logic.Not (BadCell f I d) ->
+  Complete.UpperBound (Line.measure.value (badSet N.Nat^::zero f I d)) Real.zero :=
+  \fun (f: Real.Real -> Real.Real) (I: Integration.Interval) (d: Real.Real) (none: Logic.Not (BadCell f I d)) (r: Real.Real)
+    (member: Measure.below (Line.measure.value (badSet N.Nat^::zero f I d)) r) =>
+      Order.leOfLt r Real.zero (\idelim Line.measure.value (badSet N.Nat^::zero f I d) = Measure.zero \with v: Measure.Value => Measure.below v r \by {
+        base: member, equality: eq_reason_in!{Measure.Value _
+          "=" _ "by" { congr!{\Pow Real.Real Measure.Value} Line.measure.value _ _ (zeroBad f I d none) }
+          "=" _ "by" { (\bysub(Measure.MeasureData, Measure.Measure, Line.measure)).empty }
+        } });
+\definition intervalUpper: \forall (f: Real.Real -> Real.Real) (I: Integration.Interval) (d: Real.Real) ->
+  Complete.UpperBound (Line.measure.value (badSet N.Nat^::zero f I d)) (Real.sub I.right I.left) :=
+  \fun (f: Real.Real -> Real.Real) (I: Integration.Interval) (d: Real.Real) (r: Real.Real)
+    (member: Measure.below (Line.measure.value (badSet N.Nat^::zero f I d)) r) =>
+      Order.leOfLt r (Real.sub I.right I.left) (\idelim Line.measure.value (Line.interval I.left I.right) = { t: Real.Real \where R.Lt t (Real.sub I.right I.left) }
+        \with v: Measure.Value => Measure.below v r \by {
+          base: Outer.monotone (badSet N.Nat^::zero f I d) (Line.interval I.left I.right) (\fun (x: Real.Real) (inside: Sets.Member (badSet N.Nat^::zero f I d) x) => inside.right) r member,
+          equality: Line.intervalMeasure I.left I.right I.ordered });
+\definition baseExists: \forall (f: Real.Real -> Real.Real) (I: Integration.Interval) (d: Real.Real) -> \exists Tree N.Nat^::zero f I d :=
+  \fun (f: Real.Real -> Real.Real) (I: Integration.Interval) (d: Real.Real) => Logic.orElim (BadCell f I d) (Logic.Not (BadCell f I d)) (\exists Tree N.Nat^::zero f I d)
+    (Classical.excludedMiddle (BadCell f I d))
+    (\fun (bad: BadCell f I d) => \block {
+      \takefrom hi: \Cast[Real.Real] ({ hi: Real.Real \where Logic.And[Sets.Member (Line.interval I.left I.right) hi,
+        \exists ( lo: Real.Real \where Logic.And[Sets.Member (Line.interval I.left I.right) lo, R.Lt d (Real.sub (f hi) (f lo))] )] }) \by bad \then
+      \let h: Logic.And[Sets.Member (Line.interval I.left I.right) hi, \exists ( lo: Real.Real \where Logic.And[Sets.Member (Line.interval I.left I.right) lo, R.Lt d (Real.sub (f hi) (f lo))] )] :=
+        \bysub(Real.Real, { hi: Real.Real \where Logic.And[Sets.Member (Line.interval I.left I.right) hi, \exists ( lo: Real.Real \where Logic.And[Sets.Member (Line.interval I.left I.right) lo, R.Lt d (Real.sub (f hi) (f lo))] )] }, hi) \then
+      \takefrom lo: \Cast[Real.Real] ({ lo: Real.Real \where Logic.And[Sets.Member (Line.interval I.left I.right) lo, R.Lt d (Real.sub (f hi) (f lo))] }) \by h.right \then
+      \let l: Logic.And[Sets.Member (Line.interval I.left I.right) lo, R.Lt d (Real.sub (f hi) (f lo))] :=
+        \bysub(Real.Real, { lo: Real.Real \where Logic.And[Sets.Member (Line.interval I.left I.right) lo, R.Lt d (Real.sub (f hi) (f lo))] }, lo) \then
+      \let length: Real.Real := Real.sub I.right I.left \then
+      \let tree: TreeData := TreeData { high := Division.Tags::tag hi, low := Division.Tags::tag lo, cost := length } \then
+      \let gap: R.Le (Real.mul d length) (Real.sub (Real.mul length (f hi)) (Real.mul length (f lo))) :=
+        R.leReplace (Real.mul length d) (Real.mul d length) (Real.mul length (Real.sub (f hi) (f lo)))
+          (Real.sub (Real.mul length (f hi)) (Real.mul length (f lo))) (Laws.fieldMulComm length d) (Algebra.mulSub length (f hi) (f lo))
+          (Estimates.mulMonotone length d (Real.sub (f hi) (f lo)) (Distance.subNonnegative I.right I.left I.ordered) (Order.leOfLt _ _ l.right)) \then
+      \return Logic.existsIntro[TreeData, { tree: TreeData \where TreeLaws[N.Nat^::zero, f, I, d, tree] }] tree
+        (TreeLaws[N.Nat^::zero, f, I, d, tree] {
+          highLevel := \refl(N.Nat^::zero), lowLevel := \refl(N.Nat^::zero), highValid := h.left, lowValid := l.left,
+          costNonnegative := Distance.subNonnegative I.right I.left I.ordered, costUpper := intervalUpper f I d, gap := gap,
+        })
+    })
+    (\fun (none: Logic.Not (BadCell f I d)) => \block {
+      \let tree: TreeData := TreeData { high := Division.Tags::tag I.left, low := Division.Tags::tag I.left, cost := Real.zero } \then
+      \let gap: R.Le (Real.mul d Real.zero) (Real.sub (Division.sum f (Division.Tags::tag I.left) I.left I.right) (Division.sum f (Division.Tags::tag I.left) I.left I.right)) :=
+        R.leReplace Real.zero (Real.mul d Real.zero) Real.zero (Real.sub (Division.sum f (Division.Tags::tag I.left) I.left I.right) (Division.sum f (Division.Tags::tag I.left) I.left I.right))
+          (sym!{Real.Real} _ _ (Laws.fieldMulZeroRight d)) (sym!{Real.Real} _ _ (Laws.subSelf (Division.sum f (Division.Tags::tag I.left) I.left I.right))) (R.leRefl Real.zero) \then
+      \return Logic.existsIntro[TreeData, { tree: TreeData \where TreeLaws[N.Nat^::zero, f, I, d, tree] }] tree
+        (TreeLaws[N.Nat^::zero, f, I, d, tree] {
+          highLevel := \refl(N.Nat^::zero), lowLevel := \refl(N.Nat^::zero),
+          highValid := Logic.And[_, _]::# (R.leRefl I.left) I.ordered, lowValid := Logic.And[_, _]::# (R.leRefl I.left) I.ordered,
+          costNonnegative := R.leRefl Real.zero, costUpper := zeroUpper f I d none, gap := gap,
+        })
+    });
+\import \root.Euclidean[n := N.Nat^::succ N.Nat^::zero] \as E;
+\definition exists: \forall (k: N.Nat^) (f: Real.Real -> Real.Real) (I: Integration.Interval) (d: Real.Real) -> \exists Tree k f I d :=
+  \induction (k: N.Nat^) \return \forall (f: Real.Real -> Real.Real) (I: Integration.Interval) (d: Real.Real) -> \exists Tree k f I d \with {
+    | zero: baseExists
+    | succ: \fun (k: N.Nat^) (prior: \forall (f: Real.Real -> Real.Real) (I: Integration.Interval) (d: Real.Real) -> \exists Tree k f I d)
+      (f: Real.Real -> Real.Real) (I: Integration.Interval) (d: Real.Real) => \block {
+        \takefrom l: Tree k f (Tagged.left I) d \by prior f (Tagged.left I) d \then
+        \takefrom r: Tree k f (Tagged.right I) d \by prior f (Tagged.right I) d \then
+        \let ll: TreeLaws[k, f, Tagged.left I, d, l] := laws k f (Tagged.left I) d l \then
+        \let rl: TreeLaws[k, f, Tagged.right I, d, r] := laws k f (Tagged.right I) d r \then
+        \let tree: TreeData := TreeData { high := Division.Tags::split l.high r.high, low := Division.Tags::split l.low r.low, cost := Real.add l.cost r.cost } \then
+        \let highLevel: Division.Level tree.high (N.Nat^::succ k) :=
+          Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Division.SplitLevel[N.Nat^::succ k, Division.levelSet l.high, Division.levelSet r.high, j] }] k
+            (Division.SplitLevel[_, _, _, _] { successor := \refl(N.Nat^::succ k), left := ll.highLevel, right := rl.highLevel }) \then
+        \let lowLevel: Division.Level tree.low (N.Nat^::succ k) :=
+          Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Division.SplitLevel[N.Nat^::succ k, Division.levelSet l.low, Division.levelSet r.low, j] }] k
+            (Division.SplitLevel[_, _, _, _] { successor := \refl(N.Nat^::succ k), left := ll.lowLevel, right := rl.lowLevel }) \then
+        \let upper: Complete.UpperBound (Line.measure.value (badSet (N.Nat^::succ k) f I d)) tree.cost :=
+          \fun (x: Real.Real) (member: Measure.below (Line.measure.value (badSet (N.Nat^::succ k) f I d)) x) =>
+            E.addUpper (Line.measure.value (badSet k f (Tagged.left I) d)) (Line.measure.value (badSet k f (Tagged.right I) d))
+              l.cost r.cost ll.costUpper rl.costUpper x (Outer.subadditivePair (badSet k f (Tagged.left I) d) (badSet k f (Tagged.right I) d) x member) \then
+        \let leftGap: Real.Real := Real.sub (Division.sum f l.high (Tagged.left I).left (Tagged.left I).right) (Division.sum f l.low (Tagged.left I).left (Tagged.left I).right) \then
+        \let rightGap: Real.Real := Real.sub (Division.sum f r.high (Tagged.right I).left (Tagged.right I).right) (Division.sum f r.low (Tagged.right I).left (Tagged.right I).right) \then
+        \let gap: R.Le (Real.mul d tree.cost) (Real.sub (Division.sum f tree.high I.left I.right) (Division.sum f tree.low I.left I.right)) :=
+          R.leReplace (Real.add (Real.mul d l.cost) (Real.mul d r.cost)) (Real.mul d tree.cost)
+            (Real.add leftGap rightGap) (Real.sub (Division.sum f tree.high I.left I.right) (Division.sum f tree.low I.left I.right))
+            (sym!{Real.Real} _ _ (Laws.fieldMulAdd d l.cost r.cost))
+            (sym!{Real.Real} _ _ (Algebra.subAdd (Division.sum f l.high (Tagged.left I).left (Tagged.left I).right)
+              (Division.sum f r.high (Tagged.right I).left (Tagged.right I).right) (Division.sum f l.low (Tagged.left I).left (Tagged.left I).right)
+              (Division.sum f r.low (Tagged.right I).left (Tagged.right I).right)))
+            (Estimates.addLe _ _ _ _ ll.gap rl.gap) \then
+        \return Logic.existsIntro[TreeData, { tree: TreeData \where TreeLaws[N.Nat^::succ k, f, I, d, tree] }] tree
+          (TreeLaws[N.Nat^::succ k, f, I, d, tree] {
+            highLevel := highLevel, lowLevel := lowLevel,
+            highValid := Logic.And[_, _]::# ll.highValid rl.highValid, lowValid := Logic.And[_, _]::# ll.lowValid rl.lowValid,
+            costNonnegative := Laws.addNonnegative l.cost r.cost ll.costNonnegative rl.costNonnegative,
+            costUpper := upper, gap := gap,
+          })
+      }
+  };
