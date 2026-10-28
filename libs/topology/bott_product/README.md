@@ -15,3 +15,8 @@
 
 `Product.At.Kernel` は基点制限の核が生成元を掛けた類の像であることを示す。
 `Product.At.Slice` は基点の切片と \(X\) の具体的な同相を構成し、`Slice.Relative.imageRepresentation` は K03 の相対群から忘却された類がこの像に入ることを示す。
+
+`Product.Injective.injective` と `Product.Surjective.exists` は標準積が加法群として全単射であることを示す。
+`Product.Inverse.first` は基点制限、`coefficient` は復元式を満たす唯一の係数を返す。
+実束から境界ループを作り K07 の逆クラスを取る `Product.Bundle.Decomposition` と `Product.Surjective` の構成は、この係数を計算する。
+`Inverse.ofRepresentation` は構成に用いた選択によらず計算結果が一致することを示す。
