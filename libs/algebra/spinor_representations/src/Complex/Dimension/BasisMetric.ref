@@ -1,0 +1,26 @@
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Nat[] \as N;
+\import Algebra.FiniteCoordinates[n := n].Exterior[] \as Exterior;
+\import Algebra.Multilinear[V := Finite.Vector, space := Finite.space].Alternating[] \as Forms;
+\import Forms.At[k := N.Nat^::succ N.Nat^::zero] \as One;
+\import Algebra.Multilinear[V := Finite.Vector, space := Finite.space] \as Multi;
+\import \root.Complex[].On[V := Finite.Vector, space := Finite.space].Realification[].With[h := Finite.form] \as Metric;
+\use std.Logic[].Equality[].sym;
+\definition covector: \forall (i: Fin.Fin n) -> Metric.form (Finite.basis i) = Exterior.coordinate i :=
+  \fun (i: Fin.Fin n) => One.ext (Metric.form (Finite.basis i)) (Exterior.coordinate i) (\fun (args: Multi.Arguments (N.Nat^::succ N.Nat^::zero)) => Finite.dotBasis i (args Metric.head));
+\import Algebra.FiniteCoordinates[n := n] \as Standard;
+\import Algebra.FiniteExterior[V := Finite.Vector, space := Finite.space, n := n, b := Standard.basis] \as ExteriorBasis;
+\import \root.Over[K := C.Complex, scalarRing := ring].On[V := Finite.Vector, space := Finite.space] \as Operations;
+\use std.Logic[].Equality[].trans;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].congr;
+\definition wordCoordinates: \forall (k: N.Nat^)(indices: Fin.Fin k -> Fin.Fin n) -> ExteriorBasis.At[k := k].word indices = Exterior.word k indices :=
+  \fun (k: N.Nat^)(indices: Fin.Fin k -> Fin.Fin n) => (Forms.At[k := k].ext) (ExteriorBasis.At[k := k].word indices) (Exterior.word k indices) (\fun (args: Multi.Arguments k) => congr!{{Multi.Arguments k} C.Complex} (Exterior.word k indices) _ _ (\axiom:funext((\fun (i: Fin.Fin k) => args i), args, \fun (i: Fin.Fin k) => \refl(args i))));
+\definition wordStep: \forall (k: N.Nat^)(indices: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n) ->
+  ExteriorBasis.At[k := N.Nat^::succ k].word indices = Operations.LeftCreation[k := k].apply (Metric.form (Finite.basis (indices (Fin.zero k)))) (ExteriorBasis.At[k := k].word (\fun (i: Fin.Fin k) => indices (Fin.succ k i))) :=
+  \fun (k: N.Nat^)(indices: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n) => eq_reason_in!{{Forms.Form (N.Nat^::succ k)} _
+    "=" _ "by" { wordCoordinates (N.Nat^::succ k) indices }
+    "=" _ "by" { congr!{{Forms.Form (N.Nat^::succ N.Nat^::zero)} {Forms.Form k} {Forms.Form (N.Nat^::succ k)}} Operations.LeftCreation[k := k].apply _ _ _ _
+      (sym!{{Forms.Form (N.Nat^::succ N.Nat^::zero)}} _ _ (covector (indices (Fin.zero k))))
+      (sym!{{Forms.Form k}} _ _ (wordCoordinates k (\fun (i: Fin.Fin k) => indices (Fin.succ k i)))) }
+  };
