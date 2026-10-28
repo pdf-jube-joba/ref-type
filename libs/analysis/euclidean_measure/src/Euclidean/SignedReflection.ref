@@ -1,0 +1,114 @@
+\import \parent.MeasureConstruction[] \as Construction;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition flip[s: Bool.Bool^] [x: Real.Real]: Real.Real := Bool.ite Real.Real s (Real.neg x) x;
+\definition lower[s: Bool.Bool^] [l, r: Real.Real]: Real.Real := Bool.ite Real.Real s (Real.neg r) l;
+\definition upper[s: Bool.Bool^] [l, r: Real.Real]: Real.Real := Bool.ite Real.Real s (Real.neg l) r;
+\definition ordered: \forall (s: Bool.Bool^) (l, r: Real.Real) -> R.Le l r -> R.Le (lower s l r) (upper s l r) :=
+  \fun (s: Bool.Bool^) (l, r: Real.Real) (valid: R.Le l r) => Bool.cases (\fun (s: Bool.Bool^) => R.Le (lower s l r) (upper s l r))
+    valid (Laws.negAntitone l r valid) s;
+\definition box[b: Box]: Box := Box {
+  active := b.active,
+  left := \fun (i: Fin.Fin n) => lower (sign i) (b.left i) (b.right i),
+  right := \fun (i: Fin.Fin n) => upper (sign i) (b.left i) (b.right i),
+  ordered := \fun (i: Fin.Fin n) => ordered (sign i) (b.left i) (b.right i) (b.ordered i),
+};
+\definition width: \forall (s: Bool.Bool^) (l, r: Real.Real) -> Real.sub (upper s l r) (lower s l r) = Real.sub r l :=
+  \fun (s: Bool.Bool^) (l, r: Real.Real) => Bool.cases (\fun (s: Bool.Bool^) => Real.sub (upper s l r) (lower s l r) = Real.sub r l)
+    (\refl(Real.sub r l)) (\parent.Reflection[].width r l) s;
+\definition volumeInvariant: \forall (b: Box) -> volume (box b) = volume b :=
+  \fun (b: Box) => Bool.cases (\fun (active: Bool.Bool^) =>
+    (\match active \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with {
+      | false: Real.zero | true: product n (\fun (i: Fin.Fin n) => Real.sub (upper (sign i) (b.left i) (b.right i)) (lower (sign i) (b.left i) (b.right i))) }) =
+    (\match active \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with {
+      | false: Real.zero | true: product n (\fun (i: Fin.Fin n) => Real.sub (b.right i) (b.left i)) }))
+    (\refl(Real.zero)) (productCongruent n _ _ (\fun (i: Fin.Fin n) => width (sign i) (b.left i) (b.right i))) b.active;
+\definition point[x: Point]: Point := \fun (i: Fin.Fin n) => flip (sign i) (x i);
+\definition flipInvolutive: \forall (s: Bool.Bool^) (x: Real.Real) -> flip s (flip s x) = x :=
+  \fun (s: Bool.Bool^) (x: Real.Real) => Bool.cases (\fun (s: Bool.Bool^) => flip s (flip s x) = x)
+    (\refl(x)) (Laws.negInvolutive x) s;
+\definition pointInvolutive: \forall (x: Point) -> point (point x) = x :=
+  \fun (x: Point) => \axiom:funext(point (point x), x, \fun (i: Fin.Fin n) => flipInvolutive (sign i) (x i));
+\definition reflected[S: \Pow Point]: \Pow Point := { x: Point \where Sets.Member S (point x) };
+\definition memberAt: \forall (s: Bool.Bool^) (l, r, x: Real.Real) -> R.Le l x -> R.Le x r ->
+  Logic.And[R.Le (lower s l r) (flip s x), R.Le (flip s x) (upper s l r)] :=
+  \fun (s: Bool.Bool^) (l, r, x: Real.Real) (lo: R.Le l x) (hi: R.Le x r) =>
+    Bool.cases (\fun (s: Bool.Bool^) => Logic.And[R.Le (lower s l r) (flip s x), R.Le (flip s x) (upper s l r)])
+      (Logic.And[_, _]::# lo hi) (Logic.And[_, _]::# (Laws.negAntitone x r hi) (Laws.negAntitone l x lo)) s;
+\definition member: \forall (b: Box) (x: Point) -> Sets.Member (points b) x -> Sets.Member (points (box b)) (point x) :=
+  \fun (b: Box) (x: Point) (inside: Sets.Member (points b) x) =>
+    Logic.And[_, _]::# inside.left (\fun (i: Fin.Fin n) => memberAt (sign i) (b.left i) (b.right i) (x i) (inside.right i).left (inside.right i).right);
+\definition family[f: N.Nat^ -> Box]: N.Nat^ -> Box := \fun (k: N.Nat^) => box (f k);
+\definition covers: \forall (S: \Pow Point) (f: N.Nat^ -> Box) -> Covers f S -> Covers (family f) (reflected S) :=
+  \fun (S: \Pow Point) (f: N.Nat^ -> Box) (cover: Covers f S) (x: Point) (inside: Sets.Member (reflected S) x) => \block {
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sets.Member (points (f k)) (point x) }) \by cover (point x) inside \then
+    \let inBox: Sets.Member (points (f k)) (point x) := \bysub(N.Nat^, { k: N.Nat^ \where Sets.Member (points (f k)) (point x) }, k) \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (points (family f k)) x }] k
+      (\idelim point (point x) = x \with y: Point => Sets.Member (points (family f k)) y \by { base: member (f k) (point x) inBox, equality: pointInvolutive x })
+  };
+\definition costInvariant: \forall (f: N.Nat^ -> Box) -> cost (family f) = cost f :=
+  \fun (f: N.Nat^ -> Box) => congr!{{N.Nat^ -> Measure.Value} Measure.Value} Measure.series _ _
+    (\axiom:funext((\fun (k: N.Nat^) => volumeValue (family f k)), (\fun (k: N.Nat^) => volumeValue (f k)),
+      \fun (k: N.Nat^) => congr!{Real.Real Measure.Value} (\fun (v: Real.Real) => { r: Real.Real \where R.Lt r v }) _ _ (volumeInvariant (f k))));
+\definition outerUpper: \forall (S: \Pow Point) -> Values.Included (outer (reflected S)) (outer S) :=
+  \fun (S: \Pow Point) => greatestLowerBound S (outer (reflected S)) (outerNonnegative (reflected S))
+    (\fun (f: N.Nat^ -> Box) (cover: Covers f S) (r: Real.Real) (inside: Measure.below (outer (reflected S)) r) =>
+      \idelim cost (family f) = cost f \with v: Measure.Value => Measure.below v r
+        \by { base: boundedByCover (reflected S) (family f) (covers S f cover) r inside, equality: costInvariant f });
+\definition involutive: \forall (S: \Pow Point) -> reflected (reflected S) = S :=
+  \fun (S: \Pow Point) => \axiom:setext(reflected (reflected S), S,
+    \fun (x: Point) (inside: Sets.Member (reflected (reflected S)) x) =>
+      \idelim point (point x) = x \with y: Point => Sets.Member S y \by { base: inside, equality: pointInvolutive x },
+    \fun (x: Point) (inside: Sets.Member S x) =>
+      \idelim x = point (point x) \with y: Point => Sets.Member S y \by { base: inside, equality: sym!{Point} _ _ (pointInvolutive x) });
+\definition outerInvariant: \forall (S: \Pow Point) -> outer (reflected S) = outer S :=
+  \fun (S: \Pow Point) => \axiom:setext(outer (reflected S), outer S, outerUpper S,
+    \fun (r: Real.Real) (inside: Measure.below (outer S) r) => outerUpper (reflected S) r
+      (\idelim outer S = outer (reflected (reflected S)) \with v: Measure.Value => Measure.below v r
+        \by { base: inside, equality: sym!{Measure.Value} _ _ (congr!{{\Pow Point} Measure.Value} outer _ _ (involutive S)) }));
+\definition measureInvariant: \forall (S: \Pow Point) -> Construction.measure.value (reflected S) = Construction.measure.value S := outerInvariant;
+\definition intersection: \forall (S, T: \Pow Point) -> reflected (Sets.Intersection S T) = Sets.Intersection (reflected S) (reflected T) :=
+  \fun (S, T: \Pow Point) => \axiom:setext(reflected (Sets.Intersection S T), Sets.Intersection (reflected S) (reflected T),
+    \fun (x: Point) (inside: Sets.Member (reflected (Sets.Intersection S T)) x) => inside,
+    \fun (x: Point) (inside: Sets.Member (Sets.Intersection (reflected S) (reflected T)) x) => inside);
+\definition complement: \forall (S: \Pow Point) -> reflected (Sets.Complement S) = Sets.Complement (reflected S) :=
+  \fun (S: \Pow Point) => \axiom:setext(reflected (Sets.Complement S), Sets.Complement (reflected S),
+    \fun (x: Point) (inside: Sets.Member (reflected (Sets.Complement S)) x) => inside,
+    \fun (x: Point) (inside: Sets.Member (Sets.Complement (reflected S)) x) => inside);
+\definition measurable: \forall (S: \Pow Point) -> Caratheodory S -> Caratheodory (reflected S) :=
+  \fun (S: \Pow Point) (valid: Caratheodory S) (T: \Pow Point) => \block {
+    \let W: \Pow Point := reflected T \then
+    \let restore: reflected W = T := involutive T \then
+    \let left: \Pow Point := Sets.Intersection W S \then
+    \let right: \Pow Point := Sets.Intersection W (Sets.Complement S) \then
+    \let inside: reflected left = Sets.Intersection T (reflected S) := eq_reason_in!{{\Pow Point} _
+      "=" _ "by" { intersection W S }
+      "=" _ "by" { congr!{{\Pow Point} {\Pow Point}} (\fun (V: \Pow Point) => Sets.Intersection V (reflected S)) _ _ restore }
+    } \then
+    \let outside: reflected right = Sets.Intersection T (Sets.Complement (reflected S)) := eq_reason_in!{{\Pow Point} _
+      "=" _ "by" { intersection W (Sets.Complement S) }
+      "=" _ "by" { congr!{{\Pow Point} {\Pow Point} {\Pow Point}} Sets.Intersection _ _ _ _ restore (complement S) }
+    } \then
+    \return eq_reason_in!{Measure.Value _
+      "=" _ "by" { congr!{{\Pow Point} Measure.Value} outer _ _ (sym!{{\Pow Point}} _ _ restore) }
+      "=" _ "by" { outerInvariant W }
+      "=" _ "by" { valid W }
+      "=" _ "by" { congr!{Measure.Value Measure.Value Measure.Value} Measure.add _ _ _ _
+        (sym!{Measure.Value} _ _ (outerInvariant left)) (sym!{Measure.Value} _ _ (outerInvariant right)) }
+      "=" _ "by" { congr!{Measure.Value Measure.Value Measure.Value} Measure.add _ _ _ _
+        (congr!{{\Pow Point} Measure.Value} outer _ _ inside) (congr!{{\Pow Point} Measure.Value} outer _ _ outside) }
+    }
+  };
+\definition measureMeasurable: \forall (S: \Pow Point) -> Measure.Measurable Construction.measure.sigma S -> Measure.Measurable Construction.measure.sigma (reflected S) := measurable;
+\import \parent.Scaling[] \as Scaling;
+\definition signedScale: \forall (S: \Pow Point) (a: Scaling.PositivePoint) ->
+  Construction.measure.value (reflected (Scaling.scaled S a)) = Measure.scale (Scaling.factor a) (Construction.measure.value S) :=
+  \fun (S: \Pow Point) (a: Scaling.PositivePoint) => eq_reason_in!{Measure.Value _
+    "=" _ "by" { measureInvariant (Scaling.scaled S a) }
+    "=" _ "by" { Scaling.measureScale S a }
+  };
+\definition signedScaleMeasurable: \forall (S: \Pow Point) (a: Scaling.PositivePoint) ->
+  Measure.Measurable Construction.measure.sigma S -> Measure.Measurable Construction.measure.sigma (reflected (Scaling.scaled S a)) :=
+  \fun (S: \Pow Point) (a: Scaling.PositivePoint) (valid: Measure.Measurable Construction.measure.sigma S) =>
+    measureMeasurable (Scaling.scaled S a) (Scaling.scaleMeasurable S a valid);
