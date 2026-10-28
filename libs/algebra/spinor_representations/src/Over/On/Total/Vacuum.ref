@@ -22,3 +22,33 @@
         (\fun (v: Multi.Arguments N.Nat^::zero) => \refl(Algebra.one))
       | succ: \fun (k: N.Nat^)(unused: _) => (Precomposition.At[k := N.Nat^::succ k].linear u).preservesZero
     });
+\import std.Data[].FinSet[] \as Fin;
+\import Fin.Tuples[A := V] \as Tuples;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\definition coefficient[f: Carrier]: K := Zero.evaluate.apply (f N.Nat^::zero);
+\definition onlyVacuum: \forall (f: Carrier) -> (\forall (x: V) -> annihilate x f = Product.zero) -> f = Product.scale (coefficient f) state :=
+  \fun (f: Carrier)(annihilated: \forall (x: V) -> annihilate x f = Product.zero) => \axiom:funext(f, Product.scale (coefficient f) state,
+    \induction (k: N.Nat^) \return f k = Product.scale (coefficient f) state k \with {
+      | zero: trans!{{Alternating.Form N.Nat^::zero}} _ _ _
+        (sym!{{Alternating.Form N.Nat^::zero}} _ _ (Zero.isomorphism.rightInverse (f N.Nat^::zero)))
+        (Alternating.At[k := N.Nat^::zero].ext (Zero.constant (coefficient f)) (Product.scale (coefficient f) state N.Nat^::zero)
+          (\fun (args: Multi.Arguments N.Nat^::zero) => sym!{K} _ _ (Algebra.mulOneRight (coefficient f))))
+      | succ: \fun (k: N.Nat^)(unused: _) => trans!{{Alternating.Form (N.Nat^::succ k)}} _ _ _
+        (Alternating.At[k := N.Nat^::succ k].ext (f (N.Nat^::succ k)) Alternating.At[k := N.Nat^::succ k].origin
+          (\fun (args: Multi.Arguments (N.Nat^::succ k)) => eq_reason_in!{K _
+            "=" _ "by" { congr!{{Multi.Arguments (N.Nat^::succ k)} K} (f (N.Nat^::succ k)) _ _ (sym!{{Multi.Arguments (N.Nat^::succ k)}} _ _ (Tuples.recover k args)) }
+            "=" _ "by" { congr!{{Alternating.Form k} K} (\fun (omega: Alternating.Form k) => omega (\fun (i: Fin.Fin k) => args (Fin.succ k i))) _ _
+              (congr!{Carrier {Alternating.Form k}} (\fun (s: Carrier) => s k) _ _ (annihilated (args (Fin.zero k)))) }
+          }))
+        (sym!{{Alternating.Form (N.Nat^::succ k)}} _ _ (Algebra.Laws[V := Alternating.Form (N.Nat^::succ k), space := Alternating.At[k := N.Nat^::succ k].vectorSpace].scaleZero (coefficient f)))
+    });
+\definition scalarInjective: \forall (a, b: K) -> Product.scale a state = Product.scale b state -> a = b :=
+  \fun (a, b: K)(same: Product.scale a state = Product.scale b state) => eq_reason_in!{K _
+    "=" _ "by" { sym!{K} _ _ (Algebra.mulOneRight a) }
+    "=" _ "by" { congr!{Carrier K} coefficient _ _ same }
+    "=" _ "by" { Algebra.mulOneRight b }
+  };

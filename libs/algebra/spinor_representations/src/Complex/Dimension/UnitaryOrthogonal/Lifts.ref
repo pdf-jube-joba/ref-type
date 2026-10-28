@@ -1,0 +1,70 @@
+\import \parent.\parent.RealCoordinates[].Clifford[] \as Clifford;
+\import Clifford.Spin[].Phase[] \as Phase;
+\import Phase.Equivariance[] \as Equivariance;
+\import clifford.Field[K := R.Real, field := R.Algebra[].field].On[V := E.Vector, space := E.space].Of[form := E.form].Pin[] \as Pin;
+\import clifford.ComplexExtension[G := Pin.Spin, group := Pin.spinGroup].By[sign := Pin.spinInvolution] \as SpinC;
+\import lie_algebras.Field[K := C.Complex, field := Field.field].Endomorphisms[V := Total.Carrier, space := Total.totalSpace] \as ComplexEnd;
+\import \root.Complex[].On[V := Finite.Vector, space := Finite.space].Realification[].With[h := Finite.form].Decomposition[] \as Decomposition;
+\import algebra.Groups[].Units[A := ComplexEnd.Carrier, ring := ComplexEnd.ring] \as ComplexUnits;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\definition coordinateAction: \forall (u: Unitary.Carrier)(v: Finite.Vector) -> Orthogonal.action (map u) (RC.standardIsomorphism.forward.apply v) = RC.standardIsomorphism.forward.apply (u.forward.apply v) :=
+  \fun (u: Unitary.Carrier)(v: Finite.Vector) => congr!{Finite.Vector E.Vector} (\fun (w: Finite.Vector) => RC.standardIsomorphism.forward.apply (u.forward.apply w)) _ _ (RC.standardIsomorphism.leftInverse v);
+\definition coordinateClifford: \forall (v: Finite.Vector) -> Clifford.vectors.apply (RC.standardIsomorphism.forward.apply v) = Metric.cliffordOperator v :=
+  \fun (v: Finite.Vector) => congr!{Finite.Vector ComplexEnd.Carrier} Metric.cliffordOperator _ _ (RC.standardIsomorphism.leftInverse v);
+\definition cliffordCovariance: \forall (u: Unitary.Carrier)(g: SpinC.Carrier) -> Phase.projection g = map u -> \forall (v: Finite.Vector)(f: Total.Carrier) ->
+  (Phase.actionC g).value.apply ((Metric.cliffordOperator v).apply f) = (Metric.cliffordOperator (u.forward.apply v)).apply ((Phase.actionC g).value.apply f) :=
+  \fun (u: Unitary.Carrier)(g: SpinC.Carrier)(projects: Phase.projection g = map u)(v: Finite.Vector)(f: Total.Carrier) => sym!{{Total.Carrier}} _ _
+    (eq_reason_in!{{Total.Carrier} _
+      "=" _ "by" { congr!{ComplexEnd.Carrier {Total.Carrier}} (\fun (a: ComplexEnd.Carrier) => a.apply ((Phase.actionC g).value.apply f)) _ _
+        (sym!{ComplexEnd.Carrier} _ _ (coordinateClifford (u.forward.apply v))) }
+      "=" _ "by" { congr!{E.Vector {Total.Carrier}} (\fun (x: E.Vector) => (Clifford.vectors.apply x).apply ((Phase.actionC g).value.apply f)) _ _
+        (sym!{E.Vector} _ _ (coordinateAction u v)) }
+      "=" _ "by" { congr!{Orthogonal.O {Total.Carrier}} (\fun (q: Orthogonal.O) => (Clifford.vectors.apply (Orthogonal.action q (RC.standardIsomorphism.forward.apply v))).apply ((Phase.actionC g).value.apply f)) _ _ (sym!{Orthogonal.O} _ _ projects) }
+      "=" _ "by" { congr!{ComplexEnd.Carrier {Total.Carrier}} (\fun (a: ComplexEnd.Carrier) => a.apply f) _ _ (Equivariance.commute g (RC.standardIsomorphism.forward.apply v)) }
+      "=" _ "by" { congr!{ComplexEnd.Carrier {Total.Carrier}} (\fun (a: ComplexEnd.Carrier) => (Phase.actionC g).value.apply (a.apply f)) _ _ (coordinateClifford v) }
+    });
+\definition annihilationCovariance: \forall (u: Unitary.Carrier)(g: SpinC.Carrier) -> Phase.projection g = map u -> \forall (v: Finite.Vector)(f: Total.Carrier) ->
+  Total.annihilate (u.forward.apply v) ((Phase.actionC g).value.apply f) = (Phase.actionC g).value.apply (Total.annihilate v f) :=
+  \fun (u: Unitary.Carrier)(g: SpinC.Carrier)(projects: Phase.projection g = map u)(v: Finite.Vector)(f: Total.Carrier) => eq_reason_in!{{Total.Carrier} _
+    "=" _ "by" { Decomposition.annihilation (u.forward.apply v) ((Phase.actionC g).value.apply f) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.smul half) _ _
+      (congr!{{Total.Carrier} {Total.Carrier} {Total.Carrier}} Total.totalSpace.add _ _ _ _
+        (sym!{{Total.Carrier}} _ _ (cliffordCovariance u g projects v f))
+        (congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.smul (Algebra.neg Def.i)) _ _
+          (trans!{{Total.Carrier}} _ _ _
+            (congr!{Finite.Vector {Total.Carrier}} (\fun (w: Finite.Vector) => (Metric.cliffordOperator w).apply ((Phase.actionC g).value.apply f)) _ _ (sym!{Finite.Vector} _ _ (u.forward.preservesScale Def.i v)))
+            (sym!{{Total.Carrier}} _ _ (cliffordCovariance u g projects (Finite.space.smul Def.i v) f))))) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.smul half) _ _
+      (congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.add ((Phase.actionC g).value.apply ((Metric.cliffordOperator v).apply f))) _ _
+        (sym!{{Total.Carrier}} _ _ ((Phase.actionC g).value.preservesScale (Algebra.neg Def.i) ((Metric.cliffordOperator (Finite.space.smul Def.i v)).apply f)))) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.smul half) _ _
+      (sym!{{Total.Carrier}} _ _ ((Phase.actionC g).value.preservesAdd ((Metric.cliffordOperator v).apply f) (Total.totalSpace.smul (Algebra.neg Def.i) ((Metric.cliffordOperator (Finite.space.smul Def.i v)).apply f)))) }
+    "=" _ "by" { sym!{{Total.Carrier}} _ _ ((Phase.actionC g).value.preservesScale half (Total.totalSpace.add ((Metric.cliffordOperator v).apply f) (Total.totalSpace.smul (Algebra.neg Def.i) ((Metric.cliffordOperator (Finite.space.smul Def.i v)).apply f)))) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} ((Phase.actionC g).value.apply) _ _ (sym!{{Total.Carrier}} _ _ (Decomposition.annihilation v f)) }
+  };
+\import \root.Over[K := C.Complex, scalarRing := ring].On[V := Finite.Vector, space := Finite.space].Total[].Vacuum[] \as Vacuum;
+\definition vacuumEigen: \forall (u: Unitary.Carrier)(g: SpinC.Carrier) -> Phase.projection g = map u ->
+  (Phase.actionC g).value.apply Vacuum.state = Total.totalSpace.smul (Vacuum.coefficient ((Phase.actionC g).value.apply Vacuum.state)) Vacuum.state :=
+  \fun (u: Unitary.Carrier)(g: SpinC.Carrier)(projects: Phase.projection g = map u) => Vacuum.onlyVacuum ((Phase.actionC g).value.apply Vacuum.state)
+    (\fun (v: Finite.Vector) => eq_reason_in!{{Total.Carrier} _
+      "=" _ "by" { congr!{Finite.Vector {Total.Carrier}} (\fun (w: Finite.Vector) => Total.annihilate w ((Phase.actionC g).value.apply Vacuum.state)) _ _ (sym!{Finite.Vector} _ _ (u.rightInverse v)) }
+      "=" _ "by" { annihilationCovariance u g projects (u.backward.apply v) Vacuum.state }
+      "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} ((Phase.actionC g).value.apply) _ _ (Vacuum.annihilated (u.backward.apply v)) }
+      "=" _ "by" { (Phase.actionC g).value.preservesZero }
+    });
+\import \parent.\parent.TotalInner[].Vacuum[] \as VacuumMetric;
+\import Algebra.Laws[V := Total.Carrier, space := Total.totalSpace] \as VectorLaws;
+\import std.Logic[].Proposition[] \as Logic;
+\definition vacuumCoefficientNonzero: \forall (u: Unitary.Carrier)(g: SpinC.Carrier) -> Phase.projection g = map u ->
+  Logic.Not (Vacuum.coefficient ((Phase.actionC g).value.apply Vacuum.state) = Algebra.zero) :=
+  \fun (u: Unitary.Carrier)(g: SpinC.Carrier)(projects: Phase.projection g = map u)(zero: _) => VacuumMetric.nonzero (eq_reason_in!{{Total.Carrier} _
+    "=" _ "by" { sym!{{Total.Carrier}} _ _ (congr!{ComplexEnd.Carrier {Total.Carrier}} (\fun (t: ComplexEnd.Carrier) => t.apply Vacuum.state) _ _ (Phase.actionC g).left) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} ((Phase.actionC g).inverse.apply) _ _ (vacuumEigen u g projects) }
+    "=" _ "by" { congr!{C.Complex {Total.Carrier}} (\fun (a: C.Complex) => (Phase.actionC g).inverse.apply (Total.totalSpace.smul a Vacuum.state)) _ _ zero }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} ((Phase.actionC g).inverse.apply) _ _ (VectorLaws.zeroScale Vacuum.state) }
+    "=" _ "by" { (Phase.actionC g).inverse.preservesZero }
+  });
