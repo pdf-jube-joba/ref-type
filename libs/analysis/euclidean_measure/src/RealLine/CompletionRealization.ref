@@ -1,0 +1,57 @@
+\import \root.RealLine[] \as Line;
+\import \root.RealLine[].CompletionComparison[interval := interval] \as Comparison;
+\import \root.RealLine[].CompletionSeries[interval := interval, s := s, index := index, good := good] \as Series;
+\import \root.RealLine[].CompletionDivergence[interval := interval, s := s, index := index, good := good] \as Divergence;
+\import \root.RealLine[].CompletionSum[interval := interval, s := s, index := index, good := good] \as Sum;
+\import functional_analysis.Measure[A := real.Analysis[].Real] \as Measure;
+\import Measure.Integral[mu := Line.measure] \as Integral;
+\import Integral.Series[terms := Series.terms] \as Partial;
+\import Integral.Absolute[] \as Absolute;
+\import Integral.Linear[] \as Linear;
+\import Integral.Convergence[] \as Convergence;
+\import real.Analysis[] \as Real;
+\import Real.Sequence[] \as Sequence;
+\import Real.Distance[] \as Distance;
+\import Real.Estimates[].Product[] \as Product;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import topology.Topology[Carrier := Real.Real] \as Sets;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\definition sequence[k: N.Nat^] [x: Real.Real]: Real.Real := Comparison.mapped s (index k) x;
+\definition Candidate[x: Real.Real]: \Set := \Cast[Real.Real] ({ y: Real.Real \where Logic.And[
+  Sets.Member Divergence.exception x -> y = Real.zero,
+  Logic.Not (Sets.Member Divergence.exception x) -> Sequence.Converges (\fun (k: N.Nat^) => sequence k x) y] });
+\definition exists: \forall (x: Real.Real) -> \exists Candidate x := \fun (x: Real.Real) =>
+  Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member Divergence.exception x))
+    (\fun (inside: Sets.Member Divergence.exception x) => Logic.existsIntro[Real.Real, { y: Real.Real \where Logic.And[
+      Sets.Member Divergence.exception x -> y = Real.zero, Logic.Not (Sets.Member Divergence.exception x) -> Sequence.Converges (\fun (k: N.Nat^) => sequence k x) y] }] Real.zero
+      (Logic.And[_, _]::# (\fun (_: Sets.Member Divergence.exception x) => \refl(Real.zero)) (\fun (outside: Logic.Not (Sets.Member Divergence.exception x)) => Logic.falseElim _ (outside inside))))
+    (\fun (outside: Logic.Not (Sets.Member Divergence.exception x)) => \block {
+      \let seq: Sequence.CauchySequence := \into[N.Nat^ -> Real.Real]((\fun (k: N.Nat^) => sequence k x), { q: N.Nat^ -> Real.Real \where Sequence.Cauchy q }) \by {
+        \root.RealLine[].CompletionPointwise[interval := interval, s := s, index := index, good := good, x := x].cauchy outside } \then
+      \return Logic.existsIntro[Real.Real, { y: Real.Real \where Logic.And[Sets.Member Divergence.exception x -> y = Real.zero,
+        Logic.Not (Sets.Member Divergence.exception x) -> Sequence.Converges (\fun (k: N.Nat^) => sequence k x) y] }] (Sequence.limit seq)
+        (Logic.And[_, _]::# (\fun (inside: Sets.Member Divergence.exception x) => Logic.falseElim _ (outside inside))
+          (\fun (_: Logic.Not (Sets.Member Divergence.exception x)) => Sequence.limitLaw seq))
+    });
+\definition unique: \forall (x: Real.Real) (u, v: Candidate x) -> u = v := \fun (x: Real.Real) (u, v: Candidate x) => \block {
+  \let a: Logic.And[Sets.Member Divergence.exception x -> u = Real.zero, Logic.Not (Sets.Member Divergence.exception x) -> Sequence.Converges (\fun (k: N.Nat^) => sequence k x) u] :=
+    \bysub(Real.Real, { y: Real.Real \where Logic.And[Sets.Member Divergence.exception x -> y = Real.zero, Logic.Not (Sets.Member Divergence.exception x) -> Sequence.Converges (\fun (k: N.Nat^) => sequence k x) y] }, u) \then
+  \let b: Logic.And[Sets.Member Divergence.exception x -> v = Real.zero, Logic.Not (Sets.Member Divergence.exception x) -> Sequence.Converges (\fun (k: N.Nat^) => sequence k x) v] :=
+    \bysub(Real.Real, { y: Real.Real \where Logic.And[Sets.Member Divergence.exception x -> y = Real.zero, Logic.Not (Sets.Member Divergence.exception x) -> Sequence.Converges (\fun (k: N.Nat^) => sequence k x) y] }, v) \then
+  \return Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member Divergence.exception x))
+    (\fun (inside: Sets.Member Divergence.exception x) => trans!{Real.Real} u Real.zero v (a.left inside) (sym!{Real.Real} _ _ (b.left inside)))
+    (\fun (outside: Logic.Not (Sets.Member Divergence.exception x)) => Sequence.limitUnique (\fun (k: N.Nat^) => sequence k x) u v (a.right outside) (b.right outside))
+};
+\definition limit[x: Real.Real]: Real.Real := \choice Candidate x \by { existence: exists x, uniqueness: unique x };
+\definition limitLaw: \forall (x: Real.Real) -> Logic.And[Sets.Member Divergence.exception x -> limit x = Real.zero,
+  Logic.Not (Sets.Member Divergence.exception x) -> Sequence.Converges (\fun (k: N.Nat^) => sequence k x) (limit x)] :=
+  \fun (x: Real.Real) => \bysub(Real.Real, { y: Real.Real \where Logic.And[Sets.Member Divergence.exception x -> y = Real.zero,
+    Logic.Not (Sets.Member Divergence.exception x) -> Sequence.Converges (\fun (k: N.Nat^) => sequence k x) y] },
+    \choice Candidate x \by { existence: exists x, uniqueness: unique x });
