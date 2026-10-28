@@ -1,0 +1,31 @@
+\definition root: \forall (a: Roots.Vector n) -> Coefficients.coefficients a = p -> \forall (i: Fin.Fin n) ->
+  Evaluation.apply (a i) (Roots.polynomial n p) = Scalars.field.zero :=
+  \fun (a: Roots.Vector n)(same: _)(i: Fin.Fin n) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { congr!{{Roots.Vector n} {C.Complex}} (\fun (c: Roots.Vector n) => Evaluation.apply (a i) (Roots.polynomial n c)) _ _ (sym!{{Roots.Vector n}} _ _ same) }
+    "=" _ "by" { congr!{{P.Carrier} {C.Complex}} (Evaluation.apply (a i)) _ _ (Coefficients.factorization a) }
+    "=" _ "by" { MonicCoordinates.occursRoot (Tuples.list n a) (a i) (Tuples.occurs n a i) }
+  };
+\definition testFalse: \forall (z: C.Complex) -> Logic.Not (Space.Member Inside z) -> test z = B.Bool^::false :=
+  \fun (z: C.Complex)(notInside: _) => (\induction (b: B.Bool^) \return test z = b -> test z = B.Bool^::false \with {
+    | false: \fun (equal: _) => equal
+    | true: \fun (equal: _) => Logic.falseElim (test z = B.Bool^::false) (notInside (selected z equal))
+  }) (test z) (\refl(test z));
+\definition allFalse: \forall (a: Roots.Vector n) -> Coefficients.coefficients a = p -> Monic.Over (\fun (z: C.Complex) => test z = B.Bool^::false) (Tuples.list n a) :=
+  \fun (a: Roots.Vector n)(same: _) => Tuples.all n a (\fun (z: C.Complex) => test z = B.Bool^::false)
+    (\fun (i: Fin.Fin n) => testFalse (a i) (absent (a i) (root a same i)));
+\definition filterEmpty: \forall (xs: Monic.Coefficients) -> Monic.Over (\fun (z: C.Complex) => test z = B.Bool^::false) xs ->
+  Filtering.filter xs = Lists.List[C.Complex]::nil :=
+  \induction (xs: Monic.Coefficients) \return Monic.Over (\fun (z: C.Complex) => test z = B.Bool^::false) xs -> Filtering.filter xs = Lists.List[C.Complex]::nil \with {
+    | nil: \fun (_: _) => \refl(Lists.List[C.Complex]::nil)
+    | cons: \fun (z: C.Complex)(tail: Monic.Coefficients)(previous: _)(all: Logic.And[test z = B.Bool^::false, Monic.Over (\fun (w: C.Complex) => test w = B.Bool^::false) tail]) =>
+      \idelim B.Bool^::false = test z \with b: B.Bool^ =>
+        B.ite Monic.Coefficients b (Lists.List[C.Complex]::cons z (Filtering.filter tail)) (Filtering.filter tail) = Lists.List[C.Complex]::nil \by {
+          base: previous all.right, equality: sym!{B.Bool^} _ _ all.left
+        }
+  };
+\definition leftOne: left p = P.one := \block {
+  \takefrom a: \Cast[Roots.Vector n] ({ a: Roots.Vector n \where Coefficients.coefficients a = p }) \by Coefficients.onto p \then
+  \let same: Coefficients.coefficients a = p := \bysub(Roots.Vector n, { a: Roots.Vector n \where Coefficients.coefficients a = p }, a) \then
+  \return trans!{P.Carrier} _ _ _ ((\bysub(P.Carrier, Factor B.Bool^::true p, factor B.Bool^::true p)) a same)
+    (congr!{Monic.Coefficients P.Carrier} Monic.factors _ _ (filterEmpty (Tuples.list n a) (allFalse a same)))
+};
