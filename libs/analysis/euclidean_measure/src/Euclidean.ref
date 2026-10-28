@@ -455,3 +455,303 @@
   \forall (k: N.Nat^) -> Values.Included (Measure.partialSum f k) (Measure.partialSum f (N.Nat^::succ k)) :=
   \fun (f: N.Nat^ -> Measure.Value) (nonnegative: \forall (k: N.Nat^) -> Measure.NonnegativeValue[f k]) (k: N.Nat^) =>
     Series.pairLeftIncluded (Measure.partialSum f k) (f k) (partialNonnegative f nonnegative k) (nonnegative k);
+
+\definition unionInsideLeft: \forall (T, S, U: \Pow Point) ->
+  Sets.Intersection (Sets.Intersection T (Sigma.pairUnion S U)) S = Sets.Intersection T S :=
+  \fun (T, S, U: \Pow Point) => \axiom:setext(Sets.Intersection (Sets.Intersection T (Sigma.pairUnion S U)) S, Sets.Intersection T S,
+    \fun (x: Point) (member: Sets.Member (Sets.Intersection (Sets.Intersection T (Sigma.pairUnion S U)) S) x) =>
+      Logic.And[_, _]::# member.left.left member.right,
+    \fun (x: Point) (member: Sets.Member (Sets.Intersection T S) x) =>
+      Logic.And[_, _]::# (Logic.And[_, _]::# member.left (Logic.Or[_, _]::left member.right)) member.right);
+\definition unionInsideRight: \forall (T, S, U: \Pow Point) ->
+  Sets.Intersection (Sets.Intersection T (Sigma.pairUnion S U)) (Sets.Complement S) =
+    Sets.Intersection (Sets.Intersection T (Sets.Complement S)) U :=
+  \fun (T, S, U: \Pow Point) => \axiom:setext(
+    Sets.Intersection (Sets.Intersection T (Sigma.pairUnion S U)) (Sets.Complement S),
+    Sets.Intersection (Sets.Intersection T (Sets.Complement S)) U,
+    \fun (x: Point) (member: Sets.Member (Sets.Intersection (Sets.Intersection T (Sigma.pairUnion S U)) (Sets.Complement S)) x) =>
+      Logic.And[_, _]::# (Logic.And[_, _]::# member.left.left member.right)
+        (Logic.orElim _ _ (Sets.Member U x) member.left.right
+          (\fun (inS: Sets.Member S x) => Logic.falseElim _ (member.right inS)) (\fun (inU: Sets.Member U x) => inU)),
+    \fun (x: Point) (member: Sets.Member (Sets.Intersection (Sets.Intersection T (Sets.Complement S)) U) x) =>
+      Logic.And[_, _]::# (Logic.And[_, _]::# member.left.left (Logic.Or[_, _]::right member.right)) member.left.right);
+\definition unionOutside: \forall (T, S, U: \Pow Point) ->
+  Sets.Intersection T (Sets.Complement (Sigma.pairUnion S U)) =
+    Sets.Intersection (Sets.Intersection T (Sets.Complement S)) (Sets.Complement U) :=
+  \fun (T, S, U: \Pow Point) => \axiom:setext(
+    Sets.Intersection T (Sets.Complement (Sigma.pairUnion S U)),
+    Sets.Intersection (Sets.Intersection T (Sets.Complement S)) (Sets.Complement U),
+    \fun (x: Point) (member: Sets.Member (Sets.Intersection T (Sets.Complement (Sigma.pairUnion S U))) x) =>
+      Logic.And[_, _]::# (Logic.And[_, _]::# member.left (\fun (inS: Sets.Member S x) => member.right (Logic.Or[_, _]::left inS)))
+        (\fun (inU: Sets.Member U x) => member.right (Logic.Or[_, _]::right inU)),
+    \fun (x: Point) (member: Sets.Member (Sets.Intersection (Sets.Intersection T (Sets.Complement S)) (Sets.Complement U)) x) =>
+      Logic.And[_, _]::# member.left.left (\fun (either: Sets.Member (Sigma.pairUnion S U) x) =>
+        Logic.orElim _ _ Logic.False either member.left.right member.right));
+\definition unionCaratheodory: \forall (S, U: \Pow Point) -> Caratheodory S -> Caratheodory U -> Caratheodory (Sigma.pairUnion S U) :=
+  \fun (S, U: \Pow Point) (s: Caratheodory S) (u: Caratheodory U) (T: \Pow Point) => \block {
+    \let left: Measure.Value := outer (Sets.Intersection T S) \then
+    \let middle: Measure.Value := outer (Sets.Intersection (Sets.Intersection T (Sets.Complement S)) U) \then
+    \let right: Measure.Value := outer (Sets.Intersection (Sets.Intersection T (Sets.Complement S)) (Sets.Complement U)) \then
+    \let inside: outer (Sets.Intersection T (Sigma.pairUnion S U)) = Measure.add left middle := eq_reason_in!{Measure.Value _
+      "=" _ "by" { s (Sets.Intersection T (Sigma.pairUnion S U)) }
+      "=" _ "by" { congr!{Measure.Value Measure.Value Measure.Value} Measure.add _ _ _ _
+        (congr!{{\Pow Point} Measure.Value} outer _ _ (unionInsideLeft T S U))
+        (congr!{{\Pow Point} Measure.Value} outer _ _ (unionInsideRight T S U)) }
+    } \then
+    \return eq_reason_in!{Measure.Value _
+      "=" _ "by" { s T }
+      "=" _ "by" { congr!{Measure.Value Measure.Value} (Measure.add left) _ _ (u (Sets.Intersection T (Sets.Complement S))) }
+      "=" _ "by" { sym!{Measure.Value} _ _ (Values.addAssoc left middle right) }
+      "=" _ "by" { congr!{Measure.Value Measure.Value} (\fun (v: Measure.Value) => Measure.add v right) _ _ (sym!{Measure.Value} _ _ inside) }
+      "=" _ "by" { congr!{Measure.Value Measure.Value} (Measure.add (outer (Sets.Intersection T (Sigma.pairUnion S U)))) _ _
+        (congr!{{\Pow Point} Measure.Value} outer _ _ (sym!{{\Pow Point}} _ _ (unionOutside T S U))) }
+    }
+  };
+\definition intersectionCaratheodory: \forall (S, U: \Pow Point) -> Caratheodory S -> Caratheodory U -> Caratheodory (Sets.Intersection S U) :=
+  \fun (S, U: \Pow Point) (s: Caratheodory S) (u: Caratheodory U) =>
+    \idelim Sets.Complement (Sigma.pairUnion (Sets.Complement S) (Sets.Complement U)) = Sets.Intersection S U
+      \with V: \Pow Point => Caratheodory V
+      \by { base: complementCaratheodory (Sigma.pairUnion (Sets.Complement S) (Sets.Complement U))
+        (unionCaratheodory (Sets.Complement S) (Sets.Complement U) (complementCaratheodory S s) (complementCaratheodory U u)),
+        equality: Sigma.intersectionComplement S U };
+\definition differenceCaratheodory: \forall (S, U: \Pow Point) -> Caratheodory S -> Caratheodory U ->
+  Caratheodory (Sigma.difference S U) :=
+  \fun (S, U: \Pow Point) (s: Caratheodory S) (u: Caratheodory U) => intersectionCaratheodory S (Sets.Complement U) s (complementCaratheodory U u);
+\definition prefixCaratheodory: \forall (f: N.Nat^ -> \Pow Point) -> (\forall (j: N.Nat^) -> Caratheodory (f j)) ->
+  \forall (j: N.Nat^) -> Caratheodory (Sigma.prefix f j) :=
+  \fun (f: N.Nat^ -> \Pow Point) (measurable: \forall (j: N.Nat^) -> Caratheodory (f j)) =>
+    \induction (j: N.Nat^) \return Caratheodory (Sigma.prefix f j) \with {
+      | zero: emptyCaratheodory
+      | succ: \fun (j: N.Nat^) (previous: _) => unionCaratheodory (Sigma.prefix f j) (f j) previous (measurable j)
+    };
+\definition incrementCaratheodory: \forall (f: N.Nat^ -> \Pow Point) -> (\forall (j: N.Nat^) -> Caratheodory (f j)) ->
+  \forall (j: N.Nat^) -> Caratheodory (Sigma.increments f j) :=
+  \fun (f: N.Nat^ -> \Pow Point) (measurable: \forall (j: N.Nat^) -> Caratheodory (f j)) (j: N.Nat^) =>
+    differenceCaratheodory (f j) (Sigma.prefix f j) (measurable j) (prefixCaratheodory f measurable j);
+
+\import std.Logic[].Classical[] \as Classical;
+\definition unionDifference: \forall (S, T: \Pow Point) -> Sigma.pairUnion S T = Sigma.pairUnion S (Sigma.difference T S) :=
+  \fun (S, T: \Pow Point) => \axiom:setext(Sigma.pairUnion S T, Sigma.pairUnion S (Sigma.difference T S),
+    \fun (x: Point) (member: Sets.Member (Sigma.pairUnion S T) x) =>
+      Logic.orElim _ _ (Sets.Member (Sigma.pairUnion S (Sigma.difference T S)) x) member
+        (\fun (inS: Sets.Member S x) => Logic.Or[_, _]::left inS)
+        (\fun (inT: Sets.Member T x) => Logic.orElim _ _ (Sets.Member (Sigma.pairUnion S (Sigma.difference T S)) x)
+          (Classical.excludedMiddle (Sets.Member S x))
+          (\fun (inS: Sets.Member S x) => Logic.Or[_, _]::left inS)
+          (\fun (notS: Logic.Not (Sets.Member S x)) => Logic.Or[_, _]::right (Logic.And[_, _]::# inT notS))),
+    \fun (x: Point) (member: Sets.Member (Sigma.pairUnion S (Sigma.difference T S)) x) =>
+      Logic.orElim _ _ (Sets.Member (Sigma.pairUnion S T) x) member
+        (\fun (inS: Sets.Member S x) => Logic.Or[_, _]::left inS)
+        (\fun (inDiff: Sets.Member (Sigma.difference T S) x) => Logic.Or[_, _]::right inDiff.left));
+\definition prefixSum: \forall (f: N.Nat^ -> \Pow Point) -> (\forall (j: N.Nat^) -> Caratheodory (f j)) ->
+  \forall (j: N.Nat^) -> outer (Sigma.prefix f j) = Measure.partialSum (\fun (k: N.Nat^) => outer (Sigma.increments f k)) j :=
+  \fun (f: N.Nat^ -> \Pow Point) (measurable: \forall (j: N.Nat^) -> Caratheodory (f j)) =>
+    \induction (j: N.Nat^) \return outer (Sigma.prefix f j) = Measure.partialSum (\fun (k: N.Nat^) => outer (Sigma.increments f k)) j \with {
+      | zero: outerEmpty
+      | succ: \fun (j: N.Nat^) (previous: _) => eq_reason_in!{Measure.Value _
+        "=" _ "by" { congr!{{\Pow Point} Measure.Value} outer _ _ (unionDifference (Sigma.prefix f j) (f j)) }
+        "=" _ "by" { disjointAdditivity (Sigma.prefix f j) (Sigma.increments f j) (prefixCaratheodory f measurable j)
+          (\fun (x: Point) (inside: Sets.Member (Sigma.prefix f j) x) (increment: Sets.Member (Sigma.increments f j) x) => increment.right inside) }
+        "=" _ "by" { congr!{Measure.Value Measure.Value} (\fun (v: Measure.Value) => Measure.add v (outer (Sigma.increments f j))) _ _ previous }
+      }
+    };
+\definition prefixSeriesLower: \forall (f: N.Nat^ -> \Pow Point) -> (\forall (j: N.Nat^) -> Caratheodory (f j)) ->
+  Values.Included (Measure.series (\fun (j: N.Nat^) => outer (Sigma.increments f j))) (outer (Measure.union f)) :=
+  \fun (f: N.Nat^ -> \Pow Point) (measurable: \forall (j: N.Nat^) -> Caratheodory (f j))
+    (r: Real.Real) (member: Measure.below (Measure.series (\fun (j: N.Nat^) => outer (Sigma.increments f j))) r) => \block {
+      \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where Measure.below (Measure.partialSum (\fun (k: N.Nat^) => outer (Sigma.increments f k)) j) r }) \by member \then
+      \let inPartial: Measure.below (Measure.partialSum (\fun (k: N.Nat^) => outer (Sigma.increments f k)) j) r :=
+        \bysub(N.Nat^, { j: N.Nat^ \where Measure.below (Measure.partialSum (\fun (k: N.Nat^) => outer (Sigma.increments f k)) j) r }, j) \then
+      \return monotone (Sigma.prefix f j) (Measure.union f) (Sigma.prefixContainedInUnion f j) r
+        (\idelim Measure.partialSum (\fun (k: N.Nat^) => outer (Sigma.increments f k)) j = outer (Sigma.prefix f j) \with v: Measure.Value => Measure.below v r
+          \by { base: inPartial, equality: sym!{Measure.Value} _ _ (prefixSum f measurable j) })
+    };
+
+\import N.Basic[].Def[] \as NatOp;
+\import N.Basic[].Prop[] \as NatLaws;
+\definition partialExtend: \forall (f: N.Nat^ -> Measure.Value) ->
+  (\forall (k: N.Nat^) -> Measure.NonnegativeValue[f k]) -> \forall (j, k: N.Nat^) ->
+  Values.Included (Measure.partialSum f j) (Measure.partialSum f (NatOp.add j k)) :=
+  \fun (f: N.Nat^ -> Measure.Value) (nonnegative: \forall (k: N.Nat^) -> Measure.NonnegativeValue[f k]) (j: N.Nat^) =>
+    \induction (k: N.Nat^) \return Values.Included (Measure.partialSum f j) (Measure.partialSum f (NatOp.add j k)) \with {
+      | zero: \fun (_: Real.Real) (member: _) => member
+      | succ: \fun (k: N.Nat^) (previous: _) (r: Real.Real) (member: _) =>
+        partialStep f nonnegative (NatOp.add j k) r (previous r member)
+    };
+\definition partialAdd: \forall (f, g: N.Nat^ -> Measure.Value) (k: N.Nat^) ->
+  Measure.partialSum (\fun (j: N.Nat^) => Measure.add (f j) (g j)) k =
+    Measure.add (Measure.partialSum f k) (Measure.partialSum g k) :=
+  \fun (f, g: N.Nat^ -> Measure.Value) => \induction (k: N.Nat^) \return
+    Measure.partialSum (\fun (j: N.Nat^) => Measure.add (f j) (g j)) k = Measure.add (Measure.partialSum f k) (Measure.partialSum g k) \with {
+      | zero: sym!{Measure.Value} _ _ (Values.addZero Measure.zero Values.zeroNonnegative)
+      | succ: \fun (k: N.Nat^) (previous: _) => eq_reason_in!{Measure.Value _
+        "=" _ "by" { congr!{Measure.Value Measure.Value} (\fun (v: Measure.Value) => Measure.add v (Measure.add (f k) (g k))) _ _ previous }
+        "=" _ "by" { Values.addShuffle (Measure.partialSum f k) (Measure.partialSum g k) (f k) (g k) }
+      }
+    };
+\definition seriesAdd: \forall (f, g: N.Nat^ -> Measure.Value) ->
+  (\forall (j: N.Nat^) -> Measure.NonnegativeValue[f j]) -> (\forall (j: N.Nat^) -> Measure.NonnegativeValue[g j]) ->
+  Measure.series (\fun (j: N.Nat^) => Measure.add (f j) (g j)) = Measure.add (Measure.series f) (Measure.series g) :=
+  \fun (f, g: N.Nat^ -> Measure.Value) (fl: \forall (j: N.Nat^) -> Measure.NonnegativeValue[f j])
+    (gl: \forall (j: N.Nat^) -> Measure.NonnegativeValue[g j]) =>
+    \axiom:setext(Measure.series (\fun (j: N.Nat^) => Measure.add (f j) (g j)), Measure.add (Measure.series f) (Measure.series g),
+      \fun (r: Real.Real) (member: Measure.below (Measure.series (\fun (j: N.Nat^) => Measure.add (f j) (g j))) r) => \block {
+        \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Measure.below (Measure.partialSum (\fun (j: N.Nat^) => Measure.add (f j) (g j)) k) r }) \by member \then
+        \let part: Measure.below (Measure.add (Measure.partialSum f k) (Measure.partialSum g k)) r :=
+          \idelim Measure.partialSum (\fun (j: N.Nat^) => Measure.add (f j) (g j)) k = Measure.add (Measure.partialSum f k) (Measure.partialSum g k)
+            \with v: Measure.Value => Measure.below v r \by {
+              base: \bysub(N.Nat^, { k: N.Nat^ \where Measure.below (Measure.partialSum (\fun (j: N.Nat^) => Measure.add (f j) (g j)) k) r }, k),
+              equality: partialAdd f g k } \then
+        \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[Measure.below (Measure.partialSum f k) a,
+          \exists ( b: Real.Real \where Logic.And[Measure.below (Measure.partialSum g k) b, R.Lt r (Real.add a b)] )] }) \by part \then
+        \let first: Logic.And[Measure.below (Measure.partialSum f k) a, \exists ( b: Real.Real \where Logic.And[Measure.below (Measure.partialSum g k) b, R.Lt r (Real.add a b)] )] :=
+          \bysub(Real.Real, { a: Real.Real \where Logic.And[Measure.below (Measure.partialSum f k) a, \exists ( b: Real.Real \where Logic.And[Measure.below (Measure.partialSum g k) b, R.Lt r (Real.add a b)] )] }, a) \then
+        \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where Logic.And[Measure.below (Measure.partialSum g k) b, R.Lt r (Real.add a b)] }) \by first.right \then
+        \let second: Logic.And[Measure.below (Measure.partialSum g k) b, R.Lt r (Real.add a b)] :=
+          \bysub(Real.Real, { b: Real.Real \where Logic.And[Measure.below (Measure.partialSum g k) b, R.Lt r (Real.add a b)] }, b) \then
+        \return Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[Measure.below (Measure.series f) a,
+          \exists ( b: Real.Real \where Logic.And[Measure.below (Measure.series g) b, R.Lt r (Real.add a b)] )] }] a
+          (Logic.And[_, _]::# (Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Measure.below (Measure.partialSum f j) a }] k first.left)
+            (Logic.existsIntro[Real.Real, { b: Real.Real \where Logic.And[Measure.below (Measure.series g) b, R.Lt r (Real.add a b)] }] b
+              (Logic.And[_, _]::# (Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Measure.below (Measure.partialSum g j) b }] k second.left) second.right)))
+      },
+      \fun (r: Real.Real) (member: Measure.below (Measure.add (Measure.series f) (Measure.series g)) r) => \block {
+        \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[Measure.below (Measure.series f) a,
+          \exists ( b: Real.Real \where Logic.And[Measure.below (Measure.series g) b, R.Lt r (Real.add a b)] )] }) \by member \then
+        \let first: Logic.And[Measure.below (Measure.series f) a, \exists ( b: Real.Real \where Logic.And[Measure.below (Measure.series g) b, R.Lt r (Real.add a b)] )] :=
+          \bysub(Real.Real, { a: Real.Real \where Logic.And[Measure.below (Measure.series f) a, \exists ( b: Real.Real \where Logic.And[Measure.below (Measure.series g) b, R.Lt r (Real.add a b)] )] }, a) \then
+        \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where Logic.And[Measure.below (Measure.series g) b, R.Lt r (Real.add a b)] }) \by first.right \then
+        \let second: Logic.And[Measure.below (Measure.series g) b, R.Lt r (Real.add a b)] :=
+          \bysub(Real.Real, { b: Real.Real \where Logic.And[Measure.below (Measure.series g) b, R.Lt r (Real.add a b)] }, b) \then
+        \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Measure.below (Measure.partialSum f k) a }) \by first.left \then
+        \takefrom l: \Cast[N.Nat^] ({ l: N.Nat^ \where Measure.below (Measure.partialSum g l) b }) \by second.left \then
+        \let common: N.Nat^ := NatOp.add k l \then
+        \let inF: Measure.below (Measure.partialSum f common) a := partialExtend f fl k l a
+          (\bysub(N.Nat^, { k: N.Nat^ \where Measure.below (Measure.partialSum f k) a }, k)) \then
+        \let inG: Measure.below (Measure.partialSum g common) b :=
+          \idelim NatOp.add l k = common \with m: N.Nat^ => Measure.below (Measure.partialSum g m) b
+            \by { base: partialExtend g gl l k b (\bysub(N.Nat^, { l: N.Nat^ \where Measure.below (Measure.partialSum g l) b }, l)), equality: NatLaws.addComm l k } \then
+        \let part: Measure.below (Measure.add (Measure.partialSum f common) (Measure.partialSum g common)) r :=
+          Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[Measure.below (Measure.partialSum f common) a,
+            \exists ( b: Real.Real \where Logic.And[Measure.below (Measure.partialSum g common) b, R.Lt r (Real.add a b)] )] }] a
+            (Logic.And[_, _]::# inF (Logic.existsIntro[Real.Real, { b: Real.Real \where Logic.And[Measure.below (Measure.partialSum g common) b, R.Lt r (Real.add a b)] }] b
+              (Logic.And[_, _]::# inG second.right))) \then
+        \return Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Measure.below (Measure.partialSum (\fun (k: N.Nat^) => Measure.add (f k) (g k)) j) r }] common
+          (\idelim Measure.add (Measure.partialSum f common) (Measure.partialSum g common) = Measure.partialSum (\fun (k: N.Nat^) => Measure.add (f k) (g k)) common
+            \with v: Measure.Value => Measure.below v r \by { base: part, equality: sym!{Measure.Value} _ _ (partialAdd f g common) })
+      });
+
+\definition twice: N.Nat^ -> N.Nat^ :=
+  \induction (j: N.Nat^) \return N.Nat^ \with {
+    | zero: N.Nat^::zero
+    | succ: \fun (_: N.Nat^) (previous: N.Nat^) => N.Nat^::succ (N.Nat^::succ previous)
+  };
+\definition weave: \forall (j: N.Nat^) -> (N.Nat^ -> Box) -> (N.Nat^ -> Box) -> Box :=
+  \induction (j: N.Nat^) \return (N.Nat^ -> Box) -> (N.Nat^ -> Box) -> Box \with {
+    | zero: \fun (f, g: N.Nat^ -> Box) => f N.Nat^::zero
+    | succ: \fun (j: N.Nat^) (previous: (N.Nat^ -> Box) -> (N.Nat^ -> Box) -> Box) (f, g: N.Nat^ -> Box) =>
+      previous g (\fun (i: N.Nat^) => f (N.Nat^::succ i))
+  };
+\definition weaveEven: \forall (j: N.Nat^) (f, g: N.Nat^ -> Box) -> weave (twice j) f g = f j :=
+  \induction (j: N.Nat^) \return \forall (f, g: N.Nat^ -> Box) -> weave (twice j) f g = f j \with {
+    | zero: \fun (f, g: _) => \refl(f N.Nat^::zero)
+    | succ: \fun (j: N.Nat^) (previous: _) (f, g: _) =>
+      previous (\fun (i: N.Nat^) => f (N.Nat^::succ i)) (\fun (i: N.Nat^) => g (N.Nat^::succ i))
+  };
+\definition weaveOdd: \forall (j: N.Nat^) (f, g: N.Nat^ -> Box) -> weave (N.Nat^::succ (twice j)) f g = g j :=
+  \induction (j: N.Nat^) \return \forall (f, g: N.Nat^ -> Box) -> weave (N.Nat^::succ (twice j)) f g = g j \with {
+    | zero: \fun (f, g: _) => \refl(g N.Nat^::zero)
+    | succ: \fun (j: N.Nat^) (previous: _) (f, g: _) =>
+      previous (\fun (i: N.Nat^) => f (N.Nat^::succ i)) (\fun (i: N.Nat^) => g (N.Nat^::succ i))
+  };
+\definition weaveCovers: \forall (S, T: \Pow Point) (f, g: N.Nat^ -> Box) -> Covers f S -> Covers g T ->
+  Covers (\fun (j: N.Nat^) => weave j f g) (Sigma.pairUnion S T) :=
+  \fun (S, T: \Pow Point) (f, g: N.Nat^ -> Box) (sf: Covers f S) (tg: Covers g T) (x: Point)
+    (member: Sets.Member (Sigma.pairUnion S T) x) =>
+      Logic.orElim _ _ (\exists ( j: N.Nat^ \where Sets.Member (points (weave j f g)) x )) member
+        (\fun (inS: Sets.Member S x) => \block {
+          \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where Sets.Member (points (f j)) x }) \by sf x inS \then
+          \return Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Sets.Member (points (weave j f g)) x }] (twice j)
+            (\idelim f j = weave (twice j) f g \with b: Box => Sets.Member (points b) x
+              \by { base: \bysub(N.Nat^, { j: N.Nat^ \where Sets.Member (points (f j)) x }, j), equality: sym!{Box} _ _ (weaveEven j f g) })
+        })
+        (\fun (inT: Sets.Member T x) => \block {
+          \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where Sets.Member (points (g j)) x }) \by tg x inT \then
+          \return Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Sets.Member (points (weave j f g)) x }] (N.Nat^::succ (twice j))
+            (\idelim g j = weave (N.Nat^::succ (twice j)) f g \with b: Box => Sets.Member (points b) x
+              \by { base: \bysub(N.Nat^, { j: N.Nat^ \where Sets.Member (points (g j)) x }, j), equality: sym!{Box} _ _ (weaveOdd j f g) })
+        });
+\definition twiceAdd: \forall (j: N.Nat^) -> twice j = NatOp.add j j :=
+  \induction (j: N.Nat^) \return twice j = NatOp.add j j \with {
+    | zero: \refl(N.Nat^::zero)
+    | succ: \fun (j: N.Nat^) (previous: _) => eq_reason_in!{N.Nat^ _
+      "=" _ "by" { congr!{N.Nat^ N.Nat^} (\fun (m: N.Nat^) => N.Nat^::succ (N.Nat^::succ m)) _ _ previous }
+      "=" _ "by" { congr!{N.Nat^ N.Nat^} (\fun (m: N.Nat^) => N.Nat^::succ m) _ _ (sym!{N.Nat^} _ _ (NatLaws.addSuccLeft j j)) }
+    }
+  };
+\definition weavePartialEven: \forall (f, g: N.Nat^ -> Box) (j: N.Nat^) ->
+  Measure.partialSum (\fun (i: N.Nat^) => volumeValue (weave i f g)) (twice j) =
+    Measure.add (Measure.partialSum (\fun (i: N.Nat^) => volumeValue (f i)) j) (Measure.partialSum (\fun (i: N.Nat^) => volumeValue (g i)) j) :=
+  \fun (f, g: N.Nat^ -> Box) => \induction (j: N.Nat^) \return
+    Measure.partialSum (\fun (i: N.Nat^) => volumeValue (weave i f g)) (twice j) =
+      Measure.add (Measure.partialSum (\fun (i: N.Nat^) => volumeValue (f i)) j) (Measure.partialSum (\fun (i: N.Nat^) => volumeValue (g i)) j) \with {
+    | zero: sym!{Measure.Value} _ _ (Values.addZero Measure.zero Values.zeroNonnegative)
+    | succ: \fun (j: N.Nat^) (previous: _) => eq_reason_in!{Measure.Value _
+      "=" _ "by" { congr!{Measure.Value Measure.Value} (\fun (v: Measure.Value) => Measure.add v (volumeValue (weave (N.Nat^::succ (twice j)) f g))) _ _
+        (congr!{Measure.Value Measure.Value Measure.Value} Measure.add _ _ _ _ previous
+          (congr!{Box Measure.Value} volumeValue _ _ (weaveEven j f g))) }
+      "=" _ "by" { congr!{Measure.Value Measure.Value} (Measure.add (Measure.add
+        (Measure.add (Measure.partialSum (\fun (i: N.Nat^) => volumeValue (f i)) j) (Measure.partialSum (\fun (i: N.Nat^) => volumeValue (g i)) j)) (volumeValue (f j)))) _ _
+        (congr!{Box Measure.Value} volumeValue _ _ (weaveOdd j f g)) }
+      "=" _ "by" { Values.addAssoc
+        (Measure.add (Measure.partialSum (\fun (i: N.Nat^) => volumeValue (f i)) j) (Measure.partialSum (\fun (i: N.Nat^) => volumeValue (g i)) j)) (volumeValue (f j)) (volumeValue (g j)) }
+      "=" _ "by" { Values.addShuffle (Measure.partialSum (\fun (i: N.Nat^) => volumeValue (f i)) j)
+        (Measure.partialSum (\fun (i: N.Nat^) => volumeValue (g i)) j) (volumeValue (f j)) (volumeValue (g j)) }
+    }
+  };
+\definition partialBelowSeries: \forall (f: N.Nat^ -> Measure.Value) (j: N.Nat^) ->
+  Values.Included (Measure.partialSum f j) (Measure.series f) :=
+  \fun (f: N.Nat^ -> Measure.Value) (j: N.Nat^) (r: Real.Real) (member: Measure.below (Measure.partialSum f j) r) =>
+    Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Measure.below (Measure.partialSum f k) r }] j member;
+\definition weaveCost: \forall (f, g: N.Nat^ -> Box) ->
+  cost (\fun (i: N.Nat^) => weave i f g) = Measure.add (cost f) (cost g) :=
+  \fun (f, g: N.Nat^ -> Box) => \block {
+    \let wf: N.Nat^ -> Measure.Value := \fun (i: N.Nat^) => volumeValue (weave i f g) \then
+    \let fv: N.Nat^ -> Measure.Value := \fun (i: N.Nat^) => volumeValue (f i) \then
+    \let gv: N.Nat^ -> Measure.Value := \fun (i: N.Nat^) => volumeValue (g i) \then
+    \let combined: N.Nat^ -> Measure.Value := \fun (i: N.Nat^) => Measure.add (fv i) (gv i) \then
+    \return \axiom:setext(cost (\fun (i: N.Nat^) => weave i f g), Measure.add (cost f) (cost g),
+      \fun (r: Real.Real) (member: Measure.below (Measure.series wf) r) => \block {
+        \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where Measure.below (Measure.partialSum wf j) r }) \by member \then
+        \let extended: Measure.below (Measure.partialSum wf (NatOp.add j j)) r :=
+          partialExtend wf (\fun (i: N.Nat^) => volumeValueNonnegative (weave i f g)) j j r
+            (\bysub(N.Nat^, { j: N.Nat^ \where Measure.below (Measure.partialSum wf j) r }, j)) \then
+        \let even: Measure.below (Measure.partialSum wf (twice j)) r :=
+          \idelim NatOp.add j j = twice j \with k: N.Nat^ => Measure.below (Measure.partialSum wf k) r
+            \by { base: extended, equality: sym!{N.Nat^} _ _ (twiceAdd j) } \then
+        \let parts: Measure.below (Measure.add (Measure.partialSum fv j) (Measure.partialSum gv j)) r :=
+          \idelim Measure.partialSum wf (twice j) = Measure.add (Measure.partialSum fv j) (Measure.partialSum gv j) \with v: Measure.Value => Measure.below v r
+            \by { base: even, equality: weavePartialEven f g j } \then
+        \return Values.addMono (Measure.partialSum fv j) (Measure.series fv) (Measure.partialSum gv j) (Measure.series gv)
+          (partialBelowSeries fv j) (partialBelowSeries gv j) r parts
+      },
+      \fun (r: Real.Real) (member: Measure.below (Measure.add (Measure.series fv) (Measure.series gv)) r) => \block {
+        \let inCombined: Measure.below (Measure.series combined) r :=
+          \idelim Measure.add (Measure.series fv) (Measure.series gv) = Measure.series combined \with v: Measure.Value => Measure.below v r
+            \by { base: member, equality: sym!{Measure.Value} _ _ (seriesAdd fv gv (\fun (i: N.Nat^) => volumeValueNonnegative (f i)) (\fun (i: N.Nat^) => volumeValueNonnegative (g i))) } \then
+        \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where Measure.below (Measure.partialSum combined j) r }) \by inCombined \then
+        \let parts: Measure.below (Measure.add (Measure.partialSum fv j) (Measure.partialSum gv j)) r :=
+          \idelim Measure.partialSum combined j = Measure.add (Measure.partialSum fv j) (Measure.partialSum gv j) \with v: Measure.Value => Measure.below v r
+            \by { base: \bysub(N.Nat^, { j: N.Nat^ \where Measure.below (Measure.partialSum combined j) r }, j), equality: partialAdd fv gv j } \then
+        \return Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Measure.below (Measure.partialSum wf j) r }] (twice j)
+          (\idelim Measure.add (Measure.partialSum fv j) (Measure.partialSum gv j) = Measure.partialSum wf (twice j) \with v: Measure.Value => Measure.below v r
+            \by { base: parts, equality: sym!{Measure.Value} _ _ (weavePartialEven f g j) })
+      })
+  };
+\definition unionBoundedByCovers: \forall (S, T: \Pow Point) (f, g: N.Nat^ -> Box) -> Covers f S -> Covers g T ->
+  Values.Included (outer (Sigma.pairUnion S T)) (Measure.add (cost f) (cost g)) :=
+  \fun (S, T: \Pow Point) (f, g: N.Nat^ -> Box) (sf: Covers f S) (tg: Covers g T)
+    (r: Real.Real) (member: Measure.below (outer (Sigma.pairUnion S T)) r) =>
+    \idelim cost (\fun (i: N.Nat^) => weave i f g) = Measure.add (cost f) (cost g) \with v: Measure.Value => Measure.below v r
+      \by { base: boundedByCover (Sigma.pairUnion S T) (\fun (i: N.Nat^) => weave i f g) (weaveCovers S T f g sf tg) r member,
+        equality: weaveCost f g };
