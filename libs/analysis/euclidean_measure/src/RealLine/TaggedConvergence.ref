@@ -1,0 +1,33 @@
+\import \root.RealLine[] \as Line;
+\import \root.RealLine[].TaggedIntegral[] \as Tagged;
+\import integration.Real[] \as Integration;
+\import Integration.Division[] \as Division;
+\import Integration.Riemann[interval := interval].Def[] \as Riemann;
+\import real.Analysis[] \as Real;
+\import Real.Sequence[] \as Sequence;
+\import dedekind_reals.DedekindReal[] \as R;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\import functional_analysis.Measure[A := Real.Real] \as Measure;
+\import Measure.Integral[mu := Line.measure] \as Integral;
+\definition sequence[f: Riemann.Function] [k: N.Nat^]: Integral.Representatives :=
+  Tagged.tagged (Division.leftTags k interval.left interval.right) f.function interval;
+\definition integrals: \forall (f: Riemann.Function) -> Sequence.Converges (\fun (k: N.Nat^) => Integral.integral (sequence f k)) f.integral :=
+  \fun (f: Riemann.Function) (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) => \block {
+    \takefrom threshold: \Cast[N.Nat^] ({ k: N.Nat^ \where Riemann.Control f.function f.integral epsilon k })
+      \by f.hasIntegral.approximation epsilon positive \then
+    \let control: Riemann.Control f.function f.integral epsilon threshold :=
+      \bysub(N.Nat^, { k: N.Nat^ \where Riemann.Control f.function f.integral epsilon k }, threshold) \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequence.LimitControl (\fun (i: N.Nat^) => Integral.integral (sequence f i)) f.integral epsilon k }] threshold
+      (\fun (i: N.Nat^) (later: Nat.Le threshold i) =>
+        R.ltReplaceLeft (Real.distance (Division.sum f.function (Division.leftTags i interval.left interval.right) interval.left interval.right) f.integral)
+          (Real.distance (Integral.integral (sequence f i)) f.integral) epsilon
+          (congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.distance v f.integral) _ _ (sym!{Real.Real} _ _
+            (Tagged.taggedIntegral (Division.leftTags i interval.left interval.right) f.function interval)))
+          (control i later (Division.leftTags i interval.left interval.right) (Division.leftTagsLevel i interval.left interval.right)
+            (Division.leftTagsValid i interval.left interval.right interval.ordered)))
+  };
