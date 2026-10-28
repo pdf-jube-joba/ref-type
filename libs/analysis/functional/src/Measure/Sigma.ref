@@ -1,0 +1,202 @@
+\definition laws[sigma: SigmaAlgebra]: SigmaAlgebraLaws[sigma] :=
+  \bysub(SigmaAlgebraData, SigmaAlgebra, sigma);
+
+\definition pairSequence[S, T: \Pow A]: N.Nat^ -> \Pow A :=
+  \induction (n: N.Nat^) \return \Pow A \with {
+    | zero: S
+    | succ: \fun (_: N.Nat^) (_: \Pow A) => T
+  };
+
+\definition pairUnion[S, T: \Pow A]: \Pow A :=
+  { x: A \where Logic.Or[Sets.Member S x, Sets.Member T x] };
+
+\definition pairSequenceMember: \forall (S, T: \Pow A) (x: A) (n: N.Nat^) ->
+  Sets.Member (pairSequence S T n) x -> Sets.Member (pairUnion S T) x :=
+  \fun (S, T: _) (x: _) => \induction (n: N.Nat^) \return
+    Sets.Member (pairSequence S T n) x -> Sets.Member (pairUnion S T) x \with {
+      | zero: \fun (member: _) => Logic.Or[_, _]::left member
+      | succ: \fun (n: _) (previous: _) (member: _) => Logic.Or[_, _]::right member
+    };
+
+\definition unionPair: \forall (S, T: \Pow A) -> union (pairSequence S T) = pairUnion S T :=
+  \fun (S, T: _) => \axiom:setext(union (pairSequence S T), pairUnion S T,
+    \fun (x: A) (member: Sets.Member (union (pairSequence S T)) x) => \block {
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Sets.Member (pairSequence S T n) x }) \by member \then
+      \return pairSequenceMember S T x n (\bysub(N.Nat^, { n: N.Nat^ \where Sets.Member (pairSequence S T n) x }, n))
+    },
+    \fun (x: A) (member: Sets.Member (pairUnion S T) x) =>
+      Logic.orElim _ _ (Sets.Member (union (pairSequence S T)) x) member
+        (\fun (left: Sets.Member S x) => Logic.existsIntro[N.Nat^, { n: N.Nat^ \where Sets.Member (pairSequence S T n) x }] N.Nat^::zero left)
+        (\fun (right: Sets.Member T x) => Logic.existsIntro[N.Nat^, { n: N.Nat^ \where Sets.Member (pairSequence S T n) x }] (N.Nat^::succ N.Nat^::zero) right));
+
+\definition pairMeasurable: \forall (sigma: SigmaAlgebra) (S, T: \Pow A) ->
+  Measurable sigma S -> Measurable sigma T -> Measurable sigma (pairUnion S T) :=
+  \fun (sigma: SigmaAlgebra) (S, T: \Pow A) (s: Measurable sigma S) (t: Measurable sigma T) =>
+    \idelim union (pairSequence S T) = pairUnion S T \with U: \Pow A => Measurable sigma U \by {
+      base: (laws sigma).countableUnion (pairSequence S T)
+        (\induction (n: N.Nat^) \return Measurable sigma (pairSequence S T n) \with {
+          | zero: s
+          | succ: \fun (_: N.Nat^) (_: _) => t
+        }),
+      equality: unionPair S T
+    };
+
+\import std.Logic[].Classical[] \as Classical;
+\definition doubleNegative: \forall (P: \Prop) -> Logic.Not (Logic.Not P) -> P :=
+  \fun (P: \Prop) (nn: Logic.Not (Logic.Not P)) =>
+    Logic.orElim P (Logic.Not P) P (Classical.excludedMiddle P)
+      (\fun (p: P) => p) (\fun (np: Logic.Not P) => Logic.falseElim P (nn np));
+
+\definition intersectionComplement: \forall (S, T: \Pow A) ->
+  Sets.Complement (pairUnion (Sets.Complement S) (Sets.Complement T)) = Sets.Intersection S T :=
+  \fun (S, T: _) => \axiom:setext(Sets.Complement (pairUnion (Sets.Complement S) (Sets.Complement T)), Sets.Intersection S T,
+    \fun (x: A) (member: Sets.Member (Sets.Complement (pairUnion (Sets.Complement S) (Sets.Complement T))) x) =>
+      Logic.And[_, _]::#
+        (doubleNegative (Sets.Member S x) (\fun (notS: Logic.Not (Sets.Member S x)) => member (Logic.Or[_, _]::left notS)))
+        (doubleNegative (Sets.Member T x) (\fun (notT: Logic.Not (Sets.Member T x)) => member (Logic.Or[_, _]::right notT))),
+    \fun (x: A) (member: Sets.Member (Sets.Intersection S T) x) (outside: Sets.Member (pairUnion (Sets.Complement S) (Sets.Complement T)) x) =>
+      Logic.orElim _ _ Logic.False outside
+        (\fun (notS: Logic.Not (Sets.Member S x)) => notS member.left)
+        (\fun (notT: Logic.Not (Sets.Member T x)) => notT member.right));
+
+\definition intersectionMeasurable: \forall (sigma: SigmaAlgebra) (S, T: \Pow A) ->
+  Measurable sigma S -> Measurable sigma T -> Measurable sigma (Sets.Intersection S T) :=
+  \fun (sigma: SigmaAlgebra) (S, T: \Pow A) (s: Measurable sigma S) (t: Measurable sigma T) =>
+    \idelim Sets.Complement (pairUnion (Sets.Complement S) (Sets.Complement T)) = Sets.Intersection S T
+      \with U: \Pow A => Measurable sigma U \by {
+        base: (laws sigma).complement (pairUnion (Sets.Complement S) (Sets.Complement T))
+          (pairMeasurable sigma (Sets.Complement S) (Sets.Complement T)
+            ((laws sigma).complement S s) ((laws sigma).complement T t)),
+        equality: intersectionComplement S T
+      };
+
+\definition difference[S, T: \Pow A]: \Pow A := Sets.Intersection S (Sets.Complement T);
+\definition differenceMeasurable: \forall (sigma: SigmaAlgebra) (S, T: \Pow A) ->
+  Measurable sigma S -> Measurable sigma T -> Measurable sigma (difference S T) :=
+  \fun (sigma: SigmaAlgebra) (S, T: \Pow A) (s: Measurable sigma S) (t: Measurable sigma T) =>
+    intersectionMeasurable sigma S (Sets.Complement T) s ((laws sigma).complement T t);
+
+\definition intersection[f: N.Nat^ -> \Pow A]: \Pow A :=
+  { x: A \where \forall (n: N.Nat^) -> Sets.Member (f n) x };
+\definition intersectionAsComplement: \forall (f: N.Nat^ -> \Pow A) ->
+  intersection f = Sets.Complement (union (\fun (n: N.Nat^) => Sets.Complement (f n))) :=
+  \fun (f: N.Nat^ -> \Pow A) => \axiom:setext(intersection f, Sets.Complement (union (\fun (n: N.Nat^) => Sets.Complement (f n))),
+    \fun (x: A) (all: Sets.Member (intersection f) x) (outside: Sets.Member (union (\fun (n: N.Nat^) => Sets.Complement (f n))) x) => \block {
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Sets.Member (Sets.Complement (f n)) x }) \by outside \then
+      \return (\bysub(N.Nat^, { n: N.Nat^ \where Sets.Member (Sets.Complement (f n)) x }, n)) (all n)
+    },
+    \fun (x: A) (none: Sets.Member (Sets.Complement (union (\fun (n: N.Nat^) => Sets.Complement (f n)))) x) (n: N.Nat^) =>
+      doubleNegative (Sets.Member (f n) x) (\fun (outside: Logic.Not (Sets.Member (f n) x)) =>
+        none (Logic.existsIntro[N.Nat^, { n: N.Nat^ \where Sets.Member (Sets.Complement (f n)) x }] n outside)));
+\definition intersectionCountableMeasurable: \forall (sigma: SigmaAlgebra) (f: N.Nat^ -> \Pow A) ->
+  (\forall (n: N.Nat^) -> Measurable sigma (f n)) -> Measurable sigma (intersection f) :=
+  \fun (sigma: SigmaAlgebra) (f: N.Nat^ -> \Pow A) (measurable: \forall (n: N.Nat^) -> Measurable sigma (f n)) =>
+    \idelim Sets.Complement (union (\fun (n: N.Nat^) => Sets.Complement (f n))) = intersection f
+      \with S: \Pow A => Measurable sigma S \by {
+        base: (laws sigma).complement (union (\fun (n: N.Nat^) => Sets.Complement (f n)))
+          ((laws sigma).countableUnion (\fun (n: N.Nat^) => Sets.Complement (f n))
+            (\fun (n: N.Nat^) => (laws sigma).complement (f n) (measurable n))),
+        equality: (\idelim intersection f = Sets.Complement (union (\fun (n: N.Nat^) => Sets.Complement (f n)))
+          \with S: \Pow A => S = intersection f \by { base: \refl(intersection f), equality: intersectionAsComplement f })
+      };
+
+\definition prefix[f: N.Nat^ -> \Pow A]: N.Nat^ -> \Pow A :=
+  \induction (n: N.Nat^) \return \Pow A \with {
+    | zero: Sets.Empty
+    | succ: \fun (n: N.Nat^) (previous: \Pow A) => pairUnion previous (f n)
+  };
+\definition prefixMeasurable: \forall (sigma: SigmaAlgebra) (f: N.Nat^ -> \Pow A) ->
+  (\forall (n: N.Nat^) -> Measurable sigma (f n)) -> \forall (n: N.Nat^) -> Measurable sigma (prefix f n) :=
+  \fun (sigma: SigmaAlgebra) (f: N.Nat^ -> \Pow A) (measurable: \forall (n: N.Nat^) -> Measurable sigma (f n)) =>
+    \induction (n: N.Nat^) \return Measurable sigma (prefix f n) \with {
+      | zero: (laws sigma).empty
+      | succ: \fun (n: N.Nat^) (previous: _) => pairMeasurable sigma (prefix f n) (f n) previous (measurable n)
+    };
+\definition prefixGrowing: \forall (f: N.Nat^ -> \Pow A) (n: N.Nat^) -> Sets.Subset (prefix f n) (prefix f (N.Nat^::succ n)) :=
+  \fun (f: N.Nat^ -> \Pow A) (n: N.Nat^) (x: A) (member: Sets.Member (prefix f n) x) => Logic.Or[_, _]::left member;
+\definition prefixContainsCurrent: \forall (f: N.Nat^ -> \Pow A) (n: N.Nat^) -> Sets.Subset (f n) (prefix f (N.Nat^::succ n)) :=
+  \fun (f: N.Nat^ -> \Pow A) (n: N.Nat^) (x: A) (member: Sets.Member (f n) x) => Logic.Or[_, _]::right member;
+\definition prefixContainedInUnion: \forall (f: N.Nat^ -> \Pow A) (n: N.Nat^) -> Sets.Subset (prefix f n) (union f) :=
+  \fun (f: N.Nat^ -> \Pow A) => \induction (n: N.Nat^) \return Sets.Subset (prefix f n) (union f) \with {
+    | zero: \fun (x: A) (empty: Logic.False) => Logic.falseElim _ empty
+    | succ: \fun (n: N.Nat^) (previous: _) (x: A) (member: Sets.Member (prefix f (N.Nat^::succ n)) x) =>
+      Logic.orElim _ _ (Sets.Member (union f) x) member (previous x)
+        (\fun (current: Sets.Member (f n) x) => Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (f k) x }] n current)
+  };
+
+\import N.Basic[].Prop[] \as Nat;
+\import N.Order[].Prop[] \as NatOrder;
+\import std.Logic[].Order[] \as LogicOrder;
+\definition prefixContainsEarlier: \forall (f: N.Nat^ -> \Pow A) (n, m: N.Nat^) -> Nat.Lt m n -> Sets.Subset (f m) (prefix f n) :=
+  \fun (f: N.Nat^ -> \Pow A) => \induction (n: N.Nat^) \return \forall (m: N.Nat^) -> Nat.Lt m n -> Sets.Subset (f m) (prefix f n) \with {
+    | zero: \fun (m: N.Nat^) (less: Nat.Lt m N.Nat^::zero) => Logic.falseElim _ (NatOrder.ltZero m less)
+    | succ: \fun (n: N.Nat^) (previous: _) (m: N.Nat^) (less: Nat.Lt m (N.Nat^::succ n)) (x: A) (member: Sets.Member (f m) x) =>
+      \match NatOrder.trichotomy m n \in LogicOrder.Trichotomy \return
+        (\fun (_: NatOrder.Trichotomy m n) => Sets.Member (prefix f (N.Nat^::succ n)) x) \with {
+          | less earlier: Logic.Or[_, _]::left (previous m earlier x member)
+          | equal same: Logic.Or[_, _]::right (\idelim m = n \with k: N.Nat^ => Sets.Member (f k) x \by { base: member, equality: same })
+          | greater later: Logic.falseElim _ (Nat.ltIrrefl m
+              (Nat.ltLeTrans m (N.Nat^::succ n) m less (Nat.succLeOfLt m n later)))
+        }
+  };
+\definition increments[f: N.Nat^ -> \Pow A]: N.Nat^ -> \Pow A :=
+  \fun (n: N.Nat^) => difference (f n) (prefix f n);
+\definition incrementsMeasurable: \forall (sigma: SigmaAlgebra) (f: N.Nat^ -> \Pow A) ->
+  (\forall (n: N.Nat^) -> Measurable sigma (f n)) -> \forall (n: N.Nat^) -> Measurable sigma (increments f n) :=
+  \fun (sigma: SigmaAlgebra) (f: N.Nat^ -> \Pow A) (measurable: \forall (n: N.Nat^) -> Measurable sigma (f n)) (n: N.Nat^) =>
+    differenceMeasurable sigma (f n) (prefix f n) (measurable n) (prefixMeasurable sigma f measurable n);
+\definition incrementsDisjoint: \forall (f: N.Nat^ -> \Pow A) -> Disjoint (increments f) :=
+  \fun (f: N.Nat^ -> \Pow A) (m, n: N.Nat^) (different: Logic.Not (m = n)) (x: A)
+    (inM: Sets.Member (increments f m) x) (inN: Sets.Member (increments f n) x) =>
+    \match NatOrder.trichotomy m n \in LogicOrder.Trichotomy \return (\fun (_: NatOrder.Trichotomy m n) => Logic.False) \with {
+      | less earlier: inN.right (prefixContainsEarlier f n m earlier x inM.left)
+      | equal same: different same
+      | greater later: inM.right (prefixContainsEarlier f m n later x inN.left)
+    };
+
+\definition prefixCoveredByIncrements: \forall (f: N.Nat^ -> \Pow A) (n: N.Nat^) -> Sets.Subset (prefix f n) (union (increments f)) :=
+  \fun (f: N.Nat^ -> \Pow A) => \induction (n: N.Nat^) \return Sets.Subset (prefix f n) (union (increments f)) \with {
+    | zero: \fun (x: A) (empty: Logic.False) => Logic.falseElim _ empty
+    | succ: \fun (n: N.Nat^) (previous: _) (x: A) (member: Sets.Member (prefix f (N.Nat^::succ n)) x) =>
+      Logic.orElim _ _ (Sets.Member (union (increments f)) x) member (previous x)
+        (\fun (current: Sets.Member (f n) x) => Logic.orElim _ _ (Sets.Member (union (increments f)) x)
+          (Classical.excludedMiddle (Sets.Member (prefix f n) x)) (previous x)
+          (\fun (outside: Logic.Not (Sets.Member (prefix f n) x)) =>
+            Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (increments f k) x }] n (Logic.And[_, _]::# current outside)))
+  };
+\definition incrementUnion: \forall (f: N.Nat^ -> \Pow A) -> union (increments f) = union f :=
+  \fun (f: N.Nat^ -> \Pow A) => \axiom:setext(union (increments f), union f,
+    \fun (x: A) (member: Sets.Member (union (increments f)) x) => \block {
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Sets.Member (increments f n) x }) \by member \then
+      \let inIncrement: Sets.Member (increments f n) x := \bysub(N.Nat^, { n: N.Nat^ \where Sets.Member (increments f n) x }, n) \then
+      \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where Sets.Member (f n) x }] n inIncrement.left
+    },
+    \fun (x: A) (member: Sets.Member (union f) x) => \block {
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Sets.Member (f n) x }) \by member \then
+      \let inF: Sets.Member (f n) x := \bysub(N.Nat^, { n: N.Nat^ \where Sets.Member (f n) x }, n) \then
+      \return prefixCoveredByIncrements f (N.Nat^::succ n) x (prefixContainsCurrent f n x inF)
+    });
+
+\definition wholeMeasurable: \forall (sigma: SigmaAlgebra) -> Measurable sigma Sets.Whole :=
+  \fun (sigma: SigmaAlgebra) => \idelim Sets.Complement Sets.Empty = Sets.Whole \with S: \Pow A => Measurable sigma S \by {
+    base: (laws sigma).complement Sets.Empty (laws sigma).empty,
+    equality: \axiom:setext(Sets.Complement Sets.Empty, Sets.Whole,
+      \fun (x: A) (_: Logic.Not Logic.False) => \refl(x),
+      \fun (x: A) (_: x = x) (empty: Logic.False) => empty)
+  };
+\definition conditionalMeasurable: \forall (sigma: SigmaAlgebra) (S: \Pow A) (P: \Prop) -> Measurable sigma S ->
+  Measurable sigma ({ x: A \where P -> Sets.Member S x }) :=
+  \fun (sigma: SigmaAlgebra) (S: \Pow A) (P: \Prop) (measurable: Measurable sigma S) =>
+    Logic.orElim _ _ (Measurable sigma ({ x: A \where P -> Sets.Member S x })) (Classical.excludedMiddle P)
+      (\fun (p: P) => \idelim S = { x: A \where P -> Sets.Member S x } \with T: \Pow A => Measurable sigma T \by {
+        base: measurable,
+        equality: \axiom:setext(S, { x: A \where P -> Sets.Member S x },
+          \fun (x: A) (member: Sets.Member S x) (_: P) => member,
+          \fun (x: A) (member: P -> Sets.Member S x) => member p)
+      })
+      (\fun (notP: Logic.Not P) => \idelim Sets.Whole = { x: A \where P -> Sets.Member S x } \with T: \Pow A => Measurable sigma T \by {
+        base: wholeMeasurable sigma,
+        equality: \axiom:setext(Sets.Whole, { x: A \where P -> Sets.Member S x },
+          \fun (x: A) (_: x = x) (p: P) => Logic.falseElim _ (notP p),
+          \fun (x: A) (_: P -> Sets.Member S x) => \refl(x))
+      });

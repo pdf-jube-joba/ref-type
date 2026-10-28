@@ -1,0 +1,133 @@
+\import std.Data[].Nat[] \as Nat;
+\import \root.Measure[A := A].Sigma[] \as Sigma;
+\import \root.Measure[A := A].Finite[mu := mu] \as MeasureFinite;
+\use std.Logic[].Equality[].congr;
+
+\structure NullSetLaw[N: \Pow A]: \Prop := {
+  measurable: Measurable mu.sigma N,
+  zeroMeasure: mu.value N = zero,
+};
+\definition NullSet: \Set := \Cast[\Pow A] ({ N: \Pow A \where NullSetLaw[N] });
+\definition nullSetLaw[N: NullSet]: NullSetLaw[N] := \bysub(\Pow A, { N: \Pow A \where NullSetLaw[N] }, N);
+
+\definition restrict[N: NullSet] [n: Nat.Nat^] [s: Simple[n]]: Simple[n] := Simple[n] {
+  cells := \fun (i: Fin.Fin n) => Sigma.difference (s.cells i) N,
+  coefficients := s.coefficients,
+  measurable := \fun (i: Fin.Fin n) => Sigma.differenceMeasurable mu.sigma (s.cells i) N (s.measurable i) (nullSetLaw N).measurable,
+  nonnegative := s.nonnegative,
+  disjoint := \fun (i, j: Fin.Fin n) (different: Logic.Not (i = j)) (x: A)
+    (left: Sets.Member (Sigma.difference (s.cells i) N) x) (right: Sets.Member (Sigma.difference (s.cells j) N) x) =>
+      s.disjoint i j different x left.left right.left,
+};
+\definition restrictIntegral: \forall (N: NullSet) (n: Nat.Nat^) (s: Simple[n]) -> simpleIntegral n (restrict N n s) = simpleIntegral n s :=
+  \fun (N: NullSet) (n: Nat.Nat^) (s: Simple[n]) =>
+    congr!{{Fin.Fin n -> Value} Value} (sum n) _ _
+      (\axiom:funext((\fun (i: Fin.Fin n) => scale (s.coefficients i) (mu.value (Sigma.difference (s.cells i) N))),
+        (\fun (i: Fin.Fin n) => scale (s.coefficients i) (mu.value (s.cells i))),
+        \fun (i: Fin.Fin n) => congr!{Value Value} (scale (s.coefficients i)) _ _
+          (MeasureFinite.removeNull (s.cells i) N (s.measurable i) (nullSetLaw N).measurable (nullSetLaw N).zeroMeasure)));
+\definition restrictDominated: \forall (N: NullSet) (n: Nat.Nat^) (s: Simple[n]) (f, g: A -> Real.Real) ->
+  Dominated n s f -> (\forall (x: A) -> Logic.Not (Sets.Member N x) -> f x = g x) -> Dominated n (restrict N n s) g :=
+  \fun (N: NullSet) (n: Nat.Nat^) (s: Simple[n]) (f, g: A -> Real.Real) (dominated: Dominated n s f)
+    (agree: \forall (x: A) -> Logic.Not (Sets.Member N x) -> f x = g x)
+    (i: Fin.Fin n) (x: A) (member: Sets.Member (Sigma.difference (s.cells i) N) x) =>
+      R.leReplaceRight (s.coefficients i) (f x) (g x) (agree x member.right) (dominated i x member.left);
+
+\use std.Logic[].Equality[].sym;
+\definition lowerIncludedOutside: \forall (N: NullSet) (f, g: A -> Real.Real) ->
+  (\forall (x: A) -> Logic.Not (Sets.Member N x) -> f x = g x) ->
+  \forall (r: Real.Real) -> below (lowerIntegral f) r -> below (lowerIntegral g) r :=
+  \fun (N: NullSet) (f, g: A -> Real.Real) (agree: \forall (x: A) -> Logic.Not (Sets.Member N x) -> f x = g x)
+    (r: Real.Real) (member: below (lowerIntegral f) r) => \block {
+      \takefrom n: \Cast[Nat.Nat^] ({ n: Nat.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] ) }) \by member \then
+      \takefrom s: \Cast[Simple[n]] ({ s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] })
+        \by (\bysub(Nat.Nat^, { n: Nat.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] ) }, n)) \then
+      \let data: Logic.And[Dominated n s f, below (simpleIntegral n s) r] :=
+        \bysub(Simple[n], { s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] }, s) \then
+      \return Logic.existsIntro[Nat.Nat^, { n: Nat.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s g, below (simpleIntegral n s) r] ) }] n
+        (Logic.existsIntro[Simple[n], { t: Simple[n] \where Logic.And[Dominated n t g, below (simpleIntegral n t) r] }] (restrict N n s)
+          (Logic.And[_, _]::# (restrictDominated N n s f g data.left agree)
+            (\idelim simpleIntegral n s = simpleIntegral n (restrict N n s) \with v: Value => below v r
+              \by { base: data.right, equality: sym!{Value} _ _ (restrictIntegral N n s) })))
+    };
+\definition lowerEqualOutside: \forall (N: NullSet) (f, g: A -> Real.Real) ->
+  (\forall (x: A) -> Logic.Not (Sets.Member N x) -> f x = g x) -> lowerIntegral f = lowerIntegral g :=
+  \fun (N: NullSet) (f, g: A -> Real.Real) (agree: \forall (x: A) -> Logic.Not (Sets.Member N x) -> f x = g x) =>
+    \axiom:setext(lowerIntegral f, lowerIntegral g, lowerIncludedOutside N f g agree,
+      lowerIncludedOutside N g f (\fun (x: A) (outside: Logic.Not (Sets.Member N x)) => sym!{Real.Real} _ _ (agree x outside)));
+\definition lowerAlmostEqual: \forall (f, g: A -> Real.Real) -> AlmostEqual mu f g -> lowerIntegral f = lowerIntegral g :=
+  \fun (f, g: A -> Real.Real) (equal: AlmostEqual mu f g) => \block {
+    \takefrom N: \Cast[\Pow A] ({ N: \Pow A \where NullCover[mu, { x: A \where Logic.Not (f x = g x) }, N] }) \by equal \then
+    \let cover: NullCover[mu, { x: A \where Logic.Not (f x = g x) }, N] :=
+      \bysub(\Pow A, { N: \Pow A \where NullCover[mu, { x: A \where Logic.Not (f x = g x) }, N] }, N) \then
+    \let nullSet: NullSet := \into[\Pow A](N, { N: \Pow A \where NullSetLaw[N] }) \by {
+      NullSetLaw[N] { measurable := cover.measurable, zeroMeasure := cover.measure } } \then
+    \return lowerEqualOutside nullSet f g (\fun (x: A) (outside: Logic.Not (Sets.Member nullSet x)) =>
+      Sigma.doubleNegative (f x = g x) (\fun (different: Logic.Not (f x = g x)) => outside (cover.included x different)))
+  };
+
+\import \root.Measure[A := A].AlmostEverywhere[mu := mu] \as AE;
+\definition mapAlmost: \forall (h: Real.Real -> Real.Real) (f, g: A -> Real.Real) -> AlmostEqual mu f g ->
+  AlmostEqual mu (\fun (x: A) => h (f x)) (\fun (x: A) => h (g x)) :=
+  \fun (h: Real.Real -> Real.Real) (f, g: A -> Real.Real) (equal: AlmostEqual mu f g) =>
+    AE.nullSubset ({ x: A \where Logic.Not (h (f x) = h (g x)) }) ({ x: A \where Logic.Not (f x = g x) })
+      (\fun (x: A) (different: Logic.Not (h (f x) = h (g x))) (same: f x = g x) =>
+        different (congr!{Real.Real Real.Real} h _ _ same)) equal;
+\definition positiveAlmost: \forall (f, g: A -> Real.Real) -> AlmostEqual mu f g -> AlmostEqual mu (positivePart f) (positivePart g) :=
+  \fun (f, g: A -> Real.Real) (equal: AlmostEqual mu f g) => mapAlmost (\fun (x: Real.Real) => Distance.max Real.zero x) f g equal;
+\definition negativeAlmost: \forall (f, g: A -> Real.Real) -> AlmostEqual mu f g -> AlmostEqual mu (negativePart f) (negativePart g) :=
+  \fun (f, g: A -> Real.Real) (equal: AlmostEqual mu f g) => mapAlmost (\fun (x: Real.Real) => Distance.max Real.zero (Real.neg x)) f g equal;
+\definition hasIntegralAlmost: \forall (f, g: A -> Real.Real) (value: Real.Real) ->
+  AlmostEqual mu f g -> Integrable g -> HasIntegral[f, value] -> HasIntegral[g, value] :=
+  \fun (f, g: A -> Real.Real) (value: Real.Real) (equal: AlmostEqual mu f g) (integrable: Integrable g) (given: HasIntegral[f, value]) => \block {
+    \takefrom p: \Cast[Real.Real] ({ p: Real.Real \where \exists ( n: Real.Real \where Parts[f, value, p, n] ) }) \by given.parts \then
+    \takefrom n: \Cast[Real.Real] ({ n: Real.Real \where Parts[f, value, p, n] })
+      \by (\bysub(Real.Real, { p: Real.Real \where \exists ( n: Real.Real \where Parts[f, value, p, n] ) }, p)) \then
+    \let parts: Parts[f, value, p, n] := \bysub(Real.Real, { n: Real.Real \where Parts[f, value, p, n] }, n) \then
+    \let positive: Complete.LeastUpperBound[lowerIntegral (positivePart g), p] :=
+      \idelim lowerIntegral (positivePart f) = lowerIntegral (positivePart g) \with S: Value => Complete.LeastUpperBound[S, p]
+        \by { base: parts.positiveLaw, equality: lowerAlmostEqual (positivePart f) (positivePart g) (positiveAlmost f g equal) } \then
+    \let negative: Complete.LeastUpperBound[lowerIntegral (negativePart g), n] :=
+      \idelim lowerIntegral (negativePart f) = lowerIntegral (negativePart g) \with S: Value => Complete.LeastUpperBound[S, n]
+        \by { base: parts.negativeLaw, equality: lowerAlmostEqual (negativePart f) (negativePart g) (negativeAlmost f g equal) } \then
+    \return HasIntegral[g, value] {
+      integrable := integrable,
+      parts := Logic.existsIntro[Real.Real, { p: Real.Real \where \exists ( n: Real.Real \where Parts[g, value, p, n] ) }] p
+        (Logic.existsIntro[Real.Real, { n: Real.Real \where Parts[g, value, p, n] }] n
+          (Parts[g, value, p, n] { positiveLaw := positive, negativeLaw := negative, difference := parts.difference })),
+    }
+  };
+\definition integralAlmost: \forall (f, g: Representatives) -> AlmostEqual mu f g -> integral f = integral g :=
+  \fun (f, g: Representatives) (equal: AlmostEqual mu f g) => integralUnique g (integral f) (integral g)
+    (hasIntegralAlmost f g (integral f) equal (\bysub(A -> Real.Real, { f: A -> Real.Real \where Integrable f }, g)) (integralLaw f))
+    (integralLaw g);
+
+\import std.Set[].Quotient[A := Representatives, Equivalent := \fun (f, g: Representatives) => AlmostEqual mu f g] \as Quotient;
+\import Quotient.Maps[B := Real.Real] \as Maps;
+\definition equivalence: Quotient.EquivalenceLaws := Quotient.EquivalenceLaws {
+  refl := \fun (f: Representatives) => AE.reflexive f,
+  sym := \fun (f, g: Representatives) => AE.symmetric f g,
+  trans := \fun (f, g, h: Representatives) => AE.transitive f g h,
+};
+\definition Space: \Set := Quotient.Carrier;
+\definition class[f: Representatives]: Space := Quotient.class f;
+\definition quotientIntegral[C: Space]: Real.Real := Maps.value equivalence integral integralAlmost C;
+\definition quotientIntegralOfClass: \forall (f: Representatives) -> quotientIntegral (class f) = integral f :=
+  \fun (f: Representatives) => Maps.onClass equivalence integral integralAlmost f;
+
+\definition integrableAlmost: \forall (f, g: A -> Real.Real) -> AlmostEqual mu f g -> Integrable f -> IsMeasurable mu g -> Integrable g :=
+  \fun (f, g: A -> Real.Real) (equal: AlmostEqual mu f g) (integrable: Integrable f) (measurable: IsMeasurable mu g) => \block {
+    \let same: lowerIntegral (\fun (x: A) => Product.abs (f x)) = lowerIntegral (\fun (x: A) => Product.abs (g x)) :=
+      lowerAlmostEqual (\fun (x: A) => Product.abs (f x)) (\fun (x: A) => Product.abs (g x)) (mapAlmost Product.abs f g equal) \then
+    \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where IntegralBound[\fun (x: A) => Product.abs (f x), b] }) \by integrable.right.right \then
+    \let bound: IntegralBound[\fun (x: A) => Product.abs (f x), b] :=
+      \bysub(Real.Real, { b: Real.Real \where IntegralBound[\fun (x: A) => Product.abs (f x), b] }, b) \then
+    \return Logic.And[_, _]::# measurable (Logic.And[_, _]::# (\fun (x: A) => Product.absNonnegative (g x))
+      (Logic.existsIntro[Real.Real, { b: Real.Real \where IntegralBound[\fun (x: A) => Product.abs (g x), b] }] b
+        (IntegralBound[\fun (x: A) => Product.abs (g x), b] {
+          nonnegative := bound.nonnegative,
+          bound := \fun (r: Real.Real) (member: below (lowerIntegral (\fun (x: A) => Product.abs (g x))) r) => bound.bound r
+            (\idelim lowerIntegral (\fun (x: A) => Product.abs (g x)) = lowerIntegral (\fun (x: A) => Product.abs (f x)) \with v: Value => below v r
+              \by { base: member, equality: sym!{Value} _ _ same }),
+        })))
+  };

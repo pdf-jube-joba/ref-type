@@ -1,0 +1,23 @@
+\use Logic.either;
+\definition residual: V := RealNormed.sub x (P.map.apply x);
+\definition residualZero: P.map.apply residual = space.zero := trans!{V} _ _ _
+  (Facts.linearSubtract P.map x (P.map.apply x))
+  (trans!{V} _ _ _ (congr!{V V} (RealNormed.sub (P.map.apply x)) _ _ (P.idempotent x)) (RealNormed.subSelf (P.map.apply x)));
+\definition residualNonzero: Logic.Not (P.map.apply x = x) -> Logic.Not (residual = space.zero) :=
+  \fun (different: Logic.Not (P.map.apply x = x))(zero: residual = space.zero) => different (sym!{V} _ _ (RealNormed.subZero x (P.map.apply x) zero));
+\module Nonzero(different: Logic.Not (P.map.apply x = x));
+\import std.Logic[].Classical[] \as Classical;
+\structure Enlarges[Q: Projection]: \Prop := {
+  fixesNew: Q.map.apply x = x,
+  fixesOld: \forall (y: V) -> P.map.apply y = y -> Q.map.apply y = y,
+};
+\definition existsProjection: \exists ( Q: Projection \where Enlarges[Q] ) :=
+  either!{{(Classical.excludedMiddle (P.map.apply x = x))} {\exists ( Q: Projection \where Enlarges[Q] )}
+    {\fun (fixed: P.map.apply x = x) => Logic.existsIntro[Projection, { Q: Projection \where Enlarges[Q] }] P
+      (Enlarges[P] { fixesNew := fixed, fixesOld := \fun (y: V)(same: P.map.apply y = y) => same })}
+    {\fun (different: Logic.Not (P.map.apply x = x)) => Logic.existsIntro[Projection, { Q: Projection \where Enlarges[Q] }] (Nonzero[different := different].projection)
+      (Enlarges[Nonzero[different := different].projection] {
+        fixesNew := Nonzero[different := different].fixesNew,
+        fixesOld := Nonzero[different := different].fixesOld,
+      })}
+  };

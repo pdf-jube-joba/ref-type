@@ -1,0 +1,70 @@
+\import \root.Space[V := U, space := domain] \as First;
+\import First.Operators[W := V, target := space, norm := domainNorm, targetNorm := norm] \as Pre;
+\import Pre.Compact[] \as PreCompact;
+\import PreCompact.After[U := W, codomain := target, codomainNorm := targetNorm] \as Composition;
+\import \root.Space[V := U, space := domain].Operators[W := W, target := target, norm := domainNorm, targetNorm := targetNorm] \as Result;
+\import Result.Compact[] \as ResultCompact;
+\import \root.Space[V := W, space := target].Operators[W := W, target := target, norm := targetNorm, targetNorm := targetNorm] \as End;
+\import End.Continuous[] \as EndContinuous;
+\import ComplexLinear.Linear[V := W, W := W, source := target, target := target] \as EndLinear;
+\import EndLinear.Operations[] \as EndOperations;
+\import RealLinear.Laws[V := V, space := realSpace] \as VectorLaws;
+\import topology.Maps[A := U, B := W] \as ResultSets;
+\import topology.Maps[A := W, B := W] \as EndSets;
+\import Relative.ContinuousImage[B := W, other := TargetNormed.metric targetNorm.realNorm] \as ImageCompact;
+\import real.Analysis[].Estimates[] \as Estimates;
+\import Estimates.Product[] \as Product;
+\import real.Analysis[].Algebra[] \as Algebra;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import dedekind_reals.DedekindReal[].Order[] \as Ordered;
+\import real.Analysis[].Inverse[] \as Inverse;
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\use Eq.eq_reason_in;
+\definition identity: EndLinear.Map := EndLinear.Map { apply := \fun (x: W) => x, preservesAdd := \fun (x, y: W) => \refl(target.add x y), preservesScale := \fun (a: C.Complex)(x: W) => \refl(target.smul a x) };
+\definition scale[q: R.Real]: End.Map := \into[EndLinear.Map](EndOperations.scale (D.ofReal q) identity, End.Map) \by {
+  Logic.existsIntro[R.Real, { c: R.Real \where End.Bound[EndOperations.scale (D.ofReal q) identity, c] }] (TargetNormed.abs q)
+    (End.Bound[EndOperations.scale (D.ofReal q) identity, TargetNormed.abs q] {
+      nonnegative := Product.absNonnegative q,
+      estimate := \fun (x: W) => Order.leReplaceLeft _ _ _ (sym!{R.Real} _ _ (targetNorm.realNorm.homogeneous q x)) (Order.leRefl _),
+    })
+};
+\definition compose[f: Map][g: Pre.Map]: Result.Map := Composition.compose g f;
+\definition compact: \forall (f: Map)(g: Pre.Map) -> Compact f -> ResultCompact.Compact (compose f g) := \block {
+  \fun (f: Map)(g: Pre.Map)(fc: Compact f) \then
+  \takefrom c: \Cast[R.Real] ({ c: R.Real \where Pre.Bound[g, c] }) \by Pre.bounded g \then
+  \let bound: Pre.Bound[g, c] := \bysub(R.Real, { c: R.Real \where Pre.Bound[g, c] }, c) \then
+  \let q: R.Real := R.add c R.one \then
+  \let qp: Order.Lt R.zero q := Order.ltLeTrans R.zero R.one q Product.onePositive (real.Analysis[].Distance[].leAddRightOfNonnegative c R.one bound.nonnegative) \then
+  \let ip: Order.Le R.zero (Laws.fieldInv q) := Ordered.leOfLt _ _ (Product.invPositive q qp) \then
+  \let qi: R.Real := Laws.fieldInv q \then
+  \let image: \Pow W := EndSets.Image ((scale q).apply) (Image f) \then
+  \let imageCompact: Relative.RelativelyCompact image := ImageCompact.preserves ((scale q).apply) (EndContinuous.continuous (scale q)) (Image f) fc \then
+  \return Relative.subset (ResultCompact.Image (compose f g)) image
+    (\fun (z: W)(member: T.Member (ResultCompact.Image (compose f g)) z) => ResultSets.imageElim ((compose f g).apply) ResultCompact.UnitBall z (T.Member image z)
+      (\block {
+        \fun (x: U)(inside: \In[U] ResultCompact.UnitBall x)(same: (compose f g).apply x = z) \then
+        \let y: V := realSpace.smul qi (g.apply x) \then
+        \let gxBound: Order.Le (norm.realNorm.norm (g.apply x)) q := Order.leTrans _ _ q (bound.estimate x)
+          (Order.leTrans _ (R.mul c R.one) q (Estimates.mulMonotone c _ _ bound.nonnegative inside)
+            (Order.leReplaceLeft c (R.mul c R.one) q (sym!{R.Real} _ _ (trans!{R.Real} _ _ _ (Laws.fieldMulComm c R.one) (Laws.fieldMulOneLeft c))) (Algebra.leAddRight c R.one Laws.oneNonnegative))) \then
+        \let scaledBound: Order.Le (R.mul qi (norm.realNorm.norm (g.apply x))) (R.mul qi q) := Estimates.mulMonotone qi _ _ ip gxBound \then
+        \let normEqual: norm.realNorm.norm y = R.mul qi (norm.realNorm.norm (g.apply x)) := trans!{R.Real} _ _ _
+          (norm.realNorm.homogeneous qi (g.apply x))
+          (congr!{R.Real R.Real} (\fun (a: R.Real) => R.mul a (norm.realNorm.norm (g.apply x))) _ _ (Product.absOfNonnegative qi ip)) \then
+        \let normalized: Order.Le (norm.realNorm.norm y) (R.mul qi q) := Order.leReplaceLeft _ _ _ (sym!{R.Real} _ _ normEqual) scaledBound \then
+        \let inBall: \In[V] UnitBall y := Order.leReplaceRight _ (R.mul qi q) R.one (Laws.fieldInverseNonzero q (Inverse.positiveNonzero q qp)) normalized \then
+        \let restore: realSpace.smul q y = g.apply x := eq_reason_in!{V _
+          "=" _ "by" { sym!{V} _ _ (realSpace.scalarAssoc q qi (g.apply x)) }
+          "=" _ "by" { congr!{R.Real V} (\fun (r: R.Real) => realSpace.smul r (g.apply x)) _ _
+            (trans!{R.Real} _ _ _ (Laws.fieldMulComm q qi) (Laws.fieldInverseNonzero q (Inverse.positiveNonzero q qp))) }
+          "=" _ "by" { realSpace.scalarOne (g.apply x) }
+        } \then
+        \let equal: (scale q).apply (f.apply y) = z := trans!{W} _ _ _ (sym!{W} _ _ (f.preservesScale (D.ofReal q) y))
+          (trans!{W} _ _ _ (congr!{V W} (f.apply) _ _ restore) same) \then
+        \return \idelim (scale q).apply (f.apply y) = z \with w: W => T.Member image w
+          \by { base: EndSets.imageMember ((scale q).apply) (Image f) (f.apply y) (Sets.imageMember (f.apply) UnitBall y inBall), equality: equal }
+      }) member) imageCompact
+};

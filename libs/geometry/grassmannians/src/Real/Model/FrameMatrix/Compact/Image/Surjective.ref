@@ -1,0 +1,25 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\definition A: Matrix.Carrier := entries b.basis.value;
+\definition linearEqual: linear A = b.basis.value := linearEntries b.basis.value;
+\definition iso: Isometry A := \fun (v, w: Domain.Vector) => trans!{R.Real} _ _ _
+  (congr!{{E.Vector} {E.Vector} R.Real} E.dot _ _ _ _
+    (congr!{Forward.Map {E.Vector}} (\fun (f: Forward.Map) => f.apply v) _ _ linearEqual)
+    (congr!{Forward.Map {E.Vector}} (\fun (f: Forward.Map) => f.apply w) _ _ linearEqual)) (b.isometry v w);
+\definition point: Carrier := \into[Matrix.Carrier](A, points) \by { iso };
+\import Finite.Frame[k := k, frame := frame point] \as Span;
+\definition coordinateEqual: \forall (w: E.Vector) -> Span.coordinate.apply w = b.basis.coordinate.apply w :=
+  \fun (w: E.Vector) => \axiom:funext(Span.coordinate.apply w, b.basis.coordinate.apply w, \fun (i: Fin.Fin k) =>
+    trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (Domain.dotBasis i (Span.coordinate.apply w)))
+      (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (Span.adjoint (Domain.basis i) w))
+        (trans!{R.Real} _ _ _ (congr!{{E.Vector} R.Real} (\fun (z: E.Vector) => E.dot z w) _ _
+          (congr!{Forward.Map {E.Vector}} (\fun (f: Forward.Map) => f.apply (Domain.basis i)) _ _ linearEqual))
+          (trans!{R.Real} _ _ _ (b.adjoint (Domain.basis i) w) (Domain.dotBasis i (b.basis.coordinate.apply w))))));
+\import Spaces.Linear[V := E.Vector, W := E.Vector, source := E.space, target := E.space] \as End;
+\definition projectionEqual: (Ortho.projection point).map = (Model.projection p).map := End.ext (Ortho.projection point).map (Model.projection p).map
+  (\axiom:funext((Ortho.projection point).map.apply, (Model.projection p).map.apply, \fun (w: E.Vector) =>
+    trans!{{E.Vector}} _ _ _ (congr!{Forward.Map {E.Vector}} (\fun (f: Forward.Map) => f.apply (Span.coordinate.apply w)) _ _ linearEqual)
+      (trans!{{E.Vector}} _ _ _ (congr!{{Domain.Vector} {E.Vector}} b.basis.value.apply _ _ (coordinateEqual w)) (b.basis.reconstruction w))));
+\definition equal: map point = p := Model.ext (map point) p projectionEqual;

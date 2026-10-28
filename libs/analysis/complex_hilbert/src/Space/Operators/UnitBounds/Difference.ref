@@ -1,0 +1,16 @@
+\import Linear.Operations[] \as Operations;
+\import ComplexLinear.Laws[V := W, space := target] \as TargetVectors;
+\import \parent.\parent.Compact[].Limit[] \as Limit;
+\import functional_analysis.Normed[V := W, space := Target.realSpace] \as TargetNormed;
+\definition map[f, g: Linear.Map]: Linear.Map := Operations.plus f (Operations.negative g);
+\definition formula: \forall (f, g: Linear.Map)(x: V) -> (map f g).apply x = TargetNormed.sub (f.apply x) (g.apply x) :=
+  \fun (f, g: Linear.Map)(x: V) => congr!{W W} (target.add (f.apply x)) _ _ (TargetVectors.minusOneScale (g.apply x));
+\definition bound: \forall (f, g: Map)(c: R.Real) -> Order.Le R.zero c -> Limit.Near[f, g, c] -> Bound[map f g, c] :=
+  \fun (f, g: Map)(c: R.Real)(nonnegative: Order.Le R.zero c)(near: Limit.Near[f, g, c]) =>
+    boundFromUnit (map f g) c nonnegative (\fun (x: V)(inside: \In[V] Compact.UnitBall x) =>
+      Order.leReplaceLeft _ _ _ (sym!{R.Real} _ _ (congr!{W R.Real} (targetNorm.realNorm.norm) _ _ (formula f g x)))
+        (dedekind_reals.DedekindReal[].Order[].leOfLt _ _ (near x inside)));
+\definition bounded[f, g: Map][c: R.Real][positive: Order.Lt R.zero c][near: Limit.Near[f, g, c]]: Map :=
+  \into[Linear.Map](map f g, Map) \by {
+    Logic.existsIntro[R.Real, { d: R.Real \where Bound[map f g, d] }] c (bound f g c (dedekind_reals.DedekindReal[].Order[].leOfLt _ _ positive) near)
+  };

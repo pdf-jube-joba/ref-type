@@ -1,0 +1,33 @@
+\import Bundles.Family[X := Source, F := Image.Fiber] \as ImageFamily;
+\import Bundles.Family[X := Source, F := LeftFiber] \as LeftFamily;
+\import Bundles.Family[X := Source, F := RightFiber] \as RightFamily;
+\import Bundles.Family[X := Carrier, F := Fiber] \as OriginalLeft;
+\import Bundles.Family[X := Right.Carrier, F := Right.Fiber] \as OriginalRight;
+\import Bundles.Morphisms[X := Source, Y := Source, F := Image.Fiber, G := Sum.Fiber, source := Image.bundle, target := sumBundle, f := \fun (x: Source) => x] \as Maps;
+\definition data: Maps.Data := Maps.Data { fiber := \fun (x: Source) => \parent.At[x := x].backward };
+\import bundle_operations.Operations[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := H.Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].CoordinateSum[n := n, m := m] \as Coordinates;
+\import Coordinates.Topology[] \as CoordTopology;
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := H.Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].Projection[X := Right.Carrier, n := m, baseSpace := Right.topology, P := Right.projection, regular := Right.regular] \as RightImage;
+\definition leftVector[p: ImageFamily.Point]: E.Vector := Ambient.left p.vector;
+\definition rightVector[p: ImageFamily.Point]: RightE.Vector := Ambient.right p.vector;
+\definition leftVectorContinuous: topology.Continuity[A := ImageFamily.Point, B := E.Vector].Continuous Image.topology (Bundles.coordinateTopology n) leftVector :=
+  topology.Composition[A := ImageFamily.Point, B := TotalE.Vector, C := E.Vector].composeContinuous Image.topology (Bundles.coordinateTopology Ambient.dimension) (Bundles.coordinateTopology n)
+    (\fun (p: ImageFamily.Point) => p.vector) Coordinates.Topology[].first Image.vectorContinuous CoordTopology.firstRegular;
+\definition rightVectorContinuous: topology.Continuity[A := ImageFamily.Point, B := RightE.Vector].Continuous Image.topology (Bundles.coordinateTopology m) rightVector :=
+  topology.Composition[A := ImageFamily.Point, B := TotalE.Vector, C := RightE.Vector].composeContinuous Image.topology (Bundles.coordinateTopology Ambient.dimension) (Bundles.coordinateTopology m)
+    (\fun (p: ImageFamily.Point) => p.vector) Coordinates.Topology[].second Image.vectorContinuous CoordTopology.secondRegular;
+\definition originalLeft[p: ImageFamily.Point]: OriginalLeft.Point := OriginalLeft.include (left p.base) (\parent.At[x := p.base].left p.vector);
+\definition originalRight[p: ImageFamily.Point]: OriginalRight.Point := OriginalRight.include (right p.base) (\parent.At[x := p.base].right p.vector);
+\definition originalLeftContinuous: topology.Continuity[A := ImageFamily.Point, B := OriginalLeft.Point].Continuous Image.topology bundle.totalSpace originalLeft :=
+  UniversalBundle.Universal[Y := ImageFamily.Point, source := Image.topology].continuous originalLeft
+    (topology.Composition[A := ImageFamily.Point, B := Source, C := Carrier].composeContinuous Image.topology sourceTopology topology ImageFamily.projection left Image.projectionContinuous leftContinuous) leftVectorContinuous;
+\definition originalRightContinuous: topology.Continuity[A := ImageFamily.Point, B := OriginalRight.Point].Continuous Image.topology Right.bundle.totalSpace originalRight :=
+  RightImage.Universal[Y := ImageFamily.Point, source := Image.topology].continuous originalRight
+    (topology.Composition[A := ImageFamily.Point, B := Source, C := Right.Carrier].composeContinuous Image.topology sourceTopology Right.topology ImageFamily.projection right Image.projectionContinuous rightContinuous) rightVectorContinuous;
+\definition leftContinuousTotal: topology.Continuity[A := ImageFamily.Point, B := LeftFamily.Point].Continuous Image.topology leftBundle.totalSpace (\fun (p: ImageFamily.Point) => Sum.first (Maps.total data p)) :=
+  LeftPull.Universal[Z := ImageFamily.Point].continuous Image.topology (\fun (p: ImageFamily.Point) => Sum.first (Maps.total data p)) Image.projectionContinuous originalLeftContinuous;
+\definition rightContinuousTotal: topology.Continuity[A := ImageFamily.Point, B := RightFamily.Point].Continuous Image.topology rightBundle.totalSpace (\fun (p: ImageFamily.Point) => Sum.second (Maps.total data p)) :=
+  RightPull.Universal[Z := ImageFamily.Point].continuous Image.topology (\fun (p: ImageFamily.Point) => Sum.second (Maps.total data p)) Image.projectionContinuous originalRightContinuous;
+\definition map: Maps.Map := \into[Maps.Data](data, Maps.Map) \by {
+  Sum.Universal[Y := ImageFamily.Point].continuous Image.topology (Maps.total data) leftContinuousTotal rightContinuousTotal
+};

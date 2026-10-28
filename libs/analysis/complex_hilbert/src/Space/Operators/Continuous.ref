@@ -1,0 +1,44 @@
+\import functional_analysis.Normed[V := W, space := Target.realSpace] \as TargetNormed;
+\import metric_spaces.MetricSpace[Carrier := V] \as SourceMetric;
+\import metric_spaces.MetricSpace[Carrier := W] \as TargetMetric;
+\import SourceMetric.Topology[] \as SourceTopology;
+\import TargetMetric.Topology[] \as TargetTopology;
+\import topology.Topology[Carrier := V] \as SourceSets;
+\import topology.Topology[Carrier := W] \as TargetSets;
+\import topology.Continuity[A := V, B := W] \as Maps;
+\import real.Analysis[].Estimates[] \as Estimates;
+\import dedekind_reals.DedekindReal[].Order[] \as Ordered;
+\import Estimates.Product[] \as Product;
+\import real.Analysis[].Distance[] \as Distance;
+\import real.Analysis[].Algebra[] \as Algebra;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\definition continuous: \forall (f: Map) -> Maps.Continuous (SourceTopology.topology (RealNormed.metric norm.realNorm))
+  (TargetTopology.topology (TargetNormed.metric targetNorm.realNorm)) (f.apply) := \block {
+  \fun (f: Map) \then
+  \takefrom c: \Cast[R.Real] ({ c: R.Real \where Bound[f, c] }) \by bounded f \then
+  \let bound: Bound[f, c] := \bysub(R.Real, { c: R.Real \where Bound[f, c] }, c) \then
+  \fun (U: \Pow W)(open: TargetSets.IsOpenIn (TargetTopology.topology (TargetNormed.metric targetNorm.realNorm)) U)
+    (x: V)(inside: TargetSets.Member U (f.apply x)) \then
+  \takefrom epsilon: \Cast[R.Real] (TargetMetric.NeighborhoodRadius (TargetNormed.metric targetNorm.realNorm) U (f.apply x)) \by open (f.apply x) inside \then
+  \let radius: Logic.And[Order.Lt R.zero epsilon, TargetSets.Subset (TargetMetric.Ball (TargetNormed.metric targetNorm.realNorm) (f.apply x) epsilon) U] :=
+    \bysub(R.Real, TargetMetric.NeighborhoodRadius (TargetNormed.metric targetNorm.realNorm) U (f.apply x), epsilon) \then
+  \let coeff: R.Real := R.add c R.one \then
+  \let positive: Order.Lt R.zero coeff := Order.ltLeTrans R.zero R.one coeff Product.onePositive (Distance.leAddRightOfNonnegative c R.one bound.nonnegative) \then
+  \let delta: R.Real := Product.radius coeff epsilon \then
+  \return SourceTopology.openOfRadius (RealNormed.metric norm.realNorm) (Maps.Preimage (f.apply) U) x delta
+    (Product.radiusPositive coeff epsilon positive radius.left)
+    (\block {
+      \fun (y: V)(near: SourceSets.Member (SourceMetric.Ball (RealNormed.metric norm.realNorm) x delta) y) \then
+      \let d: R.Real := (RealNormed.metric norm.realNorm).distance x y \then
+      \let larger: Order.Le (R.mul c d) (R.mul coeff d) := Order.leReplace _ _ _ _
+        (Laws.fieldMulComm d c) (Laws.fieldMulComm d coeff)
+        (Estimates.mulMonotone d c coeff ((RealNormed.metric norm.realNorm).nonnegative x y) (Algebra.leAddRight c R.one Laws.oneNonnegative)) \then
+      \return radius.right (f.apply y) (Order.leLtTrans _ (R.mul c d) epsilon
+        (RealOperators.distanceBound (realMap f) c (RealOperators.Bound[realMap f, c] { nonnegative := bound.nonnegative, estimate := bound.estimate }) x y)
+        (Order.leLtTrans _ (R.mul coeff d) epsilon larger
+          (Ordered.ltTrans _ (R.mul coeff delta) epsilon (Product.mulStrict coeff d delta positive near)
+            (Product.radiusSmall coeff epsilon positive radius.left))))
+    })
+};

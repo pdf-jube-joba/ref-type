@@ -1,0 +1,18 @@
+\import \root.Measure[A := A].ValueLaws[] \as Values;
+\use std.Logic[].Equality[].sym;
+\definition dominated: Dominated n s value := \fun (i: Fin.Fin n) (x: A) (member: Sets.Member (s.cells i) x) =>
+  R.leReplaceRight (s.coefficients i) (s.coefficients i) (value x)
+    (sym!{Real.Real} _ _ (atCell i x member)) (R.leRefl (s.coefficients i));
+\definition lower: lowerIntegral value = simpleIntegral n s :=
+  \axiom:setext(lowerIntegral value, simpleIntegral n s,
+    \fun (r: Real.Real) (member: below (lowerIntegral value) r) => \block {
+      \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where \exists ( t: Simple[m] \where Logic.And[Dominated m t value, below (simpleIntegral m t) r] ) }) \by member \then
+      \takefrom t: \Cast[Simple[m]] ({ t: Simple[m] \where Logic.And[Dominated m t value, below (simpleIntegral m t) r] })
+        \by (\bysub(N.Nat^, { m: N.Nat^ \where \exists ( t: Simple[m] \where Logic.And[Dominated m t value, below (simpleIntegral m t) r] ) }, m)) \then
+      \let data: Logic.And[Dominated m t value, below (simpleIntegral m t) r] := \bysub(Simple[m], { t: Simple[m] \where Logic.And[Dominated m t value, below (simpleIntegral m t) r] }, t) \then
+      \return \root.Measure[A := A].Integral[mu := mu].Evaluation[n := n, s := s].Compare[m := m, t := t].bound data.left r data.right
+    },
+    \fun (r: Real.Real) (member: below (simpleIntegral n s) r) =>
+      Logic.existsIntro[N.Nat^, { m: N.Nat^ \where \exists ( t: Simple[m] \where Logic.And[Dominated m t value, below (simpleIntegral m t) r] ) }] n
+        (Logic.existsIntro[Simple[n], { t: Simple[n] \where Logic.And[Dominated n t value, below (simpleIntegral n t) r] }] s
+          (Logic.And[_, _]::# dominated member)));

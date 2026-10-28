@@ -1,0 +1,36 @@
+\import linear_algebra.Commutative[K := complex.Complex[].Complex, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing complex.Complex[].Complex complex.Complex[].Algebra[].field] \as Algebraic;
+\import complex.Complex[] \as C;
+\import C.Def[] \as D;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as E;
+\use E.congr;
+\use E.sym;
+\use E.trans;
+\use E.eq_reason_in;
+\import Algebraic.Linear[V := V, W := W, source := source, target := target] \as Maps;
+\import Maps.Operations[] \as Operations;
+\module Through(n: N.Nat^);
+\definition FiniteRank[f: Maps.Map]: \Prop := \exists ( n: N.Nat^ \where \exists \root.FiniteRank[V := V, W := W, source := source, target := target].Through[n := n].Factor f );
+\definition zeroFactor: Through[n := N.Nat^::zero].Factor Operations.zeroMap := Through[n := N.Nat^::zero].Factor[Operations.zeroMap] {
+  into := Algebraic.Linear[V := V, W := Algebraic.Coordinates[I := Fin.Fin N.Nat^::zero].Vector, source := source, target := Algebraic.Coordinates[I := Fin.Fin N.Nat^::zero].space].Operations[].zeroMap,
+  out := Algebraic.Linear[V := Algebraic.Coordinates[I := Fin.Fin N.Nat^::zero].Vector, W := W, source := Algebraic.Coordinates[I := Fin.Fin N.Nat^::zero].space, target := target].Operations[].zeroMap,
+  equation := \fun (x: V) => \refl(target.zero),
+};
+\definition zero: FiniteRank Operations.zeroMap := Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists \root.FiniteRank[V := V, W := W, source := source, target := target].Through[n := n].Factor Operations.zeroMap }] N.Nat^::zero
+  (\exact(zeroFactor, Through[n := N.Nat^::zero].Factor Operations.zeroMap));
+\module Addition(n, m: N.Nat^, f, g: Maps.Map, first: \root.FiniteRank[V := V, W := W, source := source, target := target].Through[n := n].Factor f, second: \root.FiniteRank[V := V, W := W, source := source, target := target].Through[n := m].Factor g);
+\module Before(U: \Set, domain: Algebraic.VectorSpace U);
+\module After(U: \Set, codomain: Algebraic.VectorSpace U);
+\definition plus: \forall (f, g: Maps.Map) -> FiniteRank f -> FiniteRank g -> FiniteRank (Operations.plus f g) := \block {
+  \fun (f, g: Maps.Map)(hf: FiniteRank f)(hg: FiniteRank g) \then
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \exists \root.FiniteRank[V := V, W := W, source := source, target := target].Through[n := n].Factor f }) \by hf \then
+  \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where \exists \root.FiniteRank[V := V, W := W, source := source, target := target].Through[n := m].Factor g }) \by hg \then
+  \takefrom first: Through[n := n].Factor f \by \bysub(N.Nat^, { n: N.Nat^ \where \exists \root.FiniteRank[V := V, W := W, source := source, target := target].Through[n := n].Factor f }, n) \then
+  \takefrom second: Through[n := m].Factor g \by \bysub(N.Nat^, { m: N.Nat^ \where \exists \root.FiniteRank[V := V, W := W, source := source, target := target].Through[n := m].Factor g }, m) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \exists \root.FiniteRank[V := V, W := W, source := source, target := target].Through[n := k].Factor (Operations.plus f g) }]
+    Algebraic.CoordinateSum[n := n, m := m].dimension
+    (\exact(Addition[n := n, m := m, f := f, g := g, first := first, second := second].factor,
+      Through[n := Algebraic.CoordinateSum[n := n, m := m].dimension].Factor (Operations.plus f g)))
+};

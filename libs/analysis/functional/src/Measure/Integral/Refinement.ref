@@ -1,0 +1,136 @@
+\import \root.Measure[A := A].Sigma[] \as Sigma;
+\import \root.Measure[A := A].FiniteUnion[mu := mu] \as FiniteUnion;
+\import \root.Measure[A := A].Integral[mu := mu].Partition[] \as Partition;
+\import \root.Measure[A := A].Integral[mu := mu].Overlap[m := m, n := n, s := s, t := t] \as Overlap;
+\import \root.Measure[A := A].Integral[mu := mu].Assembly[m := m] \as Assembly;
+\import Fin.Sum[m := Assembly.count n, n := m] \as FirstIndices;
+\import Fin.Sum[m := FirstIndices.total, n := n] \as AllIndices;
+\definition sUnion: \Pow A := FiniteUnion.union m s.cells;
+\definition tUnion: \Pow A := FiniteUnion.union n t.cells;
+\definition sSet: Partition.MeasurableSet := \into[\Pow A] (sUnion, { S: \Pow A \where Measurable mu.sigma S }) \by { FiniteUnion.measurable m s.cells s.measurable };
+\definition tSet: Partition.MeasurableSet := \into[\Pow A] (tUnion, { S: \Pow A \where Measurable mu.sigma S }) \by { FiniteUnion.measurable n t.cells t.measurable };
+\definition left: Simple[m] := Partition.outside tSet m s;
+\definition right: Simple[n] := Partition.outside sSet n t;
+\definition overlapInS: \forall (k: Fin.Fin (Assembly.count n)) -> Sets.Subset (Overlap.matrix.simple.cells k) sUnion :=
+  Overlap.matrix.contained sUnion (\fun (j: Fin.Fin n) (i: Fin.Fin m) (x: A)
+    (member: Sets.Member (Sets.Intersection (s.cells i) (t.cells j)) x) => FiniteUnion.contains m s.cells i x member.left);
+\definition overlapInT: \forall (k: Fin.Fin (Assembly.count n)) -> Sets.Subset (Overlap.matrix.simple.cells k) tUnion :=
+  Overlap.matrix.contained tUnion (\fun (j: Fin.Fin n) (i: Fin.Fin m) (x: A)
+    (member: Sets.Member (Sets.Intersection (s.cells i) (t.cells j)) x) => FiniteUnion.contains n t.cells j x member.right);
+\definition firstPair: SimplePair[Assembly.count n, m] := SimplePair[Assembly.count n, m] { left := Overlap.matrix.simple, right := left };
+\definition firstSeparated: SeparatedPairs[Assembly.count n, m] := \into[SimplePair[Assembly.count n, m]] (firstPair,
+  { p: SimplePair[Assembly.count n, m] \where \forall (i: Fin.Fin (Assembly.count n)) (j: Fin.Fin m) -> Sets.Disjoint (p.left.cells i) (p.right.cells j) }) \by {
+    \fun (i: Fin.Fin (Assembly.count n)) (j: Fin.Fin m) (x: A) (a: Sets.Member (Overlap.matrix.simple.cells i) x)
+      (b: Sets.Member (Sigma.difference (s.cells j) tUnion) x) => b.right (overlapInT i x a)
+  };
+\import \root.Measure[A := A].Integral[mu := mu].Combined[m := Assembly.count n, n := m, p := firstSeparated] \as First;
+\definition firstInS: \forall (k: Fin.Fin FirstIndices.total) -> Sets.Subset (First.simple.cells k) sUnion :=
+  First.contained sUnion overlapInS (\fun (i: Fin.Fin m) (x: A) (member: Sets.Member (Sigma.difference (s.cells i) tUnion) x) =>
+    FiniteUnion.contains m s.cells i x member.left);
+\definition allPair: SimplePair[FirstIndices.total, n] := SimplePair[FirstIndices.total, n] { left := First.simple, right := right };
+\definition allSeparated: SeparatedPairs[FirstIndices.total, n] := \into[SimplePair[FirstIndices.total, n]] (allPair,
+  { p: SimplePair[FirstIndices.total, n] \where \forall (i: Fin.Fin FirstIndices.total) (j: Fin.Fin n) -> Sets.Disjoint (p.left.cells i) (p.right.cells j) }) \by {
+    \fun (i: Fin.Fin FirstIndices.total) (j: Fin.Fin n) (x: A) (a: Sets.Member (First.simple.cells i) x)
+      (b: Sets.Member (Sigma.difference (t.cells j) sUnion) x) => b.right (firstInS i x a)
+  };
+\import \root.Measure[A := A].Integral[mu := mu].Combined[m := FirstIndices.total, n := n, p := allSeparated] \as All;
+\definition count: N.Nat^ := AllIndices.total;
+\definition simple: Simple[AllIndices.total] := All.simple;
+\definition dominated: \forall (f, g: A -> Real.Real) ->
+  (\forall (x: A) -> R.Le Real.zero (f x)) -> (\forall (x: A) -> R.Le Real.zero (g x)) ->
+  Dominated m s f -> Dominated n t g -> Dominated AllIndices.total simple (\fun (x: A) => Real.add (f x) (g x)) :=
+  \fun (f, g: A -> Real.Real) (fn: _) (gn: _) (sf: Dominated m s f) (tg: Dominated n t g) =>
+    All.dominatedSame (\fun (x: A) => Real.add (f x) (g x))
+      (First.dominatedSame (\fun (x: A) => Real.add (f x) (g x)) (Overlap.matrixDominated f g sf tg)
+        (dominatedMono m left f (\fun (x: A) => Real.add (f x) (g x))
+          (\fun (i: Fin.Fin m) (x: A) (member: Sets.Member (Sigma.difference (s.cells i) tUnion) x) => sf i x member.left)
+          (\fun (x: A) => Real.Distance[].leAddOfNonnegative (f x) (g x) (gn x))))
+      (dominatedMono n right g (\fun (x: A) => Real.add (f x) (g x))
+        (\fun (i: Fin.Fin n) (x: A) (member: Sets.Member (Sigma.difference (t.cells i) sUnion) x) => tg i x member.left)
+        (\fun (x: A) => R.leReplaceRight (g x) (Real.add (g x) (f x)) (Real.add (f x) (g x))
+          (dedekind_reals.DedekindReal[].Arithmetic[].Prop[].addComm (g x) (f x))
+          (Real.Distance[].leAddOfNonnegative (g x) (f x) (fn x))));
+\import \root.Measure[A := A].ValueLaws[] \as Values;
+\import Values.Matrix[] \as Matrix;
+\import \root.Measure[A := A].Finite[mu := mu] \as MeasureFinite;
+\import \root.Measure[A := A].Integral[mu := mu].SimpleLaws[] \as SimpleLaws;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\definition insideS: Simple[m] := Partition.inside tSet m s;
+\definition insideT: Simple[n] := Partition.inside sSet n t;
+\definition inter: \forall (j: Fin.Fin n) (i: Fin.Fin m) -> Value :=
+  \fun (j: Fin.Fin n) (i: Fin.Fin m) => mu.value (Sets.Intersection (s.cells i) (t.cells j));
+\definition interNonnegative: \forall (j: Fin.Fin n) (i: Fin.Fin m) -> NonnegativeValue[inter j i] :=
+  \fun (j: Fin.Fin n) (i: Fin.Fin m) => MeasureFinite.laws.nonnegative _ ((Overlap.row j).measurable i);
+\definition a: \forall (j: Fin.Fin n) (i: Fin.Fin m) -> Value := \fun (j: Fin.Fin n) (i: Fin.Fin m) => scale (s.coefficients i) (inter j i);
+\definition b: \forall (j: Fin.Fin n) (i: Fin.Fin m) -> Value := \fun (j: Fin.Fin n) (i: Fin.Fin m) => scale (t.coefficients j) (inter j i);
+\definition aNonnegative: \forall (j: Fin.Fin n) (i: Fin.Fin m) -> NonnegativeValue[a j i] :=
+  \fun (j: Fin.Fin n) (i: Fin.Fin m) => Values.scaleNonnegative (s.coefficients i) (inter j i) (s.nonnegative i) (interNonnegative j i);
+\definition bNonnegative: \forall (j: Fin.Fin n) (i: Fin.Fin m) -> NonnegativeValue[b j i] :=
+  \fun (j: Fin.Fin n) (i: Fin.Fin m) => Values.scaleNonnegative (t.coefficients j) (inter j i) (t.nonnegative j) (interNonnegative j i);
+\definition sumA: sum n (\fun (j: Fin.Fin n) => sum m (a j)) = simpleIntegral m insideS := eq_reason_in!{Value _
+  "=" _ "by" { Matrix.transpose n m a aNonnegative }
+  "=" _ "by" { congr!{{Fin.Fin m -> Value} Value} (sum m) _ _
+    (\axiom:funext((\fun (i: Fin.Fin m) => sum n (\fun (j: Fin.Fin n) => a j i)),
+      (\fun (i: Fin.Fin m) => scale (s.coefficients i) (mu.value (Sets.Intersection (s.cells i) tUnion))),
+      \fun (i: Fin.Fin m) => eq_reason_in!{Value _
+        "=" _ "by" { sym!{Value} _ _ (Values.scaleSum n (s.coefficients i) (\fun (j: Fin.Fin n) => inter j i) (s.nonnegative i) (\fun (j: Fin.Fin n) => interNonnegative j i)) }
+        "=" _ "by" { congr!{Value Value} (scale (s.coefficients i)) _ _ (sym!{Value} _ _
+          (FiniteUnion.intersectionMeasure n (s.cells i) t.cells (s.measurable i) t.measurable t.disjoint)) }
+      })) }
+};
+\definition swap: \forall (S, T: \Pow A) -> Sets.Intersection S T = Sets.Intersection T S :=
+  \fun (S, T: \Pow A) => \axiom:setext(Sets.Intersection S T, Sets.Intersection T S,
+    \fun (x: A) (both: Sets.Member (Sets.Intersection S T) x) => Logic.And[_, _]::# both.right both.left,
+    \fun (x: A) (both: Sets.Member (Sets.Intersection T S) x) => Logic.And[_, _]::# both.right both.left);
+\definition sumB: sum n (\fun (j: Fin.Fin n) => sum m (b j)) = simpleIntegral n insideT :=
+  congr!{{Fin.Fin n -> Value} Value} (sum n) _ _
+    (\axiom:funext((\fun (j: Fin.Fin n) => sum m (b j)),
+      (\fun (j: Fin.Fin n) => scale (t.coefficients j) (mu.value (Sets.Intersection (t.cells j) sUnion))),
+      \fun (j: Fin.Fin n) => eq_reason_in!{Value _
+        "=" _ "by" { sym!{Value} _ _ (Values.scaleSum m (t.coefficients j) (inter j) (t.nonnegative j) (interNonnegative j)) }
+        "=" _ "by" { congr!{Value Value} (scale (t.coefficients j)) _ _
+          (congr!{{Fin.Fin m -> Value} Value} (sum m) _ _
+            (\axiom:funext((inter j), (\fun (i: Fin.Fin m) => mu.value (Sets.Intersection (t.cells j) (s.cells i))),
+              \fun (i: Fin.Fin m) => congr!{{\Pow A} Value} mu.value _ _ (swap (s.cells i) (t.cells j))))) }
+        "=" _ "by" { congr!{Value Value} (scale (t.coefficients j)) _ _ (sym!{Value} _ _
+          (FiniteUnion.intersectionMeasure m (t.cells j) s.cells (t.measurable j) s.measurable s.disjoint)) }
+      }));
+\definition overlapIntegral: simpleIntegral (Assembly.count n) Overlap.matrix.simple = add (simpleIntegral m insideS) (simpleIntegral n insideT) := eq_reason_in!{Value _
+  "=" _ "by" { Overlap.matrix.integral }
+  "=" _ "by" { congr!{{Fin.Fin n -> Value} Value} (sum n) _ _
+    (\axiom:funext((\fun (j: Fin.Fin n) => simpleIntegral m (Overlap.row j)),
+      (\fun (j: Fin.Fin n) => add (sum m (a j)) (sum m (b j))), Overlap.rowIntegral)) }
+  "=" _ "by" { Values.sumAdd n (\fun (j: Fin.Fin n) => sum m (a j)) (\fun (j: Fin.Fin n) => sum m (b j))
+    (\fun (j: Fin.Fin n) => Values.sumNonnegative m (a j) (aNonnegative j))
+    (\fun (j: Fin.Fin n) => Values.sumNonnegative m (b j) (bNonnegative j)) }
+  "=" _ "by" { congr!{Value Value Value} add _ _ _ _ sumA sumB }
+};
+\definition integral: simpleIntegral AllIndices.total simple = add (simpleIntegral m s) (simpleIntegral n t) := eq_reason_in!{Value _
+  "=" _ "by" { All.integral }
+  "=" _ "by" { congr!{Value Value} (\fun (v: Value) => add v (simpleIntegral n right)) _ _ First.integral }
+  "=" _ "by" { congr!{Value Value} (\fun (v: Value) => add (add v (simpleIntegral m left)) (simpleIntegral n right)) _ _ overlapIntegral }
+  "=" _ "by" { Values.addAssoc (add (simpleIntegral m insideS) (simpleIntegral n insideT)) (simpleIntegral m left) (simpleIntegral n right) }
+  "=" _ "by" { Values.addShuffle (simpleIntegral m insideS) (simpleIntegral n insideT) (simpleIntegral m left) (simpleIntegral n right) }
+  "=" _ "by" { congr!{Value Value Value} add _ _ _ _ (sym!{Value} _ _ (Partition.integralSplit tSet m s)) (sym!{Value} _ _ (Partition.integralSplit sSet n t)) }
+};
+\use std.Logic[].Equality[].trans;
+\definition overlapCell: \forall (i: Fin.Fin m) (j: Fin.Fin n) (x: A) ->
+  Sets.Member (s.cells i) x -> Sets.Member (t.cells j) x ->
+  \exists ( k: Fin.Fin count \where Logic.And[Sets.Member (simple.cells k) x, simple.coefficients k = Real.add (s.coefficients i) (t.coefficients j)] ) :=
+  \fun (i: Fin.Fin m) (j: Fin.Fin n) (x: A) (si: Sets.Member (s.cells i) x) (tj: Sets.Member (t.cells j) x) => \block {
+    \takefrom k: \Cast[Fin.Fin (Assembly.count n)] ({ k: Fin.Fin (Assembly.count n) \where Logic.And[Sets.Member (Overlap.matrix.simple.cells k) x,
+      Overlap.matrix.simple.coefficients k = (Overlap.row j).coefficients i] }) \by Overlap.matrix.origin j i x (Logic.And[_, _]::# si tj) \then
+    \let data: Logic.And[Sets.Member (Overlap.matrix.simple.cells k) x, Overlap.matrix.simple.coefficients k = (Overlap.row j).coefficients i] :=
+      \bysub(Fin.Fin (Assembly.count n), { k: Fin.Fin (Assembly.count n) \where Logic.And[Sets.Member (Overlap.matrix.simple.cells k) x,
+        Overlap.matrix.simple.coefficients k = (Overlap.row j).coefficients i] }, k) \then
+    \let a: Fin.Fin FirstIndices.total := FirstIndices.left k \then
+    \let b: Fin.Fin count := AllIndices.left a \then
+    \let firstMember: Sets.Member (First.simple.cells a) x := First.containsLeft k x data.left \then
+    \let firstCoefficient: First.simple.coefficients a = Real.add (s.coefficients i) (t.coefficients j) :=
+      trans!{Real.Real} _ _ _ (First.coefficientLeft k) data.right \then
+    \return Logic.existsIntro[Fin.Fin count, { b: Fin.Fin count \where Logic.And[Sets.Member (simple.cells b) x,
+      simple.coefficients b = Real.add (s.coefficients i) (t.coefficients j)] }] b
+      (Logic.And[_, _]::# (All.containsLeft a x firstMember) (trans!{Real.Real} _ _ _ (All.coefficientLeft a) firstCoefficient))
+  };

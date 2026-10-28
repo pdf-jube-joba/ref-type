@@ -1,0 +1,74 @@
+\import RealHilbert.Riesz[inner := realInner] \as RealRiesz;
+\import RealNormed.Operators[W := R.Real, target := RealLinear.scalarSpace, norm := norm.realNorm, targetNorm := RealRiesz.realNorm] \as RealOperators;
+\import RealLinear.Linear[V := V, W := R.Real, source := realSpace, target := RealLinear.scalarSpace] \as RealMaps;
+\import std.Logic[].Proposition[] \as Logic;
+\import C.Absolute[] \as Absolute;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as RealLaws;
+\structure Functional: \Set := {
+  apply: V -> C.Complex,
+  addition: \forall (x, y: V) -> apply (space.add x y) = D.add (apply x) (apply y),
+  scalar: \forall (a: C.Complex)(x: V) -> apply (space.smul a x) = D.mul a (apply x),
+  bound: R.Real,
+  boundNonnegative: Order.Le R.zero bound,
+  estimate: \forall (x: V) -> Order.Le (Absolute.abs (apply x)) (R.mul bound (norm.realNorm.norm x)),
+};
+\definition realMap[f: Functional]: RealMaps.Map := RealMaps.Map {
+  apply := \fun (x: V) => C.re (f.apply x),
+  preservesAdd := \fun (x, y: V) => congr!{C.Complex R.Real} C.re _ _ (f.addition x y),
+  preservesScale := \fun (a: R.Real)(x: V) => trans!{R.Real} _ _ _
+    (congr!{C.Complex R.Real} C.re _ _ (f.scalar (D.ofReal a) x)) (Scalar.realProduct a (f.apply x)),
+};
+\definition realFunctional[f: Functional]: RealRiesz.Functional := \into[RealMaps.Map](realMap f, RealRiesz.Functional) \by {
+  Logic.existsIntro[R.Real, { c: R.Real \where RealOperators.Bound[realMap f, c] }] f.bound
+    (RealOperators.Bound[realMap f, f.bound] {
+      nonnegative := f.boundNonnegative,
+      estimate := \fun (x: V) => Order.leTrans _ _ _ (Scalar.realAbsolute (f.apply x)) (f.estimate x),
+    })
+};
+\definition vector[hilbert: Complete][f: Functional]: V := RealRiesz.vector (realHilbert hilbert) (realFunctional f);
+\definition Represents[f: Functional][y: V]: \Prop := \forall (x: V) -> f.apply x = inner.inner y x;
+\definition vectorLaw: \forall (hilbert: Complete)(f: Functional) -> Represents f (vector hilbert f) := \block {
+  \fun (hilbert: Complete)(f: Functional)(x: V) \then
+  \let equation: \forall (v: V) -> C.re (f.apply v) = C.re (inner.inner (vector hilbert f) v) :=
+    RealRiesz.vectorLaw (realHilbert hilbert) (realFunctional f) \then
+  \let imaginary: R.neg (C.im (f.apply x)) = R.neg (C.im (inner.inner (vector hilbert f) x)) := eq_reason_in!{R.Real _
+    "=" _ "by" { sym!{R.Real} _ _ (Scalar.imaginaryUnitReal (f.apply x)) }
+    "=" _ "by" { congr!{C.Complex R.Real} C.re _ _ (sym!{C.Complex} _ _ (f.scalar D.i x)) }
+    "=" _ "by" { equation (space.smul D.i x) }
+    "=" _ "by" { congr!{C.Complex R.Real} C.re _ _ (inner.scaleRight D.i (vector hilbert f) x) }
+    "=" _ "by" { Scalar.imaginaryUnitReal (inner.inner (vector hilbert f) x) }
+  } \then
+  \return CL.ext (f.apply x) (inner.inner (vector hilbert f) x) (equation x)
+    (eq_reason_in!{R.Real _
+      "=" _ "by" { sym!{R.Real} _ _ (RealLaws.negInvolutive (C.im (f.apply x))) }
+      "=" _ "by" { congr!{R.Real R.Real} R.neg _ _ imaginary }
+      "=" _ "by" { RealLaws.negInvolutive (C.im (inner.inner (vector hilbert f) x)) }
+    })
+};
+\definition unique: \forall (f: Functional)(y, z: V) -> Represents f y -> Represents f z -> y = z :=
+  \fun (f: Functional)(y, z: V)(hy: _)(hz: _) => RealHilbert.representingVectorUnique realInner (\fun (x: V) => C.re (f.apply x)) y z
+    (\fun (x: V) => congr!{C.Complex R.Real} C.re _ _ (hy x)) (\fun (x: V) => congr!{C.Complex R.Real} C.re _ _ (hz x));
+\definition riesz: \forall (hilbert: Complete)(f: Functional) -> \exists ( y: V \where Represents f y ) :=
+  \fun (hilbert: Complete)(f: Functional) => Logic.existsIntro[V, { y: V \where Represents f y }] (vector hilbert f) (vectorLaw hilbert f);
+\import ComplexLinear.Linear[V := V, W := C.Complex, source := space, target := ComplexLinear.scalarSpace] \as LinearFunctionals;
+/* Complex linearity recovers the imaginary part from the real Riesz equation. */
+\definition fromReal: \forall (hilbert: Complete)(f: LinearFunctionals.Map)(g: RealRiesz.Functional) ->
+  (\forall (x: V) -> g.apply x = C.re (f.apply x)) -> \forall (x: V) ->
+  f.apply x = inner.inner (RealRiesz.vector (realHilbert hilbert) g) x := \block {
+  \fun (hilbert: Complete)(f: LinearFunctionals.Map)(g: RealRiesz.Functional)(agrees: _)(x: V) \then
+  \let y: V := RealRiesz.vector (realHilbert hilbert) g \then
+  \let equation: \forall (v: V) -> C.re (f.apply v) = C.re (inner.inner y v) :=
+    \fun (v: V) => trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (agrees v)) (RealRiesz.vectorLaw (realHilbert hilbert) g v) \then
+  \let imaginary: R.neg (C.im (f.apply x)) = R.neg (C.im (inner.inner y x)) := eq_reason_in!{R.Real _
+    "=" _ "by" { sym!{R.Real} _ _ (Scalar.imaginaryUnitReal (f.apply x)) }
+    "=" _ "by" { congr!{C.Complex R.Real} C.re _ _ (sym!{C.Complex} _ _ (f.preservesScale D.i x)) }
+    "=" _ "by" { equation (space.smul D.i x) }
+    "=" _ "by" { congr!{C.Complex R.Real} C.re _ _ (inner.scaleRight D.i y x) }
+    "=" _ "by" { Scalar.imaginaryUnitReal (inner.inner y x) }
+  } \then
+  \return CL.ext (f.apply x) (inner.inner y x) (equation x) (eq_reason_in!{R.Real _
+    "=" _ "by" { sym!{R.Real} _ _ (RealLaws.negInvolutive (C.im (f.apply x))) }
+    "=" _ "by" { congr!{R.Real R.Real} R.neg _ _ imaginary }
+    "=" _ "by" { RealLaws.negInvolutive (C.im (inner.inner y x)) }
+  })
+};

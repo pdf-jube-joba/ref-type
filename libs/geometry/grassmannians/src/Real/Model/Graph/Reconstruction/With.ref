@@ -1,0 +1,43 @@
+\use std.Logic[].Equality[].sym;
+\import At.Families[X := GraphSpace].Orthonormalized[k := k, source := graphTopology, A := family, factors := factors] \as Ortho;
+\import Original.Family[Y := GraphSpace, source := graphTopology, P := Ortho.projection, regularP := Ortho.regular, rank := Ortho.rank] \as OldFamily;
+\definition value[t: GraphSpace]: Model.Carrier := Model.fromOriginal (OldFamily.map t);
+\definition continuous: topology.Continuity[A := GraphSpace, B := Model.Carrier].Continuous graphTopology Model.topology value :=
+  topology.Composition[A := GraphSpace, B := Original.Grassmannian, C := Model.Carrier].composeContinuous graphTopology Original.topology Model.topology OldFamily.map Model.fromOriginal OldFamily.continuous Model.fromOriginalContinuous;
+\module AtPoint(t: GraphSpace);
+\definition imageIsGraph: \forall (t: GraphSpace)(w: E.Vector) -> (Model.projection (value t)).map.apply w = w -> \exists (v: Domain.Vector \where (family t).apply v = w) :=
+  \fun (t: GraphSpace)(w: E.Vector)(fixed: _) => Logic.existsIntro[Domain.Vector, { v: Domain.Vector \where (family t).apply v = w }]
+    ((factors.value t).change.backward.apply ((Ortho.Point[x := t].basis).coordinate.apply w))
+    (trans!{{E.Vector}} _ _ _ ((factors.value t).formula ((factors.value t).change.backward.apply ((Ortho.Point[x := t].basis).coordinate.apply w)))
+      (trans!{{E.Vector}} _ _ _ (congr!{{Domain.Vector} {E.Vector}} (factors.value t).frame.apply _ _ ((factors.value t).change.rightInverse ((Ortho.Point[x := t].basis).coordinate.apply w)))
+        (trans!{{E.Vector}} _ _ _ ((Ortho.Point[x := t].basis).reconstruction w) fixed)));
+\definition realization: Realization := Realization { value := value, continuous := continuous, fixesGraph := \fun (t: GraphSpace) => AtPoint[t := t].fixed, imageIsGraph := imageIsGraph };
+
+\definition inverse[t: GraphSpace]: Local := \into[Model.Carrier](value t, domain) \by { AtPoint[t := t].Invertible[].domainMember };
+\import topology.Continuity[A := GraphSpace, B := Model.Carrier].Corestriction[S := domain] \as Corestrict;
+\definition inverseContinuous: topology.Continuity[A := GraphSpace, B := Local].Continuous graphTopology localTopology inverse :=
+  Corestrict.corestrictContinuous graphTopology Model.topology inverse continuous;
+\import Spaces.Laws[V := E.Vector, space := E.space] \as AmbientLaws;
+\definition rightInverse: \forall (t: GraphSpace) -> point (inverse t) = t := \fun (t: GraphSpace) => Maps.ext (point (inverse t)) t
+  (\axiom:funext((point (inverse t)).apply, t.apply, \block {
+    \fun (v: Domain.Vector) \then
+    \let w: E.Vector := (normalized (inverse t)).apply v \then
+    \takefrom u: \Cast[Domain.Vector] ({ u: Domain.Vector \where (family t).apply u = w })
+      \by imageIsGraph t w (normalizedFixed (inverse t) v) \then
+    \let same: (family t).apply u = w := \bysub(Domain.Vector, { u: Domain.Vector \where (family t).apply u = w }, u) \then
+    \let coordinates: u = v := trans!{{Domain.Vector}} _ _ _ (sym!{{Domain.Vector}} _ _ (centerFormula t u))
+      (trans!{{Domain.Vector}} _ _ _ (congr!{{E.Vector} {Domain.Vector}} center.coordinate.apply _ _ same) (centerCoordinates (inverse t) v)) \then
+    \let graphEquality: E.space.add (center.value.apply v) ((graph (inverse t)).apply v) = E.space.add (center.value.apply v) (t.apply v) :=
+      trans!{{E.Vector}} _ _ _ (graphFormula (inverse t) v)
+        (trans!{{E.Vector}} _ _ _ (sym!{{E.Vector}} _ _ same)
+          (congr!{{Domain.Vector} {E.Vector}} (\fun (u: Domain.Vector) => (family t).apply u) _ _ coordinates)) \then
+    \return AmbientLaws.cancelLeft (center.value.apply v) ((graph (inverse t)).apply v) (t.apply v) graphEquality
+  }));
+\import \root.Real[n := n, k := k].Model[].Graph[a := a, center := center] \as Chart;
+\definition leftInverse: \forall (x: Local) -> inverse (point x) = x :=
+  \fun (x: Local) => Chart.injective (inverse (point x)) x (rightInverse (point x));
+\import topology.Homeomorphism[A := Local, B := GraphSpace] \as Homeomorphisms;
+\definition homeomorphism: Homeomorphisms.Homeomorphism[localTopology, graphTopology] := Homeomorphisms.Homeomorphism[localTopology, graphTopology] {
+  forward := point, backward := inverse, leftInverse := leftInverse, rightInverse := rightInverse,
+  forwardContinuous := Chart.continuous, backwardContinuous := inverseContinuous,
+};

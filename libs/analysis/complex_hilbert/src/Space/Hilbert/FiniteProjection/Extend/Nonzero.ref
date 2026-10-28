@@ -1,0 +1,52 @@
+\import Facts.Normalize[v := residual, positive := Facts.positiveNorm Geometry.positive residual (residualNonzero different)] \as Normalized;
+\import Facts.Unit[v := Normalized.value, norm := Normalized.unitNorm] \as Rank;
+\import \root.Space[V := V, space := space].Hilbert[norm := norm, inner := inner].RankOne[v := Normalized.value, unit := Normalized.unitNorm] \as RankOne;
+\definition unitZero: P.map.apply Normalized.value = space.zero := trans!{V} _ _ _
+  (P.map.preservesScale (D.ofReal Normalized.factor) residual)
+  (trans!{V} _ _ _ (congr!{V V} (space.smul (D.ofReal Normalized.factor)) _ _ residualZero) (Vectors.scaleZero (D.ofReal Normalized.factor)));
+\definition dotZero: \forall (y: V) -> inner.inner Normalized.value (P.map.apply y) = D.zero :=
+  \fun (y: V) => trans!{C.Complex} _ _ _ (sym!{C.Complex} _ _ (P.symmetric Normalized.value y))
+    (trans!{C.Complex} _ _ _ (congr!{V C.Complex} (\fun (z: V) => inner.inner z y) _ _ unitZero) (Facts.zeroLeft y));
+\definition postZero: \forall (y: V) -> P.map.apply (Rank.rankOne.apply y) = space.zero :=
+  \fun (y: V) => trans!{V} _ _ _ (P.map.preservesScale (inner.inner Normalized.value y) Normalized.value)
+    (trans!{V} _ _ _ (congr!{V V} (space.smul (inner.inner Normalized.value y)) _ _ unitZero) (Vectors.scaleZero (inner.inner Normalized.value y)));
+\definition preZero: \forall (y: V) -> Rank.rankOne.apply (P.map.apply y) = space.zero :=
+  \fun (y: V) => trans!{V} _ _ _ (congr!{C.Complex V} (\fun (a: C.Complex) => space.smul a Normalized.value) _ _ (dotZero y)) (Vectors.zeroScale Normalized.value);
+\definition newMap: EndMaps.Map := Operations.plus P.map Rank.rankOne;
+\definition idempotent: \forall (y: V) -> newMap.apply (newMap.apply y) = newMap.apply y :=
+  \fun (y: V) => eq_reason_in!{V _
+    "=" _ "by" { congr!{V V V} space.add _ _ _ _ (P.map.preservesAdd (P.map.apply y) (Rank.rankOne.apply y)) (Rank.rankOne.preservesAdd (P.map.apply y) (Rank.rankOne.apply y)) }
+    "=" _ "by" { congr!{V V V} space.add _ _ _ _
+      (congr!{V V V} space.add _ _ _ _ (P.idempotent y) (postZero y))
+      (congr!{V V V} space.add _ _ _ _ (preZero y) (Rank.idempotent y)) }
+    "=" _ "by" { congr!{V V V} space.add _ _ _ _ (Vectors.zeroRight (P.map.apply y)) (Vectors.zeroLeft (Rank.rankOne.apply y)) }
+  };
+\definition symmetric: \forall (y, z: V) -> inner.inner (newMap.apply y) z = inner.inner y (newMap.apply z) :=
+  \fun (y, z: V) => eq_reason_in!{C.Complex _
+    "=" _ "by" { Facts.addLeft (P.map.apply y) (Rank.rankOne.apply y) z }
+    "=" _ "by" { congr!{C.Complex C.Complex C.Complex} D.add _ _ _ _ (P.symmetric y z) (Rank.symmetric y z) }
+    "=" _ "by" { sym!{C.Complex} _ _ (inner.addRight y (P.map.apply z) (Rank.rankOne.apply z)) }
+  };
+\definition projection: Projection := Projection { map := newMap, finite := Finite.plus P.map Rank.rankOne P.finite RankOne.finite, idempotent := idempotent, symmetric := symmetric };
+\definition fixesOld: \forall (y: V) -> P.map.apply y = y -> projection.map.apply y = y :=
+  \fun (y: V)(fixed: P.map.apply y = y) => eq_reason_in!{V _
+    "=" _ "by" { congr!{V V} (space.add (P.map.apply y)) _ _ (trans!{V} _ _ _ (congr!{V V} Rank.rankOne.apply _ _ (sym!{V} _ _ fixed)) (preZero y)) }
+    "=" _ "by" { Vectors.zeroRight (P.map.apply y) }
+    "=" _ "by" fixed
+  };
+\definition fixesResidual: Rank.rankOne.apply residual = residual := eq_reason_in!{V _
+  "=" _ "by" { congr!{V V} Rank.rankOne.apply _ _ (sym!{V} _ _ Normalized.recover) }
+  "=" _ "by" { Rank.rankOne.preservesScale (D.ofReal Normalized.length) Normalized.value }
+  "=" _ "by" { congr!{V V} (space.smul (D.ofReal Normalized.length)) _ _ Rank.fixes }
+  "=" _ "by" { Normalized.recover }
+};
+\definition fixesNew: projection.map.apply x = x := eq_reason_in!{V _
+  "=" _ "by" { congr!{V V} (space.add (P.map.apply x)) _ _ (eq_reason_in!{V _
+    "=" _ "by" { congr!{V V} Rank.rankOne.apply _ _ (sym!{V} _ _ (RealNormed.subAddCancel x (P.map.apply x))) }
+    "=" _ "by" { Rank.rankOne.preservesAdd residual (P.map.apply x) }
+    "=" _ "by" { congr!{V V V} space.add _ _ _ _ fixesResidual (preZero x) }
+    "=" _ "by" { Vectors.zeroRight residual }
+  }) }
+  "=" _ "by" { Vectors.comm (P.map.apply x) residual }
+  "=" _ "by" { RealNormed.subAddCancel x (P.map.apply x) }
+};

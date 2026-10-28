@@ -1,0 +1,18 @@
+\import \root.Measure[A := A].Integral[mu := mu].Convergence[].Recovery[] \as Recovery;
+\module For(n: N.Nat^, s: Simple[n], f: MeasurableSequence);
+\definition reverse: \forall (f: MeasurableSequence) (g: A -> Real.Real) -> PointwiseSup f g -> FunctionIncreasing f ->
+  Values.Included (lowerIntegral g) (Sup (\fun (k: N.Nat^) => lowerIntegral (f k))) :=
+  \fun (f: MeasurableSequence) (g: A -> Real.Real) (sup: PointwiseSup f g) (increasing: FunctionIncreasing f)
+    (r: Real.Real) (member: below (lowerIntegral g) r) => \block {
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s g, below (simpleIntegral n s) r] ) }) \by member \then
+      \takefrom s: \Cast[Simple[n]] ({ s: Simple[n] \where Logic.And[Dominated n s g, below (simpleIntegral n s) r] })
+        \by (\bysub(N.Nat^, { n: N.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s g, below (simpleIntegral n s) r] ) }, n)) \then
+      \let data: Logic.And[Dominated n s g, below (simpleIntegral n s) r] :=
+        \bysub(Simple[n], { s: Simple[n] \where Logic.And[Dominated n s g, below (simpleIntegral n s) r] }, s) \then
+      \return For[n := n, s := s, f := f].bound g sup increasing data.left r data.right
+    };
+\definition monotone: \forall (f: MeasurableSequence) (g: A -> Real.Real) -> PointwiseSup f g -> FunctionIncreasing f ->
+  lowerIntegral g = Sup (\fun (k: N.Nat^) => lowerIntegral (f k)) :=
+  \fun (f: MeasurableSequence) (g: A -> Real.Real) (sup: PointwiseSup f g) (increasing: FunctionIncreasing f) =>
+    \axiom:setext(lowerIntegral g, Sup (\fun (k: N.Nat^) => lowerIntegral (f k)), reverse f g sup increasing,
+      lowerSupBound f g (pointwiseUpper f g sup));

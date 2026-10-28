@@ -1,0 +1,32 @@
+/* Primitive equality certificates used by the finite polynomial calculations. */
+\import std.Logic[].Equality[] \as E;
+\use E.congr;
+\use E.sym;
+\use E.trans;
+\use E.eq_reason_in;
+\import std.Alg[].Ring[] \as Rings;
+\import algebra.Group[].Of[Carrier := R, group := Rings.additiveGroup R (Rings.commutativeRingAsRing R ring)] \as Sum;
+\definition zero: R := ring.base.zero;
+\definition one: R := ring.base.one;
+\definition add: R -> R -> R := ring.base.add;
+\definition mul: R -> R -> R := ring.base.mul;
+\definition neg: R -> R := ring.base.neg;
+\definition negMulLeft: \forall (a, b: R) -> mul (neg a) b = neg (mul a b) :=
+  \fun (a, b: R) => Sum.inverseUnique (mul a b) (mul (neg a) b) (eq_reason_in!{R _
+    "=" _ "by" { sym!{R} _ _ (ring.ring.semiring.rightDistributive (neg a) a b) }
+    "=" _ "by" { congr!{R R} (\fun (x: R) => mul x b) _ _ (Sum.inverseLeft a) }
+    "=" _ "by" { ring.ring.semiring.zeroAbsorbsLeft b }
+  });
+\definition negMulRight: \forall (a, b: R) -> mul a (neg b) = neg (mul a b) :=
+  \fun (a, b: R) => eq_reason_in!{R _
+    "=" _ "by" { ring.mulCommutative a (neg b) }
+    "=" _ "by" { negMulLeft b a }
+    "=" _ "by" { congr!{R R} neg _ _ (ring.mulCommutative b a) }
+  };
+\definition mulSwap: \forall (a, b, c: R) -> mul a (mul b c) = mul b (mul a c) :=
+  \fun (a, b, c: R) => eq_reason_in!{R _
+    "=" _ "by" { sym!{R} _ _ (ring.ring.semiring.multiplicative.associative a b c) }
+    "=" _ "by" { congr!{R R} (\fun (x: R) => mul x c) _ _ (ring.mulCommutative a b) }
+    "=" _ "by" { ring.ring.semiring.multiplicative.associative b a c }
+  };
+\module ElementarySwap(x, y, a, b, c: R);

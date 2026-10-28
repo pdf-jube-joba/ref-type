@@ -1,0 +1,63 @@
+\import \root.Space[V := Quotient.Carrier, space := Quotient.vectorSpace] \as QuotientSpace;
+\import functional_analysis.Normed[V := Quotient.Carrier, space := QuotientSpace.realSpace] \as QNormed;
+\import \root.Space[V := V, space := space].Hilbert[norm := norm, inner := inner].Estimates[] \as AmbientEstimates;
+\definition value[q: Quotient.Carrier]: R.Real := norm.realNorm.norm (forward.apply q);
+\definition orthogonalDefinite: \forall (x: Orthogonal.Carrier) -> norm.realNorm.norm x = R.zero -> x = Orthogonal.origin :=
+  \fun (x: Orthogonal.Carrier)(zero: _) => norm.realNorm.definite x zero;
+\definition realNorm: QNormed.Norm := QNormed.Norm {
+  norm := value,
+  nonnegative := \fun (q: Quotient.Carrier) => norm.realNorm.nonnegative (forward.apply q),
+  zero := trans!{R.Real} _ _ _ (congr!{V R.Real} norm.realNorm.norm _ _ forward.preservesZero) norm.realNorm.zero,
+  definite := \fun (q: Quotient.Carrier)(zero: value q = R.zero) => eq_reason_in!{Quotient.Carrier _
+    "=" _ "by" { sym!{Quotient.Carrier} _ _ (leftInverse q) }
+    "=" _ "by" { congr!{Orthogonal.Carrier Quotient.Carrier} backward.apply _ _ (orthogonalDefinite (forward.apply q) zero) }
+    "=" _ "by" { backward.preservesZero }
+  },
+  triangle := \fun (p, q: Quotient.Carrier) => Order.leReplaceLeft _ _ _
+    (sym!{R.Real} _ _ (congr!{V R.Real} norm.realNorm.norm _ _ (forward.preservesAdd p q)))
+    (norm.realNorm.triangle (forward.apply p) (forward.apply q)),
+  homogeneous := \fun (a: R.Real)(q: Quotient.Carrier) => trans!{R.Real} _ _ _
+    (congr!{V R.Real} norm.realNorm.norm _ _ (forward.preservesScale (D.ofReal a) q)) (norm.realNorm.homogeneous a (forward.apply q)),
+};
+\definition quotientNorm: QuotientSpace.Norm := QuotientSpace.Norm {
+  realNorm := realNorm,
+  homogeneous := \fun (a: C.Complex)(q: Quotient.Carrier) => trans!{R.Real} _ _ _
+    (congr!{V R.Real} norm.realNorm.norm _ _ (forward.preservesScale a q)) (norm.homogeneous a (forward.apply q)),
+};
+\definition onClass: \forall (x: V) -> value (Quotient.class x) = norm.realNorm.norm (residual x) :=
+  \fun (x: V) => congr!{Orthogonal.Carrier R.Real} (\fun (s: Orthogonal.Carrier) => norm.realNorm.norm s) _ _ (Descent.onClass linear vanishes x);
+\definition isometry: \forall (x: Orthogonal.Carrier) -> value (backward.apply x) = norm.realNorm.norm x :=
+  \fun (x: Orthogonal.Carrier) => congr!{Orthogonal.Carrier R.Real} (\fun (s: Orthogonal.Carrier) => norm.realNorm.norm s) _ _ (rightInverse x);
+\definition residualContractive: \forall (x: V) -> Order.Le (norm.realNorm.norm (residual x)) (norm.realNorm.norm x) := \block {
+  \fun (x: V) \then
+  \let r: Orthogonal.Carrier := residual x \then
+  \let equation: inner.inner r r = inner.inner x r := eq_reason_in!{C.Complex _
+    "=" _ "by" { Ambient.addLeft x (space.neg (point x)) r }
+    "=" _ "by" { congr!{C.Complex C.Complex} (D.add (inner.inner x r)) _ _ (Geometry.negativeLeft (point x) r) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.add (inner.inner x r) (D.neg z)) _ _ (orthogonal x (point x)) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (D.add (inner.inner x r)) _ _ Scalar.negativeZero }
+    "=" _ "by" { CL.addZeroRight (inner.inner x r) }
+  } \then
+  \return AmbientEstimates.factorCancel (norm.realNorm.norm r) (norm.realNorm.norm x) (norm.realNorm.nonnegative x)
+    (Order.leReplaceLeft (C.re (inner.inner x r)) _ _
+      (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (congr!{C.Complex R.Real} C.re _ _ equation)) (complete.normSquared r))
+      (Order.leTrans _ _ _
+        (Order.leReplaceRight _ (R.Distance[].max (R.neg (C.re (inner.inner x r))) (C.re (inner.inner x r))) _
+          (sym!{R.Real} _ _ (Product.absExpression (C.re (inner.inner x r))))
+          (R.Distance[].maxRight (R.neg (C.re (inner.inner x r))) (C.re (inner.inner x r))))
+        (AmbientEstimates.cauchySchwarz complete x r)))
+};
+\definition classDifference: \forall (x: V)(s: Point) -> Quotient.class (RealNormed.sub x s) = Quotient.class x :=
+  \fun (x: V)(s: Point) => eq_reason_in!{Quotient.Carrier _
+    "=" _ "by" { Quotient.projection.preservesAdd x (space.neg s) }
+    "=" _ "by" { congr!{Quotient.Carrier Quotient.Carrier} (Quotient.vectorSpace.add (Quotient.class x)) _ _ (ProjectionOperations.preservesNeg Quotient.projection s) }
+    "=" _ "by" { congr!{Quotient.Carrier Quotient.Carrier} (\fun (q: Quotient.Carrier) => Quotient.vectorSpace.add (Quotient.class x) (Quotient.vectorSpace.neg q)) _ _ (Quotient.classZero s (\bysub(V, S.carrier, s))) }
+    "=" _ "by" { congr!{Quotient.Carrier Quotient.Carrier} (Quotient.vectorSpace.add (Quotient.class x)) _ _
+      (trans!{Quotient.Carrier} _ _ _ (sym!{Quotient.Carrier} _ _ (QuotientLaws.minusOneScale Quotient.vectorSpace.zero)) (QuotientLaws.scaleZero (D.neg D.one))) }
+    "=" _ "by" { QuotientLaws.zeroRight (Quotient.class x) }
+  };
+\definition leastRepresentative: \forall (x: V)(s: Point) -> Order.Le (value (Quotient.class x)) (norm.realNorm.norm (RealNormed.sub x s)) :=
+  \fun (x: V)(s: Point) => Order.leReplaceLeft (norm.realNorm.norm (residual (RealNormed.sub x s))) (value (Quotient.class x)) _
+    (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (onClass (RealNormed.sub x s))) (congr!{Quotient.Carrier R.Real} value _ _ (classDifference x s)))
+    (residualContractive (RealNormed.sub x s));
+\definition minimumAttained: \forall (x: V) -> value (Quotient.class x) = norm.realNorm.norm (RealNormed.sub x (point x)) := onClass;

@@ -1,0 +1,21 @@
+\module Coordinate(i: Fin.Fin n) {
+  \definition data: Integral.AEDominatedSequence := Integral.AEDominatedSequence {
+    sequence := \fun (k: N.Nat^) => component (d.sequence k) i,
+    limit := \fun (x: A) => d.limit x i,
+    bound := d.bound, exception := d.exception,
+    dominated := \fun (k: N.Nat^) (x: A) (outside: Logic.Not (Sets.Member d.exception x)) => d.dominated k x i outside,
+    converges := \fun (x: A) (outside: Logic.Not (Sets.Member d.exception x)) => d.converges x i outside,
+  };
+  \import Integral.AEDominated[d := data] \as Proof;
+  \definition representative: Integral.Representatives := Proof.representative;
+  \definition almost: Measures.AlmostEqual mu representative (\fun (x: A) => d.limit x i) := Proof.almostLimit;
+  \definition convergence: Sequence.Converges (\fun (k: N.Nat^) => Integral.integral (component (d.sequence k) i)) (Integral.integral representative) := Proof.convergence;
+}
+\definition function: Function := \fun (x: A) (i: Fin.Fin n) => Coordinate[i := i].representative x;
+\definition representative: Representatives := \into[Function] (function, { f: Function \where Integrable f }) \by {
+  \fun (i: Fin.Fin n) => \bysub(A -> Real.Real, { f: A -> Real.Real \where Integral.Integrable f }, Coordinate[i := i].representative)
+};
+\definition almost: \forall (i: Fin.Fin n) -> Measures.AlmostEqual mu (\fun (x: A) => representative x i) (\fun (x: A) => d.limit x i) :=
+  \fun (i: Fin.Fin n) => Coordinate[i := i].almost;
+\definition convergence: \forall (i: Fin.Fin n) -> Sequence.Converges (\fun (k: N.Nat^) => integral (d.sequence k) i) (integral representative i) :=
+  \fun (i: Fin.Fin n) => Coordinate[i := i].convergence;
