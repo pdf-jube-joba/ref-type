@@ -1,0 +1,38 @@
+\import \root.Over[K := K, scalarRing := scalarRing].Pullback[V := Sum.Carrier, W := V, source := Sum.space, target := left] \as LeftPull;
+\import \root.Over[K := K, scalarRing := scalarRing].Pullback[V := Sum.Carrier, W := W, source := Sum.space, target := right] \as RightPull;
+\import ResultTotal.Series[].Laws[].OneCommutation[] \as Wedge;
+\import \parent.Contraction[] \as Contract;
+\import \root.Over[K := K, scalarRing := scalarRing].TensorOperators[V := LeftTotal.Carrier, W := RightTotal.Carrier, left := LeftTotal.totalSpace, right := RightTotal.totalSpace] \as Operators;
+\import Operators.Ext[U := ResultTotal.Carrier, target := ResultTotal.totalSpace] \as TensorExt;
+\import Algebra.Eigen[V := LeftTotal.Carrier, space := LeftTotal.totalSpace] \as LeftIdentity;
+\import Algebra.Eigen[V := RightTotal.Carrier, space := RightTotal.totalSpace] \as RightIdentity;
+\import Algebra.Linear[V := Tensor.Carrier, W := ResultTotal.Carrier, source := Tensor.space, target := ResultTotal.totalSpace].Composition[U := Tensor.Carrier, domain := Tensor.space] \as Before;
+\import Algebra.Linear[V := ResultTotal.Carrier, W := ResultTotal.Carrier, source := ResultTotal.totalSpace, target := ResultTotal.totalSpace].Composition[U := Tensor.Carrier, domain := Tensor.space] \as After;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].sym;
+\definition leftPure: \forall (alpha: Left.Form (N.Nat^::succ N.Nat^::zero))(f: LeftTotal.Carrier)(g: RightTotal.Carrier) ->
+  ResultTotal.createLeft (PullLeft.precompose (N.Nat^::succ N.Nat^::zero) leftProjection alpha) (comparison.apply (Tensor.tensor f g)) = comparison.apply (Tensor.tensor (LeftTotal.createLeft alpha f) g) :=
+  \fun (alpha: Left.Form (N.Nat^::succ N.Nat^::zero))(f: LeftTotal.Carrier)(g: RightTotal.Carrier) => eq_reason_in!{{ResultTotal.Carrier} _
+    "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} (ResultTotal.createLeft (PullLeft.precompose (N.Nat^::succ N.Nat^::zero) leftProjection alpha)) _ _ (onTensor f g) }
+    "=" _ "by" { Wedge.leftCreation (PullLeft.precompose (N.Nat^::succ N.Nat^::zero) leftProjection alpha) (leftMap.apply f) (rightMap.apply g) }
+    "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} (\fun (a: ResultTotal.Carrier) => Product.wedge a (rightMap.apply g)) _ _ (sym!{{ResultTotal.Carrier}} _ _ (LeftPull.creation leftProjection alpha f)) }
+    "=" _ "by" { sym!{{ResultTotal.Carrier}} _ _ (onTensor (LeftTotal.createLeft alpha f) g) }
+  };
+\definition rightPure: \forall (beta: Right.Form (N.Nat^::succ N.Nat^::zero))(f: LeftTotal.Carrier)(g: RightTotal.Carrier) ->
+  ResultTotal.createLeft (PullRight.precompose (N.Nat^::succ N.Nat^::zero) rightProjection beta) (comparison.apply (Tensor.tensor f g)) = comparison.apply (Tensor.tensor (LeftTotal.parity f) (RightTotal.createLeft beta g)) :=
+  \fun (beta: Right.Form (N.Nat^::succ N.Nat^::zero))(f: LeftTotal.Carrier)(g: RightTotal.Carrier) => eq_reason_in!{{ResultTotal.Carrier} _
+    "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} (ResultTotal.createLeft (PullRight.precompose (N.Nat^::succ N.Nat^::zero) rightProjection beta)) _ _ (onTensor f g) }
+    "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} (\fun (a: ResultTotal.Carrier) => ResultTotal.createLeft (PullRight.precompose (N.Nat^::succ N.Nat^::zero) rightProjection beta) (Product.wedge a (rightMap.apply g))) _ _
+      (sym!{{ResultTotal.Carrier}} _ _ (trans!{{ResultTotal.Carrier}} _ _ _ (Contract.leftParity (LeftTotal.parity f)) (congr!{{LeftTotal.Carrier} {ResultTotal.Carrier}} leftMap.apply _ _ (LeftTotal.paritySquare f)))) }
+    "=" _ "by" { sym!{{ResultTotal.Carrier}} _ _ (Wedge.rightCreation (PullRight.precompose (N.Nat^::succ N.Nat^::zero) rightProjection beta) (leftMap.apply (LeftTotal.parity f)) (rightMap.apply g)) }
+    "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} (Product.wedge (leftMap.apply (LeftTotal.parity f))) _ _ (sym!{{ResultTotal.Carrier}} _ _ (RightPull.creation rightProjection beta g)) }
+    "=" _ "by" { sym!{{ResultTotal.Carrier}} _ _ (onTensor (LeftTotal.parity f) (RightTotal.createLeft beta g)) }
+  };
+\definition leftIntertwines: \forall (alpha: Left.Form (N.Nat^::succ N.Nat^::zero)) ->
+  After.compose (ResultTotal.leftCreation (PullLeft.precompose (N.Nat^::succ N.Nat^::zero) leftProjection alpha)) comparison = Before.compose comparison (Operators.map (LeftTotal.leftCreation alpha) RightIdentity.identity) :=
+  \fun (alpha: Left.Form (N.Nat^::succ N.Nat^::zero)) => TensorExt.ext _ _ (\fun (f: LeftTotal.Carrier)(g: RightTotal.Carrier) => trans!{{ResultTotal.Carrier}} _ _ _ (leftPure alpha f g)
+    (congr!{{Tensor.Carrier} {ResultTotal.Carrier}} comparison.apply _ _ (sym!{{Tensor.Carrier}} _ _ (Operators.onTensor (LeftTotal.leftCreation alpha) RightIdentity.identity f g))));
+\definition rightIntertwines: \forall (beta: Right.Form (N.Nat^::succ N.Nat^::zero)) ->
+  After.compose (ResultTotal.leftCreation (PullRight.precompose (N.Nat^::succ N.Nat^::zero) rightProjection beta)) comparison = Before.compose comparison (Operators.map LeftTotal.grading (RightTotal.leftCreation beta)) :=
+  \fun (beta: Right.Form (N.Nat^::succ N.Nat^::zero)) => TensorExt.ext _ _ (\fun (f: LeftTotal.Carrier)(g: RightTotal.Carrier) => trans!{{ResultTotal.Carrier}} _ _ _ (rightPure beta f g)
+    (congr!{{Tensor.Carrier} {ResultTotal.Carrier}} comparison.apply _ _ (sym!{{Tensor.Carrier}} _ _ (Operators.onTensor LeftTotal.grading (RightTotal.leftCreation beta) f g))));
