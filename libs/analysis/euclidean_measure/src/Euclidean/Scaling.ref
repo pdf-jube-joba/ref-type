@@ -1,0 +1,261 @@
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition partialScale: \forall (c: Real.Real) (f: N.Nat^ -> Measure.Value) -> R.Le Real.zero c ->
+  (\forall (i: N.Nat^) -> Measure.NonnegativeValue[f i]) -> \forall (k: N.Nat^) ->
+  Measure.scale c (Measure.partialSum f k) = Measure.partialSum (\fun (i: N.Nat^) => Measure.scale c (f i)) k :=
+  \fun (c: Real.Real) (f: N.Nat^ -> Measure.Value) (nonnegative: R.Le Real.zero c) (valid: \forall (i: N.Nat^) -> Measure.NonnegativeValue[f i]) =>
+    \induction (k: N.Nat^) \return Measure.scale c (Measure.partialSum f k) = Measure.partialSum (\fun (i: N.Nat^) => Measure.scale c (f i)) k \with {
+      | zero: Values.scaleZeroValue c nonnegative
+      | succ: \fun (k: N.Nat^) (previous: _) => eq_reason_in!{Measure.Value _
+        "=" _ "by" { Values.scaleAdd c (Measure.partialSum f k) (f k) nonnegative (partialNonnegative f valid k) (valid k) }
+        "=" _ "by" { congr!{Measure.Value Measure.Value} (\fun (v: Measure.Value) => Measure.add v (Measure.scale c (f k))) _ _ previous }
+      }
+    };
+\definition seriesScale: \forall (c: Real.Real) (f: N.Nat^ -> Measure.Value) -> R.Le Real.zero c ->
+  (\forall (i: N.Nat^) -> Measure.NonnegativeValue[f i]) ->
+  Measure.scale c (Measure.series f) = Measure.series (\fun (i: N.Nat^) => Measure.scale c (f i)) :=
+  \fun (c: Real.Real) (f: N.Nat^ -> Measure.Value) (nonnegative: R.Le Real.zero c) (valid: \forall (i: N.Nat^) -> Measure.NonnegativeValue[f i]) =>
+    \axiom:setext(Measure.scale c (Measure.series f), Measure.series (\fun (i: N.Nat^) => Measure.scale c (f i)),
+      \fun (r: Real.Real) (member: Measure.below (Measure.scale c (Measure.series f)) r) => \block {
+        \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[Measure.below (Measure.series f) a, R.Lt r (Real.mul c a)] }) \by member \then
+        \let law: Logic.And[Measure.below (Measure.series f) a, R.Lt r (Real.mul c a)] :=
+          \bysub(Real.Real, { a: Real.Real \where Logic.And[Measure.below (Measure.series f) a, R.Lt r (Real.mul c a)] }, a) \then
+        \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Measure.below (Measure.partialSum f k) a }) \by law.left \then
+        \let inScale: Measure.below (Measure.scale c (Measure.partialSum f k)) r :=
+          Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[Measure.below (Measure.partialSum f k) a, R.Lt r (Real.mul c a)] }] a
+            (Logic.And[_, _]::# (\bysub(N.Nat^, { k: N.Nat^ \where Measure.below (Measure.partialSum f k) a }, k)) law.right) \then
+        \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Measure.below (Measure.partialSum (\fun (i: N.Nat^) => Measure.scale c (f i)) k) r }] k
+          (\idelim Measure.scale c (Measure.partialSum f k) = Measure.partialSum (\fun (i: N.Nat^) => Measure.scale c (f i)) k \with v: Measure.Value => Measure.below v r
+            \by { base: inScale, equality: partialScale c f nonnegative valid k })
+      },
+      \fun (r: Real.Real) (member: Measure.below (Measure.series (\fun (i: N.Nat^) => Measure.scale c (f i))) r) => \block {
+        \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Measure.below (Measure.partialSum (\fun (i: N.Nat^) => Measure.scale c (f i)) k) r }) \by member \then
+        \let inScale: Measure.below (Measure.scale c (Measure.partialSum f k)) r :=
+          \idelim Measure.partialSum (\fun (i: N.Nat^) => Measure.scale c (f i)) k = Measure.scale c (Measure.partialSum f k) \with v: Measure.Value => Measure.below v r
+            \by { base: \bysub(N.Nat^, { k: N.Nat^ \where Measure.below (Measure.partialSum (\fun (i: N.Nat^) => Measure.scale c (f i)) k) r }, k), equality: sym!{Measure.Value} _ _ (partialScale c f nonnegative valid k) } \then
+        \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[Measure.below (Measure.partialSum f k) a, R.Lt r (Real.mul c a)] }) \by inScale \then
+        \let law: Logic.And[Measure.below (Measure.partialSum f k) a, R.Lt r (Real.mul c a)] :=
+          \bysub(Real.Real, { a: Real.Real \where Logic.And[Measure.below (Measure.partialSum f k) a, R.Lt r (Real.mul c a)] }, a) \then
+        \return Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[Measure.below (Measure.series f) a, R.Lt r (Real.mul c a)] }] a
+          (Logic.And[_, _]::# (Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Measure.below (Measure.partialSum f k) a }] k law.left) law.right)
+      });
+\import Real.Estimates[].Product[] \as Product;
+\definition Cut[a: Real.Real]: Measure.Value := { r: Real.Real \where R.Lt r a };
+\definition inverseProduct: \forall (c, a: Real.Real) -> R.Lt Real.zero c -> Real.mul c (Real.mul (Laws.fieldInv c) a) = a :=
+  \fun (c, a: Real.Real) (positive: R.Lt Real.zero c) => eq_reason_in!{Real.Real _
+    "=" _ "by" { Algebra.mulSwap c (Laws.fieldInv c) a }
+    "=" _ "by" { Values.inverseProductLeft c a positive }
+  };
+\definition scaleCut: \forall (c, a: Real.Real) -> R.Lt Real.zero c -> Measure.scale c (Cut a) = Cut (Real.mul c a) :=
+  \fun (c, a: Real.Real) (positive: R.Lt Real.zero c) => \axiom:setext(Measure.scale c (Cut a), Cut (Real.mul c a),
+    \fun (r: Real.Real) (member: Measure.below (Measure.scale c (Cut a)) r) => \block {
+      \takefrom x: \Cast[Real.Real] ({ x: Real.Real \where Logic.And[R.Lt x a, R.Lt r (Real.mul c x)] }) \by member \then
+      \let law: Logic.And[R.Lt x a, R.Lt r (Real.mul c x)] := \bysub(Real.Real, { x: Real.Real \where Logic.And[R.Lt x a, R.Lt r (Real.mul c x)] }, x) \then
+      \return Order.ltTrans r (Real.mul c x) (Real.mul c a) law.right (Product.mulStrict c x a positive law.left)
+    },
+    \fun (r: Real.Real) (less: R.Lt r (Real.mul c a)) => \block {
+      \let lower: Real.Real := Real.mul (Laws.fieldInv c) r \then
+      \let lowerBound: R.Lt lower a := R.ltReplaceRight lower (Real.mul (Laws.fieldInv c) (Real.mul c a)) a (Values.inverseProductLeft c a positive)
+        (Product.mulStrict (Laws.fieldInv c) r (Real.mul c a) (Product.invPositive c positive) less) \then
+      \let x: Real.Real := Real.midpoint lower a \then
+      \let smaller: R.Lt x a := Values.midpointStrictRight lower a lowerBound \then
+      \let above: R.Lt r (Real.mul c x) := R.ltReplaceLeft (Real.mul c lower) r (Real.mul c x) (inverseProduct c r positive)
+        (Product.mulStrict c lower x positive (Values.midpointStrictLeft lower a lowerBound)) \then
+      \return Logic.existsIntro[Real.Real, { x: Real.Real \where Logic.And[Measure.below (Cut a) x, R.Lt r (Real.mul c x)] }] x
+        (Logic.And[_, _]::# smaller above)
+    });
+\definition PositivePoint: \Set := \Cast[Point] ({ a: Point \where \forall (i: Fin.Fin n) -> R.Lt Real.zero (a i) });
+\definition positive[a: PositivePoint]: \forall (i: Fin.Fin n) -> R.Lt Real.zero (a i) :=
+  \bysub(Point, { a: Point \where \forall (i: Fin.Fin n) -> R.Lt Real.zero (a i) }, a);
+\definition nonnegativePoint[a: PositivePoint]: NonnegativePoint := \into[Point](a, NonnegativePoint) \by {
+  \fun (i: Fin.Fin n) => Order.leOfLt Real.zero (a i) (positive a i)
+};
+\definition productPositive: \forall (k: N.Nat^) (f: Fin.Fin k -> Real.Real) ->
+  (\forall (i: Fin.Fin k) -> R.Lt Real.zero (f i)) -> R.Lt Real.zero (product k f) :=
+  \induction (k: N.Nat^) \return \forall (f: Fin.Fin k -> Real.Real) ->
+    (\forall (i: Fin.Fin k) -> R.Lt Real.zero (f i)) -> R.Lt Real.zero (product k f) \with {
+      | zero: \fun (f: Fin.Fin N.Nat^::zero -> Real.Real) (_: _) => Product.onePositive
+      | succ: \fun (k: N.Nat^) (prior: _) (f: Fin.Fin (N.Nat^::succ k) -> Real.Real) (valid: _) =>
+        Product.mulPositive (f (Fin.zero k)) (product k (\fun (i: Fin.Fin k) => f (Fin.succ k i)))
+          (valid (Fin.zero k)) (prior (\fun (i: Fin.Fin k) => f (Fin.succ k i)) (\fun (i: Fin.Fin k) => valid (Fin.succ k i)))
+    };
+\definition factor[a: PositivePoint]: Real.Real := product n a;
+\definition factorPositive: \forall (a: PositivePoint) -> R.Lt Real.zero (factor a) :=
+  \fun (a: PositivePoint) => productPositive n a (positive a);
+\definition box[b: Box] [a: PositivePoint]: Box := scaledBox b (nonnegativePoint a);
+\definition boxValue: \forall (b: Box) (a: PositivePoint) -> volumeValue (box b a) = Measure.scale (factor a) (volumeValue b) :=
+  \fun (b: Box) (a: PositivePoint) => eq_reason_in!{Measure.Value _
+    "=" _ "by" { congr!{Real.Real Measure.Value} Cut _ _ (scaledVolume b (nonnegativePoint a)) }
+    "=" _ "by" { sym!{Measure.Value} _ _ (scaleCut (factor a) (volume b) (factorPositive a)) }
+  };
+\definition family[f: N.Nat^ -> Box] [a: PositivePoint]: N.Nat^ -> Box := \fun (i: N.Nat^) => box (f i) a;
+\definition costScale: \forall (f: N.Nat^ -> Box) (a: PositivePoint) -> cost (family f a) = Measure.scale (factor a) (cost f) :=
+  \fun (f: N.Nat^ -> Box) (a: PositivePoint) => eq_reason_in!{Measure.Value _
+    "=" _ "by" { congr!{{N.Nat^ -> Measure.Value} Measure.Value} Measure.series _ _
+      (\axiom:funext((\fun (i: N.Nat^) => volumeValue (family f a i)), (\fun (i: N.Nat^) => Measure.scale (factor a) (volumeValue (f i))), \fun (i: N.Nat^) => boxValue (f i) a)) }
+    "=" _ "by" { sym!{Measure.Value} _ _ (seriesScale (factor a) (\fun (i: N.Nat^) => volumeValue (f i)) (Order.leOfLt Real.zero (factor a) (factorPositive a))
+      (\fun (i: N.Nat^) => volumeValueNonnegative (f i))) }
+  };
+\definition inverse[a: PositivePoint]: PositivePoint := \into[Point]((\fun (i: Fin.Fin n) => Laws.fieldInv (a i)), PositivePoint) \by {
+  \fun (i: Fin.Fin n) => Product.invPositive (a i) (positive a i)
+};
+\definition scalePoint[x: Point] [a: PositivePoint]: Point := \fun (i: Fin.Fin n) => Real.mul (a i) (x i);
+\definition scaled[S: \Pow Point] [a: PositivePoint]: \Pow Point := { x: Point \where Sets.Member S (scalePoint x (inverse a)) };
+\definition scaleCancelPoint: \forall (x: Point) (a: PositivePoint) -> scalePoint (scalePoint x (inverse a)) a = x :=
+  \fun (x: Point) (a: PositivePoint) => \axiom:funext(scalePoint (scalePoint x (inverse a)) a, x,
+    \fun (i: Fin.Fin n) => inverseProduct (a i) (x i) (positive a i));
+\definition boxMember: \forall (b: Box) (a: PositivePoint) (x: Point) -> Sets.Member (points b) x ->
+  Sets.Member (points (box b a)) (scalePoint x a) :=
+  \fun (b: Box) (a: PositivePoint) (x: Point) (member: Sets.Member (points b) x) =>
+    Logic.And[_, _]::# member.left (\fun (i: Fin.Fin n) => Logic.And[_, _]::#
+      (Estimates.mulMonotone (a i) (b.left i) (x i) (Order.leOfLt Real.zero (a i) (positive a i)) (member.right i).left)
+      (Estimates.mulMonotone (a i) (x i) (b.right i) (Order.leOfLt Real.zero (a i) (positive a i)) (member.right i).right));
+\definition familyCovers: \forall (f: N.Nat^ -> Box) (S: \Pow Point) (a: PositivePoint) -> Covers f S -> Covers (family f a) (scaled S a) :=
+  \fun (f: N.Nat^ -> Box) (S: \Pow Point) (a: PositivePoint) (cover: Covers f S) (x: Point) (member: Sets.Member (scaled S a) x) => \block {
+    \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where Sets.Member (points (f i)) (scalePoint x (inverse a)) }) \by cover (scalePoint x (inverse a)) member \then
+    \let inBox: Sets.Member (points (f i)) (scalePoint x (inverse a)) :=
+      \bysub(N.Nat^, { i: N.Nat^ \where Sets.Member (points (f i)) (scalePoint x (inverse a)) }, i) \then
+    \return Logic.existsIntro[N.Nat^, { i: N.Nat^ \where Sets.Member (points (family f a i)) x }] i
+      (\idelim scalePoint (scalePoint x (inverse a)) a = x \with y: Point => Sets.Member (points (family f a i)) y
+        \by { base: boxMember (f i) a (scalePoint x (inverse a)) inBox, equality: scaleCancelPoint x a })
+  };
+\definition scaledBoundedByCover: \forall (S: \Pow Point) (f: N.Nat^ -> Box) (a: PositivePoint) -> Covers f S ->
+  Values.Included (outer (scaled S a)) (Measure.scale (factor a) (cost f)) :=
+  \fun (S: \Pow Point) (f: N.Nat^ -> Box) (a: PositivePoint) (cover: Covers f S) (r: Real.Real)
+    (member: Measure.below (outer (scaled S a)) r) =>
+      \idelim cost (family f a) = Measure.scale (factor a) (cost f) \with v: Measure.Value => Measure.below v r
+        \by { base: boundedByCover (scaled S a) (family f a) (familyCovers f S a cover) r member, equality: costScale f a };
+\import Real.Inverse[] \as Inverse;
+\definition scaleInverseLeft: \forall (c: Real.Real) (v: Measure.Value) -> R.Lt Real.zero c -> Measure.NonnegativeValue[v] ->
+  Measure.scale (Laws.fieldInv c) (Measure.scale c v) = v :=
+  \fun (c: Real.Real) (v: Measure.Value) (positive: R.Lt Real.zero c) (valid: Measure.NonnegativeValue[v]) => eq_reason_in!{Measure.Value _
+    "=" _ "by" { Values.positiveScaleCompose (Laws.fieldInv c) c v (Product.invPositive c positive) }
+    "=" _ "by" { congr!{Real.Real Measure.Value} (\fun (x: Real.Real) => Measure.scale x v) _ _ (Laws.fieldInverseNonzero c (Inverse.positiveNonzero c positive)) }
+    "=" _ "by" { Values.oneScale v valid }
+  };
+\definition scaleInverseRight: \forall (c: Real.Real) (v: Measure.Value) -> R.Lt Real.zero c -> Measure.NonnegativeValue[v] ->
+  Measure.scale c (Measure.scale (Laws.fieldInv c) v) = v :=
+  \fun (c: Real.Real) (v: Measure.Value) (positive: R.Lt Real.zero c) (valid: Measure.NonnegativeValue[v]) => eq_reason_in!{Measure.Value _
+    "=" _ "by" { Values.positiveScaleCompose c (Laws.fieldInv c) v positive }
+    "=" _ "by" { congr!{Real.Real Measure.Value} (\fun (x: Real.Real) => Measure.scale x v) _ _ (Laws.fieldMulComm c (Laws.fieldInv c)) }
+    "=" _ "by" { congr!{Real.Real Measure.Value} (\fun (x: Real.Real) => Measure.scale x v) _ _ (Laws.fieldInverseNonzero c (Inverse.positiveNonzero c positive)) }
+    "=" _ "by" { Values.oneScale v valid }
+  };
+\definition outerScaledUpper: \forall (S: \Pow Point) (a: PositivePoint) ->
+  Values.Included (outer (scaled S a)) (Measure.scale (factor a) (outer S)) :=
+  \fun (S: \Pow Point) (a: PositivePoint) => \block {
+    \let c: Real.Real := factor a \then
+    \let cp: R.Lt Real.zero c := factorPositive a \then
+    \let w: Measure.Value := outer (scaled S a) \then
+    \let reduced: Measure.Value := Measure.scale (Laws.fieldInv c) w \then
+    \let reducedValid: Measure.NonnegativeValue[reduced] := Values.scaleNonnegative (Laws.fieldInv c) w
+      (Order.leOfLt Real.zero (Laws.fieldInv c) (Product.invPositive c cp)) (outerNonnegative (scaled S a)) \then
+    \let lower: Values.Included reduced (outer S) := greatestLowerBound S reduced reducedValid
+      (\fun (f: N.Nat^ -> Box) (cover: Covers f S) (r: Real.Real) (member: Measure.below reduced r) =>
+        \idelim Measure.scale (Laws.fieldInv c) (Measure.scale c (cost f)) = cost f \with v: Measure.Value => Measure.below v r
+          \by { base: Values.scaleMono (Laws.fieldInv c) w (Measure.scale c (cost f)) (scaledBoundedByCover S f a cover) r member,
+            equality: scaleInverseLeft c (cost f) cp (costNonnegative f) }) \then
+    \return \fun (r: Real.Real) (member: Measure.below w r) =>
+      Values.scaleMono c reduced (outer S) lower r
+        (\idelim w = Measure.scale c reduced \with v: Measure.Value => Measure.below v r
+          \by { base: member, equality: sym!{Measure.Value} _ _ (scaleInverseRight c w cp (outerNonnegative (scaled S a))) })
+  };
+\definition productOne: \forall (k: N.Nat^) -> product k (\fun (_: Fin.Fin k) => Real.one) = Real.one :=
+  \induction (k: N.Nat^) \return product k (\fun (_: Fin.Fin k) => Real.one) = Real.one \with {
+    | zero: \refl(Real.one)
+    | succ: \fun (k: N.Nat^) (prior: _) => eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul Real.one) _ _ prior }
+      "=" _ "by" { Laws.fieldMulOneLeft Real.one }
+    }
+  };
+\definition inverseRight: \forall (x: Real.Real) -> R.Lt Real.zero x -> Real.mul x (Laws.fieldInv x) = Real.one :=
+  \fun (x: Real.Real) (positive: R.Lt Real.zero x) => eq_reason_in!{Real.Real _
+    "=" _ "by" { Laws.fieldMulComm x (Laws.fieldInv x) }
+    "=" _ "by" { Laws.fieldInverseNonzero x (Inverse.positiveNonzero x positive) }
+  };
+\definition inverseInvolutive: \forall (x: Real.Real) -> R.Lt Real.zero x -> Laws.fieldInv (Laws.fieldInv x) = x :=
+  \fun (x: Real.Real) (positive: R.Lt Real.zero x) => sym!{Real.Real} _ _
+    (Inverse.inverseUnique (Laws.fieldInv x) x (Inverse.positiveNonzero (Laws.fieldInv x) (Product.invPositive x positive)) (inverseRight x positive));
+\definition inverseInverse: \forall (a: PositivePoint) -> inverse (inverse a) = a :=
+  \fun (a: PositivePoint) => \axiom:funext(inverse (inverse a), a, \fun (i: Fin.Fin n) => inverseInvolutive (a i) (positive a i));
+\definition factorInverse: \forall (a: PositivePoint) -> Real.mul (factor a) (factor (inverse a)) = Real.one :=
+  \fun (a: PositivePoint) => eq_reason_in!{Real.Real _
+    "=" _ "by" { sym!{Real.Real} _ _ (productMultiply n a (inverse a)) }
+    "=" _ "by" { productCongruent n (\fun (i: Fin.Fin n) => Real.mul (a i) (inverse a i)) (\fun (_: Fin.Fin n) => Real.one)
+      (\fun (i: Fin.Fin n) => inverseRight (a i) (positive a i)) }
+    "=" _ "by" { productOne n }
+  };
+\definition scaleBackPoint: \forall (x: Point) (a: PositivePoint) -> scalePoint (scalePoint x (inverse (inverse a))) (inverse a) = x :=
+  \fun (x: Point) (a: PositivePoint) => \axiom:funext(scalePoint (scalePoint x (inverse (inverse a))) (inverse a), x,
+    \fun (i: Fin.Fin n) => eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.mul (inverse a i) (Real.mul v (x i))) _ _ (inverseInvolutive (a i) (positive a i)) }
+      "=" _ "by" { Values.inverseProductLeft (a i) (x i) (positive a i) }
+    });
+\definition scaledBack: \forall (S: \Pow Point) (a: PositivePoint) -> scaled (scaled S a) (inverse a) = S :=
+  \fun (S: \Pow Point) (a: PositivePoint) => \axiom:setext(scaled (scaled S a) (inverse a), S,
+    \fun (x: Point) (member: Sets.Member (scaled (scaled S a) (inverse a)) x) =>
+      \idelim scalePoint (scalePoint x (inverse (inverse a))) (inverse a) = x \with y: Point => Sets.Member S y
+        \by { base: member, equality: scaleBackPoint x a },
+    \fun (x: Point) (member: Sets.Member S x) =>
+      \idelim x = scalePoint (scalePoint x (inverse (inverse a))) (inverse a) \with y: Point => Sets.Member S y
+        \by { base: member, equality: sym!{Point} _ _ (scaleBackPoint x a) });
+\definition outerScale: \forall (S: \Pow Point) (a: PositivePoint) -> outer (scaled S a) = Measure.scale (factor a) (outer S) :=
+  \fun (S: \Pow Point) (a: PositivePoint) => \axiom:setext(outer (scaled S a), Measure.scale (factor a) (outer S), outerScaledUpper S a,
+    \fun (r: Real.Real) (member: Measure.below (Measure.scale (factor a) (outer S)) r) => \block {
+      \let backBound: Values.Included (outer S) (Measure.scale (factor (inverse a)) (outer (scaled S a))) :=
+        \fun (s: Real.Real) (inside: Measure.below (outer S) s) => outerScaledUpper (scaled S a) (inverse a) s
+          (\idelim outer S = outer (scaled (scaled S a) (inverse a)) \with v: Measure.Value => Measure.below v s
+            \by { base: inside, equality: sym!{Measure.Value} _ _ (congr!{{\Pow Point} Measure.Value} outer _ _ (scaledBack S a)) }) \then
+      \let inDouble: Measure.below (Measure.scale (factor a) (Measure.scale (factor (inverse a)) (outer (scaled S a)))) r :=
+        Values.scaleMono (factor a) (outer S) (Measure.scale (factor (inverse a)) (outer (scaled S a))) backBound r member \then
+      \return \idelim Measure.scale (factor a) (Measure.scale (factor (inverse a)) (outer (scaled S a))) = outer (scaled S a) \with v: Measure.Value => Measure.below v r
+        \by { base: inDouble, equality: eq_reason_in!{Measure.Value _
+          "=" _ "by" { Values.positiveScaleCompose (factor a) (factor (inverse a)) (outer (scaled S a)) (factorPositive a) }
+          "=" _ "by" { congr!{Real.Real Measure.Value} (\fun (c: Real.Real) => Measure.scale c (outer (scaled S a))) _ _ (factorInverse a) }
+          "=" _ "by" { Values.oneScale (outer (scaled S a)) (outerNonnegative (scaled S a)) }
+        } }
+    });
+\definition scaledAgain: \forall (S: \Pow Point) (a: PositivePoint) -> scaled (scaled S (inverse a)) a = S :=
+  \fun (S: \Pow Point) (a: PositivePoint) => eq_reason_in!{{\Pow Point} _
+    "=" _ "by" { congr!{PositivePoint {\Pow Point}} (scaled (scaled S (inverse a))) _ _ (sym!{PositivePoint} _ _ (inverseInverse a)) }
+    "=" _ "by" { scaledBack S (inverse a) }
+  };
+\definition scaledIntersection: \forall (S, T: \Pow Point) (a: PositivePoint) ->
+  scaled (Sets.Intersection S T) a = Sets.Intersection (scaled S a) (scaled T a) :=
+  \fun (S, T: \Pow Point) (a: PositivePoint) => \axiom:setext(scaled (Sets.Intersection S T) a, Sets.Intersection (scaled S a) (scaled T a),
+    \fun (x: Point) (member: Sets.Member (scaled (Sets.Intersection S T) a) x) => member,
+    \fun (x: Point) (member: Sets.Member (Sets.Intersection (scaled S a) (scaled T a)) x) => member);
+\definition scaledComplement: \forall (S: \Pow Point) (a: PositivePoint) -> scaled (Sets.Complement S) a = Sets.Complement (scaled S a) :=
+  \fun (S: \Pow Point) (a: PositivePoint) => \axiom:setext(scaled (Sets.Complement S) a, Sets.Complement (scaled S a),
+    \fun (x: Point) (member: Sets.Member (scaled (Sets.Complement S) a) x) => member,
+    \fun (x: Point) (member: Sets.Member (Sets.Complement (scaled S a)) x) => member);
+\definition measurableScale: \forall (S: \Pow Point) (a: PositivePoint) -> Caratheodory S -> Caratheodory (scaled S a) :=
+  \fun (S: \Pow Point) (a: PositivePoint) (measurable: Caratheodory S) (T: \Pow Point) => \block {
+    \let W: \Pow Point := scaled T (inverse a) \then
+    \let restore: scaled W a = T := scaledAgain T a \then
+    \let left: \Pow Point := Sets.Intersection W S \then
+    \let right: \Pow Point := Sets.Intersection W (Sets.Complement S) \then
+    \let inside: scaled left a = Sets.Intersection T (scaled S a) := eq_reason_in!{{\Pow Point} _
+      "=" _ "by" { scaledIntersection W S a }
+      "=" _ "by" { congr!{{\Pow Point} {\Pow Point}} (\fun (V: \Pow Point) => Sets.Intersection V (scaled S a)) _ _ restore }
+    } \then
+    \let outside: scaled right a = Sets.Intersection T (Sets.Complement (scaled S a)) := eq_reason_in!{{\Pow Point} _
+      "=" _ "by" { scaledIntersection W (Sets.Complement S) a }
+      "=" _ "by" { congr!{{\Pow Point} {\Pow Point} {\Pow Point}} Sets.Intersection _ _ _ _ restore (scaledComplement S a) }
+    } \then
+    \return eq_reason_in!{Measure.Value _
+      "=" _ "by" { congr!{{\Pow Point} Measure.Value} outer _ _ (sym!{{\Pow Point}} _ _ restore) }
+      "=" _ "by" { outerScale W a }
+      "=" _ "by" { congr!{Measure.Value Measure.Value} (Measure.scale (factor a)) _ _ (measurable W) }
+      "=" _ "by" { Values.scaleAdd (factor a) (outer left) (outer right) (Order.leOfLt Real.zero (factor a) (factorPositive a)) (outerNonnegative left) (outerNonnegative right) }
+      "=" _ "by" { congr!{Measure.Value Measure.Value Measure.Value} Measure.add _ _ _ _
+        (sym!{Measure.Value} _ _ (outerScale left a)) (sym!{Measure.Value} _ _ (outerScale right a)) }
+      "=" _ "by" { congr!{Measure.Value Measure.Value Measure.Value} Measure.add _ _ _ _
+        (congr!{{\Pow Point} Measure.Value} outer _ _ inside) (congr!{{\Pow Point} Measure.Value} outer _ _ outside) }
+    }
+  };
+\import \parent.MeasureConstruction[] \as Construction;
+\definition measureScale: \forall (S: \Pow Point) (a: PositivePoint) -> Construction.measure.value (scaled S a) = Measure.scale (factor a) (Construction.measure.value S) := outerScale;
+\definition scaleMeasurable: \forall (S: \Pow Point) (a: PositivePoint) -> Measure.Measurable Construction.measure.sigma S ->
+  Measure.Measurable Construction.measure.sigma (scaled S a) := measurableScale;
