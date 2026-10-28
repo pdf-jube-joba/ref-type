@@ -1,0 +1,25 @@
+\import Algebra.Linear[V := V, W := V, source := space, target := space] \as VectorMaps;
+\import Alternating.Precomposition[W := V, target := space] \as Precomposition;
+\definition apply[u: VectorMaps.Map][f: Carrier]: Carrier := \fun (k: N.Nat^) => Precomposition.precompose k u (f k);
+\definition operator[u: VectorMaps.Map]: End.Map := End.Map {
+  apply := apply u,
+  preservesAdd := \fun (f, g: Carrier) => \axiom:funext(apply u (Product.add f g), Product.add (apply u f) (apply u g),
+    \fun (k: N.Nat^) => (Precomposition.At[k := k].linear u).preservesAdd (f k) (g k)),
+  preservesScale := \fun (a: K)(f: Carrier) => \axiom:funext(apply u (Product.scale a f), Product.scale a (apply u f),
+    \fun (k: N.Nat^) => (Precomposition.At[k := k].linear u).preservesScale a (f k)),
+};
+\import Algebra.Isomorphism[V := V, W := V, source := space, target := space] \as Isomorphisms;
+\import std.Data[].FinSet[] \as Fin;
+\import Algebra.Multilinear[V := V, space := space] \as Multilinear;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\definition leftInverse: \forall (u: Isomorphisms.Isomorphism)(f: Carrier) -> apply u.forward (apply u.backward f) = f :=
+  \fun (u: Isomorphisms.Isomorphism)(f: Carrier) => \axiom:funext(apply u.forward (apply u.backward f), f,
+    \fun (k: N.Nat^) => Alternating.At[k := k].ext (apply u.forward (apply u.backward f) k) (f k)
+      (\fun (v: Multilinear.Arguments k) => congr!{{Multilinear.Arguments k} K} (f k) _ _
+        (\axiom:funext((\fun (i: Fin.Fin k) => u.backward.apply (u.forward.apply (v i))), v, \fun (i: Fin.Fin k) => u.leftInverse (v i)))));
+\definition rightInverse: \forall (u: Isomorphisms.Isomorphism)(f: Carrier) -> apply u.backward (apply u.forward f) = f :=
+  \fun (u: Isomorphisms.Isomorphism)(f: Carrier) => \axiom:funext(apply u.backward (apply u.forward f), f,
+    \fun (k: N.Nat^) => Alternating.At[k := k].ext (apply u.backward (apply u.forward f) k) (f k)
+      (\fun (v: Multilinear.Arguments k) => congr!{{Multilinear.Arguments k} K} (f k) _ _
+        (\axiom:funext((\fun (i: Fin.Fin k) => u.forward.apply (u.backward.apply (v i))), v, \fun (i: Fin.Fin k) => u.rightInverse (v i)))));
