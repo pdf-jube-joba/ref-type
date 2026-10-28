@@ -1,0 +1,23 @@
+\import \parent.\parent.CochainConnecting[p := N.Nat^::zero, q := q].Zero[] \as Sign;
+\import singular_cohomology.Simplices[A := A, source := source].CutFaces[p := N.Nat^::zero, q := q] \as Geometry;
+\import singular_cohomology.Chains[A := Relative.SubspaceCarrier, source := Subspace.topology source] \as SubChains;
+\import \root.Integral[A := A, source := source].At[p := N.Nat^::zero, q := N.Nat^::succ q] \as WholeRight;
+\import \root.Integral[A := A, source := source].Pair[subset := subset].At[p := N.Nat^::zero, q := N.Nat^::succ q].RelativeCochain[] \as RelativeRight;
+\import \root.CochainPair[A := A, source := source, subset := subset, R := I.Int^, ring := Integers.commutativeRing].Comparison[n := N.Nat^::succ q] \as Comparison;
+\import Relative.With[coefficients := Cochains.integerCoefficients] \as RelativeCochains;
+\import singular_cohomology.Cochains[A := A, source := source].With[coefficients := Cochains.integerCoefficients] \as Theory;
+\import singular_cohomology.Maps[A := Relative.SubspaceCarrier, B := A, source := Subspace.topology source, target := source] \as Inclusion;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import Nonnegative.ZeroExtension[C := Chains.complex] \as Extension;
+\import Nonnegative.DegreeZero[C := Chains.complex] \as H;
+\definition law: \forall (beta: Cochains.Carrier q)(h: RelativeCochains.Carrier (I.Int^::ofNat (N.Nat^::succ q)))(c: Chains.Carrier Geometry.higher)(a: SubChains.Carrier Geometry.total) ->
+  Comparison.from h = Theory.coboundary q beta ->
+  (Inclusion.At[n := Geometry.total].push Relative.inclusion Relative.inclusionContinuous).apply a = (Chains.boundary Geometry.total).apply c ->
+  H.classOf (Sign.left beta a) = H.classOf ((RelativeRight.map h).apply (Relative.class (I.Int^::ofNat Geometry.higher) (Extension.Positive[n := Geometry.higher].intro c))) :=
+  \fun (beta: Cochains.Carrier q)(h: RelativeCochains.Carrier (I.Int^::ofNat (N.Nat^::succ q)))(c: Chains.Carrier Geometry.higher)(a: SubChains.Carrier Geometry.total)(represented: _)(boundary: _) => eq_reason_in!{H.Homology _
+    "=" _ "by" { Sign.law beta c a boundary }
+    "=" _ "by" { congr!{{Chains.Carrier N.Nat^::zero} H.Homology} H.classOf _ _
+      (congr!{{Cochains.Carrier (N.Nat^::succ q)} {Chains.Carrier N.Nat^::zero}} (\fun (z: Cochains.Carrier (N.Nat^::succ q)) => (WholeRight.map z).apply c) _ _ (sym!{{Cochains.Carrier (N.Nat^::succ q)}} _ _ represented)) }
+    "=" _ "by" { congr!{{Chains.Carrier N.Nat^::zero} H.Homology} H.classOf _ _
+      (sym!{{Chains.Carrier N.Nat^::zero}} _ _ (RelativeRight.onClass h (Extension.Positive[n := Geometry.higher].intro c))) }
+  };
