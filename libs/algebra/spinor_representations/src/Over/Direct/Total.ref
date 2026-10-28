@@ -1,0 +1,29 @@
+\import \root.Over[K := K, scalarRing := scalarRing].On[V := V, space := left].Total[] \as LeftTotal;
+\import \root.Over[K := K, scalarRing := scalarRing].On[V := W, space := right].Total[] \as RightTotal;
+\import \root.Over[K := K, scalarRing := scalarRing].On[V := Sum.Carrier, space := Sum.space].Total[] \as ResultTotal;
+\import ResultTotal.Series[].Laws[] \as Product;
+\import Algebra.Linear[V := LeftTotal.Carrier, W := ResultTotal.Carrier, source := LeftTotal.totalSpace, target := ResultTotal.totalSpace] \as LeftMap;
+\import Algebra.Linear[V := RightTotal.Carrier, W := ResultTotal.Carrier, source := RightTotal.totalSpace, target := ResultTotal.totalSpace] \as RightMap;
+\use std.Logic[].Equality[].trans;
+\use std.Logic[].Equality[].congr;
+\definition leftMap: LeftMap.Map := LeftMap.Map {
+  apply := \fun (f: LeftTotal.Carrier)(k: N.Nat^) => PullLeft.precompose k leftProjection (f k),
+  preservesAdd := \fun (f, g: LeftTotal.Carrier) => \axiom:funext((\fun (k: N.Nat^) => PullLeft.precompose k leftProjection (LeftTotal.totalSpace.add f g k)), ResultTotal.totalSpace.add (\fun (k: N.Nat^) => PullLeft.precompose k leftProjection (f k)) (\fun (k: N.Nat^) => PullLeft.precompose k leftProjection (g k)), \fun (k: N.Nat^) => (PullLeft.At[k := k].linear leftProjection).preservesAdd (f k) (g k)),
+  preservesScale := \fun (a: K)(f: LeftTotal.Carrier) => \axiom:funext((\fun (k: N.Nat^) => PullLeft.precompose k leftProjection (LeftTotal.totalSpace.smul a f k)), ResultTotal.totalSpace.smul a (\fun (k: N.Nat^) => PullLeft.precompose k leftProjection (f k)), \fun (k: N.Nat^) => (PullLeft.At[k := k].linear leftProjection).preservesScale a (f k)),
+};
+\definition rightMap: RightMap.Map := RightMap.Map {
+  apply := \fun (f: RightTotal.Carrier)(k: N.Nat^) => PullRight.precompose k rightProjection (f k),
+  preservesAdd := \fun (f, g: RightTotal.Carrier) => \axiom:funext((\fun (k: N.Nat^) => PullRight.precompose k rightProjection (RightTotal.totalSpace.add f g k)), ResultTotal.totalSpace.add (\fun (k: N.Nat^) => PullRight.precompose k rightProjection (f k)) (\fun (k: N.Nat^) => PullRight.precompose k rightProjection (g k)), \fun (k: N.Nat^) => (PullRight.At[k := k].linear rightProjection).preservesAdd (f k) (g k)),
+  preservesScale := \fun (a: K)(f: RightTotal.Carrier) => \axiom:funext((\fun (k: N.Nat^) => PullRight.precompose k rightProjection (RightTotal.totalSpace.smul a f k)), ResultTotal.totalSpace.smul a (\fun (k: N.Nat^) => PullRight.precompose k rightProjection (f k)), \fun (k: N.Nat^) => (PullRight.At[k := k].linear rightProjection).preservesScale a (f k)),
+};
+\definition wedge[f: LeftTotal.Carrier][g: RightTotal.Carrier]: ResultTotal.Carrier := Product.wedge (leftMap.apply f) (rightMap.apply g);
+\import Algebra.Tensor[V := LeftTotal.Carrier, W := RightTotal.Carrier, left := LeftTotal.totalSpace, right := RightTotal.totalSpace] \as Tensor;
+\import Tensor.Universal[U := ResultTotal.Carrier, target := ResultTotal.totalSpace] \as Universal;
+\definition laws: Tensor.BilinearLaws[ResultTotal.Carrier, ResultTotal.totalSpace, wedge] := Tensor.BilinearLaws[ResultTotal.Carrier, ResultTotal.totalSpace, wedge] {
+  addLeft := \fun (f, g: LeftTotal.Carrier)(h: RightTotal.Carrier) => trans!{{ResultTotal.Carrier}} _ _ _ (congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} (\fun (a: ResultTotal.Carrier) => Product.wedge a (rightMap.apply h)) _ _ (leftMap.preservesAdd f g)) (Product.addLeft (leftMap.apply f) (leftMap.apply g) (rightMap.apply h)),
+  addRight := \fun (f: LeftTotal.Carrier)(g, h: RightTotal.Carrier) => trans!{{ResultTotal.Carrier}} _ _ _ (congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} (Product.wedge (leftMap.apply f)) _ _ (rightMap.preservesAdd g h)) (Product.addRight (leftMap.apply f) (rightMap.apply g) (rightMap.apply h)),
+  scaleLeft := \fun (a: K)(f: LeftTotal.Carrier)(g: RightTotal.Carrier) => trans!{{ResultTotal.Carrier}} _ _ _ (congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} (\fun (b: ResultTotal.Carrier) => Product.wedge b (rightMap.apply g)) _ _ (leftMap.preservesScale a f)) (Product.scaleLeft a (leftMap.apply f) (rightMap.apply g)),
+  scaleRight := \fun (a: K)(f: LeftTotal.Carrier)(g: RightTotal.Carrier) => trans!{{ResultTotal.Carrier}} _ _ _ (congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} (Product.wedge (leftMap.apply f)) _ _ (rightMap.preservesScale a g)) (Product.scaleRight a (leftMap.apply f) (rightMap.apply g)),
+};
+\definition comparison: Algebra.Linear[V := Tensor.Carrier, W := ResultTotal.Carrier, source := Tensor.space, target := ResultTotal.totalSpace].Map := Universal.map wedge laws;
+\definition onTensor: \forall (f: LeftTotal.Carrier)(g: RightTotal.Carrier) -> comparison.apply (Tensor.tensor f g) = wedge f g := Universal.onTensor wedge laws;
