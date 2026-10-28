@@ -1,4 +1,5 @@
 \import std.Data[].Nat[] \as N;
+\import std.Data[].Bool[] \as Bool;
 \import std.Data[].FinSet[] \as Fin;
 \import std.Data[].List[] \as List;
 \import std.Logic[].Proposition[] \as Logic;
@@ -143,3 +144,30 @@
             }) occurs
         }
     };
+\definition openBox[b: E.Box]: \Pow E.Point := { x: E.Point \where Logic.And[Bool.IsTrue b.active,
+  \forall (i: Fin.Fin n) -> Logic.And[R.Lt (b.left i) (x i), R.Lt (x i) (b.right i)]] };
+\definition lowerCut[b: E.Box] [i: Fin.Fin n]: Slice := Slice { coordinate := i, threshold := b.left i };
+\definition upperCut[b: E.Box] [i: Fin.Fin n]: Slice := Slice { coordinate := i, threshold := b.right i };
+\definition fitsCover: \forall (cuts: List.List[Slice]) (b, q, target: E.Box) -> Membership.Occurs q (partition cuts b) ->
+  Logic.Not (E.volume q = Real.zero) ->
+  (\forall (i: Fin.Fin n) -> SliceMembership.Occurs (lowerCut target i) cuts) ->
+  (\forall (i: Fin.Fin n) -> SliceMembership.Occurs (upperCut target i) cuts) ->
+  \forall (x: E.Point) -> Sets.Member (E.points q) x -> Sets.Member (openBox target) x -> Sets.Subset (E.points q) (E.points target) :=
+  \fun (cuts: List.List[Slice]) (b, q, target: E.Box) (occurs: Membership.Occurs q (partition cuts b)) (nonzero: Logic.Not (E.volume q = Real.zero))
+    (lower: \forall (i: Fin.Fin n) -> SliceMembership.Occurs (lowerCut target i) cuts)
+    (upper: \forall (i: Fin.Fin n) -> SliceMembership.Occurs (upperCut target i) cuts)
+    (x: E.Point) (inside: Sets.Member (E.points q) x) (inTarget: Sets.Member (openBox target) x)
+    (y: E.Point) (inQ: Sets.Member (E.points q) y) => Logic.And[_, _]::# inTarget.left
+      (\fun (i: Fin.Fin n) => Logic.And[_, _]::#
+        (Logic.orElim (\forall (z: E.Point) -> Sets.Member (E.points q) z -> R.Le (z i) (target.left i))
+          (\forall (z: E.Point) -> Sets.Member (E.points q) z -> R.Le (target.left i) (z i)) (R.Le (target.left i) (y i))
+          (aligned cuts b q occurs nonzero (lowerCut target i) (lower i))
+          (\fun (wrong: \forall (z: E.Point) -> Sets.Member (E.points q) z -> R.Le (z i) (target.left i)) =>
+            Logic.falseElim _ (R.ltNotLeReverse (target.left i) (x i) (inTarget.right i).left (wrong x inside)))
+          (\fun (good: \forall (z: E.Point) -> Sets.Member (E.points q) z -> R.Le (target.left i) (z i)) => good y inQ))
+        (Logic.orElim (\forall (z: E.Point) -> Sets.Member (E.points q) z -> R.Le (z i) (target.right i))
+          (\forall (z: E.Point) -> Sets.Member (E.points q) z -> R.Le (target.right i) (z i)) (R.Le (y i) (target.right i))
+          (aligned cuts b q occurs nonzero (upperCut target i) (upper i))
+          (\fun (good: \forall (z: E.Point) -> Sets.Member (E.points q) z -> R.Le (z i) (target.right i)) => good y inQ)
+          (\fun (wrong: \forall (z: E.Point) -> Sets.Member (E.points q) z -> R.Le (target.right i) (z i)) =>
+            Logic.falseElim _ (R.ltNotLeReverse (x i) (target.right i) (inTarget.right i).right (wrong x inside)))));
