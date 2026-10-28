@@ -1,0 +1,158 @@
+\import \root.RealLine[] \as Line;
+\import \root.RealLine[].TaggedIntegral[] \as Tagged;
+\import \root.RealLine[].TagSupport[] \as Support;
+\import \root.RealLine[].IntervalIntegral[interval := interval] \as Indicator;
+\import integration.Real[] \as Integration;
+\import Integration.Division[] \as Division;
+\import Division.Mesh[] \as Mesh;
+\import Integration.Riemann[interval := interval].Uniform[] \as Uniform;
+\import Uniform.Of[f := f] \as Riemann;
+\import \root.RealLine[].TaggedConvergence[interval := interval] \as Convergence;
+\import real.Analysis[] \as Real;
+\import Real.Distance[] \as Distance;
+\import Real.Estimates[] \as Estimates;
+\import Real.SquareRoot[] \as Root;
+\import Real.Sequence[] \as Sequence;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Order[] \as Order;
+\import functional_analysis.Measure[A := Real.Real] \as Measure;
+\import Measure.Continuity[mu := Line.measure] \as Continuity;
+\import Measure.Integral[mu := Line.measure] \as Integral;
+\import topology.Topology[Carrier := Real.Real] \as Sets;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.trans;
+\use Equality.eq_reason_in;
+\definition sequence[k: N.Nat^]: Integral.Representatives := Convergence.sequence Riemann.integral k;
+\definition boundary[k: N.Nat^]: \Pow Real.Real := Support.boundary (Division.leftTags k interval.left interval.right) interval;
+\definition allBoundaries: \Pow Real.Real := Measure.union boundary;
+\definition boundaryNull: Measure.Null Line.measure allBoundaries := Continuity.nullUnion boundary
+  (\fun (k: N.Nat^) => Support.boundaryNull (Division.leftTags k interval.left interval.right) interval);
+\definition avoids: \forall (x: Real.Real) -> Logic.Not (Sets.Member allBoundaries x) -> \forall (k: N.Nat^) -> Logic.Not (Sets.Member (boundary k) x) :=
+  \fun (x: Real.Real) (outside: Logic.Not (Sets.Member allBoundaries x)) (k: N.Nat^) (member: Sets.Member (boundary k) x) =>
+    outside (Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (boundary k) x }] k member);
+\definition limit[x: Real.Real]: Real.Real := Real.mul (Indicator.representative x) (f.function x);
+\definition limitInside: \forall (x: Real.Real) -> Sets.Member (Line.interval interval.left interval.right) x -> limit x = f.function x :=
+  \fun (x: Real.Real) (inside: Sets.Member (Line.interval interval.left interval.right) x) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.mul v (f.function x)) _ _ (Indicator.pointwiseInside x inside.left inside.right) }
+    "=" _ "by" { Laws.fieldMulOneLeft (f.function x) }
+  };
+\definition limitOutside: \forall (x: Real.Real) -> Logic.Not (Sets.Member (Line.interval interval.left interval.right) x) -> limit x = Real.zero :=
+  \fun (x: Real.Real) (outside: Logic.Not (Sets.Member (Line.interval interval.left interval.right) x)) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.mul v (f.function x)) _ _ (Indicator.pointwiseOutside x outside) }
+    "=" _ "by" { Laws.fieldMulZeroLeft (f.function x) }
+  };
+\definition pointwise: \forall (x: Real.Real) -> Logic.Not (Sets.Member allBoundaries x) -> Sequence.Converges (\fun (k: N.Nat^) => sequence k x) (limit x) :=
+  \fun (x: Real.Real) (outside: Logic.Not (Sets.Member allBoundaries x)) =>
+    Logic.orElim (Sets.Member (Line.interval interval.left interval.right) x) (Logic.Not (Sets.Member (Line.interval interval.left interval.right) x))
+      (Sequence.Converges (\fun (k: N.Nat^) => sequence k x) (limit x)) (Classical.excludedMiddle (Sets.Member (Line.interval interval.left interval.right) x))
+      (\fun (inside: Sets.Member (Line.interval interval.left interval.right) x) (epsilon: Real.Real) (ep: R.Lt Real.zero epsilon) => \block {
+        \let half: Real.Real := Real.mul Real.half epsilon \then
+        \takefrom delta: \Cast[Real.Real] ({ d: Real.Real \where Uniform.Radius[f.function, half, d] }) \by f.uniform half (Estimates.halfOfPositive epsilon ep) \then
+        \let radius: Uniform.Radius[f.function, half, delta] := \bysub(Real.Real, { d: Real.Real \where Uniform.Radius[f.function, half, d] }, delta) \then
+        \takefrom threshold: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (i: N.Nat^) -> Nat.Le k i -> Mesh.Fine (Division.leftTags i interval.left interval.right) interval.left interval.right delta })
+          \by Mesh.fineEventually interval.left interval.right delta interval.ordered radius.positive \then
+        \let fine: \forall (i: N.Nat^) -> Nat.Le threshold i -> Mesh.Fine (Division.leftTags i interval.left interval.right) interval.left interval.right delta :=
+          \bysub(N.Nat^, { k: N.Nat^ \where \forall (i: N.Nat^) -> Nat.Le k i -> Mesh.Fine (Division.leftTags i interval.left interval.right) interval.left interval.right delta }, threshold) \then
+        \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequence.LimitControl (\fun (i: N.Nat^) => sequence i x) (limit x) epsilon k }] threshold
+          (\fun (i: N.Nat^) (later: Nat.Le threshold i) => \block {
+            \takefrom z: \Cast[Real.Real] ({ z: Real.Real \where Support.Witness (Division.leftTags i interval.left interval.right) f.function interval x delta z })
+              \by Support.nearbyTag (Division.leftTags i interval.left interval.right) f.function interval x delta
+                (Division.leftTagsValid i interval.left interval.right interval.ordered) (fine i later) inside (avoids x outside i) \then
+            \let w: Support.Witness (Division.leftTags i interval.left interval.right) f.function interval x delta z :=
+              \bysub(Real.Real, { z: Real.Real \where Support.Witness (Division.leftTags i interval.left interval.right) f.function interval x delta z }, z) \then
+            \let bound: R.Le (Real.distance (f.function z) (f.function x)) half := radius.oscillation z x w.left.left w.left.right inside.left inside.right
+              (R.ltReplaceLeft (Real.distance x z) (Real.distance z x) delta (Distance.distanceSymmetric x z) w.right.left) \then
+            \return R.leLtTrans _ half epsilon (R.leReplace (Real.distance (f.function z) (f.function x)) (Real.distance (sequence i x) (limit x)) half half
+              (congr!{Real.Real Real.Real Real.Real} Real.distance _ _ _ _ (sym!{Real.Real} _ _ w.right.right) (sym!{Real.Real} _ _ (limitInside x inside))) (\refl(half)) bound)
+              (Estimates.halfStrict epsilon ep)
+          })
+      })
+      (\fun (notInside: Logic.Not (Sets.Member (Line.interval interval.left interval.right) x)) =>
+        \idelim (\fun (_: N.Nat^) => Real.zero) = (\fun (k: N.Nat^) => sequence k x) \with s: (N.Nat^ -> Real.Real) => Sequence.Converges s (limit x) \by {
+          base: \idelim Real.zero = limit x \with v: Real.Real => Sequence.Converges (\fun (_: N.Nat^) => Real.zero) v \by {
+            base: Sequence.constantConverges Real.zero, equality: sym!{Real.Real} _ _ (limitOutside x notInside) },
+          equality: \axiom:funext((\fun (_: N.Nat^) => Real.zero), (\fun (k: N.Nat^) => sequence k x),
+            \fun (k: N.Nat^) => sym!{Real.Real} _ _ (Support.outside (Division.leftTags k interval.left interval.right) f.function interval x notInside)) });
+\import Real.Estimates[].Product[] \as Product;
+\definition dominator[c: Real.Real]: Integral.Representatives := Indicator.constantRepresentative c;
+\definition dominated: \forall (c: Real.Real) -> integration.Real[].Riemann[interval := interval].Def[].Bounded f.function ->
+  (\forall (x: Real.Real) -> R.Le interval.left x -> R.Le x interval.right -> R.Le (Real.distance (f.function x) Real.zero) c) ->
+  \forall (k: N.Nat^) (x: Real.Real) -> Logic.Not (Sets.Member allBoundaries x) -> R.Le (Product.abs (sequence k x)) (dominator c x) :=
+  \fun (c: Real.Real) (_: integration.Real[].Riemann[interval := interval].Def[].Bounded f.function)
+    (bound: \forall (x: Real.Real) -> R.Le interval.left x -> R.Le x interval.right -> R.Le (Real.distance (f.function x) Real.zero) c)
+    (k: N.Nat^) (x: Real.Real) (outside: Logic.Not (Sets.Member allBoundaries x)) =>
+      Logic.orElim (Sets.Member (Line.interval interval.left interval.right) x) (Logic.Not (Sets.Member (Line.interval interval.left interval.right) x))
+        (R.Le (Product.abs (sequence k x)) (dominator c x)) (Classical.excludedMiddle (Sets.Member (Line.interval interval.left interval.right) x))
+        (\fun (inside: Sets.Member (Line.interval interval.left interval.right) x) => \block {
+          \let delta: Real.Real := Real.add (Mesh.width k interval.left interval.right) Real.one \then
+          \let fine: Mesh.Fine (Division.leftTags k interval.left interval.right) interval.left interval.right delta :=
+            Mesh.canonicalFine k interval.left interval.right delta (Root.addPositive (Mesh.width k interval.left interval.right) Real.one Product.onePositive) \then
+          \takefrom z: \Cast[Real.Real] ({ z: Real.Real \where Support.Witness (Division.leftTags k interval.left interval.right) f.function interval x delta z })
+            \by Support.nearbyTag (Division.leftTags k interval.left interval.right) f.function interval x delta
+              (Division.leftTagsValid k interval.left interval.right interval.ordered) fine inside (avoids x outside k) \then
+          \let w: Support.Witness (Division.leftTags k interval.left interval.right) f.function interval x delta z :=
+            \bysub(Real.Real, { z: Real.Real \where Support.Witness (Division.leftTags k interval.left interval.right) f.function interval x delta z }, z) \then
+          \return R.leReplace (Real.distance (f.function z) Real.zero) (Product.abs (sequence k x)) c (dominator c x)
+            (trans!{Real.Real} _ _ _ (Distance.distanceSymmetric (f.function z) Real.zero)
+              (congr!{Real.Real Real.Real} Product.abs _ _ (sym!{Real.Real} _ _ w.right.right)))
+            (sym!{Real.Real} _ _ (Indicator.constantInside c x inside.left inside.right)) (bound z w.left.left w.left.right)
+        })
+        (\fun (notInside: Logic.Not (Sets.Member (Line.interval interval.left interval.right) x)) =>
+          R.leReplace Real.zero (Product.abs (sequence k x)) Real.zero (dominator c x)
+            (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+              (congr!{Real.Real Real.Real} Product.abs _ _ (Support.outside (Division.leftTags k interval.left interval.right) f.function interval x notInside))
+              (Product.absOfNonnegative Real.zero (R.leRefl Real.zero))))
+            (sym!{Real.Real} _ _ (Indicator.constantOutside c x notInside)) (R.leRefl Real.zero));
+\import Integral.Null[] \as NullIntegral;
+\import integration.Real[].Lebesgue[interval := interval].Prop[] \as Completion;
+\definition agreement: \exists ( g: Integral.Representatives \where Logic.And[Measure.AlmostEqual Line.measure g limit,
+  Integral.integral g = Completion.integral (Completion.ofRiemann Riemann.integral)] ) := \block {
+  \takefrom c: \Cast[Real.Real] ({ c: Real.Real \where \forall (x: Real.Real) -> R.Le interval.left x -> R.Le x interval.right -> R.Le (Real.distance (f.function x) Real.zero) c })
+    \by f.bounded \then
+  \let bound: \forall (x: Real.Real) -> R.Le interval.left x -> R.Le x interval.right -> R.Le (Real.distance (f.function x) Real.zero) c :=
+    \bysub(Real.Real, { c: Real.Real \where \forall (x: Real.Real) -> R.Le interval.left x -> R.Le x interval.right -> R.Le (Real.distance (f.function x) Real.zero) c }, c) \then
+  \takefrom nullCarrier: \Cast[\Pow Real.Real] ({ N: \Pow Real.Real \where Measure.NullCover[Line.measure, allBoundaries, N] }) \by boundaryNull \then
+  \let nl: Measure.NullCover[Line.measure, allBoundaries, nullCarrier] := \bysub(\Pow Real.Real, { N: \Pow Real.Real \where Measure.NullCover[Line.measure, allBoundaries, N] }, nullCarrier) \then
+  \let exception: NullIntegral.NullSet := \into[\Pow Real.Real](nullCarrier, { N: \Pow Real.Real \where NullIntegral.NullSetLaw[N] }) \by {
+    NullIntegral.NullSetLaw[nullCarrier] { measurable := nl.measurable, zeroMeasure := nl.measure }
+  } \then
+  \let data: Integral.AEDominatedSequence := Integral.AEDominatedSequence {
+    sequence := sequence, limit := limit, bound := dominator c, exception := exception,
+    dominated := \fun (k: N.Nat^) (x: Real.Real) (outside: Logic.Not (Sets.Member exception x)) =>
+      dominated c f.bounded bound k x (\fun (inside: Sets.Member allBoundaries x) => outside (nl.included x inside)),
+    converges := \fun (x: Real.Real) (outside: Logic.Not (Sets.Member exception x)) =>
+      pointwise x (\fun (inside: Sets.Member allBoundaries x) => outside (nl.included x inside)),
+  } \then
+  \let rep: Integral.Representatives := Integral.AEDominated[d := data].representative \then
+  \let same: Integral.integral rep = Riemann.value := Sequence.limitUnique (\fun (k: N.Nat^) => Integral.integral (sequence k))
+    (Integral.integral rep) Riemann.value Integral.AEDominated[d := data].convergence (Convergence.integrals Riemann.integral) \then
+  \let target: Integral.integral rep = Completion.integral (Completion.ofRiemann Riemann.integral) :=
+    trans!{Real.Real} _ _ _ same (sym!{Real.Real} _ _ (Completion.riemannAgreement Riemann.integral)) \then
+  \return Logic.existsIntro[Integral.Representatives, { g: Integral.Representatives \where Logic.And[Measure.AlmostEqual Line.measure g limit,
+    Integral.integral g = Completion.integral (Completion.ofRiemann Riemann.integral)] }] rep
+    (Logic.And[_, _]::# Integral.AEDominated[d := data].almostLimit target)
+};
+\import \root.RealLine[].AlmostMeasurable[] \as AlmostMeasurable;
+\definition actualAgreement: \exists ( g: Integral.Representatives \where Logic.And[g = limit,
+  Integral.integral g = Completion.integral (Completion.ofRiemann Riemann.integral)] ) := \block {
+  \takefrom g: \Cast[Integral.Representatives] ({ g: Integral.Representatives \where Logic.And[Measure.AlmostEqual Line.measure g limit,
+    Integral.integral g = Completion.integral (Completion.ofRiemann Riemann.integral)] }) \by agreement \then
+  \let data: Logic.And[Measure.AlmostEqual Line.measure g limit, Integral.integral g = Completion.integral (Completion.ofRiemann Riemann.integral)] :=
+    \bysub(Integral.Representatives, { g: Integral.Representatives \where Logic.And[Measure.AlmostEqual Line.measure g limit,
+      Integral.integral g = Completion.integral (Completion.ofRiemann Riemann.integral)] }, g) \then
+  \let gi: Integral.Integrable g := \bysub(Real.Real -> Real.Real, { h: Real.Real -> Real.Real \where Integral.Integrable h }, g) \then
+  \let lm: Measure.IsMeasurable Line.measure limit := AlmostMeasurable.measurable g limit gi.left data.left \then
+  \let li: Integral.Integrable limit := NullIntegral.integrableAlmost g limit data.left gi lm \then
+  \let actual: Integral.Representatives := \into[Real.Real -> Real.Real](limit, { h: Real.Real -> Real.Real \where Integral.Integrable h }) \by { li } \then
+  \let equal: Integral.integral g = Integral.integral actual := NullIntegral.integralAlmost g actual data.left \then
+  \return Logic.existsIntro[Integral.Representatives, { h: Integral.Representatives \where Logic.And[h = limit,
+    Integral.integral h = Completion.integral (Completion.ofRiemann Riemann.integral)] }] actual
+    (Logic.And[_, _]::# (\refl(limit)) (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ equal) data.right))
+};
