@@ -1,0 +1,53 @@
+\import singular_cohomology.Simplices[A := A, source := source].CutFaces[p := N.Nat^::succ t, q := q] \as Geometry;
+\import singular_cohomology.Simplices[A := Relative.SubspaceCarrier, source := Subspace.topology source].CutFaces[p := t, q := q] \as SubGeometry;
+\import singular_cohomology.Maps[A := Relative.SubspaceCarrier, B := A, source := Subspace.topology source, target := source] \as Inclusion;
+\import \root.Integral[A := Relative.SubspaceCarrier, source := Subspace.topology source] \as SubCap;
+\import SubCap.Homology[p := t, q := q] \as Action;
+\import SubCap.At[p := N.Nat^::succ t, q := q] \as Upper;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import Nonnegative.ZeroExtension[C := SubChains.complex] \as SubExtension;
+\import SubExtension.PositiveHomology[n := SubGeometry.total] \as Compare;
+\import Nonnegative.Positive[C := SubChains.complex, n := SubGeometry.total] \as NativeSource;
+\import Nonnegative.Positive[C := SubChains.complex, n := t] \as SubTarget;
+\import Nonnegative.Positive[C := Chains.complex, n := t] \as Target;
+\import Nonnegative.Map[C := SubChains.complex, D := Chains.complex].Positive[n := t] \as Push;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.At[C := SubExtension.complex, z := I.Int^::ofNat Geometry.total] \as Input;
+\import Complexes.At[C := SubExtension.complex, z := I.Int^::ofNat SubGeometry.higher] \as Shifted;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing].Integer[P := SubExtension.complex, N := Cochains.integerCoefficients] \as Sub;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring].At[C := Sub.complex, z := I.Int^::ofNat q] \as InputCochain;
+\import SubConversion.Cohomology[n := q] \as CochainCompare;
+\import SubChains.DegreeTransport[] \as SubDegree;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\module At(n: N.Nat^) {
+  \import Complexes.At[C := SubExtension.complex, z := I.Int^::ofNat n] \as Native;
+  \definition Cycle: \Set := Native.Cycle;
+  \definition forget: Cycle -> SubExtension.Carrier (I.Int^::ofNat n) := Native.forget;
+}
+\definition Cycle[n: N.Nat^]: \Set := At[n := n].Cycle;
+\definition forget[n: N.Nat^]: Cycle n -> SubExtension.Carrier (I.Int^::ofNat n) := At[n := n].forget;
+\definition same: Geometry.total = SubGeometry.higher := SubGeometry.same;
+\definition shifted[x: Input.Cycle]: Shifted.Cycle := Transport.cast Cycle Geometry.total SubGeometry.higher same x;
+\definition native[x: Input.Cycle]: NativeSource.Cycle := (Compare.cycleIsomorphism.backward).apply (shifted x);
+\definition nativeValue: \forall (x: Input.Cycle) -> native x = SubDegree.apply Geometry.total SubGeometry.higher same x :=
+  \fun (x: Input.Cycle) => eq_reason_in!{{SubChains.Carrier SubGeometry.higher} _
+    "=" _ "by" { sym!{{SubExtension.Carrier (I.Int^::ofNat SubGeometry.higher)}} _ _ (Transport.natural Cycle (\fun (n: N.Nat^) => SubExtension.Carrier (I.Int^::ofNat n)) forget Geometry.total SubGeometry.higher same x) }
+    "=" _ "by" { Transport.natural SubChains.Carrier (\fun (n: N.Nat^) => SubExtension.Carrier (I.Int^::ofNat n)) (\fun (n: N.Nat^) => SubExtension.Positive[n := n].intro) Geometry.total SubGeometry.higher same x }
+  };
+\definition recovered: \forall (x: Input.Cycle) -> SubDegree.apply SubGeometry.higher Geometry.total (sym!{N.Nat^} _ _ same) (native x) = x :=
+  \fun (x: Input.Cycle) => trans!{{SubChains.Carrier Geometry.total}} _ _ _
+    (congr!{{SubChains.Carrier SubGeometry.higher} {SubChains.Carrier Geometry.total}} (SubDegree.apply SubGeometry.higher Geometry.total (sym!{N.Nat^} _ _ same)) _ _ (nativeValue x))
+    (Transport.castInverse SubChains.Carrier Geometry.total SubGeometry.higher same x);
+\module On(alpha: InputCochain.Closed) {
+  \import singular_cohomology.Cochains[A := Relative.SubspaceCarrier, source := Subspace.topology source].With[coefficients := Cochains.integerCoefficients] \as Theory;
+  \import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring].At[C := Theory.complex, k := q] \as NaturalCochain;
+  \definition closed: Action.Closed (SubPositive.from alpha) := \bysub(Theory.Carrier q, (NaturalCochain.cycles).carrier, CochainCompare.restrict alpha);
+  \import Action.On[beta := SubPositive.from alpha, closed := closed] \as Native;
+  \definition sameValue: \forall (x: Input.Cycle) -> Native.cycle (native x) = (Upper.map (SubPositive.from alpha)).apply x :=
+    \fun (x: Input.Cycle) => congr!{{SubChains.Carrier Geometry.total} {SubChains.Carrier (N.Nat^::succ t)}} ((Upper.map (SubPositive.from alpha)).apply) _ _ (recovered x);
+  \definition closedValue: \forall (x: Input.Cycle) -> (Target.differential).apply ((Inclusion.At[n := N.Nat^::succ t].push Relative.inclusion Relative.inclusionContinuous).apply ((Upper.map (SubPositive.from alpha)).apply x)) = (Chains.space t).zero :=
+    \fun (x: Input.Cycle) => trans!{{Chains.Carrier t}} _ _ _
+      (congr!{{SubChains.Carrier (N.Nat^::succ t)} {Chains.Carrier t}} (\fun (z: SubChains.Carrier (N.Nat^::succ t)) => (Target.differential).apply ((Inclusion.At[n := N.Nat^::succ t].push Relative.inclusion Relative.inclusionContinuous).apply z)) _ _
+        (sym!{{SubChains.Carrier (N.Nat^::succ t)}} _ _ (sameValue x)))
+      (Push.preservesCycle (Inclusion.push Relative.inclusion Relative.inclusionContinuous) (Native.cycle (native x)));
+}
