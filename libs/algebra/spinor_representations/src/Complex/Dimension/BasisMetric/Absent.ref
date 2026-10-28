@@ -1,0 +1,39 @@
+\import std.Data[].Nat[].Basic[].Def[] \as Nat;
+\import Operations.LeftCreation[k := k] \as Creation;
+\import Creation.Mixed[] \as Mixed;
+\import Product.Degrees[p := N.Nat^::succ N.Nat^::zero, q := k] \as Wedge;
+\import Product.Regrade[k := Nat.add (N.Nat^::succ N.Nat^::zero) k, l := N.Nat^::succ k] \as Regrade;
+\import Algebra.Shuffle[I := Finite.Vector] \as Shuffle;
+\import Shuffle.Boundary[].OneCovector[] \as Covector;
+\import Forms.At[k := k] \as Lower;
+\import Forms.At[k := N.Nat^::succ k] \as Higher;
+\definition arguments[j: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n]: Multi.Arguments (N.Nat^::succ k) := \fun (i: Fin.Fin (N.Nat^::succ k)) => Finite.basis (j i);
+\definition creationCoefficient: \forall (r: Fin.Fin n)(j: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n)(f: Forms.Form k) ->
+  (\forall (i: Fin.Fin (N.Nat^::succ k)) -> Logic.Not (r = j i)) ->
+  (Creation.apply (Metric.form (Finite.basis r)) f) (arguments j) = Algebra.zero :=
+  \fun (r: Fin.Fin n)(j: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n)(f: Forms.Form k)(absent: \forall (i: Fin.Fin (N.Nat^::succ k)) -> Logic.Not (r = j i)) => eq_reason_in!{C.Complex _
+    "=" _ "by" { sym!{C.Complex} _ _ (Multi.ListSeries[k := N.Nat^::succ k].onArguments (Creation.apply (Metric.form (Finite.basis r)) f) (arguments j)) }
+    "=" _ "by" { congr!{{Shuffle.Function} C.Complex} (\fun (s: Shuffle.Function) => s (VectorLists.list (N.Nat^::succ k) (arguments j))) _ _ (Regrade.series (Wedge.wedge (Metric.form (Finite.basis r)) f) Creation.degree) }
+    "=" _ "by" { congr!{{Shuffle.Function} C.Complex} (\fun (s: Shuffle.Function) => s (VectorLists.list (N.Nat^::succ k) (arguments j))) _ _ (Wedge.componentWedge (Metric.form (Finite.basis r)) f) }
+    "=" _ "by" { congr!{{Shuffle.Function} C.Complex} (\fun (s: Shuffle.Function) => Shuffle.product s (Product.component k f) (VectorLists.list (N.Nat^::succ k) (arguments j))) _ _ (Mixed.normal (Metric.form (Finite.basis r))) }
+    "=" _ "by" { Covector.vanishes (VectorLists.list (N.Nat^::succ k) (arguments j)) (Mixed.evaluate (Metric.form (Finite.basis r))) (Product.component k f)
+      (VectorLists.all (N.Nat^::succ k) (arguments j) (\fun (v: Finite.Vector) => Mixed.evaluate (Metric.form (Finite.basis r)) v = Algebra.zero)
+        (\fun (i: Fin.Fin (N.Nat^::succ k)) => trans!{C.Complex} _ _ _ (Metric.evaluateMixed (Finite.basis r) (Finite.basis (j i)))
+          (trans!{C.Complex} _ _ _ (Finite.dotBasis r (Finite.basis (j i))) (Delta.different (j i) r (\fun (same: j i = r) => absent i (sym!{{Fin.Fin n}} _ _ same)))))) }
+  };
+\import Algebra.Multilinear[V := Finite.Vector, space := Finite.space].Alternating[].Dimension[n := n, b := Standard.basis].Increasing[k := N.Nat^::succ k] \as Larger;
+\import \parent.\parent.Inner[k := k].Canonical[] \as LowerInner;
+\import \parent.\parent.Inner[k := N.Nat^::succ k].Canonical[] \as HigherInner;
+\import HigherInner.Words[] \as HigherWords;
+\import C.Prop[] \as ComplexLaws;
+\definition adjoint: \forall (r: Fin.Fin n)(j: Larger.Index)(f: Forms.Form k) ->
+  (\forall (i: Fin.Fin (N.Nat^::succ k)) -> Logic.Not (r = j i)) ->
+  HigherInner.dot (Creation.apply (Metric.form (Finite.basis r)) f) (ExteriorBasis.At[k := N.Nat^::succ k].word j) =
+  LowerInner.dot f ((Operations.Contraction[k := k].operator (Finite.basis r)).apply (ExteriorBasis.At[k := N.Nat^::succ k].word j)) :=
+  \fun (r: Fin.Fin n)(j: Larger.Index)(f: Forms.Form k)(absent: \forall (i: Fin.Fin (N.Nat^::succ k)) -> Logic.Not (r = j i)) => eq_reason_in!{C.Complex _
+    "=" _ "by" { HigherWords.coefficientWord j (Creation.apply (Metric.form (Finite.basis r)) f) }
+    "=" _ "by" { congr!{C.Complex C.Complex} Def.conj _ _ (creationCoefficient r j f absent) }
+    "=" _ "by" { ComplexLaws.conjOfReal R.zero }
+    "=" _ "by" { sym!{C.Complex} _ _ (LowerInner.form.zeroRight f) }
+    "=" _ "by" { congr!{{Forms.Form k} C.Complex} (LowerInner.dot f) _ _ (sym!{{Forms.Form k}} _ _ (wordContractionAbsent k j r absent)) }
+  };
