@@ -2,7 +2,7 @@
 
 コンパクト Hausdorff 空間と閉部分空間の対に対して、束の三つ組による相対群と一点付加商の被約 K 群を比較する。
 入口は `relative_k_theory.Relative`。
-[計画 K03](../../../_plans/math/k03-relative-k.md)を [PR #50](https://github.com/pdf-jube-joba/ref-type/pull/50) で実装し、最終検査を進めている。
+三つ組と商の比較、負次数の完全列、切除、Mayer–Vietoris、外積、束の円板・球面対を公開する。
 
 ## 群と比較
 
@@ -82,47 +82,28 @@ K^{-(n+1)}(X)\longrightarrow K^{-(n+1)}(A)\longrightarrow K^{-n}(X,A)
 
 ## 検証
 
-共有キャッシュは `libs/refcache`。
-固定入力・ログ・JSON 報告・終了コードは `work/k03-resume` に保存する。
-現時点の対象検査は次のとおりで、いずれも accepted・終了0・キャッシュ保存失敗0・書込失敗0。
+共有キャッシュ `libs/refcache` を使用する。
+三つ組と商の比較、一般の対の完全列、写像の自然性、smash と閉対の外積、閉被覆の貼合せと Mayer–Vietoris、元の束の単位円板との同相、ランク0・1の利用例を対象と依存閉包で検査した。
+いずれも accepted・終了0・キャッシュ保存失敗0・書込失敗0。
 
-| 範囲 | 報告の接頭辞 |
-| --- | --- |
-| 三つ組と商の比較、降下、忘却・制限、cofiber と回転の基盤 | `reduced-retraction-*` / `rotation-stage-*` |
-| 一般の対の反復完全列 | `canonical-fifth-Sequence` |
-| 反復の組替えと写像の可換性 | `qualified-stage-IterationAddition` / `qualified-stage-Square` |
-| 一点付加と通常の K 群の比較 | `complete-stage-Absolute` |
-| 一般の閉対の列と通常の群の端 | `restriction-stage-Pair-Augmented` |
-| smash の対称比較とその依存先 | `audit-03-Smash-Symmetry` |
-| 対の写像の反復と負次数の自然性 | `audit-04-PairMapping` |
-| smash、零次数・負次数外積と自然性全体 | `audit-06-Smash` |
-| 一般の対の積と外積の自然性 | `audit-06-Pair-Product` |
-| 閉被覆の貼合せ、Mayer–Vietoris と自然性全体 | `audit-07-Pair-ClosedCover` |
-| 束の円板・球面対、元の束の単位円板との同相 | `audit-10-BundleDisk` |
-| ランク0・1の円板の利用例 | `audit-10-Examples` |
+2026-10-28 の最終 workspace 全体検査も9,048モジュールで accepted・終了0・キャッシュ保存失敗0・書込失敗0を確認した。
+308モジュールを検査し、内容の一致する8,740モジュールを共有キャッシュから再利用した。
+K03 全体、全依存、共通補題の移動による影響先、利用例を含む。
+worker 1・自動復旧0・重複0・再実行0・未保存0で、約1,384秒。
+物理メモリ上限16 GiBの環境で、最大 RSS は14,399,064 KiB。
 
-円板・球面対と利用例も accepted・終了0・保存失敗0・書込失敗0を確認した。
-最新 main `f8b80a154a3b61d2dccebd0ea13adc44bfaa4bdb` の A01・A19・B05・L04 の変更を保持し、ライブラリ一覧と workspace 登録を三方比較で合わせた。
-K03 の数学ソースは取り込み前と一致している。
-旧基準の `workspace-audit-10` は終了130・interrupted・保存失敗0・書込失敗0で停止し、チェックポイントを保持した。
-`workspace-audit-11` は終了1・保存失敗0・書込失敗0で、Grassmannian が移動前の分離補題を参照していた不一致を検出した。
-参照3箇所を一般位相の `topological_constructions.Separation` へ合わせた。
-`workspace-audit-12-grassmannians` の全体と依存閉包は accepted・終了0・保存失敗0・書込失敗0。
-同じ固定入力による `workspace-audit-12` の workspace 全体検査は、終了2・`memory-limit`・保存失敗0・書込失敗0。
-自動復旧1回後の checkpoint 保存でメモリ上限14336 MiBに達し、全体検証は未完了。
-`workspace-audit-13` も保存時のメモリ確保で終了2・`memory-limit`・保存失敗0・書込失敗0。
-`workspace-audit-14` は仮想メモリ上限による復旧を2回繰り返したため、checkpoint 129213を保持して停止した（終了130・interrupted・保存失敗0・書込失敗0）。
-実環境の物理メモリ制限16 GiBを保ち、CLI の仮想アドレス上限を外した `workspace-audit-15` で同じ固定入力・共有キャッシュから再開する。
-allocator の予約単位は64 MiB、式グラフの常駐予算は256 MiB、checkpoint 間隔は600秒。
-検査器・検査対象・数学ソースは変更していない。
+検査した数学ソースのリモート commit は `ad55f6f4243e6bc060ec74ef48af363f7a23abc9`、tree は `3ecfdb61538c923656af74f55d283d3cf15de754`。
+main `f8b80a154a3b61d2dccebd0ea13adc44bfaa4bdb` の変更を保持し、Grassmannian の分離補題への参照も共通 API の移動先へ合わせている。
+報告は `work/k03-resume/workspace-audit-15.{log,json,exit}`、固定入力は `workspace-audit-12.source.json` に保存した。
+固定入力7,942ファイルと検証後の数学ソース・manifest の一致も確認した。
+以前の中断・資源上限による終了の報告も同じディレクトリに保持している。
 
-再開時は既存の CLI プロセスと `workspace-audit-15.{log,json,exit}` を先に確認する。
-終了後は終了コードと `outcome`、`storage.save_failures`、`checking.cache_write_failures` を照合する。
-以前の中断・失敗の報告とチェックポイントも保持している。
+リポジトリ直下からの通常検査は次のとおり。
 
 ```sh
 MIMALLOC_ARENA_RESERVE=64M REF_TYPE_GRAPH_RESIDENT_MIB=256 target/debug/cli libs \
-  --source-snapshot work/k03-resume/workspace-audit-12.source.json \
-  --cache-dir libs/refcache --cache-budget-mib 16384 --memory-mib 0 --checkpoint-seconds 600 \
-  --diagnostics compact --report-json work/k03-resume/workspace-audit-15.json
+  --cache-dir libs/refcache --cache-budget-mib 16384 --memory-mib 0 \
+  --checkpoint-seconds 600 --diagnostics compact
 ```
+
+固定入力の保存と検査方法は [検査とキャッシュ](../../../src/USAGE.md#検査とキャッシュ) を参照。

@@ -44,7 +44,7 @@ target/debug/cli libs --memory-mib 10240 --cache-dir libs/refcache --cache-budge
 
 依存する共通 API として `topological_constructions.Quotient.Descent`、`Coproduct.ProductUniversal`、`Pushout.Of.Families`、`RelationQuotient.Families` を追加した。
 積と商の交換にはコンパクト Hausdorff な区間を使う。
-[相対 K 群の K03](../../../_plans/math/k03-relative-k.md) はこの列と有限 CW 対の比較を利用する。
+[相対 K 群の K03](../relative_k_theory/README.md) はこの列と有限 CW 対の比較を利用する。
 
 ## 検証と保存
 
@@ -56,6 +56,5 @@ target/debug/cli libs --memory-mib 10240 --cache-dir libs/refcache --cache-budge
 全体検査の報告は `workspace-unbounded.json`、自動復旧1回・`lost_steps` 4,322・再実行0・重複0で、最終 worker は保存済み8,149モジュールを再利用して正常終了した。
 前回の時間制限による未完了状態は、この正常終了で解消した。
 ロードマップと K03・B08・C02・T02 の依存リンクは公開 API に更新済み。
-次は最終保存後の PR head・CI・最新 main を確認し、PR #47 を ready・merge して main への反映を確認する。
 B09 は [PR #49](https://github.com/pdf-jube-joba/ref-type/pull/49) で統合済み。
-K03 は [相対 K 群](../relative_k_theory/README.md) の [PR #50](https://github.com/pdf-jube-joba/ref-type/pull/50) で実装・検証中。
+[相対 K 群](../relative_k_theory/README.md) は、この基盤を使った負次数の完全列と自然性を公開する。
