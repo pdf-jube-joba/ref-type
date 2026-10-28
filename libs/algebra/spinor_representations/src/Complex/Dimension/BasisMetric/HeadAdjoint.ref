@@ -1,0 +1,29 @@
+\import Algebra.Multilinear[V := Finite.Vector, space := Finite.space].Alternating[].Dimension[n := n, b := Standard.basis].Increasing[k := N.Nat^::succ k] \as Larger;
+\import \parent.\parent.Inner[k := k].Canonical[] \as LowerInner;
+\import LowerInner.Words[] \as LowerWords;
+\import \parent.\parent.Inner[k := N.Nat^::succ k].Canonical[] \as HigherInner;
+\import HigherInner.Words[] \as HigherWords;
+\import Algebra.Coordinates[I := Fin.Fin (N.Nat^::succ k) -> Fin.Fin n].Kronecker[] \as Delta;
+\definition head[j: Larger.Index]: Fin.Fin n := j (Fin.zero k);
+\definition arguments[j: Larger.Index]: Multi.Arguments (N.Nat^::succ k) := \fun (i: Fin.Fin (N.Nat^::succ k)) => Finite.basis (j i);
+\definition contraction: \forall (j: Larger.Index) ->
+  LowerInner.dot (ExteriorBasis.At[k := k].word (tailIndex k j))
+    ((Operations.Contraction[k := k].operator (Finite.basis (head j))).apply (ExteriorBasis.At[k := N.Nat^::succ k].word j)) = Algebra.one :=
+  \fun (j: Larger.Index) => eq_reason_in!{C.Complex _
+    "=" _ "by" { LowerWords.contractionCoefficient (tailIndex k j) (Finite.basis (head j)) (ExteriorBasis.At[k := N.Nat^::succ k].word j) }
+    "=" _ "by" { congr!{{Multi.Arguments (N.Nat^::succ k)} C.Complex} (ExteriorBasis.At[k := N.Nat^::succ k].word j) _ _ (VectorTuples.recover k (arguments j)) }
+    "=" _ "by" { ExteriorBasis.At[k := N.Nat^::succ k].pair j j (\bysub(Fin.Fin (N.Nat^::succ k) -> Fin.Fin n, Larger.Index, j)) (\bysub(Fin.Fin (N.Nat^::succ k) -> Fin.Fin n, Larger.Index, j)) }
+    "=" _ "by" { Delta.self j }
+  };
+\definition creation: \forall (j: Larger.Index) ->
+  HigherInner.dot (Operations.LeftCreation[k := k].apply (Metric.form (Finite.basis (head j))) (ExteriorBasis.At[k := k].word (tailIndex k j)))
+    (ExteriorBasis.At[k := N.Nat^::succ k].word j) = Algebra.one :=
+  \fun (j: Larger.Index) => eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{{Forms.Form (N.Nat^::succ k)} C.Complex} (\fun (f: Forms.Form (N.Nat^::succ k)) => HigherInner.dot f (ExteriorBasis.At[k := N.Nat^::succ k].word j)) _ _ (sym!{{Forms.Form (N.Nat^::succ k)}} _ _ (wordStep k j)) }
+    "=" _ "by" { HigherWords.orthonormal j j }
+    "=" _ "by" { Delta.self j }
+  };
+\definition law: \forall (j: Larger.Index) ->
+  HigherInner.dot (Operations.LeftCreation[k := k].apply (Metric.form (Finite.basis (head j))) (ExteriorBasis.At[k := k].word (tailIndex k j))) (ExteriorBasis.At[k := N.Nat^::succ k].word j) =
+  LowerInner.dot (ExteriorBasis.At[k := k].word (tailIndex k j)) ((Operations.Contraction[k := k].operator (Finite.basis (head j))).apply (ExteriorBasis.At[k := N.Nat^::succ k].word j)) :=
+  \fun (j: Larger.Index) => trans!{C.Complex} _ _ _ (creation j) (sym!{C.Complex} _ _ (contraction j));
