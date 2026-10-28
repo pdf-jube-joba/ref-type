@@ -82,3 +82,21 @@
     "=" _ "by" { sym!{{Total.Carrier}} _ _ (Total.totalSpace.scalarAssoc (vacuumScalar h) (vacuumScalar g) Vacuum.state) }
     "=" _ "by" { congr!{C.Complex {Total.Carrier}} (\fun (a: C.Complex) => Total.totalSpace.smul a Vacuum.state) _ _ (Algebra.mulComm (vacuumScalar h) (vacuumScalar g)) }
   });
+\import clifford.Circle[] \as Circle;
+\import clifford.Field[K := R.Real, field := R.Algebra[].field].On[V := E.Vector, space := E.space].Of[form := E.form] \as Source;
+\import algebra.Groups[].Units[A := Source.Carrier, ring := Source.ring].Mapping[B := ComplexEnd.Carrier, target := ComplexEnd.ring, f := Clifford.extension] \as SpinMapping;
+\import algebra.Groups[].On[G := ComplexUnits.Unit, group := ComplexUnits.group] \as UnitOps;
+\definition centralPhase[z: Circle.Circle]: SpinC.Carrier := SpinC.class Pin.spinGroup.unit z;
+\definition centralPhaseAction: \forall (z: Circle.Circle) -> Phase.actionC (centralPhase z) = Phase.phase z :=
+  \fun (z: Circle.Circle) => eq_reason_in!{ComplexUnits.Unit _
+    "=" _ "by" { Phase.onClass Pin.spinGroup.unit z }
+    "=" _ "by" { congr!{ComplexUnits.Unit ComplexUnits.Unit} (ComplexUnits.product (Phase.phase z)) _ _ SpinMapping.atOne }
+    "=" _ "by" { UnitOps.oneRight (Phase.phase z) }
+  };
+\definition vacuumScalarPhase: \forall (z: Circle.Circle)(g: SpinC.Carrier) ->
+  vacuumScalar (SpinC.group.op (centralPhase z) g) = Algebra.mul z (vacuumScalar g) :=
+  \fun (z: Circle.Circle)(g: SpinC.Carrier) => eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{ComplexUnits.Unit C.Complex} (\fun (a: ComplexUnits.Unit) => Vacuum.coefficient (a.value.apply Vacuum.state)) _ _ (Phase.productC (centralPhase z) g) }
+    "=" _ "by" { congr!{ComplexUnits.Unit C.Complex} (\fun (a: ComplexUnits.Unit) => Vacuum.coefficient ((ComplexUnits.product a (Phase.actionC g)).value.apply Vacuum.state)) _ _ (centralPhaseAction z) }
+    "=" _ "by" { congr!{ComplexEnd.Carrier C.Complex} (\fun (a: ComplexEnd.Carrier) => Vacuum.coefficient (a.apply ((Phase.actionC g).value.apply Vacuum.state))) _ _ (Phase.onValue z) }
+  };
