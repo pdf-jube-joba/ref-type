@@ -1,0 +1,57 @@
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := original.Carrier] \as Cylinder;
+\import topology.Topology[Carrier := original.Carrier] \as Base;
+\import topology.Topology[Carrier := I.Carrier] \as Time;
+\definition pointed: algebraic_topology.Pointed[A := original.Carrier].Space := algebraic_topology.Pointed[A := original.Carrier].Space {
+  topology := (details original).topology, basepoint := (details original).point
+};
+\import algebraic_topology.Suspension[A := original.Carrier].Pointed[source := (details original).topology, basepoint := (details original).point] \as Native;
+\import algebraic_topology.Suspension[A := original.Carrier].Reduced[basepoint := (details original).point] \as Model;
+\import topological_constructions.Product[A := I.Carrier, B := original.Carrier] \as Product;
+\import topology.Topology[Carrier := Cylinder.Carrier] \as CylinderSpace;
+\definition cylinderCompact: CylinderSpace.IsCompact (Cylinder.topology (details original).topology) :=
+  Product.Compactness[].productCompact I.topology (details original).topology I.compact (details original).compact;
+\definition cylinderHausdorff: CylinderSpace.IsT2 (Cylinder.topology (details original).topology) :=
+  topological_constructions.Separation[].Product[A := I.Carrier, B := original.Carrier].On[
+    left := I.topology, right := (details original).topology, leftHausdorff := I.hausdorff, rightHausdorff := (details original).hausdorff].hausdorff;
+\import topology.Continuity[A := Cylinder.Carrier, B := I.Carrier] \as TimeMaps;
+\import topology.Continuity[A := Cylinder.Carrier, B := original.Carrier] \as BaseMaps;
+\definition startClosed: CylinderSpace.IsClosedIn (Cylinder.topology (details original).topology) (TimeMaps.Preimage Cylinder.time (Time.Singleton I.start)) :=
+  TimeMaps.closedPreimage (Cylinder.topology (details original).topology) I.topology Cylinder.time (Cylinder.timeContinuous (details original).topology)
+    (Time.Singleton I.start) (Time.Compactness[].hausdorffT1 I.topology I.hausdorff I.start);
+\definition endClosed: CylinderSpace.IsClosedIn (Cylinder.topology (details original).topology) (TimeMaps.Preimage Cylinder.time (Time.Singleton I.end)) :=
+  TimeMaps.closedPreimage (Cylinder.topology (details original).topology) I.topology Cylinder.time (Cylinder.timeContinuous (details original).topology)
+    (Time.Singleton I.end) (Time.Compactness[].hausdorffT1 I.topology I.hausdorff I.end);
+\definition lineClosed: CylinderSpace.IsClosedIn (Cylinder.topology (details original).topology) (BaseMaps.Preimage Cylinder.point (Base.Singleton (details original).point)) :=
+  BaseMaps.closedPreimage (Cylinder.topology (details original).topology) (details original).topology Cylinder.point (Cylinder.pointContinuous (details original).topology)
+    (Base.Singleton (details original).point) (Base.Compactness[].hausdorffT1 (details original).topology (details original).hausdorff (details original).point);
+\definition collapsedClosed: CylinderSpace.IsClosedIn (Cylinder.topology (details original).topology) Model.Collapsed :=
+  CylinderSpace.Finite[].joinClosed (Cylinder.topology (details original).topology)
+    (TimeMaps.Preimage Cylinder.time (Time.Singleton I.start))
+    (CylinderSpace.Finite[].Join (TimeMaps.Preimage Cylinder.time (Time.Singleton I.end)) (BaseMaps.Preimage Cylinder.point (Base.Singleton (details original).point)))
+    startClosed
+    (CylinderSpace.Finite[].joinClosed (Cylinder.topology (details original).topology)
+      (TimeMaps.Preimage Cylinder.time (Time.Singleton I.end)) (BaseMaps.Preimage Cylinder.point (Base.Singleton (details original).point)) endClosed lineClosed);
+\import algebraic_topology.Collapse[A := Cylinder.Carrier, subset := Model.Collapsed].Closed[
+  source := Cylinder.topology (details original).topology, compact := cylinderCompact, hausdorff := cylinderHausdorff, closed := collapsedClosed] \as Properties;
+\definition result: CompactPointed := pack Native.Carrier (PointedDetails[Native.Carrier] {
+  topology := Native.topology,
+  compact := Properties.compactQuotient, hausdorff := Properties.hausdorffQuotient, point := Native.point
+});
+\module Reversal;
+\definition class: Cylinder.Carrier -> result.Carrier := Native.class;
+\definition Collapsed: \Pow Cylinder.Carrier := Model.Collapsed;
+\definition point: result.Carrier := Native.point;
+\definition collapsed: \forall (z: Cylinder.Carrier) -> \In[Cylinder.Carrier] Collapsed z -> class z = point := Native.collapsed;
+\import algebraic_topology.Collapse[A := Cylinder.Carrier, subset := Collapsed] \as Collapse;
+\definition distinguished: \Cast[Cylinder.Carrier] Collapsed :=
+  \into[Cylinder.Carrier](Cylinder.at I.start (details original).point, Collapsed) \by { Logic.Or[_, _]::left (\refl(I.start)) };
+\definition atPoint: \forall (z: Cylinder.Carrier) -> class z = point -> \In[Cylinder.Carrier] Collapsed z :=
+  Collapse.Pointed[point := distinguished].fiber;
+\definition separates: \forall (z, w: Cylinder.Carrier) -> class z = class w ->
+  Logic.Or[z = w, Logic.And[\In[Cylinder.Carrier] Collapsed z, \In[Cylinder.Carrier] Collapsed w]] := Collapse.equalRelated;
+\definition onto: \forall (q: result.Carrier) -> \exists (z: Cylinder.Carrier \where class z = q) :=
+  Collapse.induction (\fun (q: result.Carrier) => \exists (z: Cylinder.Carrier \where class z = q))
+    (\fun (z: Cylinder.Carrier) => Logic.existsIntro[Cylinder.Carrier, { w: Cylinder.Carrier \where class w = class z }] z (\refl(class z)));
+\definition classContinuous: topology.Continuity[A := Cylinder.Carrier, B := result.Carrier].Continuous
+  (Cylinder.topology (details original).topology) (details result).topology class := Collapse.projectionContinuous (Cylinder.topology (details original).topology);

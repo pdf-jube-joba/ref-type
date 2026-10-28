@@ -1,0 +1,67 @@
+\definition homotopyLaws: H.Laws[subspace, subspace, (\fun (x: A) => x), (\fun (x: A) => a0), homotopy] := H.laws subspace subspace (\fun (x: A) => x) (\fun (x: A) => a0) homotopy;
+\definition base[z: Boundary.Carrier]: A := homotopy (Boundary.inverse z);
+\definition baseContinuous: topology.Continuity[A := Boundary.Carrier, B := A].Continuous Boundary.topology subspace base :=
+  topology.Composition[A := Boundary.Carrier, B := Cylinder.Carrier, C := A].composeContinuous Boundary.topology (Cylinder.topology subspace) subspace Boundary.inverse homotopy
+    Boundary.inverseContinuous homotopyLaws.continuous;
+\definition ambient[z: Boundary.Carrier]: X := base z;
+\definition ambientContinuous: topology.Continuity[A := Boundary.Carrier, B := X].Continuous Boundary.topology space ambient :=
+  topology.Composition[A := Boundary.Carrier, B := A, C := X].composeContinuous Boundary.topology subspace space base inclusion baseContinuous regular;
+\import Bundles.Trivial[X := Boundary.Carrier, n := n, baseSpace := Boundary.topology] \as CylinderTrivial;
+\import Operations.TrivialPullback[X := X, Y := Boundary.Carrier, n := n, original := space, base := Boundary.topology,
+  f := Boundary.point, regular := Boundary.pointContinuous] \as SourceTrivial;
+\import Bundles.Isomorphisms[X := Boundary.Carrier, F := (\fun (z: Boundary.Carrier) => Bundles.Vector n), G := (\fun (z: Boundary.Carrier) => Bundles.Vector n),
+  source := CylinderRestriction.directRestriction, target := Fixed.source] \as SourceReverse;
+\import Operations.IsomorphismComposition[X := Boundary.Carrier, F := (\fun (z: Boundary.Carrier) => Bundles.Vector n), G := (\fun (z: Boundary.Carrier) => Bundles.Vector n), H := (\fun (z: Boundary.Carrier) => Bundles.Vector n),
+  source := Fixed.source, middle := CylinderRestriction.directRestriction, target := CylinderTrivial.bundle] \as SourceCoordinates;
+\definition sourceCoordinates: SourceCoordinates.Isomorphism := SourceCoordinates.compose (SourceReverse.inverse CylinderRestriction.fromDirect) SourceTrivial.isomorphism;
+\import Bundles.Family[X := X, F := Fiber].Of[bundle := Trivial.bundle].PullbackComposition[
+  Y := A, Z := Boundary.Carrier, first := subspace, second := Boundary.topology, f := inclusion, g := base].Of[
+  fRegular := regular, gRegular := baseContinuous] \as Nested;
+\import Complements.PulledIsomorphism[X := A, Y := Boundary.Carrier, F := (\fun (x: A) => Bundles.Vector n), G := (\fun (x: A) => Bundles.Vector n),
+  source := Restrict.restricted, target := Restrict.restricted, base := Boundary.topology, f := base, sourceRegular := baseContinuous, targetRegular := baseContinuous] \as PulledTheta;
+\import Operations.TrivialPullback[X := X, Y := Boundary.Carrier, n := n, original := space, base := Boundary.topology,
+  f := ambient, regular := ambientContinuous] \as NestedTrivial;
+\import Bundles.Isomorphisms[X := Boundary.Carrier, F := (\fun (z: Boundary.Carrier) => Bundles.Vector n), G := (\fun (z: Boundary.Carrier) => Bundles.Vector n),
+  source := Nested.direct, target := Nested.nested] \as NestedReverse;
+\import Operations.IsomorphismComposition[X := Boundary.Carrier, F := (\fun (z: Boundary.Carrier) => Bundles.Vector n), G := (\fun (z: Boundary.Carrier) => Bundles.Vector n), H := (\fun (z: Boundary.Carrier) => Bundles.Vector n),
+  source := Nested.nested, middle := Nested.direct, target := CylinderTrivial.bundle] \as NestedCoordinates;
+\definition nestedCoordinates: NestedCoordinates.Isomorphism := NestedCoordinates.compose (NestedReverse.inverse Nested.isomorphism) NestedTrivial.isomorphism;
+\import Bundles.Isomorphisms[X := Boundary.Carrier, F := (\fun (z: Boundary.Carrier) => Bundles.Vector n), G := (\fun (z: Boundary.Carrier) => Bundles.Vector n),
+  source := Nested.nested, target := CylinderTrivial.bundle] \as NestedCoordinateMaps;
+\import Operations.IsomorphismComposition[X := Boundary.Carrier, F := (\fun (z: Boundary.Carrier) => Bundles.Vector n), G := (\fun (z: Boundary.Carrier) => Bundles.Vector n), H := (\fun (z: Boundary.Carrier) => Bundles.Vector n),
+  source := Fixed.source, middle := CylinderTrivial.bundle, target := Nested.nested] \as Into;
+\definition into: Into.Isomorphism := Into.compose sourceCoordinates (NestedCoordinateMaps.inverse nestedCoordinates);
+\import Operations.IsomorphismComposition[X := Boundary.Carrier, F := (\fun (z: Boundary.Carrier) => Bundles.Vector n), G := (\fun (z: Boundary.Carrier) => Bundles.Vector n), H := (\fun (z: Boundary.Carrier) => Bundles.Vector n),
+  source := Fixed.source, middle := Nested.nested, target := Nested.nested] \as Move;
+\definition moved: Move.Isomorphism := Move.compose into (PulledTheta.isomorphism theta);
+\import Operations.IsomorphismComposition[X := Boundary.Carrier, F := (\fun (z: Boundary.Carrier) => Bundles.Vector n), G := (\fun (z: Boundary.Carrier) => Bundles.Vector n), H := (\fun (z: Boundary.Carrier) => Bundles.Vector n),
+  source := Fixed.source, middle := Nested.nested, target := CylinderTrivial.bundle] \as Read;
+\definition read: Read.Isomorphism := Read.compose moved nestedCoordinates;
+\import Bundles.Isomorphisms[X := Boundary.Carrier, F := (\fun (z: Boundary.Carrier) => Bundles.Vector n), G := (\fun (z: Boundary.Carrier) => Bundles.Vector n),
+  source := Fixed.target, target := CylinderTrivial.bundle] \as SourceCoordinateMaps;
+\import Operations.IsomorphismComposition[X := Boundary.Carrier, F := (\fun (z: Boundary.Carrier) => Bundles.Vector n), G := (\fun (z: Boundary.Carrier) => Bundles.Vector n), H := (\fun (z: Boundary.Carrier) => Bundles.Vector n),
+  source := Fixed.source, middle := CylinderTrivial.bundle, target := Fixed.target] \as Finish;
+\definition familyIsomorphism: Finish.Isomorphism := Finish.compose read (SourceCoordinateMaps.inverse sourceCoordinates);
+\definition constantLinear: Coordinates.Isomorphism := Coordinates.Isomorphism {
+  forward := theta.forward.fiber a0, backward := theta.backward.fiber a0,
+  leftInverse := thetaLaws.leftInverse a0, rightInverse := thetaLaws.rightInverse a0
+};
+\import Operations.TrivialIsomorphism[X := X, n := n, m := n, base := space, linear := constantLinear] \as Global;
+\import Complements.PulledIsomorphism[X := X, Y := A, F := Fiber, G := Fiber, source := Trivial.bundle, target := Trivial.bundle,
+  base := subspace, f := inclusion, sourceRegular := regular, targetRegular := regular] \as PullConstant;
+\definition beta: Frames.Isomorphism := PullConstant.isomorphism Global.isomorphism;
+\import Class.Homotopy[beta := beta] \as Comparison;
+\definition start: \forall (z: Boundary.Carrier) -> Boundary.time z = Interval.start -> base z = Boundary.boundary z :=
+  \fun (z: Boundary.Carrier)(sameTime: Boundary.time z = Interval.start) => trans!{A} _ _ _
+    (congr!{{Interval.Carrier} {A}} (\fun (t: Interval.Carrier) => homotopy (Cylinder.at t (Boundary.boundary z))) _ _ sameTime)
+    (homotopyLaws.start (Boundary.boundary z));
+\definition family: Comparison.Family := Comparison.Family {
+  isomorphism := familyIsomorphism,
+  start := \fun (z: Boundary.Carrier)(sameTime: Boundary.time z = Interval.start)(v: Bundles.Vector n) =>
+    congr!{{A} {Bundles.Vector n}} (\fun (x: A) => (theta.forward.fiber x).apply v) _ _ (start z sameTime),
+  end := \fun (x: A)(v: Bundles.Vector n) =>
+    congr!{{A} {Bundles.Vector n}} (\fun (y: A) => (theta.forward.fiber y).apply v) _ _ (homotopyLaws.end x)
+};
+\import \parent.\parent.\parent.FramedClass[F := Fiber, sourceModel := Based.model, n := n].With[alpha := beta].Global[
+  h := Global.isomorphism, extends := (\fun (x: A)(v: Bundles.Vector n) => \refl((beta.forward.fiber x).apply v))] \as Vanishing;
+\definition equation: Class.value = Group.zero := trans!{{Quotient.Relative}} _ _ _ (Comparison.equation (\exact(family, Comparison.Family))) Vanishing.equation;

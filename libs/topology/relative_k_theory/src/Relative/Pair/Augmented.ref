@@ -1,0 +1,34 @@
+\import \root.Relative[].Absolute[X := X, space := space, compact := compact, hausdorff := hausdorff] \as Whole;
+\import \parent.Restriction[] \as Restriction;
+\import \root.Relative[].Absolute[X := A, space := subspace, compact := Restriction.compactSubset, hausdorff := Restriction.hausdorffSubset] \as Subset;
+\import \parent.Quotient[] \as Original;
+\import topological_constructions.Coproduct[A := X, B := Original.Point] \as Sum;
+\definition data: ClosedPairDetails[Whole.model] := ClosedPairDetails[Whole.model] {
+  subset := Original.collapsedPart, closed := Original.collapsedClosed, containsPoint := \refl(Original.distinguished)
+};
+\definition pair: ClosedPointedPair := packPair Whole.model data;
+\import \root.Relative[].PointedPair[pair := pair] \as PointedPair;
+\import \root.Relative[].Pair[X := Whole.model.Carrier, space := (details Whole.model).topology,
+  compact := (details Whole.model).compact, hausdorff := (details Whole.model).hausdorff,
+  subset := data.subset, closed := data.closed] \as NativePair;
+\import NativePair.Quotient[] \as Q;
+\module SubsetEquivalence;
+\module QuotientEquivalence;
+\import SubsetEquivalence[] \as SubsetHomeomorphism;
+\import QuotientEquivalence[] \as QuotientHomeomorphism;
+\import \root.Relative[].Composition[source := Subset.model, middle := PointedPair.subsetModel, target := Whole.model,
+  first := SubsetHomeomorphism.equivalence.forward, second := PointedPair.inclusion] \as Inclusion;
+\definition inclusion: Map Subset.model Whole.model := Inclusion.map;
+\definition inclusionOnOriginal: \forall (a: A) -> inclusion (Subset.inclusion a) = Whole.inclusion a :=
+  \fun (a: A) => \refl(Whole.inclusion a);
+\import \root.Relative[].Composition[source := Whole.model, middle := Q.model, target := Original.model,
+  first := PointedPair.projection, second := QuotientHomeomorphism.equivalence.forward] \as Projection;
+\definition projection: Map Whole.model Original.model := Projection.map;
+\definition projectionOnOriginal: \forall (x: X) -> projection (Whole.inclusion x) = Original.projection x :=
+  \fun (x: X) => QuotientHomeomorphism.onProjection (Whole.inclusion x);
+\definition projectionContinuous: topology.Continuity[A := Whole.model.Carrier, B := Original.Carrier].Continuous (details Whole.model).topology Original.topology projection :=
+  (algebraic_topology.Pointed[A := Whole.model.Carrier].Maps[B := Original.Carrier].laws (pointed Whole.model) (pointed Original.model) projection).continuous;
+\definition inclusionContinuous: topology.Continuity[A := Subset.model.Carrier, B := Whole.model.Carrier].Continuous (details Subset.model).topology (details Whole.model).topology inclusion :=
+  (algebraic_topology.Pointed[A := Subset.model.Carrier].Maps[B := Whole.model.Carrier].laws (pointed Subset.model) (pointed Whole.model) inclusion).continuous;
+\module Sequence(degree: N.Nat^);
+\module OrdinaryEnd;

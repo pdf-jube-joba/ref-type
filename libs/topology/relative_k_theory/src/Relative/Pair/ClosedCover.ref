@@ -1,0 +1,108 @@
+\use Logic.either;
+\import Base.Subspace[S := V] \as SubsetSpace;
+\definition Y: \Set := SubsetSpace.CarrierSet;
+\definition source: topology.Topology[Carrier := Y].Topology := SubsetSpace.topology space;
+\definition compactSource: topology.Topology[Carrier := Y].IsCompact source := SubsetSpace.Properties[].compact space
+  (Base.Compactness[].closedCompact space compact V closedV);
+\definition hausdorffSource: topology.Topology[Carrier := Y].IsT2 source := SubsetSpace.Properties[].hausdorff space hausdorff;
+\definition sourceSubset: \Pow Y := { y: Y \where Base.Member subset y };
+\definition inclusion[y: Y]: X := y;
+\definition inclusionContinuous: topology.Continuity[A := Y, B := X].Continuous source space inclusion :=
+  topology.Continuity[A := Y, B := X].Corestriction[S := V].inclusionContinuous space;
+\definition closedSource: topology.Topology[Carrier := Y].IsClosedIn source sourceSubset :=
+  topology.Continuity[A := Y, B := X].closedPreimage source space inclusion inclusionContinuous subset closed;
+\import \parent.Mapping[Y := Y, source := source, sourceCompact := compactSource, sourceHausdorff := hausdorffSource,
+  sourceSubset := sourceSubset, sourceClosed := closedSource, f := inclusion, regular := inclusionContinuous, preserves := (\fun (y: Y)(member: \In[Y] sourceSubset y) => member)] \as Inclusion;
+\import \root.Relative[].Pair[X := Y, space := source, compact := compactSource, hausdorff := hausdorffSource, subset := sourceSubset, closed := closedSource] \as DomainPair;
+\import DomainPair.Quotient[] \as Domain;
+\import \parent.Quotient[] \as Range;
+\import topological_constructions.Coproduct[A := Y, B := Domain.Point] \as DomainSum;
+\import topology.Topology[Carrier := Domain.Point] \as DomainPointSpace;
+\import DomainSum.Properties[left := source, right := DomainPointSpace.Discrete] \as SourceSum;
+\import topological_constructions.Coproduct[A := X, B := Range.Point] \as RangeSum;
+\import RangeSum.Properties[left := space, right := topology.Topology[Carrier := Range.Point].Discrete] \as TargetSum;
+\definition rawInjective: \forall (p, q: Domain.Augmented) -> Inclusion.raw p = Inclusion.raw q -> p = q :=
+  \induction (p: Domain.Augmented) \return \forall (q: Domain.Augmented) -> Inclusion.raw p = Inclusion.raw q -> p = q \with {
+    | inl: \fun (x: Y) => \induction (q: Domain.Augmented) \return Inclusion.raw (DomainSum.inl x) = Inclusion.raw q -> DomainSum.inl x = q \with {
+      | inl: \fun (y: Y)(same: RangeSum.inl x = RangeSum.inl y) => congr!{Y {Domain.Augmented}} DomainSum.inl _ _ (TargetSum.leftInjective x y same)
+      | inr: \fun (y: Domain.Point)(same: RangeSum.inl x = RangeSum.inr y) => Logic.falseElim _ (TargetSum.leftRightDifferent x y same)
+    }
+    | inr: \fun (x: Domain.Point) => \induction (q: Domain.Augmented) \return Inclusion.raw (DomainSum.inr x) = Inclusion.raw q -> DomainSum.inr x = q \with {
+      | inl: \fun (y: Y)(same: RangeSum.inr x = RangeSum.inl y) => Logic.falseElim _ (TargetSum.leftRightDifferent y x (sym!{{Range.Augmented}} _ _ same))
+      | inr: \fun (y: Domain.Point)(same: RangeSum.inr x = RangeSum.inr y) => congr!{{Domain.Point} {Domain.Augmented}} DomainSum.inr _ _ (TargetSum.rightInjective x y same)
+    }
+  };
+\definition reflects: \forall (p: Domain.Augmented) -> \In[Range.Augmented] Range.collapsedPart (Inclusion.raw p) -> \In[Domain.Augmented] Domain.collapsedPart p :=
+  \induction (p: Domain.Augmented) \return \In[Range.Augmented] Range.collapsedPart (Inclusion.raw p) -> \In[Domain.Augmented] Domain.collapsedPart p \with {
+    | inl: \fun (x: Y)(member: Base.Member subset x) => member
+    | inr: \fun (x: Domain.Point)(member: DomainPointSpace.Member DomainPointSpace.Whole x) => member
+  };
+\definition injective: \forall (q, r: Domain.Carrier) -> Inclusion.quotient q = Inclusion.quotient r -> q = r :=
+  algebraic_topology.Collapse[A := Domain.Augmented, subset := Domain.collapsedPart].Mapping[B := Range.Augmented, targetSubset := Range.collapsedPart].injective
+    Inclusion.raw Inclusion.respects rawInjective reflects;
+\definition onto: \forall (q: Range.Carrier) -> \exists (p: Domain.Carrier \where Inclusion.quotient p = q) :=
+  \fun (q: Range.Carrier) => either!{{(std.Logic[].Classical[].excludedMiddle (q = Range.point))} {\exists (p: Domain.Carrier \where Inclusion.quotient p = q)}
+    {\fun (same: q = Range.point) => Logic.existsIntro[Domain.Carrier, { p: Domain.Carrier \where Inclusion.quotient p = q }] Domain.point
+      (trans!{{Range.Carrier}} _ _ _ (algebraic_topology.Pointed[A := Domain.Carrier].Maps[B := Range.Carrier].laws Domain.pointed Range.pointed Inclusion.quotientMap).pointed (sym!{{Range.Carrier}} _ _ same))}
+    {\block {
+      \fun (different: Logic.Not (q = Range.point)) \then
+      \takefrom x: \Cast[X] ({ x: X \where Range.projection x = q }) \by Range.representative q different \then
+      \let same: Range.projection x = q := \bysub(X, { x: X \where Range.projection x = q }, x) \then
+      \let y: Y := \into[X](x, V) \by {
+        Logic.orElim[Base.Member subset x, Base.Member V x, Base.Member V x] (covers x)
+          (\fun (inside: Base.Member subset x) => Logic.falseElim (Base.Member V x)
+            (different (trans!{{Range.Carrier}} _ _ _ (sym!{{Range.Carrier}} _ _ same)
+              (Range.onSubset (\into[X](x, subset) \by { inside })))))
+          (\fun (inside: Base.Member V x) => inside)
+      } \then
+      \return Logic.existsIntro[Domain.Carrier, { p: Domain.Carrier \where Inclusion.quotient p = q }] (Domain.projection y)
+        (trans!{{Range.Carrier}} _ _ _ (Inclusion.onProjection y) same)
+    }}
+  };
+\import topological_constructions.CompactQuotient[A := Domain.Carrier, B := Range.Carrier, source := Domain.topology, target := Range.topology, q := Inclusion.quotient] \as CompactQuotient;
+\import topology.Homeomorphism[A := Domain.Carrier, B := Range.Carrier] \as Homeomorphisms;
+\definition homeomorphism: Homeomorphisms.Homeomorphism[Domain.topology, Range.topology] :=
+  Homeomorphisms.OfQuotient[f := Inclusion.quotient].homeomorphism Domain.topology Range.topology injective onto Inclusion.quotientContinuous
+    (CompactQuotient.quotientMap Domain.quotientCompact Range.quotientHausdorff Inclusion.quotientContinuous onto).reflectsOpen;
+
+\definition homeomorphismLaws: Homeomorphisms.Laws[Domain.topology, Range.topology, homeomorphism] := Homeomorphisms.laws Domain.topology Range.topology homeomorphism;
+\import algebraic_topology.Pointed[A := Range.Carrier].Maps[B := Domain.Carrier] \as ReversePointed;
+\definition inverse: \root.Relative[].Map Range.model Domain.model :=
+  \into[Range.Carrier -> Domain.Carrier](homeomorphism.backward, \root.Relative[].Map Range.model Domain.model) \by {
+    ReversePointed.Laws[Range.pointed, Domain.pointed, homeomorphism.backward] {
+      continuous := homeomorphismLaws.backwardContinuous,
+      pointed := injective (homeomorphism.backward Range.point) Domain.point
+        (trans!{{Range.Carrier}} _ _ _ (homeomorphismLaws.rightInverse Range.point)
+          (sym!{{Range.Carrier}} _ _ (algebraic_topology.Pointed[A := Domain.Carrier].Maps[B := Range.Carrier].laws Domain.pointed Range.pointed Inclusion.quotientMap).pointed))
+    }
+  };
+\definition equivalence: \root.Relative[].Equivalence[source := Domain.model, target := Range.model].Data :=
+  \root.Relative[].Equivalence[source := Domain.model, target := Range.model].Data {
+    forward := Inclusion.quotientMap, backward := inverse,
+    leftInverse := homeomorphismLaws.leftInverse, rightInverse := homeomorphismLaws.rightInverse
+  };
+\definition onProjection: \forall (y: Y) -> equivalence.forward (Domain.projection y) = Range.projection (inclusion y) := Inclusion.onProjection;
+\definition intersectionToSubset: DomainPair.A -> A := Inclusion.Augmented[].onSubset;
+\definition intersectionToSubsetContinuous: topology.Continuity[A := DomainPair.A, B := A].Continuous DomainPair.subspace subspace intersectionToSubset :=
+  Inclusion.Augmented[].subsetContinuous;
+\import \root.Relative[].Equivalence[source := Domain.model, target := Range.model].With[e := equivalence] \as Invariance;
+\module Negative(degree: N.Nat^) {
+  \import Invariance.Negative[degree := degree] \as Model;
+  \definition forward: \root.Relative[].Negative[original := Range.model, degree := degree].Carrier -> \root.Relative[].Negative[original := Domain.model, degree := degree].Carrier := Model.forward;
+  \definition backward: \root.Relative[].Negative[original := Domain.model, degree := degree].Carrier -> \root.Relative[].Negative[original := Range.model, degree := degree].Carrier := Model.backward;
+  \definition leftInverse: \forall (x: \root.Relative[].Negative[original := Domain.model, degree := degree].Carrier) -> forward (backward x) = x := Model.leftInverse;
+  \definition rightInverse: \forall (x: \root.Relative[].Negative[original := Range.model, degree := degree].Carrier) -> backward (forward x) = x := Model.rightInverse;
+  \definition forwardEquality: forward = Inclusion.Negative[degree := degree].map := Model.forwardEquality;
+  \definition backwardEquality: backward = \root.Relative[].NegativeMap[source := Range.model, target := Domain.model, f := inverse, degree := degree].map := Model.backwardEquality;
+
+}
+\module MayerVietoris(degree: N.Nat^);
+\module Patching;
+\module MayerVietorisZero;
+\module Mapping(Y0: \Set, space0: topology.Topology[Carrier := Y0].Topology,
+  compact0: topology.Topology[Carrier := Y0].IsCompact space0, hausdorff0: topology.Topology[Carrier := Y0].IsT2 space0,
+  U0, V0: \Pow Y0, closedU0: topology.Topology[Carrier := Y0].IsClosedIn space0 U0, closedV0: topology.Topology[Carrier := Y0].IsClosedIn space0 V0,
+  covers0: \forall (y: Y0) -> Logic.Or[\In[Y0] U0 y, \In[Y0] V0 y],
+  f: Y0 -> X, regular: topology.Continuity[A := Y0, B := X].Continuous space0 space f,
+  preservesU: \forall (y: Y0) -> \In[Y0] U0 y -> \In[X] subset (f y),
+  preservesV: \forall (y: Y0) -> \In[Y0] V0 y -> \In[X] V (f y));

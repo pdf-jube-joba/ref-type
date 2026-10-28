@@ -1,0 +1,23 @@
+\import \root.Relative[].Pair[X := X, space := space, compact := compact, hausdorff := hausdorff, subset := subset, closed := closed].Mapping[
+  Y := Y, source := source, sourceCompact := sourceCompact, sourceHausdorff := sourceHausdorff, sourceSubset := sourceSubset, sourceClosed := sourceClosed,
+  f := f, regular := regular, preserves := preserves] \as Native;
+\use Equality.eq_reason_in;
+\import \parent.\parent.Group[] \as Target;
+\import DomainPair.Group[] \as Source;
+\import \parent.\parent.Comparison[] \as TargetComparison;
+\import DomainPair.Comparison[] \as SourceComparison;
+\definition map[v: Target.Carrier]: Source.Carrier := SourceComparison.isomorphism.backward (relative (TargetComparison.isomorphism.forward v));
+\definition naturality: \forall (v: Target.Carrier) -> SourceComparison.isomorphism.forward (map v) = relative (TargetComparison.isomorphism.forward v) :=
+  \fun (v: Target.Carrier) => SourceComparison.isomorphism.rightInverse (relative (TargetComparison.isomorphism.forward v));
+\definition additive: \forall (v, w: Target.Carrier) -> map (Target.add v w) = Source.add (map v) (map w) :=
+  \fun (v, w: Target.Carrier) => eq_reason_in!{{Source.Carrier} _
+    "=" { SourceComparison.isomorphism.backward (relative (Range.group.base.op (TargetComparison.isomorphism.forward v) (TargetComparison.isomorphism.forward w))) } "by" {
+      congr!{{Range.Relative} {Source.Carrier}} (\fun (x: Range.Relative) => SourceComparison.isomorphism.backward (relative x)) _ _ (TargetComparison.isomorphism.forwardAdd v w) }
+    "=" { SourceComparison.isomorphism.backward (Domain.group.base.op (relative (TargetComparison.isomorphism.forward v)) (relative (TargetComparison.isomorphism.forward w))) } "by" {
+      congr!{{Domain.Relative} {Source.Carrier}} SourceComparison.isomorphism.backward _ _ (Native.additive (TargetComparison.isomorphism.forward v) (TargetComparison.isomorphism.forward w)) }
+    "=" { Source.add (map v) (map w) } "by" {
+      SourceComparison.isomorphism.backwardAdd (relative (TargetComparison.isomorphism.forward v)) (relative (TargetComparison.isomorphism.forward w)) }
+  };
+\definition preservesZero: map Target.zero = Source.zero := trans!{{Source.Carrier}} _ _ _
+  (congr!{{Range.Relative} {Source.Carrier}} (\fun (x: Range.Relative) => SourceComparison.isomorphism.backward (relative x)) _ _ TargetComparison.forwardZero)
+  (trans!{{Source.Carrier}} _ _ _ (congr!{{Domain.Relative} {Source.Carrier}} SourceComparison.isomorphism.backward _ _ Native.preservesZero) SourceComparison.backwardZero);

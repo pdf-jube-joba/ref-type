@@ -1,0 +1,42 @@
+\import topological_constructions.Product[A := Square.CarrierSet, B := First.DomainPoint] \as Domain;
+\import topological_constructions.Product[A := Square.CarrierSet, B := First.Carrier] \as Result;
+\definition domainTopology: topology.Topology[Carrier := Domain.CarrierSet].Topology := Domain.topology squareTopology First.domainTopology;
+\definition resultTopology: topology.Topology[Carrier := Result.CarrierSet].Topology := Result.topology squareTopology First.topology;
+\definition parameter[p: Domain.CarrierSet]: Square.CarrierSet := Pair.first Square.CarrierSet First.DomainPoint p;
+\definition original[p: Domain.CarrierSet]: First.DomainPoint := Pair.second Square.CarrierSet First.DomainPoint p;
+\definition h[p: Domain.CarrierSet]: Interval.Carrier := Pair.first Interval.Carrier Interval.Carrier (parameter p);
+\definition t[p: Domain.CarrierSet]: Interval.Carrier := Pair.second Interval.Carrier Interval.Carrier (parameter p);
+\definition s[p: Domain.CarrierSet]: Interval.Carrier := First.time (original p);
+\definition x[p: Domain.CarrierSet]: X := First.point (original p);
+\definition scalar[p: Domain.CarrierSet]: Interval.Carrier := Times.multiply (Times.advance (h p) (t p)) (Interval.reverse (s p));
+\definition raw[p: Domain.CarrierSet]: Target.Carrier := Target.class (TargetCylinder.at (scalar p) (x p));
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as RealLaws;
+\import real.Analysis[].Algebra[] \as RealMultiplication;
+\definition multiplyZero: \forall (v: Interval.Carrier) -> Times.multiply v Interval.start = Interval.start := \fun (v: Interval.Carrier) => RealLaws.fieldMulZeroRight v;
+\definition multiplyOne: \forall (v: Interval.Carrier) -> Times.multiply v Interval.end = v := \fun (v: Interval.Carrier) => RealMultiplication.mulOneRight v;
+\definition zeroMultiply: \forall (v: Interval.Carrier) -> Times.multiply Interval.start v = Interval.start := \fun (v: Interval.Carrier) => RealLaws.fieldMulZeroLeft v;
+\definition oneMultiply: \forall (v: Interval.Carrier) -> Times.multiply Interval.end v = v := \fun (v: Interval.Carrier) => RealLaws.fieldMulOneLeft v;
+\definition onCollapsed: \forall (p: Square.CarrierSet)(z: First.DomainPoint) -> \In[First.DomainPoint] First.collapsedPart z -> raw (Pair.pair Square.CarrierSet First.DomainPoint p z) = Target.point :=
+  \fun (p: Square.CarrierSet)(z: First.DomainPoint)(member: \In[First.DomainPoint] First.collapsedPart z) =>
+    Logic.orElim[First.time z = Interval.end, First.point z = a0, raw (Pair.pair Square.CarrierSet First.DomainPoint p z) = Target.point] member
+      (\fun (same: First.time z = Interval.end) => trans!{{Target.Carrier}} _ _ _
+        (congr!{{Interval.Carrier} {Target.Carrier}} (\fun (u: Interval.Carrier) => Target.class (TargetCylinder.at u (First.point z))) _ _
+          (trans!{{Interval.Carrier}} _ _ _
+            (congr!{{Interval.Carrier} {Interval.Carrier}} (\fun (u: Interval.Carrier) => Times.multiply (Times.advance (Pair.first Interval.Carrier Interval.Carrier p) (Pair.second Interval.Carrier Interval.Carrier p)) u) _ _
+              (trans!{{Interval.Carrier}} _ _ _ (congr!{{Interval.Carrier} {Interval.Carrier}} Interval.reverse _ _ same) Interval.reverseEnd))
+            (multiplyZero (Times.advance (Pair.first Interval.Carrier Interval.Carrier p) (Pair.second Interval.Carrier Interval.Carrier p))))) (Target.bottom (First.point z)))
+      (\fun (same: First.point z = a0) => trans!{{Target.Carrier}} _ _ _
+        (congr!{{X} {Target.Carrier}} (\fun (y: X) => Target.class (TargetCylinder.at (scalar (Pair.pair Square.CarrierSet First.DomainPoint p z)) y)) _ _ same)
+        (Target.line (scalar (Pair.pair Square.CarrierSet First.DomainPoint p z))));
+\import FirstQuotient.Families[X := Square.CarrierSet, C := Target.Carrier, factor := squareTopology, source := First.domainTopology, target := Target.topology, laws := FirstCollapse.equivalence] \as Family;
+\definition respects: Family.Respects raw := \fun (p: Square.CarrierSet)(z, w: First.DomainPoint)(related: FirstCollapse.Related z w) =>
+  Logic.orElim[z = w, Logic.And[\In[First.DomainPoint] First.collapsedPart z, \In[First.DomainPoint] First.collapsedPart w], raw (Pair.pair Square.CarrierSet First.DomainPoint p z) = raw (Pair.pair Square.CarrierSet First.DomainPoint p w)] related
+    (\fun (same: z = w) => congr!{{First.DomainPoint} {Target.Carrier}} (\fun (v: First.DomainPoint) => raw (Pair.pair Square.CarrierSet First.DomainPoint p v)) _ _ same)
+    (\fun (both: Logic.And[\In[First.DomainPoint] First.collapsedPart z, \In[First.DomainPoint] First.collapsedPart w]) =>
+      trans!{{Target.Carrier}} _ _ _ (onCollapsed p z both.left) (sym!{{Target.Carrier}} _ _ (onCollapsed p w both.right)));
+\definition map: Result.CarrierSet -> Target.Carrier := Family.apply raw respects;
+\definition onClass: \forall (p: Square.CarrierSet)(z: First.DomainPoint) -> map (Pair.pair Square.CarrierSet First.Carrier p (FirstCollapse.class z)) = raw (Pair.pair Square.CarrierSet First.DomainPoint p z) := Family.onClass raw respects;
+\module Continuity;
+\definition continuous: topology.Continuity[A := Result.CarrierSet, B := Target.Carrier].Continuous resultTopology Target.topology map :=
+  Family.continuous squareCompact squareHausdorff raw respects Continuity[].continuous;
+\module Formulas;

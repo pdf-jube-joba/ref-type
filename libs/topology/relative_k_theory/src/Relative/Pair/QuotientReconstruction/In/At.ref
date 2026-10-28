@@ -1,0 +1,79 @@
+\import Descended.At[q := q] \as Model;
+\definition distinguished: \Cast[Quotient.Carrier] c.domain := \into[Quotient.Carrier](Quotient.point, c.domain) \by { contains };
+\definition pointFrame: Spaces.Isomorphism[V := F Quotient.point, W := Bundles.Vector dimension, source := bundle.space Quotient.point, target := Bundles.coordinates dimension].Isomorphism := c.frame distinguished;
+\definition underProjection[x: Model.Index]: q = Quotient.projection x :=
+  sym!{{Quotient.Carrier}} (Quotient.projection x) q (\bysub(X, { x: X \where Quotient.projection x = q }, x));
+\structure Condition[d: Model.Carrier, w: F q]: \Prop := {
+  atPoint: \forall (equal: q = Quotient.point) -> pointFrame.forward.apply (Transport.cast q Quotient.point equal w) = Model.anchor d,
+  evaluations: \forall (x: Model.Index) -> Transport.cast q (Quotient.projection x)
+    (underProjection x) w = Model.section d x
+};
+\definition Value[d: Model.Carrier]: \Set := \Cast[F q] ({ w: F q \where Condition[d, w] });
+\import Spaces.Isomorphism[V := Model.Carrier, W := F q, source := Model.space, target := bundle.space q] \as Isomorphisms;
+\structure Candidate: \Set := {
+  isomorphism: Isomorphisms.Isomorphism,
+  condition: \forall (d: Model.Carrier) -> Condition[d, isomorphism.forward.apply d]
+};
+\module Point(atBase: q = Quotient.point);
+\module Outside(different: Logic.Not (q = Quotient.point));
+\definition candidates: \exists Candidate := Logic.orElim[q = Quotient.point, Logic.Not (q = Quotient.point), \exists Candidate]
+  (std.Logic[].Classical[].excludedMiddle (q = Quotient.point))
+  (\fun (same: q = Quotient.point) => \exact(Point[atBase := same].result, Candidate))
+  (\fun (different: Logic.Not (q = Quotient.point)) => \exact(Outside[different := different].result, Candidate));
+\definition existence: \forall (d: Model.Carrier) -> \exists Value[d] := \block {
+  \fun (d: Model.Carrier) \then
+  \takefrom candidate: Candidate \by candidates \then
+  \return \exact(\into[F q](candidate.isomorphism.forward.apply d, Value[d]) \by { candidate.condition d }, Value[d])
+};
+\definition unique: \forall (d: Model.Carrier)(w, z: Value[d]) -> w = z := \fun (d: Model.Carrier)(w, z: Value[d]) =>
+  Logic.orElim[q = Quotient.point, Logic.Not (q = Quotient.point), w = z]
+    (std.Logic[].Classical[].excludedMiddle (q = Quotient.point))
+    (\fun (same: q = Quotient.point) => Spaces.Isomorphism[V := F q, W := F Quotient.point, source := bundle.space q, target := bundle.space Quotient.point].injective
+      (Transport.isomorphism q Quotient.point same) w z
+      (Spaces.Isomorphism[V := F Quotient.point, W := Bundles.Vector dimension, source := bundle.space Quotient.point, target := Bundles.coordinates dimension].injective
+        pointFrame _ _ (trans!{{Bundles.Vector dimension}} _ _ _ ((\bysub(F q, Value[d], w)).atPoint same) (sym!{{Bundles.Vector dimension}} _ _ ((\bysub(F q, Value[d], z)).atPoint same)))))
+    (\fun (different: Logic.Not (q = Quotient.point)) =>
+      Spaces.Isomorphism[V := F q, W := F (Quotient.projection Model.Outside[different := different].index), source := bundle.space q, target := bundle.space (Quotient.projection Model.Outside[different := different].index)].injective
+        (Transport.isomorphism q (Quotient.projection Model.Outside[different := different].index)
+          (sym!{{Quotient.Carrier}} _ _ (\bysub(X, { x: X \where Quotient.projection x = q }, Model.Outside[different := different].index)))) w z
+        (trans!{{F (Quotient.projection Model.Outside[different := different].index)}} _ _ _
+          ((\bysub(F q, Value[d], w)).evaluations Model.Outside[different := different].index)
+          (sym!{{F (Quotient.projection Model.Outside[different := different].index)}} _ _ ((\bysub(F q, Value[d], z)).evaluations Model.Outside[different := different].index))));
+\definition value[d: Model.Carrier]: Value[d] := \choice Value[d] \by { existence: existence d, uniqueness: unique d };
+\definition condition[d: Model.Carrier]: Condition[d, value d] := \bysub(F q, Value[d], value d);
+\definition agreement: \forall (candidate: Candidate)(d: Model.Carrier) -> value d = candidate.isomorphism.forward.apply d :=
+  \fun (candidate: Candidate)(d: Model.Carrier) => unique d (value d)
+    (\into[F q](candidate.isomorphism.forward.apply d, Value[d]) \by { candidate.condition d });
+\definition additive: \forall (d, e: Model.Carrier) -> value (Model.space.add d e) = (bundle.space q).add (value d) (value e) := \block {
+  \fun (d, e: Model.Carrier) \then
+  \takefrom candidate: Candidate \by candidates \then
+  \return trans!{{F q}} _ _ _ (agreement candidate (Model.space.add d e))
+    (trans!{{F q}} _ _ _ (candidate.isomorphism.forward.preservesAdd d e)
+      (congr!{{F q} {F q} {F q}} (bundle.space q).add _ _ _ _ (sym!{{F q}} _ _ (agreement candidate d)) (sym!{{F q}} _ _ (agreement candidate e))))
+};
+\definition homogeneous: \forall (a: C.Complex)(d: Model.Carrier) -> value (Model.space.smul a d) = (bundle.space q).smul a (value d) := \block {
+  \fun (a: C.Complex)(d: Model.Carrier) \then
+  \takefrom candidate: Candidate \by candidates \then
+  \return trans!{{F q}} _ _ _ (agreement candidate (Model.space.smul a d))
+    (trans!{{F q}} _ _ _ (candidate.isomorphism.forward.preservesScale a d)
+      (congr!{{F q} {F q}} ((bundle.space q).smul a) _ _ (sym!{{F q}} _ _ (agreement candidate d))))
+};
+\definition map: Spaces.Linear[V := Model.Carrier, W := F q, source := Model.space, target := bundle.space q].Map :=
+  Spaces.Linear[V := Model.Carrier, W := F q, source := Model.space, target := bundle.space q].Map {
+    apply := value, preservesAdd := additive, preservesScale := homogeneous
+  };
+\import Isomorphisms.OfBijective[f := map] \as Invert;
+\definition injective: Invert.Injective := \block {
+  \fun (d, e: Model.Carrier)(same: value d = value e) \then
+  \takefrom candidate: Candidate \by candidates \then
+  \return Isomorphisms.injective candidate.isomorphism d e
+    (trans!{{F q}} _ _ _ (sym!{{F q}} _ _ (agreement candidate d)) (trans!{{F q}} _ _ _ same (agreement candidate e)))
+};
+\definition onto: Invert.Onto := \block {
+  \fun (w: F q) \then
+  \takefrom candidate: Candidate \by candidates \then
+  \takefrom d: \Cast[Model.Carrier] ({ d: Model.Carrier \where candidate.isomorphism.forward.apply d = w }) \by Isomorphisms.surjective candidate.isomorphism w \then
+  \return Logic.existsIntro[Model.Carrier, { d: Model.Carrier \where map.apply d = w }] d
+    (trans!{{F q}} _ _ _ (agreement candidate d) (\bysub(Model.Carrier, { d: Model.Carrier \where candidate.isomorphism.forward.apply d = w }, d)))
+};
+\definition isomorphism: Isomorphisms.Isomorphism := Invert.isomorphism injective onto;

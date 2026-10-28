@@ -1,0 +1,57 @@
+\definition onSource: \forall (z: From.Carrier) -> Projected.map (inclusionMap z) = Target.point :=
+  SourceCollapse.induction (\fun (z: From.Carrier) => Projected.map (inclusionMap z) = Target.point)
+    (\fun (z: SourceCylinder.Carrier) => trans!{{Target.Carrier}} _ _ _
+      (congr!{{To.Carrier} {Target.Carrier}} Projected.map _ _ (onInclusionClass z))
+      (trans!{{Target.Carrier}} _ _ _ (Projected.onClass (Native.raw z))
+        (trans!{{Target.Carrier}} _ _ _
+          (congr!{{Original.Carrier} {Target.Carrier}} (\fun (q: Original.Carrier) => Target.class (QuotientCylinder.at (SourceCylinder.time z) q)) _ _ (Original.onSubset (SourceCylinder.point z)))
+          (Target.line (SourceCylinder.time z)))));
+\definition onImage: \forall (z: To.Carrier) -> \In[To.Carrier] image z -> Projected.map z = Target.point := \block {
+  \fun (z: To.Carrier)(member: \In[To.Carrier] image z) \then
+  \takefrom w: \Cast[From.Carrier] ({ w: From.Carrier \where Logic.And[w = w, inclusionMap w = z] }) \by member \then
+  \return trans!{{Target.Carrier}} _ _ _
+    (sym!{{Target.Carrier}} _ _ (congr!{{To.Carrier} {Target.Carrier}} Projected.map _ _ ((\bysub(From.Carrier, { w: From.Carrier \where Logic.And[w = w, inclusionMap w = z] }, w)).right)))
+    (onSource w)
+};
+\definition raw: Q.Augmented -> Target.Carrier := \induction (p: Q.Augmented) \return Target.Carrier \with {
+  | inl: Projected.map
+  | inr: \fun (p: Q.Point) => Target.point
+};
+\definition rawCollapsed: \forall (p: Q.Augmented) -> \In[Q.Augmented] Q.collapsedPart p -> raw p = Target.point :=
+  \induction (p: Q.Augmented) \return \In[Q.Augmented] Q.collapsedPart p -> raw p = Target.point \with {
+    | inl: \fun (z: To.Carrier)(member: \In[To.Carrier] image z) => onImage z member
+    | inr: \fun (p: Q.Point)(member: p = p) => \refl(Target.point)
+  };
+\import SourceNative.Descent[B := Target.Carrier] \as Descend;
+\definition respects: Descend.Respects raw := \fun (p, q: Q.Augmented)(related: SourceNative.Related p q) =>
+  Logic.orElim[p = q, Logic.And[\In[Q.Augmented] Q.collapsedPart p, \In[Q.Augmented] Q.collapsedPart q], raw p = raw q] related
+    (\fun (same: p = q) => congr!{{Q.Augmented} {Target.Carrier}} raw _ _ same)
+    (\fun (both: Logic.And[\In[Q.Augmented] Q.collapsedPart p, \In[Q.Augmented] Q.collapsedPart q]) =>
+      trans!{{Target.Carrier}} _ _ _ (rawCollapsed p both.left) (sym!{{Target.Carrier}} _ _ (rawCollapsed q both.right)));
+\import Augment.Universal[C := Target.Carrier] \as Copair;
+\definition rawContinuous: topology.Continuity[A := Q.Augmented, B := Target.Carrier].Continuous Q.augmentedSpace Target.topology raw :=
+  Copair.continuous To.topology (topology.Topology[Carrier := Q.Point].Discrete) Target.topology Projected.map (\fun (p: Q.Point) => Target.point)
+    Projected.continuous (topology.Maps[A := Q.Point, B := Target.Carrier].constantContinuous (topology.Topology[Carrier := Q.Point].Discrete) Target.topology Target.point);
+\definition projection: Q.Carrier -> Target.Carrier := Descend.apply raw respects;
+\definition continuous: topology.Continuity[A := Q.Carrier, B := Target.Carrier].Continuous Q.topology Target.topology projection :=
+  Descend.continuous Q.augmentedSpace Target.topology raw respects rawContinuous;
+\definition onProjection: \forall (z: To.Carrier) -> projection (Q.projection z) = Projected.map z := \fun (z: To.Carrier) => Descend.onClass raw respects (Augment.inl z);
+\definition onClass: \forall (z: TargetCylinder.Carrier) -> projection (Q.projection (To.class z)) = Target.class (Projected.raw z) :=
+  \fun (z: TargetCylinder.Carrier) => trans!{{Target.Carrier}} _ _ _ (onProjection (To.class z)) (Projected.onClass z);
+\definition onPoint: projection Q.point = Target.point := Descend.onClass raw respects (Augment.inr Q.distinguished);
+\import algebraic_topology.Pointed[A := Q.Carrier].Maps[B := Target.Carrier] \as Maps;
+\definition map: Map Q.model SuspendedQuotient.result := \into[Q.Carrier -> Target.Carrier](projection, Map Q.model SuspendedQuotient.result) \by {
+  Maps.Laws[pointed Q.model, pointed SuspendedQuotient.result, projection] { continuous := continuous, pointed := onPoint }
+};
+\definition onto: \forall (z: Target.Carrier) -> \exists (w: Q.Carrier \where map w = z) :=
+  TargetNative.induction (\fun (z: Target.Carrier) => \exists (w: Q.Carrier \where map w = z))
+    (\block {
+      \fun (z: QuotientCylinder.Carrier) \then
+      \takefrom x: \Cast[X] ({ x: X \where Original.projection x = QuotientCylinder.point z }) \by OriginalOnto.onto (QuotientCylinder.point z) \then
+      \return Logic.existsIntro[Q.Carrier, { w: Q.Carrier \where map w = Target.class z }] (Q.projection (To.class (TargetCylinder.at (QuotientCylinder.time z) x)))
+        (trans!{{Target.Carrier}} _ _ _ (onClass (TargetCylinder.at (QuotientCylinder.time z) x))
+          (trans!{{Target.Carrier}} _ _ _
+            (congr!{{Original.Carrier} {Target.Carrier}} (\fun (q: Original.Carrier) => Target.class (QuotientCylinder.at (QuotientCylinder.time z) q)) _ _
+              (\bysub(X, { x: X \where Original.projection x = QuotientCylinder.point z }, x)))
+            (congr!{{QuotientCylinder.Carrier} {Target.Carrier}} Target.class _ _ (std.Data[].Pair[].Prop[A := Interval.Carrier, B := Original.Carrier].eta z))))
+    });

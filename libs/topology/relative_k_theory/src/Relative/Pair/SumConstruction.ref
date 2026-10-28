@@ -1,0 +1,40 @@
+\import Operations.DirectSum[X := X, F := Absolute.Fiber t.positive, G := Absolute.Fiber u.positive, left := Absolute.bundle t.positive, right := Absolute.bundle u.positive] \as Positive;
+\import Operations.DirectSum[X := X, F := Absolute.Fiber t.negative, G := Absolute.Fiber u.negative, left := Absolute.bundle t.negative, right := Absolute.bundle u.negative] \as Negative;
+\definition positiveBundle: Bundles.Family[X := X, F := Positive.Fiber].Bundle := Positive.bundle (\refl(space));
+\definition negativeBundle: Bundles.Family[X := X, F := Negative.Fiber].Bundle := Negative.bundle (\refl(space));
+\import Absolute.Bundle[F := Positive.Fiber, original := positiveBundle, same := \refl(space)] \as FirstClass;
+\import Absolute.Bundle[F := Negative.Fiber, original := negativeBundle, same := \refl(space)] \as SecondClass;
+\import Bundles.Family[X := X, F := Positive.Fiber].Of[bundle := positiveBundle].Restriction[U := subset] \as PositiveRestriction;
+\import Bundles.Family[X := X, F := Negative.Fiber].Of[bundle := negativeBundle].Restriction[U := subset] \as NegativeRestriction;
+\definition first: Bundles.Family[X := A, F := (\fun (x: A) => Positive.Fiber x)].Bundle := PositiveRestriction.restricted;
+\definition second: Bundles.Family[X := A, F := (\fun (x: A) => Negative.Fiber x)].Bundle := NegativeRestriction.restricted;
+\definition inclusion[x: A]: X := x;
+\definition regular: topology.Continuity[A := A, B := X].Continuous subspace space inclusion := topology.Continuity[A := A, B := X].Corestriction[S := subset].inclusionContinuous space;
+\import Positive.Of[same := \refl(space)].Pullback[Y := A, source := subspace, f := inclusion, regular := regular] \as PositivePull;
+\import Negative.Of[same := \refl(space)].Pullback[Y := A, source := subspace, f := inclusion, regular := regular] \as NegativePull;
+\import Operations.DirectSumIsomorphisms[X := A,
+  F := \parent.Restricted[p := t.positive].Fiber, G := \parent.Restricted[p := u.positive].Fiber,
+  A := \parent.Restricted[p := t.negative].Fiber, B := \parent.Restricted[p := u.negative].Fiber,
+  first := \parent.Restricted[p := t.positive].bundle, second := \parent.Restricted[p := u.positive].bundle,
+  newFirst := \parent.Restricted[p := t.negative].bundle, newSecond := \parent.Restricted[p := u.negative].bundle,
+  sameSource := \refl(subspace), sameTarget := \refl(subspace)] \as SumIsomorphisms;
+\import Operations.IsomorphismComposition[X := A,
+  F := (\fun (x: A) => Positive.Fiber x), G := (\fun (x: A) => Positive.Fiber x), H := (\fun (x: A) => Negative.Fiber x),
+  source := first, middle := SumIsomorphisms.sourceBundle, target := SumIsomorphisms.targetBundle] \as FirstStep;
+\definition start: FirstStep.Isomorphism := FirstStep.compose PositivePull.isomorphism (SumIsomorphisms.isomorphism t.comparison u.comparison);
+\import Bundles.Isomorphisms[X := A, F := (\fun (x: A) => Negative.Fiber x), G := (\fun (x: A) => Negative.Fiber x),
+  source := second, target := SumIsomorphisms.targetBundle] \as NegativeComparison;
+\import Operations.IsomorphismComposition[X := A,
+  F := (\fun (x: A) => Positive.Fiber x), G := (\fun (x: A) => Negative.Fiber x), H := (\fun (x: A) => Negative.Fiber x),
+  source := first, middle := SumIsomorphisms.targetBundle, target := second] \as SecondStep;
+\definition sum: SecondStep.Isomorphism := SecondStep.compose start (NegativeComparison.inverse NegativePull.isomorphism);
+\module With(p, q: Presentation, positive: FirstClass.Isomorphism p, negative: SecondClass.Isomorphism q);
+\structure Result: \Set := { value: Triple, witness: \parent.Sum[t := t, u := u, v := value].Witness };
+\definition existence: \exists Result := \block {
+  \takefrom p: FirstClass.Representative \by FirstClass.representativeExists \then
+  \takefrom q: SecondClass.Representative \by SecondClass.representativeExists \then
+  \return \exact(Result {
+    value := With[p := p.presentation, q := q.presentation, positive := p.isomorphism, negative := q.isomorphism].triple,
+    witness := With[p := p.presentation, q := q.presentation, positive := p.isomorphism, negative := q.isomorphism].witness
+  }, Result)
+};

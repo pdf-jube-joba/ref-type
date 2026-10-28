@@ -151,3 +151,35 @@ B03 の `Representations.Representing` はこの配置を使う。
   }
 }
 ```
+
+## import 別名を経由する公開参照
+
+module 内の import 別名を、その module の利用側から修飾して参照したい。
+現在は `Name 'Internal' was not found in its scope` となる。
+
+```ref
+\import std.Data[].Nat[] \as N;
+\module Core {
+  \definition value: N.Nat^ := N.Nat^::zero;
+}
+\module Wrapper {
+  \import \root.Core[] \as Internal;
+}
+\import \root.Wrapper[] \as API;
+\definition result: N.Nat^ := API.Internal.value;
+```
+
+現在は必要な定義を明示的に公開するか、利用側で元の module を import する。
+
+```ref
+\import std.Data[].Nat[] \as N;
+\module Core {
+  \definition value: N.Nat^ := N.Nat^::zero;
+}
+\module Wrapper {
+  \import \root.Core[] \as Internal;
+  \definition value: N.Nat^ := Internal.value;
+}
+\import \root.Wrapper[] \as API;
+\definition result: N.Nat^ := API.value;
+```

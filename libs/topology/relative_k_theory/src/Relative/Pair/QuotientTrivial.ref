@@ -1,0 +1,22 @@
+\import \parent.Quotient[] \as Quotient;
+\import topology.Topology[Carrier := Quotient.Carrier] \as QuotientBase;
+\import Bundles.Trivial[X := Quotient.Carrier, n := n, baseSpace := Quotient.topology] \as Original;
+\import Bundles.Trivial[X := X, n := n, baseSpace := space] \as Trivial;
+\import Bundles.Family[X := Quotient.Carrier, F := (\fun (q: Quotient.Carrier) => Bundles.Vector n)].With[data := Original.bundle] \as Charts;
+\definition chart: \Cast[Charts.Chart] ({ c: Charts.Chart \where QuotientBase.Member c.domain Quotient.point }) :=
+  \into[Charts.Chart](Original.trivialization, { c: Charts.Chart \where QuotientBase.Member c.domain Quotient.point }) \by { \refl(Quotient.point) };
+\import \parent.FromQuotient[F := (\fun (q: Quotient.Carrier) => Bundles.Vector n), bundle := Original.bundle, same := \refl(Quotient.topology)] \as Raw;
+\import Raw.In[c := chart, contains := (\refl(Quotient.point))] \as Model;
+\import Operations.TrivialPullback[X := Quotient.Carrier, Y := X, n := n, original := Quotient.topology, base := space,
+  f := Quotient.projection, regular := Quotient.continuous] \as Pull;
+\import \parent.BundleGlobal[F := Raw.Fiber, G := (\fun (x: X) => Bundles.Vector n), source := Raw.pulled, target := Trivial.bundle,
+  sourceSame := \refl(space), targetSame := \refl(space)] \as Vanishing;
+\import \parent.QuotientClass[F := (\fun (q: Quotient.Carrier) => Bundles.Vector n), bundle := Original.bundle, same := \refl(Quotient.topology)] \as Class;
+\import \parent.Group[] \as RelativeGroup;
+\definition equation: Class.value = RelativeGroup.zero := \block {
+  \takefrom result: Model.Result \by Model.existence \then
+  \let raw: Raw.Witness := Raw.Witness { chart := chart, result := result } \then
+  \return trans!{{RelativeGroup.Carrier}} _ _ _ (Class.agreement raw)
+    (Vanishing.On[alpha := Model.comparison, result := result, h := Pull.isomorphism,
+      agrees := (\fun (x: A)(v: Bundles.Vector n) => \refl(v))].equation)
+};

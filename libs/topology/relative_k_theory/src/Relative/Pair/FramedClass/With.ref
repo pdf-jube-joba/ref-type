@@ -1,0 +1,36 @@
+\definition compatible: Maps.Compatible alpha alpha Identity.isomorphism.forward coordinateIdentity.forward :=
+  \fun (x: A)(v: F x) => \refl((alpha.forward.fiber x).apply v);
+\import Comparing.With[alpha := alpha, beta := alpha, h := Identity.isomorphism, c := coordinateIdentity, compatible := compatible] \as Comparison;
+\import Descent.With[comparison := alpha] \as Source;
+\module Between(first, second: Source.Result);
+\module Value(e: Source.Result);
+\definition Values: \Set := \Cast[Quotient.Relative] ({ v: Quotient.Relative \where \exists (e: Source.Result \where Value[e := e].value = v) });
+\definition existence: \exists Values := \block {
+  \takefrom witness: Descent.Witness[alpha] \by Descent.descend alpha \then
+  \return \exact(\into[Quotient.Relative](Value[e := witness.extension].value, Values) \by {
+    Logic.existsIntro[Source.Result, { e: Source.Result \where Value[e := e].value = Value[e := witness.extension].value }] witness.extension (\refl(Value[e := witness.extension].value))
+  }, Values)
+};
+\definition uniqueness: \forall (v, u: Values) -> v = u := \block {
+  \fun (v, u: Values) \then
+  \takefrom first: \Cast[Source.Result] ({ e: Source.Result \where Value[e := e].value = v }) \by
+    \bysub(Quotient.Relative, { v: Quotient.Relative \where \exists (e: Source.Result \where Value[e := e].value = v) }, v) \then
+  \takefrom second: \Cast[Source.Result] ({ e: Source.Result \where Value[e := e].value = u }) \by
+    \bysub(Quotient.Relative, { v: Quotient.Relative \where \exists (e: Source.Result \where Value[e := e].value = v) }, u) \then
+  \return trans!{{Quotient.Relative}} _ _ _
+    (sym!{{Quotient.Relative}} _ _ (\bysub(Source.Result, { e: Source.Result \where Value[e := e].value = v }, first)))
+    (trans!{{Quotient.Relative}} _ _ _ (Between[first := first, second := second].reducedEquality)
+      (\bysub(Source.Result, { e: Source.Result \where Value[e := e].value = u }, second)))
+};
+\definition value: Values := \choice Values \by { existence: existence, uniqueness: uniqueness };
+\definition agreement: \forall (e: Source.Result) -> value = Value[e := e].value := \fun (e: Source.Result) =>
+  uniqueness value (\into[Quotient.Relative](Value[e := e].value, Values) \by {
+    Logic.existsIntro[Source.Result, { f: Source.Result \where Value[e := f].value = Value[e := e].value }] e (\refl(Value[e := e].value))
+  });
+\module Global(h: Bundles.Isomorphisms[X := X, F := F, G := (\fun (x: X) => Bundles.Vector n), source := framedBundle, target := Bundles.Trivial[X := X, n := n, baseSpace := space].bundle].Isomorphism,
+  extends: \forall (x: A)(v: F x) -> (h.forward.fiber x).apply v = (alpha.forward.fiber x).apply v);
+\module Homotopy(beta: Descent.OnSubset);
+\module Stabilized(k: N.Nat^);
+\module ContractibleKernel(a0: A, homotopy: algebraic_topology.Homotopy[A := A, B := A].Homotopy[subspace, subspace, (\fun (x: A) => x), (\fun (x: A) => a0)]);
+\module Pullback;
+\module EmptyKernel(empty: \forall (x: A) -> Logic.False);

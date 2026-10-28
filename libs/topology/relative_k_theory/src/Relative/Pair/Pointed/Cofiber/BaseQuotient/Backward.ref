@@ -1,0 +1,29 @@
+\definition raw[z: CylinderA.Carrier]: Q.Carrier := Q.projection (Native.class (Piece.vertical z));
+\definition rawCollapsed: \forall (z: CylinderA.Carrier) -> \In[CylinderA.Carrier] Suspension.Collapsed z -> raw z = Q.point :=
+  \fun (z: CylinderA.Carrier)(member: \In[CylinderA.Carrier] Suspension.Collapsed z) =>
+    Logic.orElim[CylinderA.time z = Interval.start, Logic.Or[CylinderA.time z = Interval.end, CylinderA.point z = a0], raw z = Q.point] member
+      (\fun (same: CylinderA.time z = Interval.start) => trans!{{Q.Carrier}} _ _ _
+        (congr!{{Carrier} {Q.Carrier}} Q.projection _ _ (atBottom (Piece.vertical z) same)) (quotientBase (CylinderA.point z)))
+      (\fun (inside: Logic.Or[CylinderA.time z = Interval.end, CylinderA.point z = a0]) => trans!{{Q.Carrier}} _ _ _
+        (congr!{{Carrier} {Q.Carrier}} Q.projection _ _ (collapsed (Piece.vertical z) inside)) (quotientBase a0));
+\import SuspensionCollapse.Descent[B := Q.Carrier] \as Descend;
+\definition respects: Descend.Respects raw := \fun (z, w: CylinderA.Carrier)(related: SuspensionCollapse.Related z w) =>
+  Logic.orElim[z = w, Logic.And[\In[CylinderA.Carrier] Suspension.Collapsed z, \In[CylinderA.Carrier] Suspension.Collapsed w], raw z = raw w] related
+    (\fun (same: z = w) => congr!{{CylinderA.Carrier} {Q.Carrier}} raw _ _ same)
+    (\fun (both: Logic.And[\In[CylinderA.Carrier] Suspension.Collapsed z, \In[CylinderA.Carrier] Suspension.Collapsed w]) =>
+      trans!{{Q.Carrier}} _ _ _ (rawCollapsed z both.left) (sym!{{Q.Carrier}} _ _ (rawCollapsed w both.right)));
+\definition projection: Suspension.Carrier -> Q.Carrier := Descend.apply raw respects;
+\definition onClass: \forall (z: CylinderA.Carrier) -> projection (Suspension.class z) = raw z := Descend.onClass raw respects;
+\definition onPoint: projection Suspension.point = Q.point := trans!{{Q.Carrier}} _ _ _
+  (onClass (CylinderA.at Interval.start a0)) (rawCollapsed (CylinderA.at Interval.start a0) (Logic.Or[_, _]::left (\refl(Interval.start))));
+\definition rawContinuous: topology.Continuity[A := CylinderA.Carrier, B := Q.Carrier].Continuous (CylinderA.topology subspace) Q.topology raw :=
+  topology.Composition[A := CylinderA.Carrier, B := Carrier, C := Q.Carrier].composeContinuous (CylinderA.topology subspace) topology Q.topology
+    (\fun (z: CylinderA.Carrier) => Native.class (Piece.vertical z)) Q.projection
+    (topology.Composition[A := CylinderA.Carrier, B := DomainPoint, C := Carrier].composeContinuous (CylinderA.topology subspace) domainTopology topology
+      Piece.vertical Native.class Piece.verticalContinuous (Native.projectionContinuous domainTopology)) Q.continuous;
+\definition continuous: topology.Continuity[A := Suspension.Carrier, B := Q.Carrier].Continuous Suspension.topology Q.topology projection :=
+  Descend.continuous (CylinderA.topology subspace) Q.topology raw respects rawContinuous;
+\import algebraic_topology.Pointed[A := Suspension.Carrier].Maps[B := Q.Carrier] \as PointedMaps;
+\definition map: Map Suspended.result Q.model := \into[Suspension.Carrier -> Q.Carrier](projection, Map Suspended.result Q.model) \by {
+  PointedMaps.Laws[pointed Suspended.result, pointed Q.model, projection] { continuous := continuous, pointed := onPoint }
+};

@@ -1,0 +1,34 @@
+\import topology.Topology[Carrier := X] \as Original;
+\import Original.Subspace[S := Original.Complement subset] \as OriginalOutside;
+\import Original.Subspace[S := c.domain] \as OriginalDomain;
+\import topology.Composition[A := Exterior.Point, B := OriginalOutside.CarrierSet, C := X] \as IntoOriginal;
+\definition inverseContinuous: topology.Continuity[A := Exterior.Point, B := X].Continuous Exterior.rangeTopology bundle.baseSpace (\fun (q: Exterior.Point) => Exterior.inverse q) :=
+  IntoOriginal.composeContinuous Exterior.rangeTopology Exterior.sourceTopology bundle.baseSpace Exterior.inverse (\fun (x: OriginalOutside.CarrierSet) => x)
+    Exterior.inverseContinuous (topology.Continuity[A := OriginalOutside.CarrierSet, B := X].Corestriction[S := Original.Complement subset].inclusionContinuous bundle.baseSpace);
+\definition local: \Pow Exterior.Point := { q: Exterior.Point \where Original.Member c.domain (Exterior.inverse q) };
+\definition localOpen: topology.Topology[Carrier := Exterior.Point].IsOpenIn Exterior.rangeTopology local :=
+  inverseContinuous c.domain (\bysub(OriginalCharts.ChartData, OriginalCharts.Chart, c)).baseOpen;
+\definition domain: \Pow Quotient.Carrier := OpenOutside.image local;
+\definition open: Base.IsOpenIn Quotient.topology domain := OpenOutside.imageOpen Quotient.topology outsideOpen local localOpen;
+\import Base.Subspace[S := domain] \as Domain;
+\definition Point: \Set := Domain.CarrierSet;
+\definition topology: topology.Topology[Carrier := Point].Topology := Domain.topology Quotient.topology;
+\definition exterior[q: Point]: Exterior.Point := \into[Quotient.Carrier](q, Base.Complement (Base.Singleton Quotient.point)) \by {
+  OpenOutside.imageIncluded local q (\bysub(Quotient.Carrier, domain, q))
+};
+\definition member: \forall (q: Point) -> Original.Member c.domain (Exterior.inverse (exterior q)) :=
+  \fun (q: Point) => OpenOutside.imageElim local q (Original.Member c.domain (Exterior.inverse (exterior q)))
+    (\fun (p: Exterior.Point)(inside: topology.Topology[Carrier := Exterior.Point].Member local p)(same: p = q) =>
+      \idelim p = exterior q \with z: Exterior.Point => Original.Member c.domain (Exterior.inverse z) \by { base: inside, equality: same })
+    (\bysub(Quotient.Carrier, domain, q));
+\definition base[q: Point]: OriginalDomain.CarrierSet := \into[X](Exterior.inverse (exterior q), c.domain) \by { member q };
+\definition contains[q: Exterior.Point]: Original.Member c.domain (Exterior.inverse q) -> Base.Member domain q := OpenOutside.imageMember local q;
+\definition exteriorContinuous: topology.Continuity[A := Point, B := Exterior.Point].Continuous topology Exterior.rangeTopology exterior :=
+  topology.Continuity[A := Point, B := Quotient.Carrier].Corestriction[S := Base.Complement (Base.Singleton Quotient.point)].corestrictContinuous
+    topology Quotient.topology exterior (topology.Continuity[A := Point, B := Quotient.Carrier].Corestriction[S := domain].inclusionContinuous Quotient.topology);
+\definition regularBase: topology.Continuity[A := Point, B := OriginalDomain.CarrierSet].Continuous topology (OriginalDomain.topology bundle.baseSpace) base :=
+  topology.Continuity[A := Point, B := X].Corestriction[S := c.domain].corestrictContinuous topology bundle.baseSpace base
+    (topology.Composition[A := Point, B := Exterior.Point, C := X].composeContinuous topology Exterior.rangeTopology bundle.baseSpace exterior (\fun (q: Exterior.Point) => Exterior.inverse q)
+      exteriorContinuous inverseContinuous);
+\module At(q: Point);
+\definition chart: Atlas.Chart := Atlas.Chart { domain := domain, dimension := c.dimension, frame := \fun (q: Point) => At[q := q].isomorphism };

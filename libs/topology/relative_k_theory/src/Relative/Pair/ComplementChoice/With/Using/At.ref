@@ -1,0 +1,28 @@
+\import std.Data[].Pair[] \as Pair;
+\definition original: E x := Pair.first (E x) (S x) (Pair.first (FirstFraming.SourceFiber x) (Bundles.Vector m) v);
+\definition auxiliary: S x := Pair.second (E x) (S x) (Pair.first (FirstFraming.SourceFiber x) (Bundles.Vector m) v);
+\definition coordinate: Bundles.Vector m := Pair.second (FirstFraming.SourceFiber x) (Bundles.Vector m) v;
+\definition decomposed: SecondFraming.NegativeFiber x := (k.backward.fiber x).apply coordinate;
+\definition negative: F x := Pair.first (F x) (T x) decomposed;
+\definition other: T x := Pair.second (F x) (T x) decomposed;
+\definition recovered: (k.forward.fiber x).apply (Pair.pair (F x) (T x) negative other) = coordinate :=
+  trans!{{Bundles.Vector m}} _ _ _
+    (congr!{{SecondFraming.NegativeFiber x} {Bundles.Vector m}} (k.forward.fiber x).apply _ _ (Pair.Prop[A := F x, B := T x].eta decomposed))
+    (secondLaws.rightInverse x coordinate);
+\definition firstCoordinate: (k.forward.fiber x).apply (Pair.pair (F x) (T x) ((t.comparison.forward.fiber x).apply ((t.comparison.backward.fiber x).apply negative)) other) = coordinate :=
+  trans!{{Bundles.Vector m}} _ _ _
+    (congr!{{F x} {Bundles.Vector m}} (\fun (f: F x) => (k.forward.fiber x).apply (Pair.pair (F x) (T x) f other)) _ _ (boundaryLaws.rightInverse x negative)) recovered;
+\import Fin.Sum[m := m, n := n] \as TargetDimension;
+\definition evaluate[u: EF.Fiber x]: Bundles.Vector TargetDimension.total := TargetCoordinates.join
+  (Pair.pair (Bundles.Vector m) (Bundles.Vector n)
+    ((k.forward.fiber x).apply (Pair.pair (F x) (T x) ((t.comparison.forward.fiber x).apply (Pair.first (E x) (F x) u)) other))
+    ((h.forward.fiber x).apply (Pair.pair (F x) (S x) (Pair.second (E x) (F x) u) auxiliary)));
+\definition equation: (Target.frame.forward.fiber x).apply ((isomorphism.forward.fiber x).apply v) = CoordinateSwitch.swap.forward.apply ((Source.frame.forward.fiber x).apply v) :=
+  trans!{{Bundles.Vector TargetDimension.total}} _ _ _
+    (congr!{{EF.Fiber x} {Bundles.Vector TargetDimension.total}} evaluate _ _ (w.exchangeFormula x original negative))
+    (trans!{{Bundles.Vector TargetDimension.total}} _ _ _
+      (congr!{{Bundles.Vector m} {Bundles.Vector TargetDimension.total}}
+        (\fun (z: Bundles.Vector m) => TargetCoordinates.join (Pair.pair (Bundles.Vector m) (Bundles.Vector n) z
+          ((h.forward.fiber x).apply (Pair.pair (F x) (S x) ((t.comparison.forward.fiber x).apply original) auxiliary)))) _ _ firstCoordinate)
+      (sym!{{Bundles.Vector TargetDimension.total}} _ _ (CoordinateSwitch.formula
+        ((h.forward.fiber x).apply (Pair.pair (F x) (S x) ((t.comparison.forward.fiber x).apply original) auxiliary)) coordinate)));

@@ -1,0 +1,45 @@
+\use Equality.eq_reason_in;
+\import \root.Relative[].PairIteration[pair := pair].Sequence[degree := degree] \as Term;
+\import \parent.QuotientEquivalence[] \as QuotientCompare;
+\import \root.Relative[].Equivalence[source := quotientModel, target := right].With[e := QuotientCompare.equivalence].Negative[degree := degree] \as Relative;
+\import \root.Relative[].Negative[original := right, degree := degree] \as B;
+\import \root.Relative[].NegativeMap[source := right, target := wedgeModel, f := rightInclusion, degree := degree] \as RestrictB;
+\import \root.Relative[].NegativeMap[source := wedgeModel, target := quotientModel, f := projection, degree := degree] \as Projection;
+\import \root.Relative[].NegativeMap[source := right, target := quotientModel, f := QuotientCompare.equivalence.backward, degree := degree] \as Direct;
+\import \root.Relative[].Composition[source := right, middle := wedgeModel, target := quotientModel, first := rightInclusion, second := projection] \as Composite;
+\definition relativeFormula: \forall (q: Term.Third) -> Relative.backward q = Direct.map q :=
+  \fun (q: Term.Third) => congr!{{Term.Third -> B.Carrier} {B.Carrier}} (\fun (f: Term.Third -> B.Carrier) => f q) _ _ Relative.backwardEquality;
+\definition extract: \forall (q: Term.Third) -> RestrictB.map (Term.forget q) = Relative.backward q :=
+  \fun (q: Term.Third) => trans!{{B.Carrier}} _ _ _ (congr!{{Term.Fourth} {B.Carrier}} RestrictB.map _ _ (Term.forgetFormula q))
+    (trans!{{B.Carrier}} _ _ _ (sym!{{B.Carrier}} _ _ (Composite.Negative[degree := degree].equation q))
+      (sym!{{B.Carrier}} _ _ (relativeFormula q)));
+\definition separate: \forall (w: Term.Fourth) -> Term.restriction w = Term.fifthGroup.base.unit -> RestrictB.map w = B.group.base.unit -> w = Term.fourthGroup.base.unit := \block {
+  \fun (w: Term.Fourth)(firstZero: Term.restriction w = Term.fifthGroup.base.unit)(secondZero: RestrictB.map w = B.group.base.unit) \then
+  \takefrom q: \Cast[Term.Third] ({ q: Term.Third \where Term.forget q = w }) \by (Term.exactFourth w).ltr firstZero \then
+  \let qZero: q = Term.thirdGroup.base.unit := trans!{{Term.Third}} _ _ _ (sym!{{Term.Third}} _ _ (Relative.leftInverse q))
+    (trans!{{Term.Third}} _ _ _ (congr!{{B.Carrier} {Term.Third}} Relative.forward _ _
+      (trans!{{B.Carrier}} _ _ _ (sym!{{B.Carrier}} _ _ (extract q))
+        (trans!{{B.Carrier}} _ _ _ (congr!{{Term.Fourth} {B.Carrier}} RestrictB.map _ _ (\bysub(Term.Third, { q: Term.Third \where Term.forget q = w }, q))) secondZero))) Relative.forwardZero) \then
+  \return trans!{{Term.Fourth}} _ _ _ (sym!{{Term.Fourth}} _ _ (\bysub(Term.Third, { q: Term.Third \where Term.forget q = w }, q)))
+    (trans!{{Term.Fourth}} _ _ _ (congr!{{Term.Third} {Term.Fourth}} Term.forget q Term.thirdGroup.base.unit qZero) Term.forgetZero)
+};
+\import \root.Relative[].GroupCalculus[X := Term.Fourth, group := Term.fourthGroup] \as WholeGroup;
+\import \root.Relative[].GroupCalculus[X := Term.Fifth, group := Term.fifthGroup] \as SubsetGroup;
+\import \root.Relative[].GroupCalculus[X := B.Carrier, group := B.group] \as BGroup;
+\import WholeGroup.Mapping[Y := Term.Fifth, target := Term.fifthGroup, f := Term.restriction, additive := Term.restrictionAdd, preservesZero := Term.restrictionZero] \as FirstLaws;
+\import WholeGroup.Mapping[Y := B.Carrier, target := B.group, f := RestrictB.map, additive := RestrictB.additive, preservesZero := RestrictB.preservesZero] \as SecondLaws;
+\definition jointlyInjective: \forall (v, w: Term.Fourth) -> Term.restriction v = Term.restriction w -> RestrictB.map v = RestrictB.map w -> v = w :=
+  \fun (v, w: Term.Fourth)(firstSame: Term.restriction v = Term.restriction w)(secondSame: RestrictB.map v = RestrictB.map w) => WholeGroup.subEqual v w
+    (separate (WholeGroup.sub v w)
+      (trans!{{Term.Fifth}} _ _ _ (FirstLaws.difference v w)
+        (trans!{{Term.Fifth}} _ _ _ (congr!{{Term.Fifth} {Term.Fifth}} (\fun (x: Term.Fifth) => SubsetGroup.sub x (Term.restriction w)) _ _ firstSame) (SubsetGroup.subSelf (Term.restriction w))))
+      (trans!{{B.Carrier}} _ _ _ (SecondLaws.difference v w)
+        (trans!{{B.Carrier}} _ _ _ (congr!{{B.Carrier} {B.Carrier}} (\fun (x: B.Carrier) => BGroup.sub x (RestrictB.map w)) _ _ secondSame) (BGroup.subSelf (RestrictB.map w)))));
+\definition Carrier: \Set := Term.Fourth;
+\definition SubsetCarrier: \Set := Term.Fifth;
+\definition group: std.Alg[].Alg[].CommutativeGroup[Carrier] := Term.fourthGroup;
+\definition subsetGroup: std.Alg[].Alg[].CommutativeGroup[SubsetCarrier] := Term.fifthGroup;
+\definition restriction: Carrier -> SubsetCarrier := Term.restriction;
+\definition restrictionAdd: \forall (v, w: Carrier) -> restriction (group.base.op v w) = subsetGroup.base.op (restriction v) (restriction w) := Term.restrictionAdd;
+\definition restrictionZero: restriction group.base.unit = subsetGroup.base.unit := Term.restrictionZero;
+\definition restrictionFormula: \forall (v: Carrier) -> restriction v = \root.Relative[].NegativeMap[source := subsetModel, target := wedgeModel, f := inclusion, degree := degree].map v := Term.restrictionFormula;

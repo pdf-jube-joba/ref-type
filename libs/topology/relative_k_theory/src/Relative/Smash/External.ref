@@ -1,0 +1,74 @@
+\use Equality.eq_reason_in;
+\import \root.Relative[].Reduced[model := left] \as First;
+\import \root.Relative[].Reduced[model := right] \as Second;
+\import \root.Relative[].Reduced[model := model] \as ProductGroup;
+\import \root.Relative[].Reduced[model := wedgeModel] \as WedgeGroup;
+\import \root.Relative[].Reduced[model := result] \as Result;
+\import \root.Relative[].PairIteration[pair := pair].Sequence[degree := N.Nat^::zero] \as Term;
+\import \root.Relative[].Pullback[source := model, target := left, f := firstMap] \as FirstPull;
+\import \root.Relative[].Pullback[source := model, target := right, f := secondMap] \as SecondPull;
+\import \root.Relative[].Pullback[source := wedgeModel, target := model, f := wedgeInclusion] \as WedgePull;
+\import \root.Relative[].Pullback[source := wedgeModel, target := left, f := wedgeFirst] \as FirstExtend;
+\import \root.Relative[].Pullback[source := wedgeModel, target := right, f := wedgeSecond] \as SecondExtend;
+\import ProductGroup.Multiplication[] \as Multiplication;
+\import WedgeGroup.Multiplication[] \as WedgeMultiplication;
+\import \parent.Split[] \as Split;
+\import Split.Theory[degree := N.Nat^::zero] \as Separation;
+\import \parent.WedgeDecomposition[degree := N.Nat^::zero] \as Decomposition;
+\definition forget: Result.Carrier -> ProductGroup.Carrier := Term.forget;
+\definition raw[a: First.Carrier][b: Second.Carrier]: ProductGroup.Carrier := Multiplication.mul (FirstPull.map a) (SecondPull.map b);
+\definition wedgeRaw[a: First.Carrier][b: Second.Carrier]: WedgeGroup.Carrier := WedgeMultiplication.mul (FirstExtend.map a) (SecondExtend.map b);
+\import WedgePull.Multiplication[] \as WedgeProduct;
+\definition wedgeFormula: \forall (a: First.Carrier)(b: Second.Carrier) -> WedgePull.map (raw a b) = wedgeRaw a b :=
+  \fun (a: First.Carrier)(b: Second.Carrier) => trans!{{WedgeGroup.Carrier}} _ _ _ (WedgeProduct.equation (FirstPull.map a) (SecondPull.map b))
+    (congr!{{WedgeGroup.Carrier} {WedgeGroup.Carrier} {WedgeGroup.Carrier}} WedgeMultiplication.mul _ _ _ _
+      (sym!{{WedgeGroup.Carrier}} _ _ (LeftProjection.Negative[degree := N.Nat^::zero].equation a))
+      (sym!{{WedgeGroup.Carrier}} _ _ (RightProjection.Negative[degree := N.Nat^::zero].equation b)));
+\module Injection;
+\definition forgetInjective: \forall (q, r: Result.Carrier) -> forget q = forget r -> q = r := Injection[].injective;
+\module Kernel(a: First.Carrier, b: Second.Carrier);
+\definition Value[a: First.Carrier][b: Second.Carrier]: \Set := \Cast[Result.Carrier] ({ q: Result.Carrier \where forget q = raw a b });
+\definition existence: \forall (a: First.Carrier)(b: Second.Carrier) -> \exists Value a b :=
+  \fun (a: First.Carrier)(b: Second.Carrier) => (Term.exactFourth (raw a b)).ltr (Kernel[a := a, b := b].zero);
+\definition unique: \forall (a: First.Carrier)(b: Second.Carrier)(q, r: Value a b) -> q = r :=
+  \fun (a: First.Carrier)(b: Second.Carrier)(q, r: Value a b) => forgetInjective q r
+    (trans!{{ProductGroup.Carrier}} _ _ _ (\bysub(Result.Carrier, { q: Result.Carrier \where forget q = raw a b }, q))
+      (sym!{{ProductGroup.Carrier}} _ _ (\bysub(Result.Carrier, { q: Result.Carrier \where forget q = raw a b }, r))));
+\definition chosen[a: First.Carrier][b: Second.Carrier]: Value a b := \choice Value a b \by { existence: existence a b, uniqueness: unique a b };
+\definition product[a: First.Carrier][b: Second.Carrier]: Result.Carrier := chosen a b;
+\definition formula: \forall (a: First.Carrier)(b: Second.Carrier) -> forget (product a b) = raw a b :=
+  \fun (a: First.Carrier)(b: Second.Carrier) => \bysub(Result.Carrier, { q: Result.Carrier \where forget q = raw a b }, chosen a b);
+\definition rawAddLeft: \forall (a, c: First.Carrier)(b: Second.Carrier) -> raw (First.group.base.op a c) b = ProductGroup.group.base.op (raw a b) (raw c b) :=
+  \fun (a, c: First.Carrier)(b: Second.Carrier) => trans!{{ProductGroup.Carrier}} _ _ _
+    (congr!{{ProductGroup.Carrier} {ProductGroup.Carrier}} (\fun (v: ProductGroup.Carrier) => Multiplication.mul v (SecondPull.map b)) _ _ (FirstPull.additive a c))
+    (Multiplication.rightDistributive (FirstPull.map a) (FirstPull.map c) (SecondPull.map b));
+\definition rawAddRight: \forall (a: First.Carrier)(b, c: Second.Carrier) -> raw a (Second.group.base.op b c) = ProductGroup.group.base.op (raw a b) (raw a c) :=
+  \fun (a: First.Carrier)(b, c: Second.Carrier) => trans!{{ProductGroup.Carrier}} _ _ _
+    (congr!{{ProductGroup.Carrier} {ProductGroup.Carrier}} (Multiplication.mul (FirstPull.map a)) _ _ (SecondPull.additive b c))
+    (Multiplication.leftDistributive (FirstPull.map a) (SecondPull.map b) (SecondPull.map c));
+\definition additiveLeft: \forall (a, c: First.Carrier)(b: Second.Carrier) -> product (First.group.base.op a c) b = Result.group.base.op (product a b) (product c b) :=
+  \fun (a, c: First.Carrier)(b: Second.Carrier) => forgetInjective _ _ (eq_reason_in!{{ProductGroup.Carrier} _
+    "=" { raw (First.group.base.op a c) b } "by" { formula (First.group.base.op a c) b }
+    "=" { ProductGroup.group.base.op (raw a b) (raw c b) } "by" { rawAddLeft a c b }
+    "=" { ProductGroup.group.base.op (forget (product a b)) (forget (product c b)) } "by" {
+      congr!{{ProductGroup.Carrier} {ProductGroup.Carrier} {ProductGroup.Carrier}} ProductGroup.group.base.op _ _ _ _
+        (sym!{{ProductGroup.Carrier}} _ _ (formula a b)) (sym!{{ProductGroup.Carrier}} _ _ (formula c b)) }
+    "=" { forget (Result.group.base.op (product a b) (product c b)) } "by" { sym!{{ProductGroup.Carrier}} _ _ (Term.forgetAdd (product a b) (product c b)) }
+  });
+\definition additiveRight: \forall (a: First.Carrier)(b, c: Second.Carrier) -> product a (Second.group.base.op b c) = Result.group.base.op (product a b) (product a c) :=
+  \fun (a: First.Carrier)(b, c: Second.Carrier) => forgetInjective _ _ (eq_reason_in!{{ProductGroup.Carrier} _
+    "=" { raw a (Second.group.base.op b c) } "by" { formula a (Second.group.base.op b c) }
+    "=" { ProductGroup.group.base.op (raw a b) (raw a c) } "by" { rawAddRight a b c }
+    "=" { ProductGroup.group.base.op (forget (product a b)) (forget (product a c)) } "by" {
+      congr!{{ProductGroup.Carrier} {ProductGroup.Carrier} {ProductGroup.Carrier}} ProductGroup.group.base.op _ _ _ _
+        (sym!{{ProductGroup.Carrier}} _ _ (formula a b)) (sym!{{ProductGroup.Carrier}} _ _ (formula a c)) }
+    "=" { forget (Result.group.base.op (product a b) (product a c)) } "by" { sym!{{ProductGroup.Carrier}} _ _ (Term.forgetAdd (product a b) (product a c)) }
+  });
+\definition zeroLeft: \forall (b: Second.Carrier) -> product First.group.base.unit b = Result.group.base.unit :=
+  \fun (b: Second.Carrier) => forgetInjective _ _ (trans!{{ProductGroup.Carrier}} _ _ _ (formula First.group.base.unit b)
+    (trans!{{ProductGroup.Carrier}} _ _ _ (congr!{{ProductGroup.Carrier} {ProductGroup.Carrier}} (\fun (v: ProductGroup.Carrier) => Multiplication.mul v (SecondPull.map b)) _ _ FirstPull.preservesZero)
+      (trans!{{ProductGroup.Carrier}} _ _ _ (Multiplication.zeroLeft (SecondPull.map b)) (sym!{{ProductGroup.Carrier}} _ _ Term.forgetZero))));
+\definition zeroRight: \forall (a: First.Carrier) -> product a Second.group.base.unit = Result.group.base.unit :=
+  \fun (a: First.Carrier) => forgetInjective _ _ (trans!{{ProductGroup.Carrier}} _ _ _ (formula a Second.group.base.unit)
+    (trans!{{ProductGroup.Carrier}} _ _ _ (congr!{{ProductGroup.Carrier} {ProductGroup.Carrier}} (Multiplication.mul (FirstPull.map a)) _ _ SecondPull.preservesZero)
+      (trans!{{ProductGroup.Carrier}} _ _ _ (Multiplication.zeroRight (FirstPull.map a)) (sym!{{ProductGroup.Carrier}} _ _ Term.forgetZero))));

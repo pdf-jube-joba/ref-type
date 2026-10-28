@@ -1,0 +1,57 @@
+\definition containsClass: \forall (t: Interval.Carrier)(a: A) -> \In[To.Carrier] image (To.class (TargetCylinder.at t a)) :=
+  \fun (t: Interval.Carrier)(a: A) => \idelim inclusionMap (From.class (SourceCylinder.at t a)) = To.class (TargetCylinder.at t a)
+    \with z: To.Carrier => \In[To.Carrier] image z \by {
+      base: Images.imageMember inclusionMap SourceSpace.Whole (From.class (SourceCylinder.at t a)) (\refl(From.class (SourceCylinder.at t a))),
+      equality: onInclusionClass (SourceCylinder.at t a)
+    };
+\definition onSubsetClass: \forall (z: TargetCylinder.Carrier) -> \In[X] subset (TargetCylinder.point z) -> Q.projection (To.class z) = Q.point := \block {
+  \fun (z: TargetCylinder.Carrier)(member: \In[X] subset (TargetCylinder.point z)) \then
+  \let a: A := \into[X](TargetCylinder.point z, subset) \by { member } \then
+  \let inside: \In[To.Carrier] image (To.class z) := \idelim To.class (TargetCylinder.at (TargetCylinder.time z) a) = To.class z \with v: To.Carrier => \In[To.Carrier] image v \by {
+    base: containsClass (TargetCylinder.time z) a,
+    equality: congr!{{TargetCylinder.Carrier} {To.Carrier}} To.class _ _ (std.Data[].Pair[].Prop[A := Interval.Carrier, B := X].eta z)
+  } \then
+  \return Q.onSubset (\into[To.Carrier](To.class z, image) \by { inside })
+};
+\definition onCollapsedClass: \forall (z: TargetCylinder.Carrier) -> \In[TargetCylinder.Carrier] To.Collapsed z -> Q.projection (To.class z) = Q.point :=
+  \fun (z: TargetCylinder.Carrier)(member: \In[TargetCylinder.Carrier] To.Collapsed z) =>
+    trans!{{Q.Carrier}} _ _ _ (congr!{{To.Carrier} {Q.Carrier}} Q.projection _ _ (To.collapsed z member)) (Q.onSubset distinguished);
+\definition reflectsCollapsed: \forall (z: TargetCylinder.Carrier) -> \In[QuotientCylinder.Carrier] Target.Collapsed (Projected.raw z) -> Q.projection (To.class z) = Q.point :=
+  \fun (z: TargetCylinder.Carrier)(member: \In[QuotientCylinder.Carrier] Target.Collapsed (Projected.raw z)) =>
+    Logic.orElim[TargetCylinder.time z = Interval.start, Logic.Or[TargetCylinder.time z = Interval.end, Original.projection (TargetCylinder.point z) = Original.point], Q.projection (To.class z) = Q.point] member
+      (\fun (same: TargetCylinder.time z = Interval.start) => onCollapsedClass z (Logic.Or[_, _]::left same))
+      (\fun (other: Logic.Or[TargetCylinder.time z = Interval.end, Original.projection (TargetCylinder.point z) = Original.point]) =>
+        Logic.orElim[TargetCylinder.time z = Interval.end, Original.projection (TargetCylinder.point z) = Original.point, Q.projection (To.class z) = Q.point] other
+          (\fun (same: TargetCylinder.time z = Interval.end) => onCollapsedClass z (Logic.Or[_, _]::right (Logic.Or[_, _]::left same)))
+          (\fun (same: Original.projection (TargetCylinder.point z) = Original.point) => onSubsetClass z (Original.atPoint (TargetCylinder.point z) same)));
+\definition sameRaw: \forall (z, w: TargetCylinder.Carrier) -> Projected.raw z = Projected.raw w -> Q.projection (To.class z) = Q.projection (To.class w) :=
+  \fun (z, w: TargetCylinder.Carrier)(same: Projected.raw z = Projected.raw w) =>
+    Logic.orElim[TargetCylinder.point z = TargetCylinder.point w, Logic.And[\In[X] subset (TargetCylinder.point z), \In[X] subset (TargetCylinder.point w)], Q.projection (To.class z) = Q.projection (To.class w)]
+      (Original.separates (TargetCylinder.point z) (TargetCylinder.point w) (congr!{{QuotientCylinder.Carrier} {Original.Carrier}} QuotientCylinder.point _ _ same))
+      (\fun (points: TargetCylinder.point z = TargetCylinder.point w) => congr!{{TargetCylinder.Carrier} {Q.Carrier}} (\fun (p: TargetCylinder.Carrier) => Q.projection (To.class p)) _ _
+        (std.Data[].Pair[].Prop[A := Interval.Carrier, B := X].ext z w (congr!{{QuotientCylinder.Carrier} {Interval.Carrier}} QuotientCylinder.time _ _ same) points))
+      (\fun (both: Logic.And[\In[X] subset (TargetCylinder.point z), \In[X] subset (TargetCylinder.point w)]) =>
+        trans!{{Q.Carrier}} _ _ _ (onSubsetClass z both.left) (sym!{{Q.Carrier}} _ _ (onSubsetClass w both.right)));
+\definition onRaw: \forall (z, w: TargetCylinder.Carrier) -> Fwd.map (Q.projection (To.class z)) = Fwd.map (Q.projection (To.class w)) -> Q.projection (To.class z) = Q.projection (To.class w) :=
+  \fun (z, w: TargetCylinder.Carrier)(same: Fwd.map (Q.projection (To.class z)) = Fwd.map (Q.projection (To.class w))) =>
+    Logic.orElim[Projected.raw z = Projected.raw w, Logic.And[\In[QuotientCylinder.Carrier] Target.Collapsed (Projected.raw z), \In[QuotientCylinder.Carrier] Target.Collapsed (Projected.raw w)], Q.projection (To.class z) = Q.projection (To.class w)]
+      (TargetNative.equalRelated (Projected.raw z) (Projected.raw w)
+        (trans!{{Target.Carrier}} _ _ _ (sym!{{Target.Carrier}} _ _ (Fwd.onClass z)) (trans!{{Target.Carrier}} _ _ _ same (Fwd.onClass w))))
+      (sameRaw z w)
+      (\fun (both: Logic.And[\In[QuotientCylinder.Carrier] Target.Collapsed (Projected.raw z), \In[QuotientCylinder.Carrier] Target.Collapsed (Projected.raw w)]) =>
+        trans!{{Q.Carrier}} _ _ _ (reflectsCollapsed z both.left) (sym!{{Q.Carrier}} _ _ (reflectsCollapsed w both.right)));
+\definition onSuspension: \forall (z, w: To.Carrier) -> Fwd.map (Q.projection z) = Fwd.map (Q.projection w) -> Q.projection z = Q.projection w :=
+  TargetCollapse.induction (\fun (z: To.Carrier) => \forall (w: To.Carrier) -> Fwd.map (Q.projection z) = Fwd.map (Q.projection w) -> Q.projection z = Q.projection w)
+    (\fun (z: TargetCylinder.Carrier) => TargetCollapse.induction (\fun (w: To.Carrier) => Fwd.map (Q.projection (To.class z)) = Fwd.map (Q.projection w) -> Q.projection (To.class z) = Q.projection w)
+      (\fun (w: TargetCylinder.Carrier) => onRaw z w));
+\definition injective: \forall (v, w: Q.Carrier) -> Fwd.map v = Fwd.map w -> v = w := \block {
+  \fun (v, w: Q.Carrier)(same: Fwd.map v = Fwd.map w) \then
+  \takefrom x: \Cast[To.Carrier] ({ x: To.Carrier \where Q.projection x = v }) \by SourceOnto.onto v \then
+  \takefrom y: \Cast[To.Carrier] ({ y: To.Carrier \where Q.projection y = w }) \by SourceOnto.onto w \then
+  \let first: Q.projection x = v := \bysub(To.Carrier, { x: To.Carrier \where Q.projection x = v }, x) \then
+  \let second: Q.projection y = w := \bysub(To.Carrier, { y: To.Carrier \where Q.projection y = w }, y) \then
+  \return trans!{{Q.Carrier}} _ _ _ (sym!{{Q.Carrier}} _ _ first)
+    (trans!{{Q.Carrier}} _ _ _ (onSuspension x y
+      (trans!{{Target.Carrier}} _ _ _ (congr!{{Q.Carrier} {Target.Carrier}} Fwd.map _ _ first)
+        (trans!{{Target.Carrier}} _ _ _ same (sym!{{Target.Carrier}} _ _ (congr!{{Q.Carrier} {Target.Carrier}} Fwd.map _ _ second))))) second)
+};

@@ -1,0 +1,42 @@
+\import \parent.BaseImage[] \as Image;
+\import \root.Relative[].Pair[X := Carrier, space := topology, compact := Properties.compactQuotient, hausdorff := Properties.hausdorffQuotient,
+  subset := baseImage, closed := baseImageClosed] \as PairOnBase;
+\import PairOnBase.Pointed[a0 := (Image.into a0)].Exact[] \as Exact;
+\import PairOnBase.Quotient[] \as Q;
+\import \root.Relative[].Reduced[model := result] \as CofiberReduced;
+\import \root.Relative[].Reduced[model := model] \as OriginalReduced;
+\import \root.Relative[].Reduced[model := Image.imageModel] \as ImageReduced;
+\import algebra.Group[].Of[Carrier := OriginalReduced.Carrier, group := OriginalReduced.group] \as OriginalGroup;
+\import algebra.Group[].Of[Carrier := ImageReduced.Carrier, group := ImageReduced.group] \as ImageGroup;
+\import \root.Relative[].Pullback[source := model, target := result, f := baseMap] \as BasePull;
+\import \root.Relative[].Equivalence[source := model, target := Image.imageModel].With[e := Image.equivalence].Groups[] \as ImageGroups;
+\import \root.Relative[].Pullback[source := model, target := Image.imageModel, f := Image.equivalence.forward] \as ImageForward;
+\import \root.Relative[].Pullback[source := Image.imageModel, target := model, f := Image.equivalence.backward] \as ImageBackward;
+\import \root.Relative[].Composition[source := model, middle := Image.imageModel, target := result,
+  first := Image.equivalence.forward, second := Exact.inclusion] \as Composite;
+\import \root.Relative[].Pullback[source := model, target := result, f := Composite.map] \as Direct;
+\definition sameMap: Composite.map = baseMap := \axiom:funext(Composite.map, baseMap, (\fun (x: X) => \refl(base x)));
+\definition directEquation: \forall (v: CofiberReduced.Carrier) -> Direct.map v = BasePull.map v :=
+  \fun (v: CofiberReduced.Carrier) => congr!{{Map model result} {OriginalReduced.Carrier}}
+    (\fun (f: Map model result) => \root.Relative[].Pullback[source := model, target := result, f := f].map v) _ _ sameMap;
+\definition restriction[v: CofiberReduced.Carrier]: OriginalReduced.Carrier := BasePull.map v;
+\definition forget[v: Q.Relative]: CofiberReduced.Carrier := Exact.forget v;
+\definition forgetAdd: \forall (v, w: Q.Relative) -> forget (Q.group.base.op v w) = CofiberReduced.group.base.op (forget v) (forget w) := Exact.forgetAdd;
+\definition restrictionEquation: \forall (v: CofiberReduced.Carrier) -> restriction v = ImageGroups.forward (Exact.restriction v) :=
+  \fun (v: CofiberReduced.Carrier) => trans!{{OriginalReduced.Carrier}} _ _ _ (sym!{{OriginalReduced.Carrier}} _ _ (directEquation v))
+    (\root.Relative[].PullbackComposition[source := model, middle := Image.imageModel, target := result,
+      first := Image.equivalence.forward, second := Exact.inclusion].equation v);
+\definition kernel: \forall (v: Q.Relative) -> restriction (forget v) = OriginalGroup.zero :=
+  \fun (v: Q.Relative) => trans!{{OriginalReduced.Carrier}} _ _ _ (restrictionEquation (forget v))
+    (trans!{{OriginalReduced.Carrier}} _ _ _
+      (congr!{{ImageReduced.Carrier} {OriginalReduced.Carrier}} ImageGroups.forward _ _ (Exact.kernel v)) ImageForward.preservesZero);
+\definition preimage: \forall (v: CofiberReduced.Carrier) -> restriction v = OriginalGroup.zero -> \exists (w: Q.Relative \where forget w = v) :=
+  \fun (v: CofiberReduced.Carrier)(zero: restriction v = OriginalGroup.zero) => Exact.preimage v
+    (trans!{{ImageReduced.Carrier}} _ _ _ (sym!{{ImageReduced.Carrier}} _ _ (ImageGroups.rightInverse (Exact.restriction v)))
+      (trans!{{ImageReduced.Carrier}} _ _ _
+        (congr!{{OriginalReduced.Carrier} {ImageReduced.Carrier}} ImageGroups.backward _ _
+          (trans!{{OriginalReduced.Carrier}} _ _ _ (sym!{{OriginalReduced.Carrier}} _ _ (restrictionEquation v)) zero)) ImageBackward.preservesZero));
+\definition forgetZero: forget Q.group.base.unit = CofiberReduced.group.base.unit := Exact.forgetZero;
+\definition projectionMap: Map result Q.model := Exact.projectionMap;
+\definition projectionEquation: \forall (v: Q.Relative) ->
+  \root.Relative[].Pullback[source := result, target := Q.model, f := projectionMap].map v = forget v := Exact.projectionEquation;

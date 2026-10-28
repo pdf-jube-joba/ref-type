@@ -1,0 +1,33 @@
+\import \parent.Compose[p := p, q := q, r := r, first := first, second := second] \as Composition;
+\import \parent.Diagonal[p := q] \as Diagonal;
+\import \parent.SumConstruction[t := Composition.left, u := Composition.right] \as OriginalSum;
+\definition E[x: X]: \Set := Absolute.Fiber p x;
+\definition F[x: X]: \Set := Absolute.Fiber q x;
+\definition G[x: X]: \Set := Absolute.Fiber r x;
+\import \parent.BundleModel[F := E].From[original := (Absolute.bundle p), same := (\refl(space))] \as EModel;
+\import \parent.BundleModel[F := F].From[original := (Absolute.bundle q), same := (\refl(space))] \as FModel;
+\import \parent.BundleSwitch[F := E, G := F, sourceModel := EModel.model, targetModel := FModel.model].With[alpha := first] \as Switch;
+\import Operations.DirectSum[X := X, F := E, G := F, left := (Absolute.bundle p), right := (Absolute.bundle q)] \as EF;
+\definition efBundle: Bundles.Family[X := X, F := EF.Fiber].Bundle := EF.bundle (\refl(space));
+\import Operations.DirectSum[X := X, F := G, G := F, left := (Absolute.bundle r), right := (Absolute.bundle q)] \as GF;
+\definition gfBundle: Bundles.Family[X := X, F := GF.Fiber].Bundle := GF.bundle (\refl(space));
+\import GF.Of[same := (\refl(space))].Symmetry[] \as NegativeSymmetry;
+\import Operations.DirectSum[X := X, F := F, G := G, left := (Absolute.bundle q), right := (Absolute.bundle r)] \as FG;
+\definition fgBundle: Bundles.Family[X := X, F := FG.Fiber].Bundle := FG.bundle (\refl(space));
+\import Bundles.Isomorphisms[X := A, F := \parent.Restricted[p := p].Fiber, G := \parent.Restricted[p := q].Fiber,
+  source := \parent.Restricted[p := p].bundle, target := \parent.Restricted[p := q].bundle] \as Boundary;
+\definition boundaryLaws: Boundary.Laws[first] := \bysub(Boundary.Data, Boundary.Isomorphism, first);
+\import \parent.Quotient[] \as Quotient;
+\import algebra.Group[].Of[Carrier := Quotient.Relative, group := Quotient.group] \as ReducedGroup;
+\import \parent.TripleClass[t := Composition.left] \as LeftClass;
+\import \parent.TripleClass[t := Composition.right] \as RightClass;
+\import \parent.TripleClass[t := Composition.triple] \as CompositeClass;
+\import \parent.TripleClass[t := Diagonal.triple] \as DiagonalClass;
+\import \parent.Group[].Diagonal[p := q] \as DiagonalGlobal;
+\definition diagonalZero: DiagonalClass.value = ReducedGroup.zero := DiagonalClass.Global[w := DiagonalGlobal.witness].equation;
+\module With(result: OriginalSum.Result, w: Switch.Result);
+\definition equation: ReducedGroup.add LeftClass.value RightClass.value = CompositeClass.value := \block {
+  \takefrom result: OriginalSum.Result \by OriginalSum.existence \then
+  \takefrom w: Switch.Result \by Switch.existence \then
+  \return With[result := result, w := w].equation
+};

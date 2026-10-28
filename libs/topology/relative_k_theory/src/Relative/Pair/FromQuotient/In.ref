@@ -1,0 +1,45 @@
+\definition dimension: N.Nat^ := c.dimension;
+\import Bundles.Trivial[X := X, n := dimension, baseSpace := space] \as Trivial;
+\import Bundles.Trivial[X := A, n := dimension, baseSpace := subspace] \as BoundaryTrivial;
+\import \parent.\parent.FromBundles[F := Fiber, G := (\fun (x: X) => Bundles.Vector dimension), source := pulled, target := Trivial.bundle, sourceSame := \refl(space), targetSame := \refl(space)] \as Represent;
+\definition inclusion[x: A]: X := x;
+\definition inclusionRegular: topology.Continuity[A := A, B := X].Continuous subspace space inclusion := topology.Continuity[A := A, B := X].Corestriction[S := subset].inclusionContinuous space;
+\import Bundles.Family[X := X, F := Fiber].With[data := pulled] \as PulledCharts;
+\definition pulledChart: PulledCharts.Chart := Pull.In[c := c].trivialization regular;
+\import Bundles.Family[X := X, F := Fiber].Of[bundle := pulled].Pullback[Y := A, source := subspace, f := inclusion] \as ClosedPull;
+\import Bundles.Family[X := A, F := (\fun (x: A) => Fiber x)].With[data := Represent.restrictedSource] \as SourceCharts;
+\definition closedChart: SourceCharts.Chart := ClosedPull.In[c := pulledChart].trivialization inclusionRegular;
+\import topology.Topology[Carrier := A] \as ClosedBase;
+\definition containsAll[x: A]: QuotientBase.Member c.domain (Quotient.projection x) :=
+  \idelim Quotient.point = Quotient.projection x \with q: Quotient.Carrier => QuotientBase.Member c.domain q \by {
+    base: contains, equality: sym!{{Quotient.Carrier}} _ _ (Quotient.onSubset x) };
+\definition point[x: A]: \Cast[Quotient.Carrier] c.domain := \into[Quotient.Carrier](Quotient.projection x, c.domain) \by { containsAll x };
+\import Operations.ChartRestriction[X := A, F := (\fun (x: A) => Fiber x), bundle := Represent.restrictedSource, c := closedChart,
+  U := ClosedBase.Whole, open := (ClosedBase.topologyLaws subspace).wholeOpen, contained := (\fun (x: \Cast[A] ClosedBase.Whole) => containsAll x)] \as Restricted;
+\definition frame[x: A]: Spaces.Isomorphism[V := Fiber x, W := Bundles.Vector dimension, source := pulled.space x, target := Bundles.coordinates dimension].Isomorphism :=
+  Restricted.trivialization.frame (\into[A](x, ClosedBase.Whole) \by { \refl(x) });
+\import Operations.LocalMaps[X := A, F := (\fun (x: A) => Fiber x), G := (\fun (x: A) => Bundles.Vector dimension),
+  source := Represent.restrictedSource, target := BoundaryTrivial.bundle, fiber := (\fun (x: A) => (frame x).forward)] \as Charts;
+\definition chart: Charts.ChartData := Charts.ChartData {
+  domain := ClosedBase.Whole, dimension := dimension, sourceFrame := Restricted.trivialization.frame, targetFrame := BoundaryTrivial.trivialization.frame
+};
+\import Bundles.Family[X := A, F := (\fun (x: A) => Bundles.Vector dimension)].With[data := BoundaryTrivial.bundle] \as TargetCharts;
+\definition chartLaws: Charts.In[c := chart].Laws := Charts.In[c := chart].Laws {
+  source := \bysub(SourceCharts.ChartData, SourceCharts.Chart, Restricted.trivialization),
+  target := \bysub(TargetCharts.ChartData, TargetCharts.Chart, BoundaryTrivial.trivialization),
+  alignment := \fun (x: \Cast[A] ClosedBase.Whole)(v: Fiber x) => \refl((frame x).forward.apply v)
+};
+\definition trivialization: Charts.Chart := \into[Charts.ChartData](chart, Charts.Chart) \by { chartLaws };
+\import Operations.LocalIsomorphisms[X := A, F := (\fun (x: A) => Fiber x), G := (\fun (x: A) => Bundles.Vector dimension),
+  source := Represent.restrictedSource, target := BoundaryTrivial.bundle, fiber := frame] \as Local;
+\definition covers: Local.Covers := \fun (x: A) => Logic.existsIntro[Charts.Chart, { c: Charts.Chart \where ClosedBase.Member c.domain x }] trivialization (\refl(x));
+\definition canonical: Bundles.Isomorphisms[X := A, F := (\fun (x: A) => Fiber x), G := (\fun (x: A) => Bundles.Vector dimension), source := Represent.restrictedSource, target := BoundaryTrivial.bundle].Isomorphism := Local.isomorphism (\refl(subspace)) covers;
+\import Operations.TrivialPullback[X := X, Y := A, n := dimension, original := space, base := subspace, f := inclusion, regular := inclusionRegular] \as TrivialPull;
+\import Bundles.Isomorphisms[X := A, F := (\fun (x: A) => Bundles.Vector dimension), G := (\fun (x: A) => Bundles.Vector dimension), source := Represent.restrictedTarget, target := BoundaryTrivial.bundle] \as TrivialIsomorphisms;
+\import Operations.IsomorphismComposition[X := A, F := (\fun (x: A) => Fiber x), G := (\fun (x: A) => Bundles.Vector dimension), H := (\fun (x: A) => Bundles.Vector dimension),
+  source := Represent.restrictedSource, middle := BoundaryTrivial.bundle, target := Represent.restrictedTarget] \as Compose;
+\definition comparison: Represent.OnSubset := Compose.compose canonical (TrivialIsomorphisms.inverse TrivialPull.isomorphism);
+\definition formula: \forall (x: A)(v: Fiber x) -> (comparison.forward.fiber x).apply v = (c.frame (point x)).forward.apply v :=
+  \fun (x: A)(v: Fiber x) => \refl((c.frame (point x)).forward.apply v);
+\definition Result: \Set := Represent.Result[comparison];
+\definition existence: \exists Result := Represent.existence comparison;

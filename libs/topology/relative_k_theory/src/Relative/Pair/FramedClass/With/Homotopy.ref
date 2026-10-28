@@ -1,0 +1,20 @@
+\import \parent.\parent.Cylinder[alpha := alpha] \as Fixed;
+\import \parent.\parent.\parent.CylinderSubset[] \as Boundary;
+\import algebraic_topology.Interval[] \as Interval;
+\import algebraic_topology.Cylinder[A := X] \as OriginalCylinder;
+\import \parent.\parent.\parent.GaugeExtension[F := F, sourceModel := sourceModel] \as Gauge;
+\definition endpoint[x: A]: Boundary.Carrier := \into[OriginalCylinder.Carrier](OriginalCylinder.at Interval.end x, Boundary.subsetCylinder) \by { \bysub(X, subset, x) };
+\import Bundles.Isomorphisms[X := Boundary.Carrier, F := (\fun (z: Boundary.Carrier) => F (Boundary.point z)), G := (\fun (z: Boundary.Carrier) => Bundles.Vector n), source := Fixed.source, target := Fixed.target] \as Frames;
+\structure Family: \Set := {
+  isomorphism: Frames.Isomorphism,
+  start: \forall (z: Boundary.Carrier) -> Boundary.time z = Interval.start -> \forall (v: F (Boundary.point z)) ->
+    (isomorphism.forward.fiber z).apply v = (Fixed.isomorphism.forward.fiber z).apply v,
+  end: \forall (x: A)(v: F x) -> (isomorphism.forward.fiber (endpoint x)).apply v = (beta.forward.fiber x).apply v
+};
+\import \parent.\parent.With[alpha := beta] \as Changed;
+\module Using(family: Family);
+\definition equation: (\exists Family) -> value = Changed.value := \block {
+  \fun (exists: \exists Family) \then
+  \takefrom family: Family \by exists \then
+  \return Using[family := family].equation
+};

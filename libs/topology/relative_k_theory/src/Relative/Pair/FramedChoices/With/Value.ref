@@ -1,0 +1,26 @@
+\import Source.Construction[extension := e] \as Construction;
+\import K.K0[] \as K0;
+\import K.Ranks[] \as Ranks;
+\import K.IntegerFunctions[] \as Functions;
+\import K.Bundle[F := Source.Fiber, original := Construction.bundleOnQuotient, same := Construction.sameBaseSpace] \as Class;
+\import Ranks.Of[F := Source.Fiber, original := Construction.bundleOnQuotient, same := Construction.sameBaseSpace] \as Rank;
+\import Bundles.Trivial[X := Quotient.Carrier, n := n, baseSpace := Quotient.topology] \as Trivial;
+\import Ranks.Of[F := (\fun (z: Quotient.Carrier) => Bundles.Vector n), original := Trivial.bundle, same := \refl(Quotient.topology)] \as TrivialRank;
+\import Bundles.Family[X := Quotient.Carrier, F := (\fun (z: Quotient.Carrier) => Bundles.Vector n)].Of[bundle := Trivial.bundle] \as TrivialFamily;
+\import std.Arithmetic[].Int[] \as Integer;
+\import std.Arithmetic[].IntAlgebra[] \as IntAlgebra;
+\definition rankClass: Ranks.classes Class.value Quotient.point = Ranks.natural n :=
+  trans!{{Integer.Int^}} _ _ _ (congr!{{Functions.Carrier} {Integer.Int^}} (\fun (f: Functions.Carrier) => f Quotient.point) _ _ Rank.onBundle)
+    (congr!{{N.Nat^} {Integer.Int^}} Ranks.natural _ _ Construction.rankAtPoint);
+\definition rankTrivial: Ranks.classes TrivialClass.value Quotient.point = Ranks.natural n :=
+  trans!{{Integer.Int^}} _ _ _ (congr!{{Functions.Carrier} {Integer.Int^}} (\fun (f: Functions.Carrier) => f Quotient.point) _ _ TrivialRank.onBundle)
+    (congr!{{N.Nat^} {Integer.Int^}} Ranks.natural _ _
+      (TrivialFamily.rankFrame Quotient.point n (Trivial.trivialization.frame (\into[Quotient.Carrier](Quotient.point, topology.Topology[Carrier := Quotient.Carrier].Whole) \by { \refl(Quotient.point) }))));
+\definition difference: K0.Carrier := K0.difference Class.value TrivialClass.value;
+\definition rankZero: Ranks.rank difference Quotient.point = Integer.Zero.specification :=
+  trans!{{Integer.Int^}} _ _ _
+    (congr!{{Functions.Carrier} {Integer.Int^}} (\fun (f: Functions.Carrier) => f Quotient.point) _ _ (Ranks.rankDifference Class.value TrivialClass.value))
+    (trans!{{Integer.Int^}} _ _ _
+      (congr!{{Integer.Int^} {Integer.Int^} {Integer.Int^}} (\fun (a, b: Integer.Int^) => Integer.Add.specification a (Integer.Neg.specification b)) _ _ _ _ rankClass rankTrivial)
+      (IntAlgebra.additiveGroupLaws.rightInverse (Ranks.natural n)));
+\definition value: Quotient.Relative := \into[K0.Carrier](difference, Quotient.Relative) \by { rankZero };

@@ -1,0 +1,38 @@
+\import algebraic_topology.Pointed[A := source.Carrier].Maps[B := target.Carrier] \as Forward;
+\import algebraic_topology.Pointed[A := target.Carrier].Maps[B := source.Carrier] \as Backward;
+\definition Values[y: target.Carrier]: \Set := \Cast[source.Carrier] ({ x: source.Carrier \where f x = y });
+\definition unique: \forall (y: target.Carrier)(x, z: Values[y]) -> x = z :=
+  \fun (y: target.Carrier)(x, z: Values[y]) => injective x z
+    (trans!{{target.Carrier}} _ _ _ (\bysub(source.Carrier, Values[y], x)) (sym!{{target.Carrier}} _ _ (\bysub(source.Carrier, Values[y], z))));
+\definition inverse[y: target.Carrier]: Values[y] := \choice Values[y] \by { existence: onto y, uniqueness: unique y };
+\definition rightInverse: \forall (y: target.Carrier) -> f (inverse y) = y := \fun (y: target.Carrier) => \bysub(source.Carrier, Values[y], inverse y);
+\definition leftInverse: \forall (x: source.Carrier) -> inverse (f x) = x := \fun (x: source.Carrier) => injective (inverse (f x)) x (rightInverse (f x));
+\import topology.Topology[Carrier := source.Carrier] \as Source;
+\import topology.Topology[Carrier := target.Carrier] \as Target;
+\import topology.Continuity[A := source.Carrier, B := target.Carrier] \as Direct;
+\import topology.Continuity[A := target.Carrier, B := source.Carrier] \as Reverse;
+\import topological_constructions.CompactQuotient[A := source.Carrier, B := target.Carrier,
+  source := (details source).topology, target := (details target).topology, q := f] \as CompactMap;
+\definition isQuotient: topological_constructions.Quotient[A := source.Carrier, B := target.Carrier].IsQuotientMap[(details source).topology, (details target).topology, f] :=
+  CompactMap.quotientMap (details source).compact (details target).hausdorff (Forward.laws (pointed source) (pointed target) f).continuous onto;
+\definition preimage[U: \Pow source.Carrier]: Direct.Preimage f (Reverse.Preimage inverse U) = U :=
+  \axiom:setext(Direct.Preimage f (Reverse.Preimage inverse U), U,
+    \fun (x: source.Carrier)(member: Source.Member (Direct.Preimage f (Reverse.Preimage inverse U)) x) =>
+      \idelim inverse (f x) = x \with z: source.Carrier => Source.Member U z \by { base: member, equality: leftInverse x },
+    \fun (x: source.Carrier)(member: Source.Member U x) =>
+      \idelim x = inverse (f x) \with z: source.Carrier => Source.Member U z \by { base: member, equality: sym!{{source.Carrier}} _ _ (leftInverse x) });
+\definition inverseContinuous: Reverse.Continuous (details target).topology (details source).topology inverse :=
+  \fun (U: \Pow source.Carrier)(open: Source.IsOpenIn (details source).topology U) => isQuotient.reflectsOpen (Reverse.Preimage inverse U)
+    (\idelim U = Direct.Preimage f (Reverse.Preimage inverse U) \with V: \Pow source.Carrier => Source.IsOpenIn (details source).topology V \by {
+      base: open, equality: sym!{{\Pow source.Carrier}} _ _ (preimage U)
+    });
+\definition backward: Map target source := \into[target.Carrier -> source.Carrier](inverse, Map target source) \by {
+  Backward.Laws[pointed target, pointed source, inverse] {
+    continuous := inverseContinuous,
+    pointed := injective (inverse (details target).point) (details source).point
+      (trans!{{target.Carrier}} _ _ _ (rightInverse (details target).point) (sym!{{target.Carrier}} _ _ (Forward.laws (pointed source) (pointed target) f).pointed))
+  }
+};
+\definition equivalence: Data := Data { forward := f, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse };
+\module Contraction(h: algebraic_topology.Homotopy[A := source.Carrier, B := source.Carrier].Homotopy[
+  (details source).topology, (details source).topology, (\fun (x: source.Carrier) => x), (\fun (x: source.Carrier) => (details source).point)]);

@@ -1,0 +1,67 @@
+\use Equality.eq_reason_in;
+\import std.Data[].Pair[] \as Pair;
+\import \parent.Local[S := subset] \as U;
+\import \parent.Local[S := V] \as VLocal;
+\import Spaces.Linear[V := Vector p.dimension, W := Vector p.dimension, source := coordinates p.dimension, target := coordinates p.dimension].Operations[] \as FirstEnd;
+\import Spaces.Linear[V := Vector q.dimension, W := Vector q.dimension, source := coordinates q.dimension, target := coordinates q.dimension].Operations[] \as SecondEnd;
+\import Frames.At[n := p.dimension].Families[X := Y].Matrix[m := p.dimension] \as FirstFamilies;
+\import Frames.At[n := q.dimension].Families[X := A].Matrix[m := q.dimension] \as SecondFamilies;
+\import U.Block[P := (\fun (a: A) => (p.projection a).map), Q := (\fun (a: A) => SecondEnd.zeroMap),
+  regularP := p.regular, regularQ := SecondFamilies.constant subspace SecondEnd.zeroMap] \as UBlock;
+\import VLocal.Block[P := (\fun (y: Y) => FirstEnd.zeroMap), Q := (\fun (y: Y) => (q.projection y).map),
+  regularP := FirstFamilies.constant source FirstEnd.zeroMap, regularQ := q.regular] \as VBlock;
+\definition leftMap: U.EndMap := U.conjugate UBlock.map;
+\definition rightMap: VLocal.EndMap := VBlock.map;
+\definition H: \Set := Pair.Times^[Vector p.dimension, Vector q.dimension];
+\definition hSpace: Spaces.VectorSpace H := Spaces.DirectSum[V := Vector p.dimension, W := Vector q.dimension, left := coordinates p.dimension, right := coordinates q.dimension].space;
+\import Spaces.Linear[V := H, W := H, source := hSpace, target := hSpace] \as End;
+\definition left[a: A]: End.Map := leftMap.fiber a;
+\definition right[y: Y]: End.Map := rightMap.fiber y;
+\definition compatibleAt: \forall (w: W)(z: H) -> (left (toU w)).apply z = (right (toV w)).apply z :=
+  \fun (w: W)(z: H) => eq_reason_in!{H _
+    "=" { (exchange.forward.fiber w).apply ((UBlock.map.fiber (toU w)).apply ((exchange.backward.fiber w).apply z)) } "by" { U.conjugateFormula UBlock.map (toU w) z }
+    "=" { (exchange.forward.fiber w).apply (Pair.pair (Vector p.dimension) (Vector q.dimension)
+      ((p.projection (toU w)).map.apply (Pair.first (Vector p.dimension) (Vector q.dimension) ((exchange.backward.fiber w).apply z))) (coordinates q.dimension).zero) } "by" {
+      congr!{H H} (exchange.forward.fiber w).apply _ _ (UBlock.formula (toU w) ((exchange.backward.fiber w).apply z)) }
+    "=" { Pair.pair (Vector p.dimension) (Vector q.dimension) (coordinates p.dimension).zero
+      ((q.projection (toV w)).map.apply (Pair.second (Vector p.dimension) (Vector q.dimension) z)) } "by" { \parent.At[w := w].conjugates z }
+    "=" { (right (toV w)).apply z } "by" { sym!{H} _ _ (VBlock.formula (toV w) z) }
+  };
+\import topological_constructions.Gluing[A := X, B := End.Map].Pasting[F := subset, G := V] \as Pasting;
+\definition compatible: Pasting.Compatible left right := \block {
+  \fun (a: A)(b: Y)(same: a = b) \then
+  \let inV: Base.Member V a := \idelim b = a \with x: X => Base.Member V x \by {
+    base: \bysub(X, V, b), equality: sym!{X} _ _ same
+  } \then
+  \let w: W := \into[X](a, intersection) \by { Logic.And[_, _] { left := \bysub(X, subset, a), right := inV } } \then
+  \return End.ext (left a) (right b) (\axiom:funext((left a).apply, (right b).apply, \fun (z: H) =>
+    trans!{H} _ _ _ (compatibleAt w z)
+      (congr!{Y H} (\fun (b: Y) => (right b).apply z) (toV w) b same)))
+};
+\definition family[x: X]: End.Map := Pasting.apply left right covers compatible x;
+\definition onU: \forall (a: A) -> family a = left a := Pasting.onLeft left right covers compatible;
+\definition onV: \forall (b: Y) -> family b = right b := Pasting.onRight left right covers compatible;
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := Algebra.field, conjugation := Hermitian.scalar, scalar := Scalar.scalar].ClosedMaps[
+  X := X, F := Sum.Fiber, G := Sum.Fiber, baseSpace := space, source := bundle, target := bundle,
+  sourceBase := (\refl(space)), targetBase := (\refl(space)), C := subset, D := V, closedC := closed, closedD := closedV, covers := covers] \as Closed;
+\definition matchesU: \forall (a: A)(z: H) -> (family a).apply z = (leftMap.fiber a).apply z :=
+  \fun (a: A)(z: H) => congr!{End.Map H} (\fun (m: End.Map) => m.apply z) _ _ (onU a);
+\definition matchesV: \forall (b: Y)(z: H) -> (family b).apply z = (rightMap.fiber b).apply z :=
+  \fun (b: Y)(z: H) => congr!{End.Map H} (\fun (m: End.Map) => m.apply z) _ _ (onV b);
+\definition map: Bundles.Morphisms[X := X, Y := X, F := Sum.Fiber, G := Sum.Fiber, source := bundle, target := bundle, f := (\fun (x: X) => x)].Map :=
+  Closed.With[fiber := family, left := leftMap, right := rightMap, matchesLeft := matchesU, matchesRight := matchesV].map;
+\definition leftIdempotent: \forall (a: A)(z: H) -> (left a).apply ((left a).apply z) = (left a).apply z :=
+  U.conjugateIdempotent UBlock.map (UBlock.idempotent (\fun (a: A) => (p.projection a).idempotent) (\fun (a: A)(v: Vector q.dimension) => \refl((coordinates q.dimension).zero)));
+\definition rightIdempotent: \forall (b: Y)(z: H) -> (right b).apply ((right b).apply z) = (right b).apply z :=
+  VBlock.idempotent (\fun (b: Y)(v: Vector p.dimension) => \refl((coordinates p.dimension).zero)) (\fun (b: Y) => (q.projection b).idempotent);
+\definition idempotent: \forall (x: X)(z: H) -> (family x).apply ((family x).apply z) = (family x).apply z :=
+  \fun (x: X) => Logic.orElim[Base.Member subset x, Base.Member V x, \forall (z: H) -> (family x).apply ((family x).apply z) = (family x).apply z] (covers x)
+    (\fun (inside: Base.Member subset x) => \idelim left (\into[X](x, subset) \by { inside }) = family x
+      \with m: End.Map => \forall (z: H) -> m.apply (m.apply z) = m.apply z \by {
+        base: leftIdempotent (\into[X](x, subset) \by { inside }), equality: sym!{End.Map} _ _ (onU (\into[X](x, subset) \by { inside }))
+      })
+    (\fun (inside: Base.Member V x) => \idelim right (\into[X](x, V) \by { inside }) = family x
+      \with m: End.Map => \forall (z: H) -> m.apply (m.apply z) = m.apply z \by {
+        base: rightIdempotent (\into[X](x, V) \by { inside }), equality: sym!{End.Map} _ _ (onV (\into[X](x, V) \by { inside }))
+      });
+\module Image;

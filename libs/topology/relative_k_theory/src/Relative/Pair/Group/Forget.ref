@@ -1,0 +1,33 @@
+\import Absolute.K0[] \as K;
+\import Complements.Representations[X := X, baseSpace := space] \as Representations;
+\import algebra.Group[].Of[Carrier := K.Carrier, group := K.group] \as Additive;
+\import module_theory.Module[].IntegerGroup[Carrier := K.Carrier, group := K.group] \as IntegersAction;
+\import Presented.To[W := K.Carrier, target := IntegersAction.space] \as Extension;
+\definition symbolValue[t: Triple]: K.Carrier := K.difference (Absolute.class t.positive) (Absolute.class t.negative);
+\definition globalZero: \forall (t: Triple)(w: \parent.\parent.Global[t := t].Witness) -> symbolValue t = K.zero :=
+  \fun (t: Triple)(w: \parent.\parent.Global[t := t].Witness) =>
+    trans!{{K.Carrier}} _ _ _
+      (congr!{{Absolute.Classes} {K.Carrier}} (\fun (a: Absolute.Classes) => K.difference a (Absolute.class t.negative)) _ _
+        (Representations.relatedEqual t.positive t.negative (\exact(w.isomorphism, Representations.Isomorphism t.positive t.negative))))
+      (Additive.inverseRight (K.include (Absolute.class t.negative)));
+\module Sum(t, u, v: Triple, w: \parent.\parent.\parent.Sum[t := t, u := u, v := v].Witness);
+\definition respects: Extension.RespectsRelations symbolValue :=
+  \induction (x, y: Expression)(r: Relation x y) \return Extension.EvaluationRelation symbolValue x y \with {
+    | global: \fun (t: Triple)(w: \parent.\parent.Global[t := t].Witness) => globalZero t w
+    | sum: \fun (t, u, v: Triple)(w: \parent.\parent.Sum[t := t, u := u, v := v].Witness) => Sum[t := t, u := u, v := v, w := w].equation
+    | compose: \fun (p, q, r: Presentation)(first: \parent.\parent.Between[p := p, q := q].Isomorphism)(second: \parent.\parent.Between[p := q, q := r].Isomorphism) =>
+      Additive.composeDifferences (K.include (Absolute.class p)) (K.include (Absolute.class q)) (K.include (Absolute.class r))
+    | homotopy: \fun (p, q: Presentation)(first, second: \parent.\parent.Between[p := p, q := q].Isomorphism)
+      (family: \parent.\parent.Homotopy[p := p, q := q, first := first, second := second].Family) => \refl(K.difference (Absolute.class p) (Absolute.class q))
+  };
+\import Modules.Hom[V := Carrier, W := K.Carrier, source := Presented.space, target := IntegersAction.space] \as Linear;
+\definition linear: Linear.Map := Extension.extension symbolValue respects;
+\definition map: Carrier -> K.Carrier := linear.apply;
+\definition onTriple: \forall (t: Triple) -> map (value t) = symbolValue t := Extension.onGenerator symbolValue respects;
+\definition additive: \forall (a, b: Carrier) -> map (add a b) = K.add (map a) (map b) := linear.addition;
+\definition preservesZero: map zero = K.zero := Linear.zeroPreserved linear;
+\module ToSubset(t: Triple);
+\module Kernel;
+\module Exact;
+\module Contractible(a0: A, homotopy: algebraic_topology.Homotopy[A := A, B := A].Homotopy[subspace, subspace, (\fun (x: A) => x), (\fun (x: A) => a0)]);
+\module Empty(empty: \forall (x: A) -> Logic.False);

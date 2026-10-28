@@ -1,0 +1,105 @@
+\import std.Logic[].Classical[] \as Classical;
+\import topology.Maps[A := A, B := Carrier] \as Projection;
+\definition space: Space.Topology := topology source;
+\definition compactQuotient: Space.IsCompact space := topology.Compactness[A := A, B := Carrier].surjectiveImage source space class
+  (projectionContinuous source) Quotient.surjective compact;
+\definition Saturated[U: \Pow A]: \Prop := \forall (x, y: A) -> Source.Member U x -> Related x y -> Source.Member U y;
+\definition Image[U: \Pow A]: \Pow Carrier := Projection.Image class U;
+\definition preimageImage: \forall (U: \Pow A) -> Saturated U -> Projection.Preimage class (Image U) = U :=
+  \fun (U: \Pow A)(saturated: _) => \axiom:setext(Projection.Preimage class (Image U), U,
+    \block {
+      \fun (x: A)(member: _) \then
+      \takefrom y: \Cast[A] ({ y: A \where Logic.And[Source.Member U y, class y = class x] }) \by member \then
+      \let data: Logic.And[Source.Member U y, class y = class x] := \bysub(A, { y: A \where Logic.And[Source.Member U y, class y = class x] }, y) \then
+      \return saturated y x data.left (Quotient.equalRelated equivalence y x data.right)
+    },
+    \fun (x: A)(member: _) => Projection.imageMember class U x member);
+\definition imageOpen: \forall (U: \Pow A) -> Source.IsOpenIn source U -> Saturated U -> Space.IsOpenIn space (Image U) :=
+  \fun (U: \Pow A)(open: _)(saturated: _) => (Quotient.quotientMap source).reflectsOpen (Image U)
+    (\idelim U = Projection.Preimage class (Image U) \with V: \Pow A => Source.IsOpenIn source V
+      \by { base: open, equality: sym!{\Pow A} _ _ (preimageImage U saturated) });
+\definition containingSaturated: \forall (U: \Pow A) -> Source.Subset subset U -> Saturated U :=
+  \fun (U: \Pow A)(contains: _)(x, y: A)(member: _)(related: _) => either!{related {Source.Member U y}
+    {\fun (same: x = y) => \idelim x = y \with z: A => Source.Member U z \by { base: member, equality: same }}
+    {\fun (both: Logic.And[Source.Member subset x, Source.Member subset y]) => contains y both.right}
+  };
+\definition avoidingSaturated: \forall (U: \Pow A) -> Source.Disjoint U subset -> Saturated U :=
+  \fun (U: \Pow A)(disjoint: _)(x, y: A)(member: _)(related: _) => either!{related {Source.Member U y}
+    {\fun (same: x = y) => \idelim x = y \with z: A => Source.Member U z \by { base: member, equality: same }}
+    {\fun (both: Logic.And[Source.Member subset x, Source.Member subset y]) => Logic.falseElim (Source.Member U y) (disjoint x member both.left)}
+  };
+\structure Separation[x, y: A]: \Set := {
+  first: \Pow A, second: \Pow A,
+  firstOpen: Source.IsOpenIn source first,
+  secondOpen: Source.IsOpenIn source second,
+  containsFirst: Source.Member first x,
+  containsSecond: Source.Member second y,
+  disjoint: Source.Disjoint first second,
+  firstSaturated: Saturated first,
+  secondSaturated: Saturated second
+};
+\definition outsideSeparation: \forall (x, y: A) -> Logic.Not (Source.Member subset x) -> Logic.Not (x = y) -> \exists Separation[x, y] := \block {
+  \fun (x, y: A)(outside: _)(different: _) \then
+  \let closedPart: \Pow A := Source.Finite[].Join subset (Source.Singleton y) \then
+  \takefrom U: \Cast[\Pow A] ({ U: \Pow A \where Source.RegularChoice[source, closedPart, x, U] })
+    \by Source.Compactness[].compactHausdorffRegular source compact hausdorff closedPart
+      (Source.Finite[].joinClosed source subset (Source.Singleton y) closed (Source.Compactness[].hausdorffT1 source hausdorff y)) x
+      (\fun (member: Source.Member closedPart x) => either!{member {Logic.False} {outside} {different}}) \then
+  \let u: Source.RegularChoice[source, closedPart, x, U] := \bysub(\Pow A, { U: \Pow A \where Source.RegularChoice[source, closedPart, x, U] }, U) \then
+  \takefrom V: \Cast[\Pow A] ({ V: \Pow A \where Source.NormalPartner[source, closedPart, U, V] }) \by u.partner \then
+  \let v: Source.NormalPartner[source, closedPart, U, V] := \bysub(\Pow A, { V: \Pow A \where Source.NormalPartner[source, closedPart, U, V] }, V) \then
+  \return \exact(Separation[x, y] {
+    first := U, second := V, firstOpen := u.open, secondOpen := v.open,
+    containsFirst := u.contains, containsSecond := v.covers y (Logic.Or[_, _]::right (\refl(y))),
+    disjoint := v.disjoint,
+    firstSaturated := avoidingSaturated U (\fun (z: A)(inU: _)(inS: _) => v.disjoint z inU (v.covers z (Logic.Or[_, _]::left inS))),
+    secondSaturated := containingSaturated V (\fun (z: A)(inS: _) => v.covers z (Logic.Or[_, _]::left inS))
+  }, Separation[x, y])
+};
+\definition reverse[x, y: A][s: Separation[x, y]]: Separation[y, x] := Separation[y, x] {
+  first := s.second, second := s.first, firstOpen := s.secondOpen, secondOpen := s.firstOpen,
+  containsFirst := s.containsSecond, containsSecond := s.containsFirst,
+  disjoint := \fun (z: A)(second: _)(first: _) => s.disjoint z first second,
+  firstSaturated := s.secondSaturated, secondSaturated := s.firstSaturated
+};
+\definition separation: \forall (x, y: A) -> Logic.Not (class x = class y) -> \exists Separation[x, y] :=
+  \fun (x, y: A)(different: _) => either!{{(Classical.excludedMiddle (Source.Member subset x))} {\exists Separation[x, y]}
+    {\block {
+      \fun (inside: Source.Member subset x) \then
+      \takefrom s: Separation[y, x] \by outsideSeparation y x
+        (\fun (other: Source.Member subset y) => different (collapsed x y inside other))
+        (\fun (same: y = x) => different (congr!{A Carrier} class _ _ (sym!{A} _ _ same))) \then
+      \return \exact(reverse y x s, Separation[x, y])
+    }}
+    {\fun (outside: _) => outsideSeparation x y outside (\fun (same: x = y) => different (congr!{A Carrier} class _ _ same))}
+  };
+\definition imageDisjoint: \forall (U, V: \Pow A) -> Saturated U -> Source.Disjoint U V -> Space.Disjoint (Image U) (Image V) := \block {
+  \fun (U, V: \Pow A)(saturated: _)(disjoint: _)(q: Carrier)(inU: _)(inV: _) \then
+  \takefrom x: \Cast[A] ({ x: A \where Logic.And[Source.Member U x, class x = q] }) \by inU \then
+  \takefrom y: \Cast[A] ({ y: A \where Logic.And[Source.Member V y, class y = q] }) \by inV \then
+  \let a: Logic.And[Source.Member U x, class x = q] := \bysub(A, { x: A \where Logic.And[Source.Member U x, class x = q] }, x) \then
+  \let b: Logic.And[Source.Member V y, class y = q] := \bysub(A, { y: A \where Logic.And[Source.Member V y, class y = q] }, y) \then
+  \return disjoint y (saturated x y a.left (Quotient.equalRelated equivalence x y (trans!{Carrier} _ _ _ a.right (sym!{Carrier} _ _ b.right)))) b.left
+};
+\definition classSeparation: \forall (x, y: A) -> Logic.Not (class x = class y) ->
+  \exists (U: \Pow Carrier \where Space.RegularChoice[space, Space.Singleton (class y), class x, U]) := \block {
+  \fun (x, y: A)(different: _) \then
+  \takefrom s: Separation[x, y] \by separation x y different \then
+  \return Logic.existsIntro[\Pow Carrier, { U: \Pow Carrier \where Space.RegularChoice[space, Space.Singleton (class y), class x, U] }] (Image s.first)
+    (Space.RegularChoice[space, Space.Singleton (class y), class x, Image s.first] {
+      open := imageOpen s.first s.firstOpen s.firstSaturated,
+      contains := Projection.imageMember class s.first x s.containsFirst,
+      partner := Logic.existsIntro[\Pow Carrier, { V: \Pow Carrier \where Space.NormalPartner[space, Space.Singleton (class y), Image s.first, V] }] (Image s.second)
+        (Space.NormalPartner[space, Space.Singleton (class y), Image s.first, Image s.second] {
+          open := imageOpen s.second s.secondOpen s.secondSaturated,
+          covers := \fun (q: Carrier)(same: q = class y) => \idelim class y = q \with z: Carrier => Space.Member (Image s.second) z
+            \by { base: Projection.imageMember class s.second y s.containsSecond, equality: sym!{Carrier} _ _ same },
+          disjoint := imageDisjoint s.first s.second s.firstSaturated s.disjoint
+        })
+    })
+};
+\definition hausdorffQuotient: Space.IsT2 space := induction
+  (\fun (q: Carrier) => \forall (r: Carrier) -> Logic.Not (q = r) -> \exists (U: \Pow Carrier \where Space.RegularChoice[space, Space.Singleton r, q, U]))
+  (\fun (x: A) => induction
+    (\fun (r: Carrier) => Logic.Not (class x = r) -> \exists (U: \Pow Carrier \where Space.RegularChoice[space, Space.Singleton r, class x, U]))
+    (classSeparation x));

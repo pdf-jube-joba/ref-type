@@ -1,0 +1,30 @@
+\import topology.Topology[Carrier := Source.Point] \as Total;
+\definition domain: \Pow Source.Point := { p: Source.Point \where Base.Member (quotientDomain i) (Quotient.projection p.base) };
+\import Total.Subspace[S := domain] \as Subspace;
+\definition Point: \Set := Subspace.CarrierSet;
+\definition topology: topology.Topology[Carrier := Point].Topology := Subspace.topology pulled.totalSpace;
+\definition base[p: Point]: X := p.base;
+\definition baseContinuous: topology.Continuity[A := Point, B := X].Continuous topology bundle.baseSpace base :=
+  topology.Continuity[A := Source.Point, B := X].Restriction[S := domain].restrictContinuous pulled.totalSpace bundle.baseSpace Source.projection (Source.Of[bundle := pulled].projectionContinuous);
+\module At(p: Point);
+\definition sourceBase[p: Point]: \Cast[X] (sourceChart i).domain := At[p := p].sourceBase;
+\definition sourceBaseContinuous: topology.Continuity[A := Point, B := \Cast[X] (sourceChart i).domain].Continuous topology
+  (topology.Topology[Carrier := X].Subspace[S := (sourceChart i).domain].topology bundle.baseSpace) sourceBase :=
+  topology.Continuity[A := Point, B := X].Corestriction[S := (sourceChart i).domain].corestrictContinuous topology bundle.baseSpace sourceBase baseContinuous;
+\definition global[p: Point]: Descended.Point := Pull.map p;
+\definition globalContinuous: topology.Continuity[A := Point, B := Descended.Point].Continuous topology bundleOnQuotient.totalSpace global :=
+  topology.Continuity[A := Source.Point, B := Descended.Point].Restriction[S := domain].restrictContinuous pulled.totalSpace bundleOnQuotient.totalSpace Pull.map Pull.mapContinuous;
+\definition inChart[p: Point]: \Cast[Descended.Point] ({ p: Descended.Point \where Base.Member (quotientDomain i) p.base }) :=
+  \into[Descended.Point](global p, { p: Descended.Point \where Base.Member (quotientDomain i) p.base }) \by { \bysub(Source.Point, domain, p) };
+\definition coordinate[p: Point]: Bundles.Vector (sourceChart i).dimension := (frame i (At[p := p].quotientBase)).forward.apply p.vector;
+\definition coordinateContinuous: topology.Continuity[A := Point, B := Bundles.Vector (sourceChart i).dimension].Continuous topology (Bundles.coordinateTopology (sourceChart i).dimension) coordinate :=
+  Operations.Chart[X := Quotient.Carrier, F := Fiber, bundle := bundleOnQuotient, chart := trivialization i].Maps[Y := Point, source := topology].vectorContinuous inChart globalContinuous;
+\definition candidate[p: Point]: Original.Point := Original.include (sourceBase p) (((sourceChart i).frame (sourceBase p)).backward.apply (coordinate p));
+\definition candidateContinuous: topology.Continuity[A := Point, B := Original.Point].Continuous topology bundle.totalSpace candidate :=
+  (regularFrame i).writing Point topology sourceBase sourceBaseContinuous coordinate coordinateContinuous;
+\definition result[p: Point]: Original.Point := Forward.total forwardData p;
+\definition equal: candidate = result := \axiom:funext(candidate, result, \fun (p: Point) =>
+  congr!{{F p.base} Original.Point} (Original.include p.base) _ _ (At[p := p].formula));
+\definition continuous: topology.Continuity[A := Point, B := Original.Point].Continuous topology bundle.totalSpace result :=
+  \idelim candidate = result \with f: (Point -> Original.Point) => topology.Continuity[A := Point, B := Original.Point].Continuous topology bundle.totalSpace f
+    \by { base: candidateContinuous, equality: equal };

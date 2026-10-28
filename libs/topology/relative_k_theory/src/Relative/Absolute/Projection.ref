@@ -1,0 +1,26 @@
+\import EmptyPair.ForgetProjection[] \as Projection;
+\import KTheory.On[X := model.Carrier, baseSpace := (details model).topology, compact := (details model).compact, hausdorff := (details model).hausdorff] \as K;
+\import K.Pullback[Y := Q.Carrier, space := Q.topology, sourceCompact := Q.quotientCompact, sourceHausdorff := Q.quotientHausdorff,
+  f := equivalence.backward, regular := Homeomorphism.inverseContinuous] \as First;
+\import First.Composition[Z := X, nextSpace := space, nextCompact := compact, nextHausdorff := hausdorff,
+  g := Q.projection, nextRegular := Q.continuous] \as Composite;
+\definition functions: (\fun (x: X) => equivalence.backward (Q.projection x)) = inclusion :=
+  \axiom:funext((\fun (x: X) => equivalence.backward (Q.projection x)), inclusion,
+    \fun (x: X) => equivalence.leftInverse (inclusion x));
+\import K.Pullback[Y := X, space := space, sourceCompact := compact, sourceHausdorff := hausdorff,
+  f := inclusion, regular := inclusionContinuous].K0[] \as Inclusion;
+\import K.Pullback[Y := X, space := space, sourceCompact := compact, sourceHausdorff := hausdorff,
+  f := (\fun (x: X) => equivalence.backward (Q.projection x)), regular := Composite.compositeRegular].K0[] \as Direct;
+\definition changed: \forall (v: Reduced.Carrier) -> Direct.map v = Inclusion.map v :=
+  \fun (v: Reduced.Carrier) => (\idelim (\fun (x: X) => equivalence.backward (Q.projection x)) = inclusion
+    \with f: (X -> model.Carrier) =>
+      \forall (regular: topology.Continuity[A := X, B := model.Carrier].Continuous space (details model).topology f) ->
+        Direct.map v = K.Pullback[Y := X, space := space, sourceCompact := compact, sourceHausdorff := hausdorff,
+          f := f, regular := regular].K0[].map v \by {
+      base: \fun (regular: topology.Continuity[A := X, B := model.Carrier].Continuous space (details model).topology
+        (\fun (x: X) => equivalence.backward (Q.projection x))) => \refl(Direct.map v),
+      equality: functions
+    }) inclusionContinuous;
+\definition equation: \forall (v: Reduced.Carrier) -> backward v = Inclusion.map v := \fun (v: Reduced.Carrier) =>
+  trans!{{Ordinary.Carrier}} _ _ _ (sym!{{Ordinary.Carrier}} _ _ (Projection.equation (Groups.backward v)))
+    (trans!{{Ordinary.Carrier}} _ _ _ (sym!{{Ordinary.Carrier}} _ _ (Composite.onK0 v)) (changed v));

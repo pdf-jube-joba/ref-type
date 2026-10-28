@@ -1,0 +1,53 @@
+\definition firstContains: QuotientBase.Member first.chart.domain Quotient.point :=
+  \bysub(SourceCharts.Chart, { c: SourceCharts.Chart \where QuotientBase.Member c.domain Quotient.point }, first.chart);
+\definition secondContains: QuotientBase.Member second.chart.domain Quotient.point :=
+  \bysub(TargetCharts.Chart, { c: TargetCharts.Chart \where QuotientBase.Member c.domain Quotient.point }, second.chart);
+\import First.In[c := first.chart, contains := firstContains] \as FirstModel;
+\import Second.In[c := second.chart, contains := secondContains] \as SecondModel;
+\import Bundles.Trivial[X := X, n := FirstModel.dimension, baseSpace := space] \as FirstTrivial;
+\import Bundles.Trivial[X := X, n := SecondModel.dimension, baseSpace := space] \as SecondTrivial;
+\definition firstPoint: \Cast[Quotient.Carrier] first.chart.domain := \into[Quotient.Carrier](Quotient.point, first.chart.domain) \by { firstContains };
+\definition secondPoint: \Cast[Quotient.Carrier] second.chart.domain := \into[Quotient.Carrier](Quotient.point, second.chart.domain) \by { secondContains };
+\definition hLaws: Global.Laws[h] := \bysub(Global.Data, Global.Isomorphism, h);
+\definition atPoint: Spaces.Isomorphism[V := F Quotient.point, W := G Quotient.point, source := source.space Quotient.point, target := target.space Quotient.point].Isomorphism :=
+  Spaces.Isomorphism[V := F Quotient.point, W := G Quotient.point, source := source.space Quotient.point, target := target.space Quotient.point].Isomorphism {
+    forward := h.forward.fiber Quotient.point, backward := h.backward.fiber Quotient.point,
+    leftInverse := hLaws.leftInverse Quotient.point, rightInverse := hLaws.rightInverse Quotient.point
+  };
+\import Spaces.Isomorphism[V := F Quotient.point, W := Bundles.Vector FirstModel.dimension, source := source.space Quotient.point, target := Bundles.coordinates FirstModel.dimension] \as FirstFrame;
+\import Spaces.Isomorphism[V := F Quotient.point, W := G Quotient.point, source := source.space Quotient.point, target := target.space Quotient.point].Composition[
+  U := Bundles.Vector FirstModel.dimension, domain := Bundles.coordinates FirstModel.dimension] \as FirstCompose;
+\import Spaces.Isomorphism[V := G Quotient.point, W := Bundles.Vector SecondModel.dimension, source := target.space Quotient.point, target := Bundles.coordinates SecondModel.dimension].Composition[
+  U := Bundles.Vector FirstModel.dimension, domain := Bundles.coordinates FirstModel.dimension] \as SecondCompose;
+\definition coordinate: Spaces.Isomorphism[V := Bundles.Vector FirstModel.dimension, W := Bundles.Vector SecondModel.dimension,
+  source := Bundles.coordinates FirstModel.dimension, target := Bundles.coordinates SecondModel.dimension].Isomorphism :=
+  SecondCompose.compose (second.chart.frame secondPoint) (FirstCompose.compose atPoint (FirstFrame.inverse (first.chart.frame firstPoint)));
+\import Operations.TrivialIsomorphism[X := X, n := FirstModel.dimension, m := SecondModel.dimension, base := space, linear := coordinate] \as Constant;
+\import Complements.PulledIsomorphism[X := Quotient.Carrier, Y := X, F := F, G := G, source := source, target := target,
+  base := space, f := Quotient.projection, sourceRegular := First.regular, targetRegular := Second.regular] \as Pull;
+\definition positive: Bundles.Isomorphisms[X := X, F := First.Fiber, G := Second.Fiber, source := First.pulled, target := Second.pulled].Isomorphism := Pull.isomorphism h;
+\definition pointAlignment: \forall (hc: QuotientBase.Member first.chart.domain Quotient.point)(hd: QuotientBase.Member second.chart.domain Quotient.point)(v: F Quotient.point) ->
+  (second.chart.frame (\into[Quotient.Carrier](Quotient.point, second.chart.domain) \by { hd })).forward.apply ((h.forward.fiber Quotient.point).apply v) =
+    coordinate.forward.apply ((first.chart.frame (\into[Quotient.Carrier](Quotient.point, first.chart.domain) \by { hc })).forward.apply v) :=
+  \fun (hc: _)(hd: _)(v: F Quotient.point) => sym!{{Bundles.Vector SecondModel.dimension}} _ _
+    (congr!{{F Quotient.point} {Bundles.Vector SecondModel.dimension}}
+      (\fun (u: F Quotient.point) => (second.chart.frame secondPoint).forward.apply ((h.forward.fiber Quotient.point).apply u)) _ _
+      ((FirstFrame.laws (first.chart.frame firstPoint)).leftInverse v));
+\definition alignmentAt[x: A]: \forall (hc: QuotientBase.Member first.chart.domain (Quotient.projection x))(hd: QuotientBase.Member second.chart.domain (Quotient.projection x))(v: F (Quotient.projection x)) ->
+  (second.chart.frame (\into[Quotient.Carrier](Quotient.projection x, second.chart.domain) \by { hd })).forward.apply ((h.forward.fiber (Quotient.projection x)).apply v) =
+    coordinate.forward.apply ((first.chart.frame (\into[Quotient.Carrier](Quotient.projection x, first.chart.domain) \by { hc })).forward.apply v) :=
+  \idelim Quotient.point = Quotient.projection x \with q: Quotient.Carrier =>
+    \forall (hc: QuotientBase.Member first.chart.domain q)(hd: QuotientBase.Member second.chart.domain q)(v: F q) ->
+      (second.chart.frame (\into[Quotient.Carrier](q, second.chart.domain) \by { hd })).forward.apply ((h.forward.fiber q).apply v) =
+        coordinate.forward.apply ((first.chart.frame (\into[Quotient.Carrier](q, first.chart.domain) \by { hc })).forward.apply v)
+    \by { base: pointAlignment, equality: sym!{{Quotient.Carrier}} _ _ (Quotient.onSubset x) };
+\import \parent.\parent.BundleChange[F := First.Fiber, G := (\fun (x: X) => Bundles.Vector FirstModel.dimension),
+  source := First.pulled, target := FirstTrivial.bundle, sourceSame := \refl(space), targetSame := \refl(space)].To[
+  H := Second.Fiber, I := (\fun (x: X) => Bundles.Vector SecondModel.dimension), newSource := Second.pulled, newTarget := SecondTrivial.bundle,
+  newSourceSame := \refl(space), newTargetSame := \refl(space)].On[
+  alpha := FirstModel.comparison, beta := SecondModel.comparison, first := first.result, second := second.result] \as Change;
+\definition diagram: Change.Witness := Change.Witness {
+  positive := positive, negative := Constant.isomorphism,
+  commutes := \fun (x: A)(v: First.Fiber x) => alignmentAt x (FirstModel.containsAll x) (SecondModel.containsAll x) v
+};
+\definition equation: RelativeGroup.value first.result.value = RelativeGroup.value second.result.value := Change.With[w := diagram].equation;

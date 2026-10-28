@@ -1,0 +1,55 @@
+\use Equality.eq_reason_in;
+\import topological_constructions.Coproduct[A := wedgeModel.Carrier, B := Q.Point] \as Augment;
+\import Augment.Universal[C := right.Carrier] \as Copair;
+\import algebraic_topology.Collapse[A := Q.Augmented, subset := Q.collapsedPart] \as Collapse;
+\import Collapse.Descent[B := right.Carrier] \as Descent;
+\definition raw: Q.Augmented -> right.Carrier := Copair.copair wedgeSecond (\fun (p: Q.Point) => (details right).point);
+\definition collapsed: \forall (z: Q.Augmented) -> \In[Q.Augmented] Q.collapsedPart z -> raw z = (details right).point :=
+  \induction (z: Q.Augmented) \return \In[Q.Augmented] Q.collapsedPart z -> raw z = (details right).point \with {
+    | inl: \fun (w: wedgeModel.Carrier)(member: wedgeSecond w = (details right).point) => member
+    | inr: \fun (p: Q.Point)(member: _) => \refl((details right).point)
+  };
+\definition respects: Descent.Respects raw := \fun (z, w: Q.Augmented)(related: Collapse.Related z w) =>
+  Logic.orElim[z = w, Logic.And[\In[Q.Augmented] Q.collapsedPart z, \In[Q.Augmented] Q.collapsedPart w], raw z = raw w] related
+    (\fun (same: z = w) => congr!{{Q.Augmented} {right.Carrier}} raw _ _ same)
+    (\fun (both: Logic.And[\In[Q.Augmented] Q.collapsedPart z, \In[Q.Augmented] Q.collapsedPart w]) =>
+      trans!{{right.Carrier}} _ _ _ (collapsed z both.left) (sym!{{right.Carrier}} _ _ (collapsed w both.right)));
+\definition forward: Q.Carrier -> right.Carrier := Descent.apply raw respects;
+\definition onProjection: \forall (w: wedgeModel.Carrier) -> forward (projection w) = wedgeSecond w :=
+  \fun (w: wedgeModel.Carrier) => Descent.onClass raw respects (Augment.inl w);
+\definition forwardPoint: forward Q.point = (details right).point := Descent.onClass raw respects (Augment.inr Q.distinguished);
+\definition rawContinuous: topology.Continuity[A := Q.Augmented, B := right.Carrier].Continuous Q.augmentedSpace (details right).topology raw :=
+  Copair.continuous (details wedgeModel).topology (topology.Topology[Carrier := Q.Point].Discrete) (details right).topology wedgeSecond (\fun (p: Q.Point) => (details right).point)
+    (algebraic_topology.Pointed[A := wedgeModel.Carrier].Maps[B := right.Carrier].laws (pointed wedgeModel) (pointed right) wedgeSecond).continuous
+    (topology.Maps[A := Q.Point, B := right.Carrier].constantContinuous (topology.Topology[Carrier := Q.Point].Discrete) (details right).topology (details right).point);
+\definition continuous: topology.Continuity[A := Q.Carrier, B := right.Carrier].Continuous Q.topology (details right).topology forward :=
+  Descent.continuous Q.augmentedSpace (details right).topology raw respects rawContinuous;
+\import \root.Relative[].Composition[source := right, middle := wedgeModel, target := quotientModel, first := rightInclusion, second := projection] \as Backward;
+\definition backward: Map right quotientModel := Backward.map;
+\definition backwardPoint: backward (details right).point = Q.point :=
+  Q.onSubset (\into[wedgeModel.Carrier](rightIn (details right).point, subset) \by { \refl((details right).point) });
+\import Pair.Prop[A := left.Carrier, B := right.Carrier] \as Pairs;
+\definition onWedge: \forall (w: wedgeModel.Carrier) -> backward (wedgeSecond w) = projection w :=
+  \fun (w: wedgeModel.Carrier) => Logic.orElim[first w = (details left).point, second w = (details right).point,
+    backward (wedgeSecond w) = projection w] (\bysub(Cartesian.CarrierSet, wedge, w))
+    (\fun (same: first w = (details left).point) => congr!{{wedgeModel.Carrier} {Q.Carrier}} projection (rightIn (wedgeSecond w)) w
+      (Pairs.ext (rightRaw (wedgeSecond w)) w (sym!{{left.Carrier}} _ _ same) (\refl(second w))))
+    (\fun (same: second w = (details right).point) => trans!{{Q.Carrier}} _ _ _ (congr!{{right.Carrier} {Q.Carrier}} backward _ _ same)
+      (trans!{{Q.Carrier}} _ _ _ backwardPoint (sym!{{Q.Carrier}} _ _ (Q.onSubset (\into[wedgeModel.Carrier](w, subset) \by { same })))));
+\definition leftInverse: \forall (q: Q.Carrier) -> backward (forward q) = q :=
+  Collapse.induction (\fun (q: Q.Carrier) => backward (forward q) = q)
+    (\induction (z: Q.Augmented) \return backward (forward (Collapse.class z)) = Collapse.class z \with {
+      | inl: \fun (w: wedgeModel.Carrier) => trans!{{Q.Carrier}} _ _ _ (congr!{{right.Carrier} {Q.Carrier}} backward _ _ (onProjection w)) (onWedge w)
+      | inr: \fun (p: Q.Point) => trans!{{Q.Carrier}} _ _ _
+        (congr!{{right.Carrier} {Q.Carrier}} backward _ _ (Descent.onClass raw respects (Augment.inr p)))
+        (trans!{{Q.Carrier}} _ _ _ backwardPoint
+          (sym!{{Q.Carrier}} _ _ (Collapse.collapsed (Augment.inr p) (Augment.inr Q.distinguished) (\refl(p)) (\refl(Q.distinguished)))))
+    });
+\definition rightInverse: \forall (b: right.Carrier) -> forward (backward b) = b :=
+  \fun (b: right.Carrier) => onProjection (rightIn b);
+\import algebraic_topology.Pointed[A := Q.Carrier].Maps[B := right.Carrier] \as Pointed;
+\definition forwardMap: Map quotientModel right := \into[Q.Carrier -> right.Carrier](forward, Map quotientModel right) \by {
+  Pointed.Laws[pointed quotientModel, pointed right, forward] { continuous := continuous, pointed := forwardPoint }
+};
+\definition equivalence: \root.Relative[].Equivalence[source := quotientModel, target := right].Data :=
+  \root.Relative[].Equivalence[source := quotientModel, target := right].Data { forward := forwardMap, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse };

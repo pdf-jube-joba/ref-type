@@ -1,0 +1,103 @@
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import bundle_operations.Operations[].Scalars[].RealCoordinates[n := p.dimension] \as Coordinates;
+\import Coordinates.Topology[] \as CoordinatesTopology;
+\import algebraic_topology.Euclidean[].Dimension[n := Coordinates.dimension] \as Ambient;
+\import Ambient.Compactness[] \as AmbientCompactness;
+\import Ambient.Geometry[] \as Geometry;
+\import topology.Topology[Carrier := Ambient.Coordinate] \as RealVectors;
+\import RealVectors.Subspace[S := Ambient.ClosedBall] \as Ball;
+\definition ballHausdorff: topology.Topology[Carrier := Ambient.Disk].IsT2 Ambient.diskTopology :=
+  Ball.Properties[].hausdorff Ambient.topology AmbientCompactness.hausdorff;
+\import topological_constructions.Product[A := X, B := Ambient.Disk] \as Product;
+\import Product.Maps[] \as Projections;
+\definition Container: \Set := Product.CarrierSet;
+\definition containerTopology: topology.Topology[Carrier := Container].Topology := Product.topology space Ambient.diskTopology;
+\import topology.Topology[Carrier := Container] \as ContainerSpace;
+\definition containerCompact: ContainerSpace.IsCompact containerTopology := Product.Compactness[].productCompact space Ambient.diskTopology compact AmbientCompactness.compact;
+\definition containerHausdorff: ContainerSpace.IsT2 containerTopology := topological_constructions.Separation[].Product[A := X, B := Ambient.Disk].On[
+  left := space, right := Ambient.diskTopology, leftHausdorff := hausdorff, rightHausdorff := ballHausdorff].hausdorff;
+\import std.Data[].Pair[] \as Pair;
+\definition base[z: Container]: X := Pair.first X Ambient.Disk z;
+\definition realVector[z: Container]: Ambient.Coordinate := Pair.second X Ambient.Disk z;
+\definition vector[z: Container]: Bundles.Vector p.dimension := Coordinates.frame.backward.apply (realVector z);
+\definition baseContinuous: topology.Continuity[A := Container, B := X].Continuous containerTopology space base := Projections.firstContinuous space Ambient.diskTopology;
+\definition realVectorContinuous: topology.Continuity[A := Container, B := Ambient.Coordinate].Continuous containerTopology Ambient.topology realVector :=
+  topology.Composition[A := Container, B := Ambient.Disk, C := Ambient.Coordinate].composeContinuous containerTopology Ambient.diskTopology Ambient.topology
+    (Pair.second X Ambient.Disk) (\fun (v: Ambient.Disk) => v) (Projections.secondContinuous space Ambient.diskTopology)
+    (topology.Continuity[A := Ambient.Disk, B := Ambient.Coordinate].Corestriction[S := Ambient.ClosedBall].inclusionContinuous Ambient.topology);
+\definition vectorContinuous: topology.Continuity[A := Container, B := Bundles.Vector p.dimension].Continuous containerTopology (Bundles.coordinateTopology p.dimension) vector :=
+  topology.Composition[A := Container, B := Ambient.Coordinate, C := Bundles.Vector p.dimension].composeContinuous containerTopology Ambient.topology (Bundles.coordinateTopology p.dimension)
+    realVector Coordinates.frame.backward.apply realVectorContinuous CoordinatesTopology.backwardContinuous;
+\import Complements.Projection[X := X, n := p.dimension, baseSpace := space, P := p.projection, regular := p.regular] \as Projection;
+\import Projection.Project[] \as Project;
+\import Complements.TrivialMaps[X := X, n := p.dimension, baseSpace := space].Into[Y := Container, source := containerTopology] \as IntoTrivial;
+\definition projected[z: Container]: Bundles.Vector p.dimension := (p.projection (base z)).map.apply (vector z);
+\definition projectedContinuous: topology.Continuity[A := Container, B := Bundles.Vector p.dimension].Continuous containerTopology (Bundles.coordinateTopology p.dimension) projected :=
+  topology.Composition[A := Container, B := Bundles.Family[X := X, F := (\fun (x: X) => Bundles.Vector p.dimension)].Point, C := Bundles.Vector p.dimension].composeContinuous
+    containerTopology (Bundles.Trivial[X := X, n := p.dimension, baseSpace := space].topology) (Bundles.coordinateTopology p.dimension)
+    (IntoTrivial.total base vector) Project.projected (IntoTrivial.continuous base vector baseContinuous vectorContinuous) Project.projectedContinuous;
+\import topological_algebra.Coordinates[K := C.Complex, I := Fin.Fin p.dimension] \as ComplexCoordinates;
+\import topological_algebra.Complex[].Functions[A := Container] \as Functions;
+\definition residual[z: Container]: Bundles.Vector p.dimension := (Bundles.coordinates p.dimension).add (projected z) ((Bundles.coordinates p.dimension).neg (vector z));
+\definition residualContinuous: topology.Continuity[A := Container, B := Bundles.Vector p.dimension].Continuous containerTopology (Bundles.coordinateTopology p.dimension) residual :=
+  ComplexCoordinates.Universal[A := Container].continuous containerTopology topological_algebra.Complex[].topology residual
+    (\fun (i: Fin.Fin p.dimension) => Functions.additionContinuous containerTopology (\fun (z: Container) => projected z i)
+      (\fun (z: Container) => C.Def[].neg (vector z i))
+      (topology.Composition[A := Container, B := Bundles.Vector p.dimension, C := C.Complex].composeContinuous containerTopology (Bundles.coordinateTopology p.dimension) topological_algebra.Complex[].topology
+        projected (\fun (v: Bundles.Vector p.dimension) => v i) projectedContinuous (ComplexCoordinates.evaluationContinuous topological_algebra.Complex[].topology i))
+      (Functions.negationContinuous containerTopology (\fun (z: Container) => vector z i)
+        (topology.Composition[A := Container, B := Bundles.Vector p.dimension, C := C.Complex].composeContinuous containerTopology (Bundles.coordinateTopology p.dimension) topological_algebra.Complex[].topology
+          vector (\fun (v: Bundles.Vector p.dimension) => v i) vectorContinuous (ComplexCoordinates.evaluationContinuous topological_algebra.Complex[].topology i))));
+\definition realResidual[z: Container]: Ambient.Coordinate := Coordinates.frame.forward.apply (residual z);
+\definition realResidualContinuous: topology.Continuity[A := Container, B := Ambient.Coordinate].Continuous containerTopology Ambient.topology realResidual :=
+  topology.Composition[A := Container, B := Bundles.Vector p.dimension, C := Ambient.Coordinate].composeContinuous containerTopology (Bundles.coordinateTopology p.dimension) Ambient.topology
+    residual Coordinates.frame.forward.apply residualContinuous CoordinatesTopology.forwardContinuous;
+\definition realZero: Ambient.Coordinate := \fun (i: Fin.Fin Coordinates.dimension) => Real.zero;
+\definition domain: \Pow Container := { z: Container \where realResidual z = realZero };
+\definition domainClosed: ContainerSpace.IsClosedIn containerTopology domain :=
+  topology.Continuity[A := Container, B := Ambient.Coordinate].closedPreimage containerTopology Ambient.topology realResidual realResidualContinuous (RealVectors.Singleton realZero)
+    (RealVectors.Compactness[].hausdorffT1 Ambient.topology AmbientCompactness.hausdorff realZero);
+\import ContainerSpace.Subspace[S := domain] \as Subspace;
+\definition Disk: \Set := Subspace.CarrierSet;
+\definition topology: topology.Topology[Carrier := Disk].Topology := Subspace.topology containerTopology;
+\definition compactDisk: topology.Topology[Carrier := Disk].IsCompact topology := Subspace.Properties[].compact containerTopology
+  (ContainerSpace.Compactness[].closedCompact containerTopology containerCompact domain domainClosed);
+\definition hausdorffDisk: topology.Topology[Carrier := Disk].IsT2 topology := Subspace.Properties[].hausdorff containerTopology containerHausdorff;
+\import algebra.Group[].Of[Carrier := Bundles.Vector p.dimension, group := (std.Alg[].Ring[].ringModuleAsCommutativeGroup C.Complex (Bundles.Vector p.dimension) Spaces.ring (Bundles.coordinates p.dimension))] \as Vectors;
+\definition residualZero: \forall (z: Disk) -> residual z = Vectors.zero := \fun (z: Disk) => trans!{{Bundles.Vector p.dimension}} _ _ _
+  (sym!{{Bundles.Vector p.dimension}} _ _ (Coordinates.frame.leftInverse (residual z)))
+  (trans!{{Bundles.Vector p.dimension}} _ _ _ (congr!{{Ambient.Coordinate} {Bundles.Vector p.dimension}} Coordinates.frame.backward.apply _ _ (\bysub(Container, domain, z)))
+    Coordinates.frame.backward.preservesZero);
+\definition fixed: \forall (z: Disk) -> projected z = vector z := \fun (z: Disk) => Vectors.cancelRight (Vectors.neg (vector z)) _ _
+  (trans!{{Bundles.Vector p.dimension}} _ _ _ (residualZero z) (sym!{{Bundles.Vector p.dimension}} _ _ (Vectors.inverseRight (vector z))));
+\definition fixedMember: \forall (z: Container) -> projected z = vector z -> ContainerSpace.Member domain z :=
+  \fun (z: Container)(same: projected z = vector z) => trans!{{Ambient.Coordinate}} _ _ _
+    (congr!{{Bundles.Vector p.dimension} {Ambient.Coordinate}} Coordinates.frame.forward.apply _ _
+      (trans!{{Bundles.Vector p.dimension}} _ _ _ (congr!{{Bundles.Vector p.dimension} {Bundles.Vector p.dimension}} (\fun (v: Bundles.Vector p.dimension) => Vectors.add v (Vectors.neg (vector z))) _ _ same)
+        (Vectors.inverseRight (vector z)))) Coordinates.frame.forward.preservesZero;
+\definition realVectorOnDisk[z: Disk]: Ambient.Coordinate := realVector z;
+\definition realVectorOnDiskContinuous: topology.Continuity[A := Disk, B := Ambient.Coordinate].Continuous topology Ambient.topology realVectorOnDisk :=
+  topology.Composition[A := Disk, B := Container, C := Ambient.Coordinate].composeContinuous topology containerTopology Ambient.topology (\fun (z: Disk) => z) realVector
+    (topology.Continuity[A := Disk, B := Container].Corestriction[S := domain].inclusionContinuous containerTopology) realVectorContinuous;
+\definition boundary: \Pow Disk := { z: Disk \where Ambient.normSquared (realVector z) = Real.one };
+\definition boundaryClosed: topology.Topology[Carrier := Disk].IsClosedIn topology boundary :=
+  topology.Continuity[A := Disk, B := Ambient.Coordinate].closedPreimage topology Ambient.topology realVectorOnDisk realVectorOnDiskContinuous Ambient.Boundary Geometry.sphereClosed;
+\import \root.Relative[].Pair[X := Disk, space := topology, compact := compactDisk, hausdorff := hausdorffDisk, subset := boundary, closed := boundaryClosed] \as Native;
+\import Native.Quotient[] \as Quotient;
+\definition Relative: \Set := Quotient.Relative;
+\definition group: std.Alg[].Alg[].CommutativeGroup[Relative] := Quotient.group;
+\definition quotientModel: CompactPointed := Quotient.model;
+\definition squaredNorm[v: Bundles.Vector p.dimension]: Real.Real := Ambient.normSquared (Coordinates.frame.forward.apply v);
+\definition normEquation: \forall (z: Disk) -> squaredNorm (vector z) = Ambient.normSquared (realVector z) :=
+  \fun (z: Disk) => congr!{{Ambient.Coordinate} {Real.Real}} Ambient.normSquared _ _ (Coordinates.frame.rightInverse (realVector z));
+\definition unitBound: \forall (z: Disk) -> R.Le (squaredNorm (vector z)) Real.one :=
+  \fun (z: Disk) => R.leReplaceLeft (Ambient.normSquared (realVector z)) (squaredNorm (vector z)) Real.one
+    (sym!{{Real.Real}} _ _ (normEquation z)) (\bysub(Ambient.Coordinate, Ambient.ClosedBall, Pair.second X Ambient.Disk z));
+\definition onSphere: \forall (z: \Cast[Disk] boundary) -> squaredNorm (vector z) = Real.one :=
+  \fun (z: \Cast[Disk] boundary) => trans!{{Real.Real}} _ _ _ (normEquation z) (\bysub(Disk, boundary, z));
+\module Negative(degree: N.Nat^) {
+  \import \root.Relative[].Negative[original := quotientModel, degree := degree] \as Model;
+  \definition Carrier: \Set := Model.Carrier;
+  \definition group: std.Alg[].Alg[].CommutativeGroup[Carrier] := Model.group;
+}

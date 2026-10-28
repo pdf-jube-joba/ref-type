@@ -1,0 +1,43 @@
+\import algebraic_topology.Interval[] \as Interval;
+\import algebraic_topology.Cylinder[A := X] \as Cylinder;
+\import topology.Topology[Carrier := Cylinder.Carrier] \as CylinderBase;
+\import topology.Topology[Carrier := Interval.Carrier] \as TimeBase;
+\import topological_constructions.Product[A := X, B := Interval.Carrier] \as Product;
+\import std.Data[].Pair[] \as Pair;
+\definition swap[p: Product.CarrierSet]: Cylinder.Carrier := Cylinder.at (Pair.second X Interval.Carrier p) (Pair.first X Interval.Carrier p);
+\import topological_constructions.Product[A := Interval.Carrier, B := X] \as Original;
+\definition swapContinuous: topology.Continuity[A := Product.CarrierSet, B := Cylinder.Carrier].Continuous (Product.topology space Interval.topology) (Cylinder.topology space) swap :=
+  Original.Universal[X := Product.CarrierSet].pairContinuous (Product.topology space Interval.topology) Interval.topology space
+    (Pair.second X Interval.Carrier) (Pair.first X Interval.Carrier)
+    (Product.Maps[].secondContinuous space Interval.topology) (Product.Maps[].firstContinuous space Interval.topology);
+\definition tubes: \Pow X := { x: X \where \forall (t: Interval.Carrier) -> CylinderBase.Member U (Cylinder.at t x) };
+\definition swapped: \Pow Product.CarrierSet := { p: Product.CarrierSet \where CylinderBase.Member U (swap p) };
+\definition swappedOpen: topology.Topology[Carrier := Product.CarrierSet].IsOpenIn (Product.topology space Interval.topology) swapped := swapContinuous U open;
+\import Product.Compactness[] \as Tubes;
+\definition tubesOpen: Base.IsOpenIn space tubes := Base.openOfNeighborhoods space tubes (\block {
+  \fun (x: X)(inside: Base.Member tubes x) \then
+  \takefrom tube: Tubes.Tube[space, x, swapped, TimeBase.Whole] \by
+    Tubes.tubeLemma space Interval.topology TimeBase.Whole Interval.compact x swapped swappedOpen
+      (\fun (t: Interval.Carrier)(whole: TimeBase.Member TimeBase.Whole t) => inside t) \then
+  \return Logic.existsIntro[\Pow X, { V: \Pow X \where Base.OpenNeighborhood[space, x, tubes, V] }] tube.neighborhood
+    (Base.OpenNeighborhood[space, x, tubes, tube.neighborhood] {
+      open := tube.open, contains := tube.contains,
+      within := \fun (y: X)(near: Base.Member tube.neighborhood y)(t: Interval.Carrier) => tube.within y near t (\refl(t))
+    })
+});
+\definition contains: Base.Subset subset tubes := \fun (x: X)(inside: Base.Member subset x)(t: Interval.Carrier) => alongSubset (\into[X](x, subset) \by { inside }) t;
+\import Base.Urysohn[] \as Urysohn;
+\definition outsideClosed: Base.IsClosedIn space (Base.Complement tubes) := Urysohn.openComplementClosed space tubes tubesOpen;
+\definition disjoint: Base.Disjoint (Base.Complement tubes) subset := \fun (x: X)(outside: Base.Member (Base.Complement tubes) x)(inside: Base.Member subset x) => outside (contains x inside);
+\structure Witness: \Set := {
+  time: X -> Interval.Carrier,
+  continuous: topology.Continuity[A := X, B := Interval.Carrier].Continuous space Interval.topology time,
+  endpoint: \forall (x: A) -> time x = Interval.end,
+  graphInside: \forall (x: X) -> CylinderBase.Member U (Cylinder.at (time x) x)
+};
+\module Using(u: Urysohn.UrysohnFunction[space, (Base.Complement tubes), subset]);
+\definition existence: \exists Witness := \block {
+  \takefrom u: Urysohn.UrysohnFunction[space, (Base.Complement tubes), subset] \by
+    Urysohn.normalUrysohn space (Base.Compactness[].compactHausdorffNormal space compact hausdorff) (Base.Complement tubes) subset outsideClosed closed disjoint \then
+  \return \exact(Using[u := u].witness, Witness)
+};

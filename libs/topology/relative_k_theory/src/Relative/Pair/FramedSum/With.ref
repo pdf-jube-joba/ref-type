@@ -1,0 +1,54 @@
+\import Operations.IsomorphismComposition[X := A, F := (\fun (x: A) => Sum.Fiber x), G := (\fun (x: A) => Sum.Fiber x), H := (\fun (x: A) => TrivialSum.Fiber x),
+  source := SumRestriction.restricted, middle := BoundarySums.sourceBundle, target := BoundarySums.targetBundle] \as FirstStep;
+\definition firstStep: FirstStep.Isomorphism := FirstStep.compose SumPull.isomorphism (BoundarySums.isomorphism alpha beta);
+\import Bundles.Isomorphisms[X := A, F := (\fun (x: A) => TrivialSum.Fiber x), G := (\fun (x: A) => TrivialSum.Fiber x),
+  source := TrivialSumPull.firstBundle, target := TrivialSumPull.secondBundle] \as TrivialReverse;
+\import Operations.IsomorphismComposition[X := A, F := (\fun (x: A) => Sum.Fiber x), G := (\fun (x: A) => TrivialSum.Fiber x), H := (\fun (x: A) => TrivialSum.Fiber x),
+  source := SumRestriction.restricted, middle := BoundarySums.targetBundle, target := TrivialSumPull.firstBundle] \as SecondStep;
+\definition secondStep: SecondStep.Isomorphism := SecondStep.compose firstStep (TrivialReverse.inverse TrivialSumPull.isomorphism);
+\import Operations.IsomorphismComposition[X := A, F := (\fun (x: A) => Sum.Fiber x), G := (\fun (x: A) => TrivialSum.Fiber x), H := (\fun (x: A) => Bundles.Vector dimension),
+  source := SumRestriction.restricted, middle := TrivialSumPull.firstBundle, target := SumTrivialRestriction.restricted] \as LastStep;
+\definition comparison: SumDescent.OnSubset := LastStep.compose secondStep (JoinedPull.isomorphism Join.isomorphism);
+\import std.Data[].Pair[] \as Pair;
+\definition formula: \forall (x: A)(v: F x)(w: G x) ->
+  (comparison.forward.fiber x).apply (Pair.pair (F x) (G x) v w) = Coordinates.join (CoordinatePair.make ((alpha.forward.fiber x).apply v) ((beta.forward.fiber x).apply w)) :=
+  \fun (x: A)(v: F x)(w: G x) => \refl(Coordinates.join (CoordinatePair.make ((alpha.forward.fiber x).apply v) ((beta.forward.fiber x).apply w)));
+\import \parent.\parent.FramedClass[F := F, sourceModel := sourceModel, n := n].With[alpha := alpha] \as FirstClass;
+\import \parent.\parent.FramedClass[F := G, sourceModel := targetModel, n := m].With[alpha := beta] \as SecondClass;
+\import \parent.\parent.FramedClass[F := Sum.Fiber, sourceModel := SumModel.model, n := dimension].With[alpha := comparison] \as SumClass;
+\import \parent.\parent.Quotient[] \as Quotient;
+\definition value: Quotient.Relative := SumClass.value;
+\import First.With[comparison := alpha] \as Source;
+\import Second.With[comparison := beta] \as Target;
+\import SumDescent.With[comparison := comparison] \as Whole;
+\import Sum.Of[same := (\refl(space))].Inclusions[] \as Inclusions;
+\import Sum.Of[same := (\refl(space))] \as Projections;
+\definition leftCompatible: \forall (x: A)(v: F x) -> (comparison.forward.fiber x).apply ((Inclusions.first.fiber x).apply v) = includeLeft.apply ((alpha.forward.fiber x).apply v) :=
+  \fun (x: A)(v: F x) => trans!{{Bundles.Vector dimension}} _ _ _ (formula x v (target.space x).zero)
+    (congr!{{Bundles.Vector m} {Bundles.Vector dimension}} (\fun (w: Bundles.Vector m) => Coordinates.join (CoordinatePair.make ((alpha.forward.fiber x).apply v) w)) _ _ (beta.forward.fiber x).preservesZero);
+\definition rightCompatible: \forall (x: A)(v: G x) -> (comparison.forward.fiber x).apply ((Inclusions.second.fiber x).apply v) = includeRight.apply ((beta.forward.fiber x).apply v) :=
+  \fun (x: A)(v: G x) => trans!{{Bundles.Vector dimension}} _ _ _ (formula x (source.space x).zero v)
+    (congr!{{Bundles.Vector n} {Bundles.Vector dimension}} (\fun (w: Bundles.Vector n) => Coordinates.join (CoordinatePair.make w ((beta.forward.fiber x).apply v))) _ _ (alpha.forward.fiber x).preservesZero);
+\definition firstCompatible: \forall (x: A)(v: Sum.Fiber x) -> (alpha.forward.fiber x).apply ((Projections.firstMap.fiber x).apply v) = firstCoordinate.apply ((comparison.forward.fiber x).apply v) :=
+  \fun (x: A)(v: Sum.Fiber x) => sym!{{Bundles.Vector n}} _ _ (firstJoin ((alpha.forward.fiber x).apply (Pair.first (F x) (G x) v)) ((beta.forward.fiber x).apply (Pair.second (F x) (G x) v)));
+\definition secondCompatible: \forall (x: A)(v: Sum.Fiber x) -> (beta.forward.fiber x).apply ((Projections.secondMap.fiber x).apply v) = secondCoordinate.apply ((comparison.forward.fiber x).apply v) :=
+  \fun (x: A)(v: Sum.Fiber x) => sym!{{Bundles.Vector m}} _ _ (secondJoin ((alpha.forward.fiber x).apply (Pair.first (F x) (G x) v)) ((beta.forward.fiber x).apply (Pair.second (F x) (G x) v)));
+\import \parent.\parent.FramedBundles[F := F, G := Sum.Fiber, sourceModel := sourceModel, targetModel := SumModel.model, n := n, m := dimension].With[
+  alpha := alpha, beta := comparison, h := Inclusions.first, c := includeLeft, compatible := leftCompatible] \as IncludeFirst;
+\import \parent.\parent.FramedBundles[F := G, G := Sum.Fiber, sourceModel := targetModel, targetModel := SumModel.model, n := m, m := dimension].With[
+  alpha := beta, beta := comparison, h := Inclusions.second, c := includeRight, compatible := rightCompatible] \as IncludeSecond;
+\import \parent.\parent.FramedBundles[F := Sum.Fiber, G := F, sourceModel := SumModel.model, targetModel := sourceModel, n := dimension, m := n].With[
+  alpha := comparison, beta := alpha, h := Projections.firstMap, c := firstCoordinate, compatible := firstCompatible] \as ProjectFirst;
+\import \parent.\parent.FramedBundles[F := Sum.Fiber, G := G, sourceModel := SumModel.model, targetModel := targetModel, n := dimension, m := m].With[
+  alpha := comparison, beta := beta, h := Projections.secondMap, c := secondCoordinate, compatible := secondCompatible] \as ProjectSecond;
+\import algebra.Group[].Of[Carrier := Quotient.Relative, group := Quotient.group] \as ReducedGroup;
+\module Between(first: Source.Result, second: Target.Result, third: Whole.Result);
+\definition additivity: ReducedGroup.add FirstClass.value SecondClass.value = value := \block {
+  \takefrom first: First.Witness[alpha] \by First.descend alpha \then
+  \takefrom second: Second.Witness[beta] \by Second.descend beta \then
+  \takefrom third: SumDescent.Witness[comparison] \by SumDescent.descend comparison \then
+  \return trans!{{Quotient.Relative}} _ _ _
+    (congr!{{Quotient.Relative} {Quotient.Relative} {Quotient.Relative}} ReducedGroup.add _ _ _ _ (FirstClass.agreement first.extension) (SecondClass.agreement second.extension))
+    (trans!{{Quotient.Relative}} _ _ _ (Between[first := first.extension, second := second.extension, third := third.extension].equation)
+      (sym!{{Quotient.Relative}} _ _ (SumClass.agreement third.extension)))
+};

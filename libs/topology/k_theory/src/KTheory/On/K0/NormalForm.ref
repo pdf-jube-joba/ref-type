@@ -1,0 +1,37 @@
+\use Equality.eq_reason_in;
+\import \parent.\parent.AdditiveMonoid[] \as Monoid;
+\import \parent.Stability[] \as Stability;
+\structure Result[v: Carrier]: \Set := {
+  positive: Presentation,
+  dimension: N.Nat^,
+  equation: difference (class positive) (\parent.\parent.Trivial[n := dimension].value) = v
+};
+\definition representedClass: \forall (a: Classes) -> \exists (p: Presentation \where class p = a) :=
+  Quotient.induction (\fun (a: Classes) => \exists (p: Presentation \where class p = a))
+    (\fun (p: Presentation) => Logic.existsIntro[Presentation, { q: Presentation \where class q = class p }] p (\refl(class p)));
+\definition fromDifference: \forall (a, b: Classes) -> \exists Result[difference a b] := \block {
+  \fun (a, b: Classes) \then
+  \takefrom w: Stability.CompletionWitness[b] \by Stability.complementExists b \then
+  \let positive: Classes := Monoid.add a w.complement \then
+  \takefrom p: \Cast[Presentation] ({ p: Presentation \where class p = positive }) \by representedClass positive \then
+  \let balance: Monoid.add positive b = Monoid.add a (\parent.\parent.Trivial[n := w.dimension].value) := eq_reason_in!{Classes _
+    "=" { Monoid.add a (Monoid.add w.complement b) } "by" { Monoid.associative a w.complement b }
+    "=" { Monoid.add a (Monoid.add b w.complement) } "by" { congr!{Classes Classes} (Monoid.add a) _ _ (Monoid.commutative w.complement b) }
+    "=" { Monoid.add a (\parent.\parent.Trivial[n := w.dimension].value) } "by" { congr!{Classes Classes} (Monoid.add a) _ _ w.equation }
+  } \then
+  \let equation: difference (class p) (\parent.\parent.Trivial[n := w.dimension].value) = difference a b := trans!{Carrier} _ _ _
+    (congr!{Classes Carrier} (\fun (c: Classes) => difference c (\parent.\parent.Trivial[n := w.dimension].value)) _ _
+      (\bysub(Presentation, { p: Presentation \where class p = positive }, p)))
+    (Stability.ofCrossSumEqual positive (\parent.\parent.Trivial[n := w.dimension].value) a b (congr!{Classes Carrier} include _ _ balance)) \then
+  \return \exact(Result[difference a b] { positive := p, dimension := w.dimension, equation := equation }, Result[difference a b])
+};
+\import std.Set[].Quotient[A := Additive.Difference, Equivalent := Additive.Equivalent] \as Differences;
+\definition represented[d: Additive.Difference]: difference (Additive.positive d) (Additive.negative d) = Additive.class d :=
+  trans!{Carrier} _ _ _ (differenceClass (Additive.positive d) (Additive.negative d))
+    (congr!{{Additive.Difference} Carrier} Additive.class _ _ (std.Data[].Pair[].Prop[A := Classes, B := Classes].eta d));
+\definition existence: \forall (v: Carrier) -> \exists Result[v] :=
+  Differences.induction (\fun (v: Carrier) => \exists Result[v])
+    (\fun (d: Additive.Difference) => \idelim difference (Additive.positive d) (Additive.negative d) = Additive.class d
+      \with v: Carrier => \exists Result[v] \by {
+        base: fromDifference (Additive.positive d) (Additive.negative d), equality: represented d
+      });

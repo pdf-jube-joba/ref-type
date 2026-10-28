@@ -1,0 +1,28 @@
+\definition oldKernel: \forall (v: Term.First) -> Term.boundary (Term.restrictionNegative v) = Term.thirdGroup.base.unit :=
+  \fun (v: Term.First) => (Term.exactSecond (Term.restrictionNegative v)).rtl
+    (Logic.existsIntro[Term.First, { w: Term.First \where Term.restrictionNegative w = Term.restrictionNegative v }] v (\refl(Term.restrictionNegative v)));
+\definition kernel: \forall (v: First) -> boundary (restrictionNegative v) = thirdGroup.base.unit :=
+  \fun (v: First) => trans!{{Third}} _ _ _
+    (congr!{{Term.Second} {Third}} (\fun (w: Term.Second) => Q.backward (Term.boundary w)) _ _ (A1.leftInverse (Term.restrictionNegative (X1.forward v))))
+    (trans!{{Third}} _ _ _ (congr!{{Term.Third} {Third}} Q.backward _ _ (oldKernel (X1.forward v))) Q.backwardZero);
+\definition Image[v: Second]: \Prop := \exists (w: First \where restrictionNegative w = v);
+\definition preimage: \forall (v: Second) -> boundary v = thirdGroup.base.unit -> Image v := \block {
+  \fun (v: Second)(zero: boundary v = thirdGroup.base.unit) \then
+  \let oldZero: Term.boundary (A1.forward v) = Term.thirdGroup.base.unit :=
+    trans!{{Term.Third}} _ _ _ (sym!{{Term.Third}} _ _ (Q.leftInverse (Term.boundary (A1.forward v))))
+      (trans!{{Term.Third}} _ _ _ (congr!{{Third} {Term.Third}} Q.forward _ _ zero) Q.forwardZero) \then
+  \takefrom w: \Cast[Term.First] ({ w: Term.First \where Term.restrictionNegative w = A1.forward v }) \by (Term.exactSecond (A1.forward v)).ltr oldZero \then
+  \return Logic.existsIntro[First, { u: First \where restrictionNegative u = v }] (X1.backward w)
+    (trans!{{Second}} _ _ _
+      (congr!{{Term.First} {Second}} (\fun (u: Term.First) => A1.backward (Term.restrictionNegative u)) _ _ (X1.leftInverse w))
+      (trans!{{Second}} _ _ _
+        (congr!{{Term.Second} {Second}} A1.backward _ _ (\bysub(Term.First, { w: Term.First \where Term.restrictionNegative w = A1.forward v }, w))) (A1.rightInverse v)))
+};
+\definition inKernel: \forall (v: Second) -> Image v -> boundary v = thirdGroup.base.unit := \block {
+  \fun (v: Second)(image: Image v) \then
+  \takefrom w: \Cast[First] ({ w: First \where restrictionNegative w = v }) \by image \then
+  \return \idelim restrictionNegative w = v \with x: Second => boundary x = thirdGroup.base.unit \by {
+    base: kernel w, equality: \bysub(First, { w: First \where restrictionNegative w = v }, w)
+  }
+};
+\definition exact[v: Second]: Logic.PropEquiv[boundary v = thirdGroup.base.unit, Image v] := Logic.PropEquiv[_, _] { ltr := preimage v, rtl := inKernel v };

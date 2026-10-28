@@ -1,0 +1,51 @@
+\use Equality.eq_reason_in;
+\import UTheory.Trivial[n := second.dimension] \as UOther;
+\import VTheory.Trivial[n := first.dimension] \as VOther;
+\import UTheory.Trivial[n := k] \as UAdded;
+\import VTheory.Trivial[n := k] \as VAdded;
+\import WTheory.Trivial[n := k] \as WAdded;
+\import UTheory.AdditiveMonoid[] \as UAdd;
+\import VTheory.AdditiveMonoid[] \as VAdd;
+\import UPull.Trivial[n := second.dimension] \as UOtherPull;
+\import VPull.Trivial[n := first.dimension] \as VOtherPull;
+\import UPull.Trivial[n := k] \as UAddedPull;
+\import VPull.Trivial[n := k] \as VAddedPull;
+\definition positiveU: UTheory.Classes := UAdd.add (UAdd.add (UTheory.class first.positive) UOther.value) UAdded.value;
+\definition positiveV: VTheory.Classes := VAdd.add (VAdd.add (VTheory.class second.positive) VOther.value) VAdded.value;
+\definition onU: UPull.map positiveU = WAdd.add sourcePositive WAdded.value := eq_reason_in!{{WTheory.Classes} _
+  "=" { WAdd.add (UPull.map (UAdd.add (UTheory.class first.positive) UOther.value)) (UPull.map UAdded.value) } "by" { UPull.preservesAdd (UAdd.add (UTheory.class first.positive) UOther.value) UAdded.value }
+  "=" { WAdd.add (WAdd.add sourceClass (UPull.map UOther.value)) (UPull.map UAdded.value) } "by" {
+    congr!{{WTheory.Classes} {WTheory.Classes}} (\fun (c: WTheory.Classes) => WAdd.add c (UPull.map UAdded.value)) _ _ (UPull.preservesAdd (UTheory.class first.positive) UOther.value) }
+  "=" { WAdd.add sourcePositive WAdded.value } "by" {
+    congr!{{WTheory.Classes} {WTheory.Classes} {WTheory.Classes}} (\fun (c, d: WTheory.Classes) => WAdd.add (WAdd.add sourceClass c) d) _ _ _ _ UOtherPull.equation UAddedPull.equation }
+};
+\definition onV: VPull.map positiveV = WAdd.add targetPositive WAdded.value := eq_reason_in!{{WTheory.Classes} _
+  "=" { WAdd.add (VPull.map (VAdd.add (VTheory.class second.positive) VOther.value)) (VPull.map VAdded.value) } "by" { VPull.preservesAdd (VAdd.add (VTheory.class second.positive) VOther.value) VAdded.value }
+  "=" { WAdd.add (WAdd.add targetClass (VPull.map VOther.value)) (VPull.map VAdded.value) } "by" {
+    congr!{{WTheory.Classes} {WTheory.Classes}} (\fun (c: WTheory.Classes) => WAdd.add c (VPull.map VAdded.value)) _ _ (VPull.preservesAdd (VTheory.class second.positive) VOther.value) }
+  "=" { WAdd.add targetPositive WAdded.value } "by" {
+    congr!{{WTheory.Classes} {WTheory.Classes} {WTheory.Classes}} (\fun (c, d: WTheory.Classes) => WAdd.add (WAdd.add targetClass c) d) _ _ _ _ VOtherPull.equation VAddedPull.equation }
+};
+\definition same: UPull.map positiveU = VPull.map positiveV := trans!{{WTheory.Classes}} _ _ _ onU
+  (trans!{{WTheory.Classes}} _ _ _ stable (sym!{{WTheory.Classes}} _ _ onV));
+\import Complements.Representations[X := A, baseSpace := subspace].Pullback[Y := W, source := wSpace, f := toU, regularBase := toUContinuous] \as UPresentations;
+\import Complements.Representations[X := Y, baseSpace := source].Pullback[Y := W, source := wSpace, f := toV, regularBase := toVContinuous] \as VPresentations;
+\import Complements.Representations[X := W, baseSpace := wSpace] \as WPresentations;
+\definition matching: \forall (p: UTheory.Presentation)(q: VTheory.Presentation) -> UTheory.class p = positiveU -> VTheory.class q = positiveV ->
+  WTheory.class (UPresentations.presentation p) = WTheory.class (VPresentations.presentation q) :=
+  \fun (p: UTheory.Presentation)(q: VTheory.Presentation)(firstEquation: UTheory.class p = positiveU)(secondEquation: VTheory.class q = positiveV) => eq_reason_in!{{WTheory.Classes} _
+    "=" { UPull.map (UTheory.class p) } "by" { sym!{{WTheory.Classes}} _ _ (UPull.onClasses p) }
+    "=" { UPull.map positiveU } "by" { congr!{{UTheory.Classes} {WTheory.Classes}} UPull.map _ _ firstEquation }
+    "=" { VPull.map positiveV } "by" { same }
+    "=" { VPull.map (VTheory.class q) } "by" { congr!{{VTheory.Classes} {WTheory.Classes}} VPull.map _ _ (sym!{{VTheory.Classes}} _ _ secondEquation) }
+    "=" { WTheory.class (VPresentations.presentation q) } "by" { VPull.onClasses q }
+  };
+\module WithRepresentatives(p: UTheory.Presentation, q: VTheory.Presentation, firstEquation: UTheory.class p = positiveU, secondEquation: VTheory.class q = positiveV);
+\module Virtual(globalClass: Absolute.Classes, onU: GlobalU.map globalClass = positiveU, onV: GlobalV.map globalClass = positiveV);
+\definition existence: \exists Result[u, v] := \block {
+  \takefrom p: \Cast[UTheory.Presentation] ({ p: UTheory.Presentation \where UTheory.class p = positiveU }) \by UNormal.representedClass positiveU \then
+  \takefrom q: \Cast[VTheory.Presentation] ({ q: VTheory.Presentation \where VTheory.class q = positiveV }) \by VNormal.representedClass positiveV \then
+  \return WithRepresentatives[p := p, q := q,
+    firstEquation := (\bysub(UTheory.Presentation, { p: UTheory.Presentation \where UTheory.class p = positiveU }, p)),
+    secondEquation := (\bysub(VTheory.Presentation, { q: VTheory.Presentation \where VTheory.class q = positiveV }, q))].existence
+};

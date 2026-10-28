@@ -1,0 +1,26 @@
+\use Logic.either;
+\import \parent.\parent.At[q := Quotient.projection x] \as Model;
+\definition point: Model.Index := \into[X](x, { y: X \where Quotient.projection y = Quotient.projection x }) \by { \refl(Quotient.projection x) };
+\definition map: Spaces.Linear[V := Model.Carrier, W := F x, source := Model.space, target := bundle.space x].Map := Model.evaluation point;
+\import Spaces.Isomorphism[V := Model.Carrier, W := F x, source := Model.space, target := bundle.space x] \as Isomorphisms;
+\definition Matches[iso: Isomorphisms.Isomorphism]: \Prop := \forall (v: Model.Carrier) -> iso.forward.apply v = map.apply v;
+\definition Witness: \Set := \Cast[Isomorphisms.Isomorphism] ({ iso: Isomorphisms.Isomorphism \where Matches iso });
+\module BoundaryCase(member: topology.Topology[Carrier := X].Member subset x);
+\definition existence: \exists Witness := either!{{(std.Logic[].Classical[].excludedMiddle (topology.Topology[Carrier := X].Member subset x))} {\exists Witness}
+  {\fun (member: _) => \exact(BoundaryCase[member := member].witness, Witness)}
+  {\fun (outside: _) => \exact(\into[Isomorphisms.Isomorphism](Model.Outside[different := (\fun (same: Quotient.projection x = Quotient.point) => outside (Quotient.atPoint x same))].AtIndex[index := point].isomorphism, Witness)
+    \by { \fun (v: Model.Carrier) => \refl(map.apply v) }, Witness)}
+};
+\import Isomorphisms.OfBijective[f := map] \as Inverse;
+\structure Bijective: \Prop := { injective: Inverse.Injective, onto: Inverse.Onto };
+\definition bijective: Bijective := \block {
+  \takefrom iso: Witness \by existence \then
+  \let agrees: Matches iso := \bysub(Isomorphisms.Isomorphism, Witness, iso) \then
+  \return Bijective {
+    injective := \fun (v, w: Model.Carrier)(same: _) => Isomorphisms.injective iso v w
+      (trans!{{F x}} _ _ _ (agrees v) (trans!{{F x}} _ _ _ same (sym!{{F x}} _ _ (agrees w)))),
+    onto := \fun (w: F x) => Logic.existsIntro[Model.Carrier, { v: Model.Carrier \where map.apply v = w }] (iso.backward.apply w)
+      (trans!{{F x}} _ _ _ (sym!{{F x}} _ _ (agrees (iso.backward.apply w))) ((Isomorphisms.laws iso).rightInverse w))
+  }
+};
+\definition isomorphism: Isomorphisms.Isomorphism := Inverse.isomorphism bijective.injective bijective.onto;

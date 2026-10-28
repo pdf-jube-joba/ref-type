@@ -1,0 +1,33 @@
+\import topology.Topology[Carrier := X] \as Base;
+\import Bundles.Family[X := X, F := F].With[data := bundle] \as SourceCharts;
+\definition dimension: N.Nat^ := chart.dimension;
+\definition frame[x: X]: Spaces.Isomorphism[V := F x, W := Vector dimension, source := bundle.space x, target := coordinates dimension].Isomorphism :=
+  chart.frame (\into[X](x, chart.domain) \by { covers x });
+\import Bundles.Trivial[X := X, n := dimension, baseSpace := bundle.baseSpace] \as Trivial;
+\import Bundles.Family[X := X, F := (\fun (x: X) => Vector dimension)].With[data := Trivial.bundle] \as TargetCharts;
+\import \parent.ChartRestriction[X := X, F := (\fun (x: X) => Vector dimension), bundle := Trivial.bundle, c := Trivial.trivialization,
+  U := chart.domain, open := (\bysub(SourceCharts.ChartData, SourceCharts.Chart, chart)).baseOpen,
+  contained := (\fun (x: \Cast[X] chart.domain) => \refl(x))] \as Restricted;
+\import \parent.LocalMaps[X := X, F := F, G := (\fun (x: X) => Vector dimension), source := bundle, target := Trivial.bundle,
+  fiber := (\fun (x: X) => (frame x).forward)] \as Local;
+\definition local: Local.ChartData := Local.ChartData {
+  domain := chart.domain, dimension := dimension, sourceFrame := chart.frame, targetFrame := Restricted.trivialization.frame
+};
+\definition chartEta: \forall (c: SourceCharts.ChartData) -> SourceCharts.ChartData { domain := c.domain, dimension := c.dimension, frame := c.frame } = c :=
+  \induction (c: SourceCharts.ChartData) \return SourceCharts.ChartData { domain := c.domain, dimension := c.dimension, frame := c.frame } = c \with {
+    | # : \fun (domain: \Pow X)(dimension: N.Nat^)(frame: \forall (x: \Cast[X] domain) -> SourceCharts.Frame dimension x) => \refl(SourceCharts.ChartData { domain := domain, dimension := dimension, frame := frame })
+  };
+\definition sourceLaws: SourceCharts.In[c := Local.In[c := local].sourceChart].Laws :=
+  \idelim chart = Local.In[c := local].sourceChart \with c: SourceCharts.ChartData => SourceCharts.In[c := c].Laws \by {
+    base: \bysub(SourceCharts.ChartData, SourceCharts.Chart, chart), equality: sym!{{SourceCharts.ChartData}} _ _ (chartEta chart)
+  };
+\definition laws: Local.In[c := local].Laws := Local.In[c := local].Laws {
+  source := sourceLaws,
+  target := \bysub(TargetCharts.ChartData, TargetCharts.Chart, Restricted.trivialization),
+  alignment := \fun (x: \Cast[X] chart.domain)(v: F x) => \refl((frame x).forward.apply v)
+};
+\definition localChart: Local.Chart := \into[Local.ChartData](local, Local.Chart) \by { laws };
+\import \parent.LocalIsomorphisms[X := X, F := F, G := (\fun (x: X) => Vector dimension), source := bundle, target := Trivial.bundle, fiber := frame] \as Comparison;
+\definition localCovers: Comparison.Covers := \fun (x: X) => Logic.existsIntro[Local.Chart, { c: Local.Chart \where Base.Member c.domain x }] localChart (covers x);
+\definition isomorphism: Bundles.Isomorphisms[X := X, F := F, G := (\fun (x: X) => Vector dimension), source := bundle, target := Trivial.bundle].Isomorphism :=
+  Comparison.isomorphism (\refl(bundle.baseSpace)) localCovers;

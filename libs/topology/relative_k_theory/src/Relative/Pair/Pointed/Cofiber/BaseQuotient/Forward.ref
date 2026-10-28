@@ -1,0 +1,60 @@
+\import Native.Descent[B := Suspension.Carrier] \as Descend;
+\definition rawCollapsed: \forall (z: DomainPoint) -> DomainSpace.Member collapsedPart z -> RawMap.map z = Suspension.point :=
+  \fun (z: DomainPoint)(inside: DomainSpace.Member collapsedPart z) =>
+    Logic.orElim[time z = Interval.start, Base.Member subset (point z), RawMap.map z = Suspension.point]
+      (\bysub(Cylinder.Carrier, domain, z))
+      (\fun (same: time z = Interval.start) => (RawMap.condition z).bottom same)
+      (\block {
+        \fun (member: Base.Member subset (point z)) \then
+        \let a: A := \into[X](point z, subset) \by { member } \then
+        \return trans!{{Suspension.Carrier}} _ _ _ ((RawMap.condition z).vertical a (\refl(point z)))
+          (Suspension.collapsed (CylinderA.at (time z) a)
+            (Logic.Or[time z = Interval.start, Logic.Or[time z = Interval.end, a = a0]]::right inside))
+      });
+\definition respects: Descend.Respects RawMap.map := \fun (z, w: DomainPoint)(related: Native.Related z w) =>
+  Logic.orElim[z = w, Logic.And[DomainSpace.Member collapsedPart z, DomainSpace.Member collapsedPart w], RawMap.map z = RawMap.map w] related
+    (\fun (same: z = w) => congr!{{DomainPoint} {Suspension.Carrier}} RawMap.map _ _ same)
+    (\fun (both: Logic.And[DomainSpace.Member collapsedPart z, DomainSpace.Member collapsedPart w]) =>
+      trans!{{Suspension.Carrier}} _ _ _ (rawCollapsed z both.left) (sym!{{Suspension.Carrier}} _ _ (rawCollapsed w both.right)));
+\definition cofiber: Carrier -> Suspension.Carrier := Descend.apply RawMap.map respects;
+\definition onClass: \forall (z: DomainPoint) -> cofiber (Native.class z) = RawMap.map z := Descend.onClass RawMap.map respects;
+\definition cofiberContinuous: topology.Continuity[A := Carrier, B := Suspension.Carrier].Continuous topology Suspension.topology cofiber :=
+  Descend.continuous domainTopology Suspension.topology RawMap.map respects RawMap.Continuity[].continuous;
+\definition onBase: \forall (x: X) -> cofiber (base x) = Suspension.point := \fun (x: X) =>
+  trans!{{Suspension.Carrier}} _ _ _ (onClass (bottom x)) (RawMap.atBottom x);
+\definition onBaseImage: \forall (z: Carrier) -> Space.Member baseImage z -> cofiber z = Suspension.point := \block {
+  \fun (z: Carrier)(member: Space.Member baseImage z) \then
+  \takefrom x: \Cast[X] ({ x: X \where Logic.And[x = x, base x = z] }) \by member \then
+  \return trans!{{Suspension.Carrier}} _ _ _
+    (sym!{{Suspension.Carrier}} _ _ (congr!{{Carrier} {Suspension.Carrier}} cofiber _ _ ((\bysub(X, { x: X \where Logic.And[x = x, base x = z] }, x)).right)))
+    (onBase x)
+};
+\definition raw: Q.Augmented -> Suspension.Carrier := \induction (p: Q.Augmented) \return Suspension.Carrier \with {
+  | inl: cofiber
+  | inr: \fun (p: Q.Point) => Suspension.point
+};
+\definition onCollapsed: \forall (p: Q.Augmented) -> \In[Q.Augmented] Q.collapsedPart p -> raw p = Suspension.point :=
+  \induction (p: Q.Augmented) \return \In[Q.Augmented] Q.collapsedPart p -> raw p = Suspension.point \with {
+    | inl: \fun (z: Carrier)(member: Space.Member baseImage z) => onBaseImage z member
+    | inr: \fun (p: Q.Point)(member: p = p) => \refl(Suspension.point)
+  };
+\import BaseCollapse.Descent[B := Suspension.Carrier] \as QuotientDescent;
+\definition quotientRespects: QuotientDescent.Respects raw := \fun (p, q: Q.Augmented)(related: BaseCollapse.Related p q) =>
+  Logic.orElim[p = q, Logic.And[\In[Q.Augmented] Q.collapsedPart p, \In[Q.Augmented] Q.collapsedPart q], raw p = raw q] related
+    (\fun (same: p = q) => congr!{{Q.Augmented} {Suspension.Carrier}} raw _ _ same)
+    (\fun (both: Logic.And[\In[Q.Augmented] Q.collapsedPart p, \In[Q.Augmented] Q.collapsedPart q]) =>
+      trans!{{Suspension.Carrier}} _ _ _ (onCollapsed p both.left) (sym!{{Suspension.Carrier}} _ _ (onCollapsed q both.right)));
+\import Augment.Universal[C := Suspension.Carrier] \as Copair;
+\definition rawContinuous: topology.Continuity[A := Q.Augmented, B := Suspension.Carrier].Continuous Q.augmentedSpace Suspension.topology raw :=
+  Copair.continuous topology (topology.Topology[Carrier := Q.Point].Discrete) Suspension.topology cofiber (\fun (p: Q.Point) => Suspension.point)
+    cofiberContinuous (topology.Maps[A := Q.Point, B := Suspension.Carrier].constantContinuous (topology.Topology[Carrier := Q.Point].Discrete) Suspension.topology Suspension.point);
+\definition projection: Q.Carrier -> Suspension.Carrier := QuotientDescent.apply raw quotientRespects;
+\definition continuous: topology.Continuity[A := Q.Carrier, B := Suspension.Carrier].Continuous Q.topology Suspension.topology projection :=
+  QuotientDescent.continuous Q.augmentedSpace Suspension.topology raw quotientRespects rawContinuous;
+\definition onProjection: \forall (z: Carrier) -> projection (Q.projection z) = cofiber z := \fun (z: Carrier) => QuotientDescent.onClass raw quotientRespects (Augment.inl z);
+\definition onPoint: projection Q.point = Suspension.point := QuotientDescent.onClass raw quotientRespects (Augment.inr Q.distinguished);
+\definition onStar: \forall (p: Q.Point) -> projection (BaseCollapse.class (Augment.inr p)) = Suspension.point := \fun (p: Q.Point) => QuotientDescent.onClass raw quotientRespects (Augment.inr p);
+\import algebraic_topology.Pointed[A := Q.Carrier].Maps[B := Suspension.Carrier] \as PointedMaps;
+\definition map: Map Q.model Suspended.result := \into[Q.Carrier -> Suspension.Carrier](projection, Map Q.model Suspended.result) \by {
+  PointedMaps.Laws[pointed Q.model, pointed Suspended.result, projection] { continuous := continuous, pointed := onPoint }
+};

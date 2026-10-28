@@ -1,0 +1,63 @@
+\import Source.Construction[extension := first] \as From;
+\import Target.Construction[extension := second] \as To;
+\import Whole.Construction[extension := third] \as Total;
+\import IncludeFirst.Between[first := first, second := third] \as Left;
+\import IncludeSecond.Between[first := second, second := third] \as Right;
+\import ProjectFirst.Between[first := third, second := first] \as FirstProjection;
+\import ProjectSecond.Between[first := third, second := second] \as SecondProjection;
+\import Operations.DirectSum[X := Quotient.Carrier, F := Source.Fiber, G := Target.Fiber, left := From.bundleOnQuotient, right := To.bundleOnQuotient] \as BundlesSum;
+\definition sumOnQuotient: Bundles.Family[X := Quotient.Carrier, F := BundlesSum.Fiber].Bundle := BundlesSum.bundle (\refl(Quotient.topology));
+\import BundlesSum.Of[same := (\refl(Quotient.topology))].To[Y := Quotient.Carrier, H := Whole.Fiber, target := Total.bundleOnQuotient, f := (\fun (q: Quotient.Carrier) => q)] \as Into;
+\import BundlesSum.Of[same := (\refl(Quotient.topology))].From[Y := Quotient.Carrier, H := Whole.Fiber, source := Total.bundleOnQuotient, f := (\fun (q: Quotient.Carrier) => q)] \as Out;
+\import Bundles.Morphisms[X := Quotient.Carrier, Y := Quotient.Carrier, F := BundlesSum.Fiber, G := Whole.Fiber, source := sumOnQuotient, target := Total.bundleOnQuotient,
+  f := (\fun (q: Quotient.Carrier) => q)] \as Forward;
+\import Bundles.Morphisms[X := Quotient.Carrier, Y := Quotient.Carrier, F := Whole.Fiber, G := BundlesSum.Fiber, source := Total.bundleOnQuotient, target := sumOnQuotient,
+  f := (\fun (q: Quotient.Carrier) => q)] \as Backward;
+\definition forward: Forward.Map := Into.copair Left.morphism Right.morphism;
+\definition backward: Backward.Map := Out.pair FirstProjection.morphism SecondProjection.morphism;
+\module At(q: Quotient.Carrier);
+\import Bundles.Isomorphisms[X := Quotient.Carrier, F := BundlesSum.Fiber, G := Whole.Fiber, source := sumOnQuotient, target := Total.bundleOnQuotient] \as Isomorphisms;
+\definition isomorphism: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := \fun (q: Quotient.Carrier) => At[q := q].left,
+  rightInverse := \fun (q: Quotient.Carrier) => At[q := q].right
+};
+\import KTheory.On[X := Quotient.Carrier, baseSpace := Quotient.topology, compact := Quotient.quotientCompact, hausdorff := Quotient.quotientHausdorff] \as K;
+\import K.K0[] \as K0;
+\import K.Addition[] \as Addition;
+\import K.Bundle[F := Source.Fiber, original := From.bundleOnQuotient, same := From.sameBaseSpace] \as FirstBundleClass;
+\import K.Bundle[F := Target.Fiber, original := To.bundleOnQuotient, same := To.sameBaseSpace] \as SecondBundleClass;
+\import K.Bundle[F := Whole.Fiber, original := Total.bundleOnQuotient, same := Total.sameBaseSpace] \as ThirdBundleClass;
+\import K.Sum[F := Source.Fiber, G := Target.Fiber, left := From.bundleOnQuotient, right := To.bundleOnQuotient, leftSame := From.sameBaseSpace, rightSame := To.sameBaseSpace] \as BundleAddition;
+\import K.Compare[F := BundlesSum.Fiber, G := Whole.Fiber, first := sumOnQuotient, second := Total.bundleOnQuotient, firstSame := (\refl(Quotient.topology)), secondSame := Total.sameBaseSpace] \as ClassesComparison;
+\definition bundleSum: Addition.add FirstBundleClass.value SecondBundleClass.value = ThirdBundleClass.value :=
+  trans!{{K.Classes}} _ _ _ BundleAddition.onBundles (ClassesComparison.ofIsomorphism isomorphism);
+\import Bundles.Trivial[X := Quotient.Carrier, n := n, baseSpace := Quotient.topology] \as FirstQuotientTrivial;
+\import Bundles.Trivial[X := Quotient.Carrier, n := m, baseSpace := Quotient.topology] \as SecondQuotientTrivial;
+\import Bundles.Trivial[X := Quotient.Carrier, n := dimension, baseSpace := Quotient.topology] \as TotalQuotientTrivial;
+\import Operations.DirectSum[X := Quotient.Carrier, F := (\fun (q: Quotient.Carrier) => Bundles.Vector n), G := (\fun (q: Quotient.Carrier) => Bundles.Vector m),
+  left := FirstQuotientTrivial.bundle, right := SecondQuotientTrivial.bundle] \as TrivialBundlesSum;
+\definition trivialBundlesSum: Bundles.Family[X := Quotient.Carrier, F := TrivialBundlesSum.Fiber].Bundle := TrivialBundlesSum.bundle (\refl(Quotient.topology));
+\import Operations.GlobalFrame[X := Quotient.Carrier, F := TrivialBundlesSum.Fiber, bundle := trivialBundlesSum,
+  chart := (TrivialBundlesSum.In[c := FirstQuotientTrivial.trivialization, d := SecondQuotientTrivial.trivialization].trivialization (\refl(Quotient.topology))),
+  covers := (\fun (q: Quotient.Carrier) => Logic.And[q = q, q = q]::# (\refl(q)) (\refl(q)))] \as TrivialFrame;
+\import K.Sum[F := (\fun (q: Quotient.Carrier) => Bundles.Vector n), G := (\fun (q: Quotient.Carrier) => Bundles.Vector m), left := FirstQuotientTrivial.bundle, right := SecondQuotientTrivial.bundle,
+  leftSame := (\refl(Quotient.topology)), rightSame := (\refl(Quotient.topology))] \as TrivialAddition;
+\import K.Compare[F := TrivialBundlesSum.Fiber, G := (\fun (q: Quotient.Carrier) => Bundles.Vector dimension), first := trivialBundlesSum, second := TotalQuotientTrivial.bundle,
+  firstSame := (\refl(Quotient.topology)), secondSame := (\refl(Quotient.topology))] \as TrivialComparison;
+\definition trivialSum: Addition.add (K.Trivial[n := n].value) (K.Trivial[n := m].value) = K.Trivial[n := dimension].value :=
+  trans!{{K.Classes}} _ _ _ TrivialAddition.onBundles (TrivialComparison.ofIsomorphism TrivialFrame.isomorphism);
+\definition bundleIncludes: K0.add (K0.include FirstBundleClass.value) (K0.include SecondBundleClass.value) = K0.include ThirdBundleClass.value :=
+  trans!{{K0.Carrier}} _ _ _ (sym!{{K0.Carrier}} _ _ (K0.includeAdd FirstBundleClass.value SecondBundleClass.value))
+    (congr!{{K.Classes} {K0.Carrier}} K0.include _ _ bundleSum);
+\definition trivialIncludes: K0.add (K0.include (K.Trivial[n := n].value)) (K0.include (K.Trivial[n := m].value)) = K0.include (K.Trivial[n := dimension].value) :=
+  trans!{{K0.Carrier}} _ _ _ (sym!{{K0.Carrier}} _ _ (K0.includeAdd (K.Trivial[n := n].value) (K.Trivial[n := m].value)))
+    (congr!{{K.Classes} {K0.Carrier}} K0.include _ _ trivialSum);
+\import FirstClass.Value[e := first] \as FirstValue;
+\import SecondClass.Value[e := second] \as SecondValue;
+\import SumClass.Value[e := third] \as ThirdValue;
+\import algebra.Group[].Of[Carrier := K0.Carrier, group := K0.group] \as Additive;
+\definition equation: ReducedGroup.add FirstValue.value SecondValue.value = ThirdValue.value :=
+  trans!{{K0.Carrier}} _ _ _
+    (sym!{{K0.Carrier}} _ _ (Additive.differenceAdd (K0.include FirstBundleClass.value) (K0.include SecondBundleClass.value) (K0.include (K.Trivial[n := n].value)) (K0.include (K.Trivial[n := m].value))))
+    (congr!{{K0.Carrier} {K0.Carrier} {K0.Carrier}} Additive.difference _ _ _ _ bundleIncludes trivialIncludes);

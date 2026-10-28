@@ -1,0 +1,19 @@
+\import Bundles.Isomorphisms[X := X, F := F, G := Absolute.Fiber result.value.positive, source := source, target := Absolute.bundle result.value.positive] \as Positive;
+\definition positiveLaws: Positive.Laws[result.positive] := \bysub(Positive.Data, Positive.Isomorphism, result.positive);
+\import Operations.IsomorphismComposition[X := X, F := Absolute.Fiber result.value.positive, G := F, H := G,
+  source := Absolute.bundle result.value.positive, middle := source, target := target] \as First;
+\import Operations.IsomorphismComposition[X := X, F := Absolute.Fiber result.value.positive, G := G, H := Absolute.Fiber result.value.negative,
+  source := Absolute.bundle result.value.positive, middle := target, target := Absolute.bundle result.value.negative] \as Second;
+\definition isomorphism: Second.Isomorphism := Second.compose (First.compose (Positive.inverse result.positive) h) result.negative;
+\import \parent.\parent.Global[t := result.value] \as Extension;
+\definition witness: Extension.Witness := Extension.Witness {
+  isomorphism := isomorphism,
+  agrees := \fun (x: A)(v: Absolute.Fiber result.value.positive x) => \block {
+    \let original: F x := (result.positive.backward.fiber x).apply v \then
+    \return trans!{{Absolute.Fiber result.value.negative x}} _ _ _
+      (congr!{{G x} {Absolute.Fiber result.value.negative x}} (result.negative.forward.fiber x).apply _ _ (agrees x original))
+      (trans!{{Absolute.Fiber result.value.negative x}} _ _ _ (sym!{{Absolute.Fiber result.value.negative x}} _ _ (result.agrees x original))
+        (congr!{{Absolute.Fiber result.value.positive x} {Absolute.Fiber result.value.negative x}} (result.value.comparison.forward.fiber x).apply _ _ (positiveLaws.rightInverse x v)))
+  }
+};
+\definition equation: RelativeGroup.value result.value = RelativeGroup.zero := RelativeGroup.globalZero result.value witness;

@@ -1,0 +1,65 @@
+\use Equality.eq_reason_in;
+\use Logic.either;
+\import topological_constructions.Coproduct[A := Z, B := Quotient.Point] \as Augment;
+\import Augment.Universal[C := Smash.result.Carrier] \as Copair;
+\import algebraic_topology.Collapse[A := Quotient.Augmented, subset := Quotient.collapsedPart] \as Collapse;
+\import Collapse.Descent[B := Smash.result.Carrier] \as Descent;
+\import \root.Relative[].Pair[X := Smash.model.Carrier, space := (details Smash.model).topology,
+  compact := (details Smash.model).compact, hausdorff := (details Smash.model).hausdorff,
+  subset := Smash.wedge, closed := Smash.wedgeClosed].Quotient[] \as Target;
+\definition inWedge: \forall (z: Z) -> \In[Z] boundary z -> \In[Smash.model.Carrier] Smash.wedge (image z) :=
+  \fun (z: Z)(member: \In[Z] boundary z) => Logic.orElim[\In[X] subset (first z), \In[Y] otherSubset (second z),
+    \In[Smash.model.Carrier] Smash.wedge (image z)] member
+    (\fun (member: \In[X] subset (first z)) => Logic.Or[_, _]::left (Left.onSubset (\into[X](first z, subset) \by { member })))
+    (\fun (member: \In[Y] otherSubset (second z)) => Logic.Or[_, _]::right (Right.onSubset (\into[Y](second z, otherSubset) \by { member })));
+\definition reflectsWedge: \forall (z: Z) -> \In[Smash.model.Carrier] Smash.wedge (image z) -> \In[Z] boundary z :=
+  \fun (z: Z)(member: \In[Smash.model.Carrier] Smash.wedge (image z)) =>
+    Logic.orElim[Left.projection (first z) = Left.point, Right.projection (second z) = Right.point, \In[Z] boundary z] member
+      (\fun (same: Left.projection (first z) = Left.point) => Logic.Or[_, _]::left (Left.atPoint (first z) same))
+      (\fun (same: Right.projection (second z) = Right.point) => Logic.Or[_, _]::right (Right.atPoint (second z) same));
+\definition onBoundary: \forall (z: Z) -> \In[Z] boundary z -> original z = Target.point :=
+  \fun (z: Z)(member: \In[Z] boundary z) => Target.onSubset (\into[Smash.model.Carrier](image z, Smash.wedge) \by { inWedge z member });
+\definition reflectsPoint: \forall (z: Z) -> original z = Target.point -> \In[Z] boundary z :=
+  \fun (z: Z)(same: original z = Target.point) => reflectsWedge z (Target.atPoint (image z) same);
+\definition raw: Quotient.Augmented -> Smash.result.Carrier := Copair.copair original (\fun (p: Quotient.Point) => Target.point);
+\definition collapsed: \forall (p: Quotient.Augmented) -> \In[Quotient.Augmented] Quotient.collapsedPart p -> raw p = Target.point :=
+  \induction (p: Quotient.Augmented) \return \In[Quotient.Augmented] Quotient.collapsedPart p -> raw p = Target.point \with {
+    | inl: onBoundary
+    | inr: \fun (p: Quotient.Point)(member: _) => \refl(Target.point)
+  };
+\definition respects: Descent.Respects raw := \fun (p, q: Quotient.Augmented)(related: Collapse.Related p q) =>
+  Logic.orElim[p = q, Logic.And[\In[Quotient.Augmented] Quotient.collapsedPart p, \In[Quotient.Augmented] Quotient.collapsedPart q], raw p = raw q] related
+    (\fun (same: p = q) => congr!{{Quotient.Augmented} {Smash.result.Carrier}} raw _ _ same)
+    (\fun (both: Logic.And[\In[Quotient.Augmented] Quotient.collapsedPart p, \In[Quotient.Augmented] Quotient.collapsedPart q]) =>
+      trans!{{Smash.result.Carrier}} _ _ _ (collapsed p both.left) (sym!{{Smash.result.Carrier}} _ _ (collapsed q both.right)));
+\definition forward: Quotient.Carrier -> Smash.result.Carrier := Descent.apply raw respects;
+\definition onProjection: \forall (z: Z) -> forward (Quotient.projection z) = original z :=
+  \fun (z: Z) => Descent.onClass raw respects (Augment.inl z);
+\definition onPoint: forward Quotient.point = Target.point := Descent.onClass raw respects (Augment.inr Quotient.distinguished);
+\definition imageContinuous: topology.Continuity[A := Z, B := Smash.model.Carrier].Continuous topology (details Smash.model).topology image :=
+  topological_constructions.Product[A := Left.Carrier, B := Right.Carrier].Universal[X := Z].pairContinuous topology Left.topology Right.topology
+    (\fun (z: Z) => Left.projection (first z)) (\fun (z: Z) => Right.projection (second z))
+    (topology.Composition[A := Z, B := X, C := Left.Carrier].composeContinuous topology space Left.topology first Left.projection
+      (Projections.firstContinuous space otherSpace) Left.continuous)
+    (topology.Composition[A := Z, B := Y, C := Right.Carrier].composeContinuous topology otherSpace Right.topology second Right.projection
+      (Projections.secondContinuous space otherSpace) Right.continuous);
+\definition originalContinuous: topology.Continuity[A := Z, B := Smash.result.Carrier].Continuous topology Target.topology original :=
+  topology.Composition[A := Z, B := Smash.model.Carrier, C := Smash.result.Carrier].composeContinuous topology (details Smash.model).topology Target.topology
+    image Smash.projection imageContinuous Target.continuous;
+\definition rawContinuous: topology.Continuity[A := Quotient.Augmented, B := Smash.result.Carrier].Continuous Quotient.augmentedSpace Target.topology raw :=
+  Copair.continuous topology (topology.Topology[Carrier := Quotient.Point].Discrete) Target.topology original (\fun (p: Quotient.Point) => Target.point)
+    originalContinuous (topology.Maps[A := Quotient.Point, B := Smash.result.Carrier].constantContinuous
+      (topology.Topology[Carrier := Quotient.Point].Discrete) Target.topology Target.point);
+\import algebraic_topology.Pointed[A := Quotient.Carrier].Maps[B := Smash.result.Carrier] \as Maps;
+\definition map: Map model Smash.result := \into[Quotient.Carrier -> Smash.result.Carrier](forward, Map model Smash.result) \by {
+  Maps.Laws[pointed model, pointed Smash.result, forward] {
+    continuous := Descent.continuous Quotient.augmentedSpace Target.topology raw respects rawContinuous,
+    pointed := onPoint
+  }
+};
+\module Injective;
+\module Onto;
+\definition injective: \forall (p, q: Quotient.Carrier) -> forward p = forward q -> p = q := Injective[].result;
+\definition onto: \forall (q: Smash.result.Carrier) -> \exists (p: Quotient.Carrier \where forward p = q) := Onto[].result;
+\definition equivalence: \root.Relative[].Equivalence[source := model, target := Smash.result].Data :=
+  \root.Relative[].Equivalence[source := model, target := Smash.result].FromMap[f := map, injective := injective, onto := onto].equivalence;

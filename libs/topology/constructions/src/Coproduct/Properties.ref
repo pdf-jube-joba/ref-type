@@ -1,0 +1,141 @@
+\use Logic.either;
+\use Equality.trans;
+\use Equality.congr;
+\definition space: Space.Topology := topology left right;
+\definition isLeft: Carrier -> \Prop := \induction (p: Carrier) \return \Prop \with {
+  | inl: \fun (x: A) => x = x
+  | inr: \fun (y: B) => Logic.False
+};
+\definition leftRightDifferent: \forall (x: A)(y: B) -> Logic.Not (inl x = inr y) :=
+  \fun (x: A)(y: B)(same: _) => \idelim inl x = inr y \with p: Carrier => isLeft p \by { base: \refl(x), equality: same };
+\definition recoverLeft[x: A]: Carrier -> A := \parent.Universal[C := A].copair (\fun (a: A) => a) (\fun (b: B) => x);
+\definition leftInjective: \forall (x, y: A) -> inl x = inl y -> x = y :=
+  \fun (x, y: A)(same: _) => congr!{Carrier A} (recoverLeft x) _ _ same;
+\definition recoverRight[y: B]: Carrier -> B := \parent.Universal[C := B].copair (\fun (a: A) => y) (\fun (b: B) => b);
+\definition rightInjective: \forall (x, y: B) -> inr x = inr y -> x = y :=
+  \fun (x, y: B)(same: _) => congr!{Carrier B} (recoverRight x) _ _ same;
+\definition Joined[U: \Pow A][V: \Pow B]: \Pow Carrier := { p: Carrier \where
+  (\induction (p: Carrier) \return \Prop \with {
+    | inl: \fun (x: A) => Left.Member U x
+    | inr: \fun (y: B) => Right.Member V y
+  } p)
+};
+\definition leftTrace[U: \Pow A][V: \Pow B]: U = LeftMaps.Preimage inl (Joined U V) :=
+  \axiom:setext(U, LeftMaps.Preimage inl (Joined U V),
+    \fun (x: A)(member: Left.Member U x) => member,
+    \fun (x: A)(member: Left.Member U x) => member);
+\definition rightTrace[U: \Pow A][V: \Pow B]: V = RightMaps.Preimage inr (Joined U V) :=
+  \axiom:setext(V, RightMaps.Preimage inr (Joined U V),
+    \fun (y: B)(member: Right.Member V y) => member,
+    \fun (y: B)(member: Right.Member V y) => member);
+\definition joinedOpen: \forall (U: \Pow A)(V: \Pow B) -> Left.IsOpenIn left U -> Right.IsOpenIn right V -> Space.IsOpenIn space (Joined U V) :=
+  \fun (U: \Pow A)(V: \Pow B)(uo: _)(vo: _) => Logic.And[_, _]::#
+    (LeftMaps.openTransport left U (LeftMaps.Preimage inl (Joined U V)) (leftTrace U V) uo)
+    (RightMaps.openTransport right V (RightMaps.Preimage inr (Joined U V)) (rightTrace U V) vo);
+\definition joinedDisjoint: \forall (U, U1: \Pow A)(V, V1: \Pow B) -> Left.Disjoint U U1 -> Right.Disjoint V V1 ->
+  Space.Disjoint (Joined U V) (Joined U1 V1) :=
+  \fun (U, U1: \Pow A)(V, V1: \Pow B)(first: _)(second: _) =>
+    \induction (p: Carrier) \return Space.Member (Joined U V) p -> Space.Member (Joined U1 V1) p -> Logic.False \with {
+      | inl: first
+      | inr: second
+    };
+\definition compact: Left.IsCompact left -> Right.IsCompact right -> Space.IsCompact space := \block {
+  \fun (lc: _)(rc: _) \then
+  \let covered: Space.Finite[].Join (LeftMaps.Image inl Left.Whole) (RightMaps.Image inr Right.Whole) = Space.Whole :=
+    \axiom:setext(Space.Finite[].Join (LeftMaps.Image inl Left.Whole) (RightMaps.Image inr Right.Whole), Space.Whole,
+      \fun (p: Carrier)(member: _) => \refl(p),
+      \induction (p: Carrier) \return Space.Member Space.Whole p -> Space.Member (Space.Finite[].Join (LeftMaps.Image inl Left.Whole) (RightMaps.Image inr Right.Whole)) p \with {
+        | inl: \fun (x: A)(member: _) => Logic.Or[_, _]::left (LeftMaps.imageMember inl Left.Whole x (\refl(x)))
+        | inr: \fun (y: B)(member: _) => Logic.Or[_, _]::right (RightMaps.imageMember inr Right.Whole y (\refl(y)))
+      }) \then
+  \return \idelim Space.Finite[].Join (LeftMaps.Image inl Left.Whole) (RightMaps.Image inr Right.Whole) = Space.Whole
+    \with S: \Pow Carrier => Space.IsCompactIn space S \by {
+      base: Space.Compactness[].joinCompact space (LeftMaps.Image inl Left.Whole) (RightMaps.Image inr Right.Whole)
+        (topology.Compactness[A := A, B := Carrier].continuousImage left space inl (inlContinuous left right) Left.Whole lc)
+        (topology.Compactness[A := B, B := Carrier].continuousImage right space inr (inrContinuous left right) Right.Whole rc),
+      equality: covered
+    }
+};
+\definition leftPair: Left.IsT2 left -> \forall (x, y: A) -> Logic.Not (inl x = inl y) ->
+  \exists (U: \Pow Carrier \where Space.RegularChoice[space, Space.Singleton (inl y), inl x, U]) := \block {
+  \fun (hausdorff: _)(x, y: A)(different: _) \then
+  \takefrom U: \Cast[\Pow A] ({ U: \Pow A \where Left.RegularChoice[left, Left.Singleton y, x, U] })
+    \by hausdorff x y (\fun (same: x = y) => different (congr!{A Carrier} inl _ _ same)) \then
+  \let u: Left.RegularChoice[left, Left.Singleton y, x, U] := \bysub(\Pow A, { U: \Pow A \where Left.RegularChoice[left, Left.Singleton y, x, U] }, U) \then
+  \takefrom V: \Cast[\Pow A] ({ V: \Pow A \where Left.NormalPartner[left, Left.Singleton y, U, V] }) \by u.partner \then
+  \let v: Left.NormalPartner[left, Left.Singleton y, U, V] := \bysub(\Pow A, { V: \Pow A \where Left.NormalPartner[left, Left.Singleton y, U, V] }, V) \then
+  \return Logic.existsIntro[\Pow Carrier, { W: \Pow Carrier \where Space.RegularChoice[space, Space.Singleton (inl y), inl x, W] }] (Joined U Right.Empty)
+    (Space.RegularChoice[space, Space.Singleton (inl y), inl x, Joined U Right.Empty] {
+      open := joinedOpen U Right.Empty u.open (Right.topologyLaws right).emptyOpen,
+      contains := u.contains,
+      partner := Logic.existsIntro[\Pow Carrier, { W: \Pow Carrier \where Space.NormalPartner[space, Space.Singleton (inl y), Joined U Right.Empty, W] }] (Joined V Right.Empty)
+        (Space.NormalPartner[space, Space.Singleton (inl y), Joined U Right.Empty, Joined V Right.Empty] {
+          open := joinedOpen V Right.Empty v.open (Right.topologyLaws right).emptyOpen,
+          covers := \fun (p: Carrier)(same: p = inl y) => \idelim inl y = p \with z: Carrier => Space.Member (Joined V Right.Empty) z
+            \by { base: v.covers y (\refl(y)), equality: sym!{Carrier} _ _ same },
+          disjoint := joinedDisjoint U V Right.Empty Right.Empty v.disjoint (\fun (z: B)(empty: Logic.False)(other: _) => empty)
+        })
+    })
+};
+\definition rightPair: Right.IsT2 right -> \forall (x, y: B) -> Logic.Not (inr x = inr y) ->
+  \exists (U: \Pow Carrier \where Space.RegularChoice[space, Space.Singleton (inr y), inr x, U]) := \block {
+  \fun (hausdorff: _)(x, y: B)(different: _) \then
+  \takefrom U: \Cast[\Pow B] ({ U: \Pow B \where Right.RegularChoice[right, Right.Singleton y, x, U] })
+    \by hausdorff x y (\fun (same: x = y) => different (congr!{B Carrier} inr _ _ same)) \then
+  \let u: Right.RegularChoice[right, Right.Singleton y, x, U] := \bysub(\Pow B, { U: \Pow B \where Right.RegularChoice[right, Right.Singleton y, x, U] }, U) \then
+  \takefrom V: \Cast[\Pow B] ({ V: \Pow B \where Right.NormalPartner[right, Right.Singleton y, U, V] }) \by u.partner \then
+  \let v: Right.NormalPartner[right, Right.Singleton y, U, V] := \bysub(\Pow B, { V: \Pow B \where Right.NormalPartner[right, Right.Singleton y, U, V] }, V) \then
+  \return Logic.existsIntro[\Pow Carrier, { W: \Pow Carrier \where Space.RegularChoice[space, Space.Singleton (inr y), inr x, W] }] (Joined Left.Empty U)
+    (Space.RegularChoice[space, Space.Singleton (inr y), inr x, Joined Left.Empty U] {
+      open := joinedOpen Left.Empty U (Left.topologyLaws left).emptyOpen u.open,
+      contains := u.contains,
+      partner := Logic.existsIntro[\Pow Carrier, { W: \Pow Carrier \where Space.NormalPartner[space, Space.Singleton (inr y), Joined Left.Empty U, W] }] (Joined Left.Empty V)
+        (Space.NormalPartner[space, Space.Singleton (inr y), Joined Left.Empty U, Joined Left.Empty V] {
+          open := joinedOpen Left.Empty V (Left.topologyLaws left).emptyOpen v.open,
+          covers := \fun (p: Carrier)(same: p = inr y) => \idelim inr y = p \with z: Carrier => Space.Member (Joined Left.Empty V) z
+            \by { base: v.covers y (\refl(y)), equality: sym!{Carrier} _ _ same },
+          disjoint := joinedDisjoint Left.Empty Left.Empty U V (\fun (z: A)(empty: Logic.False)(other: _) => empty) v.disjoint
+        })
+    })
+};
+\definition mixedLeft: \forall (x: A)(y: B) -> \exists (U: \Pow Carrier \where Space.RegularChoice[space, Space.Singleton (inr y), inl x, U]) :=
+  \fun (x: A)(y: B) => Logic.existsIntro[\Pow Carrier, { U: \Pow Carrier \where Space.RegularChoice[space, Space.Singleton (inr y), inl x, U] }] (Joined Left.Whole Right.Empty)
+    (Space.RegularChoice[space, Space.Singleton (inr y), inl x, Joined Left.Whole Right.Empty] {
+      open := joinedOpen Left.Whole Right.Empty (Left.topologyLaws left).wholeOpen (Right.topologyLaws right).emptyOpen,
+      contains := \refl(x),
+      partner := Logic.existsIntro[\Pow Carrier, { V: \Pow Carrier \where Space.NormalPartner[space, Space.Singleton (inr y), Joined Left.Whole Right.Empty, V] }] (Joined Left.Empty Right.Whole)
+        (Space.NormalPartner[space, Space.Singleton (inr y), Joined Left.Whole Right.Empty, Joined Left.Empty Right.Whole] {
+          open := joinedOpen Left.Empty Right.Whole (Left.topologyLaws left).emptyOpen (Right.topologyLaws right).wholeOpen,
+          covers := \fun (p: Carrier)(same: p = inr y) => \idelim inr y = p \with z: Carrier => Space.Member (Joined Left.Empty Right.Whole) z
+            \by { base: \refl(y), equality: sym!{Carrier} _ _ same },
+          disjoint := joinedDisjoint Left.Whole Left.Empty Right.Empty Right.Whole
+            (\fun (z: A)(member: _)(empty: Logic.False) => empty) (\fun (z: B)(empty: Logic.False)(member: _) => empty)
+        })
+    });
+\definition mixedRight: \forall (x: B)(y: A) -> \exists (U: \Pow Carrier \where Space.RegularChoice[space, Space.Singleton (inl y), inr x, U]) :=
+  \fun (x: B)(y: A) => Logic.existsIntro[\Pow Carrier, { U: \Pow Carrier \where Space.RegularChoice[space, Space.Singleton (inl y), inr x, U] }] (Joined Left.Empty Right.Whole)
+    (Space.RegularChoice[space, Space.Singleton (inl y), inr x, Joined Left.Empty Right.Whole] {
+      open := joinedOpen Left.Empty Right.Whole (Left.topologyLaws left).emptyOpen (Right.topologyLaws right).wholeOpen,
+      contains := \refl(x),
+      partner := Logic.existsIntro[\Pow Carrier, { V: \Pow Carrier \where Space.NormalPartner[space, Space.Singleton (inl y), Joined Left.Empty Right.Whole, V] }] (Joined Left.Whole Right.Empty)
+        (Space.NormalPartner[space, Space.Singleton (inl y), Joined Left.Empty Right.Whole, Joined Left.Whole Right.Empty] {
+          open := joinedOpen Left.Whole Right.Empty (Left.topologyLaws left).wholeOpen (Right.topologyLaws right).emptyOpen,
+          covers := \fun (p: Carrier)(same: p = inl y) => \idelim inl y = p \with z: Carrier => Space.Member (Joined Left.Whole Right.Empty) z
+            \by { base: \refl(y), equality: sym!{Carrier} _ _ same },
+          disjoint := joinedDisjoint Left.Empty Left.Whole Right.Whole Right.Empty
+            (\fun (z: A)(empty: Logic.False)(member: _) => empty) (\fun (z: B)(member: _)(empty: Logic.False) => empty)
+        })
+    });
+\definition hausdorff: Left.IsT2 left -> Right.IsT2 right -> Space.IsT2 space :=
+  \fun (lh: _)(rh: _) => \induction (x: Carrier) \return \forall (y: Carrier) -> Logic.Not (x = y) ->
+    \exists (U: \Pow Carrier \where Space.RegularChoice[space, Space.Singleton y, x, U]) \with {
+      | inl: \fun (a: A) => \induction (y: Carrier) \return Logic.Not (inl a = y) -> \exists (U: \Pow Carrier \where Space.RegularChoice[space, Space.Singleton y, inl a, U]) \with {
+        | inl: leftPair lh a
+        | inr: \fun (b: B)(different: _) => mixedLeft a b
+      }
+      | inr: \fun (b: B) => \induction (y: Carrier) \return Logic.Not (inr b = y) -> \exists (U: \Pow Carrier \where Space.RegularChoice[space, Space.Singleton y, inr b, U]) \with {
+        | inl: \fun (a: A)(different: _) => mixedRight b a
+        | inr: rightPair rh b
+      }
+    };
+\module LeftOn(S: \Pow A);

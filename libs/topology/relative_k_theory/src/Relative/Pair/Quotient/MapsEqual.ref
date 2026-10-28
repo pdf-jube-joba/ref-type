@@ -1,0 +1,19 @@
+\import algebraic_topology.Pointed[A := Carrier].Maps[B := target.Carrier] \as Maps;
+\definition onStar: \forall (f, g: Map model target)(p: Point) -> f (Native.class (Sum.inr p)) = g (Native.class (Sum.inr p)) := \block {
+  \fun (f, g: Map model target)(p: Point) \then
+  \let same: Native.class (Sum.inr p) = point := Native.collapsed (Sum.inr p) (Sum.inr distinguished) (\refl(p)) (\refl(distinguished)) \then
+  \return trans!{{target.Carrier}} _ _ _ (congr!{Carrier {target.Carrier}} f _ _ same)
+    (trans!{{target.Carrier}} _ _ _ (Maps.laws pointed (\root.Relative[].pointed target) f).pointed
+      (trans!{{target.Carrier}} _ _ _ (sym!{{target.Carrier}} _ _ (Maps.laws pointed (\root.Relative[].pointed target) g).pointed)
+        (sym!{{target.Carrier}} _ _ (congr!{Carrier {target.Carrier}} g _ _ same))))
+};
+\definition pointwise: \forall (f, g: Map model target) -> (\forall (x: X) -> f (projection x) = g (projection x)) ->
+  \forall (q: Carrier) -> f q = g q := \fun (f, g: Map model target)(onOriginal: \forall (x: X) -> f (projection x) = g (projection x)) =>
+    Native.induction (\fun (q: Carrier) => f q = g q)
+      (\induction (p: Augmented) \return f (Native.class p) = g (Native.class p) \with {
+        | inl: onOriginal
+        | inr: onStar f g
+      });
+\definition equation: \forall (f, g: Map model target) -> (\forall (x: X) -> f (projection x) = g (projection x)) -> f = g :=
+  \fun (f, g: Map model target)(onOriginal: \forall (x: X) -> f (projection x) = g (projection x)) =>
+    \axiom:funext(f, g, pointwise f g onOriginal);

@@ -1,0 +1,47 @@
+\import KTheory.On[X := Y, baseSpace := source, compact := sourceCompact, hausdorff := sourceHausdorff].K0[] \as SourceOrdinary;
+\use Equality.eq_reason_in;
+\import \parent.\parent.Projection[] \as TargetProjection;
+\import Source.Projection[] \as SourceProjection;
+\import \root.Relative[].Pullback[source := Source.model, target := model, f := map] \as AugmentedPull;
+\import KTheory.On[X := model.Carrier, baseSpace := (details model).topology, compact := (details model).compact, hausdorff := (details model).hausdorff] \as TargetK;
+\import TargetK.Pullback[Y := Source.model.Carrier, space := (details Source.model).topology,
+  sourceCompact := (details Source.model).compact, sourceHausdorff := (details Source.model).hausdorff,
+  f := map, regular := continuous] \as Augmented;
+\import Augmented.Composition[Z := Y, nextSpace := source, nextCompact := sourceCompact, nextHausdorff := sourceHausdorff,
+  g := Source.inclusion, nextRegular := Source.inclusionContinuous] \as Left;
+\import KTheory.On[X := Source.model.Carrier, baseSpace := (details Source.model).topology,
+  compact := (details Source.model).compact, hausdorff := (details Source.model).hausdorff].Pullback[
+  Y := Y, space := source, sourceCompact := sourceCompact, sourceHausdorff := sourceHausdorff,
+  f := Source.inclusion, regular := Source.inclusionContinuous].K0[] \as SourceInclusion;
+\import TargetK.Pullback[Y := X, space := space, sourceCompact := compact, sourceHausdorff := hausdorff,
+  f := inclusion, regular := inclusionContinuous] \as Inclusion;
+\import Inclusion.Composition[Z := Y, nextSpace := source, nextCompact := sourceCompact, nextHausdorff := sourceHausdorff,
+  g := f, nextRegular := regular] \as Right;
+\import KTheory.On[X := X, baseSpace := space, compact := compact, hausdorff := hausdorff].Pullback[
+  Y := Y, space := source, sourceCompact := sourceCompact, sourceHausdorff := sourceHausdorff,
+  f := f, regular := regular].K0[] \as Native;
+\definition functions: (\fun (y: Y) => map (Source.inclusion y)) = (\fun (y: Y) => inclusion (f y)) :=
+  \axiom:funext((\fun (y: Y) => map (Source.inclusion y)), (\fun (y: Y) => inclusion (f y)), onOriginal);
+\import TargetK.Pullback[Y := Y, space := source, sourceCompact := sourceCompact, sourceHausdorff := sourceHausdorff,
+  f := (\fun (y: Y) => map (Source.inclusion y)), regular := Left.compositeRegular].K0[] \as LeftPull;
+\import TargetK.Pullback[Y := Y, space := source, sourceCompact := sourceCompact, sourceHausdorff := sourceHausdorff,
+  f := (\fun (y: Y) => inclusion (f y)), regular := Right.compositeRegular].K0[] \as RightPull;
+\definition changed: \forall (v: Reduced.Carrier) -> LeftPull.map v = RightPull.map v :=
+  \fun (v: Reduced.Carrier) => (\idelim (\fun (y: Y) => map (Source.inclusion y)) = (\fun (y: Y) => inclusion (f y))
+    \with g: (Y -> model.Carrier) =>
+      \forall (proof: topology.Continuity[A := Y, B := model.Carrier].Continuous source (details model).topology g) ->
+        LeftPull.map v = TargetK.Pullback[Y := Y, space := source, sourceCompact := sourceCompact, sourceHausdorff := sourceHausdorff,
+          f := g, regular := proof].K0[].map v \by {
+      base: \fun (proof: topology.Continuity[A := Y, B := model.Carrier].Continuous source (details model).topology
+        (\fun (y: Y) => map (Source.inclusion y))) => \refl(LeftPull.map v),
+      equality: functions
+    }) Right.compositeRegular;
+\definition backwardNaturality: \forall (v: Reduced.Carrier) -> Source.backward (AugmentedPull.map v) = Native.map (backward v) :=
+  \fun (v: Reduced.Carrier) => eq_reason_in!{{SourceOrdinary.Carrier} _
+    "=" { SourceInclusion.map (AugmentedPull.map v) } "by" { SourceProjection.equation (AugmentedPull.map v) }
+    "=" { LeftPull.map v } "by" { sym!{{SourceOrdinary.Carrier}} _ _ (Left.onK0 v) }
+    "=" { RightPull.map v } "by" { changed v }
+    "=" { Native.map (Inclusion.K0[].map v) } "by" { Right.onK0 v }
+    "=" { Native.map (backward v) } "by" {
+      congr!{{Ordinary.Carrier} {SourceOrdinary.Carrier}} Native.map _ _ (sym!{{Ordinary.Carrier}} _ _ (TargetProjection.equation v)) }
+  };

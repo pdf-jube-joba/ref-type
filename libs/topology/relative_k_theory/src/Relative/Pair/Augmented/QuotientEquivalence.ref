@@ -1,0 +1,65 @@
+\import algebraic_topology.Collapse[A := Original.Augmented, subset := Original.collapsedPart] \as OriginalCollapse;
+\import algebraic_topology.Collapse[A := Q.Augmented, subset := Q.collapsedPart] \as NewCollapse;
+\import topological_constructions.Coproduct[A := Whole.model.Carrier, B := Q.Point] \as NewSum;
+\import NewSum.Universal[C := Original.Carrier] \as Copair;
+\definition raw: Q.Augmented -> Original.Carrier := Copair.copair OriginalCollapse.class (\fun (p: Q.Point) => Original.point);
+\definition collapsed: \forall (p: Q.Augmented) -> \In[Q.Augmented] Q.collapsedPart p -> raw p = Original.point :=
+  \induction (p: Q.Augmented) \return \In[Q.Augmented] Q.collapsedPart p -> raw p = Original.point \with {
+    | inl: \fun (p: Original.Augmented)(inside: \In[Original.Augmented] Original.collapsedPart p) =>
+      OriginalCollapse.collapsed p (Sum.inr Original.distinguished) inside (\refl(Original.distinguished))
+    | inr: \fun (p: Q.Point)(same: p = p) => \refl(Original.point)
+  };
+\import NewCollapse.Descent[B := Original.Carrier] \as Descent;
+\definition respects: Descent.Respects raw := \fun (p, q: Q.Augmented)(related: NewCollapse.Related p q) =>
+  Logic.orElim[p = q, Logic.And[\In[Q.Augmented] Q.collapsedPart p, \In[Q.Augmented] Q.collapsedPart q], raw p = raw q] related
+    (\fun (same: p = q) => congr!{{Q.Augmented} {Original.Carrier}} raw _ _ same)
+    (\fun (both: Logic.And[\In[Q.Augmented] Q.collapsedPart p, \In[Q.Augmented] Q.collapsedPart q]) =>
+      trans!{{Original.Carrier}} _ _ _ (collapsed p both.left) (sym!{{Original.Carrier}} _ _ (collapsed q both.right)));
+\definition forward: Q.Carrier -> Original.Carrier := Descent.apply raw respects;
+\definition onProjection: \forall (p: Original.Augmented) -> forward (Q.projection p) = OriginalCollapse.class p :=
+  \fun (p: Original.Augmented) => Descent.onClass raw respects (NewSum.inl p);
+\definition onPoint: forward Q.point = Original.point := Descent.onClass raw respects (NewSum.inr Q.distinguished);
+\definition rawContinuous: topology.Continuity[A := Q.Augmented, B := Original.Carrier].Continuous Q.augmentedSpace Original.topology raw :=
+  Copair.continuous Original.augmentedSpace (topology.Topology[Carrier := Q.Point].Discrete) Original.topology
+    OriginalCollapse.class (\fun (p: Q.Point) => Original.point) (OriginalCollapse.projectionContinuous Original.augmentedSpace)
+    (topology.Maps[A := Q.Point, B := Original.Carrier].constantContinuous (topology.Topology[Carrier := Q.Point].Discrete) Original.topology Original.point);
+\definition continuous: topology.Continuity[A := Q.Carrier, B := Original.Carrier].Continuous Q.topology Original.topology forward :=
+  Descent.continuous Q.augmentedSpace Original.topology raw respects rawContinuous;
+\import OriginalCollapse.Descent[B := Q.Carrier] \as Reverse;
+\definition reverseRespects: Reverse.Respects Q.projection := \fun (p, q: Original.Augmented)(related: OriginalCollapse.Related p q) =>
+  Logic.orElim[p = q, Logic.And[\In[Original.Augmented] Original.collapsedPart p, \In[Original.Augmented] Original.collapsedPart q], Q.projection p = Q.projection q] related
+    (\fun (same: p = q) => congr!{{Original.Augmented} {Q.Carrier}} Q.projection _ _ same)
+    (\fun (both: Logic.And[\In[Original.Augmented] Original.collapsedPart p, \In[Original.Augmented] Original.collapsedPart q]) =>
+      trans!{{Q.Carrier}} _ _ _ (Q.onSubset (\into[Original.Augmented](p, Original.collapsedPart) \by { both.left }))
+        (sym!{{Q.Carrier}} _ _ (Q.onSubset (\into[Original.Augmented](q, Original.collapsedPart) \by { both.right }))));
+\definition backward: Original.Carrier -> Q.Carrier := Reverse.apply Q.projection reverseRespects;
+\definition onClass: \forall (p: Original.Augmented) -> backward (OriginalCollapse.class p) = Q.projection p :=
+  Reverse.onClass Q.projection reverseRespects;
+\definition backwardContinuous: topology.Continuity[A := Original.Carrier, B := Q.Carrier].Continuous Original.topology Q.topology backward :=
+  Reverse.continuous Original.augmentedSpace Q.topology Q.projection reverseRespects Q.continuous;
+\definition backwardPoint: backward Original.point = Q.point := trans!{{Q.Carrier}} _ _ _
+  (onClass (Sum.inr Original.distinguished))
+  (Q.onSubset (\into[Original.Augmented](Sum.inr Original.distinguished, Original.collapsedPart) \by { \refl(Original.distinguished) }));
+\definition rightInverse: \forall (q: Original.Carrier) -> forward (backward q) = q :=
+  OriginalCollapse.induction (\fun (q: Original.Carrier) => forward (backward q) = q)
+    (\fun (p: Original.Augmented) => trans!{{Original.Carrier}} _ _ _ (congr!{{Q.Carrier} {Original.Carrier}} forward _ _ (onClass p)) (onProjection p));
+\definition leftInverse: \forall (q: Q.Carrier) -> backward (forward q) = q :=
+  NewCollapse.induction (\fun (q: Q.Carrier) => backward (forward q) = q)
+    (\induction (p: Q.Augmented) \return backward (forward (NewCollapse.class p)) = NewCollapse.class p \with {
+      | inl: \fun (p: Original.Augmented) => trans!{{Q.Carrier}} _ _ _ (congr!{{Original.Carrier} {Q.Carrier}} backward _ _ (onProjection p)) (onClass p)
+      | inr: \fun (p: Q.Point) => trans!{{Q.Carrier}} _ _ _
+        (congr!{{Original.Carrier} {Q.Carrier}} backward _ _ (Descent.onClass raw respects (NewSum.inr p)))
+        (trans!{{Q.Carrier}} _ _ _ backwardPoint (sym!{{Q.Carrier}} _ _ (NewCollapse.collapsed (NewSum.inr p) (NewSum.inr Q.distinguished) (\refl(p)) (\refl(Q.distinguished)))))
+    });
+\import algebraic_topology.Pointed[A := Q.Carrier].Maps[B := Original.Carrier] \as ForwardMaps;
+\import algebraic_topology.Pointed[A := Original.Carrier].Maps[B := Q.Carrier] \as BackwardMaps;
+\definition forwardMap: Map Q.model Original.model := \into[Q.Carrier -> Original.Carrier](forward, Map Q.model Original.model) \by {
+  ForwardMaps.Laws[pointed Q.model, pointed Original.model, forward] { continuous := continuous, pointed := onPoint }
+};
+\definition backwardMap: Map Original.model Q.model := \into[Original.Carrier -> Q.Carrier](backward, Map Original.model Q.model) \by {
+  BackwardMaps.Laws[pointed Original.model, pointed Q.model, backward] { continuous := backwardContinuous, pointed := backwardPoint }
+};
+\definition equivalence: \root.Relative[].Equivalence[source := Q.model, target := Original.model].Data :=
+  \root.Relative[].Equivalence[source := Q.model, target := Original.model].Data {
+    forward := forwardMap, backward := backwardMap, leftInverse := leftInverse, rightInverse := rightInverse
+  };

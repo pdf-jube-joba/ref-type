@@ -1,0 +1,45 @@
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := original.Carrier] \as Cylinder;
+\import topology.Topology[Carrier := original.Carrier] \as Base;
+\import topology.Topology[Carrier := I.Carrier] \as Time;
+\definition pointed: algebraic_topology.Pointed[A := original.Carrier].Space := algebraic_topology.Pointed[A := original.Carrier].Space {
+  topology := (details original).topology, basepoint := (details original).point
+};
+\import puppe_sequences.Puppe[].ReducedCone[A := original.Carrier, source := pointed] \as Native;
+\import topological_constructions.Product[A := I.Carrier, B := original.Carrier] \as Product;
+\import topology.Topology[Carrier := Cylinder.Carrier] \as CylinderSpace;
+\definition cylinderCompact: CylinderSpace.IsCompact (Cylinder.topology (details original).topology) :=
+  Product.Compactness[].productCompact I.topology (details original).topology I.compact (details original).compact;
+\definition cylinderHausdorff: CylinderSpace.IsT2 (Cylinder.topology (details original).topology) :=
+  topological_constructions.Separation[].Product[A := I.Carrier, B := original.Carrier].On[
+    left := I.topology, right := (details original).topology, leftHausdorff := I.hausdorff, rightHausdorff := (details original).hausdorff].hausdorff;
+\import topology.Continuity[A := Cylinder.Carrier, B := I.Carrier] \as TimeMaps;
+\import topology.Continuity[A := Cylinder.Carrier, B := original.Carrier] \as BaseMaps;
+\definition endClosed: CylinderSpace.IsClosedIn (Cylinder.topology (details original).topology) (TimeMaps.Preimage Cylinder.time (Time.Singleton I.end)) :=
+  TimeMaps.closedPreimage (Cylinder.topology (details original).topology) I.topology Cylinder.time (Cylinder.timeContinuous (details original).topology)
+    (Time.Singleton I.end) (Time.Compactness[].hausdorffT1 I.topology I.hausdorff I.end);
+\definition lineClosed: CylinderSpace.IsClosedIn (Cylinder.topology (details original).topology) (BaseMaps.Preimage Cylinder.point (Base.Singleton (details original).point)) :=
+  BaseMaps.closedPreimage (Cylinder.topology (details original).topology) (details original).topology Cylinder.point (Cylinder.pointContinuous (details original).topology)
+    (Base.Singleton (details original).point) (Base.Compactness[].hausdorffT1 (details original).topology (details original).hausdorff (details original).point);
+\definition collapsedClosed: CylinderSpace.IsClosedIn (Cylinder.topology (details original).topology) Native.Collapsed :=
+  CylinderSpace.Finite[].joinClosed (Cylinder.topology (details original).topology)
+    (TimeMaps.Preimage Cylinder.time (Time.Singleton I.end)) (BaseMaps.Preimage Cylinder.point (Base.Singleton (details original).point)) endClosed lineClosed;
+\import algebraic_topology.Collapse[A := Cylinder.Carrier, subset := Native.Collapsed].Closed[
+  source := Cylinder.topology (details original).topology, compact := cylinderCompact, hausdorff := cylinderHausdorff, closed := collapsedClosed] \as Properties;
+\definition result: CompactPointed := pack Native.Carrier (PointedDetails[Native.Carrier] {
+  topology := Native.topology,
+  compact := Properties.compactQuotient, hausdorff := Properties.hausdorffQuotient, point := Native.point
+});
+\definition base: Map original result := Native.baseMap;
+\import Native.Contraction[] \as Contract;
+\import algebraic_topology.Homotopy[A := Native.Carrier, B := Native.Carrier] \as Homotopy;
+\definition contraction: Homotopy.Homotopy[Native.topology, Native.topology, (\fun (x: Native.Carrier) => x), (\fun (x: Native.Carrier) => Native.point)] :=
+  \into[Homotopy.Family](Contract.family, Homotopy.Homotopy[Native.topology, Native.topology, (\fun (x: Native.Carrier) => x), (\fun (x: Native.Carrier) => Native.point)]) \by {
+    Homotopy.Laws[Native.topology, Native.topology, (\fun (x: Native.Carrier) => x), (\fun (x: Native.Carrier) => Native.point), Contract.family] {
+      continuous := Contract.continuous, start := Contract.atStart, end := Contract.atEnd
+    }
+  };
+\import \parent.Reduced[model := result] \as Reduced;
+\import Reduced.Constant[].Contractible[homotopy := contraction] \as Vanishing;
+\import algebra.Group[].Of[Carrier := Reduced.Carrier, group := Reduced.group] \as Group;
+\definition reducedZero: \forall (v: Reduced.Carrier) -> v = Group.zero := Vanishing.equation;

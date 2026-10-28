@@ -1,0 +1,27 @@
+\import \parent.BundleModel[F := F] \as SourceModel;
+\import \parent.BundleModel[F := G] \as TargetModel;
+\definition source: Bundles.Family[X := X, F := F].Bundle := SourceModel.bundle sourceModel;
+\definition target: Bundles.Family[X := X, F := G].Bundle := TargetModel.bundle targetModel;
+\import \parent.CylinderSubset[] \as Boundary;
+\import \parent.CylinderRestriction[F := F, sourceModel := sourceModel] \as First;
+\import \parent.CylinderRestriction[F := G, sourceModel := targetModel] \as Second;
+\import Operations.DirectSum[X := X, F := F, G := G, left := source, right := target] \as Sum;
+\definition sumBundle: Bundles.Family[X := X, F := Sum.Fiber].Bundle := Sum.bundle (\refl(space));
+\import \parent.BundleModel[F := Sum.Fiber].From[original := sumBundle, same := (\refl(space))] \as SumModel;
+\import \parent.CylinderRestriction[F := Sum.Fiber, sourceModel := SumModel.model] \as Whole;
+\import Sum.Of[same := (\refl(space))].Pullback[Y := Boundary.Carrier, source := Boundary.topology, f := Boundary.point, regular := Boundary.pointContinuous] \as Pull;
+\import Operations.DirectSumIsomorphisms[X := Boundary.Carrier, F := First.Fiber, G := Second.Fiber, A := First.Fiber, B := Second.Fiber,
+  first := First.directRestriction, second := Second.directRestriction, newFirst := First.cylinderRestriction, newSecond := Second.cylinderRestriction,
+  sameSource := (\refl(Boundary.topology)), sameTarget := (\refl(Boundary.topology))] \as Components;
+\definition Fiber[z: Boundary.Carrier]: \Set := Sum.Fiber (Boundary.point z);
+\definition cylinderSum: Bundles.Family[X := Boundary.Carrier, F := Fiber].Bundle := Whole.cylinderRestriction;
+\definition sumOfCylinders: Bundles.Family[X := Boundary.Carrier, F := Fiber].Bundle := Components.targetBundle;
+\import Bundles.Isomorphisms[X := Boundary.Carrier, F := Fiber, G := Fiber, source := Whole.directRestriction, target := Whole.cylinderRestriction] \as Reverse;
+\import Operations.IsomorphismComposition[X := Boundary.Carrier, F := Fiber, G := Fiber, H := Fiber,
+  source := cylinderSum, middle := Whole.directRestriction, target := Components.sourceBundle] \as Start;
+\import Operations.IsomorphismComposition[X := Boundary.Carrier, F := Fiber, G := Fiber, H := Fiber,
+  source := cylinderSum, middle := Components.sourceBundle, target := sumOfCylinders] \as Finish;
+\definition comparison: Bundles.Isomorphisms[X := Boundary.Carrier, F := Fiber, G := Fiber, source := cylinderSum, target := sumOfCylinders].Isomorphism :=
+  Finish.compose (Start.compose (Reverse.inverse Whole.fromDirect) Pull.isomorphism) (Components.isomorphism First.fromDirect Second.fromDirect);
+\definition formula: \forall (z: Boundary.Carrier)(v: Fiber z) -> (comparison.forward.fiber z).apply v = v :=
+  \fun (z: Boundary.Carrier)(v: Fiber z) => std.Data[].Pair[].Prop[A := F (Boundary.point z), B := G (Boundary.point z)].eta v;

@@ -1,0 +1,28 @@
+\import Domain.Maps[] \as DomainMaps;
+\import Square.Maps[] \as SquareMaps;
+\definition parameterContinuous: topology.Continuity[A := Domain.CarrierSet, B := Square.CarrierSet].Continuous domainTopology squareTopology parameter := DomainMaps.firstContinuous squareTopology First.domainTopology;
+\definition originalContinuous: topology.Continuity[A := Domain.CarrierSet, B := First.DomainPoint].Continuous domainTopology First.domainTopology original := DomainMaps.secondContinuous squareTopology First.domainTopology;
+\definition hContinuous: topology.Continuity[A := Domain.CarrierSet, B := Interval.Carrier].Continuous domainTopology Interval.topology h :=
+  topology.Composition[A := Domain.CarrierSet, B := Square.CarrierSet, C := Interval.Carrier].composeContinuous domainTopology squareTopology Interval.topology
+    parameter (Pair.first Interval.Carrier Interval.Carrier) parameterContinuous (SquareMaps.firstContinuous Interval.topology Interval.topology);
+\definition tContinuous: topology.Continuity[A := Domain.CarrierSet, B := Interval.Carrier].Continuous domainTopology Interval.topology t :=
+  topology.Composition[A := Domain.CarrierSet, B := Square.CarrierSet, C := Interval.Carrier].composeContinuous domainTopology squareTopology Interval.topology
+    parameter (Pair.second Interval.Carrier Interval.Carrier) parameterContinuous (SquareMaps.secondContinuous Interval.topology Interval.topology);
+\definition sContinuous: topology.Continuity[A := Domain.CarrierSet, B := Interval.Carrier].Continuous domainTopology Interval.topology s :=
+  topology.Composition[A := Domain.CarrierSet, B := First.DomainPoint, C := Interval.Carrier].composeContinuous domainTopology First.domainTopology Interval.topology
+    original First.time originalContinuous First.timeContinuous;
+\definition xContinuous: topology.Continuity[A := Domain.CarrierSet, B := X].Continuous domainTopology space x :=
+  topology.Composition[A := Domain.CarrierSet, B := First.DomainPoint, C := X].composeContinuous domainTopology First.domainTopology space original First.point originalContinuous First.pointContinuous;
+\definition reverseContinuous: topology.Continuity[A := Domain.CarrierSet, B := Interval.Carrier].Continuous domainTopology Interval.topology (\fun (p: Domain.CarrierSet) => Interval.reverse (s p)) :=
+  topology.Composition[A := Domain.CarrierSet, B := Interval.Carrier, C := Interval.Carrier].composeContinuous domainTopology Interval.topology Interval.topology s Interval.reverse sContinuous Interval.reverseContinuous;
+\import algebraic_topology.IntervalFunctions[A := Domain.CarrierSet] \as Functions;
+\definition scalarContinuous: topology.Continuity[A := Domain.CarrierSet, B := Interval.Carrier].Continuous domainTopology Interval.topology scalar :=
+  Functions.multiplyContinuous domainTopology (\fun (p: Domain.CarrierSet) => Times.advance (h p) (t p)) (\fun (p: Domain.CarrierSet) => Interval.reverse (s p))
+    (Functions.advanceContinuous domainTopology h t hContinuous tContinuous) reverseContinuous;
+\definition cylinder[p: Domain.CarrierSet]: TargetCylinder.Carrier := TargetCylinder.at (scalar p) (x p);
+\definition cylinderContinuous: topology.Continuity[A := Domain.CarrierSet, B := TargetCylinder.Carrier].Continuous domainTopology (TargetCylinder.topology space) cylinder :=
+  topological_constructions.Product[A := Interval.Carrier, B := X].Universal[X := Domain.CarrierSet].pairContinuous domainTopology Interval.topology space scalar x scalarContinuous xContinuous;
+\import algebraic_topology.Collapse[A := TargetCylinder.Carrier, subset := Target.Collapsed] \as TargetCollapse;
+\definition continuous: topology.Continuity[A := Domain.CarrierSet, B := Target.Carrier].Continuous domainTopology Target.topology raw :=
+  topology.Composition[A := Domain.CarrierSet, B := TargetCylinder.Carrier, C := Target.Carrier].composeContinuous domainTopology (TargetCylinder.topology space) Target.topology
+    cylinder Target.class cylinderContinuous (TargetCollapse.projectionContinuous (TargetCylinder.topology space));

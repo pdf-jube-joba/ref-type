@@ -1,0 +1,39 @@
+\use Logic.either;
+\import topological_algebra.Coordinates[K := C.Complex, I := Fin.Fin m] \as Columns;
+\import topological_algebra.Coordinates[K := Columns.Carrier, I := Fin.Fin n] \as Rows;
+\definition matrixTopology: topology.Topology[Carrier := Matrix].Topology := Rows.topology (Columns.topology Scalar.scalar.topological.space);
+\definition valueContinuous: topology.Continuity[A := X, B := Matrix].Continuous space matrixTopology f.value :=
+  Rows.Universal[A := X].continuous space (Columns.topology Scalar.scalar.topological.space) f.value
+    (\fun (i: Fin.Fin n) => Columns.Universal[A := X].continuous space Scalar.scalar.topological.space (\fun (x: X) => f.value x i) (f.continuous i));
+\import Sum.Universal[C := Matrix] \as Copair;
+\definition whole: Augmented -> Matrix := Copair.copair f.value (\fun (p: Point) => f.constant);
+\definition wholeContinuous: topology.Continuity[A := Augmented, B := Matrix].Continuous augmentedSpace matrixTopology whole :=
+  Copair.continuous space PointSpace.Discrete matrixTopology f.value (\fun (p: Point) => f.constant) valueContinuous
+    (topology.Maps[A := Point, B := Matrix].constantContinuous PointSpace.Discrete matrixTopology f.constant);
+\definition onCollapsed: \forall (p: Augmented) -> AugmentedSpace.Member collapsedPart p -> whole p = f.constant :=
+  \induction (p: Augmented) \return AugmentedSpace.Member collapsedPart p -> whole p = f.constant \with {
+    | inl: \fun (x: X)(inside: Base.Member subset x) => f.boundary (\into[X](x, subset) \by { inside })
+    | inr: \fun (p: Point)(inside: PointSpace.Member PointSpace.Whole p) => \refl(f.constant)
+  };
+\import Native.Descent[B := Matrix] \as Descent;
+\definition respects: Descent.Respects whole := \fun (p, q: Augmented)(related: Native.Related p q) =>
+  either!{related {whole p = whole q}
+    {\fun (same: p = q) => congr!{Augmented Matrix} whole _ _ same}
+    {\fun (both: Logic.And[AugmentedSpace.Member collapsedPart p, AugmentedSpace.Member collapsedPart q]) => trans!{Matrix} _ _ _
+      (onCollapsed p both.left) (sym!{Matrix} _ _ (onCollapsed q both.right))}
+  };
+\definition value: Carrier -> Matrix := Descent.apply whole respects;
+\definition continuous: topology.Continuity[A := Carrier, B := Matrix].Continuous topology matrixTopology value :=
+  Descent.continuous augmentedSpace matrixTopology whole respects wholeContinuous;
+\definition onOriginal: \forall (x: X) -> value (projection x) = f.value x := \fun (x: X) => Descent.onClass whole respects (Sum.inl x);
+\definition atPoint: value point = f.constant := Descent.onClass whole respects (Sum.inr distinguished);
+\definition entriesContinuous[i: Fin.Fin n][j: Fin.Fin m]: topology.Continuity[A := Carrier, B := C.Complex].Continuous topology Scalar.scalar.topological.space
+  (\fun (q: Carrier) => value q i j) :=
+  topology.Composition[A := Carrier, B := Columns.Carrier, C := C.Complex].composeContinuous topology (Columns.topology Scalar.scalar.topological.space) Scalar.scalar.topological.space
+    (\fun (q: Carrier) => value q i) (Columns.evaluate j)
+    (topology.Composition[A := Carrier, B := Matrix, C := Columns.Carrier].composeContinuous topology matrixTopology (Columns.topology Scalar.scalar.topological.space)
+      value (Rows.evaluate i) continuous (Rows.evaluationContinuous (Columns.topology Scalar.scalar.topological.space) i))
+    (Columns.evaluationContinuous Scalar.scalar.topological.space j);
+\import Rectangular.Families[X := Carrier, baseSpace := topology, A := value, regular := entriesContinuous] \as Family;
+\definition linear[q: Carrier]: Spaces.Linear[V := Bundles.Vector m, W := Bundles.Vector n, source := Bundles.coordinates m, target := Bundles.coordinates n].Map := Rectangular.linear (value q);
+\definition regular: hermitian_frames.Hermitian[].Over[K := C.Complex, field := Algebra.field, scalar := Hermitian.scalar, topological := Scalar.scalar.topological].At[n := n].Families[X := Carrier].Matrix[m := m].Regular topology linear := Family.continuous;

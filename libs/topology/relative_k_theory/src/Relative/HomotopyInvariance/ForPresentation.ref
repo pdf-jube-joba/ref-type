@@ -1,0 +1,21 @@
+\import From.Realized[p := p] \as Original;
+\import First.Of[F := From.Fiber p, original := From.bundle p, same := \refl((details target).topology)] \as FirstClass;
+\import Second.Of[F := From.Fiber p, original := From.bundle p, same := \refl((details target).topology)] \as SecondClass;
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := Algebra.field, conjugation := Hermitian.scalar, scalar := Scalar.scalar].For[
+  Y := target.Carrier, F := From.Fiber p, bundle := From.bundle p].Pullbacks[
+  X := source.Carrier, source := (details source).topology, compact := (details source).compact, hausdorff := (details source).hausdorff] \as Native;
+\definition firstMap: Native.Map := \into[source.Carrier -> target.Carrier](first, Native.Map) \by {
+  (Pointed.laws (pointed source) (pointed target) first).continuous
+};
+\definition secondMap: Native.Map := \into[source.Carrier -> target.Carrier](second, Native.Map) \by {
+  (Pointed.laws (pointed source) (pointed target) second).continuous
+};
+\import Native.Along[f := firstMap, g := secondMap, h := homotopy] \as Motion;
+\import To.Compare[F := (\fun (x: source.Carrier) => From.Fiber p (first x)), G := (\fun (x: source.Carrier) => From.Fiber p (second x)),
+  first := FirstClass.pulled, second := SecondClass.pulled, firstSame := \refl((details source).topology), secondSame := \refl((details source).topology)] \as Compare;
+\definition equation: First.map (From.class p) = Second.map (From.class p) :=
+  trans!{{To.Classes}} _ _ _ (congr!{{From.Classes} {To.Classes}} First.map _ _ (sym!{{From.Classes}} _ _ Original.equation))
+    (trans!{{To.Classes}} _ _ _ FirstClass.naturality
+      (trans!{{To.Classes}} _ _ _ (Compare.ofExists Motion.isomorphismExists)
+        (trans!{{To.Classes}} _ _ _ (sym!{{To.Classes}} _ _ SecondClass.naturality)
+          (congr!{{From.Classes} {To.Classes}} Second.map _ _ Original.equation))));

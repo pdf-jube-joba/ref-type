@@ -1,0 +1,36 @@
+\import topology.Maps[A := A, B := Carrier] \as Maps;
+\definition basepoint: Carrier := class point;
+\definition domain: \Pow A := Source.Complement subset;
+\definition range: \Pow Carrier := Space.Complement (Space.Singleton basepoint);
+\import Source.Subspace[S := domain] \as Domain;
+\import Space.Subspace[S := range] \as Range;
+\definition toRange: Source.Subset domain (Maps.Preimage class range) :=
+  \fun (x: A)(outside: Logic.Not (Source.Member subset x))(same: class x = basepoint) =>
+    either!{{(Quotient.equalRelated equivalence x point same)} {Logic.False}
+      {\fun (equal: x = point) => outside (\idelim point = x \with z: A => Source.Member subset z
+        \by { base: \bysub(A, subset, point), equality: sym!{A} _ _ equal })}
+      {\fun (both: Logic.And[Source.Member subset x, Source.Member subset point]) => outside both.left}
+    };
+\definition fromRange: Source.Subset (Maps.Preimage class range) domain :=
+  \fun (x: A)(outside: Logic.Not (class x = basepoint))(inside: Source.Member subset x) => outside (collapsed x point inside (\bysub(A, subset, point)));
+\definition preimageRange: Maps.Preimage class range = domain := \axiom:setext(Maps.Preimage class range, domain, fromRange, toRange);
+\definition rangeOpen: Space.IsOpenIn (topology source) range := (Quotient.quotientMap source).reflectsOpen range
+  (\idelim domain = Maps.Preimage class range \with U: \Pow A => Source.IsOpenIn source U
+    \by { base: closed, equality: sym!{\Pow A} _ _ preimageRange });
+\import topological_constructions.Quotient[A := A, B := Carrier].Restriction[q := class, U := range].From[S := domain] \as Restriction;
+\definition map: Domain.CarrierSet -> Range.CarrierSet := Restriction.map toRange;
+\definition quotientMap: topological_constructions.Quotient[A := Domain.CarrierSet, B := Range.CarrierSet].IsQuotientMap[
+  Domain.topology source, Range.topology (topology source), map] := Restriction.quotientMap source (topology source) toRange fromRange (Quotient.quotientMap source) rangeOpen;
+\definition injective: \forall (x, y: Domain.CarrierSet) -> map x = map y -> x = y :=
+  \fun (x, y: Domain.CarrierSet)(same: map x = map y) => either!{{(Quotient.equalRelated equivalence x y same)} {x = y}
+    {\fun (equal: x = y) => equal}
+    {\fun (both: Logic.And[Source.Member subset x, Source.Member subset y]) => Logic.falseElim (x = y) ((\bysub(A, domain, x)) both.left)}
+  };
+\import topology.Homeomorphism[A := Domain.CarrierSet, B := Range.CarrierSet].OfQuotient[f := map] \as Inverse;
+\definition homeomorphism: topology.Homeomorphism[A := Domain.CarrierSet, B := Range.CarrierSet].Homeomorphism[Domain.topology source, Range.topology (topology source)] :=
+  Inverse.homeomorphism (Domain.topology source) (Range.topology (topology source)) injective quotientMap.onto quotientMap.continuous quotientMap.reflectsOpen;
+\definition inverse: Range.CarrierSet -> Domain.CarrierSet := homeomorphism.backward;
+\definition inverseContinuous: topology.Continuity[A := Range.CarrierSet, B := Domain.CarrierSet].Continuous (Range.topology (topology source)) (Domain.topology source) inverse :=
+  (topology.Homeomorphism[A := Domain.CarrierSet, B := Range.CarrierSet].laws (Domain.topology source) (Range.topology (topology source)) homeomorphism).backwardContinuous;
+\definition inverseProjection: \forall (q: Range.CarrierSet) -> class (inverse q) = q :=
+  (topology.Homeomorphism[A := Domain.CarrierSet, B := Range.CarrierSet].laws (Domain.topology source) (Range.topology (topology source)) homeomorphism).rightInverse;

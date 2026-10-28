@@ -1,0 +1,42 @@
+\import First.Image[X := Y, baseSpace := baseSpace, P := d.source, regular := d.sourceRegular] \as Source;
+\import Second.Image[X := Y, baseSpace := baseSpace, P := d.target, regular := d.targetRegular] \as Target;
+\import Bundles.Family[X := Y, F := Source.Fiber] \as SourceFamily;
+\import Bundles.Family[X := Y, F := Target.Fiber] \as TargetFamily;
+\definition forwardIntertwines: \forall (y: Y)(v: Vector m) -> (d.target y).map.apply ((d.forward y).apply v) = (d.forward y).apply ((d.source y).map.apply v) :=
+  \fun (y: Y)(v: Vector m) => trans!{{Vector n}} _ _ _ (sym!{{Vector n}} _ _ (d.right y ((d.forward y).apply v)))
+    (congr!{{Vector m} {Vector n}} (d.forward y).apply _ _ (d.left y v));
+\definition backwardIntertwines: \forall (y: Y)(v: Vector n) -> (d.source y).map.apply ((d.backward y).apply v) = (d.backward y).apply ((d.target y).map.apply v) :=
+  \fun (y: Y)(v: Vector n) => trans!{{Vector m}} _ _ _ (sym!{{Vector m}} _ _ (d.left y ((d.backward y).apply v)))
+    (congr!{{Vector n} {Vector m}} (d.backward y).apply _ _ (d.right y v));
+\import Bundles.Morphisms[X := Y, Y := Y, F := Source.Fiber, G := Target.Fiber, source := Source.bundle, target := Target.bundle, f := (\fun (y: Y) => y)] \as Forward;
+\import Bundles.Morphisms[X := Y, Y := Y, F := Target.Fiber, G := Source.Fiber, source := Target.bundle, target := Source.bundle, f := (\fun (y: Y) => y)] \as Backward;
+\definition forwardData: Forward.Data := Forward.Data { fiber := \fun (y: Y) => Spaces.Linear[V := Source.Fiber y, W := Target.Fiber y, source := Source.bundle.space y, target := Target.bundle.space y].Map {
+  apply := \fun (v: Source.Fiber y) => \into[Vector n]((d.forward y).apply v, Target.Image y) \by {
+    trans!{{Vector n}} _ _ _ (forwardIntertwines y v)
+      (congr!{{Vector m} {Vector n}} (d.forward y).apply _ _ (\bysub(Vector m, Source.Image y, v)))
+  },
+  preservesAdd := \fun (v, w: Source.Fiber y) => (d.forward y).preservesAdd v w,
+  preservesScale := \fun (a: C.Complex)(v: Source.Fiber y) => (d.forward y).preservesScale a v
+} };
+\definition backwardData: Backward.Data := Backward.Data { fiber := \fun (y: Y) => Spaces.Linear[V := Target.Fiber y, W := Source.Fiber y, source := Target.bundle.space y, target := Source.bundle.space y].Map {
+  apply := \fun (v: Target.Fiber y) => \into[Vector m]((d.backward y).apply v, Source.Image y) \by {
+    trans!{{Vector m}} _ _ _ (backwardIntertwines y v)
+      (congr!{{Vector n} {Vector m}} (d.backward y).apply _ _ (\bysub(Vector n, Target.Image y, v)))
+  },
+  preservesAdd := \fun (v, w: Target.Fiber y) => (d.backward y).preservesAdd v w,
+  preservesScale := \fun (a: C.Complex)(v: Target.Fiber y) => (d.backward y).preservesScale a v
+} };
+\module ForwardVector;
+\module BackwardVector;
+\definition forward: Forward.Map := \into[Forward.Data](forwardData, Forward.Map) \by {
+  Target.Universal[Y := SourceFamily.Point, source := Source.topology].continuous (Forward.total forwardData) Source.projectionContinuous ForwardVector[].continuous
+};
+\definition backward: Backward.Map := \into[Backward.Data](backwardData, Backward.Map) \by {
+  Source.Universal[Y := TargetFamily.Point, source := Target.topology].continuous (Backward.total backwardData) Target.projectionContinuous BackwardVector[].continuous
+};
+\definition isomorphism: Bundles.Isomorphisms[X := Y, F := Source.Fiber, G := Target.Fiber, source := Source.bundle, target := Target.bundle].Isomorphism :=
+  Bundles.Isomorphisms[X := Y, F := Source.Fiber, G := Target.Fiber, source := Source.bundle, target := Target.bundle].Isomorphism {
+    forward := forward, backward := backward,
+    leftInverse := \fun (y: Y)(v: Source.Fiber y) => trans!{{Vector m}} _ _ _ (d.left y v) (\bysub(Vector m, Source.Image y, v)),
+    rightInverse := \fun (y: Y)(v: Target.Fiber y) => trans!{{Vector n}} _ _ _ (d.right y v) (\bysub(Vector n, Target.Image y, v))
+  };

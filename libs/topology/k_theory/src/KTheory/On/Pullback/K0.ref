@@ -6,3 +6,14 @@
   (std.Alg[].Ring[].ringAsSemiring Destination.Carrier Destination.ring) semiringMap Destination.inclusion;
 \definition map: algebra.Hom[A := Source.Carrier, B := Destination.Carrier].RingMap Source.ring Destination.ring := Extension.extension input;
 \definition onIncludes: \forall (a: Classes) -> map (Source.include a) = Destination.include (Native.map a) := Extension.includes input;
+\import algebra.Hom[A := Source.Carrier, B := Destination.Carrier] \as Maps;
+\definition additive: \forall (v, w: Source.Carrier) -> map (Source.add v w) = Destination.add (map v) (map w) :=
+  (Maps.semiringLaws (std.Alg[].Ring[].ringAsSemiring Source.Carrier Source.ring) (std.Alg[].Ring[].ringAsSemiring Destination.Carrier Destination.ring) map).add;
+\definition preservesZero: map Source.zero = Destination.zero :=
+  (Maps.semiringLaws (std.Alg[].Ring[].ringAsSemiring Source.Carrier Source.ring) (std.Alg[].Ring[].ringAsSemiring Destination.Carrier Destination.ring) map).zero;
+\definition preservesNeg: \forall (v: Source.Carrier) -> map (Source.neg v) = Destination.neg (map v) :=
+  Source.Maps[K := Destination.Carrier, target := Destination.ring].preservesNeg map;
+\definition onDifferences: \forall (a, b: Classes) -> map (Source.difference a b) = Destination.difference (Native.map a) (Native.map b) :=
+  \fun (a, b: Classes) => trans!{{Destination.Carrier}} _ _ _ (additive (Source.include a) (Source.neg (Source.include b)))
+    (congr!{{Destination.Carrier} {Destination.Carrier} {Destination.Carrier}} Destination.add _ _ _ _ (onIncludes a)
+      (trans!{{Destination.Carrier}} _ _ _ (preservesNeg (Source.include b)) (congr!{{Destination.Carrier} {Destination.Carrier}} Destination.neg _ _ (onIncludes b))));

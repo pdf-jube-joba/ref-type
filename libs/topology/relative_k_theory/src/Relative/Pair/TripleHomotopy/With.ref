@@ -1,0 +1,27 @@
+\import CylinderFamily.With[family := family] \as Path;
+\import Operations.IsomorphismComposition[X := Boundary.Carrier, F := PositiveSum.Fiber, G := PositiveSum.Fiber, H := NegativeSum.Fiber,
+  source := PositiveSum.cylinderSum, middle := PositiveSum.sumOfCylinders, target := NegativeSum.sumOfCylinders] \as Start;
+\definition startMap: Start.Isomorphism := Start.compose PositiveSum.comparison (SumMaps.isomorphism Path.isomorphism ComplementIdentity.isomorphism);
+\import Operations.IsomorphismComposition[X := Boundary.Carrier, F := PositiveSum.Fiber, G := NegativeSum.Fiber, H := NegativeSum.Fiber,
+  source := PositiveSum.cylinderSum, middle := NegativeSum.sumOfCylinders, target := NegativeSum.cylinderSum] \as Middle;
+\definition middleMap: Middle.Isomorphism := Middle.compose startMap (NegativeReverse.inverse NegativeSum.comparison);
+\import Operations.IsomorphismComposition[X := Boundary.Carrier, F := PositiveSum.Fiber, G := NegativeSum.Fiber, H := (\fun (z: Boundary.Carrier) => Bundles.Vector q.dimension),
+  source := PositiveSum.cylinderSum, middle := NegativeSum.cylinderSum, target := Fixed.target] \as Finish;
+\definition isomorphism: Finish.Isomorphism := Finish.compose middleMap (SplitBoundary.isomorphism (SplitCylinder.isomorphism Split.isomorphism));
+\definition start: \forall (z: Boundary.Carrier) -> Boundary.time z = Interval.start -> \forall (v: PositiveSum.Fiber z) ->
+  (isomorphism.forward.fiber z).apply v = (Fixed.isomorphism.forward.fiber z).apply v :=
+  \fun (z: Boundary.Carrier)(same: Boundary.time z = Interval.start)(v: PositiveSum.Fiber z) =>
+    congr!{{Absolute.Fiber q (Boundary.point z)} {Bundles.Vector q.dimension}}
+      (\fun (u: Absolute.Fiber q (Boundary.point z)) => (Split.isomorphism.forward.fiber (Boundary.point z)).apply
+        (Pair.pair (Absolute.Fiber q (Boundary.point z)) (Absolute.Fiber complement (Boundary.point z)) u
+          (Pair.second (Absolute.Fiber p (Boundary.point z)) (Absolute.Fiber complement (Boundary.point z)) v))) _ _
+      (Path.start z same (Pair.first (Absolute.Fiber p (Boundary.point z)) (Absolute.Fiber complement (Boundary.point z)) v));
+\definition end: \forall (x: A)(v: FirstClass.SourceFiber x) ->
+  (isomorphism.forward.fiber (FrameHomotopy.endpoint x)).apply v = (SecondClass.comparison.forward.fiber x).apply v :=
+  \fun (x: A)(v: FirstClass.SourceFiber x) =>
+    congr!{{Absolute.Fiber q x} {Bundles.Vector q.dimension}}
+      (\fun (u: Absolute.Fiber q x) => (Split.isomorphism.forward.fiber x).apply
+        (Pair.pair (Absolute.Fiber q x) (Absolute.Fiber complement x) u (Pair.second (Absolute.Fiber p x) (Absolute.Fiber complement x) v))) _ _
+      (Path.end x (Pair.first (Absolute.Fiber p x) (Absolute.Fiber complement x) v));
+\definition frameFamily: FrameHomotopy.Family := FrameHomotopy.Family { isomorphism := isomorphism, start := start, end := end };
+\definition equation: FirstClass.value = SecondClass.value := FrameHomotopy.equation (\exact(frameFamily, FrameHomotopy.Family));

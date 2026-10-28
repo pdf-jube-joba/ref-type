@@ -1,0 +1,62 @@
+\import \parent.Cofiber[] \as Cofiber;
+\import Cofiber.ConeQuotient[] \as ConeCompare;
+\import Cofiber.BaseQuotient[] \as BaseCompare;
+\import Cofiber.Restriction[] \as Restriction;
+\import Cofiber.OriginalDiagram[] \as Diagram;
+\import \root.Relative[].Pair[X := Cofiber.Carrier, space := Cofiber.topology, compact := (details Cofiber.result).compact, hausdorff := (details Cofiber.result).hausdorff,
+  subset := Cofiber.baseImage, closed := Cofiber.baseImageClosed].Quotient[] \as BaseQuotient;
+\import \parent.Exact[] \as Exact;
+\import \parent.\parent.Quotient[] \as Quotient;
+\import \root.Relative[].Suspension[original := subsetModel] \as Suspension;
+\import \root.Relative[].Reduced[model := Suspension.result] \as Source;
+\import \root.Relative[].Reduced[model := Cofiber.result] \as Middle;
+\import \root.Relative[].Reduced[model := model] \as AbsoluteReduced;
+\import algebra.Group[].Of[Carrier := Source.Carrier, group := Source.group] \as SourceGroup;
+\import algebra.Group[].Of[Carrier := Quotient.Relative, group := Quotient.group] \as TargetGroup;
+\import algebra.Group[].Of[Carrier := AbsoluteReduced.Carrier, group := AbsoluteReduced.group] \as AbsoluteGroup;
+\definition map[v: Source.Carrier]: Quotient.Relative := ConeCompare.backward (Restriction.forget (BaseCompare.forward v));
+\definition additive: \forall (v, w: Source.Carrier) -> map (SourceGroup.add v w) = TargetGroup.add (map v) (map w) :=
+  \fun (v, w: Source.Carrier) => trans!{{Quotient.Relative}} _ _ _
+    (congr!{{Middle.Carrier} {Quotient.Relative}} ConeCompare.backward _ _
+      (trans!{{Middle.Carrier}} _ _ _
+        (congr!{{BaseQuotient.Relative} {Middle.Carrier}} Restriction.forget _ _ (BaseCompare.forwardAdd v w))
+        (Restriction.forgetAdd (BaseCompare.forward v) (BaseCompare.forward w))))
+    (ConeCompare.backwardAdd (Restriction.forget (BaseCompare.forward v)) (Restriction.forget (BaseCompare.forward w)));
+\definition kernel: \forall (v: Source.Carrier) -> Exact.forget (map v) = AbsoluteGroup.zero :=
+  \fun (v: Source.Carrier) => trans!{{AbsoluteReduced.Carrier}} _ _ _ (sym!{{AbsoluteReduced.Carrier}} _ _ (Diagram.equation (map v)))
+    (trans!{{AbsoluteReduced.Carrier}} _ _ _
+      (congr!{{Middle.Carrier} {AbsoluteReduced.Carrier}} Restriction.restriction _ _ (ConeCompare.rightInverse (Restriction.forget (BaseCompare.forward v))))
+      (Restriction.kernel (BaseCompare.forward v)));
+\definition Image[v: Quotient.Relative]: \Prop := \exists (w: Source.Carrier \where map w = v);
+\definition preimage: \forall (v: Quotient.Relative) -> Exact.forget v = AbsoluteGroup.zero -> Image v := \block {
+  \fun (v: Quotient.Relative)(zero: Exact.forget v = AbsoluteGroup.zero) \then
+  \takefrom w: \Cast[BaseQuotient.Relative]
+    ({ w: BaseQuotient.Relative \where Restriction.forget w = ConeCompare.forward v })
+    \by Restriction.preimage (ConeCompare.forward v) (trans!{{AbsoluteReduced.Carrier}} _ _ _ (Diagram.equation v) zero) \then
+  \return Logic.existsIntro[Source.Carrier, { x: Source.Carrier \where map x = v }] (BaseCompare.backward w)
+    (trans!{{Quotient.Relative}} _ _ _
+      (congr!{{Middle.Carrier} {Quotient.Relative}} ConeCompare.backward _ _
+        (trans!{{Middle.Carrier}} _ _ _
+          (congr!{{BaseQuotient.Relative} {Middle.Carrier}} Restriction.forget _ _ (BaseCompare.leftInverse w))
+          (\bysub(BaseQuotient.Relative,
+            { w: BaseQuotient.Relative \where Restriction.forget w = ConeCompare.forward v }, w))))
+      (ConeCompare.leftInverse v))
+};
+\definition inKernel: \forall (v: Quotient.Relative) -> Image v -> Exact.forget v = AbsoluteGroup.zero := \block {
+  \fun (v: Quotient.Relative)(image: Image v) \then
+  \takefrom w: \Cast[Source.Carrier] ({ w: Source.Carrier \where map w = v }) \by image \then
+  \return \idelim map w = v \with x: Quotient.Relative => Exact.forget x = AbsoluteGroup.zero \by {
+    base: kernel w, equality: \bysub(Source.Carrier, { w: Source.Carrier \where map w = v }, w)
+  }
+};
+\definition exact[v: Quotient.Relative]: Logic.PropEquiv[Exact.forget v = AbsoluteGroup.zero, Image v] := Logic.PropEquiv[_, _] {
+  ltr := preimage v, rtl := inKernel v
+};
+\definition preservesZero: map SourceGroup.zero = TargetGroup.zero :=
+  trans!{{Quotient.Relative}} _ _ _
+    (congr!{{Middle.Carrier} {Quotient.Relative}} ConeCompare.backward _ _
+      (trans!{{Middle.Carrier}} _ _ _ (congr!{{BaseQuotient.Relative} {Middle.Carrier}} Restriction.forget _ _ BaseCompare.forwardZero) Restriction.forgetZero))
+    ConeCompare.backwardZero;
+\import BaseCompare.Forgetting[] \as Forgetting;
+\definition pullbackEquation: \forall (v: Source.Carrier) -> ConeCompare.forward (map v) = Forgetting.pullback v :=
+  \fun (v: Source.Carrier) => trans!{{Middle.Carrier}} _ _ _ (ConeCompare.rightInverse (Restriction.forget (BaseCompare.forward v))) (Forgetting.equation v);

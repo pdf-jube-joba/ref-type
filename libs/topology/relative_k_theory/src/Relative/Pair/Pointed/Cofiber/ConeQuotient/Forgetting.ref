@@ -1,0 +1,23 @@
+\import algebraic_topology.Pointed[A := Carrier].Maps[B := Q.Carrier] \as PointedMaps;
+\definition projectionMap: Map result Q.model := \into[Carrier -> Q.Carrier](Q.projection, Map result Q.model) \by {
+  PointedMaps.Laws[pointed result, pointed Q.model, Q.projection] {
+    continuous := Q.continuous,
+    pointed := Q.onSubset (\into[Carrier](base a0, Piece.image) \by { Piece.containsPoint })
+  }
+};
+\import \root.Relative[].Pullback[source := result, target := Q.model, f := projectionMap] \as ConePull;
+\import ConePair.ForgetProjection[] \as ConeForget;
+\definition coneEquation: \forall (v: Q.Relative) -> ConePull.map v = ConeComparison.forward v := ConeForget.equation;
+\import \root.Relative[].Composition[source := result, middle := Q.model, target := Original.model, first := projectionMap, second := Fwd.map] \as Composite;
+\import \root.Relative[].Pullback[source := result, target := Original.model, f := Composite.map] \as Direct;
+\import \root.Relative[].Pullback[source := result, target := Original.model, f := Project.map] \as ProjectionPull;
+\definition mapEquality: Composite.map = Project.map := \axiom:funext(Composite.map, Project.map, Fwd.onProjection);
+\definition changed: \forall (v: Original.Relative) -> Direct.map v = ProjectionPull.map v :=
+  \fun (v: Original.Relative) => congr!{{Map result Original.model} {CofiberReduced.Carrier}}
+    (\fun (f: Map result Original.model) => \root.Relative[].Pullback[source := result, target := Original.model, f := f].map v) _ _ mapEquality;
+\definition projectionPull[v: Original.Relative]: CofiberReduced.Carrier := ProjectionPull.map v;
+\definition equation: \forall (v: Original.Relative) -> forward v = ProjectionPull.map v :=
+  \fun (v: Original.Relative) => trans!{{CofiberReduced.Carrier}} _ _ _ (sym!{{CofiberReduced.Carrier}} _ _ (coneEquation (Groups.forward v)))
+    (trans!{{CofiberReduced.Carrier}} _ _ _
+      (sym!{{CofiberReduced.Carrier}} _ _ (\root.Relative[].PullbackComposition[source := result, middle := Q.model, target := Original.model,
+        first := projectionMap, second := Fwd.map].equation v)) (changed v));
