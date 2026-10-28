@@ -1,0 +1,56 @@
+\import std.Data[].Nat[].Basic[].Prop[] \as NatLaws;
+\import Algebra.Laws[V := C.Complex, space := Algebra.scalarSpace] \as ScalarLaws;
+\definition last[m: N.Nat^]: Fin.Fin (N.Nat^::succ m) := \into[N.Nat^](m, Fin.Fin (N.Nat^::succ m)) \by { NatLaws.ltOfSuccLe (N.Nat^::succ m) m (NatLaws.leRefl (N.Nat^::succ m)) };
+\definition sumLast: \forall (m: N.Nat^)(f: Fin.Fin (N.Nat^::succ m) -> C.Complex) ->
+  Sums.sum (N.Nat^::succ m) f = Algebra.add (Sums.sum m (\fun (i: Fin.Fin m) => f (Fin.widen m i))) (f (last m)) :=
+  \induction (m: N.Nat^) \return \forall (f: Fin.Fin (N.Nat^::succ m) -> C.Complex) ->
+    Sums.sum (N.Nat^::succ m) f = Algebra.add (Sums.sum m (\fun (i: Fin.Fin m) => f (Fin.widen m i))) (f (last m)) \with {
+    | zero: \fun (f: Fin.Fin (N.Nat^::succ N.Nat^::zero) -> C.Complex) => eq_reason_in!{C.Complex _
+      "=" _ "by" { Algebra.addZeroRight (f (Fin.zero N.Nat^::zero)) }
+      "=" _ "by" { sym!{C.Complex} _ _ (Algebra.addZeroLeft (f (last N.Nat^::zero))) }
+    }
+    | succ: \fun (m: N.Nat^)(previous: \forall (f: Fin.Fin (N.Nat^::succ m) -> C.Complex) -> Sums.sum (N.Nat^::succ m) f = Algebra.add (Sums.sum m (\fun (i: Fin.Fin m) => f (Fin.widen m i))) (f (last m)))
+      (f: Fin.Fin (N.Nat^::succ (N.Nat^::succ m)) -> C.Complex) => eq_reason_in!{C.Complex _
+      "=" _ "by" { congr!{C.Complex C.Complex} (Algebra.add (f (Fin.zero (N.Nat^::succ m)))) _ _ (previous (\fun (i: Fin.Fin (N.Nat^::succ m)) => f (Fin.succ (N.Nat^::succ m) i))) }
+      "=" _ "by" { sym!{C.Complex} _ _ (Algebra.addAssoc (f (Fin.zero (N.Nat^::succ m))) (Sums.sum m (\fun (i: Fin.Fin m) => f (Fin.succ (N.Nat^::succ m) (Fin.widen m i)))) (f (last (N.Nat^::succ m)))) }
+    }
+  };
+\definition trim: \forall (m: N.Nat^)(f: Fin.Fin (N.Nat^::succ m) -> C.Complex) -> f (last m) = Algebra.zero ->
+  Sums.sum (N.Nat^::succ m) f = Sums.sum m (\fun (i: Fin.Fin m) => f (Fin.widen m i)) :=
+  \fun (m: N.Nat^)(f: Fin.Fin (N.Nat^::succ m) -> C.Complex)(zero: f (last m) = Algebra.zero) => trans!{C.Complex} _ _ _ (sumLast m f)
+    (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} (Algebra.add (Sums.sum m (\fun (i: Fin.Fin m) => f (Fin.widen m i)))) _ _ zero) (Algebra.addZeroRight (Sums.sum m (\fun (i: Fin.Fin m) => f (Fin.widen m i)))));
+\import \parent.\parent.BasisMetric[].Adjoint[] \as DegreeAdjoint;
+\import \parent.\parent.BasisMetric[].Adjoint[].Vector[k := N.Nat^::zero] \as Unused;
+\import \root.Complex[].On[V := Finite.Vector, space := Finite.space].Realification[].With[h := Finite.form] \as Metric;
+\import \root.Over[K := C.Complex, scalarRing := ring].On[V := Finite.Vector, space := Finite.space] \as Operations;
+\import Forms.At[k := N.Nat^::zero] \as Zero;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := Field.field, scalar := Hermitian.scalar].Inner[V := Forms.Form N.Nat^::zero, space := Zero.vectorSpace].Of[h := \parent.\parent.Inner[k := N.Nat^::zero].Canonical[].form] \as ZeroLaws;
+\definition creationZero: \forall (v: Finite.Vector)(f, g: Total.Carrier) -> term (Total.createLeft (Metric.form v) f) g (Fin.zero n) = Algebra.zero :=
+  \fun (v: Finite.Vector)(f, g: Total.Carrier) => ZeroLaws.zeroLeft (g N.Nat^::zero);
+\definition annihilationTop: \forall (v: Finite.Vector)(f, g: Total.Carrier) -> term f (Total.annihilate v g) (last n) = Algebra.zero :=
+  \fun (v: Finite.Vector)(f, g: Total.Carrier) => trans!{C.Complex} _ _ _
+    (congr!{{Forms.Form n} C.Complex} (\parent.\parent.Inner[k := n].Canonical[].dot (f n)) _ _
+      (trans!{{Forms.Form n}} _ _ _ (congr!{{Forms.Form (N.Nat^::succ n)} {Forms.Form n}} ((Operations.Contraction[k := n].operator v).apply) _ _
+        (FiniteTotal.zeroAbove g (N.Nat^::succ n) (NatLaws.ltOfSuccLe (N.Nat^::succ n) n (NatLaws.leRefl (N.Nat^::succ n)))))
+        ((Operations.Contraction[k := n].operator v).preservesZero)))
+    (\parent.\parent.Inner[k := n].Canonical[].form.zeroRight (f n));
+\definition creationAdjoint: \forall (v: Finite.Vector)(f, g: Total.Carrier) -> dot (Total.createLeft (Metric.form v) f) g = dot f (Total.annihilate v g) :=
+  \fun (v: Finite.Vector)(f, g: Total.Carrier) => eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (a: C.Complex) => Algebra.add a (Sums.sum n (\fun (i: Fin.Fin n) => term (Total.createLeft (Metric.form v) f) g (Fin.succ n i)))) _ _ (creationZero v f g) }
+    "=" _ "by" { Algebra.addZeroLeft (Sums.sum n (\fun (i: Fin.Fin n) => term (Total.createLeft (Metric.form v) f) g (Fin.succ n i))) }
+    "=" _ "by" { Sums.congruent n (\fun (i: Fin.Fin n) => term (Total.createLeft (Metric.form v) f) g (Fin.succ n i)) (\fun (i: Fin.Fin n) => term f (Total.annihilate v g) (Fin.widen n i))
+      (\fun (i: Fin.Fin n) => DegreeAdjoint.Vector[k := Fin.value n i].law v (f (Fin.value n i)) (g (N.Nat^::succ (Fin.value n i)))) }
+    "=" _ "by" { sym!{C.Complex} _ _ (trim n (term f (Total.annihilate v g)) (annihilationTop v f g)) }
+  };
+\definition annihilationAdjoint: \forall (v: Finite.Vector)(f, g: Total.Carrier) -> dot (Total.annihilate v f) g = dot f (Total.createLeft (Metric.form v) g) :=
+  \fun (v: Finite.Vector)(f, g: Total.Carrier) => trans!{C.Complex} _ _ _ (form.symmetric (Total.annihilate v f) g)
+    (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} Def.conj _ _ (sym!{C.Complex} _ _ (creationAdjoint v g f)))
+      (sym!{C.Complex} _ _ (form.symmetric f (Total.createLeft (Metric.form v) g))));
+\import Algebra.Laws[V := Total.Carrier, space := Total.totalSpace] \as VectorLaws;
+\definition cliffordSelfAdjoint: \forall (v: Finite.Vector)(f, g: Total.Carrier) -> dot ((Metric.cliffordOperator v).apply f) g = dot f ((Metric.cliffordOperator v).apply g) :=
+  \fun (v: Finite.Vector)(f, g: Total.Carrier) => eq_reason_in!{C.Complex _
+    "=" _ "by" { InnerLaws.addLeft (Total.annihilate v f) (Total.createLeft (Metric.form v) f) g }
+    "=" _ "by" { congr!{C.Complex C.Complex C.Complex} Algebra.add _ _ _ _ (annihilationAdjoint v f g) (creationAdjoint v f g) }
+    "=" _ "by" { sym!{C.Complex} _ _ (form.addRight f (Total.createLeft (Metric.form v) g) (Total.annihilate v g)) }
+    "=" _ "by" { congr!{{Total.Carrier} C.Complex} (dot f) _ _ (VectorLaws.comm (Total.createLeft (Metric.form v) g) (Total.annihilate v g)) }
+  };
