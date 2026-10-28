@@ -22,5 +22,5 @@ target/debug/cli libs/topology/singular/cap --module singular_cap.Integral.Pair.
 
 `ExternalIntegral.Cup` は射影逆像の和集合に値を持つ相対外部 cup 積を、`ExternalIntegral.Cross.At.Relative` は相対鎖の双線形外積を与える。後者の `onClasses` は代表鎖の通常の外積との一致を示す。`Cross.Boundary` は両正次数と零次数の軸における境界公式を、`Cross.Homology` の `Positive`、`RightZero`、`LeftZero`、`ZeroZero` の各 `Descent` は対応するホモロジー上の双線形外積を提供する。鎖外積の総次数は `singular_products.Cross.degree p q = q + p` の規約に従う。各 `Descent.onClasses` は代表サイクルでの計算規則を与える。
 
-`Cross.Natural` は左右の対写像の積が和集合部分空間を保つことと、相対鎖・相対ホモロジーの外積に関する自然性を示す。`Integral.Pair.ConnectingZeroZero`、`ConnectingZeroPositive`、`ConnectingPositiveZero` は閉余鎖による cap とホモロジーの接続写像が可換になる場合を提供する。
+`Cross.Natural` は左右の対写像の積が和集合部分空間を保つことと、相対鎖・相対ホモロジーの外積に関する自然性を示す。`Integral.Pair.ConnectingZeroZero`、`ConnectingZeroPositive`、`ConnectingPositiveZero`、`ConnectingPositivePositive` は閉余鎖による cap とホモロジーの接続写像の整合性を示す。`CochainConnecting.ZeroZeroClasses`、`PositiveZeroClasses`、`PositiveOutputZeroCochain`、`PositiveOutputPositiveCochain` は、余コホモロジーとホモロジーの接続写像に関する cap の符号付き整合性を全非負次数で提供する。正出力次数では結果に \( (-1)^p \) が付く。
 `ConnectingPositivePositive.On.Compatibility` は正次数どうしの場合を扱い、閉余鎖に対するホモロジーの接続写像と cap の可換式が全非負次数で揃う。部分空間側の作用は鎖複体の次数移送と零拡張のホモロジー同型を通じて表される。
