@@ -1,0 +1,58 @@
+\import \root.RealLine[] \as Line;
+\import \root.RealLine[].CompletionSeries[interval := interval, s := s, index := index, good := good] \as Series;
+\import \root.RealLine[].CompletionDivergence[interval := interval, s := s, index := index, good := good] \as Divergence;
+\import functional_analysis.Measure[A := real.Analysis[].Real] \as Measure;
+\import Measure.Integral[mu := Line.measure] \as Integral;
+\import Integral.Series[terms := Series.terms] \as Partial;
+\import Integral.Convergence[] \as Convergence;
+\import Integral.Null[] \as Null;
+\import Measure.Sigma[] \as Sigma;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import R.Completeness[] \as Complete;
+\import topology.Topology[Carrier := Real.Real] \as Sets;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\import std.Data[].Nat[] \as N;
+\module At(k: N.Nat^) {
+  \import Integral.Mask[exception := Divergence.exception, f := Partial.partial k] \as Mask;
+  \definition value: Real.Real -> Real.Real := Mask.value;
+  \definition law: \forall (x: Real.Real) -> Logic.And[Sets.Member Divergence.exception x -> value x = Real.zero,
+    Logic.Not (Sets.Member Divergence.exception x) -> value x = Partial.partial k x] := Mask.laws;
+  \definition measurable: Measure.IsMeasurable Line.measure value := Mask.measurable
+    (\bysub(Real.Real -> Real.Real, { f: Real.Real -> Real.Real \where Integral.Integrable f }, Partial.partial k)).left;
+}
+\definition sequence[k: N.Nat^] [x: Real.Real]: Real.Real := \root.RealLine[].CompletionSum[interval := interval, s := s, index := index, good := good].At[k := k].value x;
+\definition outsideBound: \forall (x: Real.Real) -> Logic.Not (Sets.Member Divergence.divergent x) ->
+  \exists ( b: Real.Real \where \forall (k: N.Nat^) -> R.Le (Partial.partial k x) b ) :=
+  \fun (x: Real.Real) (outside: Logic.Not (Sets.Member Divergence.divergent x)) =>
+    Sigma.doubleNegative (\exists ( b: Real.Real \where \forall (k: N.Nat^) -> R.Le (Partial.partial k x) b ))
+      (\fun (none: Logic.Not (\exists ( b: Real.Real \where \forall (k: N.Nat^) -> R.Le (Partial.partial k x) b ))) => outside
+        (\fun (i: N.Nat^) => Sigma.doubleNegative (Sets.Member (Divergence.union i) x)
+          (\fun (noLevel: Logic.Not (Sets.Member (Divergence.union i) x)) => none
+            (Logic.existsIntro[Real.Real, { b: Real.Real \where \forall (k: N.Nat^) -> R.Le (Partial.partial k x) b }] (Divergence.radius i)
+              (\fun (k: N.Nat^) => Order.leOfNotLtReverse (Partial.partial k x) (Divergence.radius i)
+                (\fun (above: R.Lt (Divergence.radius i) (Partial.partial k x)) => noLevel
+                  (Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (Divergence.level k i) x }] k above)))))));
+\definition pointBound: \forall (x: Real.Real) -> Complete.Bounded (Convergence.PointValues sequence x) :=
+  \fun (x: Real.Real) => Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member Divergence.exception x))
+    (\fun (inside: Sets.Member Divergence.exception x) => Logic.existsIntro[Real.Real, { b: Real.Real \where Complete.UpperBound (Convergence.PointValues sequence x) b }] Real.zero
+      (\fun (v: Real.Real) (member: Complete.Member (Convergence.PointValues sequence x) v) => \block {
+        \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where v = sequence k x }) \by member \then
+        \let same: v = sequence k x := \bysub(N.Nat^, { k: N.Nat^ \where v = sequence k x }, k) \then
+        \return R.leReplaceLeft Real.zero v Real.zero (sym!{Real.Real} _ _ (trans!{Real.Real} v (sequence k x) Real.zero same ((\root.RealLine[].CompletionSum[interval := interval, s := s, index := index, good := good].At[k := k].law x).left inside))) (R.leRefl Real.zero)
+      }))
+    (\fun (outside: Logic.Not (Sets.Member Divergence.exception x)) => \block {
+      \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where \forall (k: N.Nat^) -> R.Le (Partial.partial k x) b }) \by outsideBound x outside \then
+      \let bound: \forall (k: N.Nat^) -> R.Le (Partial.partial k x) b := \bysub(Real.Real, { b: Real.Real \where \forall (k: N.Nat^) -> R.Le (Partial.partial k x) b }, b) \then
+      \return Logic.existsIntro[Real.Real, { b: Real.Real \where Complete.UpperBound (Convergence.PointValues sequence x) b }] b
+        (\fun (v: Real.Real) (member: Complete.Member (Convergence.PointValues sequence x) v) => \block {
+          \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where v = sequence k x }) \by member \then
+          \let same: v = sequence k x := \bysub(N.Nat^, { k: N.Nat^ \where v = sequence k x }, k) \then
+          \return R.leReplaceLeft (Partial.partial k x) v b (sym!{Real.Real} _ _ (trans!{Real.Real} v (sequence k x) (Partial.partial k x) same ((\root.RealLine[].CompletionSum[interval := interval, s := s, index := index, good := good].At[k := k].law x).right outside))) (bound k)
+        })
+    });
