@@ -1,0 +1,97 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].List[] \as List;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import \root.Euclidean[n := n] \as E;
+\import List.Membership[A := E.Box] \as Membership;
+\import Membership.Append[] \as Append;
+\import \root.BoxCut[n := n] \as Cut;
+\import \root.GeneralCut[] \as General;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import R.Arithmetic[].Prop[] \as Laws;
+\structure Slice: \Set := { coordinate: Fin.Fin n, threshold: Real.Real };
+\definition partition: \forall (cuts: List.List[Slice]) -> E.Box -> List.List[E.Box] :=
+  \induction (cuts: List.List[Slice]) \return E.Box -> List.List[E.Box] \with {
+    | nil: \fun (b: E.Box) => List.List[E.Box]::cons b List.List[E.Box]::nil
+    | cons: \fun (head: Slice) (_: List.List[Slice]) (prior: E.Box -> List.List[E.Box]) (b: E.Box) =>
+      List.append E.Box (prior (General.construct n b head.coordinate head.threshold).left)
+        (prior (General.construct n b head.coordinate head.threshold).right)
+  };
+\definition sum: List.List[E.Box] -> Real.Real := List.foldr E.Box Real.Real (\fun (b: E.Box) (r: Real.Real) => Real.add (E.volume b) r) Real.zero;
+\definition sumAppend: \forall (xs, ys: List.List[E.Box]) -> sum (List.append E.Box xs ys) = Real.add (sum xs) (sum ys) :=
+  \induction (xs: List.List[E.Box]) \return \forall (ys: List.List[E.Box]) -> sum (List.append E.Box xs ys) = Real.add (sum xs) (sum ys) \with {
+    | nil: \fun (ys: List.List[E.Box]) => sym!{Real.Real} _ _ (Laws.addZeroLeft (sum ys))
+    | cons: \fun (head: E.Box) (tail: List.List[E.Box]) (prior: \forall (ys: List.List[E.Box]) -> sum (List.append E.Box tail ys) = Real.add (sum tail) (sum ys)) (ys: List.List[E.Box]) =>
+      eq_reason_in!{Real.Real _
+        "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (E.volume head)) _ _ (prior ys) }
+        "=" _ "by" { sym!{Real.Real} _ _ (Laws.addAssoc (E.volume head) (sum tail) (sum ys)) }
+      }
+  };
+\definition sumPreserved: \forall (cuts: List.List[Slice]) (b: E.Box) -> sum (partition cuts b) = E.volume b :=
+  \induction (cuts: List.List[Slice]) \return \forall (b: E.Box) -> sum (partition cuts b) = E.volume b \with {
+    | nil: \fun (b: E.Box) => Laws.addZeroRight (E.volume b)
+    | cons: \fun (head: Slice) (tail: List.List[Slice]) (prior: \forall (b: E.Box) -> sum (partition tail b) = E.volume b) (b: E.Box) => \block {
+      \let split: Cut.Result b head.coordinate head.threshold := General.construct n b head.coordinate head.threshold \then
+      \return eq_reason_in!{Real.Real _
+        "=" _ "by" { sumAppend (partition tail split.left) (partition tail split.right) }
+        "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (prior split.left) (prior split.right) }
+        "=" _ "by" { (Cut.laws b head.coordinate head.threshold split).volumes }
+      }
+    }
+  };
+\definition contained: \forall (cuts: List.List[Slice]) (b, q: E.Box) -> Membership.Occurs q (partition cuts b) -> Sets.Subset (E.points q) (E.points b) :=
+  \induction (cuts: List.List[Slice]) \return \forall (b, q: E.Box) -> Membership.Occurs q (partition cuts b) -> Sets.Subset (E.points q) (E.points b) \with {
+    | nil: \fun (b, q: E.Box) (occurs: Membership.Occurs q (partition List.List[Slice]::nil b)) =>
+      Logic.orElim (q = b) Logic.False (Sets.Subset (E.points q) (E.points b)) occurs
+        (\fun (equal: q = b) (x: E.Point) (inside: Sets.Member (E.points q) x) =>
+          \idelim q = b \with v: E.Box => Sets.Member (E.points v) x \by { base: inside, equality: equal })
+        (\fun (bad: Logic.False) => Logic.falseElim _ bad)
+    | cons: \fun (head: Slice) (tail: List.List[Slice]) (prior: \forall (b, q: E.Box) -> Membership.Occurs q (partition tail b) -> Sets.Subset (E.points q) (E.points b))
+      (b, q: E.Box) (occurs: Membership.Occurs q (partition (List.List[Slice]::cons head tail) b)) => \block {
+        \let split: Cut.Result b head.coordinate head.threshold := General.construct n b head.coordinate head.threshold \then
+        \return Append.eliminate (partition tail split.left) (partition tail split.right) q (Sets.Subset (E.points q) (E.points b))
+          (\fun (left: Membership.Occurs q (partition tail split.left)) (x: E.Point) (member: Sets.Member (E.points q) x) =>
+            (Cut.laws b head.coordinate head.threshold split).containedLeft x (prior split.left q left x member))
+          (\fun (right: Membership.Occurs q (partition tail split.right)) (x: E.Point) (member: Sets.Member (E.points q) x) =>
+            (Cut.laws b head.coordinate head.threshold split).containedRight x (prior split.right q right x member)) occurs
+      }
+  };
+\definition covered: \forall (cuts: List.List[Slice]) (b: E.Box) (x: E.Point) -> Sets.Member (E.points b) x ->
+  \exists ( q: E.Box \where Logic.And[Membership.Occurs q (partition cuts b), Sets.Member (E.points q) x] ) :=
+  \induction (cuts: List.List[Slice]) \return \forall (b: E.Box) (x: E.Point) -> Sets.Member (E.points b) x ->
+    \exists ( q: E.Box \where Logic.And[Membership.Occurs q (partition cuts b), Sets.Member (E.points q) x] ) \with {
+      | nil: \fun (b: E.Box) (x: E.Point) (inside: Sets.Member (E.points b) x) =>
+        Logic.existsIntro[E.Box, { q: E.Box \where Logic.And[Membership.Occurs q (partition List.List[Slice]::nil b), Sets.Member (E.points q) x] }] b
+          (Logic.And[_, _]::# (Logic.Or[_, _]::left (\refl(b))) inside)
+      | cons: \fun (head: Slice) (tail: List.List[Slice]) (prior: \forall (b: E.Box) (x: E.Point) -> Sets.Member (E.points b) x ->
+        \exists ( q: E.Box \where Logic.And[Membership.Occurs q (partition tail b), Sets.Member (E.points q) x] ))
+        (b: E.Box) (x: E.Point) (inside: Sets.Member (E.points b) x) => \block {
+          \let split: Cut.Result b head.coordinate head.threshold := General.construct n b head.coordinate head.threshold \then
+          \let result: \Prop := \exists ( q: E.Box \where Logic.And[Membership.Occurs q (partition (List.List[Slice]::cons head tail) b), Sets.Member (E.points q) x] ) \then
+          \return Logic.orElim (R.Le (x head.coordinate) head.threshold) (R.Le head.threshold (x head.coordinate)) result
+            (Order.leTotal (x head.coordinate) head.threshold)
+            (\fun (below: R.Le (x head.coordinate) head.threshold) => \block {
+              \takefrom q: \Cast[E.Box] ({ q: E.Box \where Logic.And[Membership.Occurs q (partition tail split.left), Sets.Member (E.points q) x] })
+                \by prior split.left x ((Cut.laws b head.coordinate head.threshold split).insideLeft x inside below) \then
+              \let data: Logic.And[Membership.Occurs q (partition tail split.left), Sets.Member (E.points q) x] :=
+                \bysub(E.Box, { q: E.Box \where Logic.And[Membership.Occurs q (partition tail split.left), Sets.Member (E.points q) x] }, q) \then
+              \return Logic.existsIntro[E.Box, { q: E.Box \where Logic.And[Membership.Occurs q (partition (List.List[Slice]::cons head tail) b), Sets.Member (E.points q) x] }] q
+                (Logic.And[_, _]::# (Append.left (partition tail split.left) (partition tail split.right) q data.left) data.right)
+            })
+            (\fun (above: R.Le head.threshold (x head.coordinate)) => \block {
+              \takefrom q: \Cast[E.Box] ({ q: E.Box \where Logic.And[Membership.Occurs q (partition tail split.right), Sets.Member (E.points q) x] })
+                \by prior split.right x ((Cut.laws b head.coordinate head.threshold split).insideRight x inside above) \then
+              \let data: Logic.And[Membership.Occurs q (partition tail split.right), Sets.Member (E.points q) x] :=
+                \bysub(E.Box, { q: E.Box \where Logic.And[Membership.Occurs q (partition tail split.right), Sets.Member (E.points q) x] }, q) \then
+              \return Logic.existsIntro[E.Box, { q: E.Box \where Logic.And[Membership.Occurs q (partition (List.List[Slice]::cons head tail) b), Sets.Member (E.points q) x] }] q
+                (Logic.And[_, _]::# (Append.right (partition tail split.left) (partition tail split.right) q data.left) data.right)
+            })
+        }
+    };
