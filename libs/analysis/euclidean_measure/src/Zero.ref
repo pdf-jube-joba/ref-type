@@ -46,3 +46,32 @@
       E.boxUpper (box x) r (E.monotone (Sets.Singleton x) (E.points (box x)) (singletonIncluded x) r member),
     E.greatestLowerBound (Sets.Singleton x) unitValue unitNonnegative (coverLower x));
 \definition singletonMeasure: \forall (x: E.Point) -> E.MeasureConstruction[].measure.value (Sets.Singleton x) = unitValue := singletonVolume;
+\import std.Logic[].Classical[] \as Classical;
+\definition origin: E.Point := Fin.Empty[A := Real.Real].function;
+\definition unique: \forall (x, y: E.Point) -> x = y := Fin.Empty[A := Real.Real].unique;
+\definition singletonAsWhole: \forall (x: E.Point) -> Sets.Complement Sets.Empty = Sets.Singleton x :=
+  \fun (x: E.Point) => \axiom:setext(Sets.Complement Sets.Empty, Sets.Singleton x,
+    \fun (y: E.Point) (_: Sets.Member (Sets.Complement Sets.Empty) y) => unique y x,
+    \fun (y: E.Point) (_: Sets.Member (Sets.Singleton x) y) (empty: Logic.False) => empty);
+\definition singletonMeasurable: \forall (x: E.Point) -> E.Caratheodory (Sets.Singleton x) :=
+  \fun (x: E.Point) => \idelim Sets.Complement Sets.Empty = Sets.Singleton x \with S: \Pow E.Point => E.Caratheodory S
+    \by { base: E.complementCaratheodory Sets.Empty E.emptyCaratheodory, equality: singletonAsWhole x };
+\definition allMeasurable: \forall (S: \Pow E.Point) -> E.Caratheodory S :=
+  \fun (S: \Pow E.Point) => Logic.orElim _ _ (E.Caratheodory S) (Classical.excludedMiddle (Sets.Member S origin))
+    (\fun (inside: Sets.Member S origin) => \block {
+      \let equal: Sets.Singleton origin = S := \axiom:setext(Sets.Singleton origin, S,
+        \fun (x: E.Point) (same: x = origin) => \idelim origin = x \with y: E.Point => Sets.Member S y
+          \by { base: inside, equality: sym!{E.Point} _ _ same },
+        \fun (x: E.Point) (_: Sets.Member S x) => unique x origin) \then
+      \return \idelim Sets.Singleton origin = S \with T: \Pow E.Point => E.Caratheodory T
+        \by { base: singletonMeasurable origin, equality: equal }
+    })
+    (\fun (outside: Logic.Not (Sets.Member S origin)) => \block {
+      \let equal: Sets.Empty = S := \axiom:setext(Sets.Empty, S,
+        \fun (x: E.Point) (empty: Logic.False) => Logic.falseElim _ empty,
+        \fun (x: E.Point) (inside: Sets.Member S x) => outside (\idelim x = origin \with y: E.Point => Sets.Member S y
+          \by { base: inside, equality: unique x origin })) \then
+      \return \idelim Sets.Empty = S \with T: \Pow E.Point => E.Caratheodory T \by { base: E.emptyCaratheodory, equality: equal }
+    });
+\definition borelMeasured: \forall (S: \Pow E.Point) -> Measure.Measurable E.Borel[].sigma S -> Measure.Measurable E.MeasureConstruction[].measure.sigma S :=
+  \fun (S: \Pow E.Point) (_: Measure.Measurable E.Borel[].sigma S) => allMeasurable S;
