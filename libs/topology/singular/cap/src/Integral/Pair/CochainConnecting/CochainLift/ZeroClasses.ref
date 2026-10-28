@@ -1,0 +1,49 @@
+\import \parent.\parent.CochainLift[] \as Lift;
+\import \parent.\parent.\parent.CochainConnecting[p := N.Nat^::zero, q := q].RelativeZero[] \as Sign;
+\import \parent.\parent.\parent.CochainConnecting[p := N.Nat^::zero, q := q].Zero[] \as Zero;
+\import singular_cohomology.Simplices[A := A, source := source].CutFaces[p := N.Nat^::zero, q := q] \as Geometry;
+\import singular_cohomology.Maps[A := Relative.SubspaceCarrier, B := A, source := Subspace.topology source, target := source] \as Inclusion;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].ZeroExtension[C := SubChains.complex] \as SubExtension;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing].Integer[P := SubExtension.complex, N := Cochains.integerCoefficients] \as Sub;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as IntegerComplexes;
+\import IntegerComplexes.At[C := Sub.complex, z := I.Int^::ofNat q] \as Input;
+\import IntegerComplexes.At[C := RelativeCochains.complex, z := I.Int^::ofNat (N.Nat^::succ q)] \as Output;
+\import IntegerComplexes.ShortExact[A := RelativeCochains.complex, B := Whole.complex, C := Sub.complex].At[s := Sequence.sequence, k := I.Int^::ofNat q] \as Exact;
+\import \root.Integral[A := A, source := source].Pair[subset := subset].RelativeCohomologyActionZeroTarget[r := q] \as Action;
+\import Action.Descent[] \as Descent;
+\import Extension.Positive[n := Geometry.higher] \as ChainExtension;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring].At[C := Relative.complex, z := I.Int^::ofNat Geometry.higher] \as ChainsAt;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].DegreeZero[C := Chains.complex] \as H;
+\import \root.Integral[A := Relative.SubspaceCarrier, source := Subspace.topology source].At[p := N.Nat^::zero, q := q] \as SubCap;
+\import \root.Integral[A := A, source := source].Pair[subset := subset].At[p := N.Nat^::zero, q := N.Nat^::succ q].RelativeCochain[] \as Cap;
+\definition connectingClass: \forall (x: Input.Closed)(lift: Whole.Carrier (I.Int^::ofNat q))(h: RelativeCochains.Carrier (I.Int^::ofNat (N.Nat^::succ q))) ->
+  (Sequence.restriction).apply (I.Int^::ofNat q) lift = x ->
+  \forall (differential: (Sequence.inclusion).apply (I.Int^::ofNat (N.Nat^::succ q)) h = (Whole.complex.differential).apply (I.Int^::ofNat q) lift) ->
+  (Sequence.LongExact[z := I.Int^::ofNat q].connecting).apply (Input.classOf x) = Output.classOf (Output.cycle h (Exact.lowerClosed lift h differential)) :=
+  \fun (x: Input.Closed)(lift: Whole.Carrier (I.Int^::ofNat q))(h: RelativeCochains.Carrier (I.Int^::ofNat (N.Nat^::succ q)))(lifted: _)(differential: _) =>
+    trans!{Output.Cohomology} _ _ _ (Exact.onClass x) (Exact.onLift x lift h lifted differential (Exact.lowerClosed lift h differential));
+\import singular_cohomology.Cochains[A := Relative.SubspaceCarrier, source := Subspace.topology source].With[coefficients := Cochains.integerCoefficients] \as SubTheory;
+\import chain_complexes.Chain[] \as ChainDegrees;
+\import Modules.Hom[V := ChainsAt.Homology, W := H.Homology, source := ChainsAt.homologySpace, target := H.homologySpace] \as Actions;
+\definition left[x: Input.Closed][a: SubChains.Carrier Geometry.total]: Chains.Carrier N.Nat^::zero :=
+  (Inclusion.At[n := N.Nat^::zero].push Relative.inclusion Relative.inclusionContinuous).apply ((SubCap.map (SubPositive.from x)).apply a);
+\definition sameLeft: \forall (x: Input.Closed)(lift: Whole.Carrier (I.Int^::ofNat q))(a: SubChains.Carrier Geometry.total) ->
+  (Sequence.restriction).apply (I.Int^::ofNat q) lift = x -> left x a = Zero.left (Positive.from lift) a :=
+  \fun (x: Input.Closed)(lift: Whole.Carrier (I.Int^::ofNat q))(a: SubChains.Carrier Geometry.total)(lifted: _) =>
+    congr!{{SubTheory.Carrier q} {Chains.Carrier N.Nat^::zero}}
+      (\fun (u: SubTheory.Carrier q) => (Inclusion.At[n := N.Nat^::zero].push Relative.inclusion Relative.inclusionContinuous).apply ((SubCap.map u).apply a)) _ _
+      (trans!{{SubTheory.Carrier q}} _ _ _
+        (sym!{{SubTheory.Carrier q}} _ _ (congr!{{Sub.Carrier (I.Int^::ofNat q)} {SubTheory.Carrier q}} SubPositive.from _ _ lifted)) (restriction lift));
+\definition law: \forall (x: Input.Closed)(lift: Whole.Carrier (I.Int^::ofNat q))(h: RelativeCochains.Carrier (I.Int^::ofNat (N.Nat^::succ q)))(c: Chains.Carrier Geometry.higher)(a: SubChains.Carrier Geometry.total) ->
+  (Sequence.restriction).apply (I.Int^::ofNat q) lift = x ->
+  \forall (differential: (Sequence.inclusion).apply (I.Int^::ofNat (N.Nat^::succ q)) h = (Whole.complex.differential).apply (I.Int^::ofNat q) lift) ->
+  (Inclusion.At[n := Geometry.total].push Relative.inclusion Relative.inclusionContinuous).apply a = (Chains.boundary Geometry.total).apply c ->
+  \forall (closed: (Relative.complex.differential).apply (I.Int^::ofNat Geometry.higher) (Relative.class (I.Int^::ofNat Geometry.higher) (ChainExtension.intro c)) = (Relative.space (ChainDegrees.previous (I.Int^::ofNat Geometry.higher))).zero) ->
+  H.classOf (left x a) = ((Descent.map).apply ((Sequence.LongExact[z := I.Int^::ofNat q].connecting).apply (Input.classOf x))).apply (ChainsAt.classOf (ChainsAt.cycle (Relative.class (I.Int^::ofNat Geometry.higher) (ChainExtension.intro c)) closed)) :=
+  \fun (x: Input.Closed)(lift: Whole.Carrier (I.Int^::ofNat q))(h: RelativeCochains.Carrier (I.Int^::ofNat (N.Nat^::succ q)))(c: Chains.Carrier Geometry.higher)(a: SubChains.Carrier Geometry.total)(lifted: _)(differential: _)(boundary: _)(closed: _) => eq_reason_in!{H.Homology _
+    "=" _ "by" { congr!{{Chains.Carrier N.Nat^::zero} H.Homology} H.classOf _ _ (sameLeft x lift a lifted) }
+    "=" _ "by" { Sign.law (Positive.from lift) h c a (Lift.law h lift differential) boundary }
+    "=" _ "by" { sym!{H.Homology} _ _ (Action.On[alpha := Output.cycle h (Exact.lowerClosed lift h differential)].onClass (ChainsAt.cycle (Relative.class (I.Int^::ofNat Geometry.higher) (ChainExtension.intro c)) closed)) }
+    "=" _ "by" { congr!{Actions.Map H.Homology} (\fun (f: Actions.Map) => (f).apply (ChainsAt.classOf (ChainsAt.cycle (Relative.class (I.Int^::ofNat Geometry.higher) (ChainExtension.intro c)) closed))) _ _ (sym!{Actions.Map} _ _ (Descent.onClass (Output.cycle h (Exact.lowerClosed lift h differential)))) }
+    "=" _ "by" { congr!{Output.Cohomology H.Homology} (\fun (v: Output.Cohomology) => ((Descent.map).apply v).apply (ChainsAt.classOf (ChainsAt.cycle (Relative.class (I.Int^::ofNat Geometry.higher) (ChainExtension.intro c)) closed))) _ _ (sym!{Output.Cohomology} _ _ (connectingClass x lift h lifted differential)) }
+  };
