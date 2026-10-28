@@ -1,0 +1,16 @@
+\import \parent.HeadAdjoint[k := k] \as Head;
+\import \parent.ContractHead[] \as Contract;
+\import Algebra.Multilinear[V := Finite.Vector, space := Finite.space].Alternating[].Dimension[n := n, b := Standard.basis].Increasing[k := N.Nat^::succ k] \as Larger;
+\import \parent.\parent.Inner[k := k].Canonical[] \as LowerInner;
+\import LowerInner.Words[] \as LowerWords;
+\import \parent.\parent.Inner[k := N.Nat^::succ k].Canonical[] \as HigherInner;
+\import HigherInner.Words[] \as HigherWords;
+\definition adjoint: \forall (j: Larger.Index)(f: Forms.Form k) ->
+  HigherInner.dot (Operations.LeftCreation[k := k].apply (Metric.form (Finite.basis (Head.head j))) f) (ExteriorBasis.At[k := N.Nat^::succ k].word j) =
+  LowerInner.dot f ((Operations.Contraction[k := k].operator (Finite.basis (Head.head j))).apply (ExteriorBasis.At[k := N.Nat^::succ k].word j)) :=
+  \fun (j: Larger.Index)(f: Forms.Form k) => eq_reason_in!{C.Complex _
+    "=" _ "by" { HigherWords.coefficientWord j (Operations.LeftCreation[k := k].apply (Metric.form (Finite.basis (Head.head j))) f) }
+    "=" _ "by" { congr!{C.Complex C.Complex} Def.conj _ _ (Head.creationCoefficient j f) }
+    "=" _ "by" { sym!{C.Complex} _ _ (LowerWords.coefficientWord (tailIndex k j) f) }
+    "=" _ "by" { congr!{{Forms.Form k} C.Complex} (LowerInner.dot f) _ _ (sym!{{Forms.Form k}} _ _ (Contract.all k j)) }
+  };

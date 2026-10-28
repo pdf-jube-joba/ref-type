@@ -1,3 +1,5 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import Fin.FromList[A := Finite.Vector] \as VectorLists;
 \import Algebra.Multilinear[V := Finite.Vector, space := Finite.space].Alternating[].Dimension[n := n, b := Standard.basis].Increasing[k := N.Nat^::succ k] \as Larger;
 \import \parent.\parent.Inner[k := k].Canonical[] \as LowerInner;
 \import LowerInner.Words[] \as LowerWords;
@@ -27,3 +29,35 @@
   HigherInner.dot (Operations.LeftCreation[k := k].apply (Metric.form (Finite.basis (head j))) (ExteriorBasis.At[k := k].word (tailIndex k j))) (ExteriorBasis.At[k := N.Nat^::succ k].word j) =
   LowerInner.dot (ExteriorBasis.At[k := k].word (tailIndex k j)) ((Operations.Contraction[k := k].operator (Finite.basis (head j))).apply (ExteriorBasis.At[k := N.Nat^::succ k].word j)) :=
   \fun (j: Larger.Index) => trans!{C.Complex} _ _ _ (creation j) (sym!{C.Complex} _ _ (contraction j));
+\import \parent.Absent[k := k] \as Absent;
+\import Algebra.Shuffle[I := Finite.Vector] \as Shuffle;
+\import Shuffle.Boundary[].OneCovector[] \as Covector;
+\import Operations.LeftCreation[k := k] \as Creation;
+\import Creation.Mixed[] \as Mixed;
+\import Algebra.Exterior[V := Finite.Vector, space := Finite.space] \as Product;
+\import Product.Degrees[p := N.Nat^::succ N.Nat^::zero, q := k] \as Wedge;
+\import Product.Regrade[k := std.Data[].Nat[].Basic[].Def[].add (N.Nat^::succ N.Nat^::zero) k, l := N.Nat^::succ k] \as Regrade;
+\import Algebra.Coordinates[I := Fin.Fin n].Kronecker[] \as VectorDelta;
+\definition tailArguments[j: Larger.Index]: Multi.Arguments k := \fun (i: Fin.Fin k) => Finite.basis (j (Fin.succ k i));
+\definition tailDifferent: \forall (j: Larger.Index)(i: Fin.Fin k) -> Logic.Not (head j = j (Fin.succ k i)) :=
+  \fun (j: Larger.Index)(i: Fin.Fin k) => Ordering.Bounds[k := k, n := n].unequal (head j) (j (Fin.succ k i))
+    (Ordering.Bounds[k := k, n := n].headTail j (\bysub(Fin.Fin (N.Nat^::succ k) -> Fin.Fin n, Larger.Index, j)) i);
+\definition headEvaluate: \forall (j: Larger.Index) -> Mixed.evaluate (Metric.form (Finite.basis (head j))) (Finite.basis (head j)) = Algebra.one :=
+  \fun (j: Larger.Index) => trans!{C.Complex} _ _ _ (Metric.evaluateMixed (Finite.basis (head j)) (Finite.basis (head j)))
+    (trans!{C.Complex} _ _ _ (Finite.dotBasis (head j) (Finite.basis (head j))) (VectorDelta.self (head j)));
+\definition tailEvaluate: \forall (j: Larger.Index)(i: Fin.Fin k) -> Mixed.evaluate (Metric.form (Finite.basis (head j))) (tailArguments j i) = Algebra.zero :=
+  \fun (j: Larger.Index)(i: Fin.Fin k) => trans!{C.Complex} _ _ _ (Metric.evaluateMixed (Finite.basis (head j)) (tailArguments j i))
+    (trans!{C.Complex} _ _ _ (Finite.dotBasis (head j) (tailArguments j i)) (VectorDelta.different (j (Fin.succ k i)) (head j) (\fun (same: _) => tailDifferent j i (sym!{{Fin.Fin n}} _ _ same))));
+\definition creationCoefficient: \forall (j: Larger.Index)(f: Forms.Form k) ->
+  (Creation.apply (Metric.form (Finite.basis (head j))) f) (arguments j) = f (tailArguments j) :=
+  \fun (j: Larger.Index)(f: Forms.Form k) => eq_reason_in!{C.Complex _
+    "=" _ "by" { sym!{C.Complex} _ _ (Multi.ListSeries[k := N.Nat^::succ k].onArguments (Creation.apply (Metric.form (Finite.basis (head j))) f) (arguments j)) }
+    "=" _ "by" { congr!{{Shuffle.Function} C.Complex} (\fun (s: Shuffle.Function) => s (VectorLists.list (N.Nat^::succ k) (arguments j))) _ _ (Regrade.series (Wedge.wedge (Metric.form (Finite.basis (head j))) f) Creation.degree) }
+    "=" _ "by" { congr!{{Shuffle.Function} C.Complex} (\fun (s: Shuffle.Function) => s (VectorLists.list (N.Nat^::succ k) (arguments j))) _ _ (Wedge.componentWedge (Metric.form (Finite.basis (head j))) f) }
+    "=" _ "by" { congr!{{Shuffle.Function} C.Complex} (\fun (s: Shuffle.Function) => Shuffle.product s (Product.component k f) (VectorLists.list (N.Nat^::succ k) (arguments j))) _ _ (Mixed.normal (Metric.form (Finite.basis (head j)))) }
+    "=" _ "by" { Covector.atHead (Finite.basis (head j)) (VectorLists.list k (tailArguments j)) (Mixed.evaluate (Metric.form (Finite.basis (head j)))) (Product.component k f)
+      (VectorLists.all k (tailArguments j) (\fun (v: Finite.Vector) => Mixed.evaluate (Metric.form (Finite.basis (head j))) v = Algebra.zero) (tailEvaluate j)) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (a: C.Complex) => Algebra.mul a (Product.component k f (VectorLists.list k (tailArguments j)))) _ _ (headEvaluate j) }
+    "=" _ "by" { Algebra.mulOneLeft (Product.component k f (VectorLists.list k (tailArguments j))) }
+    "=" _ "by" { Multi.ListSeries[k := k].onArguments f (tailArguments j) }
+  };
