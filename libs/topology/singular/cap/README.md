@@ -21,3 +21,5 @@ target/debug/cli libs/topology/singular/cap --module singular_cap.Integral.Pair.
 二つの部分空間 \(A,B\subseteq X\) が和集合内で開なら、`Triple.Union.Cover.On.Cup` は \(H^p(X,A)\times H^q(X,B)\to H^{p+q}(X,A\cup B)\) を提供する。同じ開被覆条件の下、`CapCohomology*.Transfer` は \(H^q(X,A)\times H_{p+q}(X,A\cup B)\to H_p(X,B)\) を提供する。`Transfer.onSmall` は細分した相対鎖上の作用との一致を示す。正・零次数は `CapCohomology`、`CapCohomologyZero`、`CapCohomologyZeroTarget`、`CapCohomologyZeroZero` で扱う。
 
 `ExternalIntegral.Cup` は射影逆像の和集合に値を持つ相対外部 cup 積を、`ExternalIntegral.Cross.At.Relative` は相対鎖の双線形外積を与える。後者の `onClasses` は代表鎖の通常の外積との一致を示す。`Cross.Boundary` は両正次数と零次数の軸における境界公式を、`Cross.Homology` の `Positive`、`RightZero`、`LeftZero`、`ZeroZero` の各 `Descent` は対応するホモロジー上の双線形外積を提供する。鎖外積の総次数は `singular_products.Cross.degree p q = q + p` の規約に従う。各 `Descent.onClasses` は代表サイクルでの計算規則を与える。
+
+`Cross.Natural` は左右の対写像の積が和集合部分空間を保つことと、相対鎖・相対ホモロジーの外積に関する自然性を示す。`Integral.Pair.ConnectingZeroZero`、`ConnectingZeroPositive`、`ConnectingPositiveZero` は閉余鎖による cap とホモロジーの接続写像が可換になる場合を提供する。
