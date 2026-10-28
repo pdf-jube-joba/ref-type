@@ -56,3 +56,29 @@
           \return R.leReplaceLeft (Partial.partial k x) v b (sym!{Real.Real} _ _ (trans!{Real.Real} v (sequence k x) (Partial.partial k x) same ((\root.RealLine[].CompletionSum[interval := interval, s := s, index := index, good := good].At[k := k].law x).right outside))) (bound k)
         })
     });
+\definition pointNonempty: \forall (x: Real.Real) -> Complete.Nonempty (Convergence.PointValues sequence x) :=
+  \fun (x: Real.Real) => \exact(\into[Real.Real](sequence N.Nat^::zero x, Convergence.PointValues sequence x)
+    \by { Convergence.pointValueMember sequence x N.Nat^::zero }, \Cast[Real.Real] (Convergence.PointValues sequence x));
+\definition family[x: Real.Real]: Complete.Family := \into[\Pow Real.Real](Convergence.PointValues sequence x, Complete.FamilySet)
+  \by { Logic.And[_, _]::# (pointNonempty x) (pointBound x) };
+\definition value[x: Real.Real]: Real.Real := Complete.supremum (family x);
+\definition supremum: Convergence.PointwiseSup sequence value :=
+  \fun (x: Real.Real) => Complete.supremumLaw (family x);
+\definition measurable: Measure.IsMeasurable Line.measure value := Convergence.pointwiseSupMeasurable sequence value supremum
+  (\fun (k: N.Nat^) => \root.RealLine[].CompletionSum[interval := interval, s := s, index := index, good := good].At[k := k].measurable);
+\definition nonnegative: \forall (x: Real.Real) -> R.Le Real.zero (value x) :=
+  \fun (x: Real.Real) => R.leTrans Real.zero (sequence N.Nat^::zero x) (value x)
+    (Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member Divergence.exception x))
+      (\fun (inside: Sets.Member Divergence.exception x) => R.leReplaceRight Real.zero Real.zero (sequence N.Nat^::zero x)
+        (sym!{Real.Real} _ _ ((\root.RealLine[].CompletionSum[interval := interval, s := s, index := index, good := good].At[k := N.Nat^::zero].law x).left inside)) (R.leRefl Real.zero))
+      (\fun (outside: Logic.Not (Sets.Member Divergence.exception x)) => R.leReplaceRight Real.zero (Partial.partial N.Nat^::zero x) (sequence N.Nat^::zero x)
+        (sym!{Real.Real} _ _ ((\root.RealLine[].CompletionSum[interval := interval, s := s, index := index, good := good].At[k := N.Nat^::zero].law x).right outside)) (Series.partialNonnegative N.Nat^::zero x)))
+    (Convergence.pointwiseUpper sequence value supremum N.Nat^::zero x);
+\definition increasing: Convergence.FunctionIncreasing sequence := \fun (k: N.Nat^) (x: Real.Real) =>
+  Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member Divergence.exception x))
+    (\fun (inside: Sets.Member Divergence.exception x) => R.leReplace Real.zero (sequence k x) Real.zero (sequence (N.Nat^::succ k) x)
+      (sym!{Real.Real} _ _ ((\root.RealLine[].CompletionSum[interval := interval, s := s, index := index, good := good].At[k := k].law x).left inside))
+      (sym!{Real.Real} _ _ ((\root.RealLine[].CompletionSum[interval := interval, s := s, index := index, good := good].At[k := N.Nat^::succ k].law x).left inside)) (R.leRefl Real.zero))
+    (\fun (outside: Logic.Not (Sets.Member Divergence.exception x)) => R.leReplace (Partial.partial k x) (sequence k x) (Partial.partial (N.Nat^::succ k) x) (sequence (N.Nat^::succ k) x)
+      (sym!{Real.Real} _ _ ((\root.RealLine[].CompletionSum[interval := interval, s := s, index := index, good := good].At[k := k].law x).right outside))
+      (sym!{Real.Real} _ _ ((\root.RealLine[].CompletionSum[interval := interval, s := s, index := index, good := good].At[k := N.Nat^::succ k].law x).right outside)) (Series.partialIncreasing k x));
