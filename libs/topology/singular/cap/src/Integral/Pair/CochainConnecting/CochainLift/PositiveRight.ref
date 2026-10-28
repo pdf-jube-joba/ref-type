@@ -1,0 +1,34 @@
+\import singular_cohomology.Simplices[A := A, source := source].CutFaces[p := N.Nat^::succ t, q := q] \as OldGeometry;
+\import singular_cohomology.Simplices[A := A, source := source].CutFaces[p := t, q := N.Nat^::succ q] \as Geometry;
+\import \root.Integral[A := A, source := source].Pair[subset := subset].Degree[] \as Degree;
+\import \root.Integral[A := A, source := source].Pair[subset := subset].At[p := N.Nat^::succ t, q := N.Nat^::succ q].RelativeCochain[] \as Right;
+\import \root.Integral[A := A, source := source].Pair[subset := subset].RelativeCochainHomology[p := t, q := N.Nat^::succ q] \as Action;
+\import \root.Integral[A := A, source := source].Pair[subset := subset].RelativeCochainBoundary[p := t, q := N.Nat^::succ q] \as Boundary;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.At[C := Relative.complex, z := I.Int^::ofNat OldGeometry.higher] \as Old;
+\import Complexes.At[C := Relative.complex, z := I.Int^::ofNat Geometry.higher] \as New;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].Positive[C := Chains.complex, n := t] \as H;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\module At(n: N.Nat^) {
+  \import Complexes.At[C := Relative.complex, z := I.Int^::ofNat n] \as Native;
+  \definition Cycle: \Set := Native.Cycle;
+  \definition forget: Cycle -> Degree.Carrier n := Native.forget;
+}
+\definition Cycle[n: N.Nat^]: \Set := At[n := n].Cycle;
+\definition forget[n: N.Nat^]: Cycle n -> Degree.Carrier n := At[n := n].forget;
+\definition same: OldGeometry.higher = Geometry.higher := Geometry.same;
+\definition shifted[x: Old.Cycle]: New.Cycle := Transport.cast Cycle OldGeometry.higher Geometry.higher same x;
+\definition recovered: \forall (x: Old.Cycle) -> Degree.apply Geometry.higher OldGeometry.higher (sym!{N.Nat^} _ _ same) (shifted x) = x :=
+  \fun (x: Old.Cycle) => trans!{{Degree.Carrier OldGeometry.higher}} _ _ _
+    (congr!{{Degree.Carrier Geometry.higher} {Degree.Carrier OldGeometry.higher}} (Degree.apply Geometry.higher OldGeometry.higher (sym!{N.Nat^} _ _ same)) _ _
+      (sym!{{Degree.Carrier Geometry.higher}} _ _ (Transport.natural Cycle Degree.Carrier forget OldGeometry.higher Geometry.higher same x)))
+    (Transport.castInverse Degree.Carrier OldGeometry.higher Geometry.higher same x);
+\module On(h: RelativeCochains.Carrier (I.Int^::ofNat (N.Nat^::succ q)), closed: Boundary.Closed h) {
+  \import Action.On[beta := h, closed := closed] \as Native;
+  \definition sameValue: \forall (x: Old.Cycle) -> Native.cycle (shifted x) = (Right.map h).apply x :=
+    \fun (x: Old.Cycle) => congr!{{Degree.Carrier OldGeometry.higher} {Chains.Carrier (N.Nat^::succ t)}} ((Right.map h).apply) _ _ (recovered x);
+  \definition closedValue: \forall (x: Old.Cycle) -> (H.differential).apply ((Right.map h).apply x) = (Chains.space t).zero :=
+    \fun (x: Old.Cycle) => trans!{{Chains.Carrier t}} _ _ _
+      (congr!{{Chains.Carrier (N.Nat^::succ t)} {Chains.Carrier t}} ((H.differential).apply) _ _ (sym!{{Chains.Carrier (N.Nat^::succ t)}} _ _ (sameValue x)))
+      (\bysub(Chains.Carrier (N.Nat^::succ t), (H.cycles).carrier, Native.cycle (shifted x)));
+}
