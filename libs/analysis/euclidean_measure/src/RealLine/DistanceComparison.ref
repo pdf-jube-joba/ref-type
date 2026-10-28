@@ -1,0 +1,168 @@
+\import \root.RealLine[] \as Line;
+\import \root.RealLine[].IntervalIntegral[interval := interval] \as Indicator;
+\import \root.RealLine[].RiemannMap[interval := interval] \as Map;
+\import \root.RealLine[].RiemannComparison[interval := interval, f := f] \as Left;
+\import \root.RealLine[].RiemannComparison[interval := interval, f := g] \as Right;
+\import \root.RealLine[].LebesgueCriterion[interval := interval, f := f] \as LeftCriterion;
+\import \root.RealLine[].LebesgueCriterion[interval := interval, f := g] \as RightCriterion;
+\import integration.Real[] \as Integration;
+\import Integration.Riemann[interval := interval].Def[] \as Riemann;
+\import real.Analysis[] \as Real;
+\import Real.Distance[] \as Distance;
+\import Real.Estimates[] \as Estimates;
+\import Real.Estimates[].Product[] \as Product;
+\import Real.Sequence[] \as Sequence;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import functional_analysis.Measure[A := Real.Real] \as Measure;
+\import Measure.Sigma[] \as Sigma;
+\import Measure.AlmostEverywhere[mu := Line.measure] \as AE;
+\import Measure.Integral[mu := Line.measure] \as Integral;
+\import Integral.Linear[] \as Linear;
+\import Integral.Negation[] \as Negation;
+\import Integral.Absolute[] \as Absolute;
+\import topology.Topology[Carrier := Real.Real] \as Sets;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.trans;
+\use Equality.eq_reason_in;
+\definition function[x: Real.Real]: Real.Real := Real.distance (f.function x) (g.function x);
+\import \root.RealLine[].AlmostContinuous[interval := interval, func := function] \as Approx;
+\definition distanceChanges: \forall (a, b, c, d: Real.Real) -> R.Le (Real.distance (Real.distance a b) (Real.distance c d))
+  (Real.add (Real.distance a c) (Real.distance b d)) :=
+  \fun (a, b, c, d: Real.Real) => \block {
+    \let first: R.Le (Real.distance (Real.distance a b) (Real.distance c b)) (Real.distance a c) :=
+      R.leReplaceLeft (Real.distance (Real.distance b a) (Real.distance b c)) (Real.distance (Real.distance a b) (Real.distance c b)) (Real.distance a c)
+        (congr!{Real.Real Real.Real Real.Real} Real.distance _ _ _ _ (Distance.distanceSymmetric b a) (Distance.distanceSymmetric b c))
+        (Estimates.distanceFromPoint b a c) \then
+    \let second: R.Le (Real.distance (Real.distance c b) (Real.distance c d)) (Real.distance b d) := Estimates.distanceFromPoint c b d \then
+    \return R.leTrans _ _ _ (Distance.distanceTriangle (Real.distance a b) (Real.distance c b) (Real.distance c d))
+      (Estimates.addLe _ _ _ _ first second)
+  };
+\definition continuous: \forall (x: Real.Real) -> Left.ContinuousAt x -> Right.ContinuousAt x -> Approx.ContinuousAt x :=
+  \fun (x: Real.Real) (fc: Left.ContinuousAt x) (gc: Right.ContinuousAt x) (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) => \block {
+    \let half: Real.Real := Real.mul Real.half epsilon \then
+    \let hp: R.Lt Real.zero half := Estimates.halfOfPositive epsilon positive \then
+    \takefrom df: \Cast[Real.Real] ({ d: Real.Real \where Logic.And[R.Lt Real.zero d, \forall (z: Real.Real) -> Sets.Member (Line.interval interval.left interval.right) z ->
+      R.Lt (Real.distance x z) d -> R.Lt (Real.distance (f.function z) (f.function x)) half] }) \by fc half hp \then
+    \takefrom dg: \Cast[Real.Real] ({ d: Real.Real \where Logic.And[R.Lt Real.zero d, \forall (z: Real.Real) -> Sets.Member (Line.interval interval.left interval.right) z ->
+      R.Lt (Real.distance x z) d -> R.Lt (Real.distance (g.function z) (g.function x)) half] }) \by gc half hp \then
+    \let fl: Logic.And[R.Lt Real.zero df, \forall (z: Real.Real) -> Sets.Member (Line.interval interval.left interval.right) z -> R.Lt (Real.distance x z) df -> R.Lt (Real.distance (f.function z) (f.function x)) half] :=
+      \bysub(Real.Real, { d: Real.Real \where Logic.And[R.Lt Real.zero d, \forall (z: Real.Real) -> Sets.Member (Line.interval interval.left interval.right) z -> R.Lt (Real.distance x z) d -> R.Lt (Real.distance (f.function z) (f.function x)) half] }, df) \then
+    \let gl: Logic.And[R.Lt Real.zero dg, \forall (z: Real.Real) -> Sets.Member (Line.interval interval.left interval.right) z -> R.Lt (Real.distance x z) dg -> R.Lt (Real.distance (g.function z) (g.function x)) half] :=
+      \bysub(Real.Real, { d: Real.Real \where Logic.And[R.Lt Real.zero d, \forall (z: Real.Real) -> Sets.Member (Line.interval interval.left interval.right) z -> R.Lt (Real.distance x z) d -> R.Lt (Real.distance (g.function z) (g.function x)) half] }, dg) \then
+    \let delta: Real.Real := Distance.min df dg \then
+    \return Logic.existsIntro[Real.Real, { d: Real.Real \where Logic.And[R.Lt Real.zero d, \forall (z: Real.Real) -> Sets.Member (Line.interval interval.left interval.right) z ->
+      R.Lt (Real.distance x z) d -> R.Lt (Real.distance (function z) (function x)) epsilon] }] delta
+      (Logic.And[_, _]::# (Product.minPositive df dg fl.left gl.left) (\fun (z: Real.Real) (inside: Sets.Member (Line.interval interval.left interval.right) z) (near: R.Lt (Real.distance x z) delta) =>
+        R.leLtTrans _ _ epsilon (distanceChanges (f.function z) (g.function z) (f.function x) (g.function x))
+          (R.ltReplaceRight _ (Real.add half half) epsilon (Estimates.halfTwice epsilon)
+            (Estimates.addLt _ _ _ _ (fl.right z inside (R.ltLeTrans _ delta df near (Distance.minLeft df dg)))
+              (gl.right z inside (R.ltLeTrans _ delta dg near (Distance.minRight df dg)))))))
+  };
+\definition discontinuitiesNull: Measure.Null Line.measure Approx.discontinuities :=
+  AE.nullSubset Approx.discontinuities (Sigma.pairUnion Left.discontinuities Right.discontinuities)
+    (\fun (x: Real.Real) (bad: Sets.Member Approx.discontinuities x) => Sigma.doubleNegative (Sets.Member (Sigma.pairUnion Left.discontinuities Right.discontinuities) x)
+      (\fun (none: Logic.Not (Sets.Member (Sigma.pairUnion Left.discontinuities Right.discontinuities) x)) => bad
+        (continuous x
+          (Sigma.doubleNegative (Left.ContinuousAt x) (\fun (notF: Logic.Not (Left.ContinuousAt x)) => none (Logic.Or[_, _]::left notF)))
+          (Sigma.doubleNegative (Right.ContinuousAt x) (\fun (notG: Logic.Not (Right.ContinuousAt x)) => none (Logic.Or[_, _]::right notG))))))
+    (AE.nullUnion Left.discontinuities Right.discontinuities LeftCriterion.discontinuitiesNull RightCriterion.discontinuitiesNull);
+\import Integration.Division[] \as Division;
+\import \root.RealLine[].TaggedIntegral[] \as Tagged;
+\import Integral.Scaling[] \as Scaling;
+\definition bounded: Riemann.Bounded function := \block {
+  \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where \forall (x: Real.Real) -> R.Le interval.left x -> R.Le x interval.right -> R.Le (Real.distance (f.function x) Real.zero) a }) \by f.hasIntegral.bounded \then
+  \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where \forall (x: Real.Real) -> R.Le interval.left x -> R.Le x interval.right -> R.Le (Real.distance (g.function x) Real.zero) b }) \by g.hasIntegral.bounded \then
+  \let af: \forall (x: Real.Real) -> R.Le interval.left x -> R.Le x interval.right -> R.Le (Real.distance (f.function x) Real.zero) a :=
+    \bysub(Real.Real, { a: Real.Real \where \forall (x: Real.Real) -> R.Le interval.left x -> R.Le x interval.right -> R.Le (Real.distance (f.function x) Real.zero) a }, a) \then
+  \let bg: \forall (x: Real.Real) -> R.Le interval.left x -> R.Le x interval.right -> R.Le (Real.distance (g.function x) Real.zero) b :=
+    \bysub(Real.Real, { b: Real.Real \where \forall (x: Real.Real) -> R.Le interval.left x -> R.Le x interval.right -> R.Le (Real.distance (g.function x) Real.zero) b }, b) \then
+  \return Logic.existsIntro[Real.Real, { c: Real.Real \where \forall (x: Real.Real) -> R.Le interval.left x -> R.Le x interval.right -> R.Le (Real.distance (function x) Real.zero) c }] (Real.add a b)
+    (\fun (x: Real.Real) (lo: R.Le interval.left x) (hi: R.Le x interval.right) =>
+      R.leTrans _ (Real.add (Real.distance (f.function x) Real.zero) (Real.distance (g.function x) Real.zero)) (Real.add a b)
+        (R.leTrans _ (function x) _
+          (R.leReplaceLeft (Product.abs (function x)) (Real.distance (function x) Real.zero) (function x) (Distance.distanceSymmetric Real.zero (function x))
+            (R.leReplaceLeft (function x) (Product.abs (function x)) (function x) (sym!{Real.Real} _ _ (Product.absOfNonnegative (function x) (Distance.distanceNonnegative (f.function x) (g.function x)))) (R.leRefl (function x))))
+          (R.leReplaceRight (function x) (Real.add (Real.distance (f.function x) Real.zero) (Real.distance Real.zero (g.function x)))
+            (Real.add (Real.distance (f.function x) Real.zero) (Real.distance (g.function x) Real.zero))
+            (congr!{Real.Real Real.Real} (Real.add (Real.distance (f.function x) Real.zero)) _ _ (Distance.distanceSymmetric Real.zero (g.function x)))
+            (Distance.distanceTriangle (f.function x) Real.zero (g.function x))))
+        (Estimates.addLe _ _ _ _ (af x lo hi) (bg x lo hi)))
+};
+\definition differenceRepresentative: Integral.Representatives := Linear.addRepresentative (Map.representative f) (Negation.representative (Map.representative g));
+\definition normRepresentative: Integral.Representatives := Absolute.representative differenceRepresentative;
+\definition normEqualsLimit: (\fun (x: Real.Real) => normRepresentative x) = Approx.limit := \axiom:funext((\fun (x: Real.Real) => normRepresentative x), Approx.limit,
+  \fun (x: Real.Real) => Logic.orElim (Sets.Member (Line.interval interval.left interval.right) x) (Logic.Not (Sets.Member (Line.interval interval.left interval.right) x))
+    (normRepresentative x = Approx.limit x) (Classical.excludedMiddle (Sets.Member (Line.interval interval.left interval.right) x))
+    (\fun (inside: Sets.Member (Line.interval interval.left interval.right) x) => \block {
+      \let left: Map.representative f x = f.function x := eq_reason_in!{Real.Real _
+        "=" _ "by" { congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.mul v (f.function x)) _ _ (Indicator.pointwiseInside x inside.left inside.right) }
+        "=" _ "by" { Laws.fieldMulOneLeft (f.function x) }
+      } \then
+      \let right: Map.representative g x = g.function x := eq_reason_in!{Real.Real _
+        "=" _ "by" { congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.mul v (g.function x)) _ _ (Indicator.pointwiseInside x inside.left inside.right) }
+        "=" _ "by" { Laws.fieldMulOneLeft (g.function x) }
+      } \then
+      \return eq_reason_in!{Real.Real _
+        "=" _ "by" { congr!{Real.Real Real.Real Real.Real} (\fun (a, b: Real.Real) => Product.abs (Real.sub a b)) _ _ _ _ left right }
+        "=" _ "by" { Distance.distanceSymmetric Real.zero (Real.sub (f.function x) (g.function x)) }
+        "=" _ "by" { Estimates.distanceDifference (f.function x) (g.function x) }
+        "=" _ "by" { sym!{Real.Real} _ _ (Approx.limitInside x inside) }
+      }
+    })
+    (\fun (outside: Logic.Not (Sets.Member (Line.interval interval.left interval.right) x)) => \block {
+      \let left: Map.representative f x = Real.zero := eq_reason_in!{Real.Real _
+        "=" _ "by" { congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.mul v (f.function x)) _ _ (Indicator.pointwiseOutside x outside) }
+        "=" _ "by" { Laws.fieldMulZeroLeft (f.function x) }
+      } \then
+      \let right: Map.representative g x = Real.zero := eq_reason_in!{Real.Real _
+        "=" _ "by" { congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.mul v (g.function x)) _ _ (Indicator.pointwiseOutside x outside) }
+        "=" _ "by" { Laws.fieldMulZeroLeft (g.function x) }
+      } \then
+      \return eq_reason_in!{Real.Real _
+        "=" _ "by" { congr!{Real.Real Real.Real Real.Real} (\fun (a, b: Real.Real) => Product.abs (Real.sub a b)) _ _ _ _ left right }
+        "=" _ "by" { congr!{Real.Real Real.Real} Product.abs _ _ (Laws.subSelf Real.zero) }
+        "=" _ "by" { Product.absOfNonnegative Real.zero (R.leRefl Real.zero) }
+        "=" _ "by" { sym!{Real.Real} _ _ (Approx.limitOutside x outside) }
+      }
+    }));
+\definition normConverges: Sequence.Converges (\fun (k: std.Data[].Nat[].Nat^) => Division.normSum f.function g.function (Division.leftTags k interval.left interval.right) interval.left interval.right)
+  (Integral.integral normRepresentative) := \block {
+  \takefrom h: \Cast[Integral.Representatives] ({ h: Integral.Representatives \where Logic.And[h = Approx.limit,
+    Sequence.Converges (\fun (k: std.Data[].Nat[].Nat^) => Integral.integral (Approx.sequence k)) (Integral.integral h)] })
+    \by Approx.agreement bounded discontinuitiesNull \then
+  \let data: Logic.And[h = Approx.limit, Sequence.Converges (\fun (k: std.Data[].Nat[].Nat^) => Integral.integral (Approx.sequence k)) (Integral.integral h)] :=
+    \bysub(Integral.Representatives, { h: Integral.Representatives \where Logic.And[h = Approx.limit,
+      Sequence.Converges (\fun (k: std.Data[].Nat[].Nat^) => Integral.integral (Approx.sequence k)) (Integral.integral h)] }, h) \then
+  \let has: Integral.HasIntegral[normRepresentative, Integral.integral h] := \idelim h = normRepresentative \with z: (Real.Real -> Real.Real) => Integral.HasIntegral[z, Integral.integral h]
+    \by { base: Integral.integralLaw h, equality: trans!{{Real.Real -> Real.Real}} _ _ _ data.left (sym!{{Real.Real -> Real.Real}} _ _ normEqualsLimit) } \then
+  \let equal: Integral.integral h = Integral.integral normRepresentative := Integral.integralUnique normRepresentative (Integral.integral h)
+    (Integral.integral normRepresentative) has (Integral.integralLaw normRepresentative) \then
+  \return \idelim (\fun (k: std.Data[].Nat[].Nat^) => Integral.integral (Approx.sequence k)) =
+    (\fun (k: std.Data[].Nat[].Nat^) => Division.normSum f.function g.function (Division.leftTags k interval.left interval.right) interval.left interval.right)
+    \with s: (std.Data[].Nat[].Nat^ -> Real.Real) => Sequence.Converges s (Integral.integral normRepresentative) \by {
+      base: \idelim Integral.integral h = Integral.integral normRepresentative \with v: Real.Real =>
+        Sequence.Converges (\fun (k: std.Data[].Nat[].Nat^) => Integral.integral (Approx.sequence k)) v \by { base: data.right, equality: equal },
+      equality: \axiom:funext((\fun (k: std.Data[].Nat[].Nat^) => Integral.integral (Approx.sequence k)),
+        (\fun (k: std.Data[].Nat[].Nat^) => Division.normSum f.function g.function (Division.leftTags k interval.left interval.right) interval.left interval.right),
+        \fun (k: std.Data[].Nat[].Nat^) => Tagged.taggedIntegral (Division.leftTags k interval.left interval.right) function interval) }
+};
+\import Sequence.Operations[] \as SequenceOps;
+\definition smallBound: \forall (epsilon: Real.Real) -> Riemann.SmallL1 f.function g.function epsilon ->
+  R.Le (Integral.integral normRepresentative) epsilon :=
+  \fun (epsilon: Real.Real) (small: Riemann.SmallL1 f.function g.function epsilon) => \block {
+    \takefrom threshold: \Cast[std.Data[].Nat[].Nat^] ({ n: std.Data[].Nat[].Nat^ \where Riemann.NormControl f.function g.function epsilon n }) \by small \then
+    \let control: Riemann.NormControl f.function g.function epsilon threshold :=
+      \bysub(std.Data[].Nat[].Nat^, { n: std.Data[].Nat[].Nat^ \where Riemann.NormControl f.function g.function epsilon n }, threshold) \then
+    \return SequenceOps.upperBoundLimit
+      (\fun (k: std.Data[].Nat[].Nat^) => Division.normSum f.function g.function (Division.leftTags k interval.left interval.right) interval.left interval.right)
+      (Integral.integral normRepresentative) epsilon threshold normConverges
+      (\fun (k: std.Data[].Nat[].Nat^) (later: _) => Order.leOfLt _ _
+        (control k later (Division.leftTags k interval.left interval.right) (Division.leftTagsLevel k interval.left interval.right)
+          (Division.leftTagsValid k interval.left interval.right interval.ordered)))
+  };
