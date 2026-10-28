@@ -1,0 +1,457 @@
+\import topological_algebra.Euclidean[].Dimension[n := n] \as Euclidean;
+\import functional_analysis.Measure[A := Euclidean.Point] \as Measure;
+\import topology.Topology[Carrier := Euclidean.Point] \as Sets;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import real.Analysis[] \as Real;
+\import real.Analysis[].Distance[] \as Distance;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Bool[] \as Bool;
+\import std.Logic[].Proposition[] \as Logic;
+
+\definition Point: \Set := Euclidean.Point;
+\definition product: \forall (k: N.Nat^) -> (Fin.Fin k -> Real.Real) -> Real.Real :=
+  \induction (k: N.Nat^) \return (Fin.Fin k -> Real.Real) -> Real.Real \with {
+    | zero: \fun (_: Fin.Fin N.Nat^::zero -> Real.Real) => Real.one
+    | succ: \fun (k: N.Nat^) (previous: (Fin.Fin k -> Real.Real) -> Real.Real) (f: Fin.Fin (N.Nat^::succ k) -> Real.Real) =>
+      Real.mul (f (Fin.zero k)) (previous (\fun (i: Fin.Fin k) => f (Fin.succ k i)))
+  };
+
+\structure Box: \Set := {
+  active: Bool.Bool^,
+  left: Fin.Fin n -> Real.Real,
+  right: Fin.Fin n -> Real.Real,
+  ordered: \forall (i: Fin.Fin n) -> R.Le (left i) (right i),
+};
+\definition points[b: Box]: \Pow Point := { x: Point \where
+  Logic.And[Bool.IsTrue b.active, \forall (i: Fin.Fin n) -> Logic.And[R.Le (b.left i) (x i), R.Le (x i) (b.right i)]] };
+\definition volume[b: Box]: Real.Real :=
+  \match b.active \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with {
+    | false: Real.zero
+    | true: product n (\fun (i: Fin.Fin n) => Real.sub (b.right i) (b.left i))
+  };
+\definition volumeValue[b: Box]: Measure.Value := { r: Real.Real \where R.Lt r (volume b) };
+\definition Covers[family: N.Nat^ -> Box, S: \Pow Point]: \Prop :=
+  \forall (x: Point) -> Sets.Member S x -> \exists ( k: N.Nat^ \where Sets.Member (points (family k)) x );
+\definition cost[family: N.Nat^ -> Box]: Measure.Value :=
+  Measure.series (\fun (k: N.Nat^) => volumeValue (family k));
+/* The rounded intersection is the infimum of the costs in lower-cut form. */
+\definition outer[S: \Pow Point]: Measure.Value := { r: Real.Real \where
+  \exists ( s: Real.Real \where Logic.And[R.Lt r s, \forall (family: N.Nat^ -> Box) -> Covers family S -> Measure.below (cost family) s] ) };
+\definition monotone: \forall (S, T: \Pow Point) -> Sets.Subset S T ->
+  \forall (r: Real.Real) -> Measure.below (outer S) r -> Measure.below (outer T) r :=
+  \fun (S, T: \Pow Point) (included: Sets.Subset S T) (r: Real.Real) (member: Measure.below (outer S) r) => \block {
+    \takefrom s: \Cast[Real.Real] ({ s: Real.Real \where Logic.And[R.Lt r s, \forall (family: N.Nat^ -> Box) -> Covers family S -> Measure.below (cost family) s] }) \by member \then
+    \let law: Logic.And[R.Lt r s, \forall (family: N.Nat^ -> Box) -> Covers family S -> Measure.below (cost family) s] :=
+      \bysub(Real.Real, { s: Real.Real \where Logic.And[R.Lt r s, \forall (family: N.Nat^ -> Box) -> Covers family S -> Measure.below (cost family) s] }, s) \then
+    \return Logic.existsIntro[Real.Real, { s: Real.Real \where Logic.And[R.Lt r s, \forall (family: N.Nat^ -> Box) -> Covers family T -> Measure.below (cost family) s] }] s
+      (Logic.And[_, _]::# law.left (\fun (family: N.Nat^ -> Box) (cover: Covers family T) =>
+        law.right family (\fun (x: Point) (inS: Sets.Member S x) => cover x (included x inS))))
+  };
+
+\import R.Order[] \as Order;
+\import Measure.ValueLaws[] \as Values;
+\definition productNonnegative: \forall (k: N.Nat^) (f: Fin.Fin k -> Real.Real) ->
+  (\forall (i: Fin.Fin k) -> R.Le Real.zero (f i)) -> R.Le Real.zero (product k f) :=
+  \induction (k: N.Nat^) \return \forall (f: Fin.Fin k -> Real.Real) ->
+    (\forall (i: Fin.Fin k) -> R.Le Real.zero (f i)) -> R.Le Real.zero (product k f) \with {
+    | zero: \fun (_: _) (_: _) => Laws.oneNonnegative
+    | succ: \fun (k: N.Nat^) (previous: _) (f: _) (nonnegative: _) =>
+      Laws.fieldMulNonnegative (f (Fin.zero k)) (product k (\fun (i: Fin.Fin k) => f (Fin.succ k i)))
+        (nonnegative (Fin.zero k)) (previous (\fun (i: Fin.Fin k) => f (Fin.succ k i)) (\fun (i: Fin.Fin k) => nonnegative (Fin.succ k i)))
+  };
+\definition volumeNonnegative: \forall (b: Box) -> R.Le Real.zero (volume b) :=
+  \fun (b: Box) => Bool.cases (\fun (a: Bool.Bool^) => R.Le Real.zero
+    (\match a \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with {
+      | false: Real.zero
+      | true: product n (\fun (i: Fin.Fin n) => Real.sub (b.right i) (b.left i))
+    })) (R.leRefl Real.zero)
+    (productNonnegative n (\fun (i: Fin.Fin n) => Real.sub (b.right i) (b.left i))
+      (\fun (i: Fin.Fin n) => Distance.subNonnegative (b.right i) (b.left i) (b.ordered i))) b.active;
+\definition outerNonnegative: \forall (S: \Pow Point) -> Measure.NonnegativeValue[outer S] :=
+  \fun (S: \Pow Point) => Measure.NonnegativeValue[outer S] {
+    negative := \fun (r: Real.Real) (negative: R.Lt r Real.zero) => \block {
+      \let s: Real.Real := Real.midpoint r Real.zero \then
+      \return Logic.existsIntro[Real.Real, { s: Real.Real \where Logic.And[R.Lt r s, \forall (family: N.Nat^ -> Box) -> Covers family S -> Measure.below (cost family) s] }] s
+        (Logic.And[_, _]::# (Values.midpointStrictLeft r Real.zero negative)
+          (\fun (family: N.Nat^ -> Box) (_: Covers family S) =>
+            Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Measure.below (Measure.partialSum (\fun (j: N.Nat^) => volumeValue (family j)) k) s }] N.Nat^::zero
+              (Values.midpointStrictRight r Real.zero negative)))
+    },
+    downward := \fun (r, s: Real.Real) (less: R.Lt r s) (member: Measure.below (outer S) s) => \block {
+      \takefrom t: \Cast[Real.Real] ({ t: Real.Real \where Logic.And[R.Lt s t, \forall (family: N.Nat^ -> Box) -> Covers family S -> Measure.below (cost family) t] }) \by member \then
+      \let law: Logic.And[R.Lt s t, \forall (family: N.Nat^ -> Box) -> Covers family S -> Measure.below (cost family) t] :=
+        \bysub(Real.Real, { t: Real.Real \where Logic.And[R.Lt s t, \forall (family: N.Nat^ -> Box) -> Covers family S -> Measure.below (cost family) t] }, t) \then
+      \return Logic.existsIntro[Real.Real, { t: Real.Real \where Logic.And[R.Lt r t, \forall (family: N.Nat^ -> Box) -> Covers family S -> Measure.below (cost family) t] }] t
+        (Logic.And[_, _]::# (Order.ltTrans r s t less law.left) law.right)
+    },
+    rounded := \fun (r: Real.Real) (member: Measure.below (outer S) r) => \block {
+      \takefrom t: \Cast[Real.Real] ({ t: Real.Real \where Logic.And[R.Lt r t, \forall (family: N.Nat^ -> Box) -> Covers family S -> Measure.below (cost family) t] }) \by member \then
+      \let law: Logic.And[R.Lt r t, \forall (family: N.Nat^ -> Box) -> Covers family S -> Measure.below (cost family) t] :=
+        \bysub(Real.Real, { t: Real.Real \where Logic.And[R.Lt r t, \forall (family: N.Nat^ -> Box) -> Covers family S -> Measure.below (cost family) t] }, t) \then
+      \let s: Real.Real := Real.midpoint r t \then
+      \return Logic.existsIntro[Real.Real, { s: Real.Real \where Logic.And[R.Lt r s, Measure.below (outer S) s] }] s
+        (Logic.And[_, _]::# (Values.midpointStrictLeft r t law.left)
+          (Logic.existsIntro[Real.Real, { u: Real.Real \where Logic.And[R.Lt s u, \forall (family: N.Nat^ -> Box) -> Covers family S -> Measure.below (cost family) u] }] t
+            (Logic.And[_, _]::# (Values.midpointStrictRight r t law.left) law.right)))
+    },
+  };
+
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].congr;
+\definition emptyBox: Box := Box {
+  active := Bool.Bool^::false,
+  left := \fun (_: Fin.Fin n) => Real.zero,
+  right := \fun (_: Fin.Fin n) => Real.zero,
+  ordered := \fun (_: Fin.Fin n) => R.leRefl Real.zero,
+};
+\definition emptyFamily: N.Nat^ -> Box := \fun (_: N.Nat^) => emptyBox;
+\definition emptyCover: Covers emptyFamily Sets.Empty :=
+  \fun (_: Point) (member: Logic.False) => Logic.falseElim _ member;
+\definition emptyPartial: \forall (k: N.Nat^) ->
+  Measure.partialSum (\fun (_: N.Nat^) => Measure.zero) k = Measure.zero :=
+  \induction (k: N.Nat^) \return Measure.partialSum (\fun (_: N.Nat^) => Measure.zero) k = Measure.zero \with {
+    | zero: \refl(Measure.zero)
+    | succ: \fun (k: N.Nat^) (previous: _) => eq_reason_in!{Measure.Value _
+      "=" _ "by" { congr!{Measure.Value Measure.Value} (\fun (v: Measure.Value) => Measure.add v Measure.zero) _ _ previous }
+      "=" _ "by" { Values.addZero Measure.zero Values.zeroNonnegative }
+    }
+  };
+\definition emptyCost: cost emptyFamily = Measure.zero :=
+  \axiom:setext(cost emptyFamily, Measure.zero,
+    \fun (r: Real.Real) (member: Measure.below (cost emptyFamily) r) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Measure.below (Measure.partialSum (\fun (_: N.Nat^) => Measure.zero) k) r }) \by member \then
+      \return \idelim Measure.partialSum (\fun (_: N.Nat^) => Measure.zero) k = Measure.zero \with v: Measure.Value => Measure.below v r
+        \by { base: \bysub(N.Nat^, { k: N.Nat^ \where Measure.below (Measure.partialSum (\fun (_: N.Nat^) => Measure.zero) k) r }, k), equality: emptyPartial k }
+    },
+    \fun (r: Real.Real) (member: Measure.below Measure.zero r) =>
+      Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Measure.below (Measure.partialSum (\fun (_: N.Nat^) => Measure.zero) k) r }] N.Nat^::zero member);
+\definition outerEmpty: outer Sets.Empty = Measure.zero :=
+  \axiom:setext(outer Sets.Empty, Measure.zero,
+    \fun (r: Real.Real) (member: Measure.below (outer Sets.Empty) r) => \block {
+      \takefrom s: \Cast[Real.Real] ({ s: Real.Real \where Logic.And[R.Lt r s, \forall (family: N.Nat^ -> Box) -> Covers family Sets.Empty -> Measure.below (cost family) s] }) \by member \then
+      \let law: Logic.And[R.Lt r s, \forall (family: N.Nat^ -> Box) -> Covers family Sets.Empty -> Measure.below (cost family) s] :=
+        \bysub(Real.Real, { s: Real.Real \where Logic.And[R.Lt r s, \forall (family: N.Nat^ -> Box) -> Covers family Sets.Empty -> Measure.below (cost family) s] }, s) \then
+      \let negative: R.Lt s Real.zero := \idelim cost emptyFamily = Measure.zero \with v: Measure.Value => Measure.below v s
+        \by { base: law.right emptyFamily emptyCover, equality: emptyCost } \then
+      \return Order.ltTrans r s Real.zero law.left negative
+    },
+    \fun (r: Real.Real) (negative: R.Lt r Real.zero) => (outerNonnegative Sets.Empty).negative r negative);
+
+\definition volumeValueNonnegative: \forall (b: Box) -> Measure.NonnegativeValue[volumeValue b] :=
+  \fun (b: Box) => Measure.NonnegativeValue[volumeValue b] {
+    negative := \fun (r: Real.Real) (negative: R.Lt r Real.zero) => R.ltLeTrans r Real.zero (volume b) negative (volumeNonnegative b),
+    downward := \fun (r, s: Real.Real) (less: R.Lt r s) (member: R.Lt s (volume b)) => Order.ltTrans r s (volume b) less member,
+    rounded := \fun (r: Real.Real) (member: R.Lt r (volume b)) =>
+      Logic.existsIntro[Real.Real, { s: Real.Real \where Logic.And[R.Lt r s, Measure.below (volumeValue b) s] }] (Real.midpoint r (volume b))
+        (Logic.And[_, _]::# (Values.midpointStrictLeft r (volume b) member) (Values.midpointStrictRight r (volume b) member)),
+  };
+\definition partialNonnegative: \forall (f: N.Nat^ -> Measure.Value) ->
+  (\forall (k: N.Nat^) -> Measure.NonnegativeValue[f k]) -> \forall (k: N.Nat^) -> Measure.NonnegativeValue[Measure.partialSum f k] :=
+  \fun (f: N.Nat^ -> Measure.Value) (nonnegative: \forall (k: N.Nat^) -> Measure.NonnegativeValue[f k]) =>
+    \induction (k: N.Nat^) \return Measure.NonnegativeValue[Measure.partialSum f k] \with {
+      | zero: Values.zeroNonnegative
+      | succ: \fun (k: N.Nat^) (previous: _) => Values.addNonnegative (Measure.partialSum f k) (f k) previous (nonnegative k)
+    };
+\definition seriesNonnegative: \forall (f: N.Nat^ -> Measure.Value) ->
+  (\forall (k: N.Nat^) -> Measure.NonnegativeValue[f k]) -> Measure.NonnegativeValue[Measure.series f] :=
+  \fun (f: N.Nat^ -> Measure.Value) (nonnegative: \forall (k: N.Nat^) -> Measure.NonnegativeValue[f k]) => Measure.NonnegativeValue[Measure.series f] {
+    negative := \fun (r: Real.Real) (negative: R.Lt r Real.zero) =>
+      Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Measure.below (Measure.partialSum f k) r }] N.Nat^::zero negative,
+    downward := \fun (r, s: Real.Real) (less: R.Lt r s) (member: Measure.below (Measure.series f) s) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Measure.below (Measure.partialSum f k) s }) \by member \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Measure.below (Measure.partialSum f k) r }] k
+        ((partialNonnegative f nonnegative k).downward r s less (\bysub(N.Nat^, { k: N.Nat^ \where Measure.below (Measure.partialSum f k) s }, k)))
+    },
+    rounded := \fun (r: Real.Real) (member: Measure.below (Measure.series f) r) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Measure.below (Measure.partialSum f k) r }) \by member \then
+      \takefrom s: \Cast[Real.Real] ({ s: Real.Real \where Logic.And[R.Lt r s, Measure.below (Measure.partialSum f k) s] })
+        \by (partialNonnegative f nonnegative k).rounded r (\bysub(N.Nat^, { k: N.Nat^ \where Measure.below (Measure.partialSum f k) r }, k)) \then
+      \let law: Logic.And[R.Lt r s, Measure.below (Measure.partialSum f k) s] :=
+        \bysub(Real.Real, { s: Real.Real \where Logic.And[R.Lt r s, Measure.below (Measure.partialSum f k) s] }, s) \then
+      \return Logic.existsIntro[Real.Real, { s: Real.Real \where Logic.And[R.Lt r s, Measure.below (Measure.series f) s] }] s
+        (Logic.And[_, _]::# law.left (Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Measure.below (Measure.partialSum f k) s }] k law.right))
+    },
+  };
+\definition costNonnegative: \forall (family: N.Nat^ -> Box) -> Measure.NonnegativeValue[cost family] :=
+  \fun (family: N.Nat^ -> Box) => seriesNonnegative (\fun (k: N.Nat^) => volumeValue (family k))
+    (\fun (k: N.Nat^) => volumeValueNonnegative (family k));
+\definition boundedByCover: \forall (S: \Pow Point) (family: N.Nat^ -> Box) -> Covers family S ->
+  Values.Included (outer S) (cost family) :=
+  \fun (S: \Pow Point) (family: N.Nat^ -> Box) (cover: Covers family S) (r: Real.Real) (member: Measure.below (outer S) r) => \block {
+    \takefrom s: \Cast[Real.Real] ({ s: Real.Real \where Logic.And[R.Lt r s, \forall (other: N.Nat^ -> Box) -> Covers other S -> Measure.below (cost other) s] }) \by member \then
+    \let law: Logic.And[R.Lt r s, \forall (other: N.Nat^ -> Box) -> Covers other S -> Measure.below (cost other) s] :=
+      \bysub(Real.Real, { s: Real.Real \where Logic.And[R.Lt r s, \forall (other: N.Nat^ -> Box) -> Covers other S -> Measure.below (cost other) s] }, s) \then
+    \return (costNonnegative family).downward r s law.left (law.right family cover)
+  };
+
+\import Measure.SeriesLaws[] \as Series;
+\use std.Logic[].Equality[].sym;
+\definition singleFamily[b: Box]: N.Nat^ -> Box :=
+  \induction (k: N.Nat^) \return Box \with {
+    | zero: b
+    | succ: \fun (_: N.Nat^) (_: Box) => emptyBox
+  };
+\definition singleCovers: \forall (b: Box) -> Covers (singleFamily b) (points b) :=
+  \fun (b: Box) (x: Point) (member: Sets.Member (points b) x) =>
+    Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (points (singleFamily b k)) x }] N.Nat^::zero member;
+\definition singleValues: \forall (b: Box) (k: N.Nat^) ->
+  volumeValue (singleFamily b k) = Series.pair (volumeValue b) Measure.zero k :=
+  \fun (b: Box) => \induction (k: N.Nat^) \return
+    volumeValue (singleFamily b k) = Series.pair (volumeValue b) Measure.zero k \with {
+      | zero: \refl(volumeValue b)
+      | succ: \fun (k: N.Nat^) (_: _) => (\induction (k: N.Nat^) \return
+        volumeValue (singleFamily b (N.Nat^::succ k)) = Series.pair (volumeValue b) Measure.zero (N.Nat^::succ k) \with {
+          | zero: \refl(Measure.zero)
+          | succ: \fun (_: N.Nat^) (_: _) => \refl(Measure.zero)
+        }) k
+    };
+\definition singleCost: \forall (b: Box) -> cost (singleFamily b) = volumeValue b :=
+  \fun (b: Box) => eq_reason_in!{Measure.Value _
+    "=" _ "by" { congr!{{N.Nat^ -> Measure.Value} Measure.Value} Measure.series _ _ (\axiom:funext((\fun (k: N.Nat^) => volumeValue (singleFamily b k)), Series.pair (volumeValue b) Measure.zero, singleValues b)) }
+    "=" _ "by" { Series.pairSeries (volumeValue b) Measure.zero (volumeValueNonnegative b) Values.zeroNonnegative }
+    "=" _ "by" { Values.addZero (volumeValue b) (volumeValueNonnegative b) }
+  };
+\definition boxUpper: \forall (b: Box) -> Values.Included (outer (points b)) (volumeValue b) :=
+  \fun (b: Box) (r: Real.Real) (member: Measure.below (outer (points b)) r) =>
+    \idelim cost (singleFamily b) = volumeValue b \with v: Measure.Value => Measure.below v r
+      \by { base: boundedByCover (points b) (singleFamily b) (singleCovers b) r member, equality: singleCost b };
+\definition greatestLowerBound: \forall (S: \Pow Point) (v: Measure.Value) -> Measure.NonnegativeValue[v] ->
+  (\forall (family: N.Nat^ -> Box) -> Covers family S -> Values.Included v (cost family)) -> Values.Included v (outer S) :=
+  \fun (S: \Pow Point) (v: Measure.Value) (valid: Measure.NonnegativeValue[v])
+    (bound: \forall (family: N.Nat^ -> Box) -> Covers family S -> Values.Included v (cost family))
+    (r: Real.Real) (member: Measure.below v r) => \block {
+      \takefrom s: \Cast[Real.Real] ({ s: Real.Real \where Logic.And[R.Lt r s, Measure.below v s] }) \by valid.rounded r member \then
+      \let law: Logic.And[R.Lt r s, Measure.below v s] :=
+        \bysub(Real.Real, { s: Real.Real \where Logic.And[R.Lt r s, Measure.below v s] }, s) \then
+      \return Logic.existsIntro[Real.Real, { s: Real.Real \where Logic.And[R.Lt r s, \forall (family: N.Nat^ -> Box) -> Covers family S -> Measure.below (cost family) s] }] s
+        (Logic.And[_, _]::# law.left (\fun (family: N.Nat^ -> Box) (cover: Covers family S) => bound family cover s law.right))
+    };
+
+\import real.Analysis[].Estimates[] \as Estimates;
+\definition productCongruent: \forall (k: N.Nat^) (f, g: Fin.Fin k -> Real.Real) ->
+  (\forall (i: Fin.Fin k) -> f i = g i) -> product k f = product k g :=
+  \induction (k: N.Nat^) \return \forall (f, g: Fin.Fin k -> Real.Real) ->
+    (\forall (i: Fin.Fin k) -> f i = g i) -> product k f = product k g \with {
+    | zero: \fun (_: _) (_: _) (_: _) => \refl(Real.one)
+    | succ: \fun (k: N.Nat^) (previous: _) (f, g: _) (same: _) =>
+      congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (same (Fin.zero k))
+        (previous (\fun (i: Fin.Fin k) => f (Fin.succ k i)) (\fun (i: Fin.Fin k) => g (Fin.succ k i)) (\fun (i: Fin.Fin k) => same (Fin.succ k i)))
+  };
+\definition translate[b: Box] [a: Point]: Box := Box {
+  active := b.active,
+  left := \fun (i: Fin.Fin n) => Real.add (b.left i) (a i),
+  right := \fun (i: Fin.Fin n) => Real.add (b.right i) (a i),
+  ordered := \fun (i: Fin.Fin n) => Laws.addMonotoneRight (b.left i) (b.right i) (a i) (b.ordered i),
+};
+\definition translatedWidth: \forall (x, y, a: Real.Real) ->
+  Real.sub (Real.add x a) (Real.add y a) = Real.sub x y :=
+  \fun (x, y, a: Real.Real) => eq_reason_in!{Real.Real _
+    "=" _ "by" { Estimates.subAdd x a y a }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (z: Real.Real) => Real.add (Real.sub x y) z) _ _ (Laws.subSelf a) }
+    "=" _ "by" { Laws.addZeroRight (Real.sub x y) }
+  };
+\definition translateVolume: \forall (b: Box) (a: Point) -> volume (translate b a) = volume b :=
+  \fun (b: Box) (a: Point) => Bool.cases (\fun (active: Bool.Bool^) =>
+    (\match active \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with {
+      | false: Real.zero
+      | true: product n (\fun (i: Fin.Fin n) => Real.sub (Real.add (b.right i) (a i)) (Real.add (b.left i) (a i)))
+    }) =
+    (\match active \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with {
+      | false: Real.zero
+      | true: product n (\fun (i: Fin.Fin n) => Real.sub (b.right i) (b.left i))
+    })) (\refl(Real.zero))
+    (productCongruent n (\fun (i: Fin.Fin n) => Real.sub (Real.add (b.right i) (a i)) (Real.add (b.left i) (a i)))
+      (\fun (i: Fin.Fin n) => Real.sub (b.right i) (b.left i)) (\fun (i: Fin.Fin n) => translatedWidth (b.right i) (b.left i) (a i))) b.active;
+
+\definition addPoint[x, a: Point]: Point := \fun (i: Fin.Fin n) => Real.add (x i) (a i);
+\definition subPoint[x, a: Point]: Point := \fun (i: Fin.Fin n) => Real.sub (x i) (a i);
+\definition shifted[S: \Pow Point] [a: Point]: \Pow Point :=
+  { y: Point \where Sets.Member S (subPoint y a) };
+\definition translatedMember: \forall (b: Box) (a, x: Point) -> Sets.Member (points b) x ->
+  Sets.Member (points (translate b a)) (addPoint x a) :=
+  \fun (b: Box) (a, x: Point) (member: Sets.Member (points b) x) =>
+    Logic.And[_, _]::# member.left (\fun (i: Fin.Fin n) =>
+      Logic.And[_, _]::# (Laws.addMonotoneRight (b.left i) (x i) (a i) (member.right i).left)
+        (Laws.addMonotoneRight (x i) (b.right i) (a i) (member.right i).right));
+\definition subAddPoint: \forall (x, a: Point) -> addPoint (subPoint x a) a = x :=
+  \fun (x, a: Point) => \axiom:funext(addPoint (subPoint x a) a, x,
+    \fun (i: Fin.Fin n) => Distance.subAddCancel (x i) (a i));
+\definition translatedCovers: \forall (family: N.Nat^ -> Box) (S: \Pow Point) (a: Point) -> Covers family S ->
+  Covers (\fun (k: N.Nat^) => translate (family k) a) (shifted S a) :=
+  \fun (family: N.Nat^ -> Box) (S: \Pow Point) (a: Point) (cover: Covers family S)
+    (x: Point) (member: Sets.Member (shifted S a) x) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sets.Member (points (family k)) (subPoint x a) }) \by cover (subPoint x a) member \then
+      \let inside: Sets.Member (points (family k)) (subPoint x a) :=
+        \bysub(N.Nat^, { k: N.Nat^ \where Sets.Member (points (family k)) (subPoint x a) }, k) \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (points (translate (family k) a)) x }] k
+        (\idelim addPoint (subPoint x a) a = x \with y: Point => Sets.Member (points (translate (family k) a)) y
+          \by { base: translatedMember (family k) a (subPoint x a) inside, equality: subAddPoint x a })
+    };
+\definition translatedCost: \forall (family: N.Nat^ -> Box) (a: Point) ->
+  cost (\fun (k: N.Nat^) => translate (family k) a) = cost family :=
+  \fun (family: N.Nat^ -> Box) (a: Point) => congr!{{N.Nat^ -> Measure.Value} Measure.Value} Measure.series _ _
+    (\axiom:funext((\fun (k: N.Nat^) => volumeValue (translate (family k) a)), (\fun (k: N.Nat^) => volumeValue (family k)),
+      \fun (k: N.Nat^) => congr!{Real.Real Measure.Value} (\fun (v: Real.Real) => { r: Real.Real \where R.Lt r v }) _ _ (translateVolume (family k) a)));
+\definition shiftedUpper: \forall (S: \Pow Point) (a: Point) -> Values.Included (outer (shifted S a)) (outer S) :=
+  \fun (S: \Pow Point) (a: Point) => greatestLowerBound S (outer (shifted S a)) (outerNonnegative (shifted S a))
+    (\fun (family: N.Nat^ -> Box) (cover: Covers family S) (r: Real.Real) (member: Measure.below (outer (shifted S a)) r) =>
+      \idelim cost (\fun (k: N.Nat^) => translate (family k) a) = cost family \with v: Measure.Value => Measure.below v r
+        \by { base: boundedByCover (shifted S a) (\fun (k: N.Nat^) => translate (family k) a) (translatedCovers family S a cover) r member,
+          equality: translatedCost family a });
+
+\import real.Analysis[].Algebra[] \as Algebra;
+\definition negPoint[a: Point]: Point := \fun (i: Fin.Fin n) => Real.neg (a i);
+\definition subNegSubPoint: \forall (x, a: Point) -> subPoint (subPoint x (negPoint a)) a = x :=
+  \fun (x, a: Point) => \axiom:funext(subPoint (subPoint x (negPoint a)) a, x,
+    \fun (i: Fin.Fin n) => eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{Real.Real Real.Real} (\fun (z: Real.Real) => Real.sub z (a i)) _ _ (Algebra.subNeg (x i) (a i)) }
+      "=" _ "by" { Laws.addNegCancelRight (a i) (x i) }
+    });
+\definition shiftedBack: \forall (S: \Pow Point) (a: Point) -> shifted (shifted S a) (negPoint a) = S :=
+  \fun (S: \Pow Point) (a: Point) => \axiom:setext(shifted (shifted S a) (negPoint a), S,
+    \fun (x: Point) (member: Sets.Member (shifted (shifted S a) (negPoint a)) x) =>
+      \idelim subPoint (subPoint x (negPoint a)) a = x \with y: Point => Sets.Member S y
+        \by { base: member, equality: subNegSubPoint x a },
+    \fun (x: Point) (member: Sets.Member S x) =>
+      \idelim x = subPoint (subPoint x (negPoint a)) a \with y: Point => Sets.Member S y
+        \by { base: member, equality: sym!{Point} _ _ (subNegSubPoint x a) });
+\definition translationInvariant: \forall (S: \Pow Point) (a: Point) -> outer (shifted S a) = outer S :=
+  \fun (S: \Pow Point) (a: Point) => \axiom:setext(outer (shifted S a), outer S,
+    shiftedUpper S a,
+    \fun (r: Real.Real) (member: Measure.below (outer S) r) =>
+      shiftedUpper (shifted S a) (negPoint a) r
+        (\idelim outer S = outer (shifted (shifted S a) (negPoint a)) \with v: Measure.Value => Measure.below v r
+          \by { base: member, equality: sym!{Measure.Value} _ _ (congr!{{\Pow Point} Measure.Value} outer _ _ (shiftedBack S a)) }));
+
+\import Measure.Sigma[] \as Sigma;
+\definition Caratheodory[S: \Pow Point]: \Prop := \forall (T: \Pow Point) ->
+  outer T = Measure.add (outer (Sets.Intersection T S)) (outer (Sets.Intersection T (Sets.Complement S)));
+\definition doubleComplementIntersection: \forall (T, S: \Pow Point) ->
+  Sets.Intersection T (Sets.Complement (Sets.Complement S)) = Sets.Intersection T S :=
+  \fun (T, S: \Pow Point) => \axiom:setext(Sets.Intersection T (Sets.Complement (Sets.Complement S)), Sets.Intersection T S,
+    \fun (x: Point) (member: Sets.Member (Sets.Intersection T (Sets.Complement (Sets.Complement S))) x) =>
+      Logic.And[_, _]::# member.left (Sigma.doubleNegative (Sets.Member S x) member.right),
+    \fun (x: Point) (member: Sets.Member (Sets.Intersection T S) x) =>
+      Logic.And[_, _]::# member.left (\fun (outside: Sets.Member (Sets.Complement S) x) => outside member.right));
+\definition complementCaratheodory: \forall (S: \Pow Point) -> Caratheodory S -> Caratheodory (Sets.Complement S) :=
+  \fun (S: \Pow Point) (measurable: Caratheodory S) (T: \Pow Point) => eq_reason_in!{Measure.Value _
+    "=" _ "by" { measurable T }
+    "=" _ "by" { Values.addComm (outer (Sets.Intersection T S)) (outer (Sets.Intersection T (Sets.Complement S))) }
+    "=" _ "by" { congr!{Measure.Value Measure.Value} (Measure.add (outer (Sets.Intersection T (Sets.Complement S)))) _ _
+      (congr!{{\Pow Point} Measure.Value} outer _ _ (sym!{{\Pow Point}} _ _ (doubleComplementIntersection T S))) }
+  };
+\definition intersectionEmpty: \forall (T: \Pow Point) -> Sets.Intersection T Sets.Empty = Sets.Empty :=
+  \fun (T: \Pow Point) => \axiom:setext(Sets.Intersection T Sets.Empty, Sets.Empty,
+    \fun (x: Point) (member: Sets.Member (Sets.Intersection T Sets.Empty) x) => member.right,
+    \fun (x: Point) (member: Logic.False) => Logic.falseElim _ member);
+\definition intersectionComplementEmpty: \forall (T: \Pow Point) -> Sets.Intersection T (Sets.Complement Sets.Empty) = T :=
+  \fun (T: \Pow Point) => \axiom:setext(Sets.Intersection T (Sets.Complement Sets.Empty), T,
+    \fun (x: Point) (member: Sets.Member (Sets.Intersection T (Sets.Complement Sets.Empty)) x) => member.left,
+    \fun (x: Point) (member: Sets.Member T x) => Logic.And[_, _]::# member (\fun (impossible: Logic.False) => impossible));
+\definition emptyCaratheodory: Caratheodory Sets.Empty :=
+  \fun (T: \Pow Point) => sym!{Measure.Value} _ _ (eq_reason_in!{Measure.Value _
+    "=" _ "by" { congr!{Measure.Value Measure.Value Measure.Value} Measure.add _ _ _ _
+      (congr!{{\Pow Point} Measure.Value} outer _ _ (intersectionEmpty T))
+      (congr!{{\Pow Point} Measure.Value} outer _ _ (intersectionComplementEmpty T)) }
+    "=" _ "by" { congr!{Measure.Value Measure.Value} (\fun (v: Measure.Value) => Measure.add v (outer T)) _ _ outerEmpty }
+    "=" _ "by" { Series.zeroAdd (outer T) (outerNonnegative T) }
+  });
+
+\definition unionIntersectLeft: \forall (S, T: \Pow Point) -> Sets.Intersection (Sigma.pairUnion S T) S = S :=
+  \fun (S, T: \Pow Point) => \axiom:setext(Sets.Intersection (Sigma.pairUnion S T) S, S,
+    \fun (x: Point) (member: Sets.Member (Sets.Intersection (Sigma.pairUnion S T) S) x) => member.right,
+    \fun (x: Point) (member: Sets.Member S x) => Logic.And[_, _]::# (Logic.Or[_, _]::left member) member);
+\definition disjointUnionDifference: \forall (S, T: \Pow Point) -> Sets.Disjoint S T ->
+  Sets.Intersection (Sigma.pairUnion S T) (Sets.Complement S) = T :=
+  \fun (S, T: \Pow Point) (disjoint: Sets.Disjoint S T) =>
+    \axiom:setext(Sets.Intersection (Sigma.pairUnion S T) (Sets.Complement S), T,
+      \fun (x: Point) (member: Sets.Member (Sets.Intersection (Sigma.pairUnion S T) (Sets.Complement S)) x) =>
+        Logic.orElim _ _ (Sets.Member T x) member.left
+          (\fun (inS: Sets.Member S x) => Logic.falseElim _ (member.right inS))
+          (\fun (inT: Sets.Member T x) => inT),
+      \fun (x: Point) (inT: Sets.Member T x) => Logic.And[_, _]::# (Logic.Or[_, _]::right inT)
+        (\fun (inS: Sets.Member S x) => disjoint x inS inT));
+\definition disjointAdditivity: \forall (S, T: \Pow Point) -> Caratheodory S -> Sets.Disjoint S T ->
+  outer (Sigma.pairUnion S T) = Measure.add (outer S) (outer T) :=
+  \fun (S, T: \Pow Point) (measurable: Caratheodory S) (disjoint: Sets.Disjoint S T) => eq_reason_in!{Measure.Value _
+    "=" _ "by" { measurable (Sigma.pairUnion S T) }
+    "=" _ "by" { congr!{Measure.Value Measure.Value Measure.Value} Measure.add _ _ _ _
+      (congr!{{\Pow Point} Measure.Value} outer _ _ (unionIntersectLeft S T))
+      (congr!{{\Pow Point} Measure.Value} outer _ _ (disjointUnionDifference S T disjoint)) }
+  };
+
+/* Every strict upper bound for the outer value admits a cover below it. */
+\definition approximateCover: \forall (S: \Pow Point) (r, s: Real.Real) -> R.Lt r s ->
+  Logic.Not (Measure.below (outer S) r) ->
+  \exists ( family: N.Nat^ -> Box \where Logic.And[Covers family S, Logic.Not (Measure.below (cost family) s)] ) :=
+  \fun (S: \Pow Point) (r, s: Real.Real) (less: R.Lt r s) (upper: Logic.Not (Measure.below (outer S) r)) =>
+    Sigma.doubleNegative (\exists ( family: N.Nat^ -> Box \where Logic.And[Covers family S, Logic.Not (Measure.below (cost family) s)] ))
+      (\fun (none: Logic.Not (\exists ( family: N.Nat^ -> Box \where Logic.And[Covers family S, Logic.Not (Measure.below (cost family) s)] ))) =>
+        upper (Logic.existsIntro[Real.Real, { t: Real.Real \where Logic.And[R.Lt r t, \forall (family: N.Nat^ -> Box) -> Covers family S -> Measure.below (cost family) t] }] s
+          (Logic.And[_, _]::# less (\fun (family: N.Nat^ -> Box) (cover: Covers family S) =>
+            Sigma.doubleNegative (Measure.below (cost family) s) (\fun (notBelow: Logic.Not (Measure.below (cost family) s)) =>
+              none (Logic.existsIntro[N.Nat^ -> Box, { family: N.Nat^ -> Box \where Logic.And[Covers family S, Logic.Not (Measure.below (cost family) s)] }] family
+                (Logic.And[_, _]::# cover notBelow)))))));
+
+\definition productMultiply: \forall (k: N.Nat^) (f, g: Fin.Fin k -> Real.Real) ->
+  product k (\fun (i: Fin.Fin k) => Real.mul (f i) (g i)) = Real.mul (product k f) (product k g) :=
+  \induction (k: N.Nat^) \return \forall (f, g: Fin.Fin k -> Real.Real) ->
+    product k (\fun (i: Fin.Fin k) => Real.mul (f i) (g i)) = Real.mul (product k f) (product k g) \with {
+    | zero: \fun (_: _) (_: _) => sym!{Real.Real} _ _ (Laws.fieldMulOneLeft Real.one)
+    | succ: \fun (k: N.Nat^) (previous: _) (f, g: _) => eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (Real.mul (f (Fin.zero k)) (g (Fin.zero k)))) _ _
+        (previous (\fun (i: Fin.Fin k) => f (Fin.succ k i)) (\fun (i: Fin.Fin k) => g (Fin.succ k i))) }
+      "=" _ "by" { Algebra.mulFour (f (Fin.zero k)) (g (Fin.zero k))
+        (product k (\fun (i: Fin.Fin k) => f (Fin.succ k i))) (product k (\fun (i: Fin.Fin k) => g (Fin.succ k i))) }
+    }
+  };
+\definition NonnegativePoint: \Set := \Cast[Point] ({ a: Point \where \forall (i: Fin.Fin n) -> R.Le Real.zero (a i) });
+\definition scaledBox[b: Box] [a: NonnegativePoint]: Box := Box {
+    active := b.active,
+    left := \fun (i: Fin.Fin n) => Real.mul (a i) (b.left i),
+    right := \fun (i: Fin.Fin n) => Real.mul (a i) (b.right i),
+    ordered := \fun (i: Fin.Fin n) => Estimates.mulMonotone (a i) (b.left i) (b.right i)
+      ((\bysub(Point, { a: Point \where \forall (i: Fin.Fin n) -> R.Le Real.zero (a i) }, a)) i) (b.ordered i),
+  };
+\definition scaledVolume: \forall (b: Box) (a: NonnegativePoint) ->
+  volume (scaledBox b a) = Real.mul (product n a) (volume b) :=
+  \fun (b: Box) (a: NonnegativePoint) => Bool.cases (\fun (active: Bool.Bool^) =>
+    (\match active \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with {
+      | false: Real.zero
+      | true: product n (\fun (i: Fin.Fin n) => Real.sub (Real.mul (a i) (b.right i)) (Real.mul (a i) (b.left i)))
+    }) = Real.mul (product n a)
+    (\match active \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with {
+      | false: Real.zero
+      | true: product n (\fun (i: Fin.Fin n) => Real.sub (b.right i) (b.left i))
+    })) (sym!{Real.Real} _ _ (Laws.fieldMulZeroRight (product n a)))
+    (eq_reason_in!{Real.Real _
+      "=" _ "by" { productCongruent n (\fun (i: Fin.Fin n) => Real.sub (Real.mul (a i) (b.right i)) (Real.mul (a i) (b.left i)))
+        (\fun (i: Fin.Fin n) => Real.mul (a i) (Real.sub (b.right i) (b.left i)))
+        (\fun (i: Fin.Fin n) => sym!{Real.Real} _ _ (Estimates.mulSub (a i) (b.right i) (b.left i))) }
+      "=" _ "by" { productMultiply n a (\fun (i: Fin.Fin n) => Real.sub (b.right i) (b.left i)) }
+    }) b.active;
+
+\definition partialMonotone: \forall (f, g: N.Nat^ -> Measure.Value) ->
+  (\forall (k: N.Nat^) -> Values.Included (f k) (g k)) ->
+  \forall (k: N.Nat^) -> Values.Included (Measure.partialSum f k) (Measure.partialSum g k) :=
+  \fun (f, g: N.Nat^ -> Measure.Value) (bound: \forall (k: N.Nat^) -> Values.Included (f k) (g k)) =>
+    \induction (k: N.Nat^) \return Values.Included (Measure.partialSum f k) (Measure.partialSum g k) \with {
+      | zero: \fun (_: Real.Real) (member: _) => member
+      | succ: \fun (k: N.Nat^) (previous: _) =>
+        Values.addMono (Measure.partialSum f k) (Measure.partialSum g k) (f k) (g k) previous (bound k)
+    };
+\definition seriesMonotone: \forall (f, g: N.Nat^ -> Measure.Value) ->
+  (\forall (k: N.Nat^) -> Values.Included (f k) (g k)) -> Values.Included (Measure.series f) (Measure.series g) :=
+  \fun (f, g: N.Nat^ -> Measure.Value) (bound: \forall (k: N.Nat^) -> Values.Included (f k) (g k))
+    (r: Real.Real) (member: Measure.below (Measure.series f) r) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Measure.below (Measure.partialSum f k) r }) \by member \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Measure.below (Measure.partialSum g k) r }] k
+        (partialMonotone f g bound k r (\bysub(N.Nat^, { k: N.Nat^ \where Measure.below (Measure.partialSum f k) r }, k)))
+    };
+\definition partialStep: \forall (f: N.Nat^ -> Measure.Value) ->
+  (\forall (k: N.Nat^) -> Measure.NonnegativeValue[f k]) ->
+  \forall (k: N.Nat^) -> Values.Included (Measure.partialSum f k) (Measure.partialSum f (N.Nat^::succ k)) :=
+  \fun (f: N.Nat^ -> Measure.Value) (nonnegative: \forall (k: N.Nat^) -> Measure.NonnegativeValue[f k]) (k: N.Nat^) =>
+    Series.pairLeftIncluded (Measure.partialSum f k) (f k) (partialNonnegative f nonnegative k) (nonnegative k);

@@ -1,0 +1,40 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Bool[] \as Bool;
+\import std.Logic[].Proposition[] \as Logic;
+\import \root.Euclidean[n := N.Nat^::succ k] \as Euclidean;
+\import topological_algebra.Euclidean[].Dimension[n := N.Nat^::succ k] \as Space;
+\import topology.Topology[Carrier := Space.Point] \as Sets;
+\import functional_analysis.Measure[A := Space.Point] \as Measure;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].sym;
+
+\definition singletonBox[x: Space.Point]: Euclidean.Box := Euclidean.Box {
+  active := Bool.Bool^::true,
+  left := x,
+  right := x,
+  ordered := \fun (i: Fin.Fin (N.Nat^::succ k)) => R.leRefl (x i),
+};
+\definition singletonIncluded: \forall (x: Space.Point) -> Sets.Subset (Sets.Singleton x) (Euclidean.points (singletonBox x)) :=
+  \fun (x, y: Space.Point) (same: y = x) => \idelim x = y \with z: Space.Point => Sets.Member (Euclidean.points (singletonBox x)) z
+    \by { base: Logic.And[_, _]::# (\refl(Bool.Bool^::true))
+      (\fun (i: Fin.Fin (N.Nat^::succ k)) => Logic.And[_, _]::# (R.leRefl (x i)) (R.leRefl (x i))),
+      equality: sym!{Space.Point} _ _ same };
+\definition singletonVolume: \forall (x: Space.Point) -> Euclidean.volume (singletonBox x) = Real.zero :=
+  \fun (x: Space.Point) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (z: Real.Real) => Real.mul z
+      (Euclidean.product k (\fun (i: Fin.Fin k) => Real.sub (x (Fin.succ k i)) (x (Fin.succ k i))))) _ _ (Laws.subSelf (x (Fin.zero k))) }
+    "=" _ "by" { Laws.fieldMulZeroLeft (Euclidean.product k (\fun (i: Fin.Fin k) => Real.sub (x (Fin.succ k i)) (x (Fin.succ k i)))) }
+  };
+\definition singletonNull: \forall (x: Space.Point) -> Euclidean.outer (Sets.Singleton x) = Measure.zero :=
+  \fun (x: Space.Point) => \axiom:setext(Euclidean.outer (Sets.Singleton x), Measure.zero,
+    \fun (r: Real.Real) (member: Measure.below (Euclidean.outer (Sets.Singleton x)) r) =>
+      \idelim Euclidean.volume (singletonBox x) = Real.zero \with v: Real.Real => R.Lt r v
+        \by { base: Euclidean.boxUpper (singletonBox x) r
+          (Euclidean.monotone (Sets.Singleton x) (Euclidean.points (singletonBox x)) (singletonIncluded x) r member),
+          equality: singletonVolume x },
+    \fun (r: Real.Real) (negative: R.Lt r Real.zero) => (Euclidean.outerNonnegative (Sets.Singleton x)).negative r negative);
