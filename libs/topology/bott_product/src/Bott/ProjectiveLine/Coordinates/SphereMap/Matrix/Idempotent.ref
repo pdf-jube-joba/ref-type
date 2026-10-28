@@ -1,0 +1,85 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\use Eq.eq_reason_in;
+\import \parent.Geometry[] \as Geometry;
+\definition product: \forall (s: Sphere.Sphere) -> C.Def[].mul (b s) (C.Def[].conj (b s)) = C.Def[].mul (a s) (d s) :=
+  \fun (s: Sphere.Sphere) => trans!{{C.Complex}} _ _ _ (C.Prop[].mulConjSelf (b s)) (sym!{{C.Complex}} _ _ (Geometry.determinant s));
+\definition zeroZero: \forall (s: Sphere.Sphere) -> C.Def[].add (C.Def[].mul (a s) (a s)) (C.Def[].mul (b s) (C.Def[].conj (b s))) = a s :=
+  \fun (s: Sphere.Sphere) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (C.Def[].add (C.Def[].mul (a s) (a s))) _ _ (product s) }
+    "=" _ "by" { sym!{{C.Complex}} _ _ (C.Prop[].mulAddLeft (a s) (a s) (d s)) }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (C.Def[].mul (a s)) _ _ (Geometry.diagonalSum s) }
+    "=" _ "by" { C.Prop[].mulOneRight (a s) }
+  };
+\definition oneOne: \forall (s: Sphere.Sphere) -> C.Def[].add (C.Def[].mul (C.Def[].conj (b s)) (b s)) (C.Def[].mul (d s) (d s)) = d s :=
+  \fun (s: Sphere.Sphere) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (\fun (z: C.Complex) => C.Def[].add z (C.Def[].mul (d s) (d s))) _ _
+      (trans!{{C.Complex}} _ _ _ (C.Prop[].mulComm (C.Def[].conj (b s)) (b s)) (product s)) }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (\fun (z: C.Complex) => C.Def[].add z (C.Def[].mul (d s) (d s))) _ _ (C.Prop[].mulComm (a s) (d s)) }
+    "=" _ "by" { sym!{{C.Complex}} _ _ (C.Prop[].mulAddLeft (d s) (a s) (d s)) }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (C.Def[].mul (d s)) _ _ (Geometry.diagonalSum s) }
+    "=" _ "by" { C.Prop[].mulOneRight (d s) }
+  };
+\definition offDiagonal: \forall (s: Sphere.Sphere)(z: C.Complex) -> C.Def[].add (C.Def[].mul (a s) z) (C.Def[].mul z (d s)) = z :=
+  \fun (s: Sphere.Sphere)(z: C.Complex) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (C.Def[].add (C.Def[].mul (a s) z)) _ _ (C.Prop[].mulComm z (d s)) }
+    "=" _ "by" { sym!{{C.Complex}} _ _ (C.Prop[].mulAddRight (a s) (d s) z) }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (\fun (w: C.Complex) => C.Def[].mul w z) _ _ (Geometry.diagonalSum s) }
+    "=" _ "by" { C.Prop[].mulOneLeft z }
+  };
+\definition productAt: \forall (s: Sphere.Sphere)(i, j: Fin.Fin two) -> M.product (matrix s) (matrix s) i j =
+  C.Def[].add (C.Def[].mul (matrix s i first) (matrix s first j)) (C.Def[].mul (matrix s i second) (matrix s second j)) :=
+  \fun (s: Sphere.Sphere)(i, j: Fin.Fin two) => congr!{{C.Complex} {C.Complex}} (C.Def[].add (C.Def[].mul (matrix s i first) (matrix s first j))) _ _
+    (C.Prop[].addZeroRight (C.Def[].mul (matrix s i second) (matrix s second j)));
+\definition at00Product: \forall (s: Sphere.Sphere) -> M.product (matrix s) (matrix s) first first = matrix s first first :=
+  \fun (s: Sphere.Sphere) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { productAt s first first }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex} {C.Complex}} C.Def[].add _ _ _ _
+      (congr!{{C.Complex} {C.Complex} {C.Complex}} C.Def[].mul _ _ _ _ (at00 s) (at00 s))
+      (congr!{{C.Complex} {C.Complex} {C.Complex}} C.Def[].mul _ _ _ _ (at01 s) (at10 s)) }
+    "=" _ "by" { zeroZero s }
+    "=" _ "by" { sym!{{C.Complex}} _ _ (at00 s) }
+  };
+\definition at01Product: \forall (s: Sphere.Sphere) -> M.product (matrix s) (matrix s) first second = matrix s first second :=
+  \fun (s: Sphere.Sphere) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { productAt s first second }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex} {C.Complex}} C.Def[].add _ _ _ _
+      (congr!{{C.Complex} {C.Complex} {C.Complex}} C.Def[].mul _ _ _ _ (at00 s) (at01 s))
+      (congr!{{C.Complex} {C.Complex} {C.Complex}} C.Def[].mul _ _ _ _ (at01 s) (at11 s)) }
+    "=" _ "by" { offDiagonal s (b s) }
+    "=" _ "by" { sym!{{C.Complex}} _ _ (at01 s) }
+  };
+\definition at10Product: \forall (s: Sphere.Sphere) -> M.product (matrix s) (matrix s) second first = matrix s second first :=
+  \fun (s: Sphere.Sphere) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { productAt s second first }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex} {C.Complex}} C.Def[].add _ _ _ _
+      (congr!{{C.Complex} {C.Complex} {C.Complex}} C.Def[].mul _ _ _ _ (at10 s) (at00 s))
+      (congr!{{C.Complex} {C.Complex} {C.Complex}} C.Def[].mul _ _ _ _ (at11 s) (at10 s)) }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex} {C.Complex}} C.Def[].add _ _ _ _
+      (C.Prop[].mulComm (C.Def[].conj (b s)) (a s)) (C.Prop[].mulComm (d s) (C.Def[].conj (b s))) }
+    "=" _ "by" { offDiagonal s (C.Def[].conj (b s)) }
+    "=" _ "by" { sym!{{C.Complex}} _ _ (at10 s) }
+  };
+\definition at11Product: \forall (s: Sphere.Sphere) -> M.product (matrix s) (matrix s) second second = matrix s second second :=
+  \fun (s: Sphere.Sphere) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { productAt s second second }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex} {C.Complex}} C.Def[].add _ _ _ _
+      (congr!{{C.Complex} {C.Complex} {C.Complex}} C.Def[].mul _ _ _ _ (at10 s) (at01 s))
+      (congr!{{C.Complex} {C.Complex} {C.Complex}} C.Def[].mul _ _ _ _ (at11 s) (at11 s)) }
+    "=" _ "by" { oneOne s }
+    "=" _ "by" { sym!{{C.Complex}} _ _ (at11 s) }
+  };
+\definition at: \forall (s: Sphere.Sphere)(i, j: Fin.Fin two) -> M.product (matrix s) (matrix s) i j = matrix s i j :=
+  \fun (s: Sphere.Sphere) => Fin.cases one (\fun (i: Fin.Fin two) => \forall (j: Fin.Fin two) -> M.product (matrix s) (matrix s) i j = matrix s i j)
+    (Fin.cases one (\fun (j: Fin.Fin two) => M.product (matrix s) (matrix s) first j = matrix s first j) (at00Product s)
+      (\fun (j: Fin.Fin one) => \idelim Fin.zero N.Nat^::zero = j \with k: Fin.Fin one => M.product (matrix s) (matrix s) first (Fin.succ one k) = matrix s first (Fin.succ one k) \by {
+        base: at01Product s, equality: sym!{{Fin.Fin one}} _ _ (Fin.singletonValue j) }))
+    (\fun (i: Fin.Fin one) => \idelim Fin.zero N.Nat^::zero = i \with k: Fin.Fin one => \forall (j: Fin.Fin two) -> M.product (matrix s) (matrix s) (Fin.succ one k) j = matrix s (Fin.succ one k) j \by {
+      base: Fin.cases one (\fun (j: Fin.Fin two) => M.product (matrix s) (matrix s) second j = matrix s second j) (at10Product s)
+        (\fun (j: Fin.Fin one) => \idelim Fin.zero N.Nat^::zero = j \with k: Fin.Fin one => M.product (matrix s) (matrix s) second (Fin.succ one k) = matrix s second (Fin.succ one k) \by {
+          base: at11Product s, equality: sym!{{Fin.Fin one}} _ _ (Fin.singletonValue j) }),
+      equality: sym!{{Fin.Fin one}} _ _ (Fin.singletonValue i)
+    });
+\definition squared: \forall (s: Sphere.Sphere) -> M.product (matrix s) (matrix s) = matrix s := \fun (s: Sphere.Sphere) => M.Operations[].ext _ _ (at s);

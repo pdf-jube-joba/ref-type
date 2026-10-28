@@ -1,0 +1,80 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\use Eq.eq_reason_in;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import R.Estimates[] \as Estimates;
+\import \root.Bott[].ProjectiveLine[].Coordinates[] \as Coordinates;
+\import Coordinates.Hermitian[] \as Hermitian;
+\import \root.Bott[].ProjectiveLine[].Trace[] \as Trace;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := C.Algebra[].commutativeRing] \as Spaces;
+\import Spaces.Laws[V := C.Complex, space := Spaces.scalarSpace] \as ComplexLaws;
+\definition halfDouble: \forall (a: R.Real) -> R.mul R.half (R.add a a) = a :=
+  \fun (a: R.Real) => trans!{R.Real} _ _ _ (Laws.fieldMulAdd R.half a a) (Estimates.halfTwice a);
+\definition doubleInjective: \forall (a, b: R.Real) -> R.add a a = R.add b b -> a = b :=
+  \fun (a, b: R.Real)(same: _) => eq_reason_in!{R.Real _
+    "=" _ "by" { sym!{R.Real} _ _ (halfDouble a) }
+    "=" _ "by" { congr!{R.Real R.Real} (R.mul R.half) _ _ same }
+    "=" _ "by" { halfDouble b }
+  };
+\definition heightEqual: \forall (p, q: Carrier) -> forward p = forward q -> height p = height q :=
+  \fun (p, q: Carrier)(same: _) => eq_reason_in!{R.Real _
+    "=" _ "by" { sym!{R.Real} _ _ (Split2.headJoin (height p) (tail p)) }
+    "=" _ "by" { congr!{Sphere.Sphere R.Real} (\fun (s: Sphere.Sphere) => Split2.head s) _ _ same }
+    "=" _ "by" { Split2.headJoin (height q) (tail q) }
+  };
+\definition tailEqual: \forall (p, q: Carrier) -> forward p = forward q -> tail p = tail q :=
+  \fun (p, q: Carrier)(same: _) => eq_reason_in!{D2.Coordinate _
+    "=" _ "by" { sym!{D2.Coordinate} _ _ (Split2.tailJoin (height p) (tail p)) }
+    "=" _ "by" { congr!{Sphere.Sphere D2.Coordinate} (\fun (s: Sphere.Sphere) => Split2.tail s) _ _ same }
+    "=" _ "by" { Split2.tailJoin (height q) (tail q) }
+  };
+\definition horizontalEqual: \forall (p, q: Carrier) -> forward p = forward q -> horizontal p = horizontal q :=
+  \fun (p, q: Carrier)(same: _) => eq_reason_in!{R.Real _
+    "=" _ "by" { sym!{R.Real} _ _ (Split1.headJoin (horizontal p) (\fun (_: D1.Index) => vertical p)) }
+    "=" _ "by" { congr!{D2.Coordinate R.Real} Split1.head _ _ (tailEqual p q same) }
+    "=" _ "by" { Split1.headJoin (horizontal q) (\fun (_: D1.Index) => vertical q) }
+  };
+\definition verticalEqual: \forall (p, q: Carrier) -> forward p = forward q -> vertical p = vertical q :=
+  \fun (p, q: Carrier)(same: _) => eq_reason_in!{R.Real _
+    "=" _ "by" { sym!{R.Real} _ _ (congr!{D1.Coordinate R.Real} (\fun (v: D1.Coordinate) => v (Fin.zero N.Nat^::zero)) _ _
+      (Split1.tailJoin (horizontal p) (\fun (_: D1.Index) => vertical p))) }
+    "=" _ "by" { congr!{D2.Coordinate R.Real} (\fun (v: D2.Coordinate) => Split1.tail v (Fin.zero N.Nat^::zero)) _ _ (tailEqual p q same) }
+    "=" _ "by" { congr!{D1.Coordinate R.Real} (\fun (v: D1.Coordinate) => v (Fin.zero N.Nat^::zero)) _ _
+      (Split1.tailJoin (horizontal q) (\fun (_: D1.Index) => vertical q)) }
+  };
+\definition firstDiagonal: \forall (p, q: Carrier) -> forward p = forward q -> entry p first first = entry q first first :=
+  \fun (p, q: Carrier)(same: _) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { Hermitian.diagonalReal p first }
+    "=" _ "by" { congr!{R.Real {C.Complex}} C.Def[].ofReal _ _ (doubleInjective _ _ (Laws.addCancelRight _ _ (R.neg R.one) (heightEqual p q same))) }
+    "=" _ "by" { sym!{{C.Complex}} _ _ (Hermitian.diagonalReal q first) }
+  };
+\definition upper: \forall (p, q: Carrier) -> forward p = forward q -> entry p first second = entry q first second :=
+  \fun (p, q: Carrier)(same: _) => C.Prop[].ext _ _ (doubleInjective _ _ (horizontalEqual p q same)) (doubleInjective _ _ (verticalEqual p q same));
+\definition lower: \forall (p, q: Carrier) -> forward p = forward q -> entry p second first = entry q second first :=
+  \fun (p, q: Carrier)(same: _) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { Hermitian.conjugate p second first }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} C.Def[].conj _ _ (upper p q same) }
+    "=" _ "by" { sym!{{C.Complex}} _ _ (Hermitian.conjugate q second first) }
+  };
+\definition secondDiagonal: \forall (p, q: Carrier) -> forward p = forward q -> entry p second second = entry q second second :=
+  \fun (p, q: Carrier)(same: _) => ComplexLaws.cancelLeft (entry p first first) _ _ (eq_reason_in!{{C.Complex} _
+    "=" _ "by" { Trace.diagonalSum p }
+    "=" _ "by" { sym!{{C.Complex}} _ _ (Trace.diagonalSum q) }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (\fun (v: C.Complex) => C.Def[].add v (entry q second second)) _ _
+      (sym!{{C.Complex}} _ _ (firstDiagonal p q same)) }
+  });
+\definition at: \forall (p, q: Carrier) -> forward p = forward q -> \forall (i, j: Fin.Fin two) -> entry p i j = entry q i j :=
+  \fun (p, q: Carrier)(same: _) => Fin.cases one (\fun (i: Fin.Fin two) => \forall (j: Fin.Fin two) -> entry p i j = entry q i j)
+    (Fin.cases one (\fun (j: Fin.Fin two) => entry p first j = entry q first j) (firstDiagonal p q same)
+      (\fun (j: Fin.Fin one) => \idelim Fin.zero N.Nat^::zero = j \with k: Fin.Fin one => entry p first (Fin.succ one k) = entry q first (Fin.succ one k) \by {
+        base: upper p q same, equality: sym!{{Fin.Fin one}} _ _ (Fin.singletonValue j) }))
+    (\fun (i: Fin.Fin one) => \idelim Fin.zero N.Nat^::zero = i \with k: Fin.Fin one => \forall (j: Fin.Fin two) -> entry p (Fin.succ one k) j = entry q (Fin.succ one k) j \by {
+      base: Fin.cases one (\fun (j: Fin.Fin two) => entry p second j = entry q second j) (lower p q same)
+        (\fun (j: Fin.Fin one) => \idelim Fin.zero N.Nat^::zero = j \with k: Fin.Fin one => entry p second (Fin.succ one k) = entry q second (Fin.succ one k) \by {
+          base: secondDiagonal p q same, equality: sym!{{Fin.Fin one}} _ _ (Fin.singletonValue j) }),
+      equality: sym!{{Fin.Fin one}} _ _ (Fin.singletonValue i)
+    });
+\definition injective: \forall (p, q: Carrier) -> forward p = forward q -> p = q := \fun (p, q: Carrier)(same: _) => Model.entriesInjective p q
+  (\axiom:funext(Model.entries p, Model.entries q, \fun (i: Fin.Fin two) => \axiom:funext(Model.entries p i, Model.entries q i, at p q same i)));

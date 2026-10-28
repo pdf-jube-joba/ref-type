@@ -1,0 +1,42 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.trans;
+\use Eq.congr;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Data[].Bool[] \as B;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[] \as IA;
+\import complex.Complex[] \as C;
+\import vector_bundles.Bundles[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar] \as Bundles;
+\import Bundles.Family[X := Sphere.Sphere, F := Line.Fiber].Of[bundle := Line.bundle] \as Native;
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].Disks[d := two] \as Disks;
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].ScalarUnits[n := one].Family[
+    X := algebraic_topology.Euclidean[].Dimension[n := two].Sphere, source := algebraic_topology.Euclidean[].Dimension[n := two].sphereTopology, a := Line.coefficient, regular := Line.regular, nonzero := Line.nonzero] \as Transition;
+\import Disks.Clutched[n := one, g := Transition.map, continuous := Transition.continuous] \as Construction;
+\definition atLeft: \forall (x: Sphere.Sphere) -> \In[Sphere.Sphere] Disks.U x -> Native.rank x = one :=
+  \fun (x: Sphere.Sphere)(member: _) => Native.rankFrame x one ((Construction.chart B.Bool^::false).frame
+    (\into[Sphere.Sphere](x, Disks.U) \by { member }));
+\definition atRight: \forall (x: Sphere.Sphere) -> \In[Sphere.Sphere] Disks.V x -> Native.rank x = one :=
+  \fun (x: Sphere.Sphere)(member: _) => Native.rankFrame x one ((Construction.chart B.Bool^::true).frame
+    (\into[Sphere.Sphere](x, Disks.V) \by { member }));
+\definition dimension: \forall (x: Sphere.Sphere) -> Native.rank x = one := \fun (x: Sphere.Sphere) =>
+  Logic.orElim[\In[Sphere.Sphere] Disks.U x, \In[Sphere.Sphere] Disks.V x, Native.rank x = one] (Disks.covers x) (atLeft x) (atRight x);
+\import K.Ranks[] \as Ranks;
+\import K.IntegerFunctions[] \as Functions;
+\import Ranks.Of[F := Line.Fiber, original := Line.bundle, same := \refl(Sphere.sphereTopology)] \as LineRank;
+\definition lineRank: \forall (x: Sphere.Sphere) -> Ranks.classes lineClass x = I.One.specification :=
+  \fun (x: Sphere.Sphere) => trans!{{I.Int^}} _ _ _
+    (congr!{{Functions.Carrier} {I.Int^}} (\fun (f: Functions.Carrier) => f x) _ _ LineRank.onBundle)
+    (congr!{{N.Nat^} {I.Int^}} Ranks.natural _ _ (dimension x));
+\definition zero: \forall (x: Sphere.Sphere) -> Ranks.rank generator x = I.Zero.specification :=
+  \fun (x: Sphere.Sphere) => trans!{{I.Int^}} _ _ _
+    (congr!{{Functions.Carrier} {I.Int^}} (\fun (f: Functions.Carrier) => f x) _ _ (Ranks.rankDifference lineClass K.Line[].value))
+    (trans!{{I.Int^}} _ _ _
+      (congr!{{I.Int^} {I.Int^} {I.Int^}} I.Add.specification _ _ _ _ (lineRank x)
+        (congr!{{I.Int^} {I.Int^}} I.Neg.specification _ _
+          (congr!{{Functions.Carrier} {I.Int^}} (\fun (f: Functions.Carrier) => f x) _ _ Ranks.One[].equation)))
+      (IA.additiveGroupLaws.rightInverse I.One.specification));
+\definition reduced: \forall (x: Sphere.Sphere) -> Ranks.Reduced[point := x].Carrier :=
+  \fun (x: Sphere.Sphere) => \into[K0.Carrier](generator, Ranks.Reduced[point := x].kernel) \by { zero x };

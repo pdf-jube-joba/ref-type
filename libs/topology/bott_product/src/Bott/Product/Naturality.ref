@@ -1,0 +1,43 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\use Eq.eq_reason_in;
+\import std.Alg[].Ring[] \as Rings;
+\import \root.Bott[].Product[X := Y, source := space, compact := compactY, hausdorff := hausdorffY] \as Other;
+\import topological_constructions.Product[A := Y, B := Sphere.Sphere] \as OtherSpace;
+\definition map[p: Other.Carrier]: Carrier := Pair.pair X Sphere.Sphere (f (Other.first p)) (Other.second p);
+\definition regular: topology.Continuity[A := Other.Carrier, B := Carrier].Continuous Other.topology topology map :=
+  Space.Universal[X := Other.Carrier].pairContinuous Other.topology source Sphere.sphereTopology (\fun (p: Other.Carrier) => f (Other.first p)) Other.second
+    (topology.Composition[A := Other.Carrier, B := Y, C := X].composeContinuous Other.topology space source Other.first f
+      (OtherSpace.Maps[].firstContinuous space Sphere.sphereTopology) continuous)
+    (OtherSpace.Maps[].secondContinuous space Sphere.sphereTopology);
+\import topological_k_theory.KTheory[].On[X := Y, baseSpace := space, compact := compactY, hausdorff := hausdorffY] \as YK;
+\import topological_k_theory.KTheory[].On[X := Other.Carrier, baseSpace := Other.topology, compact := Other.productCompact, hausdorff := Other.productHausdorff] \as OtherK;
+\import Source.Pullback[Y := Y, space := space, sourceCompact := compactY, sourceHausdorff := hausdorffY, f := f, regular := continuous] \as BasePull;
+\import YK.Pullback[Y := Other.Carrier, space := Other.topology, sourceCompact := Other.productCompact, sourceHausdorff := Other.productHausdorff,
+  f := Other.first, regular := OtherSpace.Maps[].firstContinuous space Sphere.sphereTopology] \as OtherFirst;
+\import K.Pullback[Y := Other.Carrier, space := Other.topology, sourceCompact := Other.productCompact, sourceHausdorff := Other.productHausdorff,
+  f := Other.second, regular := OtherSpace.Maps[].secondContinuous space Sphere.sphereTopology] \as OtherSecond;
+\import Target.Pullback[Y := Other.Carrier, space := Other.topology, sourceCompact := Other.productCompact, sourceHausdorff := Other.productHausdorff,
+  f := map, regular := regular] \as Pull;
+\import First.Composition[Z := Other.Carrier, nextSpace := Other.topology, nextCompact := Other.productCompact, nextHausdorff := Other.productHausdorff,
+  g := map, nextRegular := regular] \as FirstComposite;
+\import BasePull.Composition[Z := Other.Carrier, nextSpace := Other.topology, nextCompact := Other.productCompact, nextHausdorff := Other.productHausdorff,
+  g := Other.first, nextRegular := OtherSpace.Maps[].firstContinuous space Sphere.sphereTopology] \as BaseComposite;
+\import Second.Composition[Z := Other.Carrier, nextSpace := Other.topology, nextCompact := Other.productCompact, nextHausdorff := Other.productHausdorff,
+  g := map, nextRegular := regular] \as SecondComposite;
+\import K.IdentityPullback[] \as Identity;
+\definition first: \forall (a: Source.K0[].Carrier) -> Pull.K0[].map (First.K0[].map a) = OtherFirst.K0[].map (BasePull.K0[].map a) :=
+  \fun (a: Source.K0[].Carrier) => trans!{{OtherK.K0[].Carrier}} _ _ _ (sym!{{OtherK.K0[].Carrier}} _ _ (FirstComposite.onK0 a)) (BaseComposite.onK0 a);
+\definition second: Pull.K0[].map generatorOnProduct = Other.generatorOnProduct :=
+  sym!{{OtherK.K0[].Carrier}} _ _ (SecondComposite.onK0 generator);
+\import algebra.Hom[A := Target.K0[].Carrier, B := OtherK.K0[].Carrier] \as Hom;
+\definition equation: \forall (a, b: Source.K0[].Carrier) -> Pull.K0[].map (forward a b) = Other.forward (BasePull.K0[].map a) (BasePull.K0[].map b) :=
+  \fun (a, b: Source.K0[].Carrier) => eq_reason_in!{{OtherK.K0[].Carrier} _
+    "=" _ "by" { Pull.K0[].additive (First.K0[].map a) (Target.K0[].mul (First.K0[].map b) generatorOnProduct) }
+    "=" _ "by" { congr!{{OtherK.K0[].Carrier} {OtherK.K0[].Carrier} {OtherK.K0[].Carrier}} OtherK.K0[].add _ _ _ _ (first a)
+      ((Hom.semiringLaws (Rings.ringAsSemiring Target.K0[].Carrier Target.K0[].ring) (Rings.ringAsSemiring OtherK.K0[].Carrier OtherK.K0[].ring) Pull.K0[].map).mul (First.K0[].map b) generatorOnProduct) }
+    "=" _ "by" { congr!{{OtherK.K0[].Carrier} {OtherK.K0[].Carrier}} (OtherK.K0[].add (OtherFirst.K0[].map (BasePull.K0[].map a))) _ _
+      (congr!{{OtherK.K0[].Carrier} {OtherK.K0[].Carrier} {OtherK.K0[].Carrier}} OtherK.K0[].mul _ _ _ _ (first b) second) }
+  };

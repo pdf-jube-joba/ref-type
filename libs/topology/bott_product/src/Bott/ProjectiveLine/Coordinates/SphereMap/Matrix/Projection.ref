@@ -1,0 +1,46 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\use Eq.eq_reason_in;
+\import hermitian_frames.Hermitian[] \as H;
+\import H.Over[K := C.Complex, field := C.Algebra[].field, scalar := H.Complex[].scalar, topological := H.Complex[].topological].At[n := two] \as Native;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := H.Complex[].scalar].Finite[n := two] \as E;
+\import \parent.Hermitian[] \as SelfAdjoint;
+\import \parent.Idempotent[] \as Idempotent;
+\import \parent.Geometry[] \as Geometry;
+\definition projection[s: Sphere.Sphere]: Native.Projection := Native.Projection {
+  map := M.linear (matrix s),
+  selfAdjoint := Native.Matrices[].selfAdjoint (SelfAdjoint.value s),
+  idempotent := \fun (v: Native.Vector) => trans!{Native.Vector} _ _ _ (Native.Square[].applyProduct (matrix s) (matrix s) v)
+    (congr!{M.Matrix Native.Vector} (\fun (A: M.Matrix) => (M.linear A).apply v) _ _ (Idempotent.squared s))
+};
+\import grassmannians.Complex[n := two, k := one].Model[] \as Model;
+\import Model.Trace[] \as Trace;
+\definition entries: \forall (s: Sphere.Sphere)(i, j: Fin.Fin two) -> (projection s).map.apply (E.basis j) i = matrix s i j :=
+  \fun (s: Sphere.Sphere)(i, j: Fin.Fin two) => congr!{M.Matrix {C.Complex}} (\fun (A: M.Matrix) => A i j) _ _ (M.Representation[].entriesLinear (matrix s));
+\definition trace: \forall (s: Sphere.Sphere) -> Trace.trace (projection s) = Trace.count one := \fun (s: Sphere.Sphere) => eq_reason_in!{{C.Complex} _
+  "=" _ "by" { congr!{{C.Complex} {C.Complex} {C.Complex}} C.Def[].add _ _ _ _ (entries s first first)
+    (congr!{{C.Complex} {C.Complex}} (\fun (v: C.Complex) => C.Def[].add v C.Def[].zero) _ _ (entries s second second)) }
+  "=" _ "by" { congr!{{C.Complex} {C.Complex} {C.Complex}} C.Def[].add _ _ _ _ (at00 s)
+    (congr!{{C.Complex} {C.Complex}} (\fun (v: C.Complex) => C.Def[].add v C.Def[].zero) _ _ (at11 s)) }
+  "=" _ "by" { congr!{{C.Complex} {C.Complex}} (C.Def[].add (a s)) _ _ (C.Prop[].addZeroRight (d s)) }
+  "=" _ "by" { Geometry.diagonalSum s }
+  "=" _ "by" { sym!{{C.Complex}} _ _ (C.Prop[].addZeroRight C.Def[].one) }
+};
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := H.Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar].Finite[n := two] \as Finite;
+\definition rank: \forall (s: Sphere.Sphere) -> Native.OnProjection[P := projection s].Rank[k := one].HasRank := \block {
+  \fun (s: Sphere.Sphere) \then
+  \takefrom w: Finite.ProjectionBasis[P := projection s].BasisWitness \by Finite.ProjectionBasis[P := projection s].basisExists \then
+  \let count: Trace.count w.rank = Trace.count one := trans!{{C.Complex}} _ _ _
+    (sym!{{C.Complex}} _ _ (Trace.On[P := projection s, r := w.rank].rankTrace (\exact(w.basis, Native.OnProjection[P := projection s].Rank[k := w.rank].Basis)))) (trace s) \then
+  \let same: w.rank = one := Trace.countInjective w.rank one count \then
+  \return \exact(\idelim w.rank = one \with r: N.Nat^ => Native.OnProjection[P := projection s].Rank[k := r].Basis \by {
+    base: w.basis, equality: same
+  }, Native.OnProjection[P := projection s].Rank[k := one].Basis)
+};
+\definition backward[s: Sphere.Sphere]: Carrier := \into[Model.Data](Model.Data { map := (projection s).map }, Model.points) \by {
+  Model.Laws[Model.Data { map := (projection s).map }] { selfAdjoint := (projection s).selfAdjoint, idempotent := (projection s).idempotent, rank := rank s }
+};
+\module Comparison;

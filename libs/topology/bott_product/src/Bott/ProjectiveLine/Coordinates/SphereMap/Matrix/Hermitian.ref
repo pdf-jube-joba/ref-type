@@ -1,0 +1,38 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\use Eq.eq_reason_in;
+\import hermitian_frames.Hermitian[] \as H;
+\import H.Over[K := C.Complex, field := C.Algebra[].field, scalar := H.Complex[].scalar, topological := H.Complex[].topological].At[n := two].Matrices[] \as Hermitian;
+\definition zeroZero: \forall (s: Sphere.Sphere) -> Hermitian.adjoint (matrix s) first first = matrix s first first := \fun (s: Sphere.Sphere) => eq_reason_in!{{C.Complex} _
+  "=" _ "by" { congr!{{C.Complex} {C.Complex}} C.Def[].conj _ _ (at00 s) }
+  "=" _ "by" { C.Prop[].conjOfReal (R.mul R.half (R.add R.one (t s))) }
+  "=" _ "by" { sym!{{C.Complex}} _ _ (at00 s) }
+};
+\definition zeroOne: \forall (s: Sphere.Sphere) -> Hermitian.adjoint (matrix s) first second = matrix s first second := \fun (s: Sphere.Sphere) => eq_reason_in!{{C.Complex} _
+  "=" _ "by" { congr!{{C.Complex} {C.Complex}} C.Def[].conj _ _ (at10 s) }
+  "=" _ "by" { C.Prop[].conjConj (b s) }
+  "=" _ "by" { sym!{{C.Complex}} _ _ (at01 s) }
+};
+\definition oneZero: \forall (s: Sphere.Sphere) -> Hermitian.adjoint (matrix s) second first = matrix s second first := \fun (s: Sphere.Sphere) => eq_reason_in!{{C.Complex} _
+  "=" _ "by" { congr!{{C.Complex} {C.Complex}} C.Def[].conj _ _ (at01 s) }
+  "=" _ "by" { sym!{{C.Complex}} _ _ (at10 s) }
+};
+\definition oneOne: \forall (s: Sphere.Sphere) -> Hermitian.adjoint (matrix s) second second = matrix s second second := \fun (s: Sphere.Sphere) => eq_reason_in!{{C.Complex} _
+  "=" _ "by" { congr!{{C.Complex} {C.Complex}} C.Def[].conj _ _ (at11 s) }
+  "=" _ "by" { C.Prop[].conjOfReal (R.mul R.half (R.sub R.one (t s))) }
+  "=" _ "by" { sym!{{C.Complex}} _ _ (at11 s) }
+};
+\definition at: \forall (s: Sphere.Sphere)(i, j: Fin.Fin two) -> Hermitian.adjoint (matrix s) i j = matrix s i j :=
+  \fun (s: Sphere.Sphere) => Fin.cases one (\fun (i: Fin.Fin two) => \forall (j: Fin.Fin two) -> Hermitian.adjoint (matrix s) i j = matrix s i j)
+    (Fin.cases one (\fun (j: Fin.Fin two) => Hermitian.adjoint (matrix s) first j = matrix s first j) (zeroZero s)
+      (\fun (j: Fin.Fin one) => \idelim Fin.zero N.Nat^::zero = j \with k: Fin.Fin one => Hermitian.adjoint (matrix s) first (Fin.succ one k) = matrix s first (Fin.succ one k) \by {
+        base: zeroOne s, equality: sym!{{Fin.Fin one}} _ _ (Fin.singletonValue j) }))
+    (\fun (i: Fin.Fin one) => \idelim Fin.zero N.Nat^::zero = i \with k: Fin.Fin one => \forall (j: Fin.Fin two) -> Hermitian.adjoint (matrix s) (Fin.succ one k) j = matrix s (Fin.succ one k) j \by {
+      base: Fin.cases one (\fun (j: Fin.Fin two) => Hermitian.adjoint (matrix s) second j = matrix s second j) (oneZero s)
+        (\fun (j: Fin.Fin one) => \idelim Fin.zero N.Nat^::zero = j \with k: Fin.Fin one => Hermitian.adjoint (matrix s) second (Fin.succ one k) = matrix s second (Fin.succ one k) \by {
+          base: oneOne s, equality: sym!{{Fin.Fin one}} _ _ (Fin.singletonValue j) }),
+      equality: sym!{{Fin.Fin one}} _ _ (Fin.singletonValue i)
+    });
+\definition value[s: Sphere.Sphere]: Hermitian.Hermitian := \into[M.Matrix](matrix s, Hermitian.Hermitian) \by { M.Operations[].ext _ _ (at s) };

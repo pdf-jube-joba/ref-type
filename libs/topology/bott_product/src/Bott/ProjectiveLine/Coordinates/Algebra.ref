@@ -1,0 +1,45 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\use Eq.eq_reason_in;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import R.Algebra[] \as Real;
+\definition double[x: R.Real]: R.Real := R.add x x;
+\definition four[x: R.Real]: R.Real := double (double x);
+\definition fourAdd: \forall (x, y: R.Real) -> four (R.add x y) = R.add (four x) (four y) :=
+  \fun (x, y: R.Real) => eq_reason_in!{R.Real _
+    "=" _ "by" { congr!{R.Real R.Real} double _ _ (Real.addFour x y x y) }
+    "=" _ "by" { Real.addFour (double x) (double y) (double x) (double y) }
+  };
+\definition squareDouble: \forall (x: R.Real) -> R.mul (double x) (double x) = four (R.mul x x) :=
+  \fun (x: R.Real) => Real.squareAdd x x;
+\definition squareSubOne: \forall (x: R.Real) -> R.mul (R.sub x R.one) (R.sub x R.one) = R.sub (R.add (R.mul x x) R.one) (double x) :=
+  \fun (x: R.Real) => eq_reason_in!{R.Real _
+    "=" _ "by" { Real.squareAdd x (R.neg R.one) }
+    "=" _ "by" { congr!{R.Real R.Real R.Real} R.add _ _ _ _
+      (congr!{R.Real R.Real} (R.add (R.mul x x)) _ _ (trans!{R.Real} _ _ _ (Laws.fieldMulNegBoth R.one R.one) (Laws.fieldMulOneLeft R.one)))
+      (congr!{R.Real R.Real R.Real} R.add _ _ _ _
+        (trans!{R.Real} _ _ _ (Laws.fieldMulNegRight x R.one) (congr!{R.Real R.Real} R.neg _ _ (Real.mulOneRight x)))
+        (trans!{R.Real} _ _ _ (Laws.fieldMulNegRight x R.one) (congr!{R.Real R.Real} R.neg _ _ (Real.mulOneRight x)))) }
+    "=" _ "by" { congr!{R.Real R.Real} (R.add (R.add (R.mul x x) R.one)) _ _ (sym!{R.Real} _ _ (Laws.negAdd x x)) }
+  };
+\definition sphereIdentity: \forall (a, b, c: R.Real) -> R.add (R.mul a a) (R.add (R.mul b b) (R.mul c c)) = a ->
+  R.add (R.mul (R.sub (double a) R.one) (R.sub (double a) R.one))
+    (R.add (R.mul (double b) (double b)) (R.mul (double c) (double c))) = R.one :=
+  \fun (a, b, c: R.Real)(identity: _) => eq_reason_in!{R.Real _
+    "=" _ "by" { congr!{R.Real R.Real R.Real} R.add _ _ _ _ (squareSubOne (double a))
+      (congr!{R.Real R.Real R.Real} R.add _ _ _ _ (squareDouble b) (squareDouble c)) }
+    "=" _ "by" { congr!{R.Real R.Real} (\fun (v: R.Real) => R.add (R.sub (R.add v R.one) (four a)) (R.add (four (R.mul b b)) (four (R.mul c c)))) _ _ (squareDouble a) }
+    "=" _ "by" { Laws.addAssoc (R.add (four (R.mul a a)) R.one) (R.neg (four a)) (R.add (four (R.mul b b)) (four (R.mul c c))) }
+    "=" _ "by" { congr!{R.Real R.Real} (R.add (R.add (four (R.mul a a)) R.one)) _ _
+      (Laws.addComm (R.neg (four a)) (R.add (four (R.mul b b)) (four (R.mul c c)))) }
+    "=" _ "by" { Real.addFour (four (R.mul a a)) R.one (R.add (four (R.mul b b)) (four (R.mul c c))) (R.neg (four a)) }
+    "=" _ "by" { congr!{R.Real R.Real} (\fun (v: R.Real) => R.add v (R.add R.one (R.neg (four a)))) _ _
+      (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.add (four (R.mul a a))) _ _ (sym!{R.Real} _ _ (fourAdd (R.mul b b) (R.mul c c))))
+        (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (fourAdd (R.mul a a) (R.add (R.mul b b) (R.mul c c))))
+          (congr!{R.Real R.Real} four _ _ identity))) }
+    "=" _ "by" { Real.addSwap (four a) R.one (R.neg (four a)) }
+    "=" _ "by" { congr!{R.Real R.Real} (R.add R.one) _ _ (Laws.addNegRight (four a)) }
+    "=" _ "by" { Laws.addZeroRight R.one }
+  };

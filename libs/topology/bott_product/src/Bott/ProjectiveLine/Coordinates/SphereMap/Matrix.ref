@@ -1,0 +1,33 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\import std.Data[].FinSet[] \as Fin;
+\import Fin.Tuples[A := C.Complex] \as Tuples;
+\import matrix_invariants.Ring[K := C.Complex, scalars := C.Algebra[].commutativeRing].At[n := two] \as M;
+\definition t[s: Sphere.Sphere]: R.Real := Split2.head s;
+\definition x[s: Sphere.Sphere]: R.Real := Split1.head (Split2.tail s);
+\definition y[s: Sphere.Sphere]: R.Real := Split1.tail (Split2.tail s) (Fin.zero N.Nat^::zero);
+\definition a[s: Sphere.Sphere]: C.Complex := C.Def[].ofReal (R.mul R.half (R.add R.one (t s)));
+\definition b[s: Sphere.Sphere]: C.Complex := C.make (R.mul R.half (x s)) (R.mul R.half (y s));
+\definition d[s: Sphere.Sphere]: C.Complex := C.Def[].ofReal (R.mul R.half (R.sub R.one (t s)));
+\definition row0[s: Sphere.Sphere]: Fin.Fin two -> C.Complex := Tuples.extend one (a s) (\fun (_: Fin.Fin one) => b s);
+\definition row1[s: Sphere.Sphere]: Fin.Fin two -> C.Complex := Tuples.extend one (C.Def[].conj (b s)) (\fun (_: Fin.Fin one) => d s);
+\import Fin.Tuples[A := Fin.Fin two -> C.Complex] \as Rows;
+\definition matrix[s: Sphere.Sphere]: M.Matrix := Rows.extend one (row0 s) (\fun (_: Fin.Fin one) => row1 s);
+\definition at00: \forall (s: Sphere.Sphere) -> matrix s first first = a s := \fun (s: Sphere.Sphere) => trans!{{C.Complex}} _ _ _
+  (congr!{{Fin.Fin two -> C.Complex} {C.Complex}} (\fun (row: Fin.Fin two -> C.Complex) => row first) _ _ (Rows.atZero one (row0 s) (\fun (_: Fin.Fin one) => row1 s)))
+  (Tuples.atZero one (a s) (\fun (_: Fin.Fin one) => b s));
+\definition at01: \forall (s: Sphere.Sphere) -> matrix s first second = b s := \fun (s: Sphere.Sphere) => trans!{{C.Complex}} _ _ _
+  (congr!{{Fin.Fin two -> C.Complex} {C.Complex}} (\fun (row: Fin.Fin two -> C.Complex) => row second) _ _ (Rows.atZero one (row0 s) (\fun (_: Fin.Fin one) => row1 s)))
+  (Tuples.atSuccessor one (a s) (\fun (_: Fin.Fin one) => b s) (Fin.zero N.Nat^::zero));
+\definition at10: \forall (s: Sphere.Sphere) -> matrix s second first = C.Def[].conj (b s) := \fun (s: Sphere.Sphere) => trans!{{C.Complex}} _ _ _
+  (congr!{{Fin.Fin two -> C.Complex} {C.Complex}} (\fun (row: Fin.Fin two -> C.Complex) => row first) _ _ (Rows.atSuccessor one (row0 s) (\fun (_: Fin.Fin one) => row1 s) (Fin.zero N.Nat^::zero)))
+  (Tuples.atZero one (C.Def[].conj (b s)) (\fun (_: Fin.Fin one) => d s));
+\definition at11: \forall (s: Sphere.Sphere) -> matrix s second second = d s := \fun (s: Sphere.Sphere) => trans!{{C.Complex}} _ _ _
+  (congr!{{Fin.Fin two -> C.Complex} {C.Complex}} (\fun (row: Fin.Fin two -> C.Complex) => row second) _ _ (Rows.atSuccessor one (row0 s) (\fun (_: Fin.Fin one) => row1 s) (Fin.zero N.Nat^::zero)))
+  (Tuples.atSuccessor one (C.Def[].conj (b s)) (\fun (_: Fin.Fin one) => d s) (Fin.zero N.Nat^::zero));
+\module Hermitian;
+\module Geometry;
+\module Idempotent;
+\module Projection;
