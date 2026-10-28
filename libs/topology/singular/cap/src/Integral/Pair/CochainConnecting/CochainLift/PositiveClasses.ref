@@ -3,6 +3,7 @@
 \import \parent.\parent.CochainLift[].PositiveWitness[t := t] \as Witness;
 \import \parent.\parent.\parent.CochainConnecting[p := N.Nat^::zero, q := q].RelativePositive[t := t] \as Formula;
 \import singular_cohomology.Simplices[A := A, source := source].CutFaces[p := N.Nat^::succ t, q := q] \as Geometry;
+\import singular_cohomology.Simplices[A := A, source := source].CutFaces[p := t, q := N.Nat^::succ q] \as RightGeometry;
 \import singular_cohomology.Simplices[A := Relative.SubspaceCarrier, source := Subspace.topology source].CutFaces[p := t, q := q] \as SubGeometry;
 \import singular_cohomology.Maps[A := Relative.SubspaceCarrier, B := A, source := Subspace.topology source, target := source] \as Inclusion;
 \import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
@@ -48,5 +49,18 @@
       "=" _ "by" { congr!{SubTarget.Homology H.Homology} ((Push.induced (Inclusion.push Relative.inclusion Relative.inclusionContinuous)).apply) _ _ (SubInduced.onClass (Left.native (lowerCycle c a boundary))) }
       "=" _ "by" { Push.onClass (Inclusion.push Relative.inclusion Relative.inclusionContinuous) (SubNative.cycle (Left.native (lowerCycle c a boundary))) }
       "=" _ "by" { congr!{H.Cycle H.Homology} H.classOf _ _ (Formula.cycleExt ((Inclusion.At[n := N.Nat^::succ t].push Relative.inclusion Relative.inclusionContinuous).apply (SubNative.cycle (Left.native (lowerCycle c a boundary)))) (Witness.left alpha a) (Push.preservesCycle (Inclusion.push Relative.inclusion Relative.inclusionContinuous) (SubNative.cycle (Left.native (lowerCycle c a boundary)))) (LeftOn.closedValue (lowerCycle c a boundary)) (congr!{{SubChains.Carrier (N.Nat^::succ t)} {Chains.Carrier (N.Nat^::succ t)}} ((Inclusion.At[n := N.Nat^::succ t].push Relative.inclusion Relative.inclusionContinuous).apply) _ _ (LeftOn.sameValue (lowerCycle c a boundary)))) }
+    };
+}
+\module RightOn(h: OutputCochain.Closed) {
+  \import Action.On[alpha := h] \as Act;
+  \import Right.On[h := h, closed := Action.closed h] \as RightOn;
+  \import \root.Integral[A := A, source := source].Pair[subset := subset].At[p := N.Nat^::succ t, q := N.Nat^::succ q].RelativeCochain[] \as Cap;
+  \definition onCycle: \forall (x: InputChain.Cycle) ->
+    (Act.map).apply (Right.shiftClass (InputChain.classOf x)) = H.classOf (H.cycle ((Cap.map h).apply x) (RightOn.closedValue x)) :=
+    \fun (x: InputChain.Cycle) => eq_reason_in!{H.Homology _
+      "=" _ "by" { congr!{{Right.Homology RightGeometry.higher} H.Homology} ((Act.map).apply) _ _ (Right.shiftOnClass x) }
+      "=" _ "by" { Act.onClass (Right.shifted x) }
+      "=" _ "by" { congr!{H.Cycle H.Homology} H.classOf _ _ (Formula.cycleExt (Act.cycle (Right.shifted x)) ((Cap.map h).apply x)
+        (\bysub(Chains.Carrier (N.Nat^::succ t), (H.cycles).carrier, Act.cycle (Right.shifted x))) (RightOn.closedValue x) (RightOn.sameValue x)) }
     };
 }
