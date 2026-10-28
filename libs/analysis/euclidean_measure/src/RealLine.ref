@@ -55,3 +55,19 @@
       base: Core.closedMeasurable (E.points (box a b ordered)) (BoxCompact.pointsClosed (box a b ordered)),
       equality: sym!{\Pow E.Point} _ _ (preimageInterval a b ordered) };
 \module IntervalIntegral(interval: integration.Real[].Interval);
+\import \root.Hyperplane[n := N.Nat^::succ N.Nat^::zero] \as Plane;
+\import Measure.Sigma[] \as Sigma;
+\import Measure.Finite[mu := measure] \as MeasureFinite;
+\definition singletonNull: \forall (x: Real.Real) -> measure.value (RealSets.Singleton x) = Measure.zero :=
+  \fun (x: Real.Real) => Plane.null (Fin.zero N.Nat^::zero) x;
+\definition singletonMeasurable: \forall (x: Real.Real) -> Measure.Measurable measure.sigma (RealSets.Singleton x) :=
+  \fun (x: Real.Real) => Plane.measurable (Fin.zero N.Nat^::zero) x;
+\definition leftOpenInterval[a, b: Real.Real]: \Pow Real.Real := Sigma.difference (interval a b) (RealSets.Singleton a);
+\definition leftOpenIntervalMeasurable: \forall (a, b: Real.Real) (ordered: R.Le a b) -> Measure.Measurable measure.sigma (leftOpenInterval a b) :=
+  \fun (a, b: Real.Real) (ordered: R.Le a b) => Sigma.differenceMeasurable measure.sigma (interval a b) (RealSets.Singleton a)
+    (intervalMeasurable a b ordered) (singletonMeasurable a);
+\definition leftOpenIntervalMeasure: \forall (a, b: Real.Real) (ordered: R.Le a b) -> measure.value (leftOpenInterval a b) = { r: Real.Real \where R.Lt r (Real.sub b a) } :=
+  \fun (a, b: Real.Real) (ordered: R.Le a b) => eq_reason_in!{Measure.Value _
+    "=" _ "by" { MeasureFinite.removeNull (interval a b) (RealSets.Singleton a) (intervalMeasurable a b ordered) (singletonMeasurable a) (singletonNull a) }
+    "=" _ "by" { intervalMeasure a b ordered }
+  };
