@@ -1,0 +1,86 @@
+\import Total.Series[].Laws[].Reversal[] \as Reverse;
+\import Total.Parity[] \as Parity;
+\import Total.Series[].Laws[].Grading[] \as Grading;
+\import Algebra.Linear[V := Carrier, W := Carrier, source := totalSpace, target := totalSpace].Operations[] \as LinearOps;
+\definition power: \forall (m: N.Nat^) -> Carrier -> Carrier := \induction (m: N.Nat^) \return Carrier -> Carrier \with {
+  | zero: \fun (f: Carrier) => f
+  | succ: \fun (m: N.Nat^)(previous: Carrier -> Carrier)(f: Carrier) => Total.parity (previous f)
+};
+\definition powerScale: \forall (m: N.Nat^)(a: K)(f: Carrier) -> power m (totalSpace.smul a f) = totalSpace.smul a (power m f) :=
+  \induction (m: N.Nat^) \return \forall (a: K)(f: Carrier) -> power m (totalSpace.smul a f) = totalSpace.smul a (power m f) \with {
+    | zero: \fun (a: K)(f: Carrier) => \refl(totalSpace.smul a f)
+    | succ: \fun (m: N.Nat^)(previous: \forall (a: K)(f: Carrier) -> power m (totalSpace.smul a f) = totalSpace.smul a (power m f))(a: K)(f: Carrier) => trans!{Carrier} _ _ _
+      (congr!{Carrier Carrier} Total.parity _ _ (previous a f)) (Total.grading.preservesScale a (power m f))
+  };
+\definition powerWedge: \forall (m: N.Nat^)(f, g: Carrier) -> power m (ExteriorLaws.wedge f g) = ExteriorLaws.wedge (power m f) (power m g) :=
+  \induction (m: N.Nat^) \return \forall (f, g: Carrier) -> power m (ExteriorLaws.wedge f g) = ExteriorLaws.wedge (power m f) (power m g) \with {
+    | zero: \fun (f, g: Carrier) => \refl(ExteriorLaws.wedge f g)
+    | succ: \fun (m: N.Nat^)(previous: \forall (f, g: Carrier) -> power m (ExteriorLaws.wedge f g) = ExteriorLaws.wedge (power m f) (power m g))(f, g: Carrier) =>
+      trans!{Carrier} _ _ _ (congr!{Carrier Carrier} Total.parity _ _ (previous f g)) (Grading.parity (power m f) (power m g))
+  };
+\definition negativeCoefficient: \forall (a: K)(f: Carrier) -> totalSpace.neg (totalSpace.smul a f) = totalSpace.smul (Algebra.neg a) f :=
+  \fun (a: K)(f: Carrier) => eq_reason_in!{Carrier _
+    "=" _ "by" { sym!{Carrier} _ _ (TotalLaws.minusOneScale (totalSpace.smul a f)) }
+    "=" _ "by" { sym!{Carrier} _ _ (totalSpace.scalarAssoc (Algebra.neg Algebra.one) a f) }
+    "=" _ "by" { congr!{K Carrier} (\fun (b: K) => totalSpace.smul b f) _ _ (Scalars.minusOneScale a) }
+  };
+\definition powerCreation: \forall (m: N.Nat^)(alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier) -> power m (Total.createLeft alpha f) = totalSpace.smul (Sign.value m) (Total.createLeft alpha (power m f)) :=
+  \induction (m: N.Nat^) \return \forall (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier) -> power m (Total.createLeft alpha f) = totalSpace.smul (Sign.value m) (Total.createLeft alpha (power m f)) \with {
+    | zero: \fun (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier) => sym!{Carrier} _ _ (totalSpace.scalarOne (Total.createLeft alpha f))
+    | succ: \fun (m: N.Nat^)(previous: \forall (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier) -> power m (Total.createLeft alpha f) = totalSpace.smul (Sign.value m) (Total.createLeft alpha (power m f)))(alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier) => eq_reason_in!{Carrier _
+      "=" _ "by" { congr!{Carrier Carrier} Total.parity _ _ (previous alpha f) }
+      "=" _ "by" { Total.grading.preservesScale (Sign.value m) (Total.createLeft alpha (power m f)) }
+      "=" _ "by" { congr!{Carrier Carrier} (totalSpace.smul (Sign.value m)) _ _ (Parity.creationOdd alpha (power m f)) }
+      "=" _ "by" { TotalLaws.scaleNegative (Sign.value m) (Total.createLeft alpha (Total.parity (power m f))) }
+      "=" _ "by" { negativeCoefficient (Sign.value m) (Total.createLeft alpha (Total.parity (power m f))) }
+    }
+  };
+\definition powerParity: \forall (m: N.Nat^)(f: Carrier) -> power m (Total.parity f) = Total.parity (power m f) :=
+  \induction (m: N.Nat^) \return \forall (f: Carrier) -> power m (Total.parity f) = Total.parity (power m f) \with {
+    | zero: \fun (f: Carrier) => \refl(Total.parity f)
+    | succ: \fun (m: N.Nat^)(previous: \forall (f: Carrier) -> power m (Total.parity f) = Total.parity (power m f))(f: Carrier) => congr!{Carrier Carrier} Total.parity _ _ (previous f)
+  };
+\definition powerAnnihilation: \forall (m: N.Nat^)(x: V)(f: Carrier) -> power m (Total.annihilate x f) = totalSpace.smul (Sign.value m) (Total.annihilate x (power m f)) :=
+  \induction (m: N.Nat^) \return \forall (x: V)(f: Carrier) -> power m (Total.annihilate x f) = totalSpace.smul (Sign.value m) (Total.annihilate x (power m f)) \with {
+    | zero: \fun (x: V)(f: Carrier) => sym!{Carrier} _ _ (totalSpace.scalarOne (Total.annihilate x f))
+    | succ: \fun (m: N.Nat^)(previous: \forall (x: V)(f: Carrier) -> power m (Total.annihilate x f) = totalSpace.smul (Sign.value m) (Total.annihilate x (power m f)))(x: V)(f: Carrier) => eq_reason_in!{Carrier _
+      "=" _ "by" { congr!{Carrier Carrier} Total.parity _ _ (previous x f) }
+      "=" _ "by" { Total.grading.preservesScale (Sign.value m) (Total.annihilate x (power m f)) }
+      "=" _ "by" { congr!{Carrier Carrier} (totalSpace.smul (Sign.value m)) _ _ (Parity.annihilationOddReverse x (power m f)) }
+      "=" _ "by" { TotalLaws.scaleNegative (Sign.value m) (Total.annihilate x (Total.parity (power m f))) }
+      "=" _ "by" { negativeCoefficient (Sign.value m) (Total.annihilate x (Total.parity (power m f))) }
+    }
+  };
+\definition powerVacuum: \forall (m: N.Nat^) -> power m Vacuum.state = Vacuum.state :=
+  \induction (m: N.Nat^) \return power m Vacuum.state = Vacuum.state \with {
+    | zero: \refl(Vacuum.state)
+    | succ: \fun (m: N.Nat^)(previous: power m Vacuum.state = Vacuum.state) => trans!{Carrier} _ _ _ (congr!{Carrier Carrier} Total.parity _ _ previous) Vacuum.even
+  };
+\definition value[m: N.Nat^][f: Carrier]: Carrier := power m (state f);
+\definition annihilation: \forall (m: N.Nat^)(x: V)(f: Carrier) -> value m (Total.annihilate x f) = totalSpace.smul (Sign.value m) (Total.parity (Total.annihilate x (value m f))) :=
+  \fun (m: N.Nat^)(x: V)(f: Carrier) => eq_reason_in!{Carrier _
+    "=" _ "by" { congr!{Carrier Carrier} (power m) _ _ (Reverse.annihilation x f) }
+    "=" _ "by" { powerParity m (Total.annihilate x (state f)) }
+    "=" _ "by" { congr!{Carrier Carrier} Total.parity _ _ (powerAnnihilation m x (state f)) }
+    "=" _ "by" { Total.grading.preservesScale (Sign.value m) (Total.annihilate x (value m f)) }
+  };
+\definition creation: \forall (m: N.Nat^)(alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier) ->
+  value m (Total.createLeft alpha f) = totalSpace.smul (Sign.value m) (ExteriorLaws.wedge (value m f) (Total.createLeft alpha Vacuum.state)) :=
+  \fun (m: N.Nat^)(alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier) => eq_reason_in!{Carrier _
+    "=" _ "by" { congr!{Carrier Carrier} (power m) _ _ (Reverse.creation alpha f) }
+    "=" _ "by" { powerWedge m (state f) (Total.createLeft alpha Vacuum.state) }
+    "=" _ "by" { congr!{Carrier Carrier} (ExteriorLaws.wedge (value m f)) _ _ (powerCreation m alpha Vacuum.state) }
+    "=" _ "by" { congr!{Carrier Carrier} (\fun (t: Carrier) => ExteriorLaws.wedge (value m f) (totalSpace.smul (Sign.value m) (Total.createLeft alpha t))) _ _ (powerVacuum m) }
+    "=" _ "by" { ExteriorLaws.scaleRight (Sign.value m) (value m f) (Total.createLeft alpha Vacuum.state) }
+  };
+\import Total.Series[] \as Series;
+\definition vacuumLeftUnit: \forall (f: Carrier) -> ExteriorLaws.wedge Vacuum.state f = f :=
+  \fun (f: Carrier) => ext _ _ (\axiom:funext(Series.value (ExteriorLaws.wedge Vacuum.state f), Series.value f, \fun (xs: Lists.List[V]) => eq_reason_in!{K _
+    "=" _ "by" { onWedge Vacuum.state f xs }
+    "=" _ "by" { Products.congruent (Series.value Vacuum.state) Shuffle.unit (Series.value f) (Series.value f) vacuumSeries (\fun (ys: Lists.List[V]) => \refl(Series.value f ys)) xs }
+    "=" _ "by" { Products.leftUnit xs (Series.value f) }
+  }));
+\definition creationAsWedge: \forall (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier) -> Total.createLeft alpha f = ExteriorLaws.wedge (Total.createLeft alpha Vacuum.state) f :=
+  \fun (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier) => trans!{Carrier} _ _ _
+    (congr!{Carrier Carrier} (Total.createLeft alpha) _ _ (sym!{Carrier} _ _ (vacuumLeftUnit f)))
+    (Total.Series[].Laws[].OneCommutation[].leftCreation alpha Vacuum.state f);
