@@ -1,0 +1,48 @@
+\import \root.Integral[A := A, source := source].Pair[subset := subset].Homology[p := p, q := q] \as Action;
+\import Action.On[beta := beta, closed := closed] \as Act;
+\import Act.Induced[] \as Induced;
+\import \root.Integral[A := A, source := source].Pair[subset := subset].Degree[] \as RelativeDegree;
+\import \root.Integral[A := A, source := source].Pair[subset := subset].At[p := N.Nat^::succ p, q := q].Quotient[] \as RelativeCap;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import Nonnegative.ZeroExtension[C := Chains.complex] \as WholeExtension;
+\import Nonnegative.ZeroExtension[C := SubChains.complex] \as SubExtension;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.At[C := Relative.complex, z := I.Int^::ofNat Geometry.higher] \as Input;
+\import Complexes.At[C := Relative.complex, z := I.Int^::ofNat (N.Nat^::succ p)] \as Output;
+\import Complexes.At[C := SubExtension.complex, z := I.Int^::ofNat p] \as LowerSub;
+\import Complexes.ShortExact[A := SubExtension.complex, B := WholeExtension.complex, C := Relative.complex].At[s := Relative.sequence, k := I.Int^::ofNat (N.Nat^::succ p)] \as Exact;
+\definition upper[c: Chains.Carrier Geometry.higher]: WholeExtension.Carrier (I.Int^::ofNat (N.Nat^::succ p)) :=
+  WholeExtension.Positive[n := N.Nat^::succ p].intro ((Upper.map beta).apply (Degree.apply Geometry.higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) c));
+\definition lower[a: SubChains.Carrier Geometry.total]: SubExtension.Carrier (I.Int^::ofNat p) :=
+  SubExtension.Positive[n := p].intro ((SubAction.map (Pull.apply q Relative.inclusion Relative.inclusionContinuous beta)).apply a);
+\definition represented: \forall (x: Input.Cycle)(c: Chains.Carrier Geometry.higher) -> RelativeDegree.class Geometry.higher c = x ->
+  Relative.class (I.Int^::ofNat (N.Nat^::succ p)) (upper c) = Act.cycle x :=
+  \fun (x: Input.Cycle)(c: Chains.Carrier Geometry.higher)(same: _) => eq_reason_in!{{Relative.Carrier (I.Int^::ofNat (N.Nat^::succ p))} _
+    "=" _ "by" { sym!{{Relative.Carrier (I.Int^::ofNat (N.Nat^::succ p))}} _ _ (RelativeCap.onClass beta (WholeExtension.Positive[n := Geometry.leftDegree].intro (Degree.apply Geometry.higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) c))) }
+    "=" _ "by" { congr!{{RelativeDegree.Carrier Geometry.leftDegree} {Relative.Carrier (I.Int^::ofNat (N.Nat^::succ p))}} ((RelativeCap.map beta).apply) _ _
+      (sym!{{RelativeDegree.Carrier Geometry.leftDegree}} _ _ (RelativeDegree.onClass Geometry.higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) c)) }
+    "=" _ "by" { congr!{{RelativeDegree.Carrier Geometry.higher} {Relative.Carrier (I.Int^::ofNat (N.Nat^::succ p))}} (\fun (y: RelativeDegree.Carrier Geometry.higher) => (RelativeCap.map beta).apply (RelativeDegree.apply Geometry.higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) y)) _ _ same }
+  };
+\definition law: \forall (x: Input.Cycle)(c: Chains.Carrier Geometry.higher)(a: SubChains.Carrier Geometry.total) ->
+  RelativeDegree.class Geometry.higher c = x ->
+  \forall (boundary: (Inclusion.At[n := Geometry.total].push Relative.inclusion Relative.inclusionContinuous).apply a = (Chains.boundary Geometry.total).apply c) ->
+  (Relative.LongExact[z := I.Int^::ofNat (N.Nat^::succ p)].connecting).apply ((Induced.map).apply (Input.classOf x)) =
+  LowerSub.classOf (LowerSub.cycle (lower a) (Exact.lowerClosed (upper c) (lower a) (liftBoundary beta closed c a boundary))) :=
+  \fun (x: Input.Cycle)(c: Chains.Carrier Geometry.higher)(a: SubChains.Carrier Geometry.total)(same: _)(boundary: _) => eq_reason_in!{LowerSub.Homology _
+    "=" _ "by" { congr!{Output.Homology LowerSub.Homology} ((Relative.LongExact[z := I.Int^::ofNat (N.Nat^::succ p)].connecting).apply) _ _ (Induced.onClass x) }
+    "=" _ "by" { Exact.onClass (Act.cycle x) }
+    "=" _ "by" { Exact.onLift (Act.cycle x) (upper c) (lower a) (represented x c same) (liftBoundary beta closed c a boundary) (Exact.lowerClosed (upper c) (lower a) (liftBoundary beta closed c a boundary)) }
+  };
+\import Complexes.At[C := SubExtension.complex, z := I.Int^::ofNat Geometry.total] \as InputSub;
+\import Complexes.ShortExact[A := SubExtension.complex, B := WholeExtension.complex, C := Relative.complex].At[s := Relative.sequence, k := I.Int^::ofNat Geometry.higher] \as InputExact;
+\definition sourceLaw: \forall (x: Input.Cycle)(c: Chains.Carrier Geometry.higher)(a: SubChains.Carrier Geometry.total) ->
+  RelativeDegree.class Geometry.higher c = x ->
+  \forall (boundary: (Inclusion.At[n := Geometry.total].push Relative.inclusion Relative.inclusionContinuous).apply a = (Chains.boundary Geometry.total).apply c) ->
+  (Relative.LongExact[z := I.Int^::ofNat Geometry.higher].connecting).apply (Input.classOf x) =
+  InputSub.classOf (InputSub.cycle (SubExtension.Positive[n := Geometry.total].intro a)
+    (InputExact.lowerClosed (WholeExtension.Positive[n := Geometry.higher].intro c) (SubExtension.Positive[n := Geometry.total].intro a) boundary)) :=
+  \fun (x: Input.Cycle)(c: Chains.Carrier Geometry.higher)(a: SubChains.Carrier Geometry.total)(same: _)(boundary: _) => eq_reason_in!{InputSub.Homology _
+    "=" _ "by" { InputExact.onClass x }
+    "=" _ "by" { InputExact.onLift x (WholeExtension.Positive[n := Geometry.higher].intro c) (SubExtension.Positive[n := Geometry.total].intro a) same boundary
+      (InputExact.lowerClosed (WholeExtension.Positive[n := Geometry.higher].intro c) (SubExtension.Positive[n := Geometry.total].intro a) boundary) }
+  };

@@ -1,0 +1,47 @@
+\import \parent.\parent.CochainConnecting[p := N.Nat^::zero, q := (N.Nat^::succ r)].CochainLift[].PositiveClasses[t := t] \as Formula;
+\import \parent.\parent.CochainConnecting[p := N.Nat^::zero, q := (N.Nat^::succ r)].CochainLift[].PositiveLeft[t := t] \as Left;
+\import \parent.\parent.CochainConnecting[p := N.Nat^::zero, q := (N.Nat^::succ r)].CochainLift[].PositiveRight[t := t] \as Right;
+\import singular_cohomology.Simplices[A := A, source := source].CutFaces[p := N.Nat^::succ t, q := (N.Nat^::succ r)] \as Geometry;
+\import singular_cohomology.Simplices[A := Relative.SubspaceCarrier, source := Subspace.topology source].CutFaces[p := t, q := (N.Nat^::succ r)] \as SubGeometry;
+\import singular_cohomology.Maps[A := Relative.SubspaceCarrier, B := A, source := Subspace.topology source, target := source] \as Inclusion;
+\import singular_cohomology.Chains[A := Relative.SubspaceCarrier, source := Subspace.topology source] \as SubChains;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import Nonnegative.ZeroExtension[C := SubChains.complex] \as SubExtension;
+\import Nonnegative.Positive[C := SubChains.complex, n := SubGeometry.total] \as SubSource;
+\import Nonnegative.Positive[C := SubChains.complex, n := t] \as SubTarget;
+\import Nonnegative.Positive[C := Chains.complex, n := t] \as Target;
+\import Nonnegative.Map[C := SubChains.complex, D := Chains.complex].Positive[n := t] \as Push;
+\import SubExtension.PositiveHomology[n := SubGeometry.total] \as Compare;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing].ZeroExtension[P := SubChains.complex, N := Cochains.integerCoefficients] \as SubConversion;
+\import SubConversion.Cohomology[n := (N.Nat^::succ r)] \as CochainCompare;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing].Integer[P := SubExtension.complex, N := Cochains.integerCoefficients] \as Sub;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring].At[C := Sub.complex, z := I.Int^::ofNat (N.Nat^::succ r)] \as InputCochain;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.At[C := Relative.complex, z := I.Int^::ofNat Geometry.higher] \as InputChain;
+\import Complexes.At[C := SubExtension.complex, z := I.Int^::ofNat Geometry.total] \as InputSub;
+\import \root.Integral[A := Relative.SubspaceCarrier, source := Subspace.topology source].CohomologyAction[p := t, r := r] \as SubAction;
+\import SubAction.Descent[] \as SubDescent;
+\import singular_cohomology.Cochains[A := Relative.SubspaceCarrier, source := Subspace.topology source].With[coefficients := Cochains.integerCoefficients] \as SubTheory;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring].At[C := SubTheory.complex, k := (N.Nat^::succ r)] \as NaturalCochain;
+\import Modules.Hom[V := SubSource.Homology, W := SubTarget.Homology, source := SubSource.homologySpace, target := SubTarget.homologySpace] \as SubActions;
+\import \root.Integral[A := A, source := source].Pair[subset := subset].RelativeCohomologyAction[p := t, r := (N.Nat^::succ r)] \as Action;
+\import Action.Descent[] \as Descent;
+\import Relative.With[coefficients := Cochains.integerCoefficients] \as RelativeCochains;
+\import RelativeCochains.PairSequence[] \as Sequence;
+\import Modules.Alternating[V := Target.Homology, space := Target.homologySpace].Concatenation[] \as Signs;
+\definition left[alpha: InputCochain.Cohomology][z: InputSub.Homology]: Target.Homology :=
+  (Push.induced (Inclusion.push Relative.inclusion Relative.inclusionContinuous)).apply (((SubDescent.map).apply ((CochainCompare.isomorphism.forward).apply alpha)).apply ((Compare.homologyIsomorphism.backward).apply (Left.shiftClass z)));
+\definition onCycle: \forall (alpha: InputCochain.Closed)(z: InputChain.Homology) ->
+  left (InputCochain.classOf alpha) ((Relative.LongExact[z := I.Int^::ofNat Geometry.higher].connecting).apply z) =
+  Signs.twist (N.Nat^::succ t) (((Descent.map).apply ((Sequence.LongExact[z := I.Int^::ofNat (N.Nat^::succ r)].connecting).apply (InputCochain.classOf alpha))).apply (Right.shiftClass z)) :=
+  \fun (alpha: InputCochain.Closed)(z: InputChain.Homology) => eq_reason_in!{Target.Homology _
+    "=" _ "by" { congr!{NaturalCochain.Cohomology Target.Homology} (\fun (u: NaturalCochain.Cohomology) => (Push.induced (Inclusion.push Relative.inclusion Relative.inclusionContinuous)).apply (((SubDescent.map).apply u).apply ((Compare.homologyIsomorphism.backward).apply (Left.shiftClass ((Relative.LongExact[z := I.Int^::ofNat Geometry.higher].connecting).apply z))))) _ _ (CochainCompare.onClass alpha) }
+    "=" _ "by" { congr!{SubActions.Map Target.Homology} (\fun (f: SubActions.Map) => (Push.induced (Inclusion.push Relative.inclusion Relative.inclusionContinuous)).apply ((f).apply ((Compare.homologyIsomorphism.backward).apply (Left.shiftClass ((Relative.LongExact[z := I.Int^::ofNat Geometry.higher].connecting).apply z))))) _ _ (SubDescent.onClass (CochainCompare.restrict alpha)) }
+    "=" _ "by" { Formula.Compatibility[alpha := alpha].law z }
+  };
+\definition compatibility: \forall (alpha: InputCochain.Cohomology)(z: InputChain.Homology) ->
+  left alpha ((Relative.LongExact[z := I.Int^::ofNat Geometry.higher].connecting).apply z) =
+  Signs.twist (N.Nat^::succ t) (((Descent.map).apply ((Sequence.LongExact[z := I.Int^::ofNat (N.Nat^::succ r)].connecting).apply alpha)).apply (Right.shiftClass z)) :=
+  InputCochain.classInduction (\fun (alpha: InputCochain.Cohomology) => \forall (z: InputChain.Homology) ->
+    left alpha ((Relative.LongExact[z := I.Int^::ofNat Geometry.higher].connecting).apply z) =
+    Signs.twist (N.Nat^::succ t) (((Descent.map).apply ((Sequence.LongExact[z := I.Int^::ofNat (N.Nat^::succ r)].connecting).apply alpha)).apply (Right.shiftClass z))) onCycle;

@@ -1,0 +1,17 @@
+\import \parent.Linearity[] \as Linearity;
+\import Modules.Hom[V := Cochain.Closed, W := Actions.Carrier, source := Cochain.cycleSpace, target := Actions.space] \as Linear;
+\definition raw: Linear.Map := Linear.Map { apply := value, addition := Linearity.addition, scalar := Linearity.scalar };
+\import Modules.Of[V := Cochain.Closed, space := Cochain.cycleSpace].Submodule[].Quotient[S := Cochain.boundariesInside].To[W := Actions.Carrier, target := Actions.space] \as Quotient;
+\import \root.Integral[A := A, source := source].Pair[subset := subset].RelativeCochainZeroCoboundary[r := r] \as Coboundary;
+\definition vanishes: Quotient.Vanishes raw := \block {
+  \fun (alpha: Cochain.Closed)(member: _) \then
+  \takefrom gamma: \Cast[RelativeCochains.Carrier (I.Int^::ofNat r)] ({ gamma: RelativeCochains.Carrier (I.Int^::ofNat r) \where (Theory.complex.differential).apply (I.Int^::ofNat r) gamma = alpha }) \by member \then
+  \let equal: Cochain.cycle ((Theory.complex.differential).apply (I.Int^::ofNat r) gamma) ((Theory.complex.laws).squareZero (I.Int^::ofNat r) gamma) = alpha :=
+    \bysub(RelativeCochains.Carrier (I.Int^::ofNat r), { gamma: RelativeCochains.Carrier (I.Int^::ofNat r) \where (Theory.complex.differential).apply (I.Int^::ofNat r) gamma = alpha }, gamma) \then
+  \let result: value alpha = Actions.zero := trans!{Actions.Carrier} _ _ _
+    (sym!{Actions.Carrier} _ _ (congr!{Cochain.Closed Actions.Carrier} value _ _ equal))
+    (ActionMaps.ext _ _ (Coboundary.On[gamma := gamma].law)) \then
+  \return result
+};
+\definition map: Modules.Hom[V := Cochain.Cohomology, W := Actions.Carrier, source := Cochain.cohomologySpace, target := Actions.space].Map := Quotient.descend raw vanishes;
+\definition onClass: \forall (alpha: Cochain.Closed) -> (map).apply (Cochain.classOf alpha) = value alpha := Quotient.onClass raw vanishes;

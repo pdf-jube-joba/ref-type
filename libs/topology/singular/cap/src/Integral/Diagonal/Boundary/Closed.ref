@@ -1,0 +1,21 @@
+\import \parent.Formula[] \as Formula;
+\import \parent.\parent.\parent.At[p := p, q := N.Nat^::succ q] \as HigherRight;
+\import HigherRight.Zero[] \as Zero;
+\import singular_cohomology.Cochains[A := A, source := source].With[coefficients := Cochains.integerCoefficients] \as Ordinary;
+\import Modules.Laws[V := Chains.Carrier p, space := Chains.space p] \as Values;
+\import Modules.Hom[V := Chains.Carrier Alexander.higher, W := Chains.Carrier p, source := Chains.space Alexander.higher, target := Chains.space p] \as Maps;
+\definition rightZero: \forall (beta: Cochains.Carrier q) -> Ordinary.coboundary q beta = (Cochains.space (N.Nat^::succ q)).zero ->
+  Formula.right beta = Maps.zeroMap :=
+  \fun (beta: Cochains.Carrier q)(closed: _) => trans!{Maps.Map} _ _ _
+    (congr!{{Cochains.Carrier (N.Nat^::succ q)} Maps.Map} HigherRight.map _ _ closed) Zero.equation;
+\definition law: \forall (beta: Cochains.Carrier q) -> Ordinary.coboundary q beta = (Cochains.space (N.Nat^::succ q)).zero ->
+  \forall (x: Chains.Carrier Alexander.higher) -> (Formula.lhs beta).apply x = (Formula.left beta).apply x :=
+  \fun (beta: Cochains.Carrier q)(closed: _)(x: Chains.Carrier Alexander.higher) => eq_reason_in!{{Chains.Carrier p} _
+    "=" _ "by" { Formula.law beta x }
+    "=" _ "by" { congr!{{Chains.Carrier p} {Chains.Carrier p}} ((Chains.space p).add ((Formula.left beta).apply x)) _ _
+      (trans!{{Chains.Carrier p}} _ _ _
+        (congr!{{Chains.Carrier p} {Chains.Carrier p}} (Signs.twist p) _ _
+          (congr!{Maps.Map {Chains.Carrier p}} (\fun (f: Maps.Map) => (f).apply x) _ _ (rightZero beta closed)))
+        (Signs.twistZero p)) }
+    "=" _ "by" { Values.zeroRight ((Formula.left beta).apply x) }
+  };

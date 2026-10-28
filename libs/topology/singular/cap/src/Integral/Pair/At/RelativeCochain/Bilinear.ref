@@ -1,0 +1,36 @@
+\import Comparison.Linear[] \as ComparisonLinear;
+\import Relative.OverRing[R := I.Int^, ring := Integers.commutativeRing].With[coefficients := Cochains.coefficients] \as RelativeRing;
+\import Whole.Bilinear[] \as WholeBilinear;
+\import Whole.Zero[] \as WholeZero;
+\import Modules.Hom[V := SourceQ.Carrier, W := Chains.Carrier p, source := SourceQ.space, target := Chains.space p] \as Maps;
+\import Modules.Hom[V := Chains.Carrier Whole.total, W := Chains.Carrier p, source := Chains.space Whole.total, target := Chains.space p] \as WholeMaps;
+\definition addition: \forall (beta, gamma: RelativeCochains.Carrier (I.Int^::ofNat q)) ->
+  map ((RelativeRing.space (I.Int^::ofNat q)).add beta gamma) = Maps.plus (map beta) (map gamma) :=
+  \fun (beta, gamma: RelativeCochains.Carrier (I.Int^::ofNat q)) => Maps.ext _ _
+    (SourceQ.induction (\fun (x: SourceQ.Carrier) => (map ((RelativeRing.space (I.Int^::ofNat q)).add beta gamma)).apply x = (Maps.plus (map beta) (map gamma)).apply x)
+      (\fun (x: WholeExtension.Carrier (I.Int^::ofNat Whole.total)) => eq_reason_in!{{Chains.Carrier p} _
+        "=" _ "by" { onClass ((RelativeRing.space (I.Int^::ofNat q)).add beta gamma) x }
+        "=" _ "by" { congr!{WholeMaps.Map {Chains.Carrier p}} (\fun (f: WholeMaps.Map) => (f).apply x) _ _
+          (congr!{{Cochains.Carrier q} WholeMaps.Map} Whole.map _ _ (ComparisonLinear.addition beta gamma)) }
+        "=" _ "by" { congr!{WholeMaps.Map {Chains.Carrier p}} (\fun (f: WholeMaps.Map) => (f).apply x) _ _ (WholeBilinear.addition (Comparison.from beta) (Comparison.from gamma)) }
+        "=" _ "by" { congr!{{Chains.Carrier p} {Chains.Carrier p} {Chains.Carrier p}} ((Chains.space p).add) _ _ _ _ (sym!{{Chains.Carrier p}} _ _ (onClass beta x)) (sym!{{Chains.Carrier p}} _ _ (onClass gamma x)) }
+      }));
+\definition scalarValue: \forall (a: I.Int^)(beta: RelativeCochains.Carrier (I.Int^::ofNat q))(x: SourceQ.Carrier) ->
+  (map ((RelativeRing.space (I.Int^::ofNat q)).smul a beta)).apply x = (Chains.space p).smul a ((map beta).apply x) :=
+  \fun (a: I.Int^)(beta: RelativeCochains.Carrier (I.Int^::ofNat q)) => SourceQ.induction
+    (\fun (x: SourceQ.Carrier) => (map ((RelativeRing.space (I.Int^::ofNat q)).smul a beta)).apply x = (Chains.space p).smul a ((map beta).apply x))
+    (\fun (x: WholeExtension.Carrier (I.Int^::ofNat Whole.total)) => eq_reason_in!{{Chains.Carrier p} _
+      "=" _ "by" { onClass ((RelativeRing.space (I.Int^::ofNat q)).smul a beta) x }
+      "=" _ "by" { congr!{WholeMaps.Map {Chains.Carrier p}} (\fun (f: WholeMaps.Map) => (f).apply x) _ _
+        (congr!{{Cochains.Carrier q} WholeMaps.Map} Whole.map _ _ (ComparisonLinear.scalar a beta)) }
+      "=" _ "by" { WholeBilinear.scalarValue a (Comparison.from beta) x }
+      "=" _ "by" { congr!{{Chains.Carrier p} {Chains.Carrier p}} ((Chains.space p).smul a) _ _ (sym!{{Chains.Carrier p}} _ _ (onClass beta x)) }
+    });
+\definition zero: map (RelativeRing.space (I.Int^::ofNat q)).zero = Maps.zeroMap := Maps.ext _ _
+  (SourceQ.induction (\fun (x: SourceQ.Carrier) => (map (RelativeRing.space (I.Int^::ofNat q)).zero).apply x = (Chains.space p).zero)
+    (\fun (x: WholeExtension.Carrier (I.Int^::ofNat Whole.total)) => eq_reason_in!{{Chains.Carrier p} _
+      "=" _ "by" { onClass (RelativeRing.space (I.Int^::ofNat q)).zero x }
+      "=" _ "by" { congr!{WholeMaps.Map {Chains.Carrier p}} (\fun (f: WholeMaps.Map) => (f).apply x) _ _
+        (congr!{{Cochains.Carrier q} WholeMaps.Map} Whole.map _ _ Comparison.zero) }
+      "=" _ "by" { congr!{WholeMaps.Map {Chains.Carrier p}} (\fun (f: WholeMaps.Map) => (f).apply x) _ _ WholeZero.equation }
+    }));

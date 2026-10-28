@@ -1,0 +1,21 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import \parent.\parent.At[p := p, q := q] \as Cap;
+\import \parent.\parent.Contraction[p := p, q := q] \as Contract;
+\import AW.At[p := p, q := q] \as Component;
+\import singular_cohomology.Chains[A := Product.CarrierSet, source := Product.topology source source] \as ProductChains;
+\import Modules.Hom[V := Chains.Carrier Cap.total, W := Chains.Carrier p, source := Chains.space Cap.total, target := Chains.space p] \as CapMaps;
+\import Modules.Hom[V := ProductChains.Carrier Cap.total, W := Component.Carrier, source := ProductChains.space Cap.total, target := Component.space].Composition[U := Chains.Carrier Cap.total, domain := Chains.space Cap.total] \as First;
+\import Modules.Hom[V := Component.Carrier, W := Chains.Carrier p, source := Component.space, target := Chains.space p].Composition[U := Chains.Carrier Cap.total, domain := Chains.space Cap.total] \as Second;
+\import Modules.Free[Generators := Simplices.Carrier Cap.total].To[W := Chains.Carrier p, target := Chains.space p] \as Free;
+\definition composite[beta: Cochains.Carrier q]: CapMaps.Map := Second.compose (Contract.map beta) (First.compose Component.map (Maps.At[n := Cap.total].push function continuous));
+\definition equation: \forall (beta: Cochains.Carrier q) -> composite beta = Cap.map beta :=
+  \fun (beta: Cochains.Carrier q) => Free.ext _ _ (\fun (sigma: Simplices.Carrier Cap.total) => eq_reason_in!{{Chains.Carrier p} _
+    "=" _ "by" { congr!{{ProductChains.Carrier Cap.total} {Chains.Carrier p}} (\fun (x: ProductChains.Carrier Cap.total) => (Contract.map beta).apply ((Component.map).apply x)) _ _ (Maps.At[n := Cap.total].onGenerator function continuous sigma) }
+    "=" _ "by" { congr!{Component.Carrier {Chains.Carrier p}} ((Contract.map beta).apply) _ _ (Component.onGenerator (Maps.postcompose Cap.total function continuous sigma)) }
+    "=" _ "by" { Contract.onTensor beta (Chains.generator p (Component.front (Maps.postcompose Cap.total function continuous sigma))) (Chains.generator q (Component.back (Maps.postcompose Cap.total function continuous sigma))) }
+    "=" _ "by" { sym!{{Chains.Carrier p}} _ _ (Cap.onGenerator beta sigma) }
+  });

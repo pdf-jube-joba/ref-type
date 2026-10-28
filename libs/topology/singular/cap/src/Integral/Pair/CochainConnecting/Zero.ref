@@ -1,0 +1,26 @@
+\import \parent.\parent.CochainConnecting[p := N.Nat^::zero, q := q] \as Chain;
+\import singular_cohomology.Simplices[A := A, source := source].CutFaces[p := N.Nat^::zero, q := q] \as Geometry;
+\import singular_cohomology.Chains[A := Relative.SubspaceCarrier, source := Subspace.topology source] \as SubChains;
+\import singular_products.Cochains[A := Relative.SubspaceCarrier, source := Subspace.topology source, R := I.Int^, ring := Integers.commutativeRing].Pullback[B := A, target := source] \as Pull;
+\import \root.Integral[A := Relative.SubspaceCarrier, source := Subspace.topology source].At[p := N.Nat^::zero, q := q] \as SubAction;
+\import \root.Integral[A := A, source := source].At[p := N.Nat^::zero, q := N.Nat^::succ q] \as Right;
+\import \root.Integral[A := A, source := source].At[p := N.Nat^::succ N.Nat^::zero, q := q] \as Upper;
+\import singular_cohomology.Maps[A := Relative.SubspaceCarrier, B := A, source := Subspace.topology source, target := source] \as Inclusion;
+\import singular_cohomology.Cochains[A := A, source := source].With[coefficients := Cochains.integerCoefficients] \as Theory;
+\import Chains.DegreeTransport[] \as Degree;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].DegreeZero[C := Chains.complex] \as H;
+\import Modules.Of[V := Chains.Carrier N.Nat^::zero, space := Chains.space N.Nat^::zero].Submodule[] \as Submodules;
+\import Submodules.Quotient[S := H.boundaries] \as Quotient;
+\import Submodules.Image[U := Chains.Carrier (N.Nat^::succ N.Nat^::zero), source := Chains.space (N.Nat^::succ N.Nat^::zero)] \as Images;
+\definition left[beta: Cochains.Carrier q][a: SubChains.Carrier Geometry.total]: Chains.Carrier N.Nat^::zero :=
+  (Inclusion.At[n := N.Nat^::zero].push Relative.inclusion Relative.inclusionContinuous).apply ((SubAction.map (Pull.apply q Relative.inclusion Relative.inclusionContinuous beta)).apply a);
+\definition right[beta: Cochains.Carrier q][c: Chains.Carrier Geometry.higher]: Chains.Carrier N.Nat^::zero := (Right.map (Theory.coboundary q beta)).apply c;
+\definition witness[beta: Cochains.Carrier q][c: Chains.Carrier Geometry.higher]: Chains.Carrier (N.Nat^::succ N.Nat^::zero) :=
+  (Upper.map beta).apply (Degree.apply Geometry.higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) c);
+\definition law: \forall (beta: Cochains.Carrier q)(c: Chains.Carrier Geometry.higher)(a: SubChains.Carrier Geometry.total) ->
+  (Inclusion.At[n := Geometry.total].push Relative.inclusion Relative.inclusionContinuous).apply a = (Chains.boundary Geometry.total).apply c ->
+  H.classOf (left beta a) = H.classOf (right beta c) :=
+  \fun (beta: Cochains.Carrier q)(c: Chains.Carrier Geometry.higher)(a: SubChains.Carrier Geometry.total)(boundary: _) =>
+    Quotient.classRelated (left beta a) (right beta c)
+      (Images.introduce H.prior ((Chains.space N.Nat^::zero).add (left beta a) ((Chains.space N.Nat^::zero).neg (right beta c))) (witness beta c)
+        (sym!{{Chains.Carrier N.Nat^::zero}} _ _ (Chain.difference beta c a boundary)));

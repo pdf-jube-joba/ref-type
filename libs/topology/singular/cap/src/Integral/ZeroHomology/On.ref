@@ -1,0 +1,22 @@
+\import Modules.Hom[V := Chains.Carrier N.Nat^::zero, W := H.Homology, source := Chains.space N.Nat^::zero, target := H.homologySpace].Composition[U := Chains.Carrier N.Nat^::zero, domain := Chains.space N.Nat^::zero] \as Composition;
+\definition raw: Modules.Hom[V := Chains.Carrier N.Nat^::zero, W := H.Homology, source := Chains.space N.Nat^::zero, target := H.homologySpace].Map := Composition.compose H.classLinear (Cap.map beta);
+\import Modules.Of[V := Chains.Carrier N.Nat^::zero, space := Chains.space N.Nat^::zero].Submodule[] \as Submodules;
+\import Submodules.Quotient[S := H.boundaries] \as Quotient;
+\import Quotient.To[W := H.Homology, target := H.homologySpace] \as Descent;
+\import Submodules.Image[U := Chains.Carrier (N.Nat^::succ N.Nat^::zero), source := Chains.space (N.Nat^::succ N.Nat^::zero)] \as Images;
+\import Simplices.CutFaces[p := N.Nat^::zero, q := N.Nat^::zero] \as Geometry;
+\import \root.Integral[A := A, source := source].At[p := N.Nat^::succ N.Nat^::zero, q := N.Nat^::zero] \as Upper;
+\import Chains.DegreeTransport[] \as Degrees;
+\definition witness[y: Chains.Carrier (N.Nat^::succ N.Nat^::zero)]: Chains.Carrier (N.Nat^::succ N.Nat^::zero) :=
+  (Upper.map beta).apply (Degrees.apply Geometry.higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) y);
+\definition vanishes: Descent.Vanishes raw :=
+  \fun (x: Chains.Carrier N.Nat^::zero)(member: Submodules.Member H.boundaries x) => Images.eliminate H.prior x ((raw).apply x = (H.homologySpace).zero)
+    (\fun (y: Chains.Carrier (N.Nat^::succ N.Nat^::zero))(equal: (H.prior).apply y = x) =>
+      Quotient.classZero ((Cap.map beta).apply x)
+        (Images.introduce H.prior ((Cap.map beta).apply x)
+          (witness y)
+          (trans!{{Chains.Carrier N.Nat^::zero}} _ _ _
+            (sym!{{Chains.Carrier N.Nat^::zero}} _ _ (Closed.law beta closed y))
+            (congr!{{Chains.Carrier N.Nat^::zero} {Chains.Carrier N.Nat^::zero}} ((Cap.map beta).apply) _ _ equal)))) member;
+\definition map: Modules.Hom[V := H.Homology, W := H.Homology, source := H.homologySpace, target := H.homologySpace].Map := Descent.descend raw vanishes;
+\definition onClass: \forall (x: Chains.Carrier N.Nat^::zero) -> (map).apply (H.classOf x) = H.classOf ((Cap.map beta).apply x) := Descent.onClass raw vanishes;

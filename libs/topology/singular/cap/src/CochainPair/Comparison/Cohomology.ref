@@ -1,0 +1,33 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import \parent.Commutes[] \as Commutes;
+\import \parent.Linear[] \as Linear;
+\import \parent.\parent.Comparison[n := N.Nat^::succ n] \as Higher;
+\import \parent.\parent.Degree[] \as Degree;
+\import \parent.\parent.BoundaryComparison[] \as BoundaryComparison;
+\import Relative.OverRing[R := R, ring := ring].With[coefficients := Whole.coefficients] \as RelativeRing;
+\import singular_cohomology.Cochains[A := A, source := source].OverRing[R := R, ring := ring].With[coefficients := Whole.coefficients] \as Ordinary;
+\import chain_complexes.Integer[].Over[R := R, ring := std.Alg[].Ring[].commutativeRingAsRing R ring].At[C := RelativeRing.complex, z := I.Int^::ofNat n] \as Source;
+\import chain_complexes.Cochain[].Over[R := R, ring := std.Alg[].Ring[].commutativeRingAsRing R ring].At[C := Ordinary.complex, k := n] \as Target;
+\import module_theory.Module[].Over[R := R, ring := std.Alg[].Ring[].commutativeRingAsRing R ring] \as RingModules;
+\definition closed: \forall (alpha: Source.Closed) -> Ordinary.complex.differential.apply n (from alpha) = (Whole.space (N.Nat^::succ n)).zero :=
+  \fun (alpha: Source.Closed) => trans!{{Whole.Carrier (N.Nat^::succ n)}} _ _ _ (sym!{{Whole.Carrier (N.Nat^::succ n)}} _ _ (Commutes.law alpha))
+    (trans!{{Whole.Carrier (N.Nat^::succ n)}} _ _ _ (congr!{{Degree.Carrier (N.Nat^::succ n)} {Whole.Carrier (N.Nat^::succ n)}} Higher.from _ _ (\bysub(Degree.Carrier n, (Source.cycles).carrier, alpha))) Higher.zero);
+\definition cycle[alpha: Source.Closed]: Target.CycleCarrier := Target.cycle (from alpha) (closed alpha);
+\import RingModules.Hom[V := Source.Closed, W := Target.Cohomology, source := Source.cycleSpace, target := Target.cohomologySpace] \as Maps;
+\definition raw: Maps.Map := Maps.Map {
+  apply := \fun (alpha: Source.Closed) => Target.classOf (cycle alpha),
+  addition := \fun (alpha, beta: Source.Closed) => trans!{Target.Cohomology} _ _ _
+    (Target.equalClass (cycle ((Source.cycleSpace).add alpha beta)) ((Target.cycleSpace).add (cycle alpha) (cycle beta)) (Linear.addition alpha beta))
+    ((Target.classLinear).addition (cycle alpha) (cycle beta)),
+  scalar := \fun (a: R)(alpha: Source.Closed) => trans!{Target.Cohomology} _ _ _
+    (Target.equalClass (cycle ((Source.cycleSpace).smul a alpha)) ((Target.cycleSpace).smul a (cycle alpha)) (Linear.scalar a alpha))
+    ((Target.classLinear).scalar a (cycle alpha)),
+};
+\import RingModules.Of[V := Source.Closed, space := Source.cycleSpace].Submodule[].Quotient[S := Source.boundariesInside].To[W := Target.Cohomology, target := Target.cohomologySpace] \as Quotient;
+\definition vanishes: Quotient.Vanishes raw := \fun (alpha: Source.Closed)(member: _) =>
+  Target.boundaryClassZero (cycle alpha) (BoundaryComparison.law n alpha member);
+\definition map: RingModules.Hom[V := Source.Cohomology, W := Target.Cohomology, source := Source.cohomologySpace, target := Target.cohomologySpace].Map := Quotient.descend raw vanishes;
+\definition onClass: \forall (alpha: Source.Closed) -> (map).apply (Source.classOf alpha) = Target.classOf (cycle alpha) := Quotient.onClass raw vanishes;

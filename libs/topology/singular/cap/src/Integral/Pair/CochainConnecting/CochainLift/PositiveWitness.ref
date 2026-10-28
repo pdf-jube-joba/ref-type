@@ -1,0 +1,34 @@
+\import \parent.\parent.CochainLift[] \as Lift;
+\import \parent.\parent.\parent.CochainConnecting[p := N.Nat^::zero, q := q].RelativePositive[t := t] \as Sign;
+\import \parent.\parent.\parent.CochainConnecting[p := N.Nat^::zero, q := q].Positive[t := t] \as Chain;
+\import singular_cohomology.Simplices[A := A, source := source].CutFaces[p := N.Nat^::succ t, q := q] \as Geometry;
+\import singular_cohomology.Maps[A := Relative.SubspaceCarrier, B := A, source := Subspace.topology source, target := source] \as Inclusion;
+\import \root.Integral[A := Relative.SubspaceCarrier, source := Subspace.topology source].At[p := N.Nat^::succ t, q := q] \as SubCap;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].Positive[C := Chains.complex, n := t] \as H;
+\import Modules.Alternating[V := H.Homology, space := H.homologySpace].Concatenation[] \as Signs;
+\import singular_cohomology.Cochains[A := Relative.SubspaceCarrier, source := Subspace.topology source].With[coefficients := Cochains.integerCoefficients] \as SubTheory;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].ZeroExtension[C := SubChains.complex] \as SubExtension;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing].Integer[P := SubExtension.complex, N := Cochains.integerCoefficients] \as Sub;
+\definition left[alpha: Sub.Carrier (I.Int^::ofNat q)][a: SubChains.Carrier Geometry.total]: Chains.Carrier (N.Nat^::succ t) :=
+  (Inclusion.At[n := N.Nat^::succ t].push Relative.inclusion Relative.inclusionContinuous).apply ((SubCap.map (SubPositive.from alpha)).apply a);
+\definition sameLeft: \forall (alpha: Sub.Carrier (I.Int^::ofNat q))(lift: Whole.Carrier (I.Int^::ofNat q))(a: SubChains.Carrier Geometry.total) ->
+  (Sequence.restriction).apply (I.Int^::ofNat q) lift = alpha -> left alpha a = Chain.left (Positive.from lift) a :=
+  \fun (alpha: Sub.Carrier (I.Int^::ofNat q))(lift: Whole.Carrier (I.Int^::ofNat q))(a: SubChains.Carrier Geometry.total)(lifted: _) =>
+    congr!{{SubTheory.Carrier q} {Chains.Carrier (N.Nat^::succ t)}}
+      (\fun (u: SubTheory.Carrier q) => (Inclusion.At[n := N.Nat^::succ t].push Relative.inclusion Relative.inclusionContinuous).apply ((SubCap.map u).apply a)) _ _
+      (trans!{{SubTheory.Carrier q}} _ _ _
+        (sym!{{SubTheory.Carrier q}} _ _ (congr!{{Sub.Carrier (I.Int^::ofNat q)} {SubTheory.Carrier q}} SubPositive.from _ _ lifted)) (restriction lift));
+\definition law: \forall (alpha: Sub.Carrier (I.Int^::ofNat q))(lift: Whole.Carrier (I.Int^::ofNat q))(h: RelativeCochains.Carrier (I.Int^::ofNat (N.Nat^::succ q)))(c: Chains.Carrier Geometry.higher)(a: SubChains.Carrier Geometry.total) ->
+  (Sequence.restriction).apply (I.Int^::ofNat q) lift = alpha ->
+  \forall (differential: (Sequence.inclusion).apply (I.Int^::ofNat (N.Nat^::succ q)) h = (Whole.complex.differential).apply (I.Int^::ofNat q) lift) ->
+  (Inclusion.At[n := Geometry.total].push Relative.inclusion Relative.inclusionContinuous).apply a = (Chains.boundary Geometry.total).apply c ->
+  \forall (leftClosed: (H.differential).apply (left alpha a) = (Chains.space t).zero)
+    (rightClosed: (H.differential).apply (Sign.relative h c) = (Chains.space t).zero) ->
+  H.classOf (H.cycle (left alpha a) leftClosed) = Signs.twist (N.Nat^::succ t) (H.classOf (H.cycle (Sign.relative h c) rightClosed)) := \block {
+  \fun (alpha: Sub.Carrier (I.Int^::ofNat q))(lift: Whole.Carrier (I.Int^::ofNat q))(h: RelativeCochains.Carrier (I.Int^::ofNat (N.Nat^::succ q)))(c: Chains.Carrier Geometry.higher)(a: SubChains.Carrier Geometry.total)(lifted: _)(differential: _)(boundary: _)(leftClosed: _)(rightClosed: _) \then
+  \let closed: (H.differential).apply (Chain.left (Positive.from lift) a) = (Chains.space t).zero := trans!{{Chains.Carrier t}} _ _ _
+    (congr!{{Chains.Carrier (N.Nat^::succ t)} {Chains.Carrier t}} ((H.differential).apply) _ _ (sym!{{Chains.Carrier (N.Nat^::succ t)}} _ _ (sameLeft alpha lift a lifted))) leftClosed \then
+  \return trans!{H.Homology} _ _ _
+    (congr!{H.Cycle H.Homology} H.classOf _ _ (Sign.cycleExt (left alpha a) (Chain.left (Positive.from lift) a) leftClosed closed (sameLeft alpha lift a lifted)))
+    (Sign.law (Positive.from lift) h c a (Lift.law h lift differential) boundary closed rightClosed)
+};

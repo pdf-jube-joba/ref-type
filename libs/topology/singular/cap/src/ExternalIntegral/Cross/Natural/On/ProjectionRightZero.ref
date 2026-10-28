@@ -1,0 +1,41 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\definition p: N.Nat^ := N.Nat^::succ r;
+\definition q: N.Nat^ := N.Nat^::zero;
+\import \parent.\parent.\parent.Homology[].RightZero[r := r].Descent[] \as SourceProduct;
+\import Target.Cross[].Homology[].RightZero[r := r].Descent[] \as TargetProductMap;
+\import \parent.RightZero[r := r] \as CrossNatural;
+\import LeftPairMaps.On[f := f].Integer[] \as LeftMap;
+\import RightPairMaps.On[f := g].Integer[] \as RightMap;
+\import UnionPairMaps.On[f := unionMap].Integer[] \as UnionMap;
+\import singular_products.Cross[A := A, B := B, left := left, right := right] \as Whole;
+\import singular_cohomology.Relative[A := TargetProduct.CarrierSet, source := ProductMapping.target, subset := TargetUnion.subset] \as TargetRelative;
+\import singular_cohomology.Maps[A := Product.CarrierSet, B := TargetProduct.CarrierSet, source := External.topology, target := ProductMapping.target] \as WholeMap;
+\import singular_products.Cochains[A := TargetProduct.CarrierSet, source := ProductMapping.target, R := I.Int^, ring := Integers.commutativeRing] \as TargetCochains;
+\import singular_cohomology.Cochains[A := TargetProduct.CarrierSet, source := ProductMapping.target].With[coefficients := TargetCochains.integerCoefficients] \as TargetTheory;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring] \as Cochains;
+\import Cochains.At[C := TargetTheory.complex, k := p] \as HCochain;
+\import WholeMap.Coefficients[M := TargetCochains.integerCoefficients, L := TargetCochains.integerCoefficients] \as Pullback;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import Modules.End[V := I.Int^, space := TargetCochains.integerCoefficients.space] \as Scalars;
+\definition pullback: _ := Pullback.map unionMap (UnionPairMaps.laws unionMap).continuous Scalars.identity;
+\import singular_cohomology.Cochains[A := Product.CarrierSet, source := External.topology].With[coefficients := TargetCochains.integerCoefficients] \as SourceTheory;
+\import Cochains.Map[C := TargetTheory.complex, D := SourceTheory.complex].At[k := p] \as PullbackAt;
+\import \root.Integral[A := Product.CarrierSet, source := External.topology].Pair[subset := Union.subset] \as SourcePair;
+\import \root.Integral[A := TargetProduct.CarrierSet, source := ProductMapping.target].Pair[subset := TargetUnion.subset] \as TargetPair;
+\import SourcePair.Natural[B := TargetProduct.CarrierSet, target := ProductMapping.target, targetSubset := TargetUnion.subset].On[f := unionMap].CohomologyZeroTarget[r := r] \as CapNatural;
+\import SourcePair.CohomologyActionZeroTarget[r := r].Descent[] \as Before;
+\import TargetPair.CohomologyActionZeroTarget[r := r].Descent[] \as After;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.At[C := Left.complex, z := I.Int^::ofNat p] \as L;
+\import Complexes.At[C := Right.complex, z := I.Int^::ofNat q] \as R;
+\import Complexes.At[C := TargetRelative.complex, z := I.Int^::ofNat (Whole.degree p q)] \as Input;
+\import Complexes.At[C := TargetRelative.complex, z := I.Int^::ofNat q] \as Output;
+\definition law: \forall (beta: HCochain.Cohomology)(x: L.Homology)(y: R.Homology) ->
+  (UnionMap.At[z := I.Int^::ofNat q].induced).apply (((Before.map).apply ((PullbackAt.induced pullback).apply beta)).apply (SourceProduct.apply x y)) =
+  ((After.map).apply beta).apply (TargetProductMap.apply ((LeftMap.At[z := I.Int^::ofNat p].induced).apply x) ((RightMap.At[z := I.Int^::ofNat q].induced).apply y)) :=
+  \fun (beta: HCochain.Cohomology)(x: L.Homology)(y: R.Homology) => eq_reason_in!{Output.Homology _
+    "=" _ "by" { CapNatural.law beta (SourceProduct.apply x y) }
+    "=" _ "by" { congr!{Input.Homology Output.Homology} (((After.map).apply beta).apply) _ _ (CrossNatural.law x y) }
+  };

@@ -1,0 +1,76 @@
+\definition forwardAt[z: I.Int^]: Modules.Hom[V := SmallRelative.Carrier z, W := CommonExtension.Carrier z, source := SmallRelative.space z, target := CommonExtension.space z].Map :=
+  (\induction (z: I.Int^) \return Modules.Hom[V := SmallRelative.Carrier z, W := CommonExtension.Carrier z, source := SmallRelative.space z, target := CommonExtension.space z].Map \with {
+    | ofNat: \fun (n: N.Nat^) => \parent.At[n := n].forward
+    | negSucc: \fun (n: N.Nat^) => Modules.Hom[V := SmallRelative.Carrier (I.Int^::negSucc n), W := CommonExtension.Carrier (I.Int^::negSucc n), source := SmallRelative.space (I.Int^::negSucc n), target := CommonExtension.space (I.Int^::negSucc n)].zeroMap
+  }) z;
+\definition backwardAt[z: I.Int^]: Modules.Hom[V := CommonExtension.Carrier z, W := SmallRelative.Carrier z, source := CommonExtension.space z, target := SmallRelative.space z].Map :=
+  (\induction (z: I.Int^) \return Modules.Hom[V := CommonExtension.Carrier z, W := SmallRelative.Carrier z, source := CommonExtension.space z, target := SmallRelative.space z].Map \with {
+    | ofNat: \fun (n: N.Nat^) => \parent.At[n := n].backward
+    | negSucc: \fun (n: N.Nat^) => Modules.Hom[V := CommonExtension.Carrier (I.Int^::negSucc n), W := SmallRelative.Carrier (I.Int^::negSucc n), source := CommonExtension.space (I.Int^::negSucc n), target := SmallRelative.space (I.Int^::negSucc n)].zeroMap
+  }) z;
+\module ForwardNegative(n: N.Nat^) {
+  \definition z: I.Int^ := I.Int^::negSucc n;
+  \import Integer.At[C := SmallRelative.complex, z := z] \as Source;
+  \import Integer.At[C := CommonExtension.complex, z := z] \as Target;
+  \import Modules.Hom[V := SmallRelative.Carrier (Degrees.next z), W := CommonExtension.Carrier (Degrees.next z), source := SmallRelative.space (Degrees.next z), target := CommonExtension.space (Degrees.next z)] \as NextMaps;
+  \import Modules.Hom[V := SmallRelative.Carrier z, W := SmallRelative.Carrier (Degrees.next z), source := SmallRelative.space z, target := SmallRelative.space (Degrees.next z)] \as SourceDifferential;
+  \import Modules.Hom[V := CommonExtension.Carrier z, W := CommonExtension.Carrier (Degrees.next z), source := CommonExtension.space z, target := CommonExtension.space (Degrees.next z)] \as TargetDifferential;
+  \definition law: \forall (x: SmallRelative.Carrier z) -> (CommonExtension.complex.differential).apply z ((forwardAt z).apply x) =
+    (forwardAt (Degrees.next z)).apply ((SmallRelative.complex.differential).apply z x) :=
+    \fun (x: SmallRelative.Carrier z) => trans!{{CommonExtension.Carrier (Degrees.next z)}} _ _ _ (TargetDifferential.zeroPreserved Target.differential)
+      (sym!{{CommonExtension.Carrier (Degrees.next z)}} _ _ (trans!{{CommonExtension.Carrier (Degrees.next z)}} _ _ _
+        (congr!{{SmallRelative.Carrier z} {CommonExtension.Carrier (Degrees.next z)}} (\fun (v: SmallRelative.Carrier z) => (forwardAt (Degrees.next z)).apply ((SmallRelative.complex.differential).apply z v)) _ _ (\parent.\parent.Negative[n := n].cochainZero x))
+        (trans!{{CommonExtension.Carrier (Degrees.next z)}} _ _ _
+          (congr!{{SmallRelative.Carrier (Degrees.next z)} {CommonExtension.Carrier (Degrees.next z)}} ((forwardAt (Degrees.next z)).apply) _ _ (SourceDifferential.zeroPreserved Source.differential))
+          (NextMaps.zeroPreserved (forwardAt (Degrees.next z))))));
+}
+\module BackwardNegative(n: N.Nat^) {
+  \definition z: I.Int^ := I.Int^::negSucc n;
+  \import Integer.At[C := CommonExtension.complex, z := z] \as Source;
+  \import Integer.At[C := SmallRelative.complex, z := z] \as Target;
+  \import Modules.Hom[V := CommonExtension.Carrier (Degrees.next z), W := SmallRelative.Carrier (Degrees.next z), source := CommonExtension.space (Degrees.next z), target := SmallRelative.space (Degrees.next z)] \as NextMaps;
+  \import Modules.Hom[V := CommonExtension.Carrier z, W := CommonExtension.Carrier (Degrees.next z), source := CommonExtension.space z, target := CommonExtension.space (Degrees.next z)] \as SourceDifferential;
+  \import Modules.Hom[V := SmallRelative.Carrier z, W := SmallRelative.Carrier (Degrees.next z), source := SmallRelative.space z, target := SmallRelative.space (Degrees.next z)] \as TargetDifferential;
+  \definition law: \forall (x: CommonExtension.Carrier z) -> (SmallRelative.complex.differential).apply z ((backwardAt z).apply x) =
+    (backwardAt (Degrees.next z)).apply ((CommonExtension.complex.differential).apply z x) :=
+    \fun (x: CommonExtension.Carrier z) => trans!{{SmallRelative.Carrier (Degrees.next z)}} _ _ _ (TargetDifferential.zeroPreserved Target.differential)
+      (sym!{{SmallRelative.Carrier (Degrees.next z)}} _ _ (trans!{{SmallRelative.Carrier (Degrees.next z)}} _ _ _
+        (congr!{{CommonExtension.Carrier z} {SmallRelative.Carrier (Degrees.next z)}} (\fun (v: CommonExtension.Carrier z) => (backwardAt (Degrees.next z)).apply ((CommonExtension.complex.differential).apply z v)) _ _ (CommonExtension.Negative[n := n].zero x))
+        (trans!{{SmallRelative.Carrier (Degrees.next z)}} _ _ _
+          (congr!{{CommonExtension.Carrier (Degrees.next z)} {SmallRelative.Carrier (Degrees.next z)}} ((backwardAt (Degrees.next z)).apply) _ _ (SourceDifferential.zeroPreserved Source.differential))
+          (NextMaps.zeroPreserved (backwardAt (Degrees.next z))))));
+}
+\import Integer.Map[C := SmallRelative.complex, D := CommonExtension.complex] \as Forward;
+\import Integer.Map[C := CommonExtension.complex, D := SmallRelative.complex] \as Backward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (z: I.Int^) => (forwardAt z).apply,
+  addition := \fun (z: I.Int^) => (forwardAt z).addition,
+  scalar := \fun (z: I.Int^) => (forwardAt z).scalar,
+  commutes := \induction (z: I.Int^) \return \forall (x: SmallRelative.Carrier z) -> (CommonExtension.complex.differential).apply z ((forwardAt z).apply x) = (forwardAt (Degrees.next z)).apply ((SmallRelative.complex.differential).apply z x) \with {
+    | ofNat: \fun (n: N.Nat^) => \parent.At[n := n].forwardCommutes
+    | negSucc: \fun (n: N.Nat^) => ForwardNegative[n := n].law
+  },
+};
+\definition backward: Backward.Map := Backward.Map {
+  apply := \fun (z: I.Int^) => (backwardAt z).apply,
+  addition := \fun (z: I.Int^) => (backwardAt z).addition,
+  scalar := \fun (z: I.Int^) => (backwardAt z).scalar,
+  commutes := \induction (z: I.Int^) \return \forall (x: CommonExtension.Carrier z) -> (SmallRelative.complex.differential).apply z ((backwardAt z).apply x) = (backwardAt (Degrees.next z)).apply ((CommonExtension.complex.differential).apply z x) \with {
+    | ofNat: \fun (n: N.Nat^) => \parent.At[n := n].backwardCommutes
+    | negSucc: \fun (n: N.Nat^) => BackwardNegative[n := n].law
+  },
+};
+\import Integer.Isomorphism[C := SmallRelative.complex, D := CommonExtension.complex] \as Isomorphisms;
+\definition data: Isomorphisms.Data := Isomorphisms.Data { forward := forward, backward := backward };
+\definition isomorphism: Isomorphisms.Isomorphism := \into[Isomorphisms.Data](data, Isomorphisms.Isomorphism) \by {
+  Isomorphisms.Laws[data] {
+    leftInverse := \induction (z: I.Int^) \return \forall (x: SmallRelative.Carrier z) -> (backward).apply z ((forward).apply z x) = x \with {
+      | ofNat: \fun (n: N.Nat^) => \parent.At[n := n].leftInverse
+      | negSucc: \fun (n: N.Nat^)(x: SmallRelative.Carrier (I.Int^::negSucc n)) => sym!{{SmallRelative.Carrier (I.Int^::negSucc n)}} _ _ (\parent.Negative[n := n].cochainZero x)
+    },
+    rightInverse := \induction (z: I.Int^) \return \forall (x: CommonExtension.Carrier z) -> (forward).apply z ((backward).apply z x) = x \with {
+      | ofNat: \fun (n: N.Nat^) => \parent.At[n := n].rightInverse
+      | negSucc: \fun (n: N.Nat^)(x: CommonExtension.Carrier (I.Int^::negSucc n)) => sym!{{CommonExtension.Carrier (I.Int^::negSucc n)}} _ _ (CommonExtension.Negative[n := n].zero x)
+    },
+  }
+};

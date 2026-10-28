@@ -1,0 +1,66 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import singular_cohomology.Chains[A := A, source := source] \as WholeChains;
+\import singular_cohomology.Chains[A := Relative.SubspaceCarrier, source := Subspace.topology source] \as SubChains;
+\import singular_cohomology.Simplices[A := Relative.SubspaceCarrier, source := Subspace.topology source] \as SubSimplices;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].ZeroExtension[C := WholeChains.complex] \as Extension;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].ZeroExtension[C := SubChains.complex] \as SubExtension;
+\import Extension.Positive[n := n] \as Positive;
+\import SubExtension.Positive[n := n] \as SubPositive;
+\import Relative.With[coefficients := Whole.integerCoefficients] \as RelativeCochains;
+\import RelativeCochains.Vanishing[z := I.Int^::ofNat n] \as Vanishing;
+\import singular_cohomology.Maps[A := Relative.SubspaceCarrier, B := A, source := Subspace.topology source, target := source] \as Inclusion;
+\import Modules.Free[Generators := SubSimplices.Carrier n].To[W := R, target := Whole.integerCoefficients.space] \as Free;
+\import Modules.Hom[V := WholeChains.Carrier n, W := R, source := WholeChains.space n, target := Whole.integerCoefficients.space] \as WholeMaps;
+\import Modules.Hom[V := SubChains.Carrier n, W := R, source := SubChains.space n, target := Whole.integerCoefficients.space] \as SubMaps;
+\import Modules.Hom[V := Extension.Carrier (I.Int^::ofNat n), W := R, source := Extension.space (I.Int^::ofNat n), target := Whole.integerCoefficients.space] \as ExtendedMaps;
+\definition whole[h: RelativeCochains.Carrier (I.Int^::ofNat n)]: Whole.Carrier n := WholeMaps.Map {
+  apply := \fun (x: WholeChains.Carrier n) => (h).apply (Relative.class (I.Int^::ofNat n) (Positive.intro x)),
+  addition := \fun (x, y: WholeChains.Carrier n) => (Vanishing.precompose h).addition (Positive.intro x) (Positive.intro y),
+  scalar := \fun (a: I.Int^)(x: WholeChains.Carrier n) => (Vanishing.precompose h).scalar a (Positive.intro x),
+};
+\definition from[h: RelativeCochains.Carrier (I.Int^::ofNat n)]: Carrier n :=
+  \into[Whole.Carrier n](whole h, { alpha: Whole.Carrier n \where Vanishes n alpha }) \by {
+    Free.ext _ _ (\fun (sigma: SubSimplices.Carrier n) =>
+      trans!{R} _ _ _ (Pull.onSimplex n Relative.inclusion Relative.inclusionContinuous (whole h) sigma)
+        (trans!{R} _ _ _
+          (congr!{{WholeChains.Carrier n} R} (\fun (x: WholeChains.Carrier n) => (whole h).apply x) _ _
+            (sym!{{WholeChains.Carrier n}} _ _ (Inclusion.At[n := n].onGenerator Relative.inclusion Relative.inclusionContinuous sigma)))
+          (Vanishing.precomposeVanishes h (SubPositive.intro (SubChains.generator n sigma)))))
+  };
+\definition extended[h: Whole.Carrier n]: ExtendedMaps.Map := ExtendedMaps.Map {
+  apply := \fun (x: Extension.Carrier (I.Int^::ofNat n)) => (h).apply x,
+  addition := \fun (x, y: Extension.Carrier (I.Int^::ofNat n)) => (h).addition x y,
+  scalar := \fun (a: I.Int^)(x: Extension.Carrier (I.Int^::ofNat n)) => (h).scalar a x,
+};
+\definition null[h: Carrier n]: Vanishing.NullCochain :=
+  \into[ExtendedMaps.Map](extended h, (Vanishing.submodule).carrier) \by {
+    \fun (x: SubExtension.Carrier (I.Int^::ofNat n)) =>
+      congr!{SubMaps.Map R} (\fun (f: SubMaps.Map) => (f).apply x) _ _
+        (\bysub(Whole.Carrier n, { alpha: Whole.Carrier n \where Vanishes n alpha }, h))
+  };
+\definition to[h: Carrier n]: RelativeCochains.Carrier (I.Int^::ofNat n) := Vanishing.descend (null h);
+\definition toFrom: \forall (h: RelativeCochains.Carrier (I.Int^::ofNat n)) -> to (from h) = h :=
+  \fun (h: RelativeCochains.Carrier (I.Int^::ofNat n)) => Vanishing.injective (to (from h)) h
+    (trans!{Vanishing.NullCochain} _ _ _ (Vanishing.rightInverse (null (from h)))
+      (ExtendedMaps.ext (null (from h)) (Vanishing.restrict h)
+        (\fun (x: Extension.Carrier (I.Int^::ofNat n)) => \refl((h).apply (Relative.class (I.Int^::ofNat n) x)))));
+\definition fromTo: \forall (h: Carrier n) -> from (to h) = h :=
+  \fun (h: Carrier n) => WholeMaps.ext (from (to h)) h
+    (\fun (x: WholeChains.Carrier n) => congr!{Vanishing.NullCochain R} (\fun (f: Vanishing.NullCochain) => (f).apply (Positive.intro x)) _ _
+      (Vanishing.rightInverse (null h)));
+\module Commutes;
+\definition injective: \forall (h, k: RelativeCochains.Carrier (I.Int^::ofNat n)) -> from h = from k -> h = k :=
+  \fun (h, k: RelativeCochains.Carrier (I.Int^::ofNat n))(same: from h = from k) => trans!{{RelativeCochains.Carrier (I.Int^::ofNat n)}} _ _ _
+    (sym!{{RelativeCochains.Carrier (I.Int^::ofNat n)}} _ _ (toFrom h))
+    (trans!{{RelativeCochains.Carrier (I.Int^::ofNat n)}} _ _ _ (congr!{{Carrier n} {RelativeCochains.Carrier (I.Int^::ofNat n)}} to _ _ same) (toFrom k));
+\definition zero: from ((RelativeCochains.space (I.Int^::ofNat n)).zero) = (Whole.space n).zero :=
+  WholeMaps.ext _ _ (\fun (x: WholeChains.Carrier n) => \refl((Whole.integerCoefficients.space).zero));
+\module Linear;
+
+\module Cohomology;

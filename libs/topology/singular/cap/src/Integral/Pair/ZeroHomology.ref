@@ -1,0 +1,32 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import \parent.Degree[] \as Degree;
+\import \parent.At[p := N.Nat^::zero, q := q].Quotient[] \as Cap;
+\import \root.Integral[A := A, source := source].At[p := N.Nat^::zero, q := q] \as WholeCap;
+\import \parent.Boundary[p := N.Nat^::zero, q := q] \as Boundary;
+\import \parent.At[p := N.Nat^::succ N.Nat^::zero, q := q].Quotient[] \as Upper;
+\import Simplices.CutFaces[p := N.Nat^::zero, q := q] \as Geometry;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.At[C := Relative.complex, z := I.Int^::ofNat WholeCap.total] \as Source;
+\import Complexes.At[C := Relative.complex, z := I.Int^::ofNat N.Nat^::zero] \as Target;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import Nonnegative.ZeroExtension[C := Chains.complex] \as Extension;
+\import singular_cohomology.Chains[A := Relative.SubspaceCarrier, source := Subspace.topology source] \as SubChains;
+\import Nonnegative.ZeroExtension[C := SubChains.complex] \as SubExtension;
+\import Complexes.Quotient[C := SubExtension.complex, D := Extension.complex].On[f := Relative.inclusionMap] \as Q;
+\import Q.At[k := I.Int^::negSucc N.Nat^::zero] \as Negative;
+\import Modules.Hom[V := Extension.Carrier (I.Int^::negSucc N.Nat^::zero), W := Negative.Carrier, source := Extension.space (I.Int^::negSucc N.Nat^::zero), target := Negative.space] \as Projection;
+\definition negativeZero: \forall (x: Negative.Carrier) -> x = (Negative.space).zero := Negative.induction (\fun (x: Negative.Carrier) => x = (Negative.space).zero)
+  (\fun (x: Extension.Carrier (I.Int^::negSucc N.Nat^::zero)) => trans!{Negative.Carrier} _ _ _
+    (congr!{{Extension.Carrier (I.Int^::negSucc N.Nat^::zero)} Negative.Carrier} Negative.class _ _ (Extension.Negative[n := N.Nat^::zero].zero x))
+    (Projection.zeroPreserved Negative.projection));
+\import std.Logic[].Equality[].Transport[A := I.Int^] \as Transport;
+\definition sourcePrior: \forall (y: Degree.Carrier (N.Nat^::succ WholeCap.total)) ->
+  (Source.prior).apply y = (Degree.boundary WholeCap.total).apply y :=
+  \fun (y: Degree.Carrier (N.Nat^::succ WholeCap.total)) => Transport.castRefl Relative.complex.family.Carrier (I.Int^::ofNat WholeCap.total) ((Degree.boundary WholeCap.total).apply y);
+\definition targetPrior: \forall (y: Degree.Carrier (N.Nat^::succ N.Nat^::zero)) ->
+  (Target.prior).apply y = (Degree.boundary N.Nat^::zero).apply y :=
+  \fun (y: Degree.Carrier (N.Nat^::succ N.Nat^::zero)) => Transport.castRefl Relative.complex.family.Carrier (I.Int^::ofNat N.Nat^::zero) ((Degree.boundary N.Nat^::zero).apply y);
+\module On(beta: Cochains.Carrier q, closed: Boundary.closed beta);

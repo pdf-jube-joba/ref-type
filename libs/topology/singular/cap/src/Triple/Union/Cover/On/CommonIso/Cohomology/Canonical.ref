@@ -1,0 +1,26 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import \parent.\parent.\parent.Comparison[] \as ChainComparison;
+\import \root.Triple[A := A, source := source, first := first, second := second].Union[].Comparison[n := n] \as UnionComparison;
+\import UnionComparison.Cohomology[] \as Canonical;
+\import \parent.\parent.\parent.FromSmall[n := n].Apply[] \as From;
+\import Integer.Map[C := Relative.With[coefficients := Cochains.integerCoefficients].complex, D := SmallRelative.complex].At[k := I.Int^::ofNat n] \as RestrictionMap;
+\import Integer.Map[C := SmallRelative.complex, D := CommonExtension.complex].At[k := I.Int^::ofNat n] \as SmallMap;
+\import Modules.Hom[V := Chains.Carrier n, W := I.Int^, source := Chains.space n, target := Cochains.integerCoefficients.space] \as WholeMaps;
+\definition onCochain: \forall (h: RelativeCochains.Carrier (I.Int^::ofNat n)) ->
+  From.apply ((Comparison.restriction).apply (I.Int^::ofNat n) h) = UnionComparison.apply h :=
+  \fun (h: RelativeCochains.Carrier (I.Int^::ofNat n)) => WholeMaps.ext (From.apply ((Comparison.restriction).apply (I.Int^::ofNat n) h)) (UnionComparison.apply h)
+    (\fun (x: Chains.Carrier n) => congr!{{Relative.Carrier (I.Int^::ofNat n)} I.Int^} ((h).apply) _ _
+      (ChainComparison.At[z := I.Int^::ofNat n].quotientOnClass (WholeExtension.Positive[n := n].intro x)));
+\definition law: \forall (h: Source.Cohomology) -> (isomorphism.forward).apply h = (Canonical.map).apply h :=
+  Source.classInduction (\fun (h: Source.Cohomology) => (isomorphism.forward).apply h = (Canonical.map).apply h)
+    (\fun (h: Source.Closed) => eq_reason_in!{Target.Cohomology _
+      "=" _ "by" { congr!{SmallH.Cohomology Target.Cohomology} (\fun (x: SmallH.Cohomology) => (Positive.forward).apply ((SmallCommon.isomorphism.forward).apply x)) _ _ (RestrictionMap.onClass Comparison.restriction h) }
+      "=" _ "by" { congr!{IntegerH.Cohomology Target.Cohomology} Positive.forward.apply _ _ (SmallMap.onClass Maps.forward ((RestrictionMap.cyclesMap Comparison.restriction).apply h)) }
+      "=" _ "by" { Positive.onIntegerClass ((SmallMap.cyclesMap Maps.forward).apply ((RestrictionMap.cyclesMap Comparison.restriction).apply h)) }
+      "=" _ "by" { Target.equalClass (Positive.toNatural ((SmallMap.cyclesMap Maps.forward).apply ((RestrictionMap.cyclesMap Comparison.restriction).apply h))) (Canonical.cycle h) (onCochain h) }
+      "=" _ "by" { sym!{Target.Cohomology} _ _ (Canonical.onClass h) }
+    });

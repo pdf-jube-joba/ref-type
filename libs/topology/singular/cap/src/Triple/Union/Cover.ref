@@ -1,0 +1,53 @@
+\import topology.Topology[Carrier := Relative.SubspaceCarrier] \as UnionTopology;
+\definition left: \Pow Relative.SubspaceCarrier := { x: Relative.SubspaceCarrier \where \In[A] first x };
+\definition right: \Pow Relative.SubspaceCarrier := { x: Relative.SubspaceCarrier \where \In[A] second x };
+\structure Conditions: \Prop := {
+  leftOpen: UnionTopology.IsOpenIn (Space.topology source) left,
+  rightOpen: UnionTopology.IsOpenIn (Space.topology source) right,
+};
+\import singular_excision.MayerVietoris[A := Relative.SubspaceCarrier].Over[source := Space.topology source] \as MV;
+\definition data: MV.Data := MV.Data { left := left, right := right };
+\definition cover[conditions: Conditions]: MV.Cover := \into[MV.Data](data, { d: MV.Data \where MV.Laws[d] }) \by {
+  MV.Laws[data] {
+    leftOpen := conditions.leftOpen,
+    rightOpen := conditions.rightOpen,
+    covered := \fun (x: Relative.SubspaceCarrier) => \bysub(A, subset, x),
+  }
+};
+\module On(conditions: Conditions) {
+  \import MV.On[cover := cover conditions] \as Covered;
+  \import singular_subdivision.Small[A := Relative.SubspaceCarrier, source := Space.topology source, family := Covered.family] \as Small;
+  \import singular_subdivision.OpenCover[A := Relative.SubspaceCarrier, source := Space.topology source].On[cover := Covered.openCover] \as SmallComparison;
+  \import singular_cohomology.Chains[A := Relative.SubspaceCarrier, source := Space.topology source] \as UnionChains;
+  \import singular_cohomology.Maps[A := Relative.SubspaceCarrier, B := A, source := Space.topology source, target := source] \as UnionMaps;
+  \import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+  \import Complexes.Map[C := UnionChains.complex, D := Chains.complex].Composition[B := Small.complex] \as Composition;
+  \definition smallToUnion: _ := Small.inclusion;
+  \definition equivalence: _ := SmallComparison.equivalence;
+  \definition inclusion: Complexes.Map[C := Small.complex, D := Chains.complex].Map :=
+    Composition.compose (UnionMaps.push Relative.inclusion Relative.inclusionContinuous) Small.inclusion;
+  \module Degree(n: N.Nat^);
+  \import Complexes.SplitInjection[C := Small.complex, D := Chains.complex] \as Split;
+  \definition pairData: Split.Data := Split.Data { inclusion := inclusion, retraction := \fun (n: N.Nat^) => Degree[n := n].retraction };
+  \definition pair: Split.SplitInjection := \into[Split.Data](pairData, Split.SplitInjection) \by {
+    Split.Laws[pairData] { leftInverse := \fun (n: N.Nat^) => Degree[n := n].leftInverse }
+  };
+  \module Comparison;
+  \module ToSmall(n: N.Nat^);
+  \module FromSmall(n: N.Nat^);
+  \module CommonIso;
+  \module Cup(p, q: N.Nat^);
+  \module Cap(p, q: N.Nat^);
+  \module SmallDegree;
+  \module CapCohomology(p, r: N.Nat^);
+  \module CapCohomologyZero(p: N.Nat^);
+  \module CapCohomologyZeroZero;
+  \module CapCohomologyZeroTarget(r: N.Nat^);
+  \module CapCoboundary(p, r: N.Nat^);
+  \module CapZeroCoboundary(r: N.Nat^);
+  \module CapBoundary(p, q: N.Nat^);
+  \module CapHomology(p, q: N.Nat^);
+  \module CapAction(p, q: N.Nat^);
+  \module CapZeroHomology(q: N.Nat^);
+  \module CapZeroAction(q: N.Nat^);
+}

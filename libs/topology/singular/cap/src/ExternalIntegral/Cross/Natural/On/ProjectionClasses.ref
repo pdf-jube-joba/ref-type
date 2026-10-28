@@ -1,0 +1,47 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import \parent.\parent.\parent.At[p := p, q := q] \as CrossAt;
+\import \parent.\parent.\parent.Homology[].All[] \as SourceCross;
+\import Target.Cross[].Homology[].All[] \as FinalCross;
+\import \parent.All[] \as CrossNatural;
+\import LeftPairMaps.On[f := f].Integer[] \as LeftMap;
+\import RightPairMaps.On[f := g].Integer[] \as RightMap;
+\import UnionPairMaps.On[f := unionMap].Integer[] \as UnionMap;
+\import singular_products.Cross[A := A, B := B, left := left, right := right] \as Whole;
+\import singular_cohomology.Relative[A := Product.CarrierSet, source := External.topology, subset := Union.subset] \as SourceRelative;
+\import singular_cohomology.Relative[A := TargetProduct.CarrierSet, source := ProductMapping.target, subset := TargetUnion.subset] \as FinalRelative;
+\import singular_cohomology.Maps[A := Product.CarrierSet, B := TargetProduct.CarrierSet, source := External.topology, target := ProductMapping.target] \as WholeMap;
+\import singular_products.Cochains[A := TargetProduct.CarrierSet, source := ProductMapping.target, R := I.Int^, ring := Integers.commutativeRing] \as TargetCochains;
+\import singular_cohomology.Cochains[A := TargetProduct.CarrierSet, source := ProductMapping.target].With[coefficients := TargetCochains.integerCoefficients] \as TargetTheory;
+\import singular_cohomology.Cochains[A := Product.CarrierSet, source := External.topology].With[coefficients := TargetCochains.integerCoefficients] \as SourceTheory;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring] \as Cochains;
+\import WholeMap.Coefficients[M := TargetCochains.integerCoefficients, L := TargetCochains.integerCoefficients] \as Pullback;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import Modules.End[V := I.Int^, space := TargetCochains.integerCoefficients.space] \as Scalars;
+\definition pullback: _ := Pullback.map unionMap (UnionPairMaps.laws unionMap).continuous Scalars.identity;
+\import \root.Integral[A := Product.CarrierSet, source := External.topology].Pair[subset := Union.subset] \as SourcePair;
+\import \root.Integral[A := TargetProduct.CarrierSet, source := ProductMapping.target].Pair[subset := TargetUnion.subset] \as FinalPair;
+\import SourcePair.Natural[B := TargetProduct.CarrierSet, target := ProductMapping.target, targetSubset := TargetUnion.subset].On[f := unionMap] \as CapNatural;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.At[C := Left.complex, z := I.Int^::ofNat p] \as L;
+\import Complexes.At[C := Right.complex, z := I.Int^::ofNat q] \as R;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\module Degree(n: N.Nat^) {
+  \import Complexes.At[C := SourceRelative.complex, z := I.Int^::ofNat n] \as Source;
+  \import Complexes.At[C := FinalRelative.complex, z := I.Int^::ofNat n] \as Target;
+  \definition SourceHomology: \Set := Source.Homology;
+  \definition TargetHomology: \Set := Target.Homology;
+  \definition push: SourceHomology -> TargetHomology := (UnionMap.At[z := I.Int^::ofNat n].induced).apply;
+}
+\definition SourceHomology[n: N.Nat^]: \Set := Degree[n := n].SourceHomology;
+\definition TargetHomology[n: N.Nat^]: \Set := Degree[n := n].TargetHomology;
+\definition push[n: N.Nat^]: SourceHomology n -> TargetHomology n := Degree[n := n].push;
+\definition shiftNaturality: \forall (n: N.Nat^)(same: Whole.degree p q = n)(z: SourceHomology (Whole.degree p q)) ->
+  push n (Transport.cast SourceHomology (Whole.degree p q) n same z) = Transport.cast TargetHomology (Whole.degree p q) n same (push (Whole.degree p q) z) :=
+  \fun (n: N.Nat^)(same: Whole.degree p q = n)(z: SourceHomology (Whole.degree p q)) => sym!{{TargetHomology n}} _ _ (Transport.natural SourceHomology TargetHomology push (Whole.degree p q) n same z);
+\module Positive(a, b: N.Nat^);
+\module CochainZero(a: N.Nat^);
+\module TargetZero(b: N.Nat^);
+\module ZeroZero;

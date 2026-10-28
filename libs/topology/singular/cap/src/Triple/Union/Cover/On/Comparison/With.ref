@@ -1,0 +1,49 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing] \as Hom;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as Cochains;
+\import Hom.Relative[subcomplex := Small.complex, wholecomplex := Chains.complex].On[pair := pair, coefficients := coefficients] \as SmallRelative;
+\import Hom.Integer[P := Relative.complex, N := coefficients] \as WholeRelative;
+\import Hom.Integer[P := WholeExtension.complex, N := coefficients] \as WholeCochains;
+\import Hom.Integer[P := UnionExtension.complex, N := coefficients] \as UnionCochains;
+\import Hom.Integer[P := SmallExtension.complex, N := coefficients] \as SmallCochains;
+\import Modules.End[V := coefficients.Carrier, space := coefficients.space] \as Coefficients;
+\import Hom.IntegerMapping[P := SmallQuotient.complex, Q := Relative.complex, N := coefficients, L := coefficients].On[f := map, u := Coefficients.identity] \as RelativeMap;
+\import Hom.IntegerMapping[P := WholeExtension.complex, Q := WholeExtension.complex, N := coefficients, L := coefficients].On[f := WholeMaps.identity, u := Coefficients.identity] \as WholeMap;
+\import Hom.IntegerMapping[P := SmallExtension.complex, Q := UnionExtension.complex, N := coefficients, L := coefficients].On[f := SubMap.map, u := Coefficients.identity] \as SubMapCochains;
+\definition restriction: Cochains.Map[C := WholeRelative.complex, D := SmallRelative.complex].Map := RelativeMap.map;
+\import Relative.With[coefficients := coefficients].PairSequence[] \as SourceSequence;
+\import SmallRelative.PairSequence[] \as TargetSequence;
+\module Square(z: I.Int^) {
+  \definition inclusion: \forall (h: WholeRelative.Carrier z) ->
+    (WholeMap.map).apply z ((SourceSequence.inclusion).apply z h) = (TargetSequence.inclusion).apply z ((RelativeMap.map).apply z h) :=
+    \fun (h: WholeRelative.Carrier z) => WholeCochains.At[z := z].ext ((WholeMap.map).apply z ((SourceSequence.inclusion).apply z h)) ((TargetSequence.inclusion).apply z ((RelativeMap.map).apply z h)) (\fun (x: WholeExtension.Carrier z) =>
+      congr!{{Relative.Carrier z} coefficients.Carrier} ((h).apply) _ _ (sym!{{Relative.Carrier z}} _ _ (QuotientMap.At[k := z].onClass compatible x)));
+  \definition restriction: \forall (h: WholeCochains.Carrier z) ->
+    (SubMapCochains.map).apply z ((SourceSequence.restriction).apply z h) = (TargetSequence.restriction).apply z ((WholeMap.map).apply z h) :=
+    \fun (h: WholeCochains.Carrier z) => SmallCochains.At[z := z].ext ((SubMapCochains.map).apply z ((SourceSequence.restriction).apply z h)) ((TargetSequence.restriction).apply z ((WholeMap.map).apply z h)) (\fun (x: SmallExtension.Carrier z) =>
+      congr!{{WholeExtension.Carrier z} coefficients.Carrier} ((h).apply) _ _ (sym!{{WholeExtension.Carrier z}} _ _ (compatible z x)));
+}
+\import Cochains.ShortExact[A := WholeRelative.complex, B := WholeCochains.complex, C := UnionCochains.complex]
+  .Morphism[A1 := SmallRelative.complex, B1 := WholeCochains.complex, C1 := SmallCochains.complex]
+  .Diagram[s := SourceSequence.sequence, t := TargetSequence.sequence, a := restriction, b := WholeMap.map, c := SubMapCochains.map] \as Diagram;
+\definition diagram: Diagram.Commutative := Diagram.Commutative {
+  left := \fun (z: I.Int^) => Square[z := z].inclusion,
+  right := \fun (z: I.Int^)(h: WholeCochains.Carrier z) => sym!{{SmallCochains.Carrier z}} _ _ (Square[z := z].restriction h),
+};
+\import Complexes.Equivalence[C := Small.complex, D := UnionChains.complex].ZeroExtension[e := equivalence] \as SubEquivalence;
+\import Hom.IntegerEquivalence[P := SmallExtension.complex, Q := UnionExtension.complex, N := coefficients] \as SubComparison;
+\import IntegerChains.Isomorphism[C := WholeExtension.complex, D := WholeExtension.complex] \as WholeIsomorphisms;
+\definition wholeData: WholeIsomorphisms.Data := WholeIsomorphisms.Data { forward := WholeMaps.identity, backward := WholeMaps.identity };
+\definition wholeIsomorphism: WholeIsomorphisms.Isomorphism := \into[WholeIsomorphisms.Data](wholeData, WholeIsomorphisms.Isomorphism) \by {
+  WholeIsomorphisms.Laws[wholeData] { leftInverse := \fun (z: I.Int^)(x: WholeExtension.Carrier z) => \refl(x), rightInverse := \fun (z: I.Int^)(x: WholeExtension.Carrier z) => \refl(x) }
+};
+\import IntegerChains.Equivalence[C := WholeExtension.complex, D := WholeExtension.complex].FromIsomorphism[] \as WholeEquivalence;
+\import Hom.IntegerEquivalence[P := WholeExtension.complex, Q := WholeExtension.complex, N := coefficients] \as WholeComparison;
+\definition quasiIsomorphism: Cochains.Map[C := WholeRelative.complex, D := SmallRelative.complex].QuasiIsomorphism restriction :=
+  Diagram.leftQuasiIsomorphism diagram (WholeComparison.quasiIsomorphism (WholeEquivalence.apply wholeIsomorphism)) (SubComparison.quasiIsomorphism SubEquivalence.equivalence);
+\module At(z: I.Int^) {
+  \import Cochains.Map[C := WholeRelative.complex, D := SmallRelative.complex].At[k := z].Invert[f := restriction] \as Inverse;
+  \definition isomorphism: _ := Inverse.isomorphism (quasiIsomorphism z);
+}

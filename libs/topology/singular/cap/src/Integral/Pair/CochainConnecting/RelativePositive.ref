@@ -1,0 +1,37 @@
+\import \parent.\parent.CochainConnecting[p := N.Nat^::zero, q := q].Positive[t := t] \as Sign;
+\import singular_cohomology.Simplices[A := A, source := source].CutFaces[p := N.Nat^::succ t, q := q] \as Geometry;
+\import singular_cohomology.Chains[A := Relative.SubspaceCarrier, source := Subspace.topology source] \as SubChains;
+\import \root.Integral[A := A, source := source].At[p := N.Nat^::succ t, q := N.Nat^::succ q] \as WholeRight;
+\import \root.Integral[A := A, source := source].Pair[subset := subset].At[p := N.Nat^::succ t, q := N.Nat^::succ q].RelativeCochain[] \as RelativeRight;
+\import \root.CochainPair[A := A, source := source, subset := subset, R := I.Int^, ring := Integers.commutativeRing].Comparison[n := N.Nat^::succ q] \as Comparison;
+\import Relative.With[coefficients := Cochains.integerCoefficients] \as RelativeCochains;
+\import singular_cohomology.Cochains[A := A, source := source].With[coefficients := Cochains.integerCoefficients] \as Theory;
+\import singular_cohomology.Maps[A := Relative.SubspaceCarrier, B := A, source := Subspace.topology source, target := source] \as Inclusion;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import Nonnegative.ZeroExtension[C := Chains.complex] \as Extension;
+\import Nonnegative.Positive[C := Chains.complex, n := t] \as H;
+\import Modules.Alternating[V := H.Homology, space := H.homologySpace].Concatenation[] \as HomologySigns;
+\definition relative[h: RelativeCochains.Carrier (I.Int^::ofNat (N.Nat^::succ q))][c: Chains.Carrier Geometry.higher]: Chains.Carrier (N.Nat^::succ t) :=
+  (RelativeRight.map h).apply (Relative.class (I.Int^::ofNat Geometry.higher) (Extension.Positive[n := Geometry.higher].intro c));
+\definition sameRight: \forall (beta: Cochains.Carrier q)(h: RelativeCochains.Carrier (I.Int^::ofNat (N.Nat^::succ q)))(c: Chains.Carrier Geometry.higher) ->
+  Comparison.from h = Theory.coboundary q beta -> Sign.right beta c = relative h c :=
+  \fun (beta: Cochains.Carrier q)(h: RelativeCochains.Carrier (I.Int^::ofNat (N.Nat^::succ q)))(c: Chains.Carrier Geometry.higher)(represented: _) => trans!{{Chains.Carrier (N.Nat^::succ t)}} _ _ _
+    (congr!{{Cochains.Carrier (N.Nat^::succ q)} {Chains.Carrier (N.Nat^::succ t)}} (\fun (z: Cochains.Carrier (N.Nat^::succ q)) => (WholeRight.map z).apply c) _ _ (sym!{{Cochains.Carrier (N.Nat^::succ q)}} _ _ represented))
+    (sym!{{Chains.Carrier (N.Nat^::succ t)}} _ _ (RelativeRight.onClass h (Extension.Positive[n := Geometry.higher].intro c)));
+\definition cycleExt: \forall (u, v: Chains.Carrier (N.Nat^::succ t))(uc: (H.differential).apply u = (Chains.space t).zero)(vc: (H.differential).apply v = (Chains.space t).zero) -> u = v -> H.cycle u uc = H.cycle v vc :=
+  \fun (u, v: Chains.Carrier (N.Nat^::succ t))(uc: _)(vc: _)(same: u = v) =>
+    (\idelim u = v \with z: Chains.Carrier (N.Nat^::succ t) => \forall (zc: (H.differential).apply z = (Chains.space t).zero) -> H.cycle u uc = H.cycle z zc \by {
+      base: \fun (zc: _) => \refl(H.cycle u uc), equality: same
+    }) vc;
+\definition law: \forall (beta: Cochains.Carrier q)(h: RelativeCochains.Carrier (I.Int^::ofNat (N.Nat^::succ q)))(c: Chains.Carrier Geometry.higher)(a: SubChains.Carrier Geometry.total) ->
+  Comparison.from h = Theory.coboundary q beta ->
+  (Inclusion.At[n := Geometry.total].push Relative.inclusion Relative.inclusionContinuous).apply a = (Chains.boundary Geometry.total).apply c ->
+  \forall (leftClosed: (H.differential).apply (Sign.left beta a) = (Chains.space t).zero)
+    (rightClosed: (H.differential).apply (relative h c) = (Chains.space t).zero) ->
+  H.classOf (H.cycle (Sign.left beta a) leftClosed) = HomologySigns.twist (N.Nat^::succ t) (H.classOf (H.cycle (relative h c) rightClosed)) :=
+  \block { \fun (beta: Cochains.Carrier q)(h: RelativeCochains.Carrier (I.Int^::ofNat (N.Nat^::succ q)))(c: Chains.Carrier Geometry.higher)(a: SubChains.Carrier Geometry.total)(represented: _)(boundary: _)(leftClosed: _)(rightClosed: _) \then
+  \let wholeClosed: (H.differential).apply (Sign.right beta c) = (Chains.space t).zero := trans!{{Chains.Carrier t}} _ _ _ (congr!{{Chains.Carrier (N.Nat^::succ t)} {Chains.Carrier t}} ((H.differential).apply) _ _ (sameRight beta h c represented)) rightClosed \then
+  \return trans!{H.Homology} _ _ _ (Sign.law beta c a boundary leftClosed wholeClosed)
+    (congr!{H.Homology H.Homology} (HomologySigns.twist (N.Nat^::succ t)) _ _
+      (congr!{H.Cycle H.Homology} H.classOf _ _ (cycleExt (Sign.right beta c) (relative h c) wholeClosed rightClosed (sameRight beta h c represented))))
+  };

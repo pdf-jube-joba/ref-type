@@ -1,0 +1,37 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import \parent.Quotient[] \as Quotient;
+\import \parent.RelativeCochain[] \as RelativeCap;
+\import Whole.Adjunction[] \as Absolute;
+\import singular_cap.CochainPair[A := A, source := source, subset := subset, R := I.Int^, ring := Integers.commutativeRing] \as PairCochains;
+\import PairCochains.Comparison[n := p] \as Left;
+\import PairCochains.Comparison[n := q] \as Right;
+\import PairCochains.Comparison[n := Whole.total] \as Result;
+\import PairCochains.RelativeCup[p := p, q := q] \as Cup;
+\import Relative.With[coefficients := Cochains.integerCoefficients] \as RelativeCochains;
+\import \root.Integral[A := A, source := source].Pair[subset := subset].Degree[] \as Degree;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].ZeroExtension[C := Chains.complex] \as Extension;
+\import singular_cohomology.Chains[A := Relative.SubspaceCarrier, source := Subspace.topology source] \as SubChains;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].ZeroExtension[C := SubChains.complex] \as SubExtension;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring].Quotient[C := SubExtension.complex, D := Extension.complex].On[f := Relative.inclusionMap].At[k := I.Int^::ofNat Whole.total] \as SourceQ;
+\definition left: \forall (alpha: RelativeCochains.Carrier (I.Int^::ofNat p))(beta: Cochains.Carrier q)(x: Degree.Carrier Whole.total) ->
+  (alpha).apply ((Quotient.map beta).apply x) = (Cup.left alpha beta).apply x :=
+  \fun (alpha: RelativeCochains.Carrier (I.Int^::ofNat p))(beta: Cochains.Carrier q) => SourceQ.induction
+    (\fun (x: Degree.Carrier Whole.total) => (alpha).apply ((Quotient.map beta).apply x) = (Cup.left alpha beta).apply x)
+    (\fun (x: Extension.Carrier (I.Int^::ofNat Whole.total)) => eq_reason_in!{I.Int^ _
+      "=" _ "by" { congr!{{Degree.Carrier p} I.Int^} ((alpha).apply) _ _ (Quotient.onClass beta x) }
+      "=" _ "by" { Absolute.law (Left.from alpha) beta x }
+      "=" _ "by" { sym!{I.Int^} _ _ (congr!{{Cochains.Carrier Whole.total} I.Int^} (\fun (h: Cochains.Carrier Whole.total) => (h).apply x) _ _ (Cup.leftRestriction alpha beta)) }
+    });
+\definition right: \forall (alpha: Cochains.Carrier p)(beta: RelativeCochains.Carrier (I.Int^::ofNat q))(x: Degree.Carrier Whole.total) ->
+  (alpha).apply ((RelativeCap.map beta).apply x) = (Cup.right alpha beta).apply x :=
+  \fun (alpha: Cochains.Carrier p)(beta: RelativeCochains.Carrier (I.Int^::ofNat q)) => SourceQ.induction
+    (\fun (x: Degree.Carrier Whole.total) => (alpha).apply ((RelativeCap.map beta).apply x) = (Cup.right alpha beta).apply x)
+    (\fun (x: Extension.Carrier (I.Int^::ofNat Whole.total)) => eq_reason_in!{I.Int^ _
+      "=" _ "by" { congr!{{Chains.Carrier p} I.Int^} ((alpha).apply) _ _ (RelativeCap.onClass beta x) }
+      "=" _ "by" { Absolute.law alpha (Right.from beta) x }
+      "=" _ "by" { sym!{I.Int^} _ _ (congr!{{Cochains.Carrier Whole.total} I.Int^} (\fun (h: Cochains.Carrier Whole.total) => (h).apply x) _ _ (Cup.rightRestriction alpha beta)) }
+    });

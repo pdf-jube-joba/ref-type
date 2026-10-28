@@ -1,0 +1,42 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.congr;
+\import FirstPair.Cohomology[p := p, q := q].Left[] \as FirstCup;
+\import SecondPair.Cohomology[p := p, q := q].Right[] \as SecondCup;
+\import FirstComparison.Cohomology[] \as FirstForget;
+\import SecondComparison.Cohomology[] \as SecondForget;
+\import First.OverRing[R := I.Int^, ring := Integers.commutativeRing].With[coefficients := Cochains.coefficients] \as FirstTheory;
+\import Second.OverRing[R := I.Int^, ring := Integers.commutativeRing].With[coefficients := Cochains.coefficients] \as SecondTheory;
+\import singular_cohomology.Cochains[A := A, source := source].OverRing[R := I.Int^, ring := Integers.commutativeRing].With[coefficients := Cochains.coefficients] \as WholeTheory;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring] \as OrdinaryComplexes;
+\import OrdinaryComplexes.At[C := WholeTheory.complex, k := p] \as WholeFirst;
+\import OrdinaryComplexes.At[C := WholeTheory.complex, k := q] \as WholeSecond;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.At[C := FirstTheory.complex, z := I.Int^::ofNat p] \as FirstInput;
+\import Complexes.At[C := SecondTheory.complex, z := I.Int^::ofNat q] \as SecondInput;
+\import Complexes.At[C := FirstTheory.complex, z := I.Int^::ofNat total] \as FirstOutput;
+\import Complexes.At[C := SecondTheory.complex, z := I.Int^::ofNat total] \as SecondOutput;
+\import \root.Triple[A := A, source := source, first := first, second := second].Cup[p := p, q := q] \as Product;
+\import \parent.Closed[] \as Closed;
+\definition inFirst[alpha: FirstInput.Cohomology][beta: SecondInput.Cohomology]: FirstOutput.Cohomology :=
+  FirstCup.apply alpha ((SecondForget.map).apply beta);
+\definition inSecond[alpha: FirstInput.Cohomology][beta: SecondInput.Cohomology]: SecondOutput.Cohomology :=
+  SecondCup.apply ((FirstForget.map).apply alpha) beta;
+\definition firstCycle[alpha: FirstInput.Closed][beta: SecondInput.Closed]: FirstOutput.Closed :=
+  FirstOutput.cycle (Product.inFirst alpha beta) (Closed.firstLaw alpha beta
+    (\bysub(FirstCochains.Carrier (I.Int^::ofNat p), (FirstInput.cycles).carrier, alpha))
+    (\bysub(SecondCochains.Carrier (I.Int^::ofNat q), (SecondInput.cycles).carrier, beta)));
+\definition secondCycle[alpha: FirstInput.Closed][beta: SecondInput.Closed]: SecondOutput.Closed :=
+  SecondOutput.cycle (Product.inSecond alpha beta) (Closed.secondLaw alpha beta
+    (\bysub(FirstCochains.Carrier (I.Int^::ofNat p), (FirstInput.cycles).carrier, alpha))
+    (\bysub(SecondCochains.Carrier (I.Int^::ofNat q), (SecondInput.cycles).carrier, beta)));
+\definition firstOnClasses: \forall (alpha: FirstInput.Closed)(beta: SecondInput.Closed) ->
+  inFirst (FirstInput.classOf alpha) (SecondInput.classOf beta) = FirstOutput.classOf (firstCycle alpha beta) :=
+  \fun (alpha: FirstInput.Closed)(beta: SecondInput.Closed) => trans!{FirstOutput.Cohomology} _ _ _
+    (congr!{WholeSecond.Cohomology FirstOutput.Cohomology} (\fun (h: WholeSecond.Cohomology) => FirstCup.apply (FirstInput.classOf alpha) h) _ _ (SecondForget.onClass beta))
+    (FirstCup.onClasses alpha (SecondForget.cycle beta));
+\definition secondOnClasses: \forall (alpha: FirstInput.Closed)(beta: SecondInput.Closed) ->
+  inSecond (FirstInput.classOf alpha) (SecondInput.classOf beta) = SecondOutput.classOf (secondCycle alpha beta) :=
+  \fun (alpha: FirstInput.Closed)(beta: SecondInput.Closed) => trans!{SecondOutput.Cohomology} _ _ _
+    (congr!{WholeFirst.Cohomology SecondOutput.Cohomology} (\fun (h: WholeFirst.Cohomology) => SecondCup.apply h (SecondInput.classOf beta)) _ _ (FirstForget.onClass alpha))
+    (SecondCup.onClasses (FirstForget.cycle alpha) beta);

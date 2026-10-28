@@ -1,0 +1,34 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import N.Basic[].Def[] \as Nat;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.Positive[C := Chains.complex, n := Nat.add N.Nat^::zero r] \as Source;
+\import Complexes.DegreeZero[C := Chains.complex] \as Target;
+\import \parent.Diagonal[].Boundary[p := N.Nat^::zero, q := r] \as Boundary;
+\import Boundary.Formula[] \as Formula;
+\import \parent.At[p := N.Nat^::zero, q := r] \as Lower;
+\import \parent.At[p := N.Nat^::succ N.Nat^::zero, q := r] \as Upper;
+\import Simplices.CutFaces[p := N.Nat^::zero, q := r] \as Geometry;
+\import Chains.DegreeTransport[] \as Degrees;
+\import Modules.Hom[V := Chains.Carrier Geometry.total, W := Chains.Carrier N.Nat^::zero, source := Chains.space Geometry.total, target := Chains.space N.Nat^::zero] \as LowerMaps;
+\import Modules.Hom[V := Chains.Carrier (N.Nat^::succ N.Nat^::zero), W := Chains.Carrier N.Nat^::zero, source := Chains.space (N.Nat^::succ N.Nat^::zero), target := Chains.space N.Nat^::zero] \as BoundaryMaps;
+\import Modules.Laws[V := Chains.Carrier N.Nat^::zero, space := Chains.space N.Nat^::zero] \as Values;
+\import algebra.Group[].Of[Carrier := Chains.Carrier N.Nat^::zero, group := Values.additive] \as Group;
+\definition witness[gamma: Cochains.Carrier r][x: Source.Cycle]: Chains.Carrier (N.Nat^::succ N.Nat^::zero) :=
+  (Upper.map gamma).apply (Degrees.apply Geometry.higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) x);
+\definition sumZero: \forall (gamma: Cochains.Carrier r)(x: Source.Cycle) ->
+  (Chains.space N.Nat^::zero).add ((Chains.boundary N.Nat^::zero).apply (witness gamma x)) ((Formula.right gamma).apply x) = (Chains.space N.Nat^::zero).zero :=
+  \fun (gamma: Cochains.Carrier r)(x: Source.Cycle) => trans!{{Chains.Carrier N.Nat^::zero}} _ _ _
+    (sym!{{Chains.Carrier N.Nat^::zero}} _ _ (Formula.law gamma x))
+    (trans!{{Chains.Carrier N.Nat^::zero}} _ _ _
+      (congr!{{Chains.Carrier Geometry.total} {Chains.Carrier N.Nat^::zero}} ((Lower.map gamma).apply) _ _
+        (\bysub(Chains.Carrier Geometry.higher, (Source.cycles).carrier, x))) (LowerMaps.zeroPreserved (Lower.map gamma)));
+\definition boundary: \forall (gamma: Cochains.Carrier r)(x: Source.Cycle) ->
+  (Chains.boundary N.Nat^::zero).apply ((Chains.space (N.Nat^::succ N.Nat^::zero)).neg (witness gamma x)) = (Formula.right gamma).apply x :=
+  \fun (gamma: Cochains.Carrier r)(x: Source.Cycle) => trans!{{Chains.Carrier N.Nat^::zero}} _ _ _
+    (BoundaryMaps.negativePreserved (Chains.boundary N.Nat^::zero) (witness gamma x))
+    (sym!{{Chains.Carrier N.Nat^::zero}} _ _ (Group.inverseUnique _ _
+      (trans!{{Chains.Carrier N.Nat^::zero}} _ _ _ (Group.comm ((Formula.right gamma).apply x) ((Chains.boundary N.Nat^::zero).apply (witness gamma x))) (sumZero gamma x))));
+\module On(gamma: Cochains.Carrier r);

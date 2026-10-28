@@ -1,0 +1,66 @@
+\import std.Arithmetic[].Int[] \as I;
+\import singular_cohomology.Relative[A := A, source := left, subset := leftSubset] \as LeftRelative;
+\import singular_cohomology.Relative[A := B, source := right, subset := rightSubset] \as RightRelative;
+\definition leftInverse: \Pow Product.CarrierSet := { x: Product.CarrierSet \where \In[A] leftSubset (leftProjection x) };
+\definition rightInverse: \Pow Product.CarrierSet := { x: Product.CarrierSet \where \In[B] rightSubset (rightProjection x) };
+\import singular_cohomology.Relative[A := Product.CarrierSet, source := topology, subset := leftInverse] \as ProductLeft;
+\import singular_cohomology.Relative[A := Product.CarrierSet, source := topology, subset := rightInverse] \as ProductRight;
+\import ProductLeft.Maps[B := A].Over[target := left, targetSubset := leftSubset] \as LeftPairMaps;
+\import ProductRight.Maps[B := B].Over[target := right, targetSubset := rightSubset] \as RightPairMaps;
+\definition leftPair: LeftPairMaps.Map := \into[Product.CarrierSet -> A](leftProjection, { f: Product.CarrierSet -> A \where LeftPairMaps.Laws[f] }) \by {
+  LeftPairMaps.Laws[leftProjection] { continuous := leftContinuous, contained := \fun (x: ProductLeft.SubspaceCarrier) => \bysub(Product.CarrierSet, leftInverse, x) }
+};
+\definition rightPair: RightPairMaps.Map := \into[Product.CarrierSet -> B](rightProjection, { f: Product.CarrierSet -> B \where RightPairMaps.Laws[f] }) \by {
+  RightPairMaps.Laws[rightProjection] { continuous := rightContinuous, contained := \fun (x: ProductRight.SubspaceCarrier) => \bysub(Product.CarrierSet, rightInverse, x) }
+};
+\import LeftPairMaps.On[f := leftPair].Integer[].With[coefficients := Whole.integerCoefficients] \as LeftRelativePull;
+\import RightPairMaps.On[f := rightPair].Integer[].With[coefficients := Whole.integerCoefficients] \as RightRelativePull;
+\import LeftRelative.With[coefficients := Whole.integerCoefficients] \as LeftRelativeCochains;
+\import RightRelative.With[coefficients := Whole.integerCoefficients] \as RightRelativeCochains;
+\import ProductLeft.With[coefficients := Whole.integerCoefficients] \as ProductLeftCochains;
+\import ProductRight.With[coefficients := Whole.integerCoefficients] \as ProductRightCochains;
+\import \root.CochainPair[A := Product.CarrierSet, source := topology, subset := leftInverse, R := R, ring := ring] \as ProductLeftPair;
+\import \root.CochainPair[A := Product.CarrierSet, source := topology, subset := rightInverse, R := R, ring := ring] \as ProductRightPair;
+\module Cup(p, q: N.Nat^) {
+  \import ProductLeftPair.RelativeCup[p := p, q := q] \as LeftCup;
+  \import ProductRightPair.RelativeCup[p := p, q := q] \as RightCup;
+  \import Whole.Cup[p := p, q := q] \as WholeCup;
+  \definition total: N.Nat^ := WholeCup.total;
+  \definition left[alpha: LeftRelativeCochains.Carrier (I.Int^::ofNat p)][beta: Right.Carrier q]: ProductLeftCochains.Carrier (I.Int^::ofNat total) :=
+    LeftCup.left ((LeftRelativePull.pullback).apply (I.Int^::ofNat p) alpha) (RightPull.apply q rightProjection rightContinuous beta);
+  \definition right[alpha: Left.Carrier p][beta: RightRelativeCochains.Carrier (I.Int^::ofNat q)]: ProductRightCochains.Carrier (I.Int^::ofNat total) :=
+    RightCup.right (LeftPull.apply p leftProjection leftContinuous alpha) ((RightRelativePull.pullback).apply (I.Int^::ofNat q) beta);
+}
+\module Cohomology(p, q: N.Nat^) {
+  \import Left.Cohomology[] \as LeftTheory;
+  \import Right.Cohomology[] \as RightTheory;
+  \import Whole.Cohomology[] \as WholeTheory;
+  \import WholeTheory.Pullback[B := A, target := left] \as LeftPullback;
+  \import WholeTheory.Pullback[B := B, target := right] \as RightPullback;
+  \import LeftRelativeCochains.At[z := I.Int^::ofNat p] \as LeftInput;
+  \import RightRelativeCochains.At[z := I.Int^::ofNat q] \as RightInput;
+  \import ProductLeftPair.Cohomology[p := p, q := q].Left[] \as LeftCup;
+  \import ProductRightPair.Cohomology[p := p, q := q].Right[] \as RightCup;
+  \import Whole.Cup[p := p, q := q] \as WholeCup;
+  \definition total: N.Nat^ := WholeCup.total;
+  \import ProductLeftCochains.At[z := I.Int^::ofNat total] \as LeftOutput;
+  \import ProductRightCochains.At[z := I.Int^::ofNat total] \as RightOutput;
+  \definition left[alpha: LeftInput.Carrier][beta: RightTheory.Group q]: LeftOutput.Carrier :=
+    LeftCup.apply ((LeftRelativePull.At[z := I.Int^::ofNat p].induced).apply alpha) (RightPullback.apply q rightProjection rightContinuous beta);
+  \definition right[alpha: LeftTheory.Group p][beta: RightInput.Carrier]: RightOutput.Carrier :=
+    RightCup.apply (LeftPullback.apply p leftProjection leftContinuous alpha) ((RightRelativePull.At[z := I.Int^::ofNat q].induced).apply beta);
+}
+\module Both(p, q: N.Nat^) {
+  \import \parent.Cohomology[p := p, q := q] \as ExternalProduct;
+  \import \root.CochainPair[A := A, source := left, subset := leftSubset, R := R, ring := ring].Comparison[n := p].Cohomology[] \as LeftForget;
+  \import \root.CochainPair[A := B, source := right, subset := rightSubset, R := R, ring := ring].Comparison[n := q].Cohomology[] \as RightForget;
+  \import LeftRelativeCochains.At[z := I.Int^::ofNat p] \as LeftInput;
+  \import RightRelativeCochains.At[z := I.Int^::ofNat q] \as RightInput;
+  \import Whole.Cup[p := p, q := q] \as WholeCup;
+  \import ProductLeftCochains.At[z := I.Int^::ofNat WholeCup.total] \as LeftOutput;
+  \import ProductRightCochains.At[z := I.Int^::ofNat WholeCup.total] \as RightOutput;
+  \definition inLeft[alpha: LeftInput.Carrier][beta: RightInput.Carrier]: LeftOutput.Carrier :=
+    ExternalProduct.left alpha ((RightForget.map).apply beta);
+  \definition inRight[alpha: LeftInput.Carrier][beta: RightInput.Carrier]: RightOutput.Carrier :=
+    ExternalProduct.right ((LeftForget.map).apply alpha) beta;
+}

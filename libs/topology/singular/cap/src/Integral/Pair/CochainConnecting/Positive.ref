@@ -1,0 +1,36 @@
+\import \parent.\parent.CochainConnecting[p := N.Nat^::succ t, q := q] \as Chain;
+\import singular_cohomology.Simplices[A := A, source := source].CutFaces[p := N.Nat^::succ t, q := q] \as Geometry;
+\import singular_cohomology.Chains[A := Relative.SubspaceCarrier, source := Subspace.topology source] \as SubChains;
+\import singular_products.Cochains[A := Relative.SubspaceCarrier, source := Subspace.topology source, R := I.Int^, ring := Integers.commutativeRing].Pullback[B := A, target := source] \as Pull;
+\import \root.Integral[A := Relative.SubspaceCarrier, source := Subspace.topology source].At[p := N.Nat^::succ t, q := q] \as SubAction;
+\import \root.Integral[A := A, source := source].At[p := N.Nat^::succ t, q := N.Nat^::succ q] \as Right;
+\import \root.Integral[A := A, source := source].At[p := N.Nat^::succ (N.Nat^::succ t), q := q] \as Upper;
+\import singular_cohomology.Maps[A := Relative.SubspaceCarrier, B := A, source := Subspace.topology source, target := source] \as Inclusion;
+\import singular_cohomology.Cochains[A := A, source := source].With[coefficients := Cochains.integerCoefficients] \as Theory;
+\import Chains.DegreeTransport[] \as Degree;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].Positive[C := Chains.complex, n := t] \as H;
+\import Modules.Alternating[V := Chains.Carrier (N.Nat^::succ t), space := Chains.space (N.Nat^::succ t)].Concatenation[] \as Signs;
+\import Modules.Alternating[V := H.Cycle, space := H.cycleSpace].Concatenation[] \as CycleSigns;
+\import CycleSigns.Mapping[W := H.Homology, target := H.homologySpace] \as ClassSigns;
+\import Modules.Alternating[V := H.Homology, space := H.homologySpace].Concatenation[] \as HomologySigns;
+\import Modules.Hom[V := H.Cycle, W := Chains.Carrier (N.Nat^::succ t), source := H.cycleSpace, target := Chains.space (N.Nat^::succ t)] \as ForgetMaps;
+\definition forget: ForgetMaps.Map := ForgetMaps.Map { apply := \fun (x: H.Cycle) => x, addition := \fun (x, y: H.Cycle) => \refl((Chains.space (N.Nat^::succ t)).add x y), scalar := \fun (a: I.Int^)(x: H.Cycle) => \refl((Chains.space (N.Nat^::succ t)).smul a x) };
+\import CycleSigns.Mapping[W := Chains.Carrier (N.Nat^::succ t), target := Chains.space (N.Nat^::succ t)] \as ForgetSigns;
+\import Modules.Of[V := Chains.Carrier (N.Nat^::succ t), space := Chains.space (N.Nat^::succ t)].Submodule[].Image[U := Chains.Carrier (N.Nat^::succ (N.Nat^::succ t)), source := Chains.space (N.Nat^::succ (N.Nat^::succ t))] \as Images;
+\definition left[beta: Cochains.Carrier q][a: SubChains.Carrier Geometry.total]: Chains.Carrier (N.Nat^::succ t) :=
+  (Inclusion.At[n := N.Nat^::succ t].push Relative.inclusion Relative.inclusionContinuous).apply ((SubAction.map (Pull.apply q Relative.inclusion Relative.inclusionContinuous beta)).apply a);
+\definition right[beta: Cochains.Carrier q][c: Chains.Carrier Geometry.higher]: Chains.Carrier (N.Nat^::succ t) := (Right.map (Theory.coboundary q beta)).apply c;
+\definition witness[beta: Cochains.Carrier q][c: Chains.Carrier Geometry.higher]: Chains.Carrier (N.Nat^::succ (N.Nat^::succ t)) :=
+  (Upper.map beta).apply (Degree.apply Geometry.higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) c);
+\definition law: \forall (beta: Cochains.Carrier q)(c: Chains.Carrier Geometry.higher)(a: SubChains.Carrier Geometry.total) ->
+  (Inclusion.At[n := Geometry.total].push Relative.inclusion Relative.inclusionContinuous).apply a = (Chains.boundary Geometry.total).apply c ->
+  \forall (leftClosed: (H.differential).apply (left beta a) = (Chains.space t).zero)
+    (rightClosed: (H.differential).apply (right beta c) = (Chains.space t).zero) ->
+  H.classOf (H.cycle (left beta a) leftClosed) = HomologySigns.twist (N.Nat^::succ t) (H.classOf (H.cycle (right beta c) rightClosed)) :=
+  \fun (beta: Cochains.Carrier q)(c: Chains.Carrier Geometry.higher)(a: SubChains.Carrier Geometry.total)(boundary: _)(leftClosed: _)(rightClosed: _) => trans!{H.Homology} _ _ _
+    (H.classEqual (H.cycle (left beta a) leftClosed) (CycleSigns.twist (N.Nat^::succ t) (H.cycle (right beta c) rightClosed))
+      (Images.introduce H.prior ((Chains.space (N.Nat^::succ t)).add (left beta a) ((Chains.space (N.Nat^::succ t)).neg (CycleSigns.twist (N.Nat^::succ t) (H.cycle (right beta c) rightClosed)))) (witness beta c) (trans!{{Chains.Carrier (N.Nat^::succ t)}} _ _ _
+        (sym!{{Chains.Carrier (N.Nat^::succ t)}} _ _ (Chain.difference beta c a boundary))
+        (congr!{{Chains.Carrier (N.Nat^::succ t)} {Chains.Carrier (N.Nat^::succ t)}} (\fun (z: Chains.Carrier (N.Nat^::succ t)) => (Chains.space (N.Nat^::succ t)).add (left beta a) ((Chains.space (N.Nat^::succ t)).neg z)) _ _
+          (sym!{{Chains.Carrier (N.Nat^::succ t)}} _ _ (ForgetSigns.law forget (N.Nat^::succ t) (H.cycle (right beta c) rightClosed)))))))
+    (ClassSigns.law H.classLinear (N.Nat^::succ t) (H.cycle (right beta c) rightClosed));

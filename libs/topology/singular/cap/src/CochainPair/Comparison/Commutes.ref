@@ -1,0 +1,27 @@
+\import \parent.\parent.Comparison[n := N.Nat^::succ n] \as Higher;
+\import \parent.\parent.Differential[n := n] \as Differential;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\use Equality.trans;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.Quotient[C := SubExtension.complex, D := Extension.complex].On[f := Relative.inclusionMap] \as Q;
+\import WholeChains.Boundary[n := n] \as Boundary;
+\import Complexes.Prior[C := Q.complex] \as Prior;
+\import std.Logic[].Equality[].Transport[A := I.Int^] \as Transport;
+\definition prior: \forall (x: WholeChains.Carrier (N.Nat^::succ n)) ->
+  Prior.value (I.Int^::ofNat n) (Q.At[k := I.Int^::ofNat (N.Nat^::succ n)].class (Extension.Positive[n := N.Nat^::succ n].intro x)) =
+    Q.At[k := I.Int^::ofNat n].class (Positive.intro ((WholeChains.boundary n).apply x)) :=
+  \fun (x: WholeChains.Carrier (N.Nat^::succ n)) => trans!{{Relative.Carrier (I.Int^::ofNat n)}} _ _ _
+    (Transport.castRefl Q.complex.family.Carrier (I.Int^::ofNat n)
+      ((Q.complex.differential).apply (I.Int^::ofNat (N.Nat^::succ n)) (Q.At[k := I.Int^::ofNat (N.Nat^::succ n)].class (Extension.Positive[n := N.Nat^::succ n].intro x))))
+    (Q.At[k := I.Int^::ofNat (N.Nat^::succ n)].onClass (Extension.Positive[n := N.Nat^::succ n].intro x));
+\import Modules.Hom[V := WholeChains.Carrier (N.Nat^::succ n), W := R, source := WholeChains.space (N.Nat^::succ n), target := Whole.integerCoefficients.space] \as HigherMaps;
+\definition pointwise: \forall (h: RelativeCochains.Carrier (I.Int^::ofNat n))(x: WholeChains.Carrier (N.Nat^::succ n)) ->
+  (Higher.from ((RelativeCochains.complex.differential).apply (I.Int^::ofNat n) h)).apply x =
+  (Differential.apply (from h)).apply x :=
+  \fun (h: RelativeCochains.Carrier (I.Int^::ofNat n))(x: WholeChains.Carrier (N.Nat^::succ n)) =>
+    congr!{{Relative.Carrier (I.Int^::ofNat n)} R} ((h).apply) _ _ (prior x);
+\definition law: \forall (h: RelativeCochains.Carrier (I.Int^::ofNat n)) ->
+  Higher.from ((RelativeCochains.complex.differential).apply (I.Int^::ofNat n) h) = Differential.apply (from h) :=
+  \fun (h: RelativeCochains.Carrier (I.Int^::ofNat n)) => HigherMaps.ext _ _ (pointwise h);
