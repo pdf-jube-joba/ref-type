@@ -17,12 +17,14 @@
 \import std.Logic[].Equality[] \as Equality;
 \use Equality.sym;
 \use Equality.trans;
+\use Equality.congr;
 \import std.Data[].Nat[] \as N;
 \module At(k: N.Nat^) {
   \import Integral.Mask[exception := Divergence.exception, f := Partial.partial k] \as Mask;
   \definition value: Real.Real -> Real.Real := Mask.value;
   \definition law: \forall (x: Real.Real) -> Logic.And[Sets.Member Divergence.exception x -> value x = Real.zero,
     Logic.Not (Sets.Member Divergence.exception x) -> value x = Partial.partial k x] := Mask.laws;
+  \definition almost: Measure.AlmostEqual Line.measure value (Partial.partial k) := Mask.almost;
   \definition measurable: Measure.IsMeasurable Line.measure value := Mask.measurable
     (\bysub(Real.Real -> Real.Real, { f: Real.Real -> Real.Real \where Integral.Integrable f }, Partial.partial k)).left;
 }
@@ -82,3 +84,37 @@
     (\fun (outside: Logic.Not (Sets.Member Divergence.exception x)) => R.leReplace (Partial.partial k x) (sequence k x) (Partial.partial (N.Nat^::succ k) x) (sequence (N.Nat^::succ k) x)
       (sym!{Real.Real} _ _ ((\root.RealLine[].CompletionSum[interval := interval, s := s, index := index, good := good].At[k := k].law x).right outside))
       (sym!{Real.Real} _ _ ((\root.RealLine[].CompletionSum[interval := interval, s := s, index := index, good := good].At[k := N.Nat^::succ k].law x).right outside)) (Series.partialIncreasing k x));
+\import Integral.Absolute[] \as Absolute;
+\import Real.Estimates[].Product[] \as Product;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import Convergence.Monotone[] \as Monotone;
+\definition sequenceAsMeasurable: Convergence.MeasurableSequence :=
+  \into[N.Nat^ -> Real.Real -> Real.Real](sequence, { f: N.Nat^ -> Real.Real -> Real.Real \where \forall (k: N.Nat^) -> Measure.IsMeasurable Line.measure (f k) }) \by {
+    \fun (k: N.Nat^) => \root.RealLine[].CompletionSum[interval := interval, s := s, index := index, good := good].At[k := k].measurable
+  };
+\definition lowerBound: \forall (r: Real.Real) -> Measure.below (Integral.lowerIntegral value) r -> R.Le r Real.one :=
+  \fun (r: Real.Real) (member: Measure.below (Integral.lowerIntegral value) r) => \block {
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Measure.below (Integral.lowerIntegral (sequence k)) r }) \by
+      (\idelim Integral.lowerIntegral value = Convergence.Sup (\fun (k: N.Nat^) => Integral.lowerIntegral (sequence k))
+        \with v: Measure.Value => Measure.below v r \by { base: member, equality: Monotone.monotone sequenceAsMeasurable value supremum increasing }) \then
+    \let inPartial: Measure.below (Integral.lowerIntegral (Partial.partial k)) r :=
+      \idelim Integral.lowerIntegral (sequence k) = Integral.lowerIntegral (Partial.partial k) \with v: Measure.Value => Measure.below v r \by {
+        base: \bysub(N.Nat^, { k: N.Nat^ \where Measure.below (Integral.lowerIntegral (sequence k)) r }, k),
+        equality: Null.lowerAlmostEqual (sequence k) (Partial.partial k)
+          (\root.RealLine[].CompletionSum[interval := interval, s := s, index := index, good := good].At[k := k].almost)
+      } \then
+    \return R.leTrans r (Integral.integral (Partial.partial k)) Real.one
+      ((Absolute.nonnegativeIntegralSup (Partial.partial k) (Integral.integral (Partial.partial k)) (Series.partialNonnegative k)
+        (Integral.integralLaw (Partial.partial k))).upper r inPartial) (Series.partialBound k)
+  };
+\definition integrable: Integral.Integrable value := Logic.And[_, _]::# measurable (Logic.And[_, _]::#
+  (\fun (x: Real.Real) => Product.absNonnegative (value x))
+  (Logic.existsIntro[Real.Real, { b: Real.Real \where Integral.IntegralBound[\fun (x: Real.Real) => Product.abs (value x), b] }] Real.one
+    (Integral.IntegralBound[_, _] { nonnegative := Laws.oneNonnegative,
+      bound := \fun (r: Real.Real) (member: Measure.below (Integral.lowerIntegral (\fun (x: Real.Real) => Product.abs (value x))) r) =>
+        lowerBound r (\idelim Integral.lowerIntegral (\fun (x: Real.Real) => Product.abs (value x)) = Integral.lowerIntegral value
+          \with v: Measure.Value => Measure.below v r \by { base: member, equality:
+            congr!{{Real.Real -> Real.Real} Measure.Value} Integral.lowerIntegral _ _
+              (\axiom:funext((\fun (x: Real.Real) => Product.abs (value x)), value, \fun (x: Real.Real) => Product.absOfNonnegative (value x) (nonnegative x))) })
+    })));
+\definition representative: Integral.Representatives := \into[Real.Real -> Real.Real](value, { f: Real.Real -> Real.Real \where Integral.Integrable f }) \by { integrable };
