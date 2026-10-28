@@ -1,0 +1,99 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import \root.Euclidean[n := N.Nat^::succ N.Nat^::zero] \as E;
+\import \root.HeadCut[k := N.Nat^::zero] \as Head;
+\import topological_algebra.Euclidean[].Dimension[n := N.Nat^::succ N.Nat^::zero].Countability[] \as Basis;
+\import topological_algebra.Euclidean[].Dimension[n := N.Nat^::succ N.Nat^::zero].Topology[] \as Topology;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\import functional_analysis.Measure[A := E.Point] \as Measure;
+\import Measure.Sigma[] \as Sigma;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Arithmetic[].Def[] \as Arithmetic;
+\import R.Order[] \as Order;
+\import real.Analysis[] \as Real;
+\import E.Reflection[] \as Reflection;
+\import E.MeasureConstruction[] \as Construction;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition head: Fin.Fin (N.Nat^::succ N.Nat^::zero) := Fin.zero N.Nat^::zero;
+\definition above[a: Real.Real]: \Pow E.Point := { x: E.Point \where R.Lt a (x head) };
+\definition below[b: Real.Real]: \Pow E.Point := { x: E.Point \where R.Lt (x head) b };
+\definition aboveAsComplement: \forall (a: Real.Real) -> above a = Sets.Complement (Head.halfspace a) :=
+  \fun (a: Real.Real) => \axiom:setext(above a, Sets.Complement (Head.halfspace a),
+    \fun (x: E.Point) (less: R.Lt a (x head)) (reverse: R.Le (x head) a) => R.ltNotLeReverse a (x head) less reverse,
+    \fun (x: E.Point) (outside: Logic.Not (R.Le (x head) a)) => Sigma.doubleNegative (R.Lt a (x head))
+      (\fun (notLess: Logic.Not (R.Lt a (x head))) => outside (Order.leOfNotLtReverse (x head) a notLess)));
+\definition aboveMeasurable: \forall (a: Real.Real) -> E.Caratheodory (above a) :=
+  \fun (a: Real.Real) => \idelim Sets.Complement (Head.halfspace a) = above a \with S: \Pow E.Point => E.Caratheodory S
+    \by { base: E.complementCaratheodory (Head.halfspace a) (Head.halfspaceMeasurable a), equality: sym!{{\Pow E.Point}} _ _ (aboveAsComplement a) };
+\definition reverseHalf[a: Real.Real]: \Pow E.Point := { x: E.Point \where R.Le a (x head) };
+\definition reverseHalfAsReflection: \forall (a: Real.Real) -> Reflection.reflected (Head.halfspace (Real.neg a)) = reverseHalf a :=
+  \fun (a: Real.Real) => \axiom:setext(Reflection.reflected (Head.halfspace (Real.neg a)), reverseHalf a,
+    \fun (x: E.Point) (member: R.Le (Real.neg (x head)) (Real.neg a)) =>
+      R.leReplace (Real.neg (Real.neg a)) a (Real.neg (Real.neg (x head))) (x head) (Laws.negInvolutive a) (Laws.negInvolutive (x head))
+        (Laws.negAntitone (Real.neg (x head)) (Real.neg a) member),
+    \fun (x: E.Point) (member: R.Le a (x head)) => Laws.negAntitone a (x head) member);
+\definition reverseHalfMeasurable: \forall (a: Real.Real) -> E.Caratheodory (reverseHalf a) :=
+  \fun (a: Real.Real) => \idelim Reflection.reflected (Head.halfspace (Real.neg a)) = reverseHalf a \with S: \Pow E.Point => E.Caratheodory S
+    \by { base: Reflection.measurable (Head.halfspace (Real.neg a)) (Head.halfspaceMeasurable (Real.neg a)), equality: reverseHalfAsReflection a };
+\definition belowAsComplement: \forall (a: Real.Real) -> below a = Sets.Complement (reverseHalf a) :=
+  \fun (a: Real.Real) => \axiom:setext(below a, Sets.Complement (reverseHalf a),
+    \fun (x: E.Point) (less: R.Lt (x head) a) (reverse: R.Le a (x head)) => R.ltNotLeReverse (x head) a less reverse,
+    \fun (x: E.Point) (outside: Logic.Not (R.Le a (x head))) => Sigma.doubleNegative (R.Lt (x head) a)
+      (\fun (notLess: Logic.Not (R.Lt (x head) a)) => outside (Order.leOfNotLtReverse a (x head) notLess)));
+\definition belowMeasurable: \forall (a: Real.Real) -> E.Caratheodory (below a) :=
+  \fun (a: Real.Real) => \idelim Sets.Complement (reverseHalf a) = below a \with S: \Pow E.Point => E.Caratheodory S
+    \by { base: E.complementCaratheodory (reverseHalf a) (reverseHalfMeasurable a), equality: sym!{{\Pow E.Point}} _ _ (belowAsComplement a) };
+\definition rectangleAsIntersection: \forall (a, b: Basis.Endpoints) ->
+  Basis.rectangle a b = Sets.Intersection (above (Arithmetic.ofRat (a head))) (below (Arithmetic.ofRat (b head))) :=
+  \fun (a, b: Basis.Endpoints) => \axiom:setext(Basis.rectangle a b, Sets.Intersection (above (Arithmetic.ofRat (a head))) (below (Arithmetic.ofRat (b head))),
+    \fun (x: E.Point) (member: Sets.Member (Basis.rectangle a b) x) => member head,
+    \fun (x: E.Point) (member: Sets.Member (Sets.Intersection (above (Arithmetic.ofRat (a head))) (below (Arithmetic.ofRat (b head)))) x)
+      (i: Fin.Fin (N.Nat^::succ N.Nat^::zero)) =>
+        \idelim head = i \with j: Fin.Fin (N.Nat^::succ N.Nat^::zero) => Logic.And[R.Lt (Arithmetic.ofRat (a j)) (x j), R.Lt (x j) (Arithmetic.ofRat (b j))]
+          \by { base: member, equality: sym!{{Fin.Fin (N.Nat^::succ N.Nat^::zero)}} _ _ (Fin.singletonValue i) });
+\definition basisMeasurable: \forall (j: N.Nat^) -> E.Caratheodory (Basis.basis j) :=
+  \fun (j: N.Nat^) => \idelim Sets.Intersection (above (Arithmetic.ofRat (Basis.lower j head))) (below (Arithmetic.ofRat (Basis.upper j head))) = Basis.basis j
+    \with S: \Pow E.Point => E.Caratheodory S
+    \by { base: E.intersectionCaratheodory (above (Arithmetic.ofRat (Basis.lower j head))) (below (Arithmetic.ofRat (Basis.upper j head)))
+      (aboveMeasurable (Arithmetic.ofRat (Basis.lower j head))) (belowMeasurable (Arithmetic.ofRat (Basis.upper j head))),
+      equality: sym!{{\Pow E.Point}} _ _ (rectangleAsIntersection (Basis.lower j) (Basis.upper j)) };
+\definition selected[U: \Pow E.Point] [j: N.Nat^]: \Pow E.Point :=
+  { x: E.Point \where Logic.And[Sets.Subset (Basis.basis j) U, Sets.Member (Basis.basis j) x] };
+\definition selectedMeasurable: \forall (U: \Pow E.Point) (j: N.Nat^) -> E.Caratheodory (selected U j) :=
+  \fun (U: \Pow E.Point) (j: N.Nat^) => Logic.orElim (Sets.Subset (Basis.basis j) U) (Logic.Not (Sets.Subset (Basis.basis j) U)) (E.Caratheodory (selected U j))
+    (Classical.excludedMiddle (Sets.Subset (Basis.basis j) U))
+    (\fun (included: Sets.Subset (Basis.basis j) U) =>
+      \idelim Basis.basis j = selected U j \with S: \Pow E.Point => E.Caratheodory S
+        \by { base: basisMeasurable j, equality: \axiom:setext(Basis.basis j, selected U j,
+          \fun (x: E.Point) (member: Sets.Member (Basis.basis j) x) => Logic.And[_, _]::# included member,
+          \fun (x: E.Point) (member: Sets.Member (selected U j) x) => member.right) })
+    (\fun (outside: Logic.Not (Sets.Subset (Basis.basis j) U)) =>
+      \idelim Sets.Empty = selected U j \with S: \Pow E.Point => E.Caratheodory S
+        \by { base: E.emptyCaratheodory, equality: \axiom:setext(Sets.Empty, selected U j,
+          \fun (x: E.Point) (empty: Logic.False) => Logic.falseElim _ empty,
+          \fun (x: E.Point) (member: Sets.Member (selected U j) x) => outside member.left) });
+\definition openAsUnion: \forall (U: \Pow E.Point) -> Sets.IsOpenIn Topology.topology U -> Measure.union (selected U) = U :=
+  \fun (U: \Pow E.Point) (open: Sets.IsOpenIn Topology.topology U) => \axiom:setext(Measure.union (selected U), U,
+    \fun (x: E.Point) (member: Sets.Member (Measure.union (selected U)) x) => \block {
+      \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where Sets.Member (selected U j) x }) \by member \then
+      \let inside: Sets.Member (selected U j) x := \bysub(N.Nat^, { j: N.Nat^ \where Sets.Member (selected U j) x }, j) \then
+      \return inside.left x inside.right
+    },
+    \fun (x: E.Point) (inside: Sets.Member U x) => \block {
+      \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where Logic.And[Sets.Member (Basis.basis j) x, Sets.Subset (Basis.basis j) U] })
+        \by Basis.refines U open x inside \then
+      \let data: Logic.And[Sets.Member (Basis.basis j) x, Sets.Subset (Basis.basis j) U] :=
+        \bysub(N.Nat^, { j: N.Nat^ \where Logic.And[Sets.Member (Basis.basis j) x, Sets.Subset (Basis.basis j) U] }, j) \then
+      \return Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Sets.Member (selected U j) x }] j (Logic.And[_, _]::# data.right data.left)
+    });
+\definition openMeasurable: \forall (U: \Pow E.Point) -> Sets.IsOpenIn Topology.topology U -> E.Caratheodory U :=
+  \fun (U: \Pow E.Point) (open: Sets.IsOpenIn Topology.topology U) =>
+    \idelim Measure.union (selected U) = U \with S: \Pow E.Point => E.Caratheodory S
+      \by { base: E.CaratheodorySets[].unionCaratheodory (selected U) (selectedMeasurable U), equality: openAsUnion U open };
+\definition borelMeasurable: \forall (S: \Pow E.Point) -> Measure.Measurable E.Borel[].sigma S -> Measure.Measurable Construction.measure.sigma S :=
+  \fun (S: \Pow E.Point) (borel: Measure.Measurable E.Borel[].sigma S) =>
+    E.Borel[].smallest Construction.measure.sigma openMeasurable S borel;
