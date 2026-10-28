@@ -1,0 +1,127 @@
+\import std.Data[].Nat[].Basic[].Def[] \as Nat;
+\import std.Data[].Nat[].Basic[].Prop[] \as NatLaws;
+\import Algebra.Sign[] \as Sign;
+\definition sign: \forall (k: N.Nat^) -> K := \induction (k: N.Nat^) \return K \with {
+  | zero: Algebra.one
+  | succ: \fun (k: N.Nat^)(previous: K) => Algebra.mul (Sign.value k) previous
+};
+\definition next: \forall (k: N.Nat^) -> sign (N.Nat^::succ k) = Algebra.mul (Sign.value k) (sign k) := \fun (k: N.Nat^) => \refl(Algebra.mul (Sign.value k) (sign k));
+\definition square: \forall (k: N.Nat^) -> Algebra.mul (sign k) (sign k) = Algebra.one :=
+  \induction (k: N.Nat^) \return Algebra.mul (sign k) (sign k) = Algebra.one \with {
+    | zero: Algebra.mulOneLeft Algebra.one
+    | succ: \fun (k: N.Nat^)(previous: Algebra.mul (sign k) (sign k) = Algebra.one) => eq_reason_in!{K _
+      "=" _ "by" { Sign.productShuffle (Sign.value k) (sign k) (Sign.value k) (sign k) }
+      "=" _ "by" { congr!{K K K} Algebra.mul _ _ _ _ (Sign.square k) previous }
+      "=" _ "by" { Algebra.mulOneLeft Algebra.one }
+    }
+  };
+\definition addition: \forall (p, q: N.Nat^) -> sign (Nat.add p q) = Algebra.mul (Sign.value (Nat.mul p q)) (Algebra.mul (sign p) (sign q)) :=
+  \fun (p: N.Nat^) => \induction (q: N.Nat^) \return sign (Nat.add p q) = Algebra.mul (Sign.value (Nat.mul p q)) (Algebra.mul (sign p) (sign q)) \with {
+    | zero: eq_reason_in!{K _
+      "=" _ "by" { sym!{K} _ _ (Algebra.mulOneRight (sign p)) }
+      "=" _ "by" { sym!{K} _ _ (Algebra.mulOneLeft (Algebra.mul (sign p) Algebra.one)) }
+    }
+    | succ: \fun (q: N.Nat^)(previous: sign (Nat.add p q) = Algebra.mul (Sign.value (Nat.mul p q)) (Algebra.mul (sign p) (sign q))) => eq_reason_in!{K _
+      "=" _ "by" { congr!{K K} (Algebra.mul (Sign.value (Nat.add p q))) _ _ previous }
+      "=" _ "by" { congr!{K K} (\fun (a: K) => Algebra.mul a (Algebra.mul (Sign.value (Nat.mul p q)) (Algebra.mul (sign p) (sign q)))) _ _ (Sign.addition p q) }
+      "=" _ "by" { Sign.productShuffle (Sign.value p) (Sign.value q) (Sign.value (Nat.mul p q)) (Algebra.mul (sign p) (sign q)) }
+      "=" _ "by" { congr!{K K} (\fun (a: K) => Algebra.mul (Algebra.mul (Sign.value p) (Sign.value (Nat.mul p q))) a) _ _ (sym!{K} _ _ (Algebra.mulAssoc (Sign.value q) (sign p) (sign q))) }
+      "=" _ "by" { congr!{K K} (\fun (a: K) => Algebra.mul (Algebra.mul (Sign.value p) (Sign.value (Nat.mul p q))) (Algebra.mul a (sign q))) _ _ (Algebra.mulComm (Sign.value q) (sign p)) }
+      "=" _ "by" { congr!{K K} (\fun (a: K) => Algebra.mul (Algebra.mul (Sign.value p) (Sign.value (Nat.mul p q))) a) _ _ (Algebra.mulAssoc (sign p) (Sign.value q) (sign q)) }
+      "=" _ "by" { congr!{K K} (\fun (a: K) => Algebra.mul a (Algebra.mul (sign p) (sign (N.Nat^::succ q)))) _ _ (sym!{K} _ _ (Sign.rightSuccessor p q)) }
+    }
+  };
+\import Shuffle.Partitions[] \as Partitions;
+\import Shuffle.Graded[p := N.Nat^::zero, q := N.Nat^::zero] \as Graded;
+\import Algebra.Sums[I := Shuffle.Split] \as Sums;
+\import Sums.Prop[] \as SumLaws;
+\import Lists.All[A := Shuffle.Split] \as All;
+\import Algebra.Laws[V := K, space := Algebra.scalarSpace] \as Scalars;
+\definition reverse[f: Shuffle.Function][xs: Lists.List[V]]: K := Algebra.mul (sign (Lists.length V xs)) (f xs);
+\definition termFactor: \forall (f, g: Shuffle.Function)(split: Shuffle.Split) ->
+  Shuffle.term (reverse f) (reverse g) split = Algebra.mul (Algebra.mul (sign (Lists.length V split.left)) (sign (Lists.length V split.right))) (Shuffle.term f g split) :=
+  \fun (f, g: Shuffle.Function)(split: Shuffle.Split) => eq_reason_in!{K _
+    "=" _ "by" { congr!{K K} (Algebra.mul split.weight) _ _ (Sign.productShuffle (sign (Lists.length V split.left)) (f split.left) (sign (Lists.length V split.right)) (g split.right)) }
+    "=" _ "by" { Scalars.scaleComm split.weight (Algebra.mul (sign (Lists.length V split.left)) (sign (Lists.length V split.right))) (Algebra.mul (f split.left) (g split.right)) }
+  };
+\definition swapped: \forall (f, g: Shuffle.Function)(k: N.Nat^)(split: Shuffle.Split) -> Partitions.Length k split ->
+  Shuffle.term (reverse g) (reverse f) (Shuffle.swap split) = Algebra.mul (sign k) (Shuffle.term f g split) :=
+  \fun (f, g: Shuffle.Function)(k: N.Nat^)(split: Shuffle.Split)(length: Partitions.Length k split) => eq_reason_in!{K _
+    "=" _ "by" { Graded.swappedTerm (reverse f) (reverse g) split }
+    "=" _ "by" { congr!{K K} (Algebra.mul (Sign.value (Nat.mul (Lists.length V split.left) (Lists.length V split.right)))) _ _ (termFactor f g split) }
+    "=" _ "by" { sym!{K} _ _ (Algebra.mulAssoc (Sign.value (Nat.mul (Lists.length V split.left) (Lists.length V split.right))) (Algebra.mul (sign (Lists.length V split.left)) (sign (Lists.length V split.right))) (Shuffle.term f g split)) }
+    "=" _ "by" { congr!{K K} (\fun (a: K) => Algebra.mul a (Shuffle.term f g split)) _ _ (sym!{K} _ _ (addition (Lists.length V split.left) (Lists.length V split.right))) }
+    "=" _ "by" { congr!{K K} (\fun (a: K) => Algebra.mul a (Shuffle.term f g split)) _ _ (congr!{{N.Nat^} K} sign _ _ length) }
+  };
+\definition product: \forall (f, g: Shuffle.Function)(xs: Lists.List[V]) -> reverse (Shuffle.product f g) xs = Shuffle.product (reverse g) (reverse f) xs :=
+  \fun (f, g: Shuffle.Function)(xs: Lists.List[V]) => eq_reason_in!{K _
+    "=" _ "by" { sym!{K} _ _ (SumLaws.multiplyLeft (Shuffle.partitions xs) (sign (Lists.length V xs)) (Shuffle.term f g)) }
+    "=" _ "by" { SumLaws.allCongruent (Shuffle.partitions xs) (\fun (s: Shuffle.Split) => Algebra.mul (sign (Lists.length V xs)) (Shuffle.term f g s))
+      (\fun (s: Shuffle.Split) => Shuffle.term (reverse g) (reverse f) (Shuffle.swap s))
+      (All.transform (Partitions.Length (Lists.length V xs)) (\fun (s: Shuffle.Split) => Algebra.mul (sign (Lists.length V xs)) (Shuffle.term f g s) = Shuffle.term (reverse g) (reverse f) (Shuffle.swap s))
+        (Shuffle.partitions xs) (\fun (s: Shuffle.Split)(length: Partitions.Length (Lists.length V xs) s) => sym!{K} _ _ (swapped f g (Lists.length V xs) s length)) (Partitions.lengths xs)) }
+    "=" _ "by" { Partitions.swapping xs (Shuffle.term (reverse g) (reverse f)) }
+  };
+\import \root.Over[K := K, scalarRing := scalarRing].On[V := V, space := space].Total[] \as Total;
+\import Total.Series[] \as Series;
+\import Algebra.Multilinear[V := V, space := space].Alternating[] \as Forms;
+\import Algebra.Laws[V := Carrier, space := totalSpace] \as TotalLaws;
+\definition state[f: Carrier]: Carrier := \fun (k: N.Nat^) => (Forms.At[k := k].vectorSpace).smul (sign k) (f k);
+\definition stateSeries: \forall (f: Carrier)(xs: Lists.List[V]) -> value (state f) xs = reverse (value f) xs := \fun (f: Carrier)(xs: Lists.List[V]) => \refl(Algebra.mul (sign (Lists.length V xs)) (value f xs));
+\definition stateInvolution: \forall (f: Carrier) -> state (state f) = f := \fun (f: Carrier) => \axiom:funext(state (state f), f, \fun (k: N.Nat^) => eq_reason_in!{{Forms.Form k} _
+  "=" _ "by" { sym!{{Forms.Form k}} _ _ ((Forms.At[k := k].vectorSpace).scalarAssoc (sign k) (sign k) (f k)) }
+  "=" _ "by" { congr!{K {Forms.Form k}} (\fun (a: K) => (Forms.At[k := k].vectorSpace).smul a (f k)) _ _ (square k) }
+  "=" _ "by" { (Forms.At[k := k].vectorSpace).scalarOne (f k) }
+});
+\import Total.Series[].Laws[] \as ExteriorLaws;
+\definition wedge: \forall (f, g: Carrier) -> state (ExteriorLaws.wedge f g) = ExteriorLaws.wedge (state g) (state f) :=
+  \fun (f, g: Carrier) => ext _ _ (\axiom:funext(value (state (ExteriorLaws.wedge f g)), value (ExteriorLaws.wedge (state g) (state f)), \fun (xs: Lists.List[V]) => eq_reason_in!{K _
+    "=" _ "by" { stateSeries (ExteriorLaws.wedge f g) xs }
+    "=" _ "by" { congr!{K K} (Algebra.mul (sign (Lists.length V xs))) _ _ (onWedge f g xs) }
+    "=" _ "by" { product (value f) (value g) xs }
+    "=" _ "by" { Products.congruent (reverse (value g)) (value (state g)) (reverse (value f)) (value (state f)) (\fun (ys: Lists.List[V]) => sym!{K} _ _ (stateSeries g ys)) (\fun (ys: Lists.List[V]) => sym!{K} _ _ (stateSeries f ys)) xs }
+    "=" _ "by" { sym!{K} _ _ (onWedge (state g) (state f) xs) }
+  }));
+\definition annihilation: \forall (x: V)(f: Carrier) -> state (Total.annihilate x f) = Total.parity (Total.annihilate x (state f)) :=
+  \fun (x: V)(f: Carrier) => \axiom:funext(state (Total.annihilate x f), Total.parity (Total.annihilate x (state f)), \fun (k: N.Nat^) => \block {
+    \let grade: Algebra.VectorSpace (Forms.Form k) := Forms.At[k := k].vectorSpace \then
+    \let b: Forms.Form k := (\root.Over[K := K, scalarRing := scalarRing].On[V := V, space := space].Contraction[k := k].operator x).apply (f (N.Nat^::succ k)) \then
+    \return eq_reason_in!{{Forms.Form k} _
+      "=" _ "by" { sym!{{Forms.Form k}} _ _ (grade.scalarOne (grade.smul (sign k) b)) }
+      "=" _ "by" { congr!{K {Forms.Form k}} (\fun (a: K) => grade.smul a (grade.smul (sign k) b)) _ _ (sym!{K} _ _ (Sign.square k)) }
+      "=" _ "by" { grade.scalarAssoc (Sign.value k) (Sign.value k) (grade.smul (sign k) b) }
+      "=" _ "by" { congr!{{Forms.Form k} {Forms.Form k}} (grade.smul (Sign.value k)) _ _ (sym!{{Forms.Form k}} _ _ (grade.scalarAssoc (Sign.value k) (sign k) b)) }
+      "=" _ "by" { congr!{{Forms.Form k} {Forms.Form k}} (grade.smul (Sign.value k)) _ _ (sym!{{Forms.Form k}} _ _ ((\root.Over[K := K, scalarRing := scalarRing].On[V := V, space := space].Contraction[k := k].operator x).preservesScale (sign (N.Nat^::succ k)) (f (N.Nat^::succ k)))) }
+    }
+  });
+\import Total.Vacuum[] \as Vacuum;
+\import Multi.ListSeries[k := N.Nat^::succ N.Nat^::zero] \as OneSeries;
+\import std.Logic[].Proposition[] \as Logic;
+\definition vacuumSeries: \forall (xs: Lists.List[V]) -> value Vacuum.state xs = Shuffle.unit xs :=
+  \induction (xs: Lists.List[V]) \return value Vacuum.state xs = Shuffle.unit xs \with {
+    | nil: \refl(Algebra.one)
+    | cons: \fun (head: V)(tail: Lists.List[V])(previous: value Vacuum.state tail = Shuffle.unit tail) => \refl(Algebra.zero)
+  };
+\use Logic.either;
+\definition oneFixed: \forall (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(xs: Lists.List[V]) -> reverse (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) xs = Exterior.component (N.Nat^::succ N.Nat^::zero) alpha xs :=
+  \fun (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(xs: Lists.List[V]) => either!{{(std.Logic[].Classical[].excludedMiddle (Lists.length V xs = N.Nat^::succ N.Nat^::zero))} {reverse (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) xs = Exterior.component (N.Nat^::succ N.Nat^::zero) alpha xs}
+    {\fun (same: Lists.length V xs = N.Nat^::succ N.Nat^::zero) => trans!{K} _ _ _ (congr!{K K} (\fun (a: K) => Algebra.mul a (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha xs)) _ _ (trans!{K} _ _ _ (congr!{{N.Nat^} K} sign _ _ same) (Algebra.mulOneLeft Algebra.one))) (Algebra.mulOneLeft (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha xs))}
+    {\fun (different: Logic.Not (Lists.length V xs = N.Nat^::succ N.Nat^::zero)) => trans!{K} _ _ _ (congr!{K K} (Algebra.mul (sign (Lists.length V xs))) _ _ (OneSeries.outside alpha xs different))
+      (trans!{K} _ _ _ (Algebra.mulZeroRight (sign (Lists.length V xs))) (sym!{K} _ _ (OneSeries.outside alpha xs different)))}
+  };
+\definition creation: \forall (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier) -> state (Total.createLeft alpha f) = ExteriorLaws.wedge (state f) (Total.createLeft alpha Vacuum.state) :=
+  \fun (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier) => ext _ _ (\axiom:funext(value (state (Total.createLeft alpha f)), value (ExteriorLaws.wedge (state f) (Total.createLeft alpha Vacuum.state)), \fun (xs: Lists.List[V]) => eq_reason_in!{K _
+    "=" _ "by" { stateSeries (Total.createLeft alpha f) xs }
+    "=" _ "by" { congr!{K K} (Algebra.mul (sign (Lists.length V xs))) _ _ (Series.creation alpha f xs) }
+    "=" _ "by" { product (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) (value f) xs }
+    "=" _ "by" { Products.congruent (reverse (value f)) (value (state f)) (reverse (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha)) (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha)
+      (\fun (ys: Lists.List[V]) => sym!{K} _ _ (stateSeries f ys)) (oneFixed alpha) xs }
+    "=" _ "by" { Products.congruent (value (state f)) (value (state f)) (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) (value (Total.createLeft alpha Vacuum.state))
+      (\fun (ys: Lists.List[V]) => \refl(value (state f) ys)) (\fun (ys: Lists.List[V]) => sym!{K} _ _ (eq_reason_in!{K _
+        "=" _ "by" { Series.creation alpha Vacuum.state ys }
+        "=" _ "by" { Products.congruent (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) (value Vacuum.state) Shuffle.unit
+          (\fun (zs: Lists.List[V]) => \refl(Exterior.component (N.Nat^::succ N.Nat^::zero) alpha zs)) vacuumSeries ys }
+        "=" _ "by" { Products.rightUnit ys (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) }
+      })) xs }
+    "=" _ "by" { sym!{K} _ _ (onWedge (state f) (Total.createLeft alpha Vacuum.state) xs) }
+  }));
