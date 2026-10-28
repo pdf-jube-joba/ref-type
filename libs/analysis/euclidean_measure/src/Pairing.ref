@@ -67,3 +67,22 @@
     | zero: Bounds[N.Nat^::zero, E.enumerate N.Nat^::zero] { first := Nat.leRefl N.Nat^::zero, second := Nat.leRefl N.Nat^::zero }
     | succ: \fun (k: N.Nat^) (prior: Bounds[k, E.enumerate k]) => stepBounds k (E.enumerate k) prior
   };
+\import std.Data[].FinSet[] \as Fin;
+\definition row[n: N.Nat^] [i: Fin.Fin n]: Fin.Fin n :=
+  \into[N.Nat^](Pair.natPairFirst (E.enumerate i), Fin.Fin n) \by {
+    Nat.leLtTrans (Pair.natPairFirst (E.enumerate i)) i n (enumerateBounds i).first (Fin.bound n i)
+  };
+\definition column[n: N.Nat^] [i: Fin.Fin n]: Fin.Fin n :=
+  \into[N.Nat^](Pair.natPairSecond (E.enumerate i), Fin.Fin n) \by {
+    Nat.leLtTrans (Pair.natPairSecond (E.enumerate i)) i n (enumerateBounds i).second (Fin.bound n i)
+  };
+\definition pairEta: \forall (p: Pair.NatPair) -> Pair.natPair (Pair.natPairFirst p) (Pair.natPairSecond p) = p :=
+  Pair.natPairElim (\fun (p: Pair.NatPair) => Pair.natPair (Pair.natPairFirst p) (Pair.natPairSecond p) = p)
+    (\fun (a, b: N.Nat^) => \refl(Pair.natPair a b));
+\definition indexInjective: \forall (n: N.Nat^) (i, j: Fin.Fin n) -> row n i = row n j -> column n i = column n j -> i = j :=
+  \fun (n: N.Nat^) (i, j: Fin.Fin n) (sameRow: row n i = row n j) (sameColumn: column n i = column n j) =>
+    enumerateInjective i j (eq_reason_in!{Pair.NatPair _
+      "=" _ "by" { sym!{Pair.NatPair} _ _ (pairEta (E.enumerate i)) }
+      "=" _ "by" { congr!{N.Nat^ N.Nat^ Pair.NatPair} Pair.natPair _ _ _ _ sameRow sameColumn }
+      "=" _ "by" { pairEta (E.enumerate j) }
+    });

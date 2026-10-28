@@ -962,3 +962,42 @@
       | zero: outerEmpty
       | succ: \fun (j: N.Nat^) (previous: _) => nullPairUnion (Sigma.prefix sets j) (sets j) previous (null j)
     };
+\definition negNegPoint: \forall (a: Point) -> negPoint (negPoint a) = a :=
+  \fun (a: Point) => \axiom:funext(negPoint (negPoint a), a, \fun (i: Fin.Fin n) => Laws.negInvolutive (a i));
+\definition shiftedAgain: \forall (S: \Pow Point) (a: Point) -> shifted (shifted S (negPoint a)) a = S :=
+  \fun (S: \Pow Point) (a: Point) => eq_reason_in!{{\Pow Point} _
+    "=" _ "by" { congr!{Point {\Pow Point}} (shifted (shifted S (negPoint a))) _ _ (sym!{Point} _ _ (negNegPoint a)) }
+    "=" _ "by" { shiftedBack S (negPoint a) }
+  };
+\definition shiftedIntersection: \forall (S, T: \Pow Point) (a: Point) ->
+  shifted (Sets.Intersection S T) a = Sets.Intersection (shifted S a) (shifted T a) :=
+  \fun (S, T: \Pow Point) (a: Point) => \axiom:setext(shifted (Sets.Intersection S T) a, Sets.Intersection (shifted S a) (shifted T a),
+    \fun (x: Point) (member: Sets.Member (shifted (Sets.Intersection S T) a) x) => member,
+    \fun (x: Point) (member: Sets.Member (Sets.Intersection (shifted S a) (shifted T a)) x) => member);
+\definition shiftedComplement: \forall (S: \Pow Point) (a: Point) -> shifted (Sets.Complement S) a = Sets.Complement (shifted S a) :=
+  \fun (S: \Pow Point) (a: Point) => \axiom:setext(shifted (Sets.Complement S) a, Sets.Complement (shifted S a),
+    \fun (x: Point) (member: Sets.Member (shifted (Sets.Complement S) a) x) => member,
+    \fun (x: Point) (member: Sets.Member (Sets.Complement (shifted S a)) x) => member);
+\definition shiftedCaratheodory: \forall (S: \Pow Point) (a: Point) -> Caratheodory S -> Caratheodory (shifted S a) :=
+  \fun (S: \Pow Point) (a: Point) (measurable: Caratheodory S) (T: \Pow Point) => \block {
+    \let W: \Pow Point := shifted T (negPoint a) \then
+    \let restore: shifted W a = T := shiftedAgain T a \then
+    \let inside: shifted (Sets.Intersection W S) a = Sets.Intersection T (shifted S a) := eq_reason_in!{{\Pow Point} _
+      "=" _ "by" { shiftedIntersection W S a }
+      "=" _ "by" { congr!{{\Pow Point} {\Pow Point}} (\fun (V: \Pow Point) => Sets.Intersection V (shifted S a)) _ _ restore }
+    } \then
+    \let outside: shifted (Sets.Intersection W (Sets.Complement S)) a = Sets.Intersection T (Sets.Complement (shifted S a)) := eq_reason_in!{{\Pow Point} _
+      "=" _ "by" { shiftedIntersection W (Sets.Complement S) a }
+      "=" _ "by" { congr!{{\Pow Point} {\Pow Point} {\Pow Point}} Sets.Intersection _ _ _ _ restore (shiftedComplement S a) }
+    } \then
+    \return eq_reason_in!{Measure.Value _
+      "=" _ "by" { congr!{{\Pow Point} Measure.Value} outer _ _ (sym!{{\Pow Point}} _ _ restore) }
+      "=" _ "by" { translationInvariant W a }
+      "=" _ "by" { measurable W }
+      "=" _ "by" { congr!{Measure.Value Measure.Value Measure.Value} Measure.add _ _ _ _
+        (sym!{Measure.Value} _ _ (translationInvariant (Sets.Intersection W S) a))
+        (sym!{Measure.Value} _ _ (translationInvariant (Sets.Intersection W (Sets.Complement S)) a)) }
+      "=" _ "by" { congr!{Measure.Value Measure.Value Measure.Value} Measure.add _ _ _ _
+        (congr!{{\Pow Point} Measure.Value} outer _ _ inside) (congr!{{\Pow Point} Measure.Value} outer _ _ outside) }
+    }
+  };
