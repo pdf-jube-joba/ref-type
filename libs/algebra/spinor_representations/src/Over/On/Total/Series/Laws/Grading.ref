@@ -1,0 +1,37 @@
+\use std.Logic[].Equality[].eq_reason;
+\import \root.Over[K := K, scalarRing := scalarRing].On[V := V, space := space].Total[] \as Total;
+\import Total.Series[] \as Series;
+\import Shuffle.Laws[] \as Products;
+\definition parityComponent: \forall (f, g: Carrier)(xs: Lists.List[V]) ->
+  value (Total.parity (wedge f g)) xs = value (wedge (Total.parity f) (Total.parity g)) xs :=
+  \fun (f, g: Carrier)(xs: Lists.List[V]) => eq_reason!{
+    {value (Total.parity (wedge f g)) xs}
+    "=" {Shuffle.twist (value (wedge f g)) xs} "by" { Series.parity (wedge f g) xs }
+    "=" {Shuffle.twist (Shuffle.product (value f) (value g)) xs} "by" { congr!{K K} (Algebra.mul (Sign.value (Lists.length V xs))) (value (wedge f g) xs) (Shuffle.product (value f) (value g) xs) (onWedge f g xs) }
+    "=" {Shuffle.product (Shuffle.twist (value f)) (Shuffle.twist (value g)) xs} "by" { congr!{Shuffle.Function K} (\fun (s: Shuffle.Function) => s xs) (Shuffle.twist (Shuffle.product (value f) (value g))) (Shuffle.product (Shuffle.twist (value f)) (Shuffle.twist (value g))) (Products.twistedProduct (value f) (value g)) }
+    "=" {Shuffle.product (value (Total.parity f)) (value (Total.parity g)) xs} "by" {
+      Products.congruent (Shuffle.twist (value f)) (value (Total.parity f)) (Shuffle.twist (value g)) (value (Total.parity g))
+        (\fun (ys: Lists.List[V]) => sym!{K} (value (Total.parity f) ys) (Shuffle.twist (value f) ys) (Series.parity f ys)) (\fun (ys: Lists.List[V]) => sym!{K} (value (Total.parity g) ys) (Shuffle.twist (value g) ys) (Series.parity g ys)) xs }
+    "=" {value (wedge (Total.parity f) (Total.parity g)) xs} "by" { sym!{K} (value (wedge (Total.parity f) (Total.parity g)) xs) (Shuffle.product (value (Total.parity f)) (value (Total.parity g)) xs) (onWedge (Total.parity f) (Total.parity g) xs) }
+  };
+\definition parity: \forall (f, g: Carrier) -> Total.parity (wedge f g) = wedge (Total.parity f) (Total.parity g) :=
+  \fun (f, g: Carrier) => ext (Total.parity (wedge f g)) (wedge (Total.parity f) (Total.parity g))
+    (\axiom:funext(value (Total.parity (wedge f g)), value (wedge (Total.parity f) (Total.parity g)), parityComponent f g));
+\definition contractionComponent: \forall (x: V)(f, g: Carrier)(xs: Lists.List[V]) ->
+  value (Total.annihilate x (wedge f g)) xs = value (Total.totalSpace.add (wedge (Total.annihilate x f) g) (wedge (Total.parity f) (Total.annihilate x g))) xs :=
+  \fun (x: V)(f, g: Carrier)(xs: Lists.List[V]) => eq_reason!{
+    {value (Total.annihilate x (wedge f g)) xs}
+    "=" {Shuffle.shift x (value (wedge f g)) xs} "by" { Series.shift x (wedge f g) xs }
+    "=" {Shuffle.shift x (Shuffle.product (value f) (value g)) xs} "by" { onWedge f g (Lists.List[V]::cons x xs) }
+    "=" {Algebra.add (Shuffle.product (Shuffle.shift x (value f)) (value g) xs) (Shuffle.product (Shuffle.twist (value f)) (Shuffle.shift x (value g)) xs)} "by" {
+      congr!{Shuffle.Function K} (\fun (s: Shuffle.Function) => s xs) (Shuffle.shift x (Shuffle.product (value f) (value g))) (Shuffle.plus (Shuffle.product (Shuffle.shift x (value f)) (value g)) (Shuffle.product (Shuffle.twist (value f)) (Shuffle.shift x (value g)))) (Products.shiftedProduct x (value f) (value g)) }
+    "=" {Algebra.add (Shuffle.product (value (Total.annihilate x f)) (value g) xs) (Shuffle.product (value (Total.parity f)) (value (Total.annihilate x g)) xs)} "by" {
+      congr!{K K K} Algebra.add _ _ _ _
+        (Products.congruent (Shuffle.shift x (value f)) (value (Total.annihilate x f)) (value g) (value g) (\fun (ys: Lists.List[V]) => sym!{K} _ _ (Series.shift x f ys)) (\fun (ys: Lists.List[V]) => \refl(value g ys)) xs)
+        (Products.congruent (Shuffle.twist (value f)) (value (Total.parity f)) (Shuffle.shift x (value g)) (value (Total.annihilate x g)) (\fun (ys: Lists.List[V]) => sym!{K} _ _ (Series.parity f ys)) (\fun (ys: Lists.List[V]) => sym!{K} _ _ (Series.shift x g ys)) xs) }
+    "=" {value (Total.totalSpace.add (wedge (Total.annihilate x f) g) (wedge (Total.parity f) (Total.annihilate x g))) xs} "by" {
+      congr!{K K K} Algebra.add _ _ _ _ (sym!{K} _ _ (onWedge (Total.annihilate x f) g xs)) (sym!{K} _ _ (onWedge (Total.parity f) (Total.annihilate x g) xs)) }
+  };
+\definition contraction: \forall (x: V)(f, g: Carrier) -> Total.annihilate x (wedge f g) = Total.totalSpace.add (wedge (Total.annihilate x f) g) (wedge (Total.parity f) (Total.annihilate x g)) :=
+  \fun (x: V)(f, g: Carrier) => ext (Total.annihilate x (wedge f g)) (Total.totalSpace.add (wedge (Total.annihilate x f) g) (wedge (Total.parity f) (Total.annihilate x g)))
+    (\axiom:funext(value (Total.annihilate x (wedge f g)), value (Total.totalSpace.add (wedge (Total.annihilate x f) g) (wedge (Total.parity f) (Total.annihilate x g))), contractionComponent x f g));
