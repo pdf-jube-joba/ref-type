@@ -1,0 +1,47 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Bool[] \as Bool;
+\import std.Logic[].Proposition[] \as Logic;
+\import \root.Euclidean[n := N.Nat^::zero] \as E;
+\import functional_analysis.Measure[A := E.Point] \as Measure;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\import dedekind_reals.DedekindReal[] \as R;
+\import real.Analysis[] \as Real;
+\import Measure.ValueLaws[] \as Values;
+\use std.Logic[].Equality[].sym;
+
+\definition box[x: E.Point]: E.Box := E.Box {
+  active := Bool.Bool^::true,
+  left := x,
+  right := x,
+  ordered := \fun (i: Fin.Fin N.Nat^::zero) => R.leRefl (x i),
+};
+\definition unitValue: Measure.Value := { r: Real.Real \where R.Lt r Real.one };
+\definition unitNonnegative: Measure.NonnegativeValue[unitValue] := E.volumeValueNonnegative (box (Fin.Empty[A := Real.Real].function));
+\definition singletonIncluded: \forall (x: E.Point) -> Sets.Subset (Sets.Singleton x) (E.points (box x)) :=
+  \fun (x, y: E.Point) (same: y = x) => \idelim x = y \with z: E.Point => Sets.Member (E.points (box x)) z
+    \by { base: Logic.And[_, _]::# (\refl(Bool.Bool^::true))
+      (\fun (i: Fin.Fin N.Nat^::zero) => Logic.And[_, _]::# (R.leRefl (x i)) (R.leRefl (x i))),
+      equality: sym!{E.Point} _ _ same };
+\definition memberVolume: \forall (b: E.Box) (x: E.Point) -> Sets.Member (E.points b) x -> E.volume b = Real.one :=
+  \fun (b: E.Box) (x: E.Point) (member: Sets.Member (E.points b) x) =>
+    \idelim Bool.Bool^::true = b.active \with active: Bool.Bool^ =>
+      (\match active \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with {
+        | false: Real.zero
+        | true: E.product N.Nat^::zero (\fun (i: Fin.Fin N.Nat^::zero) => Real.sub (b.right i) (b.left i))
+      }) = Real.one
+      \by { base: \refl(Real.one), equality: sym!{Bool.Bool^} _ _ member.left };
+\definition coverLower: \forall (x: E.Point) (family: N.Nat^ -> E.Box) -> E.Covers family (Sets.Singleton x) ->
+  Values.Included unitValue (E.cost family) :=
+  \fun (x: E.Point) (family: N.Nat^ -> E.Box) (cover: E.Covers family (Sets.Singleton x)) (r: Real.Real) (member: Measure.below unitValue r) => \block {
+    \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where Sets.Member (E.points (family j)) x }) \by cover x (\refl(x)) \then
+    \let inside: Sets.Member (E.points (family j)) x := \bysub(N.Nat^, { j: N.Nat^ \where Sets.Member (E.points (family j)) x }, j) \then
+    \return E.seriesContains (\fun (k: N.Nat^) => E.volumeValue (family k)) (\fun (k: N.Nat^) => E.volumeValueNonnegative (family k)) j r
+      (\idelim Real.one = E.volume (family j) \with v: Real.Real => R.Lt r v
+        \by { base: member, equality: sym!{Real.Real} _ _ (memberVolume (family j) x inside) })
+  };
+\definition singletonVolume: \forall (x: E.Point) -> E.outer (Sets.Singleton x) = unitValue :=
+  \fun (x: E.Point) => \axiom:setext(E.outer (Sets.Singleton x), unitValue,
+    \fun (r: Real.Real) (member: Measure.below (E.outer (Sets.Singleton x)) r) =>
+      E.boxUpper (box x) r (E.monotone (Sets.Singleton x) (E.points (box x)) (singletonIncluded x) r member),
+    E.greatestLowerBound (Sets.Singleton x) unitValue unitNonnegative (coverLower x));

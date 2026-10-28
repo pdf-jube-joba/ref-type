@@ -1,0 +1,69 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\import N.Pair[].Def[] \as Pair;
+\import N.Pair[].Enumeration[] \as E;
+\import std.Logic[].Proposition[] \as Logic;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+
+\definition previous[p: Pair.NatPair]: Pair.NatPair :=
+  (\induction (a: N.Nat^) \return Pair.NatPair \with {
+    | zero: (\induction (b: N.Nat^) \return Pair.NatPair \with {
+      | zero: Pair.natPair N.Nat^::zero N.Nat^::zero
+      | succ: \fun (b: N.Nat^) (_: Pair.NatPair) => Pair.natPair b N.Nat^::zero
+    }) (Pair.natPairSecond p)
+    | succ: \fun (a: N.Nat^) (_: Pair.NatPair) => Pair.natPair a (N.Nat^::succ (Pair.natPairSecond p))
+  }) (Pair.natPairFirst p);
+\definition previousStep: \forall (p: Pair.NatPair) -> previous (E.step p) = p :=
+  Pair.natPairElim (\fun (p: Pair.NatPair) => previous (E.step p) = p) (\fun (a, b: N.Nat^) => (\induction (b: N.Nat^) \return previous (E.step (Pair.natPair a b)) = Pair.natPair a b \with {
+    | zero: \refl(Pair.natPair a N.Nat^::zero)
+    | succ: \fun (b: N.Nat^) (_: _) => \refl(Pair.natPair a (N.Nat^::succ b))
+  }) b);
+\definition stepNotOrigin: \forall (p: Pair.NatPair) -> Logic.Not (E.step p = Pair.natPair N.Nat^::zero N.Nat^::zero) :=
+  Pair.natPairElim (\fun (p: Pair.NatPair) => Logic.Not (E.step p = Pair.natPair N.Nat^::zero N.Nat^::zero)) (\fun (a, b: N.Nat^) => (\induction (b: N.Nat^) \return Logic.Not (E.step (Pair.natPair a b) = Pair.natPair N.Nat^::zero N.Nat^::zero) \with {
+    | zero: \fun (equal: _) => Nat.succNeZero a (congr!{Pair.NatPair N.Nat^} Pair.natPairSecond _ _ equal)
+    | succ: \fun (b: N.Nat^) (_: _) (equal: _) => Nat.succNeZero a (congr!{Pair.NatPair N.Nat^} Pair.natPairFirst _ _ equal)
+  }) b);
+\definition enumerateInjective: \forall (i, j: N.Nat^) -> E.enumerate i = E.enumerate j -> i = j :=
+  \induction (i: N.Nat^) \return \forall (j: N.Nat^) -> E.enumerate i = E.enumerate j -> i = j \with {
+    | zero: \induction (j: N.Nat^) \return E.enumerate N.Nat^::zero = E.enumerate j -> N.Nat^::zero = j \with {
+      | zero: \fun (_: _) => \refl(N.Nat^::zero)
+      | succ: \fun (j: N.Nat^) (_: _) (equal: _) => Logic.falseElim _ (stepNotOrigin (E.enumerate j) (sym!{Pair.NatPair} _ _ equal))
+    }
+    | succ: \fun (i: N.Nat^) (prior: \forall (j: N.Nat^) -> E.enumerate i = E.enumerate j -> i = j) =>
+      \induction (j: N.Nat^) \return E.enumerate (N.Nat^::succ i) = E.enumerate j -> N.Nat^::succ i = j \with {
+        | zero: \fun (equal: _) => Logic.falseElim _ (stepNotOrigin (E.enumerate i) equal)
+        | succ: \fun (j: N.Nat^) (_: E.enumerate (N.Nat^::succ i) = E.enumerate j -> N.Nat^::succ i = j)
+          (equal: E.enumerate (N.Nat^::succ i) = E.enumerate (N.Nat^::succ j)) => \block {
+          \let earlier: E.enumerate i = E.enumerate j := eq_reason_in!{Pair.NatPair _
+            "=" _ "by" { sym!{Pair.NatPair} _ _ (previousStep (E.enumerate i)) }
+            "=" _ "by" { congr!{Pair.NatPair Pair.NatPair} previous _ _ equal }
+            "=" _ "by" { previousStep (E.enumerate j) }
+          } \then
+          \return congr!{N.Nat^ N.Nat^} (\fun (m: N.Nat^) => N.Nat^::succ m) _ _ (prior j earlier)
+        }
+      }
+  };
+\structure Bounds[k: N.Nat^, p: Pair.NatPair]: \Prop := {
+  first: Nat.Le (Pair.natPairFirst p) k,
+  second: Nat.Le (Pair.natPairSecond p) k,
+};
+\definition stepBounds: \forall (k: N.Nat^) (p: Pair.NatPair) -> Bounds[k, p] -> Bounds[N.Nat^::succ k, E.step p] :=
+  \fun (k: N.Nat^) => Pair.natPairElim
+    (\fun (p: Pair.NatPair) => Bounds[k, p] -> Bounds[N.Nat^::succ k, E.step p])
+    (\fun (a, b: N.Nat^) => (\induction (b: N.Nat^) \return Bounds[k, Pair.natPair a b] -> Bounds[N.Nat^::succ k, E.step (Pair.natPair a b)] \with {
+      | zero: \fun (bound: Bounds[k, Pair.natPair a N.Nat^::zero]) => Bounds[N.Nat^::succ k, E.step (Pair.natPair a N.Nat^::zero)] {
+        first := Nat.zeroLe (N.Nat^::succ k),
+        second := Nat.leSuccSucc a k bound.first,
+      }
+      | succ: \fun (b: N.Nat^) (_: _) (bound: Bounds[k, Pair.natPair a (N.Nat^::succ b)]) => Bounds[N.Nat^::succ k, E.step (Pair.natPair a (N.Nat^::succ b))] {
+        first := Nat.leSuccSucc a k bound.first,
+        second := Nat.leStep k b (Nat.leTrans b (N.Nat^::succ b) k (Nat.leSelfSucc b) bound.second),
+      }
+    }) b);
+\definition enumerateBounds: \forall (k: N.Nat^) -> Bounds[k, E.enumerate k] :=
+  \induction (k: N.Nat^) \return Bounds[k, E.enumerate k] \with {
+    | zero: Bounds[N.Nat^::zero, E.enumerate N.Nat^::zero] { first := Nat.leRefl N.Nat^::zero, second := Nat.leRefl N.Nat^::zero }
+    | succ: \fun (k: N.Nat^) (prior: Bounds[k, E.enumerate k]) => stepBounds k (E.enumerate k) prior
+  };

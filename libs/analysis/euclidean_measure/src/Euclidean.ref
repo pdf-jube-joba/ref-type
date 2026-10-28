@@ -755,3 +755,181 @@
     \idelim cost (\fun (i: N.Nat^) => weave i f g) = Measure.add (cost f) (cost g) \with v: Measure.Value => Measure.below v r
       \by { base: boundedByCover (Sigma.pairUnion S T) (\fun (i: N.Nat^) => weave i f g) (weaveCovers S T f g sf tg) r member,
         equality: weaveCost f g };
+
+\import dedekind_reals.DedekindReal[].Completeness[] \as Complete;
+\import real.Analysis[].Estimates[].Product[] \as Product;
+\import Measure.ValueLaws[].SupAdd[] \as SupAdd;
+\definition negativeOne: R.Lt (Real.neg Real.one) Real.zero :=
+  R.ltReplaceRight (Real.neg Real.one) (Real.neg Real.zero) Real.zero Laws.negZero
+    (Laws.negStrictAntitone Real.zero Real.one Product.onePositive);
+\definition valueUpper: \forall (v: Measure.Value) -> Measure.NonnegativeValue[v] -> \forall (b: Real.Real) ->
+  Logic.Not (Measure.below v b) -> Complete.UpperBound v b :=
+  \fun (v: Measure.Value) (valid: Measure.NonnegativeValue[v]) (b: Real.Real) (outside: Logic.Not (Measure.below v b))
+    (x: Real.Real) (member: Measure.below v x) => Order.leOfNotLtReverse x b
+      (\fun (less: R.Lt b x) => outside (valid.downward b x less member));
+\definition valueSup: \forall (v: Measure.Value) -> Measure.NonnegativeValue[v] -> \forall (b: Real.Real) ->
+  Logic.Not (Measure.below v b) -> \exists ( u: Real.Real \where Complete.LeastUpperBound[v, u] ) :=
+  \fun (v: Measure.Value) (valid: Measure.NonnegativeValue[v]) (b: Real.Real) (outside: Logic.Not (Measure.below v b)) =>
+    Complete.complete v (\exact(\into[Real.Real](Real.neg Real.one, v) \by { valid.negative (Real.neg Real.one) negativeOne }, \Cast[Real.Real] v))
+      (Logic.existsIntro[Real.Real, { u: Real.Real \where Complete.UpperBound v u }] b (valueUpper v valid b outside));
+\definition supBelow: \forall (v: Measure.Value) (u, b: Real.Real) ->
+  Complete.LeastUpperBound[v, u] -> Measure.NonnegativeValue[v] -> R.Lt u b -> Logic.Not (Measure.below v b) :=
+  \fun (v: Measure.Value) (u, b: Real.Real) (sup: Complete.LeastUpperBound[v, u]) (_: Measure.NonnegativeValue[v])
+    (less: R.Lt u b) (member: Measure.below v b) => R.ltNotLeReverse u b less (sup.upper b member);
+\structure SplitAbove[r, p, q, a, b: Real.Real]: \Prop := {
+  left: R.Lt p a,
+  right: R.Lt q b,
+  total: R.Lt (Real.add a b) r,
+};
+\definition splitAbove: \forall (r, p, q: Real.Real) -> R.Lt (Real.add p q) r ->
+  \exists ( a: Real.Real \where \exists ( b: Real.Real \where SplitAbove[r, p, q, a, b] ) ) :=
+  \fun (r, p, q: Real.Real) (less: R.Lt (Real.add p q) r) => \block {
+    \let negative: R.Lt (Real.neg r) (Real.add (Real.neg p) (Real.neg q)) :=
+      R.ltReplaceRight (Real.neg r) (Real.neg (Real.add p q)) (Real.add (Real.neg p) (Real.neg q)) (Laws.negAdd p q)
+        (Laws.negStrictAntitone (Real.add p q) r less) \then
+    \takefrom x: \Cast[Real.Real] ({ x: Real.Real \where \exists ( y: Real.Real \where Values.SplitBelow[Real.neg r, Real.neg p, Real.neg q, x, y] ) })
+      \by Values.splitBelow (Real.neg r) (Real.neg p) (Real.neg q) negative \then
+    \takefrom y: \Cast[Real.Real] ({ y: Real.Real \where Values.SplitBelow[Real.neg r, Real.neg p, Real.neg q, x, y] })
+      \by (\bysub(Real.Real, { x: Real.Real \where \exists ( y: Real.Real \where Values.SplitBelow[Real.neg r, Real.neg p, Real.neg q, x, y] ) }, x)) \then
+    \let split: Values.SplitBelow[Real.neg r, Real.neg p, Real.neg q, x, y] :=
+      \bysub(Real.Real, { y: Real.Real \where Values.SplitBelow[Real.neg r, Real.neg p, Real.neg q, x, y] }, y) \then
+    \return Logic.existsIntro[Real.Real, { a: Real.Real \where \exists ( b: Real.Real \where SplitAbove[r, p, q, a, b] ) }] (Real.neg x)
+      (Logic.existsIntro[Real.Real, { b: Real.Real \where SplitAbove[r, p, q, Real.neg x, b] }] (Real.neg y)
+        (SplitAbove[r, p, q, Real.neg x, Real.neg y] {
+          left := R.ltReplaceLeft (Real.neg (Real.neg p)) p (Real.neg x) (Laws.negInvolutive p) (Laws.negStrictAntitone x (Real.neg p) split.left),
+          right := R.ltReplaceLeft (Real.neg (Real.neg q)) q (Real.neg y) (Laws.negInvolutive q) (Laws.negStrictAntitone y (Real.neg q) split.right),
+          total := R.ltReplaceRight (Real.add (Real.neg x) (Real.neg y)) (Real.neg (Real.neg r)) r (Laws.negInvolutive r)
+            (R.ltReplaceLeft (Real.neg (Real.add x y)) (Real.add (Real.neg x) (Real.neg y)) (Real.neg (Real.neg r))
+              (Laws.negAdd x y) (Laws.negStrictAntitone (Real.neg r) (Real.add x y) split.total)),
+        }))
+  };
+\definition supremumOutside: \forall (v: Measure.Value) (p: Real.Real) -> Measure.NonnegativeValue[v] ->
+  Complete.LeastUpperBound[v, p] -> Logic.Not (Measure.below v p) :=
+  \fun (v: Measure.Value) (p: Real.Real) (valid: Measure.NonnegativeValue[v]) (sup: Complete.LeastUpperBound[v, p])
+    (member: Measure.below v p) => \block {
+      \takefrom q: \Cast[Real.Real] ({ q: Real.Real \where Logic.And[R.Lt p q, Measure.below v q] }) \by valid.rounded p member \then
+      \let law: Logic.And[R.Lt p q, Measure.below v q] := \bysub(Real.Real, { q: Real.Real \where Logic.And[R.Lt p q, Measure.below v q] }, q) \then
+      \return R.ltNotLeReverse p q law.left (sup.upper q law.right)
+    };
+\definition addUpper: \forall (v, w: Measure.Value) (a, b: Real.Real) -> Complete.UpperBound v a -> Complete.UpperBound w b ->
+  Complete.UpperBound (Measure.add v w) (Real.add a b) :=
+  \fun (v, w: Measure.Value) (a, b: Real.Real) (va: Complete.UpperBound v a) (wb: Complete.UpperBound w b)
+    (r: Real.Real) (member: Measure.below (Measure.add v w) r) => \block {
+      \takefrom x: \Cast[Real.Real] ({ x: Real.Real \where Logic.And[Measure.below v x, \exists ( y: Real.Real \where Logic.And[Measure.below w y, R.Lt r (Real.add x y)] )] }) \by member \then
+      \let first: Logic.And[Measure.below v x, \exists ( y: Real.Real \where Logic.And[Measure.below w y, R.Lt r (Real.add x y)] )] :=
+        \bysub(Real.Real, { x: Real.Real \where Logic.And[Measure.below v x, \exists ( y: Real.Real \where Logic.And[Measure.below w y, R.Lt r (Real.add x y)] )] }, x) \then
+      \takefrom y: \Cast[Real.Real] ({ y: Real.Real \where Logic.And[Measure.below w y, R.Lt r (Real.add x y)] }) \by first.right \then
+      \let second: Logic.And[Measure.below w y, R.Lt r (Real.add x y)] :=
+        \bysub(Real.Real, { y: Real.Real \where Logic.And[Measure.below w y, R.Lt r (Real.add x y)] }, y) \then
+      \return Order.leOfLt r (Real.add a b) (R.ltLeTrans r (Real.add x y) (Real.add a b) second.right (Estimates.addLe x y a b (va x first.left) (wb y second.left)))
+    };
+\definition subadditivePair: \forall (S, T: \Pow Point) -> Values.Included (outer (Sigma.pairUnion S T)) (Measure.add (outer S) (outer T)) :=
+  \fun (S, T: \Pow Point) (r: Real.Real) (member: Measure.below (outer (Sigma.pairUnion S T)) r) =>
+    Sigma.doubleNegative (Measure.below (Measure.add (outer S) (outer T)) r)
+      (\fun (outside: Logic.Not (Measure.below (Measure.add (outer S) (outer T)) r)) => \block {
+        \let sOutside: Logic.Not (Measure.below (outer S) r) := \fun (inS: Measure.below (outer S) r) =>
+          outside (Series.pairLeftIncluded (outer S) (outer T) (outerNonnegative S) (outerNonnegative T) r inS) \then
+        \let tOutside: Logic.Not (Measure.below (outer T) r) := \fun (inT: Measure.below (outer T) r) =>
+          outside (\idelim Measure.add (outer T) (outer S) = Measure.add (outer S) (outer T) \with v: Measure.Value => Measure.below v r
+            \by { base: Series.pairLeftIncluded (outer T) (outer S) (outerNonnegative T) (outerNonnegative S) r inT,
+              equality: Values.addComm (outer T) (outer S) }) \then
+        \takefrom p: \Cast[Real.Real] ({ p: Real.Real \where Complete.LeastUpperBound[outer S, p] }) \by valueSup (outer S) (outerNonnegative S) r sOutside \then
+        \takefrom q: \Cast[Real.Real] ({ q: Real.Real \where Complete.LeastUpperBound[outer T, q] }) \by valueSup (outer T) (outerNonnegative T) r tOutside \then
+        \let ps: Complete.LeastUpperBound[outer S, p] := \bysub(Real.Real, { p: Real.Real \where Complete.LeastUpperBound[outer S, p] }, p) \then
+        \let qs: Complete.LeastUpperBound[outer T, q] := \bysub(Real.Real, { q: Real.Real \where Complete.LeastUpperBound[outer T, q] }, q) \then
+        \let sumBound: R.Le (Real.add p q) r := (SupAdd.leastUpper (outer S) (outer T) p q ps qs).least r
+          (valueUpper (Measure.add (outer S) (outer T)) (Values.addNonnegative (outer S) (outer T) (outerNonnegative S) (outerNonnegative T)) r outside) \then
+        \takefrom t: \Cast[Real.Real] ({ t: Real.Real \where Logic.And[R.Lt r t, \forall (family: N.Nat^ -> Box) -> Covers family (Sigma.pairUnion S T) -> Measure.below (cost family) t] }) \by member \then
+        \let law: Logic.And[R.Lt r t, \forall (family: N.Nat^ -> Box) -> Covers family (Sigma.pairUnion S T) -> Measure.below (cost family) t] :=
+          \bysub(Real.Real, { t: Real.Real \where Logic.And[R.Lt r t, \forall (family: N.Nat^ -> Box) -> Covers family (Sigma.pairUnion S T) -> Measure.below (cost family) t] }, t) \then
+        \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where \exists ( b: Real.Real \where SplitAbove[t, p, q, a, b] ) })
+          \by splitAbove t p q (R.leLtTrans (Real.add p q) r t sumBound law.left) \then
+        \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where SplitAbove[t, p, q, a, b] })
+          \by (\bysub(Real.Real, { a: Real.Real \where \exists ( b: Real.Real \where SplitAbove[t, p, q, a, b] ) }, a)) \then
+        \let split: SplitAbove[t, p, q, a, b] := \bysub(Real.Real, { b: Real.Real \where SplitAbove[t, p, q, a, b] }, b) \then
+        \takefrom f: \Cast[N.Nat^ -> Box] ({ f: N.Nat^ -> Box \where Logic.And[Covers f S, Logic.Not (Measure.below (cost f) a)] })
+          \by approximateCover S p a split.left (supremumOutside (outer S) p (outerNonnegative S) ps) \then
+        \takefrom g: \Cast[N.Nat^ -> Box] ({ g: N.Nat^ -> Box \where Logic.And[Covers g T, Logic.Not (Measure.below (cost g) b)] })
+          \by approximateCover T q b split.right (supremumOutside (outer T) q (outerNonnegative T) qs) \then
+        \let fl: Logic.And[Covers f S, Logic.Not (Measure.below (cost f) a)] :=
+          \bysub(N.Nat^ -> Box, { f: N.Nat^ -> Box \where Logic.And[Covers f S, Logic.Not (Measure.below (cost f) a)] }, f) \then
+        \let gl: Logic.And[Covers g T, Logic.Not (Measure.below (cost g) b)] :=
+          \bysub(N.Nat^ -> Box, { g: N.Nat^ -> Box \where Logic.And[Covers g T, Logic.Not (Measure.below (cost g) b)] }, g) \then
+        \let inCosts: Measure.below (Measure.add (cost f) (cost g)) t :=
+          \idelim cost (\fun (j: N.Nat^) => weave j f g) = Measure.add (cost f) (cost g) \with v: Measure.Value => Measure.below v t
+            \by { base: law.right (\fun (j: N.Nat^) => weave j f g) (weaveCovers S T f g fl.left gl.left), equality: weaveCost f g } \then
+        \return R.ltNotLeReverse (Real.add a b) t split.total
+          (addUpper (cost f) (cost g) a b (valueUpper (cost f) (costNonnegative f) a fl.right) (valueUpper (cost g) (costNonnegative g) b gl.right) t inCosts)
+      });
+\definition outerSubsetZero: \forall (S, T: \Pow Point) -> Sets.Subset S T -> outer T = Measure.zero -> outer S = Measure.zero :=
+  \fun (S, T: \Pow Point) (included: Sets.Subset S T) (null: outer T = Measure.zero) =>
+    \axiom:setext(outer S, Measure.zero,
+      \fun (r: Real.Real) (member: Measure.below (outer S) r) =>
+        \idelim outer T = Measure.zero \with v: Measure.Value => Measure.below v r
+          \by { base: monotone S T included r member, equality: null },
+      \fun (r: Real.Real) (negative: R.Lt r Real.zero) => (outerNonnegative S).negative r negative);
+\definition partitionUnion: \forall (T, S: \Pow Point) ->
+  T = Sigma.pairUnion (Sets.Intersection T S) (Sets.Intersection T (Sets.Complement S)) :=
+  \fun (T, S: \Pow Point) => \axiom:setext(T, Sigma.pairUnion (Sets.Intersection T S) (Sets.Intersection T (Sets.Complement S)),
+    \fun (x: Point) (member: Sets.Member T x) => Logic.orElim _ _ (Sets.Member (Sigma.pairUnion (Sets.Intersection T S) (Sets.Intersection T (Sets.Complement S))) x)
+      (Classical.excludedMiddle (Sets.Member S x))
+      (\fun (inS: Sets.Member S x) => Logic.Or[_, _]::left (Logic.And[_, _]::# member inS))
+      (\fun (outside: Logic.Not (Sets.Member S x)) => Logic.Or[_, _]::right (Logic.And[_, _]::# member outside)),
+    \fun (x: Point) (member: Sets.Member (Sigma.pairUnion (Sets.Intersection T S) (Sets.Intersection T (Sets.Complement S))) x) =>
+      Logic.orElim _ _ (Sets.Member T x) member (\fun (left: Sets.Member (Sets.Intersection T S) x) => left.left)
+        (\fun (right: Sets.Member (Sets.Intersection T (Sets.Complement S)) x) => right.left));
+\definition nullCaratheodory: \forall (S: \Pow Point) -> outer S = Measure.zero -> Caratheodory S :=
+  \fun (S: \Pow Point) (null: outer S = Measure.zero) (T: \Pow Point) => \block {
+    \let left: \Pow Point := Sets.Intersection T S \then
+    \let right: \Pow Point := Sets.Intersection T (Sets.Complement S) \then
+    \let leftZero: outer left = Measure.zero := outerSubsetZero left S
+      (\fun (x: Point) (member: Sets.Member left x) => member.right) null \then
+    \let forward: Values.Included (outer T) (outer right) := \fun (r: Real.Real) (member: Measure.below (outer T) r) => \block {
+      \let inUnion: Measure.below (outer (Sigma.pairUnion left right)) r :=
+        \idelim T = Sigma.pairUnion left right \with V: \Pow Point => Measure.below (outer V) r
+          \by { base: member, equality: partitionUnion T S } \then
+      \let inSum: Measure.below (Measure.add (outer left) (outer right)) r := subadditivePair left right r inUnion \then
+      \return \idelim Measure.add (outer left) (outer right) = outer right \with v: Measure.Value => Measure.below v r
+        \by { base: inSum, equality: eq_reason_in!{Measure.Value _
+          "=" _ "by" { congr!{Measure.Value Measure.Value} (\fun (v: Measure.Value) => Measure.add v (outer right)) _ _ leftZero }
+          "=" _ "by" { Series.zeroAdd (outer right) (outerNonnegative right) }
+        } }
+    } \then
+    \let equalRight: outer T = outer right := \axiom:setext(outer T, outer right, forward,
+      monotone right T (\fun (x: Point) (inRight: Sets.Member right x) => inRight.left)) \then
+    \return eq_reason_in!{Measure.Value _
+      "=" _ "by" { equalRight }
+      "=" _ "by" { sym!{Measure.Value} _ _ (Series.zeroAdd (outer right) (outerNonnegative right)) }
+      "=" _ "by" { congr!{Measure.Value Measure.Value} (\fun (v: Measure.Value) => Measure.add v (outer right)) _ _ (sym!{Measure.Value} _ _ leftZero) }
+    }
+  };
+\definition seriesContains: \forall (f: N.Nat^ -> Measure.Value) -> (\forall (j: N.Nat^) -> Measure.NonnegativeValue[f j]) ->
+  \forall (j: N.Nat^) -> Values.Included (f j) (Measure.series f) :=
+  \fun (f: N.Nat^ -> Measure.Value) (nonnegative: \forall (j: N.Nat^) -> Measure.NonnegativeValue[f j])
+    (j: N.Nat^) (r: Real.Real) (member: Measure.below (f j) r) =>
+    partialBelowSeries f (N.Nat^::succ j) r
+      (\idelim Measure.add (f j) (Measure.partialSum f j) = Measure.add (Measure.partialSum f j) (f j) \with v: Measure.Value => Measure.below v r
+        \by { base: Series.pairLeftIncluded (f j) (Measure.partialSum f j) (nonnegative j) (partialNonnegative f nonnegative j) r member,
+          equality: Values.addComm (f j) (Measure.partialSum f j) });
+
+\import N.Pair[].Def[] \as NatPair;
+\import N.Pair[].Enumeration[] \as Enumeration;
+\definition flatten[families: N.Nat^ -> N.Nat^ -> Box] [j: N.Nat^]: Box :=
+  families (NatPair.natPairFirst (Enumeration.enumerate j)) (NatPair.natPairSecond (Enumeration.enumerate j));
+\definition flattenCovers: \forall (sets: N.Nat^ -> \Pow Point) (families: N.Nat^ -> N.Nat^ -> Box) ->
+  (\forall (i: N.Nat^) -> Covers (families i) (sets i)) -> Covers (flatten families) (Measure.union sets) :=
+  \fun (sets: N.Nat^ -> \Pow Point) (families: N.Nat^ -> N.Nat^ -> Box) (covers: \forall (i: N.Nat^) -> Covers (families i) (sets i))
+    (x: Point) (member: Sets.Member (Measure.union sets) x) => \block {
+      \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where Sets.Member (sets i) x }) \by member \then
+      \let inSet: Sets.Member (sets i) x := \bysub(N.Nat^, { i: N.Nat^ \where Sets.Member (sets i) x }, i) \then
+      \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where Sets.Member (points (families i j)) x }) \by covers i x inSet \then
+      \let inBox: Sets.Member (points (families i j)) x := \bysub(N.Nat^, { j: N.Nat^ \where Sets.Member (points (families i j)) x }, j) \then
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Enumeration.enumerate k = NatPair.natPair i j }) \by Enumeration.exhaustive i j \then
+      \let equality: Enumeration.enumerate k = NatPair.natPair i j :=
+        \bysub(N.Nat^, { k: N.Nat^ \where Enumeration.enumerate k = NatPair.natPair i j }, k) \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (points (flatten families k)) x }] k
+        (\idelim NatPair.natPair i j = Enumeration.enumerate k \with pair: NatPair.NatPair =>
+          Sets.Member (points (families (NatPair.natPairFirst pair) (NatPair.natPairSecond pair))) x
+          \by { base: inBox, equality: sym!{NatPair.NatPair} _ _ equality })
+    };
+\module Borel;
