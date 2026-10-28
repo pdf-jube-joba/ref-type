@@ -1,0 +1,48 @@
+\import \parent.\parent.\parent.Inner[k := k].Canonical[] \as LowerInner;
+\import \parent.\parent.\parent.Inner[k := N.Nat^::succ k].Canonical[] \as HigherInner;
+\import Forms.At[k := k] \as Lower;
+\import Forms.At[k := N.Nat^::succ k] \as Higher;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := Field.field, scalar := Hermitian.scalar].Inner[V := Forms.Form (N.Nat^::succ k), space := Higher.vectorSpace].Of[h := HigherInner.form] \as HigherLaws;
+\import Algebra.Linear[V := Finite.Vector, W := C.Complex, source := Finite.space, target := Algebra.scalarSpace] \as Linear;
+\import Operations.LeftCreation[k := k] \as Creation;
+\import Operations.Contraction[k := k] \as Contraction;
+\definition left[f: Forms.Form k][g: Forms.Form (N.Nat^::succ k)]: Linear.Map := Linear.Map {
+  apply := \fun (v: Finite.Vector) => HigherInner.dot (Creation.apply (Metric.form v) f) g,
+  preservesAdd := \fun (v, w: Finite.Vector) => eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{{Forms.Form (N.Nat^::succ N.Nat^::zero)} C.Complex} (\fun (a: Forms.Form (N.Nat^::succ N.Nat^::zero)) => HigherInner.dot (Creation.apply a f) g) _ _ (Metric.formAdd v w) }
+    "=" _ "by" { congr!{{Forms.Form (N.Nat^::succ k)} C.Complex} (\fun (a: Forms.Form (N.Nat^::succ k)) => HigherInner.dot a g) _ _ (Creation.parameterAddition (Metric.form v) (Metric.form w) f) }
+    "=" _ "by" { HigherLaws.addLeft (Creation.apply (Metric.form v) f) (Creation.apply (Metric.form w) f) g }
+  },
+  preservesScale := \fun (a: C.Complex)(v: Finite.Vector) => eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{{Forms.Form (N.Nat^::succ N.Nat^::zero)} C.Complex} (\fun (b: Forms.Form (N.Nat^::succ N.Nat^::zero)) => HigherInner.dot (Creation.apply b f) g) _ _ (Metric.formScaleComplex a v) }
+    "=" _ "by" { congr!{{Forms.Form (N.Nat^::succ k)} C.Complex} (\fun (b: Forms.Form (N.Nat^::succ k)) => HigherInner.dot b g) _ _ (Creation.parameterScale (Def.conj a) (Metric.form v) f) }
+    "=" _ "by" { HigherLaws.scaleLeft (Def.conj a) (Creation.apply (Metric.form v) f) g }
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (b: C.Complex) => Algebra.mul b (HigherInner.dot (Creation.apply (Metric.form v) f) g)) _ _ (ComplexLaws.conjConj a) }
+  },
+};
+\definition right[f: Forms.Form k][g: Forms.Form (N.Nat^::succ k)]: Linear.Map := Linear.Map {
+  apply := \fun (v: Finite.Vector) => LowerInner.dot f ((Contraction.operator v).apply g),
+  preservesAdd := \fun (v, w: Finite.Vector) => trans!{C.Complex} _ _ _
+    (congr!{{Forms.Form k} C.Complex} (LowerInner.dot f) _ _ (Contraction.parameterAddition v w g))
+    (LowerInner.form.addRight f ((Contraction.operator v).apply g) ((Contraction.operator w).apply g)),
+  preservesScale := \fun (a: C.Complex)(v: Finite.Vector) => trans!{C.Complex} _ _ _
+    (congr!{{Forms.Form k} C.Complex} (LowerInner.dot f) _ _ (Contraction.parameterScale a v g))
+    (LowerInner.form.scaleRight a f ((Contraction.operator v).apply g)),
+};
+\import Algebra.Sums[I := Fin.Fin n] \as Sums;
+\import Sums.Prop[] \as SumLaws;
+\import Sums.Vector[V := Finite.Vector, space := Finite.space] \as VectorSums;
+\import VectorSums.Mapping[W := C.Complex, target := Algebra.scalarSpace] \as Mapping;
+\definition law: \forall (v: Finite.Vector)(f: Forms.Form k)(g: Forms.Form (N.Nat^::succ k)) -> (left f g).apply v = (right f g).apply v :=
+  \fun (v: Finite.Vector)(f: Forms.Form k)(g: Forms.Form (N.Nat^::succ k)) => eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{Finite.Vector C.Complex} ((left f g).apply) _ _ (sym!{Finite.Vector} _ _ (Standard.reconstruction v)) }
+    "=" _ "by" { Mapping.law (left f g) (Fin.elements n) (\fun (i: Fin.Fin n) => Finite.space.smul (v i) (Finite.basis i)) }
+    "=" _ "by" { SumLaws.congruent (Fin.elements n) (\fun (i: Fin.Fin n) => (left f g).apply (Finite.space.smul (v i) (Finite.basis i))) (\fun (i: Fin.Fin n) => (right f g).apply (Finite.space.smul (v i) (Finite.basis i)))
+      (\fun (i: Fin.Fin n) => eq_reason_in!{C.Complex _
+        "=" _ "by" { (left f g).preservesScale (v i) (Finite.basis i) }
+        "=" _ "by" { congr!{C.Complex C.Complex} (Algebra.mul (v i)) _ _ (all k i f g) }
+        "=" _ "by" { sym!{C.Complex} _ _ ((right f g).preservesScale (v i) (Finite.basis i)) }
+      }) }
+    "=" _ "by" { sym!{C.Complex} _ _ (Mapping.law (right f g) (Fin.elements n) (\fun (i: Fin.Fin n) => Finite.space.smul (v i) (Finite.basis i))) }
+    "=" _ "by" { congr!{Finite.Vector C.Complex} ((right f g).apply) _ _ (Standard.reconstruction v) }
+  };
