@@ -933,3 +933,32 @@
           \by { base: inBox, equality: sym!{NatPair.NatPair} _ _ equality })
     };
 \module Borel;
+\definition prefixSubadditive: \forall (sets: N.Nat^ -> \Pow Point) (j: N.Nat^) ->
+  Values.Included (outer (Sigma.prefix sets j)) (Measure.partialSum (\fun (k: N.Nat^) => outer (sets k)) j) :=
+  \fun (sets: N.Nat^ -> \Pow Point) => \induction (j: N.Nat^) \return
+    Values.Included (outer (Sigma.prefix sets j)) (Measure.partialSum (\fun (k: N.Nat^) => outer (sets k)) j) \with {
+    | zero: \fun (r: Real.Real) (member: Measure.below (outer Sets.Empty) r) =>
+      \idelim outer Sets.Empty = Measure.zero \with v: Measure.Value => Measure.below v r \by { base: member, equality: outerEmpty }
+    | succ: \fun (j: N.Nat^) (previous: _) (r: Real.Real) (member: Measure.below (outer (Sigma.prefix sets (N.Nat^::succ j))) r) =>
+      Values.addMono (outer (Sigma.prefix sets j)) (Measure.partialSum (\fun (k: N.Nat^) => outer (sets k)) j) (outer (sets j)) (outer (sets j))
+        previous (\fun (v: Real.Real) (inValue: Measure.below (outer (sets j)) v) => inValue) r
+        (subadditivePair (Sigma.prefix sets j) (sets j) r member)
+  };
+\definition nullPairUnion: \forall (S, T: \Pow Point) -> outer S = Measure.zero -> outer T = Measure.zero ->
+  outer (Sigma.pairUnion S T) = Measure.zero :=
+  \fun (S, T: \Pow Point) (s: outer S = Measure.zero) (t: outer T = Measure.zero) =>
+    \axiom:setext(outer (Sigma.pairUnion S T), Measure.zero,
+      \fun (r: Real.Real) (member: Measure.below (outer (Sigma.pairUnion S T)) r) =>
+        \idelim Measure.add (outer S) (outer T) = Measure.zero \with v: Measure.Value => Measure.below v r
+          \by { base: subadditivePair S T r member, equality: eq_reason_in!{Measure.Value _
+            "=" _ "by" { congr!{Measure.Value Measure.Value Measure.Value} Measure.add _ _ _ _ s t }
+            "=" _ "by" { Values.addZero Measure.zero Values.zeroNonnegative }
+          } },
+      \fun (r: Real.Real) (negative: R.Lt r Real.zero) => (outerNonnegative (Sigma.pairUnion S T)).negative r negative);
+\definition nullPrefix: \forall (sets: N.Nat^ -> \Pow Point) -> (\forall (j: N.Nat^) -> outer (sets j) = Measure.zero) ->
+  \forall (j: N.Nat^) -> outer (Sigma.prefix sets j) = Measure.zero :=
+  \fun (sets: N.Nat^ -> \Pow Point) (null: \forall (j: N.Nat^) -> outer (sets j) = Measure.zero) =>
+    \induction (j: N.Nat^) \return outer (Sigma.prefix sets j) = Measure.zero \with {
+      | zero: outerEmpty
+      | succ: \fun (j: N.Nat^) (previous: _) => nullPairUnion (Sigma.prefix sets j) (sets j) previous (null j)
+    };
