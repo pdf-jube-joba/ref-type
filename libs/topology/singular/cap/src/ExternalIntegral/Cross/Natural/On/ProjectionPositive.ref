@@ -1,0 +1,65 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\definition p: N.Nat^ := N.Nat^::succ r;
+\definition q: N.Nat^ := N.Nat^::succ s;
+\import \parent.\parent.\parent.Homology[].Positive[r := r, s := s].Descent[] \as SourceProduct;
+\import Target.Cross[].Homology[].Positive[r := r, s := s].Descent[] \as TargetProductMap;
+\import \parent.Positive[r := r, s := s] \as CrossNatural;
+\import LeftPairMaps.On[f := f].Integer[] \as LeftMap;
+\import RightPairMaps.On[f := g].Integer[] \as RightMap;
+\import UnionPairMaps.On[f := unionMap].Integer[] \as UnionMap;
+\import singular_products.Cross[A := A, B := B, left := left, right := right] \as Whole;
+\import singular_cohomology.Relative[A := TargetProduct.CarrierSet, source := ProductMapping.target, subset := TargetUnion.subset] \as TargetRelative;
+\import singular_cohomology.Maps[A := Product.CarrierSet, B := TargetProduct.CarrierSet, source := External.topology, target := ProductMapping.target] \as WholeMap;
+\import singular_products.Cochains[A := TargetProduct.CarrierSet, source := ProductMapping.target, R := I.Int^, ring := Integers.commutativeRing] \as TargetCochains;
+\import singular_cohomology.Cochains[A := TargetProduct.CarrierSet, source := ProductMapping.target].With[coefficients := TargetCochains.integerCoefficients] \as TargetTheory;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring] \as Cochains;
+\import Cochains.At[C := TargetTheory.complex, k := p] \as HCochain;
+\import WholeMap.Coefficients[M := TargetCochains.integerCoefficients, L := TargetCochains.integerCoefficients] \as Pullback;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import Modules.End[V := I.Int^, space := TargetCochains.integerCoefficients.space] \as Scalars;
+\definition pullback: _ := Pullback.map unionMap (UnionPairMaps.laws unionMap).continuous Scalars.identity;
+\import singular_cohomology.Cochains[A := Product.CarrierSet, source := External.topology].With[coefficients := TargetCochains.integerCoefficients] \as SourceTheory;
+\import Cochains.Map[C := TargetTheory.complex, D := SourceTheory.complex].At[k := p] \as PullbackAt;
+\import \root.Integral[A := Product.CarrierSet, source := External.topology].Pair[subset := Union.subset] \as SourcePair;
+\import \root.Integral[A := TargetProduct.CarrierSet, source := ProductMapping.target].Pair[subset := TargetUnion.subset] \as TargetPair;
+\import SourcePair.Natural[B := TargetProduct.CarrierSet, target := ProductMapping.target, targetSubset := TargetUnion.subset].On[f := unionMap].Cohomology[p := s, r := r] \as CapNatural;
+\import SourcePair.CohomologyAction[p := s, r := r].Descent[] \as Before;
+\import TargetPair.CohomologyAction[p := s, r := r].Descent[] \as After;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.At[C := Left.complex, z := I.Int^::ofNat p] \as L;
+\import Complexes.At[C := Right.complex, z := I.Int^::ofNat q] \as R;
+\import Complexes.At[C := TargetRelative.complex, z := I.Int^::ofNat (Whole.degree p q)] \as Input;
+\import Complexes.At[C := TargetRelative.complex, z := I.Int^::ofNat q] \as Output;
+\import singular_cohomology.Simplices[A := Product.CarrierSet, source := External.topology].CutFaces[p := s, q := p] \as Geometry;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\import singular_cohomology.Relative[A := Product.CarrierSet, source := External.topology, subset := Union.subset] \as SourceRelative;
+\use Equality.sym;
+\use Equality.trans;
+\module Degree(n: N.Nat^) {
+  \import Complexes.At[C := SourceRelative.complex, z := I.Int^::ofNat n] \as Source;
+  \import Complexes.At[C := TargetRelative.complex, z := I.Int^::ofNat n] \as Target;
+  \definition SourceHomology: \Set := Source.Homology;
+  \definition TargetHomology: \Set := Target.Homology;
+  \definition push: SourceHomology -> TargetHomology := (UnionMap.At[z := I.Int^::ofNat n].induced).apply;
+}
+\definition SourceHomology[n: N.Nat^]: \Set := Degree[n := n].SourceHomology;
+\definition TargetHomology[n: N.Nat^]: \Set := Degree[n := n].TargetHomology;
+\definition push[n: N.Nat^]: SourceHomology n -> TargetHomology n := Degree[n := n].push;
+\definition same: Whole.degree p q = Geometry.higher := Geometry.same;
+\definition sourceShift: SourceHomology (Whole.degree p q) -> SourceHomology Geometry.higher := Transport.cast SourceHomology (Whole.degree p q) Geometry.higher same;
+\definition targetShift: TargetHomology (Whole.degree p q) -> TargetHomology Geometry.higher := Transport.cast TargetHomology (Whole.degree p q) Geometry.higher same;
+\definition shiftNaturality: \forall (z: SourceHomology (Whole.degree p q)) ->
+  (UnionMap.At[z := I.Int^::ofNat Geometry.higher].induced).apply (sourceShift z) = targetShift ((UnionMap.At[z := I.Int^::ofNat (Whole.degree p q)].induced).apply z) :=
+  \fun (z: SourceHomology (Whole.degree p q)) => sym!{{TargetHomology Geometry.higher}} _ _ (Transport.natural SourceHomology TargetHomology push (Whole.degree p q) Geometry.higher same z);
+\import Complexes.At[C := TargetRelative.complex, z := I.Int^::ofNat (Whole.degree p q)] \as OriginalTarget;
+\import Complexes.At[C := TargetRelative.complex, z := I.Int^::ofNat Geometry.higher] \as ShiftedTarget;
+\definition law: \forall (beta: HCochain.Cohomology)(x: L.Homology)(y: R.Homology) ->
+  (UnionMap.At[z := I.Int^::ofNat q].induced).apply (((Before.map).apply ((PullbackAt.induced pullback).apply beta)).apply (sourceShift (SourceProduct.apply x y))) =
+  ((After.map).apply beta).apply (targetShift (TargetProductMap.apply ((LeftMap.At[z := I.Int^::ofNat p].induced).apply x) ((RightMap.At[z := I.Int^::ofNat q].induced).apply y))) :=
+  \fun (beta: HCochain.Cohomology)(x: L.Homology)(y: R.Homology) => eq_reason_in!{Output.Homology _
+    "=" _ "by" { CapNatural.law beta (sourceShift (SourceProduct.apply x y)) }
+    "=" _ "by" { congr!{ShiftedTarget.Homology Output.Homology} (((After.map).apply beta).apply) _ _ (shiftNaturality (SourceProduct.apply x y)) }
+    "=" _ "by" { congr!{OriginalTarget.Homology Output.Homology} (\fun (z: OriginalTarget.Homology) => ((After.map).apply beta).apply (targetShift z)) _ _ (CrossNatural.law x y) }
+  };
