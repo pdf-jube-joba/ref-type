@@ -95,3 +95,51 @@
             })
         }
     };
+\import \root.CutGeometry[n := n] \as Geometry;
+\import \root.VolumeOrder[n := n] \as Volume;
+\import List.Membership[A := Slice] \as SliceMembership;
+\definition Aligned[q: E.Box] [cut: Slice]: \Prop := Logic.Or[
+  \forall (x: E.Point) -> Sets.Member (E.points q) x -> R.Le (x cut.coordinate) cut.threshold,
+  \forall (x: E.Point) -> Sets.Member (E.points q) x -> R.Le cut.threshold (x cut.coordinate) ];
+\definition nonzeroOfContained: \forall (q, b: E.Box) -> Sets.Subset (E.points q) (E.points b) -> Logic.Not (E.volume q = Real.zero) -> Logic.Not (E.volume b = Real.zero) :=
+  \fun (q, b: E.Box) (subset: Sets.Subset (E.points q) (E.points b)) (nonzero: Logic.Not (E.volume q = Real.zero)) (zero: E.volume b = Real.zero) =>
+    nonzero (R.leAntisym (E.volume q) Real.zero (R.leReplaceRight (E.volume q) (E.volume b) Real.zero zero (Volume.included q b subset)) (E.volumeNonnegative q));
+\definition aligned: \forall (cuts: List.List[Slice]) (b, q: E.Box) -> Membership.Occurs q (partition cuts b) -> Logic.Not (E.volume q = Real.zero) ->
+  \forall (cut: Slice) -> SliceMembership.Occurs cut cuts -> Aligned q cut :=
+  \induction (cuts: List.List[Slice]) \return \forall (b, q: E.Box) -> Membership.Occurs q (partition cuts b) -> Logic.Not (E.volume q = Real.zero) ->
+    \forall (cut: Slice) -> SliceMembership.Occurs cut cuts -> Aligned q cut \with {
+      | nil: \fun (_: E.Box) (_: E.Box) (_: _) (_: _) (cut: Slice) (absurd: Logic.False) => Logic.falseElim (Aligned _ cut) absurd
+      | cons: \fun (head: Slice) (tail: List.List[Slice]) (prior: \forall (b, q: E.Box) -> Membership.Occurs q (partition tail b) -> Logic.Not (E.volume q = Real.zero) ->
+        \forall (cut: Slice) -> SliceMembership.Occurs cut tail -> Aligned q cut)
+        (b, q: E.Box) (occurs: Membership.Occurs q (partition (List.List[Slice]::cons head tail) b)) (nonzero: Logic.Not (E.volume q = Real.zero))
+        (cut: Slice) (cutMember: SliceMembership.Occurs cut (List.List[Slice]::cons head tail)) => \block {
+          \let split: Cut.Result b head.coordinate head.threshold := General.construct n b head.coordinate head.threshold \then
+          \return Append.eliminate (partition tail split.left) (partition tail split.right) q (Aligned q cut)
+            (\fun (left: Membership.Occurs q (partition tail split.left)) => \block {
+              \let subset: Sets.Subset (E.points q) (E.points split.left) := contained tail split.left q left \then
+              \return Logic.orElim (cut = head) (SliceMembership.Occurs cut tail) (Aligned q cut) cutMember
+                (\fun (equal: cut = head) => \idelim head = cut \with c: Slice => Aligned q c \by {
+                  base: Logic.orElim (E.volume split.left = Real.zero)
+                    (\forall (x: E.Point) -> Sets.Member (E.points split.left) x -> R.Le (x head.coordinate) head.threshold) (Aligned q head)
+                    (Geometry.leftAligned b head.coordinate head.threshold)
+                    (\fun (zero: E.volume split.left = Real.zero) => Logic.falseElim _ (nonzeroOfContained q split.left subset nonzero zero))
+                    (\fun (side: \forall (x: E.Point) -> Sets.Member (E.points split.left) x -> R.Le (x head.coordinate) head.threshold) =>
+                      Logic.Or[_, _]::left (\fun (x: E.Point) (inside: Sets.Member (E.points q) x) => side x (subset x inside))),
+                  equality: sym!{Slice} _ _ equal })
+                (\fun (later: SliceMembership.Occurs cut tail) => prior split.left q left nonzero cut later)
+            })
+            (\fun (right: Membership.Occurs q (partition tail split.right)) => \block {
+              \let subset: Sets.Subset (E.points q) (E.points split.right) := contained tail split.right q right \then
+              \return Logic.orElim (cut = head) (SliceMembership.Occurs cut tail) (Aligned q cut) cutMember
+                (\fun (equal: cut = head) => \idelim head = cut \with c: Slice => Aligned q c \by {
+                  base: Logic.orElim (E.volume split.right = Real.zero)
+                    (\forall (x: E.Point) -> Sets.Member (E.points split.right) x -> R.Le head.threshold (x head.coordinate)) (Aligned q head)
+                    (Geometry.rightAligned b head.coordinate head.threshold)
+                    (\fun (zero: E.volume split.right = Real.zero) => Logic.falseElim _ (nonzeroOfContained q split.right subset nonzero zero))
+                    (\fun (side: \forall (x: E.Point) -> Sets.Member (E.points split.right) x -> R.Le head.threshold (x head.coordinate)) =>
+                      Logic.Or[_, _]::right (\fun (x: E.Point) (inside: Sets.Member (E.points q) x) => side x (subset x inside))),
+                  equality: sym!{Slice} _ _ equal })
+                (\fun (later: SliceMembership.Occurs cut tail) => prior split.right q right nonzero cut later)
+            }) occurs
+        }
+    };
