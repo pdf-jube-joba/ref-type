@@ -1,0 +1,57 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import Algebra.Laws[V := Carrier, space := totalSpace] \as TotalLaws;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\definition oddScalar: \forall (k, j: N.Nat^)(f: Alternating.Form j) ->
+  (Alternating.At[k := j].vectorSpace).smul (Sign.value (N.Nat^::succ k)) f =
+  (Alternating.At[k := j].vectorSpace).neg ((Alternating.At[k := j].vectorSpace).smul (Sign.value k) f) :=
+  \fun (k, j: N.Nat^)(f: Alternating.Form j) => eq_reason_in!{{Alternating.Form j} _
+    "=" _ "by" { congr!{K {Alternating.Form j}} (\fun (a: K) => (Alternating.At[k := j].vectorSpace).smul a f) _ _
+      (trans!{K} _ _ _ (congr!{K K} Algebra.neg _ _ (sym!{K} _ _ (Algebra.mulOneLeft (Sign.value k)))) (Sign.negativeProduct Algebra.one (Sign.value k))) }
+    "=" _ "by" { (Alternating.At[k := j].vectorSpace).scalarAssoc (Algebra.neg Algebra.one) (Sign.value k) f }
+    "=" _ "by" { Algebra.Laws[V := Alternating.Form j, space := Alternating.At[k := j].vectorSpace].minusOneScale ((Alternating.At[k := j].vectorSpace).smul (Sign.value k) f) }
+  };
+\definition annihilationOdd: \forall (x: V)(f: Carrier) -> annihilate x (parity f) = Product.neg (parity (annihilate x f)) :=
+  \fun (x: V)(f: Carrier) => \axiom:funext(annihilate x (parity f), Product.neg (parity (annihilate x f)),
+    \fun (k: N.Nat^) => trans!{{Alternating.Form k}} _ _ _
+      ((\parent.\parent.Contraction[k := k].operator x).preservesScale (Sign.value (N.Nat^::succ k)) (f (N.Nat^::succ k)))
+      (oddScalar k k ((\parent.\parent.Contraction[k := k].operator x).apply (f (N.Nat^::succ k)))));
+\definition creationOdd: \forall (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier) -> parity (createLeft alpha f) = Product.neg (createLeft alpha (parity f)) :=
+  \fun (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier) => \axiom:funext(parity (createLeft alpha f), Product.neg (createLeft alpha (parity f)),
+    \induction (k: N.Nat^) \return parity (createLeft alpha f) k = Product.neg (createLeft alpha (parity f)) k \with {
+      | zero: trans!{{Alternating.Form N.Nat^::zero}} _ _ _
+        (Algebra.Laws[V := Alternating.Form N.Nat^::zero, space := Alternating.At[k := N.Nat^::zero].vectorSpace].scaleZero (Sign.value N.Nat^::zero))
+        (sym!{{Alternating.Form N.Nat^::zero}} _ _ (trans!{{Alternating.Form N.Nat^::zero}} _ _ _
+          (sym!{{Alternating.Form N.Nat^::zero}} _ _ (Algebra.Laws[V := Alternating.Form N.Nat^::zero, space := Alternating.At[k := N.Nat^::zero].vectorSpace].minusOneScale Alternating.At[k := N.Nat^::zero].origin))
+          (Algebra.Laws[V := Alternating.Form N.Nat^::zero, space := Alternating.At[k := N.Nat^::zero].vectorSpace].scaleZero (Algebra.neg Algebra.one))))
+      | succ: \fun (k: N.Nat^)(unused: _) => trans!{{Alternating.Form (N.Nat^::succ k)}} _ _ _
+        (oddScalar k (N.Nat^::succ k) (\parent.\parent.LeftCreation[k := k].apply alpha (f k)))
+        (congr!{{Alternating.Form (N.Nat^::succ k)} {Alternating.Form (N.Nat^::succ k)}} (Alternating.At[k := N.Nat^::succ k].vectorSpace.neg) _ _
+          (sym!{{Alternating.Form (N.Nat^::succ k)}} _ _ ((\parent.\parent.LeftCreation[k := k].operator alpha).preservesScale (Sign.value k) (f k))))
+    });
+\import Algebra.Subspace[V := Carrier, space := totalSpace] \as Subspaces;
+\import End.Operations[] \as Operations;
+\definition Even: \Pow Carrier := { f: Carrier \where parity f = f };
+\definition Odd: \Pow Carrier := { f: Carrier \where parity f = Product.neg f };
+\definition zeroNegative: Product.neg Product.zero = Product.zero := trans!{Carrier} _ _ _
+  (sym!{Carrier} _ _ (TotalLaws.minusOneScale Product.zero)) (TotalLaws.scaleZero (Algebra.neg Algebra.one));
+\definition evenSubspace: Subspaces.Subspace := Subspaces.Subspace {
+  carrier := Even,
+  containsZero := grading.preservesZero,
+  closedAdd := \fun (f, g: Carrier)(hf: parity f = f)(hg: parity g = g) => trans!{Carrier} _ _ _
+    (grading.preservesAdd f g) (congr!{Carrier Carrier Carrier} Product.add _ _ _ _ hf hg),
+  closedScale := \fun (a: K)(f: Carrier)(hf: parity f = f) => trans!{Carrier} _ _ _
+    (grading.preservesScale a f) (congr!{Carrier Carrier} (Product.scale a) _ _ hf),
+};
+\definition oddSubspace: Subspaces.Subspace := Subspaces.Subspace {
+  carrier := Odd,
+  containsZero := trans!{Carrier} _ _ _ grading.preservesZero (sym!{Carrier} _ _ zeroNegative),
+  closedAdd := \fun (f, g: Carrier)(hf: parity f = Product.neg f)(hg: parity g = Product.neg g) => trans!{Carrier} _ _ _
+    (grading.preservesAdd f g) (trans!{Carrier} _ _ _ (congr!{Carrier Carrier Carrier} Product.add _ _ _ _ hf hg)
+      (sym!{Carrier} _ _ (trans!{Carrier} _ _ _
+        (sym!{Carrier} _ _ (TotalLaws.minusOneScale (Product.add f g)))
+        (trans!{Carrier} _ _ _ (totalSpace.vectorAdd (Algebra.neg Algebra.one) f g)
+          (congr!{Carrier Carrier Carrier} Product.add _ _ _ _ (TotalLaws.minusOneScale f) (TotalLaws.minusOneScale g)))))) ,
+  closedScale := \fun (a: K)(f: Carrier)(hf: parity f = Product.neg f) => trans!{Carrier} _ _ _
+    (grading.preservesScale a f) (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (Product.scale a) _ _ hf) (TotalLaws.scaleNegative a f)),
+};

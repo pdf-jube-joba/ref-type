@@ -1,0 +1,37 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import algebra.Hom[A := R.Real, B := Endomorphisms.Carrier] \as ScalarHom;
+\import algebra.Hom[A := C.Complex, B := Endomorphisms.Carrier] \as ComplexHom;
+\definition complexLaws: ComplexHom.SemiringLaws[Rings.ringAsSemiring C.Complex Algebra.ring, Rings.ringAsSemiring Endomorphisms.Carrier Endomorphisms.ring, Endomorphisms.scalarMap] :=
+  ComplexHom.semiringLaws _ _ Endomorphisms.scalarMap;
+\definition realScalar[a: R.Real]: Endomorphisms.Carrier := Endomorphisms.scalar (Def.ofReal a);
+\definition scalarMap: ScalarHom.RingMap RealAlgebra.ring Endomorphisms.ring := \into[R.Real -> Endomorphisms.Carrier](realScalar, ScalarHom.RingMap RealAlgebra.ring Endomorphisms.ring) \by {
+  ScalarHom.SemiringLaws[_, _, realScalar] {
+    zero := complexLaws.zero,
+    one := complexLaws.one,
+    add := \fun (a, b: R.Real) => trans!{Endomorphisms.Carrier} _ _ _
+      (congr!{C.Complex Endomorphisms.Carrier} Endomorphisms.scalar _ _ (Laws.ofRealAdd a b)) (complexLaws.add (Def.ofReal a) (Def.ofReal b)),
+    mul := \fun (a, b: R.Real) => trans!{Endomorphisms.Carrier} _ _ _
+      (congr!{C.Complex Endomorphisms.Carrier} Endomorphisms.scalar _ _ (sym!{C.Complex} _ _ (Laws.ofRealMul a b))) (complexLaws.mul (Def.ofReal a) (Def.ofReal b)),
+  }
+};
+\import clifford.Field[K := R.Real, field := R.Algebra[].field].On[V := V, space := spaceReal].Of[form := realForm] \as Source;
+\import Source.Universal[A := Endomorphisms.Carrier, target := Endomorphisms.ring] \as Universal;
+\import algebra.FreeAssociativeRing[].Over[R := R.Real, coefficients := realRing, Variables := V] \as Free;
+\import Free.Presentation[relations := Source.Relation] \as Presented;
+\import Presented.Universal[K := Endomorphisms.Carrier, target := Endomorphisms.ring] \as Extension;
+\definition coefficients: Extension.CoefficientMap := \into[ScalarHom.RingMap RealAlgebra.ring Endomorphisms.ring](scalarMap, Extension.CoefficientMap) \by {
+  \fun (a: R.Real)(f: Endomorphisms.Carrier) => Endomorphisms.scalarCentral (Def.ofReal a) f
+};
+\definition representation: Universal.Representation := Universal.Representation {
+  coefficients := coefficients,
+  vectors := cliffordOperator,
+  zero := realLinear.preservesZero,
+  addition := realLinear.preservesAdd,
+  scalar := \fun (a: R.Real)(v: V) => realLinear.preservesScale a v,
+  square := \fun (v: V) => Endomorphisms.ext _ _ (square v),
+};
+\import algebra.Hom[A := Source.Carrier, B := Endomorphisms.Carrier] \as Hom;
+\definition extension: Hom.RingMap Source.ring Endomorphisms.ring := Universal.extension representation;
+\definition onVector: \forall (v: V) -> extension (Source.iota v) = cliffordOperator v := Universal.onVector representation;
+\definition onScalar: \forall (a: R.Real) -> extension (Source.scalar a) = realScalar a := Universal.onScalar representation;
+\module Spin;

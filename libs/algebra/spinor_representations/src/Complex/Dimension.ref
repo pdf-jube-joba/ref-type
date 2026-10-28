@@ -1,0 +1,53 @@
+\import linear_algebra.Hermitian[].Complex[] \as Hermitian;
+\import hermitian_frames.Hermitian[].Complex[] \as FramesComplex;
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Field.field, scalar := Hermitian.scalar, topological := FramesComplex.topological].At[n := n] \as Frames;
+\import Frames.Unitary[] \as Unitary;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := Field.field, scalar := Hermitian.scalar].Finite[n := n] \as Finite;
+\import \root.Over[K := C.Complex, scalarRing := ring].On[V := Finite.Vector, space := Finite.space].Total[] \as Total;
+\import Total.Pullback[] \as Pullback;
+\import lie_algebras.Field[K := C.Complex, field := Field.field].Endomorphisms[V := Total.Carrier, space := Total.totalSpace] \as End;
+\import algebra.Groups[].Units[A := End.Carrier, ring := End.ring] \as Units;
+\import std.Alg[].Alg[] \as Groups;
+\import std.Alg[].Monoid[] \as Monoid;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\definition group: Groups.Group[Unitary.Carrier] := Groups.Group[Unitary.Carrier] {
+  unit := Unitary.identity, op := Unitary.multiply, inv := Unitary.inverse,
+  monoid := Monoid.MonoidLaws[Unitary.Carrier, Monoid.MonoidData[Unitary.Carrier]::# Unitary.identity Unitary.multiply] {
+    leftIdentity := Unitary.leftIdentity, rightIdentity := Unitary.rightIdentity, associative := Unitary.associative,
+  },
+  leftInverse := Unitary.leftInverse, rightInverse := Unitary.rightInverse,
+};
+\definition action[u: Unitary.Carrier]: Units.Unit := Units.Unit {
+  value := Pullback.operator u.backward,
+  inverse := Pullback.operator u.forward,
+  left := End.ext _ _ (Pullback.leftInverse u),
+  right := End.ext _ _ (Pullback.rightInverse u),
+};
+\definition actionIdentity: action Unitary.identity = Units.unit := Units.ext _ _ (End.ext _ _ Pullback.identity);
+\definition actionProduct: \forall (u, v: Unitary.Carrier) -> action (Unitary.multiply u v) = Units.product (action u) (action v) :=
+  \fun (u, v: Unitary.Carrier) => Units.ext _ _ (End.ext _ _ (\fun (f: Total.Carrier) => sym!{{Total.Carrier}} _ _ (Pullback.composition u.backward v.backward f)));
+\import algebra.Hom[A := Unitary.Carrier, B := Units.Unit] \as Hom;
+\definition representation: Hom.GroupMap group Units.group := \into[Unitary.Carrier -> Units.Unit](action, Hom.GroupMap group Units.group) \by {
+  Hom.MonoidLaws[_, _, action] { unit := actionIdentity, operation := actionProduct }
+};
+\import Algebra.FiniteCoordinates[n := n].Top[] \as Top;
+\import Algebra.Multilinear[V := Finite.Vector, space := Finite.space].Alternating[] \as Forms;
+\import Forms.At[k := n] \as TopForms;
+\definition determinant[u: Unitary.Carrier]: C.Complex := Top.determinant u.forward;
+\definition topAction: \forall (u: Unitary.Carrier)(f: Total.Carrier) ->
+  ((action u).value.apply f) n = TopForms.scale (Top.determinant u.backward) (f n) :=
+  \fun (u: Unitary.Carrier)(f: Total.Carrier) => Top.eigen u.backward (f n);
+\import Algebra.Linear[V := Finite.Vector, W := Finite.Vector, source := Finite.space, target := Finite.space] \as VectorMaps;
+\import VectorMaps.Composition[U := Finite.Vector, domain := Finite.space] \as Composition;
+\import Algebra.Eigen[V := Finite.Vector, space := Finite.space] \as Eigen;
+\use Equality.trans;
+\use Equality.congr;
+\definition determinantInverse: \forall (u: Unitary.Carrier) -> Algebra.mul (determinant u) (Top.determinant u.backward) = Algebra.one :=
+  \fun (u: Unitary.Carrier) => trans!{C.Complex} _ _ _
+    (sym!{C.Complex} _ _ (Top.multiplicative u.forward u.backward))
+    (trans!{C.Complex} _ _ _
+      (congr!{VectorMaps.Map C.Complex} Top.determinant _ _ (VectorMaps.ext _ _ (\axiom:funext((Composition.compose u.forward u.backward).apply, Eigen.identity.apply, u.rightInverse))))
+      Top.atIdentity);
+\definition determinantProduct: \forall (u, v: Unitary.Carrier) -> determinant (Unitary.multiply u v) = Algebra.mul (determinant u) (determinant v) :=
+  \fun (u, v: Unitary.Carrier) => Top.multiplicative u.forward v.forward;
