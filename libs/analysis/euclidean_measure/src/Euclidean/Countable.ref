@@ -1,0 +1,53 @@
+\import \parent.Flatten[] \as Flatten;
+\import \parent.SeriesBounds[] \as Bounds;
+\import R.Completeness[] \as Complete;
+\import Real.SquareRoot[] \as SquareRoot;
+\use std.Logic[].Equality[].sym;
+\definition Supremum[sets: N.Nat^ -> \Pow Point] [i: N.Nat^]: \Set :=
+  \Cast[Real.Real] ({ p: Real.Real \where Complete.LeastUpperBound[outer (sets i), p] });
+\definition Approximation[sets: N.Nat^ -> \Pow Point] [p: N.Nat^ -> Real.Real] [epsilon: Real.Real] [i: N.Nat^]: \Set :=
+  \Cast[N.Nat^ -> Box] ({ f: N.Nat^ -> Box \where Logic.And[Covers f (sets i), Logic.Not (Measure.below (cost f) (Real.add (p i) (Bounds.error epsilon i)))] });
+\definition subadditive: \forall (sets: N.Nat^ -> \Pow Point) ->
+  Values.Included (outer (Measure.union sets)) (Measure.series (\fun (i: N.Nat^) => outer (sets i))) :=
+  \fun (sets: N.Nat^ -> \Pow Point) (r: Real.Real) (member: Measure.below (outer (Measure.union sets)) r) =>
+    Sigma.doubleNegative (Measure.below (Measure.series (\fun (i: N.Nat^) => outer (sets i))) r)
+      (\fun (outside: Logic.Not (Measure.below (Measure.series (\fun (i: N.Nat^) => outer (sets i))) r)) => \block {
+        \let values: N.Nat^ -> Measure.Value := \fun (i: N.Nat^) => outer (sets i) \then
+        \let valid: \forall (i: N.Nat^) -> Measure.NonnegativeValue[values i] := \fun (i: N.Nat^) => outerNonnegative (sets i) \then
+        \let individualOutside: \forall (i: N.Nat^) -> Logic.Not (Measure.below (values i) r) :=
+          \fun (i: N.Nat^) (inside: Measure.below (values i) r) => outside (seriesContains values valid i r inside) \then
+        \takefrom suprema: \forall (i: N.Nat^) -> Supremum sets i \by
+          \axiom:classicalIndefiniteChoice(N.Nat^, Supremum sets, \fun (i: N.Nat^) => valueSup (values i) (valid i) r (individualOutside i)) \then
+        \let p: N.Nat^ -> Real.Real := \fun (i: N.Nat^) => suprema i \then
+        \let supremum: \forall (i: N.Nat^) -> Complete.LeastUpperBound[values i, p i] :=
+          \fun (i: N.Nat^) => \bysub(Real.Real, { q: Real.Real \where Complete.LeastUpperBound[values i, q] }, suprema i) \then
+        \takefrom t: \Cast[Real.Real] ({ t: Real.Real \where Logic.And[R.Lt r t, \forall (family: N.Nat^ -> Box) -> Covers family (Measure.union sets) -> Measure.below (cost family) t] }) \by member \then
+        \let law: Logic.And[R.Lt r t, \forall (family: N.Nat^ -> Box) -> Covers family (Measure.union sets) -> Measure.below (cost family) t] :=
+          \bysub(Real.Real, { t: Real.Real \where Logic.And[R.Lt r t, \forall (family: N.Nat^ -> Box) -> Covers family (Measure.union sets) -> Measure.below (cost family) t] }, t) \then
+        \let gap: Real.Real := Real.sub t r \then
+        \let gapPositive: R.Lt Real.zero gap := SquareRoot.subPositive t r law.left \then
+        \let epsilon: Real.Real := Real.mul Real.half gap \then
+        \let positive: R.Lt Real.zero epsilon := Estimates.halfOfPositive gap gapPositive \then
+        \let small: R.Lt (Real.add r epsilon) t := R.ltReplaceRight (Real.add r epsilon) (Real.add r gap) t (Estimates.addSubCancel t r)
+          (Laws.ltAddLeft r epsilon gap (Estimates.halfStrict gap gapPositive)) \then
+        \takefrom choices: \forall (i: N.Nat^) -> Approximation sets p epsilon i \by
+          \axiom:classicalIndefiniteChoice(N.Nat^, Approximation sets p epsilon,
+            \fun (i: N.Nat^) => approximateCover (sets i) (p i) (Real.add (p i) (Bounds.error epsilon i))
+              (SquareRoot.addPositive (p i) (Bounds.error epsilon i) (Bounds.errorPositive epsilon positive i))
+              (supremumOutside (values i) (p i) (valid i) (supremum i))) \then
+        \let families: N.Nat^ -> N.Nat^ -> Box := \fun (i: N.Nat^) => choices i \then
+        \let choiceLaw: \forall (i: N.Nat^) -> Logic.And[Covers (families i) (sets i), Logic.Not (Measure.below (cost (families i)) (Real.add (p i) (Bounds.error epsilon i)))] :=
+          \fun (i: N.Nat^) => \bysub(N.Nat^ -> Box, { f: N.Nat^ -> Box \where Logic.And[Covers f (sets i), Logic.Not (Measure.below (cost f) (Real.add (p i) (Bounds.error epsilon i)))] }, choices i) \then
+        \let cover: Covers (flatten families) (Measure.union sets) := flattenCovers sets families (\fun (i: N.Nat^) => (choiceLaw i).left) \then
+        \let inside: Measure.below (Measure.series (\fun (i: N.Nat^) => cost (families i))) t := Flatten.costUpper families t (law.right (flatten families) cover) \then
+        \let upper: \forall (i: N.Nat^) -> Complete.UpperBound (cost (families i)) (Real.add (p i) (Bounds.error epsilon i)) :=
+          \fun (i: N.Nat^) => valueUpper (cost (families i)) (costNonnegative (families i)) (Real.add (p i) (Bounds.error epsilon i)) (choiceLaw i).right \then
+        \let partialBound: \forall (k: N.Nat^) -> R.Le (Bounds.realPartial (\fun (i: N.Nat^) => Real.add (p i) (Bounds.error epsilon i)) k) (Real.add r epsilon) :=
+          \fun (k: N.Nat^) => R.leReplaceLeft (Real.add (Bounds.realPartial p k) (Bounds.realPartial (Bounds.error epsilon) k))
+            (Bounds.realPartial (\fun (i: N.Nat^) => Real.add (p i) (Bounds.error epsilon i)) k) (Real.add r epsilon)
+            (sym!{Real.Real} _ _ (Bounds.realPartialAdd p (Bounds.error epsilon) k))
+            (Estimates.addLe (Bounds.realPartial p k) (Bounds.realPartial (Bounds.error epsilon) k) r epsilon
+              (Bounds.partialBoundedBySeries values p valid supremum r outside k) (Bounds.errorBound epsilon positive k)) \then
+        \return R.ltNotLeReverse (Real.add r epsilon) t small
+          (Bounds.seriesUpper (\fun (i: N.Nat^) => cost (families i)) (\fun (i: N.Nat^) => Real.add (p i) (Bounds.error epsilon i)) (Real.add r epsilon) upper partialBound t inside)
+      });

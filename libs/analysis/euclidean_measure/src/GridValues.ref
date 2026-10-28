@@ -1,0 +1,60 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Pair[] \as Pair;
+\import \root.Grid[columns := columns] \as Grid;
+\import functional_analysis.Measure[A := A] \as M;
+\import M.ValueLaws[] \as V;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].eq_reason_in;
+
+\definition entry[rows: N.Nat^] [f: Fin.Fin rows -> Fin.Fin columns -> M.Value] [p: Grid.GridPoint rows]: M.Value :=
+  f (Pair.first (Fin.Fin rows) (Fin.Fin columns) p) (Pair.second (Fin.Fin rows) (Fin.Fin columns) p);
+\definition values[rows: N.Nat^] [f: Fin.Fin rows -> Fin.Fin columns -> M.Value] [i: Fin.Fin (Grid.size rows)]: M.Value :=
+  entry rows f (Grid.decode rows i);
+\definition at: \forall (rows: N.Nat^) (f: Fin.Fin rows -> Fin.Fin columns -> M.Value) (row: Fin.Fin rows) (column: Fin.Fin columns) ->
+  values rows f (Grid.encode rows row column) = f row column :=
+  \fun (rows: N.Nat^) (f: Fin.Fin rows -> Fin.Fin columns -> M.Value) (row: Fin.Fin rows) (column: Fin.Fin columns) =>
+    congr!{{Grid.GridPoint rows} M.Value} (entry rows f) _ _ (Grid.decodeEncode rows row column);
+\definition left: \forall (rows: N.Nat^) (f: Fin.Fin (N.Nat^::succ rows) -> Fin.Fin columns -> M.Value) (i: Fin.Fin columns) ->
+  values (N.Nat^::succ rows) f (Fin.Sum[m := columns, n := Grid.size rows].left i) = f (Fin.zero rows) i :=
+  \fun (rows: N.Nat^) (f: _) (i: Fin.Fin columns) => congr!{{Grid.GridPoint (N.Nat^::succ rows)} M.Value} (entry (N.Nat^::succ rows) f) _ _ (Grid.decodeHead rows i);
+\definition right: \forall (rows: N.Nat^) (f: Fin.Fin (N.Nat^::succ rows) -> Fin.Fin columns -> M.Value) (i: Fin.Fin (Grid.size rows)) ->
+  values (N.Nat^::succ rows) f (Fin.Sum[m := columns, n := Grid.size rows].right i) = values rows (\fun (j: Fin.Fin rows) => f (Fin.succ rows j)) i :=
+  \fun (rows: N.Nat^) (f: _) (i: Fin.Fin (Grid.size rows)) => congr!{{Grid.GridPoint (N.Nat^::succ rows)} M.Value} (entry (N.Nat^::succ rows) f) _ _ (Grid.decodeTail rows i);
+\definition join: \forall (rows: N.Nat^) (f: Fin.Fin (N.Nat^::succ rows) -> Fin.Fin columns -> M.Value) ->
+  values (N.Nat^::succ rows) f = V.Append[m := columns, n := Grid.size rows].join (f (Fin.zero rows)) (values rows (\fun (j: Fin.Fin rows) => f (Fin.succ rows j))) :=
+  \fun (rows: N.Nat^) (f: _) => eq_reason_in!{{Fin.Fin (Grid.size (N.Nat^::succ rows)) -> M.Value} _
+    "=" _ "by" { sym!{{Fin.Fin (Grid.size (N.Nat^::succ rows)) -> M.Value}} _ _ (Fin.Sum[m := columns, n := Grid.size rows].Tuples[A := M.Value].recover (values (N.Nat^::succ rows) f)) }
+    "=" _ "by" { congr!{{Fin.Fin columns -> M.Value} {Fin.Fin (Grid.size rows) -> M.Value} {Fin.Fin (Grid.size (N.Nat^::succ rows)) -> M.Value}}
+      V.Append[m := columns, n := Grid.size rows].join _ _ _ _
+      (\axiom:funext((\fun (i: Fin.Fin columns) => values (N.Nat^::succ rows) f (Fin.Sum[m := columns, n := Grid.size rows].left i)), f (Fin.zero rows), left rows f))
+      (\axiom:funext((\fun (i: Fin.Fin (Grid.size rows)) => values (N.Nat^::succ rows) f (Fin.Sum[m := columns, n := Grid.size rows].right i)),
+        values rows (\fun (j: Fin.Fin rows) => f (Fin.succ rows j)), right rows f)) }
+  };
+\definition valuesNonnegative: \forall (rows: N.Nat^) (f: Fin.Fin rows -> Fin.Fin columns -> M.Value) ->
+  (\forall (row: Fin.Fin rows) (column: Fin.Fin columns) -> M.NonnegativeValue[f row column]) ->
+  \forall (i: Fin.Fin (Grid.size rows)) -> M.NonnegativeValue[values rows f i] :=
+  \fun (rows: N.Nat^) (f: _) (valid: _) (i: Fin.Fin (Grid.size rows)) =>
+    valid (Pair.first (Fin.Fin rows) (Fin.Fin columns) (Grid.decode rows i)) (Pair.second (Fin.Fin rows) (Fin.Fin columns) (Grid.decode rows i));
+\definition sumGrid: \forall (rows: N.Nat^) (f: Fin.Fin rows -> Fin.Fin columns -> M.Value) ->
+  (\forall (row: Fin.Fin rows) (column: Fin.Fin columns) -> M.NonnegativeValue[f row column]) ->
+  M.sum (Grid.size rows) (values rows f) = M.sum rows (\fun (row: Fin.Fin rows) => M.sum columns (f row)) :=
+  \induction (rows: N.Nat^) \return \forall (f: Fin.Fin rows -> Fin.Fin columns -> M.Value) ->
+    (\forall (row: Fin.Fin rows) (column: Fin.Fin columns) -> M.NonnegativeValue[f row column]) ->
+    M.sum (Grid.size rows) (values rows f) = M.sum rows (\fun (row: Fin.Fin rows) => M.sum columns (f row)) \with {
+      | zero: \fun (f: Fin.Fin N.Nat^::zero -> Fin.Fin columns -> M.Value) (_: _) => \refl(M.zero)
+      | succ: \fun (rows: N.Nat^) (prior: \forall (f: Fin.Fin rows -> Fin.Fin columns -> M.Value) ->
+        (\forall (row: Fin.Fin rows) (column: Fin.Fin columns) -> M.NonnegativeValue[f row column]) ->
+        M.sum (Grid.size rows) (values rows f) = M.sum rows (\fun (row: Fin.Fin rows) => M.sum columns (f row)))
+        (f: Fin.Fin (N.Nat^::succ rows) -> Fin.Fin columns -> M.Value) (valid: _) => \block {
+          \let rest: Fin.Fin rows -> Fin.Fin columns -> M.Value := \fun (j: Fin.Fin rows) => f (Fin.succ rows j) \then
+          \return eq_reason_in!{M.Value _
+            "=" _ "by" { congr!{{Fin.Fin (Grid.size (N.Nat^::succ rows)) -> M.Value} M.Value} (M.sum (Grid.size (N.Nat^::succ rows))) _ _ (join rows f) }
+            "=" _ "by" { V.AppendLaws[n := Grid.size rows].joinedSum columns (f (Fin.zero rows)) (values rows rest)
+              (valid (Fin.zero rows)) (valuesNonnegative rows rest (\fun (j: Fin.Fin rows) => valid (Fin.succ rows j))) }
+            "=" _ "by" { congr!{M.Value M.Value} (M.add (M.sum columns (f (Fin.zero rows)))) _ _
+              (prior rest (\fun (j: Fin.Fin rows) => valid (Fin.succ rows j))) }
+          }
+        }
+    };

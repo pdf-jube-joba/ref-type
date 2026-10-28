@@ -150,3 +150,26 @@
             }
         }
     };
+\import N.Basic[].Prop[] \as NatLaws;
+\definition last[n: N.Nat^]: Fin.Fin (N.Nat^::succ n) :=
+  \into[N.Nat^](n, Fin.Fin (N.Nat^::succ n)) \by { NatLaws.ltOfSuccLe (N.Nat^::succ n) n (NatLaws.leRefl (N.Nat^::succ n)) };
+\definition omitLast: \forall (n: N.Nat^) (f: N.Nat^ -> M.Value) ->
+  Omission.omit n (last n) (\fun (i: Fin.Fin (N.Nat^::succ n)) => f i) = (\fun (i: Fin.Fin n) => f i) :=
+  \fun (n: N.Nat^) (f: N.Nat^ -> M.Value) => \axiom:funext(Omission.omit n (last n) (\fun (i: Fin.Fin (N.Nat^::succ n)) => f i), (\fun (i: Fin.Fin n) => f i),
+    \fun (i: Fin.Fin n) => eq_reason_in!{M.Value _
+      "=" _ "by" { sym!{M.Value} _ _ (omissionAt n (last n) (\fun (j: Fin.Fin (N.Nat^::succ n)) => f j) i) }
+      "=" _ "by" { congr!{N.Nat^ M.Value} f _ _ (Skip.Before[].law n (last n) i (Fin.bound n i)) }
+    });
+\definition partialAsSum: \forall (f: N.Nat^ -> M.Value) -> (\forall (i: N.Nat^) -> M.NonnegativeValue[f i]) ->
+  \forall (n: N.Nat^) -> M.partialSum f n = M.sum n (\fun (i: Fin.Fin n) => f i) :=
+  \fun (f: N.Nat^ -> M.Value) (valid: \forall (i: N.Nat^) -> M.NonnegativeValue[f i]) =>
+    \induction (n: N.Nat^) \return M.partialSum f n = M.sum n (\fun (i: Fin.Fin n) => f i) \with {
+      | zero: \refl(M.zero)
+      | succ: \fun (n: N.Nat^) (prior: _) => eq_reason_in!{M.Value _
+        "=" _ "by" { congr!{M.Value M.Value} (\fun (v: M.Value) => M.add v (f n)) _ _ prior }
+        "=" _ "by" { V.addComm (M.sum n (\fun (i: Fin.Fin n) => f i)) (f n) }
+        "=" _ "by" { congr!{M.Value M.Value} (M.add (f n)) _ _
+          (congr!{{Fin.Fin n -> M.Value} M.Value} (M.sum n) _ _ (sym!{{Fin.Fin n -> M.Value}} _ _ (omitLast n f))) }
+        "=" _ "by" { sym!{M.Value} _ _ (sumOmit n (\fun (i: Fin.Fin (N.Nat^::succ n)) => f i) (last n) (\fun (i: Fin.Fin (N.Nat^::succ n)) => valid i)) }
+      }
+    };

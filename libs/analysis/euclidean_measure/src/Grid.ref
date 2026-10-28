@@ -1,0 +1,109 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Option[] \as Option;
+\import std.Logic[].Proposition[] \as Logic;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].sym;
+
+\definition size: N.Nat^ -> N.Nat^ :=
+  \induction (rows: N.Nat^) \return N.Nat^ \with {
+    | zero: N.Nat^::zero
+    | succ: \fun (_: N.Nat^) (previous: N.Nat^) => Nat.add previous columns
+  };
+\definition encode: \forall (rows: N.Nat^) -> Fin.Fin rows -> Fin.Fin columns -> Fin.Fin (size rows) :=
+  \induction (rows: N.Nat^) \return Fin.Fin rows -> Fin.Fin columns -> Fin.Fin (size rows) \with {
+    | zero: \fun (row: Fin.Fin N.Nat^::zero) (_: Fin.Fin columns) => Fin.Empty[A := Fin.Fin N.Nat^::zero].value row
+    | succ: \fun (rows: N.Nat^) (previous: Fin.Fin rows -> Fin.Fin columns -> Fin.Fin (size rows))
+      (row: Fin.Fin (N.Nat^::succ rows)) (column: Fin.Fin columns) =>
+      (\induction (part: Option.Option[Fin.Fin rows]) \return Fin.Fin (size (N.Nat^::succ rows)) \with {
+        | none: Fin.Sum[m := columns, n := size rows].left column
+        | some: \fun (i: Fin.Fin rows) => Fin.Sum[m := columns, n := size rows].right (previous i column)
+      }) (Fin.split rows row)
+  };
+\definition head: \forall (rows: N.Nat^) (column: Fin.Fin columns) ->
+  encode (N.Nat^::succ rows) (Fin.zero rows) column = Fin.Sum[m := columns, n := size rows].left column :=
+  \fun (rows: N.Nat^) (column: Fin.Fin columns) =>
+    congr!{{Option.Option[Fin.Fin rows]} {Fin.Fin (size (N.Nat^::succ rows))}}
+      (\induction (part: Option.Option[Fin.Fin rows]) \return Fin.Fin (size (N.Nat^::succ rows)) \with {
+        | none: Fin.Sum[m := columns, n := size rows].left column
+        | some: \fun (i: Fin.Fin rows) => Fin.Sum[m := columns, n := size rows].right (encode rows i column)
+      }) _ _ (Fin.splitInflate rows Option.Option[Fin.Fin rows]::none);
+\definition tail: \forall (rows: N.Nat^) (row: Fin.Fin rows) (column: Fin.Fin columns) ->
+  encode (N.Nat^::succ rows) (Fin.succ rows row) column = Fin.Sum[m := columns, n := size rows].right (encode rows row column) :=
+  \fun (rows: N.Nat^) (row: Fin.Fin rows) (column: Fin.Fin columns) =>
+    congr!{{Option.Option[Fin.Fin rows]} {Fin.Fin (size (N.Nat^::succ rows))}}
+      (\induction (part: Option.Option[Fin.Fin rows]) \return Fin.Fin (size (N.Nat^::succ rows)) \with {
+        | none: Fin.Sum[m := columns, n := size rows].left column
+        | some: \fun (i: Fin.Fin rows) => Fin.Sum[m := columns, n := size rows].right (encode rows i column)
+      }) _ _ (Fin.splitInflate rows (Option.Option[Fin.Fin rows]::some row));
+\import std.Data[].Pair[] \as Pair;
+\import std.Data[].Sum[] \as Sum;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition GridPoint[rows: N.Nat^]: \Set := Pair.Times^[Fin.Fin rows, Fin.Fin columns];
+\definition point[rows: N.Nat^] [row: Fin.Fin rows] [column: Fin.Fin columns]: GridPoint rows :=
+  Pair.pair (Fin.Fin rows) (Fin.Fin columns) row column;
+\definition lift[rows: N.Nat^] [p: GridPoint rows]: GridPoint (N.Nat^::succ rows) :=
+  point (N.Nat^::succ rows) (Fin.succ rows (Pair.first (Fin.Fin rows) (Fin.Fin columns) p)) (Pair.second (Fin.Fin rows) (Fin.Fin columns) p);
+\definition decode: \forall (rows: N.Nat^) -> Fin.Fin (size rows) -> GridPoint rows :=
+  \induction (rows: N.Nat^) \return Fin.Fin (size rows) -> GridPoint rows \with {
+    | zero: \fun (i: Fin.Fin N.Nat^::zero) => Fin.Empty[A := GridPoint N.Nat^::zero].value i
+    | succ: \fun (rows: N.Nat^) (previous: Fin.Fin (size rows) -> GridPoint rows) (i: Fin.Fin (size (N.Nat^::succ rows))) =>
+      (\induction (part: Fin.Sum[m := columns, n := size rows].Index) \return GridPoint (N.Nat^::succ rows) \with {
+        | inl: \fun (column: Fin.Fin columns) => point (N.Nat^::succ rows) (Fin.zero rows) column
+        | inr: \fun (j: Fin.Fin (size rows)) => lift rows (previous j)
+      }) (Fin.Sum[m := columns, n := size rows].split i)
+  };
+\definition decodeHead: \forall (rows: N.Nat^) (column: Fin.Fin columns) ->
+  decode (N.Nat^::succ rows) (Fin.Sum[m := columns, n := size rows].left column) = point (N.Nat^::succ rows) (Fin.zero rows) column :=
+  \fun (rows: N.Nat^) (column: Fin.Fin columns) =>
+    congr!{{Fin.Sum[m := columns, n := size rows].Index} {GridPoint (N.Nat^::succ rows)}}
+      (\induction (part: Fin.Sum[m := columns, n := size rows].Index) \return GridPoint (N.Nat^::succ rows) \with {
+        | inl: \fun (c: Fin.Fin columns) => point (N.Nat^::succ rows) (Fin.zero rows) c
+        | inr: \fun (j: Fin.Fin (size rows)) => lift rows (decode rows j)
+      }) _ _ (Fin.Sum[m := columns, n := size rows].splitInflate (Sum.Sum[Fin.Fin columns, Fin.Fin (size rows)]::inl column));
+\definition decodeTail: \forall (rows: N.Nat^) (j: Fin.Fin (size rows)) ->
+  decode (N.Nat^::succ rows) (Fin.Sum[m := columns, n := size rows].right j) = lift rows (decode rows j) :=
+  \fun (rows: N.Nat^) (j: Fin.Fin (size rows)) =>
+    congr!{{Fin.Sum[m := columns, n := size rows].Index} {GridPoint (N.Nat^::succ rows)}}
+      (\induction (part: Fin.Sum[m := columns, n := size rows].Index) \return GridPoint (N.Nat^::succ rows) \with {
+        | inl: \fun (c: Fin.Fin columns) => point (N.Nat^::succ rows) (Fin.zero rows) c
+        | inr: \fun (k: Fin.Fin (size rows)) => lift rows (decode rows k)
+      }) _ _ (Fin.Sum[m := columns, n := size rows].splitInflate (Sum.Sum[Fin.Fin columns, Fin.Fin (size rows)]::inr j));
+\definition decodeEncode: \forall (rows: N.Nat^) (row: Fin.Fin rows) (column: Fin.Fin columns) ->
+  decode rows (encode rows row column) = point rows row column :=
+  \induction (rows: N.Nat^) \return \forall (row: Fin.Fin rows) (column: Fin.Fin columns) ->
+    decode rows (encode rows row column) = point rows row column \with {
+      | zero: \fun (row: Fin.Fin N.Nat^::zero) (_: Fin.Fin columns) => Logic.falseElim _ (Fin.zeroImpossible row (Fin.bound N.Nat^::zero row))
+      | succ: \fun (rows: N.Nat^) (prior: \forall (row: Fin.Fin rows) (column: Fin.Fin columns) -> decode rows (encode rows row column) = point rows row column)
+        (row: Fin.Fin (N.Nat^::succ rows)) (column: Fin.Fin columns) => \block {
+          \let cases: \forall (part: Option.Option[Fin.Fin rows]) ->
+            decode (N.Nat^::succ rows) (encode (N.Nat^::succ rows) (Fin.inflate rows part) column) = point (N.Nat^::succ rows) (Fin.inflate rows part) column :=
+            \induction (part: Option.Option[Fin.Fin rows]) \return
+              decode (N.Nat^::succ rows) (encode (N.Nat^::succ rows) (Fin.inflate rows part) column) = point (N.Nat^::succ rows) (Fin.inflate rows part) column \with {
+                | none: eq_reason_in!{{GridPoint (N.Nat^::succ rows)} _
+                  "=" _ "by" { congr!{{Fin.Fin (size (N.Nat^::succ rows))} {GridPoint (N.Nat^::succ rows)}} (decode (N.Nat^::succ rows)) _ _ (head rows column) }
+                  "=" _ "by" { decodeHead rows column }
+                }
+                | some: \fun (i: Fin.Fin rows) => eq_reason_in!{{GridPoint (N.Nat^::succ rows)} _
+                  "=" _ "by" { congr!{{Fin.Fin (size (N.Nat^::succ rows))} {GridPoint (N.Nat^::succ rows)}} (decode (N.Nat^::succ rows)) _ _ (tail rows i column) }
+                  "=" _ "by" { decodeTail rows (encode rows i column) }
+                  "=" _ "by" { congr!{{GridPoint rows} {GridPoint (N.Nat^::succ rows)}} (lift rows) _ _ (prior i column) }
+                }
+              } \then
+          \return \idelim Fin.inflate rows (Fin.split rows row) = row \with i: Fin.Fin (N.Nat^::succ rows) =>
+            decode (N.Nat^::succ rows) (encode (N.Nat^::succ rows) i column) = point (N.Nat^::succ rows) i column
+            \by { base: cases (Fin.split rows row), equality: Fin.inflateSplit rows row }
+        }
+    };
+\definition encodeInjective: \forall (rows: N.Nat^) (a, b: Fin.Fin rows) (c, d: Fin.Fin columns) ->
+  encode rows a c = encode rows b d -> Logic.And[a = b, c = d] :=
+  \fun (rows: N.Nat^) (a, b: Fin.Fin rows) (c, d: Fin.Fin columns) (equal: encode rows a c = encode rows b d) => \block {
+    \let pointsEqual: point rows a c = point rows b d := eq_reason_in!{{GridPoint rows} _
+      "=" _ "by" { sym!{{GridPoint rows}} _ _ (decodeEncode rows a c) }
+      "=" _ "by" { congr!{{Fin.Fin (size rows)} {GridPoint rows}} (decode rows) _ _ equal }
+      "=" _ "by" { decodeEncode rows b d }
+    } \then
+    \return Logic.And[_, _]::# (congr!{{GridPoint rows} {Fin.Fin rows}} (Pair.first (Fin.Fin rows) (Fin.Fin columns)) _ _ pointsEqual)
+      (congr!{{GridPoint rows} {Fin.Fin columns}} (Pair.second (Fin.Fin rows) (Fin.Fin columns)) _ _ pointsEqual)
+  };
