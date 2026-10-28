@@ -1,0 +1,42 @@
+\import \root.Linearization[].ComplexBounds[] \as Bounds;
+\import \root.Linearization[].ScalarMatrices[n := n] \as Scaling;
+\import Plane.Functions[A := Circle.Domain] \as Functions;
+\import algebra.Group[].Of[Carrier := C.Complex, group := Scalars.additiveGroup] \as Group;
+\definition epsilon: R.Real := R.mul R.half bound.value;
+\definition positive: Real.Lt R.zero epsilon := R.Estimates[].halfOfPositive bound.value bound.positive;
+\definition below: Real.Lt epsilon bound.value := R.Estimates[].halfStrict bound.value bound.positive;
+\definition error[z: C.Complex]: M.Matrix := \fun (i, j: M.Index) => C.Def[].scale epsilon (C.Def[].mul z (M.identity i j));
+\definition errorBound: \forall (z: C.Complex) -> Real.Le (C.Absolute[].abs z) R.one -> \forall (i, j: M.Index) -> Real.Lt (C.Absolute[].abs (error z i j)) bound.value :=
+  \fun (z: C.Complex)(unit: _)(i, j: M.Index) => Real.leLtTrans _ _ _
+    (Real.leReplace _ _ _ _ (sym!{{R.Real}} _ _ (Bounds.scaledAbsolute epsilon (C.Def[].mul z (M.identity i j)) (Order.leOfLt _ _ positive)))
+      (R.Algebra[].mulOneRight epsilon)
+      (R.Estimates[].mulMonotone epsilon (C.Absolute[].abs (C.Def[].mul z (M.identity i j))) R.one (Order.leOfLt _ _ positive)
+        (Real.leReplaceLeft _ _ _ (sym!{{R.Real}} _ _ (C.Absolute[].multiplicative z (M.identity i j)))
+          (Real.leTrans _ _ _ (R.Estimates[].mulMonotone (C.Absolute[].abs z) (C.Absolute[].abs (M.identity i j)) R.one
+            (C.Absolute[].nonnegative z) (Scaling.identityBound i j))
+            (Real.leReplaceLeft _ _ _ (sym!{{R.Real}} _ _ (R.Algebra[].mulOneRight (C.Absolute[].abs z))) unit))))) below;
+\definition perturbed[p: Circle.Domain]: M.Matrix := Margin.perturb (error (Circle.unit p)) (Circle.first p);
+\definition perturbedRegular: Top.Families[X := Circle.Domain].Regular Circle.source perturbed :=
+  \fun (i, j: M.Index) => Functions.additionContinuous Circle.source _ _ (loopRegular i j)
+    (Functions.scaleContinuous Circle.source (\fun (_: Circle.Domain) => epsilon) _
+      (metric_spaces.RealFunctions[A := Circle.Domain].constantContinuous Circle.source epsilon)
+      (Functions.multiplicationContinuous Circle.source Circle.unit (\fun (_: Circle.Domain) => M.identity i j) Circle.unitContinuous
+        (topology.Maps[A := Circle.Domain, B := C.Complex].constantContinuous Circle.source Plane.topology (M.identity i j))));
+\definition perturbedNonzero: \forall (p: Circle.Domain) -> Field.Nonzero (perturbed p) :=
+  \fun (p: Circle.Domain) => bound.preserves (error (Circle.unit p)) (errorBound (Circle.unit p) (Real.leReplaceLeft _ _ _ (sym!{{R.Real}} _ _ (\root.Linearization[].Powers[].unitOfNorm (Circle.unit p) (Circle.unitNorm p))) (Real.leRefl R.one))) (Circle.first p);
+\definition perturbedFamily: Paths.Family := Paths.Family { matrix := perturbed, regular := perturbedRegular, nonzero := perturbedNonzero };
+\import \root.Linearization[].MatrixNeighborhoods[n := n].Perturbation[X := Circle.Domain, source := Circle.source, compact := Circle.domainCompact, a := loop, regular := loopRegular, nonzero := loopNonzero] \as CircleMargin;
+\definition circleBound: CircleMargin.Bound := CircleMargin.Bound { value := bound.value, positive := bound.positive,
+  preserves := \fun (e: M.Matrix)(near: _) (p: Circle.Domain) => bound.preserves e near (Circle.first p) };
+\definition near: \forall (p: Circle.Domain)(i, j: M.Index) -> Real.Lt (C.Absolute[].abs (C.Def[].sub (loop p i j) (perturbed p i j))) bound.value :=
+  \fun (p: Circle.Domain)(i, j: M.Index) => Real.ltReplaceLeft _ _ _ (sym!{{R.Real}} _ _
+    (trans!{{R.Real}} _ _ _ (congr!{{C.Complex} {R.Real}} C.Absolute[].abs _ _
+      (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (C.Def[].sub (loop p i j)) _ _
+        (sym!{{C.Complex}} _ _ (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (C.Def[].add (loop p i j)) _ _ (C.Prop[].negNeg (error (Circle.unit p) i j))) (\refl(perturbed p i j)))))
+        (Group.subtractDifference (loop p i j) (C.Def[].neg (error (Circle.unit p) i j))))) (Bounds.negativeAbsolute (error (Circle.unit p) i j))))
+    (errorBound (Circle.unit p) (Real.leReplaceLeft _ _ _ (sym!{{R.Real}} _ _ (\root.Linearization[].Powers[].unitOfNorm (Circle.unit p) (Circle.unitNorm p))) (Real.leRefl R.one)) i j);
+\import CircleMargin.Nearby[b := perturbed, regularB := perturbedRegular, bound := circleBound, near := near] \as Nearby;
+\definition path: Paths.Path[family, perturbedFamily] := Paths.Path[family, perturbedFamily] {
+  homotopy := Nearby.homotopy, regular := Nearby.homotopyRegular, nonzero := Nearby.nonzero, atStart := Nearby.atStart, atEnd := Nearby.atEnd
+};
+\module Spectral;

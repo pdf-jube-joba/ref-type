@@ -28,6 +28,8 @@
   \fun (p: Circle.Domain) => congr!{End.Map M.Matrix} M.Representation[].entries _ _
     (End.ext _ _ (\axiom:funext((Left.productUnit p).apply, (Right.productUnit p).apply, productAction p)));
 \import \root.Linearization[].MatrixPaths[n := n, Y := Circle.Domain, source := Circle.source] \as Paths;
+\definition sourceFamily: Paths.Family := Left.second;
+\definition targetFamily: Paths.Family := Right.first;
 \definition path: Paths.Path[Left.multiplied, Right.multiplied] := Paths.retarget Left.multiplied Left.multiplied Left.multiplied Right.multiplied
   (Paths.constant Left.multiplied) (\fun (p: Circle.Domain) => \refl(Left.multiplied.matrix p)) productEquality;
 \import On.Matrices[n := n, a := Left.multiplied.matrix, regular := Left.multiplied.regular, nonzero := Left.multiplied.nonzero].Inverse[].Homotopy[
@@ -40,3 +42,19 @@
 \definition indexBalance: K.K0[].add L1.Inverse[].value L2.Inverse[].value =
   K.K0[].add R1.Inverse[].value R2.Inverse[].value :=
   trans!{K.K0[].Carrier} _ _ _ (sym!{K.K0[].Carrier} _ _ Left.additivity) (trans!{K.K0[].Carrier} _ _ _ Invariance.invariant Right.additivity);
+\import Negative.Zero[] \as NegativeZero;
+\import Positive.Zero[] \as PositiveZero;
+\definition negativePath: Paths.Path[Left.first, Negative.initial] := Paths.retarget Left.first Left.first Left.first Negative.initial
+  (Paths.constant Left.first) (\fun (p: Circle.Domain) => \refl(Left.first.matrix p)) (\fun (p: Circle.Domain) => \refl(Negative.initial.matrix p));
+\definition positivePath: Paths.Path[Right.second, Positive.initial] := Paths.retarget Right.second Right.second Right.second Positive.initial
+  (Paths.constant Right.second) (\fun (p: Circle.Domain) => \refl(Right.second.matrix p)) (\fun (p: Circle.Domain) => \refl(Positive.initial.matrix p));
+\import L1.Inverse[].Homotopy[b := Negative.initial.matrix, regularB := Negative.initial.regular, nonzeroB := Negative.initial.nonzero].With[path := negativePath] \as NegativeEquality;
+\import R2.Inverse[].Homotopy[b := Positive.initial.matrix, regularB := Positive.initial.regular, nonzeroB := Positive.initial.nonzero].With[path := positivePath] \as PositiveEquality;
+\definition negativeZero: L1.Inverse[].value = K.K0[].zero := trans!{K.K0[].Carrier} _ _ _ NegativeEquality.invariant NegativeZero.indexZero;
+\definition positiveZero: R2.Inverse[].value = K.K0[].zero := trans!{K.K0[].Carrier} _ _ _ PositiveEquality.invariant PositiveZero.indexZero;
+\import algebra.Group[].Of[Carrier := K.K0[].Carrier, group := K.K0[].group] \as Group;
+\definition invariant: L2.Inverse[].value = R1.Inverse[].value :=
+  trans!{K.K0[].Carrier} _ _ _ (sym!{K.K0[].Carrier} _ _ (Group.zeroLeft L2.Inverse[].value))
+    (trans!{K.K0[].Carrier} _ _ _ (congr!{K.K0[].Carrier K.K0[].Carrier} (\fun (v: K.K0[].Carrier) => K.K0[].add v L2.Inverse[].value) _ _ (sym!{K.K0[].Carrier} _ _ negativeZero))
+      (trans!{K.K0[].Carrier} _ _ _ indexBalance
+        (trans!{K.K0[].Carrier} _ _ _ (congr!{K.K0[].Carrier K.K0[].Carrier} (K.K0[].add R1.Inverse[].value) _ _ positiveZero) (Group.zeroRight R1.Inverse[].value))));

@@ -1,0 +1,70 @@
+\import Plane.Functions[A := X] \as BaseFunctions;
+\definition scalar: C.Complex := C.Def[].ofReal epsilon;
+\definition scalarNonzero: C.Def[].NonZero scalar := \fun (zero: scalar = C.Def[].zero) => Real.ltNotLeReverse R.zero epsilon positive
+  (Real.leReplaceLeft _ _ _ (sym!{{R.Real}} _ _ (congr!{{C.Complex} {R.Real}} C.re _ _ zero)) (Real.leRefl R.zero));
+\definition reciprocal: C.Complex := C.Def[].inv scalar;
+\definition reciprocalNonzero: C.Def[].NonZero reciprocal := \fun (zero: reciprocal = C.Def[].zero) => C.Prop[].zeroNeOne
+  (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (trans!{{C.Complex}} _ _ _
+    (congr!{{C.Complex} {C.Complex}} (\fun (v: C.Complex) => C.Def[].mul v scalar) _ _ zero) (C.Prop[].mulZeroLeft scalar)))
+    (C.Prop[].inverseNonzero scalar scalarNonzero));
+\definition operator[x: X]: M.Matrix := \fun (i, j: M.Index) => C.Def[].neg (C.Def[].mul reciprocal (h x i j));
+\definition operatorRegular: Top.Families[X := X].Regular source operator := \fun (i, j: M.Index) =>
+  BaseFunctions.negationContinuous source _ (BaseFunctions.multiplicationContinuous source (\fun (_: X) => reciprocal) (\fun (x: X) => h x i j)
+    (topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology reciprocal) (regular i j));
+\definition cancelScale: \forall (v: C.Complex) -> C.Def[].mul reciprocal (C.Def[].scale epsilon v) = v :=
+  \fun (v: C.Complex) => trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (C.Def[].mul reciprocal) _ _
+    (sym!{{C.Complex}} _ _ (uniform_approximation.Approximation[].ComplexScalars[].realProduct epsilon v)))
+    (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (C.Prop[].mulAssoc reciprocal scalar v))
+      (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (\fun (w: C.Complex) => C.Def[].mul w v) _ _ (C.Prop[].inverseNonzero scalar scalarNonzero)) (C.Prop[].mulOneLeft v)));
+\module At(x: X, z: C.Complex);
+\import spectral_splitting.Spectral[].At[n := n].Characteristic[] \as Characteristic;
+\import spectral_splitting.Spectral[].Circle[] \as CircleRoots;
+\import complex_polynomial_roots.Roots[] \as Roots;
+\import galois.Field[].Over[K := C.Complex, field := Scalars.field].Polynomial[].AbstractEvaluation[] \as RootEvaluation;
+\definition noRootOnClosed: \forall (x: X)(z: C.Complex) -> Real.Le (C.Absolute[].abs z) R.one ->
+  Logic.Not (RootEvaluation.apply z (Roots.polynomial n (Characteristic.coefficients (operator x))) = C.Def[].zero) :=
+  \fun (x: X)(z: C.Complex)(inside: _)(root: _) => At[x := x, z := z].nonzero inside
+    (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ spectral_splitting.Spectral[].At[n := n].Pencil[A := operator x, z := z].determinant)
+      (trans!{{C.Complex}} _ _ _ (congr!{algebra.Polynomial[].Over[R := C.Complex, coefficients := std.Alg[].Field[].fieldAsCommutativeRing C.Complex Scalars.field].Carrier {C.Complex}} (RootEvaluation.apply z) _ _
+        (Characteristic.monic (operator x))) root));
+\definition absent: \forall (x: X)(z: C.Complex) -> RootEvaluation.apply z (Roots.polynomial n (Characteristic.coefficients (operator x))) = C.Def[].zero -> Logic.Not (\In[C.Complex] CircleRoots.Inside z) :=
+  \fun (x: X)(z: C.Complex)(root: _)(inside: _) => noRootOnClosed x z (Order.leOfLt _ _ inside) root;
+\definition off: \forall (x: X) -> spectral_splitting.Spectral[].At[n := n].Splitting[A := operator x].OffSpectrum :=
+  \fun (x: X)(z: C.Complex)(root: _)(unit: _) => noRootOnClosed x z (Real.leReplaceLeft R.one (C.Absolute[].abs z) R.one (sym!{{R.Real}} _ _ unit) (Real.leRefl R.one)) root;
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].SpectralIndex[n := n, A := operator, regular := operatorRegular, off := off, removed := N.Nat^::zero].NoInside[absent := absent] \as ZeroIndex;
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := source, compact := compact, hausdorff := hausdorff] \as K;
+\import algebra.Group[].Of[Carrier := K.K0[].Carrier, group := K.K0[].group] \as KGroup;
+\definition spectralZero: \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].SpectralIndex[n := n, A := operator, regular := operatorRegular, off := off, removed := N.Nat^::zero].value = K.K0[].zero :=
+  trans!{K.K0[].Carrier} _ _ _ ZeroIndex.valueFormula (KGroup.inverseRight (K.K0[].include K.Trivial[n := N.Nat^::zero].value));
+\import \root.Linearization[].LinearPolynomial[n := n, X := X, source := source, A := operator, regular := operatorRegular, off := off] \as Linear;
+\import Linear.Index[compact := compact, hausdorff := hausdorff] \as Index;
+\import Paths.Positive[a := Index.family, c := epsilon, positive := positive] \as Scale;
+\import Spaces.Coordinates[I := M.Index] \as Vectors;
+\import Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as End;
+\definition pencilEquality: \forall (p: Circle.Domain) -> Index.family.matrix p = spectral_splitting.Spectral[].At[n := n].Pencil[A := operator (Circle.first p), z := Circle.unit p].entries :=
+  \fun (p: Circle.Domain) => congr!{End.Map M.Matrix} M.Representation[].entries _ _ (End.ext _ _
+    (\axiom:funext((\root.Linearization[].Companion[n := n, d := N.Nat^::zero].FromRow[row := Linear.row (Circle.first p)].polynomial (Circle.unit p)).apply,
+      spectral_splitting.Spectral[].At[n := n].Pencil[A := operator (Circle.first p), z := Circle.unit p].value.apply,
+      Linear.polynomialFormula (Circle.first p) (Circle.unit p))));
+\definition scaledEquality: \forall (p: Circle.Domain) -> Scale.target.matrix p = perturbed p :=
+  \fun (p: Circle.Domain) => M.Operations[].ext _ _ (\fun (i, j: M.Index) => eq_reason_in!{{C.Complex} _
+    "=" { C.Def[].mul scalar (C.Def[].mul reciprocal (perturbed p i j)) } "by" {
+      congr!{{C.Complex} {C.Complex}} (C.Def[].mul scalar) _ _ (congr!{M.Matrix {C.Complex}} (\fun (m: M.Matrix) => m i j) _ _
+        (trans!{M.Matrix} _ _ _ (pencilEquality p) At[x := Circle.first p, z := Circle.unit p].equation))
+    }
+    "=" { C.Def[].mul (C.Def[].mul scalar reciprocal) (perturbed p i j) } "by" { sym!{{C.Complex}} _ _ (C.Prop[].mulAssoc scalar reciprocal (perturbed p i j)) }
+    "=" { C.Def[].mul C.Def[].one (perturbed p i j) } "by" {
+      congr!{{C.Complex} {C.Complex}} (\fun (v: C.Complex) => C.Def[].mul v (perturbed p i j)) _ _
+        (trans!{{C.Complex}} _ _ _ (C.Prop[].mulComm scalar reciprocal) (C.Prop[].inverseNonzero scalar scalarNonzero))
+    }
+    "=" _ "by" { C.Prop[].mulOneLeft (perturbed p i j) }
+  });
+\definition monicPath: Paths.Path[Index.family, perturbedFamily] := Paths.retarget Index.family Scale.target Index.family perturbedFamily Scale.path
+  (\fun (p: Circle.Domain) => \refl(Index.family.matrix p)) scaledEquality;
+\definition fullPath: Paths.Path[family, Index.family] := Paths.concatenate family perturbedFamily Index.family path (Paths.reverse Index.family perturbedFamily monicPath);
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[n := n,
+  a := family.matrix, regular := family.regular, nonzero := family.nonzero].Inverse[].Homotopy[
+  b := Index.family.matrix, regularB := Index.family.regular, nonzeroB := Index.family.nonzero].With[path := fullPath] \as Invariance;
+\definition zero: \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[n := n,
+  a := family.matrix, regular := family.regular, nonzero := family.nonzero].Inverse[].value = K.K0[].zero :=
+  trans!{K.K0[].Carrier} _ _ _ Invariance.invariant (trans!{K.K0[].Carrier} _ _ _ Index.recovery spectralZero);
