@@ -19,3 +19,9 @@
 `Borel` は Euclid 位相の開集合を含む最小の σ-代数を構成する。
 `EuclideanBorel` はすべての次元で開集合と Borel 集合の可測性を示す。
 `Examples` はこれらの利用例を含む。
+
+`CoverExpansion.outerRegular` は、任意集合の外測度が、それを含む開集合の外測度の下限に一致することを示す。
+`InnerRegular.innerRegular` は、可測集合の測度がその内部に含まれるコンパクト集合の測度の上限に一致することを示す。
+これらの等式は無限測度も含め、下切断によって記述する。
+`BoxCompact.compact` は閉直方体のコンパクト性、`Exhaustion` は全空間を尽くす増大する箱列を示す。
+`GdeltaHull.finiteHull` は有限外測度の集合を同じ外測度の Gδ 集合で包む。
