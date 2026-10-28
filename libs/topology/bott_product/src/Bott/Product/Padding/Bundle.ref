@@ -1,0 +1,48 @@
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Complements;
+\import Complements.Projection[X := X, n := p.dimension, baseSpace := source, P := p.projection, regular := p.regular] \as Original;
+\import Complements.Projection[X := X, n := Ambient.dimension, baseSpace := source, P := projection, regular := regular] \as Image;
+\import vector_bundles.Bundles[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Bundles;
+\import bundle_operations.Operations[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Operations;
+\import Operations.CoordinateSum[n := p.dimension, m := m] \as Coordinates;
+\import Coordinates.Topology[] \as CoordTopology;
+\import Bundles.Family[X := X, F := Original.Fiber] \as OriginalFamily;
+\import Bundles.Family[X := X, F := Image.Fiber] \as ImageFamily;
+\module At(x: X);
+\import Bundles.Morphisms[X := X, Y := X, F := Original.Fiber, G := Image.Fiber, source := Original.bundle, target := Image.bundle,
+  f := (\fun (x: X) => x)] \as Forward;
+\definition forwardData: Forward.Data := Forward.Data { fiber := \fun (x: X) => At[x := x].forward };
+\import topological_constructions.Product[A := E.Vector, B := RightE.Vector] \as VectorsProduct;
+\definition joined[t: OriginalFamily.Point]: TotalE.Vector := Ambient.join t.vector RightE.space.zero;
+\definition joinedContinuous: topology.Continuity[A := OriginalFamily.Point, B := TotalE.Vector].Continuous Original.topology (Bundles.coordinateTopology Ambient.dimension) joined :=
+  topology.Composition[A := OriginalFamily.Point, B := VectorsProduct.CarrierSet, C := TotalE.Vector].composeContinuous Original.topology
+    (VectorsProduct.topology (Bundles.coordinateTopology p.dimension) (Bundles.coordinateTopology m)) (Bundles.coordinateTopology Ambient.dimension)
+    (\fun (t: OriginalFamily.Point) => Pair.pair E.Vector RightE.Vector t.vector RightE.space.zero) Coordinates.join
+    (VectorsProduct.Universal[X := OriginalFamily.Point].pairContinuous Original.topology (Bundles.coordinateTopology p.dimension) (Bundles.coordinateTopology m)
+      (\fun (t: OriginalFamily.Point) => t.vector) (\fun (_: OriginalFamily.Point) => RightE.space.zero) Original.vectorContinuous
+      (topology.Maps[A := OriginalFamily.Point, B := RightE.Vector].constantContinuous Original.topology (Bundles.coordinateTopology m) RightE.space.zero)) CoordTopology.joinRegular;
+\definition forward: Forward.Map := \into[Forward.Data](forwardData, Forward.Map) \by {
+  Image.Universal[Y := OriginalFamily.Point, source := Original.topology].continuous (Forward.total forwardData) Original.projectionContinuous joinedContinuous
+};
+\import Bundles.Morphisms[X := X, Y := X, F := Image.Fiber, G := Original.Fiber, source := Image.bundle, target := Original.bundle,
+  f := (\fun (x: X) => x)] \as Backward;
+\definition backwardData: Backward.Data := Backward.Data { fiber := \fun (x: X) => At[x := x].backward };
+\definition leftContinuous: topology.Continuity[A := ImageFamily.Point, B := E.Vector].Continuous Image.topology (Bundles.coordinateTopology p.dimension) (\fun (t: ImageFamily.Point) => Ambient.left t.vector) :=
+  topology.Composition[A := ImageFamily.Point, B := TotalE.Vector, C := E.Vector].composeContinuous Image.topology (Bundles.coordinateTopology Ambient.dimension) (Bundles.coordinateTopology p.dimension)
+    (\fun (t: ImageFamily.Point) => t.vector) Coordinates.Topology[].first Image.vectorContinuous CoordTopology.firstRegular;
+\definition backward: Backward.Map := \into[Backward.Data](backwardData, Backward.Map) \by {
+  Original.Universal[Y := ImageFamily.Point, source := Image.topology].continuous (Backward.total backwardData) Image.projectionContinuous leftContinuous
+};
+\definition iso: Bundles.Isomorphisms[X := X, F := Original.Fiber, G := Image.Fiber, source := Original.bundle, target := Image.bundle].Isomorphism :=
+  Bundles.Isomorphisms[X := X, F := Original.Fiber, G := Image.Fiber, source := Original.bundle, target := Image.bundle].Isomorphism {
+    forward := forward, backward := backward, leftInverse := \fun (x: X) => At[x := x].leftInverse, rightInverse := \fun (x: X) => At[x := x].rightInverse
+  };
+\import Source.Realized[p := p] \as OriginalClass;
+\import Source.Realized[p := presentation] \as NewClass;
+\definition classEquality: Source.class presentation = Source.class p :=
+  trans!{Source.Classes} _ _ _ (sym!{Source.Classes} _ _ NewClass.equation)
+    (trans!{Source.Classes} _ _ _ (Source.Compare[F := Image.Fiber, G := Original.Fiber, first := Image.bundle, second := Original.bundle,
+      firstSame := \refl(source), secondSame := \refl(source)].ofIsomorphism
+        (Bundles.Isomorphisms[X := X, F := Original.Fiber, G := Image.Fiber, source := Original.bundle, target := Image.bundle].inverse iso)) OriginalClass.equation);

@@ -1,0 +1,28 @@
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Pair[] \as Pair;
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.trans;
+\use Eq.sym;
+\use Eq.congr;
+\import complex.Complex[] \as C;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := C.Algebra[].commutativeRing] \as Spaces;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := linear_algebra.Hermitian[].Complex[].scalar] \as Geometry;
+\import Geometry.Finite[n := p.dimension] \as E;
+\import E.Blocks[m := m] \as Ambient;
+\import Geometry.Finite[n := m] \as RightE;
+\import Geometry.Finite[n := Ambient.dimension] \as TotalE;
+\import Hermitian.At[n := p.dimension].Blocks[m := m] \as Block;
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].ZeroProjection[n := m] \as Zero;
+\import Fin.Sum[m := p.dimension, n := m] \as Indices;
+\import Indices.Tuples[A := C.Complex] \as Tuples;
+\definition dimension: N.Nat^ := Ambient.dimension;
+\definition projection[x: X]: Hermitian.At[n := Ambient.dimension].Projection := Block.projection (p.projection x) Zero.projection;
+\definition regular: Hermitian.At[n := Ambient.dimension].Families[X := X].Matrix[m := Ambient.dimension].Regular source (\fun (x: X) => (projection x).map) :=
+  \fun (v: TotalE.Vector)(i: Fin.Fin Ambient.dimension) =>
+    (\induction (s: Indices.Index) \return topology.Continuity[A := X, B := C.Complex].Continuous source topological_algebra.Complex[].topology
+      (\fun (x: X) => Tuples.evaluate ((p.projection x).map.apply (Ambient.left v)) RightE.space.zero s) \with {
+      | inl: \fun (j: Fin.Fin p.dimension) => p.regular (Ambient.left v) j
+      | inr: \fun (_: Fin.Fin m) => topology.Maps[A := X, B := C.Complex].constantContinuous source topological_algebra.Complex[].topology C.Def[].zero
+    }) (Indices.split i);
+\definition presentation: Source.Presentation := Source.Presentation { dimension := Ambient.dimension, projection := projection, regular := regular };
+\module Bundle;
