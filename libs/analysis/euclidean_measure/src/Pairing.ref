@@ -86,3 +86,56 @@
       "=" _ "by" { congr!{N.Nat^ N.Nat^ Pair.NatPair} Pair.natPair _ _ _ _ sameRow sameColumn }
       "=" _ "by" { pairEta (E.enumerate j) }
     });
+\import std.Data[].Option[] \as Option;
+\import Fin.Skipping[] \as Skip;
+\definition skipSurjective: \forall (n: N.Nat^) (pivot, target: Fin.Fin (N.Nat^::succ n)) -> Logic.Not (pivot = target) ->
+  \exists ( i: Fin.Fin n \where Skip.apply n pivot i = target ) :=
+  \induction (n: N.Nat^) \return \forall (pivot, target: Fin.Fin (N.Nat^::succ n)) -> Logic.Not (pivot = target) ->
+    \exists ( i: Fin.Fin n \where Skip.apply n pivot i = target ) \with {
+    | zero: \fun (pivot, target: Fin.Fin (N.Nat^::succ N.Nat^::zero)) (different: Logic.Not (pivot = target)) =>
+      Logic.falseElim _ (different (eq_reason_in!{{Fin.Fin (N.Nat^::succ N.Nat^::zero)} _
+        "=" _ "by" { Fin.singletonValue pivot }
+        "=" _ "by" { sym!{{Fin.Fin (N.Nat^::succ N.Nat^::zero)}} _ _ (Fin.singletonValue target) }
+      }))
+    | succ: \fun (n: N.Nat^) (prior: \forall (pivot, target: Fin.Fin (N.Nat^::succ n)) -> Logic.Not (pivot = target) ->
+      \exists ( i: Fin.Fin n \where Skip.apply n pivot i = target )) (pivot, target: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => \block {
+      \let cases: \forall (p, t: Option.Option[Fin.Fin (N.Nat^::succ n)]) ->
+        Logic.Not (Fin.inflate (N.Nat^::succ n) p = Fin.inflate (N.Nat^::succ n) t) ->
+        \exists ( i: Fin.Fin (N.Nat^::succ n) \where Skip.apply (N.Nat^::succ n) (Fin.inflate (N.Nat^::succ n) p) i = Fin.inflate (N.Nat^::succ n) t ) :=
+        \induction (p: Option.Option[Fin.Fin (N.Nat^::succ n)]) \return
+          \forall (t: Option.Option[Fin.Fin (N.Nat^::succ n)]) -> Logic.Not (Fin.inflate (N.Nat^::succ n) p = Fin.inflate (N.Nat^::succ n) t) ->
+          \exists ( i: Fin.Fin (N.Nat^::succ n) \where Skip.apply (N.Nat^::succ n) (Fin.inflate (N.Nat^::succ n) p) i = Fin.inflate (N.Nat^::succ n) t ) \with {
+          | none: \induction (t: Option.Option[Fin.Fin (N.Nat^::succ n)]) \return
+            Logic.Not (Fin.inflate (N.Nat^::succ n) Option.Option[Fin.Fin (N.Nat^::succ n)]::none = Fin.inflate (N.Nat^::succ n) t) ->
+            \exists ( i: Fin.Fin (N.Nat^::succ n) \where Skip.apply (N.Nat^::succ n) (Fin.zero (N.Nat^::succ n)) i = Fin.inflate (N.Nat^::succ n) t ) \with {
+              | none: \fun (different: _) => Logic.falseElim _ (different (\refl(Fin.zero (N.Nat^::succ n))))
+              | some: \fun (t: Fin.Fin (N.Nat^::succ n)) (_: _) =>
+                Logic.existsIntro[Fin.Fin (N.Nat^::succ n), { i: Fin.Fin (N.Nat^::succ n) \where Skip.apply (N.Nat^::succ n) (Fin.zero (N.Nat^::succ n)) i = Fin.succ (N.Nat^::succ n) t }] t (Skip.Step[n := n].first t)
+            }
+          | some: \fun (p: Fin.Fin (N.Nat^::succ n)) => \induction (t: Option.Option[Fin.Fin (N.Nat^::succ n)]) \return
+            Logic.Not (Fin.succ (N.Nat^::succ n) p = Fin.inflate (N.Nat^::succ n) t) ->
+            \exists ( i: Fin.Fin (N.Nat^::succ n) \where Skip.apply (N.Nat^::succ n) (Fin.succ (N.Nat^::succ n) p) i = Fin.inflate (N.Nat^::succ n) t ) \with {
+              | none: \fun (_: _) => Logic.existsIntro[Fin.Fin (N.Nat^::succ n), { i: Fin.Fin (N.Nat^::succ n) \where Skip.apply (N.Nat^::succ n) (Fin.succ (N.Nat^::succ n) p) i = Fin.zero (N.Nat^::succ n) }] (Fin.zero n)
+                (Skip.Step[n := n].successorZero p)
+              | some: \fun (t: Fin.Fin (N.Nat^::succ n)) (different: Logic.Not (Fin.succ (N.Nat^::succ n) p = Fin.succ (N.Nat^::succ n) t)) => \block {
+                \takefrom i: \Cast[Fin.Fin n] ({ i: Fin.Fin n \where Skip.apply n p i = t })
+                  \by prior p t (\fun (same: p = t) => different (congr!{{Fin.Fin (N.Nat^::succ n)} {Fin.Fin (N.Nat^::succ (N.Nat^::succ n))}} (Fin.succ (N.Nat^::succ n)) _ _ same)) \then
+                \let equal: Skip.apply n p i = t := \bysub(Fin.Fin n, { i: Fin.Fin n \where Skip.apply n p i = t }, i) \then
+                \return Logic.existsIntro[Fin.Fin (N.Nat^::succ n), { j: Fin.Fin (N.Nat^::succ n) \where Skip.apply (N.Nat^::succ n) (Fin.succ (N.Nat^::succ n) p) j = Fin.succ (N.Nat^::succ n) t }] (Fin.succ n i)
+                  (eq_reason_in!{{Fin.Fin (N.Nat^::succ (N.Nat^::succ n))} _
+                    "=" _ "by" { Skip.Step[n := n].successorSuccessor p i }
+                    "=" _ "by" { congr!{{Fin.Fin (N.Nat^::succ n)} {Fin.Fin (N.Nat^::succ (N.Nat^::succ n))}} (Fin.succ (N.Nat^::succ n)) _ _ equal }
+                  })
+              }
+            }
+        } \then
+      \return \idelim Fin.inflate (N.Nat^::succ n) (Fin.split (N.Nat^::succ n) pivot) = pivot
+        \with p: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)) => Logic.Not (p = target) ->
+          \exists ( i: Fin.Fin (N.Nat^::succ n) \where Skip.apply (N.Nat^::succ n) p i = target )
+        \by { base: \idelim Fin.inflate (N.Nat^::succ n) (Fin.split (N.Nat^::succ n) target) = target
+          \with t: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)) => Logic.Not (Fin.inflate (N.Nat^::succ n) (Fin.split (N.Nat^::succ n) pivot) = t) ->
+            \exists ( i: Fin.Fin (N.Nat^::succ n) \where Skip.apply (N.Nat^::succ n) (Fin.inflate (N.Nat^::succ n) (Fin.split (N.Nat^::succ n) pivot)) i = t )
+          \by { base: cases (Fin.split (N.Nat^::succ n) pivot) (Fin.split (N.Nat^::succ n) target), equality: Fin.inflateSplit (N.Nat^::succ n) target },
+          equality: Fin.inflateSplit (N.Nat^::succ n) pivot }
+    }
+  };

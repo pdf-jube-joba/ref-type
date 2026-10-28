@@ -80,3 +80,73 @@
                 (\axiom:funext((\fun (j: Fin.Fin (N.Nat^::succ n)) => f j), f, \fun (j: Fin.Fin (N.Nat^::succ n)) => \refl(f j))) }
             } })) r member,
         equality: sym!{M.Value} _ _ (sumOmit n f pivot valid) };
+\import \root.Pairing[] \as Pairing;
+\import std.Logic[].Equality[] \as Equality;
+\import Fin.Skipping[] \as Skip;
+\definition omissionAt: \forall (n: N.Nat^) (pivot: Fin.Fin (N.Nat^::succ n)) (f: Fin.Fin (N.Nat^::succ n) -> M.Value) (i: Fin.Fin n) ->
+  f (Skip.apply n pivot i) = Omission.omit n pivot f i :=
+  \fun (n: N.Nat^) (pivot: Fin.Fin (N.Nat^::succ n)) (f: Fin.Fin (N.Nat^::succ n) -> M.Value) (i: Fin.Fin n) => eq_reason_in!{M.Value _
+    "=" _ "by" { congr!{{Fin.Fin n -> M.Value} M.Value} (\fun (g: Fin.Fin n -> M.Value) => g i)
+      (\fun (j: Fin.Fin n) => f (Skip.apply n pivot j)) (Omission.omit n pivot (\fun (j: Fin.Fin (N.Nat^::succ n)) => f j))
+      (Fin.Tuples[A := Fin.Fin (N.Nat^::succ n)].Mapping[B := M.Value].omitMap n pivot f (\fun (j: Fin.Fin (N.Nat^::succ n)) => j)) }
+    "=" _ "by" { congr!{{Fin.Fin (N.Nat^::succ n) -> M.Value} M.Value} (\fun (g: Fin.Fin (N.Nat^::succ n) -> M.Value) => Omission.omit n pivot g i) _ _
+      (\axiom:funext((\fun (j: Fin.Fin (N.Nat^::succ n)) => f j), f, \fun (j: Fin.Fin (N.Nat^::succ n)) => \refl(f j))) }
+  };
+\definition Injective[m, n: N.Nat^] [g: Fin.Fin m -> Fin.Fin n]: \Prop :=
+  \forall (i, j: Fin.Fin m) -> g i = g j -> i = j;
+\definition injectionSum: \forall (m, n: N.Nat^) (f: Fin.Fin n -> M.Value) (g: Fin.Fin m -> Fin.Fin n) ->
+  (\forall (i: Fin.Fin n) -> M.NonnegativeValue[f i]) -> Injective m n g ->
+  V.Included (M.sum m (\fun (i: Fin.Fin m) => f (g i))) (M.sum n f) :=
+  \induction (m: N.Nat^) \return \forall (n: N.Nat^) (f: Fin.Fin n -> M.Value) (g: Fin.Fin m -> Fin.Fin n) ->
+    (\forall (i: Fin.Fin n) -> M.NonnegativeValue[f i]) -> Injective m n g ->
+    V.Included (M.sum m (\fun (i: Fin.Fin m) => f (g i))) (M.sum n f) \with {
+      | zero: \fun (n: N.Nat^) (f: Fin.Fin n -> M.Value) (_: Fin.Fin N.Nat^::zero -> Fin.Fin n) (valid: _) (_: _) =>
+        Series.zeroIncluded (M.sum n f) (V.sumNonnegative n f valid)
+      | succ: \fun (m: N.Nat^) (prior: \forall (n: N.Nat^) (f: Fin.Fin n -> M.Value) (g: Fin.Fin m -> Fin.Fin n) ->
+        (\forall (i: Fin.Fin n) -> M.NonnegativeValue[f i]) -> Injective m n g ->
+        V.Included (M.sum m (\fun (i: Fin.Fin m) => f (g i))) (M.sum n f)) =>
+        \induction (n: N.Nat^) \return \forall (f: Fin.Fin n -> M.Value) (g: Fin.Fin (N.Nat^::succ m) -> Fin.Fin n) ->
+          (\forall (i: Fin.Fin n) -> M.NonnegativeValue[f i]) -> Injective (N.Nat^::succ m) n g ->
+          V.Included (M.sum (N.Nat^::succ m) (\fun (i: Fin.Fin (N.Nat^::succ m)) => f (g i))) (M.sum n f) \with {
+          | zero: \fun (f: Fin.Fin N.Nat^::zero -> M.Value) (g: Fin.Fin (N.Nat^::succ m) -> Fin.Fin N.Nat^::zero) (_: _) (_: _) =>
+            Logic.falseElim _ (Fin.zeroImpossible (g (Fin.zero m)) (Fin.bound N.Nat^::zero (g (Fin.zero m))))
+          | succ: \fun (n: N.Nat^) (_: _) (f: Fin.Fin (N.Nat^::succ n) -> M.Value) (g: Fin.Fin (N.Nat^::succ m) -> Fin.Fin (N.Nat^::succ n))
+            (valid: \forall (i: Fin.Fin (N.Nat^::succ n)) -> M.NonnegativeValue[f i]) (injective: Injective (N.Nat^::succ m) (N.Nat^::succ n) g) => \block {
+              \let pivot: Fin.Fin (N.Nat^::succ n) := g (Fin.zero m) \then
+              \let tail: Fin.Fin m -> Fin.Fin (N.Nat^::succ n) := \fun (i: Fin.Fin m) => g (Fin.succ m i) \then
+              \let different: \forall (i: Fin.Fin m) -> Logic.Not (pivot = tail i) := \fun (i: Fin.Fin m) (equal: pivot = tail i) =>
+                N.Basic[].Prop[].zeroNeSucc i (injective (Fin.zero m) (Fin.succ m i) equal) \then
+              \let Choices: Fin.Fin m -> \Set := \fun (i: Fin.Fin m) => \Cast[Fin.Fin n] ({ j: Fin.Fin n \where Skip.apply n pivot j = tail i }) \then
+              \takefrom selected: \forall (i: Fin.Fin m) -> Choices i \by
+                \axiom:classicalIndefiniteChoice(Fin.Fin m, Choices, \fun (i: Fin.Fin m) => Pairing.skipSurjective n pivot (tail i) (different i)) \then
+              \let selectionLaw: \forall (i: Fin.Fin m) -> Skip.apply n pivot (selected i) = tail i :=
+                \fun (i: Fin.Fin m) => \bysub(Fin.Fin n, { j: Fin.Fin n \where Skip.apply n pivot j = tail i }, selected i) \then
+              \let lower: Fin.Fin m -> Fin.Fin n := \fun (i: Fin.Fin m) => selected i \then
+              \let lowerInjective: Injective m n lower := \fun (i, j: Fin.Fin m) (same: lower i = lower j) =>
+                N.Basic[].Prop[].succInjective i j (injective (Fin.succ m i) (Fin.succ m j) (eq_reason_in!{{Fin.Fin (N.Nat^::succ n)} _
+                  "=" _ "by" { sym!{{Fin.Fin (N.Nat^::succ n)}} _ _ (selectionLaw i) }
+                  "=" _ "by" { congr!{{Fin.Fin n} {Fin.Fin (N.Nat^::succ n)}} (Skip.apply n pivot) _ _ same }
+                  "=" _ "by" { selectionLaw j }
+                })) \then
+              \let omitted: Fin.Fin n -> M.Value := Omission.omit n pivot f \then
+              \let omittedValid: \forall (i: Fin.Fin n) -> M.NonnegativeValue[omitted i] := \fun (i: Fin.Fin n) =>
+                \idelim f (Skip.apply n pivot i) = omitted i \with v: M.Value => M.NonnegativeValue[v]
+                  \by { base: valid (Skip.apply n pivot i), equality: omissionAt n pivot f i } \then
+              \let compared: V.Included (M.sum m (\fun (i: Fin.Fin m) => f (tail i))) (M.sum n omitted) :=
+                \fun (r: Real.Real) (member: M.below (M.sum m (\fun (i: Fin.Fin m) => f (tail i))) r) =>
+                  prior n omitted lower omittedValid lowerInjective r
+                    (\idelim M.sum m (\fun (i: Fin.Fin m) => f (tail i)) = M.sum m (\fun (i: Fin.Fin m) => omitted (lower i)) \with v: M.Value => M.below v r
+                      \by { base: member, equality: congr!{{Fin.Fin m -> M.Value} M.Value} (M.sum m) _ _
+                        (\axiom:funext((\fun (i: Fin.Fin m) => f (tail i)), (\fun (i: Fin.Fin m) => omitted (lower i)),
+                          \fun (i: Fin.Fin m) => eq_reason_in!{M.Value _
+                            "=" _ "by" { congr!{{Fin.Fin (N.Nat^::succ n)} M.Value} f _ _ (sym!{{Fin.Fin (N.Nat^::succ n)}} _ _ (selectionLaw i)) }
+                            "=" _ "by" { omissionAt n pivot f (lower i) }
+                          })) }) \then
+              \return \fun (r: Real.Real) (member: M.below (M.sum (N.Nat^::succ m) (\fun (i: Fin.Fin (N.Nat^::succ m)) => f (g i))) r) =>
+                \idelim M.add (f pivot) (M.sum n omitted) = M.sum (N.Nat^::succ n) f \with v: M.Value => M.below v r
+                  \by { base: V.addMono (f pivot) (f pivot) (M.sum m (\fun (i: Fin.Fin m) => f (tail i))) (M.sum n omitted)
+                    (\fun (s: Real.Real) (inValue: M.below (f pivot) s) => inValue) compared r member,
+                    equality: sym!{M.Value} _ _ (sumOmit n f pivot valid) }
+            }
+        }
+    };
