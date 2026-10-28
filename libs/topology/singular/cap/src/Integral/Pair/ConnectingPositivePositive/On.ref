@@ -1,0 +1,43 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import std.Data[].Nat[].Basic[].Def[] \as Nat;
+\import singular_cohomology.Simplices[A := A, source := source].CutFaces[p := N.Nat^::succ t, q := N.Nat^::succ r] \as Geometry;
+\import singular_cohomology.Chains[A := Relative.SubspaceCarrier, source := Subspace.topology source] \as SubChains;
+\import singular_cohomology.Simplices[A := Relative.SubspaceCarrier, source := Subspace.topology source].CutFaces[p := t, q := N.Nat^::succ r] \as SubGeometry;
+\import SubChains.DegreeTransport[] \as SubDegree;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import Nonnegative.ZeroExtension[C := SubChains.complex] \as SubExtension;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.At[C := SubExtension.complex, z := I.Int^::ofNat Geometry.total] \as InputSub;
+\import Complexes.At[C := SubExtension.complex, z := I.Int^::ofNat SubGeometry.higher] \as ShiftedSub;
+\import Nonnegative.Positive[C := SubChains.complex, n := SubGeometry.total] \as NativeSource;
+\import SubExtension.PositiveHomology[n := SubGeometry.total] \as SourceCompare;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\module Degree(n: N.Nat^) {
+  \import Complexes.At[C := SubExtension.complex, z := I.Int^::ofNat n] \as H;
+  \definition Cycle: \Set := H.Cycle;
+  \definition Homology: \Set := H.Homology;
+  \definition space: Modules.Space Homology := H.homologySpace;
+  \definition classOf: Cycle -> Homology := H.classOf;
+  \definition forget: Cycle -> SubExtension.Carrier (I.Int^::ofNat n) := H.forget;
+}
+\definition Cycle[n: N.Nat^]: \Set := Degree[n := n].Cycle;
+\definition Homology[n: N.Nat^]: \Set := Degree[n := n].Homology;
+\definition homologySpace[n: N.Nat^]: Modules.Space (Homology n) := Degree[n := n].space;
+\definition classOf[n: N.Nat^]: Cycle n -> Homology n := Degree[n := n].classOf;
+\definition forget[n: N.Nat^]: Cycle n -> SubExtension.Carrier (I.Int^::ofNat n) := Degree[n := n].forget;
+\definition same: Geometry.total = SubGeometry.higher := SubGeometry.same;
+\definition shifted[x: InputSub.Cycle]: ShiftedSub.Cycle := Transport.cast Cycle Geometry.total SubGeometry.higher same x;
+\definition native[x: InputSub.Cycle]: NativeSource.Cycle := (SourceCompare.cycleIsomorphism.backward).apply (shifted x);
+\definition nativeValue: \forall (x: InputSub.Cycle) -> native x = SubDegree.apply Geometry.total SubGeometry.higher same x :=
+  \fun (x: InputSub.Cycle) => eq_reason_in!{{SubChains.Carrier SubGeometry.higher} _
+    "=" _ "by" { sym!{{SubExtension.Carrier (I.Int^::ofNat SubGeometry.higher)}} _ _ (Transport.natural Cycle (\fun (n: N.Nat^) => SubExtension.Carrier (I.Int^::ofNat n)) forget Geometry.total SubGeometry.higher same x) }
+    "=" _ "by" { Transport.natural SubChains.Carrier (\fun (n: N.Nat^) => SubExtension.Carrier (I.Int^::ofNat n)) (\fun (n: N.Nat^) => SubExtension.Positive[n := n].intro) Geometry.total SubGeometry.higher same x }
+  };
+\definition recovered: \forall (x: InputSub.Cycle) -> SubDegree.apply SubGeometry.higher Geometry.total (sym!{N.Nat^} _ _ same) (native x) = x :=
+  \fun (x: InputSub.Cycle) => trans!{{SubChains.Carrier Geometry.total}} _ _ _
+    (congr!{{SubChains.Carrier SubGeometry.higher} {SubChains.Carrier Geometry.total}} (SubDegree.apply SubGeometry.higher Geometry.total (sym!{N.Nat^} _ _ same)) _ _ (nativeValue x))
+    (Transport.castInverse SubChains.Carrier Geometry.total SubGeometry.higher same x);
