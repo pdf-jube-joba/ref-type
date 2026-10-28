@@ -1,0 +1,79 @@
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import \root.Euclidean[n := n] \as E;
+\import \root.CompactCore[n := n] \as Core;
+\import E.MeasureConstruction[] \as Construction;
+\import E.CaratheodorySets[] \as Car;
+\import functional_analysis.Measure[A := E.Point] \as Measure;
+\import Measure.Sigma[] \as Sigma;
+\import Measure.Continuity[mu := Construction.measure] \as Continuity;
+\import Measure.Finite[mu := Construction.measure] \as FiniteMeasure;
+\import Measure.ValueLaws[] \as Values;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\import Sets.Compactness[] \as Compact;
+\import Sets.Finite[] \as Finite;
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as Topology;
+\import real.Analysis[] \as Real;
+\definition innerSup[S: \Pow E.Point]: Measure.Value := { r: Real.Real \where
+  \exists ( K: \Pow E.Point \where Logic.And[Sets.IsCompactIn Topology.topology K, Logic.And[Sets.Subset K S, Measure.below (E.outer K) r]] ) };
+\definition prefixCompact: \forall (f: N.Nat^ -> \Pow E.Point) -> (\forall (i: N.Nat^) -> Sets.IsCompactIn Topology.topology (f i)) ->
+  \forall (k: N.Nat^) -> Sets.IsCompactIn Topology.topology (Sigma.prefix f k) :=
+  \fun (f: N.Nat^ -> \Pow E.Point) (valid: \forall (i: N.Nat^) -> Sets.IsCompactIn Topology.topology (f i)) =>
+    \induction (k: N.Nat^) \return Sets.IsCompactIn Topology.topology (Sigma.prefix f k) \with {
+      | zero: Compact.emptyCompact Topology.topology
+      | succ: \fun (k: N.Nat^) (prior: Sets.IsCompactIn Topology.topology (Sigma.prefix f k)) =>
+        Compact.joinCompact Topology.topology (Sigma.prefix f k) (f k) prior (valid k)
+    };
+\definition compactMeasurable: \forall (S: \Pow E.Point) -> Sets.IsCompactIn Topology.topology S -> E.Caratheodory S :=
+  \fun (S: \Pow E.Point) (compact: Sets.IsCompactIn Topology.topology S) =>
+    Core.closedMeasurable S (Compact.compactClosed Topology.topology Topology.hausdorff S compact);
+\definition unionSame: \forall (S: \Pow E.Point) (parts: N.Nat^ -> \Pow E.Point) -> E.Caratheodory S -> Core.Core S parts ->
+  E.outer (Measure.union parts) = E.outer S :=
+  \fun (S: \Pow E.Point) (parts: N.Nat^ -> \Pow E.Point) (measurable: E.Caratheodory S) (core: Core.Core S parts) => \block {
+    \let U: \Pow E.Point := Measure.union parts \then
+    \let D: \Pow E.Point := Sigma.difference S U \then
+    \let um: E.Caratheodory U := Car.unionCaratheodory parts (\fun (i: N.Nat^) => compactMeasurable (parts i) (core.left i)) \then
+    \let sum: E.outer S = Measure.add (E.outer U) (E.outer D) := eq_reason_in!{Measure.Value _
+      "=" _ "by" { congr!{\Pow E.Point Measure.Value} E.outer _ _ (FiniteMeasure.subsetDecomposition U S core.right.left) }
+      "=" _ "by" { E.disjointAdditivity U D um (FiniteMeasure.subsetDisjoint U S) }
+    } \then
+    \return sym!{Measure.Value} _ _ (eq_reason_in!{Measure.Value _
+      "=" _ "by" { sum }
+      "=" _ "by" { congr!{Measure.Value Measure.Value} (Measure.add (E.outer U)) _ _ core.right.right }
+      "=" _ "by" { Values.addZero (E.outer U) (E.outerNonnegative U) }
+    })
+  };
+\definition boundedRegular: \forall (S: \Pow E.Point) (b: E.Box) -> E.Caratheodory S -> Sets.Subset S (E.points b) -> E.outer S = innerSup S :=
+  \fun (S: \Pow E.Point) (b: E.Box) (measurable: E.Caratheodory S) (bounded: Sets.Subset S (E.points b)) => \block {
+    \takefrom parts: \Cast[N.Nat^ -> \Pow E.Point] ({ parts: N.Nat^ -> \Pow E.Point \where Core.Core S parts })
+      \by Core.boundedCore S b measurable bounded \then
+    \let core: Core.Core S parts := \bysub(N.Nat^ -> \Pow E.Point, { parts: N.Nat^ -> \Pow E.Point \where Core.Core S parts }, parts) \then
+    \let value: E.outer (Measure.union parts) = E.outer S := unionSame S parts measurable core \then
+    \let partMeasurable: \forall (i: N.Nat^) -> Measure.Measurable Construction.measure.sigma (parts i) :=
+      \fun (i: N.Nat^) => compactMeasurable (parts i) (core.left i) \then
+    \let prefixValue: E.outer (Measure.union parts) = { r: Real.Real \where \exists ( k: N.Nat^ \where Measure.below (E.outer (Sigma.prefix parts k)) r ) } :=
+      Continuity.unionAsPrefixSup parts partMeasurable \then
+    \return \axiom:setext(E.outer S, innerSup S,
+      \fun (r: Real.Real) (member: Measure.below (E.outer S) r) => \block {
+        \let unionMember: Measure.below (E.outer (Measure.union parts)) r := \idelim E.outer S = E.outer (Measure.union parts) \with v: Measure.Value => Measure.below v r
+          \by { base: member, equality: sym!{Measure.Value} _ _ value } \then
+        \let exists: \exists ( k: N.Nat^ \where Measure.below (E.outer (Sigma.prefix parts k)) r ) :=
+          \idelim E.outer (Measure.union parts) = { r: Real.Real \where \exists ( k: N.Nat^ \where Measure.below (E.outer (Sigma.prefix parts k)) r ) } \with v: Measure.Value => Measure.below v r
+            \by { base: unionMember, equality: prefixValue } \then
+        \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Measure.below (E.outer (Sigma.prefix parts k)) r }) \by exists \then
+        \return Logic.existsIntro[\Pow E.Point, { K: \Pow E.Point \where Logic.And[Sets.IsCompactIn Topology.topology K, Logic.And[Sets.Subset K S, Measure.below (E.outer K) r]] }] (Sigma.prefix parts k)
+          (Logic.And[_, _]::# (prefixCompact parts core.left k) (Logic.And[_, _]::#
+            (\fun (x: E.Point) (member: Sets.Member (Sigma.prefix parts k) x) => core.right.left x (Sigma.prefixContainedInUnion parts k x member))
+            (\bysub(N.Nat^, { k: N.Nat^ \where Measure.below (E.outer (Sigma.prefix parts k)) r }, k))))
+      },
+      \fun (r: Real.Real) (member: Measure.below (innerSup S) r) => \block {
+        \takefrom K: \Cast[\Pow E.Point] ({ K: \Pow E.Point \where Logic.And[Sets.IsCompactIn Topology.topology K, Logic.And[Sets.Subset K S, Measure.below (E.outer K) r]] }) \by member \then
+        \let data: Logic.And[Sets.IsCompactIn Topology.topology K, Logic.And[Sets.Subset K S, Measure.below (E.outer K) r]] :=
+          \bysub(\Pow E.Point, { K: \Pow E.Point \where Logic.And[Sets.IsCompactIn Topology.topology K, Logic.And[Sets.Subset K S, Measure.below (E.outer K) r]] }, K) \then
+        \return E.monotone K S data.right.left r data.right.right
+      })
+  };
