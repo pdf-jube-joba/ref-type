@@ -107,17 +107,18 @@ K03 の数学ソースは取り込み前と一致している。
 旧基準の `workspace-audit-10` は終了130・interrupted・保存失敗0・書込失敗0で停止し、チェックポイントを保持した。
 `workspace-audit-11` は終了1・保存失敗0・書込失敗0で、Grassmannian が移動前の分離補題を参照していた不一致を検出した。
 参照3箇所を一般位相の `topological_constructions.Separation` へ合わせた。
-次は `workspace-audit-12.source.json` を固定し、`grassmannians` 全体と依存閉包を対象検査した後、K03 package 全体・全依存・影響先を含む workspace 全体を検査する。
-最終 workspace 検証は未完了で、対象検査だけを全体の成功とは扱っていない。
-過去の終了1や中断130の報告も保持している。
+`workspace-audit-12-grassmannians` の全体と依存閉包は accepted・終了0・保存失敗0・書込失敗0。
+同じ固定入力による `workspace-audit-12` の workspace 全体検査は、終了2・`memory-limit`・保存失敗0・書込失敗0。
+自動復旧1回後の checkpoint 保存でメモリ上限14336 MiBに達し、全体検証は未完了。
+検査器や数学ソースを変えず、同じ固定入力・共有キャッシュを使い、上限15360 MiBで `workspace-audit-13` を実行する。
 
-再開時は既存の CLI プロセスと `workspace-audit-12{-grassmannians,}.{log,json,exit}` を先に確認する。
+再開時は既存の CLI プロセスと `workspace-audit-13.{log,json,exit}` を先に確認する。
 終了後は終了コードと `outcome`、`storage.save_failures`、`checking.cache_write_failures` を照合する。
-必要な再検査は固定 snapshot と共有キャッシュを使う。
+以前の中断・失敗の報告とチェックポイントも保持している。
 
 ```sh
 REF_TYPE_GRAPH_RESIDENT_MIB=1024 target/debug/cli libs \
   --source-snapshot work/k03-resume/workspace-audit-12.source.json \
-  --cache-dir libs/refcache --cache-budget-mib 16384 --memory-mib 14336 \
-  --diagnostics compact --report-json work/k03-resume/workspace-audit-12.json
+  --cache-dir libs/refcache --cache-budget-mib 16384 --memory-mib 15360 \
+  --diagnostics compact --report-json work/k03-resume/workspace-audit-13.json
 ```
