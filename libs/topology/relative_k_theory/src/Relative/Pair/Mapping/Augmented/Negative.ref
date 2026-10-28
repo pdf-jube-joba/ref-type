@@ -1,0 +1,87 @@
+\use Equality.eq_reason_in;
+\import Source.Sequence[degree := degree] \as SourceSequence;
+\import Target.Sequence[degree := degree] \as TargetSequence;
+\import \root.Relative[].PairIteration[pair := Source.pair].Sequence[degree := degree] \as SourceTerm;
+\import \root.Relative[].PairIteration[pair := Target.pair].Sequence[degree := degree] \as TargetTerm;
+\import Native.Naturality[].Negative[degree := degree] \as Current;
+\import Native.Iteration[].Naturality[degree := degree] \as Connecting;
+\import \root.Relative[].NegativeMap[source := SourcePointed.subsetModel, target := TargetPointed.subsetModel,
+  f := Native.subsetMap, degree := (N.Nat^::succ degree)] \as CurrentSubset;
+\import \root.Relative[].NegativeMap[source := SourcePointed.quotientModel, target := TargetPointed.quotientModel,
+  f := Native.quotientMap, degree := degree] \as CurrentRelative;
+\import \root.Relative[].NegativeMap[source := Domain.model, target := Range.model, f := quotientMap, degree := degree] \as Relative;
+\import Whole.Negative[degree := degree] \as WholePull;
+\import Subset.Negative[degree := degree] \as SubsetPull;
+\import Subset.Negative[degree := (N.Nat^::succ degree)] \as SubsetNext;
+\import SourceSequence.NextSubset[] \as SourceSubsetGroups;
+\import TargetSequence.NextSubset[] \as TargetSubsetGroups;
+\import SourceSequence.RelativeGroups[] \as SourceRelativeGroups;
+\import TargetSequence.RelativeGroups[] \as TargetRelativeGroups;
+\definition relativeComparison: \forall (v: TargetSequence.Third) ->
+  CurrentRelative.map (TargetRelativeGroups.forward v) = SourceRelativeGroups.forward (Relative.map v) :=
+  \fun (v: TargetSequence.Third) => eq_reason_in!{{SourceTerm.Third} _
+    "=" { CurrentRelative.map (\root.Relative[].NegativeMap[source := TargetPointed.quotientModel, target := Range.model,
+      f := TargetQ.equivalence.forward, degree := degree].map v) } "by" {
+      congr!{{TargetTerm.Third} {SourceTerm.Third}} CurrentRelative.map _ _ (TargetRelativeGroups.forwardFormula v) }
+    "=" { \root.Relative[].NegativeMap[source := SourcePointed.quotientModel, target := Domain.model,
+      f := SourceQ.equivalence.forward, degree := degree].map (Relative.map v) } "by" { QuotientSquare.Negative[degree := degree].equation v }
+    "=" { SourceRelativeGroups.forward (Relative.map v) } "by" { sym!{{SourceTerm.Third}} _ _ (SourceRelativeGroups.forwardFormula (Relative.map v)) }
+  };
+\definition subsetComparison: \forall (v: TargetTerm.Second) -> SourceSubsetGroups.backward (CurrentSubset.map v) = SubsetNext.map (TargetSubsetGroups.backward v) :=
+  \fun (v: TargetTerm.Second) => eq_reason_in!{{SourceSequence.Second} _
+    "=" { \root.Relative[].NegativeMap[source := SourceSubset.model, target := SourcePointed.subsetModel,
+      f := SourceA.equivalence.forward, degree := (N.Nat^::succ degree)].map (CurrentSubset.map v) } "by" { SourceSubsetGroups.backwardFormula (CurrentSubset.map v) }
+    "=" { SubsetNext.map (\root.Relative[].NegativeMap[source := TargetSubset.model, target := TargetPointed.subsetModel,
+      f := TargetA.equivalence.forward, degree := (N.Nat^::succ degree)].map v) } "by" { SubsetSquare.Negative[degree := (N.Nat^::succ degree)].equation v }
+    "=" { SubsetNext.map (TargetSubsetGroups.backward v) } "by" {
+      congr!{{TargetSequence.Second} {SourceSequence.Second}} SubsetNext.map _ _ (sym!{{TargetSequence.Second}} _ _ (TargetSubsetGroups.backwardFormula v)) }
+  };
+\definition subsetForward: \forall (v: TargetSequence.Second) -> CurrentSubset.map (TargetSubsetGroups.forward v) = SourceSubsetGroups.forward (SubsetNext.map v) :=
+  \fun (v: TargetSequence.Second) => trans!{{SourceTerm.Second}} _ _ _
+    (sym!{{SourceTerm.Second}} _ _ (SourceSubsetGroups.leftInverse (CurrentSubset.map (TargetSubsetGroups.forward v))))
+    (congr!{{SourceSequence.Second} {SourceTerm.Second}} SourceSubsetGroups.forward _ _
+      (trans!{{SourceSequence.Second}} _ _ _ (subsetComparison (TargetSubsetGroups.forward v))
+        (congr!{{TargetSequence.Second} {SourceSequence.Second}} SubsetNext.map _ _ (TargetSubsetGroups.rightInverse v))));
+\definition sourceBoundary: \forall (v: SourceSequence.Second) -> SourceRelativeGroups.forward (SourceSequence.boundary v) = SourceTerm.boundary (SourceSubsetGroups.forward v) :=
+  \fun (v: SourceSequence.Second) => SourceRelativeGroups.leftInverse (SourceTerm.boundary (SourceSubsetGroups.forward v));
+\definition targetBoundary: \forall (v: TargetSequence.Second) -> TargetRelativeGroups.forward (TargetSequence.boundary v) = TargetTerm.boundary (TargetSubsetGroups.forward v) :=
+  \fun (v: TargetSequence.Second) => TargetRelativeGroups.leftInverse (TargetTerm.boundary (TargetSubsetGroups.forward v));
+\definition relativeInjective: \forall (v, w: SourceSequence.Third) -> SourceRelativeGroups.forward v = SourceRelativeGroups.forward w -> v = w :=
+  \fun (v, w: SourceSequence.Third)(same: SourceRelativeGroups.forward v = SourceRelativeGroups.forward w) => trans!{{SourceSequence.Third}} _ _ _
+    (sym!{{SourceSequence.Third}} _ _ (SourceRelativeGroups.rightInverse v))
+    (trans!{{SourceSequence.Third}} _ _ _ (congr!{{SourceTerm.Third} {SourceSequence.Third}} SourceRelativeGroups.backward _ _ same) (SourceRelativeGroups.rightInverse w));
+\definition boundary: \forall (v: TargetSequence.Second) -> SourceSequence.boundary (SubsetNext.map v) = Relative.map (TargetSequence.boundary v) :=
+  \fun (v: TargetSequence.Second) => relativeInjective _ _ (eq_reason_in!{{SourceTerm.Third} _
+    "=" { SourceTerm.boundary (SourceSubsetGroups.forward (SubsetNext.map v)) } "by" { sourceBoundary (SubsetNext.map v) }
+    "=" { SourceTerm.boundary (CurrentSubset.map (TargetSubsetGroups.forward v)) } "by" {
+      congr!{{SourceTerm.Second} {SourceTerm.Third}} SourceTerm.boundary _ _ (sym!{{SourceTerm.Second}} _ _ (subsetForward v)) }
+    "=" { CurrentRelative.map (TargetTerm.boundary (TargetSubsetGroups.forward v)) } "by" { Connecting.boundary (TargetSubsetGroups.forward v) }
+    "=" { CurrentRelative.map (TargetRelativeGroups.forward (TargetSequence.boundary v)) } "by" {
+      congr!{{TargetTerm.Third} {SourceTerm.Third}} CurrentRelative.map _ _ (sym!{{TargetTerm.Third}} _ _ (targetBoundary v)) }
+    "=" { SourceRelativeGroups.forward (Relative.map (TargetSequence.boundary v)) } "by" { relativeComparison (TargetSequence.boundary v) }
+  });
+\definition forget: \forall (v: TargetSequence.Third) -> SourceSequence.forget (Relative.map v) = WholePull.map (TargetSequence.forget v) :=
+  \fun (v: TargetSequence.Third) => trans!{{SourceSequence.Fourth}} _ _ _
+    (congr!{{SourceTerm.Third} {SourceSequence.Fourth}} SourceTerm.forget _ _ (sym!{{SourceTerm.Third}} _ _ (relativeComparison v)))
+    (Current.forget (TargetRelativeGroups.forward v));
+\import SourceSequence.CurrentSubset[] \as SourceCurrentA;
+\import TargetSequence.CurrentSubset[] \as TargetCurrentA;
+\import \root.Relative[].NegativeMap[source := SourcePointed.subsetModel, target := TargetPointed.subsetModel,
+  f := Native.subsetMap, degree := degree] \as CurrentA;
+\definition restriction: \forall (v: TargetSequence.Fourth) -> SourceSequence.restriction (WholePull.map v) = SubsetPull.map (TargetSequence.restriction v) :=
+  \fun (v: TargetSequence.Fourth) => eq_reason_in!{{SourceSequence.Fifth} _
+    "=" { SourceCurrentA.backward (CurrentA.map (TargetTerm.restriction v)) } "by" {
+      congr!{{SourceTerm.Fifth} {SourceSequence.Fifth}} SourceCurrentA.backward _ _ (Current.restriction v) }
+    "=" { \root.Relative[].NegativeMap[source := SourceSubset.model, target := SourcePointed.subsetModel,
+      f := SourceA.equivalence.forward, degree := degree].map (CurrentA.map (TargetTerm.restriction v)) } "by" { SourceCurrentA.backwardFormula (CurrentA.map (TargetTerm.restriction v)) }
+    "=" { SubsetPull.map (\root.Relative[].NegativeMap[source := TargetSubset.model, target := TargetPointed.subsetModel,
+      f := TargetA.equivalence.forward, degree := degree].map (TargetTerm.restriction v)) } "by" { SubsetSquare.Negative[degree := degree].equation (TargetTerm.restriction v) }
+    "=" { SubsetPull.map (TargetSequence.restriction v) } "by" {
+      congr!{{TargetSequence.Fifth} {SourceSequence.Fifth}} SubsetPull.map _ _ (sym!{{TargetSequence.Fifth}} _ _ (TargetCurrentA.backwardFormula (TargetTerm.restriction v))) }
+  };
+\definition subset: TargetSequence.Fifth -> SourceSequence.Fifth := SubsetPull.map;
+\definition subsetAdd: \forall (v, w: TargetSequence.Fifth) -> subset (TargetSequence.fifthGroup.base.op v w) = SourceSequence.fifthGroup.base.op (subset v) (subset w) := SubsetPull.additive;
+\definition subsetZero: subset TargetSequence.fifthGroup.base.unit = SourceSequence.fifthGroup.base.unit := SubsetPull.preservesZero;
+\definition subsetNext: TargetSequence.Second -> SourceSequence.Second := SubsetNext.map;
+\definition subsetNextAdd: \forall (v, w: TargetSequence.Second) -> subsetNext (TargetSequence.secondGroup.base.op v w) = SourceSequence.secondGroup.base.op (subsetNext v) (subsetNext w) := SubsetNext.additive;
+\definition subsetNextZero: subsetNext TargetSequence.secondGroup.base.unit = SourceSequence.secondGroup.base.unit := SubsetNext.preservesZero;

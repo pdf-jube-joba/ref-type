@@ -1,0 +1,53 @@
+\import Left.Subspace[S := S] \as Domain;
+\definition range: \Pow Carrier := Joined S Right.Empty;
+\import Space.Subspace[S := range] \as Range;
+\import topology.Topology[Carrier := Domain.CarrierSet] \as SourceSpace;
+\import topology.Topology[Carrier := Range.CarrierSet] \as TargetSpace;
+\definition forward[x: Domain.CarrierSet]: Range.CarrierSet := \into[Carrier](inl x, range) \by { \bysub(A, S, x) };
+\definition injective: \forall (x, y: Domain.CarrierSet) -> forward x = forward y -> x = y :=
+  \fun (x, y: Domain.CarrierSet)(same: _) => leftInjective x y same;
+\definition rawOnto: \forall (p: Carrier)(member: Space.Member range p) -> \exists (x: Domain.CarrierSet \where forward x = (\into[Carrier](p, range) \by { member })) :=
+  \induction (p: Carrier) \return \forall (member: Space.Member range p) -> \exists (x: Domain.CarrierSet \where forward x = (\into[Carrier](p, range) \by { member })) \with {
+    | inl: \fun (x: A)(member: Left.Member S x) => Logic.existsIntro[Domain.CarrierSet,
+        { a: Domain.CarrierSet \where forward a = (\into[Carrier](inl x, range) \by { member }) }]
+        (\into[A](x, S) \by { member }) (\refl(inl x))
+    | inr: \fun (y: B)(empty: Logic.False) => Logic.falseElim
+        (\exists (x: Domain.CarrierSet \where forward x = (\into[Carrier](inr y, range) \by { empty }))) empty
+  };
+\definition onto: \forall (q: Range.CarrierSet) -> \exists (x: Domain.CarrierSet \where forward x = q) :=
+  \fun (q: Range.CarrierSet) => rawOnto q (\bysub(Carrier, range, q));
+\import topology.Continuity[A := Domain.CarrierSet, B := Carrier].Corestriction[S := range] \as Into;
+\definition continuous: topology.Continuity[A := Domain.CarrierSet, B := Range.CarrierSet].Continuous (Domain.topology left) (Range.topology space) forward :=
+  Into.corestrictContinuous (Domain.topology left) space forward
+    (topology.Continuity[A := A, B := Carrier].Restriction[S := S].restrictContinuous left space inl (inlContinuous left right));
+\import topology.Continuity[A := Domain.CarrierSet, B := Range.CarrierSet] \as Maps;
+\definition traceEquality: \forall (V: \Pow Range.CarrierSet)(U: \Pow A) -> Maps.Preimage forward V = Domain.Trace U -> V = Range.Trace (Joined U Right.Empty) :=
+  \fun (V: \Pow Range.CarrierSet)(U: \Pow A)(same: _) => \axiom:setext(V, Range.Trace (Joined U Right.Empty),
+    \block {
+      \fun (q: Range.CarrierSet)(member: TargetSpace.Member V q) \then
+      \takefrom x: \Cast[Domain.CarrierSet] ({ x: Domain.CarrierSet \where forward x = q }) \by onto q \then
+      \let equal: forward x = q := \bysub(Domain.CarrierSet, { x: Domain.CarrierSet \where forward x = q }, x) \then
+      \let atX: TargetSpace.Member V (forward x) := \idelim q = forward x \with y: Range.CarrierSet => TargetSpace.Member V y \by { base: member, equality: sym!{{Range.CarrierSet}} _ _ equal } \then
+      \let inU: SourceSpace.Member (Domain.Trace U) x := \idelim Maps.Preimage forward V = Domain.Trace U
+        \with W: \Pow Domain.CarrierSet => SourceSpace.Member W x \by { base: atX, equality: same } \then
+      \return \idelim forward x = q \with y: Range.CarrierSet => TargetSpace.Member (Range.Trace (Joined U Right.Empty)) y \by { base: inU, equality: equal }
+    },
+    \block {
+      \fun (q: Range.CarrierSet)(member: TargetSpace.Member (Range.Trace (Joined U Right.Empty)) q) \then
+      \takefrom x: \Cast[Domain.CarrierSet] ({ x: Domain.CarrierSet \where forward x = q }) \by onto q \then
+      \let equal: forward x = q := \bysub(Domain.CarrierSet, { x: Domain.CarrierSet \where forward x = q }, x) \then
+      \let inU: SourceSpace.Member (Domain.Trace U) x := \idelim q = forward x \with y: Range.CarrierSet => TargetSpace.Member (Range.Trace (Joined U Right.Empty)) y \by { base: member, equality: sym!{{Range.CarrierSet}} _ _ equal } \then
+      \let atX: TargetSpace.Member V (forward x) := \idelim Domain.Trace U = Maps.Preimage forward V
+        \with W: \Pow Domain.CarrierSet => SourceSpace.Member W x \by { base: inU, equality: sym!{\Pow Domain.CarrierSet} _ _ same } \then
+      \return \idelim forward x = q \with y: Range.CarrierSet => TargetSpace.Member V y \by { base: atX, equality: equal }
+    });
+\definition reflectsOpen: \forall (V: \Pow Range.CarrierSet) -> SourceSpace.IsOpenIn (Domain.topology left) (Maps.Preimage forward V) -> TargetSpace.IsOpenIn (Range.topology space) V :=
+  \fun (V: \Pow Range.CarrierSet)(open: _) => Domain.openTraceElim left (Maps.Preimage forward V) (TargetSpace.IsOpenIn (Range.topology space) V)
+    (\fun (U: \Pow A)(uo: _)(same: _) => \idelim Range.Trace (Joined U Right.Empty) = V
+      \with W: \Pow Range.CarrierSet => TargetSpace.IsOpenIn (Range.topology space) W \by {
+        base: Range.traceOpen space (Joined U Right.Empty) (joinedOpen U Right.Empty uo (Right.topologyLaws right).emptyOpen),
+        equality: sym!{\Pow Range.CarrierSet} _ _ (traceEquality V U same)
+      }) (Domain.openRepresentation left (Maps.Preimage forward V) open);
+\definition homeomorphism: topology.Homeomorphism[A := Domain.CarrierSet, B := Range.CarrierSet].Homeomorphism[Domain.topology left, Range.topology space] :=
+  topology.Homeomorphism[A := Domain.CarrierSet, B := Range.CarrierSet].OfQuotient[f := forward].homeomorphism
+    (Domain.topology left) (Range.topology space) injective onto continuous reflectsOpen;

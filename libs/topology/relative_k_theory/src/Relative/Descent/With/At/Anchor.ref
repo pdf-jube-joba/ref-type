@@ -1,0 +1,46 @@
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\structure Condition[w, a: Vector]: \Prop := {
+  atPoint: q = Quotient.point -> a = w,
+  outside: Logic.Not (q = Quotient.point) -> a = coordinates.zero
+};
+\definition Value[w: Vector]: \Set := \Cast[Vector] ({ a: Vector \where Condition[w, a] });
+\definition existence: \forall (w: Vector) -> \exists Value[w] := \fun (w: Vector) =>
+  either!{{(Classical.excludedMiddle (q = Quotient.point))} {\exists Value[w]}
+    {\fun (same: _) => \exact(\into[Vector](w, Value[w]) \by { Condition[w, w] {
+      atPoint := \fun (equal: _) => \refl(w),
+      outside := \fun (outside: _) => Logic.falseElim (w = coordinates.zero) (outside same)
+    } }, Value[w])}
+    {\fun (outside: _) => \exact(\into[Vector](coordinates.zero, Value[w]) \by { Condition[w, coordinates.zero] {
+      atPoint := \fun (same: _) => Logic.falseElim (coordinates.zero = w) (outside same),
+      outside := \fun (different: _) => \refl(coordinates.zero)
+    } }, Value[w])}
+  };
+\definition unique: \forall (w: Vector)(a, b: Value[w]) -> a = b := \fun (w: Vector)(a, b: Value[w]) =>
+  either!{{(Classical.excludedMiddle (q = Quotient.point))} {a = b}
+    {\fun (same: _) => trans!{Vector} _ _ _ ((\bysub(Vector, Value[w], a)).atPoint same)
+      (sym!{Vector} _ _ ((\bysub(Vector, Value[w], b)).atPoint same))}
+    {\fun (outside: _) => trans!{Vector} _ _ _ ((\bysub(Vector, Value[w], a)).outside outside)
+      (sym!{Vector} _ _ ((\bysub(Vector, Value[w], b)).outside outside))}
+  };
+\definition vector[w: Vector]: Value[w] := \choice Value[w] \by { existence: existence w, uniqueness: unique w };
+\definition condition[w: Vector]: Condition[w, vector w] := \bysub(Vector, Value[w], vector w);
+\definition atPoint: \forall (w: Vector) -> q = Quotient.point -> vector w = w := \fun (w: Vector) => (condition w).atPoint;
+\definition outside: \forall (w: Vector) -> Logic.Not (q = Quotient.point) -> vector w = coordinates.zero := \fun (w: Vector) => (condition w).outside;
+\definition zero: vector coordinates.zero = coordinates.zero := unique coordinates.zero (vector coordinates.zero)
+  (\into[Vector](coordinates.zero, Value[coordinates.zero]) \by { Condition[coordinates.zero, coordinates.zero] {
+    atPoint := \fun (same: _) => \refl(coordinates.zero), outside := \fun (different: _) => \refl(coordinates.zero)
+  } });
+\definition additive: \forall (v, w: Vector) -> vector (coordinates.add v w) = coordinates.add (vector v) (vector w) :=
+  \fun (v, w: Vector) => unique (coordinates.add v w) (vector (coordinates.add v w))
+    (\into[Vector](coordinates.add (vector v) (vector w), Value[coordinates.add v w]) \by { Condition[coordinates.add v w, coordinates.add (vector v) (vector w)] {
+      atPoint := \fun (same: _) => congr!{Vector Vector Vector} coordinates.add _ _ _ _ (atPoint v same) (atPoint w same),
+      outside := \fun (different: _) => trans!{Vector} _ _ _
+        (congr!{Vector Vector Vector} coordinates.add _ _ _ _ (outside v different) (outside w different)) (CoordinateLaws.zeroLeft coordinates.zero)
+    } });
+\definition homogeneous: \forall (a: C.Complex)(v: Vector) -> vector (coordinates.smul a v) = coordinates.smul a (vector v) :=
+  \fun (a: C.Complex)(v: Vector) => unique (coordinates.smul a v) (vector (coordinates.smul a v))
+    (\into[Vector](coordinates.smul a (vector v), Value[coordinates.smul a v]) \by { Condition[coordinates.smul a v, coordinates.smul a (vector v)] {
+      atPoint := \fun (same: _) => congr!{Vector Vector} (coordinates.smul a) _ _ (atPoint v same),
+      outside := \fun (different: _) => trans!{Vector} _ _ _ (congr!{Vector Vector} (coordinates.smul a) _ _ (outside v different)) (CoordinateLaws.scaleZero a)
+    } });

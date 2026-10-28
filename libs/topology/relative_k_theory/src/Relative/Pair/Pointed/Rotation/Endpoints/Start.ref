@@ -1,0 +1,37 @@
+\import algebraic_topology.Cylinder[A := Image.ImagePoint] \as ImageCylinder;
+\import algebraic_topology.Pointed[A := ImageSuspension.Carrier].Maps[B := Target.Carrier] \as ImageMaps;
+\definition preservesPoint: ImageToOriginal.map ImageSuspension.point = Target.point :=
+  (ImageMaps.laws (pointed ImageSuspended.result) (pointed Suspended.result) ImageToOriginal.map).pointed;
+\definition projected: \forall (z: Second.DomainPoint) -> startMap (SecondCollapse.class z) = ImageToOriginal.map (SecondRaw.map z) :=
+  \fun (z: Second.DomainPoint) => congr!{{ImageSuspension.Carrier} {Target.Carrier}} ImageToOriginal.map _ _ (SecondForward.onClass z);
+\definition atBottom: \forall (z: Second.DomainPoint) -> Second.time z = Interval.start -> Family.raw (RawCylinder.at Interval.start z) = startMap (SecondCollapse.class z) :=
+  \fun (z: Second.DomainPoint)(same: Second.time z = Interval.start) => trans!{{Target.Carrier}} _ _ _
+    (trans!{{Target.Carrier}} _ _ _
+      (congr!{{Interval.Carrier} {Target.Carrier}} (\fun (t: Interval.Carrier) => Interior.map (Pair.pair Square.CarrierSet First.Carrier (square Interval.start t) (Second.point z))) _ _ same)
+      (Formulas.atStart (Second.point z)))
+    (sym!{{Target.Carrier}} _ _ (trans!{{Target.Carrier}} _ _ _ (projected z)
+      (trans!{{Target.Carrier}} _ _ _
+        (congr!{{ImageSuspension.Carrier} {Target.Carrier}} ImageToOriginal.map _ _ ((SecondRaw.condition z).bottom same)) preservesPoint)));
+\definition atVertical: \forall (z: Second.DomainPoint) -> \In[First.Carrier] First.baseImage (Second.point z) -> Family.raw (RawCylinder.at Interval.start z) = startMap (SecondCollapse.class z) := \block {
+  \fun (z: Second.DomainPoint)(member: \In[First.Carrier] First.baseImage (Second.point z)) \then
+  \let a: Image.ImagePoint := \into[First.Carrier](Second.point z, First.baseImage) \by { member } \then
+  \let x: X := Image.equivalence.backward a \then
+  \let same: First.base x = Second.point z := Image.equivalence.rightInverse a \then
+  \let left: Family.raw (RawCylinder.at Interval.start z) = Target.class (TargetCylinder.at (Second.time z) x) :=
+    trans!{{Target.Carrier}} _ _ _
+      (congr!{{First.Carrier} {Target.Carrier}} (\fun (w: First.Carrier) => Interior.map (Pair.pair Square.CarrierSet First.Carrier (square Interval.start (Second.time z)) w)) _ _ (sym!{{First.Carrier}} _ _ same))
+      (trans!{{Target.Carrier}} _ _ _ (Formulas.atBase Interval.start (Second.time z) x)
+        (congr!{{Interval.Carrier} {Target.Carrier}} (\fun (t: Interval.Carrier) => Target.class (TargetCylinder.at t x)) _ _ (Times.advanceStart (Second.time z)))) \then
+  \let right: startMap (SecondCollapse.class z) = Target.class (TargetCylinder.at (Second.time z) x) :=
+    trans!{{Target.Carrier}} _ _ _ (projected z)
+      (trans!{{Target.Carrier}} _ _ _
+        (congr!{{ImageSuspension.Carrier} {Target.Carrier}} ImageToOriginal.map _ _ ((SecondRaw.condition z).vertical a (\refl(Second.point z))))
+        (ImageToOriginal.onClass (ImageCylinder.at (Second.time z) a))) \then
+  \return trans!{{Target.Carrier}} _ _ _ left (sym!{{Target.Carrier}} _ _ right)
+};
+\definition onClass: \forall (z: Second.DomainPoint) -> Family.map (HomotopyCylinder.at Interval.start (SecondCollapse.class z)) = startMap (SecondCollapse.class z) :=
+  \fun (z: Second.DomainPoint) => trans!{{Target.Carrier}} _ _ _ (Family.onClass Interval.start z)
+    (Logic.orElim[Second.time z = Interval.start, \In[First.Carrier] First.baseImage (Second.point z), Family.raw (RawCylinder.at Interval.start z) = startMap (SecondCollapse.class z)]
+      (\bysub(algebraic_topology.Cylinder[A := First.Carrier].Carrier, Second.domain, z)) (atBottom z) (atVertical z));
+\definition equation: \forall (z: Second.Carrier) -> Family.map (HomotopyCylinder.at Interval.start z) = startMap z :=
+  SecondCollapse.induction (\fun (z: Second.Carrier) => Family.map (HomotopyCylinder.at Interval.start z) = startMap z) onClass;

@@ -1,0 +1,30 @@
+\import Algebraic.CoordinateSum[n := n, m := m] \as Split;
+\import Algebraic.Coordinates[I := Fin.Fin n] \as Left;
+\import Algebraic.Coordinates[I := Fin.Fin m] \as Right;
+\import Algebraic.Coordinates[I := Fin.Fin Split.dimension] \as Total;
+\import \parent.Through[n := Split.dimension] \as Output;
+\import Algebraic.Linear[V := V, W := Total.Vector, source := source, target := Total.space] \as Into;
+\import Algebraic.Linear[V := Total.Vector, W := W, source := Total.space, target := target] \as Out;
+\import Algebraic.Laws[V := W, space := target] \as TargetLaws;
+\definition into: Into.Map := Into.Map {
+  apply := \fun (x: V) => Split.join (first.into.apply x) (second.into.apply x),
+  preservesAdd := \fun (x, y: V) => trans!{Total.Vector} _ _ _
+    (congr!{Left.Vector Right.Vector Total.Vector} Split.join _ _ _ _ (first.into.preservesAdd x y) (second.into.preservesAdd x y))
+    (Split.addition (first.into.apply x) (first.into.apply y) (second.into.apply x) (second.into.apply y)),
+  preservesScale := \fun (a: C.Complex)(x: V) => trans!{Total.Vector} _ _ _
+    (congr!{Left.Vector Right.Vector Total.Vector} Split.join _ _ _ _ (first.into.preservesScale a x) (second.into.preservesScale a x)) (Split.scalar a (first.into.apply x) (second.into.apply x)),
+};
+\definition out: Out.Map := Out.Map {
+  apply := \fun (x: Total.Vector) => target.add (first.out.apply (Split.left x)) (second.out.apply (Split.right x)),
+  preservesAdd := \fun (x, y: Total.Vector) => trans!{W} _ _ _
+    (congr!{W W W} target.add _ _ _ _ (first.out.preservesAdd (Split.left x) (Split.left y)) (second.out.preservesAdd (Split.right x) (Split.right y)))
+    (TargetLaws.shuffle _ _ _ _),
+  preservesScale := \fun (a: C.Complex)(x: Total.Vector) => trans!{W} _ _ _
+    (congr!{W W W} target.add _ _ _ _ (first.out.preservesScale a (Split.left x)) (second.out.preservesScale a (Split.right x))) (sym!{W} _ _ (target.vectorAdd a _ _)),
+};
+\definition factor: Output.Factor (Operations.plus f g) := Output.Factor[Operations.plus f g] {
+  into := into, out := out,
+  equation := \fun (x: V) => congr!{W W W} target.add _ _ _ _
+    (trans!{W} _ _ _ (congr!{Left.Vector W} first.out.apply _ _ (Split.leftJoin (first.into.apply x) (second.into.apply x))) (first.equation x))
+    (trans!{W} _ _ _ (congr!{Right.Vector W} second.out.apply _ _ (Split.rightJoin (first.into.apply x) (second.into.apply x))) (second.equation x)),
+};

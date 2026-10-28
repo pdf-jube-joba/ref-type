@@ -1,0 +1,114 @@
+\import \root.Measure[A := A].Sigma[] \as Sigma;
+\import \root.Measure[A := A].ValueLaws[] \as Values;
+\import Values.ScalarAdd[] \as ScalarAdd;
+\import \root.Measure[A := A].Finite[mu := mu] \as FiniteMeasure;
+\import std.Logic[].Classical[] \as Classical;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].trans;
+\definition intersection[i: Fin.Fin m] [j: Fin.Fin n]: \Pow A := Sets.Intersection (t.cells i) (s.cells j);
+\definition measurable: \forall (i: Fin.Fin m) (j: Fin.Fin n) -> Measurable mu.sigma (intersection i j) :=
+  \fun (i: Fin.Fin m) (j: Fin.Fin n) => Sigma.intersectionMeasurable mu.sigma (t.cells i) (s.cells j) (t.measurable i) (s.measurable j);
+\definition term: Dominated m t value -> \forall (i: Fin.Fin m) (j: Fin.Fin n) ->
+  Values.Included (scale (t.coefficients i) (mu.value (intersection i j))) (scale (s.coefficients j) (mu.value (intersection i j))) :=
+  \fun (dominated: Dominated m t value) (i: Fin.Fin m) (j: Fin.Fin n) =>
+    Logic.orElim _ _ _ (Classical.excludedMiddle (\exists \Cast[A] (intersection i j)))
+      (\fun (inhabited: \exists \Cast[A] (intersection i j)) => \block {
+        \takefrom x: \Cast[A] (intersection i j) \by inhabited \then
+        \let member: Sets.Member (intersection i j) x := \bysub(A, intersection i j, x) \then
+        \let ordered: R.Le (t.coefficients i) (s.coefficients j) := R.leReplaceRight (t.coefficients i) (value x) (s.coefficients j)
+          (atCell j x member.right) (dominated i x member.left) \then
+        \return ScalarAdd.monotone (t.coefficients i) (s.coefficients j) (mu.value (intersection i j)) (t.nonnegative i) ordered
+          (FiniteMeasure.laws.nonnegative (intersection i j) (measurable i j))
+      })
+      (\fun (empty: Logic.Not (\exists \Cast[A] (intersection i j))) => \block {
+        \let eq: intersection i j = Sets.Empty := \axiom:setext(intersection i j, Sets.Empty,
+          \fun (x: A) (member: Sets.Member (intersection i j) x) => empty (\exact(\into[A](x, intersection i j) \by { member }, \Cast[A] (intersection i j))),
+          \fun (x: A) (impossible: Logic.False) => Logic.falseElim _ impossible) \then
+        \let measureZero: mu.value (intersection i j) = zero :=
+          trans!{Value} _ _ _ (congr!{{\Pow A} Value} mu.value _ _ eq) FiniteMeasure.laws.empty \then
+        \return \fun (r: Real.Real) (member: below (scale (t.coefficients i) (mu.value (intersection i j))) r) =>
+          \idelim zero = scale (s.coefficients j) (mu.value (intersection i j)) \with v: Value => below v r \by {
+            base: \idelim scale (t.coefficients i) (mu.value (intersection i j)) = zero \with v: Value => below v r \by {
+              base: member, equality: trans!{Value} _ _ _
+                (congr!{Value Value} (scale (t.coefficients i)) _ _ measureZero) (Values.scaleZeroValue (t.coefficients i) (t.nonnegative i))
+            },
+            equality: sym!{Value} _ _ (trans!{Value} _ _ _
+              (congr!{Value Value} (scale (s.coefficients j)) _ _ measureZero) (Values.scaleZeroValue (s.coefficients j) (s.nonnegative j)))
+          }
+      });
+\import \root.Measure[A := A].FiniteUnion[mu := mu] \as FiniteUnion;
+\import Values.Matrix[] \as Matrix;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition matrixT[i: Fin.Fin m] [j: Fin.Fin n]: Value := scale (t.coefficients i) (mu.value (intersection i j));
+\definition matrixS[i: Fin.Fin m] [j: Fin.Fin n]: Value := scale (s.coefficients j) (mu.value (intersection i j));
+\definition matrixTN: \forall (i: Fin.Fin m) (j: Fin.Fin n) -> NonnegativeValue[matrixT i j] :=
+  \fun (i: Fin.Fin m) (j: Fin.Fin n) => Values.scaleNonnegative (t.coefficients i) (mu.value (intersection i j))
+    (t.nonnegative i) (FiniteMeasure.laws.nonnegative (intersection i j) (measurable i j));
+\definition matrixSN: \forall (i: Fin.Fin m) (j: Fin.Fin n) -> NonnegativeValue[matrixS i j] :=
+  \fun (i: Fin.Fin m) (j: Fin.Fin n) => Values.scaleNonnegative (s.coefficients j) (mu.value (intersection i j))
+    (s.nonnegative j) (FiniteMeasure.laws.nonnegative (intersection i j) (measurable i j));
+\definition fullUnion: FiniteUnion.union n s.cells = Sets.Whole :=
+  \axiom:setext(FiniteUnion.union n s.cells, Sets.Whole,
+    \fun (x: A) (_: Sets.Member (FiniteUnion.union n s.cells) x) => \refl(x),
+    \fun (x: A) (_: x = x) => \block {
+      \takefrom j: \Cast[Fin.Fin n] ({ j: Fin.Fin n \where Sets.Member (s.cells j) x }) \by covers x \then
+      \return FiniteUnion.contains n s.cells j x (\bysub(Fin.Fin n, { j: Fin.Fin n \where Sets.Member (s.cells j) x }, j))
+    });
+\definition sourceCell: \forall (i: Fin.Fin m) ->
+  mu.value (t.cells i) = sum n (\fun (j: Fin.Fin n) => mu.value (intersection i j)) :=
+  \fun (i: Fin.Fin m) => eq_reason_in!{Value _
+    "=" _ "by" { congr!{{\Pow A} Value} mu.value _ _ (\axiom:setext(t.cells i, Sets.Intersection (t.cells i) (FiniteUnion.union n s.cells),
+      \fun (x: A) (member: Sets.Member (t.cells i) x) => Logic.And[_, _]::# member
+        (\idelim Sets.Whole = FiniteUnion.union n s.cells \with S: \Pow A => Sets.Member S x \by { base: \refl(x), equality: sym!{\Pow A} _ _ fullUnion }),
+      \fun (x: A) (member: Sets.Member (Sets.Intersection (t.cells i) (FiniteUnion.union n s.cells)) x) => member.left)) }
+    "=" _ "by" { FiniteUnion.intersectionMeasure n (t.cells i) s.cells (t.measurable i) s.measurable s.disjoint }
+  };
+\definition source: simpleIntegral m t = sum m (\fun (i: Fin.Fin m) => sum n (matrixT i)) :=
+  congr!{{Fin.Fin m -> Value} Value} (sum m) _ _
+    (\axiom:funext((\fun (i: Fin.Fin m) => scale (t.coefficients i) (mu.value (t.cells i))),
+      (\fun (i: Fin.Fin m) => sum n (matrixT i)), \fun (i: Fin.Fin m) => eq_reason_in!{Value _
+        "=" _ "by" { congr!{Value Value} (scale (t.coefficients i)) _ _ (sourceCell i) }
+        "=" _ "by" { Values.scaleSum n (t.coefficients i) (\fun (j: Fin.Fin n) => mu.value (intersection i j))
+          (t.nonnegative i) (\fun (j: Fin.Fin n) => FiniteMeasure.laws.nonnegative (intersection i j) (measurable i j)) }
+      }));
+\definition swap: \forall (S, T: \Pow A) -> Sets.Intersection S T = Sets.Intersection T S :=
+  \fun (S, T: \Pow A) => \axiom:setext(Sets.Intersection S T, Sets.Intersection T S,
+    \fun (x: A) (both: Sets.Member (Sets.Intersection S T) x) => Logic.And[_, _]::# both.right both.left,
+    \fun (x: A) (both: Sets.Member (Sets.Intersection T S) x) => Logic.And[_, _]::# both.right both.left);
+\definition targetCell: \forall (j: Fin.Fin n) ->
+  sum m (\fun (i: Fin.Fin m) => matrixS i j) = scale (s.coefficients j) (mu.value (Sets.Intersection (s.cells j) (FiniteUnion.union m t.cells))) :=
+  \fun (j: Fin.Fin n) => eq_reason_in!{Value _
+    "=" _ "by" { sym!{Value} _ _ (Values.scaleSum m (s.coefficients j) (\fun (i: Fin.Fin m) => mu.value (intersection i j))
+      (s.nonnegative j) (\fun (i: Fin.Fin m) => FiniteMeasure.laws.nonnegative (intersection i j) (measurable i j))) }
+    "=" _ "by" { congr!{Value Value} (scale (s.coefficients j)) _ _
+      (congr!{{Fin.Fin m -> Value} Value} (sum m) _ _
+        (\axiom:funext((\fun (i: Fin.Fin m) => mu.value (intersection i j)),
+          (\fun (i: Fin.Fin m) => mu.value (Sets.Intersection (s.cells j) (t.cells i))),
+          \fun (i: Fin.Fin m) => congr!{{\Pow A} Value} mu.value _ _ (swap (t.cells i) (s.cells j))))) }
+    "=" _ "by" { congr!{Value Value} (scale (s.coefficients j)) _ _
+      (sym!{Value} _ _ (FiniteUnion.intersectionMeasure m (s.cells j) t.cells (s.measurable j) t.measurable t.disjoint)) }
+  };
+\definition bound: Dominated m t value -> Values.Included (simpleIntegral m t) (simpleIntegral n s) :=
+  \fun (dominated: Dominated m t value) (r: Real.Real) (member: below (simpleIntegral m t) r) => \block {
+    \let reordered: below (sum n (\fun (j: Fin.Fin n) => sum m (\fun (i: Fin.Fin m) => matrixT i j))) r :=
+      \idelim simpleIntegral m t = sum n (\fun (j: Fin.Fin n) => sum m (\fun (i: Fin.Fin m) => matrixT i j))
+        \with v: Value => below v r \by { base: member, equality: trans!{Value} _ _ _ source (Matrix.transpose m n matrixT matrixTN) } \then
+    \let compared: below (sum n (\fun (j: Fin.Fin n) => sum m (\fun (i: Fin.Fin m) => matrixS i j))) r :=
+      Values.sumMono n (\fun (j: Fin.Fin n) => sum m (\fun (i: Fin.Fin m) => matrixT i j))
+        (\fun (j: Fin.Fin n) => sum m (\fun (i: Fin.Fin m) => matrixS i j))
+        (\fun (j: Fin.Fin n) => Values.sumMono m (\fun (i: Fin.Fin m) => matrixT i j) (\fun (i: Fin.Fin m) => matrixS i j)
+          (\fun (i: Fin.Fin m) => term dominated i j)) r reordered \then
+    \let converted: below (sum n (\fun (j: Fin.Fin n) => scale (s.coefficients j) (mu.value (Sets.Intersection (s.cells j) (FiniteUnion.union m t.cells))))) r :=
+      \idelim sum n (\fun (j: Fin.Fin n) => sum m (\fun (i: Fin.Fin m) => matrixS i j)) =
+        sum n (\fun (j: Fin.Fin n) => scale (s.coefficients j) (mu.value (Sets.Intersection (s.cells j) (FiniteUnion.union m t.cells))))
+        \with v: Value => below v r \by { base: compared, equality: congr!{{Fin.Fin n -> Value} Value} (sum n) _ _
+          (\axiom:funext((\fun (j: Fin.Fin n) => sum m (\fun (i: Fin.Fin m) => matrixS i j)),
+            (\fun (j: Fin.Fin n) => scale (s.coefficients j) (mu.value (Sets.Intersection (s.cells j) (FiniteUnion.union m t.cells)))), targetCell)) } \then
+    \return Values.sumMono n (\fun (j: Fin.Fin n) => scale (s.coefficients j) (mu.value (Sets.Intersection (s.cells j) (FiniteUnion.union m t.cells))))
+      (\fun (j: Fin.Fin n) => scale (s.coefficients j) (mu.value (s.cells j)))
+      (\fun (j: Fin.Fin n) => Values.scaleMono (s.coefficients j) _ _
+        (FiniteMeasure.monotone (Sets.Intersection (s.cells j) (FiniteUnion.union m t.cells)) (s.cells j)
+          (Sigma.intersectionMeasurable mu.sigma (s.cells j) (FiniteUnion.union m t.cells) (s.measurable j) (FiniteUnion.measurable m t.cells t.measurable))
+          (s.measurable j) (\fun (x: A) (both: Sets.Member (Sets.Intersection (s.cells j) (FiniteUnion.union m t.cells)) x) => both.left))) r converted
+  };

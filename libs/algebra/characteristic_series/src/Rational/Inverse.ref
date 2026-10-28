@@ -1,0 +1,20 @@
+\import std.Set[].Quotient[A := F.Fraction, Equivalent := F.FractionEq] \as Classes;
+\import Q.Division[].Def[] \as Division;
+\definition Nonzero: \Set := Q.NonZeroRat;
+\definition inverse[a: Nonzero]: Carrier := Division.div one a;
+\definition inverseLaw: \forall (a: Nonzero) -> mul a (inverse a) = one := \block {
+  \fun (a: Nonzero) \then
+  \takefrom b: Classes.Representative a \by Classes.classProperty a \then
+  \let same: a = Q.class b := Classes.represents a b \then
+  \let member: Q.mem a b := \idelim Q.class b = a \with c: Carrier => Q.mem c b
+    \by { base: F.fractionEqRefl b, equality: sym!{Carrier} _ _ same } \then
+  \let nonzero: F.NumeratorNonZero b := Q.nonZeroProperty a b member \then
+  \let value: inverse a = Q.class (FD.reciprocal b) := trans!{Carrier} _ _ _
+    (Division.divOfRepresentatives one a F.one b (\refl(one)) same)
+    (classEqual _ _ (FL.fractionMulOneLeft (FD.reciprocal b))) \then
+  \return eq_reason_in!{Carrier _
+    "=" _ "by" { congr!{Carrier Carrier Carrier} mul _ _ _ _ same value }
+    "=" _ "by" { Q.mulRatClass b (FD.reciprocal b) }
+    "=" _ "by" { classEqual _ _ (FL.fractionMulReciprocal b nonzero) }
+  }
+};

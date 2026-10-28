@@ -1,0 +1,74 @@
+\import \root.Relative[].Pair[X := X0, space := space0, compact := compact0, hausdorff := hausdorff0, subset := subset0, closed := closed0] \as SourceLeft;
+\import \root.Relative[].Pair[X := Y0, space := otherSpace0, compact := otherCompact0, hausdorff := otherHausdorff0,
+  subset := otherSubset0, closed := otherClosed0] \as SourceRight;
+\import SourceLeft.Quotient[] \as SourceLeftQ;
+\import SourceRight.Quotient[] \as SourceRightQ;
+\import SourceLeft.Product[Y := Y0, otherSpace := otherSpace0, otherCompact := otherCompact0, otherHausdorff := otherHausdorff0,
+  otherSubset := otherSubset0, otherClosed := otherClosed0] \as Domain;
+\import \root.Relative[].Pair[X := Domain.Z, space := Domain.topology, compact := Domain.compactProduct, hausdorff := Domain.hausdorffProduct,
+  subset := Domain.boundary, closed := Domain.boundaryClosed].Quotient[] \as DomainQ;
+\import \parent.\parent.Mapping[Y := X0, source := space0, sourceCompact := compact0, sourceHausdorff := hausdorff0,
+  sourceSubset := subset0, sourceClosed := closed0, f := f, regular := fRegular, preserves := fPreserves] \as LeftMap;
+\import \root.Relative[].Pair[X := Y, space := otherSpace, compact := otherCompact, hausdorff := otherHausdorff, subset := otherSubset, closed := otherClosed].Mapping[
+  Y := Y0, source := otherSpace0, sourceCompact := otherCompact0, sourceHausdorff := otherHausdorff0,
+  sourceSubset := otherSubset0, sourceClosed := otherClosed0, f := g, regular := gRegular, preserves := gPreserves] \as RightMap;
+\import topological_constructions.Product[A := X0, B := Y0].Maps[] \as DomainProjections;
+\definition raw[z: Domain.Z]: Z := Pair.pair X Y (f (Domain.first z)) (g (Domain.second z));
+\definition regular: topology.Continuity[A := Domain.Z, B := Z].Continuous Domain.topology topology raw :=
+  Cartesian.Universal[X := Domain.Z].pairContinuous Domain.topology space otherSpace
+    (\fun (z: Domain.Z) => f (Domain.first z)) (\fun (z: Domain.Z) => g (Domain.second z))
+    (topology.Composition[A := Domain.Z, B := X0, C := X].composeContinuous Domain.topology space0 space
+      Domain.first f (DomainProjections.firstContinuous space0 otherSpace0) fRegular)
+    (topology.Composition[A := Domain.Z, B := Y0, C := Y].composeContinuous Domain.topology otherSpace0 otherSpace
+      Domain.second g (DomainProjections.secondContinuous space0 otherSpace0) gRegular);
+\definition preserves: \forall (z: Domain.Z) -> \In[Domain.Z] Domain.boundary z -> \In[Z] boundary (raw z) :=
+  \fun (z: Domain.Z)(member: \In[Domain.Z] Domain.boundary z) =>
+    Logic.orElim[\In[X0] subset0 (Domain.first z), \In[Y0] otherSubset0 (Domain.second z), \In[Z] boundary (raw z)] member
+      (\fun (inside: \In[X0] subset0 (Domain.first z)) => Logic.Or[_, _]::left (fPreserves (Domain.first z) inside))
+      (\fun (inside: \In[Y0] otherSubset0 (Domain.second z)) => Logic.Or[_, _]::right (gPreserves (Domain.second z) inside));
+\import \root.Relative[].Pair[X := Z, space := topology, compact := compactProduct, hausdorff := hausdorffProduct,
+  subset := boundary, closed := boundaryClosed].Mapping[Y := Domain.Z, source := Domain.topology, sourceCompact := Domain.compactProduct,
+  sourceHausdorff := Domain.hausdorffProduct, sourceSubset := Domain.boundary, sourceClosed := Domain.boundaryClosed,
+  f := raw, regular := regular, preserves := preserves] \as ProductMap;
+\definition map: Map Domain.model model := ProductMap.quotientMap;
+\import \root.Relative[].Smash[left := SourceLeftQ.model, right := SourceRightQ.model] \as SourceSmash;
+\import SourceSmash.Mapping[targetLeft := Left.model, targetRight := Right.model, f := LeftMap.quotientMap, g := RightMap.quotientMap] \as SmashMap;
+\import Domain.QuotientComparison[] \as SourceComparison;
+\import \parent.QuotientComparison[] \as TargetComparison;
+\import \root.Relative[].Composition[source := Domain.model, middle := model, target := Smash.result,
+  first := map, second := TargetComparison.equivalence.forward] \as Top;
+\import \root.Relative[].Composition[source := Domain.model, middle := SourceSmash.result, target := Smash.result,
+  first := SourceComparison.equivalence.forward, second := SmashMap.map] \as Bottom;
+\definition imageNaturality: \forall (z: Domain.Z) -> SmashMap.map (Domain.original z) = original (raw z) :=
+  \fun (z: Domain.Z) => trans!{{Smash.result.Carrier}} _ _ _ (SmashMap.onProjection (Domain.image z))
+    (congr!{{Smash.model.Carrier} {Smash.result.Carrier}} Smash.projection _ _
+      (Pair.Prop[A := Left.Carrier, B := Right.Carrier].ext _ _
+        (LeftMap.onProjection (Domain.first z)) (RightMap.onProjection (Domain.second z))));
+\definition onOriginal: \forall (z: Domain.Z) -> Top.map (DomainQ.projection z) = Bottom.map (DomainQ.projection z) :=
+  \fun (z: Domain.Z) => trans!{{Smash.result.Carrier}} _ _ _
+    (congr!{{model.Carrier} {Smash.result.Carrier}} TargetComparison.equivalence.forward _ _ (ProductMap.onProjection z))
+    (trans!{{Smash.result.Carrier}} _ _ _ (TargetComparison.onProjection (raw z))
+      (sym!{{Smash.result.Carrier}} _ _ (trans!{{Smash.result.Carrier}} _ _ _
+        (congr!{{SourceSmash.result.Carrier} {Smash.result.Carrier}} SmashMap.map _ _ (SourceComparison.onProjection z)) (imageNaturality z))));
+\import topological_constructions.Coproduct[A := Domain.Z, B := DomainQ.Point] \as Augment;
+\import algebraic_topology.Collapse[A := DomainQ.Augmented, subset := DomainQ.collapsedPart] \as Collapse;
+\import algebraic_topology.Pointed[A := Domain.model.Carrier].Maps[B := Smash.result.Carrier] \as Maps;
+\definition pointSquare: Top.map DomainQ.point = Bottom.map DomainQ.point := trans!{{Smash.result.Carrier}} _ _ _
+  (Maps.laws (pointed Domain.model) (pointed Smash.result) Top.map).pointed
+  (sym!{{Smash.result.Carrier}} _ _ (Maps.laws (pointed Domain.model) (pointed Smash.result) Bottom.map).pointed);
+\definition onStar: \forall (p: DomainQ.Point) -> Top.map (Collapse.class (Augment.inr p)) = Bottom.map (Collapse.class (Augment.inr p)) := \block {
+  \fun (p: DomainQ.Point) \then
+  \let same: Collapse.class (Augment.inr p) = DomainQ.point := Collapse.collapsed (Augment.inr p) (Augment.inr DomainQ.distinguished) (\refl(p)) (\refl(DomainQ.distinguished)) \then
+  \return trans!{{Smash.result.Carrier}} _ _ _ (congr!{{Domain.model.Carrier} {Smash.result.Carrier}} Top.map _ _ same)
+    (trans!{{Smash.result.Carrier}} _ _ _ pointSquare (sym!{{Smash.result.Carrier}} _ _ (congr!{{Domain.model.Carrier} {Smash.result.Carrier}} Bottom.map _ _ same)))
+};
+\definition commutes: \forall (q: Domain.model.Carrier) -> TargetComparison.equivalence.forward (map q) = SmashMap.map (SourceComparison.equivalence.forward q) :=
+  Collapse.induction (\fun (q: Domain.model.Carrier) => Top.map q = Bottom.map q)
+    (\induction (z: DomainQ.Augmented) \return Top.map (Collapse.class z) = Bottom.map (Collapse.class z) \with {
+      | inl: onOriginal
+      | inr: onStar
+    });
+\import \root.Relative[].Square[A := Domain.model, B := model, C := SourceSmash.result, D := Smash.result,
+  f := map, g := TargetComparison.equivalence.forward, h := SourceComparison.equivalence.forward, k := SmashMap.map, commutes := commutes] \as Square;
+\module External;
+\module Negative(firstDegree, secondDegree: N.Nat^);

@@ -1,0 +1,44 @@
+\import std.Data[].Pair[] \as Pair;
+\import Pair.Prop[A := X, B := Y] \as Pairs;
+\import topological_constructions.Product[A := X, B := Y] \as Cartesian;
+\import Cartesian.Maps[] \as Projections;
+\import topology.Topology[Carrier := Cartesian.CarrierSet] \as ProductSpace;
+\definition Z: \Set := Cartesian.CarrierSet;
+\definition topology: ProductSpace.Topology := Cartesian.topology space otherSpace;
+\definition compactProduct: ProductSpace.IsCompact topology := Cartesian.Compactness[].productCompact space otherSpace compact otherCompact;
+\definition hausdorffProduct: ProductSpace.IsT2 topology := topological_constructions.Separation[].Product[A := X, B := Y].On[
+  left := space, right := otherSpace, leftHausdorff := hausdorff, rightHausdorff := otherHausdorff].hausdorff;
+\definition first: Z -> X := Pair.first X Y;
+\definition second: Z -> Y := Pair.second X Y;
+\definition boundary: \Pow Z := { z: Z \where Logic.Or[\In[X] subset (first z), \In[Y] otherSubset (second z)] };
+\import topology.Continuity[A := Z, B := X] \as FirstMaps;
+\import topology.Continuity[A := Z, B := Y] \as SecondMaps;
+\definition boundaryClosed: ProductSpace.IsClosedIn topology boundary := ProductSpace.Finite[].joinClosed topology
+  (FirstMaps.Preimage first subset) (SecondMaps.Preimage second otherSubset)
+  (FirstMaps.closedPreimage topology space first (Projections.firstContinuous space otherSpace) subset closed)
+  (SecondMaps.closedPreimage topology otherSpace second (Projections.secondContinuous space otherSpace) otherSubset otherClosed);
+\import \parent.Quotient[] \as Left;
+\import \root.Relative[].Pair[X := Y, space := otherSpace, compact := otherCompact, hausdorff := otherHausdorff,
+  subset := otherSubset, closed := otherClosed].Quotient[] \as Right;
+\import \root.Relative[].Pair[X := Z, space := topology, compact := compactProduct, hausdorff := hausdorffProduct,
+  subset := boundary, closed := boundaryClosed].Quotient[] \as Quotient;
+\import \root.Relative[].Smash[left := Left.model, right := Right.model] \as Smash;
+\definition model: CompactPointed := Quotient.model;
+\definition Relative: \Set := Quotient.Relative;
+\definition group: std.Alg[].Alg[].CommutativeGroup[Relative] := Quotient.group;
+\definition image[z: Z]: Smash.model.Carrier := Pair.pair Left.Carrier Right.Carrier (Left.projection (first z)) (Right.projection (second z));
+\definition original[z: Z]: Smash.result.Carrier := Smash.projection (image z);
+\module QuotientComparison;
+\module External;
+\module Negative(firstDegree, secondDegree: N.Nat^);
+\module Pullback(X0: \Set, space0: topology.Topology[Carrier := X0].Topology,
+  compact0: topology.Topology[Carrier := X0].IsCompact space0, hausdorff0: topology.Topology[Carrier := X0].IsT2 space0,
+  subset0: \Pow X0, closed0: topology.Topology[Carrier := X0].IsClosedIn space0 subset0,
+  Y0: \Set, otherSpace0: topology.Topology[Carrier := Y0].Topology,
+  otherCompact0: topology.Topology[Carrier := Y0].IsCompact otherSpace0, otherHausdorff0: topology.Topology[Carrier := Y0].IsT2 otherSpace0,
+  otherSubset0: \Pow Y0, otherClosed0: topology.Topology[Carrier := Y0].IsClosedIn otherSpace0 otherSubset0,
+  f: X0 -> X, g: Y0 -> Y,
+  fRegular: topology.Continuity[A := X0, B := X].Continuous space0 space f,
+  gRegular: topology.Continuity[A := Y0, B := Y].Continuous otherSpace0 otherSpace g,
+  fPreserves: \forall (x: X0) -> \In[X0] subset0 x -> \In[X] subset (f x),
+  gPreserves: \forall (y: Y0) -> \In[Y0] otherSubset0 y -> \In[Y] otherSubset (g y));

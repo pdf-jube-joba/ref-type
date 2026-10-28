@@ -1,0 +1,23 @@
+\import \root.Relative[].PointedPair[pair := iteratePair degree pair] \as Current;
+\import \parent.ProjectionAt[degree := degree] \as Square;
+\import \parent.WholeGroups[degree := degree] \as Whole;
+\import \parent.Groups[degree := degree] \as Quotient;
+\import \root.Relative[].Negative[original := Original.quotientModel, degree := degree] \as Negative;
+\import \root.Relative[].Reduced[model := (iteratePair degree pair).model] \as Result;
+\import \root.Relative[].NegativeMap[source := pair.model, target := Original.quotientModel, f := Original.projection, degree := degree] \as Projection;
+\import \root.Relative[].Pullback[source := (iteratePair degree pair).model, target := Current.quotientModel, f := Current.projection] \as CurrentProjection;
+\import \root.Relative[].Pullback[source := (iteratePair degree pair).model, target := iterate degree Original.quotientModel, f := Square.left] \as Left;
+\import \root.Relative[].Pullback[source := (iteratePair degree pair).model, target := iterate degree Original.quotientModel, f := Square.right] \as Right;
+\definition changed: \forall (v: Negative.Carrier) -> Left.map v = Right.map v :=
+  \fun (v: Negative.Carrier) => congr!{{Map (iteratePair degree pair).model (iterate degree Original.quotientModel)} {Result.Carrier}}
+    (\fun (f: Map (iteratePair degree pair).model (iterate degree Original.quotientModel)) => \root.Relative[].Pullback[source := (iteratePair degree pair).model, target := iterate degree Original.quotientModel, f := f].map v)
+    _ _ (projectionNaturality degree);
+\definition pullbackEquation: \forall (v: Negative.Carrier) -> CurrentProjection.map (Quotient.forward v) = Whole.forward (Projection.map v) :=
+  \fun (v: Negative.Carrier) => trans!{{Result.Carrier}} _ _ _
+    (sym!{{Result.Carrier}} _ _ (\root.Relative[].PullbackComposition[source := (iteratePair degree pair).model, middle := Current.quotientModel, target := iterate degree Original.quotientModel,
+      first := Current.projection, second := (quotientComparison degree).forward].equation v))
+    (trans!{{Result.Carrier}} _ _ _ (changed v)
+      (\root.Relative[].PullbackComposition[source := (iteratePair degree pair).model, middle := iterate degree pair.model, target := iterate degree Original.quotientModel,
+        first := (wholeComparison degree).forward, second := iterateMap degree pair.model Original.quotientModel Original.projection].equation v));
+\definition equation: \forall (v: Negative.Carrier) -> Current.forget (Quotient.forward v) = Whole.forward (Projection.map v) :=
+  \fun (v: Negative.Carrier) => trans!{{Result.Carrier}} _ _ _ (sym!{{Result.Carrier}} _ _ (Current.forgetProjectionEquation (Quotient.forward v))) (pullbackEquation v);

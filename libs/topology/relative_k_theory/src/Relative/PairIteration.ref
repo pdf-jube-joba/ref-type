@@ -1,0 +1,73 @@
+\definition iteratePair[n: N.Nat^][original: ClosedPointedPair]: ClosedPointedPair :=
+  (\induction (n: N.Nat^) \return ClosedPointedPair \with {
+    | zero: original
+    | succ: \fun (n: N.Nat^)(previous: ClosedPointedPair) => \root.Relative[].PointedPair[pair := previous].suspended
+  }) n;
+\import \root.Relative[].PointedPair[pair := pair] \as Original;
+\definition modelEquation[degree: N.Nat^]: (iteratePair degree pair).model = iterate degree pair.model :=
+  (\induction (degree: N.Nat^) \return (iteratePair degree pair).model = iterate degree pair.model \with {
+    | zero: \refl(pair.model)
+    | succ: \fun (n: N.Nat^)(previous: (iteratePair n pair).model = iterate n pair.model) =>
+      trans!{{CompactPointed}} _ _ _ (\root.Relative[].PointedPair[pair := iteratePair n pair].suspendedModel)
+        (congr!{{CompactPointed} {CompactPointed}} (\fun (model: CompactPointed) => \root.Relative[].Suspension[original := model].result) _ _ previous)
+  }) degree;
+\definition identityFor[model: CompactPointed]: \root.Relative[].Equivalence[source := model, target := model].Data :=
+  \root.Relative[].Equivalence[source := model, target := model].Data {
+    forward := \root.Relative[].Identity[model := model].map,
+    backward := \root.Relative[].Identity[model := model].map,
+    leftInverse := \fun (x: model.Carrier) => \refl(x),
+    rightInverse := \fun (x: model.Carrier) => \refl(x)
+  };
+\definition identity: \root.Relative[].Equivalence[source := Original.quotientModel, target := Original.quotientModel].Data := identityFor Original.quotientModel;
+\module QuotientStep(degree: N.Nat^, previous: \root.Relative[].Equivalence[source := \root.Relative[].PointedPair[pair := iteratePair degree pair].quotientModel,
+  target := iterate degree Original.quotientModel].Data);
+\definition quotientComparison[degree: N.Nat^]: \root.Relative[].Equivalence[source := \root.Relative[].PointedPair[pair := iteratePair degree pair].quotientModel,
+  target := iterate degree Original.quotientModel].Data :=
+  (\induction (degree: N.Nat^) \return \root.Relative[].Equivalence[source := \root.Relative[].PointedPair[pair := iteratePair degree pair].quotientModel,
+    target := iterate degree Original.quotientModel].Data \with {
+      | zero: identity
+      | succ: \fun (n: N.Nat^)(previous: \root.Relative[].Equivalence[source := \root.Relative[].PointedPair[pair := iteratePair n pair].quotientModel,
+        target := iterate n Original.quotientModel].Data) => QuotientStep[degree := n, previous := previous].result
+    }) degree;
+\module Groups(degree: N.Nat^);
+\definition subsetIdentity: \root.Relative[].Equivalence[source := Original.subsetModel, target := Original.subsetModel].Data := identityFor Original.subsetModel;
+\definition wholeIdentity: \root.Relative[].Equivalence[source := pair.model, target := pair.model].Data := identityFor pair.model;
+\module WholeStep(degree: N.Nat^, previous: \root.Relative[].Equivalence[source := (iteratePair degree pair).model, target := iterate degree pair.model].Data);
+\module SubsetStep(degree: N.Nat^, previous: \root.Relative[].Equivalence[source := \root.Relative[].PointedPair[pair := iteratePair degree pair].subsetModel,
+  target := iterate degree Original.subsetModel].Data);
+\definition wholeComparison[degree: N.Nat^]: \root.Relative[].Equivalence[source := (iteratePair degree pair).model, target := iterate degree pair.model].Data :=
+  (\induction (degree: N.Nat^) \return \root.Relative[].Equivalence[source := (iteratePair degree pair).model, target := iterate degree pair.model].Data \with {
+    | zero: wholeIdentity
+    | succ: \fun (n: N.Nat^)(previous: \root.Relative[].Equivalence[source := (iteratePair n pair).model, target := iterate n pair.model].Data) =>
+      WholeStep[degree := n, previous := previous].result
+  }) degree;
+\definition subsetComparison[degree: N.Nat^]: \root.Relative[].Equivalence[source := \root.Relative[].PointedPair[pair := iteratePair degree pair].subsetModel,
+  target := iterate degree Original.subsetModel].Data :=
+  (\induction (degree: N.Nat^) \return \root.Relative[].Equivalence[source := \root.Relative[].PointedPair[pair := iteratePair degree pair].subsetModel,
+    target := iterate degree Original.subsetModel].Data \with {
+      | zero: subsetIdentity
+      | succ: \fun (n: N.Nat^)(previous: \root.Relative[].Equivalence[source := \root.Relative[].PointedPair[pair := iteratePair n pair].subsetModel,
+        target := iterate n Original.subsetModel].Data) => SubsetStep[degree := n, previous := previous].result
+    }) degree;
+\module WholeGroups(degree: N.Nat^);
+\module SubsetGroups(degree: N.Nat^);
+\module InclusionAt(degree: N.Nat^);
+\module InclusionStep(degree: N.Nat^, previous: \parent.InclusionAt[degree := degree].Equation);
+\definition inclusionNaturality[degree: N.Nat^]: InclusionAt[degree := degree].Equation :=
+  (\induction (degree: N.Nat^) \return InclusionAt[degree := degree].Equation \with {
+    | zero: \axiom:funext(InclusionAt[degree := N.Nat^::zero].left, InclusionAt[degree := N.Nat^::zero].right,
+        (\fun (x: Original.subsetModel.Carrier) => \refl(Original.inclusion x)))
+    | succ: \fun (n: N.Nat^)(previous: InclusionAt[degree := n].Equation) => InclusionStep[degree := n, previous := previous].equation
+  }) degree;
+\module ProjectionAt(degree: N.Nat^);
+\module ProjectionStep(degree: N.Nat^, previous: \parent.ProjectionAt[degree := degree].Equation);
+\definition projectionNaturality[degree: N.Nat^]: ProjectionAt[degree := degree].Equation :=
+  (\induction (degree: N.Nat^) \return ProjectionAt[degree := degree].Equation \with {
+    | zero: \axiom:funext(ProjectionAt[degree := N.Nat^::zero].left, ProjectionAt[degree := N.Nat^::zero].right,
+        (\fun (x: pair.model.Carrier) => \refl(Original.projection x)))
+    | succ: \fun (n: N.Nat^)(previous: ProjectionAt[degree := n].Equation) => ProjectionStep[degree := n, previous := previous].equation
+  }) degree;
+\module InclusionPullback(degree: N.Nat^);
+\module ProjectionPullback(degree: N.Nat^);
+\module SuspendedInclusion(degree: N.Nat^);
+\module Sequence(degree: N.Nat^);

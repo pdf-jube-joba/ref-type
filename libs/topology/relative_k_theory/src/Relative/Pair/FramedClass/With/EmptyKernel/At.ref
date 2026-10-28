@@ -1,0 +1,23 @@
+\import \parent.\parent.Stabilized[k := k] \as Stabilized;
+\definition m: N.Nat^ := Stabilized.dimension;
+\import Bundles.Trivial[X := X, n := k, baseSpace := space] \as Added;
+\import Bundles.Trivial[X := X, n := m, baseSpace := space] \as Whole;
+\import Operations.DirectSum[X := X, F := (\fun (x: X) => Bundles.Vector n), G := (\fun (x: X) => Bundles.Vector k), left := OriginalTrivial.bundle, right := Added.bundle] \as CoordinateSum;
+\definition coordinateBundle: Bundles.Family[X := X, F := CoordinateSum.Fiber].Bundle := CoordinateSum.bundle (\refl(space));
+\import Operations.GlobalFrame[X := X, F := CoordinateSum.Fiber, bundle := coordinateBundle,
+  chart := (CoordinateSum.In[c := OriginalTrivial.trivialization, d := Added.trivialization].trivialization (\refl(space))),
+  covers := (\fun (x: X) => Logic.And[x = x, x = x]::# (\refl(x)) (\refl(x)))] \as Join;
+\import Operations.IsomorphismComposition[X := X, F := Stabilized.Fiber, G := CoordinateSum.Fiber, H := (\fun (x: X) => Bundles.Vector m),
+  source := Stabilized.bundle, middle := coordinateBundle, target := Whole.bundle] \as Global;
+\definition global: Global.Isomorphism := Global.compose iso Join.isomorphism;
+\definition globalLaws: Bundles.Isomorphisms[X := X, F := Stabilized.Fiber, G := (\fun (x: X) => Bundles.Vector m), source := Stabilized.bundle, target := Whole.bundle].Laws[global] :=
+  \bysub(Bundles.Isomorphisms[X := X, F := Stabilized.Fiber, G := (\fun (x: X) => Bundles.Vector m), source := Stabilized.bundle, target := Whole.bundle].Data,
+    Bundles.Isomorphisms[X := X, F := Stabilized.Fiber, G := (\fun (x: X) => Bundles.Vector m), source := Stabilized.bundle, target := Whole.bundle].Isomorphism, global);
+\definition extends: \forall (x: A)(v: Stabilized.Fiber x) ->
+  (global.forward.fiber x).apply v = (Stabilized.frame.forward.fiber x).apply v :=
+  \fun (x: A)(v: Stabilized.Fiber x) => Logic.falseElim
+    ((global.forward.fiber x).apply v = (Stabilized.frame.forward.fiber x).apply v) (empty x);
+\import \parent.\parent.\parent.\parent.FramedClass[F := Stabilized.Fiber, sourceModel := Stabilized.bundleModel, n := m].With[
+  alpha := Stabilized.frame].Global[h := global, extends := extends] \as Vanishing;
+\definition equation: value = ReducedGroup.zero := trans!{{Quotient.Relative}} _ _ _
+  (sym!{{Quotient.Relative}} _ _ Stabilized.equation) Vanishing.equation;

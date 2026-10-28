@@ -1,0 +1,27 @@
+\import algebraic_topology.Pointed[A := source.Carrier].Maps[B := target.Carrier] \as Maps;
+\import KTheory.On[X := target.Carrier, baseSpace := (details target).topology, compact := (details target).compact, hausdorff := (details target).hausdorff] \as Absolute;
+\import Absolute.Pullback[Y := source.Carrier, space := (details source).topology, sourceCompact := (details source).compact, sourceHausdorff := (details source).hausdorff,
+  f := f, regular := (Maps.laws (pointed source) (pointed target) f).continuous] \as Pull;
+\import Pull.Ranks[].Reduced[point := (details target).point, sourcePoint := (details source).point, preserves := (Maps.laws (pointed source) (pointed target) f).pointed] \as Native;
+\import \parent.Reduced[model := target] \as From;
+\import \parent.Reduced[model := source] \as To;
+\definition map: From.Carrier -> To.Carrier := Native.map;
+\definition additive: \forall (x, y: From.Carrier) -> map (From.group.base.op x y) = To.group.base.op (map x) (map y) := Native.additive;
+\import Absolute.K0[] \as SourceK;
+\import KTheory.On[X := source.Carrier, baseSpace := (details source).topology, compact := (details source).compact, hausdorff := (details source).hausdorff].K0[] \as TargetK;
+\import algebra.Hom[A := SourceK.Carrier, B := TargetK.Carrier] \as RingMaps;
+\definition preservesZero: map From.group.base.unit = To.group.base.unit :=
+  (RingMaps.semiringLaws (std.Alg[].Ring[].ringAsSemiring SourceK.Carrier SourceK.ring)
+    (std.Alg[].Ring[].ringAsSemiring TargetK.Carrier TargetK.ring) Pull.K0[].map).zero;
+\import algebra.Hom[A := From.Carrier, B := To.Carrier] \as Hom;
+\import std.Alg[].Alg[] \as Alg;
+\import std.Alg[].Monoid[] \as Monoid;
+\definition homomorphism: Hom.GroupMap (Alg.asGroup From.Carrier From.group) (Alg.asGroup To.Carrier To.group) :=
+  \into[From.Carrier -> To.Carrier](map, Hom.GroupMap (Alg.asGroup From.Carrier From.group) (Alg.asGroup To.Carrier To.group)) \by {
+    Hom.MonoidLaws[
+      (\into[Monoid.MonoidData[From.Carrier]](Alg.groupMonoid From.Carrier (Alg.asGroup From.Carrier From.group), Monoid.Monoid[From.Carrier]) \by { (Alg.asGroup From.Carrier From.group).monoid }),
+      (\into[Monoid.MonoidData[To.Carrier]](Alg.groupMonoid To.Carrier (Alg.asGroup To.Carrier To.group), Monoid.Monoid[To.Carrier]) \by { (Alg.asGroup To.Carrier To.group).monoid }), map] {
+      unit := preservesZero, operation := additive
+    }
+  };
+\module Multiplication;

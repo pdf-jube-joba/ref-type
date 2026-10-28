@@ -1,0 +1,26 @@
+\import \root.Measure[A := A].ValueLaws[].Append[m := m, n := n] \as Previous;
+\import \root.Measure[A := A].ValueLaws[].Append[m := N.Nat^::succ m, n := n] \as Next;
+\import Fin.Sum[m := m, n := n] \as Indices;
+\import Fin.Sum[m := N.Nat^::succ m, n := n] \as NextIndices;
+\import std.Data[].Sum[] \as Sum;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].trans;
+\use std.Logic[].Equality[].congr;
+\definition head: \forall (f: Fin.Fin (N.Nat^::succ m) -> Value) (g: Fin.Fin n -> Value) ->
+  Next.join f g (Fin.zero (Previous.total)) = f (Fin.zero m) :=
+  \fun (f: Fin.Fin (N.Nat^::succ m) -> Value) (g: Fin.Fin n -> Value) => Next.atLeft f g (Fin.zero m);
+\definition tail: \forall (f: Fin.Fin (N.Nat^::succ m) -> Value) (g: Fin.Fin n -> Value) ->
+  (\fun (i: Fin.Fin Previous.total) => Next.join f g (Fin.succ Previous.total i)) =
+  Previous.join (\fun (i: Fin.Fin m) => f (Fin.succ m i)) g :=
+  \fun (f: Fin.Fin (N.Nat^::succ m) -> Value) (g: Fin.Fin n -> Value) =>
+    \axiom:funext((\fun (i: Fin.Fin Previous.total) => Next.join f g (Fin.succ Previous.total i)),
+      Previous.join (\fun (i: Fin.Fin m) => f (Fin.succ m i)) g,
+      \fun (i: Fin.Fin Previous.total) => \idelim Indices.inflate (Indices.split i) = i \with j: Fin.Fin Previous.total =>
+        Next.join f g (Fin.succ Previous.total j) = Previous.join (\fun (i: Fin.Fin m) => f (Fin.succ m i)) g j \by {
+          base: (\induction (j: Indices.Index) \return Next.join f g (Fin.succ Previous.total (Indices.inflate j)) = Previous.join (\fun (i: Fin.Fin m) => f (Fin.succ m i)) g (Indices.inflate j) \with {
+            | inl: \fun (j: Fin.Fin m) => trans!{Value} _ _ _ (Next.atLeft f g (Fin.succ m j))
+              (sym!{Value} _ _ (Previous.atLeft (\fun (i: Fin.Fin m) => f (Fin.succ m i)) g j))
+            | inr: \fun (j: Fin.Fin n) => trans!{Value} _ _ _ (Next.atRight f g j)
+              (sym!{Value} _ _ (Previous.atRight (\fun (i: Fin.Fin m) => f (Fin.succ m i)) g j))
+          }) (Indices.split i), equality: Indices.inflateSplit i
+        });

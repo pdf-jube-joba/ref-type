@@ -1,0 +1,98 @@
+\import Spaces.Blocks[V := Vector p.dimension, W := Vector q.dimension, left := coordinates p.dimension, right := coordinates q.dimension] \as Blocks;
+\import Spaces.Linear[V := Vector q.dimension, W := Vector p.dimension, source := coordinates q.dimension, target := coordinates p.dimension] \as Rows;
+\import Spaces.Linear[V := Vector p.dimension, W := Vector q.dimension, source := coordinates p.dimension, target := coordinates q.dimension] \as Columns;
+\import Spaces.Linear[V := Sum.Fiber w, W := Sum.Fiber w, source := Sum.fiberSpace w, target := Sum.fiberSpace w] \as End;
+\import End.Composition[U := Sum.Fiber w, domain := Sum.fiberSpace w] \as Composition;
+\definition word[row: Rows.Map][column: Columns.Map]: End.Map := Composition.compose (Blocks.upper row Algebra.field.one)
+  (Composition.compose (Blocks.lower column (Algebra.field.neg Algebra.field.one)) (Blocks.upper row Algebra.field.one));
+\definition rowEquality: Row.map.fiber w = f w := Rows.ext (Row.map.fiber w) (f w)
+  (\axiom:funext((Row.map.fiber w).apply, (f w).apply, Row.onSubset w));
+\definition columnEquality: Column.map.fiber w = g w := Columns.ext (Column.map.fiber w) (g w)
+  (\axiom:funext((Column.map.fiber w).apply, (g w).apply, Column.onSubset w));
+\definition wordEquality: word (Row.map.fiber w) (Column.map.fiber w) = word (f w) (g w) :=
+  congr!{{Rows.Map} {Columns.Map} {End.Map}} word _ _ _ _ rowEquality columnEquality;
+\definition localFormula: \forall (z: Sum.Fiber w) -> (exchange.forward.fiber w).apply z = (word (f w) (g w)).apply z :=
+  \fun (z: Sum.Fiber w) => congr!{{End.Map} {Sum.Fiber w}} (\fun (h: End.Map) => h.apply z) _ _ wordEquality;
+\use Equality.eq_reason_in;
+\import std.Data[].Pair[] \as Pair;
+\import Pair.Prop[A := Vector p.dimension, B := Vector q.dimension] \as Pairs;
+\definition L: Spaces.VectorSpace (Vector p.dimension) := coordinates p.dimension;
+\definition R: Spaces.VectorSpace (Vector q.dimension) := coordinates q.dimension;
+\import Spaces.Laws[V := Vector p.dimension, space := L] \as Left;
+\import Spaces.Laws[V := Vector q.dimension, space := R] \as Right;
+\import Spaces.Rotation[V := Vector q.dimension, space := R] \as Rotation;
+\definition make[v: Vector p.dimension][z: Vector q.dimension]: Sum.Fiber w := Pair.pair (Vector p.dimension) (Vector q.dimension) v z;
+\definition firstCoordinate[z: Sum.Fiber w]: Vector p.dimension := Pair.first (Vector p.dimension) (Vector q.dimension) z;
+\definition secondCoordinate[z: Sum.Fiber w]: Vector q.dimension := Pair.second (Vector p.dimension) (Vector q.dimension) z;
+\definition P[v: Vector p.dimension]: Vector p.dimension := (p.projection (toU w)).map.apply v;
+\definition Q[v: Vector q.dimension]: Vector q.dimension := (q.projection (toV w)).map.apply v;
+\definition upper: End.Map := Blocks.upper (f w) Algebra.field.one;
+\definition lower: End.Map := Blocks.lower (g w) (Algebra.field.neg Algebra.field.one);
+\definition upperOne: \forall (z: Sum.Fiber w) -> upper.apply z = make (L.add (firstCoordinate z) ((f w).apply (secondCoordinate z))) (secondCoordinate z) :=
+  \fun (z: Sum.Fiber w) => Pairs.pairCong _ _ _ _
+    (congr!{{Vector p.dimension} {Vector p.dimension}} (L.add (firstCoordinate z)) _ _ (L.scalarOne ((f w).apply (secondCoordinate z)))) (\refl(secondCoordinate z));
+\definition lowerMinusOne: \forall (z: Sum.Fiber w) -> lower.apply z = make (firstCoordinate z) (R.add (secondCoordinate z) (R.neg ((g w).apply (firstCoordinate z)))) :=
+  \fun (z: Sum.Fiber w) => Pairs.pairCong _ _ _ _ (\refl(firstCoordinate z))
+    (congr!{{Vector q.dimension} {Vector q.dimension}} (R.add (secondCoordinate z)) _ _ (Right.minusOneScale ((g w).apply (firstCoordinate z))));
+\definition upperProjection: \forall (v: Vector p.dimension) -> upper.apply (make (P v) R.zero) = make (P v) R.zero :=
+  \fun (v: Vector p.dimension) => trans!{{Sum.Fiber w}} _ _ _ (upperOne (make (P v) R.zero))
+    (Pairs.pairCong _ _ _ _ (trans!{{Vector p.dimension}} _ _ _
+      (congr!{{Vector p.dimension} {Vector p.dimension}} (L.add (P v)) _ _ (f w).preservesZero) (Left.zeroRight (P v))) (\refl(R.zero)));
+\definition lowerProjection: \forall (v: Vector p.dimension) -> lower.apply (make (P v) R.zero) = make (P v) (R.neg ((g w).apply v)) :=
+  \fun (v: Vector p.dimension) => trans!{{Sum.Fiber w}} _ _ _ (lowerMinusOne (make (P v) R.zero))
+    (Pairs.pairCong _ _ _ _ (\refl(P v)) (trans!{{Vector q.dimension}} _ _ _ (Right.zeroLeft (R.neg ((g w).apply (P v))))
+      (congr!{{Vector q.dimension} {Vector q.dimension}} R.neg _ _ (gP w v))));
+\import Spaces.Linear[V := Vector q.dimension, W := Vector p.dimension, source := R, target := L].Operations[] \as RowLaws;
+\definition finishProjection: \forall (v: Vector p.dimension) -> upper.apply (make (P v) (R.neg ((g w).apply v))) = make L.zero (R.neg ((g w).apply v)) :=
+  \fun (v: Vector p.dimension) => trans!{{Sum.Fiber w}} _ _ _ (upperOne (make (P v) (R.neg ((g w).apply v))))
+    (Pairs.pairCong _ _ _ _ (trans!{{Vector p.dimension}} _ _ _
+      (congr!{{Vector p.dimension} {Vector p.dimension}} (L.add (P v)) _ _
+        (trans!{{Vector p.dimension}} _ _ _ (RowLaws.preservesNeg (f w) ((g w).apply v))
+          (congr!{{Vector p.dimension} {Vector p.dimension}} L.neg _ _ (fg w v))))
+      (trans!{{Vector p.dimension}} _ _ _ (Left.comm (P v) (L.neg (P v))) (Left.inverseLeft (P v)))) (\refl(R.neg ((g w).apply v))));
+\definition wordProjection: \forall (v: Vector p.dimension) -> (word (f w) (g w)).apply (make (P v) R.zero) = make L.zero (R.neg ((g w).apply v)) :=
+  \fun (v: Vector p.dimension) => trans!{{Sum.Fiber w}} _ _ _
+    (congr!{{Sum.Fiber w} {Sum.Fiber w}} (\fun (z: Sum.Fiber w) => upper.apply (lower.apply z)) _ _ (upperProjection v))
+    (trans!{{Sum.Fiber w}} _ _ _ (congr!{{Sum.Fiber w} {Sum.Fiber w}} upper.apply _ _ (lowerProjection v)) (finishProjection v));
+\definition secondFormula: \forall (z: Sum.Fiber w) -> secondCoordinate ((word (f w) (g w)).apply z) =
+  R.add (secondCoordinate z) (R.neg ((g w).apply (L.add (firstCoordinate z) ((f w).apply (secondCoordinate z))))) :=
+  \fun (z: Sum.Fiber w) => trans!{{Vector q.dimension}} _ _ _
+    (congr!{{Vector q.dimension} {Vector q.dimension}} (R.add (secondCoordinate z)) _ _
+      (Right.minusOneScale ((g w).apply (L.add (firstCoordinate z) (L.smul Algebra.field.one ((f w).apply (secondCoordinate z)))))))
+    (congr!{{Vector p.dimension} {Vector q.dimension}} (\fun (v: Vector p.dimension) => R.add (secondCoordinate z) (R.neg ((g w).apply v))) _ _
+      (congr!{{Vector p.dimension} {Vector p.dimension}} (L.add (firstCoordinate z)) _ _ (L.scalarOne ((f w).apply (secondCoordinate z)))));
+\import Spaces.Linear[V := Vector q.dimension, W := Vector q.dimension, source := R, target := R].Operations[] \as EndRight;
+\definition projectedSecond: \forall (z: Sum.Fiber w) -> Q (secondCoordinate ((word (f w) (g w)).apply z)) = R.neg ((g w).apply (firstCoordinate z)) :=
+  \fun (z: Sum.Fiber w) => eq_reason_in!{{Vector q.dimension} _
+    "=" { Q (R.add (secondCoordinate z) (R.neg ((g w).apply (L.add (firstCoordinate z) ((f w).apply (secondCoordinate z)))))) } "by" {
+      congr!{{Vector q.dimension} {Vector q.dimension}} Q _ _ (secondFormula z) }
+    "=" { R.add (Q (secondCoordinate z)) (Q (R.neg ((g w).apply (L.add (firstCoordinate z) ((f w).apply (secondCoordinate z)))))) } "by" {
+      (q.projection (toV w)).map.preservesAdd (secondCoordinate z) (R.neg ((g w).apply (L.add (firstCoordinate z) ((f w).apply (secondCoordinate z))))) }
+    "=" { R.add (Q (secondCoordinate z)) (R.neg (Q ((g w).apply (L.add (firstCoordinate z) ((f w).apply (secondCoordinate z)))))) } "by" {
+      congr!{{Vector q.dimension} {Vector q.dimension}} (R.add (Q (secondCoordinate z))) _ _
+        (EndRight.preservesNeg (q.projection (toV w)).map ((g w).apply (L.add (firstCoordinate z) ((f w).apply (secondCoordinate z))))) }
+    "=" { R.add (Q (secondCoordinate z)) (R.neg ((g w).apply (L.add (firstCoordinate z) ((f w).apply (secondCoordinate z))))) } "by" {
+      congr!{{Vector q.dimension} {Vector q.dimension}} (\fun (v: Vector q.dimension) => R.add (Q (secondCoordinate z)) (R.neg v)) _ _ (Qg w (L.add (firstCoordinate z) ((f w).apply (secondCoordinate z)))) }
+    "=" { R.add (Q (secondCoordinate z)) (R.neg (R.add ((g w).apply (firstCoordinate z)) ((g w).apply ((f w).apply (secondCoordinate z))))) } "by" {
+      congr!{{Vector q.dimension} {Vector q.dimension}} (\fun (v: Vector q.dimension) => R.add (Q (secondCoordinate z)) (R.neg v)) _ _ ((g w).preservesAdd (firstCoordinate z) ((f w).apply (secondCoordinate z))) }
+    "=" { R.add (Q (secondCoordinate z)) (R.neg (R.add ((g w).apply (firstCoordinate z)) (Q (secondCoordinate z)))) } "by" {
+      congr!{{Vector q.dimension} {Vector q.dimension}} (\fun (v: Vector q.dimension) => R.add (Q (secondCoordinate z)) (R.neg (R.add ((g w).apply (firstCoordinate z)) v))) _ _ (gf w (secondCoordinate z)) }
+    "=" { R.neg ((g w).apply (firstCoordinate z)) } "by" { Rotation.middle ((g w).apply (firstCoordinate z)) (Q (secondCoordinate z)) }
+  };
+\definition intertwines: \forall (z: Sum.Fiber w) -> (word (f w) (g w)).apply (make (P (firstCoordinate z)) R.zero) = make L.zero (Q (secondCoordinate ((word (f w) (g w)).apply z))) :=
+  \fun (z: Sum.Fiber w) => trans!{{Sum.Fiber w}} _ _ _ (wordProjection (firstCoordinate z))
+    (Pairs.pairCong _ _ _ _ (\refl(L.zero)) (sym!{{Vector q.dimension}} _ _ (projectedSecond z)));
+\definition exchangeLaws: Automorphisms.Laws[exchange] := \bysub(Automorphisms.Data, Automorphisms.Isomorphism, exchange);
+\definition conjugates: \forall (z: Sum.Fiber w) ->
+  (exchange.forward.fiber w).apply (make (P (firstCoordinate ((exchange.backward.fiber w).apply z))) R.zero) = make L.zero (Q (secondCoordinate z)) :=
+  \fun (z: Sum.Fiber w) => eq_reason_in!{{Sum.Fiber w} _
+    "=" { (word (f w) (g w)).apply (make (P (firstCoordinate ((exchange.backward.fiber w).apply z))) R.zero) } "by" {
+      localFormula (make (P (firstCoordinate ((exchange.backward.fiber w).apply z))) R.zero) }
+    "=" { make L.zero (Q (secondCoordinate ((word (f w) (g w)).apply ((exchange.backward.fiber w).apply z)))) } "by" {
+      intertwines ((exchange.backward.fiber w).apply z) }
+    "=" { make L.zero (Q (secondCoordinate ((exchange.forward.fiber w).apply ((exchange.backward.fiber w).apply z)))) } "by" {
+      congr!{{Sum.Fiber w} {Sum.Fiber w}} (\fun (v: Sum.Fiber w) => make L.zero (Q (secondCoordinate v))) _ _
+        (sym!{{Sum.Fiber w}} _ _ (localFormula ((exchange.backward.fiber w).apply z))) }
+    "=" { make L.zero (Q (secondCoordinate z)) } "by" {
+      congr!{{Sum.Fiber w} {Sum.Fiber w}} (\fun (v: Sum.Fiber w) => make L.zero (Q (secondCoordinate v))) _ _ (exchangeLaws.rightInverse w z) }
+  };

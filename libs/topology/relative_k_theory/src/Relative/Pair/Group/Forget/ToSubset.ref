@@ -1,0 +1,23 @@
+\import \parent.\parent.\parent.Restriction[] \as Restriction;
+\import Restriction.On[p := t.positive] \as Positive;
+\import Restriction.On[p := t.negative] \as Negative;
+\import \parent.\parent.\parent.Restricted[p := t.positive] \as First;
+\import \parent.\parent.\parent.Restricted[p := t.negative] \as Second;
+\import KTheory.On[X := A, baseSpace := subspace, compact := Restriction.compactSubset, hausdorff := Restriction.hausdorffSubset] \as Target;
+\import Target.K0[] \as TargetK;
+\import Target.Compare[F := First.Fiber, G := Second.Fiber, first := First.bundle, second := Second.bundle,
+  firstSame := \refl(subspace), secondSame := \refl(subspace)] \as Compare;
+\import algebra.Group[].Of[Carrier := TargetK.Carrier, group := TargetK.group] \as TargetGroup;
+\definition classEquality: Restriction.classMap (Absolute.class t.positive) = Restriction.classMap (Absolute.class t.negative) :=
+  trans!{{Target.Classes}} _ _ _ Positive.classes
+    (trans!{{Target.Classes}} _ _ _ (Compare.ofIsomorphism t.comparison) (sym!{{Target.Classes}} _ _ Negative.classes));
+\import Restriction.Difference[a := Absolute.class t.positive, b := Absolute.class t.negative] \as Difference;
+\definition equation: Restriction.map (symbolValue t) = TargetK.zero :=
+  trans!{{TargetK.Carrier}} _ _ _
+    Difference.equation
+    (trans!{{TargetK.Carrier}} _ _ _
+      (congr!{{Target.Classes} {TargetK.Carrier}}
+        (\fun (a: Target.Classes) => TargetK.difference a (Restriction.classMap (Absolute.class t.negative))) _ _ classEquality)
+      (TargetGroup.inverseRight (TargetK.include (Restriction.classMap (Absolute.class t.negative)))));
+\definition onGenerator: Restriction.map (map (value t)) = TargetK.zero :=
+  trans!{{TargetK.Carrier}} _ _ _ (congr!{{K.Carrier} {TargetK.Carrier}} Restriction.map _ _ (onTriple t)) equation;

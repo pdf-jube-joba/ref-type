@@ -1,0 +1,32 @@
+\definition U[x: X]: \Set := Absolute.Fiber auxiliary.presentation x;
+\import \parent.\parent.TripleFraming[t := v, auxiliary := auxiliary.presentation, n := Framed.dimension] \as Target;
+\import Operations.DirectSumIsomorphisms[X := X, F := PositivePair.Fiber, G := Auxiliary.Fiber, A := (Absolute.Fiber v.positive), B := U,
+  first := positivePairBundle, second := auxiliaryBundle, newFirst := (Absolute.bundle v.positive), newSecond := (Absolute.bundle auxiliary.presentation),
+  sameSource := (\refl(space)), sameTarget := (\refl(space))] \as PositiveClose;
+\definition positiveClose: Bundles.Isomorphisms[X := X, F := PositiveClose.SourceFiber, G := PositiveClose.TargetFiber, source := PositiveClose.sourceBundle, target := PositiveClose.targetBundle].Isomorphism :=
+  PositiveClose.isomorphism w.positive auxiliary.isomorphism;
+\import Operations.DirectSumIsomorphisms[X := X, F := NegativePair.Fiber, G := Auxiliary.Fiber, A := (Absolute.Fiber v.negative), B := U,
+  first := negativePairBundle, second := auxiliaryBundle, newFirst := (Absolute.bundle v.negative), newSecond := (Absolute.bundle auxiliary.presentation),
+  sameSource := (\refl(space)), sameTarget := (\refl(space))] \as NegativeClose;
+\definition negativeClose: Bundles.Isomorphisms[X := X, F := NegativeClose.SourceFiber, G := NegativeClose.TargetFiber, source := NegativeClose.sourceBundle, target := NegativeClose.targetBundle].Isomorphism :=
+  NegativeClose.isomorphism w.negative auxiliary.isomorphism;
+\import Operations.IsomorphismComposition[X := X, F := Framed.Fiber, G := PositiveOrder.TargetFiber, H := Target.SourceFiber,
+  source := Framed.sumBundle, middle := PositiveOrder.targetBundle, target := Target.positiveBundle] \as PositiveStep;
+\definition positive: PositiveStep.Isomorphism := PositiveStep.compose PositiveOrder.isomorphism positiveClose;
+\import Bundles.Isomorphisms[X := X, F := NegativeClose.SourceFiber, G := NegativeClose.TargetFiber,
+  source := NegativeClose.sourceBundle, target := NegativeClose.targetBundle] \as NegativeMaps;
+\import Operations.IsomorphismComposition[X := X, F := Target.NegativeFiber, G := NegativeOrder.TargetFiber, H := (\fun (x: X) => Bundles.Vector Framed.dimension),
+  source := Target.negativeBundle, middle := NegativeOrder.targetBundle, target := TrivialSum.bundle] \as Triviality;
+\definition trivialization: Target.Trivialization := Triviality.compose (NegativeMaps.inverse negativeClose) toCoordinates;
+\import Target.With[trivialization := trivialization] \as TargetData;
+\definition negativeLaws: NegativeMaps.Laws[negativeClose] := \bysub(NegativeMaps.Data, NegativeMaps.Isomorphism, negativeClose);
+\module At(x: A, z: Framed.Fiber x);
+\definition compatible: \forall (x: A)(z: Framed.Fiber x) -> (TargetData.comparison.forward.fiber x).apply ((positive.forward.fiber x).apply z) = coordinateIdentity.forward.apply ((Source.comparison.forward.fiber x).apply z) :=
+  \fun (x: A)(z: Framed.Fiber x) => At[x := x, z := z].equation;
+\import \parent.\parent.FramedClass[F := Framed.Fiber, sourceModel := Framed.model, n := Framed.dimension].To[
+  G := Target.SourceFiber, targetModel := Target.sourceModel, m := Framed.dimension].With[
+  alpha := Source.comparison, beta := TargetData.comparison, h := positive, c := coordinateIdentity, compatible := compatible] \as Comparison;
+\import \parent.\parent.ComplementChoice[t := v, first := Third.complement, second := auxiliary.presentation, n := v.negative.dimension, m := Framed.dimension].With[
+  h := ThirdSplit.isomorphism, k := trivialization] \as Choice;
+\definition equation: ReducedGroup.add First.value Second.value = Third.value := trans!{{Quotient.Relative}} _ _ _ Source.additivity
+  (trans!{{Quotient.Relative}} _ _ _ Comparison.equation (sym!{{Quotient.Relative}} _ _ Choice.equation));

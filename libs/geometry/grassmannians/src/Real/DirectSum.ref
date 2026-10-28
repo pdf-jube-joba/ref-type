@@ -1,0 +1,51 @@
+\use std.Logic[].Equality[].sym;
+\import std.Data[].Pair[] \as Pair;
+\import \root.Real[n := m, k := l] \as Right;
+\import topological_constructions.Product[A := Grassmannian, B := Right.Grassmannian] \as Product;
+\import Product.Maps[] \as Projections;
+\definition Source: \Set := Product.CarrierSet;
+\definition sourceTopology: topology.Topology[Carrier := Source].Topology := Product.topology topology Right.topology;
+\definition left[x: Source]: Grassmannian := Pair.first Grassmannian Right.Grassmannian x;
+\definition right[x: Source]: Right.Grassmannian := Pair.second Grassmannian Right.Grassmannian x;
+\import linear_algebra.Hermitian[].Over[K := R.Real, field := R.Algebra[].field, scalar := H.Real[].scalar].Finite[n := k] \as LeftD;
+\import LeftD.Blocks[m := l] \as Domain;
+\import E.Blocks[m := m] \as Ambient;
+\import H.Over[K := R.Real, field := R.Algebra[].field, scalar := H.Real[].scalar, topological := H.Real[].topological] \as Geometry;
+\import Geometry.At[n := m] \as RightAt;
+\import Geometry.At[n := Ambient.dimension] \as TotalAt;
+\import At.Blocks[m := m] \as Block;
+\import \root.Real[n := Ambient.dimension, k := Domain.dimension] \as Target;
+\definition map[x: Source]: Target.Grassmannian := \parent.Sum[m := m, l := l, p := left x, q := right x].point;
+\definition P[x: Source]: TotalAt.Projection := Block.projection (left x) (right x);
+\import linear_algebra.Hermitian[].Over[K := R.Real, field := R.Algebra[].field, scalar := H.Real[].scalar].Finite[n := Ambient.dimension] \as TotalE;
+\import Fin.Sum[m := n, n := m] \as Indices;
+\import Indices.Tuples[A := R.Real] \as Tuples;
+\import Geometry.Functions[X := Source] \as Functions;
+\import TotalAt.Families[X := Source].Matrix[m := Ambient.dimension] \as Matrix;
+\import topology.Composition[A := Source, B := Grassmannian, C := R.Real] \as LeftCompose;
+\import topology.Composition[A := Source, B := Right.Grassmannian, C := R.Real] \as RightCompose;
+\definition components: \forall (v: TotalE.Vector)(i: Fin.Fin Ambient.dimension) -> Functions.Continuous sourceTopology (\fun (x: Source) => (P x).map.apply v i) :=
+  \fun (v: TotalE.Vector)(i: Fin.Fin Ambient.dimension) =>
+    \idelim Indices.inflate (Indices.split i) = i \with j: Fin.Fin Ambient.dimension => Functions.Continuous sourceTopology (\fun (x: Source) => (P x).map.apply v j) \by {
+      base: (\induction (s: Indices.Index) \return Functions.Continuous sourceTopology (\fun (x: Source) => (P x).map.apply v (Indices.inflate s)) \with {
+        | inl: \fun (j: Fin.Fin n) => Functions.transport sourceTopology
+          (\fun (x: Source) => (left x).map.apply (Ambient.left v) j)
+          (\fun (x: Source) => (P x).map.apply v (Indices.left j))
+          (\fun (x: Source) => sym!{R.Real} _ _ (Tuples.atLeft ((left x).map.apply (Ambient.left v)) ((right x).map.apply (Ambient.right v)) j))
+          (LeftCompose.composeContinuous sourceTopology topology H.Real[].topological.space left
+            (\fun (p: Grassmannian) => p.map.apply (Ambient.left v) j)
+            (Projections.firstContinuous topology Right.topology) (regular (Ambient.left v) j))
+        | inr: \fun (j: Fin.Fin m) => Functions.transport sourceTopology
+          (\fun (x: Source) => (right x).map.apply (Ambient.right v) j)
+          (\fun (x: Source) => (P x).map.apply v (Indices.right j))
+          (\fun (x: Source) => sym!{R.Real} _ _ (Tuples.atRight ((left x).map.apply (Ambient.left v)) ((right x).map.apply (Ambient.right v)) j))
+          (RightCompose.composeContinuous sourceTopology Right.topology H.Real[].topological.space right
+            (\fun (q: Right.Grassmannian) => q.map.apply (Ambient.right v) j)
+            (Projections.secondContinuous topology Right.topology) (Right.regular (Ambient.right v) j))
+      }) (Indices.split i), equality: Indices.inflateSplit i
+    };
+\definition regularP: Matrix.Regular sourceTopology (\fun (x: Source) => (P x).map) := components;
+\definition rankP: \forall (x: Source) -> TotalAt.OnProjection[P := P x].Rank[k := Domain.dimension].HasRank :=
+  \fun (x: Source) => \parent.Sum[m := m, l := l, p := left x, q := right x].rank;
+\import Target.Family[Y := Source, source := sourceTopology, P := P, regularP := regularP, rank := rankP] \as Family;
+\definition continuous: topology.Continuity[A := Source, B := Target.Grassmannian].Continuous sourceTopology Target.topology map := Family.continuous;

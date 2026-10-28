@@ -1,0 +1,28 @@
+\import \parent.\parent.\parent.Restriction[] \as Restriction;
+\import KTheory.On[X := A, baseSpace := subspace, compact := Restriction.compactSubset, hausdorff := Restriction.hausdorffSubset] \as Target;
+\import Target.K0[] \as TargetK;
+\import module_theory.Module[].IntegerGroup[Carrier := TargetK.Carrier, group := TargetK.group] \as TargetAction;
+\import IntegersAction.Mapping[B := TargetK.Carrier, other := TargetK.group] \as IntegerMaps;
+\import Modules.Hom[V := K.Carrier, W := TargetK.Carrier, source := IntegersAction.space, target := TargetAction.space] \as RestrictionLinear;
+\definition restriction: RestrictionLinear.Map := IntegerMaps.fromGroup (K.Maps[K := TargetK.Carrier, target := TargetK.ring].additive Restriction.map);
+\import RestrictionLinear.Composition[U := Carrier, domain := Presented.space] \as Composition;
+\import Modules.Hom[V := Carrier, W := TargetK.Carrier, source := Presented.space, target := TargetAction.space] \as Output;
+\definition composite: Output.Map := Composition.compose restriction linear;
+\import Presented.To[W := TargetK.Carrier, target := TargetAction.space] \as Universal;
+\import algebra.Group[].Of[Carrier := TargetK.Carrier, group := TargetK.group] \as TargetGroup;
+\definition values[t: Triple]: TargetK.Carrier := TargetK.zero;
+\definition accepts: Universal.RespectsRelations values :=
+  \induction (x, y: Expression)(r: Relation x y) \return Universal.EvaluationRelation values x y \with {
+    | global: \fun (t: Triple)(w: \parent.\parent.\parent.Global[t := t].Witness) => \refl(TargetK.zero)
+    | sum: \fun (t, u, v: Triple)(w: \parent.\parent.\parent.Sum[t := t, u := u, v := v].Witness) => TargetGroup.zeroLeft TargetK.zero
+    | compose: \fun (p, q, r: Presentation)(first: \parent.\parent.\parent.Between[p := p, q := q].Isomorphism)(second: \parent.\parent.\parent.Between[p := q, q := r].Isomorphism) => TargetGroup.zeroLeft TargetK.zero
+    | homotopy: \fun (p, q: Presentation)(first, second: \parent.\parent.\parent.Between[p := p, q := q].Isomorphism)
+      (family: \parent.\parent.\parent.Homotopy[p := p, q := q, first := first, second := second].Family) => \refl(TargetK.zero)
+  };
+\definition onGenerators: \forall (t: Triple) -> composite.apply (value t) = values t :=
+  \fun (t: Triple) => \parent.ToSubset[t := t].onGenerator;
+\definition compositeEquality: composite.apply = Universal.apply values accepts := Universal.unique values accepts composite onGenerators;
+\definition zeroEquality: Output.zeroMap.apply = Universal.apply values accepts := Universal.unique values accepts Output.zeroMap (\fun (t: Triple) => \refl(TargetK.zero));
+\definition zero: composite.apply = Output.zeroMap.apply := trans!{{Carrier -> TargetK.Carrier}} _ _ _ compositeEquality (sym!{{Carrier -> TargetK.Carrier}} _ _ zeroEquality);
+\definition equation: \forall (v: Carrier) -> Restriction.map (map v) = TargetK.zero :=
+  \fun (v: Carrier) => congr!{{Carrier -> TargetK.Carrier} {TargetK.Carrier}} (\fun (f: Carrier -> TargetK.Carrier) => f v) _ _ zero;

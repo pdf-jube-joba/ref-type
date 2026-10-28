@@ -1,0 +1,115 @@
+\import \parent.\parent.At[q := q] \as FiberModel;
+\import topology.Topology[Carrier := X] \as OriginalBase;
+\import OriginalBase.Subspace[S := subset] \as ClosedSubspace;
+\definition within: \forall (x: FiberModel.Index) -> OriginalBase.Member extension.domain x := \block {
+  \fun (x: FiberModel.Index) \then
+  \takefrom p: \Cast[Quotient.Augmented] ({ p: Quotient.Augmented \where Logic.And[Augmented.Member augmented p, Collapse.class p = q] })
+    \by \bysub(Quotient.Carrier, domain, q) \then
+  \let data: Logic.And[Augmented.Member augmented p, Collapse.class p = q] :=
+    \bysub(Quotient.Augmented, { p: Quotient.Augmented \where Logic.And[Augmented.Member augmented p, Collapse.class p = q] }, p) \then
+  \let same: Collapse.class (Sum.inl x) = Collapse.class p := trans!{{Quotient.Carrier}} _ _ _
+    (\bysub(X, { x: X \where Quotient.projection x = q }, x)) (sym!{{Quotient.Carrier}} _ _ data.right) \then
+  \return either!{{(Collapse.equalRelated (Sum.inl x) p same)} {OriginalBase.Member extension.domain x}
+    {\fun (equal: Sum.inl x = p) => \idelim p = Sum.inl x \with z: Quotient.Augmented => Augmented.Member augmented z
+      \by { base: data.left, equality: sym!{{Quotient.Augmented}} _ _ equal }}
+    {\fun (both: Logic.And[Augmented.Member Quotient.collapsedPart (Sum.inl x), Augmented.Member Quotient.collapsedPart p]) => extension.contains x both.left}
+  }
+};
+\definition lift[x: FiberModel.Index]: \Cast[X] extension.domain := \into[X](x, extension.domain) \by { within x };
+\import bundle_extension.Extension[].Over[K := C.Complex, field := Algebra.field, conjugation := Hermitian.scalar, scalar := Scalar.scalar].Isomorphisms[
+  X := X, subset := subset, F := F, G := (\fun (x: X) => Vector), source := bundle, target := Trivial.bundle, same := \refl(bundle.baseSpace)].Neighborhood[U := extension.domain] \as Local;
+\import Bundles.Isomorphisms[X := Local.Point, F := (\fun (x: Local.Point) => F x), G := (\fun (x: Local.Point) => Vector), source := Local.first, target := Local.second] \as Isomorphisms;
+\definition evaluate[v: FiberModel.Carrier][x: FiberModel.Index]: Vector := (extension.isomorphism.forward.fiber (lift x)).apply (FiberModel.section v x);
+\structure Condition[v: FiberModel.Carrier, w: Vector]: \Prop := {
+  atPoint: q = Quotient.point -> FiberModel.anchor v = w,
+  evaluations: \forall (x: FiberModel.Index) -> evaluate v x = w
+};
+\definition Value[v: FiberModel.Carrier]: \Set := \Cast[Vector] ({ w: Vector \where Condition[v, w] });
+\definition existence: \forall (v: FiberModel.Carrier) -> \exists Value[v] := \fun (v: FiberModel.Carrier) =>
+  either!{{(std.Logic[].Classical[].excludedMiddle (q = Quotient.point))} {\exists Value[v]}
+    {\fun (same: q = Quotient.point) => \exact(\into[Vector](FiberModel.anchor v, Value[v]) \by { Condition[v, FiberModel.anchor v] {
+      atPoint := \fun (equal: _) => \refl(FiberModel.anchor v),
+      evaluations := \fun (x: FiberModel.Index) => \block {
+        \let member: ClosedSubspace.CarrierSet := \into[X](x, subset) \by {
+          Quotient.atPoint x (trans!{{Quotient.Carrier}} _ _ _ (\bysub(X, { x: X \where Quotient.projection x = q }, x)) same)
+        } \then
+        \return trans!{Vector} _ _ _ (extension.extends member (FiberModel.section v x))
+          ((FiberModel.laws v).boundary member (\bysub(X, { x: X \where Quotient.projection x = q }, x)))
+      }
+    } }, Value[v])}
+    {\fun (different: _) => \block {
+      \let x: FiberModel.Index := FiberModel.Outside[different := different].index \then
+      \return \exact(\into[Vector](evaluate v x, Value[v]) \by { Condition[v, evaluate v x] {
+        atPoint := \fun (same: _) => Logic.falseElim (FiberModel.anchor v = evaluate v x) (different same),
+        evaluations := \fun (y: FiberModel.Index) => congr!{{FiberModel.Index} Vector} (evaluate v) _ _ (FiberModel.Outside[different := different].unique y x)
+      } }, Value[v])
+    }}
+  };
+\definition unique: \forall (v: FiberModel.Carrier)(w, z: Value[v]) -> w = z := \fun (v: FiberModel.Carrier)(w, z: Value[v]) =>
+  either!{{(std.Logic[].Classical[].excludedMiddle (q = Quotient.point))} {w = z}
+    {\fun (same: _) => trans!{Vector} _ _ _ (sym!{Vector} _ _ ((\bysub(Vector, Value[v], w)).atPoint same)) ((\bysub(Vector, Value[v], z)).atPoint same)}
+    {\fun (different: _) => trans!{Vector} _ _ _
+      (sym!{Vector} _ _ ((\bysub(Vector, Value[v], w)).evaluations FiberModel.Outside[different := different].index))
+      ((\bysub(Vector, Value[v], z)).evaluations FiberModel.Outside[different := different].index)}
+  };
+\definition coordinate[v: FiberModel.Carrier]: Value[v] := \choice Value[v] \by { existence: existence v, uniqueness: unique v };
+\definition condition[v: FiberModel.Carrier]: Condition[v, coordinate v] := \bysub(Vector, Value[v], coordinate v);
+\definition forwardLinear: Spaces.Linear[V := FiberModel.Carrier, W := Vector, source := FiberModel.space, target := coordinates].Map :=
+  Spaces.Linear[V := FiberModel.Carrier, W := Vector, source := FiberModel.space, target := coordinates].Map {
+    apply := coordinate,
+    preservesAdd := \fun (v, w: FiberModel.Carrier) => unique (FiberModel.space.add v w) (coordinate (FiberModel.space.add v w))
+      (\into[Vector](coordinates.add (coordinate v) (coordinate w), Value[FiberModel.space.add v w]) \by {
+        Condition[FiberModel.space.add v w, coordinates.add (coordinate v) (coordinate w)] {
+          atPoint := \fun (same: _) => congr!{Vector Vector Vector} coordinates.add _ _ _ _ ((condition v).atPoint same) ((condition w).atPoint same),
+          evaluations := \fun (x: FiberModel.Index) => trans!{Vector} _ _ _
+            ((extension.isomorphism.forward.fiber (lift x)).preservesAdd (FiberModel.section v x) (FiberModel.section w x))
+            (congr!{Vector Vector Vector} coordinates.add _ _ _ _ ((condition v).evaluations x) ((condition w).evaluations x))
+        }
+      }),
+    preservesScale := \fun (a: C.Complex)(v: FiberModel.Carrier) => unique (FiberModel.space.smul a v) (coordinate (FiberModel.space.smul a v))
+      (\into[Vector](coordinates.smul a (coordinate v), Value[FiberModel.space.smul a v]) \by {
+        Condition[FiberModel.space.smul a v, coordinates.smul a (coordinate v)] {
+          atPoint := \fun (same: _) => congr!{Vector Vector} (coordinates.smul a) _ _ ((condition v).atPoint same),
+          evaluations := \fun (x: FiberModel.Index) => trans!{Vector} _ _ _
+            ((extension.isomorphism.forward.fiber (lift x)).preservesScale a (FiberModel.section v x))
+            (congr!{Vector Vector} (coordinates.smul a) _ _ ((condition v).evaluations x))
+        }
+      })
+  };
+\definition vectors[w: Vector][x: FiberModel.Index]: F x := (extension.isomorphism.backward.fiber (lift x)).apply w;
+\definition data[w: Vector]: FiberModel.Datum := FiberModel.make (FiberModel.Anchor[].vector w) (vectors w);
+\definition compatible: \forall (w: Vector) -> FiberModel.Compatible[data w] := \fun (w: Vector) => FiberModel.Compatible[data w] {
+  outside := FiberModel.Anchor[].outside w,
+  boundary := \fun (x: ClosedSubspace.CarrierSet)(same: Quotient.projection x = q) => trans!{Vector} _ _ _
+    (sym!{Vector} _ _ (extension.extends x (vectors w (FiberModel.over x same))))
+    (trans!{Vector} _ _ _ ((\bysub(Isomorphisms.Data, Isomorphisms.Isomorphism, extension.isomorphism)).rightInverse (lift (FiberModel.over x same)) w)
+      (sym!{Vector} _ _ (FiberModel.Anchor[].atPoint w (trans!{{Quotient.Carrier}} _ _ _ (sym!{{Quotient.Carrier}} _ _ same) (Quotient.onSubset x)))))
+};
+\definition backward[w: Vector]: FiberModel.Carrier := \into[FiberModel.Datum](data w, FiberModel.valid) \by { compatible w };
+\definition anchorInverse: \forall (v: FiberModel.Carrier) -> FiberModel.anchor (backward (coordinate v)) = FiberModel.anchor v := \fun (v: FiberModel.Carrier) =>
+  either!{{(std.Logic[].Classical[].excludedMiddle (q = Quotient.point))} {FiberModel.anchor (backward (coordinate v)) = FiberModel.anchor v}
+    {\fun (same: _) => trans!{Vector} _ _ _ (FiberModel.Anchor[].atPoint (coordinate v) same) (sym!{Vector} _ _ ((condition v).atPoint same))}
+    {\fun (different: _) => trans!{Vector} _ _ _ (FiberModel.Anchor[].outside (coordinate v) different) (sym!{Vector} _ _ ((FiberModel.laws v).outside different))}
+  };
+\definition leftInverse: \forall (v: FiberModel.Carrier) -> backward (coordinate v) = v := \fun (v: FiberModel.Carrier) =>
+  FiberModel.ext (backward (coordinate v)) v (anchorInverse v)
+    (\fun (x: FiberModel.Index) => trans!{{F x}} _ _ _
+      (congr!{Vector {F x}} (extension.isomorphism.backward.fiber (lift x)).apply _ _ (sym!{Vector} _ _ ((condition v).evaluations x)))
+      ((\bysub(Isomorphisms.Data, Isomorphisms.Isomorphism, extension.isomorphism)).leftInverse (lift x) (FiberModel.section v x)));
+\definition rightInverse: \forall (w: Vector) -> coordinate (backward w) = w := \fun (w: Vector) =>
+  unique (backward w) (coordinate (backward w)) (\into[Vector](w, Value[backward w]) \by { Condition[backward w, w] {
+    atPoint := FiberModel.Anchor[].atPoint w,
+    evaluations := \fun (x: FiberModel.Index) => (\bysub(Isomorphisms.Data, Isomorphisms.Isomorphism, extension.isomorphism)).rightInverse (lift x) w
+  } });
+\definition backwardLinear: Spaces.Linear[V := Vector, W := FiberModel.Carrier, source := coordinates, target := FiberModel.space].Map :=
+  Spaces.Linear[V := Vector, W := FiberModel.Carrier, source := coordinates, target := FiberModel.space].Map {
+    apply := backward,
+    preservesAdd := \fun (v, w: Vector) => FiberModel.ext (backward (coordinates.add v w)) (FiberModel.space.add (backward v) (backward w))
+      (FiberModel.Anchor[].additive v w) (\fun (x: FiberModel.Index) => (extension.isomorphism.backward.fiber (lift x)).preservesAdd v w),
+    preservesScale := \fun (a: C.Complex)(v: Vector) => FiberModel.ext (backward (coordinates.smul a v)) (FiberModel.space.smul a (backward v))
+      (FiberModel.Anchor[].homogeneous a v) (\fun (x: FiberModel.Index) => (extension.isomorphism.backward.fiber (lift x)).preservesScale a v)
+  };
+\definition isomorphism: Spaces.Isomorphism[V := FiberModel.Carrier, W := Vector, source := FiberModel.space, target := coordinates].Isomorphism :=
+  Spaces.Isomorphism[V := FiberModel.Carrier, W := Vector, source := FiberModel.space, target := coordinates].Isomorphism {
+    forward := forwardLinear, backward := backwardLinear, leftInverse := leftInverse, rightInverse := rightInverse
+  };

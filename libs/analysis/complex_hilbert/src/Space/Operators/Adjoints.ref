@@ -1,0 +1,116 @@
+\import \parent.\parent.Hilbert[norm := norm, inner := inner] \as H;
+\import Target.Hilbert[norm := targetNorm, inner := targetInner] \as K;
+\import H.Riesz[] \as Riesz;
+\import H.Estimates[] \as Estimates;
+\import K.Estimates[] \as TargetEstimates;
+\import functional_analysis.Normed[V := V, space := realSpace].Hilbert[norm := norm.realNorm].Riesz[inner := H.realInner] \as RR;
+\import RealLinear.Linear[V := V, W := R.Real, source := realSpace, target := RealLinear.scalarSpace] \as RealFunctionals;
+\import RealNormed.Operators[W := R.Real, target := RealLinear.scalarSpace, norm := norm.realNorm, targetNorm := RR.realNorm] \as RealBounded;
+\import ComplexLinear.Linear[V := V, W := C.Complex, source := space, target := ComplexLinear.scalarSpace] \as Functionals;
+\import ComplexLinear.Linear[V := W, W := V, source := target, target := space] \as Backward;
+\import \root.Space[V := W, space := target].Operators[W := V, target := space, norm := targetNorm, targetNorm := norm] \as Reverse;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as L;
+\import dedekind_reals.DedekindReal[].Order[] \as RO;
+\import R.Estimates[] \as RE;
+\import RE.Product[] \as Product;
+\definition functional[f: Linear.Map][y: W]: Functionals.Map := Functionals.Map {
+  apply := \fun (x: V) => targetInner.inner y (f.apply x),
+  preservesAdd := \fun (x, z: V) => trans!{C.Complex} _ _ _ (congr!{W C.Complex} (targetInner.inner y) _ _ (f.preservesAdd x z)) (targetInner.addRight y (f.apply x) (f.apply z)),
+  preservesScale := \fun (a: C.Complex)(x: V) => trans!{C.Complex} _ _ _ (congr!{W C.Complex} (targetInner.inner y) _ _ (f.preservesScale a x)) (targetInner.scaleRight a y (f.apply x)),
+};
+\definition realLinear[f: Linear.Map][y: W]: RealFunctionals.Map := RealFunctionals.Map {
+  apply := \fun (x: V) => C.re ((functional f y).apply x),
+  preservesAdd := \fun (x, z: V) => congr!{C.Complex R.Real} C.re _ _ ((functional f y).preservesAdd x z),
+  preservesScale := \fun (a: R.Real)(x: V) => trans!{R.Real} _ _ _
+    (congr!{C.Complex R.Real} C.re _ _ ((functional f y).preservesScale (D.ofReal a) x)) (Scalar.realProduct a ((functional f y).apply x)),
+};
+\definition realFunctional[f: Map][y: W][complete: K.Complete]: RR.Functional := \into[RealFunctionals.Map](realLinear f y, RR.Functional) \by { \block {
+  \takefrom c: \Cast[R.Real] ({ c: R.Real \where Bound[f, c] }) \by bounded f \then
+  \let bound: Bound[f, c] := \bysub(R.Real, { c: R.Real \where Bound[f, c] }, c) \then
+  \return Logic.existsIntro[R.Real, { b: R.Real \where RealBounded.Bound[realLinear f y, b] }] (R.mul (targetNorm.realNorm.norm y) c)
+    (RealBounded.Bound[realLinear f y, R.mul (targetNorm.realNorm.norm y) c] {
+      nonnegative := L.fieldMulNonnegative (targetNorm.realNorm.norm y) c (targetNorm.realNorm.nonnegative y) bound.nonnegative,
+      estimate := \fun (x: V) => Order.leTrans _ _ _ (TargetEstimates.cauchySchwarz complete y (f.apply x))
+        (Order.leReplaceRight _ (R.mul (targetNorm.realNorm.norm y) (R.mul c (norm.realNorm.norm x))) _
+          (sym!{R.Real} _ _ (L.fieldMulAssoc (targetNorm.realNorm.norm y) c (norm.realNorm.norm x)))
+          (RE.mulMonotone (targetNorm.realNorm.norm y) (targetNorm.realNorm.norm (f.apply x)) (R.mul c (norm.realNorm.norm x))
+            (targetNorm.realNorm.nonnegative y) (bound.estimate x))),
+    })
+} };
+\definition vector[sourceComplete: H.Complete][targetComplete: K.Complete][f: Map][y: W]: V := RR.vector (H.realHilbert sourceComplete) (realFunctional f y targetComplete);
+\definition representation: \forall (sourceComplete: H.Complete)(targetComplete: K.Complete)(f: Map)(y: W)(x: V) -> targetInner.inner y (f.apply x) = inner.inner (vector sourceComplete targetComplete f y) x :=
+  \fun (sourceComplete: H.Complete)(targetComplete: K.Complete)(f: Map)(y: W) =>
+    Riesz.fromReal sourceComplete (functional f y) (realFunctional f y targetComplete) (\fun (x: V) => \refl(C.re ((functional f y).apply x)));
+\definition linear[sourceComplete: H.Complete][targetComplete: K.Complete][f: Map]: Backward.Map := Backward.Map {
+  apply := vector sourceComplete targetComplete f,
+  preservesAdd := \fun (y, z: W) => H.separated (vector sourceComplete targetComplete f (target.add y z))
+    (space.add (vector sourceComplete targetComplete f y) (vector sourceComplete targetComplete f z)) (\fun (x: V) => eq_reason_in!{C.Complex _
+      "=" _ "by" { sym!{C.Complex} _ _ (representation sourceComplete targetComplete f (target.add y z) x) }
+      "=" _ "by" { K.addLeft y z (f.apply x) }
+      "=" _ "by" { congr!{C.Complex C.Complex C.Complex} D.add _ _ _ _ (representation sourceComplete targetComplete f y x) (representation sourceComplete targetComplete f z x) }
+      "=" _ "by" { sym!{C.Complex} _ _ (H.addLeft (vector sourceComplete targetComplete f y) (vector sourceComplete targetComplete f z) x) }
+    }),
+  preservesScale := \fun (a: C.Complex)(y: W) => H.separated (vector sourceComplete targetComplete f (target.smul a y)) (space.smul a (vector sourceComplete targetComplete f y)) (\fun (x: V) => eq_reason_in!{C.Complex _
+    "=" _ "by" { sym!{C.Complex} _ _ (representation sourceComplete targetComplete f (target.smul a y) x) }
+    "=" _ "by" { linear_algebra.Complex[].InnerProduct[V := W, space := target].scaleLeft targetInner a y (f.apply x) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (D.mul (D.conj a)) _ _ (representation sourceComplete targetComplete f y x) }
+    "=" _ "by" { sym!{C.Complex} _ _ (linear_algebra.Complex[].InnerProduct[V := V, space := space].scaleLeft inner a (vector sourceComplete targetComplete f y) x) }
+  }),
+};
+\definition bound: \forall (sourceComplete: H.Complete)(targetComplete: K.Complete)(f: Map)(c: R.Real) -> Bound[f, c] -> Reverse.Bound[linear sourceComplete targetComplete f, c] := \block {
+  \fun (sourceComplete: H.Complete)(targetComplete: K.Complete)(f: Map)(c: R.Real)(bound: Bound[f, c]) \then
+  \return Reverse.Bound[linear sourceComplete targetComplete f, c] {
+    nonnegative := bound.nonnegative,
+    estimate := \block {
+      \fun (y: W) \then
+      \let v: V := vector sourceComplete targetComplete f y \then
+      \let a: R.Real := norm.realNorm.norm v \then
+      \let b: R.Real := R.mul c (targetNorm.realNorm.norm y) \then
+      \let bp: Order.Le R.zero b := L.fieldMulNonnegative c (targetNorm.realNorm.norm y) bound.nonnegative (targetNorm.realNorm.nonnegative y) \then
+      \let squared: Order.Le (R.mul a a) (R.mul b a) := Order.leTrans _ _ _
+        (Order.leReplaceLeft (C.re (targetInner.inner y (f.apply v))) (R.mul a a) _
+          (trans!{R.Real} _ _ _ (congr!{C.Complex R.Real} C.re _ _ (representation sourceComplete targetComplete f y v)) (sourceComplete.normSquared v))
+          (Order.leTrans _ _ _
+            (Order.leReplaceRight _ (R.Distance[].max (R.neg (C.re (targetInner.inner y (f.apply v)))) (C.re (targetInner.inner y (f.apply v)))) _
+              (sym!{R.Real} _ _ (Product.absExpression (C.re (targetInner.inner y (f.apply v)))))
+              (R.Distance[].maxRight (R.neg (C.re (targetInner.inner y (f.apply v)))) (C.re (targetInner.inner y (f.apply v)))))
+            (TargetEstimates.cauchySchwarz targetComplete y (f.apply v))))
+        (Order.leReplaceRight _ (R.mul (targetNorm.realNorm.norm y) (R.mul c a)) (R.mul b a)
+          (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (L.fieldMulAssoc (targetNorm.realNorm.norm y) c a))
+            (congr!{R.Real R.Real} (\fun (r: R.Real) => R.mul r a) _ _ (L.fieldMulComm (targetNorm.realNorm.norm y) c)))
+          (RE.mulMonotone (targetNorm.realNorm.norm y) (targetNorm.realNorm.norm (f.apply v)) (R.mul c a)
+            (targetNorm.realNorm.nonnegative y) (bound.estimate v))) \then
+      \return RO.leOfNotLtReverse a b (\block {
+        \fun (less: Order.Lt b a) \then
+        \let ap: Order.Lt R.zero a := Order.leLtTrans R.zero b a bp less \then
+        \let contradicts: Order.Lt (R.mul b a) (R.mul a a) :=
+          Order.ltReplaceLeft (R.mul a b) (R.mul b a) (R.mul a a) (L.fieldMulComm a b) (Product.mulStrict a b a ap less) \then
+        \return Order.ltNotLeReverse (R.mul b a) (R.mul a a) contradicts squared
+      })
+    },
+  }
+};
+\definition adjoint[sourceComplete: H.Complete][targetComplete: K.Complete][f: Map]: Reverse.Map :=
+  \into[Backward.Map](linear sourceComplete targetComplete f, Reverse.Map) \by { \block {
+    \takefrom c: \Cast[R.Real] ({ c: R.Real \where Bound[f, c] }) \by bounded f \then
+    \return Logic.existsIntro[R.Real, { b: R.Real \where Reverse.Bound[linear sourceComplete targetComplete f, b] }] c
+      (bound sourceComplete targetComplete f c (\bysub(R.Real, { c: R.Real \where Bound[f, c] }, c)))
+  } };
+\definition adjointLaw: \forall (sourceComplete: H.Complete)(targetComplete: K.Complete)(f: Map)(x: V)(y: W) ->
+  targetInner.inner (f.apply x) y = inner.inner x ((adjoint sourceComplete targetComplete f).apply y) :=
+  \fun (sourceComplete: H.Complete)(targetComplete: K.Complete)(f: Map)(x: V)(y: W) => eq_reason_in!{C.Complex _
+    "=" _ "by" { targetInner.conjugateSymmetric (f.apply x) y }
+    "=" _ "by" { congr!{C.Complex C.Complex} D.conj _ _ (representation sourceComplete targetComplete f y x) }
+    "=" _ "by" { sym!{C.Complex} _ _ (inner.conjugateSymmetric x ((adjoint sourceComplete targetComplete f).apply y)) }
+  };
+\definition unique: \forall (sourceComplete: H.Complete)(targetComplete: K.Complete)(f: Map)(g: Backward.Map) ->
+  (\forall (x: V)(y: W) -> targetInner.inner (f.apply x) y = inner.inner x (g.apply y)) ->
+  \forall (y: W) -> g.apply y = (adjoint sourceComplete targetComplete f).apply y :=
+  \fun (sourceComplete: H.Complete)(targetComplete: K.Complete)(f: Map)(g: Backward.Map)(law: _)(y: W) => H.separated (g.apply y) ((adjoint sourceComplete targetComplete f).apply y)
+    (\fun (x: V) => eq_reason_in!{C.Complex _
+      "=" _ "by" { inner.conjugateSymmetric (g.apply y) x }
+      "=" _ "by" { congr!{C.Complex C.Complex} D.conj _ _ (sym!{C.Complex} _ _ (law x y)) }
+      "=" _ "by" { sym!{C.Complex} _ _ (targetInner.conjugateSymmetric y (f.apply x)) }
+      "=" _ "by" { representation sourceComplete targetComplete f y x }
+    });
+\module NormContinuity;

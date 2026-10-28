@@ -1,0 +1,31 @@
+\definition exterior: Exterior.Point := \into[Quotient.Carrier](z, QuotientBase.Complement (QuotientBase.Singleton Quotient.point)) \by { different };
+\definition original: X := Exterior.inverse exterior;
+\definition inInner: Base.Member w.inner original := \block {
+  \takefrom p: \Cast[Quotient.Augmented] ({ p: Quotient.Augmented \where Logic.And[Augmented.Member augmented p, Collapse.class p = z] })
+    \by \bysub(Quotient.Carrier, domain, z) \then
+  \let data: Logic.And[Augmented.Member augmented p, Collapse.class p = z] := \bysub(Quotient.Augmented, { p: Quotient.Augmented \where Logic.And[Augmented.Member augmented p, Collapse.class p = z] }, p) \then
+  \return either!{{(Collapse.equalRelated (AugmentedSum.inl original) p (trans!{{Quotient.Carrier}} _ _ _ (Exterior.inverseProjection exterior) (sym!{{Quotient.Carrier}} _ _ data.right)))} {Base.Member w.inner original}
+    {\fun (equal: AugmentedSum.inl original = p) => \idelim p = AugmentedSum.inl original \with a: Quotient.Augmented => Augmented.Member augmented a \by {
+      base: data.left, equality: sym!{{Quotient.Augmented}} _ _ equal }}
+    {\fun (both: Logic.And[Augmented.Member Quotient.collapsedPart (AugmentedSum.inl original), Augmented.Member Quotient.collapsedPart p]) => w.contains original both.left}
+  }
+};
+\definition closedPoint: ClosedPoint := \into[X](original, w.envelope) \by { w.enclosed original inInner };
+\import From.Alignment[q := exterior] \as LeftAlignment;
+\import To.Alignment[q := exterior] \as RightAlignment;
+\definition reading[v: Bundles.Vector n]: (coefficients z).apply v =
+  (second.isomorphism.forward.fiber (\into[X](original, second.domain) \by { (w.within original (w.enclosed original inInner)).right })).apply
+    ((h.fiber original).apply ((first.isomorphism.backward.fiber (\into[X](original, first.domain) \by { (w.within original (w.enclosed original inInner)).left })).apply v)) :=
+  trans!{{Bundles.Vector m}} _ _ _
+    ((RightAlignment.agreement rightIndex (rightContains z)).reading ((map z).apply ((Left.trivialization.frame z).backward.apply v)))
+    (congr!{{F original} {Bundles.Vector m}}
+      (\fun (u: F original) => (second.isomorphism.forward.fiber (\into[X](original, second.domain) \by { (w.within original (w.enclosed original inInner)).right })).apply ((h.fiber original).apply u)) _ _
+      ((LeftAlignment.agreement leftIndex (leftContains z)).writing v));
+\definition matrix: Descended.value z = Rectangular.entries (originalCoefficients closedPoint) :=
+  trans!{{Rectangular.Matrix}} _ _ _
+    (congr!{{Quotient.Carrier} {Rectangular.Matrix}} Descended.value _ _ (sym!{{Quotient.Carrier}} _ _ (Exterior.inverseProjection exterior)))
+    (trans!{{Rectangular.Matrix}} _ _ _ (Descended.onOriginal original) (e.extends closedPoint));
+\definition formula[v: Bundles.Vector n]: (coefficients z).apply v = (Descended.linear z).apply v :=
+  trans!{{Bundles.Vector m}} _ _ _ (reading v)
+    (trans!{{Bundles.Vector m}} _ _ _ (sym!{{Bundles.Vector m}} _ _ (Rectangular.roundTrip (originalCoefficients closedPoint) v))
+      (congr!{{Rectangular.Matrix} {Bundles.Vector m}} (\fun (M: Rectangular.Matrix) => (Rectangular.linear M).apply v) _ _ (sym!{{Rectangular.Matrix}} _ _ matrix)));

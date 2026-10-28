@@ -1,0 +1,180 @@
+\import \root.Measure[A := A].ValueLaws[] \as Values;
+\definition Sup[values: N.Nat^ -> Value]: Value :=
+  { r: Real.Real \where \exists ( n: N.Nat^ \where below (values n) r ) };
+\definition supUpper: \forall (values: N.Nat^ -> Value) (n: N.Nat^) -> Values.Included (values n) (Sup values) :=
+  \fun (values: N.Nat^ -> Value) (n: N.Nat^) (r: Real.Real) (member: below (values n) r) =>
+    Logic.existsIntro[N.Nat^, { k: N.Nat^ \where below (values k) r }] n member;
+\definition supLeast: \forall (values: N.Nat^ -> Value) (bound: Value) ->
+  (\forall (n: N.Nat^) -> Values.Included (values n) bound) -> Values.Included (Sup values) bound :=
+  \fun (values: N.Nat^ -> Value) (bound: Value) (upper: \forall (n: N.Nat^) -> Values.Included (values n) bound)
+    (r: Real.Real) (member: below (Sup values) r) => \block {
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where below (values n) r }) \by member \then
+      \return upper n r (\bysub(N.Nat^, { n: N.Nat^ \where below (values n) r }, n))
+    };
+\definition lowerSupBound: \forall (f: N.Nat^ -> A -> Real.Real) (g: A -> Real.Real) ->
+  (\forall (n: N.Nat^) (x: A) -> R.Le (f n x) (g x)) ->
+  Values.Included (Sup (\fun (n: N.Nat^) => lowerIntegral (f n))) (lowerIntegral g) :=
+  \fun (f: N.Nat^ -> A -> Real.Real) (g: A -> Real.Real) (bound: \forall (n: N.Nat^) (x: A) -> R.Le (f n x) (g x)) =>
+    supLeast (\fun (n: N.Nat^) => lowerIntegral (f n)) (lowerIntegral g)
+      (\fun (n: N.Nat^) => lowerIntegralMono (f n) g (bound n));
+
+\import \root.Measure[A := A].Sigma[] \as Sigma;
+\import dedekind_reals.DedekindReal[].Order[] \as RealOrder;
+\definition PointValues[f: N.Nat^ -> A -> Real.Real] [x: A]: \Pow Real.Real :=
+  { y: Real.Real \where \exists ( n: N.Nat^ \where y = f n x ) };
+\definition PointwiseSup[f: N.Nat^ -> A -> Real.Real] [g: A -> Real.Real]: \Prop :=
+  \forall (x: A) -> Complete.LeastUpperBound[PointValues f x, g x];
+\definition pointValueMember: \forall (f: N.Nat^ -> A -> Real.Real) (x: A) (n: N.Nat^) ->
+  Complete.Member (PointValues f x) (f n x) :=
+  \fun (f: _) (x: _) (n: _) => Logic.existsIntro[N.Nat^, { k: N.Nat^ \where f n x = f k x }] n (\refl(f n x));
+\definition pointwiseUpper: \forall (f: N.Nat^ -> A -> Real.Real) (g: A -> Real.Real) -> PointwiseSup f g ->
+  \forall (n: N.Nat^) (x: A) -> R.Le (f n x) (g x) :=
+  \fun (f: N.Nat^ -> A -> Real.Real) (g: A -> Real.Real) (sup: PointwiseSup f g) (n: N.Nat^) (x: A) =>
+    (sup x).upper (f n x) (pointValueMember f x n);
+\definition abovePointwiseSup: \forall (f: N.Nat^ -> A -> Real.Real) (g: A -> Real.Real) -> PointwiseSup f g ->
+  \forall (x: A) (r: Real.Real) -> R.Lt r (g x) -> \exists ( n: N.Nat^ \where R.Lt r (f n x) ) :=
+  \fun (f: N.Nat^ -> A -> Real.Real) (g: A -> Real.Real) (sup: PointwiseSup f g) (x: A) (r: Real.Real) (less: R.Lt r (g x)) =>
+    RealOrder.byContradiction (\exists ( n: N.Nat^ \where R.Lt r (f n x) )) (\fun (none: Logic.Not (\exists ( n: N.Nat^ \where R.Lt r (f n x) ))) =>
+      R.ltNotLeReverse r (g x) less ((sup x).least r (\fun (y: Real.Real) (member: Complete.Member (PointValues f x) y) => \block {
+        \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where y = f n x }) \by member \then
+        \let equal: y = f n x := \bysub(N.Nat^, { n: N.Nat^ \where y = f n x }, n) \then
+        \let bound: R.Le (f n x) r := RealOrder.leOfNotLtReverse (f n x) r
+          (\fun (greater: R.Lt r (f n x)) => none (Logic.existsIntro[N.Nat^, { n: N.Nat^ \where R.Lt r (f n x) }] n greater)) \then
+        \return R.leReplaceLeft (f n x) y r (\idelim y = f n x \with z: Real.Real => z = y \by { base: \refl(y), equality: equal }) bound
+      })));
+\definition pointwiseSupMeasurable: \forall (f: N.Nat^ -> A -> Real.Real) (g: A -> Real.Real) -> PointwiseSup f g ->
+  (\forall (n: N.Nat^) -> IsMeasurable mu (f n)) -> IsMeasurable mu g :=
+  \fun (f: N.Nat^ -> A -> Real.Real) (g: A -> Real.Real) (sup: PointwiseSup f g)
+    (measurable: \forall (n: N.Nat^) -> IsMeasurable mu (f n)) (r: Real.Real) => \block {
+      \let sets: N.Nat^ -> \Pow A := \fun (n: N.Nat^) => { x: A \where R.Lt r (f n x) } \then
+      \let equal: union sets = { x: A \where R.Lt r (g x) } := \axiom:setext(union sets, { x: A \where R.Lt r (g x) },
+        \fun (x: A) (member: Sets.Member (union sets) x) => \block {
+          \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where R.Lt r (f n x) }) \by member \then
+          \return R.ltLeTrans r (f n x) (g x) (\bysub(N.Nat^, { n: N.Nat^ \where R.Lt r (f n x) }, n)) (pointwiseUpper f g sup n x)
+        },
+        \fun (x: A) (less: R.Lt r (g x)) => abovePointwiseSup f g sup x r less) \then
+      \return \idelim union sets = { x: A \where R.Lt r (g x) } \with S: \Pow A => Measurable mu.sigma S
+        \by { base: (Sigma.laws mu.sigma).countableUnion sets (\fun (n: N.Nat^) => measurable n r), equality: equal }
+    };
+
+\import N.Basic[].Prop[] \as Nat;
+\import N.Order[].Prop[] \as NatOrder;
+\definition ValueIncreasing[values: N.Nat^ -> Value]: \Prop :=
+  \forall (m, n: N.Nat^) -> Nat.Le m n -> Values.Included (values m) (values n);
+\definition scaleSup: \forall (c: Real.Real) (values: N.Nat^ -> Value) ->
+  scale c (Sup values) = Sup (\fun (n: N.Nat^) => scale c (values n)) :=
+  \fun (c: Real.Real) (values: N.Nat^ -> Value) => \axiom:setext(scale c (Sup values), Sup (\fun (n: N.Nat^) => scale c (values n)),
+    \fun (r: Real.Real) (member: below (scale c (Sup values)) r) => \block {
+      \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[below (Sup values) a, R.Lt r (Real.mul c a)] }) \by member \then
+      \let data: Logic.And[below (Sup values) a, R.Lt r (Real.mul c a)] := \bysub(Real.Real, { a: Real.Real \where Logic.And[below (Sup values) a, R.Lt r (Real.mul c a)] }, a) \then
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where below (values n) a }) \by data.left \then
+      \return supUpper (\fun (n: N.Nat^) => scale c (values n)) n r
+        (Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[below (values n) a, R.Lt r (Real.mul c a)] }] a
+          (Logic.And[_, _]::# (\bysub(N.Nat^, { n: N.Nat^ \where below (values n) a }, n)) data.right))
+    },
+    supLeast (\fun (n: N.Nat^) => scale c (values n)) (scale c (Sup values))
+      (\fun (n: N.Nat^) => Values.scaleMono c (values n) (Sup values) (supUpper values n)));
+\definition addSup: \forall (v, w: N.Nat^ -> Value) -> ValueIncreasing v -> ValueIncreasing w ->
+  add (Sup v) (Sup w) = Sup (\fun (n: N.Nat^) => add (v n) (w n)) :=
+  \fun (v, w: N.Nat^ -> Value) (vi: ValueIncreasing v) (wi: ValueIncreasing w) =>
+    \axiom:setext(add (Sup v) (Sup w), Sup (\fun (n: N.Nat^) => add (v n) (w n)),
+      \fun (r: Real.Real) (member: below (add (Sup v) (Sup w)) r) => \block {
+        \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[below (Sup v) a, \exists ( b: Real.Real \where Logic.And[below (Sup w) b, R.Lt r (Real.add a b)] )] }) \by member \then
+        \let first: Logic.And[below (Sup v) a, \exists ( b: Real.Real \where Logic.And[below (Sup w) b, R.Lt r (Real.add a b)] )] :=
+          \bysub(Real.Real, { a: Real.Real \where Logic.And[below (Sup v) a, \exists ( b: Real.Real \where Logic.And[below (Sup w) b, R.Lt r (Real.add a b)] )] }, a) \then
+        \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where Logic.And[below (Sup w) b, R.Lt r (Real.add a b)] }) \by first.right \then
+        \let second: Logic.And[below (Sup w) b, R.Lt r (Real.add a b)] :=
+          \bysub(Real.Real, { b: Real.Real \where Logic.And[below (Sup w) b, R.Lt r (Real.add a b)] }, b) \then
+        \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where below (v m) a }) \by first.left \then
+        \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where below (w n) b }) \by second.left \then
+        \let k: N.Nat^ := NatOrder.commonBound m n \then
+        \return supUpper (\fun (k: N.Nat^) => add (v k) (w k)) k r
+          (Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[below (v k) a, \exists ( b: Real.Real \where Logic.And[below (w k) b, R.Lt r (Real.add a b)] )] }] a
+            (Logic.And[_, _]::# (vi m k (NatOrder.leftLeCommonBound m n) a (\bysub(N.Nat^, { m: N.Nat^ \where below (v m) a }, m)))
+              (Logic.existsIntro[Real.Real, { b: Real.Real \where Logic.And[below (w k) b, R.Lt r (Real.add a b)] }] b
+                (Logic.And[_, _]::# (wi n k (NatOrder.rightLeCommonBound m n) b (\bysub(N.Nat^, { n: N.Nat^ \where below (w n) b }, n))) second.right))))
+      },
+      supLeast (\fun (n: N.Nat^) => add (v n) (w n)) (add (Sup v) (Sup w))
+        (\fun (n: N.Nat^) => Values.addMono (v n) (Sup v) (w n) (Sup w) (supUpper v n) (supUpper w n)));
+
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\definition supConstant: \forall (v: Value) -> Sup (\fun (_: N.Nat^) => v) = v :=
+  \fun (v: Value) => \axiom:setext(Sup (\fun (_: N.Nat^) => v), v,
+    supLeast (\fun (_: N.Nat^) => v) v (\fun (n: N.Nat^) (r: Real.Real) (member: below v r) => member),
+    supUpper (\fun (_: N.Nat^) => v) N.Nat^::zero);
+\definition sumValueIncreasing: \forall (n: N.Nat^) (f: N.Nat^ -> Fin.Fin n -> Value) ->
+  (\forall (i: Fin.Fin n) -> ValueIncreasing (\fun (k: N.Nat^) => f k i)) ->
+  ValueIncreasing (\fun (k: N.Nat^) => sum n (f k)) :=
+  \fun (n: N.Nat^) (f: N.Nat^ -> Fin.Fin n -> Value) (increasing: \forall (i: Fin.Fin n) -> ValueIncreasing (\fun (k: N.Nat^) => f k i))
+    (m, k: N.Nat^) (order: Nat.Le m k) => Values.sumMono n (f m) (f k) (\fun (i: Fin.Fin n) => increasing i m k order);
+\definition sumSup: \forall (n: N.Nat^) (f: N.Nat^ -> Fin.Fin n -> Value) ->
+  (\forall (i: Fin.Fin n) -> ValueIncreasing (\fun (k: N.Nat^) => f k i)) ->
+  sum n (\fun (i: Fin.Fin n) => Sup (\fun (k: N.Nat^) => f k i)) = Sup (\fun (k: N.Nat^) => sum n (f k)) :=
+  \induction (n: N.Nat^) \return \forall (f: N.Nat^ -> Fin.Fin n -> Value) ->
+    (\forall (i: Fin.Fin n) -> ValueIncreasing (\fun (k: N.Nat^) => f k i)) ->
+    sum n (\fun (i: Fin.Fin n) => Sup (\fun (k: N.Nat^) => f k i)) = Sup (\fun (k: N.Nat^) => sum n (f k)) \with {
+      | zero: \fun (f: N.Nat^ -> Fin.Fin N.Nat^::zero -> Value) (_: _) => sym!{Value} _ _ (supConstant zero)
+      | succ: \fun (n: N.Nat^) (previous: _) (f: N.Nat^ -> Fin.Fin (N.Nat^::succ n) -> Value) (increasing: _) => \block {
+        \let tail: N.Nat^ -> Fin.Fin n -> Value := \fun (k: N.Nat^) (i: Fin.Fin n) => f k (Fin.succ n i) \then
+        \let tailIncreasing: \forall (i: Fin.Fin n) -> ValueIncreasing (\fun (k: N.Nat^) => tail k i) := \fun (i: Fin.Fin n) => increasing (Fin.succ n i) \then
+        \return eq_reason_in!{Value _
+          "=" _ "by" { congr!{Value Value} (add (Sup (\fun (k: N.Nat^) => f k (Fin.zero n)))) _ _ (previous tail tailIncreasing) }
+          "=" _ "by" { addSup (\fun (k: N.Nat^) => f k (Fin.zero n)) (\fun (k: N.Nat^) => sum n (tail k))
+            (increasing (Fin.zero n)) (sumValueIncreasing n tail tailIncreasing) }
+        }
+      }
+    };
+
+\import \root.Measure[A := A].Continuity[mu := mu] \as MeasureContinuity;
+\definition FunctionIncreasing[f: N.Nat^ -> A -> Real.Real]: \Prop :=
+  \forall (n: N.Nat^) (x: A) -> R.Le (f n x) (f (N.Nat^::succ n) x);
+\definition threshold[f: N.Nat^ -> A -> Real.Real] [S: \Pow A] [b: Real.Real] [n: N.Nat^]: \Pow A :=
+  Sets.Intersection S ({ x: A \where R.Lt b (f n x) });
+\definition thresholdMeasurable: \forall (f: N.Nat^ -> A -> Real.Real) (S: \Pow A) (b: Real.Real) ->
+  (\forall (n: N.Nat^) -> IsMeasurable mu (f n)) -> Measurable mu.sigma S ->
+  \forall (n: N.Nat^) -> Measurable mu.sigma (threshold f S b n) :=
+  \fun (f: N.Nat^ -> A -> Real.Real) (S: \Pow A) (b: Real.Real) (measurable: \forall (n: N.Nat^) -> IsMeasurable mu (f n))
+    (s: Measurable mu.sigma S) (n: N.Nat^) => Sigma.intersectionMeasurable mu.sigma S ({ x: A \where R.Lt b (f n x) }) s (measurable n b);
+\definition thresholdIncreasing: \forall (f: N.Nat^ -> A -> Real.Real) (S: \Pow A) (b: Real.Real) -> FunctionIncreasing f ->
+  MeasureContinuity.Increasing (threshold f S b) :=
+  \fun (f: N.Nat^ -> A -> Real.Real) (S: \Pow A) (b: Real.Real) (increasing: FunctionIncreasing f) (n: N.Nat^) (x: A)
+    (member: Sets.Member (threshold f S b n) x) => Logic.And[_, _]::# member.left
+      (R.ltLeTrans b (f n x) (f (N.Nat^::succ n) x) member.right (increasing n x));
+\definition thresholdUnion: \forall (f: N.Nat^ -> A -> Real.Real) (g: A -> Real.Real) (S: \Pow A) (b: Real.Real) ->
+  PointwiseSup f g -> (\forall (x: A) -> Sets.Member S x -> R.Lt b (g x)) -> union (threshold f S b) = S :=
+  \fun (f: N.Nat^ -> A -> Real.Real) (g: A -> Real.Real) (S: \Pow A) (b: Real.Real) (sup: PointwiseSup f g)
+    (strict: \forall (x: A) -> Sets.Member S x -> R.Lt b (g x)) => \axiom:setext(union (threshold f S b), S,
+      \fun (x: A) (member: Sets.Member (union (threshold f S b)) x) => \block {
+        \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Sets.Member (threshold f S b n) x }) \by member \then
+        \return (\bysub(N.Nat^, { n: N.Nat^ \where Sets.Member (threshold f S b n) x }, n)).left
+      },
+      \fun (x: A) (member: Sets.Member S x) => \block {
+        \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where R.Lt b (f n x) }) \by abovePointwiseSup f g sup x b (strict x member) \then
+        \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where Sets.Member (threshold f S b n) x }] n
+          (Logic.And[_, _]::# member (\bysub(N.Nat^, { n: N.Nat^ \where R.Lt b (f n x) }, n)))
+      });
+\definition thresholdMeasure: \forall (f: N.Nat^ -> A -> Real.Real) (g: A -> Real.Real) (S: \Pow A) (b: Real.Real) ->
+  PointwiseSup f g -> FunctionIncreasing f -> (\forall (n: N.Nat^) -> IsMeasurable mu (f n)) -> Measurable mu.sigma S ->
+  (\forall (x: A) -> Sets.Member S x -> R.Lt b (g x)) -> mu.value S = Sup (\fun (n: N.Nat^) => mu.value (threshold f S b n)) :=
+  \fun (f: N.Nat^ -> A -> Real.Real) (g: A -> Real.Real) (S: \Pow A) (b: Real.Real) (sup: PointwiseSup f g)
+    (increasing: FunctionIncreasing f) (measurable: \forall (n: N.Nat^) -> IsMeasurable mu (f n)) (s: Measurable mu.sigma S)
+    (strict: \forall (x: A) -> Sets.Member S x -> R.Lt b (g x)) => eq_reason_in!{Value _
+      "=" _ "by" { congr!{{\Pow A} Value} mu.value _ _ (sym!{{\Pow A}} _ _ (thresholdUnion f g S b sup strict)) }
+      "=" _ "by" { MeasureContinuity.increasingSup (threshold f S b) (thresholdMeasurable f S b measurable s) (thresholdIncreasing f S b increasing) }
+    };
+
+\definition Shrink: \Set := \Cast[Real.Real] ({ c: Real.Real \where Logic.And[R.Le Real.zero c, R.Lt c Real.one] });
+\definition shrinkLaw[c: Shrink]: Logic.And[R.Le Real.zero c, R.Lt c Real.one] :=
+  \bysub(Real.Real, { c: Real.Real \where Logic.And[R.Le Real.zero c, R.Lt c Real.one] }, c);
+\definition MeasurableSequence: \Set := \Cast[N.Nat^ -> A -> Real.Real]
+  ({ f: N.Nat^ -> A -> Real.Real \where \forall (n: N.Nat^) -> IsMeasurable mu (f n) });
+\definition sequenceMeasurable[f: MeasurableSequence]: \forall (n: N.Nat^) -> IsMeasurable mu (f n) :=
+  \bysub(N.Nat^ -> A -> Real.Real, { f: N.Nat^ -> A -> Real.Real \where \forall (n: N.Nat^) -> IsMeasurable mu (f n) }, f);
+\module Approximation(n: N.Nat^, s: Simple[n], c: Shrink, f: MeasurableSequence);
+\module Recovery;
+\module Monotone;
+\module Fatou;
+\module PointwiseSum;
+\module PointwiseLimit;

@@ -1,0 +1,97 @@
+\import real.Analysis[].Sequence[] \as Sequence;
+\import real.Analysis[].SquareRoot[] \as SquareRoot;
+\import real.Analysis[].Algebra[] \as Algebra;
+\import \root.ScalarLimits[] \as Limits;
+\use std.Logic[].Equality[].sym;
+\definition Approaches[values: N.Nat^ -> Value] [limit: Value]: \Prop :=
+  \forall (r: Real.Real) -> below limit r -> \exists ( k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> below (values n) r );
+\definition eventuallyAbove: \forall (s: N.Nat^ -> Real.Real) (value, r: Real.Real) -> Sequence.Converges s value -> R.Lt r value ->
+  \exists ( k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt r (s n) ) :=
+  \fun (s: N.Nat^ -> Real.Real) (value, r: Real.Real) (converges: Sequence.Converges s value) (less: R.Lt r value) => \block {
+    \let gap: Real.Real := Real.sub value r \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sequence.LimitControl s value gap k })
+      \by converges gap (SquareRoot.subPositive value r less) \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt r (s n) }] k
+      (\fun (n: N.Nat^) (later: Nat.Le k n) =>
+        R.ltReplaceLeft (Real.sub value gap) r (s n) (Algebra.subSub value r)
+          (Distance.distanceLtLower value (s n) gap
+            (R.ltReplaceLeft (Real.distance (s n) value) (Real.distance value (s n)) gap (Distance.distanceSymmetric (s n) value)
+              ((\bysub(N.Nat^, { k: N.Nat^ \where Sequence.LimitControl s value gap k }, k)) n later))))
+  };
+\definition scaleApproaches: \forall (coeff: N.Nat^ -> Real.Real) (c: Real.Real) -> Sequence.Converges coeff c ->
+  \forall (v: Value) -> Approaches (\fun (n: N.Nat^) => scale (coeff n) v) (scale c v) :=
+  \fun (coeff: N.Nat^ -> Real.Real) (c: Real.Real) (converges: Sequence.Converges coeff c) (v: Value) (r: Real.Real) (member: below (scale c v) r) => \block {
+    \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[below v a, R.Lt r (Real.mul c a)] }) \by member \then
+    \let data: Logic.And[below v a, R.Lt r (Real.mul c a)] := \bysub(Real.Real, { a: Real.Real \where Logic.And[below v a, R.Lt r (Real.mul c a)] }, a) \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt r (Real.mul (coeff n) a) }) \by
+      eventuallyAbove (\fun (n: N.Nat^) => Real.mul (coeff n) a) (Real.mul c a) r
+        (Limits.productConverges coeff (\fun (_: N.Nat^) => a) c a converges (Sequence.constantConverges a)) data.right \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> below (scale (coeff n) v) r }] k
+      (\fun (n: N.Nat^) (later: Nat.Le k n) => Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[below v a, R.Lt r (Real.mul (coeff n) a)] }] a
+        (Logic.And[_, _]::# data.left ((\bysub(N.Nat^, { k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt r (Real.mul (coeff n) a) }, k)) n later)))
+  };
+
+\definition addApproaches: \forall (u, v: N.Nat^ -> Value) (a, b: Value) -> Approaches u a -> Approaches v b ->
+  Approaches (\fun (n: N.Nat^) => add (u n) (v n)) (add a b) :=
+  \fun (u, v: N.Nat^ -> Value) (a, b: Value) (ua: Approaches u a) (vb: Approaches v b) (r: Real.Real) (member: below (add a b) r) => \block {
+    \takefrom x: \Cast[Real.Real] ({ x: Real.Real \where Logic.And[below a x, \exists ( y: Real.Real \where Logic.And[below b y, R.Lt r (Real.add x y)] )] }) \by member \then
+    \let first: Logic.And[below a x, \exists ( y: Real.Real \where Logic.And[below b y, R.Lt r (Real.add x y)] )] :=
+      \bysub(Real.Real, { x: Real.Real \where Logic.And[below a x, \exists ( y: Real.Real \where Logic.And[below b y, R.Lt r (Real.add x y)] )] }, x) \then
+    \takefrom y: \Cast[Real.Real] ({ y: Real.Real \where Logic.And[below b y, R.Lt r (Real.add x y)] }) \by first.right \then
+    \let second: Logic.And[below b y, R.Lt r (Real.add x y)] := \bysub(Real.Real, { y: Real.Real \where Logic.And[below b y, R.Lt r (Real.add x y)] }, y) \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> below (u n) x }) \by ua x first.left \then
+    \takefrom l: \Cast[N.Nat^] ({ l: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le l n -> below (v n) y }) \by vb y second.left \then
+    \return Logic.existsIntro[N.Nat^, { p: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le p n -> below (add (u n) (v n)) r }] (NatOrder.commonBound k l)
+      (\fun (n: N.Nat^) (later: Nat.Le (NatOrder.commonBound k l) n) =>
+        Logic.existsIntro[Real.Real, { x: Real.Real \where Logic.And[below (u n) x, \exists ( y: Real.Real \where Logic.And[below (v n) y, R.Lt r (Real.add x y)] )] }] x
+          (Logic.And[_, _]::# ((\bysub(N.Nat^, { k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> below (u n) x }, k)) n
+              (Nat.leTrans k (NatOrder.commonBound k l) n (NatOrder.leftLeCommonBound k l) later))
+            (Logic.existsIntro[Real.Real, { y: Real.Real \where Logic.And[below (v n) y, R.Lt r (Real.add x y)] }] y
+              (Logic.And[_, _]::# ((\bysub(N.Nat^, { l: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le l n -> below (v n) y }, l)) n
+                (Nat.leTrans l (NatOrder.commonBound k l) n (NatOrder.rightLeCommonBound k l) later)) second.right))))
+  };
+\definition sumApproaches: \forall (n: N.Nat^) (f: N.Nat^ -> Fin.Fin n -> Value) (g: Fin.Fin n -> Value) ->
+  (\forall (i: Fin.Fin n) -> Approaches (\fun (k: N.Nat^) => f k i) (g i)) ->
+  Approaches (\fun (k: N.Nat^) => sum n (f k)) (sum n g) :=
+  \induction (n: N.Nat^) \return \forall (f: N.Nat^ -> Fin.Fin n -> Value) (g: Fin.Fin n -> Value) ->
+    (\forall (i: Fin.Fin n) -> Approaches (\fun (k: N.Nat^) => f k i) (g i)) -> Approaches (\fun (k: N.Nat^) => sum n (f k)) (sum n g) \with {
+      | zero: \fun (f: N.Nat^ -> Fin.Fin N.Nat^::zero -> Value) (g: Fin.Fin N.Nat^::zero -> Value) (_: _) (r: Real.Real) (member: below zero r) =>
+        Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> below zero r }] N.Nat^::zero
+          (\fun (n: N.Nat^) (_: Nat.Le N.Nat^::zero n) => member)
+      | succ: \fun (n: N.Nat^) (previous: _) (f: N.Nat^ -> Fin.Fin (N.Nat^::succ n) -> Value) (g: Fin.Fin (N.Nat^::succ n) -> Value) (approaches: _) =>
+        addApproaches (\fun (k: N.Nat^) => f k (Fin.zero n)) (\fun (k: N.Nat^) => sum n (\fun (i: Fin.Fin n) => f k (Fin.succ n i)))
+          (g (Fin.zero n)) (sum n (\fun (i: Fin.Fin n) => g (Fin.succ n i))) (approaches (Fin.zero n))
+          (previous (\fun (k: N.Nat^) (i: Fin.Fin n) => f k (Fin.succ n i)) (\fun (i: Fin.Fin n) => g (Fin.succ n i))
+            (\fun (i: Fin.Fin n) => approaches (Fin.succ n i)))
+    };
+
+\import real.Analysis[].Geometric[q := Real.half] \as Dyadic;
+\import real.Analysis[].Estimates[] \as E;
+\import real.Analysis[].Estimates[].Product[] \as Product;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].congr;
+\definition shrinkValue[k: N.Nat^]: Real.Real := Real.sub Real.one (Dyadic.value (N.Nat^::succ k));
+\definition shrink[k: N.Nat^]: Shrink := \into[Real.Real](shrinkValue k, { c: Real.Real \where Logic.And[R.Le Real.zero c, R.Lt c Real.one] }) \by {
+  Logic.And[_, _]::#
+    (Distance.subNonnegative Real.one (Dyadic.value (N.Nat^::succ k))
+      (Limits.dyadicDecreasing (N.Nat^::succ k) N.Nat^::zero (Nat.zeroLe (N.Nat^::succ k))))
+    (SquareRoot.subBelow Real.one (Dyadic.value (N.Nat^::succ k)) (Limits.dyadicPositive (N.Nat^::succ k)))
+};
+\definition shrinkDistance: \forall (k: N.Nat^) -> Real.distance (shrinkValue k) Real.one = Dyadic.value (N.Nat^::succ k) :=
+  \fun (k: N.Nat^) => eq_reason_in!{Real.Real _
+    "=" _ "by" { Distance.distanceSymmetric (shrinkValue k) Real.one }
+    "=" _ "by" { sym!{Real.Real} _ _ (E.distanceDifference Real.one (shrinkValue k)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.distance x Real.zero) _ _ (Algebra.subSub Real.one (Dyadic.value (N.Nat^::succ k))) }
+    "=" _ "by" { Distance.distanceSymmetric (Dyadic.value (N.Nat^::succ k)) Real.zero }
+    "=" _ "by" { Product.absOfNonnegative (Dyadic.value (N.Nat^::succ k)) (RealOrder.leOfLt Real.zero _ (Limits.dyadicPositive (N.Nat^::succ k))) }
+  };
+\definition shrinkConverges: Sequence.Converges shrinkValue Real.one :=
+  \fun (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) => \block {
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt (Dyadic.value n) epsilon }) \by Limits.dyadicSmall epsilon positive \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequence.LimitControl shrinkValue Real.one epsilon k }] k
+      (\fun (n: N.Nat^) (later: Nat.Le k n) => R.ltReplaceLeft (Dyadic.value (N.Nat^::succ n)) (Real.distance (shrinkValue n) Real.one) epsilon
+        (sym!{Real.Real} _ _ (shrinkDistance n))
+        ((\bysub(N.Nat^, { k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt (Dyadic.value n) epsilon }, k)) (N.Nat^::succ n)
+          (Nat.leTrans k n (N.Nat^::succ n) later (Nat.leSelfSucc n))))
+  };

@@ -1,0 +1,28 @@
+\import functional_analysis.Normed[V := W, space := Target.realSpace] \as TargetNormed;
+\import metric_spaces.MetricSpace[Carrier := W] \as Metrics;
+\import Metrics.Compactness[].RelativelyCompact[metric := TargetNormed.metric targetNorm.realNorm] \as Relative;
+\import Metrics.Compactness[].TotalBounded[metric := TargetNormed.metric targetNorm.realNorm] \as Total;
+\import topology.Maps[A := V, B := W] \as Sets;
+\import topology.Topology[Carrier := W] \as T;
+\import T.Compactness[] \as Cpt;
+\import Metrics.Topology[] \as Topology;
+\import RealLinear.Linear[V := V, W := W, source := realSpace, target := Target.realSpace].Operations[] \as Operations;
+\definition UnitBall: \Pow V := { x: V \where Order.Le (norm.realNorm.norm x) R.one };
+\definition Image[f: Map]: \Pow W := Sets.Image (f.apply) UnitBall;
+\definition Compact[f: Map]: \Prop := Relative.RelativelyCompact (Image f);
+\definition totallyBounded: \forall (f: Map) -> Compact f -> Total.TotallyBounded (Image f) :=
+  \fun (f: Map)(compact: Compact f) => Relative.totallyBounded (Image f) compact;
+\definition zeroImage: \forall (f: Map) -> (\forall (x: V) -> f.apply x = target.zero) -> Compact f :=
+  \fun (f: Map)(zero: \forall (x: V) -> f.apply x = target.zero) =>
+    Relative.containedInCompact (Image f) (T.Singleton target.zero)
+      (\fun (y: W)(member: T.Member (Image f) y) => Sets.imageElim (f.apply) UnitBall y (T.Member (T.Singleton target.zero) y)
+        (\fun (x: V)(inBall: _)(same: f.apply x = y) => trans!{W} y (f.apply x) target.zero (sym!{W} _ _ same) (zero x)) member)
+      (Cpt.singletonCompact (Topology.topology (TargetNormed.metric targetNorm.realNorm)) target.zero);
+\module After(U: \Set, codomain: ComplexLinear.VectorSpace U, codomainNorm: \root.Space[V := U, space := codomain].Norm);
+\module Addition;
+\module Before(U: \Set, domain: ComplexLinear.VectorSpace U, domainNorm: \root.Space[V := U, space := domain].Norm);
+\module Limit;
+\module Approximation(targetInner: linear_algebra.Complex[].InnerProduct[V := W, space := target].InnerProduct);
+\module Identity(inner: linear_algebra.Complex[].InnerProduct[V := V, space := space].InnerProduct);
+\module FiniteRank(targetInner: linear_algebra.Complex[].InnerProduct[V := W, space := target].InnerProduct);
+\module Adjoint(inner: linear_algebra.Complex[].InnerProduct[V := V, space := space].InnerProduct, targetInner: linear_algebra.Complex[].InnerProduct[V := W, space := target].InnerProduct);

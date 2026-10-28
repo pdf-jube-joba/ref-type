@@ -33,3 +33,204 @@
   integrable: Integrable f,
   parts: \exists ( positive: Real.Real \where \exists ( negative: Real.Real \where Parts[f, value, positive, negative] ) ),
 };
+
+\definition dominatedMono: \forall (n: N.Nat^) (s: Simple[n]) (f, g: A -> Real.Real) ->
+  Dominated n s f -> (\forall (x: A) -> R.Le (f x) (g x)) -> Dominated n s g :=
+  \fun (n: _) (s: _) (f, g: _) (dominated: _) (order: _) (i: _) (x: _) (member: _) =>
+    R.leTrans (s.coefficients i) (f x) (g x) (dominated i x member) (order x);
+
+\definition lowerIntegralMono: \forall (f, g: A -> Real.Real) ->
+  (\forall (x: A) -> R.Le (f x) (g x)) ->
+  \forall (r: Real.Real) -> below (lowerIntegral f) r -> below (lowerIntegral g) r :=
+  \fun (f, g: _) (order: _) (r: _) (inIntegral: _) => \block {
+    \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] ) }) \by inIntegral \then
+    \takefrom s: \Cast[Simple[n]] ({ s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] })
+      \by (\bysub(N.Nat^, { n: N.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] ) }, n)) \then
+    \let data: Logic.And[Dominated n s f, below (simpleIntegral n s) r] :=
+      \bysub(Simple[n], { s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] }, s) \then
+    \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s g, below (simpleIntegral n s) r] ) }] n
+      (Logic.existsIntro[Simple[n], { s: Simple[n] \where Logic.And[Dominated n s g, below (simpleIntegral n s) r] }] s
+        (Logic.And[_, _]::# (dominatedMono n s f g (data.left) order) (data.right)))
+  };
+
+\definition finiteMono: \forall (f, g: A -> Real.Real) ->
+  (\forall (x: A) -> R.Le Real.zero (f x)) ->
+  (\forall (x: A) -> R.Le (f x) (g x)) -> Finite g -> Finite f :=
+  \fun (f, g: _) (nonnegative: _) (order: _) (finite: _) => \block {
+    \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where IntegralBound[g, b] }) \by finite.right \then
+    \let bound: IntegralBound[g, b] := \bysub(Real.Real, { b: Real.Real \where IntegralBound[g, b] }, b) \then
+    \return Logic.And[_, _]::# nonnegative
+      (Logic.existsIntro[Real.Real, { b: Real.Real \where IntegralBound[f, b] }] b
+        (IntegralBound[f, b] {
+          nonnegative := bound.nonnegative,
+          bound := \fun (r: _) (member: _) => bound.bound r (lowerIntegralMono f g order r member),
+        }))
+  };
+
+\definition integralUnique: \forall (f: A -> Real.Real) (u, v: Real.Real) ->
+  HasIntegral[f, u] -> HasIntegral[f, v] -> u = v :=
+  \fun (f: A -> Real.Real) (u, v: Real.Real) (hu: HasIntegral[f, u]) (hv: HasIntegral[f, v]) => \block {
+    \takefrom pu: \Cast[Real.Real] ({ p: Real.Real \where \exists ( n: Real.Real \where Parts[f, u, p, n] ) }) \by hu.parts \then
+    \takefrom nu: \Cast[Real.Real] ({ n: Real.Real \where Parts[f, u, pu, n] })
+      \by (\bysub(Real.Real, { p: Real.Real \where \exists ( n: Real.Real \where Parts[f, u, p, n] ) }, pu)) \then
+    \takefrom pv: \Cast[Real.Real] ({ p: Real.Real \where \exists ( n: Real.Real \where Parts[f, v, p, n] ) }) \by hv.parts \then
+    \takefrom nv: \Cast[Real.Real] ({ n: Real.Real \where Parts[f, v, pv, n] })
+      \by (\bysub(Real.Real, { p: Real.Real \where \exists ( n: Real.Real \where Parts[f, v, p, n] ) }, pv)) \then
+    \let up: Parts[f, u, pu, nu] := \bysub(Real.Real, { n: Real.Real \where Parts[f, u, pu, n] }, nu) \then
+    \let vp: Parts[f, v, pv, nv] := \bysub(Real.Real, { n: Real.Real \where Parts[f, v, pv, n] }, nv) \then
+    \let positives: pu = pv := Complete.leastUpperBoundUnique (lowerIntegral (positivePart f)) pu pv up.positiveLaw vp.positiveLaw \then
+    \let negatives: nu = nv := Complete.leastUpperBoundUnique (lowerIntegral (negativePart f)) nu nv up.negativeLaw vp.negativeLaw \then
+    \return (\idelim v = Real.sub pv nv \with t: Real.Real => u = t -> u = v
+      \by { base: \fun (equal: u = v) => equal, equality: vp.difference })
+      (\idelim pu = pv \with p: Real.Real => u = Real.sub p nv
+        \by { base: \idelim nu = nv \with n: Real.Real => u = Real.sub pu n
+          \by { base: up.difference, equality: negatives }, equality: positives })
+  };
+
+\definition emptySimple: Simple[N.Nat^::zero] := Simple[N.Nat^::zero] {
+  cells := \fun (_: Fin.Fin N.Nat^::zero) => Sets.Empty,
+  coefficients := \fun (_: Fin.Fin N.Nat^::zero) => Real.zero,
+  measurable := \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)),
+  nonnegative := \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)),
+  disjoint := \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)),
+};
+
+\definition emptyDominated: \forall (f: A -> Real.Real) -> Dominated N.Nat^::zero emptySimple f :=
+  \fun (f: _) (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i));
+
+\definition lowerIntegralNegative: \forall (f: A -> Real.Real) (r: Real.Real) ->
+  R.Lt r Real.zero -> below (lowerIntegral f) r :=
+  \fun (f: _) (r: _) (negative: _) =>
+    Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] ) }] N.Nat^::zero
+      (Logic.existsIntro[Simple[N.Nat^::zero], { s: Simple[N.Nat^::zero] \where Logic.And[Dominated N.Nat^::zero s f, below (simpleIntegral N.Nat^::zero s) r] }]
+        emptySimple (Logic.And[_, _]::# (emptyDominated f) negative));
+
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Arithmetic;
+\import real.Analysis[].Distance[] \as Distance;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\definition negativeOne: R.Lt (Real.neg Real.one) Real.zero :=
+  R.ltReplaceRight (Real.neg Real.one) (Real.neg Real.zero) Real.zero Arithmetic.negZero
+    (Arithmetic.negStrictAntitone Real.zero Real.one Product.onePositive);
+
+\definition lowerIntegralNonempty: \forall (f: A -> Real.Real) -> Complete.Nonempty (lowerIntegral f) :=
+  \fun (f: A -> Real.Real) =>
+    \exact(\into[Real.Real](Real.neg Real.one, lowerIntegral f) \by { lowerIntegralNegative f (Real.neg Real.one) negativeOne },
+      \Cast[Real.Real] (lowerIntegral f));
+
+\definition finiteSupExists: \forall (f: A -> Real.Real) -> Finite f ->
+  \exists ( u: Real.Real \where Complete.LeastUpperBound[lowerIntegral f, u] ) :=
+  \fun (f: A -> Real.Real) (finite: Finite f) => \block {
+    \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where IntegralBound[f, b] }) \by finite.right \then
+    \let bound: IntegralBound[f, b] := \bysub(Real.Real, { b: Real.Real \where IntegralBound[f, b] }, b) \then
+    \return Complete.complete (lowerIntegral f) (lowerIntegralNonempty f)
+      (Logic.existsIntro[Real.Real, { u: Real.Real \where Complete.UpperBound (lowerIntegral f) u }] b bound.bound)
+  };
+
+\definition positivePartNonnegative: \forall (f: A -> Real.Real) (x: A) -> R.Le Real.zero (positivePart f x) :=
+  \fun (f: _) (x: _) => Distance.maxLeft Real.zero (f x);
+\definition negativePartNonnegative: \forall (f: A -> Real.Real) (x: A) -> R.Le Real.zero (negativePart f x) :=
+  \fun (f: _) (x: _) => Distance.maxLeft Real.zero (Real.neg (f x));
+\definition positivePartBound: \forall (f: A -> Real.Real) (x: A) -> R.Le (positivePart f x) (Product.abs (f x)) :=
+  \fun (f: _) (x: _) => Distance.maxLeast Real.zero (f x) (Product.abs (f x)) (Product.absNonnegative (f x))
+    (R.leReplaceRight (f x) (Distance.max (Real.neg (f x)) (f x)) (Product.abs (f x))
+      (sym!{Real.Real} _ _ (Product.absExpression (f x))) (Distance.maxRight (Real.neg (f x)) (f x)));
+\definition negativePartBound: \forall (f: A -> Real.Real) (x: A) -> R.Le (negativePart f x) (Product.abs (f x)) :=
+  \fun (f: _) (x: _) => Distance.maxLeast Real.zero (Real.neg (f x)) (Product.abs (f x)) (Product.absNonnegative (f x))
+    (R.leReplaceRight (Real.neg (f x)) (Distance.max (Real.neg (f x)) (f x)) (Product.abs (f x))
+      (sym!{Real.Real} _ _ (Product.absExpression (f x))) (Distance.maxLeft (Real.neg (f x)) (f x)));
+\definition integralExists: \forall (f: A -> Real.Real) -> Integrable f ->
+  \exists ( value: Real.Real \where HasIntegral[f, value] ) :=
+  \fun (f: A -> Real.Real) (integrable: Integrable f) => \block {
+    \takefrom p: \Cast[Real.Real] ({ p: Real.Real \where Complete.LeastUpperBound[lowerIntegral (positivePart f), p] })
+      \by finiteSupExists (positivePart f) (finiteMono (positivePart f) (\fun (x: A) => Product.abs (f x))
+        (positivePartNonnegative f) (positivePartBound f) integrable.right) \then
+    \takefrom n: \Cast[Real.Real] ({ n: Real.Real \where Complete.LeastUpperBound[lowerIntegral (negativePart f), n] })
+      \by finiteSupExists (negativePart f) (finiteMono (negativePart f) (\fun (x: A) => Product.abs (f x))
+        (negativePartNonnegative f) (negativePartBound f) integrable.right) \then
+    \return Logic.existsIntro[Real.Real, { value: Real.Real \where HasIntegral[f, value] }] (Real.sub p n)
+      (HasIntegral[f, Real.sub p n] {
+        integrable := integrable,
+        parts := Logic.existsIntro[Real.Real, { q: Real.Real \where \exists ( t: Real.Real \where Parts[f, Real.sub p n, q, t] ) }] p
+          (Logic.existsIntro[Real.Real, { t: Real.Real \where Parts[f, Real.sub p n, p, t] }] n
+            (Parts[f, Real.sub p n, p, n] {
+              positiveLaw := \bysub(Real.Real, { p: Real.Real \where Complete.LeastUpperBound[lowerIntegral (positivePart f), p] }, p),
+              negativeLaw := \bysub(Real.Real, { n: Real.Real \where Complete.LeastUpperBound[lowerIntegral (negativePart f), n] }, n),
+              difference := \refl(Real.sub p n),
+            })),
+      })
+  };
+
+\definition Representatives: \Set := \Cast[A -> Real.Real] ({ f: A -> Real.Real \where Integrable f });
+\definition IntegralValue[f: Representatives]: \Set := \Cast[Real.Real] ({ value: Real.Real \where HasIntegral[f, value] });
+\definition integralCandidateUnique: \forall (f: Representatives) (u, v: IntegralValue f) -> u = v :=
+  \fun (f: Representatives) (u, v: IntegralValue f) => integralUnique f u v
+    (\bysub(Real.Real, { value: Real.Real \where HasIntegral[f, value] }, u))
+    (\bysub(Real.Real, { value: Real.Real \where HasIntegral[f, value] }, v));
+\definition integral[f: Representatives]: Real.Real :=
+  \choice IntegralValue f \by {
+    existence: integralExists f (\bysub(A -> Real.Real, { f: A -> Real.Real \where Integrable f }, f)),
+    uniqueness: integralCandidateUnique f
+  };
+\definition integralLaw: \forall (f: Representatives) -> HasIntegral[f, integral f] :=
+  \fun (f: Representatives) => \bysub(Real.Real, { value: Real.Real \where HasIntegral[f, value] },
+    \choice IntegralValue f \by {
+      existence: integralExists f (\bysub(A -> Real.Real, { f: A -> Real.Real \where Integrable f }, f)),
+      uniqueness: integralCandidateUnique f
+    });
+\module Null;
+\module SimpleLaws;
+\module Convergence;
+\module Examples;
+\module Zero;
+\module Negation;
+\module Absolute;
+\module Scaling;
+\module Partition;
+\module Join(m, n: N.Nat^, s: Simple[m], t: Simple[n]);
+\structure SimplePair[m, n: N.Nat^]: \Set := { left: Simple[m], right: Simple[n] };
+\definition SeparatedPairs[m, n: N.Nat^]: \Set := \Cast[SimplePair[m, n]] ({ p: SimplePair[m, n] \where
+  \forall (i: Fin.Fin m) (j: Fin.Fin n) -> Sets.Disjoint (p.left.cells i) (p.right.cells j) });
+\module Combined(m, n: N.Nat^, p: SeparatedPairs[m, n]);
+\module Overlap(m, n: N.Nat^, s: Simple[m], t: Simple[n]);
+\module Assembly(m: N.Nat^);
+\module Refinement(m, n: N.Nat^, s: Simple[m], t: Simple[n]);
+\module Additive;
+\definition CompleteSimple[n: N.Nat^]: \Set := \Cast[Simple[n]] ({ s: Simple[n] \where
+  \forall (x: A) -> \exists ( i: Fin.Fin n \where Sets.Member (s.cells i) x ) });
+\module Evaluation(n: N.Nat^, s: CompleteSimple[n]);
+\module Maximum(m, n: N.Nat^, s: CompleteSimple[m], t: CompleteSimple[n]);
+\structure StepData: \Set := { set: \Pow A, coefficient: Real.Real, measurable: Measurable mu.sigma set, nonnegative: R.Le Real.zero coefficient };
+\module Step(p: StepData);
+
+\structure NonnegativeMeasurable: \Set := { function: A -> Real.Real, measurable: IsMeasurable mu function,
+  nonnegative: \forall (x: A) -> R.Le Real.zero (function x) };
+\module Approximation(f: NonnegativeMeasurable);
+\module CompleteAdd(m, n: N.Nat^, s: CompleteSimple[m], t: CompleteSimple[n]);
+\module Linear;
+\module QuotientLinear;
+\structure NonnegativeRepresentativeSequence: \Set := {
+  sequence: N.Nat^ -> Representatives,
+  nonnegative: \forall (k: N.Nat^) (x: A) -> R.Le Real.zero (sequence k x),
+};
+\module FatouIntegral(f: NonnegativeRepresentativeSequence, g: Representatives);
+\import real.Analysis[].Sequence[] \as Sequence;
+\structure DominatedSequence: \Set := {
+  sequence: N.Nat^ -> Representatives,
+  limit: A -> Real.Real,
+  bound: Representatives,
+  dominated: \forall (k: N.Nat^) (x: A) -> R.Le (Product.abs (sequence k x)) (bound x),
+  converges: \forall (x: A) -> Sequence.Converges (\fun (k: N.Nat^) => sequence k x) (limit x),
+};
+\module Dominated(d: DominatedSequence);
+\module Mask(exception: \root.Measure[A := A].Integral[mu := mu].Null[].NullSet, f: A -> Real.Real);
+\structure AEDominatedSequence: \Set := {
+  sequence: N.Nat^ -> Representatives,
+  limit: A -> Real.Real,
+  bound: Representatives,
+  exception: \root.Measure[A := A].Integral[mu := mu].Null[].NullSet,
+  dominated: \forall (k: N.Nat^) (x: A) -> Logic.Not (Sets.Member exception x) -> R.Le (Product.abs (sequence k x)) (bound x),
+  converges: \forall (x: A) -> Logic.Not (Sets.Member exception x) -> Sequence.Converges (\fun (k: N.Nat^) => sequence k x) (limit x),
+};
+\module AEDominated(d: AEDominatedSequence);
+\module Series(terms: N.Nat^ -> Representatives);

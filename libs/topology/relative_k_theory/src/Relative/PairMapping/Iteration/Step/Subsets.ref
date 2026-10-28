@@ -1,0 +1,33 @@
+\import \root.Relative[].Suspension[original := FromNow.subsetModel] \as SourceSuspension;
+\import \root.Relative[].Suspension[original := ToNow.subsetModel] \as TargetSuspension;
+\import \root.Relative[].SuspendedMap[source := FromNow.subsetModel, target := ToNow.subsetModel, f := Current.subsetMap] \as CurrentLift;
+\definition sourceImage: \root.Relative[].Equivalence[source := SourceSuspension.result, target := FromNext.subsetModel].Data := FromNow.suspendedSubsetEquivalence;
+\definition targetImage: \root.Relative[].Equivalence[source := TargetSuspension.result, target := ToNext.subsetModel].Data := ToNow.suspendedSubsetEquivalence;
+\definition imageSquare: \forall (z: SourceSuspension.result.Carrier) ->
+  NextMap.subsetMap (sourceImage.forward z) = targetImage.forward (CurrentLift.map z) := Current.Suspended[].square;
+\definition inverseSquare: \forall (x: FromNext.subsetModel.Carrier) ->
+  targetImage.backward (NextMap.subsetMap x) = CurrentLift.map (sourceImage.backward x) :=
+  \fun (x: FromNext.subsetModel.Carrier) => trans!{{TargetSuspension.result.Carrier}} _ _ _
+    (congr!{{FromNext.subsetModel.Carrier} {TargetSuspension.result.Carrier}}
+      (\fun (y: FromNext.subsetModel.Carrier) => targetImage.backward (NextMap.subsetMap y))
+      x (sourceImage.forward (sourceImage.backward x)) (sym!{{FromNext.subsetModel.Carrier}} _ _ (sourceImage.rightInverse x)))
+    (trans!{{TargetSuspension.result.Carrier}} _ _ _
+      (congr!{{ToNext.subsetModel.Carrier} {TargetSuspension.result.Carrier}} targetImage.backward
+        (NextMap.subsetMap (sourceImage.forward (sourceImage.backward x))) (targetImage.forward (CurrentLift.map (sourceImage.backward x))) (imageSquare (sourceImage.backward x)))
+      (targetImage.leftInverse (CurrentLift.map (sourceImage.backward x))));
+\definition previousAt: \forall (x: FromNow.subsetModel.Carrier) ->
+  (TargetIteration.subsetComparison degree).forward (Current.subsetMap x) =
+  iterateMap degree From.subsetModel To.subsetModel subsetMap ((SourceIteration.subsetComparison degree).forward x) :=
+  \fun (x: FromNow.subsetModel.Carrier) => congr!{{Map FromNow.subsetModel (iterate degree To.subsetModel)} {(iterate degree To.subsetModel).Carrier}}
+    (\fun (m: Map FromNow.subsetModel (iterate degree To.subsetModel)) => m x) Now.subsetLeft Now.subsetRight previous.subset;
+\import \root.Relative[].Square[A := FromNow.subsetModel, B := ToNow.subsetModel, C := iterate degree From.subsetModel, D := iterate degree To.subsetModel,
+  f := Current.subsetMap, g := (TargetIteration.subsetComparison degree).forward, h := (SourceIteration.subsetComparison degree).forward,
+  k := iterateMap degree From.subsetModel To.subsetModel subsetMap, commutes := previousAt] \as Lifted;
+\import \root.Relative[].SuspendedMap[source := ToNow.subsetModel, target := iterate degree To.subsetModel,
+  f := (TargetIteration.subsetComparison degree).forward] \as TargetComparison;
+\definition atPoint: \forall (x: FromNext.subsetModel.Carrier) -> Next.subsetLeft x = Next.subsetRight x :=
+  \fun (x: FromNext.subsetModel.Carrier) => trans!{{(iterate (N.Nat^::succ degree) To.subsetModel).Carrier}} _ _ _
+    (congr!{{TargetSuspension.result.Carrier} {(iterate (N.Nat^::succ degree) To.subsetModel).Carrier}} TargetComparison.map
+      (targetImage.backward (NextMap.subsetMap x)) (CurrentLift.map (sourceImage.backward x)) (inverseSquare x))
+    (Lifted.suspended (sourceImage.backward x));
+\definition equation: Next.SubsetEquation := \axiom:funext(Next.subsetLeft, Next.subsetRight, atPoint);

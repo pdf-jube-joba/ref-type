@@ -1,0 +1,132 @@
+\import complex.Complex[] \as C;
+\import C.Def[] \as D;
+\import C.Prop[] \as CL;
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import Order.Arithmetic[].Prop[] \as L;
+\import std.Alg[].Ring[] \as Rings;
+\import std.Alg[].Alg[] \as Algebra;
+\import std.Alg[].Monoid[] \as Monoid;
+\import std.Alg[].Field[] \as Fields;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := Fields.fieldAsCommutativeRing C.Complex C.Algebra[].field] \as Linear;
+\import std.Logic[].Equality[] \as E;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Data[].Nat[] \as N;
+\use E.sym;
+\use E.trans;
+\inductive Point: \Set := | origin: Point;
+\definition isZero: \forall (x: Point) -> x = Point::origin := \induction (x: Point) \return x = Point::origin \with { | origin: \refl(Point::origin) };
+\definition raw: Rings.RingModuleData[C.Complex, Point, Linear.ring] := Rings.RingModuleData[C.Complex, Point, Linear.ring]::# Point::origin (\fun (x, y: Point) => Point::origin) (\fun (x: Point) => Point::origin) (\fun (a: C.Complex)(x: Point) => Point::origin);
+\definition space: Linear.VectorSpace Point := Rings.RingModule[C.Complex, Point, Linear.ring] {
+  zero := raw.zero, add := raw.add, neg := raw.neg, smul := raw.smul,
+  additive := Algebra.CommutativeGroupLaws[Point, Algebra.CommutativeGroupData[Point]::# (Algebra.GroupData[Point]::# raw.zero raw.add raw.neg)] {
+    group := Algebra.GroupLaws[Point, Algebra.GroupData[Point]::# raw.zero raw.add raw.neg] {
+      monoid := Monoid.MonoidLaws[Point, Monoid.MonoidData[Point]::# raw.zero raw.add] {
+        leftIdentity := \fun (x: Point) => sym!{Point} _ _ (isZero x),
+        rightIdentity := \fun (x: Point) => sym!{Point} _ _ (isZero x),
+        associative := \fun (x, y, z: Point) => \refl(Point::origin),
+      }, leftInverse := \fun (x: Point) => \refl(Point::origin), rightInverse := \fun (x: Point) => \refl(Point::origin),
+    }, commutative := \fun (x, y: Point) => \refl(Point::origin),
+  },
+  scalarOne := \fun (x: Point) => sym!{Point} _ _ (isZero x),
+  scalarAssoc := \fun (a, b: C.Complex)(x: Point) => \refl(Point::origin),
+  scalarAdd := \fun (a, b: C.Complex)(x: Point) => \refl(Point::origin),
+  vectorAdd := \fun (a: C.Complex)(x, y: Point) => \refl(Point::origin),
+};
+\import \root.Space[V := Point, space := space] \as Zero;
+\import functional_analysis.Normed[V := Point, space := Zero.realSpace] \as Normed;
+\definition realNorm: Normed.Norm := Normed.Norm {
+  norm := \fun (x: Point) => R.zero,
+  nonnegative := \fun (x: Point) => Order.leRefl R.zero,
+  zero := \refl(R.zero), definite := \fun (x: Point)(zero: _) => isZero x,
+  triangle := \fun (x, y: Point) => Order.leReplaceRight R.zero R.zero (R.add R.zero R.zero) (sym!{R.Real} _ _ (L.addZeroLeft R.zero)) (Order.leRefl R.zero),
+  homogeneous := \fun (a: R.Real)(x: Point) => sym!{R.Real} _ _ (L.fieldMulZeroRight _),
+};
+\definition norm: Zero.Norm := Zero.Norm { realNorm := realNorm, homogeneous := \fun (a: C.Complex)(x: Point) => sym!{R.Real} _ _ (L.fieldMulZeroRight _) };
+\import linear_algebra.Complex[].InnerProduct[V := Point, space := space] \as Inner;
+\definition inner: Inner.InnerProduct := Inner.InnerProduct {
+  inner := \fun (x, y: Point) => D.zero,
+  conjugateSymmetric := \fun (x, y: Point) => sym!{C.Complex} _ _ (CL.conjOfReal R.zero),
+  zeroRight := \fun (x: Point) => \refl(D.zero),
+  addRight := \fun (x, y, z: Point) => sym!{C.Complex} _ _ (CL.addZeroLeft D.zero),
+  scaleRight := \fun (a: C.Complex)(x, y: Point) => sym!{C.Complex} _ _ (CL.mulZeroRight a),
+  nonnegative := \fun (x: Point) => Order.leRefl R.zero,
+  definite := \fun (x: Point)(zero: _) => isZero x,
+};
+\import Zero.Hilbert[norm := norm, inner := inner] \as Hilbert;
+\import functional_analysis.Metric[Carrier := Point] \as Sequences;
+\definition complete: Hilbert.Complete := Hilbert.Complete {
+  normSquared := \fun (x: Point) => sym!{R.Real} _ _ (L.fieldMulZeroLeft R.zero),
+  complete := \fun (s: N.Nat^ -> Point)(cauchy: Sequences.Cauchy (Normed.metric realNorm) s) =>
+    Logic.existsIntro[Point, { x: Point \where Sequences.Converges (Normed.metric realNorm) s x }] Point::origin
+      (\fun (epsilon: R.Real)(positive: Order.Lt R.zero epsilon) => Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequences.LimitControl (Normed.metric realNorm) s Point::origin epsilon k }] N.Nat^::zero
+        (\fun (n: N.Nat^)(later: N.Basic[].Prop[].Le N.Nat^::zero n) => positive)),
+};
+\import Hilbert.Riesz[] \as Riesz;
+\definition zeroFunctional: Riesz.Functional := Riesz.Functional {
+  apply := \fun (x: Point) => D.zero,
+  addition := \fun (x, y: Point) => sym!{C.Complex} _ _ (CL.addZeroLeft D.zero),
+  scalar := \fun (a: C.Complex)(x: Point) => sym!{C.Complex} _ _ (CL.mulZeroRight a),
+  bound := R.zero, boundNonnegative := Order.leRefl R.zero,
+  estimate := \fun (x: Point) => Order.leReplace R.zero (C.Absolute[].abs D.zero) R.zero (R.mul R.zero R.zero)
+    (sym!{R.Real} _ _ \root.Scalars[].absoluteZero) (sym!{R.Real} _ _ (L.fieldMulZeroLeft R.zero)) (Order.leRefl R.zero),
+};
+\definition rieszAtZero: zeroFunctional.apply Point::origin = inner.inner (Riesz.vector complete zeroFunctional) Point::origin := Riesz.vectorLaw complete zeroFunctional Point::origin;
+\import Zero.Operators[W := Point, target := space, norm := norm, targetNorm := norm] \as Operators;
+\import Linear.Linear[V := Point, W := Point, source := space, target := space] \as Maps;
+\definition identityLinear: Maps.Map := Maps.Map {
+  apply := \fun (x: Point) => x, preservesAdd := \fun (x, y: Point) => \refl(Point::origin), preservesScale := \fun (a: C.Complex)(x: Point) => \refl(Point::origin),
+};
+\definition identity: Operators.Map := \into[Maps.Map](identityLinear, Operators.Map) \by {
+  Logic.existsIntro[R.Real, { c: R.Real \where Operators.Bound[identityLinear, c] }] R.one (Operators.Bound[identityLinear, R.one] {
+    nonnegative := L.oneNonnegative, estimate := \fun (x: Point) => Order.leReplaceRight R.zero R.zero (R.mul R.one R.zero) (sym!{R.Real} _ _ (L.fieldMulZeroRight R.one)) (Order.leRefl R.zero),
+  })
+};
+\import Operators.Adjoints[inner := inner, targetInner := inner] \as Adjoint;
+\definition identityAdjoint: \forall (x: Point) -> (Adjoint.adjoint complete complete identity).apply x = x :=
+  \fun (x: Point) => trans!{Point} _ _ _ (isZero ((Adjoint.adjoint complete complete identity).apply x)) (sym!{Point} _ _ (isZero x));
+\import Hilbert.Subspaces[] \as Subspaces;
+\import Linear.Subspace[V := Point, space := space] \as LinearSubspaces;
+\definition whole: LinearSubspaces.Subspace := LinearSubspaces.Subspace {
+  carrier := { x: Point \where Logic.True }, containsZero := Logic.True::intro,
+  closedAdd := \fun (x, y: Point)(hx, hy: Logic.True) => Logic.True::intro,
+  closedScale := \fun (a: C.Complex)(x: Point)(hx: Logic.True) => Logic.True::intro,
+};
+\definition closedWhole: Subspaces.ClosedSubspace := \into[LinearSubspaces.Subspace](whole, Subspaces.ClosedSubspace) \by {
+  \fun (s: N.Nat^ -> Point)(x: Point)(members: _)(converges: _) => Logic.True::intro
+};
+\import Subspaces.In[S := closedWhole].Projection[complete := complete] \as Projection;
+\definition projectionIsIdentity: \forall (x: Point) -> Projection.projection.apply x = x :=
+  \fun (x: Point) => trans!{Point} _ _ _ (isZero (Projection.projection.apply x)) (sym!{Point} _ _ (isZero x));
+\definition quotientComparison: _ := Projection.Complement[].isomorphism;
+\import \root.FiniteRank[V := Point, W := Point, source := space, target := space] \as Rank;
+\import Maps.Operations[] \as Operations;
+\definition zeroFiniteRank: Rank.FiniteRank Operations.zeroMap := Rank.zero;
+\definition sumFiniteRank: Rank.FiniteRank (Operations.plus Operations.zeroMap Operations.zeroMap) := Rank.plus Operations.zeroMap Operations.zeroMap Rank.zero Rank.zero;
+\definition quotientNorm: _ := Projection.Complement[].Norm[].quotientNorm;
+\definition minimumNormRepresentative: _ := Projection.Complement[].Norm[].minimumAttained Point::origin;
+\import Operators.Compact[] \as CompactOperators;
+\definition zeroSpaceIdentityCompact: CompactOperators.Compact identity :=
+  CompactOperators.zeroImage identity (\fun (x: Point) => isZero x);
+\import CompactOperators.Addition[] \as CompactAddition;
+\definition zeroSpaceCompactSum: CompactOperators.Compact (CompactAddition.plus identity identity) :=
+  CompactAddition.compact identity identity zeroSpaceIdentityCompact zeroSpaceIdentityCompact;
+\import CompactOperators.Before[U := Point, domain := space, domainNorm := norm] \as CompactBefore;
+\definition zeroSpaceCompactComposition: CompactOperators.Compact (CompactBefore.compose identity identity) :=
+  CompactBefore.compact identity identity zeroSpaceIdentityCompact;
+\import CompactOperators.Limit[] \as CompactLimit;
+\definition zeroSpaceNormLimit: CompactLimit.NormConverges (\fun (_: N.Nat^) => identity) identity :=
+  \fun (epsilon: R.Real)(positive: Order.Lt R.zero epsilon) =>
+    Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \forall (n: N.Nat^) -> N.Basic[].Prop[].Le k n -> CompactLimit.Near[identity, identity, epsilon] }] N.Nat^::zero
+      (\fun (n: N.Nat^)(later: N.Basic[].Prop[].Le N.Nat^::zero n)(x: Point)(inside: \In[Point] CompactOperators.UnitBall x) => positive);
+\definition zeroSpaceLimitCompact: CompactOperators.Compact identity := CompactLimit.sequential complete.complete (\fun (_: N.Nat^) => identity) identity
+  (\fun (_: N.Nat^) => zeroSpaceIdentityCompact) zeroSpaceNormLimit;
+\import CompactOperators.Identity[inner := inner] \as CompactIdentity;
+\definition zeroSpaceFiniteDimensional: CompactIdentity.FiniteDimensional := CompactIdentity.finiteDimensional complete
+  (CompactOperators.zeroImage CompactIdentity.identity (\fun (x: Point) => isZero x));
+\import CompactOperators.Adjoint[inner := inner, targetInner := inner] \as CompactAdjoint;
+\definition zeroSpaceAdjointCompact: CompactOperators.Compact (Adjoint.adjoint complete complete identity) :=
+  CompactAdjoint.compact complete complete identity zeroSpaceIdentityCompact;
+\import CompactOperators.FiniteRank[targetInner := inner] \as CompactFinite;
+\definition zeroSpaceFiniteApproximation: CompactFinite.Approximable identity :=
+  CompactFinite.fromCompact complete identity zeroSpaceIdentityCompact;

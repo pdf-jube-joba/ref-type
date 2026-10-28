@@ -1,0 +1,175 @@
+\import \parent.\parent.Pointed[a0 := a0] \as RangePair;
+\import DomainPair.Pointed[a0 := b0] \as SourcePair;
+\import RangePair.Cofiber[] \as RangeCofiber;
+\import SourcePair.Cofiber[] \as SourceCofiber;
+\import algebraic_topology.Pointed[A := Y].Maps[B := X] \as WholeMaps;
+\definition wholeMap: Map SourcePair.model RangePair.model := \into[Y -> X](f, Map SourcePair.model RangePair.model) \by {
+  WholeMaps.Laws[pointed SourcePair.model, pointed RangePair.model, f] { continuous := regular, pointed := preservesPoint }
+};
+\definition B: \Set := DomainPair.A;
+\definition onSubset[b: B]: A := \into[X](f b, subset) \by { preserves b (\bysub(Y, sourceSubset, b)) };
+\definition subsetIntoWhole[b: B]: X := f b;
+\definition subsetIntoWholeContinuous: topology.Continuity[A := B, B := X].Continuous DomainPair.subspace space subsetIntoWhole :=
+  topology.Composition[A := B, B := Y, C := X].composeContinuous DomainPair.subspace source space
+    (\fun (b: B) => b) f (topology.Continuity[A := B, B := Y].Corestriction[S := sourceSubset].inclusionContinuous source) regular;
+\definition subsetContinuous: topology.Continuity[A := B, B := A].Continuous DomainPair.subspace subspace onSubset :=
+  topology.Continuity[A := B, B := X].Corestriction[S := subset].corestrictContinuous DomainPair.subspace space onSubset subsetIntoWholeContinuous;
+\import algebraic_topology.Pointed[A := B].Maps[B := A] \as SubsetMaps;
+\definition subsetMap: Map SourcePair.subsetModel RangePair.subsetModel := \into[B -> A](onSubset, Map SourcePair.subsetModel RangePair.subsetModel) \by {
+  SubsetMaps.Laws[pointed SourcePair.subsetModel, pointed RangePair.subsetModel, onSubset] { continuous := subsetContinuous, pointed := preservesPoint }
+};
+\import algebraic_topology.Interval[] \as Interval;
+\import algebraic_topology.Cylinder[A := X] \as RangeCylinder;
+\import algebraic_topology.Cylinder[A := Y] \as SourceCylinder;
+\import topological_constructions.Product[A := Interval.Carrier, B := X].Universal[X := SourceCofiber.DomainPoint] \as Product;
+\definition rawPoint[z: SourceCofiber.DomainPoint]: X := f (SourceCofiber.point z);
+\definition rawPointContinuous: topology.Continuity[A := SourceCofiber.DomainPoint, B := X].Continuous SourceCofiber.domainTopology space rawPoint :=
+  topology.Composition[A := SourceCofiber.DomainPoint, B := Y, C := X].composeContinuous SourceCofiber.domainTopology source space
+    SourceCofiber.point f SourceCofiber.pointContinuous regular;
+\definition raw[z: SourceCofiber.DomainPoint]: RangeCofiber.DomainPoint := \into[RangeCylinder.Carrier]
+  (RangeCylinder.at (SourceCofiber.time z) (rawPoint z), RangeCofiber.domain) \by {
+    Logic.orElim[SourceCofiber.time z = Interval.start, \In[Y] sourceSubset (SourceCofiber.point z),
+      Logic.Or[SourceCofiber.time z = Interval.start, \In[X] subset (rawPoint z)]] (\bysub(SourceCylinder.Carrier, SourceCofiber.domain, z))
+      (\fun (same: SourceCofiber.time z = Interval.start) => Logic.Or[_, _]::left same)
+      (\fun (member: \In[Y] sourceSubset (SourceCofiber.point z)) => Logic.Or[_, _]::right (preserves (SourceCofiber.point z) member))
+  };
+\definition rawContinuous: topology.Continuity[A := SourceCofiber.DomainPoint, B := RangeCofiber.DomainPoint].Continuous SourceCofiber.domainTopology RangeCofiber.domainTopology raw :=
+  topology.Continuity[A := SourceCofiber.DomainPoint, B := RangeCylinder.Carrier].Corestriction[S := RangeCofiber.domain].corestrictContinuous
+    SourceCofiber.domainTopology (RangeCylinder.topology space) raw
+    (Product.pairContinuous SourceCofiber.domainTopology Interval.topology space SourceCofiber.time rawPoint SourceCofiber.timeContinuous rawPointContinuous);
+\import algebraic_topology.Collapse[A := SourceCofiber.DomainPoint, subset := SourceCofiber.collapsedPart] \as SourceCollapse;
+\import algebraic_topology.Collapse[A := RangeCofiber.DomainPoint, subset := RangeCofiber.collapsedPart] \as RangeCollapse;
+\import SourceCollapse.Mapping[B := RangeCofiber.DomainPoint, targetSubset := RangeCofiber.collapsedPart] \as Descent;
+\definition collapsePreserves: Descent.Preserves raw := \fun (z: SourceCofiber.DomainPoint)(member: \In[SourceCofiber.DomainPoint] SourceCofiber.collapsedPart z) =>
+  Logic.orElim[SourceCofiber.time z = Interval.end, SourceCofiber.point z = b0,
+    \In[RangeCofiber.DomainPoint] RangeCofiber.collapsedPart (raw z)] member
+    (\fun (same: SourceCofiber.time z = Interval.end) => Logic.Or[_, _]::left same)
+    (\fun (same: SourceCofiber.point z = b0) => Logic.Or[_, _]::right
+      (trans!{X} _ _ _ (congr!{Y X} f _ _ same) preservesPoint));
+\definition cofiber: SourceCofiber.Carrier -> RangeCofiber.Carrier := Descent.apply raw collapsePreserves;
+\definition onClass: \forall (z: SourceCofiber.DomainPoint) -> cofiber (SourceCollapse.class z) = RangeCollapse.class (raw z) := Descent.onClass raw collapsePreserves;
+\definition cofiberContinuous: topology.Continuity[A := SourceCofiber.Carrier, B := RangeCofiber.Carrier].Continuous SourceCofiber.topology RangeCofiber.topology cofiber :=
+  Descent.continuous SourceCofiber.domainTopology RangeCofiber.domainTopology raw collapsePreserves rawContinuous;
+\definition onBase: \forall (y: Y) -> cofiber (SourceCofiber.base y) = RangeCofiber.base (f y) :=
+  \fun (y: Y) => onClass (SourceCofiber.bottom y);
+\import algebraic_topology.Pointed[A := SourceCofiber.Carrier].Maps[B := RangeCofiber.Carrier] \as CofiberMaps;
+\definition cofiberMap: Map SourceCofiber.result RangeCofiber.result := \into[SourceCofiber.Carrier -> RangeCofiber.Carrier](cofiber, Map SourceCofiber.result RangeCofiber.result) \by {
+  CofiberMaps.Laws[pointed SourceCofiber.result, pointed RangeCofiber.result, cofiber] {
+    continuous := cofiberContinuous,
+    pointed := trans!{{RangeCofiber.Carrier}} _ _ _ (onBase b0) (congr!{X {RangeCofiber.Carrier}} RangeCofiber.base _ _ preservesPoint)
+  }
+};
+\import SourceCofiber.Projection[] \as SourceProjection;
+\import RangeCofiber.Projection[] \as RangeProjection;
+\definition projectionOnClass: \forall (z: SourceCofiber.DomainPoint) ->
+  RangeProjection.map (cofiberMap (SourceCollapse.class z)) = quotientMap (SourceProjection.map (SourceCollapse.class z)) :=
+  \fun (z: SourceCofiber.DomainPoint) => trans!{{Range.Carrier}} _ _ _
+    (congr!{{RangeCofiber.Carrier} {Range.Carrier}} RangeProjection.map _ _ (onClass z))
+    (trans!{{Range.Carrier}} _ _ _ (RangeProjection.onClass (raw z))
+      (trans!{{Range.Carrier}} _ _ _ (sym!{{Range.Carrier}} _ _ (onProjection (SourceCofiber.point z)))
+        (sym!{{Range.Carrier}} _ _ (congr!{{Domain.Carrier} {Range.Carrier}} quotientMap _ _ (SourceProjection.onClass z)))));
+\definition projectionSquare: \forall (z: SourceCofiber.Carrier) -> RangeProjection.map (cofiberMap z) = quotientMap (SourceProjection.map z) :=
+  SourceCollapse.induction (\fun (z: SourceCofiber.Carrier) => RangeProjection.map (cofiberMap z) = quotientMap (SourceProjection.map z)) projectionOnClass;
+\import SourceCofiber.BaseQuotient[].Forward[] \as SourceQuotient;
+\import SourceCofiber.BaseQuotient[].Raw[] \as SourceRaw;
+\import RangeCofiber.BaseQuotient[].Forward[] \as RangeQuotient;
+\import RangeCofiber.BaseQuotient[].Raw[] \as RangeRaw;
+\import \root.Relative[].Suspension[original := SourcePair.subsetModel] \as SourceSuspension;
+\import \root.Relative[].Suspension[original := RangePair.subsetModel] \as RangeSuspension;
+\import algebraic_topology.Suspension[A := B].Pointed[source := DomainPair.subspace, basepoint := b0] \as SourceNative;
+\import algebraic_topology.Suspension[A := A].Pointed[source := subspace, basepoint := a0] \as RangeNative;
+\import algebraic_topology.Cylinder[A := B] \as SubsetSourceCylinder;
+\import algebraic_topology.Cylinder[A := A] \as SubsetRangeCylinder;
+\import SourceNative.Mapping[B := A, target := (pointed RangePair.subsetModel), f := subsetMap] \as SuspendedSubset;
+\definition suspendedSubsetMap: Map SourceSuspension.result RangeSuspension.result := SuspendedSubset.map;
+\definition suspendedPoint: suspendedSubsetMap SourceNative.point = RangeNative.point :=
+  (algebraic_topology.Pointed[A := SourceNative.Carrier].Maps[B := RangeNative.Carrier].laws
+    (pointed SourceSuspension.result) (pointed RangeSuspension.result) suspendedSubsetMap).pointed;
+\definition suspensionRawSquare: \forall (z: SourceCofiber.DomainPoint) -> RangeRaw.map (raw z) = suspendedSubsetMap (SourceRaw.map z) :=
+  \fun (z: SourceCofiber.DomainPoint) => Logic.orElim[SourceCofiber.time z = Interval.start, \In[Y] sourceSubset (SourceCofiber.point z),
+    RangeRaw.map (raw z) = suspendedSubsetMap (SourceRaw.map z)] (\bysub(SourceCylinder.Carrier, SourceCofiber.domain, z))
+    (\fun (same: SourceCofiber.time z = Interval.start) => trans!{{RangeNative.Carrier}} _ _ _
+      ((RangeRaw.condition (raw z)).bottom same)
+      (sym!{{RangeNative.Carrier}} _ _ (trans!{{RangeNative.Carrier}} _ _ _
+        (congr!{{SourceNative.Carrier} {RangeNative.Carrier}} suspendedSubsetMap _ _ ((SourceRaw.condition z).bottom same)) suspendedPoint)))
+    (\block {
+      \fun (member: \In[Y] sourceSubset (SourceCofiber.point z)) \then
+      \let b: B := \into[Y](SourceCofiber.point z, sourceSubset) \by { member } \then
+      \let cylinder: SubsetSourceCylinder.Carrier := SubsetSourceCylinder.at (SourceCofiber.time z) b \then
+      \return trans!{{RangeNative.Carrier}} _ _ _
+        ((RangeRaw.condition (raw z)).vertical (onSubset b) (\refl(f (SourceCofiber.point z))))
+        (sym!{{RangeNative.Carrier}} _ _ (trans!{{RangeNative.Carrier}} _ _ _
+          (congr!{{SourceNative.Carrier} {RangeNative.Carrier}} suspendedSubsetMap _ _ ((SourceRaw.condition z).vertical b (\refl(SourceCofiber.point z))))
+          (SuspendedSubset.onClass cylinder)))
+    });
+\definition suspensionOnClass: \forall (z: SourceCofiber.DomainPoint) ->
+  RangeQuotient.cofiber (cofiberMap (SourceCollapse.class z)) = suspendedSubsetMap (SourceQuotient.cofiber (SourceCollapse.class z)) :=
+  \fun (z: SourceCofiber.DomainPoint) => trans!{{RangeNative.Carrier}} _ _ _
+    (congr!{{RangeCofiber.Carrier} {RangeNative.Carrier}} RangeQuotient.cofiber _ _ (onClass z))
+    (trans!{{RangeNative.Carrier}} _ _ _ (RangeQuotient.onClass (raw z))
+      (trans!{{RangeNative.Carrier}} _ _ _ (suspensionRawSquare z)
+        (sym!{{RangeNative.Carrier}} _ _ (congr!{{SourceNative.Carrier} {RangeNative.Carrier}} suspendedSubsetMap _ _ (SourceQuotient.onClass z)))));
+\definition suspensionSquare: \forall (z: SourceCofiber.Carrier) ->
+  RangeQuotient.cofiber (cofiberMap z) = suspendedSubsetMap (SourceQuotient.cofiber z) :=
+  SourceCollapse.induction (\fun (z: SourceCofiber.Carrier) => RangeQuotient.cofiber (cofiberMap z) = suspendedSubsetMap (SourceQuotient.cofiber z)) suspensionOnClass;
+\use Equality.eq_reason_in;
+\import \root.Relative[].Reduced[model := SourceCofiber.result] \as SourceReduced;
+\import \root.Relative[].Reduced[model := RangeSuspension.result] \as SuspendedRange;
+\import \root.Relative[].Pullback[source := SourceCofiber.result, target := RangeCofiber.result, f := cofiberMap] \as CofiberPull;
+\import \root.Relative[].Pullback[source := SourceSuspension.result, target := RangeSuspension.result, f := suspendedSubsetMap] \as SuspendedPull;
+\import SourceCofiber.ConeQuotient[] \as SourceCone;
+\import RangeCofiber.ConeQuotient[] \as RangeCone;
+\import SourceCone.Forgetting[] \as SourceConeProjection;
+\import RangeCone.Forgetting[] \as RangeConeProjection;
+\import \root.Relative[].Composition[source := SourceCofiber.result, middle := RangeCofiber.result, target := Range.model,
+  first := cofiberMap, second := RangeProjection.map] \as ProjectionLeft;
+\import \root.Relative[].Composition[source := SourceCofiber.result, middle := Domain.model, target := Range.model,
+  first := SourceProjection.map, second := quotientMap] \as ProjectionRight;
+\definition projectionEquality: ProjectionLeft.map = ProjectionRight.map := \axiom:funext(ProjectionLeft.map, ProjectionRight.map, projectionSquare);
+\import \root.Relative[].Pullback[source := SourceCofiber.result, target := Range.model, f := ProjectionLeft.map] \as ProjectionLeftPull;
+\import \root.Relative[].Pullback[source := SourceCofiber.result, target := Range.model, f := ProjectionRight.map] \as ProjectionRightPull;
+\definition projectionChanged: \forall (v: Range.Relative) -> ProjectionLeftPull.map v = ProjectionRightPull.map v :=
+  \fun (v: Range.Relative) => congr!{{Map SourceCofiber.result Range.model} {SourceReduced.Carrier}}
+    (\fun (f: Map SourceCofiber.result Range.model) => \root.Relative[].Pullback[source := SourceCofiber.result, target := Range.model, f := f].map v)
+    ProjectionLeft.map ProjectionRight.map projectionEquality;
+\definition projectionNaturality: \forall (v: Range.Relative) -> SourceCone.forward (relative v) = CofiberPull.map (RangeCone.forward v) :=
+  \fun (v: Range.Relative) => eq_reason_in!{{SourceReduced.Carrier} _
+    "=" { SourceConeProjection.projectionPull (relative v) } "by" { SourceConeProjection.equation (relative v) }
+    "=" { ProjectionRightPull.map v } "by" { sym!{{SourceReduced.Carrier}} _ _ (ProjectionRight.Negative[degree := N.Nat^::zero].equation v) }
+    "=" { ProjectionLeftPull.map v } "by" { sym!{{SourceReduced.Carrier}} _ _ (projectionChanged v) }
+    "=" { CofiberPull.map (RangeConeProjection.projectionPull v) } "by" { ProjectionLeft.Negative[degree := N.Nat^::zero].equation v }
+    "=" { CofiberPull.map (RangeCone.forward v) } "by" { congr!{{\root.Relative[].Reduced[model := RangeCofiber.result].Carrier} {SourceReduced.Carrier}} CofiberPull.map _ _ (sym!{{\root.Relative[].Reduced[model := RangeCofiber.result].Carrier}} _ _ (RangeConeProjection.equation v)) }
+  };
+\import SourceCofiber.BaseQuotient[].Forgetting[] \as SourceSuspensionProjection;
+\import RangeCofiber.BaseQuotient[].Forgetting[] \as RangeSuspensionProjection;
+\import \root.Relative[].Composition[source := SourceCofiber.result, middle := RangeCofiber.result, target := RangeSuspension.result,
+  first := cofiberMap, second := RangeSuspensionProjection.cofiberMap] \as SuspensionLeft;
+\import \root.Relative[].Composition[source := SourceCofiber.result, middle := SourceSuspension.result, target := RangeSuspension.result,
+  first := SourceSuspensionProjection.cofiberMap, second := suspendedSubsetMap] \as SuspensionRight;
+\definition suspensionEquality: SuspensionLeft.map = SuspensionRight.map := \axiom:funext(SuspensionLeft.map, SuspensionRight.map, suspensionSquare);
+\import \root.Relative[].Pullback[source := SourceCofiber.result, target := RangeSuspension.result, f := SuspensionLeft.map] \as SuspensionLeftPull;
+\import \root.Relative[].Pullback[source := SourceCofiber.result, target := RangeSuspension.result, f := SuspensionRight.map] \as SuspensionRightPull;
+\definition suspensionChanged: \forall (v: SuspendedRange.Carrier) -> SuspensionLeftPull.map v = SuspensionRightPull.map v :=
+  \fun (v: SuspendedRange.Carrier) => congr!{{Map SourceCofiber.result RangeSuspension.result} {SourceReduced.Carrier}}
+    (\fun (f: Map SourceCofiber.result RangeSuspension.result) => \root.Relative[].Pullback[source := SourceCofiber.result, target := RangeSuspension.result, f := f].map v)
+    SuspensionLeft.map SuspensionRight.map suspensionEquality;
+\definition suspensionNaturality: \forall (v: SuspendedRange.Carrier) ->
+  SourceSuspensionProjection.pullback (SuspendedPull.map v) = CofiberPull.map (RangeSuspensionProjection.pullback v) :=
+  \fun (v: SuspendedRange.Carrier) => eq_reason_in!{{SourceReduced.Carrier} _
+    "=" { SuspensionRightPull.map v } "by" { sym!{{SourceReduced.Carrier}} _ _ (SuspensionRight.Negative[degree := N.Nat^::zero].equation v) }
+    "=" { SuspensionLeftPull.map v } "by" { sym!{{SourceReduced.Carrier}} _ _ (suspensionChanged v) }
+    "=" { CofiberPull.map (RangeSuspensionProjection.pullback v) } "by" { SuspensionLeft.Negative[degree := N.Nat^::zero].equation v }
+  };
+\import SourcePair.Connecting[] \as SourceConnecting;
+\import RangePair.Connecting[] \as RangeConnecting;
+\definition coneInjective: \forall (v, w: Domain.Relative) -> SourceCone.forward v = SourceCone.forward w -> v = w :=
+  \fun (v, w: Domain.Relative)(same: SourceCone.forward v = SourceCone.forward w) => trans!{{Domain.Relative}} _ _ _
+    (sym!{{Domain.Relative}} _ _ (SourceCone.leftInverse v))
+    (trans!{{Domain.Relative}} _ _ _ (congr!{{SourceReduced.Carrier} {Domain.Relative}} SourceCone.backward _ _ same) (SourceCone.leftInverse w));
+\definition connectingNaturality: \forall (v: SuspendedRange.Carrier) -> SourceConnecting.map (SuspendedPull.map v) = relative (RangeConnecting.map v) :=
+  \fun (v: SuspendedRange.Carrier) => coneInjective _ _ (eq_reason_in!{{SourceReduced.Carrier} _
+    "=" { SourceSuspensionProjection.pullback (SuspendedPull.map v) } "by" { SourceConnecting.pullbackEquation (SuspendedPull.map v) }
+    "=" { CofiberPull.map (RangeSuspensionProjection.pullback v) } "by" { suspensionNaturality v }
+    "=" { CofiberPull.map (RangeCone.forward (RangeConnecting.map v)) } "by" { congr!{{\root.Relative[].Reduced[model := RangeCofiber.result].Carrier} {SourceReduced.Carrier}} CofiberPull.map _ _ (sym!{{\root.Relative[].Reduced[model := RangeCofiber.result].Carrier}} _ _ (RangeConnecting.pullbackEquation v)) }
+    "=" { SourceCone.forward (relative (RangeConnecting.map v)) } "by" { sym!{{SourceReduced.Carrier}} _ _ (projectionNaturality (RangeConnecting.map v)) }
+  });

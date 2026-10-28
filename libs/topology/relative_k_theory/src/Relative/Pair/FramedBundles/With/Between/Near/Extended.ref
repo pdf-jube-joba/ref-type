@@ -1,0 +1,80 @@
+\import Quotient.Matrices[m := n, n := m] \as Descent;
+\definition global: Descent.Function := Descent.Function {
+  value := e.value, constant := Rectangular.entries c, continuous := e.continuous,
+  boundary := \fun (x: A) => trans!{{Rectangular.Matrix}} _ _ _ (e.extends (closedPoint x)) (boundary x)
+};
+\import Descent.With[f := global] \as Descended;
+\import topological_constructions.Coproduct[A := X, B := Quotient.Point] \as AugmentedSum;
+\import topology.Topology[Carrier := Quotient.Point] \as PointSpace;
+\import AugmentedSum.Properties[left := space, right := PointSpace.Discrete] \as SumProperties;
+\import algebraic_topology.Collapse[A := Quotient.Augmented, subset := Quotient.collapsedPart] \as Collapse;
+\import Collapse.Closed[source := Quotient.augmentedSpace, compact := Quotient.augmentedCompact, hausdorff := Quotient.augmentedHausdorff, closed := Quotient.collapsedClosed] \as Images;
+\import topology.Topology[Carrier := Quotient.Augmented] \as Augmented;
+\definition augmented: \Pow Quotient.Augmented := SumProperties.Joined w.inner PointSpace.Whole;
+\definition augmentedOpen: Augmented.IsOpenIn Quotient.augmentedSpace augmented := SumProperties.joinedOpen w.inner PointSpace.Whole w.innerOpen
+  (PointSpace.topologyLaws PointSpace.Discrete).wholeOpen;
+\definition contains: Augmented.Subset Quotient.collapsedPart augmented := \induction (p: Quotient.Augmented) \return
+  Augmented.Member Quotient.collapsedPart p -> Augmented.Member augmented p \with {
+    | inl: w.contains
+    | inr: \fun (p: Quotient.Point)(inside: PointSpace.Member PointSpace.Whole p) => inside
+  };
+\definition domain: \Pow Quotient.Carrier := Images.Image augmented;
+\definition open: QuotientBase.IsOpenIn Quotient.topology domain := Images.imageOpen augmented augmentedOpen (Images.containingSaturated augmented contains);
+\definition atPoint: QuotientBase.Member domain Quotient.point := topology.Maps[A := Quotient.Augmented, B := Quotient.Carrier].imageMember Collapse.class augmented
+  (AugmentedSum.inr Quotient.distinguished) (\refl(Quotient.distinguished));
+\definition Point: \Set := \Cast[Quotient.Carrier] domain;
+\definition topology: topology.Topology[Carrier := Point].Topology := QuotientBase.Subspace[S := domain].topology Quotient.topology;
+\definition leftContains[z: Point]: QuotientBase.Member SourceNear.domain z := \block {
+  \takefrom p: \Cast[Quotient.Augmented] ({ p: Quotient.Augmented \where Logic.And[Augmented.Member augmented p, Collapse.class p = z] })
+    \by \bysub(Quotient.Carrier, domain, z) \then
+  \let data: Logic.And[Augmented.Member augmented p, Collapse.class p = z] := \bysub(Quotient.Augmented, { p: Quotient.Augmented \where Logic.And[Augmented.Member augmented p, Collapse.class p = z] }, p) \then
+  \let inside: Augmented.Member SourceNear.augmented p := (\induction (p: Quotient.Augmented) \return Augmented.Member augmented p -> Augmented.Member SourceNear.augmented p \with {
+    | inl: \fun (x: X)(member: Base.Member w.inner x) => (w.within x (w.enclosed x member)).left
+    | inr: \fun (p: Quotient.Point)(member: PointSpace.Member PointSpace.Whole p) => member
+  }) p data.left \then
+  \return \idelim Collapse.class p = z \with q: Quotient.Carrier => QuotientBase.Member SourceNear.domain q \by {
+    base: topology.Maps[A := Quotient.Augmented, B := Quotient.Carrier].imageMember Collapse.class SourceNear.augmented p inside, equality: data.right }
+};
+\definition rightContains[z: Point]: QuotientBase.Member TargetNear.domain z := \block {
+  \takefrom p: \Cast[Quotient.Augmented] ({ p: Quotient.Augmented \where Logic.And[Augmented.Member augmented p, Collapse.class p = z] })
+    \by \bysub(Quotient.Carrier, domain, z) \then
+  \let data: Logic.And[Augmented.Member augmented p, Collapse.class p = z] := \bysub(Quotient.Augmented, { p: Quotient.Augmented \where Logic.And[Augmented.Member augmented p, Collapse.class p = z] }, p) \then
+  \let inside: Augmented.Member TargetNear.augmented p := (\induction (p: Quotient.Augmented) \return Augmented.Member augmented p -> Augmented.Member TargetNear.augmented p \with {
+    | inl: \fun (x: X)(member: Base.Member w.inner x) => (w.within x (w.enclosed x member)).right
+    | inr: \fun (p: Quotient.Point)(member: PointSpace.Member PointSpace.Whole p) => member
+  }) p data.left \then
+  \return \idelim Collapse.class p = z \with q: Quotient.Carrier => QuotientBase.Member TargetNear.domain q \by {
+    base: topology.Maps[A := Quotient.Augmented, B := Quotient.Carrier].imageMember Collapse.class TargetNear.augmented p inside, equality: data.right }
+};
+\definition leftIndex: From.Index := std.Data[].Sum[].Sum[Quotient.Point, FirstCharts.Chart]::inl Quotient.distinguished;
+\definition rightIndex: To.Index := std.Data[].Sum[].Sum[Quotient.Point, SecondCharts.Chart]::inl Quotient.distinguished;
+\import Operations.ChartRestriction[X := Quotient.Carrier, F := Source.Fiber, bundle := From.bundleOnQuotient, c := From.trivialization leftIndex,
+  U := domain, open := open, contained := leftContains] \as Left;
+\import Operations.ChartRestriction[X := Quotient.Carrier, F := Target.Fiber, bundle := To.bundleOnQuotient, c := To.trivialization rightIndex,
+  U := domain, open := open, contained := rightContains] \as Right;
+\definition coefficients[z: Point]: Linear.Map :=
+  Spaces.Linear[V := Target.Fiber z, W := Bundles.Vector m, source := Target.fiberSpace z, target := Bundles.coordinates m].Composition[
+    U := Bundles.Vector n, domain := Bundles.coordinates n].compose (Right.trivialization.frame z).forward
+    (Spaces.Linear[V := Source.Fiber z, W := Target.Fiber z, source := Source.fiberSpace z, target := Target.fiberSpace z].Composition[
+      U := Bundles.Vector n, domain := Bundles.coordinates n].compose (map z) (Left.trivialization.frame z).backward);
+\definition chart: LocalMatrices.ChartData := LocalMatrices.ChartData {
+  domain := domain, sourceDimension := n, targetDimension := m, sourceFrame := Left.trivialization.frame, targetFrame := Right.trivialization.frame, coefficients := coefficients
+};
+\module At(z: Point);
+\definition regular: Regular.At[n := m].Families[X := Point].Matrix[m := n].Regular topology coefficients :=
+  \fun (v: Bundles.Vector n)(i: Fin.Fin m) =>
+    \idelim (\fun (z: Point) => (Descended.linear z).apply v i) = (\fun (z: Point) => (coefficients z).apply v i) \with f: (Point -> C.Complex) =>
+      topology.Continuity[A := Point, B := C.Complex].Continuous topology Scalar.scalar.topological.space f \by {
+        base: topology.Continuity[A := Quotient.Carrier, B := C.Complex].Restriction[S := domain].restrictContinuous Quotient.topology Scalar.scalar.topological.space
+          (\fun (z: Quotient.Carrier) => (Descended.linear z).apply v i) (Descended.regular v i),
+        equality: \axiom:funext((\fun (z: Point) => (Descended.linear z).apply v i), (\fun (z: Point) => (coefficients z).apply v i),
+          \fun (z: Point) => sym!{{C.Complex}} _ _ (congr!{{Bundles.Vector m} {C.Complex}} (\fun (v: Bundles.Vector m) => v i) _ _ (At[z := z].formula v)))
+      };
+\definition laws: LocalMatrices.In[c := chart].Laws := LocalMatrices.In[c := chart].Laws {
+  sourceLaws := \bysub(QuotientSourceCharts.ChartData, QuotientSourceCharts.Chart, Left.trivialization),
+  targetLaws := \bysub(QuotientTargetCharts.ChartData, QuotientTargetCharts.Chart, Right.trivialization), regular := regular,
+  alignment := \fun (z: Point)(v: Source.Fiber z) =>
+    congr!{{Source.Fiber z} {Bundles.Vector m}} (\fun (w: Source.Fiber z) => (Right.trivialization.frame z).forward.apply ((map z).apply w)) _ _
+      (sym!{{Source.Fiber z}} _ _ ((Spaces.Isomorphism[V := Source.Fiber z, W := Bundles.Vector n, source := Source.fiberSpace z, target := Bundles.coordinates n].laws (Left.trivialization.frame z)).leftInverse v))
+};
+\definition trivialization: LocalMatrices.Chart := \into[LocalMatrices.ChartData](chart, LocalMatrices.Chart) \by { laws };

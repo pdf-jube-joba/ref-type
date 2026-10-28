@@ -1,0 +1,39 @@
+\import \parent.\parent.Stabilized[k := k] \as Stabilized;
+\definition m: N.Nat^ := Stabilized.dimension;
+\import Bundles.Trivial[X := X, n := k, baseSpace := space] \as Added;
+\import Bundles.Trivial[X := X, n := m, baseSpace := space] \as Whole;
+\import Operations.DirectSum[X := X, F := (\fun (x: X) => Bundles.Vector n), G := (\fun (x: X) => Bundles.Vector k), left := OriginalTrivial.bundle, right := Added.bundle] \as CoordinateSum;
+\definition coordinateBundle: Bundles.Family[X := X, F := CoordinateSum.Fiber].Bundle := CoordinateSum.bundle (\refl(space));
+\import Operations.GlobalFrame[X := X, F := CoordinateSum.Fiber, bundle := coordinateBundle,
+  chart := (CoordinateSum.In[c := OriginalTrivial.trivialization, d := Added.trivialization].trivialization (\refl(space))),
+  covers := (\fun (x: X) => Logic.And[x = x, x = x]::# (\refl(x)) (\refl(x)))] \as Join;
+\import Operations.IsomorphismComposition[X := X, F := Stabilized.Fiber, G := CoordinateSum.Fiber, H := (\fun (x: X) => Bundles.Vector m),
+  source := Stabilized.bundle, middle := coordinateBundle, target := Whole.bundle] \as Global;
+\definition global: Global.Isomorphism := Global.compose iso Join.isomorphism;
+\definition globalLaws: Bundles.Isomorphisms[X := X, F := Stabilized.Fiber, G := (\fun (x: X) => Bundles.Vector m), source := Stabilized.bundle, target := Whole.bundle].Laws[global] :=
+  \bysub(Bundles.Isomorphisms[X := X, F := Stabilized.Fiber, G := (\fun (x: X) => Bundles.Vector m), source := Stabilized.bundle, target := Whole.bundle].Data,
+    Bundles.Isomorphisms[X := X, F := Stabilized.Fiber, G := (\fun (x: X) => Bundles.Vector m), source := Stabilized.bundle, target := Whole.bundle].Isomorphism, global);
+\definition inclusion[x: A]: X := x;
+\definition regular: topology.Continuity[A := A, B := X].Continuous subspace space inclusion := topology.Continuity[A := A, B := X].Corestriction[S := subset].inclusionContinuous space;
+\import Bundles.Family[X := X, F := Stabilized.Fiber].Of[bundle := Stabilized.bundle].Restriction[U := subset] \as SourceRestriction;
+\import Bundles.Family[X := X, F := (\fun (x: X) => Bundles.Vector m)].Of[bundle := Whole.bundle].Restriction[U := subset] \as TargetRestriction;
+\import Complements.PulledIsomorphism[X := X, Y := A, F := Stabilized.Fiber, G := (\fun (x: X) => Bundles.Vector m), source := Stabilized.bundle, target := Whole.bundle,
+  base := subspace, f := inclusion, sourceRegular := regular, targetRegular := regular] \as Pull;
+\import Bundles.Isomorphisms[X := A, F := (\fun (x: A) => Stabilized.Fiber x), G := (\fun (x: A) => Bundles.Vector m), source := SourceRestriction.restricted, target := TargetRestriction.restricted] \as BoundaryIsomorphisms;
+\import Operations.IsomorphismComposition[X := A, F := (\fun (x: A) => Bundles.Vector m), G := (\fun (x: A) => Stabilized.Fiber x), H := (\fun (x: A) => Bundles.Vector m),
+  source := TargetRestriction.restricted, middle := SourceRestriction.restricted, target := TargetRestriction.restricted] \as Frames;
+\definition theta: Frames.Isomorphism := Frames.compose (BoundaryIsomorphisms.inverse (Pull.isomorphism global)) Stabilized.frame;
+\import \parent.\parent.\parent.\parent.TrivialBoundary[n := m] \as Target;
+\import Spaces.Isomorphism[V := Bundles.Vector m, W := Bundles.Vector m, source := Bundles.coordinates m, target := Bundles.coordinates m] \as CoordinateIsomorphisms;
+\definition stabilizedCoordinateIdentity: CoordinateIsomorphisms.Isomorphism := CoordinateIsomorphisms.Isomorphism {
+  forward := Spaces.FiniteCoordinates[n := m].identity, backward := Spaces.FiniteCoordinates[n := m].identity,
+  leftInverse := \fun (v: Bundles.Vector m) => \refl(v), rightInverse := \fun (v: Bundles.Vector m) => \refl(v)
+};
+\definition compatible: \forall (x: A)(v: Stabilized.Fiber x) -> (theta.forward.fiber x).apply ((global.forward.fiber x).apply v) = stabilizedCoordinateIdentity.forward.apply ((Stabilized.frame.forward.fiber x).apply v) :=
+  \fun (x: A)(v: Stabilized.Fiber x) => congr!{{Stabilized.Fiber x} {Bundles.Vector m}} (Stabilized.frame.forward.fiber x).apply _ _ (globalLaws.leftInverse x v);
+\import \parent.\parent.\parent.\parent.FramedClass[F := Stabilized.Fiber, sourceModel := Stabilized.bundleModel, n := m].To[
+  G := (\fun (x: X) => Bundles.Vector m), targetModel := Target.model, m := m].With[
+  alpha := Stabilized.frame, beta := theta, h := global, c := stabilizedCoordinateIdentity, compatible := compatible] \as Compare;
+\import Target.With[theta := theta].Contraction[a0 := a0, homotopy := homotopy] \as Vanishing;
+\definition equation: value = ReducedGroup.zero := trans!{{Quotient.Relative}} _ _ _ (sym!{{Quotient.Relative}} _ _ Stabilized.equation)
+  (trans!{{Quotient.Relative}} _ _ _ Compare.equation Vanishing.equation);

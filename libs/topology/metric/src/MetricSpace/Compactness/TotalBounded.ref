@@ -1,0 +1,21 @@
+\import std.Set[].FiniteSubset[A := Carrier] \as Points;
+\import std.Set[].FiniteSubset[A := \Pow Carrier] \as OpenSets;
+\import OpenSets.Selection[B := Carrier] \as Selection;
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\structure Net[S: \Pow Carrier, epsilon: R.Real, centres: Points.FiniteSubset]: \Prop := {
+  covers: \forall (x: Carrier) -> \In[Carrier] S x -> \exists ( y: Carrier \where Logic.And[Points.Member centres y, R.Lt (metric.distance y x) epsilon] ),
+};
+\definition TotallyBounded[S: \Pow Carrier]: \Prop :=
+  \forall (epsilon: R.Real) -> R.Lt Real.zero epsilon -> \exists ( centres: Points.FiniteSubset \where Net[S, epsilon, centres] );
+\definition subset: \forall (S, U: \Pow Carrier) -> T.Subset S U -> TotallyBounded U -> TotallyBounded S := \block {
+  \fun (S, U: \Pow Carrier)(included: T.Subset S U)(bounded: TotallyBounded U)(epsilon: R.Real)(positive: R.Lt Real.zero epsilon) \then
+  \takefrom centres: \Cast[Points.FiniteSubset] ({ F: Points.FiniteSubset \where Net[U, epsilon, F] }) \by bounded epsilon positive \then
+  \let net: Net[U, epsilon, centres] := \bysub(Points.FiniteSubset, { F: Points.FiniteSubset \where Net[U, epsilon, F] }, centres) \then
+  \return Logic.existsIntro[Points.FiniteSubset, { F: Points.FiniteSubset \where Net[S, epsilon, F] }] centres
+    (Net[S, epsilon, centres] { covers := \fun (x: Carrier)(member: \In[Carrier] S x) => net.covers x (included x member) })
+};
+\module FromCompact(S: \Pow Carrier, epsilon: R.Real, positive: R.Lt Real.zero epsilon);
+\definition compact: \forall (S: \Pow Carrier) -> T.IsCompactIn (Topology.topology metric) S -> TotallyBounded S :=
+  \fun (S: \Pow Carrier)(compact: T.IsCompactIn (Topology.topology metric) S)(epsilon: R.Real)(positive: R.Lt Real.zero epsilon) =>
+    FromCompact[S := S, epsilon := epsilon, positive := positive].net compact;

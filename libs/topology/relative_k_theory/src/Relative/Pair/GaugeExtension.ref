@@ -1,0 +1,46 @@
+\import \parent.BundleModel[F := F] \as Model;
+\definition bundle: Bundles.Family[X := X, F := F].Bundle := Model.bundle sourceModel;
+\import algebraic_topology.Interval[] \as Interval;
+\import algebraic_topology.Cylinder[A := X] \as Cylinder;
+\import \parent.CylinderSubset[] \as Boundary;
+\import topology.Topology[Carrier := Cylinder.Carrier] \as CylinderBase;
+\import topology.Topology[Carrier := Interval.Carrier] \as TimeBase;
+\import Bundles.Family[X := X, F := F].Of[bundle := bundle].Pullback[Y := Cylinder.Carrier, source := (Cylinder.topology space), f := Cylinder.point] \as CylinderPull;
+\definition CylinderFiber[z: Cylinder.Carrier]: \Set := F (Cylinder.point z);
+\definition cylinderBundle: Bundles.Family[X := Cylinder.Carrier, F := CylinderFiber].Bundle := CylinderPull.pulled (Cylinder.pointContinuous space);
+\import Bundles.Family[X := Cylinder.Carrier, F := CylinderFiber].Of[bundle := cylinderBundle].Restriction[U := Boundary.subsetCylinder] \as BoundaryPull;
+\import Bundles.Isomorphisms[X := Boundary.Carrier, F := (\fun (z: Boundary.Carrier) => CylinderFiber z), G := (\fun (z: Boundary.Carrier) => CylinderFiber z),
+  source := BoundaryPull.restricted, target := BoundaryPull.restricted] \as BoundaryIsomorphisms;
+\structure Path: \Set := {
+  isomorphism: BoundaryIsomorphisms.Isomorphism,
+  starts: \forall (z: Boundary.Carrier) -> Boundary.time z = Interval.start -> \forall (v: CylinderFiber z) -> (isomorphism.forward.fiber z).apply v = v
+};
+\definition initial: \Pow Cylinder.Carrier := { z: Cylinder.Carrier \where Cylinder.time z = Interval.start };
+\definition initialClosed: CylinderBase.IsClosedIn (Cylinder.topology space) initial :=
+  topology.Continuity[A := Cylinder.Carrier, B := Interval.Carrier].closedPreimage (Cylinder.topology space) Interval.topology Cylinder.time (Cylinder.timeContinuous space)
+    (TimeBase.Singleton Interval.start) (TimeBase.Compactness[].hausdorffT1 Interval.topology Interval.hausdorff Interval.start);
+\import CylinderBase.Finite[] \as Finite;
+\definition region: \Pow Cylinder.Carrier := Finite.Join Boundary.subsetCylinder initial;
+\definition regionClosed: CylinderBase.IsClosedIn (Cylinder.topology space) region := Finite.joinClosed (Cylinder.topology space) Boundary.subsetCylinder initial Boundary.subsetClosed initialClosed;
+\import CylinderBase.Subspace[S := region] \as Region;
+\definition RegionPoint: \Set := Region.CarrierSet;
+\definition regionSpace: topology.Topology[Carrier := RegionPoint].Topology := Region.topology (Cylinder.topology space);
+\definition inclusion[z: RegionPoint]: Cylinder.Carrier := z;
+\definition inclusionContinuous: topology.Continuity[A := RegionPoint, B := Cylinder.Carrier].Continuous regionSpace (Cylinder.topology space) inclusion :=
+  topology.Continuity[A := RegionPoint, B := Cylinder.Carrier].Corestriction[S := region].inclusionContinuous (Cylinder.topology space);
+\import Bundles.Family[X := Cylinder.Carrier, F := CylinderFiber].Of[bundle := cylinderBundle].Restriction[U := region] \as RegionPull;
+\definition regionBundle: Bundles.Family[X := RegionPoint, F := (\fun (z: RegionPoint) => CylinderFiber z)].Bundle := RegionPull.restricted;
+\import topology.Topology[Carrier := RegionPoint] \as RegionBase;
+\definition left: \Pow RegionPoint := { z: RegionPoint \where CylinderBase.Member Boundary.subsetCylinder z };
+\definition right: \Pow RegionPoint := { z: RegionPoint \where CylinderBase.Member initial z };
+\definition leftClosed: RegionBase.IsClosedIn regionSpace left :=
+  topology.Continuity[A := RegionPoint, B := Cylinder.Carrier].closedPreimage regionSpace (Cylinder.topology space) inclusion inclusionContinuous Boundary.subsetCylinder Boundary.subsetClosed;
+\definition rightClosed: RegionBase.IsClosedIn regionSpace right :=
+  topology.Continuity[A := RegionPoint, B := Cylinder.Carrier].closedPreimage regionSpace (Cylinder.topology space) inclusion inclusionContinuous initial initialClosed;
+\definition covers: \forall (z: RegionPoint) -> Logic.Or[RegionBase.Member left z, RegionBase.Member right z] :=
+  \fun (z: RegionPoint) => \bysub(Cylinder.Carrier, region, z);
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := Algebra.field, conjugation := Hermitian.scalar, scalar := Scalar.scalar].ClosedCover[
+  X := RegionPoint, F := (\fun (z: RegionPoint) => CylinderFiber z), G := (\fun (z: RegionPoint) => CylinderFiber z), baseSpace := regionSpace,
+  source := regionBundle, target := regionBundle, sourceBase := (\refl(regionSpace)), targetBase := (\refl(regionSpace)), C := left, D := right,
+  closedC := leftClosed, closedD := rightClosed, covers := covers] \as Cover;
+\module With(path: Path);

@@ -1,0 +1,84 @@
+\import \parent.\parent.ScalarLines[] \as Lines;
+\import End.Compact[] \as CompactOperator;
+\import CompactOperator.Addition[] \as Addition;
+\import metric_spaces.MetricSpace[Carrier := V] \as Metric;
+\import Metric.Compactness[].RelativelyCompact[metric := RealNormed.metric norm.realNorm] \as Relative;
+\import topology.Topology[Carrier := V] \as Space;
+\import topology.Maps[A := V, B := V] \as Maps;
+\import topology.Maps[A := R.Real, B := V] \as ScalarMaps;
+\import topological_constructions.Product[A := V, B := V] \as ProductSpace;
+\import ProductSpace.Compactness[] \as ProductCompact;
+\import std.Data[].Pair[] \as Pair;
+\import topology.Topology[Carrier := ProductSpace.CarrierSet] \as PairSpace;
+\import topology.Maps[A := ProductSpace.CarrierSet, B := V] \as PairMaps;
+\import topology.Compactness[A := ProductSpace.CarrierSet, B := V] \as Images;
+\import metric_spaces.RealLine[] \as Line;
+\import real.Analysis[].Estimates[] \as RE;
+\import real.Analysis[].SquareRoot[] \as Root;
+\import complex.Complex[].Absolute[] \as Absolute;
+\import std.Logic[].Equality[] \as E;
+\use E.eq_reason_in;
+\definition normOne: \forall (complete: Complete) -> norm.realNorm.norm v = R.one :=
+  \fun (complete: Complete) => Root.squaresInjective (norm.realNorm.norm v) R.one (norm.realNorm.nonnegative v) Laws.oneNonnegative
+    (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (complete.normSquared v))
+      (trans!{R.Real} _ _ _ (congr!{C.Complex R.Real} C.re _ _ unit) (sym!{R.Real} _ _ (Laws.fieldMulOneLeft R.one))));
+\definition coeffBound: \forall (complete: Complete)(x: V) -> \In[V] CompactOperator.UnitBall x -> Order.Le (Absolute.abs (inner.inner v x)) R.one := \block {
+  \fun (complete: Complete)(x: V)(inside: \In[V] CompactOperator.UnitBall x) \then
+  \let coeff: C.Complex := inner.inner v x \then
+  \let same: norm.realNorm.norm (Unit.rankOne.apply x) = Absolute.abs coeff := eq_reason_in!{R.Real _
+    "=" _ "by" { norm.homogeneous coeff v }
+    "=" _ "by" { congr!{R.Real R.Real} (R.mul (Absolute.abs coeff)) _ _ (normOne complete) }
+    "=" _ "by" { R.Algebra[].mulOneRight (Absolute.abs coeff) }
+  } \then
+  \return Order.leTrans _ _ R.one (Order.leReplaceLeft _ _ _ same (contractive complete x)) inside
+};
+\definition imaginaryAbsolute: \forall (z: C.Complex) -> Order.Le (Product.abs (C.im z)) (Absolute.abs z) := \block {
+  \fun (z: C.Complex) \then
+  \let swapped: C.Complex := C.make (C.im z) (C.re z) \then
+  \let equal: Absolute.abs swapped = Absolute.abs z := congr!{R.Real R.Real} Root.sqrt _ _ (Laws.addComm (R.mul (C.im z) (C.im z)) (R.mul (C.re z) (C.re z))) \then
+  \return Order.leReplaceRight _ (Absolute.abs swapped) (Absolute.abs z) equal (Scalar.realAbsolute swapped)
+};
+\definition interval: \forall (a: R.Real) -> Order.Le (Product.abs a) R.one -> \In[R.Real] (Line.ClosedInterval (R.neg R.one) R.one) a :=
+  \fun (a: R.Real)(bound: Order.Le (Product.abs a) R.one) => Logic.And[_, _]::#
+    (Order.leReplaceLeft (R.sub R.zero R.one) (R.neg R.one) a (Laws.addZeroLeft (R.neg R.one)) (RE.distanceLeLower R.zero a R.one bound))
+    (Order.leReplaceRight a (R.add R.zero R.one) R.one (Laws.addZeroLeft R.one) (RE.distanceLeUpper R.zero a R.one bound));
+\definition coefficient: \forall (z: C.Complex) -> D.add (D.ofReal (C.re z)) (D.mul (D.ofReal (C.im z)) D.i) = z :=
+  \fun (z: C.Complex) => complex.Complex[].Prop[].ext _ _
+    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.add (C.re z)) _ _ (Scalar.realProduct (C.im z) D.i))
+      (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.add (C.re z)) _ _ (Laws.fieldMulZeroRight (C.im z))) (Laws.addZeroRight (C.re z))))
+    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.add R.zero) _ _ (Scalar.imaginaryProduct (C.im z) D.i))
+      (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.add R.zero) _ _ (R.Algebra[].mulOneRight (C.im z))) (Laws.addZeroLeft (C.im z))));
+\definition split: \forall (z: C.Complex) -> space.smul z v = space.add ((Lines.linear v).apply (C.re z)) ((Lines.linear (space.smul D.i v)).apply (C.im z)) :=
+  \fun (z: C.Complex) => eq_reason_in!{V _
+    "=" _ "by" { congr!{C.Complex V} (\fun (a: C.Complex) => space.smul a v) _ _ (sym!{C.Complex} _ _ (coefficient z)) }
+    "=" _ "by" { space.scalarAdd (D.ofReal (C.re z)) (D.mul (D.ofReal (C.im z)) D.i) v }
+    "=" _ "by" { congr!{V V} (space.add (realSpace.smul (C.re z) v)) _ _ (space.scalarAssoc (D.ofReal (C.im z)) D.i v) }
+  };
+\definition compact: \forall (complete: Complete) -> CompactOperator.Compact (operator complete) := \block {
+  \fun (complete: Complete) \then
+  \let A: \Pow V := Lines.segment v \then
+  \let B: \Pow V := Lines.segment (space.smul D.i v) \then
+  \let rectangle: \Pow ProductSpace.CarrierSet := ProductSpace.Rectangle A B \then
+  \let productCompact: PairSpace.IsCompactIn Addition.pairTopology rectangle :=
+    ProductCompact.productCompactIn Addition.topology Addition.topology A B (Lines.segmentCompact v) (Lines.segmentCompact (space.smul D.i v)) \then
+  \let image: \Pow V := PairMaps.Image Addition.add rectangle \then
+  \let imageCompact: Space.IsCompactIn Addition.topology image := Images.continuousImage Addition.pairTopology Addition.topology Addition.add Addition.addContinuous rectangle productCompact \then
+  \return Relative.containedInCompact (CompactOperator.Image (operator complete)) image
+    (\fun (y: V)(member: Space.Member (CompactOperator.Image (operator complete)) y) => Maps.imageElim (operator complete).apply CompactOperator.UnitBall y (Space.Member image y)
+      (\block {
+        \fun (x: V)(inside: \In[V] CompactOperator.UnitBall x)(same: (operator complete).apply x = y) \then
+        \let z: C.Complex := inner.inner v x \then
+        \let realBound: Order.Le (Product.abs (C.re z)) R.one := Order.leTrans _ _ R.one (Scalar.realAbsolute z) (coeffBound complete x inside) \then
+        \let imagBound: Order.Le (Product.abs (C.im z)) R.one := Order.leTrans _ _ R.one (imaginaryAbsolute z) (coeffBound complete x inside) \then
+        \let left: V := (Lines.linear v).apply (C.re z) \then
+        \let right: V := (Lines.linear (space.smul D.i v)).apply (C.im z) \then
+        \let p: ProductSpace.CarrierSet := Pair.pair V V left right \then
+        \let contained: PairSpace.Member rectangle p := Logic.And[_, _]::#
+          (ScalarMaps.imageMember (Lines.linear v).apply (Line.ClosedInterval (R.neg R.one) R.one) (C.re z) (interval (C.re z) realBound))
+          (ScalarMaps.imageMember (Lines.linear (space.smul D.i v)).apply (Line.ClosedInterval (R.neg R.one) R.one) (C.im z) (interval (C.im z) imagBound)) \then
+        \return \idelim Addition.add p = y \with w: V => Space.Member image w \by {
+          base: PairMaps.imageMember Addition.add rectangle p contained,
+          equality: trans!{V} _ _ _ (sym!{V} _ _ (split z)) same
+        }
+      }) member) imageCompact
+};

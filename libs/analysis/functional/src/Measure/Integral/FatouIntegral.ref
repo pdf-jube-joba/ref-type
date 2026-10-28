@@ -1,0 +1,33 @@
+\import \root.Measure[A := A].Integral[mu := mu].Convergence[] \as Convergence;
+\import Convergence.Fatou[] \as Fatou;
+\import \root.Measure[A := A].Integral[mu := mu].Absolute[] \as Absolute;
+\import \root.Measure[A := A].ValueLaws[] \as Values;
+\import Values.SupAdd[] \as SupAdd;
+\import N.Basic[].Prop[] \as Nat;
+\import real.Analysis[].Sequence[] \as Sequence;
+\definition functions: N.Nat^ -> A -> Real.Real := \fun (k: N.Nat^) (x: A) => f.sequence k x;
+\definition sequence: Fatou.NonnegativeSequence := \into[N.Nat^ -> A -> Real.Real] (functions,
+  { h: N.Nat^ -> A -> Real.Real \where Logic.And[\forall (k: N.Nat^) -> IsMeasurable mu (h k), \forall (k: N.Nat^) (x: A) -> R.Le Real.zero (h k x)] }) \by {
+    Logic.And[_, _]::# (\fun (k: N.Nat^) => (\bysub(A -> Real.Real, { h: A -> Real.Real \where Integrable h }, f.sequence k)).left) f.nonnegative
+  };
+\import Fatou.Tail[f := sequence] \as Tail;
+\import Tail.Converges[] \as TailConverges;
+\import Fatou.Of[f := sequence] \as FatouOf;
+\definition eventuallyAbove: (\forall (x: A) -> R.Le Real.zero (g x)) ->
+  (\forall (x: A) -> Sequence.Converges (\fun (k: N.Nat^) => f.sequence k x) (g x)) ->
+  \forall (r: Real.Real) -> R.Lt r (integral g) ->
+  \exists ( n: N.Nat^ \where \forall (k: N.Nat^) -> Nat.Le n k -> R.Le r (integral (f.sequence k)) ) :=
+  \fun (gn: \forall (x: A) -> R.Le Real.zero (g x)) (converges: _) (r: Real.Real) (less: R.Lt r (integral g)) => \block {
+    \let gs: Complete.LeastUpperBound[lowerIntegral g, integral g] := Absolute.nonnegativeIntegralSup g (integral g) gn (integralLaw g) \then
+    \takefrom x: \Cast[Real.Real] ({ x: Real.Real \where Logic.And[below (lowerIntegral g) x, R.Lt r x] }) \by SupAdd.above (lowerIntegral g) (integral g) r gs less \then
+    \let witness: Logic.And[below (lowerIntegral g) x, R.Lt r x] := \bysub(Real.Real, { x: Real.Real \where Logic.And[below (lowerIntegral g) x, R.Lt r x] }, x) \then
+    \let liminf: below (Fatou.Liminf (\fun (k: N.Nat^) => lowerIntegral (sequence k))) x :=
+      FatouOf.finiteFatou g (TailConverges.sup g converges) x witness.left \then
+    \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where below (Fatou.TailInf (\fun (k: N.Nat^) => lowerIntegral (sequence k)) n) x }) \by liminf \then
+    \let tail: below (Fatou.TailInf (\fun (k: N.Nat^) => lowerIntegral (sequence k)) n) x :=
+      \bysub(N.Nat^, { n: N.Nat^ \where below (Fatou.TailInf (\fun (k: N.Nat^) => lowerIntegral (sequence k)) n) x }, n) \then
+    \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \forall (k: N.Nat^) -> Nat.Le n k -> R.Le r (integral (f.sequence k)) }] n
+      (\fun (k: N.Nat^) (later: Nat.Le n k) => R.leTrans r x (integral (f.sequence k))
+        (dedekind_reals.DedekindReal[].Order[].leOfLt r x witness.right)
+        ((Absolute.nonnegativeIntegralSup (f.sequence k) (integral (f.sequence k)) (f.nonnegative k) (integralLaw (f.sequence k))).upper x (tail k later)))
+  };

@@ -1,0 +1,43 @@
+\import \root.Relative[].Suspension[original := source.model] \as SourceWhole;
+\import \root.Relative[].Suspension[original := target.model] \as TargetWhole;
+\import \root.Relative[].Suspension[original := From.subsetModel] \as SourceSubset;
+\import \root.Relative[].Suspension[original := To.subsetModel] \as TargetSubset;
+\import \root.Relative[].SuspendedMap[source := source.model, target := target.model, f := f.function] \as Whole;
+\import \root.Relative[].SuspendedMap[source := From.subsetModel, target := To.subsetModel, f := subsetMap] \as Subset;
+\import \root.Relative[].Composition[source := From.subsetModel, middle := source.model, target := target.model,
+  first := From.inclusion, second := f.function] \as Left;
+\import \root.Relative[].Composition[source := From.subsetModel, middle := To.subsetModel, target := target.model,
+  first := subsetMap, second := To.inclusion] \as Right;
+\definition inclusionSquare: Left.map = Right.map := \axiom:funext(Left.map, Right.map,
+  \fun (x: From.subsetModel.Carrier) => \refl(f.function x));
+\definition suspendedEquality: \root.Relative[].SuspendedMap[source := From.subsetModel, target := target.model, f := Left.map].map =
+  \root.Relative[].SuspendedMap[source := From.subsetModel, target := target.model, f := Right.map].map :=
+  congr!{{Map From.subsetModel target.model} {Map SourceSubset.result TargetWhole.result}}
+    (\fun (h: Map From.subsetModel target.model) => \root.Relative[].SuspendedMap[source := From.subsetModel, target := target.model, f := h].map)
+    Left.map Right.map inclusionSquare;
+\definition square: \forall (z: SourceSubset.result.Carrier) -> Whole.map (SourceSuspendedPair.inclusionMap z) = TargetSuspendedPair.inclusionMap (Subset.map z) :=
+  \fun (z: SourceSubset.result.Carrier) => trans!{{TargetWhole.result.Carrier}} _ _ _
+    (sym!{{TargetWhole.result.Carrier}} _ _ (congr!{{Map SourceSubset.result TargetWhole.result} {TargetWhole.result.Carrier}}
+      (\fun (h: Map SourceSubset.result TargetWhole.result) => h z) _ _ Left.Suspended[].equation))
+    (trans!{{TargetWhole.result.Carrier}} _ _ _
+      (congr!{{Map SourceSubset.result TargetWhole.result} {TargetWhole.result.Carrier}} (\fun (h: Map SourceSubset.result TargetWhole.result) => h z) _ _ suspendedEquality)
+      (congr!{{Map SourceSubset.result TargetWhole.result} {TargetWhole.result.Carrier}} (\fun (h: Map SourceSubset.result TargetWhole.result) => h z) _ _ Right.Suspended[].equation));
+\import topology.Topology[Carrier := SourceSubset.result.Carrier] \as SourceSpace;
+\import topology.Topology[Carrier := TargetSubset.result.Carrier] \as TargetSpace;
+\import topology.Topology[Carrier := TargetWhole.result.Carrier] \as TargetWholeSpace;
+\import topology.Maps[A := SourceSubset.result.Carrier, B := SourceWhole.result.Carrier] \as SourceImages;
+\import topology.Maps[A := TargetSubset.result.Carrier, B := TargetWhole.result.Carrier] \as TargetImages;
+\definition preserves: \forall (z: From.suspended.model.Carrier) -> \In[From.suspended.model.Carrier] (pairDetails From.suspended).subset z ->
+  \In[To.suspended.model.Carrier] (pairDetails To.suspended).subset (Whole.map z) := \block {
+  \fun (z: From.suspended.model.Carrier)(member: \In[From.suspended.model.Carrier] (pairDetails From.suspended).subset z) \then
+  \takefrom w: \Cast[SourceSubset.result.Carrier] ({ w: SourceSubset.result.Carrier \where Logic.And[w = w, SourceSuspendedPair.inclusionMap w = z] }) \by member \then
+  \let equal: TargetSuspendedPair.inclusionMap (Subset.map w) = Whole.map z := trans!{{TargetWhole.result.Carrier}} _ _ _ (sym!{{TargetWhole.result.Carrier}} _ _ (square w))
+    (congr!{{SourceWhole.result.Carrier} {TargetWhole.result.Carrier}} Whole.map _ _ ((\bysub(SourceSubset.result.Carrier, { w: SourceSubset.result.Carrier \where Logic.And[w = w, SourceSuspendedPair.inclusionMap w = z] }, w)).right)) \then
+  \return \idelim TargetSuspendedPair.inclusionMap (Subset.map w) = Whole.map z \with y: TargetWhole.result.Carrier =>
+    TargetWholeSpace.Member TargetSuspendedPair.image y \by {
+      base: TargetImages.imageMember TargetSuspendedPair.inclusionMap TargetSpace.Whole (Subset.map w) (\refl(Subset.map w)), equality: equal
+    }
+};
+\definition result: PairMapData[From.suspended, To.suspended] := PairMapData[From.suspended, To.suspended] {
+  function := Whole.map, preserves := preserves
+};

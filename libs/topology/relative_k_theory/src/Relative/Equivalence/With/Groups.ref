@@ -1,0 +1,37 @@
+\import \root.Relative[].Reduced[model := source] \as Source;
+\import \root.Relative[].Reduced[model := target] \as Target;
+\import \root.Relative[].Pullback[source := source, target := target, f := e.forward] \as Forward;
+\import \root.Relative[].Pullback[source := target, target := source, f := e.backward] \as Backward;
+\import \root.Relative[].Composition[source := source, middle := target, target := source, first := e.forward, second := e.backward] \as LeftComposite;
+\import \root.Relative[].Composition[source := target, middle := source, target := target, first := e.backward, second := e.forward] \as RightComposite;
+\import \root.Relative[].Identity[model := source] \as SourceIdentity;
+\import \root.Relative[].Identity[model := target] \as TargetIdentity;
+\definition leftEquality: LeftComposite.map = SourceIdentity.map := \axiom:funext(LeftComposite.map, SourceIdentity.map, e.leftInverse);
+\definition rightEquality: RightComposite.map = TargetIdentity.map := \axiom:funext(RightComposite.map, TargetIdentity.map, e.rightInverse);
+\import \root.Relative[].Pullback[source := source, target := source, f := LeftComposite.map] \as LeftPull;
+\import \root.Relative[].Pullback[source := target, target := target, f := RightComposite.map] \as RightPull;
+\import \root.Relative[].Pullback[source := source, target := source, f := SourceIdentity.map] \as SourceIdPull;
+\import \root.Relative[].Pullback[source := target, target := target, f := TargetIdentity.map] \as TargetIdPull;
+\definition leftChanged[x: Source.Carrier]: LeftPull.map x = SourceIdPull.map x :=
+  \idelim LeftComposite.map = SourceIdentity.map \with f: Map source source => LeftPull.map x = \root.Relative[].Pullback[source := source, target := source, f := f].map x \by {
+    base: \refl(LeftPull.map x), equality: leftEquality };
+\definition rightChanged[x: Target.Carrier]: RightPull.map x = TargetIdPull.map x :=
+  \idelim RightComposite.map = TargetIdentity.map \with f: Map target target => RightPull.map x = \root.Relative[].Pullback[source := target, target := target, f := f].map x \by {
+    base: \refl(RightPull.map x), equality: rightEquality };
+\definition leftInverse: \forall (x: Source.Carrier) -> Forward.map (Backward.map x) = x :=
+  \fun (x: Source.Carrier) => trans!{{Source.Carrier}} _ _ _
+    (sym!{{Source.Carrier}} _ _ (\root.Relative[].PullbackComposition[source := source, middle := target, target := source, first := e.forward, second := e.backward].equation x))
+    (trans!{{Source.Carrier}} _ _ _ (leftChanged x) (\root.Relative[].PullbackIdentity[model := source].equation x));
+\definition rightInverse: \forall (x: Target.Carrier) -> Backward.map (Forward.map x) = x :=
+  \fun (x: Target.Carrier) => trans!{{Target.Carrier}} _ _ _
+    (sym!{{Target.Carrier}} _ _ (\root.Relative[].PullbackComposition[source := target, middle := source, target := target, first := e.backward, second := e.forward].equation x))
+    (trans!{{Target.Carrier}} _ _ _ (rightChanged x) (\root.Relative[].PullbackIdentity[model := target].equation x));
+\definition forward: Target.Carrier -> Source.Carrier := Forward.map;
+\definition backward: Source.Carrier -> Target.Carrier := Backward.map;
+
+\definition additive: \forall (x, y: Target.Carrier) -> forward (Target.group.base.op x y) = Source.group.base.op (forward x) (forward y) := Forward.additive;
+\definition inverseAdditive: \forall (x, y: Source.Carrier) -> backward (Source.group.base.op x y) = Target.group.base.op (backward x) (backward y) := Backward.additive;
+\definition forwardAdd: \forall (v, w: Target.Carrier) -> forward (Target.group.base.op v w) = Source.group.base.op (forward v) (forward w) := additive;
+\definition backwardAdd: \forall (v, w: Source.Carrier) -> backward (Source.group.base.op v w) = Target.group.base.op (backward v) (backward w) := inverseAdditive;
+\definition forwardZero: forward Target.group.base.unit = Source.group.base.unit := Forward.preservesZero;
+\definition backwardZero: backward Source.group.base.unit = Target.group.base.unit := Backward.preservesZero;

@@ -1,0 +1,38 @@
+\use Equality.eq_reason_in;
+\import std.Alg[].Alg[] \as Alg;
+\import algebra.Groups[].On[G := X, group := (Alg.asGroup X group)] \as Native;
+\definition add: X -> X -> X := group.base.op;
+\definition zero: X := group.base.unit;
+\definition negate: X -> X := group.base.inv;
+\definition sub[x, y: X]: X := add x (negate y);
+\definition negateNegate: \forall (x: X) -> negate (negate x) = x := Native.invInv;
+\definition subSelf: \forall (x: X) -> sub x x = zero := Native.invRight;
+\definition subZero: \forall (x: X) -> sub x zero = x := \fun (x: X) =>
+  trans!{X} _ _ _ (congr!{X X} (add x) _ _ Native.invOne) (Native.oneRight x);
+\definition subEqual: \forall (x, y: X) -> sub x y = zero -> x = y :=
+  \fun (x, y: X)(same: sub x y = zero) => Native.cancelLeft (negate y) x y
+    (trans!{X} _ _ _ (group.commutative (negate y) x) (trans!{X} _ _ _ same (sym!{X} _ _ (Native.invLeft y))));
+\definition restore: \forall (x, y: X) -> add y (sub x y) = x := \fun (x, y: X) => eq_reason_in!{X _
+  "=" { add y (add (negate y) x) } "by" { congr!{X X} (add y) _ _ (group.commutative x (negate y)) }
+  "=" { add (add y (negate y)) x } "by" { sym!{X} _ _ (Native.assoc y (negate y) x) }
+  "=" { add zero x } "by" { congr!{X X} (\fun (v: X) => add v x) _ _ (Native.invRight y) }
+  "=" x "by" { Native.oneLeft x }
+};
+\definition interchange: \forall (a, b, c, d: X) -> add (add a b) (add c d) = add (add a c) (add b d) :=
+  \fun (a, b, c, d: X) => eq_reason_in!{X _
+    "=" { add a (add b (add c d)) } "by" { Native.assoc a b (add c d) }
+    "=" { add a (add (add b c) d) } "by" { congr!{X X} (add a) _ _ (sym!{X} _ _ (Native.assoc b c d)) }
+    "=" { add a (add (add c b) d) } "by" { congr!{X X} (\fun (v: X) => add a (add v d)) _ _ (group.commutative b c) }
+    "=" { add a (add c (add b d)) } "by" { congr!{X X} (add a) _ _ (Native.assoc c b d) }
+    "=" { add (add a c) (add b d) } "by" { sym!{X} _ _ (Native.assoc a c (add b d)) }
+  };
+\definition subAdd: \forall (a, b, c, d: X) -> sub (add a b) (add c d) = add (sub a c) (sub b d) :=
+  \fun (a, b, c, d: X) => trans!{X} _ _ _
+    (congr!{X X} (add (add a b)) _ _ (trans!{X} _ _ _ (Native.invMul c d) (group.commutative (negate d) (negate c))))
+    (interchange a b (negate c) (negate d));
+\definition cancelCommon: \forall (a, b, c: X) -> sub (add a c) (add b c) = sub a b :=
+  \fun (a, b, c: X) => trans!{X} _ _ _ (subAdd a c b c)
+    (trans!{X} _ _ _ (congr!{X X} (add (sub a b)) _ _ (subSelf c)) (Native.oneRight (sub a b)));
+\module Mapping(Y: \Set, target: Alg.CommutativeGroup[Y], f: X -> Y,
+  additive: \forall (x, y: X) -> f (add x y) = target.base.op (f x) (f y),
+  preservesZero: f zero = target.base.unit);

@@ -1,0 +1,17 @@
+\import topology.Topology[Carrier := X].Subspace[S := subset] \as Closed;
+\definition closed: Closed.CarrierSet := \into[X](x, subset) \by { member };
+\definition laws: BoundaryIsomorphism.Laws[comparison] := \bysub(BoundaryIsomorphism.Data, BoundaryIsomorphism.Isomorphism, comparison);
+\import Spaces.Isomorphism[V := F x, W := Vector, source := bundle.space x, target := coordinates] \as Boundary;
+\definition boundary: Boundary.Isomorphism := Boundary.Isomorphism {
+  forward := comparison.forward.fiber closed, backward := comparison.backward.fiber closed,
+  leftInverse := laws.leftInverse closed, rightInverse := laws.rightInverse closed
+};
+\import Model.Base[same := Quotient.onSubset closed] \as AtBase;
+\definition candidate: Isomorphisms.Isomorphism :=
+  Spaces.Isomorphism[V := Vector, W := F x, source := coordinates, target := bundle.space x].Composition[U := Model.Carrier, domain := Model.space].compose
+    (Boundary.inverse boundary) AtBase.isomorphism;
+\definition matches: Matches candidate := \fun (v: Model.Carrier) => trans!{{F x}} _ _ _
+  (congr!{Vector {F x}} (comparison.backward.fiber closed).apply _ _
+    (sym!{Vector} _ _ ((Model.laws v).boundary closed (\refl(Quotient.projection x)))))
+  (laws.leftInverse closed (map.apply v));
+\definition witness: Witness := \into[Isomorphisms.Isomorphism](candidate, Witness) \by { matches };

@@ -1,0 +1,61 @@
+\import \root.Relative[].Smash[left := right, right := left] \as Target;
+\import \root.Relative[].Pair[X := model.Carrier, space := (details model).topology, compact := (details model).compact,
+  hausdorff := (details model).hausdorff, subset := wedge, closed := wedgeClosed].Quotient[] \as SourceQuotient;
+\import \root.Relative[].Pair[X := Target.model.Carrier, space := (details Target.model).topology, compact := (details Target.model).compact,
+  hausdorff := (details Target.model).hausdorff, subset := Target.wedge, closed := Target.wedgeClosed].Quotient[] \as TargetQuotient;
+\definition swap[z: model.Carrier]: Target.model.Carrier := Pair.pair right.Carrier left.Carrier (second z) (first z);
+\definition respects: \forall (z: model.Carrier) -> \In[model.Carrier] wedge z -> \In[Target.model.Carrier] Target.wedge (swap z) :=
+  \fun (z: model.Carrier)(member: \In[model.Carrier] wedge z) => Logic.orElim[first z = (details left).point, second z = (details right).point,
+    \In[Target.model.Carrier] Target.wedge (swap z)] member
+    (\fun (same: first z = (details left).point) => Logic.Or[_, _]::right same)
+    (\fun (same: second z = (details right).point) => Logic.Or[_, _]::left same);
+\definition reflects: \forall (z: model.Carrier) -> \In[Target.model.Carrier] Target.wedge (swap z) -> \In[model.Carrier] wedge z :=
+  \fun (z: model.Carrier)(member: \In[Target.model.Carrier] Target.wedge (swap z)) => Logic.orElim[second z = (details right).point, first z = (details left).point,
+    \In[model.Carrier] wedge z] member
+    (\fun (same: second z = (details right).point) => Logic.Or[_, _]::right same)
+    (\fun (same: first z = (details left).point) => Logic.Or[_, _]::left same);
+\definition g[z: model.Carrier]: Target.result.Carrier := Target.projection (swap z);
+\definition swapRegular: topology.Continuity[A := model.Carrier, B := Target.model.Carrier].Continuous (details model).topology (details Target.model).topology swap :=
+  topological_constructions.Product[A := right.Carrier, B := left.Carrier].Universal[X := model.Carrier].pairContinuous
+    (details model).topology (details right).topology (details left).topology second first
+    (Projections.secondContinuous (details left).topology (details right).topology)
+    (Projections.firstContinuous (details left).topology (details right).topology);
+\definition gRegular: topology.Continuity[A := model.Carrier, B := Target.result.Carrier].Continuous (details model).topology (details Target.result).topology g :=
+  topology.Composition[A := model.Carrier, B := Target.model.Carrier, C := Target.result.Carrier].composeContinuous (details model).topology
+    (details Target.model).topology (details Target.result).topology swap Target.projection swapRegular TargetQuotient.continuous;
+\definition onto: \forall (q: Target.result.Carrier) -> \exists (z: model.Carrier \where g z = q) := \block {
+  \fun (q: Target.result.Carrier) \then
+  \takefrom z: \Cast[Target.model.Carrier] ({ z: Target.model.Carrier \where Target.projection z = q }) \by Target.projectionOnto q \then
+  \let p: model.Carrier := Pair.pair left.Carrier right.Carrier (Target.second z) (Target.first z) \then
+  \return Logic.existsIntro[model.Carrier, { p: model.Carrier \where g p = q }] p
+    (trans!{{Target.result.Carrier}} _ _ _ (congr!{{Target.model.Carrier} {Target.result.Carrier}} Target.projection _ _
+      (Pair.Prop[A := right.Carrier, B := left.Carrier].eta z)) (\bysub(Target.model.Carrier, { z: Target.model.Carrier \where Target.projection z = q }, z)))
+};
+\definition forwardFibers: \forall (z, w: model.Carrier) -> projection z = projection w -> g z = g w :=
+  \fun (z, w: model.Carrier)(same: projection z = projection w) => Logic.orElim[z = w,
+    Logic.And[\In[model.Carrier] wedge z, \In[model.Carrier] wedge w], g z = g w] (SourceQuotient.separates z w same)
+    (\fun (same: z = w) => congr!{{model.Carrier} {Target.result.Carrier}} g _ _ same)
+    (\fun (both: Logic.And[\In[model.Carrier] wedge z, \In[model.Carrier] wedge w]) => trans!{{Target.result.Carrier}} _ _ _
+      (TargetQuotient.onSubset (\into[Target.model.Carrier](swap z, Target.wedge) \by { respects z both.left }))
+      (sym!{{Target.result.Carrier}} _ _ (TargetQuotient.onSubset (\into[Target.model.Carrier](swap w, Target.wedge) \by { respects w both.right }))));
+\definition backwardFibers: \forall (z, w: model.Carrier) -> g z = g w -> projection z = projection w :=
+  \fun (z, w: model.Carrier)(same: g z = g w) => Logic.orElim[swap z = swap w,
+    Logic.And[\In[Target.model.Carrier] Target.wedge (swap z), \In[Target.model.Carrier] Target.wedge (swap w)], projection z = projection w]
+    (TargetQuotient.separates (swap z) (swap w) same)
+    (\fun (same: swap z = swap w) => congr!{{model.Carrier} {result.Carrier}} projection z w
+      (Pair.Prop[A := left.Carrier, B := right.Carrier].ext z w
+        (congr!{{Target.model.Carrier} {left.Carrier}} Target.second _ _ same) (congr!{{Target.model.Carrier} {right.Carrier}} Target.first _ _ same)))
+    (\fun (both: Logic.And[\In[Target.model.Carrier] Target.wedge (swap z), \In[Target.model.Carrier] Target.wedge (swap w)]) => trans!{{result.Carrier}} _ _ _
+      (SourceQuotient.onSubset (\into[model.Carrier](z, wedge) \by { reflects z both.left }))
+      (sym!{{result.Carrier}} _ _ (SourceQuotient.onSubset (\into[model.Carrier](w, wedge) \by { reflects w both.right }))));
+\definition targetPoint: g (details model).point = (details Target.result).point :=
+  TargetQuotient.onSubset (\into[Target.model.Carrier](swap (details model).point, Target.wedge) \by {
+    Logic.Or[_, _]::left (\refl((details right).point))
+  });
+\import \root.Relative[].CommonQuotient[R := model.Carrier, space := (details model).topology, compact := (details model).compact,
+  source := result, target := Target.result, f := projection, g := g, fRegular := SourceQuotient.continuous, gRegular := gRegular,
+  fOnto := projectionOnto, gOnto := onto, forwardFibers := forwardFibers, backwardFibers := backwardFibers,
+  r0 := (details model).point, sourcePoint := (algebraic_topology.Pointed[A := model.Carrier].Maps[B := result.Carrier].laws (pointed model) (pointed result) projection).pointed,
+  targetPoint := targetPoint] \as Comparison;
+\definition equivalence: \root.Relative[].Equivalence[source := result, target := Target.result].Data := Comparison.equivalence;
+\definition onProjection: \forall (z: model.Carrier) -> equivalence.forward (projection z) = Target.projection (swap z) := Comparison.onSource;

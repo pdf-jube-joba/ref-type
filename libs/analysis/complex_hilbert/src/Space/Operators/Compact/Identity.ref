@@ -1,0 +1,54 @@
+\import \root.Space[V := V, space := space].Hilbert[norm := norm, inner := inner] \as Hilbert;
+\import Hilbert.FiniteProjection[] \as Projection;
+\import \root.FiniteRank[V := V, W := V, source := space, target := space] \as Finite;
+\import ComplexLinear.Linear[V := V, W := V, source := space, target := space] \as EndMaps;
+\import \root.Space[V := V, space := space].Operators[W := V, target := space, norm := norm, targetNorm := norm] \as End;
+\import End.Compact[] \as EndCompact;
+\import std.Set[].FiniteSubset[A := V] \as Points;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Proposition[] \as Logic;
+\import real.Analysis[].Estimates[] \as Estimates;
+\import real.Analysis[].Estimates[].Product[] \as Product;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.congr;
+\use Logic.either;
+\definition identityLinear: EndMaps.Map := EndMaps.Map { apply := \fun (x: V) => x, preservesAdd := \fun (x, y: V) => \refl(space.add x y), preservesScale := \fun (a: C.Complex)(x: V) => \refl(space.smul a x) };
+\definition identity: End.Map := \into[EndMaps.Map](identityLinear, End.Map) \by {
+  Logic.existsIntro[R.Real, { c: R.Real \where End.Bound[identityLinear, c] }] R.one (End.Bound[identityLinear, R.one] {
+    nonnegative := Laws.oneNonnegative,
+    estimate := \fun (x: V) => Order.leReplaceRight _ _ _ (sym!{R.Real} _ _ (Laws.fieldMulOneLeft (norm.realNorm.norm x))) (Order.leRefl _),
+  })
+};
+\module At(complete: Hilbert.Complete, P: Projection.Projection, x: V, different: Logic.Not (P.map.apply x = x));
+\import metric_spaces.MetricSpace[Carrier := V] \as SourceMetric;
+\import SourceMetric.Compactness[].TotalBounded[metric := RealNormed.metric norm.realNorm] \as SourceTotal;
+\import topology.Maps[A := V, B := V] \as SourceMaps;
+\import std.Logic[].Proposition[] \as Proposition;
+\definition FiniteDimensional: \Prop := Finite.FiniteRank identityLinear;
+\definition finiteDimensional: \forall (complete: Hilbert.Complete) -> EndCompact.Compact identity -> FiniteDimensional := \block {
+  \fun (complete: Hilbert.Complete)(compact: EndCompact.Compact identity) \then
+  \let hp: Order.Lt R.zero R.half := Order.ltReplaceRight R.zero (R.mul R.half R.one) R.half (R.Algebra[].mulOneRight R.half)
+    (Estimates.halfOfPositive R.one Product.onePositive) \then
+  \let below: Order.Lt R.half R.one := Order.ltReplaceLeft (R.mul R.half R.one) R.half R.one (R.Algebra[].mulOneRight R.half) (Estimates.halfStrict R.one Product.onePositive) \then
+  \takefrom finite: \Cast[Points.FiniteSubset] ({ finite: Points.FiniteSubset \where SourceTotal.Net[EndCompact.Image identity, R.half, finite] })
+    \by EndCompact.totallyBounded identity compact R.half hp \then
+  \let net: SourceTotal.Net[EndCompact.Image identity, R.half, finite] := \bysub(Points.FiniteSubset, { finite: Points.FiniteSubset \where SourceTotal.Net[EndCompact.Image identity, R.half, finite] }, finite) \then
+  \takefrom P: \Cast[Projection.Projection] ({ P: Projection.Projection \where Projection.Covers[P, finite] }) \by Projection.coversFinite finite \then
+  \let covers: Projection.Covers[P, finite] := \bysub(Projection.Projection, { P: Projection.Projection \where Projection.Covers[P, finite] }, P) \then
+  \let fixed: \forall (x: V) -> P.map.apply x = x := \block {
+    \fun (x: V) \then
+    \enough _ \by { dedekind_reals.DedekindReal[].Order[].byContradiction (P.map.apply x = x) } \then
+    \fun (different: Logic.Not (P.map.apply x = x)) \then
+    \let u: V := At[complete := complete, P := P, x := x, different := different].u \then
+    \takefrom z: \Cast[V] ({ z: V \where Logic.And[Points.Member finite z, Order.Lt ((RealNormed.metric norm.realNorm).distance z u) R.half] })
+      \by net.covers u (SourceMaps.imageMember (identity.apply) EndCompact.UnitBall u (At[complete := complete, P := P, x := x, different := different].inBall)) \then
+    \let near: Logic.And[Points.Member finite z, Order.Lt ((RealNormed.metric norm.realNorm).distance z u) R.half] :=
+      \bysub(V, { z: V \where Logic.And[Points.Member finite z, Order.Lt ((RealNormed.metric norm.realNorm).distance z u) R.half] }, z) \then
+    \return Order.ltNotLeReverse _ R.one (dedekind_reals.DedekindReal[].Order[].ltTrans _ R.half R.one near.right below)
+      (At[complete := complete, P := P, x := x, different := different].distanceAtLeastOne z (covers z near.left))
+  } \then
+  \let equal: P.map = identityLinear := EndMaps.ext P.map identityLinear (\axiom:funext(P.map.apply, identityLinear.apply, fixed)) \then
+  \return \idelim P.map = identityLinear \with f: EndMaps.Map => Finite.FiniteRank f \by { base: P.finite, equality: equal }
+};

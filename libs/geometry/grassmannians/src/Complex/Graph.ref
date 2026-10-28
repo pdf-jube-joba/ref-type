@@ -1,0 +1,80 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.trans;
+\use Eq.congr;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := H.Complex[].scalar].Finite[n := k] \as Domain;
+\import H.Over[K := C.Complex, field := C.Algebra[].field, scalar := H.Complex[].scalar, topological := H.Complex[].topological].At[n := k].Square[] \as Square;
+\import std.Alg[].Field[] \as Fields;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := Fields.fieldAsCommutativeRing C.Complex C.Algebra[].field] \as Spaces;
+\import Spaces.Linear[V := Domain.Vector, W := E.Vector, source := Domain.space, target := E.space] \as Forward;
+\import Forward.Composition[U := Domain.Vector, domain := Domain.space] \as Compose;
+\import Frames.On[a := a, center := center, regular := regular, rank := hasRank] \as Local;
+\definition domain: \Pow Grassmannian := Local.domain;
+\definition Carrier: \Set := Local.Carrier;
+\definition localTopology: topology.Topology[Carrier := Carrier].Topology := Local.localTopology;
+\definition open: topology.Topology[Carrier := Grassmannian].IsOpenIn topology domain := Local.Continuous[].open;
+\definition contains: \In[Grassmannian] domain a := Local.Continuous[].contains;
+\definition normalized[x: Carrier]: Forward.Map := Compose.compose (Local.forward x) (Square.Inverse[A := Local.nonsingular x].value);
+\definition centerCoordinates: \forall (x: Carrier)(v: Domain.Vector) -> center.coordinate.apply ((normalized x).apply v) = v :=
+  \fun (x: Carrier)(v: Domain.Vector) => Square.leftInverseRight (Local.comparison x) (Square.Inverse[A := Local.nonsingular x].value) (Local.comparisonLeft x) v;
+\definition imageRepresentation: \forall (x: Carrier)(w: E.Vector) ->
+  (normalized x).apply ((Local.comparison x).apply ((Local.backward x).apply w)) = (x.map.apply w) :=
+  \fun (x: Carrier)(w: E.Vector) => trans!{{E.Vector}} _ _ _
+    (congr!{{Domain.Vector} {E.Vector}} (Local.forward x).apply _ _ (Local.comparisonLeft x ((Local.backward x).apply w)))
+    (Local.reconstruction x w);
+
+\import Spaces.Linear[V := E.Vector, W := Domain.Vector, source := E.space, target := Domain.space].Operations[] \as Coordinates;
+\import Spaces.Laws[V := Domain.Vector, space := Domain.space] \as DomainLaws;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := H.Complex[].scalar].Inner[V := E.Vector, space := E.space].Of[h := E.form] \as Inner;
+\definition graph[x: Carrier][v: Domain.Vector]: E.Vector := Inner.subtract ((normalized x).apply v) (center.value.apply v);
+\definition graphInComplement: \forall (x: Carrier)(v: Domain.Vector) -> center.coordinate.apply (graph x v) = Domain.space.zero :=
+  \fun (x: Carrier)(v: Domain.Vector) => trans!{{Domain.Vector}} _ _ _
+    (center.coordinate.preservesAdd ((normalized x).apply v) (E.space.neg (center.value.apply v)))
+    (trans!{{Domain.Vector}} _ _ _
+      (congr!{{Domain.Vector} {Domain.Vector} {Domain.Vector}} Domain.space.add _ _ _ _ (centerCoordinates x v)
+        (trans!{{Domain.Vector}} _ _ _ (Coordinates.preservesNeg center.coordinate (center.value.apply v))
+          (congr!{{Domain.Vector} {Domain.Vector}} Domain.space.neg _ _ (center.leftInverse v))))
+      (trans!{{Domain.Vector}} _ _ _ (DomainLaws.comm v (Domain.space.neg v)) (DomainLaws.inverseLeft v)));
+\definition graphFormula: \forall (x: Carrier)(v: Domain.Vector) -> E.space.add (center.value.apply v) (graph x v) = (normalized x).apply v :=
+  \fun (x: Carrier)(v: Domain.Vector) => Inner.addSubtract ((normalized x).apply v) (center.value.apply v);
+
+\use Eq.sym;
+\definition graphProjectionZero: \forall (x: Carrier)(v: Domain.Vector) -> a.map.apply (graph x v) = E.space.zero :=
+  \fun (x: Carrier)(v: Domain.Vector) => trans!{{E.Vector}} _ _ _
+    (sym!{{E.Vector}} _ _ (center.reconstruction (graph x v)))
+    (trans!{{E.Vector}} _ _ _
+      (congr!{{Domain.Vector} {E.Vector}} center.value.apply _ _ (graphInComplement x v)) center.value.preservesZero);
+\definition graphOrthogonal: \forall (x: Carrier)(v, w: Domain.Vector) -> At.dot (center.value.apply v) (graph x w) = C.Algebra[].field.zero :=
+  \fun (x: Carrier)(v, w: Domain.Vector) => trans!{C.Complex} _ _ _
+    (congr!{{E.Vector} C.Complex} (\fun (u: E.Vector) => At.dot u (graph x w)) _ _ (sym!{{E.Vector}} _ _ (At.OnProjection[P := a].Rank[k := k].fixed center v)))
+    (trans!{C.Complex} _ _ _ (a.selfAdjoint (center.value.apply v) (graph x w))
+      (trans!{C.Complex} _ _ _ (congr!{{E.Vector} C.Complex} (At.dot (center.value.apply v)) _ _ (graphProjectionZero x w)) (E.form.zeroRight (center.value.apply v))));
+
+\import Square.Families[X := Carrier] \as SmallMatrices;
+\import At.Families[X := Carrier] \as LocalVectors;
+\import LocalVectors.Matrix[m := k] \as LocalMaps;
+\definition inverseRegular: H.Over[K := C.Complex, field := C.Algebra[].field, scalar := H.Complex[].scalar, topological := H.Complex[].topological].At[n := k].Families[X := Carrier].Matrix[m := k].Regular localTopology (\fun (x: Carrier) => Square.Inverse[A := Local.nonsingular x].value) :=
+  SmallMatrices.inverseMaps localTopology (\fun (x: Carrier) => Local.nonsingular x)
+    (\fun (i, j: Fin.Fin k) => topology.Continuity[A := Grassmannian, B := C.Complex].Restriction[S := domain].restrictContinuous
+      topology H.Complex[].topological.space (\fun (x: Grassmannian) => Local.matrix x i j) (Local.Continuous[].matrixRegular i j));
+\definition normalizedRegular: LocalMaps.Regular localTopology normalized :=
+  \fun (v: Domain.Vector) => LocalMaps.evaluate localTopology (\fun (x: Carrier) => Local.forward x)
+    (\fun (x: Carrier) => (Square.Inverse[A := Local.nonsingular x].value).apply v)
+    (\fun (j: Fin.Fin k) => Local.Continuous[].forwardRegular (Domain.basis j)) (inverseRegular v);
+\definition graphRegular: \forall (v: Domain.Vector) -> LocalVectors.Continuous localTopology (\fun (x: Carrier) => graph x v) :=
+  \fun (v: Domain.Vector) => LocalVectors.addition localTopology (\fun (x: Carrier) => (normalized x).apply v) (\fun (_: Carrier) => E.space.neg (center.value.apply v))
+    (normalizedRegular v) (LocalVectors.constant localTopology (E.space.neg (center.value.apply v)));
+
+\import Forward.Operations[] \as ForwardOperations;
+\import Spaces.Laws[V := E.Vector, space := E.space] \as AmbientLaws;
+\definition graphMap[x: Carrier]: Forward.Map := ForwardOperations.plus (normalized x) (ForwardOperations.negative center.value);
+\definition graphMapFormula: \forall (x: Carrier)(v: Domain.Vector) -> (graphMap x).apply v = graph x v :=
+  \fun (x: Carrier)(v: Domain.Vector) => congr!{{E.Vector} {E.Vector}} (E.space.add ((normalized x).apply v)) _ _ (AmbientLaws.minusOneScale (center.value.apply v));
+\definition graphMapRegular: LocalMaps.Regular localTopology graphMap :=
+  \fun (v: Domain.Vector)(i: Fin.Fin n) => H.Over[K := C.Complex, field := C.Algebra[].field, scalar := H.Complex[].scalar, topological := H.Complex[].topological].Functions[X := Carrier].transport localTopology
+    (\fun (x: Carrier) => graph x v i) (\fun (x: Carrier) => (graphMap x).apply v i)
+    (\fun (x: Carrier) => sym!{C.Complex} _ _ (congr!{{E.Vector} C.Complex} (\fun (w: E.Vector) => w i) _ _ (graphMapFormula x v))) (graphRegular v i);
+\definition imageCoordinates[x: Carrier][w: E.Vector]: Domain.Vector := (Local.comparison x).apply ((Local.backward x).apply w);
+\definition normalizedFixed: \forall (x: Carrier)(v: Domain.Vector) -> x.map.apply ((normalized x).apply v) = (normalized x).apply v :=
+  \fun (x: Carrier)(v: Domain.Vector) => x.idempotent (center.value.apply ((Square.Inverse[A := Local.nonsingular x].value).apply v));
+\import Spaces.Linear[V := Domain.Vector, W := Domain.Vector, source := Domain.space, target := Domain.space] \as Small;
+\definition comparison[x: Grassmannian]: Small.Map := Local.comparison x;

@@ -2,10 +2,11 @@
 
 入口は `clutching_linearization.Linearization`。
 K04 の Laurent 近似、K06 のスペクトル分離、K01 の束の同型類と K0 を再利用する。
+剪断写像と符号付き交換の族は `linear_algebra.Commutative.Blocks`・`Rotation` の共通実装を使う。
 
 | API | 構成・証明 |
 | --- | --- |
-| `Blocks` | 上下の剪断写像、両逆、Schur 補元の分解、可逆な経路 |
+| `linear_algebra.Commutative.Blocks` | 上下の剪断写像、両逆、Schur 補元の分解、可逆な経路 |
 | `Uniform` / `MatrixNeighborhoods.Perturbation` | 行列の開近傍の共通誤差幅、コンパクト底上での可逆性の余裕 |
 | `On.Matrices.exists` / `Result` | 連続可逆行列族の Laurent 近似、可逆なホモトピー、両端の等式、連続な逆行列と両逆 |
 | `LaurentNormal.exists` / `finiteExists` | 負の冪を払った多項式と有限係数表示 |

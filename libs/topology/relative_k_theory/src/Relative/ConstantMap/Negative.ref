@@ -1,0 +1,19 @@
+\definition sourceModel: CompactPointed := iterate degree source;
+\definition targetModel: CompactPointed := iterate degree target;
+\definition map: Map sourceModel targetModel := iterateMap degree source target f;
+\import \root.Relative[].Reduced[model := targetModel] \as Target;
+\import \root.Relative[].Reduced[model := sourceModel] \as Source;
+\import Target.Constant[] \as Constant;
+\import \root.Relative[].Composition[source := sourceModel, middle := targetModel, target := targetModel, first := map, second := Constant.map] \as Composite;
+\definition compositeEquation: Composite.map = map := \axiom:funext(Composite.map, map,
+  \fun (x: sourceModel.Carrier) => sym!{{targetModel.Carrier}} _ _ (iterated degree x));
+\import \root.Relative[].Pullback[source := sourceModel, target := targetModel, f := map] \as Pull;
+\import \root.Relative[].Pullback[source := sourceModel, target := targetModel, f := Composite.map] \as Direct;
+\definition changed: \forall (v: Target.Carrier) -> Pull.map v = Direct.map v :=
+  \fun (v: Target.Carrier) => congr!{{Map sourceModel targetModel} {Source.Carrier}}
+    (\fun (g: Map sourceModel targetModel) => \root.Relative[].Pullback[source := sourceModel, target := targetModel, f := g].map v)
+    map Composite.map (sym!{{Map sourceModel targetModel}} _ _ compositeEquation);
+\definition zero: \forall (v: Target.Carrier) -> \root.Relative[].NegativeMap[source := source, target := target, f := f, degree := degree].map v = Source.group.base.unit :=
+  \fun (v: Target.Carrier) => trans!{{Source.Carrier}} _ _ _ (changed v)
+    (trans!{{Source.Carrier}} _ _ _ (Composite.Negative[degree := N.Nat^::zero].equation v)
+      (trans!{{Source.Carrier}} _ _ _ (congr!{{Target.Carrier} {Source.Carrier}} Pull.map _ _ (Constant.zero v)) Pull.preservesZero));

@@ -1,0 +1,49 @@
+\import Absolute.Ranks[] \as Ranks;
+\import Ranks.Reduced[point := a0] \as AbsoluteReduced;
+\import algebra.Group[].Of[Carrier := AbsoluteReduced.Carrier, group := AbsoluteReduced.group] \as AbsoluteGroup;
+\import KTheory.On[X := A, baseSpace := subspace, compact := Restriction.compactSubset, hausdorff := Restriction.hausdorffSubset] \as SubsetAbsolute;
+\import SubsetAbsolute.Ranks[] \as SubsetRanks;
+\import SubsetRanks.Reduced[point := a0] \as SubsetReduced;
+\import Absolute.Pullback[Y := A, space := subspace, sourceCompact := Restriction.compactSubset, sourceHausdorff := Restriction.hausdorffSubset,
+  f := Restriction.inclusion, regular := Restriction.regular].Ranks[] \as Naturality;
+\import std.Arithmetic[].Int[] \as Integer;
+\definition subsetZeroRank: SubsetRanks.rank SubsetK.zero a0 = Integer.Zero.specification :=
+  congr!{{SubsetAbsolute.IntegerFunctions[].Carrier} {Integer.Int^}} (\fun (f: SubsetAbsolute.IntegerFunctions[].Carrier) => f a0) _ _ SubsetRanks.rankZero;
+\definition rankZero: \forall (v: Quotient.Relative) -> Ranks.rank (forget v) a0 = Integer.Zero.specification :=
+  \fun (v: Quotient.Relative) => trans!{{Integer.Int^}} _ _ _ (sym!{{Integer.Int^}} _ _ (Naturality.naturality (forget v) a0))
+    (trans!{{Integer.Int^}} _ _ _ (congr!{{SubsetK.Carrier} {Integer.Int^}} (\fun (x: SubsetK.Carrier) => SubsetRanks.rank x a0) _ _ (kernel v)) subsetZeroRank);
+\definition forward[v: Quotient.Relative]: AbsoluteReduced.Carrier := \into[K0.Carrier](forget v, AbsoluteReduced.Carrier) \by { rankZero v };
+\definition forwardAdd: \forall (v, w: Quotient.Relative) -> forward (ReducedGroup.add v w) = AbsoluteGroup.add (forward v) (forward w) := forgetAdd;
+\definition forwardZero: forward ReducedGroup.zero = AbsoluteGroup.zero := forgetZero;
+\import Forget.Contractible[a0 := a0, homotopy := homotopy] \as Native;
+\definition injective: \forall (v, w: Quotient.Relative) -> forward v = forward w -> v = w :=
+  \fun (v, w: Quotient.Relative)(same: forward v = forward w) => trans!{{Quotient.Relative}} _ _ _ (sym!{{Quotient.Relative}} _ _ (Compare.isomorphism.rightInverse v))
+    (trans!{{Quotient.Relative}} _ _ _ (congr!{{Triples.Carrier} {Quotient.Relative}} Compare.isomorphism.forward _ _
+      (Native.injective (Compare.isomorphism.backward v) (Compare.isomorphism.backward w) same)) (Compare.isomorphism.rightInverse w));
+\definition subsetModel: CompactPointed := pack A (PointedDetails[A] {
+  topology := subspace, compact := Restriction.compactSubset, hausdorff := Restriction.hausdorffSubset, point := a0
+});
+\import \root.Relative[].Reduced[model := subsetModel].Constant[].Contractible[homotopy := homotopy] \as SubsetContractible;
+\definition restrictedRank[x: AbsoluteReduced.Carrier]: SubsetRanks.rank (Restriction.map x) a0 = Integer.Zero.specification :=
+  trans!{{Integer.Int^}} _ _ _ (Naturality.naturality x a0) (\bysub(K0.Carrier, AbsoluteReduced.Carrier, x));
+\definition reducedRestriction[x: AbsoluteReduced.Carrier]: SubsetReduced.Carrier := \into[SubsetK.Carrier](Restriction.map x, SubsetReduced.Carrier) \by { restrictedRank x };
+\definition restrictionZero[x: AbsoluteReduced.Carrier]: Restriction.map x = SubsetK.zero := SubsetContractible.equation (reducedRestriction x);
+\definition Value[x: AbsoluteReduced.Carrier]: \Set := \Cast[Quotient.Relative] ({ v: Quotient.Relative \where forward v = x });
+\definition existence: \forall (x: AbsoluteReduced.Carrier) -> \exists Value[x] := \block {
+  \fun (x: AbsoluteReduced.Carrier) \then
+  \takefrom v: \Cast[Quotient.Relative] ({ v: Quotient.Relative \where forget v = x }) \by preimage x (restrictionZero x) \then
+  \return \exact(\into[Quotient.Relative](v, Value[x]) \by { \bysub(Quotient.Relative, { v: Quotient.Relative \where forget v = x }, v) }, Value[x])
+};
+\definition unique: \forall (x: AbsoluteReduced.Carrier)(v, w: Value[x]) -> v = w :=
+  \fun (x: AbsoluteReduced.Carrier)(v, w: Value[x]) => injective v w
+    (trans!{{AbsoluteReduced.Carrier}} _ _ _ (\bysub(Quotient.Relative, Value[x], v)) (sym!{{AbsoluteReduced.Carrier}} _ _ (\bysub(Quotient.Relative, Value[x], w))));
+\definition backward[x: AbsoluteReduced.Carrier]: Value[x] := \choice Value[x] \by { existence: existence x, uniqueness: unique x };
+\definition rightInverse: \forall (x: AbsoluteReduced.Carrier) -> forward (backward x) = x :=
+  \fun (x: AbsoluteReduced.Carrier) => \bysub(Quotient.Relative, Value[x], backward x);
+\definition leftInverse: \forall (v: Quotient.Relative) -> backward (forward v) = v :=
+  \fun (v: Quotient.Relative) => injective (backward (forward v)) v (rightInverse (forward v));
+\definition backwardAdd: \forall (x, y: AbsoluteReduced.Carrier) -> backward (AbsoluteGroup.add x y) = ReducedGroup.add (backward x) (backward y) :=
+  \fun (x, y: AbsoluteReduced.Carrier) => injective (backward (AbsoluteGroup.add x y)) (ReducedGroup.add (backward x) (backward y))
+    (trans!{{AbsoluteReduced.Carrier}} _ _ _ (rightInverse (AbsoluteGroup.add x y))
+      (sym!{{AbsoluteReduced.Carrier}} _ _ (trans!{{AbsoluteReduced.Carrier}} _ _ _ (forwardAdd (backward x) (backward y))
+        (congr!{{AbsoluteReduced.Carrier} {AbsoluteReduced.Carrier} {AbsoluteReduced.Carrier}} AbsoluteGroup.add _ _ _ _ (rightInverse x) (rightInverse y)))));

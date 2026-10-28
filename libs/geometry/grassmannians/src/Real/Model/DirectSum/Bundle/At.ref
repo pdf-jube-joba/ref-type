@@ -1,0 +1,38 @@
+\import \root.Real[n := n, k := k].Model[] \as LeftModel;
+\import Pair.Prop[A := LeftFiber x, B := RightFiber x] \as PairLaws;
+\import Spaces.Linear[V := Sum.Fiber x, W := Image.Fiber x, source := sumBundle.space x, target := Image.bundle.space x] \as Forward;
+\import Spaces.Linear[V := Image.Fiber x, W := Sum.Fiber x, source := Image.bundle.space x, target := sumBundle.space x] \as Backward;
+\definition leftFixed: \forall (v: LeftFiber x) -> (LeftModel.projection (left x)).map.apply v = v :=
+  \fun (v: LeftFiber x) => \bysub(E.Vector, UniversalBundle.Image (left x), v);
+\definition rightFixed: \forall (v: RightFiber x) -> (Right.projection (right x)).map.apply v = v :=
+  \fun (v: RightFiber x) => \bysub(RightE.Vector, { w: RightE.Vector \where (Right.projection (right x)).map.apply w = w }, v);
+\definition joinFixed: \forall (v: LeftFiber x)(w: RightFiber x) -> (P x).map.apply (Ambient.join v w) = Ambient.join v w :=
+  \fun (v: LeftFiber x)(w: RightFiber x) => trans!{{TotalE.Vector}} _ _ _
+    (congr!{{E.Vector} {RightE.Vector} {TotalE.Vector}} Ambient.join _ _ _ _
+      (trans!{{E.Vector}} _ _ _ (congr!{{E.Vector} {E.Vector}} (LeftModel.projection (left x)).map.apply _ _ (Ambient.leftJoin v w)) (leftFixed v))
+      (trans!{{RightE.Vector}} _ _ _ (congr!{{RightE.Vector} {RightE.Vector}} (Right.projection (right x)).map.apply _ _ (Ambient.rightJoin v w)) (rightFixed w))) (\refl(Ambient.join v w));
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (v: Sum.Fiber x) => \into[TotalE.Vector](Ambient.join (Pair.first (LeftFiber x) (RightFiber x) v) (Pair.second (LeftFiber x) (RightFiber x) v), Image.Image x) \by {
+    joinFixed (Pair.first (LeftFiber x) (RightFiber x) v) (Pair.second (LeftFiber x) (RightFiber x) v)
+  },
+  preservesAdd := \fun (v, w: Sum.Fiber x) => Ambient.addition (Pair.first (LeftFiber x) (RightFiber x) v) (Pair.first (LeftFiber x) (RightFiber x) w)
+    (Pair.second (LeftFiber x) (RightFiber x) v) (Pair.second (LeftFiber x) (RightFiber x) w),
+  preservesScale := \fun (c: R.Real)(v: Sum.Fiber x) => Ambient.scalar c (Pair.first (LeftFiber x) (RightFiber x) v) (Pair.second (LeftFiber x) (RightFiber x) v),
+};
+\definition left[v: Image.Fiber x]: LeftFiber x := \into[E.Vector](Ambient.left v, UniversalBundle.Image (left x)) \by {
+  trans!{{E.Vector}} _ _ _ (sym!{{E.Vector}} _ _ (Block.left (oldLeft x).map (oldRight x).map v))
+    (congr!{{TotalE.Vector} {E.Vector}} Ambient.left _ _ (\bysub(TotalE.Vector, Image.Image x, v)))
+};
+\definition right[v: Image.Fiber x]: RightFiber x := \into[RightE.Vector](Ambient.right v, { w: RightE.Vector \where (Right.projection (right x)).map.apply w = w }) \by {
+  trans!{{RightE.Vector}} _ _ _ (sym!{{RightE.Vector}} _ _ (Block.right (oldLeft x).map (oldRight x).map v))
+    (congr!{{TotalE.Vector} {RightE.Vector}} Ambient.right _ _ (\bysub(TotalE.Vector, Image.Image x, v)))
+};
+\definition backward: Backward.Map := Backward.Map {
+  apply := \fun (v: Image.Fiber x) => Pair.pair (LeftFiber x) (RightFiber x) (left v) (right v),
+  preservesAdd := \fun (v, w: Image.Fiber x) => PairLaws.ext _ _ (\refl(E.space.add (left v) (left w))) (\refl(RightE.space.add (right v) (right w))),
+  preservesScale := \fun (c: R.Real)(v: Image.Fiber x) => PairLaws.ext _ _ (\refl(E.space.smul c (left v))) (\refl(RightE.space.smul c (right v))),
+};
+\definition leftInverse: \forall (v: Sum.Fiber x) -> backward.apply (forward.apply v) = v :=
+  \fun (v: Sum.Fiber x) => PairLaws.ext _ _ (Ambient.leftJoin (Pair.first (LeftFiber x) (RightFiber x) v) (Pair.second (LeftFiber x) (RightFiber x) v))
+    (Ambient.rightJoin (Pair.first (LeftFiber x) (RightFiber x) v) (Pair.second (LeftFiber x) (RightFiber x) v));
+\definition rightInverse: \forall (v: Image.Fiber x) -> forward.apply (backward.apply v) = v := \fun (v: Image.Fiber x) => Ambient.recover v;

@@ -1,0 +1,37 @@
+\import \root.Relative[].Pair[X := Y0, space := space0, compact := compact0, hausdorff := hausdorff0, subset := U0, closed := closedU0] \as SourcePair;
+\import SourcePair.ClosedCover[V := V0, closedV := closedV0, covers := covers0] \as SourceCover;
+\import SourcePair.Quotient[] \as SourceQ;
+\import SourcePair.Restriction[] \as SourceU;
+\import \parent.\parent.Restriction[] \as TargetU;
+\import \root.Relative[].Pair[X := SourceCover.Y, space := SourceCover.source, compact := SourceCover.compactSource, hausdorff := SourceCover.hausdorffSource,
+  subset := SourceCover.sourceSubset, closed := SourceCover.closedSource] \as SourceVPair;
+\import SourceVPair.Quotient[] \as SourceVQ;
+\import SourceVPair.Restriction[] \as SourceW;
+\import DomainPair.Restriction[] \as TargetW;
+\import \parent.\parent.Mapping[Y := Y0, source := space0, sourceCompact := compact0, sourceHausdorff := hausdorff0,
+  sourceSubset := U0, sourceClosed := closedU0, f := f, regular := regular, preserves := preservesU] \as WholePairMap;
+\definition onV[y: SourceCover.Y]: Y := \into[X](f y, V) \by { preservesV y (\bysub(Y0, V0, y)) };
+\definition vIntoWholeContinuous: topology.Continuity[A := SourceCover.Y, B := X].Continuous SourceCover.source space onV :=
+  topology.Composition[A := SourceCover.Y, B := Y0, C := X].composeContinuous SourceCover.source space0 space SourceCover.inclusion f SourceCover.inclusionContinuous regular;
+\definition vContinuous: topology.Continuity[A := SourceCover.Y, B := Y].Continuous SourceCover.source source onV :=
+  topology.Continuity[A := SourceCover.Y, B := X].Corestriction[S := V].corestrictContinuous SourceCover.source space onV vIntoWholeContinuous;
+\definition vPreserves: \forall (y: SourceCover.Y) -> \In[SourceCover.Y] SourceCover.sourceSubset y -> \In[Y] sourceSubset (onV y) :=
+  \fun (y: SourceCover.Y)(inside: \In[SourceCover.Y] SourceCover.sourceSubset y) => preservesU y inside;
+\import DomainPair.Mapping[Y := SourceCover.Y, source := SourceCover.source, sourceCompact := SourceCover.compactSource,
+  sourceHausdorff := SourceCover.hausdorffSource, sourceSubset := SourceCover.sourceSubset, sourceClosed := SourceCover.closedSource,
+  f := onV, regular := vContinuous, preserves := vPreserves] \as VPairMap;
+\import \root.Relative[].Composition[source := SourceVQ.model, middle := Domain.model, target := Range.model,
+  first := VPairMap.quotientMap, second := equivalence.forward] \as Top;
+\import \root.Relative[].Composition[source := SourceVQ.model, middle := SourceQ.model, target := Range.model,
+  first := SourceCover.equivalence.forward, second := WholePairMap.quotientMap] \as Bottom;
+\definition onOriginal: \forall (y: SourceCover.Y) -> Top.map (SourceVQ.projection y) = Bottom.map (SourceVQ.projection y) :=
+  \fun (y: SourceCover.Y) => trans!{{Range.Carrier}} _ _ _
+    (congr!{{Domain.Carrier} {Range.Carrier}} equivalence.forward _ _ (VPairMap.onProjection y))
+    (trans!{{Range.Carrier}} _ _ _ (onProjection (onV y))
+      (sym!{{Range.Carrier}} _ _ (trans!{{Range.Carrier}} _ _ _
+        (congr!{{SourceQ.Carrier} {Range.Carrier}} WholePairMap.quotientMap _ _ (SourceCover.onProjection y))
+        (WholePairMap.onProjection (SourceCover.inclusion y)))));
+\definition commutes: \forall (q: SourceVQ.Carrier) -> Top.map q = Bottom.map q := SourceVQ.MapsEqual[target := Range.model].pointwise Top.map Bottom.map onOriginal;
+\import \root.Relative[].Square[A := SourceVQ.model, B := Domain.model, C := SourceQ.model, D := Range.model,
+  f := VPairMap.quotientMap, g := equivalence.forward, h := SourceCover.equivalence.forward, k := WholePairMap.quotientMap, commutes := commutes] \as ExcisionSquare;
+\module Negative(degree: N.Nat^);

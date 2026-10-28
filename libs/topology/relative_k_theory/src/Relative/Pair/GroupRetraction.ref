@@ -1,0 +1,20 @@
+\import \parent.Group[] \as Source;
+\import Source.ToReduced[] \as Forward;
+\import \parent.FromReduced[] \as Backward;
+\import algebra.Group[].Of[Carrier := Source.Carrier, group := Source.group] \as Group;
+\import \parent.Quotient[] \as Quotient;
+\definition P[z: Source.Carrier]: \Prop := Backward.reduced (Forward.map z) = z;
+\definition atZero: P Source.zero := trans!{{Source.Carrier}} _ _ _ (congr!{{Quotient.Relative} {Source.Carrier}} Backward.reduced _ _ Forward.preservesZero) Backward.reducedZero;
+\definition atTriple: \forall (t: Triple) -> P (Source.value t) := \fun (t: Triple) =>
+  trans!{{Source.Carrier}} _ _ _ (congr!{{Quotient.Relative} {Source.Carrier}} Backward.reduced _ _ (Forward.onTriple t)) (\parent.TripleReconstruction[t := t].equation);
+\definition underAdd: \forall (a, b: Source.Carrier) -> P a -> P b -> P (Source.add a b) :=
+  \fun (a, b: Source.Carrier)(first: P a)(second: P b) => trans!{{Source.Carrier}} _ _ _
+    (congr!{{Quotient.Relative} {Source.Carrier}} Backward.reduced _ _ (Forward.additive a b))
+    (trans!{{Source.Carrier}} _ _ _ (Backward.reducedAdditive (Forward.map a) (Forward.map b))
+      (congr!{{Source.Carrier} {Source.Carrier} {Source.Carrier}} Source.add _ _ _ _ first second));
+\definition underNeg: \forall (a: Source.Carrier) -> P a -> P (Source.neg a) :=
+  \fun (a: Source.Carrier)(previous: P a) => trans!{{Source.Carrier}} _ _ _
+    (congr!{{Quotient.Relative} {Source.Carrier}} Backward.reduced _ _ (Forward.preservesNeg a))
+    (trans!{{Source.Carrier}} _ _ _ (Backward.reducedNeg (Forward.map a)) (congr!{{Source.Carrier} {Source.Carrier}} Source.neg _ _ previous));
+\definition equation: \forall (z: Source.Carrier) -> Backward.reduced (Forward.map z) = z :=
+  Source.Induction[P := P, atZero := atZero, atSymbol := atTriple, underAdd := underAdd, underNeg := underNeg].principle;

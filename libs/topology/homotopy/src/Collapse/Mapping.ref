@@ -22,3 +22,18 @@
     Descent.continuous source (Target.topology target) (\fun (x: A) => Target.class (f x)) (respects f preserves)
       (Composition.composeContinuous source target (Target.topology target) f Target.class continuous (Target.projectionContinuous target));
 \module Homotopy;
+
+\definition injective: \forall (f: A -> B)(preserves: Preserves f) ->
+  (\forall (x, y: A) -> f x = f y -> x = y) ->
+  (\forall (x: A) -> \In[B] targetSubset (f x) -> \In[A] subset x) ->
+  \forall (q, r: Carrier) -> apply f preserves q = apply f preserves r -> q = r :=
+  \fun (f: A -> B)(preserves: Preserves f)(oneToOne: _)(reflects: _) =>
+  induction (\fun (q: Carrier) => \forall (r: Carrier) -> apply f preserves q = apply f preserves r -> q = r)
+    (\fun (x: A) => induction (\fun (r: Carrier) => apply f preserves (class x) = apply f preserves r -> class x = r)
+      (\fun (y: A)(same: apply f preserves (class x) = apply f preserves (class y)) =>
+        either!{{(Target.equalRelated (f x) (f y)
+          (trans!{{Target.Carrier}} _ _ _ (sym!{{Target.Carrier}} _ _ (onClass f preserves x))
+            (trans!{{Target.Carrier}} _ _ _ same (onClass f preserves y))))} {class x = class y}
+          {\fun (equal: f x = f y) => congr!{A Carrier} class _ _ (oneToOne x y equal)}
+          {\fun (both: Logic.And[\In[B] targetSubset (f x), \In[B] targetSubset (f y)]) => collapsed x y (reflects x both.left) (reflects y both.right)}
+        }));

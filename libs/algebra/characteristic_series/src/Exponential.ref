@@ -1,0 +1,34 @@
+\import \root.Rational[] \as Q;
+\import \root.Series[R := Q.Carrier, ring := Q.ring] \as S;
+\import S.Laws[] \as Laws;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Equality[] \as E;
+\use E.congr;
+\use E.sym;
+\use E.trans;
+\use E.eq_reason_in;
+/* coefficients n k a starts with a, then a/(k+1), a/((k+1)(k+2)),... */
+\definition coefficients: N.Nat^ -> N.Nat^ -> Q.Carrier -> S.Coefficients :=
+  \induction (n: N.Nat^) \return N.Nat^ -> Q.Carrier -> S.Coefficients \with {
+    | zero: \fun (k: N.Nat^)(a: Q.Carrier) => S.nil
+    | succ: \fun (n: N.Nat^)(previous: _)(k: N.Nat^)(a: Q.Carrier) => S.cons a (previous (N.Nat^::succ k) (Q.mul a (Q.reciprocalSuccessor k)))
+  };
+\definition factorials[n: N.Nat^]: S.Coefficients := coefficients n N.Nat^::zero Q.one;
+\definition exp[n: N.Nat^][u: S.Coefficients]: S.Coefficients := S.compose n (factorials n) u;
+\definition cutCoefficients: \forall (n, m, k: N.Nat^)(a: Q.Carrier) -> S.cut n (coefficients (S.extend n m) k a) = coefficients n k a :=
+  \induction (n: N.Nat^) \return \forall (m, k: N.Nat^)(a: Q.Carrier) -> S.cut n (coefficients (S.extend n m) k a) = coefficients n k a \with {
+    | zero: \fun (m, k: N.Nat^)(a: Q.Carrier) => \refl(S.nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(m, k: N.Nat^)(a: Q.Carrier) => congr!{S.Coefficients S.Coefficients} (S.cons a) _ _ (previous m (N.Nat^::succ k) (Q.mul a (Q.reciprocalSuccessor k)))
+  };
+\definition coefficientsSelf: \forall (n, k: N.Nat^)(a: Q.Carrier) -> S.cut n (coefficients n k a) = coefficients n k a :=
+  \fun (n, k: N.Nat^)(a: Q.Carrier) =>
+    \idelim S.extend n N.Nat^::zero = n \with d: N.Nat^ => S.cut n (coefficients d k a) = coefficients n k a
+      \by { base: cutCoefficients n N.Nat^::zero k a, equality: Laws.extendZero n };
+\definition cutExp: \forall (n, m: N.Nat^)(u: S.Coefficients) -> S.cut n (exp (S.extend n m) u) = exp n u :=
+  \fun (n, m: N.Nat^)(u: S.Coefficients) => eq_reason_in!{S.Coefficients _
+    "=" _ "by" { Laws.cutCompose n m (factorials (S.extend n m)) u }
+    "=" _ "by" { Laws.sameCompose n (factorials (S.extend n m)) (factorials n) u u
+      (trans!{S.Coefficients} _ _ _ (cutCoefficients n m N.Nat^::zero Q.one) (sym!{S.Coefficients} _ _ (coefficientsSelf n N.Nat^::zero Q.one))) (\refl(S.cut n u)) }
+  };
+\definition trimExp: \forall (n: N.Nat^)(u: S.Coefficients) -> exp n (S.cut n u) = exp n u :=
+  \fun (n: N.Nat^)(u: S.Coefficients) => Laws.sameCompose n (factorials n) (factorials n) (S.cut n u) u (\refl(S.cut n (factorials n))) (S.cutIdempotent n u);

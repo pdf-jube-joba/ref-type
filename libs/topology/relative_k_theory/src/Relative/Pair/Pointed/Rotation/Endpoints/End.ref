@@ -1,0 +1,42 @@
+\import algebraic_topology.Pointed[A := SubsetSuspension.Carrier].Maps[B := Target.Carrier] \as IncludedMaps;
+\definition preservesPoint: Included.map SubsetSuspension.point = Target.point :=
+  (IncludedMaps.laws (pointed (\root.Relative[].Suspension[original := subsetModel].result)) (pointed Suspended.result) Included.map).pointed;
+\definition reversedBottom: \forall (z: First.DomainPoint) -> First.time z = Interval.start -> Target.class (TargetCylinder.at (Interval.reverse (First.time z)) (First.point z)) = Target.point :=
+  \fun (z: First.DomainPoint)(same: First.time z = Interval.start) => trans!{{Target.Carrier}} _ _ _
+    (congr!{{Interval.Carrier} {Target.Carrier}} (\fun (t: Interval.Carrier) => Target.class (TargetCylinder.at t (First.point z))) _ _
+      (trans!{{Interval.Carrier}} _ _ _ (congr!{{Interval.Carrier} {Interval.Carrier}} Interval.reverse _ _ same) Interval.reverseStart)) (Target.top (First.point z));
+\definition atBottom: \forall (z: First.DomainPoint) -> First.time z = Interval.start ->
+  Reverse.map (Included.map (FirstForward.cofiber (FirstCollapse.class z))) = Target.class (TargetCylinder.at (Interval.reverse (First.time z)) (First.point z)) :=
+  \fun (z: First.DomainPoint)(same: First.time z = Interval.start) => trans!{{Target.Carrier}} _ _ _
+    (congr!{{SubsetSuspension.Carrier} {Target.Carrier}} (\fun (w: SubsetSuspension.Carrier) => Reverse.map (Included.map w)) _ _
+      (trans!{{SubsetSuspension.Carrier}} _ _ _ (FirstForward.onClass z) ((FirstRaw.condition z).bottom same)))
+    (trans!{{Target.Carrier}} _ _ _ (congr!{{Target.Carrier} {Target.Carrier}} Reverse.map _ _ preservesPoint)
+      (trans!{{Target.Carrier}} _ _ _ Reverse.onPoint (sym!{{Target.Carrier}} _ _ (reversedBottom z same))));
+\definition atVertical: \forall (z: First.DomainPoint) -> \In[X] subset (First.point z) ->
+  Reverse.map (Included.map (FirstForward.cofiber (FirstCollapse.class z))) = Target.class (TargetCylinder.at (Interval.reverse (First.time z)) (First.point z)) := \block {
+  \fun (z: First.DomainPoint)(member: \In[X] subset (First.point z)) \then
+  \let a: A := \into[X](First.point z, subset) \by { member } \then
+  \return trans!{{Target.Carrier}} _ _ _
+    (congr!{{SubsetSuspension.Carrier} {Target.Carrier}} (\fun (w: SubsetSuspension.Carrier) => Reverse.map (Included.map w)) _ _
+      (trans!{{SubsetSuspension.Carrier}} _ _ _ (FirstForward.onClass z) ((FirstRaw.condition z).vertical a (\refl(First.point z)))))
+    (trans!{{Target.Carrier}} _ _ _
+      (congr!{{Target.Carrier} {Target.Carrier}} Reverse.map _ _ (Included.onClass (SubsetCylinder.at (First.time z) a)))
+      (Reverse.onClass (TargetCylinder.at (First.time z) a)))
+};
+\definition comparison: \forall (z: First.DomainPoint) -> Reverse.map (Included.map (FirstForward.cofiber (FirstCollapse.class z))) = Target.class (TargetCylinder.at (Interval.reverse (First.time z)) (First.point z)) :=
+  \fun (z: First.DomainPoint) => Logic.orElim[First.time z = Interval.start, \In[X] subset (First.point z),
+    Reverse.map (Included.map (FirstForward.cofiber (FirstCollapse.class z))) = Target.class (TargetCylinder.at (Interval.reverse (First.time z)) (First.point z))]
+    (\bysub(algebraic_topology.Cylinder[A := X].Carrier, First.domain, z)) (atBottom z) (atVertical z);
+\definition onFirst: \forall (t: Interval.Carrier)(z: First.Carrier) -> Interior.map (Pair.pair Square.CarrierSet First.Carrier (square Interval.end t) z) = Reverse.map (Included.map (FirstForward.cofiber z)) :=
+  \fun (t: Interval.Carrier) => FirstCollapse.induction
+    (\fun (z: First.Carrier) => Interior.map (Pair.pair Square.CarrierSet First.Carrier (square Interval.end t) z) = Reverse.map (Included.map (FirstForward.cofiber z)))
+    (\fun (z: First.DomainPoint) => trans!{{Target.Carrier}} _ _ _ (Formulas.atEnd t z) (sym!{{Target.Carrier}} _ _ (comparison z)));
+\definition projected: \forall (z: Second.DomainPoint) -> endMap (SecondCollapse.class z) = Reverse.map (Included.map (FirstForward.cofiber (Second.point z))) :=
+  \fun (z: Second.DomainPoint) => trans!{{Target.Carrier}} _ _ _
+    (congr!{{SecondPair.Quotient[].Carrier} {Target.Carrier}} (\fun (w: SecondPair.Quotient[].Carrier) => Reverse.map (Included.map (FirstForward.map w))) _ _ (SecondProjection.onClass z))
+    (congr!{{SubsetSuspension.Carrier} {Target.Carrier}} (\fun (w: SubsetSuspension.Carrier) => Reverse.map (Included.map w)) _ _ (FirstForward.onProjection (Second.point z)));
+\definition onClass: \forall (z: Second.DomainPoint) -> Family.map (HomotopyCylinder.at Interval.end (SecondCollapse.class z)) = endMap (SecondCollapse.class z) :=
+  \fun (z: Second.DomainPoint) => trans!{{Target.Carrier}} _ _ _ (Family.onClass Interval.end z)
+    (trans!{{Target.Carrier}} _ _ _ (onFirst (Second.time z) (Second.point z)) (sym!{{Target.Carrier}} _ _ (projected z)));
+\definition equation: \forall (z: Second.Carrier) -> Family.map (HomotopyCylinder.at Interval.end z) = endMap z :=
+  SecondCollapse.induction (\fun (z: Second.Carrier) => Family.map (HomotopyCylinder.at Interval.end z) = endMap z) onClass;

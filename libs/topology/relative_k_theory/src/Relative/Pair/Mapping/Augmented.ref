@@ -1,0 +1,68 @@
+\use Equality.eq_reason_in;
+\import \parent.\parent.Augmented[] \as Target;
+\import DomainPair.Augmented[] \as Source;
+\import \root.Relative[].Absolute[X := X, space := space, compact := compact, hausdorff := hausdorff] \as TargetWhole;
+\import \root.Relative[].Absolute[X := Y, space := source, compact := sourceCompact, hausdorff := sourceHausdorff] \as SourceWhole;
+\import DomainPair.Restriction[] \as SourceRestriction;
+\import \parent.\parent.Restriction[] \as TargetRestriction;
+\import \root.Relative[].Absolute[X := A, space := subspace, compact := TargetRestriction.compactSubset, hausdorff := TargetRestriction.hausdorffSubset] \as TargetSubset;
+\import \root.Relative[].Absolute[X := DomainPair.A, space := DomainPair.subspace, compact := SourceRestriction.compactSubset, hausdorff := SourceRestriction.hausdorffSubset] \as SourceSubset;
+\import \root.Relative[].PointedPair[pair := Source.pair] \as SourcePointed;
+\import \root.Relative[].PointedPair[pair := Target.pair] \as TargetPointed;
+\import TargetWhole.Mapping[Y := Y, source := source, sourceCompact := sourceCompact, sourceHausdorff := sourceHausdorff,
+  f := f, regular := regular] \as Whole;
+\definition pairMap: PairMapData[Source.pair, Target.pair] := PairMapData[Source.pair, Target.pair] {
+  function := Whole.map, preserves := respects
+};
+\import \root.Relative[].PairMapping[source := Source.pair, target := Target.pair, f := pairMap] \as Native;
+\definition B: \Set := DomainPair.A;
+\definition onSubset[b: B]: A := \into[X](f b, subset) \by { preserves b (\bysub(Y, sourceSubset, b)) };
+\definition subsetIntoWholeContinuous: topology.Continuity[A := B, B := X].Continuous DomainPair.subspace space onSubset :=
+  topology.Composition[A := B, B := Y, C := X].composeContinuous DomainPair.subspace source space
+    (\fun (b: B) => b) f (topology.Continuity[A := B, B := Y].Corestriction[S := sourceSubset].inclusionContinuous source) regular;
+\definition subsetContinuous: topology.Continuity[A := B, B := A].Continuous DomainPair.subspace subspace onSubset :=
+  topology.Continuity[A := B, B := X].Corestriction[S := subset].corestrictContinuous DomainPair.subspace space onSubset subsetIntoWholeContinuous;
+\import TargetSubset.Mapping[Y := B, source := DomainPair.subspace, sourceCompact := SourceRestriction.compactSubset,
+  sourceHausdorff := SourceRestriction.hausdorffSubset, f := onSubset, regular := subsetContinuous] \as Subset;
+\import Source.SubsetEquivalence[] \as SourceA;
+\import Target.SubsetEquivalence[] \as TargetA;
+\import Source.QuotientEquivalence[] \as SourceQ;
+\import Target.QuotientEquivalence[] \as TargetQ;
+\import topological_constructions.Coproduct[A := B, B := Domain.Point] \as SubsetSum;
+\definition subsetSquare: \forall (z: SourceSubset.model.Carrier) ->
+  Native.subsetMap (SourceA.equivalence.forward z) = TargetA.equivalence.forward (Subset.map z) :=
+  \induction (z: SourceSubset.model.Carrier) \return
+    Native.subsetMap (SourceA.equivalence.forward z) = TargetA.equivalence.forward (Subset.map z) \with {
+      | inl: \fun (b: B) => \refl(Native.subsetMap (SourceA.equivalence.forward (SubsetSum.inl b)))
+      | inr: \fun (p: Domain.Point) => \refl(Native.subsetMap (SourceA.equivalence.forward (SubsetSum.inr p)))
+    };
+\import \root.Relative[].Square[A := SourceSubset.model, B := SourcePointed.subsetModel,
+  C := TargetSubset.model, D := TargetPointed.subsetModel,
+  f := SourceA.equivalence.forward, g := Native.subsetMap, h := Subset.map, k := TargetA.equivalence.forward,
+  commutes := subsetSquare] \as SubsetSquare;
+\definition quotientOnProjection: \forall (z: SourceWhole.model.Carrier) ->
+  TargetQ.equivalence.forward (Native.quotientMap (SourcePointed.projection z)) =
+    quotientMap (SourceQ.equivalence.forward (SourcePointed.projection z)) :=
+  \fun (z: SourceWhole.model.Carrier) => eq_reason_in!{{Range.Carrier} _
+    "=" { TargetQ.equivalence.forward (TargetPointed.projection (Whole.map z)) } "by" {
+      congr!{{TargetPointed.quotientModel.Carrier} {Range.Carrier}} TargetQ.equivalence.forward _ _ (Native.onProjection z) }
+    "=" { algebraic_topology.Collapse[A := Range.Augmented, subset := Range.collapsedPart].class (raw z) } "by" { TargetQ.onProjection (Whole.map z) }
+    "=" { quotientMap (algebraic_topology.Collapse[A := Domain.Augmented, subset := Domain.collapsedPart].class z) } "by" { sym!{{Range.Carrier}} _ _ (onAugmented z) }
+    "=" { quotientMap (SourceQ.equivalence.forward (SourcePointed.projection z)) } "by" {
+      sym!{{Range.Carrier}} _ _ (congr!{{Domain.Carrier} {Range.Carrier}} quotientMap _ _ (SourceQ.onProjection z)) }
+  };
+\definition quotientSquare: \forall (q: SourcePointed.quotientModel.Carrier) ->
+  TargetQ.equivalence.forward (Native.quotientMap q) = quotientMap (SourceQ.equivalence.forward q) := \block {
+  \fun (q: SourcePointed.quotientModel.Carrier) \then
+  \takefrom z: \Cast[SourceWhole.model.Carrier] ({ z: SourceWhole.model.Carrier \where SourcePointed.projection z = q })
+    \by SourcePointed.quotientOnto q \then
+  \return \idelim SourcePointed.projection z = q \with q: SourcePointed.quotientModel.Carrier =>
+    TargetQ.equivalence.forward (Native.quotientMap q) = quotientMap (SourceQ.equivalence.forward q) \by {
+      base: quotientOnProjection z,
+      equality: \bysub(SourceWhole.model.Carrier, { z: SourceWhole.model.Carrier \where SourcePointed.projection z = q }, z)
+    }
+};
+\import \root.Relative[].Square[A := SourcePointed.quotientModel, B := TargetPointed.quotientModel,
+  C := Domain.model, D := Range.model, f := Native.quotientMap, g := TargetQ.equivalence.forward,
+  h := SourceQ.equivalence.forward, k := quotientMap, commutes := quotientSquare] \as QuotientSquare;
+\module Negative(degree: N.Nat^);

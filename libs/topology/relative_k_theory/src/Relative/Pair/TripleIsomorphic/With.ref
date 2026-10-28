@@ -1,0 +1,24 @@
+\definition trivialization: ChangedFraming.Trivialization := Triviality.compose (Negative.isomorphism (NegativeMaps.inverse w.negative) Identity.isomorphism) FirstSplit.isomorphism;
+\import FirstFraming.With[trivialization := FirstSplit.isomorphism] \as FirstData;
+\import ChangedFraming.With[trivialization := trivialization] \as ChangedData;
+\definition negativeLaws: NegativeMaps.Laws[w.negative] := \bysub(NegativeMaps.Data, NegativeMaps.Isomorphism, w.negative);
+\import std.Data[].Pair[] \as Pair;
+\definition boundary: \forall (x: A)(e: E x) ->
+  (w.negative.backward.fiber x).apply ((u.comparison.forward.fiber x).apply ((w.positive.forward.fiber x).apply e)) = (t.comparison.forward.fiber x).apply e :=
+  \fun (x: A)(e: E x) => trans!{{F x}} _ _ _
+    (congr!{{H x} {F x}} (w.negative.backward.fiber x).apply _ _ (w.commutes x e))
+    (negativeLaws.leftInverse x ((t.comparison.forward.fiber x).apply e));
+\definition positive: Bundles.Isomorphisms[X := X, F := FirstFraming.SourceFiber, G := ChangedFraming.SourceFiber,
+  source := FirstFraming.positiveBundle, target := ChangedFraming.positiveBundle].Isomorphism := Positive.isomorphism w.positive Identity.isomorphism;
+\definition compatible: \forall (x: A)(v: FirstFraming.SourceFiber x) ->
+  (ChangedData.comparison.forward.fiber x).apply ((positive.forward.fiber x).apply v) = coordinateIdentity.forward.apply ((FirstData.comparison.forward.fiber x).apply v) :=
+  \fun (x: A)(v: FirstFraming.SourceFiber x) => congr!{{F x} {Bundles.Vector t.negative.dimension}}
+    (\fun (f: F x) => (FirstSplit.isomorphism.forward.fiber x).apply
+      (Pair.pair (F x) (S x) f (Pair.second (E x) (S x) v))) _ _ (boundary x (Pair.first (E x) (S x) v));
+\import \parent.\parent.FramedClass[F := FirstFraming.SourceFiber, sourceModel := FirstFraming.sourceModel, n := t.negative.dimension].To[
+  G := ChangedFraming.SourceFiber, targetModel := ChangedFraming.sourceModel, m := t.negative.dimension].With[
+  alpha := FirstData.comparison, beta := ChangedData.comparison, h := positive, c := coordinateIdentity, compatible := compatible] \as Comparison;
+\import \parent.\parent.ComplementChoice[t := u, first := Second.complement, second := First.complement, n := u.negative.dimension, m := t.negative.dimension].With[
+  h := SecondSplit.isomorphism, k := trivialization] \as Choice;
+\import \parent.\parent.Quotient[] \as Quotient;
+\definition equation: First.value = Second.value := trans!{{Quotient.Relative}} _ _ _ Comparison.equation (sym!{{Quotient.Relative}} _ _ Choice.equation);

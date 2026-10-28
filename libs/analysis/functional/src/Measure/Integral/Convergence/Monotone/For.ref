@@ -1,0 +1,29 @@
+\import real.Analysis[].Sequence[] \as Sequence;
+\import \root.ScalarLimits[] \as Limits;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\module At(k: N.Nat^) {
+  \import \root.Measure[A := A].Integral[mu := mu].Convergence[].Approximation[n := n, s := s, c := Recovery.shrink k, f := f] \as Approximation;
+  \definition scaled: Value := sum n (\fun (i: Fin.Fin n) => scale (Real.mul (Recovery.shrinkValue k) (s.coefficients i)) (mu.value (s.cells i)));
+  \definition bound: \forall (g: A -> Real.Real) -> PointwiseSup f g -> FunctionIncreasing f -> Dominated n s g ->
+    Values.Included scaled (Sup (\fun (k: N.Nat^) => lowerIntegral (f k))) := Approximation.scaledIntegralBound;
+}
+\definition coefficientConverges: \forall (i: Fin.Fin n) -> Sequence.Converges
+  (\fun (k: N.Nat^) => Real.mul (Recovery.shrinkValue k) (s.coefficients i)) (s.coefficients i) :=
+  \fun (i: Fin.Fin n) => \idelim Real.mul Real.one (s.coefficients i) = s.coefficients i
+    \with a: Real.Real => Sequence.Converges (\fun (k: N.Nat^) => Real.mul (Recovery.shrinkValue k) (s.coefficients i)) a
+    \by { base: Limits.productConverges Recovery.shrinkValue (\fun (_: N.Nat^) => s.coefficients i) Real.one (s.coefficients i)
+      Recovery.shrinkConverges (Sequence.constantConverges (s.coefficients i)), equality: Laws.fieldMulOneLeft (s.coefficients i) };
+\definition recovered: Recovery.Approaches (\fun (k: N.Nat^) => At[k := k].scaled) (simpleIntegral n s) :=
+  Recovery.sumApproaches n (\fun (k: N.Nat^) (i: Fin.Fin n) => scale (Real.mul (Recovery.shrinkValue k) (s.coefficients i)) (mu.value (s.cells i)))
+    (\fun (i: Fin.Fin n) => scale (s.coefficients i) (mu.value (s.cells i)))
+    (\fun (i: Fin.Fin n) => Recovery.scaleApproaches (\fun (k: N.Nat^) => Real.mul (Recovery.shrinkValue k) (s.coefficients i))
+      (s.coefficients i) (coefficientConverges i) (mu.value (s.cells i)));
+\definition bound: \forall (g: A -> Real.Real) -> PointwiseSup f g -> FunctionIncreasing f -> Dominated n s g ->
+  Values.Included (simpleIntegral n s) (Sup (\fun (k: N.Nat^) => lowerIntegral (f k))) :=
+  \fun (g: A -> Real.Real) (sup: PointwiseSup f g) (increasing: FunctionIncreasing f) (dominated: Dominated n s g)
+    (r: Real.Real) (member: below (simpleIntegral n s) r) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le k j -> below (At[k := j].scaled) r }) \by recovered r member \then
+      \let atK: below (At[k := k].scaled) r :=
+        (\bysub(N.Nat^, { k: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le k j -> below (At[k := j].scaled) r }, k)) k (Nat.leRefl k) \then
+      \return At[k := k].bound g sup increasing dominated r atK
+    };

@@ -1,0 +1,48 @@
+\import \parent.Quotient[] \as Quotient;
+\import \parent.Group[] \as RelativeGroup;
+\import RelativeGroup.ToReduced[] \as Forward;
+\import \parent.FromReduced[] \as Backward;
+\import KTheory.On[X := Quotient.Carrier, baseSpace := Quotient.topology, compact := Quotient.quotientCompact, hausdorff := Quotient.quotientHausdorff] \as K;
+\import K.K0[] \as K0;
+\import K.Ranks[] \as Ranks;
+\import algebra.Group[].Of[Carrier := K0.Carrier, group := K0.group] \as Additive;
+\import algebra.Group[].Of[Carrier := RelativeGroup.Carrier, group := RelativeGroup.group] \as SourceGroup;
+\import std.Arithmetic[].Int[] \as Integer;
+\import std.Arithmetic[].IntAlgebra[] \as IntegerAlgebra;
+\import algebra.Group[].Of[Carrier := Integer.Int^, group := IntegerAlgebra.additiveCommutativeGroup] \as IntegerGroup;
+\definition image[v: RelativeGroup.Carrier]: K0.Carrier := Forward.map v;
+\definition composite[x: K0.Carrier]: K0.Carrier := image (Backward.map x);
+\definition P[x: K0.Carrier]: \Prop := Ranks.rank x Quotient.point = Integer.Zero.specification -> composite x = x;
+\definition imageAdd: \forall (a, b: RelativeGroup.Carrier) -> image (RelativeGroup.add a b) = Additive.add (image a) (image b) := Forward.additive;
+\definition imageNeg: \forall (a: RelativeGroup.Carrier) -> image (RelativeGroup.neg a) = Additive.neg (image a) := Forward.preservesNeg;
+\definition imageDifference: \forall (a, b: RelativeGroup.Carrier) -> image (SourceGroup.difference a b) = Additive.difference (image a) (image b) :=
+  \fun (a, b: RelativeGroup.Carrier) => trans!{{K0.Carrier}} _ _ _ (imageAdd a (RelativeGroup.neg b))
+    (congr!{{K0.Carrier} {K0.Carrier}} (Additive.add (image a)) _ _ (imageNeg b));
+\definition onDifference: \forall (a, b: K.Classes) -> composite (K0.difference a b) = Additive.difference (image (Backward.classes a)) (image (Backward.classes b)) :=
+  \fun (a, b: K.Classes) => trans!{{K0.Carrier}} _ _ _ (congr!{{RelativeGroup.Carrier} {K0.Carrier}} image _ _ (Backward.onDifference a b))
+    (imageDifference (Backward.classes a) (Backward.classes b));
+\definition cancelCommon: \forall (x, y, u: K0.Carrier) -> Additive.difference (Additive.difference x u) (Additive.difference y u) = Additive.difference x y :=
+  \fun (x, y, u: K0.Carrier) => trans!{{K0.Carrier}} _ _ _ (Additive.differenceAdd x (Additive.neg u) y (Additive.neg u))
+    (trans!{{K0.Carrier}} _ _ _ (congr!{{K0.Carrier} {K0.Carrier}} (Additive.add (Additive.difference x y)) _ _ (Additive.inverseRight (Additive.neg u)))
+      (Additive.zeroRight (Additive.difference x y)));
+\definition naturalIndex: Integer.Int^ -> N.Nat^ := \induction (i: Integer.Int^) \return N.Nat^ \with {
+  | ofNat: \fun (n: N.Nat^) => n
+  | negSucc: \fun (n: N.Nat^) => N.Nat^::zero
+};
+\definition naturalInjective: \forall (n, m: N.Nat^) -> Ranks.natural n = Ranks.natural m -> n = m :=
+  \fun (n, m: N.Nat^)(same: Ranks.natural n = Ranks.natural m) => congr!{{Integer.Int^} {N.Nat^}} naturalIndex _ _
+    (trans!{{Integer.Int^}} _ _ _ (Integer.ofNatAsInteger n) (trans!{{Integer.Int^}} _ _ _ same (sym!{{Integer.Int^}} _ _ (Integer.ofNatAsInteger m))));
+\module Bundle(p: K.Presentation);
+\module On(p, q: K.Presentation);
+\import Complements.Representations[X := Quotient.Carrier, baseSpace := Quotient.topology] \as Representations;
+\import std.Set[].Quotient[A := K.Presentation, Equivalent := Representations.Equivalent] \as Classes;
+\definition onClasses: \forall (a, b: K.Classes) -> P (K0.difference a b) :=
+  Classes.induction2 (\fun (a, b: K.Classes) => P (K0.difference a b)) (\fun (p, q: K.Presentation) => On[p := p, q := q].equation);
+\import algebra.GroupCompletion[].Of[M := K.Classes, monoid := K0.additiveMonoid] \as Completion;
+\import std.Set[].Quotient[A := Completion.Difference, Equivalent := Completion.Equivalent] \as Differences;
+\definition all: \forall (x: K0.Carrier) -> P x := Differences.induction P
+  (\fun (d: Completion.Difference) => \idelim K0.difference (Completion.positive d) (Completion.negative d) = Completion.class d \with x: K0.Carrier => P x \by {
+    base: onClasses (Completion.positive d) (Completion.negative d), equality: K0.differenceClass (Completion.positive d) (Completion.negative d)
+  });
+\definition equation: \forall (x: Quotient.Relative) -> Forward.map (Backward.reduced x) = x :=
+  \fun (x: Quotient.Relative) => all x (\bysub(K0.Carrier, Quotient.Relative, x));

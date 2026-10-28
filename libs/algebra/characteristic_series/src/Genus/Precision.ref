@@ -1,0 +1,86 @@
+\import \root.Series[R := Q.Carrier, ring := Q.ring] \as QS;
+\import \root.PolynomialCalculation[R := R, ring := ring, coefficient := coefficient] \as Calculations;
+\definition rootHead: \forall (q: Coefficients)(x, power: R) -> S.head (rootCoefficientsFrom q x power) = S.mul (coefficient (QS.head q)) power :=
+  \induction (q: Coefficients) \return \forall (x, power: R) -> S.head (rootCoefficientsFrom q x power) = S.mul (coefficient (QS.head q)) power \with {
+    | nil: \fun (x, power: R) => sym!{R} _ _ (trans!{R} _ _ _
+      (congr!{R R} (\fun (a: R) => S.mul a power) _ _ Calculations.coefficientLaws.zero) (ring.ring.semiring.zeroAbsorbsLeft power))
+    | cons: \fun (a: Q.Carrier)(q: Coefficients)(unused: _)(x, power: R) => \refl(S.mul (coefficient a) power)
+  };
+\definition rootTail: \forall (q: Coefficients)(x, power: R) -> S.tail (rootCoefficientsFrom q x power) = rootCoefficientsFrom (QS.tail q) x (S.mul x power) :=
+  \induction (q: Coefficients) \return \forall (x, power: R) -> S.tail (rootCoefficientsFrom q x power) = rootCoefficientsFrom (QS.tail q) x (S.mul x power) \with {
+    | nil: \fun (x, power: R) => \refl(S.nil)
+    | cons: \fun (a: Q.Carrier)(q: Coefficients)(unused: _)(x, power: R) => \refl(rootCoefficientsFrom q x (S.mul x power))
+  };
+\definition rootSame: \forall (n: N.Nat^)(p, q: Coefficients)(x, power: R) -> QS.cut n p = QS.cut n q ->
+  S.cut n (rootCoefficientsFrom p x power) = S.cut n (rootCoefficientsFrom q x power) :=
+  \induction (n: N.Nat^) \return \forall (p, q: Coefficients)(x, power: R) -> QS.cut n p = QS.cut n q ->
+    S.cut n (rootCoefficientsFrom p x power) = S.cut n (rootCoefficientsFrom q x power) \with {
+    | zero: \fun (p, q: Coefficients)(x, power: R)(same: _) => \refl(S.nil)
+    | succ: \fun (n: N.Nat^)(previous: _)(p, q: Coefficients)(x, power: R)(same: _) => congr!{R S.Coefficients S.Coefficients} S.cons _ _ _ _
+      (eq_reason_in!{R _
+        "=" _ "by" { rootHead p x power }
+        "=" _ "by" { congr!{Q.Carrier R} (\fun (a: Q.Carrier) => S.mul (coefficient a) power) _ _ (QS.sameHead n p q same) }
+        "=" _ "by" { sym!{R} _ _ (rootHead q x power) }
+      })
+      (eq_reason_in!{S.Coefficients _
+        "=" _ "by" { congr!{S.Coefficients S.Coefficients} (S.cut n) _ _ (rootTail p x power) }
+        "=" _ "by" { previous (QS.tail p) (QS.tail q) x (S.mul x power) (QS.sameTail n p q same) }
+        "=" _ "by" { congr!{S.Coefficients S.Coefficients} (S.cut n) _ _ (sym!{S.Coefficients} _ _ (rootTail q x power)) }
+      })
+  };
+\definition productSame: \forall (n: N.Nat^)(p, q: Coefficients) -> QS.cut n p = QS.cut n q -> \forall (xs: Symmetric.Roots) -> truncatedProduct n p xs = truncatedProduct n q xs :=
+  \fun (n: N.Nat^)(p, q: Coefficients)(same: _) => \induction (xs: Symmetric.Roots) \return truncatedProduct n p xs = truncatedProduct n q xs \with {
+    | nil: \refl(S.constant n S.one)
+    | cons: \fun (x: R)(xs: Symmetric.Roots)(previous: _) => trans!{S.Coefficients} _ _ _
+      (S.sameTimes n (rootCoefficients p x) (truncatedProduct n p xs) (rootCoefficients q x) (truncatedProduct n p xs)
+        (rootSame n p q x S.one same) (\refl(S.cut n (truncatedProduct n p xs))))
+      (congr!{S.Coefficients S.Coefficients} (S.times n (rootCoefficients q x)) _ _ previous)
+  };
+\definition sumSame: \forall (n: N.Nat^)(p, q: Coefficients) -> QS.cut n p = QS.cut n q -> \forall (xs: Symmetric.Roots) -> truncatedSum n p xs = truncatedSum n q xs :=
+  \fun (n: N.Nat^)(p, q: Coefficients)(same: _) => \induction (xs: Symmetric.Roots) \return truncatedSum n p xs = truncatedSum n q xs \with {
+    | nil: \refl(S.cut n S.nil)
+    | cons: \fun (x: R)(xs: Symmetric.Roots)(previous: _) => trans!{S.Coefficients} _ _ _
+      (S.samePlus n (rootCoefficients p x) (truncatedSum n p xs) (rootCoefficients q x) (truncatedSum n p xs)
+        (rootSame n p q x S.one same) (\refl(S.cut n (truncatedSum n p xs))))
+      (congr!{S.Coefficients S.Coefficients} (S.plus n (rootCoefficients q x)) _ _ previous)
+  };
+\definition finiteSame: \forall (n: N.Nat^)(p, q: Coefficients) -> QS.cut n p = QS.cut n q -> \forall (xs: Symmetric.Roots) -> finite n p xs = finite n q xs :=
+  \fun (n: N.Nat^)(p, q: Coefficients)(same: _)(xs: Symmetric.Roots) => eq_reason_in!{S.Coefficients _
+    "=" _ "by" { finiteBridge n p xs }
+    "=" _ "by" { productSame n p q same xs }
+    "=" _ "by" { sym!{S.Coefficients} _ _ (finiteBridge n q xs) }
+  };
+\definition finiteSumSame: \forall (n: N.Nat^)(p, q: Coefficients) -> QS.cut n p = QS.cut n q -> \forall (xs: Symmetric.Roots) -> finiteSum n p xs = finiteSum n q xs :=
+  \fun (n: N.Nat^)(p, q: Coefficients)(same: _)(xs: Symmetric.Roots) => eq_reason_in!{S.Coefficients _
+    "=" _ "by" { finiteSumBridge n p xs }
+    "=" _ "by" { sumSame n p q same xs }
+    "=" _ "by" { sym!{S.Coefficients} _ _ (finiteSumBridge n q xs) }
+  };
+\definition toddSelf: \forall (n: N.Nat^) -> QS.cut n (Characteristic.todd n) = Characteristic.todd n :=
+  \fun (n: N.Nat^) => \idelim QS.extend n N.Nat^::zero = n \with k: N.Nat^ => QS.cut n (Characteristic.todd k) = Characteristic.todd n
+    \by { base: Characteristic.cutTodd n N.Nat^::zero, equality: QS.Laws[].extendZero n };
+\definition cutTodd: \forall (n, m: N.Nat^)(xs: Symmetric.Roots) -> S.cut n (finite (S.extend n m) (Characteristic.todd (S.extend n m)) xs) = finite n (Characteristic.todd n) xs :=
+  \fun (n, m: N.Nat^)(xs: Symmetric.Roots) => trans!{S.Coefficients} _ _ _ (finiteCut n m (Characteristic.todd (S.extend n m)) xs)
+    (finiteSame n (Characteristic.todd (S.extend n m)) (Characteristic.todd n)
+      (trans!{Coefficients} _ _ _ (Characteristic.cutTodd n m) (sym!{Coefficients} _ _ (toddSelf n))) xs);
+\definition lSelf: \forall (n: N.Nat^) -> QS.cut n (Characteristic.l n) = Characteristic.l n :=
+  \fun (n: N.Nat^) => \idelim QS.extend n N.Nat^::zero = n \with k: N.Nat^ => QS.cut n (Characteristic.l k) = Characteristic.l n
+    \by { base: Characteristic.cutL n N.Nat^::zero, equality: QS.Laws[].extendZero n };
+\definition cutL: \forall (n, m: N.Nat^)(xs: Symmetric.Roots) -> S.cut n (finite (S.extend n m) (Characteristic.l (S.extend n m)) xs) = finite n (Characteristic.l n) xs :=
+  \fun (n, m: N.Nat^)(xs: Symmetric.Roots) => trans!{S.Coefficients} _ _ _ (finiteCut n m (Characteristic.l (S.extend n m)) xs)
+    (finiteSame n (Characteristic.l (S.extend n m)) (Characteristic.l n)
+      (trans!{Coefficients} _ _ _ (Characteristic.cutL n m) (sym!{Coefficients} _ _ (lSelf n))) xs);
+\definition ahatSelf: \forall (n: N.Nat^) -> QS.cut n (Characteristic.ahat n) = Characteristic.ahat n :=
+  \fun (n: N.Nat^) => \idelim QS.extend n N.Nat^::zero = n \with k: N.Nat^ => QS.cut n (Characteristic.ahat k) = Characteristic.ahat n
+    \by { base: Characteristic.cutAhat n N.Nat^::zero, equality: QS.Laws[].extendZero n };
+\definition cutAhat: \forall (n, m: N.Nat^)(xs: Symmetric.Roots) -> S.cut n (finite (S.extend n m) (Characteristic.ahat (S.extend n m)) xs) = finite n (Characteristic.ahat n) xs :=
+  \fun (n, m: N.Nat^)(xs: Symmetric.Roots) => trans!{S.Coefficients} _ _ _ (finiteCut n m (Characteristic.ahat (S.extend n m)) xs)
+    (finiteSame n (Characteristic.ahat (S.extend n m)) (Characteristic.ahat n)
+      (trans!{Coefficients} _ _ _ (Characteristic.cutAhat n m) (sym!{Coefficients} _ _ (ahatSelf n))) xs);
+\definition chSelf: \forall (n: N.Nat^) -> QS.cut n (Characteristic.ch n) = Characteristic.ch n :=
+  \fun (n: N.Nat^) => \idelim QS.extend n N.Nat^::zero = n \with k: N.Nat^ => QS.cut n (Characteristic.ch k) = Characteristic.ch n
+    \by { base: Characteristic.cutCh n N.Nat^::zero, equality: QS.Laws[].extendZero n };
+\definition cutCh: \forall (n, m: N.Nat^)(xs: Symmetric.Roots) -> S.cut n (finiteSum (S.extend n m) (Characteristic.ch (S.extend n m)) xs) = finiteSum n (Characteristic.ch n) xs :=
+  \fun (n, m: N.Nat^)(xs: Symmetric.Roots) => trans!{S.Coefficients} _ _ _ (S.cutCut n m (sumCoefficients (Characteristic.ch (S.extend n m)) xs))
+    (finiteSumSame n (Characteristic.ch (S.extend n m)) (Characteristic.ch n)
+      (trans!{Coefficients} _ _ _ (Characteristic.cutCh n m) (sym!{Coefficients} _ _ (chSelf n))) xs);

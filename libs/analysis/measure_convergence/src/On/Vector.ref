@@ -1,0 +1,71 @@
+\import std.Data[].FinSet[] \as Fin;
+\definition Function: \Set := A -> Fin.Fin n -> Real.Real;
+\definition Integrable[f: Function]: \Prop := \forall (i: Fin.Fin n) -> Integral.Integrable (\fun (x: A) => f x i);
+\definition Representatives: \Set := \Cast[Function] ({ f: Function \where Integrable f });
+\definition component[f: Representatives] [i: Fin.Fin n]: Integral.Representatives :=
+  \into[A -> Real.Real](\fun (x: A) => f x i, { g: A -> Real.Real \where Integral.Integrable g }) \by {
+    (\bysub(Function, { f: Function \where Integrable f }, f)) i
+  };
+\definition integral[f: Representatives]: Fin.Fin n -> Real.Real := \fun (i: Fin.Fin n) => Integral.integral (component f i);
+\definition componentLaw: \forall (f: Representatives) (i: Fin.Fin n) ->
+  Integral.HasIntegral[\fun (x: A) => f x i, integral f i] :=
+  \fun (f: Representatives) (i: Fin.Fin n) => Integral.integralLaw (component f i);
+\definition almostEqual[f, g: Representatives]: \Prop :=
+  \forall (i: Fin.Fin n) -> Measures.AlmostEqual mu (\fun (x: A) => f x i) (\fun (x: A) => g x i);
+\definition integralAlmost: \forall (f, g: Representatives) -> almostEqual f g -> integral f = integral g :=
+  \fun (f, g: Representatives) (equal: almostEqual f g) => \axiom:funext(integral f, integral g,
+    \fun (i: Fin.Fin n) => QuotientIntegral.integralAlmost (component f i) (component g i) (equal i));
+\definition coordinateBound: \forall (f: Representatives) (g: Integral.Representatives) ->
+  (\forall (i: Fin.Fin n) (x: A) -> R.Le (Product.abs (f x i)) (g x)) ->
+  \forall (i: Fin.Fin n) -> R.Le (Product.abs (integral f i)) (Integral.integral g) :=
+  \fun (f: Representatives) (g: Integral.Representatives) (bound: \forall (i: Fin.Fin n) (x: A) -> R.Le (Product.abs (f x i)) (g x)) (i: Fin.Fin n) =>
+    R.leTrans (Product.abs (integral f i)) (Integral.integral (Absolute.representative (component f i))) (Integral.integral g)
+      (Absolute.integralAbsBound (component f i)) (Absolute.integralMono (Absolute.representative (component f i)) g (bound i));
+\definition scalarFunction[c: Real.Real] [f: Representatives]: Function := \fun (x: A) (i: Fin.Fin n) => Real.mul c (f x i);
+\definition scalarRepresentative[c: Real.Real] [f: Representatives]: Representatives :=
+  \into[Function](scalarFunction c f, { h: Function \where Integrable h }) \by {
+    \fun (i: Fin.Fin n) => Scaling.integrableScalar c (component f i)
+      (\bysub(A -> Real.Real, { h: A -> Real.Real \where Integral.Integrable h }, component f i))
+  };
+\definition integralScalar: \forall (c: Real.Real) (f: Representatives) ->
+  integral (scalarRepresentative c f) = (\fun (i: Fin.Fin n) => Real.mul c (integral f i)) :=
+  \fun (c: Real.Real) (f: Representatives) => \axiom:funext(integral (scalarRepresentative c f), (\fun (i: Fin.Fin n) => Real.mul c (integral f i)),
+    \fun (i: Fin.Fin n) => Scaling.integralScalar c (component f i));
+
+\definition addFunction[f, g: Representatives]: Function := \fun (x: A) (i: Fin.Fin n) => Real.add (f x i) (g x i);
+\definition addRepresentative[f, g: Representatives]: Representatives := \into[Function](addFunction f g, { h: Function \where Integrable h }) \by {
+  \fun (i: Fin.Fin n) => Linear.integrableAdd (component f i) (component g i)
+    (\bysub(A -> Real.Real, { h: A -> Real.Real \where Integral.Integrable h }, component f i))
+    (\bysub(A -> Real.Real, { h: A -> Real.Real \where Integral.Integrable h }, component g i))
+};
+\definition integralAdd: \forall (f, g: Representatives) -> integral (addRepresentative f g) =
+  (\fun (i: Fin.Fin n) => Real.add (integral f i) (integral g i)) :=
+  \fun (f, g: Representatives) => \axiom:funext(integral (addRepresentative f g),
+    (\fun (i: Fin.Fin n) => Real.add (integral f i) (integral g i)),
+    \fun (i: Fin.Fin n) => Linear.integralAdd (component f i) (component g i));
+\import real.Analysis[].FiniteSums[] \as Sums;
+\definition l1[f: Fin.Fin n -> Real.Real]: Real.Real := Sums.sum n (\fun (i: Fin.Fin n) => Product.abs (f i));
+\definition integralL1Bound: \forall (f: Representatives) ->
+  R.Le (l1 (integral f)) (Sums.sum n (\fun (i: Fin.Fin n) => Integral.integral (Absolute.representative (component f i)))) :=
+  \fun (f: Representatives) => Sums.comparison n (\fun (i: Fin.Fin n) => Product.abs (integral f i))
+    (\fun (i: Fin.Fin n) => Integral.integral (Absolute.representative (component f i)))
+    (\fun (i: Fin.Fin n) => Absolute.integralAbsBound (component f i));
+\import real.Analysis[].Sequence[] \as Sequence;
+\structure DominatedData: \Set := {
+  sequence: N.Nat^ -> Representatives,
+  limit: Function,
+  bound: Integral.Representatives,
+  dominated: \forall (k: N.Nat^) (x: A) (i: Fin.Fin n) -> R.Le (Product.abs (sequence k x i)) (bound x),
+  converges: \forall (x: A) (i: Fin.Fin n) -> Sequence.Converges (\fun (k: N.Nat^) => sequence k x i) (limit x i),
+};
+\module Dominated(d: DominatedData);
+\module Series(terms: N.Nat^ -> Representatives);
+\structure AEDominatedData: \Set := {
+  sequence: N.Nat^ -> Representatives,
+  limit: Function,
+  bound: Integral.Representatives,
+  exception: Integral.Null[].NullSet,
+  dominated: \forall (k: N.Nat^) (x: A) (i: Fin.Fin n) -> Logic.Not (Sets.Member exception x) -> R.Le (Product.abs (sequence k x i)) (bound x),
+  converges: \forall (x: A) (i: Fin.Fin n) -> Logic.Not (Sets.Member exception x) -> Sequence.Converges (\fun (k: N.Nat^) => sequence k x i) (limit x i),
+};
+\module AEDominated(d: AEDominatedData);

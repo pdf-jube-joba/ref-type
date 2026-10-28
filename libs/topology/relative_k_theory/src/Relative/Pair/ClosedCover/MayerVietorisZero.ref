@@ -1,0 +1,101 @@
+\use Equality.eq_reason_in;
+\import \parent.MayerVietoris[degree := N.Nat^::zero] \as Term;
+\import \parent.Patching[] \as Patcher;
+\import Patcher.Ordinary[] \as Patch;
+\import \parent.\parent.Augmented[] \as XPair;
+\import DomainPair.Augmented[] \as VPair;
+\import XPair.OrdinaryEnd[] \as XEnd;
+\import VPair.OrdinaryEnd[] \as VEnd;
+\import XPair.Sequence[degree := N.Nat^::zero] \as XTerm;
+\import VPair.Sequence[degree := N.Nat^::zero] \as VTerm;
+\import \parent.\parent.Restriction[] \as URestriction;
+\import DomainPair.Restriction[] \as WRestriction;
+\import Inclusion.Augmented[] \as CoverMap;
+\import CoverMap.Negative[degree := N.Nat^::zero] \as CoverPull;
+\import \root.Relative[].Absolute[X := X, space := space, compact := compact, hausdorff := hausdorff] \as XAbsolute;
+\import \root.Relative[].Absolute[X := A, space := subspace, compact := URestriction.compactSubset, hausdorff := URestriction.hausdorffSubset] \as UAbsolute;
+\import \root.Relative[].Absolute[X := Y, space := source, compact := compactSource, hausdorff := hausdorffSource] \as VAbsolute;
+\import \root.Relative[].Absolute[X := DomainPair.A, space := DomainPair.subspace,
+  compact := WRestriction.compactSubset, hausdorff := WRestriction.hausdorffSubset] \as WAbsolute;
+\import KTheory.On[X := X, baseSpace := space, compact := compact, hausdorff := hausdorff].K0[] \as XK;
+\import KTheory.On[X := A, baseSpace := subspace, compact := URestriction.compactSubset, hausdorff := URestriction.hausdorffSubset] \as UTheory;
+\import KTheory.On[X := Y, baseSpace := source, compact := compactSource, hausdorff := hausdorffSource] \as VTheory;
+\import KTheory.On[X := DomainPair.A, baseSpace := DomainPair.subspace, compact := WRestriction.compactSubset, hausdorff := WRestriction.hausdorffSubset] \as WTheory;
+\import UTheory.K0[] \as UK;
+\import VTheory.K0[] \as VK;
+\import WTheory.K0[] \as WK;
+\import KTheory.On[X := Patcher.W, baseSpace := Patcher.wSpace, compact := Patcher.compactW, hausdorff := Patcher.hausdorffW].K0[] \as RawK;
+\import UAbsolute.Mapping[Y := DomainPair.A, source := DomainPair.subspace, sourceCompact := WRestriction.compactSubset,
+  sourceHausdorff := WRestriction.hausdorffSubset, f := CoverMap.onSubset, regular := CoverMap.subsetContinuous] \as UMapping;
+\import UTheory.Pullback[Y := DomainPair.A, space := DomainPair.subspace, sourceCompact := WRestriction.compactSubset,
+  sourceHausdorff := WRestriction.hausdorffSubset, f := CoverMap.onSubset, regular := CoverMap.subsetContinuous] \as UPull;
+\import VTheory.Pullback[Y := DomainPair.A, space := DomainPair.subspace, sourceCompact := WRestriction.compactSubset,
+  sourceHausdorff := WRestriction.hausdorffSubset, f := WRestriction.inclusion, regular := WRestriction.regular] \as VPull;
+\definition toNested[w: Patcher.W]: DomainPair.A := \into[Y](Patcher.toV w, sourceSubset) \by {
+  (\bysub(X, Patcher.intersection, w)).left
+};
+\definition toNestedContinuous: topology.Continuity[A := Patcher.W, B := DomainPair.A].Continuous Patcher.wSpace DomainPair.subspace toNested :=
+  topology.Continuity[A := Patcher.W, B := Y].Corestriction[S := sourceSubset].corestrictContinuous Patcher.wSpace source toNested Patcher.toVContinuous;
+\import WTheory.Pullback[Y := Patcher.W, space := Patcher.wSpace, sourceCompact := Patcher.compactW, sourceHausdorff := Patcher.hausdorffW,
+  f := toNested, regular := toNestedContinuous].K0[] \as RawPull;
+\import UPull.Composition[Z := Patcher.W, nextSpace := Patcher.wSpace, nextCompact := Patcher.compactW, nextHausdorff := Patcher.hausdorffW,
+  g := toNested, nextRegular := toNestedContinuous] \as UComposite;
+\import VPull.Composition[Z := Patcher.W, nextSpace := Patcher.wSpace, nextCompact := Patcher.compactW, nextHausdorff := Patcher.hausdorffW,
+  g := toNested, nextRegular := toNestedContinuous] \as VComposite;
+\import UTheory.Pullback[Y := Patcher.W, space := Patcher.wSpace, sourceCompact := Patcher.compactW, sourceHausdorff := Patcher.hausdorffW,
+  f := Patcher.toU, regular := Patcher.toUContinuous].K0[] \as RawU;
+\import VTheory.Pullback[Y := Patcher.W, space := Patcher.wSpace, sourceCompact := Patcher.compactW, sourceHausdorff := Patcher.hausdorffW,
+  f := Patcher.toV, regular := Patcher.toVContinuous].K0[] \as RawV;
+\definition onU: \forall (u: XTerm.Fifth) -> WAbsolute.backward (CoverPull.subset u) = UPull.K0[].map (UAbsolute.backward u) :=
+  UMapping.Naturality[].backwardNaturality;
+\definition onV: \forall (v: VTerm.Fourth) -> WAbsolute.backward (VTerm.restriction v) = VPull.K0[].map (VAbsolute.backward v) :=
+  \fun (v: VTerm.Fourth) => trans!{{WK.Carrier}} _ _ _
+    (congr!{{VTerm.Fourth} {WK.Carrier}} (\fun (z: VTerm.Fourth) => WAbsolute.backward (VTerm.restriction z)) _ _
+      (sym!{{VTerm.Fourth}} _ _ (VAbsolute.rightInverse v)))
+    (VEnd.restrictionFormula (VAbsolute.backward v));
+\import \root.Relative[].GroupCalculus[X := Term.Intersection, group := Term.intersectionGroup] \as IntersectionGroup;
+\definition compatible: \forall (p: Term.Pieces) -> Term.difference p = Term.intersectionGroup.base.unit ->
+  Patch.Compatible (UAbsolute.backward p.first) (VAbsolute.backward p.second) := \block {
+  \fun (p: Term.Pieces)(zero: Term.difference p = Term.intersectionGroup.base.unit) \then
+  \let same: CoverPull.subset p.first = VTerm.restriction p.second := IntersectionGroup.subEqual _ _ zero \then
+  \let ordinary: UPull.K0[].map (UAbsolute.backward p.first) = VPull.K0[].map (VAbsolute.backward p.second) :=
+    trans!{{WK.Carrier}} _ _ _ (sym!{{WK.Carrier}} _ _ (onU p.first))
+      (trans!{{WK.Carrier}} _ _ _ (congr!{{Term.Intersection} {WK.Carrier}} WAbsolute.backward _ _ same) (onV p.second)) \then
+  \return trans!{{RawK.Carrier}} _ _ _ (UComposite.onK0 (UAbsolute.backward p.first))
+    (trans!{{RawK.Carrier}} _ _ _ (congr!{{WK.Carrier} {RawK.Carrier}} RawPull.map _ _ ordinary)
+      (sym!{{RawK.Carrier}} _ _ (VComposite.onK0 (VAbsolute.backward p.second))))
+};
+\import XAbsolute.Mapping[Y := Y, source := source, sourceCompact := compactSource, sourceHausdorff := hausdorffSource,
+  f := inclusion, regular := inclusionContinuous] \as VMapping;
+\import KTheory.On[X := X, baseSpace := space, compact := compact, hausdorff := hausdorff].Pullback[Y := Y, space := source,
+  sourceCompact := compactSource, sourceHausdorff := hausdorffSource, f := inclusion, regular := inclusionContinuous].K0[] \as GlobalV;
+\import VMapping.Negative[degree := N.Nat^::zero] \as VRestriction;
+\definition globalOnV: \forall (x: XK.Carrier) -> VAbsolute.backward (VRestriction.map (XAbsolute.forward x)) = GlobalV.map x :=
+  \fun (x: XK.Carrier) => trans!{{VK.Carrier}} _ _ _ (VMapping.Naturality[].backwardNaturality (XAbsolute.forward x))
+    (congr!{{XK.Carrier} {VK.Carrier}} GlobalV.map _ _ (XAbsolute.leftInverse x));
+\definition Image[p: Term.Pieces]: \Prop := \exists (x: Term.Whole \where Term.restriction x = p);
+\definition preimage: \forall (p: Term.Pieces) -> Term.difference p = Term.intersectionGroup.base.unit -> Image p := \block {
+  \fun (p: Term.Pieces)(zero: Term.difference p = Term.intersectionGroup.base.unit) \then
+  \takefrom patched: Patch.Result[UAbsolute.backward p.first, VAbsolute.backward p.second]
+    \by Patch.existence (UAbsolute.backward p.first) (VAbsolute.backward p.second) (compatible p zero) \then
+  \let value: Term.Whole := XAbsolute.forward patched.value \then
+  \let firstOrdinary: UAbsolute.backward (XTerm.restriction value) = UAbsolute.backward p.first :=
+    trans!{{UK.Carrier}} _ _ _ (XEnd.restrictionFormula patched.value) patched.onU \then
+  \let secondOrdinary: VAbsolute.backward (VRestriction.map value) = VAbsolute.backward p.second :=
+    trans!{{VK.Carrier}} _ _ _ (globalOnV patched.value) patched.onV \then
+  \return Logic.existsIntro[Term.Whole, { x: Term.Whole \where Term.restriction x = p }] value
+    (Term.piecesExt _ _
+      (trans!{{XTerm.Fifth}} _ _ _ (sym!{{XTerm.Fifth}} _ _ (UAbsolute.rightInverse (XTerm.restriction value)))
+        (trans!{{XTerm.Fifth}} _ _ _ (congr!{{UK.Carrier} {XTerm.Fifth}} UAbsolute.forward _ _ firstOrdinary) (UAbsolute.rightInverse p.first)))
+      (trans!{{VTerm.Fourth}} _ _ _ (sym!{{VTerm.Fourth}} _ _ (VAbsolute.rightInverse (VRestriction.map value)))
+        (trans!{{VTerm.Fourth}} _ _ _ (congr!{{VK.Carrier} {VTerm.Fourth}} VAbsolute.forward _ _ secondOrdinary) (VAbsolute.rightInverse p.second))))
+};
+\definition kernel: \forall (p: Term.Pieces) -> Image p -> Term.difference p = Term.intersectionGroup.base.unit := \block {
+  \fun (p: Term.Pieces)(image: Image p) \then
+  \takefrom x: \Cast[Term.Whole] ({ x: Term.Whole \where Term.restriction x = p }) \by image \then
+  \return \idelim Term.restriction x = p \with p: Term.Pieces => Term.difference p = Term.intersectionGroup.base.unit \by {
+    base: Term.differenceRestriction x, equality: \bysub(Term.Whole, { x: Term.Whole \where Term.restriction x = p }, x)
+  }
+};
+\definition exactPieces[p: Term.Pieces]: Logic.PropEquiv[Term.difference p = Term.intersectionGroup.base.unit, Image p] :=
+  Logic.PropEquiv[_, _] { ltr := preimage p, rtl := kernel p };

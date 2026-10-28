@@ -1,0 +1,28 @@
+\import Bundles.Family[X := Quotient.Carrier, F := F].Of[bundle := bundle].Pullback[Y := X, source := space, f := Quotient.projection] \as Pull;
+\definition pulledChart: PulledCharts.Chart := Pull.In[c := d].trivialization Raw.regular;
+\import Construction.OriginalChart[c := pulledChart] \as ExteriorChart;
+\import std.Data[].Sum[] \as Sum;
+\definition index: Construction.Index := Sum.Sum[Quotient.Point, PulledCharts.Chart]::inr pulledChart;
+\definition sourceChart: SourceCharts.Chart := Construction.trivialization index;
+\definition sameProjection[q: ExteriorChart.Point]: Quotient.projection (ExteriorChart.base q) = q := Exterior.inverseProjection (ExteriorChart.exterior q);
+\definition included: \forall (q: ExteriorChart.Point) -> QuotientBase.Member d.domain q :=
+  \fun (q: ExteriorChart.Point) => \idelim Quotient.projection (ExteriorChart.base q) = q \with z: Quotient.Carrier => QuotientBase.Member d.domain z \by {
+    base: ExteriorChart.member q, equality: sameProjection q
+  };
+\import Operations.ChartRestriction[X := Quotient.Carrier, F := F, bundle := bundle, c := d, U := ExteriorChart.domain,
+  open := (onBundleOpen ExteriorChart.domain ExteriorChart.open), contained := included] \as Restriction;
+\definition chart: LocalMaps.ChartData := LocalMaps.ChartData {
+  domain := ExteriorChart.domain, dimension := d.dimension, sourceFrame := sourceChart.frame, targetFrame := Restriction.trivialization.frame
+};
+\module AtPoint(q: ExteriorChart.Point, v: Descended.Fiber q);
+\definition laws: LocalMaps.In[c := chart].Laws := LocalMaps.In[c := chart].Laws {
+  source := \bysub(SourceCharts.ChartData, SourceCharts.Chart, sourceChart),
+  target := \bysub(Charts.ChartData, Charts.Chart, Restriction.trivialization),
+  alignment := \fun (q: ExteriorChart.Point)(v: Descended.Fiber q) => AtPoint[q := q, v := v].equation
+};
+\definition trivialization: LocalMaps.Chart := \into[LocalMaps.ChartData](chart, LocalMaps.Chart) \by { laws };
+\definition coverPoint: \forall (q: Exterior.Point) -> QuotientBase.Member d.domain q -> QuotientBase.Member ExteriorChart.domain q :=
+  \fun (q: Exterior.Point)(member: QuotientBase.Member d.domain q) => ExteriorChart.contains q
+    (\idelim q = Quotient.projection (Exterior.inverse q) \with z: Quotient.Carrier => QuotientBase.Member d.domain z \by {
+      base: member, equality: sym!{{Quotient.Carrier}} _ _ (Exterior.inverseProjection q)
+    });

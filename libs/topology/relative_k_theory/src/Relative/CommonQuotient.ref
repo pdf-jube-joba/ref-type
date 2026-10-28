@@ -1,0 +1,48 @@
+\import topological_constructions.Quotient[A := R, B := source.Carrier].Descent[C := target.Carrier] \as Forward;
+\import topological_constructions.Quotient[A := R, B := target.Carrier].Descent[C := source.Carrier] \as Backward;
+\import topological_constructions.CompactQuotient[A := R, B := source.Carrier, source := space, target := (details source).topology, q := f] \as SourceQuotient;
+\import topological_constructions.CompactQuotient[A := R, B := target.Carrier, source := space, target := (details target).topology, q := g] \as TargetQuotient;
+\definition forward: source.Carrier -> target.Carrier := Forward.apply f fOnto g forwardFibers;
+\definition backward: target.Carrier -> source.Carrier := Backward.apply g gOnto f backwardFibers;
+\definition onSource: \forall (r: R) -> forward (f r) = g r := Forward.onProjection f fOnto g forwardFibers;
+\definition onTarget: \forall (r: R) -> backward (g r) = f r := Backward.onProjection g gOnto f backwardFibers;
+\definition leftInverse: \forall (x: source.Carrier) -> backward (forward x) = x := \block {
+  \fun (x: source.Carrier) \then
+  \takefrom r: \Cast[R] ({ r: R \where f r = x }) \by fOnto x \then
+  \return \idelim f r = x \with x: source.Carrier => backward (forward x) = x \by {
+    base: trans!{{source.Carrier}} _ _ _ (congr!{{target.Carrier} {source.Carrier}} backward _ _ (onSource r)) (onTarget r),
+    equality: \bysub(R, { r: R \where f r = x }, r)
+  }
+};
+\definition rightInverse: \forall (x: target.Carrier) -> forward (backward x) = x := \block {
+  \fun (x: target.Carrier) \then
+  \takefrom r: \Cast[R] ({ r: R \where g r = x }) \by gOnto x \then
+  \return \idelim g r = x \with x: target.Carrier => forward (backward x) = x \by {
+    base: trans!{{target.Carrier}} _ _ _ (congr!{{source.Carrier} {target.Carrier}} forward _ _ (onTarget r)) (onSource r),
+    equality: \bysub(R, { r: R \where g r = x }, r)
+  }
+};
+\import algebraic_topology.Pointed[A := source.Carrier].Maps[B := target.Carrier] \as ForwardMaps;
+\import algebraic_topology.Pointed[A := target.Carrier].Maps[B := source.Carrier] \as BackwardMaps;
+\definition forwardMap: Map source target := \into[source.Carrier -> target.Carrier](forward, Map source target) \by {
+  ForwardMaps.Laws[pointed source, pointed target, forward] {
+    continuous := Forward.continuous space (details source).topology (details target).topology f
+      (SourceQuotient.quotientMap compact (details source).hausdorff fRegular fOnto) g forwardFibers gRegular,
+    pointed := trans!{{target.Carrier}} _ _ _
+      (congr!{{source.Carrier} {target.Carrier}} forward _ _ (sym!{{source.Carrier}} _ _ sourcePoint))
+      (trans!{{target.Carrier}} _ _ _ (onSource r0) targetPoint)
+  }
+};
+\definition backwardMap: Map target source := \into[target.Carrier -> source.Carrier](backward, Map target source) \by {
+  BackwardMaps.Laws[pointed target, pointed source, backward] {
+    continuous := Backward.continuous space (details target).topology (details source).topology g
+      (TargetQuotient.quotientMap compact (details target).hausdorff gRegular gOnto) f backwardFibers fRegular,
+    pointed := trans!{{source.Carrier}} _ _ _
+      (congr!{{target.Carrier} {source.Carrier}} backward _ _ (sym!{{target.Carrier}} _ _ targetPoint))
+      (trans!{{source.Carrier}} _ _ _ (onTarget r0) sourcePoint)
+  }
+};
+\definition equivalence: \root.Relative[].Equivalence[source := source, target := target].Data :=
+  \root.Relative[].Equivalence[source := source, target := target].Data {
+    forward := forwardMap, backward := backwardMap, leftInverse := leftInverse, rightInverse := rightInverse
+  };

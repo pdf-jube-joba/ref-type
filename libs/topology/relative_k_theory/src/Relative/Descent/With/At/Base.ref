@@ -1,0 +1,28 @@
+\definition boundary[x: Index]: Subspace.CarrierSet := \into[X](x, subset) \by {
+  Quotient.atPoint x (trans!{{Quotient.Carrier}} _ _ _ (\bysub(X, { x: X \where Quotient.projection x = q }, x)) same)
+};
+\definition vectors[w: Vector][x: Index]: F x := (comparison.backward.fiber (boundary x)).apply w;
+\definition data[w: Vector]: Ambient.Carrier := Ambient.make w (vectors w);
+\definition compatible: \forall (w: Vector) -> Compatible[data w] := \fun (w: Vector) => Compatible[data w] {
+  outside := \fun (outside: _) => Logic.falseElim (w = coordinates.zero) (outside same),
+  boundary := \fun (x: Subspace.CarrierSet)(over: _) => (\bysub(BoundaryIsomorphism.Data, BoundaryIsomorphism.Isomorphism, comparison)).rightInverse x w
+};
+\definition backward[w: Vector]: Carrier := \into[Ambient.Carrier](data w, valid) \by { compatible w };
+\definition leftInverse: \forall (v: Carrier) -> backward (anchor v) = v := \fun (v: Carrier) => ext (backward (anchor v)) v (\refl(anchor v))
+  (\fun (x: Index) => trans!{{F x}} _ _ _
+    (congr!{Vector {F x}} (comparison.backward.fiber (boundary x)).apply _ _
+      (sym!{Vector} _ _ ((laws v).boundary (boundary x) (\bysub(X, { x: X \where Quotient.projection x = q }, x)))))
+    ((\bysub(BoundaryIsomorphism.Data, BoundaryIsomorphism.Isomorphism, comparison)).leftInverse (boundary x) (section v x)));
+\definition rightInverse: \forall (w: Vector) -> anchor (backward w) = w := \fun (w: Vector) => \refl(w);
+\definition backwardLinear: Spaces.Linear[V := Vector, W := Carrier, source := coordinates, target := space].Map :=
+  Spaces.Linear[V := Vector, W := Carrier, source := coordinates, target := space].Map {
+    apply := backward,
+    preservesAdd := \fun (v, w: Vector) => ext (backward (coordinates.add v w)) (space.add (backward v) (backward w)) (\refl(coordinates.add v w))
+      (\fun (x: Index) => (comparison.backward.fiber (boundary x)).preservesAdd v w),
+    preservesScale := \fun (a: C.Complex)(v: Vector) => ext (backward (coordinates.smul a v)) (space.smul a (backward v)) (\refl(coordinates.smul a v))
+      (\fun (x: Index) => (comparison.backward.fiber (boundary x)).preservesScale a v)
+  };
+\definition isomorphism: Spaces.Isomorphism[V := Carrier, W := Vector, source := space, target := coordinates].Isomorphism :=
+  Spaces.Isomorphism[V := Carrier, W := Vector, source := space, target := coordinates].Isomorphism {
+    forward := atBase, backward := backwardLinear, leftInverse := leftInverse, rightInverse := rightInverse
+  };

@@ -1,0 +1,30 @@
+\import \parent.Quotient[] \as Quotient;
+\import \parent.Group[] \as RelativeGroup;
+\import \parent.FromReduced[] \as FromReduced;
+\import algebra.Group[].Of[Carrier := Quotient.Relative, group := Quotient.group] \as Source;
+\definition Image[v: RelativeGroup.Carrier]: \Prop := \exists (u: Quotient.Relative \where FromReduced.reduced u = v);
+\definition zero: Image RelativeGroup.zero := Logic.existsIntro[Quotient.Relative, { u: Quotient.Relative \where FromReduced.reduced u = RelativeGroup.zero }] Source.zero FromReduced.preservesZero;
+\definition generator: \forall (t: Triple) -> Image (RelativeGroup.value t) := \block {
+  \fun (t: Triple) \then
+  \takefrom preimage: \parent.Reconstruction[t := t].Preimage \by \parent.Reconstruction[t := t].existence \then
+  \return Logic.existsIntro[Quotient.Relative, { u: Quotient.Relative \where FromReduced.reduced u = RelativeGroup.value t }] preimage.value preimage.equation
+};
+\definition sum: \forall (v, w: RelativeGroup.Carrier) -> Image v -> Image w -> Image (RelativeGroup.add v w) := \block {
+  \fun (v, w: RelativeGroup.Carrier)(pv: Image v)(pw: Image w) \then
+  \takefrom a: \Cast[Quotient.Relative] ({ u: Quotient.Relative \where FromReduced.reduced u = v }) \by pv \then
+  \takefrom b: \Cast[Quotient.Relative] ({ u: Quotient.Relative \where FromReduced.reduced u = w }) \by pw \then
+  \return Logic.existsIntro[Quotient.Relative, { u: Quotient.Relative \where FromReduced.reduced u = RelativeGroup.add v w }] (Source.add a b)
+    (trans!{{RelativeGroup.Carrier}} _ _ _ (FromReduced.reducedAdditive a b)
+      (congr!{{RelativeGroup.Carrier} {RelativeGroup.Carrier} {RelativeGroup.Carrier}} RelativeGroup.add _ _ _ _
+        (\bysub(Quotient.Relative, { u: Quotient.Relative \where FromReduced.reduced u = v }, a))
+        (\bysub(Quotient.Relative, { u: Quotient.Relative \where FromReduced.reduced u = w }, b))))
+};
+\definition negative: \forall (v: RelativeGroup.Carrier) -> Image v -> Image (RelativeGroup.neg v) := \block {
+  \fun (v: RelativeGroup.Carrier)(pv: Image v) \then
+  \takefrom a: \Cast[Quotient.Relative] ({ u: Quotient.Relative \where FromReduced.reduced u = v }) \by pv \then
+  \return Logic.existsIntro[Quotient.Relative, { u: Quotient.Relative \where FromReduced.reduced u = RelativeGroup.neg v }] (Source.neg a)
+    (trans!{{RelativeGroup.Carrier}} _ _ _ (FromReduced.preservesNeg a)
+      (congr!{{RelativeGroup.Carrier} {RelativeGroup.Carrier}} RelativeGroup.neg _ _ (\bysub(Quotient.Relative, { u: Quotient.Relative \where FromReduced.reduced u = v }, a))))
+};
+\import RelativeGroup.Induction[P := Image, atZero := zero, atSymbol := generator, underAdd := sum, underNeg := negative] \as Induction;
+\definition surjective: \forall (v: RelativeGroup.Carrier) -> Image v := Induction.principle;

@@ -1,0 +1,56 @@
+\import \root.Measure[A := A].Sigma[] \as Sigma;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\definition row: \forall (j: Fin.Fin n) -> Simple[m] :=
+  \fun (j: Fin.Fin n) => Simple[m] {
+    cells := \fun (i: Fin.Fin m) => Sets.Intersection (s.cells i) (t.cells j),
+    coefficients := \fun (i: Fin.Fin m) => Real.add (s.coefficients i) (t.coefficients j),
+    measurable := \fun (i: Fin.Fin m) => Sigma.intersectionMeasurable mu.sigma (s.cells i) (t.cells j) (s.measurable i) (t.measurable j),
+    nonnegative := \fun (i: Fin.Fin m) => Laws.addNonnegative (s.coefficients i) (t.coefficients j) (s.nonnegative i) (t.nonnegative j),
+    disjoint := \fun (i, k: Fin.Fin m) (different: Logic.Not (i = k)) (x: A)
+      (left: Sets.Member (Sets.Intersection (s.cells i) (t.cells j)) x)
+      (right: Sets.Member (Sets.Intersection (s.cells k) (t.cells j)) x) => s.disjoint i k different x left.left right.left,
+  };
+\definition rowsDisjoint: \forall (j, k: Fin.Fin n) -> Logic.Not (j = k) ->
+  \forall (i, h: Fin.Fin m) -> Sets.Disjoint ((row j).cells i) ((row k).cells h) :=
+  \fun (j, k: Fin.Fin n) (different: Logic.Not (j = k)) (i, h: Fin.Fin m) (x: A)
+    (left: Sets.Member (Sets.Intersection (s.cells i) (t.cells j)) x)
+    (right: Sets.Member (Sets.Intersection (s.cells h) (t.cells k)) x) => t.disjoint j k different x left.right right.right;
+\definition dominated: \forall (f, g: A -> Real.Real) -> Dominated m s f -> Dominated n t g ->
+  \forall (j: Fin.Fin n) -> Dominated m (row j) (\fun (x: A) => Real.add (f x) (g x)) :=
+  \fun (f, g: A -> Real.Real) (sf: Dominated m s f) (tg: Dominated n t g) (j: Fin.Fin n) (i: Fin.Fin m) (x: A)
+    (member: Sets.Member (Sets.Intersection (s.cells i) (t.cells j)) x) =>
+    R.leTrans (Real.add (s.coefficients i) (t.coefficients j)) (Real.add (f x) (t.coefficients j)) (Real.add (f x) (g x))
+      (Laws.addMonotoneRight (s.coefficients i) (f x) (t.coefficients j) (sf i x member.left))
+      (Laws.addMonotoneLeft (t.coefficients j) (g x) (f x) (tg j x member.right));
+\import \root.Measure[A := A].ValueLaws[] \as Values;
+\import Values.ScalarAdd[] \as ScalarAdd;
+\import \root.Measure[A := A].Finite[mu := mu] \as FiniteMeasure;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].congr;
+\definition rowIntegral: \forall (j: Fin.Fin n) ->
+  simpleIntegral m (row j) = add
+    (sum m (\fun (i: Fin.Fin m) => scale (s.coefficients i) (mu.value (Sets.Intersection (s.cells i) (t.cells j)))))
+    (sum m (\fun (i: Fin.Fin m) => scale (t.coefficients j) (mu.value (Sets.Intersection (s.cells i) (t.cells j))))) :=
+  \fun (j: Fin.Fin n) => \block {
+    \let v: Fin.Fin m -> Value := \fun (i: Fin.Fin m) => mu.value (Sets.Intersection (s.cells i) (t.cells j)) \then
+    \let vn: \forall (i: Fin.Fin m) -> NonnegativeValue[v i] := \fun (i: Fin.Fin m) => FiniteMeasure.laws.nonnegative
+      (Sets.Intersection (s.cells i) (t.cells j)) ((row j).measurable i) \then
+    \return eq_reason_in!{Value _
+      "=" _ "by" { congr!{{Fin.Fin m -> Value} Value} (sum m) _ _
+        (\axiom:funext((\fun (i: Fin.Fin m) => scale (Real.add (s.coefficients i) (t.coefficients j)) (v i)),
+          (\fun (i: Fin.Fin m) => add (scale (s.coefficients i) (v i)) (scale (t.coefficients j) (v i))),
+          \fun (i: Fin.Fin m) => ScalarAdd.scalarAdd (s.coefficients i) (t.coefficients j) (v i) (s.nonnegative i) (t.nonnegative j))) }
+      "=" _ "by" { Values.sumAdd m (\fun (i: Fin.Fin m) => scale (s.coefficients i) (v i))
+        (\fun (i: Fin.Fin m) => scale (t.coefficients j) (v i))
+        (\fun (i: Fin.Fin m) => Values.scaleNonnegative (s.coefficients i) (v i) (s.nonnegative i) (vn i))
+        (\fun (i: Fin.Fin m) => Values.scaleNonnegative (t.coefficients j) (v i) (t.nonnegative j) (vn i)) }
+    }
+  };
+\import \root.Measure[A := A].Integral[mu := mu].Assembly[m := m] \as Assembly;
+\definition rows: Assembly.Rows n := \into[Fin.Fin n -> Simple[m]] (row,
+  { f: Fin.Fin n -> Simple[m] \where Assembly.Apart n f }) \by { rowsDisjoint };
+\definition matrix: Assembly.Data[n, rows] := Assembly.assemble n rows;
+\definition matrixDominated: \forall (f, g: A -> Real.Real) -> Dominated m s f -> Dominated n t g ->
+  Dominated (Assembly.count n) matrix.simple (\fun (x: A) => Real.add (f x) (g x)) :=
+  \fun (f, g: A -> Real.Real) (sf: Dominated m s f) (tg: Dominated n t g) =>
+    matrix.dominated (\fun (x: A) => Real.add (f x) (g x)) (dominated f g sf tg);
