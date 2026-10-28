@@ -1,0 +1,82 @@
+\import \root.RealLine[] \as Line;
+\import \root.RealLine[].BadPoints[] \as Bad;
+\import \root.RealLine[].OscillationTree[] \as Tree;
+\import \root.RealLine[].OscillationControl[interval := interval] \as Control;
+\import \root.RealLine[].TagSupport[] \as Support;
+\import \root.RealLine[].Outer[] \as Outer;
+\import integration.Real[] \as Integration;
+\import Integration.Division[] \as Division;
+\import Integration.Riemann[interval := interval].Def[] \as Riemann;
+\import real.Analysis[] \as Real;
+\import Real.Estimates[].Product[] \as Product;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import functional_analysis.Measure[A := Real.Real] \as Measure;
+\import Measure.Sigma[] \as Sigma;
+\import Measure.AlmostEverywhere[mu := Line.measure] \as AE;
+\import Measure.Continuity[mu := Line.measure] \as Continuity;
+\import topology.Topology[Carrier := Real.Real] \as Sets;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\definition boundaries[k: N.Nat^]: \Pow Real.Real := Support.boundary (Division.leftTags k interval.left interval.right) interval;
+\definition allBoundaries: \Pow Real.Real := Measure.union boundaries;
+\definition boundaryNull: Measure.Null Line.measure allBoundaries := Continuity.nullUnion boundaries
+  (\fun (k: N.Nat^) => Support.boundaryNull (Division.leftTags k interval.left interval.right) interval);
+\definition exception: \Pow Real.Real := Sigma.pairUnion allBoundaries (Sigma.pairUnion (Sets.Singleton interval.left) (Sets.Singleton interval.right));
+\definition exceptionNull: Measure.Null Line.measure exception := AE.nullUnion allBoundaries _ boundaryNull
+  (AE.nullUnion (Sets.Singleton interval.left) (Sets.Singleton interval.right) (Support.singletonNull interval.left) (Support.singletonNull interval.right));
+\definition Good[f: Riemann.Function] [d: Real.Real]: \Pow Real.Real := { x: Real.Real \where
+  Logic.And[Bad.BadPoint f.function interval d x, Logic.And[Bad.Interior interval x, Logic.Not (Sets.Member allBoundaries x)]] };
+\definition goodIncluded: \forall (f: Riemann.Function) (d: Real.Real) (k: N.Nat^) -> Sets.Subset (Good f d) (Tree.badSet k f.function interval d) :=
+  \fun (f: Riemann.Function) (d: Real.Real) (k: N.Nat^) (x: Real.Real) (member: Sets.Member (Good f d) x) =>
+    Bad.cellContains k f.function interval interval d x member.left member.right.left
+      (\fun (inBoundary: Sets.Member (boundaries k) x) => member.right.right
+        (Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Sets.Member (boundaries j) x }] k inBoundary));
+\definition goodZero: \forall (f: Riemann.Function) (d: Real.Real) -> R.Lt Real.zero d -> Line.measure.value (Good f d) = Measure.zero :=
+  \fun (f: Riemann.Function) (d: Real.Real) (positive: R.Lt Real.zero d) => \axiom:setext(Line.measure.value (Good f d), Measure.zero,
+    \fun (r: Real.Real) (member: Measure.below (Line.measure.value (Good f d)) r) => Order.byContradiction (R.Lt r Real.zero)
+      (\fun (notNegative: Logic.Not (R.Lt r Real.zero)) => \block {
+        \takefrom t: \Cast[Real.Real] ({ t: Real.Real \where Logic.And[R.Lt r t, Measure.below (Line.measure.value (Good f d)) t] })
+          \by (Outer.nonnegative (Good f d)).rounded r member \then
+        \let law: Logic.And[R.Lt r t, Measure.below (Line.measure.value (Good f d)) t] :=
+          \bysub(Real.Real, { t: Real.Real \where Logic.And[R.Lt r t, Measure.below (Line.measure.value (Good f d)) t] }, t) \then
+        \let tp: R.Lt Real.zero t := R.leLtTrans Real.zero r t (Order.leOfNotLtReverse Real.zero r notNegative) law.left \then
+        \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le k j -> \forall (s: Real.Real) ->
+          Measure.below (Line.measure.value (Tree.badSet j f.function interval d)) s -> R.Lt s t })
+          \by Control.eventualUpper f d t positive tp \then
+        \let eventual: \forall (j: N.Nat^) -> Nat.Le k j -> \forall (s: Real.Real) ->
+          Measure.below (Line.measure.value (Tree.badSet j f.function interval d)) s -> R.Lt s t :=
+          \bysub(N.Nat^, { k: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le k j -> \forall (s: Real.Real) ->
+            Measure.below (Line.measure.value (Tree.badSet j f.function interval d)) s -> R.Lt s t }, k) \then
+        \let inBad: Measure.below (Line.measure.value (Tree.badSet k f.function interval d)) t := Outer.monotone (Good f d) (Tree.badSet k f.function interval d) (goodIncluded f d k) t law.right \then
+        \return Order.ltNotEq t t (eventual k (Nat.leRefl k) t inBad) (\refl(t))
+      }),
+    \fun (r: Real.Real) (negative: R.Lt r Real.zero) => (Outer.nonnegative (Good f d)).negative r negative);
+\definition goodNull: \forall (f: Riemann.Function) (d: Real.Real) -> R.Lt Real.zero d -> Measure.Null Line.measure (Good f d) :=
+  \fun (f: Riemann.Function) (d: Real.Real) (positive: R.Lt Real.zero d) =>
+    Logic.existsIntro[\Pow Real.Real, { S: \Pow Real.Real \where Measure.NullCover[Line.measure, Good f d, S] }] (Good f d)
+      (Measure.NullCover[Line.measure, Good f d, Good f d] {
+        measurable := Line.complete (Good f d) (Good f d) (\fun (_: Real.Real) (inside: _) => inside) (goodZero f d positive),
+        measure := goodZero f d positive, included := \fun (_: Real.Real) (inside: _) => inside,
+      });
+\definition BadSet[f: Riemann.Function] [d: Real.Real]: \Pow Real.Real := { x: Real.Real \where
+  Logic.And[Sets.Member (Line.interval interval.left interval.right) x, Bad.BadPoint f.function interval d x] };
+\definition badNull: \forall (f: Riemann.Function) (d: Real.Real) -> R.Lt Real.zero d -> Measure.Null Line.measure (BadSet f d) :=
+  \fun (f: Riemann.Function) (d: Real.Real) (positive: R.Lt Real.zero d) => AE.nullSubset (BadSet f d) (Sigma.pairUnion (Good f d) exception)
+    (\fun (x: Real.Real) (member: Sets.Member (BadSet f d) x) => Logic.orElim (Sets.Member exception x) (Logic.Not (Sets.Member exception x))
+      (Sets.Member (Sigma.pairUnion (Good f d) exception) x) (Classical.excludedMiddle (Sets.Member exception x))
+      (\fun (inException: Sets.Member exception x) => Logic.Or[_, _]::right inException)
+      (\fun (outside: Logic.Not (Sets.Member exception x)) => \block {
+        \let notLeft: Logic.Not (x = interval.left) := \fun (same: x = interval.left) => outside (Logic.Or[_, _]::right (Logic.Or[_, _]::left same)) \then
+        \let notRight: Logic.Not (x = interval.right) := \fun (same: x = interval.right) => outside (Logic.Or[_, _]::right (Logic.Or[_, _]::right same)) \then
+        \let interior: Bad.Interior interval x := Logic.And[_, _]::#
+          (Order.ltOfLeNotEq interval.left x member.left.left (\fun (same: interval.left = x) => notLeft (sym!{Real.Real} _ _ same)))
+          (Order.ltOfLeNotEq x interval.right member.left.right notRight) \then
+        \return Logic.Or[_, _]::left (Logic.And[_, _]::# member.right (Logic.And[_, _]::# interior
+          (\fun (inBoundary: Sets.Member allBoundaries x) => outside (Logic.Or[_, _]::left inBoundary))))
+      }))
+    (AE.nullUnion (Good f d) exception (goodNull f d positive) exceptionNull);
