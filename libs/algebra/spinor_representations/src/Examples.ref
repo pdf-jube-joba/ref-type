@@ -1,0 +1,37 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import complex.Complex[] \as C;
+\import C.Def[] \as Def;
+\import real.Analysis[] \as R;
+\import \root.Complex[] \as Complex;
+\import Complex.Dimension[n := N.Nat^::succ N.Nat^::zero] \as D;
+\import linear_algebra.Hermitian[].Complex[] \as Hermitian;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := Hermitian.scalar].Finite[n := N.Nat^::succ N.Nat^::zero] \as Finite;
+\import Complex.On[V := Finite.Vector, space := Finite.space].Realification[].With[h := Finite.form] \as Metric;
+\import \root.Over[K := C.Complex, scalarRing := Complex.ring].On[V := Finite.Vector, space := Finite.space].Total[] \as Total;
+\import D.TotalInner[] \as Inner;
+\import Inner.Adjoint[] \as Adjoint;
+\import D.UnitaryOrthogonal[].CanonicalLift[] \as Lift;
+\import D.UnitaryOrthogonal[].CanonicalLift[].FockWords[].Complete[] \as Comparison;
+\import hermitian_frames.Hermitian[].Complex[] \as FramesComplex;
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := Hermitian.scalar, topological := FramesComplex.topological].At[n := N.Nat^::succ N.Nat^::zero].Unitary[] \as Unitary;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].trans;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := Complex.ring].Coordinates[I := Fin.Fin (N.Nat^::succ N.Nat^::zero)].Kronecker[] \as Delta;
+\import D.RealCoordinates[].Clifford[].Spin[].Phase[] \as Phase;
+\import clifford.Field[K := R.Real, field := R.Algebra[].field].On[V := linear_algebra.Euclidean[n := Fin.Sum[m := N.Nat^::succ N.Nat^::zero, n := N.Nat^::succ N.Nat^::zero].total].Vector, space := linear_algebra.Euclidean[n := Fin.Sum[m := N.Nat^::succ N.Nat^::zero, n := N.Nat^::succ N.Nat^::zero].total].space].Of[form := linear_algebra.Euclidean[n := Fin.Sum[m := N.Nat^::succ N.Nat^::zero, n := N.Nat^::succ N.Nat^::zero].total].form].Pin[] \as Pin;
+\import clifford.ComplexExtension[G := Pin.Spin, group := Pin.spinGroup].By[sign := Pin.spinInvolution] \as SpinC;
+\definition coordinate: Fin.Fin (N.Nat^::succ N.Nat^::zero) := Fin.zero N.Nat^::zero;
+\definition vector: Finite.Vector := Finite.basis coordinate;
+\definition square: \forall (f: Total.Carrier) -> (Metric.cliffordOperator vector).apply ((Metric.cliffordOperator vector).apply f) = f :=
+  \fun (f: Total.Carrier) => eq_reason_in!{{Total.Carrier} _
+    "=" _ "by" { Metric.square vector f }
+    "=" _ "by" { congr!{C.Complex {Total.Carrier}} (\fun (a: C.Complex) => Total.totalSpace.smul (Def.ofReal (C.re a)) f) _ _ (Finite.dotBasis coordinate vector) }
+    "=" _ "by" { congr!{C.Complex {Total.Carrier}} (\fun (a: C.Complex) => Total.totalSpace.smul (Def.ofReal (C.re a)) f) _ _ (Delta.self coordinate) }
+    "=" _ "by" { Total.totalSpace.scalarOne f }
+  };
+\definition adjoint: \forall (f, g: Total.Carrier) -> Inner.dot ((Metric.cliffordOperator vector).apply f) g = Inner.dot f ((Metric.cliffordOperator vector).apply g) := Adjoint.cliffordSelfAdjoint vector;
+\definition identityLift: Lift.lift Unitary.identity = SpinC.group.unit := Lift.atOne;
+\definition liftedAction: \forall (u: Unitary.Carrier)(f: Total.Carrier) ->
+  (Phase.actionC (Lift.lift u)).value.apply f = (D.action u).value.apply f := Comparison.actionEqual;
