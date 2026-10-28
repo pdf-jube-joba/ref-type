@@ -77,3 +77,54 @@
         \return E.monotone K S data.right.left r data.right.right
       })
   };
+\import \root.Exhaustion[n := n] \as Exhaustion;
+\import \root.BoxCompact[n := n] \as BoxCompact;
+\import N.Basic[].Prop[] \as Nat;
+\definition boundedPart[S: \Pow E.Point] [i: N.Nat^]: \Pow E.Point := Sets.Intersection S (E.points (Exhaustion.box i));
+\definition boundedPartMeasurable: \forall (S: \Pow E.Point) -> E.Caratheodory S -> \forall (i: N.Nat^) -> E.Caratheodory (boundedPart S i) :=
+  \fun (S: \Pow E.Point) (measurable: E.Caratheodory S) (i: N.Nat^) => E.intersectionCaratheodory S (E.points (Exhaustion.box i)) measurable
+    (Core.closedMeasurable (E.points (Exhaustion.box i)) (BoxCompact.pointsClosed (Exhaustion.box i)));
+\definition exhaustionUnion: \forall (S: \Pow E.Point) -> Measure.union (boundedPart S) = S :=
+  \fun (S: \Pow E.Point) => \axiom:setext(Measure.union (boundedPart S), S,
+    \fun (x: E.Point) (member: Sets.Member (Measure.union (boundedPart S)) x) => \block {
+      \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where Sets.Member (boundedPart S i) x }) \by member \then
+      \return (\bysub(N.Nat^, { i: N.Nat^ \where Sets.Member (boundedPart S i) x }, i)).left
+    },
+    \fun (x: E.Point) (member: Sets.Member S x) => \block {
+      \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where Sets.Member (E.points (Exhaustion.box i)) x }) \by Exhaustion.covers x \then
+      \return Logic.existsIntro[N.Nat^, { i: N.Nat^ \where Sets.Member (boundedPart S i) x }] i
+        (Logic.And[_, _]::# member (\bysub(N.Nat^, { i: N.Nat^ \where Sets.Member (E.points (Exhaustion.box i)) x }, i)))
+    });
+\definition innerRegular: \forall (S: \Pow E.Point) -> E.Caratheodory S -> E.outer S = innerSup S :=
+  \fun (S: \Pow E.Point) (measurable: E.Caratheodory S) => \block {
+    \let pieces: N.Nat^ -> \Pow E.Point := boundedPart S \then
+    \let increasing: Continuity.Increasing pieces := \fun (i: N.Nat^) (x: E.Point) (member: Sets.Member (pieces i) x) =>
+      Logic.And[_, _]::# member.left (Exhaustion.boxGrowing i (N.Nat^::succ i) (Nat.leSelfSucc i) x member.right) \then
+    \let sup: E.outer S = { r: Real.Real \where \exists ( i: N.Nat^ \where Measure.below (E.outer (pieces i)) r ) } := eq_reason_in!{Measure.Value _
+      "=" _ "by" { congr!{\Pow E.Point Measure.Value} E.outer _ _ (sym!{\Pow E.Point} _ _ (exhaustionUnion S)) }
+      "=" _ "by" { Continuity.increasingSup pieces (boundedPartMeasurable S measurable) increasing }
+    } \then
+    \return \axiom:setext(E.outer S, innerSup S,
+      \fun (r: Real.Real) (member: Measure.below (E.outer S) r) => \block {
+        \let exists: \exists ( i: N.Nat^ \where Measure.below (E.outer (pieces i)) r ) :=
+          \idelim E.outer S = { r: Real.Real \where \exists ( i: N.Nat^ \where Measure.below (E.outer (pieces i)) r ) } \with v: Measure.Value => Measure.below v r
+            \by { base: member, equality: sup } \then
+        \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where Measure.below (E.outer (pieces i)) r }) \by exists \then
+        \let local: Measure.below (E.outer (pieces i)) r := \bysub(N.Nat^, { i: N.Nat^ \where Measure.below (E.outer (pieces i)) r }, i) \then
+        \let localInner: Measure.below (innerSup (pieces i)) r :=
+          \idelim E.outer (pieces i) = innerSup (pieces i) \with v: Measure.Value => Measure.below v r \by {
+            base: local, equality: boundedRegular (pieces i) (Exhaustion.box i) (boundedPartMeasurable S measurable i)
+              (\fun (x: E.Point) (inPiece: Sets.Member (pieces i) x) => inPiece.right) } \then
+        \takefrom K: \Cast[\Pow E.Point] ({ K: \Pow E.Point \where Logic.And[Sets.IsCompactIn Topology.topology K, Logic.And[Sets.Subset K (pieces i), Measure.below (E.outer K) r]] }) \by localInner \then
+        \let data: Logic.And[Sets.IsCompactIn Topology.topology K, Logic.And[Sets.Subset K (pieces i), Measure.below (E.outer K) r]] :=
+          \bysub(\Pow E.Point, { K: \Pow E.Point \where Logic.And[Sets.IsCompactIn Topology.topology K, Logic.And[Sets.Subset K (pieces i), Measure.below (E.outer K) r]] }, K) \then
+        \return Logic.existsIntro[\Pow E.Point, { K: \Pow E.Point \where Logic.And[Sets.IsCompactIn Topology.topology K, Logic.And[Sets.Subset K S, Measure.below (E.outer K) r]] }] K
+          (Logic.And[_, _]::# data.left (Logic.And[_, _]::# (\fun (x: E.Point) (member: Sets.Member K x) => (data.right.left x member).left) data.right.right))
+      },
+      \fun (r: Real.Real) (member: Measure.below (innerSup S) r) => \block {
+        \takefrom K: \Cast[\Pow E.Point] ({ K: \Pow E.Point \where Logic.And[Sets.IsCompactIn Topology.topology K, Logic.And[Sets.Subset K S, Measure.below (E.outer K) r]] }) \by member \then
+        \let data: Logic.And[Sets.IsCompactIn Topology.topology K, Logic.And[Sets.Subset K S, Measure.below (E.outer K) r]] :=
+          \bysub(\Pow E.Point, { K: \Pow E.Point \where Logic.And[Sets.IsCompactIn Topology.topology K, Logic.And[Sets.Subset K S, Measure.below (E.outer K) r]] }, K) \then
+        \return E.monotone K S data.right.left r data.right.right
+      })
+  };

@@ -1,0 +1,72 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Bool[] \as Bool;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\import \root.Euclidean[n := n] \as E;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\import topological_algebra.Euclidean[].Dimension[n := n].Def[] \as Def;
+\import topological_algebra.Euclidean[].Dimension[n := n].Norm[] \as Norm;
+\import functional_analysis.ScalarLimits[] \as Limits;
+\import real.Analysis[] \as Real;
+\import Real.Geometric[q := Real.half] \as Dyadic;
+\import Real.Distance[] \as Distance;
+\import Real.Estimates[] \as Estimates;
+\import Estimates.Product[] \as Product;
+\import Real.SquareRoot[] \as Root;
+\import Real.Inverse[] \as Inverse;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import R.Arithmetic[].Prop[] \as Laws;
+\definition radius[i: N.Nat^]: Real.Real := Laws.fieldInv (Dyadic.value i);
+\definition radiusPositive: \forall (i: N.Nat^) -> R.Lt Real.zero (radius i) :=
+  \fun (i: N.Nat^) => Product.invPositive (Dyadic.value i) (Limits.dyadicPositive i);
+\definition box[i: N.Nat^]: E.Box := E.Box {
+  active := Bool.Bool^::true,
+  left := \fun (_: Fin.Fin n) => Real.neg (radius i),
+  right := \fun (_: Fin.Fin n) => radius i,
+  ordered := \fun (_: Fin.Fin n) => R.leTrans _ _ _ (Product.negNonnegative (radius i) (Order.leOfLt _ _ (radiusPositive i))) (Order.leOfLt _ _ (radiusPositive i)),
+};
+\definition radiusGrowing: \forall (i, j: N.Nat^) -> Nat.Le i j -> R.Le (radius i) (radius j) :=
+  \fun (i, j: N.Nat^) (later: Nat.Le i j) => Inverse.invAntitone (Dyadic.value j) (Dyadic.value i)
+    (Limits.dyadicPositive j) (Limits.dyadicPositive i) (Limits.dyadicDecreasing j i later);
+\definition boxGrowing: \forall (i, j: N.Nat^) -> Nat.Le i j -> Sets.Subset (E.points (box i)) (E.points (box j)) :=
+  \fun (i, j: N.Nat^) (later: Nat.Le i j) (x: E.Point) (inside: Sets.Member (E.points (box i)) x) =>
+    Logic.And[_, _]::# (\refl(Bool.Bool^::true)) (\fun (k: Fin.Fin n) => Logic.And[_, _]::#
+      (R.leTrans _ _ _ (Laws.negAntitone (radius i) (radius j) (radiusGrowing i j later)) (inside.right k).left)
+      (R.leTrans _ _ _ (inside.right k).right (radiusGrowing i j later)));
+\definition boundExists: \forall (x: E.Point) -> \exists ( i: N.Nat^ \where R.Le (Def.norm x) (radius i) ) :=
+  \fun (x: E.Point) => \block {
+    \let b: Real.Real := Real.add (Def.norm x) Real.one \then
+    \let bp: R.Lt Real.zero b := R.leLtTrans Real.zero (Def.norm x) b (Norm.nonnegative x) (Root.addPositive (Def.norm x) Real.one Product.onePositive) \then
+    \let invp: R.Lt Real.zero (Laws.fieldInv b) := Product.invPositive b bp \then
+    \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le i j -> R.Lt (Dyadic.value j) (Laws.fieldInv b) })
+      \by Limits.dyadicSmall (Laws.fieldInv b) invp \then
+    \let small: R.Lt (Dyadic.value i) (Laws.fieldInv b) :=
+      (\bysub(N.Nat^, { i: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le i j -> R.Lt (Dyadic.value j) (Laws.fieldInv b) }, i)) i (Nat.leRefl i) \then
+    \let inverseInverse: b = Laws.fieldInv (Laws.fieldInv b) := Inverse.inverseUnique (Laws.fieldInv b) b (Inverse.positiveNonzero (Laws.fieldInv b) invp)
+      (trans!{Real.Real} _ _ _ (Laws.fieldMulComm b (Laws.fieldInv b)) (Laws.fieldInverseNonzero b (Inverse.positiveNonzero b bp))) \then
+    \let upper: R.Le b (radius i) := R.leReplaceLeft (Laws.fieldInv (Laws.fieldInv b)) b (radius i) (sym!{Real.Real} _ _ inverseInverse)
+      (Inverse.invAntitone (Dyadic.value i) (Laws.fieldInv b) (Limits.dyadicPositive i) invp (Order.leOfLt _ _ small)) \then
+    \return Logic.existsIntro[N.Nat^, { i: N.Nat^ \where R.Le (Def.norm x) (radius i) }] i
+      (R.leTrans _ _ _ (Order.leOfLt _ _ (Root.addPositive (Def.norm x) Real.one Product.onePositive)) upper)
+  };
+\definition covers: \forall (x: E.Point) -> \exists ( i: N.Nat^ \where Sets.Member (E.points (box i)) x ) :=
+  \fun (x: E.Point) => \block {
+    \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where R.Le (Def.norm x) (radius i) }) \by boundExists x \then
+    \let bound: R.Le (Def.norm x) (radius i) := \bysub(N.Nat^, { i: N.Nat^ \where R.Le (Def.norm x) (radius i) }, i) \then
+    \let absolute: \forall (j: Fin.Fin n) -> R.Le (Product.abs (x j)) (radius i) := \fun (j: Fin.Fin n) =>
+      R.leTrans _ _ _ (R.leReplaceLeft (Real.distance (x j) Real.zero) (Product.abs (x j)) (Def.norm x)
+        (Distance.distanceSymmetric (x j) Real.zero) (Norm.coordinate x j)) bound \then
+    \return Logic.existsIntro[N.Nat^, { i: N.Nat^ \where Sets.Member (E.points (box i)) x }] i
+      (Logic.And[_, _]::# (\refl(Bool.Bool^::true)) (\fun (j: Fin.Fin n) => Logic.And[_, _]::#
+        (R.leReplaceRight (Real.neg (radius i)) (Real.neg (Real.neg (x j))) (x j) (Laws.negInvolutive (x j))
+          (Laws.negAntitone (Real.neg (x j)) (radius i) (R.leTrans _ _ _
+            (R.leReplaceRight (Real.neg (x j)) (Distance.max (Real.neg (x j)) (x j)) (Product.abs (x j))
+              (sym!{Real.Real} _ _ (Product.absExpression (x j))) (Distance.maxLeft (Real.neg (x j)) (x j))) (absolute j))))
+        (R.leTrans _ _ _ (R.leReplaceRight (x j) (Distance.max (Real.neg (x j)) (x j)) (Product.abs (x j))
+          (sym!{Real.Real} _ _ (Product.absExpression (x j))) (Distance.maxRight (Real.neg (x j)) (x j))) (absolute j))))
+  };
