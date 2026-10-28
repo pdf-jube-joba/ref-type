@@ -47,3 +47,37 @@
 \definition homomorphism: GroupHom.GroupMap group Orthogonal.group := \into[Unitary.Carrier -> Orthogonal.O](map, GroupHom.GroupMap group Orthogonal.group) \by {
   GroupHom.MonoidLaws[_, _, map] { unit := atOne, operation := multiplication }
 };
+\definition injective: \forall (u, v: Unitary.Carrier) -> map u = map v -> u = v :=
+  \fun (u, v: Unitary.Carrier)(same: map u = map v) => Unitary.ext u v (\fun (x: Finite.Vector) => eq_reason_in!{Finite.Vector _
+    "=" _ "by" { sym!{Finite.Vector} _ _ (RC.standardIsomorphism.leftInverse (u.forward.apply x)) }
+    "=" _ "by" { congr!{E.Vector Finite.Vector} RC.standardIsomorphism.backward.apply _ _
+      (trans!{E.Vector} _ _ _
+        (sym!{E.Vector} _ _ (congr!{Finite.Vector E.Vector} (\fun (y: Finite.Vector) => RC.standardIsomorphism.forward.apply (u.forward.apply y)) _ _ (RC.standardIsomorphism.leftInverse x)))
+        (trans!{E.Vector} _ _ _ (congr!{Orthogonal.O E.Vector} (\fun (g: Orthogonal.O) => Orthogonal.action g (RC.standardIsomorphism.forward.apply x)) _ _ same)
+          (congr!{Finite.Vector E.Vector} (\fun (y: Finite.Vector) => RC.standardIsomorphism.forward.apply (v.forward.apply y)) _ _ (RC.standardIsomorphism.leftInverse x)))) }
+    "=" _ "by" { RC.standardIsomorphism.leftInverse (v.forward.apply x) }
+  });
+\import \root.Complex[].On[V := Finite.Vector, space := Finite.space].Realification[].With[h := Finite.form] \as Metric;
+\import Forms.Precomposition[W := Finite.Vector, target := Finite.space] \as Pull;
+\import Algebra.Multilinear[V := Finite.Vector, space := Finite.space] \as Multi;
+\import std.Data[].Nat[] \as N;
+\import Forms.At[k := N.Nat^::succ N.Nat^::zero] \as One;
+\definition covectorNatural: \forall (u: Unitary.Carrier)(v: Finite.Vector) ->
+  Pull.precompose (N.Nat^::succ N.Nat^::zero) u.backward (Metric.form v) = Metric.form (u.forward.apply v) :=
+  \fun (u: Unitary.Carrier)(v: Finite.Vector) => One.ext (Pull.precompose (N.Nat^::succ N.Nat^::zero) u.backward (Metric.form v)) (Metric.form (u.forward.apply v)) (\fun (args: Multi.Arguments (N.Nat^::succ N.Nat^::zero)) =>
+    sym!{C.Complex} _ _ (Unitary.adjoint u v (args Metric.head)));
+\definition contractionNatural: \forall (u: Unitary.Carrier)(v: Finite.Vector)(f: Total.Carrier) ->
+  Pullback.apply u.backward (Total.annihilate v f) = Total.annihilate (u.forward.apply v) (Pullback.apply u.backward f) :=
+  \fun (u: Unitary.Carrier)(v: Finite.Vector)(f: Total.Carrier) => trans!{{Total.Carrier}} _ _ _
+    (congr!{Finite.Vector {Total.Carrier}} (\fun (x: Finite.Vector) => Pullback.apply u.backward (Total.annihilate x f)) _ _ (sym!{Finite.Vector} _ _ (u.leftInverse v)))
+    (Pullback.contractionNatural u.backward (u.forward.apply v) f);
+\definition creationNatural: \forall (u: Unitary.Carrier)(v: Finite.Vector)(f: Total.Carrier) ->
+  Pullback.apply u.backward (Total.createLeft (Metric.form v) f) = Total.createLeft (Metric.form (u.forward.apply v)) (Pullback.apply u.backward f) :=
+  \fun (u: Unitary.Carrier)(v: Finite.Vector)(f: Total.Carrier) => trans!{{Total.Carrier}} _ _ _
+    (Pullback.creationNatural u.backward (Metric.form v) f)
+    (congr!{{Forms.Form (N.Nat^::succ N.Nat^::zero)} {Total.Carrier}} (\fun (alpha: Forms.Form (N.Nat^::succ N.Nat^::zero)) => Total.createLeft alpha (Pullback.apply u.backward f)) _ _ (covectorNatural u v));
+\definition intertwining: \forall (u: Unitary.Carrier)(v: Finite.Vector)(f: Total.Carrier) ->
+  (action u).value.apply ((Metric.cliffordOperator v).apply f) = (Metric.cliffordOperator (u.forward.apply v)).apply ((action u).value.apply f) :=
+  \fun (u: Unitary.Carrier)(v: Finite.Vector)(f: Total.Carrier) => trans!{{Total.Carrier}} _ _ _
+    ((Pullback.operator u.backward).preservesAdd (Total.annihilate v f) (Total.createLeft (Metric.form v) f))
+    (congr!{{Total.Carrier} {Total.Carrier} {Total.Carrier}} Total.totalSpace.add _ _ _ _ (contractionNatural u v f) (creationNatural u v f));

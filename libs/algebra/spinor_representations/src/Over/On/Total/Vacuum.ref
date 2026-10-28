@@ -1,0 +1,24 @@
+\import Alternating.DegreeZero[] \as Zero;
+\definition state: Carrier := \induction (k: N.Nat^) \return Alternating.Form k \with {
+  | zero: Zero.constant Algebra.one
+  | succ: \fun (k: N.Nat^)(unused: Alternating.Form k) => Alternating.At[k := N.Nat^::succ k].origin
+};
+\definition annihilated: \forall (x: V) -> annihilate x state = Product.zero :=
+  \fun (x: V) => \axiom:funext(annihilate x state, Product.zero,
+    \fun (k: N.Nat^) => (\parent.\parent.Contraction[k := k].operator x).preservesZero);
+\definition even: parity state = state := \axiom:funext(parity state, state,
+  \induction (k: N.Nat^) \return parity state k = state k \with {
+    | zero: (Alternating.At[k := N.Nat^::zero].vectorSpace).scalarOne (state N.Nat^::zero)
+    | succ: \fun (k: N.Nat^)(unused: _) => Algebra.Laws[V := Alternating.Form (N.Nat^::succ k), space := Alternating.At[k := N.Nat^::succ k].vectorSpace].scaleZero (Sign.value (N.Nat^::succ k))
+  });
+\import \parent.Pullback[] \as Pullback;
+\import Algebra.Linear[V := V, W := V, source := space, target := space] \as EndVector;
+\import Alternating.Precomposition[W := V, target := space] \as Precomposition;
+\import Algebra.Multilinear[V := V, space := space] \as Multi;
+\definition pullback: \forall (u: EndVector.Map) -> Pullback.apply u state = state :=
+  \fun (u: EndVector.Map) => \axiom:funext(Pullback.apply u state, state,
+    \induction (k: N.Nat^) \return Pullback.apply u state k = state k \with {
+      | zero: Alternating.At[k := N.Nat^::zero].ext (Pullback.apply u state N.Nat^::zero) (state N.Nat^::zero)
+        (\fun (v: Multi.Arguments N.Nat^::zero) => \refl(Algebra.one))
+      | succ: \fun (k: N.Nat^)(unused: _) => (Precomposition.At[k := N.Nat^::succ k].linear u).preservesZero
+    });

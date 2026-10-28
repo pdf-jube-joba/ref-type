@@ -33,3 +33,21 @@
   \fun (f: Carrier) => \axiom:funext(apply Eigen.identity f, f, \fun (k: N.Nat^) => Alternating.At[k := k].ext (apply Eigen.identity f k) (f k)
     (\fun (args: Multilinear.Arguments k) => congr!{{Multilinear.Arguments k} K} (f k) _ _
       (\axiom:funext((\fun (i: Fin.Fin k) => args i), args, \fun (i: Fin.Fin k) => \refl(args i)))));
+\definition preservesParity: \forall (u: VectorMaps.Map)(f: Carrier) -> parity (apply u f) = apply u (parity f) :=
+  \fun (u: VectorMaps.Map)(f: Carrier) => \axiom:funext(parity (apply u f), apply u (parity f),
+    \fun (k: N.Nat^) => sym!{{Alternating.Form k}} _ _ ((Precomposition.At[k := k].linear u).preservesScale (Sign.value k) (f k)));
+\import Fin.Tuples[A := V].Mapping[B := V] \as TupleMap;
+\definition contractionNatural: \forall (u: VectorMaps.Map)(x: V)(f: Carrier) ->
+  apply u (annihilate (u.apply x) f) = annihilate x (apply u f) :=
+  \fun (u: VectorMaps.Map)(x: V)(f: Carrier) => \axiom:funext(apply u (annihilate (u.apply x) f), annihilate x (apply u f),
+    \fun (k: N.Nat^) => Alternating.At[k := k].ext (apply u (annihilate (u.apply x) f) k) (annihilate x (apply u f) k)
+      (\fun (args: Multilinear.Arguments k) => congr!{{Multilinear.Arguments (N.Nat^::succ k)} K} (f (N.Nat^::succ k)) _ _
+        (sym!{{Multilinear.Arguments (N.Nat^::succ k)}} _ _ (TupleMap.extendMap k u.apply x args))));
+\definition creationNatural: \forall (u: VectorMaps.Map)(alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier) ->
+  apply u (createLeft alpha f) = createLeft (Precomposition.precompose (N.Nat^::succ N.Nat^::zero) u alpha) (apply u f) :=
+  \fun (u: VectorMaps.Map)(alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier) =>
+    \axiom:funext(apply u (createLeft alpha f), createLeft (Precomposition.precompose (N.Nat^::succ N.Nat^::zero) u alpha) (apply u f),
+      \induction (k: N.Nat^) \return apply u (createLeft alpha f) k = createLeft (Precomposition.precompose (N.Nat^::succ N.Nat^::zero) u alpha) (apply u f) k \with {
+        | zero: (Precomposition.At[k := N.Nat^::zero].linear u).preservesZero
+        | succ: \fun (k: N.Nat^)(unused: _) => \parent.\parent.LeftCreation[k := k].Natural[].law u alpha (f k)
+      });
