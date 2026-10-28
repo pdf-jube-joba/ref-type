@@ -110,15 +110,16 @@ K03 の数学ソースは取り込み前と一致している。
 `workspace-audit-12-grassmannians` の全体と依存閉包は accepted・終了0・保存失敗0・書込失敗0。
 同じ固定入力による `workspace-audit-12` の workspace 全体検査は、終了2・`memory-limit`・保存失敗0・書込失敗0。
 自動復旧1回後の checkpoint 保存でメモリ上限14336 MiBに達し、全体検証は未完了。
-検査器や数学ソースを変えず、同じ固定入力・共有キャッシュを使い、上限15360 MiBで `workspace-audit-13` を実行する。
+`workspace-audit-13` も保存時のメモリ確保で終了2・`memory-limit`・保存失敗0・書込失敗0。
+検査器や数学ソースを変えず、同じ固定入力・共有キャッシュを使い、上限16384 MiBで `workspace-audit-14` を実行する。
 
-再開時は既存の CLI プロセスと `workspace-audit-13.{log,json,exit}` を先に確認する。
+再開時は既存の CLI プロセスと `workspace-audit-14.{log,json,exit}` を先に確認する。
 終了後は終了コードと `outcome`、`storage.save_failures`、`checking.cache_write_failures` を照合する。
 以前の中断・失敗の報告とチェックポイントも保持している。
 
 ```sh
 REF_TYPE_GRAPH_RESIDENT_MIB=1024 target/debug/cli libs \
   --source-snapshot work/k03-resume/workspace-audit-12.source.json \
-  --cache-dir libs/refcache --cache-budget-mib 16384 --memory-mib 15360 \
-  --diagnostics compact --report-json work/k03-resume/workspace-audit-13.json
+  --cache-dir libs/refcache --cache-budget-mib 16384 --memory-mib 16384 \
+  --diagnostics compact --report-json work/k03-resume/workspace-audit-14.json
 ```
