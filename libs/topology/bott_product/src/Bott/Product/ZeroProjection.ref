@@ -1,0 +1,39 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.trans;
+\use Eq.sym;
+\import std.Data[].FinSet[] \as Fin;
+\import complex.Complex[] \as C;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := C.Algebra[].commutativeRing] \as Spaces;
+\import Spaces.Coordinates[I := Fin.Fin n] \as Vectors;
+\import Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as End;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := linear_algebra.Hermitian[].Complex[].scalar] \as Geometry;
+\import Geometry.Finite[n := n] \as E;
+\import Geometry.Inner[V := E.Vector, space := E.space].Of[h := E.form] \as Inner;
+\definition projection: Hermitian.At[n := n].Projection := Hermitian.At[n := n].Projection {
+  map := End.Operations[].zeroMap,
+  selfAdjoint := \fun (v, w: Vectors.Vector) => trans!{C.Complex} _ _ _ (Inner.zeroLeft w) (sym!{C.Complex} _ _ (E.form.zeroRight v)),
+  idempotent := \fun (v: Vectors.Vector) => \refl(Vectors.origin)
+};
+\definition regular: Hermitian.At[n := n].Families[X := X].Matrix[m := n].Regular source (\fun (_: X) => projection.map) :=
+  \fun (v: Vectors.Vector)(i: Fin.Fin n) => topology.Maps[A := X, B := C.Complex].constantContinuous source topological_algebra.Complex[].topology C.Def[].zero;
+\definition presentation: Source.Presentation := Source.Presentation { dimension := n, projection := (\fun (_: X) => projection), regular := regular };
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar].Projection[X := X, n := n, baseSpace := source, P := (\fun (_: X) => projection), regular := regular] \as Image;
+\import bundle_operations.Operations[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar].Zero[X := X, baseSpace := source] \as Zero;
+\import vector_bundles.Bundles[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Bundles;
+\definition fiberZero: \forall (x: X)(v: Image.Fiber x) -> v = Vectors.origin :=
+  \fun (x: X)(v: Image.Fiber x) => sym!{Vectors.Vector} _ _ (\bysub(Vectors.Vector, { w: Vectors.Vector \where projection.map.apply w = w }, v));
+\definition iso: Bundles.Isomorphisms[X := X, F := Image.Fiber, G := (\fun (_: X) => Zero.Fiber), source := Image.bundle, target := Zero.bundle].Isomorphism :=
+  Bundles.Isomorphisms[X := X, F := Image.Fiber, G := (\fun (_: X) => Zero.Fiber), source := Image.bundle, target := Zero.bundle].Isomorphism {
+    forward := Zero.From[F := Image.Fiber, source := Image.bundle, sameBase := \refl(source)].map,
+    backward := Zero.To[F := Image.Fiber, target := Image.bundle, sameBase := \refl(source)].map,
+    leftInverse := \fun (x: X)(v: Image.Fiber x) => sym!{Vectors.Vector} _ _ (fiberZero x v),
+    rightInverse := \fun (x: X)(v: Zero.Fiber) => Fin.Empty[A := C.Complex].unique _ v
+  };
+\import Source.Realized[p := presentation] \as Realized;
+\definition zeroClass: Source.class presentation = Source.Trivial[n := N.Nat^::zero].value :=
+  trans!{Source.Classes} _ _ _ (sym!{Source.Classes} _ _ Realized.equation)
+    (Source.Compare[F := Image.Fiber, G := (\fun (_: X) => Zero.Fiber), first := Image.bundle, second := Zero.bundle,
+      firstSame := \refl(source), secondSame := \refl(source)].ofIsomorphism iso);
