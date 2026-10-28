@@ -94,3 +94,25 @@
     vacuum := congr!{ComplexUnits.Unit C.Complex} (\fun (a: ComplexUnits.Unit) => Vacuum.coefficient (a.value.apply Vacuum.state)) _ _ Phase.unitC,
   }
 };
+\import C.Prop[] \as ComplexLaws;
+\definition normalizedFromUnit: \forall (u: Unitary.Carrier)(g: SpinC.Carrier) -> Phase.projection g = map u -> Def.normSq (vacuumScalar g) = R.one -> \exists Normalized u :=
+  \fun (u: Unitary.Carrier)(g: SpinC.Carrier)(projects: Phase.projection g = map u)(norm: Def.normSq (vacuumScalar g) = R.one) => \block {
+    \let value: Circle.Circle := \into[C.Complex](vacuumScalar g, Circle.predicate) \by { norm } \then
+    \let z: Circle.Circle := Circle.inverse value \then
+    \return \exact(\into[SpinC.Carrier](SpinC.group.op (centralPhase z) g, Normalized u) \by {
+      NormalizedLaw[u, SpinC.group.op (centralPhase z) g] {
+        projection := eq_reason_in!{Orthogonal.O _
+          "=" _ "by" { Phase.projectionProduct (centralPhase z) g }
+          "=" _ "by" { congr!{Orthogonal.O Orthogonal.O} (\fun (q: Orthogonal.O) => Orthogonal.group.op q (Phase.projection g)) _ _
+            (trans!{Orthogonal.O} _ _ _ (Phase.projectionOnClass Pin.spinGroup.unit z) Projection.atOne) }
+          "=" _ "by" { Orthogonal.group.monoid.leftIdentity (Phase.projection g) }
+          "=" _ "by" projects
+        },
+        vacuum := eq_reason_in!{C.Complex _
+          "=" _ "by" { vacuumScalarPhase z g }
+          "=" _ "by" { ComplexLaws.conjMulSelf (vacuumScalar g) }
+          "=" _ "by" { congr!{R.Real C.Complex} Def.ofReal _ _ norm }
+        },
+      }
+    }, Normalized u)
+  };
