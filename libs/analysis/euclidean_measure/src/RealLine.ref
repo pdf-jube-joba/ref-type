@@ -1,0 +1,56 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Bool[] \as Bool;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import real.Analysis[].Algebra[] \as Algebra;
+\import \root.Euclidean[n := N.Nat^::succ N.Nat^::zero] \as E;
+\import E.MeasureConstruction[] \as Construction;
+\import \root.BoxVolume[n := N.Nat^::succ N.Nat^::zero] \as BoxVolume;
+\import \root.BoxCompact[n := N.Nat^::succ N.Nat^::zero] \as BoxCompact;
+\import \root.CompactCore[n := N.Nat^::succ N.Nat^::zero] \as Core;
+\import topology.Topology[Carrier := E.Point] \as PointSets;
+\import topology.Topology[Carrier := Real.Real] \as RealSets;
+\import functional_analysis.Measure[A := E.Point] \as PointMeasure;
+\import functional_analysis.Measure[A := Real.Real] \as Measure;
+\definition scalar[x: E.Point]: Real.Real := x (Fin.zero N.Nat^::zero);
+\definition point[x: Real.Real] [i: Fin.Fin (N.Nat^::succ N.Nat^::zero)]: Real.Real := x;
+\definition pointScalar: \forall (x: E.Point) -> point (scalar x) = x :=
+  \fun (x: E.Point) => \axiom:funext(point (scalar x), x,
+    Fin.cases N.Nat^::zero (\fun (i: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => scalar x = x i)
+      (\refl(scalar x)) (\fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))));
+\definition scalarPoint: \forall (x: Real.Real) -> scalar (point x) = x := \fun (x: Real.Real) => \refl(x);
+\import \root.Pushforward[A := E.Point, B := Real.Real, source := Construction.measure, map := scalar] \as Push;
+\definition measure: Measure.Measure := Push.measure;
+\definition interval[a, b: Real.Real]: \Pow Real.Real := { x: Real.Real \where Logic.And[R.Le a x, R.Le x b] };
+\definition box[a, b: Real.Real] [ordered: R.Le a b]: E.Box := E.Box {
+  active := Bool.Bool^::true,
+  left := \fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => a,
+  right := \fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => b,
+  ordered := \fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => ordered,
+};
+\definition preimageInterval: \forall (a, b: Real.Real) (ordered: R.Le a b) -> Push.preimage (interval a b) = E.points (box a b ordered) :=
+  \fun (a, b: Real.Real) (ordered: R.Le a b) => \axiom:setext(Push.preimage (interval a b), E.points (box a b ordered),
+    \fun (x: E.Point) (inside: PointSets.Member (Push.preimage (interval a b)) x) => Logic.And[_, _]::# (\refl(Bool.Bool^::true))
+      (Fin.cases N.Nat^::zero (\fun (i: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => Logic.And[R.Le a (x i), R.Le (x i) b]) inside
+        (\fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)))),
+    \fun (x: E.Point) (inside: PointSets.Member (E.points (box a b ordered)) x) => inside.right (Fin.zero N.Nat^::zero));
+\definition volume: \forall (a, b: Real.Real) (ordered: R.Le a b) -> E.volume (box a b ordered) = Real.sub b a :=
+  \fun (a, b: Real.Real) (ordered: R.Le a b) => Algebra.mulOneRight (Real.sub b a);
+\definition intervalMeasure: \forall (a, b: Real.Real) (ordered: R.Le a b) -> measure.value (interval a b) = { r: Real.Real \where R.Lt r (Real.sub b a) } :=
+  \fun (a, b: Real.Real) (ordered: R.Le a b) => eq_reason_in!{Measure.Value _
+    "=" _ "by" { congr!{\Pow E.Point PointMeasure.Value} E.outer _ _ (preimageInterval a b ordered) }
+    "=" _ "by" { BoxVolume.boxVolume (box a b ordered) }
+    "=" _ "by" { congr!{Real.Real Measure.Value} (\fun (v: Real.Real) => { r: Real.Real \where R.Lt r v }) _ _ (volume a b ordered) }
+  };
+\definition intervalMeasurable: \forall (a, b: Real.Real) (ordered: R.Le a b) -> Measure.Measurable measure.sigma (interval a b) :=
+  \fun (a, b: Real.Real) (ordered: R.Le a b) => \idelim E.points (box a b ordered) = Push.preimage (interval a b)
+    \with S: \Pow E.Point => PointMeasure.Measurable Construction.measure.sigma S \by {
+      base: Core.closedMeasurable (E.points (box a b ordered)) (BoxCompact.pointsClosed (box a b ordered)),
+      equality: sym!{\Pow E.Point} _ _ (preimageInterval a b ordered) };

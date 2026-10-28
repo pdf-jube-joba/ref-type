@@ -1,0 +1,54 @@
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import functional_analysis.Measure[A := A] \as Source;
+\import Source.Sigma[] \as SourceSigma;
+\import functional_analysis.Measure[A := B] \as Target;
+\import topology.Topology[Carrier := A] \as SourceSets;
+\import topology.Topology[Carrier := B] \as TargetSets;
+\definition preimage[S: \Pow B]: \Pow A := { x: A \where TargetSets.Member S (map x) };
+\definition preimageUnion: \forall (f: N.Nat^ -> \Pow B) -> preimage (Target.union f) = Source.union (\fun (i: N.Nat^) => preimage (f i)) :=
+  \fun (f: N.Nat^ -> \Pow B) => \axiom:setext(preimage (Target.union f), Source.union (\fun (i: N.Nat^) => preimage (f i)),
+    \fun (x: A) (inside: TargetSets.Member (Target.union f) (map x)) => \block {
+      \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where TargetSets.Member (f i) (map x) }) \by inside \then
+      \return Logic.existsIntro[N.Nat^, { i: N.Nat^ \where SourceSets.Member (preimage (f i)) x }] i
+        (\bysub(N.Nat^, { i: N.Nat^ \where TargetSets.Member (f i) (map x) }, i))
+    },
+    \fun (x: A) (inside: SourceSets.Member (Source.union (\fun (i: N.Nat^) => preimage (f i))) x) => \block {
+      \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where SourceSets.Member (preimage (f i)) x }) \by inside \then
+      \return Logic.existsIntro[N.Nat^, { i: N.Nat^ \where TargetSets.Member (f i) (map x) }] i
+        (\bysub(N.Nat^, { i: N.Nat^ \where SourceSets.Member (preimage (f i)) x }, i))
+    });
+\definition sourceLaws: Source.MeasureLaws[source] := \bysub(Source.MeasureData, Source.Measure, source);
+\definition sigmaData: Target.SigmaAlgebraData := Target.SigmaAlgebraData { measurable := { S: \Pow B \where Source.Measurable source.sigma (preimage S) } };
+\definition sigma: Target.SigmaAlgebra := \into[Target.SigmaAlgebraData](sigmaData, Target.SigmaAlgebra) \by {
+  Target.SigmaAlgebraLaws[sigmaData] {
+    empty := (SourceSigma.laws source.sigma).empty,
+    complement := \fun (S: \Pow B) (measurable: Source.Measurable source.sigma (preimage S)) => (SourceSigma.laws source.sigma).complement (preimage S) measurable,
+    countableUnion := \fun (f: N.Nat^ -> \Pow B) (valid: \forall (i: N.Nat^) -> Source.Measurable source.sigma (preimage (f i))) =>
+      \idelim Source.union (\fun (i: N.Nat^) => preimage (f i)) = preimage (Target.union f) \with U: \Pow A => Source.Measurable source.sigma U \by {
+        base: (SourceSigma.laws source.sigma).countableUnion (\fun (i: N.Nat^) => preimage (f i)) valid,
+        equality: sym!{\Pow A} _ _ (preimageUnion f) },
+  }
+};
+\definition data: Target.MeasureData := Target.MeasureData { sigma := sigma, value := \fun (S: \Pow B) => source.value (preimage S) };
+\definition measure: Target.Measure := \into[Target.MeasureData](data, Target.Measure) \by {
+  Target.MeasureLaws[data] {
+    nonnegative := \fun (S: \Pow B) (valid: Source.Measurable source.sigma (preimage S)) => Target.NonnegativeValue[data.value S] {
+      negative := (sourceLaws.nonnegative (preimage S) valid).negative,
+      downward := (sourceLaws.nonnegative (preimage S) valid).downward,
+      rounded := (sourceLaws.nonnegative (preimage S) valid).rounded,
+    },
+    empty := sourceLaws.empty,
+    countableAdditivity := \fun (f: N.Nat^ -> \Pow B) (valid: \forall (i: N.Nat^) -> Source.Measurable source.sigma (preimage (f i))) (disjoint: Target.Disjoint f) =>
+      eq_reason_in!{Target.Value _
+        "=" _ "by" { congr!{\Pow A Source.Value} source.value _ _ (preimageUnion f) }
+        "=" _ "by" { sourceLaws.countableAdditivity (\fun (i: N.Nat^) => preimage (f i)) valid
+          (\fun (i, j: N.Nat^) (different: Logic.Not (i = j)) (x: A) (left: SourceSets.Member (preimage (f i)) x) (right: SourceSets.Member (preimage (f j)) x) =>
+            disjoint i j different (map x) left right) }
+      },
+  }
+};
