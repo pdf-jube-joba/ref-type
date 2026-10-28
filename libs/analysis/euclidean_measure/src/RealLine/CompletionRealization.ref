@@ -55,3 +55,27 @@
   \fun (x: Real.Real) => \bysub(Real.Real, { y: Real.Real \where Logic.And[Sets.Member Divergence.exception x -> y = Real.zero,
     Logic.Not (Sets.Member Divergence.exception x) -> Sequence.Converges (\fun (k: N.Nat^) => sequence k x) y] },
     \choice Candidate x \by { existence: exists x, uniqueness: unique x });
+\import Real.Estimates[] \as Estimates;
+\definition bound: Integral.Representatives := Linear.addRepresentative (Absolute.representative (Comparison.mapped s (index N.Nat^::zero))) Sum.representative;
+\definition dominated: \forall (k: N.Nat^) (x: Real.Real) -> Logic.Not (Sets.Member Divergence.exception x) -> R.Le (Product.abs (sequence k x)) (bound x) :=
+  \fun (k: N.Nat^) (x: Real.Real) (outside: Logic.Not (Sets.Member Divergence.exception x)) => \block {
+    \let tail: R.Le (Real.distance (sequence N.Nat^::zero x) (sequence k x)) (Partial.partial k x) :=
+      R.leReplaceRight _ (Real.sub (Partial.partial k x) (Partial.partial N.Nat^::zero x)) (Partial.partial k x)
+        (Laws.subZeroRight (Partial.partial k x))
+        (\root.RealLine[].CompletionPointwise[interval := interval, s := s, index := index, good := good, x := x].tail k N.Nat^::zero (Nat.zeroLe k)) \then
+    \let partBound: R.Le (Partial.partial k x) (Sum.value x) :=
+      R.leReplaceLeft (Sum.sequence k x) (Partial.partial k x) (Sum.value x)
+        ((\root.RealLine[].CompletionSum[interval := interval, s := s, index := index, good := good].At[k := k].law x).right outside)
+        (Convergence.pointwiseUpper Sum.sequence Sum.value Sum.supremum k x) \then
+    \return R.leTrans _ (Real.add (Product.abs (sequence N.Nat^::zero x)) (Real.distance (sequence N.Nat^::zero x) (sequence k x))) _
+      (Distance.distanceTriangle Real.zero (sequence N.Nat^::zero x) (sequence k x))
+      (Laws.addMonotoneLeft _ _ (Product.abs (sequence N.Nat^::zero x)) (R.leTrans _ _ _ tail partBound))
+  };
+\definition data: Integral.AEDominatedSequence := Integral.AEDominatedSequence {
+  sequence := \fun (k: N.Nat^) => Comparison.mapped s (index k),
+  limit := limit, bound := bound, exception := Divergence.exception,
+  dominated := dominated, converges := \fun (x: Real.Real) (outside: Logic.Not (Sets.Member Divergence.exception x)) => (limitLaw x).right outside,
+};
+\import Integral.AEDominated[d := data] \as Proof;
+\definition representative: Integral.Representatives := Proof.representative;
+\definition almostLimit: Measure.AlmostEqual Line.measure representative limit := Proof.almostLimit;
