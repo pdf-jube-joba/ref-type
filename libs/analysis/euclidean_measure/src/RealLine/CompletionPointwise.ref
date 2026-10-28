@@ -1,0 +1,63 @@
+\import \root.RealLine[] \as Line;
+\import \root.RealLine[].CompletionComparison[interval := interval] \as Comparison;
+\import \root.RealLine[].CompletionSeries[interval := interval, s := s, index := index, good := good] \as Series;
+\import \root.RealLine[].CompletionDivergence[interval := interval, s := s, index := index, good := good] \as Divergence;
+\import \root.RealLine[].CompletionSum[interval := interval, s := s, index := index, good := good] \as Sum;
+\import functional_analysis.Measure[A := real.Analysis[].Real] \as Measure;
+\import Measure.Integral[mu := Line.measure] \as Integral;
+\import Integral.Series[terms := Series.terms] \as Partial;
+\import real.Analysis[] \as Real;
+\import Real.Distance[] \as Distance;
+\import Real.Estimates[] \as Estimates;
+\import Real.Estimates[].Product[] \as Product;
+\import Real.Algebra[] \as Algebra;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\import N.Induction[] \as NatInduction;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.trans;
+\use Equality.eq_reason_in;
+\definition value[k: N.Nat^]: Real.Real := Comparison.mapped s (index k) x;
+\definition step: \forall (k: N.Nat^) -> Real.distance (value k) (value (N.Nat^::succ k)) = Series.terms k x :=
+  \fun (k: N.Nat^) => eq_reason_in!{Real.Real _
+    "=" _ "by" { sym!{Real.Real} _ _ (Estimates.distanceDifference (value k) (value (N.Nat^::succ k))) }
+    "=" _ "by" { Distance.distanceSymmetric (Real.sub (value k) (value (N.Nat^::succ k))) Real.zero }
+  };
+\definition tail: \forall (n, m: N.Nat^) -> Nat.Le m n -> R.Le (Real.distance (value m) (value n))
+  (Real.sub (Partial.partial n x) (Partial.partial m x)) :=
+  \induction (n: N.Nat^) \return \forall (m: N.Nat^) -> Nat.Le m n -> R.Le (Real.distance (value m) (value n))
+    (Real.sub (Partial.partial n x) (Partial.partial m x)) \with {
+    | zero: \fun (m: N.Nat^) (bound: Nat.Le m N.Nat^::zero) =>
+      \idelim N.Nat^::zero = m \with q: N.Nat^ => R.Le (Real.distance (value q) (value N.Nat^::zero))
+        (Real.sub (Partial.partial N.Nat^::zero x) (Partial.partial q x)) \by {
+        base: R.leReplace (Real.zero) (Real.distance (value N.Nat^::zero) (value N.Nat^::zero)) Real.zero
+          (Real.sub (Partial.partial N.Nat^::zero x) (Partial.partial N.Nat^::zero x))
+          (sym!{Real.Real} _ _ (Distance.distanceSelf (value N.Nat^::zero)))
+          (sym!{Real.Real} _ _ (Laws.subSelf (Partial.partial N.Nat^::zero x))) (R.leRefl Real.zero),
+        equality: sym!{N.Nat^} _ _ (Nat.leZeroEq m bound) }
+    | succ: \fun (n: N.Nat^) (previous: _) (m: N.Nat^) (bound: Nat.Le m (N.Nat^::succ n)) =>
+      Logic.orElim _ _ _ (NatInduction.leCases m (N.Nat^::succ n) bound)
+        (\fun (less: Nat.Lt m (N.Nat^::succ n)) => R.leReplaceRight (Real.distance (value m) (value (N.Nat^::succ n)))
+          (Real.add (Real.sub (Partial.partial n x) (Partial.partial m x)) (Series.terms n x))
+          (Real.sub (Partial.partial (N.Nat^::succ n) x) (Partial.partial m x))
+          (eq_reason_in!{Real.Real _
+            "=" _ "by" { Laws.addAssoc (Partial.partial n x) (Real.neg (Partial.partial m x)) (Series.terms n x) }
+            "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (Partial.partial n x)) _ _ (Laws.addComm (Real.neg (Partial.partial m x)) (Series.terms n x)) }
+            "=" _ "by" { sym!{Real.Real} _ _ (Laws.addAssoc (Partial.partial n x) (Series.terms n x) (Real.neg (Partial.partial m x))) }
+          })
+          (R.leTrans _ _ _ (Distance.distanceTriangle (value m) (value n) (value (N.Nat^::succ n)))
+            (Estimates.addLe _ _ _ _ (previous m (NatInduction.belowSuccessor m n less))
+              (R.leReplaceRight (Real.distance (value n) (value (N.Nat^::succ n))) (Real.distance (value n) (value (N.Nat^::succ n)))
+                (Series.terms n x) (step n) (R.leRefl _)))))
+        (\fun (same: m = N.Nat^::succ n) => \idelim N.Nat^::succ n = m \with q: N.Nat^ =>
+          R.Le (Real.distance (value q) (value (N.Nat^::succ n))) (Real.sub (Partial.partial (N.Nat^::succ n) x) (Partial.partial q x)) \by {
+            base: R.leReplace Real.zero (Real.distance (value (N.Nat^::succ n)) (value (N.Nat^::succ n))) Real.zero
+              (Real.sub (Partial.partial (N.Nat^::succ n) x) (Partial.partial (N.Nat^::succ n) x))
+              (sym!{Real.Real} _ _ (Distance.distanceSelf _)) (sym!{Real.Real} _ _ (Laws.subSelf _)) (R.leRefl Real.zero),
+            equality: sym!{N.Nat^} _ _ same })
+  };
