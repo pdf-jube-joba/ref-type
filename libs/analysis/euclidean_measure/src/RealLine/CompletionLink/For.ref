@@ -1,0 +1,15 @@
+\import \root.RealLine[].CompletionRealization[interval := interval, s := s, index := index, good := good] \as Realization;
+\import \root.RealLine[].CompletionDivergence[interval := interval, s := s, index := index, good := good] \as Divergence;
+\definition related: Related s index Realization.representative := \block {
+  \let limit: Real.Real -> Real.Real := \fun (x: Real.Real) => Realization.limit x \then
+  \let exception: Null.NullSet := Divergence.exception \then
+  \let convergence: \forall (x: Real.Real) -> Logic.Not (Sets.Member exception x) -> Sequence.Converges (\fun (k: N.Nat^) => Comparison.mapped s (index k) x) (limit x) :=
+    \fun (x: Real.Real) (outside: Logic.Not (Sets.Member exception x)) => (Realization.limitLaw x).right outside \then
+  \let almost: Measure.AlmostEqual Line.measure Realization.representative limit := Realization.almostLimit \then
+  \return Logic.existsIntro[Real.Real -> Real.Real, { limit: Real.Real -> Real.Real \where \exists ( exception: Null.NullSet \where Logic.And[
+    \forall (x: Real.Real) -> Logic.Not (Sets.Member exception x) -> Sequence.Converges (\fun (k: N.Nat^) => Comparison.mapped s (index k) x) (limit x),
+    Measure.AlmostEqual Line.measure Realization.representative limit] ) }] limit
+    (Logic.existsIntro[Null.NullSet, { exception: Null.NullSet \where Logic.And[
+      \forall (x: Real.Real) -> Logic.Not (Sets.Member exception x) -> Sequence.Converges (\fun (k: N.Nat^) => Comparison.mapped s (index k) x) (limit x),
+      Measure.AlmostEqual Line.measure Realization.representative limit] }] exception (Logic.And[_, _]::# convergence almost))
+};

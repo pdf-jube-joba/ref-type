@@ -31,5 +31,6 @@
 `GeneralDiagonal.formula` は符号と零係数を含む任意の対角拡大について、可測性と測度の変換則を示す。
 `RealLine` は実数直線への測度の移送と区間の長さを提供する。
 `RealLine.RiemannMap` は任意の Riemann 可積分関数の区間制限を測度可積分関数として構成し、その積分値の一致を示す。
-`RealLine.CompletionAgreement.agreement` は既存の L1 完備化の任意の元について、同じ積分値を持つ測度可積分な代表の存在を示す。
-この代表は完備化の Cauchy 列から、差の L1 ノルムが総和可能な部分列を選び、その概至る所での極限を取って構成する。
+`RealLine.CompletionAgreement.linkedRepresentative` は既存の L1 完備化の任意の代表列について、測度可積分な代表との対応と積分値の一致を示す。
+この代表は元の Cauchy 列から、差の L1 ノルムが総和可能な部分列を選び、その概至る所での極限を取って構成する。
+`linkedAgreement` はこの対応を完備化の任意の元について示し、`agreement` は積分値の一致を取り出す。
