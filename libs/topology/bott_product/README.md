@@ -12,3 +12,6 @@
 `Product.Bundle.Preparation.With` は基点制限の補束による安定化と両半球上の自明化を構成する。
 `Transition.With` は境界上の自明化から連続可逆行列ループを構成する。
 `Product.Surjective.exists` は任意の \(K^0(X\times S^2)\) の類について、標準積による表示の存在を示す。
+
+`Product.At.Kernel` は基点制限の核が生成元を掛けた類の像であることを示す。
+`Product.At.Slice` は基点の切片と \(X\) の具体的な同相を構成し、`Slice.Relative.imageRepresentation` は K03 の相対群から忘却された類がこの像に入ることを示す。
