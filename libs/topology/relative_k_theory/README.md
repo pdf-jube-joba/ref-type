@@ -105,17 +105,19 @@ K^{-(n+1)}(X)\longrightarrow K^{-(n+1)}(A)\longrightarrow K^{-n}(X,A)
 最新 main `f8b80a154a3b61d2dccebd0ea13adc44bfaa4bdb` の A01・A19・B05・L04 の変更を保持し、ライブラリ一覧と workspace 登録を三方比較で合わせた。
 K03 の数学ソースは取り込み前と一致している。
 旧基準の `workspace-audit-10` は終了130・interrupted・保存失敗0・書込失敗0で停止し、チェックポイントを保持した。
-次は統合後の workspace 入力を `workspace-audit-11.source.json` に固定し、K03 package 全体・全依存・影響先をまとめて検査する。
+`workspace-audit-11` は終了1・保存失敗0・書込失敗0で、Grassmannian が移動前の分離補題を参照していた不一致を検出した。
+参照3箇所を一般位相の `topological_constructions.Separation` へ合わせた。
+次は `workspace-audit-12.source.json` を固定し、`grassmannians` 全体と依存閉包を対象検査した後、K03 package 全体・全依存・影響先を含む workspace 全体を検査する。
 最終 workspace 検証は未完了で、対象検査だけを全体の成功とは扱っていない。
 過去の終了1や中断130の報告も保持している。
 
-再開時は既存の CLI プロセスと `workspace-audit-11.{log,json,exit}` を先に確認する。
+再開時は既存の CLI プロセスと `workspace-audit-12{-grassmannians,}.{log,json,exit}` を先に確認する。
 終了後は終了コードと `outcome`、`storage.save_failures`、`checking.cache_write_failures` を照合する。
 必要な再検査は固定 snapshot と共有キャッシュを使う。
 
 ```sh
 REF_TYPE_GRAPH_RESIDENT_MIB=1024 target/debug/cli libs \
-  --source-snapshot work/k03-resume/workspace-audit-11.source.json \
+  --source-snapshot work/k03-resume/workspace-audit-12.source.json \
   --cache-dir libs/refcache --cache-budget-mib 16384 --memory-mib 14336 \
-  --diagnostics compact --report-json work/k03-resume/workspace-audit-11.json
+  --diagnostics compact --report-json work/k03-resume/workspace-audit-12.json
 ```
