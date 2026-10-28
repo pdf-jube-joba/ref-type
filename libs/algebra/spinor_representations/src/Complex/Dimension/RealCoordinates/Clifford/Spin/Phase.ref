@@ -80,3 +80,48 @@
 \import lie_groups.Euclidean[n := Sum.dimension] \as Geometry;
 \definition geometricAction: Geometry.SpinC -> TargetUnits.Unit := actionC;
 \definition geometricHomomorphism: algebra.Hom[A := Geometry.SpinC, B := TargetUnits.Unit].GroupMap Geometry.spinCGroup TargetUnits.group := homomorphism;
+\definition phaseSquare[g: Pin.Spin][z: Circle.Circle]: Circle.Circle := Circle.square z;
+\definition phaseInvariant: \forall (g: Pin.Spin)(z: Circle.Circle) -> phaseSquare (Pin.spinGroup.op Pin.spinSign g) (Circle.product Circle.minusOne z) = phaseSquare g z :=
+  \fun (g: Pin.Spin)(z: Circle.Circle) => Circle.squareMinus z;
+\import SpinC.Lift[B := Circle.Circle, values := phaseSquare, invariant := phaseInvariant] \as DeterminantLift;
+\definition determinant: SpinC.Carrier -> Circle.Circle := DeterminantLift.map;
+\definition determinantOnClass: \forall (g: Pin.Spin)(z: Circle.Circle) -> determinant (SpinC.class g z) = Circle.square z := DeterminantLift.onClass;
+\definition determinantProduct: \forall (a, b: SpinC.Carrier) -> determinant (SpinC.group.op a b) = Circle.product (determinant a) (determinant b) :=
+  SpinC.induction2 (\fun (a, b: SpinC.Carrier) => determinant (SpinC.group.op a b) = Circle.product (determinant a) (determinant b))
+    (\fun (g: Pin.Spin)(z: Circle.Circle)(h: Pin.Spin)(w: Circle.Circle) => eq_reason_in!{Circle.Circle _
+      "=" _ "by" { congr!{SpinC.Carrier Circle.Circle} determinant _ _ (SpinC.multiplication g h z w) }
+      "=" _ "by" { determinantOnClass (Pin.spinGroup.op g h) (Circle.product z w) }
+      "=" _ "by" { Circle.squareProduct z w }
+      "=" _ "by" { congr!{Circle.Circle Circle.Circle Circle.Circle} Circle.product _ _ _ _
+        (sym!{Circle.Circle} _ _ (determinantOnClass g z)) (sym!{Circle.Circle} _ _ (determinantOnClass h w)) }
+    });
+\definition determinantUnit: determinant SpinC.group.unit = Circle.one := trans!{Circle.Circle} _ _ _ (determinantOnClass Pin.spinGroup.unit Circle.one) Circle.squareOne;
+\import algebra.Hom[A := SpinC.Carrier, B := Circle.Circle] \as DeterminantHom;
+\definition determinantHomomorphism: DeterminantHom.GroupMap SpinC.group Circle.group := \into[SpinC.Carrier -> Circle.Circle](determinant, DeterminantHom.GroupMap SpinC.group Circle.group) \by {
+  DeterminantHom.MonoidLaws[_, _, determinant] { unit := determinantUnit, operation := determinantProduct }
+};
+\import Geometry.PinRepresentation[] \as OrthogonalAction;
+\import algebra.Groups[].On[G := Geometry.O, group := Geometry.orthogonalGroup] \as OrthogonalOps;
+\definition baseValue[g: Pin.Spin][z: Circle.Circle]: Geometry.O := OrthogonalAction.spinMap g;
+\definition baseInvariant: \forall (g: Pin.Spin)(z: Circle.Circle) -> baseValue (Pin.spinGroup.op Pin.spinSign g) (Circle.product Circle.minusOne z) = baseValue g z :=
+  \fun (g: Pin.Spin)(z: Circle.Circle) => trans!{Geometry.O} _ _ _
+    (OrthogonalAction.multiplication Pin.sign (Pin.inclusion g))
+    (trans!{Geometry.O} _ _ _ (congr!{Geometry.O Geometry.O} (\fun (u: Geometry.O) => OrthogonalOps.mul u (OrthogonalAction.spinMap g)) _ _ OrthogonalAction.atSign)
+      (OrthogonalOps.oneLeft (OrthogonalAction.spinMap g)));
+\import SpinC.Lift[B := Geometry.O, values := baseValue, invariant := baseInvariant] \as BaseLift;
+\definition projection: SpinC.Carrier -> Geometry.O := BaseLift.map;
+\definition projectionOnClass: \forall (g: Pin.Spin)(z: Circle.Circle) -> projection (SpinC.class g z) = OrthogonalAction.spinMap g := BaseLift.onClass;
+\definition projectionProduct: \forall (a, b: SpinC.Carrier) -> projection (SpinC.group.op a b) = Geometry.orthogonalGroup.op (projection a) (projection b) :=
+  SpinC.induction2 (\fun (a, b: SpinC.Carrier) => projection (SpinC.group.op a b) = Geometry.orthogonalGroup.op (projection a) (projection b))
+    (\fun (g: Pin.Spin)(z: Circle.Circle)(h: Pin.Spin)(w: Circle.Circle) => eq_reason_in!{Geometry.O _
+      "=" _ "by" { congr!{SpinC.Carrier Geometry.O} projection _ _ (SpinC.multiplication g h z w) }
+      "=" _ "by" { projectionOnClass (Pin.spinGroup.op g h) (Circle.product z w) }
+      "=" _ "by" { OrthogonalAction.multiplication (Pin.inclusion g) (Pin.inclusion h) }
+      "=" _ "by" { congr!{Geometry.O Geometry.O Geometry.O} OrthogonalOps.mul _ _ _ _
+        (sym!{Geometry.O} _ _ (projectionOnClass g z)) (sym!{Geometry.O} _ _ (projectionOnClass h w)) }
+    });
+\definition projectionUnit: projection SpinC.group.unit = Geometry.orthogonalGroup.unit := trans!{Geometry.O} _ _ _ (projectionOnClass Pin.spinGroup.unit Circle.one) OrthogonalAction.atOne;
+\import algebra.Hom[A := SpinC.Carrier, B := Geometry.O] \as ProjectionHom;
+\definition projectionHomomorphism: ProjectionHom.GroupMap SpinC.group Geometry.orthogonalGroup := \into[SpinC.Carrier -> Geometry.O](projection, ProjectionHom.GroupMap SpinC.group Geometry.orthogonalGroup) \by {
+  ProjectionHom.MonoidLaws[_, _, projection] { unit := projectionUnit, operation := projectionProduct }
+};
