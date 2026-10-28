@@ -26,3 +26,56 @@
 \definition rightAction[w: W]: End.Map := Graded.rightAction L.grading (RMetric.cliffordOperator w);
 \definition anticommute: \forall (v: V)(w: W) -> Composition.compose (leftAction v) (rightAction w) = EndOps.negative (Composition.compose (rightAction w) (leftAction v)) :=
   \fun (v: V)(w: W) => Graded.anticommute (LMetric.cliffordOperator v) L.grading (RMetric.cliffordOperator w) (leftOdd v);
+\import Algebra.Eigen[V := L.Carrier, space := L.totalSpace] \as LIdentity;
+\import Algebra.Eigen[V := RTotal.Carrier, space := RTotal.totalSpace] \as RIdentity;
+\import Algebra.Eigen[V := Product.Carrier, space := Product.space] \as Identity;
+\import Algebra.Linear[V := RTotal.Carrier, W := RTotal.Carrier, source := RTotal.totalSpace, target := RTotal.totalSpace] \as RightEnd;
+\import RightEnd.Composition[U := RTotal.Carrier, domain := RTotal.totalSpace] \as RightComposition;
+\import RightEnd.Operations[] \as RightOps;
+\definition leftOperatorSquare: \forall (v: V) -> LeftComposition.compose (LMetric.cliffordOperator v) (LMetric.cliffordOperator v) = LeftOps.scale (Def.ofReal (LMetric.realForm.form v v)) LIdentity.identity :=
+  \fun (v: V) => LeftEnd.ext _ _ (\axiom:funext((LeftComposition.compose (LMetric.cliffordOperator v) (LMetric.cliffordOperator v)).apply, (LeftOps.scale (Def.ofReal (LMetric.realForm.form v v)) LIdentity.identity).apply, LMetric.square v));
+\definition rightOperatorSquare: \forall (w: W) -> RightComposition.compose (RMetric.cliffordOperator w) (RMetric.cliffordOperator w) = RightOps.scale (Def.ofReal (RMetric.realForm.form w w)) RIdentity.identity :=
+  \fun (w: W) => RightEnd.ext _ _ (\axiom:funext((RightComposition.compose (RMetric.cliffordOperator w) (RMetric.cliffordOperator w)).apply, (RightOps.scale (Def.ofReal (RMetric.realForm.form w w)) RIdentity.identity).apply, RMetric.square w));
+\definition parityOperatorSquare: LeftComposition.compose L.grading L.grading = LIdentity.identity :=
+  LeftEnd.ext _ _ (\axiom:funext((LeftComposition.compose L.grading L.grading).apply, LIdentity.identity.apply, L.paritySquare));
+\definition leftSquare: \forall (v: V) -> Composition.compose (leftAction v) (leftAction v) = EndOps.scale (Def.ofReal (LMetric.realForm.form v v)) Identity.identity :=
+  \fun (v: V) => eq_reason_in!{End.Map _
+    "=" _ "by" { Tensor.composition (LMetric.cliffordOperator v) (LMetric.cliffordOperator v) RIdentity.identity RIdentity.identity }
+    "=" _ "by" { congr!{LeftEnd.Map RightEnd.Map End.Map} Tensor.map _ _ _ _ (leftOperatorSquare v) (Graded.rightIdentity RIdentity.identity) }
+    "=" _ "by" { Tensor.scaleLeft (Def.ofReal (LMetric.realForm.form v v)) LIdentity.identity RIdentity.identity }
+    "=" _ "by" { congr!{End.Map End.Map} (EndOps.scale (Def.ofReal (LMetric.realForm.form v v))) _ _ Tensor.identity }
+  };
+\definition rightSquare: \forall (w: W) -> Composition.compose (rightAction w) (rightAction w) = EndOps.scale (Def.ofReal (RMetric.realForm.form w w)) Identity.identity :=
+  \fun (w: W) => eq_reason_in!{End.Map _
+    "=" _ "by" { Tensor.composition L.grading L.grading (RMetric.cliffordOperator w) (RMetric.cliffordOperator w) }
+    "=" _ "by" { congr!{LeftEnd.Map RightEnd.Map End.Map} Tensor.map _ _ _ _ parityOperatorSquare (rightOperatorSquare w) }
+    "=" _ "by" { Tensor.scaleRight (Def.ofReal (RMetric.realForm.form w w)) LIdentity.identity RIdentity.identity }
+    "=" _ "by" { congr!{End.Map End.Map} (EndOps.scale (Def.ofReal (RMetric.realForm.form w w))) _ _ Tensor.identity }
+  };
+\import Algebra.Laws[V := Product.Carrier, space := Product.space] \as TensorLaws;
+\definition clifford[v: V][w: W]: End.Map := EndOps.plus (leftAction v) (rightAction w);
+\definition square: \forall (v: V)(w: W)(t: Product.Carrier) -> (clifford v w).apply ((clifford v w).apply t) =
+  Product.space.smul (Def.ofReal (R.add (LMetric.realForm.form v v) (RMetric.realForm.form w w))) t :=
+  \fun (v: V)(w: W)(t: Product.Carrier) => \block {
+    \let a: End.Map := leftAction v \then
+    \let b: End.Map := rightAction w \then
+    \let aa: Product.Carrier := a.apply (a.apply t) \then
+    \let ab: Product.Carrier := a.apply (b.apply t) \then
+    \let ba: Product.Carrier := b.apply (a.apply t) \then
+    \let bb: Product.Carrier := b.apply (b.apply t) \then
+    \let cross: ab = Product.space.neg ba := trans!{Product.Carrier} _ _ _
+      (congr!{End.Map Product.Carrier} (\fun (x: End.Map) => x.apply t) _ _ (anticommute v w)) (TensorLaws.minusOneScale ba) \then
+    \return eq_reason_in!{Product.Carrier _
+      "=" _ "by" { congr!{Product.Carrier Product.Carrier Product.Carrier} Product.space.add _ _ _ _ (a.preservesAdd (a.apply t) (b.apply t)) (b.preservesAdd (a.apply t) (b.apply t)) }
+      "=" _ "by" { TensorLaws.assoc aa ab (Product.space.add ba bb) }
+      "=" _ "by" { congr!{Product.Carrier Product.Carrier} (Product.space.add aa) _ _ (sym!{Product.Carrier} _ _ (TensorLaws.assoc ab ba bb)) }
+      "=" _ "by" { congr!{Product.Carrier Product.Carrier} (\fun (x: Product.Carrier) => Product.space.add aa (Product.space.add x bb)) _ _
+        (trans!{Product.Carrier} _ _ _ (congr!{Product.Carrier Product.Carrier} (\fun (x: Product.Carrier) => Product.space.add x ba) _ _ cross) (TensorLaws.inverseLeft ba)) }
+      "=" _ "by" { congr!{Product.Carrier Product.Carrier} (Product.space.add aa) _ _ (TensorLaws.zeroLeft bb) }
+      "=" _ "by" { congr!{Product.Carrier Product.Carrier Product.Carrier} Product.space.add _ _ _ _
+        (congr!{End.Map Product.Carrier} (\fun (x: End.Map) => x.apply t) _ _ (leftSquare v))
+        (congr!{End.Map Product.Carrier} (\fun (x: End.Map) => x.apply t) _ _ (rightSquare w)) }
+      "=" _ "by" { sym!{Product.Carrier} _ _ (Product.space.scalarAdd (Def.ofReal (LMetric.realForm.form v v)) (Def.ofReal (RMetric.realForm.form w w)) t) }
+      "=" _ "by" { congr!{C.Complex Product.Carrier} (\fun (x: C.Complex) => Product.space.smul x t) _ _ (sym!{C.Complex} _ _ (Laws.ofRealAdd (LMetric.realForm.form v v) (RMetric.realForm.form w w))) }
+    }
+  };
