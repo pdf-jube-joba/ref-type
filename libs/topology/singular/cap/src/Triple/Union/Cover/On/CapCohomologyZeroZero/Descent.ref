@@ -1,0 +1,34 @@
+\import \parent.Linearity[] \as Linearity;
+\import Modules.Hom[V := Cochain.Closed, W := Actions.Carrier, source := Cochain.cycleSpace, target := Actions.space] \as Linear;
+\definition raw: Linear.Map := Linear.Map { apply := value, addition := Linearity.addition, scalar := Linearity.scalar };
+\import Modules.Of[V := Cochain.Closed, space := Cochain.cycleSpace].Submodule[].Quotient[S := Cochain.boundariesInside].To[W := Actions.Carrier, target := Actions.space] \as Quotient;
+\import \parent.\parent.Cap[p := N.Nat^::zero, q := N.Nat^::zero].Bilinear[] \as Zero;
+\import Modules.Hom[V := Target.Cycle, W := Target.Homology, source := Target.cycleSpace, target := Target.homologySpace] \as Classes;
+\import Modules.Hom[V := Degree.Carrier Geometry.total, W := TargetDegree.Carrier N.Nat^::zero, source := Degree.space Geometry.total, target := TargetDegree.space N.Nat^::zero] \as CapMaps;
+\definition cycleZero: \forall (x: Source.Cycle) -> \parent.On[alpha := (Cochain.cycleSpace).zero].cycle x = (Target.cycleSpace).zero :=
+  \fun (x: Source.Cycle) => congr!{CapMaps.Map {TargetDegree.Carrier N.Nat^::zero}} (\fun (f: CapMaps.Map) => (f).apply x) _ _ Zero.zero;
+\definition zeroValue: value (Cochain.cycleSpace).zero = Actions.zero := ActionMaps.ext _ _
+  (Source.classInduction (\fun (x: Source.Homology) => (value (Cochain.cycleSpace).zero).apply x = (Target.homologySpace).zero)
+    (\fun (x: Source.Cycle) => eq_reason_in!{Target.Homology _
+      "=" _ "by" { \parent.On[alpha := (Cochain.cycleSpace).zero].onClass x }
+      "=" _ "by" { congr!{Target.Cycle Target.Homology} Target.classOf _ _ (cycleZero x) }
+      "=" _ "by" { Classes.zeroPreserved Target.classLinear }
+    }));
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing].Integer[P := First.complex, N := Cochains.integerCoefficients] \as Hom;
+\import Hom.Cohomology[z := I.Int^::ofNat N.Nat^::zero] \as Native;
+\import FirstCap.ZeroHomology[q := N.Nat^::zero] \as ZeroChains;
+\definition priorZero: \forall (h: FirstCochains.Carrier (I.Int^::negSucc N.Nat^::zero)) -> (Cochain.prior).apply h = (Theory.space (I.Int^::ofNat N.Nat^::zero)).zero :=
+  \fun (h: FirstCochains.Carrier (I.Int^::negSucc N.Nat^::zero)) => Hom.At[z := I.Int^::ofNat N.Nat^::zero].ext _ _
+    (\fun (x: First.Carrier (I.Int^::ofNat N.Nat^::zero)) => trans!{I.Int^} _ _ _ (Native.priorOnElement h x)
+      (trans!{I.Int^} _ _ _ (congr!{{First.Carrier (I.Int^::negSucc N.Nat^::zero)} I.Int^} ((h).apply) _ _ (ZeroChains.negativeZero ((First.complex.differential).apply (I.Int^::ofNat N.Nat^::zero) x)))
+        (Hom.At[z := I.Int^::negSucc N.Nat^::zero].zeroPreserved h)));
+\definition vanishes: Quotient.Vanishes raw := \block {
+  \fun (alpha: Cochain.Closed)(member: _) \then
+  \takefrom gamma: \Cast[FirstCochains.Carrier (I.Int^::negSucc N.Nat^::zero)] ({ gamma: FirstCochains.Carrier (I.Int^::negSucc N.Nat^::zero) \where (Cochain.prior).apply gamma = alpha }) \by member \then
+  \let equal: alpha = (Cochain.cycleSpace).zero := trans!{{FirstCochains.Carrier (I.Int^::ofNat N.Nat^::zero)}} _ _ _
+    (sym!{{FirstCochains.Carrier (I.Int^::ofNat N.Nat^::zero)}} _ _ (\bysub(FirstCochains.Carrier (I.Int^::negSucc N.Nat^::zero), { gamma: FirstCochains.Carrier (I.Int^::negSucc N.Nat^::zero) \where (Cochain.prior).apply gamma = alpha }, gamma))) (priorZero gamma) \then
+  \let result: value alpha = Actions.zero := trans!{Actions.Carrier} _ _ _ (congr!{Cochain.Closed Actions.Carrier} value _ _ equal) zeroValue \then
+  \return result
+};
+\definition map: Modules.Hom[V := Cochain.Cohomology, W := Actions.Carrier, source := Cochain.cohomologySpace, target := Actions.space].Map := Quotient.descend raw vanishes;
+\definition onClass: \forall (alpha: Cochain.Closed) -> (map).apply (Cochain.classOf alpha) = value alpha := Quotient.onClass raw vanishes;

@@ -1,0 +1,38 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import Nonnegative.ZeroExtension[C := Chains.complex] \as WholeExtension;
+\import Nonnegative.ZeroExtension[C := SubChains.complex] \as SubExtension;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.Quotient[C := SubExtension.complex, D := WholeExtension.complex].On[f := Relative.inclusionMap] \as Q;
+\import Q.At[k := I.Int^::ofNat Whole.total] \as SourceQ;
+\import Q.At[k := I.Int^::ofNat p] \as TargetQ;
+\import WholeExtension.Positive[n := Whole.total] \as SourcePositive;
+\import WholeExtension.Positive[n := p] \as TargetPositive;
+\import SubExtension.Positive[n := p] \as SubPositive;
+\import Modules.Hom[V := Chains.Carrier Whole.total, W := Chains.Carrier p, source := Chains.space Whole.total, target := Chains.space p].Composition[U := WholeExtension.Carrier (I.Int^::ofNat Whole.total), domain := WholeExtension.space (I.Int^::ofNat Whole.total)] \as First;
+\import Modules.Hom[V := Chains.Carrier p, W := WholeExtension.Carrier (I.Int^::ofNat p), source := Chains.space p, target := WholeExtension.space (I.Int^::ofNat p)].Composition[U := WholeExtension.Carrier (I.Int^::ofNat Whole.total), domain := WholeExtension.space (I.Int^::ofNat Whole.total)] \as Second;
+\import Modules.Hom[V := WholeExtension.Carrier (I.Int^::ofNat p), W := TargetQ.Carrier, source := WholeExtension.space (I.Int^::ofNat p), target := TargetQ.space].Composition[U := WholeExtension.Carrier (I.Int^::ofNat Whole.total), domain := WholeExtension.space (I.Int^::ofNat Whole.total)] \as Third;
+\import Modules.Hom[V := WholeExtension.Carrier (I.Int^::ofNat Whole.total), W := TargetQ.Carrier, source := WholeExtension.space (I.Int^::ofNat Whole.total), target := TargetQ.space] \as RawMaps;
+\definition raw[beta: Cochains.Carrier q]: RawMaps.Map := Third.compose TargetQ.projection (Second.compose TargetPositive.forward (First.compose (Whole.map beta) SourcePositive.backward));
+\import Modules.Of[V := WholeExtension.Carrier (I.Int^::ofNat Whole.total), space := WholeExtension.space (I.Int^::ofNat Whole.total)].Submodule[] \as SourceSub;
+\import SourceSub.Quotient[S := SourceQ.image] \as SourceQuotient;
+\import SourceQuotient.To[W := TargetQ.Carrier, target := TargetQ.space] \as Descend;
+\import SourceSub.Image[U := SubExtension.Carrier (I.Int^::ofNat Whole.total), source := SubExtension.space (I.Int^::ofNat Whole.total)] \as Images;
+\import Complexes.Map[C := SubExtension.complex, D := WholeExtension.complex].At[k := I.Int^::ofNat Whole.total] \as InclusionAt;
+\definition vanishes: \forall (beta: Cochains.Carrier q) -> Descend.Vanishes (raw beta) :=
+  \fun (beta: Cochains.Carrier q)(y: WholeExtension.Carrier (I.Int^::ofNat Whole.total))(member: SourceSub.Member SourceQ.image y) =>
+    Images.eliminate (InclusionAt.linear Relative.inclusionMap) y ((raw beta).apply y = (TargetQ.space).zero)
+      (\fun (x: SubExtension.Carrier (I.Int^::ofNat Whole.total))(equal: (Relative.inclusionMap).apply (I.Int^::ofNat Whole.total) x = y) => eq_reason_in!{TargetQ.Carrier _
+        "=" _ "by" { congr!{{WholeExtension.Carrier (I.Int^::ofNat Whole.total)} TargetQ.Carrier} ((raw beta).apply) _ _ (sym!{{WholeExtension.Carrier (I.Int^::ofNat Whole.total)}} _ _ equal) }
+        "=" _ "by" { congr!{{Chains.Carrier p} TargetQ.Carrier} (\fun (v: Chains.Carrier p) => TargetQ.class (TargetPositive.intro v)) _ _ (law beta x) }
+        "=" _ "by" { TargetQ.onImage (SubPositive.intro ((Sub.map (Pull.apply q Relative.inclusion Relative.inclusionContinuous beta)).apply x)) }
+      }) member;
+\definition map[beta: Cochains.Carrier q]: Modules.Hom[V := SourceQ.Carrier, W := TargetQ.Carrier, source := SourceQ.space, target := TargetQ.space].Map := Descend.descend (raw beta) (vanishes beta);
+\definition onClass: \forall (beta: Cochains.Carrier q)(x: WholeExtension.Carrier (I.Int^::ofNat Whole.total)) ->
+  (map beta).apply (SourceQ.class x) = TargetQ.class (TargetPositive.intro ((Whole.map beta).apply x)) :=
+  \fun (beta: Cochains.Carrier q) => Descend.onClass (raw beta) (vanishes beta);
+\module Bilinear;

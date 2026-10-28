@@ -1,0 +1,17 @@
+\definition output: N.Nat^ := N.Nat^::succ a;
+\definition cochain: N.Nat^ := N.Nat^::succ b;
+\import singular_cohomology.Simplices[A := Product.CarrierSet, source := External.topology].CutFaces[p := a, q := cochain] \as Geometry;
+\import CapNatural.Cohomology[p := a, r := b] \as Natural;
+\import SourcePair.CohomologyAction[p := a, r := b].Descent[] \as Before;
+\import FinalPair.CohomologyAction[p := a, r := b].Descent[] \as After;
+\import Cochains.At[C := TargetTheory.complex, k := cochain] \as HCochain;
+\import Cochains.Map[C := TargetTheory.complex, D := SourceTheory.complex].At[k := cochain] \as PullbackAt;
+\import Complexes.At[C := FinalRelative.complex, z := I.Int^::ofNat output] \as Output;
+\definition law: \forall (same: Whole.degree p q = Geometry.higher)(beta: HCochain.Cohomology)(x: L.Homology)(y: R.Homology) ->
+  (UnionMap.At[z := I.Int^::ofNat output].induced).apply (((Before.map).apply ((PullbackAt.induced pullback).apply beta)).apply (Transport.cast SourceHomology (Whole.degree p q) Geometry.higher same (SourceCross.apply p q x y))) =
+  ((After.map).apply beta).apply (Transport.cast TargetHomology (Whole.degree p q) Geometry.higher same (FinalCross.apply p q ((LeftMap.At[z := I.Int^::ofNat p].induced).apply x) ((RightMap.At[z := I.Int^::ofNat q].induced).apply y))) :=
+  \fun (same: Whole.degree p q = Geometry.higher)(beta: HCochain.Cohomology)(x: L.Homology)(y: R.Homology) => eq_reason_in!{Output.Homology _
+    "=" _ "by" { Natural.law beta (Transport.cast SourceHomology (Whole.degree p q) Geometry.higher same (SourceCross.apply p q x y)) }
+    "=" _ "by" { congr!{{TargetHomology Geometry.higher} Output.Homology} (((After.map).apply beta).apply) _ _ (shiftNaturality Geometry.higher same (SourceCross.apply p q x y)) }
+    "=" _ "by" { congr!{{TargetHomology (Whole.degree p q)} Output.Homology} (\fun (z: TargetHomology (Whole.degree p q)) => ((After.map).apply beta).apply (Transport.cast TargetHomology (Whole.degree p q) Geometry.higher same z)) _ _ (CrossNatural.law p q x y) }
+  };

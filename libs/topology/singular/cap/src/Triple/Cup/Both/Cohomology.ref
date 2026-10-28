@@ -1,0 +1,80 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import \parent.Closed[] \as Closed;
+\import \root.Triple[A := A, source := source, first := first, second := second].CommonComplex[] \as CommonComplex;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as IntegerComplexes;
+\import IntegerComplexes.At[C := FirstCochains.complex, z := I.Int^::ofNat p] \as FirstInput;
+\import IntegerComplexes.At[C := SecondCochains.complex, z := I.Int^::ofNat q] \as SecondInput;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring].At[C := CommonComplex.complex, k := total] \as Output;
+\import FirstComparison.Linear[] \as FirstLinear;
+\import SecondComparison.Linear[] \as SecondLinear;
+\import Whole.Bilinear[] \as ProductLaws;
+\import commutative_algebra.Modules[R := I.Int^, ring := Integers.commutativeRing] \as Commutative;
+\definition firstCycles: Modules.Bundle := Modules.Bundle { Carrier := FirstInput.Closed, space := FirstInput.cycleSpace };
+\definition secondCycles: Modules.Bundle := Modules.Bundle { Carrier := SecondInput.Closed, space := SecondInput.cycleSpace };
+\definition output: Modules.Bundle := Modules.Bundle { Carrier := Output.Cohomology, space := Output.cohomologySpace };
+\import Commutative.Bilinear[A := firstCycles, B := secondCycles, C := output] \as Bilinear;
+\definition cycleAddLeft: \forall (x, y: FirstInput.Closed)(z: SecondInput.Closed) ->
+  Closed.cycle (FirstInput.cycleSpace.add x y) z = Output.cycleSpace.add (Closed.cycle x z) (Closed.cycle y z) :=
+  \fun (x, y: FirstInput.Closed)(z: SecondInput.Closed) => trans!{{Cochains.Carrier total}} _ _ _
+    (congr!{{Cochains.Carrier p} {Cochains.Carrier total}} (\fun (a: Cochains.Carrier p) => Whole.apply a (SecondComparison.from z)) _ _ (FirstLinear.addition x y))
+    (ProductLaws.leftAdd (FirstComparison.from x) (FirstComparison.from y) (SecondComparison.from z));
+\definition cycleAddRight: \forall (x: FirstInput.Closed)(y, z: SecondInput.Closed) ->
+  Closed.cycle x (SecondInput.cycleSpace.add y z) = Output.cycleSpace.add (Closed.cycle x y) (Closed.cycle x z) :=
+  \fun (x: FirstInput.Closed)(y, z: SecondInput.Closed) => trans!{{Cochains.Carrier total}} _ _ _
+    (congr!{{Cochains.Carrier q} {Cochains.Carrier total}} (Whole.apply (FirstComparison.from x)) _ _ (SecondLinear.addition y z))
+    (ProductLaws.rightAdd (FirstComparison.from x) (SecondComparison.from y) (SecondComparison.from z));
+\import CommonComplex.Scalar[] \as Scalar;
+\import First.OverRing[R := I.Int^, ring := Integers.commutativeRing].With[coefficients := Cochains.coefficients] \as FirstRing;
+\import Second.OverRing[R := I.Int^, ring := Integers.commutativeRing].With[coefficients := Cochains.coefficients] \as SecondRing;
+\import Modules.Hom[V := First.Carrier (I.Int^::ofNat p), W := I.Int^, source := First.space (I.Int^::ofNat p), target := Cochains.integerCoefficients.space] \as FirstMaps;
+\import Modules.Hom[V := Second.Carrier (I.Int^::ofNat q), W := I.Int^, source := Second.space (I.Int^::ofNat q), target := Cochains.integerCoefficients.space] \as SecondMaps;
+\import Modules.Hom[V := Chains.Carrier total, W := I.Int^, source := Chains.space total, target := Cochains.integerCoefficients.space] \as WholeMaps;
+\definition firstScalar: \forall (a: I.Int^)(x: FirstCochains.Carrier (I.Int^::ofNat p)) ->
+  (FirstRing.space (I.Int^::ofNat p)).smul a x = (FirstCochains.space (I.Int^::ofNat p)).smul a x :=
+  \fun (a: I.Int^)(x: FirstCochains.Carrier (I.Int^::ofNat p)) => FirstMaps.ext _ _ (\fun (v: First.Carrier (I.Int^::ofNat p)) => Scalar.equal a (x.apply v));
+\definition secondScalar: \forall (a: I.Int^)(x: SecondCochains.Carrier (I.Int^::ofNat q)) ->
+  (SecondRing.space (I.Int^::ofNat q)).smul a x = (SecondCochains.space (I.Int^::ofNat q)).smul a x :=
+  \fun (a: I.Int^)(x: SecondCochains.Carrier (I.Int^::ofNat q)) => SecondMaps.ext _ _ (\fun (v: Second.Carrier (I.Int^::ofNat q)) => Scalar.equal a (x.apply v));
+\import singular_cohomology.Cochains[A := A, source := source].With[coefficients := Cochains.integerCoefficients] \as Ordinary;
+\definition wholeScalar: \forall (a: I.Int^)(x: Cochains.Carrier total) ->
+  (Cochains.space total).smul a x = (Ordinary.space total).smul a x :=
+  \fun (a: I.Int^)(x: Cochains.Carrier total) => WholeMaps.ext _ _ (\fun (v: Chains.Carrier total) => Scalar.equal a (x.apply v));
+\definition cycleScaleLeft: \forall (a: I.Int^)(x: FirstInput.Closed)(z: SecondInput.Closed) ->
+  Closed.cycle (FirstInput.cycleSpace.smul a x) z = Output.cycleSpace.smul a (Closed.cycle x z) :=
+  \fun (a: I.Int^)(x: FirstInput.Closed)(z: SecondInput.Closed) => eq_reason_in!{{Cochains.Carrier total} _
+    "=" _ "by" { congr!{{FirstCochains.Carrier (I.Int^::ofNat p)} {Cochains.Carrier total}} (\fun (v: FirstCochains.Carrier (I.Int^::ofNat p)) => Whole.apply (FirstComparison.from v) (SecondComparison.from z)) _ _ (sym!{{FirstCochains.Carrier (I.Int^::ofNat p)}} _ _ (firstScalar a x)) }
+    "=" _ "by" { congr!{{Cochains.Carrier p} {Cochains.Carrier total}} (\fun (v: Cochains.Carrier p) => Whole.apply v (SecondComparison.from z)) _ _ (FirstLinear.scalar a x) }
+    "=" _ "by" { ProductLaws.leftScale a (FirstComparison.from x) (SecondComparison.from z) }
+    "=" _ "by" { wholeScalar a (Whole.apply (FirstComparison.from x) (SecondComparison.from z)) }
+  };
+\definition cycleScaleRight: \forall (a: I.Int^)(x: FirstInput.Closed)(z: SecondInput.Closed) ->
+  Closed.cycle x (SecondInput.cycleSpace.smul a z) = Output.cycleSpace.smul a (Closed.cycle x z) :=
+  \fun (a: I.Int^)(x: FirstInput.Closed)(z: SecondInput.Closed) => eq_reason_in!{{Cochains.Carrier total} _
+    "=" _ "by" { congr!{{SecondCochains.Carrier (I.Int^::ofNat q)} {Cochains.Carrier total}} (\fun (v: SecondCochains.Carrier (I.Int^::ofNat q)) => Whole.apply (FirstComparison.from x) (SecondComparison.from v)) _ _ (sym!{{SecondCochains.Carrier (I.Int^::ofNat q)}} _ _ (secondScalar a z)) }
+    "=" _ "by" { congr!{{Cochains.Carrier q} {Cochains.Carrier total}} (Whole.apply (FirstComparison.from x)) _ _ (SecondLinear.scalar a z) }
+    "=" _ "by" { ProductLaws.rightScale a (FirstComparison.from x) (SecondComparison.from z) }
+    "=" _ "by" { wholeScalar a (Whole.apply (FirstComparison.from x) (SecondComparison.from z)) }
+  };
+\definition onCycles: Bilinear.Map := Bilinear.Map {
+  apply := \fun (x: FirstInput.Closed)(y: SecondInput.Closed) => Closed.onCycles x y,
+  addLeft := \fun (x, y: FirstInput.Closed)(z: SecondInput.Closed) => trans!{Output.Cohomology} _ _ _ (congr!{Output.CycleCarrier Output.Cohomology} Output.classOf _ _ (cycleAddLeft x y z)) (Output.classLinear.addition (Closed.cycle x z) (Closed.cycle y z)),
+  addRight := \fun (x: FirstInput.Closed)(y, z: SecondInput.Closed) => trans!{Output.Cohomology} _ _ _ (congr!{Output.CycleCarrier Output.Cohomology} Output.classOf _ _ (cycleAddRight x y z)) (Output.classLinear.addition (Closed.cycle x y) (Closed.cycle x z)),
+  scaleLeft := \fun (a: I.Int^)(x: FirstInput.Closed)(z: SecondInput.Closed) => trans!{Output.Cohomology} _ _ _ (congr!{Output.CycleCarrier Output.Cohomology} Output.classOf _ _ (cycleScaleLeft a x z)) (Output.classLinear.scalar a (Closed.cycle x z)),
+  scaleRight := \fun (a: I.Int^)(x: FirstInput.Closed)(z: SecondInput.Closed) => trans!{Output.Cohomology} _ _ _ (congr!{Output.CycleCarrier Output.Cohomology} Output.classOf _ _ (cycleScaleRight a x z)) (Output.classLinear.scalar a (Closed.cycle x z)),
+};
+\import \root.Triple[A := A, source := source, first := first, second := second].Boundaries[] \as Boundaries;
+\import Bilinear.Quotients[S := FirstInput.boundariesInside, T := SecondInput.boundariesInside] \as Quotients;
+\definition leftVanishes: Quotients.VanishesLeft onCycles :=
+  \fun (x: FirstInput.Closed)(y: SecondInput.Closed)(boundary: _) => Output.boundaryClassZero (Closed.cycle x y)
+    (Boundaries.left p q x y (\bysub(SecondCochains.Carrier (I.Int^::ofNat q), SecondInput.cycles.carrier, y)) boundary);
+\definition rightVanishes: Quotients.VanishesRight onCycles :=
+  \fun (x: FirstInput.Closed)(y: SecondInput.Closed)(boundary: _) => Output.boundaryClassZero (Closed.cycle x y)
+    (Boundaries.right p q x y (\bysub(FirstCochains.Carrier (I.Int^::ofNat p), FirstInput.cycles.carrier, x)) boundary);
+\definition bilinear: Quotients.QuotientMap := Quotients.descend onCycles leftVanishes rightVanishes;
+\definition apply: FirstInput.Cohomology -> SecondInput.Cohomology -> Output.Cohomology := bilinear.apply;
+\definition onClasses: \forall (x: FirstInput.Closed)(y: SecondInput.Closed) ->
+  apply (FirstInput.classOf x) (SecondInput.classOf y) = Output.classOf (Closed.cycle x y) := Quotients.onClasses onCycles leftVanishes rightVanishes;

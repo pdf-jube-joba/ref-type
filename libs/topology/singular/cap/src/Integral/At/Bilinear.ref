@@ -1,0 +1,35 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\definition addition: \forall (beta, gamma: Cochains.Carrier q) ->
+  map ((Cochains.space q).add beta gamma) = Maps.plus (map beta) (map gamma) :=
+  \fun (beta, gamma: Cochains.Carrier q) => Free.ext _ _ (\fun (sigma: Simplices.Carrier total) => eq_reason_in!{{Chains.Carrier p} _
+    "=" _ "by" { onGenerator ((Cochains.space q).add beta gamma) sigma }
+    "=" _ "by" { (Chains.space p).scalarAdd ((beta).apply (Chains.generator q (Cut.back sigma))) ((gamma).apply (Chains.generator q (Cut.back sigma))) (Chains.generator p (Cut.front sigma)) }
+    "=" _ "by" { congr!{{Chains.Carrier p} {Chains.Carrier p} {Chains.Carrier p}} ((Chains.space p).add) _ _ _ _ (sym!{{Chains.Carrier p}} _ _ (onGenerator beta sigma)) (sym!{{Chains.Carrier p}} _ _ (onGenerator gamma sigma)) }
+  });
+\import Modules.Hom[V := Chains.Carrier total, W := Chains.Carrier p, source := Chains.space total, target := Chains.space p] \as Hom;
+\definition scalarValue: \forall (a: I.Int^)(beta: Cochains.Carrier q)(x: Chains.Carrier total) ->
+  (map ((Cochains.space q).smul a beta)).apply x = (Chains.space p).smul a ((map beta).apply x) :=
+  \fun (a: I.Int^)(beta: Cochains.Carrier q) => \block {
+    \let scaled: Hom.Map := Hom.Map {
+      apply := \fun (x: Chains.Carrier total) => (Chains.space p).smul a ((map beta).apply x),
+      addition := \fun (x, y: Chains.Carrier total) => trans!{{Chains.Carrier p}} _ _ _
+        (congr!{{Chains.Carrier p} {Chains.Carrier p}} ((Chains.space p).smul a) _ _ ((map beta).addition x y))
+        ((Chains.space p).vectorAdd a ((map beta).apply x) ((map beta).apply y)),
+      scalar := \fun (b: I.Int^)(x: Chains.Carrier total) => eq_reason_in!{{Chains.Carrier p} _
+        "=" _ "by" { congr!{{Chains.Carrier p} {Chains.Carrier p}} ((Chains.space p).smul a) _ _ ((map beta).scalar b x) }
+        "=" _ "by" { sym!{{Chains.Carrier p}} _ _ ((Chains.space p).scalarAssoc a b ((map beta).apply x)) }
+        "=" _ "by" { congr!{I.Int^ {Chains.Carrier p}} (\fun (c: I.Int^) => (Chains.space p).smul c ((map beta).apply x)) _ _ ((Integers.commutativeRing).mulCommutative a b) }
+        "=" _ "by" { (Chains.space p).scalarAssoc b a ((map beta).apply x) }
+      },
+    } \then
+    \let equal: map ((Cochains.space q).smul a beta) = scaled := Free.ext _ _ (\fun (sigma: Simplices.Carrier total) => eq_reason_in!{{Chains.Carrier p} _
+      "=" _ "by" { onGenerator ((Cochains.space q).smul a beta) sigma }
+      "=" _ "by" { (Chains.space p).scalarAssoc a ((beta).apply (Chains.generator q (Cut.back sigma))) (Chains.generator p (Cut.front sigma)) }
+      "=" _ "by" { congr!{{Chains.Carrier p} {Chains.Carrier p}} ((Chains.space p).smul a) _ _ (sym!{{Chains.Carrier p}} _ _ (onGenerator beta sigma)) }
+    }) \then
+    \return \fun (x: Chains.Carrier total) => congr!{Hom.Map {Chains.Carrier p}} (\fun (f: Hom.Map) => (f).apply x) _ _ equal
+  };

@@ -1,0 +1,21 @@
+\import \parent.Part[S := first, contained := \fun (x: A)(member: \In[A] first x) => Logic.Or[\In[A] first x, \In[A] second x]::left member].At[n := n] \as FirstPart;
+\import \parent.Part[S := second, contained := \fun (x: A)(member: \In[A] second x) => Logic.Or[\In[A] first x, \In[A] second x]::right member].At[n := n] \as SecondPart;
+\import Pair.Comparison[n := n] \as UnionComparison;
+\import \root.Triple[A := A, source := source, first := first, second := second].Common[n := n] \as Common;
+\definition apply[h: RelativeCochains.Carrier (I.Int^::ofNat n)]: Common.Carrier :=
+  \into[Cochains.Carrier n](UnionComparison.from h, { x: Cochains.Carrier n \where Common.Conditions[x] }) \by {
+    Common.Conditions[UnionComparison.from h] { first := FirstPart.vanishes h, second := SecondPart.vanishes h }
+  };
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].ZeroExtension[C := Chains.complex].Positive[n := n] \as Positive;
+\import Modules.Hom[V := Chains.Carrier n, W := I.Int^, source := Chains.space n, target := Cochains.integerCoefficients.space] \as WholeMaps;
+\import Modules.Hom[V := RelativeCochains.Carrier (I.Int^::ofNat n), W := Common.Carrier, source := RelativeCochains.space (I.Int^::ofNat n), target := Common.space] \as Maps;
+\import singular_cohomology.Cochains[A := A, source := source].With[coefficients := Cochains.integerCoefficients] \as Theory;
+\definition addition: \forall (x, y: RelativeCochains.Carrier (I.Int^::ofNat n)) ->
+  apply ((RelativeCochains.space (I.Int^::ofNat n)).add x y) = (Common.space).add (apply x) (apply y) :=
+  \fun (x, y: RelativeCochains.Carrier (I.Int^::ofNat n)) => WholeMaps.ext (UnionComparison.from ((RelativeCochains.space (I.Int^::ofNat n)).add x y)) ((Theory.space n).add (UnionComparison.from x) (UnionComparison.from y)) (\fun (v: Chains.Carrier n) => \refl((Cochains.integerCoefficients.space).add ((x).apply (Relative.class (I.Int^::ofNat n) (Positive.intro v))) ((y).apply (Relative.class (I.Int^::ofNat n) (Positive.intro v)))));
+\definition scalar: \forall (a: I.Int^)(x: RelativeCochains.Carrier (I.Int^::ofNat n)) ->
+  apply ((RelativeCochains.space (I.Int^::ofNat n)).smul a x) = (Common.space).smul a (apply x) :=
+  \fun (a: I.Int^)(x: RelativeCochains.Carrier (I.Int^::ofNat n)) => WholeMaps.ext (UnionComparison.from ((RelativeCochains.space (I.Int^::ofNat n)).smul a x)) ((Theory.space n).smul a (UnionComparison.from x)) (\fun (v: Chains.Carrier n) => \refl((Cochains.integerCoefficients.space).smul a ((x).apply (Relative.class (I.Int^::ofNat n) (Positive.intro v)))));
+\definition map: Maps.Map := Maps.Map { apply := apply, addition := addition, scalar := scalar };
+\module Commutes;
+\module Cohomology;

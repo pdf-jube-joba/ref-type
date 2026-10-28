@@ -1,0 +1,25 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import \parent.Commutes[] \as Commutes;
+\import \parent.\parent.Comparison[n := N.Nat^::succ n] \as Higher;
+\import \parent.\parent.Boundaries[] \as Boundaries;
+\import \root.Triple[A := A, source := source, first := first, second := second].CommonComplex[] \as CommonComplex;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring].At[C := RelativeCochains.complex, z := I.Int^::ofNat n] \as Source;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring].At[C := CommonComplex.complex, k := n] \as Target;
+\import Modules.Hom[V := RelativeCochains.Carrier (I.Int^::ofNat (N.Nat^::succ n)), W := CommonComplex.family.Carrier (N.Nat^::succ n), source := RelativeCochains.space (I.Int^::ofNat (N.Nat^::succ n)), target := CommonComplex.family.space (N.Nat^::succ n)] \as HigherMaps;
+\definition cycle[h: Source.Closed]: Target.CycleCarrier := Target.cycle (apply h)
+  (trans!{{CommonComplex.family.Carrier (N.Nat^::succ n)}} _ _ _ (sym!{{CommonComplex.family.Carrier (N.Nat^::succ n)}} _ _ (Commutes.law h))
+    (trans!{{CommonComplex.family.Carrier (N.Nat^::succ n)}} _ _ _
+      (congr!{{RelativeCochains.Carrier (I.Int^::ofNat (N.Nat^::succ n))} {CommonComplex.family.Carrier (N.Nat^::succ n)}} Higher.apply _ _
+        (\bysub(RelativeCochains.Carrier (I.Int^::ofNat n), Source.cycles.carrier, h)))
+      (HigherMaps.zeroPreserved Higher.map)));
+\import Modules.Hom[V := Source.Closed, W := Target.CycleCarrier, source := Source.cycleSpace, target := Target.cycleSpace] \as CycleMaps;
+\definition cycles: CycleMaps.Map := CycleMaps.Map { apply := cycle, addition := \fun (x, y: Source.Closed) => addition x y, scalar := \fun (a: I.Int^)(x: Source.Closed) => scalar a x };
+\import Modules.Hom[V := Target.CycleCarrier, W := Target.Cohomology, source := Target.cycleSpace, target := Target.cohomologySpace].Composition[U := Source.Closed, domain := Source.cycleSpace] \as Composition;
+\definition raw: Modules.Hom[V := Source.Closed, W := Target.Cohomology, source := Source.cycleSpace, target := Target.cohomologySpace].Map := Composition.compose Target.classLinear cycles;
+\import Modules.Of[V := Source.Closed, space := Source.cycleSpace].Submodule[].Quotient[S := Source.boundariesInside].To[W := Target.Cohomology, target := Target.cohomologySpace] \as Descent;
+\definition vanishes: Descent.Vanishes raw := \fun (x: Source.Closed)(member: _) => Target.boundaryClassZero (cycle x) (Boundaries.law n x member);
+\definition map: Modules.Hom[V := Source.Cohomology, W := Target.Cohomology, source := Source.cohomologySpace, target := Target.cohomologySpace].Map := Descent.descend raw vanishes;
+\definition onClass: \forall (x: Source.Closed) -> (map).apply (Source.classOf x) = Target.classOf (cycle x) := Descent.onClass raw vanishes;

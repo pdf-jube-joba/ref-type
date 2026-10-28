@@ -1,0 +1,39 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import std.Logic[].Proposition[] \as Logic;
+\import Pair.Degree[] \as Degree;
+\import Degree.Boundaries[] \as SourceBoundaries;
+\import Degree.BoundaryZero[] \as SourceZero;
+\import \root.Triple[A := A, source := source, first := first, second := second].CommonComplex[] \as Common;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\definition Property[n: N.Nat^]: \Prop := \forall (h: Degree.Carrier n) -> SourceBoundaries.Member n h ->
+  \In[Common.family.Carrier n] (Complexes.At[C := Common.complex, k := n].Boundaries n) (\parent.Comparison[n := n].apply h);
+\module Zero {
+  \import \parent.\parent.Comparison[n := N.Nat^::zero] \as Comparison;
+  \import Modules.Hom[V := Degree.Carrier N.Nat^::zero, W := Common.family.Carrier N.Nat^::zero, source := RelativeCochains.space (I.Int^::ofNat N.Nat^::zero), target := Common.family.space N.Nat^::zero] \as Maps;
+  \definition law: Property N.Nat^::zero :=
+    \fun (h: Degree.Carrier N.Nat^::zero)(member: _) => trans!{{Common.family.Carrier N.Nat^::zero}} _ _ _
+      (congr!{{Degree.Carrier N.Nat^::zero} {Common.family.Carrier N.Nat^::zero}} Comparison.apply _ _ (SourceZero.law h member))
+      (Maps.zeroPreserved Comparison.map);
+}
+\module Step(k: N.Nat^) {
+  \import \parent.\parent.Comparison[n := k] \as Lower;
+  \import Lower.Commutes[] \as Commutes;
+  \import \parent.\parent.Comparison[n := N.Nat^::succ k] \as Higher;
+  \definition law: Property (N.Nat^::succ k) := \block {
+    \fun (h: Degree.Carrier (N.Nat^::succ k))(member: _) \then
+    \takefrom gamma: \Cast[Degree.Carrier k] ({ g: Degree.Carrier k \where Degree.differential k g = h }) \by member \then
+    \let equal: Degree.differential k gamma = h := \bysub(Degree.Carrier k, { g: Degree.Carrier k \where Degree.differential k g = h }, gamma) \then
+    \return Logic.existsIntro[Common.family.Carrier k, { x: Common.family.Carrier k \where Common.complex.differential.apply k x = Higher.apply h }]
+      (Lower.apply gamma) (trans!{{Common.family.Carrier (N.Nat^::succ k)}} _ _ _
+        (sym!{{Common.family.Carrier (N.Nat^::succ k)}} _ _ (Commutes.law gamma))
+        (congr!{{Degree.Carrier (N.Nat^::succ k)} {Common.family.Carrier (N.Nat^::succ k)}} Higher.apply _ _ equal))
+  };
+}
+\definition law: \forall (n: N.Nat^) -> Property n :=
+  \induction (n: N.Nat^) \return Property n \with {
+    | zero: Zero[].law
+    | succ: \fun (k: N.Nat^)(unused: _) => Step[k := k].law
+  };

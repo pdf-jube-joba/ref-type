@@ -1,0 +1,72 @@
+\import singular_excision.Excision[A := A].Over[source := source] \as Excision;
+\import Excision.On[pair := pair].Chains[].Ordinary[] \as Inclusion;
+\import topology.Topology[Carrier := A] \as Top;
+\import Top.Subspace[S := Top.Complement ((pair).removed)] \as Remaining;
+\definition subset: \Pow Remaining.CarrierSet := { x: Remaining.CarrierSet \where \In[A] ((pair).subset) x };
+\import singular_cohomology.Relative[A := Remaining.CarrierSet, source := Remaining.topology source, subset := subset] \as Source;
+\import singular_cohomology.Relative[A := A, source := source, subset := (pair).subset] \as Target;
+\import \root.Integral[A := Remaining.CarrierSet, source := Remaining.topology source].Pair[subset := subset] \as SourceCap;
+\import \root.Integral[A := A, source := source].Pair[subset := (pair).subset] \as TargetCap;
+\import Source.Maps[B := A].Over[target := source, targetSubset := (pair).subset] \as PairMaps;
+\import PairMaps.On[f := Inclusion.inclusion].Integer[] \as Map;
+\import singular_products.Cochains[A := Remaining.CarrierSet, source := Remaining.topology source, R := I.Int^, ring := Integers.commutativeRing].Pullback[B := A, target := source] \as Pull;
+\module At(p, q: N.Nat^) {
+  \import SourceCap.At[p := p, q := q].Quotient[] \as Before;
+  \import TargetCap.At[p := p, q := q].Quotient[] \as After;
+  \import \root.Integral[A := A, source := source].At[p := p, q := q] \as Whole;
+  \import SourceCap.Natural[B := A, target := source, targetSubset := (pair).subset].On[f := Inclusion.inclusion].At[p := p, q := q] \as Natural;
+  \definition law: \forall (beta: Cochains.Carrier q)(x: Source.Carrier (I.Int^::ofNat Whole.total)) ->
+    (Map.map).apply (I.Int^::ofNat p) ((Before.map (Pull.apply q Inclusion.inclusion (PairMaps.laws Inclusion.inclusion).continuous beta)).apply x) =
+    (After.map beta).apply ((Map.map).apply (I.Int^::ofNat Whole.total) x) := Natural.law;
+}
+\import singular_cohomology.Cochains[A := A, source := source].With[coefficients := Cochains.integerCoefficients] \as WholeTheory;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring] \as CochainComplexes;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as ChainComplexes;
+\import singular_cohomology.Simplices[A := A, source := source] \as WholeSimplices;
+\module Homology(p, q: N.Nat^) {
+  \import SourceCap.Natural[B := A, target := source, targetSubset := (pair).subset].On[f := Inclusion.inclusion].Homology[p := p, q := q] \as Natural;
+  \import CochainComplexes.At[C := WholeTheory.complex, k := q] \as Cocycle;
+  \import WholeSimplices.CutFaces[p := p, q := q] \as Geometry;
+  \import ChainComplexes.At[C := Source.complex, z := I.Int^::ofNat Geometry.higher] \as Input;
+  \module On(beta: Cocycle.CycleCarrier) {
+    \import SourceCap.Homology[p := p, q := q].On[beta := Pull.apply q Inclusion.inclusion (PairMaps.laws Inclusion.inclusion).continuous beta, closed := Natural.pulledClosed beta].Induced[] \as Before;
+    \import TargetCap.Homology[p := p, q := q].On[beta := beta, closed := \bysub(Cochains.Carrier q, Cocycle.cycles.carrier, beta)].Induced[] \as After;
+    \definition law: \forall (x: Input.Homology) ->
+      ((\parent.\parent.Isomorphism[n := N.Nat^::succ p].isomorphism).forward).apply ((Before.map).apply x) =
+      (After.map).apply (((\parent.\parent.Isomorphism[n := Geometry.higher].isomorphism).forward).apply x) := Natural.On[beta := beta].law;
+  }
+}
+\module ZeroHomology(q: N.Nat^) {
+  \import SourceCap.Natural[B := A, target := source, targetSubset := (pair).subset].On[f := Inclusion.inclusion].ZeroHomology[q := q] \as Natural;
+  \import CochainComplexes.At[C := WholeTheory.complex, k := q] \as Cocycle;
+  \import \root.Integral[A := A, source := source].At[p := N.Nat^::zero, q := q] \as Whole;
+  \import ChainComplexes.At[C := Source.complex, z := I.Int^::ofNat Whole.total] \as Input;
+  \module On(beta: Cocycle.CycleCarrier) {
+    \import SourceCap.ZeroHomology[q := q].On[beta := Pull.apply q Inclusion.inclusion (PairMaps.laws Inclusion.inclusion).continuous beta, closed := Natural.pulledClosed beta].Induced[] \as Before;
+    \import TargetCap.ZeroHomology[q := q].On[beta := beta, closed := \bysub(Cochains.Carrier q, Cocycle.cycles.carrier, beta)].Induced[] \as After;
+    \definition law: \forall (x: Input.Homology) ->
+      ((\parent.\parent.Isomorphism[n := N.Nat^::zero].isomorphism).forward).apply ((Before.map).apply x) =
+      (After.map).apply (((\parent.\parent.Isomorphism[n := Whole.total].isomorphism).forward).apply x) := Natural.On[beta := beta].law;
+  }
+}
+\module Isomorphism(n: N.Nat^) {
+  \import Excision.On[pair := pair].Chains[].Homology[z := I.Int^::ofNat n] \as Native;
+  \definition map: _ := Native.induced;
+  \definition isomorphism: _ := Native.isomorphism;
+}
+\module Cohomology(p, r: N.Nat^) {
+  \import SourceCap.Natural[B := A, target := source, targetSubset := (pair).subset].On[f := Inclusion.inclusion].Cohomology[p := p, r := r] \as Natural;
+  \definition law: _ := Natural.law;
+}
+\module CohomologyZero(p: N.Nat^) {
+  \import SourceCap.Natural[B := A, target := source, targetSubset := (pair).subset].On[f := Inclusion.inclusion].CohomologyZero[p := p] \as Natural;
+  \definition law: _ := Natural.law;
+}
+\module CohomologyZeroTarget(r: N.Nat^) {
+  \import SourceCap.Natural[B := A, target := source, targetSubset := (pair).subset].On[f := Inclusion.inclusion].CohomologyZeroTarget[r := r] \as Natural;
+  \definition law: _ := Natural.law;
+}
+\module CohomologyZeroZero {
+  \import SourceCap.Natural[B := A, target := source, targetSubset := (pair).subset].On[f := Inclusion.inclusion].CohomologyZeroZero[] \as Natural;
+  \definition law: _ := Natural.law;
+}

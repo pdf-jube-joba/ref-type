@@ -1,0 +1,31 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import \parent.Scalar[] \as Scalar;
+\import Modules.Tensor[V := Chains.Carrier p, W := Chains.Carrier q, left := Chains.space p, right := Chains.space q] \as Tensor;
+\import Tensor.Universal[U := Chains.Carrier p, target := Chains.space p] \as Universal;
+\definition value[beta: Cochains.Carrier q][x: Chains.Carrier p][y: Chains.Carrier q]: Chains.Carrier p :=
+  (Chains.space p).smul ((beta).apply y) x;
+\definition laws[beta: Cochains.Carrier q]: Tensor.BilinearLaws[Chains.Carrier p, Chains.space p, value beta] :=
+  Tensor.BilinearLaws[Chains.Carrier p, Chains.space p, value beta] {
+    addLeft := \fun (x, xPrime: Chains.Carrier p)(y: Chains.Carrier q) => (Chains.space p).vectorAdd ((beta).apply y) x xPrime,
+    addRight := \fun (x: Chains.Carrier p)(y, yPrime: Chains.Carrier q) => trans!{{Chains.Carrier p}} _ _ _
+      (congr!{I.Int^ {Chains.Carrier p}} (\fun (a: I.Int^) => (Chains.space p).smul a x) _ _ ((beta).addition y yPrime))
+      ((Chains.space p).scalarAdd ((beta).apply y) ((beta).apply yPrime) x),
+    scaleLeft := \fun (a: I.Int^)(x: Chains.Carrier p)(y: Chains.Carrier q) => eq_reason_in!{{Chains.Carrier p} _
+      "=" _ "by" { sym!{{Chains.Carrier p}} _ _ ((Chains.space p).scalarAssoc ((beta).apply y) a x) }
+      "=" _ "by" { congr!{I.Int^ {Chains.Carrier p}} (\fun (b: I.Int^) => (Chains.space p).smul b x) _ _ ((Integers.commutativeRing).mulCommutative ((beta).apply y) a) }
+      "=" _ "by" { (Chains.space p).scalarAssoc a ((beta).apply y) x }
+    },
+    scaleRight := \fun (a: I.Int^)(x: Chains.Carrier p)(y: Chains.Carrier q) => eq_reason_in!{{Chains.Carrier p} _
+      "=" _ "by" { congr!{I.Int^ {Chains.Carrier p}} (\fun (b: I.Int^) => (Chains.space p).smul b x) _ _ ((beta).scalar a y) }
+      "=" _ "by" { congr!{I.Int^ {Chains.Carrier p}} (\fun (b: I.Int^) => (Chains.space p).smul b x) _ _ (Scalar.law a ((beta).apply y)) }
+      "=" _ "by" { (Chains.space p).scalarAssoc a ((beta).apply y) x }
+    },
+  };
+\definition map[beta: Cochains.Carrier q]: Modules.Hom[V := Tensor.Carrier, W := Chains.Carrier p, source := Tensor.space, target := Chains.space p].Map := Universal.map (value beta) (laws beta);
+\definition onTensor: \forall (beta: Cochains.Carrier q)(x: Chains.Carrier p)(y: Chains.Carrier q) ->
+  (map beta).apply (Tensor.tensor x y) = value beta x y :=
+  \fun (beta: Cochains.Carrier q) => Universal.onTensor (value beta) (laws beta);

@@ -1,0 +1,31 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import chain_complexes.Integer[] \as Degrees;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as Integer;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import \root.Triple[A := A, source := source, first := first, second := second].CommonComplex[] \as Common;
+\import Nonnegative.ZeroExtension[C := Common.complex] \as CommonExtension;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].ZeroExtension[C := Small.complex] \as SmallExtension;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].ZeroExtension[C := Chains.complex] \as WholeExtension;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing] \as Hom;
+\import Hom.Relative[subcomplex := Small.complex, wholecomplex := Chains.complex].On[pair := pair, coefficients := Cochains.integerCoefficients] \as SmallRelative;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring].Quotient[C := SmallExtension.complex, D := WholeExtension.complex].On[f := SmallRelative.inclusionMap] \as Quotient;
+\import Hom.Integer[P := Quotient.complex, N := Cochains.integerCoefficients] \as SmallCochains;
+\module Negative(n: N.Nat^) {
+  \import Quotient.At[k := I.Int^::negSucc n] \as Q;
+  \import Modules.Hom[V := WholeExtension.Carrier (I.Int^::negSucc n), W := Q.Carrier, source := WholeExtension.space (I.Int^::negSucc n), target := Q.space] \as Projection;
+  \definition chainZero: \forall (x: Q.Carrier) -> x = (Q.space).zero := Q.induction (\fun (x: Q.Carrier) => x = (Q.space).zero)
+    (\fun (x: WholeExtension.Carrier (I.Int^::negSucc n)) => trans!{Q.Carrier} _ _ _
+      (congr!{{WholeExtension.Carrier (I.Int^::negSucc n)} Q.Carrier} Q.class _ _ (WholeExtension.Negative[n := n].zero x))
+      (Projection.zeroPreserved Q.projection));
+  \import Modules.Hom[V := Q.Carrier, W := I.Int^, source := Q.space, target := Cochains.integerCoefficients.space] \as Maps;
+  \definition cochainZero: \forall (h: SmallRelative.Carrier (I.Int^::negSucc n)) -> h = (SmallRelative.space (I.Int^::negSucc n)).zero :=
+    \fun (h: SmallRelative.Carrier (I.Int^::negSucc n)) => SmallCochains.At[z := I.Int^::negSucc n].ext h _ (\fun (x: Q.Carrier) => trans!{I.Int^} _ _ _
+      (congr!{Q.Carrier I.Int^} h.apply _ _ (chainZero x)) (Maps.zeroPreserved h));
+}
+\module At(n: N.Nat^);
+\module Maps;
+\module Cohomology(n: N.Nat^);

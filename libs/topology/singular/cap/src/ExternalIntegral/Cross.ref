@@ -1,0 +1,36 @@
+\import std.Data[].Pair[] \as Pair;
+\import std.Logic[].Proposition[] \as Logic;
+\import topology.Topology[Carrier := A].Subspace[S := leftSubset] \as LeftSpace;
+\import topology.Topology[Carrier := B].Subspace[S := rightSubset] \as RightSpace;
+\import \root.Triple[A := Product.CarrierSet, source := External.topology, first := Relative.leftInverse, second := Relative.rightInverse].Union[] \as Union;
+\import singular_cohomology.Relative[A := Product.CarrierSet, source := External.topology, subset := Union.subset] \as TargetRelative;
+\import topology.Topology[Carrier := Product.CarrierSet].Subspace[S := Union.subset] \as UnionSpace;
+\import singular_cohomology.Identity[A := A, source := left] \as LeftIdentity;
+\import singular_cohomology.Identity[A := B, source := right] \as RightIdentity;
+\import topological_constructions.Product[A := Left.SubspaceCarrier, B := B] \as LeftProduct;
+\import topological_constructions.Product[A := A, B := Right.SubspaceCarrier] \as RightProduct;
+\import singular_products.ProductMapping[A := Left.SubspaceCarrier, B := B, C := A, D := B, leftSource := LeftSpace.topology left, rightSource := right, leftTarget := left, rightTarget := right] \as LeftMapping;
+\import singular_products.ProductMapping[A := A, B := Right.SubspaceCarrier, C := A, D := B, leftSource := left, rightSource := RightSpace.topology right, leftTarget := left, rightTarget := right] \as RightMapping;
+\definition leftMap: LeftMapping.Map := LeftMapping.Map { leftFunction := Left.inclusion, rightFunction := RightIdentity.function, leftContinuous := Left.inclusionContinuous, rightContinuous := RightIdentity.continuous };
+\definition rightMap: RightMapping.Map := RightMapping.Map { leftFunction := LeftIdentity.function, rightFunction := Right.inclusion, leftContinuous := LeftIdentity.continuous, rightContinuous := Right.inclusionContinuous };
+\definition leftInto[x: LeftProduct.CarrierSet]: TargetRelative.SubspaceCarrier :=
+  \into[Product.CarrierSet](LeftMapping.function leftMap x, Union.subset) \by {
+    Logic.Or[\In[Product.CarrierSet] Relative.leftInverse (LeftMapping.function leftMap x), \In[Product.CarrierSet] Relative.rightInverse (LeftMapping.function leftMap x)]::left
+      (\bysub(A, leftSubset, Pair.first Left.SubspaceCarrier B x))
+  };
+\definition rightInto[x: RightProduct.CarrierSet]: TargetRelative.SubspaceCarrier :=
+  \into[Product.CarrierSet](RightMapping.function rightMap x, Union.subset) \by {
+    Logic.Or[\In[Product.CarrierSet] Relative.leftInverse (RightMapping.function rightMap x), \In[Product.CarrierSet] Relative.rightInverse (RightMapping.function rightMap x)]::right
+      (\bysub(B, rightSubset, Pair.second A Right.SubspaceCarrier x))
+  };
+\import topology.Continuity[A := LeftProduct.CarrierSet, B := Product.CarrierSet].Corestriction[S := Union.subset] \as LeftCorestrict;
+\import topology.Continuity[A := RightProduct.CarrierSet, B := Product.CarrierSet].Corestriction[S := Union.subset] \as RightCorestrict;
+\definition leftContinuous: topology.Continuity[A := LeftProduct.CarrierSet, B := TargetRelative.SubspaceCarrier].Continuous LeftMapping.source (UnionSpace.topology External.topology) leftInto :=
+  LeftCorestrict.corestrictContinuous LeftMapping.source External.topology leftInto (LeftMapping.continuous leftMap);
+\definition rightContinuous: topology.Continuity[A := RightProduct.CarrierSet, B := TargetRelative.SubspaceCarrier].Continuous RightMapping.source (UnionSpace.topology External.topology) rightInto :=
+  RightCorestrict.corestrictContinuous RightMapping.source External.topology rightInto (RightMapping.continuous rightMap);
+\module Factor(n: N.Nat^);
+\module At(p, q: N.Nat^);
+\module Boundary;
+\module Homology;
+\module Natural(C, D: \Set, leftTarget: topology.Topology[Carrier := C].Topology, rightTarget: topology.Topology[Carrier := D].Topology, leftTargetSubset: \Pow C, rightTargetSubset: \Pow D);

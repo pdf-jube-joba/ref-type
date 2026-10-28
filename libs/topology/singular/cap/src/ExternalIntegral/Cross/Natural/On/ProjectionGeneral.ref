@@ -1,0 +1,36 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import \parent.At[p := p, q := q] \as CrossNatural;
+\import \parent.\parent.\parent.At[p := p, q := q].Relative[] \as SourceCross;
+\import Target.Cross[].At[p := p, q := q].Relative[] \as TargetCross;
+\import LeftPairMaps.On[f := f].Integer[] \as LeftMap;
+\import RightPairMaps.On[f := g].Integer[] \as RightMap;
+\import UnionPairMaps.On[f := unionMap].Integer[] \as UnionMap;
+\import singular_products.Cross[A := A, B := B, left := left, right := right] \as Cross;
+\import singular_products.Cochains[A := TargetProduct.CarrierSet, source := ProductMapping.target, R := I.Int^, ring := Integers.commutativeRing] \as TargetCochains;
+\import singular_products.Cochains[A := Product.CarrierSet, source := External.topology, R := I.Int^, ring := Integers.commutativeRing].Pullback[B := TargetProduct.CarrierSet, target := ProductMapping.target] \as Pull;
+\import \root.Integral[A := Product.CarrierSet, source := External.topology].Pair[subset := Union.subset] \as SourcePair;
+\import \root.Integral[A := TargetProduct.CarrierSet, source := ProductMapping.target].Pair[subset := TargetUnion.subset] \as TargetPair;
+\import SourcePair.Natural[B := TargetProduct.CarrierSet, target := ProductMapping.target, targetSubset := TargetUnion.subset].On[f := unionMap].At[p := k, q := l] \as CapNatural;
+\import SourcePair.At[p := k, q := l].Quotient[] \as SourceCap;
+\import TargetPair.At[p := k, q := l].Quotient[] \as TargetCap;
+\import \root.Integral[A := Product.CarrierSet, source := External.topology].At[p := k, q := l] \as Cap;
+\import singular_cohomology.Relative[A := TargetProduct.CarrierSet, source := ProductMapping.target, subset := TargetUnion.subset] \as FinalRelative;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\definition SourceDegree[n: N.Nat^]: \Set := TargetRelative.Carrier (I.Int^::ofNat n);
+\definition TargetDegree[n: N.Nat^]: \Set := FinalRelative.Carrier (I.Int^::ofNat n);
+\definition push[n: N.Nat^]: SourceDegree n -> TargetDegree n := (UnionMap.map).apply (I.Int^::ofNat n);
+\definition shiftNaturality: \forall (same: Cross.degree p q = Cap.total)(z: SourceDegree (Cross.degree p q)) ->
+  push Cap.total (Transport.cast SourceDegree (Cross.degree p q) Cap.total same z) = Transport.cast TargetDegree (Cross.degree p q) Cap.total same (push (Cross.degree p q) z) :=
+  \fun (same: Cross.degree p q = Cap.total)(z: SourceDegree (Cross.degree p q)) => sym!{{TargetDegree Cap.total}} _ _ (Transport.natural SourceDegree TargetDegree push (Cross.degree p q) Cap.total same z);
+\definition law: \forall (same: Cross.degree p q = Cap.total)(beta: TargetCochains.Carrier l)(x: Left.Carrier (I.Int^::ofNat p))(y: Right.Carrier (I.Int^::ofNat q)) ->
+  (UnionMap.map).apply (I.Int^::ofNat k) ((SourceCap.map (Pull.apply l unionMap (UnionPairMaps.laws unionMap).continuous beta)).apply (Transport.cast SourceDegree (Cross.degree p q) Cap.total same (SourceCross.apply x y))) =
+  (TargetCap.map beta).apply (Transport.cast TargetDegree (Cross.degree p q) Cap.total same (TargetCross.apply ((LeftMap.map).apply (I.Int^::ofNat p) x) ((RightMap.map).apply (I.Int^::ofNat q) y))) :=
+  \fun (same: Cross.degree p q = Cap.total)(beta: TargetCochains.Carrier l)(x: Left.Carrier (I.Int^::ofNat p))(y: Right.Carrier (I.Int^::ofNat q)) => eq_reason_in!{{FinalRelative.Carrier (I.Int^::ofNat k)} _
+    "=" _ "by" { CapNatural.law beta (Transport.cast SourceDegree (Cross.degree p q) Cap.total same (SourceCross.apply x y)) }
+    "=" _ "by" { congr!{{TargetDegree Cap.total} {FinalRelative.Carrier (I.Int^::ofNat k)}} ((TargetCap.map beta).apply) _ _ (shiftNaturality same (SourceCross.apply x y)) }
+    "=" _ "by" { congr!{{TargetDegree (Cross.degree p q)} {FinalRelative.Carrier (I.Int^::ofNat k)}} (\fun (z: TargetDegree (Cross.degree p q)) => (TargetCap.map beta).apply (Transport.cast TargetDegree (Cross.degree p q) Cap.total same z)) _ _ (CrossNatural.law x y) }
+  };

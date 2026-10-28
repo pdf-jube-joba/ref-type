@@ -1,0 +1,38 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import singular_cohomology.Cochains[A := B, source := target].With[coefficients := Cochains.integerCoefficients] \as TargetTheory;
+\import singular_cohomology.Cochains[A := A, source := source].With[coefficients := Cochains.integerCoefficients] \as SourceTheory;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring] \as CochainComplexes;
+\import CochainComplexes.At[C := TargetTheory.complex, k := N.Nat^::succ r] \as TargetCochain;
+\import CochainComplexes.At[C := SourceTheory.complex, k := N.Nat^::succ r] \as SourceCochain;
+\import WholeMap.Coefficients[M := Cochains.integerCoefficients, L := Cochains.integerCoefficients] \as Pullback;
+\import Modules.End[V := I.Int^, space := Cochains.integerCoefficients.space] \as CoefficientMaps;
+\import CochainComplexes.Map[C := TargetTheory.complex, D := SourceTheory.complex].At[k := N.Nat^::succ r] \as PullbackAt;
+\definition pullback: _ := Pullback.map f (PairMaps.laws f).continuous CoefficientMaps.identity;
+\import \root.Integral[A := A, source := source].Pair[subset := subset].CohomologyAction[p := p, r := r].Descent[] \as Before;
+\import TargetCap.CohomologyAction[p := p, r := r].Descent[] \as After;
+\import \parent.Homology[p := p, q := N.Nat^::succ r] \as Natural;
+\import Simplices.CutFaces[p := p, q := N.Nat^::succ r] \as Geometry;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.At[C := Relative.complex, z := I.Int^::ofNat Geometry.higher] \as Input;
+\import Complexes.At[C := Relative.complex, z := I.Int^::ofNat (N.Nat^::succ p)] \as Output;
+\import Complexes.At[C := TargetPair.complex, z := I.Int^::ofNat Geometry.higher] \as TargetInput;
+\import Complexes.At[C := TargetPair.complex, z := I.Int^::ofNat (N.Nat^::succ p)] \as TargetOutput;
+\import Modules.Hom[V := Input.Homology, W := Output.Homology, source := Input.homologySpace, target := Output.homologySpace] \as SourceActions;
+\import Modules.Hom[V := TargetInput.Homology, W := TargetOutput.Homology, source := TargetInput.homologySpace, target := TargetOutput.homologySpace] \as TargetActions;
+\import Complexes.Map[C := Relative.complex, D := TargetPair.complex].At[k := I.Int^::ofNat Geometry.higher] \as InputMap;
+\import Complexes.Map[C := Relative.complex, D := TargetPair.complex].At[k := I.Int^::ofNat (N.Nat^::succ p)] \as OutputMap;
+\definition law: \forall (beta: TargetCochain.Cohomology)(x: Input.Homology) ->
+  (OutputMap.induced PairMap.map).apply (((Before.map).apply ((PullbackAt.induced pullback).apply beta)).apply x) =
+  ((After.map).apply beta).apply ((InputMap.induced PairMap.map).apply x) :=
+  TargetCochain.classInduction (\fun (beta: TargetCochain.Cohomology) => \forall (x: Input.Homology) ->
+    (OutputMap.induced PairMap.map).apply (((Before.map).apply ((PullbackAt.induced pullback).apply beta)).apply x) =
+    ((After.map).apply beta).apply ((InputMap.induced PairMap.map).apply x))
+    (\fun (beta: TargetCochain.CycleCarrier)(x: Input.Homology) => eq_reason_in!{TargetOutput.Homology _
+      "=" _ "by" { congr!{SourceCochain.Cohomology TargetOutput.Homology} (\fun (a: SourceCochain.Cohomology) => (OutputMap.induced PairMap.map).apply (((Before.map).apply a).apply x)) _ _ (PullbackAt.onClass pullback beta) }
+      "=" _ "by" { congr!{SourceActions.Map TargetOutput.Homology} (\fun (a: SourceActions.Map) => (OutputMap.induced PairMap.map).apply (a.apply x)) _ _ (Before.onClass ((PullbackAt.cyclesMap pullback).apply beta)) }
+      "=" _ "by" { Natural.On[beta := beta].law x }
+      "=" _ "by" { congr!{TargetActions.Map TargetOutput.Homology} (\fun (a: TargetActions.Map) => a.apply ((InputMap.induced PairMap.map).apply x)) _ _ (sym!{TargetActions.Map} _ _ (After.onClass beta)) }
+    });
