@@ -1,0 +1,58 @@
+\import \parent.\parent.\parent.\parent.RealCoordinates[] \as RC;
+\import RC.Clifford[] \as Clifford;
+\import Clifford.Spin[].Phase[] \as Phase;
+\import linear_algebra.Euclidean[n := Fin.Sum[m := n, n := n].total] \as E;
+\import clifford.Field[K := R.Real, field := R.Algebra[].field].On[V := E.Vector, space := E.space].Of[form := E.form] \as Source;
+\import Source.Pin[] \as Pin;
+\import algebra.Groups[].Units[A := Source.Carrier, ring := Source.ring] \as SourceUnits;
+\import SourceUnits.Mapping[B := End.Carrier, target := End.ring, f := Clifford.extension] \as Mapping;
+\import algebra.Groups[].On[G := SourceUnits.Unit, group := SourceUnits.group] \as SourceGroup;
+\import lie_groups.Euclidean[n := Fin.Sum[m := n, n := n].total] \as Geometry;
+\import Geometry.PinRepresentation[] \as Projection;
+\import std.Logic[].Proposition[] \as Logic;
+\definition preimage: \Pow SourceUnits.Unit := { u: SourceUnits.Unit \where \In[Units.Unit] predicate (Mapping.apply u) };
+\definition preimageClosed: SourceGroup.Closed[preimage] := SourceGroup.Closed[preimage] {
+  one := \idelim Units.unit = Mapping.apply SourceUnits.unit \with x: Units.Unit => \In[Units.Unit] predicate x \by { base: closed.one, equality: sym!{Units.Unit} _ _ Mapping.atOne },
+  mul := \fun (u, v: SourceUnits.Unit)(hu: \In[SourceUnits.Unit] preimage u)(hv: \In[SourceUnits.Unit] preimage v) =>
+    \idelim Units.product (Mapping.apply u) (Mapping.apply v) = Mapping.apply (SourceUnits.product u v) \with x: Units.Unit => \In[Units.Unit] predicate x \by {
+      base: closed.mul (Mapping.apply u) (Mapping.apply v) hu hv, equality: sym!{Units.Unit} _ _ (Mapping.preservesProduct u v)
+    },
+  inv := \fun (u: SourceUnits.Unit)(hu: \In[SourceUnits.Unit] preimage u) =>
+    \idelim Units.inverse (Mapping.apply u) = Mapping.apply (SourceUnits.inverse u) \with x: Units.Unit => \In[Units.Unit] predicate x \by {
+      base: closed.inv (Mapping.apply u) hu, equality: sym!{Units.Unit} _ _ (Mapping.preservesInverse u)
+    },
+};
+\definition positive: \forall (v: Pin.Positive) -> \In[SourceUnits.Unit] preimage (Pin.positive v) :=
+  \fun (v: Pin.Positive)(f, g: Total.Carrier) => eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{End.Carrier End.Carrier C.Complex} (\fun (a, b: End.Carrier) => dot (a.apply f) (b.apply g)) _ _ _ _ (Clifford.onVector v) (Clifford.onVector v) }
+    "=" _ "by" { cliffordSelfAdjoint (RC.standardIsomorphism.backward.apply v) f ((Metric.cliffordOperator (RC.standardIsomorphism.backward.apply v)).apply g) }
+    "=" _ "by" { congr!{{Total.Carrier} C.Complex} (dot f) _ _ (Metric.square (RC.standardIsomorphism.backward.apply v) g) }
+    "=" _ "by" { congr!{R.Real C.Complex} (\fun (a: R.Real) => dot f (Total.totalSpace.smul (Def.ofReal a) g)) _ _ (Clifford.quadratic v) }
+    "=" _ "by" { congr!{R.Real C.Complex} (\fun (a: R.Real) => dot f (Total.totalSpace.smul (Def.ofReal a) g)) _ _ (\bysub(E.Vector, { v: E.Vector \where Source.quadratic v = R.one }, v)) }
+    "=" _ "by" { congr!{{Total.Carrier} C.Complex} (dot f) _ _ (Total.totalSpace.scalarOne g) }
+  };
+\definition generators: \forall (u: SourceUnits.Unit) -> Pin.Generator u -> \In[SourceUnits.Unit] preimage u :=
+  \induction (u: SourceUnits.Unit)(generator: Pin.Generator u) \return \In[SourceUnits.Unit] preimage u \with {
+    | sign: \idelim Units.minusOne = Mapping.apply SourceUnits.minusOne \with x: Units.Unit => \In[Units.Unit] predicate x \by {
+      base: sign, equality: sym!{Units.Unit} _ _ (Units.ext _ _ Phase.mapNegativeOne)
+    }
+    | vector: \induction (u: SourceUnits.Unit)(vector: Pin.VectorGenerator u) \return \In[SourceUnits.Unit] preimage u \with {
+      | positive: positive
+      | negative: \fun (v: Pin.Negative) => Logic.falseElim (\In[SourceUnits.Unit] preimage (Pin.negative v)) (Projection.negativeImpossible v)
+    }
+  };
+\definition all: \forall (u: Pin.Pin)(f, g: Total.Carrier) -> dot ((Mapping.apply u).value.apply f) ((Mapping.apply u).value.apply g) = dot f g :=
+  \fun (u: Pin.Pin) => (\bysub(SourceUnits.Unit, Pin.predicate, u)) preimage preimageClosed generators;
+\import clifford.Circle[] \as Circle;
+\import clifford.ComplexExtension[G := Pin.Spin, group := Pin.spinGroup].By[sign := Pin.spinInvolution] \as SpinC;
+\definition spinC: \forall (g: SpinC.Carrier)(f, h: Total.Carrier) -> dot ((Phase.actionC g).value.apply f) ((Phase.actionC g).value.apply h) = dot f h :=
+  SpinC.induction (\fun (g: SpinC.Carrier) => \forall (f, h: Total.Carrier) -> dot ((Phase.actionC g).value.apply f) ((Phase.actionC g).value.apply h) = dot f h)
+    (\fun (s: Pin.Spin)(z: Circle.Circle)(f, h: Total.Carrier) => eq_reason_in!{C.Complex _
+      "=" _ "by" { congr!{Units.Unit Units.Unit C.Complex} (\fun (a, b: Units.Unit) => dot (a.value.apply f) (b.value.apply h)) _ _ _ _ (Phase.onClass s z) (Phase.onClass s z) }
+      "=" _ "by" { InnerLaws.scaleLeft z ((Mapping.apply s).value.apply f) (Total.totalSpace.smul z ((Mapping.apply s).value.apply h)) }
+      "=" _ "by" { congr!{C.Complex C.Complex} (Algebra.mul (Def.conj z)) _ _ (form.scaleRight z ((Mapping.apply s).value.apply f) ((Mapping.apply s).value.apply h)) }
+      "=" _ "by" { sym!{C.Complex} _ _ (Algebra.mulAssoc (Def.conj z) z (dot ((Mapping.apply s).value.apply f) ((Mapping.apply s).value.apply h))) }
+      "=" _ "by" { congr!{C.Complex C.Complex} (\fun (a: C.Complex) => Algebra.mul a (dot ((Mapping.apply s).value.apply f) ((Mapping.apply s).value.apply h))) _ _ (Circle.group.leftInverse z) }
+      "=" _ "by" { Algebra.mulOneLeft (dot ((Mapping.apply s).value.apply f) ((Mapping.apply s).value.apply h)) }
+      "=" _ "by" { all (Pin.inclusion s) f h }
+    });
