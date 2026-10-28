@@ -1,0 +1,30 @@
+\import Algebra.Coordinates[I := Exterior.Tuple].Kronecker[] \as Delta;
+\import Algebra.Multilinear[V := Finite.Vector, space := Finite.space].Alternating[].Dimension[n := n, b := Basis.basis].Increasing[k := k] \as Increasing;
+\import Algebra.Sums[I := Exterior.Tuple] \as Sums;
+\import Sums.Prop[] \as SumLaws;
+\import Sums.Single[] \as Single;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\import C.Prop[] \as ComplexLaws;
+\definition conjugateDelta: \forall (i, j: Exterior.Tuple) -> Def.conj (Delta.delta i j) = Delta.delta i j :=
+  \fun (i, j: Exterior.Tuple) => either!{{(Classical.excludedMiddle (i = j))} {Def.conj (Delta.delta i j) = Delta.delta i j}
+    {\fun (same: i = j) => trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} Def.conj _ _ (Delta.equal i j same))
+      (trans!{C.Complex} _ _ _ (ComplexLaws.conjOfReal R.one) (sym!{C.Complex} _ _ (Delta.equal i j same)))}
+    {\fun (different: Logic.Not (i = j)) => trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} Def.conj _ _ (Delta.different i j different))
+      (trans!{C.Complex} _ _ _ (ComplexLaws.conjOfReal R.zero) (sym!{C.Complex} _ _ (Delta.different i j different)))}
+  };
+\definition wordCoefficient: \forall (i: Increasing.Index)(f: Forms.Form k) -> dot (Exterior.word i) f = Exterior.coefficient f i := \block {
+  \fun (i: Increasing.Index)(f: Forms.Form k) \then
+  \takefrom xs: Exterior.Enumeration \by Exterior.existsEnumeration \then
+  \return eq_reason_in!{C.Complex _
+    "=" _ "by" { fromEnumeration xs (Exterior.word i) f }
+    "=" _ "by" { atEnumeration xs (Exterior.word i) f }
+    "=" _ "by" { SumLaws.congruentOnKeys xs (summand (Exterior.word i) f) (\fun (j: Exterior.Tuple) => Algebra.mul (Delta.delta i j) (Exterior.coefficient f j))
+      (\fun (j: Exterior.Tuple)(member: \In[Exterior.Tuple] (Sums.keys xs) j) => congr!{C.Complex C.Complex} (\fun (a: C.Complex) => Algebra.mul a (Exterior.coefficient f j)) _ _
+        (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} Def.conj _ _ (Exterior.pair i j (\bysub(Exterior.Tuple, Increasing.Index, i)) (Increasing.included xs j member)))
+          (trans!{C.Complex} _ _ _ (conjugateDelta j i) (Delta.symmetric j i)))) }
+    "=" _ "by" { Single.extract xs (Increasing.distinct xs) i (Increasing.exhaustive xs i) (Exterior.coefficient f) }
+  }
+};
+\definition orthonormal: \forall (i, j: Increasing.Index) -> dot (Exterior.word i) (Exterior.word j) = Delta.delta i j :=
+  \fun (i, j: Increasing.Index) => trans!{C.Complex} _ _ _ (wordCoefficient i (Exterior.word j)) (Exterior.pair j i (\bysub(Exterior.Tuple, Increasing.Index, j)) (\bysub(Exterior.Tuple, Increasing.Index, i)));
