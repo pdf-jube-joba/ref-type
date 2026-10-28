@@ -58,3 +58,33 @@
     "=" _ "by" { SpinCOps.oneLeft h }
   }
 };
+\structure NormalizedLaw[u: Unitary.Carrier, g: SpinC.Carrier]: \Prop := {
+  projection: Phase.projection g = map u,
+  vacuum: vacuumScalar g = Algebra.one,
+};
+\definition Normalized[u: Unitary.Carrier]: \Set := \Cast[SpinC.Carrier] ({ g: SpinC.Carrier \where NormalizedLaw[u, g] });
+\definition normalizedUnique: \forall (u: Unitary.Carrier)(g, h: Normalized u) -> g = h :=
+  \fun (u: Unitary.Carrier)(g, h: Normalized u) => uniqueVacuum g h
+    (trans!{Orthogonal.O} _ _ _ (\bysub(SpinC.Carrier, { g: SpinC.Carrier \where NormalizedLaw[u, g] }, g)).projection
+      (sym!{Orthogonal.O} _ _ ((\bysub(SpinC.Carrier, { g: SpinC.Carrier \where NormalizedLaw[u, g] }, h)).projection)))
+    ((\bysub(SpinC.Carrier, { g: SpinC.Carrier \where NormalizedLaw[u, g] }, g)).vacuum)
+    ((\bysub(SpinC.Carrier, { g: SpinC.Carrier \where NormalizedLaw[u, g] }, h)).vacuum);
+\definition normalizedProduct: \forall (u, v: Unitary.Carrier)(g: Normalized u)(h: Normalized v) -> Normalized (Unitary.multiply u v) :=
+  \fun (u, v: Unitary.Carrier)(g: Normalized u)(h: Normalized v) => \into[SpinC.Carrier](SpinC.group.op g h, Normalized (Unitary.multiply u v)) \by {
+    NormalizedLaw[Unitary.multiply u v, SpinC.group.op g h] {
+      projection := eq_reason_in!{Orthogonal.O _
+        "=" _ "by" { Phase.projectionProduct g h }
+        "=" _ "by" { congr!{Orthogonal.O Orthogonal.O Orthogonal.O} Orthogonal.group.op _ _ _ _
+          ((\bysub(SpinC.Carrier, { g: SpinC.Carrier \where NormalizedLaw[u, g] }, g)).projection)
+          ((\bysub(SpinC.Carrier, { g: SpinC.Carrier \where NormalizedLaw[v, g] }, h)).projection) }
+        "=" _ "by" { sym!{Orthogonal.O} _ _ (multiplication u v) }
+      },
+      vacuum := eq_reason_in!{C.Complex _
+        "=" _ "by" { vacuumScalarProduct u v g h ((\bysub(SpinC.Carrier, { g: SpinC.Carrier \where NormalizedLaw[u, g] }, g)).projection) ((\bysub(SpinC.Carrier, { g: SpinC.Carrier \where NormalizedLaw[v, g] }, h)).projection) }
+        "=" _ "by" { congr!{C.Complex C.Complex C.Complex} Algebra.mul _ _ _ _
+          ((\bysub(SpinC.Carrier, { g: SpinC.Carrier \where NormalizedLaw[u, g] }, g)).vacuum)
+          ((\bysub(SpinC.Carrier, { g: SpinC.Carrier \where NormalizedLaw[v, g] }, h)).vacuum) }
+        "=" _ "by" { Algebra.mulOneLeft Algebra.one }
+      },
+    }
+  };
