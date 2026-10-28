@@ -1,0 +1,39 @@
+\import \root.Euclidean[n := n] \as E;
+\import functional_analysis.Measure[A := E.Point] \as Measure;
+\import Measure.ValueLaws[] \as Values;
+\import Measure.ValueLaws[].SupAdd[] \as SupAdd;
+\import Measure.SeriesLaws[] \as Series;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Completeness[] \as Complete;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\definition finiteCancellation: \forall (v, w: Measure.Value) -> Measure.NonnegativeValue[v] -> Measure.NonnegativeValue[w] ->
+  \forall (bound: Real.Real) -> Logic.Not (Measure.below v bound) -> Measure.add v w = v -> w = Measure.zero :=
+  \fun (v, w: Measure.Value) (vv: Measure.NonnegativeValue[v]) (wv: Measure.NonnegativeValue[w])
+    (bound: Real.Real) (outside: Logic.Not (Measure.below v bound)) (same: Measure.add v w = v) => \block {
+      \let wBelow: Values.Included w v := \fun (r: Real.Real) (member: Measure.below w r) =>
+        \idelim Measure.add v w = v \with z: Measure.Value => Measure.below z r \by {
+          base: \idelim Measure.add w v = Measure.add v w \with z: Measure.Value => Measure.below z r \by {
+            base: Series.pairLeftIncluded w v wv vv r member, equality: Values.addComm w v }, equality: same } \then
+      \let wOutside: Logic.Not (Measure.below w bound) := \fun (member: Measure.below w bound) => outside (wBelow bound member) \then
+      \takefrom p: \Cast[Real.Real] ({ p: Real.Real \where Complete.LeastUpperBound[v, p] }) \by E.valueSup v vv bound outside \then
+      \takefrom q: \Cast[Real.Real] ({ q: Real.Real \where Complete.LeastUpperBound[w, q] }) \by E.valueSup w wv bound wOutside \then
+      \let vp: Complete.LeastUpperBound[v, p] := \bysub(Real.Real, { p: Real.Real \where Complete.LeastUpperBound[v, p] }, p) \then
+      \let wq: Complete.LeastUpperBound[w, q] := \bysub(Real.Real, { q: Real.Real \where Complete.LeastUpperBound[w, q] }, q) \then
+      \let sumSup: Complete.LeastUpperBound[v, Real.add p q] := \idelim Measure.add v w = v
+        \with z: Measure.Value => Complete.LeastUpperBound[z, Real.add p q] \by { base: SupAdd.leastUpper v w p q vp wq, equality: same } \then
+      \let equal: Real.add p q = p := Complete.leastUpperBoundUnique v (Real.add p q) p sumSup vp \then
+      \let qzero: q = Real.zero := Laws.addCancelLeft p q Real.zero
+        (trans!{Real.Real} _ _ _ equal (sym!{Real.Real} _ _ (Laws.addZeroRight p))) \then
+      \return \axiom:setext(w, Measure.zero,
+        \fun (r: Real.Real) (member: Measure.below w r) => \block {
+          \takefrom s: \Cast[Real.Real] ({ s: Real.Real \where Logic.And[R.Lt r s, Measure.below w s] }) \by wv.rounded r member \then
+          \let law: Logic.And[R.Lt r s, Measure.below w s] := \bysub(Real.Real, { s: Real.Real \where Logic.And[R.Lt r s, Measure.below w s] }, s) \then
+          \return R.ltLeTrans r s Real.zero law.left (R.leReplaceRight s q Real.zero qzero (wq.upper s law.right))
+        },
+        \fun (r: Real.Real) (negative: R.Lt r Real.zero) => wv.negative r negative)
+    };

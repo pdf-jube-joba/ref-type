@@ -62,3 +62,22 @@
   Measure.Measurable Construction.measure.sigma (Sigma.intersection f) :=
   \fun (f: N.Nat^ -> \Pow E.Point) (opened: _) => Sigma.intersectionCountableMeasurable Construction.measure.sigma f
     (\fun (i: N.Nat^) => Borel.openMeasurable (f i) (opened i));
+\import \root.FiniteCancellation[n := n] \as Cancellation;
+\import Measure.Finite[mu := Construction.measure] \as Finite;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition nullDifference: \forall (S: \Pow E.Point) (f: N.Nat^ -> \Pow E.Point) (bound: Real.Real) ->
+  E.Caratheodory S -> Hull S f -> Logic.Not (Measure.below (E.outer S) bound) ->
+  E.outer (Sigma.difference (Sigma.intersection f) S) = Measure.zero :=
+  \fun (S: \Pow E.Point) (f: N.Nat^ -> \Pow E.Point) (bound: Real.Real) (measurable: E.Caratheodory S)
+    (hull: Hull S f) (outside: Logic.Not (Measure.below (E.outer S) bound)) => \block {
+      \let G: \Pow E.Point := Sigma.intersection f \then
+      \let D: \Pow E.Point := Sigma.difference G S \then
+      \let addEqual: Measure.add (E.outer S) (E.outer D) = E.outer S := eq_reason_in!{Measure.Value _
+        "=" _ "by" { sym!{Measure.Value} _ _ (E.disjointAdditivity S D measurable (Finite.subsetDisjoint S G)) }
+        "=" _ "by" { congr!{\Pow E.Point Measure.Value} E.outer _ _ (sym!{\Pow E.Point} _ _ (Finite.subsetDecomposition S G hull.right.left)) }
+        "=" _ "by" { hull.right.right }
+      } \then
+      \return Cancellation.finiteCancellation (E.outer S) (E.outer D) (E.outerNonnegative S) (E.outerNonnegative D) bound outside addEqual
+    };
