@@ -27,6 +27,8 @@
 \import \root.Integral[A := Relative.SubspaceCarrier, source := Subspace.topology source].Homology[p := t, q := q] \as SubAction;
 \import \root.Integral[A := A, source := source].Pair[subset := subset].RelativeCohomologyAction[p := t, r := q] \as Action;
 \import Action.Descent[] \as Descent;
+\import Complexes.At[C := Relative.complex, z := I.Int^::ofNat RightGeometry.higher] \as RightSource;
+\import Modules.Hom[V := RightSource.Homology, W := H.Homology, source := RightSource.homologySpace, target := H.homologySpace] \as Actions;
 \import Modules.Alternating[V := H.Homology, space := H.homologySpace].Concatenation[] \as Signs;
 \import WholeExtension.Positive[n := Geometry.higher] \as Upper;
 \import SubExtension.Positive[n := Geometry.total] \as Lower;
@@ -63,4 +65,38 @@
       "=" _ "by" { congr!{H.Cycle H.Homology} H.classOf _ _ (Formula.cycleExt (Act.cycle (Right.shifted x)) ((Cap.map h).apply x)
         (\bysub(Chains.Carrier (N.Nat^::succ t), (H.cycles).carrier, Act.cycle (Right.shifted x))) (RightOn.closedValue x) (RightOn.sameValue x)) }
     };
+}
+\import \root.Integral[A := A, source := source].Pair[subset := subset].Degree[] \as Degree;
+\definition chainClosed: \forall (x: InputChain.Cycle)(c: Chains.Carrier Geometry.higher) -> Degree.class Geometry.higher c = x ->
+  (Relative.complex.differential).apply (I.Int^::ofNat Geometry.higher) (Degree.class Geometry.higher c) = (Relative.space (I.Int^::ofNat Geometry.total)).zero :=
+  \fun (x: InputChain.Cycle)(c: Chains.Carrier Geometry.higher)(same: _) => trans!{{Relative.Carrier (I.Int^::ofNat Geometry.total)}} _ _ _
+    (congr!{{Relative.Carrier (I.Int^::ofNat Geometry.higher)} {Relative.Carrier (I.Int^::ofNat Geometry.total)}} ((Relative.complex.differential).apply (I.Int^::ofNat Geometry.higher)) _ _ same)
+    (\bysub(Relative.Carrier (I.Int^::ofNat Geometry.higher), (InputChain.cycles).carrier, x));
+\module Compatibility(alpha: InputCochain.Closed) {
+  \import \parent.On[alpha := alpha] \as LeftAction;
+  \import Left.On[alpha := alpha] \as LeftOn;
+  \definition onLift: \forall (x: InputChain.Cycle)(c: Chains.Carrier Geometry.higher)(a: SubChains.Carrier Geometry.total)(lift: Whole.Carrier (I.Int^::ofNat q))(h: RelativeCochains.Carrier (I.Int^::ofNat (N.Nat^::succ q))) ->
+    Degree.class Geometry.higher c = x ->
+    (Sequence.restriction).apply (I.Int^::ofNat q) lift = alpha ->
+    \forall (differential: (Sequence.inclusion).apply (I.Int^::ofNat (N.Nat^::succ q)) h = (Whole.complex.differential).apply (I.Int^::ofNat q) lift) ->
+    \forall (boundary: (Inclusion.At[n := Geometry.total].push Relative.inclusion Relative.inclusionContinuous).apply a = (Chains.boundary Geometry.total).apply c) ->
+    (LeftAction.left ((Relative.LongExact[z := I.Int^::ofNat Geometry.higher].connecting).apply (InputChain.classOf x))) =
+    Signs.twist (N.Nat^::succ t) (((Descent.map).apply ((Sequence.LongExact[z := I.Int^::ofNat q].connecting).apply (InputCochain.classOf alpha))).apply (Right.shiftClass (InputChain.classOf x))) :=
+    \block {
+    \fun (x: InputChain.Cycle)(c: Chains.Carrier Geometry.higher)(a: SubChains.Carrier Geometry.total)(lift: Whole.Carrier (I.Int^::ofNat q))(h: RelativeCochains.Carrier (I.Int^::ofNat (N.Nat^::succ q)))(same: _)(lifted: _)(differential: _)(boundary: _) \then
+    \let relativeCycle: InputChain.Cycle := InputChain.cycle (Degree.class Geometry.higher c) (chainClosed x c same) \then
+    \let output: OutputCochain.Closed := OutputCochain.cycle h (CochainExact.lowerClosed lift h differential) \then
+    \let rightClosed: (H.differential).apply (Formula.relative h c) = (Chains.space t).zero := Right.On[h := output, closed := Action.closed output].closedValue relativeCycle \then
+    \return eq_reason_in!{H.Homology _
+      "=" _ "by" { congr!{InputSub.Homology H.Homology} LeftAction.left _ _ (ChainExact.onClass x) }
+      "=" _ "by" { congr!{InputSub.Homology H.Homology} LeftAction.left _ _ (ChainExact.onLift x (Upper.intro c) (Lower.intro a) same boundary (ChainExact.lowerClosed (Upper.intro c) (Lower.intro a) boundary)) }
+      "=" _ "by" { LeftAction.leftOnCycle c a boundary }
+      "=" _ "by" { Witness.law alpha lift h c a lifted differential boundary (LeftOn.closedValue (lowerCycle c a boundary)) rightClosed }
+      "=" _ "by" { congr!{H.Homology H.Homology} (Signs.twist (N.Nat^::succ t)) _ _ (sym!{H.Homology} _ _ (RightOn[h := output].onCycle relativeCycle)) }
+      "=" _ "by" { congr!{InputChain.Homology H.Homology} (\fun (z: InputChain.Homology) => Signs.twist (N.Nat^::succ t) ((Action.On[alpha := output].map).apply (Right.shiftClass z))) _ _ (InputChain.cycleClassExt relativeCycle x same) }
+      "=" _ "by" { congr!{Actions.Map H.Homology} (\fun (f: Actions.Map) => Signs.twist (N.Nat^::succ t) ((f).apply (Right.shiftClass (InputChain.classOf x)))) _ _ (sym!{Actions.Map} _ _ (Descent.onClass output)) }
+      "=" _ "by" { congr!{OutputCochain.Cohomology H.Homology} (\fun (z: OutputCochain.Cohomology) => Signs.twist (N.Nat^::succ t) (((Descent.map).apply z).apply (Right.shiftClass (InputChain.classOf x)))) _ _
+        (sym!{OutputCochain.Cohomology} _ _ (trans!{OutputCochain.Cohomology} _ _ _ (CochainExact.onClass alpha) (CochainExact.onLift alpha lift h lifted differential (CochainExact.lowerClosed lift h differential)))) }
+    }
+  };
 }
