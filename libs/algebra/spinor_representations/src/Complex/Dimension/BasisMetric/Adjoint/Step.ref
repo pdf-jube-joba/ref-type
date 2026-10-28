@@ -1,0 +1,42 @@
+\import \parent.\parent.Extension[k := N.Nat^::succ k] \as Extension;
+\import \parent.\parent.HeadCase[k := N.Nat^::succ k] \as HeadCase;
+\import \parent.\parent.HeadAdjoint[k := N.Nat^::succ k] \as Head;
+\import \parent.\parent.Recursive[k := k] \as Recursive;
+\import Algebra.FiniteExterior[V := Finite.Vector, space := Finite.space, n := n, b := Standard.basis].At[k := N.Nat^::succ (N.Nat^::succ k)] \as ExteriorAt;
+\import Algebra.Multilinear[V := Finite.Vector, space := Finite.space].Alternating[].Dimension[n := n, b := Standard.basis].Increasing[k := N.Nat^::succ (N.Nat^::succ k)] \as Index;
+\import \parent.\parent.\parent.Inner[k := k].Canonical[] \as LowerInner;
+\import \parent.\parent.\parent.Inner[k := N.Nat^::succ k].Canonical[] \as MiddleInner;
+\import MiddleInner.Words[] \as MiddleWords;
+\import \parent.\parent.\parent.Inner[k := N.Nat^::succ (N.Nat^::succ k)].Canonical[] \as HigherInner;
+\import HigherInner.Words[] \as HigherWords;
+\import Forms.At[k := N.Nat^::succ k] \as Middle;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := Field.field, scalar := Hermitian.scalar].Inner[V := Forms.Form (N.Nat^::succ k), space := Middle.vectorSpace].Of[h := MiddleInner.form] \as MiddleLaws;
+\definition nonHead: \forall (previous: Property k)(r: Fin.Fin n)(f: Forms.Form (N.Nat^::succ k))(j: Index.Index) -> Logic.Not (r = Head.head j) ->
+  (Extension.left r f).apply (ExteriorAt.word j) = (Extension.right r f).apply (ExteriorAt.word j) :=
+  \fun (previous: Property k)(r: Fin.Fin n)(f: Forms.Form (N.Nat^::succ k))(j: Index.Index)(different: Logic.Not (r = Head.head j)) => \block {
+    \let h: Fin.Fin n := Head.head j \then
+    \let tail: Algebra.Multilinear[V := Finite.Vector, space := Finite.space].Alternating[].Dimension[n := n, b := Standard.basis].Increasing[k := N.Nat^::succ k].Index := tailIndex (N.Nat^::succ k) j \then
+    \let b: Forms.Form (N.Nat^::succ k) := ExteriorBasis.At[k := N.Nat^::succ k].word tail \then
+    \let a: Forms.Form k := (Operations.Contraction[k := k].operator (Finite.basis h)).apply f \then
+    \let c: Forms.Form k := (Operations.Contraction[k := k].operator (Finite.basis r)).apply b \then
+    \let d: Forms.Form (N.Nat^::succ k) := Operations.LeftCreation[k := k].apply (Metric.form (Finite.basis h)) c \then
+    \return eq_reason_in!{C.Complex _
+      "=" _ "by" { HigherWords.coefficientWord j (Operations.LeftCreation[k := N.Nat^::succ k].apply (Metric.form (Finite.basis r)) f) }
+      "=" _ "by" { congr!{C.Complex C.Complex} Def.conj _ _ (Recursive.coefficient r j f different) }
+      "=" _ "by" { conjugateNegative ((Operations.LeftCreation[k := k].apply (Metric.form (Finite.basis r)) a) (Head.tailArguments j)) }
+      "=" _ "by" { congr!{C.Complex C.Complex} Algebra.neg _ _ (sym!{C.Complex} _ _ (MiddleWords.coefficientWord tail (Operations.LeftCreation[k := k].apply (Metric.form (Finite.basis r)) a))) }
+      "=" _ "by" { congr!{C.Complex C.Complex} Algebra.neg _ _ (previous r a b) }
+      "=" _ "by" { congr!{C.Complex C.Complex} Algebra.neg _ _ (LowerInner.form.symmetric a c) }
+      "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => Algebra.neg (Def.conj z)) _ _ (sym!{C.Complex} _ _ (previous h c f)) }
+      "=" _ "by" { congr!{C.Complex C.Complex} Algebra.neg _ _ (sym!{C.Complex} _ _ (MiddleInner.form.symmetric f d)) }
+      "=" _ "by" { sym!{C.Complex} _ _ (MiddleLaws.negativeRight f d) }
+      "=" _ "by" { congr!{{Forms.Form (N.Nat^::succ k)} C.Complex} (MiddleInner.dot f) _ _ (sym!{{Forms.Form (N.Nat^::succ k)}} _ _ (Recursive.contraction r j different)) }
+    }
+  };
+\definition law: Property k -> Property (N.Nat^::succ k) := \fun (previous: Property k)(r: Fin.Fin n)(f: Forms.Form (N.Nat^::succ k))(g: Forms.Form (N.Nat^::succ (N.Nat^::succ k))) =>
+  Extension.onBasis r f (\fun (j: Index.Index) => either!{{(Classical.excludedMiddle (r = Head.head j))} {(Extension.left r f).apply (ExteriorAt.word j) = (Extension.right r f).apply (ExteriorAt.word j)}
+    {\fun (same: r = Head.head j) => \idelim Head.head j = r \with s: Fin.Fin n => (Extension.left s f).apply (ExteriorAt.word j) = (Extension.right s f).apply (ExteriorAt.word j) \by {
+      base: HeadCase.adjoint j f, equality: sym!{{Fin.Fin n}} _ _ same
+    }}
+    {\fun (different: Logic.Not (r = Head.head j)) => nonHead previous r f j different}
+  }) g;

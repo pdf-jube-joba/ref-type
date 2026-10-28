@@ -1,0 +1,32 @@
+\import \parent.HeadAdjoint[k := N.Nat^::succ k] \as Head;
+\import Algebra.Multilinear[V := Finite.Vector, space := Finite.space].Alternating[].Dimension[n := n, b := Standard.basis].Increasing[k := N.Nat^::succ (N.Nat^::succ k)] \as Larger;
+\import Algebra.Coordinates[I := Fin.Fin n].Kronecker[] \as Delta;
+\import Forms.At[k := N.Nat^::succ k] \as Middle;
+\import Algebra.Laws[V := Forms.Form (N.Nat^::succ k), space := Middle.vectorSpace] \as MiddleLaws;
+\definition evaluationZero: \forall (r: Fin.Fin n)(j: Larger.Index) -> Logic.Not (r = Head.head j) ->
+  Operations.LeftCreation[k := k].Mixed[].evaluate (Metric.form (Finite.basis r)) (Finite.basis (Head.head j)) = Algebra.zero :=
+  \fun (r: Fin.Fin n)(j: Larger.Index)(different: Logic.Not (r = Head.head j)) => trans!{C.Complex} _ _ _
+    (Metric.evaluateMixed (Finite.basis r) (Finite.basis (Head.head j)))
+    (trans!{C.Complex} _ _ _ (Finite.dotBasis r (Finite.basis (Head.head j))) (Delta.different (Head.head j) r (\fun (same: Head.head j = r) => different (sym!{{Fin.Fin n}} _ _ same))));
+\definition coefficient: \forall (r: Fin.Fin n)(j: Larger.Index)(f: Forms.Form (N.Nat^::succ k)) -> Logic.Not (r = Head.head j) ->
+  (Operations.LeftCreation[k := N.Nat^::succ k].apply (Metric.form (Finite.basis r)) f) (Head.arguments j) = Algebra.neg
+    ((Operations.LeftCreation[k := k].apply (Metric.form (Finite.basis r)) ((Operations.Contraction[k := k].operator (Finite.basis (Head.head j))).apply f)) (Head.tailArguments j)) :=
+  \fun (r: Fin.Fin n)(j: Larger.Index)(f: Forms.Form (N.Nat^::succ k))(different: Logic.Not (r = Head.head j)) => eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{{Multi.Arguments (N.Nat^::succ (N.Nat^::succ k))} C.Complex} (Operations.LeftCreation[k := N.Nat^::succ k].apply (Metric.form (Finite.basis r)) f) _ _
+      (sym!{{Multi.Arguments (N.Nat^::succ (N.Nat^::succ k))}} _ _ (VectorTuples.recover (N.Nat^::succ k) (Head.arguments j))) }
+    "=" _ "by" { congr!{{Forms.Form (N.Nat^::succ k)} C.Complex} (\fun (a: Forms.Form (N.Nat^::succ k)) => a (Head.tailArguments j)) _ _
+      (Operations.LeftCreation[k := k].Mixed[].law (Metric.form (Finite.basis r)) f (Finite.basis (Head.head j))) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (a: C.Complex) => Algebra.add (Algebra.mul a (f (Head.tailArguments j))) (Algebra.neg ((Operations.LeftCreation[k := k].apply (Metric.form (Finite.basis r)) ((Operations.Contraction[k := k].operator (Finite.basis (Head.head j))).apply f)) (Head.tailArguments j)))) _ _ (evaluationZero r j different) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (a: C.Complex) => Algebra.add a (Algebra.neg ((Operations.LeftCreation[k := k].apply (Metric.form (Finite.basis r)) ((Operations.Contraction[k := k].operator (Finite.basis (Head.head j))).apply f)) (Head.tailArguments j)))) _ _ (Algebra.mulZeroLeft (f (Head.tailArguments j))) }
+    "=" _ "by" { Algebra.addZeroLeft (Algebra.neg ((Operations.LeftCreation[k := k].apply (Metric.form (Finite.basis r)) ((Operations.Contraction[k := k].operator (Finite.basis (Head.head j))).apply f)) (Head.tailArguments j))) }
+  };
+\definition contraction: \forall (r: Fin.Fin n)(j: Larger.Index) -> Logic.Not (r = Head.head j) ->
+  (Operations.Contraction[k := N.Nat^::succ k].operator (Finite.basis r)).apply (ExteriorBasis.At[k := N.Nat^::succ (N.Nat^::succ k)].word j) =
+  Middle.vectorSpace.neg (Operations.LeftCreation[k := k].apply (Metric.form (Finite.basis (Head.head j)))
+    ((Operations.Contraction[k := k].operator (Finite.basis r)).apply (ExteriorBasis.At[k := N.Nat^::succ k].word (tailIndex (N.Nat^::succ k) j)))) :=
+  \fun (r: Fin.Fin n)(j: Larger.Index)(different: Logic.Not (r = Head.head j)) => eq_reason_in!{{Forms.Form (N.Nat^::succ k)} _
+    "=" _ "by" { wordContractionStep k j (Finite.basis r) }
+    "=" _ "by" { congr!{C.Complex {Forms.Form (N.Nat^::succ k)}} (\fun (a: C.Complex) => Middle.vectorSpace.add (Middle.vectorSpace.smul a (ExteriorBasis.At[k := N.Nat^::succ k].word (tailIndex (N.Nat^::succ k) j))) (Middle.vectorSpace.neg (Operations.LeftCreation[k := k].apply (Metric.form (Finite.basis (Head.head j))) ((Operations.Contraction[k := k].operator (Finite.basis r)).apply (ExteriorBasis.At[k := N.Nat^::succ k].word (tailIndex (N.Nat^::succ k) j)))))) _ _ (Delta.different r (Head.head j) different) }
+    "=" _ "by" { congr!{{Forms.Form (N.Nat^::succ k)} {Forms.Form (N.Nat^::succ k)}} (\fun (a: Forms.Form (N.Nat^::succ k)) => Middle.vectorSpace.add a (Middle.vectorSpace.neg (Operations.LeftCreation[k := k].apply (Metric.form (Finite.basis (Head.head j))) ((Operations.Contraction[k := k].operator (Finite.basis r)).apply (ExteriorBasis.At[k := N.Nat^::succ k].word (tailIndex (N.Nat^::succ k) j)))))) _ _ (MiddleLaws.zeroScale (ExteriorBasis.At[k := N.Nat^::succ k].word (tailIndex (N.Nat^::succ k) j))) }
+    "=" _ "by" { MiddleLaws.zeroLeft (Middle.vectorSpace.neg (Operations.LeftCreation[k := k].apply (Metric.form (Finite.basis (Head.head j))) ((Operations.Contraction[k := k].operator (Finite.basis r)).apply (ExteriorBasis.At[k := N.Nat^::succ k].word (tailIndex (N.Nat^::succ k) j))))) }
+  };
