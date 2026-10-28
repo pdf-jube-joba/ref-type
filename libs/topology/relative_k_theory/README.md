@@ -98,21 +98,21 @@ K^{-(n+1)}(X)\longrightarrow K^{-(n+1)}(A)\longrightarrow K^{-n}(X,A)
 | smash、零次数・負次数外積と自然性全体 | `audit-06-Smash` |
 | 一般の対の積と外積の自然性 | `audit-06-Pair-Product` |
 | 閉被覆の貼合せ、Mayer–Vietoris と自然性全体 | `audit-07-Pair-ClosedCover` |
+| 束の円板・球面対、元の束の単位円板との同相 | `audit-10-BundleDisk` |
+| ランク0・1の円板の利用例 | `audit-10-Examples` |
 
-`audit-09-BundleDisk` は逆写像の連続性で、座標関数の定義域が束全体のままである不一致を検出した。
-単位円板上の点へ関数を制限するラムダを明記した。
-像ファイバー内の等式と逆写像の式は前回の失敗箇所を通過している。
-次は `audit-10.source.json` で `BundleDisk` と `Examples` を検査し、package 全体と workspace 全体へ進む。
+円板・球面対と利用例も accepted・終了0・保存失敗0・書込失敗0を確認した。
+次は workspace 入力を `workspace-audit-10.source.json` に固定し、K03 package 全体・全依存・影響先をまとめて検査する。
 最終 workspace 検証は未完了で、対象検査だけを全体の成功とは扱っていない。
 過去の終了1や中断130の報告も保持している。
 
-再開時は既存の CLI プロセスと `audit-10-{BundleDisk,Examples}.{log,json,exit}` を先に確認する。
+再開時は既存の CLI プロセスと `workspace-audit-10.{log,json,exit}` を先に確認する。
 終了後は終了コードと `outcome`、`storage.save_failures`、`checking.cache_write_failures` を照合する。
 必要な再検査は固定 snapshot と共有キャッシュを使う。
 
 ```sh
-REF_TYPE_GRAPH_RESIDENT_MIB=1024 target/debug/cli libs/topology/relative_k_theory \
-  --source-snapshot work/k03-resume/audit-10.source.json --module relative_k_theory.Relative.BundleDisk \
+REF_TYPE_GRAPH_RESIDENT_MIB=1024 target/debug/cli libs \
+  --source-snapshot work/k03-resume/workspace-audit-10.source.json \
   --cache-dir libs/refcache --cache-budget-mib 16384 --memory-mib 14336 \
-  --diagnostics compact --report-json work/k03-resume/audit-10-BundleDisk.json
+  --diagnostics compact --report-json work/k03-resume/workspace-audit-10.json
 ```
