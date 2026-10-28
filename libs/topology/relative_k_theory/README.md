@@ -99,19 +99,19 @@ K^{-(n+1)}(X)\longrightarrow K^{-(n+1)}(A)\longrightarrow K^{-n}(X,A)
 | 一般の対の積と外積の自然性 | `audit-06-Pair-Product` |
 | 閉被覆の貼合せ、Mayer–Vietoris と自然性全体 | `audit-07-Pair-ClosedCover` |
 
-`audit-07-BundleDisk` は円板対の加法群の取り込みで型不一致を検出した。
-ベクトル空間の加法群の法則から群そのものへの変換を明記した。
-次は `audit-08.source.json` で `BundleDisk` と `Examples` を検査し、package 全体と workspace 全体へ進む。
+`audit-08-BundleDisk` は元の単位円板との比較で終了1・保存失敗0・書込失敗0。
+周囲の座標ベクトルの等式から、像ファイバー内の等式を所属条件付きの等号除去で明示的に導いた。
+次は `audit-09.source.json` で `BundleDisk` と `Examples` を検査し、package 全体と workspace 全体へ進む。
 最終 workspace 検証は未完了で、対象検査だけを全体の成功とは扱っていない。
 過去の終了1や中断130の報告も保持している。
 
-再開時は既存の CLI プロセスと `audit-08-{BundleDisk,Examples}.{log,json,exit}` を先に確認する。
+再開時は既存の CLI プロセスと `audit-09-{BundleDisk,Examples}.{log,json,exit}` を先に確認する。
 終了後は終了コードと `outcome`、`storage.save_failures`、`checking.cache_write_failures` を照合する。
 必要な再検査は固定 snapshot と共有キャッシュを使う。
 
 ```sh
 REF_TYPE_GRAPH_RESIDENT_MIB=1024 target/debug/cli libs/topology/relative_k_theory \
-  --source-snapshot work/k03-resume/audit-08.source.json --module relative_k_theory.Relative.BundleDisk \
+  --source-snapshot work/k03-resume/audit-09.source.json --module relative_k_theory.Relative.BundleDisk \
   --cache-dir libs/refcache --cache-budget-mib 16384 --memory-mib 14336 \
-  --diagnostics compact --report-json work/k03-resume/audit-08-BundleDisk.json
+  --diagnostics compact --report-json work/k03-resume/audit-09-BundleDisk.json
 ```
