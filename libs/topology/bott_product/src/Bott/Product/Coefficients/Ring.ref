@@ -1,0 +1,94 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.trans;
+\use Eq.sym;
+\use Eq.congr;
+\use Eq.eq_reason_in;
+\import std.Alg[].Ring[] \as Rings;
+\import std.Alg[].Alg[] \as Alg;
+\import std.Alg[].Monoid[] \as Monoid;
+\import algebra.Group[].Of[Carrier := Target.K0[].Carrier, group := Target.K0[].group] \as TargetGroup;
+\import algebra.GroupCompletion[].Semiring[M := Target.Classes, semiring := Target.Semiring[].semiring] \as TargetRing;
+\definition addLeft: \forall (p: Model) -> add zero p = p := \fun (p: Model) => injective (add zero p) p
+  (trans!{Target.K0[].Carrier} _ _ _ (additive zero p)
+    (trans!{Target.K0[].Carrier} _ _ _ (congr!{Target.K0[].Carrier Target.K0[].Carrier} (\fun (x: Target.K0[].Carrier) => Target.K0[].add x (forward p)) _ _ preservesZero)
+      (TargetGroup.zeroLeft (forward p))));
+\definition addComm: \forall (p, q: Model) -> add p q = add q p := \fun (p, q: Model) => injective (add p q) (add q p)
+  (trans!{Target.K0[].Carrier} _ _ _ (additive p q)
+    (trans!{Target.K0[].Carrier} _ _ _ (TargetGroup.comm (forward p) (forward q)) (sym!{Target.K0[].Carrier} _ _ (additive q p))));
+\definition addAssoc: \forall (p, q, r: Model) -> add (add p q) r = add p (add q r) := \fun (p, q, r: Model) => injective (add (add p q) r) (add p (add q r))
+  (eq_reason_in!{Target.K0[].Carrier _
+    "=" _ "by" { additive (add p q) r }
+    "=" _ "by" { congr!{Target.K0[].Carrier Target.K0[].Carrier} (\fun (x: Target.K0[].Carrier) => Target.K0[].add x (forward r)) _ _ (additive p q) }
+    "=" _ "by" { TargetGroup.assoc (forward p) (forward q) (forward r) }
+    "=" _ "by" { congr!{Target.K0[].Carrier Target.K0[].Carrier} (Target.K0[].add (forward p)) _ _ (sym!{Target.K0[].Carrier} _ _ (additive q r)) }
+    "=" _ "by" { sym!{Target.K0[].Carrier} _ _ (additive p (add q r)) }
+  });
+\definition inverseLeft: \forall (p: Model) -> add (neg p) p = zero := \fun (p: Model) => injective (add (neg p) p) zero
+  (eq_reason_in!{Target.K0[].Carrier _
+    "=" _ "by" { additive (neg p) p }
+    "=" _ "by" { congr!{Target.K0[].Carrier Target.K0[].Carrier} (\fun (x: Target.K0[].Carrier) => Target.K0[].add x (forward p)) _ _ (preservesNeg p) }
+    "=" _ "by" { TargetGroup.inverseLeft (forward p) }
+    "=" _ "by" { sym!{Target.K0[].Carrier} _ _ preservesZero }
+  });
+\definition mulLeft: \forall (p: Model) -> mul one p = p := \fun (p: Model) => injective (mul one p) p
+  (eq_reason_in!{Target.K0[].Carrier _
+    "=" _ "by" { multiplicative one p }
+    "=" _ "by" { congr!{Target.K0[].Carrier Target.K0[].Carrier} (\fun (x: Target.K0[].Carrier) => Target.K0[].mul x (forward p)) _ _ preservesOne }
+    "=" _ "by" { TargetRing.oneLeft (forward p) }
+  });
+\definition mulComm: \forall (p, q: Model) -> mul p q = mul q p := \fun (p, q: Model) => injective (mul p q) (mul q p)
+  (trans!{Target.K0[].Carrier} _ _ _ (multiplicative p q)
+    (trans!{Target.K0[].Carrier} _ _ _ (TargetRing.mulComm Target.MultiplicativeMonoid[].commutative (forward p) (forward q))
+      (sym!{Target.K0[].Carrier} _ _ (multiplicative q p))));
+\definition mulAssoc: \forall (p, q, r: Model) -> mul (mul p q) r = mul p (mul q r) := \fun (p, q, r: Model) => injective (mul (mul p q) r) (mul p (mul q r))
+  (eq_reason_in!{Target.K0[].Carrier _
+    "=" _ "by" { multiplicative (mul p q) r }
+    "=" _ "by" { congr!{Target.K0[].Carrier Target.K0[].Carrier} (\fun (x: Target.K0[].Carrier) => Target.K0[].mul x (forward r)) _ _ (multiplicative p q) }
+    "=" _ "by" { TargetRing.mulAssoc (forward p) (forward q) (forward r) }
+    "=" _ "by" { congr!{Target.K0[].Carrier Target.K0[].Carrier} (Target.K0[].mul (forward p)) _ _ (sym!{Target.K0[].Carrier} _ _ (multiplicative q r)) }
+    "=" _ "by" { sym!{Target.K0[].Carrier} _ _ (multiplicative p (mul q r)) }
+  });
+\definition mulAdd: \forall (p, q, r: Model) -> mul p (add q r) = add (mul p q) (mul p r) := \fun (p, q, r: Model) => injective (mul p (add q r)) (add (mul p q) (mul p r))
+  (eq_reason_in!{Target.K0[].Carrier _
+    "=" _ "by" { multiplicative p (add q r) }
+    "=" _ "by" { congr!{Target.K0[].Carrier Target.K0[].Carrier} (Target.K0[].mul (forward p)) _ _ (additive q r) }
+    "=" _ "by" { TargetRing.mulAddRight (forward p) (forward q) (forward r) }
+    "=" _ "by" { congr!{Target.K0[].Carrier Target.K0[].Carrier Target.K0[].Carrier} Target.K0[].add _ _ _ _ (sym!{Target.K0[].Carrier} _ _ (multiplicative p q)) (sym!{Target.K0[].Carrier} _ _ (multiplicative p r)) }
+    "=" _ "by" { sym!{Target.K0[].Carrier} _ _ (additive (mul p q) (mul p r)) }
+  });
+\definition absorbs: \forall (p: Model) -> mul zero p = zero := \fun (p: Model) => injective (mul zero p) zero
+  (eq_reason_in!{Target.K0[].Carrier _
+    "=" _ "by" { multiplicative zero p }
+    "=" _ "by" { congr!{Target.K0[].Carrier Target.K0[].Carrier} (\fun (x: Target.K0[].Carrier) => Target.K0[].mul x (forward p)) _ _ preservesZero }
+    "=" _ "by" { TargetRing.mulZeroLeft (forward p) }
+    "=" _ "by" { sym!{Target.K0[].Carrier} _ _ preservesZero }
+  });
+\definition ring: Rings.CommutativeRing[Model] := Rings.CommutativeRing[Model] {
+  base := Rings.RingData[Model]::# zero one add neg mul,
+  ring := Rings.RingLaws[Model, (Rings.RingData[Model]::# zero one add neg mul)] {
+    semiring := Alg.SemiringLaws[Model, (Alg.SemiringData[Model]::# zero one add mul)] {
+      additive := Monoid.CommutativeMonoidLaws[Model, (Monoid.CommutativeMonoidData[Model]::# (Monoid.MonoidData[Model]::# zero add))] {
+        monoid := Monoid.MonoidLaws[Model, (Monoid.MonoidData[Model]::# zero add)] {
+          leftIdentity := addLeft, rightIdentity := \fun (p: Model) => trans!{Model} _ _ _ (addComm p zero) (addLeft p), associative := addAssoc
+        }, commutative := addComm
+      },
+      multiplicative := Monoid.MonoidLaws[Model, (Monoid.MonoidData[Model]::# one mul)] {
+        leftIdentity := mulLeft, rightIdentity := \fun (p: Model) => trans!{Model} _ _ _ (mulComm p one) (mulLeft p), associative := mulAssoc
+      },
+      leftDistributive := mulAdd,
+      rightDistributive := \fun (p, q, r: Model) => eq_reason_in!{Model _
+        "=" _ "by" { mulComm (add p q) r }
+        "=" _ "by" { mulAdd r p q }
+        "=" _ "by" { congr!{Model Model Model} add _ _ _ _ (mulComm r p) (mulComm r q) }
+      },
+      zeroAbsorbsLeft := absorbs, zeroAbsorbsRight := \fun (p: Model) => trans!{Model} _ _ _ (mulComm p zero) (absorbs p)
+    }, additiveInverse := inverseLeft
+  }, mulCommutative := mulComm
+};
+\import algebra.Hom[A := Model, B := Target.K0[].Carrier] \as Maps;
+\definition map: Maps.RingMap (Rings.commutativeRingAsRing Model ring) Target.K0[].ring :=
+  \into[Model -> Target.K0[].Carrier](forward, Maps.RingMap (Rings.commutativeRingAsRing Model ring) Target.K0[].ring) \by {
+    Maps.SemiringLaws[(Rings.ringAsSemiring Model (Rings.commutativeRingAsRing Model ring)), (Rings.ringAsSemiring Target.K0[].Carrier Target.K0[].ring), forward] {
+      zero := preservesZero, one := preservesOne, add := additive, mul := multiplicative
+    }
+  };

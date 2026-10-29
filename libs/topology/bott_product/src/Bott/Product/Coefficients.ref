@@ -6,6 +6,7 @@
 \import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Inverse[] \as Inverse;
 \import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Additive[] \as Additive;
 \import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Multiplication[] \as Multiplication;
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Injective[] \as Injective;
 \definition Coefficient: \Set := Source.K0[].Carrier;
 \definition Model: \Set := Pair.Times^[Coefficient, Coefficient];
 \definition first: Model -> Coefficient := Pair.first Coefficient Coefficient;
@@ -14,6 +15,9 @@
 \definition add[p, q: Model]: Model := pair (Source.K0[].add (first p) (first q)) (Source.K0[].add (second p) (second q));
 \definition mul[p, q: Model]: Model := pair (Source.K0[].mul (first p) (first q))
   (Source.K0[].add (Source.K0[].mul (first p) (second q)) (Source.K0[].mul (first q) (second p)));
+\definition zero: Model := pair Source.K0[].zero Source.K0[].zero;
+\definition one: Model := pair Source.K0[].one Source.K0[].zero;
+\definition neg[p: Model]: Model := pair (Source.K0[].neg (first p)) (Source.K0[].neg (second p));
 \definition forward[p: Model]: Target.K0[].Carrier := Product.forward (first p) (second p);
 \definition backward[v: Target.K0[].Carrier]: Model := pair (Inverse.first v) (Inverse.coefficient v);
 \definition leftInverse: \forall (p: Model) -> backward (forward p) = p :=
@@ -24,3 +28,17 @@
   \fun (p, q: Model) => Additive.add (first p) (second p) (first q) (second q);
 \definition multiplicative: \forall (p, q: Model) -> forward (mul p q) = Target.K0[].mul (forward p) (forward q) :=
   \fun (p, q: Model) => sym!{Target.K0[].Carrier} _ _ (Multiplication.formula (first p) (second p) (first q) (second q));
+\definition injective: \forall (p, q: Model) -> forward p = forward q -> p = q :=
+  \fun (p, q: Model)(same: forward p = forward q) => Pair.Prop[A := Coefficient, B := Coefficient].ext p q
+    (Injective.injective (first p) (second p) (first q) (second q) same).left
+    (Injective.injective (first p) (second p) (first q) (second q) same).right;
+\definition preservesZero: forward zero = Target.K0[].zero := Additive.reducedZero;
+\definition preservesNeg: \forall (p: Model) -> forward (neg p) = Target.K0[].neg (forward p) :=
+  \fun (p: Model) => Additive.neg (first p) (second p);
+\import std.Alg[].Ring[] \as Rings;
+\import algebra.Hom[A := Source.K0[].Carrier, B := Target.K0[].Carrier] \as FirstHom;
+\definition preservesOne: forward one = Target.K0[].one := trans!{Target.K0[].Carrier} _ _ _
+  (Additive.zeroCoefficient Source.K0[].one)
+  ((FirstHom.semiringLaws (Rings.ringAsSemiring Source.K0[].Carrier Source.K0[].ring)
+    (Rings.ringAsSemiring Target.K0[].Carrier Target.K0[].ring) First.K0[].map).one);
+\module Ring;
