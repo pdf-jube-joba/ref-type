@@ -9,3 +9,18 @@
 \definition smooth: \forall (u: M.Point -> Unitary.Carrier) -> Condition u -> Regularity.IsSmooth (\fun (x: M.Point) => Lift.lift (u x)) :=
   \fun (u: M.Point -> Unitary.Carrier)(regular: Condition u) => FromPlots.smooth (\fun (x: M.Point) => Lift.lift (u x))
     (\fun (c: Chart) => lifted c.image (\fun (x: Open.Carrier c.image) => u (Charts.point c x)) (regular c));
+
+\definition MatrixCondition[u: M.Point -> Unitary.Carrier]: \Prop := \forall (c: Chart)(j, i: Fin.Fin n) -> Logic.And[
+  Open.Smooth[].SmoothOn c.image (\fun (x: Open.Carrier c.image) => C.re ((u (Charts.point c x)).forward.apply (FrameBasis.vectors j) i)),
+  Open.Smooth[].SmoothOn c.image (\fun (x: Open.Carrier c.image) => C.im ((u (Charts.point c x)).forward.apply (FrameBasis.vectors j) i))];
+\definition smoothEntries: \forall (u: M.Point -> Unitary.Carrier) -> MatrixCondition u -> Regularity.IsSmooth (\fun (x: M.Point) => Lift.lift (u x)) :=
+  \fun (u: M.Point -> Unitary.Carrier)(regular: MatrixCondition u) => smooth u (\fun (c: Chart) => \parent.\parent.Basis[U := c.image, u := (\fun (x: Open.Carrier c.image) => u (Charts.point c x)), entries := regular c].regular);
+\import manifolds.SmoothMap[n := d, m := TargetDimension.dimension].Between[M := M, N := TargetDimension.manifold] \as Maps;
+\import topology.Continuity[A := M.Point, B := TargetDimension.manifold.Point] \as Continuous;
+\definition applyLift[u: M.Point -> Unitary.Carrier][x: M.Point]: SpinC.Carrier := Lift.lift (u x);
+\definition continuousEntries: \forall (u: M.Point -> Unitary.Carrier) -> MatrixCondition u ->
+  Continuous.Continuous M.space TargetDimension.manifold.space (applyLift u) :=
+  \fun (u: M.Point -> Unitary.Carrier)(regular: MatrixCondition u) => Maps.Named[
+    f := Regularity.map (applyLift u) (smoothEntries u regular),
+    function := applyLift u,
+    same := Regularity.applyChosen (applyLift u) (smoothEntries u regular)].continuous;

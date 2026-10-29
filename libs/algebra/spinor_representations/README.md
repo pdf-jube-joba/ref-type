@@ -16,7 +16,9 @@
 `Topology.topology` は全次数の評価写像が定めるスピノル空間の位相である。
 `Families.liftedOrbitContinuous` は連続なユニタリ族に対して、各固定スピノルの標準持ち上げによる軌道がこの位相で連続であることを示す。
 `Families.determinantContinuous` は標準持ち上げの Spin-c 行列式文字についても、連続なユニタリ族に沿った連続性を示す。
-標準持ち上げ自体の Spin-c の多様体位相に関する連続性と滑らかさは未証明である。
+`UnitaryOrthogonal.Smooth.lifted` は、行列成分の滑らかなユニタリ族の標準持ち上げが Spin-c の係数座標で滑らかであることを示す。
+`UnitaryOrthogonal.Smooth.FromManifold.On.smoothEntries` は任意の滑らかなソース多様体から、標準持ち上げを実際の Spin-c 多様体への滑らかな写像として与え、`continuousEntries` はその連続性を与える。これらは局所座標上の行列成分の滑らかさを前提とし、滑らかな遷移関数に適用できる。
+U(n) 自身の行列成分位相から Spin-c の多様体位相への一般的な連続性は別途未証明である。
 
 `Over.Direct.Total.comparison` は左右のスピノルのテンソル積から直和の外代数への線形写像である。
 `Over.Direct.Total.Isomorphism` は右側と直和に有限基底を指定すると、この比較写像を前向きの写像とする線形同型を構成する。

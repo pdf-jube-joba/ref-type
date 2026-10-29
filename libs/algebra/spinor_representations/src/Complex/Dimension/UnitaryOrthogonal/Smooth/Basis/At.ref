@@ -1,0 +1,24 @@
+\definition term[j: Fin.Fin n][x: Open.Carrier U]: C.Complex := Algebra.mul (v j) ((u x).forward.apply (Basis.vectors j) i);
+\definition sum[x: Open.Carrier U]: C.Complex := ComplexSums.sum n (\fun (j: Fin.Fin n) => term j x);
+\definition realTerm: \forall (j: Fin.Fin n) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => C.re (term j x)) :=
+  \fun (j: Fin.Fin n) => Operations.subSmooth U
+    (\fun (x: Open.Carrier U) => R.mul (C.re (v j)) (C.re ((u x).forward.apply (Basis.vectors j) i)))
+    (\fun (x: Open.Carrier U) => R.mul (C.im (v j)) (C.im ((u x).forward.apply (Basis.vectors j) i)))
+    (Operations.mulSmooth U (\fun (x: Open.Carrier U) => C.re (v j)) (\fun (x: Open.Carrier U) => C.re ((u x).forward.apply (Basis.vectors j) i)) (Operations.constantSmooth U (C.re (v j))) (entries j i).left)
+    (Operations.mulSmooth U (\fun (x: Open.Carrier U) => C.im (v j)) (\fun (x: Open.Carrier U) => C.im ((u x).forward.apply (Basis.vectors j) i)) (Operations.constantSmooth U (C.im (v j))) (entries j i).right);
+\definition imaginaryTerm: \forall (j: Fin.Fin n) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => C.im (term j x)) :=
+  \fun (j: Fin.Fin n) => Operations.addSmooth U
+    (\fun (x: Open.Carrier U) => R.mul (C.re (v j)) (C.im ((u x).forward.apply (Basis.vectors j) i)))
+    (\fun (x: Open.Carrier U) => R.mul (C.im (v j)) (C.re ((u x).forward.apply (Basis.vectors j) i)))
+    (Operations.mulSmooth U (\fun (x: Open.Carrier U) => C.re (v j)) (\fun (x: Open.Carrier U) => C.im ((u x).forward.apply (Basis.vectors j) i)) (Operations.constantSmooth U (C.re (v j))) (entries j i).right)
+    (Operations.mulSmooth U (\fun (x: Open.Carrier U) => C.im (v j)) (\fun (x: Open.Carrier U) => C.re ((u x).forward.apply (Basis.vectors j) i)) (Operations.constantSmooth U (C.im (v j))) (entries j i).left);
+\definition real: Smooth.SmoothOn U (\fun (x: Open.Carrier U) => C.re ((u x).forward.apply v i)) := Calculus.smoothEqual U
+  (\fun (x: Open.Carrier U) => RealSums.sum n (\fun (j: Fin.Fin n) => C.re (term j x))) (\fun (x: Open.Carrier U) => C.re ((u x).forward.apply v i))
+  (\fun (x: Open.Carrier U) => trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (RC.realSum n (\fun (j: Fin.Fin n) => term j x)))
+    (congr!{C.Complex R.Real} C.re _ _ (sym!{C.Complex} _ _ (Matrices.Expansion[A := (u x).forward, v := v, i := i].formula))))
+  (Sums.smooth U n (\fun (j: Fin.Fin n)(x: Open.Carrier U) => C.re (term j x)) realTerm);
+\definition imaginary: Smooth.SmoothOn U (\fun (x: Open.Carrier U) => C.im ((u x).forward.apply v i)) := Calculus.smoothEqual U
+  (\fun (x: Open.Carrier U) => RealSums.sum n (\fun (j: Fin.Fin n) => C.im (term j x))) (\fun (x: Open.Carrier U) => C.im ((u x).forward.apply v i))
+  (\fun (x: Open.Carrier U) => trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (imaginarySum n (\fun (j: Fin.Fin n) => term j x)))
+    (congr!{C.Complex R.Real} C.im _ _ (sym!{C.Complex} _ _ (Matrices.Expansion[A := (u x).forward, v := v, i := i].formula))))
+  (Sums.smooth U n (\fun (j: Fin.Fin n)(x: Open.Carrier U) => C.im (term j x)) imaginaryTerm);
