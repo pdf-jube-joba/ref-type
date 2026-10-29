@@ -1,0 +1,95 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.trans;
+\use Eq.sym;
+\use Eq.congr;
+\use Eq.eq_reason_in;
+\import \root.Bott[].ProjectiveLine[].Coordinates[].SphereMap[].Matrix[] \as Matrix;
+\import \root.Bott[].ProjectiveLine[].Coordinates[].SphereMap[].Matrix[].Idempotent[] \as Idempotent;
+\import \root.Bott[].ProjectiveLine[].Coordinates[] \as Indices;
+\import std.Data[].FinSet[] \as Fin;
+\import matrix_invariants.Ring[K := C.Complex, scalars := C.Algebra[].commutativeRing].At[n := two] \as Matrices;
+\definition actionAt: \forall (s: Sphere.Sphere)(v: Matrices.Vector)(i: Fin.Fin two) -> (Matrices.linear (Matrix.matrix s)).apply v i =
+  C.Def[].add (C.Def[].mul (Matrix.matrix s i Indices.first) (v Indices.first)) (C.Def[].mul (Matrix.matrix s i Indices.second) (v Indices.second)) :=
+  \fun (s: Sphere.Sphere)(v: Matrices.Vector)(i: Fin.Fin two) => congr!{C.Complex C.Complex}
+    (C.Def[].add (C.Def[].mul (Matrix.matrix s i Indices.first) (v Indices.first))) _ _
+    (C.Prop[].addZeroRight (C.Def[].mul (Matrix.matrix s i Indices.second) (v Indices.second)));
+\definition first[s: Sphere.Sphere][x, y: C.Complex]: C.Complex := C.Def[].add (C.Def[].mul (Matrix.a s) x) (C.Def[].mul (Matrix.b s) y);
+\definition second[s: Sphere.Sphere][x, y: C.Complex]: C.Complex := C.Def[].add (C.Def[].mul (C.Def[].conj (Matrix.b s)) x) (C.Def[].mul (Matrix.d s) y);
+\definition actionFirst: \forall (s: Sphere.Sphere)(v: Matrices.Vector) -> (Matrices.linear (Matrix.matrix s)).apply v Indices.first = first s (v Indices.first) (v Indices.second) :=
+  \fun (s: Sphere.Sphere)(v: Matrices.Vector) => trans!{C.Complex} _ _ _ (actionAt s v Indices.first)
+    (congr!{C.Complex C.Complex C.Complex} C.Def[].add _ _ _ _
+      (congr!{C.Complex C.Complex} (\fun (z: C.Complex) => C.Def[].mul z (v Indices.first)) _ _ (Matrix.at00 s))
+      (congr!{C.Complex C.Complex} (\fun (z: C.Complex) => C.Def[].mul z (v Indices.second)) _ _ (Matrix.at01 s)));
+\definition actionSecond: \forall (s: Sphere.Sphere)(v: Matrices.Vector) -> (Matrices.linear (Matrix.matrix s)).apply v Indices.second = second s (v Indices.first) (v Indices.second) :=
+  \fun (s: Sphere.Sphere)(v: Matrices.Vector) => trans!{C.Complex} _ _ _ (actionAt s v Indices.second)
+    (congr!{C.Complex C.Complex C.Complex} C.Def[].add _ _ _ _
+      (congr!{C.Complex C.Complex} (\fun (z: C.Complex) => C.Def[].mul z (v Indices.first)) _ _ (Matrix.at10 s))
+      (congr!{C.Complex C.Complex} (\fun (z: C.Complex) => C.Def[].mul z (v Indices.second)) _ _ (Matrix.at11 s)));
+\definition proportional: \forall (s: Sphere.Sphere)(x, y: C.Complex) ->
+  C.Def[].mul (Matrix.a s) (second s x y) = C.Def[].mul (C.Def[].conj (Matrix.b s)) (first s x y) :=
+  \fun (s: Sphere.Sphere)(x, y: C.Complex) => eq_reason_in!{C.Complex _
+    "=" _ "by" { C.Prop[].mulAddLeft (Matrix.a s) (C.Def[].mul (C.Def[].conj (Matrix.b s)) x) (C.Def[].mul (Matrix.d s) y) }
+    "=" _ "by" { congr!{C.Complex C.Complex C.Complex} C.Def[].add _ _ _ _
+      (sym!{C.Complex} _ _ (C.Prop[].mulAssoc (Matrix.a s) (C.Def[].conj (Matrix.b s)) x))
+      (sym!{C.Complex} _ _ (C.Prop[].mulAssoc (Matrix.a s) (Matrix.d s) y)) }
+    "=" _ "by" { congr!{C.Complex C.Complex C.Complex} C.Def[].add _ _ _ _
+      (congr!{C.Complex C.Complex} (\fun (z: C.Complex) => C.Def[].mul z x) _ _ (C.Prop[].mulComm (Matrix.a s) (C.Def[].conj (Matrix.b s))))
+      (congr!{C.Complex C.Complex} (\fun (z: C.Complex) => C.Def[].mul z y) _ _
+        (trans!{C.Complex} _ _ _ (sym!{C.Complex} _ _ (Idempotent.product s)) (C.Prop[].mulComm (Matrix.b s) (C.Def[].conj (Matrix.b s))))) }
+    "=" _ "by" { congr!{C.Complex C.Complex C.Complex} C.Def[].add _ _ _ _
+      (C.Prop[].mulAssoc (C.Def[].conj (Matrix.b s)) (Matrix.a s) x)
+      (C.Prop[].mulAssoc (C.Def[].conj (Matrix.b s)) (Matrix.b s) y) }
+    "=" _ "by" { sym!{C.Complex} _ _ (C.Prop[].mulAddLeft (C.Def[].conj (Matrix.b s)) (C.Def[].mul (Matrix.a s) x) (C.Def[].mul (Matrix.b s) y)) }
+  };
+\definition proportionalOther: \forall (s: Sphere.Sphere)(x, y: C.Complex) ->
+  C.Def[].mul (Matrix.d s) (first s x y) = C.Def[].mul (Matrix.b s) (second s x y) :=
+  \fun (s: Sphere.Sphere)(x, y: C.Complex) => eq_reason_in!{C.Complex _
+    "=" _ "by" { C.Prop[].mulAddLeft (Matrix.d s) (C.Def[].mul (Matrix.a s) x) (C.Def[].mul (Matrix.b s) y) }
+    "=" _ "by" { congr!{C.Complex C.Complex C.Complex} C.Def[].add _ _ _ _
+      (sym!{C.Complex} _ _ (C.Prop[].mulAssoc (Matrix.d s) (Matrix.a s) x))
+      (sym!{C.Complex} _ _ (C.Prop[].mulAssoc (Matrix.d s) (Matrix.b s) y)) }
+    "=" _ "by" { congr!{C.Complex C.Complex C.Complex} C.Def[].add _ _ _ _
+      (congr!{C.Complex C.Complex} (\fun (z: C.Complex) => C.Def[].mul z x) _ _
+        (trans!{C.Complex} _ _ _ (C.Prop[].mulComm (Matrix.d s) (Matrix.a s)) (sym!{C.Complex} _ _ (Idempotent.product s))))
+      (congr!{C.Complex C.Complex} (\fun (z: C.Complex) => C.Def[].mul z y) _ _ (C.Prop[].mulComm (Matrix.d s) (Matrix.b s))) }
+    "=" _ "by" { congr!{C.Complex C.Complex C.Complex} C.Def[].add _ _ _ _
+      (C.Prop[].mulAssoc (Matrix.b s) (C.Def[].conj (Matrix.b s)) x)
+      (C.Prop[].mulAssoc (Matrix.b s) (Matrix.d s) y) }
+    "=" _ "by" { sym!{C.Complex} _ _ (C.Prop[].mulAddLeft (Matrix.b s) (C.Def[].mul (C.Def[].conj (Matrix.b s)) x) (C.Def[].mul (Matrix.d s) y)) }
+  };
+\definition fromFirst: \forall (s: Sphere.Sphere)(nonzero: C.Def[].NonZero (Matrix.a s))(x, y: C.Complex) ->
+  second s x y = C.Def[].mul (C.Def[].mul (C.Def[].inv (Matrix.a s)) (C.Def[].conj (Matrix.b s))) (first s x y) :=
+  \fun (s: Sphere.Sphere)(nonzero: _)(x, y: C.Complex) => eq_reason_in!{C.Complex _
+    "=" _ "by" { sym!{C.Complex} _ _ (C.Prop[].mulOneLeft (second s x y)) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => C.Def[].mul z (second s x y)) _ _ (sym!{C.Complex} _ _ (C.Prop[].inverseNonzero (Matrix.a s) nonzero)) }
+    "=" _ "by" { C.Prop[].mulAssoc (C.Def[].inv (Matrix.a s)) (Matrix.a s) (second s x y) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (C.Def[].mul (C.Def[].inv (Matrix.a s))) _ _ (proportional s x y) }
+    "=" _ "by" { sym!{C.Complex} _ _ (C.Prop[].mulAssoc (C.Def[].inv (Matrix.a s)) (C.Def[].conj (Matrix.b s)) (first s x y)) }
+  };
+\definition fromSecond: \forall (s: Sphere.Sphere)(nonzero: C.Def[].NonZero (Matrix.d s))(x, y: C.Complex) ->
+  first s x y = C.Def[].mul (C.Def[].mul (C.Def[].inv (Matrix.d s)) (Matrix.b s)) (second s x y) :=
+  \fun (s: Sphere.Sphere)(nonzero: _)(x, y: C.Complex) => eq_reason_in!{C.Complex _
+    "=" _ "by" { sym!{C.Complex} _ _ (C.Prop[].mulOneLeft (first s x y)) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => C.Def[].mul z (first s x y)) _ _ (sym!{C.Complex} _ _ (C.Prop[].inverseNonzero (Matrix.d s) nonzero)) }
+    "=" _ "by" { C.Prop[].mulAssoc (C.Def[].inv (Matrix.d s)) (Matrix.d s) (first s x y) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (C.Def[].mul (C.Def[].inv (Matrix.d s))) _ _ (proportionalOther s x y) }
+    "=" _ "by" { sym!{C.Complex} _ _ (C.Prop[].mulAssoc (C.Def[].inv (Matrix.d s)) (Matrix.b s) (second s x y)) }
+  };
+\definition fixedFromFirst: \forall (s: Sphere.Sphere)(nonzero: C.Def[].NonZero (Matrix.a s))(v: Matrices.Vector) ->
+  (Matrices.linear (Matrix.matrix s)).apply v = v ->
+  v Indices.second = C.Def[].mul (C.Def[].mul (C.Def[].inv (Matrix.a s)) (C.Def[].conj (Matrix.b s))) (v Indices.first) :=
+  \fun (s: Sphere.Sphere)(nonzero: _)(v: Matrices.Vector)(fixed: _) => trans!{C.Complex} _ _ _
+    (sym!{C.Complex} _ _ (trans!{C.Complex} _ _ _ (sym!{C.Complex} _ _ (actionSecond s v))
+      (congr!{Matrices.Vector C.Complex} (\fun (w: Matrices.Vector) => w Indices.second) _ _ fixed)))
+    (trans!{C.Complex} _ _ _ (fromFirst s nonzero (v Indices.first) (v Indices.second))
+      (congr!{C.Complex C.Complex} (C.Def[].mul (C.Def[].mul (C.Def[].inv (Matrix.a s)) (C.Def[].conj (Matrix.b s)))) _ _
+        (trans!{C.Complex} _ _ _ (sym!{C.Complex} _ _ (actionFirst s v)) (congr!{Matrices.Vector C.Complex} (\fun (w: Matrices.Vector) => w Indices.first) _ _ fixed))));
+\definition fixedFromSecond: \forall (s: Sphere.Sphere)(nonzero: C.Def[].NonZero (Matrix.d s))(v: Matrices.Vector) ->
+  (Matrices.linear (Matrix.matrix s)).apply v = v ->
+  v Indices.first = C.Def[].mul (C.Def[].mul (C.Def[].inv (Matrix.d s)) (Matrix.b s)) (v Indices.second) :=
+  \fun (s: Sphere.Sphere)(nonzero: _)(v: Matrices.Vector)(fixed: _) => trans!{C.Complex} _ _ _
+    (sym!{C.Complex} _ _ (trans!{C.Complex} _ _ _ (sym!{C.Complex} _ _ (actionFirst s v))
+      (congr!{Matrices.Vector C.Complex} (\fun (w: Matrices.Vector) => w Indices.first) _ _ fixed)))
+    (trans!{C.Complex} _ _ _ (fromSecond s nonzero (v Indices.first) (v Indices.second))
+      (congr!{C.Complex C.Complex} (C.Def[].mul (C.Def[].mul (C.Def[].inv (Matrix.d s)) (Matrix.b s))) _ _
+        (trans!{C.Complex} _ _ _ (sym!{C.Complex} _ _ (actionSecond s v)) (congr!{Matrices.Vector C.Complex} (\fun (w: Matrices.Vector) => w Indices.second) _ _ fixed))));
