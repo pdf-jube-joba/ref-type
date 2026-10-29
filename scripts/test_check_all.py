@@ -126,6 +126,17 @@ class RepositoryCheckTests(unittest.TestCase):
         self.accepted(result, resumed)
         self.assertTrue(resumed['reused'])
 
+    def test_worker_without_new_checkpoint_is_not_restarted(self):
+        report_file = self.root / 'memory.json'
+        result = subprocess.run([str(BINARY), str(self.root / 'base'), '--memory-mib', '32',
+                                 '--report-json', str(report_file)], capture_output=True, text=True, timeout=10)
+        report = json.loads(report_file.read_text())
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertEqual(report['outcome'], 'memory-limit')
+        self.assertEqual(report['execution']['workers'], 1)
+        self.assertEqual(report['execution']['recoveries'], 0)
+        self.assertEqual(report['execution']['last_checkpoint'], 0)
+
     def test_impossible_memory_budget_terminates(self):
         result, report = self.run_check('--memory-mib', '32')
         self.assertNotEqual(result.returncode, 0)

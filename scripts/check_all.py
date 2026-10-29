@@ -63,6 +63,11 @@ def main():
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
         raise Failure(f'another check owns {state}')
+    hint_file = state / 'verified-state.json'
+    try:
+        hint = json.loads(hint_file.read_text())
+    except (OSError, ValueError):
+        hint = {}
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ')
     attempt = state / stamp
     attempt.mkdir()
@@ -72,7 +77,9 @@ def main():
     snapshot = attempt / 'source.json'
     started = time.monotonic()
     binary_digest = digest(binary)
-    report = dict(version=1, outcome='running', binary=str(binary), binary_sha256=binary_digest,
+    commit = subprocess.run(['git', 'rev-parse', 'HEAD'], capture_output=True, text=True)
+    report = dict(version=1, commit=commit.stdout.strip() if commit.returncode == 0 else None,
+                  driver_sha256=digest(Path(__file__)), outcome='running', binary=str(binary), binary_sha256=binary_digest,
                   entry=str(entry), attempts=[], targets=[], verified=[], newly_checked=[], reused=[],
                   save_failures=0, corrupt_cache_reads=0, peak_rss_kib=0, peak_virtual_kib=0,
                   checkpoint_resumes=0, worker_recoveries=0, cache_retained_bytes_upper_bound=0)
@@ -122,6 +129,7 @@ def main():
             child = subprocess.Popen(command, stdout=stdout, stderr=stderr, preexec_fn=child_setup)
             last_message = time.monotonic()
             disk_failure = False
+            stopping_since = None
             while child.poll() is None:
                 try:
                     status = dict(line.split(':', 1) for line in Path(f'/proc/{child.pid}/status').read_text().splitlines() if ':' in line)
@@ -132,6 +140,11 @@ def main():
                 if any(shutil.disk_usage(path).free < args.min_free_mib * 1024**2 for path in [state, cache or state]):
                     disk_failure = True
                     child.send_signal(signal.SIGTERM)
+                if interrupted or disk_failure:
+                    if stopping_since is None:
+                        stopping_since = time.monotonic()
+                    elif time.monotonic() - stopping_since >= 10:
+                        child.kill()
                 if time.monotonic() - last_message >= 30:
                     print(f'{label}: {time.monotonic() - started:.0f}s; log {log}', flush=True)
                     last_message = time.monotonic()
@@ -167,29 +180,36 @@ def main():
                 if 'name' in package:
                     package_entries[package['name']] = str(Path(path).parent)
         report['package_entries'] = package_entries
-        pending = [(root, False) for root in targets if '.' not in root]
-        if not pending:
+        roots = [(root, False) for root in targets if '.' not in root]
+        pending = list(roots)
+        # This hint only chooses a faster execution plan. The CLI still validates
+        # every cached object and normally rechecks any miss before success.
+        if hint == {'binary_sha256': binary_digest, 'source_sha256': snapshot_digest}:
+            pending = [(None, False)]
+        if not roots:
             raise Failure('no root modules in enumeration')
         verified, checked = set(), set()
         sequence = 0
         while pending:
             module, only = pending.pop(0)
-            wanted = {t for t in targets if t == module or (not only and t.startswith(module + '.'))}
+            wanted = set(targets) if module is None else {t for t in targets if t == module or (not only and t.startswith(module + '.'))}
             if wanted <= verified:
                 continue
             sequence += 1
-            label = f'{sequence:05d}-{module}'
+            label = f'{sequence:05d}-{module or "repository"}'
             result_file = attempt / (label + '.json')
             # Change only the entry point: every source byte and alias still comes
             # from the single immutable repository snapshot. Load this package's
             # dependency closure rather than parsing unrelated workspace members.
-            scope_entry = package_entries.get(module.split('.')[0], str(entry))
+            scope_entry = package_entries.get(module.split('.')[0], str(entry)) if module else str(entry)
             save(scope_snapshot, dict(source, entry=scope_entry))
             scope_digest = digest(scope_snapshot)
             command = [str(binary), scope_entry, '--memory-mib', str(args.memory_mib),
                               '--source-snapshot', str(scope_snapshot), '--cache-dir', str(cache),
                               '--cache-budget-mib', str(args.cache_budget_mib),
-                              '--module', module, '--report-json', str(result_file)]
+                              '--report-json', str(result_file)]
+            if module is not None:
+                command += ['--module', module]
             if only:
                 command.append('--module-only')
             if args.time_limit_seconds is not None:
@@ -197,7 +217,7 @@ def main():
                 if remaining <= 0:
                     raise Failure('total time limit reached')
                 command += ['--time-limit-seconds', str(remaining)]
-            print(f'checking {module}{" (own declarations)" if only else ""}: {len(verified)}/{len(targets)}', flush=True)
+            print(f'checking {module or "repository"}{" (own declarations)" if only else ""}: {len(verified)}/{len(targets)}', flush=True)
             persist()
             code, _, log = invoke(command, label)
             result = json.loads(result_file.read_text()) if result_file.exists() else {}
@@ -220,6 +240,8 @@ def main():
                 if not wanted <= coverage:
                     raise Failure(f'incomplete coverage for {module}: {sorted(wanted - coverage)[:10]}')
                 verified.update(coverage & set(targets))
+            elif result.get('outcome') == 'memory-limit' and module is None:
+                pending = list(roots)
             elif result.get('outcome') == 'memory-limit' and not only and len(wanted) > 1:
                 # Strictly smaller scopes, retaining all declarations and normal dependency checks.
                 children = sorted({t[len(module) + 1:].split('.')[0] for t in wanted if t != module})
@@ -236,6 +258,7 @@ def main():
             raise Failure(f'source or target list changed; see {log}; rerun the same command')
         if digest(binary) != binary_digest or verified != set(targets):
             raise Failure('binary changed or target coverage is incomplete')
+        save(hint_file, {'binary_sha256': binary_digest, 'source_sha256': snapshot_digest})
         report['outcome'] = 'accepted'
         print(f'accepted: {len(targets)} targets; {len(verified & checked)} newly checked, {len(verified - checked)} reused')
         return 0

@@ -49,6 +49,8 @@ python3 scripts/check_all.py --state-dir work/repository-check --cache-dir libs/
 ドライバの失敗は 2、中断は 130 である。
 失敗や中断後は同じコマンドを実行すると、現在のソースに適合するキャッシュと checkpoint を検証して再開する。
 前回の集計ファイルだけを根拠に検査を省略することはない。
+同じソースと処理系で前回成功していれば、まず全体の通常キャッシュ検証を試し、必要に応じてパッケージ単位に戻る。
+`verified-state.json` はこの実行順の選択だけに使い、成功判定には使わない。
 
 小規模な動作確認は `python3 scripts/test_check_all.py`、中断・worker 復旧の確認は `python3 benchmarks/bench.py cache --binary target/release/cli --checkpoint` で実行できる。
 CLI の詳細は [利用方法](src/USAGE.md)、計測方法は [benchmarks](benchmarks/README.md) を参照。
