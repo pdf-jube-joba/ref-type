@@ -1,0 +1,41 @@
+\import \parent.Series[].Laws[] \as Exterior;
+\import Exterior.OneCommutation[] \as One;
+\import Exterior.Reversal[].Charge[] \as Charge;
+\import \parent.Vacuum[] \as Vacuum;
+\import \parent.Parity[] \as Parity;
+\import Algebra.Laws[V := Carrier, space := totalSpace] \as Laws;
+\import Algebra.Linear[V := Carrier, W := Carrier, source := totalSpace, target := totalSpace].Operations[] \as Operations;
+\use std.Logic[].Equality[].eq_reason_in;
+\import std.Data[].List[] \as Lists;
+\import \parent.Series[] \as Series;
+\import Algebra.Shuffle[I := V] \as Shuffle;
+\import Shuffle.Laws[] \as Products;
+\import Exterior.Reversal[] \as Reverse;
+\definition rightUnit: \forall (f: Carrier) -> Exterior.wedge f Vacuum.state = f :=
+  \fun (f: Carrier) => Exterior.ext _ _ (\axiom:funext(Series.value (Exterior.wedge f Vacuum.state), Series.value f, \fun (xs: Lists.List[V]) => eq_reason_in!{K _
+    "=" _ "by" { Exterior.onWedge f Vacuum.state xs }
+    "=" _ "by" { Products.congruent (Series.value f) (Series.value f) (Series.value Vacuum.state) Shuffle.unit (\fun (ys: Lists.List[V]) => \refl(Series.value f ys)) Reverse.vacuumSeries xs }
+    "=" _ "by" { Products.rightUnit xs (Series.value f) }
+  }));
+\definition oneSwap: \forall (a, b: Alternating.Form (N.Nat^::succ N.Nat^::zero)) ->
+  createLeft a (createLeft b Vacuum.state) = totalSpace.neg (createLeft b (createLeft a Vacuum.state)) :=
+  \fun (a, b: Alternating.Form (N.Nat^::succ N.Nat^::zero)) => eq_reason_in!{Carrier _
+    "=" _ "by" { Charge.creationAsWedge a (createLeft b Vacuum.state) }
+    "=" _ "by" { One.rightCreation b (createLeft a Vacuum.state) Vacuum.state }
+    "=" _ "by" { congr!{Carrier Carrier} (createLeft b) _ _ (rightUnit (parity (createLeft a Vacuum.state))) }
+    "=" _ "by" { congr!{Carrier Carrier} (createLeft b) _ _ (Parity.creationOdd a Vacuum.state) }
+    "=" _ "by" { congr!{Carrier Carrier} (\fun (t: Carrier) => createLeft b (totalSpace.neg (createLeft a t))) _ _ Vacuum.even }
+    "=" _ "by" { Operations.preservesNeg (leftCreation b) (createLeft a Vacuum.state) }
+  };
+\definition law: \forall (a, b: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier) ->
+  createLeft a (createLeft b f) = totalSpace.neg (createLeft b (createLeft a f)) :=
+  \fun (a, b: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier) => eq_reason_in!{Carrier _
+    "=" _ "by" { congr!{Carrier Carrier} (createLeft a) _ _ (Charge.creationAsWedge b f) }
+    "=" _ "by" { One.leftCreation a (createLeft b Vacuum.state) f }
+    "=" _ "by" { congr!{Carrier Carrier} (\fun (t: Carrier) => Exterior.wedge t f) _ _ (oneSwap a b) }
+    "=" _ "by" { congr!{Carrier Carrier} (\fun (t: Carrier) => Exterior.wedge t f) _ _ (sym!{Carrier} _ _ (Laws.minusOneScale (createLeft b (createLeft a Vacuum.state)))) }
+    "=" _ "by" { Exterior.scaleLeft (Algebra.neg Algebra.one) (createLeft b (createLeft a Vacuum.state)) f }
+    "=" _ "by" { Laws.minusOneScale (Exterior.wedge (createLeft b (createLeft a Vacuum.state)) f) }
+    "=" _ "by" { congr!{Carrier Carrier} totalSpace.neg _ _ (sym!{Carrier} _ _ (One.leftCreation b (createLeft a Vacuum.state) f)) }
+    "=" _ "by" { congr!{Carrier Carrier} (\fun (t: Carrier) => totalSpace.neg (createLeft b t)) _ _ (sym!{Carrier} _ _ (Charge.creationAsWedge a f)) }
+  };
