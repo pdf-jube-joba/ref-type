@@ -1,0 +1,54 @@
+/* Vacuum coefficients of Clifford operators are real-linear functionals. */
+\import \parent.\parent.RealCoordinates[] \as RC;
+\import RC.Clifford[] \as Clifford;
+\import clifford.Field[K := R.Real, field := R.Algebra[].field].On[V := E.Vector, space := E.space].Of[form := E.form] \as Source;
+\import lie_algebras.Field[K := C.Complex, field := Field.field].Endomorphisms[V := Total.Carrier, space := Total.totalSpace] \as End;
+\import Source.Universal[A := End.Carrier, target := End.ring] \as Universal;
+\import algebra.Hom[A := Source.Carrier, B := End.Carrier] \as Hom;
+\import std.Alg[].Ring[] \as Rings;
+\import \root.Over[K := C.Complex, scalarRing := ring].On[V := Finite.Vector, space := Finite.space].Total[].Vacuum[] \as Vacuum;
+\import Forms.DegreeZero[] \as Zero;
+\import \root.CliffordFunctional[] \as SmoothFunctional;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing R.Real R.Algebra[].field] \as RealLinear;
+\import RealLinear.Linear[V := Source.Carrier, W := R.Real, source := Source.vectorSpace, target := RealLinear.scalarSpace] \as Functional;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].trans;
+\use std.Logic[].Equality[].sym;
+\definition coeff[c: Source.Carrier]: C.Complex := Vacuum.coefficient ((Clifford.extension c).apply Vacuum.state);
+\definition laws: Hom.SemiringLaws[Rings.ringAsSemiring Source.Carrier Source.ring, Rings.ringAsSemiring End.Carrier End.ring, Clifford.extension] := Hom.semiringLaws _ _ Clifford.extension;
+\definition addition: \forall (x, y: Source.Carrier) -> coeff (Source.add x y) = Algebra.add (coeff x) (coeff y) := \fun (x, y: Source.Carrier) =>
+  trans!{C.Complex} _ _ _
+    (congr!{End.Carrier C.Complex} (\fun (t: End.Carrier) => Vacuum.coefficient (t.apply Vacuum.state)) _ _ (laws.add x y))
+    (Zero.evaluate.preservesAdd (((Clifford.extension x).apply Vacuum.state) std.Data[].Nat[].Nat^::zero) (((Clifford.extension y).apply Vacuum.state) std.Data[].Nat[].Nat^::zero));
+\definition scaling: \forall (a: R.Real)(x: Source.Carrier) -> coeff (Source.scale a x) = Algebra.mul (Def.ofReal a) (coeff x) := \fun (a: R.Real)(x: Source.Carrier) =>
+  trans!{C.Complex} _ _ _
+    (congr!{End.Carrier C.Complex} (\fun (t: End.Carrier) => Vacuum.coefficient (t.apply Vacuum.state)) _ _ (laws.mul (Source.scalar a) x))
+    (trans!{C.Complex} _ _ _
+      (congr!{End.Carrier C.Complex} (\fun (t: End.Carrier) => Vacuum.coefficient ((End.mul t (Clifford.extension x)).apply Vacuum.state)) _ _ (Universal.onScalar Clifford.representation a))
+      (Zero.evaluate.preservesScale (Def.ofReal a) (((Clifford.extension x).apply Vacuum.state) std.Data[].Nat[].Nat^::zero)));
+\definition realFunctional: Functional.Map := Functional.Map {
+  apply := \fun (x: Source.Carrier) => C.re (coeff x),
+  preservesAdd := \fun (x, y: Source.Carrier) => congr!{C.Complex R.Real} C.re _ _ (addition x y),
+  preservesScale := \fun (a: R.Real)(x: Source.Carrier) => trans!{R.Real} _ _ _ (congr!{C.Complex R.Real} C.re _ _ (scaling a x)) (RC.scalarReal a (coeff x)),
+};
+\definition imaginaryFunctional: Functional.Map := Functional.Map {
+  apply := \fun (x: Source.Carrier) => C.im (coeff x),
+  preservesAdd := \fun (x, y: Source.Carrier) => congr!{C.Complex R.Real} C.im _ _ (addition x y),
+  preservesScale := \fun (a: R.Real)(x: Source.Carrier) => trans!{R.Real} _ _ _ (congr!{C.Complex R.Real} C.im _ _ (scaling a x)) (RC.scalarImag a (coeff x)),
+};
+\import RC.Clifford[].Spin[] \as Spin;
+\import Spin.Phase[] \as Phase;
+\import \parent.Lifts[] \as Lifts;
+\import Source.Pin[] \as Pin;
+\import clifford.Circle[] \as Circle;
+\import clifford.ComplexExtension[G := Pin.Spin, group := Pin.spinGroup].By[sign := Pin.spinInvolution] \as SpinC;
+\import algebra.Groups[].Units[A := End.Carrier, ring := End.ring] \as Units;
+\import algebra.Groups[].On[G := Units.Unit, group := Units.group] \as UnitOps;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition classCoefficient: \forall (s: Pin.Spin) -> Lifts.vacuumScalar (SpinC.class s Circle.one) = coeff s.value := \fun (s: Pin.Spin) =>
+  congr!{Units.Unit C.Complex} (\fun (t: Units.Unit) => Vacuum.coefficient (t.value.apply Vacuum.state)) _ _ (eq_reason_in!{Units.Unit _
+    "=" _ "by" { Phase.onClass s Circle.one }
+    "=" _ "by" { congr!{Units.Unit Units.Unit} (\fun (t: Units.Unit) => Units.product t (Spin.action s)) _ _ Phase.one }
+    "=" _ "by" { UnitOps.oneLeft (Spin.action s) }
+  });
+\module Smooth(d: std.Data[].Nat[].Nat^);
