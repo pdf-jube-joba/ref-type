@@ -1,0 +1,53 @@
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Hemisphere[].Closed[] \as Cover;
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\import Bundles.Trivial[X := Cover.PositiveCarrier, n := embedding.dimension, baseSpace := Cover.positiveTopology] \as PositiveTrivial;
+\import Homotopy.PullbackIsomorphism[X := Half.Carrier, F := HalfFiber, G := (\fun (_: Half.Carrier) => Vectors.Vector),
+  first := Pullbacks.bundleAt Hemisphere.included, second := HalfTrivial.bundle, iso := positive,
+  Y := Cover.PositiveCarrier, source := Cover.positiveTopology, f := Cover.positiveToDisk,
+  regularFirst := Cover.positiveToDiskContinuous, regularSecond := Cover.positiveToDiskContinuous] \as PositivePull;
+\import Operations.TrivialPullback[X := Half.Carrier, Y := Cover.PositiveCarrier, n := embedding.dimension, original := Half.topology,
+  base := Cover.positiveTopology, f := Cover.positiveToDisk, regular := Cover.positiveToDiskContinuous] \as PositiveTrivialPull;
+\import Bundles.Family[X := Carrier, F := Product.Fiber].Of[bundle := Product.stabilized].PullbackComposition[Y := Half.Carrier, Z := Cover.PositiveCarrier,
+  first := Half.topology, second := Cover.positiveTopology, f := Half.included, g := Cover.positiveToDisk].Of[
+    fRegular := Hemisphere.includedRegular, gRegular := Cover.positiveToDiskContinuous] \as PositiveComposition;
+\definition PositiveFiber[p: Cover.PositiveCarrier]: \Set := Product.Fiber (Half.included (Cover.positiveToDisk p));
+\definition PositiveVector[p: Cover.PositiveCarrier]: \Set := Vectors.Vector;
+\import Operations.IsomorphismComposition[X := Cover.PositiveCarrier, F := PositiveFiber, G := PositiveFiber, H := PositiveVector,
+  source := PositiveComposition.direct, middle := PositiveComposition.nested, target := PositivePull.secondBundle] \as PositiveFirst;
+\import Operations.IsomorphismComposition[X := Cover.PositiveCarrier, F := PositiveFiber, G := PositiveVector, H := PositiveVector,
+  source := PositiveComposition.direct, middle := PositivePull.secondBundle, target := PositiveTrivial.bundle] \as PositiveLast;
+\definition directPositive: Bundles.Isomorphisms[X := Cover.PositiveCarrier, F := PositiveFiber, G := PositiveVector,
+  source := PositiveComposition.direct, target := PositiveTrivial.bundle].Isomorphism := PositiveLast.compose
+    (PositiveFirst.compose PositiveComposition.isomorphism PositivePull.isomorphism) PositiveTrivialPull.isomorphism;
+\definition positiveRegular: topology.Continuity[A := Cover.PositiveCarrier, B := Carrier].Continuous Cover.positiveTopology Product.stabilized.baseSpace (\fun (p: Cover.PositiveCarrier) => p) :=
+  \idelim topology = Product.stabilized.baseSpace \with t: topology.Topology[Carrier := Carrier].Topology => topology.Continuity[A := Cover.PositiveCarrier, B := Carrier].Continuous Cover.positiveTopology t (\fun (p: Cover.PositiveCarrier) => p) \by {
+    base: topology.Continuity[A := Carrier, B := Carrier].Corestriction[S := Cover.positive].inclusionContinuous topology, equality: sym!{{topology.Topology[Carrier := Carrier].Topology}} _ _ same
+  };
+\import topology.Topology[Carrier := Carrier] \as Base;
+\definition positiveCompact: topology.Topology[Carrier := Cover.PositiveCarrier].IsCompact Cover.positiveTopology :=
+  Base.Subspace[S := Cover.positive].Properties[].compact topology (Base.Compactness[].closedCompact topology productCompact Cover.positive Cover.positiveClosed);
+\definition positiveHausdorff: topology.Topology[Carrier := Cover.PositiveCarrier].IsT2 Cover.positiveTopology :=
+  Base.Subspace[S := Cover.positive].Properties[].hausdorff topology productHausdorff;
+\import Homotopy.For[Y := Carrier, F := Product.Fiber, bundle := Product.stabilized].Pullbacks[X := Cover.PositiveCarrier,
+  source := Cover.positiveTopology, compact := positiveCompact, hausdorff := positiveHausdorff] \as PositivePullbacks;
+\definition directMap: PositivePullbacks.Map := \into[Cover.PositiveCarrier -> Carrier]((\fun (p: Cover.PositiveCarrier) => Half.included (Cover.positiveToDisk p)),
+  { f: Cover.PositiveCarrier -> Carrier \where topology.Continuity[A := Cover.PositiveCarrier, B := Carrier].Continuous Cover.positiveTopology Product.stabilized.baseSpace f }) \by {
+  topology.Composition[A := Cover.PositiveCarrier, B := Half.Carrier, C := Carrier].composeContinuous Cover.positiveTopology Half.topology Product.stabilized.baseSpace
+    Cover.positiveToDisk Half.included Cover.positiveToDiskContinuous Hemisphere.includedRegular
+};
+\definition inclusionMap: PositivePullbacks.Map := \into[Cover.PositiveCarrier -> Carrier]((\fun (p: Cover.PositiveCarrier) => p),
+  { f: Cover.PositiveCarrier -> Carrier \where topology.Continuity[A := Cover.PositiveCarrier, B := Carrier].Continuous Cover.positiveTopology Product.stabilized.baseSpace f }) \by { positiveRegular };
+\definition sameMaps: directMap = inclusionMap := \axiom:funext((\fun (p: Cover.PositiveCarrier) => Half.included (Cover.positiveToDisk p)), (\fun (p: Cover.PositiveCarrier) => p), Cover.positiveRecovery);
+\definition positiveTrivialization: Bundles.Isomorphisms[X := Cover.PositiveCarrier, F := (\fun (p: Cover.PositiveCarrier) => Product.Fiber p), G := PositiveVector,
+  source := PositivePullbacks.bundleAt inclusionMap, target := PositiveTrivial.bundle].Isomorphism :=
+  \idelim directMap = inclusionMap \with f: PositivePullbacks.Map =>
+    Bundles.Isomorphisms[X := Cover.PositiveCarrier, F := PositivePullbacks.Fiber f, G := PositiveVector,
+      source := PositivePullbacks.bundleAt f, target := PositiveTrivial.bundle].Isomorphism \by {
+    base: directPositive, equality: sameMaps
+  };
+\module NegativeSide;
+\module Transport;
+\module Formula(p: Cover.PositiveCarrier);

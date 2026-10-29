@@ -1,0 +1,55 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\use Eq.eq_reason_in;
+\import Eq.Transport[A := Carrier] \as FiberTransport;
+\import Eq.Transport[A := Half.Carrier] \as PointTransport;
+\import Closed.Formula[p := leftPoint] \as PositiveFormula;
+\import NegativeSide.Formula[p := rightPoint] \as NegativeFormula;
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Bundle[F := F, bundle := bundle, same := same].Preparation[].With[embedding := embedding].Transition[].With[positive := positive, negative := negative].BoundaryFormula[p := point] \as BoundaryFormula;
+\definition disk: Half.Carrier := Cover.positiveToDisk leftPoint;
+\definition qDisk: Half.Carrier := Boundary.intoDisk point;
+\definition negativeAtDisk: Product.Fiber (Negative.included disk) := NegativeFormula.backward v;
+\definition negativeAtBoundary: Product.Fiber (Negative.included qDisk) := FiberTransport.cast Product.Fiber (Negative.included disk) (Negative.included qDisk)
+  (congr!{Half.Carrier Carrier} Negative.included _ _ (sym!{Half.Carrier} _ _ diskPoint)) negativeAtDisk;
+\definition positiveAtBoundary: Product.Fiber (Half.included qDisk) := BoundaryFormula.change negativeAtBoundary;
+\definition positiveAtDisk: Product.Fiber (Half.included disk) := FiberTransport.cast Product.Fiber (Half.included qDisk) (Half.included disk)
+  (congr!{Half.Carrier Carrier} Half.included _ _ diskPoint) positiveAtBoundary;
+\definition castsAgree: positiveAtDisk = PositiveFormula.backward v :=
+  trans!{{Product.Fiber (Half.included disk)}} _ _ _
+    (FiberTransport.castComposition Product.Fiber (Negative.included qDisk) (Half.included qDisk) (Half.included disk)
+      (sym!{Carrier} _ _ (Boundary.equality point)) (congr!{Half.Carrier Carrier} Half.included _ _ diskPoint) negativeAtBoundary)
+    (trans!{{Product.Fiber (Half.included disk)}} _ _ _
+      (FiberTransport.castComposition Product.Fiber (Negative.included disk) (Negative.included qDisk) (Half.included disk)
+        (congr!{Half.Carrier Carrier} Negative.included _ _ (sym!{Half.Carrier} _ _ diskPoint)) _ negativeAtDisk)
+      (FiberTransport.castComposition Product.Fiber p (Negative.included disk) (Half.included disk)
+        (sym!{Carrier} _ _ NegativeFormula.equality) _ v));
+\import Bundles.Family[X := Carrier, F := Product.Fiber].Of[bundle := Product.stabilized].Pullback[Y := Half.Carrier, source := Half.topology, f := Half.included] \as PositiveFiberPull;
+\import Bundles.Family[X := Carrier, F := Product.Fiber].Of[bundle := Product.stabilized].Pullback[Y := Half.Carrier, source := Half.topology, f := Negative.included] \as NegativeFiberPull;
+\definition positiveFrame: (positive.forward.fiber qDisk).apply positiveAtBoundary = (positive.forward.fiber disk).apply positiveAtDisk :=
+  trans!{{Vectors.Vector}} _ _ _
+    (sym!{{Vectors.Vector}} _ _ (PointTransport.Constant[C := Vectors.Vector].law qDisk disk ((positive.forward.fiber qDisk).apply positiveAtBoundary) diskPoint))
+    (trans!{{Vectors.Vector}} _ _ _
+      (PointTransport.natural (\fun (z: Half.Carrier) => Product.Fiber (Half.included z)) (\fun (_: Half.Carrier) => Vectors.Vector)
+        (\fun (z: Half.Carrier) => (positive.forward.fiber z).apply) qDisk disk diskPoint positiveAtBoundary)
+      (congr!{{Product.Fiber (Half.included disk)} {Vectors.Vector}} (positive.forward.fiber disk).apply _ _
+        (PositiveFiberPull.changeFiber qDisk disk diskPoint positiveAtBoundary)));
+\definition negativeFrame: (negative.forward.fiber qDisk).apply negativeAtBoundary = (negative.forward.fiber disk).apply negativeAtDisk :=
+  sym!{{Vectors.Vector}} _ _ (trans!{{Vectors.Vector}} _ _ _
+    (sym!{{Vectors.Vector}} _ _ (PointTransport.Constant[C := Vectors.Vector].law disk qDisk ((negative.forward.fiber disk).apply negativeAtDisk) (sym!{Half.Carrier} _ _ diskPoint)))
+    (trans!{{Vectors.Vector}} _ _ _
+      (PointTransport.natural (\fun (z: Half.Carrier) => Product.Fiber (Negative.included z)) (\fun (_: Half.Carrier) => Vectors.Vector)
+        (\fun (z: Half.Carrier) => (negative.forward.fiber z).apply) disk qDisk (sym!{Half.Carrier} _ _ diskPoint) negativeAtDisk)
+      (congr!{{Product.Fiber (Negative.included qDisk)} {Vectors.Vector}} (negative.forward.fiber qDisk).apply _ _
+        (NegativeFiberPull.changeFiber disk qDisk (sym!{Half.Carrier} _ _ diskPoint) negativeAtDisk))));
+\definition equation: (loop point).apply ((Closed.positiveTrivialization.forward.fiber leftPoint).apply v) =
+  (NegativeSide.negativeTrivialization.forward.fiber rightPoint).apply v := eq_reason_in!{{Vectors.Vector} _
+    "=" _ "by" { congr!{{Vectors.Vector} {Vectors.Vector}} (loop point).apply _ _ (PositiveFormula.forward v) }
+    "=" _ "by" { congr!{{Vectors.Vector} {Vectors.Vector}} (loop point).apply _ _
+      (congr!{{Product.Fiber (Half.included disk)} {Vectors.Vector}} (positive.forward.fiber disk).apply _ _ (sym!{{Product.Fiber (Half.included disk)}} _ _ castsAgree)) }
+    "=" _ "by" { congr!{{Vectors.Vector} {Vectors.Vector}} (loop point).apply _ _ (sym!{{Vectors.Vector}} _ _ positiveFrame) }
+    "=" _ "by" { BoundaryFormula.transitionFormula negativeAtBoundary }
+    "=" _ "by" { negativeFrame }
+    "=" _ "by" { sym!{{Vectors.Vector}} _ _ (NegativeFormula.forward v) }
+  };

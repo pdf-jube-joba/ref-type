@@ -1,0 +1,34 @@
+\import Spaces.Linear[V := Original.Fiber x, W := Image.Fiber x, source := Original.bundle.space x, target := Image.bundle.space x] \as Forward;
+\import Spaces.Linear[V := Image.Fiber x, W := Original.Fiber x, source := Image.bundle.space x, target := Original.bundle.space x] \as Backward;
+\import Spaces.Laws[V := RightE.Vector, space := RightE.space] \as RightLaws;
+\definition originalFixed: \forall (v: Original.Fiber x) -> (p.projection x).map.apply v = v :=
+  \fun (v: Original.Fiber x) => \bysub(E.Vector, Original.Image x, v);
+\definition joinFixed: \forall (v: Original.Fiber x) -> (projection x).map.apply (Ambient.join v RightE.space.zero) = Ambient.join v RightE.space.zero :=
+  \fun (v: Original.Fiber x) => congr!{E.Vector RightE.Vector TotalE.Vector} Ambient.join _ _ _ _
+    (trans!{E.Vector} _ _ _ (congr!{E.Vector E.Vector} (p.projection x).map.apply _ _ (Ambient.leftJoin v RightE.space.zero)) (originalFixed v))
+    (\refl(RightE.space.zero));
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (v: Original.Fiber x) => \into[TotalE.Vector](Ambient.join v RightE.space.zero, Image.Image x) \by { joinFixed v },
+  preservesAdd := \fun (v, w: Original.Fiber x) => trans!{TotalE.Vector} _ _ _
+    (congr!{RightE.Vector TotalE.Vector} (Ambient.join (E.space.add v w)) _ _ (sym!{RightE.Vector} _ _ (RightLaws.zeroRight RightE.space.zero)))
+    (Ambient.addition v w RightE.space.zero RightE.space.zero),
+  preservesScale := \fun (c: C.Complex)(v: Original.Fiber x) => trans!{TotalE.Vector} _ _ _
+    (congr!{RightE.Vector TotalE.Vector} (Ambient.join (E.space.smul c v)) _ _ (sym!{RightE.Vector} _ _ (RightLaws.scaleZero c)))
+    (Ambient.scalar c v RightE.space.zero)
+};
+\definition left[v: Image.Fiber x]: Original.Fiber x := \into[E.Vector](Ambient.left v, Original.Image x) \by {
+  trans!{E.Vector} _ _ _ (sym!{E.Vector} _ _ (Block.left (p.projection x).map Zero.projection.map v))
+    (congr!{TotalE.Vector E.Vector} Ambient.left _ _ (\bysub(TotalE.Vector, Image.Image x, v)))
+};
+\definition backward: Backward.Map := Backward.Map {
+  apply := left, preservesAdd := \fun (v, w: Image.Fiber x) => \refl(E.space.add (left v) (left w)),
+  preservesScale := \fun (c: C.Complex)(v: Image.Fiber x) => \refl(E.space.smul c (left v))
+};
+\definition leftInverse: \forall (v: Original.Fiber x) -> backward.apply (forward.apply v) = v :=
+  \fun (v: Original.Fiber x) => Ambient.leftJoin v RightE.space.zero;
+\definition rightZero: \forall (v: Image.Fiber x) -> Ambient.right v = RightE.space.zero :=
+  \fun (v: Image.Fiber x) => trans!{RightE.Vector} _ _ _ (sym!{RightE.Vector} _ _ (congr!{TotalE.Vector RightE.Vector} Ambient.right _ _ (\bysub(TotalE.Vector, Image.Image x, v))))
+    (Block.right (p.projection x).map Zero.projection.map v);
+\definition rightInverse: \forall (v: Image.Fiber x) -> forward.apply (backward.apply v) = v :=
+  \fun (v: Image.Fiber x) => trans!{TotalE.Vector} _ _ _
+    (congr!{RightE.Vector TotalE.Vector} (Ambient.join (Ambient.left v)) _ _ (sym!{RightE.Vector} _ _ (rightZero v))) (Ambient.recover v);

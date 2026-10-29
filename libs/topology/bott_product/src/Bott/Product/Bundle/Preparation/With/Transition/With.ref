@@ -1,0 +1,72 @@
+\import Bundles.Trivial[X := Boundary.Carrier, n := embedding.dimension, baseSpace := Boundary.topology] \as Trivial;
+\import Homotopy.PullbackIsomorphism[X := Half.Carrier, F := HalfFiber, G := TrivialFiber,
+  first := Pullbacks.bundleAt Hemisphere.included, second := HalfTrivial.bundle, iso := positive,
+  Y := Boundary.Carrier, source := Boundary.topology, f := Boundary.intoDisk,
+  regularFirst := Boundary.intoDiskContinuous, regularSecond := Boundary.intoDiskContinuous] \as PositivePull;
+\import Homotopy.PullbackIsomorphism[X := Half.Carrier, F := (\fun (p: Half.Carrier) => Product.Fiber (Negative.included p)), G := TrivialFiber,
+  first := Pullbacks.bundleAt NegativeBundle.included, second := HalfTrivial.bundle, iso := negative,
+  Y := Boundary.Carrier, source := Boundary.topology, f := Boundary.intoDisk,
+  regularFirst := Boundary.intoDiskContinuous, regularSecond := Boundary.intoDiskContinuous] \as NegativePull;
+\import Operations.TrivialPullback[X := Half.Carrier, Y := Boundary.Carrier, n := embedding.dimension, original := Half.topology,
+  base := Boundary.topology, f := Boundary.intoDisk, regular := Boundary.intoDiskContinuous] \as TrivialPull;
+\import Bundles.Family[X := Carrier, F := Product.Fiber].Of[bundle := Product.stabilized].PullbackComposition[Y := Half.Carrier, Z := Boundary.Carrier,
+  first := Half.topology, second := Boundary.topology, f := Half.included, g := Boundary.intoDisk].Of[
+    fRegular := Hemisphere.includedRegular, gRegular := Boundary.intoDiskContinuous] \as PositiveComposition;
+\import Bundles.Family[X := Carrier, F := Product.Fiber].Of[bundle := Product.stabilized].PullbackComposition[Y := Half.Carrier, Z := Boundary.Carrier,
+  first := Half.topology, second := Boundary.topology, f := Negative.included, g := Boundary.intoDisk].Of[
+    fRegular := NegativeBundle.includedRegular, gRegular := Boundary.intoDiskContinuous] \as NegativeComposition;
+\definition PositiveFiber[p: Boundary.Carrier]: \Set := Product.Fiber (positiveMap p);
+\definition NegativeFiber[p: Boundary.Carrier]: \Set := Product.Fiber (negativeMap p);
+\definition TrivialFiber[p: Boundary.Carrier]: \Set := Vectors.Vector;
+\import Operations.IsomorphismComposition[X := Boundary.Carrier, F := PositiveFiber, G := PositiveFiber, H := TrivialFiber,
+  source := PositiveComposition.direct, middle := PositiveComposition.nested, target := PositivePull.secondBundle] \as PositiveFirst;
+\import Operations.IsomorphismComposition[X := Boundary.Carrier, F := PositiveFiber, G := TrivialFiber, H := TrivialFiber,
+  source := PositiveComposition.direct, middle := PositivePull.secondBundle, target := Trivial.bundle] \as PositiveLast;
+\definition positiveAtBoundary: Bundles.Isomorphisms[X := Boundary.Carrier, F := PositiveFiber, G := TrivialFiber,
+  source := BoundaryPullbacks.bundleAt positiveMap, target := Trivial.bundle].Isomorphism := PositiveLast.compose
+    (PositiveFirst.compose PositiveComposition.isomorphism PositivePull.isomorphism) TrivialPull.isomorphism;
+\import Operations.IsomorphismComposition[X := Boundary.Carrier, F := NegativeFiber, G := NegativeFiber, H := TrivialFiber,
+  source := NegativeComposition.direct, middle := NegativeComposition.nested, target := NegativePull.secondBundle] \as NegativeFirst;
+\import Operations.IsomorphismComposition[X := Boundary.Carrier, F := NegativeFiber, G := TrivialFiber, H := TrivialFiber,
+  source := NegativeComposition.direct, middle := NegativePull.secondBundle, target := Trivial.bundle] \as NegativeLast;
+\definition negativeAtBoundary: Bundles.Isomorphisms[X := Boundary.Carrier, F := NegativeFiber, G := TrivialFiber,
+  source := BoundaryPullbacks.bundleAt negativeMap, target := Trivial.bundle].Isomorphism := NegativeLast.compose
+    (NegativeFirst.compose NegativeComposition.isomorphism NegativePull.isomorphism) TrivialPull.isomorphism;
+\definition alignedNegative: Bundles.Isomorphisms[X := Boundary.Carrier, F := PositiveFiber, G := TrivialFiber,
+  source := BoundaryPullbacks.bundleAt positiveMap, target := Trivial.bundle].Isomorphism :=
+  \idelim negativeMap = positiveMap \with m: BoundaryPullbacks.Map => Bundles.Isomorphisms[X := Boundary.Carrier, F := BoundaryPullbacks.Fiber m, G := TrivialFiber,
+    source := BoundaryPullbacks.bundleAt m, target := Trivial.bundle].Isomorphism \by {
+    base: negativeAtBoundary, equality: sym!{BoundaryPullbacks.Map} _ _ mapsEqual
+  };
+\import Bundles.Isomorphisms[X := Boundary.Carrier, F := PositiveFiber, G := TrivialFiber,
+  source := BoundaryPullbacks.bundleAt positiveMap, target := Trivial.bundle] \as PositiveIso;
+\import Operations.IsomorphismComposition[X := Boundary.Carrier, F := TrivialFiber, G := PositiveFiber, H := TrivialFiber,
+  source := Trivial.bundle, middle := BoundaryPullbacks.bundleAt positiveMap, target := Trivial.bundle] \as Composition;
+\definition transition: Bundles.Isomorphisms[X := Boundary.Carrier, F := TrivialFiber, G := TrivialFiber, source := Trivial.bundle, target := Trivial.bundle].Isomorphism :=
+  Composition.compose (PositiveIso.inverse positiveAtBoundary) alignedNegative;
+\import Homotopy.Projections[n := embedding.dimension].Operators[].Units[] \as Units;
+\import Units.FromIsomorphism[X := Boundary.Carrier, baseSpace := Boundary.topology, iso := transition] \as Matrix;
+\definition loop: Boundary.Carrier -> Units.Carrier := Matrix.value;
+\definition continuous: topology.Continuity[A := Boundary.Carrier, B := Units.Carrier].Continuous Boundary.topology Units.topology loop := Matrix.continuous;
+\import matrix_invariants.Ring[K := C.Complex, scalars := C.Algebra[].commutativeRing].At[n := embedding.dimension] \as M;
+\import matrix_invariants.Field[K := C.Complex, field := C.Algebra[].field].At[n := embedding.dimension] \as Field;
+\import matrix_invariants.Topological[K := C.Complex, ring := topological_algebra.Complex[].Ring[].topologicalRing].At[n := embedding.dimension].Families[X := Boundary.Carrier] \as Families;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := C.Algebra[].commutativeRing].FiniteCoordinates[n := embedding.dimension] \as Basis;
+\import Homotopy.Projections[n := embedding.dimension].Operators[].FromMorphism[X := Boundary.Carrier, baseSpace := Boundary.topology, h := transition.forward] \as Regular;
+\definition matrix[p: Boundary.Carrier]: M.Matrix := M.Representation[].entries (loop p);
+\definition regular: Families.Regular Boundary.topology matrix := \fun (i, j: M.Index) => Regular.regular (Basis.vectors j) i;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := C.Algebra[].commutativeRing].Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as End;
+\definition nonzero: \forall (p: Boundary.Carrier) -> Field.Nonzero (matrix p) :=
+  \fun (p: Boundary.Carrier) => \bysub(End.Map, Units.Invertible, loop p);
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Loops[
+  n := embedding.dimension, a := matrix, regular := regular, nonzero := nonzero] \as K07;
+\definition index: Source.K0[].Carrier := K07.inverseClass;
+\module Reconstruction(parameters: clutching_linearization.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[
+  n := embedding.dimension, a := matrix, regular := regular, nonzero := nonzero].Parameters) {
+  \definition reducedClass: Target.K0[].Carrier := K07.With[parameters := parameters].reducedClass;
+  \definition formula: reducedClass = forward Source.K0[].zero index := K07.With[parameters := parameters].forwardFormula;
+}
+\module Closed;
+\module Gluing;
+\module BoundaryTransport;
+\module BoundaryFormula(p: Boundary.Carrier);

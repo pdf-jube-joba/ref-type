@@ -1,0 +1,55 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.trans;
+\use Eq.sym;
+\use Eq.congr;
+\import complex.Complex[] \as C;
+\import spectral_splitting.Spectral[].Idempotents[n := p.dimension] \as Idempotents;
+\definition projection[x: X]: Idempotents.Projection := Idempotents.Projection {
+  map := (p.projection x).map, idempotent := (p.projection x).idempotent
+};
+\import clutching_linearization.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].ProjectionInverse[
+  n := p.dimension, P := projection, regular := p.regular] \as Native;
+\import spectral_splitting.Spectral[].Idempotents[n := p.dimension].Image[X := X, baseSpace := source, P := projection, regular := p.regular] \as Image;
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar].Projection[X := X, n := p.dimension, baseSpace := source, P := p.projection, regular := p.regular] \as HermitianImage;
+\import vector_bundles.Bundles[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Bundles;
+\import Bundles.Trivial[X := X, n := p.dimension, baseSpace := source] \as Ambient;
+\import Bundles.Morphisms[X := X, Y := X, F := HermitianImage.Fiber, G := (\fun (_: X) => (Bundles.Vector p.dimension)), source := HermitianImage.bundle,
+  target := Ambient.bundle, f := (\fun (x: X) => x)].Composition[Z := X, H := Image.Fiber, range := Image.bundle, g := (\fun (x: X) => x)] \as Forward;
+\import Bundles.Morphisms[X := X, Y := X, F := Image.Fiber, G := (\fun (_: X) => (Bundles.Vector p.dimension)), source := Image.bundle,
+  target := Ambient.bundle, f := (\fun (x: X) => x)].Composition[Z := X, H := HermitianImage.Fiber, range := HermitianImage.bundle, g := (\fun (x: X) => x)] \as Backward;
+\definition iso: Bundles.Isomorphisms[X := X, F := HermitianImage.Fiber, G := Image.Fiber, source := HermitianImage.bundle, target := Image.bundle].Isomorphism :=
+  Bundles.Isomorphisms[X := X, F := HermitianImage.Fiber, G := Image.Fiber, source := HermitianImage.bundle, target := Image.bundle].Isomorphism {
+    forward := Forward.compose HermitianImage.inclusion Image.projectMap,
+    backward := Backward.compose Image.inclusion HermitianImage.projectMap,
+    leftInverse := \fun (x: X)(v: HermitianImage.Fiber x) => trans!{{Bundles.Vector p.dimension}} _ _ _ ((p.projection x).idempotent v)
+      (\bysub((Bundles.Vector p.dimension), { w: (Bundles.Vector p.dimension) \where (p.projection x).map.apply w = w }, v)),
+    rightInverse := \fun (x: X)(v: Image.Fiber x) => trans!{{Bundles.Vector p.dimension}} _ _ _ ((p.projection x).idempotent v)
+      (\bysub((Bundles.Vector p.dimension), { w: (Bundles.Vector p.dimension) \where (projection x).map.apply w = w }, v))
+  };
+\import Source.Bundle[F := Image.Fiber, original := Image.bundle, same := \refl(source)] \as ImageClass;
+\import Source.Realized[p := p] \as Realized;
+\definition classEquality: Source.class p = ImageClass.value :=
+  trans!{Source.Classes} _ _ _ (sym!{Source.Classes} _ _ Realized.equation)
+    (Source.Compare[F := HermitianImage.Fiber, G := Image.Fiber, first := HermitianImage.bundle, second := Image.bundle,
+      firstSame := \refl(source), secondSame := \refl(source)].ofIsomorphism iso);
+\import algebra.Group[].Of[Carrier := Source.K0[].Carrier, group := Source.K0[].group] \as Group;
+\definition inverseClass: Native.inverse = Source.K0[].include (Source.class p) :=
+  trans!{Source.K0[].Carrier} _ _ _ Native.recovery
+    (trans!{Source.K0[].Carrier} _ _ _ (congr!{Source.Classes Source.K0[].Carrier}
+      (\fun (c: Source.Classes) => Source.K0[].difference c Source.Trivial[n := N.Nat^::zero].value) _ _ (sym!{Source.Classes} _ _ classEquality))
+      (trans!{Source.K0[].Carrier} _ _ _ (congr!{Source.K0[].Carrier Source.K0[].Carrier} (Source.K0[].add (Source.K0[].include (Source.class p))) _ _ Group.negZero) (Group.zeroRight (Source.K0[].include (Source.class p)))));
+\import clutching_linearization.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[
+  n := p.dimension, a := Native.family.matrix, regular := Native.family.regular, nonzero := Native.family.nonzero] \as Matrix;
+\definition family: clutching_linearization.Linearization[].MatrixPaths[n := p.dimension,
+  Y := uniform_approximation.Approximation[].Circle[].Coefficients[X := X, space := source, baseCompact := compact, baseHausdorff := hausdorff].Domain,
+  source := uniform_approximation.Approximation[].Circle[].Coefficients[X := X, space := source, baseCompact := compact, baseHausdorff := hausdorff].source].Family := Native.family;
+\module With(parameters: Matrix.Parameters) {
+  \import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Loops[
+    n := p.dimension, a := Native.family.matrix, regular := Native.family.regular, nonzero := Native.family.nonzero].With[parameters := parameters] \as Loop;
+  \definition reducedClass: Target.K0[].Carrier := Loop.reducedClass;
+  \definition reconstruction: reducedClass = forward Source.K0[].zero (Source.K0[].include (Source.class p)) :=
+    trans!{Target.K0[].Carrier} _ _ _ Loop.forwardFormula
+      (congr!{Source.K0[].Carrier Target.K0[].Carrier} (forward Source.K0[].zero) _ _ inverseClass);
+}

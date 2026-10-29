@@ -1,0 +1,44 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.trans;
+\use Eq.sym;
+\use Eq.congr;
+\use Eq.eq_reason_in;
+\import std.Data[].FinSet[] \as Fin;
+\import Fin.Tuples[A := C.Complex] \as Tuples;
+\import \root.Bott[].ProjectiveLine[].Coordinates[] \as Indices;
+\import \root.Bott[].ProjectiveLine[].SphereLine[].Projection[] \as Projected;
+\import \root.Bott[].ProjectiveLine[].SphereLine[].FirstFrame[s := s, positive := positive] \as First;
+\import \root.Bott[].ProjectiveLine[].SphereLine[].SecondFrame[s := s, negative := negative] \as Second;
+\import \root.Bott[].ProjectiveLine[].SphereLine[].Equator[s := s, positive := positive, negative := negative] \as Equator;
+\definition z: C.Complex := Line.coefficient Equator.boundary;
+\definition columnFirst: Second.column Indices.first = ((Projected.bundle.space s).smul z First.column) Indices.first :=
+  trans!{C.Complex} _ _ _ Second.firstColumn (trans!{C.Complex} _ _ _ Equator.firstColumnRelation
+    (congr!{C.Complex C.Complex} (C.Def[].mul z) _ _ (sym!{C.Complex} _ _ First.firstColumn)));
+\definition columnSecond: Second.column Indices.second = ((Projected.bundle.space s).smul z First.column) Indices.second :=
+  trans!{C.Complex} _ _ _ Second.secondColumn (trans!{C.Complex} _ _ _ Equator.secondColumnRelation
+    (congr!{C.Complex C.Complex} (C.Def[].mul z) _ _ (sym!{C.Complex} _ _ First.secondColumn)));
+\definition column: Second.column = (Projected.bundle.space s).smul z First.column :=
+  Tuples.extensionality one Second.column ((Projected.bundle.space s).smul z First.column) columnFirst
+    (\fun (i: Fin.Fin one) => \idelim Fin.zero N.Nat^::zero = i \with j: Fin.Fin one => Second.column (Fin.succ one j) = ((Projected.bundle.space s).smul z First.column) (Fin.succ one j) \by {
+      base: columnSecond, equality: sym!{{Fin.Fin one}} _ _ (Fin.singletonValue i)
+    });
+\definition conjugateUnit: C.Def[].mul (C.Def[].conj z) z = C.Def[].one := trans!{C.Complex} _ _ _ (C.Prop[].mulComm (C.Def[].conj z) z) Equator.unit;
+\definition scalarCancel: \forall (a: C.Complex) -> C.Def[].mul (C.Def[].mul (C.Def[].conj z) a) z = a :=
+  \fun (a: C.Complex) => eq_reason_in!{C.Complex _
+    "=" _ "by" { C.Prop[].mulAssoc (C.Def[].conj z) a z }
+    "=" _ "by" { congr!{C.Complex C.Complex} (C.Def[].mul (C.Def[].conj z)) _ _ (C.Prop[].mulComm a z) }
+    "=" _ "by" { sym!{C.Complex} _ _ (C.Prop[].mulAssoc (C.Def[].conj z) z a) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (b: C.Complex) => C.Def[].mul b a) _ _ conjugateUnit }
+    "=" _ "by" { C.Prop[].mulOneLeft a }
+  };
+\definition encoded: \forall (v: Projected.Fiber s) -> Second.encode (C.Def[].mul (C.Def[].conj z) (First.decode v)) = v :=
+  \fun (v: Projected.Fiber s) => eq_reason_in!{{Projected.Fiber s} _
+    "=" _ "by" { congr!{{Projected.Fiber s} {Projected.Fiber s}} ((Projected.bundle.space s).smul (C.Def[].mul (C.Def[].conj z) (First.decode v))) _ _ column }
+    "=" _ "by" { sym!{{Projected.Fiber s}} _ _ ((Projected.bundle.space s).scalarAssoc (C.Def[].mul (C.Def[].conj z) (First.decode v)) z First.column) }
+    "=" _ "by" { congr!{C.Complex {Projected.Fiber s}} (\fun (a: C.Complex) => (Projected.bundle.space s).smul a First.column) _ _ (scalarCancel (First.decode v)) }
+    "=" _ "by" { First.encodeDecode v }
+  };
+\definition equation: \forall (v: Projected.Fiber s) -> Second.decode v = C.Def[].mul (C.Def[].conj z) (First.decode v) :=
+  \fun (v: Projected.Fiber s) => trans!{C.Complex} _ _ _
+    (congr!{{Projected.Fiber s} C.Complex} Second.decode _ _ (sym!{{Projected.Fiber s}} _ _ (encoded v)))
+    (Second.decodeEncode (C.Def[].mul (C.Def[].conj z) (First.decode v)));

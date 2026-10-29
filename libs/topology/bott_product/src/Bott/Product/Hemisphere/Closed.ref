@@ -1,0 +1,57 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\import std.Logic[].Proposition[] \as Logic;
+\import Halves.Cover[] \as Cover;
+\import topology.Topology[Carrier := Space.CarrierSet] \as Base;
+\import topology.Continuity[A := Space.CarrierSet, B := Sphere.Sphere] \as Projection;
+\definition positive: \Pow Space.CarrierSet := { p: Space.CarrierSet \where \In[Sphere.Sphere] Cover.PositiveHalf (Original.second p) };
+\definition negative: \Pow Space.CarrierSet := { p: Space.CarrierSet \where \In[Sphere.Sphere] Cover.NegativeHalf (Original.second p) };
+\definition positiveClosed: Base.IsClosedIn Original.topology positive := Projection.closedPreimage Original.topology Sphere.sphereTopology Original.second
+  (Space.Maps[].secondContinuous source Sphere.sphereTopology) Cover.PositiveHalf Cover.positiveClosed;
+\definition negativeClosed: Base.IsClosedIn Original.topology negative := Projection.closedPreimage Original.topology Sphere.sphereTopology Original.second
+  (Space.Maps[].secondContinuous source Sphere.sphereTopology) Cover.NegativeHalf Cover.negativeClosed;
+\definition covers: \forall (p: Space.CarrierSet) -> Logic.Or[\In[Space.CarrierSet] positive p, \In[Space.CarrierSet] negative p] :=
+  \fun (p: Space.CarrierSet) => Cover.halvesCover (Original.second p);
+\import Base.Subspace[S := positive] \as Positive;
+\import Base.Subspace[S := negative] \as Negative;
+\definition PositiveCarrier: \Set := Positive.CarrierSet;
+\definition NegativeCarrier: \Set := Negative.CarrierSet;
+\definition positiveTopology: topology.Topology[Carrier := PositiveCarrier].Topology := Positive.topology Original.topology;
+\definition negativeTopology: topology.Topology[Carrier := NegativeCarrier].Topology := Negative.topology Original.topology;
+\definition positiveToDisk[p: PositiveCarrier]: ProductDisk.CarrierSet := Pair.pair X Disk.Disk (Original.first p) (Cover.tailDisk (Original.second p));
+\definition negativeToDisk[p: NegativeCarrier]: ProductDisk.CarrierSet := Pair.pair X Disk.Disk (Original.first p) (Cover.tailDisk (Original.second p));
+\definition positiveToDiskContinuous: topology.Continuity[A := PositiveCarrier, B := ProductDisk.CarrierSet].Continuous positiveTopology (ProductDisk.topology source Disk.diskTopology) positiveToDisk :=
+  ProductDisk.Universal[X := PositiveCarrier].pairContinuous positiveTopology source Disk.diskTopology (\fun (p: PositiveCarrier) => Original.first p) (\fun (p: PositiveCarrier) => Cover.tailDisk (Original.second p))
+    (topology.Continuity[A := Space.CarrierSet, B := X].Restriction[S := positive].restrictContinuous Original.topology source Original.first (Space.Maps[].firstContinuous source Sphere.sphereTopology))
+    (topology.Composition[A := PositiveCarrier, B := Sphere.Sphere, C := Disk.Disk].composeContinuous positiveTopology Sphere.sphereTopology Disk.diskTopology
+      (\fun (p: PositiveCarrier) => Original.second p) Cover.tailDisk
+      (topology.Continuity[A := Space.CarrierSet, B := Sphere.Sphere].Restriction[S := positive].restrictContinuous Original.topology Sphere.sphereTopology Original.second (Space.Maps[].secondContinuous source Sphere.sphereTopology)) Cover.tailDiskContinuous);
+\definition negativeToDiskContinuous: topology.Continuity[A := NegativeCarrier, B := ProductDisk.CarrierSet].Continuous negativeTopology (ProductDisk.topology source Disk.diskTopology) negativeToDisk :=
+  ProductDisk.Universal[X := NegativeCarrier].pairContinuous negativeTopology source Disk.diskTopology (\fun (p: NegativeCarrier) => Original.first p) (\fun (p: NegativeCarrier) => Cover.tailDisk (Original.second p))
+    (topology.Continuity[A := Space.CarrierSet, B := X].Restriction[S := negative].restrictContinuous Original.topology source Original.first (Space.Maps[].firstContinuous source Sphere.sphereTopology))
+    (topology.Composition[A := NegativeCarrier, B := Sphere.Sphere, C := Disk.Disk].composeContinuous negativeTopology Sphere.sphereTopology Disk.diskTopology
+      (\fun (p: NegativeCarrier) => Original.second p) Cover.tailDisk
+      (topology.Continuity[A := Space.CarrierSet, B := Sphere.Sphere].Restriction[S := negative].restrictContinuous Original.topology Sphere.sphereTopology Original.second (Space.Maps[].secondContinuous source Sphere.sphereTopology)) Cover.tailDiskContinuous);
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Hemisphere[] \as H;
+\import H.Negative[] \as NegativeH;
+\definition positiveRecovery: \forall (p: PositiveCarrier) -> H.included (positiveToDisk p) = p := \fun (p: PositiveCarrier) =>
+  std.Data[].Pair[].Prop[A := X, B := Sphere.Sphere].ext (H.included (positiveToDisk p)) p (\refl(Original.first p)) (Cover.recoverPositive (Original.second p) (\bysub(Space.CarrierSet, positive, p)));
+\definition negativeRecovery: \forall (p: NegativeCarrier) -> NegativeH.included (negativeToDisk p) = p := \fun (p: NegativeCarrier) =>
+  std.Data[].Pair[].Prop[A := X, B := Sphere.Sphere].ext (NegativeH.included (negativeToDisk p)) p (\refl(Original.first p)) (Cover.recoverNegative (Original.second p) (\bysub(Space.CarrierSet, negative, p)));
+\definition U: \Pow Space.CarrierSet := { p: Space.CarrierSet \where \In[Sphere.Sphere] Disks.U (Original.second p) };
+\definition V: \Pow Space.CarrierSet := { p: Space.CarrierSet \where \In[Sphere.Sphere] Disks.V (Original.second p) };
+\definition positiveInside: \forall (p: PositiveCarrier) -> \In[Space.CarrierSet] U p := \fun (p: PositiveCarrier) =>
+  Cover.positiveInside (\into[Sphere.Sphere](Original.second p, Cover.PositiveHalf) \by { \bysub(Space.CarrierSet, positive, p) });
+\definition negativeInside: \forall (p: NegativeCarrier) -> \In[Space.CarrierSet] V p := \fun (p: NegativeCarrier) =>
+  Cover.negativeInside (\into[Sphere.Sphere](Original.second p, Cover.NegativeHalf) \by { \bysub(Space.CarrierSet, negative, p) });
+\import sphere_maps.Circle[].Coordinates[] \as Circle;
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Hemisphere[].Boundary[] \as Boundary;
+\definition onIntersection[p: Space.CarrierSet][left: \In[Space.CarrierSet] positive p][right: \In[Space.CarrierSet] negative p]: Boundary.Carrier :=
+  Pair.pair X sphere_maps.Circle[].Carrier (Original.first p) (Circle.forward (Cover.intersectionBoundary (Original.second p) left right));
+\definition diskOnIntersection: \forall (p: Space.CarrierSet)(left: \In[Space.CarrierSet] positive p)(right: \In[Space.CarrierSet] negative p) ->
+  Boundary.intoDisk (onIntersection p left right) = positiveToDisk (\into[Space.CarrierSet](p, positive) \by { left }) :=
+  \fun (p: Space.CarrierSet)(left: _)(right: _) => std.Data[].Pair[].Prop[A := X, B := Disk.Disk].ext
+    (Boundary.intoDisk (onIntersection p left right)) (positiveToDisk (\into[Space.CarrierSet](p, positive) \by { left })) (\refl(Original.first p))
+    (Circle.leftInverse (Cover.intersectionBoundary (Original.second p) left right));

@@ -1,0 +1,24 @@
+\import topology.Topology[Carrier := Sphere.Sphere] \as SphereSpace;
+\definition subset: \Pow Carrier := { p: Carrier \where second p = point };
+\definition closed: Base.IsClosedIn topology subset :=
+  topology.Continuity[A := Carrier, B := Sphere.Sphere].closedPreimage topology Sphere.sphereTopology second
+    (Space.Maps[].secondContinuous source Sphere.sphereTopology) (SphereSpace.Singleton point)
+    (SphereSpace.Compactness[].hausdorffT1 Sphere.sphereTopology Compactness.sphereHausdorff point);
+\import Base.Subspace[S := subset] \as Subspace;
+\definition Slice: \Set := Subspace.CarrierSet;
+\definition sliceTopology: topology.Topology[Carrier := Slice].Topology := Subspace.topology topology;
+\definition into[x: X]: Slice := \into[Carrier](section x, subset) \by { \refl(point) };
+\definition project[p: Slice]: X := first p;
+\definition intoContinuous: topology.Continuity[A := X, B := Slice].Continuous source sliceTopology into :=
+  topology.Continuity[A := X, B := Carrier].Corestriction[S := subset].corestrictContinuous source topology into continuous;
+\definition projectContinuous: topology.Continuity[A := Slice, B := X].Continuous sliceTopology source project :=
+  topology.Continuity[A := Carrier, B := X].Restriction[S := subset].restrictContinuous topology source first (Space.Maps[].firstContinuous source Sphere.sphereTopology);
+\definition leftInverse: \forall (x: X) -> project (into x) = x := \fun (x: X) => \refl(x);
+\definition rightInverse: \forall (p: Slice) -> into (project p) = p := \fun (p: Slice) =>
+  Pair.Prop[A := X, B := Sphere.Sphere].ext (section (first p)) p (\refl(first p)) (sym!{Sphere.Sphere} _ _ (\bysub(Carrier, subset, p)));
+\definition homeomorphism: topology.Homeomorphism[A := X, B := Slice].Homeomorphism[source, sliceTopology] :=
+  topology.Homeomorphism[A := X, B := Slice].Homeomorphism[source, sliceTopology] {
+    forward := into, backward := project, forwardContinuous := intoContinuous, backwardContinuous := projectContinuous,
+    leftInverse := leftInverse, rightInverse := rightInverse
+  };
+\module Relative;

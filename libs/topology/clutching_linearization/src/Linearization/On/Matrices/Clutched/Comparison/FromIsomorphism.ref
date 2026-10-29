@@ -1,0 +1,23 @@
+\import Closed.FromIsomorphism[iso := iso] \as Gauge;
+\import \parent.DiskGauge[gauge := Gauge.value].BoundaryIndex[] \as Index;
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[
+  n := n, a := a, regular := regular, nonzero := nonzero] \as Original;
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[
+  n := n, a := b, regular := regularB, nonzero := nonzeroB] \as OtherMatrix;
+\import \root.Linearization[].MatrixPaths[n := n, Y := Circle.Domain, source := Circle.source] \as Paths;
+\definition left: Paths.Family := Paths.Family { matrix := a, regular := regular, nonzero := nonzero };
+\definition right: Paths.Family := Paths.Family { matrix := b, regular := regularB, nonzero := nonzeroB };
+\import \parent.DiskGauge[gauge := Gauge.value].BoundaryIndex[] \as Boundary;
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[
+  n := n, a := Boundary.sourceFamily.matrix, regular := Boundary.sourceFamily.regular, nonzero := Boundary.sourceFamily.nonzero] \as Left;
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[
+  n := n, a := Boundary.targetFamily.matrix, regular := Boundary.targetFamily.regular, nonzero := Boundary.targetFamily.nonzero] \as Right;
+\definition leftPath: Paths.Path[left, Boundary.sourceFamily] := Paths.retarget left left left Boundary.sourceFamily (Paths.constant left)
+  (\fun (p: Circle.Domain) => \refl(left.matrix p)) (\fun (p: Circle.Domain) => \refl(a p));
+\definition rightPath: Paths.Path[Boundary.targetFamily, right] := Paths.retarget Boundary.targetFamily Boundary.targetFamily Boundary.targetFamily right (Paths.constant Boundary.targetFamily)
+  (\fun (p: Circle.Domain) => \refl(Boundary.targetFamily.matrix p)) (\fun (p: Circle.Domain) => \refl(b p));
+\import Original.Inverse[].Homotopy[b := Boundary.sourceFamily.matrix, regularB := Boundary.sourceFamily.regular, nonzeroB := Boundary.sourceFamily.nonzero].With[path := leftPath] \as LeftEquality;
+\import Right.Inverse[].Homotopy[b := b, regularB := regularB, nonzeroB := nonzeroB].With[path := rightPath] \as RightEquality;
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := source, compact := compact, hausdorff := hausdorff] \as K;
+\definition invariant: Original.Inverse[].value = OtherMatrix.Inverse[].value :=
+  trans!{K.K0[].Carrier} _ _ _ LeftEquality.invariant (trans!{K.K0[].Carrier} _ _ _ Boundary.invariant RightEquality.invariant);

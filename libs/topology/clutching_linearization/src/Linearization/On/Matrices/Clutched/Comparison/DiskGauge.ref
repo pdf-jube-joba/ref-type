@@ -1,0 +1,41 @@
+\import Disks.Hemispheres[] \as H;
+\import algebraic_topology.Euclidean[].Dimension[n := two] \as Disk;
+\import topological_constructions.Product[A := X, B := Disk.Disk] \as DiskProduct;
+\definition PositiveCarrier: \Set := \Cast[Carrier] PositiveHalf;
+\definition NegativeCarrier: \Set := \Cast[Carrier] NegativeHalf;
+\definition positiveTopology: topology.Topology[Carrier := PositiveCarrier].Topology := Base.Subspace[S := PositiveHalf].topology topology;
+\definition negativeTopology: topology.Topology[Carrier := NegativeCarrier].Topology := Base.Subspace[S := NegativeHalf].topology topology;
+\definition DiskCarrier: \Set := DiskProduct.CarrierSet;
+\definition diskTopology: topology.Topology[Carrier := DiskCarrier].Topology := DiskProduct.topology source Disk.diskTopology;
+\definition firstDisk: DiskCarrier -> X := Pair.first X Disk.Disk;
+\definition secondDisk: DiskCarrier -> Disk.Disk := Pair.second X Disk.Disk;
+\definition positivePoint[p: DiskCarrier]: PositiveCarrier :=
+  \into[Carrier](Pair.pair X Sphere.Sphere (firstDisk p) (H.positive (secondDisk p)), PositiveHalf) \by { \bysub(Sphere.Sphere, Halves.PositiveHalf, Halves.positivePoint (secondDisk p)) };
+\definition negativePoint[p: DiskCarrier]: NegativeCarrier :=
+  \into[Carrier](Pair.pair X Sphere.Sphere (firstDisk p) (H.negative (secondDisk p)), NegativeHalf) \by { \bysub(Sphere.Sphere, Halves.NegativeHalf, Halves.negativePoint (secondDisk p)) };
+\definition positiveContinuous: topology.Continuity[A := DiskCarrier, B := PositiveCarrier].Continuous diskTopology positiveTopology positivePoint :=
+  topology.Continuity[A := DiskCarrier, B := Carrier].Corestriction[S := PositiveHalf].corestrictContinuous diskTopology topology positivePoint
+    (Product.Universal[X := DiskCarrier].pairContinuous diskTopology source Sphere.sphereTopology firstDisk (\fun (p: DiskCarrier) => H.positive (secondDisk p))
+      (DiskProduct.Maps[].firstContinuous source Disk.diskTopology)
+      (topology.Composition[A := DiskCarrier, B := Disk.Disk, C := Sphere.Sphere].composeContinuous diskTopology Disk.diskTopology Sphere.sphereTopology secondDisk H.positive
+        (DiskProduct.Maps[].secondContinuous source Disk.diskTopology) H.positiveContinuous));
+\definition negativeContinuous: topology.Continuity[A := DiskCarrier, B := NegativeCarrier].Continuous diskTopology negativeTopology negativePoint :=
+  topology.Continuity[A := DiskCarrier, B := Carrier].Corestriction[S := NegativeHalf].corestrictContinuous diskTopology topology negativePoint
+    (Product.Universal[X := DiskCarrier].pairContinuous diskTopology source Sphere.sphereTopology firstDisk (\fun (p: DiskCarrier) => H.negative (secondDisk p))
+      (DiskProduct.Maps[].firstContinuous source Disk.diskTopology)
+      (topology.Composition[A := DiskCarrier, B := Disk.Disk, C := Sphere.Sphere].composeContinuous diskTopology Disk.diskTopology Sphere.sphereTopology secondDisk H.negative
+        (DiskProduct.Maps[].secondContinuous source Disk.diskTopology) H.negativeContinuous));
+\definition positive[p: DiskCarrier]: Units.Carrier := gauge.positive (positivePoint p);
+\definition negative[p: DiskCarrier]: Units.Carrier := gauge.negative (negativePoint p);
+\definition positiveRegular: topology.Continuity[A := DiskCarrier, B := Units.Carrier].Continuous diskTopology Units.topology positive :=
+  topology.Composition[A := DiskCarrier, B := PositiveCarrier, C := Units.Carrier].composeContinuous diskTopology positiveTopology Units.topology positivePoint gauge.positive positiveContinuous gauge.positiveContinuous;
+\definition negativeRegular: topology.Continuity[A := DiskCarrier, B := Units.Carrier].Continuous diskTopology Units.topology negative :=
+  topology.Composition[A := DiskCarrier, B := NegativeCarrier, C := Units.Carrier].composeContinuous diskTopology negativeTopology Units.topology negativePoint gauge.negative negativeContinuous gauge.negativeContinuous;
+\module Boundary(p: Circle.Domain);
+\definition compatible: \forall (p: Circle.Domain)(v: Fin.Fin n -> C.Complex) ->
+  (negative (Boundary[p := p].onDisk)).apply ((Matrices.map p).apply v) =
+  (\root.Linearization[].MatrixUnits[n := n, Y := Circle.Domain, source := Circle.source, A := b, regular := regularB, nonzero := nonzeroB].map p).apply
+    ((positive (Boundary[p := p].onDisk)).apply v) :=
+  \fun (p: Circle.Domain) => Boundary[p := p].compatible;
+\module Contract(f: DiskCarrier -> Units.Carrier, continuous: topology.Continuity[A := DiskCarrier, B := Units.Carrier].Continuous diskTopology Units.topology f);
+\module BoundaryIndex;

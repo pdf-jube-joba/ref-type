@@ -1,0 +1,43 @@
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Bundle[F := F, bundle := bundle, same := same].At[point := Half.point].With[embedding := embedding] \as Stable;
+\import Stable.OnProduct[] \as Product;
+\import Product.Restriction[] \as Restriction;
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Bundle[F := Product.Fiber, bundle := Product.stabilized, same := same].Hemisphere[] \as Hemisphere;
+\import algebraic_topology.Euclidean[].Dimension[n := two] \as Disk;
+\import topological_constructions.Product[A := X, B := Disk.Disk] \as ProductDisk;
+\import Bundles.Family[X := Carrier, F := Product.Fiber].Of[bundle := Product.stabilized].PullbackComposition[Y := X, Z := Half.Carrier,
+  first := source, second := Half.topology, f := (\fun (x: X) => Pair.pair X Sphere.Sphere x Half.point), g := Half.first].Of[
+    fRegular := At.regular, gRegular := ProductDisk.Maps[].firstContinuous source Disk.diskTopology] \as Nested;
+\import bundle_operations.Operations[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Operations;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := C.Algebra[].commutativeRing].Coordinates[I := std.Data[].FinSet[].Fin embedding.dimension] \as Vectors;
+\import Bundles.Trivial[X := X, n := embedding.dimension, baseSpace := source] \as BaseTrivial;
+\import Bundles.Trivial[X := Half.Carrier, n := embedding.dimension, baseSpace := Half.topology] \as HalfTrivial;
+\import Bundles.Family[X := Carrier, F := Product.Fiber].Of[bundle := Product.stabilized].Pullback[Y := X, source := source,
+  f := (\fun (x: X) => Pair.pair X Sphere.Sphere x Half.point)] \as BasePull;
+\definition firstRegular: topology.Continuity[A := Half.Carrier, B := X].Continuous Half.topology source Half.first := ProductDisk.Maps[].firstContinuous source Disk.diskTopology;
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar].PullbackIsomorphism[X := X,
+  F := (\fun (x: X) => Product.Fiber (Pair.pair X Sphere.Sphere x Half.point)), G := (\fun (_: X) => Vectors.Vector),
+  first := BasePull.pulled At.regular, second := BaseTrivial.bundle, iso := Restriction.trivialization,
+  Y := Half.Carrier, source := Half.topology, f := Half.first, regularFirst := firstRegular, regularSecond := firstRegular] \as PullTrivialization;
+\import Operations.TrivialPullback[X := X, Y := Half.Carrier, n := embedding.dimension, original := source, base := Half.topology,
+  f := Half.first, regular := firstRegular] \as TrivialPull;
+\definition BaseFiber[p: Half.Carrier]: \Set := Product.Fiber (Half.constant p);
+\definition TrivialFiber[p: Half.Carrier]: \Set := Vectors.Vector;
+\import Operations.IsomorphismComposition[X := Half.Carrier, F := BaseFiber, G := BaseFiber, H := TrivialFiber,
+  source := Nested.direct, middle := Nested.nested, target := PullTrivialization.secondBundle] \as First;
+\import Operations.IsomorphismComposition[X := Half.Carrier, F := BaseFiber, G := TrivialFiber, H := TrivialFiber,
+  source := Nested.direct, middle := PullTrivialization.secondBundle, target := HalfTrivial.bundle] \as Second;
+\definition constantTrivialization: Bundles.Isomorphisms[X := Half.Carrier, F := BaseFiber, G := TrivialFiber, source := Nested.direct, target := HalfTrivial.bundle].Isomorphism :=
+  Second.compose (First.compose Nested.isomorphism PullTrivialization.isomorphism) TrivialPull.isomorphism;
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar].For[Y := Carrier, F := Product.Fiber, bundle := Product.stabilized].Pullbacks[
+  X := Half.Carrier, source := Half.topology, compact := Half.compactDisk, hausdorff := Half.hausdorffDisk] \as Pullbacks;
+\definition HalfFiber[p: Half.Carrier]: \Set := Product.Fiber (Half.included p);
+\import Operations.IsomorphismComposition[X := Half.Carrier, F := HalfFiber, G := BaseFiber, H := TrivialFiber,
+  source := Pullbacks.bundleAt Hemisphere.included, middle := Nested.direct, target := HalfTrivial.bundle] \as Final;
+\definition trivializationExists: \exists Bundles.Isomorphisms[X := Half.Carrier, F := HalfFiber, G := TrivialFiber,
+  source := Pullbacks.bundleAt Hemisphere.included, target := HalfTrivial.bundle].Isomorphism :=
+  Final.exists Hemisphere.isomorphismExists (\exact(constantTrivialization, Bundles.Isomorphisms[X := Half.Carrier, F := BaseFiber, G := TrivialFiber, source := Nested.direct, target := HalfTrivial.bundle].Isomorphism));
+\module Negative;
+\module Transition;

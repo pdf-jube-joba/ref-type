@@ -1,0 +1,33 @@
+\import std.Logic[].Equality[] \as Eq;
+\import std.Logic[].Proposition[] \as Logic;
+\use Eq.trans;
+\use Eq.sym;
+\use Eq.congr;
+\use Eq.eq_reason_in;
+\import std.Data[].FinSet[] \as Fin;
+\import \root.Bott[].ProjectiveLine[].SphereLine[].Transition[s := s, positive := positive, negative := negative] \as Transition;
+\import \root.Bott[].ProjectiveLine[].SphereLine[].FirstFrame[s := s, positive := positive] \as FirstFrame;
+\import \root.Bott[].ProjectiveLine[].SphereLine[].SecondFrame[s := s, negative := negative] \as SecondFrame;
+\definition firstPoint: First.Base := \into[Sphere.Sphere](s, Cover.PositiveHalf) \by { positive };
+\definition secondPoint: Second.Base := \into[Sphere.Sphere](s, Cover.NegativeHalf) \by { negative };
+\definition overlap: Product.Overlap := Cover.overlapPoint s positive negative;
+\import Target.Boundary[x := overlap] \as TargetBoundary;
+\definition coefficient: Sign.conjugate overlap = C.Def[].conj Transition.z :=
+  congr!{{algebraic_topology.Euclidean[].Dimension[n := two].Sphere} C.Complex}
+    (\fun (p: algebraic_topology.Euclidean[].Dimension[n := two].Sphere) => C.Def[].conj (Line.coefficient p)) _ _ (Cover.boundaryOnIntersection s positive negative);
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := C.Algebra[].commutativeRing] \as Spaces;
+\import Spaces.Coordinates[I := Fin.Fin one] \as Vectors;
+\definition coordinates: \forall (v: Projected.Fiber s) -> (Other.value overlap).apply ((firstFrame.forward.fiber firstPoint).apply v) = (secondFrame.forward.fiber secondPoint).apply v :=
+  \fun (v: Projected.Fiber s) => trans!{Vectors.Vector} _ _ _ (Other.formula overlap ((firstFrame.forward.fiber firstPoint).apply v))
+    (\axiom:funext(Vectors.space.smul (Sign.conjugate overlap) ((firstFrame.forward.fiber firstPoint).apply v), (secondFrame.forward.fiber secondPoint).apply v,
+      \fun (_: Fin.Fin one) => trans!{C.Complex} _ _ _
+        (congr!{C.Complex C.Complex} (\fun (z: C.Complex) => C.Def[].mul z (FirstFrame.decode v)) _ _ coefficient)
+        (sym!{C.Complex} _ _ (Transition.equation v))));
+\import Spaces.Isomorphism[V := Target.Fiber s, W := Vectors.Vector, source := Target.bundle.space s, target := Vectors.space] \as TargetFrameIso;
+\definition agrees: \forall (v: Projected.Fiber s) -> (left.forward.fiber firstPoint).apply v = (right.forward.fiber secondPoint).apply v :=
+  \fun (v: Projected.Fiber s) => TargetFrameIso.injective ((Target.chart Bool.Bool^::true).frame TargetBoundary.rightPoint) _ _
+    (eq_reason_in!{Vectors.Vector _
+      "=" _ "by" { TargetBoundary.transition ((firstFrame.forward.fiber firstPoint).apply v) }
+      "=" _ "by" { coordinates v }
+      "=" _ "by" { sym!{Vectors.Vector} _ _ ((TargetFrameIso.laws ((Target.chart Bool.Bool^::true).frame TargetBoundary.rightPoint)).rightInverse ((secondFrame.forward.fiber secondPoint).apply v)) }
+    });

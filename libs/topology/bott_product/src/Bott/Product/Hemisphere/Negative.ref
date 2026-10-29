@@ -1,0 +1,32 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.congr;
+\definition point: Sphere.Sphere := Halves.negative Contract.origin;
+\definition included[p: Carrier]: Space.CarrierSet := Pair.pair X Sphere.Sphere (first p) (Halves.negative (second p));
+\definition constant[p: Carrier]: Space.CarrierSet := Pair.pair X Sphere.Sphere (first p) point;
+\definition includedContinuous: topology.Continuity[A := Carrier, B := Space.CarrierSet].Continuous topology Original.topology included :=
+  Space.Universal[X := Carrier].pairContinuous topology source Sphere.sphereTopology first (\fun (p: Carrier) => Halves.negative (second p))
+    (ProductDisk.Maps[].firstContinuous source Disk.diskTopology)
+    (topology.Composition[A := Carrier, B := Disk.Disk, C := Sphere.Sphere].composeContinuous topology Disk.diskTopology Sphere.sphereTopology second Halves.negative
+      (ProductDisk.Maps[].secondContinuous source Disk.diskTopology) Halves.negativeContinuous);
+\definition constantContinuous: topology.Continuity[A := Carrier, B := Space.CarrierSet].Continuous topology Original.topology constant :=
+  Space.Universal[X := Carrier].pairContinuous topology source Sphere.sphereTopology first (\fun (_: Carrier) => point)
+    (ProductDisk.Maps[].firstContinuous source Disk.diskTopology) (topology.Maps[A := Carrier, B := Sphere.Sphere].constantContinuous topology Sphere.sphereTopology point);
+\definition family[p: Cylinder.Carrier]: Space.CarrierSet := Pair.pair X Sphere.Sphere (first (Cylinder.point p)) (Halves.negative (Contract.family (timeDisk p)));
+\definition continuous: topology.Continuity[A := Cylinder.Carrier, B := Space.CarrierSet].Continuous (Cylinder.topology topology) Original.topology family :=
+  Space.Universal[X := Cylinder.Carrier].pairContinuous (Cylinder.topology topology) source Sphere.sphereTopology
+    (\fun (p: Cylinder.Carrier) => first (Cylinder.point p)) (\fun (p: Cylinder.Carrier) => Halves.negative (Contract.family (timeDisk p)))
+    (topology.Composition[A := Cylinder.Carrier, B := Carrier, C := X].composeContinuous (Cylinder.topology topology) topology source Cylinder.point first
+      (Cylinder.pointContinuous topology) (ProductDisk.Maps[].firstContinuous source Disk.diskTopology))
+    (topology.Composition[A := Cylinder.Carrier, B := Disk.Disk, C := Sphere.Sphere].composeContinuous (Cylinder.topology topology) Disk.diskTopology Sphere.sphereTopology
+      (\fun (p: Cylinder.Carrier) => Contract.family (timeDisk p)) Halves.negative
+      (topology.Composition[A := Cylinder.Carrier, B := DiskCylinder.Carrier, C := Disk.Disk].composeContinuous (Cylinder.topology topology) (DiskCylinder.topology Disk.diskTopology) Disk.diskTopology
+        timeDisk Contract.family timeDiskContinuous Contract.continuous) Halves.negativeContinuous);
+\import algebraic_topology.Homotopy[A := Carrier, B := Space.CarrierSet] \as H;
+\definition homotopy: H.Homotopy[topology, Original.topology, included, constant] :=
+  \into[H.Family](family, H.Homotopy[topology, Original.topology, included, constant]) \by {
+    H.Laws[topology, Original.topology, included, constant, family] {
+      continuous := continuous,
+      start := \fun (p: Carrier) => congr!{Disk.Disk Space.CarrierSet} (\fun (v: Disk.Disk) => Pair.pair X Sphere.Sphere (first p) (Halves.negative v)) _ _ (Contract.atStart (second p)),
+      end := \fun (p: Carrier) => congr!{Disk.Disk Space.CarrierSet} (\fun (v: Disk.Disk) => Pair.pair X Sphere.Sphere (first p) (Halves.negative v)) _ _ (Contract.atEnd (second p))
+    }
+  };

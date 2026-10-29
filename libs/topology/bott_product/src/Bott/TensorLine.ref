@@ -1,0 +1,114 @@
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Pair[] \as Pair;
+\import std.Data[].List[] \as Lists;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.congr;
+\import complex.Complex[] \as C;
+\import bundle_operations.Operations[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Operations;
+\import Operations.PairIndices[n := one, m := one] \as Indices;
+\import std.Set[].FiniteSubset[A := Indices.Pair].Enumeration[] \as Enumerations;
+\import Lists.Distinct[A := Indices.Pair] \as Distinct;
+\definition zero: Fin.Fin one := Fin.zero N.Nat^::zero;
+\definition only: \forall (i: Fin.Fin one) -> i = zero := \fun (i: Fin.Fin one) =>
+  Logic.orElim[i = zero, Logic.False, i = zero] (Fin.exhaustive one i) (\fun (equal: _) => equal) (\fun (impossible: Logic.False) => Logic.falseElim (i = zero) impossible);
+\definition pair: Indices.Pair := Pair.pair (Fin.Fin one) (Fin.Fin one) zero zero;
+\definition pairOnly: \forall (p: Indices.Pair) -> p = pair := \fun (p: Indices.Pair) =>
+  Pair.Prop[A := Fin.Fin one, B := Fin.Fin one].ext p pair (only (Pair.first (Fin.Fin one) (Fin.Fin one) p)) (only (Pair.second (Fin.Fin one) (Fin.Fin one) p));
+\definition list: Lists.List[Indices.Pair] := Lists.List[Indices.Pair]::cons pair Lists.List[Indices.Pair]::nil;
+\definition enumeration: Indices.Enumeration := \into[Lists.List[Indices.Pair]](list, Indices.Enumeration) \by {
+  Enumerations.DistinctEnumerationLaws[Indices.Whole, list] {
+    enumerates := Enumerations.Enumerates[Indices.Whole, list] {
+      included := \fun (p: Indices.Pair)(_: Enumerations.Occurs p list) => \refl(p),
+      exhaustive := \fun (p: Indices.Pair)(_: \In[Indices.Pair] Indices.Whole p) => Logic.Or[_, _]::left (pairOnly p),
+    },
+    distinct := Distinct.cons pair Lists.List[Indices.Pair]::nil (\fun (impossible: _) => impossible) Distinct.nil,
+  }
+};
+\import Operations.FiniteIndex[A := Indices.Pair, S := Indices.Whole, enumeration := enumeration] \as Coordinates;
+\definition rank: Coordinates.rank = one := \refl(one);
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Homotopy;
+\import Homotopy.Disks[d := two] \as Disks;
+\import algebraic_topology.Euclidean[].Dimension[n := two] \as Circle;
+\import Homotopy.ScalarUnits[n := one].Family[X := Circle.Sphere, source := Circle.sphereTopology,
+  a := Line.coefficient, regular := Line.regular, nonzero := Line.nonzero] \as Scalar;
+\import Disks.Clutched[n := one, g := Scalar.map, continuous := Scalar.continuous] \as Native;
+\import Homotopy.Clutching[n := one, X := Sphere.Sphere, baseSpace := Sphere.sphereTopology, U := Disks.U, V := Disks.V,
+  openU := Disks.openU, openV := Disks.openV, covers := Disks.covers].With[g := Native.transition, continuous := Native.transitionContinuous] \as Original;
+\import Operations.Tensor[X := Sphere.Sphere, F := Line.Fiber, G := Line.Fiber, left := Line.bundle, right := Line.bundle] \as Tensor;
+\definition tensorBundle: vector_bundles.Bundles[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar].Family[X := Sphere.Sphere, F := Tensor.Fiber].Bundle := Tensor.bundle (\refl(Sphere.sphereTopology));
+\import std.Data[].Bool[] \as B;
+\import Tensor.In[c := Original.chart B.Bool^::false, d := Original.chart B.Bool^::false, enumeration := enumeration] \as Positive;
+\import Tensor.In[c := Original.chart B.Bool^::true, d := Original.chart B.Bool^::true, enumeration := enumeration] \as Negative;
+\definition positiveChart: vector_bundles.Bundles[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar].Family[X := Sphere.Sphere, F := Tensor.Fiber].With[data := tensorBundle].Chart := Positive.trivialization (\refl(Sphere.sphereTopology));
+\definition negativeChart: vector_bundles.Bundles[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar].Family[X := Sphere.Sphere, F := Tensor.Fiber].With[data := tensorBundle].Chart := Negative.trivialization (\refl(Sphere.sphereTopology));
+\import clutching_linearization.Linearization[].ClutchingProduct[n := one, X := Sphere.Sphere, source := Sphere.sphereTopology,
+  compact := Compactness.sphere, hausdorff := Compactness.sphereHausdorff, U := Disks.U, V := Disks.V,
+  openU := Disks.openU, openV := Disks.openV, covers := Disks.covers] \as Product;
+\import \root.Bott[].Powers[] \as SpherePowers;
+\import Product.Powers[z := SpherePowers.z, continuousZ := SpherePowers.regular, unitZ := SpherePowers.unit].At[k := two] \as Square;
+\import Homotopy.Clutching[n := one, X := Sphere.Sphere, baseSpace := Sphere.sphereTopology, U := Disks.U, V := Disks.V,
+  openU := Disks.openU, openV := Disks.openV, covers := Disks.covers].With[g := Square.transition, continuous := Square.regular] \as Target;
+\import Disks.Hemispheres[].Cover[] \as Cover;
+\import topology.Topology[Carrier := Sphere.Sphere] \as Base;
+\import Base.Subspace[S := Cover.PositiveHalf] \as PositiveSpace;
+\import Base.Subspace[S := Cover.NegativeHalf] \as NegativeSpace;
+\definition PositiveCarrier: \Set := PositiveSpace.CarrierSet;
+\definition NegativeCarrier: \Set := NegativeSpace.CarrierSet;
+\definition positiveTopology: topology.Topology[Carrier := PositiveCarrier].Topology := PositiveSpace.topology Sphere.sphereTopology;
+\definition negativeTopology: topology.Topology[Carrier := NegativeCarrier].Topology := NegativeSpace.topology Sphere.sphereTopology;
+\definition positiveInside: \forall (x: PositiveCarrier) -> \In[Sphere.Sphere] Positive.domain x :=
+  \fun (x: PositiveCarrier) => Logic.And[_, _]::# (Cover.positiveInside x) (Cover.positiveInside x);
+\definition negativeInside: \forall (x: NegativeCarrier) -> \In[Sphere.Sphere] Negative.domain x :=
+  \fun (x: NegativeCarrier) => Logic.And[_, _]::# (Cover.negativeInside x) (Cover.negativeInside x);
+\import Homotopy.ChartPullback[X := Sphere.Sphere, F := Tensor.Fiber, bundle := tensorBundle, chart := positiveChart,
+  Y := PositiveCarrier, source := positiveTopology, f := (\fun (x: PositiveCarrier) => x),
+  continuous := topology.Continuity[A := Sphere.Sphere, B := Sphere.Sphere].Corestriction[S := Cover.PositiveHalf].inclusionContinuous Sphere.sphereTopology,
+  inside := positiveInside] \as PositiveTensor;
+\import Homotopy.ChartPullback[X := Sphere.Sphere, F := Tensor.Fiber, bundle := tensorBundle, chart := negativeChart,
+  Y := NegativeCarrier, source := negativeTopology, f := (\fun (x: NegativeCarrier) => x),
+  continuous := topology.Continuity[A := Sphere.Sphere, B := Sphere.Sphere].Corestriction[S := Cover.NegativeHalf].inclusionContinuous Sphere.sphereTopology,
+  inside := negativeInside] \as NegativeTensor;
+\import Homotopy.ChartPullback[X := Sphere.Sphere, F := Target.Fiber, bundle := Target.bundle, chart := Target.chart B.Bool^::false,
+  Y := PositiveCarrier, source := positiveTopology, f := (\fun (x: PositiveCarrier) => x),
+  continuous := topology.Continuity[A := Sphere.Sphere, B := Sphere.Sphere].Corestriction[S := Cover.PositiveHalf].inclusionContinuous Sphere.sphereTopology,
+  inside := Cover.positiveInside] \as PositiveTarget;
+\import Homotopy.ChartPullback[X := Sphere.Sphere, F := Target.Fiber, bundle := Target.bundle, chart := Target.chart B.Bool^::true,
+  Y := NegativeCarrier, source := negativeTopology, f := (\fun (x: NegativeCarrier) => x),
+  continuous := topology.Continuity[A := Sphere.Sphere, B := Sphere.Sphere].Corestriction[S := Cover.NegativeHalf].inclusionContinuous Sphere.sphereTopology,
+  inside := Cover.negativeInside] \as NegativeTarget;
+\import vector_bundles.Bundles[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Bundles;
+\import Bundles.Isomorphisms[X := PositiveCarrier, F := (\fun (x: PositiveCarrier) => Target.Fiber x), G := (\fun (_: PositiveCarrier) => Bundles.Vector one),
+  source := PositiveTarget.pulledBundle, target := Bundles.Trivial[X := PositiveCarrier, n := one, baseSpace := positiveTopology].bundle] \as PositiveIso;
+\import Bundles.Isomorphisms[X := NegativeCarrier, F := (\fun (x: NegativeCarrier) => Target.Fiber x), G := (\fun (_: NegativeCarrier) => Bundles.Vector one),
+  source := NegativeTarget.pulledBundle, target := Bundles.Trivial[X := NegativeCarrier, n := one, baseSpace := negativeTopology].bundle] \as NegativeIso;
+\import Operations.IsomorphismComposition[X := PositiveCarrier, F := (\fun (x: PositiveCarrier) => Tensor.Fiber x), G := (\fun (_: PositiveCarrier) => Bundles.Vector one), H := (\fun (x: PositiveCarrier) => Target.Fiber x),
+  source := PositiveTensor.pulledBundle, middle := Bundles.Trivial[X := PositiveCarrier, n := one, baseSpace := positiveTopology].bundle, target := PositiveTarget.pulledBundle] \as PositiveCompose;
+\import Operations.IsomorphismComposition[X := NegativeCarrier, F := (\fun (x: NegativeCarrier) => Tensor.Fiber x), G := (\fun (_: NegativeCarrier) => Bundles.Vector one), H := (\fun (x: NegativeCarrier) => Target.Fiber x),
+  source := NegativeTensor.pulledBundle, middle := Bundles.Trivial[X := NegativeCarrier, n := one, baseSpace := negativeTopology].bundle, target := NegativeTarget.pulledBundle] \as NegativeCompose;
+\definition positive: PositiveCompose.Isomorphism := PositiveCompose.compose PositiveTensor.isomorphism (PositiveIso.inverse PositiveTarget.isomorphism);
+\definition negative: NegativeCompose.Isomorphism := NegativeCompose.compose NegativeTensor.isomorphism (NegativeIso.inverse NegativeTarget.isomorphism);
+\import Homotopy.ClosedCover[X := Sphere.Sphere, F := Tensor.Fiber, G := Target.Fiber, baseSpace := Sphere.sphereTopology,
+  source := tensorBundle, target := Target.bundle, sourceBase := \refl(Sphere.sphereTopology), targetBase := \refl(Sphere.sphereTopology),
+  C := Cover.PositiveHalf, D := Cover.NegativeHalf, closedC := Cover.positiveClosed, closedD := Cover.negativeClosed, covers := Cover.halvesCover] \as Glue;
+\import Homotopy.ClosedMaps[X := Sphere.Sphere, F := Tensor.Fiber, G := Target.Fiber, baseSpace := Sphere.sphereTopology,
+  source := tensorBundle, target := Target.bundle, sourceBase := \refl(Sphere.sphereTopology), targetBase := \refl(Sphere.sphereTopology),
+  C := Cover.PositiveHalf, D := Cover.NegativeHalf, closedC := Cover.positiveClosed, closedD := Cover.negativeClosed, covers := Cover.halvesCover] \as Maps;
+\import Maps.Side[S := Cover.PositiveHalf] \as Left;
+\import Maps.Side[S := Cover.NegativeHalf] \as Right;
+\definition left: Left.Isomorphism := positive;
+\definition right: Right.Isomorphism := negative;
+\module Boundary(p: Sphere.Sphere, inPositive: \In[Sphere.Sphere] Cover.PositiveHalf p, inNegative: \In[Sphere.Sphere] Cover.NegativeHalf p);
+\definition agrees: \forall (p: Sphere.Sphere)(inPositive: \In[Sphere.Sphere] Cover.PositiveHalf p)(inNegative: \In[Sphere.Sphere] Cover.NegativeHalf p)(t: Tensor.Fiber p) ->
+  (left.forward.fiber (\into[Sphere.Sphere](p, Cover.PositiveHalf) \by { inPositive })).apply t =
+  (right.forward.fiber (\into[Sphere.Sphere](p, Cover.NegativeHalf) \by { inNegative })).apply t :=
+  \fun (p: Sphere.Sphere)(inPositive: _)(inNegative: _)(t: Tensor.Fiber p) =>
+    Boundary[p := p, inPositive := inPositive, inNegative := inNegative].agrees t;
+\definition isomorphism: Bundles.Isomorphisms[X := Sphere.Sphere, F := Tensor.Fiber, G := Target.Fiber,
+  source := tensorBundle, target := Target.bundle].Isomorphism := Glue.With[left := left, right := right, agrees := agrees].isomorphism;

@@ -1,0 +1,63 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.trans;
+\use Eq.sym;
+\use Eq.congr;
+\use Eq.eq_reason_in;
+\import std.Alg[].Ring[] \as Rings;
+\import algebra.Hom[A := K.K0[].Carrier, B := Target.K0[].Carrier] \as SecondHom;
+\import algebra.Hom[A := Source.K0[].Carrier, B := Target.K0[].Carrier] \as FirstHom;
+\import algebra.GroupCompletion[].Semiring[M := Target.Classes, semiring := Target.Semiring[].semiring] \as Ring;
+\import algebra.Group[].Of[Carrier := Target.K0[].Carrier, group := Target.K0[].group] \as Group;
+\import \root.Bott[].Square[] \as Square;
+\definition generatorSquare: Target.K0[].mul generatorOnProduct generatorOnProduct = Target.K0[].zero :=
+  trans!{Target.K0[].Carrier} _ _ _
+    (sym!{Target.K0[].Carrier} _ _ ((SecondHom.semiringLaws (Rings.ringAsSemiring K.K0[].Carrier K.K0[].ring)
+      (Rings.ringAsSemiring Target.K0[].Carrier Target.K0[].ring) Second.K0[].map).mul generator generator))
+    (trans!{Target.K0[].Carrier} _ _ _ (congr!{K.K0[].Carrier Target.K0[].Carrier} Second.K0[].map _ _ Square.zero) Second.K0[].preservesZero);
+\definition firstMul: \forall (a, b: Source.K0[].Carrier) ->
+  Target.K0[].mul (First.K0[].map a) (First.K0[].map b) = First.K0[].map (Source.K0[].mul a b) :=
+  \fun (a, b: Source.K0[].Carrier) => sym!{Target.K0[].Carrier} _ _ ((FirstHom.semiringLaws
+    (Rings.ringAsSemiring Source.K0[].Carrier Source.K0[].ring) (Rings.ringAsSemiring Target.K0[].Carrier Target.K0[].ring) First.K0[].map).mul a b);
+\definition commute: \forall (a, b: Target.K0[].Carrier) -> Target.K0[].mul a b = Target.K0[].mul b a := Ring.mulComm Target.MultiplicativeMonoid[].commutative;
+\definition four: \forall (a, b, c, d: Target.K0[].Carrier) ->
+  Target.K0[].mul (Target.K0[].mul a b) (Target.K0[].mul c d) = Target.K0[].mul (Target.K0[].mul a c) (Target.K0[].mul b d) :=
+  \fun (a, b, c, d: Target.K0[].Carrier) => eq_reason_in!{Target.K0[].Carrier _
+    "=" _ "by" { Ring.mulAssoc a b (Target.K0[].mul c d) }
+    "=" _ "by" { congr!{Target.K0[].Carrier Target.K0[].Carrier} (Target.K0[].mul a) _ _ (sym!{Target.K0[].Carrier} _ _ (Ring.mulAssoc b c d)) }
+    "=" _ "by" { congr!{Target.K0[].Carrier Target.K0[].Carrier} (\fun (x: Target.K0[].Carrier) => Target.K0[].mul a (Target.K0[].mul x d)) _ _ (commute b c) }
+    "=" _ "by" { congr!{Target.K0[].Carrier Target.K0[].Carrier} (Target.K0[].mul a) _ _ (Ring.mulAssoc c b d) }
+    "=" _ "by" { sym!{Target.K0[].Carrier} _ _ (Ring.mulAssoc a c (Target.K0[].mul b d)) }
+  };
+\definition cross: \forall (a, b: Source.K0[].Carrier) ->
+  Target.K0[].mul (First.K0[].map a) (Target.K0[].mul (First.K0[].map b) generatorOnProduct) =
+  Target.K0[].mul (First.K0[].map (Source.K0[].mul a b)) generatorOnProduct :=
+  \fun (a, b: Source.K0[].Carrier) => trans!{Target.K0[].Carrier} _ _ _
+    (sym!{Target.K0[].Carrier} _ _ (Ring.mulAssoc (First.K0[].map a) (First.K0[].map b) generatorOnProduct))
+    (congr!{Target.K0[].Carrier Target.K0[].Carrier} (\fun (x: Target.K0[].Carrier) => Target.K0[].mul x generatorOnProduct) _ _ (firstMul a b));
+\definition reducedSquare: \forall (a, b: Source.K0[].Carrier) ->
+  Target.K0[].mul (Target.K0[].mul (First.K0[].map a) generatorOnProduct) (Target.K0[].mul (First.K0[].map b) generatorOnProduct) = Target.K0[].zero :=
+  \fun (a, b: Source.K0[].Carrier) => trans!{Target.K0[].Carrier} _ _ _
+    (four (First.K0[].map a) generatorOnProduct (First.K0[].map b) generatorOnProduct)
+    (trans!{Target.K0[].Carrier} _ _ _
+      (congr!{Target.K0[].Carrier Target.K0[].Carrier} (Target.K0[].mul (Target.K0[].mul (First.K0[].map a) (First.K0[].map b))) _ _ generatorSquare)
+      (Ring.mulZeroRight (Target.K0[].mul (First.K0[].map a) (First.K0[].map b))));
+\definition formula: \forall (a, b, c, d: Source.K0[].Carrier) ->
+  Target.K0[].mul (forward a b) (forward c d) =
+  forward (Source.K0[].mul a c) (Source.K0[].add (Source.K0[].mul a d) (Source.K0[].mul c b)) :=
+  \fun (a, b, c, d: Source.K0[].Carrier) => eq_reason_in!{Target.K0[].Carrier _
+    "=" _ "by" { Ring.mulAddLeft (First.K0[].map a) (Target.K0[].mul (First.K0[].map b) generatorOnProduct) (forward c d) }
+    "=" _ "by" { congr!{Target.K0[].Carrier Target.K0[].Carrier Target.K0[].Carrier} Target.K0[].add _ _ _ _
+      (Ring.mulAddRight (First.K0[].map a) (First.K0[].map c) (Target.K0[].mul (First.K0[].map d) generatorOnProduct))
+      (Ring.mulAddRight (Target.K0[].mul (First.K0[].map b) generatorOnProduct) (First.K0[].map c) (Target.K0[].mul (First.K0[].map d) generatorOnProduct)) }
+    "=" _ "by" { congr!{Target.K0[].Carrier Target.K0[].Carrier Target.K0[].Carrier} Target.K0[].add _ _ _ _
+      (congr!{Target.K0[].Carrier Target.K0[].Carrier Target.K0[].Carrier} Target.K0[].add _ _ _ _ (firstMul a c) (cross a d))
+      (congr!{Target.K0[].Carrier Target.K0[].Carrier Target.K0[].Carrier} Target.K0[].add _ _ _ _
+        (trans!{Target.K0[].Carrier} _ _ _ (commute (Target.K0[].mul (First.K0[].map b) generatorOnProduct) (First.K0[].map c)) (cross c b))
+        (reducedSquare b d)) }
+    "=" _ "by" { congr!{Target.K0[].Carrier Target.K0[].Carrier} (Target.K0[].add (Target.K0[].add (First.K0[].map (Source.K0[].mul a c)) (Target.K0[].mul (First.K0[].map (Source.K0[].mul a d)) generatorOnProduct))) _ _ (Group.zeroRight (Target.K0[].mul (First.K0[].map (Source.K0[].mul c b)) generatorOnProduct)) }
+    "=" _ "by" { Group.assoc (First.K0[].map (Source.K0[].mul a c)) (Target.K0[].mul (First.K0[].map (Source.K0[].mul a d)) generatorOnProduct) (Target.K0[].mul (First.K0[].map (Source.K0[].mul c b)) generatorOnProduct) }
+    "=" _ "by" { congr!{Target.K0[].Carrier Target.K0[].Carrier} (Target.K0[].add (First.K0[].map (Source.K0[].mul a c))) _ _
+      (sym!{Target.K0[].Carrier} _ _ (Ring.mulAddLeft (First.K0[].map (Source.K0[].mul a d)) (First.K0[].map (Source.K0[].mul c b)) generatorOnProduct)) }
+    "=" _ "by" { congr!{Target.K0[].Carrier Target.K0[].Carrier} (\fun (x: Target.K0[].Carrier) => Target.K0[].add (First.K0[].map (Source.K0[].mul a c)) (Target.K0[].mul x generatorOnProduct)) _ _
+      (sym!{Target.K0[].Carrier} _ _ (First.K0[].additive (Source.K0[].mul a d) (Source.K0[].mul c b))) }
+  };

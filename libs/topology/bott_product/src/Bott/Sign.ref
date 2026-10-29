@@ -1,0 +1,51 @@
+\import std.Logic[].Equality[] \as Eq;
+\import std.Logic[].Proposition[] \as Logic;
+\use Eq.trans;
+\use Eq.sym;
+\use Eq.congr;
+\import complex.Complex[] \as C;
+\import \root.Bott[].Powers[] \as Powers;
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Homotopy;
+\import Homotopy.Disks[d := two] \as Disks;
+\import clutching_linearization.Linearization[] \as Linearization;
+\import Linearization.ClutchingProduct[n := one, X := Sphere.Sphere, source := Sphere.sphereTopology,
+  compact := Compactness.sphere, hausdorff := Compactness.sphereHausdorff, U := Disks.U, V := Disks.V,
+  openU := Disks.openU, openV := Disks.openV, covers := Disks.covers] \as Product;
+\import Product.Powers[z := Powers.z, continuousZ := Powers.regular, unitZ := Powers.unit].At[k := one] \as First;
+\definition conjugate[p: Product.Overlap]: C.Complex := C.Def[].conj (Powers.z p);
+\definition regular: topology.Continuity[A := Product.Overlap, B := C.Complex].Continuous Product.overlapTopology topological_algebra.Complex[].topology conjugate :=
+  topological_algebra.Complex[].Functions[A := Product.Overlap].conjugateContinuous Product.overlapTopology Powers.z Powers.regular;
+\definition unit: \forall (p: Product.Overlap) -> C.Def[].mul (Powers.z p) (conjugate p) = C.Def[].one :=
+  \fun (p: Product.Overlap) => trans!{C.Complex} _ _ _ (C.Prop[].mulConjSelf (Powers.z p))
+    (congr!{real.Analysis[].Real C.Complex} C.Def[].ofReal _ _ (Linearization.Powers[].normOfUnit (Powers.z p) (Powers.unit p)));
+\definition nonzero: \forall (p: Product.Overlap) -> C.Def[].NonZero (conjugate p) :=
+  \fun (p: Product.Overlap)(zero: conjugate p = C.Def[].zero) => C.Prop[].zeroNeOne
+    (trans!{C.Complex} _ _ _ (sym!{C.Complex} _ _ (C.Prop[].mulZeroRight (Powers.z p)))
+      (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} (C.Def[].mul (Powers.z p)) _ _ (sym!{C.Complex} _ _ zero)) (unit p)));
+\import Linearization.ScalarUnits[n := one, X := Product.Overlap, source := Product.overlapTopology,
+  a := conjugate, continuous := regular, nonzero := nonzero] \as Other;
+\import Product.With[a := First.transition, b := Other.value, continuousA := First.regular, continuousB := Other.valueContinuous] \as Combined;
+\import Homotopy.Clutching[n := one, X := Sphere.Sphere, baseSpace := Sphere.sphereTopology, U := Disks.U, V := Disks.V,
+  openU := Disks.openU, openV := Disks.openV, covers := Disks.covers].Identity[] \as Identity;
+\import std.Data[].FinSet[] \as Fin;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := C.Algebra[].commutativeRing] \as Spaces;
+\import Spaces.Coordinates[I := Fin.Fin one] \as Vectors;
+\import Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as End;
+\definition action: \forall (p: Product.Overlap)(v: Vectors.Vector) -> (Combined.product p).apply v = (Identity.identity p).apply v :=
+  \fun (p: Product.Overlap)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _ (First.formula p ((Other.value p).apply v))
+    (trans!{Vectors.Vector} _ _ _ (congr!{Vectors.Vector Vectors.Vector} (Vectors.space.smul (Linearization.Powers[].value (Powers.z p) one)) _ _ (Other.formula p v))
+      (trans!{Vectors.Vector} _ _ _ (sym!{Vectors.Vector} _ _ (Vectors.space.scalarAssoc (Linearization.Powers[].value (Powers.z p) one) (conjugate p) v))
+        (trans!{Vectors.Vector} _ _ _ (congr!{C.Complex Vectors.Vector} (\fun (z: C.Complex) => Vectors.space.smul z v) _ _
+          (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} (\fun (z: C.Complex) => C.Def[].mul z (conjugate p)) _ _ (C.Prop[].mulOneRight (Powers.z p))) (unit p)))
+          (Vectors.space.scalarOne v))));
+\import Product.Class[g := Combined.product, continuous := Combined.productContinuous].Compare[h := Identity.identity, continuousH := Identity.continuous] \as Compare;
+\import Product.Class[g := Identity.identity, continuous := Identity.continuous] \as Trivial;
+\import Combined.Comparison[].KClass[] \as Additivity;
+\import algebra.Group[].Of[Carrier := K0.Carrier, group := K0.group] \as Group;
+\definition negative: Additivity.rightReduced = K0.neg generator := Group.inverseUnique generator Additivity.rightReduced
+  (trans!{K0.Carrier} _ _ _ (congr!{K0.Carrier K0.Carrier} (\fun (x: K0.Carrier) => K0.add Additivity.rightReduced x) _ _ (sym!{K0.Carrier} _ _ Powers.firstComparison))
+    (trans!{K0.Carrier} _ _ _ (Group.comm Additivity.rightReduced Additivity.leftReduced)
+      (trans!{K0.Carrier} _ _ _ (sym!{K0.Carrier} _ _ Additivity.additivity)
+        (trans!{K0.Carrier} _ _ _ (Compare.ofEquality (\fun (p: Product.Overlap) => End.ext _ _ (\axiom:funext((Combined.product p).apply, (Identity.identity p).apply, action p))))
+          Trivial.identityClass))));

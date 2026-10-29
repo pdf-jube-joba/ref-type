@@ -1,0 +1,62 @@
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff] \as Original;
+\import complex.Complex[] \as C;
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar].Disks[d := two] \as Disks;
+\import Disks.Hemispheres[] \as Halves;
+\import algebraic_topology.Euclidean[].Dimension[n := two] \as Disk;
+\import Disk.Contraction[] \as Contract;
+\import Disk.Compactness[] \as CompactDisk;
+\import topological_constructions.Product[A := X, B := Disk.Disk] \as ProductDisk;
+\import topology.Topology[Carrier := ProductDisk.CarrierSet] \as DiskBase;
+\definition Carrier: \Set := ProductDisk.CarrierSet;
+\definition topology: DiskBase.Topology := ProductDisk.topology source Disk.diskTopology;
+\definition first: Carrier -> X := Pair.first X Disk.Disk;
+\definition second: Carrier -> Disk.Disk := Pair.second X Disk.Disk;
+\definition compactDisk: DiskBase.IsCompact topology := ProductDisk.Compactness[].productCompact source Disk.diskTopology compact CompactDisk.compact;
+\definition hausdorffDisk: DiskBase.IsT2 topology := topological_constructions.Separation[].Product[A := X, B := Disk.Disk].On[left := source, right := Disk.diskTopology,
+  leftHausdorff := hausdorff, rightHausdorff := topology.Topology[Carrier := Disk.Coordinate].Subspace[S := Disk.ClosedBall].Properties[].hausdorff Disk.topology CompactDisk.hausdorff].hausdorff;
+\definition point: Sphere.Sphere := Halves.positive Contract.origin;
+\definition included[p: Carrier]: Space.CarrierSet := Pair.pair X Sphere.Sphere (first p) (Halves.positive (second p));
+\definition constant[p: Carrier]: Space.CarrierSet := Pair.pair X Sphere.Sphere (first p) point;
+\definition includedContinuous: topology.Continuity[A := Carrier, B := Space.CarrierSet].Continuous topology Original.topology included :=
+  Space.Universal[X := Carrier].pairContinuous topology source Sphere.sphereTopology first (\fun (p: Carrier) => Halves.positive (second p))
+    (ProductDisk.Maps[].firstContinuous source Disk.diskTopology)
+    (topology.Composition[A := Carrier, B := Disk.Disk, C := Sphere.Sphere].composeContinuous topology Disk.diskTopology Sphere.sphereTopology second Halves.positive
+      (ProductDisk.Maps[].secondContinuous source Disk.diskTopology) Halves.positiveContinuous);
+\definition constantContinuous: topology.Continuity[A := Carrier, B := Space.CarrierSet].Continuous topology Original.topology constant :=
+  Space.Universal[X := Carrier].pairContinuous topology source Sphere.sphereTopology first (\fun (_: Carrier) => point)
+    (ProductDisk.Maps[].firstContinuous source Disk.diskTopology) (topology.Maps[A := Carrier, B := Sphere.Sphere].constantContinuous topology Sphere.sphereTopology point);
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.congr;
+\import algebraic_topology.Interval[] \as Time;
+\import algebraic_topology.Cylinder[A := Carrier] \as Cylinder;
+\import algebraic_topology.Cylinder[A := Disk.Disk] \as DiskCylinder;
+\import topological_constructions.Product[A := Time.Carrier, B := Disk.Disk] \as DiskTime;
+\definition timeDisk[p: Cylinder.Carrier]: DiskCylinder.Carrier := DiskCylinder.at (Cylinder.time p) (second (Cylinder.point p));
+\definition timeDiskContinuous: topology.Continuity[A := Cylinder.Carrier, B := DiskCylinder.Carrier].Continuous (Cylinder.topology topology) (DiskCylinder.topology Disk.diskTopology) timeDisk :=
+  DiskTime.Universal[X := Cylinder.Carrier].pairContinuous (Cylinder.topology topology) Time.topology Disk.diskTopology Cylinder.time (\fun (p: Cylinder.Carrier) => second (Cylinder.point p))
+    (Cylinder.timeContinuous topology)
+    (topology.Composition[A := Cylinder.Carrier, B := Carrier, C := Disk.Disk].composeContinuous (Cylinder.topology topology) topology Disk.diskTopology Cylinder.point second
+      (Cylinder.pointContinuous topology) (ProductDisk.Maps[].secondContinuous source Disk.diskTopology));
+\definition family[p: Cylinder.Carrier]: Space.CarrierSet := Pair.pair X Sphere.Sphere (first (Cylinder.point p)) (Halves.positive (Contract.family (timeDisk p)));
+\definition continuous: topology.Continuity[A := Cylinder.Carrier, B := Space.CarrierSet].Continuous (Cylinder.topology topology) Original.topology family :=
+  Space.Universal[X := Cylinder.Carrier].pairContinuous (Cylinder.topology topology) source Sphere.sphereTopology
+    (\fun (p: Cylinder.Carrier) => first (Cylinder.point p)) (\fun (p: Cylinder.Carrier) => Halves.positive (Contract.family (timeDisk p)))
+    (topology.Composition[A := Cylinder.Carrier, B := Carrier, C := X].composeContinuous (Cylinder.topology topology) topology source Cylinder.point first
+      (Cylinder.pointContinuous topology) (ProductDisk.Maps[].firstContinuous source Disk.diskTopology))
+    (topology.Composition[A := Cylinder.Carrier, B := Disk.Disk, C := Sphere.Sphere].composeContinuous (Cylinder.topology topology) Disk.diskTopology Sphere.sphereTopology
+      (\fun (p: Cylinder.Carrier) => Contract.family (timeDisk p)) Halves.positive
+      (topology.Composition[A := Cylinder.Carrier, B := DiskCylinder.Carrier, C := Disk.Disk].composeContinuous (Cylinder.topology topology) (DiskCylinder.topology Disk.diskTopology) Disk.diskTopology
+        timeDisk Contract.family timeDiskContinuous Contract.continuous) Halves.positiveContinuous);
+\import algebraic_topology.Homotopy[A := Carrier, B := Space.CarrierSet] \as Homotopy;
+\definition homotopy: Homotopy.Homotopy[topology, Original.topology, included, constant] :=
+  \into[Homotopy.Family](family, Homotopy.Homotopy[topology, Original.topology, included, constant]) \by {
+    Homotopy.Laws[topology, Original.topology, included, constant, family] {
+      continuous := continuous,
+      start := \fun (p: Carrier) => congr!{Disk.Disk Space.CarrierSet} (\fun (v: Disk.Disk) => Pair.pair X Sphere.Sphere (first p) (Halves.positive v)) _ _ (Contract.atStart (second p)),
+      end := \fun (p: Carrier) => congr!{Disk.Disk Space.CarrierSet} (\fun (v: Disk.Disk) => Pair.pair X Sphere.Sphere (first p) (Halves.positive v)) _ _ (Contract.atEnd (second p))
+    }
+  };
+\module Negative;
+\module Boundary;
+\module Closed;

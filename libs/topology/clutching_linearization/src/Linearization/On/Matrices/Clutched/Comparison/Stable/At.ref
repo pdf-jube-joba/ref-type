@@ -1,0 +1,92 @@
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := Scalars.field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar] \as Homotopy;
+\import Homotopy.Projections[n := m].Operators[].Units[] \as AddedUnits;
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := m] \as AddedM;
+\import matrix_invariants.Field[K := C.Complex, field := Scalars.field].At[n := m] \as AddedField;
+\import matrix_invariants.Topological[K := C.Complex, ring := topological_algebra.Complex[].Ring[].topologicalRing].At[n := m] \as AddedTop;
+\definition constant[x: X]: AddedM.Matrix := AddedUnits.matrix AddedUnits.identity;
+\definition constantRegular: AddedTop.Families[X := X].Regular source constant := \fun (i, j: AddedM.Index) =>
+  topology.Maps[A := X, B := C.Complex].constantContinuous source topological_algebra.Complex[].topology (AddedUnits.matrix AddedUnits.identity i j);
+\definition constantNonzero: \forall (x: X) -> AddedField.Nonzero (constant x) :=
+  \fun (_: X) => \bysub(AddedM.Matrix, AddedField.Nonsingular, AddedUnits.matrix AddedUnits.identity);
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff] \as On;
+\import On.ConstantLoop[n := m, h := constant, regular := constantRegular, nonzero := constantNonzero] \as Identity;
+\import \root.Linearization[].MatrixPaths[n := n, Y := Circle.Domain, source := Circle.source] \as Paths;
+\definition first: Paths.Family := Paths.Family { matrix := a, regular := regular, nonzero := nonzero };
+\definition second: Paths.Family := Paths.Family { matrix := b, regular := regularB, nonzero := nonzeroB };
+\import On.DirectSum[n := n, m := m, a := first, b := Identity.family] \as Left;
+\import On.DirectSum[n := n, m := m, a := second, b := Identity.family] \as Right;
+\import \root.Linearization[].MatrixSum[n := n, m := m] \as Sum;
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := Sum.total] \as Big;
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[
+  n := Sum.total, a := Left.sum.matrix, regular := Left.sum.regular, nonzero := Left.sum.nonzero].Clutched[] \as LeftBundle;
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[
+  n := Sum.total, a := Right.sum.matrix, regular := Right.sum.regular, nonzero := Right.sum.nonzero].Clutched[] \as RightBundle;
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[n := n, a := a, regular := regular, nonzero := nonzero].Clutched[].Stabilize[m := m] \as LeftStable;
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[n := n, a := b, regular := regularB, nonzero := nonzeroB].Clutched[].Stabilize[m := m] \as RightStable;
+\import Homotopy.BlockDiagonal[n := n, m := m] \as Block;
+\import bundle_operations.Operations[].Over[K := C.Complex, field := Scalars.field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar].CoordinateSum[n := n, m := m] \as Coordinates;
+\import Spaces.Coordinates[I := Fin.Fin n] \as Vectors;
+\import Spaces.Coordinates[I := Fin.Fin m] \as AddedVectors;
+\import Spaces.Coordinates[I := Fin.Fin Sum.total] \as Flat;
+\import Spaces.DirectSum[V := Vectors.Vector, W := AddedVectors.Vector, left := Vectors.space, right := AddedVectors.space] \as PairSpace;
+\import Spaces.Linear[V := AddedVectors.Vector, W := AddedVectors.Vector, source := AddedVectors.space, target := AddedVectors.space] \as AddedEnd;
+\import \root.Linearization[].MatrixUnits[n := n, Y := Circle.Domain, source := Circle.source, A := b, regular := regularB, nonzero := nonzeroB] \as SecondUnits;
+\definition leftEquation: \forall (p: Circle.Domain)(v: Flat.Vector) -> (Big.linear (Left.sum.matrix p)).apply v = (LeftStable.block p).apply v :=
+  \fun (p: Circle.Domain)(v: Flat.Vector) => trans!{Flat.Vector} _ _ _ (Sum.action (a p) (AddedUnits.matrix AddedUnits.identity) v)
+    (congr!{PairSpace.Carrier Flat.Vector} Coordinates.join _ _ (Pair.Prop[A := Vectors.Vector, B := AddedVectors.Vector].pairCong _ _ _ _
+      (\refl((Matrices.map p).apply (PairSpace.first (Coordinates.split v))))
+      (congr!{AddedEnd.Map AddedVectors.Vector} (\fun (f: AddedEnd.Map) => f.apply (PairSpace.second (Coordinates.split v))) _ _ (AddedM.Representation[].linearEntries AddedUnits.identity))));
+\definition rightEquation: \forall (p: Circle.Domain)(v: Flat.Vector) -> (Big.linear (Right.sum.matrix p)).apply v = (RightStable.block p).apply v :=
+  \fun (p: Circle.Domain)(v: Flat.Vector) => trans!{Flat.Vector} _ _ _ (Sum.action (b p) (AddedUnits.matrix AddedUnits.identity) v)
+    (congr!{PairSpace.Carrier Flat.Vector} Coordinates.join _ _ (Pair.Prop[A := Vectors.Vector, B := AddedVectors.Vector].pairCong _ _ _ _
+      (\refl((SecondUnits.map p).apply (PairSpace.first (Coordinates.split v))))
+      (congr!{AddedEnd.Map AddedVectors.Vector} (\fun (f: AddedEnd.Map) => f.apply (PairSpace.second (Coordinates.split v))) _ _ (AddedM.Representation[].linearEntries AddedUnits.identity))));
+\import LeftStable.Comparing[b := Left.sum.matrix, regularB := Left.sum.regular, nonzeroB := Left.sum.nonzero, equation := leftEquation] \as LeftComparison;
+\import RightStable.Comparing[b := Right.sum.matrix, regularB := Right.sum.regular, nonzeroB := Right.sum.nonzero, equation := rightEquation] \as RightComparison;
+\import vector_bundles.Bundles[].Over[K := C.Complex, field := Scalars.field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Bundles;
+\import Bundles.Isomorphisms[X := Carrier, F := LeftStable.SumFiber, G := LeftBundle.Fiber, source := LeftStable.sumBundle, target := LeftBundle.bundle] \as LeftIso;
+\import bundle_operations.Operations[].Over[K := C.Complex, field := Scalars.field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Operations;
+\import Operations.IsomorphismComposition[X := Carrier, F := LeftBundle.Fiber, G := LeftStable.SumFiber, H := RightStable.SumFiber,
+  source := LeftBundle.bundle, middle := LeftStable.sumBundle, target := RightStable.sumBundle] \as Compose1;
+\import Operations.IsomorphismComposition[X := Carrier, F := LeftBundle.Fiber, G := RightStable.SumFiber, H := RightBundle.Fiber,
+  source := LeftBundle.bundle, middle := RightStable.sumBundle, target := RightBundle.bundle] \as Compose2;
+\definition stableIsomorphism: \exists Bundles.Isomorphisms[X := Carrier, F := LeftBundle.Fiber, G := RightBundle.Fiber,
+  source := LeftBundle.bundle, target := RightBundle.bundle].Isomorphism := \block {
+  \takefrom left: LeftIso.Isomorphism \by LeftComparison.isomorphismExists \then
+  \takefrom right: Bundles.Isomorphisms[X := Carrier, F := RightStable.SumFiber, G := RightBundle.Fiber,
+    source := RightStable.sumBundle, target := RightBundle.bundle].Isomorphism \by RightComparison.isomorphismExists \then
+  \return \exact(Compose2.compose (Compose1.compose (LeftIso.inverse left) iso) right,
+    Bundles.Isomorphisms[X := Carrier, F := LeftBundle.Fiber, G := RightBundle.Fiber, source := LeftBundle.bundle, target := RightBundle.bundle].Isomorphism)
+};
+\import LeftBundle.Comparison[b := Right.sum.matrix, regularB := Right.sum.regular, nonzeroB := Right.sum.nonzero] \as Comparison;
+\import On.Matrices[n := Sum.total, a := Left.sum.matrix, regular := Left.sum.regular, nonzero := Left.sum.nonzero] \as LeftTotal;
+\import On.Matrices[n := Sum.total, a := Right.sum.matrix, regular := Right.sum.regular, nonzero := Right.sum.nonzero] \as RightTotal;
+\import On.Matrices[n := n, a := first.matrix, regular := first.regular, nonzero := first.nonzero] \as FirstIndex;
+\import On.Matrices[n := n, a := second.matrix, regular := second.regular, nonzero := second.nonzero] \as SecondIndex;
+\import On.Matrices[n := m, a := Identity.family.matrix, regular := Identity.family.regular, nonzero := Identity.family.nonzero] \as IdentityIndex;
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := source, compact := compact, hausdorff := hausdorff] \as BaseK;
+\import algebra.Group[].Of[Carrier := BaseK.K0[].Carrier, group := BaseK.K0[].group] \as Group;
+\definition sumInvariant: LeftTotal.Inverse[].value = RightTotal.Inverse[].value := \block {
+  \takefrom stable: Bundles.Isomorphisms[X := Carrier, F := LeftBundle.Fiber, G := RightBundle.Fiber,
+    source := LeftBundle.bundle, target := RightBundle.bundle].Isomorphism \by stableIsomorphism \then
+  \return Comparison.FromIsomorphism[iso := stable].invariant
+};
+\definition indexInvariant: FirstIndex.Inverse[].value = SecondIndex.Inverse[].value :=
+  trans!{BaseK.K0[].Carrier} _ _ _ (sym!{BaseK.K0[].Carrier} _ _ (Group.zeroRight FirstIndex.Inverse[].value))
+    (trans!{BaseK.K0[].Carrier} _ _ _ (congr!{BaseK.K0[].Carrier BaseK.K0[].Carrier} (BaseK.K0[].add FirstIndex.Inverse[].value) _ _ (sym!{BaseK.K0[].Carrier} _ _ Identity.indexZero))
+      (trans!{BaseK.K0[].Carrier} _ _ _ (sym!{BaseK.K0[].Carrier} _ _ Left.additivity)
+        (trans!{BaseK.K0[].Carrier} _ _ _ sumInvariant
+          (trans!{BaseK.K0[].Carrier} _ _ _ Right.additivity
+            (trans!{BaseK.K0[].Carrier} _ _ _ (congr!{BaseK.K0[].Carrier BaseK.K0[].Carrier} (BaseK.K0[].add SecondIndex.Inverse[].value) _ _ Identity.indexZero) (Group.zeroRight SecondIndex.Inverse[].value))))));
+\import On.Matrices[n := n, a := a, regular := regular, nonzero := nonzero] \as Original;
+\import On.Matrices[n := n, a := b, regular := regularB, nonzero := nonzeroB] \as OtherMatrix;
+\definition leftPath: Paths.Path[first, first] := Paths.constant first;
+\definition rightPath: Paths.Path[second, second] := Paths.constant second;
+\import Original.Inverse[].Homotopy[b := first.matrix, regularB := first.regular, nonzeroB := first.nonzero].With[path := leftPath] \as FirstEquality;
+\import SecondIndex.Inverse[].Homotopy[b := b, regularB := regularB, nonzeroB := nonzeroB].With[path := rightPath] \as SecondEquality;
+\definition invariant: Original.Inverse[].value = OtherMatrix.Inverse[].value :=
+  trans!{BaseK.K0[].Carrier} _ _ _ FirstEquality.invariant (trans!{BaseK.K0[].Carrier} _ _ _ indexInvariant SecondEquality.invariant);

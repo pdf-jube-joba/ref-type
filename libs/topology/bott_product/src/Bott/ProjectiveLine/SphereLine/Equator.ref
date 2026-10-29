@@ -1,0 +1,48 @@
+\import std.Logic[].Equality[] \as Eq;
+\import std.Data[].Pair[] \as Pair;
+\use Eq.trans;
+\use Eq.congr;
+\use Eq.sym;
+\import real.Analysis[] \as R;
+\import R.Algebra[] \as RealAlgebra;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar].Disks[d := two].Hemispheres[].Cover[] \as Cover;
+\import \root.Bott[].ProjectiveLine[].Coordinates[].SphereMap[].Matrix[] \as Matrix;
+\definition heightZero: Matrix.t s = R.zero := Cover.intersectionHead s positive negative;
+\definition diagonalA: Matrix.a s = C.Def[].ofReal R.half := congr!{R.Real C.Complex} C.Def[].ofReal _ _
+  (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (t: R.Real) => R.mul R.half (R.add R.one t)) _ _ heightZero)
+    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul R.half) _ _ (Laws.addZeroRight R.one)) (RealAlgebra.mulOneRight R.half)));
+\definition diagonalD: Matrix.d s = C.Def[].ofReal R.half := congr!{R.Real C.Complex} C.Def[].ofReal _ _
+  (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (t: R.Real) => R.mul R.half (R.sub R.one t)) _ _ heightZero)
+    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul R.half) _ _ (Laws.subZeroRight R.one)) (RealAlgebra.mulOneRight R.half)));
+\definition boundary: algebraic_topology.Euclidean[].Dimension[n := two].Sphere := Cover.intersectionBoundary s positive negative;
+\definition offDiagonal: Matrix.b s = C.Def[].scale R.half (Line.coefficient boundary) := \refl(Matrix.b s);
+\definition unit: C.Def[].mul (Line.coefficient boundary) (C.Def[].conj (Line.coefficient boundary)) = C.Def[].one :=
+  trans!{C.Complex} _ _ _ (C.Prop[].mulConjSelf (Line.coefficient boundary))
+    (congr!{R.Real C.Complex} C.Def[].ofReal _ _ (Line.norm boundary));
+\definition scaleIsMul: \forall (a: R.Real)(z: C.Complex) -> C.Def[].mul (C.Def[].ofReal a) z = C.Def[].scale a z :=
+  \fun (a: R.Real)(z: C.Complex) => Pair.Prop[A := R.Real, B := R.Real].ext _ _
+    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.sub (R.mul a (C.re z))) _ _ (Laws.fieldMulZeroLeft (C.im z))) (Laws.subZeroRight (R.mul a (C.re z))))
+    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.add (R.mul a (C.im z))) _ _ (Laws.fieldMulZeroLeft (C.re z))) (Laws.addZeroRight (R.mul a (C.im z))));
+\definition offDiagonalMul: Matrix.b s = C.Def[].mul (C.Def[].ofReal R.half) (Line.coefficient boundary) :=
+  trans!{C.Complex} _ _ _ offDiagonal (sym!{C.Complex} _ _ (scaleIsMul R.half (Line.coefficient boundary)));
+\definition conjugateOffDiagonal: C.Def[].conj (Matrix.b s) = C.Def[].mul (C.Def[].ofReal R.half) (C.Def[].conj (Line.coefficient boundary)) :=
+  trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} C.Def[].conj _ _ offDiagonalMul)
+    (trans!{C.Complex} _ _ _ (C.Prop[].conjMul (C.Def[].ofReal R.half) (Line.coefficient boundary))
+      (congr!{C.Complex C.Complex} (\fun (x: C.Complex) => C.Def[].mul x (C.Def[].conj (Line.coefficient boundary))) _ _ (C.Prop[].conjOfReal R.half)));
+\definition firstColumnRelation: Matrix.b s = C.Def[].mul (Line.coefficient boundary) (Matrix.a s) :=
+  trans!{C.Complex} _ _ _ offDiagonalMul
+    (trans!{C.Complex} _ _ _ (C.Prop[].mulComm (C.Def[].ofReal R.half) (Line.coefficient boundary))
+      (congr!{C.Complex C.Complex} (C.Def[].mul (Line.coefficient boundary)) _ _ (sym!{C.Complex} _ _ diagonalA)));
+\definition secondColumnRelation: Matrix.d s = C.Def[].mul (Line.coefficient boundary) (C.Def[].conj (Matrix.b s)) :=
+  trans!{C.Complex} _ _ _ diagonalD (sym!{C.Complex} _ _
+    (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} (C.Def[].mul (Line.coefficient boundary)) _ _ conjugateOffDiagonal)
+      (trans!{C.Complex} _ _ _ (C.Prop[].mulSwap (Line.coefficient boundary) (C.Def[].ofReal R.half) (C.Def[].conj (Line.coefficient boundary)))
+        (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} (C.Def[].mul (C.Def[].ofReal R.half)) _ _ unit)
+          (C.Prop[].mulOneRight (C.Def[].ofReal R.half))))));
+\definition inverseCoordinate: \forall (x: C.Complex) ->
+  C.Def[].mul (Line.coefficient boundary) (C.Def[].mul (C.Def[].conj (Line.coefficient boundary)) x) = x :=
+  \fun (x: C.Complex) => trans!{C.Complex} _ _ _
+    (sym!{C.Complex} _ _ (C.Prop[].mulAssoc (Line.coefficient boundary) (C.Def[].conj (Line.coefficient boundary)) x))
+    (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} (\fun (z: C.Complex) => C.Def[].mul z x) _ _ unit) (C.Prop[].mulOneLeft x));
