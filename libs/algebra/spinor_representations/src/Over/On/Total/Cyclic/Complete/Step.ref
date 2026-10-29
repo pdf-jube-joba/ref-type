@@ -1,0 +1,36 @@
+\import \parent.\parent.Span[k := k] \as Span;
+\import ExteriorBasis.At[k := k] \as At;
+\definition residual[f, g: Carrier]: Carrier := totalSpace.add f (totalSpace.neg g);
+\definition gradeEqual: \forall (xs: At.Enumeration)(f: Carrier) -> residual f (Span.assemble xs (f k)) k = Alternating.At[k := k].origin :=
+  \fun (xs: At.Enumeration)(f: Carrier) => eq_reason_in!{{Alternating.Form k} _
+    "=" _ "by" { congr!{{Alternating.Form k} {Alternating.Form k}} (\fun (x: Alternating.Form k) => (Alternating.At[k := k].vectorSpace).add (f k) ((Alternating.At[k := k].vectorSpace).neg x)) _ _ (Span.component xs (f k)) }
+    "=" _ "by" { (Alternating.At[k := k].vectorSpace).additive.group.rightInverse (f k) }
+  };
+\definition residualBound: \forall (xs: At.Enumeration)(f: Carrier) -> Bounded (N.Nat^::succ k) f -> Bounded k (residual f (Span.assemble xs (f k))) :=
+  \fun (xs: At.Enumeration)(f: Carrier)(bounded: Bounded (N.Nat^::succ k) f)(l: N.Nat^)(above: NatLaws.Le k l) =>
+  either!{{(Classical.excludedMiddle (k = l))} {residual f (Span.assemble xs (f k)) l = Alternating.At[k := l].origin}
+    {\fun (same: k = l) => \idelim k = l \with j: N.Nat^ => residual f (Span.assemble xs (f k)) j = Alternating.At[k := j].origin \by { base: gradeEqual xs f, equality: same }}
+    {\block {
+      \fun (different: Logic.Not (k = l)) \then
+      \let zeroF: f l = Alternating.At[k := l].origin := bounded l (NatLaws.succLeOfLt l k (NatLaws.ltOfLeDifferent k l above different)) \then
+      \let zeroB: Span.assemble xs (f k) l = Alternating.At[k := l].origin := Span.Outside[l := l].zero xs (f k) different \then
+      \let grade: Algebra.VectorSpace (Alternating.Form l) := Alternating.At[k := l].vectorSpace \then
+      \return eq_reason_in!{{Alternating.Form l} _
+        "=" _ "by" { congr!{{Alternating.Form l} {Alternating.Form l} {Alternating.Form l}} (\fun (a, b: Alternating.Form l) => grade.add a (grade.neg b)) _ _ _ _ zeroF zeroB }
+        "=" _ "by" { congr!{{Alternating.Form l} {Alternating.Form l}} (grade.add grade.zero) _ _ (algebra.Group[].Of[Carrier := Alternating.Form l, group := std.Alg[].Ring[].ringModuleAsCommutativeGroup K (Alternating.Form l) Algebra.ring grade].negZero) }
+        "=" _ "by" { Algebra.Laws[V := Alternating.Form l, space := grade].zeroLeft grade.zero }
+      }
+    }}};
+\definition recover: \forall (f, g: Carrier) -> totalSpace.add (residual f g) g = f :=
+  \fun (f, g: Carrier) => trans!{Carrier} _ _ _ (TotalLaws.assoc f (totalSpace.neg g) g)
+    (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (totalSpace.add f) _ _ (TotalLaws.inverseLeft g)) (TotalLaws.zeroRight f));
+\definition law: Property k -> Property (N.Nat^::succ k) := \block {
+  \fun (previous: Property k)(s: Subspaces.Subspace)(vac: \In[Carrier] s.carrier Vacuum.state)(stable: Stable s)(f: Carrier)(bounded: Bounded (N.Nat^::succ k) f) \then
+  \takefrom xs: At.Enumeration \by At.existsEnumeration \then
+  \let g: Carrier := Span.assemble xs (f k) \then
+  \let d: Carrier := residual f g \then
+  \return \idelim totalSpace.add d g = f \with x: Carrier => \In[Carrier] s.carrier x \by {
+    base: s.closedAdd d g (previous s vac stable d (residualBound xs f bounded)) (Span.membership s vac stable xs (f k)),
+    equality: recover f g
+  }
+};

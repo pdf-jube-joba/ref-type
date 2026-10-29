@@ -1,0 +1,75 @@
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import Algebra.FiniteCoordinates[n := n] \as Coordinates;
+\import Coordinates.Exterior[] \as Exterior;
+\import Algebra.Coordinates[I := Fin.Fin n] \as Vectors;
+\import \root.Over[K := K, scalarRing := scalarRing].On[V := Vectors.Vector, space := Vectors.space] \as CoordinateOperators;
+\import CoordinateOperators.Total[] \as CoordinateTotal;
+\import CoordinateTotal.Vacuum[] \as CoordinateVacuum;
+\import Algebra.Multilinear[V := Vectors.Vector, space := Vectors.space].Alternating[] \as CoordinateForms;
+\import Algebra.Multilinear[V := Vectors.Vector, space := Vectors.space] \as CoordinateMulti;
+\import Algebra.FiniteExterior[V := V, space := space, n := n, b := b] \as ExteriorBasis;
+\import \root.Over[K := K, scalarRing := scalarRing].Pullback[V := V, W := Vectors.Vector, source := space, target := Vectors.space] \as Pull;
+\import Algebra.Multilinear[V := V, space := space].Alternating[].Precomposition[W := Vectors.Vector, target := Vectors.space] \as Precompose;
+\import \parent.Vacuum[] \as Vacuum;
+\definition coordinateState: \forall (k: N.Nat^) -> (Fin.Fin k -> Fin.Fin n) -> CoordinateTotal.Carrier :=
+  \induction (k: N.Nat^) \return (Fin.Fin k -> Fin.Fin n) -> CoordinateTotal.Carrier \with {
+    | zero: \fun (indices: Fin.Fin N.Nat^::zero -> Fin.Fin n) => CoordinateVacuum.state
+    | succ: \fun (k: N.Nat^)(previous: (Fin.Fin k -> Fin.Fin n) -> CoordinateTotal.Carrier)(indices: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n) =>
+      CoordinateTotal.createLeft (Exterior.coordinate (indices (Fin.zero k))) (previous (\fun (i: Fin.Fin k) => indices (Fin.succ k i)))
+  };
+\definition coordinateComponent: \forall (k: N.Nat^)(indices: Fin.Fin k -> Fin.Fin n) -> coordinateState k indices k = Exterior.word k indices :=
+  \induction (k: N.Nat^) \return \forall (indices: Fin.Fin k -> Fin.Fin n) -> coordinateState k indices k = Exterior.word k indices \with {
+    | zero: \fun (indices: Fin.Fin N.Nat^::zero -> Fin.Fin n) => CoordinateForms.At[k := N.Nat^::zero].ext _ _ (\fun (args: CoordinateMulti.Arguments N.Nat^::zero) => \refl(Algebra.one))
+    | succ: \fun (k: N.Nat^)(previous: \forall (indices: Fin.Fin k -> Fin.Fin n) -> coordinateState k indices k = Exterior.word k indices)(indices: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n) =>
+      congr!{{CoordinateForms.Form k} {CoordinateForms.Form (N.Nat^::succ k)}} (CoordinateOperators.LeftCreation[k := k].apply (Exterior.coordinate (indices (Fin.zero k)))) _ _ (previous (\fun (i: Fin.Fin k) => indices (Fin.succ k i)))
+  };
+\definition state[k: N.Nat^][indices: Fin.Fin k -> Fin.Fin n]: Carrier := Pull.apply b.coordinates (coordinateState k indices);
+\definition component: \forall (k: N.Nat^)(indices: Fin.Fin k -> Fin.Fin n) -> state k indices k = ExteriorBasis.At[k := k].word indices :=
+  \fun (k: N.Nat^)(indices: Fin.Fin k -> Fin.Fin n) => congr!{{CoordinateForms.Form k} {Alternating.Form k}} (Precompose.precompose k b.coordinates) _ _ (coordinateComponent k indices);
+\import Algebra.Multilinear[V := V, space := space] \as Multi;
+\definition pullVacuum: Pull.apply b.coordinates CoordinateVacuum.state = Vacuum.state :=
+  \axiom:funext(Pull.apply b.coordinates CoordinateVacuum.state, Vacuum.state,
+    \induction (k: N.Nat^) \return Pull.apply b.coordinates CoordinateVacuum.state k = Vacuum.state k \with {
+      | zero: Alternating.At[k := N.Nat^::zero].ext _ _ (\fun (args: Multi.Arguments N.Nat^::zero) => \refl(Algebra.one))
+      | succ: \fun (k: N.Nat^)(unused: _) => (Precompose.At[k := N.Nat^::succ k].linear b.coordinates).preservesZero
+    });
+\import Algebra.Subspace[V := Carrier, space := totalSpace] \as Subspaces;
+\definition Stable[s: Subspaces.Subspace]: \Prop := \forall (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier) -> \In[Carrier] s.carrier f -> \In[Carrier] s.carrier (createLeft alpha f);
+\definition generated: \forall (s: Subspaces.Subspace) -> \In[Carrier] s.carrier Vacuum.state -> Stable s -> \forall (k: N.Nat^)(indices: Fin.Fin k -> Fin.Fin n) -> \In[Carrier] s.carrier (state k indices) :=
+  \fun (s: Subspaces.Subspace)(vac: \In[Carrier] s.carrier Vacuum.state)(stable: Stable s) =>
+    \induction (k: N.Nat^) \return \forall (indices: Fin.Fin k -> Fin.Fin n) -> \In[Carrier] s.carrier (state k indices) \with {
+      | zero: \fun (indices: Fin.Fin N.Nat^::zero -> Fin.Fin n) => \idelim Vacuum.state = state N.Nat^::zero indices \with f: Carrier => \In[Carrier] s.carrier f \by { base: vac, equality: sym!{Carrier} _ _ pullVacuum }
+      | succ: \fun (k: N.Nat^)(previous: \forall (indices: Fin.Fin k -> Fin.Fin n) -> \In[Carrier] s.carrier (state k indices))(indices: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n) =>
+        \idelim createLeft (Precompose.precompose (N.Nat^::succ N.Nat^::zero) b.coordinates (Exterior.coordinate (indices (Fin.zero k)))) (state k (\fun (i: Fin.Fin k) => indices (Fin.succ k i))) = state (N.Nat^::succ k) indices
+        \with f: Carrier => \In[Carrier] s.carrier f \by {
+          base: stable (Precompose.precompose (N.Nat^::succ N.Nat^::zero) b.coordinates (Exterior.coordinate (indices (Fin.zero k)))) (state k (\fun (i: Fin.Fin k) => indices (Fin.succ k i))) (previous (\fun (i: Fin.Fin k) => indices (Fin.succ k i))),
+          equality: sym!{Carrier} _ _ (Pull.creation b.coordinates (Exterior.coordinate (indices (Fin.zero k))) (coordinateState k (\fun (i: Fin.Fin k) => indices (Fin.succ k i))))
+        }
+    };
+\definition coordinateSupported: \forall (k: N.Nat^)(indices: Fin.Fin k -> Fin.Fin n)(l: N.Nat^) -> Logic.Not (k = l) -> coordinateState k indices l = CoordinateForms.At[k := l].origin :=
+  \induction (k: N.Nat^) \return \forall (indices: Fin.Fin k -> Fin.Fin n)(l: N.Nat^) -> Logic.Not (k = l) -> coordinateState k indices l = CoordinateForms.At[k := l].origin \with {
+    | zero: \fun (indices: Fin.Fin N.Nat^::zero -> Fin.Fin n) => \induction (l: N.Nat^) \return Logic.Not (N.Nat^::zero = l) -> coordinateState N.Nat^::zero indices l = CoordinateForms.At[k := l].origin \with {
+      | zero: \fun (different: Logic.Not (N.Nat^::zero = N.Nat^::zero)) => Logic.falseElim (coordinateState N.Nat^::zero indices N.Nat^::zero = CoordinateForms.At[k := N.Nat^::zero].origin) (different (\refl(N.Nat^::zero)))
+      | succ: \fun (l: N.Nat^)(previous: Logic.Not (N.Nat^::zero = l) -> coordinateState N.Nat^::zero indices l = CoordinateForms.At[k := l].origin) (different: Logic.Not (N.Nat^::zero = N.Nat^::succ l)) => \refl(CoordinateForms.At[k := N.Nat^::succ l].origin)
+    }
+    | succ: \fun (k: N.Nat^)(previous: \forall (indices: Fin.Fin k -> Fin.Fin n)(l: N.Nat^) -> Logic.Not (k = l) -> coordinateState k indices l = CoordinateForms.At[k := l].origin)(indices: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n) =>
+      \induction (l: N.Nat^) \return Logic.Not (N.Nat^::succ k = l) -> coordinateState (N.Nat^::succ k) indices l = CoordinateForms.At[k := l].origin \with {
+        | zero: \fun (different: Logic.Not (N.Nat^::succ k = N.Nat^::zero)) => \refl(CoordinateForms.At[k := N.Nat^::zero].origin)
+        | succ: \fun (l: N.Nat^)(unused: Logic.Not (N.Nat^::succ k = l) -> coordinateState (N.Nat^::succ k) indices l = CoordinateForms.At[k := l].origin)(different: Logic.Not (N.Nat^::succ k = N.Nat^::succ l)) => trans!{{CoordinateForms.Form (N.Nat^::succ l)}} _ _ _
+          (congr!{{CoordinateForms.Form l} {CoordinateForms.Form (N.Nat^::succ l)}} (CoordinateOperators.LeftCreation[k := l].apply (Exterior.coordinate (indices (Fin.zero k)))) _ _
+            (previous (\fun (i: Fin.Fin k) => indices (Fin.succ k i)) l (\fun (same: k = l) => different (congr!{{N.Nat^} {N.Nat^}} N.Nat^::succ _ _ same))))
+          ((CoordinateOperators.LeftCreation[k := l].operator (Exterior.coordinate (indices (Fin.zero k)))).preservesZero)
+      }
+  };
+\definition supported: \forall (k: N.Nat^)(indices: Fin.Fin k -> Fin.Fin n)(l: N.Nat^) -> Logic.Not (k = l) -> state k indices l = Alternating.At[k := l].origin :=
+  \fun (k: N.Nat^)(indices: Fin.Fin k -> Fin.Fin n)(l: N.Nat^)(different: Logic.Not (k = l)) => trans!{{Alternating.Form l}} _ _ _
+    (congr!{{CoordinateForms.Form l} {Alternating.Form l}} (Precompose.precompose l b.coordinates) _ _ (coordinateSupported k indices l different))
+    ((Precompose.At[k := l].linear b.coordinates).preservesZero);
+\module Span(k: N.Nat^);
+\module Complete;
