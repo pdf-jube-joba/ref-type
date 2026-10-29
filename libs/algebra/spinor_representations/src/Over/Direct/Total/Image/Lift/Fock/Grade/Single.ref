@@ -1,0 +1,76 @@
+\import Algebra.Sums[I := At.Tuple] \as Scalars;
+\import Algebra.Coordinates[I := At.Tuple].Kronecker[] \as Delta;
+\import std.Data[].List[] \as Lists;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Proposition[] \as Logic;
+\use Logic.either;
+\definition absent: \forall (indices: Lists.List[At.Tuple])(i: At.Tuple) -> Logic.Not (\In[At.Tuple] (Scalars.keys indices) i) ->
+  \forall (f: At.Tuple -> Tensor.Carrier) -> Sums.sum indices (\fun (j: At.Tuple) => Tensor.space.smul (Delta.delta i j) (f j)) = Tensor.space.zero :=
+  \induction (indices: Lists.List[At.Tuple]) \return \forall (i: At.Tuple) -> Logic.Not (\In[At.Tuple] (Scalars.keys indices) i) ->
+    \forall (f: At.Tuple -> Tensor.Carrier) -> Sums.sum indices (\fun (j: At.Tuple) => Tensor.space.smul (Delta.delta i j) (f j)) = Tensor.space.zero \with {
+      | nil: \fun (i: At.Tuple)(outside: Logic.Not (\In[At.Tuple] (Scalars.keys Lists.List[At.Tuple]::nil) i))(f: At.Tuple -> Tensor.Carrier) => \refl(Tensor.space.zero)
+      | cons: \fun (j: At.Tuple)(tail: Lists.List[At.Tuple])(ih: \forall (i: At.Tuple) -> Logic.Not (\In[At.Tuple] (Scalars.keys tail) i) -> \forall (f: At.Tuple -> Tensor.Carrier) -> Sums.sum tail (\fun (j: At.Tuple) => Tensor.space.smul (Delta.delta i j) (f j)) = Tensor.space.zero)(i: At.Tuple)(outside: Logic.Not (\In[At.Tuple] (Scalars.keys (Lists.List[At.Tuple]::cons j tail)) i))(f: At.Tuple -> Tensor.Carrier) =>
+        trans!{Tensor.Carrier} _ _ _ (congr!{Tensor.Carrier Tensor.Carrier Tensor.Carrier} Tensor.space.add _ _ _ _
+          (trans!{Tensor.Carrier} _ _ _ (congr!{K Tensor.Carrier} (\fun (a: K) => Tensor.space.smul a (f j)) _ _ (Delta.different i j (\fun (equal: i = j) => outside (Logic.Or[_, _]::left equal)))) (TensorLaws.zeroScale (f j)))
+          (ih i (\fun (member: \In[At.Tuple] (Scalars.keys tail) i) => outside (Logic.Or[_, _]::right member)) f)) (TensorLaws.zeroLeft Tensor.space.zero)
+    };
+\definition extract: \forall (indices: Lists.List[At.Tuple]) -> Scalars.Distinct indices ->
+  \forall (i: At.Tuple) -> \In[At.Tuple] (Scalars.keys indices) i -> \forall (f: At.Tuple -> Tensor.Carrier) ->
+  Sums.sum indices (\fun (j: At.Tuple) => Tensor.space.smul (Delta.delta i j) (f j)) = f i :=
+  \fun (indices: Lists.List[At.Tuple])(distinct: Scalars.Distinct indices) => distinct
+    (\fun (indices: Lists.List[At.Tuple]) => \forall (i: At.Tuple) -> \In[At.Tuple] (Scalars.keys indices) i -> \forall (f: At.Tuple -> Tensor.Carrier) ->
+      Sums.sum indices (\fun (j: At.Tuple) => Tensor.space.smul (Delta.delta i j) (f j)) = f i)
+    (\fun (i: At.Tuple)(empty: Logic.False)(f: At.Tuple -> Tensor.Carrier) => Logic.falseElim (Tensor.space.zero = f i) empty)
+    (\fun (j: At.Tuple)(tail: Lists.List[At.Tuple])(fresh: Logic.Not (\In[At.Tuple] (Scalars.keys tail) j))(ih: _)(i: At.Tuple)
+      (member: Logic.Or[i = j, \In[At.Tuple] (Scalars.keys tail) i])(f: At.Tuple -> Tensor.Carrier) =>
+      either!{{(Classical.excludedMiddle (i = j))} {Sums.sum (Lists.List[At.Tuple]::cons j tail) (\fun (q: At.Tuple) => Tensor.space.smul (Delta.delta i q) (f q)) = f i}
+        {\fun (equal: i = j) => \block {
+          \let outside: Logic.Not (\In[At.Tuple] (Scalars.keys tail) i) := \fun (inTail: _) => fresh
+            (\idelim i = j \with q: At.Tuple => \In[At.Tuple] (Scalars.keys tail) q \by { base: inTail, equality: equal }) \then
+          \return eq_reason_in!{Tensor.Carrier _
+            "=" _ "by" { congr!{Tensor.Carrier Tensor.Carrier Tensor.Carrier} Tensor.space.add _ _ _ _
+              (trans!{Tensor.Carrier} _ _ _ (congr!{K Tensor.Carrier} (\fun (a: K) => Tensor.space.smul a (f j)) _ _ (Delta.equal i j equal)) (Tensor.space.scalarOne (f j)))
+              (absent tail i outside f) }
+            "=" _ "by" { TensorLaws.zeroRight (f j) }
+            "=" _ "by" { congr!{At.Tuple Tensor.Carrier} f _ _ (sym!{At.Tuple} _ _ equal) }
+          }
+        }}
+        {\fun (different: Logic.Not (i = j)) => \block {
+          \let inTail: \In[At.Tuple] (Scalars.keys tail) i := either!{member {\In[At.Tuple] (Scalars.keys tail) i}
+            {\fun (equal: i = j) => Logic.falseElim (\In[At.Tuple] (Scalars.keys tail) i) (different equal)}
+            {\fun (old: \In[At.Tuple] (Scalars.keys tail) i) => old}
+          } \then
+          \return trans!{Tensor.Carrier} _ _ _ (congr!{Tensor.Carrier Tensor.Carrier Tensor.Carrier} Tensor.space.add _ _ _ _
+            (trans!{Tensor.Carrier} _ _ _ (congr!{K Tensor.Carrier} (\fun (a: K) => Tensor.space.smul a (f j)) _ _ (Delta.different i j different)) (TensorLaws.zeroScale (f j)))
+            (ih i inTail f)) (TensorLaws.zeroLeft (f i))
+        }}
+      });
+\definition congruentOnKeys: \forall (indices: Lists.List[At.Tuple])(f, g: At.Tuple -> Tensor.Carrier) ->
+  (\forall (i: At.Tuple) -> \In[At.Tuple] (Scalars.keys indices) i -> f i = g i) -> Sums.sum indices f = Sums.sum indices g :=
+  \induction (indices: Lists.List[At.Tuple]) \return \forall (f, g: At.Tuple -> Tensor.Carrier) ->
+    (\forall (i: At.Tuple) -> \In[At.Tuple] (Scalars.keys indices) i -> f i = g i) -> Sums.sum indices f = Sums.sum indices g \with {
+      | nil: \fun (f, g: At.Tuple -> Tensor.Carrier)(same: \forall (i: At.Tuple) -> \In[At.Tuple] (Scalars.keys Lists.List[At.Tuple]::nil) i -> f i = g i) => \refl(Tensor.space.zero)
+      | cons: \fun (head: At.Tuple)(tail: Lists.List[At.Tuple])(previous: \forall (f, g: At.Tuple -> Tensor.Carrier) -> (\forall (i: At.Tuple) -> \In[At.Tuple] (Scalars.keys tail) i -> f i = g i) -> Sums.sum tail f = Sums.sum tail g)
+        (f, g: At.Tuple -> Tensor.Carrier)(same: \forall (i: At.Tuple) -> \In[At.Tuple] (Scalars.keys (Lists.List[At.Tuple]::cons head tail)) i -> f i = g i) =>
+          congr!{Tensor.Carrier Tensor.Carrier Tensor.Carrier} Tensor.space.add _ _ _ _
+            (same head (Logic.Or[_, _]::left (\refl(head))))
+            (previous f g (\fun (i: At.Tuple)(member: \In[At.Tuple] (Scalars.keys tail) i) => same i (Logic.Or[_, _]::right member)))
+    };
+\import Fin.Ordering[] \as Ordering;
+\import Result.Dimension[n := n, b := b].Increasing[k := k] \as Increasing;
+\definition onBasis: \forall (i: At.Index) -> apply (Fock.state k i) = state k i :=
+  \fun (i: At.Index) => eq_reason_in!{Tensor.Carrier _
+    "=" _ "by" { congruentOnKeys xs (\fun (j: At.Tuple) => Tensor.space.smul (At.coefficient (Fock.state k i k) j) (state k j))
+      (\fun (j: At.Tuple) => Tensor.space.smul (Delta.delta i j) (state k j))
+      (\fun (j: At.Tuple)(member: \In[At.Tuple] (Scalars.keys xs) j) => congr!{K Tensor.Carrier} (\fun (a: K) => Tensor.space.smul a (state k j)) _ _
+        (trans!{K} _ _ _ (congr!{{Result.Form k} K} (\fun (v: Result.Form k) => At.coefficient v j) _ _ (Fock.component k i))
+          (trans!{K} _ _ _ (At.pair i j (\bysub(At.Tuple, At.Index, i)) (Increasing.included xs j member)) (Delta.symmetric j i)))) }
+    "=" _ "by" { extract xs (Increasing.distinct xs) i (Increasing.exhaustive xs i) (\fun (j: At.Tuple) => state k j) }
+  };
+\definition outside: \forall (j: N.Nat^)(indices: Fin.Fin j -> Fin.Fin n) -> Logic.Not (j = k) -> apply (Fock.state j indices) = Tensor.space.zero :=
+  \fun (j: N.Nat^)(indices: Fin.Fin j -> Fin.Fin n)(different: Logic.Not (j = k)) => eq_reason_in!{Tensor.Carrier _
+    "=" _ "by" { Sums.congruent xs _ _ (\fun (i: At.Tuple) => trans!{Tensor.Carrier} _ _ _
+      (congr!{{Result.Form k} Tensor.Carrier} (\fun (v: Result.Form k) => Tensor.space.smul (At.coefficient v i) (state k i)) _ _ (Fock.supported j indices k different))
+      (TensorLaws.zeroScale (state k i))) }
+    "=" _ "by" { Sums.zero xs }
+  };
