@@ -1,0 +1,58 @@
+\import Algebra.Linear[V := ResultTotal.Carrier, W := ResultTotal.Carrier, source := ResultTotal.totalSpace, target := ResultTotal.totalSpace] \as ResultEnd;
+\import ResultEnd.Composition[U := ResultTotal.Carrier, domain := ResultTotal.totalSpace] \as ResultCompose;
+\import Algebra.Eigen[V := ResultTotal.Carrier, space := ResultTotal.totalSpace] \as Identity;
+\import ResultScalar.Composition[U := ResultTotal.Carrier, domain := ResultTotal.totalSpace] \as ScalarCompose;
+\import ResultScalar.Composition[U := Tensor.Carrier, domain := Tensor.space] \as After;
+\definition leftMap: Lists.List[V] -> ResultEnd.Map := \induction (xs: Lists.List[V]) \return ResultEnd.Map \with {
+  | nil: Identity.identity
+  | cons: \fun (x: V)(tail: Lists.List[V])(previous: ResultEnd.Map) => ResultCompose.compose previous (ResultTotal.annihilation (Sum.make x right.zero))
+};
+\definition rightMap: Lists.List[W] -> ResultEnd.Map := \induction (xs: Lists.List[W]) \return ResultEnd.Map \with {
+  | nil: Identity.identity
+  | cons: \fun (x: W)(tail: Lists.List[W])(previous: ResultEnd.Map) => ResultCompose.compose previous (ResultTotal.annihilation (Sum.make left.zero x))
+};
+\definition resultFunctional[xs: Lists.List[V]][ys: Lists.List[W]]: ResultScalar.Map := ScalarCompose.compose resultMapCoefficient (ResultCompose.compose (rightMap ys) (leftMap xs));
+\definition pulled[xs: Lists.List[V]][ys: Lists.List[W]]: TensorScalar.Map := After.compose (resultFunctional xs ys) comparison;
+\definition leftValue[xs: Lists.List[V]]: LeftScalar.Map := LeftScalar.Map {
+  apply := \fun (f: LeftTotal.Carrier) => LeftSeries.value f xs,
+  preservesAdd := \fun (f, g: LeftTotal.Carrier) => \refl(Algebra.add (LeftSeries.value f xs) (LeftSeries.value g xs)),
+  preservesScale := \fun (a: K)(f: LeftTotal.Carrier) => \refl(Algebra.mul a (LeftSeries.value f xs)),
+};
+\definition rightValue[ys: Lists.List[W]]: RightScalar.Map := RightScalar.Map {
+  apply := \fun (g: RightTotal.Carrier) => RightSeries.value g ys,
+  preservesAdd := \fun (g, h: RightTotal.Carrier) => \refl(Algebra.add (RightSeries.value g ys) (RightSeries.value h ys)),
+  preservesScale := \fun (a: K)(g: RightTotal.Carrier) => \refl(Algebra.mul a (RightSeries.value g ys)),
+};
+\definition paired[xs: Lists.List[V]][ys: Lists.List[W]][f: LeftTotal.Carrier][g: RightTotal.Carrier]: K := Algebra.mul ((leftValue xs).apply f) ((rightValue ys).apply g);
+\definition pairedLaws[xs: Lists.List[V]][ys: Lists.List[W]]: Tensor.BilinearLaws[K, Algebra.scalarSpace, paired xs ys] := Tensor.BilinearLaws[K, Algebra.scalarSpace, paired xs ys] {
+  addLeft := \fun (f, h: LeftTotal.Carrier)(g: RightTotal.Carrier) => trans!{K} _ _ _ (Algebra.mulComm (Algebra.add ((leftValue xs).apply f) ((leftValue xs).apply h)) ((rightValue ys).apply g))
+    (trans!{K} _ _ _ (Algebra.mulAdd ((rightValue ys).apply g) ((leftValue xs).apply f) ((leftValue xs).apply h))
+      (congr!{K K K} Algebra.add _ _ _ _ (Algebra.mulComm ((rightValue ys).apply g) ((leftValue xs).apply f)) (Algebra.mulComm ((rightValue ys).apply g) ((leftValue xs).apply h)))),
+  addRight := \fun (f: LeftTotal.Carrier)(g, h: RightTotal.Carrier) => Algebra.mulAdd ((leftValue xs).apply f) ((rightValue ys).apply g) ((rightValue ys).apply h),
+  scaleLeft := \fun (a: K)(f: LeftTotal.Carrier)(g: RightTotal.Carrier) => Algebra.mulAssoc a ((leftValue xs).apply f) ((rightValue ys).apply g),
+  scaleRight := \fun (a: K)(f: LeftTotal.Carrier)(g: RightTotal.Carrier) => Scalars.scaleComm ((leftValue xs).apply f) a ((rightValue ys).apply g),
+};
+\definition pairMap[xs: Lists.List[V]][ys: Lists.List[W]]: TensorScalar.Map := Universal.map (paired xs ys) (pairedLaws xs ys);
+\definition leftMapOn: \forall (xs: Lists.List[V])(f: ResultTotal.Carrier) -> (leftMap xs).apply f = resultLeft xs f :=
+  \induction (xs: Lists.List[V]) \return \forall (f: ResultTotal.Carrier) -> (leftMap xs).apply f = resultLeft xs f \with {
+    | nil: \fun (f: ResultTotal.Carrier) => \refl(f)
+    | cons: \fun (x: V)(tail: Lists.List[V])(previous: \forall (f: ResultTotal.Carrier) -> (leftMap tail).apply f = resultLeft tail f)(f: ResultTotal.Carrier) => previous (ResultTotal.annihilate (Sum.make x right.zero) f)
+  };
+\definition rightMapOn: \forall (ys: Lists.List[W])(f: ResultTotal.Carrier) -> (rightMap ys).apply f = resultRight ys f :=
+  \induction (ys: Lists.List[W]) \return \forall (f: ResultTotal.Carrier) -> (rightMap ys).apply f = resultRight ys f \with {
+    | nil: \fun (f: ResultTotal.Carrier) => \refl(f)
+    | cons: \fun (x: W)(tail: Lists.List[W])(previous: \forall (f: ResultTotal.Carrier) -> (rightMap tail).apply f = resultRight tail f)(f: ResultTotal.Carrier) => previous (ResultTotal.annihilate (Sum.make left.zero x) f)
+  };
+\definition pulledOn: \forall (xs: Lists.List[V])(ys: Lists.List[W])(t: Tensor.Carrier) -> (pulled xs ys).apply t = ResultVacuum.coefficient (resultRight ys (resultLeft xs (comparison.apply t))) :=
+  \fun (xs: Lists.List[V])(ys: Lists.List[W])(t: Tensor.Carrier) => trans!{K} _ _ _
+    (congr!{{ResultTotal.Carrier} K} ResultVacuum.coefficient _ _ (rightMapOn ys ((leftMap xs).apply (comparison.apply t))))
+    (congr!{{ResultTotal.Carrier} K} (\fun (f: ResultTotal.Carrier) => ResultVacuum.coefficient (resultRight ys f)) _ _ (leftMapOn xs (comparison.apply t)));
+\definition factors: \forall (xs: Lists.List[V])(ys: Lists.List[W]) -> pulled xs ys = pairMap xs ys :=
+  \fun (xs: Lists.List[V])(ys: Lists.List[W]) => Ext.ext _ _ (\fun (f: LeftTotal.Carrier)(g: RightTotal.Carrier) => trans!{K} _ _ _ (pulledOn xs ys (Tensor.tensor f g)) (trans!{K} _ _ _ (value xs ys f g) (sym!{K} _ _ (Universal.onTensor (paired xs ys) (pairedLaws xs ys) f g))));
+\definition vanishes: \forall (t: Tensor.Carrier) -> comparison.apply t = ResultTotal.totalSpace.zero -> \forall (xs: Lists.List[V])(ys: Lists.List[W]) -> (pairMap xs ys).apply t = Algebra.zero :=
+  \fun (t: Tensor.Carrier)(zero: comparison.apply t = ResultTotal.totalSpace.zero)(xs: Lists.List[V])(ys: Lists.List[W]) => eq_reason_in!{K _
+    "=" _ "by" { congr!{TensorScalar.Map K} (\fun (f: TensorScalar.Map) => f.apply t) _ _ (sym!{TensorScalar.Map} _ _ (factors xs ys)) }
+    "=" _ "by" { congr!{{ResultTotal.Carrier} K} ((resultFunctional xs ys).apply) _ _ zero }
+    "=" _ "by" { (resultFunctional xs ys).preservesZero }
+  };
+\module Extract;

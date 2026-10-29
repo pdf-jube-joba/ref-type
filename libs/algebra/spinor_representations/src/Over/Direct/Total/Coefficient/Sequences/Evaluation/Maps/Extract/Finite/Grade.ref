@@ -1,0 +1,56 @@
+\import ExteriorBasis.At[k := k] \as At;
+\import \root.Over[K := K, scalarRing := scalarRing].Direct[V := V, W := W, left := left, right := right].Total[].Coefficient[].Sequences[].Evaluation[].Maps[].Extract[] \as Extract;
+\import \root.Over[K := K, scalarRing := scalarRing].Direct[V := V, W := W, left := left, right := right].Total[].Coefficient[].Contraction[] \as Contract;
+\import Algebra.Linear[V := RightTotal.Carrier, W := RightTotal.Carrier, source := RightTotal.totalSpace, target := RightTotal.totalSpace] \as RightEnd;
+\import RightFock.Grade[k := k, xs := xs] \as Grade;
+\import Algebra.Sums[I := At.Tuple].Vector[V := Tensor.Carrier, space := Tensor.space] \as Sums;
+\import Algebra.Sums[I := At.Tuple].Vector[V := RightTotal.Carrier, space := RightTotal.totalSpace] \as RightSums;
+\import RightSums.Mapping[W := Tensor.Carrier, target := Tensor.space] \as RightMapping;
+\definition arguments[i: At.Tuple]: Fin.Fin k -> W := \fun (j: Fin.Fin k) => b.vectors (i j);
+\definition list[i: At.Tuple]: Lists.List[W] := FromList.list k (arguments i);
+\definition coefficient: \forall (g: RightTotal.Carrier)(i: At.Tuple) -> (rightValue (list i)).apply g = At.coefficient (g k) i :=
+  \fun (g: RightTotal.Carrier)(i: At.Tuple) => RightSeries.degree g k (arguments i);
+\definition term[i: At.Tuple][t: Tensor.Carrier]: Tensor.Carrier := Tensor.tensor ((map (list i)).apply t) (RightFock.state k i);
+\definition termAdd: \forall (i: At.Tuple)(t, u: Tensor.Carrier) -> term i (Tensor.space.add t u) = Tensor.space.add (term i t) (term i u) :=
+  \fun (i: At.Tuple)(t, u: Tensor.Carrier) => trans!{Tensor.Carrier} _ _ _
+    (congr!{{LeftTotal.Carrier} Tensor.Carrier} (\fun (f: LeftTotal.Carrier) => Tensor.tensor f (RightFock.state k i)) _ _ ((map (list i)).preservesAdd t u))
+    (Tensor.bilinear.addLeft ((map (list i)).apply t) ((map (list i)).apply u) (RightFock.state k i));
+\definition termScale: \forall (i: At.Tuple)(a: K)(t: Tensor.Carrier) -> term i (Tensor.space.smul a t) = Tensor.space.smul a (term i t) :=
+  \fun (i: At.Tuple)(a: K)(t: Tensor.Carrier) => trans!{Tensor.Carrier} _ _ _
+    (congr!{{LeftTotal.Carrier} Tensor.Carrier} (\fun (f: LeftTotal.Carrier) => Tensor.tensor f (RightFock.state k i)) _ _ ((map (list i)).preservesScale a t))
+    (Tensor.bilinear.scaleLeft a ((map (list i)).apply t) (RightFock.state k i));
+\definition sumMap: End.Map := End.Map {
+  apply := \fun (t: Tensor.Carrier) => Sums.sum xs (\fun (i: At.Tuple) => term i t),
+  preservesAdd := \fun (t, u: Tensor.Carrier) => trans!{Tensor.Carrier} _ _ _ (Sums.congruent xs _ _ (\fun (i: At.Tuple) => termAdd i t u))
+    (Sums.addition xs (\fun (i: At.Tuple) => term i t) (\fun (i: At.Tuple) => term i u)),
+  preservesScale := \fun (a: K)(t: Tensor.Carrier) => trans!{Tensor.Carrier} _ _ _ (Sums.congruent xs _ _ (\fun (i: At.Tuple) => termScale i a t))
+    (Sums.scalar xs a (\fun (i: At.Tuple) => term i t)),
+};
+\definition termPure: \forall (f: LeftTotal.Carrier)(g: RightTotal.Carrier)(i: At.Tuple) ->
+  term i (Tensor.tensor f g) = Tensor.tensor f (RightTotal.totalSpace.smul (At.coefficient (g k) i) (RightFock.state k i)) :=
+  \fun (f: LeftTotal.Carrier)(g: RightTotal.Carrier)(i: At.Tuple) => eq_reason_in!{Tensor.Carrier _
+    "=" _ "by" { congr!{{LeftTotal.Carrier} Tensor.Carrier} (\fun (h: LeftTotal.Carrier) => Tensor.tensor h (RightFock.state k i)) _ _ (UniversalLeft.onTensor (value (list i)) (laws (list i)) f g) }
+    "=" _ "by" { Tensor.bilinear.scaleLeft ((rightValue (list i)).apply g) f (RightFock.state k i) }
+    "=" _ "by" { sym!{Tensor.Carrier} _ _ (Tensor.bilinear.scaleRight ((rightValue (list i)).apply g) f (RightFock.state k i)) }
+    "=" _ "by" { congr!{K Tensor.Carrier} (\fun (a: K) => Tensor.tensor f (RightTotal.totalSpace.smul a (RightFock.state k i))) _ _ (coefficient g i) }
+  };
+\definition pure: \forall (f: LeftTotal.Carrier)(g: RightTotal.Carrier) -> sumMap.apply (Tensor.tensor f g) = Tensor.tensor f (RightFock.Span[k := k].assemble xs (g k)) :=
+  \fun (f: LeftTotal.Carrier)(g: RightTotal.Carrier) => eq_reason_in!{Tensor.Carrier _
+    "=" _ "by" { Sums.congruent xs _ _ (termPure f g) }
+    "=" _ "by" { sym!{Tensor.Carrier} _ _ (RightMapping.law (Contract.rightEmbedding f) xs (\fun (i: At.Tuple) => RightTotal.totalSpace.smul (At.coefficient (g k) i) (RightFock.state k i))) }
+  };
+\definition grade: RightEnd.Map := RightEnd.Map {
+  apply := \fun (g: RightTotal.Carrier) => RightFock.Span[k := k].assemble xs (g k),
+  preservesAdd := Grade.addition,
+  preservesScale := Grade.scalar,
+};
+\definition equals: sumMap = Operators.map LeftIdentity.identity grade := EndExt.ext _ _ (\fun (f: LeftTotal.Carrier)(g: RightTotal.Carrier) =>
+  trans!{Tensor.Carrier} _ _ _ (pure f g) (sym!{Tensor.Carrier} _ _ (Operators.onTensor LeftIdentity.identity grade f g)));
+\definition vanishes: \forall (t: Tensor.Carrier) -> comparison.apply t = ResultTotal.totalSpace.zero -> (Operators.map LeftIdentity.identity grade).apply t = Tensor.space.zero :=
+  \fun (t: Tensor.Carrier)(killed: comparison.apply t = ResultTotal.totalSpace.zero) => eq_reason_in!{Tensor.Carrier _
+    "=" _ "by" { congr!{End.Map Tensor.Carrier} (\fun (f: End.Map) => f.apply t) _ _ (sym!{End.Map} _ _ equals) }
+    "=" _ "by" { Sums.congruent xs _ _ (\fun (i: At.Tuple) => trans!{Tensor.Carrier} _ _ _
+      (congr!{{LeftTotal.Carrier} Tensor.Carrier} (\fun (f: LeftTotal.Carrier) => Tensor.tensor f (RightFock.state k i)) _ _ (Extract.vanishes t killed (list i)))
+      ((Contract.leftEmbedding (RightFock.state k i)).preservesZero)) }
+    "=" _ "by" { Sums.zero xs }
+  };
