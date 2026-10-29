@@ -1,0 +1,92 @@
+\import \root.Over[K := K, scalarRing := scalarRing].On[V := V, space := left].Total[].CreationAnticommutation[] \as LeftAnti;
+\import \root.Over[K := K, scalarRing := scalarRing].On[V := W, space := right].Total[].CreationAnticommutation[] \as RightAnti;
+\import LeftTotal.Parity[] \as LeftParity;
+\import Operators.Graded[] \as Graded;
+\import Algebra.Linear[V := LeftTotal.Carrier, W := LeftTotal.Carrier, source := LeftTotal.totalSpace, target := LeftTotal.totalSpace] \as LeftEnd;
+\import LeftEnd.Composition[U := LeftTotal.Carrier, domain := LeftTotal.totalSpace] \as LeftCompose;
+\import LeftEnd.Operations[] \as LeftOps;
+\import Algebra.Linear[V := RightTotal.Carrier, W := RightTotal.Carrier, source := RightTotal.totalSpace, target := RightTotal.totalSpace] \as RightEnd;
+\import RightEnd.Composition[U := RightTotal.Carrier, domain := RightTotal.totalSpace] \as RightCompose;
+\import RightEnd.Operations[] \as RightOps;
+\import Algebra.Linear[V := Tensor.Carrier, W := Tensor.Carrier, source := Tensor.space, target := Tensor.space].Composition[U := Tensor.Carrier, domain := Tensor.space] \as Compose;
+\import Algebra.Eigen[V := LeftTotal.Carrier, space := LeftTotal.totalSpace] \as LeftIdentity;
+\import Algebra.Laws[V := LeftTotal.Carrier, space := LeftTotal.totalSpace] \as LeftLaws;
+\import Algebra.Laws[V := RightTotal.Carrier, space := RightTotal.totalSpace] \as RightLaws;
+\import Algebra.Laws[V := Tensor.Carrier, space := Tensor.space] \as TensorLaws;
+\import algebra.Group[].Of[Carrier := LeftTotal.Carrier, group := std.Alg[].Ring[].ringModuleAsCommutativeGroup K LeftTotal.Carrier Algebra.ring LeftTotal.totalSpace] \as LeftGroup;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition odd: \forall (a: Left.Form (N.Nat^::succ N.Nat^::zero)) -> LeftCompose.compose (LeftTotal.leftCreation a) LeftTotal.grading = LeftOps.negative (LeftCompose.compose LeftTotal.grading (LeftTotal.leftCreation a)) :=
+  \fun (a: Left.Form (N.Nat^::succ N.Nat^::zero)) => LeftEnd.ext _ _ (\axiom:funext((LeftCompose.compose (LeftTotal.leftCreation a) LeftTotal.grading).apply, (LeftOps.negative (LeftCompose.compose LeftTotal.grading (LeftTotal.leftCreation a))).apply, \fun (f: LeftTotal.Carrier) => eq_reason_in!{{LeftTotal.Carrier} _
+    "=" _ "by" { sym!{{LeftTotal.Carrier}} _ _ (LeftGroup.negNeg (LeftTotal.createLeft a (LeftTotal.parity f))) }
+    "=" _ "by" { congr!{{LeftTotal.Carrier} {LeftTotal.Carrier}} LeftTotal.totalSpace.neg _ _ (sym!{{LeftTotal.Carrier}} _ _ (LeftParity.creationOdd a f)) }
+    "=" _ "by" { sym!{{LeftTotal.Carrier}} _ _ (LeftLaws.minusOneScale (LeftTotal.parity (LeftTotal.createLeft a f))) }
+  }));
+\definition leftAction[a: Left.Form (N.Nat^::succ N.Nat^::zero)]: End.Map := Operators.map (LeftTotal.leftCreation a) RightIdentity.identity;
+\definition rightAction[a: Right.Form (N.Nat^::succ N.Nat^::zero)]: End.Map := Operators.map LeftTotal.grading (RightTotal.leftCreation a);
+\definition mixed: \forall (a: Left.Form (N.Nat^::succ N.Nat^::zero))(b: Right.Form (N.Nat^::succ N.Nat^::zero)) ->
+  Compose.compose (leftAction a) (rightAction b) = EndOps.negative (Compose.compose (rightAction b) (leftAction a)) :=
+  \fun (a: Left.Form (N.Nat^::succ N.Nat^::zero))(b: Right.Form (N.Nat^::succ N.Nat^::zero)) => Graded.anticommute (LeftTotal.leftCreation a) LeftTotal.grading (RightTotal.leftCreation b) (odd a);
+\definition leftAnti: \forall (a, b: Left.Form (N.Nat^::succ N.Nat^::zero)) -> LeftCompose.compose (LeftTotal.leftCreation a) (LeftTotal.leftCreation b) = LeftOps.negative (LeftCompose.compose (LeftTotal.leftCreation b) (LeftTotal.leftCreation a)) :=
+  \fun (a, b: Left.Form (N.Nat^::succ N.Nat^::zero)) => LeftEnd.ext _ _ (\axiom:funext((LeftCompose.compose (LeftTotal.leftCreation a) (LeftTotal.leftCreation b)).apply, (LeftOps.negative (LeftCompose.compose (LeftTotal.leftCreation b) (LeftTotal.leftCreation a))).apply, \fun (f: LeftTotal.Carrier) => trans!{{LeftTotal.Carrier}} _ _ _ (LeftAnti.law a b f) (sym!{{LeftTotal.Carrier}} _ _ (LeftLaws.minusOneScale (LeftTotal.createLeft b (LeftTotal.createLeft a f))))));
+\definition rightAnti: \forall (a, b: Right.Form (N.Nat^::succ N.Nat^::zero)) -> RightCompose.compose (RightTotal.leftCreation a) (RightTotal.leftCreation b) = RightOps.negative (RightCompose.compose (RightTotal.leftCreation b) (RightTotal.leftCreation a)) :=
+  \fun (a, b: Right.Form (N.Nat^::succ N.Nat^::zero)) => RightEnd.ext _ _ (\axiom:funext((RightCompose.compose (RightTotal.leftCreation a) (RightTotal.leftCreation b)).apply, (RightOps.negative (RightCompose.compose (RightTotal.leftCreation b) (RightTotal.leftCreation a))).apply, \fun (f: RightTotal.Carrier) => trans!{{RightTotal.Carrier}} _ _ _ (RightAnti.law a b f) (sym!{{RightTotal.Carrier}} _ _ (RightLaws.minusOneScale (RightTotal.createLeft b (RightTotal.createLeft a f))))));
+\definition paritySquare: LeftCompose.compose LeftTotal.grading LeftTotal.grading = LeftIdentity.identity := LeftEnd.ext _ _ (\axiom:funext((LeftCompose.compose LeftTotal.grading LeftTotal.grading).apply, LeftIdentity.identity.apply, LeftTotal.paritySquare));
+\definition leftPair: \forall (a, b: Left.Form (N.Nat^::succ N.Nat^::zero)) -> Compose.compose (leftAction a) (leftAction b) = EndOps.negative (Compose.compose (leftAction b) (leftAction a)) :=
+  \fun (a, b: Left.Form (N.Nat^::succ N.Nat^::zero)) => eq_reason_in!{End.Map _
+    "=" _ "by" { Operators.composition (LeftTotal.leftCreation a) (LeftTotal.leftCreation b) RightIdentity.identity RightIdentity.identity }
+    "=" _ "by" { congr!{LeftEnd.Map RightEnd.Map End.Map} Operators.map _ _ _ _ (leftAnti a b) (Graded.rightIdentity RightIdentity.identity) }
+    "=" _ "by" { Operators.scaleLeft (Algebra.neg Algebra.one) (LeftCompose.compose (LeftTotal.leftCreation b) (LeftTotal.leftCreation a)) RightIdentity.identity }
+    "=" _ "by" { congr!{End.Map End.Map} EndOps.negative _ _ (sym!{End.Map} _ _ (trans!{End.Map} _ _ _ (Operators.composition (LeftTotal.leftCreation b) (LeftTotal.leftCreation a) RightIdentity.identity RightIdentity.identity)
+      (congr!{RightEnd.Map End.Map} (Operators.map (LeftCompose.compose (LeftTotal.leftCreation b) (LeftTotal.leftCreation a))) _ _ (Graded.rightIdentity RightIdentity.identity)))) }
+  };
+\definition rightPair: \forall (a, b: Right.Form (N.Nat^::succ N.Nat^::zero)) -> Compose.compose (rightAction a) (rightAction b) = EndOps.negative (Compose.compose (rightAction b) (rightAction a)) :=
+  \fun (a, b: Right.Form (N.Nat^::succ N.Nat^::zero)) => eq_reason_in!{End.Map _
+    "=" _ "by" { Operators.composition LeftTotal.grading LeftTotal.grading (RightTotal.leftCreation a) (RightTotal.leftCreation b) }
+    "=" _ "by" { congr!{LeftEnd.Map RightEnd.Map End.Map} Operators.map _ _ _ _ paritySquare (rightAnti a b) }
+    "=" _ "by" { Operators.scaleRight (Algebra.neg Algebra.one) LeftIdentity.identity (RightCompose.compose (RightTotal.leftCreation b) (RightTotal.leftCreation a)) }
+    "=" _ "by" { congr!{End.Map End.Map} EndOps.negative _ _ (sym!{End.Map} _ _ (trans!{End.Map} _ _ _ (Operators.composition LeftTotal.grading LeftTotal.grading (RightTotal.leftCreation b) (RightTotal.leftCreation a))
+      (congr!{LeftEnd.Map End.Map} (\fun (x: LeftEnd.Map) => Operators.map x (RightCompose.compose (RightTotal.leftCreation b) (RightTotal.leftCreation a))) _ _ paritySquare))) }
+  };
+\import algebra.Group[].Of[Carrier := Tensor.Carrier, group := std.Alg[].Ring[].ringModuleAsCommutativeGroup K Tensor.Carrier Algebra.ring Tensor.space] \as TensorGroup;
+\definition mapNegative: \forall (f: End.Map)(t: Tensor.Carrier) -> (EndOps.negative f).apply t = Tensor.space.neg (f.apply t) :=
+  \fun (f: End.Map)(t: Tensor.Carrier) => TensorLaws.minusOneScale (f.apply t);
+\definition leftAt: \forall (a, b: Left.Form (N.Nat^::succ N.Nat^::zero))(t: Tensor.Carrier) ->
+  (leftAction a).apply ((leftAction b).apply t) = Tensor.space.neg ((leftAction b).apply ((leftAction a).apply t)) :=
+  \fun (a, b: Left.Form (N.Nat^::succ N.Nat^::zero))(t: Tensor.Carrier) => trans!{Tensor.Carrier} _ _ _
+    (congr!{End.Map Tensor.Carrier} (\fun (f: End.Map) => f.apply t) _ _ (leftPair a b)) (mapNegative (Compose.compose (leftAction b) (leftAction a)) t);
+\definition rightAt: \forall (a, b: Right.Form (N.Nat^::succ N.Nat^::zero))(t: Tensor.Carrier) ->
+  (rightAction a).apply ((rightAction b).apply t) = Tensor.space.neg ((rightAction b).apply ((rightAction a).apply t)) :=
+  \fun (a, b: Right.Form (N.Nat^::succ N.Nat^::zero))(t: Tensor.Carrier) => trans!{Tensor.Carrier} _ _ _
+    (congr!{End.Map Tensor.Carrier} (\fun (f: End.Map) => f.apply t) _ _ (rightPair a b)) (mapNegative (Compose.compose (rightAction b) (rightAction a)) t);
+\definition mixedAt: \forall (a: Left.Form (N.Nat^::succ N.Nat^::zero))(b: Right.Form (N.Nat^::succ N.Nat^::zero))(t: Tensor.Carrier) ->
+  (leftAction a).apply ((rightAction b).apply t) = Tensor.space.neg ((rightAction b).apply ((leftAction a).apply t)) :=
+  \fun (a: Left.Form (N.Nat^::succ N.Nat^::zero))(b: Right.Form (N.Nat^::succ N.Nat^::zero))(t: Tensor.Carrier) => trans!{Tensor.Carrier} _ _ _
+    (congr!{End.Map Tensor.Carrier} (\fun (f: End.Map) => f.apply t) _ _ (mixed a b)) (mapNegative (Compose.compose (rightAction b) (leftAction a)) t);
+\definition mixedReverseAt: \forall (a: Left.Form (N.Nat^::succ N.Nat^::zero))(b: Right.Form (N.Nat^::succ N.Nat^::zero))(t: Tensor.Carrier) ->
+  (rightAction b).apply ((leftAction a).apply t) = Tensor.space.neg ((leftAction a).apply ((rightAction b).apply t)) :=
+  \fun (a: Left.Form (N.Nat^::succ N.Nat^::zero))(b: Right.Form (N.Nat^::succ N.Nat^::zero))(t: Tensor.Carrier) => trans!{Tensor.Carrier} _ _ _
+    (sym!{Tensor.Carrier} _ _ (TensorGroup.negNeg ((rightAction b).apply ((leftAction a).apply t))))
+    (congr!{Tensor.Carrier Tensor.Carrier} Tensor.space.neg _ _ (sym!{Tensor.Carrier} _ _ (mixedAt a b t)));
+\definition operatorAnticommutes: \forall (a, b: Result.Form (N.Nat^::succ N.Nat^::zero))(t: Tensor.Carrier) ->
+  (operator a).apply ((operator b).apply t) = Tensor.space.neg ((operator b).apply ((operator a).apply t)) :=
+  \fun (a, b: Result.Form (N.Nat^::succ N.Nat^::zero))(t: Tensor.Carrier) => \block {
+    \let la: End.Map := leftAction (Covector.leftPart a) \then
+    \let lb: End.Map := leftAction (Covector.leftPart b) \then
+    \let ra: End.Map := rightAction (Covector.rightPart a) \then
+    \let rb: End.Map := rightAction (Covector.rightPart b) \then
+    \let x: Tensor.Carrier := (lb.apply (la.apply t)) \then
+    \let y: Tensor.Carrier := (rb.apply (ra.apply t)) \then
+    \let z: Tensor.Carrier := (rb.apply (la.apply t)) \then
+    \let w: Tensor.Carrier := (lb.apply (ra.apply t)) \then
+    \return eq_reason_in!{Tensor.Carrier _
+      "=" _ "by" { congr!{Tensor.Carrier Tensor.Carrier Tensor.Carrier} Tensor.space.add _ _ _ _ (la.preservesAdd (lb.apply t) (rb.apply t)) (ra.preservesAdd (lb.apply t) (rb.apply t)) }
+      "=" _ "by" { TensorLaws.shuffle (la.apply (lb.apply t)) (la.apply (rb.apply t)) (ra.apply (lb.apply t)) (ra.apply (rb.apply t)) }
+      "=" _ "by" { congr!{Tensor.Carrier Tensor.Carrier Tensor.Carrier} Tensor.space.add _ _ _ _
+        (congr!{Tensor.Carrier Tensor.Carrier Tensor.Carrier} Tensor.space.add _ _ _ _ (leftAt (Covector.leftPart a) (Covector.leftPart b) t) (mixedReverseAt (Covector.leftPart b) (Covector.rightPart a) t))
+        (congr!{Tensor.Carrier Tensor.Carrier Tensor.Carrier} Tensor.space.add _ _ _ _ (mixedAt (Covector.leftPart a) (Covector.rightPart b) t) (rightAt (Covector.rightPart a) (Covector.rightPart b) t)) }
+      "=" _ "by" { congr!{Tensor.Carrier Tensor.Carrier Tensor.Carrier} Tensor.space.add _ _ _ _ (sym!{Tensor.Carrier} _ _ (TensorGroup.negAdd x w)) (sym!{Tensor.Carrier} _ _ (TensorGroup.negAdd z y)) }
+      "=" _ "by" { sym!{Tensor.Carrier} _ _ (TensorGroup.negAdd (Tensor.space.add x w) (Tensor.space.add z y)) }
+      "=" _ "by" { congr!{Tensor.Carrier Tensor.Carrier} Tensor.space.neg _ _ (congr!{Tensor.Carrier Tensor.Carrier Tensor.Carrier} Tensor.space.add _ _ _ _
+        (sym!{Tensor.Carrier} _ _ (lb.preservesAdd (la.apply t) (ra.apply t))) (sym!{Tensor.Carrier} _ _ (rb.preservesAdd (la.apply t) (ra.apply t)))) }
+    }
+  };
