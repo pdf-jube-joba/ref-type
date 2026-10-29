@@ -22,10 +22,10 @@
 `Inverse.ofRepresentation` は構成に用いた選択によらず計算結果が一致することを示す。
 
 `Bott.Powers.squareLoop` は境界関数 \(z^2\) の clutching 線束の被約類が \(2u\) であることを示す。
-`Bott.TensorLine` はテンソル平方の両半球上の枠と、\(z^2\) の clutching 束への局所同型を構成する。
+`Bott.TensorLine` はテンソル平方の両半球上の枠を比較し、\(z^2\) の clutching 束への大域同型を構成する。
+`Bott.Square.zero` は \(u^2=0\) を示し、`Product.Multiplication.formula` は標準積の係数による乗法公式を示す。
 
 ## 残る要件
 
-clutching 線束のテンソル平方と \(z^2\) の clutching 線束の比較、および \(u^2=0\) は未証明である。
-したがって、標準積の環同型はまだ構成していない。
+標準積と逆写像を環同型としてまとめる構成はまだない。
 射影直線の普遍線束と clutching 線束の比較、その選択による符号、および相対群との完全な同型も残っている。
