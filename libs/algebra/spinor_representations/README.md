@@ -14,9 +14,11 @@
 引き戻しを採用しているため、最高次数には逆行列式が作用する。
 
 `Over.Direct.Total.comparison` は左右のスピノルのテンソル積から直和の外代数への線形写像である。
+`Over.Direct.Total.Isomorphism` は右側と直和に有限基底を指定すると、この比較写像を前向きの写像とする線形同型を構成する。
+単射性は左右の縮約で取り出した係数によって核を分離し、全射性は真空からの生成で証明する。
 `Over.Direct.Total.Grading.intertwines` は偶奇次数の保存を、`Complex.Graded.Comparison.Algebra.intertwining` は Clifford 代数全体の作用との整合性を示し、`Over.Direct.Total.Vacuum.Words` は生成作用で作った状態の対応を与える。
 
-[Examples](src/Examples.ref) に一次元の平方・随伴公式、標準持ち上げと行列式文字の例がある。
+[Examples](src/Examples.ref) に一次元の平方・随伴公式、標準持ち上げと行列式文字の例があり、[ZeroTensor](src/Examples/ZeroTensor.ref) は零次元のテンソル比較の往復を検査する。
 
 ```sh
 target/debug/cli libs/algebra/spinor_representations --memory-mib 8192 --cache-stats --no-progress
