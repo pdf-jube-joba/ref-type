@@ -1,0 +1,49 @@
+\import std.Data[].List[] \as Lists;
+\import \parent.\parent.Creation[] \as Creation;
+\definition LeftOne: \Set := Left.Form (N.Nat^::succ N.Nat^::zero);
+\definition RightOne: \Set := Right.Form (N.Nat^::succ N.Nat^::zero);
+\definition leftState: Lists.List[LeftOne] -> LeftTotal.Carrier := \induction (xs: Lists.List[LeftOne]) \return LeftTotal.Carrier \with {
+  | nil: LeftVacuum.state
+  | cons: \fun (a: LeftOne)(tail: Lists.List[LeftOne])(state: LeftTotal.Carrier) => LeftTotal.createLeft a state
+};
+\definition rightState: Lists.List[RightOne] -> RightTotal.Carrier := \induction (xs: Lists.List[RightOne]) \return RightTotal.Carrier \with {
+  | nil: RightVacuum.state
+  | cons: \fun (a: RightOne)(tail: Lists.List[RightOne])(state: RightTotal.Carrier) => RightTotal.createLeft a state
+};
+\definition resultLeft: Lists.List[LeftOne] -> ResultTotal.Carrier -> ResultTotal.Carrier := \induction (xs: Lists.List[LeftOne]) \return ResultTotal.Carrier -> ResultTotal.Carrier \with {
+  | nil: \fun (f: ResultTotal.Carrier) => f
+  | cons: \fun (a: LeftOne)(tail: Lists.List[LeftOne])(previous: ResultTotal.Carrier -> ResultTotal.Carrier)(f: ResultTotal.Carrier) => ResultTotal.createLeft (PullLeft.precompose (N.Nat^::succ N.Nat^::zero) leftProjection a) (previous f)
+};
+\definition resultRight: Lists.List[RightOne] -> ResultTotal.Carrier := \induction (xs: Lists.List[RightOne]) \return ResultTotal.Carrier \with {
+  | nil: ResultVacuum.state
+  | cons: \fun (a: RightOne)(tail: Lists.List[RightOne])(previous: ResultTotal.Carrier) => ResultTotal.createLeft (PullRight.precompose (N.Nat^::succ N.Nat^::zero) rightProjection a) previous
+};
+\definition rightWord: \forall (xs: Lists.List[RightOne]) -> resultRight xs = comparison.apply (Tensor.tensor LeftVacuum.state (rightState xs)) :=
+  \induction (xs: Lists.List[RightOne]) \return resultRight xs = comparison.apply (Tensor.tensor LeftVacuum.state (rightState xs)) \with {
+    | nil: sym!{{ResultTotal.Carrier}} _ _ onVacuum
+    | cons: \fun (a: RightOne)(tail: Lists.List[RightOne])(previous: resultRight tail = comparison.apply (Tensor.tensor LeftVacuum.state (rightState tail))) => eq_reason_in!{{ResultTotal.Carrier} _
+      "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} (ResultTotal.createLeft (PullRight.precompose (N.Nat^::succ N.Nat^::zero) rightProjection a)) _ _ previous }
+      "=" _ "by" { Creation.rightPure a LeftVacuum.state (rightState tail) }
+      "=" _ "by" { congr!{{LeftTotal.Carrier} {ResultTotal.Carrier}} (\fun (f: LeftTotal.Carrier) => comparison.apply (Tensor.tensor f (RightTotal.createLeft a (rightState tail)))) _ _ LeftVacuum.even }
+    }
+  };
+\definition leftWord: \forall (xs: Lists.List[LeftOne])(f: LeftTotal.Carrier)(g: RightTotal.Carrier) ->
+  resultLeft xs (comparison.apply (Tensor.tensor f g)) = comparison.apply (Tensor.tensor (\induction (ys: Lists.List[LeftOne]) \return LeftTotal.Carrier \with {
+    | nil: f
+    | cons: \fun (a: LeftOne)(tail: Lists.List[LeftOne])(previous: LeftTotal.Carrier) => LeftTotal.createLeft a previous
+  } xs) g) :=
+  \induction (xs: Lists.List[LeftOne]) \return \forall (f: LeftTotal.Carrier)(g: RightTotal.Carrier) ->
+    resultLeft xs (comparison.apply (Tensor.tensor f g)) = comparison.apply (Tensor.tensor (\induction (ys: Lists.List[LeftOne]) \return LeftTotal.Carrier \with {
+      | nil: f
+      | cons: \fun (a: LeftOne)(tail: Lists.List[LeftOne])(previous: LeftTotal.Carrier) => LeftTotal.createLeft a previous
+    } xs) g) \with {
+      | nil: \fun (f: LeftTotal.Carrier)(g: RightTotal.Carrier) => \refl(comparison.apply (Tensor.tensor f g))
+      | cons: \fun (a: LeftOne)(tail: Lists.List[LeftOne])(previous: \forall (f: LeftTotal.Carrier)(g: RightTotal.Carrier) -> _) (f: LeftTotal.Carrier)(g: RightTotal.Carrier) => trans!{{ResultTotal.Carrier}} _ _ _
+        (congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} (ResultTotal.createLeft (PullLeft.precompose (N.Nat^::succ N.Nat^::zero) leftProjection a)) _ _ (previous f g))
+        (Creation.leftPure a _ g)
+  };
+\definition combined: \forall (leftWords: Lists.List[LeftOne])(rightWords: Lists.List[RightOne]) ->
+  resultLeft leftWords (resultRight rightWords) = comparison.apply (Tensor.tensor (leftState leftWords) (rightState rightWords)) :=
+  \fun (leftWords: Lists.List[LeftOne])(rightWords: Lists.List[RightOne]) => trans!{{ResultTotal.Carrier}} _ _ _
+    (congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} (resultLeft leftWords) _ _ (rightWord rightWords))
+    (leftWord leftWords LeftVacuum.state (rightState rightWords));
