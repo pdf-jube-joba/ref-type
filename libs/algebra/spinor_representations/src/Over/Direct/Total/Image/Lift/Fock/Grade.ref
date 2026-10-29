@@ -1,0 +1,24 @@
+\import Algebra.FiniteExterior[V := Sum.Carrier, space := Sum.space, n := n, b := b].At[k := k] \as At;
+\import Algebra.Sums[I := At.Tuple].Vector[V := Tensor.Carrier, space := Tensor.space] \as Sums;
+\import Algebra.Laws[V := Tensor.Carrier, space := Tensor.space] \as TensorLaws;
+\import Algebra.Linear[V := ResultTotal.Carrier, W := Tensor.Carrier, source := ResultTotal.totalSpace, target := Tensor.space] \as Maps;
+\definition apply[f: ResultTotal.Carrier]: Tensor.Carrier := Sums.sum xs (\fun (i: At.Tuple) => Tensor.space.smul (At.coefficient (f k) i) (state k i));
+\definition addition: \forall (f, g: ResultTotal.Carrier) -> apply (ResultTotal.totalSpace.add f g) = Tensor.space.add (apply f) (apply g) :=
+  \fun (f, g: ResultTotal.Carrier) => trans!{Tensor.Carrier} _ _ _
+    (Sums.congruent xs _ _ (\fun (i: At.Tuple) => Tensor.space.scalarAdd (At.coefficient (f k) i) (At.coefficient (g k) i) (state k i)))
+    (Sums.addition xs (\fun (i: At.Tuple) => Tensor.space.smul (At.coefficient (f k) i) (state k i)) (\fun (i: At.Tuple) => Tensor.space.smul (At.coefficient (g k) i) (state k i)));
+\definition scalar: \forall (a: K)(f: ResultTotal.Carrier) -> apply (ResultTotal.totalSpace.smul a f) = Tensor.space.smul a (apply f) :=
+  \fun (a: K)(f: ResultTotal.Carrier) => trans!{Tensor.Carrier} _ _ _
+    (Sums.congruent xs _ _ (\fun (i: At.Tuple) => Tensor.space.scalarAssoc a (At.coefficient (f k) i) (state k i)))
+    (Sums.scalar xs a (\fun (i: At.Tuple) => Tensor.space.smul (At.coefficient (f k) i) (state k i)));
+\definition map: Maps.Map := Maps.Map { apply := apply, preservesAdd := addition, preservesScale := scalar };
+\import Sums.Mapping[W := ResultTotal.Carrier, target := ResultTotal.totalSpace] \as Mapping;
+\import Algebra.Sums[I := At.Tuple].Vector[V := ResultTotal.Carrier, space := ResultTotal.totalSpace] \as ResultSums;
+\import \root.Over[K := K, scalarRing := scalarRing].On[V := Sum.Carrier, space := Sum.space].Total[].Cyclic[n := n, b := b].Span[k := k] \as Span;
+\definition comparisonGrade: \forall (f: ResultTotal.Carrier) -> comparison.apply (apply f) = Span.assemble xs (f k) :=
+  \fun (f: ResultTotal.Carrier) => eq_reason_in!{{ResultTotal.Carrier} _
+    "=" _ "by" { Mapping.law comparison xs (\fun (i: At.Tuple) => Tensor.space.smul (At.coefficient (f k) i) (state k i)) }
+    "=" _ "by" { ResultSums.congruent xs _ _ (\fun (i: At.Tuple) => trans!{{ResultTotal.Carrier}} _ _ _
+      (comparison.preservesScale (At.coefficient (f k) i) (state k i))
+      (congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} (ResultTotal.totalSpace.smul (At.coefficient (f k) i)) _ _ (comparisonState k i))) }
+  };
