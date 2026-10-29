@@ -1,0 +1,24 @@
+\import \parent.Dimension[n := N.Nat^::zero, d := d] \as D;
+\import clifford.Euclidean[n := N.Nat^::zero] \as E;
+\import clifford.Field[K := R.Real, field := Scalars.field].On[V := E.Vector, space := E.space].Of[form := E.form] \as Clifford;
+\import Linear.Linear[V := E.Carrier, W := R.Real, source := Clifford.vectorSpace, target := Linear.scalarSpace] \as Functional;
+\import calculus.Real[].Multivariable[n := d].Open[] \as Open;
+\import Open.Smooth[] \as Smooth;
+\import Smooth.Operations[] \as Operations;
+\import clifford.EuclideanCoordinates[] \as Coordinates;
+\import std.Data[].FinSet[] \as Fin;
+\import lie_groups.CliffordPlots[d := d] \as Calculus;
+\import Calculus.Dimension[n := N.Nat^::zero] \as Plots;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].trans;
+\use std.Logic[].Equality[].congr;
+\definition law: D.Law := \fun (U: Open.OpenSet)(f: Open.Carrier U -> E.Carrier)(regular: Plots.Plot U f)(l: Functional.Map) =>
+  Calculus.smoothEqual U (\fun (x: Open.Carrier U) => R.mul ((Coordinates.coordinates N.Nat^::zero).read (f x) (Fin.zero N.Nat^::zero)) (l.apply Clifford.one))
+    (\fun (x: Open.Carrier U) => l.apply (f x))
+    (\fun (x: Open.Carrier U) => trans!{R.Real} _ _ _
+      (sym!{R.Real} _ _ (l.preservesScale (Coordinates.Zero[].read (f x)) Clifford.one))
+      (trans!{R.Real} _ _ _
+        (congr!{E.Carrier R.Real} l.apply _ _ (E.ring.semiring.multiplicative.rightIdentity (E.scalar (Coordinates.Zero[].read (f x)))))
+        (congr!{E.Carrier R.Real} l.apply _ _ (Coordinates.Zero[].recover (f x)))))
+    (Operations.mulSmooth U (\fun (x: Open.Carrier U) => (Coordinates.coordinates N.Nat^::zero).read (f x) (Fin.zero N.Nat^::zero))
+      (\fun (x: Open.Carrier U) => l.apply Clifford.one) (regular (Fin.zero N.Nat^::zero)) (Operations.constantSmooth U (l.apply Clifford.one)));
