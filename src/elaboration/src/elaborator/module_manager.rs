@@ -869,14 +869,12 @@ impl ModuleManager {
                 *entry = (target, true);
             }
         }
-        for (instance, (target, mapped)) in targets {
-            if mapped {
-                self.hir_modules.insert(instance, target);
-            } else {
-                // Composed resolver maps also contain earlier aliases that
-                // this import did not specialize. Preserve their typed image.
-                self.hir_modules.entry(instance).or_insert(target);
-            }
+        for (instance, (target, _)) in targets {
+            // Composed maps retain earlier lexical aliases. Their typed image
+            // is already fixed, even if this import's inherited remapping also
+            // contains their source. Replacing it can retarget an earlier
+            // instance to a different argument telescope.
+            self.hir_modules.entry(instance).or_insert(target);
         }
         self.hir_modules.insert(import.target, typed.materialized);
     }
