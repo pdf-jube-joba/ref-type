@@ -27,8 +27,9 @@
 `Bott.TensorLine` はテンソル平方の両半球上の枠を比較し、\(z^2\) の clutching 束への大域同型を構成する。
 `Bott.Square.zero` は \(u^2=0\) を示し、`Product.Multiplication.formula` は標準積の係数による乗法公式を示す。
 `Product.Coefficients` は係数対の加法と乗法、標準写像とその逆写像、および加法・乗法との両立を与える。
+`Product.Coefficients.Ring` は係数対を交換環にし、標準積を環準同型として与える。
+`Product.Polynomial` は関係式 \(u^2=0\) を持つ多項式商と標準積への環準同型を構成し、`Polynomial.Normal` は各式の正規形と具体的な両側逆写像を証明する。
 
 ## 残る要件
 
-標準積と逆写像を環同型としてまとめる構成はまだない。
 射影直線の普遍線束と clutching 線束の比較、およびその選択による符号が残っている。
