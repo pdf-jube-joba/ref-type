@@ -86,3 +86,17 @@
   };
 \definition spin: \forall (u: Pin.Spin)(f, g: Total.Carrier) -> value ((Mapping.apply u).value.apply f) ((Mapping.apply u).value.apply g) = value f g :=
   \fun (u: Pin.Spin) => (Pin.evenMembership u) preimage preimageClosed generators;
+\import clifford.Circle[] \as Circle;
+\import clifford.ComplexExtension[G := Pin.Spin, group := Pin.spinGroup].By[sign := Pin.spinInvolution] \as SpinC;
+\definition spinC: \forall (u: SpinC.Carrier)(f, g: Total.Carrier) ->
+  value ((Phase.actionC u).value.apply f) ((Phase.actionC u).value.apply g) = Top.vectorSpace.smul (Phase.determinant u) (value f g) :=
+  SpinC.induction (\fun (u: SpinC.Carrier) => \forall (f, g: Total.Carrier) ->
+    value ((Phase.actionC u).value.apply f) ((Phase.actionC u).value.apply g) = Top.vectorSpace.smul (Phase.determinant u) (value f g))
+    (\fun (s: Pin.Spin)(z: Circle.Circle)(f, g: Total.Carrier) => eq_reason_in!{{Forms.Form n} _
+      "=" _ "by" { congr!{Units.Unit Units.Unit {Forms.Form n}} (\fun (a, b: Units.Unit) => value (a.value.apply f) (b.value.apply g)) _ _ _ _ (Phase.onClass s z) (Phase.onClass s z) }
+      "=" _ "by" { scaleLeft z ((Mapping.apply s).value.apply f) (Total.totalSpace.smul z ((Mapping.apply s).value.apply g)) }
+      "=" _ "by" { congr!{{Forms.Form n} {Forms.Form n}} (Top.vectorSpace.smul z) _ _ (scaleRight z ((Mapping.apply s).value.apply f) ((Mapping.apply s).value.apply g)) }
+      "=" _ "by" { sym!{{Forms.Form n}} _ _ (Top.vectorSpace.scalarAssoc z z (value ((Mapping.apply s).value.apply f) ((Mapping.apply s).value.apply g))) }
+      "=" _ "by" { congr!{{Forms.Form n} {Forms.Form n}} (Top.vectorSpace.smul (Circle.square z)) _ _ (spin s f g) }
+      "=" _ "by" { congr!{Circle.Circle {Forms.Form n}} (\fun (a: Circle.Circle) => Top.vectorSpace.smul a (value f g)) _ _ (sym!{Circle.Circle} _ _ (Phase.determinantOnClass s z)) }
+    });

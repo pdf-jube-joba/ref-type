@@ -1,0 +1,30 @@
+\import \parent.\parent.UnitaryOrthogonal[].CanonicalLift[] \as Lift;
+\import Lift.FockWords[] \as Words;
+\import Words.Complete[] \as Complete;
+\import \parent.PinAction[] \as PinAction;
+\import \parent.\parent.RealCoordinates[].Clifford[].Spin[].Phase[] \as Phase;
+\import \parent.\parent.BasisMetric[] \as MetricBasis;
+\import Algebra.FiniteCoordinates[n := n].Top[] \as Volume;
+\import std.Data[].FinSet[] \as Fin;
+\definition topState: Total.Carrier := Words.state n (\fun (i: Fin.Fin n) => i);
+\import Algebra.FiniteExterior[V := Finite.Vector, space := Finite.space, n := n, b := Basis.basis] \as ExteriorBasis;
+\definition topComponent: topState n = Volume.volume := trans!{{Forms.Form n}} (topState n) (ExteriorBasis.At[k := n].word (\fun (i: Fin.Fin n) => i)) Volume.volume (Words.component n (\fun (i: Fin.Fin n) => i)) (MetricBasis.wordCoordinates n (\fun (i: Fin.Fin n) => i));
+\definition normalized: topState n Volume.basisArguments = Algebra.one := trans!{C.Complex} _ _ _
+  (congr!{{Forms.Form n} C.Complex} (\fun (t: Forms.Form n) => t Volume.basisArguments) _ _ topComponent) Volume.normalized;
+\definition scalarEquality: \forall (u: Unitary.Carrier) ->
+  Top.vectorSpace.smul (Volume.determinant u.backward) (topState n) = Top.vectorSpace.smul (Phase.determinant (Lift.lift u)) (topState n) :=
+  \fun (u: Unitary.Carrier) => eq_reason_in!{{Forms.Form n} _
+    "=" _ "by" { sym!{{Forms.Form n}} _ _ (Complete.topAction u topState) }
+    "=" _ "by" { sym!{{Forms.Form n}} _ _ (vacuum ((Phase.actionC (Lift.lift u)).value.apply topState)) }
+    "=" _ "by" { congr!{{Total.Carrier} {Forms.Form n}} (\fun (t: Total.Carrier) => value t ((Phase.actionC (Lift.lift u)).value.apply topState)) _ _ (sym!{{Total.Carrier}} _ _ (Lift.fixesVacuum u)) }
+    "=" _ "by" { PinAction.spinC (Lift.lift u) Vacuum.state topState }
+    "=" _ "by" { congr!{{Forms.Form n} {Forms.Form n}} (Top.vectorSpace.smul (Phase.determinant (Lift.lift u))) _ _ (vacuum topState) }
+  };
+\definition correspondence: \forall (u: Unitary.Carrier) -> Phase.determinant (Lift.lift u) = Volume.determinant u.backward :=
+  \fun (u: Unitary.Carrier) => sym!{C.Complex} _ _ (eq_reason_in!{C.Complex _
+    "=" _ "by" { sym!{C.Complex} _ _ (Algebra.mulOneRight (Volume.determinant u.backward)) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (Algebra.mul (Volume.determinant u.backward)) _ _ (sym!{C.Complex} _ _ normalized) }
+    "=" _ "by" { congr!{{Forms.Form n} C.Complex} (\fun (t: Forms.Form n) => t Volume.basisArguments) _ _ (scalarEquality u) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (Algebra.mul (Phase.determinant (Lift.lift u))) _ _ normalized }
+    "=" _ "by" { Algebra.mulOneRight (Phase.determinant (Lift.lift u)) }
+  });
