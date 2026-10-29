@@ -1,0 +1,57 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.trans;
+\use Eq.sym;
+\use Eq.congr;
+\import topological_k_theory.KTheory[].On[X := Slice, baseSpace := sliceTopology, compact := Restriction.compactSubset, hausdorff := Restriction.hausdorffSubset] \as SliceK;
+\import Source.Pullback[Y := Slice, space := sliceTopology, sourceCompact := Restriction.compactSubset, sourceHausdorff := Restriction.hausdorffSubset,
+  f := project, regular := projectContinuous] \as ToSlice;
+\import ToX.Composition[Z := Slice, nextSpace := sliceTopology, nextCompact := Restriction.compactSubset, nextHausdorff := Restriction.hausdorffSubset,
+  g := project, nextRegular := projectContinuous] \as SliceComposite;
+\import SliceK.IdentityPullback[] \as SliceIdentity;
+\definition SliceMap: \Set := Slice -> Slice;
+\definition sliceMap: (\fun (p: Slice) => into (project p)) = (\fun (p: Slice) => p) :=
+  \axiom:funext((\fun (p: Slice) => into (project p)), (\fun (p: Slice) => p), rightInverse);
+\definition sliceRoundTrip: \forall (v: SliceK.K0[].Carrier) -> ToSlice.K0[].map (ToX.K0[].map v) = v :=
+  \fun (v: SliceK.K0[].Carrier) => trans!{SliceK.K0[].Carrier} _ _ _ (sym!{SliceK.K0[].Carrier} _ _ (SliceComposite.onK0 v))
+    ((\idelim (\fun (p: Slice) => p) = (\fun (p: Slice) => into (project p)) \with f: SliceMap =>
+      \forall (regular: topology.Continuity[A := Slice, B := Slice].Continuous sliceTopology sliceTopology f) ->
+        SliceK.Pullback[Y := Slice, space := sliceTopology, sourceCompact := Restriction.compactSubset, sourceHausdorff := Restriction.hausdorffSubset,
+          f := f, regular := regular].K0[].map v = v \by {
+        base: \fun (regular: _) => SliceIdentity.onK0 v, equality: sym!{{Slice -> Slice}} _ _ sliceMap
+      }) SliceComposite.compositeRegular);
+\definition restrictionZero: \forall (b: Source.K0[].Carrier) -> End.restriction (forward Source.K0[].zero b) = End.fifthGroup.base.unit := \block {
+  \fun (b: Source.K0[].Carrier) \then
+  \let v: Target.K0[].Carrier := forward Source.K0[].zero b \then
+  \let onX: ToX.K0[].map (End.restriction v) = Source.K0[].zero := trans!{Source.K0[].Carrier} _ _ _
+    (congr!{End.Fifth Source.K0[].Carrier} ToX.K0[].map _ _ (End.restrictionFormula v))
+    (trans!{Source.K0[].Carrier} _ _ _ (sym!{Source.K0[].Carrier} _ _ (Composition.onK0 v)) (Kernel.imageKernel b)) \then
+  \return trans!{End.Fifth} _ _ _ (sym!{End.Fifth} _ _ (sliceRoundTrip (End.restriction v)))
+    (trans!{End.Fifth} _ _ _ (congr!{Source.K0[].Carrier End.Fifth} ToSlice.K0[].map _ _ onX) ToSlice.K0[].preservesZero)
+};
+\definition represented: \forall (b: Source.K0[].Carrier) -> \exists (v: End.Third \where End.forget v = forward Source.K0[].zero b) :=
+  \fun (b: Source.K0[].Carrier) => End.ordinaryPreimage (forward Source.K0[].zero b) (restrictionZero b);
+\definition Lifts[b: Source.K0[].Carrier]: \Pow End.Third := { v: End.Third \where End.forget v = forward Source.K0[].zero b };
+\definition Lift[b: Source.K0[].Carrier]: \Set := \Cast[End.Third] (Lifts b);
+\definition unique: \forall (b: Source.K0[].Carrier)(v, w: Lift[b]) -> v = w :=
+  \fun (b: Source.K0[].Carrier)(v, w: Lift[b]) => injective v w
+    (trans!{End.Fourth} _ _ _ (\bysub(End.Third, Lifts b, v)) (sym!{End.Fourth} _ _ (\bysub(End.Third, Lifts b, w))));
+\definition lift[b: Source.K0[].Carrier]: End.Third := \choice Lift[b] \by { existence: represented b, uniqueness: unique b };
+\definition forgetLift: \forall (b: Source.K0[].Carrier) -> End.forget (lift b) = forward Source.K0[].zero b :=
+  \fun (b: Source.K0[].Carrier) => \bysub(End.Third, Lifts b, (\choice Lift[b] \by { existence: represented b, uniqueness: unique b }));
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Inverse[] \as Inverse;
+\definition coefficient[v: End.Third]: Source.K0[].Carrier := Inverse.coefficient (End.forget v);
+\definition leftInverse: \forall (b: Source.K0[].Carrier) -> coefficient (lift b) = b :=
+  \fun (b: Source.K0[].Carrier) => trans!{Source.K0[].Carrier} _ _ _
+    (congr!{Target.K0[].Carrier Source.K0[].Carrier} Inverse.coefficient _ _ (forgetLift b))
+    (Inverse.recovers Source.K0[].zero b).right;
+\definition rightInverse: \forall (v: End.Third) -> lift (coefficient v) = v := \block {
+  \fun (v: End.Third) \then
+  \takefrom b: \Cast[Source.K0[].Carrier] ({ b: Source.K0[].Carrier \where forward Source.K0[].zero b = End.forget v }) \by imageRepresentation v \then
+  \let computed: coefficient v = b := trans!{Source.K0[].Carrier} _ _ _
+    (congr!{Target.K0[].Carrier Source.K0[].Carrier} Inverse.coefficient _ _
+      (sym!{Target.K0[].Carrier} _ _ (\bysub(Source.K0[].Carrier, { b: Source.K0[].Carrier \where forward Source.K0[].zero b = End.forget v }, b))))
+    (Inverse.recovers Source.K0[].zero b).right \then
+  \return injective (lift (coefficient v)) v (trans!{End.Fourth} _ _ _ (forgetLift (coefficient v))
+    (trans!{End.Fourth} _ _ _ (congr!{Source.K0[].Carrier Target.K0[].Carrier} (forward Source.K0[].zero) _ _ computed)
+      (\bysub(Source.K0[].Carrier, { b: Source.K0[].Carrier \where forward Source.K0[].zero b = End.forget v }, b))))
+};
