@@ -94,3 +94,21 @@
   source := NegativeTensor.pulledBundle, middle := Bundles.Trivial[X := NegativeCarrier, n := one, baseSpace := negativeTopology].bundle, target := NegativeTarget.pulledBundle] \as NegativeCompose;
 \definition positive: PositiveCompose.Isomorphism := PositiveCompose.compose PositiveTensor.isomorphism (PositiveIso.inverse PositiveTarget.isomorphism);
 \definition negative: NegativeCompose.Isomorphism := NegativeCompose.compose NegativeTensor.isomorphism (NegativeIso.inverse NegativeTarget.isomorphism);
+\import Homotopy.ClosedCover[X := Sphere.Sphere, F := Tensor.Fiber, G := Target.Fiber, baseSpace := Sphere.sphereTopology,
+  source := tensorBundle, target := Target.bundle, sourceBase := \refl(Sphere.sphereTopology), targetBase := \refl(Sphere.sphereTopology),
+  C := Cover.PositiveHalf, D := Cover.NegativeHalf, closedC := Cover.positiveClosed, closedD := Cover.negativeClosed, covers := Cover.halvesCover] \as Glue;
+\import Homotopy.ClosedMaps[X := Sphere.Sphere, F := Tensor.Fiber, G := Target.Fiber, baseSpace := Sphere.sphereTopology,
+  source := tensorBundle, target := Target.bundle, sourceBase := \refl(Sphere.sphereTopology), targetBase := \refl(Sphere.sphereTopology),
+  C := Cover.PositiveHalf, D := Cover.NegativeHalf, closedC := Cover.positiveClosed, closedD := Cover.negativeClosed, covers := Cover.halvesCover] \as Maps;
+\import Maps.Side[S := Cover.PositiveHalf] \as Left;
+\import Maps.Side[S := Cover.NegativeHalf] \as Right;
+\definition left: Left.Isomorphism := positive;
+\definition right: Right.Isomorphism := negative;
+\module Boundary(p: Sphere.Sphere, inPositive: \In[Sphere.Sphere] Cover.PositiveHalf p, inNegative: \In[Sphere.Sphere] Cover.NegativeHalf p);
+\definition agrees: \forall (p: Sphere.Sphere)(inPositive: \In[Sphere.Sphere] Cover.PositiveHalf p)(inNegative: \In[Sphere.Sphere] Cover.NegativeHalf p)(t: Tensor.Fiber p) ->
+  (left.forward.fiber (\into[Sphere.Sphere](p, Cover.PositiveHalf) \by { inPositive })).apply t =
+  (right.forward.fiber (\into[Sphere.Sphere](p, Cover.NegativeHalf) \by { inNegative })).apply t :=
+  \fun (p: Sphere.Sphere)(inPositive: _)(inNegative: _)(t: Tensor.Fiber p) =>
+    Boundary[p := p, inPositive := inPositive, inNegative := inNegative].agrees t;
+\definition isomorphism: Bundles.Isomorphisms[X := Sphere.Sphere, F := Tensor.Fiber, G := Target.Fiber,
+  source := tensorBundle, target := Target.bundle].Isomorphism := Glue.With[left := left, right := right, agrees := agrees].isomorphism;

@@ -1,0 +1,64 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.trans;
+\use Eq.sym;
+\use Eq.congr;
+\use Eq.eq_reason_in;
+\import \root.Bott[].TensorLine[] \as TensorLine;
+\import \root.Bott[].Powers[] \as Powers;
+\import complex.Complex[] \as C;
+\import bundle_operations.Operations[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Operations;
+\import Operations.Tensor[X := Sphere.Sphere, F := Line.Fiber, G := Line.Fiber, left := Line.bundle, right := Line.bundle] \as Tensor;
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Homotopy;
+\import Homotopy.Disks[d := two] \as Disks;
+\import clutching_linearization.Linearization[].ClutchingProduct[n := one, X := Sphere.Sphere, source := Sphere.sphereTopology,
+  compact := Compactness.sphere, hausdorff := Compactness.sphereHausdorff, U := Disks.U, V := Disks.V,
+  openU := Disks.openU, openV := Disks.openV, covers := Disks.covers].Powers[z := Powers.z, continuousZ := Powers.regular, unitZ := Powers.unit].At[k := two] \as Square;
+\import Homotopy.Clutching[n := one, X := Sphere.Sphere, baseSpace := Sphere.sphereTopology, U := Disks.U, V := Disks.V,
+  openU := Disks.openU, openV := Disks.openV, covers := Disks.covers].With[g := Square.transition, continuous := Square.regular] \as Target;
+\import K.Bundle[F := Target.Fiber, original := Target.bundle, same := \refl(Sphere.sphereTopology)] \as TargetClass;
+\import K.Product[F := Line.Fiber, G := Line.Fiber, left := Line.bundle, right := Line.bundle,
+  leftSame := \refl(Sphere.sphereTopology), rightSame := \refl(Sphere.sphereTopology)] \as TensorClass;
+\import K.Compare[F := Tensor.Fiber, G := Target.Fiber,
+  first := TensorLine.tensorBundle, second := Target.bundle,
+  firstSame := \refl(Sphere.sphereTopology), secondSame := \refl(Sphere.sphereTopology)] \as Compare;
+\definition squareClass: K.Multiplication[].mul lineClass lineClass = TargetClass.value :=
+  trans!{K.Classes} _ _ _ TensorClass.onBundles (Compare.ofIsomorphism TensorLine.isomorphism);
+\import algebra.Group[].Of[Carrier := K0.Carrier, group := K0.group] \as Group;
+\import algebra.GroupCompletion[].Semiring[M := K.Classes, semiring := K.Semiring[].semiring] \as Ring;
+\definition line: K0.Carrier := K0.include lineClass;
+\definition squareDifference: Group.difference (K0.mul line line) K0.one = K0.add generator generator :=
+  trans!{K0.Carrier} _ _ _
+    (congr!{K0.Carrier K0.Carrier} (\fun (v: K0.Carrier) => Group.difference v K0.one) _ _
+      (trans!{K0.Carrier} _ _ _ (K0.includeMul lineClass lineClass) (congr!{K.Classes K0.Carrier} K0.include _ _ squareClass)))
+    (trans!{K0.Carrier} _ _ _
+      (congr!{K.Classes K0.Carrier} (\fun (v: K.Classes) => K0.difference TargetClass.value v) _ _ (sym!{K.Classes} _ _ Powers.rankLine))
+      Powers.squareLoop);
+\definition lineTimesGenerator: K0.mul line generator = Group.difference (K0.mul line line) line :=
+  eq_reason_in!{K0.Carrier _
+    "=" _ "by" { Ring.mulAddRight line line (K0.neg K0.one) }
+    "=" _ "by" { congr!{K0.Carrier K0.Carrier} (K0.add (K0.mul line line)) _ _ (Ring.mulComm K.MultiplicativeMonoid[].commutative line (K0.neg K0.one)) }
+    "=" _ "by" { congr!{K0.Carrier K0.Carrier} (K0.add (K0.mul line line)) _ _ (Ring.mulNegLeft K0.one line) }
+    "=" _ "by" { congr!{K0.Carrier K0.Carrier} (\fun (v: K0.Carrier) => K0.add (K0.mul line line) (K0.neg v)) _ _ (Ring.oneLeft line) }
+  };
+\definition squareExpansion: K0.mul generator generator = Group.difference (Group.difference (K0.mul line line) line) generator :=
+  eq_reason_in!{K0.Carrier _
+    "=" _ "by" { Ring.mulAddLeft line (K0.neg K0.one) generator }
+    "=" _ "by" { congr!{K0.Carrier K0.Carrier K0.Carrier} K0.add _ _ _ _ lineTimesGenerator (Ring.mulNegLeft K0.one generator) }
+    "=" _ "by" { congr!{K0.Carrier K0.Carrier} (\fun (v: K0.Carrier) => K0.add (Group.difference (K0.mul line line) line) (K0.neg v)) _ _ (Ring.oneLeft generator) }
+  };
+\definition shift: Group.difference (Group.difference (K0.mul line line) K0.one) generator = Group.difference (K0.mul line line) line :=
+  Group.balancedDifference (Group.difference (K0.mul line line) K0.one) generator (K0.mul line line) line
+    (trans!{K0.Carrier} _ _ _ (Group.swapLast (K0.mul line line) (K0.neg K0.one) line) (Group.assoc (K0.mul line line) line (K0.neg K0.one)));
+\definition subtractTwice: \forall (x, y: K0.Carrier) -> Group.difference (Group.difference x y) y = Group.difference x (K0.add y y) :=
+  \fun (x, y: K0.Carrier) => trans!{K0.Carrier} _ _ _ (Group.assoc x (K0.neg y) (K0.neg y))
+    (congr!{K0.Carrier K0.Carrier} (K0.add x) _ _ (sym!{K0.Carrier} _ _ (Group.negAdd y y)));
+\definition zero: K0.mul generator generator = K0.zero :=
+  eq_reason_in!{K0.Carrier _
+    "=" _ "by" { squareExpansion }
+    "=" _ "by" { congr!{K0.Carrier K0.Carrier} (\fun (x: K0.Carrier) => Group.difference x generator) _ _ (sym!{K0.Carrier} _ _ shift) }
+    "=" _ "by" { subtractTwice (Group.difference (K0.mul line line) K0.one) generator }
+    "=" _ "by" { congr!{K0.Carrier K0.Carrier} (\fun (x: K0.Carrier) => Group.difference x (K0.add generator generator)) _ _ squareDifference }
+    "=" _ "by" { Group.inverseRight (K0.add generator generator) }
+  };

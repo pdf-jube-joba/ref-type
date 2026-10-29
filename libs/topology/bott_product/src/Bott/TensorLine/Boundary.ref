@@ -1,0 +1,112 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.congr;
+\use Eq.trans;
+\use Eq.sym;
+\use Eq.eq_reason_in;
+\definition leftPoint: PositiveCarrier := \into[Sphere.Sphere](p, Cover.PositiveHalf) \by { inPositive };
+\definition rightPoint: NegativeCarrier := \into[Sphere.Sphere](p, Cover.NegativeHalf) \by { inNegative };
+\import Homotopy.Clutching[n := one, X := Sphere.Sphere, baseSpace := Sphere.sphereTopology, U := Disks.U, V := Disks.V,
+  openU := Disks.openU, openV := Disks.openV, covers := Disks.covers] \as Clutch;
+\definition overlap: Clutch.Overlap := \into[Sphere.Sphere](p, Clutch.overlap) \by {
+  Logic.And[_, _]::# (Cover.positiveInside leftPoint) (Cover.negativeInside rightPoint)
+};
+\import Original.Boundary[x := overlap] \as OriginalBoundary;
+\import Target.Boundary[x := overlap] \as TargetBoundary;
+\definition boundary: Circle.Sphere := Cover.intersectionBoundary p inPositive inNegative;
+\definition boundaryFormula: Disks.boundary overlap = boundary := Cover.boundaryOnIntersection p inPositive inNegative;
+\import Positive.At[x := PositiveTensor.point leftPoint] \as PositiveFrame;
+\import Negative.At[x := NegativeTensor.point rightPoint] \as NegativeFrame;
+\import Operations.TensorFrame[V := Line.Fiber p, W := Line.Fiber p, left := Line.bundle.space p, right := Line.bundle.space p,
+  n := one, m := one, first := (Original.chart B.Bool^::false).frame PositiveFrame.inLeft,
+  second := (Original.chart B.Bool^::false).frame PositiveFrame.inRight] \as PositiveFrames;
+\import Operations.TensorFrame[V := Line.Fiber p, W := Line.Fiber p, left := Line.bundle.space p, right := Line.bundle.space p,
+  n := one, m := one, first := (Original.chart B.Bool^::true).frame NegativeFrame.inLeft,
+  second := (Original.chart B.Bool^::true).frame NegativeFrame.inRight] \as NegativeFrames;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := C.Algebra[].commutativeRing] \as Spaces;
+\import Spaces.Tensor[V := Line.Fiber p, W := Line.Fiber p, left := Line.bundle.space p, right := Line.bundle.space p] \as FiberTensor;
+\import Spaces.Coordinates[I := Coordinates.Index] \as RawCoordinates;
+\import FiberTensor.Universal[U := RawCoordinates.Vector, target := RawCoordinates.space] \as PositiveEncode;
+\import FiberTensor.Universal[U := RawCoordinates.Vector, target := RawCoordinates.space] \as NegativeEncode;
+\definition lineTransition: \forall (v: Line.Fiber p) ->
+  ((Original.chart B.Bool^::true).frame NegativeFrame.inLeft).forward.apply v zero =
+    C.Def[].mul (SpherePowers.z overlap) (((Original.chart B.Bool^::false).frame PositiveFrame.inLeft).forward.apply v zero) :=
+  \fun (v: Line.Fiber p) => congr!{{Bundles.Vector one} C.Complex} (\fun (a: Bundles.Vector one) => a zero) _ _ (OriginalBoundary.onFiber v);
+\definition positivePure: \forall (v, w: Line.Fiber p) ->
+  (PositiveTensor.isomorphism.forward.fiber leftPoint).apply (Tensor.pure p v w) zero =
+    PositiveFrames.outer v w (Coordinates.enumerate zero) :=
+  \fun (v, w: Line.Fiber p) => congr!{{Coordinates.Index -> C.Complex} C.Complex}
+    (\fun (f: Coordinates.Index -> C.Complex) => f (Coordinates.enumerate zero)) _ _
+    (PositiveEncode.onTensor PositiveFrames.outer PositiveFrames.bilinear v w);
+\definition negativePure: \forall (v, w: Line.Fiber p) ->
+  (NegativeTensor.isomorphism.forward.fiber rightPoint).apply (Tensor.pure p v w) zero =
+    NegativeFrames.outer v w (Coordinates.enumerate zero) :=
+  \fun (v, w: Line.Fiber p) => congr!{{Coordinates.Index -> C.Complex} C.Complex}
+    (\fun (f: Coordinates.Index -> C.Complex) => f (Coordinates.enumerate zero)) _ _
+    (NegativeEncode.onTensor NegativeFrames.outer NegativeFrames.bilinear v w);
+\definition positiveOuter: \forall (v, w: Line.Fiber p) -> PositiveFrames.outer v w (Coordinates.enumerate zero) =
+  C.Def[].mul (((Original.chart B.Bool^::false).frame PositiveFrame.inLeft).forward.apply v zero)
+    (((Original.chart B.Bool^::false).frame PositiveFrame.inRight).forward.apply w zero) :=
+  \fun (v, w: Line.Fiber p) => congr!{C.Complex C.Complex C.Complex} C.Def[].mul _ _ _ _
+    (congr!{{Fin.Fin one} C.Complex} (((Original.chart B.Bool^::false).frame PositiveFrame.inLeft).forward.apply v) _ _ (only (PositiveFrames.i (Coordinates.enumerate zero))))
+    (congr!{{Fin.Fin one} C.Complex} (((Original.chart B.Bool^::false).frame PositiveFrame.inRight).forward.apply w) _ _ (only (PositiveFrames.j (Coordinates.enumerate zero))));
+\definition negativeOuter: \forall (v, w: Line.Fiber p) -> NegativeFrames.outer v w (Coordinates.enumerate zero) =
+  C.Def[].mul (((Original.chart B.Bool^::true).frame NegativeFrame.inLeft).forward.apply v zero)
+    (((Original.chart B.Bool^::true).frame NegativeFrame.inRight).forward.apply w zero) :=
+  \fun (v, w: Line.Fiber p) => congr!{C.Complex C.Complex C.Complex} C.Def[].mul _ _ _ _
+    (congr!{{Fin.Fin one} C.Complex} (((Original.chart B.Bool^::true).frame NegativeFrame.inLeft).forward.apply v) _ _ (only (NegativeFrames.i (Coordinates.enumerate zero))))
+    (congr!{{Fin.Fin one} C.Complex} (((Original.chart B.Bool^::true).frame NegativeFrame.inRight).forward.apply w) _ _ (only (NegativeFrames.j (Coordinates.enumerate zero))));
+\definition squaredScalar: \forall (v, w: Line.Fiber p) ->
+  C.Def[].mul (((Original.chart B.Bool^::true).frame NegativeFrame.inLeft).forward.apply v zero)
+    (((Original.chart B.Bool^::true).frame NegativeFrame.inRight).forward.apply w zero) =
+  C.Def[].mul (C.Def[].mul (SpherePowers.z overlap) (SpherePowers.z overlap))
+    (C.Def[].mul (((Original.chart B.Bool^::false).frame PositiveFrame.inLeft).forward.apply v zero)
+      (((Original.chart B.Bool^::false).frame PositiveFrame.inRight).forward.apply w zero)) :=
+  \fun (v, w: Line.Fiber p) => trans!{C.Complex} _ _ _
+    (congr!{C.Complex C.Complex C.Complex} C.Def[].mul _ _ _ _ (lineTransition v) (lineTransition w))
+    (C.Prop[].mulFour (SpherePowers.z overlap) (((Original.chart B.Bool^::false).frame PositiveFrame.inLeft).forward.apply v zero)
+      (SpherePowers.z overlap) (((Original.chart B.Bool^::false).frame PositiveFrame.inRight).forward.apply w zero));
+\import clutching_linearization.Linearization[].Powers[] \as Power;
+\definition powerTwo: Power.value (SpherePowers.z overlap) two = C.Def[].mul (SpherePowers.z overlap) (SpherePowers.z overlap) :=
+  congr!{C.Complex C.Complex} (C.Def[].mul (SpherePowers.z overlap)) _ _ (C.Prop[].mulOneRight (SpherePowers.z overlap));
+\definition pureTransitionZero: \forall (v, w: Line.Fiber p) ->
+  (NegativeTensor.isomorphism.forward.fiber rightPoint).apply (Tensor.pure p v w) zero =
+  (Square.transition overlap).apply ((PositiveTensor.isomorphism.forward.fiber leftPoint).apply (Tensor.pure p v w)) zero :=
+  \fun (v, w: Line.Fiber p) => eq_reason_in!{C.Complex _
+    "=" _ "by" { negativePure v w }
+    "=" _ "by" { negativeOuter v w }
+    "=" _ "by" { squaredScalar v w }
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (a: C.Complex) => C.Def[].mul (C.Def[].mul (SpherePowers.z overlap) (SpherePowers.z overlap)) a) _ _ (sym!{C.Complex} _ _ (positiveOuter v w)) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (a: C.Complex) => C.Def[].mul (C.Def[].mul (SpherePowers.z overlap) (SpherePowers.z overlap)) a) _ _ (sym!{C.Complex} _ _ (positivePure v w)) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (a: C.Complex) => C.Def[].mul a ((PositiveTensor.isomorphism.forward.fiber leftPoint).apply (Tensor.pure p v w) zero)) _ _ (sym!{C.Complex} _ _ powerTwo) }
+    "=" _ "by" { congr!{{Bundles.Vector one} C.Complex} (\fun (a: Bundles.Vector one) => a zero) _ _ (sym!{{Bundles.Vector one}} _ _ (Square.formula overlap ((PositiveTensor.isomorphism.forward.fiber leftPoint).apply (Tensor.pure p v w)))) }
+  };
+\definition pureTransition: \forall (v, w: Line.Fiber p) ->
+  (NegativeTensor.isomorphism.forward.fiber rightPoint).apply (Tensor.pure p v w) =
+  (Square.transition overlap).apply ((PositiveTensor.isomorphism.forward.fiber leftPoint).apply (Tensor.pure p v w)) :=
+  \fun (v, w: Line.Fiber p) => \axiom:funext(
+    (NegativeTensor.isomorphism.forward.fiber rightPoint).apply (Tensor.pure p v w),
+    (Square.transition overlap).apply ((PositiveTensor.isomorphism.forward.fiber leftPoint).apply (Tensor.pure p v w)),
+    \fun (i: Fin.Fin one) => \idelim zero = i \with j: Fin.Fin one =>
+      (NegativeTensor.isomorphism.forward.fiber rightPoint).apply (Tensor.pure p v w) j =
+      (Square.transition overlap).apply ((PositiveTensor.isomorphism.forward.fiber leftPoint).apply (Tensor.pure p v w)) j \by {
+        base: pureTransitionZero v w, equality: sym!{{Fin.Fin one}} _ _ (only i)
+      });
+\import Spaces.Linear[V := Bundles.Vector one, W := Bundles.Vector one,
+  source := Bundles.coordinates one, target := Bundles.coordinates one].Composition[U := Tensor.Fiber p, domain := tensorBundle.space p] \as ComposeTransition;
+\import Operations.TensorEquality[V := Line.Fiber p, W := Line.Fiber p, U := Bundles.Vector one,
+  left := Line.bundle.space p, right := Line.bundle.space p, target := Bundles.coordinates one] \as TensorEquality;
+\definition tensorTransition: \forall (t: Tensor.Fiber p) ->
+  (NegativeTensor.isomorphism.forward.fiber rightPoint).apply t =
+  (Square.transition overlap).apply ((PositiveTensor.isomorphism.forward.fiber leftPoint).apply t) :=
+  TensorEquality.pointwise (NegativeTensor.isomorphism.forward.fiber rightPoint)
+    (ComposeTransition.compose (Square.transition overlap) (PositiveTensor.isomorphism.forward.fiber leftPoint)) pureTransition;
+\import Spaces.Isomorphism[V := Target.Fiber p, W := Bundles.Vector one, source := Target.bundle.space p, target := Bundles.coordinates one] \as TargetFrameIso;
+\definition agrees: \forall (t: Tensor.Fiber p) -> (left.forward.fiber leftPoint).apply t = (right.forward.fiber rightPoint).apply t :=
+  \fun (t: Tensor.Fiber p) => TargetFrameIso.injective ((Target.chart B.Bool^::true).frame TargetBoundary.rightPoint) _ _
+    (eq_reason_in!{{Bundles.Vector one} _
+      "=" _ "by" { TargetBoundary.transition ((PositiveTensor.isomorphism.forward.fiber leftPoint).apply t) }
+      "=" _ "by" { sym!{{Bundles.Vector one}} _ _ (tensorTransition t) }
+      "=" _ "by" { sym!{{Bundles.Vector one}} _ _ ((TargetFrameIso.laws ((Target.chart B.Bool^::true).frame TargetBoundary.rightPoint)).rightInverse
+        ((NegativeTensor.isomorphism.forward.fiber rightPoint).apply t)) }
+    });
