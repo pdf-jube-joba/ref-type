@@ -1,0 +1,89 @@
+\import \root.Over[K := K, scalarRing := scalarRing].On[V := V, space := left].Total[].Cyclic[n := m, b := lb].Complete[] \as LeftCyclic;
+\import \root.Over[K := K, scalarRing := scalarRing].On[V := W, space := right].Total[].Cyclic[n := n, b := rb].Complete[] \as RightCyclic;
+\import LeftTotal.Vacuum[] \as LeftVacuum;
+\import RightTotal.Vacuum[] \as RightVacuum;
+\import \root.Over[K := K, scalarRing := scalarRing].TensorOperators[V := LeftTotal.Carrier, W := RightTotal.Carrier, left := LeftTotal.totalSpace, right := RightTotal.totalSpace] \as Operators;
+\import Algebra.Eigen[V := RightTotal.Carrier, space := RightTotal.totalSpace] \as RightIdentity;
+\import Algebra.Subspace[V := Tensor.Carrier, space := Tensor.space] \as Subspaces;
+\import Algebra.Subspace[V := LeftTotal.Carrier, space := LeftTotal.totalSpace] \as LeftSubspaces;
+\import Algebra.Subspace[V := RightTotal.Carrier, space := RightTotal.totalSpace] \as RightSubspaces;
+\import Algebra.Linear[V := RightTotal.Carrier, W := Tensor.Carrier, source := RightTotal.totalSpace, target := Tensor.space] \as RightMap;
+\import Algebra.Linear[V := LeftTotal.Carrier, W := Tensor.Carrier, source := LeftTotal.totalSpace, target := Tensor.space] \as LeftMap;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].trans;
+\use std.Logic[].Equality[].congr;
+\definition StableLeft[s: Subspaces.Subspace]: \Prop := \forall (a: Left.Form (N.Nat^::succ N.Nat^::zero))(t: Tensor.Carrier) -> \In[Tensor.Carrier] s.carrier t ->
+  \In[Tensor.Carrier] s.carrier ((Operators.map (LeftTotal.leftCreation a) RightIdentity.identity).apply t);
+\definition StableRight[s: Subspaces.Subspace]: \Prop := \forall (a: Right.Form (N.Nat^::succ N.Nat^::zero))(t: Tensor.Carrier) -> \In[Tensor.Carrier] s.carrier t ->
+  \In[Tensor.Carrier] s.carrier ((Operators.map LeftTotal.grading (RightTotal.leftCreation a)).apply t);
+\definition rightEmbedding: RightMap.Map := RightMap.Map {
+  apply := Tensor.tensor LeftVacuum.state,
+  preservesAdd := Tensor.bilinear.addRight LeftVacuum.state,
+  preservesScale := \fun (a: K)(g: RightTotal.Carrier) => Tensor.bilinear.scaleRight a LeftVacuum.state g,
+};
+\definition leftEmbedding[g: RightTotal.Carrier]: LeftMap.Map := LeftMap.Map {
+  apply := \fun (f: LeftTotal.Carrier) => Tensor.tensor f g,
+  preservesAdd := \fun (f, h: LeftTotal.Carrier) => Tensor.bilinear.addLeft f h g,
+  preservesScale := \fun (a: K)(f: LeftTotal.Carrier) => Tensor.bilinear.scaleLeft a f g,
+};
+\definition rightSubspace[s: Subspaces.Subspace]: RightSubspaces.Subspace := RightSubspaces.Subspace {
+  carrier := { g: RightTotal.Carrier \where \In[Tensor.Carrier] s.carrier (rightEmbedding.apply g) },
+  containsZero := \idelim Tensor.space.zero = rightEmbedding.apply RightTotal.totalSpace.zero \with t: Tensor.Carrier => \In[Tensor.Carrier] s.carrier t \by { base: s.containsZero, equality: sym!{Tensor.Carrier} _ _ rightEmbedding.preservesZero },
+  closedAdd := \fun (f, g: RightTotal.Carrier)(hf: _)(hg: _) => \idelim Tensor.space.add (rightEmbedding.apply f) (rightEmbedding.apply g) = rightEmbedding.apply (RightTotal.totalSpace.add f g) \with t: Tensor.Carrier => \In[Tensor.Carrier] s.carrier t \by { base: s.closedAdd _ _ hf hg, equality: sym!{Tensor.Carrier} _ _ (rightEmbedding.preservesAdd f g) },
+  closedScale := \fun (a: K)(g: RightTotal.Carrier)(hg: _) => \idelim Tensor.space.smul a (rightEmbedding.apply g) = rightEmbedding.apply (RightTotal.totalSpace.smul a g) \with t: Tensor.Carrier => \In[Tensor.Carrier] s.carrier t \by { base: s.closedScale a _ hg, equality: sym!{Tensor.Carrier} _ _ (rightEmbedding.preservesScale a g) },
+};
+\definition leftSubspace[s: Subspaces.Subspace][g: RightTotal.Carrier]: LeftSubspaces.Subspace := LeftSubspaces.Subspace {
+  carrier := { f: LeftTotal.Carrier \where \In[Tensor.Carrier] s.carrier ((leftEmbedding g).apply f) },
+  containsZero := \idelim Tensor.space.zero = (leftEmbedding g).apply LeftTotal.totalSpace.zero \with t: Tensor.Carrier => \In[Tensor.Carrier] s.carrier t \by { base: s.containsZero, equality: sym!{Tensor.Carrier} _ _ (leftEmbedding g).preservesZero },
+  closedAdd := \fun (f, h: LeftTotal.Carrier)(hf: _)(hh: _) => \idelim Tensor.space.add ((leftEmbedding g).apply f) ((leftEmbedding g).apply h) = (leftEmbedding g).apply (LeftTotal.totalSpace.add f h) \with t: Tensor.Carrier => \In[Tensor.Carrier] s.carrier t \by { base: s.closedAdd _ _ hf hh, equality: sym!{Tensor.Carrier} _ _ ((leftEmbedding g).preservesAdd f h) },
+  closedScale := \fun (a: K)(f: LeftTotal.Carrier)(hf: _) => \idelim Tensor.space.smul a ((leftEmbedding g).apply f) = (leftEmbedding g).apply (LeftTotal.totalSpace.smul a f) \with t: Tensor.Carrier => \In[Tensor.Carrier] s.carrier t \by { base: s.closedScale a _ hf, equality: sym!{Tensor.Carrier} _ _ ((leftEmbedding g).preservesScale a f) },
+};
+\definition rightStable: \forall (s: Subspaces.Subspace) -> StableRight s -> \forall (a: Right.Form (N.Nat^::succ N.Nat^::zero))(g: RightTotal.Carrier) ->
+  \In[RightTotal.Carrier] (rightSubspace s).carrier g -> \In[RightTotal.Carrier] (rightSubspace s).carrier (RightTotal.createLeft a g) :=
+  \fun (s: Subspaces.Subspace)(stable: StableRight s)(a: Right.Form (N.Nat^::succ N.Nat^::zero))(g: RightTotal.Carrier)(hg: \In[RightTotal.Carrier] (rightSubspace s).carrier g) =>
+    \idelim (Operators.map LeftTotal.grading (RightTotal.leftCreation a)).apply (Tensor.tensor LeftVacuum.state g) = Tensor.tensor LeftVacuum.state (RightTotal.createLeft a g)
+    \with t: Tensor.Carrier => \In[Tensor.Carrier] s.carrier t \by {
+      base: stable a (Tensor.tensor LeftVacuum.state g) hg,
+      equality: trans!{Tensor.Carrier} _ _ _ (Operators.onTensor LeftTotal.grading (RightTotal.leftCreation a) LeftVacuum.state g)
+        (congr!{{LeftTotal.Carrier} Tensor.Carrier} (\fun (f: LeftTotal.Carrier) => Tensor.tensor f (RightTotal.createLeft a g)) _ _ LeftVacuum.even)
+    };
+\definition leftStable: \forall (s: Subspaces.Subspace) -> StableLeft s -> \forall (g: RightTotal.Carrier)(a: Left.Form (N.Nat^::succ N.Nat^::zero))(f: LeftTotal.Carrier) ->
+  \In[LeftTotal.Carrier] (leftSubspace s g).carrier f -> \In[LeftTotal.Carrier] (leftSubspace s g).carrier (LeftTotal.createLeft a f) :=
+  \fun (s: Subspaces.Subspace)(stable: StableLeft s)(g: RightTotal.Carrier)(a: Left.Form (N.Nat^::succ N.Nat^::zero))(f: LeftTotal.Carrier)(hf: \In[LeftTotal.Carrier] (leftSubspace s g).carrier f) =>
+    \idelim (Operators.map (LeftTotal.leftCreation a) RightIdentity.identity).apply (Tensor.tensor f g) = Tensor.tensor (LeftTotal.createLeft a f) g
+    \with t: Tensor.Carrier => \In[Tensor.Carrier] s.carrier t \by {
+      base: stable a (Tensor.tensor f g) hf,
+      equality: Operators.onTensor (LeftTotal.leftCreation a) RightIdentity.identity f g
+    };
+\definition pure: \forall (s: Subspaces.Subspace) -> \In[Tensor.Carrier] s.carrier (Tensor.tensor LeftVacuum.state RightVacuum.state) -> StableLeft s -> StableRight s ->
+  \forall (f: LeftTotal.Carrier)(g: RightTotal.Carrier) -> \In[Tensor.Carrier] s.carrier (Tensor.tensor f g) :=
+  \fun (s: Subspaces.Subspace)(vac: \In[Tensor.Carrier] s.carrier (Tensor.tensor LeftVacuum.state RightVacuum.state))(left: StableLeft s)(right: StableRight s)(f: LeftTotal.Carrier)(g: RightTotal.Carrier) =>
+    LeftCyclic.cyclic (leftSubspace s g) (RightCyclic.cyclic (rightSubspace s) vac (rightStable s right) g) (leftStable s left g) f;
+\import std.Set[].Quotient[A := Tensor.Expression, Equivalent := Tensor.Related] \as Quotient;
+\import Algebra.Laws[V := Tensor.Carrier, space := Tensor.space] \as TensorLaws;
+\definition negative: \forall (s: Subspaces.Subspace)(x: Tensor.Carrier) -> \In[Tensor.Carrier] s.carrier x -> \In[Tensor.Carrier] s.carrier (Tensor.space.neg x) :=
+  \fun (s: Subspaces.Subspace)(x: Tensor.Carrier)(hx: \In[Tensor.Carrier] s.carrier x) =>
+    \idelim Tensor.space.smul (Algebra.neg Algebra.one) x = Tensor.space.neg x \with t: Tensor.Carrier => \In[Tensor.Carrier] s.carrier t \by {
+      base: s.closedScale (Algebra.neg Algebra.one) x hx, equality: TensorLaws.minusOneScale x
+    };
+\definition all: \forall (s: Subspaces.Subspace) -> \In[Tensor.Carrier] s.carrier (Tensor.tensor LeftVacuum.state RightVacuum.state) -> StableLeft s -> StableRight s ->
+  \forall (t: Tensor.Carrier) -> \In[Tensor.Carrier] s.carrier t :=
+  \fun (s: Subspaces.Subspace)(vac: \In[Tensor.Carrier] s.carrier (Tensor.tensor LeftVacuum.state RightVacuum.state))(left: StableLeft s)(right: StableRight s) =>
+    Quotient.induction (\fun (t: Tensor.Carrier) => \In[Tensor.Carrier] s.carrier t)
+      (\induction (e: Tensor.Expression) \return \In[Tensor.Carrier] s.carrier (Tensor.class e) \with {
+        | zero: s.containsZero
+        | tensor: pure s vac left right
+        | sum: \fun (x: Tensor.Expression)(hx: \In[Tensor.Carrier] s.carrier (Tensor.class x))(y: Tensor.Expression)(hy: \In[Tensor.Carrier] s.carrier (Tensor.class y)) =>
+          \idelim Tensor.space.add (Tensor.class x) (Tensor.class y) = Tensor.class (Tensor.Expression::sum x y) \with t: Tensor.Carrier => \In[Tensor.Carrier] s.carrier t \by {
+            base: s.closedAdd (Tensor.class x) (Tensor.class y) hx hy, equality: Tensor.plusClass x y
+          }
+        | negative: \fun (x: Tensor.Expression)(hx: \In[Tensor.Carrier] s.carrier (Tensor.class x)) =>
+          \idelim Tensor.space.neg (Tensor.class x) = Tensor.class (Tensor.Expression::negative x) \with t: Tensor.Carrier => \In[Tensor.Carrier] s.carrier t \by {
+            base: negative s (Tensor.class x) hx, equality: Tensor.negativeClass x
+          }
+        | scale: \fun (a: K)(x: Tensor.Expression)(hx: \In[Tensor.Carrier] s.carrier (Tensor.class x)) =>
+          \idelim Tensor.space.smul a (Tensor.class x) = Tensor.class (Tensor.Expression::scale a x) \with t: Tensor.Carrier => \In[Tensor.Carrier] s.carrier t \by {
+            base: s.closedScale a (Tensor.class x) hx, equality: Tensor.scaleClass a x
+          }
+      });
+\module Unique;
