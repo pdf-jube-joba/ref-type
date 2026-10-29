@@ -1,0 +1,52 @@
+/* A normalized local Pin lift gives a smooth Spin-c coefficient plot. */
+\import calculus.Real[].Multivariable[n := d].Open[] \as Open;
+\import Open.Smooth[] \as Smooth;
+\import Smooth.Operations[] \as Functions;
+\import lie_groups.CliffordPlots[d := d] \as Calculus;
+\import Calculus.Dimension[n := Fin.Sum[m := n, n := n].total] \as CPlots;
+\import \root.Complex[].Dimension[n := n].UnitaryOrthogonal[].VacuumFunctional[] \as VacuumFunctional;
+\import VacuumFunctional.Smooth[d := d] \as VacuumSmooth;
+\import lie_groups.Euclidean[n := Fin.Sum[m := n, n := n].total] \as Geo;
+\import Geo.PinRepresentation[] \as Projection;
+\import clifford.Field[K := R.Real, field := R.Algebra[].field].On[V := E.Vector, space := E.space].Of[form := E.form] \as Source;
+\import \root.Complex[].Dimension[n := n].UnitaryOrthogonal[].PinLift[] \as Local;
+\import lie_groups.SpinGroup[n := Fin.Sum[m := n, n := n].total] \as Base;
+\import clifford.ComplexRepresentation[n := Fin.Sum[m := n, n := n].total] \as Representation;
+\import Representation.By[G := Pin.Spin, group := Pin.spinGroup, embedding := Base.embedding, injective := Base.embeddingInjective, sign := Pin.spinInvolution, compatible := Base.compatible] \as Rep;
+\import lie_groups.ComplexGroup[n := Fin.Sum[m := n, n := n].total].Over[G := Pin.Spin, group := Pin.spinGroup, embedding := Base.embedding, injective := Base.embeddingInjective, sign := Pin.spinInvolution, compatible := Base.compatible] \as ComplexGeometry;
+\import ComplexGeometry.Plots[d := d] \as Target;
+\import Rep.Coefficients[] \as Coefficients;
+\import algebra.Groups[].On[G := Pin.Spin, group := Pin.spinGroup] \as SpinGroup;
+\import algebra.Groups[].On[G := Circle.Circle, group := Circle.group] \as PhaseGroup;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].trans;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition s[x: Open.Carrier U]: Pin.Spin := Local.evenLift (u x) (p x) (image x);
+\definition z[x: Open.Carrier U]: Circle.Circle := phase (u x) (p x) (image x);
+\definition value[x: Open.Carrier U]: SpinC.Carrier := SpinC.class (s x) (z x);
+\definition liftEquals: \forall (x: Open.Carrier U) -> lift (u x) = value x := \fun (x: Open.Carrier U) => eq_reason_in!{SpinC.Carrier _
+  "=" _ "by" { agrees (u x) (p x) (image x) }
+  "=" _ "by" { SpinC.multiplication Pin.spinGroup.unit (s x) (z x) Circle.one }
+  "=" _ "by" { congr!{Pin.Spin Circle.Circle SpinC.Carrier} SpinC.class _ _ _ _ (SpinGroup.oneLeft (s x)) (PhaseGroup.oneRight (z x)) }
+};
+\definition realPhase: Smooth.SmoothOn U (\fun (x: Open.Carrier U) => C.re (z x)) :=
+  Calculus.smoothEqual U (\fun (x: Open.Carrier U) => C.re (VacuumFunctional.coeff ((p x).value))) (\fun (x: Open.Carrier U) => C.re (z x))
+    (\fun (x: Open.Carrier U) => sym!{R.Real} _ _ (congr!{C.Complex R.Real} C.re _ _ (VacuumFunctional.classCoefficient (s x))))
+    (VacuumSmooth.real U (\fun (x: Open.Carrier U) => (p x).value) regular);
+\definition imagPhase: Smooth.SmoothOn U (\fun (x: Open.Carrier U) => C.im (z x)) :=
+  Calculus.smoothEqual U (\fun (x: Open.Carrier U) => R.neg (C.im (VacuumFunctional.coeff ((p x).value)))) (\fun (x: Open.Carrier U) => C.im (z x))
+    (\fun (x: Open.Carrier U) => congr!{C.Complex R.Real} (\fun (a: C.Complex) => R.neg (C.im a)) _ _ (sym!{C.Complex} _ _ (VacuumFunctional.classCoefficient (s x))))
+    (Functions.negSmooth U (\fun (x: Open.Carrier U) => C.im (VacuumFunctional.coeff ((p x).value))) (VacuumSmooth.imaginary U (\fun (x: Open.Carrier U) => (p x).value) regular));
+\definition left: CPlots.Plot U (\fun (x: Open.Carrier U) => Representation.first (Rep.image (value x))) := CPlots.congruent U
+  (\fun (x: Open.Carrier U) => Source.scale (C.re (z x)) (p x).value) _
+  (\fun (x: Open.Carrier U) => sym!{Source.Carrier} _ _ (congr!{Representation.CarrierPair Source.Carrier} Representation.first _ _ (Rep.onClass (s x) (z x))))
+  (Target.scale U _ _ realPhase regular);
+\definition right: CPlots.Plot U (\fun (x: Open.Carrier U) => Representation.second (Rep.image (value x))) := CPlots.congruent U
+  (\fun (x: Open.Carrier U) => Source.scale (C.im (z x)) (p x).value) _
+  (\fun (x: Open.Carrier U) => sym!{Source.Carrier} _ _ (congr!{Representation.CarrierPair Source.Carrier} Representation.second _ _ (Rep.onClass (s x) (z x))))
+  (Target.scale U _ _ imagPhase regular);
+\definition plot: Target.Plot U (\fun (x: Open.Carrier U) => lift (u x)) := \fun (i: Coefficients.Index) =>
+  Calculus.smoothEqual U (\fun (x: Open.Carrier U) => Coefficients.coefficient i (value x)) (\fun (x: Open.Carrier U) => Coefficients.coefficient i (lift (u x)))
+    (\fun (x: Open.Carrier U) => congr!{SpinC.Carrier R.Real} (Coefficients.coefficient i) _ _ (sym!{SpinC.Carrier} _ _ (liftEquals x)))
+    (Target.fromComponents U value left right i);
