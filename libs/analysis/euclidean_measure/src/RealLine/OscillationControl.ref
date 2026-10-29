@@ -1,0 +1,40 @@
+\import \root.RealLine[] \as Line;
+\import \root.RealLine[].OscillationTree[] \as Tree;
+\import \root.RealLine[].TaggedConvergence[interval := interval] \as Convergence;
+\import integration.Real[] \as Integration;
+\import Integration.Division[] \as Division;
+\import Integration.Riemann[interval := interval].Def[] \as Riemann;
+\import real.Analysis[] \as Real;
+\import Real.Distance[] \as Distance;
+\import Real.Estimates[] \as Estimates;
+\import Real.Estimates[].Product[] \as Product;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import functional_analysis.Measure[A := Real.Real] \as Measure;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\import std.Logic[].Proposition[] \as Logic;
+\definition eventualUpper: \forall (f: Riemann.Function) (d, epsilon: Real.Real) -> R.Lt Real.zero d -> R.Lt Real.zero epsilon ->
+  \exists ( k: N.Nat^ \where \forall (i: N.Nat^) -> Nat.Le k i -> \forall (r: Real.Real) ->
+    Measure.below (Line.measure.value (Tree.badSet i f.function interval d)) r -> R.Lt r epsilon ) :=
+  \fun (f: Riemann.Function) (d, epsilon: Real.Real) (dp: R.Lt Real.zero d) (ep: R.Lt Real.zero epsilon) => \block {
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Convergence.PairControl f (Real.mul d epsilon) k })
+      \by Convergence.pairControl f (Real.mul d epsilon) (Product.mulPositive d epsilon dp ep) \then
+    \let control: Convergence.PairControl f (Real.mul d epsilon) k :=
+      \bysub(N.Nat^, { k: N.Nat^ \where Convergence.PairControl f (Real.mul d epsilon) k }, k) \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \forall (i: N.Nat^) -> Nat.Le k i -> \forall (r: Real.Real) ->
+      Measure.below (Line.measure.value (Tree.badSet i f.function interval d)) r -> R.Lt r epsilon }] k
+      (\fun (i: N.Nat^) (later: Nat.Le k i) (r: Real.Real) (member: Measure.below (Line.measure.value (Tree.badSet i f.function interval d)) r) => \block {
+        \takefrom tree: Tree.Tree i f.function interval d \by Tree.exists i f.function interval d \then
+        \let law: Tree.TreeLaws[i, f.function, interval, d, tree] := Tree.laws i f.function interval d tree \then
+        \let hi: Real.Real := Division.sum f.function tree.high interval.left interval.right \then
+        \let lo: Real.Real := Division.sum f.function tree.low interval.left interval.right \then
+        \let gap: R.Lt (Real.mul d tree.cost) (Real.mul d epsilon) := R.leLtTrans _ (Real.distance hi lo) _
+          (R.leTrans _ (Real.sub hi lo) (Real.distance hi lo) law.gap (Distance.maxLeft (Real.sub hi lo) (Real.sub lo hi)))
+          (control i later tree.high tree.low law.highLevel law.lowLevel law.highValid law.lowValid) \then
+        \let costLess: R.Lt tree.cost epsilon := Order.byContradiction (R.Lt tree.cost epsilon)
+          (\fun (notLess: Logic.Not (R.Lt tree.cost epsilon)) => R.ltNotLeReverse (Real.mul d tree.cost) (Real.mul d epsilon) gap
+            (Estimates.mulMonotone d epsilon tree.cost (Order.leOfLt Real.zero d dp) (Order.leOfNotLtReverse epsilon tree.cost notLess))) \then
+        \return R.leLtTrans r tree.cost epsilon (law.costUpper r member) costLess
+      })
+  };

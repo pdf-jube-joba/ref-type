@@ -1,0 +1,68 @@
+\import \parent.CaratheodorySets[] \as Car;
+\import \parent.Countable[] \as Countable;
+\import N.Basic[].Prop[] \as Nat;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition prefixMember: \forall (f: N.Nat^ -> \Pow Point) (k: N.Nat^) (x: Point) -> Sets.Member (Sigma.prefix f k) x ->
+  \exists ( i: N.Nat^ \where Logic.And[Nat.Lt i k, Sets.Member (f i) x] ) :=
+  \fun (f: N.Nat^ -> \Pow Point) => \induction (k: N.Nat^) \return \forall (x: Point) -> Sets.Member (Sigma.prefix f k) x ->
+    \exists ( i: N.Nat^ \where Logic.And[Nat.Lt i k, Sets.Member (f i) x] ) \with {
+      | zero: \fun (x: Point) (empty: Logic.False) => Logic.falseElim _ empty
+      | succ: \fun (k: N.Nat^) (prior: \forall (x: Point) -> Sets.Member (Sigma.prefix f k) x -> \exists ( i: N.Nat^ \where Logic.And[Nat.Lt i k, Sets.Member (f i) x] ))
+        (x: Point) (member: Sets.Member (Sigma.prefix f (N.Nat^::succ k)) x) =>
+        Logic.orElim _ _ (\exists ( i: N.Nat^ \where Logic.And[Nat.Lt i (N.Nat^::succ k), Sets.Member (f i) x] )) member
+          (\fun (before: Sets.Member (Sigma.prefix f k) x) => \block {
+            \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where Logic.And[Nat.Lt i k, Sets.Member (f i) x] }) \by prior x before \then
+            \let law: Logic.And[Nat.Lt i k, Sets.Member (f i) x] := \bysub(N.Nat^, { i: N.Nat^ \where Logic.And[Nat.Lt i k, Sets.Member (f i) x] }, i) \then
+            \return Logic.existsIntro[N.Nat^, { i: N.Nat^ \where Logic.And[Nat.Lt i (N.Nat^::succ k), Sets.Member (f i) x] }] i
+              (Logic.And[_, _]::# (Nat.ltLeTrans i k (N.Nat^::succ k) law.left (Nat.leSelfSucc k)) law.right)
+          })
+          (\fun (current: Sets.Member (f k) x) =>
+            Logic.existsIntro[N.Nat^, { i: N.Nat^ \where Logic.And[Nat.Lt i (N.Nat^::succ k), Sets.Member (f i) x] }] k
+              (Logic.And[_, _]::# (Nat.ltOfSuccLe (N.Nat^::succ k) k (Nat.leRefl (N.Nat^::succ k))) current))
+    };
+\definition incrementsEqual: \forall (f: N.Nat^ -> \Pow Point) -> Measure.Disjoint f -> \forall (k: N.Nat^) -> Sigma.increments f k = f k :=
+  \fun (f: N.Nat^ -> \Pow Point) (disjoint: Measure.Disjoint f) (k: N.Nat^) =>
+    \axiom:setext(Sigma.increments f k, f k,
+      \fun (x: Point) (inIncrement: Sets.Member (Sigma.increments f k) x) => inIncrement.left,
+      \fun (x: Point) (inCurrent: Sets.Member (f k) x) => Logic.And[_, _]::# inCurrent (\fun (inPrefix: Sets.Member (Sigma.prefix f k) x) => \block {
+        \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where Logic.And[Nat.Lt i k, Sets.Member (f i) x] }) \by prefixMember f k x inPrefix \then
+        \let law: Logic.And[Nat.Lt i k, Sets.Member (f i) x] := \bysub(N.Nat^, { i: N.Nat^ \where Logic.And[Nat.Lt i k, Sets.Member (f i) x] }, i) \then
+        \return disjoint i k (Nat.ltNe i k law.left) x law.right inCurrent
+      }));
+\definition countableAdditivity: \forall (f: N.Nat^ -> \Pow Point) -> (\forall (k: N.Nat^) -> Caratheodory (f k)) -> Measure.Disjoint f ->
+  outer (Measure.union f) = Measure.series (\fun (k: N.Nat^) => outer (f k)) :=
+  \fun (f: N.Nat^ -> \Pow Point) (measurable: \forall (k: N.Nat^) -> Caratheodory (f k)) (disjoint: Measure.Disjoint f) =>
+    \axiom:setext(outer (Measure.union f), Measure.series (\fun (k: N.Nat^) => outer (f k)), Countable.subadditive f,
+      \fun (r: Real.Real) (member: Measure.below (Measure.series (\fun (k: N.Nat^) => outer (f k))) r) =>
+        prefixSeriesLower f measurable r
+          (\idelim Measure.series (\fun (k: N.Nat^) => outer (f k)) = Measure.series (\fun (k: N.Nat^) => outer (Sigma.increments f k)) \with v: Measure.Value => Measure.below v r
+            \by { base: member, equality: congr!{{N.Nat^ -> Measure.Value} Measure.Value} Measure.series _ _
+              (\axiom:funext((\fun (k: N.Nat^) => outer (f k)), (\fun (k: N.Nat^) => outer (Sigma.increments f k)),
+                \fun (k: N.Nat^) => congr!{{\Pow Point} Measure.Value} outer _ _ (sym!{{\Pow Point}} _ _ (incrementsEqual f disjoint k)))) }));
+\definition data: Measure.MeasureData := Measure.MeasureData { sigma := Car.sigma, value := outer };
+\definition laws: Measure.MeasureLaws[data] := Measure.MeasureLaws[data] {
+  nonnegative := \fun (S: \Pow Point) (_: Caratheodory S) => outerNonnegative S,
+  empty := outerEmpty,
+  countableAdditivity := countableAdditivity,
+};
+\definition measure: Measure.Measure := \into[Measure.MeasureData](data, Measure.Measure) \by { laws };
+\definition complete: \forall (S, T: \Pow Point) -> Sets.Subset S T -> measure.value T = Measure.zero -> Measure.Measurable measure.sigma S :=
+  \fun (S, T: \Pow Point) (included: Sets.Subset S T) (null: measure.value T = Measure.zero) =>
+    nullCaratheodory S (outerSubsetZero S T included null);
+\import Measure.Continuity[mu := measure] \as Continuity;
+\definition nullUnion: \forall (f: N.Nat^ -> \Pow Point) -> (\forall (k: N.Nat^) -> Measure.Null measure (f k)) ->
+  Measure.Null measure (Measure.union f) := Continuity.nullUnion;
+\definition translateMeasurable: \forall (S: \Pow Point) (a: Point) -> Measure.Measurable measure.sigma S ->
+  Measure.Measurable measure.sigma (shifted S a) := shiftedCaratheodory;
+\definition translateMeasure: \forall (S: \Pow Point) (a: Point) -> measure.value (shifted S a) = measure.value S := translationInvariant;
+\definition zeroBox: \forall (b: Box) -> volume b = Real.zero -> outer (points b) = Measure.zero :=
+  \fun (b: Box) (zeroVolume: volume b = Real.zero) => \axiom:setext(outer (points b), Measure.zero,
+    \fun (r: Real.Real) (member: Measure.below (outer (points b)) r) =>
+      \idelim volume b = Real.zero \with v: Real.Real => R.Lt r v \by { base: boxUpper b r member, equality: zeroVolume },
+    \fun (r: Real.Real) (negative: R.Lt r Real.zero) => (outerNonnegative (points b)).negative r negative);
+\definition zeroBoxSubset: \forall (b: Box) (S: \Pow Point) -> volume b = Real.zero -> Sets.Subset S (points b) ->
+  Measure.Measurable measure.sigma S :=
+  \fun (b: Box) (S: \Pow Point) (zeroVolume: volume b = Real.zero) (included: Sets.Subset S (points b)) =>
+    complete S (points b) included (zeroBox b zeroVolume);

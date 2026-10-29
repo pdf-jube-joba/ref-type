@@ -58,6 +58,7 @@
 | --- | --- | --- |
 | [analysis/uniform_approximation](analysis/uniform_approximation/README.md) | `uniform_approximation` | 実・複素 Stone–Weierstrass、円周と積上の Laurent 近似、行列・束自己準同型の一様評価 |
 | [analysis/calculus](analysis/calculus/README.md) | `calculus` | 極限、平均値定理、多変数微分、滑らかな写像 |
+| [analysis/euclidean_measure](analysis/euclidean_measure/README.md) | `euclidean_measure` | Euclid 空間の Lebesgue 測度、正則性と積分の比較 |
 | [analysis/functional](analysis/functional/README.md) | `functional_analysis` | 実ノルム空間・Hilbert 空間、Arzelà–Ascoli・Riesz 表現・Hahn–Banach・開写像定理、コンパクト台、\(L^p\)・弱微分・Sobolev 空間の定義 |
 | [analysis/measure_convergence](analysis/measure_convergence/README.md) | `measure_convergence` | 単調収束・Fatou・優収束、a.e. 同値類の積分、実・複素・有限次元の積分と級数交換 |
 | [analysis/complex_hilbert](analysis/complex_hilbert/README.md) | `complex_hilbert` | 作業中：複素 Riesz 表現、有界随伴、閉部分空間への直交射影と有限階数の因子分解 |

@@ -1,0 +1,51 @@
+\import \root.RealLine[] \as Line;
+\import \root.RealLine[].RiemannMap[interval := interval] \as Map;
+\import integration.Real[] \as Integration;
+\import Integration.Lebesgue[interval := interval].Def[] \as Completion;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\import std.Logic[].Proposition[] \as Logic;
+\import functional_analysis.Measure[A := Real.Real] \as Measure;
+\import Measure.Integral[mu := Line.measure] \as Integral;
+\import Integral.Linear[] \as Linear;
+\import Integral.Negation[] \as Negation;
+\import Integral.Absolute[] \as Absolute;
+\definition mapped[s: Completion.Representation] [n: N.Nat^]: Integral.Representatives := Map.representative (s n);
+\definition distance[s, t: Completion.Representation] [m, n: N.Nat^]: Real.Real :=
+  Integral.integral (Absolute.representative (Linear.addRepresentative (mapped s m) (Negation.representative (mapped t n))));
+\definition CauchyControl[s: Completion.Representation] [epsilon: Real.Real] [threshold: N.Nat^]: \Prop :=
+  \forall (m, n: N.Nat^) -> Nat.Le threshold m -> Nat.Le threshold n -> R.Le (distance s s m n) epsilon;
+\definition cauchy: \forall (s: Completion.Representation) (epsilon: Real.Real) -> R.Lt Real.zero epsilon ->
+  \exists ( threshold: N.Nat^ \where CauchyControl s epsilon threshold ) :=
+  \fun (s: Completion.Representation) (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) => \block {
+    \takefrom threshold: \Cast[N.Nat^] ({ k: N.Nat^ \where Completion.Control s epsilon k }) \by Completion.cauchyLaw s epsilon positive \then
+    \let control: Completion.Control s epsilon threshold := \bysub(N.Nat^, { k: N.Nat^ \where Completion.Control s epsilon k }, threshold) \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where CauchyControl s epsilon k }] threshold
+      (\fun (m, n: N.Nat^) (ml: Nat.Le threshold m) (nl: Nat.Le threshold n) =>
+        \root.RealLine[].DistanceComparison[interval := interval, f := s m, g := s n].smallBound epsilon (control m n ml nl))
+  };
+\definition equivalentControl: \forall (s, t: Completion.Representation) (epsilon: Real.Real) -> R.Lt Real.zero epsilon -> Completion.Equivalent s t ->
+  \exists ( threshold: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le threshold n -> R.Le (distance s t n n) epsilon ) :=
+  \fun (s, t: Completion.Representation) (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) (equivalent: Completion.Equivalent s t) => \block {
+    \takefrom threshold: \Cast[N.Nat^] ({ k: N.Nat^ \where Completion.EquivalenceControl s t epsilon k }) \by equivalent epsilon positive \then
+    \let control: Completion.EquivalenceControl s t epsilon threshold := \bysub(N.Nat^, { k: N.Nat^ \where Completion.EquivalenceControl s t epsilon k }, threshold) \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> R.Le (distance s t n n) epsilon }] threshold
+      (\fun (n: N.Nat^) (later: Nat.Le threshold n) =>
+        \root.RealLine[].DistanceComparison[interval := interval, f := s n, g := t n].smallBound epsilon (control n later))
+  };
+\import Integration.Lebesgue[interval := interval].Prop[] \as CompletionProp;
+\import real.Analysis[].Sequence[] \as Sequence;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\definition integralSequence: \forall (s: Completion.Representation) ->
+  Sequence.Converges (\fun (n: N.Nat^) => Integral.integral (mapped s n)) (CompletionProp.integral (Completion.class s)) :=
+  \fun (s: Completion.Representation) =>
+    \idelim (\fun (n: N.Nat^) => (s n).integral) = (\fun (n: N.Nat^) => Integral.integral (mapped s n))
+      \with u: (N.Nat^ -> Real.Real) => Sequence.Converges u (CompletionProp.integral (Completion.class s)) \by {
+        base: CompletionProp.integralLaw (Completion.class s) s
+          (Completion.classMem s s (CompletionProp.equivalentReflexive s)),
+        equality: \axiom:funext((\fun (n: N.Nat^) => (s n).integral), (\fun (n: N.Nat^) => Integral.integral (mapped s n)),
+          \fun (n: N.Nat^) => sym!{Real.Real} _ _ (Map.integral (s n)))
+      };

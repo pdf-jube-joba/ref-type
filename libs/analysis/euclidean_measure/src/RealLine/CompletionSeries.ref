@@ -1,0 +1,48 @@
+\import \root.RealLine[] \as Line;
+\import \root.RealLine[].CompletionComparison[interval := interval] \as Comparison;
+\import \root.RealLine[].CompletionSubsequence[interval := interval, s := s] \as Subsequence;
+\import integration.Real[].Lebesgue[interval := interval].Def[] \as Completion;
+\import functional_analysis.Measure[A := real.Analysis[].Real] \as Measure;
+\import Measure.Integral[mu := Line.measure] \as Integral;
+\import Integral.Linear[] \as Linear;
+\import Integral.Negation[] \as Negation;
+\import Integral.Absolute[] \as Absolute;
+\import real.Analysis[] \as Real;
+\import Real.Geometric[q := Real.half] \as Dyadic;
+\import Real.Estimates[] \as Estimates;
+\import Real.Estimates[].Product[] \as Product;
+\import functional_analysis.ScalarLimits[] \as Limits;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\import \root.Euclidean[n := N.Nat^::zero].SeriesBounds[] \as Bounds;
+\definition difference[i: N.Nat^]: Integral.Representatives :=
+  Linear.addRepresentative (Comparison.mapped s (index i)) (Negation.representative (Comparison.mapped s (index (N.Nat^::succ i))));
+\definition terms[i: N.Nat^]: Integral.Representatives := Absolute.representative (difference i);
+\import Integral.Series[terms := terms] \as Series;
+\definition partialEstimate: \forall (k: N.Nat^) -> R.Le (Series.scalarPartial k)
+  (Bounds.realPartial (\fun (i: N.Nat^) => Dyadic.value (N.Nat^::succ i)) k) :=
+  \induction (k: N.Nat^) \return R.Le (Series.scalarPartial k)
+    (Bounds.realPartial (\fun (i: N.Nat^) => Dyadic.value (N.Nat^::succ i)) k) \with {
+    | zero: R.leRefl Real.zero
+    | succ: \fun (k: N.Nat^) (previous: _) => Estimates.addLe _ _ _ _ previous (good k).right
+  };
+\definition partialBound: \forall (k: N.Nat^) -> R.Le (Integral.integral (Series.partial k)) Real.one :=
+  \fun (k: N.Nat^) => R.leTrans _ (Bounds.realPartial (\fun (i: N.Nat^) => Dyadic.value (N.Nat^::succ i)) k) Real.one
+    (R.leReplaceLeft (Series.scalarPartial k) (Integral.integral (Series.partial k)) _ (sym!{Real.Real} _ _ (Series.partialIntegral k)) (partialEstimate k))
+    (R.leReplaceLeft (Real.sub Real.one (Dyadic.value k)) (Bounds.realPartial (\fun (i: N.Nat^) => Dyadic.value (N.Nat^::succ i)) k) Real.one
+      (sym!{Real.Real} _ _ (Bounds.dyadicPartial k))
+      (Absolute.subLeLeft Real.one (Dyadic.value k) (Order.leOfLt Real.zero (Dyadic.value k) (Limits.dyadicPositive k))));
+\definition partialNonnegative: \forall (k: N.Nat^) (x: Real.Real) -> R.Le Real.zero (Series.partial k x) :=
+  \induction (k: N.Nat^) \return \forall (x: Real.Real) -> R.Le Real.zero (Series.partial k x) \with {
+    | zero: \fun (x: Real.Real) => R.leRefl Real.zero
+    | succ: \fun (k: N.Nat^) (previous: _) (x: Real.Real) =>
+      Laws.addNonnegative (Series.partial k x) (terms k x) (previous x) (Product.absNonnegative (difference k x))
+  };
+\definition partialIncreasing: \forall (k: N.Nat^) (x: Real.Real) -> R.Le (Series.partial k x) (Series.partial (N.Nat^::succ k) x) :=
+  \fun (k: N.Nat^) (x: Real.Real) => R.leReplaceLeft (Real.add (Series.partial k x) Real.zero) (Series.partial k x)
+    (Series.partial (N.Nat^::succ k) x) (Laws.addZeroRight (Series.partial k x))
+    (Laws.addMonotoneLeft Real.zero (terms k x) (Series.partial k x) (Product.absNonnegative (difference k x)));

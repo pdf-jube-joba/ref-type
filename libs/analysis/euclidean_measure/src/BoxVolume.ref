@@ -1,0 +1,79 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\import \root.Euclidean[n := n] \as E;
+\import E.SeriesBounds[] \as Bounds;
+\import \root.Expansion[n := n] \as Expansion;
+\import \root.CoverExpansion[n := n] \as Cover;
+\import \root.FiniteCover[n := n] \as FiniteCover;
+\import \root.FiniteCoverVolume[n := n] \as Geometry;
+\import \root.PartialSums[n := n] \as Partial;
+\import functional_analysis.Measure[A := E.Point] \as Measure;
+\import Measure.ValueLaws[] \as Values;
+\import Measure.Sigma[] \as Sigma;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\import Sets.Countability[] \as Countability;
+\import real.Analysis[] \as Real;
+\import Real.Estimates[] \as Estimates;
+\import Real.SquareRoot[] \as Root;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Completeness[] \as Complete;
+\definition upperOutside: \forall (v: Measure.Value) -> Measure.NonnegativeValue[v] -> \forall (bound: Real.Real) -> Complete.UpperBound v bound -> Logic.Not (Measure.below v bound) :=
+  \fun (v: Measure.Value) (valid: Measure.NonnegativeValue[v]) (bound: Real.Real) (upper: Complete.UpperBound v bound) (inside: Measure.below v bound) => \block {
+    \takefrom t: \Cast[Real.Real] ({ t: Real.Real \where Logic.And[R.Lt bound t, Measure.below v t] }) \by valid.rounded bound inside \then
+    \let law: Logic.And[R.Lt bound t, Measure.below v t] := \bysub(Real.Real, { t: Real.Real \where Logic.And[R.Lt bound t, Measure.below v t] }, t) \then
+    \return R.ltNotLeReverse bound t law.left (upper t law.right)
+  };
+\definition volumeSup: \forall (b: E.Box) -> Complete.LeastUpperBound[E.volumeValue b, E.volume b] :=
+  \fun (b: E.Box) => Complete.LeastUpperBound[E.volumeValue b, E.volume b] {
+    upper := \fun (r: Real.Real) (less: R.Lt r (E.volume b)) => Order.leOfLt r (E.volume b) less,
+    least := \fun (s: Real.Real) (upper: Complete.UpperBound (E.volumeValue b) s) => Order.leOfNotLtReverse (E.volume b) s
+      (\fun (less: R.Lt s (E.volume b)) => R.ltNotLeReverse s (Real.midpoint s (E.volume b))
+        (Values.midpointStrictLeft s (E.volume b) less) (upper (Real.midpoint s (E.volume b)) (Values.midpointStrictRight s (E.volume b) less))),
+  };
+\definition everyCover: \forall (b: E.Box) (f: N.Nat^ -> E.Box) -> E.Covers f (E.points b) -> Values.Included (E.volumeValue b) (E.cost f) :=
+  \fun (b: E.Box) (f: N.Nat^ -> E.Box) (cover: E.Covers f (E.points b)) (r: Real.Real) (less: R.Lt r (E.volume b)) =>
+    Sigma.doubleNegative (Measure.below (E.cost f) r) (\fun (outside: Logic.Not (Measure.below (E.cost f) r)) => \block {
+      \let gap: Real.Real := Real.sub (E.volume b) r \then
+      \let gp: R.Lt Real.zero gap := Root.subPositive (E.volume b) r less \then
+      \let epsilon: Real.Real := Real.mul Real.half gap \then
+      \let ep: R.Lt Real.zero epsilon := Estimates.halfOfPositive gap gp \then
+      \let strict: R.Lt (Real.add r epsilon) (E.volume b) := R.ltReplaceRight (Real.add r epsilon) (Real.add r gap) (E.volume b)
+        (Estimates.addSubCancel (E.volume b) r) (Laws.ltAddLeft r epsilon gap (Estimates.halfStrict gap gp)) \then
+      \takefrom choice: \forall (i: N.Nat^) -> Cover.Choice f epsilon i \by
+        \axiom:classicalIndefiniteChoice(N.Nat^, Cover.Choice f epsilon,
+          \fun (i: N.Nat^) => Expansion.admissibleExists (f i) (Bounds.error epsilon i) (Bounds.errorPositive epsilon ep i)) \then
+      \let regions: N.Nat^ -> \Pow E.Point := Cover.Region f epsilon choice \then
+      \let containing: Sets.Subset (E.points b) (Countability.IndexedUnion regions) := \fun (x: E.Point) (inside: Sets.Member (E.points b) x) => \block {
+        \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where Sets.Member (E.points (f i)) x }) \by cover x inside \then
+        \return Countability.indexedUnionMember regions i x (Expansion.pointsWithinInterior (f i) (choice i)
+          (\bysub(Real.Real, Expansion.Admissible (f i) (Bounds.error epsilon i), choice i)).left x
+          (\bysub(N.Nat^, { i: N.Nat^ \where Sets.Member (E.points (f i)) x }, i)))
+      } \then
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (x: E.Point) -> Sets.Member (E.points b) x ->
+        \exists ( i: N.Nat^ \where Logic.And[N.Basic[].Prop[].Lt i k, Sets.Member (regions i) x] ) })
+        \by FiniteCover.prefixCover b regions (\fun (i: N.Nat^) => Expansion.interiorOpen (f i) (choice i)) containing \then
+      \let finiteCover: Geometry.OpenCover k (Cover.Expanded f epsilon choice) b :=
+        \bysub(N.Nat^, { k: N.Nat^ \where \forall (x: E.Point) -> Sets.Member (E.points b) x ->
+          \exists ( i: N.Nat^ \where Logic.And[N.Basic[].Prop[].Lt i k, Sets.Member (regions i) x] ) }, k) \then
+      \let expanded: N.Nat^ -> E.Box := Cover.Expanded f epsilon choice \then
+      \let upper: Complete.UpperBound (E.cost expanded) (Real.add r epsilon) := Cover.costBound f epsilon ep choice r outside \then
+      \let excluded: Logic.Not (Measure.below (E.cost expanded) (Real.add r epsilon)) := upperOutside (E.cost expanded) (E.costNonnegative expanded) (Real.add r epsilon) upper \then
+      \let partial: R.Le (Bounds.realPartial (\fun (i: N.Nat^) => E.volume (expanded i)) k) (Real.add r epsilon) :=
+        Bounds.partialBoundedBySeries (\fun (i: N.Nat^) => E.volumeValue (expanded i)) (\fun (i: N.Nat^) => E.volume (expanded i))
+          (\fun (i: N.Nat^) => E.volumeValueNonnegative (expanded i)) (\fun (i: N.Nat^) => volumeSup (expanded i)) (Real.add r epsilon) excluded k \then
+      \let lower: R.Le (E.volume b) (Bounds.realPartial (\fun (i: N.Nat^) => E.volume (expanded i)) k) :=
+        R.leReplaceRight (E.volume b) (real.Analysis[].FiniteSums[].sum k (\fun (i: Fin.Fin k) => E.volume (expanded i)))
+          (Bounds.realPartial (\fun (i: N.Nat^) => E.volume (expanded i)) k)
+          (sym!{Real.Real} _ _ (Partial.finiteSum k (\fun (i: N.Nat^) => E.volume (expanded i))))
+          (Geometry.finiteCoverBound k expanded b finiteCover) \then
+      \return R.ltNotLeReverse (Real.add r epsilon) (E.volume b) strict (R.leTrans _ _ _ lower partial)
+    });
+\definition boxVolume: \forall (b: E.Box) -> E.outer (E.points b) = E.volumeValue b :=
+  \fun (b: E.Box) => \axiom:setext(E.outer (E.points b), E.volumeValue b,
+    E.boxUpper b,
+    E.greatestLowerBound (E.points b) (E.volumeValue b) (E.volumeValueNonnegative b) (everyCover b));

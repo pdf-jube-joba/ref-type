@@ -1,0 +1,38 @@
+\import \root.RealLine[] \as Line;
+\import \root.RealLine[].CompletionSeries[interval := interval, s := s, index := index, good := good] \as Series;
+\import functional_analysis.Measure[A := real.Analysis[].Real] \as Measure;
+\import Measure.Integral[mu := Line.measure] \as Integral;
+\import Integral.Absolute[] \as Absolute;
+\import Integral.Series[terms := Series.terms] \as Partial;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import topology.Topology[Carrier := Real.Real] \as Sets;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Data[].Nat[] \as N;
+\definition level: \Pow Real.Real := { x: Real.Real \where R.Lt c (Partial.partial k x) };
+\definition measurable: Measure.Measurable Line.measure.sigma level :=
+  (\bysub(Real.Real -> Real.Real, { h: Real.Real -> Real.Real \where Integral.Integrable h }, Partial.partial k)).left c;
+\definition stepData: Integral.StepData := Integral.StepData {
+  set := level, coefficient := c, measurable := measurable, nonnegative := Order.leOfLt Real.zero c positive,
+};
+\import Integral.Step[p := stepData] \as Step;
+\import Integral.Evaluation[n := Step.size, s := Step.simple] \as Eval;
+\definition dominated: \forall (x: Real.Real) -> R.Le (Eval.value x) (Partial.partial k x) :=
+  \fun (x: Real.Real) => Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member level x))
+    (\fun (inside: Sets.Member level x) => R.leReplaceLeft c (Eval.value x) (Partial.partial k x)
+      (sym!{Real.Real} _ _ (Step.inside x inside)) (Order.leOfLt c (Partial.partial k x) inside))
+    (\fun (outside: Logic.Not (Sets.Member level x)) => R.leReplaceLeft Real.zero (Eval.value x) (Partial.partial k x)
+      (sym!{Real.Real} _ _ (Step.outside x outside)) (Series.partialNonnegative k x));
+\definition bound: \forall (r: Real.Real) -> Measure.below (Measure.scale c (Line.measure.value level)) r -> R.Le r Real.one :=
+  \fun (r: Real.Real) (member: Measure.below (Measure.scale c (Line.measure.value level)) r) =>
+    R.leTrans r (Integral.integral (Partial.partial k)) Real.one
+      ((Absolute.nonnegativeIntegralSup (Partial.partial k) (Integral.integral (Partial.partial k)) (Series.partialNonnegative k)
+        (Integral.integralLaw (Partial.partial k))).upper r
+        (Integral.lowerIntegralMono Eval.value (Partial.partial k) dominated r
+          (\idelim Measure.scale c (Line.measure.value level) = Integral.lowerIntegral Eval.value \with v: Measure.Value => Measure.below v r
+            \by { base: member, equality: sym!{Measure.Value} _ _ Step.lowerIntegral })))
+      (Series.partialBound k);

@@ -1,0 +1,41 @@
+\import \root.RealLine[] \as Line;
+\import \root.RealLine[].IntervalIntegral[interval := interval] \as Indicator;
+\import integration.Real[] \as Integration;
+\import Integration.Riemann[interval := interval].Def[] \as Riemann;
+\import Integration.Lebesgue[interval := interval].Prop[] \as Completion;
+\import real.Analysis[] \as Real;
+\import functional_analysis.Measure[A := Real.Real] \as Measure;
+\import Measure.Integral[mu := Line.measure] \as Integral;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\definition restrict[f: Real.Real -> Real.Real] [x: Real.Real]: Real.Real := Real.mul (Indicator.representative x) (f x);
+\definition criterion: \forall (f: Riemann.Function) -> \exists ( g: Integral.Representatives \where Logic.And[g = restrict f.function,
+  Integral.integral g = Completion.integral (Completion.ofRiemann f)] ) :=
+  \fun (f: Riemann.Function) => \root.RealLine[].LebesgueCriterion[interval := interval, f := f].agreement;
+\definition integrable: \forall (f: Riemann.Function) -> Integral.Integrable (restrict f.function) :=
+  \fun (f: Riemann.Function) => \block {
+    \takefrom g: \Cast[Integral.Representatives] ({ g: Integral.Representatives \where Logic.And[g = restrict f.function,
+      Integral.integral g = Completion.integral (Completion.ofRiemann f)] }) \by criterion f \then
+    \let data: Logic.And[g = restrict f.function, Integral.integral g = Completion.integral (Completion.ofRiemann f)] :=
+      \bysub(Integral.Representatives, { g: Integral.Representatives \where Logic.And[g = restrict f.function,
+        Integral.integral g = Completion.integral (Completion.ofRiemann f)] }, g) \then
+    \return \idelim g = restrict f.function \with h: (Real.Real -> Real.Real) => Integral.Integrable h \by {
+      base: \bysub(Real.Real -> Real.Real, { h: Real.Real -> Real.Real \where Integral.Integrable h }, g), equality: data.left }
+  };
+\definition representative[f: Riemann.Function]: Integral.Representatives :=
+  \into[Real.Real -> Real.Real](restrict f.function, { h: Real.Real -> Real.Real \where Integral.Integrable h }) \by { integrable f };
+\definition integral: \forall (f: Riemann.Function) -> Integral.integral (representative f) = f.integral :=
+  \fun (f: Riemann.Function) => \block {
+    \takefrom g: \Cast[Integral.Representatives] ({ g: Integral.Representatives \where Logic.And[g = restrict f.function,
+      Integral.integral g = Completion.integral (Completion.ofRiemann f)] }) \by criterion f \then
+    \let data: Logic.And[g = restrict f.function, Integral.integral g = Completion.integral (Completion.ofRiemann f)] :=
+      \bysub(Integral.Representatives, { g: Integral.Representatives \where Logic.And[g = restrict f.function,
+        Integral.integral g = Completion.integral (Completion.ofRiemann f)] }, g) \then
+    \let has: Integral.HasIntegral[restrict f.function, Integral.integral g] := \idelim g = restrict f.function
+      \with h: (Real.Real -> Real.Real) => Integral.HasIntegral[h, Integral.integral g] \by { base: Integral.integralLaw g, equality: data.left } \then
+    \let equal: Integral.integral (representative f) = Integral.integral g := Integral.integralUnique (restrict f.function)
+      (Integral.integral (representative f)) (Integral.integral g) (Integral.integralLaw (representative f)) has \then
+    \return trans!{Real.Real} _ _ _ equal (trans!{Real.Real} _ _ _ data.right (Completion.riemannAgreement f))
+  };

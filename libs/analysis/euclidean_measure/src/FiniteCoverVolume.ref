@@ -1,0 +1,142 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as NatDef;
+\import N.Basic[].Prop[] \as Nat;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Bool[] \as Bool;
+\import std.Data[].List[] \as List;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.trans;
+\use Equality.eq_reason_in;
+\import \root.Euclidean[n := n] \as E;
+\import \root.BoxPartition[n := n] \as Partition;
+\import \root.BoxCuts[n := n] \as Cuts;
+\import \root.VolumeOrder[n := n] \as Volume;
+\import \root.WeightedPartition[n := n] \as Weight;
+\import List.Membership[A := E.Box] \as Membership;
+\import List.Membership[A := Partition.Slice] \as SliceMembership;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\import real.Analysis[] \as Real;
+\import Real.FiniteSums[] \as Sums;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\definition cuts[k: N.Nat^] [f: N.Nat^ -> E.Box]: List.List[Partition.Slice] := Cuts.collect k (\fun (i: Fin.Fin k) => f i);
+\definition OpenCover[k: N.Nat^] [f: N.Nat^ -> E.Box] [b: E.Box]: \Prop :=
+  \forall (x: E.Point) -> Sets.Member (E.points b) x -> \exists ( i: N.Nat^ \where Logic.And[Nat.Lt i k, Sets.Member (Partition.openBox (f i)) x] );
+\definition LabelLaw[k: N.Nat^] [f: N.Nat^ -> E.Box] [b, q: E.Box] [j: N.Nat^]: \Prop :=
+  Membership.Occurs q (Partition.partition (cuts k f) b) -> Logic.Not (E.volume q = Real.zero) ->
+    Logic.And[Nat.Lt j k, Sets.Subset (E.points q) (E.points (f j))];
+\definition Label[k: N.Nat^] [f: N.Nat^ -> E.Box] [b, q: E.Box]: \Set :=
+  \Cast[N.Nat^] ({ j: N.Nat^ \where LabelLaw k f b q j });
+\definition labelExists: \forall (k: N.Nat^) (f: N.Nat^ -> E.Box) (b: E.Box) -> OpenCover k f b ->
+  \forall (q: E.Box) -> \exists Label k f b q :=
+  \fun (k: N.Nat^) (f: N.Nat^ -> E.Box) (b: E.Box) (cover: OpenCover k f b) (q: E.Box) =>
+    Logic.orElim (Logic.And[Membership.Occurs q (Partition.partition (cuts k f) b), Logic.Not (E.volume q = Real.zero)])
+      (Logic.Not (Logic.And[Membership.Occurs q (Partition.partition (cuts k f) b), Logic.Not (E.volume q = Real.zero)])) (\exists Label k f b q)
+      (Classical.excludedMiddle (Logic.And[Membership.Occurs q (Partition.partition (cuts k f) b), Logic.Not (E.volume q = Real.zero)]))
+      (\fun (valid: Logic.And[Membership.Occurs q (Partition.partition (cuts k f) b), Logic.Not (E.volume q = Real.zero)]) => \block {
+        \let corner: Sets.Member (E.points q) q.left := Volume.leftCorner q (Volume.activeOfNonzero q valid.right) \then
+        \let within: Sets.Member (E.points b) q.left := Partition.contained (cuts k f) b q valid.left q.left corner \then
+        \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where Logic.And[Nat.Lt j k, Sets.Member (Partition.openBox (f j)) q.left] }) \by cover q.left within \then
+        \let data: Logic.And[Nat.Lt j k, Sets.Member (Partition.openBox (f j)) q.left] :=
+          \bysub(N.Nat^, { j: N.Nat^ \where Logic.And[Nat.Lt j k, Sets.Member (Partition.openBox (f j)) q.left] }, j) \then
+        \let index: Fin.Fin k := \into[N.Nat^](j, { j: N.Nat^ \where Nat.Lt j k }) \by { data.left } \then
+        \let lower: \forall (i: Fin.Fin n) -> SliceMembership.Occurs (Partition.lowerCut (f j) i) (cuts k f) :=
+          \fun (i: Fin.Fin n) => Cuts.collectContains k (\fun (i: Fin.Fin k) => f i) index _ (Cuts.boxLower (f j) i) \then
+        \let upper: \forall (i: Fin.Fin n) -> SliceMembership.Occurs (Partition.upperCut (f j) i) (cuts k f) :=
+          \fun (i: Fin.Fin n) => Cuts.collectContains k (\fun (i: Fin.Fin k) => f i) index _ (Cuts.boxUpper (f j) i) \then
+        \let subset: Sets.Subset (E.points q) (E.points (f j)) := Partition.fitsCover (cuts k f) b q (f j) valid.left valid.right lower upper q.left corner data.right \then
+        \return Logic.existsIntro[N.Nat^, { j: N.Nat^ \where LabelLaw k f b q j }] j
+          (\fun (_: Membership.Occurs q (Partition.partition (cuts k f) b)) (_: Logic.Not (E.volume q = Real.zero)) => Logic.And[_, _]::# data.left subset)
+      })
+      (\fun (invalid: Logic.Not (Logic.And[Membership.Occurs q (Partition.partition (cuts k f) b), Logic.Not (E.volume q = Real.zero)])) =>
+        Logic.existsIntro[N.Nat^, { j: N.Nat^ \where LabelLaw k f b q j }] N.Nat^::zero
+          (\fun (occurs: Membership.Occurs q (Partition.partition (cuts k f) b)) (nz: Logic.Not (E.volume q = Real.zero)) =>
+            Logic.falseElim _ (invalid (Logic.And[_, _]::# occurs nz))));
+\definition weight[k: N.Nat^] [labels: E.Box -> N.Nat^] [i: Fin.Fin k] [q: E.Box]: Real.Real :=
+  Bool.ite Real.Real (NatDef.eqb (Fin.value k i) (labels q)) (E.volume q) Real.zero;
+\definition weightNonnegative: \forall (k: N.Nat^) (labels: E.Box -> N.Nat^) (i: Fin.Fin k) (q: E.Box) -> R.Le Real.zero (weight k labels i q) :=
+  \fun (k: N.Nat^) (labels: E.Box -> N.Nat^) (i: Fin.Fin k) (q: E.Box) => Bool.cases
+    (\fun (v: Bool.Bool^) => R.Le Real.zero (Bool.ite Real.Real v (E.volume q) Real.zero))
+    (R.leRefl Real.zero) (E.volumeNonnegative q) (NatDef.eqb (Fin.value k i) (labels q));
+\definition weightBound: \forall (k: N.Nat^) (labels: E.Box -> N.Nat^) (i: Fin.Fin k) (q: E.Box) -> R.Le (weight k labels i q) (E.volume q) :=
+  \fun (k: N.Nat^) (labels: E.Box -> N.Nat^) (i: Fin.Fin k) (q: E.Box) => Bool.cases
+    (\fun (v: Bool.Bool^) => R.Le (Bool.ite Real.Real v (E.volume q) Real.zero) (E.volume q))
+    (E.volumeNonnegative q) (R.leRefl (E.volume q)) (NatDef.eqb (Fin.value k i) (labels q));
+\definition weightIndex: \forall (k: N.Nat^) (labels: E.Box -> N.Nat^) (i: Fin.Fin k) (q: E.Box) -> Logic.Not (weight k labels i q = Real.zero) -> Fin.value k i = labels q :=
+  \fun (k: N.Nat^) (labels: E.Box -> N.Nat^) (i: Fin.Fin k) (q: E.Box) => Bool.cases
+    (\fun (v: Bool.Bool^) => NatDef.eqb (Fin.value k i) (labels q) = v -> Logic.Not (Bool.ite Real.Real v (E.volume q) Real.zero = Real.zero) -> Fin.value k i = labels q)
+    (\fun (_: _) (impossible: Logic.Not (Real.zero = Real.zero)) => Logic.falseElim _ (impossible (\refl(Real.zero))))
+    (\fun (equal: NatDef.eqb (Fin.value k i) (labels q) = Bool.Bool^::true) (_: _) => Nat.eqOfEqbTrue (labels q) (Fin.value k i) equal)
+    (NatDef.eqb (Fin.value k i) (labels q)) (\refl(NatDef.eqb (Fin.value k i) (labels q)));
+\definition weightAt: \forall (k: N.Nat^) (labels: E.Box -> N.Nat^) (q: E.Box) (i: Fin.Fin k) -> Fin.value k i = labels q -> weight k labels i q = E.volume q :=
+  \fun (k: N.Nat^) (labels: E.Box -> N.Nat^) (q: E.Box) (i: Fin.Fin k) (same: Fin.value k i = labels q) =>
+    \idelim Bool.Bool^::true = NatDef.eqb (Fin.value k i) (labels q) \with v: Bool.Bool^ => Bool.ite Real.Real v (E.volume q) Real.zero = E.volume q
+      \by { base: \refl(E.volume q), equality: sym!{Bool.Bool^} _ _ (Nat.eqbTrueOfEq (Fin.value k i) (labels q) same) };
+\definition sumExchange: \forall (k: N.Nat^) (labels: E.Box -> N.Nat^) (xs: List.List[E.Box]) ->
+  Weight.sum (\fun (q: E.Box) => Sums.sum k (\fun (i: Fin.Fin k) => weight k labels i q)) xs =
+    Sums.sum k (\fun (i: Fin.Fin k) => Weight.sum (weight k labels i) xs) :=
+  \fun (k: N.Nat^) (labels: E.Box -> N.Nat^) => \induction (xs: List.List[E.Box]) \return
+    Weight.sum (\fun (q: E.Box) => Sums.sum k (\fun (i: Fin.Fin k) => weight k labels i q)) xs =
+      Sums.sum k (\fun (i: Fin.Fin k) => Weight.sum (weight k labels i) xs) \with {
+        | nil: sym!{Real.Real} _ _ (Sums.zeroSum k)
+        | cons: \fun (q: E.Box) (tail: List.List[E.Box]) (prior: _) => eq_reason_in!{Real.Real _
+          "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (Sums.sum k (\fun (i: Fin.Fin k) => weight k labels i q))) _ _ prior }
+          "=" _ "by" { sym!{Real.Real} _ _ (Sums.addition k (\fun (i: Fin.Fin k) => weight k labels i q) (\fun (i: Fin.Fin k) => Weight.sum (weight k labels i) tail)) }
+        }
+    };
+\definition listComparison: \forall (xs: List.List[E.Box]) (u, v: E.Box -> Real.Real) ->
+  (\forall (q: E.Box) -> Membership.Occurs q xs -> R.Le (u q) (v q)) -> R.Le (Weight.sum u xs) (Weight.sum v xs) :=
+  \induction (xs: List.List[E.Box]) \return \forall (u, v: E.Box -> Real.Real) ->
+    (\forall (q: E.Box) -> Membership.Occurs q xs -> R.Le (u q) (v q)) -> R.Le (Weight.sum u xs) (Weight.sum v xs) \with {
+      | nil: \fun (_: _) (_: _) (_: _) => R.leRefl Real.zero
+      | cons: \fun (q: E.Box) (tail: List.List[E.Box]) (prior: \forall (u, v: E.Box -> Real.Real) -> (\forall (q: E.Box) -> Membership.Occurs q tail -> R.Le (u q) (v q)) -> R.Le (Weight.sum u tail) (Weight.sum v tail)) (u, v: E.Box -> Real.Real) (bound: \forall (p: E.Box) -> Membership.Occurs p (List.List[E.Box]::cons q tail) -> R.Le (u p) (v p)) =>
+        real.Analysis[].Estimates[].addLe (u q) (Weight.sum u tail) (v q) (Weight.sum v tail)
+          (bound q (Logic.Or[_, _]::left (\refl(q))))
+          (prior u v (\fun (p: E.Box) (member: Membership.Occurs p tail) => bound p (Logic.Or[_, _]::right member)))
+    };
+\definition finiteCoverBound: \forall (k: N.Nat^) (f: N.Nat^ -> E.Box) (b: E.Box) -> OpenCover k f b ->
+  R.Le (E.volume b) (Sums.sum k (\fun (i: Fin.Fin k) => E.volume (f i))) :=
+  \fun (k: N.Nat^) (f: N.Nat^ -> E.Box) (b: E.Box) (cover: OpenCover k f b) => \block {
+    \takefrom choices: \forall (q: E.Box) -> Label k f b q \by
+      \axiom:classicalIndefiniteChoice(E.Box, Label k f b, labelExists k f b cover) \then
+    \let labels: E.Box -> N.Nat^ := \fun (q: E.Box) => choices q \then
+    \let law: \forall (q: E.Box) -> LabelLaw k f b q (labels q) :=
+      \fun (q: E.Box) => \bysub(N.Nat^, { j: N.Nat^ \where LabelLaw k f b q j }, choices q) \then
+    \let parts: List.List[E.Box] := Partition.partition (cuts k f) b \then
+    \let nonnegative: \forall (i: Fin.Fin k) (q: E.Box) -> R.Le Real.zero (weight k labels i q) := weightNonnegative k labels \then
+    \let each: \forall (i: Fin.Fin k) -> R.Le (Weight.sum (weight k labels i) parts) (E.volume (f i)) :=
+      \fun (i: Fin.Fin k) => Weight.boundedSelected (cuts k f) b (f i) (weight k labels i)
+        (nonnegative i) (weightBound k labels i)
+        (\fun (q: E.Box) (occurs: Membership.Occurs q parts) (nz: Logic.Not (weight k labels i q = Real.zero)) => \block {
+          \let volumeNZ: Logic.Not (E.volume q = Real.zero) := Weight.weightNonzeroVolume (weight k labels i) (nonnegative i) (weightBound k labels i) q nz \then
+          \let subset: Sets.Subset (E.points q) (E.points (f (labels q))) := (law q occurs volumeNZ).right \then
+          \let same: Fin.value k i = labels q := weightIndex k labels i q nz \then
+          \return \idelim labels q = Fin.value k i \with j: N.Nat^ => Sets.Subset (E.points q) (E.points (f j))
+            \by { base: subset, equality: sym!{N.Nat^} _ _ same }
+        }) \then
+    \let pointwise: \forall (q: E.Box) -> Membership.Occurs q parts -> R.Le (E.volume q) (Sums.sum k (\fun (i: Fin.Fin k) => weight k labels i q)) :=
+      \fun (q: E.Box) (occurs: Membership.Occurs q parts) =>
+        Logic.orElim (E.volume q = Real.zero) (Logic.Not (E.volume q = Real.zero))
+          (R.Le (E.volume q) (Sums.sum k (\fun (i: Fin.Fin k) => weight k labels i q)))
+          (Classical.excludedMiddle (E.volume q = Real.zero))
+          (\fun (zero: E.volume q = Real.zero) => R.leReplaceLeft Real.zero (E.volume q) _ (sym!{Real.Real} _ _ zero)
+            (Sums.nonnegative k (\fun (i: Fin.Fin k) => weight k labels i q) (\fun (i: Fin.Fin k) => nonnegative i q)))
+          (\fun (nz: Logic.Not (E.volume q = Real.zero)) => \block {
+            \let valid: Logic.And[Nat.Lt (labels q) k, Sets.Subset (E.points q) (E.points (f (labels q)))] := law q occurs nz \then
+            \let i: Fin.Fin k := \into[N.Nat^](labels q, { j: N.Nat^ \where Nat.Lt j k }) \by { valid.left } \then
+            \return R.leReplaceLeft (weight k labels i q) (E.volume q) (Sums.sum k (\fun (j: Fin.Fin k) => weight k labels j q))
+              (weightAt k labels q i (\refl(labels q)))
+              (Sums.coordinateUpper k (\fun (j: Fin.Fin k) => weight k labels j q) (\fun (j: Fin.Fin k) => nonnegative j q) i)
+          }) \then
+    \let cells: R.Le (Partition.sum parts) (Weight.sum (\fun (q: E.Box) => Sums.sum k (\fun (i: Fin.Fin k) => weight k labels i q)) parts) :=
+      listComparison parts E.volume (\fun (q: E.Box) => Sums.sum k (\fun (i: Fin.Fin k) => weight k labels i q)) pointwise \then
+    \let sumUpper: R.Le (Sums.sum k (\fun (i: Fin.Fin k) => Weight.sum (weight k labels i) parts)) (Sums.sum k (\fun (i: Fin.Fin k) => E.volume (f i))) :=
+      Sums.comparison k (\fun (i: Fin.Fin k) => Weight.sum (weight k labels i) parts) (\fun (i: Fin.Fin k) => E.volume (f i)) each \then
+    \return R.leReplaceLeft (Partition.sum parts) (E.volume b) (Sums.sum k (\fun (i: Fin.Fin k) => E.volume (f i)))
+      (Partition.sumPreserved (cuts k f) b)
+      (R.leTrans _ _ _ cells (R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (sumExchange k labels parts)) sumUpper))
+  };

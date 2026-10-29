@@ -1,0 +1,78 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Bool[] \as Bool;
+\import Bool.Prop[] \as BoolLaws;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\import \root.Euclidean[n := n] \as E;
+\import topology.Topology[Carrier := E.Point] \as Space;
+\import Space.Compactness[] \as Compact;
+\import Space.Finite[] \as Finite;
+\import Space.IndexedIntersections[] \as Indexed;
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as Topology;
+\import topological_algebra.Euclidean[].Dimension[n := n].Norm[] \as Norm;
+\import topological_algebra.Euclidean[].Dimension[n := n].Def[] \as Def;
+\import real.Analysis[] \as Real;
+\import Real.Distance[] \as Distance;
+\import Real.Estimates[].Product[] \as Product;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import metric_spaces.RealLine[] \as Line;
+\import Line.Rays[] \as Rays;
+\import topology.Continuity[A := E.Point, B := Real.Real] \as Continuity;
+\definition side[b: E.Box] [i: Fin.Fin n]: \Pow E.Point :=
+  { x: E.Point \where Logic.And[R.Le (b.left i) (x i), R.Le (x i) (b.right i)] };
+\definition sideClosed: \forall (b: E.Box) (i: Fin.Fin n) -> Space.IsClosedIn Topology.topology (side b i) :=
+  \fun (b: E.Box) (i: Fin.Fin n) => Finite.intersectionClosed Topology.topology _ _
+    (Continuity.closedPreimage Topology.topology Line.topology (\fun (x: E.Point) => x i) (Topology.coordinateContinuous i) (Rays.AtLeast (b.left i)) (Rays.atLeastClosed (b.left i)))
+    (Continuity.closedPreimage Topology.topology Line.topology (\fun (x: E.Point) => x i) (Topology.coordinateContinuous i) (Rays.AtMost (b.right i)) (Rays.atMostClosed (b.right i)));
+\definition rectangle[b: E.Box]: \Pow E.Point := Indexed.All n (side b);
+\definition rectangleClosed: \forall (b: E.Box) -> Space.IsClosedIn Topology.topology (rectangle b) :=
+  \fun (b: E.Box) => Indexed.closed Topology.topology n (side b) (sideClosed b);
+\definition pointsWhen[b: E.Box] [active: Bool.Bool^]: \Pow E.Point :=
+  { x: E.Point \where Logic.And[Bool.IsTrue active, Space.Member (rectangle b) x] };
+\definition pointsClosed: \forall (b: E.Box) -> Space.IsClosedIn Topology.topology (E.points b) :=
+  \fun (b: E.Box) => Bool.cases (\fun (active: Bool.Bool^) => Space.IsClosedIn Topology.topology (pointsWhen b active))
+    (\idelim Space.Empty = pointsWhen b Bool.Bool^::false \with S: \Pow E.Point => Space.IsClosedIn Topology.topology S \by {
+      base: \idelim Space.Whole = Space.Complement Space.Empty \with S: \Pow E.Point => Space.IsOpenIn Topology.topology S \by {
+        base: (Space.topologyLaws Topology.topology).wholeOpen,
+        equality: \axiom:setext(Space.Whole, Space.Complement Space.Empty, \fun (_: E.Point) (_: _) (bad: Logic.False) => bad, \fun (x: E.Point) (_: _) => \refl(x)) },
+      equality: \axiom:setext(Space.Empty, pointsWhen b Bool.Bool^::false,
+        \fun (_: E.Point) (bad: Logic.False) => Logic.falseElim _ bad,
+        \fun (x: E.Point) (member: Space.Member (pointsWhen b Bool.Bool^::false) x) => BoolLaws.falseNeTrue member.left) })
+    (\idelim rectangle b = pointsWhen b Bool.Bool^::true \with S: \Pow E.Point => Space.IsClosedIn Topology.topology S \by {
+      base: rectangleClosed b,
+      equality: \axiom:setext(rectangle b, pointsWhen b Bool.Bool^::true,
+        \fun (x: E.Point) (member: Space.Member (rectangle b) x) => Logic.And[_, _]::# (\refl(Bool.Bool^::true)) member,
+        \fun (x: E.Point) (member: Space.Member (pointsWhen b Bool.Bool^::true) x) => member.right) }) b.active;
+\definition radius[b: E.Box]: Real.Real := Distance.max (Def.norm b.left) (Def.norm b.right);
+\definition absoluteBound: \forall (b: E.Box) (i: Fin.Fin n) ->
+  Logic.And[R.Le (Product.abs (b.left i)) (radius b), R.Le (Product.abs (b.right i)) (radius b)] :=
+  \fun (b: E.Box) (i: Fin.Fin n) => Logic.And[_, _]::#
+    (R.leTrans _ _ _ (R.leReplaceLeft (Real.distance (b.left i) Real.zero) (Product.abs (b.left i)) (Def.norm b.left)
+      (Distance.distanceSymmetric (b.left i) Real.zero) (Norm.coordinate b.left i)) (Distance.maxLeft (Def.norm b.left) (Def.norm b.right)))
+    (R.leTrans _ _ _ (R.leReplaceLeft (Real.distance (b.right i) Real.zero) (Product.abs (b.right i)) (Def.norm b.right)
+      (Distance.distanceSymmetric (b.right i) Real.zero) (Norm.coordinate b.right i)) (Distance.maxRight (Def.norm b.left) (Def.norm b.right)));
+\definition leftBound: \forall (b: E.Box) (i: Fin.Fin n) -> R.Le (Real.neg (radius b)) (b.left i) :=
+  \fun (b: E.Box) (i: Fin.Fin n) => R.leReplaceRight (Real.neg (radius b)) (Real.neg (Real.neg (b.left i))) (b.left i) (Laws.negInvolutive (b.left i))
+    (Laws.negAntitone (Real.neg (b.left i)) (radius b)
+      (R.leTrans _ _ _ (R.leReplaceRight (Real.neg (b.left i)) (Distance.max (Real.neg (b.left i)) (b.left i)) (Product.abs (b.left i))
+        (sym!{Real.Real} _ _ (Product.absExpression (b.left i))) (Distance.maxLeft (Real.neg (b.left i)) (b.left i)))
+        (absoluteBound b i).left));
+\definition rightBound: \forall (b: E.Box) (i: Fin.Fin n) -> R.Le (b.right i) (radius b) :=
+  \fun (b: E.Box) (i: Fin.Fin n) => R.leTrans _ _ _
+    (R.leReplaceRight (b.right i) (Distance.max (Real.neg (b.right i)) (b.right i)) (Product.abs (b.right i))
+      (sym!{Real.Real} _ _ (Product.absExpression (b.right i))) (Distance.maxRight (Real.neg (b.right i)) (b.right i)))
+    (absoluteBound b i).right;
+\definition cubeContains: \forall (b: E.Box) -> Space.Subset (E.points b) \root.CompactCube[n := n, a := Real.neg (radius b), b := radius b].cube :=
+  \fun (b: E.Box) (x: E.Point) (member: Space.Member (E.points b) x) =>
+    \root.CompactCube[n := n, a := Real.neg (radius b), b := radius b].contains x
+      (\fun (i: Fin.Fin n) => Logic.And[_, _]::#
+        (R.leTrans _ _ _ (leftBound b i) (member.right i).left)
+        (R.leTrans _ _ _ (member.right i).right (rightBound b i)));
+\definition compact: \forall (b: E.Box) -> Space.IsCompactIn Topology.topology (E.points b) :=
+  \fun (b: E.Box) => Compact.closedSubset Topology.topology
+    \root.CompactCube[n := n, a := Real.neg (radius b), b := radius b].cube (E.points b)
+    \root.CompactCube[n := n, a := Real.neg (radius b), b := radius b].compact (pointsClosed b) (cubeContains b);

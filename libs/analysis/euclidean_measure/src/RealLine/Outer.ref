@@ -1,0 +1,21 @@
+\import \root.RealLine[] \as Line;
+\import real.Analysis[] \as Real;
+\import functional_analysis.Measure[A := Real.Real] \as Measure;
+\import Measure.Sigma[] \as Sigma;
+\import Measure.ValueLaws[] \as Values;
+\import topology.Topology[Carrier := Real.Real] \as Sets;
+\import std.Data[].Nat[] \as N;
+\import \root.Euclidean[n := N.Nat^::succ N.Nat^::zero] \as E;
+\import E.MeasureConstruction[] \as Construction;
+\import \root.Pushforward[A := E.Point, B := Real.Real, source := Construction.measure, map := Line.scalar] \as Push;
+\definition monotone: \forall (S, T: \Pow Real.Real) -> Sets.Subset S T -> Values.Included (Line.measure.value S) (Line.measure.value T) :=
+  \fun (S, T: \Pow Real.Real) (contained: Sets.Subset S T) => E.monotone (Push.preimage S) (Push.preimage T)
+    (\fun (x: E.Point) (member: Sets.Member S (Line.scalar x)) => contained (Line.scalar x) member);
+\definition subadditivePair: \forall (S, T: \Pow Real.Real) -> Values.Included (Line.measure.value (Sigma.pairUnion S T)) (Measure.add (Line.measure.value S) (Line.measure.value T)) :=
+  \fun (S, T: \Pow Real.Real) => E.subadditivePair (Push.preimage S) (Push.preimage T);
+\definition nonnegative: \forall (S: \Pow Real.Real) -> Measure.NonnegativeValue[Line.measure.value S] :=
+  \fun (S: \Pow Real.Real) => Measure.NonnegativeValue[Line.measure.value S] {
+    negative := (E.outerNonnegative (Push.preimage S)).negative,
+    downward := (E.outerNonnegative (Push.preimage S)).downward,
+    rounded := (E.outerNonnegative (Push.preimage S)).rounded,
+  };

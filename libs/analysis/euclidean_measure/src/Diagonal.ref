@@ -1,0 +1,65 @@
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Bool[] \as Bool;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.trans;
+\use Equality.eq_reason_in;
+\import \root.Euclidean[n := n] \as E;
+\import E.Scaling[] \as Scaling;
+\import E.SignedReflection[sign := sign] \as Reflection;
+\import E.MeasureConstruction[] \as Construction;
+\import \root.SingularScale[n := n] \as Singular;
+\import functional_analysis.Measure[A := E.Point] \as Measure;
+\import Measure.ValueLaws[] \as Values;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\definition coefficient[a: Scaling.PositivePoint] [i: Fin.Fin n]: Real.Real := Reflection.flip (sign i) (a i);
+\definition flipProduct: \forall (s: Bool.Bool^) (a, x: Real.Real) -> Reflection.flip s (Real.mul a x) = Real.mul (Reflection.flip s a) x :=
+  \fun (s: Bool.Bool^) (a, x: Real.Real) => Bool.cases (\fun (v: Bool.Bool^) => Reflection.flip v (Real.mul a x) = Real.mul (Reflection.flip v a) x)
+    (\refl(Real.mul a x)) (sym!{Real.Real} _ _ (Laws.fieldMulNegLeft a x)) s;
+\definition mapAs: \forall (a: Scaling.PositivePoint) (x: E.Point) -> Singular.map (coefficient a) x = Reflection.point (Scaling.scalePoint x a) :=
+  \fun (a: Scaling.PositivePoint) (x: E.Point) => \axiom:funext(Singular.map (coefficient a) x, Reflection.point (Scaling.scalePoint x a),
+    \fun (i: Fin.Fin n) => sym!{Real.Real} _ _ (flipProduct (sign i) (a i) (x i)));
+\definition inverseAfter: \forall (a: Scaling.PositivePoint) (x: E.Point) -> Scaling.scalePoint (Scaling.scalePoint x a) (Scaling.inverse a) = x :=
+  \fun (a: Scaling.PositivePoint) (x: E.Point) => \axiom:funext(Scaling.scalePoint (Scaling.scalePoint x a) (Scaling.inverse a), x,
+    \fun (i: Fin.Fin n) => Values.inverseProductLeft (a i) (x i) (Scaling.positive a i));
+\definition imageAs: \forall (S: \Pow E.Point) (a: Scaling.PositivePoint) -> Singular.image S (coefficient a) = Reflection.reflected (Scaling.scaled S a) :=
+  \fun (S: \Pow E.Point) (a: Scaling.PositivePoint) => \axiom:setext(Singular.image S (coefficient a), Reflection.reflected (Scaling.scaled S a),
+    \fun (y: E.Point) (inside: Sets.Member (Singular.image S (coefficient a)) y) => \block {
+      \takefrom x: \Cast[E.Point] ({ x: E.Point \where Logic.And[Sets.Member S x, Singular.map (coefficient a) x = y] }) \by inside \then
+      \let data: Logic.And[Sets.Member S x, Singular.map (coefficient a) x = y] :=
+        \bysub(E.Point, { x: E.Point \where Logic.And[Sets.Member S x, Singular.map (coefficient a) x = y] }, x) \then
+      \let equal: Reflection.point y = Scaling.scalePoint x a := eq_reason_in!{E.Point _
+        "=" _ "by" { congr!{E.Point E.Point} Reflection.point _ _ (sym!{E.Point} _ _ data.right) }
+        "=" _ "by" { congr!{E.Point E.Point} Reflection.point _ _ (mapAs a x) }
+        "=" _ "by" { Reflection.pointInvolutive (Scaling.scalePoint x a) }
+      } \then
+      \return \idelim x = Scaling.scalePoint (Reflection.point y) (Scaling.inverse a) \with z: E.Point => Sets.Member S z \by {
+        base: data.left, equality: sym!{E.Point} _ _ (trans!{E.Point} _ _ _
+          (congr!{E.Point E.Point} (\fun (z: E.Point) => Scaling.scalePoint z (Scaling.inverse a)) _ _ equal) (inverseAfter a x)) }
+    },
+    \fun (y: E.Point) (inside: Sets.Member (Reflection.reflected (Scaling.scaled S a)) y) => \block {
+      \let x: E.Point := Scaling.scalePoint (Reflection.point y) (Scaling.inverse a) \then
+      \let equal: Singular.map (coefficient a) x = y := eq_reason_in!{E.Point _
+        "=" _ "by" { mapAs a x }
+        "=" _ "by" { congr!{E.Point E.Point} Reflection.point _ _ (Scaling.scaleCancelPoint (Reflection.point y) a) }
+        "=" _ "by" { Reflection.pointInvolutive y }
+      } \then
+      \return Logic.existsIntro[E.Point, { x: E.Point \where Logic.And[Sets.Member S x, Singular.map (coefficient a) x = y] }] x
+        (Logic.And[_, _]::# inside equal)
+    });
+\definition changeOfMeasure: \forall (S: \Pow E.Point) (a: Scaling.PositivePoint) ->
+  Construction.measure.value (Singular.image S (coefficient a)) = Measure.scale (Scaling.factor a) (Construction.measure.value S) :=
+  \fun (S: \Pow E.Point) (a: Scaling.PositivePoint) =>
+    \idelim Reflection.reflected (Scaling.scaled S a) = Singular.image S (coefficient a) \with U: \Pow E.Point =>
+      Construction.measure.value U = Measure.scale (Scaling.factor a) (Construction.measure.value S) \by {
+      base: Reflection.signedScale S a, equality: sym!{\Pow E.Point} _ _ (imageAs S a) };
+\definition measurableImage: \forall (S: \Pow E.Point) (a: Scaling.PositivePoint) -> Measure.Measurable Construction.measure.sigma S ->
+  Measure.Measurable Construction.measure.sigma (Singular.image S (coefficient a)) :=
+  \fun (S: \Pow E.Point) (a: Scaling.PositivePoint) (measurable: Measure.Measurable Construction.measure.sigma S) =>
+    \idelim Reflection.reflected (Scaling.scaled S a) = Singular.image S (coefficient a) \with U: \Pow E.Point => Measure.Measurable Construction.measure.sigma U \by {
+      base: Reflection.signedScaleMeasurable S a measurable, equality: sym!{\Pow E.Point} _ _ (imageAs S a) };

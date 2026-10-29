@@ -1,0 +1,66 @@
+\import \root.Pairing[] \as Pairing;
+\import \root.FiniteValues[A := Point] \as FiniteValues;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].trans;
+\definition matrix[k: N.Nat^] [families: N.Nat^ -> N.Nat^ -> Box] [i, j: Fin.Fin k]: Measure.Value := volumeValue (families i j);
+\definition gridIndex[k: N.Nat^] [i: Fin.Fin k]: Fin.Fin (\root.Grid[columns := k].size k) :=
+  \root.Grid[columns := k].encode k (Pairing.row k i) (Pairing.column k i);
+\definition gridIndexInjective: \forall (k: N.Nat^) (i, j: Fin.Fin k) -> gridIndex k i = gridIndex k j -> i = j :=
+  \fun (k: N.Nat^) (i, j: Fin.Fin k) (equal: gridIndex k i = gridIndex k j) => \block {
+    \let coords: Logic.And[Pairing.row k i = Pairing.row k j, Pairing.column k i = Pairing.column k j] :=
+      \root.Grid[columns := k].encodeInjective k (Pairing.row k i) (Pairing.row k j) (Pairing.column k i) (Pairing.column k j) equal \then
+    \return Pairing.indexInjective k i j coords.left coords.right
+  };
+\definition gridAt: \forall (k: N.Nat^) (families: N.Nat^ -> N.Nat^ -> Box) (i: Fin.Fin k) ->
+  \root.GridValues[A := Point, columns := k].values k (matrix k families) (gridIndex k i) = volumeValue (flatten families i) :=
+  \fun (k: N.Nat^) (families: N.Nat^ -> N.Nat^ -> Box) (i: Fin.Fin k) =>
+    \root.GridValues[A := Point, columns := k].at k (matrix k families) (Pairing.row k i) (Pairing.column k i);
+\definition partialBound: \forall (families: N.Nat^ -> N.Nat^ -> Box) (k: N.Nat^) ->
+  Values.Included (Measure.partialSum (\fun (j: N.Nat^) => volumeValue (flatten families j)) k)
+    (Measure.partialSum (\fun (i: N.Nat^) => cost (families i)) k) :=
+  \fun (families: N.Nat^ -> N.Nat^ -> Box) (k: N.Nat^) => \block {
+    \let f: Fin.Fin k -> Fin.Fin k -> Measure.Value := matrix k families \then
+    \let gv: Fin.Fin (\root.Grid[columns := k].size k) -> Measure.Value := \root.GridValues[A := Point, columns := k].values k f \then
+    \let index: Fin.Fin k -> Fin.Fin (\root.Grid[columns := k].size k) := gridIndex k \then
+    \let valid: \forall (i: Fin.Fin k) (j: Fin.Fin k) -> Measure.NonnegativeValue[f i j] :=
+      \fun (i, j: Fin.Fin k) => volumeValueNonnegative (families i j) \then
+    \let gridValid: \forall (i: Fin.Fin (\root.Grid[columns := k].size k)) -> Measure.NonnegativeValue[gv i] :=
+      \root.GridValues[A := Point, columns := k].valuesNonnegative k f valid \then
+    \let chosen: Values.Included (Measure.sum k (\fun (i: Fin.Fin k) => gv (index i))) (Measure.sum (\root.Grid[columns := k].size k) gv) :=
+      FiniteValues.injectionSum k (\root.Grid[columns := k].size k) gv index gridValid (gridIndexInjective k) \then
+    \let rowBound: \forall (i: Fin.Fin k) -> Values.Included (Measure.sum k (f i)) (cost (families i)) :=
+      \fun (i: Fin.Fin k) (r: Real.Real) (member: Measure.below (Measure.sum k (f i)) r) =>
+        partialBelowSeries (\fun (j: N.Nat^) => volumeValue (families i j)) k r
+          (\idelim Measure.sum k (f i) = Measure.partialSum (\fun (j: N.Nat^) => volumeValue (families i j)) k \with v: Measure.Value => Measure.below v r
+            \by { base: member, equality: sym!{Measure.Value} _ _ (FiniteValues.partialAsSum (\fun (j: N.Nat^) => volumeValue (families i j)) (\fun (j: N.Nat^) => volumeValueNonnegative (families i j)) k) }) \then
+    \return \fun (r: Real.Real) (member: Measure.below (Measure.partialSum (\fun (j: N.Nat^) => volumeValue (flatten families j)) k) r) => \block {
+      \let inChosen: Measure.below (Measure.sum k (\fun (i: Fin.Fin k) => gv (index i))) r :=
+        \idelim Measure.partialSum (\fun (j: N.Nat^) => volumeValue (flatten families j)) k = Measure.sum k (\fun (i: Fin.Fin k) => gv (index i)) \with v: Measure.Value => Measure.below v r
+          \by { base: member, equality: trans!{Measure.Value} _ _ _
+            (FiniteValues.partialAsSum (\fun (j: N.Nat^) => volumeValue (flatten families j)) (\fun (j: N.Nat^) => volumeValueNonnegative (flatten families j)) k)
+            (congr!{{Fin.Fin k -> Measure.Value} Measure.Value} (Measure.sum k) _ _
+              (\axiom:funext((\fun (i: Fin.Fin k) => volumeValue (flatten families i)), (\fun (i: Fin.Fin k) => gv (index i)),
+                \fun (i: Fin.Fin k) => sym!{Measure.Value} _ _ (gridAt k families i)))) } \then
+      \let inRows: Measure.below (Measure.sum k (\fun (i: Fin.Fin k) => Measure.sum k (f i))) r :=
+        \idelim Measure.sum (\root.Grid[columns := k].size k) gv = Measure.sum k (\fun (i: Fin.Fin k) => Measure.sum k (f i)) \with v: Measure.Value => Measure.below v r
+          \by { base: chosen r inChosen, equality: \root.GridValues[A := Point, columns := k].sumGrid k f valid } \then
+      \let inCosts: Measure.below (Measure.sum k (\fun (i: Fin.Fin k) => cost (families i))) r :=
+        Values.sumMono k (\fun (i: Fin.Fin k) => Measure.sum k (f i)) (\fun (i: Fin.Fin k) => cost (families i)) rowBound r inRows \then
+      \return \idelim Measure.sum k (\fun (i: Fin.Fin k) => cost (families i)) = Measure.partialSum (\fun (i: N.Nat^) => cost (families i)) k \with v: Measure.Value => Measure.below v r
+        \by { base: inCosts, equality: sym!{Measure.Value} _ _ (FiniteValues.partialAsSum (\fun (i: N.Nat^) => cost (families i)) (\fun (i: N.Nat^) => costNonnegative (families i)) k) }
+    }
+  };
+\definition costUpper: \forall (families: N.Nat^ -> N.Nat^ -> Box) ->
+  Values.Included (cost (flatten families)) (Measure.series (\fun (i: N.Nat^) => cost (families i))) :=
+  \fun (families: N.Nat^ -> N.Nat^ -> Box) (r: Real.Real) (member: Measure.below (cost (flatten families)) r) => \block {
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Measure.below (Measure.partialSum (\fun (j: N.Nat^) => volumeValue (flatten families j)) k) r }) \by member \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Measure.below (Measure.partialSum (\fun (i: N.Nat^) => cost (families i)) k) r }] k
+      (partialBound families k r (\bysub(N.Nat^, { k: N.Nat^ \where Measure.below (Measure.partialSum (\fun (j: N.Nat^) => volumeValue (flatten families j)) k) r }, k)))
+  };
+\definition unionBoundedByCovers: \forall (sets: N.Nat^ -> \Pow Point) (families: N.Nat^ -> N.Nat^ -> Box) ->
+  (\forall (i: N.Nat^) -> Covers (families i) (sets i)) ->
+  Values.Included (outer (Measure.union sets)) (Measure.series (\fun (i: N.Nat^) => cost (families i))) :=
+  \fun (sets: N.Nat^ -> \Pow Point) (families: N.Nat^ -> N.Nat^ -> Box) (covers: \forall (i: N.Nat^) -> Covers (families i) (sets i))
+    (r: Real.Real) (member: Measure.below (outer (Measure.union sets)) r) =>
+      costUpper families r (boundedByCover (Measure.union sets) (flatten families) (flattenCovers sets families covers) r member);

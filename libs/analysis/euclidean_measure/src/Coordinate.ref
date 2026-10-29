@@ -1,0 +1,74 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import \root.Euclidean[n := n] \as E;
+\import \root.BoxCut[n := n] \as Cut;
+\import \root.GeneralCut[] \as General;
+\import \root.HeadCut[k := N.Nat^::zero] \as OneCut;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\import functional_analysis.Measure[A := E.Point] \as Measure;
+\import Measure.ValueLaws[] \as Values;
+\import Measure.Sigma[] \as Sigma;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition split[b: E.Box] [i: Fin.Fin n] [t: Real.Real]: Cut.Result b i t := General.construct n b i t;
+\definition left[b: E.Box] [i: Fin.Fin n] [t: Real.Real]: E.Box := (split b i t).left;
+\definition right[b: E.Box] [i: Fin.Fin n] [t: Real.Real]: E.Box := (split b i t).right;
+\definition splitLaws[b: E.Box] [i: Fin.Fin n] [t: Real.Real]: Cut.Laws[b, i, t, split b i t] := Cut.laws b i t (split b i t);
+\definition volumeValues: \forall (b: E.Box) (i: Fin.Fin n) (t: Real.Real) ->
+  Measure.add (E.volumeValue (left b i t)) (E.volumeValue (right b i t)) = E.volumeValue b :=
+  \fun (b: E.Box) (i: Fin.Fin n) (t: Real.Real) => eq_reason_in!{Measure.Value _
+    "=" _ "by" { OneCut.cutAdd (E.volume (left b i t)) (E.volume (right b i t)) }
+    "=" _ "by" { congr!{Real.Real Measure.Value} (\fun (v: Real.Real) => { r: Real.Real \where R.Lt r v }) _ _ (splitLaws b i t).volumes }
+  };
+\definition leftFamily[f: N.Nat^ -> E.Box] [i: Fin.Fin n] [t: Real.Real]: N.Nat^ -> E.Box := \fun (j: N.Nat^) => left (f j) i t;
+\definition rightFamily[f: N.Nat^ -> E.Box] [i: Fin.Fin n] [t: Real.Real]: N.Nat^ -> E.Box := \fun (j: N.Nat^) => right (f j) i t;
+\definition combinedCost: \forall (f: N.Nat^ -> E.Box) (i: Fin.Fin n) (t: Real.Real) ->
+  Measure.add (E.cost (leftFamily f i t)) (E.cost (rightFamily f i t)) = E.cost f :=
+  \fun (f: N.Nat^ -> E.Box) (i: Fin.Fin n) (t: Real.Real) => eq_reason_in!{Measure.Value _
+    "=" _ "by" { sym!{Measure.Value} _ _ (E.seriesAdd (\fun (j: N.Nat^) => E.volumeValue (left (f j) i t)) (\fun (j: N.Nat^) => E.volumeValue (right (f j) i t))
+      (\fun (j: N.Nat^) => E.volumeValueNonnegative (left (f j) i t)) (\fun (j: N.Nat^) => E.volumeValueNonnegative (right (f j) i t))) }
+    "=" _ "by" { congr!{{N.Nat^ -> Measure.Value} Measure.Value} Measure.series _ _
+      (\axiom:funext((\fun (j: N.Nat^) => Measure.add (E.volumeValue (left (f j) i t)) (E.volumeValue (right (f j) i t))),
+        (\fun (j: N.Nat^) => E.volumeValue (f j)), \fun (j: N.Nat^) => volumeValues (f j) i t)) }
+  };
+\definition halfspace[i: Fin.Fin n] [t: Real.Real]: \Pow E.Point := { x: E.Point \where R.Le (x i) t };
+\definition coversInside: \forall (T: \Pow E.Point) (f: N.Nat^ -> E.Box) (i: Fin.Fin n) (t: Real.Real) -> E.Covers f T ->
+  E.Covers (leftFamily f i t) (Sets.Intersection T (halfspace i t)) :=
+  \fun (T: \Pow E.Point) (f: N.Nat^ -> E.Box) (i: Fin.Fin n) (t: Real.Real) (cover: E.Covers f T) (x: E.Point)
+    (inside: Sets.Member (Sets.Intersection T (halfspace i t)) x) => \block {
+      \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where Sets.Member (E.points (f j)) x }) \by cover x inside.left \then
+      \let inBox: Sets.Member (E.points (f j)) x := \bysub(N.Nat^, { j: N.Nat^ \where Sets.Member (E.points (f j)) x }, j) \then
+      \return Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Sets.Member (E.points (leftFamily f i t j)) x }] j ((splitLaws (f j) i t).insideLeft x inBox inside.right)
+    };
+\definition coversOutside: \forall (T: \Pow E.Point) (f: N.Nat^ -> E.Box) (i: Fin.Fin n) (t: Real.Real) -> E.Covers f T ->
+  E.Covers (rightFamily f i t) (Sets.Intersection T (Sets.Complement (halfspace i t))) :=
+  \fun (T: \Pow E.Point) (f: N.Nat^ -> E.Box) (i: Fin.Fin n) (t: Real.Real) (cover: E.Covers f T) (x: E.Point)
+    (inside: Sets.Member (Sets.Intersection T (Sets.Complement (halfspace i t))) x) => \block {
+      \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where Sets.Member (E.points (f j)) x }) \by cover x inside.left \then
+      \let inBox: Sets.Member (E.points (f j)) x := \bysub(N.Nat^, { j: N.Nat^ \where Sets.Member (E.points (f j)) x }, j) \then
+      \let above: R.Le t (x i) := Logic.orElim (R.Le (x i) t) (R.Le t (x i)) (R.Le t (x i))
+        (Order.leTotal (x i) t) (\fun (below: R.Le (x i) t) => Logic.falseElim _ (inside.right below)) (\fun (above: R.Le t (x i)) => above) \then
+      \return Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Sets.Member (E.points (rightFamily f i t j)) x }] j ((splitLaws (f j) i t).insideRight x inBox above)
+    };
+\definition measurable: \forall (i: Fin.Fin n) (t: Real.Real) -> E.Caratheodory (halfspace i t) :=
+  \fun (i: Fin.Fin n) (t: Real.Real) (T: \Pow E.Point) => \block {
+    \let leftSet: \Pow E.Point := Sets.Intersection T (halfspace i t) \then
+    \let rightSet: \Pow E.Point := Sets.Intersection T (Sets.Complement (halfspace i t)) \then
+    \let combined: Measure.Value := Measure.add (E.outer leftSet) (E.outer rightSet) \then
+    \let valid: Measure.NonnegativeValue[combined] := Values.addNonnegative (E.outer leftSet) (E.outer rightSet) (E.outerNonnegative leftSet) (E.outerNonnegative rightSet) \then
+    \let lower: Values.Included combined (E.outer T) := E.greatestLowerBound T combined valid
+      (\fun (f: N.Nat^ -> E.Box) (cover: E.Covers f T) (r: Real.Real) (inside: Measure.below combined r) =>
+        \idelim Measure.add (E.cost (leftFamily f i t)) (E.cost (rightFamily f i t)) = E.cost f \with v: Measure.Value => Measure.below v r
+          \by { base: Values.addMono (E.outer leftSet) (E.cost (leftFamily f i t)) (E.outer rightSet) (E.cost (rightFamily f i t))
+            (E.boundedByCover leftSet (leftFamily f i t) (coversInside T f i t cover)) (E.boundedByCover rightSet (rightFamily f i t) (coversOutside T f i t cover)) r inside,
+            equality: combinedCost f i t }) \then
+    \let upper: Values.Included (E.outer T) combined := \fun (r: Real.Real) (inside: Measure.below (E.outer T) r) =>
+      E.subadditivePair leftSet rightSet r (\idelim T = Sigma.pairUnion leftSet rightSet \with S: \Pow E.Point => Measure.below (E.outer S) r
+        \by { base: inside, equality: E.partitionUnion T (halfspace i t) }) \then
+    \return \axiom:setext(E.outer T, combined, upper, lower)
+  };

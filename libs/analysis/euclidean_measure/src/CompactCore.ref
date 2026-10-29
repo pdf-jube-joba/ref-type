@@ -1,0 +1,65 @@
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\import \root.Euclidean[n := n] \as E;
+\import \root.EuclideanBorel[n := n] \as Borel;
+\import \root.BoxCompact[n := n] \as BoxCompact;
+\import \root.GdeltaHull[n := n] \as Hull;
+\import functional_analysis.Measure[A := E.Point] \as Measure;
+\import Measure.Sigma[] \as Sigma;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\import Sets.Compactness[] \as Compact;
+\import Sets.Finite[] \as Finite;
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as Topology;
+\import real.Analysis[] \as Real;
+\import Real.Estimates[].Product[] \as Product;
+\import Real.SquareRoot[] \as Root;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\definition closedMeasurable: \forall (S: \Pow E.Point) -> Sets.IsClosedIn Topology.topology S -> E.Caratheodory S :=
+  \fun (S: \Pow E.Point) (closed: Sets.IsClosedIn Topology.topology S) =>
+    \idelim Sets.Complement (Sets.Complement S) = S \with T: \Pow E.Point => E.Caratheodory T \by {
+      base: E.complementCaratheodory (Sets.Complement S) (Borel.openMeasurable (Sets.Complement S) closed),
+      equality: Finite.doubleComplement S };
+\definition Parts[b: E.Box] [f: N.Nat^ -> \Pow E.Point] [i: N.Nat^]: \Pow E.Point :=
+  Sets.Intersection (E.points b) (Sets.Complement (f i));
+\definition Core[S: \Pow E.Point] [parts: N.Nat^ -> \Pow E.Point]: \Prop :=
+  Logic.And[\forall (i: N.Nat^) -> Sets.IsCompactIn Topology.topology (parts i),
+    Logic.And[Sets.Subset (Measure.union parts) S, E.outer (Sigma.difference S (Measure.union parts)) = Measure.zero]];
+\definition boundedCore: \forall (S: \Pow E.Point) (b: E.Box) -> E.Caratheodory S -> Sets.Subset S (E.points b) ->
+  \exists ( parts: N.Nat^ -> \Pow E.Point \where Core S parts ) :=
+  \fun (S: \Pow E.Point) (b: E.Box) (measurable: E.Caratheodory S) (bounded: Sets.Subset S (E.points b)) => \block {
+    \let K: \Pow E.Point := E.points b \then
+    \let D: \Pow E.Point := Sigma.difference K S \then
+    \let dm: E.Caratheodory D := E.differenceCaratheodory K S (closedMeasurable K (BoxCompact.pointsClosed b)) measurable \then
+    \let bound: Real.Real := Real.add (E.volume b) Real.one \then
+    \let outside: Logic.Not (Measure.below (E.outer D) bound) := \fun (inside: Measure.below (E.outer D) bound) =>
+      R.ltNotLeReverse bound (E.volume b) (E.boxUpper b bound (E.monotone D K (\fun (x: E.Point) (member: Sets.Member D x) => member.left) bound inside))
+        (Order.leOfLt _ _ (Root.addPositive (E.volume b) Real.one Product.onePositive)) \then
+    \takefrom f: \Cast[N.Nat^ -> \Pow E.Point] ({ f: N.Nat^ -> \Pow E.Point \where Hull.Hull D f }) \by Hull.finiteHull D bound outside \then
+    \let law: Hull.Hull D f := \bysub(N.Nat^ -> \Pow E.Point, { f: N.Nat^ -> \Pow E.Point \where Hull.Hull D f }, f) \then
+    \let G: \Pow E.Point := Sigma.intersection f \then
+    \let null: E.outer (Sigma.difference G D) = Measure.zero := Hull.nullDifference D f bound dm law outside \then
+    \let parts: N.Nat^ -> \Pow E.Point := Parts b f \then
+    \let compact: \forall (i: N.Nat^) -> Sets.IsCompactIn Topology.topology (parts i) := \fun (i: N.Nat^) =>
+      Compact.closedSubset Topology.topology K (parts i) (BoxCompact.compact b)
+        (Finite.intersectionClosed Topology.topology K (Sets.Complement (f i)) (BoxCompact.pointsClosed b)
+          (Finite.openComplementClosed Topology.topology (f i) (law.left i)))
+        (\fun (x: E.Point) (member: Sets.Member (parts i) x) => member.left) \then
+    \let contained: Sets.Subset (Measure.union parts) S := \fun (x: E.Point) (member: Sets.Member (Measure.union parts) x) => \block {
+      \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where Sets.Member (parts i) x }) \by member \then
+      \let inside: Sets.Member (parts i) x := \bysub(N.Nat^, { i: N.Nat^ \where Sets.Member (parts i) x }, i) \then
+      \return Sigma.doubleNegative (Sets.Member S x) (\fun (notS: Logic.Not (Sets.Member S x)) =>
+        inside.right (law.right.left x (Logic.And[_, _]::# inside.left notS) i))
+    } \then
+    \let residual: Sets.Subset (Sigma.difference S (Measure.union parts)) (Sigma.difference G D) :=
+      \fun (x: E.Point) (member: Sets.Member (Sigma.difference S (Measure.union parts)) x) =>
+        Logic.And[_, _]::#
+          (\fun (i: N.Nat^) => Sigma.doubleNegative (Sets.Member (f i) x) (\fun (outsideI: Logic.Not (Sets.Member (f i) x)) =>
+            member.right (Logic.existsIntro[N.Nat^, { i: N.Nat^ \where Sets.Member (parts i) x }] i
+              (Logic.And[_, _]::# (bounded x member.left) outsideI))))
+          (\fun (inD: Sets.Member D x) => inD.right member.left) \then
+    \return Logic.existsIntro[N.Nat^ -> \Pow E.Point, { parts: N.Nat^ -> \Pow E.Point \where Core S parts }] parts
+      (Logic.And[_, _]::# compact (Logic.And[_, _]::# contained (E.outerSubsetZero (Sigma.difference S (Measure.union parts)) (Sigma.difference G D) residual null)))
+  };

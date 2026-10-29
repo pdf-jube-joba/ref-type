@@ -1,0 +1,115 @@
+\import \root.RealLine[] \as Line;
+\import real.Analysis[] \as Real;
+\import Real.Distance[] \as Distance;
+\import Real.Estimates[].Product[] \as Product;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Completeness[] \as Complete;
+\import functional_analysis.Measure[A := Real.Real] \as Measure;
+\import Measure.ValueLaws[] \as Values;
+\import Measure.Integral[mu := Line.measure] \as Integral;
+\import Integral.Zero[] \as Zero;
+\import Measure.Finite[mu := Line.measure] \as Finite;
+\import integration.Real[].Riemann[interval := interval].Prop[] \as Riemann;
+\import integration.Real[].Lebesgue[interval := interval].Prop[] \as Completion;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.trans;
+\use Equality.eq_reason_in;
+\definition length: Real.Real := Real.sub interval.right interval.left;
+\definition data: Integral.StepData := Integral.StepData {
+  set := Line.interval interval.left interval.right,
+  coefficient := Real.one,
+  measurable := Line.intervalMeasurable interval.left interval.right interval.ordered,
+  nonnegative := Laws.oneNonnegative,
+};
+\import Integral.Step[p := data] \as Step;
+\import Integral.Evaluation[n := Step.size, s := Step.simple] \as Evaluation;
+\definition lower: Integral.lowerIntegral Evaluation.value = { r: Real.Real \where R.Lt r length } := eq_reason_in!{Measure.Value _
+  "=" _ "by" { Step.lowerIntegral }
+  "=" _ "by" { Values.oneScale (Line.measure.value data.set) (Finite.laws.nonnegative data.set data.measurable) }
+  "=" _ "by" { Line.intervalMeasure interval.left interval.right interval.ordered }
+};
+\definition lengthNonnegative: R.Le Real.zero length := Distance.subNonnegative interval.right interval.left interval.ordered;
+\definition finite: Integral.Finite Evaluation.value := Logic.And[_, _]::# Evaluation.nonnegative
+  (Logic.existsIntro[Real.Real, { b: Real.Real \where Integral.IntegralBound[Evaluation.value, b] }] length
+    (Integral.IntegralBound[Evaluation.value, length] {
+      nonnegative := lengthNonnegative,
+      bound := \fun (r: Real.Real) (inside: Measure.below (Integral.lowerIntegral Evaluation.value) r) =>
+        Order.leOfLt r length (\idelim Integral.lowerIntegral Evaluation.value = { s: Real.Real \where R.Lt s length }
+          \with v: Measure.Value => Measure.below v r \by { base: inside, equality: lower }),
+    }));
+\definition absEqual: (\fun (x: Real.Real) => Product.abs (Evaluation.value x)) = Evaluation.value :=
+  \axiom:funext((\fun (x: Real.Real) => Product.abs (Evaluation.value x)), Evaluation.value,
+    \fun (x: Real.Real) => Product.absOfNonnegative (Evaluation.value x) (Evaluation.nonnegative x));
+\definition integrable: Integral.Integrable Evaluation.value := Logic.And[_, _]::# Evaluation.measurable
+  (\idelim Evaluation.value = (\fun (x: Real.Real) => Product.abs (Evaluation.value x)) \with f: (Real.Real -> Real.Real) => Integral.Finite f
+    \by { base: finite, equality: sym!{{Real.Real -> Real.Real}} _ _ absEqual });
+\definition positiveEqual: Integral.positivePart Evaluation.value = Evaluation.value :=
+  \axiom:funext(Integral.positivePart Evaluation.value, Evaluation.value,
+    \fun (x: Real.Real) => Distance.maxOfLe Real.zero (Evaluation.value x) (Evaluation.nonnegative x));
+\definition negativeEqual: Integral.negativePart Evaluation.value = Zero.function :=
+  \axiom:funext(Integral.negativePart Evaluation.value, Zero.function,
+    \fun (x: Real.Real) => Distance.maxOfGe Real.zero (Real.neg (Evaluation.value x)) (Product.negNonnegative (Evaluation.value x) (Evaluation.nonnegative x)));
+\definition lengthSup: Complete.LeastUpperBound[{ r: Real.Real \where R.Lt r length }, length] :=
+  Complete.LeastUpperBound[{ r: Real.Real \where R.Lt r length }, length] {
+    upper := \fun (r: Real.Real) (less: R.Lt r length) => Order.leOfLt r length less,
+    least := \fun (b: Real.Real) (upper: Complete.UpperBound ({ r: Real.Real \where R.Lt r length }) b) =>
+      Order.leOfNotLtReverse length b (\fun (less: R.Lt b length) => R.ltNotLeReverse b (Real.midpoint b length)
+        (Values.midpointStrictLeft b length less) (upper (Real.midpoint b length) (Values.midpointStrictRight b length less))),
+  };
+\definition hasIntegral: Integral.HasIntegral[Evaluation.value, length] := Integral.HasIntegral[Evaluation.value, length] {
+  integrable := integrable,
+  parts := Logic.existsIntro[Real.Real, { p: Real.Real \where \exists ( q: Real.Real \where Integral.Parts[Evaluation.value, length, p, q] ) }] length
+    (Logic.existsIntro[Real.Real, { q: Real.Real \where Integral.Parts[Evaluation.value, length, length, q] }] Real.zero
+      (Integral.Parts[Evaluation.value, length, length, Real.zero] {
+        positiveLaw := \idelim { r: Real.Real \where R.Lt r length } = Integral.lowerIntegral (Integral.positivePart Evaluation.value)
+          \with v: Measure.Value => Complete.LeastUpperBound[v, length] \by {
+            base: lengthSup, equality: sym!{Measure.Value} _ _ (eq_reason_in!{Measure.Value _
+              "=" _ "by" { congr!{{Real.Real -> Real.Real} Measure.Value} Integral.lowerIntegral _ _ positiveEqual }
+              "=" _ "by" { lower }
+            }) },
+        negativeLaw := \idelim Measure.zero = Integral.lowerIntegral (Integral.negativePart Evaluation.value)
+          \with v: Measure.Value => Complete.LeastUpperBound[v, Real.zero] \by {
+            base: Zero.zeroSup, equality: sym!{Measure.Value} _ _ (eq_reason_in!{Measure.Value _
+              "=" _ "by" { congr!{{Real.Real -> Real.Real} Measure.Value} Integral.lowerIntegral _ _ negativeEqual }
+              "=" _ "by" { Zero.lowerZero }
+            }) },
+        difference := sym!{Real.Real} _ _ (Laws.subZeroRight length),
+      })),
+};
+\definition riemannHasIntegral: integration.Real[].Riemann[interval := interval].Def[].HasIntegral[(\fun (_: Real.Real) => Real.one), length] :=
+  \idelim Real.mul length Real.one = length \with v: Real.Real => integration.Real[].Riemann[interval := interval].Def[].HasIntegral[(\fun (_: Real.Real) => Real.one), v]
+    \by { base: (Riemann.constant Real.one).hasIntegral, equality: real.Analysis[].Algebra[].mulOneRight length };
+\definition completionAgreement: Completion.integral (Completion.ofRiemann (Riemann.constant Real.one)) = length :=
+  trans!{Real.Real} _ _ _ (Completion.riemannAgreement (Riemann.constant Real.one)) (real.Analysis[].Algebra[].mulOneRight length);
+\definition pointwiseInside: \forall (x: Real.Real) -> R.Le interval.left x -> R.Le x interval.right -> Evaluation.value x = Real.one :=
+  \fun (x: Real.Real) (lo: R.Le interval.left x) (hi: R.Le x interval.right) => Step.inside x (Logic.And[_, _]::# lo hi);
+\definition pointwiseOutside: \forall (x: Real.Real) -> Logic.Not (Logic.And[R.Le interval.left x, R.Le x interval.right]) -> Evaluation.value x = Real.zero := Step.outside;
+\import Integral.Scaling[] \as Scaling;
+\definition representative: Integral.Representatives := \into[Real.Real -> Real.Real](Evaluation.value,
+  { f: Real.Real -> Real.Real \where Integral.Integrable f }) \by { integrable };
+\definition representativeIntegral: Integral.integral representative = length :=
+  Integral.integralUnique Evaluation.value (Integral.integral representative) length (Integral.integralLaw representative) hasIntegral;
+\definition constantRepresentative[c: Real.Real]: Integral.Representatives := Scaling.scalarRepresentative c representative;
+\definition constantComparison: \forall (c: Real.Real) ->
+  Integral.integral (constantRepresentative c) = Completion.integral (Completion.ofRiemann (Riemann.constant c)) :=
+  \fun (c: Real.Real) => eq_reason_in!{Real.Real _
+    "=" _ "by" { Scaling.integralScalar c representative }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul c) _ _ representativeIntegral }
+    "=" _ "by" { Laws.fieldMulComm c length }
+    "=" _ "by" { sym!{Real.Real} _ _ (Completion.riemannAgreement (Riemann.constant c)) }
+  };
+\definition constantInside: \forall (c, x: Real.Real) -> R.Le interval.left x -> R.Le x interval.right -> constantRepresentative c x = c :=
+  \fun (c, x: Real.Real) (lo: R.Le interval.left x) (hi: R.Le x interval.right) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul c) _ _ (pointwiseInside x lo hi) }
+    "=" _ "by" { real.Analysis[].Algebra[].mulOneRight c }
+  };
+\definition constantOutside: \forall (c, x: Real.Real) -> Logic.Not (Logic.And[R.Le interval.left x, R.Le x interval.right]) -> constantRepresentative c x = Real.zero :=
+  \fun (c, x: Real.Real) (outside: Logic.Not (Logic.And[R.Le interval.left x, R.Le x interval.right])) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul c) _ _ (pointwiseOutside x outside) }
+    "=" _ "by" { Laws.fieldMulZeroRight c }
+  };

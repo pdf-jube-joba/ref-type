@@ -1,0 +1,34 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import \root.Euclidean[n := n] \as E;
+\import E.SeriesBounds[] \as Bounds;
+\import real.Analysis[] \as Real;
+\import Real.FiniteSums[] \as Sums;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\definition shift: \forall (k: N.Nat^) (f: N.Nat^ -> Real.Real) ->
+  Bounds.realPartial f (N.Nat^::succ k) = Real.add (f N.Nat^::zero) (Bounds.realPartial (\fun (i: N.Nat^) => f (N.Nat^::succ i)) k) :=
+  \induction (k: N.Nat^) \return \forall (f: N.Nat^ -> Real.Real) ->
+    Bounds.realPartial f (N.Nat^::succ k) = Real.add (f N.Nat^::zero) (Bounds.realPartial (\fun (i: N.Nat^) => f (N.Nat^::succ i)) k) \with {
+      | zero: \fun (f: N.Nat^ -> Real.Real) => eq_reason_in!{Real.Real _
+        "=" _ "by" { Laws.addZeroLeft (f N.Nat^::zero) }
+        "=" _ "by" { sym!{Real.Real} _ _ (Laws.addZeroRight (f N.Nat^::zero)) }
+      }
+      | succ: \fun (k: N.Nat^) (prior: \forall (f: N.Nat^ -> Real.Real) -> Bounds.realPartial f (N.Nat^::succ k) = Real.add (f N.Nat^::zero) (Bounds.realPartial (\fun (i: N.Nat^) => f (N.Nat^::succ i)) k))
+        (f: N.Nat^ -> Real.Real) => eq_reason_in!{Real.Real _
+          "=" _ "by" { congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.add v (f (N.Nat^::succ k))) _ _ (prior f) }
+          "=" _ "by" { Laws.addAssoc (f N.Nat^::zero) (Bounds.realPartial (\fun (i: N.Nat^) => f (N.Nat^::succ i)) k) (f (N.Nat^::succ k)) }
+        }
+    };
+\definition finiteSum: \forall (k: N.Nat^) (f: N.Nat^ -> Real.Real) -> Bounds.realPartial f k = Sums.sum k (\fun (i: Fin.Fin k) => f i) :=
+  \induction (k: N.Nat^) \return \forall (f: N.Nat^ -> Real.Real) -> Bounds.realPartial f k = Sums.sum k (\fun (i: Fin.Fin k) => f i) \with {
+    | zero: \fun (_: N.Nat^ -> Real.Real) => \refl(Real.zero)
+    | succ: \fun (k: N.Nat^) (prior: \forall (f: N.Nat^ -> Real.Real) -> Bounds.realPartial f k = Sums.sum k (\fun (i: Fin.Fin k) => f i))
+      (f: N.Nat^ -> Real.Real) => eq_reason_in!{Real.Real _
+        "=" _ "by" { shift k f }
+        "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (f N.Nat^::zero)) _ _ (prior (\fun (i: N.Nat^) => f (N.Nat^::succ i))) }
+      }
+  };

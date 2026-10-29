@@ -1,0 +1,107 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].List[] \as List;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import \root.Euclidean[n := n] \as E;
+\import \root.BoxCut[n := n] \as Cut;
+\import \root.GeneralCut[] \as General;
+\import \root.BoxPartition[n := n] \as Partition;
+\import \root.CutGeometry[n := n] \as Geometry;
+\import \root.VolumeOrder[n := n] \as Volume;
+\import List.Membership[A := E.Box] \as Membership;
+\import Membership.Append[] \as Append;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\import real.Analysis[] \as Real;
+\import Real.Estimates[] \as Estimates;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\definition sum[w: E.Box -> Real.Real]: List.List[E.Box] -> Real.Real :=
+  List.foldr E.Box Real.Real (\fun (b: E.Box) (r: Real.Real) => Real.add (w b) r) Real.zero;
+\definition sumAppend: \forall (w: E.Box -> Real.Real) (xs, ys: List.List[E.Box]) -> sum w (List.append E.Box xs ys) = Real.add (sum w xs) (sum w ys) :=
+  \fun (w: E.Box -> Real.Real) => \induction (xs: List.List[E.Box]) \return \forall (ys: List.List[E.Box]) -> sum w (List.append E.Box xs ys) = Real.add (sum w xs) (sum w ys) \with {
+    | nil: \fun (ys: List.List[E.Box]) => sym!{Real.Real} _ _ (Laws.addZeroLeft (sum w ys))
+    | cons: \fun (head: E.Box) (tail: List.List[E.Box]) (prior: \forall (ys: List.List[E.Box]) -> sum w (List.append E.Box tail ys) = Real.add (sum w tail) (sum w ys)) (ys: List.List[E.Box]) =>
+      eq_reason_in!{Real.Real _
+        "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (w head)) _ _ (prior ys) }
+        "=" _ "by" { sym!{Real.Real} _ _ (Laws.addAssoc (w head) (sum w tail) (sum w ys)) }
+      }
+  };
+\definition sumBound: \forall (w: E.Box -> Real.Real) -> (\forall (q: E.Box) -> R.Le (w q) (E.volume q)) ->
+  \forall (xs: List.List[E.Box]) -> R.Le (sum w xs) (Partition.sum xs) :=
+  \fun (w: E.Box -> Real.Real) (bound: \forall (q: E.Box) -> R.Le (w q) (E.volume q)) =>
+    \induction (xs: List.List[E.Box]) \return R.Le (sum w xs) (Partition.sum xs) \with {
+      | nil: R.leRefl Real.zero
+      | cons: \fun (q: E.Box) (tail: List.List[E.Box]) (prior: R.Le (sum w tail) (Partition.sum tail)) =>
+        Estimates.addLe (w q) (sum w tail) (E.volume q) (Partition.sum tail) (bound q) prior
+    };
+\definition weightNonzeroVolume: \forall (w: E.Box -> Real.Real) -> (\forall (q: E.Box) -> R.Le Real.zero (w q)) ->
+  (\forall (q: E.Box) -> R.Le (w q) (E.volume q)) -> \forall (q: E.Box) -> Logic.Not (w q = Real.zero) -> Logic.Not (E.volume q = Real.zero) :=
+  \fun (w: E.Box -> Real.Real) (nonnegative: \forall (q: E.Box) -> R.Le Real.zero (w q)) (bound: \forall (q: E.Box) -> R.Le (w q) (E.volume q))
+    (q: E.Box) (nonzero: Logic.Not (w q = Real.zero)) (zero: E.volume q = Real.zero) =>
+      nonzero (R.leAntisym (w q) Real.zero (R.leReplaceRight (w q) (E.volume q) Real.zero zero (bound q)) (nonnegative q));
+\import std.Logic[].Classical[] \as Classical;
+\definition Chosen[w: E.Box -> Real.Real] [xs: List.List[E.Box]] [target: E.Box]: \Prop :=
+  \forall (q: E.Box) -> Membership.Occurs q xs -> Logic.Not (w q = Real.zero) -> Sets.Subset (E.points q) (E.points target);
+\definition boundedSelected: \forall (cuts: List.List[Partition.Slice]) (b, target: E.Box) (w: E.Box -> Real.Real) ->
+  (\forall (q: E.Box) -> R.Le Real.zero (w q)) -> (\forall (q: E.Box) -> R.Le (w q) (E.volume q)) ->
+  Chosen w (Partition.partition cuts b) target -> R.Le (sum w (Partition.partition cuts b)) (E.volume target) :=
+  \induction (cuts: List.List[Partition.Slice]) \return \forall (b, target: E.Box) (w: E.Box -> Real.Real) ->
+    (\forall (q: E.Box) -> R.Le Real.zero (w q)) -> (\forall (q: E.Box) -> R.Le (w q) (E.volume q)) ->
+    Chosen w (Partition.partition cuts b) target -> R.Le (sum w (Partition.partition cuts b)) (E.volume target) \with {
+      | nil: \fun (b, target: E.Box) (w: E.Box -> Real.Real) (_: \forall (q: E.Box) -> R.Le Real.zero (w q))
+        (bound: \forall (q: E.Box) -> R.Le (w q) (E.volume q)) (chosen: Chosen w (Partition.partition List.List[Partition.Slice]::nil b) target) =>
+          R.leReplaceLeft (w b) (Real.add (w b) Real.zero) (E.volume target) (sym!{Real.Real} _ _ (Laws.addZeroRight (w b)))
+            (Logic.orElim (w b = Real.zero) (Logic.Not (w b = Real.zero)) (R.Le (w b) (E.volume target)) (Classical.excludedMiddle (w b = Real.zero))
+              (\fun (zero: w b = Real.zero) => R.leReplaceLeft Real.zero (w b) (E.volume target) (sym!{Real.Real} _ _ zero) (E.volumeNonnegative target))
+              (\fun (nonzero: Logic.Not (w b = Real.zero)) => R.leTrans (w b) (E.volume b) (E.volume target) (bound b)
+                (Volume.included b target (chosen b (Logic.Or[_, _]::left (\refl(b))) nonzero))))
+      | cons: \fun (head: Partition.Slice) (tail: List.List[Partition.Slice]) (prior: \forall (b, target: E.Box) (w: E.Box -> Real.Real) ->
+        (\forall (q: E.Box) -> R.Le Real.zero (w q)) -> (\forall (q: E.Box) -> R.Le (w q) (E.volume q)) ->
+        Chosen w (Partition.partition tail b) target -> R.Le (sum w (Partition.partition tail b)) (E.volume target))
+        (b, target: E.Box) (w: E.Box -> Real.Real) (nonnegative: \forall (q: E.Box) -> R.Le Real.zero (w q))
+        (bound: \forall (q: E.Box) -> R.Le (w q) (E.volume q)) (chosen: Chosen w (Partition.partition (List.List[Partition.Slice]::cons head tail) b) target) => \block {
+          \let original: Cut.Result b head.coordinate head.threshold := General.construct n b head.coordinate head.threshold \then
+          \let enclosing: Cut.Result target head.coordinate head.threshold := General.construct n target head.coordinate head.threshold \then
+          \let leftChosen: Chosen w (Partition.partition tail original.left) enclosing.left :=
+            \fun (q: E.Box) (occurs: Membership.Occurs q (Partition.partition tail original.left)) (nz: Logic.Not (w q = Real.zero)) => \block {
+              \let qSub: Sets.Subset (E.points q) (E.points original.left) := Partition.contained tail original.left q occurs \then
+              \let qVolume: Logic.Not (E.volume q = Real.zero) := weightNonzeroVolume w nonnegative bound q nz \then
+              \let targetSub: Sets.Subset (E.points q) (E.points target) := chosen q
+                (Append.left (Partition.partition tail original.left) (Partition.partition tail original.right) q occurs) nz \then
+              \return Logic.orElim (E.volume original.left = Real.zero)
+                (\forall (x: E.Point) -> Sets.Member (E.points original.left) x -> R.Le (x head.coordinate) head.threshold)
+                (Sets.Subset (E.points q) (E.points enclosing.left)) (Geometry.leftAligned b head.coordinate head.threshold)
+                (\fun (zero: E.volume original.left = Real.zero) => Logic.falseElim _ (Partition.nonzeroOfContained q original.left qSub qVolume zero))
+                (\fun (side: \forall (x: E.Point) -> Sets.Member (E.points original.left) x -> R.Le (x head.coordinate) head.threshold)
+                  (x: E.Point) (member: Sets.Member (E.points q) x) =>
+                    (Cut.laws target head.coordinate head.threshold enclosing).insideLeft x (targetSub x member) (side x (qSub x member)))
+            } \then
+          \let rightChosen: Chosen w (Partition.partition tail original.right) enclosing.right :=
+            \fun (q: E.Box) (occurs: Membership.Occurs q (Partition.partition tail original.right)) (nz: Logic.Not (w q = Real.zero)) => \block {
+              \let qSub: Sets.Subset (E.points q) (E.points original.right) := Partition.contained tail original.right q occurs \then
+              \let qVolume: Logic.Not (E.volume q = Real.zero) := weightNonzeroVolume w nonnegative bound q nz \then
+              \let targetSub: Sets.Subset (E.points q) (E.points target) := chosen q
+                (Append.right (Partition.partition tail original.left) (Partition.partition tail original.right) q occurs) nz \then
+              \return Logic.orElim (E.volume original.right = Real.zero)
+                (\forall (x: E.Point) -> Sets.Member (E.points original.right) x -> R.Le head.threshold (x head.coordinate))
+                (Sets.Subset (E.points q) (E.points enclosing.right)) (Geometry.rightAligned b head.coordinate head.threshold)
+                (\fun (zero: E.volume original.right = Real.zero) => Logic.falseElim _ (Partition.nonzeroOfContained q original.right qSub qVolume zero))
+                (\fun (side: \forall (x: E.Point) -> Sets.Member (E.points original.right) x -> R.Le head.threshold (x head.coordinate))
+                  (x: E.Point) (member: Sets.Member (E.points q) x) =>
+                    (Cut.laws target head.coordinate head.threshold enclosing).insideRight x (targetSub x member) (side x (qSub x member)))
+            } \then
+          \let summed: R.Le (Real.add (sum w (Partition.partition tail original.left)) (sum w (Partition.partition tail original.right)))
+            (Real.add (E.volume enclosing.left) (E.volume enclosing.right)) :=
+            Estimates.addLe _ _ _ _ (prior original.left enclosing.left w nonnegative bound leftChosen)
+              (prior original.right enclosing.right w nonnegative bound rightChosen) \then
+          \return R.leReplace
+            (Real.add (sum w (Partition.partition tail original.left)) (sum w (Partition.partition tail original.right)))
+            (sum w (Partition.partition (List.List[Partition.Slice]::cons head tail) b))
+            (Real.add (E.volume enclosing.left) (E.volume enclosing.right)) (E.volume target)
+            (sym!{Real.Real} _ _ (sumAppend w (Partition.partition tail original.left) (Partition.partition tail original.right)))
+            (Cut.laws target head.coordinate head.threshold enclosing).volumes summed
+        }
+    };

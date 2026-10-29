@@ -1,0 +1,54 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import \root.Euclidean[n := n] \as E;
+\import real.Analysis[] \as Real;
+\import metric_spaces.RealLine[] \as Line;
+\import Line.CompactIntervals[] \as Intervals;
+\import topology.Topology[Carrier := Real.Real] \as Scalar;
+\definition Interval: \Pow Real.Real := Line.ClosedInterval a b;
+\import Scalar.Subspace[S := Interval] \as Small;
+\definition SmallScalar: \Set := Small.CarrierSet;
+\definition smallTopology: topology.Topology[Carrier := SmallScalar].Topology := Small.topology Line.topology;
+\definition smallCompact: topology.Topology[Carrier := SmallScalar].IsCompact smallTopology := Small.Properties[].compact Line.topology (Intervals.intervalCompact a b);
+\import topological_algebra.FinitePower[K := SmallScalar] \as Power;
+\import Power.At[n := n] \as PowerAt;
+\definition Domain: \Set := Power.Carrier n;
+\definition domainTopology: topology.Topology[Carrier := Domain].Topology := PowerAt.topology smallTopology;
+\definition domainCompact: topology.Topology[Carrier := Domain].IsCompact domainTopology := Power.compact smallTopology smallCompact n;
+\import topological_algebra.Coordinates[K := SmallScalar, I := Fin.Fin n] \as InnerCoordinates;
+\import topological_algebra.Coordinates[K := Real.Real, I := Fin.Fin n] \as Coordinates;
+\import Coordinates.Universal[A := Domain] \as Universal;
+\import topology.Continuity[A := SmallScalar, B := Real.Real].Corestriction[S := Interval] \as Inclusion;
+\import topology.Composition[A := Domain, B := SmallScalar, C := Real.Real] \as Composition;
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as Topology;
+\import topology.Topology[Carrier := E.Point] \as Space;
+\import topology.Topology[Carrier := Domain] \as Source;
+\import topology.Maps[A := Domain, B := E.Point] \as Maps;
+\import topology.Compactness[A := Domain, B := E.Point] \as Compact;
+\definition embed[x: Domain] [i: Fin.Fin n]: Real.Real := x i;
+\definition continuous: topology.Continuity[A := Domain, B := E.Point].Continuous domainTopology Topology.topology embed :=
+  \fun (U: \Pow E.Point) (open: Space.IsOpenIn Topology.topology U) =>
+    Universal.continuous domainTopology Line.topology embed
+      (\fun (i: Fin.Fin n) => Composition.composeContinuous domainTopology smallTopology Line.topology
+        (InnerCoordinates.evaluate i) (\fun (x: SmallScalar) => x)
+        (InnerCoordinates.evaluationContinuous smallTopology i) (Inclusion.inclusionContinuous Line.topology))
+      U (Topology.metricOpen U open);
+\definition cube: \Pow E.Point := Maps.Image embed Source.Whole;
+\definition compact: Space.IsCompactIn Topology.topology cube :=
+  Compact.continuousImage domainTopology Topology.topology embed continuous Source.Whole domainCompact;
+\definition contains: \forall (x: E.Point) -> (\forall (i: Fin.Fin n) -> \In[Real.Real] Interval (x i)) -> Space.Member cube x :=
+  \fun (x: E.Point) (bounded: \forall (i: Fin.Fin n) -> \In[Real.Real] Interval (x i)) =>
+    Logic.existsIntro[Domain, { y: Domain \where Logic.And[Source.Member Source.Whole y, embed y = x] }]
+      (\fun (i: Fin.Fin n) => \into[Real.Real](x i, Interval) \by { bounded i })
+      (Logic.And[_, _]::# (\refl(\fun (i: Fin.Fin n) => \into[Real.Real](x i, Interval) \by { bounded i }))
+        (\axiom:funext(embed (\fun (i: Fin.Fin n) => \into[Real.Real](x i, Interval) \by { bounded i }), x,
+          \fun (i: Fin.Fin n) => \refl(x i))));
+\use std.Logic[].Equality[].congr;
+\definition bounded: \forall (x: E.Point) -> Space.Member cube x -> \forall (i: Fin.Fin n) -> \In[Real.Real] Interval (x i) :=
+  \fun (x: E.Point) (member: Space.Member cube x) (i: Fin.Fin n) =>
+    Maps.imageElim embed Source.Whole x (\In[Real.Real] Interval (x i))
+      (\fun (y: Domain) (_: Source.Member Source.Whole y) (same: embed y = x) =>
+        \idelim embed y i = x i \with z: Real.Real => \In[Real.Real] Interval z \by {
+          base: \bysub(Real.Real, Interval, y i), equality: congr!{E.Point Real.Real} (\fun (p: E.Point) => p i) _ _ same
+        }) member;
