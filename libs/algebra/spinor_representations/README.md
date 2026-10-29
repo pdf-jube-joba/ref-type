@@ -15,6 +15,7 @@
 
 `Topology.topology` は全次数の評価写像が定めるスピノル空間の位相である。
 `Families.liftedOrbitContinuous` は連続なユニタリ族に対して、各固定スピノルの標準持ち上げによる軌道がこの位相で連続であることを示す。
+`Families.determinantContinuous` は標準持ち上げの Spin-c 行列式文字についても、連続なユニタリ族に沿った連続性を示す。
 標準持ち上げ自体の Spin-c の多様体位相に関する連続性と滑らかさは未証明である。
 
 `Over.Direct.Total.comparison` は左右のスピノルのテンソル積から直和の外代数への線形写像である。
