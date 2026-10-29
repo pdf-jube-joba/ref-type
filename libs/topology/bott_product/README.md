@@ -16,6 +16,7 @@
 `Product.At.Kernel` は基点制限の核が生成元を掛けた類の像であることを示す。
 `Product.At.Slice` は基点の切片と \(X\) の具体的な同相を構成し、`Slice.Relative.imageRepresentation` は K03 の相対群から忘却された類がこの像に入ることを示す。
 `Slice.Relative.Retraction.injective` は基点切片への再射影と完全列により、相対群からの忘却写像が単射であることを示す。
+`Slice.Relative.Retraction.Comparison` は相対類と \(K^0(X)\) の係数を対応させ、加法を保つ両方向の逆写像を与える。
 
 `Product.Injective.injective` と `Product.Surjective.exists` は標準積が加法群として全単射であることを示す。
 `Product.Inverse.first` は基点制限、`coefficient` は復元式を満たす唯一の係数を返す。
@@ -25,8 +26,9 @@
 `Bott.Powers.squareLoop` は境界関数 \(z^2\) の clutching 線束の被約類が \(2u\) であることを示す。
 `Bott.TensorLine` はテンソル平方の両半球上の枠を比較し、\(z^2\) の clutching 束への大域同型を構成する。
 `Bott.Square.zero` は \(u^2=0\) を示し、`Product.Multiplication.formula` は標準積の係数による乗法公式を示す。
+`Product.Coefficients` は係数対の加法と乗法、標準写像とその逆写像、および加法・乗法との両立を与える。
 
 ## 残る要件
 
 標準積と逆写像を環同型としてまとめる構成はまだない。
-射影直線の普遍線束と clutching 線束の比較、その選択による符号、および相対群との完全な同型も残っている。
+射影直線の普遍線束と clutching 線束の比較、およびその選択による符号が残っている。
