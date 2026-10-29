@@ -1,0 +1,38 @@
+\import \root.RealLine[] \as Line;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import functional_analysis.Measure[A := Real.Real] \as Measure;
+\import Measure.Sigma[] \as Sigma;
+\import topology.Topology[Carrier := Real.Real] \as Sets;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\definition Difference[f, g: Real.Real -> Real.Real]: \Pow Real.Real := { x: Real.Real \where Logic.Not (f x = g x) };
+\definition superlevel[f: Real.Real -> Real.Real] [r: Real.Real]: \Pow Real.Real := { x: Real.Real \where R.Lt r (f x) };
+\definition measurable: \forall (f, g: Real.Real -> Real.Real) -> Measure.IsMeasurable Line.measure f -> Measure.AlmostEqual Line.measure f g -> Measure.IsMeasurable Line.measure g :=
+  \fun (f, g: Real.Real -> Real.Real) (fm: Measure.IsMeasurable Line.measure f) (almost: Measure.AlmostEqual Line.measure f g) => \block {
+    \let D: \Pow Real.Real := Difference f g \then
+    \takefrom N: \Cast[\Pow Real.Real] ({ N: \Pow Real.Real \where Measure.NullCover[Line.measure, D, N] }) \by almost \then
+    \let null: Measure.NullCover[Line.measure, D, N] := \bysub(\Pow Real.Real, { N: \Pow Real.Real \where Measure.NullCover[Line.measure, D, N] }, N) \then
+    \let dm: Measure.Measurable Line.measure.sigma D := Line.complete D N null.included null.measure \then
+    \return \fun (r: Real.Real) => \block {
+      \let outside: \Pow Real.Real := Sigma.difference (superlevel f r) D \then
+      \let inside: \Pow Real.Real := Sets.Intersection D (superlevel g r) \then
+      \let om: Measure.Measurable Line.measure.sigma outside := Sigma.differenceMeasurable Line.measure.sigma (superlevel f r) D (fm r) dm \then
+      \let im: Measure.Measurable Line.measure.sigma inside := Line.complete inside N
+        (\fun (x: Real.Real) (member: Sets.Member inside x) => null.included x member.left) null.measure \then
+      \let equal: Sigma.pairUnion outside inside = superlevel g r := \axiom:setext(Sigma.pairUnion outside inside, superlevel g r,
+        \fun (x: Real.Real) (member: Sets.Member (Sigma.pairUnion outside inside) x) =>
+          Logic.orElim (Sets.Member outside x) (Sets.Member inside x) (R.Lt r (g x)) member
+            (\fun (o: Sets.Member outside x) => R.ltReplaceRight r (f x) (g x) (Sigma.doubleNegative (f x = g x) o.right) o.left)
+            (\fun (i: Sets.Member inside x) => i.right),
+        \fun (x: Real.Real) (member: R.Lt r (g x)) => Logic.orElim (Sets.Member D x) (Logic.Not (Sets.Member D x)) (Sets.Member (Sigma.pairUnion outside inside) x)
+          (Classical.excludedMiddle (Sets.Member D x))
+          (\fun (inD: Sets.Member D x) => Logic.Or[_, _]::right (Logic.And[_, _]::# inD member))
+          (\fun (notD: Logic.Not (Sets.Member D x)) => Logic.Or[_, _]::left (Logic.And[_, _]::#
+            (R.ltReplaceRight r (g x) (f x) (sym!{Real.Real} _ _ (Sigma.doubleNegative (f x = g x) notD)) member) notD))) \then
+      \return \idelim Sigma.pairUnion outside inside = superlevel g r \with S: \Pow Real.Real => Measure.Measurable Line.measure.sigma S
+        \by { base: Sigma.pairMeasurable Line.measure.sigma outside inside om im, equality: equal }
+    }
+  };

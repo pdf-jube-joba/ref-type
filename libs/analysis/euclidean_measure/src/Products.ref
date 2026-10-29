@@ -1,0 +1,66 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Option[] \as Option;
+\import std.Logic[].Proposition[] \as Logic;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import \root.Euclidean[n := N.Nat^::zero] \as E;
+\import Fin.Tuples[A := Real.Real] \as Tuples;
+\import Tuples.Omission[] \as Omission;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition productExtend: \forall (n: N.Nat^) (h: Real.Real) (tail: Fin.Fin n -> Real.Real) ->
+  E.product (N.Nat^::succ n) (Tuples.extend n h tail) = Real.mul h (E.product n tail) :=
+  \fun (n: N.Nat^) (h: Real.Real) (tail: Fin.Fin n -> Real.Real) =>
+    congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (Tuples.atZero n h tail)
+      (congr!{{Fin.Fin n -> Real.Real} Real.Real} (E.product n) _ _
+        (\axiom:funext((\fun (i: Fin.Fin n) => Tuples.extend n h tail (Fin.succ n i)), tail, Tuples.atSuccessor n h tail)));
+\definition productOmit: \forall (n: N.Nat^) (f: Fin.Fin (N.Nat^::succ n) -> Real.Real) (pivot: Fin.Fin (N.Nat^::succ n)) ->
+  (\forall (i: Fin.Fin (N.Nat^::succ n)) -> R.Le Real.zero (f i)) ->
+  E.product (N.Nat^::succ n) f = Real.mul (f pivot) (E.product n (Omission.omit n pivot f)) :=
+  \induction (n: N.Nat^) \return \forall (f: Fin.Fin (N.Nat^::succ n) -> Real.Real) (pivot: Fin.Fin (N.Nat^::succ n)) ->
+    (\forall (i: Fin.Fin (N.Nat^::succ n)) -> R.Le Real.zero (f i)) ->
+    E.product (N.Nat^::succ n) f = Real.mul (f pivot) (E.product n (Omission.omit n pivot f)) \with {
+    | zero: \fun (f: Fin.Fin (N.Nat^::succ N.Nat^::zero) -> Real.Real) (pivot: Fin.Fin (N.Nat^::succ N.Nat^::zero)) (_: _) => \block {
+      \let cases: \forall (o: Option.Option[Fin.Fin N.Nat^::zero]) ->
+        E.product (N.Nat^::succ N.Nat^::zero) f = Real.mul (f (Fin.inflate N.Nat^::zero o)) (E.product N.Nat^::zero (Omission.omit N.Nat^::zero (Fin.inflate N.Nat^::zero o) f)) :=
+        \induction (o: Option.Option[Fin.Fin N.Nat^::zero]) \return
+          E.product (N.Nat^::succ N.Nat^::zero) f = Real.mul (f (Fin.inflate N.Nat^::zero o)) (E.product N.Nat^::zero (Omission.omit N.Nat^::zero (Fin.inflate N.Nat^::zero o) f)) \with {
+          | none: \refl(Real.mul (f (Fin.zero N.Nat^::zero)) Real.one)
+          | some: \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))
+        } \then
+      \return \idelim Fin.inflate N.Nat^::zero (Fin.split N.Nat^::zero pivot) = pivot
+        \with i: Fin.Fin (N.Nat^::succ N.Nat^::zero) => E.product (N.Nat^::succ N.Nat^::zero) f = Real.mul (f i) (E.product N.Nat^::zero (Omission.omit N.Nat^::zero i f))
+        \by { base: cases (Fin.split N.Nat^::zero pivot), equality: Fin.inflateSplit N.Nat^::zero pivot }
+    }
+    | succ: \fun (n: N.Nat^) (prior: \forall (f: Fin.Fin (N.Nat^::succ n) -> Real.Real) (pivot: Fin.Fin (N.Nat^::succ n)) -> (\forall (i: Fin.Fin (N.Nat^::succ n)) -> R.Le Real.zero (f i)) -> E.product (N.Nat^::succ n) f = Real.mul (f pivot) (E.product n (Omission.omit n pivot f))) (f: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)) -> Real.Real)
+      (pivot: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) (valid: \forall (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) -> R.Le Real.zero (f i)) => \block {
+      \let cases: \forall (o: Option.Option[Fin.Fin (N.Nat^::succ n)]) ->
+        E.product (N.Nat^::succ (N.Nat^::succ n)) f = Real.mul (f (Fin.inflate (N.Nat^::succ n) o))
+          (E.product (N.Nat^::succ n) (Omission.omit (N.Nat^::succ n) (Fin.inflate (N.Nat^::succ n) o) f)) :=
+        \induction (o: Option.Option[Fin.Fin (N.Nat^::succ n)]) \return
+          E.product (N.Nat^::succ (N.Nat^::succ n)) f = Real.mul (f (Fin.inflate (N.Nat^::succ n) o))
+            (E.product (N.Nat^::succ n) (Omission.omit (N.Nat^::succ n) (Fin.inflate (N.Nat^::succ n) o) f)) \with {
+          | none: congr!{Real.Real Real.Real} (Real.mul (f (Fin.zero (N.Nat^::succ n)))) _ _
+            (congr!{{Fin.Fin (N.Nat^::succ n) -> Real.Real} Real.Real} (E.product (N.Nat^::succ n)) _ _ (sym!{{Fin.Fin (N.Nat^::succ n) -> Real.Real}} _ _ (Omission.first n f)))
+          | some: \fun (i: Fin.Fin (N.Nat^::succ n)) => \block {
+            \let tail: Fin.Fin (N.Nat^::succ n) -> Real.Real := \fun (j: Fin.Fin (N.Nat^::succ n)) => f (Fin.succ (N.Nat^::succ n) j) \then
+            \let omitted: Fin.Fin n -> Real.Real := Omission.omit n i tail \then
+            \return eq_reason_in!{Real.Real _
+              "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (f (Fin.zero (N.Nat^::succ n)))) _ _ (prior tail i (\fun (j: Fin.Fin (N.Nat^::succ n)) => valid (Fin.succ (N.Nat^::succ n) j))) }
+              "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulAssoc (f (Fin.zero (N.Nat^::succ n))) (tail i) (E.product n omitted)) }
+              "=" _ "by" { congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.mul v (E.product n omitted)) _ _ (Laws.fieldMulComm (f (Fin.zero (N.Nat^::succ n))) (tail i)) }
+              "=" _ "by" { Laws.fieldMulAssoc (tail i) (f (Fin.zero (N.Nat^::succ n))) (E.product n omitted) }
+              "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (tail i)) _ _ (sym!{Real.Real} _ _ (productExtend n (f (Fin.zero (N.Nat^::succ n))) omitted)) }
+              "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (tail i)) _ _
+                (congr!{{Fin.Fin (N.Nat^::succ n) -> Real.Real} Real.Real} (E.product (N.Nat^::succ n)) _ _ (sym!{{Fin.Fin (N.Nat^::succ n) -> Real.Real}} _ _ (Omission.successor n i f))) }
+            }
+          }
+        } \then
+      \return \idelim Fin.inflate (N.Nat^::succ n) (Fin.split (N.Nat^::succ n) pivot) = pivot
+        \with i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)) => E.product (N.Nat^::succ (N.Nat^::succ n)) f = Real.mul (f i) (E.product (N.Nat^::succ n) (Omission.omit (N.Nat^::succ n) i f))
+        \by { base: cases (Fin.split (N.Nat^::succ n) pivot), equality: Fin.inflateSplit (N.Nat^::succ n) pivot }
+    }
+  };

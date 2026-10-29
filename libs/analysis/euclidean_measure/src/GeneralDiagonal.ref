@@ -1,0 +1,97 @@
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Bool[] \as Bool;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.trans;
+\import \root.Euclidean[n := n] \as E;
+\import E.Scaling[] \as Scaling;
+\import E.MeasureConstruction[] \as Construction;
+\import \root.SingularScale[n := n] \as Singular;
+\import functional_analysis.Measure[A := E.Point] \as Measure;
+\import Measure.ValueLaws[] \as Values;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\import real.Analysis[] \as Real;
+\import Real.Distance[] \as Distance;
+\import Real.Estimates[].Product[] \as Product;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import R.Arithmetic[].Prop[] \as Laws;
+\definition signValue[s: Bool.Bool^] [x: Real.Real]: Real.Real := Bool.ite Real.Real s (Real.neg x) x;
+\definition signChoice[x: Real.Real]: \Set := \Cast[Bool.Bool^] ({ s: Bool.Bool^ \where signValue s (Product.abs x) = x });
+\definition signExists: \forall (x: Real.Real) -> \exists signChoice x :=
+  \fun (x: Real.Real) => Logic.orElim (R.Le Real.zero x) (Logic.Not (R.Le Real.zero x)) (\exists signChoice x)
+    (Classical.excludedMiddle (R.Le Real.zero x))
+    (\fun (positive: R.Le Real.zero x) => Logic.existsIntro[Bool.Bool^, { s: Bool.Bool^ \where signValue s (Product.abs x) = x }]
+      Bool.Bool^::false (Product.absOfNonnegative x positive))
+    (\fun (notPositive: Logic.Not (R.Le Real.zero x)) => \block {
+      \let negative: R.Lt x Real.zero := Order.byContradiction (R.Lt x Real.zero)
+        (\fun (notLess: Logic.Not (R.Lt x Real.zero)) => notPositive (Order.leOfNotLtReverse Real.zero x notLess)) \then
+      \return Logic.existsIntro[Bool.Bool^, { s: Bool.Bool^ \where signValue s (Product.abs x) = x }] Bool.Bool^::true
+        (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Real.neg _ _ (Product.absOfNegative x negative)) (Laws.negInvolutive x))
+    });
+\definition absPositive: \forall (x: Real.Real) -> Logic.Not (x = Real.zero) -> R.Lt Real.zero (Product.abs x) :=
+  \fun (x: Real.Real) (nonzero: Logic.Not (x = Real.zero)) => Order.ltOfLeNotEq Real.zero (Product.abs x) (Product.absNonnegative x)
+    (\fun (same: Real.zero = Product.abs x) => nonzero (sym!{Real.Real} _ _ (Distance.distanceSeparated Real.zero x (sym!{Real.Real} _ _ same))));
+\definition absPoint[a: E.Point]: E.Point := \fun (i: Fin.Fin n) => Product.abs (a i);
+\definition signChoices[a: E.Point] [i: Fin.Fin n]: \Set := signChoice (a i);
+\definition Decomposition[a: E.Point] [s: Fin.Fin n -> Bool.Bool^]: \Prop :=
+  \forall (i: Fin.Fin n) -> signValue (s i) (Product.abs (a i)) = a i;
+\definition decomposition: \forall (a: E.Point) -> \exists ( s: Fin.Fin n -> Bool.Bool^ \where Decomposition a s ) :=
+  \fun (a: E.Point) => \block {
+    \takefrom choices: \forall (i: Fin.Fin n) -> signChoices a i \by
+      \axiom:classicalIndefiniteChoice(Fin.Fin n, signChoices a, \fun (i: Fin.Fin n) => signExists (a i)) \then
+    \let s: Fin.Fin n -> Bool.Bool^ := \fun (i: Fin.Fin n) => choices i \then
+    \return Logic.existsIntro[Fin.Fin n -> Bool.Bool^, { s: Fin.Fin n -> Bool.Bool^ \where Decomposition a s }] s
+      (\fun (i: Fin.Fin n) => \bysub(Bool.Bool^, { s: Bool.Bool^ \where signValue s (Product.abs (a i)) = a i }, choices i))
+  };
+\definition signedCoefficient: \forall (sig: Fin.Fin n -> Bool.Bool^) -> Scaling.PositivePoint -> E.Point :=
+  \fun (sig: Fin.Fin n -> Bool.Bool^) (a: Scaling.PositivePoint) (i: Fin.Fin n) => signValue (sig i) (a i);
+\definition signedFormula: \forall (sig: Fin.Fin n -> Bool.Bool^) (S: \Pow E.Point) (a: Scaling.PositivePoint) ->
+  Construction.measure.value (Singular.image S (signedCoefficient sig a)) = Measure.scale (Scaling.factor a) (Construction.measure.value S) :=
+  \fun (sig: Fin.Fin n -> Bool.Bool^) => \root.Diagonal[n := n, sign := sig].changeOfMeasure;
+\definition signedMeasurable: \forall (sig: Fin.Fin n -> Bool.Bool^) (S: \Pow E.Point) (a: Scaling.PositivePoint) ->
+  Measure.Measurable Construction.measure.sigma S -> Measure.Measurable Construction.measure.sigma (Singular.image S (signedCoefficient sig a)) :=
+  \fun (sig: Fin.Fin n -> Bool.Bool^) => \root.Diagonal[n := n, sign := sig].measurableImage;
+\definition nonzeroFormula: \forall (S: \Pow E.Point) (a: E.Point) -> (\forall (i: Fin.Fin n) -> Logic.Not (a i = Real.zero)) ->
+  Logic.And[Construction.measure.value (Singular.image S a) = Measure.scale (E.product n (absPoint a)) (Construction.measure.value S),
+    Measure.Measurable Construction.measure.sigma S -> Measure.Measurable Construction.measure.sigma (Singular.image S a)] :=
+  \fun (S: \Pow E.Point) (a: E.Point) (nonzero: \forall (i: Fin.Fin n) -> Logic.Not (a i = Real.zero)) => \block {
+    \takefrom s: \Cast[Fin.Fin n -> Bool.Bool^] ({ s: Fin.Fin n -> Bool.Bool^ \where Decomposition a s }) \by decomposition a \then
+    \let valid: Decomposition a s := \bysub(Fin.Fin n -> Bool.Bool^, { s: Fin.Fin n -> Bool.Bool^ \where Decomposition a s }, s) \then
+    \let magnitude: Scaling.PositivePoint := \into[E.Point](absPoint a, { p: E.Point \where \forall (i: Fin.Fin n) -> R.Lt Real.zero (p i) })
+      \by { \fun (i: Fin.Fin n) => absPositive (a i) (nonzero i) } \then
+    \let expected: E.Point := signedCoefficient s magnitude \then
+    \let coefficients: expected = a := \axiom:funext(expected, a, valid) \then
+    \let sameImage: Singular.image S expected = Singular.image S a := congr!{E.Point {\Pow E.Point}} (Singular.image S) _ _ coefficients \then
+    \return Logic.And[_, _]::#
+      (\idelim Singular.image S expected = Singular.image S a \with U: \Pow E.Point =>
+        Construction.measure.value U = Measure.scale (E.product n (absPoint a)) (Construction.measure.value S) \by {
+          base: signedFormula s S magnitude, equality: sameImage })
+      (\fun (measurable: Measure.Measurable Construction.measure.sigma S) =>
+        \idelim Singular.image S expected = Singular.image S a \with U: \Pow E.Point => Measure.Measurable Construction.measure.sigma U \by {
+          base: signedMeasurable s S magnitude measurable, equality: sameImage })
+  };
+\definition formula: \forall (S: \Pow E.Point) (a: E.Point) ->
+  Logic.And[Construction.measure.value (Singular.image S a) = Measure.scale (E.product n (absPoint a)) (Construction.measure.value S),
+    Measure.Measurable Construction.measure.sigma S -> Measure.Measurable Construction.measure.sigma (Singular.image S a)] :=
+  \fun (S: \Pow E.Point) (a: E.Point) => Logic.orElim (\exists ( i: Fin.Fin n \where a i = Real.zero ))
+    (Logic.Not (\exists ( i: Fin.Fin n \where a i = Real.zero ))) _
+    (Classical.excludedMiddle (\exists ( i: Fin.Fin n \where a i = Real.zero )))
+    (\fun (hasZero: \exists ( i: Fin.Fin n \where a i = Real.zero )) => \block {
+      \takefrom i: \Cast[Fin.Fin n] ({ i: Fin.Fin n \where a i = Real.zero }) \by hasZero \then
+      \let zero: a i = Real.zero := \bysub(Fin.Fin n, { i: Fin.Fin n \where a i = Real.zero }, i) \then
+      \let absZero: Product.abs (a i) = Real.zero := trans!{Real.Real} _ _ _
+        (congr!{Real.Real Real.Real} Product.abs _ _ zero) (Product.absOfNonnegative Real.zero (R.leRefl Real.zero)) \then
+      \let factorZero: E.product n (absPoint a) = Real.zero := E.productZero n (absPoint a) i absZero \then
+      \return Logic.And[_, _]::#
+        (\idelim Measure.scale Real.zero (E.outer S) = Measure.scale (E.product n (absPoint a)) (E.outer S) \with v: Measure.Value => E.outer (Singular.image S a) = v \by {
+          base: \idelim Measure.zero = Measure.scale Real.zero (E.outer S) \with v: Measure.Value => E.outer (Singular.image S a) = v \by {
+            base: Singular.nullImage S a i zero, equality: sym!{Measure.Value} _ _ (Values.zeroScale (E.outer S) (E.outerNonnegative S)) },
+          equality: congr!{Real.Real Measure.Value} (\fun (c: Real.Real) => Measure.scale c (E.outer S)) _ _ (sym!{Real.Real} _ _ factorZero) })
+        (\fun (_: Measure.Measurable Construction.measure.sigma S) => Singular.measurableImage S a i zero)
+    })
+    (\fun (none: Logic.Not (\exists ( i: Fin.Fin n \where a i = Real.zero ))) => nonzeroFormula S a
+      (\fun (i: Fin.Fin n) (zero: a i = Real.zero) => none (Logic.existsIntro[Fin.Fin n, { i: Fin.Fin n \where a i = Real.zero }] i zero)));

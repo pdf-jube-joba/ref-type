@@ -1,0 +1,83 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\import std.Logic[].Proposition[] \as Logic;
+\import \root.Euclidean[n := n] \as E;
+\import \root.EuclideanBorel[n := n] \as Borel;
+\import \root.CoverExpansion[n := n] \as Approx;
+\import E.MeasureConstruction[] \as Construction;
+\import functional_analysis.Measure[A := E.Point] \as Measure;
+\import Measure.Sigma[] \as Sigma;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as Topology;
+\import real.Analysis[] \as Real;
+\import Real.Geometric[q := Real.half] \as Dyadic;
+\import functional_analysis.ScalarLimits[] \as Limits;
+\import Real.SquareRoot[] \as Root;
+\import Real.Estimates[] \as Estimates;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Completeness[] \as Complete;
+\definition Choice[S: \Pow E.Point] [p: Real.Real] [i: N.Nat^]: \Set :=
+  \Cast[\Pow E.Point] ({ U: \Pow E.Point \where Approx.Envelope S (Real.add p (Dyadic.value i)) U });
+\definition Hull[S: \Pow E.Point] [f: N.Nat^ -> \Pow E.Point]: \Prop :=
+  Logic.And[\forall (i: N.Nat^) -> Sets.IsOpenIn Topology.topology (f i),
+    Logic.And[Sets.Subset S (Sigma.intersection f), E.outer (Sigma.intersection f) = E.outer S]];
+\definition finiteHull: \forall (S: \Pow E.Point) (bound: Real.Real) -> Logic.Not (Measure.below (E.outer S) bound) ->
+  \exists ( f: N.Nat^ -> \Pow E.Point \where Hull S f ) :=
+  \fun (S: \Pow E.Point) (bound: Real.Real) (outside: Logic.Not (Measure.below (E.outer S) bound)) => \block {
+    \takefrom p: \Cast[Real.Real] ({ p: Real.Real \where Complete.LeastUpperBound[E.outer S, p] })
+      \by E.valueSup (E.outer S) (E.outerNonnegative S) bound outside \then
+    \let sup: Complete.LeastUpperBound[E.outer S, p] := \bysub(Real.Real, { p: Real.Real \where Complete.LeastUpperBound[E.outer S, p] }, p) \then
+    \let pOutside: Logic.Not (Measure.below (E.outer S) p) := E.supremumOutside (E.outer S) p (E.outerNonnegative S) sup \then
+    \takefrom chosen: \forall (i: N.Nat^) -> Choice S p i \by
+      \axiom:classicalIndefiniteChoice(N.Nat^, Choice S p, \fun (i: N.Nat^) =>
+        Approx.outerApproximation S p (Dyadic.value i) pOutside (Limits.dyadicPositive i)) \then
+    \let f: N.Nat^ -> \Pow E.Point := \fun (i: N.Nat^) => chosen i \then
+    \let law: \forall (i: N.Nat^) -> Approx.Envelope S (Real.add p (Dyadic.value i)) (f i) :=
+      \fun (i: N.Nat^) => \bysub(\Pow E.Point, { U: \Pow E.Point \where Approx.Envelope S (Real.add p (Dyadic.value i)) U }, chosen i) \then
+    \let G: \Pow E.Point := Sigma.intersection f \then
+    \let contains: Sets.Subset S G := \fun (x: E.Point) (member: Sets.Member S x) (i: N.Nat^) => (law i).right.left x member \then
+    \let equal: E.outer G = E.outer S := \axiom:setext(E.outer G, E.outer S,
+      \fun (r: Real.Real) (member: Measure.below (E.outer G) r) => Sigma.doubleNegative (Measure.below (E.outer S) r)
+        (\fun (notIn: Logic.Not (Measure.below (E.outer S) r)) => \block {
+          \let pr: R.Le p r := sup.least r (E.valueUpper (E.outer S) (E.outerNonnegative S) r notIn) \then
+          \takefrom q: \Cast[Real.Real] ({ q: Real.Real \where Logic.And[R.Lt r q, Measure.below (E.outer G) q] }) \by (E.outerNonnegative G).rounded r member \then
+          \let qlaw: Logic.And[R.Lt r q, Measure.below (E.outer G) q] :=
+            \bysub(Real.Real, { q: Real.Real \where Logic.And[R.Lt r q, Measure.below (E.outer G) q] }, q) \then
+          \let gap: Real.Real := Real.sub q r \then
+          \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (i: N.Nat^) -> Nat.Le k i -> R.Lt (Dyadic.value i) gap })
+            \by Limits.dyadicSmall gap (Root.subPositive q r qlaw.left) \then
+          \let small: R.Lt (Dyadic.value k) gap := (\bysub(N.Nat^, { k: N.Nat^ \where \forall (i: N.Nat^) -> Nat.Le k i -> R.Lt (Dyadic.value i) gap }, k)) k (Nat.leRefl k) \then
+          \let strict: R.Lt (Real.add p (Dyadic.value k)) q := R.leLtTrans _ (Real.add r (Dyadic.value k)) q
+            (Laws.addMonotoneRight p r (Dyadic.value k) pr)
+            (R.ltReplaceRight (Real.add r (Dyadic.value k)) (Real.add r gap) q (Estimates.addSubCancel q r) (Laws.ltAddLeft r (Dyadic.value k) gap small)) \then
+          \let gin: Measure.below (E.outer (f k)) q := E.monotone G (f k) (\fun (x: E.Point) (all: Sets.Member G x) => all k) q qlaw.right \then
+          \return R.ltNotLeReverse (Real.add p (Dyadic.value k)) q strict ((law k).right.right q gin)
+        }),
+      \fun (r: Real.Real) (member: Measure.below (E.outer S) r) => E.monotone S G contains r member) \then
+    \return Logic.existsIntro[N.Nat^ -> \Pow E.Point, { f: N.Nat^ -> \Pow E.Point \where Hull S f }] f
+      (Logic.And[_, _]::# (\fun (i: N.Nat^) => (law i).left) (Logic.And[_, _]::# contains equal))
+  };
+\definition hullMeasurable: \forall (f: N.Nat^ -> \Pow E.Point) -> (\forall (i: N.Nat^) -> Sets.IsOpenIn Topology.topology (f i)) ->
+  Measure.Measurable Construction.measure.sigma (Sigma.intersection f) :=
+  \fun (f: N.Nat^ -> \Pow E.Point) (opened: _) => Sigma.intersectionCountableMeasurable Construction.measure.sigma f
+    (\fun (i: N.Nat^) => Borel.openMeasurable (f i) (opened i));
+\import \root.FiniteCancellation[n := n] \as Cancellation;
+\import Measure.Finite[mu := Construction.measure] \as Finite;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition nullDifference: \forall (S: \Pow E.Point) (f: N.Nat^ -> \Pow E.Point) (bound: Real.Real) ->
+  E.Caratheodory S -> Hull S f -> Logic.Not (Measure.below (E.outer S) bound) ->
+  E.outer (Sigma.difference (Sigma.intersection f) S) = Measure.zero :=
+  \fun (S: \Pow E.Point) (f: N.Nat^ -> \Pow E.Point) (bound: Real.Real) (measurable: E.Caratheodory S)
+    (hull: Hull S f) (outside: Logic.Not (Measure.below (E.outer S) bound)) => \block {
+      \let G: \Pow E.Point := Sigma.intersection f \then
+      \let D: \Pow E.Point := Sigma.difference G S \then
+      \let addEqual: Measure.add (E.outer S) (E.outer D) = E.outer S := eq_reason_in!{Measure.Value _
+        "=" _ "by" { sym!{Measure.Value} _ _ (E.disjointAdditivity S D measurable (Finite.subsetDisjoint S G)) }
+        "=" _ "by" { congr!{\Pow E.Point Measure.Value} E.outer _ _ (sym!{\Pow E.Point} _ _ (Finite.subsetDecomposition S G hull.right.left)) }
+        "=" _ "by" { hull.right.right }
+      } \then
+      \return Cancellation.finiteCancellation (E.outer S) (E.outer D) (E.outerNonnegative S) (E.outerNonnegative D) bound outside addEqual
+    };

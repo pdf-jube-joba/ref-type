@@ -1,0 +1,120 @@
+\import \parent.Countable[] \as Countable;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition partialAddSet[f: N.Nat^ -> Measure.Value] [v: Measure.Value]: Measure.Value :=
+  { r: Real.Real \where \exists ( k: N.Nat^ \where Measure.below (Measure.add (Measure.partialSum f k) v) r ) };
+\definition seriesAddFixed: \forall (f: N.Nat^ -> Measure.Value) (v: Measure.Value) ->
+  Measure.add (Measure.series f) v = partialAddSet f v :=
+  \fun (f: N.Nat^ -> Measure.Value) (v: Measure.Value) => \axiom:setext(Measure.add (Measure.series f) v, partialAddSet f v,
+    \fun (r: Real.Real) (member: Measure.below (Measure.add (Measure.series f) v) r) => \block {
+      \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[Measure.below (Measure.series f) a, \exists ( b: Real.Real \where Logic.And[Measure.below v b, R.Lt r (Real.add a b)] )] }) \by member \then
+      \let first: Logic.And[Measure.below (Measure.series f) a, \exists ( b: Real.Real \where Logic.And[Measure.below v b, R.Lt r (Real.add a b)] )] :=
+        \bysub(Real.Real, { a: Real.Real \where Logic.And[Measure.below (Measure.series f) a, \exists ( b: Real.Real \where Logic.And[Measure.below v b, R.Lt r (Real.add a b)] )] }, a) \then
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Measure.below (Measure.partialSum f k) a }) \by first.left \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Measure.below (Measure.add (Measure.partialSum f k) v) r }] k
+        (Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[Measure.below (Measure.partialSum f k) a, \exists ( b: Real.Real \where Logic.And[Measure.below v b, R.Lt r (Real.add a b)] )] }] a
+          (Logic.And[_, _]::# (\bysub(N.Nat^, { k: N.Nat^ \where Measure.below (Measure.partialSum f k) a }, k)) first.right))
+    },
+    \fun (r: Real.Real) (member: Measure.below (partialAddSet f v) r) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Measure.below (Measure.add (Measure.partialSum f k) v) r }) \by member \then
+      \return Values.addMono (Measure.partialSum f k) (Measure.series f) v v (partialBelowSeries f k)
+        (\fun (s: Real.Real) (inValue: Measure.below v s) => inValue) r
+        (\bysub(N.Nat^, { k: N.Nat^ \where Measure.below (Measure.add (Measure.partialSum f k) v) r }, k))
+    });
+\definition remainder[T: \Pow Point] [f: N.Nat^ -> \Pow Point] [k: N.Nat^]: \Pow Point :=
+  Sets.Intersection T (Sets.Complement (Sigma.prefix f k));
+\definition piece[T: \Pow Point] [f: N.Nat^ -> \Pow Point] [k: N.Nat^]: \Pow Point :=
+  Sets.Intersection T (Sigma.increments f k);
+\definition remainderPiece: \forall (T: \Pow Point) (f: N.Nat^ -> \Pow Point) (k: N.Nat^) ->
+  Sets.Intersection (remainder T f k) (f k) = piece T f k :=
+  \fun (T: \Pow Point) (f: N.Nat^ -> \Pow Point) (k: N.Nat^) => \axiom:setext(Sets.Intersection (remainder T f k) (f k), piece T f k,
+    \fun (x: Point) (member: Sets.Member (Sets.Intersection (remainder T f k) (f k)) x) =>
+      Logic.And[_, _]::# member.left.left (Logic.And[_, _]::# member.right member.left.right),
+    \fun (x: Point) (member: Sets.Member (piece T f k) x) =>
+      Logic.And[_, _]::# (Logic.And[_, _]::# member.left member.right.right) member.right.left);
+\definition remainderStep: \forall (T: \Pow Point) (f: N.Nat^ -> \Pow Point) (k: N.Nat^) ->
+  Sets.Intersection (remainder T f k) (Sets.Complement (f k)) = remainder T f (N.Nat^::succ k) :=
+  \fun (T: \Pow Point) (f: N.Nat^ -> \Pow Point) (k: N.Nat^) => sym!{{\Pow Point}} _ _ (unionOutside T (Sigma.prefix f k) (f k));
+\definition remainderZero: \forall (T: \Pow Point) (f: N.Nat^ -> \Pow Point) -> remainder T f N.Nat^::zero = T :=
+  \fun (T: \Pow Point) (f: N.Nat^ -> \Pow Point) => intersectionComplementEmpty T;
+\definition finiteSplit: \forall (T: \Pow Point) (f: N.Nat^ -> \Pow Point) -> (\forall (k: N.Nat^) -> Caratheodory (f k)) ->
+  \forall (k: N.Nat^) -> outer T = Measure.add (Measure.partialSum (\fun (j: N.Nat^) => outer (piece T f j)) k) (outer (remainder T f k)) :=
+  \fun (T: \Pow Point) (f: N.Nat^ -> \Pow Point) (measurable: \forall (k: N.Nat^) -> Caratheodory (f k)) =>
+    \induction (k: N.Nat^) \return outer T = Measure.add (Measure.partialSum (\fun (j: N.Nat^) => outer (piece T f j)) k) (outer (remainder T f k)) \with {
+      | zero: eq_reason_in!{Measure.Value _
+        "=" _ "by" { sym!{Measure.Value} _ _ (Series.zeroAdd (outer T) (outerNonnegative T)) }
+        "=" _ "by" { congr!{Measure.Value Measure.Value} (Measure.add Measure.zero) _ _
+          (congr!{{\Pow Point} Measure.Value} outer _ _ (sym!{{\Pow Point}} _ _ (remainderZero T f))) }
+      }
+      | succ: \fun (k: N.Nat^) (previous: _) => eq_reason_in!{Measure.Value _
+        "=" _ "by" { previous }
+        "=" _ "by" { congr!{Measure.Value Measure.Value} (Measure.add (Measure.partialSum (\fun (j: N.Nat^) => outer (piece T f j)) k)) _ _ (measurable k (remainder T f k)) }
+        "=" _ "by" { congr!{Measure.Value Measure.Value} (Measure.add (Measure.partialSum (\fun (j: N.Nat^) => outer (piece T f j)) k)) _ _
+          (congr!{Measure.Value Measure.Value Measure.Value} Measure.add _ _ _ _
+            (congr!{{\Pow Point} Measure.Value} outer _ _ (remainderPiece T f k))
+            (congr!{{\Pow Point} Measure.Value} outer _ _ (remainderStep T f k))) }
+        "=" _ "by" { sym!{Measure.Value} _ _ (Values.addAssoc (Measure.partialSum (\fun (j: N.Nat^) => outer (piece T f j)) k) (outer (piece T f k)) (outer (remainder T f (N.Nat^::succ k)))) }
+      }
+    };
+\definition pieceUnion: \forall (T: \Pow Point) (f: N.Nat^ -> \Pow Point) ->
+  Measure.union (piece T f) = Sets.Intersection T (Measure.union f) :=
+  \fun (T: \Pow Point) (f: N.Nat^ -> \Pow Point) => \axiom:setext(Measure.union (piece T f), Sets.Intersection T (Measure.union f),
+    \fun (x: Point) (member: Sets.Member (Measure.union (piece T f)) x) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sets.Member (piece T f k) x }) \by member \then
+      \let inPiece: Sets.Member (piece T f k) x := \bysub(N.Nat^, { k: N.Nat^ \where Sets.Member (piece T f k) x }, k) \then
+      \return Logic.And[_, _]::# inPiece.left
+        (Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (f k) x }] k inPiece.right.left)
+    },
+    \fun (x: Point) (member: Sets.Member (Sets.Intersection T (Measure.union f)) x) => \block {
+      \let inIncrements: Sets.Member (Measure.union (Sigma.increments f)) x :=
+        \idelim Measure.union f = Measure.union (Sigma.increments f) \with S: \Pow Point => Sets.Member S x
+          \by { base: member.right, equality: sym!{{\Pow Point}} _ _ (Sigma.incrementUnion f) } \then
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sets.Member (Sigma.increments f k) x }) \by inIncrements \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (piece T f k) x }] k
+        (Logic.And[_, _]::# member.left (\bysub(N.Nat^, { k: N.Nat^ \where Sets.Member (Sigma.increments f k) x }, k)))
+    });
+\definition remainderLimit: \forall (T: \Pow Point) (f: N.Nat^ -> \Pow Point) (k: N.Nat^) ->
+  Sets.Subset (Sets.Intersection T (Sets.Complement (Measure.union f))) (remainder T f k) :=
+  \fun (T: \Pow Point) (f: N.Nat^ -> \Pow Point) (k: N.Nat^) (x: Point)
+    (member: Sets.Member (Sets.Intersection T (Sets.Complement (Measure.union f))) x) =>
+      Logic.And[_, _]::# member.left (\fun (inPrefix: Sets.Member (Sigma.prefix f k) x) => member.right (Sigma.prefixContainedInUnion f k x inPrefix));
+\definition unionCaratheodory: \forall (f: N.Nat^ -> \Pow Point) -> (\forall (k: N.Nat^) -> Caratheodory (f k)) -> Caratheodory (Measure.union f) :=
+  \fun (f: N.Nat^ -> \Pow Point) (measurable: \forall (k: N.Nat^) -> Caratheodory (f k)) (T: \Pow Point) => \block {
+    \let inside: \Pow Point := Sets.Intersection T (Measure.union f) \then
+    \let outside: \Pow Point := Sets.Intersection T (Sets.Complement (Measure.union f)) \then
+    \let terms: N.Nat^ -> Measure.Value := \fun (k: N.Nat^) => outer (piece T f k) \then
+    \let insideBound: Values.Included (outer inside) (Measure.series terms) :=
+      \fun (r: Real.Real) (member: Measure.below (outer inside) r) => Countable.subadditive (piece T f) r
+        (\idelim inside = Measure.union (piece T f) \with S: \Pow Point => Measure.below (outer S) r
+          \by { base: member, equality: sym!{{\Pow Point}} _ _ (pieceUnion T f) }) \then
+    \let reverse: Values.Included (Measure.add (outer inside) (outer outside)) (outer T) :=
+      \fun (r: Real.Real) (member: Measure.below (Measure.add (outer inside) (outer outside)) r) => \block {
+        \let inSum: Measure.below (Measure.add (Measure.series terms) (outer outside)) r :=
+          Values.addMono (outer inside) (Measure.series terms) (outer outside) (outer outside) insideBound
+            (\fun (s: Real.Real) (same: Measure.below (outer outside) s) => same) r member \then
+        \let inPartial: Measure.below (partialAddSet terms (outer outside)) r :=
+          \idelim Measure.add (Measure.series terms) (outer outside) = partialAddSet terms (outer outside) \with v: Measure.Value => Measure.below v r
+            \by { base: inSum, equality: seriesAddFixed terms (outer outside) } \then
+        \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Measure.below (Measure.add (Measure.partialSum terms k) (outer outside)) r }) \by inPartial \then
+        \let inFinite: Measure.below (Measure.add (Measure.partialSum terms k) (outer (remainder T f k))) r :=
+          Values.addMono (Measure.partialSum terms k) (Measure.partialSum terms k) (outer outside) (outer (remainder T f k))
+            (\fun (s: Real.Real) (same: Measure.below (Measure.partialSum terms k) s) => same)
+            (monotone outside (remainder T f k) (remainderLimit T f k)) r
+            (\bysub(N.Nat^, { k: N.Nat^ \where Measure.below (Measure.add (Measure.partialSum terms k) (outer outside)) r }, k)) \then
+        \return \idelim Measure.add (Measure.partialSum terms k) (outer (remainder T f k)) = outer T \with v: Measure.Value => Measure.below v r
+          \by { base: inFinite, equality: sym!{Measure.Value} _ _ (finiteSplit T f measurable k) }
+      } \then
+    \let forward: Values.Included (outer T) (Measure.add (outer inside) (outer outside)) :=
+      \fun (r: Real.Real) (member: Measure.below (outer T) r) => subadditivePair inside outside r
+        (\idelim T = Sigma.pairUnion inside outside \with S: \Pow Point => Measure.below (outer S) r
+          \by { base: member, equality: partitionUnion T (Measure.union f) }) \then
+    \return \axiom:setext(outer T, Measure.add (outer inside) (outer outside), forward, reverse)
+  };
+\definition data: Measure.SigmaAlgebraData := Measure.SigmaAlgebraData { measurable := { S: \Pow Point \where Caratheodory S } };
+\definition laws: Measure.SigmaAlgebraLaws[data] := Measure.SigmaAlgebraLaws[data] {
+  empty := emptyCaratheodory,
+  complement := complementCaratheodory,
+  countableUnion := unionCaratheodory,
+};
+\definition sigma: Measure.SigmaAlgebra := \into[Measure.SigmaAlgebraData](data, Measure.SigmaAlgebra) \by { laws };

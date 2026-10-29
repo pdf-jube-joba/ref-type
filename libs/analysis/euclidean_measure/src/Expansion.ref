@@ -1,0 +1,162 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import \root.Euclidean[n := n] \as E;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import metric_spaces.RealLine[] \as Line;
+\import metric_spaces.RealFunctions[A := Real.Real] \as Functions;
+\import Functions.Product[] \as FunctionProduct;
+\import topology.Maps[A := Real.Real, B := Real.Real].Identity[] \as Identity;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].sym;
+\definition finiteProductContinuous: \forall (k: N.Nat^) (f: Fin.Fin k -> Real.Real -> Real.Real) ->
+  (\forall (i: Fin.Fin k) -> Functions.Continuous Line.topology (f i)) ->
+  Functions.Continuous Line.topology (\fun (x: Real.Real) => E.product k (\fun (i: Fin.Fin k) => f i x)) :=
+  \induction (k: N.Nat^) \return \forall (f: Fin.Fin k -> Real.Real -> Real.Real) ->
+    (\forall (i: Fin.Fin k) -> Functions.Continuous Line.topology (f i)) ->
+    Functions.Continuous Line.topology (\fun (x: Real.Real) => E.product k (\fun (i: Fin.Fin k) => f i x)) \with {
+      | zero: \fun (f: Fin.Fin N.Nat^::zero -> Real.Real -> Real.Real) (_: _) => Functions.constantContinuous Line.topology Real.one
+      | succ: \fun (k: N.Nat^) (prior: _) (f: Fin.Fin (N.Nat^::succ k) -> Real.Real -> Real.Real) (continuous: _) =>
+        FunctionProduct.continuous Line.topology (f (Fin.zero k))
+          (\fun (x: Real.Real) => E.product k (\fun (i: Fin.Fin k) => f (Fin.succ k i) x))
+          (continuous (Fin.zero k)) (prior (\fun (i: Fin.Fin k) => f (Fin.succ k i)) (\fun (i: Fin.Fin k) => continuous (Fin.succ k i)))
+    };
+\definition width[b: E.Box] [i: Fin.Fin n] [r: Real.Real]: Real.Real := Real.sub (Real.add (b.right i) r) (Real.sub (b.left i) r);
+\definition widthContinuous: \forall (b: E.Box) (i: Fin.Fin n) -> Functions.Continuous Line.topology (width b i) :=
+  \fun (b: E.Box) (i: Fin.Fin n) => Functions.subContinuous Line.topology
+    (\fun (r: Real.Real) => Real.add (b.right i) r) (\fun (r: Real.Real) => Real.sub (b.left i) r)
+    (Functions.sumContinuous Line.topology (\fun (_: Real.Real) => b.right i) (\fun (r: Real.Real) => r)
+      (Functions.constantContinuous Line.topology (b.right i)) (Identity.continuous Line.topology))
+    (Functions.subContinuous Line.topology (\fun (_: Real.Real) => b.left i) (\fun (r: Real.Real) => r)
+      (Functions.constantContinuous Line.topology (b.left i)) (Identity.continuous Line.topology));
+\definition value[b: E.Box] [r: Real.Real]: Real.Real := E.product n (\fun (i: Fin.Fin n) => width b i r);
+\definition valueContinuous: \forall (b: E.Box) -> Functions.Continuous Line.topology (value b) :=
+  \fun (b: E.Box) => finiteProductContinuous n (width b) (widthContinuous b);
+\definition valueZero: \forall (b: E.Box) -> value b Real.zero = E.product n (\fun (i: Fin.Fin n) => Real.sub (b.right i) (b.left i)) :=
+  \fun (b: E.Box) => E.productCongruent n (\fun (i: Fin.Fin n) => width b i Real.zero) (\fun (i: Fin.Fin n) => Real.sub (b.right i) (b.left i))
+    (\fun (i: Fin.Fin n) => congr!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _ (Laws.addZeroRight (b.right i)) (Laws.subZeroRight (b.left i)));
+\import topology.Topology[Carrier := Real.Real] \as Space;
+\import metric_spaces.RealMetric[] \as Metric;
+\import metric_spaces.MetricSpace[Carrier := Real.Real] \as M;
+\import M.Topology[] \as MT;
+\import R.Order[] \as Order;
+\import Real.Estimates[] \as Estimates;
+\import Estimates.Product[] \as Product;
+\import Real.Distance[] \as Distance;
+\definition radiusExists: \forall (b: E.Box) (epsilon: Real.Real) -> R.Lt Real.zero epsilon ->
+  \exists ( r: Real.Real \where Logic.And[R.Lt Real.zero r, R.Lt (value b r) (Real.add (value b Real.zero) epsilon)] ) :=
+  \fun (b: E.Box) (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) => \block {
+    \takefrom U: \Cast[\Pow Real.Real] ({ U: \Pow Real.Real \where Space.OpenNeighborhood[Line.topology, Real.zero, Functions.Small (value b) Real.zero epsilon, U] })
+      \by Functions.localOfContinuous Line.topology (value b) (valueContinuous b) Real.zero epsilon positive \then
+    \let neighborhood: Space.OpenNeighborhood[Line.topology, Real.zero, Functions.Small (value b) Real.zero epsilon, U] :=
+      \bysub(\Pow Real.Real, { U: \Pow Real.Real \where Space.OpenNeighborhood[Line.topology, Real.zero, Functions.Small (value b) Real.zero epsilon, U] }, U) \then
+    \takefrom delta: \Cast[Real.Real] (M.NeighborhoodRadius Metric.metric U Real.zero)
+      \by (MT.openIff Metric.metric U).ltr neighborhood.open Real.zero neighborhood.contains \then
+    \let radius: Logic.And[R.Lt Real.zero delta, Space.Subset (M.Ball Metric.metric Real.zero delta) U] :=
+      \bysub(Real.Real, M.NeighborhoodRadius Metric.metric U Real.zero, delta) \then
+    \let r: Real.Real := Real.mul Real.half delta \then
+    \let rp: R.Lt Real.zero r := Estimates.halfOfPositive delta radius.left \then
+    \let close: R.Lt (Real.distance Real.zero r) delta := R.ltReplaceLeft r (Real.distance Real.zero r) delta
+      (sym!{Real.Real} _ _ (Product.absOfNonnegative r (Order.leOfLt Real.zero r rp))) (Estimates.halfStrict delta radius.left) \then
+    \let near: R.Lt (Real.distance (value b Real.zero) (value b r)) epsilon := neighborhood.within r (radius.right r close) \then
+    \return Logic.existsIntro[Real.Real, { r: Real.Real \where Logic.And[R.Lt Real.zero r, R.Lt (value b r) (Real.add (value b Real.zero) epsilon)] }] r
+      (Logic.And[_, _]::# rp (Distance.distanceLtUpper (value b Real.zero) (value b r) epsilon near))
+  };
+\import Real.SquareRoot[] \as Root;
+\import std.Data[].Bool[] \as Bool;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\definition lower: \forall (a, r: Real.Real) -> R.Lt Real.zero r -> R.Lt (Real.sub a r) a := Root.subBelow;
+\definition upper: \forall (a, r: Real.Real) -> R.Lt Real.zero r -> R.Lt a (Real.add a r) :=
+  \fun (a, r: Real.Real) (positive: R.Lt Real.zero r) => R.ltReplaceLeft (Real.add a Real.zero) a (Real.add a r)
+    (Laws.addZeroRight a) (Laws.ltAddLeft a Real.zero r positive);
+\definition widened[b: E.Box] [r: Real.Real] [positive: R.Lt Real.zero r]: E.Box := E.Box {
+  active := b.active,
+  left := \fun (i: Fin.Fin n) => Real.sub (b.left i) r,
+  right := \fun (i: Fin.Fin n) => Real.add (b.right i) r,
+  ordered := \fun (i: Fin.Fin n) => R.leTrans _ _ _ (Order.leOfLt _ _ (lower (b.left i) r positive))
+    (R.leTrans _ _ _ (b.ordered i) (Order.leOfLt _ _ (upper (b.right i) r positive))),
+};
+\definition interiorWhen[b: E.Box] [r: Real.Real] [active: Bool.Bool^]: \Pow E.Point := { x: E.Point \where
+  Logic.And[Bool.IsTrue active, \forall (i: Fin.Fin n) -> Logic.And[R.Lt (Real.sub (b.left i) r) (x i), R.Lt (x i) (Real.add (b.right i) r)]] };
+\definition interior[b: E.Box] [r: Real.Real]: \Pow E.Point := interiorWhen b r b.active;
+\definition pointsWithinInterior: \forall (b: E.Box) (r: Real.Real) (positive: R.Lt Real.zero r) -> Sets.Subset (E.points b) (interior b r) :=
+  \fun (b: E.Box) (r: Real.Real) (positive: R.Lt Real.zero r) (x: E.Point) (member: Sets.Member (E.points b) x) =>
+    Logic.And[_, _]::# member.left (\fun (i: Fin.Fin n) => Logic.And[_, _]::#
+      (R.ltLeTrans _ _ _ (lower (b.left i) r positive) (member.right i).left)
+      (R.leLtTrans _ _ _ (member.right i).right (upper (b.right i) r positive)));
+\definition interiorWithinWidened: \forall (b: E.Box) (r: Real.Real) (positive: R.Lt Real.zero r) -> Sets.Subset (interior b r) (E.points (widened b r positive)) :=
+  \fun (b: E.Box) (r: Real.Real) (positive: R.Lt Real.zero r) (x: E.Point) (member: Sets.Member (interior b r) x) =>
+    Logic.And[_, _]::# member.left (\fun (i: Fin.Fin n) => Logic.And[_, _]::#
+      (Order.leOfLt _ _ (member.right i).left) (Order.leOfLt _ _ (member.right i).right));
+\import Bool.Prop[] \as BoolLaws;
+\import \root.EuclideanBorel[n := n] \as Borel;
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as Topology;
+\import metric_spaces.RealLine[].Rays[] \as Rays;
+\definition intervals[b: E.Box] [r: Real.Real] [i: Fin.Fin n]: \Pow E.Point :=
+  Sets.Intersection (Borel.above i (Real.sub (b.left i) r)) (Borel.below i (Real.add (b.right i) r));
+\definition intervalsOpen: \forall (b: E.Box) (r: Real.Real) (i: Fin.Fin n) -> Sets.IsOpenIn Topology.topology (intervals b r i) :=
+  \fun (b: E.Box) (r: Real.Real) (i: Fin.Fin n) =>
+    (Sets.topologyLaws Topology.topology).intersectionOpen _ _
+      (Topology.coordinateContinuous i (Rays.Above (Real.sub (b.left i) r)) (Rays.aboveOpen (Real.sub (b.left i) r)))
+      (Topology.coordinateContinuous i (Rays.Below (Real.add (b.right i) r)) (Rays.belowOpen (Real.add (b.right i) r)));
+\definition meetOpen: \forall (k: N.Nat^) (f: Fin.Fin k -> \Pow E.Point) ->
+  (\forall (i: Fin.Fin k) -> Sets.IsOpenIn Topology.topology (f i)) -> Sets.IsOpenIn Topology.topology (Borel.finiteMeet k f) :=
+  \induction (k: N.Nat^) \return \forall (f: Fin.Fin k -> \Pow E.Point) ->
+    (\forall (i: Fin.Fin k) -> Sets.IsOpenIn Topology.topology (f i)) -> Sets.IsOpenIn Topology.topology (Borel.finiteMeet k f) \with {
+      | zero: \fun (_: _) (_: _) => (Sets.topologyLaws Topology.topology).wholeOpen
+      | succ: \fun (k: N.Nat^) (prior: _) (f: Fin.Fin (N.Nat^::succ k) -> \Pow E.Point) (valid: _) =>
+        (Sets.topologyLaws Topology.topology).intersectionOpen _ _ (valid (Fin.zero k))
+          (prior (\fun (i: Fin.Fin k) => f (Fin.succ k i)) (\fun (i: Fin.Fin k) => valid (Fin.succ k i)))
+    };
+\definition interiorOpen: \forall (b: E.Box) (r: Real.Real) -> Sets.IsOpenIn Topology.topology (interior b r) :=
+  \fun (b: E.Box) (r: Real.Real) => Bool.cases (\fun (active: Bool.Bool^) =>
+    Sets.IsOpenIn Topology.topology (interiorWhen b r active))
+    (\idelim Sets.Empty = interiorWhen b r Bool.Bool^::false \with U: \Pow E.Point => Sets.IsOpenIn Topology.topology U \by {
+      base: (Sets.topologyLaws Topology.topology).emptyOpen,
+      equality: \axiom:setext(Sets.Empty, interiorWhen b r Bool.Bool^::false, \fun (_: E.Point) (f: Logic.False) => Logic.falseElim _ f,
+        \fun (x: E.Point) (member: Sets.Member (interiorWhen b r Bool.Bool^::false) x) => BoolLaws.falseNeTrue member.left) })
+    (\idelim Borel.finiteMeet n (intervals b r) = interiorWhen b r Bool.Bool^::true \with U: \Pow E.Point => Sets.IsOpenIn Topology.topology U \by {
+      base: meetOpen n (intervals b r) (intervalsOpen b r),
+      equality: \axiom:setext(Borel.finiteMeet n (intervals b r), interiorWhen b r Bool.Bool^::true,
+        \fun (x: E.Point) (member: Sets.Member (Borel.finiteMeet n (intervals b r)) x) =>
+          Logic.And[Bool.IsTrue Bool.Bool^::true, \forall (i: Fin.Fin n) -> Logic.And[R.Lt (Real.sub (b.left i) r) (x i), R.Lt (x i) (Real.add (b.right i) r)]]::# (\refl(Bool.Bool^::true)) (Borel.finiteMeetMember n (intervals b r) x member),
+        \fun (x: E.Point) (member: Sets.Member (interiorWhen b r Bool.Bool^::true) x) => Borel.finiteMeetIntro n (intervals b r) x member.right) }) b.active;
+\definition volumeAt[b: E.Box] [r: Real.Real] [active: Bool.Bool^]: Real.Real :=
+  \match active \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with {
+    | false: Real.zero
+    | true: value b r
+  };
+\definition widenedVolume: \forall (b: E.Box) (r: Real.Real) (positive: R.Lt Real.zero r) -> E.volume (widened b r positive) = volumeAt b r b.active :=
+  \fun (b: E.Box) (r: Real.Real) (positive: R.Lt Real.zero r) => \refl(volumeAt b r b.active);
+\definition originalVolume: \forall (b: E.Box) -> E.volume b = volumeAt b Real.zero b.active :=
+  \fun (b: E.Box) => Bool.cases (\fun (active: Bool.Bool^) =>
+    (\match active \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with {
+      | false: Real.zero
+      | true: E.product n (\fun (i: Fin.Fin n) => Real.sub (b.right i) (b.left i))
+    }) = volumeAt b Real.zero active)
+    (\refl(Real.zero)) (sym!{Real.Real} _ _ (valueZero b)) b.active;
+\definition volumeBound: \forall (b: E.Box) (r, epsilon: Real.Real) (positive: R.Lt Real.zero r) -> R.Lt Real.zero epsilon ->
+  R.Lt (value b r) (Real.add (value b Real.zero) epsilon) ->
+  R.Lt (E.volume (widened b r positive)) (Real.add (E.volume b) epsilon) :=
+  \fun (b: E.Box) (r, epsilon: Real.Real) (positive: R.Lt Real.zero r) (ep: R.Lt Real.zero epsilon) (bound: R.Lt (value b r) (Real.add (value b Real.zero) epsilon)) =>
+    R.ltReplaceRight (E.volume (widened b r positive)) (Real.add (volumeAt b Real.zero b.active) epsilon) (Real.add (E.volume b) epsilon)
+      (congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.add v epsilon) _ _ (sym!{Real.Real} _ _ (originalVolume b)))
+      (R.ltReplaceLeft (volumeAt b r b.active) (E.volume (widened b r positive)) (Real.add (volumeAt b Real.zero b.active) epsilon)
+      (sym!{Real.Real} _ _ (widenedVolume b r positive))
+      (Bool.cases (\fun (active: Bool.Bool^) => R.Lt (volumeAt b r active) (Real.add (volumeAt b Real.zero active) epsilon))
+        (R.ltReplaceLeft (Real.add Real.zero Real.zero) Real.zero (Real.add Real.zero epsilon) (Laws.addZeroLeft Real.zero)
+          (Laws.ltAddLeft Real.zero Real.zero epsilon ep)) bound b.active));
+\definition Admissible[b: E.Box] [epsilon: Real.Real]: \Pow Real.Real := { r: Real.Real \where
+  Logic.And[R.Lt Real.zero r, \forall (positive: R.Lt Real.zero r) -> R.Lt (E.volume (widened b r positive)) (Real.add (E.volume b) epsilon)] };
+\definition admissibleExists: \forall (b: E.Box) (epsilon: Real.Real) -> R.Lt Real.zero epsilon -> \exists \Cast[Real.Real] (Admissible b epsilon) :=
+  \fun (b: E.Box) (epsilon: Real.Real) (ep: R.Lt Real.zero epsilon) => \block {
+    \takefrom r: \Cast[Real.Real] ({ r: Real.Real \where Logic.And[R.Lt Real.zero r, R.Lt (value b r) (Real.add (value b Real.zero) epsilon)] })
+      \by radiusExists b epsilon ep \then
+    \let valid: Logic.And[R.Lt Real.zero r, R.Lt (value b r) (Real.add (value b Real.zero) epsilon)] :=
+      \bysub(Real.Real, { r: Real.Real \where Logic.And[R.Lt Real.zero r, R.Lt (value b r) (Real.add (value b Real.zero) epsilon)] }, r) \then
+    \return Logic.existsIntro[Real.Real, Admissible b epsilon] r
+      (Logic.And[_, _]::# valid.left (\fun (positive: R.Lt Real.zero r) => volumeBound b r epsilon positive ep valid.right))
+  };

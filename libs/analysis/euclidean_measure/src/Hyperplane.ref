@@ -1,0 +1,73 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as NatDef;
+\import N.Basic[].Prop[] \as Nat;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Bool[] \as Bool;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import \root.Euclidean[n := n] \as E;
+\import \root.Exhaustion[n := n] \as Exhaustion;
+\import E.MeasureConstruction[] \as Construction;
+\import functional_analysis.Measure[A := E.Point] \as Measure;
+\import Measure.Continuity[mu := Construction.measure] \as Continuity;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\definition test[pivot, i: Fin.Fin n]: Bool.Bool^ := NatDef.eqb (Fin.value n i) (Fin.value n pivot);
+\definition change[pivot: Fin.Fin n] [a: Real.Real] [f: Fin.Fin n -> Real.Real] [i: Fin.Fin n]: Real.Real := Bool.ite Real.Real (test pivot i) a (f i);
+\definition ordered: \forall (pivot: Fin.Fin n) (a: Real.Real) (b: E.Box) (i: Fin.Fin n) -> R.Le (change pivot a b.left i) (change pivot a b.right i) :=
+  \fun (pivot: Fin.Fin n) (a: Real.Real) (b: E.Box) (i: Fin.Fin n) => Bool.cases (\fun (v: Bool.Bool^) =>
+    R.Le (Bool.ite Real.Real v a (b.left i)) (Bool.ite Real.Real v a (b.right i))) (b.ordered i) (R.leRefl a) (test pivot i);
+\definition box[pivot: Fin.Fin n] [a: Real.Real] [k: N.Nat^]: E.Box := E.Box {
+  active := Bool.Bool^::true,
+  left := change pivot a (Exhaustion.box k).left,
+  right := change pivot a (Exhaustion.box k).right,
+  ordered := ordered pivot a (Exhaustion.box k),
+};
+\definition pivotEqual: \forall (pivot: Fin.Fin n) -> test pivot pivot = Bool.Bool^::true := \fun (pivot: Fin.Fin n) => Nat.eqbRefl (Fin.value n pivot);
+\definition pivotChange: \forall (pivot: Fin.Fin n) (a: Real.Real) (f: Fin.Fin n -> Real.Real) -> change pivot a f pivot = a :=
+  \fun (pivot: Fin.Fin n) (a: Real.Real) (f: Fin.Fin n -> Real.Real) =>
+    \idelim Bool.Bool^::true = test pivot pivot \with v: Bool.Bool^ => Bool.ite Real.Real v a (f pivot) = a
+      \by { base: \refl(a), equality: sym!{Bool.Bool^} _ _ (pivotEqual pivot) };
+\definition volumeZero: \forall (pivot: Fin.Fin n) (a: Real.Real) (k: N.Nat^) -> E.volume (box pivot a k) = Real.zero :=
+  \fun (pivot: Fin.Fin n) (a: Real.Real) (k: N.Nat^) => E.productZero n
+    (\fun (i: Fin.Fin n) => Real.sub ((box pivot a k).right i) ((box pivot a k).left i)) pivot
+    (eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _ (pivotChange pivot a (Exhaustion.box k).right) (pivotChange pivot a (Exhaustion.box k).left) }
+      "=" _ "by" { Laws.subSelf a }
+    });
+\definition Plane[pivot: Fin.Fin n] [a: Real.Real]: \Pow E.Point := { x: E.Point \where x pivot = a };
+\definition coordinateMember: \forall (pivot: Fin.Fin n) (a: Real.Real) (k: N.Nat^) (x: E.Point) (j: Fin.Fin n) -> x pivot = a ->
+  Sets.Member (E.points (Exhaustion.box k)) x ->
+  Logic.And[R.Le (change pivot a (Exhaustion.box k).left j) (x j), R.Le (x j) (change pivot a (Exhaustion.box k).right j)] :=
+  \fun (pivot: Fin.Fin n) (a: Real.Real) (k: N.Nat^) (x: E.Point) (j: Fin.Fin n) (at: x pivot = a)
+    (inside: Sets.Member (E.points (Exhaustion.box k)) x) =>
+    Bool.cases (\fun (v: Bool.Bool^) => test pivot j = v ->
+      Logic.And[R.Le (Bool.ite Real.Real v a ((Exhaustion.box k).left j)) (x j), R.Le (x j) (Bool.ite Real.Real v a ((Exhaustion.box k).right j))])
+      (\fun (_: test pivot j = Bool.Bool^::false) => inside.right j)
+      (\fun (equal: test pivot j = Bool.Bool^::true) => \block {
+        \let same: j = pivot := Nat.eqOfEqbTrue (Fin.value n pivot) (Fin.value n j) equal \then
+        \let xa: x j = a := \idelim pivot = j \with i: Fin.Fin n => x i = a \by { base: at, equality: sym!{{Fin.Fin n}} _ _ same } \then
+        \return Logic.And[_, _]::#
+          (R.leReplaceRight a a (x j) (sym!{Real.Real} _ _ xa) (R.leRefl a))
+          (R.leReplaceLeft a (x j) a (sym!{Real.Real} _ _ xa) (R.leRefl a))
+      }) (test pivot j) (\refl(test pivot j));
+\definition unionBoxes[pivot: Fin.Fin n] [a: Real.Real] [k: N.Nat^]: \Pow E.Point := E.points (box pivot a k);
+\definition included: \forall (pivot: Fin.Fin n) (a: Real.Real) -> Sets.Subset (Plane pivot a) (Measure.union (unionBoxes pivot a)) :=
+  \fun (pivot: Fin.Fin n) (a: Real.Real) (x: E.Point) (at: Sets.Member (Plane pivot a) x) => \block {
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sets.Member (E.points (Exhaustion.box k)) x }) \by Exhaustion.covers x \then
+    \let inside: Sets.Member (E.points (Exhaustion.box k)) x := \bysub(N.Nat^, { k: N.Nat^ \where Sets.Member (E.points (Exhaustion.box k)) x }, k) \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (unionBoxes pivot a k) x }] k
+      (Logic.And[_, _]::# (\refl(Bool.Bool^::true)) (\fun (j: Fin.Fin n) => coordinateMember pivot a k x j at inside))
+  };
+\definition null: \forall (pivot: Fin.Fin n) (a: Real.Real) -> E.outer (Plane pivot a) = Measure.zero :=
+  \fun (pivot: Fin.Fin n) (a: Real.Real) => E.outerSubsetZero (Plane pivot a) (Measure.union (unionBoxes pivot a)) (included pivot a)
+    (Continuity.measurableNullUnion (unionBoxes pivot a)
+      (\fun (k: N.Nat^) => E.nullCaratheodory (unionBoxes pivot a k) (Construction.zeroBox (box pivot a k) (volumeZero pivot a k)))
+      (\fun (k: N.Nat^) => Construction.zeroBox (box pivot a k) (volumeZero pivot a k)));
+\definition measurable: \forall (pivot: Fin.Fin n) (a: Real.Real) -> E.Caratheodory (Plane pivot a) :=
+  \fun (pivot: Fin.Fin n) (a: Real.Real) => E.nullCaratheodory (Plane pivot a) (null pivot a);

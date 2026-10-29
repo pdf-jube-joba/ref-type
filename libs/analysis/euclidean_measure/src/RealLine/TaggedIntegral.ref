@@ -1,0 +1,50 @@
+\import \root.RealLine[] \as Line;
+\import real.Analysis[] \as Real;
+\import Real.Estimates[] \as Estimates;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import integration.Real[] \as Integration;
+\import Integration.Division[] \as Division;
+\import functional_analysis.Measure[A := Real.Real] \as Measure;
+\import Measure.Integral[mu := Line.measure] \as Integral;
+\import Integral.Linear[] \as Linear;
+\import Integral.Scaling[] \as Scaling;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.trans;
+\use Equality.eq_reason_in;
+\definition constantRep: \forall (I: Integration.Interval) -> Real.Real -> Integral.Representatives :=
+  \fun (I: Integration.Interval) (c: Real.Real) => \root.RealLine[].IntervalIntegral[interval := I].constantRepresentative c;
+\definition constantValue: \forall (I: Integration.Interval) (c: Real.Real) ->
+  Integral.integral (constantRep I c) = Real.mul (Real.sub I.right I.left) c :=
+  \fun (I: Integration.Interval) (c: Real.Real) =>
+    trans!{Real.Real} _ _ _ (\root.RealLine[].IntervalIntegral[interval := I].constantComparison c)
+      (integration.Real[].Lebesgue[interval := I].Prop[].riemannAgreement (integration.Real[].Riemann[interval := I].Prop[].constant c));
+\definition left[I: Integration.Interval]: Integration.Interval := Integration.Interval {
+  left := I.left, right := Real.midpoint I.left I.right,
+  ordered := Estimates.midpointLeft I.left I.right I.ordered,
+};
+\definition right[I: Integration.Interval]: Integration.Interval := Integration.Interval {
+  left := Real.midpoint I.left I.right, right := I.right,
+  ordered := Estimates.midpointRight I.left I.right I.ordered,
+};
+\definition tagged: \forall (tags: Division.Tags) (f: Real.Real -> Real.Real) (I: Integration.Interval) -> Integral.Representatives :=
+  \induction (tags: Division.Tags) \return (Real.Real -> Real.Real) -> Integration.Interval -> Integral.Representatives \with {
+    | tag: \fun (x: Real.Real) (f: Real.Real -> Real.Real) (I: Integration.Interval) => constantRep I (f x)
+    | split: \fun (_: Division.Tags) (leftRec: (Real.Real -> Real.Real) -> Integration.Interval -> Integral.Representatives)
+      (_: Division.Tags) (rightRec: (Real.Real -> Real.Real) -> Integration.Interval -> Integral.Representatives)
+      (f: Real.Real -> Real.Real) (I: Integration.Interval) => Linear.addRepresentative (leftRec f (left I)) (rightRec f (right I))
+  };
+\definition taggedIntegral: \forall (tags: Division.Tags) (f: Real.Real -> Real.Real) (I: Integration.Interval) ->
+  Integral.integral (tagged tags f I) = Division.sum f tags I.left I.right :=
+  \induction (tags: Division.Tags) \return \forall (f: Real.Real -> Real.Real) (I: Integration.Interval) ->
+    Integral.integral (tagged tags f I) = Division.sum f tags I.left I.right \with {
+      | tag: \fun (x: Real.Real) (f: Real.Real -> Real.Real) (I: Integration.Interval) => constantValue I (f x)
+      | split: \fun (l: Division.Tags) (lh: \forall (f: Real.Real -> Real.Real) (I: Integration.Interval) -> Integral.integral (tagged l f I) = Division.sum f l I.left I.right)
+        (r: Division.Tags) (rh: \forall (f: Real.Real -> Real.Real) (I: Integration.Interval) -> Integral.integral (tagged r f I) = Division.sum f r I.left I.right)
+        (f: Real.Real -> Real.Real) (I: Integration.Interval) => eq_reason_in!{Real.Real _
+          "=" _ "by" { Linear.integralAdd (tagged l f (left I)) (tagged r f (right I)) }
+          "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (lh f (left I)) (rh f (right I)) }
+        }
+    };

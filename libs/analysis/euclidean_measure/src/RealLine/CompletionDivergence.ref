@@ -1,0 +1,59 @@
+\import \root.RealLine[] \as Line;
+\import \root.RealLine[].CompletionSeries[interval := interval, s := s, index := index, good := good] \as Series;
+\import functional_analysis.Measure[A := real.Analysis[].Real] \as Measure;
+\import Measure.Integral[mu := Line.measure] \as Integral;
+\import Integral.Series[terms := Series.terms] \as Partial;
+\import Integral.Null[] \as Null;
+\import Measure.Sigma[] \as Sigma;
+\import \root.RealLine[].Outer[] \as Outer;
+\import real.Analysis[] \as Real;
+\import Real.Geometric[q := Real.half] \as Dyadic;
+\import Real.Estimates[].Product[] \as Product;
+\import Real.Inverse[] \as Inverse;
+\import functional_analysis.ScalarLimits[] \as Limits;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import topology.Topology[Carrier := Real.Real] \as Sets;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\definition radius[i: N.Nat^]: Real.Real := Laws.fieldInv (Dyadic.value i);
+\definition radiusPositive: \forall (i: N.Nat^) -> R.Lt Real.zero (radius i) :=
+  \fun (i: N.Nat^) => Product.invPositive (Dyadic.value i) (Limits.dyadicPositive i);
+\definition level[k: N.Nat^] [i: N.Nat^]: \Pow Real.Real := { x: Real.Real \where R.Lt (radius i) (Partial.partial k x) };
+\definition union[i: N.Nat^]: \Pow Real.Real := Measure.union (\fun (k: N.Nat^) => level k i);
+\definition divergent: \Pow Real.Real := Sigma.intersection union;
+\definition measurable: Measure.Measurable Line.measure.sigma divergent := Sigma.intersectionCountableMeasurable Line.measure.sigma union
+  (\fun (i: N.Nat^) => (Sigma.laws Line.measure.sigma).countableUnion (\fun (k: N.Nat^) => level k i)
+    (\fun (k: N.Nat^) => \root.RealLine[].CompletionLevel[interval := interval, s := s, index := index, good := good, c := radius i, positive := radiusPositive i, k := k].measurable));
+\definition zero: Line.measure.value divergent = Measure.zero := \axiom:setext(Line.measure.value divergent, Measure.zero,
+  \fun (r: Real.Real) (member: Measure.below (Line.measure.value divergent) r) => Order.byContradiction (R.Lt r Real.zero)
+    (\fun (notNegative: Logic.Not (R.Lt r Real.zero)) => \block {
+      \takefrom t: \Cast[Real.Real] ({ t: Real.Real \where Logic.And[R.Lt r t, Measure.below (Line.measure.value divergent) t] })
+        \by (Outer.nonnegative divergent).rounded r member \then
+      \let data: Logic.And[R.Lt r t, Measure.below (Line.measure.value divergent) t] :=
+        \bysub(Real.Real, { t: Real.Real \where Logic.And[R.Lt r t, Measure.below (Line.measure.value divergent) t] }, t) \then
+      \let tp: R.Lt Real.zero t := R.leLtTrans Real.zero r t (Order.leOfNotLtReverse Real.zero r notNegative) data.left \then
+      \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le i j -> R.Lt (Dyadic.value j) t }) \by Limits.dyadicSmall t tp \then
+      \let small: R.Lt (Dyadic.value i) t :=
+        (\bysub(N.Nat^, { i: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le i j -> R.Lt (Dyadic.value j) t }, i)) i (Nat.leRefl i) \then
+      \let big: R.Lt Real.one (Real.mul (radius i) t) := R.ltReplaceLeft (Real.mul (radius i) (Dyadic.value i)) Real.one _
+        (Laws.fieldInverseNonzero (Dyadic.value i) (Inverse.positiveNonzero (Dyadic.value i) (Limits.dyadicPositive i)))
+        (Product.mulStrict (radius i) (Dyadic.value i) t (radiusPositive i) small) \then
+      \let q: Real.Real := Real.midpoint Real.one (Real.mul (radius i) t) \then
+      \let inUnion: Measure.below (Line.measure.value (union i)) t := Outer.monotone divergent (union i)
+        (\fun (x: Real.Real) (all: Sets.Member divergent x) => all i) t data.right \then
+      \let scaled: Measure.below (Measure.scale (radius i) (Line.measure.value (union i))) q :=
+        Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[Measure.below (Line.measure.value (union i)) a, R.Lt q (Real.mul (radius i) a)] }] t
+          (Logic.And[_, _]::# inUnion (Measure.ValueLaws[].midpointStrictRight Real.one (Real.mul (radius i) t) big)) \then
+      \let upper: R.Le q Real.one := \root.RealLine[].CompletionLevelUnion[interval := interval, s := s, index := index, good := good, c := radius i, positive := radiusPositive i].bound q scaled \then
+      \return R.ltNotLeReverse Real.one q (Measure.ValueLaws[].midpointStrictLeft Real.one (Real.mul (radius i) t) big) upper
+    }),
+  \fun (r: Real.Real) (negative: R.Lt r Real.zero) => (Outer.nonnegative divergent).negative r negative);
+\definition exception: Null.NullSet := \into[\Pow Real.Real](divergent, { S: \Pow Real.Real \where Null.NullSetLaw[S] }) \by {
+  Null.NullSetLaw[divergent] { measurable := measurable, zeroMeasure := zero }
+};

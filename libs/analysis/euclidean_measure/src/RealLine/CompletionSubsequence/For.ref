@@ -1,0 +1,25 @@
+\definition index: N.Nat^ -> N.Nat^ := \induction (i: N.Nat^) \return N.Nat^ \with {
+  | zero: choice N.Nat^::zero
+  | succ: \fun (i: N.Nat^) (previous: N.Nat^) => NatOrder.commonBound (N.Nat^::succ previous) (choice (N.Nat^::succ i))
+};
+\definition indexGrowth: \forall (i: N.Nat^) -> Nat.Le (N.Nat^::succ (index i)) (index (N.Nat^::succ i)) :=
+  \fun (i: N.Nat^) => NatOrder.leftLeCommonBound (N.Nat^::succ (index i)) (choice (N.Nat^::succ i));
+\definition aboveIndex: \forall (i: N.Nat^) -> Nat.Le i (index i) :=
+  \induction (i: N.Nat^) \return Nat.Le i (index i) \with {
+    | zero: Nat.zeroLe (index N.Nat^::zero)
+    | succ: \fun (i: N.Nat^) (previous: Nat.Le i (index i)) =>
+      Nat.leTrans _ _ _ (Nat.leSuccSucc i (index i) previous) (indexGrowth i)
+  };
+\definition aboveChoice: \forall (i: N.Nat^) -> Nat.Le (choice i) (index i) :=
+  \induction (i: N.Nat^) \return Nat.Le (choice i) (index i) \with {
+    | zero: Nat.leRefl (choice N.Nat^::zero)
+    | succ: \fun (i: N.Nat^) (_: Nat.Le (choice i) (index i)) =>
+      NatOrder.rightLeCommonBound (N.Nat^::succ (index i)) (choice (N.Nat^::succ i))
+  };
+\definition good: Good index := \fun (i: N.Nat^) => Logic.And[_, _]::# (aboveIndex i) (\block {
+  \let control: Completion.Control s (Dyadic.value (N.Nat^::succ i)) (choice i) :=
+    \bysub(N.Nat^, { k: N.Nat^ \where Completion.Control s (Dyadic.value (N.Nat^::succ i)) k }, choice i) \then
+  \return \root.RealLine[].DistanceComparison[interval := interval, f := s (index i), g := s (index (N.Nat^::succ i))].smallBound
+    (Dyadic.value (N.Nat^::succ i)) (control (index i) (index (N.Nat^::succ i)) (aboveChoice i)
+      (Nat.leTrans _ _ _ (aboveChoice i) (Nat.leTrans _ _ _ (Nat.leSelfSucc (index i)) (indexGrowth i))))
+});

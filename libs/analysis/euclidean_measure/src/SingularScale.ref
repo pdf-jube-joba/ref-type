@@ -1,0 +1,39 @@
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\import \root.Euclidean[n := n] \as E;
+\import \root.Hyperplane[n := n] \as Plane;
+\import E.MeasureConstruction[] \as Construction;
+\import functional_analysis.Measure[A := E.Point] \as Measure;
+\import Measure.ValueLaws[] \as Values;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\definition map[a, x: E.Point] [i: Fin.Fin n]: Real.Real := Real.mul (a i) (x i);
+\definition image[S: \Pow E.Point] [a: E.Point]: \Pow E.Point := { y: E.Point \where
+  \exists ( x: E.Point \where Logic.And[Sets.Member S x, map a x = y] ) };
+\definition imageContained: \forall (S: \Pow E.Point) (a: E.Point) (i: Fin.Fin n) -> a i = Real.zero ->
+  Sets.Subset (image S a) (Plane.Plane i Real.zero) :=
+  \fun (S: \Pow E.Point) (a: E.Point) (i: Fin.Fin n) (zero: a i = Real.zero) (y: E.Point) (member: Sets.Member (image S a) y) => \block {
+    \takefrom x: \Cast[E.Point] ({ x: E.Point \where Logic.And[Sets.Member S x, map a x = y] }) \by member \then
+    \let data: Logic.And[Sets.Member S x, map a x = y] := \bysub(E.Point, { x: E.Point \where Logic.And[Sets.Member S x, map a x = y] }, x) \then
+    \return \idelim map a x i = y i \with v: Real.Real => v = Real.zero \by {
+      base: \idelim Real.zero = a i \with v: Real.Real => Real.mul v (x i) = Real.zero \by { base: Laws.fieldMulZeroLeft (x i), equality: sym!{Real.Real} _ _ zero },
+      equality: congr!{E.Point Real.Real} (\fun (z: E.Point) => z i) _ _ data.right }
+  };
+\definition nullImage: \forall (S: \Pow E.Point) (a: E.Point) (i: Fin.Fin n) -> a i = Real.zero -> E.outer (image S a) = Measure.zero :=
+  \fun (S: \Pow E.Point) (a: E.Point) (i: Fin.Fin n) (zero: a i = Real.zero) =>
+    E.outerSubsetZero (image S a) (Plane.Plane i Real.zero) (imageContained S a i zero) (Plane.null i Real.zero);
+\definition measurableImage: \forall (S: \Pow E.Point) (a: E.Point) (i: Fin.Fin n) -> a i = Real.zero ->
+  Measure.Measurable Construction.measure.sigma (image S a) :=
+  \fun (S: \Pow E.Point) (a: E.Point) (i: Fin.Fin n) (zero: a i = Real.zero) => E.nullCaratheodory (image S a) (nullImage S a i zero);
+\definition changeOfMeasure: \forall (S: \Pow E.Point) (a: E.Point) (i: Fin.Fin n) -> a i = Real.zero ->
+  Construction.measure.value (image S a) = Measure.scale (E.product n a) (Construction.measure.value S) :=
+  \fun (S: \Pow E.Point) (a: E.Point) (i: Fin.Fin n) (zero: a i = Real.zero) =>
+    \idelim Measure.scale Real.zero (E.outer S) = Measure.scale (E.product n a) (E.outer S) \with v: Measure.Value => E.outer (image S a) = v \by {
+      base: \idelim Measure.zero = Measure.scale Real.zero (E.outer S) \with v: Measure.Value => E.outer (image S a) = v \by {
+        base: nullImage S a i zero, equality: sym!{Measure.Value} _ _ (Values.zeroScale (E.outer S) (E.outerNonnegative S)) },
+      equality: congr!{Real.Real Measure.Value} (\fun (c: Real.Real) => Measure.scale c (E.outer S)) _ _ (sym!{Real.Real} _ _ (E.productZero n a i zero)) };
