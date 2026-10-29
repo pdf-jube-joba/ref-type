@@ -1,0 +1,52 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.trans;
+\use Eq.sym;
+\use Eq.congr;
+\import std.Alg[].Ring[] \as Rings;
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Polynomial[] \as Original;
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Polynomial[].Normal[] \as Normal;
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Coefficients[] \as Coefficients;
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Multiplication[] \as Multiplication;
+\import algebra.Group[].Of[Carrier := Target.K0[].Carrier, group := Target.K0[].group] \as TargetGroup;
+\definition squareZero: Target.K0[].mul hopfOnProduct hopfOnProduct = Target.K0[].zero :=
+  trans!{Target.K0[].Carrier} _ _ _ (congr!{Target.K0[].Carrier Target.K0[].Carrier Target.K0[].Carrier} Target.K0[].mul _ _ _ _ hopfSign hopfSign)
+    (trans!{Target.K0[].Carrier} _ _ _ (TargetRing.mulNegLeft generatorOnProduct (Target.K0[].neg generatorOnProduct))
+      (trans!{Target.K0[].Carrier} _ _ _ (congr!{Target.K0[].Carrier Target.K0[].Carrier} Target.K0[].neg _ _ (mulNegRight generatorOnProduct generatorOnProduct))
+        (trans!{Target.K0[].Carrier} _ _ _ (TargetGroup.negNeg (Target.K0[].mul generatorOnProduct generatorOnProduct)) Multiplication.generatorSquare)));
+\import algebra.FreeCommutativeRing[].Over[R := Source.K0[].Carrier, coefficients := Source.K0[].commutativeRing, Variables := Original.Variable] \as Free;
+\import Free.Presentation[relations := Original.relations] \as Quotient;
+\import Quotient.Universal[K := Target.K0[].Carrier, target := Target.K0[].commutativeRing] \as Evaluation;
+\definition values: Original.Variable -> Target.K0[].Carrier := \fun (_: Original.Variable) => hopfOnProduct;
+\definition accepts: Evaluation.RespectsRelations First.K0[].map values :=
+  \fun (x, y: Free.Expression)(relation: Original.relations x y) => trans!{Target.K0[].Carrier} _ _ _
+    (congr!{Free.Expression Target.K0[].Carrier} (Evaluation.evaluate First.K0[].map values) _ _ relation.left)
+    (trans!{Target.K0[].Carrier} _ _ _ squareZero
+      (trans!{Target.K0[].Carrier} _ _ _ (sym!{Target.K0[].Carrier} _ _ First.K0[].preservesZero)
+        (congr!{Free.Expression Target.K0[].Carrier} (Evaluation.evaluate First.K0[].map values) _ _ (sym!{Free.Expression} _ _ relation.right))));
+\definition map: algebra.Hom[A := Quotient.Carrier, B := Target.K0[].Carrier].RingMap
+  (Rings.commutativeRingAsRing Quotient.Carrier Quotient.ring) Target.K0[].ring := Evaluation.extension First.K0[].map values accepts;
+\import algebra.Hom[A := Quotient.Carrier, B := Target.K0[].Carrier] \as Hom;
+\definition laws: Hom.SemiringLaws[(Rings.ringAsSemiring Quotient.Carrier (Rings.commutativeRingAsRing Quotient.Carrier Quotient.ring)),
+  (Rings.ringAsSemiring Target.K0[].Carrier Target.K0[].ring), map] := Hom.semiringLaws _ _ map;
+\definition onConstant: \forall (a: Source.K0[].Carrier) -> map (Quotient.constant a) = First.K0[].map a :=
+  \fun (a: Source.K0[].Carrier) => Evaluation.onClass First.K0[].map values accepts (Free.Expression::constant a);
+\definition onU: map Original.u = hopfOnProduct := Evaluation.onClass First.K0[].map values accepts Original.variable;
+\definition onNormal: \forall (a, b: Source.K0[].Carrier) -> map (Original.normal a b) = forward a b :=
+  \fun (a, b: Source.K0[].Carrier) => trans!{Target.K0[].Carrier} _ _ _ (laws.add (Quotient.constant a) (Quotient.mul (Quotient.constant b) Original.u))
+    (congr!{Target.K0[].Carrier Target.K0[].Carrier Target.K0[].Carrier} Target.K0[].add _ _ _ _ (onConstant a)
+      (trans!{Target.K0[].Carrier} _ _ _ (laws.mul (Quotient.constant b) Original.u)
+        (congr!{Target.K0[].Carrier Target.K0[].Carrier Target.K0[].Carrier} Target.K0[].mul _ _ _ _ (onConstant b) onU)));
+\definition backward[v: Target.K0[].Carrier]: Quotient.Carrier := Original.normal (first v) (coefficient v);
+\definition rightInverse: \forall (v: Target.K0[].Carrier) -> map (backward v) = v :=
+  \fun (v: Target.K0[].Carrier) => trans!{Target.K0[].Carrier} _ _ _ (onNormal (first v) (coefficient v)) (reconstruction v);
+\definition onNormalInverse: \forall (a, b: Source.K0[].Carrier) -> backward (map (Original.normal a b)) = Original.normal a b :=
+  \fun (a, b: Source.K0[].Carrier) => trans!{Quotient.Carrier} _ _ _
+    (congr!{Target.K0[].Carrier Quotient.Carrier} backward _ _ (onNormal a b))
+    (congr!{Source.K0[].Carrier Source.K0[].Carrier Quotient.Carrier} Original.normal _ _ _ _ (recovers a b).left (recovers a b).right);
+\import std.Set[].Quotient[A := Free.Expression, Equivalent := Quotient.Equivalent] \as Classes;
+\definition leftInverse: \forall (q: Quotient.Carrier) -> backward (map q) = q := Classes.induction
+  (\fun (q: Quotient.Carrier) => backward (map q) = q)
+  (\fun (e: Free.Expression) => trans!{Quotient.Carrier} _ _ _
+    (congr!{Quotient.Carrier Quotient.Carrier} (\fun (q: Quotient.Carrier) => backward (map q)) _ _ (Normal.expression e))
+    (trans!{Quotient.Carrier} _ _ _ (onNormalInverse (Coefficients.first (Normal.evaluation e)) (Coefficients.second (Normal.evaluation e)))
+      (sym!{Quotient.Carrier} _ _ (Normal.expression e))));

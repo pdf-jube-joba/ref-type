@@ -1,0 +1,43 @@
+\import std.Logic[].Equality[] \as Eq;
+\import std.Logic[].Proposition[] \as Logic;
+\use Eq.trans;
+\use Eq.sym;
+\use Eq.congr;
+\use Eq.eq_reason_in;
+\import \root.Bott[].ProjectiveLine[].SphereLine[] \as UniversalLine;
+\import \root.Bott[].ProjectiveLine[].SphereLine[].Comparison[].Class[] \as Comparison;
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Inverse[] \as Inverse;
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Injective[] \as Injective;
+\import algebra.Group[].Of[Carrier := Source.K0[].Carrier, group := Source.K0[].group] \as SourceGroup;
+\import algebra.GroupCompletion[].Semiring[M := Target.Classes, semiring := Target.Semiring[].semiring] \as TargetRing;
+\definition hopfOnProduct: Target.K0[].Carrier := Second.K0[].map UniversalLine.generator;
+\definition hopfSign: hopfOnProduct = Target.K0[].neg generatorOnProduct :=
+  trans!{Target.K0[].Carrier} _ _ _ (congr!{K.K0[].Carrier Target.K0[].Carrier} Second.K0[].map _ _ Comparison.sign) (Second.K0[].preservesNeg generator);
+\definition forward[a, b: Source.K0[].Carrier]: Target.K0[].Carrier :=
+  Target.K0[].add (First.K0[].map a) (Target.K0[].mul (First.K0[].map b) hopfOnProduct);
+\definition mulNegRight: \forall (a, b: Target.K0[].Carrier) -> Target.K0[].mul a (Target.K0[].neg b) = Target.K0[].neg (Target.K0[].mul a b) :=
+  \fun (a, b: Target.K0[].Carrier) => trans!{Target.K0[].Carrier} _ _ _
+    (TargetRing.mulComm Target.MultiplicativeMonoid[].commutative a (Target.K0[].neg b))
+    (trans!{Target.K0[].Carrier} _ _ _ (TargetRing.mulNegLeft b a)
+      (congr!{Target.K0[].Carrier Target.K0[].Carrier} Target.K0[].neg _ _ (TargetRing.mulComm Target.MultiplicativeMonoid[].commutative b a)));
+\definition formula: \forall (a, b: Source.K0[].Carrier) -> forward a b = \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].forward a (Source.K0[].neg b) :=
+  \fun (a, b: Source.K0[].Carrier) => eq_reason_in!{Target.K0[].Carrier _
+    "=" _ "by" { congr!{Target.K0[].Carrier Target.K0[].Carrier} (\fun (x: Target.K0[].Carrier) => Target.K0[].add (First.K0[].map a) (Target.K0[].mul (First.K0[].map b) x)) _ _ hopfSign }
+    "=" _ "by" { congr!{Target.K0[].Carrier Target.K0[].Carrier} (Target.K0[].add (First.K0[].map a)) _ _ (mulNegRight (First.K0[].map b) generatorOnProduct) }
+    "=" _ "by" { congr!{Target.K0[].Carrier Target.K0[].Carrier} (Target.K0[].add (First.K0[].map a)) _ _ (sym!{Target.K0[].Carrier} _ _ (TargetRing.mulNegLeft (First.K0[].map b) generatorOnProduct)) }
+    "=" _ "by" { congr!{Target.K0[].Carrier Target.K0[].Carrier} (\fun (x: Target.K0[].Carrier) => Target.K0[].add (First.K0[].map a) (Target.K0[].mul x generatorOnProduct)) _ _ (sym!{Target.K0[].Carrier} _ _ (First.K0[].preservesNeg b)) }
+  };
+\definition first[v: Target.K0[].Carrier]: Source.K0[].Carrier := Inverse.first v;
+\definition coefficient[v: Target.K0[].Carrier]: Source.K0[].Carrier := Source.K0[].neg (Inverse.coefficient v);
+\definition reconstruction: \forall (v: Target.K0[].Carrier) -> forward (first v) (coefficient v) = v :=
+  \fun (v: Target.K0[].Carrier) => trans!{Target.K0[].Carrier} _ _ _ (formula (first v) (coefficient v))
+    (trans!{Target.K0[].Carrier} _ _ _ (congr!{Source.K0[].Carrier Target.K0[].Carrier}
+      (\root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].forward (first v)) _ _ (SourceGroup.negNeg (Inverse.coefficient v)))
+      (Inverse.reconstruction v));
+\definition recovers: \forall (a, b: Source.K0[].Carrier) -> Logic.And[first (forward a b) = a, coefficient (forward a b) = b] :=
+  \fun (a, b: Source.K0[].Carrier) => Logic.And[_, _]::#
+    (trans!{Source.K0[].Carrier} _ _ _ (congr!{Target.K0[].Carrier Source.K0[].Carrier} first _ _ (formula a b)) (Inverse.recovers a (Source.K0[].neg b)).left)
+    (trans!{Source.K0[].Carrier} _ _ _ (congr!{Target.K0[].Carrier Source.K0[].Carrier} coefficient _ _ (formula a b))
+      (trans!{Source.K0[].Carrier} _ _ _ (congr!{Source.K0[].Carrier Source.K0[].Carrier} Source.K0[].neg _ _ (Inverse.recovers a (Source.K0[].neg b)).right)
+        (SourceGroup.negNeg b)));
+\module Polynomial;
