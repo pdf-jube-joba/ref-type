@@ -1,0 +1,20 @@
+\import Multi.Contraction[k := k] \as Contract;
+\import Expansion.At[k := k] \as Expand;
+\definition law: property k -> property (N.Nat^::succ k) :=
+  \fun (previous: property k)(source: Source.Topology)(form: Multi.Form (N.Nat^::succ k))(args: X -> Multi.Arguments (N.Nat^::succ k))(regular: ArgumentsContinuous source (N.Nat^::succ k) args) =>
+    Functions.transport source
+      (\fun (x: X) => FiniteSums.sum n (\fun (i: Fin.Fin n) => Algebra.mul (args x (Fin.zero k) i) (Expansion.expansion k (Contract.apply form (Basis.vectors i)) (\fun (j: Fin.Fin k) => args x (Fin.succ k j)))))
+      (\fun (x: X) => form (args x))
+      (\fun (x: X) => trans!{C.Complex} _ _ _
+        (sym!{C.Complex} _ _ (FiniteSums.enumeration n (\fun (i: Fin.Fin n) => Algebra.mul (args x (Fin.zero k) i) (Expansion.expansion k (Contract.apply form (Basis.vectors i)) (\fun (j: Fin.Fin k) => args x (Fin.succ k j))))))
+        (Expand.expandLaw (Expansion.expansion k) (Expansion.expansionLaw k) form (args x)))
+      (Functions.finiteSum n source
+        (\fun (i: Fin.Fin n)(x: X) => Algebra.mul (args x (Fin.zero k) i) (Expansion.expansion k (Contract.apply form (Basis.vectors i)) (\fun (j: Fin.Fin k) => args x (Fin.succ k j))))
+        (\fun (i: Fin.Fin n) => Functions.multiplication source
+          (\fun (x: X) => args x (Fin.zero k) i)
+          (\fun (x: X) => Expansion.expansion k (Contract.apply form (Basis.vectors i)) (\fun (j: Fin.Fin k) => args x (Fin.succ k j)))
+          (regular (Fin.zero k) i)
+          (Functions.transport source (\fun (x: X) => Contract.apply form (Basis.vectors i) (\fun (j: Fin.Fin k) => args x (Fin.succ k j)))
+            (\fun (x: X) => Expansion.expansion k (Contract.apply form (Basis.vectors i)) (\fun (j: Fin.Fin k) => args x (Fin.succ k j)))
+            (\fun (x: X) => sym!{C.Complex} _ _ (Expansion.expansionLaw k (Contract.apply form (Basis.vectors i)) (\fun (j: Fin.Fin k) => args x (Fin.succ k j))))
+            (previous source (Contract.apply form (Basis.vectors i)) (\fun (x: X)(j: Fin.Fin k) => args x (Fin.succ k j)) (\fun (j: Fin.Fin k)(l: Fin.Fin n) => regular (Fin.succ k j) l)))));

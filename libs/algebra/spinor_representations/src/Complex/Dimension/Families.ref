@@ -1,0 +1,70 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import topology.Topology[Carrier := X] \as Source;
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Field.field, scalar := Hermitian.scalar, topological := FramesComplex.topological] \as FrameOver;
+\import FrameOver.Functions[X := X] \as Functions;
+\import FrameOver.At[n := n].Families[X := X] \as Vectors;
+\import FrameOver.At[n := n].Unitary[].Families[X := X] \as UnitaryFamilies;
+\import Vectors.Matrix[m := n] \as Matrices;
+\import Algebra.FiniteCoordinates[n := n] \as Basis;
+\import Algebra.Multilinear[V := Finite.Vector, space := Finite.space] \as Multi;
+\import Multi.Finite[I := Fin.Fin n, b := Basis.basis] \as Expansion;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := Field.field, scalar := Hermitian.scalar].Sums[] \as FiniteSums;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition ArgumentsContinuous[source: Source.Topology][k: N.Nat^][args: X -> Multi.Arguments k]: \Prop :=
+  \forall (i: Fin.Fin k)(j: Fin.Fin n) -> Functions.Continuous source (\fun (x: X) => args x i j);
+\definition property[k: N.Nat^]: \Prop := \forall (source: Source.Topology)(form: Multi.Form k)(args: X -> Multi.Arguments k) -> ArgumentsContinuous source k args -> Functions.Continuous source (\fun (x: X) => form (args x));
+\import Fin.Empty[A := Finite.Vector] \as Empty;
+\definition zero: property N.Nat^::zero := \fun (source: Source.Topology)(form: Multi.Form N.Nat^::zero)(args: X -> Multi.Arguments N.Nat^::zero)(regular: ArgumentsContinuous source N.Nat^::zero args) =>
+  Functions.transport source (\fun (x: X) => form Empty.function) (\fun (x: X) => form (args x))
+    (\fun (x: X) => congr!{{Multi.Arguments N.Nat^::zero} C.Complex} form _ _ (Empty.unique Empty.function (args x))) (Functions.constant source (form Empty.function));
+\module Step(k: N.Nat^);
+\definition all: \forall (k: N.Nat^) -> property k := \induction (k: N.Nat^) \return property k \with { | zero: zero | succ: \fun (k: N.Nat^)(previous: property k) => Step[k := k].law previous };
+\definition alternating: \forall (source: Source.Topology)(k: N.Nat^)(form: Forms.Form k)(args: X -> Multi.Arguments k) -> ArgumentsContinuous source k args -> Functions.Continuous source (\fun (x: X) => form (args x)) :=
+  \fun (source: Source.Topology)(k: N.Nat^)(form: Forms.Form k)(args: X -> Multi.Arguments k) => all k source (Forms.asMultilinear k form) args;
+\definition unitaryAction: \forall (source: Source.Topology)(u: X -> Unitary.Carrier) -> UnitaryFamilies.Regular source u ->
+  \forall (f: Total.Carrier)(k: N.Nat^)(args: Multi.Arguments k) -> Functions.Continuous source (\fun (x: X) => ((action (u x)).value.apply f) k args) :=
+  \fun (source: Source.Topology)(u: X -> Unitary.Carrier)(regular: UnitaryFamilies.Regular source u)(f: Total.Carrier)(k: N.Nat^)(args: Multi.Arguments k) =>
+    alternating source k (f k) (\fun (x: X)(i: Fin.Fin k) => (u x).backward.apply (args i))
+      (\fun (i: Fin.Fin k) => Matrices.regularOfComponents source (\fun (x: X) => (Unitary.inverse (u x)).forward) (UnitaryFamilies.reciprocal source u regular) (args i));
+\import \parent.UnitaryOrthogonal[].CanonicalLift[] \as Lift;
+\import Lift.FockWords[].Complete[] \as Complete;
+\import \parent.RealCoordinates[].Clifford[].Spin[].Phase[] \as Phase;
+\definition liftedAction: \forall (source: Source.Topology)(u: X -> Unitary.Carrier) -> UnitaryFamilies.Regular source u ->
+  \forall (f: Total.Carrier)(k: N.Nat^)(args: Multi.Arguments k) -> Functions.Continuous source (\fun (x: X) => ((Phase.actionC (Lift.lift (u x))).value.apply f) k args) :=
+  \fun (source: Source.Topology)(u: X -> Unitary.Carrier)(regular: UnitaryFamilies.Regular source u)(f: Total.Carrier)(k: N.Nat^)(args: Multi.Arguments k) =>
+    Functions.transport source (\fun (x: X) => ((action (u x)).value.apply f) k args)
+      (\fun (x: X) => ((Phase.actionC (Lift.lift (u x))).value.apply f) k args)
+      (\fun (x: X) => sym!{C.Complex} _ _ (congr!{{Total.Carrier} C.Complex} (\fun (t: Total.Carrier) => t k args) _ _ (Complete.actionEqual (u x) f)))
+      (unitaryAction source u regular f k args);
+\import topology.Continuity[A := X, B := Unitary.Carrier] \as IntoUnitary;
+\definition liftedActionContinuous: \forall (source: Source.Topology)(u: X -> Unitary.Carrier) -> IntoUnitary.Continuous source Unitary.topology u ->
+  \forall (f: Total.Carrier)(k: N.Nat^)(args: Multi.Arguments k) -> Functions.Continuous source (\fun (x: X) => ((Phase.actionC (Lift.lift (u x))).value.apply f) k args) :=
+  \fun (source: Source.Topology)(u: X -> Unitary.Carrier)(continuous: IntoUnitary.Continuous source Unitary.topology u) =>
+    liftedAction source u (UnitaryFamilies.regular source u continuous);
+\import std.Data[].List[] \as Lists;
+\import Fin.FromList[A := Finite.Vector] \as ListTuples;
+\import Total.Series[] \as Series;
+\import \parent.Topology[] \as SpinorTopology;
+\import topology.Topology[Carrier := Total.Carrier] \as SpinorSpace;
+\import topology.Topology[Carrier := C.Complex] \as ScalarSpace;
+\import topology.Maps[A := Total.Carrier, B := C.Complex] \as Evaluation;
+\import topology.Maps[A := X, B := Total.Carrier] \as IntoSpinor;
+\definition liftedOrbitContinuous: \forall (source: Source.Topology)(u: X -> Unitary.Carrier) -> IntoUnitary.Continuous source Unitary.topology u ->
+  \forall (f: Total.Carrier) -> topology.Continuity[A := X, B := Total.Carrier].Continuous source SpinorTopology.topology (\fun (x: X) => (Phase.actionC (Lift.lift (u x))).value.apply f) :=
+  \fun (source: Source.Topology)(u: X -> Unitary.Carrier)(continuous: _)(f: Total.Carrier) =>
+  IntoSpinor.generatedContinuous source (\fun (x: X) => (Phase.actionC (Lift.lift (u x))).value.apply f) SpinorTopology.Basis (\block {
+    \fun (W: \Pow Total.Carrier)(member: SpinorSpace.FamilyMember SpinorTopology.Basis W) \then
+    \takefrom xs: \Cast[Lists.List[Finite.Vector]] ({ xs: Lists.List[Finite.Vector] \where \exists (O: \Pow C.Complex \where Logic.And[ScalarSpace.IsOpenIn FramesComplex.topological.space O, W = Evaluation.Preimage (\fun (f: Total.Carrier) => Series.value f xs) O]) }) \by member \then
+    \let existsOpen: \exists (O: \Pow C.Complex \where Logic.And[ScalarSpace.IsOpenIn FramesComplex.topological.space O, W = Evaluation.Preimage (\fun (f: Total.Carrier) => Series.value f xs) O]) := \bysub(Lists.List[Finite.Vector], { xs: Lists.List[Finite.Vector] \where \exists (O: \Pow C.Complex \where Logic.And[ScalarSpace.IsOpenIn FramesComplex.topological.space O, W = Evaluation.Preimage (\fun (f: Total.Carrier) => Series.value f xs) O]) }, xs) \then
+    \takefrom O: \Cast[\Pow C.Complex] ({ O: \Pow C.Complex \where Logic.And[ScalarSpace.IsOpenIn FramesComplex.topological.space O, W = Evaluation.Preimage (\fun (f: Total.Carrier) => Series.value f xs) O] }) \by existsOpen \then
+    \let evidence: Logic.And[ScalarSpace.IsOpenIn FramesComplex.topological.space O, W = Evaluation.Preimage (\fun (f: Total.Carrier) => Series.value f xs) O] := \bysub(\Pow C.Complex, { O: \Pow C.Complex \where Logic.And[ScalarSpace.IsOpenIn FramesComplex.topological.space O, W = Evaluation.Preimage (\fun (f: Total.Carrier) => Series.value f xs) O] }, O) \then
+    \return \idelim Evaluation.Preimage (\fun (f: Total.Carrier) => Series.value f xs) O = W \with V: \Pow Total.Carrier => Source.IsOpenIn source (IntoSpinor.Preimage (\fun (x: X) => (Phase.actionC (Lift.lift (u x))).value.apply f) V) \by {
+      base: liftedActionContinuous source u continuous f (Lists.length Finite.Vector xs) (ListTuples.tuple xs) O evidence.left,
+      equality: sym!{\Pow Total.Carrier} _ _ evidence.right
+    }
+  });
