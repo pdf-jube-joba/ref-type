@@ -1,0 +1,73 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.trans;
+\use Eq.sym;
+\use Eq.congr;
+\use Eq.eq_reason_in;
+\import std.Data[].FinSet[] \as Fin;
+\import \root.Bott[].ProjectiveLine[].Coordinates[] \as Indices;
+\import \root.Bott[].ProjectiveLine[].Coordinates[].SphereMap[].Matrix[] \as Matrix;
+\import \root.Bott[].ProjectiveLine[].Coordinates[].SphereMap[].Matrix[].Projection[] \as Native;
+\import \root.Bott[].ProjectiveLine[].SphereLine[].Projection[] \as Projected;
+\import \root.Bott[].ProjectiveLine[].SphereLine[].Hemisphere[] \as Hemisphere;
+\import \root.Bott[].ProjectiveLine[].SphereLine[].Columns[] \as Columns;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := C.Algebra[].commutativeRing] \as Spaces;
+\import Spaces.FiniteCoordinates[n := two] \as Coordinates;
+\import Spaces.Coordinates[I := Fin.Fin two] \as Vectors;
+\import matrix_invariants.Ring[K := C.Complex, scalars := C.Algebra[].commutativeRing].At[n := two] \as Matrices;
+\definition nonzero: C.Def[].NonZero (Matrix.d s) := Hemisphere.negativeNonzero s negative;
+\definition column: Projected.Fiber s := \into[Vectors.Vector]((Matrices.linear (Matrix.matrix s)).apply (Coordinates.vectors Indices.second),
+  { v: Vectors.Vector \where (Matrices.linear (Matrix.matrix s)).apply v = v }) \by {
+    (Native.projection s).idempotent (Coordinates.vectors Indices.second)
+  };
+\definition secondColumn: column Indices.second = Matrix.d s := trans!{C.Complex} _ _ _
+  (congr!{Vectors.Vector C.Complex} (\fun (v: Vectors.Vector) => v Indices.second) _ _ (Matrices.onBasis (Matrix.matrix s) Indices.second)) (Matrix.at11 s);
+\definition firstColumn: column Indices.first = Matrix.b s := trans!{C.Complex} _ _ _
+  (congr!{Vectors.Vector C.Complex} (\fun (v: Vectors.Vector) => v Indices.first) _ _ (Matrices.onBasis (Matrix.matrix s) Indices.second)) (Matrix.at01 s);
+\definition encode[z: C.Complex]: Projected.Fiber s := (Projected.bundle.space s).smul z column;
+\definition decode[v: Projected.Fiber s]: C.Complex := C.Def[].mul (C.Def[].inv (Matrix.d s)) (v Indices.second);
+\definition decodeEncode: \forall (z: C.Complex) -> decode (encode z) = z := \fun (z: C.Complex) => eq_reason_in!{C.Complex _
+  "=" _ "by" { congr!{C.Complex C.Complex} (C.Def[].mul (C.Def[].inv (Matrix.d s))) _ _
+    (congr!{C.Complex C.Complex} (C.Def[].mul z) _ _ secondColumn) }
+  "=" _ "by" { congr!{C.Complex C.Complex} (C.Def[].mul (C.Def[].inv (Matrix.d s))) _ _ (C.Prop[].mulComm z (Matrix.d s)) }
+  "=" _ "by" { sym!{C.Complex} _ _ (C.Prop[].mulAssoc (C.Def[].inv (Matrix.d s)) (Matrix.d s) z) }
+  "=" _ "by" { congr!{C.Complex C.Complex} (\fun (x: C.Complex) => C.Def[].mul x z) _ _ (C.Prop[].inverseNonzero (Matrix.d s) nonzero) }
+  "=" _ "by" { C.Prop[].mulOneLeft z }
+};
+\definition encodeSecond: \forall (v: Projected.Fiber s) -> encode (decode v) Indices.second = v Indices.second :=
+  \fun (v: Projected.Fiber s) => eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{C.Complex C.Complex} (C.Def[].mul (decode v)) _ _ secondColumn }
+    "=" _ "by" { C.Prop[].mulComm (decode v) (Matrix.d s) }
+    "=" _ "by" { sym!{C.Complex} _ _ (C.Prop[].mulAssoc (Matrix.d s) (C.Def[].inv (Matrix.d s)) (v Indices.second)) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => C.Def[].mul z (v Indices.second)) _ _ (C.Prop[].inverseNonzeroRight (Matrix.d s) nonzero) }
+    "=" _ "by" { C.Prop[].mulOneLeft (v Indices.second) }
+  };
+\definition encodeFirst: \forall (v: Projected.Fiber s) -> encode (decode v) Indices.first = v Indices.first :=
+  \fun (v: Projected.Fiber s) => eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{C.Complex C.Complex} (C.Def[].mul (decode v)) _ _ firstColumn }
+    "=" _ "by" { C.Prop[].mulAssoc (C.Def[].inv (Matrix.d s)) (v Indices.second) (Matrix.b s) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (C.Def[].mul (C.Def[].inv (Matrix.d s))) _ _ (C.Prop[].mulComm (v Indices.second) (Matrix.b s)) }
+    "=" _ "by" { sym!{C.Complex} _ _ (C.Prop[].mulAssoc (C.Def[].inv (Matrix.d s)) (Matrix.b s) (v Indices.second)) }
+    "=" _ "by" { sym!{C.Complex} _ _ (Columns.fixedFromSecond s nonzero v (\bysub(Vectors.Vector, { w: Vectors.Vector \where (Matrices.linear (Matrix.matrix s)).apply w = w }, v))) }
+  };
+\import Fin.Tuples[A := C.Complex] \as Tuples;
+\definition encodeDecode: \forall (v: Projected.Fiber s) -> encode (decode v) = v :=
+  \fun (v: Projected.Fiber s) => Tuples.extensionality one (encode (decode v)) v (encodeFirst v)
+    (\fun (i: Fin.Fin one) => \idelim (Fin.zero N.Nat^::zero) = i \with j: Fin.Fin one => encode (decode v) (Fin.succ one j) = v (Fin.succ one j) \by {
+      base: encodeSecond v, equality: sym!{{Fin.Fin one}} _ _ (Fin.singletonValue i)
+    });
+\import Spaces.Linear[V := C.Complex, W := Projected.Fiber s, source := Spaces.scalarSpace, target := Projected.bundle.space s] \as Encode;
+\definition encodeLinear: Encode.Map := Encode.Map {
+  apply := encode,
+  preservesAdd := \fun (z, w: C.Complex) => (Projected.bundle.space s).scalarAdd z w column,
+  preservesScale := \fun (z, w: C.Complex) => (Projected.bundle.space s).scalarAssoc z w column
+};
+\import Spaces.Linear[V := Projected.Fiber s, W := C.Complex, source := Projected.bundle.space s, target := Spaces.scalarSpace] \as Decode;
+\definition decodeLinear: Decode.Map := Decode.Map {
+  apply := decode,
+  preservesAdd := \fun (v, w: Projected.Fiber s) => C.Prop[].mulAddLeft (C.Def[].inv (Matrix.d s)) (v Indices.second) (w Indices.second),
+  preservesScale := \fun (z: C.Complex)(v: Projected.Fiber s) => C.Prop[].mulSwap (C.Def[].inv (Matrix.d s)) z (v Indices.second)
+};
+\import Spaces.Isomorphism[V := Projected.Fiber s, W := C.Complex, source := Projected.bundle.space s, target := Spaces.scalarSpace] \as Isomorphisms;
+\definition frame: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := decodeLinear, backward := encodeLinear, leftInverse := encodeDecode, rightInverse := decodeEncode
+};
