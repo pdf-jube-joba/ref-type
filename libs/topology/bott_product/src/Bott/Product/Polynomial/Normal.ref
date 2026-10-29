@@ -1,0 +1,121 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.trans;
+\use Eq.sym;
+\use Eq.congr;
+\use Eq.eq_reason_in;
+\import std.Alg[].Ring[] \as Rings;
+\definition quotientRing: Rings.Ring[Quotient.Carrier] := Rings.commutativeRingAsRing Quotient.Carrier Quotient.ring;
+\import algebra.Group[].Of[Carrier := Quotient.Carrier, group := Rings.additiveGroup Quotient.Carrier quotientRing] \as Group;
+\import algebra.Hom[A := Source.K0[].Carrier, B := Quotient.Carrier] \as CoefficientHom;
+\definition constantLaws: CoefficientHom.SemiringLaws[(Rings.ringAsSemiring Source.K0[].Carrier Source.K0[].ring),
+  (Rings.ringAsSemiring Quotient.Carrier quotientRing), Quotient.coefficientMap] := CoefficientHom.semiringLaws _ _ Quotient.coefficientMap;
+\definition add: \forall (a, b, c, d: Source.K0[].Carrier) ->
+  Quotient.add (normal a b) (normal c d) = normal (Source.K0[].add a c) (Source.K0[].add b d) :=
+  \fun (a, b, c, d: Source.K0[].Carrier) => eq_reason_in!{Quotient.Carrier _
+    "=" _ "by" { Group.four (Quotient.constant a) (Quotient.mul (Quotient.constant b) u) (Quotient.constant c) (Quotient.mul (Quotient.constant d) u) }
+    "=" _ "by" { congr!{Quotient.Carrier Quotient.Carrier Quotient.Carrier} Quotient.add _ _ _ _
+      (sym!{Quotient.Carrier} _ _ (constantLaws.add a c))
+      (sym!{Quotient.Carrier} _ _ ((quotientRing.semiring).rightDistributive (Quotient.constant b) (Quotient.constant d) u)) }
+    "=" _ "by" { congr!{Quotient.Carrier Quotient.Carrier} (\fun (x: Quotient.Carrier) => Quotient.add (Quotient.constant (Source.K0[].add a c)) (Quotient.mul x u)) _ _
+      (sym!{Quotient.Carrier} _ _ (constantLaws.add b d)) }
+  };
+\definition constantNeg: \forall (a: Source.K0[].Carrier) -> Quotient.constant (Source.K0[].neg a) = Quotient.neg (Quotient.constant a) :=
+  \fun (a: Source.K0[].Carrier) => Group.inverseUnique (Quotient.constant a) (Quotient.constant (Source.K0[].neg a))
+    (trans!{Quotient.Carrier} _ _ _ (sym!{Quotient.Carrier} _ _ (constantLaws.add (Source.K0[].neg a) a))
+      (trans!{Quotient.Carrier} _ _ _ (congr!{Source.K0[].Carrier Quotient.Carrier} Quotient.constant _ _ (Source.K0[].ring.additiveInverse a)) constantLaws.zero));
+\definition negMul: \forall (x, y: Quotient.Carrier) -> Quotient.mul (Quotient.neg x) y = Quotient.neg (Quotient.mul x y) :=
+  \fun (x, y: Quotient.Carrier) => Group.inverseUnique (Quotient.mul x y) (Quotient.mul (Quotient.neg x) y)
+    (trans!{Quotient.Carrier} _ _ _ (sym!{Quotient.Carrier} _ _ ((quotientRing.semiring).rightDistributive (Quotient.neg x) x y))
+      (trans!{Quotient.Carrier} _ _ _ (congr!{Quotient.Carrier Quotient.Carrier} (\fun (z: Quotient.Carrier) => Quotient.mul z y) _ _ (quotientRing.additiveInverse x))
+        ((quotientRing.semiring).zeroAbsorbsLeft y)));
+\definition neg: \forall (a, b: Source.K0[].Carrier) -> Quotient.neg (normal a b) = normal (Source.K0[].neg a) (Source.K0[].neg b) :=
+  \fun (a, b: Source.K0[].Carrier) => eq_reason_in!{Quotient.Carrier _
+    "=" _ "by" { Group.negAdd (Quotient.constant a) (Quotient.mul (Quotient.constant b) u) }
+    "=" _ "by" { congr!{Quotient.Carrier Quotient.Carrier Quotient.Carrier} Quotient.add _ _ _ _
+      (sym!{Quotient.Carrier} _ _ (constantNeg a)) (sym!{Quotient.Carrier} _ _ (negMul (Quotient.constant b) u)) }
+    "=" _ "by" { congr!{Quotient.Carrier Quotient.Carrier} (\fun (x: Quotient.Carrier) => Quotient.add (Quotient.constant (Source.K0[].neg a)) (Quotient.mul x u)) _ _
+      (sym!{Quotient.Carrier} _ _ (constantNeg b)) }
+  };
+\definition four: \forall (a, b, c, d: Quotient.Carrier) -> Quotient.mul (Quotient.mul a b) (Quotient.mul c d) = Quotient.mul (Quotient.mul a c) (Quotient.mul b d) :=
+  \fun (a, b, c, d: Quotient.Carrier) => eq_reason_in!{Quotient.Carrier _
+    "=" _ "by" { Quotient.mulAssoc a b (Quotient.mul c d) }
+    "=" _ "by" { congr!{Quotient.Carrier Quotient.Carrier} (Quotient.mul a) _ _ (sym!{Quotient.Carrier} _ _ (Quotient.mulAssoc b c d)) }
+    "=" _ "by" { congr!{Quotient.Carrier Quotient.Carrier} (\fun (x: Quotient.Carrier) => Quotient.mul a (Quotient.mul x d)) _ _ (Quotient.mulComm b c) }
+    "=" _ "by" { congr!{Quotient.Carrier Quotient.Carrier} (Quotient.mul a) _ _ (Quotient.mulAssoc c b d) }
+    "=" _ "by" { sym!{Quotient.Carrier} _ _ (Quotient.mulAssoc a c (Quotient.mul b d)) }
+  };
+\definition cross: \forall (a, b: Source.K0[].Carrier) -> Quotient.mul (Quotient.constant a) (Quotient.mul (Quotient.constant b) u) = Quotient.mul (Quotient.constant (Source.K0[].mul a b)) u :=
+  \fun (a, b: Source.K0[].Carrier) => trans!{Quotient.Carrier} _ _ _ (sym!{Quotient.Carrier} _ _ (Quotient.mulAssoc (Quotient.constant a) (Quotient.constant b) u))
+    (congr!{Quotient.Carrier Quotient.Carrier} (\fun (x: Quotient.Carrier) => Quotient.mul x u) _ _ (sym!{Quotient.Carrier} _ _ (constantLaws.mul a b)));
+\definition reducedSquare: \forall (a, b: Source.K0[].Carrier) -> Quotient.mul (Quotient.mul (Quotient.constant a) u) (Quotient.mul (Quotient.constant b) u) = Quotient.zero :=
+  \fun (a, b: Source.K0[].Carrier) => trans!{Quotient.Carrier} _ _ _ (four (Quotient.constant a) u (Quotient.constant b) u)
+    (trans!{Quotient.Carrier} _ _ _ (congr!{Quotient.Carrier Quotient.Carrier} (Quotient.mul (Quotient.mul (Quotient.constant a) (Quotient.constant b))) _ _ squareZero)
+      ((quotientRing.semiring).zeroAbsorbsRight (Quotient.mul (Quotient.constant a) (Quotient.constant b))));
+\definition mul: \forall (a, b, c, d: Source.K0[].Carrier) -> Quotient.mul (normal a b) (normal c d) =
+  normal (Source.K0[].mul a c) (Source.K0[].add (Source.K0[].mul a d) (Source.K0[].mul c b)) :=
+  \fun (a, b, c, d: Source.K0[].Carrier) => eq_reason_in!{Quotient.Carrier _
+    "=" _ "by" { (quotientRing.semiring).rightDistributive (Quotient.constant a) (Quotient.mul (Quotient.constant b) u) (normal c d) }
+    "=" _ "by" { congr!{Quotient.Carrier Quotient.Carrier Quotient.Carrier} Quotient.add _ _ _ _
+      (Quotient.mulAdd (Quotient.constant a) (Quotient.constant c) (Quotient.mul (Quotient.constant d) u))
+      (Quotient.mulAdd (Quotient.mul (Quotient.constant b) u) (Quotient.constant c) (Quotient.mul (Quotient.constant d) u)) }
+    "=" _ "by" { congr!{Quotient.Carrier Quotient.Carrier Quotient.Carrier} Quotient.add _ _ _ _
+      (congr!{Quotient.Carrier Quotient.Carrier Quotient.Carrier} Quotient.add _ _ _ _ (sym!{Quotient.Carrier} _ _ (constantLaws.mul a c)) (cross a d))
+      (congr!{Quotient.Carrier Quotient.Carrier Quotient.Carrier} Quotient.add _ _ _ _
+        (trans!{Quotient.Carrier} _ _ _ (Quotient.mulComm (Quotient.mul (Quotient.constant b) u) (Quotient.constant c)) (cross c b)) (reducedSquare b d)) }
+    "=" _ "by" { congr!{Quotient.Carrier Quotient.Carrier} (Quotient.add (Quotient.add (Quotient.constant (Source.K0[].mul a c)) (Quotient.mul (Quotient.constant (Source.K0[].mul a d)) u))) _ _ (Group.zeroRight (Quotient.mul (Quotient.constant (Source.K0[].mul c b)) u)) }
+    "=" _ "by" { Group.assoc (Quotient.constant (Source.K0[].mul a c)) (Quotient.mul (Quotient.constant (Source.K0[].mul a d)) u) (Quotient.mul (Quotient.constant (Source.K0[].mul c b)) u) }
+    "=" _ "by" { congr!{Quotient.Carrier Quotient.Carrier} (Quotient.add (Quotient.constant (Source.K0[].mul a c))) _ _
+      (sym!{Quotient.Carrier} _ _ ((quotientRing.semiring).rightDistributive (Quotient.constant (Source.K0[].mul a d)) (Quotient.constant (Source.K0[].mul c b)) u)) }
+    "=" _ "by" { congr!{Quotient.Carrier Quotient.Carrier} (\fun (x: Quotient.Carrier) => Quotient.add (Quotient.constant (Source.K0[].mul a c)) (Quotient.mul x u)) _ _
+      (sym!{Quotient.Carrier} _ _ (constantLaws.add (Source.K0[].mul a d) (Source.K0[].mul c b))) }
+  };
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Coefficients[] \as Coefficients;
+\definition evaluation: Free.Expression -> Coefficients.Model := \induction (e: Free.Expression) \return Coefficients.Model \with {
+  | constant: \fun (a: Source.K0[].Carrier) => Coefficients.pair a Source.K0[].zero
+  | variable: \fun (_: Variable) => Coefficients.pair Source.K0[].zero Source.K0[].one
+  | sum: \fun (_: Free.Expression)(p: Coefficients.Model)(_: Free.Expression)(q: Coefficients.Model) => Coefficients.add p q
+  | negative: \fun (_: Free.Expression)(p: Coefficients.Model) => Coefficients.neg p
+  | product: \fun (_: Free.Expression)(p: Coefficients.Model)(_: Free.Expression)(q: Coefficients.Model) => Coefficients.mul p q
+};
+\definition value[p: Coefficients.Model]: Quotient.Carrier := normal (Coefficients.first p) (Coefficients.second p);
+\definition constant: \forall (a: Source.K0[].Carrier) -> Quotient.constant a = normal a Source.K0[].zero :=
+  \fun (a: Source.K0[].Carrier) => sym!{Quotient.Carrier} _ _
+    (trans!{Quotient.Carrier} _ _ _ (congr!{Quotient.Carrier Quotient.Carrier} (Quotient.add (Quotient.constant a)) _ _
+      (trans!{Quotient.Carrier} _ _ _ (congr!{Quotient.Carrier Quotient.Carrier} (\fun (x: Quotient.Carrier) => Quotient.mul x u) _ _ constantLaws.zero)
+        ((quotientRing.semiring).zeroAbsorbsLeft u))) (Group.zeroRight (Quotient.constant a)));
+\definition variable: u = normal Source.K0[].zero Source.K0[].one := sym!{Quotient.Carrier} _ _
+  (trans!{Quotient.Carrier} _ _ _ (congr!{Quotient.Carrier Quotient.Carrier Quotient.Carrier} Quotient.add _ _ _ _ constantLaws.zero
+    (trans!{Quotient.Carrier} _ _ _ (congr!{Quotient.Carrier Quotient.Carrier} (\fun (x: Quotient.Carrier) => Quotient.mul x u) _ _ constantLaws.one) (Quotient.oneLeft u)))
+    (Quotient.zeroLeft u));
+\definition expression: \forall (e: Free.Expression) -> Quotient.class e = value (evaluation e) :=
+  \induction (e: Free.Expression) \return Quotient.class e = value (evaluation e) \with {
+    | constant: constant
+    | variable: \induction (v: Variable) \return Quotient.class (Free.Expression::variable v) = value (evaluation (Free.Expression::variable v)) \with { | u: variable }
+    | sum: \fun (x: Free.Expression)(first: Quotient.class x = value (evaluation x))(y: Free.Expression)(second: Quotient.class y = value (evaluation y)) =>
+      trans!{Quotient.Carrier} _ _ _ (sym!{Quotient.Carrier} _ _ (Quotient.addClass x y))
+        (trans!{Quotient.Carrier} _ _ _ (congr!{Quotient.Carrier Quotient.Carrier Quotient.Carrier} Quotient.add _ _ _ _ first second)
+          (add (Coefficients.first (evaluation x)) (Coefficients.second (evaluation x)) (Coefficients.first (evaluation y)) (Coefficients.second (evaluation y))))
+    | negative: \fun (x: Free.Expression)(previous: Quotient.class x = value (evaluation x)) =>
+      trans!{Quotient.Carrier} _ _ _ (sym!{Quotient.Carrier} _ _ (Quotient.negClass x))
+        (trans!{Quotient.Carrier} _ _ _ (congr!{Quotient.Carrier Quotient.Carrier} Quotient.neg _ _ previous)
+          (neg (Coefficients.first (evaluation x)) (Coefficients.second (evaluation x))))
+    | product: \fun (x: Free.Expression)(first: Quotient.class x = value (evaluation x))(y: Free.Expression)(second: Quotient.class y = value (evaluation y)) =>
+      trans!{Quotient.Carrier} _ _ _ (sym!{Quotient.Carrier} _ _ (Quotient.mulClass x y))
+        (trans!{Quotient.Carrier} _ _ _ (congr!{Quotient.Carrier Quotient.Carrier Quotient.Carrier} Quotient.mul _ _ _ _ first second)
+          (mul (Coefficients.first (evaluation x)) (Coefficients.second (evaluation x)) (Coefficients.first (evaluation y)) (Coefficients.second (evaluation y))))
+  };
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Inverse[] \as Inverse;
+\definition backward[v: Target.K0[].Carrier]: Quotient.Carrier := normal (Inverse.first v) (Inverse.coefficient v);
+\definition rightInverse: \forall (v: Target.K0[].Carrier) -> map (backward v) = v :=
+  \fun (v: Target.K0[].Carrier) => trans!{Target.K0[].Carrier} _ _ _ (onNormal (Inverse.first v) (Inverse.coefficient v)) (Inverse.reconstruction v);
+\definition onNormalInverse: \forall (a, b: Source.K0[].Carrier) -> backward (map (normal a b)) = normal a b :=
+  \fun (a, b: Source.K0[].Carrier) => trans!{Quotient.Carrier} _ _ _
+    (congr!{Target.K0[].Carrier Quotient.Carrier} backward _ _ (onNormal a b))
+    (congr!{Source.K0[].Carrier Source.K0[].Carrier Quotient.Carrier} normal _ _ _ _ (Inverse.recovers a b).left (Inverse.recovers a b).right);
+\import std.Set[].Quotient[A := Free.Expression, Equivalent := Quotient.Equivalent] \as Classes;
+\definition leftInverse: \forall (q: Quotient.Carrier) -> backward (map q) = q := Classes.induction
+  (\fun (q: Quotient.Carrier) => backward (map q) = q)
+  (\fun (e: Free.Expression) => trans!{Quotient.Carrier} _ _ _
+    (congr!{Quotient.Carrier Quotient.Carrier} (\fun (q: Quotient.Carrier) => backward (map q)) _ _ (expression e))
+    (trans!{Quotient.Carrier} _ _ _ (onNormalInverse (Coefficients.first (evaluation e)) (Coefficients.second (evaluation e)))
+      (sym!{Quotient.Carrier} _ _ (expression e))));
