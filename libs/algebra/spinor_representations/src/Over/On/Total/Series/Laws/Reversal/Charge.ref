@@ -84,3 +84,19 @@
   \fun (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier) => trans!{Carrier} _ _ _
     (congr!{Carrier Carrier} (Total.createLeft alpha) _ _ (sym!{Carrier} _ _ (vacuumLeftUnit f)))
     (Total.Series[].Laws[].OneCommutation[].leftCreation alpha Vacuum.state f);
+\definition powerAdd: \forall (m: N.Nat^)(f, g: Carrier) -> power m (totalSpace.add f g) = totalSpace.add (power m f) (power m g) :=
+  \induction (m: N.Nat^) \return \forall (f, g: Carrier) -> power m (totalSpace.add f g) = totalSpace.add (power m f) (power m g) \with {
+    | zero: \fun (f, g: Carrier) => \refl(totalSpace.add f g)
+    | succ: \fun (m: N.Nat^)(previous: \forall (f, g: Carrier) -> power m (totalSpace.add f g) = totalSpace.add (power m f) (power m g))(f, g: Carrier) => trans!{Carrier} _ _ _
+      (congr!{Carrier Carrier} Total.parity _ _ (previous f g)) (Total.grading.preservesAdd (power m f) (power m g))
+  };
+\definition stateAdd: \forall (f, g: Carrier) -> state (totalSpace.add f g) = totalSpace.add (state f) (state g) :=
+  \fun (f, g: Carrier) => \axiom:funext(state (totalSpace.add f g), totalSpace.add (state f) (state g),
+    \fun (k: N.Nat^) => (Forms.At[k := k].vectorSpace).vectorAdd (sign k) (f k) (g k));
+\definition stateScale: \forall (a: K)(f: Carrier) -> state (totalSpace.smul a f) = totalSpace.smul a (state f) :=
+  \fun (a: K)(f: Carrier) => \axiom:funext(state (totalSpace.smul a f), totalSpace.smul a (state f),
+    \fun (k: N.Nat^) => Algebra.Laws[V := Forms.Form k, space := Forms.At[k := k].vectorSpace].scaleComm (sign k) a (f k));
+\definition add: \forall (m: N.Nat^)(f, g: Carrier) -> value m (totalSpace.add f g) = totalSpace.add (value m f) (value m g) :=
+  \fun (m: N.Nat^)(f, g: Carrier) => trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (power m) _ _ (stateAdd f g)) (powerAdd m (state f) (state g));
+\definition scale: \forall (m: N.Nat^)(a: K)(f: Carrier) -> value m (totalSpace.smul a f) = totalSpace.smul a (value m f) :=
+  \fun (m: N.Nat^)(a: K)(f: Carrier) => trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (power m) _ _ (stateScale a f)) (powerScale m a (state f));

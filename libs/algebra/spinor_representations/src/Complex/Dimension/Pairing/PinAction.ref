@@ -1,0 +1,88 @@
+\import \parent.\parent.RealCoordinates[] \as RC;
+\import RC.Clifford[] \as Clifford;
+\import Clifford.Spin[].Phase[] \as Phase;
+\import std.Data[].FinSet[] \as Fin;
+\import linear_algebra.Euclidean[n := Fin.Sum[m := n, n := n].total] \as E;
+\import clifford.Field[K := R.Real, field := R.Algebra[].field].On[V := E.Vector, space := E.space].Of[form := E.form] \as Source;
+\import Source.Pin[] \as Pin;
+\import algebra.Groups[].Units[A := Source.Carrier, ring := Source.ring] \as SourceUnits;
+\import lie_algebras.Field[K := C.Complex, field := Field.field].Endomorphisms[V := Total.Carrier, space := Total.totalSpace] \as End;
+\import algebra.Groups[].Units[A := End.Carrier, ring := End.ring] \as Units;
+\import SourceUnits.Mapping[B := End.Carrier, target := End.ring, f := Clifford.extension] \as Mapping;
+\import algebra.Groups[].On[G := SourceUnits.Unit, group := SourceUnits.group] \as SourceGroup;
+\import algebra.Groups[].On[G := Units.Unit, group := Units.group] \as Group;
+\import lie_groups.Euclidean[n := Fin.Sum[m := n, n := n].total].PinRepresentation[] \as Projection;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\definition predicate: \Pow Units.Unit := { u: Units.Unit \where \forall (f, g: Total.Carrier) -> value (u.value.apply f) (u.value.apply g) = value f g };
+\definition closed: Group.Closed[predicate] := Group.Closed[predicate] {
+  one := \fun (f, g: Total.Carrier) => \refl(value f g),
+  mul := \fun (u, v: Units.Unit)(left: \In[Units.Unit] predicate u)(right: \In[Units.Unit] predicate v)(f, g: Total.Carrier) => trans!{{Forms.Form n}} _ _ _ (left (v.value.apply f) (v.value.apply g)) (right f g),
+  inv := \fun (u: Units.Unit)(previous: \In[Units.Unit] predicate u)(f, g: Total.Carrier) => eq_reason_in!{{Forms.Form n} _
+    "=" _ "by" { sym!{{Forms.Form n}} _ _ (previous (u.inverse.apply f) (u.inverse.apply g)) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier} {Forms.Form n}} value _ _ _ _
+      (congr!{End.Carrier {Total.Carrier}} (\fun (a: End.Carrier) => a.apply f) _ _ u.right)
+      (congr!{End.Carrier {Total.Carrier}} (\fun (a: End.Carrier) => a.apply g) _ _ u.right) }
+  },
+};
+\definition preimage: \Pow SourceUnits.Unit := { u: SourceUnits.Unit \where \In[Units.Unit] predicate (Mapping.apply u) };
+\definition preimageClosed: SourceGroup.Closed[preimage] := SourceGroup.Closed[preimage] {
+  one := \idelim Units.unit = Mapping.apply SourceUnits.unit \with x: Units.Unit => \In[Units.Unit] predicate x \by { base: closed.one, equality: sym!{Units.Unit} _ _ Mapping.atOne },
+  mul := \fun (u, v: SourceUnits.Unit)(hu: \In[SourceUnits.Unit] preimage u)(hv: \In[SourceUnits.Unit] preimage v) =>
+    \idelim Units.product (Mapping.apply u) (Mapping.apply v) = Mapping.apply (SourceUnits.product u v) \with x: Units.Unit => \In[Units.Unit] predicate x \by {
+      base: closed.mul (Mapping.apply u) (Mapping.apply v) hu hv, equality: sym!{Units.Unit} _ _ (Mapping.preservesProduct u v)
+    },
+  inv := \fun (u: SourceUnits.Unit)(hu: \In[SourceUnits.Unit] preimage u) =>
+    \idelim Units.inverse (Mapping.apply u) = Mapping.apply (SourceUnits.inverse u) \with x: Units.Unit => \In[Units.Unit] predicate x \by {
+      base: closed.inv (Mapping.apply u) hu, equality: sym!{Units.Unit} _ _ (Mapping.preservesInverse u)
+    },
+};
+\definition positive: \forall (v: Pin.Positive)(f, g: Total.Carrier) -> value ((Mapping.apply (Pin.positive v)).value.apply f) ((Mapping.apply (Pin.positive v)).value.apply g) = Top.vectorSpace.smul (Sign.value n) (value f g) :=
+  \fun (v: Pin.Positive)(f, g: Total.Carrier) => eq_reason_in!{{Forms.Form n} _
+    "=" _ "by" { congr!{End.Carrier End.Carrier {Forms.Form n}} (\fun (a, b: End.Carrier) => value (a.apply f) (b.apply g)) _ _ _ _ (Clifford.onVector v) (Clifford.onVector v) }
+    "=" _ "by" { clifford (RC.standardIsomorphism.backward.apply v) f ((Metric.cliffordOperator (RC.standardIsomorphism.backward.apply v)).apply g) }
+    "=" _ "by" { congr!{{Total.Carrier} {Forms.Form n}} (\fun (t: Total.Carrier) => Top.vectorSpace.smul (Sign.value n) (value f t)) _ _ (Metric.square (RC.standardIsomorphism.backward.apply v) g) }
+    "=" _ "by" { congr!{R.Real {Forms.Form n}} (\fun (a: R.Real) => Top.vectorSpace.smul (Sign.value n) (value f (Total.totalSpace.smul (Def.ofReal a) g))) _ _ (Clifford.quadratic v) }
+    "=" _ "by" { congr!{R.Real {Forms.Form n}} (\fun (a: R.Real) => Top.vectorSpace.smul (Sign.value n) (value f (Total.totalSpace.smul (Def.ofReal a) g))) _ _ (\bysub(E.Vector, { v: E.Vector \where Source.quadratic v = R.one }, v)) }
+    "=" _ "by" { congr!{{Total.Carrier} {Forms.Form n}} (\fun (t: Total.Carrier) => Top.vectorSpace.smul (Sign.value n) (value f t)) _ _ (Total.totalSpace.scalarOne g) }
+  };
+
+\definition vector: \forall (u: SourceUnits.Unit) -> Pin.VectorGenerator u -> \forall (f, g: Total.Carrier) ->
+  value ((Mapping.apply u).value.apply f) ((Mapping.apply u).value.apply g) = Top.vectorSpace.smul (Sign.value n) (value f g) :=
+  \induction (u: SourceUnits.Unit)(generator: Pin.VectorGenerator u) \return \forall (f, g: Total.Carrier) ->
+    value ((Mapping.apply u).value.apply f) ((Mapping.apply u).value.apply g) = Top.vectorSpace.smul (Sign.value n) (value f g) \with {
+    | positive: positive
+    | negative: \fun (v: Pin.Negative) => Logic.falseElim _ (Projection.negativeImpossible v)
+  };
+\definition pair: \forall (u, v: SourceUnits.Unit) -> Pin.VectorGenerator u -> Pin.VectorGenerator v -> \In[SourceUnits.Unit] preimage (SourceUnits.product u v) :=
+  \fun (u, v: SourceUnits.Unit)(hu: Pin.VectorGenerator u)(hv: Pin.VectorGenerator v)(f, g: Total.Carrier) => eq_reason_in!{{Forms.Form n} _
+    "=" _ "by" { congr!{Units.Unit Units.Unit {Forms.Form n}} (\fun (a, b: Units.Unit) => value (a.value.apply f) (b.value.apply g)) _ _ _ _ (Mapping.preservesProduct u v) (Mapping.preservesProduct u v) }
+    "=" _ "by" { vector u hu ((Mapping.apply v).value.apply f) ((Mapping.apply v).value.apply g) }
+    "=" _ "by" { congr!{{Forms.Form n} {Forms.Form n}} (Top.vectorSpace.smul (Sign.value n)) _ _ (vector v hv f g) }
+    "=" _ "by" { sym!{{Forms.Form n}} _ _ (Top.vectorSpace.scalarAssoc (Sign.value n) (Sign.value n) (value f g)) }
+    "=" _ "by" { congr!{C.Complex {Forms.Form n}} (\fun (a: C.Complex) => Top.vectorSpace.smul a (value f g)) _ _ (Sign.square n) }
+    "=" _ "by" { Top.vectorSpace.scalarOne (value f g) }
+  };
+\import RC.Clifford[].Spin[].Grading[] \as Grading;
+\definition sign: \In[SourceUnits.Unit] preimage SourceUnits.minusOne := \fun (f, g: Total.Carrier) => eq_reason_in!{{Forms.Form n} _
+  "=" _ "by" { congr!{End.Carrier End.Carrier {Forms.Form n}} (\fun (a, b: End.Carrier) => value (a.apply f) (b.apply g)) _ _ _ _ Phase.mapNegativeOne Phase.mapNegativeOne }
+  "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier} {Forms.Form n}} value _ _ _ _ (Grading.negApply End.one f) (Grading.negApply End.one g) }
+  "=" _ "by" { congr!{{Total.Carrier} {Forms.Form n}} (\fun (t: Total.Carrier) => value t (Total.totalSpace.neg g)) _ _ (sym!{{Total.Carrier}} _ _ (TotalLaws.minusOneScale f)) }
+  "=" _ "by" { scaleLeft (Algebra.neg Algebra.one) f (Total.totalSpace.neg g) }
+  "=" _ "by" { congr!{{Total.Carrier} {Forms.Form n}} (\fun (t: Total.Carrier) => Top.vectorSpace.smul (Algebra.neg Algebra.one) (value f t)) _ _ (sym!{{Total.Carrier}} _ _ (TotalLaws.minusOneScale g)) }
+  "=" _ "by" { congr!{{Forms.Form n} {Forms.Form n}} (Top.vectorSpace.smul (Algebra.neg Algebra.one)) _ _ (scaleRight (Algebra.neg Algebra.one) f g) }
+  "=" _ "by" { sym!{{Forms.Form n}} _ _ (Top.vectorSpace.scalarAssoc (Algebra.neg Algebra.one) (Algebra.neg Algebra.one) (value f g)) }
+  "=" _ "by" { congr!{C.Complex {Forms.Form n}} (\fun (a: C.Complex) => Top.vectorSpace.smul a (value f g)) _ _ (Sign.square (N.Nat^::succ N.Nat^::zero)) }
+  "=" _ "by" { Top.vectorSpace.scalarOne (value f g) }
+};
+\definition generators: \forall (u: SourceUnits.Unit) -> Pin.EvenGenerator u -> \In[SourceUnits.Unit] preimage u :=
+  \induction (u: SourceUnits.Unit)(generator: Pin.EvenGenerator u) \return \In[SourceUnits.Unit] preimage u \with {
+    | sign: sign
+    | pair: pair
+  };
+\definition spin: \forall (u: Pin.Spin)(f, g: Total.Carrier) -> value ((Mapping.apply u).value.apply f) ((Mapping.apply u).value.apply g) = value f g :=
+  \fun (u: Pin.Spin) => (Pin.evenMembership u) preimage preimageClosed generators;
