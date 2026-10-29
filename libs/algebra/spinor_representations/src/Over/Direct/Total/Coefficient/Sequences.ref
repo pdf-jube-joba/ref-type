@@ -1,0 +1,85 @@
+\import std.Data[].List[] \as Lists;
+\import \parent.Contraction[] \as Contract;
+\import Algebra.Linear[V := Tensor.Carrier, W := ResultTotal.Carrier, source := Tensor.space, target := ResultTotal.totalSpace] \as Maps;
+\import \root.Over[K := K, scalarRing := scalarRing].TensorOperators[V := LeftTotal.Carrier, W := RightTotal.Carrier, left := LeftTotal.totalSpace, right := RightTotal.totalSpace] \as Operators;
+\import Algebra.Eigen[V := RightTotal.Carrier, space := RightTotal.totalSpace] \as RightIdentity;
+\import LeftTotal.Series[].Laws[].Reversal[].Charge[] \as Power;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].sym;
+\definition leftChain: Lists.List[V] -> LeftTotal.Carrier -> LeftTotal.Carrier := \induction (xs: Lists.List[V]) \return LeftTotal.Carrier -> LeftTotal.Carrier \with {
+  | nil: \fun (f: LeftTotal.Carrier) => f
+  | cons: \fun (x: V)(tail: Lists.List[V])(previous: LeftTotal.Carrier -> LeftTotal.Carrier)(f: LeftTotal.Carrier) => previous (LeftTotal.annihilate x f)
+};
+\definition rightChain: Lists.List[W] -> RightTotal.Carrier -> RightTotal.Carrier := \induction (xs: Lists.List[W]) \return RightTotal.Carrier -> RightTotal.Carrier \with {
+  | nil: \fun (g: RightTotal.Carrier) => g
+  | cons: \fun (x: W)(tail: Lists.List[W])(previous: RightTotal.Carrier -> RightTotal.Carrier)(g: RightTotal.Carrier) => previous (RightTotal.annihilate x g)
+};
+\definition resultLeft: Lists.List[V] -> ResultTotal.Carrier -> ResultTotal.Carrier := \induction (xs: Lists.List[V]) \return ResultTotal.Carrier -> ResultTotal.Carrier \with {
+  | nil: \fun (f: ResultTotal.Carrier) => f
+  | cons: \fun (x: V)(tail: Lists.List[V])(previous: ResultTotal.Carrier -> ResultTotal.Carrier)(f: ResultTotal.Carrier) => previous (ResultTotal.annihilate (Sum.make x right.zero) f)
+};
+\definition resultRight: Lists.List[W] -> ResultTotal.Carrier -> ResultTotal.Carrier := \induction (xs: Lists.List[W]) \return ResultTotal.Carrier -> ResultTotal.Carrier \with {
+  | nil: \fun (f: ResultTotal.Carrier) => f
+  | cons: \fun (x: W)(tail: Lists.List[W])(previous: ResultTotal.Carrier -> ResultTotal.Carrier)(f: ResultTotal.Carrier) => previous (ResultTotal.annihilate (Sum.make left.zero x) f)
+};
+\definition tensorLeft: Lists.List[V] -> Tensor.Carrier -> Tensor.Carrier := \induction (xs: Lists.List[V]) \return Tensor.Carrier -> Tensor.Carrier \with {
+  | nil: \fun (t: Tensor.Carrier) => t
+  | cons: \fun (x: V)(tail: Lists.List[V])(previous: Tensor.Carrier -> Tensor.Carrier)(t: Tensor.Carrier) => previous ((Operators.map (LeftTotal.annihilation x) RightIdentity.identity).apply t)
+};
+\definition tensorRight: Lists.List[W] -> Tensor.Carrier -> Tensor.Carrier := \induction (xs: Lists.List[W]) \return Tensor.Carrier -> Tensor.Carrier \with {
+  | nil: \fun (t: Tensor.Carrier) => t
+  | cons: \fun (x: W)(tail: Lists.List[W])(previous: Tensor.Carrier -> Tensor.Carrier)(t: Tensor.Carrier) => previous ((Operators.map LeftTotal.grading (RightTotal.annihilation x)).apply t)
+};
+\definition leftCompatible: \forall (xs: Lists.List[V])(t: Tensor.Carrier) -> resultLeft xs (comparison.apply t) = comparison.apply (tensorLeft xs t) :=
+  \induction (xs: Lists.List[V]) \return \forall (t: Tensor.Carrier) -> resultLeft xs (comparison.apply t) = comparison.apply (tensorLeft xs t) \with {
+    | nil: \fun (t: Tensor.Carrier) => \refl(comparison.apply t)
+    | cons: \fun (x: V)(tail: Lists.List[V])(previous: \forall (t: Tensor.Carrier) -> resultLeft tail (comparison.apply t) = comparison.apply (tensorLeft tail t))(t: Tensor.Carrier) => eq_reason_in!{{ResultTotal.Carrier} _
+      "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} (resultLeft tail) _ _ (congr!{{Maps.Map} {ResultTotal.Carrier}} (\fun (f: Maps.Map) => f.apply t) _ _ (Contract.leftIntertwines x)) }
+      "=" _ "by" { previous ((Operators.map (LeftTotal.annihilation x) RightIdentity.identity).apply t) }
+    }
+  };
+\definition rightCompatible: \forall (xs: Lists.List[W])(t: Tensor.Carrier) -> resultRight xs (comparison.apply t) = comparison.apply (tensorRight xs t) :=
+  \induction (xs: Lists.List[W]) \return \forall (t: Tensor.Carrier) -> resultRight xs (comparison.apply t) = comparison.apply (tensorRight xs t) \with {
+    | nil: \fun (t: Tensor.Carrier) => \refl(comparison.apply t)
+    | cons: \fun (x: W)(tail: Lists.List[W])(previous: \forall (t: Tensor.Carrier) -> resultRight tail (comparison.apply t) = comparison.apply (tensorRight tail t))(t: Tensor.Carrier) => eq_reason_in!{{ResultTotal.Carrier} _
+      "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} (resultRight tail) _ _ (congr!{{Maps.Map} {ResultTotal.Carrier}} (\fun (f: Maps.Map) => f.apply t) _ _ (Contract.rightIntertwines x)) }
+      "=" _ "by" { previous ((Operators.map LeftTotal.grading (RightTotal.annihilation x)).apply t) }
+    }
+  };
+\definition leftPure: \forall (xs: Lists.List[V])(f: LeftTotal.Carrier)(g: RightTotal.Carrier) -> tensorLeft xs (Tensor.tensor f g) = Tensor.tensor (leftChain xs f) g :=
+  \induction (xs: Lists.List[V]) \return \forall (f: LeftTotal.Carrier)(g: RightTotal.Carrier) -> tensorLeft xs (Tensor.tensor f g) = Tensor.tensor (leftChain xs f) g \with {
+    | nil: \fun (f: LeftTotal.Carrier)(g: RightTotal.Carrier) => \refl(Tensor.tensor f g)
+    | cons: \fun (x: V)(tail: Lists.List[V])(previous: \forall (f: LeftTotal.Carrier)(g: RightTotal.Carrier) -> tensorLeft tail (Tensor.tensor f g) = Tensor.tensor (leftChain tail f) g)(f: LeftTotal.Carrier)(g: RightTotal.Carrier) => eq_reason_in!{Tensor.Carrier _
+      "=" _ "by" { congr!{Tensor.Carrier Tensor.Carrier} (tensorLeft tail) _ _ (Operators.onTensor (LeftTotal.annihilation x) RightIdentity.identity f g) }
+      "=" _ "by" { previous (LeftTotal.annihilate x f) g }
+    }
+  };
+\definition rightPure: \forall (xs: Lists.List[W])(f: LeftTotal.Carrier)(g: RightTotal.Carrier) ->
+  tensorRight xs (Tensor.tensor f g) = Tensor.tensor (Power.power (Lists.length W xs) f) (rightChain xs g) :=
+  \induction (xs: Lists.List[W]) \return \forall (f: LeftTotal.Carrier)(g: RightTotal.Carrier) -> tensorRight xs (Tensor.tensor f g) = Tensor.tensor (Power.power (Lists.length W xs) f) (rightChain xs g) \with {
+    | nil: \fun (f: LeftTotal.Carrier)(g: RightTotal.Carrier) => \refl(Tensor.tensor f g)
+    | cons: \fun (x: W)(tail: Lists.List[W])(previous: \forall (f: LeftTotal.Carrier)(g: RightTotal.Carrier) -> tensorRight tail (Tensor.tensor f g) = Tensor.tensor (Power.power (Lists.length W tail) f) (rightChain tail g))(f: LeftTotal.Carrier)(g: RightTotal.Carrier) => eq_reason_in!{Tensor.Carrier _
+      "=" _ "by" { congr!{Tensor.Carrier Tensor.Carrier} (tensorRight tail) _ _ (Operators.onTensor LeftTotal.grading (RightTotal.annihilation x) f g) }
+      "=" _ "by" { previous (LeftTotal.parity f) (RightTotal.annihilate x g) }
+      "=" _ "by" { congr!{{LeftTotal.Carrier} Tensor.Carrier} (\fun (a: LeftTotal.Carrier) => Tensor.tensor a (rightChain tail (RightTotal.annihilate x g))) _ _ (Power.powerParity (Lists.length W tail) f) }
+    }
+  };
+\import Algebra.Multilinear[V := V, space := left].Alternating[].At[k := N.Nat^::zero] \as LeftZero;
+\import Algebra.Multilinear[V := V, space := left].Alternating[].DegreeZero[] \as LeftDegreeZero;
+\definition parityCoefficient: \forall (f: LeftTotal.Carrier) -> LeftVacuum.coefficient (LeftTotal.parity f) = LeftVacuum.coefficient f :=
+  \fun (f: LeftTotal.Carrier) => congr!{{Left.Form N.Nat^::zero} K} (\fun (a: Left.Form N.Nat^::zero) => LeftDegreeZero.evaluate.apply a) _ _ (LeftZero.vectorSpace.scalarOne (f N.Nat^::zero));
+\definition powerCoefficient: \forall (m: N.Nat^)(f: LeftTotal.Carrier) -> LeftVacuum.coefficient (Power.power m f) = LeftVacuum.coefficient f :=
+  \induction (m: N.Nat^) \return \forall (f: LeftTotal.Carrier) -> LeftVacuum.coefficient (Power.power m f) = LeftVacuum.coefficient f \with {
+    | zero: \fun (f: LeftTotal.Carrier) => \refl(LeftVacuum.coefficient f)
+    | succ: \fun (m: N.Nat^)(previous: \forall (f: LeftTotal.Carrier) -> LeftVacuum.coefficient (Power.power m f) = LeftVacuum.coefficient f)(f: LeftTotal.Carrier) => trans!{K} _ _ _ (parityCoefficient (Power.power m f)) (previous f)
+  };
+\definition evaluate: \forall (xs: Lists.List[V])(ys: Lists.List[W])(f: LeftTotal.Carrier)(g: RightTotal.Carrier) ->
+  ResultVacuum.coefficient (resultRight ys (resultLeft xs (comparison.apply (Tensor.tensor f g)))) = Algebra.mul (LeftVacuum.coefficient (leftChain xs f)) (RightVacuum.coefficient (rightChain ys g)) :=
+  \fun (xs: Lists.List[V])(ys: Lists.List[W])(f: LeftTotal.Carrier)(g: RightTotal.Carrier) => eq_reason_in!{K _
+    "=" _ "by" { congr!{{ResultTotal.Carrier} K} (\fun (t: ResultTotal.Carrier) => ResultVacuum.coefficient (resultRight ys t)) _ _ (leftCompatible xs (Tensor.tensor f g)) }
+    "=" _ "by" { congr!{{ResultTotal.Carrier} K} ResultVacuum.coefficient _ _ (rightCompatible ys (tensorLeft xs (Tensor.tensor f g))) }
+    "=" _ "by" { congr!{Tensor.Carrier K} (\fun (t: Tensor.Carrier) => ResultVacuum.coefficient (comparison.apply (tensorRight ys t))) _ _ (leftPure xs f g) }
+    "=" _ "by" { congr!{Tensor.Carrier K} (\fun (t: Tensor.Carrier) => ResultVacuum.coefficient (comparison.apply t)) _ _ (rightPure ys (leftChain xs f) g) }
+    "=" _ "by" { pure (Power.power (Lists.length W ys) (leftChain xs f)) (rightChain ys g) }
+    "=" _ "by" { congr!{K K} (\fun (a: K) => Algebra.mul a (RightVacuum.coefficient (rightChain ys g))) _ _ (powerCoefficient (Lists.length W ys) (leftChain xs f)) }
+  };
