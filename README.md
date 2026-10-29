@@ -13,3 +13,42 @@ proof checker を作る。
 
 ## AI 向け
 このファイルには何も追記しないでください。
+
+## リポジトリ全体の通常検査
+
+Linux と Python 3.11 以降で、リポジトリのルートから実行する。
+
+```sh
+cargo build -p cli --release --locked && python3 scripts/check_all.py
+```
+
+`libs` の全 module と依存先を列挙し、開始時のソースを固定して順番に通常検査する。
+処理系・ソース・依存・検査範囲が一致する検証済みキャッシュは再利用する。
+パッケージごとの子プロセスでメモリを解放し、上限に達した範囲は自身と子 module に分割して続行する。
+各子プロセス内でも、新しい checkpoint があれば自動で再開する。
+分割できない範囲で進展がなくなった場合は非ゼロ終了する。
+
+```sh
+python3 scripts/check_all.py --memory-mib 3072 --cache-budget-mib 12288 --min-free-mib 256
+python3 scripts/check_all.py --state-dir work/repository-check --cache-dir libs/refcache
+```
+
+`--memory-mib` は各 CLI プロセスの仮想メモリ上限で、RSS やコンテナのメモリ上限とは別である。
+0 は既存の OS 上限を維持する。
+`--cache-budget-mib` は利用中の成果物を保護した上でのキャッシュ回収目標であり、必要な保存量を必ず収める上限ではない。
+`--min-free-mib` はログとキャッシュの保存先に確保する空き容量の目安である。
+`--time-limit-seconds` で呼び出し全体の検査時間を制限できる。
+
+`work/repository-check/latest.json` は最新のレポートを指す。
+実行ごとのディレクトリには開始時の `source.json`、全対象の `targets.json`、各処理のログと JSON、集計した `report.json` が残る。
+型検査の拒否、保存失敗、メモリ・時間制限、中断を個別の処理レポートで区別する。
+集計には新規検査・再利用の対象、最大 RSS・仮想メモリ、保存失敗数を記録する。
+最大値は CLI の監視値と worker の終了時統計で、同時点の全プロセスの合計とは異なる。
+
+終了コード 0 は、開始時に列挙した全対象の通常検査が確認され、保存失敗がなく、終了時にもソース・対象一覧・処理系が一致した場合だけ返す。
+ドライバの失敗は 2、中断は 130 である。
+失敗や中断後は同じコマンドを実行すると、現在のソースに適合するキャッシュと checkpoint を検証して再開する。
+前回の集計ファイルだけを根拠に検査を省略することはない。
+
+小規模な動作確認は `python3 scripts/test_check_all.py`、中断・worker 復旧の確認は `python3 benchmarks/bench.py cache --binary target/release/cli --checkpoint` で実行できる。
+CLI の詳細は [利用方法](src/USAGE.md)、計測方法は [benchmarks](benchmarks/README.md) を参照。

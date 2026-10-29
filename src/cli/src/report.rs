@@ -7,6 +7,7 @@ use std::{fs::File, io::Write, path::Path};
 pub enum Outcome {
     Accepted,
     Rejected,
+    StorageFailure,
     Interrupted,
     TimeLimit,
     MemoryLimit,
@@ -60,12 +61,19 @@ pub struct Report {
     pub checking: sema::QueryStats,
     #[serde(default)]
     pub storage: sema::artifact_store::CacheStoreStats,
+    /// Authoritative normal-check coverage, including validated cached results.
+    #[serde(default)]
+    pub verified_modules: Vec<Vec<String>>,
+    #[serde(default)]
+    pub checked_modules: Vec<Vec<String>>,
 }
 
 impl Report {
     pub fn checked(success: bool, verification_reused: bool) -> Self {
         Self {
-            version: 1,
+            version: 2,
+            verified_modules: Vec::new(),
+            checked_modules: Vec::new(),
             execution: Execution::default(),
             checking: sema::QueryStats::default(),
             storage: sema::artifact_store::CacheStoreStats::default(),
@@ -88,10 +96,13 @@ impl Report {
     }
 
     pub fn write(&self, path: &Path) -> anyhow::Result<()> {
-        let mut file = File::create(path)?;
+        let temporary = path.with_extension(format!("json.{}.tmp", std::process::id()));
+        let mut file = File::create(&temporary)?;
         let mut bytes = serde_json::to_vec_pretty(self)?;
         bytes.push(b'\n');
         file.write_all(&bytes)?;
+        file.sync_all()?;
+        std::fs::rename(temporary, path)?;
         Ok(())
     }
 }
