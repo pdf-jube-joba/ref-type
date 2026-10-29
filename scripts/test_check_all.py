@@ -143,6 +143,19 @@ class RepositoryCheckTests(unittest.TestCase):
         self.assertNotEqual(report['outcome'], 'accepted')
         self.assertLess(len(report['attempts']), 10)
 
+    def test_small_initial_workers_recover_within_the_hard_budget(self):
+        result, report = self.run_check('--initial-memory-mib', '32', '--memory-mib', '512')
+        self.accepted(result, report)
+        attempts = report['attempts']
+        self.assertTrue(any(a['outcome'] == 'memory-limit' for a in attempts))
+        self.assertTrue(all(a['memory_mib'] <= 512 for a in attempts))
+        scopes = {}
+        for attempt in attempts:
+            key = (attempt['module'], attempt['module_only'])
+            previous = scopes.get(key, 0)
+            self.assertGreater(attempt['memory_mib'], previous)
+            scopes[key] = attempt['memory_mib']
+
 
 if __name__ == '__main__':
     unittest.main()

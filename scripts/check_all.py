@@ -41,12 +41,13 @@ def arguments():
     parser.add_argument('--binary', default='target/release/cli')
     parser.add_argument('--state-dir', default='work/repository-check')
     parser.add_argument('--cache-dir')
-    parser.add_argument('--memory-mib', type=int, default=3072)
+    parser.add_argument('--memory-mib', type=int, default=6144)
+    parser.add_argument('--initial-memory-mib', type=int, default=3072)
     parser.add_argument('--cache-budget-mib', type=int, default=12288)
     parser.add_argument('--min-free-mib', type=int, default=256)
     parser.add_argument('--time-limit-seconds', type=int)
     args = parser.parse_args()
-    for name in ['memory_mib', 'cache_budget_mib', 'min_free_mib']:
+    for name in ['memory_mib', 'initial_memory_mib', 'cache_budget_mib', 'min_free_mib']:
         if getattr(args, name) < 0:
             parser.error(name.replace('_', '-') + ' must be nonnegative')
     return args
@@ -170,8 +171,12 @@ def main():
         source = json.loads(snapshot.read_text())
         cache = Path(args.cache_dir).resolve() if args.cache_dir else Path(source.get('workspace_root') or entry) / 'refcache'
         cache.mkdir(parents=True, exist_ok=True)
+        initial_memory = min(args.initial_memory_mib, args.memory_mib) if args.memory_mib else args.initial_memory_mib
+        if not initial_memory:
+            initial_memory = args.memory_mib
         report.update(targets=targets, source_sha256=digest(snapshot), cache_dir=str(cache),
-                      memory_mib=args.memory_mib, cache_budget_mib=args.cache_budget_mib)
+                      memory_mib=args.memory_mib, initial_memory_mib=initial_memory,
+                      cache_budget_mib=args.cache_budget_mib)
         save(attempt / 'targets.json', targets)
         package_entries = {}
         for path, text in source['files'].items():
@@ -180,18 +185,18 @@ def main():
                 if 'name' in package:
                     package_entries[package['name']] = str(Path(path).parent)
         report['package_entries'] = package_entries
-        roots = [(root, False) for root in targets if '.' not in root]
+        roots = [(root, False, initial_memory) for root in targets if '.' not in root]
         pending = list(roots)
         # This hint only chooses a faster execution plan. The CLI still validates
         # every cached object and normally rechecks any miss before success.
         if hint == {'binary_sha256': binary_digest, 'source_sha256': snapshot_digest}:
-            pending = [(None, False)]
+            pending = [(None, False, initial_memory)]
         if not roots:
             raise Failure('no root modules in enumeration')
         verified, checked = set(), set()
         sequence = 0
         while pending:
-            module, only = pending.pop(0)
+            module, only, memory = pending.pop(0)
             wanted = set(targets) if module is None else {t for t in targets if t == module or (not only and t.startswith(module + '.'))}
             if wanted <= verified:
                 continue
@@ -204,7 +209,7 @@ def main():
             scope_entry = package_entries.get(module.split('.')[0], str(entry)) if module else str(entry)
             save(scope_snapshot, dict(source, entry=scope_entry))
             scope_digest = digest(scope_snapshot)
-            command = [str(binary), scope_entry, '--memory-mib', str(args.memory_mib),
+            command = [str(binary), scope_entry, '--memory-mib', str(memory),
                               '--source-snapshot', str(scope_snapshot), '--cache-dir', str(cache),
                               '--cache-budget-mib', str(args.cache_budget_mib),
                               '--report-json', str(result_file)]
@@ -231,7 +236,7 @@ def main():
             report['corrupt_cache_reads'] += result.get('storage', {}).get('corrupt', 0)
             for metric in ['peak_rss_kib', 'peak_virtual_kib']:
                 report[metric] = max(report[metric], execution.get(metric, 0))
-            report['attempts'].append(dict(module=module, module_only=only, exit_code=code,
+            report['attempts'].append(dict(module=module, module_only=only, memory_mib=memory, exit_code=code,
                                            outcome=result.get('outcome', 'missing-report'), log=str(log),
                                            report=str(result_file)))
             checked.update('.'.join(p) for p in result.get('checked_modules', []))
@@ -245,7 +250,14 @@ def main():
             elif result.get('outcome') == 'memory-limit' and not only and len(wanted) > 1:
                 # Strictly smaller scopes, retaining all declarations and normal dependency checks.
                 children = sorted({t[len(module) + 1:].split('.')[0] for t in wanted if t != module})
-                pending[0:0] = [(module, True)] + [(module + '.' + c, False) for c in children]
+                pending[0:0] = [(module, True, memory)] + [(module + '.' + c, False, memory) for c in children]
+            elif result.get('outcome') == 'memory-limit' and memory and (not args.memory_mib or memory < args.memory_mib):
+                # Only indivisible scopes get a larger worker. Every retry has
+                # a strictly larger limit, bounded by the user's hard ceiling.
+                # With no explicit ceiling, try the OS limit once, never loop.
+                larger = min(memory * 2, args.memory_mib) if args.memory_mib else 0
+                pending.insert(0, (module, only, larger))
+                print(f'{module}: indivisible scope; retry with {larger or "OS"} MiB limit', flush=True)
             else:
                 raise Failure(f'{module}: {result.get("outcome", "missing-report")} (exit {code}); see {log}')
             report.update(verified=sorted(verified), newly_checked=sorted(verified & checked),
