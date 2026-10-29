@@ -1,0 +1,32 @@
+\import std.Logic[].Classical[] \as Classical;
+\import Measures.Sigma[] \as Sigma;
+\definition realData: Integral.AEDominatedSequence := Integral.AEDominatedSequence {
+  sequence := \fun (k: N.Nat^) => realPart (d.sequence k), limit := \fun (x: A) => C.re (d.limit x),
+  bound := d.bound, exception := d.exception, dominated := d.realBound, converges := d.realConverges,
+};
+\definition imaginaryData: Integral.AEDominatedSequence := Integral.AEDominatedSequence {
+  sequence := \fun (k: N.Nat^) => imaginaryPart (d.sequence k), limit := \fun (x: A) => C.im (d.limit x),
+  bound := d.bound, exception := d.exception, dominated := d.imaginaryBound, converges := d.imaginaryConverges,
+};
+\import Integral.AEDominated[d := realData] \as RealProof;
+\import Integral.AEDominated[d := imaginaryData] \as ImaginaryProof;
+\definition function: Function := \fun (x: A) => C.make (RealProof.representative x) (ImaginaryProof.representative x);
+\definition representative: Representatives := \into[Function] (function, { f: Function \where Integrable f }) \by {
+  Logic.And[_, _]::#
+    (\bysub(A -> Real.Real, { f: A -> Real.Real \where Integral.Integrable f }, RealProof.representative))
+    (\bysub(A -> Real.Real, { f: A -> Real.Real \where Integral.Integrable f }, ImaginaryProof.representative))
+};
+\definition almostLimit: Measures.Null mu ({ x: A \where Logic.Not (representative x = d.limit x) }) :=
+  AE.nullSubset ({ x: A \where Logic.Not (representative x = d.limit x) })
+    (Sigma.pairUnion ({ x: A \where Logic.Not (RealProof.representative x = C.re (d.limit x)) })
+      ({ x: A \where Logic.Not (ImaginaryProof.representative x = C.im (d.limit x)) }))
+    (\fun (x: A) (different: Logic.Not (representative x = d.limit x)) =>
+      Logic.orElim _ _ (Logic.Or[Logic.Not (RealProof.representative x = C.re (d.limit x)), Logic.Not (ImaginaryProof.representative x = C.im (d.limit x))])
+        (Classical.excludedMiddle (RealProof.representative x = C.re (d.limit x)))
+        (\fun (same: RealProof.representative x = C.re (d.limit x)) => Logic.Or[_, _]::right
+          (\fun (other: ImaginaryProof.representative x = C.im (d.limit x)) => different (ComplexLaws.ext _ _ same other)))
+        (\fun (notSame: Logic.Not (RealProof.representative x = C.re (d.limit x))) => Logic.Or[_, _]::left notSame))
+    (AE.nullUnion ({ x: A \where Logic.Not (RealProof.representative x = C.re (d.limit x)) })
+      ({ x: A \where Logic.Not (ImaginaryProof.representative x = C.im (d.limit x)) }) RealProof.almostLimit ImaginaryProof.almostLimit);
+\definition realConvergence: Sequence.Converges (\fun (k: N.Nat^) => C.re (integral (d.sequence k))) (C.re (integral representative)) := RealProof.convergence;
+\definition imaginaryConvergence: Sequence.Converges (\fun (k: N.Nat^) => C.im (integral (d.sequence k))) (C.im (integral representative)) := ImaginaryProof.convergence;

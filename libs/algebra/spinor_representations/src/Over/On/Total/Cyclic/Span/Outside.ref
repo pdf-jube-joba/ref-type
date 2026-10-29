@@ -1,0 +1,17 @@
+\import Alternating.At[k := l] \as Target;
+\import Algebra.Laws[V := Alternating.Form l, space := Target.vectorSpace] \as TargetLaws;
+\import Algebra.Linear[V := Carrier, W := Alternating.Form l, source := totalSpace, target := Target.vectorSpace] \as Maps;
+\import TotalSums.Mapping[W := Alternating.Form l, target := Target.vectorSpace] \as Mapping;
+\import Sums.Vector[V := Alternating.Form l, space := Target.vectorSpace] \as FormSums;
+\definition evaluate: Maps.Map := Maps.Map {
+  apply := \fun (f: Carrier) => f l,
+  preservesAdd := \fun (f, g: Carrier) => \refl(Target.vectorSpace.add (f l) (g l)),
+  preservesScale := \fun (a: K)(f: Carrier) => \refl(Target.vectorSpace.smul a (f l)),
+};
+\definition zero: \forall (xs: At.Enumeration)(f: Alternating.Form k) -> Logic.Not (k = l) -> assemble xs f l = Target.origin :=
+  \fun (xs: At.Enumeration)(f: Alternating.Form k)(different: Logic.Not (k = l)) => eq_reason_in!{{Alternating.Form l} _
+    "=" _ "by" { Mapping.law evaluate xs (\fun (i: At.Tuple) => totalSpace.smul (At.coefficient f i) (state k i)) }
+    "=" _ "by" { FormSums.congruent xs _ _ (\fun (i: At.Tuple) => trans!{{Alternating.Form l}} _ _ _
+      (congr!{{Alternating.Form l} {Alternating.Form l}} (Target.vectorSpace.smul (At.coefficient f i)) _ _ (supported k i l different)) (TargetLaws.scaleZero (At.coefficient f i))) }
+    "=" _ "by" { FormSums.zero xs }
+  };

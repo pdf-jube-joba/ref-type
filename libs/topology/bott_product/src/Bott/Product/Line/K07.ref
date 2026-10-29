@@ -1,0 +1,48 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\import topology.Topology[Carrier := Carrier] \as Base;
+\definition U: \Pow Carrier := { p: Carrier \where \In[Sphere.Sphere] Disks.U (second p) };
+\definition V: \Pow Carrier := { p: Carrier \where \In[Sphere.Sphere] Disks.V (second p) };
+\definition openU: Base.IsOpenIn topology U := Space.Maps[].secondContinuous source Sphere.sphereTopology Disks.U Disks.openU;
+\definition openV: Base.IsOpenIn topology V := Space.Maps[].secondContinuous source Sphere.sphereTopology Disks.V Disks.openV;
+\definition covers: \forall (p: Carrier) -> std.Logic[].Proposition[].Or[\In[Carrier] U p, \In[Carrier] V p] := \fun (p: Carrier) => Disks.covers (second p);
+\import Homotopy.Clutching[n := one, X := Carrier, baseSpace := topology, U := U, V := V, openU := openU, openV := openV, covers := covers] \as BaseClutch;
+\definition spherePoint[p: BaseClutch.Overlap]: Disks.Overlap := \into[Sphere.Sphere](second p, Disks.overlap) \by { \bysub(Carrier, BaseClutch.overlap, p) };
+\definition sphereContinuous: topology.Continuity[A := BaseClutch.Overlap, B := Disks.Overlap].Continuous BaseClutch.overlapTopology Disks.overlapTopology spherePoint :=
+  topology.Continuity[A := BaseClutch.Overlap, B := Sphere.Sphere].Corestriction[S := Disks.overlap].corestrictContinuous BaseClutch.overlapTopology Sphere.sphereTopology spherePoint
+    (topology.Continuity[A := Carrier, B := Sphere.Sphere].Restriction[S := BaseClutch.overlap].restrictContinuous topology Sphere.sphereTopology second (Space.Maps[].secondContinuous source Sphere.sphereTopology));
+\import algebraic_topology.Euclidean[].Dimension[n := two] \as Disk;
+\definition coefficient[p: BaseClutch.Overlap]: C.Complex := Native.coefficient (Disks.boundary (spherePoint p));
+\definition coefficientContinuous: topology.Continuity[A := BaseClutch.Overlap, B := C.Complex].Continuous BaseClutch.overlapTopology topological_algebra.Complex[].topology coefficient :=
+  topology.Composition[A := BaseClutch.Overlap, B := Disks.Overlap, C := C.Complex].composeContinuous BaseClutch.overlapTopology Disks.overlapTopology topological_algebra.Complex[].topology spherePoint
+    (\fun (p: Disks.Overlap) => Native.coefficient (Disks.boundary p)) sphereContinuous
+    (topology.Composition[A := Disks.Overlap, B := Disk.Sphere, C := C.Complex].composeContinuous Disks.overlapTopology Disk.sphereTopology topological_algebra.Complex[].topology
+      Disks.boundary Native.coefficient Disks.boundaryContinuous Native.regular);
+\definition coefficientNonzero: \forall (p: BaseClutch.Overlap) -> C.Def[].NonZero (coefficient p) := \fun (p: BaseClutch.Overlap) => Native.nonzero (Disks.boundary (spherePoint p));
+\import clutching_linearization.Linearization[].ScalarUnits[n := one, X := BaseClutch.Overlap, source := BaseClutch.overlapTopology,
+  a := coefficient, continuous := coefficientContinuous, nonzero := coefficientNonzero] \as Scalars;
+\import BaseClutch.With[g := Scalars.value, continuous := Scalars.valueContinuous] \as Other;
+\import Clutching.AlongCover[Y := Carrier, source := topology, f := second, continuousF := Space.Maps[].secondContinuous source Sphere.sphereTopology,
+  UY := U, VY := V, openUY := openU, openVY := openV, covered := covers,
+  containedU := (\fun (p: \Cast[Carrier] U) => \bysub(Carrier, U, p)), containedV := (\fun (p: \Cast[Carrier] V) => \bysub(Carrier, V, p))] \as Along;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := C.Algebra[].commutativeRing] \as Spaces;
+\import Spaces.Coordinates[I := std.Data[].FinSet[].Fin one] \as Vectors;
+\import Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as End;
+\definition transitions: \forall (p: BaseClutch.Overlap) -> Along.pulledG p = Scalars.value p :=
+  \fun (p: BaseClutch.Overlap) => End.ext _ _ (\axiom:funext((Along.pulledG p).apply, (Scalars.value p).apply,
+    \fun (v: Vectors.Vector) => sym!{Vectors.Vector} _ _ (Scalars.formula p v)));
+\import BaseClutch.With[g := Along.pulledG, continuous := Along.pulledContinuous].Comparison[h := Scalars.value, continuousH := Scalars.valueContinuous] \as Compare;
+\definition equivalent: \exists Bundles.Isomorphisms[X := Carrier, F := Fiber, G := Other.Fiber, source := bundle, target := Other.bundle].Isomorphism :=
+  Compare.ofEquality (\axiom:funext(Along.pulledG, Scalars.value, transitions));
+\import clutching_linearization.Linearization[].IdentityImage[n := one, X := Carrier, source := topology] \as Identity;
+\import clutching_linearization.Linearization[].ProjectionBundle[n := one, X := Carrier, source := topology,
+  P := (\fun (_: Carrier) => Identity.projection), regular := Identity.regular].Clutching[U := U, V := V, openU := openU, openV := openV, covers := covers].With[
+  a := coefficient, continuous := coefficientContinuous, nonzero := coefficientNonzero] \as Model;
+\import Model.KClass[compact := productCompact, hausdorff := productHausdorff] \as KClass;
+\import Target.Compare[F := Fiber, G := Model.LineFiber, first := bundle, second := Model.lineBundle,
+  firstSame := \refl(topology), secondSame := \refl(topology)] \as Classes;
+\definition lineDifference: KClass.lineDifference = generatorOnProduct := trans!{{Target.K0[].Carrier}} _ _ _
+  (congr!{{Target.Classes} {Target.K0[].Carrier}} (\fun (v: Target.Classes) => Target.K0[].difference v Target.Line[].value) _ _
+    (sym!{{Target.Classes}} _ _ (Classes.ofExists equivalent))) pullback;

@@ -1,0 +1,47 @@
+\import std.Logic[].Equality[] \as Eq;
+\import std.Logic[].Proposition[] \as Logic;
+\use Eq.trans;
+\use Eq.sym;
+\use Eq.congr;
+\import algebra.Group[].Of[Carrier := Source.K0[].Carrier, group := Source.K0[].group] \as SourceGroup;
+\import algebra.Group[].Of[Carrier := Target.K0[].Carrier, group := Target.K0[].group] \as TargetGroup;
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Additive[] \as Additive;
+\module At(v: Source.K0[].Carrier, form: Source.K0[].NormalForm[].Result[v],
+  q: \Cast[Source.Presentation] ({ q: Source.Presentation \where Source.class q = Source.Trivial[n := form.dimension].value }));
+\definition kernel: \forall (v: Source.K0[].Carrier) -> forward Source.K0[].zero v = Target.K0[].zero -> v = Source.K0[].zero := \block {
+  \fun (v: Source.K0[].Carrier)(zero: _) \then
+  \takefrom form: Source.K0[].NormalForm[].Result[v] \by Source.K0[].NormalForm[].existence v \then
+  \takefrom q: \Cast[Source.Presentation] ({ q: Source.Presentation \where Source.class q = Source.Trivial[n := form.dimension].value })
+    \by Source.K0[].NormalForm[].representedClass Source.Trivial[n := form.dimension].value \then
+  \return At[v := v, form := form, q := q].kernel zero
+};
+\definition reduced: \forall (a, b: Source.K0[].Carrier) -> forward Source.K0[].zero a = forward Source.K0[].zero b -> a = b :=
+  \fun (a, b: Source.K0[].Carrier)(equal: _) => \block {
+    \let vanishes: forward Source.K0[].zero (SourceGroup.difference a b) = Target.K0[].zero :=
+      trans!{Target.K0[].Carrier} _ _ _ (Additive.reducedDifference a b)
+        (trans!{Target.K0[].Carrier} _ _ _ (congr!{Target.K0[].Carrier Target.K0[].Carrier} (\fun (w: Target.K0[].Carrier) => TargetGroup.difference w (forward Source.K0[].zero b)) _ _ equal)
+          (TargetGroup.inverseRight (forward Source.K0[].zero b))) \then
+    \let differenceZero: SourceGroup.difference a b = Source.K0[].zero := kernel (SourceGroup.difference a b) vanishes \then
+    \return trans!{Source.K0[].Carrier} _ _ _ (sym!{Source.K0[].Carrier} _ _ (SourceGroup.addDifference a b))
+      (trans!{Source.K0[].Carrier} _ _ _ (congr!{Source.K0[].Carrier Source.K0[].Carrier} (\fun (w: Source.K0[].Carrier) => Source.K0[].add w b) _ _ differenceZero)
+        (SourceGroup.zeroLeft b))
+  };
+\definition split: \forall (a, b: Source.K0[].Carrier) -> forward a b = Target.K0[].add (First.K0[].map a) (forward Source.K0[].zero b) :=
+  \fun (a, b: Source.K0[].Carrier) => sym!{Target.K0[].Carrier} _ _ (congr!{Target.K0[].Carrier Target.K0[].Carrier}
+    (Target.K0[].add (First.K0[].map a)) _ _ (trans!{Target.K0[].Carrier} _ _ _
+      (congr!{Target.K0[].Carrier Target.K0[].Carrier} (\fun (z: Target.K0[].Carrier) => Target.K0[].add z (Target.K0[].mul (First.K0[].map b) generatorOnProduct)) _ _ First.K0[].preservesZero)
+      (TargetGroup.zeroLeft (Target.K0[].mul (First.K0[].map b) generatorOnProduct))));
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Hemisphere[] \as Hemisphere;
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].At[point := Hemisphere.point] \as Restriction;
+\definition injective: \forall (a, b, c, d: Source.K0[].Carrier) -> forward a b = forward c d -> Logic.And[a = c, b = d] := \block {
+  \fun (a, b, c, d: Source.K0[].Carrier)(equal: _) \then
+  \let constantsEqual: a = c := trans!{Source.K0[].Carrier} _ _ _ (sym!{Source.K0[].Carrier} _ _ (Restriction.restrictForward a b))
+    (trans!{Source.K0[].Carrier} _ _ _ (congr!{Target.K0[].Carrier Source.K0[].Carrier} Restriction.restriction _ _ equal) (Restriction.restrictForward c d)) \then
+  \let coefficientsEqual: forward Source.K0[].zero b = forward Source.K0[].zero d :=
+    TargetGroup.cancelLeft (First.K0[].map a) (forward Source.K0[].zero b) (forward Source.K0[].zero d)
+      (trans!{Target.K0[].Carrier} _ _ _ (sym!{Target.K0[].Carrier} _ _ (split a b))
+        (trans!{Target.K0[].Carrier} _ _ _ equal
+          (trans!{Target.K0[].Carrier} _ _ _ (split c d)
+            (congr!{Source.K0[].Carrier Target.K0[].Carrier} (\fun (w: Source.K0[].Carrier) => Target.K0[].add (First.K0[].map w) (forward Source.K0[].zero d)) _ _ (sym!{Source.K0[].Carrier} _ _ constantsEqual))))) \then
+  \return Logic.And[_, _]::# constantsEqual (reduced b d coefficientsEqual)
+};

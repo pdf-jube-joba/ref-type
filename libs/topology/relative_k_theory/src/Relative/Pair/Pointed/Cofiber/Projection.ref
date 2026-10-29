@@ -1,0 +1,31 @@
+\import \parent.\parent.\parent.Quotient[] \as Original;
+\import Native.Descent[B := Original.Carrier] \as Descend;
+\definition raw[z: DomainPoint]: Original.Carrier := Original.projection (point z);
+\definition rawContinuous: topology.Continuity[A := DomainPoint, B := Original.Carrier].Continuous domainTopology Original.topology raw :=
+  topology.Composition[A := DomainPoint, B := X, C := Original.Carrier].composeContinuous domainTopology space Original.topology point Original.projection pointContinuous Original.continuous;
+\definition topInside: \forall (z: DomainPoint) -> time z = Interval.end -> Base.Member subset (point z) :=
+  \fun (z: DomainPoint)(top: time z = Interval.end) => Logic.orElim[time z = Interval.start, Base.Member subset (point z), Base.Member subset (point z)]
+    (\bysub(Cylinder.Carrier, domain, z))
+    (\fun (bottom: time z = Interval.start) => Logic.falseElim (Base.Member subset (point z))
+      (endsDifferent (trans!{{Interval.Carrier}} _ _ _ (sym!{{Interval.Carrier}} _ _ bottom) top)))
+    (\fun (member: Base.Member subset (point z)) => member);
+\definition onCollapsed: \forall (z: DomainPoint) -> DomainSpace.Member collapsedPart z -> raw z = Original.point :=
+  \fun (z: DomainPoint)(member: DomainSpace.Member collapsedPart z) => Logic.orElim[time z = Interval.end, point z = a0, raw z = Original.point] member
+    (\fun (top: time z = Interval.end) => Original.onSubset (\into[X](point z, subset) \by { topInside z top }))
+    (\fun (same: point z = a0) => trans!{{Original.Carrier}} _ _ _ (congr!{{X} {Original.Carrier}} Original.projection _ _ same) (Original.onSubset a0));
+\definition respects: Descend.Respects raw := \fun (x, y: DomainPoint)(related: Native.Related x y) => Logic.orElim[x = y,
+  Logic.And[DomainSpace.Member collapsedPart x, DomainSpace.Member collapsedPart y], raw x = raw y] related
+  (\fun (same: x = y) => congr!{{DomainPoint} {Original.Carrier}} raw _ _ same)
+  (\fun (both: Logic.And[DomainSpace.Member collapsedPart x, DomainSpace.Member collapsedPart y]) =>
+    trans!{{Original.Carrier}} _ _ _ (onCollapsed x both.left) (sym!{{Original.Carrier}} _ _ (onCollapsed y both.right)));
+\definition projection: Carrier -> Original.Carrier := Descend.apply raw respects;
+\definition continuous: topology.Continuity[A := Carrier, B := Original.Carrier].Continuous topology Original.topology projection :=
+  Descend.continuous domainTopology Original.topology raw respects rawContinuous;
+\definition onBase: \forall (x: X) -> projection (base x) = Original.projection x := \fun (x: X) => Descend.onClass raw respects (bottom x);
+\import algebraic_topology.Pointed[A := Carrier].Maps[B := Original.Carrier] \as PointedMaps;
+\definition map: Map result Original.model := \into[Carrier -> Original.Carrier](projection, Map result Original.model) \by {
+  PointedMaps.Laws[pointed result, pointed Original.model, projection] {
+    continuous := continuous, pointed := trans!{{Original.Carrier}} _ _ _ (onBase a0) (Original.onSubset a0)
+  }
+};
+\definition onClass: \forall (z: DomainPoint) -> projection (Native.class z) = Original.projection (point z) := Descend.onClass raw respects;

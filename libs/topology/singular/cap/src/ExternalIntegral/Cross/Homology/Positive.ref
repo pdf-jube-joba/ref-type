@@ -1,0 +1,54 @@
+\definition p: N.Nat^ := N.Nat^::succ r;
+\definition q: N.Nat^ := N.Nat^::succ s;
+\import \parent.\parent.At[p := p, q := q].Relative[] \as Current;
+\import \parent.\parent.At[p := r, q := q].Relative[] \as LeftLower;
+\import \parent.\parent.At[p := p, q := s].Relative[] \as RightLower;
+\import Boundary.Positive[r := r, s := s] \as Formula;
+\import Whole.Boundary[] \as WholeBoundary;
+\import WholeBoundary.LeftPositive[r := r] \as WholePositive;
+\import WholePositive.At[q := q] \as WholeAt;
+\import WholePositive.RightStep[s := s] \as RightStep;
+\import Complexes.At[C := Left.complex, z := I.Int^::ofNat p] \as L;
+\import Complexes.At[C := Right.complex, z := I.Int^::ofNat q] \as R;
+\import Complexes.At[C := TargetRelative.complex, z := I.Int^::ofNat (Whole.degree p q)] \as T;
+\definition leftBundle: Modules.Bundle := Modules.Bundle { Carrier := LeftDegree.Carrier p, space := LeftDegree.space p };
+\definition rightBundle: Modules.Bundle := Modules.Bundle { Carrier := RightDegree.Carrier q, space := RightDegree.space q };
+\definition outputBundle: Modules.Bundle := Modules.Bundle { Carrier := TargetDegree.Carrier (Whole.degree p q), space := TargetDegree.space (Whole.degree p q) };
+\definition lowLeftBundle: Modules.Bundle := Modules.Bundle { Carrier := LeftDegree.Carrier r, space := LeftDegree.space r };
+\definition lowRightBundle: Modules.Bundle := Modules.Bundle { Carrier := RightDegree.Carrier s, space := RightDegree.space s };
+\definition lowerBundle: Modules.Bundle := Modules.Bundle { Carrier := TargetDegree.Carrier WholeAt.lower, space := TargetDegree.space WholeAt.lower };
+\definition otherBundle: Modules.Bundle := Modules.Bundle { Carrier := TargetDegree.Carrier RightStep.other, space := TargetDegree.space RightStep.other };
+\import Commutative.Bilinear[A := leftBundle, B := rightBundle, C := outputBundle] \as Forms;
+\import Commutative.Bilinear[A := lowLeftBundle, B := rightBundle, C := lowerBundle] \as LeftForms;
+\import Commutative.Bilinear[A := leftBundle, B := lowRightBundle, C := otherBundle] \as RightForms;
+\import Modules.Hom[V := LeftDegree.Carrier r, W := TargetDegree.Carrier WholeAt.lower, source := LeftDegree.space r, target := TargetDegree.space WholeAt.lower] \as LeftMaps;
+\import Modules.Hom[V := RightDegree.Carrier s, W := TargetDegree.Carrier RightStep.other, source := RightDegree.space s, target := TargetDegree.space RightStep.other] \as RightMaps;
+\import Modules.Alternating[V := TargetDegree.Carrier WholeAt.lower, space := TargetDegree.space WholeAt.lower].Concatenation[] \as Signs;
+\import Modules.Laws[V := TargetDegree.Carrier WholeAt.lower, space := TargetDegree.space WholeAt.lower] \as Values;
+\definition cycle[x: L.Cycle][y: R.Cycle]: T.Cycle := T.cycle (Current.apply x y)
+  (trans!{{TargetDegree.Carrier WholeAt.lower}} _ _ _ (Formula.law x y)
+    (trans!{{TargetDegree.Carrier WholeAt.lower}} _ _ _
+      (congr!{{TargetDegree.Carrier WholeAt.lower} {TargetDegree.Carrier WholeAt.lower} {TargetDegree.Carrier WholeAt.lower}} ((TargetDegree.space WholeAt.lower).add) _ _ _ _
+        (trans!{{TargetDegree.Carrier WholeAt.lower}} _ _ _ (congr!{{LeftDegree.Carrier r} {TargetDegree.Carrier WholeAt.lower}} (\fun (v: LeftDegree.Carrier r) => LeftLower.apply v y) _ _ (\bysub(LeftDegree.Carrier p, L.cycles.carrier, x))) (LeftMaps.zeroPreserved (LeftForms.leftAt LeftLower.bilinear y)))
+        (trans!{{TargetDegree.Carrier WholeAt.lower}} _ _ _
+          (congr!{{TargetDegree.Carrier WholeAt.lower} {TargetDegree.Carrier WholeAt.lower}} (Signs.twist p) _ _
+            (trans!{{TargetDegree.Carrier WholeAt.lower}} _ _ _
+              (congr!{{TargetDegree.Carrier RightStep.other} {TargetDegree.Carrier WholeAt.lower}} (TargetDegree.apply RightStep.other WholeAt.lower RightStep.same) _ _
+                (trans!{{TargetDegree.Carrier RightStep.other}} _ _ _ (congr!{{RightDegree.Carrier s} {TargetDegree.Carrier RightStep.other}} (RightLower.apply x) _ _ (\bysub(RightDegree.Carrier q, R.cycles.carrier, y))) (RightMaps.zeroPreserved (RightForms.rightAt RightLower.bilinear x))))
+              (TargetDegree.zero RightStep.other WholeAt.lower RightStep.same)))
+          (Signs.twistZero p)))
+      (Values.zeroLeft (TargetDegree.space WholeAt.lower).zero)));
+\definition leftCycles: Modules.Bundle := Modules.Bundle { Carrier := L.Cycle, space := L.cycleSpace };
+\definition rightCycles: Modules.Bundle := Modules.Bundle { Carrier := R.Cycle, space := R.cycleSpace };
+\definition targetHomology: Modules.Bundle := Modules.Bundle { Carrier := T.Homology, space := T.homologySpace };
+\import Commutative.Bilinear[A := leftCycles, B := rightCycles, C := targetHomology] \as CycleForms;
+\definition onCycles: CycleForms.Map := CycleForms.Map {
+  apply := \fun (x: L.Cycle)(y: R.Cycle) => T.classOf (cycle x y),
+  addLeft := \fun (x, y: L.Cycle)(z: R.Cycle) => trans!{T.Homology} _ _ _ (congr!{T.Cycle T.Homology} T.classOf _ _ (T.cycleExt (cycle ((L.cycleSpace).add x y) z) ((T.cycleSpace).add (cycle x z) (cycle y z)) ((Forms.laws Current.bilinear).addLeft x y z))) (T.classLinear.addition (cycle x z) (cycle y z)),
+  addRight := \fun (x: L.Cycle)(y, z: R.Cycle) => trans!{T.Homology} _ _ _ (congr!{T.Cycle T.Homology} T.classOf _ _ (T.cycleExt (cycle x ((R.cycleSpace).add y z)) ((T.cycleSpace).add (cycle x y) (cycle x z)) ((Forms.laws Current.bilinear).addRight x y z))) (T.classLinear.addition (cycle x y) (cycle x z)),
+  scaleLeft := \fun (a: I.Int^)(x: L.Cycle)(y: R.Cycle) => trans!{T.Homology} _ _ _ (congr!{T.Cycle T.Homology} T.classOf _ _ (T.cycleExt (cycle ((L.cycleSpace).smul a x) y) ((T.cycleSpace).smul a (cycle x y)) ((Forms.laws Current.bilinear).scaleLeft a x y))) (T.classLinear.scalar a (cycle x y)),
+  scaleRight := \fun (a: I.Int^)(x: L.Cycle)(y: R.Cycle) => trans!{T.Homology} _ _ _ (congr!{T.Cycle T.Homology} T.classOf _ _ (T.cycleExt (cycle x ((R.cycleSpace).smul a y)) ((T.cycleSpace).smul a (cycle x y)) ((Forms.laws Current.bilinear).scaleRight a x y))) (T.classLinear.scalar a (cycle x y)),
+};
+\module LeftBoundary;
+\module RightBoundary;
+\module Descent;

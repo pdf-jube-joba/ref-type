@@ -1,0 +1,47 @@
+\import \parent.Quotient[] \as Quotient;
+\import KTheory.On[X := Quotient.Carrier, baseSpace := Quotient.topology, compact := Quotient.quotientCompact, hausdorff := Quotient.quotientHausdorff] \as K;
+\import K.K0[] \as K0;
+\import K.AdditiveMonoid[] \as ClassesMonoid;
+\import Complements.Representations[X := Quotient.Carrier, baseSpace := Quotient.topology] \as Representations;
+\import std.Set[].Quotient[A := K.Presentation, Equivalent := Representations.Equivalent] \as Classes;
+\import \parent.Group[] \as RelativeGroup;
+\import algebra.Group[].Of[Carrier := RelativeGroup.Carrier, group := RelativeGroup.group] \as TargetGroup;
+\import Classes.Maps[B := RelativeGroup.Carrier] \as Lift;
+\definition onPresentation[p: K.Presentation]: RelativeGroup.Carrier :=
+  \parent.QuotientClass[F := (K.Fiber p), bundle := (K.bundle p), same := (\refl(Quotient.topology))].value;
+\module Equivalent(p, q: K.Presentation, h: Representations.Isomorphism p q);
+\definition respects: Lift.Respects onPresentation := \block {
+  \fun (p, q: K.Presentation)(related: Representations.Equivalent p q) \then
+  \takefrom h: Representations.Isomorphism p q \by related \then
+  \return Equivalent[p := p, q := q, h := h].equation
+};
+\definition classes: K.Classes -> RelativeGroup.Carrier := Lift.value Representations.equivalence onPresentation respects;
+\definition onClasses: \forall (p: K.Presentation) -> classes (K.class p) = onPresentation p := Lift.onClass Representations.equivalence onPresentation respects;
+\module OnBundle(F: Quotient.Carrier -> \Set, bundle: Bundles.Family[X := Quotient.Carrier, F := F].Bundle, same: bundle.baseSpace = Quotient.topology);
+\module Add(p, q: K.Presentation);
+\definition additive: \forall (a, b: K.Classes) -> classes (ClassesMonoid.add a b) = RelativeGroup.add (classes a) (classes b) :=
+  Classes.induction2 (\fun (a, b: K.Classes) => classes (ClassesMonoid.add a b) = RelativeGroup.add (classes a) (classes b))
+    (\fun (p, q: K.Presentation) => Add[p := p, q := q].equation);
+\module Zero;
+\import algebra.GroupCompletion[].Of[M := K.Classes, monoid := K0.additiveMonoid] \as Completion;
+\import Completion.Universal[K := RelativeGroup.Carrier, target := RelativeGroup.group] \as Extend;
+\import algebra.Hom[A := K.Classes, B := RelativeGroup.Carrier] \as Input;
+\definition monoidMap: Extend.Map := \into[K.Classes -> RelativeGroup.Carrier](classes, Extend.Map) \by {
+  Input.MonoidLaws[Extend.domain, Extend.codomain, classes] { unit := Zero[].equation, operation := additive }
+};
+\definition map: K0.Carrier -> RelativeGroup.Carrier := Extend.extend monoidMap;
+\definition onInclude: \forall (a: K.Classes) -> map (K0.include a) = classes a := Extend.extendIncludes monoidMap;
+\definition preservesAdd: \forall (a, b: K0.Carrier) -> map (K0.add a b) = RelativeGroup.add (map a) (map b) := Extend.extendAdd monoidMap;
+\definition preservesZero: map K0.zero = RelativeGroup.zero := (algebra.Hom[A := K0.Carrier, B := RelativeGroup.Carrier].monoidLaws Completion.asMonoid Extend.codomain (Extend.extension monoidMap)).unit;
+\definition preservesNeg: \forall (a: K0.Carrier) -> map (K0.neg a) = RelativeGroup.neg (map a) := Extend.homInverse (Extend.extension monoidMap);
+\definition onDifference: \forall (a, b: K.Classes) -> map (K0.difference a b) = TargetGroup.difference (classes a) (classes b) :=
+  \fun (a, b: K.Classes) => trans!{{RelativeGroup.Carrier}} _ _ _
+    (congr!{{K0.Carrier} {RelativeGroup.Carrier}} map _ _ (K0.differenceClass a b)) (Extend.extendClass monoidMap (Completion.pair a b));
+\definition reduced[v: Quotient.Relative]: RelativeGroup.Carrier := map v;
+\import K.Ranks[].Reduced[point := Quotient.point] \as Reduced;
+\import algebra.Group[].Of[Carrier := Quotient.Relative, group := Quotient.group] \as ReducedGroup;
+\definition reducedAdditive: \forall (a, b: Quotient.Relative) -> reduced (ReducedGroup.add a b) = RelativeGroup.add (reduced a) (reduced b) := \fun (a, b: Quotient.Relative) => preservesAdd a b;
+\module Trivial(n: N.Nat^);
+
+\definition reducedZero: reduced ReducedGroup.zero = RelativeGroup.zero := preservesZero;
+\definition reducedNeg: \forall (a: Quotient.Relative) -> reduced (ReducedGroup.neg a) = RelativeGroup.neg (reduced a) := \fun (a: Quotient.Relative) => preservesNeg a;

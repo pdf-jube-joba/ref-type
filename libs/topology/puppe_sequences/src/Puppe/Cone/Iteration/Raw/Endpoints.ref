@@ -1,0 +1,56 @@
+\import \parent.Left[] \as Left;
+\import \parent.Right[] \as Right;
+\import std.Data[].Pair[].Prop[A := I.Carrier, B := A] \as Pairs;
+\use Logic.either;
+\definition atStart: \forall (p: Cylinder.Carrier) -> value (Double.at I.start p) = Next.inclusion (nullFamily p) := \block {
+  \fun (p: Cylinder.Carrier) \then
+  \let q: \Cast[Double.Carrier] High := \into[Double.Carrier](Double.at I.start p, High) \by {
+    R.leReplaceLeft Real.zero (Halves.lower I.start) (Cylinder.time p) (sym!{Real.Real} _ _ Halves.lowerStart) (I.bounds (Cylinder.time p)).left } \then
+  \return eq_reason_in!{Next.Carrier {value (Double.at I.start p)}
+    "=" {Right.value q} "by" { onRight q }
+    "=" {Next.inclusion (nullFamily (Cylinder.at (Cylinder.time p) (Cylinder.point p)))} "by" {
+      congr!{I.Carrier Next.Carrier} (\fun (s: I.Carrier) => Next.inclusion (nullFamily (Cylinder.at s (Cylinder.point p)))) (Right.scaled q) (Cylinder.time p)
+        (\root.Puppe[].ConeTimes[t := I.start, u := Cylinder.time p].rightAtStart (\bysub(Double.Carrier, High, q)) (\refl(I.start))) }
+    "=" {Next.inclusion (nullFamily p)} "by" { congr!{Cylinder.Carrier Next.Carrier} (\fun (r: Cylinder.Carrier) => Next.inclusion (nullFamily r)) _ _ (Pairs.eta p) }
+  }
+};
+\definition atBottom: \forall (t: I.Carrier)(x: A) -> value (Double.at t (Cylinder.at I.start x)) = Next.nullFamily (TargetCylinder.at t (f x)) := \block {
+  \fun (t: I.Carrier)(x: A) \then
+  \let p: \Cast[Double.Carrier] Low := \into[Double.Carrier](Double.at t (Cylinder.at I.start x), Low) \by { (I.bounds (Halves.lower t)).left } \then
+  \return trans!{Next.Carrier} _ _ _ (onLeft p)
+    (congr!{I.Carrier Next.Carrier} (\fun (s: I.Carrier) => Next.nullFamily (TargetCylinder.at s (f x))) (Left.scaled p) t
+      (\root.Puppe[].ConeTimes[t := t, u := I.start].leftAtBottom (\bysub(Double.Carrier, Low, p)) (\refl(I.start))))
+};
+\definition atTop: \forall (t: I.Carrier)(x: A) -> value (Double.at t (Cylinder.at I.end x)) = Next.point := \block {
+  \fun (t: I.Carrier)(x: A) \then
+  \let p: \Cast[Double.Carrier] High := \into[Double.Carrier](Double.at t (Cylinder.at I.end x), High) \by { (I.bounds (Halves.lower t)).right } \then
+  \return trans!{Next.Carrier} _ _ _ (onRight p) (trans!{Next.Carrier} _ _ _
+    (congr!{I.Carrier Next.Carrier} (\fun (s: I.Carrier) => Next.inclusion (nullFamily (Cylinder.at s x))) (Right.scaled p) I.end
+      (\root.Puppe[].ConeTimes[t := t, u := I.end].rightAtTop (\bysub(Double.Carrier, High, p)) (\refl(I.end))))
+    (congr!{Carrier Next.Carrier} Next.inclusion _ _ (nullEnd x)))
+};
+\definition leftLine: \forall (p: \Cast[Double.Carrier] Low) -> point p = source.basepoint -> Left.value p = Next.point :=
+  \fun (p: \Cast[Double.Carrier] Low)(same: _) => trans!{Next.Carrier} _ _ _
+    (congr!{B Next.Carrier} (\fun (b: B) => Next.nullFamily (TargetCylinder.at (Left.scaled p) b)) _ _
+      (trans!{B} _ _ _ (congr!{A B} f _ _ same) (Original.laws source target f).pointed)) (Next.nullAtBase (Left.scaled p));
+\definition rightLine: \forall (p: \Cast[Double.Carrier] High) -> point p = source.basepoint -> Right.value p = Next.point :=
+  \fun (p: \Cast[Double.Carrier] High)(same: _) => trans!{Next.Carrier} _ _ _
+    (congr!{A Next.Carrier} (\fun (a: A) => Next.inclusion (nullFamily (Cylinder.at (Right.scaled p) a))) _ _ same)
+    (congr!{Carrier Next.Carrier} Next.inclusion _ _ (nullAtBase (Right.scaled p)));
+\definition atLine: \forall (t, u: I.Carrier) -> value (Double.at t (Cylinder.at u source.basepoint)) = Next.point := \block {
+  \fun (t, u: I.Carrier) \then
+  \let p: Double.Carrier := Double.at t (Cylinder.at u source.basepoint) \then
+  \return either!{{covered p} {value p = Next.point}
+    {\fun (low: \In[Double.Carrier] Low p) => trans!{Next.Carrier} _ _ _ (onLeft (\into[Double.Carrier](p, Low) \by { low }))
+      (leftLine (\into[Double.Carrier](p, Low) \by { low }) (\refl(source.basepoint)))}
+    {\fun (high: \In[Double.Carrier] High p) => trans!{Next.Carrier} _ _ _ (onRight (\into[Double.Carrier](p, High) \by { high }))
+      (rightLine (\into[Double.Carrier](p, High) \by { high }) (\refl(source.basepoint)))}
+  }
+};
+\definition vanishes: \forall (t: I.Carrier)(p: Cylinder.Carrier) -> \In[Cylinder.Carrier] Cone.Collapsed p -> value (Double.at t p) = Next.point :=
+  \fun (t: I.Carrier) => \induction (p: Cylinder.Carrier) \return \In[Cylinder.Carrier] Cone.Collapsed p -> value (Double.at t p) = Next.point \with {
+    | pair: \fun (u: I.Carrier)(x: A)(inside: Logic.Or[u = I.end, x = source.basepoint]) => either!{inside {value (Double.at t (Cylinder.at u x)) = Next.point}
+      {\fun (top: u = I.end) => trans!{Next.Carrier} _ _ _ (congr!{I.Carrier Next.Carrier} (\fun (s: I.Carrier) => value (Double.at t (Cylinder.at s x))) _ _ top) (atTop t x)}
+      {\fun (line: x = source.basepoint) => trans!{Next.Carrier} _ _ _ (congr!{A Next.Carrier} (\fun (a: A) => value (Double.at t (Cylinder.at u a))) _ _ line) (atLine t u)}
+    }
+  };

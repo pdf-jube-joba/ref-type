@@ -1,0 +1,53 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\use Eq.eq_reason_in;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\definition equation: \forall (s: Sphere.Sphere) -> R.add (R.mul (t s) (t s)) (R.add (R.mul (x s) (x s)) (R.mul (y s) (y s))) = R.one :=
+  \fun (s: Sphere.Sphere) => eq_reason_in!{R.Real _
+    "=" _ "by" { congr!{R.Real R.Real} (R.add (R.mul (t s) (t s))) _ _
+      (congr!{R.Real R.Real} (R.add (R.mul (x s) (x s))) _ _ (sym!{R.Real} _ _ (Laws.addZeroRight (R.mul (y s) (y s))))) }
+    "=" _ "by" { congr!{R.Real R.Real} (R.add (R.mul (t s) (t s))) _ _ (sym!{R.Real} _ _ (Split1.normSplit (Split2.tail s))) }
+    "=" _ "by" { sym!{R.Real} _ _ (Split2.normSplit s) }
+    "=" _ "by" { \bysub(Sphere.Coordinate, Sphere.Boundary, s) }
+  };
+\import R.Algebra[] \as Real;
+\import R.Estimates[] \as Estimates;
+\definition diagonalSum: \forall (s: Sphere.Sphere) -> C.Def[].add (a s) (d s) = C.Def[].one :=
+  \fun (s: Sphere.Sphere) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { sym!{{C.Complex}} _ _ (C.Prop[].ofRealAdd (R.mul R.half (R.add R.one (t s))) (R.mul R.half (R.sub R.one (t s)))) }
+    "=" _ "by" { congr!{R.Real {C.Complex}} C.Def[].ofReal _ _ (sym!{R.Real} _ _ (Laws.fieldMulAdd R.half (R.add R.one (t s)) (R.sub R.one (t s)))) }
+    "=" _ "by" { congr!{R.Real {C.Complex}} C.Def[].ofReal _ _ (congr!{R.Real R.Real} (R.mul R.half) _ _
+      (trans!{R.Real} _ _ _ (Real.addFour R.one (t s) R.one (R.neg (t s)))
+        (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.add (R.add R.one R.one)) _ _ (Laws.addNegRight (t s))) (Laws.addZeroRight (R.add R.one R.one))))) }
+    "=" _ "by" { congr!{R.Real {C.Complex}} C.Def[].ofReal _ _ (trans!{R.Real} _ _ _ (Laws.fieldMulAdd R.half R.one R.one) (Estimates.halfTwice R.one)) }
+  };
+\definition differenceSquares: \forall (v: R.Real) -> R.mul (R.add R.one v) (R.sub R.one v) = R.sub R.one (R.mul v v) :=
+  \fun (v: R.Real) => eq_reason_in!{R.Real _
+    "=" _ "by" { Real.mulSub (R.add R.one v) R.one v }
+    "=" _ "by" { congr!{R.Real R.Real R.Real} R.sub _ _ _ _ (Real.mulOneRight (R.add R.one v)) (Real.mulAddRight R.one v v) }
+    "=" _ "by" { congr!{R.Real R.Real} (R.sub (R.add R.one v)) _ _
+      (congr!{R.Real R.Real} (\fun (z: R.Real) => R.add z (R.mul v v)) _ _ (Laws.fieldMulOneLeft v)) }
+    "=" _ "by" { congr!{R.Real R.Real} (R.sub (R.add R.one v)) _ _ (Laws.addComm v (R.mul v v)) }
+    "=" _ "by" { Real.subAdd R.one v (R.mul v v) v }
+    "=" _ "by" { congr!{R.Real R.Real} (R.add (R.sub R.one (R.mul v v))) _ _ (Laws.subSelf v) }
+    "=" _ "by" { Laws.addZeroRight (R.sub R.one (R.mul v v)) }
+  };
+\definition rest: \forall (s: Sphere.Sphere) -> R.sub R.one (R.mul (t s) (t s)) = R.add (R.mul (x s) (x s)) (R.mul (y s) (y s)) :=
+  \fun (s: Sphere.Sphere) => eq_reason_in!{R.Real _
+    "=" _ "by" { congr!{R.Real R.Real} (\fun (v: R.Real) => R.sub v (R.mul (t s) (t s))) _ _ (sym!{R.Real} _ _ (equation s)) }
+    "=" _ "by" { congr!{R.Real R.Real} (\fun (v: R.Real) => R.sub v (R.mul (t s) (t s))) _ _
+      (Laws.addComm (R.mul (t s) (t s)) (R.add (R.mul (x s) (x s)) (R.mul (y s) (y s)))) }
+    "=" _ "by" { Laws.addNegCancelRight (R.mul (t s) (t s)) (R.add (R.mul (x s) (x s)) (R.mul (y s) (y s))) }
+  };
+\definition determinant: \forall (s: Sphere.Sphere) -> C.Def[].mul (a s) (d s) = C.Def[].ofReal (C.Def[].normSq (b s)) :=
+  \fun (s: Sphere.Sphere) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { C.Prop[].ofRealMul (R.mul R.half (R.add R.one (t s))) (R.mul R.half (R.sub R.one (t s))) }
+    "=" _ "by" { congr!{R.Real {C.Complex}} C.Def[].ofReal _ _ (Real.mulFour R.half (R.add R.one (t s)) R.half (R.sub R.one (t s))) }
+    "=" _ "by" { congr!{R.Real {C.Complex}} C.Def[].ofReal _ _ (congr!{R.Real R.Real} (R.mul (R.mul R.half R.half)) _ _ (differenceSquares (t s))) }
+    "=" _ "by" { congr!{R.Real {C.Complex}} C.Def[].ofReal _ _ (congr!{R.Real R.Real} (R.mul (R.mul R.half R.half)) _ _ (rest s)) }
+    "=" _ "by" { congr!{R.Real {C.Complex}} C.Def[].ofReal _ _ (Laws.fieldMulAdd (R.mul R.half R.half) (R.mul (x s) (x s)) (R.mul (y s) (y s))) }
+    "=" _ "by" { congr!{R.Real {C.Complex}} C.Def[].ofReal _ _ (congr!{R.Real R.Real R.Real} R.add _ _ _ _
+      (sym!{R.Real} _ _ (Real.mulFour R.half (x s) R.half (x s))) (sym!{R.Real} _ _ (Real.mulFour R.half (y s) R.half (y s)))) }
+  };

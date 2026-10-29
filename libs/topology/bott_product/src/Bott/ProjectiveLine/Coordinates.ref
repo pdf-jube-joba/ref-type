@@ -1,0 +1,42 @@
+\import std.Data[].FinSet[] \as Fin;
+\import real.Analysis[] \as R;
+\import grassmannians.Complex[n := two, k := one].Model[] \as Model;
+\import algebraic_topology.Euclidean[].Dimension[n := one] \as D1;
+\import algebraic_topology.Euclidean[].Dimension[n := two] \as D2;
+\import D1.Splitting[] \as Split1;
+\import D2.Splitting[] \as Split2;
+\definition first: Fin.Fin two := Fin.zero one;
+\definition second: Fin.Fin two := Fin.succ one (Fin.zero N.Nat^::zero);
+\definition entry[p: Carrier][i, j: Fin.Fin two]: C.Complex := Model.entries p i j;
+\definition height[p: Carrier]: R.Real := R.sub (R.add (C.re (entry p first first)) (C.re (entry p first first))) R.one;
+\definition horizontal[p: Carrier]: R.Real := R.add (C.re (entry p first second)) (C.re (entry p first second));
+\definition vertical[p: Carrier]: R.Real := R.add (C.im (entry p first second)) (C.im (entry p first second));
+\definition coordinates[p: Carrier]: Sphere.Coordinate := Split2.join (height p) (Split1.join (horizontal p) (\fun (_: D1.Index) => vertical p));
+\import topological_algebra.Complex[] \as Plane;
+\import topological_algebra.Matrix[K := C.Complex, I := Fin.Fin two, J := Fin.Fin two] \as Matrices;
+\import Plane.Functions[A := Carrier] \as ComplexFunctions;
+\import metric_spaces.RealFunctions[A := Carrier] \as RealFunctions;
+\import metric_spaces.RealLine[] \as RealLine;
+\definition entryContinuous: \forall (i, j: Fin.Fin two) -> topology.Continuity[A := Carrier, B := C.Complex].Continuous topology Plane.topology (\fun (p: Carrier) => entry p i j) :=
+  \fun (i, j: Fin.Fin two) => topology.Composition[A := Carrier, B := Matrices.Carrier, C := C.Complex].composeContinuous topology
+    (Matrices.topology Plane.topology) Plane.topology Model.entries (Matrices.entry i j) Model.entriesContinuous (Matrices.entryContinuous Plane.topology i j);
+\definition realEntry: \forall (i, j: Fin.Fin two) -> RealFunctions.Continuous topology (\fun (p: Carrier) => C.re (entry p i j)) :=
+  \fun (i, j: Fin.Fin two) => ComplexFunctions.realContinuous topology (\fun (p: Carrier) => entry p i j) (entryContinuous i j);
+\definition imaginaryEntry: \forall (i, j: Fin.Fin two) -> RealFunctions.Continuous topology (\fun (p: Carrier) => C.im (entry p i j)) :=
+  \fun (i, j: Fin.Fin two) => ComplexFunctions.imaginaryContinuous topology (\fun (p: Carrier) => entry p i j) (entryContinuous i j);
+\definition heightContinuous: RealFunctions.Continuous topology height := RealFunctions.subContinuous topology _ _
+  (RealFunctions.sumContinuous topology _ _ (realEntry first first) (realEntry first first)) (RealFunctions.constantContinuous topology R.one);
+\definition horizontalContinuous: RealFunctions.Continuous topology horizontal := RealFunctions.sumContinuous topology _ _ (realEntry first second) (realEntry first second);
+\definition verticalContinuous: RealFunctions.Continuous topology vertical := RealFunctions.sumContinuous topology _ _ (imaginaryEntry first second) (imaginaryEntry first second);
+\definition tail[p: Carrier]: D2.Coordinate := Split1.join (horizontal p) (\fun (_: D1.Index) => vertical p);
+\definition tailContinuous: topology.Continuity[A := Carrier, B := D2.Coordinate].Continuous topology D2.topology tail :=
+  Split1.Continuity[A := Carrier].joinContinuous topology horizontal (\fun (p: Carrier)(_ : D1.Index) => vertical p) horizontalContinuous (\fun (_: D1.Index) => verticalContinuous);
+\import topological_algebra.Coordinates[K := R.Real, I := D2.Index] \as TailTopology;
+\definition continuous: topology.Continuity[A := Carrier, B := Sphere.Coordinate].Continuous topology Sphere.topology coordinates :=
+  Split2.Continuity[A := Carrier].joinContinuous topology height tail heightContinuous
+    (\fun (i: D2.Index) => topology.Composition[A := Carrier, B := D2.Coordinate, C := R.Real].composeContinuous topology D2.topology RealLine.topology
+      tail (TailTopology.evaluate i) tailContinuous (TailTopology.evaluationContinuous RealLine.topology i));
+\module Hermitian;
+\module Idempotent;
+\module Algebra;
+\module SphereMap;

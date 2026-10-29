@@ -1,0 +1,53 @@
+\import Algebra.Linear[V := V, W := V, source := space, target := space] \as VectorMaps;
+\import Alternating.Precomposition[W := V, target := space] \as Precomposition;
+\definition apply[u: VectorMaps.Map][f: Carrier]: Carrier := \fun (k: N.Nat^) => Precomposition.precompose k u (f k);
+\definition operator[u: VectorMaps.Map]: End.Map := End.Map {
+  apply := apply u,
+  preservesAdd := \fun (f, g: Carrier) => \axiom:funext(apply u (Product.add f g), Product.add (apply u f) (apply u g),
+    \fun (k: N.Nat^) => (Precomposition.At[k := k].linear u).preservesAdd (f k) (g k)),
+  preservesScale := \fun (a: K)(f: Carrier) => \axiom:funext(apply u (Product.scale a f), Product.scale a (apply u f),
+    \fun (k: N.Nat^) => (Precomposition.At[k := k].linear u).preservesScale a (f k)),
+};
+\import Algebra.Isomorphism[V := V, W := V, source := space, target := space] \as Isomorphisms;
+\import std.Data[].FinSet[] \as Fin;
+\import Algebra.Multilinear[V := V, space := space] \as Multilinear;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\definition leftInverse: \forall (u: Isomorphisms.Isomorphism)(f: Carrier) -> apply u.forward (apply u.backward f) = f :=
+  \fun (u: Isomorphisms.Isomorphism)(f: Carrier) => \axiom:funext(apply u.forward (apply u.backward f), f,
+    \fun (k: N.Nat^) => Alternating.At[k := k].ext (apply u.forward (apply u.backward f) k) (f k)
+      (\fun (v: Multilinear.Arguments k) => congr!{{Multilinear.Arguments k} K} (f k) _ _
+        (\axiom:funext((\fun (i: Fin.Fin k) => u.backward.apply (u.forward.apply (v i))), v, \fun (i: Fin.Fin k) => u.leftInverse (v i)))));
+\definition rightInverse: \forall (u: Isomorphisms.Isomorphism)(f: Carrier) -> apply u.backward (apply u.forward f) = f :=
+  \fun (u: Isomorphisms.Isomorphism)(f: Carrier) => \axiom:funext(apply u.backward (apply u.forward f), f,
+    \fun (k: N.Nat^) => Alternating.At[k := k].ext (apply u.backward (apply u.forward f) k) (f k)
+      (\fun (v: Multilinear.Arguments k) => congr!{{Multilinear.Arguments k} K} (f k) _ _
+        (\axiom:funext((\fun (i: Fin.Fin k) => u.forward.apply (u.backward.apply (v i))), v, \fun (i: Fin.Fin k) => u.rightInverse (v i)))));
+\import VectorMaps.Composition[U := V, domain := space] \as Compose;
+\import Algebra.Eigen[V := V, space := space] \as Eigen;
+\definition composition: \forall (u, v: VectorMaps.Map)(f: Carrier) -> apply u (apply v f) = apply (Compose.compose v u) f :=
+  \fun (u, v: VectorMaps.Map)(f: Carrier) => \axiom:funext(apply u (apply v f), apply (Compose.compose v u) f,
+    \fun (k: N.Nat^) => Alternating.At[k := k].ext (apply u (apply v f) k) (apply (Compose.compose v u) f k)
+      (\fun (args: Multilinear.Arguments k) => \refl((f k) (\fun (i: Fin.Fin k) => v.apply (u.apply (args i))))));
+\definition identity: \forall (f: Carrier) -> apply Eigen.identity f = f :=
+  \fun (f: Carrier) => \axiom:funext(apply Eigen.identity f, f, \fun (k: N.Nat^) => Alternating.At[k := k].ext (apply Eigen.identity f k) (f k)
+    (\fun (args: Multilinear.Arguments k) => congr!{{Multilinear.Arguments k} K} (f k) _ _
+      (\axiom:funext((\fun (i: Fin.Fin k) => args i), args, \fun (i: Fin.Fin k) => \refl(args i)))));
+\definition preservesParity: \forall (u: VectorMaps.Map)(f: Carrier) -> parity (apply u f) = apply u (parity f) :=
+  \fun (u: VectorMaps.Map)(f: Carrier) => \axiom:funext(parity (apply u f), apply u (parity f),
+    \fun (k: N.Nat^) => sym!{{Alternating.Form k}} _ _ ((Precomposition.At[k := k].linear u).preservesScale (Sign.value k) (f k)));
+\import Fin.Tuples[A := V].Mapping[B := V] \as TupleMap;
+\definition contractionNatural: \forall (u: VectorMaps.Map)(x: V)(f: Carrier) ->
+  apply u (annihilate (u.apply x) f) = annihilate x (apply u f) :=
+  \fun (u: VectorMaps.Map)(x: V)(f: Carrier) => \axiom:funext(apply u (annihilate (u.apply x) f), annihilate x (apply u f),
+    \fun (k: N.Nat^) => Alternating.At[k := k].ext (apply u (annihilate (u.apply x) f) k) (annihilate x (apply u f) k)
+      (\fun (args: Multilinear.Arguments k) => congr!{{Multilinear.Arguments (N.Nat^::succ k)} K} (f (N.Nat^::succ k)) _ _
+        (sym!{{Multilinear.Arguments (N.Nat^::succ k)}} _ _ (TupleMap.extendMap k u.apply x args))));
+\definition creationNatural: \forall (u: VectorMaps.Map)(alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier) ->
+  apply u (createLeft alpha f) = createLeft (Precomposition.precompose (N.Nat^::succ N.Nat^::zero) u alpha) (apply u f) :=
+  \fun (u: VectorMaps.Map)(alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier) =>
+    \axiom:funext(apply u (createLeft alpha f), createLeft (Precomposition.precompose (N.Nat^::succ N.Nat^::zero) u alpha) (apply u f),
+      \induction (k: N.Nat^) \return apply u (createLeft alpha f) k = createLeft (Precomposition.precompose (N.Nat^::succ N.Nat^::zero) u alpha) (apply u f) k \with {
+        | zero: (Precomposition.At[k := N.Nat^::zero].linear u).preservesZero
+        | succ: \fun (k: N.Nat^)(unused: _) => \parent.\parent.LeftCreation[k := k].Natural[].law u alpha (f k)
+      });

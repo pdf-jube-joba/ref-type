@@ -1,0 +1,68 @@
+\import \parent.TripleClass[t := t] \as First;
+\import \parent.TripleClass[t := u] \as Second;
+\import \parent.TripleClass[t := v] \as Third;
+\definition n: N.Nat^ := t.negative.dimension;
+\definition m: N.Nat^ := u.negative.dimension;
+\import Complements.Projection[X := X, n := n, baseSpace := space, P := t.negative.projection, regular := t.negative.regular].Complement[] \as FirstSplit;
+\import Complements.Projection[X := X, n := m, baseSpace := space, P := u.negative.projection, regular := u.negative.regular].Complement[] \as SecondSplit;
+\import Complements.Projection[X := X, n := v.negative.dimension, baseSpace := space, P := v.negative.projection, regular := v.negative.regular].Complement[] \as ThirdSplit;
+\definition E[x: X]: \Set := Absolute.Fiber t.positive x;
+\definition F[x: X]: \Set := Absolute.Fiber t.negative x;
+\definition G[x: X]: \Set := Absolute.Fiber u.positive x;
+\definition H[x: X]: \Set := Absolute.Fiber u.negative x;
+\definition S[x: X]: \Set := Absolute.Fiber First.complement x;
+\definition T[x: X]: \Set := Absolute.Fiber Second.complement x;
+\import Operations.DirectSum[X := X, F := S, G := T, left := (Absolute.bundle First.complement), right := (Absolute.bundle Second.complement)] \as Auxiliary;
+\definition auxiliaryBundle: Bundles.Family[X := X, F := Auxiliary.Fiber].Bundle := Auxiliary.bundle (\refl(space));
+\import Absolute.Bundle[F := Auxiliary.Fiber, original := auxiliaryBundle, same := (\refl(space))] \as Representation;
+\import Operations.DirectSumMiddleSwap[X := X, F := E, G := S, H := G, I := T,
+  first := (Absolute.bundle t.positive), second := (Absolute.bundle First.complement), third := (Absolute.bundle u.positive), fourth := (Absolute.bundle Second.complement),
+  sameSecond := (\refl(space)), sameThird := (\refl(space)), sameFourth := (\refl(space))] \as PositiveOrder;
+\import Operations.DirectSumMiddleSwap[X := X, F := F, G := S, H := H, I := T,
+  first := (Absolute.bundle t.negative), second := (Absolute.bundle First.complement), third := (Absolute.bundle u.negative), fourth := (Absolute.bundle Second.complement),
+  sameSecond := (\refl(space)), sameThird := (\refl(space)), sameFourth := (\refl(space))] \as NegativeOrder;
+\import \parent.FramedSum[F := First.SourceFiber, G := Second.SourceFiber, sourceModel := First.sourceModel, targetModel := Second.sourceModel, n := n, m := m] \as Framed;
+\import Framed.With[alpha := First.comparison, beta := Second.comparison] \as Source;
+\import Operations.DirectSum[X := X, F := E, G := G, left := (Absolute.bundle t.positive), right := (Absolute.bundle u.positive)] \as PositivePair;
+\import Operations.DirectSum[X := X, F := F, G := H, left := (Absolute.bundle t.negative), right := (Absolute.bundle u.negative)] \as NegativePair;
+\definition positivePairBundle: Bundles.Family[X := X, F := PositivePair.Fiber].Bundle := PositivePair.bundle (\refl(space));
+\definition negativePairBundle: Bundles.Family[X := X, F := NegativePair.Fiber].Bundle := NegativePair.bundle (\refl(space));
+\import \parent.TripleFraming[t := t, auxiliary := First.complement, n := n] \as FirstFrame;
+\import \parent.TripleFraming[t := u, auxiliary := Second.complement, n := m] \as SecondFrame;
+\import Bundles.Trivial[X := X, n := n, baseSpace := space] \as TrivialN;
+\import Bundles.Trivial[X := X, n := m, baseSpace := space] \as TrivialM;
+\import Bundles.Trivial[X := X, n := Framed.dimension, baseSpace := space] \as TrivialSum;
+\import Operations.DirectSum[X := X, F := (\fun (x: X) => Bundles.Vector n), G := (\fun (x: X) => Bundles.Vector m), left := TrivialN.bundle, right := TrivialM.bundle] \as TrivialPair;
+\definition trivialPairBundle: Bundles.Family[X := X, F := TrivialPair.Fiber].Bundle := TrivialPair.bundle (\refl(space));
+\import Operations.GlobalFrame[X := X, F := TrivialPair.Fiber, bundle := trivialPairBundle,
+  chart := (TrivialPair.In[c := TrivialN.trivialization, d := TrivialM.trivialization].trivialization (\refl(space))),
+  covers := (\fun (x: X) => Logic.And[x = x, x = x]::# (\refl(x)) (\refl(x)))] \as Join;
+\import Operations.DirectSumIsomorphisms[X := X, F := FirstFrame.NegativeFiber, G := SecondFrame.NegativeFiber,
+  A := (\fun (x: X) => Bundles.Vector n), B := (\fun (x: X) => Bundles.Vector m),
+  first := FirstFrame.negativeBundle, second := SecondFrame.negativeBundle, newFirst := TrivialN.bundle, newSecond := TrivialM.bundle,
+  sameSource := (\refl(space)), sameTarget := (\refl(space))] \as SplitPair;
+\definition splitPair: Bundles.Isomorphisms[X := X, F := SplitPair.SourceFiber, G := SplitPair.TargetFiber, source := SplitPair.sourceBundle, target := SplitPair.targetBundle].Isomorphism :=
+  SplitPair.isomorphism FirstSplit.isomorphism SecondSplit.isomorphism;
+\import Bundles.Isomorphisms[X := X, F := NegativeOrder.SourceFiber, G := NegativeOrder.TargetFiber, source := NegativeOrder.sourceBundle, target := NegativeOrder.targetBundle] \as NegativeReordering;
+\import Operations.IsomorphismComposition[X := X, F := NegativeOrder.TargetFiber, G := NegativeOrder.SourceFiber, H := TrivialPair.Fiber,
+  source := NegativeOrder.targetBundle, middle := NegativeOrder.sourceBundle, target := trivialPairBundle] \as ToPair;
+\definition toPair: ToPair.Isomorphism := ToPair.compose (NegativeReordering.inverse NegativeOrder.isomorphism) splitPair;
+\import Operations.IsomorphismComposition[X := X, F := NegativeOrder.TargetFiber, G := TrivialPair.Fiber, H := (\fun (x: X) => Bundles.Vector Framed.dimension),
+  source := NegativeOrder.targetBundle, middle := trivialPairBundle, target := TrivialSum.bundle] \as ToCoordinates;
+\definition toCoordinates: ToCoordinates.Isomorphism := ToCoordinates.compose toPair Join.isomorphism;
+\import Spaces.Isomorphism[V := Bundles.Vector Framed.dimension, W := Bundles.Vector Framed.dimension,
+  source := Bundles.coordinates Framed.dimension, target := Bundles.coordinates Framed.dimension] \as CoordinateMaps;
+\definition coordinateIdentity: CoordinateMaps.Isomorphism := CoordinateMaps.Isomorphism {
+  forward := Spaces.FiniteCoordinates[n := Framed.dimension].identity, backward := Spaces.FiniteCoordinates[n := Framed.dimension].identity,
+  leftInverse := \fun (v: Bundles.Vector Framed.dimension) => \refl(v), rightInverse := \fun (v: Bundles.Vector Framed.dimension) => \refl(v)
+};
+\import \parent.Sum[t := t, u := u, v := v] \as Sum;
+\import \parent.Quotient[] \as Quotient;
+\import algebra.Group[].Of[Carrier := Quotient.Relative, group := Quotient.group] \as ReducedGroup;
+\module With(w: Sum.Witness, auxiliary: Representation.Representative);
+\definition equation: (\exists Sum.Witness) -> ReducedGroup.add First.value Second.value = Third.value := \block {
+  \fun (given: \exists Sum.Witness) \then
+  \takefrom w: Sum.Witness \by given \then
+  \takefrom auxiliary: Representation.Representative \by Representation.representativeExists \then
+  \return With[w := w, auxiliary := auxiliary].equation
+};

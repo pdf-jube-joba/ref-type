@@ -1,0 +1,22 @@
+\definition base[x: X]: DiskCarrier := Pair.pair X Disk.Disk x Contract.origin;
+\definition baseContinuous: topology.Continuity[A := X, B := DiskCarrier].Continuous source diskTopology base :=
+  DiskProduct.Universal[X := X].pairContinuous source source Disk.diskTopology (\fun (x: X) => x) (\fun (_: X) => Contract.origin)
+    (topology.Maps[A := X, B := X].Identity[].continuous source) (topology.Maps[A := X, B := Disk.Disk].constantContinuous source Disk.diskTopology Contract.origin);
+\definition unitAt[x: X]: Units.Carrier := f (base x);
+\definition unitAtContinuous: topology.Continuity[A := X, B := Units.Carrier].Continuous source Units.topology unitAt :=
+  topology.Composition[A := X, B := DiskCarrier, C := Units.Carrier].composeContinuous source diskTopology Units.topology base f baseContinuous continuous;
+\import Units.Family[X := X, source := source, H := unitAt] \as UnitAt;
+\definition h[x: X]: M.Matrix := Units.matrix (unitAt x);
+\definition regularH: Top.Families[X := X].Regular source h := \fun (i, j: M.Index) => UnitAt.regular unitAtContinuous (Basis.vectors j) i;
+\definition nonzeroH: \forall (x: X) -> Field.Nonzero (h x) := \fun (x: X) => \bysub(M.Matrix, Field.Nonsingular, Units.matrix (unitAt x));
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].ConstantLoop[
+  n := n, h := h, regular := regularH, nonzero := nonzeroH] \as Constant;
+\definition finalPath: Paths.Path[final, Constant.family] := Paths.retarget final final final Constant.family (Paths.constant final)
+  (\fun (p: Circle.Domain) => \refl(final.matrix p)) finalFormula;
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[n := n,
+  a := final.matrix, regular := final.regular, nonzero := final.nonzero].Inverse[].Homotopy[
+  b := Constant.family.matrix, regularB := Constant.family.regular, nonzeroB := Constant.family.nonzero].With[path := finalPath] \as Equality;
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := source, compact := compact, hausdorff := hausdorff] \as K;
+\definition indexZero: \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[n := n,
+  a := initial.matrix, regular := initial.regular, nonzero := initial.nonzero].Inverse[].value = K.K0[].zero :=
+  trans!{K.K0[].Carrier} _ _ _ indexInvariant (trans!{K.K0[].Carrier} _ _ _ Equality.invariant Constant.indexZero);

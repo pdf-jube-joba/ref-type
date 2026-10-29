@@ -1,0 +1,43 @@
+\use Equality.eq_reason_in;
+\import algebraic_topology.Cylinder[A := Carrier] \as ModelCylinder;
+\import algebraic_topology.Cylinder[A := SecondCone.Carrier] \as ConeCylinder;
+\import algebraic_topology.Cylinder[A := Next.Carrier] \as NextCylinder;
+\import SecondCone.Contraction[] \as Contraction;
+\import NextAttached.Families[X := I.Carrier, D := Next.Carrier, factor := I.topology, left := modelTopology, right := SecondCone.topology, target := Next.topology] \as Families;
+\definition left: ModelCylinder.Carrier -> Next.Carrier := Deformation.family;
+\definition right[p: ConeCylinder.Carrier]: Next.Carrier := Next.cone (Contraction.family p);
+\definition compatible: Families.Compatible left right := \fun (t: I.Carrier)(b: B) => trans!{Next.Carrier} _ _ _
+  (Deformation.onTarget t b) (congr!{SecondCone.Carrier Next.Carrier} Next.cone _ _ (sym!{SecondCone.Carrier} _ _ (Contraction.onBase t b)));
+\definition family: NextCylinder.Carrier -> Next.Carrier := Families.apply left right compatible;
+\definition continuous: topology.Continuity[A := NextCylinder.Carrier, B := Next.Carrier].Continuous (NextCylinder.topology Next.topology) Next.topology family :=
+  Families.continuous I.compact I.hausdorff left right compatible Deformation.continuous
+    (topology.Composition[A := ConeCylinder.Carrier, B := SecondCone.Carrier, C := Next.Carrier].composeContinuous
+      (ConeCylinder.topology SecondCone.topology) SecondCone.topology Next.topology Contraction.family Next.cone Contraction.continuous Next.coneContinuous);
+\definition start: \forall (x: Next.Carrier) -> family (NextCylinder.at I.start x) = x :=
+  NextAttached.induction (\fun (x: Next.Carrier) => family (NextCylinder.at I.start x) = x)
+    (\fun (x: Carrier) => trans!{Next.Carrier} _ _ _ (Families.onLeft left right compatible I.start x) (Deformation.atStart x))
+    (\fun (c: SecondCone.Carrier) => trans!{Next.Carrier} _ _ _ (Families.onRight left right compatible I.start c) (congr!{SecondCone.Carrier Next.Carrier} Next.cone _ _ (Contraction.atStart c)));
+\definition end: \forall (x: Next.Carrier) -> family (NextCylinder.at I.end x) = section (projection x) :=
+  NextAttached.induction (\fun (x: Next.Carrier) => family (NextCylinder.at I.end x) = section (projection x))
+    (\fun (x: Carrier) => eq_reason_in!{Next.Carrier {family (NextCylinder.at I.end (Next.inclusion x))}
+      "=" {Deformation.end x} "by" { Families.onLeft left right compatible I.end x }
+      "=" {section (Connecting.apply x)} "by" { endOnModel x }
+      "=" {section (projection (Next.inclusion x))} "by" { congr!{Suspension.Carrier Next.Carrier} section _ _ (sym!{Suspension.Carrier} _ _ (onOriginal x)) }
+    })
+    (\fun (c: SecondCone.Carrier) => eq_reason_in!{Next.Carrier {family (NextCylinder.at I.end (Next.cone c))}
+      "=" {Next.cone (Contraction.family (ConeCylinder.at I.end c))} "by" { Families.onRight left right compatible I.end c }
+      "=" {Next.cone SecondCone.point} "by" { congr!{SecondCone.Carrier Next.Carrier} Next.cone _ _ (Contraction.atEnd c) }
+      "=" {Next.point} "by" { Next.conePoint }
+      "=" {section Suspension.point} "by" { sym!{Next.Carrier} _ _ atPoint }
+      "=" {section (projection (Next.cone c))} "by" { congr!{Suspension.Carrier Next.Carrier} section _ _ (sym!{Suspension.Carrier} _ _ (onSecondCone c)) }
+    });
+\definition atBase: \forall (t: I.Carrier) -> family (NextCylinder.at t Next.point) = Next.point :=
+  \fun (t: I.Carrier) => trans!{Next.Carrier} _ _ _ (Families.onLeft left right compatible t point) (Deformation.atPoint t);
+\import algebraic_topology.Homotopy[A := Next.Carrier, B := Next.Carrier] \as Native;
+\definition result: LeftMaps.Homotopy[LeftIdentity.map, leftComposite] := \into[Native.Family](family, LeftMaps.Homotopy[LeftIdentity.map, leftComposite]) \by {
+  Native.RelativeLaws[Next.topology, Next.topology, LeftMaps.fixed, LeftIdentity.map, leftComposite, family] {
+    homotopy := Native.Laws[Next.topology, Next.topology, LeftIdentity.map, leftComposite, family] { continuous := continuous, start := start, end := end },
+    fixed := \fun (t: I.Carrier)(x: Next.Carrier)(same: x = Next.point) => \idelim Next.point = x
+      \with y: Next.Carrier => family (NextCylinder.at t y) = y \by { base: atBase t, equality: sym!{Next.Carrier} _ _ same },
+  }
+};

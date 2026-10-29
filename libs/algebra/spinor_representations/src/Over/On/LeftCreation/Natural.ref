@@ -1,0 +1,36 @@
+\import Algebra.Linear[V := V, W := V, source := space, target := space] \as End;
+\import Alternating.Precomposition[W := V, target := space] \as Pull;
+\import Exterior.Pullback[W := V, target := space] \as ExtPull;
+\import ExtPull.Components[k := N.Nat^::succ k] \as ResultComponents;
+\import ExtPull.Components[k := N.Nat^::succ N.Nat^::zero] \as OneComponents;
+\import ExtPull.Components[k := k] \as SourceComponents;
+\import Algebra.Shuffle[I := V] \as Shuffle;
+\import Shuffle.Naturality[J := V] \as Mapping;
+\import Exterior.Components[k := N.Nat^::succ k] \as Components;
+\import std.Data[].List[] \as Lists;
+\use Equality.sym;
+\use Equality.eq_reason;
+\definition law: \forall (u: End.Map)(alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Alternating.Form k) ->
+  Pull.precompose (N.Nat^::succ k) u (apply alpha f) = apply (Pull.precompose (N.Nat^::succ N.Nat^::zero) u alpha) (Pull.precompose k u f) :=
+  \fun (u: End.Map)(alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Alternating.Form k) => \block {
+    \let a: Shuffle.Function := Exterior.component (N.Nat^::succ N.Nat^::zero) alpha \then
+    \let b: Shuffle.Function := Exterior.component k f \then
+    \let a2: Shuffle.Function := Exterior.component (N.Nat^::succ N.Nat^::zero) (Pull.precompose (N.Nat^::succ N.Nat^::zero) u alpha) \then
+    \let b2: Shuffle.Function := Exterior.component k (Pull.precompose k u f) \then
+    \return Components.ext (Pull.precompose (N.Nat^::succ k) u (apply alpha f)) (apply (Pull.precompose (N.Nat^::succ N.Nat^::zero) u alpha) (Pull.precompose k u f)) (eq_reason!{
+      {Exterior.component (N.Nat^::succ k) (Pull.precompose (N.Nat^::succ k) u (apply alpha f))}
+      "=" {ExtPull.mapped (N.Nat^::succ k) u (apply alpha f)} "by" {ResultComponents.law u (apply alpha f)}
+      "=" {Mapping.mapSeries u.apply (Exterior.component (Nat.add (N.Nat^::succ N.Nat^::zero) k) (Wedge.wedge alpha f))} "by" {
+        congr!{{Shuffle.Function} {Shuffle.Function}} (Mapping.mapSeries u.apply) _ _ (Regrade.series (Wedge.wedge alpha f) degree)}
+      "=" {Mapping.mapSeries u.apply (Shuffle.product a b)} "by" {congr!{{Shuffle.Function} {Shuffle.Function}} (Mapping.mapSeries u.apply) _ _ (Wedge.componentWedge alpha f)}
+      "=" {Shuffle.product (Mapping.mapSeries u.apply a) (Mapping.mapSeries u.apply b)} "by" {
+        \axiom:funext(Mapping.mapSeries u.apply (Shuffle.product a b), Shuffle.product (Mapping.mapSeries u.apply a) (Mapping.mapSeries u.apply b),
+          \fun (xs: Lists.List[V]) => sym!{K} _ _ (Mapping.productMap xs u.apply a b))}
+      "=" {Shuffle.product a2 b2} "by" {congr!{{Shuffle.Function} {Shuffle.Function} {Shuffle.Function}} Shuffle.product _ _ _ _
+        (sym!{{Shuffle.Function}} _ _ (OneComponents.law u alpha)) (sym!{{Shuffle.Function}} _ _ (SourceComponents.law u f))}
+      "=" {Exterior.component (Nat.add (N.Nat^::succ N.Nat^::zero) k) (Wedge.wedge (Pull.precompose (N.Nat^::succ N.Nat^::zero) u alpha) (Pull.precompose k u f))} "by" {
+        sym!{{Shuffle.Function}} _ _ (Wedge.componentWedge (Pull.precompose (N.Nat^::succ N.Nat^::zero) u alpha) (Pull.precompose k u f))}
+      "=" {Exterior.component (N.Nat^::succ k) (apply (Pull.precompose (N.Nat^::succ N.Nat^::zero) u alpha) (Pull.precompose k u f))} "by" {
+        sym!{{Shuffle.Function}} _ _ (Regrade.series (Wedge.wedge (Pull.precompose (N.Nat^::succ N.Nat^::zero) u alpha) (Pull.precompose k u f)) degree)}
+    })
+  };

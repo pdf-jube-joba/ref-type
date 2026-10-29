@@ -1,0 +1,25 @@
+\import \parent.Stage[k := height] \as Stage;
+\import Filtration.Stage[limit := height] \as Last;
+\import algebraic_topology.Cylinder[A := A] \as Cylinder;
+\import algebraic_topology.Cylinder[A := Last.Carrier] \as LastCylinder;
+\definition backward: A -> Last.Carrier := Exhaustion.homeomorphism.backward;
+\definition backwardContinuous: topology.Continuity[A := A, B := Last.Carrier].Continuous source Last.topology backward :=
+  (topology.Homeomorphism[A := Last.Carrier, B := A].laws Last.topology source Exhaustion.homeomorphism).backwardContinuous;
+\definition lift[p: Cylinder.Carrier]: LastCylinder.Carrier := LastCylinder.at (Cylinder.time p) (backward (Cylinder.point p));
+\import topological_constructions.Product[A := I.Carrier, B := Last.Carrier].Universal[X := Cylinder.Carrier] \as Product;
+\import topology.Composition[A := Cylinder.Carrier, B := A, C := Last.Carrier] \as Points;
+\definition liftContinuous: topology.Continuity[A := Cylinder.Carrier, B := LastCylinder.Carrier].Continuous
+  (Cylinder.topology source) (LastCylinder.topology Last.topology) lift :=
+  Product.pairContinuous (Cylinder.topology source) I.topology Last.topology Cylinder.time
+    (\fun (p: Cylinder.Carrier) => backward (Cylinder.point p)) (Cylinder.timeContinuous source)
+    (Points.composeContinuous (Cylinder.topology source) source Last.topology Cylinder.point backward (Cylinder.pointContinuous source) backwardContinuous);
+\definition family[p: Cylinder.Carrier]: B := h (lift p);
+\import topology.Composition[A := Cylinder.Carrier, B := LastCylinder.Carrier, C := B] \as Compose;
+\definition hLaws: Stage.Laws[h] := Stage.extensionLaws h;
+\definition result: HEP.Extension[source, target, problem] := \into[Cylinder.Carrier -> B](family, HEP.Extension[source, target, problem]) \by {
+  HEP.ExtensionLaws[source, target, problem, family] {
+    continuous := Compose.composeContinuous (Cylinder.topology source) (LastCylinder.topology Last.topology) target lift h liftContinuous hLaws.continuous,
+    initial := \fun (x: A) => hLaws.initial (backward x),
+    extends := \fun (t: I.Carrier)(x: Subspace.CarrierSet) => hLaws.agrees t (backward x) (\bysub(A, subset, x)),
+  }
+};

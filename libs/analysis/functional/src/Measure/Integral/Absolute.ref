@@ -1,0 +1,132 @@
+\import \root.Measure[A := A].Functions[mu := mu] \as Functions;
+\import \root.Measure[A := A].Integral[mu := mu].Zero[] \as Zero;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition abs[f: A -> Real.Real]: A -> Real.Real := \fun (x: A) => Product.abs (f x);
+\definition absAbs: \forall (f: A -> Real.Real) -> abs (abs f) = abs f :=
+  \fun (f: A -> Real.Real) => \axiom:funext(abs (abs f), abs f, \fun (x: A) => Product.absOfNonnegative (Product.abs (f x)) (Product.absNonnegative (f x)));
+\definition integrable: \forall (f: A -> Real.Real) -> Integrable f -> Integrable (abs f) :=
+  \fun (f: A -> Real.Real) (h: Integrable f) => Logic.And[_, _]::# (Functions.absMeasurable f h.left)
+    (\idelim abs f = abs (abs f) \with g: (A -> Real.Real) => Finite g \by { base: h.right, equality: sym!{{A -> Real.Real}} _ _ (absAbs f) });
+\definition representative[f: Representatives]: Representatives := \into[A -> Real.Real](abs f, { g: A -> Real.Real \where Integrable g })
+  \by { integrable f (\bysub(A -> Real.Real, { g: A -> Real.Real \where Integrable g }, f)) };
+\definition supremumNonnegative: \forall (f: A -> Real.Real) (p: Real.Real) -> Complete.LeastUpperBound[lowerIntegral f, p] -> R.Le Real.zero p :=
+  \fun (f: A -> Real.Real) (p: Real.Real) (law: Complete.LeastUpperBound[lowerIntegral f, p]) =>
+    Zero.zeroSup.least p (\fun (r: Real.Real) (negative: R.Lt r Real.zero) => law.upper r (lowerIntegralNegative f r negative));
+\definition negativePartOfNonnegative: \forall (f: A -> Real.Real) -> (\forall (x: A) -> R.Le Real.zero (f x)) -> negativePart f = Zero.function :=
+  \fun (f: A -> Real.Real) (nonnegative: \forall (x: A) -> R.Le Real.zero (f x)) =>
+    \axiom:funext(negativePart f, Zero.function, \fun (x: A) => Distance.maxOfGe Real.zero (Real.neg (f x)) (Product.negNonnegative (f x) (nonnegative x)));
+\definition integralNonnegative: \forall (f: A -> Real.Real) (v: Real.Real) ->
+  (\forall (x: A) -> R.Le Real.zero (f x)) -> HasIntegral[f, v] -> R.Le Real.zero v :=
+  \fun (f: A -> Real.Real) (v: Real.Real) (nonnegative: \forall (x: A) -> R.Le Real.zero (f x)) (h: HasIntegral[f, v]) => \block {
+    \takefrom p: \Cast[Real.Real] ({ p: Real.Real \where \exists ( q: Real.Real \where Parts[f, v, p, q] ) }) \by h.parts \then
+    \takefrom q: \Cast[Real.Real] ({ q: Real.Real \where Parts[f, v, p, q] })
+      \by (\bysub(Real.Real, { p: Real.Real \where \exists ( q: Real.Real \where Parts[f, v, p, q] ) }, p)) \then
+    \let parts: Parts[f, v, p, q] := \bysub(Real.Real, { q: Real.Real \where Parts[f, v, p, q] }, q) \then
+    \let negZero: lowerIntegral (negativePart f) = zero := \idelim lowerIntegral Zero.function = lowerIntegral (negativePart f)
+      \with S: Value => S = zero \by { base: Zero.lowerZero, equality: sym!{Value} _ _ (congr!{{A -> Real.Real} Value} lowerIntegral _ _ (negativePartOfNonnegative f nonnegative)) } \then
+    \let qZero: q = Real.zero := Complete.leastUpperBoundUnique zero q Real.zero
+      (\idelim lowerIntegral (negativePart f) = zero \with S: Value => Complete.LeastUpperBound[S, q] \by { base: parts.negativeLaw, equality: negZero }) Zero.zeroSup \then
+    \let vEqP: v = p := eq_reason_in!{Real.Real _
+      "=" _ "by" { parts.difference }
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.sub p) _ _ qZero }
+      "=" _ "by" { Laws.subZeroRight p }
+    } \then
+    \return R.leReplaceRight Real.zero p v (sym!{Real.Real} _ _ vEqP) (supremumNonnegative (positivePart f) p parts.positiveLaw)
+  };
+\definition absoluteIntegralNonnegative: \forall (f: Representatives) -> R.Le Real.zero (integral (representative f)) :=
+  \fun (f: Representatives) => integralNonnegative (abs f) (integral (representative f))
+    (\fun (x: A) => Product.absNonnegative (f x)) (integralLaw (representative f));
+
+\definition positivePartOfNonnegative: \forall (f: A -> Real.Real) -> (\forall (x: A) -> R.Le Real.zero (f x)) -> positivePart f = f :=
+  \fun (f: A -> Real.Real) (nonnegative: \forall (x: A) -> R.Le Real.zero (f x)) =>
+    \axiom:funext(positivePart f, f, \fun (x: A) => Distance.maxOfLe Real.zero (f x) (nonnegative x));
+\definition nonnegativeIntegralSup: \forall (f: A -> Real.Real) (v: Real.Real) ->
+  (\forall (x: A) -> R.Le Real.zero (f x)) -> HasIntegral[f, v] -> Complete.LeastUpperBound[lowerIntegral f, v] :=
+  \fun (f: A -> Real.Real) (v: Real.Real) (nonnegative: \forall (x: A) -> R.Le Real.zero (f x)) (h: HasIntegral[f, v]) => \block {
+    \takefrom p: \Cast[Real.Real] ({ p: Real.Real \where \exists ( q: Real.Real \where Parts[f, v, p, q] ) }) \by h.parts \then
+    \takefrom q: \Cast[Real.Real] ({ q: Real.Real \where Parts[f, v, p, q] })
+      \by (\bysub(Real.Real, { p: Real.Real \where \exists ( q: Real.Real \where Parts[f, v, p, q] ) }, p)) \then
+    \let parts: Parts[f, v, p, q] := \bysub(Real.Real, { q: Real.Real \where Parts[f, v, p, q] }, q) \then
+    \let negZero: lowerIntegral (negativePart f) = zero := \idelim lowerIntegral Zero.function = lowerIntegral (negativePart f)
+      \with S: Value => S = zero \by { base: Zero.lowerZero, equality: sym!{Value} _ _ (congr!{{A -> Real.Real} Value} lowerIntegral _ _ (negativePartOfNonnegative f nonnegative)) } \then
+    \let qZero: q = Real.zero := Complete.leastUpperBoundUnique zero q Real.zero
+      (\idelim lowerIntegral (negativePart f) = zero \with S: Value => Complete.LeastUpperBound[S, q] \by { base: parts.negativeLaw, equality: negZero }) Zero.zeroSup \then
+    \let vEqP: v = p := eq_reason_in!{Real.Real _
+      "=" _ "by" { parts.difference }
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.sub p) _ _ qZero }
+      "=" _ "by" { Laws.subZeroRight p }
+    } \then
+    \let positiveLaw: Complete.LeastUpperBound[lowerIntegral f, p] :=
+      \idelim lowerIntegral (positivePart f) = lowerIntegral f \with S: Value => Complete.LeastUpperBound[S, p]
+        \by { base: parts.positiveLaw, equality: congr!{{A -> Real.Real} Value} lowerIntegral _ _ (positivePartOfNonnegative f nonnegative) } \then
+    \return \idelim p = v \with t: Real.Real => Complete.LeastUpperBound[lowerIntegral f, t]
+      \by { base: positiveLaw, equality: sym!{Real.Real} _ _ vEqP }
+  };
+\definition subLeLeft: \forall (a, b: Real.Real) -> R.Le Real.zero b -> R.Le (Real.sub a b) a :=
+  \fun (a, b: Real.Real) (nonnegative: R.Le Real.zero b) => R.leReplaceRight (Real.sub a b) (Real.add a Real.zero) a (Laws.addZeroRight a)
+    (Laws.addMonotoneLeft (Real.neg b) Real.zero a (Product.negNonnegative b nonnegative));
+\definition integralAbsBound: \forall (f: Representatives) -> R.Le (Product.abs (integral f)) (integral (representative f)) :=
+  \fun (f: Representatives) => \block {
+    \let absoluteSup: Complete.LeastUpperBound[lowerIntegral (abs f), integral (representative f)] :=
+      nonnegativeIntegralSup (abs f) (integral (representative f)) (\fun (x: A) => Product.absNonnegative (f x)) (integralLaw (representative f)) \then
+    \takefrom p: \Cast[Real.Real] ({ p: Real.Real \where \exists ( q: Real.Real \where Parts[f, integral f, p, q] ) }) \by (integralLaw f).parts \then
+    \takefrom q: \Cast[Real.Real] ({ q: Real.Real \where Parts[f, integral f, p, q] })
+      \by (\bysub(Real.Real, { p: Real.Real \where \exists ( q: Real.Real \where Parts[f, integral f, p, q] ) }, p)) \then
+    \let parts: Parts[f, integral f, p, q] := \bysub(Real.Real, { q: Real.Real \where Parts[f, integral f, p, q] }, q) \then
+    \let pBound: R.Le p (integral (representative f)) := parts.positiveLaw.least (integral (representative f))
+      (\fun (r: Real.Real) (member: below (lowerIntegral (positivePart f)) r) => absoluteSup.upper r
+        (lowerIntegralMono (positivePart f) (abs f) (positivePartBound f) r member)) \then
+    \let qBound: R.Le q (integral (representative f)) := parts.negativeLaw.least (integral (representative f))
+      (\fun (r: Real.Real) (member: below (lowerIntegral (negativePart f)) r) => absoluteSup.upper r
+        (lowerIntegralMono (negativePart f) (abs f) (negativePartBound f) r member)) \then
+    \let pNonnegative: R.Le Real.zero p := supremumNonnegative (positivePart f) p parts.positiveLaw \then
+    \let qNonnegative: R.Le Real.zero q := supremumNonnegative (negativePart f) q parts.negativeLaw \then
+    \let forward: R.Le (Real.sub p q) (integral (representative f)) := R.leTrans _ p _ (subLeLeft p q qNonnegative) pBound \then
+    \let backward: R.Le (Real.neg (Real.sub p q)) (integral (representative f)) := R.leReplaceLeft (Real.sub q p) (Real.neg (Real.sub p q)) _
+      (sym!{Real.Real} _ _ (Real.Algebra[].negSub p q)) (R.leTrans _ q _ (subLeLeft q p pNonnegative) qBound) \then
+    \return R.leReplaceLeft (Distance.max (Real.neg (Real.sub p q)) (Real.sub p q)) (Product.abs (integral f)) _
+      (eq_reason_in!{Real.Real _
+        "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Distance.max _ _ _ _
+          (congr!{Real.Real Real.Real} Real.neg _ _ (sym!{Real.Real} _ _ parts.difference)) (sym!{Real.Real} _ _ parts.difference) }
+        "=" _ "by" { sym!{Real.Real} _ _ (Product.absExpression (integral f)) }
+      }) (Distance.maxLeast _ _ _ backward forward)
+  };
+
+\definition lowerSupMono: \forall (f, g: A -> Real.Real) (u, v: Real.Real) ->
+  (\forall (x: A) -> R.Le (f x) (g x)) -> Complete.LeastUpperBound[lowerIntegral f, u] -> Complete.LeastUpperBound[lowerIntegral g, v] -> R.Le u v :=
+  \fun (f, g: A -> Real.Real) (u, v: Real.Real) (order: \forall (x: A) -> R.Le (f x) (g x))
+    (lf: Complete.LeastUpperBound[lowerIntegral f, u]) (lg: Complete.LeastUpperBound[lowerIntegral g, v]) =>
+      lf.least v (\fun (r: Real.Real) (member: below (lowerIntegral f) r) => lg.upper r (lowerIntegralMono f g order r member));
+\definition positiveMono: \forall (f, g: A -> Real.Real) -> (\forall (x: A) -> R.Le (f x) (g x)) ->
+  \forall (x: A) -> R.Le (positivePart f x) (positivePart g x) :=
+  \fun (f, g: A -> Real.Real) (order: \forall (x: A) -> R.Le (f x) (g x)) (x: A) =>
+    Distance.maxMonotone Real.zero (f x) Real.zero (g x) (R.leRefl Real.zero) (order x);
+\definition negativeAntitone: \forall (f, g: A -> Real.Real) -> (\forall (x: A) -> R.Le (f x) (g x)) ->
+  \forall (x: A) -> R.Le (negativePart g x) (negativePart f x) :=
+  \fun (f, g: A -> Real.Real) (order: \forall (x: A) -> R.Le (f x) (g x)) (x: A) =>
+    Distance.maxMonotone Real.zero (Real.neg (g x)) Real.zero (Real.neg (f x)) (R.leRefl Real.zero) (Laws.negAntitone (f x) (g x) (order x));
+\definition integralMono: \forall (f, g: Representatives) -> (\forall (x: A) -> R.Le (f x) (g x)) -> R.Le (integral f) (integral g) :=
+  \fun (f, g: Representatives) (order: \forall (x: A) -> R.Le (f x) (g x)) => \block {
+    \takefrom pf: \Cast[Real.Real] ({ p: Real.Real \where \exists ( q: Real.Real \where Parts[f, integral f, p, q] ) }) \by (integralLaw f).parts \then
+    \takefrom qf: \Cast[Real.Real] ({ q: Real.Real \where Parts[f, integral f, pf, q] })
+      \by (\bysub(Real.Real, { p: Real.Real \where \exists ( q: Real.Real \where Parts[f, integral f, p, q] ) }, pf)) \then
+    \takefrom pg: \Cast[Real.Real] ({ p: Real.Real \where \exists ( q: Real.Real \where Parts[g, integral g, p, q] ) }) \by (integralLaw g).parts \then
+    \takefrom qg: \Cast[Real.Real] ({ q: Real.Real \where Parts[g, integral g, pg, q] })
+      \by (\bysub(Real.Real, { p: Real.Real \where \exists ( q: Real.Real \where Parts[g, integral g, p, q] ) }, pg)) \then
+    \let left: Parts[f, integral f, pf, qf] := \bysub(Real.Real, { q: Real.Real \where Parts[f, integral f, pf, q] }, qf) \then
+    \let right: Parts[g, integral g, pg, qg] := \bysub(Real.Real, { q: Real.Real \where Parts[g, integral g, pg, q] }, qg) \then
+    \let positives: R.Le pf pg := lowerSupMono (positivePart f) (positivePart g) pf pg (positiveMono f g order) left.positiveLaw right.positiveLaw \then
+    \let negatives: R.Le qg qf := lowerSupMono (negativePart g) (negativePart f) qg qf (negativeAntitone f g order) right.negativeLaw left.negativeLaw \then
+    \return R.leReplace (Real.sub pf qf) (integral f) (Real.sub pg qg) (integral g)
+      (sym!{Real.Real} _ _ left.difference) (sym!{Real.Real} _ _ right.difference)
+      (Real.Estimates[].addLe pf (Real.neg qf) pg (Real.neg qg) positives (Laws.negAntitone qg qf negatives))
+  };
+
+\definition dominatedIntegrable: \forall (f, g: A -> Real.Real) -> IsMeasurable mu f -> Integrable g ->
+  (\forall (x: A) -> R.Le (Product.abs (f x)) (Product.abs (g x))) -> Integrable f :=
+  \fun (f, g: A -> Real.Real) (measurable: IsMeasurable mu f) (integrableG: Integrable g)
+    (bound: \forall (x: A) -> R.Le (Product.abs (f x)) (Product.abs (g x))) =>
+    Logic.And[_, _]::# measurable (finiteMono (abs f) (abs g) (\fun (x: A) => Product.absNonnegative (f x)) bound integrableG.right);

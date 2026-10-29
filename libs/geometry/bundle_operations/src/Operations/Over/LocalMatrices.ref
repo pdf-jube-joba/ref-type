@@ -1,0 +1,26 @@
+\import Bundles.Family[X := X, F := F] \as Source;
+\import Bundles.Family[X := X, F := G] \as Target;
+\import Source.With[data := source] \as SourceCharts;
+\import Target.With[data := target] \as TargetCharts;
+\import topology.Topology[Carrier := X] \as Base;
+\import hermitian_frames.Hermitian[].Over[K := K, field := field, scalar := conjugation, topological := scalar.topological] \as Hermitian;
+\structure ChartData: \Set := {
+  domain: \Pow X,
+  sourceDimension: N.Nat^, targetDimension: N.Nat^,
+  sourceFrame: \forall (x: \Cast[X] domain) -> Spaces.Isomorphism[V := F x, W := Vector sourceDimension, source := source.space x, target := coordinates sourceDimension].Isomorphism,
+  targetFrame: \forall (x: \Cast[X] domain) -> Spaces.Isomorphism[V := G x, W := Vector targetDimension, source := target.space x, target := coordinates targetDimension].Isomorphism,
+  coefficients: \Cast[X] domain -> Spaces.Linear[V := Vector sourceDimension, W := Vector targetDimension, source := coordinates sourceDimension, target := coordinates targetDimension].Map
+};
+\module In(c: ChartData);
+\definition Chart: \Set := \Cast[ChartData] ({ c: ChartData \where In[c := c].Laws });
+\definition domain[c: Chart]: \Pow Source.Point := { p: Source.Point \where Base.Member c.domain p.base };
+\definition Covers: \Prop := \forall (x: X) -> \exists (c: Chart \where Base.Member c.domain x);
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := G, source := source, target := target, f := (\fun (x: X) => x)] \as Maps;
+\definition data: Maps.Data := Maps.Data { fiber := fiber };
+\import topology.Continuity[A := Source.Point, B := Target.Point].Covered[I := Chart, domains := domain] \as Covered;
+\definition continuous: source.baseSpace = target.baseSpace -> Covers -> topology.Continuity[A := Source.Point, B := Target.Point].Continuous source.totalSpace target.totalSpace (Maps.total data) :=
+  \fun (same: _)(covers: _) => Covered.continuous source.totalSpace target.totalSpace (Maps.total data)
+    (\fun (c: Chart) => (\bysub(ChartData, Chart, c)).sourceLaws.totalOpen)
+    (\fun (p: Source.Point) => covers p.base)
+    (\fun (c: Chart) => In[c := c].continuous same (\bysub(ChartData, Chart, c)));
+\definition map[same: source.baseSpace = target.baseSpace][covers: Covers]: Maps.Map := \into[Maps.Data](data, Maps.Map) \by { continuous same covers };

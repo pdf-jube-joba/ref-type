@@ -1,0 +1,67 @@
+\import \parent.\parent.\parent.Connecting[p := N.Nat^::succ t, q := N.Nat^::succ r] \as Base;
+\import Base.On[beta := beta, closed := closed] \as Known;
+\import \parent.\parent.\parent.Homology[p := N.Nat^::succ t, q := N.Nat^::succ r].On[beta := beta, closed := closed].Induced[] \as Induced;
+\import \parent.\parent.\parent.Degree[] \as RelativeDegree;
+\import singular_cohomology.Maps[A := Relative.SubspaceCarrier, B := A, source := Subspace.topology source, target := source] \as Inclusion;
+\import singular_products.Cochains[A := Relative.SubspaceCarrier, source := Subspace.topology source, R := I.Int^, ring := Integers.commutativeRing].Pullback[B := A, target := source] \as Pull;
+\import \root.Integral[A := Relative.SubspaceCarrier, source := Subspace.topology source] \as SubCap;
+\import SubCap.At[p := N.Nat^::succ t, q := N.Nat^::succ r] \as SubCapAt;
+\import singular_cohomology.Cochains[A := Relative.SubspaceCarrier, source := Subspace.topology source].With[coefficients := Cochains.integerCoefficients] \as SubTheory;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring] \as CochainsComplex;
+\import CochainsComplex.At[C := Theory.complex, k := N.Nat^::succ r] \as WholeCochain;
+\import CochainsComplex.Map[C := Theory.complex, D := SubTheory.complex].At[k := N.Nat^::succ r] \as PullAt;
+\import Inclusion.Coefficients[M := Cochains.integerCoefficients, L := Cochains.integerCoefficients] \as PullMap;
+\import Modules.End[V := I.Int^, space := Cochains.integerCoefficients.space] \as Scalars;
+\definition closedCocycle: WholeCochain.CycleCarrier := WholeCochain.cycle beta closed;
+\definition pulledClosed: SubCap.Homology[p := t, q := N.Nat^::succ r].Closed (Pull.apply (N.Nat^::succ r) Relative.inclusion Relative.inclusionContinuous beta) :=
+  PullAt.preservesClosed (PullMap.map Relative.inclusion Relative.inclusionContinuous Scalars.identity) closedCocycle;
+\import SubCap.Homology[p := t, q := N.Nat^::succ r].On[beta := Pull.apply (N.Nat^::succ r) Relative.inclusion Relative.inclusionContinuous beta, closed := pulledClosed] \as NativeAction;
+\import NativeAction.Induced[] \as SubAction;
+\import Nonnegative.Positive[C := SubChains.complex, n := t] \as NativeTarget;
+\import SubExtension.PositiveHomology[n := t] \as TargetCompare;
+\import Nonnegative.ZeroExtension[C := Chains.complex] \as WholeExtension;
+\import Complexes.At[C := Relative.complex, z := I.Int^::ofNat Geometry.higher] \as Input;
+\import Complexes.At[C := SubExtension.complex, z := I.Int^::ofNat (N.Nat^::succ t)] \as OutputSub;
+\import Complexes.ShortExact[A := SubExtension.complex, B := WholeExtension.complex, C := Relative.complex].At[s := Relative.sequence, k := I.Int^::ofNat (N.Nat^::succ (N.Nat^::succ t))] \as Exact;
+\import Complexes.ShortExact[A := SubExtension.complex, B := WholeExtension.complex, C := Relative.complex].At[s := Relative.sequence, k := I.Int^::ofNat Geometry.higher] \as InputExact;
+\import Modules.Hom[V := ShiftedSub.Homology, W := NativeSource.Homology, source := ShiftedSub.homologySpace, target := NativeSource.homologySpace].Composition[U := InputSub.Homology, domain := InputSub.homologySpace] \as FirstComposition;
+\import Modules.Hom[V := NativeSource.Homology, W := NativeTarget.Homology, source := NativeSource.homologySpace, target := NativeTarget.homologySpace].Composition[U := InputSub.Homology, domain := InputSub.homologySpace] \as SecondComposition;
+\import Modules.Hom[V := NativeTarget.Homology, W := OutputSub.Homology, source := NativeTarget.homologySpace, target := OutputSub.homologySpace].Composition[U := InputSub.Homology, domain := InputSub.homologySpace] \as ThirdComposition;
+\definition subMap: Modules.Hom[V := InputSub.Homology, W := OutputSub.Homology, source := InputSub.homologySpace, target := OutputSub.homologySpace].Map :=
+  ThirdComposition.compose TargetCompare.homologyIsomorphism.forward (SecondComposition.compose SubAction.map (FirstComposition.compose SourceCompare.homologyIsomorphism.backward shiftMap));
+\definition lowerCycle[c: Chains.Carrier Geometry.higher][a: SubChains.Carrier Geometry.total]
+  [boundary: (Inclusion.At[n := Geometry.total].push Relative.inclusion Relative.inclusionContinuous).apply a = (Chains.boundary Geometry.total).apply c]: InputSub.Cycle :=
+  InputSub.cycle (SubExtension.Positive[n := Geometry.total].intro a) (InputExact.lowerClosed (WholeExtension.Positive[n := Geometry.higher].intro c) (SubExtension.Positive[n := Geometry.total].intro a) boundary);
+\definition onLift: \forall (x: Input.Cycle)(c: Chains.Carrier Geometry.higher)(a: SubChains.Carrier Geometry.total) ->
+  RelativeDegree.class Geometry.higher c = x ->
+  \forall (boundary: (Inclusion.At[n := Geometry.total].push Relative.inclusion Relative.inclusionContinuous).apply a = (Chains.boundary Geometry.total).apply c) ->
+  (Relative.LongExact[z := I.Int^::ofNat (N.Nat^::succ (N.Nat^::succ t))].connecting).apply ((Induced.map).apply (Input.classOf x)) =
+  (subMap).apply ((Relative.LongExact[z := I.Int^::ofNat Geometry.higher].connecting).apply (Input.classOf x)) :=
+  \fun (x: Input.Cycle)(c: Chains.Carrier Geometry.higher)(a: SubChains.Carrier Geometry.total)(equal: _)(boundary: _) => eq_reason_in!{OutputSub.Homology _
+    "=" _ "by" { Known.law x c a equal boundary }
+    "=" _ "by" { OutputSub.cycleClassExt (OutputSub.cycle (Known.lower a) (Exact.lowerClosed (Known.upper c) (Known.lower a) (Base.liftBoundary beta closed c a boundary)))
+      (TargetCompare.cycleIsomorphism.forward.apply (NativeAction.cycle (native (lowerCycle c a boundary))))
+      (congr!{{SubChains.Carrier Geometry.total} {SubExtension.Carrier (I.Int^::ofNat (N.Nat^::succ t))}} (\fun (z: SubChains.Carrier Geometry.total) => SubExtension.Positive[n := N.Nat^::succ t].intro ((SubCapAt.map (Pull.apply (N.Nat^::succ r) Relative.inclusion Relative.inclusionContinuous beta)).apply z)) _ _
+        (sym!{{SubChains.Carrier Geometry.total}} _ _ (recovered (lowerCycle c a boundary)))) }
+    "=" _ "by" { sym!{OutputSub.Homology} _ _ (TargetCompare.onClass (NativeAction.cycle (native (lowerCycle c a boundary)))) }
+    "=" _ "by" { congr!{NativeTarget.Homology OutputSub.Homology} ((TargetCompare.homologyIsomorphism.forward).apply) _ _ (sym!{NativeTarget.Homology} _ _ (SubAction.onClass (native (lowerCycle c a boundary)))) }
+    "=" _ "by" { congr!{NativeSource.Homology OutputSub.Homology} (\fun (z: NativeSource.Homology) => (TargetCompare.homologyIsomorphism.forward).apply ((SubAction.map).apply z)) _ _ (sym!{NativeSource.Homology} _ _ (SourceCompare.homologyIsomorphism.leftInverse (NativeSource.classOf (native (lowerCycle c a boundary))))) }
+    "=" _ "by" { congr!{ShiftedSub.Homology OutputSub.Homology} (\fun (z: ShiftedSub.Homology) => (TargetCompare.homologyIsomorphism.forward).apply ((SubAction.map).apply ((SourceCompare.homologyIsomorphism.backward).apply z))) _ _ (sym!{ShiftedSub.Homology} _ _ (onClass (lowerCycle c a boundary))) }
+    "=" _ "by" { congr!{InputSub.Homology OutputSub.Homology} (subMap.apply) _ _ (sym!{InputSub.Homology} _ _ (Known.sourceLaw x c a equal boundary)) }
+  };
+\definition onCycle: \forall (x: Input.Cycle) ->
+  (Relative.LongExact[z := I.Int^::ofNat (N.Nat^::succ (N.Nat^::succ t))].connecting).apply ((Induced.map).apply (Input.classOf x)) =
+  (subMap).apply ((Relative.LongExact[z := I.Int^::ofNat Geometry.higher].connecting).apply (Input.classOf x)) := \block {
+  \fun (x: Input.Cycle) \then
+  \takefrom value: InputExact.Value x \by InputExact.existence x \then
+  \takefrom witness: \Cast[InputExact.Witness] ({ w: InputExact.Witness \where InputExact.WitnessLaws[x, value, w] })
+    \by \bysub(InputSub.Homology, InputExact.Values x, value) \then
+  \let laws: InputExact.WitnessLaws[x, value, witness] := \bysub(InputExact.Witness, { w: InputExact.Witness \where InputExact.WitnessLaws[x, value, w] }, witness) \then
+  \return onLift x witness.lift witness.lower laws.lifted laws.differential
+};
+\definition law: \forall (x: Input.Homology) ->
+  (Relative.LongExact[z := I.Int^::ofNat (N.Nat^::succ (N.Nat^::succ t))].connecting).apply ((Induced.map).apply x) =
+  (subMap).apply ((Relative.LongExact[z := I.Int^::ofNat Geometry.higher].connecting).apply x) :=
+  Input.classInduction (\fun (x: Input.Homology) =>
+    (Relative.LongExact[z := I.Int^::ofNat (N.Nat^::succ (N.Nat^::succ t))].connecting).apply ((Induced.map).apply x) =
+    (subMap).apply ((Relative.LongExact[z := I.Int^::ofNat Geometry.higher].connecting).apply x)) onCycle;

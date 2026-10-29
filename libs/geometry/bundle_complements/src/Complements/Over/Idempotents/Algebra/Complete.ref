@@ -1,0 +1,20 @@
+\import Finite.Frame[k := result.rank, frame := result.frame] \as Span;
+\definition after: End.Map := Compose.compose Span.projection.map P;
+\definition onBasis: \forall (i: Fin.Fin n) -> after.apply (Geometry.Finite[n := n].basis i) = P.apply (Geometry.Finite[n := n].basis i) :=
+  \fun (i: Fin.Fin n) => \block {
+    \takefrom v: \Cast[Carrier result.rank] ({ v: Carrier result.rank \where result.frame.value.apply v = P.apply (Geometry.Finite[n := n].basis i) }) \by result.covers i (Fin.exhaustive n i) \then
+    \let given: result.frame.value.apply v = P.apply (Geometry.Finite[n := n].basis i) := \bysub(Carrier result.rank, { v: Carrier result.rank \where result.frame.value.apply v = P.apply (Geometry.Finite[n := n].basis i) }, v) \then
+    \return trans!{Vector} _ _ _ (congr!{Vector Vector} Span.projection.map.apply _ _ (sym!{Vector} _ _ given))
+      (trans!{Vector} _ _ _ (Hermitian.At[n := n].OnProjection[P := Span.projection].Rank[k := result.rank].fixed Span.basis v) given)
+  };
+\definition afterEqual: after = P := Finite.extOnBasis after P onBasis;
+\import Spaces.Linear[V := Vector, W := Carrier result.rank, source := Coordinates.space, target := coordinates result.rank].Composition[U := Vector, domain := Coordinates.space] \as Backward;
+\definition coordinate: Spaces.Linear[V := Vector, W := Carrier result.rank, source := Coordinates.space, target := coordinates result.rank].Map := Backward.compose Span.coordinate P;
+\definition leftInverse: \forall (v: Carrier result.rank) -> coordinate.apply (result.frame.value.apply v) = v :=
+  \fun (v: Carrier result.rank) => trans!{{Carrier result.rank}} _ _ _
+    (congr!{Vector {Carrier result.rank}} Span.coordinate.apply _ _ (result.fixed v)) (Span.leftInverse v);
+\definition reconstruction: \forall (v: Vector) -> result.frame.value.apply (coordinate.apply v) = P.apply v :=
+  \fun (v: Vector) => congr!{End.Map Vector} (\fun (f: End.Map) => f.apply v) _ _ afterEqual;
+\definition basis: Basis[result.rank] := Basis[result.rank] {
+  value := result.frame.value, coordinate := coordinate, leftInverse := leftInverse, reconstruction := reconstruction,
+};

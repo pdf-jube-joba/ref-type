@@ -1,0 +1,78 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Bool[] \as Bool;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.trans;
+\use Equality.eq_reason_in;
+\import \root.Euclidean[n := n] \as E;
+\import \root.BoxCut[n := n] \as Cut;
+\import \root.GeneralCut[] \as General;
+\import real.Analysis[] \as Real;
+\import Real.Distance[] \as Distance;
+\import Real.Clipping[] \as Clip;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\definition zeroWidth: \forall (b: E.Box) (i: Fin.Fin n) -> b.right i = b.left i -> E.volume b = Real.zero :=
+  \fun (b: E.Box) (i: Fin.Fin n) (same: b.right i = b.left i) => Bool.cases (\fun (active: Bool.Bool^) =>
+    (\match active \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with {
+      | false: Real.zero | true: E.product n (\fun (j: Fin.Fin n) => Real.sub (b.right j) (b.left j)) }) = Real.zero)
+    (\refl(Real.zero)) (E.productZero n (\fun (j: Fin.Fin n) => Real.sub (b.right j) (b.left j)) i
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.sub v (b.left i)) _ _ same) (Laws.subSelf (b.left i)))) b.active;
+\definition clipLow: \forall (a, b, t: Real.Real) -> R.Le a b -> R.Le t a -> Clip.value a b t = a :=
+  \fun (a, b, t: Real.Real) (ordered: R.Le a b) (lower: R.Le t a) =>
+    trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Distance.min v b) _ _ (Distance.maxOfLe t a lower))
+      (Distance.minOfLe a b ordered);
+\definition clipHigh: \forall (a, b, t: Real.Real) -> R.Le a b -> R.Le b t -> Clip.value a b t = b :=
+  \fun (a, b, t: Real.Real) (ordered: R.Le a b) (upper: R.Le b t) =>
+    Distance.minOfGe (Distance.max t a) b (R.leTrans b t (Distance.max t a) upper (Distance.maxLeft t a));
+\definition leftZeroOutside: \forall (b: E.Box) (i: Fin.Fin n) (t: Real.Real) -> R.Le t (b.left i) ->
+  E.volume (General.construct n b i t).left = Real.zero :=
+  \fun (b: E.Box) (i: Fin.Fin n) (t: Real.Real) (outside: R.Le t (b.left i)) => \block {
+    \let cut: Cut.Result b i t := General.construct n b i t \then
+    \return zeroWidth cut.left i (eq_reason_in!{Real.Real _
+      "=" _ "by" { (Cut.laws b i t cut).leftUpper }
+      "=" _ "by" { clipLow (b.left i) (b.right i) t (b.ordered i) outside }
+      "=" _ "by" { sym!{Real.Real} _ _ (Cut.laws b i t cut).leftLower }
+    })
+  };
+\definition rightZeroOutside: \forall (b: E.Box) (i: Fin.Fin n) (t: Real.Real) -> R.Le (b.right i) t ->
+  E.volume (General.construct n b i t).right = Real.zero :=
+  \fun (b: E.Box) (i: Fin.Fin n) (t: Real.Real) (outside: R.Le (b.right i) t) => \block {
+    \let cut: Cut.Result b i t := General.construct n b i t \then
+    \return zeroWidth cut.right i (eq_reason_in!{Real.Real _
+      "=" _ "by" { (Cut.laws b i t cut).rightUpper }
+      "=" _ "by" { sym!{Real.Real} _ _ (clipHigh (b.left i) (b.right i) t (b.ordered i) outside) }
+      "=" _ "by" { sym!{Real.Real} _ _ (Cut.laws b i t cut).rightLower }
+    })
+  };
+\import std.Logic[].Proposition[] \as Logic;
+\import R.Order[] \as Order;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\definition leftAligned: \forall (b: E.Box) (i: Fin.Fin n) (t: Real.Real) ->
+  Logic.Or[E.volume (General.construct n b i t).left = Real.zero,
+    \forall (x: E.Point) -> Sets.Member (E.points (General.construct n b i t).left) x -> R.Le (x i) t] :=
+  \fun (b: E.Box) (i: Fin.Fin n) (t: Real.Real) => \block {
+    \let cut: Cut.Result b i t := General.construct n b i t \then
+    \let result: \Prop := Logic.Or[E.volume cut.left = Real.zero, \forall (x: E.Point) -> Sets.Member (E.points cut.left) x -> R.Le (x i) t] \then
+    \return Logic.orElim (R.Le (b.left i) t) (R.Le t (b.left i)) result (Order.leTotal (b.left i) t)
+      (\fun (lower: R.Le (b.left i) t) => Logic.orElim (R.Le t (b.right i)) (R.Le (b.right i) t) result (Order.leTotal t (b.right i))
+        (\fun (upper: R.Le t (b.right i)) => Logic.Or[_, _]::right ((Cut.laws b i t cut).leftSide lower upper))
+        (\fun (upper: R.Le (b.right i) t) => Logic.Or[_, _]::right (\fun (x: E.Point) (inside: Sets.Member (E.points cut.left) x) =>
+          R.leTrans _ _ _ (((Cut.laws b i t cut).containedLeft x inside).right i).right upper)))
+      (\fun (outside: R.Le t (b.left i)) => Logic.Or[_, _]::left (leftZeroOutside b i t outside))
+  };
+\definition rightAligned: \forall (b: E.Box) (i: Fin.Fin n) (t: Real.Real) ->
+  Logic.Or[E.volume (General.construct n b i t).right = Real.zero,
+    \forall (x: E.Point) -> Sets.Member (E.points (General.construct n b i t).right) x -> R.Le t (x i)] :=
+  \fun (b: E.Box) (i: Fin.Fin n) (t: Real.Real) => \block {
+    \let cut: Cut.Result b i t := General.construct n b i t \then
+    \let result: \Prop := Logic.Or[E.volume cut.right = Real.zero, \forall (x: E.Point) -> Sets.Member (E.points cut.right) x -> R.Le t (x i)] \then
+    \return Logic.orElim (R.Le (b.right i) t) (R.Le t (b.right i)) result (Order.leTotal (b.right i) t)
+      (\fun (outside: R.Le (b.right i) t) => Logic.Or[_, _]::left (rightZeroOutside b i t outside))
+      (\fun (upper: R.Le t (b.right i)) => Logic.orElim (R.Le (b.left i) t) (R.Le t (b.left i)) result (Order.leTotal (b.left i) t)
+        (\fun (lower: R.Le (b.left i) t) => Logic.Or[_, _]::right ((Cut.laws b i t cut).rightSide lower upper))
+        (\fun (lower: R.Le t (b.left i)) => Logic.Or[_, _]::right (\fun (x: E.Point) (inside: Sets.Member (E.points cut.right) x) =>
+          R.leTrans _ _ _ lower (((Cut.laws b i t cut).containedRight x inside).right i).left)))
+  };

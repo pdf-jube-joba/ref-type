@@ -1,0 +1,32 @@
+\import Bundles.Trivial[X := X, n := n, baseSpace := original] \as Original;
+\import Bundles.Trivial[X := Y, n := n, baseSpace := base] \as Target;
+\import Bundles.Family[X := X, F := (\fun (x: X) => Vector n)].Of[bundle := Original.bundle].Pullback[Y := Y, source := base, f := f] \as Pull;
+\definition pulled: Bundles.Family[X := Y, F := (\fun (y: Y) => Vector n)].Bundle := Pull.pulled regular;
+\import topology.Topology[Carrier := Y] \as Base;
+\import Bundles.Family[X := Y, F := (\fun (y: Y) => Vector n)].With[data := pulled] \as SourceCharts;
+\import Bundles.Family[X := Y, F := (\fun (y: Y) => Vector n)].With[data := Target.bundle] \as TargetCharts;
+\definition sourceChart: SourceCharts.Chart := Pull.In[c := Original.trivialization].trivialization regular;
+\import \parent.ChartRestriction[X := Y, F := (\fun (y: Y) => Vector n), bundle := pulled, c := sourceChart,
+  U := Base.Whole, open := (Base.topologyLaws base).wholeOpen, contained := (\fun (y: \Cast[Y] Base.Whole) => \refl(f y))] \as Restricted;
+\import Spaces.Isomorphism[V := Vector n, W := Vector n, source := coordinates n, target := coordinates n] \as Identity;
+\definition identity: Identity.Isomorphism := Identity.Isomorphism {
+  forward := Spaces.FiniteCoordinates[n := n].identity, backward := Spaces.FiniteCoordinates[n := n].identity,
+  leftInverse := \fun (v: Vector n) => \refl(v), rightInverse := \fun (v: Vector n) => \refl(v)
+};
+\import \parent.LocalMaps[X := Y, F := (\fun (y: Y) => Vector n), G := (\fun (y: Y) => Vector n), source := pulled, target := Target.bundle,
+  fiber := (\fun (y: Y) => identity.forward)] \as Charts;
+\definition chart: Charts.ChartData := Charts.ChartData {
+  domain := Base.Whole, dimension := n, sourceFrame := Restricted.trivialization.frame, targetFrame := Target.trivialization.frame
+};
+\definition chartLaws: Charts.In[c := chart].Laws := Charts.In[c := chart].Laws {
+  source := \bysub(SourceCharts.ChartData, SourceCharts.Chart, Restricted.trivialization),
+  target := \bysub(TargetCharts.ChartData, TargetCharts.Chart, Target.trivialization),
+  alignment := \fun (y: \Cast[Y] Base.Whole)(v: Vector n) => \refl(v)
+};
+\definition trivialization: Charts.Chart := \into[Charts.ChartData](chart, Charts.Chart) \by { chartLaws };
+\import \parent.LocalIsomorphisms[X := Y, F := (\fun (y: Y) => Vector n), G := (\fun (y: Y) => Vector n), source := pulled, target := Target.bundle,
+  fiber := (\fun (y: Y) => identity)] \as Maps;
+\definition covers: Maps.Covers := \fun (y: Y) => Logic.existsIntro[Charts.Chart, { c: Charts.Chart \where Base.Member c.domain y }] trivialization (\refl(y));
+\definition isomorphism: Bundles.Isomorphisms[X := Y, F := (\fun (y: Y) => Vector n), G := (\fun (y: Y) => Vector n), source := pulled, target := Target.bundle].Isomorphism :=
+  Maps.isomorphism (\refl(base)) covers;
+\definition formula: \forall (y: Y)(v: Vector n) -> (isomorphism.forward.fiber y).apply v = v := \fun (y: Y)(v: Vector n) => \refl(v);

@@ -1,0 +1,23 @@
+\import \parent.\parent.Quotient[] \as Quotient;
+\import algebra.Group[].Of[Carrier := Quotient.Relative, group := Quotient.group] \as ReducedGroup;
+\import module_theory.Module[].IntegerGroup[Carrier := Quotient.Relative, group := Quotient.group] \as IntegerAction;
+\import Presented.To[W := Quotient.Relative, target := IntegerAction.space] \as Extension;
+\definition symbolValue[t: Triple]: Quotient.Relative := \parent.\parent.TripleClass[t := t].value;
+\definition respects: Extension.RespectsRelations symbolValue :=
+  \induction (x, y: Expression)(r: Relation x y) \return Extension.EvaluationRelation symbolValue x y \with {
+    | global: \fun (t: Triple)(w: \parent.\parent.Global[t := t].Witness) => \parent.\parent.TripleClass[t := t].Global[w := w].equation
+    | sum: \fun (t, u, v: Triple)(w: \parent.\parent.Sum[t := t, u := u, v := v].Witness) =>
+      \parent.\parent.TripleSum[t := t, u := u, v := v].equation (\exact(w, \parent.\parent.Sum[t := t, u := u, v := v].Witness))
+    | compose: \fun (p, q, r: Presentation)(first: \parent.\parent.Between[p := p, q := q].Isomorphism)(second: \parent.\parent.Between[p := q, q := r].Isomorphism) =>
+      \parent.\parent.TripleComposition[p := p, q := q, r := r, first := first, second := second].equation
+    | homotopy: \fun (p, q: Presentation)(first, second: \parent.\parent.Between[p := p, q := q].Isomorphism)
+      (family: \parent.\parent.Homotopy[p := p, q := q, first := first, second := second].Family) =>
+        \parent.\parent.TripleHomotopy[p := p, q := q, first := first, second := second].With[family := family].equation
+  };
+\import Modules.Hom[V := Carrier, W := Quotient.Relative, source := Presented.space, target := IntegerAction.space] \as Linear;
+\definition linear: Linear.Map := Extension.extension symbolValue respects;
+\definition map: Carrier -> Quotient.Relative := linear.apply;
+\definition onTriple: \forall (t: Triple) -> map (value t) = symbolValue t := Extension.onGenerator symbolValue respects;
+\definition additive: \forall (a, b: Carrier) -> map (add a b) = ReducedGroup.add (map a) (map b) := linear.addition;
+\definition preservesZero: map zero = ReducedGroup.zero := Linear.zeroPreserved linear;
+\definition preservesNeg: \forall (a: Carrier) -> map (neg a) = ReducedGroup.neg (map a) := Linear.negativePreserved linear;

@@ -1,0 +1,115 @@
+\use Logic.either;
+\import \parent.Neighborhood[extension := extension] \as Near;
+\import Quotient.Outside[] \as Exterior;
+\import Bundles.Family[X := X, F := F] \as Original;
+\import Original.With[data := bundle] \as OriginalCharts;
+\import std.Data[].Sum[] \as Sum;
+\import topology.Topology[Carrier := Quotient.Carrier] \as Base;
+\import Base.Subspace[S := Base.Complement (Base.Singleton Quotient.point)] \as Outside;
+\import Outside.Open[] \as OpenOutside;
+\definition outsideOpen: Base.IsOpenIn Quotient.topology (Base.Complement (Base.Singleton Quotient.point)) :=
+  Base.Compactness[].hausdorffT1 Quotient.topology Quotient.quotientHausdorff Quotient.point;
+\definition Index: \Set := Sum.Sum[Quotient.Point, OriginalCharts.Chart];
+\import Operations.Atlas[X := Quotient.Carrier, I := Index, F := Fiber, baseSpace := Quotient.topology, space := fiberSpace] \as Atlas;
+\definition nearChart: Atlas.Chart := Atlas.Chart {
+  domain := Near.domain, dimension := dimension, frame := \fun (q: Near.Point) => Near.At[q := q].isomorphism
+};
+\module OriginalChart(c: OriginalCharts.Chart);
+\import bundle_extension.Extension[].Over[K := C.Complex, field := Algebra.field, conjugation := Hermitian.scalar, scalar := Scalar.scalar].Isomorphisms[
+  X := X, subset := subset, F := F, G := (\fun (x: X) => Vector), source := bundle, target := Trivial.bundle, same := \refl(bundle.baseSpace)].Neighborhood[U := extension.domain] \as Local;
+\import Bundles.Isomorphisms[X := Local.Point, F := (\fun (x: Local.Point) => F x), G := (\fun (x: Local.Point) => Vector), source := Local.first, target := Local.second] \as LocalIsomorphisms;
+\definition localLaws: LocalIsomorphisms.Laws[extension.isomorphism] := \bysub(LocalIsomorphisms.Data, LocalIsomorphisms.Isomorphism, extension.isomorphism);
+\definition sourceNear: OriginalCharts.ChartData := OriginalCharts.ChartData {
+  domain := extension.domain, dimension := dimension,
+  frame := \fun (x: Local.Point) => Spaces.Isomorphism[V := F x, W := Vector, source := bundle.space x, target := coordinates].Isomorphism {
+    forward := extension.isomorphism.forward.fiber x, backward := extension.isomorphism.backward.fiber x,
+    leftInverse := localLaws.leftInverse x, rightInverse := localLaws.rightInverse x
+  }
+};
+\definition sourceChart: Index -> OriginalCharts.ChartData := \induction (i: Index) \return OriginalCharts.ChartData \with {
+  | inl: \fun (p: Quotient.Point) => sourceNear
+  | inr: \fun (c: OriginalCharts.Chart) => c
+};
+\definition domain: Index -> \Pow Quotient.Carrier := \induction (i: Index) \return \Pow Quotient.Carrier \with {
+  | inl: \fun (p: Quotient.Point) => Near.domain
+  | inr: \fun (c: OriginalCharts.Chart) => OriginalChart[c := c].domain
+};
+\definition frame: \forall (i: Index)(q: \Cast[Quotient.Carrier] (domain i)) ->
+  Spaces.Isomorphism[V := Fiber q, W := Bundles.Vector (sourceChart i).dimension, source := fiberSpace q, target := Bundles.coordinates (sourceChart i).dimension].Isomorphism :=
+  \induction (i: Index) \return \forall (q: \Cast[Quotient.Carrier] (domain i)) ->
+    Spaces.Isomorphism[V := Fiber q, W := Bundles.Vector (sourceChart i).dimension, source := fiberSpace q, target := Bundles.coordinates (sourceChart i).dimension].Isomorphism \with {
+      | inl: \fun (p: Quotient.Point)(q: Near.Point) => Near.At[q := q].isomorphism
+      | inr: \fun (c: OriginalCharts.Chart)(q: \Cast[Quotient.Carrier] (OriginalChart[c := c].domain)) => OriginalChart[c := c].At[q := q].isomorphism
+    };
+\definition chart[i: Index]: Atlas.Chart := Atlas.Chart { domain := domain i, dimension := (sourceChart i).dimension, frame := frame i };
+\definition openDomains: \forall (i: Index) -> Base.IsOpenIn Quotient.topology (chart i).domain :=
+  \induction (i: Index) \return Base.IsOpenIn Quotient.topology (chart i).domain \with {
+    | inl: \fun (p: Quotient.Point) => Near.open
+    | inr: \fun (c: OriginalCharts.Chart) => OriginalChart[c := c].open
+  };
+\definition covers: \forall (q: Quotient.Carrier) -> \exists (i: Index \where Base.Member (chart i).domain q) := \fun (q: Quotient.Carrier) =>
+  either!{{(std.Logic[].Classical[].excludedMiddle (q = Quotient.point))} {\exists (i: Index \where Base.Member (chart i).domain q)}
+    {\fun (same: _) => Logic.existsIntro[Index, { i: Index \where Base.Member (chart i).domain q }] (Sum.Sum[Quotient.Point, OriginalCharts.Chart]::inl Quotient.distinguished)
+      (\idelim Quotient.point = q \with x: Quotient.Carrier => Base.Member Near.domain x \by { base: Near.atPoint, equality: sym!{{Quotient.Carrier}} _ _ same })}
+    {\fun (different: _) => \block {
+      \let point: Exterior.Point := \into[Quotient.Carrier](q, Base.Complement (Base.Singleton Quotient.point)) \by { different } \then
+      \takefrom c: \Cast[OriginalCharts.Chart] ({ c: OriginalCharts.Chart \where topology.Topology[Carrier := X].Member c.domain (Exterior.inverse point) })
+        \by Bundles.Family[X := X, F := F].Of[bundle := bundle].locallyTrivial (Exterior.inverse point) \then
+      \return Logic.existsIntro[Index, { i: Index \where Base.Member (chart i).domain q }] (Sum.Sum[Quotient.Point, OriginalCharts.Chart]::inr c)
+        (OriginalChart[c := c].contains point (\bysub(OriginalCharts.Chart, { c: OriginalCharts.Chart \where topology.Topology[Carrier := X].Member c.domain (Exterior.inverse point) }, c)))
+    }}
+  };
+\import Atlas.Using[chart := chart] \as Glued;
+\structure RegularFrame[c: OriginalCharts.ChartData]: \Prop := {
+  reading: \forall (Y: \Set)(source: topology.Topology[Carrier := Y].Topology)(base: Y -> \Cast[X] c.domain) ->
+    topology.Continuity[A := Y, B := \Cast[X] c.domain].Continuous source (topology.Topology[Carrier := X].Subspace[S := c.domain].topology bundle.baseSpace) base ->
+    \forall (v: \forall (y: Y) -> F (base y)) ->
+    topology.Continuity[A := Y, B := Original.Point].Continuous source bundle.totalSpace (\fun (y: Y) => Original.include (base y) (v y)) ->
+    topology.Continuity[A := Y, B := Bundles.Vector c.dimension].Continuous source (Bundles.coordinateTopology c.dimension)
+      (\fun (y: Y) => (c.frame (base y)).forward.apply (v y)),
+  writing: \forall (Y: \Set)(source: topology.Topology[Carrier := Y].Topology)(base: Y -> \Cast[X] c.domain) ->
+    topology.Continuity[A := Y, B := \Cast[X] c.domain].Continuous source (topology.Topology[Carrier := X].Subspace[S := c.domain].topology bundle.baseSpace) base ->
+    \forall (w: Y -> Bundles.Vector c.dimension) ->
+    topology.Continuity[A := Y, B := Bundles.Vector c.dimension].Continuous source (Bundles.coordinateTopology c.dimension) w ->
+    topology.Continuity[A := Y, B := Original.Point].Continuous source bundle.totalSpace
+      (\fun (y: Y) => Original.include (base y) ((c.frame (base y)).backward.apply (w y)))
+};
+\definition nearRegular: RegularFrame[sourceNear] := RegularFrame[sourceNear] {
+  reading := \fun (Y: \Set)(source: topology.Topology[Carrier := Y].Topology)(base: Y -> \Cast[X] extension.domain)(baseRegular: _)
+    (v: \forall (y: Y) -> F (base y))(regular: _) => Near.Coordinates[Y := Y, source := source, base := base, regularBase := baseRegular].Read[v := v, regular := regular].continuous,
+  writing := \fun (Y: \Set)(source: topology.Topology[Carrier := Y].Topology)(base: Y -> \Cast[X] extension.domain)(baseRegular: _)
+    (w: Y -> Vector)(regular: _) => Near.Coordinates[Y := Y, source := source, base := base, regularBase := baseRegular].Write[w := w, regular := regular].continuous
+};
+\module OriginalFrame(c: OriginalCharts.Chart);
+\definition regularFrame: \forall (i: Index) -> RegularFrame[sourceChart i] :=
+  \induction (i: Index) \return RegularFrame[sourceChart i] \with {
+    | inl: \fun (p: Quotient.Point) => nearRegular
+    | inr: \fun (c: OriginalCharts.Chart) => OriginalFrame[c := c].regular
+  };
+\module AlignmentGeneral(q: Quotient.Carrier);
+\module Alignment(q: Exterior.Point);
+\module Cross(i, j: Index, outside: \forall (p: Glued.Overlap[i := i, j := j].Point) ->
+  Logic.Not (Atlas.In[c := chart j].base p = Quotient.point));
+\module NearNear(left, right: Quotient.Point);
+\module RightExterior(i: Index, c: OriginalCharts.Chart);
+\module LeftExterior(c: OriginalCharts.Chart, right: Quotient.Point);
+\definition transitionRegular: \forall (i, j: Index) -> Glued.Overlap[i := i, j := j].Regular :=
+  \induction (i: Index) \return \forall (j: Index) -> Glued.Overlap[i := i, j := j].Regular \with {
+    | inl: \fun (left: Quotient.Point) => \induction (j: Index) \return Glued.Overlap[i := (Sum.Sum[Quotient.Point, OriginalCharts.Chart]::inl left), j := j].Regular \with {
+      | inl: \fun (right: Quotient.Point) => NearNear[left := left, right := right].regular
+      | inr: \fun (c: OriginalCharts.Chart) => RightExterior[i := (Sum.Sum[Quotient.Point, OriginalCharts.Chart]::inl left), c := c].regular
+    }
+    | inr: \fun (c: OriginalCharts.Chart) => \induction (j: Index) \return Glued.Overlap[i := (Sum.Sum[Quotient.Point, OriginalCharts.Chart]::inr c), j := j].Regular \with {
+      | inl: \fun (right: Quotient.Point) => LeftExterior[c := c, right := right].regular
+      | inr: \fun (d: OriginalCharts.Chart) => RightExterior[i := (Sum.Sum[Quotient.Point, OriginalCharts.Chart]::inr c), c := d].regular
+    }
+  };
+\definition compatible: Glued.Compatible := Glued.fromTransitions openDomains covers transitionRegular;
+\definition bundleOnQuotient: Bundles.Family[X := Quotient.Carrier, F := Fiber].Bundle := Glued.bundle compatible;
+\definition trivialization[i: Index]: Bundles.Family[X := Quotient.Carrier, F := Fiber].With[data := bundleOnQuotient].Chart := Glued.Local[i := i].trivialization compatible;
+\module Evaluation(x: X);
+\module Compare;
+\definition sameBaseSpace: bundleOnQuotient.baseSpace = Quotient.topology := \refl(Quotient.topology);
+\definition rankAtPoint: Bundles.Family[X := Quotient.Carrier, F := Fiber].Of[bundle := bundleOnQuotient].rank Quotient.point = dimension :=
+  Bundles.Family[X := Quotient.Carrier, F := Fiber].Of[bundle := bundleOnQuotient].rankFrame Quotient.point dimension atBase;
+\module Boundary(x: topology.Topology[Carrier := X].Subspace[S := subset].CarrierSet);

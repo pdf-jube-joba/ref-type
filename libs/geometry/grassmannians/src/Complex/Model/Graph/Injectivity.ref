@@ -1,0 +1,28 @@
+\use std.Logic[].Equality[].sym;
+\import std.Logic[].Proposition[] \as Logic;
+\definition normalizedEqual: \forall (v: Domain.Vector) -> (normalized x).apply v = (normalized y).apply v :=
+  \fun (v: Domain.Vector) => trans!{{E.Vector}} _ _ _ (sym!{{E.Vector}} _ _ (graphFormula x v))
+    (trans!{{E.Vector}} _ _ _ (congr!{{E.Vector} {E.Vector}} (E.space.add (center.value.apply v)) _ _
+      (congr!{GraphSpace {E.Vector}} (\fun (t: GraphSpace) => t.apply v) _ _ same)) (graphFormula y v));
+\definition normalizedInjective: \forall (v, w: Domain.Vector) -> (normalized x).apply v = (normalized x).apply w -> v = w :=
+  \fun (v, w: Domain.Vector)(equal: _) => trans!{{Domain.Vector}} _ _ _ (sym!{{Domain.Vector}} _ _ (centerCoordinates x v))
+    (trans!{{Domain.Vector}} _ _ _ (congr!{{E.Vector} {Domain.Vector}} center.coordinate.apply _ _ equal) (centerCoordinates x w));
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := H.Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].Finite[n := n].Range[V := Domain.Vector, space := Domain.space, f := normalized x, injective := normalizedInjective] \as Range;
+\module Candidate(z: Local, aligned: \forall (v: Domain.Vector) -> (normalized x).apply v = (normalized z).apply v) {
+  \definition inImage: \forall (w: E.Vector) -> (projection z).map.apply w = w -> Range.Image w := \fun (w: E.Vector)(fixed: _) =>
+    Logic.existsIntro[Domain.Vector, { v: Domain.Vector \where (normalized x).apply v = w }] (imageCoordinates z w)
+      (trans!{{E.Vector}} _ _ _ (aligned (imageCoordinates z w)) (trans!{{E.Vector}} _ _ _ (imageRepresentation z w) fixed));
+  \definition fixesImage: \forall (w: E.Vector) -> Range.Image w -> (projection z).map.apply w = w := \block {
+    \fun (w: E.Vector)(image: Range.Image w) \then
+    \takefrom v: \Cast[Domain.Vector] ({ v: Domain.Vector \where (normalized x).apply v = w }) \by image \then
+    \let equal: (normalized x).apply v = w := \bysub(Domain.Vector, { v: Domain.Vector \where (normalized x).apply v = w }, v) \then
+    \return trans!{{E.Vector}} _ _ _ (congr!{{E.Vector} {E.Vector}} (projection z).map.apply _ _ (sym!{{E.Vector}} _ _ equal))
+      (trans!{{E.Vector}} _ _ _ (congr!{{E.Vector} {E.Vector}} (projection z).map.apply _ _ (aligned v))
+        (trans!{{E.Vector}} _ _ _ (normalizedFixed z v) (trans!{{E.Vector}} _ _ _ (sym!{{E.Vector}} _ _ (aligned v)) equal)))
+  };
+  \definition candidate: Range.Candidate := \into[At.Map]((projection z).map, Range.Values) \by {
+    Range.Conditions[(projection z).map] { selfAdjoint := (projection z).selfAdjoint, idempotent := (projection z).idempotent,
+      range := \fun (w: E.Vector) => Logic.PropEquiv[_, _] { ltr := inImage w, rtl := fixesImage w } }
+  };
+}
+\definition equal: x = y := Model.ext x y (Range.unique (Candidate[z := x, aligned := \fun (v: Domain.Vector) => \refl((normalized x).apply v)].candidate) (Candidate[z := y, aligned := normalizedEqual].candidate));

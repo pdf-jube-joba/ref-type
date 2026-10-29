@@ -1,0 +1,26 @@
+\import \parent.Iteration[f := f, r := r] \as Iteration;
+\module Chosen(anchor: A, positive: D.Lt R.zero r, bounded: \forall (x: Subspace.CarrierSet) -> D.Le (R.distance R.zero (f.value x)) r,
+  select: Iteration.Selector) {
+  \import Iteration.Sequence[start := Iteration.initial bounded, select := select].Limit[anchor := anchor, nonnegative := Order.leOfLt R.zero r positive] \as Limit;
+  \definition extension: Extension[f] := Extension[f] { value := Limit.value, continuous := Limit.continuous, extends := Limit.extends };
+}
+\definition existsAt[anchor: A]: Space.IsNormal source -> Space.IsClosedIn source subset -> D.Lt R.zero r ->
+  (\forall (x: Subspace.CarrierSet) -> D.Le (R.distance R.zero (f.value x)) r) -> \exists Extension[f] := \block {
+  \fun (normal: _)(closed: _)(positive: _)(bounded: _) \then
+  \takefrom select: Iteration.Selector \by Iteration.selectorExists normal closed positive \then
+  \return \exact(Chosen[anchor := anchor, positive := positive, bounded := bounded, select := select].extension, Extension[f])
+};
+\definition exists: Space.IsNormal source -> Space.IsClosedIn source subset -> D.Lt R.zero r ->
+  (\forall (x: Subspace.CarrierSet) -> D.Le (R.distance R.zero (f.value x)) r) -> \exists Extension[f] :=
+  \fun (normal: _)(closed: _)(positive: _)(bounded: _) => either!{{Classical.excludedMiddle (\exists A)} {\exists Extension[f]}
+    {\block {
+      \fun (inhabited: \exists A) \then
+      \takefrom anchor: A \by inhabited \then
+      \return existsAt anchor normal closed positive bounded
+    }}
+    {\fun (empty: Logic.Not (\exists A)) => \exact(Extension[f] {
+      value := \fun (_: A) => R.zero,
+      continuous := Functions.constantContinuous source R.zero,
+      extends := \fun (x: Subspace.CarrierSet) => Logic.falseElim (R.zero = f.value x) (empty (\exact(x, A))),
+    }, Extension[f])}
+  };

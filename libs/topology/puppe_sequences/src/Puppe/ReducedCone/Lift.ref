@@ -1,0 +1,33 @@
+\use Equality.eq_reason_in;
+\import \root.Puppe[].Maps[A := A, B := B, source := source, target := target] \as Maps;
+\import algebraic_topology.Homotopy[A := A, B := B] \as Homotopy;
+\definition hLaws: Homotopy.RelativeLaws[source.topology, target.topology, Maps.fixed, f, Maps.constant, h] :=
+  Homotopy.relativeLaws source.topology target.topology Maps.fixed f Maps.constant h;
+\import std.Data[].Pair[].Prop[A := I.Carrier, B := A] \as Pairs;
+\definition vanishes: \forall (p: Cylinder.Carrier) -> \In[Cylinder.Carrier] Collapsed p -> h p = target.basepoint :=
+  \fun (p: Cylinder.Carrier)(inside: _) => trans!{B} _ _ _ (congr!{Cylinder.Carrier B} h _ _ (sym!{Cylinder.Carrier} _ _ (Pairs.eta p)))
+    (either!{inside {h (Cylinder.at (Cylinder.time p) (Cylinder.point p)) = target.basepoint}
+      {\fun (end: Cylinder.time p = I.end) => trans!{B} _ _ _
+        (congr!{I.Carrier B} (\fun (t: I.Carrier) => h (Cylinder.at t (Cylinder.point p))) _ _ end) (hLaws.homotopy.end (Cylinder.point p))}
+      {\fun (line: Cylinder.point p = source.basepoint) => trans!{B} _ _ _
+        (congr!{A B} (\fun (x: A) => h (Cylinder.at (Cylinder.time p) x)) _ _ line) (Maps.atBasepoint f Maps.constant h (Cylinder.time p))}
+    });
+\import Quotient.Descent[B := B] \as Descent;
+\definition respects: Descent.Respects h := \fun (p, q: Cylinder.Carrier)(related: Quotient.Related p q) =>
+  either!{related {h p = h q}
+    {\fun (same: p = q) => congr!{Cylinder.Carrier B} h _ _ same}
+    {\fun (both: Logic.And[\In[Cylinder.Carrier] Collapsed p, \In[Cylinder.Carrier] Collapsed q]) => trans!{B} _ _ _ (vanishes p both.left) (sym!{B} _ _ (vanishes q both.right))}
+  };
+\definition apply: Carrier -> B := Descent.apply h respects;
+\definition onClass: \forall (p: Cylinder.Carrier) -> apply (class p) = h p := Descent.onClass h respects;
+\definition onBase: \forall (x: A) -> apply (base x) = f x :=
+  \fun (x: A) => trans!{B} _ _ _ (onClass (Cylinder.at I.start x)) (hLaws.homotopy.start x);
+\definition continuous: topology.Continuity[A := Carrier, B := B].Continuous topology target.topology apply :=
+  Descent.continuous (Cylinder.topology source.topology) target.topology h respects hLaws.homotopy.continuous;
+\import algebraic_topology.Pointed[A := Carrier].Maps[B := B] \as Pointed;
+\definition map: Pointed.Map[pointed, target] := \into[Carrier -> B](apply, Pointed.Map[pointed, target]) \by {
+  Pointed.Laws[pointed, target, apply] {
+    continuous := continuous,
+    pointed := trans!{B} _ _ _ (onClass (Cylinder.at I.start source.basepoint)) (Maps.atBasepoint f Maps.constant h I.start),
+  }
+};

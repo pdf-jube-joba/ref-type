@@ -1,0 +1,34 @@
+\import Algebra.Linear[V := Carrier, W := Carrier, source := totalSpace, target := totalSpace] \as End;
+\import End.Operations[] \as Ops;
+\import End.Composition[U := Carrier, domain := totalSpace] \as Compose;
+\import Algebra.Eigen[V := Carrier, space := totalSpace] \as Identity;
+\import Algebra.Laws[V := Carrier, space := totalSpace] \as Laws;
+\import \root.Over[K := K, scalarRing := scalarRing].On[V := V, space := space].Total[].Cyclic[n := n, b := b] \as Cyclic;
+\import Cyclic.Complete[] \as Complete;
+\definition grade[k: N.Nat^]: End.Map := End.Map {
+  apply := \fun (f: Carrier) => Cyclic.Span[k := k].assemble (enums k) (f k),
+  preservesAdd := \fun (f, g: Carrier) => \parent.Grade[k := k, xs := enums k].addition f g,
+  preservesScale := \fun (a: K)(f: Carrier) => \parent.Grade[k := k, xs := enums k].scalar a f,
+};
+\definition residual[k: N.Nat^]: End.Map := Ops.plus Identity.identity (Ops.negative (grade k));
+\definition partial: \forall (m: N.Nat^) -> End.Map := \induction (m: N.Nat^) \return End.Map \with {
+  | zero: Ops.zeroMap
+  | succ: \fun (m: N.Nat^)(previous: End.Map) => Ops.plus (Compose.compose previous (residual m)) (grade m)
+};
+\definition residualValue: \forall (k: N.Nat^)(f: Carrier) -> (residual k).apply f = Complete.Step[k := k].residual f (Cyclic.Span[k := k].assemble (enums k) (f k)) :=
+  \fun (k: N.Nat^)(f: Carrier) => congr!{Carrier Carrier} (totalSpace.add f) _ _ (Laws.minusOneScale (Cyclic.Span[k := k].assemble (enums k) (f k)));
+\definition Property[m: N.Nat^]: \Prop := \forall (f: Carrier) -> Complete.Bounded m f -> (partial m).apply f = f;
+\definition zero: Property N.Nat^::zero := \fun (f: Carrier)(bounded: Complete.Bounded N.Nat^::zero f) => sym!{Carrier} _ _ (\axiom:funext(f, totalSpace.zero, \fun (l: N.Nat^) => bounded l (std.Data[].Nat[].Basic[].Prop[].zeroLe l)));
+\definition step: \forall (k: N.Nat^) -> Property k -> Property (N.Nat^::succ k) :=
+  \fun (k: N.Nat^)(previous: Property k)(f: Carrier)(bounded: Complete.Bounded (N.Nat^::succ k) f) => eq_reason_in!{Carrier _
+    "=" _ "by" { congr!{Carrier Carrier Carrier} totalSpace.add _ _ _ _
+      (previous ((residual k).apply f) (\idelim Complete.Step[k := k].residual f (Cyclic.Span[k := k].assemble (enums k) (f k)) = (residual k).apply f \with x: Carrier => Complete.Bounded k x \by {
+        base: Complete.Step[k := k].residualBound (enums k) f bounded, equality: sym!{Carrier} _ _ (residualValue k f) }))
+      (\refl(Cyclic.Span[k := k].assemble (enums k) (f k))) }
+    "=" _ "by" { congr!{Carrier Carrier} (\fun (x: Carrier) => totalSpace.add x (Cyclic.Span[k := k].assemble (enums k) (f k))) _ _ (residualValue k f) }
+    "=" _ "by" { Complete.Step[k := k].recover f (Cyclic.Span[k := k].assemble (enums k) (f k)) }
+  };
+\definition all: \forall (m: N.Nat^) -> Property m := \induction (m: N.Nat^) \return Property m \with { | zero: zero | succ: step };
+\import \root.Over[K := K, scalarRing := scalarRing].On[V := V, space := space].Total[].Finite[n := n, b := b] \as Finite;
+\definition identity: partial (N.Nat^::succ n) = Identity.identity := End.ext _ _ (\axiom:funext((partial (N.Nat^::succ n)).apply, Identity.identity.apply,
+  \fun (f: Carrier) => all (N.Nat^::succ n) f (\fun (l: N.Nat^)(large: std.Data[].Nat[].Basic[].Prop[].Le (N.Nat^::succ n) l) => Finite.zeroAbove f l (std.Data[].Nat[].Basic[].Prop[].ltOfSuccLe l n large))));

@@ -1,0 +1,35 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].sym;
+\import std.Data[].List[] \as Lists;
+\import Algebra.Shuffle[I := V] \as Shuffle;
+\import Shuffle.Laws[] \as ShuffleLaws;
+\import Algebra.Sign[] \as Sign;
+\import Exterior.ZeroHeads[] \as ZeroHeads;
+\import Exterior.Components[k := N.Nat^::zero] \as Components;
+\import Exterior.SeriesShift[k := N.Nat^::zero] \as Shift;
+\import \parent.\parent.LeftCreation[k := N.Nat^::zero] \as Creation;
+\import \parent.\parent.Contraction[k := N.Nat^::zero] \as Contract;
+\import Creation.Mixed[] \as Mixed;
+\import Exterior.Degrees[p := N.Nat^::succ N.Nat^::zero, q := N.Nat^::zero] \as Wedge;
+\import Exterior.Regrade[k := Nat.add (N.Nat^::succ N.Nat^::zero) N.Nat^::zero, l := N.Nat^::succ N.Nat^::zero] \as Regrade;
+\import Alternating.At[k := N.Nat^::zero] \as Zero;
+\definition shiftZero: \forall (f: Alternating.Form N.Nat^::zero)(x: V) -> Shuffle.shift x (Exterior.component N.Nat^::zero f) = Shuffle.origin :=
+  \fun (f: _)(x: V) => \axiom:funext(Shuffle.shift x (Exterior.component N.Nat^::zero f), Shuffle.origin,
+    \fun (xs: Lists.List[V]) => ZeroHeads.nonempty f x xs);
+\definition law: \forall (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Alternating.Form N.Nat^::zero)(x: V) ->
+  (Contract.operator x).apply (Creation.apply alpha f) = Zero.vectorSpace.smul (Mixed.evaluate alpha x) f :=
+  \fun (alpha: _)(f: _)(x: V) => Components.ext ((Contract.operator x).apply (Creation.apply alpha f)) (Zero.vectorSpace.smul (Mixed.evaluate alpha x) f)
+    (\axiom:funext(Exterior.component N.Nat^::zero ((Contract.operator x).apply (Creation.apply alpha f)), Exterior.component N.Nat^::zero (Zero.vectorSpace.smul (Mixed.evaluate alpha x) f),
+      \fun (xs: Lists.List[V]) => eq_reason_in!{K _
+        "=" _ "by" { sym!{K} _ _ (Shift.atCons (Creation.apply alpha f) x xs) }
+        "=" _ "by" { congr!{{Shuffle.Function} K} (\fun (h: Shuffle.Function) => h (Lists.List[V]::cons x xs)) _ _ (Regrade.series (Wedge.wedge alpha f) Creation.degree) }
+        "=" _ "by" { congr!{{Shuffle.Function} K} (\fun (h: Shuffle.Function) => h (Lists.List[V]::cons x xs)) _ _ (Wedge.componentWedge alpha f) }
+        "=" _ "by" { Mixed.seriesLaw alpha (Exterior.component N.Nat^::zero f) x xs }
+        "=" _ "by" { congr!{K K} (Algebra.add (Algebra.mul (Mixed.evaluate alpha x) (Exterior.component N.Nat^::zero f xs))) _ _
+          (congr!{K K} Algebra.neg _ _ (trans!{K} _ _ _
+            (congr!{{Shuffle.Function} K} (\fun (h: Shuffle.Function) => Shuffle.product (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) h xs) _ _ (shiftZero f x))
+            (ShuffleLaws.zeroRight (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) xs))) }
+        "=" _ "by" { congr!{K K} (Algebra.add (Algebra.mul (Mixed.evaluate alpha x) (Exterior.component N.Nat^::zero f xs))) _ _ Sign.negativeZero }
+        "=" _ "by" { Algebra.addZeroRight (Algebra.mul (Mixed.evaluate alpha x) (Exterior.component N.Nat^::zero f xs)) }
+        "=" _ "by" { sym!{K} _ _ (Components.scalar (Mixed.evaluate alpha x) f xs) }
+      }));

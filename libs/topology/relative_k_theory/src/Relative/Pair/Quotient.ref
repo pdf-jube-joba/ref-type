@@ -1,0 +1,60 @@
+\definition Point: \Set := Fin.Fin KTheory.one;
+\import topology.Topology[Carrier := Point] \as PointSpace;
+\import KTheory.FiniteDiscrete[n := KTheory.one] \as FinitePoint;
+\definition distinguished: Point := Fin.zero KTheory.zero;
+\import topological_constructions.Coproduct[A := X, B := Point] \as Sum;
+\import Sum.Properties[left := space, right := PointSpace.Discrete] \as SumProperties;
+\definition Augmented: \Set := Sum.Carrier;
+\definition augmentedSpace: topology.Topology[Carrier := Augmented].Topology := SumProperties.space;
+\definition collapsedPart: \Pow Augmented := SumProperties.Joined subset PointSpace.Whole;
+\import topology.Topology[Carrier := Augmented] \as AugmentedSpace;
+\definition augmentedCompact: AugmentedSpace.IsCompact augmentedSpace := SumProperties.compact compact FinitePoint.compact;
+\definition augmentedHausdorff: AugmentedSpace.IsT2 augmentedSpace := SumProperties.hausdorff hausdorff FinitePoint.hausdorff;
+\definition collapsedClosed: AugmentedSpace.IsClosedIn augmentedSpace collapsedPart := Logic.And[_, _]::# closed
+  (PointSpace.discreteOpen ({ y: Point \where Logic.Not (y = y) }));
+\import algebraic_topology.Collapse[A := Augmented, subset := collapsedPart] \as Native;
+\import Native.Closed[source := augmentedSpace, compact := augmentedCompact, hausdorff := augmentedHausdorff, closed := collapsedClosed] \as Properties;
+\definition Carrier: \Set := Native.Carrier;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Native.topology augmentedSpace;
+\definition quotientCompact: topology.Topology[Carrier := Carrier].IsCompact topology := Properties.compactQuotient;
+\definition quotientHausdorff: topology.Topology[Carrier := Carrier].IsT2 topology := Properties.hausdorffQuotient;
+\definition point: Carrier := Native.class (Sum.inr distinguished);
+\definition pointed: algebraic_topology.Pointed[A := Carrier].Space := algebraic_topology.Pointed[A := Carrier].Space { topology := topology, basepoint := point };
+\definition projection[x: X]: Carrier := Native.class (Sum.inl x);
+\definition onSubset: \forall (x: A) -> projection x = point := \fun (x: A) => Native.collapsed (Sum.inl x) (Sum.inr distinguished)
+  (\bysub(X, subset, x)) (\refl(distinguished));
+\definition atPoint: \forall (x: X) -> projection x = point -> Base.Member subset x :=
+  \fun (x: X)(same: _) => Logic.orElim[Sum.inl x = Sum.inr distinguished,
+    Logic.And[AugmentedSpace.Member collapsedPart (Sum.inl x), AugmentedSpace.Member collapsedPart (Sum.inr distinguished)], Base.Member subset x]
+    (Native.equalRelated (Sum.inl x) (Sum.inr distinguished) same)
+    (\fun (equal: _) => Logic.falseElim (Base.Member subset x) (SumProperties.leftRightDifferent x distinguished equal))
+    (\fun (both: Logic.And[AugmentedSpace.Member collapsedPart (Sum.inl x), AugmentedSpace.Member collapsedPart (Sum.inr distinguished)]) => both.left);
+\definition separates: \forall (x, y: X) -> projection x = projection y -> Logic.Or[x = y, Logic.And[Base.Member subset x, Base.Member subset y]] :=
+  \fun (x, y: X)(same: _) => Logic.orElim[Sum.inl x = Sum.inl y,
+    Logic.And[AugmentedSpace.Member collapsedPart (Sum.inl x), AugmentedSpace.Member collapsedPart (Sum.inl y)], Logic.Or[x = y, Logic.And[Base.Member subset x, Base.Member subset y]]]
+    (Native.equalRelated (Sum.inl x) (Sum.inl y) same)
+    (\fun (equal: _) => Logic.Or[_, _]::left (SumProperties.leftInjective x y equal))
+    (\fun (both: Logic.And[AugmentedSpace.Member collapsedPart (Sum.inl x), AugmentedSpace.Member collapsedPart (Sum.inl y)]) => Logic.Or[_, _]::right both);
+\definition representative: \forall (q: Carrier) -> Logic.Not (q = point) -> \exists (x: X \where projection x = q) :=
+  Native.induction (\fun (q: Carrier) => Logic.Not (q = point) -> \exists (x: X \where projection x = q))
+    (\induction (p: Augmented) \return Logic.Not (Native.class p = point) -> \exists (x: X \where projection x = Native.class p) \with {
+      | inl: \fun (x: X)(different: _) => Logic.existsIntro[X, { y: X \where projection y = projection x }] x (\refl(projection x))
+      | inr: \fun (p: Point)(different: _) => Logic.falseElim (\exists (x: X \where projection x = Native.class (Sum.inr p)))
+        (different (Native.collapsed (Sum.inr p) (Sum.inr distinguished) (\refl(p)) (\refl(distinguished))))
+    });
+\definition continuous: topology.Continuity[A := X, B := Carrier].Continuous space topology projection :=
+  topology.Composition[A := X, B := Augmented, C := Carrier].composeContinuous space augmentedSpace topology Sum.inl Native.class
+    (Sum.inlContinuous space PointSpace.Discrete) (Native.projectionContinuous augmentedSpace);
+\import KTheory.On[X := Carrier, baseSpace := topology, compact := quotientCompact, hausdorff := quotientHausdorff] \as K;
+\import K.Ranks[].Reduced[point := point] \as Reduced;
+\definition Relative: \Set := Reduced.Carrier;
+\definition group: std.Alg[].Alg[].CommutativeGroup[Relative] := Reduced.group;
+\definition model: CompactPointed := pack Carrier (PointedDetails[Carrier] { topology := topology, compact := quotientCompact, hausdorff := quotientHausdorff, point := point });
+\module Negative(degree: N.Nat^) {
+  \import \root.Relative[].Negative[original := model, degree := degree] \as Native;
+  \definition Carrier: \Set := Native.Carrier;
+  \definition group: std.Alg[].Alg[].CommutativeGroup[Carrier] := Native.group;
+}
+\module Outside;
+\module MapsEqual(target: CompactPointed);
+\module Matrices(m, n: N.Nat^);

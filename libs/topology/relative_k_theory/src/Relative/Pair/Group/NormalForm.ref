@@ -1,0 +1,29 @@
+\definition P[z: Carrier]: \Prop := \exists (t: Triple \where value t = z);
+\import Operations.Zero[X := X, baseSpace := space] \as ZeroBundle;
+\import Absolute.Bundle[F := (\fun (x: X) => ZeroBundle.Fiber), original := ZeroBundle.bundle, same := (\refl(space))] \as ZeroRepresentation;
+\definition atZero: P zero := \block {
+  \takefrom p: ZeroRepresentation.Representative \by ZeroRepresentation.representativeExists \then
+  \return Logic.existsIntro[Triple, { t: Triple \where value t = zero }] (\parent.\parent.Diagonal[p := p.presentation].triple)
+    (\parent.Diagonal[p := p.presentation].equation)
+};
+\definition atSymbol: \forall (t: Triple) -> P (value t) := \fun (t: Triple) =>
+  Logic.existsIntro[Triple, { u: Triple \where value u = value t }] t (\refl(value t));
+\definition underAdd: \forall (x, y: Carrier) -> P x -> P y -> P (add x y) := \block {
+  \fun (x, y: Carrier)(px: P x)(py: P y) \then
+  \takefrom t: \Cast[Triple] ({ t: Triple \where value t = x }) \by px \then
+  \takefrom u: \Cast[Triple] ({ u: Triple \where value u = y }) \by py \then
+  \takefrom result: \parent.\parent.SumConstruction[t := t, u := u].Result \by \parent.\parent.SumConstruction[t := t, u := u].existence \then
+  \return Logic.existsIntro[Triple, { v: Triple \where value v = add x y }] result.value
+    (trans!{{Carrier}} _ _ _ (sym!{{Carrier}} _ _ (sum t u result.value result.witness))
+      (congr!{{Carrier} {Carrier} {Carrier}} add _ _ _ _
+        (\bysub(Triple, { t: Triple \where value t = x }, t)) (\bysub(Triple, { u: Triple \where value u = y }, u))))
+};
+\definition underNeg: \forall (x: Carrier) -> P x -> P (neg x) := \block {
+  \fun (x: Carrier)(px: P x) \then
+  \takefrom t: \Cast[Triple] ({ t: Triple \where value t = x }) \by px \then
+  \return Logic.existsIntro[Triple, { v: Triple \where value v = neg x }] (reverse t)
+    (trans!{{Carrier}} _ _ _ (\parent.Inverse[t := t].equation)
+      (congr!{{Carrier} {Carrier}} neg _ _ (\bysub(Triple, { t: Triple \where value t = x }, t))))
+};
+\definition existence: \forall (z: Carrier) -> P z :=
+  \parent.Induction[P := P, atZero := atZero, atSymbol := atSymbol, underAdd := underAdd, underNeg := underNeg].principle;

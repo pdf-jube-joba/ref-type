@@ -1,0 +1,28 @@
+\import Algebra.Multilinear[V := V, space := left].Alternating[].DegreeZero[] \as LeftZero;
+\import Algebra.Multilinear[V := W, space := right].Alternating[].DegreeZero[] \as RightZero;
+\import Algebra.Multilinear[V := V, space := left] \as LeftMulti;
+\import Algebra.Multilinear[V := W, space := right] \as RightMulti;
+\import std.Data[].FinSet[] \as Fin;
+\import Fin.FromList[A := V] \as LeftLists;
+\import Fin.FromList[A := W] \as RightLists;
+\definition leftNil: \forall (f: LeftTotal.Carrier) -> LeftVacuum.coefficient f = LeftSeries.value f Lists.List[V]::nil :=
+  \fun (f: LeftTotal.Carrier) => sym!{K} _ _ (congr!{{LeftMulti.Arguments N.Nat^::zero} K} (f N.Nat^::zero) _ _ (LeftZero.argumentsUnique (LeftLists.tuple Lists.List[V]::nil)));
+\definition rightNil: \forall (f: RightTotal.Carrier) -> RightVacuum.coefficient f = RightSeries.value f Lists.List[W]::nil :=
+  \fun (f: RightTotal.Carrier) => sym!{K} _ _ (congr!{{RightMulti.Arguments N.Nat^::zero} K} (f N.Nat^::zero) _ _ (RightZero.argumentsUnique (RightLists.tuple Lists.List[W]::nil)));
+\definition leftValue: \forall (xs: Lists.List[V])(f: LeftTotal.Carrier) -> LeftVacuum.coefficient (leftChain xs f) = LeftSeries.value f xs :=
+  \induction (xs: Lists.List[V]) \return \forall (f: LeftTotal.Carrier) -> LeftVacuum.coefficient (leftChain xs f) = LeftSeries.value f xs \with {
+    | nil: leftNil
+    | cons: \fun (x: V)(tail: Lists.List[V])(previous: \forall (f: LeftTotal.Carrier) -> LeftVacuum.coefficient (leftChain tail f) = LeftSeries.value f tail)(f: LeftTotal.Carrier) =>
+      trans!{K} _ _ _ (previous (LeftTotal.annihilate x f)) (LeftSeries.shift x f tail)
+  };
+\definition rightValue: \forall (xs: Lists.List[W])(f: RightTotal.Carrier) -> RightVacuum.coefficient (rightChain xs f) = RightSeries.value f xs :=
+  \induction (xs: Lists.List[W]) \return \forall (f: RightTotal.Carrier) -> RightVacuum.coefficient (rightChain xs f) = RightSeries.value f xs \with {
+    | nil: rightNil
+    | cons: \fun (x: W)(tail: Lists.List[W])(previous: \forall (f: RightTotal.Carrier) -> RightVacuum.coefficient (rightChain tail f) = RightSeries.value f tail)(f: RightTotal.Carrier) =>
+      trans!{K} _ _ _ (previous (RightTotal.annihilate x f)) (RightSeries.shift x f tail)
+  };
+\definition value: \forall (xs: Lists.List[V])(ys: Lists.List[W])(f: LeftTotal.Carrier)(g: RightTotal.Carrier) ->
+  ResultVacuum.coefficient (resultRight ys (resultLeft xs (comparison.apply (Tensor.tensor f g)))) = Algebra.mul (LeftSeries.value f xs) (RightSeries.value g ys) :=
+  \fun (xs: Lists.List[V])(ys: Lists.List[W])(f: LeftTotal.Carrier)(g: RightTotal.Carrier) => trans!{K} _ _ _ (evaluate xs ys f g)
+    (congr!{K K K} Algebra.mul _ _ _ _ (leftValue xs f) (rightValue ys g));
+\module Maps;

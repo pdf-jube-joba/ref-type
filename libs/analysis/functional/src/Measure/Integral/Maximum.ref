@@ -1,0 +1,54 @@
+\import \root.Measure[A := A].Sigma[] \as Sigma;
+\import \root.Measure[A := A].Integral[mu := mu].Assembly[m := m] \as Assembly;
+\import \root.Measure[A := A].Integral[mu := mu].Evaluation[n := m, s := s] \as S;
+\import \root.Measure[A := A].Integral[mu := mu].Evaluation[n := n, s := t] \as T;
+\import real.Analysis[].Distance[] \as Distance;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].trans;
+\use std.Logic[].Equality[].sym;
+\definition row: \forall (j: Fin.Fin n) -> Simple[m] := \fun (j: Fin.Fin n) => Simple[m] {
+  cells := \fun (i: Fin.Fin m) => Sets.Intersection (s.cells i) (t.cells j),
+  coefficients := \fun (i: Fin.Fin m) => Distance.max (s.coefficients i) (t.coefficients j),
+  measurable := \fun (i: Fin.Fin m) => Sigma.intersectionMeasurable mu.sigma (s.cells i) (t.cells j) (s.measurable i) (t.measurable j),
+  nonnegative := \fun (i: Fin.Fin m) => R.leTrans Real.zero (s.coefficients i) _ (s.nonnegative i) (Distance.maxLeft (s.coefficients i) (t.coefficients j)),
+  disjoint := \fun (i, k: Fin.Fin m) (different: Logic.Not (i = k)) (x: A)
+    (left: Sets.Member (Sets.Intersection (s.cells i) (t.cells j)) x)
+    (right: Sets.Member (Sets.Intersection (s.cells k) (t.cells j)) x) => s.disjoint i k different x left.left right.left,
+};
+\definition rows: Assembly.Rows n := \into[Fin.Fin n -> Simple[m]] (row, { f: Fin.Fin n -> Simple[m] \where Assembly.Apart n f }) \by {
+  \fun (j, k: Fin.Fin n) (different: Logic.Not (j = k)) (i, h: Fin.Fin m) (x: A)
+    (left: Sets.Member (Sets.Intersection (s.cells i) (t.cells j)) x)
+    (right: Sets.Member (Sets.Intersection (s.cells h) (t.cells k)) x) => t.disjoint j k different x left.right right.right
+};
+\definition data: Assembly.Data[n, rows] := Assembly.assemble n rows;
+\definition covers: \forall (x: A) -> \exists ( k: Fin.Fin (Assembly.count n) \where Sets.Member (data.simple.cells k) x ) :=
+  \fun (x: A) => \block {
+    \takefrom i: \Cast[Fin.Fin m] ({ i: Fin.Fin m \where Sets.Member (s.cells i) x }) \by S.covers x \then
+    \takefrom j: \Cast[Fin.Fin n] ({ j: Fin.Fin n \where Sets.Member (t.cells j) x }) \by T.covers x \then
+    \takefrom k: \Cast[Fin.Fin (Assembly.count n)] ({ k: Fin.Fin (Assembly.count n) \where Logic.And[Sets.Member (data.simple.cells k) x,
+      data.simple.coefficients k = (row j).coefficients i] }) \by data.origin j i x
+      (Logic.And[_, _]::# (\bysub(Fin.Fin m, { i: Fin.Fin m \where Sets.Member (s.cells i) x }, i))
+        (\bysub(Fin.Fin n, { j: Fin.Fin n \where Sets.Member (t.cells j) x }, j))) \then
+    \return Logic.existsIntro[Fin.Fin (Assembly.count n), { k: Fin.Fin (Assembly.count n) \where Sets.Member (data.simple.cells k) x }] k
+      (\bysub(Fin.Fin (Assembly.count n), { k: Fin.Fin (Assembly.count n) \where Logic.And[Sets.Member (data.simple.cells k) x,
+        data.simple.coefficients k = (row j).coefficients i] }, k)).left
+  };
+\definition count: N.Nat^ := Assembly.count n;
+\definition simple: CompleteSimple[Assembly.count n] := \into[Simple[Assembly.count n]] (data.simple,
+  { u: Simple[Assembly.count n] \where \forall (x: A) -> \exists ( k: Fin.Fin (Assembly.count n) \where Sets.Member (u.cells k) x ) }) \by { covers };
+\import \root.Measure[A := A].Integral[mu := mu].Evaluation[n := Assembly.count n, s := simple] \as Result;
+\definition value: \forall (x: A) -> Result.value x = Distance.max (S.value x) (T.value x) :=
+  \fun (x: A) => \block {
+    \takefrom i: \Cast[Fin.Fin m] ({ i: Fin.Fin m \where Sets.Member (s.cells i) x }) \by S.covers x \then
+    \takefrom j: \Cast[Fin.Fin n] ({ j: Fin.Fin n \where Sets.Member (t.cells j) x }) \by T.covers x \then
+    \let si: Sets.Member (s.cells i) x := \bysub(Fin.Fin m, { i: Fin.Fin m \where Sets.Member (s.cells i) x }, i) \then
+    \let tj: Sets.Member (t.cells j) x := \bysub(Fin.Fin n, { j: Fin.Fin n \where Sets.Member (t.cells j) x }, j) \then
+    \takefrom k: \Cast[Fin.Fin (Assembly.count n)] ({ k: Fin.Fin (Assembly.count n) \where Logic.And[Sets.Member (data.simple.cells k) x,
+      data.simple.coefficients k = (row j).coefficients i] }) \by data.origin j i x (Logic.And[_, _]::# si tj) \then
+    \let cell: Logic.And[Sets.Member (data.simple.cells k) x, data.simple.coefficients k = (row j).coefficients i] :=
+      \bysub(Fin.Fin (Assembly.count n), { k: Fin.Fin (Assembly.count n) \where Logic.And[Sets.Member (data.simple.cells k) x,
+        data.simple.coefficients k = (row j).coefficients i] }, k) \then
+    \return trans!{Real.Real} _ _ _ (Result.atCell k x cell.left)
+      (trans!{Real.Real} _ _ _ cell.right
+        (congr!{Real.Real Real.Real Real.Real} Distance.max _ _ _ _ (sym!{Real.Real} _ _ (S.atCell i x si)) (sym!{Real.Real} _ _ (T.atCell j x tj))))
+  };

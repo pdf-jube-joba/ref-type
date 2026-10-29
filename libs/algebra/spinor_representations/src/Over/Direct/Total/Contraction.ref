@@ -1,0 +1,51 @@
+\import std.Data[].FinSet[] \as Fin;
+\import ResultTotal.Series[].Laws[].Grading[] \as Grading;
+\import Result.At[k := N.Nat^::zero] \as Unused;
+\import Algebra.Multilinear[V := Sum.Carrier, space := Sum.space] \as Multi;
+\import Fin.Tuples[A := Sum.Carrier].Mapping[B := V] \as LeftTuples;
+\import Fin.Tuples[A := Sum.Carrier].Mapping[B := W] \as RightTuples;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].sym;
+\definition left: \forall (x: Sum.Carrier)(f: LeftTotal.Carrier) -> ResultTotal.annihilate x (leftMap.apply f) = leftMap.apply (LeftTotal.annihilate (Sum.first x) f) :=
+  \fun (x: Sum.Carrier)(f: LeftTotal.Carrier) => \axiom:funext(ResultTotal.annihilate x (leftMap.apply f), leftMap.apply (LeftTotal.annihilate (Sum.first x) f), \fun (k: N.Nat^) =>
+    (Result.At[k := k].ext) (ResultTotal.annihilate x (leftMap.apply f) k) (leftMap.apply (LeftTotal.annihilate (Sum.first x) f) k) (\fun (args: Multi.Arguments k) => congr!{{Fin.Fin (N.Nat^::succ k) -> V} K} (f (N.Nat^::succ k)) _ _ (LeftTuples.extendMap k Sum.first x args)));
+\definition right: \forall (x: Sum.Carrier)(g: RightTotal.Carrier) -> ResultTotal.annihilate x (rightMap.apply g) = rightMap.apply (RightTotal.annihilate (Sum.second x) g) :=
+  \fun (x: Sum.Carrier)(g: RightTotal.Carrier) => \axiom:funext(ResultTotal.annihilate x (rightMap.apply g), rightMap.apply (RightTotal.annihilate (Sum.second x) g), \fun (k: N.Nat^) =>
+    (Result.At[k := k].ext) (ResultTotal.annihilate x (rightMap.apply g) k) (rightMap.apply (RightTotal.annihilate (Sum.second x) g) k) (\fun (args: Multi.Arguments k) => congr!{{Fin.Fin (N.Nat^::succ k) -> W} K} (g (N.Nat^::succ k)) _ _ (RightTuples.extendMap k Sum.second x args)));
+\definition leftParity: \forall (f: LeftTotal.Carrier) -> ResultTotal.parity (leftMap.apply f) = leftMap.apply (LeftTotal.parity f) :=
+  \fun (f: LeftTotal.Carrier) => \axiom:funext(ResultTotal.parity (leftMap.apply f), leftMap.apply (LeftTotal.parity f), \fun (k: N.Nat^) =>
+    sym!{{Result.Form k}} _ _ ((PullLeft.At[k := k].linear leftProjection).preservesScale (Algebra.Sign[].value k) (f k)));
+\definition rightParity: \forall (g: RightTotal.Carrier) -> ResultTotal.parity (rightMap.apply g) = rightMap.apply (RightTotal.parity g) :=
+  \fun (g: RightTotal.Carrier) => \axiom:funext(ResultTotal.parity (rightMap.apply g), rightMap.apply (RightTotal.parity g), \fun (k: N.Nat^) =>
+    sym!{{Result.Form k}} _ _ ((PullRight.At[k := k].linear rightProjection).preservesScale (Algebra.Sign[].value k) (g k)));
+\definition onPure: \forall (x: Sum.Carrier)(f: LeftTotal.Carrier)(g: RightTotal.Carrier) ->
+  ResultTotal.annihilate x (comparison.apply (Tensor.tensor f g)) = ResultTotal.totalSpace.add
+    (comparison.apply (Tensor.tensor (LeftTotal.annihilate (Sum.first x) f) g))
+    (comparison.apply (Tensor.tensor (LeftTotal.parity f) (RightTotal.annihilate (Sum.second x) g))) :=
+  \fun (x: Sum.Carrier)(f: LeftTotal.Carrier)(g: RightTotal.Carrier) => eq_reason_in!{{ResultTotal.Carrier} _
+    "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} (ResultTotal.annihilate x) _ _ (onTensor f g) }
+    "=" _ "by" { Grading.contraction x (leftMap.apply f) (rightMap.apply g) }
+    "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier} {ResultTotal.Carrier}} ResultTotal.totalSpace.add _ _ _ _
+      (congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} (\fun (a: ResultTotal.Carrier) => Product.wedge a (rightMap.apply g)) _ _ (left x f))
+      (congr!{{ResultTotal.Carrier} {ResultTotal.Carrier} {ResultTotal.Carrier}} Product.wedge _ _ _ _ (leftParity f) (right x g)) }
+    "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier} {ResultTotal.Carrier}} ResultTotal.totalSpace.add _ _ _ _
+      (sym!{{ResultTotal.Carrier}} _ _ (onTensor (LeftTotal.annihilate (Sum.first x) f) g))
+      (sym!{{ResultTotal.Carrier}} _ _ (onTensor (LeftTotal.parity f) (RightTotal.annihilate (Sum.second x) g))) }
+  };
+\import \root.Over[K := K, scalarRing := scalarRing].TensorOperators[V := LeftTotal.Carrier, W := RightTotal.Carrier, left := LeftTotal.totalSpace, right := RightTotal.totalSpace] \as Operators;
+\import Operators.Ext[U := ResultTotal.Carrier, target := ResultTotal.totalSpace] \as TensorExt;
+\import Algebra.Eigen[V := RightTotal.Carrier, space := RightTotal.totalSpace] \as RightIdentity;
+\import Algebra.Linear[V := Tensor.Carrier, W := Tensor.Carrier, source := Tensor.space, target := Tensor.space].Operations[] \as TensorEnd;
+\import Algebra.Linear[V := Tensor.Carrier, W := ResultTotal.Carrier, source := Tensor.space, target := ResultTotal.totalSpace] \as Output;
+\import Output.Composition[U := Tensor.Carrier, domain := Tensor.space] \as Before;
+\import Algebra.Linear[V := ResultTotal.Carrier, W := ResultTotal.Carrier, source := ResultTotal.totalSpace, target := ResultTotal.totalSpace].Composition[U := Tensor.Carrier, domain := Tensor.space] \as After;
+\definition tensorOperator[x: Sum.Carrier]: Algebra.Linear[V := Tensor.Carrier, W := Tensor.Carrier, source := Tensor.space, target := Tensor.space].Map :=
+  TensorEnd.plus (Operators.map (LeftTotal.annihilation (Sum.first x)) RightIdentity.identity) (Operators.map LeftTotal.grading (RightTotal.annihilation (Sum.second x)));
+\definition intertwines: \forall (x: Sum.Carrier) -> After.compose (ResultTotal.annihilation x) comparison = Before.compose comparison (tensorOperator x) :=
+  \fun (x: Sum.Carrier) => TensorExt.ext _ _ (\fun (f: LeftTotal.Carrier)(g: RightTotal.Carrier) => eq_reason_in!{{ResultTotal.Carrier} _
+    "=" _ "by" { onPure x f g }
+    "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier} {ResultTotal.Carrier}} ResultTotal.totalSpace.add _ _ _ _
+      (congr!{{Tensor.Carrier} {ResultTotal.Carrier}} comparison.apply _ _ (sym!{{Tensor.Carrier}} _ _ (Operators.onTensor (LeftTotal.annihilation (Sum.first x)) RightIdentity.identity f g)))
+      (congr!{{Tensor.Carrier} {ResultTotal.Carrier}} comparison.apply _ _ (sym!{{Tensor.Carrier}} _ _ (Operators.onTensor LeftTotal.grading (RightTotal.annihilation (Sum.second x)) f g))) }
+    "=" _ "by" { sym!{{ResultTotal.Carrier}} _ _ (comparison.preservesAdd ((Operators.map (LeftTotal.annihilation (Sum.first x)) RightIdentity.identity).apply (Tensor.tensor f g)) ((Operators.map LeftTotal.grading (RightTotal.annihilation (Sum.second x))).apply (Tensor.tensor f g))) }
+  });

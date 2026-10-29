@@ -1,0 +1,122 @@
+\import \root.Linearization[].MatrixUnits[n := n, Y := Circle.Domain, source := Circle.source, A := a, regular := regular, nonzero := nonzero] \as A;
+\import \root.Linearization[].MatrixUnits[n := n, Y := Circle.Domain, source := Circle.source, A := b, regular := regularB, nonzero := nonzeroB] \as B;
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := Scalars.field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].Projections[n := n].Operators[].Units[] \as Units;
+\import Spaces.Coordinates[I := M.Index] \as Vectors;
+\import Spaces.Isomorphism[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as Isomorphisms;
+\import Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as End;
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Scalars.field, scalar := linear_algebra.Hermitian[].Complex[].scalar,
+  topological := hermitian_frames.Hermitian[].Complex[].topological] \as Hermitian;
+\import Hermitian.At[n := n].Families[X := Circle.Domain].Matrix[m := n] \as Families;
+\definition productIso[p: Circle.Domain]: Isomorphisms.Isomorphism := Isomorphisms.Composition[U := Vectors.Vector, domain := Vectors.space].compose (Units.isomorphism (A.map p)) (Units.isomorphism (B.map p));
+\definition productUnit[p: Circle.Domain]: Units.Carrier := \into[End.Map]((productIso p).forward, Units.Invertible) \by {
+  Hermitian.At[n := n].Square[].LeftInverse[f := (productIso p).forward, g := (productIso p).backward, left := (Isomorphisms.laws (productIso p)).leftInverse].nonzero
+};
+\definition productRegular: Families.Regular Circle.source (\fun (p: Circle.Domain) => productUnit p) :=
+  \fun (v: Vectors.Vector) => Families.evaluate Circle.source (\fun (p: Circle.Domain) => A.map p) (\fun (p: Circle.Domain) => (B.map p).apply v)
+    (\fun (j: M.Index) => A.actionRegular (Spaces.FiniteCoordinates[n := n].vectors j)) (B.actionRegular v);
+\definition productContinuous: topology.Continuity[A := Circle.Domain, B := Units.Carrier].Continuous Circle.source Units.topology productUnit :=
+  Units.Family[X := Circle.Domain, source := Circle.source, H := productUnit].continuous productRegular;
+\definition product[p: Circle.Domain]: M.Matrix := Units.matrix (productUnit p);
+\definition regularProduct: Top.Families[X := Circle.Domain].Regular Circle.source product :=
+  \fun (i, j: M.Index) => productRegular (Spaces.FiniteCoordinates[n := n].vectors j) i;
+\definition nonzeroProduct: \forall (p: Circle.Domain) -> Field.Nonzero (product p) :=
+  \fun (p: Circle.Domain) => \bysub(M.Matrix, Field.Nonsingular, Units.matrix (productUnit p));
+\import algebraic_topology.Cylinder[A := Circle.Domain] \as Cyl;
+\import topological_constructions.Product[A := Time.Carrier, B := Circle.Domain] \as CylProduct;
+\import topological_algebra.Complex[] \as Plane;
+\definition scalar[p: Cyl.Carrier]: C.Complex := C.Def[].ofReal (Cyl.time p);
+\definition scalarContinuous: topology.Continuity[A := Cyl.Carrier, B := C.Complex].Continuous (Cyl.topology Circle.source) Plane.topology scalar :=
+  Hermitian.Functions[X := Cyl.Carrier].embedding (Cyl.topology Circle.source) (\fun (p: Cyl.Carrier) => Cyl.time p)
+    (topology.Composition[A := Cyl.Carrier, B := Time.Carrier, C := R.Real].composeContinuous (Cyl.topology Circle.source) Time.topology metric_spaces.RealLine[].topology Cyl.time (\fun (t: Time.Carrier) => t)
+      (Cyl.timeContinuous Circle.source) Time.inclusionContinuous);
+\definition alongA: Hermitian.At[n := n].Families[X := Cyl.Carrier].Matrix[m := n].Regular (Cyl.topology Circle.source) (\fun (p: Cyl.Carrier) => A.map (Cyl.point p)) :=
+  \fun (v: Vectors.Vector)(i: M.Index) => topology.Composition[A := Cyl.Carrier, B := Circle.Domain, C := C.Complex].composeContinuous (Cyl.topology Circle.source) Circle.source Plane.topology Cyl.point
+    (\fun (p: Circle.Domain) => (A.map p).apply v i) (Cyl.pointContinuous Circle.source) (A.actionRegular v i);
+\definition alongB: Hermitian.At[n := n].Families[X := Cyl.Carrier].Matrix[m := n].Regular (Cyl.topology Circle.source) (\fun (p: Cyl.Carrier) => B.map (Cyl.point p)) :=
+  \fun (v: Vectors.Vector)(i: M.Index) => topology.Composition[A := Cyl.Carrier, B := Circle.Domain, C := C.Complex].composeContinuous (Cyl.topology Circle.source) Circle.source Plane.topology Cyl.point
+    (\fun (p: Circle.Domain) => (B.map p).apply v i) (Cyl.pointContinuous Circle.source) (B.actionRegular v i);
+\import \root.Linearization[].StableProduct[n := n, Y := Cyl.Carrier, source := Cyl.topology Circle.source].With[
+  a := (\fun (p: Cyl.Carrier) => Units.isomorphism (A.map (Cyl.point p))), b := (\fun (p: Cyl.Carrier) => Units.isomorphism (B.map (Cyl.point p))), t := scalar,
+  regularA := alongA, regularB := alongB, continuousT := scalarContinuous] \as RotationPath;
+\definition total: N.Nat^ := RotationPath.total;
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := total] \as BigM;
+\import matrix_invariants.Field[K := C.Complex, field := Scalars.field].At[n := total] \as BigField;
+\import matrix_invariants.Topological[K := C.Complex, ring := Plane.Ring[].topologicalRing].At[n := total] \as BigTop;
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := Scalars.field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].Projections[n := total].Operators[].Units[] \as BigUnits;
+\definition motion[p: Cyl.Carrier]: BigM.Matrix := BigM.Representation[].entries (RotationPath.unit p);
+\definition motionRegular: BigTop.Families[X := Cyl.Carrier].Regular (Cyl.topology Circle.source) motion :=
+  \fun (i, j: BigM.Index) => RotationPath.regular (Spaces.FiniteCoordinates[n := total].vectors j) i;
+\definition motionNonzero: \forall (p: Cyl.Carrier) -> BigField.Nonzero (motion p) :=
+  \fun (p: Cyl.Carrier) => \bysub(BigM.Matrix, BigField.Nonsingular, BigUnits.matrix (RotationPath.unit p));
+\import \root.Linearization[].MatrixPaths[n := total, Y := Circle.Domain, source := Circle.source] \as BigPaths;
+\definition start: BigPaths.Family := BigPaths.Family {
+  matrix := \fun (p: Circle.Domain) => motion (Cyl.at Time.start p),
+  regular := \fun (i, j: BigM.Index) => topology.Composition[A := Circle.Domain, B := Cyl.Carrier, C := C.Complex].composeContinuous Circle.source (Cyl.topology Circle.source) Plane.topology
+    (Cyl.at Time.start) (\fun (p: Cyl.Carrier) => motion p i j) (Cyl.atContinuous Circle.source Time.start) (motionRegular i j),
+  nonzero := \fun (p: Circle.Domain) => motionNonzero (Cyl.at Time.start p),
+};
+\definition finish: BigPaths.Family := BigPaths.Family {
+  matrix := \fun (p: Circle.Domain) => motion (Cyl.at Time.end p),
+  regular := \fun (i, j: BigM.Index) => topology.Composition[A := Circle.Domain, B := Cyl.Carrier, C := C.Complex].composeContinuous Circle.source (Cyl.topology Circle.source) Plane.topology
+    (Cyl.at Time.end) (\fun (p: Cyl.Carrier) => motion p i j) (Cyl.atContinuous Circle.source Time.end) (motionRegular i j),
+  nonzero := \fun (p: Circle.Domain) => motionNonzero (Cyl.at Time.end p),
+};
+\definition path: BigPaths.Path[start, finish] := BigPaths.Path[start, finish] {
+  homotopy := motion, regular := motionRegular, nonzero := motionNonzero,
+  atStart := \fun (p: Circle.Domain) => \refl(start.matrix p), atEnd := \fun (p: Circle.Domain) => \refl(finish.matrix p)
+};
+\import \root.Linearization[].MatrixPaths[n := n, Y := Circle.Domain, source := Circle.source] \as Paths;
+\definition first: Paths.Family := Paths.Family { matrix := a, regular := regular, nonzero := nonzero };
+\definition second: Paths.Family := Paths.Family { matrix := b, regular := regularB, nonzero := nonzeroB };
+\definition multiplied: Paths.Family := Paths.Family { matrix := product, regular := regularProduct, nonzero := nonzeroProduct };
+\definition identity: Paths.Family := Paths.Family {
+  matrix := \fun (_: Circle.Domain) => Units.matrix Units.identity,
+  regular := \fun (i, j: M.Index) => topology.Maps[A := Circle.Domain, B := C.Complex].constantContinuous Circle.source Plane.topology (Units.matrix Units.identity i j),
+  nonzero := \fun (_: Circle.Domain) => \bysub(M.Matrix, Field.Nonsingular, Units.matrix Units.identity)
+};
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].DirectSum[n := n, m := n, a := multiplied, b := identity] \as ProductSum;
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].DirectSum[n := n, m := n, a := first, b := second] \as SeparateSum;
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := Scalars.field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar] \as Homotopy;
+\import Homotopy.BlockDiagonal[n := n, m := n] \as Block;
+\import bundle_operations.Operations[].Over[K := C.Complex, field := Scalars.field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar].CoordinateSum[n := n, m := n] \as Coordinates;
+\import Spaces.DirectSum[V := Vectors.Vector, W := Vectors.Vector, left := Vectors.space, right := Vectors.space] \as PairSpace;
+\import Spaces.Coordinates[I := BigM.Index] \as Flat;
+\import Spaces.Linear[V := Flat.Vector, W := Flat.Vector, source := Flat.space, target := Flat.space] \as FlatEnd;
+\import Spaces.Rotation[V := Vectors.Vector, space := Vectors.space] \as Rotation;
+\definition starts: \forall (p: Circle.Domain) -> RotationPath.unit (Cyl.at Time.start p) = Block.value (productUnit p) Units.identity :=
+  \fun (p: Circle.Domain) => FlatEnd.ext _ _ (\axiom:funext((RotationPath.unit (Cyl.at Time.start p)).apply, (Block.value (productUnit p) Units.identity).apply,
+    \fun (v: Flat.Vector) => congr!{PairSpace.Carrier Flat.Vector} Coordinates.join _ _
+      (Rotation.Product[a := Units.isomorphism (A.map p), b := Units.isomorphism (B.map p)].starts (Coordinates.split v))));
+\definition ends: \forall (p: Circle.Domain) -> RotationPath.unit (Cyl.at Time.end p) = Block.value (A.map p) (B.map p) :=
+  \fun (p: Circle.Domain) => FlatEnd.ext _ _ (\axiom:funext((RotationPath.unit (Cyl.at Time.end p)).apply, (Block.value (A.map p) (B.map p)).apply,
+    \fun (v: Flat.Vector) => congr!{PairSpace.Carrier Flat.Vector} Coordinates.join _ _
+      (Rotation.Product[a := Units.isomorphism (A.map p), b := Units.isomorphism (B.map p)].ends (Coordinates.split v))));
+\module BlockMatrix;
+\definition startEquality: \forall (p: Circle.Domain) -> start.matrix p = ProductSum.sum.matrix p :=
+  \fun (p: Circle.Domain) => trans!{BigM.Matrix} _ _ _ (congr!{BigUnits.Carrier BigM.Matrix} (\fun (u: BigUnits.Carrier) => BigM.Representation[].entries u) _ _ (starts p)) (BlockMatrix[].equality (productUnit p) Units.identity);
+\definition endEquality: \forall (p: Circle.Domain) -> finish.matrix p = SeparateSum.sum.matrix p :=
+  \fun (p: Circle.Domain) => trans!{BigM.Matrix} _ _ _ (congr!{BigUnits.Carrier BigM.Matrix} (\fun (u: BigUnits.Carrier) => BigM.Representation[].entries u) _ _ (ends p)) (trans!{BigM.Matrix} _ _ _
+    (BlockMatrix[].equality (A.map p) (B.map p))
+    (congr!{M.Matrix M.Matrix BigM.Matrix} \root.Linearization[].MatrixSum[n := n, m := n].matrix _ _ _ _ (M.Representation[].entriesLinear (a p)) (M.Representation[].entriesLinear (b p))));
+\definition sumPath: BigPaths.Path[ProductSum.sum, SeparateSum.sum] := BigPaths.retarget start finish ProductSum.sum SeparateSum.sum path startEquality endEquality;
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[
+  n := total, a := ProductSum.sum.matrix, regular := ProductSum.sum.regular, nonzero := ProductSum.sum.nonzero].Inverse[].Homotopy[
+  b := SeparateSum.sum.matrix, regularB := SeparateSum.sum.regular, nonzeroB := SeparateSum.sum.nonzero].With[path := sumPath] \as Invariance;
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := source, compact := compact, hausdorff := hausdorff] \as K;
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff] \as On;
+\import On.Matrices[n := n, a := multiplied.matrix, regular := multiplied.regular, nonzero := multiplied.nonzero] \as ProductIndex;
+\import On.Matrices[n := n, a := identity.matrix, regular := identity.regular, nonzero := identity.nonzero] \as IdentityIndex;
+\import On.Matrices[n := n, a := first.matrix, regular := first.regular, nonzero := first.nonzero] \as FirstIndex;
+\import On.Matrices[n := n, a := second.matrix, regular := second.regular, nonzero := second.nonzero] \as SecondIndex;
+\module IdentityZero;
+\definition stableAdditivity: K.K0[].add ProductIndex.Inverse[].value IdentityIndex.Inverse[].value =
+  K.K0[].add FirstIndex.Inverse[].value SecondIndex.Inverse[].value :=
+  trans!{K.K0[].Carrier} _ _ _ (sym!{K.K0[].Carrier} _ _ ProductSum.additivity) (trans!{K.K0[].Carrier} _ _ _ Invariance.invariant SeparateSum.additivity);
+\import algebra.Group[].Of[Carrier := K.K0[].Carrier, group := K.K0[].group] \as Group;
+\definition additivity: ProductIndex.Inverse[].value = K.K0[].add FirstIndex.Inverse[].value SecondIndex.Inverse[].value :=
+  trans!{K.K0[].Carrier} _ _ _ (sym!{K.K0[].Carrier} _ _ (Group.zeroRight ProductIndex.Inverse[].value))
+    (trans!{K.K0[].Carrier} _ _ _ (congr!{K.K0[].Carrier K.K0[].Carrier} (K.K0[].add ProductIndex.Inverse[].value) _ _ (sym!{K.K0[].Carrier} _ _ IdentityZero[].zero)) stableAdditivity);

@@ -1,0 +1,23 @@
+\import \parent.\parent.At[q := q] \as Model;
+\structure Agreement[i: Index, contains: Base.Member (domain i) q, point: Model.Index]: \Prop := {
+  inside: topology.Topology[Carrier := X].Member (sourceChart i).domain point,
+  reading: \forall (v: Model.Carrier) -> (frame i (\into[Quotient.Carrier](q, domain i) \by { contains })).forward.apply v =
+    ((sourceChart i).frame (\into[X](point, (sourceChart i).domain) \by { inside })).forward.apply (Model.section v point),
+  writing: \forall (w: Bundles.Vector (sourceChart i).dimension) ->
+    Model.section ((frame i (\into[Quotient.Carrier](q, domain i) \by { contains })).backward.apply w) point =
+    ((sourceChart i).frame (\into[X](point, (sourceChart i).domain) \by { inside })).backward.apply w
+};
+\module OriginalCase(c: OriginalCharts.Chart, contains: Base.Member (\parent.\parent.OriginalChart[c := c].domain) q);
+\definition agreement: \forall (i: Index)(contains: Base.Member (domain i) q)(point: Model.Index) -> Agreement[i, contains, point] :=
+  \induction (i: Index) \return \forall (contains: Base.Member (domain i) q)(point: Model.Index) -> Agreement[i, contains, point] \with {
+    | inl: \fun (p: Quotient.Point)(contains: Base.Member Near.domain q)(point: Model.Index) =>
+      Agreement[Sum.Sum[Quotient.Point, OriginalCharts.Chart]::inl p, contains, point] {
+        inside := Near.At[q := (\into[Quotient.Carrier](q, Near.domain) \by { contains })].within point,
+        reading := \fun (v: Model.Carrier) => sym!{Vector} _ _
+          ((Near.At[q := (\into[Quotient.Carrier](q, Near.domain) \by { contains })].condition v).evaluations point),
+        writing := \fun (w: Vector) => \refl((extension.isomorphism.backward.fiber
+          (\into[X](point, extension.domain) \by { Near.At[q := (\into[Quotient.Carrier](q, Near.domain) \by { contains })].within point })).apply w)
+      }
+    | inr: \fun (c: OriginalCharts.Chart)(contains: Base.Member (\parent.OriginalChart[c := c].domain) q)(point: Model.Index) =>
+      OriginalCase[c := c, contains := contains].transfer point
+  };

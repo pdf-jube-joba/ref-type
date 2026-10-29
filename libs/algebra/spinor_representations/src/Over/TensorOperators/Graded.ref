@@ -1,0 +1,20 @@
+\import Algebra.Eigen[V := V, space := left] \as LeftIdentity;
+\import Algebra.Eigen[V := W, space := right] \as RightIdentity;
+\import End.Operations[] \as Ops;
+\definition LeftIdentityRight: RightEnd.Map := RightIdentity.identity;
+\definition leftAction[a: LeftEnd.Map]: End.Map := map a LeftIdentityRight;
+\definition rightAction[p: LeftEnd.Map][b: RightEnd.Map]: End.Map := map p b;
+\definition rightIdentity: \forall (b: RightEnd.Map) -> RightComposition.compose LeftIdentityRight b = b :=
+  \fun (b: RightEnd.Map) => RightEnd.ext _ _ (\axiom:funext((RightComposition.compose LeftIdentityRight b).apply, b.apply, \fun (w: W) => \refl(b.apply w)));
+\definition leftIdentity: \forall (b: RightEnd.Map) -> RightComposition.compose b LeftIdentityRight = b :=
+  \fun (b: RightEnd.Map) => RightEnd.ext _ _ (\axiom:funext((RightComposition.compose b LeftIdentityRight).apply, b.apply, \fun (w: W) => \refl(b.apply w)));
+\definition anticommute: \forall (a, p: LeftEnd.Map)(b: RightEnd.Map) ->
+  LeftComposition.compose a p = LeftOps.negative (LeftComposition.compose p a) ->
+  Composition.compose (leftAction a) (rightAction p b) = Ops.negative (Composition.compose (rightAction p b) (leftAction a)) :=
+  \fun (a, p: LeftEnd.Map)(b: RightEnd.Map)(odd: LeftComposition.compose a p = LeftOps.negative (LeftComposition.compose p a)) => eq_reason_in!{End.Map _
+    "=" _ "by" { composition a p LeftIdentityRight b }
+    "=" _ "by" { congr!{LeftEnd.Map RightEnd.Map End.Map} map _ _ _ _ odd (rightIdentity b) }
+    "=" _ "by" { scaleLeft (Algebra.neg Algebra.one) (LeftComposition.compose p a) b }
+    "=" _ "by" { congr!{End.Map End.Map} Ops.negative _ _ (sym!{End.Map} _ _ (trans!{End.Map} _ _ _ (composition p a b LeftIdentityRight)
+      (congr!{RightEnd.Map End.Map} (map (LeftComposition.compose p a)) _ _ (leftIdentity b)))) }
+  };

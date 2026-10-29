@@ -1,0 +1,97 @@
+\import \root.RealLine[] \as Line;
+\import \root.RealLine[].TaggedIntegral[] \as Tagged;
+\import \root.RealLine[].TagSupport[] \as Support;
+\import \root.RealLine[].OscillationTree[] \as Tree;
+\import integration.Real[] \as Integration;
+\import Integration.Division[] \as Division;
+\import real.Analysis[] \as Real;
+\import Real.Distance[] \as Distance;
+\import Real.SquareRoot[] \as Root;
+\import Real.Estimates[] \as Estimates;
+\import Real.Estimates[].Product[] \as Product;
+\import metric_spaces.RealLine[].Rays[] \as Rays;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import functional_analysis.Measure[A := Real.Real] \as Measure;
+\import Measure.Sigma[] \as Sigma;
+\import topology.Topology[Carrier := Real.Real] \as Sets;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\definition BadPoint[f: Real.Real -> Real.Real] [I: Integration.Interval] [d, x: Real.Real]: \Prop :=
+  \forall (radius: Real.Real) -> R.Lt Real.zero radius -> \exists ( z: Real.Real \where
+    Logic.And[Sets.Member (Line.interval I.left I.right) z, Logic.And[R.Lt (Real.distance x z) radius, R.Lt d (Real.distance (f z) (f x))]] );
+\definition Interior[I: Integration.Interval] [x: Real.Real]: \Prop := Logic.And[R.Lt I.left x, R.Lt x I.right];
+\definition neighborhood: \forall (J: Integration.Interval) (x: Real.Real) -> Interior J x ->
+  \exists ( radius: Real.Real \where Logic.And[R.Lt Real.zero radius, \forall (z: Real.Real) -> R.Lt (Real.distance x z) radius -> Sets.Member (Line.interval J.left J.right) z] ) :=
+  \fun (J: Integration.Interval) (x: Real.Real) (inside: Interior J x) => \block {
+    \let l: Real.Real := Real.sub x J.left \then
+    \let r: Real.Real := Real.sub J.right x \then
+    \let radius: Real.Real := Distance.min l r \then
+    \let rp: R.Lt Real.zero radius := Product.minPositive l r (Root.subPositive x J.left inside.left) (Root.subPositive J.right x inside.right) \then
+    \let lo: R.Le J.left (Real.sub x radius) := R.leReplaceLeft (Real.sub x l) J.left (Real.sub x radius) (Rays.subSub x J.left)
+      (Laws.addMonotoneLeft (Real.neg l) (Real.neg radius) x (Laws.negAntitone radius l (Distance.minLeft l r))) \then
+    \let hi: R.Le (Real.add x radius) J.right := R.leReplaceRight (Real.add x radius) (Real.add x r) J.right (Estimates.addSubCancel J.right x)
+      (Laws.addMonotoneLeft radius r x (Distance.minRight l r)) \then
+    \return Logic.existsIntro[Real.Real, { radius: Real.Real \where Logic.And[R.Lt Real.zero radius, \forall (z: Real.Real) -> R.Lt (Real.distance x z) radius -> Sets.Member (Line.interval J.left J.right) z] }] radius
+      (Logic.And[_, _]::# rp (\fun (z: Real.Real) (near: R.Lt (Real.distance x z) radius) => Logic.And[_, _]::#
+        (Order.leOfLt _ _ (R.leLtTrans _ _ _ lo (Distance.distanceLtLower x z radius near)))
+        (Order.leOfLt _ _ (R.ltLeTrans _ _ _ (Distance.distanceLtUpper x z radius near) hi))))
+  };
+\definition orient: \forall (f: Real.Real -> Real.Real) (I: Integration.Interval) (d, x, z: Real.Real) ->
+  Sets.Member (Line.interval I.left I.right) x -> Sets.Member (Line.interval I.left I.right) z -> R.Lt d (Real.distance (f z) (f x)) -> Tree.BadCell f I d :=
+  \fun (f: Real.Real -> Real.Real) (I: Integration.Interval) (d, x, z: Real.Real) (inX: Sets.Member (Line.interval I.left I.right) x)
+    (inZ: Sets.Member (Line.interval I.left I.right) z) (large: R.Lt d (Real.distance (f z) (f x))) => \block {
+      \let a: Real.Real := Real.sub (f z) (f x) \then
+      \let b: Real.Real := Real.sub (f x) (f z) \then
+      \return Logic.orElim (R.Le a b) (R.Le b a) (Tree.BadCell f I d) (Order.leTotal a b)
+        (\fun (ordered: R.Le a b) => Logic.existsIntro[Real.Real, { hi: Real.Real \where Logic.And[Sets.Member (Line.interval I.left I.right) hi,
+          \exists ( lo: Real.Real \where Logic.And[Sets.Member (Line.interval I.left I.right) lo, R.Lt d (Real.sub (f hi) (f lo))] )] }] x
+          (Logic.And[_, _]::# inX (Logic.existsIntro[Real.Real, { lo: Real.Real \where Logic.And[Sets.Member (Line.interval I.left I.right) lo, R.Lt d (Real.sub (f x) (f lo))] }] z
+            (Logic.And[_, _]::# inZ (R.ltReplaceRight d (Distance.max a b) b (Distance.maxOfLe a b ordered) large)))))
+        (\fun (ordered: R.Le b a) => Logic.existsIntro[Real.Real, { hi: Real.Real \where Logic.And[Sets.Member (Line.interval I.left I.right) hi,
+          \exists ( lo: Real.Real \where Logic.And[Sets.Member (Line.interval I.left I.right) lo, R.Lt d (Real.sub (f hi) (f lo))] )] }] z
+          (Logic.And[_, _]::# inZ (Logic.existsIntro[Real.Real, { lo: Real.Real \where Logic.And[Sets.Member (Line.interval I.left I.right) lo, R.Lt d (Real.sub (f z) (f lo))] }] x
+            (Logic.And[_, _]::# inX (R.ltReplaceRight d (Distance.max a b) a (Distance.maxOfGe a b ordered) large)))))
+    };
+\definition interiorBad: \forall (f: Real.Real -> Real.Real) (I, J: Integration.Interval) (d, x: Real.Real) ->
+  Interior J x -> BadPoint f I d x -> Tree.BadCell f J d :=
+  \fun (f: Real.Real -> Real.Real) (I, J: Integration.Interval) (d, x: Real.Real) (inside: Interior J x) (bad: BadPoint f I d x) => \block {
+    \takefrom radius: \Cast[Real.Real] ({ r: Real.Real \where Logic.And[R.Lt Real.zero r, \forall (z: Real.Real) -> R.Lt (Real.distance x z) r -> Sets.Member (Line.interval J.left J.right) z] })
+      \by neighborhood J x inside \then
+    \let law: Logic.And[R.Lt Real.zero radius, \forall (z: Real.Real) -> R.Lt (Real.distance x z) radius -> Sets.Member (Line.interval J.left J.right) z] :=
+      \bysub(Real.Real, { r: Real.Real \where Logic.And[R.Lt Real.zero r, \forall (z: Real.Real) -> R.Lt (Real.distance x z) r -> Sets.Member (Line.interval J.left J.right) z] }, radius) \then
+    \takefrom z: \Cast[Real.Real] ({ z: Real.Real \where Logic.And[Sets.Member (Line.interval I.left I.right) z, Logic.And[R.Lt (Real.distance x z) radius, R.Lt d (Real.distance (f z) (f x))]] })
+      \by bad radius law.left \then
+    \let witness: Logic.And[Sets.Member (Line.interval I.left I.right) z, Logic.And[R.Lt (Real.distance x z) radius, R.Lt d (Real.distance (f z) (f x))]] :=
+      \bysub(Real.Real, { z: Real.Real \where Logic.And[Sets.Member (Line.interval I.left I.right) z, Logic.And[R.Lt (Real.distance x z) radius, R.Lt d (Real.distance (f z) (f x))]] }, z) \then
+    \return orient f J d x z (Logic.And[_, _]::# (Order.leOfLt _ _ inside.left) (Order.leOfLt _ _ inside.right)) (law.right z witness.right.left) witness.right.right
+  };
+\definition cellContains: \forall (k: N.Nat^) (f: Real.Real -> Real.Real) (I, J: Integration.Interval) (d, x: Real.Real) ->
+  BadPoint f I d x -> Interior J x -> Logic.Not (Sets.Member (Support.boundary (Division.leftTags k J.left J.right) J) x) ->
+  Sets.Member (Tree.badSet k f J d) x :=
+  \induction (k: N.Nat^) \return \forall (f: Real.Real -> Real.Real) (I, J: Integration.Interval) (d, x: Real.Real) ->
+    BadPoint f I d x -> Interior J x -> Logic.Not (Sets.Member (Support.boundary (Division.leftTags k J.left J.right) J) x) -> Sets.Member (Tree.badSet k f J d) x \with {
+      | zero: \fun (f: Real.Real -> Real.Real) (I, J: Integration.Interval) (d, x: Real.Real) (bad: BadPoint f I d x) (inside: Interior J x)
+        (_: Logic.Not (Sets.Member (Support.boundary (Division.leftTags N.Nat^::zero J.left J.right) J) x)) =>
+          Logic.And[_, _]::# (interiorBad f I J d x inside bad) (Logic.And[_, _]::# (Order.leOfLt _ _ inside.left) (Order.leOfLt _ _ inside.right))
+      | succ: \fun (k: N.Nat^) (prior: \forall (f: Real.Real -> Real.Real) (I, J: Integration.Interval) (d, x: Real.Real) ->
+        BadPoint f I d x -> Interior J x -> Logic.Not (Sets.Member (Support.boundary (Division.leftTags k J.left J.right) J) x) -> Sets.Member (Tree.badSet k f J d) x)
+        (f: Real.Real -> Real.Real) (I, J: Integration.Interval) (d, x: Real.Real) (bad: BadPoint f I d x) (inside: Interior J x)
+        (outside: Logic.Not (Sets.Member (Support.boundary (Division.leftTags (N.Nat^::succ k) J.left J.right) J) x)) => \block {
+          \let mid: Real.Real := Real.midpoint J.left J.right \then
+          \let different: Logic.Not (x = mid) := \fun (equal: x = mid) => outside (Logic.Or[_, _]::left equal) \then
+          \return Logic.orElim (R.Le x mid) (R.Le mid x) (Sets.Member (Tree.badSet (N.Nat^::succ k) f J d) x) (Order.leTotal x mid)
+            (\fun (left: R.Le x mid) => Logic.Or[_, _]::left (prior f I (Tagged.left J) d x bad
+              (Logic.And[_, _]::# inside.left (Order.ltOfLeNotEq x mid left different))
+              (\fun (member: Sets.Member (Support.boundary (Division.leftTags k (Tagged.left J).left (Tagged.left J).right) (Tagged.left J)) x) =>
+                outside (Logic.Or[_, _]::right (Logic.Or[_, _]::left member)))))
+            (\fun (right: R.Le mid x) => Logic.Or[_, _]::right (prior f I (Tagged.right J) d x bad
+              (Logic.And[_, _]::# (Order.ltOfLeNotEq mid x right (\fun (same: mid = x) => different (sym!{Real.Real} _ _ same))) inside.right)
+              (\fun (member: Sets.Member (Support.boundary (Division.leftTags k (Tagged.right J).left (Tagged.right J).right) (Tagged.right J)) x) =>
+                outside (Logic.Or[_, _]::right (Logic.Or[_, _]::right member)))))
+        }
+    };

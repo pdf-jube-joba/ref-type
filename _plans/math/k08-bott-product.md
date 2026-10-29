@@ -10,5 +10,5 @@
 ## 依存するタスク
 
 - [K07 clutching の安定線形化](../../libs/topology/clutching_linearization/README.md)
-- [K03 相対 K 群と負次数の完全列](k03-relative-k.md)
+- [K03 相対 K 群と負次数の完全列](../../libs/topology/relative_k_theory/README.md)
 - [B05 有限 Grassmannian と普遍束](b05-grassmannians.md)

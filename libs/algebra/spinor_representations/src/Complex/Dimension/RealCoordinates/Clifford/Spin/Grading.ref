@@ -1,0 +1,77 @@
+\import Source.Grading[] \as Grade;
+\import Source.Pin[].Grading[] \as PinGrade;
+\import \root.Over[K := C.Complex, scalarRing := ring].On[V := Finite.Vector, space := Finite.space].Total[].Parity[] \as Parity;
+\import Algebra.Linear[V := Total.Carrier, W := Total.Carrier, source := Total.totalSpace, target := Total.totalSpace].Operations[] \as LinearOps;
+\import Algebra.Laws[V := Total.Carrier, space := Total.totalSpace] \as VectorLaws;
+\import algebra.Group[].Of[Carrier := End.Carrier, group := std.Alg[].Ring[].additiveGroup End.Carrier End.ring] \as Additive;
+\import algebra.Hom[A := Source.Carrier, B := End.Carrier] \as RingHom;
+\import std.Alg[].Ring[] \as Rings;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\definition laws: RingHom.SemiringLaws[Rings.ringAsSemiring Source.Carrier Source.ring, Rings.ringAsSemiring End.Carrier End.ring, extension] := RingHom.semiringLaws _ _ extension;
+\definition negative: \forall (a: Source.Carrier) -> extension (Source.neg a) = End.neg (extension a) :=
+  \fun (a: Source.Carrier) => Additive.inverseUnique (extension a) (extension (Source.neg a)) (eq_reason_in!{End.Carrier _
+    "=" _ "by" { sym!{End.Carrier} _ _ (laws.add (Source.neg a) a) }
+    "=" _ "by" { congr!{Source.Carrier End.Carrier} extension _ _ (Source.ring.additiveInverse a) }
+    "=" _ "by" laws.zero
+  });
+\definition negApply: \forall (a: End.Carrier)(f: Total.Carrier) -> (End.neg a).apply f = Total.totalSpace.neg (a.apply f) :=
+  \fun (a: End.Carrier)(f: Total.Carrier) => VectorLaws.minusOneScale (a.apply f);
+\definition Property[a: Source.Carrier]: \Prop := \forall (f: Total.Carrier) -> Total.parity ((extension a).apply f) = (extension (Grade.map a)).apply (Total.parity f);
+\import Source.Induction[P := Property] \as Induction;
+\definition scalarProof: \forall (a: R.Real) -> Property (Source.scalar a) := \fun (a: R.Real)(f: Total.Carrier) => eq_reason_in!{{Total.Carrier} _
+    "=" _ "by" { congr!{End.Carrier {Total.Carrier}} (\fun (t: End.Carrier) => Total.parity (t.apply f)) _ _ (Universal.onScalar representation a) }
+    "=" _ "by" { Total.grading.preservesScale (Def.ofReal a) f }
+    "=" _ "by" { congr!{End.Carrier {Total.Carrier}} (\fun (t: End.Carrier) => t.apply (Total.parity f)) _ _
+      (sym!{End.Carrier} _ _ (trans!{End.Carrier} _ _ _ (congr!{Source.Carrier End.Carrier} extension _ _ (Grade.onScalar a)) (Universal.onScalar representation a))) }
+  };
+\definition vectorProof: \forall (v: E.Vector) -> Property (Source.iota v) := \fun (v: E.Vector)(f: Total.Carrier) => eq_reason_in!{{Total.Carrier} _
+    "=" _ "by" { congr!{End.Carrier {Total.Carrier}} (\fun (t: End.Carrier) => Total.parity (t.apply f)) _ _ (onVector v) }
+    "=" _ "by" { Parity.operatorOdd (standardIsomorphism.backward.apply v) (Metric.form (standardIsomorphism.backward.apply v)) f }
+    "=" _ "by" { sym!{{Total.Carrier}} _ _ (negApply (vectors.apply v) (Total.parity f)) }
+    "=" _ "by" { congr!{End.Carrier {Total.Carrier}} (\fun (t: End.Carrier) => t.apply (Total.parity f)) _ _
+      (sym!{End.Carrier} _ _ (trans!{End.Carrier} _ _ _ (congr!{Source.Carrier End.Carrier} extension _ _ (Grade.onVector v)) (trans!{End.Carrier} _ _ _ (negative (Source.iota v)) (congr!{End.Carrier End.Carrier} End.neg _ _ (onVector v))))) }
+  };
+\definition additionProof: \forall (a, b: Source.Carrier) -> Property a -> Property b -> Property (Source.add a b) := \fun (a, b: Source.Carrier)(left: Property a)(right: Property b)(f: Total.Carrier) => eq_reason_in!{{Total.Carrier} _
+    "=" _ "by" { congr!{End.Carrier {Total.Carrier}} (\fun (t: End.Carrier) => Total.parity (t.apply f)) _ _ (laws.add a b) }
+    "=" _ "by" { Total.grading.preservesAdd ((extension a).apply f) ((extension b).apply f) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier} {Total.Carrier}} Total.totalSpace.add _ _ _ _ (left f) (right f) }
+    "=" _ "by" { congr!{End.Carrier {Total.Carrier}} (\fun (t: End.Carrier) => t.apply (Total.parity f)) _ _
+      (sym!{End.Carrier} _ _ (trans!{End.Carrier} _ _ _ (congr!{Source.Carrier End.Carrier} extension _ _ (Grade.laws.add a b)) (laws.add (Grade.map a) (Grade.map b)))) }
+  };
+\definition negativeProof: \forall (a: Source.Carrier) -> Property a -> Property (Source.neg a) := \fun (a: Source.Carrier)(previous: Property a)(f: Total.Carrier) => eq_reason_in!{{Total.Carrier} _
+    "=" _ "by" { congr!{End.Carrier {Total.Carrier}} (\fun (t: End.Carrier) => Total.parity (t.apply f)) _ _ (negative a) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} Total.parity _ _ (negApply (extension a) f) }
+    "=" _ "by" { LinearOps.preservesNeg Total.grading ((extension a).apply f) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} Total.totalSpace.neg _ _ (previous f) }
+    "=" _ "by" { sym!{{Total.Carrier}} _ _ (negApply (extension (Grade.map a)) (Total.parity f)) }
+    "=" _ "by" { congr!{End.Carrier {Total.Carrier}} (\fun (t: End.Carrier) => t.apply (Total.parity f)) _ _
+      (sym!{End.Carrier} _ _ (trans!{End.Carrier} _ _ _ (congr!{Source.Carrier End.Carrier} extension _ _ (Grade.onNegative a)) (negative (Grade.map a)))) }
+  };
+\definition multiplicationProof: \forall (a, b: Source.Carrier) -> Property a -> Property b -> Property (Source.mul a b) := \fun (a, b: Source.Carrier)(left: Property a)(right: Property b)(f: Total.Carrier) => eq_reason_in!{{Total.Carrier} _
+    "=" _ "by" { congr!{End.Carrier {Total.Carrier}} (\fun (t: End.Carrier) => Total.parity (t.apply f)) _ _ (laws.mul a b) }
+    "=" _ "by" { left ((extension b).apply f) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} ((extension (Grade.map a)).apply) _ _ (right f) }
+    "=" _ "by" { congr!{End.Carrier {Total.Carrier}} (\fun (t: End.Carrier) => t.apply (Total.parity f)) _ _
+      (sym!{End.Carrier} _ _ (trans!{End.Carrier} _ _ _ (congr!{Source.Carrier End.Carrier} extension _ _ (Grade.laws.mul a b)) (laws.mul (Grade.map a) (Grade.map b)))) }
+  };
+\definition closed: Induction.Closed := Induction.Closed { scalar := scalarProof, vector := vectorProof, addition := additionProof, negative := negativeProof, multiplication := multiplicationProof };
+\definition all: \forall (a: Source.Carrier) -> Property a := Induction.all closed;
+\definition spinEven: \forall (g: Pin.Spin)(f: Total.Carrier) -> Total.parity ((action g).value.apply f) = (action g).value.apply (Total.parity f) :=
+  \fun (g: Pin.Spin)(f: Total.Carrier) => trans!{{Total.Carrier}} _ _ _ (all g.value f)
+    (congr!{Source.Carrier {Total.Carrier}} (\fun (a: Source.Carrier) => (extension a).apply (Total.parity f)) _ _
+      (congr!{{SourceUnits.Unit} Source.Carrier} (\fun (u: SourceUnits.Unit) => u.value) _ _ (PinGrade.spinFixed g)));
+\import \parent.Phase[] \as Phase;
+\import clifford.Circle[] \as Circle;
+\import clifford.ComplexExtension[G := Pin.Spin, group := Pin.spinGroup].By[sign := Pin.spinInvolution] \as SpinC;
+\definition spinCEven: \forall (g: SpinC.Carrier)(f: Total.Carrier) -> Total.parity ((Phase.actionC g).value.apply f) = (Phase.actionC g).value.apply (Total.parity f) :=
+  SpinC.induction (\fun (g: SpinC.Carrier) => \forall (f: Total.Carrier) -> Total.parity ((Phase.actionC g).value.apply f) = (Phase.actionC g).value.apply (Total.parity f))
+    (\fun (g: Pin.Spin)(z: Circle.Circle)(f: Total.Carrier) => eq_reason_in!{{Total.Carrier} _
+      "=" _ "by" { congr!{TargetUnits.Unit {Total.Carrier}} (\fun (u: TargetUnits.Unit) => Total.parity (u.value.apply f)) _ _ (Phase.onClass g z) }
+      "=" _ "by" { Total.grading.preservesScale z ((action g).value.apply f) }
+      "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.smul z) _ _ (spinEven g f) }
+      "=" _ "by" { congr!{TargetUnits.Unit {Total.Carrier}} (\fun (u: TargetUnits.Unit) => u.value.apply (Total.parity f)) _ _ (sym!{TargetUnits.Unit} _ _ (Phase.onClass g z)) }
+    });

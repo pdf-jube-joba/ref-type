@@ -1,0 +1,34 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\use Eq.eq_reason_in;
+\import matrix_invariants.Ring[K := C.Complex, scalars := C.Algebra[].commutativeRing].At[n := two] \as M;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := C.Algebra[].commutativeRing] \as Spaces;
+\import Spaces.Coordinates[I := Fin.Fin two] \as Vectors;
+\import Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as End;
+\import End.Composition[U := Vectors.Vector, domain := Vectors.space] \as Compose;
+\definition squared: \forall (p: Carrier) -> M.product (Model.entries p) (Model.entries p) = Model.entries p := \fun (p: Carrier) =>
+  trans!{M.Matrix} _ _ _ (sym!{M.Matrix} _ _ (M.Representation[].composition p.map p.map))
+    (congr!{End.Map M.Matrix} M.Representation[].entries _ _ (End.ext _ _
+      (\axiom:funext((Compose.compose p.map p.map).apply, p.map.apply, (Model.laws p).idempotent))));
+\definition diagonal: \forall (p: Carrier) -> C.Def[].add (C.Def[].mul (entry p first first) (entry p first first))
+  (C.Def[].mul (entry p first second) (entry p second first)) = entry p first first :=
+  \fun (p: Carrier) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (C.Def[].add (C.Def[].mul (entry p first first) (entry p first first))) _ _
+      (sym!{{C.Complex}} _ _ (C.Prop[].addZeroRight (C.Def[].mul (entry p first second) (entry p second first)))) }
+    "=" _ "by" { congr!{M.Matrix {C.Complex}} (\fun (m: M.Matrix) => m first first) _ _ (squared p) }
+  };
+\import \parent.Hermitian[] \as Hermitian;
+\definition realEquation: \forall (p: Carrier) -> R.add (R.mul (C.re (entry p first first)) (C.re (entry p first first)))
+  (C.Def[].normSq (entry p first second)) = C.re (entry p first first) :=
+  \fun (p: Carrier) => congr!{{C.Complex} R.Real} C.re _ _ (eq_reason_in!{{C.Complex} _
+    "=" _ "by" { congr!{{C.Complex} {C.Complex} {C.Complex}} C.Def[].add _ _ _ _
+      (sym!{{C.Complex}} _ _ (C.Prop[].ofRealMul (C.re (entry p first first)) (C.re (entry p first first))))
+      (sym!{{C.Complex}} _ _ (C.Prop[].mulConjSelf (entry p first second))) }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex} {C.Complex}} C.Def[].add _ _ _ _
+      (congr!{{C.Complex} {C.Complex} {C.Complex}} C.Def[].mul _ _ _ _
+        (sym!{{C.Complex}} _ _ (Hermitian.diagonalReal p first)) (sym!{{C.Complex}} _ _ (Hermitian.diagonalReal p first)))
+      (congr!{{C.Complex} {C.Complex}} (C.Def[].mul (entry p first second)) _ _ (sym!{{C.Complex}} _ _ (Hermitian.conjugate p second first))) }
+    "=" _ "by" { diagonal p }
+  });

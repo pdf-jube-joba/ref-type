@@ -1,0 +1,44 @@
+\import \parent.Homotopy[p := p, q := q, first := first, second := second] \as Native;
+\import \parent.CylinderHomotopy[p := p, q := q, first := first, second := second] \as CylinderFamily;
+\import \parent.TripleClass[t := Native.left] \as FirstClass;
+\import \parent.TripleClass[t := Native.right] \as SecondClass;
+\import \parent.CylinderSubset[] \as Boundary;
+\import algebraic_topology.Cylinder[A := X] \as Cylinder;
+\import algebraic_topology.Interval[] \as Interval;
+\import std.Data[].Pair[] \as Pair;
+\import \parent.BundleModel[F := (Absolute.Fiber p)].From[original := (Absolute.bundle p), same := (\refl(space))] \as PositiveModel;
+\import \parent.BundleModel[F := (Absolute.Fiber q)].From[original := (Absolute.bundle q), same := (\refl(space))] \as NegativeModel;
+\definition complement: Presentation := FirstClass.complement;
+\import \parent.BundleModel[F := (Absolute.Fiber complement)].From[original := (Absolute.bundle complement), same := (\refl(space))] \as ComplementModel;
+\import \parent.CylinderSum[F := (Absolute.Fiber p), G := (Absolute.Fiber complement), sourceModel := PositiveModel.model, targetModel := ComplementModel.model] \as PositiveSum;
+\import \parent.CylinderSum[F := (Absolute.Fiber q), G := (Absolute.Fiber complement), sourceModel := NegativeModel.model, targetModel := ComplementModel.model] \as NegativeSum;
+\import \parent.CylinderRestriction[F := (Absolute.Fiber p), sourceModel := PositiveModel.model] \as Positive;
+\import \parent.CylinderRestriction[F := (Absolute.Fiber q), sourceModel := NegativeModel.model] \as Negative;
+\import \parent.CylinderRestriction[F := (Absolute.Fiber complement), sourceModel := ComplementModel.model] \as Complement;
+\import Operations.IdentityIsomorphism[X := Boundary.Carrier, F := Complement.Fiber, bundle := Complement.cylinderRestriction] \as ComplementIdentity;
+\import Operations.DirectSumIsomorphisms[X := Boundary.Carrier, F := Positive.Fiber, G := Complement.Fiber, A := Negative.Fiber, B := Complement.Fiber,
+  first := Positive.cylinderRestriction, second := Complement.cylinderRestriction, newFirst := Negative.cylinderRestriction, newSecond := Complement.cylinderRestriction,
+  sameSource := (\refl(Boundary.topology)), sameTarget := (\refl(Boundary.topology))] \as SumMaps;
+\import Operations.DirectSum[X := X, F := (Absolute.Fiber q), G := (Absolute.Fiber complement), left := (Absolute.bundle q), right := (Absolute.bundle complement)] \as NegativeOriginal;
+\definition negativeBundle: Bundles.Family[X := X, F := NegativeOriginal.Fiber].Bundle := NegativeOriginal.bundle (\refl(space));
+\import Complements.Projection[X := X, n := q.dimension, baseSpace := space, P := q.projection, regular := q.regular].Complement[] \as Split;
+\import Bundles.Trivial[X := X, n := q.dimension, baseSpace := space] \as Trivial;
+\import Bundles.Family[X := X, F := NegativeOriginal.Fiber].Of[bundle := negativeBundle].Pullback[Y := Cylinder.Carrier, source := (Cylinder.topology space), f := Cylinder.point] \as NegativePull;
+\import Bundles.Family[X := X, F := (\fun (x: X) => Bundles.Vector q.dimension)].Of[bundle := Trivial.bundle].Pullback[Y := Cylinder.Carrier, source := (Cylinder.topology space), f := Cylinder.point] \as TrivialPull;
+\definition negativeCylinder: Bundles.Family[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => NegativeOriginal.Fiber (Cylinder.point z))].Bundle := NegativePull.pulled (Cylinder.pointContinuous space);
+\definition trivialCylinder: Bundles.Family[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => Bundles.Vector q.dimension)].Bundle := TrivialPull.pulled (Cylinder.pointContinuous space);
+\import Complements.PulledIsomorphism[X := X, Y := Cylinder.Carrier, F := NegativeOriginal.Fiber, G := (\fun (x: X) => Bundles.Vector q.dimension),
+  source := negativeBundle, target := Trivial.bundle, base := (Cylinder.topology space), f := Cylinder.point, sourceRegular := (Cylinder.pointContinuous space), targetRegular := (Cylinder.pointContinuous space)] \as SplitCylinder;
+\import Complements.PulledIsomorphism[X := Cylinder.Carrier, Y := Boundary.Carrier,
+  F := (\fun (z: Cylinder.Carrier) => NegativeOriginal.Fiber (Cylinder.point z)), G := (\fun (z: Cylinder.Carrier) => Bundles.Vector q.dimension),
+  source := negativeCylinder, target := trivialCylinder, base := Boundary.topology, f := Boundary.inclusion, sourceRegular := Boundary.inclusionContinuous, targetRegular := Boundary.inclusionContinuous] \as SplitBoundary;
+\import \parent.FramedClass[F := FirstClass.SourceFiber, sourceModel := FirstClass.sourceModel, n := q.dimension].With[alpha := FirstClass.comparison] \as Class;
+\import Class.Homotopy[beta := SecondClass.comparison] \as FrameHomotopy;
+\import \parent.FramedClass[F := FirstClass.SourceFiber, sourceModel := FirstClass.sourceModel, n := q.dimension].Cylinder[alpha := FirstClass.comparison] \as Fixed;
+\import Bundles.Isomorphisms[X := Boundary.Carrier, F := NegativeSum.Fiber, G := NegativeSum.Fiber, source := NegativeSum.cylinderSum, target := NegativeSum.sumOfCylinders] \as NegativeReverse;
+\module With(family: Native.Family);
+\definition equation: (\exists Native.Family) -> FirstClass.value = SecondClass.value := \block {
+  \fun (exists: \exists Native.Family) \then
+  \takefrom family: Native.Family \by exists \then
+  \return With[family := family].equation
+};

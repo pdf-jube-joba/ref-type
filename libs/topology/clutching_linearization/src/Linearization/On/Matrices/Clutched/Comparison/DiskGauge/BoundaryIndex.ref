@@ -1,0 +1,60 @@
+\import \parent.Contract[f := positive, continuous := positiveRegular] \as Positive;
+\import \parent.Contract[f := negative, continuous := negativeRegular] \as Negative;
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff] \as On;
+\import On.Matrices[n := n, a := Negative.initial.matrix, regular := Negative.initial.regular, nonzero := Negative.initial.nonzero].Multiplication[
+  b := a, regularB := regular, nonzeroB := nonzero] \as Left;
+\import On.Matrices[n := n, a := b, regular := regularB, nonzero := nonzeroB].Multiplication[
+  b := Positive.initial.matrix, regularB := Positive.initial.regular, nonzeroB := Positive.initial.nonzero] \as Right;
+\import \root.Linearization[].MatrixUnits[n := n, Y := Circle.Domain, source := Circle.source, A := Negative.initial.matrix,
+  regular := Negative.initial.regular, nonzero := Negative.initial.nonzero] \as NegativeUnits;
+\import \root.Linearization[].MatrixUnits[n := n, Y := Circle.Domain, source := Circle.source, A := Positive.initial.matrix,
+  regular := Positive.initial.regular, nonzero := Positive.initial.nonzero] \as PositiveUnits;
+\import Spaces.Coordinates[I := Fin.Fin n] \as Vectors;
+\import Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as End;
+\definition negativeAction: \forall (p: Circle.Domain)(v: Vectors.Vector) -> (NegativeUnits.map p).apply v = (negative (\parent.Boundary[p := p].onDisk)).apply v :=
+  \fun (p: Circle.Domain)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _
+    (congr!{M.Matrix Vectors.Vector} (\fun (m: M.Matrix) => (M.linear m).apply v) _ _ (Negative.initialFormula p))
+    (congr!{End.Map Vectors.Vector} (\fun (h: End.Map) => h.apply v) _ _ (M.Representation[].linearEntries (negative (\parent.Boundary[p := p].onDisk))));
+\definition positiveAction: \forall (p: Circle.Domain)(v: Vectors.Vector) -> (PositiveUnits.map p).apply v = (positive (\parent.Boundary[p := p].onDisk)).apply v :=
+  \fun (p: Circle.Domain)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _
+    (congr!{M.Matrix Vectors.Vector} (\fun (m: M.Matrix) => (M.linear m).apply v) _ _ (Positive.initialFormula p))
+    (congr!{End.Map Vectors.Vector} (\fun (h: End.Map) => h.apply v) _ _ (M.Representation[].linearEntries (positive (\parent.Boundary[p := p].onDisk))));
+\import \root.Linearization[].MatrixUnits[n := n, Y := Circle.Domain, source := Circle.source, A := b, regular := regularB, nonzero := nonzeroB] \as B;
+\definition productAction: \forall (p: Circle.Domain)(v: Vectors.Vector) -> (Left.productUnit p).apply v = (Right.productUnit p).apply v :=
+  \fun (p: Circle.Domain)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _ (negativeAction p ((Matrices.map p).apply v))
+    (trans!{Vectors.Vector} _ _ _ (compatible p v)
+      (congr!{Vectors.Vector Vectors.Vector} (B.map p).apply _ _ (sym!{Vectors.Vector} _ _ (positiveAction p v))));
+\definition productEquality: \forall (p: Circle.Domain) -> Left.product p = Right.product p :=
+  \fun (p: Circle.Domain) => congr!{End.Map M.Matrix} M.Representation[].entries _ _
+    (End.ext _ _ (\axiom:funext((Left.productUnit p).apply, (Right.productUnit p).apply, productAction p)));
+\import \root.Linearization[].MatrixPaths[n := n, Y := Circle.Domain, source := Circle.source] \as Paths;
+\definition sourceFamily: Paths.Family := Left.second;
+\definition targetFamily: Paths.Family := Right.first;
+\definition path: Paths.Path[Left.multiplied, Right.multiplied] := Paths.retarget Left.multiplied Left.multiplied Left.multiplied Right.multiplied
+  (Paths.constant Left.multiplied) (\fun (p: Circle.Domain) => \refl(Left.multiplied.matrix p)) productEquality;
+\import On.Matrices[n := n, a := Left.multiplied.matrix, regular := Left.multiplied.regular, nonzero := Left.multiplied.nonzero].Inverse[].Homotopy[
+  b := Right.multiplied.matrix, regularB := Right.multiplied.regular, nonzeroB := Right.multiplied.nonzero].With[path := path] \as Invariance;
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := source, compact := compact, hausdorff := hausdorff] \as K;
+\import On.Matrices[n := n, a := Left.first.matrix, regular := Left.first.regular, nonzero := Left.first.nonzero] \as L1;
+\import On.Matrices[n := n, a := Left.second.matrix, regular := Left.second.regular, nonzero := Left.second.nonzero] \as L2;
+\import On.Matrices[n := n, a := Right.first.matrix, regular := Right.first.regular, nonzero := Right.first.nonzero] \as R1;
+\import On.Matrices[n := n, a := Right.second.matrix, regular := Right.second.regular, nonzero := Right.second.nonzero] \as R2;
+\definition indexBalance: K.K0[].add L1.Inverse[].value L2.Inverse[].value =
+  K.K0[].add R1.Inverse[].value R2.Inverse[].value :=
+  trans!{K.K0[].Carrier} _ _ _ (sym!{K.K0[].Carrier} _ _ Left.additivity) (trans!{K.K0[].Carrier} _ _ _ Invariance.invariant Right.additivity);
+\import Negative.Zero[] \as NegativeZero;
+\import Positive.Zero[] \as PositiveZero;
+\definition negativePath: Paths.Path[Left.first, Negative.initial] := Paths.retarget Left.first Left.first Left.first Negative.initial
+  (Paths.constant Left.first) (\fun (p: Circle.Domain) => \refl(Left.first.matrix p)) (\fun (p: Circle.Domain) => \refl(Negative.initial.matrix p));
+\definition positivePath: Paths.Path[Right.second, Positive.initial] := Paths.retarget Right.second Right.second Right.second Positive.initial
+  (Paths.constant Right.second) (\fun (p: Circle.Domain) => \refl(Right.second.matrix p)) (\fun (p: Circle.Domain) => \refl(Positive.initial.matrix p));
+\import L1.Inverse[].Homotopy[b := Negative.initial.matrix, regularB := Negative.initial.regular, nonzeroB := Negative.initial.nonzero].With[path := negativePath] \as NegativeEquality;
+\import R2.Inverse[].Homotopy[b := Positive.initial.matrix, regularB := Positive.initial.regular, nonzeroB := Positive.initial.nonzero].With[path := positivePath] \as PositiveEquality;
+\definition negativeZero: L1.Inverse[].value = K.K0[].zero := trans!{K.K0[].Carrier} _ _ _ NegativeEquality.invariant NegativeZero.indexZero;
+\definition positiveZero: R2.Inverse[].value = K.K0[].zero := trans!{K.K0[].Carrier} _ _ _ PositiveEquality.invariant PositiveZero.indexZero;
+\import algebra.Group[].Of[Carrier := K.K0[].Carrier, group := K.K0[].group] \as Group;
+\definition invariant: L2.Inverse[].value = R1.Inverse[].value :=
+  trans!{K.K0[].Carrier} _ _ _ (sym!{K.K0[].Carrier} _ _ (Group.zeroLeft L2.Inverse[].value))
+    (trans!{K.K0[].Carrier} _ _ _ (congr!{K.K0[].Carrier K.K0[].Carrier} (\fun (v: K.K0[].Carrier) => K.K0[].add v L2.Inverse[].value) _ _ (sym!{K.K0[].Carrier} _ _ negativeZero))
+      (trans!{K.K0[].Carrier} _ _ _ indexBalance
+        (trans!{K.K0[].Carrier} _ _ _ (congr!{K.K0[].Carrier K.K0[].Carrier} (K.K0[].add R1.Inverse[].value) _ _ positiveZero) (Group.zeroRight R1.Inverse[].value))));

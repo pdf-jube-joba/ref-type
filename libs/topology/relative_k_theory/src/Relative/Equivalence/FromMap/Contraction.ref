@@ -1,0 +1,35 @@
+\import algebraic_topology.Interval[] \as Interval;
+\import algebraic_topology.Cylinder[A := source.Carrier] \as SourceCylinder;
+\import algebraic_topology.Cylinder[A := target.Carrier] \as TargetCylinder;
+\import algebraic_topology.Homotopy[A := source.Carrier, B := source.Carrier] \as SourceHomotopy;
+\import algebraic_topology.Homotopy[A := target.Carrier, B := target.Carrier] \as TargetHomotopy;
+\definition laws: SourceHomotopy.Laws[(details source).topology, (details source).topology, (\fun (x: source.Carrier) => x), (\fun (x: source.Carrier) => (details source).point), h] :=
+  SourceHomotopy.laws (details source).topology (details source).topology (\fun (x: source.Carrier) => x) (\fun (x: source.Carrier) => (details source).point) h;
+\definition lift[p: TargetCylinder.Carrier]: SourceCylinder.Carrier := SourceCylinder.at (TargetCylinder.time p) (backward (TargetCylinder.point p));
+\import topological_constructions.Product[A := Interval.Carrier, B := source.Carrier].Universal[X := TargetCylinder.Carrier] \as Into;
+\definition liftContinuous: topology.Continuity[A := TargetCylinder.Carrier, B := SourceCylinder.Carrier].Continuous
+  (TargetCylinder.topology (details target).topology) (SourceCylinder.topology (details source).topology) lift :=
+  Into.pairContinuous (TargetCylinder.topology (details target).topology) Interval.topology (details source).topology TargetCylinder.time
+    (\fun (p: TargetCylinder.Carrier) => backward (TargetCylinder.point p)) (TargetCylinder.timeContinuous (details target).topology)
+    (topology.Composition[A := TargetCylinder.Carrier, B := target.Carrier, C := source.Carrier].composeContinuous
+      (TargetCylinder.topology (details target).topology) (details target).topology (details source).topology TargetCylinder.point backward
+      (TargetCylinder.pointContinuous (details target).topology) inverseContinuous);
+\definition middle[p: TargetCylinder.Carrier]: source.Carrier := h (lift p);
+\definition middleContinuous: topology.Continuity[A := TargetCylinder.Carrier, B := source.Carrier].Continuous
+  (TargetCylinder.topology (details target).topology) (details source).topology middle :=
+  topology.Composition[A := TargetCylinder.Carrier, B := SourceCylinder.Carrier, C := source.Carrier].composeContinuous
+    (TargetCylinder.topology (details target).topology) (SourceCylinder.topology (details source).topology) (details source).topology lift h liftContinuous laws.continuous;
+\definition family[p: TargetCylinder.Carrier]: target.Carrier := f (middle p);
+\definition continuous: topology.Continuity[A := TargetCylinder.Carrier, B := target.Carrier].Continuous
+  (TargetCylinder.topology (details target).topology) (details target).topology family :=
+  topology.Composition[A := TargetCylinder.Carrier, B := source.Carrier, C := target.Carrier].composeContinuous
+    (TargetCylinder.topology (details target).topology) (details source).topology (details target).topology middle f middleContinuous
+    (Forward.laws (pointed source) (pointed target) f).continuous;
+\definition result: TargetHomotopy.Homotopy[(details target).topology, (details target).topology, (\fun (x: target.Carrier) => x), (\fun (x: target.Carrier) => (details target).point)] :=
+  \into[TargetHomotopy.Family](family, TargetHomotopy.Homotopy[(details target).topology, (details target).topology, (\fun (x: target.Carrier) => x), (\fun (x: target.Carrier) => (details target).point)]) \by {
+    TargetHomotopy.Laws[(details target).topology, (details target).topology, (\fun (x: target.Carrier) => x), (\fun (x: target.Carrier) => (details target).point), family] {
+      continuous := continuous,
+      start := \fun (x: target.Carrier) => trans!{{target.Carrier}} _ _ _ (congr!{{source.Carrier} {target.Carrier}} f _ _ (laws.start (backward x))) (rightInverse x),
+      end := \fun (x: target.Carrier) => trans!{{target.Carrier}} _ _ _ (congr!{{source.Carrier} {target.Carrier}} f _ _ (laws.end (backward x))) (Forward.laws (pointed source) (pointed target) f).pointed
+    }
+  };

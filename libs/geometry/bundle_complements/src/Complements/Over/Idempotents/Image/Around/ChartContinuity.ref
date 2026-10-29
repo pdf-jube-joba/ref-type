@@ -1,0 +1,52 @@
+\import Charts.In[c := chart] \as Local;
+\import topological_constructions.Product[A := Carrier, B := Vector k] \as Product;
+\import topology.Topology[Carrier := Family.Point] \as Total;
+\import topology.Continuity[A := Family.Point, B := X].Restriction[S := { p: Family.Point \where Base.Member domain p.base }] \as BaseRestriction;
+\definition baseRaw: topology.Continuity[A := Local.TotalPoint, B := X].Continuous Local.localTopology baseSpace (\fun (p: Local.TotalPoint) => p.base) :=
+  BaseRestriction.restrictContinuous topology baseSpace Family.projection projectionContinuous;
+\definition baseContinuous: topology.Continuity[A := Local.TotalPoint, B := Carrier].Continuous Local.localTopology localSpace Local.base :=
+  topology.Continuity[A := Local.TotalPoint, B := X].Corestriction[S := domain].corestrictContinuous Local.localTopology baseSpace Local.base baseRaw;
+\definition vectorContinuous: topology.Continuity[A := Local.TotalPoint, B := Vector n].Continuous Local.localTopology (coordinateTopology n) (\fun (p: Local.TotalPoint) => p.vector) :=
+  topology.Continuity[A := Family.Point, B := Vector n].Restriction[S := { p: Family.Point \where Base.Member domain p.base }].restrictContinuous topology (coordinateTopology n) (\fun (p: Family.Point) => p.vector) Projected.vectorContinuous;
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin n] \as LargeCoordinates;
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin k] \as SmallCoordinates;
+\import Hermitian.At[n := k].Families[X := Local.TotalPoint].Matrix[m := n] \as Small;
+\definition coefficients: Small.Components Local.localTopology (\fun (p: Local.TotalPoint) => backward (Local.base p)) :=
+  \fun (j: Fin.Fin n)(i: Fin.Fin k) => topology.Composition[A := Local.TotalPoint, B := Carrier, C := K].composeContinuous Local.localTopology localSpace scalar.topological.space Local.base
+    (\fun (x: Carrier) => (backward x).apply (Euclidean.basis j) i) baseContinuous (backwardContinuous (Euclidean.basis j) i);
+\definition movingVector: Native.Families[X := Local.TotalPoint].Continuous Local.localTopology (\fun (p: Local.TotalPoint) => p.vector) :=
+  \fun (i: Fin.Fin n) => topology.Composition[A := Local.TotalPoint, B := Vector n, C := K].composeContinuous Local.localTopology (coordinateTopology n) scalar.topological.space
+    (\fun (p: Local.TotalPoint) => p.vector) (\fun (v: Vector n) => v i) vectorContinuous (LargeCoordinates.evaluationContinuous scalar.topological.space i);
+\definition forwardVector[p: Local.TotalPoint]: Vector k := (backward (Local.base p)).apply p.vector;
+\definition forwardVectorContinuous: topology.Continuity[A := Local.TotalPoint, B := Vector k].Continuous Local.localTopology (coordinateTopology k) forwardVector :=
+  SmallCoordinates.Universal[A := Local.TotalPoint].continuous Local.localTopology scalar.topological.space forwardVector
+    (Small.evaluate Local.localTopology (\fun (p: Local.TotalPoint) => backward (Local.base p)) (\fun (p: Local.TotalPoint) => p.vector) coefficients movingVector);
+\definition forwardRegular: topology.Continuity[A := Local.TotalPoint, B := Local.ProductPoint].Continuous Local.localTopology Local.productTopology Local.forward :=
+  Product.Universal[X := Local.TotalPoint].pairContinuous Local.localTopology localSpace (coordinateTopology k) Local.base forwardVector baseContinuous forwardVectorContinuous;
+\definition first[p: Local.ProductPoint]: Carrier := Pair.first Carrier (Vector k) p;
+\definition second[p: Local.ProductPoint]: Vector k := Pair.second Carrier (Vector k) p;
+\definition firstContinuous: topology.Continuity[A := Local.ProductPoint, B := Carrier].Continuous Local.productTopology localSpace first := Product.Maps[].firstContinuous localSpace (coordinateTopology k);
+\definition secondContinuous: topology.Continuity[A := Local.ProductPoint, B := Vector k].Continuous Local.productTopology (coordinateTopology k) second := Product.Maps[].secondContinuous localSpace (coordinateTopology k);
+\import Native.Families[X := Local.ProductPoint].Matrix[m := k] \as Large;
+\definition inverseCoefficients: Large.Components Local.productTopology (\fun (p: Local.ProductPoint) => forward (first p)) :=
+  \fun (j: Fin.Fin k)(i: Fin.Fin n) => topology.Composition[A := Local.ProductPoint, B := Carrier, C := K].composeContinuous Local.productTopology localSpace scalar.topological.space first
+    (\fun (x: Carrier) => (forward x).apply (Geometry.Finite[n := k].basis j) i) firstContinuous (forwardContinuous (Geometry.Finite[n := k].basis j) i);
+\definition inverseVector: Hermitian.At[n := k].Families[X := Local.ProductPoint].Continuous Local.productTopology second :=
+  \fun (i: Fin.Fin k) => topology.Composition[A := Local.ProductPoint, B := Vector k, C := K].composeContinuous Local.productTopology (coordinateTopology k) scalar.topological.space second
+    (\fun (v: Vector k) => v i) secondContinuous (SmallCoordinates.evaluationContinuous scalar.topological.space i);
+\definition backwardVector[p: Local.ProductPoint]: Vector n := (forward (first p)).apply (second p);
+\definition backwardVectorContinuous: topology.Continuity[A := Local.ProductPoint, B := Vector n].Continuous Local.productTopology (coordinateTopology n) backwardVector :=
+  LargeCoordinates.Universal[A := Local.ProductPoint].continuous Local.productTopology scalar.topological.space backwardVector (Large.evaluate Local.productTopology (\fun (p: Local.ProductPoint) => forward (first p)) second inverseCoefficients inverseVector);
+\definition backwardBaseContinuous: topology.Continuity[A := Local.ProductPoint, B := X].Continuous Local.productTopology baseSpace (\fun (p: Local.ProductPoint) => first p) :=
+  topology.Composition[A := Local.ProductPoint, B := Carrier, C := X].composeContinuous Local.productTopology localSpace baseSpace first (\fun (x: Carrier) => x) firstContinuous
+    (\fun (U: \Pow X)(open: _) => Base.Subspace[S := domain].traceOpen baseSpace U open);
+\definition backwardFull: topology.Continuity[A := Local.ProductPoint, B := Family.Point].Continuous Local.productTopology topology (\fun (p: Local.ProductPoint) => Local.backward p) :=
+  Projected.Universal[Y := Local.ProductPoint, source := Local.productTopology].continuous (\fun (p: Local.ProductPoint) => Local.backward p) backwardBaseContinuous backwardVectorContinuous;
+\definition backwardRegular: topology.Continuity[A := Local.ProductPoint, B := Local.TotalPoint].Continuous Local.productTopology Local.localTopology Local.backward :=
+  topology.Continuity[A := Local.ProductPoint, B := Family.Point].Corestriction[S := { p: Family.Point \where Base.Member domain p.base }].corestrictContinuous Local.productTopology topology Local.backward backwardFull;
+\definition laws: Local.Laws := Local.Laws {
+  baseOpen := open,
+  totalOpen := projectionContinuous domain open,
+  forwardContinuous := forwardRegular,
+  backwardContinuous := backwardRegular
+};

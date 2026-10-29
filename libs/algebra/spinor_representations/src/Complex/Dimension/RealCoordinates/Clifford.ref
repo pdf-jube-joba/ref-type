@@ -1,0 +1,28 @@
+\import clifford.Euclidean[n := Sum.dimension] \as E;
+\import clifford.Field[K := R.Real, field := R.Algebra[].field].On[V := E.Vector, space := E.space].Of[form := E.form] \as Source;
+\import \root.Complex[].On[V := Finite.Vector, space := Finite.space].Realification[].With[h := Finite.form].Clifford[] \as RealClifford;
+\import lie_algebras.Field[K := C.Complex, field := Field.field].Endomorphisms[V := Total.Carrier, space := Total.totalSpace] \as End;
+\import RealAlgebra.Linear[V := Finite.Vector, W := End.Carrier, source := Realify.spaceReal, target := \root.Complex[].On[V := End.Carrier, space := End.vectorSpace].Realification[].spaceReal].Composition[U := E.Vector, domain := E.space] \as Compose;
+\definition vectors: RealAlgebra.Linear[V := E.Vector, W := End.Carrier, source := E.space, target := \root.Complex[].On[V := End.Carrier, space := End.vectorSpace].Realification[].spaceReal].Map := Compose.compose Metric.realLinear standardIsomorphism.backward;
+\import Source.Universal[A := End.Carrier, target := End.ring] \as Universal;
+\import algebra.FreeAssociativeRing[].Over[R := R.Real, coefficients := Realify.realRing, Variables := E.Vector] \as Free;
+\import Free.Presentation[relations := Source.Relation] \as Presented;
+\import Presented.Universal[K := End.Carrier, target := End.ring] \as Extension;
+\import algebra.Hom[A := R.Real, B := End.Carrier] \as Scalars;
+\definition coefficients: Extension.CoefficientMap := \into[Scalars.RingMap RealAlgebra.ring End.ring](RealClifford.scalarMap, Extension.CoefficientMap) \by {
+  \fun (a: R.Real)(f: End.Carrier) => End.scalarCentral (Def.ofReal a) f
+};
+\definition quadratic: \forall (x: E.Vector) -> Metric.realForm.form (standardIsomorphism.backward.apply x) (standardIsomorphism.backward.apply x) = E.dot x x :=
+  \fun (x: E.Vector) => trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (isometry (standardIsomorphism.backward.apply x) (standardIsomorphism.backward.apply x)))
+    (congr!{E.Vector E.Vector R.Real} E.dot _ _ _ _ (standardIsomorphism.rightInverse x) (standardIsomorphism.rightInverse x));
+\definition representation: Universal.Representation := Universal.Representation {
+  coefficients := coefficients, vectors := vectors.apply,
+  zero := vectors.preservesZero, addition := vectors.preservesAdd, scalar := vectors.preservesScale,
+  square := \fun (x: E.Vector) => End.ext _ _ (\fun (f: Total.Carrier) => trans!{{Total.Carrier}} _ _ _
+    (Metric.square (standardIsomorphism.backward.apply x) f)
+    (congr!{R.Real {Total.Carrier}} (\fun (a: R.Real) => Total.totalSpace.smul (Def.ofReal a) f) _ _ (quadratic x))),
+};
+\import algebra.Hom[A := E.Carrier, B := End.Carrier] \as Hom;
+\definition extension: Hom.RingMap E.ring End.ring := Universal.extension representation;
+\definition onVector: \forall (x: E.Vector) -> extension (E.iota x) = Metric.cliffordOperator (standardIsomorphism.backward.apply x) := Universal.onVector representation;
+\module Spin;

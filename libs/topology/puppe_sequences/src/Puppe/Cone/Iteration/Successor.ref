@@ -1,0 +1,76 @@
+\use Equality.eq_reason_in;
+\use Logic.either;
+\import \parent.Inverse[] \as Inverse;
+\import \parent.Deformation[] \as Deformation;
+\import \parent.ConeHomotopy[] \as ConeHomotopy;
+\import \parent.Raw[] \as Raw;
+\import Raw.Left[] \as Left;
+\import Raw.Right[] \as Right;
+\import algebraic_topology.Cylinder[A := Cylinder.Carrier] \as Double;
+\import algebraic_topology.Cylinder[A := Cone.Carrier] \as ConeCylinder;
+\import algebraic_topology.Cylinder[A := B] \as TargetCylinder;
+\import Next.Connecting[] \as NextConnecting;
+\import \root.Puppe[].Suspension[A := B, source := target] \as TargetSuspension;
+\import Suspension.Mapping[B := B, target := target, f := f] \as Suspended;
+\import Suspension.TimeChange[] \as TimeChange;
+\import TimeChange.Of[r := TimeChange.compression] \as Compressed;
+\import TimeChange.Of[r := TimeChange.reflection] \as Reflection;
+\import \root.Puppe[].Compression[] \as Compression;
+\definition apply[x: Suspension.Carrier]: TargetSuspension.Carrier := NextConnecting.apply (Inverse.section x);
+\definition map: algebraic_topology.Pointed[A := Suspension.Carrier].Maps[B := TargetSuspension.Carrier].Map[Suspension.pointed, TargetSuspension.pointed] :=
+  algebraic_topology.Pointed[A := Suspension.Carrier].Maps[B := Next.Carrier].Composition[C := TargetSuspension.Carrier]
+    .compose Suspension.pointed Next.pointed TargetSuspension.pointed Inverse.sectionMap NextConnecting.map;
+\definition onRaw: \forall (p: Cylinder.Carrier) -> apply (Suspension.class p) = NextConnecting.apply (Raw.value (Double.at I.end p)) :=
+  \fun (p: Cylinder.Carrier) => eq_reason_in!{TargetSuspension.Carrier {apply (Suspension.class p)}
+    "=" {NextConnecting.apply (Deformation.end (nullFamily p))} "by" { congr!{Next.Carrier TargetSuspension.Carrier} NextConnecting.apply _ _ (Inverse.onClass p) }
+    "=" {NextConnecting.apply (ConeHomotopy.family (ConeCylinder.at I.end (Cone.class p)))} "by" { congr!{Next.Carrier TargetSuspension.Carrier} NextConnecting.apply _ _ (Deformation.onCone I.end (Cone.class p)) }
+    "=" {NextConnecting.apply (Raw.value (Double.at I.end p))} "by" { congr!{Next.Carrier TargetSuspension.Carrier} NextConnecting.apply _ _ (ConeHomotopy.onClass I.end p) }
+  };
+\definition onLow: \forall (p: Cylinder.Carrier)(low: \In[Double.Carrier] Raw.Low (Double.at I.end p)) ->
+  apply (Suspension.class p) = TargetSuspension.class (TargetCylinder.at (Compression.apply (Cylinder.time p)) (f (Cylinder.point p))) := \block {
+  \fun (p: Cylinder.Carrier)(low: _) \then
+  \let q: \Cast[Double.Carrier] Raw.Low := \into[Double.Carrier](Double.at I.end p, Raw.Low) \by { low } \then
+  \return eq_reason_in!{TargetSuspension.Carrier {apply (Suspension.class p)}
+    "=" {NextConnecting.apply (Raw.value (Double.at I.end p))} "by" { onRaw p }
+    "=" {NextConnecting.apply (Left.value q)} "by" { congr!{Next.Carrier TargetSuspension.Carrier} NextConnecting.apply _ _ (Raw.onLeft q) }
+    "=" {TargetSuspension.quotient (SecondCone.class (TargetCylinder.at (Left.scaled q) (f (Cylinder.point p))))} "by" { NextConnecting.onCone (SecondCone.class (TargetCylinder.at (Left.scaled q) (f (Cylinder.point p)))) }
+    "=" {TargetSuspension.class (TargetCylinder.at (Left.scaled q) (f (Cylinder.point p)))} "by" { TargetSuspension.onClass (TargetCylinder.at (Left.scaled q) (f (Cylinder.point p))) }
+    "=" {TargetSuspension.class (TargetCylinder.at (Compression.apply (Cylinder.time p)) (f (Cylinder.point p)))} "by" {
+      congr!{I.Carrier TargetSuspension.Carrier} (\fun (u: I.Carrier) => TargetSuspension.class (TargetCylinder.at u (f (Cylinder.point p)))) _ _ (sym!{I.Carrier} _ _ (Compression.onLow (Cylinder.time p) low)) }
+  }
+};
+\definition onHigh: \forall (p: Cylinder.Carrier)(high: \In[Double.Carrier] Raw.High (Double.at I.end p)) ->
+  apply (Suspension.class p) = TargetSuspension.class (TargetCylinder.at (Compression.apply (Cylinder.time p)) (f (Cylinder.point p))) := \block {
+  \fun (p: Cylinder.Carrier)(high: _) \then
+  \let q: \Cast[Double.Carrier] Raw.High := \into[Double.Carrier](Double.at I.end p, Raw.High) \by { high } \then
+  \return eq_reason_in!{TargetSuspension.Carrier {apply (Suspension.class p)}
+    "=" {NextConnecting.apply (Raw.value (Double.at I.end p))} "by" { onRaw p }
+    "=" {NextConnecting.apply (Right.value q)} "by" { congr!{Next.Carrier TargetSuspension.Carrier} NextConnecting.apply _ _ (Raw.onRight q) }
+    "=" {TargetSuspension.point} "by" { NextConnecting.onTarget (nullFamily (Cylinder.at (Right.scaled q) (Cylinder.point p))) }
+    "=" {TargetSuspension.class (TargetCylinder.at I.start (f (Cylinder.point p)))} "by" { sym!{TargetSuspension.Carrier} _ _ (TargetSuspension.bottom (f (Cylinder.point p))) }
+    "=" {TargetSuspension.class (TargetCylinder.at (Compression.apply (Cylinder.time p)) (f (Cylinder.point p)))} "by" {
+      congr!{I.Carrier TargetSuspension.Carrier} (\fun (u: I.Carrier) => TargetSuspension.class (TargetCylinder.at u (f (Cylinder.point p)))) _ _ (sym!{I.Carrier} _ _ (Compression.onHigh (Cylinder.time p) high)) }
+  }
+};
+\definition onClass: \forall (p: Cylinder.Carrier) -> apply (Suspension.class p) = TargetSuspension.class (TargetCylinder.at (Compression.apply (Cylinder.time p)) (f (Cylinder.point p))) :=
+  \fun (p: Cylinder.Carrier) => either!{{Raw.covered (Double.at I.end p)} {apply (Suspension.class p) = TargetSuspension.class (TargetCylinder.at (Compression.apply (Cylinder.time p)) (f (Cylinder.point p)))}
+    {onLow p} {onHigh p}};
+\import algebraic_topology.Collapse[A := Cylinder.Carrier, subset := algebraic_topology.Suspension[A := A].Reduced[basepoint := source.basepoint].Collapsed] \as SuspensionQuotient;
+\definition agrees: \forall (x: Suspension.Carrier) -> apply x = Suspended.apply (Compressed.apply x) :=
+  SuspensionQuotient.induction (\fun (x: Suspension.Carrier) => apply x = Suspended.apply (Compressed.apply x))
+    (\fun (p: Cylinder.Carrier) => eq_reason_in!{TargetSuspension.Carrier {apply (Suspension.class p)}
+      "=" {TargetSuspension.class (TargetCylinder.at (Compression.apply (Cylinder.time p)) (f (Cylinder.point p)))} "by" { onClass p }
+      "=" {Suspended.apply (Suspension.class (Cylinder.at (Compression.apply (Cylinder.time p)) (Cylinder.point p)))} "by" {
+        sym!{TargetSuspension.Carrier} _ _ (Suspended.onClass (Cylinder.at (Compression.apply (Cylinder.time p)) (Cylinder.point p))) }
+      "=" {Suspended.apply (Compressed.apply (Suspension.class p))} "by" {
+        congr!{Suspension.Carrier TargetSuspension.Carrier} Suspended.apply _ _ (sym!{Suspension.Carrier} _ _ (Compressed.onClass p)) }
+    });
+\import \root.Puppe[].Maps[A := Suspension.Carrier, B := Suspension.Carrier, source := Suspension.pointed, target := Suspension.pointed] \as Endomorphisms;
+\import \root.Puppe[].Maps[A := Suspension.Carrier, B := TargetSuspension.Carrier, source := Suspension.pointed, target := TargetSuspension.pointed] \as Result;
+\import Endomorphisms.Postcompose[C := TargetSuspension.Carrier, range := TargetSuspension.pointed, f := Suspended.map] \as Post;
+\definition reflected: Result.Map := Post.map Reflection.map;
+\definition homotopy: Result.Homotopy[map, reflected] :=
+  \idelim Post.map Compressed.map = map \with k: Result.Map => Result.Homotopy[k, reflected] \by {
+    base: Post.homotopy Compressed.map Reflection.map (TimeChange.Between[r := TimeChange.compression, s := TimeChange.reflection].result),
+    equality: Result.ext (Post.map Compressed.map) map (\fun (x: Suspension.Carrier) => sym!{TargetSuspension.Carrier} _ _ (agrees x))
+  };

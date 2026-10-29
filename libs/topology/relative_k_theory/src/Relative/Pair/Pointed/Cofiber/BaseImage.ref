@@ -1,0 +1,24 @@
+\import Space.Subspace[S := baseImage] \as ImageSpace;
+\definition ImagePoint: \Set := ImageSpace.CarrierSet;
+\definition imageTopology: topology.Topology[Carrier := ImagePoint].Topology := ImageSpace.topology topology;
+\definition contains: \forall (x: X) -> Space.Member baseImage (base x) := \fun (x: X) => BaseSets.imageMember base Base.Whole x (\refl(x));
+\definition into[x: X]: ImagePoint := \into[Carrier](base x, baseImage) \by { contains x };
+\definition imageModel: CompactPointed := pack ImagePoint (PointedDetails[ImagePoint] {
+  topology := imageTopology,
+  compact := ImageSpace.Properties[].compact topology (Space.Compactness[].closedCompact topology Properties.compactQuotient baseImage baseImageClosed),
+  hausdorff := ImageSpace.Properties[].hausdorff topology Properties.hausdorffQuotient, point := into a0
+});
+\definition continuous: topology.Continuity[A := X, B := ImagePoint].Continuous space imageTopology into :=
+  topology.Continuity[A := X, B := Carrier].Corestriction[S := baseImage].corestrictContinuous space topology into baseContinuous;
+\import algebraic_topology.Pointed[A := X].Maps[B := ImagePoint] \as ImageMaps;
+\definition map: Map model imageModel := \into[X -> ImagePoint](into, Map model imageModel) \by {
+  ImageMaps.Laws[pointed model, pointed imageModel, into] { continuous := continuous, pointed := \refl(into a0) }
+};
+\definition injective: \forall (x, y: X) -> into x = into y -> x = y := \fun (x, y: X)(same: into x = into y) => baseInjective x y same;
+\definition onto: \forall (z: ImagePoint) -> \exists (x: X \where into x = z) := \block {
+  \fun (z: ImagePoint) \then
+  \takefrom x: \Cast[X] ({ x: X \where Logic.And[x = x, base x = z] }) \by \bysub(Carrier, baseImage, z) \then
+  \return Logic.existsIntro[X, { x: X \where into x = z }] x ((\bysub(X, { x: X \where Logic.And[x = x, base x = z] }, x)).right)
+};
+\import \root.Relative[].Equivalence[source := model, target := imageModel].FromMap[f := map, injective := injective, onto := onto] \as Homeomorphism;
+\definition equivalence: \root.Relative[].Equivalence[source := model, target := imageModel].Data := Homeomorphism.equivalence;

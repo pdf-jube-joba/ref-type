@@ -1,0 +1,32 @@
+\import \parent.Part[S := first,
+  contained := \fun (x: A)(member: \In[A] first x) => Logic.Or[\In[A] first x, \In[A] second x]::left member,
+  element := Covered.left,
+  member := Logic.Or[Covered.left = Covered.left, Covered.left = Covered.right]::left (\refl(Covered.left)),
+  inside := \fun (x: \Cast[A] first) => \bysub(A, first, x)] \as FirstPart;
+\import \parent.Part[S := second,
+  contained := \fun (x: A)(member: \In[A] second x) => Logic.Or[\In[A] first x, \In[A] second x]::right member,
+  element := Covered.right,
+  member := Logic.Or[Covered.right = Covered.left, Covered.right = Covered.right]::right (\refl(Covered.right)),
+  inside := \fun (x: \Cast[A] second) => \bysub(A, second, x)] \as SecondPart;
+\import \root.Triple[A := A, source := source, first := first, second := second].Common[n := n] \as Common;
+\definition apply[h: SmallRelative.Carrier (I.Int^::ofNat n)]: Common.Carrier :=
+  \into[Cochains.Carrier n](whole h, { x: Cochains.Carrier n \where Common.Conditions[x] }) \by {
+    Common.Conditions[whole h] { first := FirstPart.vanishes h, second := SecondPart.vanishes h }
+  };
+\import ToSmall.Descent[] \as To;
+\import Modules.Hom[V := WholeExtension.Carrier (I.Int^::ofNat n), W := I.Int^, source := WholeExtension.space (I.Int^::ofNat n), target := Cochains.integerCoefficients.space] \as ExtendedMaps;
+\definition toFrom: \forall (h: SmallRelative.Carrier (I.Int^::ofNat n)) -> To.apply (apply h) = h :=
+  \fun (h: SmallRelative.Carrier (I.Int^::ofNat n)) => Vanishing.injective (To.apply (apply h)) h
+    (trans!{Vanishing.NullCochain} _ _ _ (Vanishing.rightInverse (To.null (apply h)))
+      (ExtendedMaps.ext (To.null (apply h)) (Vanishing.restrict h)
+        (\fun (x: WholeExtension.Carrier (I.Int^::ofNat n)) => \refl((h).apply (Quotient.At[k := I.Int^::ofNat n].class x)))));
+\definition fromTo: \forall (h: Common.Carrier) -> apply (To.apply h) = h :=
+  \fun (h: Common.Carrier) => WholeMaps.ext (apply (To.apply h)) h
+    (\fun (x: Chains.Carrier n) => congr!{Vanishing.NullCochain I.Int^} (\fun (f: Vanishing.NullCochain) => f.apply (WholeExtension.Positive[n := n].intro x)) _ _
+      (Vanishing.rightInverse (To.null h)));
+\module Linear;
+\module Commutes;
+\definition injective: \forall (h, k: SmallRelative.Carrier (I.Int^::ofNat n)) -> apply h = apply k -> h = k :=
+  \fun (h, k: SmallRelative.Carrier (I.Int^::ofNat n))(same: apply h = apply k) => trans!{{SmallRelative.Carrier (I.Int^::ofNat n)}} _ _ _
+    (sym!{{SmallRelative.Carrier (I.Int^::ofNat n)}} _ _ (toFrom h))
+    (trans!{{SmallRelative.Carrier (I.Int^::ofNat n)}} _ _ _ (congr!{Common.Carrier {SmallRelative.Carrier (I.Int^::ofNat n)}} To.apply _ _ same) (toFrom k));

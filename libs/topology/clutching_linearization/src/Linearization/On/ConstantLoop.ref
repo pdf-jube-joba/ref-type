@@ -1,0 +1,23 @@
+\import matrix_invariants.Ring[K := C.Complex, scalars := Scalars.commutativeRing].At[n := n] \as M;
+\import matrix_invariants.Field[K := C.Complex, field := Scalars.field].At[n := n] \as Field;
+\import matrix_invariants.Topological[K := C.Complex, ring := topological_algebra.Complex[].Ring[].topologicalRing].At[n := n] \as Top;
+\import topological_algebra.Complex[] \as Plane;
+\import sphere_maps.Circle[] \as NativeCircle;
+\import topological_constructions.Product[A := X, B := NativeCircle.Carrier] \as CircleProduct;
+\definition loop[p: Circle.Domain]: M.Matrix := h (Circle.first p);
+\definition loopRegular: Top.Families[X := Circle.Domain].Regular Circle.source loop := \fun (i, j: M.Index) =>
+  topology.Composition[A := Circle.Domain, B := X, C := C.Complex].composeContinuous Circle.source source Plane.topology Circle.first (\fun (x: X) => h x i j)
+    (CircleProduct.Maps[].firstContinuous source NativeCircle.topology) (regular i j);
+\definition loopNonzero: \forall (p: Circle.Domain) -> Field.Nonzero (loop p) := \fun (p: Circle.Domain) => nonzero (Circle.first p);
+\import \root.Linearization[].MatrixPaths[n := n, Y := Circle.Domain, source := Circle.source] \as Paths;
+\definition family: Paths.Family := Paths.Family { matrix := loop, regular := loopRegular, nonzero := loopNonzero };
+\import \root.Linearization[].MatrixNeighborhoods[n := n].Perturbation[X := X, source := source, compact := compact, a := h, regular := regular, nonzero := nonzero] \as Margin;
+\module With(bound: Margin.Bound);
+\definition boundExists: \exists Margin.Bound := Margin.boundExists;
+\import \root.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[n := n,
+  a := family.matrix, regular := family.regular, nonzero := family.nonzero] \as Index;
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := source, compact := compact, hausdorff := hausdorff] \as K;
+\definition indexZero: Index.Inverse[].value = K.K0[].zero := \block {
+  \takefrom bound: Margin.Bound \by boundExists \then
+  \return With[bound := bound].Spectral[].zero
+};

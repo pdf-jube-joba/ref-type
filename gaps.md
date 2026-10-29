@@ -78,3 +78,108 @@ B03 の `Representations.Representing` はこの配置を使う。
   }
 }
 ```
+
+## 大きな構造体からの小さな依存データの取り出し
+
+次の自然な表示では `point` の生成で `forbidden large elimination` となる。
+
+```ref
+\module Test {
+  \structure Data: \Set(1) := { Carrier: \Set, point: Carrier };
+}
+```
+
+現在は小さな結果型への関数を受け取るフィールドを使い、必要なデータを復元する。
+次の形は通常検査で終了0となり、`puppe_sequences.Puppe.Sequence.Arrow` も同じ方法を使う。
+
+```ref
+\module Test {
+  \structure Data: \Set(1) := {
+    Carrier: \Set,
+    pointLift: \forall (X: \Set) -> (Carrier -> X) -> X,
+  };
+  \definition point[d: Data]: d.Carrier :=
+    d.pointLift d.Carrier (\fun (x: d.Carrier) => x);
+}
+```
+
+## ブロック内部での module の別名
+
+局所的に使う module をブロック内で import したいが、次の形は構文解析で `expected block statement or \return` となる。
+
+```ref
+\module Test {
+  \definition zero: std.Data[].Nat[].Nat^ := \block {
+    \import std.Data[].Nat[] \as N \then
+    \return N.Nat^::zero
+  };
+}
+```
+
+現在は module のスコープに import を置く。
+局所値に依存する import は、その値を引数に取る補助 module に移す。
+
+```ref
+\module Test {
+  \import std.Data[].Nat[] \as N;
+  \definition zero: N.Nat^ := N.Nat^::zero;
+}
+```
+
+## 親 module 内の定義への直接参照
+
+次のように子 module から `\parent.identity` を項として使いたい。
+現在は `Module instantiation path must contain at least one module` で失敗する。
+
+```ref
+\module Test {
+  \definition identity[A: \Set][x: A]: A := x;
+  \module Child {
+    \definition result[A: \Set][x: A]: A := \parent.identity A x;
+  }
+}
+```
+
+現在は親 module を明示的に import してから定義を参照する。
+
+```ref
+\module Test {
+  \definition identity[A: \Set][x: A]: A := x;
+  \module Child {
+    \import \root.Test[] \as Parent;
+    \definition result[A: \Set][x: A]: A := Parent.identity A x;
+  }
+}
+```
+
+## import 別名を経由する公開参照
+
+module 内の import 別名を、その module の利用側から修飾して参照したい。
+現在は `Name 'Internal' was not found in its scope` となる。
+
+```ref
+\import std.Data[].Nat[] \as N;
+\module Core {
+  \definition value: N.Nat^ := N.Nat^::zero;
+}
+\module Wrapper {
+  \import \root.Core[] \as Internal;
+}
+\import \root.Wrapper[] \as API;
+\definition result: N.Nat^ := API.Internal.value;
+```
+
+現在は必要な定義を明示的に公開するか、利用側で元の module を import する。
+
+```ref
+\import std.Data[].Nat[] \as N;
+\module Core {
+  \definition value: N.Nat^ := N.Nat^::zero;
+}
+\module Wrapper {
+  \import \root.Core[] \as Internal;
+  \definition value: N.Nat^ := Internal.value;
+}
+\import \root.Wrapper[] \as API;
+\definition result: N.Nat^ := API.value;
+```

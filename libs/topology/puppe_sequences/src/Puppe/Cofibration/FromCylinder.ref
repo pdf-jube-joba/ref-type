@@ -1,0 +1,74 @@
+\import topology.Topology[Carrier := Cylinder.Carrier] \as Domain;
+\import topology.Continuity[A := Cylinder.Carrier, B := A] \as PointMaps;
+\import topology.Continuity[A := Cylinder.Carrier, B := I.Carrier] \as TimeMaps;
+\import topology.Continuity[A := Cylinder.Carrier, B := real.Analysis[].Real] \as ClockMaps;
+\definition domain: Domain.Topology := Cylinder.topology source;
+\definition point[p: Cylinder.Carrier]: A := Cylinder.point (h p);
+\definition time[p: Cylinder.Carrier]: I.Carrier := Cylinder.time (h p);
+\definition pointContinuous: PointMaps.Continuous domain source point := topology.Composition[A := Cylinder.Carrier, B := Cylinder.Carrier, C := A].composeContinuous domain domain source h Cylinder.point continuous (Cylinder.pointContinuous source);
+\definition timeContinuous: TimeMaps.Continuous domain I.topology time := topology.Composition[A := Cylinder.Carrier, B := Cylinder.Carrier, C := I.Carrier].composeContinuous domain domain I.topology h Cylinder.time continuous (Cylinder.timeContinuous source);
+\definition clockContinuous: ClockMaps.Continuous domain metric_spaces.RealLine[].topology time :=
+  topology.Composition[A := Cylinder.Carrier, B := I.Carrier, C := real.Analysis[].Real].composeContinuous domain I.topology metric_spaces.RealLine[].topology time
+    (\fun (t: I.Carrier) => t) timeContinuous I.inclusionContinuous;
+\definition F: \Pow Cylinder.Carrier := { p: Cylinder.Carrier \where time p = I.start };
+\definition G: \Pow Cylinder.Carrier := { p: Cylinder.Carrier \where \In[A] subset (point p) };
+\import Domain.Subspace[S := F] \as Bottom;
+\import Domain.Subspace[S := G] \as Side;
+\import topological_constructions.Gluing[A := Cylinder.Carrier, B := Wedge.Carrier].Pasting[F := F, G := G] \as Pasting;
+\definition left[p: Bottom.CarrierSet]: Wedge.Carrier := Wedge.inl (point p);
+\definition boundaryPoint[p: Side.CarrierSet]: Subspace.CarrierSet := \into[A](point p, subset) \by { \bysub(Cylinder.Carrier, G, p) };
+\definition sidePoint[p: Side.CarrierSet]: SubCylinder.Carrier := SubCylinder.at (time p) (boundaryPoint p);
+\definition right[p: Side.CarrierSet]: Wedge.Carrier := Wedge.inr (sidePoint p);
+\definition compatible: Pasting.Compatible left right := \fun (a: Bottom.CarrierSet)(b: Side.CarrierSet)(same: a = b) =>
+  trans!{Wedge.Carrier} _ _ _ (congr!{Cylinder.Carrier Wedge.Carrier} (\fun (p: Cylinder.Carrier) => Wedge.inl (point p)) _ _ same)
+    (trans!{Wedge.Carrier} _ _ _ (Wedge.glued (boundaryPoint b))
+      (congr!{I.Carrier Wedge.Carrier} (\fun (t: I.Carrier) => Wedge.inr (SubCylinder.at t (boundaryPoint b))) _ _
+        (trans!{I.Carrier} _ _ _ (sym!{I.Carrier} _ _ (\bysub(Cylinder.Carrier, F, a))) (congr!{Cylinder.Carrier I.Carrier} time _ _ same))));
+\definition leftContinuous: topology.Continuity[A := Bottom.CarrierSet, B := Wedge.Carrier].Continuous (Bottom.topology domain) (Native.wedgeTopology source) left :=
+  topology.Composition[A := Bottom.CarrierSet, B := A, C := Wedge.Carrier].composeContinuous (Bottom.topology domain) source (Native.wedgeTopology source)
+    (\fun (p: Bottom.CarrierSet) => point p) Wedge.inl
+    (PointMaps.Restriction[S := F].restrictContinuous domain source point pointContinuous)
+    (Wedge.inlContinuous source (SubCylinder.topology (Subspace.topology source)));
+\definition boundaryPointContinuous: topology.Continuity[A := Side.CarrierSet, B := Subspace.CarrierSet].Continuous (Side.topology domain) (Subspace.topology source) boundaryPoint :=
+  topology.Continuity[A := Side.CarrierSet, B := A].Corestriction[S := subset].corestrictContinuous (Side.topology domain) source boundaryPoint
+    (PointMaps.Restriction[S := G].restrictContinuous domain source point pointContinuous);
+\definition sidePointContinuous: topology.Continuity[A := Side.CarrierSet, B := SubCylinder.Carrier].Continuous (Side.topology domain) (SubCylinder.topology (Subspace.topology source)) sidePoint :=
+  topological_constructions.Product[A := I.Carrier, B := Subspace.CarrierSet].Universal[X := Side.CarrierSet].pairContinuous (Side.topology domain) I.topology (Subspace.topology source)
+    (\fun (p: Side.CarrierSet) => time p) boundaryPoint (TimeMaps.Restriction[S := G].restrictContinuous domain I.topology time timeContinuous) boundaryPointContinuous;
+\definition rightContinuous: topology.Continuity[A := Side.CarrierSet, B := Wedge.Carrier].Continuous (Side.topology domain) (Native.wedgeTopology source) right :=
+  topology.Composition[A := Side.CarrierSet, B := SubCylinder.Carrier, C := Wedge.Carrier].composeContinuous (Side.topology domain) (SubCylinder.topology (Subspace.topology source)) (Native.wedgeTopology source)
+    sidePoint Wedge.inr sidePointContinuous (Wedge.inrContinuous source (SubCylinder.topology (Subspace.topology source)));
+\definition closedF: Domain.IsClosedIn domain F := ClockMaps.closedPreimage domain metric_spaces.RealLine[].topology time clockContinuous
+  ({ t: real.Analysis[].Real \where t = real.Analysis[].zero })
+  (metric_spaces.MetricSpace[Carrier := real.Analysis[].Real].Topology[].singletonClosed metric_spaces.RealMetric[].metric real.Analysis[].zero);
+\definition closedG: Domain.IsClosedIn domain G := PointMaps.closedPreimage domain source point pointContinuous subset closed;
+\definition retraction: Cylinder.Carrier -> Wedge.Carrier := Pasting.apply left right covered compatible;
+\definition retractionContinuous: topology.Continuity[A := Cylinder.Carrier, B := Wedge.Carrier].Continuous domain (Native.wedgeTopology source) retraction :=
+  Pasting.continuous domain (Native.wedgeTopology source) left right covered compatible closedF closedG leftContinuous rightContinuous;
+\definition onBottom: \forall (x: A) -> retraction (Cylinder.at I.start x) = Wedge.inl x := \fun (x: A) => \block {
+  \let p: Bottom.CarrierSet := \into[Cylinder.Carrier](Cylinder.at I.start x, F) \by {
+    congr!{Cylinder.Carrier I.Carrier} Cylinder.time _ _ (bottom x)
+  } \then
+  \return trans!{Wedge.Carrier} _ _ _ (Pasting.onLeft left right covered compatible p)
+    (congr!{A Wedge.Carrier} Wedge.inl _ _ (congr!{Cylinder.Carrier A} Cylinder.point _ _ (bottom x)))
+};
+\definition onSide: \forall (t: I.Carrier)(x: Subspace.CarrierSet) -> retraction (Cylinder.at t x) = Wedge.inr (SubCylinder.at t x) := \fun (t: I.Carrier)(x: Subspace.CarrierSet) => \block {
+  \let pe: point (Cylinder.at t x) = x := congr!{Cylinder.Carrier A} Cylinder.point _ _ (side t x) \then
+  \let p: Side.CarrierSet := \into[Cylinder.Carrier](Cylinder.at t x, G) \by {
+    \idelim x = point (Cylinder.at t x) \with y: A => \In[A] subset y \by { base: \bysub(A, subset, x), equality: sym!{A} _ _ pe }
+  } \then
+  \return trans!{Wedge.Carrier} _ _ _ (Pasting.onRight left right covered compatible p)
+    (congr!{SubCylinder.Carrier Wedge.Carrier} Wedge.inr _ _
+      (congr!{I.Carrier Subspace.CarrierSet SubCylinder.Carrier} SubCylinder.at (time p) t (boundaryPoint p) x (congr!{Cylinder.Carrier I.Carrier} Cylinder.time _ _ (side t x)) pe))
+};
+\definition result: Native.Retraction[source] := Native.Retraction[source] {
+  apply := retraction,
+  continuous := retractionContinuous,
+  fixes := Wedge.induction (\fun (w: Wedge.Carrier) => retraction (Native.embedding w) = w)
+    (\fun (x: A) => trans!{Wedge.Carrier} _ _ _ (congr!{Cylinder.Carrier Wedge.Carrier} retraction _ _ (Embed.onLeft (Cylinder.at I.start) Native.include Native.embeddingCompatible x)) (onBottom x))
+    (\induction (p: SubCylinder.Carrier) \return retraction (Native.embedding (Wedge.inr p)) = Wedge.inr p \with {
+      | pair: \fun (t: I.Carrier)(x: Subspace.CarrierSet) => trans!{Wedge.Carrier} _ _ _
+        (congr!{Cylinder.Carrier Wedge.Carrier} retraction _ _ (Embed.onRight (Cylinder.at I.start) Native.include Native.embeddingCompatible (SubCylinder.at t x))) (onSide t x)
+    }),
+};
+\definition cofibration: Native.IsCofibration source := \exact(result, Native.Retraction[source]);

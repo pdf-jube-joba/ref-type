@@ -1,0 +1,48 @@
+\use std.Logic[].Proposition[].either;
+\import \parent.Part[S := first] \as FirstPart;
+\import \parent.Part[S := second] \as SecondPart;
+\import \root.Triple[A := A, source := source, first := first, second := second].Common[n := n] \as Common;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing].Relative[subcomplex := Small.complex, wholecomplex := Chains.complex].On[pair := pair, coefficients := Cochains.integerCoefficients] \as SmallRelative;
+\import SmallRelative.Vanishing[z := I.Int^::ofNat n] \as Vanishing;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].ZeroExtension[C := Small.complex] \as SmallExtension;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].ZeroExtension[C := Chains.complex] \as WholeExtension;
+\import Modules.Hom[V := WholeExtension.Carrier (I.Int^::ofNat n), W := I.Int^, source := WholeExtension.space (I.Int^::ofNat n), target := Cochains.integerCoefficients.space] \as WholeMaps;
+\definition extended[h: Common.Carrier]: WholeMaps.Map := WholeMaps.Map {
+  apply := \fun (x: WholeExtension.Carrier (I.Int^::ofNat n)) => h.apply x,
+  addition := \fun (x, y: WholeExtension.Carrier (I.Int^::ofNat n)) => h.addition x y,
+  scalar := \fun (a: I.Int^)(x: WholeExtension.Carrier (I.Int^::ofNat n)) => h.scalar a x,
+};
+\import Modules.Hom[V := Small.Carrier n, W := I.Int^, source := Small.space n, target := Cochains.integerCoefficients.space] \as SmallMaps;
+\import Modules.Free[Generators := SmallSimplices.Carrier n].To[W := I.Int^, target := Cochains.integerCoefficients.space] \as Free;
+\definition killed: \forall (h: Common.Carrier)(sigma: SmallSimplices.Carrier n) ->
+  (h).apply ((inclusion).apply n (Small.generator n sigma)) = (Cochains.integerCoefficients.space).zero := \block {
+  \fun (h: Common.Carrier)(sigma: SmallSimplices.Carrier n) \then
+  \takefrom witness: SmallSimplices.Witness[n, sigma] \by SmallSimplices.witness n sigma \then
+  \let conditions: Common.Conditions[h] := \bysub(Cochains.Carrier n, { x: Cochains.Carrier n \where Common.Conditions[x] }, h) \then
+  \return either!{{(witness).member} {(h).apply ((inclusion).apply n (Small.generator n sigma)) = (Cochains.integerCoefficients.space).zero}
+    {\fun (same: (witness).element = Covered.left) => FirstPart.vanishes h conditions.first sigma
+      (\idelim (witness).element = Covered.left \with U: \Pow Relative.SubspaceCarrier => \forall (x: Simplex.Carrier n) -> \In[Relative.SubspaceCarrier] U (sigma x) \by {
+        base: (witness).contained, equality: same
+      })}
+    {\fun (same: (witness).element = Covered.right) => SecondPart.vanishes h conditions.second sigma
+      (\idelim (witness).element = Covered.right \with U: \Pow Relative.SubspaceCarrier => \forall (x: Simplex.Carrier n) -> \In[Relative.SubspaceCarrier] U (sigma x) \by {
+        base: (witness).contained, equality: same
+      })}
+  }
+};
+\definition restriction[h: Common.Carrier]: SmallMaps.Map := SmallMaps.Map {
+  apply := \fun (x: Small.Carrier n) => h.apply ((inclusion).apply n x),
+  addition := \fun (x, y: Small.Carrier n) => trans!{I.Int^} _ _ _
+    (congr!{{Chains.Carrier n} I.Int^} h.apply _ _ ((inclusion).addition n x y)) (h.addition ((inclusion).apply n x) ((inclusion).apply n y)),
+  scalar := \fun (a: I.Int^)(x: Small.Carrier n) => trans!{I.Int^} _ _ _
+    (congr!{{Chains.Carrier n} I.Int^} h.apply _ _ ((inclusion).scalar n a x)) (h.scalar a ((inclusion).apply n x)),
+};
+\definition vanishes: \forall (h: Common.Carrier)(x: SmallExtension.Carrier (I.Int^::ofNat n)) ->
+  (extended h).apply ((SmallRelative.inclusionMap).apply (I.Int^::ofNat n) x) = (Cochains.integerCoefficients.space).zero :=
+  \fun (h: Common.Carrier)(x: SmallExtension.Carrier (I.Int^::ofNat n)) =>
+    congr!{SmallMaps.Map I.Int^} (\fun (f: SmallMaps.Map) => f.apply x) _ _ (Free.ext (restriction h) SmallMaps.zeroMap (killed h));
+\definition null[h: Common.Carrier]: Vanishing.NullCochain :=
+  \into[WholeMaps.Map](extended h, Vanishing.submodule.carrier) \by { vanishes h };
+\definition apply[h: Common.Carrier]: SmallRelative.Carrier (I.Int^::ofNat n) := Vanishing.descend (null h);
+\module Linear;
+\module Commutes;

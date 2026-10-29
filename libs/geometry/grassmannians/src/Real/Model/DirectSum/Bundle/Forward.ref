@@ -1,0 +1,30 @@
+\import Bundles.Family[X := Source, F := Sum.Fiber] \as SumFamily;
+\import Bundles.Family[X := Carrier, F := Fiber] \as OriginalLeft;
+\import Bundles.Family[X := Right.Carrier, F := Right.Fiber] \as OriginalRight;
+\import Bundles.Morphisms[X := Source, Y := Source, F := Sum.Fiber, G := Image.Fiber, source := sumBundle, target := Image.bundle, f := \fun (x: Source) => x] \as Maps;
+\definition data: Maps.Data := Maps.Data { fiber := \fun (x: Source) => \parent.At[x := x].forward };
+\import bundle_operations.Operations[].Over[K := R.Real, field := R.Algebra[].field, conjugation := H.Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar].CoordinateSum[n := n, m := m] \as Coordinates;
+\import Coordinates.Topology[] \as CoordTopology;
+\import bundle_complements.Complements[].Over[K := R.Real, field := R.Algebra[].field, conjugation := H.Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar].Projection[X := Right.Carrier, n := m, baseSpace := Right.topology, P := Right.projection, regular := Right.regular] \as RightImage;
+\import Bundles.Family[X := Source, F := LeftFiber] \as LeftFamily;
+\import Bundles.Family[X := Source, F := RightFiber] \as RightFamily;
+\definition leftVector[p: SumFamily.Point]: E.Vector := (Pair.first (LeftFiber p.base) (RightFiber p.base) p.vector);
+\definition rightVector[p: SumFamily.Point]: RightE.Vector := (Pair.second (LeftFiber p.base) (RightFiber p.base) p.vector);
+\definition leftVectorContinuous: topology.Continuity[A := SumFamily.Point, B := E.Vector].Continuous Sum.topology (Bundles.coordinateTopology n) leftVector :=
+  topology.Composition[A := SumFamily.Point, B := OriginalLeft.Point, C := E.Vector].composeContinuous Sum.topology bundle.totalSpace (Bundles.coordinateTopology n)
+    (\fun (p: SumFamily.Point) => LeftPull.map (Sum.first p)) (\fun (p: OriginalLeft.Point) => p.vector)
+    (topology.Composition[A := SumFamily.Point, B := LeftFamily.Point, C := OriginalLeft.Point].composeContinuous Sum.topology leftBundle.totalSpace bundle.totalSpace Sum.first LeftPull.map Sum.firstContinuous LeftPull.mapContinuous) UniversalBundle.vectorContinuous;
+\definition rightVectorContinuous: topology.Continuity[A := SumFamily.Point, B := RightE.Vector].Continuous Sum.topology (Bundles.coordinateTopology m) rightVector :=
+  topology.Composition[A := SumFamily.Point, B := OriginalRight.Point, C := RightE.Vector].composeContinuous Sum.topology Right.bundle.totalSpace (Bundles.coordinateTopology m)
+    (\fun (p: SumFamily.Point) => RightPull.map (Sum.second p)) (\fun (p: OriginalRight.Point) => p.vector)
+    (topology.Composition[A := SumFamily.Point, B := RightFamily.Point, C := OriginalRight.Point].composeContinuous Sum.topology rightBundle.totalSpace Right.bundle.totalSpace Sum.second RightPull.map Sum.secondContinuous RightPull.mapContinuous) RightImage.vectorContinuous;
+\import topological_constructions.Product[A := E.Vector, B := RightE.Vector] \as VectorProduct;
+\definition joined[p: SumFamily.Point]: TotalE.Vector := Ambient.join (leftVector p) (rightVector p);
+\definition joinedContinuous: topology.Continuity[A := SumFamily.Point, B := TotalE.Vector].Continuous Sum.topology (Bundles.coordinateTopology Ambient.dimension) joined :=
+  topology.Composition[A := SumFamily.Point, B := VectorProduct.CarrierSet, C := TotalE.Vector].composeContinuous Sum.topology
+    (VectorProduct.topology (Bundles.coordinateTopology n) (Bundles.coordinateTopology m)) (Bundles.coordinateTopology Ambient.dimension)
+    (\fun (p: SumFamily.Point) => Pair.pair E.Vector RightE.Vector (leftVector p) (rightVector p)) Coordinates.join
+    (VectorProduct.Universal[X := SumFamily.Point].pairContinuous Sum.topology (Bundles.coordinateTopology n) (Bundles.coordinateTopology m) leftVector rightVector leftVectorContinuous rightVectorContinuous) CoordTopology.joinRegular;
+\definition map: Maps.Map := \into[Maps.Data](data, Maps.Map) \by {
+  Image.Universal[Y := SumFamily.Point, source := Sum.topology].continuous (Maps.total data) Sum.projectionContinuous joinedContinuous
+};

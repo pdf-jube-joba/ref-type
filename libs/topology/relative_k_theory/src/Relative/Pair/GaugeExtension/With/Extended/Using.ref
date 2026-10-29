@@ -1,0 +1,48 @@
+\definition graph[x: X]: Cylinder.Carrier := Cylinder.at (w.time x) x;
+\definition graphContinuous: topology.Continuity[A := X, B := Cylinder.Carrier].Continuous space (Cylinder.topology space) graph :=
+  Product.Universal[X := X].pairContinuous space Interval.topology space w.time (\fun (x: X) => x) w.continuous (topology.Maps[A := X, B := X].Identity[].continuous space);
+\definition intoLocal[x: X]: Local.Point := \into[Cylinder.Carrier](graph x, e.domain) \by { w.graphInside x };
+\definition intoLocalContinuous: topology.Continuity[A := X, B := Local.Point].Continuous space Local.space intoLocal :=
+  topology.Continuity[A := X, B := Cylinder.Carrier].Corestriction[S := e.domain].corestrictContinuous space (Cylinder.topology space) intoLocal graphContinuous;
+\import Bundles.Family[X := X, F := F] \as Original;
+\import Bundles.Family[X := Cylinder.Carrier, F := CylinderFiber] \as CylinderFamily;
+\import Bundles.Family[X := Local.Point, F := (\fun (z: Local.Point) => CylinderFiber z)] \as LocalFamily;
+\import CylinderFamily.Of[bundle := cylinderBundle].Pullback[Y := Local.Point, source := Local.space, f := Local.inclusion] \as LocalPull;
+\definition originalPoint[p: Original.Point]: Original.Point := Original.include p.base p.vector;
+\definition originalPointContinuous: topology.Continuity[A := Original.Point, B := Original.Point].Continuous bundle.totalSpace bundle.totalSpace originalPoint :=
+  \idelim (\fun (p: Original.Point) => p) = originalPoint \with f: (Original.Point -> Original.Point) => topology.Continuity[A := Original.Point, B := Original.Point].Continuous bundle.totalSpace bundle.totalSpace f \by {
+    base: topology.Maps[A := Original.Point, B := Original.Point].Identity[].continuous bundle.totalSpace,
+    equality: \axiom:funext((\fun (p: Original.Point) => p), originalPoint, \fun (p: Original.Point) => sym!{Original.Point} _ _ (Original.eta p))
+  };
+\definition intoCylinder[p: Original.Point]: CylinderFamily.Point := CylinderFamily.include (graph p.base) p.vector;
+\definition intoCylinderContinuous: topology.Continuity[A := Original.Point, B := CylinderFamily.Point].Continuous bundle.totalSpace cylinderBundle.totalSpace intoCylinder :=
+  CylinderPull.Universal[Z := Original.Point].continuous bundle.totalSpace intoCylinder
+    (topology.Composition[A := Original.Point, B := X, C := Cylinder.Carrier].composeContinuous bundle.totalSpace space (Cylinder.topology space) Original.projection graph
+      (Original.Of[bundle := bundle].projectionContinuous) graphContinuous) originalPointContinuous;
+\definition lift[p: Original.Point]: LocalFamily.Point := LocalFamily.include (intoLocal p.base) p.vector;
+\definition liftContinuous: topology.Continuity[A := Original.Point, B := LocalFamily.Point].Continuous bundle.totalSpace Local.first.totalSpace lift :=
+  LocalPull.Universal[Z := Original.Point].continuous bundle.totalSpace lift
+    (topology.Composition[A := Original.Point, B := X, C := Local.Point].composeContinuous bundle.totalSpace space Local.space Original.projection intoLocal
+      (Original.Of[bundle := bundle].projectionContinuous) intoLocalContinuous) intoCylinderContinuous;
+\definition lower[p: LocalFamily.Point]: Original.Point := CylinderPull.map (LocalPull.map p);
+\definition lowerContinuous: topology.Continuity[A := LocalFamily.Point, B := Original.Point].Continuous Local.first.totalSpace bundle.totalSpace lower :=
+  topology.Composition[A := LocalFamily.Point, B := CylinderFamily.Point, C := Original.Point].composeContinuous Local.first.totalSpace cylinderBundle.totalSpace bundle.totalSpace LocalPull.map CylinderPull.map
+    LocalPull.mapContinuous CylinderPull.mapContinuous;
+\import Bundles.Morphisms[X := Local.Point, Y := Local.Point, F := (\fun (z: Local.Point) => CylinderFiber z), G := (\fun (z: Local.Point) => CylinderFiber z),
+  source := Local.first, target := Local.first, f := (\fun (z: Local.Point) => z)] \as LocalMaps;
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := F, source := bundle, target := bundle, f := (\fun (x: X) => x)] \as GlobalMaps;
+\module Direction(a: LocalMaps.Map);
+\import Direction[a := e.isomorphism.forward] \as Forward;
+\import Direction[a := e.isomorphism.backward] \as Backward;
+\import Bundles.Isomorphisms[X := Local.Point, F := (\fun (z: Local.Point) => CylinderFiber z), G := (\fun (z: Local.Point) => CylinderFiber z),
+  source := Local.first, target := Local.first] \as LocalIsomorphisms;
+\definition localLaws: LocalIsomorphisms.Laws[e.isomorphism] := \bysub(LocalIsomorphisms.Data, LocalIsomorphisms.Isomorphism, e.isomorphism);
+\definition isomorphism: Global.Isomorphism := Global.Isomorphism {
+  forward := Forward.map, backward := Backward.map,
+  leftInverse := \fun (x: X)(v: F x) => localLaws.leftInverse (intoLocal x) v,
+  rightInverse := \fun (x: X)(v: F x) => localLaws.rightInverse (intoLocal x) v
+};
+\definition extends: \forall (x: A)(v: F x) -> (isomorphism.forward.fiber x).apply v = (path.isomorphism.forward.fiber (boundary x Interval.end)).apply v :=
+  \fun (x: A)(v: F x) => trans!{{F x}} _ _ _ (boundaryFormula x (w.time x) v)
+    (congr!{Interval.Carrier {F x}} (\fun (t: Interval.Carrier) => (path.isomorphism.forward.fiber (boundary x t)).apply v) _ _ (w.endpoint x));
+\definition result: Result := Result { isomorphism := isomorphism, extends := extends };

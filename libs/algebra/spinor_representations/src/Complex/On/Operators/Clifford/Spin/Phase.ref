@@ -1,0 +1,79 @@
+\import clifford.Circle[] \as Circle;
+\import algebra.Groups[].Units[A := C.Complex, ring := Algebra.ring] \as Scalars;
+\import Scalars.Mapping[B := Endomorphisms.Carrier, target := Endomorphisms.ring, f := Endomorphisms.scalarMap] \as ScalarMapping;
+\definition scalarUnit[z: Circle.Circle]: Scalars.Unit := Scalars.Unit {
+  value := z, inverse := Circle.inverse z,
+  left := Circle.group.leftInverse z,
+  right := Circle.group.rightInverse z,
+};
+\definition phase[z: Circle.Circle]: TargetUnits.Unit := ScalarMapping.apply (scalarUnit z);
+\definition product: \forall (z, w: Circle.Circle) -> phase (Circle.product z w) = TargetUnits.product (phase z) (phase w) :=
+  \fun (z, w: Circle.Circle) => TargetUnits.ext _ _ ((ScalarMapping.laws).mul z w);
+\definition one: phase Circle.one = TargetUnits.unit := TargetUnits.ext _ _ (ScalarMapping.laws).one;
+\definition onValue: \forall (z: Circle.Circle) -> (phase z).value = Endomorphisms.scalar z := \fun (z: Circle.Circle) => \refl(Endomorphisms.scalar z);
+\import algebra.Groups[].On[G := TargetUnits.Unit, group := TargetUnits.group] \as Ops;
+\definition central: \forall (z: Circle.Circle)(g: TargetUnits.Unit) -> TargetUnits.product (phase z) g = TargetUnits.product g (phase z) :=
+  \fun (z: Circle.Circle)(g: TargetUnits.Unit) => TargetUnits.ext _ _ (Endomorphisms.scalarCentral z g.value);
+\import algebra.Group[].Of[Carrier := Endomorphisms.Carrier, group := std.Alg[].Ring[].additiveGroup Endomorphisms.Carrier Endomorphisms.ring] \as EndSum;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import algebra.Hom[A := AlgebraClifford.Carrier, B := Endomorphisms.Carrier] \as RingHom;
+\import std.Alg[].Ring[] \as Rings;
+\definition extensionLaws: RingHom.SemiringLaws[Rings.ringAsSemiring AlgebraClifford.Carrier AlgebraClifford.ring, Rings.ringAsSemiring Endomorphisms.Carrier Endomorphisms.ring, extension] := RingHom.semiringLaws _ _ extension;
+\definition mapNegativeOne: extension (AlgebraClifford.neg AlgebraClifford.one) = Endomorphisms.neg Endomorphisms.one :=
+  EndSum.inverseUnique Endomorphisms.one (extension (AlgebraClifford.neg AlgebraClifford.one)) (eq_reason_in!{Endomorphisms.Carrier _
+    "=" _ "by" { congr!{Endomorphisms.Carrier Endomorphisms.Carrier} (Endomorphisms.add (extension (AlgebraClifford.neg AlgebraClifford.one))) _ _ (sym!{Endomorphisms.Carrier} _ _ extensionLaws.one) }
+    "=" _ "by" { sym!{Endomorphisms.Carrier} _ _ (extensionLaws.add (AlgebraClifford.neg AlgebraClifford.one) AlgebraClifford.one) }
+    "=" _ "by" { congr!{AlgebraClifford.Carrier Endomorphisms.Carrier} extension _ _ (AlgebraClifford.ring.additiveInverse AlgebraClifford.one) }
+    "=" _ "by" { extensionLaws.zero }
+  });
+\definition signEqual: action Pin.spinSign = phase Circle.minusOne := TargetUnits.ext _ _ mapNegativeOne;
+\definition values[g: Pin.Spin][z: Circle.Circle]: TargetUnits.Unit := TargetUnits.product (phase z) (action g);
+\import SourceUnits.Mapping[B := Endomorphisms.Carrier, target := Endomorphisms.ring, f := extension] \as SpinMapping;
+\definition invariant: \forall (g: Pin.Spin)(z: Circle.Circle) -> values (Pin.spinGroup.op Pin.spinSign g) (Circle.product Circle.minusOne z) = values g z :=
+  \fun (g: Pin.Spin)(z: Circle.Circle) => eq_reason_in!{TargetUnits.Unit _
+    "=" _ "by" { congr!{TargetUnits.Unit TargetUnits.Unit TargetUnits.Unit} TargetUnits.product _ _ _ _
+      (product Circle.minusOne z) (SpinMapping.preservesProduct Pin.spinSign g) }
+    "=" _ "by" { congr!{TargetUnits.Unit TargetUnits.Unit} (\fun (u: TargetUnits.Unit) => TargetUnits.product (TargetUnits.product u (phase z)) (TargetUnits.product (action Pin.spinSign) (action g))) _ _ (sym!{TargetUnits.Unit} _ _ signEqual) }
+    "=" _ "by" { Ops.assoc (action Pin.spinSign) (phase z) (TargetUnits.product (action Pin.spinSign) (action g)) }
+    "=" _ "by" { congr!{TargetUnits.Unit TargetUnits.Unit} (TargetUnits.product (action Pin.spinSign)) _ _ (sym!{TargetUnits.Unit} _ _ (Ops.assoc (phase z) (action Pin.spinSign) (action g))) }
+    "=" _ "by" { congr!{TargetUnits.Unit TargetUnits.Unit} (\fun (u: TargetUnits.Unit) => TargetUnits.product (action Pin.spinSign) (TargetUnits.product u (action g))) _ _ (central z (action Pin.spinSign)) }
+    "=" _ "by" { congr!{TargetUnits.Unit TargetUnits.Unit} (TargetUnits.product (action Pin.spinSign)) _ _ (Ops.assoc (action Pin.spinSign) (phase z) (action g)) }
+    "=" _ "by" { sym!{TargetUnits.Unit} _ _ (Ops.assoc (action Pin.spinSign) (action Pin.spinSign) (TargetUnits.product (phase z) (action g))) }
+    "=" _ "by" { congr!{TargetUnits.Unit TargetUnits.Unit} (\fun (u: TargetUnits.Unit) => TargetUnits.product u (values g z)) _ _
+      (trans!{TargetUnits.Unit} _ _ _ (sym!{TargetUnits.Unit} _ _ (SpinMapping.preservesProduct Pin.spinSign Pin.spinSign))
+        (trans!{TargetUnits.Unit} _ _ _ (congr!{Pin.Spin TargetUnits.Unit} action _ _ Pin.spinInvolution.square) SpinMapping.atOne)) }
+    "=" _ "by" { Ops.oneLeft (values g z) }
+  };
+\import clifford.ComplexExtension[G := Pin.Spin, group := Pin.spinGroup].By[sign := Pin.spinInvolution] \as SpinC;
+\import SpinC.Lift[B := TargetUnits.Unit, values := values, invariant := invariant] \as Lift;
+\definition actionC: SpinC.Carrier -> TargetUnits.Unit := Lift.map;
+\definition onClass: \forall (g: Pin.Spin)(z: Circle.Circle) -> actionC (SpinC.class g z) = values g z := Lift.onClass;
+\definition valuesProduct: \forall (g, h: Pin.Spin)(z, w: Circle.Circle) ->
+  values (Pin.spinGroup.op g h) (Circle.product z w) = TargetUnits.product (values g z) (values h w) :=
+  \fun (g, h: Pin.Spin)(z, w: Circle.Circle) => eq_reason_in!{TargetUnits.Unit _
+    "=" _ "by" { congr!{TargetUnits.Unit TargetUnits.Unit TargetUnits.Unit} TargetUnits.product _ _ _ _ (product z w) (SpinMapping.preservesProduct g h) }
+    "=" _ "by" { Ops.assoc (phase z) (phase w) (TargetUnits.product (action g) (action h)) }
+    "=" _ "by" { congr!{TargetUnits.Unit TargetUnits.Unit} (TargetUnits.product (phase z)) _ _ (sym!{TargetUnits.Unit} _ _ (Ops.assoc (phase w) (action g) (action h))) }
+    "=" _ "by" { congr!{TargetUnits.Unit TargetUnits.Unit} (\fun (u: TargetUnits.Unit) => TargetUnits.product (phase z) (TargetUnits.product u (action h))) _ _ (central w (action g)) }
+    "=" _ "by" { congr!{TargetUnits.Unit TargetUnits.Unit} (TargetUnits.product (phase z)) _ _ (Ops.assoc (action g) (phase w) (action h)) }
+    "=" _ "by" { sym!{TargetUnits.Unit} _ _ (Ops.assoc (phase z) (action g) (values h w)) }
+  };
+\definition productC: \forall (a, b: SpinC.Carrier) -> actionC (SpinC.group.op a b) = TargetUnits.product (actionC a) (actionC b) :=
+  SpinC.induction2 (\fun (a, b: SpinC.Carrier) => actionC (SpinC.group.op a b) = TargetUnits.product (actionC a) (actionC b))
+    (\fun (g: Pin.Spin)(z: Circle.Circle)(h: Pin.Spin)(w: Circle.Circle) => eq_reason_in!{TargetUnits.Unit _
+      "=" _ "by" { congr!{SpinC.Carrier TargetUnits.Unit} actionC _ _ (SpinC.multiplication g h z w) }
+      "=" _ "by" { onClass (Pin.spinGroup.op g h) (Circle.product z w) }
+      "=" _ "by" { valuesProduct g h z w }
+      "=" _ "by" { congr!{TargetUnits.Unit TargetUnits.Unit TargetUnits.Unit} TargetUnits.product _ _ _ _
+        (sym!{TargetUnits.Unit} _ _ (onClass g z)) (sym!{TargetUnits.Unit} _ _ (onClass h w)) }
+    });
+\definition unitC: actionC SpinC.group.unit = TargetUnits.unit := trans!{TargetUnits.Unit} _ _ _ (onClass Pin.spinGroup.unit Circle.one)
+  (trans!{TargetUnits.Unit} _ _ _ (congr!{TargetUnits.Unit TargetUnits.Unit TargetUnits.Unit} TargetUnits.product _ _ _ _ one SpinMapping.atOne) (Ops.oneLeft TargetUnits.unit));
+\import algebra.Hom[A := SpinC.Carrier, B := TargetUnits.Unit] \as Maps;
+\definition homomorphism: Maps.GroupMap SpinC.group TargetUnits.group := \into[SpinC.Carrier -> TargetUnits.Unit](actionC, Maps.GroupMap SpinC.group TargetUnits.group) \by {
+  Maps.MonoidLaws[_, _, actionC] { unit := unitC, operation := productC }
+};

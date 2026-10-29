@@ -1,0 +1,33 @@
+\import real.Analysis[].Sequence[] \as Sequence;
+\import Sequence.Operations[] \as Operations;
+\import \root.Measure[A := A].Integral[mu := mu].Convergence[].Recovery[] \as Recovery;
+\import dedekind_reals.DedekindReal[].Order[] \as Order;
+\definition upper: \forall (g: A -> Real.Real) -> (\forall (x: A) -> Sequence.Converges (\fun (k: N.Nat^) => f k x) (g x)) ->
+  \forall (n: N.Nat^) (x: A) -> R.Le (value n x) (g x) :=
+  \fun (g: A -> Real.Real) (converges: _) (n: N.Nat^) (x: A) =>
+    Operations.lowerBoundLimit (\fun (k: N.Nat^) => f k x) (g x) (value n x) n (converges x)
+      (\fun (k: N.Nat^) (later: Nat.Le n k) => lower n k later x);
+\definition sup: \forall (g: A -> Real.Real) -> (\forall (x: A) -> Sequence.Converges (\fun (k: N.Nat^) => f k x) (g x)) ->
+  PointwiseSup envelope g :=
+  \fun (g: A -> Real.Real) (converges: _) (x: A) => Complete.LeastUpperBound[PointValues envelope x, g x] {
+    upper := \fun (y: Real.Real) (member: Complete.Member (PointValues envelope x) y) => \block {
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where y = value n x }) \by member \then
+      \return R.leReplaceLeft (value n x) y (g x) (sym!{Real.Real} _ _ (\bysub(N.Nat^, { n: N.Nat^ \where y = value n x }, n))) (upper g converges n x)
+    },
+    least := \fun (b: Real.Real) (bound: Complete.UpperBound (PointValues envelope x) b) =>
+      Order.leOfNotLtReverse (g x) b (\fun (less: R.Lt b (g x)) => \block {
+        \let r: Real.Real := Real.midpoint b (g x) \then
+        \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \forall (k: N.Nat^) -> Nat.Le n k -> R.Lt r (f k x) })
+          \by Recovery.eventuallyAbove (\fun (k: N.Nat^) => f k x) (g x) r (converges x) (Values.midpointStrictRight b (g x) less) \then
+        \let later: \forall (k: N.Nat^) -> Nat.Le n k -> R.Lt r (f k x) :=
+          \bysub(N.Nat^, { n: N.Nat^ \where \forall (k: N.Nat^) -> Nat.Le n k -> R.Lt r (f k x) }, n) \then
+        \let lowerBound: Complete.LowerBound (values n x) r := \fun (y: Real.Real) (member: Complete.Member (values n x) y) => \block {
+          \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Logic.And[Nat.Le n k, y = f k x] }) \by member \then
+          \let data: Logic.And[Nat.Le n k, y = f k x] := \bysub(N.Nat^, { k: N.Nat^ \where Logic.And[Nat.Le n k, y = f k x] }, k) \then
+          \return R.leReplaceRight r (f k x) y (sym!{Real.Real} _ _ data.right) (Order.leOfLt r (f k x) (later k data.left))
+        } \then
+        \let rBelow: R.Le r (value n x) := (valueLaw n x).right r lowerBound \then
+        \let toBound: R.Le r b := R.leTrans r (value n x) b rBelow (bound (value n x) (pointValueMember envelope x n)) \then
+        \return R.ltNotLeReverse b r (Values.midpointStrictLeft b (g x) less) toBound
+      }),
+  };

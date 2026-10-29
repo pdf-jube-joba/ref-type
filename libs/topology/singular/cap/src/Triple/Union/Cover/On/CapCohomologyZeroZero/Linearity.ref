@@ -1,0 +1,30 @@
+\import \parent.On[alpha := (Cochain.cycleSpace).zero] \as Zero;
+\import Modules.Hom[V := Degree.Carrier Geometry.total, W := TargetDegree.Carrier N.Nat^::zero, source := Degree.space Geometry.total, target := TargetDegree.space N.Nat^::zero] \as CapMaps;
+\definition addCycles: \forall (alpha, beta: Cochain.Closed)(x: Source.Cycle) ->
+  \parent.On[alpha := (Cochain.cycleSpace).add alpha beta].cycle x = (Target.cycleSpace).add (\parent.On[alpha := alpha].cycle x) (\parent.On[alpha := beta].cycle x) :=
+  \fun (alpha, beta: Cochain.Closed)(x: Source.Cycle) =>
+    congr!{CapMaps.Map {TargetDegree.Carrier N.Nat^::zero}} (\fun (f: CapMaps.Map) => (f).apply x) _ _ (Bilinear.addition alpha beta);
+\definition scalarCycles: \forall (a: I.Int^)(alpha: Cochain.Closed)(x: Source.Cycle) ->
+  \parent.On[alpha := (Cochain.cycleSpace).smul a alpha].cycle x = (Target.cycleSpace).smul a (\parent.On[alpha := alpha].cycle x) :=
+  \fun (a: I.Int^)(alpha: Cochain.Closed)(x: Source.Cycle) =>
+    Bilinear.scalarValue a alpha x;
+\definition addition: \forall (alpha, beta: Cochain.Closed) -> value ((Cochain.cycleSpace).add alpha beta) = Actions.add (value alpha) (value beta) :=
+  \fun (alpha, beta: Cochain.Closed) => ActionMaps.ext _ _
+    (Source.classInduction (\fun (x: Source.Homology) => (value ((Cochain.cycleSpace).add alpha beta)).apply x = (Actions.add (value alpha) (value beta)).apply x)
+      (\fun (x: Source.Cycle) => eq_reason_in!{Target.Homology _
+        "=" _ "by" { \parent.On[alpha := (Cochain.cycleSpace).add alpha beta].onClass x }
+        "=" _ "by" { congr!{Target.Cycle Target.Homology} Target.classOf _ _ (addCycles alpha beta x) }
+        "=" _ "by" { (Target.classLinear).addition (\parent.On[alpha := alpha].cycle x) (\parent.On[alpha := beta].cycle x) }
+        "=" _ "by" { congr!{Target.Homology Target.Homology Target.Homology} ((Target.homologySpace).add) _ _ _ _
+          (sym!{Target.Homology} _ _ (\parent.On[alpha := alpha].onClass x)) (sym!{Target.Homology} _ _ (\parent.On[alpha := beta].onClass x)) }
+      }));
+\definition scalar: \forall (a: I.Int^)(alpha: Cochain.Closed) -> value ((Cochain.cycleSpace).smul a alpha) = Actions.scale a (value alpha) :=
+  \fun (a: I.Int^)(alpha: Cochain.Closed) => ActionMaps.ext _ _
+    (Source.classInduction (\fun (x: Source.Homology) => (value ((Cochain.cycleSpace).smul a alpha)).apply x = (Actions.scale a (value alpha)).apply x)
+      (\fun (x: Source.Cycle) => eq_reason_in!{Target.Homology _
+        "=" _ "by" { \parent.On[alpha := (Cochain.cycleSpace).smul a alpha].onClass x }
+        "=" _ "by" { congr!{Target.Cycle Target.Homology} Target.classOf _ _
+          (scalarCycles a alpha x) }
+        "=" _ "by" { (Target.classLinear).scalar a (\parent.On[alpha := alpha].cycle x) }
+        "=" _ "by" { congr!{Target.Homology Target.Homology} ((Target.homologySpace).smul a) _ _ (sym!{Target.Homology} _ _ (\parent.On[alpha := alpha].onClass x)) }
+      }));

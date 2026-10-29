@@ -1,0 +1,38 @@
+\import \parent.Restriction[] \as Restriction;
+\import \parent.Restricted[p := p] \as Positive;
+\import \parent.Restricted[p := q] \as Negative;
+\import KTheory.On[X := A, baseSpace := subspace, compact := Restriction.compactSubset, hausdorff := Restriction.hausdorffSubset] \as Target;
+\import Absolute.K0[] \as K;
+\import Target.K0[] \as TargetK;
+\import algebra.Group[].Of[Carrier := K.Carrier, group := K.group] \as Additive;
+\import algebra.Group[].Of[Carrier := TargetK.Carrier, group := TargetK.group] \as TargetGroup;
+\import Target.Bundle[F := Positive.Fiber, original := Positive.bundle, same := \refl(subspace)] \as PositiveClass;
+\import Target.Bundle[F := Negative.Fiber, original := Negative.bundle, same := \refl(subspace)] \as NegativeClass;
+\import Target.K0[].Stability[].ForBundles[F := Positive.Fiber, G := Negative.Fiber, first := Positive.bundle, second := Negative.bundle,
+  firstSame := \refl(subspace), secondSame := \refl(subspace)] \as Stable;
+\definition difference: K.Carrier := K.difference (Absolute.class p) (Absolute.class q);
+\definition Condition: \Prop := Restriction.map difference = TargetK.zero;
+\definition rhoP: TargetK.Carrier := TargetK.include (Restriction.classMap (Absolute.class p));
+\definition rhoQ: TargetK.Carrier := TargetK.include (Restriction.classMap (Absolute.class q));
+\definition zeroDifference[zero: Condition]: TargetGroup.difference rhoP rhoQ = TargetK.zero :=
+  trans!{{TargetK.Carrier}} _ _ _ (sym!{{TargetK.Carrier}} _ _ (Restriction.Difference[a := Absolute.class p, b := Absolute.class q].equation)) zero;
+\definition equalRestrictions[zero: Condition]: rhoP = rhoQ :=
+  trans!{{TargetK.Carrier}} _ _ _ (sym!{{TargetK.Carrier}} _ _ (TargetGroup.addDifference rhoP rhoQ))
+    (trans!{{TargetK.Carrier}} _ _ _ (congr!{{TargetK.Carrier} {TargetK.Carrier}} (\fun (v: TargetK.Carrier) => TargetGroup.add v rhoQ) _ _ (zeroDifference zero)) (TargetGroup.zeroLeft rhoQ));
+\definition equalIncludes[zero: Condition]: TargetK.include PositiveClass.value = TargetK.include NegativeClass.value :=
+  trans!{{TargetK.Carrier}} _ _ _
+    (congr!{{Target.Classes} {TargetK.Carrier}} TargetK.include _ _ (sym!{{Target.Classes}} _ _ (Restriction.On[p := p].classes)))
+    (trans!{{TargetK.Carrier}} _ _ _ (equalRestrictions zero) (congr!{{Target.Classes} {TargetK.Carrier}} TargetK.include _ _ (Restriction.On[p := q].classes)));
+\structure Result: \Set := {
+  value: Triple,
+  equation: K.difference (Absolute.class value.positive) (Absolute.class value.negative) = difference
+};
+\definition inclusion[x: A]: X := x;
+\definition regular: topology.Continuity[A := A, B := X].Continuous subspace space inclusion := topology.Continuity[A := A, B := X].Corestriction[S := subset].inclusionContinuous space;
+\module With(n: N.Nat^);
+\definition existence: Condition -> \exists Result := \block {
+  \fun (zero: Condition) \then
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \exists Stable.At[n := n].Isomorphism }) \by Stable.criterion.ltr (equalIncludes zero) \then
+  \takefrom alpha: Stable.At[n := n].Isomorphism \by \bysub(N.Nat^, { n: N.Nat^ \where \exists Stable.At[n := n].Isomorphism }, n) \then
+  \return With[n := n].On[alpha := alpha].existence
+};

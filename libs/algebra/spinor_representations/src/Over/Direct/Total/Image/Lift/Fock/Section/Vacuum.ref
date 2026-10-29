@@ -1,0 +1,34 @@
+\import std.Data[].FinSet[] \as Fin;
+\import Fin.Empty[A := Fin.Fin n] \as Empty;
+\import std.Data[].Nat[].Basic[].Prop[] \as NatLaws;
+\import std.Logic[].Proposition[] \as Logic;
+\import Result.Dimension[n := n, b := b].Increasing[k := N.Nat^::zero] \as Increasing;
+\import Algebra.Laws[V := Tensor.Carrier, space := Tensor.space] \as TensorLaws;
+\import algebra.Group[].Of[Carrier := ResultTotal.Carrier, group := std.Alg[].Ring[].ringModuleAsCommutativeGroup K ResultTotal.Carrier Algebra.ring ResultTotal.totalSpace] \as ResultGroup;
+\definition zeroIndex: Increasing.Index := \into[Fin.Fin N.Nat^::zero -> Fin.Fin n](Empty.function, Increasing.Index) \by {
+  \fun (i, j: Fin.Fin N.Nat^::zero)(less: _) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))
+};
+\definition first: (grade N.Nat^::zero).apply ResultVacuum.state = Tensor.tensor LeftVacuum.state RightVacuum.state :=
+  trans!{Tensor.Carrier} _ _ _
+    (congr!{{ResultTotal.Carrier} Tensor.Carrier} ((grade N.Nat^::zero).apply) _ _ (sym!{{ResultTotal.Carrier}} _ _ Fock.pullVacuum))
+    (\parent.\parent.Grade[k := N.Nat^::zero, xs := enums N.Nat^::zero].Single[].onBasis zeroIndex);
+\definition later: \forall (m: N.Nat^) -> (grade (N.Nat^::succ m)).apply ResultVacuum.state = Tensor.space.zero :=
+  \fun (m: N.Nat^) => trans!{Tensor.Carrier} _ _ _
+    (congr!{{ResultTotal.Carrier} Tensor.Carrier} ((grade (N.Nat^::succ m)).apply) _ _ (sym!{{ResultTotal.Carrier}} _ _ Fock.pullVacuum))
+    (\parent.\parent.Grade[k := N.Nat^::succ m, xs := enums (N.Nat^::succ m)].Single[].outside N.Nat^::zero Empty.function (NatLaws.zeroNeSucc m));
+\definition residualLater: \forall (m: N.Nat^) -> (residual (N.Nat^::succ m)).apply ResultVacuum.state = ResultVacuum.state :=
+  \fun (m: N.Nat^) => eq_reason_in!{{ResultTotal.Carrier} _
+    "=" _ "by" { congr!{Tensor.Carrier {ResultTotal.Carrier}} (\fun (t: Tensor.Carrier) => ResultTotal.totalSpace.add ResultVacuum.state (ResultTotal.totalSpace.smul (Algebra.neg Algebra.one) (comparison.apply t))) _ _ (later m) }
+    "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} (\fun (t: ResultTotal.Carrier) => ResultTotal.totalSpace.add ResultVacuum.state (ResultTotal.totalSpace.smul (Algebra.neg Algebra.one) t)) _ _ comparison.preservesZero }
+    "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} (ResultTotal.totalSpace.add ResultVacuum.state) _ _ (ResultLaws.scaleZero (Algebra.neg Algebra.one)) }
+    "=" _ "by" { ResultLaws.zeroRight ResultVacuum.state }
+  };
+\definition fixes: \forall (m: N.Nat^) -> (section (N.Nat^::succ m)).apply ResultVacuum.state = Tensor.tensor LeftVacuum.state RightVacuum.state :=
+  \induction (m: N.Nat^) \return (section (N.Nat^::succ m)).apply ResultVacuum.state = Tensor.tensor LeftVacuum.state RightVacuum.state \with {
+    | zero: trans!{Tensor.Carrier} _ _ _ (TensorLaws.zeroLeft ((grade N.Nat^::zero).apply ResultVacuum.state)) first
+    | succ: \fun (m: N.Nat^)(previous: (section (N.Nat^::succ m)).apply ResultVacuum.state = Tensor.tensor LeftVacuum.state RightVacuum.state) => eq_reason_in!{Tensor.Carrier _
+      "=" _ "by" { congr!{{ResultTotal.Carrier} Tensor.Carrier} (\fun (t: ResultTotal.Carrier) => Tensor.space.add ((section (N.Nat^::succ m)).apply t) ((grade (N.Nat^::succ m)).apply ResultVacuum.state)) _ _ (residualLater m) }
+      "=" _ "by" { congr!{Tensor.Carrier Tensor.Carrier Tensor.Carrier} Tensor.space.add _ _ _ _ previous (later m) }
+      "=" _ "by" { TensorLaws.zeroRight (Tensor.tensor LeftVacuum.state RightVacuum.state) }
+    }
+  };

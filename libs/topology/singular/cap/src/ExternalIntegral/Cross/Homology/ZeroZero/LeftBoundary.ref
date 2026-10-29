@@ -1,0 +1,23 @@
+\import Boundary.RightZero[r := p] \as Formula;
+\import \parent.\parent.\parent.At[p := N.Nat^::succ p, q := q].Relative[] \as Upper;
+\import std.Logic[].Equality[].Transport[A := I.Int^] \as Transport;
+\definition leftPrior: \forall (u: LeftDegree.Carrier (N.Nat^::succ p)) -> (L.prior).apply u = (LeftDegree.boundary p).apply u :=
+  \fun (u: LeftDegree.Carrier (N.Nat^::succ p)) => Transport.castRefl Left.complex.family.Carrier (I.Int^::ofNat p) ((LeftDegree.boundary p).apply u);
+\definition targetPrior: \forall (v: TargetDegree.Carrier (N.Nat^::succ (Whole.degree p q))) -> (T.prior).apply v = (TargetDegree.boundary (Whole.degree p q)).apply v :=
+  \fun (v: TargetDegree.Carrier (N.Nat^::succ (Whole.degree p q))) => Transport.castRefl TargetRelative.complex.family.Carrier (I.Int^::ofNat (Whole.degree p q)) ((TargetDegree.boundary (Whole.degree p q)).apply v);
+\definition law: \forall (u: LeftDegree.Carrier (N.Nat^::succ p))(y: R.Cycle) ->
+  (T.prior).apply (Upper.apply u y) = Current.apply ((L.prior).apply u) y :=
+  \fun (u: LeftDegree.Carrier (N.Nat^::succ p))(y: R.Cycle) => eq_reason_in!{{TargetDegree.Carrier (Whole.degree p q)} _
+    "=" _ "by" { targetPrior (Upper.apply u y) }
+    "=" _ "by" { Formula.law u y }
+    "=" _ "by" { congr!{{LeftDegree.Carrier p} {TargetDegree.Carrier (Whole.degree p q)}} (\fun (v: LeftDegree.Carrier p) => Current.apply v y) _ _ (sym!{{LeftDegree.Carrier p}} _ _ (leftPrior u)) }
+  };
+\import Modules.Of[V := TargetDegree.Carrier (Whole.degree p q), space := TargetDegree.space (Whole.degree p q)].Submodule[].Image[U := TargetDegree.Carrier (N.Nat^::succ (Whole.degree p q)), source := TargetDegree.space (N.Nat^::succ (Whole.degree p q))] \as Images;
+\definition vanishes: \forall (x: L.Cycle)(y: R.Cycle) -> \In[L.Cycle] L.boundariesInside.carrier x -> (onCycles).apply x y = T.homologySpace.zero := \block {
+  \fun (x: L.Cycle)(y: R.Cycle)(member: _) \then
+  \takefrom u: \Cast[LeftDegree.Carrier (N.Nat^::succ p)] ({ u: LeftDegree.Carrier (N.Nat^::succ p) \where (L.prior).apply u = x }) \by member \then
+  \return T.boundaryClassZero (cycle x y) (Images.introduce T.prior (cycle x y) (Upper.apply u y)
+    (trans!{{TargetDegree.Carrier (Whole.degree p q)}} _ _ _ (law u y)
+      (congr!{{LeftDegree.Carrier p} {TargetDegree.Carrier (Whole.degree p q)}} (\fun (v: LeftDegree.Carrier p) => Current.apply v y) _ _
+        (\bysub(LeftDegree.Carrier (N.Nat^::succ p), { u: LeftDegree.Carrier (N.Nat^::succ p) \where (L.prior).apply u = x }, u)))))
+};

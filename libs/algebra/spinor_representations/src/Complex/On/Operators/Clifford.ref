@@ -1,0 +1,42 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].sym;
+\import \parent.Pairing[] \as Pairing;
+\import lie_algebras.Field[K := C.Complex, field := Field.field].Endomorphisms[V := Total.Carrier, space := Total.totalSpace] \as Endomorphisms;
+\import Algebra.Linear[V := Pairing.Carrier, W := Endomorphisms.Carrier, source := Pairing.pairSpace, target := Endomorphisms.vectorSpace] \as Maps;
+\definition map: Maps.Map := Maps.Map {
+  apply := \fun (v: Pairing.Carrier) => operator (Pairing.first v) (Pairing.second v),
+  preservesAdd := \fun (u, v: Pairing.Carrier) => Endomorphisms.ext _ _ (\fun (f: Total.Carrier) => eq_reason_in!{{Total.Carrier} _
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier} {Total.Carrier}} Total.totalSpace.add _ _ _ _
+      (Total.annihilateAddition (Pairing.first u) (Pairing.first v) f)
+      (Total.createLeftAddition (Pairing.second u) (Pairing.second v) f) }
+    "=" _ "by" { Laws.shuffle (Total.annihilate (Pairing.first u) f) (Total.annihilate (Pairing.first v) f) (Total.createLeft (Pairing.second u) f) (Total.createLeft (Pairing.second v) f) }
+  }),
+  preservesScale := \fun (a: C.Complex)(u: Pairing.Carrier) => Endomorphisms.ext _ _ (\fun (f: Total.Carrier) => eq_reason_in!{{Total.Carrier} _
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier} {Total.Carrier}} Total.totalSpace.add _ _ _ _
+      (Total.annihilateScale a (Pairing.first u) f) (Total.createLeftScale a (Pairing.second u) f) }
+    "=" _ "by" { sym!{{Total.Carrier}} _ _ (Total.totalSpace.vectorAdd a (Total.annihilate (Pairing.first u) f) (Total.createLeft (Pairing.second u) f)) }
+  }),
+};
+\import clifford.Field[K := C.Complex, field := Field.field].On[V := Pairing.Carrier, space := Pairing.pairSpace].Of[form := Pairing.bilinear] \as AlgebraClifford;
+\import AlgebraClifford.Universal[A := Endomorphisms.Carrier, target := Endomorphisms.ring] \as Universal;
+\import algebra.FreeAssociativeRing[].Over[R := C.Complex, coefficients := ring, Variables := Pairing.Carrier] \as Free;
+\import Free.Presentation[relations := AlgebraClifford.Relation] \as Presented;
+\import Presented.Universal[K := Endomorphisms.Carrier, target := Endomorphisms.ring] \as Extension;
+\import algebra.Hom[A := C.Complex, B := Endomorphisms.Carrier] \as Coefficients;
+\definition coefficient: Extension.CoefficientMap := \into[Coefficients.RingMap Algebra.ring Endomorphisms.ring](Endomorphisms.scalarMap, Extension.CoefficientMap) \by { Endomorphisms.scalarCentral };
+\definition representation: Universal.Representation := Universal.Representation {
+  coefficients := coefficient,
+  vectors := map.apply,
+  zero := map.preservesZero,
+  addition := map.preservesAdd,
+  scalar := \fun (a: C.Complex)(v: Pairing.Carrier) => map.preservesScale a v,
+  square := \fun (v: Pairing.Carrier) => Endomorphisms.ext _ _ (\fun (f: Total.Carrier) => trans!{{Total.Carrier}} _ _ _
+    (square (Pairing.first v) (Pairing.second v) f)
+    (congr!{C.Complex {Total.Carrier}} (\fun (a: C.Complex) => Total.totalSpace.smul a f) _ _ (Pairing.evaluateEqual (Pairing.second v) (Pairing.first v)))),
+};
+\import algebra.Hom[A := AlgebraClifford.Carrier, B := Endomorphisms.Carrier] \as Hom;
+\definition extension: Hom.RingMap AlgebraClifford.ring Endomorphisms.ring := Universal.extension representation;
+\definition onVector: \forall (v: Pairing.Carrier) -> extension (AlgebraClifford.iota v) = operator (Pairing.first v) (Pairing.second v) := Universal.onVector representation;
+\definition onScalar: \forall (a: C.Complex) -> extension (AlgebraClifford.scalar a) = Endomorphisms.scalar a := Universal.onScalar representation;
+\module Spin;

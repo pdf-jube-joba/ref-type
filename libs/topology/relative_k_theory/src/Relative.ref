@@ -1,0 +1,115 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import topological_k_theory.KTheory[] \as KTheory;
+\import complex.Complex[] \as C;
+\import C.Algebra[] \as Algebra;
+\import linear_algebra.Hermitian[].Complex[] \as Hermitian;
+\import vector_bundles.Bundles[].Complex[] \as Scalar;
+\import vector_bundles.Bundles[].Over[K := C.Complex, field := Algebra.field, conjugation := Hermitian.scalar, scalar := Scalar.scalar] \as Bundles;
+\import bundle_operations.Operations[].Over[K := C.Complex, field := Algebra.field, conjugation := Hermitian.scalar, scalar := Scalar.scalar] \as Operations;
+\import bundle_complements.Complements[].Over[K := C.Complex, field := Algebra.field, conjugation := Hermitian.scalar, scalar := Scalar.scalar] \as Complements;
+\import std.Alg[].Field[] \as Fields;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := Fields.fieldAsCommutativeRing C.Complex Algebra.field] \as Spaces;
+\structure PointedDetails[X: \Set]: \Set := {
+  topology: topology.Topology[Carrier := X].Topology,
+  compact: topology.Topology[Carrier := X].IsCompact topology,
+  hausdorff: topology.Topology[Carrier := X].IsT2 topology,
+  point: X
+};
+\structure CompactPointed: \Set(1) := {
+  Carrier: \Set,
+  dataLift: \forall (X: \Set) -> (PointedDetails[Carrier] -> X) -> X
+};
+\definition details[model: CompactPointed]: PointedDetails[model.Carrier] := model.dataLift PointedDetails[model.Carrier] (\fun (d: PointedDetails[model.Carrier]) => d);
+\definition pack[X: \Set][data: PointedDetails[X]]: CompactPointed := CompactPointed {
+  Carrier := X, dataLift := \fun (Y: \Set)(f: PointedDetails[X] -> Y) => f data
+};
+\definition pointed[model: CompactPointed]: algebraic_topology.Pointed[A := model.Carrier].Space :=
+  algebraic_topology.Pointed[A := model.Carrier].Space { topology := (details model).topology, basepoint := (details model).point };
+\definition Map[source, target: CompactPointed]: \Set := algebraic_topology.Pointed[A := source.Carrier].Maps[B := target.Carrier].Map[pointed source, pointed target];
+\module Reduced(model: CompactPointed);
+\module Suspension(original: CompactPointed);
+\definition iterate[n: N.Nat^][original: CompactPointed]: CompactPointed :=
+  (\induction (n: N.Nat^) \return CompactPointed \with {
+    | zero: original
+    | succ: \fun (n: N.Nat^)(previous: CompactPointed) => Suspension[original := previous].result
+  }) n;
+\module Negative(original: CompactPointed, degree: N.Nat^);
+\module SuspendedMap(source, target: CompactPointed, f: Map source target);
+\definition iterateMap[degree: N.Nat^][source, target: CompactPointed][f: Map source target]: Map (iterate degree source) (iterate degree target) :=
+  (\induction (degree: N.Nat^) \return Map (iterate degree source) (iterate degree target) \with {
+    | zero: f
+    | succ: \fun (n: N.Nat^)(previous: Map (iterate n source) (iterate n target)) =>
+      SuspendedMap[source := iterate n source, target := iterate n target, f := previous].map
+  }) degree;
+\module Identity(model: CompactPointed);
+\module Composition(source, middle, target: CompactPointed, first: Map source middle, second: Map middle target);
+\module Pair(X: \Set, space: topology.Topology[Carrier := X].Topology,
+  compact: topology.Topology[Carrier := X].IsCompact space,
+  hausdorff: topology.Topology[Carrier := X].IsT2 space,
+  subset: \Pow X, closed: topology.Topology[Carrier := X].IsClosedIn space subset);
+\module Pullback(source, target: CompactPointed, f: Map source target);
+\module NegativeMap(source, target: CompactPointed, f: Map source target, degree: N.Nat^);
+\module PullbackIdentity(model: CompactPointed);
+\module PullbackComposition(source, middle, target: CompactPointed, first: Map source middle, second: Map middle target);
+\module HomotopyInvariance(source, target: CompactPointed, first, second: Map source target,
+  homotopy: algebraic_topology.Homotopy[A := source.Carrier, B := target.Carrier].Homotopy[(details source).topology, (details target).topology, first, second]);
+\module Descent(X: \Set, F: X -> \Set, bundle: Bundles.Family[X := X, F := F].Bundle,
+  compact: topology.Topology[Carrier := X].IsCompact bundle.baseSpace, hausdorff: topology.Topology[Carrier := X].IsT2 bundle.baseSpace,
+  subset: \Pow X, closed: topology.Topology[Carrier := X].IsClosedIn bundle.baseSpace subset, dimension: N.Nat^);
+\module Equivalence(source, target: CompactPointed);
+\module FiberTransport(Y: \Set, F: Y -> \Set, bundle: Bundles.Family[X := Y, F := F].Bundle);
+\module Cone(original: CompactPointed);
+\structure ClosedPairDetails[model: CompactPointed]: \Set := {
+  subset: \Pow model.Carrier,
+  closed: topology.Topology[Carrier := model.Carrier].IsClosedIn (details model).topology subset,
+  containsPoint: topology.Topology[Carrier := model.Carrier].Member subset (details model).point
+};
+\structure ClosedPointedPair: \Set(1) := {
+  model: CompactPointed,
+  dataLift: \forall (X: \Set) -> (ClosedPairDetails[model] -> X) -> X
+};
+\definition pairDetails[pair: ClosedPointedPair]: ClosedPairDetails[pair.model] :=
+  pair.dataLift ClosedPairDetails[pair.model] (\fun (d: ClosedPairDetails[pair.model]) => d);
+\definition packPair[model: CompactPointed][data: ClosedPairDetails[model]]: ClosedPointedPair := ClosedPointedPair {
+  model := model, dataLift := \fun (X: \Set)(f: ClosedPairDetails[model] -> X) => f data
+};
+\module PointedPair(pair: ClosedPointedPair);
+\module PairIteration(pair: ClosedPointedPair);
+\module Absolute(X: \Set, space: topology.Topology[Carrier := X].Topology,
+  compact: topology.Topology[Carrier := X].IsCompact space, hausdorff: topology.Topology[Carrier := X].IsT2 space);
+\module DiskPair(X: \Set, space: topology.Topology[Carrier := X].Topology,
+  compact: topology.Topology[Carrier := X].IsCompact space, hausdorff: topology.Topology[Carrier := X].IsT2 space,
+  p: KTheory.On[X := X, baseSpace := space, compact := compact, hausdorff := hausdorff].Presentation);
+\module Examples;
+\module BundleDisk(X: \Set, F: X -> \Set, bundle: Bundles.Family[X := X, F := F].Bundle,
+  compact: topology.Topology[Carrier := X].IsCompact bundle.baseSpace,
+  hausdorff: topology.Topology[Carrier := X].IsT2 bundle.baseSpace);
+\structure PairMapData[source, target: ClosedPointedPair]: \Set := {
+  function: Map source.model target.model,
+  preserves: \forall (x: source.model.Carrier) -> \In[source.model.Carrier] (pairDetails source).subset x ->
+    \In[target.model.Carrier] (pairDetails target).subset (function x)
+};
+\module PairMapping(source, target: ClosedPointedPair, f: PairMapData[source, target]);
+\module Square(A, B, C, D: CompactPointed, f: Map A B, g: Map B D, h: Map A C, k: Map C D,
+  commutes: \forall (x: A.Carrier) -> g (f x) = k (h x));
+\module GroupCalculus(X: \Set, group: std.Alg[].Alg[].CommutativeGroup[X]);
+\module Smash(left, right: CompactPointed);
+\module ConstantMap(source, target: CompactPointed, f: Map source target,
+  constant: \forall (x: source.Carrier) -> f x = (details target).point);
+\module IterationAddition(original: CompactPointed, inner: N.Nat^);
+\module CommonQuotient(R: \Set, space: topology.Topology[Carrier := R].Topology,
+  compact: topology.Topology[Carrier := R].IsCompact space, source, target: CompactPointed,
+  f: R -> source.Carrier, g: R -> target.Carrier,
+  fRegular: topology.Continuity[A := R, B := source.Carrier].Continuous space (details source).topology f,
+  gRegular: topology.Continuity[A := R, B := target.Carrier].Continuous space (details target).topology g,
+  fOnto: \forall (x: source.Carrier) -> \exists (r: R \where f r = x),
+  gOnto: \forall (x: target.Carrier) -> \exists (r: R \where g r = x),
+  forwardFibers: \forall (r, s: R) -> f r = f s -> g r = g s,
+  backwardFibers: \forall (r, s: R) -> g r = g s -> f r = f s,
+  r0: R, sourcePoint: f r0 = (details source).point, targetPoint: g r0 = (details target).point);

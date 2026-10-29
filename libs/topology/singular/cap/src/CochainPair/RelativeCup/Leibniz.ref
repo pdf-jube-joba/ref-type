@@ -1,0 +1,78 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import singular_cohomology.Cochains[A := A, source := source].With[coefficients := Whole.integerCoefficients] \as Ordinary;
+\import \parent.\parent.Degree[] \as Degree;
+\import singular_cohomology.Simplices[A := A, source := source].CutFaces[p := p, q := q] \as Geometry;
+\import \parent.\parent.RelativeCup[p := N.Nat^::succ p, q := q] \as UpperLeft;
+\import \parent.\parent.RelativeCup[p := p, q := N.Nat^::succ q] \as UpperRight;
+\import Whole.Leibniz[p := p, q := q] \as WholeLeibniz;
+\import Whole.Cup[p := N.Nat^::succ p, q := q] \as WholeLeft;
+\import Whole.Cup[p := p, q := N.Nat^::succ q] \as WholeRight;
+\definition total: N.Nat^ := WholeProduct.total;
+\import Left.Commutes[] \as LeftCommutes;
+\import Result.Commutes[] \as ResultCommutes;
+\import \parent.\parent.Comparison[n := N.Nat^::succ total] \as HigherComparison;
+\import HigherComparison.Linear[] \as ComparisonLinear;
+\import module_theory.Module[].Over[R := R, ring := std.Alg[].Ring[].commutativeRingAsRing R ring] \as Modules;
+\import Modules.Alternating[V := Degree.Carrier Geometry.higher, space := Degree.space Geometry.higher].Concatenation[] \as Signs;
+\import Signs.Mapping[W := Whole.Carrier Geometry.higher, target := Whole.space Geometry.higher] \as SignMapping;
+\import Modules.Alternating[V := Whole.Carrier Geometry.higher, space := Whole.space Geometry.higher].Concatenation[] \as WholeSigns;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\definition leftTerm[alpha: Degree.Carrier p][beta: Whole.Carrier q]: Degree.Carrier Geometry.higher :=
+  Degree.apply Geometry.leftDegree Geometry.higher Geometry.same (UpperLeft.left (Degree.differential p alpha) beta);
+\definition rightTerm[alpha: Degree.Carrier p][beta: Whole.Carrier q]: Degree.Carrier Geometry.higher :=
+  Signs.twist p (UpperRight.left alpha (Ordinary.coboundary q beta));
+\definition leftCompare: \forall (alpha: Degree.Carrier p)(beta: Whole.Carrier q) ->
+  Degree.from Geometry.higher (leftTerm alpha beta) = WholeLeibniz.leftTerm (Degree.from p alpha) beta :=
+  \fun (alpha: Degree.Carrier p)(beta: Whole.Carrier q) => eq_reason_in!{{Whole.Carrier Geometry.higher} _
+    "=" _ "by" { sym!{{Whole.Carrier Geometry.higher}} _ _ (Degree.fromNatural Geometry.leftDegree Geometry.higher Geometry.same (UpperLeft.left (Degree.differential p alpha) beta)) }
+    "=" _ "by" { congr!{{Whole.Carrier Geometry.leftDegree} {Whole.Carrier Geometry.higher}} (Transport.cast Whole.Carrier Geometry.leftDegree Geometry.higher Geometry.same) _ _
+      (trans!{{Whole.Carrier Geometry.leftDegree}} _ _ _ (UpperLeft.leftRestriction (Degree.differential p alpha) beta)
+        (congr!{{Whole.Carrier (N.Nat^::succ p)} {Whole.Carrier Geometry.leftDegree}} (\fun (h: Whole.Carrier (N.Nat^::succ p)) => WholeLeft.apply h beta) _ _ (LeftCommutes.law alpha))) }
+  };
+\definition rightCompare: \forall (alpha: Degree.Carrier p)(beta: Whole.Carrier q) ->
+  Degree.from Geometry.higher (rightTerm alpha beta) = WholeSigns.twist p (WholeRight.apply (Degree.from p alpha) (Ordinary.coboundary q beta)) :=
+  \fun (alpha: Degree.Carrier p)(beta: Whole.Carrier q) => trans!{{Whole.Carrier Geometry.higher}} _ _ _
+    (SignMapping.law ComparisonLinear.map p (UpperRight.left alpha (Ordinary.coboundary q beta)))
+    (congr!{{Whole.Carrier Geometry.higher} {Whole.Carrier Geometry.higher}} (WholeSigns.twist p) _ _ (UpperRight.leftRestriction alpha (Ordinary.coboundary q beta)));
+\definition law: \forall (alpha: Degree.Carrier p)(beta: Whole.Carrier q) ->
+  Degree.differential total (left alpha beta) = (Degree.space Geometry.higher).add (leftTerm alpha beta) (rightTerm alpha beta) :=
+  \fun (alpha: Degree.Carrier p)(beta: Whole.Carrier q) => HigherComparison.injective _ _ (eq_reason_in!{{Whole.Carrier Geometry.higher} _
+    "=" _ "by" { ResultCommutes.law (left alpha beta) }
+    "=" _ "by" { congr!{{Whole.Carrier total} {Whole.Carrier Geometry.higher}} (Ordinary.coboundary total) _ _ (leftRestriction alpha beta) }
+    "=" _ "by" { WholeLeibniz.law (Degree.from p alpha) beta }
+    "=" _ "by" { congr!{{Whole.Carrier Geometry.higher} {Whole.Carrier Geometry.higher} {Whole.Carrier Geometry.higher}} ((Whole.space Geometry.higher).add) _ _ _ _
+      (sym!{{Whole.Carrier Geometry.higher}} _ _ (leftCompare alpha beta)) (sym!{{Whole.Carrier Geometry.higher}} _ _ (rightCompare alpha beta)) }
+    "=" _ "by" { sym!{{Whole.Carrier Geometry.higher}} _ _ (ComparisonLinear.addition (leftTerm alpha beta) (rightTerm alpha beta)) }
+  });
+\import Right.Commutes[] \as RightCommutes;
+\definition rightLeftTerm[alpha: Whole.Carrier p][beta: Degree.Carrier q]: Degree.Carrier Geometry.higher :=
+  Degree.apply Geometry.leftDegree Geometry.higher Geometry.same (UpperLeft.right (Ordinary.coboundary p alpha) beta);
+\definition rightRightTerm[alpha: Whole.Carrier p][beta: Degree.Carrier q]: Degree.Carrier Geometry.higher :=
+  Signs.twist p (UpperRight.right alpha (Degree.differential q beta));
+\definition rightLeftCompare: \forall (alpha: Whole.Carrier p)(beta: Degree.Carrier q) ->
+  Degree.from Geometry.higher (rightLeftTerm alpha beta) = WholeLeibniz.leftTerm alpha (Degree.from q beta) :=
+  \fun (alpha: Whole.Carrier p)(beta: Degree.Carrier q) => eq_reason_in!{{Whole.Carrier Geometry.higher} _
+    "=" _ "by" { sym!{{Whole.Carrier Geometry.higher}} _ _ (Degree.fromNatural Geometry.leftDegree Geometry.higher Geometry.same (UpperLeft.right (Ordinary.coboundary p alpha) beta)) }
+    "=" _ "by" { congr!{{Whole.Carrier Geometry.leftDegree} {Whole.Carrier Geometry.higher}} (Transport.cast Whole.Carrier Geometry.leftDegree Geometry.higher Geometry.same) _ _ (UpperLeft.rightRestriction (Ordinary.coboundary p alpha) beta) }
+  };
+\definition rightRightCompare: \forall (alpha: Whole.Carrier p)(beta: Degree.Carrier q) ->
+  Degree.from Geometry.higher (rightRightTerm alpha beta) = WholeSigns.twist p (WholeRight.apply alpha (Ordinary.coboundary q (Degree.from q beta))) :=
+  \fun (alpha: Whole.Carrier p)(beta: Degree.Carrier q) => trans!{{Whole.Carrier Geometry.higher}} _ _ _
+    (SignMapping.law ComparisonLinear.map p (UpperRight.right alpha (Degree.differential q beta)))
+    (congr!{{Whole.Carrier Geometry.higher} {Whole.Carrier Geometry.higher}} (WholeSigns.twist p) _ _
+      (trans!{{Whole.Carrier Geometry.higher}} _ _ _ (UpperRight.rightRestriction alpha (Degree.differential q beta))
+        (congr!{{Whole.Carrier (N.Nat^::succ q)} {Whole.Carrier Geometry.higher}} (WholeRight.apply alpha) _ _ (RightCommutes.law beta))));
+\definition rightLaw: \forall (alpha: Whole.Carrier p)(beta: Degree.Carrier q) ->
+  Degree.differential total (right alpha beta) = (Degree.space Geometry.higher).add (rightLeftTerm alpha beta) (rightRightTerm alpha beta) :=
+  \fun (alpha: Whole.Carrier p)(beta: Degree.Carrier q) => HigherComparison.injective _ _ (eq_reason_in!{{Whole.Carrier Geometry.higher} _
+    "=" _ "by" { ResultCommutes.law (right alpha beta) }
+    "=" _ "by" { congr!{{Whole.Carrier total} {Whole.Carrier Geometry.higher}} (Ordinary.coboundary total) _ _ (rightRestriction alpha beta) }
+    "=" _ "by" { WholeLeibniz.law alpha (Degree.from q beta) }
+    "=" _ "by" { congr!{{Whole.Carrier Geometry.higher} {Whole.Carrier Geometry.higher} {Whole.Carrier Geometry.higher}} ((Whole.space Geometry.higher).add) _ _ _ _
+      (sym!{{Whole.Carrier Geometry.higher}} _ _ (rightLeftCompare alpha beta)) (sym!{{Whole.Carrier Geometry.higher}} _ _ (rightRightCompare alpha beta)) }
+    "=" _ "by" { sym!{{Whole.Carrier Geometry.higher}} _ _ (ComparisonLinear.addition (rightLeftTerm alpha beta) (rightRightTerm alpha beta)) }
+  });

@@ -1,0 +1,25 @@
+\import Equality.Transport[A := Y] \as Transport;
+\definition cast[x, y: Y][same: x = y]: F x -> F y := Transport.cast F x y same;
+\definition linear[x, y: Y][same: x = y]: Spaces.Linear[V := F x, W := F y, source := bundle.space x, target := bundle.space y].Map :=
+  Spaces.Linear[V := F x, W := F y, source := bundle.space x, target := bundle.space y].Map {
+    apply := cast x y same,
+    preservesAdd := Transport.binaryNatural F F F (\fun (z: Y) => (bundle.space z).add) x y same,
+    preservesScale := \fun (a: C.Complex) => Transport.natural F F (\fun (z: Y) => (bundle.space z).smul a) x y same
+  };
+\definition isomorphism[x, y: Y][same: x = y]: Spaces.Isomorphism[V := F x, W := F y, source := bundle.space x, target := bundle.space y].Isomorphism :=
+  Spaces.Isomorphism[V := F x, W := F y, source := bundle.space x, target := bundle.space y].Isomorphism {
+    forward := linear x y same, backward := linear y x (sym!{Y} x y same),
+    leftInverse := Transport.castInverse F x y same,
+    rightInverse := Transport.castInverse F y x (sym!{Y} x y same)
+  };
+\import Bundles.Family[X := Y, F := F].With[data := bundle] \as Charts;
+\import topology.Topology[Carrier := Y] \as Base;
+\definition frame: \forall (c: Charts.Chart)(x, y: Y)(same: x = y)(px: Base.Member c.domain x)(py: Base.Member c.domain y)(v: F x) ->
+  (c.frame (\into[Y](y, c.domain) \by { py })).forward.apply (cast x y same v) = (c.frame (\into[Y](x, c.domain) \by { px })).forward.apply v :=
+  \fun (c: Charts.Chart)(x, y: Y)(same: x = y)(px: Base.Member c.domain x) =>
+    (\idelim x = y \with z: Y => \forall (equal: x = z)(py: Base.Member c.domain z)(v: F x) ->
+      (c.frame (\into[Y](z, c.domain) \by { py })).forward.apply (cast x z equal v) = (c.frame (\into[Y](x, c.domain) \by { px })).forward.apply v
+    \by {
+      base: \fun (equal: x = x)(py: Base.Member c.domain x)(v: F x) => congr!{{F x} {Bundles.Vector c.dimension}}
+        (c.frame (\into[Y](x, c.domain) \by { px })).forward.apply _ _ (Transport.castRefl F x v), equality: same
+    }) same;

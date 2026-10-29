@@ -1,0 +1,20 @@
+\import Hermitian.At[n := n].Families[X := X].Matrix[m := m] \as Matrices;
+\import Hermitian.Functions[X := X] \as Functions;
+\definition continuous: Matrices.Regular baseSpace (\fun (x: X) => linear (A x)) :=
+  Matrices.regularOfComponents baseSpace (\fun (x: X) => linear (A x)) (\fun (j: Fin.Fin m)(i: Fin.Fin n) =>
+    Functions.transport baseSpace (\fun (x: X) => A x i j) (\fun (x: X) => (linear (A x)).apply (DomainBasis.vectors j) i)
+      (\fun (x: X) => sym!{K} _ _ (entry (A x) i j)) (regular i j));
+\definition map: Bundles.Morphisms[X := X, Y := X, F := \fun (_: X) => Bundles.Vector m, G := \fun (_: X) => Bundles.Vector n,
+  source := Bundles.Trivial[X := X, n := m, baseSpace := baseSpace].bundle,
+  target := Bundles.Trivial[X := X, n := n, baseSpace := baseSpace].bundle, f := \fun (x: X) => x].Map :=
+  Complements.CoordinateFamily[X := X, m := m, n := n, baseSpace := baseSpace, A := (\fun (x: X) => linear (A x)), regular := continuous].map;
+\structure Changed[targetSpace: topology.Topology[Carrier := X].Topology]: \Set := {
+  map: Bundles.Morphisms[X := X, Y := X, F := \fun (_: X) => Bundles.Vector m, G := \fun (_: X) => Bundles.Vector n,
+    source := Bundles.Trivial[X := X, n := m, baseSpace := baseSpace].bundle,
+    target := Bundles.Trivial[X := X, n := n, baseSpace := targetSpace].bundle, f := \fun (x: X) => x].Map,
+  formula: \forall (x: X)(v: Bundles.Vector m) -> (map.fiber x).apply v = (linear (A x)).apply v,
+};
+\definition change[targetSpace: topology.Topology[Carrier := X].Topology][same: baseSpace = targetSpace]: Changed[targetSpace] :=
+  \idelim baseSpace = targetSpace \with t: topology.Topology[Carrier := X].Topology => Changed[t] \by {
+    base: Changed[baseSpace] { map := map, formula := \fun (x: X)(v: Bundles.Vector m) => \refl((linear (A x)).apply v) }, equality: same
+  };

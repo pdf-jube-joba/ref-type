@@ -1,0 +1,55 @@
+\import \parent.Compact[] \as Compact;
+\import std.Logic[].Classical[] \as Classical;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import dedekind_reals.DedekindReal[].Order[] \as Ordered;
+\import real.Analysis[].Estimates[] \as Estimates;
+\import Estimates.Product[] \as Product;
+\import real.Analysis[].Inverse[] \as Inverse;
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\use Eq.eq_reason_in;
+\use Logic.either;
+\definition boundFromUnit: \forall (f: Linear.Map)(c: R.Real) -> Order.Le R.zero c ->
+  (\forall (x: V) -> \In[V] Compact.UnitBall x -> Order.Le (targetNorm.realNorm.norm (f.apply x)) c) -> Bound[f, c] := \block {
+  \fun (f: Linear.Map)(c: R.Real)(nonnegative: Order.Le R.zero c)(unitBound: \forall (x: V) -> \In[V] Compact.UnitBall x -> Order.Le (targetNorm.realNorm.norm (f.apply x)) c) \then
+  \return Bound[f, c] { nonnegative := nonnegative, estimate := \block {
+    \fun (x: V) \then
+    \return either!{{(Classical.excludedMiddle (x = space.zero))} {Order.Le (targetNorm.realNorm.norm (f.apply x)) (R.mul c (norm.realNorm.norm x))}
+      {\fun (zero: x = space.zero) => Order.leReplace _ _ _ _
+        (sym!{R.Real} _ _ (trans!{R.Real} _ _ _ (congr!{W R.Real} targetNorm.realNorm.norm _ _ (trans!{W} _ _ _ (congr!{V W} f.apply _ _ zero) f.preservesZero)) targetNorm.realNorm.zero))
+        (sym!{R.Real} _ _ (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul c) _ _ (trans!{R.Real} _ _ _ (congr!{V R.Real} norm.realNorm.norm _ _ zero) norm.realNorm.zero)) (Laws.fieldMulZeroRight c)))
+        (Order.leRefl R.zero)}
+      {\block {
+        \fun (nonzero: Logic.Not (x = space.zero)) \then
+        \let q: R.Real := norm.realNorm.norm x \then
+        \let qp: Order.Lt R.zero q := Ordered.ltOfLeNotEq R.zero q (norm.realNorm.nonnegative x)
+          (\fun (same: R.zero = q) => nonzero (norm.realNorm.definite x (sym!{R.Real} _ _ same))) \then
+        \let qi: R.Real := Laws.fieldInv q \then
+        \let ip: Order.Le R.zero qi := Ordered.leOfLt _ _ (Product.invPositive q qp) \then
+        \let y: V := realSpace.smul qi x \then
+        \let normY: norm.realNorm.norm y = R.one := eq_reason_in!{R.Real _
+          "=" _ "by" { norm.realNorm.homogeneous qi x }
+          "=" _ "by" { congr!{R.Real R.Real} (\fun (t: R.Real) => R.mul t q) _ _ (Product.absOfNonnegative qi ip) }
+          "=" _ "by" { Laws.fieldInverseNonzero q (Inverse.positiveNonzero q qp) }
+        } \then
+        \let inside: \In[V] Compact.UnitBall y := Order.leReplaceLeft R.one (norm.realNorm.norm y) R.one (sym!{R.Real} _ _ normY) (Order.leRefl R.one) \then
+        \let restore: realSpace.smul q y = x := eq_reason_in!{V _
+          "=" _ "by" { sym!{V} _ _ (realSpace.scalarAssoc q qi x) }
+          "=" _ "by" { congr!{R.Real V} (\fun (a: R.Real) => realSpace.smul a x) _ _
+            (trans!{R.Real} _ _ _ (Laws.fieldMulComm q qi) (Laws.fieldInverseNonzero q (Inverse.positiveNonzero q qp))) }
+          "=" _ "by" { realSpace.scalarOne x }
+        } \then
+        \let scaled: targetNorm.realNorm.norm (f.apply x) = R.mul q (targetNorm.realNorm.norm (f.apply y)) := eq_reason_in!{R.Real _
+          "=" _ "by" { congr!{V R.Real} (\fun (z: V) => targetNorm.realNorm.norm (f.apply z)) _ _ (sym!{V} _ _ restore) }
+          "=" _ "by" { congr!{W R.Real} targetNorm.realNorm.norm _ _ (f.preservesScale (D.ofReal q) y) }
+          "=" _ "by" { targetNorm.realNorm.homogeneous q (f.apply y) }
+          "=" _ "by" { congr!{R.Real R.Real} (\fun (a: R.Real) => R.mul a (targetNorm.realNorm.norm (f.apply y))) _ _ (Product.absOfNonnegative q (Ordered.leOfLt _ _ qp)) }
+        } \then
+        \return Order.leReplace _ _ _ _ (sym!{R.Real} _ _ scaled) (Laws.fieldMulComm q c)
+          (Estimates.mulMonotone q _ c (Ordered.leOfLt _ _ qp) (unitBound y inside))
+      }}}
+  } }
+};
+\module Difference;

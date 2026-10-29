@@ -1,0 +1,24 @@
+\import linear_algebra.Hermitian[].Complex[] \as Scalar;
+\definition value[v: RealVector]: RealVector := parts (P.apply (embed v));
+\definition realAddition[v, w: ComplexVector]: parts (Complexes.plus v w) = Reals.plus (parts v) (parts w) := \refl(parts (Complexes.plus v w));
+\definition realScale[a: R.Real][v: ComplexVector]: parts (Complexes.scale (Complex.ofReal a) v) = Reals.scale a (parts v) :=
+  \axiom:funext(parts (Complexes.scale (Complex.ofReal a) v), Reals.scale a (parts v), \fun (i: Fin.Fin n) => trans!{R.Real} _ _ _
+    (congr!{R.Real R.Real} (\fun (b: R.Real) => R.sub (R.mul a (C.re (v i))) b) _ _ (Laws.fieldMulZeroLeft (C.im (v i))))
+    (Laws.subZeroRight (R.mul a (C.re (v i)))));
+\definition map: RealEnd.Map := RealEnd.Map {
+  apply := value,
+  preservesAdd := \fun (v, w: RealVector) => trans!{RealVector} _ _ _
+    (congr!{ComplexVector RealVector} (\fun (z: ComplexVector) => parts (P.apply z)) _ _ (embedAddition v w))
+    (trans!{RealVector} _ _ _ (congr!{ComplexVector RealVector} parts _ _ (P.preservesAdd (embed v) (embed w))) (realAddition (P.apply (embed v)) (P.apply (embed w)))),
+  preservesScale := \fun (a: R.Real)(v: RealVector) => trans!{RealVector} _ _ _
+    (congr!{ComplexVector RealVector} (\fun (z: ComplexVector) => parts (P.apply z)) _ _ (embedScale a v))
+    (trans!{RealVector} _ _ _ (congr!{ComplexVector RealVector} parts _ _ (P.preservesScale (Complex.ofReal a) (embed v))) (realScale a (P.apply (embed v)))),
+};
+\definition fixed[v: RealVector]: Conjugation.conjugate (P.apply (embed v)) = P.apply (embed v) := trans!{ComplexVector} _ _ _
+  (real (embed v)) (congr!{ComplexVector ComplexVector} P.apply _ _ (embedConjugate v));
+\definition complexValue[v: RealVector]: P.apply (embed v) = embed (value v) :=
+  \axiom:funext(P.apply (embed v), embed (value v), \fun (i: Fin.Fin n) => Scalar.scalar.fixedReal ((P.apply (embed v)) i)
+    (congr!{ComplexVector {C.Complex}} (\fun (w: ComplexVector) => w i) _ _ (fixed v)));
+\definition realIdempotent[v: RealVector]: map.apply (map.apply v) = map.apply v := trans!{RealVector} _ _ _
+  (congr!{ComplexVector RealVector} (\fun (w: ComplexVector) => parts (P.apply w)) _ _ (sym!{ComplexVector} _ _ (complexValue v)))
+  (congr!{ComplexVector RealVector} parts _ _ (idempotent (embed v)));

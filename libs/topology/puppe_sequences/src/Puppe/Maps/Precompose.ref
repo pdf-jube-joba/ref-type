@@ -1,0 +1,30 @@
+\import \root.Puppe[].Maps[A := C, B := B, source := domain, target := target] \as Result;
+\import algebraic_topology.Pointed[A := C].Maps[B := A] \as Before;
+\import Before.Composition[C := B] \as Composition;
+\definition map[g: Map]: Result.Map := Composition.compose domain source target f g;
+\import algebraic_topology.Homotopy[A := C, B := B] \as NewHomotopy;
+\import Native.Composition[C := C] \as Compose;
+\definition homotopy[g, k: Map][h: Homotopy[g, k]]: Result.Homotopy[map g, map k] := \block {
+  \let ordinary: NewHomotopy.Homotopy[domain.topology, target.topology, map g, map k] :=
+    Compose.precompose domain.topology source.topology target.topology g k
+      (Native.forgetRelative source.topology target.topology fixed g k h) f (Before.laws domain source f).continuous \then
+  \return \into[NewHomotopy.Family](ordinary, Result.Homotopy[map g, map k]) \by {
+    NewHomotopy.RelativeLaws[domain.topology, target.topology, Result.fixed, map g, map k, ordinary] {
+      homotopy := NewHomotopy.laws domain.topology target.topology (map g) (map k) ordinary,
+      fixed := \fun (t: I.Carrier)(x: C)(same: x = domain.basepoint) =>
+        (Native.relativeLaws source.topology target.topology fixed g k h).fixed t (f x)
+          (trans!{A} _ _ _ (congr!{C A} f _ _ same) (Before.laws domain source f).pointed),
+    }
+  }
+};
+\definition related: \forall (g, k: Map) -> Related g k -> Result.Related (map g) (map k) := \block {
+  \fun (g, k: Map)(related: Related g k) \then
+  \takefrom h: Homotopy[g, k] \by related \then
+  \return \exact(homotopy g k h, Result.Homotopy[map g, map k])
+};
+\import Quotient.Maps[B := Result.Class] \as Descent;
+\definition classMap[g: Map]: Result.Class := Result.class (map g);
+\definition respects: Descent.Respects classMap := \fun (g, k: Map)(same: Related g k) => Result.equalOfHomotopic (map g) (map k) (related g k same);
+\definition apply: Class -> Result.Class := Descent.value equivalence classMap respects;
+\definition onClass: \forall (g: Map) -> apply (class g) = Result.class (map g) := Descent.onClass equivalence classMap respects;
+\definition zero: apply zero = Result.zero := onClass constant;

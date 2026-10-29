@@ -1,0 +1,30 @@
+\import topology.Topology[Carrier := X] \as Base;
+\import Base.Subspace[S := subset] \as Subspace;
+\definition topology: Base.Topology := baseSpace;
+\definition inclusion[x: Subspace.CarrierSet]: X := x;
+\definition inclusionContinuous: topology.Continuity[A := Subspace.CarrierSet, B := X].Continuous (Subspace.topology topology) source.baseSpace inclusion :=
+  \idelim baseSpace = source.baseSpace \with t: Base.Topology => topology.Continuity[A := Subspace.CarrierSet, B := X].Continuous (Subspace.topology topology) t inclusion \by {
+    base: topology.Continuity[A := Subspace.CarrierSet, B := X].Corestriction[S := subset].inclusionContinuous topology, equality: sourceSame
+  };
+\definition targetInclusionContinuous: topology.Continuity[A := Subspace.CarrierSet, B := X].Continuous (Subspace.topology topology) target.baseSpace inclusion :=
+  \idelim source.baseSpace = target.baseSpace \with t: Base.Topology => topology.Continuity[A := Subspace.CarrierSet, B := X].Continuous (Subspace.topology topology) t inclusion \by { base: inclusionContinuous, equality: same };
+\import Bundles.Family[X := X, F := F] \as Source;
+\import Bundles.Family[X := X, F := G] \as Target;
+\import Source.Of[bundle := source].Pullback[Y := Subspace.CarrierSet, source := Subspace.topology topology, f := inclusion] \as SourcePullback;
+\import Target.Of[bundle := target].Pullback[Y := Subspace.CarrierSet, source := Subspace.topology topology, f := inclusion] \as TargetPullback;
+\import Bundles.Family[X := Subspace.CarrierSet, F := \fun (x: Subspace.CarrierSet) => F x] \as RestrictedSource;
+\import Bundles.Family[X := Subspace.CarrierSet, F := \fun (x: Subspace.CarrierSet) => G x] \as RestrictedTarget;
+\import Bundles.Morphisms[X := Subspace.CarrierSet, Y := Subspace.CarrierSet,
+  F := (\fun (x: Subspace.CarrierSet) => F x), G := (\fun (x: Subspace.CarrierSet) => G x),
+  source := SourcePullback.pulled inclusionContinuous, target := TargetPullback.pulled targetInclusionContinuous, f := \fun (x: Subspace.CarrierSet) => x] \as RestrictedMaps;
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := G, source := source, target := target, f := \fun (x: X) => x] \as Maps;
+\definition restrictedSource: RestrictedSource.Bundle := SourcePullback.pulled inclusionContinuous;
+\definition restrictedTarget: RestrictedTarget.Bundle := TargetPullback.pulled targetInclusionContinuous;
+\definition MapOnSubset: \Set := RestrictedMaps.Map;
+\structure Extension[h: RestrictedMaps.Map]: \Set := {
+  map: Maps.Map,
+  extends: \forall (x: Subspace.CarrierSet)(v: F x) -> (map.fiber x).apply v = (h.fiber x).apply v,
+};
+\import Complements.For[X := X, F := F, bundle := source] \as SourceEmbeddings;
+\import Complements.For[X := X, F := G, bundle := target] \as TargetEmbeddings;
+\module Through(h: RestrictedMaps.Map, first: SourceEmbeddings.Embedding, second: TargetEmbeddings.Embedding);

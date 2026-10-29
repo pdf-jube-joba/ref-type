@@ -1,0 +1,68 @@
+\import \parent.Sum[] \as Sums;
+\import Algebra.Sums[I := Exterior.Tuple] \as ListSums;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition summand[f, g: Forms.Form k][i: Exterior.Tuple]: C.Complex := Algebra.mul (Def.conj (Exterior.coefficient f i)) (Exterior.coefficient g i);
+\definition atEnumeration: \forall (xs: Exterior.Enumeration)(f, g: Forms.Form k) -> \parent.Using[enumeration := xs].form.dot f g = ListSums.sum xs (summand f g) :=
+  \fun (xs: Exterior.Enumeration)(f, g: Forms.Form k) => Sums.listSum xs (summand f g);
+\definition sameForm: \forall (xs, ys: Exterior.Enumeration)(f, g: Forms.Form k) -> \parent.Using[enumeration := xs].form.dot f g = \parent.Using[enumeration := ys].form.dot f g :=
+  \fun (xs, ys: Exterior.Enumeration)(f, g: Forms.Form k) => trans!{C.Complex} _ _ _ (atEnumeration xs f g)
+    (trans!{C.Complex} _ _ _ (Sums.sameSum xs ys (summand f g)) (sym!{C.Complex} _ _ (atEnumeration ys f g)));
+\definition Value[f, g: Forms.Form k]: \Set := \Cast[C.Complex] ({ z: C.Complex \where \exists (xs: Exterior.Enumeration \where \parent.Using[enumeration := xs].form.dot f g = z) });
+\definition exists: \forall (f, g: Forms.Form k) -> \exists Value f g := \block {
+  \fun (f, g: Forms.Form k) \then
+  \takefrom xs: Exterior.Enumeration \by Exterior.existsEnumeration \then
+  \return \exact(\into[C.Complex](\parent.Using[enumeration := xs].form.dot f g, Value f g) \by {
+    Logic.existsIntro[Exterior.Enumeration, { ys: Exterior.Enumeration \where \parent.Using[enumeration := ys].form.dot f g = \parent.Using[enumeration := xs].form.dot f g }] xs (\refl(\parent.Using[enumeration := xs].form.dot f g))
+  }, Value f g)
+};
+\definition unique: \forall (f, g: Forms.Form k)(x, y: Value f g) -> x = y := \block {
+  \fun (f, g: Forms.Form k)(x, y: Value f g) \then
+  \takefrom xs: \Cast[Exterior.Enumeration] ({ xs: Exterior.Enumeration \where \parent.Using[enumeration := xs].form.dot f g = x }) \by \bysub(C.Complex, Value f g, x) \then
+  \takefrom ys: \Cast[Exterior.Enumeration] ({ ys: Exterior.Enumeration \where \parent.Using[enumeration := ys].form.dot f g = y }) \by \bysub(C.Complex, Value f g, y) \then
+  \return trans!{C.Complex} _ _ _ (sym!{C.Complex} _ _ (\bysub(Exterior.Enumeration, { xs: Exterior.Enumeration \where \parent.Using[enumeration := xs].form.dot f g = x }, xs)))
+    (trans!{C.Complex} _ _ _ (sameForm xs ys f g) (\bysub(Exterior.Enumeration, { ys: Exterior.Enumeration \where \parent.Using[enumeration := ys].form.dot f g = y }, ys)))
+};
+\definition dot[f, g: Forms.Form k]: C.Complex := \choice Value f g \by { existence: exists f g, uniqueness: unique f g };
+\definition fromEnumeration: \forall (xs: Exterior.Enumeration)(f, g: Forms.Form k) -> dot f g = \parent.Using[enumeration := xs].form.dot f g :=
+  \fun (xs: Exterior.Enumeration)(f, g: Forms.Form k) => unique f g (\choice Value f g \by { existence: exists f g, uniqueness: unique f g }) (\into[C.Complex](\parent.Using[enumeration := xs].form.dot f g, Value f g) \by {
+    Logic.existsIntro[Exterior.Enumeration, { ys: Exterior.Enumeration \where \parent.Using[enumeration := ys].form.dot f g = \parent.Using[enumeration := xs].form.dot f g }] xs (\refl(\parent.Using[enumeration := xs].form.dot f g))
+  });
+\import Forms.At[k := k] \as Grade;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := Field.field, scalar := Hermitian.scalar].Inner[V := Forms.Form k, space := Grade.vectorSpace] \as Geometry;
+\use Equality.eq_reason_in;
+\definition form: Geometry.Form := Geometry.Form {
+  dot := dot,
+  symmetric := \block { \fun (f, g: Forms.Form k) \then \takefrom xs: Exterior.Enumeration \by Exterior.existsEnumeration \then
+    \return eq_reason_in!{C.Complex _
+      "=" _ "by" { fromEnumeration xs f g }
+      "=" _ "by" { \parent.Using[enumeration := xs].form.symmetric f g }
+      "=" _ "by" { congr!{C.Complex C.Complex} Def.conj _ _ (sym!{C.Complex} _ _ (fromEnumeration xs g f)) }
+    } },
+  zeroRight := \block { \fun (f: Forms.Form k) \then \takefrom xs: Exterior.Enumeration \by Exterior.existsEnumeration \then
+    \return trans!{C.Complex} _ _ _ (fromEnumeration xs f Grade.origin) (\parent.Using[enumeration := xs].form.zeroRight f) },
+  addRight := \block { \fun (f, g, h: Forms.Form k) \then \takefrom xs: Exterior.Enumeration \by Exterior.existsEnumeration \then
+    \return eq_reason_in!{C.Complex _
+      "=" _ "by" { fromEnumeration xs f (Grade.plus g h) }
+      "=" _ "by" { \parent.Using[enumeration := xs].form.addRight f g h }
+      "=" _ "by" { congr!{C.Complex C.Complex C.Complex} Algebra.add _ _ _ _ (sym!{C.Complex} _ _ (fromEnumeration xs f g)) (sym!{C.Complex} _ _ (fromEnumeration xs f h)) }
+    } },
+  scaleRight := \block { \fun (a: C.Complex)(f, g: Forms.Form k) \then \takefrom xs: Exterior.Enumeration \by Exterior.existsEnumeration \then
+    \return eq_reason_in!{C.Complex _
+      "=" _ "by" { fromEnumeration xs f (Grade.scale a g) }
+      "=" _ "by" { \parent.Using[enumeration := xs].form.scaleRight a f g }
+      "=" _ "by" { congr!{C.Complex C.Complex} (Algebra.mul a) _ _ (sym!{C.Complex} _ _ (fromEnumeration xs f g)) }
+    } },
+};
+\import dedekind_reals.DedekindReal[] \as Order;
+\definition positive: Geometry.Positive[form] := Geometry.Positive[form] {
+  nonnegative := \block { \fun (f: Forms.Form k) \then \takefrom xs: Exterior.Enumeration \by Exterior.existsEnumeration \then
+    \return Order.leReplaceRight R.zero _ _ (sym!{R.Real} _ _ (congr!{C.Complex R.Real} C.re _ _ (fromEnumeration xs f f)))
+      (\parent.Using[enumeration := xs].positive.nonnegative f) },
+  definite := \block { \fun (f: Forms.Form k)(zero: dot f f = Algebra.zero) \then \takefrom xs: Exterior.Enumeration \by Exterior.existsEnumeration \then
+    \return \parent.Using[enumeration := xs].positive.definite f (trans!{C.Complex} _ _ _ (sym!{C.Complex} _ _ (fromEnumeration xs f f)) zero) },
+};
+\module Words;

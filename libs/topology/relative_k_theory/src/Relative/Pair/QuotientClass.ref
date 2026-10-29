@@ -1,0 +1,31 @@
+\import \parent.Quotient[] \as Quotient;
+\import \parent.FromQuotient[F := F, bundle := bundle, same := same] \as Raw;
+\import \parent.Group[] \as RelativeGroup;
+\import Operations.IdentityIsomorphism[X := Quotient.Carrier, F := F, bundle := bundle] \as Identity;
+\import \parent.QuotientIsomorphisms[F := F, G := F, source := bundle, target := bundle, sourceSame := same, targetSame := same] \as Comparison;
+\definition rawValue[w: Raw.Witness]: RelativeGroup.Carrier := RelativeGroup.value w.result.value;
+\definition Values: \Set := \Cast[RelativeGroup.Carrier] ({ v: RelativeGroup.Carrier \where \exists (w: Raw.Witness \where rawValue w = v) });
+\definition existence: \exists Values := \block {
+  \takefrom w: Raw.Witness \by Raw.existence \then
+  \return \exact(\into[RelativeGroup.Carrier](rawValue w, Values) \by {
+    Logic.existsIntro[Raw.Witness, { u: Raw.Witness \where rawValue u = rawValue w }] w (\refl(rawValue w))
+  }, Values)
+};
+\definition uniqueness: \forall (v, u: Values) -> v = u := \block {
+  \fun (v, u: Values) \then
+  \takefrom first: \Cast[Raw.Witness] ({ w: Raw.Witness \where rawValue w = v }) \by
+    \bysub(RelativeGroup.Carrier, { v: RelativeGroup.Carrier \where \exists (w: Raw.Witness \where rawValue w = v) }, v) \then
+  \takefrom second: \Cast[Raw.Witness] ({ w: Raw.Witness \where rawValue w = u }) \by
+    \bysub(RelativeGroup.Carrier, { v: RelativeGroup.Carrier \where \exists (w: Raw.Witness \where rawValue w = v) }, u) \then
+  \return trans!{{RelativeGroup.Carrier}} _ _ _
+    (sym!{{RelativeGroup.Carrier}} _ _ (\bysub(Raw.Witness, { w: Raw.Witness \where rawValue w = v }, first)))
+    (trans!{{RelativeGroup.Carrier}} _ _ _ (Comparison.On[h := Identity.isomorphism, first := first, second := second].equation)
+      (\bysub(Raw.Witness, { w: Raw.Witness \where rawValue w = u }, second)))
+};
+\definition value: Values := \choice Values \by { existence: existence, uniqueness: uniqueness };
+\definition agreement: \forall (w: Raw.Witness) -> value = rawValue w := \fun (w: Raw.Witness) =>
+  uniqueness value (\into[RelativeGroup.Carrier](rawValue w, Values) \by {
+    Logic.existsIntro[Raw.Witness, { u: Raw.Witness \where rawValue u = rawValue w }] w (\refl(rawValue w))
+  });
+\module Isomorphic(G: Quotient.Carrier -> \Set, target: Bundles.Family[X := Quotient.Carrier, F := G].Bundle, targetSame: target.baseSpace = Quotient.topology,
+  h: Bundles.Isomorphisms[X := Quotient.Carrier, F := F, G := G, source := bundle, target := target].Isomorphism);

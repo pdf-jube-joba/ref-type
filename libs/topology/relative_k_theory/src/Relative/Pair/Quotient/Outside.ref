@@ -1,0 +1,36 @@
+\import topology.Topology[Carrier := X] \as Original;
+\import Original.Subspace[S := Original.Complement subset] \as Source;
+\import topology.Topology[Carrier := Augmented] \as AugmentedSpace;
+\import topology.Topology[Carrier := Carrier] \as Target;
+\import SumProperties.LeftOn[S := Original.Complement subset] \as Left;
+\import Native.Outside[source := augmentedSpace, closed := collapsedClosed,
+  point := (\into[Augmented](Sum.inr distinguished, collapsedPart) \by { \refl(distinguished) })] \as Collapsed;
+\import AugmentedSpace.Subspace[S := Left.range] \as LeftRange;
+\import AugmentedSpace.Subspace[S := Collapsed.domain] \as Intermediate;
+\import Target.Subspace[S := Collapsed.range] \as Range;
+\definition toOutside: AugmentedSpace.Subset Left.range Collapsed.domain :=
+  \induction (p: Augmented) \return AugmentedSpace.Member Left.range p -> AugmentedSpace.Member Collapsed.domain p \with {
+    | inl: \fun (x: X)(outside: Logic.Not (Original.Member subset x)) => outside
+    | inr: \fun (p: Point)(empty: Logic.False)(member: _) => empty
+  };
+\definition fromOutside: AugmentedSpace.Subset Collapsed.domain Left.range :=
+  \induction (p: Augmented) \return AugmentedSpace.Member Collapsed.domain p -> AugmentedSpace.Member Left.range p \with {
+    | inl: \fun (x: X)(outside: Logic.Not (Original.Member subset x)) => outside
+    | inr: \fun (p: Point)(outside: Logic.Not (p = p)) => outside (\refl(p))
+  };
+\import LeftRange.Equivalent[T := Collapsed.domain] \as Same;
+\definition first: topology.Homeomorphism[A := Source.CarrierSet, B := Intermediate.CarrierSet].Homeomorphism[Source.topology space, Intermediate.topology augmentedSpace] :=
+  topology.Homeomorphism[A := Source.CarrierSet, B := LeftRange.CarrierSet].Composition[C := Intermediate.CarrierSet].compose
+    (Source.topology space) (LeftRange.topology augmentedSpace) (Intermediate.topology augmentedSpace) Left.homeomorphism (Same.homeomorphism augmentedSpace toOutside fromOutside);
+\definition homeomorphism: topology.Homeomorphism[A := Source.CarrierSet, B := Range.CarrierSet].Homeomorphism[Source.topology space, Range.topology topology] :=
+  topology.Homeomorphism[A := Source.CarrierSet, B := Intermediate.CarrierSet].Composition[C := Range.CarrierSet].compose
+    (Source.topology space) (Intermediate.topology augmentedSpace) (Range.topology topology) first Collapsed.homeomorphism;
+\definition Point: \Set := Range.CarrierSet;
+\definition sourceTopology: topology.Topology[Carrier := Source.CarrierSet].Topology := Source.topology space;
+\definition rangeTopology: topology.Topology[Carrier := Point].Topology := Range.topology topology;
+\definition inverse: Point -> Source.CarrierSet := homeomorphism.backward;
+\definition inverseContinuous: topology.Continuity[A := Point, B := Source.CarrierSet].Continuous rangeTopology sourceTopology inverse :=
+  (topology.Homeomorphism[A := Source.CarrierSet, B := Range.CarrierSet].laws sourceTopology rangeTopology homeomorphism).backwardContinuous;
+\definition inverseProjection: \forall (q: Point) -> projection (inverse q) = q :=
+  (topology.Homeomorphism[A := Source.CarrierSet, B := Range.CarrierSet].laws sourceTopology rangeTopology homeomorphism).rightInverse;
+\definition forwardProjection: \forall (x: Source.CarrierSet) -> homeomorphism.forward x = projection x := \fun (x: Source.CarrierSet) => \refl(projection x);

@@ -1,0 +1,40 @@
+\import std.Data[].Bool[] \as Bool;
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Hemisphere[].Closed[] \as Cover;
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Bundle[F := F, bundle := bundle, same := same].Preparation[].With[embedding := embedding].Transition[].With[positive := positive, negative := negative].Closed[] \as Closed;
+\import Closed.NegativeSide[] \as NegativeSide;
+\import clutching_linearization.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[
+  n := embedding.dimension, a := matrix, regular := regular, nonzero := nonzero].Clutched[] \as Clutched;
+\import Homotopy.Clutching[n := embedding.dimension, X := Carrier, baseSpace := topology, U := Clutched.U, V := Clutched.V,
+  openU := Clutched.openU, openV := Clutched.openV, covers := Clutched.covers].With[g := Clutched.transition, continuous := Clutched.transitionContinuous] \as Clutch;
+\import Homotopy.ClosedCover[X := Carrier, F := Product.Fiber, G := Clutched.Fiber, baseSpace := topology,
+  source := Product.stabilized, target := Clutched.bundle, sourceBase := same, targetBase := \refl(topology),
+  C := Cover.positive, D := Cover.negative, closedC := Cover.positiveClosed, closedD := Cover.negativeClosed, covers := Cover.covers] \as Glue;
+\import Homotopy.ClosedMaps[X := Carrier, F := Product.Fiber, G := Clutched.Fiber, baseSpace := topology,
+  source := Product.stabilized, target := Clutched.bundle, sourceBase := same, targetBase := \refl(topology),
+  C := Cover.positive, D := Cover.negative, closedC := Cover.positiveClosed, closedD := Cover.negativeClosed, covers := Cover.covers] \as Maps;
+\import Maps.Side[S := Cover.positive] \as Left;
+\import Maps.Side[S := Cover.negative] \as Right;
+\import Homotopy.ChartPullback[X := Carrier, F := Clutched.Fiber, bundle := Clutched.bundle, chart := Clutch.chart Bool.Bool^::false,
+  Y := Cover.PositiveCarrier, source := Cover.positiveTopology, f := (\fun (p: Cover.PositiveCarrier) => p),
+  continuous := topology.Continuity[A := Carrier, B := Carrier].Corestriction[S := Cover.positive].inclusionContinuous topology, inside := Cover.positiveInside] \as PositiveChart;
+\import Homotopy.ChartPullback[X := Carrier, F := Clutched.Fiber, bundle := Clutched.bundle, chart := Clutch.chart Bool.Bool^::true,
+  Y := Cover.NegativeCarrier, source := Cover.negativeTopology, f := (\fun (p: Cover.NegativeCarrier) => p),
+  continuous := topology.Continuity[A := Carrier, B := Carrier].Corestriction[S := Cover.negative].inclusionContinuous topology, inside := Cover.negativeInside] \as NegativeChart;
+\import Bundles.Isomorphisms[X := Cover.PositiveCarrier, F := (\fun (p: Cover.PositiveCarrier) => Clutched.Fiber p), G := (\fun (_: Cover.PositiveCarrier) => Vectors.Vector),
+  source := PositiveChart.pulledBundle, target := Bundles.Trivial[X := Cover.PositiveCarrier, n := embedding.dimension, baseSpace := Cover.positiveTopology].bundle] \as PositiveChartIso;
+\import Bundles.Isomorphisms[X := Cover.NegativeCarrier, F := (\fun (p: Cover.NegativeCarrier) => Clutched.Fiber p), G := (\fun (_: Cover.NegativeCarrier) => Vectors.Vector),
+  source := NegativeChart.pulledBundle, target := Bundles.Trivial[X := Cover.NegativeCarrier, n := embedding.dimension, baseSpace := Cover.negativeTopology].bundle] \as NegativeChartIso;
+\import Operations.IsomorphismComposition[X := Cover.PositiveCarrier, F := (\fun (p: Cover.PositiveCarrier) => Product.Fiber p), G := (\fun (_: Cover.PositiveCarrier) => Vectors.Vector), H := (\fun (p: Cover.PositiveCarrier) => Clutched.Fiber p),
+  source := Left.sourceBundle, middle := Bundles.Trivial[X := Cover.PositiveCarrier, n := embedding.dimension, baseSpace := Cover.positiveTopology].bundle, target := Left.targetBundle] \as PositiveCompose;
+\definition left: Left.Isomorphism := PositiveCompose.compose Closed.positiveTrivialization (PositiveChartIso.inverse PositiveChart.isomorphism);
+\import Operations.IsomorphismComposition[X := Cover.NegativeCarrier, F := (\fun (p: Cover.NegativeCarrier) => Product.Fiber p), G := (\fun (_: Cover.NegativeCarrier) => Vectors.Vector), H := (\fun (p: Cover.NegativeCarrier) => Clutched.Fiber p),
+  source := Right.sourceBundle, middle := Bundles.Trivial[X := Cover.NegativeCarrier, n := embedding.dimension, baseSpace := Cover.negativeTopology].bundle, target := Right.targetBundle] \as NegativeCompose;
+\definition right: Right.Isomorphism := NegativeCompose.compose NegativeSide.negativeTrivialization (NegativeChartIso.inverse NegativeChart.isomorphism);
+\module Boundary(p: Carrier, leftMember: \In[Carrier] Cover.positive p, rightMember: \In[Carrier] Cover.negative p);
+\definition agrees: \forall (p: Carrier)(inLeft: \In[Carrier] Cover.positive p)(inRight: \In[Carrier] Cover.negative p)(v: Product.Fiber p) ->
+  (left.forward.fiber (\into[Carrier](p, Cover.positive) \by { inLeft })).apply v = (right.forward.fiber (\into[Carrier](p, Cover.negative) \by { inRight })).apply v :=
+  \fun (p: Carrier)(inLeft: \In[Carrier] Cover.positive p)(inRight: \In[Carrier] Cover.negative p)(v: Product.Fiber p) =>
+    Boundary[p := p, leftMember := inLeft, rightMember := inRight].Agreement[v := v].agrees;
+\definition isomorphism: Bundles.Isomorphisms[X := Carrier, F := Product.Fiber, G := Clutched.Fiber, source := Product.stabilized, target := Clutched.bundle].Isomorphism :=
+  Glue.With[left := left, right := right, agrees := agrees].isomorphism;
+\module Formula;

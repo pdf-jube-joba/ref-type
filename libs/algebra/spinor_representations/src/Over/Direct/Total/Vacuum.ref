@@ -1,0 +1,25 @@
+\import LeftTotal.Vacuum[] \as LeftVacuum;
+\import RightTotal.Vacuum[] \as RightVacuum;
+\import ResultTotal.Vacuum[] \as ResultVacuum;
+\import ResultTotal.Series[].Laws[].Reversal[].Charge[] \as Charge;
+\import Algebra.Multilinear[V := Sum.Carrier, space := Sum.space] \as Multi;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].sym;
+\definition leftVacuum: leftMap.apply LeftVacuum.state = ResultVacuum.state :=
+  \axiom:funext(leftMap.apply LeftVacuum.state, ResultVacuum.state,
+    \induction (k: N.Nat^) \return leftMap.apply LeftVacuum.state k = ResultVacuum.state k \with {
+      | zero: Result.At[k := N.Nat^::zero].ext (leftMap.apply LeftVacuum.state N.Nat^::zero) (ResultVacuum.state N.Nat^::zero) (\fun (args: Multi.Arguments N.Nat^::zero) => \refl(Algebra.one))
+      | succ: \fun (k: N.Nat^)(unused: _) => (PullLeft.At[k := N.Nat^::succ k].linear leftProjection).preservesZero
+    });
+\definition rightVacuum: rightMap.apply RightVacuum.state = ResultVacuum.state :=
+  \axiom:funext(rightMap.apply RightVacuum.state, ResultVacuum.state,
+    \induction (k: N.Nat^) \return rightMap.apply RightVacuum.state k = ResultVacuum.state k \with {
+      | zero: Result.At[k := N.Nat^::zero].ext (rightMap.apply RightVacuum.state N.Nat^::zero) (ResultVacuum.state N.Nat^::zero) (\fun (args: Multi.Arguments N.Nat^::zero) => \refl(Algebra.one))
+      | succ: \fun (k: N.Nat^)(unused: _) => (PullRight.At[k := N.Nat^::succ k].linear rightProjection).preservesZero
+    });
+\definition onVacuum: comparison.apply (Tensor.tensor LeftVacuum.state RightVacuum.state) = ResultVacuum.state := eq_reason_in!{{ResultTotal.Carrier} _
+  "=" _ "by" { onTensor LeftVacuum.state RightVacuum.state }
+  "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier} {ResultTotal.Carrier}} Product.wedge _ _ _ _ leftVacuum rightVacuum }
+  "=" _ "by" { Charge.vacuumLeftUnit ResultVacuum.state }
+};
+\module Words;

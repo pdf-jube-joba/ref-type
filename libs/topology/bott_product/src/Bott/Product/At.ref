@@ -1,0 +1,58 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\use Eq.eq_reason_in;
+\import std.Data[].FinSet[] \as Fin;
+\import topology.Topology[Carrier := Fin.Fin one] \as PointSpace;
+\import topological_k_theory.KTheory[].FiniteDiscrete[n := one] \as Finite;
+\import topological_k_theory.KTheory[].Point[] \as Point;
+\import \root.Bott[].Restriction[point := point] \as Restriction;
+\definition section[x: X]: Carrier := Pair.pair X Sphere.Sphere x point;
+\definition continuous: topology.Continuity[A := X, B := Carrier].Continuous source topology section :=
+  Space.Universal[X := X].pairContinuous source source Sphere.sphereTopology (\fun (x: X) => x) (\fun (_: X) => point)
+    (topology.Maps[A := X, B := X].Identity[].continuous source)
+    (topology.Maps[A := X, B := Sphere.Sphere].constantContinuous source Sphere.sphereTopology point);
+\import Target.Pullback[Y := X, space := source, sourceCompact := compact, sourceHausdorff := hausdorff,
+  f := section, regular := continuous] \as Pull;
+\definition restriction: Target.K0[].Carrier -> Source.K0[].Carrier := Pull.K0[].map;
+\import First.Composition[Z := X, nextSpace := source, nextCompact := compact, nextHausdorff := hausdorff,
+  g := section, nextRegular := continuous] \as FirstComposition;
+\import Source.IdentityPullback[] \as Identity;
+\definition firstPullback: \forall (v: Source.K0[].Carrier) -> Pull.K0[].map (First.K0[].map v) = v :=
+  \fun (v: Source.K0[].Carrier) => trans!{{Source.K0[].Carrier}} _ _ _ (sym!{{Source.K0[].Carrier}} _ _ (FirstComposition.onK0 v)) (Identity.onK0 v);
+\definition toPoint[x: X]: Fin.Fin one := Point.point;
+\definition toPointContinuous: topology.Continuity[A := X, B := Fin.Fin one].Continuous source PointSpace.Discrete toPoint :=
+  topology.Maps[A := X, B := Fin.Fin one].constantContinuous source PointSpace.Discrete Point.point;
+\import K.Pullback[Y := Fin.Fin one, space := PointSpace.Discrete, sourceCompact := Finite.compact, sourceHausdorff := Finite.hausdorff,
+  f := Restriction.map, regular := Restriction.continuous] \as PointPull;
+\import PointPull.Composition[Z := X, nextSpace := source, nextCompact := compact, nextHausdorff := hausdorff,
+  g := toPoint, nextRegular := toPointContinuous] \as PointComposition;
+\import Second.Composition[Z := X, nextSpace := source, nextCompact := compact, nextHausdorff := hausdorff,
+  g := section, nextRegular := continuous] \as SecondComposition;
+\import topological_k_theory.KTheory[].On[X := Fin.Fin one, baseSpace := PointSpace.Discrete, compact := Finite.compact, hausdorff := Finite.hausdorff].Pullback[
+  Y := X, space := source, sourceCompact := compact, sourceHausdorff := hausdorff, f := toPoint, regular := toPointContinuous] \as FromPoint;
+\definition generatorPullback: Pull.K0[].map generatorOnProduct = Source.K0[].zero :=
+  eq_reason_in!{{Source.K0[].Carrier} _
+    "=" _ "by" { sym!{{Source.K0[].Carrier}} _ _ (SecondComposition.onK0 generator) }
+    "=" _ "by" { PointComposition.onK0 generator }
+    "=" _ "by" { congr!{Point.Carrier {Source.K0[].Carrier}} FromPoint.K0[].map _ _ Restriction.vanishes }
+    "=" _ "by" { FromPoint.K0[].preservesZero }
+  };
+\import algebra.Hom[A := Target.K0[].Carrier, B := Source.K0[].Carrier] \as Hom;
+\import std.Alg[].Ring[] \as Rings;
+\import algebra.Group[].Of[Carrier := Source.K0[].Carrier, group := Source.K0[].group] \as Group;
+\import algebra.GroupCompletion[].Semiring[M := Source.Classes, semiring := Source.Semiring[].semiring] \as Ring;
+\definition restrictForward: \forall (a, b: Source.K0[].Carrier) -> Pull.K0[].map (forward a b) = a :=
+  \fun (a, b: Source.K0[].Carrier) => eq_reason_in!{{Source.K0[].Carrier} _
+    "=" _ "by" { Pull.K0[].additive (First.K0[].map a) (Target.K0[].mul (First.K0[].map b) generatorOnProduct) }
+    "=" _ "by" { congr!{{Source.K0[].Carrier} {Source.K0[].Carrier} {Source.K0[].Carrier}} Source.K0[].add _ _ _ _
+      (firstPullback a)
+      ((Hom.semiringLaws (Rings.ringAsSemiring Target.K0[].Carrier Target.K0[].ring) (Rings.ringAsSemiring Source.K0[].Carrier Source.K0[].ring) Pull.K0[].map).mul (First.K0[].map b) generatorOnProduct) }
+    "=" _ "by" { congr!{{Source.K0[].Carrier} {Source.K0[].Carrier}} (Source.K0[].add a) _ _
+      (congr!{{Source.K0[].Carrier} {Source.K0[].Carrier} {Source.K0[].Carrier}} Source.K0[].mul _ _ _ _ (firstPullback b) generatorPullback) }
+    "=" _ "by" { congr!{{Source.K0[].Carrier} {Source.K0[].Carrier}} (Source.K0[].add a) _ _ (Ring.mulZeroRight b) }
+    "=" _ "by" { Group.zeroRight a }
+  };
+\module Kernel;
+\module Slice;

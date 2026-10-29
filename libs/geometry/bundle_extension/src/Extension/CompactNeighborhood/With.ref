@@ -1,0 +1,41 @@
+\definition Point: \Set := \Cast[X] w.envelope;
+\definition space: topology.Topology[Carrier := Point].Topology := Base.Subspace[S := w.envelope].topology topology;
+\definition compact[ambient: Base.IsCompact topology]: topology.Topology[Carrier := Point].IsCompact space :=
+  Base.Subspace[S := w.envelope].Properties[].compact topology (Base.Compactness[].closedCompact topology ambient w.envelope w.envelopeClosed);
+\definition hausdorff[ambient: Base.IsT2 topology]: topology.Topology[Carrier := Point].IsT2 space := Base.Subspace[S := w.envelope].Properties[].hausdorff topology ambient;
+\definition subsetClosed[closed: Base.IsClosedIn topology subset]: topology.Topology[Carrier := Point].IsClosedIn space ({ x: Point \where Base.Member subset x }) :=
+  topology.Continuity[A := Point, B := X].closedPreimage space topology (\fun (x: Point) => x)
+    (topology.Continuity[A := Point, B := X].Corestriction[S := w.envelope].inclusionContinuous topology) subset closed;
+\definition contains: Base.Subset subset w.envelope := \fun (x: X)(member: Base.Member subset x) => w.enclosed x (w.contains x member);
+\definition toOpen[x: Point]: \Cast[X] U := \into[X](x, U) \by { w.within x (\bysub(X, w.envelope, x)) };
+\definition toOpenContinuous: topology.Continuity[A := Point, B := \Cast[X] U].Continuous space (Base.Subspace[S := U].topology topology) toOpen :=
+  topology.Continuity[A := Point, B := X].Corestriction[S := U].corestrictContinuous space topology toOpen
+    (topology.Continuity[A := Point, B := X].Corestriction[S := w.envelope].inclusionContinuous topology);
+\structure LocalWitness[V: \Pow Point]: \Set := {
+  domain: \Pow X,
+  open: Base.IsOpenIn topology domain,
+  inner: Base.Subset domain w.inner,
+  contains: Base.Subset subset domain,
+  within: \forall (x: \Cast[X] domain) -> topology.Topology[Carrier := Point].Member V (\into[X](x, w.envelope) \by { w.enclosed x (inner x (\bysub(X, domain, x))) }),
+};
+\definition lift[V: \Pow Point][open: topology.Topology[Carrier := Point].IsOpenIn space V]
+  [includes: \forall (x: \Cast[X] subset) -> topology.Topology[Carrier := Point].Member V (\into[X](x, w.envelope) \by { contains x (\bysub(X, subset, x)) })]: \exists LocalWitness[V] := \block {
+  \takefrom U: \Cast[\Pow X] ({ U: \Pow X \where Logic.And[Base.IsOpenIn topology U, V = Base.Subspace[S := w.envelope].Trace U] })
+    \by Base.Subspace[S := w.envelope].openRepresentation topology V open \then
+  \let data: Logic.And[Base.IsOpenIn topology U, V = Base.Subspace[S := w.envelope].Trace U] :=
+    \bysub(\Pow X, { U: \Pow X \where Logic.And[Base.IsOpenIn topology U, V = Base.Subspace[S := w.envelope].Trace U] }, U) \then
+  \return \exact(LocalWitness[V] {
+    domain := Base.Intersection w.inner U,
+    open := (Base.topologyLaws topology).intersectionOpen w.inner U w.innerOpen data.left,
+    inner := \fun (x: X)(member: Base.Member (Base.Intersection w.inner U) x) => member.left,
+    contains := \fun (x: X)(member: Base.Member subset x) => Logic.And[_, _]::# (w.contains x member)
+      (\idelim V = Base.Subspace[S := w.envelope].Trace U \with S: \Pow Point => topology.Topology[Carrier := Point].Member S (\into[X](x, w.envelope) \by { contains x member }) \by {
+        base: includes (\into[X](x, subset) \by { member }), equality: data.right
+      }),
+    within := \fun (x: \Cast[X] (Base.Intersection w.inner U)) =>
+      \idelim Base.Subspace[S := w.envelope].Trace U = V \with S: \Pow Point => topology.Topology[Carrier := Point].Member S
+        (\into[X](x, w.envelope) \by { w.enclosed x (\bysub(X, Base.Intersection w.inner U, x)).left }) \by {
+          base: (\bysub(X, Base.Intersection w.inner U, x)).right, equality: sym!{\Pow Point} _ _ data.right
+        },
+  }, LocalWitness[V])
+};

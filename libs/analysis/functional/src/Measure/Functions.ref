@@ -1,0 +1,147 @@
+\import \root.Measure[A := A].Sigma[] \as Sigma;
+\import std.Arithmetic[].Rat[].Enumeration[] \as Enumeration;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Def[] \as Op;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import real.Analysis[].Distance[] \as Distance;
+\import real.Analysis[].Estimates[] \as E;
+\use std.Logic[].Equality[].sym;
+\definition rational[k: N.Nat^]: Real.Real := Op.ofRat (Enumeration.fraction k);
+\definition addSets[f, g: A -> Real.Real] [r: Real.Real] [k: N.Nat^]: \Pow A :=
+  Sets.Intersection ({ x: A \where R.Lt (rational k) (f x) }) ({ x: A \where R.Lt (Real.sub r (rational k)) (g x) });
+\definition addSetsMeasurable: \forall (f, g: A -> Real.Real) -> IsMeasurable mu f -> IsMeasurable mu g ->
+  \forall (r: Real.Real) (k: N.Nat^) -> Measurable mu.sigma (addSets f g r k) :=
+  \fun (f, g: A -> Real.Real) (mf: IsMeasurable mu f) (mg: IsMeasurable mu g) (r: Real.Real) (k: N.Nat^) =>
+    Sigma.intersectionMeasurable mu.sigma ({ x: A \where R.Lt (rational k) (f x) }) ({ x: A \where R.Lt (Real.sub r (rational k)) (g x) })
+      (mf (rational k)) (mg (Real.sub r (rational k)));
+\definition addSuperlevel: \forall (f, g: A -> Real.Real) (r: Real.Real) ->
+  union (addSets f g r) = { x: A \where R.Lt r (Real.add (f x) (g x)) } :=
+  \fun (f, g: A -> Real.Real) (r: Real.Real) => \axiom:setext(union (addSets f g r), { x: A \where R.Lt r (Real.add (f x) (g x)) },
+    \fun (x: A) (member: Sets.Member (union (addSets f g r)) x) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sets.Member (addSets f g r k) x }) \by member \then
+      \let data: Sets.Member (addSets f g r k) x := \bysub(N.Nat^, { k: N.Nat^ \where Sets.Member (addSets f g r k) x }, k) \then
+      \return R.ltReplaceLeft (Real.add (rational k) (Real.sub r (rational k))) r (Real.add (f x) (g x)) (E.addSubCancel r (rational k))
+        (E.addLt (rational k) (Real.sub r (rational k)) (f x) (g x) data.left data.right)
+    },
+    \fun (x: A) (less: R.Lt r (Real.add (f x) (g x))) => \block {
+      \let first: R.Lt (Real.sub r (g x)) (f x) := Distance.addLtToSub r (g x) (f x) less \then
+      \takefrom q: \Cast[R.Rat] ({ q: R.Rat \where Logic.And[R.Lt (Real.sub r (g x)) (Op.ofRat q), R.Lt (Op.ofRat q) (f x)] })
+        \by Laws.rationalDensity (Real.sub r (g x)) (f x) first \then
+      \let between: Logic.And[R.Lt (Real.sub r (g x)) (Op.ofRat q), R.Lt (Op.ofRat q) (f x)] :=
+        \bysub(R.Rat, { q: R.Rat \where Logic.And[R.Lt (Real.sub r (g x)) (Op.ofRat q), R.Lt (Op.ofRat q) (f x)] }, q) \then
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Enumeration.fraction k = q }) \by Enumeration.exhaustive q \then
+      \let equal: Enumeration.fraction k = q := \bysub(N.Nat^, { k: N.Nat^ \where Enumeration.fraction k = q }, k) \then
+      \let inFirst: R.Lt (rational k) (f x) := \idelim q = Enumeration.fraction k \with z: R.Rat => R.Lt (Op.ofRat z) (f x)
+        \by { base: between.right, equality: sym!{R.Rat} _ _ equal } \then
+      \let inSecond: R.Lt (Real.sub r (rational k)) (g x) := \idelim q = Enumeration.fraction k \with z: R.Rat => R.Lt (Real.sub r (Op.ofRat z)) (g x)
+        \by { base: Distance.subLtOfLower r (Op.ofRat q) (g x) between.left, equality: sym!{R.Rat} _ _ equal } \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (addSets f g r k) x }] k (Logic.And[_, _]::# inFirst inSecond)
+    });
+\definition addMeasurable: \forall (f, g: A -> Real.Real) -> IsMeasurable mu f -> IsMeasurable mu g ->
+  IsMeasurable mu (\fun (x: A) => Real.add (f x) (g x)) :=
+  \fun (f, g: A -> Real.Real) (mf: IsMeasurable mu f) (mg: IsMeasurable mu g) (r: Real.Real) =>
+    \idelim union (addSets f g r) = { x: A \where R.Lt r (Real.add (f x) (g x)) } \with S: \Pow A => Measurable mu.sigma S
+      \by { base: (Sigma.laws mu.sigma).countableUnion (addSets f g r) (addSetsMeasurable f g mf mg r), equality: addSuperlevel f g r };
+
+\import real.Analysis[].Geometric[q := Real.half] \as Dyadic;
+\import real.Analysis[].SquareRoot[] \as SquareRoot;
+\import \root.ScalarLimits[] \as Limits;
+\import dedekind_reals.DedekindReal[].Order[] \as Order;
+\definition belowSets[f: A -> Real.Real] [r: Real.Real] [k: N.Nat^]: \Pow A :=
+  Sets.Complement ({ x: A \where R.Lt (Real.sub r (Dyadic.value k)) (f x) });
+\definition belowSuperlevel: \forall (f: A -> Real.Real) (r: Real.Real) -> union (belowSets f r) = { x: A \where R.Lt (f x) r } :=
+  \fun (f: A -> Real.Real) (r: Real.Real) => \axiom:setext(union (belowSets f r), { x: A \where R.Lt (f x) r },
+    \fun (x: A) (member: Sets.Member (union (belowSets f r)) x) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sets.Member (belowSets f r k) x }) \by member \then
+      \let outside: Logic.Not (R.Lt (Real.sub r (Dyadic.value k)) (f x)) := \bysub(N.Nat^, { k: N.Nat^ \where Sets.Member (belowSets f r k) x }, k) \then
+      \return R.leLtTrans (f x) (Real.sub r (Dyadic.value k)) r (Order.leOfNotLtReverse (f x) (Real.sub r (Dyadic.value k)) outside)
+        (SquareRoot.subBelow r (Dyadic.value k) (Limits.dyadicPositive k))
+    },
+    \fun (x: A) (less: R.Lt (f x) r) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (j: N.Nat^) -> N.Basic[].Prop[].Le k j -> R.Lt (Dyadic.value j) (Real.sub r (f x)) })
+        \by Limits.dyadicSmall (Real.sub r (f x)) (SquareRoot.subPositive r (f x) less) \then
+      \let small: R.Lt (Dyadic.value k) (Real.sub r (f x)) :=
+        (\bysub(N.Nat^, { k: N.Nat^ \where \forall (j: N.Nat^) -> N.Basic[].Prop[].Le k j -> R.Lt (Dyadic.value j) (Real.sub r (f x)) }, k)) k (N.Basic[].Prop[].leRefl k) \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (belowSets f r k) x }] k
+        (\fun (above: R.Lt (Real.sub r (Dyadic.value k)) (f x)) =>
+          Order.ltAsym (Dyadic.value k) (Real.sub r (f x)) small (Distance.subLtOfLower r (f x) (Dyadic.value k) above))
+    });
+\definition belowMeasurable: \forall (f: A -> Real.Real) -> IsMeasurable mu f -> \forall (r: Real.Real) ->
+  Measurable mu.sigma ({ x: A \where R.Lt (f x) r }) :=
+  \fun (f: A -> Real.Real) (measurable: IsMeasurable mu f) (r: Real.Real) =>
+    \idelim union (belowSets f r) = { x: A \where R.Lt (f x) r } \with S: \Pow A => Measurable mu.sigma S \by {
+      base: (Sigma.laws mu.sigma).countableUnion (belowSets f r) (\fun (k: N.Nat^) =>
+        (Sigma.laws mu.sigma).complement ({ x: A \where R.Lt (Real.sub r (Dyadic.value k)) (f x) }) (measurable (Real.sub r (Dyadic.value k)))),
+      equality: belowSuperlevel f r
+    };
+\definition negMeasurable: \forall (f: A -> Real.Real) -> IsMeasurable mu f -> IsMeasurable mu (\fun (x: A) => Real.neg (f x)) :=
+  \fun (f: A -> Real.Real) (measurable: IsMeasurable mu f) (r: Real.Real) =>
+    \idelim { x: A \where R.Lt (f x) (Real.neg r) } = { x: A \where R.Lt r (Real.neg (f x)) } \with S: \Pow A => Measurable mu.sigma S \by {
+      base: belowMeasurable f measurable (Real.neg r),
+      equality: \axiom:setext({ x: A \where R.Lt (f x) (Real.neg r) }, { x: A \where R.Lt r (Real.neg (f x)) },
+        \fun (x: A) (less: R.Lt (f x) (Real.neg r)) => R.ltReplaceLeft (Real.neg (Real.neg r)) r (Real.neg (f x)) (Laws.negInvolutive r)
+          (Laws.negStrictAntitone (f x) (Real.neg r) less),
+        \fun (x: A) (less: R.Lt r (Real.neg (f x))) => R.ltReplaceLeft (Real.neg (Real.neg (f x))) (f x) (Real.neg r) (Laws.negInvolutive (f x))
+          (Laws.negStrictAntitone r (Real.neg (f x)) less))
+    };
+
+\import std.Logic[].Classical[] \as Classical;
+\import real.Analysis[].Estimates[].Product[] \as Product;
+\use std.Logic[].Equality[].congr;
+\definition maxSuperlevel: \forall (f, g: A -> Real.Real) (r: Real.Real) ->
+  Sigma.pairUnion ({ x: A \where R.Lt r (f x) }) ({ x: A \where R.Lt r (g x) }) = { x: A \where R.Lt r (Distance.max (f x) (g x)) } :=
+  \fun (f, g: A -> Real.Real) (r: Real.Real) => \axiom:setext(
+    Sigma.pairUnion ({ x: A \where R.Lt r (f x) }) ({ x: A \where R.Lt r (g x) }), { x: A \where R.Lt r (Distance.max (f x) (g x)) },
+    \fun (x: A) (member: Logic.Or[R.Lt r (f x), R.Lt r (g x)]) => Logic.orElim _ _ (R.Lt r (Distance.max (f x) (g x))) member
+      (\fun (less: R.Lt r (f x)) => R.ltLeTrans r (f x) (Distance.max (f x) (g x)) less (Distance.maxLeft (f x) (g x)))
+      (\fun (less: R.Lt r (g x)) => R.ltLeTrans r (g x) (Distance.max (f x) (g x)) less (Distance.maxRight (f x) (g x))),
+    \fun (x: A) (less: R.Lt r (Distance.max (f x) (g x))) =>
+      Logic.orElim _ _ (Logic.Or[R.Lt r (f x), R.Lt r (g x)]) (Classical.excludedMiddle (R.Lt r (f x)))
+        (\fun (first: R.Lt r (f x)) => Logic.Or[_, _]::left first)
+        (\fun (notFirst: Logic.Not (R.Lt r (f x))) => Logic.orElim _ _ (Logic.Or[R.Lt r (f x), R.Lt r (g x)])
+          (Classical.excludedMiddle (R.Lt r (g x)))
+          (\fun (second: R.Lt r (g x)) => Logic.Or[_, _]::right second)
+          (\fun (notSecond: Logic.Not (R.Lt r (g x))) => Logic.falseElim _
+            (R.ltNotLeReverse r (Distance.max (f x) (g x)) less (Distance.maxLeast (f x) (g x) r
+              (Order.leOfNotLtReverse (f x) r notFirst) (Order.leOfNotLtReverse (g x) r notSecond))))));
+\definition maxMeasurable: \forall (f, g: A -> Real.Real) -> IsMeasurable mu f -> IsMeasurable mu g ->
+  IsMeasurable mu (\fun (x: A) => Distance.max (f x) (g x)) :=
+  \fun (f, g: A -> Real.Real) (mf: IsMeasurable mu f) (mg: IsMeasurable mu g) (r: Real.Real) =>
+    \idelim Sigma.pairUnion ({ x: A \where R.Lt r (f x) }) ({ x: A \where R.Lt r (g x) }) = { x: A \where R.Lt r (Distance.max (f x) (g x)) }
+      \with S: \Pow A => Measurable mu.sigma S \by {
+        base: Sigma.pairMeasurable mu.sigma _ _ (mf r) (mg r), equality: maxSuperlevel f g r
+      };
+\definition absMeasurable: \forall (f: A -> Real.Real) -> IsMeasurable mu f -> IsMeasurable mu (\fun (x: A) => Product.abs (f x)) :=
+  \fun (f: A -> Real.Real) (measurable: IsMeasurable mu f) =>
+    \idelim (\fun (x: A) => Distance.max (Real.neg (f x)) (f x)) = (\fun (x: A) => Product.abs (f x))
+      \with g: (A -> Real.Real) => IsMeasurable mu g \by {
+        base: maxMeasurable (\fun (x: A) => Real.neg (f x)) f (negMeasurable f measurable) measurable,
+        equality: \axiom:funext((\fun (x: A) => Distance.max (Real.neg (f x)) (f x)), (\fun (x: A) => Product.abs (f x)),
+          \fun (x: A) => sym!{Real.Real} _ _ (Product.absExpression (f x)))
+      };
+
+\import \root.Measure[A := A].ValueLaws[] \as Values;
+\import \root.Measure[A := A].Integral[mu := mu].Zero[] \as Zero;
+\definition positiveScaleMeasurable: \forall (c: Real.Real) -> R.Lt Real.zero c -> \forall (f: A -> Real.Real) -> IsMeasurable mu f ->
+  IsMeasurable mu (\fun (x: A) => Real.mul c (f x)) :=
+  \fun (c: Real.Real) (positive: R.Lt Real.zero c) (f: A -> Real.Real) (measurable: IsMeasurable mu f) (r: Real.Real) =>
+    \idelim { x: A \where R.Lt (Real.mul (Laws.fieldInv c) r) (f x) } = { x: A \where R.Lt r (Real.mul c (f x)) } \with S: \Pow A => Measurable mu.sigma S \by {
+      base: measurable (Real.mul (Laws.fieldInv c) r),
+      equality: \axiom:setext({ x: A \where R.Lt (Real.mul (Laws.fieldInv c) r) (f x) }, { x: A \where R.Lt r (Real.mul c (f x)) },
+        \fun (x: A) (less: R.Lt (Real.mul (Laws.fieldInv c) r) (f x)) =>
+          R.ltReplaceLeft (Real.mul c (Real.mul (Laws.fieldInv c) r)) r (Real.mul c (f x)) (Values.inverseProduct c r positive)
+            (Product.mulStrict c (Real.mul (Laws.fieldInv c) r) (f x) positive less),
+        \fun (x: A) (less: R.Lt r (Real.mul c (f x))) =>
+          R.ltReplaceRight (Real.mul (Laws.fieldInv c) r) (Real.mul (Laws.fieldInv c) (Real.mul c (f x))) (f x)
+            (Values.inverseProductLeft c (f x) positive) (Product.mulStrict (Laws.fieldInv c) r (Real.mul c (f x)) (Product.invPositive c positive) less))
+    };
+\definition scaleMeasurable: \forall (c: Real.Real) -> R.Le Real.zero c -> \forall (f: A -> Real.Real) -> IsMeasurable mu f ->
+  IsMeasurable mu (\fun (x: A) => Real.mul c (f x)) :=
+  \fun (c: Real.Real) (nonnegative: R.Le Real.zero c) (f: A -> Real.Real) (measurable: IsMeasurable mu f) =>
+    Logic.orElim _ _ (IsMeasurable mu (\fun (x: A) => Real.mul c (f x))) (Classical.excludedMiddle (c = Real.zero))
+      (\fun (eq: c = Real.zero) => \idelim Zero.function = (\fun (x: A) => Real.mul c (f x)) \with g: (A -> Real.Real) => IsMeasurable mu g \by {
+        base: Zero.measurable,
+        equality: \axiom:funext(Zero.function, (\fun (x: A) => Real.mul c (f x)), \fun (x: A) =>
+          sym!{Real.Real} _ _ (\idelim Real.zero = c \with t: Real.Real => Real.mul t (f x) = Real.zero \by { base: Laws.fieldMulZeroLeft (f x), equality: sym!{Real.Real} _ _ eq }))
+      })
+      (\fun (different: Logic.Not (c = Real.zero)) => positiveScaleMeasurable c
+        (Order.ltOfLeNotEq Real.zero c nonnegative (\fun (eq: Real.zero = c) => different (sym!{Real.Real} _ _ eq))) f measurable);

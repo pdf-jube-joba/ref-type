@@ -1,0 +1,30 @@
+\import \root.Over[K := K, scalarRing := scalarRing].Direct[V := V, W := W, left := left, right := right].Total[].Coefficient[].Sequences[].Evaluation[].Maps[] \as FullMaps;
+\import Algebra.Linear[V := Tensor.Carrier, W := LeftTotal.Carrier, source := Tensor.space, target := LeftTotal.totalSpace] \as Target;
+\import Tensor.Universal[U := LeftTotal.Carrier, target := LeftTotal.totalSpace] \as UniversalLeft;
+\import Operators.Ext[U := K, target := Algebra.scalarSpace] \as ScalarExt;
+\import Algebra.Laws[V := LeftTotal.Carrier, space := LeftTotal.totalSpace] \as LeftLaws;
+\import LeftTotal.Series[].Laws[] \as LeftExt;
+\definition value[ys: Lists.List[W]][f: LeftTotal.Carrier][g: RightTotal.Carrier]: LeftTotal.Carrier := LeftTotal.totalSpace.smul ((rightValue ys).apply g) f;
+\definition laws[ys: Lists.List[W]]: Tensor.BilinearLaws[LeftTotal.Carrier, LeftTotal.totalSpace, value ys] := Tensor.BilinearLaws[LeftTotal.Carrier, LeftTotal.totalSpace, value ys] {
+  addLeft := \fun (f, h: LeftTotal.Carrier)(g: RightTotal.Carrier) => LeftTotal.totalSpace.vectorAdd ((rightValue ys).apply g) f h,
+  addRight := \fun (f: LeftTotal.Carrier)(g, h: RightTotal.Carrier) => LeftTotal.totalSpace.scalarAdd ((rightValue ys).apply g) ((rightValue ys).apply h) f,
+  scaleLeft := \fun (a: K)(f: LeftTotal.Carrier)(g: RightTotal.Carrier) => LeftLaws.scaleComm ((rightValue ys).apply g) a f,
+  scaleRight := \fun (a: K)(f: LeftTotal.Carrier)(g: RightTotal.Carrier) => LeftTotal.totalSpace.scalarAssoc a ((rightValue ys).apply g) f,
+};
+\definition map[ys: Lists.List[W]]: Target.Map := UniversalLeft.map (value ys) (laws ys);
+\import LeftScalar.Composition[U := Tensor.Carrier, domain := Tensor.space] \as Compose;
+\definition evaluated[xs: Lists.List[V]][ys: Lists.List[W]]: TensorScalar.Map := Compose.compose (leftValue xs) (map ys);
+\definition pairEqual: \forall (xs: Lists.List[V])(ys: Lists.List[W]) -> evaluated xs ys = pairMap xs ys :=
+  \fun (xs: Lists.List[V])(ys: Lists.List[W]) => ScalarExt.ext _ _ (\fun (f: LeftTotal.Carrier)(g: RightTotal.Carrier) => eq_reason_in!{K _
+    "=" _ "by" { congr!{{LeftTotal.Carrier} K} ((leftValue xs).apply) _ _ (UniversalLeft.onTensor (value ys) (laws ys) f g) }
+    "=" _ "by" { (leftValue xs).preservesScale ((rightValue ys).apply g) f }
+    "=" _ "by" { Algebra.mulComm ((rightValue ys).apply g) ((leftValue xs).apply f) }
+    "=" _ "by" { sym!{K} _ _ (Universal.onTensor (paired xs ys) (pairedLaws xs ys) f g) }
+  });
+\definition vanishes: \forall (t: Tensor.Carrier) -> comparison.apply t = ResultTotal.totalSpace.zero -> \forall (ys: Lists.List[W]) -> (map ys).apply t = LeftTotal.totalSpace.zero :=
+  \fun (t: Tensor.Carrier)(killed: comparison.apply t = ResultTotal.totalSpace.zero)(ys: Lists.List[W]) => LeftExt.ext _ _
+    (\axiom:funext(LeftSeries.value ((map ys).apply t), LeftSeries.value LeftTotal.totalSpace.zero, \fun (xs: Lists.List[V]) => eq_reason_in!{K _
+      "=" _ "by" { congr!{TensorScalar.Map K} (\fun (h: TensorScalar.Map) => h.apply t) _ _ (pairEqual xs ys) }
+      "=" _ "by" { FullMaps.vanishes t killed xs ys }
+    }));
+\module Finite(n: N.Nat^, b: Algebra.FiniteBasis W right n);

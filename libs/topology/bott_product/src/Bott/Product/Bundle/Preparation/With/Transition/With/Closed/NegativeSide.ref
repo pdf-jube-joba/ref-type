@@ -1,0 +1,52 @@
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Hemisphere[].Closed[] \as Cover;
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\import Bundles.Trivial[X := Cover.NegativeCarrier, n := embedding.dimension, baseSpace := Cover.negativeTopology] \as NegativeTrivial;
+\import Homotopy.PullbackIsomorphism[X := Half.Carrier, F := (\fun (p: Half.Carrier) => Product.Fiber (Negative.included p)), G := (\fun (_: Half.Carrier) => Vectors.Vector),
+  first := Pullbacks.bundleAt NegativeBundle.included, second := HalfTrivial.bundle, iso := negative,
+  Y := Cover.NegativeCarrier, source := Cover.negativeTopology, f := Cover.negativeToDisk,
+  regularFirst := Cover.negativeToDiskContinuous, regularSecond := Cover.negativeToDiskContinuous] \as NegativePull;
+\import Operations.TrivialPullback[X := Half.Carrier, Y := Cover.NegativeCarrier, n := embedding.dimension, original := Half.topology,
+  base := Cover.negativeTopology, f := Cover.negativeToDisk, regular := Cover.negativeToDiskContinuous] \as NegativeTrivialPull;
+\import Bundles.Family[X := Carrier, F := Product.Fiber].Of[bundle := Product.stabilized].PullbackComposition[Y := Half.Carrier, Z := Cover.NegativeCarrier,
+  first := Half.topology, second := Cover.negativeTopology, f := Negative.included, g := Cover.negativeToDisk].Of[
+    fRegular := NegativeBundle.includedRegular, gRegular := Cover.negativeToDiskContinuous] \as NegativeComposition;
+\definition NegativeFiber[p: Cover.NegativeCarrier]: \Set := Product.Fiber (Negative.included (Cover.negativeToDisk p));
+\definition NegativeVector[p: Cover.NegativeCarrier]: \Set := Vectors.Vector;
+\import Operations.IsomorphismComposition[X := Cover.NegativeCarrier, F := NegativeFiber, G := NegativeFiber, H := NegativeVector,
+  source := NegativeComposition.direct, middle := NegativeComposition.nested, target := NegativePull.secondBundle] \as NegativeFirst;
+\import Operations.IsomorphismComposition[X := Cover.NegativeCarrier, F := NegativeFiber, G := NegativeVector, H := NegativeVector,
+  source := NegativeComposition.direct, middle := NegativePull.secondBundle, target := NegativeTrivial.bundle] \as NegativeLast;
+\definition directNegative: Bundles.Isomorphisms[X := Cover.NegativeCarrier, F := NegativeFiber, G := NegativeVector,
+  source := NegativeComposition.direct, target := NegativeTrivial.bundle].Isomorphism := NegativeLast.compose
+    (NegativeFirst.compose NegativeComposition.isomorphism NegativePull.isomorphism) NegativeTrivialPull.isomorphism;
+\definition negativeRegular: topology.Continuity[A := Cover.NegativeCarrier, B := Carrier].Continuous Cover.negativeTopology Product.stabilized.baseSpace (\fun (p: Cover.NegativeCarrier) => p) :=
+  \idelim topology = Product.stabilized.baseSpace \with t: topology.Topology[Carrier := Carrier].Topology => topology.Continuity[A := Cover.NegativeCarrier, B := Carrier].Continuous Cover.negativeTopology t (\fun (p: Cover.NegativeCarrier) => p) \by {
+    base: topology.Continuity[A := Carrier, B := Carrier].Corestriction[S := Cover.negative].inclusionContinuous topology, equality: sym!{{topology.Topology[Carrier := Carrier].Topology}} _ _ same
+  };
+\import topology.Topology[Carrier := Carrier] \as Base;
+\definition negativeCompact: topology.Topology[Carrier := Cover.NegativeCarrier].IsCompact Cover.negativeTopology :=
+  Base.Subspace[S := Cover.negative].Properties[].compact topology (Base.Compactness[].closedCompact topology productCompact Cover.negative Cover.negativeClosed);
+\definition negativeHausdorff: topology.Topology[Carrier := Cover.NegativeCarrier].IsT2 Cover.negativeTopology :=
+  Base.Subspace[S := Cover.negative].Properties[].hausdorff topology productHausdorff;
+\import Homotopy.For[Y := Carrier, F := Product.Fiber, bundle := Product.stabilized].Pullbacks[X := Cover.NegativeCarrier,
+  source := Cover.negativeTopology, compact := negativeCompact, hausdorff := negativeHausdorff] \as NegativePullbacks;
+\definition directMap: NegativePullbacks.Map := \into[Cover.NegativeCarrier -> Carrier]((\fun (p: Cover.NegativeCarrier) => Negative.included (Cover.negativeToDisk p)),
+  { f: Cover.NegativeCarrier -> Carrier \where topology.Continuity[A := Cover.NegativeCarrier, B := Carrier].Continuous Cover.negativeTopology Product.stabilized.baseSpace f }) \by {
+  topology.Composition[A := Cover.NegativeCarrier, B := Half.Carrier, C := Carrier].composeContinuous Cover.negativeTopology Half.topology Product.stabilized.baseSpace
+    Cover.negativeToDisk Negative.included Cover.negativeToDiskContinuous NegativeBundle.includedRegular
+};
+\definition inclusionMap: NegativePullbacks.Map := \into[Cover.NegativeCarrier -> Carrier]((\fun (p: Cover.NegativeCarrier) => p),
+  { f: Cover.NegativeCarrier -> Carrier \where topology.Continuity[A := Cover.NegativeCarrier, B := Carrier].Continuous Cover.negativeTopology Product.stabilized.baseSpace f }) \by { negativeRegular };
+\definition sameMaps: directMap = inclusionMap := \axiom:funext((\fun (p: Cover.NegativeCarrier) => Negative.included (Cover.negativeToDisk p)), (\fun (p: Cover.NegativeCarrier) => p), Cover.negativeRecovery);
+\definition negativeTrivialization: Bundles.Isomorphisms[X := Cover.NegativeCarrier, F := (\fun (p: Cover.NegativeCarrier) => Product.Fiber p), G := NegativeVector,
+  source := NegativePullbacks.bundleAt inclusionMap, target := NegativeTrivial.bundle].Isomorphism :=
+  \idelim directMap = inclusionMap \with f: NegativePullbacks.Map =>
+    Bundles.Isomorphisms[X := Cover.NegativeCarrier, F := NegativePullbacks.Fiber f, G := NegativeVector,
+      source := NegativePullbacks.bundleAt f, target := NegativeTrivial.bundle].Isomorphism \by {
+    base: directNegative, equality: sameMaps
+  };
+\module Transport;
+\module Formula(p: Cover.NegativeCarrier);

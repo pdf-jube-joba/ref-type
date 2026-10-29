@@ -1,0 +1,40 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.trans;
+\use Eq.congr;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[] \as IA;
+\import hermitian_frames.Hermitian[] \as H;
+\import grassmannians.Complex[n := two, k := one].Model[] \as Model;
+\import H.Over[K := C.Complex, field := C.Algebra[].field, scalar := H.Complex[].scalar,
+  topological := H.Complex[].topological].At[n := two] \as Native;
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := H.Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Complements;
+\import Complements.Finite[n := two] \as Finite;
+\import Complements.Projection[X := Carrier, n := two, baseSpace := topology, P := Model.projection, regular := Model.regular] \as Projection;
+\import Bundles.Family[X := Carrier, F := Fiber].Of[bundle := bundle] \as Ranks;
+\definition dimension: \forall (x: Carrier) -> Ranks.rank x = one := \block {
+  \fun (x: Carrier) \then
+  \takefrom basis: Native.OnProjection[P := Model.projection x].Rank[k := one].Basis \by Model.rank x \then
+  \let witness: Finite.ProjectionBasis[P := Model.projection x].BasisWitness := Finite.ProjectionBasis[P := Model.projection x].BasisWitness {
+    rank := one, basis := basis
+  } \then
+  \let chart: Projection.Around[a := x, center := witness].Carrier := \into[Carrier](x, Projection.Around[a := x, center := witness].domain) \by {
+    Projection.Around[a := x, center := witness].contains
+  } \then
+  \return Ranks.rankFrame x one (Projection.Around[a := x, center := witness].trivialization.frame chart)
+};
+\import K.Ranks[] \as KRanks;
+\import K.IntegerFunctions[] \as Functions;
+\import KRanks.Of[F := Fiber, original := bundle, same := \refl(topology)] \as LineRank;
+\definition lineRank: \forall (x: Carrier) -> KRanks.classes lineClass x = I.One.specification :=
+  \fun (x: Carrier) => trans!{{I.Int^}} _ _ _
+    (congr!{{Functions.Carrier} {I.Int^}} (\fun (f: Functions.Carrier) => f x) _ _ LineRank.onBundle)
+    (congr!{{N.Nat^} {I.Int^}} KRanks.natural _ _ (dimension x));
+\definition zero: \forall (x: Carrier) -> KRanks.rank generator x = I.Zero.specification :=
+  \fun (x: Carrier) => trans!{{I.Int^}} _ _ _
+    (congr!{{Functions.Carrier} {I.Int^}} (\fun (f: Functions.Carrier) => f x) _ _ (KRanks.rankDifference lineClass K.Line[].value))
+    (trans!{{I.Int^}} _ _ _
+      (congr!{{I.Int^} {I.Int^} {I.Int^}} I.Add.specification _ _ _ _ (lineRank x)
+        (congr!{{I.Int^} {I.Int^}} I.Neg.specification _ _
+          (congr!{{Functions.Carrier} {I.Int^}} (\fun (f: Functions.Carrier) => f x) _ _ KRanks.One[].equation)))
+      (IA.additiveGroupLaws.rightInverse I.One.specification));

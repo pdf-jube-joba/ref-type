@@ -1,0 +1,28 @@
+\import Native.Filtration[].Stage[limit := k] \as Stage;
+\import Stage.Charts[] \as Charts;
+\import singular_cellular.Coproduct[Index := Charts.Index, fibers := (\fun (c: Charts.Index) => Euclidean.Disk c.dimension),
+  spaces := (\fun (c: Charts.Index) => Euclidean.Dimension[n := c.dimension].diskTopology)] \as Disks;
+\import singular_cellular_algebra.Algebra[].Refinement[A := Cells.CellData, S := Charts.Selected] \as Refinement;
+\import dedekind_reals.DedekindReal[] \as R;
+\import real.Analysis[] \as Real;
+\definition Interior[p: Charts.Carrier]: \Prop := R.Lt (Euclidean.normSquaredAt p.index.dimension p.point) Real.one;
+\definition contains[p: Charts.Carrier][inside: Interior p]: \In[A] (Cells.InteriorImage p.index) (Charts.map p) :=
+  Logic.existsIntro[Euclidean.Disk p.index.dimension, { x: Euclidean.Disk p.index.dimension \where Logic.And[
+    \In[Euclidean.coordinateCarrier p.index.dimension] (Euclidean.interiorAt p.index.dimension) x, p.index.characteristic x = Charts.map p] }] p.point
+    (Logic.And[_, _]::# inside (\refl(Charts.map p)));
+\definition sameIndex: \forall (p, q: Charts.Carrier) -> Interior p -> Interior q -> Charts.map p = Charts.map q -> p.index = q.index :=
+  \fun (p, q: Charts.Carrier)(pi: _)(qi: _)(same: _) => Refinement.ext p.index q.index
+    ((Cells.laws source complex).disjoint p.index q.index (Charts.member p.index) (Charts.member q.index) (Charts.map p) (contains p pi)
+      (\idelim Charts.map q = Charts.map p \with x: A => \In[A] (Cells.InteriorImage q.index) x \by {
+        base: contains q qi, equality: congr!{Stage.Carrier A} Stage.inclusion _ _ (sym!{Stage.Carrier} _ _ same) }));
+\definition injective: \forall (p, q: Charts.Carrier) -> Interior p -> Interior q -> Charts.map p = Charts.map q -> p = q :=
+  \fun (p, q: Charts.Carrier)(pi: _)(qi: _)(same: _) => trans!{Charts.Carrier} _ _ _
+    ((\idelim p.index = q.index \with cell: Charts.Index => \forall (x: Euclidean.Disk cell.dimension) ->
+      R.Lt (Euclidean.normSquaredAt cell.dimension x) Real.one -> Charts.map p = Charts.map (Disks.injection cell x) -> p = Disks.injection cell x \by {
+        base: \fun (x: Euclidean.Disk p.index.dimension)(xi: _)(images: _) => trans!{Charts.Carrier} _ _ _ (sym!{Charts.Carrier} _ _ (Disks.eta p))
+          (congr!{{Euclidean.Disk p.index.dimension} Charts.Carrier} (Disks.injection p.index) _ _
+            (((Cells.laws source complex).cellLaws p.index (Charts.member p.index)).injectiveInterior p.point x pi xi
+              (congr!{Stage.Carrier A} Stage.inclusion _ _ images))),
+        equality: sameIndex p q pi qi same
+      }) q.point qi (trans!{Stage.Carrier} _ _ _ same (congr!{Charts.Carrier Stage.Carrier} Charts.map _ _ (sym!{Charts.Carrier} _ _ (Disks.eta q)))))
+    (Disks.eta q);

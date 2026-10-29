@@ -1,0 +1,54 @@
+\import topological_constructions.Coproduct[A := A, B := Original.Point] \as SourceSum;
+\import SourceSum.Properties[left := subspace, right := topology.Topology[Carrier := Original.Point].Discrete] \as SourceProperties;
+\import Sum.Properties[left := space, right := topology.Topology[Carrier := Original.Point].Discrete] \as TargetProperties;
+\import SourceSum.Universal[C := Original.Augmented] \as Copair;
+\definition left[a: A]: Original.Augmented := Sum.inl a;
+\definition raw: Subset.model.Carrier -> Original.Augmented := Copair.copair left Sum.inr;
+\definition preserves: \forall (z: Subset.model.Carrier) -> \In[Original.Augmented] data.subset (raw z) :=
+  \induction (z: Subset.model.Carrier) \return \In[Original.Augmented] data.subset (raw z) \with {
+    | inl: \fun (a: A) => \bysub(X, subset, a)
+    | inr: \fun (p: Original.Point) => \refl(p)
+  };
+\definition map[z: Subset.model.Carrier]: NativePair.A := \into[Original.Augmented](raw z, data.subset) \by { preserves z };
+\definition leftContinuous: topology.Continuity[A := A, B := Original.Augmented].Continuous subspace Original.augmentedSpace left :=
+  topology.Composition[A := A, B := X, C := Original.Augmented].composeContinuous subspace space Original.augmentedSpace Restriction.inclusion Sum.inl
+    Restriction.regular (Sum.inlContinuous space (topology.Topology[Carrier := Original.Point].Discrete));
+\definition rawContinuous: topology.Continuity[A := Subset.model.Carrier, B := Original.Augmented].Continuous (details Subset.model).topology Original.augmentedSpace raw :=
+  Copair.continuous subspace (topology.Topology[Carrier := Original.Point].Discrete) Original.augmentedSpace left Sum.inr leftContinuous
+    (Sum.inrContinuous space (topology.Topology[Carrier := Original.Point].Discrete));
+\definition continuous: topology.Continuity[A := Subset.model.Carrier, B := NativePair.A].Continuous (details Subset.model).topology (details PointedPair.subsetModel).topology map :=
+  topology.Continuity[A := Subset.model.Carrier, B := Original.Augmented].Corestriction[S := data.subset].corestrictContinuous
+    (details Subset.model).topology Original.augmentedSpace map rawContinuous;
+\definition rawInjective: \forall (p, q: Subset.model.Carrier) -> raw p = raw q -> p = q :=
+  \induction (p: Subset.model.Carrier) \return \forall (q: Subset.model.Carrier) -> raw p = raw q -> p = q \with {
+    | inl: \fun (a: A) => \induction (q: Subset.model.Carrier) \return raw (SourceSum.inl a) = raw q -> SourceSum.inl a = q \with {
+      | inl: \fun (b: A)(same: Sum.inl a = Sum.inl b) => congr!{A {Subset.model.Carrier}} SourceSum.inl _ _ (TargetProperties.leftInjective a b same)
+      | inr: \fun (p: Original.Point)(same: Sum.inl a = Sum.inr p) => Logic.falseElim _ (TargetProperties.leftRightDifferent a p same)
+    }
+    | inr: \fun (p: Original.Point) => \induction (q: Subset.model.Carrier) \return raw (SourceSum.inr p) = raw q -> SourceSum.inr p = q \with {
+      | inl: \fun (a: A)(same: Sum.inr p = Sum.inl a) => Logic.falseElim _ (TargetProperties.leftRightDifferent a p (sym!{{Original.Augmented}} _ _ same))
+      | inr: \fun (q: Original.Point)(same: Sum.inr p = Sum.inr q) => congr!{{Original.Point} {Subset.model.Carrier}} SourceSum.inr _ _ (TargetProperties.rightInjective p q same)
+    }
+  };
+\definition injective: \forall (p, q: Subset.model.Carrier) -> map p = map q -> p = q :=
+  \fun (p, q: Subset.model.Carrier)(same: map p = map q) => rawInjective p q same;
+\definition represented: \forall (z: Original.Augmented) -> \In[Original.Augmented] data.subset z -> \exists (w: Subset.model.Carrier \where raw w = z) :=
+  \induction (z: Original.Augmented) \return \In[Original.Augmented] data.subset z -> \exists (w: Subset.model.Carrier \where raw w = z) \with {
+    | inl: \fun (x: X)(member: Base.Member subset x) => Logic.existsIntro[Subset.model.Carrier, { w: Subset.model.Carrier \where raw w = Sum.inl x }]
+      (SourceSum.inl (\into[X](x, subset) \by { member })) (\refl(Sum.inl x))
+    | inr: \fun (p: Original.Point)(same: p = p) => Logic.existsIntro[Subset.model.Carrier, { w: Subset.model.Carrier \where raw w = Sum.inr p }]
+      (SourceSum.inr p) (\refl(Sum.inr p))
+  };
+\definition onto: \forall (z: NativePair.A) -> \exists (w: Subset.model.Carrier \where map w = z) := \block {
+  \fun (z: NativePair.A) \then
+  \takefrom w: \Cast[Subset.model.Carrier] ({ w: Subset.model.Carrier \where raw w = z }) \by represented z (\bysub(Original.Augmented, data.subset, z)) \then
+  \return Logic.existsIntro[Subset.model.Carrier, { v: Subset.model.Carrier \where map v = z }] w
+    (\bysub(Subset.model.Carrier, { w: Subset.model.Carrier \where raw w = z }, w))
+};
+\import algebraic_topology.Pointed[A := Subset.model.Carrier].Maps[B := NativePair.A] \as Pointed;
+\definition pointedMap: Map Subset.model PointedPair.subsetModel := \into[Subset.model.Carrier -> NativePair.A](map, Map Subset.model PointedPair.subsetModel) \by {
+  Pointed.Laws[pointed Subset.model, pointed PointedPair.subsetModel, map] { continuous := continuous, pointed := \refl(PointedPair.point) }
+};
+\import \root.Relative[].Equivalence[source := Subset.model, target := PointedPair.subsetModel].FromMap[
+  f := pointedMap, injective := injective, onto := onto] \as Homeomorphism;
+\definition equivalence: \root.Relative[].Equivalence[source := Subset.model, target := PointedPair.subsetModel].Data := Homeomorphism.equivalence;

@@ -54,3 +54,6 @@
 連続性、局所枠、Hermitian 行列、ユニタリ群と直和は [hermitian_frames](../hermitian_frames/README.md) を参照。
 
 有限基底を持つ線形写像の特性多項式と Cayley–Hamilton、互いに素な因子に対応する不変部分空間への射影は [polynomial_linear_algebra](../polynomial_linear_algebra/README.md) を参照。
+
+`Commutative.Blocks` は任意の可換環上の上下の剪断写像とその逆、Schur 補元の分解を構成する。
+`Commutative.Rotation` は剪断写像の積で恒等写像から符号付き交換写像への可逆な族を作り、安定化した積から直和への族も与える。

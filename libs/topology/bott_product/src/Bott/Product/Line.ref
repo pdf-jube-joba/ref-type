@@ -1,0 +1,34 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\import complex.Complex[] \as C;
+\import linear_algebra.Hermitian[] \as H;
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := H.Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Homotopy;
+\import bundle_homotopy.Homotopy[].Examples[].CircleLine[] \as Native;
+\import vector_bundles.Bundles[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := H.Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar] \as Bundles;
+\import Homotopy.Disks[d := two] \as Disks;
+\import Homotopy.ScalarUnits[n := one].Family[X := algebraic_topology.Euclidean[].Dimension[n := two].Sphere,
+  source := algebraic_topology.Euclidean[].Dimension[n := two].sphereTopology, a := Native.coefficient,
+  regular := Native.regular, nonzero := Native.nonzero] \as Transition;
+\import Disks.Clutched[n := one, g := Transition.map, continuous := Transition.continuous] \as SphereLine;
+\import Homotopy.Clutching[n := one, X := Sphere.Sphere, baseSpace := Sphere.sphereTopology,
+  U := Disks.U, V := Disks.V, openU := Disks.openU, openV := Disks.openV, covers := Disks.covers].With[
+  g := SphereLine.transition, continuous := SphereLine.transitionContinuous] \as Clutching;
+\import Clutching.Pullback[Y := Carrier, source := topology, f := second,
+  continuousF := Space.Maps[].secondContinuous source Sphere.sphereTopology] \as Pull;
+\definition Fiber: Carrier -> \Set := Pull.OtherFiber;
+\definition bundle: Bundles.Family[X := Carrier, F := Fiber].Bundle := Pull.otherBundle;
+\import Target.Bundle[F := Fiber, original := bundle, same := \refl(topology)] \as Class;
+\import Target.Bundle[F := Pull.PulledFiber, original := Pull.pulledBundle, same := \refl(topology)] \as PulledClass;
+\import Target.Compare[F := Pull.PulledFiber, G := Fiber, first := Pull.pulledBundle, second := bundle,
+  firstSame := \refl(topology), secondSame := \refl(topology)] \as Compare;
+\definition difference: Target.K0[].Carrier := Target.K0[].difference Class.value Target.Line[].value;
+\import Second.Of[F := SphereLine.Fiber, original := SphereLine.bundle, same := \refl(Sphere.sphereTopology)] \as KLine;
+\definition pullback: difference = generatorOnProduct := trans!{{Target.K0[].Carrier}} _ _ _
+  (congr!{{Target.Classes} {Target.K0[].Carrier}} (\fun (v: Target.Classes) => Target.K0[].difference v Target.Line[].value) _ _
+    (sym!{{Target.Classes}} _ _ (Compare.ofExists Pull.isomorphismExists)))
+  (sym!{{Target.K0[].Carrier}} _ _ (trans!{{Target.K0[].Carrier}} _ _ _ (Second.K0[].onDifferences lineClass K.Line[].value)
+    (congr!{{Target.Classes} {Target.Classes} {Target.K0[].Carrier}} Target.K0[].difference _ _ _ _ KLine.naturality Second.Line[].equation)));
+\module K07;

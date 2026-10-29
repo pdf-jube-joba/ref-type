@@ -1,0 +1,64 @@
+\use Equality.eq_reason_in;
+\import SourceCover.MayerVietoris[degree := degree] \as From;
+\import \parent.\parent.MayerVietoris[degree := degree] \as To;
+\import SourcePair.Augmented[].Sequence[degree := degree] \as SX;
+\import SourceVPair.Augmented[].Sequence[degree := degree] \as SV;
+\import \root.Relative[].Pair[X := X, space := space, compact := compact, hausdorff := hausdorff, subset := subset, closed := closed].Augmented[].Sequence[degree := degree] \as TX;
+\import DomainPair.Augmented[].Sequence[degree := degree] \as TV;
+\import WholePairMap.Augmented[] \as WholeAugmented;
+\import VPairMap.Augmented[] \as VAugmented;
+\import WholeAugmented.Negative[degree := degree] \as WholeNaturality;
+\import VAugmented.Negative[degree := degree] \as VNaturality;
+\import \root.Relative[].Equivalence[source := SourceVQ.model, target := SourceQ.model].With[e := SourceCover.equivalence].Negative[degree := degree] \as SourceExcision;
+\import \root.Relative[].Equivalence[source := Domain.model, target := Range.model].With[e := equivalence].Negative[degree := degree] \as TargetExcision;
+\import \root.Relative[].NegativeMap[source := SourceQ.model, target := Range.model, f := WholePairMap.quotientMap, degree := degree] \as WholeRelative;
+\import \root.Relative[].NegativeMap[source := SourceVQ.model, target := Domain.model, f := VPairMap.quotientMap, degree := degree] \as VRelative;
+\import \root.Relative[].NegativeMap[source := SourceVQ.model, target := SourceQ.model, f := SourceCover.equivalence.forward, degree := degree] \as SourceForward;
+\import \root.Relative[].NegativeMap[source := Domain.model, target := Range.model, f := equivalence.forward, degree := degree] \as TargetForward;
+\definition excision: \forall (q: TX.Third) -> VRelative.map (TargetExcision.forward q) = SourceExcision.forward (WholeRelative.map q) :=
+  \fun (q: TX.Third) => trans!{{SV.Third}} _ _ _
+    (congr!{{TV.Third} {SV.Third}} VRelative.map _ _
+      (congr!{{TX.Third -> TV.Third} {TV.Third}} (\fun (m: TX.Third -> TV.Third) => m q) _ _ TargetExcision.forwardEquality))
+    (trans!{{SV.Third}} _ _ _ (ExcisionSquare.Negative[degree := degree].equation q)
+      (sym!{{SV.Third}} _ _ (congr!{{SX.Third -> SV.Third} {SV.Third}} (\fun (m: SX.Third -> SV.Third) => m (WholeRelative.map q)) _ _ SourceExcision.forwardEquality)));
+\definition inverseExcision: \forall (q: TV.Third) -> SourceExcision.backward (VRelative.map q) = WholeRelative.map (TargetExcision.backward q) :=
+  \fun (q: TV.Third) => eq_reason_in!{{SX.Third} _
+    "=" { SourceExcision.backward (VRelative.map (TargetExcision.forward (TargetExcision.backward q))) } "by" {
+      congr!{{TV.Third} {SX.Third}} (\fun (v: TV.Third) => SourceExcision.backward (VRelative.map v)) _ _ (sym!{{TV.Third}} _ _ (TargetExcision.leftInverse q)) }
+    "=" { SourceExcision.backward (SourceExcision.forward (WholeRelative.map (TargetExcision.backward q))) } "by" {
+      congr!{{SV.Third} {SX.Third}} SourceExcision.backward _ _ (excision (TargetExcision.backward q)) }
+    "=" { WholeRelative.map (TargetExcision.backward q) } "by" { SourceExcision.rightInverse (WholeRelative.map (TargetExcision.backward q)) }
+  };
+\module Squares;
+\import Squares[] \as Diagrams;
+\definition whole: To.Whole -> From.Whole := Diagrams.whole;
+\definition pieces[p: To.Pieces]: From.Pieces := From.pieces (WholeNaturality.subset p.first) (Diagrams.piece p.second);
+\definition intersection: To.Intersection -> From.Intersection := VNaturality.subset;
+\definition intersectionNext: To.IntersectionNext -> From.IntersectionNext := VNaturality.subsetNext;
+\definition wholeAdd: \forall (x, y: To.Whole) -> whole (To.wholeGroup.base.op x y) = From.wholeGroup.base.op (whole x) (whole y) := Diagrams.wholeAdd;
+\definition wholeZero: whole To.wholeGroup.base.unit = From.wholeGroup.base.unit := Diagrams.wholeZero;
+\definition piecesAdd: \forall (p, q: To.Pieces) -> pieces (To.piecesGroup.base.op p q) = From.piecesGroup.base.op (pieces p) (pieces q) :=
+  \fun (p, q: To.Pieces) => From.piecesExt _ _ (WholeNaturality.subsetAdd p.first q.first) (Diagrams.pieceAdd p.second q.second);
+\definition piecesZero: pieces To.piecesGroup.base.unit = From.piecesGroup.base.unit := From.piecesExt _ _ WholeNaturality.subsetZero Diagrams.pieceZero;
+\definition intersectionAdd: \forall (x, y: To.Intersection) -> intersection (To.intersectionGroup.base.op x y) = From.intersectionGroup.base.op (intersection x) (intersection y) := VNaturality.subsetAdd;
+\definition intersectionZero: intersection To.intersectionGroup.base.unit = From.intersectionGroup.base.unit := VNaturality.subsetZero;
+\definition restriction: \forall (x: To.Whole) -> From.restriction (whole x) = pieces (To.restriction x) :=
+  \fun (x: To.Whole) => From.piecesExt _ _ (WholeNaturality.restriction x) (Diagrams.restrictionV x);
+\definition boundary: \forall (w: To.IntersectionNext) -> From.boundary (intersectionNext w) = whole (To.boundary w) :=
+  \fun (w: To.IntersectionNext) => eq_reason_in!{{From.Whole} _
+    "=" { SX.forget (SourceExcision.backward (VRelative.map (TV.boundary w))) } "by" {
+      congr!{{SV.Third} {From.Whole}} (\fun (q: SV.Third) => SX.forget (SourceExcision.backward q)) _ _ (VNaturality.boundary w) }
+    "=" { SX.forget (WholeRelative.map (TargetExcision.backward (TV.boundary w))) } "by" {
+      congr!{{SX.Third} {From.Whole}} SX.forget _ _ (inverseExcision (TV.boundary w)) }
+    "=" { whole (TX.forget (TargetExcision.backward (TV.boundary w))) } "by" {
+      WholeNaturality.forget (TargetExcision.backward (TV.boundary w)) }
+  };
+\import \root.Relative[].GroupCalculus[X := To.Intersection, group := To.intersectionGroup] \as TargetGroup;
+\import \root.Relative[].GroupCalculus[X := From.Intersection, group := From.intersectionGroup] \as SourceGroup;
+\import TargetGroup.Mapping[Y := From.Intersection, target := From.intersectionGroup, f := intersection,
+  additive := intersectionAdd, preservesZero := intersectionZero] \as IntersectionMap;
+\definition difference: \forall (p: To.Pieces) -> From.difference (pieces p) = intersection (To.difference p) :=
+  \fun (p: To.Pieces) => trans!{{From.Intersection}} _ _ _
+    (congr!{{From.Intersection} {From.Intersection} {From.Intersection}} SourceGroup.sub _ _ _ _
+      (Diagrams.restrictionU p.first) (VNaturality.restriction p.second))
+    (sym!{{From.Intersection}} _ _ (IntersectionMap.difference _ _));

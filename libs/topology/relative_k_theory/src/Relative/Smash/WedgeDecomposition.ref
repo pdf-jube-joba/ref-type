@@ -1,0 +1,65 @@
+\use Equality.eq_reason_in;
+\import \parent.Split[] \as Split;
+\import Split.Theory[degree := degree] \as Separation;
+\import \root.Relative[].Negative[original := wedgeModel, degree := degree] \as W;
+\import \root.Relative[].Negative[original := left, degree := degree] \as A;
+\import \root.Relative[].Negative[original := right, degree := degree] \as B;
+\import \root.Relative[].Negative[original := model, degree := degree] \as P;
+\import \root.Relative[].NegativeMap[source := left, target := wedgeModel, f := leftInclusion, degree := degree] \as RestrictA;
+\import \root.Relative[].NegativeMap[source := right, target := wedgeModel, f := rightInclusion, degree := degree] \as RestrictB;
+\import \root.Relative[].NegativeMap[source := wedgeModel, target := left, f := wedgeFirst, degree := degree] \as ExtendA;
+\import \root.Relative[].NegativeMap[source := wedgeModel, target := right, f := wedgeSecond, degree := degree] \as ExtendB;
+\import \root.Relative[].NegativeMap[source := Split.subsetModel, target := wedgeModel, f := Split.inclusion, degree := degree] \as RestrictS;
+\import \root.Relative[].NegativeMap[source := wedgeModel, target := model, f := wedgeInclusion, degree := degree] \as RestrictW;
+\import \root.Relative[].NegativeMap[source := model, target := left, f := firstMap, degree := degree] \as ProductA;
+\import \root.Relative[].NegativeMap[source := model, target := right, f := secondMap, degree := degree] \as ProductB;
+\import \root.Relative[].Composition[source := Split.subsetModel, middle := wedgeModel, target := left, first := Split.inclusion, second := wedgeFirst] \as SubsetFirst;
+\import \root.Relative[].Composition[source := Split.subsetModel, middle := wedgeModel, target := right, first := Split.inclusion, second := wedgeSecond] \as SubsetSecond;
+\import \root.Relative[].Composition[source := right, middle := wedgeModel, target := left, first := rightInclusion, second := wedgeFirst] \as Cross;
+\import \root.Relative[].Composition[source := right, middle := wedgeModel, target := right, first := rightInclusion, second := wedgeSecond] \as Retraction;
+\import \root.Relative[].Identity[model := wedgeModel] \as WedgeIdentity;
+\import \root.Relative[].Identity[model := right] \as RightIdentity;
+\definition subsetEquation: \forall (x: Split.subsetModel.Carrier) -> WedgeIdentity.map (Split.inclusion x) = leftInclusion (SubsetFirst.map x) :=
+  \fun (x: Split.subsetModel.Carrier) => Pair.Prop[A := left.Carrier, B := right.Carrier].ext x (leftRaw (first x))
+    (\refl(first x)) (\bysub(wedgeModel.Carrier, Split.subset, x));
+\import \root.Relative[].Square[A := Split.subsetModel, B := wedgeModel, C := left, D := wedgeModel,
+  f := Split.inclusion, g := WedgeIdentity.map, h := SubsetFirst.map, k := leftInclusion, commutes := subsetEquation] \as SubsetSquare;
+\definition firstOnSubset: \forall (w: W.Carrier) -> RestrictS.map (ExtendA.map (RestrictA.map w)) = RestrictS.map w :=
+  \fun (w: W.Carrier) => trans!{{Separation.SubsetCarrier}} _ _ _ (sym!{{Separation.SubsetCarrier}} _ _ (SubsetFirst.Negative[degree := degree].equation (RestrictA.map w)))
+    (trans!{{Separation.SubsetCarrier}} _ _ _ (sym!{{Separation.SubsetCarrier}} _ _ (SubsetSquare.Negative[degree := degree].equation w))
+      (congr!{{W.Carrier} {Separation.SubsetCarrier}} RestrictS.map _ _ (WedgeIdentity.Negative[degree := degree].equation w)));
+\definition subsetConstant: \forall (x: Split.subsetModel.Carrier) -> SubsetSecond.map x = (details right).point :=
+  \fun (x: Split.subsetModel.Carrier) => \bysub(wedgeModel.Carrier, Split.subset, x);
+\import \root.Relative[].ConstantMap[source := Split.subsetModel, target := right, f := SubsetSecond.map, constant := subsetConstant].Negative[degree := degree] \as SubsetZero;
+\definition secondOnSubset: \forall (b: B.Carrier) -> RestrictS.map (ExtendB.map b) = Separation.subsetGroup.base.unit :=
+  \fun (b: B.Carrier) => trans!{{Separation.SubsetCarrier}} _ _ _ (sym!{{Separation.SubsetCarrier}} _ _ (SubsetSecond.Negative[degree := degree].equation b)) (SubsetZero.zero b);
+\definition crossConstant: \forall (b: right.Carrier) -> Cross.map b = (details left).point := \fun (b: right.Carrier) => \refl((details left).point);
+\import \root.Relative[].ConstantMap[source := right, target := left, f := Cross.map, constant := crossConstant].Negative[degree := degree] \as CrossZero;
+\definition firstOnB: \forall (a: A.Carrier) -> RestrictB.map (ExtendA.map a) = B.group.base.unit :=
+  \fun (a: A.Carrier) => trans!{{B.Carrier}} _ _ _ (sym!{{B.Carrier}} _ _ (Cross.Negative[degree := degree].equation a)) (CrossZero.zero a);
+\definition retractionEquation: Retraction.map = RightIdentity.map := \axiom:funext(Retraction.map, RightIdentity.map, \fun (b: right.Carrier) => \refl(b));
+\definition secondOnB: \forall (b: B.Carrier) -> RestrictB.map (ExtendB.map b) = b :=
+  \fun (b: B.Carrier) => trans!{{B.Carrier}} _ _ _ (sym!{{B.Carrier}} _ _ (Retraction.Negative[degree := degree].equation b))
+    (trans!{{B.Carrier}} _ _ _
+      (congr!{{Map right right} {B.Carrier}} (\fun (f: Map right right) => \root.Relative[].NegativeMap[source := right, target := right, f := f, degree := degree].map b) _ _ retractionEquation)
+      (RightIdentity.Negative[degree := degree].equation b));
+\definition sum[w: W.Carrier]: W.Carrier := W.group.base.op (ExtendA.map (RestrictA.map w)) (ExtendB.map (RestrictB.map w));
+\definition onSubset: \forall (w: W.Carrier) -> Separation.restriction (sum w) = Separation.restriction w :=
+  \fun (w: W.Carrier) => trans!{{Separation.SubsetCarrier}} _ _ _ (Separation.restrictionFormula (sum w))
+    (trans!{{Separation.SubsetCarrier}} _ _ _ (RestrictS.additive (ExtendA.map (RestrictA.map w)) (ExtendB.map (RestrictB.map w)))
+      (trans!{{Separation.SubsetCarrier}} _ _ _ (congr!{{Separation.SubsetCarrier} {Separation.SubsetCarrier} {Separation.SubsetCarrier}} Separation.subsetGroup.base.op _ _ _ _ (firstOnSubset w) (secondOnSubset (RestrictB.map w)))
+        (trans!{{Separation.SubsetCarrier}} _ _ _ (Separation.subsetGroup.group.monoid.rightIdentity (RestrictS.map w)) (sym!{{Separation.SubsetCarrier}} _ _ (Separation.restrictionFormula w)))));
+\definition onB: \forall (w: W.Carrier) -> RestrictB.map (sum w) = RestrictB.map w :=
+  \fun (w: W.Carrier) => trans!{{B.Carrier}} _ _ _ (RestrictB.additive (ExtendA.map (RestrictA.map w)) (ExtendB.map (RestrictB.map w)))
+    (trans!{{B.Carrier}} _ _ _ (congr!{{B.Carrier} {B.Carrier} {B.Carrier}} B.group.base.op _ _ _ _ (firstOnB (RestrictA.map w)) (secondOnB (RestrictB.map w)))
+      (B.group.group.monoid.leftIdentity (RestrictB.map w)));
+\definition decomposition: \forall (w: W.Carrier) -> sum w = w :=
+  \fun (w: W.Carrier) => Separation.jointlyInjective (sum w) w (onSubset w) (onB w);
+\definition Image[w: W.Carrier]: \Prop := \exists (p: P.Carrier \where RestrictW.map p = w);
+\definition surjective: \forall (w: W.Carrier) -> Image w := \fun (w: W.Carrier) =>
+  Logic.existsIntro[P.Carrier, { p: P.Carrier \where RestrictW.map p = w }]
+    (P.group.base.op (ProductA.map (RestrictA.map w)) (ProductB.map (RestrictB.map w)))
+    (trans!{{W.Carrier}} _ _ _ (RestrictW.additive (ProductA.map (RestrictA.map w)) (ProductB.map (RestrictB.map w)))
+      (trans!{{W.Carrier}} _ _ _ (congr!{{W.Carrier} {W.Carrier} {W.Carrier}} W.group.base.op _ _ _ _
+        (sym!{{W.Carrier}} _ _ (LeftProjection.Negative[degree := degree].equation (RestrictA.map w)))
+        (sym!{{W.Carrier}} _ _ (RightProjection.Negative[degree := degree].equation (RestrictB.map w)))) (decomposition w)));

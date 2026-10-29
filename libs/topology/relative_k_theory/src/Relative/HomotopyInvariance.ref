@@ -1,0 +1,23 @@
+\import KTheory.On[X := target.Carrier, baseSpace := (details target).topology, compact := (details target).compact, hausdorff := (details target).hausdorff] \as From;
+\import KTheory.On[X := source.Carrier, baseSpace := (details source).topology, compact := (details source).compact, hausdorff := (details source).hausdorff] \as To;
+\import algebraic_topology.Pointed[A := source.Carrier].Maps[B := target.Carrier] \as Pointed;
+\import From.Pullback[Y := source.Carrier, space := (details source).topology, sourceCompact := (details source).compact, sourceHausdorff := (details source).hausdorff,
+  f := first, regular := (Pointed.laws (pointed source) (pointed target) first).continuous] \as First;
+\import From.Pullback[Y := source.Carrier, space := (details source).topology, sourceCompact := (details source).compact, sourceHausdorff := (details source).hausdorff,
+  f := second, regular := (Pointed.laws (pointed source) (pointed target) second).continuous] \as Second;
+\module ForPresentation(p: From.Presentation);
+\import bundle_complements.Complements[].Over[K := C.Complex, field := Algebra.field, conjugation := Hermitian.scalar, scalar := Scalar.scalar].Representations[
+  X := target.Carrier, baseSpace := (details target).topology] \as Representations;
+\import std.Set[].Quotient[A := From.Presentation, Equivalent := Representations.Equivalent] \as Classes;
+\definition onClasses: \forall (a: From.Classes) -> First.map a = Second.map a := Classes.induction
+  (\fun (a: From.Classes) => First.map a = Second.map a) (\fun (p: From.Presentation) => ForPresentation[p := p].equation);
+\import From.K0[] \as FromK;
+\import To.K0[] \as ToK;
+\definition ringMap: First.K0[].map = Second.K0[].map := FromK.Maps[K := ToK.Carrier, target := ToK.ring].ext First.K0[].map Second.K0[].map
+  (\fun (a: From.Classes) => trans!{{ToK.Carrier}} _ _ _ (First.K0[].onIncludes a)
+    (trans!{{ToK.Carrier}} _ _ _ (congr!{{To.Classes} {ToK.Carrier}} ToK.include _ _ (onClasses a)) (sym!{{ToK.Carrier}} _ _ (Second.K0[].onIncludes a))));
+\import \parent.Pullback[source := source, target := target, f := first] \as ReducedFirst;
+\import \parent.Pullback[source := source, target := target, f := second] \as ReducedSecond;
+\import \parent.Reduced[model := target] \as Reduced;
+\definition equation: \forall (x: Reduced.Carrier) -> ReducedFirst.map x = ReducedSecond.map x :=
+  \fun (x: Reduced.Carrier) => congr!{{FromK.Carrier -> ToK.Carrier} {ToK.Carrier}} (\fun (f: FromK.Carrier -> ToK.Carrier) => f x) _ _ ringMap;

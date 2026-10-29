@@ -1,0 +1,21 @@
+\import \root.Relative[].PointedPair[pair := iteratePair degree pair] \as Current;
+\import \parent.InclusionAt[degree := degree] \as Square;
+\import \parent.WholeGroups[degree := degree] \as Whole;
+\import \parent.SubsetGroups[degree := degree] \as Subset;
+\import \root.Relative[].Negative[original := pair.model, degree := degree] \as Negative;
+\import \root.Relative[].Reduced[model := Current.subsetModel] \as Result;
+\import \root.Relative[].NegativeMap[source := Original.subsetModel, target := pair.model, f := Original.inclusion, degree := degree] \as Restriction;
+\import \root.Relative[].Pullback[source := Current.subsetModel, target := (iteratePair degree pair).model, f := Current.inclusion] \as CurrentRestriction;
+\import \root.Relative[].Pullback[source := Current.subsetModel, target := iterate degree pair.model, f := Square.left] \as Left;
+\import \root.Relative[].Pullback[source := Current.subsetModel, target := iterate degree pair.model, f := Square.right] \as Right;
+\definition changed: \forall (v: Negative.Carrier) -> Left.map v = Right.map v :=
+  \fun (v: Negative.Carrier) => congr!{{Map Current.subsetModel (iterate degree pair.model)} {Result.Carrier}}
+    (\fun (f: Map Current.subsetModel (iterate degree pair.model)) => \root.Relative[].Pullback[source := Current.subsetModel, target := iterate degree pair.model, f := f].map v)
+    _ _ (inclusionNaturality degree);
+\definition equation: \forall (v: Negative.Carrier) -> CurrentRestriction.map (Whole.forward v) = Subset.forward (Restriction.map v) :=
+  \fun (v: Negative.Carrier) => trans!{{Result.Carrier}} _ _ _
+    (sym!{{Result.Carrier}} _ _ (\root.Relative[].PullbackComposition[source := Current.subsetModel, middle := (iteratePair degree pair).model, target := iterate degree pair.model,
+      first := Current.inclusion, second := (wholeComparison degree).forward].equation v))
+    (trans!{{Result.Carrier}} _ _ _ (changed v)
+      (\root.Relative[].PullbackComposition[source := Current.subsetModel, middle := iterate degree Original.subsetModel, target := iterate degree pair.model,
+        first := (subsetComparison degree).forward, second := iterateMap degree Original.subsetModel pair.model Original.inclusion].equation v));

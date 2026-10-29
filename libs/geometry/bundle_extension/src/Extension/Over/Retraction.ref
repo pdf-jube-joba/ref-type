@@ -1,0 +1,15 @@
+\definition n: N.Nat^ := embedding.dimension;
+\import Bundles.Trivial[X := X, n := n, baseSpace := bundle.baseSpace] \as Ambient;
+\import Bundles.Family[X := X, F := \fun (_: X) => Bundles.Vector n] \as AmbientFamily;
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := \fun (_: X) => Bundles.Vector n, source := bundle, target := Ambient.bundle, f := \fun (x: X) => x] \as Inclusion;
+\import Complements.For[X := X, F := F, bundle := bundle].FromEmbedding[embedding := embedding].Image[] \as Image;
+\import Complements.Projection[X := X, n := n, baseSpace := bundle.baseSpace, P := Image.projection, regular := Image.regular] \as Projected;
+\import Bundles.Morphisms[X := X, Y := X, F := \fun (_: X) => Bundles.Vector n, G := Image.ImageFiber, source := Ambient.bundle, target := Image.imageBundle, f := \fun (x: X) => x] \as ToImage;
+\import Bundles.Morphisms[X := X, Y := X, F := \fun (_: X) => Bundles.Vector n, G := F, source := Ambient.bundle, target := bundle, f := \fun (x: X) => x] \as Retraction;
+\definition project: Retraction.Map := ToImage.Composition[Z := X, H := F, range := bundle, g := \fun (x: X) => x].compose Projected.projectMap Image.isomorphism.backward;
+\definition retraction[x: X][v: F x]: (project.fiber x).apply ((embedding.map.fiber x).apply v) = v :=
+  trans!{{F x}} _ _ _
+    (congr!{{Image.ImageFiber x} {F x}} (Image.isomorphism.backward.fiber x).apply
+      ((Projected.projectMap.fiber x).apply ((embedding.map.fiber x).apply v))
+      ((Image.isomorphism.forward.fiber x).apply v) (Image.Comparison[].At[x := x].fixed v))
+    (Image.isomorphism.leftInverse x v);

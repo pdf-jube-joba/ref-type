@@ -1,0 +1,36 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\use Eq.eq_reason_in;
+\import Algebra.Coordinates[I := Fin.Fin n].Kronecker[] \as Delta;
+\definition Property[k: N.Nat^]: \Prop := \forall (j: Algebra.Multilinear[V := Finite.Vector, space := Finite.space].Alternating[].Dimension[n := n, b := Standard.basis].Increasing[k := N.Nat^::succ k].Index) ->
+  (Operations.Contraction[k := k].operator (Finite.basis (j (Fin.zero k)))).apply (ExteriorBasis.At[k := N.Nat^::succ k].word j) = ExteriorBasis.At[k := k].word (tailIndex k j);
+\definition zero: Property N.Nat^::zero :=
+  \fun (j: Algebra.Multilinear[V := Finite.Vector, space := Finite.space].Alternating[].Dimension[n := n, b := Standard.basis].Increasing[k := N.Nat^::succ N.Nat^::zero].Index) => eq_reason_in!{{Forms.Form N.Nat^::zero} _
+    "=" _ "by" { wordContractionOne j (Finite.basis (j (Fin.zero N.Nat^::zero))) }
+    "=" _ "by" { congr!{C.Complex {Forms.Form N.Nat^::zero}} (\fun (a: C.Complex) => (Forms.At[k := N.Nat^::zero].vectorSpace).smul a (ExteriorBasis.At[k := N.Nat^::zero].word (tailIndex N.Nat^::zero j))) _ _ (Delta.self (j (Fin.zero N.Nat^::zero))) }
+    "=" _ "by" { (Forms.At[k := N.Nat^::zero].vectorSpace).scalarOne (ExteriorBasis.At[k := N.Nat^::zero].word (tailIndex N.Nat^::zero j)) }
+  };
+\definition successor: \forall (k: N.Nat^) -> Property (N.Nat^::succ k) :=
+  \fun (k: N.Nat^)(j: Algebra.Multilinear[V := Finite.Vector, space := Finite.space].Alternating[].Dimension[n := n, b := Standard.basis].Increasing[k := N.Nat^::succ (N.Nat^::succ k)].Index) => \block {
+    \let r: Fin.Fin n := j (Fin.zero (N.Nat^::succ k)) \then
+    \let tail: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n := tailIndex (N.Nat^::succ k) j \then
+    \let absent: \forall (i: Fin.Fin (N.Nat^::succ k)) -> Logic.Not (r = tail i) := \parent.HeadAdjoint[k := N.Nat^::succ k].tailDifferent j \then
+    \let alpha: Forms.Form (N.Nat^::succ N.Nat^::zero) := Metric.form (Finite.basis r) \then
+    \let tailWord: Forms.Form (N.Nat^::succ k) := ExteriorBasis.At[k := N.Nat^::succ k].word tail \then
+    \let space: Algebra.VectorSpace (Forms.Form (N.Nat^::succ k)) := Forms.At[k := N.Nat^::succ k].vectorSpace \then
+    \return eq_reason_in!{{Forms.Form (N.Nat^::succ k)} _
+      "=" _ "by" { wordContractionStep k j (Finite.basis r) }
+      "=" _ "by" { congr!{C.Complex {Forms.Form (N.Nat^::succ k)}} (\fun (a: C.Complex) => space.add (space.smul a tailWord) (space.neg (Operations.LeftCreation[k := k].apply alpha ((Operations.Contraction[k := k].operator (Finite.basis r)).apply tailWord)))) _ _ (Delta.self r) }
+      "=" _ "by" { congr!{{Forms.Form k} {Forms.Form (N.Nat^::succ k)}} (\fun (a: Forms.Form k) => space.add (space.smul Algebra.one tailWord) (space.neg (Operations.LeftCreation[k := k].apply alpha a))) _ _ (wordContractionAbsent k tail r absent) }
+      "=" _ "by" { congr!{{Forms.Form (N.Nat^::succ k)} {Forms.Form (N.Nat^::succ k)}} (\fun (a: Forms.Form (N.Nat^::succ k)) => space.add (space.smul Algebra.one tailWord) (space.neg a)) _ _ (Operations.LeftCreation[k := k].operator alpha).preservesZero }
+      "=" _ "by" { congr!{{Forms.Form (N.Nat^::succ k)} {Forms.Form (N.Nat^::succ k)}} (space.add (space.smul Algebra.one tailWord)) _ _ (algebra.Group[].Of[Carrier := Forms.Form (N.Nat^::succ k), group := std.Alg[].Ring[].ringModuleAsCommutativeGroup C.Complex (Forms.Form (N.Nat^::succ k)) Algebra.ring space].negZero) }
+      "=" _ "by" { Algebra.Laws[V := Forms.Form (N.Nat^::succ k), space := space].zeroRight (space.smul Algebra.one tailWord) }
+      "=" _ "by" { space.scalarOne tailWord }
+    }
+  };
+\definition all: \forall (k: N.Nat^) -> Property k := \induction (k: N.Nat^) \return Property k \with {
+  | zero: zero
+  | succ: \fun (k: N.Nat^)(previous: Property k) => successor k
+};

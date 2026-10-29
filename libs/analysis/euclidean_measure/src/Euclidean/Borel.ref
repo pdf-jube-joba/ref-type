@@ -1,0 +1,31 @@
+\import Euclidean.Topology[] \as Topology;
+\import Measure.Sigma[] \as Sigma;
+\definition ContainsOpen[sigma: Measure.SigmaAlgebra]: \Prop :=
+  \forall (U: \Pow Point) -> Sets.IsOpenIn Topology.topology U -> Measure.Measurable sigma U;
+\definition IsBorel[S: \Pow Point]: \Prop :=
+  \forall (sigma: Measure.SigmaAlgebra) -> ContainsOpen sigma -> Measure.Measurable sigma S;
+\definition data: Measure.SigmaAlgebraData := Measure.SigmaAlgebraData {
+  measurable := { S: \Pow Point \where IsBorel S },
+};
+\definition laws: Measure.SigmaAlgebraLaws[data] := Measure.SigmaAlgebraLaws[data] {
+  empty := \fun (sigma: Measure.SigmaAlgebra) (_: ContainsOpen sigma) => (Sigma.laws sigma).empty,
+  complement := \fun (S: \Pow Point) (borel: IsBorel S) (sigma: Measure.SigmaAlgebra) (open: ContainsOpen sigma) =>
+    (Sigma.laws sigma).complement S (borel sigma open),
+  countableUnion := \fun (family: N.Nat^ -> \Pow Point) (borel: \forall (k: N.Nat^) -> IsBorel (family k))
+    (sigma: Measure.SigmaAlgebra) (open: ContainsOpen sigma) =>
+      (Sigma.laws sigma).countableUnion family (\fun (k: N.Nat^) => borel k sigma open),
+};
+\definition sigma: Measure.SigmaAlgebra := \into[Measure.SigmaAlgebraData](data, Measure.SigmaAlgebra) \by { laws };
+\definition open: \forall (U: \Pow Point) -> Sets.IsOpenIn Topology.topology U -> Measure.Measurable sigma U :=
+  \fun (U: \Pow Point) (opened: Sets.IsOpenIn Topology.topology U) (other: Measure.SigmaAlgebra) (contains: ContainsOpen other) => contains U opened;
+\definition smallest: \forall (other: Measure.SigmaAlgebra) -> ContainsOpen other -> \forall (S: \Pow Point) ->
+  Measure.Measurable sigma S -> Measure.Measurable other S :=
+  \fun (other: Measure.SigmaAlgebra) (contains: ContainsOpen other) (S: \Pow Point) (borel: IsBorel S) => borel other contains;
+\definition doubleComplement: \forall (S: \Pow Point) -> Sets.Complement (Sets.Complement S) = S :=
+  \fun (S: \Pow Point) => \axiom:setext(Sets.Complement (Sets.Complement S), S,
+    \fun (x: Point) (member: Sets.Member (Sets.Complement (Sets.Complement S)) x) => Sigma.doubleNegative (Sets.Member S x) member,
+    \fun (x: Point) (member: Sets.Member S x) (outside: Sets.Member (Sets.Complement S) x) => outside member);
+\definition closed: \forall (S: \Pow Point) -> Sets.IsClosedIn Topology.topology S -> Measure.Measurable sigma S :=
+  \fun (S: \Pow Point) (closed: Sets.IsClosedIn Topology.topology S) =>
+    \idelim Sets.Complement (Sets.Complement S) = S \with U: \Pow Point => Measure.Measurable sigma U
+      \by { base: (Sigma.laws sigma).complement (Sets.Complement S) (open (Sets.Complement S) closed), equality: doubleComplement S };

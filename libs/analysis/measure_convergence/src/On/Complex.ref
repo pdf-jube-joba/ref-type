@@ -1,0 +1,160 @@
+\import complex.Complex[] \as C;
+\definition Function: \Set := A -> C.Complex;
+\definition Integrable[f: Function]: \Prop := Logic.And[Integral.Integrable (\fun (x: A) => C.re (f x)), Integral.Integrable (\fun (x: A) => C.im (f x))];
+\definition Representatives: \Set := \Cast[Function] ({ f: Function \where Integrable f });
+\definition realPart[f: Representatives]: Integral.Representatives :=
+  \into[A -> Real.Real](\fun (x: A) => C.re (f x), { g: A -> Real.Real \where Integral.Integrable g }) \by {
+    (\bysub(Function, { f: Function \where Integrable f }, f)).left
+  };
+\definition imaginaryPart[f: Representatives]: Integral.Representatives :=
+  \into[A -> Real.Real](\fun (x: A) => C.im (f x), { g: A -> Real.Real \where Integral.Integrable g }) \by {
+    (\bysub(Function, { f: Function \where Integrable f }, f)).right
+  };
+\definition integral[f: Representatives]: C.Complex := C.make (Integral.integral (realPart f)) (Integral.integral (imaginaryPart f));
+\definition realLaw: \forall (f: Representatives) -> Integral.HasIntegral[\fun (x: A) => C.re (f x), C.re (integral f)] :=
+  \fun (f: Representatives) => Integral.integralLaw (realPart f);
+\definition imaginaryLaw: \forall (f: Representatives) -> Integral.HasIntegral[\fun (x: A) => C.im (f x), C.im (integral f)] :=
+  \fun (f: Representatives) => Integral.integralLaw (imaginaryPart f);
+\import Measures.AlmostEverywhere[mu := mu] \as AE;
+\use std.Logic[].Equality[].congr;
+\definition almostEqual[f, g: Representatives]: \Prop := Measures.Null mu ({ x: A \where Logic.Not (f x = g x) });
+\definition integralAlmost: \forall (f, g: Representatives) -> almostEqual f g -> integral f = integral g :=
+  \fun (f, g: Representatives) (equal: almostEqual f g) => \block {
+    \let realEqual: Measures.AlmostEqual mu (realPart f) (realPart g) := AE.nullSubset
+      ({ x: A \where Logic.Not (C.re (f x) = C.re (g x)) }) ({ x: A \where Logic.Not (f x = g x) })
+      (\fun (x: A) (different: Logic.Not (C.re (f x) = C.re (g x))) (same: f x = g x) =>
+        different (congr!{C.Complex Real.Real} C.re _ _ same)) equal \then
+    \let imaginaryEqual: Measures.AlmostEqual mu (imaginaryPart f) (imaginaryPart g) := AE.nullSubset
+      ({ x: A \where Logic.Not (C.im (f x) = C.im (g x)) }) ({ x: A \where Logic.Not (f x = g x) })
+      (\fun (x: A) (different: Logic.Not (C.im (f x) = C.im (g x))) (same: f x = g x) =>
+        different (congr!{C.Complex Real.Real} C.im _ _ same)) equal \then
+    \return congr!{Real.Real Real.Real C.Complex} C.make _ _ _ _
+      (QuotientIntegral.integralAlmost (realPart f) (realPart g) realEqual)
+      (QuotientIntegral.integralAlmost (imaginaryPart f) (imaginaryPart g) imaginaryEqual)
+  };
+\definition componentBounds: \forall (f: Representatives) (g: Integral.Representatives) ->
+  (\forall (x: A) -> R.Le (Product.abs (C.re (f x))) (g x)) ->
+  (\forall (x: A) -> R.Le (Product.abs (C.im (f x))) (g x)) ->
+  Logic.And[R.Le (Product.abs (C.re (integral f))) (Integral.integral g), R.Le (Product.abs (C.im (integral f))) (Integral.integral g)] :=
+  \fun (f: Representatives) (g: Integral.Representatives) (reBound: \forall (x: A) -> R.Le (Product.abs (C.re (f x))) (g x))
+    (imBound: \forall (x: A) -> R.Le (Product.abs (C.im (f x))) (g x)) => Logic.And[_, _]::#
+      (R.leTrans _ (Integral.integral (Absolute.representative (realPart f))) _ (Absolute.integralAbsBound (realPart f))
+        (Absolute.integralMono (Absolute.representative (realPart f)) g reBound))
+      (R.leTrans _ (Integral.integral (Absolute.representative (imaginaryPart f))) _ (Absolute.integralAbsBound (imaginaryPart f))
+        (Absolute.integralMono (Absolute.representative (imaginaryPart f)) g imBound));
+\definition scalarFunction[c: Real.Real] [f: Representatives]: Function := \fun (x: A) => C.make (Real.mul c (C.re (f x))) (Real.mul c (C.im (f x)));
+\definition scalarRepresentative[c: Real.Real] [f: Representatives]: Representatives :=
+  \into[Function](scalarFunction c f, { h: Function \where Integrable h }) \by { Logic.And[_, _]::#
+    (Scaling.integrableScalar c (realPart f) (\bysub(A -> Real.Real, { h: A -> Real.Real \where Integral.Integrable h }, realPart f)))
+    (Scaling.integrableScalar c (imaginaryPart f) (\bysub(A -> Real.Real, { h: A -> Real.Real \where Integral.Integrable h }, imaginaryPart f))) };
+\definition integralScalar: \forall (c: Real.Real) (f: Representatives) ->
+  integral (scalarRepresentative c f) = C.make (Real.mul c (C.re (integral f))) (Real.mul c (C.im (integral f))) :=
+  \fun (c: Real.Real) (f: Representatives) => congr!{Real.Real Real.Real C.Complex} C.make _ _ _ _
+    (Scaling.integralScalar c (realPart f)) (Scaling.integralScalar c (imaginaryPart f));
+
+\definition addFunction[f, g: Representatives]: Function := \fun (x: A) => C.make (Real.add (C.re (f x)) (C.re (g x))) (Real.add (C.im (f x)) (C.im (g x)));
+\definition addRepresentative[f, g: Representatives]: Representatives := \into[Function](addFunction f g, { h: Function \where Integrable h }) \by {
+  Logic.And[_, _]::#
+    (Linear.integrableAdd (realPart f) (realPart g)
+      (\bysub(A -> Real.Real, { h: A -> Real.Real \where Integral.Integrable h }, realPart f))
+      (\bysub(A -> Real.Real, { h: A -> Real.Real \where Integral.Integrable h }, realPart g)))
+    (Linear.integrableAdd (imaginaryPart f) (imaginaryPart g)
+      (\bysub(A -> Real.Real, { h: A -> Real.Real \where Integral.Integrable h }, imaginaryPart f))
+      (\bysub(A -> Real.Real, { h: A -> Real.Real \where Integral.Integrable h }, imaginaryPart g)))
+};
+\definition integralAdd: \forall (f, g: Representatives) -> integral (addRepresentative f g) =
+  C.make (Real.add (C.re (integral f)) (C.re (integral g))) (Real.add (C.im (integral f)) (C.im (integral g))) :=
+  \fun (f, g: Representatives) => congr!{Real.Real Real.Real C.Complex} C.make _ _ _ _
+    (Linear.integralAdd (realPart f) (realPart g)) (Linear.integralAdd (imaginaryPart f) (imaginaryPart g));
+\import C.Def[] \as ComplexOp;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.eq_reason_in;
+\definition complexScalarFunction[c: C.Complex] [f: Representatives]: Function := \fun (x: A) => ComplexOp.mul c (f x);
+\definition complexScalarRepresentative[c: C.Complex] [f: Representatives]: Representatives :=
+  \into[Function] (complexScalarFunction c f, { h: Function \where Integrable h }) \by {
+    Logic.And[_, _]::#
+      (Linear.integrableAdd (Scaling.scalarRepresentative (C.re c) (realPart f))
+        (Negation.representative (Scaling.scalarRepresentative (C.im c) (imaginaryPart f)))
+        (\bysub(A -> Real.Real, { h: A -> Real.Real \where Integral.Integrable h }, Scaling.scalarRepresentative (C.re c) (realPart f)))
+        (\bysub(A -> Real.Real, { h: A -> Real.Real \where Integral.Integrable h }, Negation.representative (Scaling.scalarRepresentative (C.im c) (imaginaryPart f)))))
+      (Linear.integrableAdd (Scaling.scalarRepresentative (C.re c) (imaginaryPart f)) (Scaling.scalarRepresentative (C.im c) (realPart f))
+        (\bysub(A -> Real.Real, { h: A -> Real.Real \where Integral.Integrable h }, Scaling.scalarRepresentative (C.re c) (imaginaryPart f)))
+        (\bysub(A -> Real.Real, { h: A -> Real.Real \where Integral.Integrable h }, Scaling.scalarRepresentative (C.im c) (realPart f))))
+  };
+\definition integralComplexScalar: \forall (c: C.Complex) (f: Representatives) -> integral (complexScalarRepresentative c f) = ComplexOp.mul c (integral f) :=
+  \fun (c: C.Complex) (f: Representatives) => congr!{Real.Real Real.Real C.Complex} C.make _ _ _ _
+    (eq_reason_in!{Real.Real _
+      "=" _ "by" { Linear.integralAdd (Scaling.scalarRepresentative (C.re c) (realPart f))
+        (Negation.representative (Scaling.scalarRepresentative (C.im c) (imaginaryPart f))) }
+      "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Scaling.integralScalar (C.re c) (realPart f))
+        (Negation.integralNeg (Scaling.scalarRepresentative (C.im c) (imaginaryPart f))) }
+      "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (\refl(Real.mul (C.re c) (Integral.integral (realPart f))))
+        (congr!{Real.Real Real.Real} Real.neg _ _ (Scaling.integralScalar (C.im c) (imaginaryPart f))) }
+    })
+    (eq_reason_in!{Real.Real _
+      "=" _ "by" { Linear.integralAdd (Scaling.scalarRepresentative (C.re c) (imaginaryPart f)) (Scaling.scalarRepresentative (C.im c) (realPart f)) }
+      "=" _ "by" { congr!{Real.Real Real.Real C.Real} Real.add _ _ _ _ (Scaling.integralScalar (C.re c) (imaginaryPart f)) (Scaling.integralScalar (C.im c) (realPart f)) }
+    });
+\import real.Analysis[].Sequence[] \as Sequence;
+\structure DominatedData: \Set := {
+  sequence: N.Nat^ -> Representatives,
+  limit: Function,
+  bound: Integral.Representatives,
+  realBound: \forall (k: N.Nat^) (x: A) -> R.Le (Product.abs (C.re (sequence k x))) (bound x),
+  imaginaryBound: \forall (k: N.Nat^) (x: A) -> R.Le (Product.abs (C.im (sequence k x))) (bound x),
+  realConverges: \forall (x: A) -> Sequence.Converges (\fun (k: N.Nat^) => C.re (sequence k x)) (C.re (limit x)),
+  imaginaryConverges: \forall (x: A) -> Sequence.Converges (\fun (k: N.Nat^) => C.im (sequence k x)) (C.im (limit x)),
+};
+\module Dominated(d: DominatedData);
+\module Series(terms: N.Nat^ -> Representatives);
+\import C.Absolute[] \as ComplexAbs;
+\import C.Prop[] \as ComplexLaws;
+\import real.Analysis[].SquareRoot[] \as Root;
+\import real.Analysis[].Algebra[] \as RealAlgebra;
+\import real.Analysis[].Estimates[] \as Estimates;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as RealLaws;
+\use Equality.sym;
+\definition squareAbs: \forall (x: Real.Real) -> Real.mul (Product.abs x) (Product.abs x) = Real.mul x x :=
+  \fun (x: Real.Real) => eq_reason_in!{Real.Real _
+    "=" _ "by" { sym!{Real.Real} _ _ (Product.absProduct x x) }
+    "=" _ "by" { Product.absOfNonnegative (Real.mul x x) (RealAlgebra.squareNonnegative x) }
+  };
+\definition rootSquare: \forall (x: Real.Real) -> Root.sqrt (Real.mul x x) = Product.abs x :=
+  \fun (x: Real.Real) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} Root.sqrt _ _ (sym!{Real.Real} _ _ (squareAbs x)) }
+    "=" _ "by" { Root.sqrtSquared (Product.abs x) (Product.absNonnegative x) }
+  };
+\definition realAxisAbs: \forall (x: Real.Real) -> ComplexAbs.abs (C.make x Real.zero) = Product.abs x :=
+  \fun (x: Real.Real) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} Root.sqrt _ _
+      (congr!{Real.Real Real.Real} (Real.add (Real.mul x x)) _ _ (RealLaws.fieldMulZeroLeft Real.zero)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} Root.sqrt _ _ (RealLaws.addZeroRight (Real.mul x x)) }
+    "=" _ "by" { rootSquare x }
+  };
+\definition imaginaryAxisAbs: \forall (x: Real.Real) -> ComplexAbs.abs (C.make Real.zero x) = Product.abs x :=
+  \fun (x: Real.Real) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} Root.sqrt _ _
+      (congr!{Real.Real Real.Real} (\fun (y: Real.Real) => Real.add y (Real.mul x x)) _ _ (RealLaws.fieldMulZeroLeft Real.zero)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} Root.sqrt _ _ (RealLaws.addZeroLeft (Real.mul x x)) }
+    "=" _ "by" { rootSquare x }
+  };
+\definition absComponents: \forall (z: C.Complex) -> R.Le (ComplexAbs.abs z) (Real.add (Product.abs (C.re z)) (Product.abs (C.im z))) :=
+  \fun (z: C.Complex) => R.leReplace
+    (ComplexAbs.abs (ComplexOp.add (C.make (C.re z) Real.zero) (C.make Real.zero (C.im z)))) (ComplexAbs.abs z)
+    (Real.add (ComplexAbs.abs (C.make (C.re z) Real.zero)) (ComplexAbs.abs (C.make Real.zero (C.im z))))
+    (Real.add (Product.abs (C.re z)) (Product.abs (C.im z)))
+    (congr!{C.Complex Real.Real} ComplexAbs.abs _ _ (ComplexLaws.ext _ _ (RealLaws.addZeroRight (C.re z)) (RealLaws.addZeroLeft (C.im z))))
+    (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (realAxisAbs (C.re z)) (imaginaryAxisAbs (C.im z)))
+    (ComplexAbs.triangle (C.make (C.re z) Real.zero) (C.make Real.zero (C.im z)));
+\definition integralNormBound: \forall (f: Representatives) -> R.Le (ComplexAbs.abs (integral f))
+  (Real.add (Integral.integral (Absolute.representative (realPart f))) (Integral.integral (Absolute.representative (imaginaryPart f)))) :=
+  \fun (f: Representatives) => R.leTrans _ _ _ (absComponents (integral f))
+    (Estimates.addLe _ _ _ _ (Absolute.integralAbsBound (realPart f)) (Absolute.integralAbsBound (imaginaryPart f)));
+\structure AEDominatedData: \Set := {
+  sequence: N.Nat^ -> Representatives, limit: Function, bound: Integral.Representatives, exception: Integral.Null[].NullSet,
+  realBound: \forall (k: N.Nat^) (x: A) -> Logic.Not (Sets.Member exception x) -> R.Le (Product.abs (C.re (sequence k x))) (bound x),
+  imaginaryBound: \forall (k: N.Nat^) (x: A) -> Logic.Not (Sets.Member exception x) -> R.Le (Product.abs (C.im (sequence k x))) (bound x),
+  realConverges: \forall (x: A) -> Logic.Not (Sets.Member exception x) -> Sequence.Converges (\fun (k: N.Nat^) => C.re (sequence k x)) (C.re (limit x)),
+  imaginaryConverges: \forall (x: A) -> Logic.Not (Sets.Member exception x) -> Sequence.Converges (\fun (k: N.Nat^) => C.im (sequence k x)) (C.im (limit x)),
+};
+\module AEDominated(d: AEDominatedData);

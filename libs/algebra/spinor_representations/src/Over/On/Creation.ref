@@ -1,0 +1,25 @@
+\import Algebra.Exterior[V := V, space := space] \as Exterior;
+\import Exterior.Degrees[p := k, q := N.Nat^::succ N.Nat^::zero] \as Product;
+\import Exterior.Bilinearity[p := k, q := N.Nat^::succ N.Nat^::zero] \as Bilinear;
+\import Alternating.At[k := k] \as Source;
+\import Alternating.At[k := N.Nat^::succ k] \as Target;
+\import Algebra.Linear[V := Alternating.Form k, W := Alternating.Form (N.Nat^::succ k), source := Source.vectorSpace, target := Target.vectorSpace] \as Linear;
+\definition operator[alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero)]: Linear.Map := Linear.Map {
+  apply := \fun (f: Alternating.Form k) => Product.wedge f alpha,
+  preservesAdd := \fun (f, g: _) => Bilinear.additiveLeft f g alpha,
+  preservesScale := \fun (a: K)(f: _) => Bilinear.scalarLeft a f alpha,
+};
+\import Alternating.At[k := N.Nat^::succ N.Nat^::zero] \as One;
+\definition parameterAddition: \forall (alpha, beta: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Alternating.Form k) ->
+  (operator (One.plus alpha beta)).apply f = Target.plus ((operator alpha).apply f) ((operator beta).apply f) :=
+  \fun (alpha, beta: _)(f: _) => Bilinear.additiveRight f alpha beta;
+\definition parameterScale: \forall (a: K)(alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Alternating.Form k) ->
+  (operator (One.scale a alpha)).apply f = Target.scale a ((operator alpha).apply f) :=
+  \fun (a: K)(alpha: _)(f: _) => Bilinear.scalarRight a f alpha;
+\import Exterior.Associativity[p := k, q := N.Nat^::succ N.Nat^::zero, r := N.Nat^::succ N.Nat^::zero] \as Associative;
+\import Exterior.Components[k := N.Nat^::succ (N.Nat^::succ k)] \as TwoComponents;
+\import Exterior.Degrees[p := N.Nat^::succ N.Nat^::zero, q := N.Nat^::succ N.Nat^::zero] \as OneProduct;
+\import Exterior.Degrees[p := k, q := N.Nat^::succ (N.Nat^::succ N.Nat^::zero)] \as TwoProduct;
+\definition successive: \forall (f: Alternating.Form k)(alpha, beta: Alternating.Form (N.Nat^::succ N.Nat^::zero)) ->
+  Associative.left f alpha beta = TwoProduct.wedge f (OneProduct.wedge alpha beta) :=
+  \fun (f: _)(alpha, beta: _) => TwoComponents.ext _ _ (Associative.law f alpha beta);

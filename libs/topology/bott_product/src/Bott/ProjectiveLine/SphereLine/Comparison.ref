@@ -1,0 +1,65 @@
+\import std.Data[].Bool[] \as Bool;
+\import hermitian_frames.Hermitian[] \as H;
+\import \root.Bott[].Sign[] \as Sign;
+\import \root.Bott[].Powers[] \as Powers;
+\import \root.Bott[].ProjectiveLine[].SphereLine[].Projection[] \as Projected;
+\import \root.Bott[].ProjectiveLine[].SphereLine[].FirstHalf[] \as First;
+\import \root.Bott[].ProjectiveLine[].SphereLine[].SecondHalf[] \as Second;
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := H.Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Homotopy;
+\import Homotopy.Disks[d := two] \as Disks;
+\import Disks.Hemispheres[].Cover[] \as Cover;
+\import clutching_linearization.Linearization[].ClutchingProduct[n := one, X := Sphere.Sphere, source := Sphere.sphereTopology,
+  compact := Compactness.sphere, hausdorff := Compactness.sphereHausdorff, U := Disks.U, V := Disks.V,
+  openU := Disks.openU, openV := Disks.openV, covers := Disks.covers] \as Product;
+\import clutching_linearization.Linearization[].ScalarUnits[n := one, X := Product.Overlap, source := Product.overlapTopology,
+  a := Sign.conjugate, continuous := Sign.regular, nonzero := Sign.nonzero] \as Other;
+\import Homotopy.Clutching[n := one, X := Sphere.Sphere, baseSpace := Sphere.sphereTopology, U := Disks.U, V := Disks.V,
+  openU := Disks.openU, openV := Disks.openV, covers := Disks.covers].With[g := Other.value, continuous := Other.valueContinuous] \as Target;
+\import Homotopy.ClosedCover[X := Sphere.Sphere, F := Projected.Fiber, G := Target.Fiber, baseSpace := Sphere.sphereTopology,
+  source := Projected.bundle, target := Target.bundle, sourceBase := \refl(Sphere.sphereTopology), targetBase := \refl(Sphere.sphereTopology),
+  C := Cover.PositiveHalf, D := Cover.NegativeHalf, closedC := Cover.positiveClosed, closedD := Cover.negativeClosed, covers := Cover.halvesCover] \as Glue;
+\import Homotopy.ClosedMaps[X := Sphere.Sphere, F := Projected.Fiber, G := Target.Fiber, baseSpace := Sphere.sphereTopology,
+  source := Projected.bundle, target := Target.bundle, sourceBase := \refl(Sphere.sphereTopology), targetBase := \refl(Sphere.sphereTopology),
+  C := Cover.PositiveHalf, D := Cover.NegativeHalf, closedC := Cover.positiveClosed, closedD := Cover.negativeClosed, covers := Cover.halvesCover] \as Maps;
+\import Maps.Side[S := Cover.PositiveHalf] \as Left;
+\import Maps.Side[S := Cover.NegativeHalf] \as Right;
+\import Homotopy.ChartPullback[X := Sphere.Sphere, F := Target.Fiber, bundle := Target.bundle, chart := Target.chart Bool.Bool^::false,
+  Y := First.Base, source := First.topology, f := First.inclusion, continuous := First.inclusionContinuous, inside := Cover.positiveInside] \as FirstTarget;
+\import Homotopy.ChartPullback[X := Sphere.Sphere, F := Target.Fiber, bundle := Target.bundle, chart := Target.chart Bool.Bool^::true,
+  Y := Second.Base, source := Second.topology, f := Second.inclusion, continuous := Second.inclusionContinuous, inside := Cover.negativeInside] \as SecondTarget;
+\import Bundles.Isomorphisms[X := First.Base, F := (\fun (x: First.Base) => Target.Fiber x), G := (\fun (_: First.Base) => Bundles.Vector one),
+  source := FirstTarget.pulledBundle, target := Bundles.Trivial[X := First.Base, n := one, baseSpace := First.topology].bundle] \as FirstTargetIso;
+\import Bundles.Isomorphisms[X := Second.Base, F := (\fun (x: Second.Base) => Target.Fiber x), G := (\fun (_: Second.Base) => Bundles.Vector one),
+  source := SecondTarget.pulledBundle, target := Bundles.Trivial[X := Second.Base, n := one, baseSpace := Second.topology].bundle] \as SecondTargetIso;
+\import bundle_operations.Operations[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := H.Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Operations;
+\import Operations.ScalarLine[X := First.Base, baseSpace := First.topology] \as FirstScalar;
+\import Operations.ScalarLine[X := Second.Base, baseSpace := Second.topology] \as SecondScalar;
+\import Bundles.Isomorphisms[X := First.Base, F := (\fun (_: First.Base) => Bundles.Vector one), G := (\fun (_: First.Base) => C.Complex),
+  source := Bundles.Trivial[X := First.Base, n := one, baseSpace := First.topology].bundle, target := FirstScalar.bundle] \as FirstScalarIso;
+\import Bundles.Isomorphisms[X := Second.Base, F := (\fun (_: Second.Base) => Bundles.Vector one), G := (\fun (_: Second.Base) => C.Complex),
+  source := Bundles.Trivial[X := Second.Base, n := one, baseSpace := Second.topology].bundle, target := SecondScalar.bundle] \as SecondScalarIso;
+\import Operations.IsomorphismComposition[X := First.Base, F := (\fun (x: First.Base) => Projected.Fiber x), G := (\fun (_: First.Base) => C.Complex), H := (\fun (_: First.Base) => Bundles.Vector one),
+  source := Left.sourceBundle, middle := FirstScalar.bundle, target := Bundles.Trivial[X := First.Base, n := one, baseSpace := First.topology].bundle] \as FirstCoordinates;
+\import Operations.IsomorphismComposition[X := Second.Base, F := (\fun (x: Second.Base) => Projected.Fiber x), G := (\fun (_: Second.Base) => C.Complex), H := (\fun (_: Second.Base) => Bundles.Vector one),
+  source := Right.sourceBundle, middle := SecondScalar.bundle, target := Bundles.Trivial[X := Second.Base, n := one, baseSpace := Second.topology].bundle] \as SecondCoordinates;
+\definition firstFrame: FirstCoordinates.Isomorphism := FirstCoordinates.compose First.isomorphism (FirstScalarIso.inverse FirstScalar.coordinateIsomorphism);
+\definition secondFrame: SecondCoordinates.Isomorphism := SecondCoordinates.compose Second.isomorphism (SecondScalarIso.inverse SecondScalar.coordinateIsomorphism);
+\import Operations.IsomorphismComposition[X := First.Base, F := (\fun (x: First.Base) => Projected.Fiber x), G := (\fun (_: First.Base) => Bundles.Vector one), H := (\fun (x: First.Base) => Target.Fiber x),
+  source := Left.sourceBundle, middle := Bundles.Trivial[X := First.Base, n := one, baseSpace := First.topology].bundle, target := Left.targetBundle] \as FirstCompose;
+\import Operations.IsomorphismComposition[X := Second.Base, F := (\fun (x: Second.Base) => Projected.Fiber x), G := (\fun (_: Second.Base) => Bundles.Vector one), H := (\fun (x: Second.Base) => Target.Fiber x),
+  source := Right.sourceBundle, middle := Bundles.Trivial[X := Second.Base, n := one, baseSpace := Second.topology].bundle, target := Right.targetBundle] \as SecondCompose;
+\definition left: Left.Isomorphism := FirstCompose.compose firstFrame (FirstTargetIso.inverse FirstTarget.isomorphism);
+\definition right: Right.Isomorphism := SecondCompose.compose secondFrame (SecondTargetIso.inverse SecondTarget.isomorphism);
+\module Boundary(s: Sphere.Sphere, positive: \In[Sphere.Sphere] Cover.PositiveHalf s, negative: \In[Sphere.Sphere] Cover.NegativeHalf s);
+\definition agrees: \forall (s: Sphere.Sphere)(positive: \In[Sphere.Sphere] Cover.PositiveHalf s)(negative: \In[Sphere.Sphere] Cover.NegativeHalf s)(v: Projected.Fiber s) ->
+  (left.forward.fiber (\into[Sphere.Sphere](s, Cover.PositiveHalf) \by { positive })).apply v =
+  (right.forward.fiber (\into[Sphere.Sphere](s, Cover.NegativeHalf) \by { negative })).apply v :=
+  \fun (s: Sphere.Sphere)(positive: _)(negative: _)(v: Projected.Fiber s) => Boundary[s := s, positive := positive, negative := negative].agrees v;
+\definition isomorphism: Bundles.Isomorphisms[X := Sphere.Sphere, F := Projected.Fiber, G := Target.Fiber,
+  source := Projected.bundle, target := Target.bundle].Isomorphism := Glue.With[left := left, right := right, agrees := agrees].isomorphism;
+\import Operations.IsomorphismComposition[X := Sphere.Sphere, F := LineFiber, G := Projected.Fiber, H := Target.Fiber,
+  source := lineBundle, middle := Projected.bundle, target := Target.bundle] \as Final;
+\definition universalIsomorphism: Final.Isomorphism := Final.compose Projected.isomorphism isomorphism;
+\module Class;

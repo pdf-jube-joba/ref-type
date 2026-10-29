@@ -1,0 +1,44 @@
+\import \parent.\parent.Contraction[] \as Contract;
+\import \root.Over[K := K, scalarRing := scalarRing].On[V := V, space := left].Total[].ContractionZero[] \as LeftZeroVector;
+\import \root.Over[K := K, scalarRing := scalarRing].On[V := W, space := right].Total[].ContractionZero[] \as RightZeroVector;
+\import \root.Over[K := K, scalarRing := scalarRing].TensorOperators[V := LeftTotal.Carrier, W := RightTotal.Carrier, left := LeftTotal.totalSpace, right := RightTotal.totalSpace] \as Operators;
+\import Algebra.Eigen[V := RightTotal.Carrier, space := RightTotal.totalSpace] \as RightIdentity;
+\import Algebra.Linear[V := Tensor.Carrier, W := ResultTotal.Carrier, source := Tensor.space, target := ResultTotal.totalSpace] \as Maps;
+\import Algebra.Linear[V := RightTotal.Carrier, W := Tensor.Carrier, source := RightTotal.totalSpace, target := Tensor.space] \as RightMap;
+\import Algebra.Linear[V := LeftTotal.Carrier, W := Tensor.Carrier, source := LeftTotal.totalSpace, target := Tensor.space] \as LeftMap;
+\import Algebra.Laws[V := ResultTotal.Carrier, space := ResultTotal.totalSpace] \as ResultLaws;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition rightEmbedding[f: LeftTotal.Carrier]: RightMap.Map := RightMap.Map {
+  apply := Tensor.tensor f, preservesAdd := Tensor.bilinear.addRight f, preservesScale := \fun (a: K)(g: RightTotal.Carrier) => Tensor.bilinear.scaleRight a f g
+};
+\definition leftEmbedding[g: RightTotal.Carrier]: LeftMap.Map := LeftMap.Map {
+  apply := \fun (f: LeftTotal.Carrier) => Tensor.tensor f g, preservesAdd := \fun (f, h: LeftTotal.Carrier) => Tensor.bilinear.addLeft f h g,
+  preservesScale := \fun (a: K)(f: LeftTotal.Carrier) => Tensor.bilinear.scaleLeft a f g
+};
+\definition leftPure: \forall (v: V)(f: LeftTotal.Carrier)(g: RightTotal.Carrier) ->
+  ResultTotal.annihilate (Sum.make v right.zero) (comparison.apply (Tensor.tensor f g)) = comparison.apply (Tensor.tensor (LeftTotal.annihilate v f) g) :=
+  \fun (v: V)(f: LeftTotal.Carrier)(g: RightTotal.Carrier) => eq_reason_in!{{ResultTotal.Carrier} _
+    "=" _ "by" { Contract.onPure (Sum.make v right.zero) f g }
+    "=" _ "by" { congr!{{RightTotal.Carrier} {ResultTotal.Carrier}} (\fun (h: RightTotal.Carrier) => ResultTotal.totalSpace.add (comparison.apply (Tensor.tensor (LeftTotal.annihilate v f) g)) (comparison.apply (Tensor.tensor (LeftTotal.parity f) h))) _ _ (RightZeroVector.law g) }
+    "=" _ "by" { congr!{Tensor.Carrier {ResultTotal.Carrier}} (\fun (t: Tensor.Carrier) => ResultTotal.totalSpace.add (comparison.apply (Tensor.tensor (LeftTotal.annihilate v f) g)) (comparison.apply t)) _ _ ((rightEmbedding (LeftTotal.parity f)).preservesZero) }
+    "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} (ResultTotal.totalSpace.add (comparison.apply (Tensor.tensor (LeftTotal.annihilate v f) g))) _ _ comparison.preservesZero }
+    "=" _ "by" { ResultLaws.zeroRight (comparison.apply (Tensor.tensor (LeftTotal.annihilate v f) g)) }
+  };
+\definition rightPure: \forall (w: W)(f: LeftTotal.Carrier)(g: RightTotal.Carrier) ->
+  ResultTotal.annihilate (Sum.make left.zero w) (comparison.apply (Tensor.tensor f g)) = comparison.apply (Tensor.tensor (LeftTotal.parity f) (RightTotal.annihilate w g)) :=
+  \fun (w: W)(f: LeftTotal.Carrier)(g: RightTotal.Carrier) => eq_reason_in!{{ResultTotal.Carrier} _
+    "=" _ "by" { Contract.onPure (Sum.make left.zero w) f g }
+    "=" _ "by" { congr!{{LeftTotal.Carrier} {ResultTotal.Carrier}} (\fun (h: LeftTotal.Carrier) => ResultTotal.totalSpace.add (comparison.apply (Tensor.tensor h g)) (comparison.apply (Tensor.tensor (LeftTotal.parity f) (RightTotal.annihilate w g)))) _ _ (LeftZeroVector.law f) }
+    "=" _ "by" { congr!{Tensor.Carrier {ResultTotal.Carrier}} (\fun (t: Tensor.Carrier) => ResultTotal.totalSpace.add (comparison.apply t) (comparison.apply (Tensor.tensor (LeftTotal.parity f) (RightTotal.annihilate w g)))) _ _ ((leftEmbedding g).preservesZero) }
+    "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} (\fun (h: ResultTotal.Carrier) => ResultTotal.totalSpace.add h (comparison.apply (Tensor.tensor (LeftTotal.parity f) (RightTotal.annihilate w g)))) _ _ comparison.preservesZero }
+    "=" _ "by" { ResultLaws.zeroLeft (comparison.apply (Tensor.tensor (LeftTotal.parity f) (RightTotal.annihilate w g))) }
+  };
+\import Operators.Ext[U := ResultTotal.Carrier, target := ResultTotal.totalSpace] \as Ext;
+\import Maps.Composition[U := Tensor.Carrier, domain := Tensor.space] \as Before;
+\import Algebra.Linear[V := ResultTotal.Carrier, W := ResultTotal.Carrier, source := ResultTotal.totalSpace, target := ResultTotal.totalSpace].Composition[U := Tensor.Carrier, domain := Tensor.space] \as After;
+\definition leftIntertwines: \forall (v: V) -> After.compose (ResultTotal.annihilation (Sum.make v right.zero)) comparison = Before.compose comparison (Operators.map (LeftTotal.annihilation v) RightIdentity.identity) :=
+  \fun (v: V) => Ext.ext _ _ (\fun (f: LeftTotal.Carrier)(g: RightTotal.Carrier) => trans!{{ResultTotal.Carrier}} _ _ _ (leftPure v f g)
+    (congr!{Tensor.Carrier {ResultTotal.Carrier}} comparison.apply _ _ (sym!{Tensor.Carrier} _ _ (Operators.onTensor (LeftTotal.annihilation v) RightIdentity.identity f g))));
+\definition rightIntertwines: \forall (w: W) -> After.compose (ResultTotal.annihilation (Sum.make left.zero w)) comparison = Before.compose comparison (Operators.map LeftTotal.grading (RightTotal.annihilation w)) :=
+  \fun (w: W) => Ext.ext _ _ (\fun (f: LeftTotal.Carrier)(g: RightTotal.Carrier) => trans!{{ResultTotal.Carrier}} _ _ _ (rightPure w f g)
+    (congr!{Tensor.Carrier {ResultTotal.Carrier}} comparison.apply _ _ (sym!{Tensor.Carrier} _ _ (Operators.onTensor LeftTotal.grading (RightTotal.annihilation w) f g))));

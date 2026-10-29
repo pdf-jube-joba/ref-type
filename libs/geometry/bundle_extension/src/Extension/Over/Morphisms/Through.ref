@@ -1,0 +1,24 @@
+\definition m: N.Nat^ := first.dimension;
+\definition n: N.Nat^ := second.dimension;
+\import \parent.\parent.Retraction[X := X, F := F, bundle := source, embedding := first] \as First;
+\import \parent.\parent.Retraction[X := X, F := G, bundle := target, embedding := second] \as Second;
+\import Bundles.Trivial[X := X, n := m, baseSpace := source.baseSpace] \as FirstAmbient;
+\import Bundles.Family[X := X, F := \fun (_: X) => Bundles.Vector m] \as FirstFamily;
+\import Bundles.Trivial[X := X, n := n, baseSpace := target.baseSpace] \as SecondAmbient;
+\import Bundles.Family[X := X, F := \fun (_: X) => Bundles.Vector n] \as SecondFamily;
+\import Bundles.Morphisms[X := X, Y := X, F := \fun (_: X) => Bundles.Vector m, G := F, source := FirstAmbient.bundle, target := source, f := \fun (x: X) => x] \as Project;
+\import Bundles.Morphisms[X := X, Y := X, F := G, G := \fun (_: X) => Bundles.Vector n, source := target, target := SecondAmbient.bundle, f := \fun (x: X) => x] \as Include;
+\import Spaces.Linear[V := Bundles.Vector m, W := Bundles.Vector n, source := Bundles.coordinates m, target := Bundles.coordinates n] \as CoordinateMaps;
+\module At(x: Subspace.CarrierSet);
+\definition encoded[x: Subspace.CarrierSet]: CoordinateMaps.Map := At[x := x].map;
+\module Column(v: Bundles.Vector m);
+\import \parent.\parent.Rectangular[m := m, n := n] \as Matrices;
+\import Spaces.FiniteCoordinates[n := m] \as Basis;
+\definition input[x: Subspace.CarrierSet]: Matrices.Matrix := Matrices.entries (encoded x);
+\definition inputContinuous[i: Fin.Fin n][j: Fin.Fin m]: topology.Continuity[A := Subspace.CarrierSet, B := K].Continuous (Subspace.topology topology) scalar.topological.space (\fun (x: Subspace.CarrierSet) => input x i j) := Column[v := Basis.vectors j].continuous i;
+\structure CoordinatesExtension: \Set := {
+  value: X -> Matrices.Matrix,
+  continuous: \forall (i: Fin.Fin n)(j: Fin.Fin m) -> topology.Continuity[A := X, B := K].Continuous topology scalar.topological.space (\fun (x: X) => value x i j),
+  extends: \forall (x: Subspace.CarrierSet) -> value x = input x,
+};
+\module With(e: CoordinatesExtension);

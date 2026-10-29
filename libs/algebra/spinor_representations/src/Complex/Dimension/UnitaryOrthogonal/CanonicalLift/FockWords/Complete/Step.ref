@@ -1,0 +1,40 @@
+\import \parent.\parent.Span[k := k] \as Span;
+\import Exterior.At[k := k] \as At;
+\import Algebra.Linear[V := Total.Carrier, W := Total.Carrier, source := Total.totalSpace, target := Total.totalSpace].Operations[] \as LinearOps;
+\definition residual[f, b: Total.Carrier]: Total.Carrier := Total.totalSpace.add f (Total.totalSpace.neg b);
+\definition gradeEqual: \forall (xs: At.Enumeration)(f: Total.Carrier) -> residual f (Span.assemble xs (f k)) k = Forms.At[k := k].origin :=
+  \fun (xs: At.Enumeration)(f: Total.Carrier) => eq_reason_in!{{Forms.Form k} _
+    "=" _ "by" { congr!{{Forms.Form k} {Forms.Form k}} (\fun (x: Forms.Form k) => (Forms.At[k := k].vectorSpace).add (f k) ((Forms.At[k := k].vectorSpace).neg x)) _ _ (Span.component xs (f k)) }
+    "=" _ "by" { (Forms.At[k := k].vectorSpace).additive.group.rightInverse (f k) }
+  };
+\definition residualBound: \forall (xs: At.Enumeration)(f: Total.Carrier) -> Bounded (N.Nat^::succ k) f -> Bounded k (residual f (Span.assemble xs (f k))) :=
+  \fun (xs: At.Enumeration)(f: Total.Carrier)(bounded: Bounded (N.Nat^::succ k) f)(l: N.Nat^)(above: NatLaws.Le k l) =>
+  either!{{(Classical.excludedMiddle (k = l))} {residual f (Span.assemble xs (f k)) l = Forms.At[k := l].origin}
+    {\fun (same: k = l) => \idelim k = l \with j: N.Nat^ => residual f (Span.assemble xs (f k)) j = Forms.At[k := j].origin \by { base: gradeEqual xs f, equality: same }}
+    {\block {
+      \fun (different: Logic.Not (k = l)) \then
+      \let zeroF: f l = Forms.At[k := l].origin := bounded l (NatLaws.succLeOfLt l k (NatLaws.ltOfLeDifferent k l above different)) \then
+      \let zeroB: Span.assemble xs (f k) l = Forms.At[k := l].origin := Span.Outside[l := l].zero xs (f k) different \then
+      \let space: Algebra.VectorSpace (Forms.Form l) := Forms.At[k := l].vectorSpace \then
+      \return eq_reason_in!{{Forms.Form l} _
+        "=" _ "by" { congr!{{Forms.Form l} {Forms.Form l} {Forms.Form l}} (\fun (a, b: Forms.Form l) => space.add a (space.neg b)) _ _ _ _ zeroF zeroB }
+        "=" _ "by" { congr!{{Forms.Form l} {Forms.Form l}} (space.add space.zero) _ _ (algebra.Group[].Of[Carrier := Forms.Form l, group := std.Alg[].Ring[].ringModuleAsCommutativeGroup C.Complex (Forms.Form l) Algebra.ring space].negZero) }
+        "=" _ "by" { Algebra.Laws[V := Forms.Form l, space := space].zeroLeft space.zero }
+      }
+    }}};
+\definition recover: \forall (f, b: Total.Carrier) -> Total.totalSpace.add (residual f b) b = f :=
+  \fun (f, b: Total.Carrier) => trans!{{Total.Carrier}} _ _ _ (TotalLaws.assoc f (Total.totalSpace.neg b) b)
+    (trans!{{Total.Carrier}} _ _ _ (congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.add f) _ _ (TotalLaws.inverseLeft b)) (TotalLaws.zeroRight f));
+\definition law: Property k -> Property (N.Nat^::succ k) := \block {
+  \fun (previous: Property k)(u: Unitary.Carrier)(f: Total.Carrier)(bounded: Bounded (N.Nat^::succ k) f) \then
+  \takefrom xs: At.Enumeration \by At.existsEnumeration \then
+  \let b: Total.Carrier := Span.assemble xs (f k) \then
+  \let d: Total.Carrier := residual f b \then
+  \return eq_reason_in!{{Total.Carrier} _
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} ((Phase.actionC (lift u)).value.apply) _ _ (sym!{{Total.Carrier}} _ _ (recover f b)) }
+    "=" _ "by" { (Phase.actionC (lift u)).value.preservesAdd d b }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier} {Total.Carrier}} Total.totalSpace.add _ _ _ _ (previous u d (residualBound xs f bounded)) (Span.intertwining u xs (f k)) }
+    "=" _ "by" { sym!{{Total.Carrier}} _ _ ((action u).value.preservesAdd d b) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} ((action u).value.apply) _ _ (recover f b) }
+  }
+};

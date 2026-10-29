@@ -1,0 +1,44 @@
+\import spectral_splitting.Spectral[].Idempotents[n := n] \as Idempotents;
+\definition projection: Idempotents.Projection := Idempotents.Projection { map := End.Operations[].zeroMap,
+  idempotent := \fun (v: Vectors.Vector) => \refl(Vectors.origin) };
+\definition projections[x: X]: Idempotents.Projection := projection;
+\definition projectionRegular: Hermitian.At[n := n].Families[X := X].Matrix[m := n].Regular source (\fun (x: X) => (projections x).map) :=
+  \fun (v: Vectors.Vector)(i: M.Index) => topology.Maps[A := X, B := C.Complex].constantContinuous source Plane.topology C.Def[].zero;
+\import On.ProjectionInverse[n := n, P := projections, regular := projectionRegular] \as Native;
+\import spectral_splitting.Spectral[].Idempotents[n := n].Image[X := X, baseSpace := source, P := projections, regular := projectionRegular] \as Image;
+\import bundle_operations.Operations[].Over[K := C.Complex, field := Scalars.field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar].Zero[X := X, baseSpace := source] \as Zero;
+\import vector_bundles.Bundles[].Over[K := C.Complex, field := Scalars.field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Bundles;
+\import std.Data[].FinSet[] \as Fin;
+\definition fiberZero: \forall (x: X)(v: Image.Fiber x) -> v = Vectors.origin :=
+  \fun (x: X)(v: Image.Fiber x) => sym!{Vectors.Vector} _ _ (\bysub(Vectors.Vector, { w: Vectors.Vector \where (projection.map).apply w = w }, v));
+\definition iso: Bundles.Isomorphisms[X := X, F := Image.Fiber, G := (\fun (_: X) => Zero.Fiber), source := Image.bundle, target := Zero.bundle].Isomorphism :=
+  Bundles.Isomorphisms[X := X, F := Image.Fiber, G := (\fun (_: X) => Zero.Fiber), source := Image.bundle, target := Zero.bundle].Isomorphism {
+    forward := Zero.From[F := Image.Fiber, source := Image.bundle, sameBase := \refl(source)].map,
+    backward := Zero.To[F := Image.Fiber, target := Image.bundle, sameBase := \refl(source)].map,
+    leftInverse := \fun (x: X)(v: Image.Fiber x) => sym!{Vectors.Vector} _ _ (fiberZero x v),
+    rightInverse := \fun (x: X)(v: Zero.Fiber) => Fin.Empty[A := C.Complex].unique _ v,
+  };
+\import K.Bundle[F := Image.Fiber, original := Image.bundle, same := \refl(source)] \as ImageClass;
+\definition classZero: ImageClass.value = K.Trivial[n := N.Nat^::zero].value :=
+  K.Compare[F := Image.Fiber, G := (\fun (_: X) => Zero.Fiber), first := Image.bundle, second := Zero.bundle, firstSame := \refl(source), secondSame := \refl(source)].ofIsomorphism iso;
+\import algebra.Group[].Of[Carrier := K.K0[].Carrier, group := K.K0[].group] \as Group;
+\definition nativeZero: Native.inverse = K.K0[].zero := trans!{K.K0[].Carrier} _ _ _ Native.recovery
+  (trans!{K.K0[].Carrier} _ _ _ (congr!{K.Classes K.K0[].Carrier} (\fun (c: K.Classes) => K.K0[].difference c K.Trivial[n := N.Nat^::zero].value) _ _ classZero)
+    (Group.inverseRight (K.K0[].include K.Trivial[n := N.Nat^::zero].value)));
+\import Spaces.Laws[V := Vectors.Vector, space := Vectors.space] \as Values;
+\import \root.Linearization[].ProjectionLoop[n := n, projection := projection] \as Loop;
+\import spectral_splitting.Spectral[].At[n := n].Idempotent[P := projection.map, idempotent := projection.idempotent] \as Complement;
+\definition loopIdentity: \forall (z: C.Complex)(v: Vectors.Vector) -> (Loop.loop z).apply v = (Units.identity).apply v :=
+  \fun (z: C.Complex)(v: Vectors.Vector) => trans!{Vectors.Vector} _ _ _
+    (congr!{Vectors.Vector Vectors.Vector} (\fun (w: Vectors.Vector) => Vectors.plus w (Complement.complementMap.apply v)) _ _ (Values.scaleZero z))
+    (Complement.splitting v);
+\definition matrixEquality: \forall (p: Circle.Domain) -> Native.family.matrix p = identity.matrix p :=
+  \fun (p: Circle.Domain) => trans!{M.Matrix} _ _ _ (Native.standardFormula p)
+    (congr!{End.Map M.Matrix} M.Representation[].entries _ _ (End.ext _ _ (\axiom:funext((Loop.loop (Circle.unit p)).apply, Units.identity.apply, loopIdentity (Circle.unit p)))));
+\definition constantPath: Paths.Path[Native.family, identity] := Paths.retarget Native.family Native.family Native.family identity (Paths.constant Native.family)
+  (\fun (p: Circle.Domain) => \refl(Native.family.matrix p)) matrixEquality;
+\import On.Matrices[n := n, a := Native.family.matrix, regular := Native.family.regular, nonzero := Native.family.nonzero].Inverse[].Homotopy[
+  b := identity.matrix, regularB := identity.regular, nonzeroB := identity.nonzero].With[path := constantPath] \as Invariance;
+\definition zero: IdentityIndex.Inverse[].value = K.K0[].zero := trans!{K.K0[].Carrier} _ _ _ (sym!{K.K0[].Carrier} _ _ Invariance.invariant) nativeZero;

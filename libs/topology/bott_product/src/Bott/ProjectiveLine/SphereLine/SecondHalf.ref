@@ -1,0 +1,104 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.trans;
+\use Eq.sym;
+\use Eq.congr;
+\import std.Data[].FinSet[] \as Fin;
+\import hermitian_frames.Hermitian[] \as H;
+\import \root.Bott[].ProjectiveLine[].Homeomorphism[] \as Home;
+\import \root.Bott[].ProjectiveLine[].Coordinates[] \as Indices;
+\import \root.Bott[].ProjectiveLine[].Coordinates[].SphereMap[].Matrix[] \as Matrix;
+\import \root.Bott[].ProjectiveLine[].Coordinates[].SphereMap[].Matrix[].Projection[] \as Native;
+\import \root.Bott[].ProjectiveLine[].SphereLine[].Projection[] \as Projected;
+\import \root.Bott[].ProjectiveLine[].SphereLine[].Hemisphere[] \as Hemisphere;
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := H.Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Homotopy;
+\import Homotopy.Disks[d := two] \as Disks;
+\import Disks.Hemispheres[].Cover[] \as Cover;
+\import topology.Topology[Carrier := Sphere.Sphere].Subspace[S := Cover.NegativeHalf] \as Subspace;
+\definition Base: \Set := Subspace.CarrierSet;
+\definition topology: topology.Topology[Carrier := Base].Topology := Subspace.topology Sphere.sphereTopology;
+\definition inclusion: Base -> Sphere.Sphere := \fun (x: Base) => x;
+\definition inclusionContinuous: topology.Continuity[A := Base, B := Sphere.Sphere].Continuous topology Sphere.sphereTopology inclusion :=
+  topology.Continuity[A := Sphere.Sphere, B := Sphere.Sphere].Corestriction[S := Cover.NegativeHalf].inclusionContinuous Sphere.sphereTopology;
+\import Bundles.Family[X := Sphere.Sphere, F := Projected.Fiber].Of[bundle := Projected.bundle].Pullback[Y := Base, source := topology, f := inclusion] \as Pull;
+\definition Fiber[x: Base]: \Set := Projected.Fiber x;
+\definition bundle: Bundles.Family[X := Base, F := Fiber].Bundle := Pull.pulled inclusionContinuous;
+\import bundle_operations.Operations[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := H.Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Operations;
+\import Operations.ScalarLine[X := Base, baseSpace := topology] \as ScalarLine;
+\import Bundles.Family[X := Base, F := Fiber] \as Family;
+\import Bundles.Family[X := Base, F := (\fun (_: Base) => C.Complex)] \as Scalars;
+\import Bundles.Morphisms[X := Base, Y := Base, F := Fiber, G := (\fun (_: Base) => C.Complex), source := bundle, target := ScalarLine.bundle,
+  f := (\fun (x: Base) => x)] \as Forward;
+\import Bundles.Morphisms[X := Base, Y := Base, F := (\fun (_: Base) => C.Complex), G := Fiber, source := ScalarLine.bundle, target := bundle,
+  f := (\fun (x: Base) => x)] \as Backward;
+\definition forwardData: Forward.Data := Forward.Data { fiber := \fun (x: Base) =>
+  \root.Bott[].ProjectiveLine[].SphereLine[].SecondFrame[s := x, negative := \bysub(Sphere.Sphere, Cover.NegativeHalf, x)].decodeLinear };
+\definition backwardData: Backward.Data := Backward.Data { fiber := \fun (x: Base) =>
+  \root.Bott[].ProjectiveLine[].SphereLine[].SecondFrame[s := x, negative := \bysub(Sphere.Sphere, Cover.NegativeHalf, x)].encodeLinear };
+\import grassmannians.Complex[n := two, k := one].Model[] \as Model;
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := H.Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Complements;
+\import Complements.Projection[X := Carrier, n := two, baseSpace := \root.Bott[].ProjectiveLine[].topology, P := Model.projection, regular := Model.regular] \as Original;
+\import Original.Pullback[Y := Sphere.Sphere, source := Sphere.sphereTopology, f := Home.backward,
+  regularBase := Home.homeomorphism.backwardContinuous] \as OriginalPull;
+\import Complements.Projection[X := Sphere.Sphere, n := two, baseSpace := Sphere.sphereTopology,
+  P := (\fun (s: Sphere.Sphere) => Model.projection (Home.backward s)), regular := OriginalPull.composedRegular] \as Direct;
+\import H.Over[K := C.Complex, field := C.Algebra[].field, scalar := H.Complex[].scalar, topological := H.Complex[].topological] \as Hermitian;
+\import Hermitian.Functions[X := Sphere.Sphere] \as SphereFunctions;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := H.Complex[].scalar].Finite[n := two] \as Euclidean;
+\definition aContinuous: topology.Continuity[A := Sphere.Sphere, B := C.Complex].Continuous Sphere.sphereTopology topological_algebra.Complex[].topology Matrix.d :=
+  SphereFunctions.transport Sphere.sphereTopology (\fun (s: Sphere.Sphere) => ((Model.projection (Home.backward s)).map.apply (Euclidean.basis Indices.second)) Indices.second) Matrix.d
+    (\fun (s: Sphere.Sphere) => trans!{C.Complex} _ _ _ (Native.entries s Indices.second Indices.second) (Matrix.at11 s))
+    (OriginalPull.composedRegular (Euclidean.basis Indices.second) Indices.second);
+\definition restrictedA: topology.Continuity[A := Base, B := C.Complex].Continuous topology topological_algebra.Complex[].topology (\fun (x: Base) => Matrix.d x) :=
+  topology.Continuity[A := Sphere.Sphere, B := C.Complex].Restriction[S := Cover.NegativeHalf].restrictContinuous Sphere.sphereTopology topological_algebra.Complex[].topology Matrix.d aContinuous;
+\import topological_algebra.Complex[].Functions[A := Base] \as BaseFunctions;
+\definition inverseA: topology.Continuity[A := Base, B := C.Complex].Continuous topology topological_algebra.Complex[].topology (\fun (x: Base) => C.Def[].inv (Matrix.d x)) :=
+  BaseFunctions.inverseContinuous topology (\fun (x: Base) => Matrix.d x) restrictedA
+    (\fun (x: Base) => Hemisphere.negativeNonzero x (\bysub(Sphere.Sphere, Cover.NegativeHalf, x)));
+\import topological_algebra.Complex[].Functions[A := Family.Point] \as ForwardFunctions;
+\import topological_algebra.Coordinates[K := C.Complex, I := Fin.Fin two] \as AmbientCoordinates;
+\import Bundles.Family[X := Sphere.Sphere, F := Projected.Fiber] \as GlobalFamily;
+\definition forwardInverseContinuous: topology.Continuity[A := Family.Point, B := C.Complex].Continuous bundle.totalSpace topological_algebra.Complex[].topology
+  (\fun (p: Family.Point) => C.Def[].inv (Matrix.d p.base)) :=
+  topology.Composition[A := Family.Point, B := Base, C := C.Complex].composeContinuous bundle.totalSpace topology topological_algebra.Complex[].topology
+    Family.projection (\fun (x: Base) => C.Def[].inv (Matrix.d x)) Pull.projectionContinuous inverseA;
+\definition vectorContinuous: topology.Continuity[A := Family.Point, B := Bundles.Vector two].Continuous bundle.totalSpace (Bundles.coordinateTopology two)
+  (\fun (p: Family.Point) => p.vector) :=
+  topology.Composition[A := Family.Point, B := GlobalFamily.Point, C := Bundles.Vector two].composeContinuous bundle.totalSpace Direct.topology (Bundles.coordinateTopology two)
+    Pull.map (\fun (p: GlobalFamily.Point) => p.vector) Pull.mapContinuous Direct.vectorContinuous;
+\definition secondContinuous: topology.Continuity[A := Family.Point, B := C.Complex].Continuous bundle.totalSpace topological_algebra.Complex[].topology
+  (\fun (p: Family.Point) => p.vector Indices.second) :=
+  topology.Composition[A := Family.Point, B := Bundles.Vector two, C := C.Complex].composeContinuous bundle.totalSpace (Bundles.coordinateTopology two) topological_algebra.Complex[].topology
+    (\fun (p: Family.Point) => p.vector) (\fun (v: Bundles.Vector two) => v Indices.second) vectorContinuous (AmbientCoordinates.evaluationContinuous topological_algebra.Complex[].topology Indices.second);
+\definition forwardContinuous: topology.Continuity[A := Family.Point, B := Scalars.Point].Continuous bundle.totalSpace ScalarLine.bundle.totalSpace (Forward.total forwardData) :=
+  ScalarLine.Universal[Y := Family.Point].continuous bundle.totalSpace (Forward.total forwardData) Pull.projectionContinuous
+    (ForwardFunctions.multiplicationContinuous bundle.totalSpace (\fun (p: Family.Point) => C.Def[].inv (Matrix.d p.base))
+      (\fun (p: Family.Point) => p.vector Indices.second) forwardInverseContinuous secondContinuous);
+\definition forward: Forward.Map := \into[Forward.Data](forwardData, Forward.Map) \by { forwardContinuous };
+\import Scalars.Of[bundle := ScalarLine.bundle] \as ScalarBundle;
+\definition scalarBase: topology.Continuity[A := Scalars.Point, B := Sphere.Sphere].Continuous ScalarLine.bundle.totalSpace Sphere.sphereTopology
+  (\fun (p: Scalars.Point) => p.base) :=
+  topology.Composition[A := Scalars.Point, B := Base, C := Sphere.Sphere].composeContinuous ScalarLine.bundle.totalSpace topology Sphere.sphereTopology
+    Scalars.projection inclusion ScalarBundle.projectionContinuous inclusionContinuous;
+\import topological_algebra.Complex[].Functions[A := Scalars.Point] \as BackwardFunctions;
+\import AmbientCoordinates.Universal[A := Scalars.Point] \as AmbientUniversal;
+\definition backwardVector: topology.Continuity[A := Scalars.Point, B := Bundles.Vector two].Continuous ScalarLine.bundle.totalSpace (Bundles.coordinateTopology two)
+  (\fun (p: Scalars.Point) => (Backward.total backwardData p).vector) :=
+  AmbientUniversal.continuous ScalarLine.bundle.totalSpace topological_algebra.Complex[].topology (\fun (p: Scalars.Point) => (Backward.total backwardData p).vector)
+    (\fun (i: Fin.Fin two) => BackwardFunctions.multiplicationContinuous ScalarLine.bundle.totalSpace (\fun (p: Scalars.Point) => p.vector)
+      (\fun (p: Scalars.Point) => ((Model.projection (Home.backward p.base)).map.apply (Euclidean.basis Indices.second)) i) ScalarLine.valueContinuous
+      (topology.Composition[A := Scalars.Point, B := Sphere.Sphere, C := C.Complex].composeContinuous ScalarLine.bundle.totalSpace Sphere.sphereTopology topological_algebra.Complex[].topology
+        (\fun (p: Scalars.Point) => p.base) (\fun (s: Sphere.Sphere) => ((Model.projection (Home.backward s)).map.apply (Euclidean.basis Indices.second)) i)
+        scalarBase (OriginalPull.composedRegular (Euclidean.basis Indices.second) i)));
+\definition backwardContinuous: topology.Continuity[A := Scalars.Point, B := Family.Point].Continuous ScalarLine.bundle.totalSpace bundle.totalSpace (Backward.total backwardData) :=
+  Pull.Universal[Z := Scalars.Point].continuous ScalarLine.bundle.totalSpace (Backward.total backwardData) ScalarBundle.projectionContinuous
+    (Direct.Universal[Y := Scalars.Point, source := ScalarLine.bundle.totalSpace].continuous (\fun (p: Scalars.Point) => Pull.map (Backward.total backwardData p)) scalarBase backwardVector);
+\definition backward: Backward.Map := \into[Backward.Data](backwardData, Backward.Map) \by { backwardContinuous };
+\definition isomorphism: Bundles.Isomorphisms[X := Base, F := Fiber, G := (\fun (_: Base) => C.Complex), source := bundle, target := ScalarLine.bundle].Isomorphism :=
+  Bundles.Isomorphisms[X := Base, F := Fiber, G := (\fun (_: Base) => C.Complex), source := bundle, target := ScalarLine.bundle].Isomorphism {
+    forward := forward, backward := backward,
+    leftInverse := \fun (x: Base) => \root.Bott[].ProjectiveLine[].SphereLine[].SecondFrame[s := x, negative := \bysub(Sphere.Sphere, Cover.NegativeHalf, x)].encodeDecode,
+    rightInverse := \fun (x: Base) => \root.Bott[].ProjectiveLine[].SphereLine[].SecondFrame[s := x, negative := \bysub(Sphere.Sphere, Cover.NegativeHalf, x)].decodeEncode
+  };

@@ -1,0 +1,71 @@
+\import \parent.Exact[] \as Exact;
+\import \root.Relative[].Suspension[original := subsetModel] \as SourceSuspension;
+\import \root.Relative[].Suspension[original := model] \as TargetSuspension;
+\import algebraic_topology.Suspension[A := A].Pointed[source := subspace, basepoint := a0] \as From;
+\import algebraic_topology.Suspension[A := X].Pointed[source := space, basepoint := a0] \as To;
+\import From.Mapping[B := X, target := (pointed model), f := Exact.inclusion] \as Native;
+\import algebraic_topology.Interval[] \as Interval;
+\import algebraic_topology.Cylinder[A := A] \as SourceCylinder;
+\import algebraic_topology.Cylinder[A := X] \as TargetCylinder;
+\import algebraic_topology.Collapse[A := SourceCylinder.Carrier, subset := From.Collapsed] \as SourceCollapse;
+\import algebraic_topology.Collapse[A := TargetCylinder.Carrier, subset := To.Collapsed] \as TargetCollapse;
+\import std.Data[].Pair[] \as Pair;
+\definition result: CompactPointed := TargetSuspension.result;
+\definition inclusionMap: Map SourceSuspension.result result := Native.map;
+\definition onInclusionClass: \forall (z: SourceCylinder.Carrier) -> inclusionMap (From.class z) = To.class (Native.raw z) := Native.onClass;
+\definition rawInjective: \forall (z, w: SourceCylinder.Carrier) -> Native.raw z = Native.raw w -> z = w :=
+  \fun (z, w: SourceCylinder.Carrier)(same: Native.raw z = Native.raw w) => Pair.Prop[A := Interval.Carrier, B := A].ext z w
+    (congr!{{TargetCylinder.Carrier} {Interval.Carrier}} TargetCylinder.time _ _ same)
+    (congr!{{TargetCylinder.Carrier} {X}} TargetCylinder.point _ _ same);
+\definition reflectsCollapsed: \forall (z: SourceCylinder.Carrier) -> \In[TargetCylinder.Carrier] To.Collapsed (Native.raw z) -> \In[SourceCylinder.Carrier] From.Collapsed z :=
+  \fun (z: SourceCylinder.Carrier)(member: \In[TargetCylinder.Carrier] To.Collapsed (Native.raw z)) => member;
+\definition onRaw: \forall (z, w: SourceCylinder.Carrier) -> inclusionMap (From.class z) = inclusionMap (From.class w) -> From.class z = From.class w :=
+  \fun (z, w: SourceCylinder.Carrier)(same: inclusionMap (From.class z) = inclusionMap (From.class w)) =>
+    Logic.orElim[Native.raw z = Native.raw w, Logic.And[\In[TargetCylinder.Carrier] To.Collapsed (Native.raw z), \In[TargetCylinder.Carrier] To.Collapsed (Native.raw w)], From.class z = From.class w]
+      (TargetCollapse.equalRelated (Native.raw z) (Native.raw w)
+        (trans!{{To.Carrier}} _ _ _ (sym!{{To.Carrier}} _ _ (onInclusionClass z)) (trans!{{To.Carrier}} _ _ _ same (onInclusionClass w))))
+      (\fun (equal: Native.raw z = Native.raw w) => congr!{{SourceCylinder.Carrier} {From.Carrier}} From.class _ _ (rawInjective z w equal))
+      (\fun (both: Logic.And[\In[TargetCylinder.Carrier] To.Collapsed (Native.raw z), \In[TargetCylinder.Carrier] To.Collapsed (Native.raw w)]) =>
+        SourceCollapse.collapsed z w (reflectsCollapsed z both.left) (reflectsCollapsed w both.right));
+\definition injective: \forall (z, w: From.Carrier) -> inclusionMap z = inclusionMap w -> z = w :=
+  SourceCollapse.induction (\fun (z: From.Carrier) => \forall (w: From.Carrier) -> inclusionMap z = inclusionMap w -> z = w)
+    (\fun (z: SourceCylinder.Carrier) => SourceCollapse.induction (\fun (w: From.Carrier) => inclusionMap (From.class z) = inclusionMap w -> From.class z = w)
+      (\fun (w: SourceCylinder.Carrier) => onRaw z w));
+\definition continuous: topology.Continuity[A := From.Carrier, B := To.Carrier].Continuous From.topology To.topology inclusionMap := Native.continuous;
+\import algebraic_topology.Pointed[A := From.Carrier].Maps[B := To.Carrier] \as PointedMaps;
+\definition onPoint: inclusionMap From.point = To.point := (PointedMaps.laws (pointed SourceSuspension.result) (pointed result) inclusionMap).pointed;
+\import topology.Topology[Carrier := From.Carrier] \as SourceSpace;
+\import topology.Topology[Carrier := To.Carrier] \as TargetSpace;
+\import topology.Maps[A := From.Carrier, B := To.Carrier] \as Images;
+\definition image: \Pow To.Carrier := Images.Image inclusionMap SourceSpace.Whole;
+\definition imageClosed: TargetSpace.IsClosedIn To.topology image := TargetSpace.Compactness[].compactClosed To.topology (details result).hausdorff image
+  (topology.Compactness[A := From.Carrier, B := To.Carrier].continuousImage From.topology To.topology inclusionMap continuous SourceSpace.Whole (details SourceSuspension.result).compact);
+\definition containsPoint: TargetSpace.Member image To.point := \idelim inclusionMap From.point = To.point \with z: To.Carrier => TargetSpace.Member image z \by {
+  base: Images.imageMember inclusionMap SourceSpace.Whole From.point (\refl(From.point)), equality: onPoint
+};
+\import TargetSpace.Subspace[S := image] \as ImageSpace;
+\definition ImagePoint: \Set := ImageSpace.CarrierSet;
+\definition imageTopology: topology.Topology[Carrier := ImagePoint].Topology := ImageSpace.topology To.topology;
+\definition distinguished: ImagePoint := \into[To.Carrier](To.point, image) \by { containsPoint };
+\definition imageModel: CompactPointed := pack ImagePoint (PointedDetails[ImagePoint] {
+  topology := imageTopology,
+  compact := ImageSpace.Properties[].compact To.topology (TargetSpace.Compactness[].closedCompact To.topology (details result).compact image imageClosed),
+  hausdorff := ImageSpace.Properties[].hausdorff To.topology (details result).hausdorff, point := distinguished
+});
+\definition into[z: From.Carrier]: ImagePoint := \into[To.Carrier](inclusionMap z, image) \by { Images.imageMember inclusionMap SourceSpace.Whole z (\refl(z)) };
+\definition intoContinuous: topology.Continuity[A := From.Carrier, B := ImagePoint].Continuous From.topology imageTopology into :=
+  topology.Continuity[A := From.Carrier, B := To.Carrier].Corestriction[S := image].corestrictContinuous From.topology To.topology into continuous;
+\import algebraic_topology.Pointed[A := From.Carrier].Maps[B := ImagePoint] \as ImageMaps;
+\definition imageMap: Map SourceSuspension.result imageModel := \into[From.Carrier -> ImagePoint](into, Map SourceSuspension.result imageModel) \by {
+  ImageMaps.Laws[pointed SourceSuspension.result, pointed imageModel, into] { continuous := intoContinuous, pointed := onPoint }
+};
+\definition intoInjective: \forall (z, w: From.Carrier) -> into z = into w -> z = w := \fun (z, w: From.Carrier)(same: into z = into w) => injective z w same;
+\definition onto: \forall (z: ImagePoint) -> \exists (w: From.Carrier \where into w = z) := \block {
+  \fun (z: ImagePoint) \then
+  \takefrom w: \Cast[From.Carrier] ({ w: From.Carrier \where Logic.And[w = w, inclusionMap w = z] }) \by \bysub(To.Carrier, image, z) \then
+  \return Logic.existsIntro[From.Carrier, { w: From.Carrier \where into w = z }] w
+    ((\bysub(From.Carrier, { w: From.Carrier \where Logic.And[w = w, inclusionMap w = z] }, w)).right)
+};
+\import \root.Relative[].Equivalence[source := SourceSuspension.result, target := imageModel].FromMap[f := imageMap, injective := intoInjective, onto := onto] \as ImageEquivalence;
+\definition equivalence: \root.Relative[].Equivalence[source := SourceSuspension.result, target := imageModel].Data := ImageEquivalence.equivalence;
+\module Quotient;

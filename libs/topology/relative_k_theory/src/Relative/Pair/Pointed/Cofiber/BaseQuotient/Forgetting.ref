@@ -1,0 +1,23 @@
+\definition basePoint: \Cast[Carrier] baseImage := \into[Carrier](base a0, baseImage) \by { containsBase a0 };
+\import BasePair.Pointed[a0 := basePoint].Exact[] \as Exact;
+\import \root.Relative[].Reduced[model := result] \as CofiberReduced;
+\import \root.Relative[].Reduced[model := Suspended.result] \as Source;
+\import algebraic_topology.Pointed[A := Carrier].Maps[B := Suspension.Carrier] \as Maps;
+\definition cofiberMap: Map result Suspended.result := \into[Carrier -> Suspension.Carrier](Fwd.cofiber, Map result Suspended.result) \by {
+  Maps.Laws[pointed result, pointed Suspended.result, Fwd.cofiber] { continuous := Fwd.cofiberContinuous, pointed := Fwd.onBase a0 }
+};
+\import \root.Relative[].Pullback[source := result, target := Q.model, f := Exact.projectionMap] \as Project;
+\import \root.Relative[].Composition[source := result, middle := Q.model, target := Suspended.result, first := Exact.projectionMap, second := Fwd.map] \as Composite;
+\import \root.Relative[].Pullback[source := result, target := Suspended.result, f := Composite.map] \as Direct;
+\import \root.Relative[].Pullback[source := result, target := Suspended.result, f := cofiberMap] \as CofiberPull;
+\definition sameMap: Composite.map = cofiberMap := \axiom:funext(Composite.map, cofiberMap, Fwd.onProjection);
+\definition changed: \forall (v: Source.Carrier) -> Direct.map v = CofiberPull.map v :=
+  \fun (v: Source.Carrier) => congr!{{Map result Suspended.result} {CofiberReduced.Carrier}}
+    (\fun (f: Map result Suspended.result) => \root.Relative[].Pullback[source := result, target := Suspended.result, f := f].map v) _ _ sameMap;
+\definition forget[v: Q.Relative]: CofiberReduced.Carrier := Exact.forget v;
+\definition pullback[v: Source.Carrier]: CofiberReduced.Carrier := CofiberPull.map v;
+\definition equation: \forall (v: Source.Carrier) -> forget (forward v) = pullback v :=
+  \fun (v: Source.Carrier) => trans!{{CofiberReduced.Carrier}} _ _ _ (sym!{{CofiberReduced.Carrier}} _ _ (Exact.projectionEquation (forward v)))
+    (trans!{{CofiberReduced.Carrier}} _ _ _
+      (sym!{{CofiberReduced.Carrier}} _ _ (\root.Relative[].PullbackComposition[source := result, middle := Q.model, target := Suspended.result,
+        first := Exact.projectionMap, second := Fwd.map].equation v)) (changed v));

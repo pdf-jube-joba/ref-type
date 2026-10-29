@@ -1,0 +1,142 @@
+\import clifford.Circle[] \as Circle;
+\import algebra.Groups[].Units[A := C.Complex, ring := Algebra.ring] \as Scalars;
+\import Scalars.Mapping[B := End.Carrier, target := End.ring, f := End.scalarMap] \as ScalarMapping;
+\definition scalarUnit[z: Circle.Circle]: Scalars.Unit := Scalars.Unit {
+  value := z, inverse := Circle.inverse z,
+  left := Circle.group.leftInverse z,
+  right := Circle.group.rightInverse z,
+};
+\definition phase[z: Circle.Circle]: TargetUnits.Unit := ScalarMapping.apply (scalarUnit z);
+\definition product: \forall (z, w: Circle.Circle) -> phase (Circle.product z w) = TargetUnits.product (phase z) (phase w) :=
+  \fun (z, w: Circle.Circle) => TargetUnits.ext _ _ ((ScalarMapping.laws).mul z w);
+\definition one: phase Circle.one = TargetUnits.unit := TargetUnits.ext _ _ (ScalarMapping.laws).one;
+\definition onValue: \forall (z: Circle.Circle) -> (phase z).value = End.scalar z := \fun (z: Circle.Circle) => \refl(End.scalar z);
+\import algebra.Groups[].On[G := TargetUnits.Unit, group := TargetUnits.group] \as Ops;
+\definition central: \forall (z: Circle.Circle)(g: TargetUnits.Unit) -> TargetUnits.product (phase z) g = TargetUnits.product g (phase z) :=
+  \fun (z: Circle.Circle)(g: TargetUnits.Unit) => TargetUnits.ext _ _ (End.scalarCentral z g.value);
+\import algebra.Group[].Of[Carrier := End.Carrier, group := std.Alg[].Ring[].additiveGroup End.Carrier End.ring] \as EndSum;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import algebra.Hom[A := Source.Carrier, B := End.Carrier] \as RingHom;
+\import std.Alg[].Ring[] \as Rings;
+\definition extensionLaws: RingHom.SemiringLaws[Rings.ringAsSemiring Source.Carrier Source.ring, Rings.ringAsSemiring End.Carrier End.ring, extension] := RingHom.semiringLaws _ _ extension;
+\definition mapNegativeOne: extension (Source.neg Source.one) = End.neg End.one :=
+  EndSum.inverseUnique End.one (extension (Source.neg Source.one)) (eq_reason_in!{End.Carrier _
+    "=" _ "by" { congr!{End.Carrier End.Carrier} (End.add (extension (Source.neg Source.one))) _ _ (sym!{End.Carrier} _ _ extensionLaws.one) }
+    "=" _ "by" { sym!{End.Carrier} _ _ (extensionLaws.add (Source.neg Source.one) Source.one) }
+    "=" _ "by" { congr!{Source.Carrier End.Carrier} extension _ _ (Source.ring.additiveInverse Source.one) }
+    "=" _ "by" { extensionLaws.zero }
+  });
+\definition signEqual: action Pin.spinSign = phase Circle.minusOne := TargetUnits.ext _ _ mapNegativeOne;
+\definition values[g: Pin.Spin][z: Circle.Circle]: TargetUnits.Unit := TargetUnits.product (phase z) (action g);
+\import SourceUnits.Mapping[B := End.Carrier, target := End.ring, f := extension] \as SpinMapping;
+\definition invariant: \forall (g: Pin.Spin)(z: Circle.Circle) -> values (Pin.spinGroup.op Pin.spinSign g) (Circle.product Circle.minusOne z) = values g z :=
+  \fun (g: Pin.Spin)(z: Circle.Circle) => eq_reason_in!{TargetUnits.Unit _
+    "=" _ "by" { congr!{TargetUnits.Unit TargetUnits.Unit TargetUnits.Unit} TargetUnits.product _ _ _ _
+      (product Circle.minusOne z) (SpinMapping.preservesProduct Pin.spinSign g) }
+    "=" _ "by" { congr!{TargetUnits.Unit TargetUnits.Unit} (\fun (u: TargetUnits.Unit) => TargetUnits.product (TargetUnits.product u (phase z)) (TargetUnits.product (action Pin.spinSign) (action g))) _ _ (sym!{TargetUnits.Unit} _ _ signEqual) }
+    "=" _ "by" { Ops.assoc (action Pin.spinSign) (phase z) (TargetUnits.product (action Pin.spinSign) (action g)) }
+    "=" _ "by" { congr!{TargetUnits.Unit TargetUnits.Unit} (TargetUnits.product (action Pin.spinSign)) _ _ (sym!{TargetUnits.Unit} _ _ (Ops.assoc (phase z) (action Pin.spinSign) (action g))) }
+    "=" _ "by" { congr!{TargetUnits.Unit TargetUnits.Unit} (\fun (u: TargetUnits.Unit) => TargetUnits.product (action Pin.spinSign) (TargetUnits.product u (action g))) _ _ (central z (action Pin.spinSign)) }
+    "=" _ "by" { congr!{TargetUnits.Unit TargetUnits.Unit} (TargetUnits.product (action Pin.spinSign)) _ _ (Ops.assoc (action Pin.spinSign) (phase z) (action g)) }
+    "=" _ "by" { sym!{TargetUnits.Unit} _ _ (Ops.assoc (action Pin.spinSign) (action Pin.spinSign) (TargetUnits.product (phase z) (action g))) }
+    "=" _ "by" { congr!{TargetUnits.Unit TargetUnits.Unit} (\fun (u: TargetUnits.Unit) => TargetUnits.product u (values g z)) _ _
+      (trans!{TargetUnits.Unit} _ _ _ (sym!{TargetUnits.Unit} _ _ (SpinMapping.preservesProduct Pin.spinSign Pin.spinSign))
+        (trans!{TargetUnits.Unit} _ _ _ (congr!{Pin.Spin TargetUnits.Unit} action _ _ Pin.spinInvolution.square) SpinMapping.atOne)) }
+    "=" _ "by" { Ops.oneLeft (values g z) }
+  };
+\import clifford.ComplexExtension[G := Pin.Spin, group := Pin.spinGroup].By[sign := Pin.spinInvolution] \as SpinC;
+\import SpinC.Lift[B := TargetUnits.Unit, values := values, invariant := invariant] \as Lift;
+\definition actionC: SpinC.Carrier -> TargetUnits.Unit := Lift.map;
+\definition onClass: \forall (g: Pin.Spin)(z: Circle.Circle) -> actionC (SpinC.class g z) = values g z := Lift.onClass;
+\definition valuesProduct: \forall (g, h: Pin.Spin)(z, w: Circle.Circle) ->
+  values (Pin.spinGroup.op g h) (Circle.product z w) = TargetUnits.product (values g z) (values h w) :=
+  \fun (g, h: Pin.Spin)(z, w: Circle.Circle) => eq_reason_in!{TargetUnits.Unit _
+    "=" _ "by" { congr!{TargetUnits.Unit TargetUnits.Unit TargetUnits.Unit} TargetUnits.product _ _ _ _ (product z w) (SpinMapping.preservesProduct g h) }
+    "=" _ "by" { Ops.assoc (phase z) (phase w) (TargetUnits.product (action g) (action h)) }
+    "=" _ "by" { congr!{TargetUnits.Unit TargetUnits.Unit} (TargetUnits.product (phase z)) _ _ (sym!{TargetUnits.Unit} _ _ (Ops.assoc (phase w) (action g) (action h))) }
+    "=" _ "by" { congr!{TargetUnits.Unit TargetUnits.Unit} (\fun (u: TargetUnits.Unit) => TargetUnits.product (phase z) (TargetUnits.product u (action h))) _ _ (central w (action g)) }
+    "=" _ "by" { congr!{TargetUnits.Unit TargetUnits.Unit} (TargetUnits.product (phase z)) _ _ (Ops.assoc (action g) (phase w) (action h)) }
+    "=" _ "by" { sym!{TargetUnits.Unit} _ _ (Ops.assoc (phase z) (action g) (values h w)) }
+  };
+\definition productC: \forall (a, b: SpinC.Carrier) -> actionC (SpinC.group.op a b) = TargetUnits.product (actionC a) (actionC b) :=
+  SpinC.induction2 (\fun (a, b: SpinC.Carrier) => actionC (SpinC.group.op a b) = TargetUnits.product (actionC a) (actionC b))
+    (\fun (g: Pin.Spin)(z: Circle.Circle)(h: Pin.Spin)(w: Circle.Circle) => eq_reason_in!{TargetUnits.Unit _
+      "=" _ "by" { congr!{SpinC.Carrier TargetUnits.Unit} actionC _ _ (SpinC.multiplication g h z w) }
+      "=" _ "by" { onClass (Pin.spinGroup.op g h) (Circle.product z w) }
+      "=" _ "by" { valuesProduct g h z w }
+      "=" _ "by" { congr!{TargetUnits.Unit TargetUnits.Unit TargetUnits.Unit} TargetUnits.product _ _ _ _
+        (sym!{TargetUnits.Unit} _ _ (onClass g z)) (sym!{TargetUnits.Unit} _ _ (onClass h w)) }
+    });
+\definition unitC: actionC SpinC.group.unit = TargetUnits.unit := trans!{TargetUnits.Unit} _ _ _ (onClass Pin.spinGroup.unit Circle.one)
+  (trans!{TargetUnits.Unit} _ _ _ (congr!{TargetUnits.Unit TargetUnits.Unit TargetUnits.Unit} TargetUnits.product _ _ _ _ one SpinMapping.atOne) (Ops.oneLeft TargetUnits.unit));
+\import algebra.Hom[A := SpinC.Carrier, B := TargetUnits.Unit] \as Maps;
+\definition homomorphism: Maps.GroupMap SpinC.group TargetUnits.group := \into[SpinC.Carrier -> TargetUnits.Unit](actionC, Maps.GroupMap SpinC.group TargetUnits.group) \by {
+  Maps.MonoidLaws[_, _, actionC] { unit := unitC, operation := productC }
+};
+\import lie_groups.Euclidean[n := Sum.dimension] \as Geometry;
+\definition geometricAction: Geometry.SpinC -> TargetUnits.Unit := actionC;
+\definition geometricHomomorphism: algebra.Hom[A := Geometry.SpinC, B := TargetUnits.Unit].GroupMap Geometry.spinCGroup TargetUnits.group := homomorphism;
+\definition phaseSquare[g: Pin.Spin][z: Circle.Circle]: Circle.Circle := Circle.square z;
+\definition phaseInvariant: \forall (g: Pin.Spin)(z: Circle.Circle) -> phaseSquare (Pin.spinGroup.op Pin.spinSign g) (Circle.product Circle.minusOne z) = phaseSquare g z :=
+  \fun (g: Pin.Spin)(z: Circle.Circle) => Circle.squareMinus z;
+\import SpinC.Lift[B := Circle.Circle, values := phaseSquare, invariant := phaseInvariant] \as DeterminantLift;
+\definition determinant: SpinC.Carrier -> Circle.Circle := DeterminantLift.map;
+\definition determinantOnClass: \forall (g: Pin.Spin)(z: Circle.Circle) -> determinant (SpinC.class g z) = Circle.square z := DeterminantLift.onClass;
+\definition determinantProduct: \forall (a, b: SpinC.Carrier) -> determinant (SpinC.group.op a b) = Circle.product (determinant a) (determinant b) :=
+  SpinC.induction2 (\fun (a, b: SpinC.Carrier) => determinant (SpinC.group.op a b) = Circle.product (determinant a) (determinant b))
+    (\fun (g: Pin.Spin)(z: Circle.Circle)(h: Pin.Spin)(w: Circle.Circle) => eq_reason_in!{Circle.Circle _
+      "=" _ "by" { congr!{SpinC.Carrier Circle.Circle} determinant _ _ (SpinC.multiplication g h z w) }
+      "=" _ "by" { determinantOnClass (Pin.spinGroup.op g h) (Circle.product z w) }
+      "=" _ "by" { Circle.squareProduct z w }
+      "=" _ "by" { congr!{Circle.Circle Circle.Circle Circle.Circle} Circle.product _ _ _ _
+        (sym!{Circle.Circle} _ _ (determinantOnClass g z)) (sym!{Circle.Circle} _ _ (determinantOnClass h w)) }
+    });
+\definition determinantUnit: determinant SpinC.group.unit = Circle.one := trans!{Circle.Circle} _ _ _ (determinantOnClass Pin.spinGroup.unit Circle.one) Circle.squareOne;
+\import algebra.Hom[A := SpinC.Carrier, B := Circle.Circle] \as DeterminantHom;
+\definition determinantHomomorphism: DeterminantHom.GroupMap SpinC.group Circle.group := \into[SpinC.Carrier -> Circle.Circle](determinant, DeterminantHom.GroupMap SpinC.group Circle.group) \by {
+  DeterminantHom.MonoidLaws[_, _, determinant] { unit := determinantUnit, operation := determinantProduct }
+};
+\import Geometry.PinRepresentation[] \as OrthogonalAction;
+\import algebra.Groups[].On[G := Geometry.O, group := Geometry.orthogonalGroup] \as OrthogonalOps;
+\definition baseValue[g: Pin.Spin][z: Circle.Circle]: Geometry.O := OrthogonalAction.spinMap g;
+\definition baseInvariant: \forall (g: Pin.Spin)(z: Circle.Circle) -> baseValue (Pin.spinGroup.op Pin.spinSign g) (Circle.product Circle.minusOne z) = baseValue g z :=
+  \fun (g: Pin.Spin)(z: Circle.Circle) => trans!{Geometry.O} _ _ _
+    (OrthogonalAction.multiplication Pin.sign (Pin.inclusion g))
+    (trans!{Geometry.O} _ _ _ (congr!{Geometry.O Geometry.O} (\fun (u: Geometry.O) => OrthogonalOps.mul u (OrthogonalAction.spinMap g)) _ _ OrthogonalAction.atSign)
+      (OrthogonalOps.oneLeft (OrthogonalAction.spinMap g)));
+\import SpinC.Lift[B := Geometry.O, values := baseValue, invariant := baseInvariant] \as BaseLift;
+\definition projection: SpinC.Carrier -> Geometry.O := BaseLift.map;
+\definition projectionOnClass: \forall (g: Pin.Spin)(z: Circle.Circle) -> projection (SpinC.class g z) = OrthogonalAction.spinMap g := BaseLift.onClass;
+\definition projectionProduct: \forall (a, b: SpinC.Carrier) -> projection (SpinC.group.op a b) = Geometry.orthogonalGroup.op (projection a) (projection b) :=
+  SpinC.induction2 (\fun (a, b: SpinC.Carrier) => projection (SpinC.group.op a b) = Geometry.orthogonalGroup.op (projection a) (projection b))
+    (\fun (g: Pin.Spin)(z: Circle.Circle)(h: Pin.Spin)(w: Circle.Circle) => eq_reason_in!{Geometry.O _
+      "=" _ "by" { congr!{SpinC.Carrier Geometry.O} projection _ _ (SpinC.multiplication g h z w) }
+      "=" _ "by" { projectionOnClass (Pin.spinGroup.op g h) (Circle.product z w) }
+      "=" _ "by" { OrthogonalAction.multiplication (Pin.inclusion g) (Pin.inclusion h) }
+      "=" _ "by" { congr!{Geometry.O Geometry.O Geometry.O} OrthogonalOps.mul _ _ _ _
+        (sym!{Geometry.O} _ _ (projectionOnClass g z)) (sym!{Geometry.O} _ _ (projectionOnClass h w)) }
+    });
+\definition projectionUnit: projection SpinC.group.unit = Geometry.orthogonalGroup.unit := trans!{Geometry.O} _ _ _ (projectionOnClass Pin.spinGroup.unit Circle.one) OrthogonalAction.atOne;
+\import algebra.Hom[A := SpinC.Carrier, B := Geometry.O] \as ProjectionHom;
+\definition projectionHomomorphism: ProjectionHom.GroupMap SpinC.group Geometry.orthogonalGroup := \into[SpinC.Carrier -> Geometry.O](projection, ProjectionHom.GroupMap SpinC.group Geometry.orthogonalGroup) \by {
+  ProjectionHom.MonoidLaws[_, _, projection] { unit := projectionUnit, operation := projectionProduct }
+};
+\module Equivariance;
+\import \root.Orientation[].Dimension[d := Sum.dimension].Even[] \as OrientationEven;
+\import Geometry.Orientation[] \as Orientation;
+\import lie_groups.Classical[].On[V := E.Vector, space := E.space].Orthogonal[form := E.form].Special[n := Sum.dimension] \as Special;
+\definition preservesOrientation: \forall (g: SpinC.Carrier) -> Special.PreservesVolume (projection g) :=
+  SpinC.induction (\fun (g: SpinC.Carrier) => Special.PreservesVolume (projection g))
+    (\fun (g: Pin.Spin)(z: Circle.Circle) => \idelim OrthogonalAction.spinMap g = projection (SpinC.class g z) \with q: Geometry.O => Special.PreservesVolume q \by {
+      base: (Orientation.preservesIff (OrthogonalAction.spinMap g)).rtl (OrientationEven.determinant g),
+      equality: sym!{Geometry.O} _ _ (projectionOnClass g z)
+    });
+\definition specialProjection[g: SpinC.Carrier]: Special.SO := \into[Geometry.O](projection g, Special.subset) \by { preservesOrientation g };
+\import algebra.Hom[A := SpinC.Carrier, B := Special.SO] \as SpecialHom;
+\definition specialProjectionHomomorphism: SpecialHom.GroupMap SpinC.group Special.group := \into[SpinC.Carrier -> Special.SO](specialProjection, SpecialHom.GroupMap SpinC.group Special.group) \by {
+  SpecialHom.MonoidLaws[_, _, specialProjection] { unit := projectionUnit, operation := projectionProduct }
+};

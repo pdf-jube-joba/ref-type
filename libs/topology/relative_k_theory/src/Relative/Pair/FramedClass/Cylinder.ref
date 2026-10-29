@@ -1,0 +1,20 @@
+\import \parent.\parent.CylinderSubset[] \as Boundary;
+\import \parent.\parent.CylinderRestriction[F := F, sourceModel := sourceModel] \as SourceComparison;
+\import Bundles.Trivial[X := X, n := n, baseSpace := space] \as Trivial;
+\import \parent.\parent.BundleModel[F := (\fun (x: X) => Bundles.Vector n)].From[original := Trivial.bundle, same := (\refl(space))] \as TrivialModel;
+\import \parent.\parent.CylinderRestriction[F := (\fun (x: X) => Bundles.Vector n), sourceModel := TrivialModel.model] \as TargetComparison;
+\definition source: Bundles.Family[X := Boundary.Carrier, F := SourceComparison.Fiber].Bundle := SourceComparison.cylinderRestriction;
+\definition target: Bundles.Family[X := Boundary.Carrier, F := (\fun (z: Boundary.Carrier) => Bundles.Vector n)].Bundle := TargetComparison.cylinderRestriction;
+\import Complements.PulledIsomorphism[X := A, Y := Boundary.Carrier, F := (\fun (x: A) => F x), G := (\fun (x: A) => Bundles.Vector n),
+  source := SourceComparison.boundaryBundle, target := TargetComparison.boundaryBundle, base := Boundary.topology, f := Boundary.boundary,
+  sourceRegular := Boundary.boundaryContinuous, targetRegular := Boundary.boundaryContinuous] \as Pull;
+\import Operations.IsomorphismComposition[X := Boundary.Carrier, F := SourceComparison.Fiber, G := SourceComparison.Fiber, H := (\fun (z: Boundary.Carrier) => Bundles.Vector n),
+  source := source, middle := SourceComparison.subsetCylinder, target := TargetComparison.subsetCylinder] \as First;
+\import Bundles.Isomorphisms[X := Boundary.Carrier, F := (\fun (z: Boundary.Carrier) => Bundles.Vector n), G := (\fun (z: Boundary.Carrier) => Bundles.Vector n),
+  source := target, target := TargetComparison.subsetCylinder] \as TargetReverse;
+\import Operations.IsomorphismComposition[X := Boundary.Carrier, F := SourceComparison.Fiber, G := (\fun (z: Boundary.Carrier) => Bundles.Vector n), H := (\fun (z: Boundary.Carrier) => Bundles.Vector n),
+  source := source, middle := TargetComparison.subsetCylinder, target := target] \as Last;
+\import Bundles.Isomorphisms[X := Boundary.Carrier, F := SourceComparison.Fiber, G := (\fun (z: Boundary.Carrier) => Bundles.Vector n), source := source, target := target] \as Isomorphisms;
+\definition isomorphism: Isomorphisms.Isomorphism := Last.compose (First.compose SourceComparison.comparison (Pull.isomorphism alpha)) (TargetReverse.inverse TargetComparison.comparison);
+\definition formula: \forall (z: Boundary.Carrier)(v: F (Boundary.point z)) -> (isomorphism.forward.fiber z).apply v = (alpha.forward.fiber (Boundary.boundary z)).apply v :=
+  \fun (z: Boundary.Carrier)(v: F (Boundary.point z)) => \refl((alpha.forward.fiber (Boundary.boundary z)).apply v);

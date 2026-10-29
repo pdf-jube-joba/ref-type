@@ -1,0 +1,49 @@
+\import std.Data[].Pair[] \as Pair;
+\import topology.Topology[Carrier := X] \as Factor;
+\import topological_constructions.Product[A := X, B := A] \as LeftProduct;
+\import topological_constructions.Product[A := X, B := B] \as RightProduct;
+\import topological_constructions.Product[A := X, B := Sum.Carrier] \as SumProduct;
+\import topological_constructions.Product[A := X, B := Carrier] \as Product;
+\import \parent.Universal[D := D] \as Universal;
+\import Sum.ProductUniversal[X := X, D := D, factor := factor, left := left, right := right, target := target] \as Copair;
+\definition Compatible[f: LeftProduct.CarrierSet -> D][g: RightProduct.CarrierSet -> D]: \Prop :=
+  \forall (t: X)(c: C) -> f (Pair.pair X A t (u c)) = g (Pair.pair X B t (v c));
+\definition leftSlice[f: LeftProduct.CarrierSet -> D][t: X][a: A]: D := f (Pair.pair X A t a);
+\definition rightSlice[g: RightProduct.CarrierSet -> D][t: X][b: B]: D := g (Pair.pair X B t b);
+\definition sliceCompatible[f: LeftProduct.CarrierSet -> D][g: RightProduct.CarrierSet -> D][compatible: Compatible f g][t: X]:
+  Universal.Compatible (leftSlice f t) (rightSlice g t) := compatible t;
+\definition apply[f: LeftProduct.CarrierSet -> D][g: RightProduct.CarrierSet -> D][compatible: Compatible f g][p: Product.CarrierSet]: D :=
+  Universal.apply (leftSlice f (Pair.first X Carrier p)) (rightSlice g (Pair.first X Carrier p))
+    (sliceCompatible f g compatible (Pair.first X Carrier p)) (Pair.second X Carrier p);
+\definition onLeft: \forall (f: LeftProduct.CarrierSet -> D)(g: RightProduct.CarrierSet -> D)(compatible: Compatible f g)(t: X)(a: A) ->
+  apply f g compatible (Pair.pair X Carrier t (inl a)) = f (Pair.pair X A t a) :=
+  \fun (f: _)(g: _)(compatible: _)(t: X)(a: A) => Universal.onLeft (leftSlice f t) (rightSlice g t) (sliceCompatible f g compatible t) a;
+\definition onRight: \forall (f: LeftProduct.CarrierSet -> D)(g: RightProduct.CarrierSet -> D)(compatible: Compatible f g)(t: X)(b: B) ->
+  apply f g compatible (Pair.pair X Carrier t (inr b)) = g (Pair.pair X B t b) :=
+  \fun (f: _)(g: _)(compatible: _)(t: X)(b: B) => Universal.onRight (leftSlice f t) (rightSlice g t) (sliceCompatible f g compatible t) b;
+\import topological_constructions.ProductQuotient[X := X, A := Sum.Carrier, B := Carrier] \as ProductQuotient;
+\definition onLift: \forall (f: LeftProduct.CarrierSet -> D)(g: RightProduct.CarrierSet -> D)(compatible: Compatible f g)(p: SumProduct.CarrierSet) ->
+  apply f g compatible (ProductQuotient.map class p) = Copair.apply f g p :=
+  \fun (f: _)(g: _)(compatible: _) => \induction (p: SumProduct.CarrierSet) \return apply f g compatible (ProductQuotient.map class p) = Copair.apply f g p \with {
+    | pair: \fun (t: X) => \induction (s: Sum.Carrier) \return
+      apply f g compatible (Pair.pair X Carrier t (class s)) = Copair.apply f g (Pair.pair X Sum.Carrier t s) \with {
+      | inl: \fun (a: A) => onLeft f g compatible t a
+      | inr: \fun (b: B) => onRight f g compatible t b
+    }
+  };
+\import topology.Topology[Carrier := SumProduct.CarrierSet] \as Domain;
+\import topology.Topology[Carrier := D] \as Range;
+\definition continuous: Factor.IsCompact factor -> Factor.IsT2 factor ->
+  \forall (f: LeftProduct.CarrierSet -> D)(g: RightProduct.CarrierSet -> D)(compatible: Compatible f g) ->
+  topology.Continuity[A := LeftProduct.CarrierSet, B := D].Continuous (LeftProduct.topology factor left) target f ->
+  topology.Continuity[A := RightProduct.CarrierSet, B := D].Continuous (RightProduct.topology factor right) target g ->
+  topology.Continuity[A := Product.CarrierSet, B := D].Continuous (Product.topology factor (topology left right)) target (apply f g compatible) :=
+  \fun (compact: _)(hausdorff: _)(f: _)(g: _)(compatible: _)(fc: _)(gc: _)(U: \Pow D)(open: Range.IsOpenIn target U) =>
+    (ProductQuotient.quotientMap factor compact hausdorff (Sum.topology left right) (topology left right) class (Quotient.quotientMap (Sum.topology left right))).reflectsOpen
+      ({ p: Product.CarrierSet \where \In[D] U (apply f g compatible p) })
+      (\idelim Copair.apply f g = (\fun (p: SumProduct.CarrierSet) => apply f g compatible (ProductQuotient.map class p))
+        \with h: (SumProduct.CarrierSet -> D) => Domain.IsOpenIn (SumProduct.topology factor (Sum.topology left right)) ({ p: SumProduct.CarrierSet \where \In[D] U (h p) }) \by {
+          base: Copair.continuous f g fc gc U open,
+          equality: \axiom:funext(Copair.apply f g, (\fun (p: SumProduct.CarrierSet) => apply f g compatible (ProductQuotient.map class p)),
+            \fun (p: SumProduct.CarrierSet) => sym!{D} _ _ (onLift f g compatible p))
+        });

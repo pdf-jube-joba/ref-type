@@ -1,0 +1,67 @@
+\use Equality.eq_reason_in;
+\import Absolute.Trivial[n := first.dimension] \as FirstGlobal;
+\import Absolute.Trivial[n := second.dimension] \as SecondGlobal;
+\import Absolute.Trivial[n := k] \as AddedGlobal;
+\import GlobalU.Trivial[n := first.dimension] \as FirstU;
+\import GlobalU.Trivial[n := second.dimension] \as SecondU;
+\import GlobalU.Trivial[n := k] \as AddedU;
+\import GlobalV.Trivial[n := first.dimension] \as FirstV;
+\import GlobalV.Trivial[n := second.dimension] \as SecondV;
+\import GlobalV.Trivial[n := k] \as AddedV;
+\import \root.Relative[].GroupCalculus[X := UK.Carrier, group := UK.group] \as UGroup;
+\import \root.Relative[].GroupCalculus[X := VK.Carrier, group := VK.group] \as VGroup;
+\definition denominator: XK.Carrier := XK.add (XK.add (XK.include FirstGlobal.value) (XK.include SecondGlobal.value)) (XK.include AddedGlobal.value);
+\definition globalValue: XK.Carrier := XK.add (XK.include globalClass) (XK.neg denominator);
+\definition denominatorU: UK.Carrier := UK.add (UK.add (UK.include UDenominator.value) (UK.include UOther.value)) (UK.include UAdded.value);
+\definition denominatorV: VK.Carrier := VK.add (VK.add (VK.include VOther.value) (VK.include VDenominator.value)) (VK.include VAdded.value);
+\definition denominatorOnU: RestrictU.map denominator = denominatorU :=
+  trans!{{UK.Carrier}} _ _ _ (RestrictU.additive (XK.add (XK.include FirstGlobal.value) (XK.include SecondGlobal.value)) (XK.include AddedGlobal.value))
+    (congr!{{UK.Carrier} {UK.Carrier} {UK.Carrier}} UK.add _ _ _ _
+      (trans!{{UK.Carrier}} _ _ _ (RestrictU.additive (XK.include FirstGlobal.value) (XK.include SecondGlobal.value))
+        (congr!{{UK.Carrier} {UK.Carrier} {UK.Carrier}} UK.add _ _ _ _ FirstU.onK0 SecondU.onK0)) AddedU.onK0);
+\definition denominatorOnV: RestrictV.map denominator = denominatorV :=
+  trans!{{VK.Carrier}} _ _ _ (RestrictV.additive (XK.add (XK.include FirstGlobal.value) (XK.include SecondGlobal.value)) (XK.include AddedGlobal.value))
+    (congr!{{VK.Carrier} {VK.Carrier} {VK.Carrier}} VK.add _ _ _ _
+      (trans!{{VK.Carrier}} _ _ _ (RestrictV.additive (XK.include FirstGlobal.value) (XK.include SecondGlobal.value))
+        (congr!{{VK.Carrier} {VK.Carrier} {VK.Carrier}} VK.add _ _ _ _ FirstV.onK0 SecondV.onK0)) AddedV.onK0);
+\definition positiveUInclude: UK.include positiveU = UK.add (UK.add (UK.include (UTheory.class first.positive)) (UK.include UOther.value)) (UK.include UAdded.value) :=
+  trans!{{UK.Carrier}} _ _ _ (UK.includeAdd (UAdd.add (UTheory.class first.positive) UOther.value) UAdded.value)
+    (congr!{{UK.Carrier} {UK.Carrier}} (\fun (v: UK.Carrier) => UK.add v (UK.include UAdded.value)) _ _ (UK.includeAdd (UTheory.class first.positive) UOther.value));
+\definition positiveVInclude: VK.include positiveV = VK.add (VK.add (VK.include (VTheory.class second.positive)) (VK.include VOther.value)) (VK.include VAdded.value) :=
+  trans!{{VK.Carrier}} _ _ _ (VK.includeAdd (VAdd.add (VTheory.class second.positive) VOther.value) VAdded.value)
+    (congr!{{VK.Carrier} {VK.Carrier}} (\fun (v: VK.Carrier) => VK.add v (VK.include VAdded.value)) _ _ (VK.includeAdd (VTheory.class second.positive) VOther.value));
+\definition classOnU: RestrictU.map (XK.include globalClass) = UK.include positiveU :=
+  trans!{{UK.Carrier}} _ _ _ (RestrictU.onIncludes globalClass) (congr!{{UTheory.Classes} {UK.Carrier}} UK.include _ _ onU);
+\definition classOnV: RestrictV.map (XK.include globalClass) = VK.include positiveV :=
+  trans!{{VK.Carrier}} _ _ _ (RestrictV.onIncludes globalClass) (congr!{{VTheory.Classes} {VK.Carrier}} VK.include _ _ onV);
+\definition restrictU: RestrictU.map globalValue = u := eq_reason_in!{{UK.Carrier} _
+  "=" { UK.add (RestrictU.map (XK.include globalClass)) (RestrictU.map (XK.neg denominator)) } "by" { RestrictU.additive (XK.include globalClass) (XK.neg denominator) }
+  "=" { UGroup.sub (UK.include positiveU) denominatorU } "by" {
+    congr!{{UK.Carrier} {UK.Carrier} {UK.Carrier}} UK.add _ _ _ _ classOnU
+      (trans!{{UK.Carrier}} _ _ _ (RestrictU.preservesNeg denominator) (congr!{{UK.Carrier} {UK.Carrier}} UK.neg _ _ denominatorOnU)) }
+  "=" { UGroup.sub (UK.add (UK.add (UK.include (UTheory.class first.positive)) (UK.include UOther.value)) (UK.include UAdded.value)) denominatorU } "by" {
+    congr!{{UK.Carrier} {UK.Carrier}} (\fun (v: UK.Carrier) => UGroup.sub v denominatorU) _ _ positiveUInclude }
+  "=" { UGroup.sub (UK.add (UK.include (UTheory.class first.positive)) (UK.include UOther.value)) (UK.add (UK.include UDenominator.value) (UK.include UOther.value)) } "by" {
+    UGroup.cancelCommon (UK.add (UK.include (UTheory.class first.positive)) (UK.include UOther.value)) (UK.add (UK.include UDenominator.value) (UK.include UOther.value)) (UK.include UAdded.value) }
+  "=" { UK.difference (UTheory.class first.positive) UDenominator.value } "by" {
+    UGroup.cancelCommon (UK.include (UTheory.class first.positive)) (UK.include UDenominator.value) (UK.include UOther.value) }
+  "=" u "by" { first.equation }
+};
+\definition restrictV: RestrictV.map globalValue = v := eq_reason_in!{{VK.Carrier} _
+  "=" { VK.add (RestrictV.map (XK.include globalClass)) (RestrictV.map (XK.neg denominator)) } "by" { RestrictV.additive (XK.include globalClass) (XK.neg denominator) }
+  "=" { VGroup.sub (VK.include positiveV) denominatorV } "by" {
+    congr!{{VK.Carrier} {VK.Carrier} {VK.Carrier}} VK.add _ _ _ _ classOnV
+      (trans!{{VK.Carrier}} _ _ _ (RestrictV.preservesNeg denominator) (congr!{{VK.Carrier} {VK.Carrier}} VK.neg _ _ denominatorOnV)) }
+  "=" { VGroup.sub (VK.add (VK.add (VK.include (VTheory.class second.positive)) (VK.include VOther.value)) (VK.include VAdded.value)) denominatorV } "by" {
+    congr!{{VK.Carrier} {VK.Carrier}} (\fun (w: VK.Carrier) => VGroup.sub w denominatorV) _ _ positiveVInclude }
+  "=" { VGroup.sub (VK.add (VK.add (VK.include (VTheory.class second.positive)) (VK.include VOther.value)) (VK.include VAdded.value))
+    (VK.add (VK.add (VK.include VDenominator.value) (VK.include VOther.value)) (VK.include VAdded.value)) } "by" {
+    congr!{{VK.Carrier} {VK.Carrier}} (\fun (w: VK.Carrier) => VGroup.sub (VK.add (VK.add (VK.include (VTheory.class second.positive)) (VK.include VOther.value)) (VK.include VAdded.value)) (VK.add w (VK.include VAdded.value))) _ _
+      (VK.group.commutative (VK.include VOther.value) (VK.include VDenominator.value)) }
+  "=" { VGroup.sub (VK.add (VK.include (VTheory.class second.positive)) (VK.include VOther.value)) (VK.add (VK.include VDenominator.value) (VK.include VOther.value)) } "by" {
+    VGroup.cancelCommon (VK.add (VK.include (VTheory.class second.positive)) (VK.include VOther.value)) (VK.add (VK.include VDenominator.value) (VK.include VOther.value)) (VK.include VAdded.value) }
+  "=" { VK.difference (VTheory.class second.positive) VDenominator.value } "by" {
+    VGroup.cancelCommon (VK.include (VTheory.class second.positive)) (VK.include VDenominator.value) (VK.include VOther.value) }
+  "=" v "by" { second.equation }
+};
+\definition result: Result[u, v] := Result[u, v] { value := globalValue, onU := restrictU, onV := restrictV };

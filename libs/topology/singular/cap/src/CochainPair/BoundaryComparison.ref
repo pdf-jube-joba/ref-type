@@ -1,0 +1,32 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import std.Logic[].Proposition[] \as Logic;
+\import \parent.Degree[] \as Degree;
+\import Degree.Boundaries[] \as RelativeBoundaries;
+\import Degree.BoundaryZero[] \as Zero;
+\import Whole.Boundaries[] \as WholeBoundaries;
+\import singular_cohomology.Cochains[A := A, source := source].With[coefficients := Whole.integerCoefficients] \as Ordinary;
+\definition Property[n: N.Nat^]: \Prop := \forall (alpha: Degree.Carrier n) -> RelativeBoundaries.Member n alpha -> WholeBoundaries.Member n (Degree.from n alpha);
+\module Step(k: N.Nat^) {
+  \import \parent.\parent.Comparison[n := k] \as Lower;
+  \import Lower.Commutes[] \as Commutes;
+  \import \parent.\parent.Comparison[n := N.Nat^::succ k] \as Upper;
+  \definition law: Property (N.Nat^::succ k) := \block {
+    \fun (alpha: Degree.Carrier (N.Nat^::succ k))(member: _) \then
+    \takefrom gamma: \Cast[Degree.Carrier k] ({ h: Degree.Carrier k \where Degree.differential k h = alpha }) \by member \then
+    \let equal: Ordinary.coboundary k (Lower.from gamma) = Upper.from alpha := trans!{{Whole.Carrier (N.Nat^::succ k)}} _ _ _
+      (sym!{{Whole.Carrier (N.Nat^::succ k)}} _ _ (Commutes.law gamma))
+      (congr!{{Degree.Carrier (N.Nat^::succ k)} {Whole.Carrier (N.Nat^::succ k)}} Upper.from _ _
+        (\bysub(Degree.Carrier k, { h: Degree.Carrier k \where Degree.differential k h = alpha }, gamma))) \then
+    \return Logic.existsIntro[Whole.Carrier k, { h: Whole.Carrier k \where Ordinary.coboundary k h = Upper.from alpha }] (Lower.from gamma) equal
+  };
+}
+\definition law: \forall (n: N.Nat^) -> Property n :=
+  \induction (n: N.Nat^) \return Property n \with {
+    | zero: \fun (alpha: Degree.Carrier N.Nat^::zero)(member: _) => trans!{{Whole.Carrier N.Nat^::zero}} _ _ _
+        (congr!{{Degree.Carrier N.Nat^::zero} {Whole.Carrier N.Nat^::zero}} (Degree.from N.Nat^::zero) _ _ (Zero.law alpha member))
+        (\parent.Comparison[n := N.Nat^::zero].zero)
+    | succ: \fun (k: N.Nat^)(unused: _) => Step[k := k].law
+  };

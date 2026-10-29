@@ -1,0 +1,80 @@
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Nat[] \as N;
+\import Algebra.FiniteCoordinates[n := n].Exterior[] \as Exterior;
+\import Algebra.Multilinear[V := Finite.Vector, space := Finite.space].Alternating[] \as Forms;
+\import Forms.At[k := N.Nat^::succ N.Nat^::zero] \as One;
+\import Algebra.Multilinear[V := Finite.Vector, space := Finite.space] \as Multi;
+\import \root.Complex[].On[V := Finite.Vector, space := Finite.space].Realification[].With[h := Finite.form] \as Metric;
+\use std.Logic[].Equality[].sym;
+\definition covector: \forall (i: Fin.Fin n) -> Metric.form (Finite.basis i) = Exterior.coordinate i :=
+  \fun (i: Fin.Fin n) => One.ext (Metric.form (Finite.basis i)) (Exterior.coordinate i) (\fun (args: Multi.Arguments (N.Nat^::succ N.Nat^::zero)) => Finite.dotBasis i (args Metric.head));
+\import Algebra.FiniteCoordinates[n := n] \as Standard;
+\import Algebra.FiniteExterior[V := Finite.Vector, space := Finite.space, n := n, b := Standard.basis] \as ExteriorBasis;
+\import \root.Over[K := C.Complex, scalarRing := ring].On[V := Finite.Vector, space := Finite.space] \as Operations;
+\use std.Logic[].Equality[].trans;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].congr;
+\definition wordCoordinates: \forall (k: N.Nat^)(indices: Fin.Fin k -> Fin.Fin n) -> ExteriorBasis.At[k := k].word indices = Exterior.word k indices :=
+  \fun (k: N.Nat^)(indices: Fin.Fin k -> Fin.Fin n) => (Forms.At[k := k].ext) (ExteriorBasis.At[k := k].word indices) (Exterior.word k indices) (\fun (args: Multi.Arguments k) => congr!{{Multi.Arguments k} C.Complex} (Exterior.word k indices) _ _ (\axiom:funext((\fun (i: Fin.Fin k) => args i), args, \fun (i: Fin.Fin k) => \refl(args i))));
+\definition wordStep: \forall (k: N.Nat^)(indices: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n) ->
+  ExteriorBasis.At[k := N.Nat^::succ k].word indices = Operations.LeftCreation[k := k].apply (Metric.form (Finite.basis (indices (Fin.zero k)))) (ExteriorBasis.At[k := k].word (\fun (i: Fin.Fin k) => indices (Fin.succ k i))) :=
+  \fun (k: N.Nat^)(indices: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n) => eq_reason_in!{{Forms.Form (N.Nat^::succ k)} _
+    "=" _ "by" { wordCoordinates (N.Nat^::succ k) indices }
+    "=" _ "by" { congr!{{Forms.Form (N.Nat^::succ N.Nat^::zero)} {Forms.Form k} {Forms.Form (N.Nat^::succ k)}} Operations.LeftCreation[k := k].apply _ _ _ _
+      (sym!{{Forms.Form (N.Nat^::succ N.Nat^::zero)}} _ _ (covector (indices (Fin.zero k))))
+      (sym!{{Forms.Form k}} _ _ (wordCoordinates k (\fun (i: Fin.Fin k) => indices (Fin.succ k i)))) }
+  };
+\definition wordContractionStep: \forall (k: N.Nat^)(indices: Fin.Fin (N.Nat^::succ (N.Nat^::succ k)) -> Fin.Fin n)(v: Finite.Vector) ->
+  (Operations.Contraction[k := N.Nat^::succ k].operator v).apply (ExteriorBasis.At[k := N.Nat^::succ (N.Nat^::succ k)].word indices) =
+  (Forms.At[k := N.Nat^::succ k].vectorSpace).add
+    ((Forms.At[k := N.Nat^::succ k].vectorSpace).smul (v (indices (Fin.zero (N.Nat^::succ k)))) (ExteriorBasis.At[k := N.Nat^::succ k].word (\fun (i: Fin.Fin (N.Nat^::succ k)) => indices (Fin.succ (N.Nat^::succ k) i))))
+    ((Forms.At[k := N.Nat^::succ k].vectorSpace).neg (Operations.LeftCreation[k := k].apply (Metric.form (Finite.basis (indices (Fin.zero (N.Nat^::succ k)))))
+      ((Operations.Contraction[k := k].operator v).apply (ExteriorBasis.At[k := N.Nat^::succ k].word (\fun (i: Fin.Fin (N.Nat^::succ k)) => indices (Fin.succ (N.Nat^::succ k) i)))))) :=
+  \fun (k: N.Nat^)(indices: Fin.Fin (N.Nat^::succ (N.Nat^::succ k)) -> Fin.Fin n)(v: Finite.Vector) => eq_reason_in!{{Forms.Form (N.Nat^::succ k)} _
+    "=" _ "by" { congr!{{Forms.Form (N.Nat^::succ (N.Nat^::succ k))} {Forms.Form (N.Nat^::succ k)}} ((Operations.Contraction[k := N.Nat^::succ k].operator v).apply) _ _ (wordStep (N.Nat^::succ k) indices) }
+    "=" _ "by" { Operations.LeftCreation[k := k].Mixed[].law (Metric.form (Finite.basis (indices (Fin.zero (N.Nat^::succ k))))) (ExteriorBasis.At[k := N.Nat^::succ k].word (\fun (i: Fin.Fin (N.Nat^::succ k)) => indices (Fin.succ (N.Nat^::succ k) i))) v }
+    "=" _ "by" { congr!{C.Complex {Forms.Form (N.Nat^::succ k)}} (\fun (a: C.Complex) => (Forms.At[k := N.Nat^::succ k].vectorSpace).add
+      ((Forms.At[k := N.Nat^::succ k].vectorSpace).smul a (ExteriorBasis.At[k := N.Nat^::succ k].word (\fun (i: Fin.Fin (N.Nat^::succ k)) => indices (Fin.succ (N.Nat^::succ k) i))))
+      ((Forms.At[k := N.Nat^::succ k].vectorSpace).neg (Operations.LeftCreation[k := k].apply (Metric.form (Finite.basis (indices (Fin.zero (N.Nat^::succ k))))) ((Operations.Contraction[k := k].operator v).apply (ExteriorBasis.At[k := N.Nat^::succ k].word (\fun (i: Fin.Fin (N.Nat^::succ k)) => indices (Fin.succ (N.Nat^::succ k) i))))))) _ _
+      (trans!{C.Complex} _ _ _ (Metric.evaluateMixed (Finite.basis (indices (Fin.zero (N.Nat^::succ k)))) v) (Finite.dotBasis (indices (Fin.zero (N.Nat^::succ k))) v)) }
+  };
+\definition wordContractionOne: \forall (indices: Fin.Fin (N.Nat^::succ N.Nat^::zero) -> Fin.Fin n)(v: Finite.Vector) ->
+  (Operations.Contraction[k := N.Nat^::zero].operator v).apply (ExteriorBasis.At[k := N.Nat^::succ N.Nat^::zero].word indices) =
+  (Forms.At[k := N.Nat^::zero].vectorSpace).smul (v (indices (Fin.zero N.Nat^::zero))) (ExteriorBasis.At[k := N.Nat^::zero].word (\fun (i: Fin.Fin N.Nat^::zero) => indices (Fin.succ N.Nat^::zero i))) :=
+  \fun (indices: Fin.Fin (N.Nat^::succ N.Nat^::zero) -> Fin.Fin n)(v: Finite.Vector) => eq_reason_in!{{Forms.Form N.Nat^::zero} _
+    "=" _ "by" { congr!{{Forms.Form (N.Nat^::succ N.Nat^::zero)} {Forms.Form N.Nat^::zero}} ((Operations.Contraction[k := N.Nat^::zero].operator v).apply) _ _ (wordStep N.Nat^::zero indices) }
+    "=" _ "by" { Operations.LeftCreation[k := N.Nat^::zero].Zero[].law (Metric.form (Finite.basis (indices (Fin.zero N.Nat^::zero)))) (ExteriorBasis.At[k := N.Nat^::zero].word (\fun (i: Fin.Fin N.Nat^::zero) => indices (Fin.succ N.Nat^::zero i))) v }
+    "=" _ "by" { congr!{C.Complex {Forms.Form N.Nat^::zero}} (\fun (a: C.Complex) => (Forms.At[k := N.Nat^::zero].vectorSpace).smul a (ExteriorBasis.At[k := N.Nat^::zero].word (\fun (i: Fin.Fin N.Nat^::zero) => indices (Fin.succ N.Nat^::zero i)))) _ _
+      (trans!{C.Complex} _ _ _ (Metric.evaluateMixed (Finite.basis (indices (Fin.zero N.Nat^::zero))) v) (Finite.dotBasis (indices (Fin.zero N.Nat^::zero)) v)) }
+  };
+\import Fin.Ordering[] \as Ordering;
+\import Fin.Tuples[A := Finite.Vector] \as VectorTuples;
+\definition tailIndex[k: N.Nat^][j: Algebra.Multilinear[V := Finite.Vector, space := Finite.space].Alternating[].Dimension[n := n, b := Standard.basis].Increasing[k := N.Nat^::succ k].Index]:
+  Algebra.Multilinear[V := Finite.Vector, space := Finite.space].Alternating[].Dimension[n := n, b := Standard.basis].Increasing[k := k].Index :=
+  \into[Fin.Fin k -> Fin.Fin n](\fun (i: Fin.Fin k) => j (Fin.succ k i), Algebra.Multilinear[V := Finite.Vector, space := Finite.space].Alternating[].Dimension[n := n, b := Standard.basis].Increasing[k := k].Index) \by {
+    Ordering.Bounds[k := k, n := n].tailIncreasing j (\bysub(Fin.Fin (N.Nat^::succ k) -> Fin.Fin n, Algebra.Multilinear[V := Finite.Vector, space := Finite.space].Alternating[].Dimension[n := n, b := Standard.basis].Increasing[k := N.Nat^::succ k].Index, j))
+  };
+\module HeadAdjoint(k: N.Nat^);
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Data[].List[] \as Lists;
+\import Algebra.Coordinates[I := Fin.Fin n].Kronecker[] \as Delta;
+\import Algebra.Exterior[V := Finite.Vector, space := Finite.space] \as Product;
+\import Algebra.Multilinear[V := Finite.Vector, space := Finite.space].ListSeries[k := N.Nat^::zero] \as UnusedSeries;
+\import Fin.FromList[A := Finite.Vector] \as VectorLists;
+\definition wordContractionAbsent: \forall (k: N.Nat^)(indices: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n)(r: Fin.Fin n) ->
+  (\forall (i: Fin.Fin (N.Nat^::succ k)) -> Logic.Not (r = indices i)) ->
+  (Operations.Contraction[k := k].operator (Finite.basis r)).apply (ExteriorBasis.At[k := N.Nat^::succ k].word indices) = (Forms.At[k := k].origin) :=
+  \fun (k: N.Nat^)(indices: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n)(r: Fin.Fin n)(absent: \forall (i: Fin.Fin (N.Nat^::succ k)) -> Logic.Not (r = indices i)) =>
+  (Forms.At[k := k].ext) ((Operations.Contraction[k := k].operator (Finite.basis r)).apply (ExteriorBasis.At[k := N.Nat^::succ k].word indices)) (Forms.At[k := k].origin)
+    (\fun (args: Multi.Arguments k) => eq_reason_in!{C.Complex _
+      "=" _ "by" { sym!{C.Complex} _ _ (Multi.ListSeries[k := k].onArguments ((Operations.Contraction[k := k].operator (Finite.basis r)).apply (ExteriorBasis.At[k := N.Nat^::succ k].word indices)) args) }
+      "=" _ "by" { sym!{C.Complex} _ _ (Product.SeriesShift[k := k].atCons (ExteriorBasis.At[k := N.Nat^::succ k].word indices) (Finite.basis r) (VectorLists.list k args)) }
+      "=" _ "by" { congr!{{Forms.Form (N.Nat^::succ k)} C.Complex} (\fun (f: Forms.Form (N.Nat^::succ k)) => Product.component (N.Nat^::succ k) f (Lists.List[Finite.Vector]::cons (Finite.basis r) (VectorLists.list k args))) _ _ (wordCoordinates (N.Nat^::succ k) indices) }
+      "=" _ "by" { Exterior.annihilation (N.Nat^::succ k) indices (Finite.basis r) (\fun (i: Fin.Fin (N.Nat^::succ k)) => Delta.different r (indices i) (absent i)) (VectorLists.list k args) }
+    });
+\module Absent(k: N.Nat^);
+\module ContractHead;
+\module HeadCase(k: N.Nat^);
+\module Extension(k: N.Nat^);
+\module Recursive(k: N.Nat^);
+\module Adjoint;

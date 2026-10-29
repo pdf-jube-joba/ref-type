@@ -1,0 +1,122 @@
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\import \root.Euclidean[n := n] \as E;
+\import \root.BoxCompact[n := n] \as BoxCompact;
+\import \root.Expansion[n := n] \as Expansion;
+\import \root.CoverExpansion[n := n] \as Cover;
+\import E.SeriesBounds[] \as Bounds;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import topology.Topology[Carrier := E.Point] \as Space;
+\import Space.Countability[] \as Countability;
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as Topology;
+\import std.Set[].FiniteSubset[A := \Pow E.Point] \as FiniteRegions;
+\import std.Set[].FiniteSubset[A := N.Nat^] \as FiniteIndices;
+\import FiniteRegions.Selection[B := N.Nat^] \as Selection;
+\definition IndexCover[b: E.Box] [region: N.Nat^ -> \Pow E.Point] [indices: FiniteIndices.FiniteSubset]: \Prop :=
+  \forall (x: E.Point) -> Space.Member (E.points b) x ->
+    \exists ( i: N.Nat^ \where Logic.And[FiniteIndices.Member indices i, Space.Member (region i) x] );
+\definition finiteIndices: \forall (b: E.Box) (region: N.Nat^ -> \Pow E.Point) ->
+  (\forall (i: N.Nat^) -> Space.IsOpenIn Topology.topology (region i)) ->
+  Space.Subset (E.points b) (Countability.IndexedUnion region) ->
+  \exists ( indices: FiniteIndices.FiniteSubset \where IndexCover b region indices ) :=
+  \fun (b: E.Box) (region: N.Nat^ -> \Pow E.Point) (opened: \forall (i: N.Nat^) -> Space.IsOpenIn Topology.topology (region i))
+    (contains: Space.Subset (E.points b) (Countability.IndexedUnion region)) => \block {
+      \let family: \Pow (\Pow E.Point) := Countability.IndexedFamily region \then
+      \takefrom finite: \Cast[FiniteRegions.FiniteSubset] ({ finite: FiniteRegions.FiniteSubset \where Space.FiniteSubcover[family, E.points b, finite] })
+        \by BoxCompact.compact b family (Space.IsOpenCover[Topology.topology, family, E.points b] {
+          open := \fun (U: \Pow E.Point) (member: Space.FamilyMember family U) => \block {
+            \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where U = region i }) \by member \then
+            \let same: U = region i := \bysub(N.Nat^, { i: N.Nat^ \where U = region i }, i) \then
+            \return \idelim region i = U \with V: \Pow E.Point => Space.IsOpenIn Topology.topology V \by { base: opened i, equality: sym!{\Pow E.Point} _ _ same }
+          },
+          covers := contains,
+        }) \then
+      \let law: Space.FiniteSubcover[family, E.points b, finite] :=
+        \bysub(FiniteRegions.FiniteSubset, { finite: FiniteRegions.FiniteSubset \where Space.FiniteSubcover[family, E.points b, finite] }, finite) \then
+      \let relation: \Pow E.Point -> N.Nat^ -> \Prop := \fun (U: \Pow E.Point) (i: N.Nat^) => U = region i \then
+      \takefrom selected: Selection.Selection[relation, finite] \by Selection.existsSelection relation finite
+        (\fun (U: \Pow E.Point) (member: FiniteRegions.Member finite U) => law.included U member) \then
+      \let indices: FiniteIndices.FiniteSubset := selected.finite \then
+      \return Logic.existsIntro[FiniteIndices.FiniteSubset, { indices: FiniteIndices.FiniteSubset \where IndexCover b region indices }] indices
+        (\fun (x: E.Point) (member: Space.Member (E.points b) x) =>
+          Space.unionMemberElim (FiniteRegions.underlying finite) x
+            (\exists (i: N.Nat^ \where Logic.And[FiniteIndices.Member indices i, Space.Member (region i) x]))
+            (\fun (U: \Pow E.Point) (inFinite: FiniteRegions.Member finite U) (inU: Space.Member U x) => \block {
+              \takefrom i: Selection.CoveredWitness relation indices U \by selected.covers U inFinite \then
+              \let data: Logic.And[FiniteIndices.Member indices i, U = region i] :=
+                \bysub(N.Nat^, { i: N.Nat^ \where Logic.And[FiniteIndices.Member indices i, U = region i] }, i) \then
+              \return Logic.existsIntro[N.Nat^, { i: N.Nat^ \where Logic.And[FiniteIndices.Member indices i, Space.Member (region i) x] }] i
+                (Logic.And[_, _]::# data.left (\idelim U = region i \with V: \Pow E.Point => Space.Member V x \by { base: inU, equality: data.right }))
+            }) (law.covers x member))
+    };
+\import N.Basic[].Prop[] \as NatOrder;
+\import N.Order[].Prop[] \as NatBounds;
+\definition BoundedIndices[X: \Pow N.Nat^] [k: N.Nat^]: \Prop := \forall (i: N.Nat^) -> \In[N.Nat^] X i -> NatOrder.Lt i k;
+\definition finiteBound: \forall (indices: FiniteIndices.FiniteSubset) -> \exists ( k: N.Nat^ \where BoundedIndices indices k ) :=
+  FiniteIndices.induction ({ X: \Pow N.Nat^ \where \exists (k: N.Nat^ \where BoundedIndices X k) })
+    (Logic.existsIntro[N.Nat^, { k: N.Nat^ \where BoundedIndices FiniteIndices.Empty k }] N.Nat^::zero
+      (\fun (i: N.Nat^) (bad: Logic.False) => Logic.falseElim _ bad))
+    (\fun (X: \Pow N.Nat^) (previous: \exists (k: N.Nat^ \where BoundedIndices X k)) (a: N.Nat^) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where BoundedIndices X k }) \by previous \then
+      \let old: BoundedIndices X k := \bysub(N.Nat^, { k: N.Nat^ \where BoundedIndices X k }, k) \then
+      \let bound: N.Nat^ := NatBounds.commonBound k (N.Nat^::succ a) \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where BoundedIndices (FiniteIndices.Insert a X) k }] bound
+        (\fun (i: N.Nat^) (member: \In[N.Nat^] (FiniteIndices.Insert a X) i) =>
+          Logic.orElim (i = a) (\In[N.Nat^] X i) (NatOrder.Lt i bound) member
+            (\fun (same: i = a) => \idelim a = i \with j: N.Nat^ => NatOrder.Lt j bound \by {
+              base: NatOrder.ltLeTrans a (N.Nat^::succ a) bound (NatBounds.ltSelfSucc a) (NatBounds.rightLeCommonBound k (N.Nat^::succ a)),
+              equality: sym!{N.Nat^} _ _ same })
+            (\fun (inside: \In[N.Nat^] X i) => NatOrder.ltLeTrans i k bound (old i inside) (NatBounds.leftLeCommonBound k (N.Nat^::succ a))))
+    });
+\definition prefixCover: \forall (b: E.Box) (region: N.Nat^ -> \Pow E.Point) ->
+  (\forall (i: N.Nat^) -> Space.IsOpenIn Topology.topology (region i)) ->
+  Space.Subset (E.points b) (Countability.IndexedUnion region) ->
+  \exists ( k: N.Nat^ \where \forall (x: E.Point) -> Space.Member (E.points b) x ->
+    \exists (i: N.Nat^ \where Logic.And[NatOrder.Lt i k, Space.Member (region i) x]) ) :=
+  \fun (b: E.Box) (region: N.Nat^ -> \Pow E.Point) (opened: _) (contains: _) => \block {
+    \takefrom indices: \Cast[FiniteIndices.FiniteSubset] ({ indices: FiniteIndices.FiniteSubset \where IndexCover b region indices })
+      \by finiteIndices b region opened contains \then
+    \let cover: IndexCover b region indices := \bysub(FiniteIndices.FiniteSubset, { indices: FiniteIndices.FiniteSubset \where IndexCover b region indices }, indices) \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where BoundedIndices indices k }) \by finiteBound indices \then
+    \let bound: BoundedIndices indices k := \bysub(N.Nat^, { k: N.Nat^ \where BoundedIndices indices k }, k) \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \forall (x: E.Point) -> Space.Member (E.points b) x -> \exists (i: N.Nat^ \where Logic.And[NatOrder.Lt i k, Space.Member (region i) x]) }] k
+      (\fun (x: E.Point) (member: Space.Member (E.points b) x) => \block {
+        \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where Logic.And[FiniteIndices.Member indices i, Space.Member (region i) x] }) \by cover x member \then
+        \let valid: Logic.And[FiniteIndices.Member indices i, Space.Member (region i) x] :=
+          \bysub(N.Nat^, { i: N.Nat^ \where Logic.And[FiniteIndices.Member indices i, Space.Member (region i) x] }, i) \then
+        \return Logic.existsIntro[N.Nat^, { i: N.Nat^ \where Logic.And[NatOrder.Lt i k, Space.Member (region i) x] }] i
+          (Logic.And[_, _]::# (bound i valid.left) valid.right)
+      })
+  };
+\definition expandedPrefix: \forall (b: E.Box) (f: N.Nat^ -> E.Box) -> E.Covers f (E.points b) ->
+  \forall (epsilon: Real.Real) (choice: \forall (i: N.Nat^) -> Cover.Choice f epsilon i) ->
+  \exists ( k: N.Nat^ \where \forall (x: E.Point) -> Space.Member (E.points b) x ->
+    \exists ( i: N.Nat^ \where Logic.And[NatOrder.Lt i k, Space.Member (E.points (Cover.Expanded f epsilon choice i)) x] ) ) :=
+  \fun (b: E.Box) (f: N.Nat^ -> E.Box) (cover: E.Covers f (E.points b)) (epsilon: Real.Real)
+    (choice: \forall (i: N.Nat^) -> Cover.Choice f epsilon i) => \block {
+      \let region: N.Nat^ -> \Pow E.Point := Cover.Region f epsilon choice \then
+      \let contains: Space.Subset (E.points b) (Countability.IndexedUnion region) := \fun (x: E.Point) (member: Space.Member (E.points b) x) => \block {
+        \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where Space.Member (E.points (f i)) x }) \by cover x member \then
+        \return Countability.indexedUnionMember region i x (Expansion.pointsWithinInterior (f i) (choice i)
+          (\bysub(Real.Real, Expansion.Admissible (f i) (Bounds.error epsilon i), choice i)).left x
+          (\bysub(N.Nat^, { i: N.Nat^ \where Space.Member (E.points (f i)) x }, i)))
+      } \then
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (x: E.Point) -> Space.Member (E.points b) x ->
+        \exists (i: N.Nat^ \where Logic.And[NatOrder.Lt i k, Space.Member (region i) x]) })
+        \by prefixCover b region (\fun (i: N.Nat^) => Expansion.interiorOpen (f i) (choice i)) contains \then
+      \let valid: \forall (x: E.Point) -> Space.Member (E.points b) x -> \exists (i: N.Nat^ \where Logic.And[NatOrder.Lt i k, Space.Member (region i) x]) :=
+        \bysub(N.Nat^, { k: N.Nat^ \where \forall (x: E.Point) -> Space.Member (E.points b) x -> \exists (i: N.Nat^ \where Logic.And[NatOrder.Lt i k, Space.Member (region i) x]) }, k) \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \forall (x: E.Point) -> Space.Member (E.points b) x ->
+        \exists ( i: N.Nat^ \where Logic.And[NatOrder.Lt i k, Space.Member (E.points (Cover.Expanded f epsilon choice i)) x] ) }] k
+        (\fun (x: E.Point) (member: Space.Member (E.points b) x) => \block {
+          \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where Logic.And[NatOrder.Lt i k, Space.Member (region i) x] }) \by valid x member \then
+          \let data: Logic.And[NatOrder.Lt i k, Space.Member (region i) x] :=
+            \bysub(N.Nat^, { i: N.Nat^ \where Logic.And[NatOrder.Lt i k, Space.Member (region i) x] }, i) \then
+          \return Logic.existsIntro[N.Nat^, { i: N.Nat^ \where Logic.And[NatOrder.Lt i k, Space.Member (E.points (Cover.Expanded f epsilon choice i)) x] }] i
+            (Logic.And[_, _]::# data.left (Expansion.interiorWithinWidened (f i) (choice i)
+              (\bysub(Real.Real, Expansion.Admissible (f i) (Bounds.error epsilon i), choice i)).left x data.right))
+        })
+    };

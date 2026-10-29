@@ -1,0 +1,20 @@
+\import std.Data[].FinSet[] \as Fin;
+\import Spaces.Coordinates[I := Fin.Fin n] \as Vectors;
+\definition projectionZero: \forall (x: X)(v: Vectors.Vector) -> (Native.projection x).apply v = Vectors.origin :=
+  \fun (x: X) => spectral_splitting.Spectral[].At[n := n].Splitting[A := A x].Separated[off := off x].zeroOfInsideOne (insideOne x);
+\import bundle_operations.Operations[].Over[K := C.Complex, field := Scalars.field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar].Zero[X := X, baseSpace := source] \as Zero;
+\definition fiberZero: \forall (x: X)(v: Fiber x) -> v = Vectors.origin :=
+  \fun (x: X)(v: Fiber x) => trans!{Vectors.Vector} _ _ _
+    (sym!{Vectors.Vector} _ _ (\bysub(Vectors.Vector, { w: Vectors.Vector \where (Native.projection x).apply w = w }, v))) (projectionZero x v);
+\definition isomorphism: Bundles.Isomorphisms[X := X, F := Fiber, G := (\fun (_: X) => Zero.Fiber), source := bundle, target := Zero.bundle].Isomorphism :=
+  Bundles.Isomorphisms[X := X, F := Fiber, G := (\fun (_: X) => Zero.Fiber), source := bundle, target := Zero.bundle].Isomorphism {
+    forward := Zero.From[F := Fiber, source := bundle, sameBase := \refl(source)].map,
+    backward := Zero.To[F := Fiber, target := bundle, sameBase := \refl(source)].map,
+    leftInverse := \fun (x: X)(v: Fiber x) => sym!{Vectors.Vector} _ _ (fiberZero x v),
+    rightInverse := \fun (x: X)(v: Zero.Fiber) => Fin.Empty[A := C.Complex].unique _ v,
+  };
+\definition classEquality: Inside.value = K.Trivial[n := N.Nat^::zero].value :=
+  K.Compare[F := Fiber, G := (\fun (_: X) => Zero.Fiber), first := bundle, second := Zero.bundle, firstSame := \refl(source), secondSame := \refl(source)].ofIsomorphism isomorphism;
+\definition valueFormula: value = K.K0[].difference K.Trivial[n := N.Nat^::zero].value Removed.value :=
+  congr!{K.Classes {K.K0[].Carrier}} (\fun (c: K.Classes) => K.K0[].difference c Removed.value) _ _ classEquality;

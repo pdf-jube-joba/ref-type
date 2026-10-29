@@ -1,0 +1,25 @@
+\import std.Data[].Sum[] \as Sum;
+\definition index: Construction.Index := Sum.Sum[Quotient.Point, PulledCharts.Chart]::inl Quotient.distinguished;
+\definition sourceChart: SourceCharts.Chart := Construction.trivialization index;
+\definition included: \forall (q: Near.Point) -> QuotientBase.Member c.domain q := \fun (q: Near.Point) =>
+  Logic.orElim[q = Quotient.point, Logic.Not (q = Quotient.point), QuotientBase.Member c.domain q]
+    (std.Logic[].Classical[].excludedMiddle (q = Quotient.point))
+    (\fun (equal: q = Quotient.point) => \idelim Quotient.point = q \with z: Quotient.Carrier => QuotientBase.Member c.domain z \by {
+      base: contains, equality: sym!{{Quotient.Carrier}} _ _ equal
+    })
+    (\fun (different: Logic.Not (q = Quotient.point)) =>
+      \idelim Quotient.projection Descended.At[q := q].Outside[different := different].index = q \with z: Quotient.Carrier => QuotientBase.Member c.domain z \by {
+        base: Near.At[q := q].within Descended.At[q := q].Outside[different := different].index,
+        equality: \bysub(X, { x: X \where Quotient.projection x = q }, Descended.At[q := q].Outside[different := different].index)
+      });
+\import Operations.ChartRestriction[X := Quotient.Carrier, F := F, bundle := bundle, c := c, U := Near.domain, open := (onBundleOpen Near.domain Near.open), contained := included] \as Restriction;
+\definition chart: LocalMaps.ChartData := LocalMaps.ChartData {
+  domain := Near.domain, dimension := dimension, sourceFrame := sourceChart.frame, targetFrame := Restriction.trivialization.frame
+};
+\module AtPoint(q: Near.Point, v: Descended.Fiber q);
+\definition laws: LocalMaps.In[c := chart].Laws := LocalMaps.In[c := chart].Laws {
+  source := \bysub(SourceCharts.ChartData, SourceCharts.Chart, sourceChart),
+  target := \bysub(Charts.ChartData, Charts.Chart, Restriction.trivialization),
+  alignment := \fun (q: Near.Point)(v: Descended.Fiber q) => AtPoint[q := q, v := v].equation
+};
+\definition trivialization: LocalMaps.Chart := \into[LocalMaps.ChartData](chart, LocalMaps.Chart) \by { laws };

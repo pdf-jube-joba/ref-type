@@ -1,0 +1,42 @@
+\import algebraic_topology.Interval[] \as I;
+\import \root.Relative[].Suspension[original := result] \as Source;
+\import \root.Relative[].Suspension[original := left] \as LeftSuspension;
+\import \root.Relative[].Smash[left := LeftSuspension.result, right := right] \as Target;
+\import algebraic_topology.Cylinder[A := model.Carrier] \as Domain;
+\import algebraic_topology.Cylinder[A := result.Carrier] \as SourceCylinder;
+\import algebraic_topology.Cylinder[A := left.Carrier] \as LeftCylinder;
+\import topological_constructions.Product[A := I.Carrier, B := model.Carrier] \as DomainProduct;
+\import DomainProduct.Maps[] \as DomainProjections;
+\import \root.Relative[].Pair[X := model.Carrier, space := (details model).topology, compact := (details model).compact,
+  hausdorff := (details model).hausdorff, subset := wedge, closed := wedgeClosed].Quotient[] \as OriginalQuotient;
+\import \root.Relative[].Pair[X := Target.model.Carrier, space := (details Target.model).topology, compact := (details Target.model).compact,
+  hausdorff := (details Target.model).hausdorff, subset := Target.wedge, closed := Target.wedgeClosed].Quotient[] \as TargetQuotient;
+\definition R: \Set := Domain.Carrier;
+\definition rSpace: topology.Topology[Carrier := R].Topology := Domain.topology (details model).topology;
+\definition rCompact: topology.Topology[Carrier := R].IsCompact rSpace :=
+  DomainProduct.Compactness[].productCompact I.topology (details model).topology I.compact (details model).compact;
+\definition time: R -> I.Carrier := Domain.time;
+\definition base: R -> model.Carrier := Domain.point;
+\definition a[r: R]: left.Carrier := first (base r);
+\definition b[r: R]: right.Carrier := second (base r);
+\definition sourceRaw[r: R]: SourceCylinder.Carrier := SourceCylinder.at (time r) (projection (base r));
+\definition targetRaw[r: R]: Target.model.Carrier := Pair.pair LeftSuspension.result.Carrier right.Carrier
+  (LeftSuspension.class (LeftCylinder.at (time r) (a r))) (b r);
+\definition f[r: R]: Source.result.Carrier := Source.class (sourceRaw r);
+\definition g[r: R]: Target.result.Carrier := Target.projection (targetRaw r);
+\definition Collapsed[r: R]: \Prop := Logic.Or[time r = I.start, Logic.Or[time r = I.end,
+  Logic.Or[a r = (details left).point, b r = (details right).point]]];
+\module Continuity;
+\module Onto;
+\module Fibers;
+\definition r0: R := Domain.at I.start (details model).point;
+\definition sourcePoint: f r0 = (details Source.result).point := Source.collapsed (sourceRaw r0) (Logic.Or[_, _]::left (\refl(I.start)));
+\definition targetPoint: g r0 = (details Target.result).point :=
+  TargetQuotient.onSubset (\into[Target.model.Carrier](targetRaw r0, Target.wedge) \by {
+    Logic.Or[_, _]::left (LeftSuspension.collapsed (LeftCylinder.at I.start (a r0)) (Logic.Or[_, _]::left (\refl(I.start))))
+  });
+\import \root.Relative[].CommonQuotient[R := R, space := rSpace, compact := rCompact, source := Source.result, target := Target.result,
+    f := f, g := g, fRegular := Continuity[].source, gRegular := Continuity[].target, fOnto := Onto[].source, gOnto := Onto[].target,
+    forwardFibers := Fibers[].forward, backwardFibers := Fibers[].backward, r0 := r0, sourcePoint := sourcePoint, targetPoint := targetPoint] \as Comparison;
+\definition equivalence: \root.Relative[].Equivalence[source := Source.result, target := Target.result].Data := Comparison.equivalence;
+\definition onCylinder: \forall (r: R) -> equivalence.forward (f r) = g r := Comparison.onSource;

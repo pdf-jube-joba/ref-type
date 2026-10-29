@@ -1,0 +1,78 @@
+\import \parent.Idempotent[P := P, idempotent := idempotent] \as Complement;
+\import End.Operations[] \as Operations;
+\import Spaces.Laws[V := Vector, space := Coordinates.space] \as Laws;
+\import Matrices.Representation[] \as Representation;
+\import complex.Complex[].Def[] \as Complex;
+\import complex.Complex[].Absolute[] \as Absolute;
+\import fundamental_algebra.Complex[].Bounds[] \as Bounds;
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as D;
+\import D.Order[] \as Order;
+\import D.Arithmetic[].Prop[] \as RealLaws;
+\import R.Estimates[].Product[] \as Estimates;
+\definition twoReal: R.Real := R.add R.one R.one;
+\definition two: C.Complex := Complex.ofReal twoReal;
+\definition oneLtTwo: D.Lt R.one twoReal := D.ltReplaceLeft (R.add R.one R.zero) R.one twoReal (RealLaws.addZeroRight R.one)
+  (RealLaws.ltAddLeft R.one R.zero R.one Estimates.onePositive);
+\definition twoOutside: D.Lt R.one (Absolute.abs two) := D.ltLeTrans R.one twoReal (Absolute.abs two) oneLtTwo (Absolute.realPartBound two);
+\definition twoNonzero: Logic.Not (two = Scalars.field.zero) := \fun (same: _) =>
+  Order.ltNotEq R.zero twoReal (Order.ltTrans R.zero R.one twoReal Estimates.onePositive oneLtTwo)
+    (sym!{R.Real} _ _ (congr!{{C.Complex} {R.Real}} C.re _ _ same));
+\definition unitNonzero[z: C.Complex]: Absolute.abs z = R.one -> Logic.Not (z = Scalars.field.zero) :=
+  \fun (unit: _)(zero: _) => RealLaws.zeroNeOne (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ Bounds.absZero)
+    (trans!{R.Real} _ _ _ (congr!{{C.Complex} {R.Real}} Absolute.abs _ _ (sym!{{C.Complex}} _ _ zero)) unit));
+\definition subtractZero[a, b: C.Complex]: Spaces.add a (Spaces.neg b) = Spaces.zero -> a = b :=
+  \fun (zero: _) => eq_reason_in!{{C.Complex} a
+    "=" { Spaces.add a Spaces.zero } "by" { sym!{{C.Complex}} _ _ (Spaces.addZeroRight a) }
+    "=" { Spaces.add a (Spaces.add (Spaces.neg b) b) } "by" { congr!{{C.Complex} {C.Complex}} (Spaces.add a) _ _ (sym!{{C.Complex}} _ _ (Spaces.addNegLeft b)) }
+    "=" { Spaces.add (Spaces.add a (Spaces.neg b)) b } "by" { sym!{{C.Complex}} _ _ (Spaces.addAssoc a (Spaces.neg b) b) }
+    "=" { Spaces.add Spaces.zero b } "by" { congr!{{C.Complex} {C.Complex}} (\fun (c: C.Complex) => Spaces.add c b) _ _ zero }
+    "=" b "by" { Spaces.addZeroLeft b }
+  };
+\definition differenceNonzero[z: C.Complex]: Absolute.abs z = R.one -> Logic.Not (Spaces.add two (Spaces.neg z) = Spaces.zero) :=
+  \fun (unit: _)(zero: _) => Order.ltNotEq R.one (Absolute.abs two) twoOutside
+    (sym!{R.Real} _ _ (trans!{R.Real} _ _ _ (congr!{{C.Complex} {R.Real}} Absolute.abs _ _ (subtractZero two z zero)) unit));
+\definition cancel[a: C.Complex]: Logic.Not (a = Scalars.field.zero) -> \forall (v: Vector) -> Coordinates.scale a v = Coordinates.origin -> v = Coordinates.origin :=
+  \fun (nonzero: _)(v: Vector)(zero: _) => eq_reason_in!{Vector v
+    "=" { Coordinates.scale Scalars.field.one v } "by" { sym!{Vector} _ _ (Coordinates.space.scalarOne v) }
+    "=" { Coordinates.scale (Scalars.field.mul (Scalars.field.inv a) a) v } "by" { congr!{{C.Complex} Vector} (\fun (c: C.Complex) => Coordinates.scale c v) _ _ (sym!{{C.Complex}} _ _ (Scalars.field.inverse a nonzero)) }
+    "=" { Coordinates.scale (Scalars.field.inv a) (Coordinates.scale a v) } "by" { Coordinates.space.scalarAssoc (Scalars.field.inv a) a v }
+    "=" { Coordinates.scale (Scalars.field.inv a) Coordinates.origin } "by" { congr!{Vector Vector} (Coordinates.scale (Scalars.field.inv a)) _ _ zero }
+    "=" _ "by" { Laws.scaleZero (Scalars.field.inv a) }
+  };
+\definition T: End.Map := Operations.scale two Complement.complementMap;
+\definition matrix: Matrices.Matrix := Square.entries T;
+\definition linear: Matrices.linear matrix = T := Representation.linearEntries T;
+\definition annihilates[v: Vector]: P.apply (T.apply v) = Coordinates.origin := trans!{Vector} _ _ _
+  (P.preservesScale two (Complement.complementMap.apply v))
+  (trans!{Vector} _ _ _ (congr!{Vector Vector} (Coordinates.scale two) _ _ (Complement.annihilates v)) (Laws.scaleZero two));
+\definition complementOfKernel[v: Vector]: P.apply v = Coordinates.origin -> Complement.complementMap.apply v = v :=
+  \fun (zero: _) => trans!{Vector} _ _ _
+    (congr!{Vector Vector} (\fun (w: Vector) => Coordinates.plus v (Coordinates.space.neg w)) _ _ zero)
+    (trans!{Vector} _ _ _
+      (congr!{Vector Vector} (Coordinates.plus v) _ _
+        (trans!{Vector} _ _ _ (sym!{Vector} _ _ (Laws.minusOneScale Coordinates.origin)) (Laws.scaleZero (Spaces.neg Spaces.one))))
+      (Laws.zeroRight v));
+\definition noUnitEigen: \root.Spectral[].NoUnitEigen Vector Coordinates.space T := \block {
+  \fun (z: C.Complex)(unit: _)(v: Vector)(eigen: _) \then
+  \let zero: P.apply v = Coordinates.origin := cancel z (unitNonzero z unit) (P.apply v) (eq_reason_in!{Vector _
+    "=" { P.apply (Coordinates.scale z v) } "by" { sym!{Vector} _ _ (P.preservesScale z v) }
+    "=" { P.apply (T.apply v) } "by" { congr!{Vector Vector} P.apply _ _ (sym!{Vector} _ _ eigen) }
+    "=" _ "by" { annihilates v }
+  }) \then
+  \let scalarEquality: Coordinates.scale two v = Coordinates.scale z v := trans!{Vector} _ _ _
+    (sym!{Vector} _ _ (congr!{Vector Vector} (Coordinates.scale two) _ _ (complementOfKernel v zero))) eigen \then
+  \return cancel (Spaces.add two (Spaces.neg z)) (differenceNonzero z unit) v (eq_reason_in!{Vector _
+    "=" { Coordinates.plus (Coordinates.scale two v) (Coordinates.scale (Spaces.neg z) v) } "by" { Coordinates.space.scalarAdd two (Spaces.neg z) v }
+    "=" { Coordinates.plus (Coordinates.scale z v) (Coordinates.scale (Spaces.neg z) v) } "by" { congr!{Vector Vector} (\fun (w: Vector) => Coordinates.plus w (Coordinates.scale (Spaces.neg z) v)) _ _ scalarEquality }
+    "=" { Coordinates.scale (Spaces.add z (Spaces.neg z)) v } "by" { sym!{Vector} _ _ (Coordinates.space.scalarAdd z (Spaces.neg z) v) }
+    "=" { Coordinates.scale Spaces.zero v } "by" { congr!{{C.Complex} Vector} (\fun (a: C.Complex) => Coordinates.scale a v) _ _ (Spaces.addNegRight z) }
+    "=" _ "by" { Laws.zeroScale v }
+  })
+};
+\definition off: \parent.Splitting[A := matrix].OffSpectrum := \parent.Eigenvalues[A := matrix].off
+  (\fun (z: C.Complex)(unit: _)(v: Vector)(eigen: _) => noUnitEigen z unit v
+    (trans!{Vector} _ _ _ (sym!{Vector} _ _ (congr!{End.Map Vector} (\fun (f: End.Map) => f.apply v) _ _ linear)) eigen));
+
+\module Comparison;
+\definition recovers[v: Vector]: \parent.Splitting[A := matrix].Separated[off := off].projection.apply v = P.apply v := Comparison[].recovers v;

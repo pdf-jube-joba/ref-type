@@ -1,0 +1,37 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Alg[].Field[] \as Fields;
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := Fields.fieldAsCommutativeRing R.Real R.Algebra[].field] \as Spaces;
+\import linear_algebra.Hermitian[].Over[K := R.Real, field := R.Algebra[].field, scalar := H.Real[].scalar] \as Geometry;
+\import Geometry.Sums[] \as Sums;
+\definition trace[P: At.Projection]: R.Real := Sums.sum n (\fun (i: Fin.Fin n) => P.map.apply (E.basis i) i);
+\definition count[r: N.Nat^]: R.Real := Sums.sum r (\fun (_: Fin.Fin r) => Spaces.one);
+\definition countAdd: \forall (r, s: N.Nat^) -> count (Nat.add s r) = Spaces.add (count r) (count s) :=
+  \fun (r, s: N.Nat^) => Sums.blocks r s (\fun (_: Fin.Fin (Nat.add s r)) => Spaces.one);
+\module On(P: At.Projection, r: N.Nat^);
+
+\import linear_algebra.Real[].Dimension[] \as Dimension;
+\import Spaces.Coordinates[I := Fin.Fin n].Kronecker[] \as Delta;
+\definition countNatural: \forall (r: N.Nat^) -> count r = Dimension.naturalScalar r :=
+  \induction (r: N.Nat^) \return count r = Dimension.naturalScalar r \with {
+    | zero: \refl(Spaces.zero)
+    | succ: \fun (r: N.Nat^)(previous: count r = Dimension.naturalScalar r) => congr!{R.Real R.Real} (Spaces.add Spaces.one) _ _ previous
+  };
+\definition countInjective: \forall (r, s: N.Nat^) -> count r = count s -> r = s :=
+  \fun (r, s: N.Nat^)(equal: count r = count s) => Dimension.injective r s
+    (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (countNatural r)) (trans!{R.Real} _ _ _ equal (countNatural s)));
+\module Complement(P: At.Projection) {
+  \import At.OnProjection[P := P] \as Projection;
+  \definition Q: At.Projection := Projection.complement;
+  \definition diagonal: \forall (i: Fin.Fin n) -> Spaces.add (P.map.apply (E.basis i) i) (Q.map.apply (E.basis i) i) = Spaces.one :=
+    \fun (i: Fin.Fin n) => trans!{R.Real} _ _ _
+      (congr!{{E.Vector} R.Real} (\fun (v: E.Vector) => v i) _ _ (Projection.splitting (E.basis i))) (Delta.self i);
+  \definition traceSum: Spaces.add (trace P) (trace Q) = count n :=
+    trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (Sums.addition n (\fun (i: Fin.Fin n) => P.map.apply (E.basis i) i) (\fun (i: Fin.Fin n) => Q.map.apply (E.basis i) i)))
+      (Sums.congruent n (\fun (i: Fin.Fin n) => Spaces.add (P.map.apply (E.basis i) i) (Q.map.apply (E.basis i) i)) (\fun (_: Fin.Fin n) => Spaces.one) diagonal);
+}

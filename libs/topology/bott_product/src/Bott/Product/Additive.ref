@@ -1,0 +1,55 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\use Eq.eq_reason_in;
+\import algebra.Group[].Of[Carrier := Target.K0[].Carrier, group := Target.K0[].group] \as Group;
+\import algebra.GroupCompletion[].Semiring[M := Target.Classes, semiring := Target.Semiring[].semiring] \as Ring;
+\definition add: \forall (a, b, c, d: Source.K0[].Carrier) -> forward (Source.K0[].add a c) (Source.K0[].add b d) = Target.K0[].add (forward a b) (forward c d) :=
+  \fun (a, b, c, d: Source.K0[].Carrier) => eq_reason_in!{{Target.K0[].Carrier} _
+    "=" _ "by" { congr!{{Target.K0[].Carrier} {Target.K0[].Carrier} {Target.K0[].Carrier}} Target.K0[].add _ _ _ _ (First.K0[].additive a c)
+      (congr!{{Target.K0[].Carrier} {Target.K0[].Carrier}} (\fun (v: Target.K0[].Carrier) => Target.K0[].mul v generatorOnProduct) _ _ (First.K0[].additive b d)) }
+    "=" _ "by" { congr!{{Target.K0[].Carrier} {Target.K0[].Carrier}} (Target.K0[].add (Target.K0[].add (First.K0[].map a) (First.K0[].map c))) _ _
+      (Ring.mulAddLeft (First.K0[].map b) (First.K0[].map d) generatorOnProduct) }
+    "=" _ "by" { Group.four (First.K0[].map a) (First.K0[].map c) (Target.K0[].mul (First.K0[].map b) generatorOnProduct) (Target.K0[].mul (First.K0[].map d) generatorOnProduct) }
+  };
+\definition neg: \forall (a, b: Source.K0[].Carrier) -> forward (Source.K0[].neg a) (Source.K0[].neg b) = Target.K0[].neg (forward a b) :=
+  \fun (a, b: Source.K0[].Carrier) => eq_reason_in!{{Target.K0[].Carrier} _
+    "=" _ "by" { congr!{{Target.K0[].Carrier} {Target.K0[].Carrier} {Target.K0[].Carrier}} Target.K0[].add _ _ _ _ (First.K0[].preservesNeg a)
+      (congr!{{Target.K0[].Carrier} {Target.K0[].Carrier}} (\fun (v: Target.K0[].Carrier) => Target.K0[].mul v generatorOnProduct) _ _ (First.K0[].preservesNeg b)) }
+    "=" _ "by" { congr!{{Target.K0[].Carrier} {Target.K0[].Carrier}} (Target.K0[].add (Target.K0[].neg (First.K0[].map a))) _ _ (Ring.mulNegLeft (First.K0[].map b) generatorOnProduct) }
+    "=" _ "by" { sym!{{Target.K0[].Carrier}} _ _ (Group.negAdd (First.K0[].map a) (Target.K0[].mul (First.K0[].map b) generatorOnProduct)) }
+  };
+\import algebra.Group[].Of[Carrier := Source.K0[].Carrier, group := Source.K0[].group] \as SourceGroup;
+\definition zeroCoefficient: \forall (a: Source.K0[].Carrier) -> forward a Source.K0[].zero = First.K0[].map a :=
+  \fun (a: Source.K0[].Carrier) => eq_reason_in!{{Target.K0[].Carrier} _
+    "=" _ "by" { congr!{{Target.K0[].Carrier} {Target.K0[].Carrier}} (\fun (v: Target.K0[].Carrier) => Target.K0[].add (First.K0[].map a) (Target.K0[].mul v generatorOnProduct)) _ _ First.K0[].preservesZero }
+    "=" _ "by" { congr!{{Target.K0[].Carrier} {Target.K0[].Carrier}} (Target.K0[].add (First.K0[].map a)) _ _ (Ring.mulZeroLeft generatorOnProduct) }
+    "=" _ "by" { Group.zeroRight (First.K0[].map a) }
+  };
+\definition subtractConstant: \forall (a, b, c: Source.K0[].Carrier) -> forward (SourceGroup.difference a c) b =
+  Group.difference (forward a b) (First.K0[].map c) :=
+  \fun (a, b, c: Source.K0[].Carrier) => eq_reason_in!{{Target.K0[].Carrier} _
+    "=" _ "by" { congr!{{Source.K0[].Carrier} {Target.K0[].Carrier}} (forward (SourceGroup.difference a c)) _ _ (sym!{{Source.K0[].Carrier}} _ _ (SourceGroup.zeroRight b)) }
+    "=" _ "by" { add a b (Source.K0[].neg c) Source.K0[].zero }
+    "=" _ "by" { congr!{{Target.K0[].Carrier} {Target.K0[].Carrier}} (Target.K0[].add (forward a b)) _ _ (trans!{{Target.K0[].Carrier}} _ _ _
+        (congr!{{Source.K0[].Carrier} {Target.K0[].Carrier}} (forward (Source.K0[].neg c)) _ _ (sym!{{Source.K0[].Carrier}} _ _ SourceGroup.negZero))
+        (neg c Source.K0[].zero)) }
+    "=" _ "by" { congr!{{Target.K0[].Carrier} {Target.K0[].Carrier}} (Target.K0[].add (forward a b)) _ _
+      (congr!{{Target.K0[].Carrier} {Target.K0[].Carrier}} Target.K0[].neg _ _ (zeroCoefficient c)) }
+  };
+\definition reducedZero: forward Source.K0[].zero Source.K0[].zero = Target.K0[].zero :=
+  trans!{Target.K0[].Carrier} _ _ _ (zeroCoefficient Source.K0[].zero) First.K0[].preservesZero;
+\definition reducedAdd: \forall (a, b: Source.K0[].Carrier) -> forward Source.K0[].zero (Source.K0[].add a b) =
+  Target.K0[].add (forward Source.K0[].zero a) (forward Source.K0[].zero b) :=
+  \fun (a, b: Source.K0[].Carrier) => trans!{Target.K0[].Carrier} _ _ _
+    (congr!{Source.K0[].Carrier Target.K0[].Carrier} (\fun (z: Source.K0[].Carrier) => forward z (Source.K0[].add a b)) _ _ (sym!{Source.K0[].Carrier} _ _ (SourceGroup.zeroLeft Source.K0[].zero)))
+    (add Source.K0[].zero a Source.K0[].zero b);
+\definition reducedNeg: \forall (a: Source.K0[].Carrier) -> forward Source.K0[].zero (Source.K0[].neg a) = Target.K0[].neg (forward Source.K0[].zero a) :=
+  \fun (a: Source.K0[].Carrier) => trans!{Target.K0[].Carrier} _ _ _
+    (congr!{Source.K0[].Carrier Target.K0[].Carrier} (\fun (z: Source.K0[].Carrier) => forward z (Source.K0[].neg a)) _ _ (sym!{Source.K0[].Carrier} _ _ SourceGroup.negZero))
+    (neg Source.K0[].zero a);
+\definition reducedDifference: \forall (a, b: Source.K0[].Carrier) -> forward Source.K0[].zero (SourceGroup.difference a b) =
+  Group.difference (forward Source.K0[].zero a) (forward Source.K0[].zero b) :=
+  \fun (a, b: Source.K0[].Carrier) => trans!{Target.K0[].Carrier} _ _ _ (reducedAdd a (Source.K0[].neg b))
+    (congr!{Target.K0[].Carrier Target.K0[].Carrier} (Target.K0[].add (forward Source.K0[].zero a)) _ _ (reducedNeg b));

@@ -1,0 +1,32 @@
+\import \parent.Forward[] \as Fwd;
+\import \parent.Backward[] \as Back;
+\definition collapseToBase: \forall (z: DomainPoint) -> Q.projection (Native.class z) = Q.projection (base (point z)) :=
+  \fun (z: DomainPoint) => Logic.orElim[time z = Interval.start, Base.Member subset (point z), Q.projection (Native.class z) = Q.projection (base (point z))]
+    (\bysub(Cylinder.Carrier, domain, z))
+    (\fun (bottom: time z = Interval.start) => congr!{{Carrier} {Q.Carrier}} Q.projection _ _ (atBottom z bottom))
+    (\fun (member: Base.Member subset (point z)) => trans!{{Q.Carrier}} _ _ _
+      (Q.onSubset (\into[Carrier](Native.class z, Piece.image) \by { Piece.containsVertical z member }))
+      (sym!{{Q.Carrier}} _ _ (Q.onSubset (\into[Carrier](base (point z), Piece.image) \by { Piece.containsBase (\into[X](point z, subset) \by { member }) }))));
+\definition onCofiber: \forall (z: Carrier) -> Back.projection (Project.projection z) = Q.projection z :=
+  Native.induction (\fun (z: Carrier) => Back.projection (Project.projection z) = Q.projection z)
+    (\fun (p: DomainPoint) => trans!{{Q.Carrier}} _ _ _ (congr!{{Original.Carrier} {Q.Carrier}} Back.projection _ _ (Project.onClass p))
+      (trans!{{Q.Carrier}} _ _ _ (Back.onProjection (point p)) (sym!{{Q.Carrier}} _ _ (collapseToBase p))));
+\definition coneStar: \forall (p: Q.Point) -> ConeCollapse.class (LeftSum.inr p) = Q.point :=
+  \fun (p: Q.Point) => ConeCollapse.collapsed (LeftSum.inr p) (LeftSum.inr Q.distinguished) (\refl(p)) (\refl(Q.distinguished));
+\definition originalStar: \forall (p: Original.Point) -> OriginalCollapse.class (RightSum.inr p) = Original.point :=
+  \fun (p: Original.Point) => OriginalCollapse.collapsed (RightSum.inr p) (RightSum.inr Original.distinguished) (\refl(p)) (\refl(Original.distinguished));
+\definition leftInverse: \forall (x: Q.Carrier) -> Back.projection (Fwd.projection x) = x :=
+  ConeCollapse.induction (\fun (x: Q.Carrier) => Back.projection (Fwd.projection x) = x)
+    (\induction (p: Q.Augmented) \return Back.projection (Fwd.projection (ConeCollapse.class p)) = ConeCollapse.class p \with {
+      | inl: \fun (z: Carrier) => trans!{{Q.Carrier}} _ _ _ (congr!{{Original.Carrier} {Q.Carrier}} Back.projection _ _ (Fwd.onProjection z)) (onCofiber z)
+      | inr: \fun (p: Q.Point) => trans!{{Q.Carrier}} _ _ _ (congr!{{Original.Carrier} {Q.Carrier}} Back.projection _ _ (Fwd.onStar p))
+        (trans!{{Q.Carrier}} _ _ _ Back.onPoint (sym!{{Q.Carrier}} _ _ (coneStar p)))
+    });
+\definition rightInverse: \forall (x: Original.Carrier) -> Fwd.projection (Back.projection x) = x :=
+  OriginalCollapse.induction (\fun (x: Original.Carrier) => Fwd.projection (Back.projection x) = x)
+    (\induction (p: Original.Augmented) \return Fwd.projection (Back.projection (OriginalCollapse.class p)) = OriginalCollapse.class p \with {
+      | inl: \fun (x: X) => trans!{{Original.Carrier}} _ _ _ (congr!{{Q.Carrier} {Original.Carrier}} Fwd.projection _ _ (Back.onProjection x))
+        (trans!{{Original.Carrier}} _ _ _ (Fwd.onProjection (base x)) (Project.onBase x))
+      | inr: \fun (p: Original.Point) => trans!{{Original.Carrier}} _ _ _ (congr!{{Q.Carrier} {Original.Carrier}} Fwd.projection _ _ (Back.onStar p))
+        (trans!{{Original.Carrier}} _ _ _ Fwd.onPoint (sym!{{Original.Carrier}} _ _ (originalStar p)))
+    });

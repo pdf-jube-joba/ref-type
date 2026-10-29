@@ -1,0 +1,30 @@
+\import Target.Hilbert[norm := targetNorm, inner := targetInner] \as Hilbert;
+\import Hilbert.FiniteProjection[] \as Projection;
+\import \root.FiniteRank[V := V, W := W, source := space, target := target] \as Finite;
+\import std.Data[].Nat[] \as N;
+\module At(n: N.Nat^, f: Map, factor: Finite.Through[n := n].Factor f, complete: Hilbert.Complete);
+\definition compact: \forall (complete: Hilbert.Complete)(f: Map) -> Finite.FiniteRank f -> Compact f := \block {
+  \fun (complete: Hilbert.Complete)(f: Map)(finite: Finite.FiniteRank f) \then
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \exists Finite.Through[n := n].Factor f }) \by finite \then
+  \takefrom factor: Finite.Through[n := n].Factor f \by \bysub(N.Nat^, { n: N.Nat^ \where \exists Finite.Through[n := n].Factor f }, n) \then
+  \return At[n := n, f := f, factor := factor, complete := complete].compact
+};
+\import \parent.Limit[] \as Limits;
+\import \parent.Approximation[targetInner := targetInner] \as Approx;
+\definition Approximable[f: Map]: \Prop := \forall (epsilon: R.Real) -> Order.Lt R.zero epsilon ->
+  \exists ( g: Map \where Logic.And[Finite.FiniteRank g, Limits.Near[f, g, epsilon]] );
+\definition fromCompact: \forall (complete: Hilbert.Complete)(f: Map) -> Compact f -> Approximable f := \block {
+  \fun (complete: Hilbert.Complete)(f: Map)(compact: Compact f)(epsilon: R.Real)(positive: Order.Lt R.zero epsilon) \then
+  \takefrom g: \Cast[Map] ({ g: Map \where Approx.Approximation[f, epsilon, g] }) \by Approx.existsApproximation complete f compact epsilon positive \then
+  \let data: Approx.Approximation[f, epsilon, g] := \bysub(Map, { g: Map \where Approx.Approximation[f, epsilon, g] }, g) \then
+  \return Logic.existsIntro[Map, { g: Map \where Logic.And[Finite.FiniteRank g, Limits.Near[f, g, epsilon]] }] g (Logic.And[_, _]::# data.finite data.near)
+};
+\definition toCompact: \forall (complete: Hilbert.Complete)(f: Map) -> Approximable f -> Compact f := \block {
+  \fun (complete: Hilbert.Complete)(f: Map)(approx: Approximable f) \then
+  \return Limits.compact complete.complete f (\block {
+    \fun (epsilon: R.Real)(positive: Order.Lt R.zero epsilon) \then
+    \takefrom g: \Cast[Map] ({ g: Map \where Logic.And[Finite.FiniteRank g, Limits.Near[f, g, epsilon]] }) \by approx epsilon positive \then
+    \let data: Logic.And[Finite.FiniteRank g, Limits.Near[f, g, epsilon]] := \bysub(Map, { g: Map \where Logic.And[Finite.FiniteRank g, Limits.Near[f, g, epsilon]] }, g) \then
+    \return Logic.existsIntro[Map, { g: Map \where Logic.And[Compact g, Limits.Near[f, g, epsilon]] }] g (Logic.And[_, _]::# (compact complete g data.left) data.right)
+  })
+};

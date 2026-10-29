@@ -1,0 +1,32 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.eq_reason_in;
+\import \root.Integral[A := A, source := source].Diagonal[].Boundary[p := N.Nat^::succ p, q := q] \as UpperBoundary;
+\import UpperBoundary.Formula[] \as UpperFormula;
+\import UpperBoundary.Closed[] \as UpperClosed;
+\import Simplices.CutFaces[p := N.Nat^::succ p, q := q] \as UpperGeometry;
+\import \root.Integral[A := A, source := source].At[p := N.Nat^::succ (N.Nat^::succ p), q := q] \as NextCap;
+\definition degreeEquality: N.Nat^::succ Geometry.higher = N.Nat^::succ Geometry.leftDegree :=
+  congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _ (sym!{N.Nat^} _ _ Geometry.same);
+\definition input[y: Chains.Carrier (N.Nat^::succ Geometry.higher)]: Chains.Carrier UpperGeometry.higher :=
+  Degrees.apply (N.Nat^::succ Geometry.higher) UpperGeometry.higher degreeEquality y;
+\definition witness[y: Chains.Carrier (N.Nat^::succ Geometry.higher)]: Chains.Carrier (N.Nat^::succ (N.Nat^::succ p)) :=
+  (NextCap.map beta).apply (Degrees.apply UpperGeometry.higher UpperGeometry.leftDegree (sym!{N.Nat^} _ _ UpperGeometry.same) (input y));
+\definition law: \forall (y: Chains.Carrier (N.Nat^::succ Geometry.higher)) ->
+  (cap beta).apply ((Chains.boundary Geometry.higher).apply y) = (Chains.boundary (N.Nat^::succ p)).apply (witness y) :=
+  \fun (y: Chains.Carrier (N.Nat^::succ Geometry.higher)) => eq_reason_in!{{Chains.Carrier (N.Nat^::succ p)} _
+    "=" _ "by" { congr!{{Chains.Carrier Geometry.leftDegree} {Chains.Carrier (N.Nat^::succ p)}} ((UpperCap.map beta).apply) _ _
+      (Degrees.boundaryNatural Geometry.higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) y) }
+    "=" _ "by" { UpperClosed.law beta closed (input y) }
+  };
+\import Modules.Of[V := Chains.Carrier (N.Nat^::succ p), space := Chains.space (N.Nat^::succ p)].Submodule[] \as TargetSub;
+\import TargetSub.Image[U := Chains.Carrier (N.Nat^::succ (N.Nat^::succ p)), source := Chains.space (N.Nat^::succ (N.Nat^::succ p))] \as TargetImages;
+\definition preserves: \forall (x: Source.Cycle) ->
+  \In[Source.Cycle] (Source.boundariesInside).carrier x -> \In[Target.Cycle] (Target.boundariesInside).carrier (cycle x) := \block {
+  \fun (x: Source.Cycle)(member: _) \then
+  \takefrom y: \Cast[Chains.Carrier (N.Nat^::succ Geometry.higher)] ({ y: Chains.Carrier (N.Nat^::succ Geometry.higher) \where (Source.prior).apply y = x }) \by member \then
+  \return TargetImages.introduce Target.prior (cycle x) (witness y)
+    (trans!{{Chains.Carrier (N.Nat^::succ p)}} _ _ _
+      (sym!{{Chains.Carrier (N.Nat^::succ p)}} _ _ (law y))
+      (congr!{{Chains.Carrier Geometry.higher} {Chains.Carrier (N.Nat^::succ p)}} ((cap beta).apply) _ _
+        (\bysub(Chains.Carrier (N.Nat^::succ Geometry.higher), { y: Chains.Carrier (N.Nat^::succ Geometry.higher) \where (Source.prior).apply y = x }, y))))
+};

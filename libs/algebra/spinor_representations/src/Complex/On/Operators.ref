@@ -1,0 +1,24 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].congr;
+\import Algebra.Linear[V := Total.Carrier, W := Total.Carrier, source := Total.totalSpace, target := Total.totalSpace] \as End;
+\import End.Operations[] \as Operations;
+\import Algebra.Laws[V := Total.Carrier, space := Total.totalSpace] \as Laws;
+\import \root.Over[K := C.Complex, scalarRing := ring].On[V := V, space := space].LeftCreation[k := N.Nat^::zero].Mixed[] \as Mixed;
+\definition operator[x: V][alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero)]: End.Map := Operations.plus (Total.annihilation x) (Total.leftCreation alpha);
+\definition square: \forall (x: V)(alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Total.Carrier) ->
+  (operator x alpha).apply ((operator x alpha).apply f) = Total.totalSpace.smul (Mixed.evaluate alpha x) f :=
+  \fun (x: V)(alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Total.Carrier) => eq_reason_in!{{Total.Carrier} _
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier} {Total.Carrier}} Total.totalSpace.add _ _ _ _
+      ((Total.annihilation x).preservesAdd (Total.annihilate x f) (Total.createLeft alpha f))
+      ((Total.leftCreation alpha).preservesAdd (Total.annihilate x f) (Total.createLeft alpha f)) }
+    "=" _ "by" { Laws.shuffle (Total.annihilate x (Total.annihilate x f)) (Total.annihilate x (Total.createLeft alpha f)) (Total.createLeft alpha (Total.annihilate x f)) (Total.createLeft alpha (Total.createLeft alpha f)) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier} {Total.Carrier}} Total.totalSpace.add _ _ _ _
+      (congr!{{Total.Carrier} {Total.Carrier}} (\fun (u: Total.Carrier) => Total.totalSpace.add u (Total.createLeft alpha (Total.annihilate x f))) _ _ (Total.annihilationSquare x f))
+      (congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.add (Total.annihilate x (Total.createLeft alpha f))) _ _ (creationSquare alpha f)) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier} {Total.Carrier}} Total.totalSpace.add _ _ _ _
+      (Laws.zeroLeft (Total.createLeft alpha (Total.annihilate x f))) (Laws.zeroRight (Total.annihilate x (Total.createLeft alpha f))) }
+    "=" _ "by" { Laws.comm (Total.createLeft alpha (Total.annihilate x f)) (Total.annihilate x (Total.createLeft alpha f)) }
+    "=" _ "by" { Total.creationAnnihilation alpha x f }
+  };
+\module Pairing;
+\module Clifford;

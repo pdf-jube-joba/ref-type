@@ -1,0 +1,48 @@
+\import complex.Complex[] \as C;
+\import C.Def[] \as D;
+\import C.Prop[] \as CL;
+\import C.Absolute[] \as Absolute;
+\import real.Analysis[] \as R;
+\import R.Algebra[] \as A;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import Order.Arithmetic[].Prop[] \as L;
+\import std.Logic[].Equality[] \as E;
+\use E.congr;
+\use E.sym;
+\use E.trans;
+\use E.eq_reason_in;
+\definition realProduct: \forall (a: R.Real)(z: C.Complex) -> C.re (D.mul (D.ofReal a) z) = R.mul a (C.re z) :=
+  \fun (a: R.Real)(z: C.Complex) => eq_reason_in!{R.Real _
+    "=" _ "by" { congr!{R.Real R.Real} (R.sub (R.mul a (C.re z))) _ _ (L.fieldMulZeroLeft (C.im z)) }
+    "=" _ "by" { L.subZeroRight (R.mul a (C.re z)) }
+  };
+\definition imaginaryProduct: \forall (a: R.Real)(z: C.Complex) -> C.im (D.mul (D.ofReal a) z) = R.mul a (C.im z) :=
+  \fun (a: R.Real)(z: C.Complex) => trans!{R.Real} _ _ _
+    (congr!{R.Real R.Real} (R.add (R.mul a (C.im z))) _ _ (L.fieldMulZeroLeft (C.re z))) (L.addZeroRight (R.mul a (C.im z)));
+\definition imaginaryUnitReal: \forall (z: C.Complex) -> C.re (D.mul D.i z) = R.neg (C.im z) :=
+  \fun (z: C.Complex) => eq_reason_in!{R.Real _
+    "=" _ "by" { congr!{R.Real R.Real R.Real} R.sub _ _ _ _ (L.fieldMulZeroLeft (C.re z)) (L.fieldMulOneLeft (C.im z)) }
+    "=" _ "by" { L.addZeroLeft (R.neg (C.im z)) }
+  };
+\definition squareNegative: \forall (a: R.Real) -> R.mul (R.neg a) (R.neg a) = R.mul a a :=
+  \fun (a: R.Real) => eq_reason_in!{R.Real _
+    "=" _ "by" { L.fieldMulNegLeft a (R.neg a) }
+    "=" _ "by" { congr!{R.Real R.Real} R.neg _ _ (L.fieldMulNegRight a a) }
+    "=" _ "by" { L.negInvolutive (R.mul a a) }
+  };
+\definition realAbsolute: \forall (z: C.Complex) -> Order.Le (R.Estimates[].Product[].abs (C.re z)) (Absolute.abs z) :=
+  \fun (z: C.Complex) => Order.leReplaceLeft (R.Distance[].max (R.neg (C.re z)) (C.re z)) (R.Estimates[].Product[].abs (C.re z)) (Absolute.abs z)
+    (sym!{R.Real} _ _ (R.Estimates[].Product[].absExpression (C.re z))) (R.Distance[].maxLeast (R.neg (C.re z)) (C.re z) (Absolute.abs z)
+    (Order.leReplaceLeft (C.re (D.neg z)) (R.neg (C.re z)) (Absolute.abs z) (\refl(R.neg (C.re z)))
+      (Order.leReplaceRight _ (Absolute.abs (D.neg z)) (Absolute.abs z)
+        (congr!{R.Real R.Real} R.SquareRoot[].sqrt _ _
+          (trans!{R.Real} _ _ _ (congr!{R.Real R.Real R.Real} R.add _ _ _ _ (squareNegative (C.re z)) (squareNegative (C.im z))) (\refl(D.normSq z))))
+        (Absolute.realPartBound (D.neg z))))
+    (Absolute.realPartBound z));
+\definition absoluteZero: Absolute.abs D.zero = R.zero := eq_reason_in!{R.Real _
+  "=" _ "by" { congr!{R.Real R.Real} R.SquareRoot[].sqrt _ _
+    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real R.Real} R.add _ _ _ _ (L.fieldMulZeroLeft R.zero) (L.fieldMulZeroLeft R.zero)) (L.addZeroLeft R.zero)) }
+  "=" _ "by" { R.SquareRoot[].sqrtZero }
+};
+\definition negativeZero: D.neg D.zero = D.zero := trans!{C.Complex} _ _ _
+  (sym!{C.Complex} _ _ (CL.ofRealNeg R.zero)) (congr!{R.Real C.Complex} D.ofReal _ _ L.negZero);

@@ -1,0 +1,23 @@
+\import \parent.\parent.\parent.Local[S := S] \as OriginalLocal;
+\definition Carrier: \Set := OriginalLocal.Carrier;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := OriginalLocal.topology;
+\definition inclusion[y: Carrier]: X := y;
+\definition regular: topology.Continuity[A := Carrier, B := X].Continuous topology space inclusion := OriginalLocal.regular;
+\import Complements.PulledIsomorphism[X := X, Y := Carrier, F := Sum.Fiber, G := (\fun (x: X) => Vector dimension),
+  source := bundle, target := Ambient.bundle, base := topology, f := inclusion, sourceRegular := regular, targetRegular := regular] \as PullFrame;
+\import Operations.TrivialPullback[X := X, Y := Carrier, n := dimension, original := space, base := topology, f := inclusion, regular := regular] \as TrivialPull;
+\import Bundles.Trivial[X := Carrier, n := dimension, baseSpace := topology] \as LocalAmbient;
+\import Operations.IsomorphismComposition[X := Carrier, F := (\fun (y: Carrier) => Sum.Fiber y), G := (\fun (y: Carrier) => Vector dimension), H := (\fun (y: Carrier) => Vector dimension),
+  source := OriginalLocal.pulledBundle, middle := TrivialPull.pulled, target := LocalAmbient.bundle] \as Compose;
+\import Bundles.Isomorphisms[X := Carrier, F := (\fun (y: Carrier) => Sum.Fiber y), G := (\fun (y: Carrier) => Vector dimension),
+  source := OriginalLocal.pulledBundle, target := LocalAmbient.bundle] \as Comparisons;
+\definition comparison: Comparisons.Isomorphism := Compose.compose (PullFrame.isomorphism Frame.isomorphism) TrivialPull.isomorphism;
+\definition forwardFormula: \forall (y: Carrier)(z: Sum.Fiber y) -> (comparison.forward.fiber y).apply z = (Frame.isomorphism.forward.fiber y).apply z :=
+  \fun (y: Carrier)(z: Sum.Fiber y) => trans!{{Vector dimension}} _ _ _
+    (TrivialPull.formula y (((PullFrame.isomorphism Frame.isomorphism).forward.fiber y).apply z)) (PullFrame.formula Frame.isomorphism y z);
+\definition laws: Comparisons.Laws[comparison] := \bysub(Comparisons.Data, Comparisons.Isomorphism, comparison);
+\definition backwardFormula: \forall (y: Carrier)(v: Vector dimension) -> (comparison.backward.fiber y).apply v = (Frame.isomorphism.backward.fiber y).apply v :=
+  \fun (y: Carrier)(v: Vector dimension) => trans!{H} _ _ _
+    (sym!{H} _ _ (frameLaws.leftInverse y ((comparison.backward.fiber y).apply v)))
+    (congr!{{Vector dimension} H} (Frame.isomorphism.backward.fiber y).apply _ _
+      (trans!{{Vector dimension}} _ _ _ (sym!{{Vector dimension}} _ _ (forwardFormula y ((comparison.backward.fiber y).apply v))) (laws.rightInverse y v)));

@@ -1,0 +1,25 @@
+\use Logic.either;
+\definition inverseOne: Laws.fieldInv Real.one = Real.one := trans!{Real.Real} _ _ _
+  (sym!{Real.Real} _ _ (Algebra.mulOneRight (Laws.fieldInv Real.one)))
+  (Laws.fieldInverseNonzero Real.one (\fun (zero: Real.one = Real.zero) => Laws.zeroNeOne (sym!{Real.Real} _ _ zero)));
+\definition unitCoefficient: denominator = Real.one -> coefficient = Real.one := \fun (same: denominator = Real.one) =>
+  trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Laws.fieldInv _ _ same) inverseOne;
+\definition unitTime: denominator = Real.one -> time = t := \fun (same: denominator = Real.one) =>
+  trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (q: Real.Real) => Real.add (Real.sub Real.one q) (Real.sub Real.one q)) _ _
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (s: Real.Real) => Real.mul s lower) _ _ (unitCoefficient same)) (Laws.fieldMulOneLeft lower)))
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+      (I.reverseInvolutive (Time.multiply I.middle t)) (I.reverseInvolutive (Time.multiply I.middle t))) (Estimates.halfTwice t));
+\definition boundaryDenominator: r = I.end -> denominator = Real.one := \fun (same: r = I.end) => trans!{Real.Real} _ _ _
+  (congr!{Real.Real Real.Real} (Distance.max lower) _ _ same) (Distance.maxOfLe lower Real.one (I.bounds lower).right);
+\definition startLower: t = I.start -> lower = I.end := \fun (same: t = I.start) => trans!{Real.Real} _ _ _
+  (congr!{Real.Real Real.Real} (\fun (s: Real.Real) => Real.sub Real.one (Real.mul Real.half s)) _ _ same)
+  (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.sub Real.one) _ _ (Laws.fieldMulZeroRight Real.half)) (Laws.subZeroRight Real.one));
+\definition startDenominator: t = I.start -> denominator = Real.one := \fun (same: t = I.start) => trans!{Real.Real} _ _ _
+  (congr!{Real.Real Real.Real} (\fun (s: Real.Real) => Distance.max s r) _ _ (startLower same)) (Distance.maxOfGe Real.one r (I.bounds r).right);
+\definition boundaryCoefficient: r = I.end -> coefficient = Real.one := \fun (same: r = I.end) => unitCoefficient (boundaryDenominator same);
+\definition boundaryTime: r = I.end -> time = t := \fun (same: r = I.end) => unitTime (boundaryDenominator same);
+\definition startCoefficient: t = I.start -> coefficient = Real.one := \fun (same: t = I.start) => unitCoefficient (startDenominator same);
+\definition startTime: t = I.start -> time = I.start := \fun (same: t = I.start) => trans!{Real.Real} _ _ _ (unitTime (startDenominator same)) same;
+\definition alternatives: Logic.Or[denominator = lower, denominator = r] := either!{{Order.leTotal lower r} {Logic.Or[denominator = lower, denominator = r]}
+  {\fun (le: R.Le lower r) => Logic.Or[_, _]::right (Distance.maxOfLe lower r le)}
+  {\fun (le: R.Le r lower) => Logic.Or[_, _]::left (Distance.maxOfGe lower r le)}};

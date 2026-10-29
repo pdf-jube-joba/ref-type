@@ -1,0 +1,44 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import N.Basic[].Def[] \as Nat;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import \parent.SmallDegree[] \as Degree;
+\import SecondCap.Degree[] \as TargetDegree;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import Nonnegative.ZeroExtension[C := Small.complex] \as SmallExtension;
+\import Nonnegative.ZeroExtension[C := Chains.complex] \as WholeExtension;
+\import Nonnegative.Map[C := Small.complex, D := Chains.complex].ZeroExtension[f := inclusion] \as SmallMap;
+\import Complexes.Quotient[C := SmallExtension.complex, D := WholeExtension.complex].On[f := SmallMap.map] \as Q;
+\import Complexes.At[C := Q.complex, z := I.Int^::ofNat (N.Nat^::succ (Nat.add N.Nat^::zero r))] \as Source;
+\import Complexes.At[C := Second.complex, z := I.Int^::ofNat N.Nat^::zero] \as Target;
+\import \parent.CapBoundary[p := N.Nat^::zero, q := r] \as Boundary;
+\import Boundary.Formula[] \as Formula;
+\import \parent.Cap[p := N.Nat^::zero, q := r] \as Lower;
+\import \parent.Cap[p := N.Nat^::succ N.Nat^::zero, q := r] \as Upper;
+\import \parent.Cap[p := N.Nat^::zero, q := N.Nat^::succ r] \as Right;
+
+\import singular_cohomology.Simplices[A := A, source := source].CutFaces[p := N.Nat^::zero, q := r] \as Geometry;
+\import \parent.SmallDegree[] \as Degrees;
+\import Modules.Hom[V := Degrees.Carrier Geometry.total, W := TargetDegree.Carrier N.Nat^::zero, source := Degrees.space Geometry.total, target := TargetDegree.space N.Nat^::zero] \as LowerMaps;
+\import Modules.Hom[V := TargetDegree.Carrier (N.Nat^::succ N.Nat^::zero), W := TargetDegree.Carrier N.Nat^::zero, source := TargetDegree.space (N.Nat^::succ N.Nat^::zero), target := TargetDegree.space N.Nat^::zero] \as BoundaryMaps;
+\import Modules.Laws[V := TargetDegree.Carrier N.Nat^::zero, space := TargetDegree.space N.Nat^::zero] \as Values;
+\import algebra.Group[].Of[Carrier := TargetDegree.Carrier N.Nat^::zero, group := Values.additive] \as Group;
+\definition witness[gamma: FirstCochains.Carrier (I.Int^::ofNat r)][x: Source.Cycle]: TargetDegree.Carrier (N.Nat^::succ N.Nat^::zero) :=
+  (Upper.map gamma).apply (Degrees.apply Geometry.higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) x);
+\definition sumZero: \forall (gamma: FirstCochains.Carrier (I.Int^::ofNat r))(x: Source.Cycle) ->
+  (TargetDegree.space N.Nat^::zero).add ((TargetDegree.boundary N.Nat^::zero).apply (witness gamma x)) ((Right.map ((FirstCochains.complex.differential).apply (I.Int^::ofNat r) gamma)).apply x) = (TargetDegree.space N.Nat^::zero).zero :=
+  \fun (gamma: FirstCochains.Carrier (I.Int^::ofNat r))(x: Source.Cycle) => trans!{{TargetDegree.Carrier N.Nat^::zero}} _ _ _
+    (sym!{{TargetDegree.Carrier N.Nat^::zero}} _ _ (Formula.law gamma x))
+    (trans!{{TargetDegree.Carrier N.Nat^::zero}} _ _ _
+      (congr!{{Degrees.Carrier Geometry.total} {TargetDegree.Carrier N.Nat^::zero}} ((Lower.map gamma).apply) _ _
+        (\bysub(Degrees.Carrier Geometry.higher, (Source.cycles).carrier, x))) (LowerMaps.zeroPreserved (Lower.map gamma)));
+\definition boundary: \forall (gamma: FirstCochains.Carrier (I.Int^::ofNat r))(x: Source.Cycle) ->
+  (TargetDegree.boundary N.Nat^::zero).apply ((TargetDegree.space (N.Nat^::succ N.Nat^::zero)).neg (witness gamma x)) = (Right.map ((FirstCochains.complex.differential).apply (I.Int^::ofNat r) gamma)).apply x :=
+  \fun (gamma: FirstCochains.Carrier (I.Int^::ofNat r))(x: Source.Cycle) => trans!{{TargetDegree.Carrier N.Nat^::zero}} _ _ _
+    (BoundaryMaps.negativePreserved (TargetDegree.boundary N.Nat^::zero) (witness gamma x))
+    (sym!{{TargetDegree.Carrier N.Nat^::zero}} _ _ (Group.inverseUnique _ _
+      (trans!{{TargetDegree.Carrier N.Nat^::zero}} _ _ _ (Group.comm ((Right.map ((FirstCochains.complex.differential).apply (I.Int^::ofNat r) gamma)).apply x) ((TargetDegree.boundary N.Nat^::zero).apply (witness gamma x))) (sumZero gamma x))));
+
+\module On(gamma: FirstCochains.Carrier (I.Int^::ofNat r));

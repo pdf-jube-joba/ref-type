@@ -1,0 +1,28 @@
+\import \parent.\parent.\parent.TotalInner[] \as Inner;
+\import Inner.Vacuum[] \as VacuumMetric;
+\import Inner.Adjoint[].Isometry[].PinAction[] \as Isometry;
+\import C.Prop[] \as ComplexLaws;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := Field.field, scalar := Hermitian.scalar].Inner[V := Total.Carrier, space := Total.totalSpace].Of[h := Inner.form] \as InnerLaws;
+\definition cancelRight: \forall (a, b, c: C.Complex) -> Logic.Not (c = Algebra.zero) -> Algebra.mul a c = Algebra.mul b c -> a = b :=
+  \fun (a, b, c: C.Complex)(nonzero: Logic.Not (c = Algebra.zero))(same: Algebra.mul a c = Algebra.mul b c) => eq_reason_in!{C.Complex _
+    "=" _ "by" { sym!{C.Complex} _ _ (Algebra.mulOneRight a) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (Algebra.mul a) _ _ (sym!{C.Complex} _ _ (trans!{C.Complex} _ _ _ (Algebra.mulComm c (Field.field.inv c)) (Field.field.inverse c nonzero))) }
+    "=" _ "by" { sym!{C.Complex} _ _ (Algebra.mulAssoc a c (Field.field.inv c)) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => Algebra.mul z (Field.field.inv c)) _ _ same }
+    "=" _ "by" { Algebra.mulAssoc b c (Field.field.inv c) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (Algebra.mul b) _ _ (trans!{C.Complex} _ _ _ (Algebra.mulComm c (Field.field.inv c)) (Field.field.inverse c nonzero)) }
+    "=" _ "by" { Algebra.mulOneRight b }
+  };
+\definition vacuumNormNonzero: Logic.Not (Inner.dot Vacuum.state Vacuum.state = Algebra.zero) :=
+  \fun (zero: Inner.dot Vacuum.state Vacuum.state = Algebra.zero) => VacuumMetric.nonzero (Inner.positive.definite Vacuum.state zero);
+\definition normOne: \forall (u: Unitary.Carrier)(g: SpinC.Carrier) -> Phase.projection g = map u -> Def.normSq (vacuumScalar g) = R.one :=
+  \fun (u: Unitary.Carrier)(g: SpinC.Carrier)(projects: Phase.projection g = map u) => congr!{C.Complex R.Real} C.re _ _
+    (cancelRight (Def.ofReal (Def.normSq (vacuumScalar g))) Algebra.one (Inner.dot Vacuum.state Vacuum.state) vacuumNormNonzero (eq_reason_in!{C.Complex _
+      "=" _ "by" { congr!{C.Complex C.Complex} (\fun (a: C.Complex) => Algebra.mul a (Inner.dot Vacuum.state Vacuum.state)) _ _ (sym!{C.Complex} _ _ (ComplexLaws.conjMulSelf (vacuumScalar g))) }
+      "=" _ "by" { Algebra.mulAssoc (Def.conj (vacuumScalar g)) (vacuumScalar g) (Inner.dot Vacuum.state Vacuum.state) }
+      "=" _ "by" { congr!{C.Complex C.Complex} (Algebra.mul (Def.conj (vacuumScalar g))) _ _ (sym!{C.Complex} _ _ (Inner.form.scaleRight (vacuumScalar g) Vacuum.state Vacuum.state)) }
+      "=" _ "by" { sym!{C.Complex} _ _ (InnerLaws.scaleLeft (vacuumScalar g) Vacuum.state (Total.totalSpace.smul (vacuumScalar g) Vacuum.state)) }
+      "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier} C.Complex} Inner.dot _ _ _ _ (sym!{{Total.Carrier}} _ _ (vacuumEigen u g projects)) (sym!{{Total.Carrier}} _ _ (vacuumEigen u g projects)) }
+      "=" _ "by" { Isometry.spinC g Vacuum.state Vacuum.state }
+      "=" _ "by" { sym!{C.Complex} _ _ (Algebra.mulOneLeft (Inner.dot Vacuum.state Vacuum.state)) }
+    }));

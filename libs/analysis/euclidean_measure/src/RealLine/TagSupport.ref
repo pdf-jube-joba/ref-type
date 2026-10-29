@@ -1,0 +1,130 @@
+\import \root.RealLine[] \as Line;
+\import \root.RealLine[].TaggedIntegral[] \as Tagged;
+\import integration.Real[] \as Integration;
+\import Integration.Division[] \as Division;
+\import real.Analysis[] \as Real;
+\import Real.Estimates[] \as Estimates;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import functional_analysis.Measure[A := Real.Real] \as Measure;
+\import Measure.Sigma[] \as Sigma;
+\import Measure.Integral[mu := Line.measure] \as Integral;
+\import Measure.AlmostEverywhere[mu := Line.measure] \as AE;
+\import topology.Topology[Carrier := Real.Real] \as Sets;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\use Equality.trans;
+\use Equality.eq_reason_in;
+\definition constantOutside: \forall (I: Integration.Interval) (c, x: Real.Real) -> Logic.Not (Sets.Member (Line.interval I.left I.right) x) -> Tagged.constantRep I c x = Real.zero :=
+  \fun (I: Integration.Interval) (c, x: Real.Real) => \root.RealLine[].IntervalIntegral[interval := I].constantOutside c x;
+\definition constantInside: \forall (I: Integration.Interval) (c, x: Real.Real) -> Sets.Member (Line.interval I.left I.right) x -> Tagged.constantRep I c x = c :=
+  \fun (I: Integration.Interval) (c, x: Real.Real) (inside: Sets.Member (Line.interval I.left I.right) x) =>
+    \root.RealLine[].IntervalIntegral[interval := I].constantInside c x inside.left inside.right;
+\definition leftSubset: \forall (I: Integration.Interval) -> Sets.Subset (Line.interval (Tagged.left I).left (Tagged.left I).right) (Line.interval I.left I.right) :=
+  \fun (I: Integration.Interval) (x: Real.Real) (inside: Sets.Member (Line.interval (Tagged.left I).left (Tagged.left I).right) x) =>
+    Logic.And[_, _]::# inside.left (R.leTrans x (Real.midpoint I.left I.right) I.right inside.right (Estimates.midpointRight I.left I.right I.ordered));
+\definition rightSubset: \forall (I: Integration.Interval) -> Sets.Subset (Line.interval (Tagged.right I).left (Tagged.right I).right) (Line.interval I.left I.right) :=
+  \fun (I: Integration.Interval) (x: Real.Real) (inside: Sets.Member (Line.interval (Tagged.right I).left (Tagged.right I).right) x) =>
+    Logic.And[_, _]::# (R.leTrans I.left (Real.midpoint I.left I.right) x (Estimates.midpointLeft I.left I.right I.ordered) inside.left) inside.right;
+\definition outside: \forall (tags: Division.Tags) (f: Real.Real -> Real.Real) (I: Integration.Interval) (x: Real.Real) ->
+  Logic.Not (Sets.Member (Line.interval I.left I.right) x) -> Tagged.tagged tags f I x = Real.zero :=
+  \induction (tags: Division.Tags) \return \forall (f: Real.Real -> Real.Real) (I: Integration.Interval) (x: Real.Real) ->
+    Logic.Not (Sets.Member (Line.interval I.left I.right) x) -> Tagged.tagged tags f I x = Real.zero \with {
+      | tag: \fun (v: Real.Real) (f: Real.Real -> Real.Real) (I: Integration.Interval) (x: Real.Real) (out: Logic.Not (Sets.Member (Line.interval I.left I.right) x)) =>
+        constantOutside I (f v) x out
+      | split: \fun (l: Division.Tags) (lh: \forall (f: Real.Real -> Real.Real) (I: Integration.Interval) (x: Real.Real) -> Logic.Not (Sets.Member (Line.interval I.left I.right) x) -> Tagged.tagged l f I x = Real.zero)
+        (r: Division.Tags) (rh: \forall (f: Real.Real -> Real.Real) (I: Integration.Interval) (x: Real.Real) -> Logic.Not (Sets.Member (Line.interval I.left I.right) x) -> Tagged.tagged r f I x = Real.zero)
+        (f: Real.Real -> Real.Real) (I: Integration.Interval) (x: Real.Real) (out: Logic.Not (Sets.Member (Line.interval I.left I.right) x)) => eq_reason_in!{Real.Real _
+          "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+            (lh f (Tagged.left I) x (\fun (member: Sets.Member (Line.interval (Tagged.left I).left (Tagged.left I).right) x) => out (leftSubset I x member)))
+            (rh f (Tagged.right I) x (\fun (member: Sets.Member (Line.interval (Tagged.right I).left (Tagged.right I).right) x) => out (rightSubset I x member))) }
+          "=" _ "by" { Laws.addZeroLeft Real.zero }
+        }
+    };
+\definition boundary: \forall (tags: Division.Tags) -> Integration.Interval -> \Pow Real.Real :=
+  \induction (tags: Division.Tags) \return Integration.Interval -> \Pow Real.Real \with {
+    | tag: \fun (_: Real.Real) (_: Integration.Interval) => Sets.Empty
+    | split: \fun (_: Division.Tags) (left: Integration.Interval -> \Pow Real.Real) (_: Division.Tags) (right: Integration.Interval -> \Pow Real.Real) (I: Integration.Interval) =>
+      Sigma.pairUnion (Sets.Singleton (Real.midpoint I.left I.right)) (Sigma.pairUnion (left (Tagged.left I)) (right (Tagged.right I)))
+  };
+\definition singletonNull: \forall (x: Real.Real) -> Measure.Null Line.measure (Sets.Singleton x) :=
+  \fun (x: Real.Real) => Logic.existsIntro[\Pow Real.Real, { S: \Pow Real.Real \where Measure.NullCover[Line.measure, Sets.Singleton x, S] }] (Sets.Singleton x)
+    (Measure.NullCover[Line.measure, Sets.Singleton x, Sets.Singleton x] {
+      measurable := Line.singletonMeasurable x, measure := Line.singletonNull x,
+      included := \fun (_: Real.Real) (member: _) => member,
+    });
+\definition boundaryNull: \forall (tags: Division.Tags) (I: Integration.Interval) -> Measure.Null Line.measure (boundary tags I) :=
+  \induction (tags: Division.Tags) \return \forall (I: Integration.Interval) -> Measure.Null Line.measure (boundary tags I) \with {
+    | tag: \fun (_: Real.Real) (_: Integration.Interval) => AE.nullEmpty
+    | split: \fun (_: Division.Tags) (lh: \forall (I: Integration.Interval) -> Measure.Null Line.measure (boundary _ I))
+      (_: Division.Tags) (rh: \forall (I: Integration.Interval) -> Measure.Null Line.measure (boundary _ I)) (I: Integration.Interval) =>
+        AE.nullUnion (Sets.Singleton (Real.midpoint I.left I.right)) _ (singletonNull (Real.midpoint I.left I.right))
+          (AE.nullUnion _ _ (lh (Tagged.left I)) (rh (Tagged.right I)))
+  };
+\import Integration.Division[].Mesh[] \as Mesh;
+\import Integration.Division[].Bounds[] \as Bounds;
+\import R.Order[] \as Order;
+\use Equality.sym;
+\definition Witness[tags: Division.Tags] [f: Real.Real -> Real.Real] [I: Integration.Interval] [x, delta, z: Real.Real]: \Prop :=
+  Logic.And[Sets.Member (Line.interval I.left I.right) z,
+    Logic.And[R.Lt (Real.distance x z) delta, Tagged.tagged tags f I x = f z]];
+\definition nearbyTag: \forall (tags: Division.Tags) (f: Real.Real -> Real.Real) (I: Integration.Interval) (x, delta: Real.Real) ->
+  Division.Valid tags I.left I.right -> Mesh.Fine tags I.left I.right delta -> Sets.Member (Line.interval I.left I.right) x ->
+  Logic.Not (Sets.Member (boundary tags I) x) -> \exists ( z: Real.Real \where Witness tags f I x delta z ) :=
+  \induction (tags: Division.Tags) \return \forall (f: Real.Real -> Real.Real) (I: Integration.Interval) (x, delta: Real.Real) ->
+    Division.Valid tags I.left I.right -> Mesh.Fine tags I.left I.right delta -> Sets.Member (Line.interval I.left I.right) x ->
+    Logic.Not (Sets.Member (boundary tags I) x) -> \exists ( z: Real.Real \where Witness tags f I x delta z ) \with {
+      | tag: \fun (z: Real.Real) (f: Real.Real -> Real.Real) (I: Integration.Interval) (x, delta: Real.Real)
+        (valid: Division.Valid (Division.Tags::tag z) I.left I.right) (fine: Mesh.Fine (Division.Tags::tag z) I.left I.right delta)
+        (inside: Sets.Member (Line.interval I.left I.right) x) (_: Logic.Not (Sets.Member (boundary (Division.Tags::tag z) I) x)) =>
+          Logic.existsIntro[Real.Real, { z2: Real.Real \where Witness (Division.Tags::tag z) f I x delta z2 }] z
+            (Logic.And[_, _]::# valid (Logic.And[_, _]::#
+              (R.leLtTrans _ (Real.sub I.right I.left) delta (Bounds.intervalDistance I.left I.right x z inside.left inside.right valid.left valid.right) fine)
+              (constantInside I (f z) x inside)))
+      | split: \fun (l: Division.Tags) (lh: \forall (f: Real.Real -> Real.Real) (I: Integration.Interval) (x, delta: Real.Real) ->
+          Division.Valid l I.left I.right -> Mesh.Fine l I.left I.right delta -> Sets.Member (Line.interval I.left I.right) x ->
+          Logic.Not (Sets.Member (boundary l I) x) -> \exists ( z: Real.Real \where Witness l f I x delta z ))
+        (r: Division.Tags) (rh: \forall (f: Real.Real -> Real.Real) (I: Integration.Interval) (x, delta: Real.Real) ->
+          Division.Valid r I.left I.right -> Mesh.Fine r I.left I.right delta -> Sets.Member (Line.interval I.left I.right) x ->
+          Logic.Not (Sets.Member (boundary r I) x) -> \exists ( z: Real.Real \where Witness r f I x delta z ))
+        (f: Real.Real -> Real.Real) (I: Integration.Interval) (x, delta: Real.Real)
+        (valid: Division.Valid (Division.Tags::split l r) I.left I.right) (fine: Mesh.Fine (Division.Tags::split l r) I.left I.right delta)
+        (inside: Sets.Member (Line.interval I.left I.right) x) (notBoundary: Logic.Not (Sets.Member (boundary (Division.Tags::split l r) I) x)) => \block {
+          \let mid: Real.Real := Real.midpoint I.left I.right \then
+          \let different: Logic.Not (x = mid) := \fun (equal: x = mid) => notBoundary (Logic.Or[_, _]::left equal) \then
+          \let leftOut: Logic.Not (Sets.Member (boundary l (Tagged.left I)) x) := \fun (m: Sets.Member (boundary l (Tagged.left I)) x) =>
+            notBoundary (Logic.Or[_, _]::right (Logic.Or[_, _]::left m)) \then
+          \let rightOut: Logic.Not (Sets.Member (boundary r (Tagged.right I)) x) := \fun (m: Sets.Member (boundary r (Tagged.right I)) x) =>
+            notBoundary (Logic.Or[_, _]::right (Logic.Or[_, _]::right m)) \then
+          \return Logic.orElim (R.Le x mid) (R.Le mid x) (\exists (z: Real.Real \where Witness (Division.Tags::split l r) f I x delta z)) (Order.leTotal x mid)
+            (\fun (le: R.Le x mid) => \block {
+              \let strict: R.Lt x mid := Order.ltOfLeNotEq x mid le different \then
+              \let inLeft: Sets.Member (Line.interval (Tagged.left I).left (Tagged.left I).right) x := Logic.And[_, _]::# inside.left le \then
+              \let outsideRight: Logic.Not (Sets.Member (Line.interval (Tagged.right I).left (Tagged.right I).right) x) :=
+                \fun (m: Sets.Member (Line.interval (Tagged.right I).left (Tagged.right I).right) x) => R.ltNotLeReverse x mid strict m.left \then
+              \takefrom z: \Cast[Real.Real] ({ z: Real.Real \where Witness l f (Tagged.left I) x delta z }) \by lh f (Tagged.left I) x delta valid.left fine.left inLeft leftOut \then
+              \let w: Witness l f (Tagged.left I) x delta z := \bysub(Real.Real, { z: Real.Real \where Witness l f (Tagged.left I) x delta z }, z) \then
+              \return Logic.existsIntro[Real.Real, { z: Real.Real \where Witness (Division.Tags::split l r) f I x delta z }] z
+                (Logic.And[_, _]::# (leftSubset I z w.left) (Logic.And[_, _]::# w.right.left (eq_reason_in!{Real.Real _
+                  "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (Tagged.tagged l f (Tagged.left I) x)) _ _ (outside r f (Tagged.right I) x outsideRight) }
+                  "=" _ "by" { Laws.addZeroRight (Tagged.tagged l f (Tagged.left I) x) }
+                  "=" _ "by" { w.right.right }
+                })))
+            })
+            (\fun (le: R.Le mid x) => \block {
+              \let strict: R.Lt mid x := Order.ltOfLeNotEq mid x le (\fun (equal: mid = x) => different (sym!{Real.Real} _ _ equal)) \then
+              \let inRight: Sets.Member (Line.interval (Tagged.right I).left (Tagged.right I).right) x := Logic.And[_, _]::# le inside.right \then
+              \let outsideLeft: Logic.Not (Sets.Member (Line.interval (Tagged.left I).left (Tagged.left I).right) x) :=
+                \fun (m: Sets.Member (Line.interval (Tagged.left I).left (Tagged.left I).right) x) => R.ltNotLeReverse mid x strict m.right \then
+              \takefrom z: \Cast[Real.Real] ({ z: Real.Real \where Witness r f (Tagged.right I) x delta z }) \by rh f (Tagged.right I) x delta valid.right fine.right inRight rightOut \then
+              \let w: Witness r f (Tagged.right I) x delta z := \bysub(Real.Real, { z: Real.Real \where Witness r f (Tagged.right I) x delta z }, z) \then
+              \return Logic.existsIntro[Real.Real, { z: Real.Real \where Witness (Division.Tags::split l r) f I x delta z }] z
+                (Logic.And[_, _]::# (rightSubset I z w.left) (Logic.And[_, _]::# w.right.left (eq_reason_in!{Real.Real _
+                  "=" _ "by" { congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.add v (Tagged.tagged r f (Tagged.right I) x)) _ _ (outside l f (Tagged.left I) x outsideLeft) }
+                  "=" _ "by" { Laws.addZeroLeft (Tagged.tagged r f (Tagged.right I) x) }
+                  "=" _ "by" { w.right.right }
+                })))
+            })
+        }
+    };

@@ -1,0 +1,18 @@
+\import spectral_splitting.Spectral[].At[n := n].Pencil[A := operator x, z := z] \as Pencil;
+\import spectral_splitting.Spectral[].At[n := n].Characteristic[].Evaluation[z := z] \as Evaluation;
+\definition entry: \forall (i, j: M.Index) -> Pencil.entries i j = C.Def[].add (C.Def[].mul z (M.identity i j)) (C.Def[].neg (operator x i j)) :=
+  \fun (i, j: M.Index) => congr!{M.Matrix {C.Complex}} (\fun (m: M.Matrix) => m i j) _ _ Pencil.entriesFormula;
+\definition entryFormula: \forall (i, j: M.Index) -> Pencil.entries i j = C.Def[].add (C.Def[].mul z (M.identity i j)) (C.Def[].mul reciprocal (h x i j)) :=
+  \fun (i, j: M.Index) => trans!{{C.Complex}} _ _ _ (entry i j)
+    (congr!{{C.Complex} {C.Complex}} (C.Def[].add (C.Def[].mul z (M.identity i j))) _ _ (C.Prop[].negNeg (C.Def[].mul reciprocal (h x i j))));
+\definition scaledFormula: \forall (i, j: M.Index) -> Scaling.scale reciprocal (Margin.perturb (error z) x) i j =
+  C.Def[].add (C.Def[].mul reciprocal (h x i j)) (C.Def[].mul z (M.identity i j)) :=
+  \fun (i, j: M.Index) => trans!{{C.Complex}} _ _ _ (C.Prop[].mulAddLeft reciprocal (h x i j) (error z i j))
+    (congr!{{C.Complex} {C.Complex}} (C.Def[].add (C.Def[].mul reciprocal (h x i j))) _ _ (cancelScale (C.Def[].mul z (M.identity i j))));
+\definition equation: Pencil.entries = Scaling.scale reciprocal (Margin.perturb (error z) x) :=
+  M.Operations[].ext _ _ (\fun (i, j: M.Index) => trans!{{C.Complex}} _ _ _ (entryFormula i j)
+    (trans!{{C.Complex}} _ _ _ (C.Prop[].addComm _ _) (sym!{{C.Complex}} _ _ (scaledFormula i j))));
+\definition nonzero: Real.Le (C.Absolute[].abs z) R.one -> Field.Nonzero Pencil.entries :=
+  \fun (inside: _) (zero: _) => Scaling.nonzero reciprocal reciprocalNonzero (Margin.perturb (error z) x)
+    (bound.preserves (error z) (errorBound z inside) x)
+    (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (congr!{M.Matrix {C.Complex}} M.determinant _ _ equation)) zero);

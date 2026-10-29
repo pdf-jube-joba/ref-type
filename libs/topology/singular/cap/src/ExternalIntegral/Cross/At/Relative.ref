@@ -1,0 +1,45 @@
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import Nonnegative.ZeroExtension[C := LeftChains.complex] \as LeftExtension;
+\import Nonnegative.ZeroExtension[C := LeftSubChains.complex] \as LeftSubExtension;
+\import Nonnegative.ZeroExtension[C := RightChains.complex] \as RightExtension;
+\import Nonnegative.ZeroExtension[C := RightSubChains.complex] \as RightSubExtension;
+\import Nonnegative.ZeroExtension[C := ProductChains.complex] \as ProductExtension;
+\import singular_cohomology.Chains[A := TargetRelative.SubspaceCarrier, source := UnionSpace.topology External.topology] \as UnionChains;
+\import Nonnegative.ZeroExtension[C := UnionChains.complex] \as UnionExtension;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.Quotient[C := LeftSubExtension.complex, D := LeftExtension.complex].On[f := Left.inclusionMap].At[k := I.Int^::ofNat p] \as LeftQ;
+\import Complexes.Quotient[C := RightSubExtension.complex, D := RightExtension.complex].On[f := Right.inclusionMap].At[k := I.Int^::ofNat q] \as RightQ;
+\import Complexes.Quotient[C := UnionExtension.complex, D := ProductExtension.complex].On[f := TargetRelative.inclusionMap].At[k := I.Int^::ofNat (Whole.degree p q)] \as TargetQ;
+\definition leftBundle: Modules.Bundle := Modules.Bundle { Carrier := LeftExtension.Carrier (I.Int^::ofNat p), space := LeftExtension.space (I.Int^::ofNat p) };
+\definition rightBundle: Modules.Bundle := Modules.Bundle { Carrier := RightExtension.Carrier (I.Int^::ofNat q), space := RightExtension.space (I.Int^::ofNat q) };
+\definition targetBundle: Modules.Bundle := Modules.Bundle { Carrier := TargetQ.Carrier, space := TargetQ.space };
+\import Commutative.Bilinear[A := CrossProduct.leftBundle, B := CrossProduct.rightBundle, C := CrossProduct.targetBundle].Precompose[D := leftBundle, E := rightBundle] \as Pre;
+\import Commutative.Bilinear[A := leftBundle, B := rightBundle, C := CrossProduct.targetBundle] \as Mid;
+\import Mid.Postcompose[D := targetBundle] \as Post;
+\import Commutative.Bilinear[A := leftBundle, B := rightBundle, C := targetBundle] \as Raw;
+\import Modules.Hom[V := ProductExtension.Carrier (I.Int^::ofNat (Whole.degree p q)), W := TargetQ.Carrier, source := ProductExtension.space (I.Int^::ofNat (Whole.degree p q)), target := TargetQ.space].Composition[U := ProductChains.Carrier (Whole.degree p q), domain := ProductChains.space (Whole.degree p q)] \as ProjectionComposition;
+\definition projection: _ := ProjectionComposition.compose TargetQ.projection (ProductExtension.Positive[n := Whole.degree p q].forward);
+\definition raw: Raw.Map := Post.apply (Pre.apply CrossProduct.bilinear (LeftExtension.Positive[n := p].backward) (RightExtension.Positive[n := q].backward)) projection;
+\import Raw.Quotients[S := LeftQ.image, T := RightQ.image] \as Quotients;
+\import Modules.Of[V := LeftExtension.Carrier (I.Int^::ofNat p), space := LeftExtension.space (I.Int^::ofNat p)].Submodule[].Image[U := LeftSubExtension.Carrier (I.Int^::ofNat p), source := LeftSubExtension.space (I.Int^::ofNat p)] \as LeftImages;
+\import Modules.Of[V := RightExtension.Carrier (I.Int^::ofNat q), space := RightExtension.space (I.Int^::ofNat q)].Submodule[].Image[U := RightSubExtension.Carrier (I.Int^::ofNat q), source := RightSubExtension.space (I.Int^::ofNat q)] \as RightImages;
+\import Complexes.Map[C := LeftSubExtension.complex, D := LeftExtension.complex].At[k := I.Int^::ofNat p] \as LeftAt;
+\import Complexes.Map[C := RightSubExtension.complex, D := RightExtension.complex].At[k := I.Int^::ofNat q] \as RightAt;
+\definition leftZero: Quotients.VanishesLeft raw :=
+  \fun (x: LeftExtension.Carrier (I.Int^::ofNat p))(y: RightExtension.Carrier (I.Int^::ofNat q))(member: _) => LeftImages.eliminate (LeftAt.linear Left.inclusionMap) x ((raw).apply x y = (TargetQ.space).zero)
+    (\fun (v: LeftSubExtension.Carrier (I.Int^::ofNat p))(same: (Left.inclusionMap).apply (I.Int^::ofNat p) v = x) => eq_reason_in!{TargetQ.Carrier _
+      "=" _ "by" { congr!{{LeftExtension.Carrier (I.Int^::ofNat p)} TargetQ.Carrier} (\fun (z: LeftExtension.Carrier (I.Int^::ofNat p)) => (raw).apply z y) _ _ (sym!{{LeftExtension.Carrier (I.Int^::ofNat p)}} _ _ same) }
+      "=" _ "by" { congr!{{ProductChains.Carrier (Whole.degree p q)} TargetQ.Carrier} (\fun (z: ProductChains.Carrier (Whole.degree p q)) => TargetQ.class (ProductExtension.Positive[n := Whole.degree p q].intro z)) _ _ (left v y) }
+      "=" _ "by" { TargetQ.onImage (UnionExtension.Positive[n := Whole.degree p q].intro ((LeftIntoMaps.At[n := Whole.degree p q].push leftInto leftContinuous).apply (LeftCross.apply v y))) }
+    }) member;
+\definition rightZero: Quotients.VanishesRight raw :=
+  \fun (x: LeftExtension.Carrier (I.Int^::ofNat p))(y: RightExtension.Carrier (I.Int^::ofNat q))(member: _) => RightImages.eliminate (RightAt.linear Right.inclusionMap) y ((raw).apply x y = (TargetQ.space).zero)
+    (\fun (v: RightSubExtension.Carrier (I.Int^::ofNat q))(same: (Right.inclusionMap).apply (I.Int^::ofNat q) v = y) => eq_reason_in!{TargetQ.Carrier _
+      "=" _ "by" { congr!{{RightExtension.Carrier (I.Int^::ofNat q)} TargetQ.Carrier} (\fun (z: RightExtension.Carrier (I.Int^::ofNat q)) => (raw).apply x z) _ _ (sym!{{RightExtension.Carrier (I.Int^::ofNat q)}} _ _ same) }
+      "=" _ "by" { congr!{{ProductChains.Carrier (Whole.degree p q)} TargetQ.Carrier} (\fun (z: ProductChains.Carrier (Whole.degree p q)) => TargetQ.class (ProductExtension.Positive[n := Whole.degree p q].intro z)) _ _ (right x v) }
+      "=" _ "by" { TargetQ.onImage (UnionExtension.Positive[n := Whole.degree p q].intro ((RightIntoMaps.At[n := Whole.degree p q].push rightInto rightContinuous).apply (RightCross.apply x v))) }
+    }) member;
+\definition bilinear: Quotients.QuotientMap := Quotients.descend raw leftZero rightZero;
+\definition apply: LeftQ.Carrier -> RightQ.Carrier -> TargetQ.Carrier := (bilinear).apply;
+\definition onClasses: \forall (x: LeftChains.Carrier p)(y: RightChains.Carrier q) ->
+  apply (LeftQ.class (LeftExtension.Positive[n := p].intro x)) (RightQ.class (RightExtension.Positive[n := q].intro y)) = TargetQ.class (ProductExtension.Positive[n := Whole.degree p q].intro (CrossProduct.apply x y)) := \fun (x: LeftChains.Carrier p)(y: RightChains.Carrier q) => Quotients.onClasses raw leftZero rightZero (LeftExtension.Positive[n := p].intro x) (RightExtension.Positive[n := q].intro y);

@@ -1,0 +1,25 @@
+\import \root.Triple[A := A, source := source, first := first, second := second].Union[].Part[S := S, contained := contained] \as Part;
+\import Part.At[n := n] \as PartAt;
+\import topology.Topology[Carrier := A].Subspace[S := S] \as PartSpace;
+\import singular_cohomology.Relative[A := A, source := source, subset := S] \as PartRelative;
+\import singular_cohomology.Simplices[A := PartRelative.SubspaceCarrier, source := PartSpace.topology source] \as PartSimplices;
+\import singular_cohomology.Chains[A := PartRelative.SubspaceCarrier, source := PartSpace.topology source] \as PartChains;
+\import singular_cohomology.Maps[A := PartRelative.SubspaceCarrier, B := Relative.SubspaceCarrier, source := PartSpace.topology source, target := Space.topology source] \as IntoMaps;
+\import singular_cohomology.Maps[A := PartRelative.SubspaceCarrier, B := A, source := PartSpace.topology source, target := source] \as PartMaps;
+\import singular_products.Cochains[A := PartRelative.SubspaceCarrier, source := PartSpace.topology source, R := I.Int^, ring := Integers.commutativeRing] \as PartCochains;
+\import PartCochains.Pullback[B := A, target := source] \as Pull;
+\import Modules.Free[Generators := PartSimplices.Carrier n].To[W := I.Int^, target := Cochains.integerCoefficients.space] \as Free;
+\definition small[sigma: PartSimplices.Carrier n]: SmallSimplices.Carrier n :=
+  \into[UnionSimplices.Carrier n](IntoMaps.postcompose n Part.intoUnion Part.continuous sigma, SmallSimplices.Small n) \by {
+    \exact(SmallSimplices.Witness[n, IntoMaps.postcompose n Part.intoUnion Part.continuous sigma] {
+      element := element, member := member, contained := \fun (x: Simplex.Carrier n) => inside (sigma x),
+    }, SmallSimplices.Witness[n, IntoMaps.postcompose n Part.intoUnion Part.continuous sigma])
+  };
+\definition vanishes: \forall (h: SmallRelative.Carrier (I.Int^::ofNat n)) ->
+  Pull.apply n PartRelative.inclusion PartRelative.inclusionContinuous (whole h) = (PartCochains.space n).zero :=
+  \fun (h: SmallRelative.Carrier (I.Int^::ofNat n)) => Free.ext _ _ (\fun (sigma: PartSimplices.Carrier n) => eq_reason_in!{I.Int^ _
+    "=" _ "by" { Pull.onSimplex n PartRelative.inclusion PartRelative.inclusionContinuous (whole h) sigma }
+    "=" _ "by" { congr!{{singular_cohomology.Simplices[A := A, source := source].Carrier n} I.Int^} (\fun (s: singular_cohomology.Simplices[A := A, source := source].Carrier n) => (whole h).apply (Chains.generator n s)) _ _ (PartAt.sameSimplex sigma) }
+    "=" _ "by" { congr!{{Chains.Carrier n} I.Int^} ((whole h).apply) _ _ (sym!{{Chains.Carrier n}} _ _ (ToSmall.onGenerator (small sigma))) }
+    "=" _ "by" { Vanishing.precomposeVanishes h (SmallExtension.Positive[n := n].intro (Small.generator n (small sigma))) }
+  });

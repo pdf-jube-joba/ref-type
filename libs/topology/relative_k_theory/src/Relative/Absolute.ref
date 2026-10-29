@@ -1,0 +1,74 @@
+\import topology.Topology[Carrier := X] \as Base;
+\definition emptyClosed: Base.IsClosedIn space Base.Empty := \idelim Base.Whole = Base.Complement Base.Empty
+  \with U: \Pow X => Base.IsOpenIn space U \by {
+    base: (Base.topologyLaws space).wholeOpen,
+    equality: \axiom:setext(Base.Whole, Base.Complement Base.Empty,
+      \fun (x: X)(same: x = x)(impossible: Logic.False) => impossible,
+      \fun (x: X)(outside: Logic.Not Logic.False) => \refl(x))
+  };
+\import \root.Relative[].Pair[X := X, space := space, compact := compact, hausdorff := hausdorff,
+  subset := Base.Empty, closed := emptyClosed] \as EmptyPair;
+\import EmptyPair.Quotient[] \as Q;
+\import topological_constructions.Coproduct[A := X, B := Q.Point] \as Sum;
+\import algebraic_topology.Collapse[A := Q.Augmented, subset := Q.collapsedPart] \as Collapse;
+\definition model: CompactPointed := pack Q.Augmented (PointedDetails[Q.Augmented] {
+  topology := Q.augmentedSpace, compact := Q.augmentedCompact, hausdorff := Q.augmentedHausdorff,
+  point := Sum.inr Q.distinguished
+});
+\definition inclusion: X -> model.Carrier := Sum.inl;
+\definition inclusionContinuous: topology.Continuity[A := X, B := model.Carrier].Continuous space (details model).topology inclusion :=
+  Sum.inlContinuous space (topology.Topology[Carrier := Q.Point].Discrete);
+\definition starOnly: \forall (p: Q.Augmented) -> \In[Q.Augmented] Q.collapsedPart p -> p = Sum.inr Q.distinguished :=
+  \induction (p: Q.Augmented) \return \In[Q.Augmented] Q.collapsedPart p -> p = Sum.inr Q.distinguished \with {
+    | inl: \fun (x: X)(impossible: Logic.False) => Logic.falseElim (Sum.inl x = Sum.inr Q.distinguished) impossible
+    | inr: \fun (p: Q.Point)(same: p = p) => congr!{{Q.Point} {Q.Augmented}} Sum.inr _ _ (Fin.singletonValue p)
+  };
+\definition injective: \forall (p, q: Q.Augmented) -> Collapse.class p = Collapse.class q -> p = q :=
+  \fun (p, q: Q.Augmented)(same: Collapse.class p = Collapse.class q) =>
+    Logic.orElim[p = q, Logic.And[\In[Q.Augmented] Q.collapsedPart p, \In[Q.Augmented] Q.collapsedPart q], p = q]
+      (Collapse.equalRelated p q same) (\fun (equal: p = q) => equal)
+      (\fun (both: Logic.And[\In[Q.Augmented] Q.collapsedPart p, \In[Q.Augmented] Q.collapsedPart q]) =>
+        trans!{{Q.Augmented}} _ _ _ (starOnly p both.left) (sym!{{Q.Augmented}} _ _ (starOnly q both.right)));
+\definition onto: \forall (q: Q.Carrier) -> \exists (p: Q.Augmented \where Collapse.class p = q) :=
+  Collapse.induction (\fun (q: Q.Carrier) => \exists (p: Q.Augmented \where Collapse.class p = q))
+    (\fun (p: Q.Augmented) => Logic.existsIntro[Q.Augmented, { a: Q.Augmented \where Collapse.class a = Collapse.class p }] p (\refl(Collapse.class p)));
+\import algebraic_topology.Pointed[A := model.Carrier].Maps[B := Q.Carrier] \as Pointed;
+\definition quotientMap: Map model Q.model := \into[model.Carrier -> Q.Carrier](Collapse.class, Map model Q.model) \by {
+  Pointed.Laws[pointed model, pointed Q.model, Collapse.class] {
+    continuous := Collapse.projectionContinuous Q.augmentedSpace, pointed := \refl(Q.point)
+  }
+};
+\import \root.Relative[].Equivalence[source := model, target := Q.model].FromMap[
+  f := quotientMap, injective := injective, onto := onto] \as Homeomorphism;
+\definition equivalence: \root.Relative[].Equivalence[source := model, target := Q.model].Data := Homeomorphism.equivalence;
+\import \root.Relative[].Equivalence[source := model, target := Q.model].With[e := equivalence].Groups[] \as Groups;
+\import \root.Relative[].Reduced[model := model] \as Reduced;
+\import KTheory.On[X := X, baseSpace := space, compact := compact, hausdorff := hausdorff].K0[] \as Ordinary;
+\import EmptyPair.Group[] \as Triples;
+\import Triples.Forget[] \as Forget;
+\import Forget.Empty[empty := (\fun (x: EmptyPair.A) => \bysub(X, Base.Empty, x))] \as Inverse;
+\import EmptyPair.Comparison[] \as Compare;
+\definition forward[x: Ordinary.Carrier]: Reduced.Carrier := Groups.forward (Compare.isomorphism.forward (Inverse.inverse x));
+\definition backward[v: Reduced.Carrier]: Ordinary.Carrier := Forget.map (Compare.isomorphism.backward (Groups.backward v));
+\definition leftInverse: \forall (x: Ordinary.Carrier) -> backward (forward x) = x := \fun (x: Ordinary.Carrier) =>
+  trans!{{Ordinary.Carrier}} _ _ _
+    (congr!{{Q.Relative} {Ordinary.Carrier}} (\fun (v: Q.Relative) => Forget.map (Compare.isomorphism.backward v)) _ _
+      (Groups.rightInverse (Compare.isomorphism.forward (Inverse.inverse x))))
+    (trans!{{Ordinary.Carrier}} _ _ _ (congr!{{Triples.Carrier} {Ordinary.Carrier}} Forget.map _ _ (Compare.isomorphism.leftInverse (Inverse.inverse x)))
+      (Inverse.rightInverse x));
+\definition rightInverse: \forall (v: Reduced.Carrier) -> forward (backward v) = v := \fun (v: Reduced.Carrier) =>
+  trans!{{Reduced.Carrier}} _ _ _
+    (congr!{{Triples.Carrier} {Reduced.Carrier}} (\fun (t: Triples.Carrier) => Groups.forward (Compare.isomorphism.forward t)) _ _
+      (Inverse.leftInverse (Compare.isomorphism.backward (Groups.backward v))))
+    (trans!{{Reduced.Carrier}} _ _ _ (congr!{{Q.Relative} {Reduced.Carrier}} Groups.forward _ _ (Compare.isomorphism.rightInverse (Groups.backward v)))
+      (Groups.leftInverse v));
+\module Projection;
+\module Additive;
+\module Negative(degree: N.Nat^) {
+  \import \root.Relative[].Negative[original := model, degree := degree] \as Native;
+  \definition Carrier: \Set := Native.Carrier;
+  \definition group: std.Alg[].Alg[].CommutativeGroup[Carrier] := Native.group;
+}
+\module Mapping(Y: \Set, source: topology.Topology[Carrier := Y].Topology,
+  sourceCompact: topology.Topology[Carrier := Y].IsCompact source, sourceHausdorff: topology.Topology[Carrier := Y].IsT2 source,
+  f: Y -> X, regular: topology.Continuity[A := Y, B := X].Continuous source space f);

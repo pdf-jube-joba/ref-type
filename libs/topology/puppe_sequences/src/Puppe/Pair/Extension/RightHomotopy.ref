@@ -1,0 +1,39 @@
+\import algebraic_topology.Cylinder[A := Carrier] \as QuotientCylinder;
+\import topological_constructions.RelationQuotient[A := A, relation := Quotient.Related].Families[
+  X := I.Carrier, C := Carrier, factor := I.topology, source := source.topology, target := topology, laws := Quotient.equivalence] \as Families;
+\definition raw[p: Cylinder.Carrier]: Carrier := comparison (h p);
+\definition onSubset: \forall (t: I.Carrier)(x: Subspace.CarrierSet) -> raw (Cylinder.at t x) = point :=
+  \fun (t: I.Carrier)(x: Subspace.CarrierSet) => trans!{Carrier} _ _ _ (congr!{Model.Carrier Carrier} comparison _ _ (hLaws.extends t x))
+    (onCone (Cone.class (SubCylinder.at t x)));
+\definition respects: Families.Respects raw := \fun (t: I.Carrier)(x, y: A)(related: Quotient.Related x y) =>
+  either!{related {raw (Cylinder.at t x) = raw (Cylinder.at t y)}
+    {\fun (same: x = y) => congr!{A Carrier} (\fun (a: A) => raw (Cylinder.at t a)) _ _ same}
+    {\fun (both: Logic.And[\In[A] subset x, \In[A] subset y]) => trans!{Carrier} _ _ _
+      (onSubset t (\into[A](x, subset) \by { both.left })) (sym!{Carrier} _ _ (onSubset t (\into[A](y, subset) \by { both.right })))}
+  };
+\definition family: QuotientCylinder.Carrier -> Carrier := Families.apply raw respects;
+\definition continuous: topology.Continuity[A := QuotientCylinder.Carrier, B := Carrier].Continuous (QuotientCylinder.topology topology) topology family :=
+  Families.continuous I.compact I.hausdorff raw respects
+    (topology.Composition[A := Cylinder.Carrier, B := Model.Carrier, C := Carrier].composeContinuous (Cylinder.topology source.topology) Model.topology topology h comparison hLaws.continuous comparisonContinuous);
+\definition start: \forall (x: Carrier) -> family (QuotientCylinder.at I.start x) = x :=
+  Quotient.induction (\fun (x: Carrier) => family (QuotientCylinder.at I.start x) = x)
+    (\fun (x: A) => eq_reason_in!{Carrier {family (QuotientCylinder.at I.start (Quotient.class x))}
+      "=" {comparison (h (Cylinder.at I.start x))} "by" { Families.onClass raw respects I.start x }
+      "=" {comparison (Model.inclusion x)} "by" { congr!{Model.Carrier Carrier} comparison _ _ (hLaws.initial x) }
+      "=" {Quotient.class x} "by" { onOriginal x }
+    });
+\definition end: \forall (x: Carrier) -> family (QuotientCylinder.at I.end x) = comparison (section x) :=
+  Quotient.induction (\fun (x: Carrier) => family (QuotientCylinder.at I.end x) = comparison (section x))
+    (\fun (x: A) => trans!{Carrier} _ _ _ (Families.onClass raw respects I.end x)
+      (congr!{Model.Carrier Carrier} comparison _ _ (sym!{Model.Carrier} _ _ (onClass x))));
+\definition atBase: \forall (t: I.Carrier) -> family (QuotientCylinder.at t point) = point :=
+  \fun (t: I.Carrier) => trans!{Carrier} _ _ _ (Families.onClass raw respects t source.basepoint)
+    (trans!{Carrier} _ _ _ (congr!{Model.Carrier Carrier} comparison _ _ (hAtBase t)) (onOriginal source.basepoint));
+\import algebraic_topology.Homotopy[A := Carrier, B := Carrier] \as Native;
+\definition result: RightMaps.Homotopy[RightIdentity.map, rightComposite] := \into[Native.Family](family, RightMaps.Homotopy[RightIdentity.map, rightComposite]) \by {
+  Native.RelativeLaws[topology, topology, RightMaps.fixed, RightIdentity.map, rightComposite, family] {
+    homotopy := Native.Laws[topology, topology, RightIdentity.map, rightComposite, family] { continuous := continuous, start := start, end := end },
+    fixed := \fun (t: I.Carrier)(x: Carrier)(same: x = point) => \idelim point = x
+      \with y: Carrier => family (QuotientCylinder.at t y) = y \by { base: atBase t, equality: sym!{Carrier} _ _ same },
+  }
+};

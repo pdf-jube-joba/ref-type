@@ -1,0 +1,26 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.congr;
+\import algebraic_topology.Interval[] \as Time;
+\import algebraic_topology.Cylinder[A := X] \as Cylinder;
+\definition first[x: X]: Carrier := Pair.pair X Sphere.Sphere x start;
+\definition second[x: X]: Carrier := Pair.pair X Sphere.Sphere x finish;
+\definition firstContinuous: topology.Continuity[A := X, B := Carrier].Continuous source topology first :=
+  Space.Universal[X := X].pairContinuous source source Sphere.sphereTopology (\fun (x: X) => x) (\fun (_: X) => start)
+    (topology.Maps[A := X, B := X].Identity[].continuous source) (topology.Maps[A := X, B := Sphere.Sphere].constantContinuous source Sphere.sphereTopology start);
+\definition secondContinuous: topology.Continuity[A := X, B := Carrier].Continuous source topology second :=
+  Space.Universal[X := X].pairContinuous source source Sphere.sphereTopology (\fun (x: X) => x) (\fun (_: X) => finish)
+    (topology.Maps[A := X, B := X].Identity[].continuous source) (topology.Maps[A := X, B := Sphere.Sphere].constantContinuous source Sphere.sphereTopology finish);
+\definition family[p: Cylinder.Carrier]: Carrier := Pair.pair X Sphere.Sphere (Cylinder.point p) (IntervalPaths.evaluate start finish path (Cylinder.time p));
+\definition continuous: topology.Continuity[A := Cylinder.Carrier, B := Carrier].Continuous (Cylinder.topology source) topology family :=
+  Space.Universal[X := Cylinder.Carrier].pairContinuous (Cylinder.topology source) source Sphere.sphereTopology Cylinder.point
+    (\fun (p: Cylinder.Carrier) => IntervalPaths.evaluate start finish path (Cylinder.time p)) (Cylinder.pointContinuous source)
+    (topology.Composition[A := Cylinder.Carrier, B := Time.Carrier, C := Sphere.Sphere].composeContinuous (Cylinder.topology source) Time.topology Sphere.sphereTopology
+      Cylinder.time (IntervalPaths.evaluate start finish path) (Cylinder.timeContinuous source) (IntervalPaths.continuous start finish path));
+\import algebraic_topology.Homotopy[A := X, B := Carrier] \as H;
+\definition homotopy: H.Homotopy[source, topology, first, second] := \into[H.Family](family, H.Homotopy[source, topology, first, second]) \by {
+  H.Laws[source, topology, first, second, family] {
+    continuous := continuous,
+    start := \fun (x: X) => congr!{Sphere.Sphere Carrier} (Pair.pair X Sphere.Sphere x) _ _ (IntervalPaths.start start finish path),
+    end := \fun (x: X) => congr!{Sphere.Sphere Carrier} (Pair.pair X Sphere.Sphere x) _ _ (IntervalPaths.end start finish path)
+  }
+};

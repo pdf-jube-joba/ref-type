@@ -1,0 +1,35 @@
+\import \root.Complex[].Dimension[n := n].UnitaryOrthogonal[].CanonicalLift[].FockWords[] \as Fock;
+\import Exterior.At[k := k] \as At;
+\import Algebra.Sums[I := At.Tuple] \as Sums;
+\import Sums.Vector[V := Total.Carrier, space := Total.totalSpace] \as TotalSums;
+\import TotalSums.Mapping[W := Forms.Form k, target := Forms.At[k := k].vectorSpace] \as EvalMapping;
+\import Sums.Vector[V := Forms.Form k, space := Forms.At[k := k].vectorSpace] \as GradeSums;
+\import Algebra.Linear[V := Total.Carrier, W := Forms.Form k, source := Total.totalSpace, target := Forms.At[k := k].vectorSpace] \as Linear;
+\definition evaluate: Linear.Map := Linear.Map {
+  apply := \fun (f: Total.Carrier) => f k,
+  preservesAdd := \fun (f, g: Total.Carrier) => \refl((Forms.At[k := k].vectorSpace).add (f k) (g k)),
+  preservesScale := \fun (a: C.Complex)(f: Total.Carrier) => \refl((Forms.At[k := k].vectorSpace).smul a (f k)),
+};
+\definition assemble[xs: At.Enumeration][f: Forms.Form k]: Total.Carrier := TotalSums.sum xs (\fun (i: At.Tuple) => Total.totalSpace.smul (At.coefficient f i) (state k i));
+\definition component: \forall (xs: At.Enumeration)(f: Forms.Form k) -> assemble xs f k = f :=
+  \fun (xs: At.Enumeration)(f: Forms.Form k) => eq_reason_in!{{Forms.Form k} _
+    "=" _ "by" { EvalMapping.law evaluate xs (\fun (i: At.Tuple) => Total.totalSpace.smul (At.coefficient f i) (state k i)) }
+    "=" _ "by" { GradeSums.congruent xs (\fun (i: At.Tuple) => (Forms.At[k := k].vectorSpace).smul (At.coefficient f i) (state k i k))
+      (\fun (i: At.Tuple) => (Forms.At[k := k].vectorSpace).smul (At.coefficient f i) (At.word i))
+      (\fun (i: At.Tuple) => congr!{{Forms.Form k} {Forms.Form k}} ((Forms.At[k := k].vectorSpace).smul (At.coefficient f i)) _ _ (Fock.component k i)) }
+    "=" _ "by" { At.reconstruction f xs }
+  };
+\module Outside(l: N.Nat^);
+\import lie_algebras.Field[K := C.Complex, field := Field.field].Endomorphisms[V := Total.Carrier, space := Total.totalSpace] \as End;
+\import TotalSums.Mapping[W := Total.Carrier, target := Total.totalSpace] \as Mapping;
+\definition intertwining: \forall (u: Unitary.Carrier)(xs: At.Enumeration)(f: Forms.Form k) ->
+  (Phase.actionC (lift u)).value.apply (assemble xs f) = (action u).value.apply (assemble xs f) :=
+  \fun (u: Unitary.Carrier)(xs: At.Enumeration)(f: Forms.Form k) => eq_reason_in!{{Total.Carrier} _
+    "=" _ "by" { Mapping.law (Phase.actionC (lift u)).value xs (\fun (i: At.Tuple) => Total.totalSpace.smul (At.coefficient f i) (state k i)) }
+    "=" _ "by" { TotalSums.congruent xs _ _ (\fun (i: At.Tuple) => eq_reason_in!{{Total.Carrier} _
+      "=" _ "by" { (Phase.actionC (lift u)).value.preservesScale (At.coefficient f i) (state k i) }
+      "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.smul (At.coefficient f i)) _ _ (Fock.intertwining u k i) }
+      "=" _ "by" { sym!{{Total.Carrier}} _ _ ((action u).value.preservesScale (At.coefficient f i) (state k i)) }
+    }) }
+    "=" _ "by" { sym!{{Total.Carrier}} _ _ (Mapping.law (action u).value xs (\fun (i: At.Tuple) => Total.totalSpace.smul (At.coefficient f i) (state k i))) }
+  };

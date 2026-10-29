@@ -1,0 +1,30 @@
+\definition S[x: X]: \Set := Absolute.Fiber result.presentation x;
+\import Bundles.Isomorphisms[X := X, F := (\fun (x: X) => Zero.Fiber), G := S, source := Zero.bundle, target := (Absolute.bundle result.presentation)] \as ZeroMaps;
+\import \parent.\parent.\parent.TripleFraming[t := t, auxiliary := result.presentation, n := n] \as Framing;
+\import Operations.DirectSumIsomorphisms[X := X, F := E, G := S, A := E, B := (\fun (x: X) => Zero.Fiber),
+  first := (Absolute.bundle t.positive), second := (Absolute.bundle result.presentation), newFirst := (Absolute.bundle t.positive), newSecond := Zero.bundle,
+  sameSource := (\refl(space)), sameTarget := (\refl(space))] \as PositiveSum;
+\definition positiveSum: Bundles.Isomorphisms[X := X, F := PositiveSum.SourceFiber, G := PositiveSum.TargetFiber, source := PositiveSum.sourceBundle, target := PositiveSum.targetBundle].Isomorphism :=
+  PositiveSum.isomorphism IdentityE.isomorphism (ZeroMaps.inverse result.isomorphism);
+\import Operations.IsomorphismComposition[X := X, F := Framing.SourceFiber, G := PositiveSum.TargetFiber, H := E,
+  source := Framing.positiveBundle, middle := PositiveSum.targetBundle, target := (Absolute.bundle t.positive)] \as PositiveComposition;
+\definition positive: PositiveComposition.Isomorphism := PositiveComposition.compose positiveSum PositiveUnit.isomorphism;
+\import Operations.DirectSumIsomorphisms[X := X, F := F, G := S, A := F, B := (\fun (x: X) => Zero.Fiber),
+  first := (Absolute.bundle t.negative), second := (Absolute.bundle result.presentation), newFirst := (Absolute.bundle t.negative), newSecond := Zero.bundle,
+  sameSource := (\refl(space)), sameTarget := (\refl(space))] \as NegativeSum;
+\definition negativeSum: Bundles.Isomorphisms[X := X, F := NegativeSum.SourceFiber, G := NegativeSum.TargetFiber, source := NegativeSum.sourceBundle, target := NegativeSum.targetBundle].Isomorphism :=
+  NegativeSum.isomorphism IdentityF.isomorphism (ZeroMaps.inverse result.isomorphism);
+\import Operations.IsomorphismComposition[X := X, F := Framing.NegativeFiber, G := NegativeSum.TargetFiber, H := F,
+  source := Framing.negativeBundle, middle := NegativeSum.targetBundle, target := (Absolute.bundle t.negative)] \as NegativeComposition;
+\definition negative: NegativeComposition.Isomorphism := NegativeComposition.compose negativeSum NegativeUnit.isomorphism;
+\import Operations.IsomorphismComposition[X := X, F := Framing.NegativeFiber, G := F, H := (\fun (x: X) => Bundles.Vector n),
+  source := Framing.negativeBundle, middle := (Absolute.bundle t.negative), target := Trivial.bundle] \as Triviality;
+\definition trivialization: Framing.Trivialization := Triviality.compose negative h;
+\import Framing.With[trivialization := trivialization] \as Framed;
+\definition compatible: \forall (x: A)(v: Framing.SourceFiber x) -> (comparison.forward.fiber x).apply ((positive.forward.fiber x).apply v) = coordinateIdentity.forward.apply ((Framed.comparison.forward.fiber x).apply v) :=
+  \fun (x: A)(v: Framing.SourceFiber x) => \refl((Framed.comparison.forward.fiber x).apply v);
+\import \parent.\parent.\parent.FramedClass[F := Framing.SourceFiber, sourceModel := Framing.sourceModel, n := n].To[
+  G := E, targetModel := model, m := n].With[alpha := Framed.comparison, beta := comparison, h := positive, c := coordinateIdentity, compatible := compatible] \as Comparison;
+\import \parent.\parent.\parent.ComplementChoice[t := t, first := Canonical.complement, second := result.presentation, n := t.negative.dimension, m := n].With[
+  h := Split.isomorphism, k := trivialization] \as Choice;
+\definition equation: Canonical.value = value := trans!{{Quotient.Relative}} _ _ _ Choice.equation Comparison.equation;

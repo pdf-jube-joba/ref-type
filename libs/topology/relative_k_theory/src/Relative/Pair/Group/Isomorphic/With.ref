@@ -1,0 +1,41 @@
+\definition inclusion[x: A]: X := x;
+\definition regular: topology.Continuity[A := A, B := X].Continuous subspace space inclusion := topology.Continuity[A := A, B := X].Corestriction[S := subset].inclusionContinuous space;
+\import Complements.PulledIsomorphism[X := X, Y := A, F := Absolute.Fiber t.positive, G := Absolute.Fiber u.positive,
+  source := Absolute.bundle t.positive, target := Absolute.bundle u.positive, base := subspace, f := inclusion, sourceRegular := regular, targetRegular := regular] \as PositivePull;
+\import Complements.PulledIsomorphism[X := X, Y := A, F := Absolute.Fiber t.negative, G := Absolute.Fiber u.negative,
+  source := Absolute.bundle t.negative, target := Absolute.bundle u.negative, base := subspace, f := inclusion, sourceRegular := regular, targetRegular := regular] \as NegativePull;
+\definition positive: PositiveBoundary.Isomorphism := PositivePull.isomorphism w.positive;
+\definition negative: NegativeBoundary.Isomorphism := NegativePull.isomorphism w.negative;
+\definition inversePositive: \parent.\parent.\parent.Between[p := u.positive, q := t.positive].Isomorphism := PositiveBoundary.inverse positive;
+\import \parent.\parent.\parent.Compose[p := u.positive, q := t.positive, r := t.negative, first := inversePositive, second := t.comparison] \as First;
+\import \parent.\parent.\parent.Compose[p := u.positive, q := t.negative, r := u.negative, first := First.triple.comparison, second := negative] \as Second;
+\import \parent.\parent.Composition[p := u.positive, q := t.positive, r := t.negative, first := inversePositive, second := t.comparison] \as FirstGroup;
+\import \parent.\parent.Composition[p := u.positive, q := t.negative, r := u.negative, first := First.triple.comparison, second := negative] \as SecondGroup;
+\definition firstGlobal: \parent.\parent.\parent.Global[t := First.left].Witness := \parent.\parent.\parent.Global[t := First.left].Witness {
+  isomorphism := Positive.inverse w.positive,
+  agrees := \fun (x: A)(v: Absolute.Fiber u.positive x) => \refl((w.positive.backward.fiber x).apply v)
+};
+\definition secondGlobal: \parent.\parent.\parent.Global[t := Second.right].Witness := \parent.\parent.\parent.Global[t := Second.right].Witness {
+  isomorphism := w.negative,
+  agrees := \fun (x: A)(v: Absolute.Fiber t.negative x) => \refl((w.negative.forward.fiber x).apply v)
+};
+\import algebra.Group[].Of[Carrier := Carrier, group := group] \as Additive;
+\definition firstValue: value First.triple = value t :=
+  trans!{Carrier} _ _ _ (sym!{Carrier} _ _ FirstGroup.equation)
+    (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (\fun (v: Carrier) => add v (value First.right)) _ _ (globalZero First.left firstGlobal))
+      (trans!{Carrier} _ _ _ (Additive.zeroLeft (value First.right)) (congr!{Triple Carrier} value _ _ (eta t))));
+\definition secondValue: value Second.triple = value First.triple :=
+  trans!{Carrier} _ _ _ (sym!{Carrier} _ _ SecondGroup.equation)
+    (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (add (value First.triple)) _ _ (globalZero Second.right secondGlobal)) (Additive.zeroRight (value First.triple)));
+\definition formula: \forall (x: A)(v: UP.Fiber x) -> (Second.triple.comparison.forward.fiber x).apply v = (u.comparison.forward.fiber x).apply v :=
+  \fun (x: A)(v: UP.Fiber x) => trans!{{UN.Fiber x}} _ _ _
+    (sym!{{UN.Fiber x}} _ _ (w.commutes x ((w.positive.backward.fiber x).apply v)))
+    (congr!{{UP.Fiber x} {UN.Fiber x}} (u.comparison.forward.fiber x).apply _ _ ((\bysub(Positive.Data, Positive.Isomorphism, w.positive)).rightInverse x v));
+\import Operations.IsomorphismEquality[X := A, F := UP.Fiber, G := UN.Fiber, source := UP.bundle, target := UN.bundle] \as IsoEquality;
+\definition comparisonEquality: Second.triple.comparison = u.comparison := IsoEquality.ext Second.triple.comparison u.comparison formula;
+\definition tripleEquality: Second.triple = u :=
+  trans!{Triple} _ _ _
+    (congr!{{\parent.\parent.\parent.Between[p := u.positive, q := u.negative].Isomorphism} Triple}
+      (\fun (a: \parent.\parent.\parent.Between[p := u.positive, q := u.negative].Isomorphism) => Triple { positive := u.positive, negative := u.negative, comparison := a }) _ _ comparisonEquality) (eta u);
+\definition equation: value t = value u :=
+  trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (trans!{Carrier} _ _ _ secondValue firstValue)) (congr!{Triple Carrier} value _ _ tripleEquality);

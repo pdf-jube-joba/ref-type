@@ -1,0 +1,100 @@
+\import R.Completeness[] \as Complete;
+\import Measure.ValueLaws[].SupAdd[] \as SupAdd;
+\import \root.FiniteValues[A := Point] \as FiniteValues;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition realPartial[f: N.Nat^ -> Real.Real]: N.Nat^ -> Real.Real :=
+  \induction (k: N.Nat^) \return Real.Real \with {
+    | zero: Real.zero
+    | succ: \fun (k: N.Nat^) (previous: Real.Real) => Real.add previous (f k)
+  };
+\definition zeroSup: Complete.LeastUpperBound[Measure.zero, Real.zero] := Complete.LeastUpperBound[Measure.zero, Real.zero] {
+  upper := \fun (r: Real.Real) (negative: R.Lt r Real.zero) => Order.leOfLt r Real.zero negative,
+  least := \fun (b: Real.Real) (upper: Complete.UpperBound Measure.zero b) => Order.leOfNotLtReverse Real.zero b
+    (\fun (negative: R.Lt b Real.zero) => R.ltNotLeReverse b (Real.midpoint b Real.zero)
+      (Values.midpointStrictLeft b Real.zero negative) (upper (Real.midpoint b Real.zero) (Values.midpointStrictRight b Real.zero negative))),
+};
+\definition partialSup: \forall (f: N.Nat^ -> Measure.Value) (p: N.Nat^ -> Real.Real) ->
+  (\forall (i: N.Nat^) -> Complete.LeastUpperBound[f i, p i]) -> \forall (k: N.Nat^) ->
+  Complete.LeastUpperBound[Measure.partialSum f k, realPartial p k] :=
+  \fun (f: N.Nat^ -> Measure.Value) (p: N.Nat^ -> Real.Real) (sup: \forall (i: N.Nat^) -> Complete.LeastUpperBound[f i, p i]) =>
+    \induction (k: N.Nat^) \return Complete.LeastUpperBound[Measure.partialSum f k, realPartial p k] \with {
+      | zero: zeroSup
+      | succ: \fun (k: N.Nat^) (previous: _) => SupAdd.leastUpper (Measure.partialSum f k) (f k) (realPartial p k) (p k) previous (sup k)
+    };
+\definition partialUpper: \forall (f: N.Nat^ -> Measure.Value) (p: N.Nat^ -> Real.Real) ->
+  (\forall (i: N.Nat^) -> Complete.UpperBound (f i) (p i)) -> \forall (k: N.Nat^) ->
+  Complete.UpperBound (Measure.partialSum f k) (realPartial p k) :=
+  \fun (f: N.Nat^ -> Measure.Value) (p: N.Nat^ -> Real.Real) (upper: \forall (i: N.Nat^) -> Complete.UpperBound (f i) (p i)) =>
+    \induction (k: N.Nat^) \return Complete.UpperBound (Measure.partialSum f k) (realPartial p k) \with {
+      | zero: zeroSup.upper
+      | succ: \fun (k: N.Nat^) (previous: _) => addUpper (Measure.partialSum f k) (f k) (realPartial p k) (p k) previous (upper k)
+    };
+\definition partialBoundedBySeries: \forall (f: N.Nat^ -> Measure.Value) (p: N.Nat^ -> Real.Real) ->
+  (\forall (i: N.Nat^) -> Measure.NonnegativeValue[f i]) -> (\forall (i: N.Nat^) -> Complete.LeastUpperBound[f i, p i]) ->
+  \forall (r: Real.Real) -> Logic.Not (Measure.below (Measure.series f) r) -> \forall (k: N.Nat^) -> R.Le (realPartial p k) r :=
+  \fun (f: N.Nat^ -> Measure.Value) (p: N.Nat^ -> Real.Real) (valid: \forall (i: N.Nat^) -> Measure.NonnegativeValue[f i])
+    (sup: \forall (i: N.Nat^) -> Complete.LeastUpperBound[f i, p i]) (r: Real.Real) (outside: Logic.Not (Measure.below (Measure.series f) r)) (k: N.Nat^) =>
+      (partialSup f p sup k).least r (valueUpper (Measure.partialSum f k) (partialNonnegative f valid k) r
+        (\fun (member: Measure.below (Measure.partialSum f k) r) => outside (partialBelowSeries f k r member)));
+\definition realPartialAdd: \forall (f, g: N.Nat^ -> Real.Real) (k: N.Nat^) ->
+  realPartial (\fun (i: N.Nat^) => Real.add (f i) (g i)) k = Real.add (realPartial f k) (realPartial g k) :=
+  \fun (f, g: N.Nat^ -> Real.Real) => \induction (k: N.Nat^) \return
+    realPartial (\fun (i: N.Nat^) => Real.add (f i) (g i)) k = Real.add (realPartial f k) (realPartial g k) \with {
+      | zero: sym!{Real.Real} _ _ (Laws.addZeroRight Real.zero)
+      | succ: \fun (k: N.Nat^) (previous: _) => eq_reason_in!{Real.Real _
+        "=" _ "by" { congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.add v (Real.add (f k) (g k))) _ _ previous }
+        "=" _ "by" { Algebra.addFour (realPartial f k) (realPartial g k) (f k) (g k) }
+      }
+    };
+\definition seriesUpper: \forall (f: N.Nat^ -> Measure.Value) (p: N.Nat^ -> Real.Real) (b: Real.Real) ->
+  (\forall (i: N.Nat^) -> Complete.UpperBound (f i) (p i)) -> (\forall (k: N.Nat^) -> R.Le (realPartial p k) b) ->
+  Complete.UpperBound (Measure.series f) b :=
+  \fun (f: N.Nat^ -> Measure.Value) (p: N.Nat^ -> Real.Real) (b: Real.Real)
+    (upper: \forall (i: N.Nat^) -> Complete.UpperBound (f i) (p i)) (bound: \forall (k: N.Nat^) -> R.Le (realPartial p k) b)
+    (r: Real.Real) (member: Measure.below (Measure.series f) r) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Measure.below (Measure.partialSum f k) r }) \by member \then
+      \return R.leTrans r (realPartial p k) b (partialUpper f p upper k r (\bysub(N.Nat^, { k: N.Nat^ \where Measure.below (Measure.partialSum f k) r }, k))) (bound k)
+    };
+\import Real.Geometric[q := Real.half] \as Dyadic;
+\import functional_analysis.ScalarLimits[] \as Limits;
+\import Real.SquareRoot[] \as SquareRoot;
+\definition dyadicDifference: \forall (k: N.Nat^) -> Real.sub (Dyadic.value k) (Dyadic.value (N.Nat^::succ k)) = Dyadic.value (N.Nat^::succ k) :=
+  \fun (k: N.Nat^) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.sub x (Dyadic.value (N.Nat^::succ k))) _ _
+      (sym!{Real.Real} _ _ (Estimates.halfTwice (Dyadic.value k))) }
+    "=" _ "by" { Laws.addNegCancelRight (Dyadic.value (N.Nat^::succ k)) (Dyadic.value (N.Nat^::succ k)) }
+  };
+\definition dyadicPartial: \forall (k: N.Nat^) -> realPartial (\fun (i: N.Nat^) => Dyadic.value (N.Nat^::succ i)) k = Real.sub Real.one (Dyadic.value k) :=
+  \induction (k: N.Nat^) \return realPartial (\fun (i: N.Nat^) => Dyadic.value (N.Nat^::succ i)) k = Real.sub Real.one (Dyadic.value k) \with {
+    | zero: sym!{Real.Real} _ _ (Laws.subSelf Real.one)
+    | succ: \fun (k: N.Nat^) (previous: _) => eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.add v (Dyadic.value (N.Nat^::succ k))) _ _ previous }
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (Real.sub Real.one (Dyadic.value k))) _ _ (sym!{Real.Real} _ _ (dyadicDifference k)) }
+      "=" _ "by" { Distance.subTriangle Real.one (Dyadic.value k) (Dyadic.value (N.Nat^::succ k)) }
+    }
+  };
+\definition realPartialScalar: \forall (c: Real.Real) (f: N.Nat^ -> Real.Real) (k: N.Nat^) ->
+  realPartial (\fun (i: N.Nat^) => Real.mul c (f i)) k = Real.mul c (realPartial f k) :=
+  \fun (c: Real.Real) (f: N.Nat^ -> Real.Real) => \induction (k: N.Nat^) \return
+    realPartial (\fun (i: N.Nat^) => Real.mul c (f i)) k = Real.mul c (realPartial f k) \with {
+      | zero: sym!{Real.Real} _ _ (Laws.fieldMulZeroRight c)
+      | succ: \fun (k: N.Nat^) (previous: _) => eq_reason_in!{Real.Real _
+        "=" _ "by" { congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.add v (Real.mul c (f k))) _ _ previous }
+        "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulAdd c (realPartial f k) (f k)) }
+      }
+    };
+\definition error[epsilon: Real.Real] [i: N.Nat^]: Real.Real := Real.mul epsilon (Dyadic.value (N.Nat^::succ i));
+\definition errorPositive: \forall (epsilon: Real.Real) -> R.Lt Real.zero epsilon -> \forall (i: N.Nat^) -> R.Lt Real.zero (error epsilon i) :=
+  \fun (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) (i: N.Nat^) => Product.mulPositive epsilon (Dyadic.value (N.Nat^::succ i)) positive (Limits.dyadicPositive (N.Nat^::succ i));
+\definition errorBound: \forall (epsilon: Real.Real) -> R.Lt Real.zero epsilon -> \forall (k: N.Nat^) -> R.Le (realPartial (error epsilon) k) epsilon :=
+  \fun (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) (k: N.Nat^) =>
+    R.leReplace (Real.mul epsilon (Real.sub Real.one (Dyadic.value k))) (realPartial (error epsilon) k)
+      (Real.mul epsilon Real.one) epsilon
+      (sym!{Real.Real} _ _ (eq_reason_in!{Real.Real _
+        "=" _ "by" { realPartialScalar epsilon (\fun (i: N.Nat^) => Dyadic.value (N.Nat^::succ i)) k }
+        "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul epsilon) _ _ (dyadicPartial k) }
+      })) (Algebra.mulOneRight epsilon)
+      (Estimates.mulMonotone epsilon (Real.sub Real.one (Dyadic.value k)) Real.one (Order.leOfLt Real.zero epsilon positive)
+        (Order.leOfLt _ _ (SquareRoot.subBelow Real.one (Dyadic.value k) (Limits.dyadicPositive k))));

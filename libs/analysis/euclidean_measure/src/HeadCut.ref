@@ -1,0 +1,258 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Bool[] \as Bool;
+\import std.Logic[].Proposition[] \as Logic;
+\import \root.Euclidean[n := N.Nat^::succ k] \as E;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import Real.Distance[] \as Distance;
+\import Real.Algebra[] \as Algebra;
+\import real.Analysis[].Clipping[] \as Clip;
+\import Fin.Tuples[A := Real.Real] \as Tuple;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition splitPoint[b: E.Box] [t: Real.Real]: Real.Real := Clip.value (b.left (Fin.zero k)) (b.right (Fin.zero k)) t;
+\definition upper[b: E.Box] [t: Real.Real]: Fin.Fin (N.Nat^::succ k) -> Real.Real :=
+  Tuple.extend k (splitPoint b t) (\fun (i: Fin.Fin k) => b.right (Fin.succ k i));
+\definition lower[b: E.Box] [t: Real.Real]: Fin.Fin (N.Nat^::succ k) -> Real.Real :=
+  Tuple.extend k (splitPoint b t) (\fun (i: Fin.Fin k) => b.left (Fin.succ k i));
+\definition upperOrdered: \forall (b: E.Box) (t: Real.Real) (i: Fin.Fin (N.Nat^::succ k)) -> R.Le (b.left i) (upper b t i) :=
+  \fun (b: E.Box) (t: Real.Real) => Fin.cases k (\fun (i: Fin.Fin (N.Nat^::succ k)) => R.Le (b.left i) (upper b t i))
+    (\idelim splitPoint b t = upper b t (Fin.zero k) \with y: Real.Real => R.Le (b.left (Fin.zero k)) y
+      \by { base: Clip.lower (b.left (Fin.zero k)) (b.right (Fin.zero k)) t (b.ordered (Fin.zero k)), equality: sym!{Real.Real} _ _ (Tuple.atZero k (splitPoint b t) (\fun (j: Fin.Fin k) => b.right (Fin.succ k j))) })
+    (\fun (i: Fin.Fin k) => \idelim b.right (Fin.succ k i) = upper b t (Fin.succ k i) \with y: Real.Real => R.Le (b.left (Fin.succ k i)) y
+      \by { base: b.ordered (Fin.succ k i), equality: sym!{Real.Real} _ _ (Tuple.atSuccessor k (splitPoint b t) (\fun (j: Fin.Fin k) => b.right (Fin.succ k j)) i) });
+\definition lowerOrdered: \forall (b: E.Box) (t: Real.Real) (i: Fin.Fin (N.Nat^::succ k)) -> R.Le (lower b t i) (b.right i) :=
+  \fun (b: E.Box) (t: Real.Real) => Fin.cases k (\fun (i: Fin.Fin (N.Nat^::succ k)) => R.Le (lower b t i) (b.right i))
+    (\idelim splitPoint b t = lower b t (Fin.zero k) \with x: Real.Real => R.Le x (b.right (Fin.zero k))
+      \by { base: Clip.upper (b.left (Fin.zero k)) (b.right (Fin.zero k)) t, equality: sym!{Real.Real} _ _ (Tuple.atZero k (splitPoint b t) (\fun (j: Fin.Fin k) => b.left (Fin.succ k j))) })
+    (\fun (i: Fin.Fin k) => \idelim b.left (Fin.succ k i) = lower b t (Fin.succ k i) \with x: Real.Real => R.Le x (b.right (Fin.succ k i))
+      \by { base: b.ordered (Fin.succ k i), equality: sym!{Real.Real} _ _ (Tuple.atSuccessor k (splitPoint b t) (\fun (j: Fin.Fin k) => b.left (Fin.succ k j)) i) });
+\definition left[b: E.Box] [t: Real.Real]: E.Box := E.Box { active := b.active, left := b.left, right := upper b t, ordered := upperOrdered b t };
+\definition right[b: E.Box] [t: Real.Real]: E.Box := E.Box { active := b.active, left := lower b t, right := b.right, ordered := lowerOrdered b t };
+\definition tailVolume[b: E.Box]: Real.Real := E.product k (\fun (i: Fin.Fin k) => Real.sub (b.right (Fin.succ k i)) (b.left (Fin.succ k i)));
+\definition leftProduct: \forall (b: E.Box) (t: Real.Real) ->
+  E.product (N.Nat^::succ k) (\fun (i: Fin.Fin (N.Nat^::succ k)) => Real.sub (upper b t i) (b.left i)) =
+    Real.mul (Real.sub (splitPoint b t) (b.left (Fin.zero k))) (tailVolume b) :=
+  \fun (b: E.Box) (t: Real.Real) => congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _
+    (congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.sub x (b.left (Fin.zero k))) _ _
+      (Tuple.atZero k (splitPoint b t) (\fun (j: Fin.Fin k) => b.right (Fin.succ k j))))
+    (E.productCongruent k (\fun (i: Fin.Fin k) => Real.sub (upper b t (Fin.succ k i)) (b.left (Fin.succ k i)))
+      (\fun (i: Fin.Fin k) => Real.sub (b.right (Fin.succ k i)) (b.left (Fin.succ k i)))
+      (\fun (i: Fin.Fin k) => congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.sub x (b.left (Fin.succ k i))) _ _
+        (Tuple.atSuccessor k (splitPoint b t) (\fun (j: Fin.Fin k) => b.right (Fin.succ k j)) i)));
+\definition rightProduct: \forall (b: E.Box) (t: Real.Real) ->
+  E.product (N.Nat^::succ k) (\fun (i: Fin.Fin (N.Nat^::succ k)) => Real.sub (b.right i) (lower b t i)) =
+    Real.mul (Real.sub (b.right (Fin.zero k)) (splitPoint b t)) (tailVolume b) :=
+  \fun (b: E.Box) (t: Real.Real) => congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _
+    (congr!{Real.Real Real.Real} (Real.sub (b.right (Fin.zero k))) _ _
+      (Tuple.atZero k (splitPoint b t) (\fun (j: Fin.Fin k) => b.left (Fin.succ k j))))
+    (E.productCongruent k (\fun (i: Fin.Fin k) => Real.sub (b.right (Fin.succ k i)) (lower b t (Fin.succ k i)))
+      (\fun (i: Fin.Fin k) => Real.sub (b.right (Fin.succ k i)) (b.left (Fin.succ k i)))
+      (\fun (i: Fin.Fin k) => congr!{Real.Real Real.Real} (Real.sub (b.right (Fin.succ k i))) _ _
+        (Tuple.atSuccessor k (splitPoint b t) (\fun (j: Fin.Fin k) => b.left (Fin.succ k j)) i)));
+\definition piecesProduct: \forall (b: E.Box) (t: Real.Real) ->
+  Real.add (E.product (N.Nat^::succ k) (\fun (i: Fin.Fin (N.Nat^::succ k)) => Real.sub (upper b t i) (b.left i)))
+    (E.product (N.Nat^::succ k) (\fun (i: Fin.Fin (N.Nat^::succ k)) => Real.sub (b.right i) (lower b t i))) =
+  E.product (N.Nat^::succ k) (\fun (i: Fin.Fin (N.Nat^::succ k)) => Real.sub (b.right i) (b.left i)) :=
+  \fun (b: E.Box) (t: Real.Real) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (leftProduct b t) (rightProduct b t) }
+    "=" _ "by" { sym!{Real.Real} _ _ (Algebra.mulAddRight (Real.sub (splitPoint b t) (b.left (Fin.zero k))) (Real.sub (b.right (Fin.zero k)) (splitPoint b t)) (tailVolume b)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.mul v (tailVolume b)) _ _ (eq_reason_in!{Real.Real _
+      "=" _ "by" { Laws.addComm (Real.sub (splitPoint b t) (b.left (Fin.zero k))) (Real.sub (b.right (Fin.zero k)) (splitPoint b t)) }
+      "=" _ "by" { Distance.subTriangle (b.right (Fin.zero k)) (splitPoint b t) (b.left (Fin.zero k)) }
+    }) }
+  };
+\definition volumes: \forall (b: E.Box) (t: Real.Real) -> Real.add (E.volume (left b t)) (E.volume (right b t)) = E.volume b :=
+  \fun (b: E.Box) (t: Real.Real) => Bool.cases (\fun (active: Bool.Bool^) =>
+    Real.add
+      (\match active \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with {
+        | false: Real.zero
+        | true: E.product (N.Nat^::succ k) (\fun (i: Fin.Fin (N.Nat^::succ k)) => Real.sub (upper b t i) (b.left i))
+      })
+      (\match active \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with {
+        | false: Real.zero
+        | true: E.product (N.Nat^::succ k) (\fun (i: Fin.Fin (N.Nat^::succ k)) => Real.sub (b.right i) (lower b t i))
+      }) =
+      (\match active \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with {
+        | false: Real.zero
+        | true: E.product (N.Nat^::succ k) (\fun (i: Fin.Fin (N.Nat^::succ k)) => Real.sub (b.right i) (b.left i))
+      })) (Laws.addZeroRight Real.zero) (piecesProduct b t) b.active;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\import R.Order[] \as Order;
+\definition insideLeft: \forall (b: E.Box) (t: Real.Real) (x: E.Point) -> Sets.Member (E.points b) x ->
+  R.Le (x (Fin.zero k)) (splitPoint b t) -> Sets.Member (E.points (left b t)) x :=
+  \fun (b: E.Box) (t: Real.Real) (x: E.Point) (inside: Sets.Member (E.points b) x) (atHead: R.Le (x (Fin.zero k)) (splitPoint b t)) =>
+    Logic.And[_, _]::# inside.left (Fin.cases k (\fun (i: Fin.Fin (N.Nat^::succ k)) =>
+      Logic.And[R.Le (b.left i) (x i), R.Le (x i) (upper b t i)])
+      (Logic.And[_, _]::# (inside.right (Fin.zero k)).left
+        (\idelim splitPoint b t = upper b t (Fin.zero k) \with y: Real.Real => R.Le (x (Fin.zero k)) y
+          \by { base: atHead, equality: sym!{Real.Real} _ _ (Tuple.atZero k (splitPoint b t) (\fun (j: Fin.Fin k) => b.right (Fin.succ k j))) }))
+      (\fun (i: Fin.Fin k) => Logic.And[_, _]::# (inside.right (Fin.succ k i)).left
+        (\idelim b.right (Fin.succ k i) = upper b t (Fin.succ k i) \with y: Real.Real => R.Le (x (Fin.succ k i)) y
+          \by { base: (inside.right (Fin.succ k i)).right, equality: sym!{Real.Real} _ _ (Tuple.atSuccessor k (splitPoint b t) (\fun (j: Fin.Fin k) => b.right (Fin.succ k j)) i) })));
+\definition insideRight: \forall (b: E.Box) (t: Real.Real) (x: E.Point) -> Sets.Member (E.points b) x ->
+  R.Le (splitPoint b t) (x (Fin.zero k)) -> Sets.Member (E.points (right b t)) x :=
+  \fun (b: E.Box) (t: Real.Real) (x: E.Point) (inside: Sets.Member (E.points b) x) (atHead: R.Le (splitPoint b t) (x (Fin.zero k))) =>
+    Logic.And[_, _]::# inside.left (Fin.cases k (\fun (i: Fin.Fin (N.Nat^::succ k)) =>
+      Logic.And[R.Le (lower b t i) (x i), R.Le (x i) (b.right i)])
+      (Logic.And[_, _]::# (\idelim splitPoint b t = lower b t (Fin.zero k) \with y: Real.Real => R.Le y (x (Fin.zero k))
+        \by { base: atHead, equality: sym!{Real.Real} _ _ (Tuple.atZero k (splitPoint b t) (\fun (j: Fin.Fin k) => b.left (Fin.succ k j))) }) (inside.right (Fin.zero k)).right)
+      (\fun (i: Fin.Fin k) => Logic.And[_, _]::# (\idelim b.left (Fin.succ k i) = lower b t (Fin.succ k i) \with y: Real.Real => R.Le y (x (Fin.succ k i))
+        \by { base: (inside.right (Fin.succ k i)).left, equality: sym!{Real.Real} _ _ (Tuple.atSuccessor k (splitPoint b t) (\fun (j: Fin.Fin k) => b.left (Fin.succ k j)) i) }) (inside.right (Fin.succ k i)).right));
+\definition covers: \forall (b: E.Box) (t: Real.Real) (x: E.Point) -> Sets.Member (E.points b) x ->
+  Logic.Or[Sets.Member (E.points (left b t)) x, Sets.Member (E.points (right b t)) x] :=
+  \fun (b: E.Box) (t: Real.Real) (x: E.Point) (inside: Sets.Member (E.points b) x) =>
+    Logic.orElim (R.Le (x (Fin.zero k)) (splitPoint b t)) (R.Le (splitPoint b t) (x (Fin.zero k))) (Logic.Or[Sets.Member (E.points (left b t)) x, Sets.Member (E.points (right b t)) x]) (Order.leTotal (x (Fin.zero k)) (splitPoint b t))
+      (\fun (below: R.Le (x (Fin.zero k)) (splitPoint b t)) => Logic.Or[_, _]::left (insideLeft b t x inside below))
+      (\fun (above: R.Le (splitPoint b t) (x (Fin.zero k))) => Logic.Or[_, _]::right (insideRight b t x inside above));
+\import functional_analysis.Measure[A := E.Point] \as Measure;
+\import Measure.ValueLaws[] \as Values;
+\import Measure.Sigma[] \as Sigma;
+\import real.Analysis[].Estimates[] \as Estimates;
+\definition cut[x: Real.Real]: Measure.Value := { r: Real.Real \where R.Lt r x };
+\definition cutAdd: \forall (x, y: Real.Real) -> Measure.add (cut x) (cut y) = cut (Real.add x y) :=
+  \fun (x, y: Real.Real) => \axiom:setext(Measure.add (cut x) (cut y), cut (Real.add x y),
+    \fun (r: Real.Real) (member: Measure.below (Measure.add (cut x) (cut y)) r) => \block {
+      \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[R.Lt a x, \exists ( b: Real.Real \where Logic.And[R.Lt b y, R.Lt r (Real.add a b)] )] }) \by member \then
+      \let first: Logic.And[R.Lt a x, \exists ( b: Real.Real \where Logic.And[R.Lt b y, R.Lt r (Real.add a b)] )] :=
+        \bysub(Real.Real, { a: Real.Real \where Logic.And[R.Lt a x, \exists ( b: Real.Real \where Logic.And[R.Lt b y, R.Lt r (Real.add a b)] )] }, a) \then
+      \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where Logic.And[R.Lt b y, R.Lt r (Real.add a b)] }) \by first.right \then
+      \let second: Logic.And[R.Lt b y, R.Lt r (Real.add a b)] := \bysub(Real.Real, { b: Real.Real \where Logic.And[R.Lt b y, R.Lt r (Real.add a b)] }, b) \then
+      \return Order.ltTrans r (Real.add a b) (Real.add x y) second.right (Estimates.addLt a b x y first.left second.left)
+    },
+    \fun (r: Real.Real) (less: R.Lt r (Real.add x y)) => \block {
+      \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where \exists ( b: Real.Real \where Values.SplitBelow[r, x, y, a, b] ) }) \by Values.splitBelow r x y less \then
+      \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where Values.SplitBelow[r, x, y, a, b] })
+        \by (\bysub(Real.Real, { a: Real.Real \where \exists ( b: Real.Real \where Values.SplitBelow[r, x, y, a, b] ) }, a)) \then
+      \let law: Values.SplitBelow[r, x, y, a, b] := \bysub(Real.Real, { b: Real.Real \where Values.SplitBelow[r, x, y, a, b] }, b) \then
+      \return Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[Measure.below (cut x) a, \exists ( b: Real.Real \where Logic.And[Measure.below (cut y) b, R.Lt r (Real.add a b)] )] }] a
+        (Logic.And[_, _]::# law.left (Logic.existsIntro[Real.Real, { b: Real.Real \where Logic.And[Measure.below (cut y) b, R.Lt r (Real.add a b)] }] b
+          (Logic.And[_, _]::# law.right law.total)))
+    });
+\definition volumeValues: \forall (b: E.Box) (t: Real.Real) ->
+  Measure.add (E.volumeValue (left b t)) (E.volumeValue (right b t)) = E.volumeValue b :=
+  \fun (b: E.Box) (t: Real.Real) => eq_reason_in!{Measure.Value _
+    "=" _ "by" { cutAdd (E.volume (left b t)) (E.volume (right b t)) }
+    "=" _ "by" { congr!{Real.Real Measure.Value} cut _ _ (volumes b t) }
+  };
+\definition leftFamily[f: N.Nat^ -> E.Box] [t: Real.Real]: N.Nat^ -> E.Box := \fun (i: N.Nat^) => left (f i) t;
+\definition rightFamily[f: N.Nat^ -> E.Box] [t: Real.Real]: N.Nat^ -> E.Box := \fun (i: N.Nat^) => right (f i) t;
+\definition refine[f: N.Nat^ -> E.Box] [t: Real.Real]: N.Nat^ -> E.Box := \fun (i: N.Nat^) => E.weave i (leftFamily f t) (rightFamily f t);
+\definition refineCovers: \forall (S: \Pow E.Point) (f: N.Nat^ -> E.Box) (t: Real.Real) -> E.Covers f S -> E.Covers (refine f t) S :=
+  \fun (S: \Pow E.Point) (f: N.Nat^ -> E.Box) (t: Real.Real) (cover: E.Covers f S) (x: E.Point) (inside: Sets.Member S x) => \block {
+    \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where Sets.Member (E.points (f i)) x }) \by cover x inside \then
+    \let inBox: Sets.Member (E.points (f i)) x := \bysub(N.Nat^, { i: N.Nat^ \where Sets.Member (E.points (f i)) x }, i) \then
+    \return Logic.orElim (Sets.Member (E.points (left (f i) t)) x) (Sets.Member (E.points (right (f i) t)) x)
+      (\exists ( j: N.Nat^ \where Sets.Member (E.points (refine f t j)) x )) (covers (f i) t x inBox)
+      (\fun (inLeft: Sets.Member (E.points (left (f i) t)) x) =>
+        Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Sets.Member (E.points (refine f t j)) x }] (E.twice i)
+          (\idelim left (f i) t = refine f t (E.twice i) \with b: E.Box => Sets.Member (E.points b) x
+            \by { base: inLeft, equality: sym!{E.Box} _ _ (E.weaveEven i (leftFamily f t) (rightFamily f t)) }))
+      (\fun (inRight: Sets.Member (E.points (right (f i) t)) x) =>
+        Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Sets.Member (E.points (refine f t j)) x }] (N.Nat^::succ (E.twice i))
+          (\idelim right (f i) t = refine f t (N.Nat^::succ (E.twice i)) \with b: E.Box => Sets.Member (E.points b) x
+            \by { base: inRight, equality: sym!{E.Box} _ _ (E.weaveOdd i (leftFamily f t) (rightFamily f t)) }))
+  };
+\definition refineCost: \forall (f: N.Nat^ -> E.Box) (t: Real.Real) -> E.cost (refine f t) = E.cost f :=
+  \fun (f: N.Nat^ -> E.Box) (t: Real.Real) => eq_reason_in!{Measure.Value _
+    "=" _ "by" { E.weaveCost (leftFamily f t) (rightFamily f t) }
+    "=" _ "by" { sym!{Measure.Value} _ _ (E.seriesAdd (\fun (i: N.Nat^) => E.volumeValue (left (f i) t)) (\fun (i: N.Nat^) => E.volumeValue (right (f i) t))
+      (\fun (i: N.Nat^) => E.volumeValueNonnegative (left (f i) t)) (\fun (i: N.Nat^) => E.volumeValueNonnegative (right (f i) t))) }
+    "=" _ "by" { congr!{{N.Nat^ -> Measure.Value} Measure.Value} Measure.series _ _
+      (\axiom:funext((\fun (i: N.Nat^) => Measure.add (E.volumeValue (left (f i) t)) (E.volumeValue (right (f i) t))),
+        (\fun (i: N.Nat^) => E.volumeValue (f i)), \fun (i: N.Nat^) => volumeValues (f i) t)) }
+  };
+\definition halfspace[t: Real.Real]: \Pow E.Point := { x: E.Point \where R.Le (x (Fin.zero k)) t };
+\definition clipAbove: \forall (b: E.Box) (t: Real.Real) (x: E.Point) -> Sets.Member (E.points b) x ->
+  R.Le (x (Fin.zero k)) t -> R.Le (x (Fin.zero k)) (splitPoint b t) :=
+  \fun (b: E.Box) (t: Real.Real) (x: E.Point) (inside: Sets.Member (E.points b) x) (below: R.Le (x (Fin.zero k)) t) =>
+    Distance.minGreatest (Distance.max t (b.left (Fin.zero k))) (b.right (Fin.zero k)) (x (Fin.zero k))
+      (R.leTrans (x (Fin.zero k)) t (Distance.max t (b.left (Fin.zero k))) below (Distance.maxLeft t (b.left (Fin.zero k))))
+      (inside.right (Fin.zero k)).right;
+\definition clipBelow: \forall (b: E.Box) (t: Real.Real) (x: E.Point) -> Sets.Member (E.points b) x ->
+  R.Le t (x (Fin.zero k)) -> R.Le (splitPoint b t) (x (Fin.zero k)) :=
+  \fun (b: E.Box) (t: Real.Real) (x: E.Point) (inside: Sets.Member (E.points b) x) (above: R.Le t (x (Fin.zero k))) =>
+    R.leTrans (splitPoint b t) (Distance.max t (b.left (Fin.zero k))) (x (Fin.zero k))
+      (Distance.minLeft (Distance.max t (b.left (Fin.zero k))) (b.right (Fin.zero k)))
+      (Distance.maxLeast t (b.left (Fin.zero k)) (x (Fin.zero k)) above (inside.right (Fin.zero k)).left);
+\definition coversInside: \forall (T: \Pow E.Point) (f: N.Nat^ -> E.Box) (t: Real.Real) -> E.Covers f T ->
+  E.Covers (leftFamily f t) (Sets.Intersection T (halfspace t)) :=
+  \fun (T: \Pow E.Point) (f: N.Nat^ -> E.Box) (t: Real.Real) (cover: E.Covers f T) (x: E.Point)
+    (inside: Sets.Member (Sets.Intersection T (halfspace t)) x) => \block {
+      \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where Sets.Member (E.points (f i)) x }) \by cover x inside.left \then
+      \let inBox: Sets.Member (E.points (f i)) x := \bysub(N.Nat^, { i: N.Nat^ \where Sets.Member (E.points (f i)) x }, i) \then
+      \return Logic.existsIntro[N.Nat^, { i: N.Nat^ \where Sets.Member (E.points (leftFamily f t i)) x }] i
+        (insideLeft (f i) t x inBox (clipAbove (f i) t x inBox inside.right))
+    };
+\definition coversOutside: \forall (T: \Pow E.Point) (f: N.Nat^ -> E.Box) (t: Real.Real) -> E.Covers f T ->
+  E.Covers (rightFamily f t) (Sets.Intersection T (Sets.Complement (halfspace t))) :=
+  \fun (T: \Pow E.Point) (f: N.Nat^ -> E.Box) (t: Real.Real) (cover: E.Covers f T) (x: E.Point)
+    (inside: Sets.Member (Sets.Intersection T (Sets.Complement (halfspace t))) x) => \block {
+      \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where Sets.Member (E.points (f i)) x }) \by cover x inside.left \then
+      \let inBox: Sets.Member (E.points (f i)) x := \bysub(N.Nat^, { i: N.Nat^ \where Sets.Member (E.points (f i)) x }, i) \then
+      \let above: R.Le t (x (Fin.zero k)) := Logic.orElim (R.Le (x (Fin.zero k)) t) (R.Le t (x (Fin.zero k))) (R.Le t (x (Fin.zero k)))
+        (Order.leTotal (x (Fin.zero k)) t) (\fun (below: R.Le (x (Fin.zero k)) t) => Logic.falseElim _ (inside.right below))
+        (\fun (above: R.Le t (x (Fin.zero k))) => above) \then
+      \return Logic.existsIntro[N.Nat^, { i: N.Nat^ \where Sets.Member (E.points (rightFamily f t i)) x }] i
+        (insideRight (f i) t x inBox (clipBelow (f i) t x inBox above))
+    };
+\definition halfspaceMeasurable: \forall (t: Real.Real) -> E.Caratheodory (halfspace t) :=
+  \fun (t: Real.Real) (T: \Pow E.Point) => \block {
+    \let leftSet: \Pow E.Point := Sets.Intersection T (halfspace t) \then
+    \let rightSet: \Pow E.Point := Sets.Intersection T (Sets.Complement (halfspace t)) \then
+    \let combined: Measure.Value := Measure.add (E.outer leftSet) (E.outer rightSet) \then
+    \let valid: Measure.NonnegativeValue[combined] := Values.addNonnegative (E.outer leftSet) (E.outer rightSet) (E.outerNonnegative leftSet) (E.outerNonnegative rightSet) \then
+    \let lower: Values.Included combined (E.outer T) := E.greatestLowerBound T combined valid
+      (\fun (f: N.Nat^ -> E.Box) (cover: E.Covers f T) (r: Real.Real) (inside: Measure.below combined r) =>
+        \idelim Measure.add (E.cost (leftFamily f t)) (E.cost (rightFamily f t)) = E.cost f \with v: Measure.Value => Measure.below v r
+          \by { base: Values.addMono (E.outer leftSet) (E.cost (leftFamily f t)) (E.outer rightSet) (E.cost (rightFamily f t))
+            (E.boundedByCover leftSet (leftFamily f t) (coversInside T f t cover)) (E.boundedByCover rightSet (rightFamily f t) (coversOutside T f t cover)) r inside,
+            equality: eq_reason_in!{Measure.Value _
+              "=" _ "by" { sym!{Measure.Value} _ _ (E.weaveCost (leftFamily f t) (rightFamily f t)) }
+              "=" _ "by" { refineCost f t }
+            } }) \then
+    \let upper: Values.Included (E.outer T) combined := \fun (r: Real.Real) (inside: Measure.below (E.outer T) r) =>
+      E.subadditivePair leftSet rightSet r (\idelim T = Sigma.pairUnion leftSet rightSet \with S: \Pow E.Point => Measure.below (E.outer S) r
+        \by { base: inside, equality: E.partitionUnion T (halfspace t) }) \then
+    \return \axiom:setext(E.outer T, combined, upper, lower)
+  };
+\definition upperBelow: \forall (b: E.Box) (t: Real.Real) (i: Fin.Fin (N.Nat^::succ k)) -> R.Le (upper b t i) (b.right i) :=
+  \fun (b: E.Box) (t: Real.Real) => Fin.cases k (\fun (i: Fin.Fin (N.Nat^::succ k)) => R.Le (upper b t i) (b.right i))
+    (R.leReplaceLeft (splitPoint b t) (upper b t (Fin.zero k)) (b.right (Fin.zero k))
+      (sym!{Real.Real} _ _ (Tuple.atZero k (splitPoint b t) (\fun (j: Fin.Fin k) => b.right (Fin.succ k j))))
+      (Clip.upper (b.left (Fin.zero k)) (b.right (Fin.zero k)) t))
+    (\fun (i: Fin.Fin k) => R.leReplaceLeft (b.right (Fin.succ k i)) (upper b t (Fin.succ k i)) (b.right (Fin.succ k i))
+      (sym!{Real.Real} _ _ (Tuple.atSuccessor k (splitPoint b t) (\fun (j: Fin.Fin k) => b.right (Fin.succ k j)) i)) (R.leRefl (b.right (Fin.succ k i))));
+\definition lowerAbove: \forall (b: E.Box) (t: Real.Real) (i: Fin.Fin (N.Nat^::succ k)) -> R.Le (b.left i) (lower b t i) :=
+  \fun (b: E.Box) (t: Real.Real) => Fin.cases k (\fun (i: Fin.Fin (N.Nat^::succ k)) => R.Le (b.left i) (lower b t i))
+    (R.leReplaceRight (b.left (Fin.zero k)) (splitPoint b t) (lower b t (Fin.zero k))
+      (sym!{Real.Real} _ _ (Tuple.atZero k (splitPoint b t) (\fun (j: Fin.Fin k) => b.left (Fin.succ k j))))
+      (Clip.lower (b.left (Fin.zero k)) (b.right (Fin.zero k)) t (b.ordered (Fin.zero k))))
+    (\fun (i: Fin.Fin k) => R.leReplaceRight (b.left (Fin.succ k i)) (b.left (Fin.succ k i)) (lower b t (Fin.succ k i))
+      (sym!{Real.Real} _ _ (Tuple.atSuccessor k (splitPoint b t) (\fun (j: Fin.Fin k) => b.left (Fin.succ k j)) i)) (R.leRefl (b.left (Fin.succ k i))));
+\definition leftContained: \forall (b: E.Box) (t: Real.Real) -> Sets.Subset (E.points (left b t)) (E.points b) :=
+  \fun (b: E.Box) (t: Real.Real) (x: E.Point) (inside: Sets.Member (E.points (left b t)) x) =>
+    Logic.And[_, _]::# inside.left (\fun (i: Fin.Fin (N.Nat^::succ k)) => Logic.And[_, _]::# (inside.right i).left
+      (R.leTrans _ _ _ (inside.right i).right (upperBelow b t i)));
+\definition rightContained: \forall (b: E.Box) (t: Real.Real) -> Sets.Subset (E.points (right b t)) (E.points b) :=
+  \fun (b: E.Box) (t: Real.Real) (x: E.Point) (inside: Sets.Member (E.points (right b t)) x) =>
+    Logic.And[_, _]::# inside.left (\fun (i: Fin.Fin (N.Nat^::succ k)) => Logic.And[_, _]::#
+      (R.leTrans _ _ _ (lowerAbove b t i) (inside.right i).left) (inside.right i).right);
+\use std.Logic[].Equality[].trans;
+\definition leftSide: \forall (b: E.Box) (t: Real.Real) -> R.Le (b.left (Fin.zero k)) t -> R.Le t (b.right (Fin.zero k)) ->
+  \forall (x: E.Point) -> Sets.Member (E.points (left b t)) x -> R.Le (x (Fin.zero k)) t :=
+  \fun (b: E.Box) (t: Real.Real) (lo: R.Le (b.left (Fin.zero k)) t) (hi: R.Le t (b.right (Fin.zero k)))
+    (x: E.Point) (inside: Sets.Member (E.points (left b t)) x) =>
+      R.leReplaceRight (x (Fin.zero k)) (upper b t (Fin.zero k)) t
+        (trans!{Real.Real} _ _ _ (Tuple.atZero k (splitPoint b t) (\fun (j: Fin.Fin k) => b.right (Fin.succ k j)))
+          (Clip.inside (b.left (Fin.zero k)) (b.right (Fin.zero k)) t lo hi)) (inside.right (Fin.zero k)).right;
+\definition rightSide: \forall (b: E.Box) (t: Real.Real) -> R.Le (b.left (Fin.zero k)) t -> R.Le t (b.right (Fin.zero k)) ->
+  \forall (x: E.Point) -> Sets.Member (E.points (right b t)) x -> R.Le t (x (Fin.zero k)) :=
+  \fun (b: E.Box) (t: Real.Real) (lo: R.Le (b.left (Fin.zero k)) t) (hi: R.Le t (b.right (Fin.zero k)))
+    (x: E.Point) (inside: Sets.Member (E.points (right b t)) x) =>
+      R.leReplaceLeft (lower b t (Fin.zero k)) t (x (Fin.zero k))
+        (trans!{Real.Real} _ _ _ (Tuple.atZero k (splitPoint b t) (\fun (j: Fin.Fin k) => b.left (Fin.succ k j)))
+          (Clip.inside (b.left (Fin.zero k)) (b.right (Fin.zero k)) t lo hi)) (inside.right (Fin.zero k)).left;

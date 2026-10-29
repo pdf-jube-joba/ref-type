@@ -1,0 +1,49 @@
+\import \parent.\parent.UnitBounds[].Difference[] \as Difference;
+\import \parent.\parent.Compact[].Limit[] \as ForwardLimit;
+\import Reverse.Compact[] \as ReverseCompact;
+\import ReverseCompact.Limit[] \as BackwardLimit;
+\import Reverse.UnitBounds[].Difference[] \as BackwardDifference;
+\import K.Geometry[] \as TargetGeometry;
+\import H.Geometry[] \as SourceGeometry;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := linear_algebra.Hermitian[].Complex[].scalar] \as Hermitian;
+\import Hermitian.Inner[V := W, space := target].Of[h := TargetGeometry.form] \as TargetFacts;
+\import functional_analysis.Normed[V := V, space := realSpace] \as SourceNormed;
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\use Eq.eq_reason_in;
+\definition differenceAdjoint: \forall (sourceComplete: H.Complete)(targetComplete: K.Complete)(f, g: Map)(c: R.Real)(positive: Order.Lt R.zero c)(near: ForwardLimit.Near[f, g, c])(y: W) ->
+  (adjoint sourceComplete targetComplete (Difference.bounded f g c positive near)).apply y =
+  (BackwardDifference.map (adjoint sourceComplete targetComplete f) (adjoint sourceComplete targetComplete g)).apply y := \block {
+  \fun (sourceComplete: H.Complete)(targetComplete: K.Complete)(f, g: Map)(c: R.Real)(positive: Order.Lt R.zero c)(near: ForwardLimit.Near[f, g, c])(y: W) \then
+  \let h: Map := Difference.bounded f g c positive near \then
+  \let candidate: Backward.Map := BackwardDifference.map (adjoint sourceComplete targetComplete f) (adjoint sourceComplete targetComplete g) \then
+  \return sym!{V} _ _ (unique sourceComplete targetComplete h candidate (\fun (x: V)(z: W) => eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{W C.Complex} (\fun (w: W) => targetInner.inner w z) _ _ (Difference.formula f g x) }
+    "=" _ "by" { TargetFacts.addLeft (f.apply x) (target.neg (g.apply x)) z }
+    "=" _ "by" { congr!{C.Complex C.Complex} (D.add (targetInner.inner (f.apply x) z)) _ _ (TargetFacts.negativeLeft (g.apply x) z) }
+    "=" _ "by" { congr!{C.Complex C.Complex C.Complex} D.sub _ _ _ _ (adjointLaw sourceComplete targetComplete f x z) (adjointLaw sourceComplete targetComplete g x z) }
+    "=" _ "by" { sym!{C.Complex} _ _ (SourceGeometry.differenceRight x ((adjoint sourceComplete targetComplete f).apply z) ((adjoint sourceComplete targetComplete g).apply z)) }
+    "=" _ "by" { congr!{V C.Complex} (inner.inner x) _ _ (sym!{V} _ _ (BackwardDifference.formula _ _ z)) }
+  }) y)
+};
+\definition near: \forall (sourceComplete: H.Complete)(targetComplete: K.Complete)(f, g: Map)(epsilon: R.Real) -> Order.Lt R.zero epsilon ->
+  ForwardLimit.Near[f, g, R.mul R.half epsilon] -> BackwardLimit.Near[adjoint sourceComplete targetComplete f, adjoint sourceComplete targetComplete g, epsilon] := \block {
+  \fun (sourceComplete: H.Complete)(targetComplete: K.Complete)(f, g: Map)(epsilon: R.Real)(positive: Order.Lt R.zero epsilon)(near: ForwardLimit.Near[f, g, R.mul R.half epsilon]) \then
+  \let half: R.Real := R.mul R.half epsilon \then
+  \let hp: Order.Lt R.zero half := RE.halfOfPositive epsilon positive \then
+  \let h: Map := Difference.bounded f g half hp near \then
+  \let hbound: Bound[h, half] := Difference.bound f g half (RO.leOfLt _ _ hp) near \then
+  \let adjbound: Reverse.Bound[linear sourceComplete targetComplete h, half] := bound sourceComplete targetComplete h half hbound \then
+  \fun (y: W)(inside: \In[W] ReverseCompact.UnitBall y) \then
+  \let estimate: Order.Le (norm.realNorm.norm ((adjoint sourceComplete targetComplete h).apply y)) half :=
+    Order.leReplaceRight _ (R.mul half R.one) half (R.Algebra[].mulOneRight half)
+      (Order.leTrans _ _ _ (adjbound.estimate y) (RE.mulMonotone half _ R.one (RO.leOfLt _ _ hp) inside)) \then
+  \let equal: (adjoint sourceComplete targetComplete h).apply y = SourceNormed.sub ((adjoint sourceComplete targetComplete f).apply y) ((adjoint sourceComplete targetComplete g).apply y) :=
+    trans!{V} _ _ _ (differenceAdjoint sourceComplete targetComplete f g half hp near y)
+      (BackwardDifference.formula _ _ y) \then
+  \return Order.leLtTrans _ half epsilon
+    (Order.leReplaceLeft _ _ _ (congr!{V R.Real} norm.realNorm.norm _ _ equal) estimate)
+    (RE.halfStrict epsilon positive)
+};

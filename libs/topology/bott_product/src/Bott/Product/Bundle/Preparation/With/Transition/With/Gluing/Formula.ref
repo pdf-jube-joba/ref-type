@@ -1,0 +1,65 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\use Eq.eq_reason_in;
+\import algebra.Group[].Of[Carrier := Target.K0[].Carrier, group := Target.K0[].group] \as Group;
+\import Source.Bundle[F := At.Fiber, original := At.restriction, same := \refl(source)] \as OriginalRestriction;
+\import Source.Bundle[F := Stable.ComplementFiber, original := Stable.complement, same := \refl(source)] \as ComplementClass;
+\import Source.Sum[F := At.Fiber, G := Stable.ComplementFiber, left := At.restriction, right := Stable.complement,
+  leftSame := \refl(source), rightSame := \refl(source)] \as RestrictionSum;
+\import Source.Trivial[n := embedding.dimension] \as BaseTrivialClass;
+\import Source.Compare[F := RestrictionSum.FiberAt, G := BaseTrivialClass.FiberAt, first := RestrictionSum.sumBundle, second := BaseTrivialClass.trivialBundle,
+  firstSame := \refl(source), secondSame := \refl(source)] \as BaseCompare;
+\definition baseSum: Source.Addition[].add OriginalRestriction.value ComplementClass.value = BaseTrivialClass.value :=
+  trans!{Source.Classes} _ _ _ RestrictionSum.onBundles (BaseCompare.ofIsomorphism Stable.trivialization);
+\import Target.Bundle[F := F, original := bundle, same := same] \as OriginalClass;
+\import Target.Bundle[F := Product.PulledFiber, original := Product.pulled, same := \refl(topology)] \as PulledComplement;
+\import Target.Bundle[F := Product.Fiber, original := Product.stabilized, same := same] \as StabilizedClass;
+\import Target.Bundle[F := Clutched.Fiber, original := Clutched.bundle, same := \refl(topology)] \as ClutchClass;
+\import Target.Sum[F := F, G := Product.PulledFiber, left := bundle, right := Product.pulled, leftSame := same, rightSame := \refl(topology)] \as ProductSum;
+\import Target.Trivial[n := embedding.dimension] \as RankClass;
+\import Target.Compare[F := Product.Fiber, G := Clutched.Fiber, first := Product.stabilized, second := Clutched.bundle,
+  firstSame := same, secondSame := \refl(topology)] \as ProductCompare;
+\import Source.Pullback[Y := Carrier, space := topology, sourceCompact := productCompact, sourceHausdorff := productHausdorff, f := first, regular := Space.Maps[].firstContinuous source Sphere.sphereTopology] \as BaseFirst;
+\import BaseFirst.Of[F := Stable.ComplementFiber, original := Stable.complement, same := \refl(source)] \as PulledComplementClass;
+\definition e: Target.K0[].Carrier := value;
+\definition q: Target.K0[].Carrier := Target.K0[].include PulledComplement.value;
+\definition b: Target.K0[].Carrier := BaseFirst.K0[].map At.class;
+\definition r: Target.K0[].Carrier := Target.K0[].include RankClass.value;
+\definition sumClass: Target.K0[].include ClutchClass.value = Target.K0[].add e q :=
+  trans!{{Target.K0[].Carrier}} _ _ _ (congr!{Target.Classes {Target.K0[].Carrier}} Target.K0[].include _ _ (sym!{Target.Classes} _ _ (ProductCompare.ofIsomorphism isomorphism)))
+    (trans!{{Target.K0[].Carrier}} _ _ _ (congr!{Target.Classes {Target.K0[].Carrier}} Target.K0[].include _ _ (sym!{Target.Classes} _ _ ProductSum.onBundles))
+      (Target.K0[].includeAdd OriginalClass.value PulledComplement.value));
+\definition baseBalance: Target.K0[].add b q = r := eq_reason_in!{{Target.K0[].Carrier} _
+  "=" _ "by" { congr!{{Target.K0[].Carrier} {Target.K0[].Carrier}} (Target.K0[].add b) _ _
+    (sym!{{Target.K0[].Carrier}} _ _ (trans!{{Target.K0[].Carrier}} _ _ _ (BaseFirst.K0[].onIncludes ComplementClass.value)
+      (congr!{Target.Classes {Target.K0[].Carrier}} Target.K0[].include _ _ PulledComplementClass.naturality))) }
+  "=" _ "by" { sym!{{Target.K0[].Carrier}} _ _ (BaseFirst.K0[].additive At.class (Source.K0[].include ComplementClass.value)) }
+  "=" _ "by" { congr!{{Source.K0[].Carrier} {Target.K0[].Carrier}} BaseFirst.K0[].map _ _ (sym!{{Source.K0[].Carrier}} _ _ (Source.K0[].includeAdd OriginalRestriction.value ComplementClass.value)) }
+  "=" _ "by" { congr!{Source.Classes {Target.K0[].Carrier}} (\fun (z: Source.Classes) => BaseFirst.K0[].map (Source.K0[].include z)) _ _ baseSum }
+  "=" _ "by" { BaseFirst.Trivial[n := embedding.dimension].onK0 }
+};
+\definition balance: Target.K0[].add (Target.K0[].add e q) b = Target.K0[].add e r :=
+  trans!{{Target.K0[].Carrier}} _ _ _ (Group.assoc e q b)
+    (trans!{{Target.K0[].Carrier}} _ _ _ (congr!{{Target.K0[].Carrier} {Target.K0[].Carrier}} (Target.K0[].add e) _ _ (Group.comm q b))
+      (congr!{{Target.K0[].Carrier} {Target.K0[].Carrier}} (Target.K0[].add e) _ _ baseBalance));
+\definition equation: Target.K0[].difference ClutchClass.value RankClass.value = Group.difference e b :=
+  trans!{{Target.K0[].Carrier}} _ _ _
+    (congr!{{Target.K0[].Carrier} {Target.K0[].Carrier}} (\fun (v: Target.K0[].Carrier) => Group.difference v r) _ _ sumClass)
+    (Group.balancedDifference (Target.K0[].add e q) r e b balance);
+\import clutching_linearization.Linearization[].On[X := X, source := source, compact := compact, hausdorff := hausdorff].Matrices[
+  n := embedding.dimension, a := matrix, regular := regular, nonzero := nonzero] \as Matrices;
+\import algebra.GroupCompletion[].Semiring[M := Target.Classes, semiring := Target.Semiring[].semiring] \as Ring;
+\definition reconstruction: value = forward At.class index := \block {
+  \takefrom parameters: Matrices.Parameters \by Matrices.parametersExist \then
+  \let reduced: Group.difference e b = Target.K0[].mul generatorOnProduct (BaseFirst.K0[].map index) :=
+    trans!{{Target.K0[].Carrier}} _ _ _ (sym!{{Target.K0[].Carrier}} _ _ equation) K07.With[parameters := parameters].reconstruction \then
+  \return eq_reason_in!{{Target.K0[].Carrier} _
+    "=" _ "by" { sym!{{Target.K0[].Carrier}} _ _ (Group.addDifference e b) }
+    "=" _ "by" { congr!{{Target.K0[].Carrier} {Target.K0[].Carrier}} (\fun (z: Target.K0[].Carrier) => Target.K0[].add z b) _ _ reduced }
+    "=" _ "by" { Group.comm (Target.K0[].mul generatorOnProduct (BaseFirst.K0[].map index)) b }
+    "=" _ "by" { congr!{{Target.K0[].Carrier} {Target.K0[].Carrier}} (Target.K0[].add b) _ _
+      (Ring.mulComm Target.MultiplicativeMonoid[].commutative generatorOnProduct (BaseFirst.K0[].map index)) }
+  }
+};

@@ -1,0 +1,130 @@
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import \root.Euclidean[n := n] \as E;
+\import \root.Expansion[n := n] \as Expansion;
+\import E.SeriesBounds[] \as Bounds;
+\import functional_analysis.Measure[A := E.Point] \as Measure;
+\import Measure.ValueLaws[] \as Values;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\import Sets.Countability[] \as Countability;
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as Topology;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import R.Completeness[] \as Complete;
+\import Real.Estimates[] \as Estimates;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\definition Choice[f: N.Nat^ -> E.Box] [epsilon: Real.Real] [i: N.Nat^]: \Set :=
+  \Cast[Real.Real] (Expansion.Admissible (f i) (Bounds.error epsilon i));
+\definition Expanded[f: N.Nat^ -> E.Box] [epsilon: Real.Real] [choice: \forall (i: N.Nat^) -> Choice f epsilon i] [i: N.Nat^]: E.Box :=
+  Expansion.widened (f i) (choice i) (\bysub(Real.Real, Expansion.Admissible (f i) (Bounds.error epsilon i), choice i)).left;
+\definition Region[f: N.Nat^ -> E.Box] [epsilon: Real.Real] [choice: \forall (i: N.Nat^) -> Choice f epsilon i] [i: N.Nat^]: \Pow E.Point :=
+  Expansion.interior (f i) (choice i);
+\definition costBound: \forall (f: N.Nat^ -> E.Box) (epsilon: Real.Real) -> R.Lt Real.zero epsilon ->
+  \forall (choice: \forall (i: N.Nat^) -> Choice f epsilon i) (bound: Real.Real) -> Logic.Not (Measure.below (E.cost f) bound) ->
+  Complete.UpperBound (E.cost (Expanded f epsilon choice)) (Real.add bound epsilon) :=
+  \fun (f: N.Nat^ -> E.Box) (epsilon: Real.Real) (ep: R.Lt Real.zero epsilon)
+    (choice: \forall (i: N.Nat^) -> Choice f epsilon i) (bound: Real.Real) (outside: Logic.Not (Measure.below (E.cost f) bound)) => \block {
+      \let p: N.Nat^ -> Real.Real := \fun (i: N.Nat^) => E.volume (f i) \then
+      \let values: N.Nat^ -> Measure.Value := \fun (i: N.Nat^) => E.volumeValue (f i) \then
+      \let sup: \forall (i: N.Nat^) -> Complete.LeastUpperBound[values i, p i] := \fun (i: N.Nat^) => Complete.LeastUpperBound[values i, p i] {
+        upper := \fun (r: Real.Real) (less: R.Lt r (p i)) => Order.leOfLt r (p i) less,
+        least := \fun (b: Real.Real) (upper: Complete.UpperBound (values i) b) => Order.leOfNotLtReverse (p i) b
+          (\fun (less: R.Lt b (p i)) => R.ltNotLeReverse b (Real.midpoint b (p i))
+            (Values.midpointStrictLeft b (p i) less) (upper (Real.midpoint b (p i)) (Values.midpointStrictRight b (p i) less))),
+      } \then
+      \let upper: \forall (i: N.Nat^) -> Complete.UpperBound (E.volumeValue (Expanded f epsilon choice i)) (Real.add (p i) (Bounds.error epsilon i)) :=
+        \fun (i: N.Nat^) (r: Real.Real) (member: R.Lt r (E.volume (Expanded f epsilon choice i))) =>
+          Order.leOfLt r (Real.add (p i) (Bounds.error epsilon i)) (Order.ltTrans r (E.volume (Expanded f epsilon choice i)) (Real.add (p i) (Bounds.error epsilon i)) member
+            ((\bysub(Real.Real, Expansion.Admissible (f i) (Bounds.error epsilon i), choice i)).right
+              ((\bysub(Real.Real, Expansion.Admissible (f i) (Bounds.error epsilon i), choice i)).left))) \then
+      \let partial: \forall (k: N.Nat^) -> R.Le (Bounds.realPartial (\fun (i: N.Nat^) => Real.add (p i) (Bounds.error epsilon i)) k) (Real.add bound epsilon) :=
+        \fun (k: N.Nat^) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Bounds.realPartialAdd p (Bounds.error epsilon) k))
+          (Estimates.addLe _ _ _ _ (Bounds.partialBoundedBySeries values p (\fun (i: N.Nat^) => E.volumeValueNonnegative (f i)) sup bound outside k)
+            (Bounds.errorBound epsilon ep k)) \then
+      \return Bounds.seriesUpper (\fun (i: N.Nat^) => E.volumeValue (Expanded f epsilon choice i))
+        (\fun (i: N.Nat^) => Real.add (p i) (Bounds.error epsilon i)) (Real.add bound epsilon) upper partial
+    };
+\definition Envelope[S: \Pow E.Point] [bound: Real.Real] [U: \Pow E.Point]: \Prop :=
+  Logic.And[Sets.IsOpenIn Topology.topology U, Logic.And[Sets.Subset S U, Complete.UpperBound (E.outer U) bound]];
+\definition openEnvelope: \forall (S: \Pow E.Point) (f: N.Nat^ -> E.Box) -> E.Covers f S ->
+  \forall (bound, epsilon: Real.Real) -> R.Lt Real.zero epsilon -> Logic.Not (Measure.below (E.cost f) bound) ->
+  \exists ( U: \Pow E.Point \where Envelope S (Real.add bound epsilon) U ) :=
+  \fun (S: \Pow E.Point) (f: N.Nat^ -> E.Box) (cover: E.Covers f S) (bound, epsilon: Real.Real)
+    (ep: R.Lt Real.zero epsilon) (outside: Logic.Not (Measure.below (E.cost f) bound)) => \block {
+      \takefrom choice: \forall (i: N.Nat^) -> Choice f epsilon i \by
+        \axiom:classicalIndefiniteChoice(N.Nat^, Choice f epsilon,
+          \fun (i: N.Nat^) => Expansion.admissibleExists (f i) (Bounds.error epsilon i) (Bounds.errorPositive epsilon ep i)) \then
+      \let region: N.Nat^ -> \Pow E.Point := Region f epsilon choice \then
+      \let U: \Pow E.Point := Countability.IndexedUnion region \then
+      \let opened: Sets.IsOpenIn Topology.topology U := Countability.indexedUnionOpen Topology.topology region
+        (\fun (i: N.Nat^) => Expansion.interiorOpen (f i) (choice i)) \then
+      \let contains: Sets.Subset S U := \fun (x: E.Point) (member: Sets.Member S x) => \block {
+        \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where Sets.Member (E.points (f i)) x }) \by cover x member \then
+        \return Countability.indexedUnionMember region i x (Expansion.pointsWithinInterior (f i) (choice i)
+          (\bysub(Real.Real, Expansion.Admissible (f i) (Bounds.error epsilon i), choice i)).left x
+          (\bysub(N.Nat^, { i: N.Nat^ \where Sets.Member (E.points (f i)) x }, i)))
+      } \then
+      \let expandedCover: E.Covers (Expanded f epsilon choice) U := \fun (x: E.Point) (member: Sets.Member U x) =>
+        Countability.indexedUnionElim region x (\exists ( i: N.Nat^ \where Sets.Member (E.points (Expanded f epsilon choice i)) x ))
+          (\fun (i: N.Nat^) (inside: Sets.Member (region i) x) =>
+            Logic.existsIntro[N.Nat^, { i: N.Nat^ \where Sets.Member (E.points (Expanded f epsilon choice i)) x }] i
+              (Expansion.interiorWithinWidened (f i) (choice i)
+                (\bysub(Real.Real, Expansion.Admissible (f i) (Bounds.error epsilon i), choice i)).left x inside)) member \then
+      \let upper: Complete.UpperBound (E.outer U) (Real.add bound epsilon) := \fun (r: Real.Real) (inside: Measure.below (E.outer U) r) =>
+        costBound f epsilon ep choice bound outside r (E.boundedByCover U (Expanded f epsilon choice) expandedCover r inside) \then
+      \return Logic.existsIntro[\Pow E.Point, { U: \Pow E.Point \where Envelope S (Real.add bound epsilon) U }] U
+        (Logic.And[_, _]::# opened (Logic.And[_, _]::# contains upper))
+    };
+\import Real.SquareRoot[] \as Root;
+\import R.Arithmetic[].Prop[] \as Laws;
+\use Equality.congr;
+\use Equality.trans;
+\definition outerApproximation: \forall (S: \Pow E.Point) (bound, epsilon: Real.Real) ->
+  Logic.Not (Measure.below (E.outer S) bound) -> R.Lt Real.zero epsilon ->
+  \exists ( U: \Pow E.Point \where Envelope S (Real.add bound epsilon) U ) :=
+  \fun (S: \Pow E.Point) (bound, epsilon: Real.Real) (outside: Logic.Not (Measure.below (E.outer S) bound)) (ep: R.Lt Real.zero epsilon) => \block {
+    \let half: Real.Real := Real.mul Real.half epsilon \then
+    \let hp: R.Lt Real.zero half := Estimates.halfOfPositive epsilon ep \then
+    \takefrom f: \Cast[N.Nat^ -> E.Box] ({ f: N.Nat^ -> E.Box \where Logic.And[E.Covers f S, Logic.Not (Measure.below (E.cost f) (Real.add bound half))] })
+      \by E.approximateCover S bound (Real.add bound half) (Root.addPositive bound half hp) outside \then
+    \let law: Logic.And[E.Covers f S, Logic.Not (Measure.below (E.cost f) (Real.add bound half))] :=
+      \bysub(N.Nat^ -> E.Box, { f: N.Nat^ -> E.Box \where Logic.And[E.Covers f S, Logic.Not (Measure.below (E.cost f) (Real.add bound half))] }, f) \then
+    \takefrom U: \Cast[\Pow E.Point] ({ U: \Pow E.Point \where Envelope S (Real.add (Real.add bound half) half) U })
+      \by openEnvelope S f law.left (Real.add bound half) half hp law.right \then
+    \let result: Envelope S (Real.add (Real.add bound half) half) U :=
+      \bysub(\Pow E.Point, { U: \Pow E.Point \where Envelope S (Real.add (Real.add bound half) half) U }, U) \then
+    \let equal: Real.add (Real.add bound half) half = Real.add bound epsilon :=
+      trans!{Real.Real} _ _ _ (Laws.addAssoc bound half half)
+        (congr!{Real.Real Real.Real} (Real.add bound) _ _ (Estimates.halfTwice epsilon)) \then
+    \return Logic.existsIntro[\Pow E.Point, { U: \Pow E.Point \where Envelope S (Real.add bound epsilon) U }] U
+      (\idelim Real.add (Real.add bound half) half = Real.add bound epsilon \with b: Real.Real => Envelope S b U \by { base: result, equality: equal })
+  };
+\import Measure.Sigma[] \as Sigma;
+\definition openInfimum[S: \Pow E.Point]: Measure.Value := { r: Real.Real \where
+  \exists ( t: Real.Real \where Logic.And[R.Lt r t, \forall (U: \Pow E.Point) -> Sets.IsOpenIn Topology.topology U -> Sets.Subset S U -> Measure.below (E.outer U) t] ) };
+\definition outerRegular: \forall (S: \Pow E.Point) -> E.outer S = openInfimum S :=
+  \fun (S: \Pow E.Point) => \axiom:setext(E.outer S, openInfimum S,
+    \fun (r: Real.Real) (member: Measure.below (E.outer S) r) => \block {
+      \takefrom t: \Cast[Real.Real] ({ t: Real.Real \where Logic.And[R.Lt r t, Measure.below (E.outer S) t] }) \by (E.outerNonnegative S).rounded r member \then
+      \let valid: Logic.And[R.Lt r t, Measure.below (E.outer S) t] :=
+        \bysub(Real.Real, { t: Real.Real \where Logic.And[R.Lt r t, Measure.below (E.outer S) t] }, t) \then
+      \return Logic.existsIntro[Real.Real, { t: Real.Real \where Logic.And[R.Lt r t, \forall (U: \Pow E.Point) -> Sets.IsOpenIn Topology.topology U -> Sets.Subset S U -> Measure.below (E.outer U) t] }] t
+        (Logic.And[_, _]::# valid.left (\fun (U: \Pow E.Point) (_: Sets.IsOpenIn Topology.topology U) (contains: Sets.Subset S U) => E.monotone S U contains t valid.right))
+    },
+    \fun (r: Real.Real) (member: Measure.below (openInfimum S) r) => Sigma.doubleNegative (Measure.below (E.outer S) r)
+      (\fun (outside: Logic.Not (Measure.below (E.outer S) r)) => \block {
+        \takefrom t: \Cast[Real.Real] ({ t: Real.Real \where Logic.And[R.Lt r t, \forall (U: \Pow E.Point) -> Sets.IsOpenIn Topology.topology U -> Sets.Subset S U -> Measure.below (E.outer U) t] }) \by member \then
+        \let valid: Logic.And[R.Lt r t, \forall (U: \Pow E.Point) -> Sets.IsOpenIn Topology.topology U -> Sets.Subset S U -> Measure.below (E.outer U) t] :=
+          \bysub(Real.Real, { t: Real.Real \where Logic.And[R.Lt r t, \forall (U: \Pow E.Point) -> Sets.IsOpenIn Topology.topology U -> Sets.Subset S U -> Measure.below (E.outer U) t] }, t) \then
+        \let gap: Real.Real := Real.sub t r \then
+        \let gp: R.Lt Real.zero gap := Root.subPositive t r valid.left \then
+        \let epsilon: Real.Real := Real.mul Real.half gap \then
+        \let ep: R.Lt Real.zero epsilon := Estimates.halfOfPositive gap gp \then
+        \let small: R.Lt (Real.add r epsilon) t := R.ltReplaceRight (Real.add r epsilon) (Real.add r gap) t (Estimates.addSubCancel t r)
+          (Laws.ltAddLeft r epsilon gap (Estimates.halfStrict gap gp)) \then
+        \takefrom U: \Cast[\Pow E.Point] ({ U: \Pow E.Point \where Envelope S (Real.add r epsilon) U }) \by outerApproximation S r epsilon outside ep \then
+        \let env: Envelope S (Real.add r epsilon) U := \bysub(\Pow E.Point, { U: \Pow E.Point \where Envelope S (Real.add r epsilon) U }, U) \then
+        \return R.ltNotLeReverse (Real.add r epsilon) t small (env.right.right t (valid.right U env.left env.right.left))
+      }));

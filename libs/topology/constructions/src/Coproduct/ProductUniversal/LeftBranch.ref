@@ -1,0 +1,42 @@
+\definition member[V: \Pow A]: Carrier -> \Prop := \induction (s: Carrier) \return \Prop \with {
+  | inl: \fun (a: A) => \In[A] V a
+  | inr: \fun (b: B) => Logic.False
+};
+\definition image[V: \Pow A]: \Pow Carrier := { s: Carrier \where member V s };
+\definition herePreimage[V: \Pow A]: LeftMaps.Preimage inl (image V) = V :=
+  \axiom:setext(LeftMaps.Preimage inl (image V), V, \fun (x: A)(p: _) => p, \fun (x: A)(p: _) => p);
+\definition otherPreimage[V: \Pow A]: RightMaps.Preimage inr (image V) = Right.Empty :=
+  \axiom:setext(RightMaps.Preimage inr (image V), Right.Empty, \fun (x: B)(p: _) => p, \fun (x: B)(p: _) => p);
+\definition hereOpen[V: \Pow A][open: Left.IsOpenIn left V]: Left.IsOpenIn left (LeftMaps.Preimage inl (image V)) :=
+  LeftMaps.openTransport left V (LeftMaps.Preimage inl (image V)) (sym!{\Pow A} _ _ (herePreimage V)) open;
+\definition otherOpen[V: \Pow A]: Right.IsOpenIn right (RightMaps.Preimage inr (image V)) :=
+  RightMaps.openTransport right Right.Empty (RightMaps.Preimage inr (image V)) (sym!{\Pow B} _ _ (otherPreimage V)) ((Right.topologyLaws right).emptyOpen);
+\definition imageOpen: \forall (V: \Pow A) -> Left.IsOpenIn left V -> Space.IsOpenIn (topology left right) (image V) :=
+  \fun (V: _)(open: _) => Logic.And[_, _]::# (hereOpen V open) (otherOpen V);
+\definition within[U: \Pow X][V: \Pow A][W: \Pow D]:
+  (\forall (x: X)(a: A) -> \In[X] U x -> \In[A] V a -> \In[D] W (f (Pair.pair X A x a))) ->
+  \forall (p: Product.CarrierSet) -> \In[Product.CarrierSet] (Product.Rectangle U (image V)) p -> \In[D] W (apply f g p) :=
+  \fun (local: _) => \induction (p: Product.CarrierSet) \return
+    \In[Product.CarrierSet] (Product.Rectangle U (image V)) p -> \In[D] W (apply f g p) \with {
+    | pair: \fun (x: X) => \induction (s: Carrier) \return
+      \In[Product.CarrierSet] (Product.Rectangle U (image V)) (Pair.pair X Carrier x s) -> \In[D] W (apply f g (Pair.pair X Carrier x s)) \with {
+      | inl: \fun (a: A)(inside: Logic.And[\In[X] U x, member V (inl a)]) => local x a inside.left inside.right
+      | inr: \fun (b: B)(inside: Logic.And[\In[X] U x, member V (inr b)]) => Logic.falseElim _ inside.right
+    }
+  };
+\import LeftProduct.Compactness[] \as Rectangles;
+\import Product.Universal[X := Product.CarrierSet] \as Basis;
+\definition neighborhood: \forall (U: \Pow D) -> Range.IsOpenIn target U -> \forall (x: X)(a: A) -> \In[D] U (f (Pair.pair X A x a)) ->
+  \exists ( V: \Pow Product.CarrierSet \where Domain.OpenNeighborhood[productTopology, Pair.pair X Carrier x (inl a), { q: Product.CarrierSet \where \In[D] U (apply f g q) }, V] ) := \block {
+  \fun (U: _)(open: _)(x: X)(a: A)(inside: _) \then
+  \takefrom rectangle: Rectangles.Neighborhood[factor, left, Pair.pair X A x a, { p: LeftProduct.CarrierSet \where \In[D] U (f p) }]
+    \by Rectangles.rectangleNeighborhoods factor left ({ p: LeftProduct.CarrierSet \where \In[D] U (f p) }) (continuous U open) (Pair.pair X A x a) inside \then
+  \let V: \Pow Product.CarrierSet := Product.Rectangle rectangle.leftSet (image rectangle.rightSet) \then
+  \return Logic.existsIntro[\Pow Product.CarrierSet, { V: \Pow Product.CarrierSet \where Domain.OpenNeighborhood[productTopology, Pair.pair X Carrier x (inl a), { q: Product.CarrierSet \where \In[D] U (apply f g q) }, V] }] V
+    (Domain.OpenNeighborhood[productTopology, Pair.pair X Carrier x (inl a), { q: Product.CarrierSet \where \In[D] U (apply f g q) }, V] {
+      open := Domain.generatedBasisOpen (Product.Basis factor (topology left right)) V
+        (Basis.rectangleBasisMember factor (topology left right) rectangle.leftSet (image rectangle.rightSet) rectangle.leftOpen (imageOpen rectangle.rightSet rectangle.rightOpen)),
+      contains := Logic.And[_, _]::# rectangle.leftContains rectangle.rightContains,
+      within := within rectangle.leftSet rectangle.rightSet U (\fun (t: X)(b: A)(ti: _)(bi: _) => rectangle.within (Pair.pair X A t b) (Logic.And[_, _]::# ti bi)),
+    })
+};

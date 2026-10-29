@@ -1,0 +1,32 @@
+\import \root.RealLine[] \as Line;
+\import \root.RealLine[].CompletionSeries[interval := interval, s := s, index := index, good := good] \as Series;
+\import functional_analysis.Measure[A := real.Analysis[].Real] \as Measure;
+\import Measure.Integral[mu := Line.measure] \as Integral;
+\import Integral.Series[terms := Series.terms] \as Partial;
+\import Measure.Continuity[mu := Line.measure] \as Continuity;
+\import Measure.Sigma[] \as Sigma;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import topology.Topology[Carrier := Real.Real] \as Sets;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\import std.Data[].Nat[] \as N;
+\definition levels[k: N.Nat^]: \Pow Real.Real := { x: Real.Real \where R.Lt c (Partial.partial k x) };
+\definition union: \Pow Real.Real := Measure.union levels;
+\definition measurable: \forall (k: N.Nat^) -> Measure.Measurable Line.measure.sigma (levels k) :=
+  \fun (k: N.Nat^) => \root.RealLine[].CompletionLevel[interval := interval, s := s, index := index, good := good, c := c, positive := positive, k := k].measurable;
+\definition increasing: Continuity.Increasing levels := \fun (k: N.Nat^) (x: Real.Real) (member: Sets.Member (levels k) x) =>
+  R.ltLeTrans c (Partial.partial k x) (Partial.partial (N.Nat^::succ k) x) member (Series.partialIncreasing k x);
+\definition bound: \forall (r: Real.Real) -> Measure.below (Measure.scale c (Line.measure.value union)) r -> R.Le r Real.one :=
+  \fun (r: Real.Real) (member: Measure.below (Measure.scale c (Line.measure.value union)) r) => \block {
+    \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[Measure.below (Line.measure.value union) a, R.Lt r (Real.mul c a)] }) \by member \then
+    \let data: Logic.And[Measure.below (Line.measure.value union) a, R.Lt r (Real.mul c a)] :=
+      \bysub(Real.Real, { a: Real.Real \where Logic.And[Measure.below (Line.measure.value union) a, R.Lt r (Real.mul c a)] }, a) \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Measure.below (Line.measure.value (levels k)) a }) \by
+      (\idelim Line.measure.value union = { q: Real.Real \where \exists ( j: N.Nat^ \where Measure.below (Line.measure.value (levels j)) q ) }
+        \with v: Measure.Value => Measure.below v a \by { base: data.left, equality: Continuity.increasingSup levels measurable increasing }) \then
+    \return \root.RealLine[].CompletionLevel[interval := interval, s := s, index := index, good := good, c := c, positive := positive, k := k].bound r
+      (Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[Measure.below (Line.measure.value (levels k)) a, R.Lt r (Real.mul c a)] }] a
+        (Logic.And[_, _]::# (\bysub(N.Nat^, { j: N.Nat^ \where Measure.below (Line.measure.value (levels j)) a }, k)) data.right))
+  };

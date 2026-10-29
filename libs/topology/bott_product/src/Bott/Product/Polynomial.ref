@@ -1,0 +1,50 @@
+\import std.Logic[].Equality[] \as Eq;
+\import std.Logic[].Proposition[] \as Logic;
+\use Eq.trans;
+\use Eq.sym;
+\use Eq.congr;
+\inductive Variable: \Set := | u: Variable;
+\import algebra.FreeCommutativeRing[].Over[R := Source.K0[].Carrier, coefficients := Source.K0[].commutativeRing, Variables := Variable] \as Free;
+\definition variable: Free.Expression := Free.Expression::variable Variable::u;
+\definition square: Free.Expression := Free.Expression::product variable variable;
+\definition relations[x, y: Free.Expression]: \Prop := Logic.And[x = square, y = Free.zeroExpr];
+\import Free.Presentation[relations := relations] \as Quotient;
+\import Quotient.Universal[K := Target.K0[].Carrier, target := Target.K0[].commutativeRing] \as Evaluation;
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Multiplication[] \as Multiplication;
+\definition values: Variable -> Target.K0[].Carrier := \fun (_: Variable) => generatorOnProduct;
+\definition accepts: Evaluation.RespectsRelations First.K0[].map values :=
+  \fun (x, y: Free.Expression)(relation: relations x y) => trans!{Target.K0[].Carrier} _ _ _
+    (congr!{Free.Expression Target.K0[].Carrier} (Evaluation.evaluate First.K0[].map values) _ _ relation.left)
+    (trans!{Target.K0[].Carrier} _ _ _ Multiplication.generatorSquare
+      (trans!{Target.K0[].Carrier} _ _ _ (sym!{Target.K0[].Carrier} _ _ First.K0[].preservesZero)
+        (congr!{Free.Expression Target.K0[].Carrier} (Evaluation.evaluate First.K0[].map values) _ _ (sym!{Free.Expression} _ _ relation.right))));
+\definition map: algebra.Hom[A := Quotient.Carrier, B := Target.K0[].Carrier].RingMap
+  (std.Alg[].Ring[].commutativeRingAsRing Quotient.Carrier Quotient.ring) Target.K0[].ring :=
+  Evaluation.extension First.K0[].map values accepts;
+\definition u: Quotient.Carrier := Quotient.variable Variable::u;
+\import algebra.Quotient[A := Free.Expression, relation := Quotient.Equivalent] \as Relation;
+\definition squareZero: Quotient.mul u u = Quotient.zero := trans!{Quotient.Carrier} _ _ _
+  (Quotient.mulClass variable variable)
+  (Relation.classRelated Quotient.equivalence square Free.zeroExpr
+    (Quotient.relationIncluded square Free.zeroExpr (Logic.And[_, _]::# (\refl(square)) (\refl(Free.zeroExpr)))));
+\definition normal[a, b: Source.K0[].Carrier]: Quotient.Carrier := Quotient.add (Quotient.constant a) (Quotient.mul (Quotient.constant b) u);
+\import algebra.Hom[A := Quotient.Carrier, B := Target.K0[].Carrier] \as Hom;
+\import std.Alg[].Ring[] \as Rings;
+\definition laws: Hom.SemiringLaws[(Rings.ringAsSemiring Quotient.Carrier (Rings.commutativeRingAsRing Quotient.Carrier Quotient.ring)),
+  (Rings.ringAsSemiring Target.K0[].Carrier Target.K0[].ring), map] := Hom.semiringLaws _ _ map;
+\definition onConstant: \forall (a: Source.K0[].Carrier) -> map (Quotient.constant a) = First.K0[].map a :=
+  \fun (a: Source.K0[].Carrier) => Evaluation.onClass First.K0[].map values accepts (Free.Expression::constant a);
+\definition onU: map u = generatorOnProduct := Evaluation.onClass First.K0[].map values accepts variable;
+\definition onNormal: \forall (a, b: Source.K0[].Carrier) -> map (normal a b) = forward a b :=
+  \fun (a, b: Source.K0[].Carrier) => trans!{Target.K0[].Carrier} _ _ _ (laws.add (Quotient.constant a) (Quotient.mul (Quotient.constant b) u))
+    (congr!{Target.K0[].Carrier Target.K0[].Carrier Target.K0[].Carrier} Target.K0[].add _ _ _ _ (onConstant a)
+      (trans!{Target.K0[].Carrier} _ _ _ (laws.mul (Quotient.constant b) u)
+        (congr!{Target.K0[].Carrier Target.K0[].Carrier Target.K0[].Carrier} Target.K0[].mul _ _ _ _ (onConstant b) onU)));
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Surjective[] \as Surjective;
+\definition onto: \forall (v: Target.K0[].Carrier) -> \exists (q: Quotient.Carrier \where map q = v) := \block {
+  \fun (v: Target.K0[].Carrier) \then
+  \takefrom r: Representation[v] \by Surjective.exists v \then
+  \return Logic.existsIntro[Quotient.Carrier, { q: Quotient.Carrier \where map q = v }] (normal r.constant r.coefficient)
+    (trans!{Target.K0[].Carrier} _ _ _ (onNormal r.constant r.coefficient) r.equation)
+};
+\module Normal;

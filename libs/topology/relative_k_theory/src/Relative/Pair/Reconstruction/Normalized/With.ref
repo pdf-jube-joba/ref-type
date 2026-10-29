@@ -1,0 +1,41 @@
+\import Model.Construction[extension := extension] \as Construction;
+\import Model.Neighborhood[extension := extension] \as Near;
+\import KTheory.On[X := Quotient.Carrier, baseSpace := Quotient.topology, compact := Quotient.quotientCompact, hausdorff := Quotient.quotientHausdorff] \as K;
+\import K.K0[] \as K0;
+\import K.Bundle[F := Model.Fiber, original := Construction.bundleOnQuotient, same := Construction.sameBaseSpace] \as BundleClass;
+\import \parent.\parent.\parent.FramedChoices[p := original.positive, n := normalized.dimension].With[alpha := Boundary.comparison].Value[e := extension] \as ReducedClass;
+\import \parent.\parent.\parent.QuotientClass[F := Model.Fiber, bundle := Construction.bundleOnQuotient, same := Construction.sameBaseSpace] \as Class;
+\import \parent.\parent.\parent.FromQuotient[F := Model.Fiber, bundle := Construction.bundleOnQuotient, same := Construction.sameBaseSpace] \as Raw;
+\import Bundles.Family[X := Quotient.Carrier, F := Model.Fiber].With[data := Construction.bundleOnQuotient] \as Charts;
+\import std.Data[].Sum[] \as Sum;
+\import Bundles.Family[X := X, F := (Absolute.Fiber original.positive)].With[data := (Absolute.bundle original.positive)] \as OriginalCharts;
+\definition index: Construction.Index := Sum.Sum[Quotient.Point, OriginalCharts.Chart]::inl Quotient.distinguished;
+\definition chart: Charts.Chart := Construction.trivialization index;
+\definition contains: topology.Topology[Carrier := Quotient.Carrier].Member chart.domain Quotient.point := Near.atPoint;
+\import Raw.In[c := chart, contains := contains] \as RawModel;
+\import Bundles.Trivial[X := X, n := normalized.dimension, baseSpace := space] \as Trivial;
+\import Bundles.Isomorphisms[X := X, F := (Absolute.Fiber original.negative), G := (\fun (x: X) => Bundles.Vector normalized.dimension), source := (Absolute.bundle original.negative), target := Trivial.bundle] \as Negative;
+\definition negativeLaws: Negative.Laws[normalized.trivialization] := \bysub(Negative.Data, Negative.Isomorphism, normalized.trivialization);
+\import \parent.\parent.\parent.FromBundles[F := (Absolute.Fiber original.positive), G := (Absolute.Fiber original.negative),
+  source := (Absolute.bundle original.positive), target := (Absolute.bundle original.negative), sourceSame := (\refl(space)), targetSame := (\refl(space))] \as OriginalModel;
+\import Operations.IdentityIsomorphism[X := X, F := (Absolute.Fiber original.positive), bundle := (Absolute.bundle original.positive)] \as PositiveIdentity;
+\import Operations.IdentityIsomorphism[X := X, F := (Absolute.Fiber original.negative), bundle := (Absolute.bundle original.negative)] \as NegativeIdentity;
+\definition represented: OriginalModel.Result[original.comparison] := OriginalModel.Result[original.comparison] {
+  value := original, positive := PositiveIdentity.isomorphism, negative := NegativeIdentity.isomorphism,
+  agrees := \fun (x: A)(v: Absolute.Fiber original.positive x) => \refl((original.comparison.forward.fiber x).apply v)
+};
+\definition alignment: \forall (x: A)(v: Raw.Fiber x) ->
+  (original.comparison.forward.fiber x).apply ((Construction.Compare[].isomorphism.forward.fiber x).apply v) =
+    (normalized.trivialization.backward.fiber x).apply ((RawModel.comparison.forward.fiber x).apply v) :=
+  \fun (x: A)(v: Raw.Fiber x) => trans!{{Absolute.Fiber original.negative x}} _ _ _
+    (sym!{{Absolute.Fiber original.negative x}} _ _ (negativeLaws.leftInverse x ((original.comparison.forward.fiber x).apply ((Construction.Compare[].isomorphism.forward.fiber x).apply v))))
+    (congr!{{Bundles.Vector normalized.dimension} {Absolute.Fiber original.negative x}} (normalized.trivialization.backward.fiber x).apply _ _ (Construction.Boundary[x := x].alignment v));
+\module On(result: RawModel.Result);
+\definition equation: ReconstructionMap.reduced ReducedClass.value = RelativeGroup.value t := \block {
+  \takefrom result: RawModel.Result \by RawModel.existence \then
+  \return On[result := result].equation
+};
+\definition existence: \exists Preimage := \block {
+  \takefrom result: RawModel.Result \by RawModel.existence \then
+  \return \exact(On[result := result].preimage, Preimage)
+};

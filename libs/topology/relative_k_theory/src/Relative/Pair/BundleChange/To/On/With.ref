@@ -1,0 +1,36 @@
+\import Bundles.Isomorphisms[X := X, F := F, G := Absolute.Fiber first.value.positive, source := source, target := Absolute.bundle first.value.positive] \as FirstPositive;
+\import Bundles.Isomorphisms[X := X, F := G, G := Absolute.Fiber first.value.negative, source := target, target := Absolute.bundle first.value.negative] \as FirstNegative;
+\definition firstPositiveLaws: FirstPositive.Laws[first.positive] := \bysub(FirstPositive.Data, FirstPositive.Isomorphism, first.positive);
+\definition firstNegativeLaws: FirstNegative.Laws[first.negative] := \bysub(FirstNegative.Data, FirstNegative.Isomorphism, first.negative);
+\import Operations.IsomorphismComposition[X := X, F := Absolute.Fiber first.value.positive, G := F, H := H,
+  source := Absolute.bundle first.value.positive, middle := source, target := newSource] \as FirstPositiveCompose;
+\import Operations.IsomorphismComposition[X := X, F := Absolute.Fiber first.value.positive, G := H, H := Absolute.Fiber second.value.positive,
+  source := Absolute.bundle first.value.positive, middle := newSource, target := Absolute.bundle second.value.positive] \as SecondPositiveCompose;
+\import Operations.IsomorphismComposition[X := X, F := Absolute.Fiber first.value.negative, G := G, H := I,
+  source := Absolute.bundle first.value.negative, middle := target, target := newTarget] \as FirstNegativeCompose;
+\import Operations.IsomorphismComposition[X := X, F := Absolute.Fiber first.value.negative, G := I, H := Absolute.Fiber second.value.negative,
+  source := Absolute.bundle first.value.negative, middle := newTarget, target := Absolute.bundle second.value.negative] \as SecondNegativeCompose;
+\definition positive: SecondPositiveCompose.Isomorphism := SecondPositiveCompose.compose
+  (FirstPositiveCompose.compose (FirstPositive.inverse first.positive) w.positive) second.positive;
+\definition negative: SecondNegativeCompose.Isomorphism := SecondNegativeCompose.compose
+  (FirstNegativeCompose.compose (FirstNegative.inverse first.negative) w.negative) second.negative;
+\definition agreement: \forall (x: A)(v: Absolute.Fiber first.value.positive x) ->
+  (second.value.comparison.forward.fiber x).apply ((positive.forward.fiber x).apply v) = (negative.forward.fiber x).apply ((first.value.comparison.forward.fiber x).apply v) := \block {
+  \fun (x: A)(v: Absolute.Fiber first.value.positive x) \then
+  \let original: F x := (first.positive.backward.fiber x).apply v \then
+  \let old: (first.value.comparison.forward.fiber x).apply v = (first.negative.forward.fiber x).apply ((alpha.forward.fiber x).apply original) :=
+    trans!{{Absolute.Fiber first.value.negative x}} _ _ _
+      (sym!{{Absolute.Fiber first.value.negative x}} _ _
+        (congr!{{Absolute.Fiber first.value.positive x} {Absolute.Fiber first.value.negative x}} (first.value.comparison.forward.fiber x).apply _ _ (firstPositiveLaws.rightInverse x v)))
+      (first.agrees x original) \then
+  \let recovered: (first.negative.backward.fiber x).apply ((first.value.comparison.forward.fiber x).apply v) = (alpha.forward.fiber x).apply original :=
+    trans!{{G x}} _ _ _ (congr!{{Absolute.Fiber first.value.negative x} {G x}} (first.negative.backward.fiber x).apply _ _ old)
+      (firstNegativeLaws.leftInverse x ((alpha.forward.fiber x).apply original)) \then
+  \return trans!{{Absolute.Fiber second.value.negative x}} _ _ _ (second.agrees x ((w.positive.forward.fiber x).apply original))
+    (trans!{{Absolute.Fiber second.value.negative x}} _ _ _
+      (congr!{{I x} {Absolute.Fiber second.value.negative x}} (second.negative.forward.fiber x).apply _ _ (w.commutes x original))
+      (congr!{{G x} {Absolute.Fiber second.value.negative x}} (\fun (u: G x) => (second.negative.forward.fiber x).apply ((w.negative.forward.fiber x).apply u)) _ _ (sym!{{G x}} _ _ recovered)))
+};
+\import RelativeGroup.Isomorphic[t := first.value, u := second.value] \as Comparison;
+\definition witness: Comparison.Witness := Comparison.Witness { positive := positive, negative := negative, commutes := agreement };
+\definition equation: RelativeGroup.value first.value = RelativeGroup.value second.value := Comparison.With[w := witness].equation;

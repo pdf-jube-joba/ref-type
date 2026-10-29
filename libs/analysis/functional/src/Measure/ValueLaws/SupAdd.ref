@@ -1,0 +1,40 @@
+\import dedekind_reals.DedekindReal[].Completeness[] \as Complete;
+\import dedekind_reals.DedekindReal[].Order[] \as Order;
+\import real.Analysis[].Estimates[] \as E;
+\definition above: \forall (v: Value) (p, r: Real.Real) -> Complete.LeastUpperBound[v, p] -> R.Lt r p ->
+  \exists ( x: Real.Real \where Logic.And[below v x, R.Lt r x] ) :=
+  \fun (v: Value) (p, r: Real.Real) (sup: Complete.LeastUpperBound[v, p]) (less: R.Lt r p) =>
+    Order.byContradiction (\exists ( x: Real.Real \where Logic.And[below v x, R.Lt r x] ))
+      (\fun (none: Logic.Not (\exists ( x: Real.Real \where Logic.And[below v x, R.Lt r x] ))) =>
+        R.ltNotLeReverse r p less (sup.least r (\fun (x: Real.Real) (member: below v x) =>
+          Order.leOfNotLtReverse x r (\fun (strict: R.Lt r x) => none
+            (Logic.existsIntro[Real.Real, { x: Real.Real \where Logic.And[below v x, R.Lt r x] }] x (Logic.And[_, _]::# member strict))))));
+\definition leastUpper: \forall (v, w: Value) (p, q: Real.Real) ->
+  Complete.LeastUpperBound[v, p] -> Complete.LeastUpperBound[w, q] -> Complete.LeastUpperBound[add v w, Real.add p q] :=
+  \fun (v, w: Value) (p, q: Real.Real) (vs: Complete.LeastUpperBound[v, p]) (ws: Complete.LeastUpperBound[w, q]) => Complete.LeastUpperBound[add v w, Real.add p q] {
+    upper := \fun (r: Real.Real) (member: below (add v w) r) => \block {
+      \takefrom x: \Cast[Real.Real] ({ x: Real.Real \where Logic.And[below v x, \exists ( y: Real.Real \where Logic.And[below w y, R.Lt r (Real.add x y)] )] }) \by member \then
+      \let first: Logic.And[below v x, \exists ( y: Real.Real \where Logic.And[below w y, R.Lt r (Real.add x y)] )] :=
+        \bysub(Real.Real, { x: Real.Real \where Logic.And[below v x, \exists ( y: Real.Real \where Logic.And[below w y, R.Lt r (Real.add x y)] )] }, x) \then
+      \takefrom y: \Cast[Real.Real] ({ y: Real.Real \where Logic.And[below w y, R.Lt r (Real.add x y)] }) \by first.right \then
+      \let second: Logic.And[below w y, R.Lt r (Real.add x y)] := \bysub(Real.Real, { y: Real.Real \where Logic.And[below w y, R.Lt r (Real.add x y)] }, y) \then
+      \return Order.leOfLt r (Real.add p q) (R.ltLeTrans r (Real.add x y) (Real.add p q) second.right (E.addLe x y p q (vs.upper x first.left) (ws.upper y second.left)))
+    },
+    least := \fun (b: Real.Real) (upper: Complete.UpperBound (add v w) b) => Order.leOfNotLtReverse (Real.add p q) b (\fun (less: R.Lt b (Real.add p q)) => \block {
+      \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where \exists ( c: Real.Real \where SplitBelow[b, p, q, a, c] ) }) \by splitBelow b p q less \then
+      \takefrom c: \Cast[Real.Real] ({ c: Real.Real \where SplitBelow[b, p, q, a, c] })
+        \by (\bysub(Real.Real, { a: Real.Real \where \exists ( c: Real.Real \where SplitBelow[b, p, q, a, c] ) }, a)) \then
+      \let split: SplitBelow[b, p, q, a, c] := \bysub(Real.Real, { c: Real.Real \where SplitBelow[b, p, q, a, c] }, c) \then
+      \takefrom x: \Cast[Real.Real] ({ x: Real.Real \where Logic.And[below v x, R.Lt a x] }) \by above v p a vs split.left \then
+      \takefrom y: \Cast[Real.Real] ({ y: Real.Real \where Logic.And[below w y, R.Lt c y] }) \by above w q c ws split.right \then
+      \let xl: Logic.And[below v x, R.Lt a x] := \bysub(Real.Real, { x: Real.Real \where Logic.And[below v x, R.Lt a x] }, x) \then
+      \let yl: Logic.And[below w y, R.Lt c y] := \bysub(Real.Real, { y: Real.Real \where Logic.And[below w y, R.Lt c y] }, y) \then
+      \let total: R.Lt b (Real.add x y) := Order.ltTrans b (Real.add a c) (Real.add x y) split.total (E.addLt a c x y xl.right yl.right) \then
+      \let middle: Real.Real := Real.midpoint b (Real.add x y) \then
+      \let inAdd: below (add v w) middle := Logic.existsIntro[Real.Real, { x: Real.Real \where Logic.And[below v x,
+        \exists ( y: Real.Real \where Logic.And[below w y, R.Lt middle (Real.add x y)] )] }] x
+        (Logic.And[_, _]::# xl.left (Logic.existsIntro[Real.Real, { y: Real.Real \where Logic.And[below w y, R.Lt middle (Real.add x y)] }] y
+          (Logic.And[_, _]::# yl.left (midpointStrictRight b (Real.add x y) total)))) \then
+      \return R.ltNotLeReverse b middle (midpointStrictLeft b (Real.add x y) total) (upper middle inAdd)
+    }),
+  };

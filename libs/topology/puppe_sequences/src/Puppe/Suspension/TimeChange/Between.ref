@@ -1,0 +1,69 @@
+\import \parent.Of[r := r] \as Left;
+\import \parent.Of[r := s] \as Right;
+\import I.Convex[] \as Convex;
+\import algebraic_topology.Cylinder[A := Cylinder.Carrier] \as Double;
+\import algebraic_topology.Cylinder[A := Carrier] \as SuspensionCylinder;
+\import algebraic_topology.Homotopy[A := Cylinder.Carrier, B := Cylinder.Carrier] \as Original;
+\definition height[p: Double.Carrier]: I.Carrier := Cylinder.time (Double.point p);
+\definition position[p: Double.Carrier]: A := Cylinder.point (Double.point p);
+\definition blend[t, u: I.Carrier]: I.Carrier := Convex.blend t (r.value u) (s.value u);
+\definition raw[p: Double.Carrier]: Cylinder.Carrier := Cylinder.at (blend (Double.time p) (height p)) (position p);
+\import topological_constructions.Product[A := I.Carrier, B := A].Universal[X := Double.Carrier] \as Product;
+\definition heightContinuous: topology.Continuity[A := Double.Carrier, B := I.Carrier].Continuous (Double.topology (Cylinder.topology source.topology)) I.topology height :=
+  topology.Composition[A := Double.Carrier, B := Cylinder.Carrier, C := I.Carrier].composeContinuous
+    (Double.topology (Cylinder.topology source.topology)) (Cylinder.topology source.topology) I.topology Double.point Cylinder.time
+    (Double.pointContinuous (Cylinder.topology source.topology)) (Cylinder.timeContinuous source.topology);
+\definition rawContinuous: topology.Continuity[A := Double.Carrier, B := Cylinder.Carrier].Continuous (Double.topology (Cylinder.topology source.topology)) (Cylinder.topology source.topology) raw :=
+  Product.pairContinuous (Double.topology (Cylinder.topology source.topology)) I.topology source.topology
+    (\fun (p: Double.Carrier) => blend (Double.time p) (height p)) position
+    (Convex.Functions[A := Double.Carrier].continuous (Double.topology (Cylinder.topology source.topology)) Double.time
+      (\fun (p: Double.Carrier) => r.value (height p)) (\fun (p: Double.Carrier) => s.value (height p))
+      (Double.timeContinuous (Cylinder.topology source.topology))
+      (topology.Composition[A := Double.Carrier, B := I.Carrier, C := I.Carrier].composeContinuous
+        (Double.topology (Cylinder.topology source.topology)) I.topology I.topology height r.value heightContinuous r.continuous)
+      (topology.Composition[A := Double.Carrier, B := I.Carrier, C := I.Carrier].composeContinuous
+        (Double.topology (Cylinder.topology source.topology)) I.topology I.topology height s.value heightContinuous s.continuous))
+    (topology.Composition[A := Double.Carrier, B := Cylinder.Carrier, C := A].composeContinuous
+      (Double.topology (Cylinder.topology source.topology)) (Cylinder.topology source.topology) source.topology Double.point Cylinder.point
+      (Double.pointContinuous (Cylinder.topology source.topology)) (Cylinder.pointContinuous source.topology));
+\definition original: Original.Homotopy[Cylinder.topology source.topology, Cylinder.topology source.topology, Left.raw, Right.raw] :=
+  \into[Original.Family](raw, Original.Homotopy[Cylinder.topology source.topology, Cylinder.topology source.topology, Left.raw, Right.raw]) \by {
+    Original.Laws[Cylinder.topology source.topology, Cylinder.topology source.topology, Left.raw, Right.raw, raw] {
+      continuous := rawContinuous,
+      start := \fun (p: Cylinder.Carrier) => congr!{I.Carrier Cylinder.Carrier} (\fun (t: I.Carrier) => Cylinder.at t (Cylinder.point p)) _ _ (Convex.atStart (r.value (Cylinder.time p)) (s.value (Cylinder.time p))),
+      end := \fun (p: Cylinder.Carrier) => congr!{I.Carrier Cylinder.Carrier} (\fun (t: I.Carrier) => Cylinder.at t (Cylinder.point p)) _ _ (Convex.atEnd (r.value (Cylinder.time p)) (s.value (Cylinder.time p))),
+    }
+  };
+\definition bottom: \forall (t: I.Carrier) -> blend t I.start = I.end := \fun (t: I.Carrier) => trans!{I.Carrier} _ _ _
+  (congr!{I.Carrier I.Carrier I.Carrier} (Convex.blend t) _ _ _ _ r.bottom s.bottom) (Convex.fixed t I.end);
+\definition top: \forall (t: I.Carrier) -> blend t I.end = I.start := \fun (t: I.Carrier) => trans!{I.Carrier} _ _ _
+  (congr!{I.Carrier I.Carrier I.Carrier} (Convex.blend t) _ _ _ _ r.top s.top) (Convex.fixed t I.start);
+\import Quotient.Mapping[B := Cylinder.Carrier, targetSubset := Native.Collapsed].Homotopy[].Over[
+  source := Cylinder.topology source.topology, target := Cylinder.topology source.topology, f := Left.raw, g := Right.raw] \as Descent;
+\definition data: Descent.Data := Descent.Data {
+  homotopy := original,
+  preserves := \fun (t: I.Carrier)(p: Cylinder.Carrier)(inside: \In[Cylinder.Carrier] Native.Collapsed p) =>
+    either!{inside {\In[Cylinder.Carrier] Native.Collapsed (raw (Double.at t p))}
+      {\fun (atBottom: Cylinder.time p = I.start) => Logic.Or[_, _]::right (Logic.Or[_, _]::left
+        (trans!{I.Carrier} _ _ _ (congr!{I.Carrier I.Carrier} (blend t) _ _ atBottom) (bottom t)))}
+      {\fun (other: Logic.Or[Cylinder.time p = I.end, Cylinder.point p = source.basepoint]) =>
+        either!{other {\In[Cylinder.Carrier] Native.Collapsed (raw (Double.at t p))}
+          {\fun (atTop: Cylinder.time p = I.end) => Logic.Or[_, _]::left (trans!{I.Carrier} _ _ _ (congr!{I.Carrier I.Carrier} (blend t) _ _ atTop) (top t))}
+          {\fun (atLine: Cylinder.point p = source.basepoint) => Logic.Or[_, _]::right (Logic.Or[_, _]::right atLine)}
+        }}
+    },
+};
+\import Descent.On[h := data] \as Descended;
+\import \root.Puppe[].Maps[A := Carrier, B := Carrier, source := pointed, target := pointed] \as Maps;
+\import algebraic_topology.Homotopy[A := Carrier, B := Carrier] \as Homotopy;
+\definition atBase: \forall (t: I.Carrier) -> Descended.apply (SuspensionCylinder.at t point) = point :=
+  \fun (t: I.Carrier) => trans!{Carrier} _ _ _ (Descended.onLift (Double.at t (Cylinder.at I.start source.basepoint))) (line (blend t I.start));
+\definition result: Maps.Homotopy[Left.map, Right.map] := \into[Homotopy.Family](Descended.apply, Maps.Homotopy[Left.map, Right.map]) \by {
+  Homotopy.RelativeLaws[topology, topology, Maps.fixed, Left.map, Right.map, Descended.apply] {
+    homotopy := Homotopy.Laws[topology, topology, Left.map, Right.map, Descended.apply] { continuous := Descended.continuous, start := Descended.start, end := Descended.end },
+    fixed := \fun (t: I.Carrier)(x: Carrier)(same: x = point) => \idelim point = x
+      \with y: Carrier => Descended.apply (SuspensionCylinder.at t y) = Left.map y \by {
+        base: trans!{Carrier} _ _ _ (atBase t) (sym!{Carrier} _ _ Left.atPoint), equality: sym!{Carrier} _ _ same
+      },
+  }
+};

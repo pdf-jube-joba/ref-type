@@ -1,0 +1,54 @@
+\import std.Logic[].Equality[] \as Eq;
+\import std.Logic[].Proposition[] \as Logic;
+\use Eq.trans;
+\use Eq.sym;
+\use Eq.congr;
+\import relative_k_theory.Relative[] \as RelativeTheory;
+\import PairRelative.Augmented[] \as Augmented;
+\import RelativeTheory.Absolute[X := Carrier, space := topology, compact := productCompact, hausdorff := productHausdorff] \as Whole;
+\import RelativeTheory.Absolute[X := Slice, space := sliceTopology, compact := Restriction.compactSubset, hausdorff := Restriction.hausdorffSubset] \as Subset;
+\definition retraction[p: Carrier]: Slice := into (first p);
+\definition continuous: topology.Continuity[A := Carrier, B := Slice].Continuous topology sliceTopology retraction :=
+  topology.Composition[A := Carrier, B := X, C := Slice].composeContinuous topology source sliceTopology first into
+    (Space.Maps[].firstContinuous source Sphere.sphereTopology) intoContinuous;
+\import Subset.Mapping[Y := Carrier, source := topology, sourceCompact := productCompact, sourceHausdorff := productHausdorff,
+  f := retraction, regular := continuous] \as Extend;
+\import RelativeTheory.Composition[source := Subset.model, middle := Whole.model, target := Subset.model,
+  first := Augmented.inclusion, second := Extend.map] \as Composite;
+\import RelativeTheory.Identity[model := Subset.model] \as Identity;
+\import std.Data[].FinSet[] \as Fin;
+\import topological_constructions.Coproduct[A := Slice, B := Fin.Fin one] \as Sum;
+\definition pointwise: \forall (p: Subset.model.Carrier) -> Composite.map p = Identity.map p :=
+  \induction (p: Subset.model.Carrier) \return Composite.map p = Identity.map p \with {
+    | inl: \fun (a: Slice) => trans!{Subset.model.Carrier} _ _ _
+      (congr!{Whole.model.Carrier Subset.model.Carrier} Extend.map _ _ (Augmented.inclusionOnOriginal a))
+      (trans!{Subset.model.Carrier} _ _ _ (Extend.onOriginal a)
+        (congr!{Slice Subset.model.Carrier} Subset.inclusion _ _ (rightInverse a)))
+    | inr: \fun (i: Fin.Fin one) => \refl(Sum.inr i)
+  };
+\definition same: Composite.map = Identity.map := \axiom:funext(Composite.map, Identity.map, pointwise);
+\import RelativeTheory.NegativeMap[source := Subset.model, target := Subset.model, f := Composite.map, degree := one] \as CompositeNegative;
+\import RelativeTheory.NegativeMap[source := Subset.model, target := Whole.model, f := Augmented.inclusion, degree := one] \as Restrict;
+\import RelativeTheory.NegativeMap[source := Whole.model, target := Subset.model, f := Extend.map, degree := one] \as ExtendNegative;
+\definition surjective: \forall (v: End.Second) -> \exists (w: End.First \where End.restrictionNegative w = v) :=
+  \fun (v: End.Second) => Logic.existsIntro[End.First, { w: End.First \where End.restrictionNegative w = v }] (ExtendNegative.map v)
+    (trans!{End.Second} _ _ _ (End.restrictionNegativeFormula (ExtendNegative.map v))
+      (trans!{End.Second} _ _ _ (sym!{End.Second} _ _ (Composite.Negative[degree := one].equation v))
+        (trans!{End.Second} _ _ _ (congr!{{RelativeTheory.Map Subset.model Subset.model} End.Second}
+          (\fun (f: RelativeTheory.Map Subset.model Subset.model) => RelativeTheory.NegativeMap[source := Subset.model, target := Subset.model, f := f, degree := one].map v) _ _ same)
+          (Identity.Negative[degree := one].equation v))));
+\definition kernel: \forall (v: End.Third) -> End.forget v = End.fourthGroup.base.unit -> v = End.thirdGroup.base.unit := \block {
+  \fun (v: End.Third)(zero: End.forget v = End.fourthGroup.base.unit) \then
+  \takefrom w: \Cast[End.Second] ({ w: End.Second \where End.boundary w = v }) \by End.relativePreimage v zero \then
+  \let wZero: End.boundary w = End.thirdGroup.base.unit := (End.exactSecond w).rtl (surjective w) \then
+  \return trans!{End.Third} _ _ _ (sym!{End.Third} _ _ (\bysub(End.Second, { w: End.Second \where End.boundary w = v }, w))) wZero
+};
+\import RelativeTheory.GroupCalculus[X := End.Third, group := End.thirdGroup] \as Domain;
+\import RelativeTheory.GroupCalculus[X := End.Fourth, group := End.fourthGroup] \as Range;
+\import Domain.Mapping[Y := End.Fourth, target := End.fourthGroup, f := End.forget, additive := End.forgetAdd, preservesZero := End.forgetZero] \as ForgetLaws;
+\definition injective: \forall (v, w: End.Third) -> End.forget v = End.forget w -> v = w :=
+  \fun (v, w: End.Third)(same: End.forget v = End.forget w) => Domain.subEqual v w
+    (kernel (Domain.sub v w) (trans!{End.Fourth} _ _ _ (ForgetLaws.difference v w)
+      (trans!{End.Fourth} _ _ _ (congr!{End.Fourth End.Fourth} (\fun (z: End.Fourth) => Range.sub z (End.forget w)) _ _ same)
+        (Range.subSelf (End.forget w)))));
+\module Comparison;

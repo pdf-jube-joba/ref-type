@@ -1,0 +1,59 @@
+\use Equality.eq_reason_in;
+\import \parent.At[degree := degree] \as Now;
+\import \root.Relative[].PointedPair[pair := Now.sourceData] \as FromNow;
+\import \root.Relative[].PointedPair[pair := Now.targetData] \as ToNow;
+\import \root.Relative[].PairMapping[source := Now.sourceData, target := Now.targetData, f := data degree] \as Current;
+\import Current.Naturality[] \as CurrentNaturality;
+\import SourceIteration.Sequence[degree := degree] \as SourceSequence;
+\import TargetIteration.Sequence[degree := degree] \as TargetSequence;
+\import SourceIteration.Groups[degree := degree] \as SourceQ;
+\import TargetIteration.Groups[degree := degree] \as TargetQ;
+\import \root.Relative[].Equivalence[source := FromNow.subsetModel, target := iterate degree From.subsetModel].With[e := SourceIteration.subsetComparison degree].Suspended[] \as SourceLift;
+\import \root.Relative[].Equivalence[source := ToNow.subsetModel, target := iterate degree To.subsetModel].With[e := TargetIteration.subsetComparison degree].Suspended[] \as TargetLift;
+\import \root.Relative[].Suspension[original := FromNow.subsetModel] \as SourceSuspension;
+\import \root.Relative[].Suspension[original := ToNow.subsetModel] \as TargetSuspension;
+\import \root.Relative[].Equivalence[source := SourceSuspension.result, target := iterate (N.Nat^::succ degree) From.subsetModel].With[e := SourceLift.result].Groups[] \as SourceA;
+\import \root.Relative[].Equivalence[source := TargetSuspension.result, target := iterate (N.Nat^::succ degree) To.subsetModel].With[e := TargetLift.result].Groups[] \as TargetA;
+\import \root.Relative[].Reduced[model := SourceSuspension.result] \as SourceCurrentA;
+\import \root.Relative[].Reduced[model := TargetSuspension.result] \as TargetCurrentA;
+\import \root.Relative[].SuspendedMap[source := FromNow.subsetModel, target := ToNow.subsetModel, f := Current.subsetMap] \as SubsetLift;
+\import \root.Relative[].Pullback[source := SourceSuspension.result, target := TargetSuspension.result, f := SubsetLift.map] \as CurrentSubset;
+\import \root.Relative[].Pullback[source := FromNow.quotientModel, target := ToNow.quotientModel, f := Current.quotientMap] \as CurrentRelative;
+\import \root.Relative[].NegativeMap[source := From.subsetModel, target := To.subsetModel, f := subsetMap, degree := (N.Nat^::succ degree)] \as Subset;
+\import \root.Relative[].NegativeMap[source := From.quotientModel, target := To.quotientModel, f := quotientMap, degree := degree] \as Relative;
+\definition quotientAt: \forall (x: FromNow.quotientModel.Carrier) ->
+  (TargetIteration.quotientComparison degree).forward (Current.quotientMap x) =
+  iterateMap degree From.quotientModel To.quotientModel quotientMap ((SourceIteration.quotientComparison degree).forward x) :=
+  \fun (x: FromNow.quotientModel.Carrier) => congr!{{Map FromNow.quotientModel (iterate degree To.quotientModel)} {(iterate degree To.quotientModel).Carrier}}
+    (\fun (m: Map FromNow.quotientModel (iterate degree To.quotientModel)) => m x) Now.quotientLeft Now.quotientRight (coherence degree).quotient;
+\import \root.Relative[].Square[A := FromNow.quotientModel, B := ToNow.quotientModel, C := iterate degree From.quotientModel, D := iterate degree To.quotientModel,
+  f := Current.quotientMap, g := (TargetIteration.quotientComparison degree).forward, h := (SourceIteration.quotientComparison degree).forward,
+  k := iterateMap degree From.quotientModel To.quotientModel quotientMap, commutes := quotientAt] \as QuotientSquare;
+\definition relativeNaturality: \forall (v: TargetSequence.Third) -> CurrentRelative.map (TargetQ.forward v) = SourceQ.forward (Relative.map v) :=
+  QuotientSquare.Negative[degree := N.Nat^::zero].equation;
+\definition subsetAt: \forall (x: FromNow.subsetModel.Carrier) ->
+  (TargetIteration.subsetComparison degree).forward (Current.subsetMap x) =
+  iterateMap degree From.subsetModel To.subsetModel subsetMap ((SourceIteration.subsetComparison degree).forward x) :=
+  \fun (x: FromNow.subsetModel.Carrier) => congr!{{Map FromNow.subsetModel (iterate degree To.subsetModel)} {(iterate degree To.subsetModel).Carrier}}
+    (\fun (m: Map FromNow.subsetModel (iterate degree To.subsetModel)) => m x) Now.subsetLeft Now.subsetRight (coherence degree).subset;
+\import \root.Relative[].Square[A := FromNow.subsetModel, B := ToNow.subsetModel, C := iterate degree From.subsetModel, D := iterate degree To.subsetModel,
+  f := Current.subsetMap, g := (TargetIteration.subsetComparison degree).forward, h := (SourceIteration.subsetComparison degree).forward,
+  k := iterateMap degree From.subsetModel To.subsetModel subsetMap, commutes := subsetAt] \as SubsetSquare;
+\definition subsetNaturality: \forall (v: TargetSequence.Second) -> CurrentSubset.map (TargetA.forward v) = SourceA.forward (Subset.map v) :=
+  SubsetSquare.Negative[degree := KTheory.one].equation;
+\definition sourceBoundaryImage: \forall (v: SourceSequence.Second) -> SourceQ.forward (SourceSequence.boundary v) = CurrentNaturality.sourceBoundary (SourceA.forward v) :=
+  \fun (v: SourceSequence.Second) => SourceQ.leftInverse (CurrentNaturality.sourceBoundary (SourceA.forward v));
+\definition targetBoundaryImage: \forall (v: TargetSequence.Second) -> TargetQ.forward (TargetSequence.boundary v) = CurrentNaturality.targetBoundary (TargetA.forward v) :=
+  \fun (v: TargetSequence.Second) => TargetQ.leftInverse (CurrentNaturality.targetBoundary (TargetA.forward v));
+\definition relativeInjective: \forall (x, y: SourceSequence.Third) -> SourceQ.forward x = SourceQ.forward y -> x = y :=
+  \fun (x, y: SourceSequence.Third)(same: SourceQ.forward x = SourceQ.forward y) => trans!{{SourceSequence.Third}} _ _ _
+    (sym!{{SourceSequence.Third}} _ _ (SourceQ.rightInverse x))
+    (trans!{{SourceSequence.Third}} _ _ _ (congr!{{FromNow.Relative} {SourceSequence.Third}} SourceQ.backward (SourceQ.forward x) (SourceQ.forward y) same) (SourceQ.rightInverse y));
+\definition boundary: \forall (v: TargetSequence.Second) -> SourceSequence.boundary (Subset.map v) = Relative.map (TargetSequence.boundary v) :=
+  \fun (v: TargetSequence.Second) => relativeInjective _ _ (eq_reason_in!{{FromNow.Relative} _
+    "=" { CurrentNaturality.sourceBoundary (SourceA.forward (Subset.map v)) } "by" { sourceBoundaryImage (Subset.map v) }
+    "=" { CurrentNaturality.sourceBoundary (CurrentSubset.map (TargetA.forward v)) } "by" { congr!{{SourceCurrentA.Carrier} {FromNow.Relative}} CurrentNaturality.sourceBoundary _ _ (sym!{{SourceCurrentA.Carrier}} _ _ (subsetNaturality v)) }
+    "=" { CurrentRelative.map (CurrentNaturality.targetBoundary (TargetA.forward v)) } "by" { CurrentNaturality.connecting (TargetA.forward v) }
+    "=" { CurrentRelative.map (TargetQ.forward (TargetSequence.boundary v)) } "by" { congr!{{ToNow.Relative} {FromNow.Relative}} CurrentRelative.map _ _ (sym!{{ToNow.Relative}} _ _ (targetBoundaryImage v)) }
+    "=" { SourceQ.forward (Relative.map (TargetSequence.boundary v)) } "by" { relativeNaturality (TargetSequence.boundary v) }
+  });

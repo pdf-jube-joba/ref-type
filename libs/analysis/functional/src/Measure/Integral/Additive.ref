@@ -1,0 +1,33 @@
+\import \root.Measure[A := A].ValueLaws[] \as Values;
+\use std.Logic[].Equality[].sym;
+\definition superadditive: \forall (f, g: A -> Real.Real) ->
+  (\forall (x: A) -> R.Le Real.zero (f x)) -> (\forall (x: A) -> R.Le Real.zero (g x)) ->
+  Values.Included (add (lowerIntegral f) (lowerIntegral g)) (lowerIntegral (\fun (x: A) => Real.add (f x) (g x))) :=
+  \fun (f, g: A -> Real.Real) (fn: _) (gn: _) (r: Real.Real) (member: below (add (lowerIntegral f) (lowerIntegral g)) r) => \block {
+    \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[below (lowerIntegral f) a, \exists ( b: Real.Real \where Logic.And[below (lowerIntegral g) b, R.Lt r (Real.add a b)] )] }) \by member \then
+    \let first: Logic.And[below (lowerIntegral f) a, \exists ( b: Real.Real \where Logic.And[below (lowerIntegral g) b, R.Lt r (Real.add a b)] )] :=
+      \bysub(Real.Real, { a: Real.Real \where Logic.And[below (lowerIntegral f) a, \exists ( b: Real.Real \where Logic.And[below (lowerIntegral g) b, R.Lt r (Real.add a b)] )] }, a) \then
+    \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where Logic.And[below (lowerIntegral g) b, R.Lt r (Real.add a b)] }) \by first.right \then
+    \let second: Logic.And[below (lowerIntegral g) b, R.Lt r (Real.add a b)] :=
+      \bysub(Real.Real, { b: Real.Real \where Logic.And[below (lowerIntegral g) b, R.Lt r (Real.add a b)] }, b) \then
+    \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where \exists ( s: Simple[m] \where Logic.And[Dominated m s f, below (simpleIntegral m s) a] ) }) \by first.left \then
+    \takefrom s: \Cast[Simple[m]] ({ s: Simple[m] \where Logic.And[Dominated m s f, below (simpleIntegral m s) a] })
+      \by (\bysub(N.Nat^, { m: N.Nat^ \where \exists ( s: Simple[m] \where Logic.And[Dominated m s f, below (simpleIntegral m s) a] ) }, m)) \then
+    \let sd: Logic.And[Dominated m s f, below (simpleIntegral m s) a] := \bysub(Simple[m], { s: Simple[m] \where Logic.And[Dominated m s f, below (simpleIntegral m s) a] }, s) \then
+    \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \exists ( t: Simple[n] \where Logic.And[Dominated n t g, below (simpleIntegral n t) b] ) }) \by second.left \then
+    \takefrom t: \Cast[Simple[n]] ({ t: Simple[n] \where Logic.And[Dominated n t g, below (simpleIntegral n t) b] })
+      \by (\bysub(N.Nat^, { n: N.Nat^ \where \exists ( t: Simple[n] \where Logic.And[Dominated n t g, below (simpleIntegral n t) b] ) }, n)) \then
+    \let td: Logic.And[Dominated n t g, below (simpleIntegral n t) b] := \bysub(Simple[n], { t: Simple[n] \where Logic.And[Dominated n t g, below (simpleIntegral n t) b] }, t) \then
+    \let added: below (add (simpleIntegral m s) (simpleIntegral n t)) r :=
+      Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[below (simpleIntegral m s) a, \exists ( b: Real.Real \where Logic.And[below (simpleIntegral n t) b, R.Lt r (Real.add a b)] )] }] a
+        (Logic.And[_, _]::# sd.right (Logic.existsIntro[Real.Real, { b: Real.Real \where Logic.And[below (simpleIntegral n t) b, R.Lt r (Real.add a b)] }] b (Logic.And[_, _]::# td.right second.right))) \then
+    \let refined: Simple[\root.Measure[A := A].Integral[mu := mu].Refinement[m := m, n := n, s := s, t := t].count] :=
+      \root.Measure[A := A].Integral[mu := mu].Refinement[m := m, n := n, s := s, t := t].simple \then
+    \let d: Dominated _ refined (\fun (x: A) => Real.add (f x) (g x)) :=
+      \root.Measure[A := A].Integral[mu := mu].Refinement[m := m, n := n, s := s, t := t].dominated f g fn gn sd.left td.left \then
+    \let inside: below (simpleIntegral _ refined) r := \idelim add (simpleIntegral m s) (simpleIntegral n t) = simpleIntegral _ refined
+      \with v: Value => below v r \by { base: added, equality: sym!{Value} _ _ (\root.Measure[A := A].Integral[mu := mu].Refinement[m := m, n := n, s := s, t := t].integral) } \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \exists ( u: Simple[k] \where Logic.And[Dominated k u (\fun (x: A) => Real.add (f x) (g x)), below (simpleIntegral k u) r] ) }] _
+      (Logic.existsIntro[Simple[_], { u: Simple[_] \where Logic.And[Dominated _ u (\fun (x: A) => Real.add (f x) (g x)), below (simpleIntegral _ u) r] }] refined (Logic.And[_, _]::# d inside))
+  };
+\module Measured(p, q: NonnegativeMeasurable);

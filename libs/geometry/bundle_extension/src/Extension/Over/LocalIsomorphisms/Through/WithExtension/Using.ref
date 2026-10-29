@@ -1,0 +1,23 @@
+\definition d: Domain := Domain { value := l.domain, open := l.open, contains := l.contains,
+  within := \fun (x: X)(member: Base.Member l.domain x) => w.within x (w.enclosed x (l.inner x member)) };
+\import \parent.\parent.\parent.Neighborhood[d := d] \as Local;
+\definition toCompact[x: Local.Point]: ClosedPoint := \into[X](x, w.envelope) \by { w.enclosed x (l.inner x (\bysub(X, l.domain, x))) };
+\definition compactContinuous: topology.Continuity[A := Local.Point, B := ClosedPoint].Continuous Local.space closedSpace toCompact :=
+  topology.Continuity[A := Local.Point, B := X].Corestriction[S := w.envelope].corestrictContinuous Local.space topology toCompact
+    (topology.Continuity[A := Local.Point, B := X].Corestriction[S := l.domain].inclusionContinuous topology);
+\definition toExtended[x: Local.Point]: \Cast[ClosedPoint] e.domain := \into[ClosedPoint](toCompact x, e.domain) \by { l.within x };
+\definition extendedContinuous: topology.Continuity[A := Local.Point, B := \Cast[ClosedPoint] e.domain].Continuous Local.space (topology.Topology[Carrier := ClosedPoint].Subspace[S := e.domain].topology closedSpace) toExtended :=
+  topology.Continuity[A := Local.Point, B := ClosedPoint].Corestriction[S := e.domain].corestrictContinuous Local.space closedSpace toExtended compactContinuous;
+\import Reduced.With[a := reduced, e := e].Pullback[Y := Local.Point, space := Local.space, f := toExtended, regular := extendedContinuous] \as Pulled;
+\module SourceLift;
+\module TargetLift;
+\definition comparison: Local.Isomorphism :=
+  Operations.IsomorphismComposition[X := Local.Point, F := (\fun (x: Local.Point) => F (Local.map x)), G := (\fun (x: Local.Point) => F (Local.map x)), H := (\fun (x: Local.Point) => G (Local.map x)),
+    source := Local.first, middle := SourceLift[].nested, target := Local.second].compose SourceLift[].comparison
+    (Operations.IsomorphismComposition[X := Local.Point, F := (\fun (x: Local.Point) => F (Local.map x)), G := (\fun (x: Local.Point) => G (Local.map x)), H := (\fun (x: Local.Point) => G (Local.map x)),
+      source := SourceLift[].nested, middle := TargetLift[].nested, target := Local.second].compose Pulled.isomorphism
+      (Bundles.Isomorphisms[X := Local.Point, F := (\fun (x: Local.Point) => G (Local.map x)), G := (\fun (x: Local.Point) => G (Local.map x)), source := Local.second, target := TargetLift[].nested].inverse TargetLift[].comparison));
+\definition extension: Extension[a] := Extension[a] { neighborhood := d, isomorphism := comparison,
+  extends := \fun (x: \Cast[X] subset)(v: F (\into[X](x, U) \by { inside x (\bysub(X, subset, x)) })) =>
+    e.extends (\into[ClosedPoint](\into[X](x, w.envelope) \by { Compact.contains x (\bysub(X, subset, x)) }, closedSubset) \by { \bysub(X, subset, x) }) v,
+};

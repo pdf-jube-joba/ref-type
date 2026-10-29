@@ -1,0 +1,41 @@
+\import Space.Compactness[] \as Compact;
+\import SubFunctions.Extrema[] \as Extrema;
+\definition absolute[x: Subspace.CarrierSet]: R.Real := R.distance R.zero (f.value x);
+\structure Bound: \Set := {
+  radius: R.Real,
+  positive: D.Lt R.zero radius,
+  estimate: \forall (x: Subspace.CarrierSet) -> D.Le (absolute x) radius,
+};
+\definition bounds: Space.IsCompact source -> Space.IsClosedIn source subset -> \exists Bound :=
+  \fun (compact: _)(closed: _) => either!{{Classical.excludedMiddle (\exists Subspace.CarrierSet)} {\exists Bound}
+    {\block {
+      \fun (inhabited: \exists Subspace.CarrierSet) \then
+      \let nonempty: \exists \Cast[Subspace.CarrierSet] Sub.Whole := \block {
+        \takefrom x: Subspace.CarrierSet \by inhabited \then
+        \return \exact(\into[Subspace.CarrierSet](x, Sub.Whole) \by { \refl(x) }, \Cast[Subspace.CarrierSet] Sub.Whole)
+      } \then
+      \takefrom a: \Cast[Subspace.CarrierSet] ({ a: Subspace.CarrierSet \where Extrema.Maximum[Sub.Whole, absolute, a] })
+        \by Extrema.maximum (Subspace.topology source) Sub.Whole absolute nonempty
+          (Subspace.Properties[].compact source (Compact.closedCompact source compact subset closed))
+          (SubFunctions.Lattice[].absoluteContinuous (Subspace.topology source) f.value f.continuous) \then
+      \let maximum: Extrema.Maximum[Sub.Whole, absolute, a] :=
+        \bysub(Subspace.CarrierSet, { a: Subspace.CarrierSet \where Extrema.Maximum[Sub.Whole, absolute, a] }, a) \then
+      \return \exact(Bound {
+        radius := R.add (absolute a) R.one,
+        positive := D.leLtTrans R.zero (absolute a) (R.add (absolute a) R.one) (Distance.distanceNonnegative R.zero (f.value a))
+          (D.ltReplaceLeft (R.add (absolute a) R.zero) (absolute a) (R.add (absolute a) R.one) (Laws.addZeroRight (absolute a))
+            (Laws.ltAddLeft (absolute a) R.zero R.one Estimates.Product[].onePositive)),
+        estimate := \fun (x: Subspace.CarrierSet) => D.leTrans _ _ _ (maximum.upper x (\refl(x)))
+          (Algebra.leAddRight (absolute a) R.one Laws.oneNonnegative),
+      }, Bound)
+    }}
+    {\fun (empty: Logic.Not (\exists Subspace.CarrierSet)) => \exact(Bound {
+      radius := R.one, positive := Estimates.Product[].onePositive,
+      estimate := \fun (x: Subspace.CarrierSet) => Logic.falseElim (D.Le (absolute x) R.one) (empty (\exact(x, Subspace.CarrierSet))),
+    }, Bound)}
+  };
+\definition exists: Space.IsCompact source -> Space.IsT2 source -> Space.IsClosedIn source subset -> \exists Extension[f] := \block {
+  \fun (compact: _)(hausdorff: _)(closed: _) \then
+  \takefrom bound: Bound \by bounds compact closed \then
+  \return \parent.Bounded[f := f, r := bound.radius].exists (Compact.compactHausdorffNormal source compact hausdorff) closed bound.positive bound.estimate
+};

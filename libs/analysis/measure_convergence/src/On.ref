@@ -1,0 +1,105 @@
+\import functional_analysis.Measure[A := A] \as Measures;
+\import Measures.Integral[mu := mu] \as Integral;
+\import Measures.ValueLaws[] \as Values;
+\import Integral.Convergence[] \as Convergence;
+\import Convergence.Monotone[] \as Monotone;
+\import Convergence.Fatou[] \as Fatou;
+\import Integral.Null[] \as QuotientIntegral;
+\import Integral.Absolute[] \as Absolute;
+\import Integral.Negation[] \as Negation;
+\import Integral.Scaling[] \as Scaling;
+\import Integral.Linear[] \as Linear;
+\import Integral.QuotientLinear[] \as ClassLinear;
+\import Integral.Additive[] \as Additive;
+\import dedekind_reals.DedekindReal[] \as R;
+\import real.Analysis[].Estimates[].Product[] \as Product;
+\import real.Analysis[] \as Real;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import topology.Topology[Carrier := A] \as Sets;
+
+\definition monotone: \forall (f: Convergence.MeasurableSequence) (g: A -> Real.Real) ->
+  Convergence.PointwiseSup f g -> Convergence.FunctionIncreasing f ->
+  Integral.lowerIntegral g = Convergence.Sup (\fun (k: N.Nat^) => Integral.lowerIntegral (f k)) := Monotone.monotone;
+
+\module FatouFor(f: Fatou.NonnegativeSequence) {
+  \import Fatou.Of[f := f] \as Theorem;
+  \import Fatou.Tail[f := f] \as Tail;
+  \definition liminfIntegral: Measures.Value := Theorem.liminfLowerIntegral;
+  \definition inequality: Values.Included liminfIntegral (Fatou.Liminf (\fun (k: N.Nat^) => Integral.lowerIntegral (f k))) := Theorem.fatou;
+  \definition finiteLiminf: \forall (g: A -> Real.Real) -> Convergence.PointwiseSup Tail.envelope g ->
+    Integral.lowerIntegral g = liminfIntegral := Theorem.finiteLiminf;
+  \definition finiteInequality: \forall (g: A -> Real.Real) -> Convergence.PointwiseSup Tail.envelope g ->
+    Values.Included (Integral.lowerIntegral g) (Fatou.Liminf (\fun (k: N.Nat^) => Integral.lowerIntegral (f k))) := Theorem.finiteFatou;
+}
+\definition IntegralClasses: \Set := QuotientIntegral.Space;
+\definition integral[C: IntegralClasses]: Real.Real := QuotientIntegral.quotientIntegral C;
+\definition classIntegral: \forall (f: Integral.Representatives) -> integral (QuotientIntegral.class f) = Integral.integral f :=
+  QuotientIntegral.quotientIntegralOfClass;
+\module Vector(n: N.Nat^);
+\module Complex;
+
+\definition integralAbsBound: \forall (f: Integral.Representatives) -> R.Le (Product.abs (Integral.integral f)) (Integral.integral (Absolute.representative f)) := Absolute.integralAbsBound;
+\definition integralNeg: \forall (f: Integral.Representatives) -> Integral.integral (Negation.representative f) = Real.neg (Integral.integral f) := Negation.integralNeg;
+\definition integralMono: \forall (f, g: Integral.Representatives) -> (\forall (x: A) -> R.Le (f x) (g x)) -> R.Le (Integral.integral f) (Integral.integral g) := Absolute.integralMono;
+
+\definition integralScalar: \forall (c: Real.Real) (f: Integral.Representatives) -> Integral.integral (Scaling.scalarRepresentative c f) = Real.mul c (Integral.integral f) := Scaling.integralScalar;
+
+\definition integralAdd: \forall (f, g: Integral.Representatives) ->
+  Integral.integral (Linear.addRepresentative f g) = Real.add (Integral.integral f) (Integral.integral g) := Linear.integralAdd;
+\module NonnegativeAdd(p, q: Integral.NonnegativeMeasurable) {
+  \import Additive.Measured[p := p, q := q] \as Proof;
+  \definition lowerIntegralAdd: Integral.lowerIntegral (\fun (x: A) => Real.add (p.function x) (q.function x)) =
+    Measures.add (Integral.lowerIntegral p.function) (Integral.lowerIntegral q.function) := Proof.lowerAdd;
+}
+
+\definition addClasses: IntegralClasses -> IntegralClasses -> IntegralClasses := ClassLinear.add;
+\definition scaleClass: Real.Real -> IntegralClasses -> IntegralClasses := ClassLinear.scalar;
+\definition integralClassAdd: \forall (C, D: IntegralClasses) -> integral (addClasses C D) = Real.add (integral C) (integral D) := ClassLinear.integralAdd;
+\definition integralClassScalar: \forall (c: Real.Real) (C: IntegralClasses) -> integral (scaleClass c C) = Real.mul c (integral C) := ClassLinear.integralScalar;
+\module Dominated(d: Integral.DominatedSequence) {
+  \import Integral.Dominated[d := d] \as Proof;
+  \definition limitIntegrable: Integral.Integrable d.limit := Proof.limitIntegrable;
+  \definition limitRepresentative: Integral.Representatives := Proof.limitRepresentative;
+  \import real.Analysis[].Sequence[] \as Sequence;
+  \definition convergence: Sequence.Converges (\fun (k: N.Nat^) => Integral.integral (d.sequence k)) (Integral.integral limitRepresentative) := Proof.convergence;
+}
+\module AEDominated(d: Integral.AEDominatedSequence) {
+  \import Integral.AEDominated[d := d] \as Proof;
+  \import real.Analysis[].Sequence[] \as Sequence;
+  \definition limitRepresentative: Integral.Representatives := Proof.representative;
+  \definition almostLimit: Measures.AlmostEqual mu limitRepresentative d.limit := Proof.almostLimit;
+  \definition limitIntegrable: Measures.IsMeasurable mu d.limit -> Integral.Integrable d.limit := Proof.originalIntegrable;
+  \definition convergence: Sequence.Converges (\fun (k: N.Nat^) => Integral.integral (d.sequence k)) (Integral.integral limitRepresentative) := Proof.convergence;
+}
+\module Series(terms: N.Nat^ -> Integral.Representatives) {
+  \import Integral.Series[terms := terms] \as Proof;
+  \definition partial: N.Nat^ -> Integral.Representatives := Proof.partial;
+  \definition integralPartial: N.Nat^ -> Real.Real := Proof.scalarPartial;
+  \definition partialIntegral: \forall (n: N.Nat^) -> Integral.integral (partial n) = integralPartial n := Proof.partialIntegral;
+  \module Exchange(c: Proof.Conditions) {
+    \import Proof.Exchange[c := c] \as Result;
+    \import real.Analysis[].Sequence[] \as Sequence;
+    \definition integrable: Integral.Integrable c.limit := Result.integrable;
+    \definition representative: Integral.Representatives := Result.representative;
+    \definition exchange: Sequence.Converges integralPartial (Integral.integral representative) := Result.exchange;
+  }
+  \module AEExchange(c: Proof.AEConditions) {
+    \import Proof.AEExchange[c := c] \as Result;
+    \import real.Analysis[].Sequence[] \as Sequence;
+    \definition representative: Integral.Representatives := Result.representative;
+    \definition almostLimit: Measures.AlmostEqual mu representative c.limit := Result.almostLimit;
+    \definition exchange: Sequence.Converges integralPartial (Integral.integral representative) := Result.exchange;
+  }
+}
+
+\module Indicator(p: Integral.StepData) {
+  \import Integral.Step[p := p] \as Step;
+  \import Integral.Evaluation[n := Step.size, s := Step.simple] \as Eval;
+  \definition function: A -> Real.Real := Eval.value;
+  \definition inside: \forall (x: A) -> Sets.Member p.set x -> function x = p.coefficient := Step.inside;
+  \definition outside: \forall (x: A) -> Sets.Member (Sets.Complement p.set) x -> function x = Real.zero := Step.outside;
+  \definition lowerIntegral: Integral.lowerIntegral function = Measures.scale p.coefficient (mu.value p.set) := Step.lowerIntegral;
+}
+
+\module Examples;

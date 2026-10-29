@@ -1,0 +1,66 @@
+\import \root.Complex[].On[V := V, space := left].Realification[] \as LReal;
+\import \root.Complex[].On[V := W, space := right].Realification[] \as RReal;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := LReal.realRing] \as RealAlgebra;
+\import RealAlgebra.DirectSum[V := V, W := W, left := LReal.spaceReal, right := RReal.spaceReal] \as Sum;
+\import RealAlgebra.Form[V := Sum.Carrier, space := Sum.space] \as Forms;
+\import RealAlgebra.Laws[V := R.Real, space := RealAlgebra.scalarSpace] \as RealLaws;
+\definition form: Forms.Bilinear := Forms.Bilinear {
+  form := \fun (x, y: Sum.Carrier) => R.add (LMetric.realForm.form (Sum.first x) (Sum.first y)) (RMetric.realForm.form (Sum.second x) (Sum.second y)),
+  zeroLeft := \fun (x: Sum.Carrier) => trans!{R.Real} _ _ _ (congr!{R.Real R.Real R.Real} R.add _ _ _ _ (LMetric.realForm.zeroLeft (Sum.first x)) (RMetric.realForm.zeroLeft (Sum.second x))) (RealLaws.zeroLeft R.zero),
+  zeroRight := \fun (x: Sum.Carrier) => trans!{R.Real} _ _ _ (congr!{R.Real R.Real R.Real} R.add _ _ _ _ (LMetric.realForm.zeroRight (Sum.first x)) (RMetric.realForm.zeroRight (Sum.second x))) (RealLaws.zeroLeft R.zero),
+  addLeft := \fun (x, y, z: Sum.Carrier) => trans!{R.Real} _ _ _ (congr!{R.Real R.Real R.Real} R.add _ _ _ _ (LMetric.realForm.addLeft (Sum.first x) (Sum.first y) (Sum.first z)) (RMetric.realForm.addLeft (Sum.second x) (Sum.second y) (Sum.second z))) (RealLaws.shuffle _ _ _ _),
+  addRight := \fun (x, y, z: Sum.Carrier) => trans!{R.Real} _ _ _ (congr!{R.Real R.Real R.Real} R.add _ _ _ _ (LMetric.realForm.addRight (Sum.first x) (Sum.first y) (Sum.first z)) (RMetric.realForm.addRight (Sum.second x) (Sum.second y) (Sum.second z))) (RealLaws.shuffle _ _ _ _),
+  scaleLeft := \fun (a: R.Real)(x, y: Sum.Carrier) => trans!{R.Real} _ _ _ (congr!{R.Real R.Real R.Real} R.add _ _ _ _ (LMetric.realForm.scaleLeft a (Sum.first x) (Sum.first y)) (RMetric.realForm.scaleLeft a (Sum.second x) (Sum.second y))) (sym!{R.Real} _ _ (RealAlgebra.mulAdd a (LMetric.realForm.form (Sum.first x) (Sum.first y)) (RMetric.realForm.form (Sum.second x) (Sum.second y)))),
+  scaleRight := \fun (a: R.Real)(x, y: Sum.Carrier) => trans!{R.Real} _ _ _ (congr!{R.Real R.Real R.Real} R.add _ _ _ _ (LMetric.realForm.scaleRight a (Sum.first x) (Sum.first y)) (RMetric.realForm.scaleRight a (Sum.second x) (Sum.second y))) (sym!{R.Real} _ _ (RealAlgebra.mulAdd a (LMetric.realForm.form (Sum.first x) (Sum.first y)) (RMetric.realForm.form (Sum.second x) (Sum.second y)))),
+};
+\import lie_algebras.Field[K := C.Complex, field := Field.field].Endomorphisms[V := Product.Carrier, space := Product.space] \as Endomorphisms;
+\import \root.Complex[].On[V := Endomorphisms.Carrier, space := Endomorphisms.vectorSpace].Realification[] \as EndReal;
+\import RealAlgebra.Linear[V := Sum.Carrier, W := Endomorphisms.Carrier, source := Sum.space, target := EndReal.spaceReal] \as RealLinear;
+\import Algebra.Laws[V := Endomorphisms.Carrier, space := Endomorphisms.vectorSpace] \as EndLaws;
+\definition vectors[x: Sum.Carrier]: Endomorphisms.Carrier := clifford (Sum.first x) (Sum.second x);
+\definition realLinear: RealLinear.Map := RealLinear.Map {
+  apply := vectors,
+  preservesAdd := \fun (x, y: Sum.Carrier) => eq_reason_in!{Endomorphisms.Carrier _
+    "=" _ "by" { congr!{LeftEnd.Map RightEnd.Map Endomorphisms.Carrier} (\fun (a: LeftEnd.Map)(b: RightEnd.Map) => EndOps.plus (Tensor.map a RIdentity.identity) (Tensor.map L.grading b)) _ _ _ _ (LMetric.realLinear.preservesAdd (Sum.first x) (Sum.first y)) (RMetric.realLinear.preservesAdd (Sum.second x) (Sum.second y)) }
+    "=" _ "by" { congr!{Endomorphisms.Carrier Endomorphisms.Carrier Endomorphisms.Carrier} EndOps.plus _ _ _ _ (Tensor.addLeft (LMetric.cliffordOperator (Sum.first x)) (LMetric.cliffordOperator (Sum.first y)) RIdentity.identity) (Tensor.addRight L.grading (RMetric.cliffordOperator (Sum.second x)) (RMetric.cliffordOperator (Sum.second y))) }
+    "=" _ "by" { EndLaws.shuffle _ _ _ _ }
+  },
+  preservesScale := \fun (a: R.Real)(x: Sum.Carrier) => eq_reason_in!{Endomorphisms.Carrier _
+    "=" _ "by" { congr!{LeftEnd.Map RightEnd.Map Endomorphisms.Carrier} (\fun (p: LeftEnd.Map)(q: RightEnd.Map) => EndOps.plus (Tensor.map p RIdentity.identity) (Tensor.map L.grading q)) _ _ _ _ (LMetric.realLinear.preservesScale a (Sum.first x)) (RMetric.realLinear.preservesScale a (Sum.second x)) }
+    "=" _ "by" { congr!{Endomorphisms.Carrier Endomorphisms.Carrier Endomorphisms.Carrier} EndOps.plus _ _ _ _ (Tensor.scaleLeft (Def.ofReal a) (LMetric.cliffordOperator (Sum.first x)) RIdentity.identity) (Tensor.scaleRight (Def.ofReal a) L.grading (RMetric.cliffordOperator (Sum.second x))) }
+    "=" _ "by" { sym!{Endomorphisms.Carrier} _ _ (Endomorphisms.vectorSpace.vectorAdd (Def.ofReal a) (leftAction (Sum.first x)) (rightAction (Sum.second x))) }
+  },
+};
+\import std.Alg[].Ring[] \as Rings;
+\import algebra.Hom[A := R.Real, B := Endomorphisms.Carrier] \as ScalarHom;
+\import algebra.Hom[A := C.Complex, B := Endomorphisms.Carrier] \as ComplexHom;
+\definition complexLaws: ComplexHom.SemiringLaws[Rings.ringAsSemiring C.Complex Algebra.ring, Rings.ringAsSemiring Endomorphisms.Carrier Endomorphisms.ring, Endomorphisms.scalarMap] :=
+  ComplexHom.semiringLaws _ _ Endomorphisms.scalarMap;
+\definition realScalar[a: R.Real]: Endomorphisms.Carrier := Endomorphisms.scalar (Def.ofReal a);
+\definition scalarMap: ScalarHom.RingMap RealAlgebra.ring Endomorphisms.ring := \into[R.Real -> Endomorphisms.Carrier](realScalar, ScalarHom.RingMap RealAlgebra.ring Endomorphisms.ring) \by {
+  ScalarHom.SemiringLaws[_, _, realScalar] {
+    zero := complexLaws.zero,
+    one := complexLaws.one,
+    add := \fun (a, b: R.Real) => trans!{Endomorphisms.Carrier} _ _ _ (congr!{C.Complex Endomorphisms.Carrier} Endomorphisms.scalar _ _ (Laws.ofRealAdd a b)) (complexLaws.add (Def.ofReal a) (Def.ofReal b)),
+    mul := \fun (a, b: R.Real) => trans!{Endomorphisms.Carrier} _ _ _ (congr!{C.Complex Endomorphisms.Carrier} Endomorphisms.scalar _ _ (sym!{C.Complex} _ _ (Laws.ofRealMul a b))) (complexLaws.mul (Def.ofReal a) (Def.ofReal b)),
+  }
+};
+\import clifford.Field[K := R.Real, field := R.Algebra[].field].On[V := Sum.Carrier, space := Sum.space].Of[form := form] \as Source;
+\import Source.Universal[A := Endomorphisms.Carrier, target := Endomorphisms.ring] \as Universal;
+\import algebra.FreeAssociativeRing[].Over[R := R.Real, coefficients := LReal.realRing, Variables := Sum.Carrier].Presentation[relations := Source.Relation] \as Presented;
+\import Presented.Universal[K := Endomorphisms.Carrier, target := Endomorphisms.ring] \as Extension;
+\definition coefficients: Extension.CoefficientMap := \into[ScalarHom.RingMap RealAlgebra.ring Endomorphisms.ring](scalarMap, Extension.CoefficientMap) \by {
+  \fun (a: R.Real)(f: Endomorphisms.Carrier) => Endomorphisms.scalarCentral (Def.ofReal a) f
+};
+\definition representation: Universal.Representation := Universal.Representation {
+  coefficients := coefficients,
+  vectors := vectors,
+  zero := realLinear.preservesZero,
+  addition := realLinear.preservesAdd,
+  scalar := \fun (a: R.Real)(x: Sum.Carrier) => realLinear.preservesScale a x,
+  square := \fun (x: Sum.Carrier) => Endomorphisms.ext _ _ (\fun (t: Product.Carrier) => square (Sum.first x) (Sum.second x) t),
+};
+\import algebra.Hom[A := Source.Carrier, B := Endomorphisms.Carrier] \as Hom;
+\definition extension: Hom.RingMap Source.ring Endomorphisms.ring := Universal.extension representation;
+\definition onVector: \forall (x: Sum.Carrier) -> extension (Source.iota x) = clifford (Sum.first x) (Sum.second x) := Universal.onVector representation;
+\definition onScalar: \forall (a: R.Real) -> extension (Source.scalar a) = realScalar a := Universal.onScalar representation;

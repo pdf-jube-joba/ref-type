@@ -1,0 +1,41 @@
+\import Source.Pin[] \as SourcePin;
+\import SourcePin.Grading[] \as PinGrade;
+\import Source.Grading[] \as Grade;
+\import Geometry.PinRepresentation[] \as Projection;
+\import lie_groups.Classical[].On[V := E.Vector, space := E.space].Orthogonal[form := E.form] \as Orthogonal;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].trans;
+\definition sourceCommute: \forall (g: Pin.Spin)(x: E.Vector) ->
+  Source.mul (Source.iota (Orthogonal.action (Projection.spinMap g) x)) g.value = Source.mul g.value (Source.iota x) :=
+  \fun (g: Pin.Spin)(x: E.Vector) => eq_reason_in!{Source.Carrier _
+    "=" _ "by" { congr!{Source.Carrier Source.Carrier} (\fun (a: Source.Carrier) => Source.mul a g.value) _ _ (sym!{Source.Carrier} _ _ (Projection.spinOnVector g x)) }
+    "=" _ "by" { Source.ring.semiring.multiplicative.associative (Source.mul g.value (Source.iota x)) g.inverse g.value }
+    "=" _ "by" { congr!{Source.Carrier Source.Carrier} (Source.mul (Source.mul g.value (Source.iota x))) _ _ g.left }
+    "=" _ "by" { Source.ring.semiring.multiplicative.rightIdentity (Source.mul g.value (Source.iota x)) }
+  };
+\import algebra.Hom[A := Source.Carrier, B := End.Carrier] \as Maps;
+\import std.Alg[].Ring[] \as Rings;
+\definition laws: Maps.SemiringLaws[Rings.ringAsSemiring Source.Carrier Source.ring, Rings.ringAsSemiring End.Carrier End.ring, extension] := Maps.semiringLaws _ _ extension;
+\definition spinCommute: \forall (g: Pin.Spin)(x: E.Vector) ->
+  End.mul (vectors.apply (Orthogonal.action (Projection.spinMap g) x)) (action g).value = End.mul (action g).value (vectors.apply x) :=
+  \fun (g: Pin.Spin)(x: E.Vector) => eq_reason_in!{End.Carrier _
+    "=" _ "by" { congr!{End.Carrier End.Carrier} (\fun (a: End.Carrier) => End.mul a (action g).value) _ _ (sym!{End.Carrier} _ _ (onVector (Orthogonal.action (Projection.spinMap g) x))) }
+    "=" _ "by" { sym!{End.Carrier} _ _ (laws.mul (Source.iota (Orthogonal.action (Projection.spinMap g) x)) g.value) }
+    "=" _ "by" { congr!{Source.Carrier End.Carrier} extension _ _ (sourceCommute g x) }
+    "=" _ "by" { laws.mul g.value (Source.iota x) }
+    "=" _ "by" { congr!{End.Carrier End.Carrier} (End.mul (action g).value) _ _ (onVector x) }
+  };
+\definition commute: \forall (g: SpinC.Carrier)(x: E.Vector) ->
+  End.mul (vectors.apply (Orthogonal.action (projection g) x)) (actionC g).value = End.mul (actionC g).value (vectors.apply x) :=
+  SpinC.induction (\fun (g: SpinC.Carrier) => \forall (x: E.Vector) -> End.mul (vectors.apply (Orthogonal.action (projection g) x)) (actionC g).value = End.mul (actionC g).value (vectors.apply x))
+    (\fun (g: Pin.Spin)(z: Circle.Circle)(x: E.Vector) => eq_reason_in!{End.Carrier _
+      "=" _ "by" { congr!{Geometry.O TargetUnits.Unit End.Carrier} (\fun (q: Geometry.O)(t: TargetUnits.Unit) => End.mul (vectors.apply (Orthogonal.action q x)) t.value) _ _ _ _ (projectionOnClass g z) (onClass g z) }
+      "=" _ "by" { sym!{End.Carrier} _ _ (End.ring.semiring.multiplicative.associative (vectors.apply (Orthogonal.action (Projection.spinMap g) x)) (phase z).value (action g).value) }
+      "=" _ "by" { congr!{End.Carrier End.Carrier} (\fun (a: End.Carrier) => End.mul a (action g).value) _ _ (sym!{End.Carrier} _ _ (End.scalarCentral z (vectors.apply (Orthogonal.action (Projection.spinMap g) x)))) }
+      "=" _ "by" { End.ring.semiring.multiplicative.associative (phase z).value (vectors.apply (Orthogonal.action (Projection.spinMap g) x)) (action g).value }
+      "=" _ "by" { congr!{End.Carrier End.Carrier} (End.mul (phase z).value) _ _ (spinCommute g x) }
+      "=" _ "by" { sym!{End.Carrier} _ _ (End.ring.semiring.multiplicative.associative (phase z).value (action g).value (vectors.apply x)) }
+      "=" _ "by" { congr!{TargetUnits.Unit End.Carrier} (\fun (t: TargetUnits.Unit) => End.mul t.value (vectors.apply x)) _ _ (sym!{TargetUnits.Unit} _ _ (onClass g z)) }
+    });

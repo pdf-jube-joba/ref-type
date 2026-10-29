@@ -1,0 +1,43 @@
+\import \parent.ConeImage[] \as Piece;
+\import \root.Relative[].Suspension[original := subsetModel] \as Suspended;
+\import algebraic_topology.Suspension[A := A].Pointed[source := subspace, basepoint := a0] \as Suspension;
+\import algebraic_topology.Cylinder[A := A] \as CylinderA;
+\import algebraic_topology.Collapse[A := CylinderA.Carrier, subset := Suspension.Collapsed] \as SuspensionCollapse;
+\module Raw;
+\import Raw[] \as RawMap;
+\import \root.Relative[].Pair[X := Carrier, space := topology, compact := Properties.compactQuotient, hausdorff := Properties.hausdorffQuotient,
+  subset := baseImage, closed := baseImageClosed] \as BasePair;
+\import BasePair.Quotient[] \as Q;
+\import algebraic_topology.Collapse[A := Q.Augmented, subset := Q.collapsedPart] \as BaseCollapse;
+\import topological_constructions.Coproduct[A := Carrier, B := Q.Point] \as Augment;
+\definition containsBase: \forall (x: X) -> Space.Member baseImage (base x) :=
+  \fun (x: X) => BaseSets.imageMember base Base.Whole x (\refl(x));
+\definition quotientBase: \forall (x: X) -> Q.projection (base x) = Q.point :=
+  \fun (x: X) => Q.onSubset (\into[Carrier](base x, baseImage) \by { containsBase x });
+\module Forward;
+\module Backward;
+\module Inverses;
+\import Forward[] \as Fwd;
+\import Backward[] \as Back;
+\import Inverses[] \as Inverse;
+\definition injective: \forall (x, y: Q.Carrier) -> Fwd.map x = Fwd.map y -> x = y :=
+  \fun (x, y: Q.Carrier)(same: Fwd.map x = Fwd.map y) => trans!{{Q.Carrier}} _ _ _ (sym!{{Q.Carrier}} _ _ (Inverse.leftInverse x))
+    (trans!{{Q.Carrier}} _ _ _ (congr!{{Suspension.Carrier} {Q.Carrier}} Back.projection _ _ same) (Inverse.leftInverse y));
+\definition onto: \forall (x: Suspension.Carrier) -> \exists (y: Q.Carrier \where Fwd.map y = x) :=
+  \fun (x: Suspension.Carrier) => Logic.existsIntro[Q.Carrier, { y: Q.Carrier \where Fwd.map y = x }] (Back.projection x) (Inverse.rightInverse x);
+\definition equivalence: \root.Relative[].Equivalence[source := Q.model, target := Suspended.result].Data :=
+  \root.Relative[].Equivalence[source := Q.model, target := Suspended.result].Data {
+    forward := Fwd.map, backward := Back.map, leftInverse := Inverse.leftInverse, rightInverse := Inverse.rightInverse
+  };
+\import \root.Relative[].Equivalence[source := Q.model, target := Suspended.result].With[e := equivalence].Groups[] \as Groups;
+\definition forward: \root.Relative[].Reduced[model := Suspended.result].Carrier -> Q.Relative := Groups.forward;
+\definition backward: Q.Relative -> \root.Relative[].Reduced[model := Suspended.result].Carrier := Groups.backward;
+\definition leftInverse: \forall (x: Q.Relative) -> forward (backward x) = x := Groups.leftInverse;
+\definition rightInverse: \forall (x: \root.Relative[].Reduced[model := Suspended.result].Carrier) -> backward (forward x) = x := Groups.rightInverse;
+\definition forwardAdd: \forall (v, w: \root.Relative[].Reduced[model := Suspended.result].Carrier) ->
+  forward (\root.Relative[].Reduced[model := Suspended.result].group.base.op v w) = Q.group.base.op (forward v) (forward w) := Groups.additive;
+\definition forwardZero: forward (\root.Relative[].Reduced[model := Suspended.result].group.base.unit) = Q.group.base.unit :=
+  \root.Relative[].Pullback[source := Q.model, target := Suspended.result, f := Fwd.map].preservesZero;
+\definition backwardZero: backward Q.group.base.unit = \root.Relative[].Reduced[model := Suspended.result].group.base.unit :=
+  \root.Relative[].Pullback[source := Suspended.result, target := Q.model, f := equivalence.backward].preservesZero;
+\module Forgetting;

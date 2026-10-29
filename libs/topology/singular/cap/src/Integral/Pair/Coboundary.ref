@@ -1,0 +1,65 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import N.Basic[].Prop[] \as Bounds;
+\import Simplices.CutFaces[p := p, q := N.Nat^::succ r] \as Geometry;
+\import Simplices.CutFaces[p := N.Nat^::succ p, q := r] \as UpperGeometry;
+\import \parent.Degree[] \as Degree;
+\import \parent.Homology[p := p, q := N.Nat^::succ r] \as Homology;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.At[C := Relative.complex, z := I.Int^::ofNat Geometry.higher] \as Source;
+\import \parent.Boundary[p := N.Nat^::succ p, q := r].Formula[] \as Formula;
+\import \parent.At[p := N.Nat^::succ p, q := r].Quotient[] \as Lower;
+\import \parent.At[p := N.Nat^::succ (N.Nat^::succ p), q := r].Quotient[] \as Higher;
+\import \parent.At[p := N.Nat^::succ p, q := N.Nat^::succ r].Quotient[] \as Right;
+\import singular_cohomology.Cochains[A := A, source := source].With[coefficients := Cochains.integerCoefficients] \as Ordinary;
+\import Modules.Hom[V := Degree.Carrier UpperGeometry.total, W := Degree.Carrier (N.Nat^::succ p), source := Degree.space UpperGeometry.total, target := Degree.space (N.Nat^::succ p)] \as LowerMaps;
+\import Modules.Laws[V := Degree.Carrier (N.Nat^::succ p), space := Degree.space (N.Nat^::succ p)] \as Values;
+\import algebra.Group[].Of[Carrier := Degree.Carrier (N.Nat^::succ p), group := Values.additive] \as Group;
+\import Modules.Alternating[V := Degree.Carrier (N.Nat^::succ p), space := Degree.space (N.Nat^::succ p)].Concatenation[] \as Signs;
+\import Modules.Alternating[V := Degree.Carrier (N.Nat^::succ (N.Nat^::succ p)), space := Degree.space (N.Nat^::succ (N.Nat^::succ p))].Concatenation[] \as UpperSigns;
+\import UpperSigns.Mapping[W := Degree.Carrier (N.Nat^::succ p), target := Degree.space (N.Nat^::succ p)] \as SignMapping;
+\import Modules.Hom[V := Degree.Carrier (N.Nat^::succ (N.Nat^::succ p)), W := Degree.Carrier (N.Nat^::succ p), source := Degree.space (N.Nat^::succ (N.Nat^::succ p)), target := Degree.space (N.Nat^::succ p)] \as BoundaryMaps;
+\definition same: Geometry.total = UpperGeometry.total := sym!{N.Nat^} _ _ (Bounds.addSuccLeft p r);
+\definition input[x: Source.Cycle]: Degree.Carrier UpperGeometry.higher :=
+  Degree.apply Geometry.higher UpperGeometry.higher (congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _ same) x;
+\definition boundaryZero: \forall (x: Source.Cycle) -> (Degree.boundary UpperGeometry.total).apply (input x) = (Degree.space UpperGeometry.total).zero :=
+  \fun (x: Source.Cycle) => eq_reason_in!{{Degree.Carrier UpperGeometry.total} _
+    "=" _ "by" { sym!{{Degree.Carrier UpperGeometry.total}} _ _ (Degree.boundaryNatural Geometry.total UpperGeometry.total same x) }
+    "=" _ "by" { congr!{{Degree.Carrier Geometry.total} {Degree.Carrier UpperGeometry.total}} (Degree.apply Geometry.total UpperGeometry.total same) _ _
+      (\bysub(Degree.Carrier Geometry.higher, (Source.cycles).carrier, x)) }
+    "=" _ "by" { Degree.zero Geometry.total UpperGeometry.total same }
+  };
+\definition witness[gamma: Cochains.Carrier r][x: Source.Cycle]: Degree.Carrier (N.Nat^::succ (N.Nat^::succ p)) :=
+  (Higher.map gamma).apply (Degree.apply UpperGeometry.higher UpperGeometry.leftDegree (sym!{N.Nat^} _ _ UpperGeometry.same) (input x));
+\definition value[gamma: Cochains.Carrier r][x: Source.Cycle]: Degree.Carrier (N.Nat^::succ p) := (Right.map (Ordinary.coboundary r gamma)).apply (input x);
+\definition sumZero: \forall (gamma: Cochains.Carrier r)(x: Source.Cycle) ->
+  (Degree.space (N.Nat^::succ p)).add ((Degree.boundary (N.Nat^::succ p)).apply (witness gamma x)) (Signs.twist (N.Nat^::succ p) (value gamma x)) = (Degree.space (N.Nat^::succ p)).zero :=
+  \fun (gamma: Cochains.Carrier r)(x: Source.Cycle) => trans!{{Degree.Carrier (N.Nat^::succ p)}} _ _ _
+    (sym!{{Degree.Carrier (N.Nat^::succ p)}} _ _ (Formula.law gamma (input x)))
+    (trans!{{Degree.Carrier (N.Nat^::succ p)}} _ _ _
+      (congr!{{Degree.Carrier UpperGeometry.total} {Degree.Carrier (N.Nat^::succ p)}} ((Lower.map gamma).apply) _ _ (boundaryZero x))
+      (LowerMaps.zeroPreserved (Lower.map gamma)));
+\definition signedValue: \forall (gamma: Cochains.Carrier r)(x: Source.Cycle) ->
+  Signs.twist (N.Nat^::succ p) (value gamma x) = (Degree.space (N.Nat^::succ p)).neg ((Degree.boundary (N.Nat^::succ p)).apply (witness gamma x)) :=
+  \fun (gamma: Cochains.Carrier r)(x: Source.Cycle) => Group.inverseUnique _ _
+    (trans!{{Degree.Carrier (N.Nat^::succ p)}} _ _ _
+      (Group.comm (Signs.twist (N.Nat^::succ p) (value gamma x)) ((Degree.boundary (N.Nat^::succ p)).apply (witness gamma x))) (sumZero gamma x));
+\definition boundaryWitness[gamma: Cochains.Carrier r][x: Source.Cycle]: Degree.Carrier (N.Nat^::succ (N.Nat^::succ p)) :=
+  (Degree.space (N.Nat^::succ (N.Nat^::succ p))).neg (UpperSigns.twist (N.Nat^::succ p) (witness gamma x));
+\definition boundary: \forall (gamma: Cochains.Carrier r)(x: Source.Cycle) ->
+  (Degree.boundary (N.Nat^::succ p)).apply (boundaryWitness gamma x) = value gamma x :=
+  \fun (gamma: Cochains.Carrier r)(x: Source.Cycle) => eq_reason_in!{{Degree.Carrier (N.Nat^::succ p)} _
+    "=" _ "by" { BoundaryMaps.negativePreserved (Degree.boundary (N.Nat^::succ p)) (UpperSigns.twist (N.Nat^::succ p) (witness gamma x)) }
+    "=" _ "by" { congr!{{Degree.Carrier (N.Nat^::succ p)} {Degree.Carrier (N.Nat^::succ p)}} ((Degree.space (N.Nat^::succ p)).neg) _ _
+      (SignMapping.law (Degree.boundary (N.Nat^::succ p)) (N.Nat^::succ p) (witness gamma x)) }
+    "=" _ "by" { sym!{{Degree.Carrier (N.Nat^::succ p)}} _ _ (Signs.twistNeg (N.Nat^::succ p) ((Degree.boundary (N.Nat^::succ p)).apply (witness gamma x))) }
+    "=" _ "by" { congr!{{Degree.Carrier (N.Nat^::succ p)} {Degree.Carrier (N.Nat^::succ p)}} (Signs.twist (N.Nat^::succ p)) _ _ (sym!{{Degree.Carrier (N.Nat^::succ p)}} _ _ (signedValue gamma x)) }
+    "=" _ "by" { Signs.involution (N.Nat^::succ p) (value gamma x) }
+  };
+\definition sameValue: \forall (gamma: Cochains.Carrier r)(x: Source.Cycle) ->
+  (Homology.cap (Ordinary.coboundary r gamma)).apply x = value gamma x :=
+  \fun (gamma: Cochains.Carrier r)(x: Source.Cycle) => \refl(value gamma x);
+\module On(gamma: Cochains.Carrier r);

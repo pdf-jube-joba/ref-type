@@ -1,0 +1,126 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import \root.Euclidean[n := n] \as E;
+\import \root.Coordinate[n := n] \as Coordinate;
+\import topological_algebra.Euclidean[].Dimension[n := n].Countability[] \as Basis;
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as Topology;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\import functional_analysis.Measure[A := E.Point] \as Measure;
+\import Measure.Sigma[] \as Sigma;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Arithmetic[].Def[] \as Arithmetic;
+\import R.Order[] \as Order;
+\import real.Analysis[] \as Real;
+\import E.Reflection[] \as Reflection;
+\import E.MeasureConstruction[] \as Construction;
+\use std.Logic[].Equality[].sym;
+\definition above[i: Fin.Fin n] [a: Real.Real]: \Pow E.Point := { x: E.Point \where R.Lt a (x i) };
+\definition below[i: Fin.Fin n] [a: Real.Real]: \Pow E.Point := { x: E.Point \where R.Lt (x i) a };
+\definition aboveAsComplement: \forall (i: Fin.Fin n) (a: Real.Real) -> above i a = Sets.Complement (Coordinate.halfspace i a) :=
+  \fun (i: Fin.Fin n) (a: Real.Real) => \axiom:setext(above i a, Sets.Complement (Coordinate.halfspace i a),
+    \fun (x: E.Point) (less: R.Lt a (x i)) (reverse: R.Le (x i) a) => R.ltNotLeReverse a (x i) less reverse,
+    \fun (x: E.Point) (outside: Logic.Not (R.Le (x i) a)) => Sigma.doubleNegative (R.Lt a (x i))
+      (\fun (notLess: Logic.Not (R.Lt a (x i))) => outside (Order.leOfNotLtReverse (x i) a notLess)));
+\definition aboveMeasurable: \forall (i: Fin.Fin n) (a: Real.Real) -> E.Caratheodory (above i a) :=
+  \fun (i: Fin.Fin n) (a: Real.Real) => \idelim Sets.Complement (Coordinate.halfspace i a) = above i a \with S: \Pow E.Point => E.Caratheodory S
+    \by { base: E.complementCaratheodory (Coordinate.halfspace i a) (Coordinate.measurable i a), equality: sym!{{\Pow E.Point}} _ _ (aboveAsComplement i a) };
+\definition reverseHalf[i: Fin.Fin n] [a: Real.Real]: \Pow E.Point := { x: E.Point \where R.Le a (x i) };
+\definition reverseHalfAsReflection: \forall (i: Fin.Fin n) (a: Real.Real) -> Reflection.reflected (Coordinate.halfspace i (Real.neg a)) = reverseHalf i a :=
+  \fun (i: Fin.Fin n) (a: Real.Real) => \axiom:setext(Reflection.reflected (Coordinate.halfspace i (Real.neg a)), reverseHalf i a,
+    \fun (x: E.Point) (member: R.Le (Real.neg (x i)) (Real.neg a)) =>
+      R.leReplace (Real.neg (Real.neg a)) a (Real.neg (Real.neg (x i))) (x i) (Laws.negInvolutive a) (Laws.negInvolutive (x i))
+        (Laws.negAntitone (Real.neg (x i)) (Real.neg a) member),
+    \fun (x: E.Point) (member: R.Le a (x i)) => Laws.negAntitone a (x i) member);
+\definition reverseHalfMeasurable: \forall (i: Fin.Fin n) (a: Real.Real) -> E.Caratheodory (reverseHalf i a) :=
+  \fun (i: Fin.Fin n) (a: Real.Real) => \idelim Reflection.reflected (Coordinate.halfspace i (Real.neg a)) = reverseHalf i a \with S: \Pow E.Point => E.Caratheodory S
+    \by { base: Reflection.measurable (Coordinate.halfspace i (Real.neg a)) (Coordinate.measurable i (Real.neg a)), equality: reverseHalfAsReflection i a };
+\definition belowAsComplement: \forall (i: Fin.Fin n) (a: Real.Real) -> below i a = Sets.Complement (reverseHalf i a) :=
+  \fun (i: Fin.Fin n) (a: Real.Real) => \axiom:setext(below i a, Sets.Complement (reverseHalf i a),
+    \fun (x: E.Point) (less: R.Lt (x i) a) (reverse: R.Le a (x i)) => R.ltNotLeReverse (x i) a less reverse,
+    \fun (x: E.Point) (outside: Logic.Not (R.Le a (x i))) => Sigma.doubleNegative (R.Lt (x i) a)
+      (\fun (notLess: Logic.Not (R.Lt (x i) a)) => outside (Order.leOfNotLtReverse a (x i) notLess)));
+\definition belowMeasurable: \forall (i: Fin.Fin n) (a: Real.Real) -> E.Caratheodory (below i a) :=
+  \fun (i: Fin.Fin n) (a: Real.Real) => \idelim Sets.Complement (reverseHalf i a) = below i a \with S: \Pow E.Point => E.Caratheodory S
+    \by { base: E.complementCaratheodory (reverseHalf i a) (reverseHalfMeasurable i a), equality: sym!{{\Pow E.Point}} _ _ (belowAsComplement i a) };
+\definition finiteMeet: \forall (k: N.Nat^) -> (Fin.Fin k -> \Pow E.Point) -> \Pow E.Point :=
+  \induction (k: N.Nat^) \return (Fin.Fin k -> \Pow E.Point) -> \Pow E.Point \with {
+    | zero: \fun (_: Fin.Fin N.Nat^::zero -> \Pow E.Point) => Sets.Whole
+    | succ: \fun (k: N.Nat^) (prior: (Fin.Fin k -> \Pow E.Point) -> \Pow E.Point) (f: Fin.Fin (N.Nat^::succ k) -> \Pow E.Point) =>
+      Sets.Intersection (f (Fin.zero k)) (prior (\fun (i: Fin.Fin k) => f (Fin.succ k i)))
+  };
+\definition finiteMeetMeasurable: \forall (k: N.Nat^) (f: Fin.Fin k -> \Pow E.Point) ->
+  (\forall (i: Fin.Fin k) -> E.Caratheodory (f i)) -> E.Caratheodory (finiteMeet k f) :=
+  \induction (k: N.Nat^) \return \forall (f: Fin.Fin k -> \Pow E.Point) ->
+    (\forall (i: Fin.Fin k) -> E.Caratheodory (f i)) -> E.Caratheodory (finiteMeet k f) \with {
+      | zero: \fun (f: Fin.Fin N.Nat^::zero -> \Pow E.Point) (_: _) => Sigma.wholeMeasurable E.CaratheodorySets[].sigma
+      | succ: \fun (k: N.Nat^) (prior: _) (f: Fin.Fin (N.Nat^::succ k) -> \Pow E.Point) (valid: _) =>
+        E.intersectionCaratheodory (f (Fin.zero k)) (finiteMeet k (\fun (i: Fin.Fin k) => f (Fin.succ k i)))
+          (valid (Fin.zero k)) (prior (\fun (i: Fin.Fin k) => f (Fin.succ k i)) (\fun (i: Fin.Fin k) => valid (Fin.succ k i)))
+    };
+\definition finiteMeetMember: \forall (k: N.Nat^) (f: Fin.Fin k -> \Pow E.Point) (x: E.Point) ->
+  Sets.Member (finiteMeet k f) x -> \forall (i: Fin.Fin k) -> Sets.Member (f i) x :=
+  \induction (k: N.Nat^) \return \forall (f: Fin.Fin k -> \Pow E.Point) (x: E.Point) -> Sets.Member (finiteMeet k f) x -> \forall (i: Fin.Fin k) -> Sets.Member (f i) x \with {
+    | zero: \fun (f: _) (x: _) (_: _) (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))
+    | succ: \fun (k: N.Nat^) (prior: _) (f: Fin.Fin (N.Nat^::succ k) -> \Pow E.Point) (x: E.Point) (member: Sets.Member (finiteMeet (N.Nat^::succ k) f) x) =>
+      Fin.cases k (\fun (i: Fin.Fin (N.Nat^::succ k)) => Sets.Member (f i) x) member.left
+        (\fun (i: Fin.Fin k) => prior (\fun (j: Fin.Fin k) => f (Fin.succ k j)) x member.right i)
+  };
+\definition finiteMeetIntro: \forall (k: N.Nat^) (f: Fin.Fin k -> \Pow E.Point) (x: E.Point) ->
+  (\forall (i: Fin.Fin k) -> Sets.Member (f i) x) -> Sets.Member (finiteMeet k f) x :=
+  \induction (k: N.Nat^) \return \forall (f: Fin.Fin k -> \Pow E.Point) (x: E.Point) ->
+    (\forall (i: Fin.Fin k) -> Sets.Member (f i) x) -> Sets.Member (finiteMeet k f) x \with {
+      | zero: \fun (f: _) (x: E.Point) (_: _) => \refl(x)
+      | succ: \fun (k: N.Nat^) (prior: _) (f: Fin.Fin (N.Nat^::succ k) -> \Pow E.Point) (x: E.Point) (member: _) =>
+        Logic.And[_, _]::# (member (Fin.zero k)) (prior (\fun (i: Fin.Fin k) => f (Fin.succ k i)) x (\fun (i: Fin.Fin k) => member (Fin.succ k i)))
+    };
+\definition coordinateInterval[a, b: Basis.Endpoints] [i: Fin.Fin n]: \Pow E.Point :=
+  Sets.Intersection (above i (Arithmetic.ofRat (a i))) (below i (Arithmetic.ofRat (b i)));
+\definition rectangleAsMeet: \forall (a, b: Basis.Endpoints) -> Basis.rectangle a b = finiteMeet n (coordinateInterval a b) :=
+  \fun (a, b: Basis.Endpoints) => \axiom:setext(Basis.rectangle a b, finiteMeet n (coordinateInterval a b),
+    \fun (x: E.Point) (member: Sets.Member (Basis.rectangle a b) x) => finiteMeetIntro n (coordinateInterval a b) x member,
+    \fun (x: E.Point) (member: Sets.Member (finiteMeet n (coordinateInterval a b)) x) => finiteMeetMember n (coordinateInterval a b) x member);
+\definition basisMeasurable: \forall (j: N.Nat^) -> E.Caratheodory (Basis.basis j) :=
+  \fun (j: N.Nat^) => \idelim finiteMeet n (coordinateInterval (Basis.lower j) (Basis.upper j)) = Basis.basis j \with S: \Pow E.Point => E.Caratheodory S
+    \by { base: finiteMeetMeasurable n (coordinateInterval (Basis.lower j) (Basis.upper j))
+      (\fun (i: Fin.Fin n) => E.intersectionCaratheodory (above i (Arithmetic.ofRat (Basis.lower j i))) (below i (Arithmetic.ofRat (Basis.upper j i)))
+        (aboveMeasurable i (Arithmetic.ofRat (Basis.lower j i))) (belowMeasurable i (Arithmetic.ofRat (Basis.upper j i)))),
+      equality: sym!{{\Pow E.Point}} _ _ (rectangleAsMeet (Basis.lower j) (Basis.upper j)) };
+\definition selected[U: \Pow E.Point] [j: N.Nat^]: \Pow E.Point :=
+  { x: E.Point \where Logic.And[Sets.Subset (Basis.basis j) U, Sets.Member (Basis.basis j) x] };
+\definition selectedMeasurable: \forall (U: \Pow E.Point) (j: N.Nat^) -> E.Caratheodory (selected U j) :=
+  \fun (U: \Pow E.Point) (j: N.Nat^) => Logic.orElim (Sets.Subset (Basis.basis j) U) (Logic.Not (Sets.Subset (Basis.basis j) U)) (E.Caratheodory (selected U j))
+    (Classical.excludedMiddle (Sets.Subset (Basis.basis j) U))
+    (\fun (included: Sets.Subset (Basis.basis j) U) =>
+      \idelim Basis.basis j = selected U j \with S: \Pow E.Point => E.Caratheodory S
+        \by { base: basisMeasurable j, equality: \axiom:setext(Basis.basis j, selected U j,
+          \fun (x: E.Point) (member: Sets.Member (Basis.basis j) x) => Logic.And[_, _]::# included member,
+          \fun (x: E.Point) (member: Sets.Member (selected U j) x) => member.right) })
+    (\fun (outside: Logic.Not (Sets.Subset (Basis.basis j) U)) =>
+      \idelim Sets.Empty = selected U j \with S: \Pow E.Point => E.Caratheodory S
+        \by { base: E.emptyCaratheodory, equality: \axiom:setext(Sets.Empty, selected U j,
+          \fun (x: E.Point) (empty: Logic.False) => Logic.falseElim _ empty,
+          \fun (x: E.Point) (member: Sets.Member (selected U j) x) => outside member.left) });
+\definition openAsUnion: \forall (U: \Pow E.Point) -> Sets.IsOpenIn Topology.topology U -> Measure.union (selected U) = U :=
+  \fun (U: \Pow E.Point) (open: Sets.IsOpenIn Topology.topology U) => \axiom:setext(Measure.union (selected U), U,
+    \fun (x: E.Point) (member: Sets.Member (Measure.union (selected U)) x) => \block {
+      \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where Sets.Member (selected U j) x }) \by member \then
+      \let inside: Sets.Member (selected U j) x := \bysub(N.Nat^, { j: N.Nat^ \where Sets.Member (selected U j) x }, j) \then
+      \return inside.left x inside.right
+    },
+    \fun (x: E.Point) (inside: Sets.Member U x) => \block {
+      \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where Logic.And[Sets.Member (Basis.basis j) x, Sets.Subset (Basis.basis j) U] })
+        \by Basis.refines U open x inside \then
+      \let data: Logic.And[Sets.Member (Basis.basis j) x, Sets.Subset (Basis.basis j) U] :=
+        \bysub(N.Nat^, { j: N.Nat^ \where Logic.And[Sets.Member (Basis.basis j) x, Sets.Subset (Basis.basis j) U] }, j) \then
+      \return Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Sets.Member (selected U j) x }] j (Logic.And[_, _]::# data.right data.left)
+    });
+\definition openMeasurable: \forall (U: \Pow E.Point) -> Sets.IsOpenIn Topology.topology U -> E.Caratheodory U :=
+  \fun (U: \Pow E.Point) (open: Sets.IsOpenIn Topology.topology U) =>
+    \idelim Measure.union (selected U) = U \with S: \Pow E.Point => E.Caratheodory S
+      \by { base: E.CaratheodorySets[].unionCaratheodory (selected U) (selectedMeasurable U), equality: openAsUnion U open };
+\definition borelMeasurable: \forall (S: \Pow E.Point) -> Measure.Measurable E.Borel[].sigma S -> Measure.Measurable Construction.measure.sigma S :=
+  \fun (S: \Pow E.Point) (borel: Measure.Measurable E.Borel[].sigma S) =>
+    E.Borel[].smallest Construction.measure.sigma openMeasurable S borel;

@@ -1,0 +1,81 @@
+\use Equality.eq_reason_in;
+\import algebraic_topology.Cylinder[A := Cylinder.Carrier] \as Double;
+\import algebraic_topology.Cylinder[A := Carrier] \as ModelCylinder;
+\import algebraic_topology.Cylinder[A := Suspension.Carrier] \as SuspensionCylinder;
+\import algebraic_topology.Cylinder[A := B] \as TargetCylinder;
+\import topological_constructions.RelationQuotient[A := Cylinder.Carrier, relation := Quotient.Related].Families[
+  X := I.Carrier, C := Suspension.Carrier, factor := I.topology, source := Cylinder.topology source.topology, target := Suspension.topology, laws := Quotient.equivalence] \as Families;
+\definition inner[p: Double.Carrier]: ModelCylinder.Carrier := ModelCylinder.at (Double.time p) (nullFamily (Double.point p));
+\definition raw[p: Double.Carrier]: Suspension.Carrier := projection (Deformation.family (inner p));
+\definition projectionPoint: projection Next.point = Suspension.point := trans!{Suspension.Carrier} _ _ _ (onOriginal point) (Connecting.onTarget target.basepoint);
+\definition bottom: \forall (t: I.Carrier)(x: A) -> raw (Double.at t (Cylinder.at I.start x)) = Suspension.point :=
+  \fun (t: I.Carrier)(x: A) => eq_reason_in!{Suspension.Carrier {raw (Double.at t (Cylinder.at I.start x))}
+    "=" {projection (Deformation.family (ModelCylinder.at t (inclusion (f x))))} "by" {
+      congr!{Carrier Suspension.Carrier} (\fun (c: Carrier) => projection (Deformation.family (ModelCylinder.at t c))) _ _ (nullStart x) }
+    "=" {projection (Next.nullFamily (TargetCylinder.at t (f x)))} "by" { congr!{Next.Carrier Suspension.Carrier} projection _ _ (Deformation.onTarget t (f x)) }
+    "=" {Suspension.point} "by" { onSecondCone (SecondCone.class (TargetCylinder.at t (f x))) }
+  };
+\definition top: \forall (t: I.Carrier)(x: A) -> raw (Double.at t (Cylinder.at I.end x)) = Suspension.point :=
+  \fun (t: I.Carrier)(x: A) => trans!{Suspension.Carrier} _ _ _
+    (congr!{Carrier Suspension.Carrier} (\fun (c: Carrier) => projection (Deformation.family (ModelCylinder.at t c))) _ _ (nullEnd x))
+    (trans!{Suspension.Carrier} _ _ _ (congr!{Next.Carrier Suspension.Carrier} projection _ _ (Deformation.atPoint t)) projectionPoint);
+\definition line: \forall (t, u: I.Carrier) -> raw (Double.at t (Cylinder.at u source.basepoint)) = Suspension.point :=
+  \fun (t, u: I.Carrier) => trans!{Suspension.Carrier} _ _ _
+    (congr!{Carrier Suspension.Carrier} (\fun (c: Carrier) => projection (Deformation.family (ModelCylinder.at t c))) _ _ (nullAtBase u))
+    (trans!{Suspension.Carrier} _ _ _ (congr!{Next.Carrier Suspension.Carrier} projection _ _ (Deformation.atPoint t)) projectionPoint);
+\definition vanishes: \forall (t: I.Carrier)(p: Cylinder.Carrier) -> \In[Cylinder.Carrier] NativeSuspension.Collapsed p -> raw (Double.at t p) = Suspension.point :=
+  \fun (t: I.Carrier) => \induction (p: Cylinder.Carrier) \return \In[Cylinder.Carrier] NativeSuspension.Collapsed p -> raw (Double.at t p) = Suspension.point \with {
+    | pair: \fun (u: I.Carrier)(x: A)(inside: Logic.Or[u = I.start, Logic.Or[u = I.end, x = source.basepoint]]) =>
+      either!{inside {raw (Double.at t (Cylinder.at u x)) = Suspension.point}
+        {\fun (atBottom: u = I.start) => trans!{Suspension.Carrier} _ _ _ (congr!{I.Carrier Suspension.Carrier} (\fun (s: I.Carrier) => raw (Double.at t (Cylinder.at s x))) _ _ atBottom) (bottom t x)}
+        {\fun (other: Logic.Or[u = I.end, x = source.basepoint]) => either!{other {raw (Double.at t (Cylinder.at u x)) = Suspension.point}
+          {\fun (atTop: u = I.end) => trans!{Suspension.Carrier} _ _ _ (congr!{I.Carrier Suspension.Carrier} (\fun (s: I.Carrier) => raw (Double.at t (Cylinder.at s x))) _ _ atTop) (top t x)}
+          {\fun (atLine: x = source.basepoint) => trans!{Suspension.Carrier} _ _ _ (congr!{A Suspension.Carrier} (\fun (y: A) => raw (Double.at t (Cylinder.at u y))) _ _ atLine) (line t u)}
+        }}
+      }
+  };
+\definition respects: Families.Respects raw := \fun (t: I.Carrier)(p, q: Cylinder.Carrier)(related: Quotient.Related p q) =>
+  either!{related {raw (Double.at t p) = raw (Double.at t q)}
+    {\fun (same: p = q) => congr!{Cylinder.Carrier Suspension.Carrier} (\fun (r: Cylinder.Carrier) => raw (Double.at t r)) _ _ same}
+    {\fun (both: Logic.And[\In[Cylinder.Carrier] NativeSuspension.Collapsed p, \In[Cylinder.Carrier] NativeSuspension.Collapsed q]) =>
+      trans!{Suspension.Carrier} _ _ _ (vanishes t p both.left) (sym!{Suspension.Carrier} _ _ (vanishes t q both.right))}
+  };
+\import topological_constructions.Product[A := I.Carrier, B := Carrier].Universal[X := Double.Carrier] \as Product;
+\definition innerContinuous: topology.Continuity[A := Double.Carrier, B := ModelCylinder.Carrier].Continuous (Double.topology (Cylinder.topology source.topology)) (ModelCylinder.topology modelTopology) inner :=
+  Product.pairContinuous (Double.topology (Cylinder.topology source.topology)) I.topology modelTopology Double.time
+    (\fun (p: Double.Carrier) => nullFamily (Double.point p)) (Double.timeContinuous (Cylinder.topology source.topology))
+    (topology.Composition[A := Double.Carrier, B := Cylinder.Carrier, C := Carrier].composeContinuous
+      (Double.topology (Cylinder.topology source.topology)) (Cylinder.topology source.topology) modelTopology Double.point nullFamily
+      (Double.pointContinuous (Cylinder.topology source.topology)) nullContinuous);
+\definition rawContinuous: topology.Continuity[A := Double.Carrier, B := Suspension.Carrier].Continuous (Double.topology (Cylinder.topology source.topology)) Suspension.topology raw :=
+  topology.Composition[A := Double.Carrier, B := Next.Carrier, C := Suspension.Carrier].composeContinuous
+    (Double.topology (Cylinder.topology source.topology)) Next.topology Suspension.topology (\fun (p: Double.Carrier) => Deformation.family (inner p)) projection
+    (topology.Composition[A := Double.Carrier, B := ModelCylinder.Carrier, C := Next.Carrier].composeContinuous
+      (Double.topology (Cylinder.topology source.topology)) (ModelCylinder.topology modelTopology) Next.topology inner Deformation.family innerContinuous Deformation.continuous)
+    (algebraic_topology.Pointed[A := Next.Carrier].Maps[B := Suspension.Carrier].laws Next.pointed Suspension.pointed projectionMap).continuous;
+\definition family: SuspensionCylinder.Carrier -> Suspension.Carrier := Families.apply raw respects;
+\definition continuous: topology.Continuity[A := SuspensionCylinder.Carrier, B := Suspension.Carrier].Continuous (SuspensionCylinder.topology Suspension.topology) Suspension.topology family :=
+  Families.continuous I.compact I.hausdorff raw respects rawContinuous;
+\definition start: \forall (x: Suspension.Carrier) -> family (SuspensionCylinder.at I.start x) = x :=
+  Quotient.induction (\fun (x: Suspension.Carrier) => family (SuspensionCylinder.at I.start x) = x)
+    (\fun (p: Cylinder.Carrier) => eq_reason_in!{Suspension.Carrier {family (SuspensionCylinder.at I.start (Suspension.class p))}
+      "=" {raw (Double.at I.start p)} "by" { Families.onClass raw respects I.start p }
+      "=" {projection (Next.inclusion (nullFamily p))} "by" { congr!{Next.Carrier Suspension.Carrier} projection _ _ (Deformation.atStart (nullFamily p)) }
+      "=" {Connecting.apply (nullFamily p)} "by" { onOriginal (nullFamily p) }
+      "=" {Suspension.quotient (Cone.class p)} "by" { Connecting.onCone (Cone.class p) }
+      "=" {Suspension.class p} "by" { Suspension.onClass p }
+    });
+\definition end: \forall (x: Suspension.Carrier) -> family (SuspensionCylinder.at I.end x) = projection (section x) :=
+  Quotient.induction (\fun (x: Suspension.Carrier) => family (SuspensionCylinder.at I.end x) = projection (section x))
+    (\fun (p: Cylinder.Carrier) => trans!{Suspension.Carrier} _ _ _ (Families.onClass raw respects I.end p)
+      (congr!{Next.Carrier Suspension.Carrier} projection _ _ (sym!{Next.Carrier} _ _ (onClass p))));
+\definition atBase: \forall (t: I.Carrier) -> family (SuspensionCylinder.at t Suspension.point) = Suspension.point :=
+  \fun (t: I.Carrier) => trans!{Suspension.Carrier} _ _ _ (Families.onClass raw respects t (Cylinder.at I.start source.basepoint)) (bottom t source.basepoint);
+\import algebraic_topology.Homotopy[A := Suspension.Carrier, B := Suspension.Carrier] \as Native;
+\definition result: RightMaps.Homotopy[RightIdentity.map, rightComposite] := \into[Native.Family](family, RightMaps.Homotopy[RightIdentity.map, rightComposite]) \by {
+  Native.RelativeLaws[Suspension.topology, Suspension.topology, RightMaps.fixed, RightIdentity.map, rightComposite, family] {
+    homotopy := Native.Laws[Suspension.topology, Suspension.topology, RightIdentity.map, rightComposite, family] { continuous := continuous, start := start, end := end },
+    fixed := \fun (t: I.Carrier)(x: Suspension.Carrier)(same: x = Suspension.point) => \idelim Suspension.point = x
+      \with y: Suspension.Carrier => family (SuspensionCylinder.at t y) = y \by { base: atBase t, equality: sym!{Suspension.Carrier} _ _ same },
+  }
+};

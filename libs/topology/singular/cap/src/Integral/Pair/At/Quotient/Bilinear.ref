@@ -1,0 +1,37 @@
+\import Whole.Bilinear[] \as WholeBilinear;
+\import Whole.Zero[] \as WholeZero;
+\import Modules.Hom[V := SourceQ.Carrier, W := TargetQ.Carrier, source := SourceQ.space, target := TargetQ.space] \as Maps;
+\import Modules.Hom[V := WholeExtension.Carrier (I.Int^::ofNat p), W := TargetQ.Carrier, source := WholeExtension.space (I.Int^::ofNat p), target := TargetQ.space] \as ProjectionMaps;
+\import Modules.Laws[V := TargetQ.Carrier, space := TargetQ.space] \as TargetValues;
+\definition addition: \forall (beta, gamma: Cochains.Carrier q) -> map ((Cochains.space q).add beta gamma) = Maps.plus (map beta) (map gamma) :=
+  \fun (beta, gamma: Cochains.Carrier q) => Maps.ext _ _
+    (SourceQ.induction (\fun (x: SourceQ.Carrier) => (map ((Cochains.space q).add beta gamma)).apply x = (Maps.plus (map beta) (map gamma)).apply x)
+      (\fun (x: WholeExtension.Carrier (I.Int^::ofNat Whole.total)) => eq_reason_in!{TargetQ.Carrier _
+        "=" _ "by" { onClass ((Cochains.space q).add beta gamma) x }
+        "=" _ "by" { congr!{{WholeExtension.Carrier (I.Int^::ofNat p)} TargetQ.Carrier} TargetQ.class _ _
+          (congr!{{Chains.Carrier p} {WholeExtension.Carrier (I.Int^::ofNat p)}} TargetPositive.intro _ _
+            (congr!{{Modules.Hom[V := Chains.Carrier Whole.total, W := Chains.Carrier p, source := Chains.space Whole.total, target := Chains.space p].Map} {Chains.Carrier p}}
+              (\fun (f: Modules.Hom[V := Chains.Carrier Whole.total, W := Chains.Carrier p, source := Chains.space Whole.total, target := Chains.space p].Map) => (f).apply x) _ _ (WholeBilinear.addition beta gamma))) }
+        "=" _ "by" { (TargetQ.projection).addition (TargetPositive.intro ((Whole.map beta).apply x)) (TargetPositive.intro ((Whole.map gamma).apply x)) }
+        "=" _ "by" { congr!{TargetQ.Carrier TargetQ.Carrier TargetQ.Carrier} ((TargetQ.space).add) _ _ _ _ (sym!{TargetQ.Carrier} _ _ (onClass beta x)) (sym!{TargetQ.Carrier} _ _ (onClass gamma x)) }
+      }));
+\definition scalarValue: \forall (a: I.Int^)(beta: Cochains.Carrier q)(x: SourceQ.Carrier) ->
+  (map ((Cochains.space q).smul a beta)).apply x = (TargetQ.space).smul a ((map beta).apply x) :=
+  \fun (a: I.Int^)(beta: Cochains.Carrier q) => SourceQ.induction (\fun (x: SourceQ.Carrier) => (map ((Cochains.space q).smul a beta)).apply x = (TargetQ.space).smul a ((map beta).apply x))
+    (\fun (x: WholeExtension.Carrier (I.Int^::ofNat Whole.total)) => eq_reason_in!{TargetQ.Carrier _
+      "=" _ "by" { onClass ((Cochains.space q).smul a beta) x }
+      "=" _ "by" { congr!{{WholeExtension.Carrier (I.Int^::ofNat p)} TargetQ.Carrier} TargetQ.class _ _
+        (congr!{{Chains.Carrier p} {WholeExtension.Carrier (I.Int^::ofNat p)}} TargetPositive.intro _ _ (WholeBilinear.scalarValue a beta x)) }
+      "=" _ "by" { (TargetQ.projection).scalar a (TargetPositive.intro ((Whole.map beta).apply x)) }
+      "=" _ "by" { congr!{TargetQ.Carrier TargetQ.Carrier} ((TargetQ.space).smul a) _ _ (sym!{TargetQ.Carrier} _ _ (onClass beta x)) }
+    });
+\definition zero: map (Cochains.space q).zero = Maps.zeroMap := Maps.ext _ _
+  (SourceQ.induction (\fun (x: SourceQ.Carrier) => (map (Cochains.space q).zero).apply x = (TargetQ.space).zero)
+    (\fun (x: WholeExtension.Carrier (I.Int^::ofNat Whole.total)) => eq_reason_in!{TargetQ.Carrier _
+      "=" _ "by" { onClass (Cochains.space q).zero x }
+      "=" _ "by" { congr!{{WholeExtension.Carrier (I.Int^::ofNat p)} TargetQ.Carrier} TargetQ.class _ _
+        (congr!{{Chains.Carrier p} {WholeExtension.Carrier (I.Int^::ofNat p)}} TargetPositive.intro _ _
+          (congr!{{Modules.Hom[V := Chains.Carrier Whole.total, W := Chains.Carrier p, source := Chains.space Whole.total, target := Chains.space p].Map} {Chains.Carrier p}}
+            (\fun (f: Modules.Hom[V := Chains.Carrier Whole.total, W := Chains.Carrier p, source := Chains.space Whole.total, target := Chains.space p].Map) => (f).apply x) _ _ WholeZero.equation)) }
+      "=" _ "by" { ProjectionMaps.zeroPreserved TargetQ.projection }
+    }));

@@ -1,0 +1,18 @@
+\import \parent.Stage[k := N.Nat^::zero] \as Stage;
+\import Filtration.Stage[limit := N.Nat^::zero] \as Skeleton;
+\import algebraic_topology.Cylinder[A := Skeleton.Carrier] \as Cylinder;
+\import topology.Composition[A := Cylinder.Carrier, B := Skeleton.Carrier, C := A] \as Include;
+\import topology.Composition[A := Cylinder.Carrier, B := A, C := B] \as Compose;
+\definition family[p: Cylinder.Carrier]: B := problem.initial (Cylinder.point p);
+\definition impossible[x: Skeleton.Carrier]: Logic.False := \idelim Filtration.subset N.Nat^::zero = Space.Empty
+  \with S: \Pow A => \In[A] S x \by { base: \bysub(A, Filtration.subset N.Nat^::zero, x), equality: Filtration.empty };
+\definition result: Stage.Extension := \into[Cylinder.Carrier -> B](family, Stage.Extension) \by {
+  Stage.Laws[family] {
+    continuous := Compose.composeContinuous (Cylinder.topology Skeleton.topology) source target
+      (\fun (p: Cylinder.Carrier) => Skeleton.inclusion (Cylinder.point p)) problem.initial
+      (Include.composeContinuous (Cylinder.topology Skeleton.topology) Skeleton.topology source Cylinder.point Skeleton.inclusion
+        (Cylinder.pointContinuous Skeleton.topology) Skeleton.continuous) problemLaws.initialContinuous,
+    initial := \fun (x: Skeleton.Carrier) => \refl(problem.initial x),
+    agrees := \fun (t: I.Carrier)(x: Skeleton.Carrier)(inside: \In[A] subset x) => Logic.falseElim _ (impossible x),
+  }
+};

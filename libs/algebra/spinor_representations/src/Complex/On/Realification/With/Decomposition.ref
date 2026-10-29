@@ -1,0 +1,47 @@
+\import Algebra.Sign[] \as Sign;
+\import Algebra.Laws[V := Total.Carrier, space := Total.totalSpace] \as Vectors;
+\import algebra.Group[].Of[Carrier := Total.Carrier, group := std.Alg[].Ring[].ringModuleAsCommutativeGroup C.Complex Total.Carrier Algebra.ring Total.totalSpace] \as Sum;
+\import algebra.Groups[].Units[A := C.Complex, ring := Algebra.ring] \as ComplexUnits;
+\import C.Prop[] \as ComplexLaws;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition conjugateI: Def.conj Def.i = Def.neg Def.i := ComplexLaws.ext _ _ (sym!{R.Real} _ _ RealLaws.negZero) (\refl(R.neg R.one));
+\definition negativeITimesI: Algebra.mul (Algebra.neg Def.i) Def.i = Algebra.one := eq_reason_in!{C.Complex _
+  "=" _ "by" { sym!{C.Complex} _ _ (Sign.negativeProduct Def.i Def.i) }
+  "=" _ "by" { congr!{C.Complex C.Complex} Algebra.neg _ _ ComplexLaws.iSquared }
+  "=" _ "by" { Sign.doubleNegative Algebra.one }
+};
+\definition negativeISquare: Algebra.mul (Algebra.neg Def.i) (Algebra.neg Def.i) = Algebra.neg Algebra.one :=
+  trans!{C.Complex} _ _ _ (ComplexUnits.negNegMul Def.i Def.i) ComplexLaws.iSquared;
+\definition imaginaryAction: \forall (v: V)(f: Total.Carrier) ->
+  (cliffordOperator (space.smul Def.i v)).apply f = Total.totalSpace.add (Total.totalSpace.smul Def.i (Total.annihilate v f)) (Total.totalSpace.smul (Algebra.neg Def.i) (Total.createLeft (form v) f)) :=
+  \fun (v: V)(f: Total.Carrier) => eq_reason_in!{{Total.Carrier} _
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier} {Total.Carrier}} Total.totalSpace.add _ _ _ _
+      (Total.annihilateScale Def.i v f) (congr!{{Alternating.Form degree} {Total.Carrier}} (\fun (a: Alternating.Form degree) => Total.createLeft a f) _ _ (formScaleComplex Def.i v)) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.add (Total.totalSpace.smul Def.i (Total.annihilate v f))) _ _ (Total.createLeftScale (Def.conj Def.i) (form v) f) }
+    "=" _ "by" { congr!{C.Complex {Total.Carrier}} (\fun (a: C.Complex) => Total.totalSpace.add (Total.totalSpace.smul Def.i (Total.annihilate v f)) (Total.totalSpace.smul a (Total.createLeft (form v) f))) _ _ conjugateI }
+  };
+\definition minusImaginary: \forall (v: V)(f: Total.Carrier) -> Total.totalSpace.smul (Algebra.neg Def.i) ((cliffordOperator (space.smul Def.i v)).apply f) =
+  Total.totalSpace.add (Total.annihilate v f) (Total.totalSpace.neg (Total.createLeft (form v) f)) :=
+  \fun (v: V)(f: Total.Carrier) => eq_reason_in!{{Total.Carrier} _
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.smul (Algebra.neg Def.i)) _ _ (imaginaryAction v f) }
+    "=" _ "by" { Total.totalSpace.vectorAdd (Algebra.neg Def.i) (Total.totalSpace.smul Def.i (Total.annihilate v f)) (Total.totalSpace.smul (Algebra.neg Def.i) (Total.createLeft (form v) f)) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier} {Total.Carrier}} Total.totalSpace.add _ _ _ _
+      (sym!{{Total.Carrier}} _ _ (Total.totalSpace.scalarAssoc (Algebra.neg Def.i) Def.i (Total.annihilate v f)))
+      (sym!{{Total.Carrier}} _ _ (Total.totalSpace.scalarAssoc (Algebra.neg Def.i) (Algebra.neg Def.i) (Total.createLeft (form v) f))) }
+    "=" _ "by" { congr!{C.Complex C.Complex {Total.Carrier}} (\fun (a, b: C.Complex) => Total.totalSpace.add (Total.totalSpace.smul a (Total.annihilate v f)) (Total.totalSpace.smul b (Total.createLeft (form v) f))) _ _ _ _ negativeITimesI negativeISquare }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier} {Total.Carrier}} Total.totalSpace.add _ _ _ _
+      (Total.totalSpace.scalarOne (Total.annihilate v f)) (Vectors.minusOneScale (Total.createLeft (form v) f)) }
+  };
+\definition annihilation: \forall (v: V)(f: Total.Carrier) -> Total.annihilate v f = Total.totalSpace.smul half
+  (Total.totalSpace.add ((cliffordOperator v).apply f) (Total.totalSpace.smul (Algebra.neg Def.i) ((cliffordOperator (space.smul Def.i v)).apply f))) :=
+  \fun (v: V)(f: Total.Carrier) => sym!{{Total.Carrier}} _ _ (eq_reason_in!{{Total.Carrier} _
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} (\fun (u: Total.Carrier) => Total.totalSpace.smul half (Total.totalSpace.add ((cliffordOperator v).apply f) u)) _ _ (minusImaginary v f) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.smul half) _ _ (Vectors.shuffle (Total.annihilate v f) (Total.createLeft (form v) f) (Total.annihilate v f) (Total.totalSpace.neg (Total.createLeft (form v) f))) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.smul half) _ _
+      (trans!{{Total.Carrier}} _ _ _ (congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.add (Total.totalSpace.add (Total.annihilate v f) (Total.annihilate v f))) _ _ (Sum.inverseRight (Total.createLeft (form v) f)))
+        (Vectors.zeroRight (Total.totalSpace.add (Total.annihilate v f) (Total.annihilate v f)))) }
+    "=" _ "by" { Total.totalSpace.vectorAdd half (Total.annihilate v f) (Total.annihilate v f) }
+    "=" _ "by" { sym!{{Total.Carrier}} _ _ (Total.totalSpace.scalarAdd half half (Total.annihilate v f)) }
+    "=" _ "by" { congr!{C.Complex {Total.Carrier}} (\fun (a: C.Complex) => Total.totalSpace.smul a (Total.annihilate v f)) _ _ halfDouble }
+    "=" _ "by" { Total.totalSpace.scalarOne (Total.annihilate v f) }
+  });

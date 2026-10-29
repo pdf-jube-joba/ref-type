@@ -1,0 +1,22 @@
+\definition initial[x: X]: AmbientFamily.Point := AmbientFamily.include x v;
+\definition initialContinuous: topology.Continuity[A := X, B := AmbientFamily.Point].Continuous topology Ambient.topology initial :=
+  Complements.TrivialMaps[X := X, n := n, baseSpace := topology].Into[Y := X, source := topology].continuous (\fun (x: X) => x) (\fun (_: X) => v)
+    (topology.Maps[A := X, B := X].Identity[].continuous topology)
+    (topology.Maps[A := X, B := Bundles.Vector n].constantContinuous topology (Bundles.coordinateTopology n) v);
+\definition projected[x: X]: Family.Point := Project.total Retraction.project (initial x);
+\definition projectedContinuous: topology.Continuity[A := X, B := Family.Point].Continuous topology bundle.totalSpace projected :=
+  topology.Composition[A := X, B := AmbientFamily.Point, C := Family.Point].composeContinuous topology Ambient.topology bundle.totalSpace initial
+    (Project.total Retraction.project) initialContinuous (Project.continuous Retraction.project);
+\definition mapped[x: X]: Family.Point := OriginalMaps.total t (projected x);
+\definition mappedContinuous: topology.Continuity[A := X, B := Family.Point].Continuous topology bundle.totalSpace mapped :=
+  topology.Composition[A := X, B := Family.Point, C := Family.Point].composeContinuous topology bundle.totalSpace bundle.totalSpace projected (OriginalMaps.total t) projectedContinuous (OriginalMaps.continuous t);
+\definition included[x: X]: AmbientFamily.Point := Include.total embedding.map (mapped x);
+\definition includedContinuous: topology.Continuity[A := X, B := AmbientFamily.Point].Continuous topology Ambient.topology included :=
+  topology.Composition[A := X, B := Family.Point, C := AmbientFamily.Point].composeContinuous topology bundle.totalSpace Ambient.topology mapped (Include.total embedding.map) mappedContinuous (Include.continuous embedding.map);
+\definition vectorContinuous: topology.Continuity[A := X, B := Bundles.Vector n].Continuous topology (Bundles.coordinateTopology n) (\fun (x: X) => (encoded x).apply v) :=
+  topology.Composition[A := X, B := AmbientFamily.Point, C := Bundles.Vector n].composeContinuous topology Ambient.topology (Bundles.coordinateTopology n) included
+    (\fun (p: AmbientFamily.Point) => p.vector) includedContinuous Ambient.vectorContinuous;
+\definition continuous[i: Fin.Fin n]: topology.Continuity[A := X, B := K].Continuous topology scalar.topological.space (\fun (x: X) => (encoded x).apply v i) :=
+  topology.Composition[A := X, B := Bundles.Vector n, C := K].composeContinuous topology (Bundles.coordinateTopology n) scalar.topological.space
+    (\fun (x: X) => (encoded x).apply v) (\fun (w: Bundles.Vector n) => w i) vectorContinuous
+    (topological_algebra.Coordinates[K := K, I := Fin.Fin n].evaluationContinuous scalar.topological.space i);

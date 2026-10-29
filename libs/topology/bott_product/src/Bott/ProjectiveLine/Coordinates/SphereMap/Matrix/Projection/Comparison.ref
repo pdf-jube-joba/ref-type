@@ -1,0 +1,55 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\use Eq.eq_reason_in;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import R.Estimates[] \as Estimates;
+\import \root.Bott[].ProjectiveLine[].Coordinates[] \as Coordinates;
+\import Coordinates.SphereMap[] \as Map;
+\definition firstEntry: \forall (s: Sphere.Sphere) -> Coordinates.entry (backward s) first first = a s :=
+  \fun (s: Sphere.Sphere) => trans!{{C.Complex}} _ _ _ (entries s first first) (at00 s);
+\definition upperEntry: \forall (s: Sphere.Sphere) -> Coordinates.entry (backward s) first second = b s :=
+  \fun (s: Sphere.Sphere) => trans!{{C.Complex}} _ _ _ (entries s first second) (at01 s);
+\definition height: \forall (s: Sphere.Sphere) -> Coordinates.height (backward s) = t s := \fun (s: Sphere.Sphere) => eq_reason_in!{R.Real _
+  "=" _ "by" { congr!{{C.Complex} R.Real} (\fun (z: C.Complex) => R.sub (R.add (C.re z) (C.re z)) R.one) _ _ (firstEntry s) }
+  "=" _ "by" { congr!{R.Real R.Real} (\fun (v: R.Real) => R.sub v R.one) _ _ (Estimates.halfTwice (R.add R.one (t s))) }
+  "=" _ "by" { congr!{R.Real R.Real} (\fun (v: R.Real) => R.sub v R.one) _ _ (Laws.addComm R.one (t s)) }
+  "=" _ "by" { Laws.addNegCancelRight R.one (t s) }
+};
+\definition horizontal: \forall (s: Sphere.Sphere) -> Coordinates.horizontal (backward s) = x s := \fun (s: Sphere.Sphere) => eq_reason_in!{R.Real _
+  "=" _ "by" { congr!{{C.Complex} R.Real} (\fun (z: C.Complex) => R.add (C.re z) (C.re z)) _ _ (upperEntry s) }
+  "=" _ "by" { Estimates.halfTwice (x s) }
+};
+\definition vertical: \forall (s: Sphere.Sphere) -> Coordinates.vertical (backward s) = y s := \fun (s: Sphere.Sphere) => eq_reason_in!{R.Real _
+  "=" _ "by" { congr!{{C.Complex} R.Real} (\fun (z: C.Complex) => R.add (C.im z) (C.im z)) _ _ (upperEntry s) }
+  "=" _ "by" { Estimates.halfTwice (y s) }
+};
+\definition tailEqual: \forall (s: Sphere.Sphere) -> Coordinates.tail (backward s) = Split2.tail s := \fun (s: Sphere.Sphere) => Split1.ext _ _
+  (trans!{R.Real} _ _ _ (Split1.headJoin (Coordinates.horizontal (backward s)) (\fun (_: D1.Index) => Coordinates.vertical (backward s))) (horizontal s))
+  (trans!{D1.Coordinate} _ _ _ (Split1.tailJoin (Coordinates.horizontal (backward s)) (\fun (_: D1.Index) => Coordinates.vertical (backward s)))
+    (\axiom:funext((\fun (_: D1.Index) => Coordinates.vertical (backward s)), Split1.tail (Split2.tail s), \fun (i: D1.Index) => trans!{R.Real} _ _ _ (vertical s)
+      (congr!{D1.Index R.Real} (Split1.tail (Split2.tail s)) _ _ (sym!{D1.Index} _ _ (Fin.singletonValue i))))));
+\definition rightInverse: \forall (s: Sphere.Sphere) -> Map.forward (backward s) = s := \fun (s: Sphere.Sphere) => Split2.ext _ _
+  (trans!{R.Real} _ _ _ (Split2.headJoin (Coordinates.height (backward s)) (Coordinates.tail (backward s))) (height s))
+  (trans!{D2.Coordinate} _ _ _ (Split2.tailJoin (Coordinates.height (backward s)) (Coordinates.tail (backward s))) (tailEqual s));
+\definition leftInverse: \forall (p: Carrier) -> backward (Map.forward p) = p := \fun (p: Carrier) => Map.Injective[].injective _ _ (rightInverse (Map.forward p));
+\import topological_constructions.Quotient[A := Carrier, B := Sphere.Sphere] \as Quotient;
+\definition onto: Quotient.Surjective Map.forward := \fun (s: Sphere.Sphere) =>
+  std.Logic[].Proposition[].existsIntro[Carrier, { p: Carrier \where Map.forward p = s }] (backward s) (rightInverse s);
+\import topological_constructions.CompactQuotient[A := Carrier, B := Sphere.Sphere, source := topology, target := Sphere.sphereTopology, q := Map.forward] \as Compact;
+\definition quotient: Quotient.IsQuotientMap[topology, Sphere.sphereTopology, Map.forward] :=
+  Compact.quotientMap Projective.compact Compactness.sphereHausdorff Map.continuous onto;
+\import topology.Continuity[A := Carrier, B := Carrier] \as SelfMaps;
+\import topology.Continuity[A := Sphere.Sphere, B := Carrier] \as BackMaps;
+\definition backwardContinuous: BackMaps.Continuous Sphere.sphereTopology topology backward := \fun (U: \Pow Carrier)(open: _) =>
+  quotient.reflectsOpen (BackMaps.Preimage backward U)
+    (\idelim (\fun (p: Carrier) => p) = (\fun (p: Carrier) => backward (Map.forward p))
+      \with f: (Carrier -> Carrier) => topology.Topology[Carrier := Carrier].IsOpenIn topology (SelfMaps.Preimage f U) \by {
+        base: topology.Maps[A := Carrier, B := Carrier].Identity[].continuous topology U open, equality: \axiom:funext((\fun (p: Carrier) => p), (\fun (p: Carrier) => backward (Map.forward p)), \fun (p: Carrier) => sym!{Carrier} _ _ (leftInverse p))
+      });
+\definition homeomorphism: topology.Homeomorphism[A := Carrier, B := Sphere.Sphere].Homeomorphism[topology, Sphere.sphereTopology] :=
+  topology.Homeomorphism[A := Carrier, B := Sphere.Sphere].Homeomorphism[topology, Sphere.sphereTopology] {
+    forward := Map.forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := Map.continuous, backwardContinuous := backwardContinuous
+  };

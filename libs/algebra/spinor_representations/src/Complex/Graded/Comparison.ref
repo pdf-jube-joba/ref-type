@@ -1,0 +1,66 @@
+\import Algebra.DirectSum[V := V, W := W, left := left, right := right] \as Sum;
+\import linear_algebra.Hermitian[].Complex[] \as Hermitian;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := Field.field, scalar := Hermitian.scalar].Inner[V := Sum.Carrier, space := Sum.space] \as Inner;
+\import Algebra.Laws[V := C.Complex, space := Algebra.scalarSpace] \as ScalarLaws;
+\definition form: Inner.Form := Inner.Form {
+  dot := \fun (x, y: Sum.Carrier) => Algebra.add (h.dot (Sum.first x) (Sum.first y)) (j.dot (Sum.second x) (Sum.second y)),
+  symmetric := \fun (x, y: Sum.Carrier) => trans!{C.Complex} _ _ _
+    (congr!{C.Complex C.Complex C.Complex} Algebra.add _ _ _ _ (h.symmetric (Sum.first x) (Sum.first y)) (j.symmetric (Sum.second x) (Sum.second y)))
+    (sym!{C.Complex} _ _ (Hermitian.scalar.conjugateAdd (h.dot (Sum.first y) (Sum.first x)) (j.dot (Sum.second y) (Sum.second x)))),
+  zeroRight := \fun (x: Sum.Carrier) => trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex C.Complex} Algebra.add _ _ _ _ (h.zeroRight (Sum.first x)) (j.zeroRight (Sum.second x))) (Algebra.addZeroLeft Algebra.zero),
+  addRight := \fun (x, y, z: Sum.Carrier) => trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex C.Complex} Algebra.add _ _ _ _ (h.addRight (Sum.first x) (Sum.first y) (Sum.first z)) (j.addRight (Sum.second x) (Sum.second y) (Sum.second z))) (ScalarLaws.shuffle _ _ _ _),
+  scaleRight := \fun (a: C.Complex)(x, y: Sum.Carrier) => trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex C.Complex} Algebra.add _ _ _ _ (h.scaleRight a (Sum.first x) (Sum.first y)) (j.scaleRight a (Sum.second x) (Sum.second y))) (sym!{C.Complex} _ _ (Algebra.mulAdd a (h.dot (Sum.first x) (Sum.first y)) (j.dot (Sum.second x) (Sum.second y)))),
+};
+\import \root.Complex[].On[V := Sum.Carrier, space := Sum.space].Realification[].With[h := form] \as Metric;
+\import \root.Over[K := C.Complex, scalarRing := ring].Direct[V := V, W := W, left := left, right := right] \as Direct;
+\import Direct.Total[] \as DirectTotal;
+\import DirectTotal.Contraction[] \as Contract;
+\import DirectTotal.Creation[] \as Creation;
+\import Algebra.Multilinear[V := Sum.Carrier, space := Sum.space].Alternating[] \as Forms;
+\import Forms.At[k := std.Data[].Nat[].Nat^::succ std.Data[].Nat[].Nat^::zero] \as One;
+\import Algebra.Multilinear[V := Sum.Carrier, space := Sum.space] \as Multi;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import Forms.Precomposition[W := V, target := left] \as PullLeft;
+\import Forms.Precomposition[W := W, target := right] \as PullRight;
+\definition covector: \forall (x: Sum.Carrier) -> Metric.form x = One.plus
+  (PullLeft.precompose (N.Nat^::succ N.Nat^::zero) Direct.leftProjection (LMetric.form (Sum.first x)))
+  (PullRight.precompose (N.Nat^::succ N.Nat^::zero) Direct.rightProjection (RMetric.form (Sum.second x))) :=
+  \fun (x: Sum.Carrier) => One.ext (Metric.form x) (One.plus
+    (PullLeft.precompose (N.Nat^::succ N.Nat^::zero) Direct.leftProjection (LMetric.form (Sum.first x)))
+    (PullRight.precompose (N.Nat^::succ N.Nat^::zero) Direct.rightProjection (RMetric.form (Sum.second x))))
+    (\fun (args: Multi.Arguments (N.Nat^::succ N.Nat^::zero)) => \refl(form.dot x (args Metric.head)));
+\import \root.Over[K := C.Complex, scalarRing := ring].On[V := Sum.Carrier, space := Sum.space].Total[] \as ResultTotal;
+\import Algebra.Laws[V := ResultTotal.Carrier, space := ResultTotal.totalSpace] \as ResultLaws;
+\import \root.Over[K := C.Complex, scalarRing := ring].TensorOperators[V := L.Carrier, W := RTotal.Carrier, left := L.totalSpace, right := RTotal.totalSpace] \as Operators;
+\import Operators.Ext[U := ResultTotal.Carrier, target := ResultTotal.totalSpace] \as TensorExt;
+\import Algebra.Linear[V := Product.Carrier, W := ResultTotal.Carrier, source := Product.space, target := ResultTotal.totalSpace].Composition[U := Product.Carrier, domain := Product.space] \as Before;
+\import Algebra.Linear[V := ResultTotal.Carrier, W := ResultTotal.Carrier, source := ResultTotal.totalSpace, target := ResultTotal.totalSpace].Composition[U := Product.Carrier, domain := Product.space] \as After;
+\definition pure: \forall (x: Sum.Carrier)(f: L.Carrier)(g: RTotal.Carrier) ->
+  (Metric.cliffordOperator x).apply (DirectTotal.comparison.apply (Product.tensor f g)) = DirectTotal.comparison.apply ((clifford (Sum.first x) (Sum.second x)).apply (Product.tensor f g)) :=
+  \fun (x: Sum.Carrier)(f: L.Carrier)(g: RTotal.Carrier) => \block {
+    \let alpha: Forms.Form (N.Nat^::succ N.Nat^::zero) := PullLeft.precompose (N.Nat^::succ N.Nat^::zero) Direct.leftProjection (LMetric.form (Sum.first x)) \then
+    \let beta: Forms.Form (N.Nat^::succ N.Nat^::zero) := PullRight.precompose (N.Nat^::succ N.Nat^::zero) Direct.rightProjection (RMetric.form (Sum.second x)) \then
+    \let input: ResultTotal.Carrier := DirectTotal.comparison.apply (Product.tensor f g) \then
+    \let a: ResultTotal.Carrier := DirectTotal.comparison.apply (Product.tensor (L.annihilate (Sum.first x) f) g) \then
+    \let b: ResultTotal.Carrier := DirectTotal.comparison.apply (Product.tensor (L.parity f) (RTotal.annihilate (Sum.second x) g)) \then
+    \let c: ResultTotal.Carrier := DirectTotal.comparison.apply (Product.tensor (L.createLeft (LMetric.form (Sum.first x)) f) g) \then
+    \let d: ResultTotal.Carrier := DirectTotal.comparison.apply (Product.tensor (L.parity f) (RTotal.createLeft (RMetric.form (Sum.second x)) g)) \then
+    \return eq_reason_in!{{ResultTotal.Carrier} _
+      "=" _ "by" { congr!{{Forms.Form (N.Nat^::succ N.Nat^::zero)} {ResultTotal.Carrier}} (\fun (t: Forms.Form (N.Nat^::succ N.Nat^::zero)) => ResultTotal.totalSpace.add (ResultTotal.annihilate x input) (ResultTotal.createLeft t input)) _ _ (covector x) }
+      "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} (ResultTotal.totalSpace.add (ResultTotal.annihilate x input)) _ _ (ResultTotal.createLeftAddition alpha beta input) }
+      "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier} {ResultTotal.Carrier}} ResultTotal.totalSpace.add _ _ _ _ (Contract.onPure x f g)
+        (congr!{{ResultTotal.Carrier} {ResultTotal.Carrier} {ResultTotal.Carrier}} ResultTotal.totalSpace.add _ _ _ _ (Creation.leftPure (LMetric.form (Sum.first x)) f g) (Creation.rightPure (RMetric.form (Sum.second x)) f g)) }
+      "=" _ "by" { ResultLaws.shuffle a b c d }
+      "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier} {ResultTotal.Carrier}} ResultTotal.totalSpace.add _ _ _ _
+        (sym!{{ResultTotal.Carrier}} _ _ (trans!{{ResultTotal.Carrier}} _ _ _ (congr!{{Product.Carrier} {ResultTotal.Carrier}} DirectTotal.comparison.apply _ _ (Product.bilinear.addLeft (L.annihilate (Sum.first x) f) (L.createLeft (LMetric.form (Sum.first x)) f) g)) (DirectTotal.comparison.preservesAdd (Product.tensor (L.annihilate (Sum.first x) f) g) (Product.tensor (L.createLeft (LMetric.form (Sum.first x)) f) g))))
+        (sym!{{ResultTotal.Carrier}} _ _ (trans!{{ResultTotal.Carrier}} _ _ _ (congr!{{Product.Carrier} {ResultTotal.Carrier}} DirectTotal.comparison.apply _ _ (Product.bilinear.addRight (L.parity f) (RTotal.annihilate (Sum.second x) g) (RTotal.createLeft (RMetric.form (Sum.second x)) g))) (DirectTotal.comparison.preservesAdd (Product.tensor (L.parity f) (RTotal.annihilate (Sum.second x) g)) (Product.tensor (L.parity f) (RTotal.createLeft (RMetric.form (Sum.second x)) g))))) }
+      "=" _ "by" { sym!{{ResultTotal.Carrier}} _ _ (DirectTotal.comparison.preservesAdd (Product.tensor ((LMetric.cliffordOperator (Sum.first x)).apply f) g) (Product.tensor (L.parity f) ((RMetric.cliffordOperator (Sum.second x)).apply g))) }
+      "=" _ "by" { congr!{{Product.Carrier} {ResultTotal.Carrier}} DirectTotal.comparison.apply _ _ (congr!{{Product.Carrier} {Product.Carrier} {Product.Carrier}} Product.space.add _ _ _ _
+        (sym!{{Product.Carrier}} _ _ (Operators.onTensor (LMetric.cliffordOperator (Sum.first x)) RIdentity.identity f g))
+        (sym!{{Product.Carrier}} _ _ (Operators.onTensor L.grading (RMetric.cliffordOperator (Sum.second x)) f g))) }
+    }
+  };
+\definition intertwines: \forall (x: Sum.Carrier) -> After.compose (Metric.cliffordOperator x) DirectTotal.comparison = Before.compose DirectTotal.comparison (clifford (Sum.first x) (Sum.second x)) :=
+  \fun (x: Sum.Carrier) => TensorExt.ext _ _ (pure x);
+\module Algebra;

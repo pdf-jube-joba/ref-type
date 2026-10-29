@@ -1,0 +1,20 @@
+\import std.Data[].Nat[].Basic[].Prop[] \as NatLaws;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\import Algebra.Laws[V := Carrier, space := totalSpace] \as TotalLaws;
+\import \root.Over[K := K, scalarRing := scalarRing].On[V := V, space := space].Total[].Finite[n := n, b := b] \as FiniteTotal;
+\definition Bounded[m: N.Nat^][f: Carrier]: \Prop := \forall (l: N.Nat^) -> NatLaws.Le m l -> f l = Alternating.At[k := l].origin;
+\definition Property[m: N.Nat^]: \Prop := \forall (s: Subspaces.Subspace) -> \In[Carrier] s.carrier Vacuum.state -> Stable s -> \forall (f: Carrier) -> Bounded m f -> \In[Carrier] s.carrier f;
+\definition zero: Property N.Nat^::zero := \fun (s: Subspaces.Subspace)(vac: \In[Carrier] s.carrier Vacuum.state)(stable: Stable s)(f: Carrier)(bounded: Bounded N.Nat^::zero f) =>
+  \idelim totalSpace.zero = f \with x: Carrier => \In[Carrier] s.carrier x \by {
+    base: s.containsZero,
+    equality: sym!{Carrier} _ _ (\axiom:funext(f, totalSpace.zero, \fun (l: N.Nat^) => bounded l (NatLaws.zeroLe l)))
+  };
+\module Step(k: N.Nat^);
+\definition all: \forall (m: N.Nat^) -> Property m := \induction (m: N.Nat^) \return Property m \with {
+  | zero: zero
+  | succ: \fun (m: N.Nat^)(previous: Property m) => Step[k := m].law previous
+};
+\definition cyclic: \forall (s: Subspaces.Subspace) -> \In[Carrier] s.carrier Vacuum.state -> Stable s -> \forall (f: Carrier) -> \In[Carrier] s.carrier f :=
+  \fun (s: Subspaces.Subspace)(vac: \In[Carrier] s.carrier Vacuum.state)(stable: Stable s)(f: Carrier) => all (N.Nat^::succ n) s vac stable f
+    (\fun (l: N.Nat^)(large: NatLaws.Le (N.Nat^::succ n) l) => FiniteTotal.zeroAbove f l (NatLaws.ltOfSuccLe l n large));

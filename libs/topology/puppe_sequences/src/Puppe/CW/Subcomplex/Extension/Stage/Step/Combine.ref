@@ -1,0 +1,85 @@
+\use Equality.eq_reason_in;
+\import \root.Puppe[].CW[A := A, source := source, complex := complex].Assembly[k := N.Nat^::succ k, B := B, target := target] \as Assembly;
+\import \root.Puppe[].CW[A := A, source := source, complex := complex].ChartInteriors[k := N.Nat^::succ k] \as Interiors;
+\import singular_cellular_algebra.Algebra[].Refinement[A := A, S := Filtration.subset k] \as Refinement;
+\definition chart[p: ChartCylinder.Carrier]: Charts.Carrier := ChartCylinder.point p;
+\definition value[p: ChartCylinder.Carrier]: B := extensions (chart p).index
+  (Pair.pair I.Carrier (Euclidean.Disk (chart p).index.dimension) (ChartCylinder.time p) (chart p).point);
+\definition localLaws[c: Charts.Index]: \parent.Cell[cell := c, member := Charts.member c, bound := bound c].GoodLaws[extensions c] :=
+  \parent.Cell[cell := c, member := Charts.member c, bound := bound c].goodLaws (extensions c);
+\definition interior[c: Charts.Carrier]: Logic.Not (\In[A] (Filtration.subset k) (Charts.map c)) -> Interiors.Interior c :=
+  \fun (outside: _) => Order.ltOfLeNotEq (Euclidean.normSquaredAt c.index.dimension c.point) Real.one
+    (\bysub(Euclidean.coordinateCarrier c.index.dimension, Euclidean.closedBallAt c.index.dimension, c.point))
+    (\fun (boundary: _) => outside (\parent.Cell[cell := c.index, member := Charts.member c.index, bound := bound c.index].boundaryImage
+      (\into[Euclidean.Disk c.index.dimension](c.point, { x: Euclidean.Disk c.index.dimension \where Euclidean.normSquaredAt c.index.dimension x = Real.one }) \by { boundary })));
+\definition compatible: Assembly.Compatible value := \block {
+  \fun (p, q: ChartCylinder.Carrier)(same: Assembly.lift p = Assembly.lift q) \then
+  \let times: ChartCylinder.time p = ChartCylinder.time q := congr!{UpperCylinder.Carrier I.Carrier} UpperCylinder.time _ _ same \then
+  \let images: Charts.map (chart p) = Charts.map (chart q) := congr!{UpperCylinder.Carrier Upper.Carrier} UpperCylinder.point _ _ same \then
+  \let ambient: (chart p).index.characteristic (chart p).point = (chart q).index.characteristic (chart q).point := congr!{Upper.Carrier A} Upper.inclusion _ _ images \then
+  \return either!{{Classical.excludedMiddle (\In[A] (Filtration.subset k) (Charts.map (chart p)))} {value p = value q}
+    {\block {
+      \fun (lower: _) \then
+      \let otherLower: \In[A] (Filtration.subset k) (Charts.map (chart q)) := \idelim Charts.map (chart p) = Charts.map (chart q)
+        \with x: A => \In[A] (Filtration.subset k) x \by { base: lower, equality: ambient } \then
+      \let left: Skeleton.Carrier := \into[A](Charts.map (chart p), Filtration.subset k) \by { lower } \then
+      \let right: Skeleton.Carrier := \into[A](Charts.map (chart q), Filtration.subset k) \by { otherLower } \then
+      \return eq_reason_in!{B {value p}
+        "=" {h (Cylinder.at (ChartCylinder.time p) left)} "by" { (localLaws (chart p).index).onLower (ChartCylinder.time p) (chart p).point lower }
+        "=" {h (Cylinder.at (ChartCylinder.time q) right)} "by" { congr!{Cylinder.Carrier B} h _ _
+          (congr!{I.Carrier Skeleton.Carrier Cylinder.Carrier} Cylinder.at _ _ _ _ times (Refinement.ext left right ambient)) }
+        "=" {value q} "by" { sym!{B} _ _ ((localLaws (chart q).index).onLower (ChartCylinder.time q) (chart q).point otherLower) }
+      }
+    }}
+    {\block {
+      \fun (outside: _) \then
+      \let otherOutside: Logic.Not (\In[A] (Filtration.subset k) (Charts.map (chart q))) := \fun (lower: _) => outside
+        (\idelim Charts.map (chart q) = Charts.map (chart p) \with x: A => \In[A] (Filtration.subset k) x \by { base: lower, equality: sym!{A} _ _ ambient }) \then
+      \let chartsEqual: chart p = chart q := Interiors.injective (chart p) (chart q) (interior (chart p) outside) (interior (chart q) otherOutside) images \then
+      \let equal: p = q := trans!{ChartCylinder.Carrier} _ _ _
+        (sym!{ChartCylinder.Carrier} _ _ (Pair.Prop[A := I.Carrier, B := Charts.Carrier].eta p))
+        (trans!{ChartCylinder.Carrier} _ _ _ (congr!{I.Carrier Charts.Carrier ChartCylinder.Carrier} ChartCylinder.at _ _ _ _ times chartsEqual)
+          (Pair.Prop[A := I.Carrier, B := Charts.Carrier].eta q)) \then
+      \return congr!{ChartCylinder.Carrier B} value p q equal
+    }}
+  }
+};
+\definition apply: UpperCylinder.Carrier -> B := Assembly.apply value compatible;
+\definition original[c: Charts.Index]: Pair.Times^[I.Carrier, Euclidean.Disk c.dimension] -> B := extensions c;
+\definition continuous: topology.Continuity[A := UpperCylinder.Carrier, B := B].Continuous (UpperCylinder.topology Upper.topology) target apply :=
+  Assembly.continuous value compatible (\fun (c: Charts.Index) =>
+    \idelim original c = (\fun (p: Pair.Times^[I.Carrier, Euclidean.Disk c.dimension]) =>
+      value (ChartCylinder.at (Pair.first I.Carrier (Euclidean.Disk c.dimension) p) (Disks.injection c (Pair.second I.Carrier (Euclidean.Disk c.dimension) p))))
+      \with f: (Pair.Times^[I.Carrier, Euclidean.Disk c.dimension] -> B) =>
+        topology.Continuity[A := Pair.Times^[I.Carrier, Euclidean.Disk c.dimension], B := B].Continuous
+          (algebraic_topology.Cylinder[A := Euclidean.Disk c.dimension].topology (Euclidean.Dimension[n := c.dimension].diskTopology)) target f \by {
+        base: (localLaws c).continuous,
+        equality: \axiom:funext(original c, (\fun (p: Pair.Times^[I.Carrier, Euclidean.Disk c.dimension]) =>
+          value (ChartCylinder.at (Pair.first I.Carrier (Euclidean.Disk c.dimension) p) (Disks.injection c (Pair.second I.Carrier (Euclidean.Disk c.dimension) p)))),
+          \fun (p: Pair.Times^[I.Carrier, Euclidean.Disk c.dimension]) => congr!{{Pair.Times^[I.Carrier, Euclidean.Disk c.dimension]} B} (extensions c) _ _
+            (sym!{{Pair.Times^[I.Carrier, Euclidean.Disk c.dimension]}} _ _ (Pair.Prop[A := I.Carrier, B := Euclidean.Disk c.dimension].eta p)))
+      });
+
+\definition initial: \forall (x: Upper.Carrier) -> apply (UpperCylinder.at I.start x) = problem.initial x := \block {
+  \fun (x: Upper.Carrier) \then
+  \takefrom c: \Cast[Charts.Carrier] ({ c: Charts.Carrier \where Charts.map c = x }) \by Charts.onto x \then
+  \return \idelim Charts.map c = x \with y: Upper.Carrier => apply (UpperCylinder.at I.start y) = problem.initial y \by {
+    base: trans!{B} _ _ _ (Assembly.onChart value compatible (ChartCylinder.at I.start c)) ((localLaws c.index).initial c.point),
+    equality: \bysub(Charts.Carrier, { c: Charts.Carrier \where Charts.map c = x }, c)
+  }
+};
+\definition agrees: \forall (t: I.Carrier)(x: Upper.Carrier)(inside: \In[A] subset x) ->
+  apply (UpperCylinder.at t x) = problem.family (SubCylinder.at t (\into[A](x, subset) \by { inside })) := \block {
+  \fun (t: I.Carrier)(x: Upper.Carrier) \then
+  \takefrom c: \Cast[Charts.Carrier] ({ c: Charts.Carrier \where Charts.map c = x }) \by Charts.onto x \then
+  \return \idelim Charts.map c = x \with y: Upper.Carrier => \forall (inside: \In[A] subset y) ->
+    apply (UpperCylinder.at t y) = problem.family (SubCylinder.at t (\into[A](y, subset) \by { inside })) \by {
+      base: \fun (inside: \In[A] subset (Charts.map c)) => trans!{B} _ _ _
+        (Assembly.onChart value compatible (ChartCylinder.at t c)) ((localLaws c.index).onSubset t c.point inside),
+      equality: \bysub(Charts.Carrier, { c: Charts.Carrier \where Charts.map c = x }, c)
+    }
+};
+\import \parent.\parent.\parent.Stage[k := N.Nat^::succ k] \as Next;
+\definition result: Next.Extension := \into[UpperCylinder.Carrier -> B](apply, Next.Extension) \by {
+  Next.Laws[apply] { continuous := continuous, initial := initial, agrees := agrees }
+};

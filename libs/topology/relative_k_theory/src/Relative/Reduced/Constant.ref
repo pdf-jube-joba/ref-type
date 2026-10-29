@@ -1,0 +1,33 @@
+\import KTheory.FiniteDiscrete[n := KTheory.one] \as Finite;
+\definition point: Fin.Fin KTheory.one := Fin.zero KTheory.zero;
+\definition pointModel: CompactPointed := pack (Fin.Fin KTheory.one) (PointedDetails[Fin.Fin KTheory.one] {
+  topology := topology.Topology[Carrier := Fin.Fin KTheory.one].Discrete, compact := Finite.compact, hausdorff := Finite.hausdorff, point := point
+});
+\import algebraic_topology.Pointed[A := model.Carrier].Maps[B := (Fin.Fin KTheory.one)] \as ToPoint;
+\definition toPoint: Map model pointModel := \into[model.Carrier -> Fin.Fin KTheory.one]((\fun (x: model.Carrier) => point), Map model pointModel) \by {
+  ToPoint.Laws[pointed model, pointed pointModel, (\fun (x: model.Carrier) => point)] {
+    continuous := topology.Maps[A := model.Carrier, B := (Fin.Fin KTheory.one)].constantContinuous (details model).topology (details pointModel).topology point,
+    pointed := \refl(point)
+  }
+};
+\import algebraic_topology.Pointed[A := (Fin.Fin KTheory.one)].Maps[B := model.Carrier] \as FromPoint;
+\definition fromPoint: Map pointModel model := \into[Fin.Fin KTheory.one -> model.Carrier]((\fun (x: Fin.Fin KTheory.one) => (details model).point), Map pointModel model) \by {
+  FromPoint.Laws[pointed pointModel, pointed model, (\fun (x: Fin.Fin KTheory.one) => (details model).point)] {
+    continuous := topology.Maps[A := (Fin.Fin KTheory.one), B := model.Carrier].constantContinuous (details pointModel).topology (details model).topology (details model).point,
+    pointed := \refl((details model).point)
+  }
+};
+\import \parent.\parent.Composition[source := model, middle := pointModel, target := model, first := toPoint, second := fromPoint] \as Composition;
+\definition map: Map model model := Composition.map;
+\import \parent.\parent.Pullback[source := model, target := model, f := map] \as Pull;
+\import \parent.\parent.Pullback[source := pointModel, target := model, f := fromPoint] \as Restrict;
+\import \parent.\parent.Pullback[source := model, target := pointModel, f := toPoint] \as Extend;
+\import \parent.\parent.PullbackComposition[source := model, middle := pointModel, target := model, first := toPoint, second := fromPoint] \as Factorization;
+\import algebra.Group[].Of[Carrier := Carrier, group := group] \as Group;
+\import \parent.\parent.Reduced[model := pointModel] \as PointReduced;
+\import algebra.Group[].Of[Carrier := PointReduced.Carrier, group := PointReduced.group] \as PointGroup;
+\definition pointZero: \forall (v: PointReduced.Carrier) -> v = PointGroup.zero := \fun (v: PointReduced.Carrier) => KTheory.Point[].reducedZero v;
+\definition zero: \forall (v: Carrier) -> Pull.map v = Group.zero := \fun (v: Carrier) => trans!{{Carrier}} _ _ _ (Factorization.equation v)
+  (trans!{{Carrier}} _ _ _ (congr!{{\parent.\parent.Reduced[model := pointModel].Carrier} {Carrier}} Extend.map _ _ (pointZero (Restrict.map v))) Extend.preservesZero);
+\import \parent.\parent.Identity[model := model] \as Identity;
+\module Contractible(homotopy: algebraic_topology.Homotopy[A := model.Carrier, B := model.Carrier].Homotopy[(details model).topology, (details model).topology, Identity.map, map]);

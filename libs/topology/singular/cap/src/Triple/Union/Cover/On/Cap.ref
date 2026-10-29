@@ -1,0 +1,73 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\use std.Logic[].Proposition[].either;
+\import \root.Integral[A := A, source := source].At[p := p, q := q] \as Whole;
+\import FirstCap.At[p := p, q := q].RelativeCochain[] \as FirstAction;
+\import SecondCap.At[p := p, q := q].Quotient[] \as SecondAction;
+\import SecondCap.Degree[] \as SecondDegree;
+\import FirstPair.Comparison[n := q] \as FirstComparison;
+\import \parent.ToSmall[n := Whole.total] \as SmallDegree;
+\import SmallDegree.Part[S := first] \as FirstPart;
+\import SmallDegree.Part[S := second] \as SecondPart;
+\import Small.Simplices[] \as SmallSimplices;
+\import algebraic_topology.Simplex[] \as Simplex;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import Nonnegative.ZeroExtension[C := Small.complex] \as SmallExtension;
+\import Nonnegative.ZeroExtension[C := Chains.complex] \as WholeExtension;
+\import Nonnegative.Map[C := Small.complex, D := Chains.complex].ZeroExtension[f := inclusion] \as SmallInclusion;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as IntegerChains;
+\import IntegerChains.Quotient[C := SmallExtension.complex, D := WholeExtension.complex].On[f := SmallInclusion.map].At[k := I.Int^::ofNat Whole.total] \as Q;
+\import IntegerChains.Map[C := SmallExtension.complex, D := WholeExtension.complex].At[k := I.Int^::ofNat Whole.total] \as InclusionAt;
+\import Modules.Of[V := WholeExtension.Carrier (I.Int^::ofNat Whole.total), space := WholeExtension.space (I.Int^::ofNat Whole.total)].Submodule[] \as Submodules;
+\import Submodules.Quotient[S := Q.image].To[W := SecondDegree.Carrier p, target := SecondDegree.space p] \as Descent;
+\import Submodules.Image[U := SmallExtension.Carrier (I.Int^::ofNat Whole.total), source := SmallExtension.space (I.Int^::ofNat Whole.total)] \as Images;
+\import Modules.Hom[V := Chains.Carrier p, W := SecondDegree.Carrier p, source := Chains.space p, target := SecondDegree.space p] \as Projection;
+\import Modules.Hom[V := Small.Carrier Whole.total, W := SecondDegree.Carrier p, source := Small.space Whole.total, target := SecondDegree.space p] \as SmallMaps;
+\import Modules.Free[Generators := SmallSimplices.Carrier Whole.total].To[W := SecondDegree.Carrier p, target := SecondDegree.space p] \as Free;
+\definition firstZero: \forall (beta: FirstCochains.Carrier (I.Int^::ofNat q))(sigma: SmallSimplices.Carrier Whole.total)
+  (inside: \forall (x: Simplex.Carrier Whole.total) -> \In[A] first (sigma x)) ->
+  (SecondAction.raw (FirstComparison.from beta)).apply (WholeExtension.Positive[n := Whole.total].intro ((inclusion).apply Whole.total (Small.generator Whole.total sigma))) = (SecondDegree.space p).zero :=
+  \fun (beta: FirstCochains.Carrier (I.Int^::ofNat q))(sigma: SmallSimplices.Carrier Whole.total)(inside: _) => trans!{{SecondDegree.Carrier p}} _ _ _
+    (congr!{{Chains.Carrier p} {SecondDegree.Carrier p}} (SecondDegree.class p) _ _
+      (FirstAction.vanishes (FirstComparison.from beta) (WholeExtension.Positive[n := Whole.total].intro ((inclusion).apply Whole.total (Small.generator Whole.total sigma))) (FirstPart.image sigma inside)))
+    (Projection.zeroPreserved (SecondDegree.projection p));
+\definition secondZero: \forall (beta: FirstCochains.Carrier (I.Int^::ofNat q))(sigma: SmallSimplices.Carrier Whole.total)
+  (inside: \forall (x: Simplex.Carrier Whole.total) -> \In[A] second (sigma x)) ->
+  (SecondAction.raw (FirstComparison.from beta)).apply (WholeExtension.Positive[n := Whole.total].intro ((inclusion).apply Whole.total (Small.generator Whole.total sigma))) = (SecondDegree.space p).zero :=
+  \fun (beta: FirstCochains.Carrier (I.Int^::ofNat q))(sigma: SmallSimplices.Carrier Whole.total)(inside: _) =>
+    SecondAction.vanishes (FirstComparison.from beta) (WholeExtension.Positive[n := Whole.total].intro ((inclusion).apply Whole.total (Small.generator Whole.total sigma))) (SecondPart.image sigma inside);
+\definition killed: \forall (beta: FirstCochains.Carrier (I.Int^::ofNat q))(sigma: SmallSimplices.Carrier Whole.total) ->
+  (SecondAction.raw (FirstComparison.from beta)).apply (WholeExtension.Positive[n := Whole.total].intro ((inclusion).apply Whole.total (Small.generator Whole.total sigma))) = (SecondDegree.space p).zero := \block {
+  \fun (beta: FirstCochains.Carrier (I.Int^::ofNat q))(sigma: SmallSimplices.Carrier Whole.total) \then
+  \takefrom witness: SmallSimplices.Witness[Whole.total, sigma] \by SmallSimplices.witness Whole.total sigma \then
+  \return either!{{(witness).member} {(SecondAction.raw (FirstComparison.from beta)).apply (WholeExtension.Positive[n := Whole.total].intro ((inclusion).apply Whole.total (Small.generator Whole.total sigma))) = (SecondDegree.space p).zero}
+    {\fun (same: (witness).element = Covered.left) => firstZero beta sigma
+      (\idelim (witness).element = Covered.left \with U: \Pow Relative.SubspaceCarrier => \forall (x: Simplex.Carrier Whole.total) -> \In[Relative.SubspaceCarrier] U (sigma x) \by { base: (witness).contained, equality: same })}
+    {\fun (same: (witness).element = Covered.right) => secondZero beta sigma
+      (\idelim (witness).element = Covered.right \with U: \Pow Relative.SubspaceCarrier => \forall (x: Simplex.Carrier Whole.total) -> \In[Relative.SubspaceCarrier] U (sigma x) \by { base: (witness).contained, equality: same })}
+  }
+};
+\definition smallMap[beta: FirstCochains.Carrier (I.Int^::ofNat q)]: SmallMaps.Map := SmallMaps.Map {
+  apply := \fun (x: Small.Carrier Whole.total) => (SecondAction.raw (FirstComparison.from beta)).apply (WholeExtension.Positive[n := Whole.total].intro ((inclusion).apply Whole.total x)),
+  addition := \fun (x, y: Small.Carrier Whole.total) => trans!{{SecondDegree.Carrier p}} _ _ _
+    (congr!{{Chains.Carrier Whole.total} {SecondDegree.Carrier p}} (\fun (v: Chains.Carrier Whole.total) => (SecondAction.raw (FirstComparison.from beta)).apply (WholeExtension.Positive[n := Whole.total].intro v)) _ _ ((inclusion).addition Whole.total x y))
+    ((SecondAction.raw (FirstComparison.from beta)).addition (WholeExtension.Positive[n := Whole.total].intro ((inclusion).apply Whole.total x)) (WholeExtension.Positive[n := Whole.total].intro ((inclusion).apply Whole.total y))),
+  scalar := \fun (a: I.Int^)(x: Small.Carrier Whole.total) => trans!{{SecondDegree.Carrier p}} _ _ _
+    (congr!{{Chains.Carrier Whole.total} {SecondDegree.Carrier p}} (\fun (v: Chains.Carrier Whole.total) => (SecondAction.raw (FirstComparison.from beta)).apply (WholeExtension.Positive[n := Whole.total].intro v)) _ _ ((inclusion).scalar Whole.total a x))
+    ((SecondAction.raw (FirstComparison.from beta)).scalar a (WholeExtension.Positive[n := Whole.total].intro ((inclusion).apply Whole.total x))),
+};
+\definition vanishes: \forall (beta: FirstCochains.Carrier (I.Int^::ofNat q)) -> Descent.Vanishes (SecondAction.raw (FirstComparison.from beta)) :=
+  \fun (beta: FirstCochains.Carrier (I.Int^::ofNat q))(y: WholeExtension.Carrier (I.Int^::ofNat Whole.total))(member: Submodules.Member Q.image y) =>
+    Images.eliminate (InclusionAt.linear SmallInclusion.map) y ((SecondAction.raw (FirstComparison.from beta)).apply y = (SecondDegree.space p).zero)
+      (\fun (x: SmallExtension.Carrier (I.Int^::ofNat Whole.total))(same: (SmallInclusion.map).apply (I.Int^::ofNat Whole.total) x = y) => trans!{{SecondDegree.Carrier p}} _ _ _
+        (congr!{{WholeExtension.Carrier (I.Int^::ofNat Whole.total)} {SecondDegree.Carrier p}} ((SecondAction.raw (FirstComparison.from beta)).apply) _ _ (sym!{{WholeExtension.Carrier (I.Int^::ofNat Whole.total)}} _ _ same))
+        (congr!{SmallMaps.Map {SecondDegree.Carrier p}} (\fun (f: SmallMaps.Map) => f.apply x) _ _ (Free.ext (smallMap beta) SmallMaps.zeroMap (killed beta)))) member;
+\definition map[beta: FirstCochains.Carrier (I.Int^::ofNat q)]: Modules.Hom[V := Q.Carrier, W := SecondDegree.Carrier p, source := Q.space, target := SecondDegree.space p].Map :=
+  Descent.descend (SecondAction.raw (FirstComparison.from beta)) (vanishes beta);
+\definition onClass: \forall (beta: FirstCochains.Carrier (I.Int^::ofNat q))(x: WholeExtension.Carrier (I.Int^::ofNat Whole.total)) ->
+  (map beta).apply (Q.class x) = (SecondAction.raw (FirstComparison.from beta)).apply x :=
+  \fun (beta: FirstCochains.Carrier (I.Int^::ofNat q)) => Descent.onClass (SecondAction.raw (FirstComparison.from beta)) (vanishes beta);
+\module Bilinear;

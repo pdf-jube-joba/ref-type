@@ -1,0 +1,63 @@
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].eq_reason_in;
+\import std.Data[].List[] \as Lists;
+\import Algebra.Shuffle[I := V] \as Shuffle;
+\import Shuffle.Boundary[].OneCovector[] \as Covector;
+\import Shuffle.Alternation[] \as Alternation;
+\import Algebra.Multilinear[V := V, space := space].ListSeries[k := N.Nat^::succ N.Nat^::zero] \as OneSeries;
+\definition singleton[x: V]: Lists.List[V] := Lists.List[V]::cons x Lists.List[V]::nil;
+\definition evaluate[alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero)][x: V]: K := Exterior.component (N.Nat^::succ N.Nat^::zero) alpha (singleton x);
+\definition normal: \forall (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero)) ->
+  Exterior.component (N.Nat^::succ N.Nat^::zero) alpha = Covector.value (evaluate alpha) :=
+  \fun (alpha: _) => Covector.normalForm (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) (OneSeries.outside alpha);
+\definition seriesLaw: \forall (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(g: Shuffle.Function)(x: V)(xs: Lists.List[V]) ->
+  Shuffle.product (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) g (Lists.List[V]::cons x xs) =
+  Algebra.add (Algebra.mul (evaluate alpha x) (g xs)) (Algebra.neg (Shuffle.product (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) (Shuffle.shift x g) xs)) :=
+  \fun (alpha: _)(g: Shuffle.Function)(x: V)(xs: Lists.List[V]) => eq_reason_in!{K _
+    "=" _ "by" { Shuffle.atCons x xs (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) g }
+    "=" _ "by" { congr!{K K K} Algebra.add _ _ _ _
+      (trans!{K} _ _ _
+        (congr!{{Shuffle.Function} K} (\fun (a: Shuffle.Function) => Shuffle.product (Shuffle.shift x a) g xs) _ _ (normal alpha))
+        (Covector.leftProduct (evaluate alpha) g x xs))
+      (trans!{K} _ _ _
+        (congr!{{Shuffle.Function} K} (\fun (a: Shuffle.Function) => Shuffle.product (Shuffle.twist a) (Shuffle.shift x g) xs) _ _ (normal alpha))
+        (trans!{K} _ _ _
+          (congr!{{Shuffle.Function} K} (\fun (a: Shuffle.Function) => Shuffle.product a (Shuffle.shift x g) xs) _ _ (Covector.twisted (evaluate alpha)))
+          (trans!{K} _ _ _ (Alternation.productNegativeLeft (Covector.value (evaluate alpha)) (Shuffle.shift x g) xs)
+            (congr!{K K} Algebra.neg _ _ (congr!{{Shuffle.Function} K} (\fun (a: Shuffle.Function) => Shuffle.product a (Shuffle.shift x g) xs) _ _ (sym!{{Shuffle.Function}} _ _ (normal alpha))))))) }
+  };
+\import \parent.\parent.LeftCreation[k := N.Nat^::succ k] \as HigherCreation;
+\import \parent.\parent.Contraction[k := k] \as Contract;
+\import \parent.\parent.Contraction[k := N.Nat^::succ k] \as HigherContract;
+\import Exterior.Components[k := N.Nat^::succ k] \as Components;
+\import Exterior.SeriesShift[k := N.Nat^::succ k] \as Shift;
+\import Exterior.Degrees[p := N.Nat^::succ N.Nat^::zero, q := N.Nat^::succ k] \as HigherWedge;
+\import Exterior.Regrade[k := Nat.add (N.Nat^::succ N.Nat^::zero) (N.Nat^::succ k), l := N.Nat^::succ (N.Nat^::succ k)] \as HigherRegrade;
+\definition law: \forall (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Alternating.Form (N.Nat^::succ k))(x: V) ->
+  (HigherContract.operator x).apply (HigherCreation.apply alpha f) = Target.vectorSpace.add
+    (Target.vectorSpace.smul (evaluate alpha x) f) (Target.vectorSpace.neg (apply alpha ((Contract.operator x).apply f))) :=
+  \fun (alpha: _)(f: _)(x: V) => Components.ext ((HigherContract.operator x).apply (HigherCreation.apply alpha f)) (Target.vectorSpace.add (Target.vectorSpace.smul (evaluate alpha x) f) (Target.vectorSpace.neg (apply alpha ((Contract.operator x).apply f)))) (\axiom:funext(Exterior.component (N.Nat^::succ k) ((HigherContract.operator x).apply (HigherCreation.apply alpha f)), Exterior.component (N.Nat^::succ k) (Target.vectorSpace.add (Target.vectorSpace.smul (evaluate alpha x) f) (Target.vectorSpace.neg (apply alpha ((Contract.operator x).apply f)))), \fun (xs: Lists.List[V]) => eq_reason_in!{K _
+    "=" _ "by" { sym!{K} _ _ (Shift.atCons (HigherCreation.apply alpha f) x xs) }
+    "=" _ "by" { congr!{{Shuffle.Function} K} (\fun (h: Shuffle.Function) => h (Lists.List[V]::cons x xs)) _ _ (HigherRegrade.series (HigherWedge.wedge alpha f) HigherCreation.degree) }
+    "=" _ "by" { congr!{{Shuffle.Function} K} (\fun (h: Shuffle.Function) => h (Lists.List[V]::cons x xs)) _ _ (HigherWedge.componentWedge alpha f) }
+    "=" _ "by" { seriesLaw alpha (Exterior.component (N.Nat^::succ k) f) x xs }
+    "=" _ "by" { congr!{K K K} Algebra.add _ _ _ _
+      (sym!{K} _ _ (Components.scalar (evaluate alpha x) f xs))
+      (congr!{K K} Algebra.neg _ _ (sym!{K} _ _ (trans!{K} _ _ _
+        (congr!{{Shuffle.Function} K} (\fun (h: Shuffle.Function) => h xs) _ _ (Regrade.series (Wedge.wedge alpha ((Contract.operator x).apply f)) degree))
+        (trans!{K} _ _ _
+          (congr!{{Shuffle.Function} K} (\fun (h: Shuffle.Function) => h xs) _ _ (Wedge.componentWedge alpha ((Contract.operator x).apply f)))
+          (Shuffle.Laws[].congruent _ _ _ _ (\fun (ys: Lists.List[V]) => \refl(Exterior.component (N.Nat^::succ N.Nat^::zero) alpha ys)) (\fun (ys: _) => sym!{K} _ _ (Exterior.SeriesShift[k := k].atCons f x ys)) xs))))) }
+    "=" _ "by" { sym!{K} _ _ (congr!{K K} (Algebra.add (Exterior.component (N.Nat^::succ k) (Target.vectorSpace.smul (evaluate alpha x) f) xs)) _ _ (Components.negative (apply alpha ((Contract.operator x).apply f)) xs)) }
+    "=" _ "by" { sym!{K} _ _ (Components.addition (Target.vectorSpace.smul (evaluate alpha x) f) (Target.vectorSpace.neg (apply alpha ((Contract.operator x).apply f))) xs) }
+  }));
+\import Algebra.Laws[V := Alternating.Form (N.Nat^::succ k), space := Target.vectorSpace] \as FormLaws;
+\definition sumLaw: \forall (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Alternating.Form (N.Nat^::succ k))(x: V) ->
+  Target.vectorSpace.add ((HigherContract.operator x).apply (HigherCreation.apply alpha f)) (apply alpha ((Contract.operator x).apply f)) =
+  Target.vectorSpace.smul (evaluate alpha x) f :=
+  \fun (alpha: _)(f: _)(x: V) => eq_reason_in!{{Alternating.Form (N.Nat^::succ k)} _
+    "=" _ "by" { congr!{{Alternating.Form (N.Nat^::succ k)} {Alternating.Form (N.Nat^::succ k)}} (\fun (u: _) => Target.vectorSpace.add u (apply alpha ((Contract.operator x).apply f))) _ _ (law alpha f x) }
+    "=" _ "by" { FormLaws.assoc (Target.vectorSpace.smul (evaluate alpha x) f) (Target.vectorSpace.neg (apply alpha ((Contract.operator x).apply f))) (apply alpha ((Contract.operator x).apply f)) }
+    "=" _ "by" { congr!{{Alternating.Form (N.Nat^::succ k)} {Alternating.Form (N.Nat^::succ k)}} (Target.vectorSpace.add (Target.vectorSpace.smul (evaluate alpha x) f)) _ _ (FormLaws.inverseLeft (apply alpha ((Contract.operator x).apply f))) }
+    "=" _ "by" { FormLaws.zeroRight (Target.vectorSpace.smul (evaluate alpha x) f) }
+  };

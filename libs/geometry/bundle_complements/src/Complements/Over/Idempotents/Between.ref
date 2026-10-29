@@ -1,0 +1,19 @@
+\import Spaces.Linear[V := Vector n, W := Vector n, source := coordinates n, target := coordinates n] \as End;
+\import End.Operations[] \as Operations;
+\import End.Composition[U := Vector n, domain := coordinates n] \as Compose;
+\import Spaces.Laws[V := Vector n, space := coordinates n] \as Laws;
+\import \parent.With[P := P] \as Source;
+\import \parent.With[P := Q] \as Target;
+\definition h: End.Map := Operations.plus (Compose.compose Q.map P.map) (Compose.compose Target.complement.map Source.complement.map);
+\definition left: \forall (v: Vector n) -> Q.map.apply (h.apply v) = Q.map.apply (P.map.apply v) :=
+  \fun (v: Vector n) => trans!{{Vector n}} _ _ _ (Q.map.preservesAdd (Q.map.apply (P.map.apply v)) (Target.complement.map.apply (Source.complement.map.apply v)))
+    (trans!{{Vector n}} _ _ _ (congr!{{Vector n} {Vector n} {Vector n}} (coordinates n).add _ _ _ _
+      (Q.idempotent (P.map.apply v)) (Target.annihilates (Source.complement.map.apply v))) (Laws.zeroRight (Q.map.apply (P.map.apply v))));
+\definition right: \forall (v: Vector n) -> h.apply (P.map.apply v) = Q.map.apply (P.map.apply v) :=
+  \fun (v: Vector n) => trans!{{Vector n}} _ _ _
+    (congr!{{Vector n} {Vector n} {Vector n}} (coordinates n).add _ _ _ _
+      (congr!{{Vector n} {Vector n}} Q.map.apply _ _ (P.idempotent v))
+      (trans!{{Vector n}} _ _ _ (congr!{{Vector n} {Vector n}} Target.complement.map.apply _ _ (Source.annihilatesRight v)) Target.complement.map.preservesZero))
+    (Laws.zeroRight (Q.map.apply (P.map.apply v)));
+\definition intertwines: \forall (v: Vector n) -> Q.map.apply (h.apply v) = h.apply (P.map.apply v) :=
+  \fun (v: Vector n) => trans!{{Vector n}} _ _ _ (left v) (sym!{{Vector n}} _ _ (right v));

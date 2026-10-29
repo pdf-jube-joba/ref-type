@@ -1,0 +1,35 @@
+\import Projection.Extend[P := P, x := x] \as Extend;
+\import Extend.Nonzero[different := different] \as Nonzero;
+\import Hilbert.Geometry[] \as Geometry;
+\import Hilbert.Estimates[] \as InnerEstimates;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := linear_algebra.Hermitian[].Complex[].scalar] \as Hermitian;
+\import Hermitian.Inner[V := V, space := space].Of[h := Geometry.form] \as Facts;
+\import Facts.Normalize[v := Extend.residual, positive := Facts.positiveNorm Geometry.positive Extend.residual (Extend.residualNonzero different)] \as Normalized;
+\import real.Analysis[].SquareRoot[] \as Root;
+\import std.Logic[].Equality[] \as E;
+\use E.eq_reason_in;
+\definition u: V := Normalized.value;
+\definition normOne: norm.realNorm.norm u = R.one := Root.squaresInjective (norm.realNorm.norm u) R.one
+  (norm.realNorm.nonnegative u) Laws.oneNonnegative
+  (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (complete.normSquared u))
+    (trans!{R.Real} _ _ _ (congr!{C.Complex R.Real} C.re _ _ Normalized.unitNorm) (sym!{R.Real} _ _ (Laws.fieldMulOneLeft R.one))));
+\definition inBall: \In[V] EndCompact.UnitBall u := Order.leReplaceLeft R.one (norm.realNorm.norm u) R.one (sym!{R.Real} _ _ normOne) (Order.leRefl R.one);
+\definition orthogonal: \forall (z: V) -> P.map.apply z = z -> inner.inner u z = D.zero :=
+  \fun (z: V)(fixed: P.map.apply z = z) => trans!{C.Complex} _ _ _
+    (congr!{V C.Complex} (inner.inner u) _ _ (sym!{V} _ _ fixed)) (Nonzero.dotZero z);
+\definition distanceAtLeastOne: \forall (z: V) -> P.map.apply z = z -> Order.Le R.one ((RealNormed.metric norm.realNorm).distance z u) := \block {
+  \fun (z: V)(fixed: P.map.apply z = z) \then
+  \let scalar: inner.inner u (RealNormed.sub u z) = D.one := eq_reason_in!{C.Complex _
+    "=" _ "by" { Geometry.differenceRight u u z }
+    "=" _ "by" { congr!{C.Complex C.Complex C.Complex} D.sub _ _ _ _ Normalized.unitNorm (orthogonal z fixed) }
+    "=" _ "by" { complex.Complex[].Prop[].ext (D.sub D.one D.zero) D.one (Laws.subZeroRight R.one) (Laws.subZeroRight R.zero) }
+  } \then
+  \let bound: Order.Le (Product.abs (C.re (inner.inner u (RealNormed.sub u z))))
+    (R.mul (norm.realNorm.norm u) (norm.realNorm.norm (RealNormed.sub u z))) := InnerEstimates.cauchySchwarz complete u (RealNormed.sub u z) \then
+  \let left: Product.abs (C.re (inner.inner u (RealNormed.sub u z))) = R.one := trans!{R.Real} _ _ _
+    (congr!{C.Complex R.Real} (\fun (a: C.Complex) => Product.abs (C.re a)) _ _ scalar) (Product.absOfNonnegative R.one Laws.oneNonnegative) \then
+  \let right: R.mul (norm.realNorm.norm u) (norm.realNorm.norm (RealNormed.sub u z)) = ((RealNormed.metric norm.realNorm).distance z u) :=
+    trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (a: R.Real) => R.mul a (norm.realNorm.norm (RealNormed.sub u z))) _ _ normOne)
+      (trans!{R.Real} _ _ _ (Laws.fieldMulOneLeft _) ((RealNormed.metric norm.realNorm).symmetric u z)) \then
+  \return Order.leReplace _ _ _ _ left right bound
+};

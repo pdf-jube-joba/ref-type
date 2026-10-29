@@ -88,21 +88,22 @@ flowchart TD
 - [A01 測度積分の収束定理](a01-measure-convergence.md)
 - [A19 複素 Hilbert 空間とコンパクト作用素](a19-complex-hilbert.md)
 - [B05 有限 Grassmannian と普遍束](b05-grassmannians.md)
-- [B09 閉部分空間からの束の延長](b09-bundle-extension.md)
 - [C01 cap 積と相対積](c01-cap-products.md)
 - [G01 滑らかな bump 関数と従属分割](g01-smooth-partitions.md)
-- [K02 CW cofibration と Puppe 列](k02-cofibration-puppe.md)
 - [G02 逆関数・陰関数と正則値の局所形](g02-inverse-implicit.md)
 - [L04 対称多項式と特性級数](l04-symmetric-series.md)
 
 L01 の行列式・逆行列、L02 の多項式分解、L03 の Hermitian 行列・局所枠が利用可能になり、G02 に着手できる。
-B03 の計量・補束と同型類の集合が利用可能になり、B05・B09 に着手できる。
+B03 の計量・補束と同型類の集合が利用可能になり、B05 に着手できる。
+B09 の [bundle_extension](../../libs/geometry/bundle_extension/README.md) は実・複素の Tietze、束・写像・同型の近傍延長、縮小比較と安定化を公開し、K03 で再利用できる。
 K06 の連続なスペクトル分離は B04 の束比較の基盤となり、B04 の clutching と合わせて K07 で再利用できる。
 K01 の Grothendieck 環・安定判定・反変引き戻しは K03・K07 で再利用する。
 K04 の実・複素 Stone–Weierstrass、Laurent 近似と行列・束の一様評価も K07 で利用できる。
 K07 の [clutching_linearization](../../libs/topology/clutching_linearization/README.md) は、選択に依存しないスペクトル逆クラス、自然性・直和・基本積の相互逆を公開し、K08 で利用できる。
+K02 の [puppe_sequences](../../libs/topology/puppe_sequences/README.md) は、有限 CW 対の cofibration、自然な Puppe 列と反変 Hom の完全性を公開し、K03・B08・C02・T02 で利用できる。
+K03 の [relative_k_theory](../../libs/topology/relative_k_theory/README.md) は、相対三つ組と被約群の比較、負次数の完全列、切除、Mayer–Vietoris、自然な外積と束の円板・球面対を公開し、K08 で利用できる。
 B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進められる。
-空いた担当には C01・K02・L04・A19 を割り当て、長い解析の経路を早めに進める。
+空いた担当には C01・L04・A19 を割り当て、長い解析の経路を早めに進める。
 各節の番号は識別子で、実装順は依存リストから決まる。
 
 ## 完了した単位
@@ -119,13 +120,16 @@ B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進め�
 | B03 束の計量・補束と集合による表示 | [bundle_complements](../../libs/geometry/bundle_complements/README.md) |
 | K06 連続なスペクトル分離 | [spectral_splitting](../../libs/algebra/spectral_splitting/README.md) |
 | B04 束のホモトピー不変性と clutching | [bundle_homotopy](../../libs/geometry/bundle_homotopy/README.md) |
+| B09 閉部分空間からの束の延長 | [bundle_extension](../../libs/geometry/bundle_extension/README.md) |
 | K01 束の Grothendieck 環 | [topological_k_theory](../../libs/topology/k_theory/README.md) |
 | K04 Stone–Weierstrass と Laurent 近似 | [uniform_approximation](../../libs/analysis/uniform_approximation/README.md) |
 | K07 clutching の安定線形化 | [clutching_linearization](../../libs/topology/clutching_linearization/README.md) |
+| K02 CW cofibration と Puppe 列 | [puppe_sequences](../../libs/topology/puppe_sequences/README.md) |
+| K03 相対 K 群と負次数の完全列 | [relative_k_theory](../../libs/topology/relative_k_theory/README.md) |
 
 ## タスク一覧
 
-未完了79件、概算合計413千行。
+未完了77件、概算合計402千行。
 
 ### 線形代数と特性級数
 
@@ -145,7 +149,6 @@ B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進め�
 | [B06 束の分類写像と安定化](b06-bundle-classification.md) | 5 |
 | [B07 滑らかな束と既存の接束・法束との接続](b07-smooth-bundles.md) | 5 |
 | [B08 Grassmannian のセル分解](b08-grassmannian-cells.md) | 6 |
-| [B09 閉部分空間からの束の延長](b09-bundle-extension.md) | 5 |
 
 ### 特性類
 
@@ -168,12 +171,10 @@ B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進め�
 
 ### 位相的 K 理論
 
-7件、概算38千行。
+5件、概算27千行。
 
 | タスク | 概算（千行） |
 | --- | ---: |
-| [K02 CW cofibration と Puppe 列](k02-cofibration-puppe.md) | 5 |
-| [K03 相対 K 群と負次数の完全列](k03-relative-k.md) | 6 |
 | [K08 Bott の基本積定理](k08-bott-product.md) | 5 |
 | [K09 Bott 周期性と整数次数](k09-bott-periodicity.md) | 5 |
 | [K10 コンパクト台付き K 理論とシンボルの表示](k10-compact-support-k.md) | 6 |

@@ -1,0 +1,64 @@
+\import RegionBase.Subspace[S := left] \as LeftBase;
+\definition LeftPoint: \Set := LeftBase.CarrierSet;
+\definition leftSpace: topology.Topology[Carrier := LeftPoint].Topology := LeftBase.topology regionSpace;
+\definition toRegion[z: LeftPoint]: RegionPoint := z;
+\definition toRegionContinuous: topology.Continuity[A := LeftPoint, B := RegionPoint].Continuous leftSpace regionSpace toRegion :=
+  topology.Continuity[A := LeftPoint, B := RegionPoint].Corestriction[S := left].inclusionContinuous regionSpace;
+\definition toBoundary[z: LeftPoint]: Boundary.Carrier := \into[Cylinder.Carrier](z, Boundary.subsetCylinder) \by { \bysub(RegionPoint, left, z) };
+\definition toCylinder[z: LeftPoint]: Cylinder.Carrier := z;
+\definition toCylinderContinuous: topology.Continuity[A := LeftPoint, B := Cylinder.Carrier].Continuous leftSpace (Cylinder.topology space) toCylinder :=
+  topology.Composition[A := LeftPoint, B := RegionPoint, C := Cylinder.Carrier].composeContinuous leftSpace regionSpace (Cylinder.topology space) toRegion inclusion toRegionContinuous inclusionContinuous;
+\definition toBoundaryContinuous: topology.Continuity[A := LeftPoint, B := Boundary.Carrier].Continuous leftSpace Boundary.topology toBoundary :=
+  topology.Continuity[A := LeftPoint, B := Cylinder.Carrier].Corestriction[S := Boundary.subsetCylinder].corestrictContinuous leftSpace (Cylinder.topology space) toBoundary toCylinderContinuous;
+\import Bundles.Family[X := Cylinder.Carrier, F := CylinderFiber].Of[bundle := cylinderBundle].PullbackComposition[
+  Y := RegionPoint, Z := LeftPoint, first := regionSpace, second := leftSpace, f := inclusion, g := toRegion].Of[
+  fRegular := inclusionContinuous, gRegular := toRegionContinuous] \as RegionComparison;
+\import Bundles.Family[X := Cylinder.Carrier, F := CylinderFiber].Of[bundle := cylinderBundle].PullbackComposition[
+  Y := Boundary.Carrier, Z := LeftPoint, first := Boundary.topology, second := leftSpace, f := Boundary.inclusion, g := toBoundary].Of[
+  fRegular := Boundary.inclusionContinuous, gRegular := toBoundaryContinuous] \as BoundaryComparison;
+\import Complements.PulledIsomorphism[X := Boundary.Carrier, Y := LeftPoint,
+  F := (\fun (z: Boundary.Carrier) => CylinderFiber z), G := (\fun (z: Boundary.Carrier) => CylinderFiber z), source := BoundaryPull.restricted, target := BoundaryPull.restricted,
+  base := leftSpace, f := toBoundary, sourceRegular := toBoundaryContinuous, targetRegular := toBoundaryContinuous] \as PathPull;
+\import Bundles.Isomorphisms[X := LeftPoint, F := (\fun (z: LeftPoint) => CylinderFiber z), G := (\fun (z: LeftPoint) => CylinderFiber z),
+  source := RegionComparison.direct, target := RegionComparison.nested] \as RegionReverse;
+\import Bundles.Isomorphisms[X := LeftPoint, F := (\fun (z: LeftPoint) => CylinderFiber z), G := (\fun (z: LeftPoint) => CylinderFiber z),
+  source := BoundaryComparison.direct, target := BoundaryComparison.nested] \as BoundaryReverse;
+\import Operations.IsomorphismComposition[X := LeftPoint, F := (\fun (z: LeftPoint) => CylinderFiber z), G := (\fun (z: LeftPoint) => CylinderFiber z), H := (\fun (z: LeftPoint) => CylinderFiber z),
+  source := RegionComparison.nested, middle := RegionComparison.direct, target := BoundaryComparison.nested] \as IntoBoundary;
+\definition intoBoundary: IntoBoundary.Isomorphism := IntoBoundary.compose (RegionReverse.inverse RegionComparison.isomorphism) BoundaryComparison.isomorphism;
+\import Operations.IsomorphismComposition[X := LeftPoint, F := (\fun (z: LeftPoint) => CylinderFiber z), G := (\fun (z: LeftPoint) => CylinderFiber z), H := (\fun (z: LeftPoint) => CylinderFiber z),
+  source := RegionComparison.nested, middle := BoundaryComparison.nested, target := BoundaryComparison.nested] \as AlongPath;
+\import Operations.IsomorphismComposition[X := LeftPoint, F := (\fun (z: LeftPoint) => CylinderFiber z), G := (\fun (z: LeftPoint) => CylinderFiber z), H := (\fun (z: LeftPoint) => CylinderFiber z),
+  source := BoundaryComparison.nested, middle := RegionComparison.direct, target := RegionComparison.nested] \as Return;
+\definition returnMap: Return.Isomorphism := Return.compose (BoundaryReverse.inverse BoundaryComparison.isomorphism) RegionComparison.isomorphism;
+\import Operations.IsomorphismComposition[X := LeftPoint, F := (\fun (z: LeftPoint) => CylinderFiber z), G := (\fun (z: LeftPoint) => CylinderFiber z), H := (\fun (z: LeftPoint) => CylinderFiber z),
+  source := RegionComparison.nested, middle := BoundaryComparison.nested, target := RegionComparison.nested] \as Finish;
+\definition leftMap: Bundles.Isomorphisms[X := LeftPoint, F := (\fun (z: LeftPoint) => CylinderFiber z), G := (\fun (z: LeftPoint) => CylinderFiber z),
+  source := RegionComparison.nested, target := RegionComparison.nested].Isomorphism := Finish.compose
+  (AlongPath.compose intoBoundary (PathPull.isomorphism path.isomorphism)) returnMap;
+\import Bundles.Family[X := RegionPoint, F := (\fun (z: RegionPoint) => CylinderFiber z)].Of[bundle := regionBundle].Restriction[U := right] \as RightPull;
+\import Operations.IdentityIsomorphism[X := (\Cast[RegionPoint] right), F := (\fun (z: \Cast[RegionPoint] right) => CylinderFiber z), bundle := RightPull.restricted] \as RightIdentity;
+\definition overlap: \forall (z: RegionPoint)(inLeft: RegionBase.Member left z)(inRight: RegionBase.Member right z)(v: CylinderFiber z) ->
+  (leftMap.forward.fiber (\into[RegionPoint](z, left) \by { inLeft })).apply v = (RightIdentity.isomorphism.forward.fiber (\into[RegionPoint](z, right) \by { inRight })).apply v :=
+  \fun (z: RegionPoint)(inLeft: RegionBase.Member left z)(inRight: RegionBase.Member right z)(v: CylinderFiber z) =>
+    path.starts (toBoundary (\into[RegionPoint](z, left) \by { inLeft })) inRight v;
+\import Cover.With[left := leftMap, right := RightIdentity.isomorphism, agrees := overlap] \as Glued;
+\import bundle_extension.Extension[].ComplexIsomorphisms[X := Cylinder.Carrier, subset := region, F := CylinderFiber, G := CylinderFiber,
+  source := cylinderBundle, target := cylinderBundle, same := (\refl(Cylinder.topology space))] \as Extensions;
+\import topological_constructions.Product[A := Interval.Carrier, B := X] \as Product;
+\definition cylinderCompact: CylinderBase.IsCompact (Cylinder.topology space) := Product.Compactness[].productCompact Interval.topology space Interval.compact compact;
+\definition cylinderHausdorff: CylinderBase.IsT2 (Cylinder.topology space) :=
+  topological_constructions.Separation[].Product[A := Interval.Carrier, B := X].On[left := Interval.topology, right := space, leftHausdorff := Interval.hausdorff, rightHausdorff := hausdorff].hausdorff;
+\definition Extension: \Set := Extensions.Result[Glued.isomorphism];
+\definition extensionExists: \exists Extension := Extensions.extend Glued.isomorphism cylinderCompact cylinderHausdorff regionClosed;
+\definition boundary[x: A][t: Interval.Carrier]: Boundary.Carrier := \into[Cylinder.Carrier](Cylinder.at t x, Boundary.subsetCylinder) \by { \bysub(X, subset, x) };
+\import Bundles.Isomorphisms[X := X, F := F, G := F, source := bundle, target := bundle] \as Global;
+\structure Result: \Set := {
+  isomorphism: Global.Isomorphism,
+  extends: \forall (x: A)(v: F x) -> (isomorphism.forward.fiber x).apply v = (path.isomorphism.forward.fiber (boundary x Interval.end)).apply v
+};
+\module Extended(e: Extension);
+\definition existence: \exists Result := \block {
+  \takefrom e: Extension \by extensionExists \then
+  \return Extended[e := e].existence
+};

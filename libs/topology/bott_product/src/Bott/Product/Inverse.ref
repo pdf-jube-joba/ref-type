@@ -1,0 +1,33 @@
+\import std.Logic[].Equality[] \as Eq;
+\import std.Logic[].Proposition[] \as Logic;
+\use Eq.trans;
+\use Eq.sym;
+\use Eq.congr;
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Hemisphere[] \as Hemisphere;
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].At[point := Hemisphere.point] \as Restriction;
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Surjective[] \as Surjective;
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].Injective[] \as Injective;
+\definition first[v: Target.K0[].Carrier]: Source.K0[].Carrier := Restriction.restriction v;
+\definition Candidates[v: Target.K0[].Carrier]: \Pow Source.K0[].Carrier := { b: Source.K0[].Carrier \where forward (first v) b = v };
+\definition Candidate[v: Target.K0[].Carrier]: \Set := \Cast[Source.K0[].Carrier] (Candidates v);
+\definition exists: \forall (v: Target.K0[].Carrier) -> \exists Candidate[v] := \block {
+  \fun (v: Target.K0[].Carrier) \then
+  \takefrom rep: Representation[v] \by Surjective.exists v \then
+  \let firstEqual: first v = rep.constant := trans!{Source.K0[].Carrier} _ _ _
+    (congr!{Target.K0[].Carrier Source.K0[].Carrier} Restriction.restriction _ _ (sym!{Target.K0[].Carrier} _ _ rep.equation))
+    (Restriction.restrictForward rep.constant rep.coefficient) \then
+  \return \exact(\into[Source.K0[].Carrier](rep.coefficient, Candidates v) \by {
+    trans!{Target.K0[].Carrier} _ _ _ (congr!{Source.K0[].Carrier Target.K0[].Carrier} (\fun (a: Source.K0[].Carrier) => forward a rep.coefficient) _ _ firstEqual) rep.equation
+  }, Candidate[v])
+};
+\definition unique: \forall (v: Target.K0[].Carrier)(b, c: Candidate[v]) -> b = c :=
+  \fun (v: Target.K0[].Carrier)(b, c: Candidate[v]) => (Injective.injective (first v) b (first v) c
+    (trans!{Target.K0[].Carrier} _ _ _ (\bysub(Source.K0[].Carrier, Candidates v, b)) (sym!{Target.K0[].Carrier} _ _ (\bysub(Source.K0[].Carrier, Candidates v, c))))).right;
+\definition coefficient[v: Target.K0[].Carrier]: Source.K0[].Carrier := \choice Candidate[v] \by { existence: exists v, uniqueness: unique v };
+\definition reconstruction: \forall (v: Target.K0[].Carrier) -> forward (first v) (coefficient v) = v :=
+  \fun (v: Target.K0[].Carrier) => \bysub(Source.K0[].Carrier, Candidates v, (\choice Candidate[v] \by { existence: exists v, uniqueness: unique v }));
+\definition recovers: \forall (a, b: Source.K0[].Carrier) -> Logic.And[first (forward a b) = a, coefficient (forward a b) = b] :=
+  \fun (a, b: Source.K0[].Carrier) => Injective.injective (first (forward a b)) (coefficient (forward a b)) a b (reconstruction (forward a b));
+\definition ofRepresentation: \forall (v: Target.K0[].Carrier)(rep: Representation[v]) -> coefficient v = rep.coefficient :=
+  \fun (v: Target.K0[].Carrier)(rep: Representation[v]) => (Injective.injective (first v) (coefficient v) rep.constant rep.coefficient
+    (trans!{Target.K0[].Carrier} _ _ _ (reconstruction v) (sym!{Target.K0[].Carrier} _ _ rep.equation))).right;

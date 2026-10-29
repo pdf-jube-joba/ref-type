@@ -1,0 +1,24 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import singular_cohomology.Cochains[A := A, source := source].With[coefficients := Whole.integerCoefficients] \as WholeTheory;
+\import singular_cohomology.Cochains[A := Relative.SubspaceCarrier, source := Subspace.topology source].With[coefficients := Whole.integerCoefficients] \as SubTheory;
+\import singular_cohomology.Maps[A := Relative.SubspaceCarrier, B := A, source := Subspace.topology source, target := source] \as Inclusion;
+\import Inclusion.Coefficients[M := Whole.integerCoefficients, L := Whole.integerCoefficients] \as Coefficients;
+\import Modules.End[V := R, space := Whole.integerCoefficients.space] \as End;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring].At[C := SubTheory.complex, k := n] \as SubAt;
+\import Modules.Hom[V := SubTheory.Carrier n, W := SubTheory.Carrier (N.Nat^::succ n), source := SubTheory.space n, target := SubTheory.space (N.Nat^::succ n)] \as DifferentialMaps;
+\definition apply[alpha: Carrier n]: Carrier (N.Nat^::succ n) :=
+  \into[Whole.Carrier (N.Nat^::succ n)](WholeTheory.coboundary n alpha,
+    { h: Whole.Carrier (N.Nat^::succ n) \where Vanishes (N.Nat^::succ n) h }) \by {
+      trans!{{Sub.Carrier (N.Nat^::succ n)}} _ _ _
+        (sym!{{Sub.Carrier (N.Nat^::succ n)}} _ _ ((Coefficients.map Relative.inclusion Relative.inclusionContinuous End.identity).commutes n alpha))
+        (trans!{{Sub.Carrier (N.Nat^::succ n)}} _ _ _
+          (congr!{{Sub.Carrier n} {Sub.Carrier (N.Nat^::succ n)}} (SubTheory.coboundary n) _ _
+            (\bysub(Whole.Carrier n, { h: Whole.Carrier n \where Vanishes n h }, alpha)))
+          (DifferentialMaps.zeroPreserved SubAt.differential))
+    };

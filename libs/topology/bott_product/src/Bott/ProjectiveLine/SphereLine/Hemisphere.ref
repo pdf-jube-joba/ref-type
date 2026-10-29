@@ -1,0 +1,28 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as Real;
+\import Real.Order[] \as Order;
+\import Real.Arithmetic[].Prop[] \as Laws;
+\import R.Algebra[] \as Algebra;
+\import R.Distance[] \as Distance;
+\import R.Estimates[] \as Estimates;
+\import R.Estimates[].Product[] \as Product;
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar].Disks[d := two].Hemispheres[].Cover[] \as Cover;
+\import \root.Bott[].ProjectiveLine[].Coordinates[].SphereMap[].Matrix[] \as Matrix;
+\definition positiveReal: \forall (s: Sphere.Sphere) -> \In[Sphere.Sphere] Cover.PositiveHalf s -> Real.Lt R.zero (R.mul R.half (R.add R.one (Matrix.t s))) :=
+  \fun (s: Sphere.Sphere)(positive: _) => Estimates.halfOfPositive (R.add R.one (Matrix.t s))
+    (Real.ltLeTrans R.zero R.one (R.add R.one (Matrix.t s)) Product.onePositive (Distance.leAddOfNonnegative R.one (Matrix.t s) positive));
+\definition negativeReal: \forall (s: Sphere.Sphere) -> \In[Sphere.Sphere] Cover.NegativeHalf s -> Real.Lt R.zero (R.mul R.half (R.sub R.one (Matrix.t s))) :=
+  \fun (s: Sphere.Sphere)(negative: _) => Estimates.halfOfPositive (R.sub R.one (Matrix.t s))
+    (Real.ltLeTrans R.zero R.one (R.sub R.one (Matrix.t s)) Product.onePositive (Distance.leAddOfNonnegative R.one (R.neg (Matrix.t s))
+      (Real.leReplaceLeft (R.neg R.zero) R.zero (R.neg (Matrix.t s)) Laws.negZero (Laws.negAntitone (Matrix.t s) R.zero negative))));
+\definition positiveNonzero: \forall (s: Sphere.Sphere) -> \In[Sphere.Sphere] Cover.PositiveHalf s -> C.Def[].NonZero (Matrix.a s) :=
+  \fun (s: Sphere.Sphere)(positive: _)(zero: Matrix.a s = C.Def[].zero) =>
+    Order.ltNotEq R.zero (R.mul R.half (R.add R.one (Matrix.t s))) (positiveReal s positive)
+      (sym!{R.Real} _ _ (C.Prop[].ofRealInjective (R.mul R.half (R.add R.one (Matrix.t s))) R.zero zero));
+\definition negativeNonzero: \forall (s: Sphere.Sphere) -> \In[Sphere.Sphere] Cover.NegativeHalf s -> C.Def[].NonZero (Matrix.d s) :=
+  \fun (s: Sphere.Sphere)(negative: _)(zero: Matrix.d s = C.Def[].zero) =>
+    Order.ltNotEq R.zero (R.mul R.half (R.sub R.one (Matrix.t s))) (negativeReal s negative)
+      (sym!{R.Real} _ _ (C.Prop[].ofRealInjective (R.mul R.half (R.sub R.one (Matrix.t s))) R.zero zero));

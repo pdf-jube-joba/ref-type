@@ -1,0 +1,43 @@
+\import Bundles.Trivial[X := X, n := n, baseSpace := space] \as Trivial;
+\import bundle_extension.Extension[].Over[K := C.Complex, field := Algebra.field, conjugation := Hermitian.scalar, scalar := Scalar.scalar].Isomorphisms[
+  X := X, subset := subset, F := F, G := (\fun (x: X) => Bundles.Vector n), source := framedBundle, target := Trivial.bundle, same := (\refl(space))] \as Extensions;
+\import Extensions.Neighborhood[U := Base.Whole] \as Whole;
+\import Complements.PulledIsomorphism[X := X, Y := Whole.Point, F := F, G := (\fun (x: X) => Bundles.Vector n), source := framedBundle, target := Trivial.bundle,
+  base := Whole.space, f := Whole.inclusion, sourceRegular := Whole.continuous, targetRegular := Whole.targetContinuous] \as Restrict;
+\definition extension: Source.Result := Extensions.Extension[alpha] {
+  domain := Base.Whole, open := (Base.topologyLaws space).wholeOpen,
+  contains := \fun (x: X)(inside: Base.Member subset x) => \refl(x),
+  isomorphism := Restrict.isomorphism h, extends := extends
+};
+\import Source.Neighborhood[extension := extension] \as Near;
+\import Source.Construction[extension := extension] \as Construction;
+\import topology.Topology[Carrier := Quotient.Carrier] \as QuotientBase;
+\definition covers: \forall (q: Quotient.Carrier) -> QuotientBase.Member Near.domain q := \fun (q: Quotient.Carrier) =>
+  Logic.orElim[q = Quotient.point, Logic.Not (q = Quotient.point), QuotientBase.Member Near.domain q]
+    (std.Logic[].Classical[].excludedMiddle (q = Quotient.point))
+    (\fun (same: q = Quotient.point) => \idelim Quotient.point = q \with z: Quotient.Carrier => QuotientBase.Member Near.domain z \by {
+      base: Near.atPoint, equality: sym!{{Quotient.Carrier}} _ _ same })
+    (\block {
+      \fun (different: Logic.Not (q = Quotient.point)) \then
+      \takefrom x: \Cast[X] ({ x: X \where Quotient.projection x = q }) \by Quotient.representative q different \then
+      \return \idelim Quotient.projection x = q \with z: Quotient.Carrier => QuotientBase.Member Near.domain z \by {
+        base: Near.fromOriginal (\into[X](x, Base.Whole) \by { \refl(x) }), equality: \bysub(X, { x: X \where Quotient.projection x = q }, x)
+      }
+    });
+\import Bundles.Family[X := X, F := F].With[data := framedBundle] \as OriginalCharts;
+\import std.Data[].Sum[] \as Sum;
+\definition index: Construction.Index := Sum.Sum[Quotient.Point, OriginalCharts.Chart]::inl Quotient.distinguished;
+\import Operations.GlobalFrame[X := Quotient.Carrier, F := Source.Fiber, bundle := Construction.bundleOnQuotient,
+  chart := (Construction.trivialization index), covers := covers] \as Frame;
+\import Bundles.Trivial[X := Quotient.Carrier, n := n, baseSpace := Quotient.topology] \as QuotientTrivial;
+\import K.Bundle[F := Source.Fiber, original := Construction.bundleOnQuotient, same := Construction.sameBaseSpace] \as BundleClass;
+\import K.Compare[F := Source.Fiber, G := (\fun (q: Quotient.Carrier) => Bundles.Vector n), first := Construction.bundleOnQuotient, second := QuotientTrivial.bundle,
+  firstSame := Construction.sameBaseSpace, secondSame := (\refl(Quotient.topology))] \as Compare;
+\import K.K0[] \as K0;
+\import algebra.Group[].Of[Carrier := K0.Carrier, group := K0.group] \as KGroup;
+\import algebra.Group[].Of[Carrier := Quotient.Relative, group := Quotient.group] \as ReducedGroup;
+\import \parent.Value[e := extension] \as ExtendedClass;
+\definition classZero: ExtendedClass.value = ReducedGroup.zero :=
+  trans!{{K0.Carrier}} _ _ _ (congr!{{K.Classes} {K0.Carrier}} (\fun (a: K.Classes) => K0.difference a TrivialClass.value) _ _ (Compare.ofIsomorphism Frame.isomorphism))
+    (KGroup.inverseRight (K0.include TrivialClass.value));
+\definition equation: value = ReducedGroup.zero := trans!{{Quotient.Relative}} _ _ _ (agreement extension) classZero;

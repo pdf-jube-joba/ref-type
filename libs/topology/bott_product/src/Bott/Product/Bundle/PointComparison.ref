@@ -1,0 +1,30 @@
+\import \root.Bott[].Product[X := X, source := source, compact := compact, hausdorff := hausdorff].PointPath[start := start, finish := finish] \as Path;
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar].For[Y := Carrier, F := F, bundle := bundle].Pullbacks[
+  X := X, source := source, compact := compact, hausdorff := hausdorff] \as Pullbacks;
+\definition first[x: X]: Carrier := Pair.pair X Sphere.Sphere x start;
+\definition second[x: X]: Carrier := Pair.pair X Sphere.Sphere x finish;
+\definition firstRegular: topology.Continuity[A := X, B := Carrier].Continuous source bundle.baseSpace first :=
+  \idelim topology = bundle.baseSpace \with t: topology.Topology[Carrier := Carrier].Topology => topology.Continuity[A := X, B := Carrier].Continuous source t first \by {
+    base: Space.Universal[X := X].pairContinuous source source Sphere.sphereTopology (\fun (x: X) => x) (\fun (_: X) => start)
+      (topology.Maps[A := X, B := X].Identity[].continuous source) (topology.Maps[A := X, B := Sphere.Sphere].constantContinuous source Sphere.sphereTopology start),
+    equality: sym!{{topology.Topology[Carrier := Carrier].Topology}} _ _ same
+  };
+\definition secondRegular: topology.Continuity[A := X, B := Carrier].Continuous source bundle.baseSpace second :=
+  \idelim topology = bundle.baseSpace \with t: topology.Topology[Carrier := Carrier].Topology => topology.Continuity[A := X, B := Carrier].Continuous source t second \by {
+    base: Space.Universal[X := X].pairContinuous source source Sphere.sphereTopology (\fun (x: X) => x) (\fun (_: X) => finish)
+      (topology.Maps[A := X, B := X].Identity[].continuous source) (topology.Maps[A := X, B := Sphere.Sphere].constantContinuous source Sphere.sphereTopology finish),
+    equality: sym!{{topology.Topology[Carrier := Carrier].Topology}} _ _ same
+  };
+\definition firstMap: Pullbacks.Map := \into[X -> Carrier](first, { f: X -> Carrier \where topology.Continuity[A := X, B := Carrier].Continuous source bundle.baseSpace f }) \by { firstRegular };
+\definition secondMap: Pullbacks.Map := \into[X -> Carrier](second, { f: X -> Carrier \where topology.Continuity[A := X, B := Carrier].Continuous source bundle.baseSpace f }) \by { secondRegular };
+\import algebraic_topology.PathComponent[A := Sphere.Sphere, source := Sphere.sphereTopology] \as Paths;
+\import algebraic_topology.Homotopy[A := X, B := Carrier] \as H;
+\definition isomorphismExists: \exists Pullbacks.Isomorphism firstMap secondMap := \block {
+  \takefrom path: Paths.Path start finish \by Path.exists \then
+  \let homotopy: H.Homotopy[source, bundle.baseSpace, firstMap, secondMap] :=
+    \idelim topology = bundle.baseSpace \with t: topology.Topology[Carrier := Carrier].Topology => H.Homotopy[source, t, first, second] \by {
+      base: Path.With[path := path].homotopy, equality: sym!{{topology.Topology[Carrier := Carrier].Topology}} _ _ same
+    } \then
+  \return Pullbacks.homotopic firstMap secondMap (\exact(homotopy, H.Homotopy[source, bundle.baseSpace, firstMap, secondMap]))
+};

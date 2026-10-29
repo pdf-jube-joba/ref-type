@@ -1,0 +1,14 @@
+\import Spaces.Coordinates[I := Fin.Fin m] \as Domain;
+\import Spaces.Coordinates[I := Fin.Fin n] \as Range;
+\import Spaces.FiniteCoordinates[n := m] \as DomainBasis;
+\import Spaces.FiniteCoordinates[n := n] \as RangeBasis;
+\import Spaces.Linear[V := Domain.Vector, W := Range.Vector, source := Domain.space, target := Range.space] \as Maps;
+\import Spaces.Finite[V := Domain.Vector, I := Fin.Fin m, space := Domain.space].Representation[W := Range.Vector, J := Fin.Fin n, target := Range.space] \as Representation;
+\definition Matrix: \Set := Fin.Fin n -> Fin.Fin m -> K;
+\definition linear[A: Matrix]: Maps.Map := Representation.fromMatrix DomainBasis.basis RangeBasis.basis A;
+\definition entries[f: Maps.Map]: Matrix := Representation.toMatrix DomainBasis.basis RangeBasis.basis f;
+\definition roundTrip[f: Maps.Map][v: Domain.Vector]: (linear (entries f)).apply v = f.apply v := Representation.mapRoundTrip DomainBasis.basis RangeBasis.basis f v;
+\definition entry[A: Matrix][i: Fin.Fin n][j: Fin.Fin m]: (linear A).apply (DomainBasis.vectors j) i = A i j :=
+  congr!{Matrix K} (\fun (B: Matrix) => B i j) _ _ (Representation.matrixRoundTrip DomainBasis.basis RangeBasis.basis A);
+\module Families(X: \Set, baseSpace: topology.Topology[Carrier := X].Topology, A: X -> Matrix,
+  regular: \forall (i: Fin.Fin n)(j: Fin.Fin m) -> topology.Continuity[A := X, B := K].Continuous baseSpace scalar.topological.space (\fun (x: X) => A x i j));

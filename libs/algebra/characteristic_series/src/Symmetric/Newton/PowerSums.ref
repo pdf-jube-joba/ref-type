@@ -1,0 +1,45 @@
+\definition power[x: R]: Sequence := \induction (n: N.Nat^) \return R \with {
+  | zero: one
+  | succ: \fun (n: N.Nat^)(previous: R) => mul x previous
+};
+\definition alternate: N.Nat^ -> R -> R := \induction (n: N.Nat^) \return R -> R \with {
+  | zero: \fun (a: R) => a
+  | succ: \fun (n: N.Nat^)(previous: _)(a: R) => neg (previous a)
+};
+\definition powerSum[n: N.Nat^][xs: Roots]: R := L.foldr R R (\fun (x, a: R) => add (power x n) a) zero xs;
+\definition alternateZero: \forall (n: N.Nat^) -> alternate n zero = zero :=
+  \induction (n: N.Nat^) \return alternate n zero = zero \with {
+    | zero: \refl(zero)
+    | succ: \fun (n: N.Nat^)(previous: _) => trans!{R} _ _ _ (congr!{R R} neg _ _ previous) Sum.negZero
+  };
+\definition alternateAdd: \forall (n: N.Nat^)(a, b: R) -> alternate n (add a b) = add (alternate n a) (alternate n b) :=
+  \induction (n: N.Nat^) \return \forall (a, b: R) -> alternate n (add a b) = add (alternate n a) (alternate n b) \with {
+    | zero: \fun (a, b: R) => \refl(add a b)
+    | succ: \fun (n: N.Nat^)(previous: _)(a, b: R) => trans!{R} _ _ _ (congr!{R R} neg _ _ (previous a b)) (Sum.negAdd (alternate n a) (alternate n b))
+  };
+\definition alternateMul: \forall (n: N.Nat^)(a, b: R) -> alternate n (mul a b) = mul a (alternate n b) :=
+  \induction (n: N.Nat^) \return \forall (a, b: R) -> alternate n (mul a b) = mul a (alternate n b) \with {
+    | zero: \fun (a, b: R) => \refl(mul a b)
+    | succ: \fun (n: N.Nat^)(previous: _)(a, b: R) => trans!{R} _ _ _ (congr!{R R} neg _ _ (previous a b)) (sym!{R} _ _ (C.negMulRight a (alternate n b)))
+  };
+\definition geometricPower: \forall (n: N.Nat^)(x: R) -> geometric x n = alternate n (power x (N.Nat^::succ n)) :=
+  \induction (n: N.Nat^) \return \forall (x: R) -> geometric x n = alternate n (power x (N.Nat^::succ n)) \with {
+    | zero: \fun (x: R) => sym!{R} _ _ (ring.ring.semiring.multiplicative.rightIdentity x)
+    | succ: \fun (n: N.Nat^)(previous: _)(x: R) => eq_reason_in!{R _
+      "=" _ "by" { C.negMulLeft x (geometric x n) }
+      "=" _ "by" { congr!{R R} (\fun (a: R) => neg (mul x a)) _ _ (previous x) }
+      "=" _ "by" { congr!{R R} neg _ _ (sym!{R} _ _ (alternateMul n x (power x (N.Nat^::succ n)))) }
+    }
+  };
+\definition signedPowerSum: \forall (xs: Roots)(n: N.Nat^) -> signedPowers xs n = alternate n (powerSum (N.Nat^::succ n) xs) :=
+  \induction (xs: Roots) \return \forall (n: N.Nat^) -> signedPowers xs n = alternate n (powerSum (N.Nat^::succ n) xs) \with {
+    | nil: \fun (n: N.Nat^) => sym!{R} _ _ (alternateZero n)
+    | cons: \fun (x: R)(xs: Roots)(previous: _)(n: N.Nat^) => trans!{R} _ _ _
+      (congr!{R R R} add _ _ _ _ (geometricPower n x) (previous n)) (sym!{R} _ _ (alternateAdd n (power x (N.Nat^::succ n)) (powerSum (N.Nat^::succ n) xs)))
+  };
+\definition newton: \forall (xs: Roots)(n: N.Nat^) ->
+  convolution n (elementary xs) (\fun (i: N.Nat^) => alternate i (powerSum (N.Nat^::succ i) xs)) = count (N.Nat^::succ n) (elementary xs (N.Nat^::succ n)) :=
+  \fun (xs: Roots)(n: N.Nat^) => trans!{R} _ _ _
+    (sym!{R} _ _ (convolutionExt n (elementary xs) (signedPowers xs) (elementary xs) (\fun (i: N.Nat^) => alternate i (powerSum (N.Nat^::succ i) xs))
+      (\fun (i: N.Nat^) => \refl(elementary xs i)) (signedPowerSum xs)))
+    (\parent.Telescoping[].newton xs n);

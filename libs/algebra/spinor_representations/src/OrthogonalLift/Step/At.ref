@@ -1,0 +1,40 @@
+\import lie_groups.Euclidean[n := n] \as E;
+\import lie_groups.Euclidean[n := N.Nat^::succ n] \as Next;
+\import E.Atlas[] \as LowerAtlas;
+\import Next.Atlas[] \as UpperAtlas;
+\import lie_groups.OrthogonalAtlas[] \as Standard;
+\import Standard.Step[n := n] \as Orthogonal;
+\import Orthogonal.On[previous := Standard.atlasData n] \as Chart;
+\import Chart.Patch[i := lowerIndex i] \as Base;
+\import N.Pair[].Def[] \as Pair;
+\import N.Pair[].Enumeration[] \as Pairs;
+\definition tag: N.Nat^ := Pair.natPairFirst (Pairs.enumerate i);
+\import Orthogonal.Reflection[] \as Reflection;
+\import Chart.Shift[i := lowerIndex i, q := Reflection.choice tag] \as Shift;
+\import lie_groups.PinSurjectivity[].Step[n := n] \as Lifts;
+\import lie_groups.PinFrame[n := n] \as Frame;
+\import E.PinRepresentation[] \as LowerProjection;
+\import Next.PinRepresentation[] \as Projection;
+\import algebra.Groups[].On[G := Next.Pin, group := Next.pinGroup] \as Pin;
+\import algebra.Groups[].On[G := Next.O, group := Next.orthogonalGroup] \as O;
+\import E.PinPlots[d := UpperAtlas.dimension] \as LowerPlots;
+\import Next.PinPlots[d := UpperAtlas.dimension] \as Plots;
+\import Frame.Plots[d := UpperAtlas.dimension] \as FramePlots;
+\import calculus.Blocks[n := n, m := LowerAtlas.dimension] \as Blocks;
+\import calculus.Real[].Multivariable[n := n].Open[] \as LeftOpen;
+\import Blocks.On[U := LeftOpen.whole, V := Base.lower.image] \as Product;
+\import E.PinPlots[d := LowerAtlas.dimension].Precomposition[e := UpperAtlas.dimension].On[U := Base.image, V := Base.lower.image, f := witness.value, h := Product.rightMap, regular := witness.plot] \as Fiber;
+\import FramePlots.Section[U := Base.image, s := Base.parameterValue, regular := Base.Smooth[].parameterSmooth] \as Section;
+\import FramePlots.Extension[U := Base.image, f := Fiber.value, regular := Fiber.plot] \as Embedded;
+\definition body[x: Base.Parameter]: Next.Pin := Frame.assemble (Base.parameterValue x) (Fiber.value x);
+\definition bodyPlot: Plots.Plot Base.image body := Plots.multiplication Base.image Section.value Embedded.value Section.plot Embedded.plot;
+\definition lift[x: Base.Parameter]: Next.Pin := Pin.mul (Lifts.choice tag) (body x);
+\definition liftPlot: Plots.Plot Base.image lift := Plots.multiplication Base.image (\fun (x: Base.Parameter) => Lifts.choice tag) body (Plots.constant Base.image (Lifts.choice tag)) bodyPlot;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].congr;
+\definition liftProjection: \forall (x: Base.Parameter) -> Projection.map (lift x) = Shift.value x := \fun (x: Base.Parameter) => eq_reason_in!{{Next.O} _
+  "=" _ "by" { Projection.multiplication (Lifts.choice tag) (body x) }
+  "=" _ "by" { congr!{{Next.O} {Next.O} {Next.O}} O.mul _ _ _ _ (Lifts.choiceImage tag) (Frame.assemblyImage (Base.parameterValue x) (Fiber.value x)) }
+  "=" _ "by" { congr!{{E.O} {Next.O}} (\fun (h: E.O) => O.mul (Reflection.choice tag) (Orthogonal.assemble (Base.parameterValue x) h)) _ _ (witness.projection (Product.rightPoint x)) }
+};
+\definition value: Upper.Witness[i] := Upper.Witness[i] { value := lift, plot := liftPlot, projection := liftProjection };

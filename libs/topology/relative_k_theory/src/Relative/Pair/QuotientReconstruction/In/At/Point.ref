@@ -1,0 +1,26 @@
+\definition qMember: QuotientBase.Member c.domain q := \idelim Quotient.point = q \with z: Quotient.Carrier => QuotientBase.Member c.domain z \by {
+  base: contains, equality: sym!{{Quotient.Carrier}} _ _ atBase
+};
+\definition qPoint: \Cast[Quotient.Carrier] c.domain := \into[Quotient.Carrier](q, c.domain) \by { qMember };
+\import Model.Base[same := atBase] \as AtBase;
+\import Spaces.Isomorphism[V := F Quotient.point, W := Bundles.Vector dimension, source := bundle.space Quotient.point, target := Bundles.coordinates dimension] \as Frames;
+\import Spaces.Isomorphism[V := Bundles.Vector dimension, W := F Quotient.point, source := Bundles.coordinates dimension, target := bundle.space Quotient.point].Composition[
+  U := Model.Carrier, domain := Model.space] \as ReadBase;
+\definition readBase: Spaces.Isomorphism[V := Model.Carrier, W := F Quotient.point, source := Model.space, target := bundle.space Quotient.point].Isomorphism :=
+  ReadBase.compose (Frames.inverse pointFrame) AtBase.isomorphism;
+\import Spaces.Isomorphism[V := F Quotient.point, W := F q, source := bundle.space Quotient.point, target := bundle.space q].Composition[
+  U := Model.Carrier, domain := Model.space] \as Return;
+\definition candidate: Isomorphisms.Isomorphism := Return.compose (Transport.isomorphism Quotient.point q (sym!{{Quotient.Carrier}} _ _ atBase)) readBase;
+\definition coordinate: \forall (d: Model.Carrier) -> (c.frame qPoint).forward.apply (candidate.forward.apply d) = Model.anchor d :=
+  \fun (d: Model.Carrier) => trans!{{Bundles.Vector dimension}} _ _ _
+    (Transport.frame c Quotient.point q (sym!{{Quotient.Carrier}} _ _ atBase) contains qMember (pointFrame.backward.apply (Model.anchor d)))
+    ((Frames.laws pointFrame).rightInverse (Model.anchor d));
+\module AtIndex(d: Model.Carrier, x: Model.Index);
+\definition result: Candidate := Candidate {
+  isomorphism := candidate,
+  condition := \fun (d: Model.Carrier) => Condition[d, candidate.forward.apply d] {
+    atPoint := \fun (equal: q = Quotient.point) => trans!{{Bundles.Vector dimension}} _ _ _
+      (Transport.frame c q Quotient.point equal qMember contains (candidate.forward.apply d)) (coordinate d),
+    evaluations := \fun (x: Model.Index) => AtIndex[d := d, x := x].equation
+  }
+};

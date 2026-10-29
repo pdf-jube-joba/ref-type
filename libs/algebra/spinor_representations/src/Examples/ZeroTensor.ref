@@ -1,0 +1,35 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import \root.Complex[] \as Complex;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := Complex.ring] \as Algebra;
+\import Algebra.Coordinates[I := Fin.Fin N.Nat^::zero] \as Coordinates;
+\import std.Data[].Pair[].Prop[A := Coordinates.Vector, B := Coordinates.Vector] \as Pairs;
+\import Algebra.FiniteCoordinates[n := N.Nat^::zero] \as Standard;
+\import Algebra.DirectSum[V := Coordinates.Vector, W := Coordinates.Vector, left := Coordinates.space, right := Coordinates.space] \as Sum;
+\import Algebra.Finite[V := Sum.Carrier, I := Fin.Fin N.Nat^::zero, space := Sum.space] \as Finite;
+\import Algebra.Linear[V := Sum.Carrier, W := Coordinates.Vector, source := Sum.space, target := Coordinates.space] \as Maps;
+\definition zeroCoordinates: Maps.Map := Maps.Map {
+  apply := \fun (x: Sum.Carrier)(i: Fin.Fin N.Nat^::zero) => Algebra.zero,
+  preservesAdd := \fun (x, y: Sum.Carrier) => \axiom:funext((\fun (i: Fin.Fin N.Nat^::zero) => Algebra.zero), Coordinates.plus (\fun (i: Fin.Fin N.Nat^::zero) => Algebra.zero) (\fun (i: Fin.Fin N.Nat^::zero) => Algebra.zero), \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))),
+  preservesScale := \fun (a: C.Complex)(x: Sum.Carrier) => \axiom:funext((\fun (i: Fin.Fin N.Nat^::zero) => Algebra.zero), Coordinates.scale a (\fun (i: Fin.Fin N.Nat^::zero) => Algebra.zero), \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))),
+};
+\definition data: Finite.BasisData := Finite.BasisData { indices := Fin.elements N.Nat^::zero, vectors := \fun (i: Fin.Fin N.Nat^::zero) => Sum.origin, coordinates := zeroCoordinates };
+\definition sumBasis: Finite.Basis := \into[Finite.BasisData](data, { b: Finite.BasisData \where Finite.BasisLaws[b] }) \by {
+  Finite.BasisLaws[data] {
+    distinct := Standard.basis.distinct,
+    dualReconstruction := \fun (x: Coordinates.Vector)(i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)),
+    reconstruction := \fun (x: Sum.Carrier) => Pairs.ext _ _
+      (\axiom:funext((\fun (i: Fin.Fin N.Nat^::zero) => Algebra.zero), Sum.first x, \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))))
+      (\axiom:funext((\fun (i: Fin.Fin N.Nat^::zero) => Algebra.zero), Sum.second x, \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)))),
+    coordinateReconstruction := \fun (x: Coordinates.Vector) => \axiom:funext((\fun (i: Fin.Fin N.Nat^::zero) => Algebra.zero), x, \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))),
+  }
+};
+\import \root.Over[K := C.Complex, scalarRing := Complex.ring].Direct[V := Coordinates.Vector, W := Coordinates.Vector, left := Coordinates.space, right := Coordinates.space].Total[] \as Direct;
+\import Direct.Isomorphism[rn := N.Nat^::zero, sn := N.Nat^::zero, rb := Standard.basis, sb := sumBasis] \as Comparison;
+\import \root.Over[K := C.Complex, scalarRing := Complex.ring].On[V := Coordinates.Vector, space := Coordinates.space].Total[] \as Total;
+\import \root.Over[K := C.Complex, scalarRing := Complex.ring].On[V := Sum.Carrier, space := Sum.space].Total[] \as ResultTotal;
+\import Algebra.Tensor[V := Total.Carrier, W := Total.Carrier, left := Total.totalSpace, right := Total.totalSpace] \as Tensor;
+\import Algebra.Isomorphism[V := Tensor.Carrier, W := ResultTotal.Carrier, source := Tensor.space, target := ResultTotal.totalSpace] \as Iso;
+\definition isomorphism: Iso.Isomorphism := Comparison.isomorphism;
+\definition roundTrip: \forall (t: Tensor.Carrier) -> isomorphism.backward.apply (Direct.comparison.apply t) = t := Comparison.leftInverse;

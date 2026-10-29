@@ -1,0 +1,40 @@
+\import \parent.Quotient[] \as Quotient;
+\import \parent.Group[] \as Triples;
+\import \parent.Comparison[] \as Compare;
+\import Triples.Forget[] \as Forget;
+\import Forget.Exact[] \as Native;
+\import \parent.Restriction[] \as Restriction;
+\import Absolute.K0[] \as K0;
+\import KTheory.On[X := A, baseSpace := subspace, compact := Restriction.compactSubset, hausdorff := Restriction.hausdorffSubset].K0[] \as SubsetK;
+\definition forget[v: Quotient.Relative]: K0.Carrier := Forget.map (Compare.isomorphism.backward v);
+\import algebra.Group[].Of[Carrier := Quotient.Relative, group := Quotient.group] \as ReducedGroup;
+\definition forgetAdd: \forall (v, w: Quotient.Relative) -> forget (ReducedGroup.add v w) = K0.add (forget v) (forget w) :=
+  \fun (v, w: Quotient.Relative) => trans!{{K0.Carrier}} _ _ _
+    (congr!{{Triples.Carrier} {K0.Carrier}} Forget.map _ _ (Compare.isomorphism.backwardAdd v w))
+    (Forget.additive (Compare.isomorphism.backward v) (Compare.isomorphism.backward w));
+\import \parent.FromReduced[] \as ToTriples;
+\definition forgetZero: forget ReducedGroup.zero = K0.zero := trans!{{K0.Carrier}} _ _ _
+  (congr!{{Triples.Carrier} {K0.Carrier}} Forget.map _ _ ToTriples.reducedZero) Forget.preservesZero;
+\definition Image[x: K0.Carrier]: \Prop := \exists (v: Quotient.Relative \where forget v = x);
+\definition kernel: \forall (v: Quotient.Relative) -> Restriction.map (forget v) = SubsetK.zero :=
+  \fun (v: Quotient.Relative) => Forget.Kernel[].equation (Compare.isomorphism.backward v);
+\definition preimage: \forall (x: K0.Carrier) -> Restriction.map x = SubsetK.zero -> Image x := \block {
+  \fun (x: K0.Carrier)(zero: Restriction.map x = SubsetK.zero) \then
+  \takefrom triple: \Cast[Triples.Carrier] ({ t: Triples.Carrier \where Forget.map t = x }) \by Native.preimage x zero \then
+  \return Logic.existsIntro[Quotient.Relative, { v: Quotient.Relative \where forget v = x }] (Compare.isomorphism.forward triple)
+    (trans!{{K0.Carrier}} _ _ _ (congr!{{Triples.Carrier} {K0.Carrier}} Forget.map _ _ (Compare.isomorphism.leftInverse triple))
+      (\bysub(Triples.Carrier, { t: Triples.Carrier \where Forget.map t = x }, triple)))
+};
+\definition inKernel: \forall (x: K0.Carrier) -> Image x -> Restriction.map x = SubsetK.zero := \block {
+  \fun (x: K0.Carrier)(image: Image x) \then
+  \takefrom v: \Cast[Quotient.Relative] ({ v: Quotient.Relative \where forget v = x }) \by image \then
+  \return \idelim forget v = x \with y: K0.Carrier => Restriction.map y = SubsetK.zero \by {
+    base: kernel v, equality: \bysub(Quotient.Relative, { v: Quotient.Relative \where forget v = x }, v)
+  }
+};
+\definition exact[x: K0.Carrier]: Logic.PropEquiv[Restriction.map x = SubsetK.zero, Image x] := Logic.PropEquiv[_, _] {
+  ltr := preimage x, rtl := inKernel x
+};
+\definition onTriple: \forall (t: Triple) -> forget (Compare.isomorphism.forward (Triples.value t)) = K0.difference (Absolute.class t.positive) (Absolute.class t.negative) :=
+  \fun (t: Triple) => trans!{{K0.Carrier}} _ _ _ (congr!{{Triples.Carrier} {K0.Carrier}} Forget.map _ _ (Compare.isomorphism.leftInverse (Triples.value t))) (Forget.onTriple t);
+\module Contractible(a0: A, homotopy: algebraic_topology.Homotopy[A := A, B := A].Homotopy[subspace, subspace, (\fun (x: A) => x), (\fun (x: A) => a0)]);

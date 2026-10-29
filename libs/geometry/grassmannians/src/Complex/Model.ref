@@ -1,0 +1,79 @@
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\definition isSelfAdjoint[map: At.Map]: \Prop := \forall (v, w: At.Vector) -> At.dot (map.apply v) w = At.dot v (map.apply w);
+\definition isIdempotent[map: At.Map]: \Prop := \forall (v: At.Vector) -> map.apply (map.apply v) = map.apply v;
+\definition asProjection[map: At.Map][selfAdjoint: isSelfAdjoint map][idempotent: isIdempotent map]: At.Projection := At.Projection { map := map, selfAdjoint := selfAdjoint, idempotent := idempotent };
+\structure Data: \Set := { map: At.Map };
+\structure Laws[data: Data]: \Prop := {
+  selfAdjoint: isSelfAdjoint data.map,
+  idempotent: isIdempotent data.map,
+  rank: At.OnProjection[P := asProjection data.map selfAdjoint idempotent].Rank[k := k].HasRank,
+};
+\definition points: \Pow Data := { d: Data \where Laws[d] };
+\definition Carrier: \Set := \Cast[Data] points;
+\definition laws[p: Carrier]: Laws[p] := \bysub(Data, points, p);
+\definition projection[p: Carrier]: At.Projection := asProjection p.map (laws p).selfAdjoint (laws p).idempotent;
+\definition rank[p: Carrier]: At.OnProjection[P := projection p].Rank[k := k].HasRank := (laws p).rank;
+\definition dataEta: \forall (d: Data) -> Data { map := d.map } = d :=
+  \induction (d: Data) \return Data { map := d.map } = d \with { | # : \fun (m: At.Map) => \refl(Data { map := m }) };
+\definition ext: \forall (p, q: Carrier) -> p.map = q.map -> p = q :=
+  \fun (p, q: Carrier)(same: p.map = q.map) => trans!{Data} _ _ _ (sym!{Data} _ _ (dataEta p))
+    (trans!{Data} _ _ _ (congr!{At.Map Data} Data::# _ _ same) (dataEta q));
+
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := H.Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].Finite[n := n] \as Finite;
+\definition entries[p: Carrier]: Matrices.Carrier := \fun (i, j: Fin.Fin n) => p.map.apply (E.basis j) i;
+\definition entriesInjective: \forall (p, q: Carrier) -> entries p = entries q -> p = q :=
+  \fun (p, q: Carrier)(same: entries p = entries q) => ext p q
+    (Finite.extOnBasis p.map q.map (\fun (j: Fin.Fin n) => \axiom:funext(p.map.apply (E.basis j), q.map.apply (E.basis j),
+      \fun (i: Fin.Fin n) => congr!{{Matrices.Carrier} C.Complex} (\fun (A: Matrices.Carrier) => A i j) _ _ same)));
+\import topological_constructions.Induced[A := Carrier, B := Matrices.Carrier] \as InducedModel;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := InducedModel.topology (Matrices.topology H.Complex[].topological.space) entries;
+\definition entriesContinuous: topology.Continuity[A := Carrier, B := Matrices.Carrier].Continuous topology (Matrices.topology H.Complex[].topological.space) entries := InducedModel.continuous (Matrices.topology H.Complex[].topological.space) entries;
+\module Hausdorff(separated: topology.Topology[Carrier := C.Complex].IsT2 H.Complex[].topological.space);
+
+\import real.Analysis[] \as RealNumbers;
+\import metric_spaces.RealMetric[] \as RealMetric;
+\import metric_spaces.MetricSpace[Carrier := RealNumbers.Real].Topology[].Hausdorff[] \as RealHausdorff;
+\definition realHausdorff: topology.Topology[Carrier := RealNumbers.Real].IsT2 metric_spaces.RealLine[].topology := RealHausdorff.topologyT2 RealMetric.metric;
+\import topological_constructions.Separation[].Product[A := RealNumbers.Real, B := RealNumbers.Real].On[left := metric_spaces.RealLine[].topology, right := metric_spaces.RealLine[].topology, leftHausdorff := realHausdorff, rightHausdorff := realHausdorff] \as ComplexHausdorff;
+\definition hausdorff: topology.Topology[Carrier := Carrier].IsT2 topology := Hausdorff[separated := ComplexHausdorff.hausdorff].law;
+
+\import At.Families[X := Carrier].Matrix[m := n] \as Families;
+\definition regular: Families.Regular topology (\fun (p: Carrier) => p.map) :=
+  Families.regularOfComponents topology (\fun (p: Carrier) => p.map)
+    (\fun (j, i: Fin.Fin n) => topology.Composition[A := Carrier, B := Matrices.Carrier, C := C.Complex].composeContinuous topology (Matrices.topology H.Complex[].topological.space) H.Complex[].topological.space entries (Matrices.entry i j) entriesContinuous (Matrices.entryContinuous H.Complex[].topological.space i j));
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := H.Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].Projection[X := Carrier, n := n, baseSpace := topology, P := projection, regular := regular] \as UniversalBundle;
+\definition Fiber[p: Carrier]: \Set := UniversalBundle.Fiber p;
+\definition bundle: Bundles.Family[X := Carrier, F := Fiber].Bundle := UniversalBundle.bundle;
+\import UniversalBundle.Complement[] \as Complement;
+\definition ComplementFiber[p: Carrier]: \Set := Complement.ComplementFiber p;
+\definition complementBundle: Bundles.Family[X := Carrier, F := ComplementFiber].Bundle := Complement.complementBundle;
+\import \root.Complex[n := n, k := k] \as Original;
+\module Convert(p: Original.Grassmannian);
+\definition fromOriginal[p: Original.Grassmannian]: Carrier :=
+  \into[Data](Data { map := p.map }, points) \by { Laws[Data { map := p.map }] {
+    selfAdjoint := p.selfAdjoint, idempotent := p.idempotent, rank := Convert[p := p].rank
+  } };
+\definition toOriginal[p: Carrier]: Original.Grassmannian := \into[At.Projection](projection p, Original.points) \by { rank p };
+\definition roundTrip: \forall (p: Carrier) -> fromOriginal (toOriginal p) = p := \fun (p: Carrier) => ext (fromOriginal (toOriginal p)) p (\refl(p.map));
+
+\import Original.Family[Y := Carrier, source := topology, P := projection, regularP := regular, rank := rank] \as ToOriginal;
+\definition toOriginalContinuous: topology.Continuity[A := Carrier, B := Original.Grassmannian].Continuous topology Original.topology toOriginal := ToOriginal.continuous;
+\definition fromOriginalContinuous: topology.Continuity[A := Original.Grassmannian, B := Carrier].Continuous Original.topology topology fromOriginal :=
+  InducedModel.Universal[Z := Original.Grassmannian].continuous Original.topology (Matrices.topology H.Complex[].topological.space) entries fromOriginal Original.entriesContinuous;
+\module DirectSum(m, l: std.Data[].Nat[].Nat^);
+\module Pullback(Y: \Set, source: topology.Topology[Carrier := Y].Topology, f: Y -> Carrier,
+  continuous: topology.Continuity[A := Y, B := Carrier].Continuous source topology f);
+\module Graph(a: Carrier, center: At.OnProjection[P := projection a].Rank[k := k].Basis);
+\module Family(Y: \Set, source: topology.Topology[Carrier := Y].Topology, P: Y -> At.Projection,
+  regularP: At.Families[X := Y].Matrix[m := n].Regular source (\fun (y: Y) => (P y).map),
+  rankP: \forall (y: Y) -> At.OnProjection[P := P y].Rank[k := k].HasRank);
+\module Stabilization(m: std.Data[].Nat[].Nat^);
+\module FrameBounds(frame: Finite.Orthonormal[k]);
+\module FrameMatrix;
+\definition compact: topology.Topology[Carrier := Carrier].IsCompact topology := FrameMatrix[].Compact[].Image[].compact;
+\module Trace;
+\module OrthogonalComplement;
+\module Charts;

@@ -1,0 +1,104 @@
+\use Equality.eq_reason_in;
+\import \parent.Local[S := subset] \as Coordinate;
+\import \parent.\parent.\parent.Local[S := subset] \as Original;
+\import Bundles.Trivial[X := A, n := p.dimension, baseSpace := subspace] \as Domain;
+\import Bundles.Trivial[X := A, n := dimension, baseSpace := subspace] \as Range;
+\import Complements.CoordinateFamily[X := A, m := p.dimension, n := p.dimension, baseSpace := subspace,
+  A := (\fun (a: A) => (p.projection a).map), regular := p.regular] \as Project;
+\import Bundles.Morphisms[X := A, Y := A, F := (\fun (a: A) => Vector p.dimension), G := (\fun (a: A) => Vector p.dimension),
+  source := Domain.bundle, target := Domain.bundle, f := (\fun (a: A) => a)].Composition[
+  Z := A, H := (\fun (a: A) => Sum.Fiber a), range := Original.pulledBundle, g := (\fun (a: A) => a)] \as F1;
+\import Bundles.Morphisms[X := A, Y := A, F := (\fun (a: A) => Vector p.dimension), G := (\fun (a: A) => Sum.Fiber a),
+  source := Domain.bundle, target := Original.pulledBundle, f := (\fun (a: A) => a)].Composition[
+  Z := A, H := (\fun (a: A) => Sum.Fiber a), range := Original.pulledBundle, g := (\fun (a: A) => a)] \as F2;
+\import Bundles.Morphisms[X := A, Y := A, F := (\fun (a: A) => Vector p.dimension), G := (\fun (a: A) => Sum.Fiber a),
+  source := Domain.bundle, target := Original.pulledBundle, f := (\fun (a: A) => a)].Composition[
+  Z := A, H := (\fun (a: A) => Vector dimension), range := Range.bundle, g := (\fun (a: A) => a)] \as F3;
+\import Bundles.Morphisms[X := A, Y := A, F := (\fun (a: A) => Vector dimension), G := (\fun (a: A) => Sum.Fiber a),
+  source := Range.bundle, target := Original.pulledBundle, f := (\fun (a: A) => a)].Composition[
+  Z := A, H := (\fun (a: A) => Sum.Fiber a), range := Original.pulledBundle, g := (\fun (a: A) => a)] \as G1;
+\import Bundles.Morphisms[X := A, Y := A, F := (\fun (a: A) => Vector dimension), G := (\fun (a: A) => Sum.Fiber a),
+  source := Range.bundle, target := Original.pulledBundle, f := (\fun (a: A) => a)].Composition[
+  Z := A, H := (\fun (a: A) => Vector p.dimension), range := Domain.bundle, g := (\fun (a: A) => a)] \as G2;
+\import Bundles.Morphisms[X := A, Y := A, F := (\fun (a: A) => Vector p.dimension), G := (\fun (a: A) => Vector dimension),
+  source := Domain.bundle, target := Range.bundle, f := (\fun (a: A) => a)] \as Forward;
+\import Bundles.Morphisms[X := A, Y := A, F := (\fun (a: A) => Vector dimension), G := (\fun (a: A) => Vector p.dimension),
+  source := Range.bundle, target := Domain.bundle, f := (\fun (a: A) => a)] \as Backward;
+\definition forward: Forward.Map := F3.compose (F2.compose (F1.compose Project.map Original.includeFirst) Original.pulledExchange.forward) Coordinate.comparison.forward;
+\definition backward: Backward.Map := G2.compose (G1.compose Coordinate.comparison.backward Original.pulledExchange.backward) Original.firstMap;
+\import Patcher.LinearMapFamily[Y := A, baseSpace := subspace, m := p.dimension, n := dimension, map := forward] \as ForwardRegular;
+\import Patcher.LinearMapFamily[Y := A, baseSpace := subspace, m := dimension, n := p.dimension, map := backward] \as BackwardRegular;
+\definition forwardFormula: \forall (a: A)(v: Vector p.dimension) -> (forward.fiber a).apply v =
+  (Frame.isomorphism.forward.fiber a).apply ((exchange.forward.fiber a).apply (Pair.pair (Vector p.dimension) (Vector q.dimension) ((p.projection a).map.apply v) (coordinates q.dimension).zero)) :=
+  \fun (a: A)(v: Vector p.dimension) => eq_reason_in!{{Vector dimension} _
+    "=" { (Frame.isomorphism.forward.fiber a).apply ((Original.pulledExchange.forward.fiber a).apply ((Original.includeFirst.fiber a).apply ((p.projection a).map.apply v))) } "by" {
+      Coordinate.forwardFormula a ((Original.pulledExchange.forward.fiber a).apply ((Original.includeFirst.fiber a).apply ((p.projection a).map.apply v))) }
+    "=" { (Frame.isomorphism.forward.fiber a).apply ((exchange.forward.fiber a).apply ((Original.includeFirst.fiber a).apply ((p.projection a).map.apply v))) } "by" {
+      congr!{H {Vector dimension}} (Frame.isomorphism.forward.fiber a).apply _ _ (Original.exchangeForwardFormula a ((Original.includeFirst.fiber a).apply ((p.projection a).map.apply v))) }
+    "=" { (Frame.isomorphism.forward.fiber a).apply ((exchange.forward.fiber a).apply (Pair.pair (Vector p.dimension) (Vector q.dimension) ((p.projection a).map.apply v) (coordinates q.dimension).zero)) } "by" {
+      congr!{H {Vector dimension}} (\fun (z: H) => (Frame.isomorphism.forward.fiber a).apply ((exchange.forward.fiber a).apply z)) _ _ (Original.includeFirstFormula a ((p.projection a).map.apply v)) }
+  };
+\definition backwardFormula: \forall (a: A)(v: Vector dimension) -> (backward.fiber a).apply v =
+  Pair.first (Vector p.dimension) (Vector q.dimension) ((exchange.backward.fiber a).apply ((Frame.isomorphism.backward.fiber a).apply v)) :=
+  \fun (a: A)(v: Vector dimension) => eq_reason_in!{{Vector p.dimension} _
+    "=" { Pair.first (Vector p.dimension) (Vector q.dimension) ((Original.pulledExchange.backward.fiber a).apply ((Coordinate.comparison.backward.fiber a).apply v)) } "by" {
+      Original.firstFormula a ((Original.pulledExchange.backward.fiber a).apply ((Coordinate.comparison.backward.fiber a).apply v)) }
+    "=" { Pair.first (Vector p.dimension) (Vector q.dimension) ((exchange.backward.fiber a).apply ((Coordinate.comparison.backward.fiber a).apply v)) } "by" {
+      congr!{H {Vector p.dimension}} (Pair.first (Vector p.dimension) (Vector q.dimension)) _ _ (Original.exchangeBackwardFormula a ((Coordinate.comparison.backward.fiber a).apply v)) }
+    "=" { Pair.first (Vector p.dimension) (Vector q.dimension) ((exchange.backward.fiber a).apply ((Frame.isomorphism.backward.fiber a).apply v)) } "by" {
+      congr!{H {Vector p.dimension}} (\fun (z: H) => Pair.first (Vector p.dimension) (Vector q.dimension) ((exchange.backward.fiber a).apply z)) _ _ (Coordinate.backwardFormula a v) }
+  };
+\definition exchangeLaws: Automorphisms.Laws[exchange] := \bysub(Automorphisms.Data, Automorphisms.Isomorphism, exchange);
+\definition left: \forall (a: A)(v: Vector p.dimension) -> (backward.fiber a).apply ((forward.fiber a).apply v) = (p.projection a).map.apply v :=
+  \fun (a: A)(v: Vector p.dimension) => eq_reason_in!{{Vector p.dimension} _
+    "=" { (backward.fiber a).apply ((Frame.isomorphism.forward.fiber a).apply ((exchange.forward.fiber a).apply (Pair.pair (Vector p.dimension) (Vector q.dimension) ((p.projection a).map.apply v) (coordinates q.dimension).zero))) } "by" {
+      congr!{{Vector dimension} {Vector p.dimension}} (backward.fiber a).apply _ _ (forwardFormula a v) }
+    "=" { Pair.first (Vector p.dimension) (Vector q.dimension) ((exchange.backward.fiber a).apply ((Frame.isomorphism.backward.fiber a).apply ((Frame.isomorphism.forward.fiber a).apply ((exchange.forward.fiber a).apply (Pair.pair (Vector p.dimension) (Vector q.dimension) ((p.projection a).map.apply v) (coordinates q.dimension).zero))))) } "by" {
+      backwardFormula a ((Frame.isomorphism.forward.fiber a).apply ((exchange.forward.fiber a).apply (Pair.pair (Vector p.dimension) (Vector q.dimension) ((p.projection a).map.apply v) (coordinates q.dimension).zero))) }
+    "=" { Pair.first (Vector p.dimension) (Vector q.dimension) ((exchange.backward.fiber a).apply ((exchange.forward.fiber a).apply (Pair.pair (Vector p.dimension) (Vector q.dimension) ((p.projection a).map.apply v) (coordinates q.dimension).zero))) } "by" {
+      congr!{H {Vector p.dimension}} (\fun (z: H) => Pair.first (Vector p.dimension) (Vector q.dimension) ((exchange.backward.fiber a).apply z)) _ _
+        (frameLaws.leftInverse a ((exchange.forward.fiber a).apply (Pair.pair (Vector p.dimension) (Vector q.dimension) ((p.projection a).map.apply v) (coordinates q.dimension).zero))) }
+    "=" { (p.projection a).map.apply v } "by" {
+      congr!{H {Vector p.dimension}} (Pair.first (Vector p.dimension) (Vector q.dimension)) _ _
+        (exchangeLaws.leftInverse a (Pair.pair (Vector p.dimension) (Vector q.dimension) ((p.projection a).map.apply v) (coordinates q.dimension).zero)) }
+  };
+\definition matrixOnU: \forall (a: A)(v: Vector dimension) -> (matrix a).apply v =
+  (Frame.isomorphism.forward.fiber a).apply ((exchange.forward.fiber a).apply (Pair.pair (Vector p.dimension) (Vector q.dimension)
+    ((p.projection a).map.apply (Pair.first (Vector p.dimension) (Vector q.dimension) ((exchange.backward.fiber a).apply ((Frame.isomorphism.backward.fiber a).apply v)))) (coordinates q.dimension).zero)) :=
+  \fun (a: A)(v: Vector dimension) => trans!{{Vector dimension}} _ _ _
+    (congr!{End.Map {Vector dimension}} (\fun (m: End.Map) => (Frame.isomorphism.forward.fiber a).apply (m.apply ((Frame.isomorphism.backward.fiber a).apply v))) _ _ (onU a))
+    (trans!{{Vector dimension}} _ _ _
+      (congr!{H {Vector dimension}} (Frame.isomorphism.forward.fiber a).apply _ _ (U.conjugateFormula UBlock.map a ((Frame.isomorphism.backward.fiber a).apply v)))
+      (congr!{H {Vector dimension}} (\fun (z: H) => (Frame.isomorphism.forward.fiber a).apply ((exchange.forward.fiber a).apply z)) _ _
+        (UBlock.formula a ((exchange.backward.fiber a).apply ((Frame.isomorphism.backward.fiber a).apply v)))));
+\definition right: \forall (a: A)(v: Vector dimension) -> (forward.fiber a).apply ((backward.fiber a).apply v) = (matrix a).apply v :=
+  \fun (a: A)(v: Vector dimension) => trans!{{Vector dimension}} _ _ _ (forwardFormula a ((backward.fiber a).apply v))
+    (trans!{{Vector dimension}} _ _ _
+      (congr!{{Vector p.dimension} {Vector dimension}} (\fun (z: Vector p.dimension) => (Frame.isomorphism.forward.fiber a).apply ((exchange.forward.fiber a).apply
+        (Pair.pair (Vector p.dimension) (Vector q.dimension) ((p.projection a).map.apply z) (coordinates q.dimension).zero))) _ _ (backwardFormula a v))
+      (sym!{{Vector dimension}} _ _ (matrixOnU a v)));
+\import Native.Pullback[Y := A, source := subspace, f := URestriction.inclusion, regularBase := URestriction.regular] \as GlobalPull;
+\import Complements.Idempotents[n := p.dimension] \as SourceIdempotents;
+\definition sourceProjection[a: A]: SourceIdempotents.Projection := SourceIdempotents.Projection { map := (p.projection a).map, idempotent := (p.projection a).idempotent };
+\import Patcher.ImagePair[Y := A, baseSpace := subspace, m := p.dimension, n := dimension] \as Images;
+\definition data: Images.Data := Images.Data {
+  source := sourceProjection, target := (\fun (a: A) => projection a),
+  sourceRegular := p.regular, targetRegular := GlobalPull.composedRegular,
+  forward := (\fun (a: A) => forward.fiber a), backward := (\fun (a: A) => backward.fiber a),
+  forwardRegular := ForwardRegular.regular, backwardRegular := BackwardRegular.regular,
+  left := left, right := right
+};
+\import Images.With[d := data] \as Comparison;
+\import Bundles.Isomorphisms[X := A, F := (\fun (a: A) => Fiber a), G := (\fun (a: A) => Fiber a),
+  source := GlobalPull.firstBundle, target := GlobalPull.secondBundle] \as RestrictionComparison;
+\import Operations.IsomorphismComposition[X := A, F := UTheory.Fiber p, G := (\fun (a: A) => Fiber a), H := (\fun (a: A) => Fiber a),
+  source := UTheory.bundle p, middle := GlobalPull.secondBundle, target := GlobalPull.firstBundle] \as Composition;
+\import Bundles.Isomorphisms[X := A, F := UTheory.Fiber p, G := (\fun (a: A) => Fiber a),
+  source := UTheory.bundle p, target := GlobalPull.firstBundle] \as Isomorphisms;
+\definition isomorphism: Isomorphisms.Isomorphism := Composition.compose Comparison.isomorphism (RestrictionComparison.inverse GlobalPull.isomorphism);
+\import UTheory.Bundle[F := (\fun (a: A) => Fiber a), original := GlobalPull.firstBundle, same := (\refl(subspace))] \as RestrictedClass;
+\import Absolute.Pullback[Y := A, space := subspace, sourceCompact := URestriction.compactSubset, sourceHausdorff := URestriction.hausdorffSubset,
+  f := URestriction.inclusion, regular := URestriction.regular] \as Restrict;
+\import Restrict.Of[F := Fiber, original := imageBundle, same := (\refl(space))] \as PullClass;
+\definition classEquation: Restrict.map value = UTheory.class p := trans!{{UTheory.Classes}} _ _ _ PullClass.naturality
+  (RestrictedClass.identified p (Isomorphisms.inverse isomorphism));

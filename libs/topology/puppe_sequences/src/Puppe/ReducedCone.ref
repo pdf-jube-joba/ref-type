@@ -1,0 +1,33 @@
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := A] \as Cylinder;
+\use Logic.either;
+\definition Collapsed: \Pow Cylinder.Carrier := { p: Cylinder.Carrier \where Logic.Or[Cylinder.time p = I.end, Cylinder.point p = source.basepoint] };
+\import algebraic_topology.Collapse[A := Cylinder.Carrier, subset := Collapsed] \as Quotient;
+\definition Carrier: \Set := Quotient.Carrier;
+\definition class: Cylinder.Carrier -> Carrier := Quotient.class;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Quotient.topology (Cylinder.topology source.topology);
+\definition base[x: A]: Carrier := class (Cylinder.at I.start x);
+\definition point: Carrier := base source.basepoint;
+\definition pointed: algebraic_topology.Pointed[A := Carrier].Space := algebraic_topology.Pointed[A := Carrier].Space { topology := topology, basepoint := point };
+\definition collapsed: \forall (p: Cylinder.Carrier) -> \In[Cylinder.Carrier] Collapsed p -> class p = point :=
+  \fun (p: Cylinder.Carrier)(inside: _) => Quotient.collapsed p (Cylinder.at I.start source.basepoint) inside
+    (Logic.Or[_, _]::right (\refl(source.basepoint)));
+\definition apex: \forall (x: A) -> class (Cylinder.at I.end x) = point :=
+  \fun (x: A) => collapsed (Cylinder.at I.end x) (Logic.Or[_, _]::left (\refl(I.end)));
+\definition line: \forall (t: I.Carrier) -> class (Cylinder.at t source.basepoint) = point :=
+  \fun (t: I.Carrier) => collapsed (Cylinder.at t source.basepoint) (Logic.Or[_, _]::right (\refl(source.basepoint)));
+\definition baseContinuous: topology.Continuity[A := A, B := Carrier].Continuous source.topology topology base :=
+  topology.Composition[A := A, B := Cylinder.Carrier, C := Carrier].composeContinuous source.topology (Cylinder.topology source.topology) topology
+    (Cylinder.at I.start) class (Cylinder.atContinuous source.topology I.start) (Quotient.projectionContinuous (Cylinder.topology source.topology));
+\definition baseMap: algebraic_topology.Pointed[A := A].Maps[B := Carrier].Map[source, pointed] := \into[A -> Carrier](base,
+  algebraic_topology.Pointed[A := A].Maps[B := Carrier].Map[source, pointed]) \by {
+    algebraic_topology.Pointed[A := A].Maps[B := Carrier].Laws[source, pointed, base] { continuous := baseContinuous, pointed := \refl(point) }
+  };
+
+\module Lift(B: \Set, target: algebraic_topology.Pointed[A := B].Space,
+  f: algebraic_topology.Pointed[A := A].Maps[B := B].Map[source, target],
+  h: \root.Puppe[].Maps[A := A, B := B, source := source, target := target].Homotopy[f, \root.Puppe[].Maps[A := A, B := B, source := source, target := target].constant]);
+
+\module Mapping(B: \Set, target: algebraic_topology.Pointed[A := B].Space,
+  f: algebraic_topology.Pointed[A := A].Maps[B := B].Map[source, target]);
+\module Contraction;

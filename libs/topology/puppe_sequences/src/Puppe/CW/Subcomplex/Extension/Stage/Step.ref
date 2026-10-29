@@ -1,0 +1,21 @@
+\definition hLaws: Laws[h] := extensionLaws h;
+\import N.Basic[].Prop[] \as Nat;
+\module Cell(cell: Cells.CellData, member: Cells.CellMember complex.cells cell, bound: Nat.Le cell.dimension k);
+
+\import Filtration.Stage[limit := N.Nat^::succ k] \as Upper;
+\import Upper.Charts[] \as Charts;
+\import singular_cellular.Coproduct[Index := Charts.Index, fibers := (\fun (c: Charts.Index) => Euclidean.Disk c.dimension),
+  spaces := (\fun (c: Charts.Index) => Euclidean.Dimension[n := c.dimension].diskTopology)] \as Disks;
+\import algebraic_topology.Cylinder[A := Charts.Carrier] \as ChartCylinder;
+\import algebraic_topology.Cylinder[A := Upper.Carrier] \as UpperCylinder;
+\definition bound[c: Charts.Index]: Nat.Le c.dimension k := Nat.leOfSuccSucc c.dimension k (Nat.succLeOfLt (N.Nat^::succ k) c.dimension (Charts.below c));
+\definition Extensions: \Set := \forall (c: Charts.Index) -> Cell[cell := c, member := Charts.member c, bound := bound c].Good;
+\definition extensionsExist: \exists Extensions := \axiom:classicalIndefiniteChoice(Charts.Index,
+  (\fun (c: Charts.Index) => Cell[cell := c, member := Charts.member c, bound := bound c].Good),
+  (\fun (c: Charts.Index) => Cell[cell := c, member := Charts.member c, bound := bound c].existence));
+\module Combine(extensions: Extensions);
+
+\definition existence: \exists \parent.\parent.Stage[k := N.Nat^::succ k].Extension := \block {
+  \takefrom extensions: Extensions \by extensionsExist \then
+  \return \exact(Combine[extensions := extensions].result, \parent.\parent.Stage[k := N.Nat^::succ k].Extension)
+};

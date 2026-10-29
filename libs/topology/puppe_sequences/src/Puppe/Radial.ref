@@ -1,0 +1,55 @@
+\import algebraic_topology.Interval[] \as I;
+\import I.Arithmetic[] \as Time;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Order[] \as Order;
+\import Real.Algebra[] \as Algebra;
+\import Real.Estimates[] \as Estimates;
+\import Real.Estimates[].Product[] \as Products;
+\import Real.Distance[] \as Distance;
+\import std.Arithmetic[].Rat[].Estimates[] \as Q;
+\definition halfPositive: R.Lt Real.zero Real.half := Laws.ltOfRat Q.zeroRat Q.halfRat Q.halfPositive;
+\definition halfComplement: Real.sub Real.one Real.half = Real.half := trans!{Real.Real} _ _ _
+  (congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.sub x Real.half) _ _ (sym!{Real.Real} _ _ Estimates.halfDouble))
+  (Laws.addNegCancelRight Real.half Real.half);
+\definition lower: I.Carrier := I.reverse (Time.multiply I.middle t);
+\definition lowerBound: R.Le Real.half lower := R.leReplaceLeft (Real.sub Real.one Real.half) Real.half lower halfComplement
+  (Laws.addMonotoneLeft (Real.neg Real.half) (Real.neg (Real.mul Real.half t)) Real.one
+    (Laws.negAntitone (Real.mul Real.half t) Real.half
+      (R.leReplaceRight (Real.mul Real.half t) (Real.mul Real.half Real.one) Real.half (Algebra.mulOneRight Real.half)
+        (Estimates.mulMonotone Real.half t Real.one Estimates.halfNonnegative (I.bounds t).right))));
+\definition denominator: Real.Real := Distance.max lower r;
+\definition denominatorPositive: R.Lt Real.zero denominator := R.ltLeTrans Real.zero Real.half denominator halfPositive
+  (R.leTrans Real.half lower denominator lowerBound (Distance.maxLeft lower r));
+\definition denominatorNonzero: Logic.Not (denominator = Real.zero) := \fun (zero: denominator = Real.zero) =>
+  Order.ltNotEq Real.zero denominator denominatorPositive (sym!{Real.Real} _ _ zero);
+\definition denominatorUpper: R.Le denominator Real.one := Distance.maxLeast lower r Real.one (I.bounds lower).right (I.bounds r).right;
+\definition coefficient: Real.Real := Laws.fieldInv denominator;
+\definition coefficientPositive: R.Lt Real.zero coefficient := Products.invPositive denominator denominatorPositive;
+\definition coefficientLower: R.Le Real.one coefficient := R.leReplace (Real.mul coefficient denominator) Real.one (Real.mul coefficient Real.one) coefficient
+  (Laws.fieldInverseNonzero denominator denominatorNonzero) (Algebra.mulOneRight coefficient)
+  (Estimates.mulMonotone coefficient denominator Real.one (Order.leOfLt Real.zero coefficient coefficientPositive) denominatorUpper);
+\definition quotient: I.Carrier := \into[Real.Real](Real.mul coefficient lower, metric_spaces.RealLine[].ClosedInterval Real.zero Real.one) \by {
+  Logic.And[_, _]::#
+    (Laws.fieldMulNonnegative coefficient lower (Order.leOfLt Real.zero coefficient coefficientPositive) (I.bounds lower).left)
+    (R.leReplaceRight (Real.mul coefficient lower) (Real.mul coefficient denominator) Real.one (Laws.fieldInverseNonzero denominator denominatorNonzero)
+      (Estimates.mulMonotone coefficient lower denominator (Order.leOfLt Real.zero coefficient coefficientPositive) (Distance.maxLeft lower r)))
+};
+\definition quotientLower: R.Le Real.half quotient := R.leTrans Real.half lower quotient lowerBound
+  (R.leReplace (Real.mul lower Real.one) lower (Real.mul lower coefficient) quotient (Algebra.mulOneRight lower) (Laws.fieldMulComm lower coefficient)
+    (Estimates.mulMonotone lower Real.one coefficient (I.bounds lower).left coefficientLower));
+\definition reverseUpper: R.Le (I.reverse quotient) Real.half := R.leReplaceRight (I.reverse quotient) (Real.sub Real.one Real.half) Real.half halfComplement
+  (Laws.addMonotoneLeft (Real.neg quotient) (Real.neg Real.half) Real.one (Laws.negAntitone Real.half quotient quotientLower));
+\definition time: I.Carrier := \into[Real.Real](Real.add (I.reverse quotient) (I.reverse quotient), metric_spaces.RealLine[].ClosedInterval Real.zero Real.one) \by {
+  Logic.And[_, _]::# (Laws.addNonnegative (I.reverse quotient) (I.reverse quotient) (I.bounds (I.reverse quotient)).left (I.bounds (I.reverse quotient)).left)
+    (R.leReplaceRight (Real.add (I.reverse quotient) (I.reverse quotient)) (Real.add Real.half Real.half) Real.one Estimates.halfDouble
+      (R.leTrans (Real.add (I.reverse quotient) (I.reverse quotient)) (Real.add Real.half (I.reverse quotient)) (Real.add Real.half Real.half)
+        (Laws.addMonotoneRight (I.reverse quotient) Real.half (I.reverse quotient) reverseUpper)
+        (Laws.addMonotoneLeft (I.reverse quotient) Real.half Real.half reverseUpper)))
+};
+\definition bottom: denominator = lower -> time = I.start := \fun (same: denominator = lower) =>
+  trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (q: Real.Real) => Real.add (Real.sub Real.one q) (Real.sub Real.one q)) _ _
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul coefficient) _ _ (sym!{Real.Real} _ _ same)) (Laws.fieldInverseNonzero denominator denominatorNonzero)))
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Laws.subSelf Real.one) (Laws.subSelf Real.one)) (Laws.addZeroLeft Real.zero));
+\module Endpoints;

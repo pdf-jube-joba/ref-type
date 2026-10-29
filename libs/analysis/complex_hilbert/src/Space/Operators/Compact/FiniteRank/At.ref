@@ -1,0 +1,42 @@
+\import std.Data[].FinSet[] \as Fin;
+\import Fin.Scope[n := n] \as Scope;
+\import ComplexLinear.Coordinates[I := Fin.Fin n] \as Coordinates;
+\import ComplexLinear.FiniteCoordinates[n := n] \as Basis;
+\import ComplexLinear.Finite[V := Coordinates.Vector, I := Fin.Fin n, space := Coordinates.space] \as FiniteBasis;
+\import ComplexLinear.Linear[V := Coordinates.Vector, W := W, source := Coordinates.space, target := target] \as Decode;
+\import ComplexLinear.Linear[V := W, W := W, source := target, target := target] \as EndMaps;
+\import ComplexLinear.Linear[V := V, W := W, source := space, target := target] \as Maps;
+\import std.Set[].FiniteSubset[A := Fin.Fin n] \as IndexSets;
+\import IndexSets.Image[B := W] \as FiniteImages;
+\import std.Set[].FiniteSubset[A := W] \as Points;
+\import Projection.Compact[complete := complete] \as CompactProjection;
+\import Target.Operators[W := W, target := target, norm := targetNorm, targetNorm := targetNorm] \as End;
+\import End.Compact[] \as EndCompact;
+\import EndCompact.Before[U := V, domain := space, domainNorm := norm] \as Before;
+\import std.Data[].List[] \as Lists;
+\import std.Logic[].Equality[] \as Eq;
+\use Eq.sym;
+\use Eq.trans;
+\use Eq.congr;
+\use Eq.eq_reason_in;
+\definition generator[i: Fin.Fin n]: W := factor.out.apply (Basis.vectors i);
+\definition generators: Points.FiniteSubset := FiniteImages.value generator Scope.finite;
+\definition generatorMember: \forall (i: Fin.Fin n) -> Points.Member generators (generator i) :=
+  \fun (i: Fin.Fin n) => FiniteImages.member generator Scope.finite i (\refl(i));
+\module Chosen(P: Projection.Projection, covers: Projection.Covers[P, generators]);
+\definition compact: Compact f := \block {
+  \takefrom P: \Cast[Projection.Projection] ({ P: Projection.Projection \where Logic.And[Projection.Covers[P, generators], CompactProjection.CompactMap P.map] }) \by CompactProjection.coversFinite generators \then
+  \let data: Logic.And[Projection.Covers[P, generators], CompactProjection.CompactMap P.map] :=
+    \bysub(Projection.Projection, { P: Projection.Projection \where Logic.And[Projection.Covers[P, generators], CompactProjection.CompactMap P.map] }, P) \then
+  \takefrom op: \Cast[End.Map] ({ g: End.Map \where Logic.And[g.apply = P.map.apply, EndCompact.Compact g] }) \by data.right \then
+  \let laws: Logic.And[op.apply = P.map.apply, EndCompact.Compact op] := \bysub(End.Map, { g: End.Map \where Logic.And[g.apply = P.map.apply, EndCompact.Compact g] }, op) \then
+  \let comp: Map := Before.compose op f \then
+  \let same: comp.apply = f.apply := \axiom:funext(comp.apply, f.apply, \fun (x: V) => eq_reason_in!{W _
+    "=" _ "by" { congr!{{W -> W} W} (\fun (h: W -> W) => h (f.apply x)) _ _ laws.left }
+    "=" _ "by" { congr!{W W} P.map.apply _ _ (sym!{W} _ _ (factor.equation x)) }
+    "=" _ "by" { Chosen[P := P, covers := data.left].fixed (factor.into.apply x) }
+    "=" _ "by" { factor.equation x }
+  }) \then
+  \let images: Image comp = Image f := congr!{{V -> W} {\Pow W}} (\fun (h: V -> W) => Sets.Image h UnitBall) _ _ same \then
+  \return \idelim Image comp = Image f \with S: \Pow W => Relative.RelativelyCompact S \by { base: Before.compact op f laws.right, equality: images }
+};

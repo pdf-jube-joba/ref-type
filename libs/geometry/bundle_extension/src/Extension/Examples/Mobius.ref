@@ -1,0 +1,27 @@
+\import bundle_homotopy.Homotopy[].Examples[].Mobius[] \as Original;
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::succ one] \as Sphere;
+\import algebraic_topology.Interval[] \as Interval;
+\import topological_constructions.Product[A := Sphere.Sphere, B := Interval.Carrier] \as Product;
+\import Product.Maps[] \as Projections;
+\definition Cylinder: \Set := Product.CarrierSet;
+\definition topology: topology.Topology[Carrier := Cylinder].Topology := Product.topology Sphere.sphereTopology Interval.topology;
+\import topology.Topology[Carrier := Cylinder] \as CylinderSpace;
+\definition time[p: Cylinder]: R.Real := Pair.second Sphere.Sphere Interval.Carrier p;
+\definition timeContinuous: topology.Continuity[A := Cylinder, B := R.Real].Continuous topology metric_spaces.RealLine[].topology time :=
+  topology.Composition[A := Cylinder, B := Interval.Carrier, C := R.Real].composeContinuous topology Interval.topology metric_spaces.RealLine[].topology
+    (Pair.second Sphere.Sphere Interval.Carrier) (\fun (t: Interval.Carrier) => t) (Projections.secondContinuous Sphere.sphereTopology Interval.topology) Interval.inclusionContinuous;
+\definition subset: \Pow Cylinder := { p: Cylinder \where time p = R.zero };
+\definition closed: CylinderSpace.IsClosedIn topology subset := topology.Continuity[A := Cylinder, B := R.Real].closedPreimage topology metric_spaces.RealLine[].topology time timeContinuous
+  ({ t: R.Real \where t = R.zero }) (metric_spaces.MetricSpace[Carrier := R.Real].Topology[].singletonClosed metric_spaces.RealMetric[].metric R.zero);
+\definition compact: CylinderSpace.IsCompact topology := Product.Compactness[].productCompact Sphere.sphereTopology Interval.topology Sphere.Compactness[].sphere Interval.compact;
+\definition hausdorff: CylinderSpace.IsT2 topology := topological_constructions.Separation[].Product[A := Sphere.Sphere, B := Interval.Carrier].On[left := Sphere.sphereTopology, right := Interval.topology,
+  leftHausdorff := Sphere.Compactness[].sphereHausdorff, rightHausdorff := Interval.hausdorff].hausdorff;
+\definition base[p: \Cast[Cylinder] subset]: Sphere.Sphere := Pair.first Sphere.Sphere Interval.Carrier p;
+\definition baseContinuous: topology.Continuity[A := \Cast[Cylinder] subset, B := Sphere.Sphere].Continuous (CylinderSpace.Subspace[S := subset].topology topology) Sphere.sphereTopology base :=
+  topology.Continuity[A := Cylinder, B := Sphere.Sphere].Restriction[S := subset].restrictContinuous topology Sphere.sphereTopology
+    (Pair.first Sphere.Sphere Interval.Carrier) (Projections.firstContinuous Sphere.sphereTopology Interval.topology);
+\import vector_bundles.Bundles[].Over[K := R.Real, field := R.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar] \as Bundles;
+\import Bundles.Family[X := Sphere.Sphere, F := Original.Fiber].Of[bundle := Original.bundle].Pullback[Y := \Cast[Cylinder] subset, source := CylinderSpace.Subspace[S := subset].topology topology, f := base] \as Restriction;
+\import \root.Extension[].RealBundleExtension[A := Cylinder, source := topology, subset := subset, F := (\fun (p: \Cast[Cylinder] subset) => Original.Fiber (base p)), bundle := Restriction.pulled baseContinuous, same := \refl(CylinderSpace.Subspace[S := subset].topology topology)] \as ExtensionAPI;
+\definition Result: \Set := ExtensionAPI.Witness;
+\definition extension: \exists Result := ExtensionAPI.exists compact hausdorff closed;

@@ -1,0 +1,21 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import std.Alg[].Ring[] \as Rings;
+\import module_theory.Module[].Over[R := I.Int^, ring := Rings.commutativeRingAsRing I.Int^ Integers.commutativeRing] \as RingModules;
+\import RingModules.Laws[V := I.Int^, space := Cochains.coefficients.space] \as Laws;
+\import module_theory.Module[].IntegerGroup[Carrier := I.Int^, group := Laws.additive] \as Canonical;
+\import algebra.Hom[A := I.Int^, B := I.Int^] \as Hom;
+\definition multiplication[x: I.Int^]: Canonical.IntegerMap :=
+  \into[I.Int^ -> I.Int^](\fun (a: I.Int^) => (Cochains.coefficients.space).smul a x, Canonical.IntegerMap) \by {
+    Hom.MonoidLaws[Canonical.integerDomain, Canonical.target, \fun (a: I.Int^) => (Cochains.coefficients.space).smul a x] {
+      unit := Laws.zeroScale x,
+      operation := \fun (a, b: I.Int^) => (Cochains.coefficients.space).scalarAdd a b x,
+    }
+  };
+\definition equal[x: I.Int^]: Canonical.integerMap x = multiplication x :=
+  Canonical.generatorExt (Canonical.integerMap x) (multiplication x)
+    (trans!{I.Int^} _ _ _ (Canonical.scalarOne x) (sym!{I.Int^} _ _ ((Cochains.coefficients.space).scalarOne x)));
+\definition law: \forall (a, x: I.Int^) -> (Cochains.integerCoefficients.space).smul a x = (Cochains.baseRing).mul a x :=
+  \fun (a, x: I.Int^) => congr!{{I.Int^ -> I.Int^} I.Int^} (\fun (f: I.Int^ -> I.Int^) => f a) _ _ (equal x);

@@ -1,0 +1,36 @@
+\definition p: N.Nat^ := N.Nat^::zero;
+\definition q: N.Nat^ := N.Nat^::succ s;
+\import \parent.\parent.At[p := p, q := q].Relative[] \as Current;
+\import \parent.\parent.At[p := p, q := s].Relative[] \as Lower;
+\import Whole.Boundary[] \as Boundary;
+\import Boundary.LeftZero[s := s] \as WholeFormula;
+\import Whole.At[p := p, q := q] \as WholeCurrent;
+\import singular_cohomology.Chains[A := A, source := left] \as LeftChains;
+\import singular_cohomology.Chains[A := B, source := right] \as RightChains;
+\import singular_cohomology.Chains[A := Product.CarrierSet, source := External.topology] \as ProductChains;
+\import Whole.At[p := p, q := s] \as WholeLower;
+\import commutative_algebra.Modules[R := I.Int^, ring := Integers.commutativeRing].Bilinear[A := WholeCurrent.leftBundle, B := WholeCurrent.rightBundle, C := WholeLower.targetBundle] \as WholeForms;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import Nonnegative.ZeroExtension[C := LeftChains.complex] \as LeftExtension;
+\import Nonnegative.ZeroExtension[C := RightChains.complex] \as RightExtension;
+\import singular_cohomology.Chains[A := Left.SubspaceCarrier, source := LeftSpace.topology left] \as LeftSub;
+\import singular_cohomology.Chains[A := Right.SubspaceCarrier, source := RightSpace.topology right] \as RightSub;
+\import Nonnegative.ZeroExtension[C := LeftSub.complex] \as LeftSubExtension;
+\import Nonnegative.ZeroExtension[C := RightSub.complex] \as RightSubExtension;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.Quotient[C := LeftSubExtension.complex, D := LeftExtension.complex].On[f := Left.inclusionMap].At[k := I.Int^::ofNat p] \as LQ;
+\import Complexes.Quotient[C := RightSubExtension.complex, D := RightExtension.complex].On[f := Right.inclusionMap].At[k := I.Int^::ofNat q] \as RQ;
+\definition law: \forall (x: LeftDegree.Carrier p)(y: RightDegree.Carrier q) ->
+  (TargetDegree.boundary s).apply (Current.apply x y) = Lower.apply x ((RightDegree.boundary s).apply y) :=
+  LQ.induction (\fun (x: LeftDegree.Carrier p) => \forall (y: RightDegree.Carrier q) ->
+    (TargetDegree.boundary s).apply (Current.apply x y) = Lower.apply x ((RightDegree.boundary s).apply y))
+    (\fun (x: LeftExtension.Carrier (I.Int^::ofNat p)) => RQ.induction (\fun (y: RightDegree.Carrier q) =>
+      (TargetDegree.boundary s).apply (Current.apply (LQ.class x) y) = Lower.apply (LQ.class x) ((RightDegree.boundary s).apply y))
+      (\fun (y: RightExtension.Carrier (I.Int^::ofNat q)) => eq_reason_in!{{TargetDegree.Carrier s} _
+        "=" _ "by" { congr!{{TargetDegree.Carrier (N.Nat^::succ s)} {TargetDegree.Carrier s}} ((TargetDegree.boundary s).apply) _ _ (Current.onClasses x y) }
+        "=" _ "by" { TargetDegree.boundaryOnClass s (WholeCurrent.apply x y) }
+        "=" _ "by" { congr!{{ProductChains.Carrier s} {TargetDegree.Carrier s}} (TargetDegree.class s) _ _
+          (congr!{WholeForms.Map {ProductChains.Carrier s}} (\fun (f: WholeForms.Map) => f.apply x y) _ _ WholeFormula.equation) }
+        "=" _ "by" { sym!{{TargetDegree.Carrier s}} _ _ (Lower.onClasses x ((RightChains.boundary s).apply y)) }
+        "=" _ "by" { congr!{{RightDegree.Carrier s} {TargetDegree.Carrier s}} (Lower.apply (LQ.class x)) _ _ (sym!{{RightDegree.Carrier s}} _ _ (RightDegree.boundaryOnClass s y)) }
+      }));

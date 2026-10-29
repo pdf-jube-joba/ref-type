@@ -1,0 +1,45 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].List[] \as List;
+\import std.Logic[].Proposition[] \as Logic;
+\import \root.Euclidean[n := n] \as E;
+\import \root.BoxPartition[n := n] \as Partition;
+\import List.Membership[A := Partition.Slice] \as Member;
+\import Member.Append[] \as Append;
+\definition enumerate: \forall (k: N.Nat^) -> (Fin.Fin k -> Partition.Slice) -> List.List[Partition.Slice] :=
+  \induction (k: N.Nat^) \return (Fin.Fin k -> Partition.Slice) -> List.List[Partition.Slice] \with {
+    | zero: \fun (_: Fin.Fin N.Nat^::zero -> Partition.Slice) => List.List[Partition.Slice]::nil
+    | succ: \fun (k: N.Nat^) (prior: (Fin.Fin k -> Partition.Slice) -> List.List[Partition.Slice]) (f: Fin.Fin (N.Nat^::succ k) -> Partition.Slice) =>
+      List.List[Partition.Slice]::cons (f (Fin.zero k)) (prior (\fun (i: Fin.Fin k) => f (Fin.succ k i)))
+  };
+\definition enumerateContains: \forall (k: N.Nat^) (f: Fin.Fin k -> Partition.Slice) (i: Fin.Fin k) -> Member.Occurs (f i) (enumerate k f) :=
+  \induction (k: N.Nat^) \return \forall (f: Fin.Fin k -> Partition.Slice) (i: Fin.Fin k) -> Member.Occurs (f i) (enumerate k f) \with {
+    | zero: \fun (_: _) (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))
+    | succ: \fun (k: N.Nat^) (prior: \forall (f: Fin.Fin k -> Partition.Slice) (i: Fin.Fin k) -> Member.Occurs (f i) (enumerate k f))
+      (f: Fin.Fin (N.Nat^::succ k) -> Partition.Slice) => Fin.cases k (\fun (i: Fin.Fin (N.Nat^::succ k)) => Member.Occurs (f i) (enumerate (N.Nat^::succ k) f))
+        (Logic.Or[_, _]::left (\refl(f (Fin.zero k))))
+        (\fun (i: Fin.Fin k) => Logic.Or[_, _]::right (prior (\fun (j: Fin.Fin k) => f (Fin.succ k j)) i))
+  };
+\definition boxCuts[b: E.Box]: List.List[Partition.Slice] :=
+  List.append Partition.Slice (enumerate n (Partition.lowerCut b)) (enumerate n (Partition.upperCut b));
+\definition boxLower: \forall (b: E.Box) (i: Fin.Fin n) -> Member.Occurs (Partition.lowerCut b i) (boxCuts b) :=
+  \fun (b: E.Box) (i: Fin.Fin n) => Append.left (enumerate n (Partition.lowerCut b)) (enumerate n (Partition.upperCut b)) _ (enumerateContains n (Partition.lowerCut b) i);
+\definition boxUpper: \forall (b: E.Box) (i: Fin.Fin n) -> Member.Occurs (Partition.upperCut b i) (boxCuts b) :=
+  \fun (b: E.Box) (i: Fin.Fin n) => Append.right (enumerate n (Partition.lowerCut b)) (enumerate n (Partition.upperCut b)) _ (enumerateContains n (Partition.upperCut b) i);
+\definition collect: \forall (k: N.Nat^) -> (Fin.Fin k -> E.Box) -> List.List[Partition.Slice] :=
+  \induction (k: N.Nat^) \return (Fin.Fin k -> E.Box) -> List.List[Partition.Slice] \with {
+    | zero: \fun (_: Fin.Fin N.Nat^::zero -> E.Box) => List.List[Partition.Slice]::nil
+    | succ: \fun (k: N.Nat^) (prior: (Fin.Fin k -> E.Box) -> List.List[Partition.Slice]) (f: Fin.Fin (N.Nat^::succ k) -> E.Box) =>
+      List.append Partition.Slice (boxCuts (f (Fin.zero k))) (prior (\fun (i: Fin.Fin k) => f (Fin.succ k i)))
+  };
+\definition collectContains: \forall (k: N.Nat^) (f: Fin.Fin k -> E.Box) (i: Fin.Fin k) (cut: Partition.Slice) ->
+  Member.Occurs cut (boxCuts (f i)) -> Member.Occurs cut (collect k f) :=
+  \induction (k: N.Nat^) \return \forall (f: Fin.Fin k -> E.Box) (i: Fin.Fin k) (cut: Partition.Slice) ->
+    Member.Occurs cut (boxCuts (f i)) -> Member.Occurs cut (collect k f) \with {
+      | zero: \fun (_: _) (i: Fin.Fin N.Nat^::zero) (_: _) (_: _) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))
+      | succ: \fun (k: N.Nat^) (prior: \forall (f: Fin.Fin k -> E.Box) (i: Fin.Fin k) (cut: Partition.Slice) -> Member.Occurs cut (boxCuts (f i)) -> Member.Occurs cut (collect k f))
+        (f: Fin.Fin (N.Nat^::succ k) -> E.Box) => Fin.cases k (\fun (i: Fin.Fin (N.Nat^::succ k)) => \forall (cut: Partition.Slice) -> Member.Occurs cut (boxCuts (f i)) -> Member.Occurs cut (collect (N.Nat^::succ k) f))
+          (\fun (cut: Partition.Slice) (inside: Member.Occurs cut (boxCuts (f (Fin.zero k)))) => Append.left _ _ cut inside)
+          (\fun (i: Fin.Fin k) (cut: Partition.Slice) (inside: Member.Occurs cut (boxCuts (f (Fin.succ k i)))) =>
+            Append.right _ _ cut (prior (\fun (j: Fin.Fin k) => f (Fin.succ k j)) i cut inside))
+    };

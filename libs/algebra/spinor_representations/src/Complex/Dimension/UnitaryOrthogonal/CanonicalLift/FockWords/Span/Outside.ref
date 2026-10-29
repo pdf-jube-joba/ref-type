@@ -1,0 +1,17 @@
+\import Forms.At[k := l] \as Grade;
+\import Algebra.Laws[V := Forms.Form l, space := Grade.vectorSpace] \as GradeLaws;
+\import Algebra.Linear[V := Total.Carrier, W := Forms.Form l, source := Total.totalSpace, target := Grade.vectorSpace] \as Maps;
+\import TotalSums.Mapping[W := Forms.Form l, target := Grade.vectorSpace] \as Mapping;
+\import Sums.Vector[V := Forms.Form l, space := Grade.vectorSpace] \as FormSums;
+\definition evaluate: Maps.Map := Maps.Map {
+  apply := \fun (f: Total.Carrier) => f l,
+  preservesAdd := \fun (f, g: Total.Carrier) => \refl(Grade.vectorSpace.add (f l) (g l)),
+  preservesScale := \fun (a: C.Complex)(f: Total.Carrier) => \refl(Grade.vectorSpace.smul a (f l)),
+};
+\definition zero: \forall (xs: At.Enumeration)(f: Forms.Form k) -> Logic.Not (k = l) -> assemble xs f l = Grade.origin :=
+  \fun (xs: At.Enumeration)(f: Forms.Form k)(different: Logic.Not (k = l)) => eq_reason_in!{{Forms.Form l} _
+    "=" _ "by" { Mapping.law evaluate xs (\fun (i: At.Tuple) => Total.totalSpace.smul (At.coefficient f i) (state k i)) }
+    "=" _ "by" { FormSums.congruent xs _ _ (\fun (i: At.Tuple) => trans!{{Forms.Form l}} _ _ _
+      (congr!{{Forms.Form l} {Forms.Form l}} (Grade.vectorSpace.smul (At.coefficient f i)) _ _ (supported k i l different)) (GradeLaws.scaleZero (At.coefficient f i))) }
+    "=" _ "by" { FormSums.zero xs }
+  };
