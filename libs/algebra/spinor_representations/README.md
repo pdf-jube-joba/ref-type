@@ -25,7 +25,7 @@ U(n) 自身の行列成分位相から Spin-c の多様体位相への一般的�
 単射性は左右の縮約で取り出した係数によって核を分離し、全射性は真空からの生成で証明する。
 `Over.Direct.Total.Grading.intertwines` は偶奇次数の保存を、`Complex.Graded.Comparison.Algebra.intertwining` は Clifford 代数全体の作用との整合性を示し、`Over.Direct.Total.Vacuum.Words` は生成作用で作った状態の対応を与える。
 
-[Examples](src/Examples.ref) に一次元の平方・随伴公式、標準持ち上げと行列式文字の例があり、[ZeroTensor](src/Examples/ZeroTensor.ref) は零次元のテンソル比較の往復を検査する。
+[Examples](src/Examples.ref) に一次元の平方・随伴公式、標準持ち上げと行列式文字の例があり、[ZeroTensor](src/Examples/ZeroTensor.ref) は零次元のテンソル比較の往復を検査し、[Manifold](src/Examples/Manifold/On.ref) は任意の滑らかな多様体上の単位ユニタリ族の滑らかな持ち上げを示す。
 
 ```sh
 target/debug/cli libs/algebra/spinor_representations --memory-mib 8192 --cache-stats --no-progress
