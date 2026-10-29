@@ -1,0 +1,43 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].List[] \as Lists;
+\import Algebra.Linear[V := V, W := W, source := source, target := target] \as Linear;
+\import \root.Over[K := K, scalarRing := scalarRing].On[V := V, space := source].Total[] \as Result;
+\import \root.Over[K := K, scalarRing := scalarRing].On[V := W, space := target].Total[] \as Original;
+\import Result.Series[] \as ResultSeries;
+\import ResultSeries.Laws[] \as ResultLaws;
+\import Original.Series[] \as OriginalSeries;
+\import Algebra.Multilinear[V := V, space := source].Alternating[] \as ResultForms;
+\import ResultForms.Precomposition[W := W, target := target] \as Precomposition;
+\import Algebra.Exterior[V := V, space := source].Pullback[W := W, target := target] \as ExteriorPullback;
+\import Algebra.Exterior[V := V, space := source] \as ResultExterior;
+\import Algebra.Exterior[V := W, space := target] \as OriginalExterior;
+\import Algebra.Shuffle[I := V] \as ResultShuffle;
+\import Algebra.Shuffle[I := W] \as OriginalShuffle;
+\import ResultShuffle.Naturality[J := W] \as SeriesMap;
+\import Lists.Mapping[A := V, B := W].Prop[] \as ListMap;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].trans;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\definition apply[u: Linear.Map][f: Original.Carrier]: Result.Carrier := \fun (k: N.Nat^) => Precomposition.precompose k u (f k);
+\definition series: \forall (u: Linear.Map)(f: Original.Carrier)(xs: Lists.List[V]) -> ResultSeries.value (apply u f) xs = OriginalSeries.value f (Lists.map V W u.apply xs) :=
+  \fun (u: Linear.Map)(f: Original.Carrier)(xs: Lists.List[V]) => eq_reason_in!{K _
+    "=" _ "by" { ResultSeries.asComponent (apply u f) xs }
+    "=" _ "by" { congr!{{ResultShuffle.Function} K} (\fun (s: ResultShuffle.Function) => s xs) _ _ (ExteriorPullback.Components[k := Lists.length V xs].law u (f (Lists.length V xs))) }
+    "=" _ "by" { congr!{{N.Nat^} K} (\fun (k: N.Nat^) => OriginalExterior.component k (f k) (Lists.map V W u.apply xs)) _ _ (sym!{{N.Nat^}} _ _ (ListMap.lengthMap u.apply xs)) }
+    "=" _ "by" { sym!{K} _ _ (OriginalSeries.asComponent f (Lists.map V W u.apply xs)) }
+  };
+\import Algebra.Multilinear[V := W, space := target].Alternating[] \as OriginalForms;
+\definition creation: \forall (u: Linear.Map)(alpha: OriginalForms.Form (N.Nat^::succ N.Nat^::zero))(f: Original.Carrier) ->
+  apply u (Original.createLeft alpha f) = Result.createLeft (Precomposition.precompose (N.Nat^::succ N.Nat^::zero) u alpha) (apply u f) :=
+  \fun (u: Linear.Map)(alpha: OriginalForms.Form (N.Nat^::succ N.Nat^::zero))(f: Original.Carrier) => ResultLaws.ext _ _
+    (\axiom:funext(ResultSeries.value (apply u (Original.createLeft alpha f)), ResultSeries.value (Result.createLeft (Precomposition.precompose (N.Nat^::succ N.Nat^::zero) u alpha) (apply u f)), \fun (xs: Lists.List[V]) => eq_reason_in!{K _
+      "=" _ "by" { series u (Original.createLeft alpha f) xs }
+      "=" _ "by" { OriginalSeries.creation alpha f (Lists.map V W u.apply xs) }
+      "=" _ "by" { sym!{K} _ _ (SeriesMap.productMap xs u.apply (OriginalExterior.component (N.Nat^::succ N.Nat^::zero) alpha) (OriginalSeries.value f)) }
+      "=" _ "by" { ResultShuffle.Laws[].congruent (SeriesMap.mapSeries u.apply (OriginalExterior.component (N.Nat^::succ N.Nat^::zero) alpha)) (ResultExterior.component (N.Nat^::succ N.Nat^::zero) (Precomposition.precompose (N.Nat^::succ N.Nat^::zero) u alpha))
+        (SeriesMap.mapSeries u.apply (OriginalSeries.value f)) (ResultSeries.value (apply u f))
+        (\fun (ys: Lists.List[V]) => sym!{K} _ _ (congr!{{ResultShuffle.Function} K} (\fun (s: ResultShuffle.Function) => s ys) _ _ (ExteriorPullback.Components[k := N.Nat^::succ N.Nat^::zero].law u alpha)))
+        (\fun (ys: Lists.List[V]) => sym!{K} _ _ (series u f ys)) xs }
+      "=" _ "by" { sym!{K} _ _ (ResultSeries.creation (Precomposition.precompose (N.Nat^::succ N.Nat^::zero) u alpha) (apply u f) xs) }
+    }));

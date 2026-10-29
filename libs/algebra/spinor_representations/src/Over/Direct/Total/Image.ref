@@ -1,0 +1,67 @@
+\import \parent.Creation[] \as Creation;
+\import \parent.Vacuum[] \as Vacuum;
+\import LeftTotal.Vacuum[] \as LeftVacuum;
+\import RightTotal.Vacuum[] \as RightVacuum;
+\import ResultTotal.Vacuum[] \as ResultVacuum;
+\import Algebra.Linear[V := Tensor.Carrier, W := ResultTotal.Carrier, source := Tensor.space, target := ResultTotal.totalSpace] \as Maps;
+\import \root.Over[K := K, scalarRing := scalarRing].TensorOperators[V := LeftTotal.Carrier, W := RightTotal.Carrier, left := LeftTotal.totalSpace, right := RightTotal.totalSpace] \as Operators;
+\import Algebra.Eigen[V := RightTotal.Carrier, space := RightTotal.totalSpace] \as RightIdentity;
+\import Algebra.Subspace[V := ResultTotal.Carrier, space := ResultTotal.totalSpace] \as Subspaces;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition Witness[f: ResultTotal.Carrier]: \Set := \Cast[Tensor.Carrier] ({ t: Tensor.Carrier \where comparison.apply t = f });
+\definition InImage[f: ResultTotal.Carrier]: \Prop := \exists Witness f;
+\definition predicate: \Pow ResultTotal.Carrier := { f: ResultTotal.Carrier \where InImage f };
+\definition zero: InImage ResultTotal.totalSpace.zero := \exact(\into[Tensor.Carrier](Tensor.space.zero, Witness ResultTotal.totalSpace.zero) \by { comparison.preservesZero }, Witness ResultTotal.totalSpace.zero);
+\definition add: \forall (f, g: ResultTotal.Carrier) -> InImage f -> InImage g -> InImage (ResultTotal.totalSpace.add f g) := \block {
+  \fun (f, g: ResultTotal.Carrier)(hf: InImage f)(hg: InImage g) \then
+  \takefrom x: Witness f \by hf \then
+  \takefrom y: Witness g \by hg \then
+  \return \exact(\into[Tensor.Carrier](Tensor.space.add x y, Witness (ResultTotal.totalSpace.add f g)) \by { eq_reason_in!{{ResultTotal.Carrier} _
+    "=" _ "by" { comparison.preservesAdd x y }
+    "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier} {ResultTotal.Carrier}} ResultTotal.totalSpace.add _ _ _ _
+      (\bysub(Tensor.Carrier, { t: Tensor.Carrier \where comparison.apply t = f }, x)) (\bysub(Tensor.Carrier, { t: Tensor.Carrier \where comparison.apply t = g }, y)) }
+  } }, Witness (ResultTotal.totalSpace.add f g))
+};
+\definition scale: \forall (a: K)(f: ResultTotal.Carrier) -> InImage f -> InImage (ResultTotal.totalSpace.smul a f) := \block {
+  \fun (a: K)(f: ResultTotal.Carrier)(hf: InImage f) \then
+  \takefrom x: Witness f \by hf \then
+  \return \exact(\into[Tensor.Carrier](Tensor.space.smul a x, Witness (ResultTotal.totalSpace.smul a f)) \by { eq_reason_in!{{ResultTotal.Carrier} _
+    "=" _ "by" { comparison.preservesScale a x }
+    "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} (ResultTotal.totalSpace.smul a) _ _ (\bysub(Tensor.Carrier, { t: Tensor.Carrier \where comparison.apply t = f }, x)) }
+  } }, Witness (ResultTotal.totalSpace.smul a f))
+};
+\definition subspace: Subspaces.Subspace := Subspaces.Subspace { carrier := predicate, containsZero := zero, closedAdd := add, closedScale := scale };
+\definition vacuum: InImage ResultVacuum.state := \exact(\into[Tensor.Carrier](Tensor.tensor LeftVacuum.state RightVacuum.state, Witness ResultVacuum.state) \by { Vacuum.onVacuum }, Witness ResultVacuum.state);
+\definition leftCreation: \forall (alpha: Left.Form (N.Nat^::succ N.Nat^::zero))(f: ResultTotal.Carrier) -> InImage f ->
+  InImage (ResultTotal.createLeft (PullLeft.precompose (N.Nat^::succ N.Nat^::zero) leftProjection alpha) f) := \block {
+  \fun (alpha: _)(f: ResultTotal.Carrier)(hf: InImage f) \then
+  \takefrom x: Witness f \by hf \then
+  \return \exact(\into[Tensor.Carrier]((Operators.map (LeftTotal.leftCreation alpha) RightIdentity.identity).apply x, Witness (ResultTotal.createLeft (PullLeft.precompose (N.Nat^::succ N.Nat^::zero) leftProjection alpha) f)) \by { eq_reason_in!{{ResultTotal.Carrier} _
+    "=" _ "by" { sym!{{ResultTotal.Carrier}} _ _ (congr!{{Maps.Map} {ResultTotal.Carrier}} (\fun (map: Maps.Map) => map.apply x) _ _ (Creation.leftIntertwines alpha)) }
+    "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} (ResultTotal.createLeft (PullLeft.precompose (N.Nat^::succ N.Nat^::zero) leftProjection alpha)) _ _ (\bysub(Tensor.Carrier, { t: Tensor.Carrier \where comparison.apply t = f }, x)) }
+  } }, Witness (ResultTotal.createLeft (PullLeft.precompose (N.Nat^::succ N.Nat^::zero) leftProjection alpha) f))
+};
+\definition rightCreation: \forall (beta: Right.Form (N.Nat^::succ N.Nat^::zero))(f: ResultTotal.Carrier) -> InImage f ->
+  InImage (ResultTotal.createLeft (PullRight.precompose (N.Nat^::succ N.Nat^::zero) rightProjection beta) f) := \block {
+  \fun (beta: _)(f: ResultTotal.Carrier)(hf: InImage f) \then
+  \takefrom x: Witness f \by hf \then
+  \return \exact(\into[Tensor.Carrier]((Operators.map LeftTotal.grading (RightTotal.leftCreation beta)).apply x, Witness (ResultTotal.createLeft (PullRight.precompose (N.Nat^::succ N.Nat^::zero) rightProjection beta) f)) \by { eq_reason_in!{{ResultTotal.Carrier} _
+    "=" _ "by" { sym!{{ResultTotal.Carrier}} _ _ (congr!{Maps.Map {ResultTotal.Carrier}} (\fun (map: Maps.Map) => map.apply x) _ _ (Creation.rightIntertwines beta)) }
+    "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} (ResultTotal.createLeft (PullRight.precompose (N.Nat^::succ N.Nat^::zero) rightProjection beta)) _ _ (\bysub(Tensor.Carrier, { t: Tensor.Carrier \where comparison.apply t = f }, x)) }
+  } }, Witness (ResultTotal.createLeft (PullRight.precompose (N.Nat^::succ N.Nat^::zero) rightProjection beta) f))
+};
+\import \parent.Covector[] \as Covector;
+\definition creation: \forall (alpha: Result.Form (N.Nat^::succ N.Nat^::zero))(f: ResultTotal.Carrier) -> InImage f -> InImage (ResultTotal.createLeft alpha f) :=
+  \fun (alpha: Result.Form (N.Nat^::succ N.Nat^::zero))(f: ResultTotal.Carrier)(hf: InImage f) =>
+    \idelim ResultTotal.totalSpace.add
+      (ResultTotal.createLeft (PullLeft.precompose (N.Nat^::succ N.Nat^::zero) leftProjection (Covector.leftPart alpha)) f)
+      (ResultTotal.createLeft (PullRight.precompose (N.Nat^::succ N.Nat^::zero) rightProjection (Covector.rightPart alpha)) f) = ResultTotal.createLeft alpha f
+    \with x: ResultTotal.Carrier => InImage x \by {
+      base: add _ _ (leftCreation (Covector.leftPart alpha) f hf) (rightCreation (Covector.rightPart alpha) f hf),
+      equality: trans!{{ResultTotal.Carrier}} _ _ _
+        (sym!{{ResultTotal.Carrier}} _ _ (ResultTotal.createLeftAddition (PullLeft.precompose (N.Nat^::succ N.Nat^::zero) leftProjection (Covector.leftPart alpha)) (PullRight.precompose (N.Nat^::succ N.Nat^::zero) rightProjection (Covector.rightPart alpha)) f))
+        (congr!{{Result.Form (N.Nat^::succ N.Nat^::zero)} {ResultTotal.Carrier}} (\fun (a: Result.Form (N.Nat^::succ N.Nat^::zero)) => ResultTotal.createLeft a f) _ _ (sym!{{Result.Form (N.Nat^::succ N.Nat^::zero)}} _ _ (Covector.decomposition alpha)))
+    };
+\module Finite(n: N.Nat^, b: Algebra.FiniteBasis Sum.Carrier Sum.space n);
+\module Lift;

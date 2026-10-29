@@ -1,0 +1,43 @@
+\import Algebra.FiniteExterior[V := Finite.Vector, space := Finite.space, n := n, b := Standard.basis].At[k := N.Nat^::succ k] \as ExteriorAt;
+\import Algebra.Multilinear[V := Finite.Vector, space := Finite.space].Alternating[].Dimension[n := n, b := Standard.basis].Increasing[k := N.Nat^::succ k] \as Increasing;
+\import \parent.\parent.Inner[k := k].Canonical[] \as LowerInner;
+\import \parent.\parent.Inner[k := N.Nat^::succ k].Canonical[] \as HigherInner;
+\import Forms.At[k := k] \as Lower;
+\import Forms.At[k := N.Nat^::succ k] \as Higher;
+\import Algebra.Linear[V := Forms.Form (N.Nat^::succ k), W := C.Complex, source := Higher.vectorSpace, target := Algebra.scalarSpace] \as Linear;
+\definition left[r: Fin.Fin n][f: Forms.Form k]: Linear.Map := Linear.Map {
+  apply := \fun (g: Forms.Form (N.Nat^::succ k)) => HigherInner.dot (Operations.LeftCreation[k := k].apply (Metric.form (Finite.basis r)) f) g,
+  preservesAdd := HigherInner.form.addRight (Operations.LeftCreation[k := k].apply (Metric.form (Finite.basis r)) f),
+  preservesScale := \fun (a: C.Complex)(g: Forms.Form (N.Nat^::succ k)) => HigherInner.form.scaleRight a (Operations.LeftCreation[k := k].apply (Metric.form (Finite.basis r)) f) g,
+};
+\definition right[r: Fin.Fin n][f: Forms.Form k]: Linear.Map := Linear.Map {
+  apply := \fun (g: Forms.Form (N.Nat^::succ k)) => LowerInner.dot f ((Operations.Contraction[k := k].operator (Finite.basis r)).apply g),
+  preservesAdd := \fun (g, h: Forms.Form (N.Nat^::succ k)) => trans!{C.Complex} _ _ _
+    (congr!{{Forms.Form k} C.Complex} (LowerInner.dot f) _ _ ((Operations.Contraction[k := k].operator (Finite.basis r)).preservesAdd g h))
+    (LowerInner.form.addRight f ((Operations.Contraction[k := k].operator (Finite.basis r)).apply g) ((Operations.Contraction[k := k].operator (Finite.basis r)).apply h)),
+  preservesScale := \fun (a: C.Complex)(g: Forms.Form (N.Nat^::succ k)) => trans!{C.Complex} _ _ _
+    (congr!{{Forms.Form k} C.Complex} (LowerInner.dot f) _ _ ((Operations.Contraction[k := k].operator (Finite.basis r)).preservesScale a g))
+    (LowerInner.form.scaleRight a f ((Operations.Contraction[k := k].operator (Finite.basis r)).apply g)),
+};
+\import Algebra.Sums[I := ExteriorAt.Tuple] \as Sums;
+\import Sums.Prop[] \as SumLaws;
+\import Sums.Vector[V := Forms.Form (N.Nat^::succ k), space := Higher.vectorSpace] \as FormSums;
+\import FormSums.Mapping[W := C.Complex, target := Algebra.scalarSpace] \as Mapping;
+\definition onBasis: \forall (r: Fin.Fin n)(f: Forms.Form k) ->
+  (\forall (j: Increasing.Index) -> (left r f).apply (ExteriorAt.word j) = (right r f).apply (ExteriorAt.word j)) ->
+  \forall (g: Forms.Form (N.Nat^::succ k)) -> (left r f).apply g = (right r f).apply g := \block {
+  \fun (r: Fin.Fin n)(f: Forms.Form k)(basis: \forall (j: Increasing.Index) -> (left r f).apply (ExteriorAt.word j) = (right r f).apply (ExteriorAt.word j))(g: Forms.Form (N.Nat^::succ k)) \then
+  \takefrom xs: ExteriorAt.Enumeration \by ExteriorAt.existsEnumeration \then
+  \return eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{{Forms.Form (N.Nat^::succ k)} C.Complex} ((left r f).apply) _ _ (sym!{{Forms.Form (N.Nat^::succ k)}} _ _ (ExteriorAt.reconstruction g xs)) }
+    "=" _ "by" { Mapping.law (left r f) xs (\fun (j: ExteriorAt.Tuple) => Higher.scale (ExteriorAt.coefficient g j) (ExteriorAt.word j)) }
+    "=" _ "by" { SumLaws.congruentOnKeys xs (\fun (j: ExteriorAt.Tuple) => (left r f).apply (Higher.scale (ExteriorAt.coefficient g j) (ExteriorAt.word j))) (\fun (j: ExteriorAt.Tuple) => (right r f).apply (Higher.scale (ExteriorAt.coefficient g j) (ExteriorAt.word j)))
+      (\fun (j: ExteriorAt.Tuple)(member: \In[ExteriorAt.Tuple] (Sums.keys xs) j) => eq_reason_in!{C.Complex _
+        "=" _ "by" { (left r f).preservesScale (ExteriorAt.coefficient g j) (ExteriorAt.word j) }
+        "=" _ "by" { congr!{C.Complex C.Complex} (Algebra.mul (ExteriorAt.coefficient g j)) _ _ (basis (\into[ExteriorAt.Tuple](j, Increasing.Index) \by { Increasing.included xs j member })) }
+        "=" _ "by" { sym!{C.Complex} _ _ ((right r f).preservesScale (ExteriorAt.coefficient g j) (ExteriorAt.word j)) }
+      }) }
+    "=" _ "by" { sym!{C.Complex} _ _ (Mapping.law (right r f) xs (\fun (j: ExteriorAt.Tuple) => Higher.scale (ExteriorAt.coefficient g j) (ExteriorAt.word j))) }
+    "=" _ "by" { congr!{{Forms.Form (N.Nat^::succ k)} C.Complex} ((right r f).apply) _ _ (ExteriorAt.reconstruction g xs) }
+  }
+};

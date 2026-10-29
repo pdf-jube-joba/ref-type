@@ -1,0 +1,65 @@
+\definition length: N.Nat^ := Lists.length Exterior.Tuple enumeration;
+\import Fin.FromList[A := Exterior.Tuple] \as ListTuple;
+\definition indices: Fin.Fin length -> Exterior.Tuple := ListTuple.tuple enumeration;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := Field.field, scalar := Hermitian.scalar].Finite[n := length] \as Coordinates;
+\import Forms.At[k := k] \as Grade;
+\import Algebra.Linear[V := Forms.Form k, W := Coordinates.Vector, source := Grade.vectorSpace, target := Coordinates.space] \as Linear;
+\definition value[f: Forms.Form k][i: Fin.Fin length]: C.Complex := Exterior.coefficient f (indices i);
+\definition coordinates: Linear.Map := Linear.Map {
+  apply := value,
+  preservesAdd := \fun (f, g: Forms.Form k) => \axiom:funext(value (Grade.plus f g), Coordinates.space.add (value f) (value g), \fun (i: Fin.Fin length) => \refl(Algebra.add (Exterior.coefficient f (indices i)) (Exterior.coefficient g (indices i)))),
+  preservesScale := \fun (a: C.Complex)(f: Forms.Form k) => \axiom:funext(value (Grade.scale a f), Coordinates.space.smul a (value f), \fun (i: Fin.Fin length) => \refl(Algebra.mul a (Exterior.coefficient f (indices i)))),
+};
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := Field.field, scalar := Hermitian.scalar].Inner[V := Forms.Form k, space := Grade.vectorSpace] \as Geometry;
+\import Algebra.Laws[V := Coordinates.Vector, space := Coordinates.space] \as CoordinateLaws;
+\use std.Logic[].Equality[].trans;
+\use std.Logic[].Equality[].congr;
+\definition form: Geometry.Form := Geometry.Form {
+  dot := \fun (f, g: Forms.Form k) => Coordinates.dot (coordinates.apply f) (coordinates.apply g),
+  symmetric := \fun (f, g: Forms.Form k) => Coordinates.symmetric (coordinates.apply f) (coordinates.apply g),
+  zeroRight := \fun (f: Forms.Form k) => trans!{C.Complex} _ _ _
+    (congr!{{Coordinates.Vector} C.Complex} (Coordinates.dot (coordinates.apply f)) _ _ coordinates.preservesZero)
+    (Coordinates.zeroRight (coordinates.apply f)),
+  addRight := \fun (f, g, h: Forms.Form k) => trans!{C.Complex} _ _ _
+    (congr!{{Coordinates.Vector} C.Complex} (Coordinates.dot (coordinates.apply f)) _ _ (coordinates.preservesAdd g h))
+    (Coordinates.addRight (coordinates.apply f) (coordinates.apply g) (coordinates.apply h)),
+  scaleRight := \fun (a: C.Complex)(f, g: Forms.Form k) => trans!{C.Complex} _ _ _
+    (congr!{{Coordinates.Vector} C.Complex} (Coordinates.dot (coordinates.apply f)) _ _ (coordinates.preservesScale a g))
+    (Coordinates.scaleRight a (coordinates.apply f) (coordinates.apply g)),
+};
+\import Lists.Membership[A := Exterior.Tuple] \as Members;
+\import Fin.Tuples[A := Exterior.Tuple] \as Tuples;
+\import std.Logic[].Proposition[] \as Logic;
+\use Logic.either;
+\use std.Logic[].Equality[].sym;
+\definition allOccurrences: \forall (xs: Lists.List[Exterior.Tuple])(P: Exterior.Tuple -> \Prop) ->
+  (\forall (i: Fin.Fin (Lists.length Exterior.Tuple xs)) -> P (ListTuple.tuple xs i)) ->
+  \forall (x: Exterior.Tuple) -> Members.Occurs x xs -> P x :=
+  \induction (xs: Lists.List[Exterior.Tuple]) \return \forall (P: Exterior.Tuple -> \Prop) ->
+    (\forall (i: Fin.Fin (Lists.length Exterior.Tuple xs)) -> P (ListTuple.tuple xs i)) ->
+    \forall (x: Exterior.Tuple) -> Members.Occurs x xs -> P x \with {
+      | nil: \fun (P: _)(all: _)(x: _)(no: Logic.False) => Logic.falseElim (P x) no
+      | cons: \fun (head: Exterior.Tuple)(tail: Lists.List[Exterior.Tuple])(previous: _)(P: _)(all: _)(x: Exterior.Tuple)(member: _) =>
+        either!{member {P x}
+          {\fun (same: x = head) => \idelim head = x \with y: Exterior.Tuple => P y \by {
+            base: \idelim ListTuple.tuple (Lists.List[Exterior.Tuple]::cons head tail) (Fin.zero (Lists.length Exterior.Tuple tail)) = head \with y: Exterior.Tuple => P y \by {
+              base: all (Fin.zero (Lists.length Exterior.Tuple tail)), equality: Tuples.atZero (Lists.length Exterior.Tuple tail) head (ListTuple.tuple tail)
+            }, equality: sym!{{Exterior.Tuple}} _ _ same
+          }}
+          {\fun (inside: Members.Occurs x tail) => previous P (\fun (i: Fin.Fin (Lists.length Exterior.Tuple tail)) =>
+            \idelim ListTuple.tuple (Lists.List[Exterior.Tuple]::cons head tail) (Fin.succ (Lists.length Exterior.Tuple tail) i) = ListTuple.tuple tail i \with y: Exterior.Tuple => P y \by {
+              base: all (Fin.succ (Lists.length Exterior.Tuple tail) i), equality: Tuples.atSuccessor (Lists.length Exterior.Tuple tail) head (ListTuple.tuple tail) i
+            }) x inside}
+        }
+    };
+\import Algebra.Multilinear[V := Finite.Vector, space := Finite.space].Alternating[].Dimension[n := n, b := Basis.basis].Increasing[k := k] \as Increasing;
+\definition injective: \forall (f, g: Forms.Form k) -> coordinates.apply f = coordinates.apply g -> f = g :=
+  \fun (f, g: Forms.Form k)(same: coordinates.apply f = coordinates.apply g) => Increasing.ext f g (\fun (index: Increasing.Index) =>
+    allOccurrences enumeration (\fun (i: Exterior.Tuple) => Exterior.coefficient f i = Exterior.coefficient g i)
+      (\fun (i: Fin.Fin length) => congr!{{Coordinates.Vector} C.Complex} (\fun (v: Coordinates.Vector) => v i) _ _ same)
+      index (Increasing.exhaustive enumeration index));
+\definition positive: Geometry.Positive[form] := Geometry.Positive[form] {
+  nonnegative := \fun (f: Forms.Form k) => Coordinates.positive.nonnegative (coordinates.apply f),
+  definite := \fun (f: Forms.Form k)(zero: form.dot f f = Algebra.zero) => injective f Grade.origin
+    (trans!{{Coordinates.Vector}} _ _ _ (Coordinates.positive.definite (coordinates.apply f) zero) (sym!{{Coordinates.Vector}} _ _ coordinates.preservesZero)),
+};

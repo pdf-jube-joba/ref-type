@@ -1,0 +1,40 @@
+\import \parent.Dimension[n := n, d := d] \as Lower;
+\import \parent.Dimension[n := N.Nat^::succ n, d := d] \as Upper;
+\import clifford.Euclidean[n := n] \as E;
+\import clifford.Euclidean[n := N.Nat^::succ n] \as Next;
+\import clifford.Field[K := R.Real, field := Scalars.field].On[V := E.Vector, space := E.space].Of[form := E.form] \as A;
+\import clifford.Field[K := R.Real, field := Scalars.field].On[V := Next.Vector, space := Next.space].Of[form := Next.form] \as B;
+\import Linear.Linear[V := E.Carrier, W := R.Real, source := A.vectorSpace, target := Linear.scalarSpace] \as LowerFunctional;
+\import Linear.Linear[V := Next.Carrier, W := R.Real, source := B.vectorSpace, target := Linear.scalarSpace] \as UpperFunctional;
+\import E.Successor[].Inclusion[] \as Inclusion;
+\import E.Successor[].NormalForm[] \as Normal;
+\import Normal.Representation[] \as Recovery;
+\import Normal.Spanning[] \as Spanning;
+\import calculus.Real[].Multivariable[n := d].Open[] \as Open;
+\import Open.Smooth[].Operations[] \as Operations;
+\import lie_groups.CliffordPlots[d := d] \as Calculus;
+\import Calculus.Dimension[n := N.Nat^::succ n] \as UpperPlots;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].trans;
+\use std.Logic[].Equality[].congr;
+\definition left[l: UpperFunctional.Map]: LowerFunctional.Map := LowerFunctional.Map {
+  apply := \fun (x: E.Carrier) => l.apply (Inclusion.map x),
+  preservesAdd := \fun (x, y: E.Carrier) => trans!{R.Real} _ _ _ (congr!{Next.Carrier R.Real} l.apply _ _ (Inclusion.laws.add x y)) (l.preservesAdd (Inclusion.map x) (Inclusion.map y)),
+  preservesScale := \fun (a: R.Real)(x: E.Carrier) => trans!{R.Real} _ _ _ (congr!{Next.Carrier R.Real} l.apply _ _ (Inclusion.onScale a x)) (l.preservesScale a (Inclusion.map x)),
+};
+\definition right[l: UpperFunctional.Map]: LowerFunctional.Map := LowerFunctional.Map {
+  apply := \fun (x: E.Carrier) => l.apply (B.mul (Inclusion.map x) Normal.gamma),
+  preservesAdd := \fun (x, y: E.Carrier) => eq_reason_in!{R.Real _
+    "=" _ "by" { congr!{Next.Carrier R.Real} (\fun (v: Next.Carrier) => l.apply (B.mul v Normal.gamma)) _ _ (Inclusion.laws.add x y) }
+    "=" _ "by" { congr!{Next.Carrier R.Real} l.apply _ _ (Next.ring.semiring.rightDistributive (Inclusion.map x) (Inclusion.map y) Normal.gamma) }
+    "=" _ "by" { l.preservesAdd (B.mul (Inclusion.map x) Normal.gamma) (B.mul (Inclusion.map y) Normal.gamma) }
+  },
+  preservesScale := \fun (a: R.Real)(x: E.Carrier) => eq_reason_in!{R.Real _
+    "=" _ "by" { congr!{Next.Carrier R.Real} (\fun (v: Next.Carrier) => l.apply (B.mul v Normal.gamma)) _ _ (Inclusion.onScale a x) }
+    "=" _ "by" { congr!{Next.Carrier R.Real} l.apply _ _ (sym!{Next.Carrier} _ _ (B.algebra.scalarMulLeft a (Inclusion.map x) Normal.gamma)) }
+    "=" _ "by" { l.preservesScale a (B.mul (Inclusion.map x) Normal.gamma) }
+  },
+};
+\module At(U: Open.OpenSet, f: Open.Carrier U -> Next.Carrier);
+\definition law: Lower.Law -> Upper.Law := \fun (previous: Lower.Law)(U: Open.OpenSet)(f: Open.Carrier U -> Next.Carrier) => At[U := U, f := f].law previous;

@@ -1,0 +1,99 @@
+\import std.Data[].Nat[] \as N;
+\import Algebra.FiniteCoordinates[n := n] \as Basis;
+\import \root.Over[K := C.Complex, scalarRing := ring].On[V := Finite.Vector, space := Finite.space].Total[] \as Total;
+\import Total.Series[].Laws[] \as Exterior;
+\import Exterior.Grading[] \as Grading;
+\import Exterior.Reversal[].Charge[] \as Charge;
+\import Total.Vacuum[] \as Vacuum;
+\import Algebra.Multilinear[V := Finite.Vector, space := Finite.space].Alternating[] \as Forms;
+\import Forms.At[k := n] \as Top;
+\import Algebra.Sign[] \as Sign;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].trans;
+\use std.Logic[].Equality[].congr;
+\definition value[f, g: Total.Carrier]: Forms.Form n := Exterior.wedge (Charge.value n f) g n;
+\definition creation: \forall (alpha: Forms.Form (N.Nat^::succ N.Nat^::zero))(f, g: Total.Carrier) ->
+  value (Total.createLeft alpha f) g = Top.vectorSpace.smul (Sign.value n) (value f (Total.createLeft alpha g)) :=
+  \fun (alpha: Forms.Form (N.Nat^::succ N.Nat^::zero))(f, g: Total.Carrier) => eq_reason_in!{{Forms.Form n} _
+    "=" _ "by" { congr!{{Total.Carrier} {Forms.Form n}} (\fun (a: Total.Carrier) => Exterior.wedge a g n) _ _ (Charge.creation n alpha f) }
+    "=" _ "by" { congr!{{Total.Carrier} {Forms.Form n}} (\fun (a: Total.Carrier) => a n) _ _ (Exterior.scaleLeft (Sign.value n) (Exterior.wedge (Charge.value n f) (Total.createLeft alpha Vacuum.state)) g) }
+    "=" _ "by" { congr!{{Total.Carrier} {Forms.Form n}} (\fun (a: Total.Carrier) => Top.vectorSpace.smul (Sign.value n) (a n)) _ _ (Exterior.associative (Charge.value n f) (Total.createLeft alpha Vacuum.state) g) }
+    "=" _ "by" { congr!{{Total.Carrier} {Forms.Form n}} (\fun (a: Total.Carrier) => Top.vectorSpace.smul (Sign.value n) (Exterior.wedge (Charge.value n f) a n)) _ _ (sym!{{Total.Carrier}} _ _ (Charge.creationAsWedge alpha g)) }
+  };
+\import std.Data[].Nat[].Basic[].Prop[] \as NatLaws;
+\import \root.Over[K := C.Complex, scalarRing := ring].On[V := Finite.Vector, space := Finite.space] \as Operators;
+\import Total.Finite[n := n, b := Basis.basis] \as FiniteTotal;
+\definition contractionTop: \forall (x: Finite.Vector)(f: Total.Carrier) -> Total.annihilate x f n = Top.vectorSpace.zero :=
+  \fun (x: Finite.Vector)(f: Total.Carrier) => trans!{{Forms.Form n}} _ _ _
+    (congr!{{Forms.Form (N.Nat^::succ n)} {Forms.Form n}} ((Operators.Contraction[k := n].operator x).apply) _ _
+      (FiniteTotal.zeroAbove f (N.Nat^::succ n) (NatLaws.ltOfSuccLe (N.Nat^::succ n) n (NatLaws.leRefl (N.Nat^::succ n)))))
+    ((Operators.Contraction[k := n].operator x).preservesZero);
+\definition parityWedge: \forall (f, g: Total.Carrier) ->
+  Exterior.wedge (Total.parity f) (Total.parity g) n = Top.vectorSpace.smul (Sign.value n) (Exterior.wedge f g n) :=
+  \fun (f, g: Total.Carrier) => congr!{{Total.Carrier} {Forms.Form n}} (\fun (t: Total.Carrier) => t n) _ _ (sym!{{Total.Carrier}} _ _ (Grading.parity f g));
+\definition wedgeParityRight: \forall (f, g: Total.Carrier) ->
+  Exterior.wedge (Total.parity f) g n = Top.vectorSpace.smul (Sign.value n) (Exterior.wedge f (Total.parity g) n) :=
+  \fun (f, g: Total.Carrier) => trans!{{Forms.Form n}} _ _ _
+    (congr!{{Total.Carrier} {Forms.Form n}} (\fun (t: Total.Carrier) => Exterior.wedge (Total.parity f) t n) _ _ (sym!{{Total.Carrier}} _ _ (Total.paritySquare g)))
+    (parityWedge f (Total.parity g));
+\import Total.Parity[] \as Parity;
+\import Algebra.Laws[V := Total.Carrier, space := Total.totalSpace] \as TotalLaws;
+\import Algebra.Laws[V := Forms.Form n, space := Top.vectorSpace] \as TopLaws;
+\import algebra.Group[].Of[Carrier := Forms.Form n, group := std.Alg[].Ring[].ringModuleAsCommutativeGroup C.Complex (Forms.Form n) Algebra.ring Top.vectorSpace] \as TopGroup;
+\definition negativeWedgeLeft: \forall (f, g: Total.Carrier) -> Exterior.wedge (Total.totalSpace.neg f) g n = Top.vectorSpace.neg (Exterior.wedge f g n) :=
+  \fun (f, g: Total.Carrier) => eq_reason_in!{{Forms.Form n} _
+    "=" _ "by" { congr!{{Total.Carrier} {Forms.Form n}} (\fun (a: Total.Carrier) => Exterior.wedge a g n) _ _ (sym!{{Total.Carrier}} _ _ (TotalLaws.minusOneScale f)) }
+    "=" _ "by" { congr!{{Total.Carrier} {Forms.Form n}} (\fun (a: Total.Carrier) => a n) _ _ (Exterior.scaleLeft (Algebra.neg Algebra.one) f g) }
+    "=" _ "by" { TopLaws.minusOneScale (Exterior.wedge f g n) }
+  };
+\definition contractionSumZero: \forall (x: Finite.Vector)(f, g: Total.Carrier) ->
+  Top.vectorSpace.add (Top.vectorSpace.neg (Exterior.wedge (Total.parity (Total.annihilate x f)) g n)) (Exterior.wedge f (Total.annihilate x g) n) = Top.vectorSpace.zero :=
+  \fun (x: Finite.Vector)(f, g: Total.Carrier) => eq_reason_in!{{Forms.Form n} {Top.vectorSpace.add (Top.vectorSpace.neg (Exterior.wedge (Total.parity (Total.annihilate x f)) g n)) (Exterior.wedge f (Total.annihilate x g) n)}
+      "=" {Top.vectorSpace.add (Exterior.wedge (Total.totalSpace.neg (Total.parity (Total.annihilate x f))) g n) (Exterior.wedge f (Total.annihilate x g) n)} "by" { congr!{{Forms.Form n} {Forms.Form n}} (\fun (t: Forms.Form n) => Top.vectorSpace.add t (Exterior.wedge f (Total.annihilate x g) n)) (Top.vectorSpace.neg (Exterior.wedge (Total.parity (Total.annihilate x f)) g n)) (Exterior.wedge (Total.totalSpace.neg (Total.parity (Total.annihilate x f))) g n) (sym!{{Forms.Form n}} (Exterior.wedge (Total.totalSpace.neg (Total.parity (Total.annihilate x f))) g n) (Top.vectorSpace.neg (Exterior.wedge (Total.parity (Total.annihilate x f)) g n)) (negativeWedgeLeft (Total.parity (Total.annihilate x f)) g)) }
+      "=" {Top.vectorSpace.add (Exterior.wedge (Total.annihilate x (Total.parity f)) g n) (Exterior.wedge f (Total.annihilate x g) n)} "by" { congr!{{Total.Carrier} {Forms.Form n}} (\fun (t: Total.Carrier) => Top.vectorSpace.add (Exterior.wedge t g n) (Exterior.wedge f (Total.annihilate x g) n)) (Total.totalSpace.neg (Total.parity (Total.annihilate x f))) (Total.annihilate x (Total.parity f)) (sym!{{Total.Carrier}} (Total.annihilate x (Total.parity f)) (Total.totalSpace.neg (Total.parity (Total.annihilate x f))) (Parity.annihilationOdd x f)) }
+      "=" {Top.vectorSpace.add (Exterior.wedge (Total.annihilate x (Total.parity f)) g n) (Exterior.wedge (Total.parity (Total.parity f)) (Total.annihilate x g) n)} "by" { congr!{{Total.Carrier} {Forms.Form n}} (\fun (t: Total.Carrier) => Top.vectorSpace.add (Exterior.wedge (Total.annihilate x (Total.parity f)) g n) (Exterior.wedge t (Total.annihilate x g) n)) f (Total.parity (Total.parity f)) (sym!{{Total.Carrier}} (Total.parity (Total.parity f)) f (Total.paritySquare f)) }
+      "=" {Total.annihilate x (Exterior.wedge (Total.parity f) g) n} "by" { congr!{{Total.Carrier} {Forms.Form n}} (\fun (t: Total.Carrier) => t n) (Total.totalSpace.add (Exterior.wedge (Total.annihilate x (Total.parity f)) g) (Exterior.wedge (Total.parity (Total.parity f)) (Total.annihilate x g))) (Total.annihilate x (Exterior.wedge (Total.parity f) g)) (sym!{{Total.Carrier}} (Total.annihilate x (Exterior.wedge (Total.parity f) g)) (Total.totalSpace.add (Exterior.wedge (Total.annihilate x (Total.parity f)) g) (Exterior.wedge (Total.parity (Total.parity f)) (Total.annihilate x g))) (Grading.contraction x (Total.parity f) g)) }
+      "=" {Top.vectorSpace.zero} "by" { contractionTop x (Exterior.wedge (Total.parity f) g) }
+    };
+\definition contractionBalance: \forall (x: Finite.Vector)(f, g: Total.Carrier) ->
+  Exterior.wedge (Total.parity (Total.annihilate x f)) g n = Exterior.wedge f (Total.annihilate x g) n :=
+  \fun (x: Finite.Vector)(f, g: Total.Carrier) => trans!{{Forms.Form n}} _ _ _
+    (sym!{{Forms.Form n}} _ _ (TopGroup.negNeg (Exterior.wedge (Total.parity (Total.annihilate x f)) g n)))
+    (trans!{{Forms.Form n}} _ _ _ (congr!{{Forms.Form n} {Forms.Form n}} Top.vectorSpace.neg _ _ (TopGroup.inverseUnique (Exterior.wedge f (Total.annihilate x g) n) (Top.vectorSpace.neg (Exterior.wedge (Total.parity (Total.annihilate x f)) g n)) (contractionSumZero x f g))) (TopGroup.negNeg (Exterior.wedge f (Total.annihilate x g) n)));
+\definition annihilation: \forall (x: Finite.Vector)(f, g: Total.Carrier) ->
+  value (Total.annihilate x f) g = Top.vectorSpace.smul (Sign.value n) (value f (Total.annihilate x g)) :=
+  \fun (x: Finite.Vector)(f, g: Total.Carrier) => eq_reason_in!{{Forms.Form n} _
+    "=" _ "by" { congr!{{Total.Carrier} {Forms.Form n}} (\fun (a: Total.Carrier) => Exterior.wedge a g n) _ _ (Charge.annihilation n x f) }
+    "=" _ "by" { congr!{{Total.Carrier} {Forms.Form n}} (\fun (a: Total.Carrier) => a n) _ _ (Exterior.scaleLeft (Sign.value n) (Total.parity (Total.annihilate x (Charge.value n f))) g) }
+    "=" _ "by" { congr!{{Forms.Form n} {Forms.Form n}} (Top.vectorSpace.smul (Sign.value n)) _ _ (contractionBalance x (Charge.value n f) g) }
+  };
+\definition addLeft: \forall (f, g, h: Total.Carrier) -> value (Total.totalSpace.add f g) h = Top.vectorSpace.add (value f h) (value g h) :=
+  \fun (f, g, h: Total.Carrier) => eq_reason_in!{{Forms.Form n} _
+    "=" _ "by" { congr!{{Total.Carrier} {Forms.Form n}} (\fun (t: Total.Carrier) => Exterior.wedge t h n) _ _ (Charge.add n f g) }
+    "=" _ "by" { congr!{{Total.Carrier} {Forms.Form n}} (\fun (t: Total.Carrier) => t n) _ _ (Exterior.addLeft (Charge.value n f) (Charge.value n g) h) }
+  };
+\definition addRight: \forall (f, g, h: Total.Carrier) -> value f (Total.totalSpace.add g h) = Top.vectorSpace.add (value f g) (value f h) :=
+  \fun (f, g, h: Total.Carrier) => congr!{{Total.Carrier} {Forms.Form n}} (\fun (t: Total.Carrier) => t n) _ _ (Exterior.addRight (Charge.value n f) g h);
+\definition scaleLeft: \forall (a: C.Complex)(f, g: Total.Carrier) -> value (Total.totalSpace.smul a f) g = Top.vectorSpace.smul a (value f g) :=
+  \fun (a: C.Complex)(f, g: Total.Carrier) => eq_reason_in!{{Forms.Form n} _
+    "=" _ "by" { congr!{{Total.Carrier} {Forms.Form n}} (\fun (t: Total.Carrier) => Exterior.wedge t g n) _ _ (Charge.scale n a f) }
+    "=" _ "by" { congr!{{Total.Carrier} {Forms.Form n}} (\fun (t: Total.Carrier) => t n) _ _ (Exterior.scaleLeft a (Charge.value n f) g) }
+  };
+\definition scaleRight: \forall (a: C.Complex)(f, g: Total.Carrier) -> value f (Total.totalSpace.smul a g) = Top.vectorSpace.smul a (value f g) :=
+  \fun (a: C.Complex)(f, g: Total.Carrier) => congr!{{Total.Carrier} {Forms.Form n}} (\fun (t: Total.Carrier) => t n) _ _ (Exterior.scaleRight a (Charge.value n f) g);
+\import \root.Complex[].On[V := Finite.Vector, space := Finite.space].Realification[].With[h := Finite.form] \as Metric;
+\definition clifford: \forall (v: Finite.Vector)(f, g: Total.Carrier) ->
+  value ((Metric.cliffordOperator v).apply f) g = Top.vectorSpace.smul (Sign.value n) (value f ((Metric.cliffordOperator v).apply g)) :=
+  \fun (v: Finite.Vector)(f, g: Total.Carrier) => eq_reason_in!{{Forms.Form n} _
+    "=" _ "by" { addLeft (Total.annihilate v f) (Total.createLeft (Metric.form v) f) g }
+    "=" _ "by" { congr!{{Forms.Form n} {Forms.Form n} {Forms.Form n}} Top.vectorSpace.add _ _ _ _ (annihilation v f g) (creation (Metric.form v) f g) }
+    "=" _ "by" { sym!{{Forms.Form n}} _ _ (Top.vectorSpace.vectorAdd (Sign.value n) (value f (Total.annihilate v g)) (value f (Total.createLeft (Metric.form v) g))) }
+    "=" _ "by" { congr!{{Forms.Form n} {Forms.Form n}} (Top.vectorSpace.smul (Sign.value n)) _ _ (sym!{{Forms.Form n}} _ _ (addRight f (Total.annihilate v g) (Total.createLeft (Metric.form v) g))) }
+  };
+\module PinAction;
+\definition vacuum: \forall (g: Total.Carrier) -> value Vacuum.state g = g n :=
+  \fun (g: Total.Carrier) => trans!{{Forms.Form n}} _ _ _
+    (congr!{{Total.Carrier} {Forms.Form n}} (\fun (t: Total.Carrier) => Exterior.wedge t g n) _ _ (Charge.vacuum n))
+    (congr!{{Total.Carrier} {Forms.Form n}} (\fun (t: Total.Carrier) => t n) _ _ (Charge.vacuumLeftUnit g));
+\module Determinant;

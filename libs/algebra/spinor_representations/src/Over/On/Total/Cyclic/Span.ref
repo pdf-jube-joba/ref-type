@@ -1,0 +1,31 @@
+\import \root.Over[K := K, scalarRing := scalarRing].On[V := V, space := space].Total[].Cyclic[n := n, b := b] \as Cyclic;
+\import ExteriorBasis.At[k := k] \as At;
+\import Alternating.At[k := k] \as Grade;
+\import Algebra.Sums[I := At.Tuple] \as Sums;
+\import Sums.Vector[V := Carrier, space := totalSpace] \as TotalSums;
+\import TotalSums.Mapping[W := Alternating.Form k, target := Grade.vectorSpace] \as EvalMapping;
+\import Sums.Vector[V := Alternating.Form k, space := Grade.vectorSpace] \as GradeSums;
+\import Algebra.Linear[V := Carrier, W := Alternating.Form k, source := totalSpace, target := Grade.vectorSpace] \as Linear;
+\import std.Data[].List[] \as Lists;
+\definition evaluate: Linear.Map := Linear.Map {
+  apply := \fun (f: Carrier) => f k,
+  preservesAdd := \fun (f, g: Carrier) => \refl(Grade.vectorSpace.add (f k) (g k)),
+  preservesScale := \fun (a: K)(f: Carrier) => \refl(Grade.vectorSpace.smul a (f k)),
+};
+\definition assemble[xs: Lists.List[At.Tuple]][f: Alternating.Form k]: Carrier := TotalSums.sum xs (\fun (i: At.Tuple) => totalSpace.smul (At.coefficient f i) (state k i));
+\definition component: \forall (xs: At.Enumeration)(f: Alternating.Form k) -> assemble xs f k = f :=
+  \fun (xs: At.Enumeration)(f: Alternating.Form k) => eq_reason_in!{{Alternating.Form k} _
+    "=" _ "by" { EvalMapping.law evaluate xs (\fun (i: At.Tuple) => totalSpace.smul (At.coefficient f i) (state k i)) }
+    "=" _ "by" { GradeSums.congruent xs (\fun (i: At.Tuple) => Grade.vectorSpace.smul (At.coefficient f i) (state k i k))
+      (\fun (i: At.Tuple) => Grade.vectorSpace.smul (At.coefficient f i) (At.word i))
+      (\fun (i: At.Tuple) => congr!{{Alternating.Form k} {Alternating.Form k}} (Grade.vectorSpace.smul (At.coefficient f i)) _ _ (Cyclic.component k i)) }
+    "=" _ "by" { At.reconstruction f xs }
+  };
+\definition membership: \forall (s: Subspaces.Subspace) -> \In[Carrier] s.carrier Vacuum.state -> Stable s -> \forall (xs: Lists.List[At.Tuple])(f: Alternating.Form k) -> \In[Carrier] s.carrier (assemble xs f) :=
+  \fun (s: Subspaces.Subspace)(vac: \In[Carrier] s.carrier Vacuum.state)(stable: Stable s) =>
+    \induction (xs: Lists.List[At.Tuple]) \return \forall (f: Alternating.Form k) -> \In[Carrier] s.carrier (assemble xs f) \with {
+      | nil: \fun (f: Alternating.Form k) => s.containsZero
+      | cons: \fun (i: At.Tuple)(tail: Lists.List[At.Tuple])(previous: \forall (f: Alternating.Form k) -> \In[Carrier] s.carrier (assemble tail f))(f: Alternating.Form k) =>
+        s.closedAdd _ _ (s.closedScale (At.coefficient f i) (state k i) (generated s vac stable k i)) (previous f)
+    };
+\module Outside(l: N.Nat^);

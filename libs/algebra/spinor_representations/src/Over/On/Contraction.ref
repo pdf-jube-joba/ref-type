@@ -1,0 +1,22 @@
+\import Alternating.At[k := N.Nat^::succ k] \as Source;
+\import Alternating.At[k := k] \as Target;
+\import Alternating.Contraction[k := k] \as Contraction;
+\import Algebra.Linear[V := Alternating.Form (N.Nat^::succ k), W := Alternating.Form k, source := Source.vectorSpace, target := Target.vectorSpace] \as Linear;
+\definition operator[x: V]: Linear.Map := Linear.Map {
+  apply := \fun (f: Alternating.Form (N.Nat^::succ k)) => Contraction.apply f x,
+  preservesAdd := \fun (f, g: _) => Contraction.addition f g x,
+  preservesScale := \fun (a: K)(f: _) => Contraction.scalar a f x,
+};
+\import Alternating.Contraction[k := N.Nat^::succ k] \as Higher;
+\definition square: \forall (x: V)(f: Alternating.Form (N.Nat^::succ (N.Nat^::succ k))) ->
+  (operator x).apply (Higher.apply f x) = Target.origin := \fun (x: V)(f: _) => Contraction.Square[].law f x;
+\definition parameterAddition: \forall (x, y: V)(f: Alternating.Form (N.Nat^::succ k)) ->
+  (operator (space.add x y)).apply f = Target.plus ((operator x).apply f) ((operator y).apply f) :=
+  \fun (x, y: V)(f: _) => Contraction.headAddition f x y;
+\definition parameterScale: \forall (a: K)(x: V)(f: Alternating.Form (N.Nat^::succ k)) ->
+  (operator (space.smul a x)).apply f = Target.scale a ((operator x).apply f) :=
+  \fun (a: K)(x: V)(f: _) => Contraction.headScalar a f x;
+\import Algebra.Exterior[V := V, space := space].DoubleHeads[k := k] \as Double;
+\definition anticommute: \forall (x, y: V)(f: Alternating.Form (N.Nat^::succ (N.Nat^::succ k))) ->
+  (operator y).apply (Higher.apply f x) = Target.vectorSpace.neg ((operator x).apply (Higher.apply f y)) :=
+  \fun (x, y: V)(f: _) => Target.ext ((operator y).apply (Higher.apply f x)) (Target.vectorSpace.neg ((operator x).apply (Higher.apply f y))) (Double.antisymmetric f x y);

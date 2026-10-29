@@ -1,0 +1,19 @@
+\import \parent.Contraction[] \as Contract;
+\import ResultTotal.Series[].Laws[].Grading[] \as ExteriorGrading;
+\import \root.Over[K := K, scalarRing := scalarRing].TensorOperators[V := LeftTotal.Carrier, W := RightTotal.Carrier, left := LeftTotal.totalSpace, right := RightTotal.totalSpace] \as Operators;
+\import Operators.Ext[U := ResultTotal.Carrier, target := ResultTotal.totalSpace] \as TensorExt;
+\import Algebra.Linear[V := Tensor.Carrier, W := ResultTotal.Carrier, source := Tensor.space, target := ResultTotal.totalSpace].Composition[U := Tensor.Carrier, domain := Tensor.space] \as Before;
+\import Algebra.Linear[V := ResultTotal.Carrier, W := ResultTotal.Carrier, source := ResultTotal.totalSpace, target := ResultTotal.totalSpace].Composition[U := Tensor.Carrier, domain := Tensor.space] \as After;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].sym;
+\definition pure: \forall (f: LeftTotal.Carrier)(g: RightTotal.Carrier) ->
+  ResultTotal.parity (comparison.apply (Tensor.tensor f g)) = comparison.apply (Tensor.tensor (LeftTotal.parity f) (RightTotal.parity g)) :=
+  \fun (f: LeftTotal.Carrier)(g: RightTotal.Carrier) => eq_reason_in!{{ResultTotal.Carrier} _
+    "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} ResultTotal.parity _ _ (onTensor f g) }
+    "=" _ "by" { ExteriorGrading.parity (leftMap.apply f) (rightMap.apply g) }
+    "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier} {ResultTotal.Carrier}} Product.wedge _ _ _ _ (Contract.leftParity f) (Contract.rightParity g) }
+    "=" _ "by" { sym!{{ResultTotal.Carrier}} _ _ (onTensor (LeftTotal.parity f) (RightTotal.parity g)) }
+  };
+\definition intertwines: After.compose ResultTotal.grading comparison = Before.compose comparison (Operators.map LeftTotal.grading RightTotal.grading) :=
+  TensorExt.ext _ _ (\fun (f: LeftTotal.Carrier)(g: RightTotal.Carrier) => trans!{{ResultTotal.Carrier}} _ _ _ (pure f g)
+    (congr!{{Tensor.Carrier} {ResultTotal.Carrier}} comparison.apply _ _ (sym!{{Tensor.Carrier}} _ _ (Operators.onTensor LeftTotal.grading RightTotal.grading f g))));

@@ -1,0 +1,115 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\import Algebra.DependentProduct[I := N.Nat^, F := Alternating.Form, familySpace := (\fun (k: N.Nat^) => Alternating.At[k := k].vectorSpace)] \as Product;
+\definition Carrier: \Set := Product.Carrier;
+\definition zero: Carrier := Product.zero;
+\definition totalSpace: Algebra.VectorSpace Carrier := Product.space;
+\import Algebra.Linear[V := Carrier, W := Carrier, source := totalSpace, target := totalSpace] \as End;
+\definition annihilate[x: V][f: Carrier]: Carrier := \fun (k: N.Nat^) => (\parent.Contraction[k := k].operator x).apply (f (N.Nat^::succ k));
+\definition annihilation[x: V]: End.Map := End.Map {
+  apply := annihilate x,
+  preservesAdd := \fun (f, g: Carrier) => \axiom:funext(annihilate x (Product.add f g), Product.add (annihilate x f) (annihilate x g),
+    \fun (k: N.Nat^) => (\parent.Contraction[k := k].operator x).preservesAdd (f (N.Nat^::succ k)) (g (N.Nat^::succ k))),
+  preservesScale := \fun (a: K)(f: Carrier) => \axiom:funext(annihilate x (Product.scale a f), Product.scale a (annihilate x f),
+    \fun (k: N.Nat^) => (\parent.Contraction[k := k].operator x).preservesScale a (f (N.Nat^::succ k))),
+};
+\definition create[alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero)][f: Carrier]: Carrier :=
+  \induction (k: N.Nat^) \return Alternating.Form k \with {
+    | zero: Alternating.At[k := N.Nat^::zero].origin
+    | succ: \fun (k: N.Nat^)(unused: Alternating.Form k) => (\parent.Creation[k := k].operator alpha).apply (f k)
+  };
+\definition creation[alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero)]: End.Map := End.Map {
+  apply := create alpha,
+  preservesAdd := \fun (f, g: Carrier) => \axiom:funext(create alpha (Product.add f g), Product.add (create alpha f) (create alpha g),
+    \induction (k: N.Nat^) \return create alpha (Product.add f g) k = Product.add (create alpha f) (create alpha g) k \with {
+      | zero: sym!{{Alternating.Form N.Nat^::zero}} _ _ (Algebra.Laws[V := Alternating.Form N.Nat^::zero, space := Alternating.At[k := N.Nat^::zero].vectorSpace].zeroLeft Alternating.At[k := N.Nat^::zero].origin)
+      | succ: \fun (k: N.Nat^)(unused: _) => (\parent.Creation[k := k].operator alpha).preservesAdd (f k) (g k)
+    }),
+  preservesScale := \fun (a: K)(f: Carrier) => \axiom:funext(create alpha (Product.scale a f), Product.scale a (create alpha f),
+    \induction (k: N.Nat^) \return create alpha (Product.scale a f) k = Product.scale a (create alpha f) k \with {
+      | zero: sym!{{Alternating.Form N.Nat^::zero}} _ _ (Algebra.Laws[V := Alternating.Form N.Nat^::zero, space := Alternating.At[k := N.Nat^::zero].vectorSpace].scaleZero a)
+      | succ: \fun (k: N.Nat^)(unused: _) => (\parent.Creation[k := k].operator alpha).preservesScale a (f k)
+    }),
+};
+\definition annihilationSquare: \forall (x: V)(f: Carrier) -> annihilate x (annihilate x f) = Product.zero :=
+  \fun (x: V)(f: Carrier) => \axiom:funext(annihilate x (annihilate x f), Product.zero,
+    \fun (k: N.Nat^) => \parent.Contraction[k := k].square x (f (N.Nat^::succ (N.Nat^::succ k))));
+\definition annihilationAnticommute: \forall (x, y: V)(f: Carrier) -> annihilate y (annihilate x f) = Product.neg (annihilate x (annihilate y f)) :=
+  \fun (x, y: V)(f: Carrier) => \axiom:funext(annihilate y (annihilate x f), Product.neg (annihilate x (annihilate y f)),
+    \fun (k: N.Nat^) => \parent.Contraction[k := k].anticommute x y (f (N.Nat^::succ (N.Nat^::succ k))));
+\import Algebra.Sign[] \as Sign;
+\definition parity[f: Carrier]: Carrier := \fun (k: N.Nat^) => (Alternating.At[k := k].vectorSpace).smul (Sign.value k) (f k);
+\definition grading: End.Map := End.Map {
+  apply := parity,
+  preservesAdd := \fun (f, g: Carrier) => \axiom:funext(parity (Product.add f g), Product.add (parity f) (parity g),
+    \fun (k: N.Nat^) => (Alternating.At[k := k].vectorSpace).vectorAdd (Sign.value k) (f k) (g k)),
+  preservesScale := \fun (a: K)(f: Carrier) => \axiom:funext(parity (Product.scale a f), Product.scale a (parity f),
+    \fun (k: N.Nat^) => Algebra.Laws[V := Alternating.Form k, space := Alternating.At[k := k].vectorSpace].scaleComm (Sign.value k) a (f k)),
+};
+\use Equality.trans;
+\use Equality.congr;
+\definition paritySquare: \forall (f: Carrier) -> parity (parity f) = f :=
+  \fun (f: Carrier) => \axiom:funext(parity (parity f), f, \fun (k: N.Nat^) =>
+    trans!{{Alternating.Form k}} _ _ _
+      (sym!{{Alternating.Form k}} _ _ ((Alternating.At[k := k].vectorSpace).scalarAssoc (Sign.value k) (Sign.value k) (f k)))
+      (trans!{{Alternating.Form k}} _ _ _
+        (congr!{K {Alternating.Form k}} (\fun (a: K) => (Alternating.At[k := k].vectorSpace).smul a (f k)) _ _ (Sign.square k))
+        ((Alternating.At[k := k].vectorSpace).scalarOne (f k))));
+\module Finite(n: N.Nat^, b: Algebra.FiniteBasis V space n);
+
+\definition createLeft[alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero)][f: Carrier]: Carrier :=
+  \induction (k: N.Nat^) \return Alternating.Form k \with {
+    | zero: Alternating.At[k := N.Nat^::zero].origin
+    | succ: \fun (k: N.Nat^)(unused: Alternating.Form k) => (\parent.LeftCreation[k := k].operator alpha).apply (f k)
+  };
+\definition leftCreation[alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero)]: End.Map := End.Map {
+  apply := createLeft alpha,
+  preservesAdd := \fun (f, g: Carrier) => \axiom:funext(createLeft alpha (Product.add f g), Product.add (createLeft alpha f) (createLeft alpha g),
+    \induction (k: N.Nat^) \return createLeft alpha (Product.add f g) k = Product.add (createLeft alpha f) (createLeft alpha g) k \with {
+      | zero: sym!{{Alternating.Form N.Nat^::zero}} _ _ (Algebra.Laws[V := Alternating.Form N.Nat^::zero, space := Alternating.At[k := N.Nat^::zero].vectorSpace].zeroLeft Alternating.At[k := N.Nat^::zero].origin)
+      | succ: \fun (k: N.Nat^)(unused: _) => (\parent.LeftCreation[k := k].operator alpha).preservesAdd (f k) (g k)
+    }),
+  preservesScale := \fun (a: K)(f: Carrier) => \axiom:funext(createLeft alpha (Product.scale a f), Product.scale a (createLeft alpha f),
+    \induction (k: N.Nat^) \return createLeft alpha (Product.scale a f) k = Product.scale a (createLeft alpha f) k \with {
+      | zero: sym!{{Alternating.Form N.Nat^::zero}} _ _ (Algebra.Laws[V := Alternating.Form N.Nat^::zero, space := Alternating.At[k := N.Nat^::zero].vectorSpace].scaleZero a)
+      | succ: \fun (k: N.Nat^)(unused: _) => (\parent.LeftCreation[k := k].operator alpha).preservesScale a (f k)
+    }),
+};
+\import \parent.LeftCreation[k := N.Nat^::zero].Mixed[] \as Mixed;
+\import \parent.LeftCreation[k := N.Nat^::zero].Zero[] \as ZeroMixed;
+\definition creationAnnihilation: \forall (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(x: V)(f: Carrier) ->
+  Product.add (annihilate x (createLeft alpha f)) (createLeft alpha (annihilate x f)) = Product.scale (Mixed.evaluate alpha x) f :=
+  \fun (alpha: _)(x: V)(f: Carrier) => \axiom:funext(Product.add (annihilate x (createLeft alpha f)) (createLeft alpha (annihilate x f)), Product.scale (Mixed.evaluate alpha x) f,
+    \induction (k: N.Nat^) \return Product.add (annihilate x (createLeft alpha f)) (createLeft alpha (annihilate x f)) k = Product.scale (Mixed.evaluate alpha x) f k \with {
+      | zero: trans!{{Alternating.Form N.Nat^::zero}} _ _ _
+        (Algebra.Laws[V := Alternating.Form N.Nat^::zero, space := Alternating.At[k := N.Nat^::zero].vectorSpace].zeroRight _)
+        (ZeroMixed.law alpha (f N.Nat^::zero) x)
+      | succ: \fun (k: N.Nat^)(unused: _) => \parent.LeftCreation[k := k].Mixed[].sumLaw alpha (f (N.Nat^::succ k)) x
+    });
+\definition createLeftAddition: \forall (alpha, beta: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier) ->
+  createLeft (Alternating.At[k := N.Nat^::succ N.Nat^::zero].plus alpha beta) f = Product.add (createLeft alpha f) (createLeft beta f) :=
+  \fun (alpha, beta: _)(f: Carrier) => \axiom:funext(createLeft (Alternating.At[k := N.Nat^::succ N.Nat^::zero].plus alpha beta) f, Product.add (createLeft alpha f) (createLeft beta f),
+    \induction (k: N.Nat^) \return createLeft (Alternating.At[k := N.Nat^::succ N.Nat^::zero].plus alpha beta) f k = Product.add (createLeft alpha f) (createLeft beta f) k \with {
+      | zero: sym!{{Alternating.Form N.Nat^::zero}} _ _ (Algebra.Laws[V := Alternating.Form N.Nat^::zero, space := Alternating.At[k := N.Nat^::zero].vectorSpace].zeroLeft Alternating.At[k := N.Nat^::zero].origin)
+      | succ: \fun (k: N.Nat^)(unused: _) => \parent.LeftCreation[k := k].parameterAddition alpha beta (f k)
+    });
+\definition createLeftScale: \forall (a: K)(alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier) ->
+  createLeft (Alternating.At[k := N.Nat^::succ N.Nat^::zero].scale a alpha) f = Product.scale a (createLeft alpha f) :=
+  \fun (a: K)(alpha: _)(f: Carrier) => \axiom:funext(createLeft (Alternating.At[k := N.Nat^::succ N.Nat^::zero].scale a alpha) f, Product.scale a (createLeft alpha f),
+    \induction (k: N.Nat^) \return createLeft (Alternating.At[k := N.Nat^::succ N.Nat^::zero].scale a alpha) f k = Product.scale a (createLeft alpha f) k \with {
+      | zero: sym!{{Alternating.Form N.Nat^::zero}} _ _ (Algebra.Laws[V := Alternating.Form N.Nat^::zero, space := Alternating.At[k := N.Nat^::zero].vectorSpace].scaleZero a)
+      | succ: \fun (k: N.Nat^)(unused: _) => \parent.LeftCreation[k := k].parameterScale a alpha (f k)
+    });
+\definition annihilateAddition: \forall (x, y: V)(f: Carrier) -> annihilate (space.add x y) f = Product.add (annihilate x f) (annihilate y f) :=
+  \fun (x, y: V)(f: Carrier) => \axiom:funext(annihilate (space.add x y) f, Product.add (annihilate x f) (annihilate y f),
+    \fun (k: N.Nat^) => \parent.Contraction[k := k].parameterAddition x y (f (N.Nat^::succ k)));
+\definition annihilateScale: \forall (a: K)(x: V)(f: Carrier) -> annihilate (space.smul a x) f = Product.scale a (annihilate x f) :=
+  \fun (a: K)(x: V)(f: Carrier) => \axiom:funext(annihilate (space.smul a x) f, Product.scale a (annihilate x f),
+    \fun (k: N.Nat^) => \parent.Contraction[k := k].parameterScale a x (f (N.Nat^::succ k)));
+\module Pullback;
+\module Parity;
+\module Vacuum;
+\module Series;
+\module Cyclic(n: N.Nat^, b: Algebra.FiniteBasis V space n);
+\module CreationAnticommutation;
+\module ContractionZero;

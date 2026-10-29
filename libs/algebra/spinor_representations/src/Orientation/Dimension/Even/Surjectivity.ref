@@ -1,0 +1,35 @@
+\import lie_groups.Classical[].On[V := E.Vector, space := E.space].Orthogonal[form := E.form].Special[n := d] \as Special;
+\import lie_groups.PinSurjectivity[].Dimension[n := d] \as Lifts;
+\import clifford.Euclidean[n := d].PinWords[] \as Words;
+\import Words.Parity[] \as Parity;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import real.Analysis[].Estimates[].Product[] \as Estimates;
+\use Logic.either;
+\definition Lift[g: Special.SO]: \Set := \Cast[Pin.Spin] ({ s: Pin.Spin \where Projection.spinMap s = g });
+\definition negativeImpossible: Logic.Not (R.one = R.neg R.one) := \fun (same: R.one = R.neg R.one) =>
+  Order.ltNotLeReverse (R.neg R.one) R.zero (Arithmetic.negativeNegOfPositive R.one Estimates.onePositive)
+    (Order.leReplaceRight R.zero R.one (R.neg R.one) same Arithmetic.oneNonnegative);
+\definition exists: \forall (g: Special.SO) -> \exists Lift g := \block {
+  \fun (g: Special.SO) \then
+  \takefrom p: Lifts.Lifts g \by lie_groups.PinSurjectivity[].surjective d g \then
+  \let image: Projection.map p = g := \bysub(E.Pin, Lifts.Lifts g, p) \then
+  \let positive: Orientation.determinant (Projection.map p) = R.one := trans!{R.Real} _ _ _
+    (congr!{E.O R.Real} Orientation.determinant _ _ image) ((Orientation.preservesIff g).ltr (Special.preservesVolume g)) \then
+  \return either!{{(Parity.parity p (Words.all p))} {\exists Lift g}
+    {\fun (even: Parity.Even p) => \exact(\into[Pin.Spin](Pin.spinOfEven p even, Lift g) \by { image }, Lift g)}
+    {\block {
+      \fun (odd: \exists Parity.Odd[p]) \then
+      \takefrom word: Parity.Odd[p] \by odd \then
+      \let v: E.Pin := element word.vector \then
+      \let tail: E.Pin := Pin.inclusion word.tail \then
+      \let samePin: p = PinOps.mul v tail := word.same \then
+      \let reflected: Orientation.determinant (Projection.map p) = R.neg R.one := eq_reason_in!{R.Real _
+        "=" _ "by" { congr!{E.Pin R.Real} (\fun (q: E.Pin) => Orientation.determinant (Projection.map q)) _ _ samePin }
+        "=" _ "by" { congr!{E.O R.Real} Orientation.determinant _ _ (Projection.multiplication v tail) }
+        "=" _ "by" { Orientation.multiplication (Projection.map v) (Projection.map tail) }
+        "=" _ "by" { congr!{R.Real R.Real R.Real} R.mul _ _ _ _ (\root.Orientation[].positiveSign d word.vector) (determinant word.tail) }
+        "=" _ "by" { R.Algebra[].mulOneRight (R.neg R.one) }
+      } \then
+      \return Logic.falseElim (\exists Lift g) (negativeImpossible (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ positive) reflected))
+    }}}
+};

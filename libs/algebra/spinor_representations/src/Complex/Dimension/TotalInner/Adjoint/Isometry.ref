@@ -1,0 +1,23 @@
+\import lie_algebras.Field[K := C.Complex, field := Field.field].Endomorphisms[V := Total.Carrier, space := Total.totalSpace] \as End;
+\import algebra.Groups[].Units[A := End.Carrier, ring := End.ring] \as Units;
+\import algebra.Groups[].On[G := Units.Unit, group := Units.group] \as Group;
+\definition predicate: \Pow Units.Unit := { u: Units.Unit \where \forall (f, g: Total.Carrier) -> dot (u.value.apply f) (u.value.apply g) = dot f g };
+\definition closed: Group.Closed[predicate] := Group.Closed[predicate] {
+  one := \fun (f, g: Total.Carrier) => \refl(dot f g),
+  mul := \fun (u, v: Units.Unit)(left: \In[Units.Unit] predicate u)(right: \In[Units.Unit] predicate v)(f, g: Total.Carrier) =>
+    trans!{C.Complex} _ _ _ (left (v.value.apply f) (v.value.apply g)) (right f g),
+  inv := \fun (u: Units.Unit)(previous: \In[Units.Unit] predicate u)(f, g: Total.Carrier) => eq_reason_in!{C.Complex _
+    "=" _ "by" { sym!{C.Complex} _ _ (previous (u.inverse.apply f) (u.inverse.apply g)) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier} C.Complex} dot _ _ _ _
+      (congr!{End.Carrier {Total.Carrier}} (\fun (a: End.Carrier) => a.apply f) _ _ u.right)
+      (congr!{End.Carrier {Total.Carrier}} (\fun (a: End.Carrier) => a.apply g) _ _ u.right) }
+  },
+};
+\import \parent.\parent.\parent.RealCoordinates[].Clifford[].Spin[].Grading[] \as Grading;
+\definition sign: \In[Units.Unit] predicate Units.minusOne := \fun (f, g: Total.Carrier) => eq_reason_in!{C.Complex _
+  "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier} C.Complex} dot _ _ _ _ (Grading.negApply End.one f) (Grading.negApply End.one g) }
+  "=" _ "by" { InnerLaws.negativeLeft f (Total.totalSpace.neg g) }
+  "=" _ "by" { congr!{C.Complex C.Complex} Algebra.neg _ _ (InnerLaws.negativeRight f g) }
+  "=" _ "by" { C.Prop[].negNeg (dot f g) }
+};
+\module PinAction;

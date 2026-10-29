@@ -1,0 +1,61 @@
+\import \root.Complex[].Dimension[n := n].UnitaryOrthogonal[] \as UAction;
+\import \root.Over[K := C.Complex, scalarRing := ring].On[V := Finite.Vector, space := Finite.space] \as Operations;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import \parent.\parent.\parent.BasisMetric[] \as BasisMetric;
+\import Algebra.FiniteCoordinates[n := n] \as Basis;
+\import Algebra.FiniteExterior[V := Finite.Vector, space := Finite.space, n := n, b := Basis.basis] \as Exterior;
+\import Algebra.Multilinear[V := Finite.Vector, space := Finite.space].Alternating[] \as Forms;
+\import Algebra.Multilinear[V := Finite.Vector, space := Finite.space] \as Multi;
+\definition state: \forall (k: N.Nat^) -> (Fin.Fin k -> Fin.Fin n) -> Total.Carrier :=
+  \induction (k: N.Nat^) \return (Fin.Fin k -> Fin.Fin n) -> Total.Carrier \with {
+    | zero: \fun (indices: Fin.Fin N.Nat^::zero -> Fin.Fin n) => Vacuum.state
+    | succ: \fun (k: N.Nat^)(previous: (Fin.Fin k -> Fin.Fin n) -> Total.Carrier)(indices: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n) =>
+      Total.createLeft (Metric.form (Finite.basis (indices (Fin.zero k)))) (previous (\fun (i: Fin.Fin k) => indices (Fin.succ k i)))
+  };
+\definition component: \forall (k: N.Nat^)(indices: Fin.Fin k -> Fin.Fin n) -> state k indices k = Exterior.At[k := k].word indices :=
+  \induction (k: N.Nat^) \return \forall (indices: Fin.Fin k -> Fin.Fin n) -> state k indices k = Exterior.At[k := k].word indices \with {
+    | zero: \fun (indices: Fin.Fin N.Nat^::zero -> Fin.Fin n) => (Forms.At[k := N.Nat^::zero].ext) (state N.Nat^::zero indices N.Nat^::zero) (Exterior.At[k := N.Nat^::zero].word indices) (\fun (args: Multi.Arguments N.Nat^::zero) => \refl(Algebra.one))
+    | succ: \fun (k: N.Nat^)(previous: \forall (indices: Fin.Fin k -> Fin.Fin n) -> state k indices k = Exterior.At[k := k].word indices)(indices: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n) =>
+      trans!{{Forms.Form (N.Nat^::succ k)}} _ _ _
+        (congr!{{Forms.Form k} {Forms.Form (N.Nat^::succ k)}} (Operations.LeftCreation[k := k].apply (Metric.form (Finite.basis (indices (Fin.zero k))))) _ _ (previous (\fun (i: Fin.Fin k) => indices (Fin.succ k i))))
+        (sym!{{Forms.Form (N.Nat^::succ k)}} _ _ (BasisMetric.wordStep k indices))
+  };
+\definition intertwining: \forall (u: Unitary.Carrier)(k: N.Nat^)(indices: Fin.Fin k -> Fin.Fin n) ->
+  (Phase.actionC (lift u)).value.apply (state k indices) = (action u).value.apply (state k indices) :=
+  \fun (u: Unitary.Carrier) => \induction (k: N.Nat^) \return \forall (indices: Fin.Fin k -> Fin.Fin n) ->
+    (Phase.actionC (lift u)).value.apply (state k indices) = (action u).value.apply (state k indices) \with {
+      | zero: \fun (indices: Fin.Fin N.Nat^::zero -> Fin.Fin n) => trans!{{Total.Carrier}} _ _ _ (fixesVacuum u) (sym!{{Total.Carrier}} _ _ (UAction.fixesVacuum u))
+      | succ: \fun (k: N.Nat^)(previous: \forall (indices: Fin.Fin k -> Fin.Fin n) -> (Phase.actionC (lift u)).value.apply (state k indices) = (action u).value.apply (state k indices))(indices: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n) =>
+        eq_reason_in!{{Total.Carrier} _
+          "=" _ "by" { Lifts.creationCovariance u (lift u) (projection u) (Finite.basis (indices (Fin.zero k))) (state k (\fun (i: Fin.Fin k) => indices (Fin.succ k i))) }
+          "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} (Total.createLeft (Metric.form (u.forward.apply (Finite.basis (indices (Fin.zero k)))))) _ _ (previous (\fun (i: Fin.Fin k) => indices (Fin.succ k i))) }
+          "=" _ "by" { sym!{{Total.Carrier}} _ _ (UAction.creationNatural u (Finite.basis (indices (Fin.zero k))) (state k (\fun (i: Fin.Fin k) => indices (Fin.succ k i)))) }
+        }
+    };
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Data[].Nat[].Basic[].Prop[] \as NatLaws;
+\definition supported: \forall (k: N.Nat^)(indices: Fin.Fin k -> Fin.Fin n)(l: N.Nat^) -> Logic.Not (k = l) -> state k indices l = (Forms.At[k := l].origin) :=
+  \induction (k: N.Nat^) \return \forall (indices: Fin.Fin k -> Fin.Fin n)(l: N.Nat^) -> Logic.Not (k = l) -> state k indices l = (Forms.At[k := l].origin) \with {
+    | zero: \fun (indices: Fin.Fin N.Nat^::zero -> Fin.Fin n) => \induction (l: N.Nat^) \return Logic.Not (N.Nat^::zero = l) -> state N.Nat^::zero indices l = (Forms.At[k := l].origin) \with {
+      | zero: \fun (different: Logic.Not (N.Nat^::zero = N.Nat^::zero)) => Logic.falseElim (state N.Nat^::zero indices N.Nat^::zero = Forms.At[k := N.Nat^::zero].origin) (different (\refl(N.Nat^::zero)))
+      | succ: \fun (l: N.Nat^)(previous: Logic.Not (N.Nat^::zero = l) -> state N.Nat^::zero indices l = Forms.At[k := l].origin) (different: Logic.Not (N.Nat^::zero = N.Nat^::succ l)) => \refl(Forms.At[k := N.Nat^::succ l].origin)
+    }
+    | succ: \fun (k: N.Nat^)(previous: \forall (indices: Fin.Fin k -> Fin.Fin n)(l: N.Nat^) -> Logic.Not (k = l) -> state k indices l = (Forms.At[k := l].origin)) (indices: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n) =>
+      \induction (l: N.Nat^) \return Logic.Not (N.Nat^::succ k = l) -> state (N.Nat^::succ k) indices l = (Forms.At[k := l].origin) \with {
+        | zero: \fun (different: Logic.Not (N.Nat^::succ k = N.Nat^::zero)) => \refl(Forms.At[k := N.Nat^::zero].origin)
+        | succ: \fun (l: N.Nat^)(unused: Logic.Not (N.Nat^::succ k = l) -> state (N.Nat^::succ k) indices l = Forms.At[k := l].origin)(different: Logic.Not (N.Nat^::succ k = N.Nat^::succ l)) => trans!{{Forms.Form (N.Nat^::succ l)}} _ _ _
+          (congr!{{Forms.Form l} {Forms.Form (N.Nat^::succ l)}} (Operations.LeftCreation[k := l].apply (Metric.form (Finite.basis (indices (Fin.zero k))))) _ _
+            (previous (\fun (i: Fin.Fin k) => indices (Fin.succ k i)) l (\fun (same: k = l) => different (congr!{{N.Nat^} {N.Nat^}} N.Nat^::succ _ _ same))))
+          ((Operations.LeftCreation[k := l].operator (Metric.form (Finite.basis (indices (Fin.zero k))))).preservesZero)
+      }
+  };
+\definition topAction: \forall (u: Unitary.Carrier)(indices: Fin.Fin n -> Fin.Fin n) ->
+  ((Phase.actionC (lift u)).value.apply (state n indices)) n = (Forms.At[k := n].vectorSpace).smul (Top.determinant u.backward) (Exterior.At[k := n].word indices) :=
+  \fun (u: Unitary.Carrier)(indices: Fin.Fin n -> Fin.Fin n) => eq_reason_in!{{Forms.Form n} _
+    "=" _ "by" { congr!{{Total.Carrier} {Forms.Form n}} (\fun (f: Total.Carrier) => f n) _ _ (intertwining u n indices) }
+    "=" _ "by" { \root.Complex[].Dimension[n := n].topAction u (state n indices) }
+    "=" _ "by" { congr!{{Forms.Form n} {Forms.Form n}} ((Forms.At[k := n].vectorSpace).smul (Top.determinant u.backward)) _ _ (component n indices) }
+  };
+\module Span(k: N.Nat^);
+\module Complete;

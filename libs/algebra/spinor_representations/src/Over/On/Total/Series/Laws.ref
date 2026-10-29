@@ -1,0 +1,96 @@
+\import Shuffle.Vector[space := space] \as Vector;
+\import Shuffle.Alternation[] \as Alt;
+\import Lists.Replace[A := V] \as Replace;
+\import std.Data[].Nat[].Basic[].Prop[] \as NatLaws;
+\definition sameLength: \forall (f: Carrier)(xs, ys: Lists.List[V]) -> Lists.length V ys = Lists.length V xs ->
+  value f ys = Exterior.component (Lists.length V xs) (f (Lists.length V xs)) ys :=
+  \fun (f: Carrier)(xs, ys: Lists.List[V])(same: Lists.length V ys = Lists.length V xs) => trans!{K} _ _ _ (asComponent f ys)
+    (congr!{{N.Nat^} K} (\fun (k: N.Nat^) => Exterior.component k (f k) ys) _ _ same);
+\definition linear: \forall (f: Carrier) -> Vector.Linear (value f) :=
+  \fun (f: Carrier) => Multi.SeriesLaws[value f] {
+    addition := \fun (xs: Lists.List[V])(i: N.Nat^)(bound: NatLaws.Lt i (Lists.length V xs))(x, y: V) => eq_reason_in!{K _
+      "=" _ "by" { sameLength f xs (Replace.apply xs i (space.add x y)) (Replace.lengthLaw xs i (space.add x y)) }
+      "=" _ "by" { (Multi.ListSeries[k := Lists.length V xs].linear (Alternating.asMultilinear (Lists.length V xs) (f (Lists.length V xs)))).addition xs i bound x y }
+      "=" _ "by" { congr!{K K K} Algebra.add _ _ _ _ (sym!{K} _ _ (sameLength f xs (Replace.apply xs i x) (Replace.lengthLaw xs i x))) (sym!{K} _ _ (sameLength f xs (Replace.apply xs i y) (Replace.lengthLaw xs i y))) }
+    },
+    scalar := \fun (xs: Lists.List[V])(i: N.Nat^)(bound: NatLaws.Lt i (Lists.length V xs))(a: K)(x: V) => eq_reason_in!{K _
+      "=" _ "by" { sameLength f xs (Replace.apply xs i (space.smul a x)) (Replace.lengthLaw xs i (space.smul a x)) }
+      "=" _ "by" { (Multi.ListSeries[k := Lists.length V xs].linear (Alternating.asMultilinear (Lists.length V xs) (f (Lists.length V xs)))).scalar xs i bound a x }
+      "=" _ "by" { congr!{K K} (Algebra.mul a) _ _ (sym!{K} _ _ (sameLength f xs (Replace.apply xs i x) (Replace.lengthLaw xs i x))) }
+    },
+  };
+\definition alternating: \forall (f: Carrier) -> Alt.Laws[value f] :=
+  \fun (f: Carrier) => Alt.Laws[value f] {
+    swap := \fun (prefix: Lists.List[V])(x, y: V)(xs: Lists.List[V]) => \block {
+      \let first: Lists.List[V] := Lists.append V prefix (Lists.List[V]::cons x (Lists.List[V]::cons y xs)) \then
+      \let second: Lists.List[V] := Lists.append V prefix (Lists.List[V]::cons y (Lists.List[V]::cons x xs)) \then
+      \return eq_reason_in!{K _
+        "=" _ "by" { asComponent f first }
+        "=" _ "by" { (Exterior.componentAlternating (Lists.length V first) (f (Lists.length V first))).swap prefix x y xs }
+        "=" _ "by" { congr!{K K} Algebra.neg _ _ (sym!{K} _ _ (sameLength f first second (sym!{{N.Nat^}} _ _ (Alt.swappedLength prefix x y xs)))) }
+      }
+    },
+    repeated := \fun (prefix: Lists.List[V])(x: V)(xs: Lists.List[V]) => trans!{K} _ _ _ (asComponent f (Lists.append V prefix (Lists.List[V]::cons x (Lists.List[V]::cons x xs))))
+      ((Exterior.componentAlternating (Lists.length V (Lists.append V prefix (Lists.List[V]::cons x (Lists.List[V]::cons x xs)))) (f (Lists.length V (Lists.append V prefix (Lists.List[V]::cons x (Lists.List[V]::cons x xs)))))).repeated prefix x xs),
+  };
+\structure ValidLaws[s: Shuffle.Function]: \Prop := {
+  linear: Vector.Linear s,
+  alternating: Alt.Laws[s],
+};
+\definition Valid: \Set := \Cast[Shuffle.Function] ({ s: Shuffle.Function \where ValidLaws[s] });
+\definition toSeries[f: Carrier]: Valid := \into[Shuffle.Function](value f, Valid) \by { ValidLaws[value f] { linear := linear f, alternating := alternating f } };
+\definition fromSeries[s: Valid]: Carrier := \fun (k: N.Nat^) => Exterior.Restriction[k := k].form s
+  (\bysub(Shuffle.Function, { s: Shuffle.Function \where ValidLaws[s] }, s)).linear
+  (\bysub(Shuffle.Function, { s: Shuffle.Function \where ValidLaws[s] }, s)).alternating;
+\definition roundtrip: \forall (f: Carrier) -> fromSeries (toSeries f) = f :=
+  \fun (f: Carrier) => \axiom:funext(fromSeries (toSeries f), f, \fun (k: N.Nat^) => (Alternating.At[k := k].ext) _ _ (degree f k));
+\definition otherRoundtrip: \forall (s: Valid) -> toSeries (fromSeries s) = s :=
+  \fun (s: Valid) => \axiom:funext(toSeries (fromSeries s), s, \fun (xs: Lists.List[V]) => congr!{{Lists.List[V]} K} s _ _ (ListTuples.listTuple xs));
+\definition ext: \forall (f, g: Carrier) -> value f = value g -> f = g :=
+  \fun (f, g: Carrier)(same: value f = value g) => \axiom:funext(f, g, \fun (k: N.Nat^) => (Alternating.At[k := k].ext) (f k) (g k) (\fun (args: Multi.Arguments k) =>
+    trans!{K} _ _ _ (sym!{K} _ _ (degree f k args)) (trans!{K} _ _ _ (congr!{Shuffle.Function K} (\fun (a: Shuffle.Function) => a (ListTuples.list k args)) _ _ same) (degree g k args))));
+\import Shuffle.Laws[] \as Products;
+\definition productSeries[f, g: Carrier]: Valid := \into[Shuffle.Function](Shuffle.product (value f) (value g), Valid) \by {
+  ValidLaws[Shuffle.product (value f) (value g)] {
+    linear := Vector.linear (value f) (value g) (linear f) (linear g),
+    alternating := Alt.alternating (value f) (value g) (alternating f) (alternating g),
+  }
+};
+\definition wedge[f, g: Carrier]: Carrier := fromSeries (productSeries f g);
+\definition onWedge: \forall (f, g: Carrier)(xs: Lists.List[V]) -> value (wedge f g) xs = Shuffle.product (value f) (value g) xs :=
+  \fun (f, g: Carrier)(xs: Lists.List[V]) => congr!{Valid K} (\fun (s: Valid) => s xs) _ _ (otherRoundtrip (productSeries f g));
+\definition addLeft: \forall (f, g, h: Carrier) -> wedge (totalSpace.add f g) h = totalSpace.add (wedge f h) (wedge g h) :=
+  \fun (f, g, h: Carrier) => ext _ _ (\axiom:funext(value (wedge (totalSpace.add f g) h), value (totalSpace.add (wedge f h) (wedge g h)), \fun (xs: Lists.List[V]) => eq_reason_in!{K _
+    "=" _ "by" { onWedge (totalSpace.add f g) h xs }
+    "=" _ "by" { Products.additiveLeft (value f) (value g) (value h) xs }
+    "=" _ "by" { congr!{K K K} Algebra.add _ _ _ _ (sym!{K} _ _ (onWedge f h xs)) (sym!{K} _ _ (onWedge g h xs)) }
+  }));
+\definition addRight: \forall (f, g, h: Carrier) -> wedge f (totalSpace.add g h) = totalSpace.add (wedge f g) (wedge f h) :=
+  \fun (f, g, h: Carrier) => ext _ _ (\axiom:funext(value (wedge f (totalSpace.add g h)), value (totalSpace.add (wedge f g) (wedge f h)), \fun (xs: Lists.List[V]) => eq_reason_in!{K _
+    "=" _ "by" { onWedge f (totalSpace.add g h) xs }
+    "=" _ "by" { Products.additiveRight (value f) (value g) (value h) xs }
+    "=" _ "by" { congr!{K K K} Algebra.add _ _ _ _ (sym!{K} _ _ (onWedge f g xs)) (sym!{K} _ _ (onWedge f h xs)) }
+  }));
+\definition scaleLeft: \forall (a: K)(f, g: Carrier) -> wedge (totalSpace.smul a f) g = totalSpace.smul a (wedge f g) :=
+  \fun (a: K)(f, g: Carrier) => ext _ _ (\axiom:funext(value (wedge (totalSpace.smul a f) g), value (totalSpace.smul a (wedge f g)), \fun (xs: Lists.List[V]) => eq_reason_in!{K _
+    "=" _ "by" { onWedge (totalSpace.smul a f) g xs }
+    "=" _ "by" { Products.scalarLeft a (value f) (value g) xs }
+    "=" _ "by" { congr!{K K} (Algebra.mul a) _ _ (sym!{K} _ _ (onWedge f g xs)) }
+  }));
+\definition scaleRight: \forall (a: K)(f, g: Carrier) -> wedge f (totalSpace.smul a g) = totalSpace.smul a (wedge f g) :=
+  \fun (a: K)(f, g: Carrier) => ext _ _ (\axiom:funext(value (wedge f (totalSpace.smul a g)), value (totalSpace.smul a (wedge f g)), \fun (xs: Lists.List[V]) => eq_reason_in!{K _
+    "=" _ "by" { onWedge f (totalSpace.smul a g) xs }
+    "=" _ "by" { Products.scalarRight a (value f) (value g) xs }
+    "=" _ "by" { congr!{K K} (Algebra.mul a) _ _ (sym!{K} _ _ (onWedge f g xs)) }
+  }));
+\definition associative: \forall (f, g, h: Carrier) -> wedge (wedge f g) h = wedge f (wedge g h) :=
+  \fun (f, g, h: Carrier) => ext _ _ (\axiom:funext(value (wedge (wedge f g) h), value (wedge f (wedge g h)), \fun (xs: Lists.List[V]) => eq_reason_in!{K _
+    "=" _ "by" { onWedge (wedge f g) h xs }
+    "=" _ "by" { Products.congruent (value (wedge f g)) (Shuffle.product (value f) (value g)) (value h) (value h) (onWedge f g) (\fun (ys: Lists.List[V]) => \refl(value h ys)) xs }
+    "=" _ "by" { Products.associative xs (value f) (value g) (value h) }
+    "=" _ "by" { Products.congruent (value f) (value f) (Shuffle.product (value g) (value h)) (value (wedge g h)) (\fun (ys: Lists.List[V]) => \refl(value f ys)) (\fun (ys: Lists.List[V]) => sym!{K} _ _ (onWedge g h ys)) xs }
+    "=" _ "by" { sym!{K} _ _ (onWedge f (wedge g h) xs) }
+  }));
+\module Grading;
+\module OneCommutation;
+\module Reversal;

@@ -1,0 +1,34 @@
+\import \root.Over[K := C.Complex, scalarRing := ring].On[V := Finite.Vector, space := Finite.space].Total[].Vacuum[] \as Vacuum;
+\import \parent.Lifts[] \as Lifts;
+\import Lifts.Fibers[] \as Fibers;
+\import Lifts.Norm[] \as Norm;
+\import \parent.PinLift[] \as PinLift;
+\import \parent.\parent.RealCoordinates[].Clifford[].Spin[].Phase[] \as Phase;
+\import clifford.Field[K := R.Real, field := R.Algebra[].field].On[V := E.Vector, space := E.space].Of[form := E.form].Pin[] \as Pin;
+\import clifford.ComplexExtension[G := Pin.Spin, group := Pin.spinGroup].By[sign := Pin.spinInvolution] \as SpinC;
+\definition exists: \forall (u: Unitary.Carrier) -> \exists Fibers.Normalized u := \block {
+  \fun (u: Unitary.Carrier) \then
+  \takefrom g: PinLift.SpinCLift u \by PinLift.spinCExists u \then
+  \let projects: Phase.projection g = map u := \bysub(SpinC.Carrier, PinLift.SpinCLift u, g) \then
+  \return Fibers.normalizedFromUnit u g projects (Norm.normOne u g projects)
+};
+\definition lift[u: Unitary.Carrier]: Fibers.Normalized u := \choice Fibers.Normalized u \by { existence: exists u, uniqueness: Fibers.normalizedUnique u };
+\definition projection: \forall (u: Unitary.Carrier) -> Phase.projection (lift u) = map u :=
+  \fun (u: Unitary.Carrier) => (\bysub(SpinC.Carrier, { g: SpinC.Carrier \where Fibers.NormalizedLaw[u, g] }, lift u)).projection;
+\definition vacuum: \forall (u: Unitary.Carrier) -> Lifts.vacuumScalar (lift u) = Algebra.one :=
+  \fun (u: Unitary.Carrier) => (\bysub(SpinC.Carrier, { g: SpinC.Carrier \where Fibers.NormalizedLaw[u, g] }, lift u)).vacuum;
+\definition atOne: lift Unitary.identity = SpinC.group.unit := Fibers.normalizedUnique Unitary.identity (lift Unitary.identity) Fibers.normalizedUnit;
+\definition multiplication: \forall (u, v: Unitary.Carrier) -> lift (Unitary.multiply u v) = SpinC.group.op (lift u) (lift v) :=
+  \fun (u, v: Unitary.Carrier) => Fibers.normalizedUnique (Unitary.multiply u v) (lift (Unitary.multiply u v)) (Fibers.normalizedProduct u v (lift u) (lift v));
+\import algebra.Hom[A := Unitary.Carrier, B := SpinC.Carrier] \as Hom;
+\definition homomorphism: Hom.GroupMap group SpinC.group := \into[Unitary.Carrier -> SpinC.Carrier](lift, Hom.GroupMap group SpinC.group) \by {
+  Hom.MonoidLaws[_, _, lift] { unit := atOne, operation := multiplication }
+};
+\definition fixesVacuum: \forall (u: Unitary.Carrier) -> (Phase.actionC (lift u)).value.apply Vacuum.state = Vacuum.state :=
+  \fun (u: Unitary.Carrier) => eq_reason_in!{{Total.Carrier} _
+    "=" _ "by" { Lifts.vacuumEigen u (lift u) (projection u) }
+    "=" _ "by" { congr!{C.Complex {Total.Carrier}} (\fun (a: C.Complex) => Total.totalSpace.smul a Vacuum.state) _ _ (vacuum u) }
+    "=" _ "by" { Total.totalSpace.scalarOne Vacuum.state }
+  };
+\module FockWords;
+\module Formula;

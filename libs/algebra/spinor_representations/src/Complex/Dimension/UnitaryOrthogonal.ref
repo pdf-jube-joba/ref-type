@@ -1,0 +1,91 @@
+\import \parent.RealCoordinates[] \as RC;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing R.Real R.Algebra[].field] \as Reals;
+\import \root.Complex[].On[V := Finite.Vector, space := Finite.space].Realification[] \as Realify;
+\import Reals.Linear[V := Finite.Vector, W := Finite.Vector, source := Realify.spaceReal, target := Realify.spaceReal] \as RealMap;
+\import Reals.Isomorphism[V := Finite.Vector, W := Finite.Vector, source := Realify.spaceReal, target := Realify.spaceReal] \as RealIso;
+\definition realMap[f: VectorMaps.Map]: RealMap.Map := RealMap.Map {
+  apply := f.apply,
+  preservesAdd := f.preservesAdd,
+  preservesScale := \fun (a: R.Real)(v: Finite.Vector) => f.preservesScale (Def.ofReal a) v,
+};
+\definition realIso[u: Unitary.Carrier]: RealIso.Isomorphism := RealIso.Isomorphism {
+  forward := realMap u.forward, backward := realMap u.backward,
+  leftInverse := u.leftInverse, rightInverse := u.rightInverse,
+};
+\import std.Data[].FinSet[] \as Fin;
+\import linear_algebra.Euclidean[n := Fin.Sum[m := n, n := n].total] \as E;
+\import Reals.Isomorphism[V := Finite.Vector, W := E.Vector, source := Realify.spaceReal, target := E.space] \as StandardIso;
+\import RealIso.Composition[U := E.Vector, domain := E.space] \as FirstCompose;
+\import Reals.Isomorphism[V := Finite.Vector, W := E.Vector, source := Realify.spaceReal, target := E.space].Composition[U := E.Vector, domain := E.space] \as SecondCompose;
+\definition iso[u: Unitary.Carrier]: Reals.Isomorphism[V := E.Vector, W := E.Vector, source := E.space, target := E.space].Isomorphism :=
+  SecondCompose.compose RC.standardIsomorphism (FirstCompose.compose (realIso u) (StandardIso.inverse RC.standardIsomorphism));
+\import lie_algebras.Field[K := R.Real, field := R.Algebra[].field].Endomorphisms[V := E.Vector, space := E.space] \as End;
+\import algebra.Groups[].Units[A := End.Carrier, ring := End.ring] \as Units;
+\import lie_groups.Classical[].On[V := E.Vector, space := E.space].Orthogonal[form := E.form] \as Orthogonal;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].trans;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].sym;
+\definition unit[u: Unitary.Carrier]: Units.Unit := Units.Unit {
+  value := (iso u).forward, inverse := (iso u).backward,
+  left := End.ext _ _ (iso u).leftInverse,
+  right := End.ext _ _ (iso u).rightInverse,
+};
+\definition preserves: \forall (u: Unitary.Carrier)(x, y: E.Vector) -> E.dot ((iso u).forward.apply x) ((iso u).forward.apply y) = E.dot x y :=
+  \fun (u: Unitary.Carrier)(x, y: E.Vector) => eq_reason_in!{R.Real _
+    "=" _ "by" { RC.isometry (u.forward.apply (RC.standardIsomorphism.backward.apply x)) (u.forward.apply (RC.standardIsomorphism.backward.apply y)) }
+    "=" _ "by" { congr!{C.Complex R.Real} C.re _ _ (Unitary.isometry u (RC.standardIsomorphism.backward.apply x) (RC.standardIsomorphism.backward.apply y)) }
+    "=" _ "by" { sym!{R.Real} _ _ (RC.isometry (RC.standardIsomorphism.backward.apply x) (RC.standardIsomorphism.backward.apply y)) }
+    "=" _ "by" { congr!{E.Vector E.Vector R.Real} E.dot _ _ _ _ (RC.standardIsomorphism.rightInverse x) (RC.standardIsomorphism.rightInverse y) }
+  };
+\definition map[u: Unitary.Carrier]: Orthogonal.O := \into[Units.Unit](unit u, Orthogonal.predicate) \by { preserves u };
+\definition atOne: map Unitary.identity = Orthogonal.group.unit := Units.ext _ _ (End.ext _ _ RC.standardIsomorphism.rightInverse);
+\definition multiplication: \forall (u, v: Unitary.Carrier) -> map (Unitary.multiply u v) = Orthogonal.group.op (map u) (map v) :=
+  \fun (u, v: Unitary.Carrier) => Units.ext _ _ (End.ext _ _ (\fun (x: E.Vector) => congr!{Finite.Vector E.Vector} RC.standardIsomorphism.forward.apply _ _
+    (congr!{Finite.Vector Finite.Vector} u.forward.apply _ _ (sym!{Finite.Vector} _ _ (RC.standardIsomorphism.leftInverse (v.forward.apply (RC.standardIsomorphism.backward.apply x)))))));
+\import algebra.Hom[A := Unitary.Carrier, B := Orthogonal.O] \as GroupHom;
+\definition homomorphism: GroupHom.GroupMap group Orthogonal.group := \into[Unitary.Carrier -> Orthogonal.O](map, GroupHom.GroupMap group Orthogonal.group) \by {
+  GroupHom.MonoidLaws[_, _, map] { unit := atOne, operation := multiplication }
+};
+\definition injective: \forall (u, v: Unitary.Carrier) -> map u = map v -> u = v :=
+  \fun (u, v: Unitary.Carrier)(same: map u = map v) => Unitary.ext u v (\fun (x: Finite.Vector) => eq_reason_in!{Finite.Vector _
+    "=" _ "by" { sym!{Finite.Vector} _ _ (RC.standardIsomorphism.leftInverse (u.forward.apply x)) }
+    "=" _ "by" { congr!{E.Vector Finite.Vector} RC.standardIsomorphism.backward.apply _ _
+      (trans!{E.Vector} _ _ _
+        (sym!{E.Vector} _ _ (congr!{Finite.Vector E.Vector} (\fun (y: Finite.Vector) => RC.standardIsomorphism.forward.apply (u.forward.apply y)) _ _ (RC.standardIsomorphism.leftInverse x)))
+        (trans!{E.Vector} _ _ _ (congr!{Orthogonal.O E.Vector} (\fun (g: Orthogonal.O) => Orthogonal.action g (RC.standardIsomorphism.forward.apply x)) _ _ same)
+          (congr!{Finite.Vector E.Vector} (\fun (y: Finite.Vector) => RC.standardIsomorphism.forward.apply (v.forward.apply y)) _ _ (RC.standardIsomorphism.leftInverse x)))) }
+    "=" _ "by" { RC.standardIsomorphism.leftInverse (v.forward.apply x) }
+  });
+\import \root.Complex[].On[V := Finite.Vector, space := Finite.space].Realification[].With[h := Finite.form] \as Metric;
+\import Forms.Precomposition[W := Finite.Vector, target := Finite.space] \as Pull;
+\import Algebra.Multilinear[V := Finite.Vector, space := Finite.space] \as Multi;
+\import std.Data[].Nat[] \as N;
+\import Forms.At[k := N.Nat^::succ N.Nat^::zero] \as One;
+\definition covectorNatural: \forall (u: Unitary.Carrier)(v: Finite.Vector) ->
+  Pull.precompose (N.Nat^::succ N.Nat^::zero) u.backward (Metric.form v) = Metric.form (u.forward.apply v) :=
+  \fun (u: Unitary.Carrier)(v: Finite.Vector) => One.ext (Pull.precompose (N.Nat^::succ N.Nat^::zero) u.backward (Metric.form v)) (Metric.form (u.forward.apply v)) (\fun (args: Multi.Arguments (N.Nat^::succ N.Nat^::zero)) =>
+    sym!{C.Complex} _ _ (Unitary.adjoint u v (args Metric.head)));
+\definition contractionNatural: \forall (u: Unitary.Carrier)(v: Finite.Vector)(f: Total.Carrier) ->
+  Pullback.apply u.backward (Total.annihilate v f) = Total.annihilate (u.forward.apply v) (Pullback.apply u.backward f) :=
+  \fun (u: Unitary.Carrier)(v: Finite.Vector)(f: Total.Carrier) => trans!{{Total.Carrier}} _ _ _
+    (congr!{Finite.Vector {Total.Carrier}} (\fun (x: Finite.Vector) => Pullback.apply u.backward (Total.annihilate x f)) _ _ (sym!{Finite.Vector} _ _ (u.leftInverse v)))
+    (Pullback.contractionNatural u.backward (u.forward.apply v) f);
+\definition creationNatural: \forall (u: Unitary.Carrier)(v: Finite.Vector)(f: Total.Carrier) ->
+  Pullback.apply u.backward (Total.createLeft (Metric.form v) f) = Total.createLeft (Metric.form (u.forward.apply v)) (Pullback.apply u.backward f) :=
+  \fun (u: Unitary.Carrier)(v: Finite.Vector)(f: Total.Carrier) => trans!{{Total.Carrier}} _ _ _
+    (Pullback.creationNatural u.backward (Metric.form v) f)
+    (congr!{{Forms.Form (N.Nat^::succ N.Nat^::zero)} {Total.Carrier}} (\fun (alpha: Forms.Form (N.Nat^::succ N.Nat^::zero)) => Total.createLeft alpha (Pullback.apply u.backward f)) _ _ (covectorNatural u v));
+\definition intertwining: \forall (u: Unitary.Carrier)(v: Finite.Vector)(f: Total.Carrier) ->
+  (action u).value.apply ((Metric.cliffordOperator v).apply f) = (Metric.cliffordOperator (u.forward.apply v)).apply ((action u).value.apply f) :=
+  \fun (u: Unitary.Carrier)(v: Finite.Vector)(f: Total.Carrier) => trans!{{Total.Carrier}} _ _ _
+    ((Pullback.operator u.backward).preservesAdd (Total.annihilate v f) (Total.createLeft (Metric.form v) f))
+    (congr!{{Total.Carrier} {Total.Carrier} {Total.Carrier}} Total.totalSpace.add _ _ _ _ (contractionNatural u v f) (creationNatural u v f));
+\import \root.Over[K := C.Complex, scalarRing := ring].On[V := Finite.Vector, space := Finite.space].Total[].Vacuum[] \as Vacuum;
+\definition fixesVacuum: \forall (u: Unitary.Carrier) -> (action u).value.apply Vacuum.state = Vacuum.state :=
+  \fun (u: Unitary.Carrier) => Vacuum.pullback u.backward;
+\module Lifts;
+\module PinLift;
+\module CanonicalLift;
+\module VacuumFunctional;
+\module Smooth(d: std.Data[].Nat[].Nat^);

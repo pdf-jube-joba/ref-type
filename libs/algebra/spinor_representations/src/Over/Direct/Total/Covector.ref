@@ -1,0 +1,54 @@
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Nat[].Basic[].Prop[] \as NatLaws;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import Algebra.Laws[V := V, space := left] \as LeftLaws;
+\import Algebra.Laws[V := W, space := right] \as RightLaws;
+\import std.Data[].Pair[].Prop[A := V, B := W] \as PairLaws;
+\import Algebra.Linear[V := V, W := Sum.Carrier, source := left, target := Sum.space] \as LeftInjection;
+\import Algebra.Linear[V := W, W := Sum.Carrier, source := right, target := Sum.space] \as RightInjection;
+\definition leftInjection: LeftInjection.Map := LeftInjection.Map {
+  apply := \fun (v: V) => Sum.make v right.zero,
+  preservesAdd := \fun (u, v: V) => PairLaws.ext _ _ (\refl(left.add u v)) (sym!{W} _ _ (RightLaws.zeroLeft right.zero)),
+  preservesScale := \fun (a: K)(v: V) => PairLaws.ext _ _ (\refl(left.smul a v)) (sym!{W} _ _ (RightLaws.scaleZero a)),
+};
+\definition rightInjection: RightInjection.Map := RightInjection.Map {
+  apply := \fun (w: W) => Sum.make left.zero w,
+  preservesAdd := \fun (u, v: W) => PairLaws.ext _ _ (sym!{V} _ _ (LeftLaws.zeroLeft left.zero)) (\refl(right.add u v)),
+  preservesScale := \fun (a: K)(w: W) => PairLaws.ext _ _ (sym!{V} _ _ (LeftLaws.scaleZero a)) (\refl(right.smul a w)),
+};
+\import Algebra.Multilinear[V := Sum.Carrier, space := Sum.space] \as Multi;
+\import Multi.Properties[] \as Properties;
+\import Fin.Tuples[A := Sum.Carrier] \as Tuples;
+\import Algebra.Multilinear[V := V, space := left].Alternating[].Precomposition[W := Sum.Carrier, target := Sum.space] \as RestrictLeft;
+\import Algebra.Multilinear[V := W, space := right].Alternating[].Precomposition[W := Sum.Carrier, target := Sum.space] \as RestrictRight;
+\definition degree: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\import Result.At[k := degree] \as ResultOne;
+\definition head: Fin.Fin degree := Fin.zero N.Nat^::zero;
+\definition unique: \forall (j: Fin.Fin degree) -> j = head := \fun (j: Fin.Fin degree) => NatLaws.leZeroEq j (NatLaws.succLeOfLt degree j (Fin.bound degree j));
+\definition constantArgs[x: Sum.Carrier]: Multi.Arguments degree := \fun (i: Fin.Fin degree) => x;
+\definition updateConstant: \forall (args: Multi.Arguments degree)(x: Sum.Carrier) -> Multi.update degree args head x = constantArgs x :=
+  \fun (args: Multi.Arguments degree)(x: Sum.Carrier) => \axiom:funext(Multi.update degree args head x, constantArgs x, \fun (i: Fin.Fin degree) => trans!{{Sum.Carrier}} _ _ _
+    (congr!{{Fin.Fin degree} {Sum.Carrier}} (Multi.update degree args head x) _ _ (unique i)) (Properties.updateSelf degree args head x));
+\definition constantEta: \forall (args: Multi.Arguments degree) -> constantArgs (args head) = args :=
+  \fun (args: Multi.Arguments degree) => \axiom:funext(constantArgs (args head), args, \fun (i: Fin.Fin degree) => congr!{{Fin.Fin degree} {Sum.Carrier}} args _ _ (sym!{{Fin.Fin degree}} _ _ (unique i)));
+\definition splitVector: \forall (x: Sum.Carrier) -> Sum.space.add (leftInjection.apply (Sum.first x)) (rightInjection.apply (Sum.second x)) = x :=
+  \fun (x: Sum.Carrier) => PairLaws.ext _ _ (LeftLaws.zeroRight (Sum.first x)) (RightLaws.zeroLeft (Sum.second x));
+\definition leftPart[a: Result.Form degree]: Left.Form degree := RestrictLeft.precompose degree leftInjection a;
+\definition rightPart[a: Result.Form degree]: Right.Form degree := RestrictRight.precompose degree rightInjection a;
+\definition decomposition: \forall (a: Result.Form degree) -> a = ResultOne.plus (PullLeft.precompose degree leftProjection (leftPart a)) (PullRight.precompose degree rightProjection (rightPart a)) :=
+  \fun (a: Result.Form degree) => ResultOne.ext _ _ (\fun (args: Multi.Arguments degree) => eq_reason_in!{K _
+    "=" _ "by" { congr!{{Multi.Arguments degree} K} a _ _ (sym!{{Multi.Arguments degree}} _ _ (constantEta args)) }
+    "=" _ "by" { congr!{{Sum.Carrier} K} (\fun (x: Sum.Carrier) => a (constantArgs x)) _ _ (sym!{{Sum.Carrier}} _ _ (splitVector (args head))) }
+    "=" _ "by" { congr!{{Multi.Arguments degree} K} a _ _ (sym!{{Multi.Arguments degree}} _ _ (updateConstant args (Sum.space.add (leftInjection.apply (Sum.first (args head))) (rightInjection.apply (Sum.second (args head)))))) }
+    "=" _ "by" { (\bysub(Multi.Function degree, ResultOne.Predicate, a).linear).addition args head (leftInjection.apply (Sum.first (args head))) (rightInjection.apply (Sum.second (args head))) }
+    "=" _ "by" { congr!{K K K} Algebra.add _ _ _ _
+      (congr!{{Multi.Arguments degree} K} a _ _ (updateConstant args (leftInjection.apply (Sum.first (args head)))))
+      (congr!{{Multi.Arguments degree} K} a _ _ (updateConstant args (rightInjection.apply (Sum.second (args head))))) }
+    "=" _ "by" { congr!{{Multi.Arguments degree} {Multi.Arguments degree} K} (\fun (l, r: Multi.Arguments degree) => Algebra.add (a l) (a r)) _ _ _ _
+      (\axiom:funext(constantArgs (leftInjection.apply (Sum.first (args head))), (\fun (i: Fin.Fin degree) => leftInjection.apply (Sum.first (args i))), \fun (i: Fin.Fin degree) => congr!{{Fin.Fin degree} {Sum.Carrier}} (\fun (j: Fin.Fin degree) => leftInjection.apply (Sum.first (args j))) _ _ (sym!{{Fin.Fin degree}} _ _ (unique i))))
+      (\axiom:funext(constantArgs (rightInjection.apply (Sum.second (args head))), (\fun (i: Fin.Fin degree) => rightInjection.apply (Sum.second (args i))), \fun (i: Fin.Fin degree) => congr!{{Fin.Fin degree} {Sum.Carrier}} (\fun (j: Fin.Fin degree) => rightInjection.apply (Sum.second (args j))) _ _ (sym!{{Fin.Fin degree}} _ _ (unique i)))) }
+  });

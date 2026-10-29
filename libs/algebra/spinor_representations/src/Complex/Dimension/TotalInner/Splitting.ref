@@ -1,0 +1,35 @@
+\import Algebra.Laws[V := Total.Carrier, space := Total.totalSpace] \as Vectors;
+\import Algebra.Linear[V := Total.Carrier, W := Total.Carrier, source := Total.totalSpace, target := Total.totalSpace].Operations[] \as LinearOps;
+\import algebra.Group[].Of[Carrier := Total.Carrier, group := std.Alg[].Ring[].ringModuleAsCommutativeGroup C.Complex Total.Carrier Algebra.ring Total.totalSpace] \as Additive;
+\definition evenPart[f: Total.Carrier]: Total.Carrier := Total.totalSpace.smul half (Total.totalSpace.add f (Total.parity f));
+\definition oddPart[f: Total.Carrier]: Total.Carrier := Total.totalSpace.smul half (Total.totalSpace.add f (Total.totalSpace.neg (Total.parity f)));
+\definition even: \forall (f: Total.Carrier) -> \In[Total.Carrier] Parity.Even (evenPart f) :=
+  \fun (f: Total.Carrier) => eq_reason_in!{{Total.Carrier} _
+    "=" _ "by" { Total.grading.preservesScale half (Total.totalSpace.add f (Total.parity f)) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.smul half) _ _ (Total.grading.preservesAdd f (Total.parity f)) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.smul half) _ _
+      (trans!{{Total.Carrier}} _ _ _ (congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.add (Total.parity f)) _ _ (Total.paritySquare f)) (Vectors.comm (Total.parity f) f)) }
+  };
+\definition odd: \forall (f: Total.Carrier) -> \In[Total.Carrier] Parity.Odd (oddPart f) :=
+  \fun (f: Total.Carrier) => eq_reason_in!{{Total.Carrier} _
+    "=" _ "by" { Total.grading.preservesScale half (Total.totalSpace.add f (Total.totalSpace.neg (Total.parity f))) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.smul half) _ _ (Total.grading.preservesAdd f (Total.totalSpace.neg (Total.parity f))) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.smul half) _ _
+      (congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.add (Total.parity f)) _ _
+        (trans!{{Total.Carrier}} _ _ _ (LinearOps.preservesNeg Total.grading (Total.parity f)) (congr!{{Total.Carrier} {Total.Carrier}} Total.totalSpace.neg _ _ (Total.paritySquare f)))) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.smul half) _ _
+      (sym!{{Total.Carrier}} _ _ (trans!{{Total.Carrier}} _ _ _ (Additive.negAdd f (Total.totalSpace.neg (Total.parity f)))
+        (trans!{{Total.Carrier}} _ _ _ (congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.add (Total.totalSpace.neg f)) _ _ (Additive.negNeg (Total.parity f))) (Vectors.comm (Total.totalSpace.neg f) (Total.parity f))))) }
+    "=" _ "by" { Vectors.scaleNegative half (Total.totalSpace.add f (Total.totalSpace.neg (Total.parity f))) }
+  };
+\definition recombine: \forall (f: Total.Carrier) -> Total.totalSpace.add (evenPart f) (oddPart f) = f :=
+  \fun (f: Total.Carrier) => eq_reason_in!{{Total.Carrier} _
+    "=" _ "by" { sym!{{Total.Carrier}} _ _ (Total.totalSpace.vectorAdd half (Total.totalSpace.add f (Total.parity f)) (Total.totalSpace.add f (Total.totalSpace.neg (Total.parity f)))) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.smul half) _ _ (Vectors.shuffle f (Total.parity f) f (Total.totalSpace.neg (Total.parity f))) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.smul half) _ _
+      (trans!{{Total.Carrier}} _ _ _ (congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.add (Total.totalSpace.add f f)) _ _ (Additive.inverseRight (Total.parity f))) (Vectors.zeroRight (Total.totalSpace.add f f))) }
+    "=" _ "by" { Total.totalSpace.vectorAdd half f f }
+    "=" _ "by" { sym!{{Total.Carrier}} _ _ (Total.totalSpace.scalarAdd half half f) }
+    "=" _ "by" { congr!{C.Complex {Total.Carrier}} (\fun (a: C.Complex) => Total.totalSpace.smul a f) _ _ halfDouble }
+    "=" _ "by" { Total.totalSpace.scalarOne f }
+  };

@@ -1,0 +1,150 @@
+\import \parent.Lifts[] \as LiftSupport;
+\import \parent.\parent.RealCoordinates[].Clifford[] \as Clifford;
+\import Clifford.Spin[].Grading[] \as Grading;
+\import clifford.Field[K := R.Real, field := R.Algebra[].field].On[V := E.Vector, space := E.space].Of[form := E.form] \as Source;
+\import Source.Pin[] \as Pin;
+\import Source.Grading[] \as Grade;
+\import lie_groups.Euclidean[n := Fin.Sum[m := n, n := n].total] \as Geometry;
+\import Geometry.PinRepresentation[] \as Projection;
+\import clifford.Euclidean[n := Fin.Sum[m := n, n := n].total].PinWords[] \as Words;
+\import Words.Parity[] \as Parity;
+\import algebra.Groups[].Units[A := Source.Carrier, ring := Source.ring] \as SourceUnits;
+\import lie_algebras.Field[K := C.Complex, field := Field.field].Endomorphisms[V := Total.Carrier, space := Total.totalSpace] \as End;
+\import algebra.Groups[].Units[A := End.Carrier, ring := End.ring] \as TargetUnits;
+\import SourceUnits.Mapping[B := End.Carrier, target := End.ring, f := Clifford.extension] \as Mapping;
+\import algebra.Hom[A := Source.Carrier, B := End.Carrier] \as Hom;
+\import std.Alg[].Ring[] \as Ring;
+\import \root.Complex[].On[V := Finite.Vector, space := Finite.space].Realification[].With[h := Finite.form].Decomposition[] \as Decomposition;
+\import \root.Over[K := C.Complex, scalarRing := ring].On[V := Finite.Vector, space := Finite.space].Total[].Vacuum[] \as Vacuum;
+\import \parent.\parent.TotalInner[].Vacuum[] \as VacuumMetric;
+\import Algebra.Laws[V := Total.Carrier, space := Total.totalSpace] \as Vectors;
+\import algebra.Group[].Of[Carrier := Total.Carrier, group := Ring.ringModuleAsCommutativeGroup C.Complex Total.Carrier Algebra.ring Total.totalSpace] \as Sum;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].trans;
+\use std.Logic[].Equality[].congr;
+\definition laws: Hom.SemiringLaws[Ring.ringAsSemiring Source.Carrier Source.ring, Ring.ringAsSemiring End.Carrier End.ring, Clifford.extension] := Hom.semiringLaws _ _ Clifford.extension;
+\definition action[p: Geometry.Pin]: TargetUnits.Unit := Mapping.apply p;
+\definition sourceCommute: \forall (p: Geometry.Pin)(x: E.Vector) -> Source.mul (Source.iota (Orthogonal.action (Projection.map p) x)) p.value = Source.mul (Grade.map p.value) (Source.iota x) :=
+  \fun (p: Geometry.Pin)(x: E.Vector) => eq_reason_in!{Source.Carrier _
+    "=" _ "by" { congr!{Source.Carrier Source.Carrier} (\fun (a: Source.Carrier) => Source.mul a p.value) _ _ (sym!{Source.Carrier} _ _ (Projection.onVector p x)) }
+    "=" _ "by" { Source.ring.semiring.multiplicative.associative (Source.mul (Grade.map p.value) (Source.iota x)) p.inverse p.value }
+    "=" _ "by" { congr!{Source.Carrier Source.Carrier} (Source.mul (Source.mul (Grade.map p.value) (Source.iota x))) _ _ p.left }
+    "=" _ "by" { Source.ring.semiring.multiplicative.rightIdentity (Source.mul (Grade.map p.value) (Source.iota x)) }
+  };
+\definition oddCommute: \forall (p: Geometry.Pin)(word: Parity.Odd[p])(x: E.Vector)(f: Total.Carrier) ->
+  (Clifford.vectors.apply (Orthogonal.action (Projection.map p) x)).apply ((action p).value.apply f) = Total.totalSpace.neg ((action p).value.apply ((Clifford.vectors.apply x).apply f)) :=
+  \fun (p: Geometry.Pin)(word: Parity.Odd[p])(x: E.Vector)(f: Total.Carrier) => eq_reason_in!{{Total.Carrier} _
+    "=" _ "by" { congr!{End.Carrier {Total.Carrier}} (\fun (t: End.Carrier) => t.apply ((action p).value.apply f)) _ _ (sym!{End.Carrier} _ _ (Clifford.onVector (Orthogonal.action (Projection.map p) x))) }
+    "=" _ "by" { congr!{End.Carrier {Total.Carrier}} (\fun (t: End.Carrier) => t.apply f) _ _ (sym!{End.Carrier} _ _ (laws.mul (Source.iota (Orthogonal.action (Projection.map p) x)) p.value)) }
+    "=" _ "by" { congr!{Source.Carrier {Total.Carrier}} (\fun (a: Source.Carrier) => (Clifford.extension a).apply f) _ _ (sourceCommute p x) }
+    "=" _ "by" { congr!{End.Carrier {Total.Carrier}} (\fun (t: End.Carrier) => t.apply f) _ _ (laws.mul (Grade.map p.value) (Source.iota x)) }
+    "=" _ "by" { congr!{Source.Carrier {Total.Carrier}} (\fun (a: Source.Carrier) => (Clifford.extension a).apply ((Clifford.extension (Source.iota x)).apply f)) _ _ (Parity.oddNegative p word) }
+    "=" _ "by" { congr!{End.Carrier {Total.Carrier}} (\fun (t: End.Carrier) => t.apply ((Clifford.extension (Source.iota x)).apply f)) _ _ (Grading.negative p.value) }
+    "=" _ "by" { Grading.negApply (Clifford.extension p.value) ((Clifford.extension (Source.iota x)).apply f) }
+    "=" _ "by" { congr!{End.Carrier {Total.Carrier}} (\fun (t: End.Carrier) => Total.totalSpace.neg ((action p).value.apply (t.apply f))) _ _ (Clifford.onVector x) }
+  };
+\definition oddCoordinates: \forall (u: Unitary.Carrier)(p: Geometry.Pin)(word: Parity.Odd[p]) -> Projection.map p = map u -> \forall (v: Finite.Vector)(f: Total.Carrier) ->
+  (Metric.cliffordOperator (u.forward.apply v)).apply ((action p).value.apply f) = Total.totalSpace.neg ((action p).value.apply ((Metric.cliffordOperator v).apply f)) :=
+  \fun (u: Unitary.Carrier)(p: Geometry.Pin)(word: Parity.Odd[p])(projects: Projection.map p = map u)(v: Finite.Vector)(f: Total.Carrier) => eq_reason_in!{{Total.Carrier} _
+    "=" _ "by" { congr!{End.Carrier {Total.Carrier}} (\fun (a: End.Carrier) => a.apply ((action p).value.apply f)) _ _ (sym!{End.Carrier} _ _ (LiftSupport.coordinateClifford (u.forward.apply v))) }
+    "=" _ "by" { congr!{E.Vector {Total.Carrier}} (\fun (x: E.Vector) => (Clifford.vectors.apply x).apply ((action p).value.apply f)) _ _ (sym!{E.Vector} _ _ (LiftSupport.coordinateAction u v)) }
+    "=" _ "by" { congr!{Orthogonal.O {Total.Carrier}} (\fun (q: Orthogonal.O) => (Clifford.vectors.apply (Orthogonal.action q (RC.standardIsomorphism.forward.apply v))).apply ((action p).value.apply f)) _ _ (sym!{Orthogonal.O} _ _ projects) }
+    "=" _ "by" { oddCommute p word (RC.standardIsomorphism.forward.apply v) f }
+    "=" _ "by" { congr!{End.Carrier {Total.Carrier}} (\fun (a: End.Carrier) => Total.totalSpace.neg ((action p).value.apply (a.apply f))) _ _ (LiftSupport.coordinateClifford v) }
+  };
+\definition oddAnnihilation: \forall (u: Unitary.Carrier)(p: Geometry.Pin)(word: Parity.Odd[p]) -> Projection.map p = map u -> \forall (v: Finite.Vector)(f: Total.Carrier) ->
+  Total.annihilate (u.forward.apply v) ((action p).value.apply f) = Total.totalSpace.neg ((action p).value.apply (Total.annihilate v f)) :=
+  \fun (u: Unitary.Carrier)(p: Geometry.Pin)(word: Parity.Odd[p])(projects: Projection.map p = map u)(v: Finite.Vector)(f: Total.Carrier) => eq_reason_in!{{Total.Carrier} _
+    "=" _ "by" { Decomposition.annihilation (u.forward.apply v) ((action p).value.apply f) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.smul half) _ _
+      (congr!{{Total.Carrier} {Total.Carrier} {Total.Carrier}} Total.totalSpace.add _ _ _ _
+        (oddCoordinates u p word projects v f)
+        (congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.smul (Algebra.neg Def.i)) _ _
+          (trans!{{Total.Carrier}} _ _ _
+            (congr!{Finite.Vector {Total.Carrier}} (\fun (w: Finite.Vector) => (Metric.cliffordOperator w).apply ((action p).value.apply f)) _ _ (sym!{Finite.Vector} _ _ (u.forward.preservesScale Def.i v)))
+            (oddCoordinates u p word projects (Finite.space.smul Def.i v) f)))) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.smul half) _ _
+      (congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.add (Total.totalSpace.neg ((action p).value.apply ((Metric.cliffordOperator v).apply f)))) _ _
+        (Vectors.scaleNegative (Algebra.neg Def.i) ((action p).value.apply ((Metric.cliffordOperator (Finite.space.smul Def.i v)).apply f)))) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.smul half) _ _ (sym!{{Total.Carrier}} _ _ (Sum.negAdd ((action p).value.apply ((Metric.cliffordOperator v).apply f)) (Total.totalSpace.smul (Algebra.neg Def.i) ((action p).value.apply ((Metric.cliffordOperator (Finite.space.smul Def.i v)).apply f))))) }
+    "=" _ "by" { Vectors.scaleNegative half (Total.totalSpace.add ((action p).value.apply ((Metric.cliffordOperator v).apply f)) (Total.totalSpace.smul (Algebra.neg Def.i) ((action p).value.apply ((Metric.cliffordOperator (Finite.space.smul Def.i v)).apply f)))) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} Total.totalSpace.neg _ _ (congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.smul half) _ _
+      (congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.add ((action p).value.apply ((Metric.cliffordOperator v).apply f))) _ _ (sym!{{Total.Carrier}} _ _ ((action p).value.preservesScale (Algebra.neg Def.i) ((Metric.cliffordOperator (Finite.space.smul Def.i v)).apply f))))) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} Total.totalSpace.neg _ _ (congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.smul half) _ _ (sym!{{Total.Carrier}} _ _ ((action p).value.preservesAdd ((Metric.cliffordOperator v).apply f) (Total.totalSpace.smul (Algebra.neg Def.i) ((Metric.cliffordOperator (Finite.space.smul Def.i v)).apply f))))) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} Total.totalSpace.neg _ _ (sym!{{Total.Carrier}} _ _ ((action p).value.preservesScale half (Total.totalSpace.add ((Metric.cliffordOperator v).apply f) (Total.totalSpace.smul (Algebra.neg Def.i) ((Metric.cliffordOperator (Finite.space.smul Def.i v)).apply f))))) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} (\fun (a: Total.Carrier) => Total.totalSpace.neg ((action p).value.apply a)) _ _ (sym!{{Total.Carrier}} _ _ (Decomposition.annihilation v f)) }
+  };
+\definition oddVacuumParity: \forall (p: Geometry.Pin)(word: Parity.Odd[p]) -> Total.parity ((action p).value.apply Vacuum.state) = Total.totalSpace.neg ((action p).value.apply Vacuum.state) :=
+  \fun (p: Geometry.Pin)(word: Parity.Odd[p]) => eq_reason_in!{{Total.Carrier} _
+    "=" _ "by" { Grading.all p.value Vacuum.state }
+    "=" _ "by" { congr!{Source.Carrier {Total.Carrier}} (\fun (a: Source.Carrier) => (Clifford.extension a).apply (Total.parity Vacuum.state)) _ _ (Parity.oddNegative p word) }
+    "=" _ "by" { congr!{End.Carrier {Total.Carrier}} (\fun (a: End.Carrier) => a.apply (Total.parity Vacuum.state)) _ _ (Grading.negative p.value) }
+    "=" _ "by" { Grading.negApply (Clifford.extension p.value) (Total.parity Vacuum.state) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} (\fun (f: Total.Carrier) => Total.totalSpace.neg ((action p).value.apply f)) _ _ Vacuum.even }
+  };
+\import std.Logic[].Proposition[] \as Logic;
+\definition noOddLift: \forall (u: Unitary.Carrier)(p: Geometry.Pin)(word: Parity.Odd[p]) -> Projection.map p = map u -> Logic.False :=
+  \fun (u: Unitary.Carrier)(p: Geometry.Pin)(word: Parity.Odd[p])(projects: Projection.map p = map u) => VacuumMetric.oddImpossible (action p)
+    (\fun (v: Finite.Vector) => eq_reason_in!{{Total.Carrier} _
+      "=" _ "by" { congr!{Finite.Vector {Total.Carrier}} (\fun (w: Finite.Vector) => Total.annihilate w ((action p).value.apply Vacuum.state)) _ _ (sym!{Finite.Vector} _ _ (u.rightInverse v)) }
+      "=" _ "by" { oddAnnihilation u p word projects (u.backward.apply v) Vacuum.state }
+      "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} (\fun (f: Total.Carrier) => Total.totalSpace.neg ((action p).value.apply f)) _ _ (Vacuum.annihilated (u.backward.apply v)) }
+      "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} Total.totalSpace.neg _ _ ((action p).value.preservesZero) }
+      "=" _ "by" { Sum.negZero }
+    }) (oddVacuumParity p word);
+\import lie_groups.PinSurjectivity[].Dimension[n := Fin.Sum[m := n, n := n].total] \as PinSurjection;
+\use Logic.either;
+\definition Lift[u: Unitary.Carrier]: \Set := \Cast[Pin.Spin] ({ s: Pin.Spin \where Projection.spinMap s = map u });
+\definition exists: \forall (u: Unitary.Carrier) -> \exists Lift u := \block {
+  \fun (u: Unitary.Carrier) \then
+  \takefrom p: PinSurjection.Lifts (map u) \by lie_groups.PinSurjectivity[].surjective (Fin.Sum[m := n, n := n].total) (map u) \then
+  \let image: Projection.map p = map u := \bysub(Geometry.Pin, PinSurjection.Lifts (map u), p) \then
+  \return either!{{(Parity.parity p (Words.all p))} {\exists Lift u}
+    {\fun (even: Parity.Even p) => \exact(\into[Pin.Spin](Pin.spinOfEven p even, Lift u) \by { image }, Lift u)}
+    {\block {
+      \fun (odd: \exists Parity.Odd[p]) \then
+      \takefrom word: Parity.Odd[p] \by odd \then
+      \return Logic.falseElim (\exists Lift u) (noOddLift u p word image)
+    }}}
+};
+\import \root.Orientation[].Dimension[d := Fin.Sum[m := n, n := n].total].Even[] \as OrientationEven;
+\import Geometry.Orientation[] \as Orientation;
+\import lie_groups.Classical[].On[V := E.Vector, space := E.space].Orthogonal[form := E.form].Special[n := Fin.Sum[m := n, n := n].total] \as Special;
+\definition preservesOrientation: \forall (u: Unitary.Carrier) -> Special.PreservesVolume (map u) := \block {
+  \fun (u: Unitary.Carrier) \then
+  \takefrom s: Lift u \by exists u \then
+  \let image: Projection.spinMap s = map u := \bysub(Pin.Spin, Lift u, s) \then
+  \return \idelim Projection.spinMap s = map u \with q: Orthogonal.O => Special.PreservesVolume q \by {
+    base: (Orientation.preservesIff (Projection.spinMap s)).rtl (OrientationEven.determinant s),
+    equality: image
+  }
+};
+\definition special[u: Unitary.Carrier]: Special.SO := \into[Orthogonal.O](map u, Special.subset) \by { preservesOrientation u };
+\import algebra.Hom[A := Unitary.Carrier, B := Special.SO] \as SpecialHom;
+\definition specialHomomorphism: SpecialHom.GroupMap group Special.group := \into[Unitary.Carrier -> Special.SO](special, SpecialHom.GroupMap group Special.group) \by {
+  SpecialHom.MonoidLaws[_, _, special] { unit := atOne, operation := multiplication }
+};
+\import Clifford.Spin[].Phase[] \as Phase;
+\import clifford.Circle[] \as Circle;
+\import clifford.ComplexExtension[G := Pin.Spin, group := Pin.spinGroup].By[sign := Pin.spinInvolution] \as SpinC;
+\definition SpinCLift[u: Unitary.Carrier]: \Set := \Cast[SpinC.Carrier] ({ g: SpinC.Carrier \where Phase.projection g = map u });
+\definition spinCExists: \forall (u: Unitary.Carrier) -> \exists SpinCLift u := \block {
+  \fun (u: Unitary.Carrier) \then
+  \takefrom s: Lift u \by exists u \then
+  \let image: Projection.spinMap s = map u := \bysub(Pin.Spin, Lift u, s) \then
+  \return \exact(\into[SpinC.Carrier](SpinC.class s Circle.one, SpinCLift u) \by { trans!{Orthogonal.O} _ _ _ (Phase.projectionOnClass s Circle.one) image }, SpinCLift u)
+};
+\definition evenEvidence: \forall (u: Unitary.Carrier)(p: Geometry.Pin) -> Projection.map p = map u -> Parity.Even p :=
+  \fun (u: Unitary.Carrier)(p: Geometry.Pin)(image: Projection.map p = map u) =>
+    either!{{(Parity.parity p (Words.all p))} {Parity.Even p}
+      {\fun (even: Parity.Even p) => even}
+      {\block {
+        \fun (odd: \exists Parity.Odd[p]) \then
+        \takefrom word: Parity.Odd[p] \by odd \then
+        \return Logic.falseElim (Parity.Even p) (noOddLift u p word image)
+      }}};
+\definition evenLift[u: Unitary.Carrier][p: Geometry.Pin][image: Projection.map p = map u]: Pin.Spin :=
+  Pin.spinOfEven p (evenEvidence u p image);
+\definition evenLiftInclusion: \forall (u: Unitary.Carrier)(p: Geometry.Pin)(image: Projection.map p = map u) -> Pin.inclusion (evenLift u p image) = p :=
+  \fun (u: Unitary.Carrier)(p: Geometry.Pin)(image: Projection.map p = map u) => \refl(p);

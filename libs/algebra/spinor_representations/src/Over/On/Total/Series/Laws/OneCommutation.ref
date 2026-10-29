@@ -1,0 +1,67 @@
+\import Shuffle.Boundary[].OneCovector[] \as Covector;
+\import Shuffle.Laws[] \as Products;
+\import Shuffle.Alternation[] \as Alt;
+\import algebra.Group[].Of[Carrier := K, group := std.Alg[].Ring[].additiveGroup K Algebra.ring] \as Sum;
+\definition secondTerm: \forall (phi: V -> K)(f: Shuffle.Function)(x: V)(xs: Lists.List[V]) ->
+  Shuffle.product (Shuffle.twist f) (Shuffle.shift x (Covector.value phi)) xs = Algebra.mul (phi x) (Shuffle.twist f xs) :=
+  \fun (phi: V -> K)(f: Shuffle.Function)(x: V)(xs: Lists.List[V]) => eq_reason_in!{K _
+    "=" _ "by" { congr!{{Shuffle.Function} K} (\fun (s: Shuffle.Function) => Shuffle.product (Shuffle.twist f) s xs) _ _ (Covector.shifted phi x) }
+    "=" _ "by" { Products.scalarRight (phi x) (Shuffle.twist f) Shuffle.unit xs }
+    "=" _ "by" { congr!{K K} (Algebra.mul (phi x)) _ _ (Products.rightUnit xs (Shuffle.twist f)) }
+  };
+\definition twistedTerm: \forall (phi: V -> K)(f: Shuffle.Function)(x: V)(xs: Lists.List[V]) ->
+  Shuffle.product (Shuffle.twist (Covector.value phi)) (Shuffle.shift x (Shuffle.twist f)) xs = Shuffle.product (Covector.value phi) (Shuffle.twist (Shuffle.shift x f)) xs :=
+  \fun (phi: V -> K)(f: Shuffle.Function)(x: V)(xs: Lists.List[V]) => eq_reason_in!{K _
+    "=" _ "by" { Products.congruent (Shuffle.twist (Covector.value phi)) (Alt.negative (Covector.value phi)) (Shuffle.shift x (Shuffle.twist f)) (Alt.negative (Shuffle.twist (Shuffle.shift x f)))
+      (\fun (ys: Lists.List[V]) => congr!{{Shuffle.Function} K} (\fun (s: Shuffle.Function) => s ys) _ _ (Covector.twisted phi)) (\fun (ys: Lists.List[V]) => Alt.shiftTwist x f ys) xs }
+    "=" _ "by" { Alt.productNegativeLeft (Covector.value phi) (Alt.negative (Shuffle.twist (Shuffle.shift x f))) xs }
+    "=" _ "by" { congr!{K K} Algebra.neg _ _ (Alt.productNegativeRight (Covector.value phi) (Shuffle.twist (Shuffle.shift x f)) xs) }
+    "=" _ "by" { Sum.negNeg (Shuffle.product (Covector.value phi) (Shuffle.twist (Shuffle.shift x f)) xs) }
+  };
+\definition law: \forall (xs: Lists.List[V])(phi: V -> K)(f: Shuffle.Function) ->
+  Shuffle.product f (Covector.value phi) xs = Shuffle.product (Covector.value phi) (Shuffle.twist f) xs :=
+  \induction (xs: Lists.List[V]) \return \forall (phi: V -> K)(f: Shuffle.Function) ->
+    Shuffle.product f (Covector.value phi) xs = Shuffle.product (Covector.value phi) (Shuffle.twist f) xs \with {
+      | nil: \fun (phi: V -> K)(f: Shuffle.Function) => eq_reason_in!{K _
+        "=" _ "by" { Shuffle.atEmpty f (Covector.value phi) }
+        "=" _ "by" { Algebra.mulZeroRight (f Lists.List[V]::nil) }
+        "=" _ "by" { sym!{K} _ _ (Algebra.mulZeroLeft (Shuffle.twist f Lists.List[V]::nil)) }
+        "=" _ "by" { sym!{K} _ _ (Shuffle.atEmpty (Covector.value phi) (Shuffle.twist f)) }
+      }
+      | cons: \fun (head: V)(tail: Lists.List[V])(previous: \forall (phi: V -> K)(f: Shuffle.Function) -> Shuffle.product f (Covector.value phi) tail = Shuffle.product (Covector.value phi) (Shuffle.twist f) tail)(phi: V -> K)(f: Shuffle.Function) => eq_reason_in!{K _
+        "=" _ "by" { Shuffle.atCons head tail f (Covector.value phi) }
+        "=" _ "by" { congr!{K K K} Algebra.add _ _ _ _ (previous phi (Shuffle.shift head f)) (secondTerm phi f head tail) }
+        "=" _ "by" { Algebra.addComm (Shuffle.product (Covector.value phi) (Shuffle.twist (Shuffle.shift head f)) tail) (Algebra.mul (phi head) (Shuffle.twist f tail)) }
+        "=" _ "by" { congr!{K K K} Algebra.add _ _ _ _ (sym!{K} _ _ (Covector.leftProduct phi (Shuffle.twist f) head tail)) (sym!{K} _ _ (twistedTerm phi f head tail)) }
+        "=" _ "by" { sym!{K} _ _ (Shuffle.atCons head tail (Covector.value phi) (Shuffle.twist f)) }
+      }
+  };
+\definition form: \forall (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier)(xs: Lists.List[V]) ->
+  Shuffle.product (value f) (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) xs = Shuffle.product (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) (Shuffle.twist (value f)) xs :=
+  \fun (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier)(xs: Lists.List[V]) => eq_reason_in!{K _
+    "=" _ "by" { congr!{{Shuffle.Function} K} (\fun (s: Shuffle.Function) => Shuffle.product (value f) s xs) _ _ (Mixed.normal alpha) }
+    "=" _ "by" { law xs (Mixed.evaluate alpha) (value f) }
+    "=" _ "by" { congr!{{Shuffle.Function} K} (\fun (s: Shuffle.Function) => Shuffle.product s (Shuffle.twist (value f)) xs) _ _ (sym!{{Shuffle.Function}} _ _ (Mixed.normal alpha)) }
+  };
+\import \root.Over[K := K, scalarRing := scalarRing].On[V := V, space := space].Total[] \as Total;
+\import Total.Series[] \as Series;
+\definition leftCreation: \forall (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f, g: Carrier) -> Total.createLeft alpha (wedge f g) = wedge (Total.createLeft alpha f) g :=
+  \fun (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f, g: Carrier) => ext _ _ (\axiom:funext(value (Total.createLeft alpha (wedge f g)), value (wedge (Total.createLeft alpha f) g), \fun (xs: Lists.List[V]) => eq_reason_in!{K _
+    "=" _ "by" { Series.creation alpha (wedge f g) xs }
+    "=" _ "by" { Products.congruent (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) (value (wedge f g)) (Shuffle.product (value f) (value g)) (\fun (ys: Lists.List[V]) => \refl(Exterior.component (N.Nat^::succ N.Nat^::zero) alpha ys)) (onWedge f g) xs }
+    "=" _ "by" { sym!{K} _ _ (Products.associative xs (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) (value f) (value g)) }
+    "=" _ "by" { Products.congruent (Shuffle.product (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) (value f)) (value (Total.createLeft alpha f)) (value g) (value g) (\fun (ys: Lists.List[V]) => sym!{K} _ _ (Series.creation alpha f ys)) (\fun (ys: Lists.List[V]) => \refl(value g ys)) xs }
+    "=" _ "by" { sym!{K} _ _ (onWedge (Total.createLeft alpha f) g xs) }
+  }));
+\definition rightCreation: \forall (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f, g: Carrier) -> wedge f (Total.createLeft alpha g) = Total.createLeft alpha (wedge (Total.parity f) g) :=
+  \fun (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f, g: Carrier) => ext _ _ (\axiom:funext(value (wedge f (Total.createLeft alpha g)), value (Total.createLeft alpha (wedge (Total.parity f) g)), \fun (xs: Lists.List[V]) => eq_reason_in!{K _
+    "=" _ "by" { onWedge f (Total.createLeft alpha g) xs }
+    "=" _ "by" { Products.congruent (value f) (value f) (value (Total.createLeft alpha g)) (Shuffle.product (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) (value g)) (\fun (ys: Lists.List[V]) => \refl(value f ys)) (Series.creation alpha g) xs }
+    "=" _ "by" { sym!{K} _ _ (Products.associative xs (value f) (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) (value g)) }
+    "=" _ "by" { Products.congruent (Shuffle.product (value f) (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha)) (Shuffle.product (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) (Shuffle.twist (value f))) (value g) (value g) (form alpha f) (\fun (ys: Lists.List[V]) => \refl(value g ys)) xs }
+    "=" _ "by" { Products.associative xs (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) (Shuffle.twist (value f)) (value g) }
+    "=" _ "by" { Products.congruent (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) (Shuffle.product (Shuffle.twist (value f)) (value g)) (value (wedge (Total.parity f) g))
+      (\fun (ys: Lists.List[V]) => \refl(Exterior.component (N.Nat^::succ N.Nat^::zero) alpha ys))
+      (\fun (ys: Lists.List[V]) => trans!{K} _ _ _ (Products.congruent (Shuffle.twist (value f)) (value (Total.parity f)) (value g) (value g) (\fun (zs: Lists.List[V]) => sym!{K} _ _ (Series.parity f zs)) (\fun (zs: Lists.List[V]) => \refl(value g zs)) ys) (sym!{K} _ _ (onWedge (Total.parity f) g ys))) xs }
+    "=" _ "by" { sym!{K} _ _ (Series.creation alpha (wedge (Total.parity f) g) xs) }
+  }));

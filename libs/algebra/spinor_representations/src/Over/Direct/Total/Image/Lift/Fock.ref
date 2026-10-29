@@ -1,0 +1,24 @@
+\import std.Data[].FinSet[] \as Fin;
+\import Algebra.FiniteCoordinates[n := n].Exterior[] \as Exterior;
+\import Algebra.Coordinates[I := Fin.Fin n] \as CoordinateSpace;
+\import Result.Precomposition[W := CoordinateSpace.Vector, target := CoordinateSpace.space] \as Precompose;
+\import \root.Over[K := K, scalarRing := scalarRing].On[V := Sum.Carrier, space := Sum.space].Total[].Cyclic[n := n, b := b] \as Fock;
+\import \root.Over[K := K, scalarRing := scalarRing].Pullback[V := Sum.Carrier, W := CoordinateSpace.Vector, source := Sum.space, target := CoordinateSpace.space] \as Pull;
+\definition covector[i: Fin.Fin n]: Result.Form (N.Nat^::succ N.Nat^::zero) := Precompose.precompose (N.Nat^::succ N.Nat^::zero) b.coordinates (Exterior.coordinate i);
+\definition state: \forall (k: N.Nat^) -> (Fin.Fin k -> Fin.Fin n) -> Tensor.Carrier :=
+  \induction (k: N.Nat^) \return (Fin.Fin k -> Fin.Fin n) -> Tensor.Carrier \with {
+    | zero: \fun (indices: Fin.Fin N.Nat^::zero -> Fin.Fin n) => Tensor.tensor LeftVacuum.state RightVacuum.state
+    | succ: \fun (k: N.Nat^)(previous: (Fin.Fin k -> Fin.Fin n) -> Tensor.Carrier)(indices: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n) =>
+      (operator (covector (indices (Fin.zero k)))).apply (previous (\fun (i: Fin.Fin k) => indices (Fin.succ k i)))
+  };
+\definition comparisonState: \forall (k: N.Nat^)(indices: Fin.Fin k -> Fin.Fin n) -> comparison.apply (state k indices) = Fock.state k indices :=
+  \induction (k: N.Nat^) \return \forall (indices: Fin.Fin k -> Fin.Fin n) -> comparison.apply (state k indices) = Fock.state k indices \with {
+    | zero: \fun (indices: Fin.Fin N.Nat^::zero -> Fin.Fin n) => trans!{{ResultTotal.Carrier}} _ _ _ Vacuum.onVacuum (sym!{{ResultTotal.Carrier}} _ _ Fock.pullVacuum)
+    | succ: \fun (k: N.Nat^)(previous: \forall (indices: Fin.Fin k -> Fin.Fin n) -> comparison.apply (state k indices) = Fock.state k indices)(indices: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n) => eq_reason_in!{{ResultTotal.Carrier} _
+      "=" _ "by" { intertwines (covector (indices (Fin.zero k))) (state k (\fun (i: Fin.Fin k) => indices (Fin.succ k i))) }
+      "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} (ResultTotal.createLeft (covector (indices (Fin.zero k)))) _ _ (previous (\fun (i: Fin.Fin k) => indices (Fin.succ k i))) }
+      "=" _ "by" { sym!{{ResultTotal.Carrier}} _ _ (Pull.creation b.coordinates (Exterior.coordinate (indices (Fin.zero k))) (Fock.coordinateState k (\fun (i: Fin.Fin k) => indices (Fin.succ k i)))) }
+    }
+  };
+\module Grade(k: N.Nat^, xs: Algebra.FiniteExterior[V := Sum.Carrier, space := Sum.space, n := n, b := b].At[k := k].Enumeration);
+\module Section(enums: \forall (k: N.Nat^) -> Algebra.FiniteExterior[V := Sum.Carrier, space := Sum.space, n := n, b := b].At[k := k].Enumeration);

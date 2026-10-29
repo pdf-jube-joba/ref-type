@@ -1,0 +1,24 @@
+\import Algebra.Linear[V := Tensor.Carrier, W := Tensor.Carrier, source := Tensor.space, target := Tensor.space] \as End;
+\import Algebra.Eigen[V := Tensor.Carrier, space := Tensor.space] \as Identity;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.eq_reason_in;
+\definition equalizer[h: End.Map]: Subspaces.Subspace := Subspaces.Subspace {
+  carrier := { t: Tensor.Carrier \where h.apply t = t },
+  containsZero := h.preservesZero,
+  closedAdd := \fun (x, y: Tensor.Carrier)(hx: h.apply x = x)(hy: h.apply y = y) => trans!{Tensor.Carrier} _ _ _ (h.preservesAdd x y) (congr!{Tensor.Carrier Tensor.Carrier Tensor.Carrier} Tensor.space.add _ _ _ _ hx hy),
+  closedScale := \fun (a: K)(x: Tensor.Carrier)(hx: h.apply x = x) => trans!{Tensor.Carrier} _ _ _ (h.preservesScale a x) (congr!{Tensor.Carrier Tensor.Carrier} (Tensor.space.smul a) _ _ hx),
+};
+\definition LeftCommuting[h: End.Map]: \Prop := \forall (a: Left.Form (N.Nat^::succ N.Nat^::zero))(t: Tensor.Carrier) ->
+  h.apply ((Operators.map (LeftTotal.leftCreation a) RightIdentity.identity).apply t) = (Operators.map (LeftTotal.leftCreation a) RightIdentity.identity).apply (h.apply t);
+\definition RightCommuting[h: End.Map]: \Prop := \forall (a: Right.Form (N.Nat^::succ N.Nat^::zero))(t: Tensor.Carrier) ->
+  h.apply ((Operators.map LeftTotal.grading (RightTotal.leftCreation a)).apply t) = (Operators.map LeftTotal.grading (RightTotal.leftCreation a)).apply (h.apply t);
+\definition leftStable: \forall (h: End.Map) -> LeftCommuting h -> StableLeft (equalizer h) :=
+  \fun (h: End.Map)(commutes: LeftCommuting h)(a: Left.Form (N.Nat^::succ N.Nat^::zero))(t: Tensor.Carrier)(same: h.apply t = t) =>
+    trans!{Tensor.Carrier} _ _ _ (commutes a t) (congr!{Tensor.Carrier Tensor.Carrier} ((Operators.map (LeftTotal.leftCreation a) RightIdentity.identity).apply) _ _ same);
+\definition rightStable: \forall (h: End.Map) -> RightCommuting h -> StableRight (equalizer h) :=
+  \fun (h: End.Map)(commutes: RightCommuting h)(a: Right.Form (N.Nat^::succ N.Nat^::zero))(t: Tensor.Carrier)(same: h.apply t = t) =>
+    trans!{Tensor.Carrier} _ _ _ (commutes a t) (congr!{Tensor.Carrier Tensor.Carrier} ((Operators.map LeftTotal.grading (RightTotal.leftCreation a)).apply) _ _ same);
+\definition identity: \forall (h: End.Map) -> h.apply (Tensor.tensor LeftVacuum.state RightVacuum.state) = Tensor.tensor LeftVacuum.state RightVacuum.state ->
+  LeftCommuting h -> RightCommuting h -> h = Identity.identity :=
+  \fun (h: End.Map)(vac: h.apply (Tensor.tensor LeftVacuum.state RightVacuum.state) = Tensor.tensor LeftVacuum.state RightVacuum.state)(left: LeftCommuting h)(right: RightCommuting h) =>
+    End.ext _ _ (\axiom:funext(h.apply, Identity.identity.apply, all (equalizer h) vac (leftStable h left) (rightStable h right)));

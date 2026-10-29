@@ -1,0 +1,29 @@
+\import \root.Over[K := C.Complex, scalarRing := ring].On[V := Finite.Vector, space := Finite.space].Total[].Vacuum[] \as Vacuum;
+\import Forms.DegreeZero[] \as Zero;
+\import C.Prop[] \as ComplexLaws;
+\import std.Logic[].Proposition[] \as Logic;
+\definition nonzero: Logic.Not (Vacuum.state = Total.zero) := \fun (same: Vacuum.state = Total.zero) => ComplexLaws.zeroNeOne
+  (sym!{C.Complex} _ _ (congr!{{Total.Carrier} C.Complex} (\fun (f: Total.Carrier) => f N.Nat^::zero Zero.emptyArguments) _ _ same));
+\definition positiveNorm: Order.Lt R.zero (C.re (dot Vacuum.state Vacuum.state)) := InnerLaws.positiveNorm positive Vacuum.state nonzero;
+\import Algebra.Laws[V := Total.Carrier, space := Total.totalSpace] \as Vectors;
+\import lie_algebras.Field[K := C.Complex, field := Field.field].Endomorphisms[V := Total.Carrier, space := Total.totalSpace] \as End;
+\import algebra.Groups[].Units[A := End.Carrier, ring := End.ring] \as Units;
+\definition evenOfAnnihilated: \forall (f: Total.Carrier) -> (\forall (x: Finite.Vector) -> Total.annihilate x f = Total.zero) -> Total.parity f = f :=
+  \fun (f: Total.Carrier)(annihilated: _) => eq_reason_in!{{Total.Carrier} _
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} Total.parity _ _ (Vacuum.onlyVacuum f annihilated) }
+    "=" _ "by" { Total.grading.preservesScale (Vacuum.coefficient f) Vacuum.state }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.smul (Vacuum.coefficient f)) _ _ Vacuum.even }
+    "=" _ "by" { sym!{{Total.Carrier}} _ _ (Vacuum.onlyVacuum f annihilated) }
+  };
+\definition oddImpossible: \forall (u: Units.Unit) -> (\forall (x: Finite.Vector) -> Total.annihilate x (u.value.apply Vacuum.state) = Total.zero) ->
+  Total.parity (u.value.apply Vacuum.state) = Total.totalSpace.neg (u.value.apply Vacuum.state) -> Logic.False :=
+  \fun (u: Units.Unit)(annihilated: _)(odd: _) => \block {
+    \let even: Total.parity (u.value.apply Vacuum.state) = u.value.apply Vacuum.state := evenOfAnnihilated (u.value.apply Vacuum.state) annihilated \then
+    \let opposite: u.value.apply Vacuum.state = Total.totalSpace.neg (u.value.apply Vacuum.state) := trans!{{Total.Carrier}} _ _ _ (sym!{{Total.Carrier}} _ _ even) odd \then
+    \let vanishes: u.value.apply Vacuum.state = Total.zero := Vectors.oppositeSelfZero half (u.value.apply Vacuum.state) halfDouble opposite \then
+    \return nonzero (eq_reason_in!{{Total.Carrier} _
+      "=" _ "by" { sym!{{Total.Carrier}} _ _ (congr!{End.Carrier {Total.Carrier}} (\fun (t: End.Carrier) => t.apply Vacuum.state) _ _ u.left) }
+      "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} u.inverse.apply _ _ vanishes }
+      "=" _ "by" { u.inverse.preservesZero }
+    })
+  };

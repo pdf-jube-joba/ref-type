@@ -1,0 +1,86 @@
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as RealLaws;
+\import \root.Complex[].On[V := Finite.Vector, space := Finite.space].Realification[] \as Realify;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := Realify.realRing] \as RealAlgebra;
+\import RealAlgebra.Coordinates[I := Fin.Fin n] \as Coordinates;
+\import RealAlgebra.DirectSum[V := Coordinates.Vector, W := Coordinates.Vector, left := Coordinates.space, right := Coordinates.space] \as Pair;
+\import std.Data[].Pair[].Prop[A := Coordinates.Vector, B := Coordinates.Vector] \as PairLaws;
+\import RealAlgebra.Linear[V := Finite.Vector, W := Pair.Carrier, source := Realify.spaceReal, target := Pair.space] \as Forward;
+\import RealAlgebra.Linear[V := Pair.Carrier, W := Finite.Vector, source := Pair.space, target := Realify.spaceReal] \as Backward;
+\definition realPart[v: Finite.Vector]: Coordinates.Vector := \fun (i: Fin.Fin n) => C.re (v i);
+\definition imaginaryPart[v: Finite.Vector]: Coordinates.Vector := \fun (i: Fin.Fin n) => C.im (v i);
+\definition make[x, y: Coordinates.Vector]: Finite.Vector := \fun (i: Fin.Fin n) => C.make (x i) (y i);
+\definition scalarReal: \forall (a: R.Real)(z: C.Complex) -> C.re (Def.mul (Def.ofReal a) z) = R.mul a (C.re z) :=
+  \fun (a: R.Real)(z: C.Complex) => trans!{R.Real} _ _ _
+    (congr!{R.Real R.Real} (R.sub (R.mul a (C.re z))) _ _ (RealLaws.fieldMulZeroLeft (C.im z))) (RealLaws.subZeroRight (R.mul a (C.re z)));
+\definition scalarImag: \forall (a: R.Real)(z: C.Complex) -> C.im (Def.mul (Def.ofReal a) z) = R.mul a (C.im z) :=
+  \fun (a: R.Real)(z: C.Complex) => trans!{R.Real} _ _ _
+    (congr!{R.Real R.Real} (R.add (R.mul a (C.im z))) _ _ (RealLaws.fieldMulZeroLeft (C.re z))) (RealLaws.addZeroRight (R.mul a (C.im z)));
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (v: Finite.Vector) => Pair.make (realPart v) (imaginaryPart v),
+  preservesAdd := \fun (v, w: Finite.Vector) => PairLaws.ext _ _
+    (\axiom:funext(realPart (Finite.space.add v w), Coordinates.plus (realPart v) (realPart w), \fun (i: Fin.Fin n) => \refl(R.add (C.re (v i)) (C.re (w i)))))
+    (\axiom:funext(imaginaryPart (Finite.space.add v w), Coordinates.plus (imaginaryPart v) (imaginaryPart w), \fun (i: Fin.Fin n) => \refl(R.add (C.im (v i)) (C.im (w i))))),
+  preservesScale := \fun (a: R.Real)(v: Finite.Vector) => PairLaws.ext _ _
+    (\axiom:funext(realPart (Realify.spaceReal.smul a v), Coordinates.scale a (realPart v), \fun (i: Fin.Fin n) => scalarReal a (v i)))
+    (\axiom:funext(imaginaryPart (Realify.spaceReal.smul a v), Coordinates.scale a (imaginaryPart v), \fun (i: Fin.Fin n) => scalarImag a (v i))),
+};
+\definition backward: Backward.Map := Backward.Map {
+  apply := \fun (p: Pair.Carrier) => make (Pair.first p) (Pair.second p),
+  preservesAdd := \fun (p, q: Pair.Carrier) => \axiom:funext(make (Pair.first (Pair.plus p q)) (Pair.second (Pair.plus p q)), Finite.space.add (make (Pair.first p) (Pair.second p)) (make (Pair.first q) (Pair.second q)),
+    \fun (i: Fin.Fin n) => \refl(C.make (R.add (Pair.first p i) (Pair.first q i)) (R.add (Pair.second p i) (Pair.second q i)))),
+  preservesScale := \fun (a: R.Real)(p: Pair.Carrier) => \axiom:funext(make (Pair.first (Pair.scale a p)) (Pair.second (Pair.scale a p)), Realify.spaceReal.smul a (make (Pair.first p) (Pair.second p)),
+    \fun (i: Fin.Fin n) => Laws.ext _ _ (sym!{R.Real} _ _ (scalarReal a (make (Pair.first p) (Pair.second p) i))) (sym!{R.Real} _ _ (scalarImag a (make (Pair.first p) (Pair.second p) i)))),
+};
+\import RealAlgebra.Isomorphism[V := Finite.Vector, W := Pair.Carrier, source := Realify.spaceReal, target := Pair.space] \as Iso;
+\definition isomorphism: Iso.Isomorphism := Iso.Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := \fun (v: Finite.Vector) => \axiom:funext(backward.apply (forward.apply v), v, \fun (i: Fin.Fin n) => Laws.eta (v i)),
+  rightInverse := \fun (p: Pair.Carrier) => PairLaws.ext _ _ (\axiom:funext(realPart (make (Pair.first p) (Pair.second p)), Pair.first p, \fun (i: Fin.Fin n) => \refl(Pair.first p i)))
+    (\axiom:funext(imaginaryPart (make (Pair.first p) (Pair.second p)), Pair.second p, \fun (i: Fin.Fin n) => \refl(Pair.second p i))),
+};
+\import RealAlgebra.Eigen[V := Coordinates.Vector, space := Coordinates.space] \as CoordinateEnd;
+\import RealAlgebra.Isomorphism[V := Coordinates.Vector, W := Coordinates.Vector, source := Coordinates.space, target := Coordinates.space] \as CoordinateIso;
+\definition coordinateIdentity: CoordinateIso.Isomorphism := CoordinateIso.Isomorphism {
+  forward := CoordinateEnd.identity, backward := CoordinateEnd.identity,
+  leftInverse := \fun (v: Coordinates.Vector) => \refl(v), rightInverse := \fun (v: Coordinates.Vector) => \refl(v),
+};
+\import RealAlgebra.CoordinateSum[n := n, m := n] \as Sum;
+\import Sum.Of[V := Coordinates.Vector, W := Coordinates.Vector, firstSpace := Coordinates.space, secondSpace := Coordinates.space, first := coordinateIdentity, second := coordinateIdentity] \as Join;
+\import RealAlgebra.Isomorphism[V := Pair.Carrier, W := RealAlgebra.Coordinates[I := Fin.Fin Sum.dimension].Vector, source := Pair.space, target := RealAlgebra.Coordinates[I := Fin.Fin Sum.dimension].space].Composition[U := Finite.Vector, domain := Realify.spaceReal] \as Compose;
+\import RealAlgebra.Isomorphism[V := Finite.Vector, W := RealAlgebra.Coordinates[I := Fin.Fin Sum.dimension].Vector, source := Realify.spaceReal, target := RealAlgebra.Coordinates[I := Fin.Fin Sum.dimension].space] \as StandardIso;
+\definition standardIsomorphism: StandardIso.Isomorphism := Compose.compose Join.isomorphism isomorphism;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := Field.field, scalar := Hermitian.scalar].Sums[] \as ComplexSums;
+\import R.FiniteSums[] \as RealSums;
+\import R.Algebra[] \as RealOps;
+\import linear_algebra.Euclidean[n := Sum.dimension] \as Euclidean;
+\import \root.Complex[].On[V := Finite.Vector, space := Finite.space].Realification[].With[h := Finite.form] \as Metric;
+\definition realSum: \forall (m: std.Data[].Nat[].Nat^)(f: Fin.Fin m -> C.Complex) -> C.re (ComplexSums.sum m f) = RealSums.sum m (\fun (i: Fin.Fin m) => C.re (f i)) :=
+  \induction (m: std.Data[].Nat[].Nat^) \return \forall (f: Fin.Fin m -> C.Complex) -> C.re (ComplexSums.sum m f) = RealSums.sum m (\fun (i: Fin.Fin m) => C.re (f i)) \with {
+    | zero: \fun (f: _) => \refl(R.zero)
+    | succ: \fun (m: _)(previous: _)(f: _) => congr!{R.Real R.Real} (R.add (C.re (f (Fin.zero m)))) _ _ (previous (\fun (i: Fin.Fin m) => f (Fin.succ m i)))
+  };
+\definition realProduct: \forall (z, w: C.Complex) -> C.re (Def.mul (Def.conj z) w) = R.add (R.mul (C.re z) (C.re w)) (R.mul (C.im z) (C.im w)) :=
+  \fun (z, w: C.Complex) => trans!{R.Real} _ _ _
+    (congr!{R.Real R.Real} (R.sub (R.mul (C.re z) (C.re w))) _ _ (RealLaws.fieldMulNegLeft (C.im z) (C.im w)))
+    (RealOps.subNeg (R.mul (C.re z) (C.re w)) (R.mul (C.im z) (C.im w)));
+\use Equality.eq_reason_in;
+\definition isometry: \forall (v, w: Finite.Vector) -> Euclidean.dot (standardIsomorphism.forward.apply v) (standardIsomorphism.forward.apply w) = Metric.realForm.form v w :=
+  \fun (v, w: Finite.Vector) => eq_reason_in!{R.Real _
+    "=" _ "by" { RealSums.blocks n n (\fun (i: Fin.Fin Sum.dimension) => R.mul (Sum.join (realPart v) (imaginaryPart v) i) (Sum.join (realPart w) (imaginaryPart w) i)) }
+    "=" _ "by" { congr!{R.Real R.Real R.Real} R.add _ _ _ _
+      (RealSums.congruent n _ _ (\fun (i: Fin.Fin n) => congr!{R.Real R.Real R.Real} R.mul _ _ _ _
+        (congr!{{Coordinates.Vector} R.Real} (\fun (x: Coordinates.Vector) => x i) _ _ (Sum.leftJoin (realPart v) (imaginaryPart v)))
+        (congr!{{Coordinates.Vector} R.Real} (\fun (x: Coordinates.Vector) => x i) _ _ (Sum.leftJoin (realPart w) (imaginaryPart w)))))
+      (RealSums.congruent n _ _ (\fun (i: Fin.Fin n) => congr!{R.Real R.Real R.Real} R.mul _ _ _ _
+        (congr!{{Coordinates.Vector} R.Real} (\fun (x: Coordinates.Vector) => x i) _ _ (Sum.rightJoin (realPart v) (imaginaryPart v)))
+        (congr!{{Coordinates.Vector} R.Real} (\fun (x: Coordinates.Vector) => x i) _ _ (Sum.rightJoin (realPart w) (imaginaryPart w))))) }
+    "=" _ "by" { sym!{R.Real} _ _ (RealSums.addition n (\fun (i: Fin.Fin n) => R.mul (C.re (v i)) (C.re (w i))) (\fun (i: Fin.Fin n) => R.mul (C.im (v i)) (C.im (w i)))) }
+    "=" _ "by" { RealSums.congruent n _ _ (\fun (i: Fin.Fin n) => sym!{R.Real} _ _ (realProduct (v i) (w i))) }
+    "=" _ "by" { sym!{R.Real} _ _ (realSum n (\fun (i: Fin.Fin n) => Def.mul (Def.conj (v i)) (w i))) }
+  };
+\module Clifford;

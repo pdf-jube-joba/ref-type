@@ -1,0 +1,109 @@
+\import Inner.Of[h := h] \as InnerLaws;
+\import Algebra.Linear[V := V, W := C.Complex, source := space, target := Algebra.scalarSpace] \as Linear;
+\definition linear[v: V]: Linear.Map := Linear.Map {
+  apply := h.dot v,
+  preservesAdd := h.addRight v,
+  preservesScale := \fun (a: C.Complex)(w: V) => h.scaleRight a v w,
+};
+\import Algebra.Multilinear[V := V, space := space] \as Multi;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Nat[].Basic[].Prop[] \as NatLaws;
+\import std.Logic[].Proposition[] \as Logic;
+\import Multi.Properties[] \as Properties;
+\definition degree: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition head: Fin.Fin degree := Fin.zero N.Nat^::zero;
+\definition unique: \forall (j: Fin.Fin degree) -> j = head := \fun (j: Fin.Fin degree) => NatLaws.leZeroEq j (NatLaws.succLeOfLt degree j (Fin.bound degree j));
+\definition updateHead: \forall (args: Multi.Arguments degree)(j: Fin.Fin degree)(v: V) -> Multi.update degree args j v head = v :=
+  \fun (args: _)(j: _)(v: _) => trans!{V} _ _ _
+    (congr!{{Fin.Fin degree} V} (Multi.update degree args j v) head j (sym!{{Fin.Fin degree}} _ _ (unique j)))
+    (Properties.updateSelf degree args j v);
+\definition covector[v: V]: Multi.Function degree := \fun (args: Multi.Arguments degree) => h.dot v (args head);
+\definition form[v: V]: Alternating.Form degree := \into[Multi.Function degree](covector v, Alternating.Form degree) \by {
+  Alternating.AlternatingLaws[degree, covector v] {
+    linear := Multi.Laws[degree, covector v] {
+      addition := \fun (args: _)(j: _)(x, y: V) => trans!{C.Complex} _ _ _
+        (congr!{V C.Complex} (h.dot v) _ _ (updateHead args j (space.add x y)))
+        (trans!{C.Complex} _ _ _ (h.addRight v x y)
+          (sym!{C.Complex} _ _ (congr!{C.Complex C.Complex C.Complex} Algebra.add _ _ _ _
+            (congr!{V C.Complex} (h.dot v) _ _ (updateHead args j x)) (congr!{V C.Complex} (h.dot v) _ _ (updateHead args j y))))),
+      scalar := \fun (args: _)(j: _)(a: C.Complex)(x: V) => trans!{C.Complex} _ _ _
+        (congr!{V C.Complex} (h.dot v) _ _ (updateHead args j (space.smul a x)))
+        (trans!{C.Complex} _ _ _ (h.scaleRight a v x)
+          (sym!{C.Complex} _ _ (congr!{C.Complex C.Complex} (Algebra.mul a) _ _ (congr!{V C.Complex} (h.dot v) _ _ (updateHead args j x))))),
+    },
+    alternating := \fun (args: _)(i, j: Fin.Fin degree)(different: Logic.Not (i = j))(same: _) => Logic.falseElim _ (different (trans!{{Fin.Fin degree}} _ _ _ (unique i) (sym!{{Fin.Fin degree}} _ _ (unique j)))),
+  }
+};
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as RealLaws;
+\definition realMul: \forall (a: R.Real)(z: C.Complex) -> C.re (Def.mul (Def.ofReal a) z) = R.mul a (C.re z) :=
+  \fun (a: R.Real)(z: C.Complex) => trans!{R.Real} _ _ _
+    (congr!{R.Real R.Real} (R.sub (R.mul a (C.re z))) _ _ (RealLaws.fieldMulZeroLeft (C.im z)))
+    (RealLaws.subZeroRight (R.mul a (C.re z)));
+\import RealAlgebra.Form[V := V, space := spaceReal] \as Forms;
+\definition realForm: Forms.Bilinear := Forms.Bilinear {
+  form := \fun (v, w: V) => C.re (h.dot v w),
+  zeroLeft := \fun (v: V) => congr!{C.Complex R.Real} C.re _ _ (InnerLaws.zeroLeft v),
+  zeroRight := \fun (v: V) => congr!{C.Complex R.Real} C.re _ _ (h.zeroRight v),
+  addLeft := \fun (x, y, z: V) => congr!{C.Complex R.Real} C.re _ _ (InnerLaws.addLeft x y z),
+  addRight := \fun (x, y, z: V) => congr!{C.Complex R.Real} C.re _ _ (h.addRight x y z),
+  scaleLeft := \fun (a: R.Real)(x, y: V) => trans!{R.Real} _ _ _
+    (congr!{C.Complex R.Real} C.re _ _ (InnerLaws.scaleLeft (Def.ofReal a) x y))
+    (trans!{R.Real} _ _ _ (congr!{C.Complex R.Real} (\fun (z: C.Complex) => C.re (Def.mul z (h.dot x y))) _ _ (Laws.conjOfReal a)) (realMul a (h.dot x y))),
+  scaleRight := \fun (a: R.Real)(x, y: V) => trans!{R.Real} _ _ _
+    (congr!{C.Complex R.Real} C.re _ _ (h.scaleRight (Def.ofReal a) x y)) (realMul a (h.dot x y)),
+};
+\import Alternating.At[k := degree] \as One;
+\definition formAdd: \forall (v, w: V) -> form (space.add v w) = One.plus (form v) (form w) :=
+  \fun (v, w: V) => One.ext (form (space.add v w)) (One.plus (form v) (form w))
+    (\fun (args: Multi.Arguments degree) => InnerLaws.addLeft v w (args head));
+\definition formScale: \forall (a: R.Real)(v: V) -> form (spaceReal.smul a v) = One.scale (Def.ofReal a) (form v) :=
+  \fun (a: R.Real)(v: V) => One.ext (form (spaceReal.smul a v)) (One.scale (Def.ofReal a) (form v))
+    (\fun (args: Multi.Arguments degree) => trans!{C.Complex} _ _ _ (InnerLaws.scaleLeft (Def.ofReal a) v (args head))
+      (congr!{C.Complex C.Complex} (\fun (z: C.Complex) => Algebra.mul z (h.dot v (args head))) _ _ (Laws.conjOfReal a)));
+\import \root.Complex[].On[V := V, space := space].Operators[].Pairing[] \as Pairing;
+\import \root.Complex[].On[V := V, space := space].Operators[] \as Ops;
+\import Fin.Tuples[A := V] \as Tuples;
+\import Alternating.DegreeZero[] \as Zero;
+\definition evaluate: \forall (v, w: V) -> Pairing.evaluation (form v) w = h.dot v w :=
+  \fun (v, w: V) => congr!{V C.Complex} (h.dot v) _ _ (Tuples.atZero N.Nat^::zero w Zero.emptyArguments);
+\definition evaluateMixed: \forall (v, w: V) -> \root.Over[K := C.Complex, scalarRing := ring].On[V := V, space := space].LeftCreation[k := N.Nat^::zero].Mixed[].evaluate (form v) w = h.dot v w :=
+  \fun (v, w: V) => trans!{C.Complex} _ _ _ (Pairing.evaluateEqual (form v) w) (evaluate v w);
+\import \root.Over[K := C.Complex, scalarRing := ring].On[V := V, space := space].Total[] \as Total;
+\import Algebra.Linear[V := Total.Carrier, W := Total.Carrier, source := Total.totalSpace, target := Total.totalSpace] \as End;
+\definition cliffordOperator[v: V]: End.Map := Ops.operator v (form v);
+\import lie_algebras.Field[K := C.Complex, field := Field.field].Endomorphisms[V := Total.Carrier, space := Total.totalSpace] \as Endomorphisms;
+\import \root.Complex[].On[V := Endomorphisms.Carrier, space := Endomorphisms.vectorSpace].Realification[] \as RealEnd;
+\import RealAlgebra.Linear[V := V, W := Endomorphisms.Carrier, source := spaceReal, target := RealEnd.spaceReal] \as RealMaps;
+\import Algebra.Laws[V := Total.Carrier, space := Total.totalSpace] \as TotalLaws;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition realLinear: RealMaps.Map := RealMaps.Map {
+  apply := cliffordOperator,
+  preservesAdd := \fun (v, w: V) => Endomorphisms.ext _ _ (\fun (f: Total.Carrier) => eq_reason_in!{{Total.Carrier} _
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier} {Total.Carrier}} Total.totalSpace.add _ _ _ _
+      (Total.annihilateAddition v w f) (congr!{{Alternating.Form degree} {Total.Carrier}} (\fun (alpha: Alternating.Form degree) => Total.createLeft alpha f) _ _ (formAdd v w)) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.add (Total.totalSpace.add (Total.annihilate v f) (Total.annihilate w f))) _ _ (Total.createLeftAddition (form v) (form w) f) }
+    "=" _ "by" { TotalLaws.shuffle (Total.annihilate v f) (Total.annihilate w f) (Total.createLeft (form v) f) (Total.createLeft (form w) f) }
+  }),
+  preservesScale := \fun (a: R.Real)(v: V) => Endomorphisms.ext _ _ (\fun (f: Total.Carrier) => eq_reason_in!{{Total.Carrier} _
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier} {Total.Carrier}} Total.totalSpace.add _ _ _ _
+      (Total.annihilateScale (Def.ofReal a) v f) (congr!{{Alternating.Form degree} {Total.Carrier}} (\fun (alpha: Alternating.Form degree) => Total.createLeft alpha f) _ _ (formScale a v)) }
+    "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier}} (Total.totalSpace.add (Total.totalSpace.smul (Def.ofReal a) (Total.annihilate v f))) _ _ (Total.createLeftScale (Def.ofReal a) (form v) f) }
+    "=" _ "by" { sym!{{Total.Carrier}} _ _ (Total.totalSpace.vectorAdd (Def.ofReal a) (Total.annihilate v f) (Total.createLeft (form v) f)) }
+  }),
+};
+\definition square: \forall (v: V)(f: Total.Carrier) -> (cliffordOperator v).apply ((cliffordOperator v).apply f) = Total.totalSpace.smul (Def.ofReal (realForm.form v v)) f :=
+  \fun (v: V)(f: Total.Carrier) => trans!{{Total.Carrier}} _ _ _ (Ops.square v (form v) f)
+    (congr!{C.Complex {Total.Carrier}} (\fun (z: C.Complex) => Total.totalSpace.smul z f) _ _
+      (trans!{C.Complex} _ _ _ (evaluateMixed v v) (InnerLaws.selfReal v)));
+\module Clifford;
+\import dedekind_reals.DedekindReal[] \as Order;
+\definition Positive: \Prop := \forall (v: V) -> Order.Le R.zero (realForm.form v v);
+\definition Definite: \Prop := \forall (v: V) -> realForm.form v v = R.zero -> v = spaceReal.zero;
+\definition positive: \forall (p: Inner.Positive[h]) -> Positive := \fun (p: Inner.Positive[h])(v: V) => p.nonnegative v;
+\definition definite: \forall (p: Inner.Positive[h]) -> Definite :=
+  \fun (p: Inner.Positive[h])(v: V)(zero: realForm.form v v = R.zero) => p.definite v
+    (trans!{C.Complex} _ _ _ (InnerLaws.selfReal v) (congr!{R.Real C.Complex} Def.ofReal _ _ zero));
+\definition formScaleComplex: \forall (a: C.Complex)(v: V) -> form (space.smul a v) = One.scale (Def.conj a) (form v) :=
+  \fun (a: C.Complex)(v: V) => One.ext (form (space.smul a v)) (One.scale (Def.conj a) (form v))
+    (\fun (args: Multi.Arguments degree) => InnerLaws.scaleLeft a v (args head));
+\module Decomposition;

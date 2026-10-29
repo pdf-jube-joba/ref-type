@@ -1,0 +1,93 @@
+\import \parent.\parent.Clifford[] \as GradedClifford;
+\import \root.Complex[].On[V := V, space := left].Realification[] \as LReal;
+\import \root.Complex[].On[V := W, space := right].Realification[] \as RReal;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := LReal.realRing] \as RealAlgebra;
+\import RealAlgebra.DirectSum[V := V, W := W, left := LReal.spaceReal, right := RReal.spaceReal] \as RealSum;
+\import clifford.Field[K := R.Real, field := R.Algebra[].field].On[V := RealSum.Carrier, space := RealSum.space].Of[form := GradedClifford.form] \as Source;
+\import lie_algebras.Field[K := C.Complex, field := Field.field].Endomorphisms[V := ResultTotal.Carrier, space := ResultTotal.totalSpace] \as ResultEnd;
+\import algebra.Hom[A := R.Real, B := ResultEnd.Carrier] \as Scalars;
+\import algebra.Hom[A := C.Complex, B := ResultEnd.Carrier] \as ComplexHom;
+\import std.Alg[].Ring[] \as Rings;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing R.Real R.Algebra[].field] \as Reals;
+\definition scalarLaws: ComplexHom.SemiringLaws[Rings.ringAsSemiring C.Complex Algebra.ring, Rings.ringAsSemiring ResultEnd.Carrier ResultEnd.ring, ResultEnd.scalarMap] := ComplexHom.semiringLaws _ _ ResultEnd.scalarMap;
+\definition realScalar[a: R.Real]: ResultEnd.Carrier := ResultEnd.scalar (Def.ofReal a);
+\definition scalarMap: Scalars.RingMap Reals.ring ResultEnd.ring := \into[R.Real -> ResultEnd.Carrier](realScalar, Scalars.RingMap Reals.ring ResultEnd.ring) \by {
+  Scalars.SemiringLaws[_, _, realScalar] {
+    zero := scalarLaws.zero, one := scalarLaws.one,
+    add := \fun (a, b: R.Real) => trans!{ResultEnd.Carrier} _ _ _ (congr!{C.Complex ResultEnd.Carrier} ResultEnd.scalar _ _ (Laws.ofRealAdd a b)) (scalarLaws.add (Def.ofReal a) (Def.ofReal b)),
+    mul := \fun (a, b: R.Real) => trans!{ResultEnd.Carrier} _ _ _ (congr!{C.Complex ResultEnd.Carrier} ResultEnd.scalar _ _ (sym!{C.Complex} _ _ (Laws.ofRealMul a b))) (scalarLaws.mul (Def.ofReal a) (Def.ofReal b)),
+  }
+};
+\import Source.Universal[A := ResultEnd.Carrier, target := ResultEnd.ring] \as Universal;
+\import algebra.FreeAssociativeRing[].Over[R := R.Real, coefficients := std.Alg[].Field[].fieldAsCommutativeRing R.Real R.Algebra[].field, Variables := RealSum.Carrier].Presentation[relations := Source.Relation].Universal[K := ResultEnd.Carrier, target := ResultEnd.ring] \as Presented;
+\definition coefficients: Presented.CoefficientMap := \into[Scalars.RingMap Reals.ring ResultEnd.ring](scalarMap, Presented.CoefficientMap) \by {
+  \fun (a: R.Real)(f: ResultEnd.Carrier) => ResultEnd.scalarCentral (Def.ofReal a) f
+};
+\definition representation: Universal.Representation := Universal.Representation {
+  coefficients := coefficients,
+  vectors := Metric.cliffordOperator,
+  zero := Metric.realLinear.preservesZero,
+  addition := Metric.realLinear.preservesAdd,
+  scalar := \fun (a: R.Real)(x: RealSum.Carrier) => Metric.realLinear.preservesScale a x,
+  square := \fun (x: RealSum.Carrier) => ResultEnd.ext _ _ (\fun (f: ResultTotal.Carrier) => Metric.square x f),
+};
+\import algebra.Hom[A := Source.Carrier, B := ResultEnd.Carrier] \as Hom;
+\definition extension: Hom.RingMap Source.ring ResultEnd.ring := Universal.extension representation;
+\definition onVector: \forall (x: RealSum.Carrier) -> extension (Source.iota x) = Metric.cliffordOperator x := Universal.onVector representation;
+\definition onScalar: \forall (a: R.Real) -> extension (Source.scalar a) = realScalar a := Universal.onScalar representation;
+\import lie_algebras.Field[K := C.Complex, field := Field.field].Endomorphisms[V := Product.Carrier, space := Product.space] \as Endomorphisms;
+\import algebra.Hom[A := Source.Carrier, B := Endomorphisms.Carrier] \as SourceHom;
+\import algebra.Hom[A := Source.Carrier, B := ResultEnd.Carrier] \as TargetHom;
+\definition sourceLaws: SourceHom.SemiringLaws[Rings.ringAsSemiring Source.Carrier Source.ring, Rings.ringAsSemiring Endomorphisms.Carrier Endomorphisms.ring, GradedClifford.extension] := SourceHom.semiringLaws _ _ GradedClifford.extension;
+\definition targetLaws: TargetHom.SemiringLaws[Rings.ringAsSemiring Source.Carrier Source.ring, Rings.ringAsSemiring ResultEnd.Carrier ResultEnd.ring, extension] := TargetHom.semiringLaws _ _ extension;
+\import algebra.Group[].Of[Carrier := Endomorphisms.Carrier, group := Rings.additiveGroup Endomorphisms.Carrier Endomorphisms.ring] \as SourceSum;
+\import algebra.Group[].Of[Carrier := ResultEnd.Carrier, group := Rings.additiveGroup ResultEnd.Carrier ResultEnd.ring] \as TargetSum;
+\definition sourceNegative: \forall (a: Source.Carrier) -> GradedClifford.extension (Source.neg a) = Endomorphisms.neg (GradedClifford.extension a) :=
+  \fun (a: Source.Carrier) => SourceSum.inverseUnique (GradedClifford.extension a) (GradedClifford.extension (Source.neg a)) (eq_reason_in!{Endomorphisms.Carrier _
+    "=" _ "by" { sym!{Endomorphisms.Carrier} _ _ (sourceLaws.add (Source.neg a) a) }
+    "=" _ "by" { congr!{Source.Carrier Endomorphisms.Carrier} GradedClifford.extension _ _ (Source.ring.additiveInverse a) }
+    "=" _ "by" sourceLaws.zero
+  });
+\definition targetNegative: \forall (a: Source.Carrier) -> extension (Source.neg a) = ResultEnd.neg (extension a) :=
+  \fun (a: Source.Carrier) => TargetSum.inverseUnique (extension a) (extension (Source.neg a)) (eq_reason_in!{ResultEnd.Carrier _
+    "=" _ "by" { sym!{ResultEnd.Carrier} _ _ (targetLaws.add (Source.neg a) a) }
+    "=" _ "by" { congr!{Source.Carrier ResultEnd.Carrier} extension _ _ (Source.ring.additiveInverse a) }
+    "=" _ "by" targetLaws.zero
+  });
+\import Algebra.Linear[V := Product.Carrier, W := ResultTotal.Carrier, source := Product.space, target := ResultTotal.totalSpace].Operations[] \as ComparisonOps;
+\import Algebra.Laws[V := Product.Carrier, space := Product.space] \as TensorLaws;
+\import Algebra.Laws[V := ResultTotal.Carrier, space := ResultTotal.totalSpace] \as ResultLaws;
+\definition Property[a: Source.Carrier]: \Prop := \forall (t: Product.Carrier) -> (extension a).apply (DirectTotal.comparison.apply t) = DirectTotal.comparison.apply ((GradedClifford.extension a).apply t);
+\import Source.Induction[P := Property] \as Induction;
+\definition scalarProof: \forall (a: R.Real) -> Property (Source.scalar a) := \fun (a: R.Real)(t: Product.Carrier) => eq_reason_in!{{ResultTotal.Carrier} _
+  "=" _ "by" { congr!{ResultEnd.Carrier {ResultTotal.Carrier}} (\fun (x: ResultEnd.Carrier) => x.apply (DirectTotal.comparison.apply t)) _ _ (onScalar a) }
+  "=" _ "by" { sym!{{ResultTotal.Carrier}} _ _ (DirectTotal.comparison.preservesScale (Def.ofReal a) t) }
+  "=" _ "by" { congr!{Endomorphisms.Carrier {ResultTotal.Carrier}} (\fun (x: Endomorphisms.Carrier) => DirectTotal.comparison.apply (x.apply t)) _ _ (sym!{Endomorphisms.Carrier} _ _ (GradedClifford.onScalar a)) }
+};
+\definition vectorProof: \forall (x: RealSum.Carrier) -> Property (Source.iota x) := \fun (x: RealSum.Carrier)(t: Product.Carrier) => eq_reason_in!{{ResultTotal.Carrier} _
+  "=" _ "by" { congr!{ResultEnd.Carrier {ResultTotal.Carrier}} (\fun (a: ResultEnd.Carrier) => a.apply (DirectTotal.comparison.apply t)) _ _ (onVector x) }
+  "=" _ "by" { congr!{Algebra.Linear[V := Product.Carrier, W := ResultTotal.Carrier, source := Product.space, target := ResultTotal.totalSpace].Map {ResultTotal.Carrier}} (\fun (a: Algebra.Linear[V := Product.Carrier, W := ResultTotal.Carrier, source := Product.space, target := ResultTotal.totalSpace].Map) => a.apply t) _ _ (intertwines x) }
+  "=" _ "by" { congr!{Endomorphisms.Carrier {ResultTotal.Carrier}} (\fun (a: Endomorphisms.Carrier) => DirectTotal.comparison.apply (a.apply t)) _ _ (sym!{Endomorphisms.Carrier} _ _ (GradedClifford.onVector x)) }
+};
+\definition additionProof: \forall (a, b: Source.Carrier) -> Property a -> Property b -> Property (Source.add a b) := \fun (a, b: Source.Carrier)(leftProof: Property a)(rightProof: Property b)(t: Product.Carrier) => eq_reason_in!{{ResultTotal.Carrier} _
+  "=" _ "by" { congr!{ResultEnd.Carrier {ResultTotal.Carrier}} (\fun (x: ResultEnd.Carrier) => x.apply (DirectTotal.comparison.apply t)) _ _ (targetLaws.add a b) }
+  "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier} {ResultTotal.Carrier}} ResultTotal.totalSpace.add _ _ _ _ (leftProof t) (rightProof t) }
+  "=" _ "by" { sym!{{ResultTotal.Carrier}} _ _ (DirectTotal.comparison.preservesAdd ((GradedClifford.extension a).apply t) ((GradedClifford.extension b).apply t)) }
+  "=" _ "by" { congr!{Endomorphisms.Carrier {ResultTotal.Carrier}} (\fun (x: Endomorphisms.Carrier) => DirectTotal.comparison.apply (x.apply t)) _ _ (sym!{Endomorphisms.Carrier} _ _ (sourceLaws.add a b)) }
+};
+\definition negativeProof: \forall (a: Source.Carrier) -> Property a -> Property (Source.neg a) := \fun (a: Source.Carrier)(previous: Property a)(t: Product.Carrier) => eq_reason_in!{{ResultTotal.Carrier} _
+  "=" _ "by" { congr!{ResultEnd.Carrier {ResultTotal.Carrier}} (\fun (x: ResultEnd.Carrier) => x.apply (DirectTotal.comparison.apply t)) _ _ (targetNegative a) }
+  "=" _ "by" { ResultLaws.minusOneScale ((extension a).apply (DirectTotal.comparison.apply t)) }
+  "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} ResultTotal.totalSpace.neg _ _ (previous t) }
+  "=" _ "by" { sym!{{ResultTotal.Carrier}} _ _ (ComparisonOps.preservesNeg DirectTotal.comparison ((GradedClifford.extension a).apply t)) }
+  "=" _ "by" { congr!{{Product.Carrier} {ResultTotal.Carrier}} DirectTotal.comparison.apply _ _ (sym!{{Product.Carrier}} _ _ (TensorLaws.minusOneScale ((GradedClifford.extension a).apply t))) }
+  "=" _ "by" { congr!{Endomorphisms.Carrier {ResultTotal.Carrier}} (\fun (x: Endomorphisms.Carrier) => DirectTotal.comparison.apply (x.apply t)) _ _ (sym!{Endomorphisms.Carrier} _ _ (sourceNegative a)) }
+};
+\definition multiplicationProof: \forall (a, b: Source.Carrier) -> Property a -> Property b -> Property (Source.mul a b) := \fun (a, b: Source.Carrier)(leftProof: Property a)(rightProof: Property b)(t: Product.Carrier) => eq_reason_in!{{ResultTotal.Carrier} _
+  "=" _ "by" { congr!{ResultEnd.Carrier {ResultTotal.Carrier}} (\fun (x: ResultEnd.Carrier) => x.apply (DirectTotal.comparison.apply t)) _ _ (targetLaws.mul a b) }
+  "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier}} ((extension a).apply) _ _ (rightProof t) }
+  "=" _ "by" { leftProof ((GradedClifford.extension b).apply t) }
+  "=" _ "by" { congr!{Endomorphisms.Carrier {ResultTotal.Carrier}} (\fun (x: Endomorphisms.Carrier) => DirectTotal.comparison.apply (x.apply t)) _ _ (sym!{Endomorphisms.Carrier} _ _ (sourceLaws.mul a b)) }
+};
+\definition closed: Induction.Closed := Induction.Closed { scalar := scalarProof, vector := vectorProof, addition := additionProof, negative := negativeProof, multiplication := multiplicationProof };
+\definition intertwining: \forall (a: Source.Carrier)(t: Product.Carrier) -> (extension a).apply (DirectTotal.comparison.apply t) = DirectTotal.comparison.apply ((GradedClifford.extension a).apply t) := Induction.all closed;

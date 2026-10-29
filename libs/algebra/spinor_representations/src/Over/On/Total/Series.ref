@@ -1,0 +1,82 @@
+\import std.Data[].FinSet[] \as Fin;
+\import Fin.Tuples[A := V] \as Tuples;
+\import std.Data[].List[] \as Lists;
+\import Fin.FromList[A := V] \as ListTuples;
+\import Algebra.Shuffle[I := V] \as Shuffle;
+\import Algebra.Exterior[V := V, space := space] \as Exterior;
+\import Algebra.Multilinear[V := V, space := space] \as Multi;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].trans;
+\definition value[f: Carrier][xs: Lists.List[V]]: K := f (Lists.length V xs) (ListTuples.tuple xs);
+\definition shift: \forall (x: V)(f: Carrier)(xs: Lists.List[V]) -> value (annihilate x f) xs = Shuffle.shift x (value f) xs :=
+  \fun (x: V)(f: Carrier)(xs: Lists.List[V]) => \refl(f (N.Nat^::succ (Lists.length V xs)) (Tuples.extend (Lists.length V xs) x (ListTuples.tuple xs)));
+\definition degree: \forall (f: Carrier)(k: N.Nat^)(args: Multi.Arguments k) -> value f (ListTuples.list k args) = f k args :=
+  \fun (f: Carrier)(k: N.Nat^)(args: Multi.Arguments k) => \block {
+    \let xs: Lists.List[V] := ListTuples.list k args \then
+    \let transport: \forall (e: Lists.length V xs = k) -> f (Lists.length V xs) (ListTuples.tuple xs) = f k (ListTuples.at k xs e) :=
+      \idelim Lists.length V xs = k \with j: N.Nat^ => \forall (e: Lists.length V xs = j) -> f (Lists.length V xs) (ListTuples.tuple xs) = f j (ListTuples.at j xs e) \by {
+        base: \fun (e: Lists.length V xs = Lists.length V xs) => congr!{{Fin.Fin (Lists.length V xs) -> V} K} (f (Lists.length V xs)) _ _ (sym!{{Fin.Fin (Lists.length V xs) -> V}} _ _ (ListTuples.atSelf xs e)),
+        equality: ListTuples.listLength k args
+      } \then
+    \return trans!{K} _ _ _ (transport (ListTuples.listLength k args)) (congr!{{Multi.Arguments k} K} (f k) _ _ (ListTuples.atList k args))
+  };
+\import \parent.\parent.LeftCreation[k := N.Nat^::zero].Mixed[] \as Mixed;
+\import Algebra.Laws[V := K, space := Algebra.scalarSpace] \as Scalars;
+\definition creationShift: \forall (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier)(x: V)(xs: Lists.List[V]) ->
+  value (createLeft alpha f) (Lists.List[V]::cons x xs) = Algebra.add (Algebra.mul (Mixed.evaluate alpha x) (value f xs)) (Algebra.neg (value (createLeft alpha (annihilate x f)) xs)) :=
+  \fun (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier)(x: V) => \induction (xs: Lists.List[V]) \return
+    value (createLeft alpha f) (Lists.List[V]::cons x xs) = Algebra.add (Algebra.mul (Mixed.evaluate alpha x) (value f xs)) (Algebra.neg (value (createLeft alpha (annihilate x f)) xs)) \with {
+      | nil: eq_reason_in!{K _
+        "=" _ "by" { congr!{{Alternating.Form N.Nat^::zero} K} (\fun (a: Alternating.Form N.Nat^::zero) => a (ListTuples.tuple Lists.List[V]::nil)) _ _ (\parent.\parent.LeftCreation[k := N.Nat^::zero].Zero[].law alpha (f N.Nat^::zero) x) }
+        "=" _ "by" { sym!{K} _ _ (Algebra.addZeroRight (Algebra.mul (Mixed.evaluate alpha x) (value f Lists.List[V]::nil))) }
+        "=" _ "by" { congr!{K K} (Algebra.add (Algebra.mul (Mixed.evaluate alpha x) (value f Lists.List[V]::nil))) _ _ (sym!{K} _ _ (algebra.Group[].Of[Carrier := K, group := std.Alg[].Ring[].additiveGroup K Algebra.ring].negZero)) }
+      }
+      | cons: \fun (head: V)(tail: Lists.List[V])(previous: value (createLeft alpha f) (Lists.List[V]::cons x tail) = Algebra.add (Algebra.mul (Mixed.evaluate alpha x) (value f tail)) (Algebra.neg (value (createLeft alpha (annihilate x f)) tail))) =>
+        congr!{{Alternating.Form (N.Nat^::succ (Lists.length V tail))} K} (\fun (a: Alternating.Form (N.Nat^::succ (Lists.length V tail))) => a (ListTuples.tuple (Lists.List[V]::cons head tail))) _ _
+          (\parent.\parent.LeftCreation[k := Lists.length V tail].Mixed[].law alpha (f (N.Nat^::succ (Lists.length V tail))) x)
+    };
+\import Shuffle.Boundary[].OneCovector[] \as Covector;
+\import Shuffle.Alternation[] \as Alternation;
+\import Multi.ListSeries[k := N.Nat^::succ N.Nat^::zero] \as OneSeries;
+\import std.Data[].Nat[].Basic[].Prop[] \as NatLaws;
+\definition creationNil: \forall (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier) ->
+  value (createLeft alpha f) Lists.List[V]::nil = Shuffle.product (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) (value f) Lists.List[V]::nil :=
+  \fun (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier) => sym!{K} _ _ (trans!{K} _ _ _ (Shuffle.atEmpty (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) (value f))
+    (trans!{K} _ _ _ (congr!{K K} (\fun (a: K) => Algebra.mul a (value f Lists.List[V]::nil)) _ _ (OneSeries.outside alpha Lists.List[V]::nil (NatLaws.zeroNeSucc N.Nat^::zero))) (Algebra.mulZeroLeft (value f Lists.List[V]::nil))));
+\definition creationCons: \forall (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(head: V)(tail: Lists.List[V]) ->
+  (\forall (f: Carrier) -> value (createLeft alpha f) tail = Shuffle.product (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) (value f) tail) ->
+  \forall (f: Carrier) -> value (createLeft alpha f) (Lists.List[V]::cons head tail) = Shuffle.product (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) (value f) (Lists.List[V]::cons head tail) :=
+  \fun (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(head: V)(tail: Lists.List[V])(previous: \forall (f: Carrier) -> value (createLeft alpha f) tail = Shuffle.product (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) (value f) tail)(f: Carrier) => eq_reason_in!{K _
+        "=" _ "by" { creationShift alpha f head tail }
+        "=" _ "by" { congr!{K K K} Algebra.add _ _ _ _
+          (sym!{K} _ _ (trans!{K} _ _ _ (congr!{{Shuffle.Function} K} (\fun (a: Shuffle.Function) => Shuffle.product (Shuffle.shift head a) (value f) tail) _ _ (Mixed.normal alpha)) (Covector.leftProduct (Mixed.evaluate alpha) (value f) head tail)))
+          (congr!{K K} Algebra.neg _ _ (previous (annihilate head f))) }
+        "=" _ "by" { congr!{K K} (Algebra.add (Shuffle.product (Shuffle.shift head (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha)) (value f) tail)) _ _
+          (sym!{K} _ _ (eq_reason_in!{K _
+            "=" _ "by" { congr!{{Shuffle.Function} K} (\fun (a: Shuffle.Function) => Shuffle.product (Shuffle.twist a) (Shuffle.shift head (value f)) tail) _ _ (Mixed.normal alpha) }
+            "=" _ "by" { congr!{{Shuffle.Function} K} (\fun (a: Shuffle.Function) => Shuffle.product a (Shuffle.shift head (value f)) tail) _ _ (Covector.twisted (Mixed.evaluate alpha)) }
+            "=" _ "by" { Alternation.productNegativeLeft (Covector.value (Mixed.evaluate alpha)) (Shuffle.shift head (value f)) tail }
+            "=" _ "by" { congr!{K K} Algebra.neg _ _ (congr!{{Shuffle.Function} K} (\fun (a: Shuffle.Function) => Shuffle.product a (Shuffle.shift head (value f)) tail) _ _ (sym!{{Shuffle.Function}} _ _ (Mixed.normal alpha))) }
+          })) }
+        "=" _ "by" { sym!{K} _ _ (Shuffle.atCons head tail (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) (value f)) }
+      };
+\definition creation: \forall (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier)(xs: Lists.List[V]) ->
+  value (createLeft alpha f) xs = Shuffle.product (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) (value f) xs :=
+  \fun (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Carrier)(xs: Lists.List[V]) =>
+    (\induction (xs: Lists.List[V]) \return \forall (f: Carrier) -> value (createLeft alpha f) xs = Shuffle.product (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) (value f) xs \with {
+      | nil: creationNil alpha
+      | cons: \fun (head: V)(tail: Lists.List[V])(previous: \forall (f: Carrier) -> value (createLeft alpha f) tail = Shuffle.product (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) (value f) tail) => creationCons alpha head tail previous
+    }) xs f;
+\definition asComponent: \forall (f: Carrier)(xs: Lists.List[V]) -> value f xs = Exterior.component (Lists.length V xs) (f (Lists.length V xs)) xs :=
+  \fun (f: Carrier)(xs: Lists.List[V]) => sym!{K} _ _ (trans!{K} _ _ _
+    (Multi.ListSeries[k := Lists.length V xs].inside (f (Lists.length V xs)) (\into[Lists.List[V]](xs, Multi.ListArguments[].Degree (Lists.length V xs)) \by { \refl(Lists.length V xs) }))
+    (congr!{{Fin.Fin (Lists.length V xs) -> V} K} (f (Lists.length V xs)) _ _ (ListTuples.atSelf xs (\refl(Lists.length V xs)))));
+\definition parity: \forall (f: Carrier)(xs: Lists.List[V]) -> value (parity f) xs = Shuffle.twist (value f) xs :=
+  \fun (f: Carrier)(xs: Lists.List[V]) => \refl(Algebra.mul (Sign.value (Lists.length V xs)) (value f xs));
+\definition addition: \forall (f, g: Carrier)(xs: Lists.List[V]) -> value (totalSpace.add f g) xs = Algebra.add (value f xs) (value g xs) :=
+  \fun (f, g: Carrier)(xs: Lists.List[V]) => \refl(Algebra.add (value f xs) (value g xs));
+\definition scalar: \forall (a: K)(f: Carrier)(xs: Lists.List[V]) -> value (totalSpace.smul a f) xs = Algebra.mul a (value f xs) :=
+  \fun (a: K)(f: Carrier)(xs: Lists.List[V]) => \refl(Algebra.mul a (value f xs));
+\module Laws;

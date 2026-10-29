@@ -1,0 +1,13 @@
+\import Tensor.Universal[U := U, target := target] \as Lift;
+\import Algebra.Linear[V := Tensor.Carrier, W := U, source := Tensor.space, target := target] \as Maps;
+\definition value[h: Maps.Map][v: V][w: W]: U := h.apply (Tensor.tensor v w);
+\definition bilinear[h: Maps.Map]: Tensor.BilinearLaws[U, target, value h] := Tensor.BilinearLaws[U, target, value h] {
+  addLeft := \fun (v, v2: V)(w: W) => trans!{U} _ _ _ (congr!{Tensor.Carrier U} h.apply _ _ (Tensor.bilinear.addLeft v v2 w)) (h.preservesAdd (Tensor.tensor v w) (Tensor.tensor v2 w)),
+  addRight := \fun (v: V)(w, w2: W) => trans!{U} _ _ _ (congr!{Tensor.Carrier U} h.apply _ _ (Tensor.bilinear.addRight v w w2)) (h.preservesAdd (Tensor.tensor v w) (Tensor.tensor v w2)),
+  scaleLeft := \fun (a: K)(v: V)(w: W) => trans!{U} _ _ _ (congr!{Tensor.Carrier U} h.apply _ _ (Tensor.bilinear.scaleLeft a v w)) (h.preservesScale a (Tensor.tensor v w)),
+  scaleRight := \fun (a: K)(v: V)(w: W) => trans!{U} _ _ _ (congr!{Tensor.Carrier U} h.apply _ _ (Tensor.bilinear.scaleRight a v w)) (h.preservesScale a (Tensor.tensor v w)),
+};
+\definition ext: \forall (f, g: Maps.Map) -> (\forall (v: V)(w: W) -> f.apply (Tensor.tensor v w) = g.apply (Tensor.tensor v w)) -> f = g :=
+  \fun (f, g: Maps.Map)(same: \forall (v: V)(w: W) -> f.apply (Tensor.tensor v w) = g.apply (Tensor.tensor v w)) => Maps.ext f g
+    (trans!{{Tensor.Carrier -> U}} _ _ _ (Lift.unique (value f) (bilinear f) f (\fun (v: V)(w: W) => \refl(f.apply (Tensor.tensor v w))))
+      (sym!{{Tensor.Carrier -> U}} _ _ (Lift.unique (value f) (bilinear f) g (\fun (v: V)(w: W) => sym!{U} _ _ (same v w)))));

@@ -1,0 +1,118 @@
+\use std.Logic[].Proposition[].either;
+\import lie_groups.Euclidean[n := Fin.Sum[m := n, n := n].total] \as Geometry;
+\import algebra.Groups[].Units[A := Source.Carrier, ring := Source.ring] \as SourceUnits;
+\import Geometry.PinRepresentation[] \as Projection;
+\import Projection.Kernel[] \as Kernel;
+\import algebra.Groups[].On[G := Circle.Circle, group := Circle.group] \as CircleOps;
+\import algebra.Groups[].On[G := Pin.Spin, group := Pin.spinGroup] \as SpinOps;
+\definition relative[a, b: Circle.Circle]: Circle.Circle := Circle.product a (Circle.inverse b);
+\definition relativeCancel: \forall (a, b: Circle.Circle) -> Circle.product (relative a b) b = a :=
+  \fun (a, b: Circle.Circle) => eq_reason_in!{Circle.Circle _
+    "=" _ "by" { CircleOps.assoc a (Circle.inverse b) b }
+    "=" _ "by" { congr!{Circle.Circle Circle.Circle} (Circle.product a) _ _ (CircleOps.invLeft b) }
+    "=" _ "by" { CircleOps.oneRight a }
+  };
+\definition classRescale: \forall (s: Pin.Spin)(a, b: Circle.Circle) ->
+  SpinC.group.op (centralPhase (relative a b)) (SpinC.class s b) = SpinC.class s a :=
+  \fun (s: Pin.Spin)(a, b: Circle.Circle) => eq_reason_in!{SpinC.Carrier _
+    "=" _ "by" { SpinC.multiplication Pin.spinGroup.unit s (relative a b) b }
+    "=" _ "by" { congr!{Pin.Spin Circle.Circle SpinC.Carrier} SpinC.class _ _ _ _ (SpinOps.oneLeft s) (relativeCancel a b) }
+  };
+\definition signClass: \forall (s: Pin.Spin)(z: Circle.Circle) -> SpinC.class (Pin.spinGroup.op Pin.spinSign s) z = SpinC.class s (Circle.negate z) :=
+  \fun (s: Pin.Spin)(z: Circle.Circle) => trans!{SpinC.Carrier} _ _ _
+    (congr!{Circle.Circle SpinC.Carrier} (SpinC.class (Pin.spinGroup.op Pin.spinSign s)) _ _ (sym!{Circle.Circle} _ _ (Circle.minusNegate z)))
+    (SpinC.identify s (Circle.negate z));
+\definition Fiber[g, h: SpinC.Carrier]: \Set := \Cast[Circle.Circle] ({ z: Circle.Circle \where SpinC.group.op (centralPhase z) h = g });
+\definition exists: \forall (g, h: SpinC.Carrier) -> Phase.projection g = Phase.projection h -> \exists Fiber g h :=
+  SpinC.induction2 (\fun (g, h: SpinC.Carrier) => Phase.projection g = Phase.projection h -> \exists Fiber g h)
+    (\fun (s: Pin.Spin)(z: Circle.Circle)(t: Pin.Spin)(w: Circle.Circle)(same: Phase.projection (SpinC.class s z) = Phase.projection (SpinC.class t w)) => \block {
+      \let image: Projection.spinMap s = Projection.spinMap t := trans!{Orthogonal.O} _ _ _ (sym!{Orthogonal.O} _ _ (Phase.projectionOnClass s z))
+        (trans!{Orthogonal.O} _ _ _ same (Phase.projectionOnClass t w)) \then
+      \return either!{{(Kernel.fibers (Pin.inclusion s) (Pin.inclusion t) image)} {\exists Fiber (SpinC.class s z) (SpinC.class t w)}
+        {\fun (equal: Pin.inclusion s = Pin.inclusion t) => \exact(\into[Circle.Circle](relative z w, Fiber (SpinC.class s z) (SpinC.class t w) ) \by {
+          trans!{SpinC.Carrier} _ _ _ (classRescale t z w) (congr!{Pin.Spin SpinC.Carrier} (\fun (x: Pin.Spin) => SpinC.class x z) _ _ (sym!{Pin.Spin} _ _ (SourceUnits.ext s t (congr!{Geometry.Pin Source.Carrier} (\fun (p: Geometry.Pin) => p.value) _ _ equal))))
+        }, Fiber (SpinC.class s z) (SpinC.class t w))}
+        {\fun (opposite: Pin.inclusion s = Pin.group.op Pin.sign (Pin.inclusion t)) => \exact(\into[Circle.Circle](relative (Circle.negate z) w, Fiber (SpinC.class s z) (SpinC.class t w)) \by {
+          trans!{SpinC.Carrier} _ _ _ (classRescale t (Circle.negate z) w)
+            (trans!{SpinC.Carrier} _ _ _ (sym!{SpinC.Carrier} _ _ (signClass t z))
+              (congr!{Pin.Spin SpinC.Carrier} (\fun (x: Pin.Spin) => SpinC.class x z) _ _ (sym!{Pin.Spin} _ _ (SourceUnits.ext s (Pin.spinGroup.op Pin.spinSign t) (congr!{Geometry.Pin Source.Carrier} (\fun (p: Geometry.Pin) => p.value) _ _ opposite)))))
+        }, Fiber (SpinC.class s z) (SpinC.class t w))}
+      }
+    });
+\import algebra.Groups[].On[G := SpinC.Carrier, group := SpinC.group] \as SpinCOps;
+\definition uniqueVacuum: \forall (g, h: SpinC.Carrier) -> Phase.projection g = Phase.projection h ->
+  vacuumScalar g = Algebra.one -> vacuumScalar h = Algebra.one -> g = h := \block {
+  \fun (g, h: SpinC.Carrier)(same: Phase.projection g = Phase.projection h)(gVacuum: vacuumScalar g = Algebra.one)(hVacuum: vacuumScalar h = Algebra.one) \then
+  \takefrom z: Fiber g h \by exists g h same \then
+  \let phaseLaw: SpinC.group.op (centralPhase z) h = g := \bysub(Circle.Circle, Fiber g h, z) \then
+  \let zOne: z = Circle.one := eq_reason_in!{C.Complex _
+    "=" _ "by" { sym!{C.Complex} _ _ (Algebra.mulOneRight z) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (Algebra.mul z) _ _ (sym!{C.Complex} _ _ hVacuum) }
+    "=" _ "by" { sym!{C.Complex} _ _ (vacuumScalarPhase z h) }
+    "=" _ "by" { congr!{SpinC.Carrier C.Complex} vacuumScalar _ _ phaseLaw }
+    "=" _ "by" gVacuum
+  } \then
+  \return eq_reason_in!{SpinC.Carrier _
+    "=" _ "by" { sym!{SpinC.Carrier} _ _ phaseLaw }
+    "=" _ "by" { congr!{Circle.Circle SpinC.Carrier} (\fun (w: Circle.Circle) => SpinC.group.op (centralPhase w) h) _ _ zOne }
+    "=" _ "by" { SpinCOps.oneLeft h }
+  }
+};
+\structure NormalizedLaw[u: Unitary.Carrier, g: SpinC.Carrier]: \Prop := {
+  projection: Phase.projection g = map u,
+  vacuum: vacuumScalar g = Algebra.one,
+};
+\definition Normalized[u: Unitary.Carrier]: \Set := \Cast[SpinC.Carrier] ({ g: SpinC.Carrier \where NormalizedLaw[u, g] });
+\definition normalizedUnique: \forall (u: Unitary.Carrier)(g, h: Normalized u) -> g = h :=
+  \fun (u: Unitary.Carrier)(g, h: Normalized u) => uniqueVacuum g h
+    (trans!{Orthogonal.O} _ _ _ (\bysub(SpinC.Carrier, { g: SpinC.Carrier \where NormalizedLaw[u, g] }, g)).projection
+      (sym!{Orthogonal.O} _ _ ((\bysub(SpinC.Carrier, { g: SpinC.Carrier \where NormalizedLaw[u, g] }, h)).projection)))
+    ((\bysub(SpinC.Carrier, { g: SpinC.Carrier \where NormalizedLaw[u, g] }, g)).vacuum)
+    ((\bysub(SpinC.Carrier, { g: SpinC.Carrier \where NormalizedLaw[u, g] }, h)).vacuum);
+\definition normalizedProduct: \forall (u, v: Unitary.Carrier)(g: Normalized u)(h: Normalized v) -> Normalized (Unitary.multiply u v) :=
+  \fun (u, v: Unitary.Carrier)(g: Normalized u)(h: Normalized v) => \into[SpinC.Carrier](SpinC.group.op g h, Normalized (Unitary.multiply u v)) \by {
+    NormalizedLaw[Unitary.multiply u v, SpinC.group.op g h] {
+      projection := eq_reason_in!{Orthogonal.O _
+        "=" _ "by" { Phase.projectionProduct g h }
+        "=" _ "by" { congr!{Orthogonal.O Orthogonal.O Orthogonal.O} Orthogonal.group.op _ _ _ _
+          ((\bysub(SpinC.Carrier, { g: SpinC.Carrier \where NormalizedLaw[u, g] }, g)).projection)
+          ((\bysub(SpinC.Carrier, { g: SpinC.Carrier \where NormalizedLaw[v, g] }, h)).projection) }
+        "=" _ "by" { sym!{Orthogonal.O} _ _ (multiplication u v) }
+      },
+      vacuum := eq_reason_in!{C.Complex _
+        "=" _ "by" { vacuumScalarProduct u v g h ((\bysub(SpinC.Carrier, { g: SpinC.Carrier \where NormalizedLaw[u, g] }, g)).projection) ((\bysub(SpinC.Carrier, { g: SpinC.Carrier \where NormalizedLaw[v, g] }, h)).projection) }
+        "=" _ "by" { congr!{C.Complex C.Complex C.Complex} Algebra.mul _ _ _ _
+          ((\bysub(SpinC.Carrier, { g: SpinC.Carrier \where NormalizedLaw[u, g] }, g)).vacuum)
+          ((\bysub(SpinC.Carrier, { g: SpinC.Carrier \where NormalizedLaw[v, g] }, h)).vacuum) }
+        "=" _ "by" { Algebra.mulOneLeft Algebra.one }
+      },
+    }
+  };
+\definition normalizedUnit: Normalized Unitary.identity := \into[SpinC.Carrier](SpinC.group.unit, Normalized Unitary.identity) \by {
+  NormalizedLaw[Unitary.identity, SpinC.group.unit] {
+    projection := trans!{Orthogonal.O} _ _ _ Phase.projectionUnit (sym!{Orthogonal.O} _ _ atOne),
+    vacuum := congr!{ComplexUnits.Unit C.Complex} (\fun (a: ComplexUnits.Unit) => Vacuum.coefficient (a.value.apply Vacuum.state)) _ _ Phase.unitC,
+  }
+};
+\import C.Prop[] \as ComplexLaws;
+\definition normalizedFromUnit: \forall (u: Unitary.Carrier)(g: SpinC.Carrier) -> Phase.projection g = map u -> Def.normSq (vacuumScalar g) = R.one -> \exists Normalized u :=
+  \fun (u: Unitary.Carrier)(g: SpinC.Carrier)(projects: Phase.projection g = map u)(norm: Def.normSq (vacuumScalar g) = R.one) => \block {
+    \let value: Circle.Circle := \into[C.Complex](vacuumScalar g, Circle.predicate) \by { norm } \then
+    \let z: Circle.Circle := Circle.inverse value \then
+    \return \exact(\into[SpinC.Carrier](SpinC.group.op (centralPhase z) g, Normalized u) \by {
+      NormalizedLaw[u, SpinC.group.op (centralPhase z) g] {
+        projection := eq_reason_in!{Orthogonal.O _
+          "=" _ "by" { Phase.projectionProduct (centralPhase z) g }
+          "=" _ "by" { congr!{Orthogonal.O Orthogonal.O} (\fun (q: Orthogonal.O) => Orthogonal.group.op q (Phase.projection g)) _ _
+            (trans!{Orthogonal.O} _ _ _ (Phase.projectionOnClass Pin.spinGroup.unit z) Projection.atOne) }
+          "=" _ "by" { Orthogonal.group.monoid.leftIdentity (Phase.projection g) }
+          "=" _ "by" projects
+        },
+        vacuum := eq_reason_in!{C.Complex _
+          "=" _ "by" { vacuumScalarPhase z g }
+          "=" _ "by" { ComplexLaws.conjMulSelf (vacuumScalar g) }
+          "=" _ "by" { congr!{R.Real C.Complex} Def.ofReal _ _ norm }
+        },
+      }
+    }, Normalized u)
+  };

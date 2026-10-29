@@ -1,0 +1,55 @@
+\import LeftTotal.Vacuum[] \as LeftVacuum;
+\import RightTotal.Vacuum[] \as RightVacuum;
+\import ResultTotal.Vacuum[] \as ResultVacuum;
+\import LeftTotal.Series[] \as LeftSeries;
+\import RightTotal.Series[] \as RightSeries;
+\import ResultTotal.Series[] \as ResultSeries;
+\import Algebra.Multilinear[V := V, space := left].Alternating[].DegreeZero[] \as LeftZero;
+\import Algebra.Multilinear[V := W, space := right].Alternating[].DegreeZero[] \as RightZero;
+\import Algebra.Multilinear[V := Sum.Carrier, space := Sum.space].Alternating[].DegreeZero[] \as ResultZero;
+\import Algebra.Shuffle[I := Sum.Carrier] \as Shuffle;
+\import std.Data[].List[] \as Lists;
+\import Algebra.Laws[V := K, space := Algebra.scalarSpace] \as Scalars;
+\import Algebra.Linear[V := LeftTotal.Carrier, W := K, source := LeftTotal.totalSpace, target := Algebra.scalarSpace] \as LeftScalar;
+\import Algebra.Linear[V := RightTotal.Carrier, W := K, source := RightTotal.totalSpace, target := Algebra.scalarSpace] \as RightScalar;
+\import Algebra.Linear[V := ResultTotal.Carrier, W := K, source := ResultTotal.totalSpace, target := Algebra.scalarSpace] \as ResultScalar;
+\import Algebra.Linear[V := Tensor.Carrier, W := K, source := Tensor.space, target := Algebra.scalarSpace] \as TensorScalar;
+\import Tensor.Universal[U := K, target := Algebra.scalarSpace] \as Universal;
+\import \root.Over[K := K, scalarRing := scalarRing].TensorOperators[V := LeftTotal.Carrier, W := RightTotal.Carrier, left := LeftTotal.totalSpace, right := RightTotal.totalSpace].Ext[U := K, target := Algebra.scalarSpace] \as Ext;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].sym;
+\definition leftMapCoefficient: LeftScalar.Map := LeftScalar.Map { apply := LeftVacuum.coefficient,
+  preservesAdd := \fun (f, g: LeftTotal.Carrier) => \refl(Algebra.add (LeftVacuum.coefficient f) (LeftVacuum.coefficient g)),
+  preservesScale := \fun (a: K)(f: LeftTotal.Carrier) => \refl(Algebra.mul a (LeftVacuum.coefficient f)) };
+\definition rightMapCoefficient: RightScalar.Map := RightScalar.Map { apply := RightVacuum.coefficient,
+  preservesAdd := \fun (f, g: RightTotal.Carrier) => \refl(Algebra.add (RightVacuum.coefficient f) (RightVacuum.coefficient g)),
+  preservesScale := \fun (a: K)(f: RightTotal.Carrier) => \refl(Algebra.mul a (RightVacuum.coefficient f)) };
+\definition resultMapCoefficient: ResultScalar.Map := ResultScalar.Map { apply := ResultVacuum.coefficient,
+  preservesAdd := \fun (f, g: ResultTotal.Carrier) => \refl(Algebra.add (ResultVacuum.coefficient f) (ResultVacuum.coefficient g)),
+  preservesScale := \fun (a: K)(f: ResultTotal.Carrier) => \refl(Algebra.mul a (ResultVacuum.coefficient f)) };
+\definition product[f: LeftTotal.Carrier][g: RightTotal.Carrier]: K := Algebra.mul (LeftVacuum.coefficient f) (RightVacuum.coefficient g);
+\definition laws: Tensor.BilinearLaws[K, Algebra.scalarSpace, product] := Tensor.BilinearLaws[K, Algebra.scalarSpace, product] {
+  addLeft := \fun (f, h: LeftTotal.Carrier)(g: RightTotal.Carrier) => trans!{K} _ _ _ (Algebra.mulComm (Algebra.add (LeftVacuum.coefficient f) (LeftVacuum.coefficient h)) (RightVacuum.coefficient g))
+    (trans!{K} _ _ _ (Algebra.mulAdd (RightVacuum.coefficient g) (LeftVacuum.coefficient f) (LeftVacuum.coefficient h))
+      (congr!{K K K} Algebra.add _ _ _ _ (Algebra.mulComm (RightVacuum.coefficient g) (LeftVacuum.coefficient f)) (Algebra.mulComm (RightVacuum.coefficient g) (LeftVacuum.coefficient h)))),
+  addRight := \fun (f: LeftTotal.Carrier)(g, h: RightTotal.Carrier) => Algebra.mulAdd (LeftVacuum.coefficient f) (RightVacuum.coefficient g) (RightVacuum.coefficient h),
+  scaleLeft := \fun (a: K)(f: LeftTotal.Carrier)(g: RightTotal.Carrier) => Algebra.mulAssoc a (LeftVacuum.coefficient f) (RightVacuum.coefficient g),
+  scaleRight := \fun (a: K)(f: LeftTotal.Carrier)(g: RightTotal.Carrier) => Scalars.scaleComm (LeftVacuum.coefficient f) a (RightVacuum.coefficient g),
+};
+\definition tensorCoefficient: TensorScalar.Map := Universal.map product laws;
+\definition leftNil: \forall (f: LeftTotal.Carrier) -> ResultSeries.value (leftMap.apply f) Lists.List[Sum.Carrier]::nil = LeftVacuum.coefficient f :=
+  \fun (f: LeftTotal.Carrier) => congr!{{Algebra.Multilinear[V := V, space := left].Arguments N.Nat^::zero} K} (f N.Nat^::zero) _ _ (LeftZero.argumentsUnique _);
+\definition rightNil: \forall (g: RightTotal.Carrier) -> ResultSeries.value (rightMap.apply g) Lists.List[Sum.Carrier]::nil = RightVacuum.coefficient g :=
+  \fun (g: RightTotal.Carrier) => congr!{{Algebra.Multilinear[V := W, space := right].Arguments N.Nat^::zero} K} (g N.Nat^::zero) _ _ (RightZero.argumentsUnique _);
+\definition pure: \forall (f: LeftTotal.Carrier)(g: RightTotal.Carrier) -> ResultVacuum.coefficient (comparison.apply (Tensor.tensor f g)) = product f g :=
+  \fun (f: LeftTotal.Carrier)(g: RightTotal.Carrier) => eq_reason_in!{K _
+    "=" _ "by" { congr!{{ResultTotal.Carrier} K} ResultVacuum.coefficient _ _ (onTensor f g) }
+    "=" _ "by" { Product.onWedge (leftMap.apply f) (rightMap.apply g) Lists.List[Sum.Carrier]::nil }
+    "=" _ "by" { Shuffle.atEmpty (ResultSeries.value (leftMap.apply f)) (ResultSeries.value (rightMap.apply g)) }
+    "=" _ "by" { congr!{K K K} Algebra.mul _ _ _ _ (leftNil f) (rightNil g) }
+  };
+\import Algebra.Linear[V := ResultTotal.Carrier, W := K, source := ResultTotal.totalSpace, target := Algebra.scalarSpace].Composition[U := Tensor.Carrier, domain := Tensor.space] \as Composition;
+\definition comparisonCoefficient: TensorScalar.Map := Composition.compose resultMapCoefficient comparison;
+\definition compatible: comparisonCoefficient = tensorCoefficient := Ext.ext _ _ (\fun (f: LeftTotal.Carrier)(g: RightTotal.Carrier) => trans!{K} _ _ _ (pure f g) (sym!{K} _ _ (Universal.onTensor product laws f g)));
+\module Contraction;
+\module Sequences;

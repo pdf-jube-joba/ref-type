@@ -1,0 +1,37 @@
+\import std.Data[].Nat[].Basic[].Def[] \as Nat;
+\import std.Data[].Nat[].Basic[].Prop[] \as NatLaws;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\use Equality.trans;
+\import Algebra.Exterior[V := V, space := space] \as Exterior;
+\import Exterior.Degrees[p := N.Nat^::succ N.Nat^::zero, q := k] \as Wedge;
+\import Exterior.Bilinearity[p := N.Nat^::succ N.Nat^::zero, q := k] \as Bilinear;
+\import Exterior.Regrade[k := Nat.add (N.Nat^::succ N.Nat^::zero) k, l := N.Nat^::succ k] \as Regrade;
+\import Alternating.At[k := k] \as Source;
+\import Alternating.At[k := N.Nat^::succ k] \as Target;
+\import Algebra.Linear[V := Alternating.Form k, W := Alternating.Form (N.Nat^::succ k), source := Source.vectorSpace, target := Target.vectorSpace] \as Linear;
+\definition degree: Nat.add (N.Nat^::succ N.Nat^::zero) k = N.Nat^::succ k := trans!{{N.Nat^}} _ _ _ (NatLaws.addSuccLeft N.Nat^::zero k) (congr!{{N.Nat^} {N.Nat^}} N.Nat^::succ _ _ (NatLaws.addZeroLeft k));
+\definition apply[alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero)][f: Alternating.Form k]: Alternating.Form (N.Nat^::succ k) := Regrade.cast (Wedge.wedge alpha f) degree;
+\definition operator[alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero)]: Linear.Map := Linear.Map {
+  apply := apply alpha,
+  preservesAdd := \fun (f, g: _) => trans!{{Alternating.Form (N.Nat^::succ k)}} _ _ _
+    (congr!{{Exterior.Form (Nat.add (N.Nat^::succ N.Nat^::zero) k)} {Exterior.Form (N.Nat^::succ k)}} (\fun (u: _) => Regrade.cast u degree) _ _ (Bilinear.additiveRight alpha f g))
+    (Regrade.addition (Wedge.wedge alpha f) (Wedge.wedge alpha g) degree),
+  preservesScale := \fun (a: K)(f: _) => trans!{{Alternating.Form (N.Nat^::succ k)}} _ _ _
+    (congr!{{Exterior.Form (Nat.add (N.Nat^::succ N.Nat^::zero) k)} {Exterior.Form (N.Nat^::succ k)}} (\fun (u: _) => Regrade.cast u degree) _ _ (Bilinear.scalarRight a alpha f))
+    (Regrade.scalar a (Wedge.wedge alpha f) degree),
+};
+\module Mixed;
+\module Zero;
+\import Alternating.At[k := N.Nat^::succ N.Nat^::zero] \as One;
+\definition parameterAddition: \forall (alpha, beta: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Alternating.Form k) ->
+  apply (One.plus alpha beta) f = Target.plus (apply alpha f) (apply beta f) :=
+  \fun (alpha, beta: _)(f: _) => trans!{{Alternating.Form (N.Nat^::succ k)}} _ _ _
+    (congr!{{Exterior.Form (Nat.add (N.Nat^::succ N.Nat^::zero) k)} {Exterior.Form (N.Nat^::succ k)}} (\fun (u: _) => Regrade.cast u degree) _ _ (Bilinear.additiveLeft alpha beta f))
+    (Regrade.addition (Wedge.wedge alpha f) (Wedge.wedge beta f) degree);
+\definition parameterScale: \forall (a: K)(alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(f: Alternating.Form k) ->
+  apply (One.scale a alpha) f = Target.scale a (apply alpha f) :=
+  \fun (a: K)(alpha: _)(f: _) => trans!{{Alternating.Form (N.Nat^::succ k)}} _ _ _
+    (congr!{{Exterior.Form (Nat.add (N.Nat^::succ N.Nat^::zero) k)} {Exterior.Form (N.Nat^::succ k)}} (\fun (u: _) => Regrade.cast u degree) _ _ (Bilinear.scalarLeft a alpha f))
+    (Regrade.scalar a (Wedge.wedge alpha f) degree);
+\module Natural;

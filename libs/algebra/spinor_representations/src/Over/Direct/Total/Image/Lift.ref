@@ -1,0 +1,20 @@
+\import Algebra.Linear[V := Tensor.Carrier, W := Tensor.Carrier, source := Tensor.space, target := Tensor.space] \as End;
+\import End.Operations[] \as EndOps;
+\import Algebra.Linear[V := Tensor.Carrier, W := ResultTotal.Carrier, source := Tensor.space, target := ResultTotal.totalSpace] \as Maps;
+\definition operator[alpha: Result.Form (N.Nat^::succ N.Nat^::zero)]: End.Map := EndOps.plus
+  (Operators.map (LeftTotal.leftCreation (Covector.leftPart alpha)) RightIdentity.identity)
+  (Operators.map LeftTotal.grading (RightTotal.leftCreation (Covector.rightPart alpha)));
+\definition intertwines: \forall (alpha: Result.Form (N.Nat^::succ N.Nat^::zero))(t: Tensor.Carrier) ->
+  comparison.apply ((operator alpha).apply t) = ResultTotal.createLeft alpha (comparison.apply t) :=
+  \fun (alpha: Result.Form (N.Nat^::succ N.Nat^::zero))(t: Tensor.Carrier) => eq_reason_in!{{ResultTotal.Carrier} _
+    "=" _ "by" { comparison.preservesAdd ((Operators.map (LeftTotal.leftCreation (Covector.leftPart alpha)) RightIdentity.identity).apply t) ((Operators.map LeftTotal.grading (RightTotal.leftCreation (Covector.rightPart alpha))).apply t) }
+    "=" _ "by" { congr!{{ResultTotal.Carrier} {ResultTotal.Carrier} {ResultTotal.Carrier}} ResultTotal.totalSpace.add _ _ _ _
+      (sym!{{ResultTotal.Carrier}} _ _ (congr!{Maps.Map {ResultTotal.Carrier}} (\fun (f: Maps.Map) => f.apply t) _ _ (Creation.leftIntertwines (Covector.leftPart alpha))))
+      (sym!{{ResultTotal.Carrier}} _ _ (congr!{Maps.Map {ResultTotal.Carrier}} (\fun (f: Maps.Map) => f.apply t) _ _ (Creation.rightIntertwines (Covector.rightPart alpha)))) }
+    "=" _ "by" { sym!{{ResultTotal.Carrier}} _ _ (ResultTotal.createLeftAddition
+      (PullLeft.precompose (N.Nat^::succ N.Nat^::zero) leftProjection (Covector.leftPart alpha))
+      (PullRight.precompose (N.Nat^::succ N.Nat^::zero) rightProjection (Covector.rightPart alpha)) (comparison.apply t)) }
+    "=" _ "by" { congr!{{Result.Form (N.Nat^::succ N.Nat^::zero)} {ResultTotal.Carrier}} (\fun (a: Result.Form (N.Nat^::succ N.Nat^::zero)) => ResultTotal.createLeft a (comparison.apply t)) _ _ (sym!{{Result.Form (N.Nat^::succ N.Nat^::zero)}} _ _ (Covector.decomposition alpha)) }
+  };
+\module Fock(n: N.Nat^, b: Algebra.FiniteBasis Sum.Carrier Sum.space n);
+\module Relations;

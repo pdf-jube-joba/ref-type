@@ -1,0 +1,34 @@
+\import Exterior.Degrees[p := p, q := q] \as Wedge;
+\import Exterior.Bilinearity[p := p, q := q] \as Bilinear;
+\import Result.At[k := Nat.add p q] \as Target;
+\import Left.At[k := p] \as LeftForms;
+\import Right.At[k := q] \as RightForms;
+\import Result.At[k := p] \as LiftedLeft;
+\import Result.At[k := q] \as LiftedRight;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.congr;
+\definition product[f: Left.Form p][g: Right.Form q]: Result.Form (Nat.add p q) := Wedge.wedge (PullLeft.precompose p leftProjection f) (PullRight.precompose q rightProjection g);
+\definition addLeft: \forall (f, g: Left.Form p)(h: Right.Form q) -> product (LeftForms.plus f g) h = Target.plus (product f h) (product g h) :=
+  \fun (f, g: Left.Form p)(h: Right.Form q) => trans!{{Result.Form (Nat.add p q)}} _ _ _
+    (congr!{{Result.Form p} {Result.Form (Nat.add p q)}} (\fun (t: Result.Form p) => Wedge.wedge t (PullRight.precompose q rightProjection h)) _ _
+      ((PullLeft.At[k := p].linear leftProjection).preservesAdd f g)) (Bilinear.additiveLeft _ _ _);
+\definition addRight: \forall (f: Left.Form p)(g, h: Right.Form q) -> product f (RightForms.plus g h) = Target.plus (product f g) (product f h) :=
+  \fun (f: Left.Form p)(g, h: Right.Form q) => trans!{{Result.Form (Nat.add p q)}} _ _ _
+    (congr!{{Result.Form q} {Result.Form (Nat.add p q)}} (Wedge.wedge (PullLeft.precompose p leftProjection f)) _ _
+      ((PullRight.At[k := q].linear rightProjection).preservesAdd g h)) (Bilinear.additiveRight _ _ _);
+\definition scaleLeft: \forall (a: K)(f: Left.Form p)(g: Right.Form q) -> product (LeftForms.scale a f) g = Target.scale a (product f g) :=
+  \fun (a: K)(f: Left.Form p)(g: Right.Form q) => trans!{{Result.Form (Nat.add p q)}} _ _ _
+    (congr!{{Result.Form p} {Result.Form (Nat.add p q)}} (\fun (t: Result.Form p) => Wedge.wedge t (PullRight.precompose q rightProjection g)) _ _
+      ((PullLeft.At[k := p].linear leftProjection).preservesScale a f)) (Bilinear.scalarLeft a _ _);
+\definition scaleRight: \forall (a: K)(f: Left.Form p)(g: Right.Form q) -> product f (RightForms.scale a g) = Target.scale a (product f g) :=
+  \fun (a: K)(f: Left.Form p)(g: Right.Form q) => trans!{{Result.Form (Nat.add p q)}} _ _ _
+    (congr!{{Result.Form q} {Result.Form (Nat.add p q)}} (Wedge.wedge (PullLeft.precompose p leftProjection f)) _ _
+      ((PullRight.At[k := q].linear rightProjection).preservesScale a g)) (Bilinear.scalarRight a _ _);
+\import Algebra.Tensor[V := Left.Form p, W := Right.Form q, left := LeftForms.vectorSpace, right := RightForms.vectorSpace] \as Tensor;
+\import Tensor.Universal[U := Result.Form (Nat.add p q), target := Target.vectorSpace] \as Universal;
+\definition laws: Tensor.BilinearLaws[Result.Form (Nat.add p q), Target.vectorSpace, product] := Tensor.BilinearLaws[Result.Form (Nat.add p q), Target.vectorSpace, product] {
+  addLeft := addLeft, addRight := addRight, scaleLeft := scaleLeft, scaleRight := scaleRight,
+};
+\definition comparison: Algebra.Linear[V := Tensor.Carrier, W := Result.Form (Nat.add p q), source := Tensor.space, target := Target.vectorSpace].Map := Universal.map product laws;
+\definition onTensor: \forall (f: Left.Form p)(g: Right.Form q) -> comparison.apply (Tensor.tensor f g) = product f g := Universal.onTensor product laws;

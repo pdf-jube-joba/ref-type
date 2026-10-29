@@ -1,0 +1,72 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Nat[].Basic[].Def[] \as Nat;
+\import std.Data[].Nat[].Basic[].Prop[] \as NatLaws;
+\import std.Data[].Bool[] \as Bool;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := Field.field, scalar := Hermitian.scalar].Sums[] \as Sums;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := Field.field, scalar := Hermitian.scalar].Inner[V := Total.Carrier, space := Total.totalSpace] \as Geometry;
+\import R.FiniteSums[] \as RealSums;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import \parent.RealCoordinates[] \as RC;
+\import \root.Over[K := C.Complex, scalarRing := ring].On[V := Finite.Vector, space := Finite.space].Total[].Finite[n := n, b := Algebra.FiniteCoordinates[n := n].basis] \as FiniteTotal;
+\definition count: N.Nat^ := N.Nat^::succ n;
+\definition grade[i: Fin.Fin count]: N.Nat^ := Fin.value count i;
+\definition term[f, g: Total.Carrier][i: Fin.Fin count]: C.Complex := \parent.Inner[k := grade i].Canonical[].dot (f (grade i)) (g (grade i));
+\definition dot[f, g: Total.Carrier]: C.Complex := Sums.sum count (term f g);
+\definition form: Geometry.Form := Geometry.Form {
+  dot := dot,
+  symmetric := \fun (f, g: Total.Carrier) => trans!{C.Complex} _ _ _
+    (Sums.congruent count (term f g) (\fun (i: Fin.Fin count) => Def.conj (term g f i))
+      (\fun (i: Fin.Fin count) => \parent.Inner[k := grade i].Canonical[].form.symmetric (f (grade i)) (g (grade i))))
+    (sym!{C.Complex} _ _ (Sums.conjugate count (term g f))),
+  zeroRight := \fun (f: Total.Carrier) => trans!{C.Complex} _ _ _
+    (Sums.congruent count (term f Total.zero) (\fun (i: Fin.Fin count) => Algebra.zero)
+      (\fun (i: Fin.Fin count) => \parent.Inner[k := grade i].Canonical[].form.zeroRight (f (grade i)))) (Sums.zeroSum count),
+  addRight := \fun (f, g, h: Total.Carrier) => trans!{C.Complex} _ _ _
+    (Sums.congruent count (term f (Total.totalSpace.add g h)) (\fun (i: Fin.Fin count) => Algebra.add (term f g i) (term f h i))
+      (\fun (i: Fin.Fin count) => \parent.Inner[k := grade i].Canonical[].form.addRight (f (grade i)) (g (grade i)) (h (grade i))))
+    (Sums.addition count (term f g) (term f h)),
+  scaleRight := \fun (a: C.Complex)(f, g: Total.Carrier) => trans!{C.Complex} _ _ _
+    (Sums.congruent count (term f (Total.totalSpace.smul a g)) (\fun (i: Fin.Fin count) => Algebra.mul a (term f g i))
+      (\fun (i: Fin.Fin count) => \parent.Inner[k := grade i].Canonical[].form.scaleRight a (f (grade i)) (g (grade i))))
+    (Sums.scaleSum count a (term f g)),
+};
+\definition squared[f: Total.Carrier][i: Fin.Fin count]: R.Real := C.re (term f f i);
+\definition nonnegative: \forall (f: Total.Carrier) -> Order.Le R.zero (C.re (dot f f)) :=
+  \fun (f: Total.Carrier) => Order.leReplaceRight R.zero _ _ (sym!{R.Real} _ _ (RC.realSum count (term f f)))
+    (RealSums.nonnegative count (squared f) (\fun (i: Fin.Fin count) => \parent.Inner[k := grade i].Canonical[].positive.nonnegative (f (grade i))));
+\module Grade(k: N.Nat^);
+\definition eachZero: \forall (f: Total.Carrier) -> dot f f = Algebra.zero -> \forall (i: Fin.Fin count) -> f (grade i) = (Forms.At[k := grade i].vectorSpace).zero :=
+  \fun (f: Total.Carrier)(zero: dot f f = Algebra.zero)(i: Fin.Fin count) => Grade[k := grade i].zeroOfReal (f (grade i))
+    (Order.leAntisym _ _
+      (Order.leReplaceRight _ _ R.zero (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (RC.realSum count (term f f))) (congr!{C.Complex R.Real} C.re _ _ zero))
+        (RealSums.coordinateUpper count (squared f) (\fun (j: Fin.Fin count) => \parent.Inner[k := grade j].Canonical[].positive.nonnegative (f (grade j))) i))
+      (\parent.Inner[k := grade i].Canonical[].positive.nonnegative (f (grade i))));
+\definition definite: \forall (f: Total.Carrier) -> dot f f = Algebra.zero -> f = Total.zero :=
+  \fun (f: Total.Carrier)(zero: dot f f = Algebra.zero) => \axiom:funext(f, Total.zero, \fun (k: N.Nat^) =>
+    Bool.cases (\fun (b: Bool.Bool^) => Nat.ltb k count = b -> f k = Total.zero k)
+      (\fun (outside: Nat.ltb k count = Bool.Bool^::false) => FiniteTotal.zeroAbove f k (NatLaws.ltOfSuccLe k n (NatLaws.leOfLtbFalse k count outside)))
+      (\fun (inside: Nat.ltb k count = Bool.Bool^::true) => eachZero f zero (\into[N.Nat^](k, Fin.Fin count) \by { inside }))
+      (Nat.ltb k count) (\refl(Nat.ltb k count)));
+\definition positive: Geometry.Positive[form] := Geometry.Positive[form] { nonnegative := nonnegative, definite := definite };
+\definition parityIsometry: \forall (f, g: Total.Carrier) -> dot (Total.parity f) (Total.parity g) = dot f g :=
+  \fun (f, g: Total.Carrier) => Sums.congruent count (term (Total.parity f) (Total.parity g)) (term f g)
+    (\fun (i: Fin.Fin count) => Grade[k := grade i].parityIsometry (f (grade i)) (g (grade i)));
+\import Geometry.Of[h := form] \as InnerLaws;
+\import Algebra.Laws[V := C.Complex, space := Algebra.scalarSpace] \as Scalars;
+\import \root.Over[K := C.Complex, scalarRing := ring].On[V := Finite.Vector, space := Finite.space].Total[].Parity[] \as Parity;
+\definition orthogonal: \forall (f, g: Total.Carrier) -> \In[Total.Carrier] Parity.Even f -> \In[Total.Carrier] Parity.Odd g -> dot f g = Algebra.zero :=
+  \fun (f, g: Total.Carrier)(even: Total.parity f = f)(odd: Total.parity g = Total.totalSpace.neg g) =>
+    Scalars.oppositeSelfZero half (dot f g) halfDouble (eq_reason_in!{C.Complex _
+      "=" _ "by" { sym!{C.Complex} _ _ (parityIsometry f g) }
+      "=" _ "by" { congr!{{Total.Carrier} {Total.Carrier} C.Complex} dot _ _ _ _ even odd }
+      "=" _ "by" { InnerLaws.negativeRight f g }
+    });
+\module Splitting;
+\module Vacuum;
+\module Adjoint;

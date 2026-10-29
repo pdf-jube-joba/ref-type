@@ -1,0 +1,53 @@
+\import RightFock.Reconstruction[enums := enums] \as Reconstruction;
+\import RightFock.Grade[k := N.Nat^::zero, xs := enums N.Nat^::zero] \as Unused;
+\import Algebra.Linear[V := RightTotal.Carrier, W := RightTotal.Carrier, source := RightTotal.totalSpace, target := RightTotal.totalSpace] \as RightEnd;
+\import RightEnd.Operations[] \as RightOps;
+\import RightEnd.Composition[U := RightTotal.Carrier, domain := RightTotal.totalSpace] \as RightCompose;
+\import Algebra.Eigen[V := RightTotal.Carrier, space := RightTotal.totalSpace] \as RightIdentity;
+\import Algebra.Linear[V := LeftTotal.Carrier, W := LeftTotal.Carrier, source := LeftTotal.totalSpace, target := LeftTotal.totalSpace] \as LeftEnd;
+\import LeftEnd.Composition[U := LeftTotal.Carrier, domain := LeftTotal.totalSpace] \as LeftCompose;
+\import End.Operations[] \as EndOps;
+\import End.Composition[U := Tensor.Carrier, domain := Tensor.space] \as Compose;
+\import Algebra.Eigen[V := Tensor.Carrier, space := Tensor.space] \as TensorIdentity;
+\import \root.Over[K := K, scalarRing := scalarRing].Direct[V := V, W := W, left := left, right := right].Total[].Coefficient[].Contraction[] \as Contract;
+\definition leftIdentitySquare: LeftCompose.compose LeftIdentity.identity LeftIdentity.identity = LeftIdentity.identity := LeftEnd.ext _ _ (\axiom:funext((LeftCompose.compose LeftIdentity.identity LeftIdentity.identity).apply, LeftIdentity.identity.apply, \fun (f: LeftTotal.Carrier) => \refl(f)));
+\definition zeroMap: Operators.map LeftIdentity.identity RightOps.zeroMap = EndOps.zeroMap :=
+  EndExt.ext _ _ (\fun (f: LeftTotal.Carrier)(g: RightTotal.Carrier) => trans!{Tensor.Carrier} _ _ _
+    (Operators.onTensor LeftIdentity.identity RightOps.zeroMap f g) ((Contract.rightEmbedding f).preservesZero));
+\definition liftResidual: \forall (k: N.Nat^) -> Operators.map LeftIdentity.identity (Reconstruction.residual k) =
+  EndOps.plus TensorIdentity.identity (EndOps.negative (Operators.map LeftIdentity.identity (Reconstruction.grade k))) :=
+  \fun (k: N.Nat^) => eq_reason_in!{End.Map _
+    "=" _ "by" { Operators.addRight LeftIdentity.identity RightIdentity.identity (RightOps.negative (Reconstruction.grade k)) }
+    "=" _ "by" { congr!{End.Map End.Map End.Map} EndOps.plus _ _ _ _ Operators.identity (Operators.scaleRight (Algebra.neg Algebra.one) LeftIdentity.identity (Reconstruction.grade k)) }
+  };
+\definition gradeZero: \forall (t: Tensor.Carrier) -> comparison.apply t = ResultTotal.totalSpace.zero -> \forall (k: N.Nat^) -> (Operators.map LeftIdentity.identity (Reconstruction.grade k)).apply t = Tensor.space.zero :=
+  \fun (t: Tensor.Carrier)(killed: comparison.apply t = ResultTotal.totalSpace.zero)(k: N.Nat^) => \parent.Grade[k := k, xs := enums k].vanishes t killed;
+\definition residualPoint: \forall (t: Tensor.Carrier) -> comparison.apply t = ResultTotal.totalSpace.zero -> \forall (k: N.Nat^) -> (Operators.map LeftIdentity.identity (Reconstruction.residual k)).apply t = t :=
+  \fun (t: Tensor.Carrier)(killed: comparison.apply t = ResultTotal.totalSpace.zero)(k: N.Nat^) => eq_reason_in!{Tensor.Carrier _
+    "=" _ "by" { congr!{End.Map Tensor.Carrier} (\fun (h: End.Map) => h.apply t) _ _ (liftResidual k) }
+    "=" _ "by" { congr!{Tensor.Carrier Tensor.Carrier} (\fun (x: Tensor.Carrier) => Tensor.space.add t (Tensor.space.smul (Algebra.neg Algebra.one) x)) _ _ (gradeZero t killed k) }
+    "=" _ "by" { congr!{Tensor.Carrier Tensor.Carrier} (Tensor.space.add t) _ _ (TensorLaws.scaleZero (Algebra.neg Algebra.one)) }
+    "=" _ "by" { TensorLaws.zeroRight t }
+  };
+\definition partialZero: \forall (t: Tensor.Carrier) -> comparison.apply t = ResultTotal.totalSpace.zero -> \forall (m: N.Nat^) -> (Operators.map LeftIdentity.identity (Reconstruction.partial m)).apply t = Tensor.space.zero :=
+  \fun (t: Tensor.Carrier)(killed: comparison.apply t = ResultTotal.totalSpace.zero) => \induction (m: N.Nat^) \return (Operators.map LeftIdentity.identity (Reconstruction.partial m)).apply t = Tensor.space.zero \with {
+    | zero: trans!{Tensor.Carrier} _ _ _ (congr!{End.Map Tensor.Carrier} (\fun (h: End.Map) => h.apply t) _ _ zeroMap) (\refl(Tensor.space.zero))
+    | succ: \fun (m: N.Nat^)(previous: (Operators.map LeftIdentity.identity (Reconstruction.partial m)).apply t = Tensor.space.zero) => eq_reason_in!{Tensor.Carrier _
+      "=" _ "by" { congr!{End.Map Tensor.Carrier} (\fun (h: End.Map) => h.apply t) _ _ (Operators.addRight LeftIdentity.identity (RightCompose.compose (Reconstruction.partial m) (Reconstruction.residual m)) (Reconstruction.grade m)) }
+      "=" _ "by" { congr!{End.Map End.Map Tensor.Carrier} (\fun (a, b: End.Map) => Tensor.space.add (a.apply t) (b.apply t)) _ _ _ _
+        (sym!{End.Map} _ _ (trans!{End.Map} _ _ _ (Operators.composition LeftIdentity.identity LeftIdentity.identity (Reconstruction.partial m) (Reconstruction.residual m))
+          (congr!{LeftEnd.Map End.Map} (\fun (a: LeftEnd.Map) => Operators.map a (RightCompose.compose (Reconstruction.partial m) (Reconstruction.residual m))) _ _ leftIdentitySquare)))
+        (\refl(Operators.map LeftIdentity.identity (Reconstruction.grade m))) }
+      "=" _ "by" { congr!{Tensor.Carrier Tensor.Carrier Tensor.Carrier} Tensor.space.add _ _ _ _
+        (congr!{Tensor.Carrier Tensor.Carrier} ((Operators.map LeftIdentity.identity (Reconstruction.partial m)).apply) _ _ (residualPoint t killed m))
+        (gradeZero t killed m) }
+      "=" _ "by" { congr!{Tensor.Carrier Tensor.Carrier} (\fun (x: Tensor.Carrier) => Tensor.space.add x Tensor.space.zero) _ _ previous }
+      "=" _ "by" { TensorLaws.zeroLeft Tensor.space.zero }
+    }
+  };
+\definition kernelZero: \forall (t: Tensor.Carrier) -> comparison.apply t = ResultTotal.totalSpace.zero -> t = Tensor.space.zero :=
+  \fun (t: Tensor.Carrier)(killed: comparison.apply t = ResultTotal.totalSpace.zero) => eq_reason_in!{Tensor.Carrier _
+    "=" _ "by" { sym!{Tensor.Carrier} _ _ (congr!{End.Map Tensor.Carrier} (\fun (h: End.Map) => h.apply t) _ _ Operators.identity) }
+    "=" _ "by" { congr!{RightEnd.Map Tensor.Carrier} (\fun (h: RightEnd.Map) => (Operators.map LeftIdentity.identity h).apply t) _ _ (sym!{RightEnd.Map} _ _ Reconstruction.identity) }
+    "=" _ "by" { partialZero t killed (N.Nat^::succ n) }
+  };

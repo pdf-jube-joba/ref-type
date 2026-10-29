@@ -1,0 +1,48 @@
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].List[] \as Lists;
+\import Algebra.Multilinear[V := V, space := space] \as Multi;
+\import Algebra.Exterior[V := V, space := space] \as Exterior;
+\import Multi.Contraction[k := N.Nat^::zero] \as Contract;
+\import Alternating.Contraction[k := N.Nat^::zero] \as AltContract;
+\import Alternating.DegreeZero[] \as Zero;
+\import Multi.ListSeries[k := N.Nat^::succ N.Nat^::zero] \as Series;
+\import Fin.Tuples[A := V] \as Tuples;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition evaluation[alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero)][x: V]: C.Complex :=
+  (Contract.headMap (AltContract.multilinear alpha) Zero.emptyArguments).apply x;
+\definition evaluateEqual: \forall (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(x: V) -> Mixed.evaluate alpha x = evaluation alpha x :=
+  \fun (alpha: _)(x: V) => trans!{C.Complex} _ _ _
+    (congr!{{Lists.List[V]} C.Complex} (Exterior.component (N.Nat^::succ N.Nat^::zero) alpha) _ _
+      (congr!{V {Lists.List[V]}} (\fun (v: V) => Lists.List[V]::cons v Lists.List[V]::nil) _ _ (sym!{V} _ _ (Tuples.atZero N.Nat^::zero x Zero.emptyArguments))))
+    (Series.onArguments alpha (Tuples.extend N.Nat^::zero x Zero.emptyArguments));
+\definition addVector: \forall (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(x, y: V) ->
+  evaluation alpha (space.add x y) = Algebra.add (evaluation alpha x) (evaluation alpha y) :=
+  \fun (alpha: _)(x, y: V) => (Contract.headMap (AltContract.multilinear alpha) Zero.emptyArguments).preservesAdd x y;
+\definition scaleVector: \forall (alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(a: C.Complex)(x: V) ->
+  evaluation alpha (space.smul a x) = Algebra.mul a (evaluation alpha x) :=
+  \fun (alpha: _)(a: C.Complex)(x: V) => (Contract.headMap (AltContract.multilinear alpha) Zero.emptyArguments).preservesScale a x;
+\import Alternating.At[k := N.Nat^::succ N.Nat^::zero] \as One;
+\definition addForm: \forall (alpha, beta: Alternating.Form (N.Nat^::succ N.Nat^::zero))(x: V) ->
+  evaluation (One.plus alpha beta) x = Algebra.add (evaluation alpha x) (evaluation beta x) :=
+  \fun (alpha, beta: _)(x: V) => \refl(Algebra.add (evaluation alpha x) (evaluation beta x));
+\definition scaleForm: \forall (a: C.Complex)(alpha: Alternating.Form (N.Nat^::succ N.Nat^::zero))(x: V) ->
+  evaluation (One.scale a alpha) x = Algebra.mul a (evaluation alpha x) :=
+  \fun (a: C.Complex)(alpha: _)(x: V) => \refl(Algebra.mul a (evaluation alpha x));
+\import Algebra.DirectSum[V := V, W := Alternating.Form (N.Nat^::succ N.Nat^::zero), left := space, right := One.vectorSpace] \as Sum;
+\import Algebra.Form[V := Sum.Carrier, space := Sum.space] \as Forms;
+\definition bilinear: Forms.Bilinear := Forms.Bilinear {
+  form := \fun (u, v: Sum.Carrier) => evaluation (Sum.second u) (Sum.first v),
+  zeroLeft := \fun (u: Sum.Carrier) => \refl(Algebra.zero),
+  zeroRight := \fun (u: Sum.Carrier) => (Contract.headMap (AltContract.multilinear (Sum.second u)) Zero.emptyArguments).preservesZero,
+  addLeft := \fun (u, v, w: Sum.Carrier) => addForm (Sum.second u) (Sum.second v) (Sum.first w),
+  addRight := \fun (u, v, w: Sum.Carrier) => addVector (Sum.second u) (Sum.first v) (Sum.first w),
+  scaleLeft := \fun (a: C.Complex)(u, v: Sum.Carrier) => scaleForm a (Sum.second u) (Sum.first v),
+  scaleRight := \fun (a: C.Complex)(u, v: Sum.Carrier) => scaleVector (Sum.second u) a (Sum.first v),
+};
+\definition Carrier: \Set := Sum.Carrier;
+\definition pairSpace: Algebra.VectorSpace Carrier := Sum.space;
+\definition first: Carrier -> V := Sum.first;
+\definition second: Carrier -> Alternating.Form (N.Nat^::succ N.Nat^::zero) := Sum.second;
