@@ -14,7 +14,7 @@ parser.add_argument('--work-dir', required=True)
 parser.add_argument('--runs', type=int, default=3)
 args = parser.parse_args()
 root = Path(args.work_dir).resolve()
-root.mkdir(parents=True, exist_ok=True)
+root.mkdir(parents=True, exist_ok=False)
 source = root / 'source'
 consumer = source / 'consumer'
 (consumer / 'src').mkdir(parents=True, exist_ok=True)
@@ -22,7 +22,9 @@ std = Path('libs/std').resolve()
 (source / 'ref.toml').write_text('[workspace]\npackages=[' + json.dumps(os.path.relpath(std, source)) + ',"consumer"]\n')
 (consumer / 'ref.toml').write_text('[package]\nname="consumer"\n[dependencies]\nstd={path=' + json.dumps(os.path.relpath(std, consumer)) + '}\n')
 (consumer / 'src/root.ref').write_text(r'\module Proof { \import std.Logic[].Proposition[] \as L; \definition left[P, Q: \Prop][h: L.And[P,Q]]: P := h.left; }' + '\n')
-report = {'source_sha256': bench.source_digest(source), 'memory_mib': 3072, 'measurements': []}
+report = {'source_sha256': bench.source_digest(source), 'std_source_sha256': bench.source_digest(std),
+          'cache_condition': 'normal std seed, independent copies per run',
+          'memory_mib': 3072, 'measurements': []}
 
 def run(label, binary, entry, cache, module):
     result = root / (label + '.checker.json')
@@ -44,3 +46,6 @@ for version, binary in [('before', Path(args.before).resolve()), ('after', Path(
         cache = root / (version + '-' + str(index) + '-cache')
         shutil.copytree(seed, cache)
         run(version + '-' + str(index), binary, consumer, cache, 'consumer.Proof')
+
+if bench.source_digest(source) != report['source_sha256'] or bench.source_digest(std) != report['std_source_sha256']:
+    raise SystemExit('source changed during comparison')
