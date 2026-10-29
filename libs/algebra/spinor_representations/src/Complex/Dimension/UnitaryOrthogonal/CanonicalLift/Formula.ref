@@ -1,0 +1,42 @@
+/* Explicit normalization of any Pin lift of a unitary transformation. */
+\import \parent.\parent.PinLift[] \as Local;
+\import \parent.\parent.Lifts[] \as Lifts;
+\import Lifts.Fibers[] \as Fibers;
+\import Lifts.Norm[] \as Norm;
+\import \root.Complex[].Dimension[n := n].RealCoordinates[].Clifford[].Spin[].Phase[] \as Phase;
+\import lie_groups.Euclidean[n := Fin.Sum[m := n, n := n].total] \as Geometry;
+\import Geometry.PinRepresentation[] \as Projection;
+\import clifford.Circle[] \as Circle;
+\import clifford.Field[K := R.Real, field := R.Algebra[].field].On[V := E.Vector, space := E.space].Of[form := E.form].Pin[] \as Pin;
+\import clifford.ComplexExtension[G := Pin.Spin, group := Pin.spinGroup].By[sign := Pin.spinInvolution] \as SpinC;
+\import C.Prop[] \as ComplexLaws;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].trans;
+\use std.Logic[].Equality[].congr;
+\definition spin[u: Unitary.Carrier][p: Geometry.Pin][image: Projection.map p = map u]: Pin.Spin := Local.evenLift u p image;
+\definition unnormalized[u: Unitary.Carrier][p: Geometry.Pin][image: Projection.map p = map u]: SpinC.Carrier := SpinC.class (spin u p image) Circle.one;
+\definition projects: \forall (u: Unitary.Carrier)(p: Geometry.Pin)(image: Projection.map p = map u) -> Phase.projection (unnormalized u p image) = map u :=
+  \fun (u: Unitary.Carrier)(p: Geometry.Pin)(image: Projection.map p = map u) => trans!{Orthogonal.O} _ _ _ (Phase.projectionOnClass (spin u p image) Circle.one) image;
+\definition phase[u: Unitary.Carrier][p: Geometry.Pin][image: Projection.map p = map u]: Circle.Circle := Circle.inverse (\into[C.Complex](Lifts.vacuumScalar (unnormalized u p image), Circle.predicate) \by {
+  Norm.normOne u (unnormalized u p image) (projects u p image)
+});
+\definition explicit[u: Unitary.Carrier][p: Geometry.Pin][image: Projection.map p = map u]: SpinC.Carrier := SpinC.group.op (Lifts.centralPhase (phase u p image)) (unnormalized u p image);
+\definition normalized[u: Unitary.Carrier][p: Geometry.Pin][image: Projection.map p = map u]: Fibers.Normalized u :=
+  \into[SpinC.Carrier](explicit u p image, Fibers.Normalized u) \by {
+    Fibers.NormalizedLaw[u, explicit u p image] {
+      projection := eq_reason_in!{Orthogonal.O _
+        "=" _ "by" { Phase.projectionProduct (Lifts.centralPhase (phase u p image)) (unnormalized u p image) }
+        "=" _ "by" { congr!{Orthogonal.O Orthogonal.O} (\fun (q: Orthogonal.O) => Orthogonal.group.op q (Phase.projection (unnormalized u p image))) _ _
+          (trans!{Orthogonal.O} _ _ _ (Phase.projectionOnClass Pin.spinGroup.unit (phase u p image)) Projection.atOne) }
+        "=" _ "by" { Orthogonal.group.monoid.leftIdentity (Phase.projection (unnormalized u p image)) }
+        "=" _ "by" { projects u p image }
+      },
+      vacuum := eq_reason_in!{C.Complex _
+        "=" _ "by" { Lifts.vacuumScalarPhase (phase u p image) (unnormalized u p image) }
+        "=" _ "by" { ComplexLaws.conjMulSelf (Lifts.vacuumScalar (unnormalized u p image)) }
+        "=" _ "by" { congr!{R.Real C.Complex} Def.ofReal _ _ (Norm.normOne u (unnormalized u p image) (projects u p image)) }
+      },
+    }
+  };
+\definition agrees: \forall (u: Unitary.Carrier)(p: Geometry.Pin)(image: Projection.map p = map u) -> lift u = explicit u p image :=
+  \fun (u: Unitary.Carrier)(p: Geometry.Pin)(image: Projection.map p = map u) => Fibers.normalizedUnique u (lift u) (normalized u p image);
