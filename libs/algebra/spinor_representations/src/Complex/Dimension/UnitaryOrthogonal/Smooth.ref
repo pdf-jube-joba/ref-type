@@ -1,0 +1,36 @@
+\import calculus.Real[].Multivariable[n := d].Open[] \as Open;
+\import Open.Smooth[] \as Smooth;
+\import lie_groups.CliffordPlots[d := d] \as Calculus;
+\import \parent.\parent.RealCoordinates[] \as RC;
+\import Fin.Sum[m := n, n := n] \as Indices;
+\import Indices.Tuples[A := R.Real] \as Tuples;
+\import std.Data[].Sum[] \as Either;
+\import std.Logic[].Proposition[] \as Logic;
+\import lie_groups.Euclidean[n := Indices.total] \as Geo;
+\import Geo.Plots[d := d] \as OrthogonalPlots;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\definition Regular[U: Open.OpenSet][u: Open.Carrier U -> Unitary.Carrier]: \Prop :=
+  \forall (v: Finite.Vector)(i: Fin.Fin n) -> Logic.And[
+    Smooth.SmoothOn U (\fun (x: Open.Carrier U) => C.re ((u x).forward.apply v i)),
+    Smooth.SmoothOn U (\fun (x: Open.Carrier U) => C.im ((u x).forward.apply v i))];
+\definition orthogonal: \forall (U: Open.OpenSet)(u: Open.Carrier U -> Unitary.Carrier) -> Regular U u -> OrthogonalPlots.Plot U (\fun (x: Open.Carrier U) => map (u x)) :=
+  \fun (U: Open.OpenSet)(u: Open.Carrier U -> Unitary.Carrier)(regular: Regular U u)(v: Geo.Vector)(j: Fin.Fin Indices.total) => \block {
+    \let w: Finite.Vector := RC.standardIsomorphism.backward.apply v \then
+    \let family: Open.Carrier U -> Finite.Vector := \fun (x: Open.Carrier U) => (u x).forward.apply w \then
+    \let predicate: Fin.Fin Indices.total -> \Prop := \fun (k: Fin.Fin Indices.total) => Smooth.SmoothOn U (\fun (x: Open.Carrier U) => (map (u x)).value.apply v k) \then
+    \let cases: \forall (s: Indices.Index) -> predicate (Indices.inflate s) := \induction (s: Indices.Index) \return predicate (Indices.inflate s) \with {
+      | inl: \fun (i: Fin.Fin n) => Calculus.smoothEqual U (\fun (x: Open.Carrier U) => C.re (family x i)) (\fun (x: Open.Carrier U) => (map (u x)).value.apply v (Indices.left i))
+        (\fun (x: Open.Carrier U) => sym!{R.Real} _ _ (Tuples.atLeft (RC.realPart (family x)) (RC.imaginaryPart (family x)) i)) (regular w i).left
+      | inr: \fun (i: Fin.Fin n) => Calculus.smoothEqual U (\fun (x: Open.Carrier U) => C.im (family x i)) (\fun (x: Open.Carrier U) => (map (u x)).value.apply v (Indices.right i))
+        (\fun (x: Open.Carrier U) => sym!{R.Real} _ _ (Tuples.atRight (RC.realPart (family x)) (RC.imaginaryPart (family x)) i)) (regular w i).right
+    } \then
+    \return \idelim Indices.inflate (Indices.split j) = j \with k: Fin.Fin Indices.total => predicate k \by { base: cases (Indices.split j), equality: Indices.inflateSplit j }
+  };
+\import clifford.Field[K := R.Real, field := R.Algebra[].field].On[V := E.Vector, space := E.space].Of[form := E.form].Pin[] \as Pin;
+\import lie_groups.SpinGroup[n := Indices.total] \as Base;
+\import lie_groups.ComplexGroup[n := Indices.total].Over[G := Pin.Spin, group := Pin.spinGroup, embedding := Base.embedding, injective := Base.embeddingInjective, sign := Pin.spinInvolution, compatible := Base.compatible].Plots[d := d] \as Target;
+\import \parent.CanonicalLift[] \as Lift;
+\import Lift.Formula[].Plot[d := d] \as LiftPlot;
+\definition lifted: \forall (U: Open.OpenSet)(u: Open.Carrier U -> Unitary.Carrier) -> Regular U u -> Target.Plot U (\fun (x: Open.Carrier U) => Lift.lift (u x)) :=
+  \fun (U: Open.OpenSet)(u: Open.Carrier U -> Unitary.Carrier)(regular: Regular U u) => LiftPlot.On[U := U, u := u, regular := orthogonal U u regular].plot;
