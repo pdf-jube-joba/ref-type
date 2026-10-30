@@ -421,8 +421,13 @@ impl ArtifactStore {
             .write(true)
             .open(&path)
             .map_err(|e| io_error(CacheOperation::Lock, &path, e))?;
-        file.lock()
-            .map_err(|e| io_error(CacheOperation::Lock, &path, e))?;
+        loop {
+            match file.lock() {
+                Ok(()) => break,
+                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(error) => return Err(io_error(CacheOperation::Lock, &path, error)),
+            }
+        }
         Ok(file)
     }
     fn object_path(&self, digest: &Fingerprint) -> PathBuf {
