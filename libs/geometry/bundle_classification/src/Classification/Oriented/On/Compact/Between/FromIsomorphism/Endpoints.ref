@@ -1,0 +1,42 @@
+\import \root.Classification[].Orientations[X := Cylinder.Carrier, F := ImageForms.Fiber, bundle := ImageForms.alternating] \as Moving;
+\import \root.Classification[].Orientations[X := X, F := DeterminantFiber b.projection, bundle := determinantBundle b.projection] \as TargetCones;
+\definition startEquality: \forall (x: X)(alpha: Bound.StartDet x) ->
+  (ImageDet.isomorphism.forward.fiber (Cylinder.at I.start x)).apply alpha = (LeftDet.isomorphism.forward.fiber x).apply alpha :=
+  \fun (x: X)(alpha: Bound.StartDet x) => \axiom:funext(
+    (\fun (v: Fin.Fin k -> Plain.Fiber a.projection x) => alpha (\fun (i: Fin.Fin k) => (Interpolation.comparison.forward.fiber (Cylinder.at I.start x)).apply (v i))),
+    (\fun (v: Fin.Fin k -> Plain.Fiber a.projection x) => alpha (\fun (i: Fin.Fin k) => (Bound.leftIsomorphism.forward.fiber x).apply (v i))),
+    \fun (v: Fin.Fin k -> Plain.Fiber a.projection x) => congr!{{Fin.Fin k -> Bound.StartFiber x} {R.Real}} alpha _ _
+      (\axiom:funext((\fun (i: Fin.Fin k) => (Interpolation.comparison.forward.fiber (Cylinder.at I.start x)).apply (v i)),
+        (\fun (i: Fin.Fin k) => (Bound.leftIsomorphism.forward.fiber x).apply (v i)), \fun (i: Fin.Fin k) =>
+          trans!{{Theory.Vector Pad.dimension}} _ _ _ (Construct.Start[x := x].formula (v i))
+            (congr!{{Theory.Vector a.projection.dimension} {Theory.Vector Pad.dimension}} Pad.left.apply _ _
+              (sym!{{Theory.Vector a.projection.dimension}} _ _ (\bysub(Theory.Vector a.projection.dimension,
+                { z: Theory.Vector a.projection.dimension \where (a.projection.projection x).map.apply z = z }, v i)))))));
+\definition endEquality: \forall (x: X)(alpha: Bound.EndDet x) ->
+  (ImageDet.isomorphism.forward.fiber (Cylinder.at I.end x)).apply alpha = (OriginalDet.isomorphism.forward.fiber x).apply ((RightDet.isomorphism.forward.fiber x).apply alpha) :=
+  \fun (x: X)(alpha: Bound.EndDet x) => \axiom:funext(
+    (\fun (v: Fin.Fin k -> Plain.Fiber a.projection x) => alpha (\fun (i: Fin.Fin k) => (Interpolation.comparison.forward.fiber (Cylinder.at I.end x)).apply (v i))),
+    (\fun (v: Fin.Fin k -> Plain.Fiber a.projection x) => alpha (\fun (i: Fin.Fin k) => (Bound.rightIsomorphism.forward.fiber x).apply ((iso.value.forward.fiber x).apply (v i)))),
+    \fun (v: Fin.Fin k -> Plain.Fiber a.projection x) => congr!{{Fin.Fin k -> Bound.EndFiber x} {R.Real}} alpha _ _
+      (\axiom:funext((\fun (i: Fin.Fin k) => (Interpolation.comparison.forward.fiber (Cylinder.at I.end x)).apply (v i)),
+        (\fun (i: Fin.Fin k) => (Bound.rightIsomorphism.forward.fiber x).apply ((iso.value.forward.fiber x).apply (v i))), \fun (i: Fin.Fin k) =>
+          trans!{{Theory.Vector Pad.dimension}} _ _ _ (Construct.Finish[x := x].formula (v i))
+            (congr!{{Theory.Vector b.projection.dimension} {Theory.Vector Pad.dimension}} Pad.right.apply _ _
+              (sym!{{Theory.Vector b.projection.dimension}} _ _ (\bysub(Theory.Vector b.projection.dimension,
+                { z: Theory.Vector b.projection.dimension \where (b.projection.projection x).map.apply z = z }, (iso.value.forward.fiber x).apply (v i))))))));
+\definition start: Bound.StartCompatible orientation := \fun (x: X)(alpha: Bound.StartDet x) => Logic.PropEquiv[_, _] {
+  ltr := \fun (positive: _) => \idelim (ImageDet.isomorphism.forward.fiber (Cylinder.at I.start x)).apply alpha = (LeftDet.isomorphism.forward.fiber x).apply alpha
+    \with beta: OriginalForms.Fiber x => OriginalCones.Positive a.orientation.positive x beta \by { base: positive, equality: startEquality x alpha },
+  rtl := \fun (positive: _) => \idelim (LeftDet.isomorphism.forward.fiber x).apply alpha = (ImageDet.isomorphism.forward.fiber (Cylinder.at I.start x)).apply alpha
+    \with beta: OriginalForms.Fiber x => OriginalCones.Positive a.orientation.positive x beta \by { base: positive, equality: sym!{{OriginalForms.Fiber x}} _ _ (startEquality x alpha) }
+};
+\definition end: Bound.EndCompatible orientation := \fun (x: X)(alpha: Bound.EndDet x) => Logic.PropEquiv[_, _] {
+  ltr := \fun (positive: _) => (iso.preserves x ((RightDet.isomorphism.forward.fiber x).apply alpha)).rtl
+    (\idelim (ImageDet.isomorphism.forward.fiber (Cylinder.at I.end x)).apply alpha = (OriginalDet.isomorphism.forward.fiber x).apply ((RightDet.isomorphism.forward.fiber x).apply alpha)
+      \with beta: OriginalForms.Fiber x => OriginalCones.Positive a.orientation.positive x beta \by { base: positive, equality: endEquality x alpha }),
+  rtl := \fun (positive: _) => \idelim (OriginalDet.isomorphism.forward.fiber x).apply ((RightDet.isomorphism.forward.fiber x).apply alpha) = (ImageDet.isomorphism.forward.fiber (Cylinder.at I.end x)).apply alpha
+    \with beta: OriginalForms.Fiber x => OriginalCones.Positive a.orientation.positive x beta \by {
+      base: (iso.preserves x ((RightDet.isomorphism.forward.fiber x).apply alpha)).ltr positive,
+      equality: sym!{{OriginalForms.Fiber x}} _ _ (endEquality x alpha)
+    }
+};

@@ -1,0 +1,28 @@
+\import Raw.FromIsomorphism[iso := iso.value] \as Construct;
+\definition rank: \forall (x: X) -> Hermitian.At[n := a.projection.dimension].OnProjection[P := a.projection.projection x].Rank[k := k].HasRank := \bysub(Plain.Presentation, Projection, a.projection);
+\import Construct.AtRank[k := k, rank := rank] \as CurveRank;
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := X] \as Cylinder;
+\import Theory.For[X := X, F := Plain.Fiber a.projection, bundle := Plain.bundle a.projection].Interpolate[first := Construct.first, second := Construct.second] \as Interpolation;
+\import \parent.Along[w := Construct.witness] \as Bound;
+\import Operations.Alternating[X := X, F := Plain.Fiber a.projection, bundle := Plain.bundle a.projection, k := k] \as OriginalForms;
+\import Operations.Alternating[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => Plain.Fiber a.projection (Cylinder.point z)), bundle := Interpolation.pulledBundle, k := k] \as PulledForms;
+\import Operations.Alternating[X := Cylinder.Carrier, F := Interpolation.ImageFiber, bundle := Interpolation.imageBundle, k := k] \as ImageForms;
+\import \root.Classification[].Orientations[X := X, F := OriginalForms.Fiber, bundle := OriginalForms.alternating] \as OriginalCones;
+\import OriginalCones.Pullback[Y := Cylinder.Carrier, source := Cylinder.topology baseSpace, f := Cylinder.point, continuous := Cylinder.pointContinuous baseSpace, orientation := a.orientation] \as ConePull;
+\import OriginalForms.Pullback[Y := Cylinder.Carrier, source := Cylinder.topology baseSpace, f := Cylinder.point, regular := Cylinder.pointContinuous baseSpace] \as FormPull;
+\import Bundles.Isomorphisms[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => OriginalForms.Fiber (Cylinder.point z)), G := PulledForms.Fiber, source := FormPull.firstBundle, target := PulledForms.alternating] \as PullIsos;
+\definition inversePull: Bundles.Isomorphisms[X := Cylinder.Carrier, F := PulledForms.Fiber, G := (\fun (z: Cylinder.Carrier) => OriginalForms.Fiber (Cylinder.point z)), source := PulledForms.alternating, target := FormPull.firstBundle].Isomorphism := PullIsos.inverse FormPull.isomorphism;
+\import \root.Classification[].Orientations[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => OriginalForms.Fiber (Cylinder.point z)), bundle := FormPull.firstBundle].Along[G := PulledForms.Fiber, target := PulledForms.alternating, iso := inversePull, orientation := ConePull.orientationOnPullback] \as PullTransport;
+\import \root.Classification[].Determinants[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => Plain.Fiber a.projection (Cylinder.point z)), G := Interpolation.ImageFiber,
+  source := Interpolation.pulledBundle, target := Interpolation.imageBundle, same := \refl(Cylinder.topology baseSpace), k := k, iso := Interpolation.comparison] \as ImageDet;
+\import \root.Classification[].Orientations[X := Cylinder.Carrier, F := PulledForms.Fiber, bundle := PulledForms.alternating].Along[G := ImageForms.Fiber, target := ImageForms.alternating, iso := ImageDet.isomorphism, orientation := PullTransport.orientationOnTarget] \as ImageTransport;
+\definition orientation: Bound.Cone := ImageTransport.orientationOnTarget;
+\import Theory.Padding[n := a.projection.dimension, m := b.projection.dimension] \as Pad;
+\import \root.Classification[].Determinants[X := X, F := Plain.Fiber a.projection, G := Bound.StartFiber, source := Plain.bundle a.projection, target := Bound.startBundle, same := \refl(baseSpace), k := k, iso := Bound.leftIsomorphism] \as LeftDet;
+\import \root.Classification[].Determinants[X := X, F := Plain.Fiber b.projection, G := Bound.EndFiber, source := Plain.bundle b.projection, target := Bound.endBundle, same := \refl(baseSpace), k := k, iso := Bound.rightIsomorphism] \as RightDet;
+\import \root.Classification[].Determinants[X := X, F := Plain.Fiber a.projection, G := Plain.Fiber b.projection, source := Plain.bundle a.projection, target := Plain.bundle b.projection, same := \refl(baseSpace), k := k, iso := iso.value] \as OriginalDet;
+\module Endpoints;
+\definition homotopy: Homotopy := \into[Data](Data { raw := Construct.witness, orientation := orientation }, Homotopy) \by {
+  Laws[Data { raw := Construct.witness, orientation := orientation }] { rank := CurveRank.hasRank, start := Endpoints[].start, end := Endpoints[].end }
+};

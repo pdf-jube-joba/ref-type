@@ -1,0 +1,39 @@
+\import algebraic_topology.Interval[] \as I;
+\import Operations.Negation[X := X, F := F, bundle := bundle] \as Negation;
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := F, source := bundle, target := bundle, f := (\fun (x: X) => x)] \as Maps;
+\definition point[t: I.Carrier]: Family.Point := Family.include (path t).base (path t).vector;
+\definition pointContinuous: topology.Continuity[A := I.Carrier, B := Family.Point].Continuous I.topology bundle.totalSpace point :=
+  \idelim path = point \with f: (I.Carrier -> Family.Point) => topology.Continuity[A := I.Carrier, B := Family.Point].Continuous I.topology bundle.totalSpace f \by { base: continuous, equality: \axiom:funext(path, point, \fun (t: I.Carrier) => sym!{Family.Point} _ _ (Family.eta (path t))) };
+\definition negative[t: I.Carrier]: Family.Point := Maps.total Negation.map (point t);
+\definition negativeContinuous: topology.Continuity[A := I.Carrier, B := Family.Point].Continuous I.topology bundle.totalSpace negative :=
+  topology.Composition[A := I.Carrier, B := Family.Point, C := Family.Point].composeContinuous I.topology bundle.totalSpace bundle.totalSpace point (Maps.total Negation.map) pointContinuous (Maps.continuous Negation.map);
+\definition positive[t: I.Carrier]: \Prop := \In[Family.Point] orientation.positive (point t);
+\definition negativePositive[t: I.Carrier]: \Prop := \In[Family.Point] orientation.positive (negative t);
+\definition Related[s, t: I.Carrier]: \Prop := Logic.PropEquiv[positive s, positive t];
+\definition transitive: \forall (r, s, t: I.Carrier) -> Related r s -> Related s t -> Related r t :=
+  \fun (r, s, t: I.Carrier)(first: Related r s)(second: Related s t) => Logic.PropEquiv[positive r, positive t] { ltr := \fun (p: positive r) => second.ltr (first.ltr p), rtl := \fun (p: positive t) => first.rtl (second.rtl p) };
+\import spectral_splitting.Spectral[].IntervalRelations[R := Related] \as Relations;
+\definition alternatives: \forall (t: I.Carrier) -> Logic.Or[positive t, negativePositive t] := \fun (t: I.Carrier) =>
+  \idelim Family.include (path t).base ((bundle.space (path t).base).neg (path t).vector) = negative t \with z: Family.Point => Logic.Or[positive t, \In[Family.Point] orientation.positive z] \by {
+    base: (laws orientation).signs (path t).base (path t).vector (nonzero t),
+    equality: congr!{{F (path t).base} {Family.Point}} (Family.include (path t).base) _ _ (sym!{{F (path t).base}} _ _ (Negation.formula (path t).base (path t).vector))
+  };
+\definition contradiction: \forall (t: I.Carrier) -> positive t -> negativePositive t -> Logic.False :=
+  \fun (t: I.Carrier)(pos: positive t)(neg: negativePositive t) => (laws orientation).disjoint (path t).base (path t).vector
+    pos
+    (\idelim negative t = Family.include (path t).base ((bundle.space (path t).base).neg (path t).vector) \with z: Family.Point => \In[Family.Point] orientation.positive z \by { base: neg,
+      equality: congr!{{F (path t).base} Family.Point} (Family.include (path t).base) _ _ (Negation.formula (path t).base (path t).vector) });
+\definition local: \forall (t: I.Carrier) -> \exists Relations.Neighborhood[t] := \fun (t: I.Carrier) =>
+  Logic.orElim[positive t, negativePositive t, \exists Relations.Neighborhood[t]] (alternatives t)
+    (\fun (pos: positive t) => \exact(Relations.Neighborhood[t] {
+      domain := { s: I.Carrier \where positive s }, open := pointContinuous orientation.positive (laws orientation).open, contains := pos,
+      related := \fun (s, u: I.Carrier)(a: positive s)(b: positive u) => Logic.PropEquiv[positive s, positive u] { ltr := \fun (_: positive s) => b, rtl := \fun (_: positive u) => a }
+    }, Relations.Neighborhood[t]))
+    (\fun (neg: negativePositive t) => \exact(Relations.Neighborhood[t] {
+      domain := { s: I.Carrier \where negativePositive s }, open := negativeContinuous orientation.positive (laws orientation).open, contains := neg,
+      related := \fun (s, u: I.Carrier)(a: negativePositive s)(b: negativePositive u) => Logic.PropEquiv[positive s, positive u] {
+        ltr := \fun (p: positive s) => Logic.falseElim (positive u) (contradiction s p a),
+        rtl := \fun (p: positive u) => Logic.falseElim (positive s) (contradiction u p b)
+      }
+    }, Relations.Neighborhood[t]));
+\definition endpoints: Logic.PropEquiv[positive I.start, positive I.end] := Relations.endpoints transitive local;

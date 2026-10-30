@@ -1,0 +1,21 @@
+\import Operations.Alternating[X := X, F := Start.Fiber, bundle := Start.bundle, k := k] \as StartForms;
+\import Operations.Alternating[X := X, F := Finish.Fiber, bundle := Finish.bundle, k := k] \as EndForms;
+\import Operations.Alternating[X := Cylinder.Carrier, F := Image.Fiber, bundle := Image.bundle, k := k] \as ImageForms;
+\import Operations.Alternating[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => Start.Fiber (Cylinder.point z)), bundle := PullStart.firstBundle, k := k] \as PulledForms;
+\import StartForms.Pullback[Y := Cylinder.Carrier, source := Cylinder.topology baseSpace, f := Cylinder.point, regular := Cylinder.pointContinuous baseSpace] \as PullForms;
+\import \root.Classification[].Determinants[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => Start.Fiber (Cylinder.point z)), G := Image.Fiber,
+  source := PullStart.firstBundle, target := Image.bundle, same := \refl(Cylinder.topology baseSpace), k := k, iso := isomorphism] \as Induced;
+\import Bundles.Isomorphisms[X := Cylinder.Carrier, F := ImageForms.Fiber, G := PulledForms.Fiber, source := ImageForms.alternating, target := PulledForms.alternating] \as InducedIsos;
+\definition lineIsomorphism: Bundles.Isomorphisms[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => StartForms.Fiber (Cylinder.point z)), G := ImageForms.Fiber,
+  source := PullForms.firstBundle, target := ImageForms.alternating].Isomorphism :=
+    Operations.IsomorphismComposition[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => StartForms.Fiber (Cylinder.point z)), G := PulledForms.Fiber, H := ImageForms.Fiber,
+      source := PullForms.firstBundle, middle := PulledForms.alternating, target := ImageForms.alternating].compose PullForms.isomorphism (InducedIsos.inverse Induced.isomorphism);
+\import \parent.Endpoint[] \as Endpoint;
+\import \root.Classification[].Determinants[X := X, F := Start.Fiber, G := Finish.Fiber, source := Start.bundle, target := Finish.bundle, same := \refl(baseSpace), k := k, iso := Endpoint.value] \as EndpointForms;
+\definition atStart: \forall (x: X)(alpha: StartForms.Fiber x) -> (lineIsomorphism.forward.fiber (Cylinder.at I.start x)).apply alpha = alpha :=
+  \fun (x: X)(alpha: StartForms.Fiber x) => \axiom:funext((\fun (v: Fin.Fin k -> Start.Fiber x) => alpha (\fun (i: Fin.Fin k) => (isomorphism.backward.fiber (Cylinder.at I.start x)).apply (v i))), alpha,
+    \fun (v: Fin.Fin k -> Start.Fiber x) => congr!{{Fin.Fin k -> Start.Fiber x} {R.Real}} alpha _ _
+      (\axiom:funext((\fun (i: Fin.Fin k) => (isomorphism.backward.fiber (Cylinder.at I.start x)).apply (v i)), v, \fun (i: Fin.Fin k) => fixedBackwardStart x (v i))));
+\definition atEnd: \forall (x: X)(alpha: StartForms.Fiber x) -> (lineIsomorphism.forward.fiber (Cylinder.at I.end x)).apply alpha = (EndpointForms.isomorphism.backward.fiber x).apply alpha :=
+  \fun (x: X)(alpha: StartForms.Fiber x) => \refl((EndpointForms.isomorphism.backward.fiber x).apply alpha);
+\module Cone(orientation: \root.Classification[].Orientations[X := Cylinder.Carrier, F := ImageForms.Fiber, bundle := ImageForms.alternating].Orientation);

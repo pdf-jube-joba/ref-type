@@ -1,0 +1,27 @@
+\definition n: N.Nat^ := p.data.dimension;
+\definition m: N.Nat^ := q.data.dimension;
+\import Geometry.Finite[n := n].Blocks[m := m] \as Ambient;
+\import Geometry.Finite[n := k].Blocks[m := l] \as Domain;
+\definition dimension: N.Nat^ := Ambient.dimension;
+\definition rank: N.Nat^ := Domain.dimension;
+\import \root.Classification[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Framed[X := X, baseSpace := baseSpace, k := rank] \as Target;
+\import Spaces.Linear[V := Vector rank, W := Vector dimension, source := coordinates rank, target := coordinates dimension] \as Linear;
+\definition matrix[x: X]: Linear.Map := Linear.Map {
+  apply := \fun (v: Vector rank) => Ambient.join ((p.data.frame x).apply (Domain.left v)) ((q.data.frame x).apply (Domain.right v)),
+  preservesAdd := \fun (v, w: Vector rank) => trans!{{Vector dimension}} _ _ _
+    (congr!{{Vector n} {Vector m} {Vector dimension}} Ambient.join _ _ _ _ ((p.data.frame x).preservesAdd (Domain.left v) (Domain.left w)) ((q.data.frame x).preservesAdd (Domain.right v) (Domain.right w)))
+    (Ambient.addition ((p.data.frame x).apply (Domain.left v)) ((p.data.frame x).apply (Domain.left w)) ((q.data.frame x).apply (Domain.right v)) ((q.data.frame x).apply (Domain.right w))),
+  preservesScale := \fun (a: K)(v: Vector rank) => trans!{{Vector dimension}} _ _ _
+    (congr!{{Vector n} {Vector m} {Vector dimension}} Ambient.join _ _ _ _ ((p.data.frame x).preservesScale a (Domain.left v)) ((q.data.frame x).preservesScale a (Domain.right v)))
+    (Ambient.scalar a ((p.data.frame x).apply (Domain.left v)) ((q.data.frame x).apply (Domain.right v)))
+};
+\module Continuity;
+\definition regular: Hermitian.At[n := dimension].Families[X := X].Matrix[m := rank].Regular baseSpace matrix := Continuity[].regular;
+\definition injective: \forall (x: X)(v, w: Vector rank) -> (matrix x).apply v = (matrix x).apply w -> v = w :=
+  \fun (x: X)(v, w: Vector rank)(same: _) => trans!{{Vector rank}} _ _ _ (sym!{{Vector rank}} _ _ (Domain.recover v))
+    (trans!{{Vector rank}} _ _ _ (congr!{{Vector k} {Vector l} {Vector rank}} Domain.join _ _ _ _
+      (p.injective x (Domain.left v) (Domain.left w) (trans!{{Vector n}} _ _ _ (sym!{{Vector n}} _ _ (Ambient.leftJoin ((p.data.frame x).apply (Domain.left v)) ((q.data.frame x).apply (Domain.right v))))
+        (trans!{{Vector n}} _ _ _ (congr!{{Vector dimension} {Vector n}} Ambient.left _ _ same) (Ambient.leftJoin ((p.data.frame x).apply (Domain.left w)) ((q.data.frame x).apply (Domain.right w))))))
+      (q.injective x (Domain.right v) (Domain.right w) (trans!{{Vector m}} _ _ _ (sym!{{Vector m}} _ _ (Ambient.rightJoin ((p.data.frame x).apply (Domain.left v)) ((q.data.frame x).apply (Domain.right v))))
+        (trans!{{Vector m}} _ _ _ (congr!{{Vector dimension} {Vector m}} Ambient.right _ _ same) (Ambient.rightJoin ((p.data.frame x).apply (Domain.left w)) ((q.data.frame x).apply (Domain.right w))))))) (Domain.recover w));
+\definition presentation: Target.Presentation := Target.Presentation { data := Target.Data { dimension := dimension, frame := matrix }, regular := regular, injective := injective };

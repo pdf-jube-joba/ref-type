@@ -1,0 +1,53 @@
+\import Bundles.Family[X := X, F := G] \as TargetFamily;
+\import Bundles.Isomorphisms[X := X, F := G, G := F, source := target, target := bundle] \as Isos;
+\import Bundles.Morphisms[X := X, Y := X, F := G, G := F, source := target, target := bundle, f := (\fun (x: X) => x)] \as Maps;
+\import \root.Classification[].Orientations[X := X, F := G, bundle := target] \as New;
+\definition isoLaws: Isos.Laws[iso] := \bysub(Isos.Data, Isos.Isomorphism, iso);
+\definition positive: \Pow TargetFamily.Point := { p: TargetFamily.Point \where Positive orientation.positive p.base ((iso.forward.fiber p.base).apply p.vector) };
+\definition data: New.Data := New.Data { positive := positive };
+\definition nonzero: \forall (x: X)(v: G x) -> New.Positive positive x v -> Logic.Not (v = (target.space x).zero) :=
+  \fun (x: X)(v: G x)(pos: _)(zero: _) => (laws orientation).nonzero x ((iso.forward.fiber x).apply v) pos
+    (trans!{{F x}} _ _ _ (congr!{{G x} {F x}} (iso.forward.fiber x).apply _ _ zero) (iso.forward.fiber x).preservesZero);
+\definition forwardNonzero: \forall (x: X)(v: G x) -> Logic.Not (v = (target.space x).zero) -> Logic.Not ((iso.forward.fiber x).apply v = (bundle.space x).zero) :=
+  \fun (x: X)(v: G x)(nonzero: _)(zero: _) => nonzero (trans!{{G x}} _ _ _ (sym!{{G x}} _ _ (isoLaws.leftInverse x v))
+    (trans!{{G x}} _ _ _ (congr!{{F x} {G x}} (iso.backward.fiber x).apply _ _ zero) (iso.backward.fiber x).preservesZero));
+\definition inhabited: \forall (x: X) -> \exists ( v: G x \where New.Positive positive x v ) := \fun (x: X) => \block {
+  \takefrom v: \Cast[F x] ({ v: F x \where Positive orientation.positive x v }) \by (laws orientation).inhabited x \then
+  \return Logic.existsIntro[G x, { w: G x \where New.Positive positive x w }] ((iso.backward.fiber x).apply v)
+    (\idelim v = (iso.forward.fiber x).apply ((iso.backward.fiber x).apply v) \with z: F x => Positive orientation.positive x z \by {
+      base: \bysub(F x, { v: F x \where Positive orientation.positive x v }, v), equality: sym!{{F x}} _ _ (isoLaws.rightInverse x v)
+    })
+};
+\definition negativeFormula: \forall (x: X)(v: G x) -> (iso.forward.fiber x).apply ((target.space x).neg v) = (bundle.space x).neg ((iso.forward.fiber x).apply v) :=
+  \fun (x: X) => Spaces.Linear[V := G x, W := F x, source := target.space x, target := bundle.space x].Operations[].preservesNeg (iso.forward.fiber x);
+\definition signs: \forall (x: X)(v: G x) -> Logic.Not (v = (target.space x).zero) -> Logic.Or[New.Positive positive x v, New.Positive positive x ((target.space x).neg v)] :=
+  \fun (x: X)(v: G x)(nz: _) => \idelim (bundle.space x).neg ((iso.forward.fiber x).apply v) = (iso.forward.fiber x).apply ((target.space x).neg v)
+    \with z: F x => Logic.Or[Positive orientation.positive x ((iso.forward.fiber x).apply v), Positive orientation.positive x z] \by {
+      base: (laws orientation).signs x ((iso.forward.fiber x).apply v) (forwardNonzero x v nz), equality: sym!{{F x}} _ _ (negativeFormula x v)
+    };
+\definition disjoint: \forall (x: X)(v: G x) -> New.Positive positive x v -> Logic.Not (New.Positive positive x ((target.space x).neg v)) :=
+  \fun (x: X)(v: G x)(pos: _)(neg: _) => (laws orientation).disjoint x ((iso.forward.fiber x).apply v) pos
+    (\idelim (iso.forward.fiber x).apply ((target.space x).neg v) = (bundle.space x).neg ((iso.forward.fiber x).apply v)
+      \with z: F x => Positive orientation.positive x z \by { base: neg, equality: negativeFormula x v });
+\definition scale: \forall (x: X)(a: R.Real) -> Order.Lt R.zero a -> \forall (v: G x) -> New.Positive positive x v -> New.Positive positive x ((target.space x).smul a v) :=
+  \fun (x: X)(a: R.Real)(positiveA: _)(v: G x)(pos: _) =>
+    \idelim (bundle.space x).smul a ((iso.forward.fiber x).apply v) = (iso.forward.fiber x).apply ((target.space x).smul a v)
+      \with z: F x => Positive orientation.positive x z \by {
+        base: (laws orientation).scale x a positiveA ((iso.forward.fiber x).apply v) pos, equality: sym!{{F x}} _ _ ((iso.forward.fiber x).preservesScale a v)
+      };
+\definition ray: \forall (x: X)(v, w: G x) -> New.Positive positive x v -> New.Positive positive x w ->
+  \exists ( a: R.Real \where Logic.And[Order.Lt R.zero a, w = (target.space x).smul a v] ) :=
+  \fun (x: X)(v, w: G x)(pv: _)(pw: _) => \block {
+    \takefrom a: \Cast[R.Real] ({ a: R.Real \where Logic.And[Order.Lt R.zero a, (iso.forward.fiber x).apply w = (bundle.space x).smul a ((iso.forward.fiber x).apply v)] })
+      \by (laws orientation).ray x ((iso.forward.fiber x).apply v) ((iso.forward.fiber x).apply w) pv pw \then
+    \let given: Logic.And[Order.Lt R.zero a, (iso.forward.fiber x).apply w = (bundle.space x).smul a ((iso.forward.fiber x).apply v)] :=
+      \bysub(R.Real, { a: R.Real \where Logic.And[Order.Lt R.zero a, (iso.forward.fiber x).apply w = (bundle.space x).smul a ((iso.forward.fiber x).apply v)] }, a) \then
+    \return Logic.existsIntro[R.Real, { a: R.Real \where Logic.And[Order.Lt R.zero a, w = (target.space x).smul a v] }] a
+      (Logic.And[_, _]::# given.left (trans!{{G x}} _ _ _ (sym!{{G x}} _ _ (isoLaws.leftInverse x w))
+        (trans!{{G x}} _ _ _ (congr!{{F x} {G x}} (iso.backward.fiber x).apply _ _ given.right)
+          (trans!{{G x}} _ _ _ ((iso.backward.fiber x).preservesScale a ((iso.forward.fiber x).apply v))
+            (congr!{{G x} {G x}} ((target.space x).smul a) _ _ (isoLaws.leftInverse x v))))))
+  };
+\definition orientationOnTarget: New.Orientation := \into[New.Data](data, New.Orientation) \by {
+  New.Laws[data] { open := Maps.continuous iso.forward orientation.positive (laws orientation).open, nonzero := nonzero, inhabited := inhabited, signs := signs, disjoint := disjoint, scale := scale, ray := ray }
+};

@@ -1,0 +1,27 @@
+\definition x: X := Cylinder.point p;
+\import Spaces.Linear[V := F x, W := Vector n, source := bundle.space x, target := coordinates n].Operations[] \as Left;
+\import Spaces.Linear[V := F x, W := Vector m, source := bundle.space x, target := coordinates m].Operations[] \as Right;
+\import Spaces.DirectSum[V := Vector n, W := Vector m, left := coordinates n, right := coordinates m] \as Sum;
+\import Sum.Universal[U := F x, domain := bundle.space x] \as Pairing;
+\definition pair: Spaces.Linear[V := F x, W := Sum.Carrier, source := bundle.space x, target := Sum.space].Map :=
+  Pairing.pair (Left.scale (a p) (first.map.fiber x)) (Right.scale (b p) (second.map.fiber x));
+\import Spaces.Linear[V := Sum.Carrier, W := Vector dimension, source := Sum.space, target := coordinates dimension].Composition[U := F x, domain := bundle.space x] \as Compose;
+\definition map: Spaces.Linear[V := F x, W := Vector dimension, source := bundle.space x, target := coordinates dimension].Map := Compose.compose Join.forward pair;
+\definition componentsEqual: \forall (v, w: F x) -> map.apply v = map.apply w -> pair.apply v = pair.apply w :=
+  \fun (v, w: F x)(same: _) => trans!{{Sum.Carrier}} _ _ _ (sym!{{Sum.Carrier}} _ _ (Join.isomorphism.leftInverse (pair.apply v)))
+    (trans!{{Sum.Carrier}} _ _ _ (congr!{{Vector dimension} {Sum.Carrier}} Join.backward.apply _ _ same) (Join.isomorphism.leftInverse (pair.apply w)));
+\definition leftEqual: \forall (v, w: F x) -> pair.apply v = pair.apply w -> (bundle.space x).smul (a p) v = (bundle.space x).smul (a p) w :=
+  \fun (v, w: F x)(same: _) => first.injective x _ _
+    (trans!{{Vector n}} _ _ _ ((first.map.fiber x).preservesScale (a p) v)
+      (trans!{{Vector n}} _ _ _ (congr!{{Sum.Carrier} {Vector n}} Sum.first _ _ same) (sym!{{Vector n}} _ _ ((first.map.fiber x).preservesScale (a p) w))));
+\definition rightEqual: \forall (v, w: F x) -> pair.apply v = pair.apply w -> (bundle.space x).smul (b p) v = (bundle.space x).smul (b p) w :=
+  \fun (v, w: F x)(same: _) => second.injective x _ _
+    (trans!{{Vector m}} _ _ _ ((second.map.fiber x).preservesScale (b p) v)
+      (trans!{{Vector m}} _ _ _ (congr!{{Sum.Carrier} {Vector m}} Sum.second _ _ same) (sym!{{Vector m}} _ _ ((second.map.fiber x).preservesScale (b p) w))));
+\definition recover: \forall (v: F x) -> (bundle.space x).add ((bundle.space x).smul (a p) v) ((bundle.space x).smul (b p) v) = v :=
+  \fun (v: F x) => trans!{{F x}} _ _ _ (sym!{{F x}} _ _ ((bundle.space x).scalarAdd (a p) (b p) v))
+    (trans!{{F x}} _ _ _ (congr!{K {F x}} (\fun (c: K) => (bundle.space x).smul c v) _ _ (weightSum p)) ((bundle.space x).scalarOne v));
+\definition injective: \forall (v, w: F x) -> map.apply v = map.apply w -> v = w :=
+  \fun (v, w: F x)(same: _) => trans!{{F x}} _ _ _ (sym!{{F x}} _ _ (recover v))
+    (trans!{{F x}} _ _ _ (congr!{{F x} {F x} {F x}} (bundle.space x).add _ _ _ _
+      (leftEqual v w (componentsEqual v w same)) (rightEqual v w (componentsEqual v w same))) (recover w));

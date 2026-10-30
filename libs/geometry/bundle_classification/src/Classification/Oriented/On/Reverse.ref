@@ -1,0 +1,17 @@
+\import \parent.Between[a := b, b := a] \as Result;
+\import Bundles.Isomorphisms[X := X, F := Plain.Fiber a.projection, G := Plain.Fiber b.projection, source := Plain.bundle a.projection, target := Plain.bundle b.projection] \as Isos;
+\definition plain: Bundles.Isomorphisms[X := X, F := Plain.Fiber b.projection, G := Plain.Fiber a.projection, source := Plain.bundle b.projection, target := Plain.bundle a.projection].Isomorphism := Isos.inverse iso.value;
+\import Result.Along[iso := plain] \as Along;
+\import \root.Classification[].Determinants[X := X, F := Plain.Fiber a.projection, G := Plain.Fiber b.projection, source := Plain.bundle a.projection, target := Plain.bundle b.projection, same := \refl(baseSpace), k := k, iso := iso.value] \as Determinants;
+\import Bundles.Isomorphisms[X := X, F := DeterminantFiber b.projection, G := DeterminantFiber a.projection, source := determinantBundle b.projection, target := determinantBundle a.projection] \as DetIsos;
+\import \root.Classification[].Orientations[X := X, F := DeterminantFiber a.projection, bundle := determinantBundle a.projection] \as First;
+\import \root.Classification[].Orientations[X := X, F := DeterminantFiber b.projection, bundle := determinantBundle b.projection] \as Second;
+\definition preserves: Along.Preserves := \fun (x: X)(alpha: DeterminantFiber a.projection x) =>
+  \idelim (Determinants.isomorphism.forward.fiber x).apply ((Determinants.isomorphism.backward.fiber x).apply alpha) = alpha
+    \with beta: DeterminantFiber a.projection x => Logic.PropEquiv[First.Positive a.orientation.positive x beta, Second.Positive b.orientation.positive x ((Determinants.isomorphism.backward.fiber x).apply alpha)] \by {
+      base: Logic.PropEquiv[_, _] {
+        ltr := (iso.preserves x ((Determinants.isomorphism.backward.fiber x).apply alpha)).rtl,
+        rtl := (iso.preserves x ((Determinants.isomorphism.backward.fiber x).apply alpha)).ltr
+      }, equality: (\bysub(DetIsos.Data, DetIsos.Isomorphism, Determinants.isomorphism)).rightInverse x alpha
+    };
+\definition value: Result.Isomorphism := Result.Isomorphism { value := plain, preserves := preserves };

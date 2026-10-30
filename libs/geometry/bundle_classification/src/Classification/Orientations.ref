@@ -1,0 +1,29 @@
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import std.Alg[].Field[] \as Fields;
+\import vector_bundles.Bundles[].Over[K := R.Real, field := R.Algebra[].field, conjugation := hermitian_frames.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar] \as Bundles;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := Fields.fieldAsCommutativeRing R.Real R.Algebra[].field] \as Spaces;
+\import bundle_operations.Operations[].Over[K := R.Real, field := R.Algebra[].field, conjugation := hermitian_frames.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar] \as Operations;
+\import Bundles.Family[X := X, F := F] \as Family;
+\definition Positive[cone: \Pow Family.Point][x: X][v: F x]: \Prop := \In[Family.Point] cone (Family.include x v);
+\structure Data: \Set := { positive: \Pow Family.Point };
+\structure Laws[data: Data]: \Prop := {
+  open: topology.Topology[Carrier := Family.Point].IsOpenIn bundle.totalSpace data.positive,
+  nonzero: \forall (x: X)(v: F x) -> Positive data.positive x v -> Logic.Not (v = (bundle.space x).zero),
+  inhabited: \forall (x: X) -> \exists ( v: F x \where Positive data.positive x v ),
+  signs: \forall (x: X)(v: F x) -> Logic.Not (v = (bundle.space x).zero) -> Logic.Or[Positive data.positive x v, Positive data.positive x ((bundle.space x).neg v)],
+  disjoint: \forall (x: X)(v: F x) -> Positive data.positive x v -> Logic.Not (Positive data.positive x ((bundle.space x).neg v)),
+  scale: \forall (x: X)(a: R.Real) -> Order.Lt R.zero a -> \forall (v: F x) -> Positive data.positive x v -> Positive data.positive x ((bundle.space x).smul a v),
+  ray: \forall (x: X)(v, w: F x) -> Positive data.positive x v -> Positive data.positive x w ->
+    \exists ( a: R.Real \where Logic.And[Order.Lt R.zero a, w = (bundle.space x).smul a v] ),
+};
+\definition Orientation: \Set := \Cast[Data] ({ d: Data \where Laws[d] });
+\definition laws[o: Orientation]: Laws[o] := \bysub(Data, Orientation, o);
+\module Along(G: X -> \Set, target: Bundles.Family[X := X, F := G].Bundle,
+  iso: Bundles.Isomorphisms[X := X, F := G, G := F, source := target, target := bundle].Isomorphism,
+  orientation: Orientation);
+\module Path(orientation: Orientation, path: algebraic_topology.Interval[].Carrier -> Family.Point,
+  continuous: topology.Continuity[A := algebraic_topology.Interval[].Carrier, B := Family.Point].Continuous algebraic_topology.Interval[].topology bundle.totalSpace path,
+  nonzero: \forall (t: algebraic_topology.Interval[].Carrier) -> Logic.Not ((path t).vector = (bundle.space (path t).base).zero));
+\module Pullback(Y: \Set, source: topology.Topology[Carrier := Y].Topology, f: Y -> X,
+  continuous: topology.Continuity[A := Y, B := X].Continuous source bundle.baseSpace f, orientation: Orientation);

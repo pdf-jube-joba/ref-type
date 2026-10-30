@@ -1,0 +1,19 @@
+\import Classes.Between[p := p, q := q].FromIsomorphism[iso := iso] \as Raw;
+\import Raw.AtRank[k := k, rank := rank] \as Ranked;
+\definition dimension: N.Nat^ := Classes.Between[p := p, q := q].dimension;
+\import grassmannians.Real[n := dimension, k := k].Model[] \as Model;
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := X] \as Cylinder;
+\import Model.Family[Y := Cylinder.Carrier, source := Cylinder.topology baseSpace, P := Raw.witness.data.projection, regularP := Raw.witness.data.regular, rankP := Ranked.hasRank] \as Curve;
+\definition left[x: X]: Model.Carrier := Curve.map (Cylinder.at I.start x);
+\definition right[x: X]: Model.Carrier := Curve.map (Cylinder.at I.end x);
+\definition family: Cylinder.Carrier -> Model.Carrier := Curve.map;
+\definition homotopy: algebraic_topology.Homotopy[A := X, B := Model.Carrier].Homotopy[baseSpace, Model.topology, left, right] :=
+  \into[Cylinder.Carrier -> Model.Carrier](family, algebraic_topology.Homotopy[A := X, B := Model.Carrier].Homotopy[baseSpace, Model.topology, left, right]) \by {
+    algebraic_topology.Homotopy[A := X, B := Model.Carrier].Laws[baseSpace, Model.topology, left, right, family] {
+      continuous := Curve.continuous, start := \fun (x: X) => \refl(left x), end := \fun (x: X) => \refl(right x)
+    }
+  };
+\import Theory.Padding[n := p.dimension, m := q.dimension] \as Pad;
+\definition leftFormula: \forall (x: X) -> (left x).map = (Pad.leftProjection (p.projection x)).map := Raw.witness.start;
+\definition rightFormula: \forall (x: X) -> (right x).map = (Pad.rightProjection (q.projection x)).map := Raw.witness.end;

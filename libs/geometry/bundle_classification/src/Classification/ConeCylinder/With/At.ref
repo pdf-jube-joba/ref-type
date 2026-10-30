@@ -1,0 +1,18 @@
+\definition base[t: I.Carrier]: Cylinder.Carrier := Cylinder.at t x;
+\definition baseContinuous: topology.Continuity[A := I.Carrier, B := Cylinder.Carrier].Continuous I.topology (Cylinder.topology source.baseSpace) base :=
+  topological_constructions.Product[A := I.Carrier, B := X].Universal[X := I.Carrier].pairContinuous I.topology I.topology source.baseSpace (\fun (t: I.Carrier) => t) (\fun (_: I.Carrier) => x)
+    (topology.Maps[A := I.Carrier, B := I.Carrier].Identity[].continuous I.topology) (topology.Maps[A := I.Carrier, B := X].constantContinuous I.topology source.baseSpace x);
+\definition section[t: I.Carrier]: PulledFamily.Point := PulledFamily.include (base t) alpha;
+\definition sectionContinuous: topology.Continuity[A := I.Carrier, B := PulledFamily.Point].Continuous I.topology Pull.topology section :=
+  Pull.Universal[Z := I.Carrier].continuous I.topology section baseContinuous
+    (topology.Maps[A := I.Carrier, B := Original.Point].constantContinuous I.topology source.totalSpace (Original.include x alpha));
+\import Bundles.Morphisms[X := Cylinder.Carrier, Y := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => L (Cylinder.point z)), G := D, source := pulled, target := target, f := (\fun (z: Cylinder.Carrier) => z)] \as Maps;
+\definition path[t: I.Carrier]: TargetFamily.Point := Maps.total iso.forward (section t);
+\definition continuous: topology.Continuity[A := I.Carrier, B := TargetFamily.Point].Continuous I.topology target.totalSpace path :=
+  topology.Composition[A := I.Carrier, B := PulledFamily.Point, C := TargetFamily.Point].composeContinuous I.topology Pull.topology target.totalSpace section (Maps.total iso.forward) sectionContinuous (Maps.continuous iso.forward);
+\definition pathNonzero: \forall (t: I.Carrier) -> Logic.Not ((path t).vector = (target.space (path t).base).zero) :=
+  \fun (t: I.Carrier)(zero: _) => nonzero (trans!{{L x}} _ _ _ (sym!{{L x}} _ _ (laws.leftInverse (base t) alpha))
+    (trans!{{L x}} _ _ _ (congr!{{D (base t)} {L x}} (iso.backward.fiber (base t)).apply _ _ zero) (iso.backward.fiber (base t)).preservesZero));
+\definition signs: Logic.PropEquiv[Cones.Positive orientation.positive (base I.start) ((iso.forward.fiber (base I.start)).apply alpha),
+  Cones.Positive orientation.positive (base I.end) ((iso.forward.fiber (base I.end)).apply alpha)] :=
+    Cones.Path[orientation := orientation, path := path, continuous := continuous, nonzero := pathNonzero].endpoints;

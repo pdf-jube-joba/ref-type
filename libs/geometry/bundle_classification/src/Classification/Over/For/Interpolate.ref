@@ -1,0 +1,32 @@
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := X] \as Cylinder;
+\import real.Analysis[] \as R;
+\import metric_spaces.RealLine[] \as Line;
+\definition n: N.Nat^ := first.dimension;
+\definition m: N.Nat^ := second.dimension;
+\import Operations.CoordinateSum[n := n, m := m] \as Join;
+\definition dimension: N.Nat^ := Fin.Sum[m := n, n := m].total;
+\definition baseSpace: topology.Topology[Carrier := Cylinder.Carrier].Topology := Cylinder.topology bundle.baseSpace;
+\import Bundles.Family[X := X, F := F] \as Source;
+\import Source.Of[bundle := bundle].Pullback[Y := Cylinder.Carrier, source := baseSpace, f := Cylinder.point] \as Pulled;
+\definition pulledBundle: Bundles.Family[X := Cylinder.Carrier, F := (\fun (p: Cylinder.Carrier) => F (Cylinder.point p))].Bundle := Pulled.pulled (Cylinder.pointContinuous bundle.baseSpace);
+\import Bundles.Family[X := Cylinder.Carrier, F := (\fun (p: Cylinder.Carrier) => F (Cylinder.point p))] \as PulledFamily;
+\import Complements.For[X := Cylinder.Carrier, F := (\fun (p: Cylinder.Carrier) => F (Cylinder.point p)), bundle := pulledBundle] \as Target;
+\definition a[p: Cylinder.Carrier]: K := conjugation.embed (I.reverse (Cylinder.time p));
+\definition b[p: Cylinder.Carrier]: K := conjugation.embed (Cylinder.time p);
+\definition weightSum: \forall (p: Cylinder.Carrier) -> field.add (a p) (b p) = field.one :=
+  \fun (p: Cylinder.Carrier) => trans!{K} _ _ _ (sym!{K} _ _ (conjugation.embedAdd (I.reverse (Cylinder.time p)) (Cylinder.time p)))
+    (trans!{K} _ _ _ (congr!{{R.Real} K} conjugation.embed _ _ (R.Distance[].subAddCancel R.one (Cylinder.time p))) conjugation.embedOne);
+\module At(p: Cylinder.Carrier);
+\import Bundles.Trivial[X := Cylinder.Carrier, n := dimension, baseSpace := baseSpace] \as Trivial;
+\import Bundles.Morphisms[X := Cylinder.Carrier, Y := Cylinder.Carrier, F := (\fun (p: Cylinder.Carrier) => F (Cylinder.point p)), G := (\fun (_: Cylinder.Carrier) => Vector dimension), source := pulledBundle, target := Trivial.bundle, f := (\fun (p: Cylinder.Carrier) => p)] \as Maps;
+\definition data: Maps.Data := Maps.Data { fiber := \fun (p: Cylinder.Carrier) => At[p := p].map };
+\module Continuity;
+\definition map: Maps.Map := \into[Maps.Data](data, Maps.Map) \by { Continuity[].regular };
+\definition embedding: Target.Embedding := Target.Embedding { dimension := dimension, map := map, injective := \fun (p: Cylinder.Carrier) => At[p := p].injective };
+\import Target.FromEmbedding[embedding := embedding].Image[] \as Image;
+\definition projection: Cylinder.Carrier -> Hermitian.At[n := dimension].Projection := Image.projection;
+\definition regular: Hermitian.At[n := dimension].Families[X := Cylinder.Carrier].Matrix[m := dimension].Regular baseSpace (\fun (p: Cylinder.Carrier) => (projection p).map) := Image.regular;
+\definition ImageFiber[z: Cylinder.Carrier]: \Set := Image.ImageFiber z;
+\definition imageBundle: Bundles.Family[X := Cylinder.Carrier, F := ImageFiber].Bundle := Image.imageBundle;
+\definition comparison: Bundles.Isomorphisms[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => F (Cylinder.point z)), G := ImageFiber, source := pulledBundle, target := imageBundle].Isomorphism := Image.isomorphism;

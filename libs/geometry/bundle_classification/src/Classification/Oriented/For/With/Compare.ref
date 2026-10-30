@@ -1,0 +1,32 @@
+\import \parent.From[classifier := first] \as First;
+\import \parent.From[classifier := second] \as Second;
+\import Theory.On[X := X, baseSpace := bundle.baseSpace] \as Classes;
+\import Target.Between[a := First.object, b := Second.object] \as ObjectIsos;
+\definition plain: Bundles.Isomorphisms[X := X, F := Classes.Fiber First.projection, G := Classes.Fiber Second.projection, source := Classes.bundle First.projection, target := Classes.bundle Second.projection].Isomorphism :=
+  Operations.IsomorphismComposition[X := X, F := Classes.Fiber First.projection, G := F, H := Classes.Fiber Second.projection, source := Classes.bundle First.projection, middle := bundle, target := Classes.bundle Second.projection].compose
+    (Bundles.Isomorphisms[X := X, F := F, G := Classes.Fiber First.projection, source := bundle, target := Classes.bundle First.projection].inverse first.comparison) second.comparison;
+\import ObjectIsos.Along[iso := plain] \as Along;
+\import \root.Classification[].Determinants[X := X, F := Classes.Fiber First.projection, G := Classes.Fiber Second.projection, source := Classes.bundle First.projection, target := Classes.bundle Second.projection, same := \refl(bundle.baseSpace), k := k, iso := plain] \as Composite;
+\import \root.Classification[].Determinants[X := X, F := F, G := Classes.Fiber First.projection, source := bundle, target := Classes.bundle First.projection, same := \refl(bundle.baseSpace), k := k, iso := first.comparison] \as FirstDet;
+\import \root.Classification[].Determinants[X := X, F := F, G := Classes.Fiber Second.projection, source := bundle, target := Classes.bundle Second.projection, same := \refl(bundle.baseSpace), k := k, iso := second.comparison] \as SecondDet;
+\import Bundles.Isomorphisms[X := X, F := F, G := Classes.Fiber First.projection, source := bundle, target := Classes.bundle First.projection] \as FirstIsos;
+\definition firstLaws: FirstIsos.Laws[first.comparison] := \bysub(FirstIsos.Data, FirstIsos.Isomorphism, first.comparison);
+\definition same: \forall (x: X)(alpha: Target.DeterminantFiber Second.projection x) ->
+  (FirstDet.isomorphism.forward.fiber x).apply ((Composite.isomorphism.forward.fiber x).apply alpha) = (SecondDet.isomorphism.forward.fiber x).apply alpha :=
+  \fun (x: X)(alpha: Target.DeterminantFiber Second.projection x) => \axiom:funext(
+    (\fun (v: Fin.Fin k -> F x) => alpha (\fun (i: Fin.Fin k) => (second.comparison.forward.fiber x).apply ((first.comparison.backward.fiber x).apply ((first.comparison.forward.fiber x).apply (v i))))),
+    (\fun (v: Fin.Fin k -> F x) => alpha (\fun (i: Fin.Fin k) => (second.comparison.forward.fiber x).apply (v i))),
+    \fun (v: Fin.Fin k -> F x) => congr!{{Fin.Fin k -> Classes.Fiber Second.projection x} {R.Real}} alpha _ _
+      (\axiom:funext((\fun (i: Fin.Fin k) => (second.comparison.forward.fiber x).apply ((first.comparison.backward.fiber x).apply ((first.comparison.forward.fiber x).apply (v i)))),
+        (\fun (i: Fin.Fin k) => (second.comparison.forward.fiber x).apply (v i)),
+        \fun (i: Fin.Fin k) => congr!{{F x} {Classes.Fiber Second.projection x}} (second.comparison.forward.fiber x).apply _ _ (firstLaws.leftInverse x (v i)))));
+\definition preserves: Along.Preserves := \fun (x: X)(alpha: Target.DeterminantFiber Second.projection x) => Logic.PropEquiv[_, _] {
+  ltr := \fun (positive: _) => \idelim (SecondDet.isomorphism.forward.fiber x).apply alpha = (FirstDet.isomorphism.forward.fiber x).apply ((Composite.isomorphism.forward.fiber x).apply alpha)
+    \with beta: Determinant.Fiber x => Cones.Positive orientation.positive x beta \by { base: positive, equality: sym!{{Determinant.Fiber x}} _ _ (same x alpha) },
+  rtl := \fun (positive: _) => \idelim (FirstDet.isomorphism.forward.fiber x).apply ((Composite.isomorphism.forward.fiber x).apply alpha) = (SecondDet.isomorphism.forward.fiber x).apply alpha
+    \with beta: Determinant.Fiber x => Cones.Positive orientation.positive x beta \by { base: positive, equality: same x alpha }
+};
+\definition isomorphism: ObjectIsos.Isomorphism := ObjectIsos.Isomorphism { value := plain, preserves := preserves };
+\definition independent: \forall (compact: topology.Topology[Carrier := X].IsCompact bundle.baseSpace) -> Target.Compact[compact := compact].Homotopic First.object Second.object :=
+  \fun (compact: _) => \exact(Target.Compact[compact := compact].Between[a := First.object, b := Second.object].FromIsomorphism[iso := isomorphism].homotopy,
+    Target.Compact[compact := compact].Between[a := First.object, b := Second.object].Homotopy);
