@@ -1,0 +1,86 @@
+\import complex.Complex[] \as C;
+\import C.Def[] \as D;
+\import C.Prop[] \as CL;
+\import real.Analysis[] \as R;
+\import R.Algebra[] \as A;
+\import R.Estimates[] \as Estimates;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import Order.Arithmetic[].Prop[] \as L;
+\import Order.Order[] \as Ordered;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing C.Complex C.Algebra[].field] \as Algebra;
+\import Algebra.DirectSum[V := V, W := W, left := source, right := target] \as Product;
+\import std.Data[].Pair[].Prop[A := V, B := W] \as Pairs;
+\import complex_hilbert.Space[V := V, space := source] \as Left;
+\import complex_hilbert.Space[V := W, space := target] \as Right;
+\import Left.Hilbert[norm := norm, inner := inner] \as LeftHilbert;
+\import Right.Hilbert[norm := targetNorm, inner := targetInner] \as RightHilbert;
+\import functional_analysis.Normed[V := V, space := Left.realSpace] \as LeftNormed;
+\import functional_analysis.Normed[V := W, space := Right.realSpace] \as RightNormed;
+\import complex_hilbert.Space[V := Product.Carrier, space := Product.space] \as Total;
+\import functional_analysis.Normed[V := Product.Carrier, space := Total.realSpace] \as TotalNormed;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as E;
+\use E.sym;
+\use E.trans;
+\use E.congr;
+\use E.eq_reason_in;
+\definition sumZeroLeft: \forall (a, b: R.Real) -> Order.Le R.zero a -> Order.Le R.zero b -> R.add a b = R.zero -> a = R.zero :=
+  \fun (a, b: R.Real)(ap: _)(bp: _)(zero: _) => Order.leAntisym a R.zero
+    (Order.leReplaceRight a (R.add a b) R.zero zero (A.leAddRight a b bp)) ap;
+\definition sumZeroRight: \forall (a, b: R.Real) -> Order.Le R.zero a -> Order.Le R.zero b -> R.add a b = R.zero -> b = R.zero :=
+  \fun (a, b: R.Real)(ap: _)(bp: _)(zero: _) => sumZeroLeft b a bp ap (trans!{R.Real} _ _ _ (L.addComm b a) zero);
+\definition bootstrapReal: TotalNormed.Norm := TotalNormed.Norm {
+  norm := \fun (x: Product.Carrier) => R.add (norm.realNorm.norm (Product.first x)) (targetNorm.realNorm.norm (Product.second x)),
+  nonnegative := \fun (x: Product.Carrier) => L.addNonnegative _ _ (norm.realNorm.nonnegative (Product.first x)) (targetNorm.realNorm.nonnegative (Product.second x)),
+  zero := trans!{R.Real} _ _ _ (congr!{R.Real R.Real R.Real} R.add _ _ _ _ norm.realNorm.zero targetNorm.realNorm.zero) (L.addZeroLeft R.zero),
+  definite := \fun (x: Product.Carrier)(zero: _) => Pairs.ext x Product.origin
+    (norm.realNorm.definite (Product.first x) (sumZeroLeft _ _ (norm.realNorm.nonnegative (Product.first x)) (targetNorm.realNorm.nonnegative (Product.second x)) zero))
+    (targetNorm.realNorm.definite (Product.second x) (sumZeroRight _ _ (norm.realNorm.nonnegative (Product.first x)) (targetNorm.realNorm.nonnegative (Product.second x)) zero)),
+  triangle := \fun (x, y: Product.Carrier) => Order.leReplaceRight _ _ _
+    (A.addFour (norm.realNorm.norm (Product.first x)) (norm.realNorm.norm (Product.first y)) (targetNorm.realNorm.norm (Product.second x)) (targetNorm.realNorm.norm (Product.second y)))
+    (Estimates.addLe _ _ _ _ (norm.realNorm.triangle (Product.first x) (Product.first y)) (targetNorm.realNorm.triangle (Product.second x) (Product.second y))),
+  homogeneous := \fun (a: R.Real)(x: Product.Carrier) => trans!{R.Real} _ _ _
+    (congr!{R.Real R.Real R.Real} R.add _ _ _ _ (norm.realNorm.homogeneous a (Product.first x)) (targetNorm.realNorm.homogeneous a (Product.second x)))
+    (sym!{R.Real} _ _ (L.fieldMulAdd (R.Estimates[].Product[].abs a) _ _)),
+};
+\definition bootstrap: Total.Norm := Total.Norm {
+  realNorm := bootstrapReal,
+  homogeneous := \fun (a: C.Complex)(x: Product.Carrier) => trans!{R.Real} _ _ _
+    (congr!{R.Real R.Real R.Real} R.add _ _ _ _ (norm.homogeneous a (Product.first x)) (targetNorm.homogeneous a (Product.second x)))
+    (sym!{R.Real} _ _ (L.fieldMulAdd (C.Absolute[].abs a) _ _)),
+};
+\import linear_algebra.Complex[].InnerProduct[V := Product.Carrier, space := Product.space] \as Inner;
+\definition productInner: Inner.InnerProduct := Inner.InnerProduct {
+  inner := \fun (x, y: Product.Carrier) => D.add (inner.inner (Product.first x) (Product.first y)) (targetInner.inner (Product.second x) (Product.second y)),
+  conjugateSymmetric := \fun (x, y: Product.Carrier) => trans!{C.Complex} _ _ _
+    (congr!{C.Complex C.Complex C.Complex} D.add _ _ _ _ (inner.conjugateSymmetric (Product.first x) (Product.first y)) (targetInner.conjugateSymmetric (Product.second x) (Product.second y)))
+    (sym!{C.Complex} _ _ (CL.conjAdd _ _)),
+  zeroRight := \fun (x: Product.Carrier) => trans!{C.Complex} _ _ _
+    (congr!{C.Complex C.Complex C.Complex} D.add _ _ _ _ (inner.zeroRight (Product.first x)) (targetInner.zeroRight (Product.second x))) (CL.addZeroLeft D.zero),
+  addRight := \fun (x, y, z: Product.Carrier) => trans!{C.Complex} _ _ _
+    (congr!{C.Complex C.Complex C.Complex} D.add _ _ _ _ (inner.addRight (Product.first x) (Product.first y) (Product.first z)) (targetInner.addRight (Product.second x) (Product.second y) (Product.second z)))
+    (Algebra.Laws[V := C.Complex, space := Algebra.scalarSpace].shuffle _ _ _ _),
+  scaleRight := \fun (a: C.Complex)(x, y: Product.Carrier) => trans!{C.Complex} _ _ _
+    (congr!{C.Complex C.Complex C.Complex} D.add _ _ _ _ (inner.scaleRight a (Product.first x) (Product.first y)) (targetInner.scaleRight a (Product.second x) (Product.second y)))
+    (sym!{C.Complex} _ _ (CL.mulAddLeft a _ _)),
+  nonnegative := \fun (x: Product.Carrier) => L.addNonnegative _ _ (inner.nonnegative (Product.first x)) (targetInner.nonnegative (Product.second x)),
+  definite := \fun (x: Product.Carrier)(zero: _) => Pairs.ext x Product.origin
+    (inner.definite (Product.first x) (trans!{C.Complex} _ _ _ (LeftHilbert.selfReal (Product.first x))
+      (congr!{R.Real C.Complex} D.ofReal _ _ (sumZeroLeft _ _ (inner.nonnegative (Product.first x)) (targetInner.nonnegative (Product.second x)) (congr!{C.Complex R.Real} C.re _ _ zero)))))
+    (targetInner.definite (Product.second x) (trans!{C.Complex} _ _ _ (RightHilbert.selfReal (Product.second x))
+      (congr!{R.Real C.Complex} D.ofReal _ _ (sumZeroRight _ _ (inner.nonnegative (Product.first x)) (targetInner.nonnegative (Product.second x)) (congr!{C.Complex R.Real} C.re _ _ zero))))),
+};
+\import \root.Space[V := Product.Carrier, space := Product.space, norm := bootstrap].Hilbert[inner := productInner].InducedNorm[] \as Induced;
+\definition productNorm: Total.Norm := Induced.norm;
+\import Total.Hilbert[norm := productNorm, inner := productInner] \as Hilbert;
+\module At(complete: LeftHilbert.Complete, targetComplete: RightHilbert.Complete);
+\definition Carrier: \Set := Product.Carrier;
+\definition productSpace: Algebra.VectorSpace Carrier := Product.space;
+\definition make: V -> W -> Carrier := Product.make;
+\definition firstCoordinate: Carrier -> V := Product.first;
+\definition secondCoordinate: Carrier -> W := Product.second;
+\module MapsTo(U, Z: \Set, domain: Algebra.VectorSpace U, codomain: Algebra.VectorSpace Z,
+  domainNorm: complex_hilbert.Space[V := U, space := domain].Norm, codomainNorm: complex_hilbert.Space[V := Z, space := codomain].Norm,
+  domainInner: linear_algebra.Complex[].InnerProduct[V := U, space := domain].InnerProduct, codomainInner: linear_algebra.Complex[].InnerProduct[V := Z, space := codomain].InnerProduct,
+  f: Left.Operators[W := U, target := domain, norm := norm, targetNorm := domainNorm].Map,
+  g: Right.Operators[W := Z, target := codomain, norm := targetNorm, targetNorm := codomainNorm].Map);

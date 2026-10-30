@@ -1,0 +1,24 @@
+\import Target.Operators[W := W, target := target, norm := targetNorm, targetNorm := targetNorm] \as EndBounded;
+\import EndBounded.Compact[].FiniteRank[targetInner := targetInner] \as Approximation;
+\import EndBounded.Compact[].Limit[] \as Limits;
+\import complex_hilbert.FiniteRank[V := W, W := W, source := target, target := target] \as Finite;
+\import R.Estimates[] \as Estimates;
+\definition halfPositive: Order.Lt R.zero R.half := Order.ltReplaceRight R.zero (R.mul R.half R.one) R.half (R.Algebra[].mulOneRight R.half)
+  (Estimates.halfOfPositive R.one R.Estimates[].Product[].onePositive);
+\module InApproximation(complete: TargetHilbert.Complete, a: EndBounded.Map, finite: Finite.FiniteRank a, near: Limits.Near[rightDefect s, a, R.half]);
+\definition finiteRightExists: TargetHilbert.Complete -> TargetEnd.Compact (rightDefect s) ->
+  \exists ( t: Reverse.Map \where Finite.FiniteRank (rightDefect t) ) := \block {
+  \fun (complete: TargetHilbert.Complete)(compact: TargetEnd.Compact (rightDefect s)) \then
+  \takefrom a: \Cast[EndBounded.Map] ({ a: EndBounded.Map \where Logic.And[Finite.FiniteRank a, Limits.Near[rightDefect s, a, R.half]] })
+    \by Approximation.fromCompact complete (rightDefect s) compact R.half halfPositive \then
+  \let data: Logic.And[Finite.FiniteRank a, Limits.Near[rightDefect s, a, R.half]] :=
+    \bysub(EndBounded.Map, { a: EndBounded.Map \where Logic.And[Finite.FiniteRank a, Limits.Near[rightDefect s, a, R.half]] }, a) \then
+  \return Logic.existsIntro[Reverse.Map, { t: Reverse.Map \where Finite.FiniteRank (rightDefect t) }]
+    (InApproximation[complete := complete, a := a, finite := data.left, near := data.right].map)
+    (InApproximation[complete := complete, a := a, finite := data.left, near := data.right].finite)
+};
+\definition closedRange: TargetHilbert.Complete -> TargetEnd.Compact (rightDefect s) -> ClosedRange := \block {
+  \fun (complete: TargetHilbert.Complete)(compact: TargetEnd.Compact (rightDefect s)) \then
+  \takefrom t: \Cast[Reverse.Map] ({ t: Reverse.Map \where Finite.FiniteRank (rightDefect t) }) \by finiteRightExists complete compact \then
+  \return \parent.FiniteRight[s := t, finite := \bysub(Reverse.Map, { t: Reverse.Map \where Finite.FiniteRank (rightDefect t) }, t)].closedRange complete
+};

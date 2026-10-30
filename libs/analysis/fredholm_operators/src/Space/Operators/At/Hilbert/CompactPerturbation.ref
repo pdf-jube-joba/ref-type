@@ -1,0 +1,18 @@
+\import \root.Space[V := V, space := space, norm := norm].Operators[W := W, target := target, targetNorm := targetNorm].At[f := g].Hilbert[inner := inner, targetInner := targetInner] \as Other;
+\import \root.Space[V := V, space := space, norm := norm].Operators[W := W, target := target, targetNorm := targetNorm].Ideal[] \as Ideal;
+\import \parent.Change[g := g] \as Change;
+\definition perturbation: Map := difference f g;
+\import Bounded.Compact[].FiniteRank[targetInner := targetInner] \as Approximation;
+\import complex_hilbert.FiniteRank[V := V, W := W, source := space, target := target] \as Rank;
+\module At(a: Map);
+\definition indexInvariant: \forall (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete)(original: Fredholm)(compact: Ideal.Equivalent[f, g]) ->
+  index original = Other.index (Change.fredholm complete targetComplete original compact) := \block {
+  \fun (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete)(original: Fredholm)(compact: Ideal.Equivalent[f, g]) \then
+  \let other: Other.Fredholm := Change.fredholm complete targetComplete original compact \then
+  \takefrom radius: \Cast[R.Real] ({ radius: R.Real \where Other.IndexNeighborhood[other, radius] }) \by Other.indexLocallyConstant complete targetComplete other \then
+  \let neighborhood: Other.IndexNeighborhood[other, radius] := \bysub(R.Real, { radius: R.Real \where Other.IndexNeighborhood[other, radius] }, radius) \then
+  \takefrom a: \Cast[Map] ({ a: Map \where Logic.And[Rank.FiniteRank a, Limits.Near[perturbation, a, radius]] })
+    \by Approximation.fromCompact targetComplete perturbation compact radius neighborhood.left \then
+  \let data: Logic.And[Rank.FiniteRank a, Limits.Near[perturbation, a, radius]] := \bysub(Map, { a: Map \where Logic.And[Rank.FiniteRank a, Limits.Near[perturbation, a, radius]] }, a) \then
+  \return At[a := a].indexEqual complete targetComplete original other radius neighborhood data.left data.right
+};

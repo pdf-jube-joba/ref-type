@@ -1,0 +1,75 @@
+\import R.SquareRoot[] \as Root;
+\import R.Algebra[] \as A;
+\import R.Estimates[] \as Estimates;
+\import R.Estimates[].Product[] \as Product;
+\import dedekind_reals.DedekindReal[].Order[] \as Ordered;
+\import Hilbert.Estimates[] \as InnerEstimates;
+\import functional_analysis.Normed[V := V, space := Source.realSpace].Hilbert[norm := norm.realNorm].Quadratic[inner := Hilbert.realInner] \as Quadratic;
+\import functional_analysis.Normed[V := V, space := Source.realSpace].Hilbert[norm := norm.realNorm].Riesz[inner := Hilbert.realInner] \as Riesz;
+\definition energy[x: V]: R.Real := C.re (inner.inner x x);
+\definition length[x: V]: R.Real := Root.sqrt (energy x);
+\definition nonnegative: \forall (x: V) -> Order.Le R.zero (length x) := \fun (x: V) => Root.nonnegative (energy x);
+\definition square: \forall (x: V) -> R.mul (length x) (length x) = energy x := \fun (x: V) => Root.squareOfNonnegative (energy x) (inner.nonnegative x);
+\definition squareCompare: \forall (a, b: R.Real) -> Order.Le R.zero b -> Order.Le (R.mul a a) (R.mul b b) -> Order.Le a b :=
+  \fun (a, b: R.Real)(bp: _)(bound: _) => Ordered.leOfNotLtReverse a b (\fun (less: Order.Lt b a) => Order.ltNotLeReverse _ _ (Root.squareStrict b a bp less) bound);
+\definition cauchy: \forall (x, y: V) -> Order.Le (InnerEstimates.realDot x y) (R.mul (length x) (length y)) := \block {
+  \fun (x, y: V) \then
+  \let a: R.Real := Product.abs (InnerEstimates.realDot x y) \then
+  \let b: R.Real := R.mul (length x) (length y) \then
+  \let bound: Order.Le (R.mul a a) (R.mul b b) := Order.leReplace _ _ _ _
+    (sym!{R.Real} _ _ (InnerEstimates.absSquare (InnerEstimates.realDot x y)))
+    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real R.Real} R.mul _ _ _ _ (sym!{R.Real} _ _ (square x)) (sym!{R.Real} _ _ (square y)))
+      (A.mulFour (length x) (length x) (length y) (length y))) (InnerEstimates.squaredBound x y) \then
+  \return Order.leTrans _ a b (Order.leReplaceRight _ (R.Distance[].max (R.neg (InnerEstimates.realDot x y)) (InnerEstimates.realDot x y)) a
+    (sym!{R.Real} _ _ (Product.absExpression (InnerEstimates.realDot x y))) (R.Distance[].maxRight _ _))
+    (squareCompare a b (Laws.fieldMulNonnegative (length x) (length y) (nonnegative x) (nonnegative y)) bound)
+};
+\definition triangle: \forall (x, y: V) -> Order.Le (length (space.add x y)) (R.add (length x) (length y)) := \block {
+  \fun (x, y: V) \then
+  \let total: R.Real := R.add (length x) (length y) \then
+  \let bound: Order.Le (R.mul (length (space.add x y)) (length (space.add x y))) (R.mul total total) :=
+    Order.leReplace _ _ _ _ (sym!{R.Real} _ _ (square (space.add x y)))
+      (sym!{R.Real} _ _ (trans!{R.Real} _ _ _ (A.squareAdd (length x) (length y))
+        (congr!{R.Real R.Real} (\fun (z: R.Real) => R.add z (R.add (R.mul (length x) (length y)) (R.mul (length x) (length y)))) _ _
+          (congr!{R.Real R.Real R.Real} R.add _ _ _ _ (square x) (square y)))))
+      (Order.leReplaceLeft _ _ _ (sym!{R.Real} _ _ (Quadratic.sum x y))
+        (Laws.addMonotoneLeft _ _ (R.add (energy x) (energy y)) (Estimates.addLe _ _ _ _ (cauchy x y) (cauchy x y)))) \then
+  \return squareCompare _ total (Laws.addNonnegative (length x) (length y) (nonnegative x) (nonnegative y)) bound
+};
+\definition zero: length space.zero = R.zero := trans!{R.Real} _ _ _ (congr!{R.Real R.Real} Root.sqrt _ _ (congr!{C.Complex R.Real} C.re _ _ (inner.zeroRight space.zero))) Root.sqrtZero;
+\definition definite: \forall (x: V) -> length x = R.zero -> x = space.zero :=
+  \fun (x: V)(zero: length x = R.zero) => inner.definite x (trans!{C.Complex} _ _ _ (Hilbert.selfReal x)
+    (congr!{R.Real C.Complex} C.Def[].ofReal _ _ (eq_reason_in!{R.Real _
+      "=" _ "by" { sym!{R.Real} _ _ (square x) }
+      "=" _ "by" { congr!{R.Real R.Real R.Real} R.mul _ _ _ _ zero zero }
+      "=" _ "by" { Laws.fieldMulZeroLeft R.zero }
+    })));
+\definition scaleReal: \forall (a: R.Real)(x: V) -> length (Source.realSpace.smul a x) = R.mul (Product.abs a) (length x) :=
+  \fun (a: R.Real)(x: V) => Root.squaresInjective _ _ (nonnegative (Source.realSpace.smul a x))
+    (Laws.fieldMulNonnegative _ _ (Product.absNonnegative a) (nonnegative x)) (eq_reason_in!{R.Real _
+      "=" _ "by" { square (Source.realSpace.smul a x) }
+      "=" _ "by" { Riesz.energyScale a x }
+      "=" _ "by" { sym!{R.Real} _ _ (Laws.fieldMulAssoc a a (energy x)) }
+      "=" _ "by" { congr!{R.Real R.Real R.Real} R.mul _ _ _ _ (sym!{R.Real} _ _ (InnerEstimates.absSquare a)) (sym!{R.Real} _ _ (square x)) }
+      "=" _ "by" { A.mulFour (Product.abs a) (Product.abs a) (length x) (length x) }
+    });
+\definition realNorm: SourceNormed.Norm := SourceNormed.Norm {
+  norm := length, nonnegative := nonnegative, zero := zero, definite := definite, triangle := triangle, homogeneous := scaleReal,
+};
+\definition energyScale: \forall (a: C.Complex)(x: V) -> energy (space.smul a x) = R.mul (C.Def[].normSq a) (energy x) :=
+  \fun (a: C.Complex)(x: V) => eq_reason_in!{R.Real _
+    "=" _ "by" { congr!{C.Complex R.Real} C.re _ _ (linear_algebra.Complex[].InnerProduct[V := V, space := space].scaleLeft inner a x (space.smul a x)) }
+    "=" _ "by" { congr!{C.Complex R.Real} (\fun (z: C.Complex) => C.re (C.Def[].mul (C.Def[].conj a) z)) _ _ (inner.scaleRight a x x) }
+    "=" _ "by" { congr!{C.Complex R.Real} C.re _ _ (sym!{C.Complex} _ _ (C.Prop[].mulAssoc (C.Def[].conj a) a (inner.inner x x))) }
+    "=" _ "by" { congr!{C.Complex R.Real} (\fun (z: C.Complex) => C.re (C.Def[].mul z (inner.inner x x))) _ _ (C.Prop[].conjMulSelf a) }
+    "=" _ "by" { complex_hilbert.Scalars[].realProduct (C.Def[].normSq a) (inner.inner x x) }
+  };
+\definition homogeneous: \forall (a: C.Complex)(x: V) -> length (space.smul a x) = R.mul (C.Absolute[].abs a) (length x) :=
+  \fun (a: C.Complex)(x: V) => Root.squaresInjective _ _ (nonnegative (space.smul a x))
+    (Laws.fieldMulNonnegative _ _ (C.Absolute[].nonnegative a) (nonnegative x)) (eq_reason_in!{R.Real _
+      "=" _ "by" { square (space.smul a x) }
+      "=" _ "by" { energyScale a x }
+      "=" _ "by" { congr!{R.Real R.Real R.Real} R.mul _ _ _ _ (sym!{R.Real} _ _ (C.Absolute[].square a)) (sym!{R.Real} _ _ (square x)) }
+      "=" _ "by" { A.mulFour (C.Absolute[].abs a) (C.Absolute[].abs a) (length x) (length x) }
+    });
+\definition norm: Source.Norm := Source.Norm { realNorm := realNorm, homogeneous := homogeneous };

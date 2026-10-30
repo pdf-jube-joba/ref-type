@@ -1,0 +1,61 @@
+\import Finite.Addition[n := n, m := m, f := f, g := g, first := first, second := second] \as Sum;
+\import Algebra.CoordinateSum[n := n, m := m] \as Split;
+\import Algebra.Coordinates[I := Fin.Fin n] \as Left;
+\import Algebra.Coordinates[I := Fin.Fin m] \as Right;
+\import Algebra.Coordinates[I := Fin.Fin Split.dimension] \as Total;
+\import Algebra.FiniteCoordinates[n := n] \as LeftBasis;
+\import Algebra.FiniteCoordinates[n := m] \as RightBasis;
+\import Algebra.FiniteCoordinates[n := Split.dimension] \as TotalBasis;
+\import Algebra.Finite[V := Left.Vector, I := Fin.Fin n, space := Left.space] \as LeftTrace;
+\import Algebra.Finite[V := Right.Vector, I := Fin.Fin m, space := Right.space] \as RightTrace;
+\import Algebra.Finite[V := Total.Vector, I := Fin.Fin Split.dimension, space := Total.space] \as TotalTrace;
+\import Algebra.Linear[V := Total.Vector, W := Left.Vector, source := Total.space, target := Left.space] \as LeftMaps;
+\import Algebra.Linear[V := Total.Vector, W := Right.Vector, source := Total.space, target := Right.space] \as RightMaps;
+\definition left: LeftMaps.Map := LeftMaps.Map {
+  apply := Split.left,
+  preservesAdd := \fun (x, y: Total.Vector) => \refl(Split.left (Total.plus x y)),
+  preservesScale := \fun (a: C.Complex)(x: Total.Vector) => \refl(Split.left (Total.scale a x)),
+};
+\definition right: RightMaps.Map := RightMaps.Map {
+  apply := Split.right,
+  preservesAdd := \fun (x, y: Total.Vector) => \refl(Split.right (Total.plus x y)),
+  preservesScale := \fun (a: C.Complex)(x: Total.Vector) => \refl(Split.right (Total.scale a x)),
+};
+\import Algebra.Linear[V := V, W := Total.Vector, source := space, target := Total.space] \as Into;
+\definition leftColumn: Algebra.Linear[V := Left.Vector, W := Total.Vector, source := Left.space, target := Total.space].Map := Into.Composition[U := Left.Vector, domain := Left.space].compose Sum.into first.out;
+\definition rightColumn: Algebra.Linear[V := Right.Vector, W := Total.Vector, source := Right.space, target := Total.space].Map := Into.Composition[U := Right.Vector, domain := Right.space].compose Sum.into second.out;
+\import Algebra.Linear[V := Left.Vector, W := Total.Vector, source := Left.space, target := Total.space].Composition[U := Total.Vector, domain := Total.space] \as LeftCompose;
+\import Algebra.Linear[V := Right.Vector, W := Total.Vector, source := Right.space, target := Total.space].Composition[U := Total.Vector, domain := Total.space] \as RightCompose;
+\import Into.Composition[U := Total.Vector, domain := Total.space] \as TotalCompose;
+\import Algebra.Linear[V := Total.Vector, W := Total.Vector, source := Total.space, target := Total.space] \as TotalEnd;
+\import TotalEnd.Operations[] \as TotalOperations;
+\definition combined: TotalCompose.compose Sum.into Sum.out = TotalOperations.plus (LeftCompose.compose leftColumn left) (RightCompose.compose rightColumn right) := TotalEnd.ext _ _
+  (\axiom:funext((TotalCompose.compose Sum.into Sum.out).apply, (TotalOperations.plus (LeftCompose.compose leftColumn left) (RightCompose.compose rightColumn right)).apply,
+    \fun (x: Total.Vector) => Sum.into.preservesAdd (first.out.apply (Split.left x)) (second.out.apply (Split.right x))));
+\import Algebra.Linear[V := Left.Vector, W := Left.Vector, source := Left.space, target := Left.space] \as LeftEnd;
+\import Algebra.Linear[V := Right.Vector, W := Right.Vector, source := Right.space, target := Right.space] \as RightEnd;
+\import LeftMaps.Composition[U := Left.Vector, domain := Left.space] \as LeftBack;
+\import RightMaps.Composition[U := Right.Vector, domain := Right.space] \as RightBack;
+\import Algebra.Linear[V := V, W := Left.Vector, source := space, target := Left.space].Composition[U := Left.Vector, domain := Left.space] \as FirstCompose;
+\import Algebra.Linear[V := V, W := Right.Vector, source := space, target := Right.space].Composition[U := Right.Vector, domain := Right.space] \as SecondCompose;
+\definition firstTrace: TotalTrace.trace TotalBasis.basis (LeftCompose.compose leftColumn left) = LeftTrace.trace LeftBasis.basis (FirstCompose.compose first.into first.out) :=
+  trans!{C.Complex} _ _ _
+    (\root.FiniteCyclic[V := Total.Vector, W := Left.Vector, source := Total.space, target := Left.space, n := Split.dimension, m := n].cyclic TotalBasis.basis LeftBasis.basis left leftColumn)
+    (congr!{LeftEnd.Map C.Complex} (LeftTrace.trace LeftBasis.basis) _ _ (LeftEnd.ext (LeftBack.compose left leftColumn) (FirstCompose.compose first.into first.out)
+      (\axiom:funext((LeftBack.compose left leftColumn).apply, (FirstCompose.compose first.into first.out).apply,
+        \fun (x: Left.Vector) => Split.leftJoin (first.into.apply (first.out.apply x)) (second.into.apply (first.out.apply x))))));
+\definition secondTrace: TotalTrace.trace TotalBasis.basis (RightCompose.compose rightColumn right) = RightTrace.trace RightBasis.basis (SecondCompose.compose second.into second.out) :=
+  trans!{C.Complex} _ _ _
+    (\root.FiniteCyclic[V := Total.Vector, W := Right.Vector, source := Total.space, target := Right.space, n := Split.dimension, m := m].cyclic TotalBasis.basis RightBasis.basis right rightColumn)
+    (congr!{RightEnd.Map C.Complex} (RightTrace.trace RightBasis.basis) _ _ (RightEnd.ext (RightBack.compose right rightColumn) (SecondCompose.compose second.into second.out)
+      (\axiom:funext((RightBack.compose right rightColumn).apply, (SecondCompose.compose second.into second.out).apply,
+        \fun (x: Right.Vector) => Split.rightJoin (first.into.apply (second.out.apply x)) (second.into.apply (second.out.apply x))))));
+\definition additive: \forall (ff: Finite.FiniteRank f)(gf: Finite.FiniteRank g) -> trace (Operations.plus f g) (Finite.plus f g ff gf) = C.Def[].add (trace f ff) (trace g gf) :=
+  \fun (ff: Finite.FiniteRank f)(gf: Finite.FiniteRank g) => eq_reason_in!{C.Complex _
+    "=" _ "by" { calculate (Operations.plus f g) (Finite.plus f g ff gf) Split.dimension Sum.factor }
+    "=" _ "by" { congr!{TotalEnd.Map C.Complex} (TotalTrace.trace TotalBasis.basis) _ _ combined }
+    "=" _ "by" { TotalTrace.Trace[].traceAdd TotalBasis.basis (LeftCompose.compose leftColumn left) (RightCompose.compose rightColumn right) }
+    "=" _ "by" { congr!{C.Complex C.Complex C.Complex} C.Def[].add _ _ _ _ firstTrace secondTrace }
+    "=" _ "by" { congr!{C.Complex C.Complex C.Complex} C.Def[].add _ _ _ _
+      (sym!{C.Complex} _ _ (calculate f ff n first)) (sym!{C.Complex} _ _ (calculate g gf m second)) }
+  };

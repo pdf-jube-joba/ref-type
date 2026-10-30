@@ -1,0 +1,146 @@
+\import \root.Space[V := V, space := space, norm := norm].Operators[W := W, target := target, targetNorm := targetNorm].At[f := f].Index[] \as Index;
+\import complex_hilbert.FiniteRank[V := V, W := V, source := space, target := space] \as SourceRank;
+\import complex_hilbert.FiniteRank[V := W, W := W, source := target, target := target] \as MiddleRank;
+\import complex_hilbert.FiniteRank[V := U, W := U, source := codomain, target := codomain] \as LastRank;
+\import SourceEnd.Finite[] \as SourceFinite;
+\import LastEnd.Finite[] \as LastFinite;
+\import functional_analysis.Normed[V := U, space := complex_hilbert.Space[V := U, space := codomain].realSpace] \as LastNormed;
+\import TargetNormed.Operators[W := V, target := Source.realSpace, norm := targetNorm.realNorm, targetNorm := norm.realNorm] \as RealReverse;
+\import Target.Operators[W := V, target := space, norm := targetNorm, targetNorm := norm] \as ReverseBounded;
+\import TargetNormed.Operators[W := U, target := complex_hilbert.Space[V := U, space := codomain].realSpace, norm := targetNorm.realNorm, targetNorm := codomainNorm.realNorm] \as RealNext;
+\import Target.Operators[W := U, target := codomain, norm := targetNorm, targetNorm := codomainNorm] \as NextBounded;
+\import \root.Space[V := U, space := codomain, norm := codomainNorm].Operators[W := V, target := space, targetNorm := norm] \as ResultReverse;
+\definition parametrix: ResultReverse.Map := Backward.compose t s;
+\definition leftCorrection: SourceEnd.Map := ComposeBack.compose (Middle.compose f (NextOperator.leftDefect t)) s;
+\definition rightCorrection: LastEnd.Map := NextRight.compose (BeforeMiddle.compose t (rightDefect s)) g;
+\definition leftEquation: \forall (x: V) -> (SourceEnd.plus (leftDefect s) leftCorrection).apply x = (ResultOperator.leftDefect parametrix).apply x :=
+  \fun (x: V) => trans!{V} _ _ _
+    (congr!{V V} (space.add ((leftDefect s).apply x)) _ _ (RealReverse.preservesSub (ReverseBounded.realMap s) (f.apply x) (t.apply (g.apply (f.apply x)))))
+    (SourceNormed.subBridge x (s.apply (f.apply x)) (s.apply (t.apply (g.apply (f.apply x)))));
+\definition rightEquation: \forall (y: U) -> (LastEnd.plus (NextOperator.rightDefect t) rightCorrection).apply y = (ResultOperator.rightDefect parametrix).apply y :=
+  \fun (y: U) => trans!{U} _ _ _
+    (congr!{U U} (codomain.add ((NextOperator.rightDefect t).apply y)) _ _ (RealNext.preservesSub (NextBounded.realMap g) (t.apply y) (f.apply (s.apply (t.apply y)))))
+    (LastNormed.subBridge y (g.apply (t.apply y)) (g.apply (f.apply (s.apply (t.apply y)))));
+\import MiddleRank.Before[U := V, domain := space] \as BeforeSource;
+\import complex_hilbert.FiniteRank[V := V, W := W, source := space, target := target].After[U := V, codomain := space] \as ToSource;
+\import MiddleRank.Before[U := U, domain := codomain] \as BeforeLast;
+\import complex_hilbert.FiniteRank[V := U, W := W, source := codomain, target := target].After[U := U, codomain := codomain] \as ToLast;
+\definition finiteLeft: Second.FiniteParametrix t -> SourceRank.FiniteRank leftCorrection :=
+  \fun (q: Second.FiniteParametrix t) => ToSource.finite (Middle.compose f (NextOperator.leftDefect t)) s (BeforeSource.finite (NextOperator.leftDefect t) f q.left);
+\definition finiteRight: First.FiniteParametrix s -> LastRank.FiniteRank rightCorrection :=
+  \fun (p: First.FiniteParametrix s) => ToLast.finite (BeforeMiddle.compose t (rightDefect s)) g (BeforeLast.finite (rightDefect s) t p.right);
+\definition finite: First.FiniteParametrix s -> Second.FiniteParametrix t -> Composite.FiniteParametrix parametrix :=
+  \fun (p: First.FiniteParametrix s)(q: Second.FiniteParametrix t) => Logic.And[_, _]::#
+    (SourceFinite.equal (SourceEnd.plus (leftDefect s) leftCorrection) (ResultOperator.leftDefect parametrix) leftEquation
+      (SourceFinite.finitePlus (leftDefect s) leftCorrection p.left (finiteLeft q)))
+    (LastFinite.equal (LastEnd.plus (NextOperator.rightDefect t) rightCorrection) (ResultOperator.rightDefect parametrix) rightEquation
+      (LastFinite.finitePlus (NextOperator.rightDefect t) rightCorrection q.right (finiteRight p)));
+\import \root.Space[V := V, space := space, norm := norm].Hilbert[inner := inner].Trace[] \as SourceTrace;
+\import \root.Space[V := W, space := target, norm := targetNorm].Hilbert[inner := targetInner].Trace[] \as MiddleTrace;
+\import \root.Space[V := U, space := codomain, norm := codomainNorm].Hilbert[inner := codomainInner].Trace[] \as LastTrace;
+\import TargetEnd.After[U := W, codomain := target, codomainNorm := targetNorm] \as MiddleCompose;
+\import MiddleRank.Before[U := W, domain := target] \as MiddleBefore;
+\definition crossLeft: TargetEnd.Map := MiddleCompose.compose (rightDefect s) (NextOperator.leftDefect t);
+\definition crossRight: TargetEnd.Map := MiddleCompose.compose (NextOperator.leftDefect t) (rightDefect s);
+\definition finiteCrossLeft: Second.FiniteParametrix t -> MiddleRank.FiniteRank crossLeft :=
+  \fun (q: Second.FiniteParametrix t) => MiddleBefore.finite (NextOperator.leftDefect t) (rightDefect s) q.left;
+\definition finiteCrossRight: First.FiniteParametrix s -> MiddleRank.FiniteRank crossRight :=
+  \fun (p: First.FiniteParametrix s) => MiddleBefore.finite (rightDefect s) (NextOperator.leftDefect t) p.right;
+\import MiddleTrace.Difference[f := NextOperator.leftDefect t, g := crossLeft] \as LeftDifference;
+\import MiddleTrace.Difference[f := rightDefect s, g := crossRight] \as RightDifference;
+\import TargetNormed.Operators[W := W, target := Target.realSpace, norm := targetNorm.realNorm, targetNorm := targetNorm.realNorm] \as RealMiddle;
+\import Target.Operators[W := W, target := target, norm := targetNorm, targetNorm := targetNorm] \as MiddleBounded;
+\definition leftMiddleEquation: \forall (y: W) -> LeftDifference.map.apply y = (NextOperator.leftDefect t).apply (f.apply (s.apply y)) :=
+  \fun (y: W) => eq_reason_in!{W _
+    "=" _ "by" { congr!{W W} (target.add ((NextOperator.leftDefect t).apply y)) _ _ (TargetVectors.minusOneScale (crossLeft.apply y)) }
+    "=" _ "by" { sym!{W} _ _ (RealMiddle.preservesSub (MiddleBounded.realMap (NextOperator.leftDefect t)) y ((rightDefect s).apply y)) }
+    "=" _ "by" { congr!{W W} (NextOperator.leftDefect t).apply _ _ (\root.Space[V := W, space := target, norm := targetNorm].subtractResidual y (f.apply (s.apply y))) }
+  };
+\definition rightMiddleEquation: \forall (y: W) -> RightDifference.map.apply y = (rightDefect s).apply (t.apply (g.apply y)) :=
+  \fun (y: W) => eq_reason_in!{W _
+    "=" _ "by" { congr!{W W} (target.add ((rightDefect s).apply y)) _ _ (TargetVectors.minusOneScale (crossRight.apply y)) }
+    "=" _ "by" { sym!{W} _ _ (RealMiddle.preservesSub (MiddleBounded.realMap (rightDefect s)) y ((NextOperator.leftDefect t).apply y)) }
+    "=" _ "by" { congr!{W W} (rightDefect s).apply _ _ (\root.Space[V := W, space := target, norm := targetNorm].subtractResidual y (t.apply (g.apply y))) }
+  };
+\import complex_hilbert.FiniteRank[V := V, W := W, source := space, target := target].Before[U := W, domain := target] \as LeftMiddleRank;
+\import complex_hilbert.FiniteRank[V := U, W := W, source := codomain, target := target].Before[U := W, domain := target] \as RightMiddleRank;
+\definition leftTrace: \forall (q: Second.FiniteParametrix t) -> SourceTrace.trace leftCorrection (finiteLeft q) =
+  C.Def[].sub (MiddleTrace.trace (NextOperator.leftDefect t) q.left) (MiddleTrace.trace crossLeft (finiteCrossLeft q)) :=
+  \fun (q: Second.FiniteParametrix t) => eq_reason_in!{C.Complex _
+    "=" _ "by" { SourceTrace.Cyclic[W := W, target := target, targetNorm := targetNorm, targetInner := targetInner,
+      f := Middle.compose f (NextOperator.leftDefect t), g := s].cyclic (BeforeSource.finite (NextOperator.leftDefect t) f q.left) }
+    "=" _ "by" { MiddleTrace.equal (MiddleCompose.compose (ComposeForward.compose s f) (NextOperator.leftDefect t)) LeftDifference.map
+      (LeftMiddleRank.finite (Middle.compose f (NextOperator.leftDefect t)) s (BeforeSource.finite (NextOperator.leftDefect t) f q.left))
+      (LeftDifference.finite q.left (finiteCrossLeft q)) (\fun (y: W) => sym!{W} _ _ (leftMiddleEquation y)) }
+    "=" _ "by" { LeftDifference.subtractive q.left (finiteCrossLeft q) }
+  };
+\definition rightTrace: \forall (p: First.FiniteParametrix s) -> LastTrace.trace rightCorrection (finiteRight p) =
+  C.Def[].sub (MiddleTrace.trace (rightDefect s) p.right) (MiddleTrace.trace crossRight (finiteCrossRight p)) :=
+  \fun (p: First.FiniteParametrix s) => eq_reason_in!{C.Complex _
+    "=" _ "by" { LastTrace.Cyclic[W := W, target := target, targetNorm := targetNorm, targetInner := targetInner,
+      f := BeforeMiddle.compose t (rightDefect s), g := g].cyclic (BeforeLast.finite (rightDefect s) t p.right) }
+    "=" _ "by" { MiddleTrace.equal (MiddleCompose.compose (NextLeft.compose g t) (rightDefect s)) RightDifference.map
+      (RightMiddleRank.finite (BeforeMiddle.compose t (rightDefect s)) g (BeforeLast.finite (rightDefect s) t p.right))
+      (RightDifference.finite p.right (finiteCrossRight p)) (\fun (y: W) => sym!{W} _ _ (rightMiddleEquation y)) }
+    "=" _ "by" { RightDifference.subtractive p.right (finiteCrossRight p) }
+  };
+\definition sourceTrace: \forall (p: First.FiniteParametrix s)(q: Second.FiniteParametrix t) ->
+  SourceTrace.trace (ResultOperator.leftDefect parametrix) (finite p q).left = C.Def[].add (SourceTrace.trace (leftDefect s) p.left)
+    (C.Def[].sub (MiddleTrace.trace (NextOperator.leftDefect t) q.left) (MiddleTrace.trace crossLeft (finiteCrossLeft q))) :=
+  \fun (p: First.FiniteParametrix s)(q: Second.FiniteParametrix t) => eq_reason_in!{C.Complex _
+    "=" _ "by" { SourceTrace.equal (ResultOperator.leftDefect parametrix) (SourceEnd.plus (leftDefect s) leftCorrection) (finite p q).left
+      (SourceFinite.finitePlus (leftDefect s) leftCorrection p.left (finiteLeft q)) (\fun (x: V) => sym!{V} _ _ (leftEquation x)) }
+    "=" _ "by" { SourceTrace.Addition[f := leftDefect s, g := leftCorrection].additive p.left (finiteLeft q) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (C.Def[].add (SourceTrace.trace (leftDefect s) p.left)) _ _ (leftTrace q) }
+  };
+\definition targetTrace: \forall (p: First.FiniteParametrix s)(q: Second.FiniteParametrix t) ->
+  LastTrace.trace (ResultOperator.rightDefect parametrix) (finite p q).right = C.Def[].add (LastTrace.trace (NextOperator.rightDefect t) q.right)
+    (C.Def[].sub (MiddleTrace.trace (rightDefect s) p.right) (MiddleTrace.trace crossRight (finiteCrossRight p))) :=
+  \fun (p: First.FiniteParametrix s)(q: Second.FiniteParametrix t) => eq_reason_in!{C.Complex _
+    "=" _ "by" { LastTrace.equal (ResultOperator.rightDefect parametrix) (LastEnd.plus (NextOperator.rightDefect t) rightCorrection) (finite p q).right
+      (LastFinite.finitePlus (NextOperator.rightDefect t) rightCorrection q.right (finiteRight p)) (\fun (y: U) => sym!{U} _ _ (rightEquation y)) }
+    "=" _ "by" { LastTrace.Addition[f := NextOperator.rightDefect t, g := rightCorrection].additive q.right (finiteRight p) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (C.Def[].add (LastTrace.trace (NextOperator.rightDefect t) q.right)) _ _ (rightTrace p) }
+  };
+\definition crossEqual: \forall (p: First.FiniteParametrix s)(q: Second.FiniteParametrix t) -> MiddleTrace.trace crossRight (finiteCrossRight p) = MiddleTrace.trace crossLeft (finiteCrossLeft q) :=
+  \fun (p: First.FiniteParametrix s)(q: Second.FiniteParametrix t) => MiddleTrace.Cyclic[W := W, target := target, targetNorm := targetNorm, targetInner := targetInner,
+    f := NextOperator.leftDefect t, g := rightDefect s].cyclic q.left;
+\definition defectAdd: \forall (p: First.FiniteParametrix s)(q: Second.FiniteParametrix t) -> Composite.defectIndex parametrix (finite p q) = C.Def[].add (First.defectIndex s p) (Second.defectIndex t q) :=
+  \fun (p: First.FiniteParametrix s)(q: Second.FiniteParametrix t) => eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{C.Complex C.Complex C.Complex} C.Def[].sub _ _ _ _ (sourceTrace p q) (targetTrace p q) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => C.Def[].sub
+      (C.Def[].add (SourceTrace.trace (leftDefect s) p.left) (C.Def[].sub (MiddleTrace.trace (NextOperator.leftDefect t) q.left) (MiddleTrace.trace crossLeft (finiteCrossLeft q))))
+      (C.Def[].add (LastTrace.trace (NextOperator.rightDefect t) q.right) (C.Def[].sub (MiddleTrace.trace (rightDefect s) p.right) z))) _ _ (crossEqual p q) }
+    "=" _ "by" { \root.Scalars[].compositionDifference _ _ _ _ _ }
+  };
+\import ResultOperator.Index[] \as ResultIndex;
+\import NextOperator.Index[] \as NextIndex;
+\import std.Arithmetic[].Int[] \as Z;
+\import std.Data[].Nat[].Basic[].Def[] \as Nat;
+\import linear_algebra.Complex[].Dimension[] \as Counts;
+\definition indexAdd: \forall (complete: SourceHilbert.Complete)(middleComplete: MiddleHilbert.Complete)(lastComplete: LastHilbert.Complete)
+  (p: First.FiniteParametrix s)(q: Second.FiniteParametrix t)(first: First.Fredholm)(second: Second.Fredholm)(composite: Composite.Fredholm) ->
+  Composite.index composite = Z.addInteger (First.index first) (Second.index second) := \block {
+  \fun (complete: SourceHilbert.Complete)(middleComplete: MiddleHilbert.Complete)(lastComplete: LastHilbert.Complete)
+    (p: First.FiniteParametrix s)(q: Second.FiniteParametrix t)(first: First.Fredholm)(second: Second.Fredholm)(composite: Composite.Fredholm) \then
+  \takefrom d: Index.Decomposition \by Index.decompositionExists first.right.left first.right.right \then
+  \takefrom e: NextIndex.Decomposition \by NextIndex.decompositionExists second.right.left second.right.right \then
+  \takefrom h: ResultIndex.Decomposition \by ResultIndex.decompositionExists composite.right.left composite.right.right \then
+  \let a: N.Nat^ := KernelDimension.dimension d.kernelFrame \then
+  \let b: N.Nat^ := CokernelDimension.dimension d.cokernelFrame \then
+  \let c: N.Nat^ := \root.FiniteSpace[V := NextOperator.KernelSpace, space := Algebra.Subspace[V := W, space := target].Of[subspace := NextOperator.kernel].induced].dimension e.kernelFrame \then
+  \let d0: N.Nat^ := \root.FiniteSpace[V := NextOperator.CokernelSpace, space := Algebra.Quotient[V := U, space := codomain].Of[S := NextOperator.image].vectorSpace].dimension e.cokernelFrame \then
+  \return eq_reason_in!{Z.Integer _
+    "=" _ "by" { Composite.indexFromDecomposition composite h }
+    "=" _ "by" { \root.Scalars[].integerEqual _ _ (Nat.add a c) (Nat.add b d0) (eq_reason_in!{C.Complex _
+      "=" _ "by" { sym!{C.Complex} _ _ (Composite.Defect[s := parametrix].calculate complete lastComplete (finite p q) composite h) }
+      "=" _ "by" { defectAdd p q }
+      "=" _ "by" { congr!{C.Complex C.Complex C.Complex} C.Def[].add _ _ _ _
+        (First.Defect[s := s].calculate complete middleComplete p first d) (Second.Defect[s := t].calculate middleComplete lastComplete q second e) }
+      "=" _ "by" { sym!{C.Complex} _ _ (\root.Scalars[].plusDifference _ _ _ _) }
+      "=" _ "by" { congr!{C.Complex C.Complex C.Complex} C.Def[].sub _ _ _ _ (sym!{C.Complex} _ _ (\root.Scalars[].naturalAdd a c)) (sym!{C.Complex} _ _ (\root.Scalars[].naturalAdd b d0)) }
+    }) }
+    "=" _ "by" { sym!{Z.Integer} _ _ (\root.Scalars[].integerAddition a b c d0) }
+    "=" _ "by" { congr!{Z.Integer Z.Integer Z.Integer} Z.addInteger _ _ _ _ (sym!{Z.Integer} _ _ (First.indexFromDecomposition first d)) (sym!{Z.Integer} _ _ (Second.indexFromDecomposition second e)) }
+  }
+};

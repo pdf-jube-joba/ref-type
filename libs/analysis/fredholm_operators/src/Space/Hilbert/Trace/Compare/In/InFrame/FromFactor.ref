@@ -1,0 +1,32 @@
+\import Algebra.Coordinates[I := Fin.Fin k] \as Coordinates;
+\import Algebra.Linear[V := Coordinates.Vector, W := Image.Carrier, source := Coordinates.space, target := Image.induced] \as Out;
+\import Algebra.Linear[V := Image.Carrier, W := Coordinates.Vector, source := Image.induced, target := Coordinates.space] \as Into;
+\definition out: Out.Map := Out.Map {
+  apply := \fun (a: Coordinates.Vector) => \into[V](factor.out.apply a, image.carrier) \by {
+    Logic.existsIntro[V, { x: V \where P.map.apply x = factor.out.apply a }] (factor.out.apply a) (fixes a)
+  },
+  preservesAdd := \fun (a, b: Coordinates.Vector) => factor.out.preservesAdd a b,
+  preservesScale := \fun (a: C.Complex)(x: Coordinates.Vector) => factor.out.preservesScale a x,
+};
+\definition into: Into.Map := Into.Map {
+  apply := \fun (x: Image.Carrier) => factor.into.apply x,
+  preservesAdd := \fun (x, y: Image.Carrier) => factor.into.preservesAdd x y,
+  preservesScale := \fun (a: C.Complex)(x: Image.Carrier) => factor.into.preservesScale a x,
+};
+\import Algebra.Linear[V := Image.Carrier, W := Image.Carrier, source := Image.induced, target := Image.induced] \as ImageEnd;
+\definition restriction: ImageEnd.Map := ImageEnd.Map {
+  apply := \fun (x: Image.Carrier) => \into[V](f.apply x, image.carrier) \by {
+    Logic.existsIntro[V, { y: V \where P.map.apply y = f.apply x }] (f.apply x)
+      (trans!{V} _ _ _ (congr!{V V} P.map.apply _ _ (sym!{V} _ _ (first.equation x)))
+        (trans!{V} _ _ _ (FirstFixed.fixed (first.into.apply x)) (first.equation x)))
+  },
+  preservesAdd := \fun (x, y: Image.Carrier) => f.preservesAdd x y,
+  preservesScale := \fun (a: C.Complex)(x: Image.Carrier) => f.preservesScale a x,
+};
+\import Out.Composition[U := Image.Carrier, domain := Image.induced] \as Compose;
+\import \root.Space[V := V, space := space, norm := norm].Hilbert[inner := inner].Trace[].Factor[n := k, f := f, factor := factor] \as Factor;
+\definition trace: Factor.trace = ImageBasis.trace frame.basis restriction := trans!{C.Complex} _ _ _
+  (\root.FiniteCyclic[V := Coordinates.Vector, W := Image.Carrier, source := Coordinates.space, target := Image.induced, n := k, m := frame.size].cyclic
+    Algebra.FiniteCoordinates[n := k].basis frame.basis out into)
+  (congr!{ImageEnd.Map C.Complex} (ImageBasis.trace frame.basis) _ _ (ImageEnd.ext (Compose.compose out into) restriction
+    (\axiom:funext((Compose.compose out into).apply, restriction.apply, \fun (x: Image.Carrier) => factor.equation x))));
