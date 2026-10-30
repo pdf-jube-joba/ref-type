@@ -1,0 +1,21 @@
+\import RI.Evaluation[n := n, s := sectionComplete x] \as SectionValue;
+\definition function: B -> Real.Real := \fun (y: B) => Value.value (Pair.pair A B x y);
+\definition functionEquality: SectionValue.value = function := \axiom:funext(SectionValue.value, function, \fun (y: B) => \block {
+  \takefrom i: \Cast[Fin.Fin n] ({ i: Fin.Fin n \where Sets.Member (data.simple.cells i) (Pair.pair A B x y) }) \by Value.covers (Pair.pair A B x y) \then
+  \let member: Sets.Member (data.simple.cells i) (Pair.pair A B x y) := \bysub(Fin.Fin n, { i: Fin.Fin n \where Sets.Member (data.simple.cells i) (Pair.pair A B x y) }, i) \then
+  \return eq_reason_in!{Real.Real _
+    "=" _ "by" { SectionValue.atCell i y member }
+    "=" _ "by" { sym!{Real.Real} _ _ (Value.atCell i (Pair.pair A B x y) member) }
+  }
+});
+\definition integrable: RI.Integrable function := \idelim SectionValue.value = function \with f: (B -> Real.Real) => RI.Integrable f \by {
+  base: (Right.nonnegativeSup SectionValue.value (sum x) SectionValue.nonnegative SectionValue.measurable (sectionSup x)).integrable,
+  equality: functionEquality };
+\definition representative: RI.Representatives := \into[B -> Real.Real](function, RI.Representatives) \by { integrable };
+\definition lowerSup: Complete.LeastUpperBound[RI.lowerIntegral function, sum x] :=
+  \idelim RI.lowerIntegral SectionValue.value = RI.lowerIntegral function \with v: RM.Value => Complete.LeastUpperBound[v, sum x] \by {
+    base: sectionSup x, equality: congr!{{B -> Real.Real} RM.Value} RI.lowerIntegral _ _ functionEquality };
+\definition integral: RI.integral representative = outer x := eq_reason_in!{Real.Real _
+  "=" _ "by" { Right.integralSup representative (sum x) (\fun (y: B) => Value.nonnegative (Pair.pair A B x y)) lowerSup }
+  "=" _ "by" { sym!{Real.Real} _ _ (outerValue x) }
+};

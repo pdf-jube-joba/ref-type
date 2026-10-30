@@ -1,0 +1,156 @@
+\import \root.MonotoneIntegrals[A := A, mu := mu].For[data := data].Divergence[] \as Divergence;
+\import R.Completeness[] \as Complete;
+\use std.Logic[].Equality[].trans;
+\module At(k: N.Nat^) {
+  \import I.Mask[exception := Divergence.exception, f := data.sequence k] \as Mask;
+  \definition value: A -> Real.Real := Mask.value;
+  \definition law: \forall (x: A) -> Logic.And[Sets.Member Divergence.exception x -> value x = Real.zero,
+    Logic.Not (Sets.Member Divergence.exception x) -> value x = data.sequence k x] := Mask.laws;
+  \definition almost: M.AlmostEqual mu value (data.sequence k) := Mask.almost;
+  \definition measurable: M.IsMeasurable mu value := Mask.measurable
+    (\bysub(A -> Real.Real, { f: A -> Real.Real \where I.Integrable f }, data.sequence k)).left;
+  \definition integrable: I.Integrable value := Mask.integrable (I.integralLaw (data.sequence k)).integrable;
+  \definition representative: I.Representatives := \into[A -> Real.Real](value, I.Representatives) \by { integrable };
+}
+\definition sequence[k: N.Nat^] [x: A]: Real.Real := \root.MonotoneIntegrals[A := A, mu := mu].For[data := data].Limit[].At[k := k].value x;
+\definition outsideBound: \forall (x: A) -> Logic.Not (Sets.Member Divergence.divergent x) ->
+  \exists ( b: Real.Real \where \forall (k: N.Nat^) -> R.Le (data.sequence k x) b ) :=
+  \fun (x: A) (outside: Logic.Not (Sets.Member Divergence.divergent x)) =>
+    Sigma.doubleNegative (\exists ( b: Real.Real \where \forall (k: N.Nat^) -> R.Le (data.sequence k x) b ))
+      (\fun (none: Logic.Not (\exists ( b: Real.Real \where \forall (k: N.Nat^) -> R.Le (data.sequence k x) b ))) => outside
+        (\fun (i: N.Nat^) => Sigma.doubleNegative (Sets.Member (Divergence.union i) x)
+          (\fun (noLevel: Logic.Not (Sets.Member (Divergence.union i) x)) => none
+            (Logic.existsIntro[Real.Real, { b: Real.Real \where \forall (k: N.Nat^) -> R.Le (data.sequence k x) b }] (Divergence.radius i)
+              (\fun (k: N.Nat^) => Order.leOfNotLtReverse (data.sequence k x) (Divergence.radius i)
+                (\fun (above: R.Lt (Divergence.radius i) (data.sequence k x)) => noLevel
+                  (Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (level (Divergence.radius i) k) x }] k above)))))));
+\definition pointBound: \forall (x: A) -> Complete.Bounded (C.PointValues sequence x) :=
+  \fun (x: A) => Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member Divergence.exception x))
+    (\fun (inside: Sets.Member Divergence.exception x) => Logic.existsIntro[Real.Real, { b: Real.Real \where Complete.UpperBound (C.PointValues sequence x) b }] Real.zero
+      (\fun (v: Real.Real) (member: Complete.Member (C.PointValues sequence x) v) => \block {
+        \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where v = sequence k x }) \by member \then
+        \let same: v = sequence k x := \bysub(N.Nat^, { k: N.Nat^ \where v = sequence k x }, k) \then
+        \return R.leReplaceLeft Real.zero v Real.zero (sym!{Real.Real} _ _ (trans!{Real.Real} v (sequence k x) Real.zero same ((\root.MonotoneIntegrals[A := A, mu := mu].For[data := data].Limit[].At[k := k].law x).left inside))) (R.leRefl Real.zero)
+      }))
+    (\fun (outside: Logic.Not (Sets.Member Divergence.exception x)) => \block {
+      \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where \forall (k: N.Nat^) -> R.Le (data.sequence k x) b }) \by outsideBound x outside \then
+      \let bound: \forall (k: N.Nat^) -> R.Le (data.sequence k x) b := \bysub(Real.Real, { b: Real.Real \where \forall (k: N.Nat^) -> R.Le (data.sequence k x) b }, b) \then
+      \return Logic.existsIntro[Real.Real, { b: Real.Real \where Complete.UpperBound (C.PointValues sequence x) b }] b
+        (\fun (v: Real.Real) (member: Complete.Member (C.PointValues sequence x) v) => \block {
+          \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where v = sequence k x }) \by member \then
+          \let same: v = sequence k x := \bysub(N.Nat^, { k: N.Nat^ \where v = sequence k x }, k) \then
+          \return R.leReplaceLeft (data.sequence k x) v b (sym!{Real.Real} _ _ (trans!{Real.Real} v (sequence k x) (data.sequence k x) same ((\root.MonotoneIntegrals[A := A, mu := mu].For[data := data].Limit[].At[k := k].law x).right outside))) (bound k)
+        })
+    });
+\definition pointNonempty: \forall (x: A) -> Complete.Nonempty (C.PointValues sequence x) :=
+  \fun (x: A) => \exact(\into[Real.Real](sequence N.Nat^::zero x, C.PointValues sequence x)
+    \by { C.pointValueMember sequence x N.Nat^::zero }, \Cast[Real.Real] (C.PointValues sequence x));
+\definition family[x: A]: Complete.Family := \into[\Pow Real.Real](C.PointValues sequence x, Complete.FamilySet)
+  \by { Logic.And[_, _]::# (pointNonempty x) (pointBound x) };
+\definition value[x: A]: Real.Real := Complete.supremum (family x);
+\definition supremum: C.PointwiseSup sequence value :=
+  \fun (x: A) => Complete.supremumLaw (family x);
+\definition measurable: M.IsMeasurable mu value := C.pointwiseSupMeasurable sequence value supremum
+  (\fun (k: N.Nat^) => \root.MonotoneIntegrals[A := A, mu := mu].For[data := data].Limit[].At[k := k].measurable);
+\definition nonnegative: \forall (x: A) -> R.Le Real.zero (value x) :=
+  \fun (x: A) => R.leTrans Real.zero (sequence N.Nat^::zero x) (value x)
+    (Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member Divergence.exception x))
+      (\fun (inside: Sets.Member Divergence.exception x) => R.leReplaceRight Real.zero Real.zero (sequence N.Nat^::zero x)
+        (sym!{Real.Real} _ _ ((\root.MonotoneIntegrals[A := A, mu := mu].For[data := data].Limit[].At[k := N.Nat^::zero].law x).left inside)) (R.leRefl Real.zero))
+      (\fun (outside: Logic.Not (Sets.Member Divergence.exception x)) => R.leReplaceRight Real.zero (data.sequence N.Nat^::zero x) (sequence N.Nat^::zero x)
+        (sym!{Real.Real} _ _ ((\root.MonotoneIntegrals[A := A, mu := mu].For[data := data].Limit[].At[k := N.Nat^::zero].law x).right outside)) (data.nonnegative N.Nat^::zero x)))
+    (C.pointwiseUpper sequence value supremum N.Nat^::zero x);
+\definition increasing: C.FunctionIncreasing sequence := \fun (k: N.Nat^) (x: A) =>
+  Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member Divergence.exception x))
+    (\fun (inside: Sets.Member Divergence.exception x) => R.leReplace Real.zero (sequence k x) Real.zero (sequence (N.Nat^::succ k) x)
+      (sym!{Real.Real} _ _ ((\root.MonotoneIntegrals[A := A, mu := mu].For[data := data].Limit[].At[k := k].law x).left inside))
+      (sym!{Real.Real} _ _ ((\root.MonotoneIntegrals[A := A, mu := mu].For[data := data].Limit[].At[k := N.Nat^::succ k].law x).left inside)) (R.leRefl Real.zero))
+    (\fun (outside: Logic.Not (Sets.Member Divergence.exception x)) => R.leReplace (data.sequence k x) (sequence k x) (data.sequence (N.Nat^::succ k) x) (sequence (N.Nat^::succ k) x)
+      (sym!{Real.Real} _ _ ((\root.MonotoneIntegrals[A := A, mu := mu].For[data := data].Limit[].At[k := k].law x).right outside))
+      (sym!{Real.Real} _ _ ((\root.MonotoneIntegrals[A := A, mu := mu].For[data := data].Limit[].At[k := N.Nat^::succ k].law x).right outside)) (data.increasing k x));
+\import I.Absolute[] \as Absolute;
+\import Real.Estimates[].Product[] \as Product;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import C.Monotone[] \as Monotone;
+\definition sequenceAsMeasurable: C.MeasurableSequence :=
+  \into[N.Nat^ -> A -> Real.Real](sequence, { f: N.Nat^ -> A -> Real.Real \where \forall (k: N.Nat^) -> M.IsMeasurable mu (f k) }) \by {
+    \fun (k: N.Nat^) => \root.MonotoneIntegrals[A := A, mu := mu].For[data := data].Limit[].At[k := k].measurable
+  };
+\definition lowerBound: \forall (r: Real.Real) -> M.below (I.lowerIntegral value) r -> R.Le r data.bound :=
+  \fun (r: Real.Real) (member: M.below (I.lowerIntegral value) r) => \block {
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where M.below (I.lowerIntegral (sequence k)) r }) \by
+      (\idelim I.lowerIntegral value = C.Sup (\fun (k: N.Nat^) => I.lowerIntegral (sequence k))
+        \with v: M.Value => M.below v r \by { base: member, equality: Monotone.monotone sequenceAsMeasurable value supremum increasing }) \then
+    \let inPartial: M.below (I.lowerIntegral (data.sequence k)) r :=
+      \idelim I.lowerIntegral (sequence k) = I.lowerIntegral (data.sequence k) \with v: M.Value => M.below v r \by {
+        base: \bysub(N.Nat^, { k: N.Nat^ \where M.below (I.lowerIntegral (sequence k)) r }, k),
+        equality: Null.lowerAlmostEqual (sequence k) (data.sequence k)
+          (\root.MonotoneIntegrals[A := A, mu := mu].For[data := data].Limit[].At[k := k].almost)
+      } \then
+    \return R.leTrans r (I.integral (data.sequence k)) data.bound
+      ((Absolute.nonnegativeIntegralSup (data.sequence k) (I.integral (data.sequence k)) (data.nonnegative k)
+        (I.integralLaw (data.sequence k))).upper r inPartial) (data.integralBound k)
+  };
+\definition integrable: I.Integrable value := Logic.And[_, _]::# measurable (Logic.And[_, _]::#
+  (\fun (x: A) => Product.absNonnegative (value x))
+  (Logic.existsIntro[Real.Real, { b: Real.Real \where I.IntegralBound[\fun (x: A) => Product.abs (value x), b] }] data.bound
+    (I.IntegralBound[_, _] { nonnegative := Scaling.nonnegative data.bound,
+      bound := \fun (r: Real.Real) (member: M.below (I.lowerIntegral (\fun (x: A) => Product.abs (value x))) r) =>
+        lowerBound r (\idelim I.lowerIntegral (\fun (x: A) => Product.abs (value x)) = I.lowerIntegral value
+          \with v: M.Value => M.below v r \by { base: member, equality:
+            congr!{{A -> Real.Real} M.Value} I.lowerIntegral _ _
+              (\axiom:funext((\fun (x: A) => Product.abs (value x)), value, \fun (x: A) => Product.absOfNonnegative (value x) (nonnegative x))) })
+    })));
+\definition representative: I.Representatives := \into[A -> Real.Real](value, { f: A -> Real.Real \where I.Integrable f }) \by { integrable };
+\import \root.MeasureSup[A := A, mu := mu] \as MeasureSup;
+\import \root.ScalarSup[] \as ScalarSup;
+\import Real.Sequence[] \as Sequence;
+\import Sequence.Operations[] \as Operations;
+\import C.PointwiseSum[] \as Increasing;
+\definition masked[k: N.Nat^]: I.Representatives := \root.MonotoneIntegrals[A := A, mu := mu].For[data := data].Limit[].At[k := k].representative;
+\definition maskedNonnegative: \forall (k: N.Nat^) (x: A) -> R.Le Real.zero (sequence k x) :=
+  \fun (k: N.Nat^) (x: A) => Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member Divergence.exception x))
+    (\fun (inside: Sets.Member Divergence.exception x) => R.leReplaceRight Real.zero Real.zero (sequence k x)
+      (sym!{Real.Real} _ _ ((\root.MonotoneIntegrals[A := A, mu := mu].For[data := data].Limit[].At[k := k].law x).left inside)) (R.leRefl Real.zero))
+    (\fun (outside: Logic.Not (Sets.Member Divergence.exception x)) => R.leReplaceRight Real.zero (data.sequence k x) (sequence k x)
+      (sym!{Real.Real} _ _ ((\root.MonotoneIntegrals[A := A, mu := mu].For[data := data].Limit[].At[k := k].law x).right outside)) (data.nonnegative k x));
+\definition maskedIntegral: \forall (k: N.Nat^) -> I.integral (masked k) = I.integral (data.sequence k) :=
+  \fun (k: N.Nat^) => Null.integralAlmost (masked k) (data.sequence k)
+    (\root.MonotoneIntegrals[A := A, mu := mu].For[data := data].Limit[].At[k := k].almost);
+\definition integralSupremum: Complete.LeastUpperBound[ScalarSup.values (\fun (k: N.Nat^) => I.integral (masked k)), I.integral representative] :=
+  MeasureSup.valuesSupremum (\fun (k: N.Nat^) => I.lowerIntegral (sequence k)) (\fun (k: N.Nat^) => I.integral (masked k)) (I.integral representative)
+    (\fun (k: N.Nat^) => Absolute.nonnegativeIntegralSup (masked k) (I.integral (masked k)) (maskedNonnegative k) (I.integralLaw (masked k)))
+    (\idelim I.lowerIntegral value = C.Sup (\fun (k: N.Nat^) => I.lowerIntegral (sequence k)) \with v: M.Value => Complete.LeastUpperBound[v, I.integral representative] \by {
+      base: Absolute.nonnegativeIntegralSup representative (I.integral representative) nonnegative (I.integralLaw representative),
+      equality: Monotone.monotone sequenceAsMeasurable value supremum increasing });
+\definition convergence: Sequence.Converges (\fun (k: N.Nat^) => I.integral (data.sequence k)) (I.integral representative) :=
+  Operations.congruent (\fun (k: N.Nat^) => I.integral (masked k)) (\fun (k: N.Nat^) => I.integral (data.sequence k)) (I.integral representative) maskedIntegral
+    (ScalarSup.converges (\fun (k: N.Nat^) => I.integral (masked k)) (I.integral representative)
+      (\fun (i, j: N.Nat^) (later: N.Basic[].Prop[].Le i j) => Absolute.integralMono (masked i) (masked j)
+        (\fun (x: A) => Increasing.increasingAll sequence increasing j i later x)) integralSupremum);
+\definition outsideSup: \forall (x: A) -> Logic.Not (Sets.Member Divergence.exception x) ->
+  Complete.LeastUpperBound[C.PointValues (\fun (k: N.Nat^) (x: A) => data.sequence k x) x, value x] :=
+  \fun (x: A) (outside: Logic.Not (Sets.Member Divergence.exception x)) =>
+    \idelim C.PointValues sequence x = C.PointValues (\fun (k: N.Nat^) (x: A) => data.sequence k x) x \with S: \Pow Real.Real => Complete.LeastUpperBound[S, value x] \by {
+      base: supremum x,
+      equality: \axiom:setext(C.PointValues sequence x, C.PointValues (\fun (k: N.Nat^) (x: A) => data.sequence k x) x,
+        \fun (r: Real.Real) (member: Complete.Member (C.PointValues sequence x) r) => \block {
+          \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where r = sequence k x }) \by member \then
+          \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where r = data.sequence k x }] k
+            (trans!{Real.Real} _ _ _ (\bysub(N.Nat^, { k: N.Nat^ \where r = sequence k x }, k))
+              ((\root.MonotoneIntegrals[A := A, mu := mu].For[data := data].Limit[].At[k := k].law x).right outside))
+        },
+        \fun (r: Real.Real) (member: Complete.Member (C.PointValues (\fun (k: N.Nat^) (x: A) => data.sequence k x) x) r) => \block {
+          \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where r = data.sequence k x }) \by member \then
+          \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where r = sequence k x }] k
+            (trans!{Real.Real} _ _ _ (\bysub(N.Nat^, { k: N.Nat^ \where r = data.sequence k x }, k))
+              (sym!{Real.Real} _ _ ((\root.MonotoneIntegrals[A := A, mu := mu].For[data := data].Limit[].At[k := k].law x).right outside)))
+        }) };
+\definition insideZero: \forall (x: A) -> Sets.Member Divergence.exception x -> value x = Real.zero :=
+  \fun (x: A) (inside: Sets.Member Divergence.exception x) => R.leAntisym (value x) Real.zero
+    ((supremum x).least Real.zero (\fun (r: Real.Real) (member: Complete.Member (C.PointValues sequence x) r) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where r = sequence k x }) \by member \then
+      \return R.leReplaceLeft Real.zero r Real.zero (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+        (\bysub(N.Nat^, { k: N.Nat^ \where r = sequence k x }, k))
+        ((\root.MonotoneIntegrals[A := A, mu := mu].For[data := data].Limit[].At[k := k].law x).left inside))) (R.leRefl Real.zero)
+    })) (nonnegative x);

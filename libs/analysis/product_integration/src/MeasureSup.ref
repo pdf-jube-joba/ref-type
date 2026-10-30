@@ -35,3 +35,22 @@
             (\bysub(N.Nat^, { k: N.Nat^ \where M.below (mu.value (sets k)) r }, k))) (upper (sequence k) (ScalarSup.member sequence k))
         }),
     };
+\import M.Integral[mu := mu].Convergence[] \as C;
+\definition valuesSupremum: \forall (values: N.Nat^ -> M.Value) (sequence: N.Nat^ -> Real.Real) (v: Real.Real) ->
+  (\forall (k: N.Nat^) -> Complete.LeastUpperBound[values k, sequence k]) ->
+  Complete.LeastUpperBound[C.Sup values, v] -> Complete.LeastUpperBound[ScalarSup.values sequence, v] :=
+  \fun (values: N.Nat^ -> M.Value) (sequence: N.Nat^ -> Real.Real) (v: Real.Real)
+    (laws: \forall (k: N.Nat^) -> Complete.LeastUpperBound[values k, sequence k]) (limit: Complete.LeastUpperBound[C.Sup values, v]) =>
+    Complete.LeastUpperBound[ScalarSup.values sequence, v] {
+      upper := \fun (r: Real.Real) (member: Complete.Member (ScalarSup.values sequence) r) => \block {
+        \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where r = sequence k }) \by member \then
+        \return R.leReplaceLeft (sequence k) r v (sym!{Real.Real} _ _ (\bysub(N.Nat^, { k: N.Nat^ \where r = sequence k }, k)))
+          ((laws k).least v (\fun (r: Real.Real) (member: M.below (values k) r) => limit.upper r (C.supUpper values k r member)))
+      },
+      least := \fun (b: Real.Real) (upper: Complete.UpperBound (ScalarSup.values sequence) b) => limit.least b
+        (\fun (r: Real.Real) (member: M.below (C.Sup values) r) => \block {
+          \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where M.below (values k) r }) \by member \then
+          \return R.leTrans r (sequence k) b ((laws k).upper r (\bysub(N.Nat^, { k: N.Nat^ \where M.below (values k) r }, k)))
+            (upper (sequence k) (ScalarSup.member sequence k))
+        }),
+    };

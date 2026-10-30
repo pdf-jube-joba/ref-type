@@ -1,0 +1,64 @@
+\import RI.Zero[] \as Zero;
+\import std.Logic[].Classical[] \as Classical;
+\definition function: B -> Real.Real := \fun (y: B) => data.function.function (Pair.pair A B x y);
+\definition sequence: RC.MeasurableSequence := \into[N.Nat^ -> B -> Real.Real]
+  ((\fun (k: N.Nat^) (y: B) => approximateSection k x y), RC.MeasurableSequence) \by {
+    \fun (k: N.Nat^) => (RI.integralLaw (approximateSection k x)).integrable.left
+  };
+\definition lower: Logic.Not (ASets.Member Divergence.exception x) -> RI.lowerIntegral function = RightCuts.cut (Limit.value x) :=
+  \fun (outside: Logic.Not (ASets.Member Divergence.exception x)) => eq_reason_in!{RM.Value _
+    "=" _ "by" { RightMonotone.monotone sequence function (\fun (y: B) => Approx.pointwiseSup (Pair.pair A B x y))
+      (\fun (k: N.Nat^) (y: B) => Approx.increasing k (Pair.pair A B x y)) }
+    "=" _ "by" { congr!{{N.Nat^ -> RM.Value} RM.Value} RC.Sup _ _ (\axiom:funext(
+      (\fun (k: N.Nat^) => RI.lowerIntegral (approximateSection k x)),
+      (\fun (k: N.Nat^) => RightCuts.cut (approximateOuter k x)),
+      \fun (k: N.Nat^) => eq_reason_in!{RM.Value _
+        "=" _ "by" { RightCuts.fromSup (RI.lowerIntegral (approximateSection k x)) (RI.integral (approximateSection k x))
+          (RightSimple.lowerNonnegative (approximateSection k x))
+          (RightAbsolute.nonnegativeIntegralSup (approximateSection k x) (RI.integral (approximateSection k x))
+            (\fun (y: B) => Approx.nonnegative k (Pair.pair A B x y)) (RI.integralLaw (approximateSection k x))) }
+        "=" _ "by" { congr!{Real.Real RM.Value} RightCuts.cut _ _ (sectionIntegral k x) }
+      })) }
+    "=" _ "by" { RightCuts.sup (\fun (k: N.Nat^) => approximateOuter k x) (Limit.value x) (Limit.outsideSup x outside) }
+  };
+\definition hasIntegral: Logic.Not (ASets.Member Divergence.exception x) -> RI.HasIntegral[function, Limit.value x] :=
+  \fun (outside: Logic.Not (ASets.Member Divergence.exception x)) => Right.nonnegativeSup function (Limit.value x)
+    (\fun (y: B) => data.function.nonnegative (Pair.pair A B x y)) (measurableSection x)
+    (\idelim RightCuts.cut (Limit.value x) = RI.lowerIntegral function \with v: RM.Value => Complete.LeastUpperBound[v, Limit.value x] \by {
+      base: RightCuts.supremum (Limit.value x), equality: sym!{RM.Value} _ _ (lower outside) });
+\definition raw[outside: Logic.Not (ASets.Member Divergence.exception x)]: RI.Representatives :=
+  \into[B -> Real.Real](function, RI.Representatives) \by { (hasIntegral outside).integrable };
+\definition rawIntegral: \forall (outside: Logic.Not (ASets.Member Divergence.exception x)) -> RI.integral (raw outside) = Limit.value x :=
+  \fun (outside: Logic.Not (ASets.Member Divergence.exception x)) => RI.integralUnique function (RI.integral (raw outside)) (Limit.value x)
+    (RI.integralLaw (raw outside)) (hasIntegral outside);
+\structure Laws[f: RI.Representatives]: \Prop := {
+  inside: ASets.Member Divergence.exception x -> \forall (y: B) -> f y = Real.zero,
+  outside: Logic.Not (ASets.Member Divergence.exception x) -> \forall (y: B) -> f y = function y,
+  integral: RI.integral f = Limit.value x,
+};
+\definition Candidate: \Set := \Cast[RI.Representatives] ({ f: RI.Representatives \where Laws[f] });
+\definition exists: \exists ( f: RI.Representatives \where Laws[f] ) := Logic.orElim _ _ _ (Classical.excludedMiddle (ASets.Member Divergence.exception x))
+  (\fun (inside: ASets.Member Divergence.exception x) => Logic.existsIntro[RI.Representatives, { f: RI.Representatives \where Laws[f] }] Zero.representative
+    (Laws[Zero.representative] {
+      inside := \fun (_: ASets.Member Divergence.exception x) (_: B) => \refl(Real.zero),
+      outside := \fun (outside: Logic.Not (ASets.Member Divergence.exception x)) => Logic.falseElim _ (outside inside),
+      integral := eq_reason_in!{Real.Real _
+        "=" _ "by" { Zero.integralZero }
+        "=" _ "by" { sym!{Real.Real} _ _ (Limit.insideZero x inside) }
+      },
+    }))
+  (\fun (outside: Logic.Not (ASets.Member Divergence.exception x)) => Logic.existsIntro[RI.Representatives, { f: RI.Representatives \where Laws[f] }] (raw outside)
+    (Laws[raw outside] {
+      inside := \fun (inside: ASets.Member Divergence.exception x) => Logic.falseElim _ (outside inside),
+      outside := \fun (_: Logic.Not (ASets.Member Divergence.exception x)) (y: B) => \refl(function y),
+      integral := rawIntegral outside,
+    }));
+\definition law[f: Candidate]: Laws[f] := \bysub(RI.Representatives, { f: RI.Representatives \where Laws[f] }, f);
+\use std.Logic[].Equality[].trans;
+\definition unique: \forall (u, v: Candidate) -> u = v := \fun (u, v: Candidate) => \axiom:funext(u, v,
+  \fun (y: B) => Logic.orElim _ _ (u y = v y) (Classical.excludedMiddle (ASets.Member Divergence.exception x))
+    (\fun (inside: ASets.Member Divergence.exception x) => trans!{Real.Real} _ _ _ ((law u).inside inside y) (sym!{Real.Real} _ _ ((law v).inside inside y)))
+    (\fun (outside: Logic.Not (ASets.Member Divergence.exception x)) => trans!{Real.Real} _ _ _ ((law u).outside outside y) (sym!{Real.Real} _ _ ((law v).outside outside y))));
+\definition representative: RI.Representatives := \choice Candidate \by { existence: exists, uniqueness: unique };
+\definition laws: Laws[representative] := \bysub(RI.Representatives, { f: RI.Representatives \where Laws[f] },
+  \choice Candidate \by { existence: exists, uniqueness: unique });

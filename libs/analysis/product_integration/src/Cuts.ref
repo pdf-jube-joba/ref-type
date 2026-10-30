@@ -56,3 +56,16 @@
   \fun (a, b: Real.Real) (same: cut a = cut b) => Complete.leastUpperBoundUnique (cut a) a b (supremum a)
     (\idelim cut b = cut a \with v: M.Value => Complete.LeastUpperBound[v, b] \by {
       base: supremum b, equality: sym!{M.Value} _ _ same });
+\import M.ValueLaws[].SupAdd[] \as SupAdd;
+\definition fromSup: \forall (v: M.Value) (p: Real.Real) -> M.NonnegativeValue[v] -> Complete.LeastUpperBound[v, p] -> v = cut p :=
+  \fun (v: M.Value) (p: Real.Real) (valid: M.NonnegativeValue[v]) (law: Complete.LeastUpperBound[v, p]) => \axiom:setext(v, cut p,
+    \fun (r: Real.Real) (member: M.below v r) => \block {
+      \takefrom t: \Cast[Real.Real] ({ t: Real.Real \where Logic.And[R.Lt r t, M.below v t] }) \by valid.rounded r member \then
+      \let above: Logic.And[R.Lt r t, M.below v t] := \bysub(Real.Real, { t: Real.Real \where Logic.And[R.Lt r t, M.below v t] }, t) \then
+      \return R.ltLeTrans r t p above.left (law.upper t above.right)
+    },
+    \fun (r: Real.Real) (less: R.Lt r p) => \block {
+      \takefrom t: \Cast[Real.Real] ({ t: Real.Real \where Logic.And[M.below v t, R.Lt r t] }) \by SupAdd.above v p r law less \then
+      \let above: Logic.And[M.below v t, R.Lt r t] := \bysub(Real.Real, { t: Real.Real \where Logic.And[M.below v t, R.Lt r t] }, t) \then
+      \return valid.downward r t above.right above.left
+    });
