@@ -1,0 +1,53 @@
+\definition model: Relative.CompactPointed := sphere dimension;
+\definition index: N.Nat^ := P.index (P.value degree);
+\definition total: N.Nat^ := Nat.add dimension index;
+\definition parity: B.Bool^ := P.natural total;
+\definition parityFormula: parity = P.xor (P.natural dimension) (P.value degree) := trans!{{B.Bool^}} _ _ _ (P.naturalAdd dimension index)
+  (congr!{{B.Bool^} {B.Bool^}} (P.xor (P.natural dimension)) _ _ (P.naturalIndex (P.value degree)));
+\definition Carrier: \Set := \root.Periodicity[].Integer[].At[model := model, degree := degree].Carrier;
+\definition group: std.Alg[].Alg[].CommutativeGroup[Carrier] := \root.Periodicity[].Integer[].At[model := model, degree := degree].group;
+\definition Coefficient: \Set := Coefficients.Carrier parity;
+\definition coefficientGroup: std.Alg[].Alg[].CommutativeGroup[Coefficient] := Coefficients.group parity;
+\import Relative.IterationAddition[original := SphereModel.zero, inner := dimension] \as Addition;
+\definition regrouping: Relative.Equivalence[source := Relative.iterate total SphereModel.zero, target := Relative.iterate index model].Data := Addition.comparison index;
+\import Relative.Equivalence[source := Relative.iterate total SphereModel.zero, target := Relative.iterate index model].With[e := regrouping].Groups[] \as Regroup;
+\import \root.Periodicity[].Integer[].Comparison[model := SphereModel.zero] \as Comparison;
+\definition normalize: Comparison.Data total := Comparison.normal total;
+\definition coefficients: Coefficients.Data parity := Coefficients.isomorphism parity;
+\definition forward[x: Carrier]: Coefficient := coefficients.forward (normalize.forward (Regroup.forward x));
+\definition backward[x: Coefficient]: Carrier := Regroup.backward (normalize.backward (coefficients.backward x));
+\definition leftInverse: \forall (x: Carrier) -> backward (forward x) = x := \fun (x: Carrier) => eq_reason_in!{Carrier _
+  "=" _ "by" { congr!{{Comparison.Target total} Carrier} (\fun (q: Comparison.Target total) => Regroup.backward (normalize.backward q)) _ _ (coefficients.leftInverse (normalize.forward (Regroup.forward x))) }
+  "=" _ "by" { congr!{{Comparison.Source total} Carrier} Regroup.backward _ _ (normalize.leftInverse (Regroup.forward x)) }
+  "=" _ "by" { Regroup.rightInverse x }
+};
+\definition rightInverse: \forall (x: Coefficient) -> forward (backward x) = x := \fun (x: Coefficient) => eq_reason_in!{Coefficient _
+  "=" _ "by" { congr!{{Comparison.Source total} Coefficient} (\fun (q: Comparison.Source total) => coefficients.forward (normalize.forward q)) _ _ (Regroup.leftInverse (normalize.backward (coefficients.backward x))) }
+  "=" _ "by" { congr!{{Comparison.Target total} Coefficient} coefficients.forward _ _ (normalize.rightInverse (coefficients.backward x)) }
+  "=" _ "by" { coefficients.rightInverse x }
+};
+\definition forwardAdd: \forall (x, y: Carrier) -> forward (group.base.op x y) = coefficientGroup.base.op (forward x) (forward y) := \fun (x, y: Carrier) => eq_reason_in!{Coefficient _
+  "=" _ "by" { congr!{{Comparison.Source total} Coefficient} (\fun (q: Comparison.Source total) => coefficients.forward (normalize.forward q)) _ _ (Regroup.forwardAdd x y) }
+  "=" _ "by" { congr!{{Comparison.Target total} Coefficient} coefficients.forward _ _ (normalize.forwardAdd (Regroup.forward x) (Regroup.forward y)) }
+  "=" _ "by" { coefficients.forwardAdd (normalize.forward (Regroup.forward x)) (normalize.forward (Regroup.forward y)) }
+};
+\definition backwardAdd: \forall (x, y: Coefficient) -> backward (coefficientGroup.base.op x y) = group.base.op (backward x) (backward y) := \fun (x, y: Coefficient) => eq_reason_in!{Carrier _
+  "=" _ "by" { congr!{{Comparison.Target total} Carrier} (\fun (q: Comparison.Target total) => Regroup.backward (normalize.backward q)) _ _ (coefficients.backwardAdd x y) }
+  "=" _ "by" { congr!{{Comparison.Source total} Carrier} Regroup.backward _ _ (normalize.backwardAdd (coefficients.backward x) (coefficients.backward y)) }
+  "=" _ "by" { Regroup.backwardAdd (normalize.backward (coefficients.backward x)) (normalize.backward (coefficients.backward y)) }
+};
+\definition forwardZero: forward group.base.unit = coefficientGroup.base.unit := eq_reason_in!{Coefficient _
+  "=" _ "by" { congr!{{Comparison.Source total} Coefficient} (\fun (q: Comparison.Source total) => coefficients.forward (normalize.forward q)) _ _ Regroup.forwardZero }
+  "=" _ "by" { congr!{{Comparison.Target total} Coefficient} coefficients.forward _ _ normalize.forwardZero }
+  "=" _ "by" { coefficients.forwardZero }
+};
+\definition backwardZero: backward coefficientGroup.base.unit = group.base.unit := eq_reason_in!{Carrier _
+  "=" _ "by" { congr!{{Comparison.Target total} Carrier} (\fun (q: Comparison.Target total) => Regroup.backward (normalize.backward q)) _ _ coefficients.backwardZero }
+  "=" _ "by" { congr!{{Comparison.Source total} Carrier} Regroup.backward _ _ normalize.backwardZero }
+  "=" _ "by" { Regroup.backwardZero }
+};
+\definition isomorphism: \root.Periodicity[].Isomorphism[A := Carrier, B := Coefficient, source := group, target := coefficientGroup].Data :=
+  \root.Periodicity[].Isomorphism[A := Carrier, B := Coefficient, source := group, target := coefficientGroup].Data {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardAdd := forwardAdd, backwardAdd := backwardAdd, forwardZero := forwardZero, backwardZero := backwardZero
+  };

@@ -1,0 +1,63 @@
+\import Relative.Pair[X := X, space := space, compact := compact, hausdorff := hausdorff, subset := subset, closed := closed] \as Pair;
+\import Pair.Restriction[] \as Restriction;
+\import Pair.Augmented[] \as Augmented;
+\import Augmented.Sequence[degree := N.Nat^::zero] \as Even;
+\import Augmented.Sequence[degree := Bott.one] \as Odd;
+\definition wholeModel: Relative.CompactPointed := Relative.Absolute[X := X, space := space, compact := compact, hausdorff := hausdorff].model;
+\definition subsetModel: Relative.CompactPointed := Relative.Absolute[X := Pair.A, space := Pair.subspace,
+  compact := Restriction.compactSubset, hausdorff := Restriction.hausdorffSubset].model;
+\definition relativeModel: Relative.CompactPointed := Pair.Quotient[].model;
+\import \root.Periodicity[].TwoShift[model := wholeModel] \as WholePeriod;
+\import \root.Periodicity[].TwoShift[model := subsetModel] \as SubsetPeriod;
+\import SubsetPeriod.Naturality[other := wholeModel, mapping := Augmented.inclusion] \as RestrictionNaturality;
+\definition RelativeEven: \Set := Even.Third;
+\definition WholeEven: \Set := Even.Fourth;
+\definition SubsetEven: \Set := Even.Fifth;
+\definition RelativeOdd: \Set := Odd.Third;
+\definition WholeOdd: \Set := Odd.Fourth;
+\definition SubsetOdd: \Set := Odd.Fifth;
+\definition relativeEvenGroup: std.Alg[].Alg[].CommutativeGroup[RelativeEven] := Even.thirdGroup;
+\definition wholeEvenGroup: std.Alg[].Alg[].CommutativeGroup[WholeEven] := Even.fourthGroup;
+\definition subsetEvenGroup: std.Alg[].Alg[].CommutativeGroup[SubsetEven] := Even.fifthGroup;
+\definition relativeOddGroup: std.Alg[].Alg[].CommutativeGroup[RelativeOdd] := Odd.thirdGroup;
+\definition wholeOddGroup: std.Alg[].Alg[].CommutativeGroup[WholeOdd] := Odd.fourthGroup;
+\definition subsetOddGroup: std.Alg[].Alg[].CommutativeGroup[SubsetOdd] := Odd.fifthGroup;
+\definition forgetEven: RelativeEven -> WholeEven := Even.forget;
+\definition restrictionEven: WholeEven -> SubsetEven := Even.restriction;
+\definition boundaryEven[a: SubsetEven]: RelativeOdd := Odd.boundary (SubsetPeriod.forward a);
+\definition forgetOdd: RelativeOdd -> WholeOdd := Odd.forget;
+\definition restrictionOdd: WholeOdd -> SubsetOdd := Odd.restriction;
+\definition boundaryOdd: SubsetOdd -> RelativeEven := Even.boundary;
+\definition restrictionPeriodicity: \forall (x: WholeEven) -> Odd.restrictionNegative (WholePeriod.forward x) = SubsetPeriod.forward (restrictionEven x) :=
+  \fun (x: WholeEven) => trans!{{Odd.Second}} _ _ _ (Odd.restrictionNegativeFormula (WholePeriod.forward x))
+    (trans!{{Odd.Second}} _ _ _ (RestrictionNaturality.forwardEquation x)
+      (congr!{{SubsetEven} {Odd.Second}} SubsetPeriod.forward _ _ (sym!{{SubsetEven}} _ _ (Even.restrictionFormula x))));
+\definition forgetEvenAdd: \forall (a, b: RelativeEven) -> forgetEven (relativeEvenGroup.base.op a b) = wholeEvenGroup.base.op (forgetEven a) (forgetEven b) := Even.forgetAdd;
+\definition restrictionEvenAdd: \forall (a, b: WholeEven) -> restrictionEven (wholeEvenGroup.base.op a b) = subsetEvenGroup.base.op (restrictionEven a) (restrictionEven b) := Even.restrictionAdd;
+\definition boundaryEvenAdd: \forall (a, b: SubsetEven) -> boundaryEven (subsetEvenGroup.base.op a b) = relativeOddGroup.base.op (boundaryEven a) (boundaryEven b) :=
+  \fun (a, b: SubsetEven) => trans!{RelativeOdd} _ _ _
+    (congr!{{Odd.Second} RelativeOdd} Odd.boundary _ _ (SubsetPeriod.forwardAdd a b)) (Odd.boundaryAdd (SubsetPeriod.forward a) (SubsetPeriod.forward b));
+\definition forgetOddAdd: \forall (a, b: RelativeOdd) -> forgetOdd (relativeOddGroup.base.op a b) = wholeOddGroup.base.op (forgetOdd a) (forgetOdd b) := Odd.forgetAdd;
+\definition restrictionOddAdd: \forall (a, b: WholeOdd) -> restrictionOdd (wholeOddGroup.base.op a b) = subsetOddGroup.base.op (restrictionOdd a) (restrictionOdd b) := Odd.restrictionAdd;
+\definition boundaryOddAdd: \forall (a, b: SubsetOdd) -> boundaryOdd (subsetOddGroup.base.op a b) = relativeEvenGroup.base.op (boundaryOdd a) (boundaryOdd b) := Even.boundaryAdd;
+\definition forgetEvenZero: forgetEven relativeEvenGroup.base.unit = wholeEvenGroup.base.unit := Even.forgetZero;
+\definition restrictionEvenZero: restrictionEven wholeEvenGroup.base.unit = subsetEvenGroup.base.unit := Even.restrictionZero;
+\definition boundaryEvenZero: boundaryEven subsetEvenGroup.base.unit = relativeOddGroup.base.unit := trans!{RelativeOdd} _ _ _
+  (congr!{{Odd.Second} RelativeOdd} Odd.boundary _ _ SubsetPeriod.forwardZero) Odd.boundaryZero;
+\definition forgetOddZero: forgetOdd relativeOddGroup.base.unit = wholeOddGroup.base.unit := Odd.forgetZero;
+\definition restrictionOddZero: restrictionOdd wholeOddGroup.base.unit = subsetOddGroup.base.unit := Odd.restrictionZero;
+\definition boundaryOddZero: boundaryOdd subsetOddGroup.base.unit = relativeEvenGroup.base.unit := Even.boundaryZero;
+\definition exactRelativeEven[q: RelativeEven]: Logic.PropEquiv[forgetEven q = wholeEvenGroup.base.unit, \exists (a: SubsetOdd \where boundaryOdd a = q)] := Even.exactThird q;
+\definition exactWholeEven[x: WholeEven]: Logic.PropEquiv[restrictionEven x = subsetEvenGroup.base.unit, \exists (q: RelativeEven \where forgetEven q = x)] := Even.exactFourth x;
+\definition exactWholeOdd[x: WholeOdd]: Logic.PropEquiv[restrictionOdd x = subsetOddGroup.base.unit, \exists (q: RelativeOdd \where forgetOdd q = x)] := Odd.exactFourth x;
+\module AtSubsetEven;
+\module AtRelativeOdd;
+\module AtSubsetOdd;
+\definition exactSubsetEven[a: SubsetEven]: Logic.PropEquiv[boundaryEven a = relativeOddGroup.base.unit, \exists (x: WholeEven \where restrictionEven x = a)] := AtSubsetEven[].exact a;
+\definition exactRelativeOdd[q: RelativeOdd]: Logic.PropEquiv[forgetOdd q = wholeOddGroup.base.unit, \exists (a: SubsetEven \where boundaryEven a = q)] := AtRelativeOdd[].exact q;
+\definition exactSubsetOdd[a: SubsetOdd]: Logic.PropEquiv[boundaryOdd a = relativeEvenGroup.base.unit, \exists (x: WholeOdd \where restrictionOdd x = a)] := AtSubsetOdd[].exact a;
+\module Naturality(Y: \Set, sourceSpace: topology.Topology[Carrier := Y].Topology,
+  sourceCompact: topology.Topology[Carrier := Y].IsCompact sourceSpace, sourceHausdorff: topology.Topology[Carrier := Y].IsT2 sourceSpace,
+  sourceSubset: \Pow Y, sourceClosed: topology.Topology[Carrier := Y].IsClosedIn sourceSpace sourceSubset,
+  mapping: Y -> X, regular: topology.Continuity[A := Y, B := X].Continuous sourceSpace space mapping,
+  preserves: \forall (y: Y) -> \In[Y] sourceSubset y -> \In[X] subset (mapping y));

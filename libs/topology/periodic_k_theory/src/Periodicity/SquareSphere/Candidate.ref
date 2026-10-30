@@ -1,0 +1,68 @@
+\import \parent.Plane[] \as Plane;
+\import \parent.Square[] \as Square;
+\import \parent.Scalar[] \as Scalar;
+\import \parent.Stereographic[] \as Stereo;
+\import \parent.Forward[] \as Forward;
+\import Sphere.Geometry[] \as Geometry;
+\import Real.Inverse[] \as Inverse;
+\definition headBound: R.Le (Stereo.head p) Real.one :=
+  (Geometry.unitBounds (Stereo.head p) (R.leReplaceRight _ (Sphere.normSquared p) Real.one
+    (\bysub(Sphere.Coordinate, Sphere.Boundary, p)) (Geometry.coordinateSquareBound p (std.Data[].FinSet[].zero Bott.two)))).right;
+\definition gapNonnegative: R.Le Real.zero (Stereo.gap p) := Distance.subNonnegative Real.one (Stereo.head p) headBound;
+\definition gapNonzero: Logic.Not (Stereo.gap p = Real.zero) :=
+  \fun (bad: Stereo.gap p = Real.zero) => off (sym!{{Real.Real}} _ _ (Distance.subZeroEq Real.one (Stereo.head p) bad));
+\definition gapPositive: R.Lt Real.zero (Stereo.gap p) := Order.ltOfLeNotEq Real.zero (Stereo.gap p) gapNonnegative
+  (\fun (bad: Real.zero = Stereo.gap p) => gapNonzero (sym!{{Real.Real}} _ _ bad));
+\definition m: Real.Real := maximum (Stereo.x p) (Stereo.y p);
+\definition total: Real.Real := Real.add (Stereo.gap p) m;
+\definition totalPositive: R.Lt Real.zero total := R.ltReplaceLeft (Real.add Real.zero Real.zero) Real.zero total (Laws.addZeroLeft Real.zero)
+  (R.ltLeTrans _ (Real.add (Stereo.gap p) Real.zero) _ (Laws.ltAddRight Real.zero (Stereo.gap p) Real.zero gapPositive)
+    (Laws.addMonotoneLeft Real.zero m (Stereo.gap p) (Scalar.maxNonnegative (Stereo.x p) (Stereo.y p))));
+\definition k: Real.Real := Laws.fieldInv total;
+\definition kPositive: R.Lt Real.zero k := Estimates.Product[].invPositive total totalPositive;
+\definition kNonnegative: R.Le Real.zero k := Order.leOfLt Real.zero k kPositive;
+\definition weights: Real.add (Real.mul k (Stereo.gap p)) (Real.mul k m) = Real.one :=
+  trans!{{Real.Real}} _ _ _ (sym!{{Real.Real}} _ _ (Laws.fieldMulAdd k (Stereo.gap p) m)) (Laws.fieldInverseNonzero total (Inverse.positiveNonzero total totalPositive));
+\definition z: Plane.Carrier := std.Data[].Pair[].pair Real.Real Real.Real (Real.mul k (Stereo.x p)) (Real.mul k (Stereo.y p));
+\definition radius: Plane.radius z = Real.mul k m := Scalar.maximumScale k (Stereo.x p) (Stereo.y p) kNonnegative;
+\definition gap: Plane.gap z = Real.mul k (Stereo.gap p) := eq_reason_in!{{Real.Real} _
+  "=" _ "by" { congr!{{Real.Real} {Real.Real}} (Real.sub Real.one) _ _ radius }
+  "=" _ "by" { congr!{{Real.Real} {Real.Real}} (\fun (a: Real.Real) => Real.sub a (Real.mul k m)) _ _ (sym!{{Real.Real}} _ _ weights) }
+  "=" _ "by" { Laws.addNegCancelRight (Real.mul k m) (Real.mul k (Stereo.gap p)) }
+};
+\definition bounded: R.Le (Plane.radius z) Real.one := R.leReplace (Real.mul k m) (Plane.radius z)
+  (Real.add (Real.mul k (Stereo.gap p)) (Real.mul k m)) Real.one (sym!{{Real.Real}} _ _ radius) weights
+  (Distance.leAddRightOfNonnegative (Real.mul k (Stereo.gap p)) (Real.mul k m)
+    (Laws.fieldMulNonnegative k (Stereo.gap p) kNonnegative gapNonnegative));
+\definition point: Square.Carrier := \into[Plane.Carrier](z, Square.bounded) \by { bounded };
+\definition radial: Plane.r2 z = Real.mul (square k) (Stereo.rest p) :=
+  trans!{{Real.Real}} _ _ _
+    (congr!{{Real.Real} {Real.Real} {Real.Real}} Real.add _ _ _ _
+      (Algebra.mulFour k (Stereo.x p) k (Stereo.x p)) (Algebra.mulFour k (Stereo.y p) k (Stereo.y p)))
+    (sym!{{Real.Real}} _ _ (Laws.fieldMulAdd (square k) (square (Stereo.x p)) (square (Stereo.y p))));
+\definition gapSquare: square (Plane.gap z) = Real.mul (square k) (square (Stereo.gap p)) :=
+  trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real}} square _ _ gap) (Algebra.mulFour k (Stereo.gap p) k (Stereo.gap p));
+\definition denominator: Plane.denominator z = Real.mul (square k) (double (Stereo.gap p)) :=
+  trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real} {Real.Real}} Real.add _ _ _ _ radial gapSquare)
+    (trans!{{Real.Real}} _ _ _ (sym!{{Real.Real}} _ _ (Laws.fieldMulAdd (square k) (Stereo.rest p) (square (Stereo.gap p))))
+      (congr!{{Real.Real} {Real.Real}} (Real.mul (square k)) _ _ (Stereo.total p)));
+\definition numerator: Real.sub (Plane.r2 z) (square (Plane.gap z)) = Real.mul (Plane.denominator z) (Stereo.head p) :=
+  trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real} {Real.Real}} Real.sub _ _ _ _ radial gapSquare)
+    (trans!{{Real.Real}} _ _ _ (sym!{{Real.Real}} _ _ (Algebra.mulSub (square k) (Stereo.rest p) (square (Stereo.gap p))))
+      (trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real}} (Real.mul (square k)) _ _ (Stereo.difference p))
+        (trans!{{Real.Real}} _ _ _ (sym!{{Real.Real}} _ _ (Laws.fieldMulAssoc (square k) (double (Stereo.gap p)) (Stereo.head p)))
+          (congr!{{Real.Real} {Real.Real}} (\fun (a: Real.Real) => Real.mul a (Stereo.head p)) _ _ (sym!{{Real.Real}} _ _ denominator)))));
+\definition head: Plane.height z = Stereo.head p := Scalar.cancelRight _ _ _ (Plane.nonzero z)
+  (trans!{{Real.Real}} _ _ _ (Forward.heightTimes z) (trans!{{Real.Real}} _ _ _ numerator (Laws.fieldMulComm (Plane.denominator z) (Stereo.head p))));
+\definition coordinate: \forall (v: Real.Real) -> Real.mul (Plane.weight z) (Real.mul k v) = v :=
+  \fun (v: Real.Real) => Scalar.cancelRight _ _ _ (Plane.nonzero z)
+    (trans!{{Real.Real}} _ _ _ (Forward.coordinateTimes z (Real.mul k v))
+      (trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real}} (\fun (g: Real.Real) => Real.mul (double g) (Real.mul k v)) _ _ gap)
+        (trans!{{Real.Real}} _ _ _ (Scalar.doubleScale k (Stereo.gap p) v)
+          (trans!{{Real.Real}} _ _ _ (sym!{{Real.Real}} _ _ (Laws.fieldMulAssoc (square k) (double (Stereo.gap p)) v))
+            (trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real}} (\fun (a: Real.Real) => Real.mul a v) _ _ (sym!{{Real.Real}} _ _ denominator))
+              (Laws.fieldMulComm (Plane.denominator z) v))))));
+\definition equation: Forward.map z = p := Stereo.extent _ _
+  (trans!{{Real.Real}} _ _ _ (Stereo.headFormula z) head)
+  (trans!{{Real.Real}} _ _ _ (Stereo.xFormula z) (coordinate (Stereo.x p)))
+  (trans!{{Real.Real}} _ _ _ (Stereo.yFormula z) (coordinate (Stereo.y p)));

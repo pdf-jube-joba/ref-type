@@ -1,0 +1,27 @@
+\import \root.Periodicity[].Reduced[model := model] \as BottMap;
+\import BottMap.Inverse[] \as Inverse;
+\import \root.Periodicity[].DoubleComparison[model := model] \as Comparison;
+\import Relative.Equivalence[source := Comparison.double, target := BottMap.result].With[e := Comparison.equivalence].Groups[] \as Transport;
+\definition Source: \Set := Relative.Reduced[model := model].Carrier;
+\definition Target: \Set := Relative.Negative[original := model, degree := Bott.two].Carrier;
+\definition sourceGroup: std.Alg[].Alg[].CommutativeGroup[Source] := Relative.Reduced[model := model].group;
+\definition targetGroup: std.Alg[].Alg[].CommutativeGroup[Target] := Relative.Negative[original := model, degree := Bott.two].group;
+\definition forward[a: Source]: Target := Transport.forward (BottMap.forward a);
+\definition backward[q: Target]: Source := Inverse.backward (Transport.backward q);
+\definition leftInverse: \forall (a: Source) -> backward (forward a) = a :=
+  \fun (a: Source) => trans!{Source} _ _ _
+    (congr!{{BottMap.TargetCarrier} Source} Inverse.backward _ _ (Transport.rightInverse (BottMap.forward a))) (Inverse.leftInverse a);
+\definition rightInverse: \forall (q: Target) -> forward (backward q) = q :=
+  \fun (q: Target) => trans!{Target} _ _ _
+    (congr!{{BottMap.TargetCarrier} Target} Transport.forward _ _ (Inverse.rightInverse (Transport.backward q))) (Transport.leftInverse q);
+\definition forwardAdd: \forall (a, b: Source) -> forward (sourceGroup.base.op a b) = targetGroup.base.op (forward a) (forward b) :=
+  \fun (a, b: Source) => trans!{Target} _ _ _
+    (congr!{{BottMap.TargetCarrier} Target} Transport.forward _ _ (Inverse.forwardAdd a b)) (Transport.forwardAdd (BottMap.forward a) (BottMap.forward b));
+\definition backwardAdd: \forall (q, r: Target) -> backward (targetGroup.base.op q r) = sourceGroup.base.op (backward q) (backward r) :=
+  \fun (q, r: Target) => trans!{Source} _ _ _
+    (congr!{{BottMap.TargetCarrier} Source} Inverse.backward _ _ (Transport.backwardAdd q r)) (Inverse.backwardAdd (Transport.backward q) (Transport.backward r));
+\definition forwardZero: forward sourceGroup.base.unit = targetGroup.base.unit := trans!{Target} _ _ _
+  (congr!{{BottMap.TargetCarrier} Target} Transport.forward _ _ Inverse.forwardZero) Transport.forwardZero;
+\definition backwardZero: backward targetGroup.base.unit = sourceGroup.base.unit := trans!{Source} _ _ _
+  (congr!{{BottMap.TargetCarrier} Source} Inverse.backward _ _ Transport.backwardZero) Inverse.backwardZero;
+\module Naturality(other: Relative.CompactPointed, mapping: Relative.Map model other);

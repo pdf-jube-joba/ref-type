@@ -1,0 +1,74 @@
+\import Relative.PullbackComposition[source := model, middle := Smash.wedgeModel, target := Smash.model,
+  first := Smash.leftInclusion, second := Smash.wedgeInclusion] \as LeftComposite;
+\definition firstZero: \forall (q: TargetCarrier) -> Coefficients.first (External.forget q) = SourceK.zero :=
+  \fun (q: TargetCarrier) => trans!{{SourceK.Carrier}} _ _ _ (LeftComposite.equation (External.forget q))
+    (trans!{{SourceK.Carrier}} _ _ _
+      (congr!{{WedgeCarrier} {SourceCarrier}} LeftAxis.map _ _ (wedgeZero q)) LeftAxis.preservesZero);
+\import Relative.Reduced[model := model].Constant[] \as Point;
+\import Relative.Smash[left := Point.pointModel, right := sphere] \as PointProduct;
+\import topological_constructions.Product[A := Point.pointModel.Carrier, B := sphere.Carrier].Maps[] \as PointProjections;
+\import KTheory.On[X := Point.pointModel.Carrier, baseSpace := (Relative.details Point.pointModel).topology,
+  compact := (Relative.details Point.pointModel).compact, hausdorff := (Relative.details Point.pointModel).hausdorff] \as PointTheory;
+\import PointTheory.K0[] \as PointK;
+\import KTheory.On[X := PointProduct.model.Carrier, baseSpace := (Relative.details PointProduct.model).topology,
+  compact := (Relative.details PointProduct.model).compact, hausdorff := (Relative.details PointProduct.model).hausdorff] \as PointProductTheory;
+\import PointProductTheory.K0[] \as PointProductK;
+\import algebraic_topology.Pointed[A := PointProduct.model.Carrier].Maps[B := Smash.wedgeModel.Carrier] \as Maps;
+\definition h[z: PointProduct.model.Carrier]: Smash.wedgeModel.Carrier := Smash.rightIn (PointProduct.second z);
+\definition hContinuous: topology.Continuity[A := PointProduct.model.Carrier, B := Smash.wedgeModel.Carrier].Continuous
+  (Relative.details PointProduct.model).topology (Relative.details Smash.wedgeModel).topology h :=
+  topology.Composition[A := PointProduct.model.Carrier, B := sphere.Carrier, C := Smash.wedgeModel.Carrier].composeContinuous
+    (Relative.details PointProduct.model).topology (Relative.details sphere).topology (Relative.details Smash.wedgeModel).topology
+    PointProduct.second Smash.rightIn
+    (PointProjections.secondContinuous (Relative.details Point.pointModel).topology (Relative.details sphere).topology) Smash.rightRegular;
+\definition axisMap: Relative.Map PointProduct.model Smash.wedgeModel :=
+  \into[PointProduct.model.Carrier -> Smash.wedgeModel.Carrier](h, Relative.Map PointProduct.model Smash.wedgeModel) \by {
+    Maps.Laws[Relative.pointed PointProduct.model, Relative.pointed Smash.wedgeModel, h] {
+      continuous := hContinuous, pointed := \refl((Relative.details Smash.wedgeModel).point)
+    }
+  };
+\import Relative.Pullback[source := PointProduct.model, target := Smash.wedgeModel, f := axisMap] \as AxisPull;
+\import Relative.PullbackComposition[source := PointProduct.model, middle := Smash.wedgeModel, target := Smash.model,
+  first := axisMap, second := Smash.wedgeInclusion] \as RightComposite;
+\import Bott.Product[X := model.Carrier, source := (Relative.details model).topology,
+  compact := (Relative.details model).compact, hausdorff := (Relative.details model).hausdorff].Naturality[
+    Y := Point.pointModel.Carrier, space := (Relative.details Point.pointModel).topology,
+    compactY := (Relative.details Point.pointModel).compact, hausdorffY := (Relative.details Point.pointModel).hausdorff,
+    f := Point.fromPoint,
+    continuous := (algebraic_topology.Pointed[A := Point.pointModel.Carrier].Maps[B := model.Carrier].laws
+      (Relative.pointed Point.pointModel) (Relative.pointed model) Point.fromPoint).continuous] \as Naturality;
+\import TargetTheory.Pullback[Y := PointProduct.model.Carrier, space := (Relative.details PointProduct.model).topology,
+  sourceCompact := (Relative.details PointProduct.model).compact, sourceHausdorff := (Relative.details PointProduct.model).hausdorff,
+  f := Naturality.map, regular := Naturality.regular] \as ProductPull;
+\import Ordinary.Pullback[Y := Point.pointModel.Carrier, space := (Relative.details Point.pointModel).topology,
+  sourceCompact := (Relative.details Point.pointModel).compact, sourceHausdorff := (Relative.details Point.pointModel).hausdorff,
+  f := Point.fromPoint, regular := (algebraic_topology.Pointed[A := Point.pointModel.Carrier].Maps[B := model.Carrier].laws
+    (Relative.pointed Point.pointModel) (Relative.pointed model) Point.fromPoint).continuous] \as BasePull;
+\import Bott.Product[X := Point.pointModel.Carrier, source := (Relative.details Point.pointModel).topology,
+  compact := (Relative.details Point.pointModel).compact, hausdorff := (Relative.details Point.pointModel).hausdorff] \as PointBott;
+\import Naturality.Inverse[] \as NaturalCoefficient;
+\definition pointProductZero: \forall (q: TargetCarrier) -> ProductPull.K0[].map (External.forget q) = PointProductK.zero :=
+  \fun (q: TargetCarrier) => trans!{{PointProductK.Carrier}} _ _ _ (RightComposite.equation (External.forget q))
+    (trans!{{PointProductK.Carrier}} _ _ _
+      (congr!{{WedgeCarrier} {Relative.Reduced[model := PointProduct.model].Carrier}} AxisPull.map _ _ (wedgeZero q)) AxisPull.preservesZero);
+\import PointBott.Inverse[] \as PointCoefficient;
+\import PointBott.Additive[] \as PointAdditive;
+\definition zeroForward: PointBott.forward PointK.zero PointK.zero = PointProductK.zero := PointAdditive.reducedZero;
+\definition coefficientZero: PointCoefficient.coefficient PointProductK.zero = PointK.zero :=
+  trans!{{PointK.Carrier}} _ _ _
+    (congr!{{PointProductK.Carrier} {PointK.Carrier}} PointCoefficient.coefficient _ _ (sym!{{PointProductK.Carrier}} _ _ zeroForward))
+    (PointCoefficient.recovers PointK.zero PointK.zero).right;
+\definition restrictedCoefficientZero: \forall (q: TargetCarrier) -> BasePull.K0[].map (coefficient q) = PointK.zero :=
+  \fun (q: TargetCarrier) => trans!{{PointK.Carrier}} _ _ _
+    (sym!{{PointK.Carrier}} _ _ (NaturalCoefficient.naturality (External.forget q)).right)
+    (trans!{{PointK.Carrier}} _ _ _
+      (congr!{{PointProductK.Carrier} {PointK.Carrier}} PointCoefficient.coefficient _ _ (pointProductZero q)) coefficientZero);
+\import BasePull.Ranks[] \as Ranks;
+\import std.Arithmetic[].Int[] \as Int;
+\definition rankZero: \forall (q: TargetCarrier) -> SourceRanks.rank (coefficient q) (Relative.details model).point = Int.Zero.specification :=
+  \fun (q: TargetCarrier) => trans!{{Int.Int^}} _ _ _
+    (sym!{{Int.Int^}} _ _ (Ranks.naturality (coefficient q) Point.point))
+    (trans!{{Int.Int^}} _ _ _
+      (congr!{{PointK.Carrier} {Int.Int^}}
+        (\fun (v: PointK.Carrier) => PointTheory.Ranks[].rank v Point.point) _ _ (restrictedCoefficientZero q))
+      (congr!{{Point.pointModel.Carrier -> Int.Int^} {Int.Int^}} (\fun (f: Point.pointModel.Carrier -> Int.Int^) => f Point.point) _ _ PointTheory.Ranks[].rankZero));

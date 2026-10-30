@@ -1,0 +1,53 @@
+\import std.Data[].FinSet[] \as Fin;
+\import KTheory.FiniteDiscrete[n := Bott.one] \as Finite;
+\import KTheory.Point[] \as Point;
+\import Relative.Absolute[X := Fin.Fin Bott.one, space := topology.Topology[Carrier := Fin.Fin Bott.one].Discrete,
+  compact := Finite.compact, hausdorff := Finite.hausdorff] \as Absolute;
+\definition model: Relative.CompactPointed := Absolute.model;
+\import \root.Periodicity[].SuspensionSphere[] \as SphereModel;
+\import topological_constructions.Coproduct[A := Fin.Fin Bott.one, B := Fin.Fin Bott.one] \as Sum;
+\definition raw: model.Carrier -> SphereModel.zero.Carrier := Sum.Universal[C := SphereModel.zero.Carrier].copair
+  (\fun (_: Fin.Fin Bott.one) => SphereModel.live) (\fun (_: Fin.Fin Bott.one) => (Relative.details SphereModel.zero).point);
+\definition regular: topology.Continuity[A := model.Carrier, B := SphereModel.zero.Carrier].Continuous (Relative.details model).topology (Relative.details SphereModel.zero).topology raw :=
+  Sum.Universal[C := SphereModel.zero.Carrier].continuous
+    (topology.Topology[Carrier := Fin.Fin Bott.one].Discrete) (topology.Topology[Carrier := Fin.Fin Bott.one].Discrete) (Relative.details SphereModel.zero).topology
+    (\fun (_: Fin.Fin Bott.one) => SphereModel.live) (\fun (_: Fin.Fin Bott.one) => (Relative.details SphereModel.zero).point)
+    (topology.Maps[A := Fin.Fin Bott.one, B := SphereModel.zero.Carrier].constantContinuous
+      (topology.Topology[Carrier := Fin.Fin Bott.one].Discrete) (Relative.details SphereModel.zero).topology SphereModel.live)
+    (topology.Maps[A := Fin.Fin Bott.one, B := SphereModel.zero.Carrier].constantContinuous
+      (topology.Topology[Carrier := Fin.Fin Bott.one].Discrete) (Relative.details SphereModel.zero).topology (Relative.details SphereModel.zero).point);
+\import algebraic_topology.Pointed[A := model.Carrier].Maps[B := SphereModel.zero.Carrier] \as Maps;
+\definition map: Relative.Map model SphereModel.zero := \into[model.Carrier -> SphereModel.zero.Carrier](raw, Relative.Map model SphereModel.zero) \by {
+  Maps.Laws[Relative.pointed model, Relative.pointed SphereModel.zero, raw] { continuous := regular, pointed := \refl((Relative.details SphereModel.zero).point) }
+};
+\definition singletonEquality: \forall (a, b: Fin.Fin Bott.one) -> a = b := \fun (a, b: Fin.Fin Bott.one) =>
+  trans!{{Fin.Fin Bott.one}} _ _ _ (Fin.singletonValue a) (sym!{{Fin.Fin Bott.one}} _ _ (Fin.singletonValue b));
+\definition injective: \forall (x, y: model.Carrier) -> map x = map y -> x = y :=
+  \induction (x: model.Carrier) \return \forall (y: model.Carrier) -> map x = map y -> x = y \with {
+    | inl: \fun (a: Fin.Fin Bott.one) => \induction (y: model.Carrier) \return map (Sum.inl a) = map y -> Sum.inl a = y \with {
+      | inl: \fun (b: Fin.Fin Bott.one)(_: _) => congr!{{Fin.Fin Bott.one} {model.Carrier}} Sum.inl a b (singletonEquality a b)
+      | inr: \fun (b: Fin.Fin Bott.one)(bad: _) => Logic.falseElim _ (SphereModel.liveDifferent bad)
+    }
+    | inr: \fun (a: Fin.Fin Bott.one) => \induction (y: model.Carrier) \return map (Sum.inr a) = map y -> Sum.inr a = y \with {
+      | inl: \fun (b: Fin.Fin Bott.one)(bad: _) => Logic.falseElim _ (SphereModel.liveDifferent (sym!{{SphereModel.zero.Carrier}} _ _ bad))
+      | inr: \fun (b: Fin.Fin Bott.one)(_: _) => congr!{{Fin.Fin Bott.one} {model.Carrier}} Sum.inr a b (singletonEquality a b)
+    }
+  };
+\definition onto: \forall (i: SphereModel.zero.Carrier) -> \exists (x: model.Carrier \where map x = i) :=
+  Fin.cases Bott.one (\fun (i: SphereModel.zero.Carrier) => \exists (x: model.Carrier \where map x = i))
+    (Logic.existsIntro[model.Carrier, { x: model.Carrier \where map x = (Relative.details SphereModel.zero).point }] (Sum.inr (Fin.zero N.Nat^::zero)) (\refl((Relative.details SphereModel.zero).point)))
+    (\fun (i: Fin.Fin Bott.one) => Logic.existsIntro[model.Carrier, { x: model.Carrier \where map x = Fin.succ Bott.one i }] (Sum.inl (Fin.zero N.Nat^::zero))
+      (congr!{{Fin.Fin Bott.one} {SphereModel.zero.Carrier}} (Fin.succ Bott.one) _ _ (sym!{{Fin.Fin Bott.one}} _ _ (Fin.singletonValue i))));
+\definition equivalence: Relative.Equivalence[source := model, target := SphereModel.zero].Data :=
+  Relative.Equivalence[source := model, target := SphereModel.zero].FromMap[f := map, injective := injective, onto := onto].equivalence;
+\import Relative.Equivalence[source := model, target := SphereModel.zero].With[e := equivalence].Negative[degree := Bott.one] \as OddTransport;
+\import \root.Periodicity[].IntervalPair[].Circle[] \as Circle;
+\definition Odd: \Set := Relative.Negative[original := model, degree := Bott.one].Carrier;
+\definition oddGroup: std.Alg[].Alg[].CommutativeGroup[Odd] := Relative.Negative[original := model, degree := Bott.one].group;
+\definition oddZero: \forall (x: Odd) -> x = oddGroup.base.unit := \fun (x: Odd) => eq_reason_in!{Odd x
+  "=" _ "by" { sym!{Odd} _ _ (OddTransport.leftInverse x) }
+  "=" _ "by" { congr!{{Circle.Carrier} Odd} OddTransport.forward _ _ (Circle.zero (OddTransport.backward x)) }
+  "=" _ "by" { OddTransport.forwardZero }
+};
+\module SphereZero;
+\module At(degree: std.Arithmetic[].Int[].Int^);

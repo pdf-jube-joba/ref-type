@@ -1,0 +1,58 @@
+\import complex.Complex[] \as C;
+\import C.Def[] \as Op;
+\import C.Prop[] \as Scalar;
+\import C.Algebra[] \as Scalars;
+\import std.Data[].FinSet[] \as Fin;
+\import Fin.Tuples[A := C.Complex] \as Tuples;
+\import matrix_invariants.Ring[K := C.Complex, scalars := C.Algebra[].commutativeRing].At[n := Bott.two] \as M;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := C.Algebra[].commutativeRing] \as Spaces;
+\import Spaces.Linear[V := M.Vector, W := M.Vector, source := Spaces.Coordinates[I := M.Index].space, target := Spaces.Coordinates[I := M.Index].space] \as End;
+\definition first: M.Index := Fin.zero Bott.one;
+\definition second: M.Index := Fin.succ Bott.one (Fin.zero N.Nat^::zero);
+\definition extent: \forall (v, w: M.Vector) -> v first = w first -> v second = w second -> v = w :=
+  \fun (v, w: M.Vector)(atFirst: _)(atSecond: _) => \axiom:funext(v, w, Fin.cases Bott.one (\fun (i: M.Index) => v i = w i) atFirst
+    (\fun (i: Fin.Fin Bott.one) => \idelim second = Fin.succ Bott.one i \with j: M.Index => v j = w j \by {
+      base: atSecond, equality: congr!{{Fin.Fin Bott.one} {M.Index}} (Fin.succ Bott.one) _ _ (sym!{{Fin.Fin Bott.one}} _ _ (Fin.singletonValue i))
+    }));
+\module Matrix(a, b, c, d: C.Complex);
+\import Matrix[a := Op.zero, b := Op.neg Op.i, c := Op.one, d := Op.zero] \as U;
+\import Matrix[a := Op.zero, b := Op.one, c := Op.i, d := Op.zero] \as V;
+\definition forward: End.Map := M.linear U.value;
+\definition backward: End.Map := M.linear V.value;
+\definition forwardFirst: \forall (v: M.Vector) -> forward.apply v first = Op.mul (Op.neg Op.i) (v second) :=
+  \fun (v: M.Vector) => trans!{{C.Complex}} _ _ _ (U.applyFirst v)
+    (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (\fun (a: C.Complex) => Op.add a (Op.mul (Op.neg Op.i) (v second))) _ _ (Scalar.mulZeroLeft (v first))) (Scalar.addZeroLeft (Op.mul (Op.neg Op.i) (v second))));
+\definition forwardSecond: \forall (v: M.Vector) -> forward.apply v second = v first :=
+  \fun (v: M.Vector) => trans!{{C.Complex}} _ _ _ (U.applySecond v)
+    (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex} {C.Complex}} Op.add _ _ _ _ (Scalar.mulOneLeft (v first)) (Scalar.mulZeroLeft (v second))) (Scalar.addZeroRight (v first)));
+\definition backwardFirst: \forall (v: M.Vector) -> backward.apply v first = v second :=
+  \fun (v: M.Vector) => trans!{{C.Complex}} _ _ _ (V.applyFirst v)
+    (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex} {C.Complex}} Op.add _ _ _ _ (Scalar.mulZeroLeft (v first)) (Scalar.mulOneLeft (v second))) (Scalar.addZeroLeft (v second)));
+\definition backwardSecond: \forall (v: M.Vector) -> backward.apply v second = Op.mul Op.i (v first) :=
+  \fun (v: M.Vector) => trans!{{C.Complex}} _ _ _ (V.applySecond v)
+    (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (Op.add (Op.mul Op.i (v first))) _ _ (Scalar.mulZeroLeft (v second))) (Scalar.addZeroRight (Op.mul Op.i (v first))));
+\import galois.Field[].Over[K := C.Complex, field := Scalars.field].Arithmetic[] \as Arithmetic;
+\definition iMinusI: Op.mul Op.i (Op.neg Op.i) = Op.one := trans!{{C.Complex}} _ _ _ (Arithmetic.mulNegRight Op.i Op.i)
+  (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} Op.neg _ _ Scalar.iSquared) (Scalar.negNeg Op.one));
+\definition minusII: Op.mul (Op.neg Op.i) Op.i = Op.one := trans!{{C.Complex}} _ _ _ (Scalar.mulComm (Op.neg Op.i) Op.i) iMinusI;
+\definition left: \forall (v: M.Vector) -> backward.apply (forward.apply v) = v := \fun (v: M.Vector) => extent _ _
+  (trans!{{C.Complex}} _ _ _ (backwardFirst (forward.apply v)) (forwardSecond v))
+  (eq_reason_in!{{C.Complex} _
+    "=" _ "by" { backwardSecond (forward.apply v) }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (Op.mul Op.i) _ _ (forwardFirst v) }
+    "=" _ "by" { sym!{{C.Complex}} _ _ (Scalar.mulAssoc Op.i (Op.neg Op.i) (v second)) }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (\fun (a: C.Complex) => Op.mul a (v second)) _ _ iMinusI }
+    "=" _ "by" { Scalar.mulOneLeft (v second) }
+  });
+\definition right: \forall (v: M.Vector) -> forward.apply (backward.apply v) = v := \fun (v: M.Vector) => extent _ _
+  (eq_reason_in!{{C.Complex} _
+    "=" _ "by" { forwardFirst (backward.apply v) }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (Op.mul (Op.neg Op.i)) _ _ (backwardSecond v) }
+    "=" _ "by" { sym!{{C.Complex}} _ _ (Scalar.mulAssoc (Op.neg Op.i) Op.i (v first)) }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (\fun (a: C.Complex) => Op.mul a (v first)) _ _ minusII }
+    "=" _ "by" { Scalar.mulOneLeft (v first) }
+  }) (trans!{{C.Complex}} _ _ _ (forwardSecond (backward.apply v)) (backwardFirst v));
+\definition isomorphism: Spaces.Isomorphism[V := M.Vector, W := M.Vector, source := Spaces.Coordinates[I := M.Index].space, target := Spaces.Coordinates[I := M.Index].space].Isomorphism :=
+  Spaces.Isomorphism[V := M.Vector, W := M.Vector, source := Spaces.Coordinates[I := M.Index].space, target := Spaces.Coordinates[I := M.Index].space].Isomorphism {
+    forward := forward, backward := backward, leftInverse := left, rightInverse := right
+  };

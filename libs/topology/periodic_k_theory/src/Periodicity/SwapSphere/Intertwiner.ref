@@ -1,0 +1,95 @@
+\import \parent.Action[] \as Action;
+\import complex.Complex[] \as C;
+\import C.Def[] \as Op;
+\import C.Prop[] \as Scalar;
+\import C.Algebra[] \as Scalars;
+\import galois.Field[].Over[K := C.Complex, field := Scalars.field].Arithmetic[] \as Arithmetic;
+\import algebra.Group[].Of[Carrier := C.Complex, group := Scalars.additiveGroup] \as Sum;
+\import Relative.GroupCalculus[X := C.Complex, group := Scalars.additiveGroup] \as Addition;
+\import Bott.ProjectiveLine[].Coordinates[].SphereMap[].Matrix[] \as Matrix;
+\import Matrix.Geometry[] \as Geometry;
+\import Bott.ProjectiveLine[].SphereLine[].Columns[] \as Columns;
+\import matrix_invariants.Ring[K := C.Complex, scalars := C.Algebra[].commutativeRing].At[n := Bott.two] \as M;
+\definition iConjugate: \forall (z: C.Complex) -> Op.mul Op.i (Op.conj z) = C.make (C.im z) (C.re z) := \fun (z: C.Complex) => Scalar.ext _ _
+  (trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real} {Real.Real}} Real.sub _ _ _ _ (Laws.fieldMulZeroLeft (C.re z)) (Laws.fieldMulOneLeft (Real.neg (C.im z))))
+    (trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real}} (Real.add Real.zero) _ _ (Laws.negInvolutive (C.im z))) (Laws.addZeroLeft (C.im z))))
+  (trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real} {Real.Real}} Real.add _ _ _ _ (Laws.fieldMulZeroLeft (Real.neg (C.im z))) (Laws.fieldMulOneLeft (C.re z))) (Laws.addZeroLeft (C.re z)));
+\definition conjugateI: Op.conj Op.i = Op.neg Op.i := Scalar.ext _ _ (sym!{{Real.Real}} _ _ Laws.negZero) (\refl(Real.neg Real.one));
+\definition a: \forall (p: sphere.Carrier) -> Matrix.a (swap p) = Matrix.a p := \fun (p: sphere.Carrier) =>
+  congr!{{Real.Real} {C.Complex}} (\fun (t: Real.Real) => Op.ofReal (Real.mul Real.half (Real.add Real.one t))) _ _ (head p);
+\definition d: \forall (p: sphere.Carrier) -> Matrix.d (swap p) = Matrix.d p := \fun (p: sphere.Carrier) =>
+  congr!{{Real.Real} {C.Complex}} (\fun (t: Real.Real) => Op.ofReal (Real.mul Real.half (Real.sub Real.one t))) _ _ (head p);
+\definition b: \forall (p: sphere.Carrier) -> Matrix.b (swap p) = Op.mul Op.i (Op.conj (Matrix.b p)) := \fun (p: sphere.Carrier) =>
+  trans!{{C.Complex}} _ _ _
+    (Scalar.makeCong _ _ _ _ (congr!{{Real.Real} {Real.Real}} (Real.mul Real.half) _ _ (x p)) (congr!{{Real.Real} {Real.Real}} (Real.mul Real.half) _ _ (y p)))
+    (sym!{{C.Complex}} _ _ (iConjugate (Matrix.b p)));
+\definition conjugateB: \forall (p: sphere.Carrier) -> Op.conj (Matrix.b (swap p)) = Op.mul (Op.neg Op.i) (Matrix.b p) := \fun (p: sphere.Carrier) => eq_reason_in!{{C.Complex} _
+  "=" _ "by" { congr!{{C.Complex} {C.Complex}} Op.conj _ _ (b p) }
+  "=" _ "by" { Scalar.conjMul Op.i (Op.conj (Matrix.b p)) }
+  "=" _ "by" { congr!{{C.Complex} {C.Complex} {C.Complex}} Op.mul _ _ _ _ conjugateI (Scalar.conjConj (Matrix.b p)) }
+};
+\definition complementRow: \forall (a, d, b, x, y: C.Complex) -> Op.add a d = Op.one ->
+  Op.sub y (Op.add (Op.mul b x) (Op.mul d y)) = Op.sub (Op.mul a y) (Op.mul b x) :=
+  \fun (a, d, b, x, y: C.Complex)(diagonal: _) => eq_reason_in!{{C.Complex} _
+    "=" { Op.sub (Op.add (Op.mul a y) (Op.mul d y)) (Op.add (Op.mul b x) (Op.mul d y)) } "by" {
+      congr!{{C.Complex} {C.Complex}} (\fun (v: C.Complex) => Op.sub v (Op.add (Op.mul b x) (Op.mul d y))) _ _
+        (sym!{{C.Complex}} _ _ (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (Scalar.mulAddRight a d y))
+          (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (\fun (v: C.Complex) => Op.mul v y) _ _ diagonal) (Scalar.mulOneLeft y)))) }
+    "=" _ "by" { Addition.cancelCommon (Op.mul a y) (Op.mul b x) (Op.mul d y) }
+  };
+\definition firstRow: \forall (a, b, x, y: C.Complex) ->
+  Op.add (Op.mul a (Op.mul (Op.neg Op.i) y)) (Op.mul (Op.mul Op.i b) x) = Op.mul (Op.neg Op.i) (Op.sub (Op.mul a y) (Op.mul b x)) :=
+  \fun (a, b, x, y: C.Complex) => eq_reason_in!{{C.Complex} _
+    "=" { Op.add (Op.mul (Op.neg Op.i) (Op.mul a y)) (Op.mul Op.i (Op.mul b x)) } "by" {
+      congr!{{C.Complex} {C.Complex} {C.Complex}} Op.add _ _ _ _ (Scalar.mulSwap a (Op.neg Op.i) y) (Scalar.mulAssoc Op.i b x) }
+    "=" { Op.add (Op.mul (Op.neg Op.i) (Op.mul a y)) (Op.mul (Op.neg Op.i) (Op.neg (Op.mul b x))) } "by" {
+      congr!{{C.Complex} {C.Complex}} (Op.add (Op.mul (Op.neg Op.i) (Op.mul a y))) _ _
+        (sym!{{C.Complex}} _ _ (trans!{{C.Complex}} _ _ _ (Arithmetic.mulNegRight (Op.neg Op.i) (Op.mul b x))
+          (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} Op.neg _ _ (Arithmetic.mulNegLeft Op.i (Op.mul b x))) (Scalar.negNeg (Op.mul Op.i (Op.mul b x)))))) }
+    "=" _ "by" { sym!{{C.Complex}} _ _ (Scalar.mulAddLeft (Op.neg Op.i) (Op.mul a y) (Op.neg (Op.mul b x))) }
+  };
+\definition minusISquared: Op.mul (Op.neg Op.i) (Op.neg Op.i) = Op.neg Op.one :=
+  trans!{{C.Complex}} _ _ _ (Arithmetic.mulNegRight (Op.neg Op.i) Op.i)
+    (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} Op.neg _ _ (Arithmetic.mulNegLeft Op.i Op.i))
+      (trans!{{C.Complex}} _ _ _ (Scalar.negNeg (Op.mul Op.i Op.i)) Scalar.iSquared));
+\definition secondRow: \forall (b, d, x, y: C.Complex) ->
+  Op.add (Op.mul (Op.mul (Op.neg Op.i) b) (Op.mul (Op.neg Op.i) y)) (Op.mul d x) = Op.sub (Op.mul d x) (Op.mul b y) :=
+  \fun (b, d, x, y: C.Complex) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (\fun (a: C.Complex) => Op.add a (Op.mul d x)) _ _ (Scalar.mulFour (Op.neg Op.i) b (Op.neg Op.i) y) }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (\fun (a: C.Complex) => Op.add (Op.mul a (Op.mul b y)) (Op.mul d x)) _ _ minusISquared }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (\fun (a: C.Complex) => Op.add a (Op.mul d x)) _ _ (Arithmetic.negOneMul (Op.mul b y)) }
+    "=" _ "by" { Scalar.addComm (Op.neg (Op.mul b y)) (Op.mul d x) }
+  };
+\definition apply[p: sphere.Carrier][v: M.Vector]: M.Vector := (M.linear (Matrix.matrix p)).apply v;
+\definition remainder[p: sphere.Carrier][v: M.Vector]: M.Vector := \fun (i: M.Index) => Op.sub (v i) (apply p v i);
+\definition remainderFirst: \forall (p: sphere.Carrier)(v: M.Vector) -> remainder p v Action.first = Op.sub (Op.mul (Matrix.d p) (v Action.first)) (Op.mul (Matrix.b p) (v Action.second)) :=
+  \fun (p: sphere.Carrier)(v: M.Vector) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (Op.sub (v Action.first)) _ _ (Columns.actionFirst p v) }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (Op.sub (v Action.first)) _ _ (Scalar.addComm (Op.mul (Matrix.a p) (v Action.first)) (Op.mul (Matrix.b p) (v Action.second))) }
+    "=" _ "by" { complementRow (Matrix.d p) (Matrix.a p) (Matrix.b p) (v Action.second) (v Action.first)
+      (trans!{{C.Complex}} _ _ _ (Scalar.addComm (Matrix.d p) (Matrix.a p)) (Geometry.diagonalSum p)) }
+  };
+\definition remainderSecond: \forall (p: sphere.Carrier)(v: M.Vector) -> remainder p v Action.second = Op.sub (Op.mul (Matrix.a p) (v Action.second)) (Op.mul (Op.conj (Matrix.b p)) (v Action.first)) :=
+  \fun (p: sphere.Carrier)(v: M.Vector) => trans!{{C.Complex}} _ _ _
+    (congr!{{C.Complex} {C.Complex}} (Op.sub (v Action.second)) _ _ (Columns.actionSecond p v))
+    (complementRow (Matrix.a p) (Matrix.d p) (Op.conj (Matrix.b p)) (v Action.first) (v Action.second) (Geometry.diagonalSum p));
+\definition equation: \forall (p: sphere.Carrier)(v: M.Vector) -> apply (swap p) (Action.forward.apply v) = Action.forward.apply (remainder p v) :=
+  \fun (p: sphere.Carrier)(v: M.Vector) => Action.extent _ _
+    (eq_reason_in!{{C.Complex} _
+      "=" _ "by" { Columns.actionFirst (swap p) (Action.forward.apply v) }
+      "=" _ "by" { congr!{{C.Complex} {C.Complex} {C.Complex}} Op.add _ _ _ _
+        (congr!{{C.Complex} {C.Complex} {C.Complex}} Op.mul _ _ _ _ (a p) (Action.forwardFirst v))
+        (congr!{{C.Complex} {C.Complex} {C.Complex}} Op.mul _ _ _ _ (b p) (Action.forwardSecond v)) }
+      "=" _ "by" { firstRow (Matrix.a p) (Op.conj (Matrix.b p)) (v Action.first) (v Action.second) }
+      "=" _ "by" { congr!{{C.Complex} {C.Complex}} (Op.mul (Op.neg Op.i)) _ _ (sym!{{C.Complex}} _ _ (remainderSecond p v)) }
+      "=" _ "by" { sym!{{C.Complex}} _ _ (Action.forwardFirst (remainder p v)) }
+    })
+    (eq_reason_in!{{C.Complex} _
+      "=" _ "by" { Columns.actionSecond (swap p) (Action.forward.apply v) }
+      "=" _ "by" { congr!{{C.Complex} {C.Complex} {C.Complex}} Op.add _ _ _ _
+        (congr!{{C.Complex} {C.Complex} {C.Complex}} Op.mul _ _ _ _ (conjugateB p) (Action.forwardFirst v))
+        (congr!{{C.Complex} {C.Complex} {C.Complex}} Op.mul _ _ _ _ (d p) (Action.forwardSecond v)) }
+      "=" _ "by" { secondRow (Matrix.b p) (Matrix.d p) (v Action.first) (v Action.second) }
+      "=" _ "by" { sym!{{C.Complex}} _ _ (remainderFirst p v) }
+      "=" _ "by" { sym!{{C.Complex}} _ _ (Action.forwardSecond (remainder p v)) }
+    });

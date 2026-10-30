@@ -1,0 +1,90 @@
+\definition squareDifference: \forall (a, b: Real.Real) -> square (Real.sub a b) = Real.sub (Real.add (square a) (square b)) (double (Real.mul a b)) :=
+  \fun (a, b: Real.Real) => eq_reason_in!{{Real.Real} _
+    "=" _ "by" { Algebra.squareAdd a (Real.neg b) }
+    "=" _ "by" { congr!{{Real.Real} {Real.Real} {Real.Real}} Real.add _ _ _ _
+      (congr!{{Real.Real} {Real.Real}} (Real.add (square a)) _ _ (Laws.fieldMulNegBoth b b))
+      (congr!{{Real.Real} {Real.Real} {Real.Real}} Real.add _ _ _ _ (Laws.fieldMulNegRight a b) (Laws.fieldMulNegRight a b)) }
+    "=" _ "by" { congr!{{Real.Real} {Real.Real}} (Real.add (Real.add (square a) (square b))) _ _ (sym!{{Real.Real}} _ _ (Laws.negAdd (Real.mul a b) (Real.mul a b))) }
+  };
+\definition doubleProduct: \forall (a, b: Real.Real) -> Real.mul (double a) b = double (Real.mul a b) :=
+  \fun (a, b: Real.Real) => Algebra.mulAddRight a a b;
+\definition squareDouble: \forall (a: Real.Real) -> square (double a) = double (double (square a)) :=
+  \fun (a: Real.Real) => Algebra.squareAdd a a;
+\definition sumDifferenceSquares: \forall (a, b: Real.Real) -> Real.add (square (Real.sub a b)) (double (double (Real.mul a b))) = square (Real.add a b) :=
+  \fun (a, b: Real.Real) => eq_reason_in!{{Real.Real} _
+    "=" _ "by" { congr!{{Real.Real} {Real.Real}} (\fun (v: Real.Real) => Real.add v (double (double (Real.mul a b)))) _ _ (squareDifference a b) }
+    "=" _ "by" { Laws.addAssoc (Real.add (square a) (square b)) (Real.neg (double (Real.mul a b))) (double (double (Real.mul a b))) }
+    "=" _ "by" { congr!{{Real.Real} {Real.Real}} (Real.add (Real.add (square a) (square b))) _ _
+      (trans!{{Real.Real}} _ _ _ (sym!{{Real.Real}} _ _ (Laws.addAssoc (Real.neg (double (Real.mul a b))) (double (Real.mul a b)) (double (Real.mul a b))))
+        (trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real}} (\fun (v: Real.Real) => Real.add v (double (Real.mul a b))) _ _ (Laws.addNegLeft (double (Real.mul a b)))) (Laws.addZeroLeft (double (Real.mul a b))))) }
+    "=" _ "by" { sym!{{Real.Real}} _ _ (Algebra.squareAdd a b) }
+  };
+\definition maxNonnegative: \forall (x, y: Real.Real) -> R.Le Real.zero (maximum x y) :=
+  \fun (x, y: Real.Real) => R.leTrans _ (Distance.max x (Real.neg x)) _
+    (Logic.orElim[R.Le Real.zero x, R.Le x Real.zero, R.Le Real.zero (Distance.max x (Real.neg x))]
+      (Order.leTotal Real.zero x)
+      (\fun (positive: R.Le Real.zero x) => R.leTrans _ x _ positive (Distance.maxLeft x (Real.neg x)))
+      (\fun (negative: R.Le x Real.zero) => R.leTrans _ (Real.neg x) _
+        (R.leReplaceLeft (Real.neg Real.zero) Real.zero (Real.neg x) Laws.negZero (Laws.negAntitone x Real.zero negative))
+        (Distance.maxRight x (Real.neg x)))) (Distance.maxLeft (Distance.max x (Real.neg x)) (Distance.max y (Real.neg y)));
+\definition maxZero: maximum Real.zero Real.zero = Real.zero :=
+  trans!{{Real.Real}} _ _ _
+    (congr!{{Real.Real} {Real.Real} {Real.Real}} Distance.max _ _ _ _
+      (trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real}} (Distance.max Real.zero) _ _ Laws.negZero) (Distance.maxSame Real.zero))
+      (trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real}} (Distance.max Real.zero) _ _ Laws.negZero) (Distance.maxSame Real.zero))) (Distance.maxSame Real.zero);
+\definition maxScale: \forall (a, x, y: Real.Real) -> R.Le Real.zero a ->
+  Distance.max (Real.mul a x) (Real.mul a y) = Real.mul a (Distance.max x y) :=
+  \fun (a, x, y: Real.Real)(positive: _) => Logic.orElim[R.Le x y, R.Le y x, Distance.max (Real.mul a x) (Real.mul a y) = Real.mul a (Distance.max x y)]
+    (Order.leTotal x y)
+    (\fun (xy: R.Le x y) => trans!{{Real.Real}} _ _ _ (Distance.maxOfLe (Real.mul a x) (Real.mul a y) (Estimates.mulMonotone a x y positive xy))
+      (congr!{{Real.Real} {Real.Real}} (Real.mul a) _ _ (sym!{{Real.Real}} _ _ (Distance.maxOfLe x y xy))))
+    (\fun (yx: R.Le y x) => trans!{{Real.Real}} _ _ _ (Distance.maxOfGe (Real.mul a x) (Real.mul a y) (Estimates.mulMonotone a y x positive yx))
+      (congr!{{Real.Real} {Real.Real}} (Real.mul a) _ _ (sym!{{Real.Real}} _ _ (Distance.maxOfGe x y yx))));
+\definition maximumScale: \forall (a, x, y: Real.Real) -> R.Le Real.zero a -> maximum (Real.mul a x) (Real.mul a y) = Real.mul a (maximum x y) :=
+  \fun (a, x, y: Real.Real)(positive: _) => trans!{{Real.Real}} _ _ _
+    (congr!{{Real.Real} {Real.Real} {Real.Real}} Distance.max _ _ _ _
+      (trans!{{Real.Real}} _ _ _
+        (congr!{{Real.Real} {Real.Real}} (Distance.max (Real.mul a x)) _ _ (sym!{{Real.Real}} _ _ (Laws.fieldMulNegRight a x)))
+        (maxScale a x (Real.neg x) positive))
+      (trans!{{Real.Real}} _ _ _
+        (congr!{{Real.Real} {Real.Real}} (Distance.max (Real.mul a y)) _ _ (sym!{{Real.Real}} _ _ (Laws.fieldMulNegRight a y)))
+        (maxScale a y (Real.neg y) positive)))
+    (maxScale a (Distance.max x (Real.neg x)) (Distance.max y (Real.neg y)) positive);
+\definition cancelRight: \forall (a, b, c: Real.Real) -> Logic.Not (c = Real.zero) -> Real.mul a c = Real.mul b c -> a = b :=
+  \fun (a, b, c: Real.Real)(nonzero: _)(same: _) => eq_reason_in!{{Real.Real} a
+    "=" { Real.mul a Real.one } "by" { sym!{{Real.Real}} _ _ (Algebra.mulOneRight a) }
+    "=" { Real.mul a (Real.mul c (Laws.fieldInv c)) } "by" {
+      congr!{{Real.Real} {Real.Real}} (Real.mul a) _ _
+        (sym!{{Real.Real}} _ _ (trans!{{Real.Real}} _ _ _ (Laws.fieldMulComm c (Laws.fieldInv c)) (Laws.fieldInverseNonzero c nonzero))) }
+    "=" { Real.mul (Real.mul a c) (Laws.fieldInv c) } "by" { sym!{{Real.Real}} _ _ (Laws.fieldMulAssoc a c (Laws.fieldInv c)) }
+    "=" { Real.mul (Real.mul b c) (Laws.fieldInv c) } "by" { congr!{{Real.Real} {Real.Real}} (\fun (v: Real.Real) => Real.mul v (Laws.fieldInv c)) _ _ same }
+    "=" { Real.mul b (Real.mul c (Laws.fieldInv c)) } "by" { Laws.fieldMulAssoc b c (Laws.fieldInv c) }
+    "=" { Real.mul b Real.one } "by" { congr!{{Real.Real} {Real.Real}} (Real.mul b) _ _
+      (trans!{{Real.Real}} _ _ _ (Laws.fieldMulComm c (Laws.fieldInv c)) (Laws.fieldInverseNonzero c nonzero)) }
+    "=" { b } "by" { Algebra.mulOneRight b }
+  };
+\definition doubleScale: \forall (k, g, v: Real.Real) -> Real.mul (double (Real.mul k g)) (Real.mul k v) = Real.mul (square k) (Real.mul (double g) v) :=
+  \fun (k, g, v: Real.Real) => eq_reason_in!{{Real.Real} _
+    "=" _ "by" { doubleProduct (Real.mul k g) (Real.mul k v) }
+    "=" _ "by" { congr!{{Real.Real} {Real.Real}} double _ _ (Algebra.mulFour k g k v) }
+    "=" _ "by" { sym!{{Real.Real}} _ _ (Laws.fieldMulAdd (square k) (Real.mul g v) (Real.mul g v)) }
+    "=" _ "by" { congr!{{Real.Real} {Real.Real}} (Real.mul (square k)) _ _ (sym!{{Real.Real}} _ _ (doubleProduct g v)) }
+  };
+\definition maximumAttains: \forall (x, y: Real.Real) -> Logic.Or[x = maximum x y, Logic.Or[Real.neg x = maximum x y, Logic.Or[y = maximum x y, Real.neg y = maximum x y]]] :=
+  \fun (x, y: Real.Real) => Logic.orElim[R.Le (Distance.max x (Real.neg x)) (Distance.max y (Real.neg y)), R.Le (Distance.max y (Real.neg y)) (Distance.max x (Real.neg x)),
+    Logic.Or[x = maximum x y, Logic.Or[Real.neg x = maximum x y, Logic.Or[y = maximum x y, Real.neg y = maximum x y]]]]
+    (Order.leTotal (Distance.max x (Real.neg x)) (Distance.max y (Real.neg y)))
+    (\fun (left: _) => Logic.orElim[R.Le y (Real.neg y), R.Le (Real.neg y) y,
+      Logic.Or[x = maximum x y, Logic.Or[Real.neg x = maximum x y, Logic.Or[y = maximum x y, Real.neg y = maximum x y]]]]
+      (Order.leTotal y (Real.neg y))
+      (\fun (lower: _) => Logic.Or[_, _]::right (Logic.Or[_, _]::right (Logic.Or[_, _]::right
+        (sym!{{Real.Real}} _ _ (trans!{{Real.Real}} _ _ _ (Distance.maxOfLe _ _ left) (Distance.maxOfLe y (Real.neg y) lower))))))
+      (\fun (upper: _) => Logic.Or[_, _]::right (Logic.Or[_, _]::right (Logic.Or[_, _]::left
+        (sym!{{Real.Real}} _ _ (trans!{{Real.Real}} _ _ _ (Distance.maxOfLe _ _ left) (Distance.maxOfGe y (Real.neg y) upper)))))))
+    (\fun (right: _) => Logic.orElim[R.Le x (Real.neg x), R.Le (Real.neg x) x,
+      Logic.Or[x = maximum x y, Logic.Or[Real.neg x = maximum x y, Logic.Or[y = maximum x y, Real.neg y = maximum x y]]]]
+      (Order.leTotal x (Real.neg x))
+      (\fun (lower: _) => Logic.Or[_, _]::right (Logic.Or[_, _]::left
+        (sym!{{Real.Real}} _ _ (trans!{{Real.Real}} _ _ _ (Distance.maxOfGe _ _ right) (Distance.maxOfLe x (Real.neg x) lower)))))
+      (\fun (upper: _) => Logic.Or[_, _]::left
+        (sym!{{Real.Real}} _ _ (trans!{{Real.Real}} _ _ _ (Distance.maxOfGe _ _ right) (Distance.maxOfGe x (Real.neg x) upper)))));

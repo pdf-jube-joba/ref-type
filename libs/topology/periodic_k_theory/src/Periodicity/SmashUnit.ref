@@ -1,0 +1,37 @@
+\import \root.Periodicity[].SuspensionSphere[] \as Sphere;
+\import std.Data[].Pair[] \as Pair;
+\import std.Data[].FinSet[] \as Fin;
+\import Relative.Smash[left := Sphere.zero, right := model] \as Smash;
+\import Relative.Pair[X := Smash.model.Carrier, space := (Relative.details Smash.model).topology,
+  compact := (Relative.details Smash.model).compact, hausdorff := (Relative.details Smash.model).hausdorff,
+  subset := Smash.wedge, closed := Smash.wedgeClosed].Quotient[] \as Q;
+\definition source: Relative.CompactPointed := Smash.result;
+\definition live[x: model.Carrier]: Smash.model.Carrier := Pair.pair Sphere.zero.Carrier model.Carrier Sphere.live x;
+\definition f[x: model.Carrier]: source.Carrier := Smash.projection (live x);
+\definition atPoint: f (Relative.details model).point = (Relative.details source).point := Smash.rightCollapsed Sphere.live;
+\definition axis: \forall (x: model.Carrier) -> \In[Smash.model.Carrier] Smash.wedge (live x) -> x = (Relative.details model).point :=
+  \fun (x: model.Carrier)(member: _) => Logic.orElim[Sphere.live = (Relative.details Sphere.zero).point, x = (Relative.details model).point, x = (Relative.details model).point] member
+    (\fun (bad: _) => Logic.falseElim _ (Sphere.liveDifferent bad)) (\fun (same: _) => same);
+\definition fPoint: \forall (x: model.Carrier) -> f x = (Relative.details source).point -> x = (Relative.details model).point :=
+  \fun (x: model.Carrier)(same: _) => axis x (Q.atPoint (live x) same);
+\definition injective: \forall (x, y: model.Carrier) -> f x = f y -> x = y :=
+  \fun (x, y: model.Carrier)(same: _) => Logic.orElim[live x = live y, Logic.And[\In[Smash.model.Carrier] Smash.wedge (live x), \In[Smash.model.Carrier] Smash.wedge (live y)], x = y]
+    (Q.separates (live x) (live y) same) (congr!{{Smash.model.Carrier} {model.Carrier}} Smash.second (live x) (live y))
+    (\fun (both: Logic.And[\In[Smash.model.Carrier] Smash.wedge (live x), \In[Smash.model.Carrier] Smash.wedge (live y)]) => trans!{{model.Carrier}} _ _ _ (axis x both.left) (sym!{{model.Carrier}} _ _ (axis y both.right)));
+\module Onto;
+\definition fRegular: topology.Continuity[A := model.Carrier, B := source.Carrier].Continuous (Relative.details model).topology (Relative.details source).topology f :=
+  topology.Composition[A := model.Carrier, B := Smash.model.Carrier, C := source.Carrier].composeContinuous (Relative.details model).topology (Relative.details Smash.model).topology (Relative.details source).topology
+    live Smash.projection
+    (topological_constructions.Product[A := Sphere.zero.Carrier, B := model.Carrier].Universal[X := model.Carrier].pairContinuous (Relative.details model).topology (Relative.details Sphere.zero).topology (Relative.details model).topology
+      (\fun (_: model.Carrier) => Sphere.live) (\fun (x: model.Carrier) => x)
+      (topology.Maps[A := model.Carrier, B := Sphere.zero.Carrier].constantContinuous (Relative.details model).topology (Relative.details Sphere.zero).topology Sphere.live)
+      (topology.Maps[A := model.Carrier, B := model.Carrier].Identity[].continuous (Relative.details model).topology)) Q.continuous;
+\import algebraic_topology.Pointed[A := model.Carrier].Maps[B := source.Carrier] \as Maps;
+\definition inclusion: Relative.Map model source := \into[model.Carrier -> source.Carrier](f, Relative.Map model source) \by {
+  Maps.Laws[Relative.pointed model, Relative.pointed source, f] { continuous := fRegular, pointed := atPoint }
+};
+\definition inverse: Relative.Equivalence[source := model, target := source].Data :=
+  Relative.Equivalence[source := model, target := source].FromMap[f := inclusion, injective := injective, onto := Onto[].onto].equivalence;
+\definition equivalence: Relative.Equivalence[source := source, target := model].Data := Relative.Equivalence[source := model, target := source].inverse inverse;
+\definition onLive: \forall (x: model.Carrier) -> equivalence.forward (f x) = x := inverse.leftInverse;
+\module Naturality(other: Relative.CompactPointed, mapping: Relative.Map model other);

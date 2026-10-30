@@ -1,0 +1,77 @@
+\import \parent.Plane[] \as Plane;
+\import \parent.Square[] \as Square;
+\import std.Data[].Pair[] \as Pair;
+\definition center[t: Time.Carrier]: Real.Real := Real.sub (double t) Real.one;
+\definition lower: \forall (t: Time.Carrier) -> R.Le (Real.neg Real.one) (center t) :=
+  \fun (t: Time.Carrier) => Laws.leAddCancelRight (Real.neg Real.one) (center t) Real.one
+    (R.leReplace Real.zero (Real.add (Real.neg Real.one) Real.one) (double t) (Real.add (center t) Real.one)
+      (sym!{{Real.Real}} _ _ (Laws.addNegLeft Real.one)) (sym!{{Real.Real}} _ _ (Distance.subAddCancel (double t) Real.one))
+      (Laws.addNonnegative t t (Time.bounds t).left (Time.bounds t).left));
+\definition upper: \forall (t: Time.Carrier) -> R.Le (center t) Real.one :=
+  \fun (t: Time.Carrier) => Laws.leAddCancelRight (center t) Real.one Real.one
+    (R.leReplaceLeft (double t) (Real.add (center t) Real.one) (double Real.one) (sym!{{Real.Real}} _ _ (Distance.subAddCancel (double t) Real.one))
+      (Estimates.addLe t t Real.one Real.one (Time.bounds t).right (Time.bounds t).right));
+\definition segment[t: Time.Carrier]: Square.J := \into[Real.Real](center t, Line.ClosedInterval (Real.neg Real.one) Real.one) \by {
+  Logic.And[_, _]::# (lower t) (upper t)
+};
+\definition start: center Time.start = Real.neg Real.one := trans!{{Real.Real}} _ _ _
+  (congr!{{Real.Real} {Real.Real}} (\fun (v: Real.Real) => Real.sub v Real.one) _ _ (Laws.addZeroLeft Real.zero)) (Laws.addZeroLeft (Real.neg Real.one));
+\definition end: center Time.end = Real.one := Laws.addNegCancelRight Real.one Real.one;
+\definition inverseBound[x: Square.J]: Logic.And[R.Le Real.zero (Real.mul Real.half (Real.add x Real.one)), R.Le (Real.mul Real.half (Real.add x Real.one)) Real.one] :=
+  Logic.And[_, _]::#
+    (Laws.fieldMulNonnegative Real.half (Real.add x Real.one) Estimates.halfNonnegative
+      (R.leReplaceLeft (Real.add (Real.neg Real.one) Real.one) Real.zero (Real.add x Real.one) (Laws.addNegLeft Real.one)
+        (Laws.addMonotoneRight (Real.neg Real.one) x Real.one (\bysub(Real.Real, Line.ClosedInterval (Real.neg Real.one) Real.one, x)).left)))
+    (R.leReplaceRight _ (Real.mul Real.half (double Real.one)) Real.one
+      (trans!{{Real.Real}} _ _ _ (Laws.fieldMulAdd Real.half Real.one Real.one) (Estimates.halfTwice Real.one))
+      (Estimates.mulMonotone Real.half (Real.add x Real.one) (double Real.one) Estimates.halfNonnegative
+        (Laws.addMonotoneRight x Real.one Real.one (\bysub(Real.Real, Line.ClosedInterval (Real.neg Real.one) Real.one, x)).right)));
+\definition inverse[x: Square.J]: Time.Carrier := \into[Real.Real](Real.mul Real.half (Real.add x Real.one), Line.ClosedInterval Real.zero Real.one) \by { inverseBound x };
+\definition rightInverse: \forall (x: Square.J) -> center (inverse x) = x :=
+  \fun (x: Square.J) => trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real}} (\fun (v: Real.Real) => Real.sub v Real.one) _ _ (Estimates.halfTwice (Real.add x Real.one))) (Laws.addNegCancelRight Real.one x);
+\definition leftInverse: \forall (t: Time.Carrier) -> inverse (segment t) = t :=
+  \fun (t: Time.Carrier) => trans!{{Real.Real}} _ _ _
+    (congr!{{Real.Real} {Real.Real}} (Real.mul Real.half) _ _ (Distance.subAddCancel (double t) Real.one))
+    (trans!{{Real.Real}} _ _ _ (Laws.fieldMulAdd Real.half t t) (Estimates.halfTwice t));
+\definition atStart: \forall (t: Time.Carrier) -> center t = Real.neg Real.one -> t = Time.start :=
+  \fun (t: Time.Carrier)(same: _) => trans!{{Time.Carrier}} _ _ _ (sym!{{Time.Carrier}} _ _ (leftInverse t))
+    (trans!{{Time.Carrier}} _ _ _
+      (congr!{{Square.J} {Time.Carrier}} inverse (segment t) (segment Time.start) (trans!{{Real.Real}} _ _ _ same (sym!{{Real.Real}} _ _ start)))
+      (leftInverse Time.start));
+\definition atEnd: \forall (t: Time.Carrier) -> center t = Real.one -> t = Time.end :=
+  \fun (t: Time.Carrier)(same: _) => trans!{{Time.Carrier}} _ _ _ (sym!{{Time.Carrier}} _ _ (leftInverse t))
+    (trans!{{Time.Carrier}} _ _ _
+      (congr!{{Square.J} {Time.Carrier}} inverse (segment t) (segment Time.end) (trans!{{Real.Real}} _ _ _ same (sym!{{Real.Real}} _ _ end)))
+      (leftInverse Time.end));
+\import topological_constructions.Product[A := Time.Carrier, B := Time.Carrier] \as Times;
+\import Times.Maps[] \as Projections;
+\definition topology: topology.Topology[Carrier := Times.CarrierSet].Topology := Times.topology Time.topology Time.topology;
+\definition square[z: Times.CarrierSet]: Square.Carrier := Square.into (Pair.pair Square.J Square.J (segment (Pair.first Time.Carrier Time.Carrier z)) (segment (Pair.second Time.Carrier Time.Carrier z)));
+\definition time[z: Square.Carrier]: Times.CarrierSet := Pair.pair Time.Carrier Time.Carrier
+  (inverse (\into[Real.Real](Plane.x z, Line.ClosedInterval (Real.neg Real.one) Real.one) \by { Square.xBound z }))
+  (inverse (\into[Real.Real](Plane.y z, Line.ClosedInterval (Real.neg Real.one) Real.one) \by { Square.yBound z }));
+\definition squareTime: \forall (z: Square.Carrier) -> square (time z) = z :=
+  \fun (z: Square.Carrier) => Pair.Prop[A := Real.Real, B := Real.Real].ext _ _
+    (rightInverse (\into[Real.Real](Plane.x z, Line.ClosedInterval (Real.neg Real.one) Real.one) \by { Square.xBound z }))
+    (rightInverse (\into[Real.Real](Plane.y z, Line.ClosedInterval (Real.neg Real.one) Real.one) \by { Square.yBound z }));
+\import metric_spaces.RealFunctions[A := Time.Carrier] \as Functions;
+\definition centerContinuous: Functions.Continuous Time.topology center := Functions.subContinuous Time.topology _ _
+  (Functions.sumContinuous Time.topology (\fun (t: Time.Carrier) => t) (\fun (t: Time.Carrier) => t) Time.inclusionContinuous Time.inclusionContinuous)
+  (Functions.constantContinuous Time.topology Real.one);
+\definition segmentContinuous: topology.Continuity[A := Time.Carrier, B := Square.J].Continuous Time.topology Square.segmentTopology segment :=
+  topology.Continuity[A := Time.Carrier, B := Real.Real].Corestriction[S := Line.ClosedInterval (Real.neg Real.one) Real.one].corestrictContinuous Time.topology Line.topology segment centerContinuous;
+\import topological_constructions.Product[A := Square.J, B := Square.J] \as Box;
+\definition paired[z: Times.CarrierSet]: Box.CarrierSet := Pair.pair Square.J Square.J
+  (segment (Pair.first Time.Carrier Time.Carrier z)) (segment (Pair.second Time.Carrier Time.Carrier z));
+\definition pairedContinuous: topology.Continuity[A := Times.CarrierSet, B := Box.CarrierSet].Continuous topology Square.boxTopology paired :=
+  Box.Universal[X := Times.CarrierSet].pairContinuous topology Square.segmentTopology Square.segmentTopology _ _
+    (topology.Composition[A := Times.CarrierSet, B := Time.Carrier, C := Square.J].composeContinuous topology Time.topology Square.segmentTopology
+      (Pair.first Time.Carrier Time.Carrier) segment (Projections.firstContinuous Time.topology Time.topology) segmentContinuous)
+    (topology.Composition[A := Times.CarrierSet, B := Time.Carrier, C := Square.J].composeContinuous topology Time.topology Square.segmentTopology
+      (Pair.second Time.Carrier Time.Carrier) segment (Projections.secondContinuous Time.topology Time.topology) segmentContinuous);
+\definition continuous: topology.Continuity[A := Times.CarrierSet, B := Square.Carrier].Continuous topology Square.topology square :=
+  topology.Composition[A := Times.CarrierSet, B := Box.CarrierSet, C := Square.Carrier].composeContinuous topology Square.boxTopology Square.topology
+    paired Square.into pairedContinuous Square.regular;
+\definition timeSquare: \forall (z: Times.CarrierSet) -> time (square z) = z :=
+  \fun (z: Times.CarrierSet) => Pair.Prop[A := Time.Carrier, B := Time.Carrier].ext _ _
+    (leftInverse (Pair.first Time.Carrier Time.Carrier z)) (leftInverse (Pair.second Time.Carrier Time.Carrier z));

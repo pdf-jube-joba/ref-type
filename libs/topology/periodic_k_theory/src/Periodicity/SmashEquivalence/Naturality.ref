@@ -1,0 +1,23 @@
+\import \root.Periodicity[].SmashEquivalence[left := left, targetLeft := targetLeft, right := other, e := e] \as Other;
+\import Relative.Smash[left := left, right := other] \as AOther;
+\import Relative.Smash[left := targetLeft, right := other] \as BOther;
+\import Relative.Identity[model := left] \as SourceIdentity;
+\import Relative.Identity[model := targetLeft] \as TargetIdentity;
+\import A.Mapping[targetLeft := left, targetRight := other, f := SourceIdentity.map, g := mapping] \as SourceMap;
+\import B.Mapping[targetLeft := targetLeft, targetRight := other, f := TargetIdentity.map, g := mapping] \as TargetMap;
+\definition sourceMap: Relative.Map source AOther.result := SourceMap.map;
+\definition targetMap: Relative.Map target BOther.result := TargetMap.map;
+\definition onOriginal: \forall (z: A.model.Carrier) -> Other.equivalence.forward (sourceMap (A.projection z)) = targetMap (equivalence.forward (A.projection z)) :=
+  \fun (z: A.model.Carrier) => eq_reason_in!{{BOther.result.Carrier} _
+    "=" { Other.equivalence.forward (AOther.projection (SourceMap.productMap z)) } "by" { congr!{{AOther.result.Carrier} {BOther.result.Carrier}} Other.equivalence.forward _ _ (SourceMap.onProjection z) }
+    "=" { BOther.projection (Other.raw (SourceMap.productMap z)) } "by" { Other.onProjection (SourceMap.productMap z) }
+    "=" { targetMap (B.projection (raw z)) } "by" { sym!{{BOther.result.Carrier}} _ _ (TargetMap.onProjection (raw z)) }
+    "=" { targetMap (equivalence.forward (A.projection z)) } "by" { congr!{{B.result.Carrier} {BOther.result.Carrier}} targetMap _ _ (sym!{{B.result.Carrier}} _ _ (onProjection z)) }
+  };
+\definition equation: \forall (x: source.Carrier) -> Other.equivalence.forward (sourceMap x) = targetMap (equivalence.forward x) := \block {
+  \fun (x: source.Carrier) \then
+  \takefrom z: \Cast[A.model.Carrier] ({ z: A.model.Carrier \where A.projection z = x }) \by A.projectionOnto x \then
+  \return \idelim A.projection z = x \with q: source.Carrier => Other.equivalence.forward (sourceMap q) = targetMap (equivalence.forward q) \by {
+    base: onOriginal z, equality: \bysub(A.model.Carrier, { z: A.model.Carrier \where A.projection z = x }, z)
+  }
+};

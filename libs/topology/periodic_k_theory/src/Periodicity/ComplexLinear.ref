@@ -1,0 +1,28 @@
+\import complex.Complex[] \as C;
+\import C.Def[] \as Op;
+\import C.Prop[] \as Laws;
+\import C.Algebra[] \as Scalars;
+\import matrix_invariants.Ring[K := C.Complex, scalars := std.Alg[].Field[].fieldAsCommutativeRing C.Complex Scalars.field].At[n := n] \as Matrices;
+\import Matrices.Operations[] \as MatrixLaws;
+\import Matrices.Representation[] \as Representation;
+\import matrix_invariants.Field[K := C.Complex, field := Scalars.field].At[n := n] \as Field;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing C.Complex Scalars.field] \as Spaces;
+\import Spaces.Matrix[I := Matrices.Index, J := Matrices.Index] \as Operations;
+\import galois.Field[].Over[K := C.Complex, field := Scalars.field].Arithmetic[] \as Arithmetic;
+\import topological_algebra.Complex[] \as Plane;
+\import matrix_invariants.Topological[K := C.Complex, ring := Plane.Ring[].topologicalRing].At[n := n] \as Top;
+\import topology.Topology[Carrier := Matrices.Matrix].Subspace[S := { a: Matrices.Matrix \where Field.Nonzero a }] \as Subspace;
+\definition topology: topology.Topology[Carrier := Field.Nonsingular].Topology := Subspace.topology Top.topology;
+\definition identity: Field.Nonsingular := \into[Matrices.Matrix](Matrices.identity, Field.Nonsingular) \by {
+  \fun (zero: _) => Laws.zeroNeOne (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ zero) Matrices.atIdentity)
+};
+\import algebraic_topology.PathComponent[A := Field.Nonsingular, source := topology] \as Paths;
+\definition normalize: \forall (z: C.Complex) -> Op.NonZero z -> \forall (A: Matrices.Matrix) -> Operations.scale (Op.inv z) (Operations.scale z A) = A :=
+  \fun (z: C.Complex)(nonzero: _)(A: Matrices.Matrix) => MatrixLaws.ext _ _ (\fun (i, j: Matrices.Index) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { sym!{{C.Complex}} _ _ (Laws.mulAssoc (Op.inv z) z (A i j)) }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (\fun (a: C.Complex) => Op.mul a (A i j)) _ _ (Laws.inverseNonzero z nonzero) }
+    "=" _ "by" { Laws.mulOneLeft (A i j) }
+  });
+\module Scale(A: Field.Nonsingular, z: C.Complex, nonzero: Op.NonZero z);
+\module At(A: Field.Nonsingular);
+\module Units;

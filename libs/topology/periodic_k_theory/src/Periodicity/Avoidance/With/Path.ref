@@ -1,0 +1,55 @@
+\import algebraic_topology.Interval[] \as Time;
+\import topological_algebra.Complex[] \as Plane;
+\import topology.Topology[Carrier := C.Complex].Subspace[S := predicate] \as Subspace;
+\definition Carrier: \Set := Subspace.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Subspace.topology Plane.topology;
+\definition firstInside: \forall (t: Time.Carrier) -> \In[C.Complex] predicate (first t) :=
+  \fun (t: Time.Carrier) => Order.byContradiction (\In[C.Complex] predicate (first t))
+    (\fun (outside: _) => outside (\idelim Op.zero = first t \with z: C.Complex => \In[C.Complex] predicate z \by {
+      base: atZero, equality: sym!{{C.Complex}} _ _ (firstAvoids t (first t) (covers (first t) outside) (\refl(first t)))
+    }));
+\definition secondInside: \forall (t: Time.Carrier) -> \In[C.Complex] predicate (second t) :=
+  \fun (t: Time.Carrier) => Order.byContradiction (\In[C.Complex] predicate (second t))
+    (\fun (outside: _) => outside (\idelim Op.one = second t \with z: C.Complex => \In[C.Complex] predicate z \by {
+      base: atOne, equality: sym!{{C.Complex}} _ _ (secondAvoids t (second t) (covers (second t) outside) (\refl(second t)))
+    }));
+\definition left[t: Time.Carrier]: Carrier := \into[C.Complex](first t, predicate) \by { firstInside t };
+\definition right[t: Time.Carrier]: Carrier := \into[C.Complex](second t, predicate) \by { secondInside t };
+\definition start: Carrier := \into[C.Complex](Op.zero, predicate) \by { atZero };
+\definition end: Carrier := \into[C.Complex](Op.one, predicate) \by { atOne };
+\definition middle: Carrier := left Time.end;
+\import metric_spaces.RealFunctions[A := Time.Carrier] \as Functions;
+\import topological_constructions.Product[A := Real.Real, B := Real.Real].Universal[X := Time.Carrier] \as Pairing;
+\definition realRegular: Functions.Continuous Time.topology (\fun (t: Time.Carrier) => Real.mul t Real.half) :=
+  Functions.Product[].continuous Time.topology (\fun (t: Time.Carrier) => t) (\fun (_: Time.Carrier) => Real.half)
+    Time.inclusionContinuous (Functions.constantContinuous Time.topology Real.half);
+\definition imaginaryRegular: Functions.Continuous Time.topology (\fun (t: Time.Carrier) => Real.mul t y) :=
+  Functions.Product[].continuous Time.topology (\fun (t: Time.Carrier) => t) (\fun (_: Time.Carrier) => y)
+    Time.inclusionContinuous (Functions.constantContinuous Time.topology y);
+\definition leftContinuous: topology.Continuity[A := Time.Carrier, B := Carrier].Continuous Time.topology topology left :=
+  topology.Continuity[A := Time.Carrier, B := C.Complex].Corestriction[S := predicate].corestrictContinuous Time.topology Plane.topology left
+    (Pairing.pairContinuous Time.topology metric_spaces.RealLine[].topology metric_spaces.RealLine[].topology
+      (\fun (t: Time.Carrier) => Real.mul t Real.half) (\fun (t: Time.Carrier) => Real.mul t y) realRegular imaginaryRegular);
+\definition rightContinuous: topology.Continuity[A := Time.Carrier, B := Carrier].Continuous Time.topology topology right :=
+  topology.Continuity[A := Time.Carrier, B := C.Complex].Corestriction[S := predicate].corestrictContinuous Time.topology Plane.topology right
+    (Pairing.pairContinuous Time.topology metric_spaces.RealLine[].topology metric_spaces.RealLine[].topology
+      (\fun (t: Time.Carrier) => Real.sub Real.one (Real.mul t Real.half)) (\fun (t: Time.Carrier) => Real.mul t y)
+      (Functions.subContinuous Time.topology (\fun (_: Time.Carrier) => Real.one) (\fun (t: Time.Carrier) => Real.mul t Real.half)
+        (Functions.constantContinuous Time.topology Real.one) realRegular) imaginaryRegular);
+\definition leftStart: left Time.start = start := firstZero;
+\definition leftEnd: left Time.end = middle := \refl(middle);
+\definition rightStart: right Time.start = end := secondZero;
+\definition rightEnd: right Time.end = middle := ComplexLaws.makeCong _ _ _ _
+  (trans!{{Real.Real}} _ _ _
+    (congr!{{Real.Real} {Real.Real}} (Real.sub Real.one) _ _ (Laws.fieldMulOneLeft Real.half))
+    (trans!{{Real.Real}} _ _ _
+      (congr!{{Real.Real} {Real.Real}} (\fun (a: Real.Real) => Real.sub a Real.half) _ _ (sym!{{Real.Real}} _ _ (Real.Estimates[].halfDouble)))
+      (trans!{{Real.Real}} _ _ _ (Laws.addNegCancelRight Real.half Real.half) (sym!{{Real.Real}} _ _ (Laws.fieldMulOneLeft Real.half)))))
+  (\refl(Real.mul Real.one y));
+\import algebraic_topology.PathComponent[A := Carrier, source := topology] \as Paths;
+\import Paths.IntervalPaths[] \as IntervalPaths;
+\definition firstPath: Paths.Path start middle := IntervalPaths.ofFunction start middle left leftContinuous leftStart leftEnd;
+\definition secondPath: Paths.Path end middle := IntervalPaths.ofFunction end middle right rightContinuous rightStart rightEnd;
+\definition exists: Paths.Related start end := Paths.transitive start middle end
+  (\exact(firstPath, Paths.Path start middle))
+  (Paths.symmetric end middle (\exact(secondPath, Paths.Path end middle)));

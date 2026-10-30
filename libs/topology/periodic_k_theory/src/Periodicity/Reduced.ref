@@ -1,0 +1,42 @@
+\import KTheory.On[X := model.Carrier, baseSpace := (Relative.details model).topology,
+  compact := (Relative.details model).compact, hausdorff := (Relative.details model).hausdorff] \as Ordinary;
+\import Ordinary.K0[] \as SourceK;
+\import Ordinary.Ranks[] \as SourceRanks;
+\import Relative.Smash[left := model, right := sphere] \as Smash;
+\import topological_constructions.Product[A := model.Carrier, B := sphere.Carrier].Maps[] \as Projections;
+\import Smash.External[] \as External;
+\definition SourceCarrier: \Set := Relative.Reduced[model := model].Carrier;
+\definition TargetCarrier: \Set := Relative.Reduced[model := Smash.result].Carrier;
+\definition CartesianCarrier: \Set := Relative.Reduced[model := Smash.model].Carrier;
+\definition WedgeCarrier: \Set := Relative.Reduced[model := Smash.wedgeModel].Carrier;
+\definition sourceGroup: std.Alg[].Alg[].CommutativeGroup[SourceCarrier] := Relative.Reduced[model := model].group;
+\definition targetGroup: std.Alg[].Alg[].CommutativeGroup[TargetCarrier] := Relative.Reduced[model := Smash.result].group;
+\definition cartesianGroup: std.Alg[].Alg[].CommutativeGroup[CartesianCarrier] := Relative.Reduced[model := Smash.model].group;
+\definition wedgeGroup: std.Alg[].Alg[].CommutativeGroup[WedgeCarrier] := Relative.Reduced[model := Smash.wedgeModel].group;
+\import Relative.PairIteration[pair := Smash.pair].Sequence[degree := N.Nat^::zero] \as Sequence;
+\import Bott.Product[X := model.Carrier, source := (Relative.details model).topology,
+  compact := (Relative.details model).compact, hausdorff := (Relative.details model).hausdorff] \as Product;
+\import Product.Inverse[] \as Coefficients;
+\import Product.At[point := (Relative.details sphere).point] \as At;
+\import Relative.Pullback[source := Smash.wedgeModel, target := Smash.model, f := Smash.wedgeInclusion] \as WedgePull;
+\import Relative.Pullback[source := model, target := Smash.wedgeModel, f := Smash.leftInclusion] \as LeftAxis;
+\definition result: Relative.CompactPointed := Smash.result;
+
+
+\import KTheory.On[X := Product.Carrier, baseSpace := Product.topology,
+  compact := Product.productCompact, hausdorff := Product.productHausdorff] \as TargetTheory;
+\import TargetTheory.K0[] \as TargetK;
+\definition forward[a: SourceCarrier]: TargetCarrier := External.product a beta;
+\definition coefficient[q: TargetCarrier]: SourceK.Carrier := Coefficients.coefficient (External.forget q);
+\definition restrictionZero: \forall (q: TargetCarrier) -> Sequence.restriction (External.forget q) = Sequence.fifthGroup.base.unit :=
+  \fun (q: TargetCarrier) => (Sequence.exactFourth (External.forget q)).rtl
+    (Logic.existsIntro[TargetCarrier, { v: TargetCarrier \where Sequence.forget v = External.forget q }] q (\refl(External.forget q)));
+\definition wedgeZero: \forall (q: TargetCarrier) -> WedgePull.map (External.forget q) = wedgeGroup.base.unit :=
+  \fun (q: TargetCarrier) => trans!{{WedgeCarrier}}
+    (WedgePull.map (External.forget q)) (Sequence.restriction (External.forget q)) wedgeGroup.base.unit
+    (sym!{{WedgeCarrier}} (Sequence.restriction (External.forget q)) (WedgePull.map (External.forget q)) (Sequence.restrictionFormula (External.forget q)))
+    (restrictionZero q);
+\module Axes;
+\module Inverse;
+
+\module Naturality(other: Relative.CompactPointed, f: Relative.Map model other);

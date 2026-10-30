@@ -1,0 +1,37 @@
+\definition n: N.Nat^ := first.dimension;
+\definition m: N.Nat^ := second.dimension;
+\definition V: \Set := Bundles.Vector n;
+\definition W: \Set := Bundles.Vector m;
+\definition e: Bundles.Isomorphisms[X := Time.Carrier, F := E, G := (\fun (_: Time.Carrier) => V),
+  source := positive, target := Bundles.Trivial[X := Time.Carrier, n := n, baseSpace := Time.topology].bundle].Isomorphism := first.isomorphism;
+\definition f: Bundles.Isomorphisms[X := Time.Carrier, F := F, G := (\fun (_: Time.Carrier) => W),
+  source := negative, target := Bundles.Trivial[X := Time.Carrier, n := m, baseSpace := Time.topology].bundle].Isomorphism := second.isomorphism;
+\import Bundles.Isomorphisms[X := Time.Carrier, F := E, G := (\fun (_: Time.Carrier) => V),
+  source := positive, target := Bundles.Trivial[X := Time.Carrier, n := n, baseSpace := Time.topology].bundle] \as FirstIso;
+\import Bundles.Isomorphisms[X := Time.Carrier, F := F, G := (\fun (_: Time.Carrier) => W),
+  source := negative, target := Bundles.Trivial[X := Time.Carrier, n := m, baseSpace := Time.topology].bundle] \as SecondIso;
+\import Bundles.Isomorphisms[X := Pair.A, F := (\fun (x: Pair.A) => E x), G := (\fun (x: Pair.A) => F x),
+  source := Pair.Restricted[p := t.positive].bundle, target := Pair.Restricted[p := t.negative].bundle] \as BoundaryIso;
+\import Spaces.Isomorphism[V := V, W := W, source := Bundles.coordinates n, target := Bundles.coordinates m] \as CoordinateIso;
+\module Boundary(x: Pair.A);
+\definition c: CoordinateIso.Isomorphism := Boundary[x := end].isomorphism;
+\import Spaces.Linear[V := V, W := V, source := Bundles.coordinates n, target := Bundles.coordinates n] \as End;
+\import Spaces.Linear[V := W, W := V, source := Bundles.coordinates m, target := Bundles.coordinates n].Composition[U := V, domain := Bundles.coordinates n] \as BackThen;
+\import Spaces.Linear[V := V, W := W, source := Bundles.coordinates n, target := Bundles.coordinates m].Composition[U := V, domain := Bundles.coordinates n] \as ForwardThen;
+\import Homotopy.Projections[n := n].Operators[].Units[] \as Units;
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Scalars.field, scalar := linear_algebra.Hermitian[].Complex[].scalar,
+  topological := hermitian_frames.Hermitian[].Complex[].topological].At[n := n].Square[] \as Square;
+\definition h0Map: End.Map := BackThen.compose c.backward (Boundary[x := start].isomorphism).forward;
+\definition inverseMap: End.Map := BackThen.compose (Boundary[x := start].isomorphism).backward c.forward;
+\definition left: \forall (v: V) -> inverseMap.apply (h0Map.apply v) = v :=
+  \fun (v: V) => trans!{V} _ _ _
+    (congr!{W V} (Boundary[x := start].isomorphism).backward.apply _ _ ((CoordinateIso.laws c).rightInverse ((Boundary[x := start].isomorphism).forward.apply v)))
+    ((CoordinateIso.laws (Boundary[x := start].isomorphism)).leftInverse v);
+\definition h0: Units.Carrier := \into[End.Map](h0Map, Units.Carrier) \by {
+  Square.LeftInverse[f := h0Map, g := inverseMap, left := left].nonzero
+};
+\import algebraic_topology.PathComponent[A := Units.Carrier, source := Units.topology] \as Paths;
+\definition pathExists: Paths.Related h0 Units.identity := Paths.symmetric Units.identity h0
+  (\root.Periodicity[].ComplexLinear[n := n].Units[].At[h := h0].exists);
+\definition Path: \Set := Paths.Path h0 Units.identity;
+\module Along(path: Path);

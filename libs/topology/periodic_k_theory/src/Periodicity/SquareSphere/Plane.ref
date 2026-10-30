@@ -1,0 +1,65 @@
+\import std.Data[].Pair[] \as Pair;
+\import topological_constructions.Product[A := Real.Real, B := Real.Real] \as Cartesian;
+\import Cartesian.Maps[] \as Projections;
+\definition Carrier: \Set := Cartesian.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Cartesian.topology Line.topology Line.topology;
+\definition x: Carrier -> Real.Real := Pair.first Real.Real Real.Real;
+\definition y: Carrier -> Real.Real := Pair.second Real.Real Real.Real;
+\definition r2[z: Carrier]: Real.Real := Real.add (square (x z)) (square (y z));
+\definition radius[z: Carrier]: Real.Real := maximum (x z) (y z);
+\definition gap[z: Carrier]: Real.Real := Real.sub Real.one (radius z);
+\definition denominator[z: Carrier]: Real.Real := Real.add (r2 z) (square (gap z));
+\definition inverse[z: Carrier]: Real.Real := Laws.fieldInv (denominator z);
+\import \parent.Scalar[] \as Identities;
+\definition r2Nonnegative: \forall (z: Carrier) -> R.Le Real.zero (r2 z) :=
+  \fun (z: Carrier) => Laws.addNonnegative _ _ (Algebra.squareNonnegative (x z)) (Algebra.squareNonnegative (y z));
+\definition nonzero: \forall (z: Carrier) -> Logic.Not (denominator z = Real.zero) := \block {
+  \fun (z: Carrier)(bad: denominator z = Real.zero) \then
+  \let gapSquared: square (gap z) = Real.zero := R.leAntisym _ Real.zero
+    (R.leReplaceRight _ (denominator z) Real.zero bad (Distance.leAddRightOfNonnegative (r2 z) (square (gap z)) (r2Nonnegative z)))
+    (Algebra.squareNonnegative (gap z)) \then
+  \let rSquared: r2 z = Real.zero := trans!{{Real.Real}} _ _ _
+    (sym!{{Real.Real}} _ _ (Laws.addZeroRight (r2 z)))
+    (trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real}} (Real.add (r2 z)) _ _ (sym!{{Real.Real}} _ _ gapSquared)) bad) \then
+  \let xZero: x z = Real.zero := Algebra.sumSquaresZeroLeft (x z) (y z) rSquared \then
+  \let yZero: y z = Real.zero := Algebra.sumSquaresZeroLeft (y z) (x z)
+    (trans!{{Real.Real}} _ _ _ (Laws.addComm (square (y z)) (square (x z))) rSquared) \then
+  \let radiusZero: radius z = Real.zero := trans!{{Real.Real}} _ _ _
+    (congr!{{Real.Real} {Real.Real} {Real.Real}} maximum _ _ _ _ xZero yZero) Identities.maxZero \then
+  \let gapOne: gap z = Real.one := trans!{{Real.Real}} _ _ _
+    (congr!{{Real.Real} {Real.Real}} (Real.sub Real.one) _ _ radiusZero) (Laws.subZeroRight Real.one) \then
+  \return Laws.zeroNeOne (trans!{{Real.Real}} _ _ _ (sym!{{Real.Real}} _ _ (Algebra.squareZero (gap z) gapSquared)) gapOne)
+};
+\definition inverseLaw: \forall (z: Carrier) -> Real.mul (inverse z) (denominator z) = Real.one :=
+  \fun (z: Carrier) => Laws.fieldInverseNonzero (denominator z) (nonzero z);
+\definition height[z: Carrier]: Real.Real := Real.mul (Real.sub (r2 z) (square (gap z))) (inverse z);
+\definition weight[z: Carrier]: Real.Real := Real.mul (double (gap z)) (inverse z);
+\definition coordinates[z: Carrier]: Sphere.Coordinate := Split2.join (height z)
+  (Split1.join (Real.mul (weight z) (x z)) (\fun (_: D1.Index) => Real.mul (weight z) (y z)));
+\import metric_spaces.RealFunctions[A := Carrier] \as Functions;
+\definition xContinuous: Functions.Continuous topology x := Projections.firstContinuous Line.topology Line.topology;
+\definition yContinuous: Functions.Continuous topology y := Projections.secondContinuous Line.topology Line.topology;
+\definition radiusContinuous: Functions.Continuous topology radius := Functions.Lattice[].maximumContinuous topology _ _
+  (Functions.Lattice[].maximumContinuous topology _ _ xContinuous (Functions.negContinuous topology x xContinuous))
+  (Functions.Lattice[].maximumContinuous topology _ _ yContinuous (Functions.negContinuous topology y yContinuous));
+\definition gapContinuous: Functions.Continuous topology gap := Functions.subContinuous topology _ _ (Functions.constantContinuous topology Real.one) radiusContinuous;
+\definition r2Continuous: Functions.Continuous topology r2 := Functions.sumContinuous topology _ _
+  (Functions.Product[].continuous topology x x xContinuous xContinuous) (Functions.Product[].continuous topology y y yContinuous yContinuous);
+\definition denominatorContinuous: Functions.Continuous topology denominator := Functions.sumContinuous topology _ _ r2Continuous
+  (Functions.Product[].continuous topology gap gap gapContinuous gapContinuous);
+\definition inverseContinuous: Functions.Continuous topology inverse := Functions.Reciprocal[].continuous topology denominator denominatorContinuous nonzero;
+\definition heightContinuous: Functions.Continuous topology height := Functions.Product[].continuous topology _ _
+  (Functions.subContinuous topology _ _ r2Continuous (Functions.Product[].continuous topology gap gap gapContinuous gapContinuous)) inverseContinuous;
+\definition weightContinuous: Functions.Continuous topology weight := Functions.Product[].continuous topology _ _
+  (Functions.sumContinuous topology gap gap gapContinuous gapContinuous) inverseContinuous;
+\definition tail[z: Carrier]: D2.Coordinate := Split1.join (Real.mul (weight z) (x z)) (\fun (_: D1.Index) => Real.mul (weight z) (y z));
+\definition tailContinuous: topology.Continuity[A := Carrier, B := D2.Coordinate].Continuous topology D2.topology tail :=
+  Split1.Continuity[A := Carrier].joinContinuous topology (\fun (z: Carrier) => Real.mul (weight z) (x z))
+    (\fun (z: Carrier)(_ : D1.Index) => Real.mul (weight z) (y z))
+    (Functions.Product[].continuous topology weight x weightContinuous xContinuous)
+    (\fun (_: D1.Index) => Functions.Product[].continuous topology weight y weightContinuous yContinuous);
+\definition coordinatesContinuous: topology.Continuity[A := Carrier, B := Sphere.Coordinate].Continuous topology Sphere.topology coordinates :=
+  Split2.Continuity[A := Carrier].joinContinuous topology height tail heightContinuous
+    (\fun (i: D2.Index) => topology.Composition[A := Carrier, B := D2.Coordinate, C := Real.Real].composeContinuous topology D2.topology Line.topology
+      tail (\fun (v: D2.Coordinate) => v i) tailContinuous
+      (topological_algebra.Coordinates[K := Real.Real, I := D2.Index].evaluationContinuous Line.topology i));

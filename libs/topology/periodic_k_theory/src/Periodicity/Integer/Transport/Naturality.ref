@@ -1,0 +1,15 @@
+\import \root.Periodicity[].Integer[].Transport[model := other] \as Other;
+\definition From[p: B.Bool^]: \Set := Relative.Negative[original := other, degree := P.index p].Carrier;
+\definition pull[p: B.Bool^]: From p -> Carrier p := Relative.NegativeMap[source := model, target := other, f := mapping, degree := P.index p].map;
+\definition equation: \forall (first, second: B.Bool^)(same: first = second)(q: From first) ->
+  (apply first second same).forward (pull first q) = pull second ((Other.apply first second same).forward q) :=
+  \fun (first, second: B.Bool^)(same: _) =>
+    (\idelim first = second \with parity: B.Bool^ => \forall (equality: first = parity)(q: From first) ->
+      (apply first parity equality).forward (pull first q) = pull parity ((Other.apply first parity equality).forward q) \by {
+        base: \fun (loop: first = first)(q: From first) => trans!{{Carrier first}} _ _ _
+          (congr!{{Data first first} {Carrier first}} (\fun (iso: Data first first) => iso.forward (pull first q)) _ _
+            (\transporteq first \with parity: B.Bool^ => Data first parity \by { base: identity first }))
+          (sym!{{Carrier first}} _ _ (congr!{{Other.Data first first} {Carrier first}} (\fun (iso: Other.Data first first) => pull first (iso.forward q)) _ _
+            (\transporteq first \with parity: B.Bool^ => Other.Data first parity \by { base: Other.identity first }))),
+        equality: same
+      }) same;

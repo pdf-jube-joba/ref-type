@@ -1,0 +1,17 @@
+\definition Source[n: N.Nat^]: \Set := Relative.Negative[original := model, degree := n].Carrier;
+\definition sourceGroup[n: N.Nat^]: std.Alg[].Alg[].CommutativeGroup[Source n] := Relative.Negative[original := model, degree := n].group;
+\definition Target[n: N.Nat^]: \Set := Relative.Negative[original := model, degree := P.index (P.natural n)].Carrier;
+\definition targetGroup[n: N.Nat^]: std.Alg[].Alg[].CommutativeGroup[Target n] := Relative.Negative[original := model, degree := P.index (P.natural n)].group;
+\definition Data[n: N.Nat^]: \Set := \root.Periodicity[].Isomorphism[A := Source n, B := Target n, source := sourceGroup n, target := targetGroup n].Data;
+\import \parent.Transport[model := model] \as Transport;
+\module Step(degree: N.Nat^, previous: Data degree);
+\structure Consecutive[n: N.Nat^]: \Set := { current: Data n, next: Data (N.Nat^::succ n) };
+\definition pairs: \forall (n: N.Nat^) -> Consecutive[n] :=
+  \induction (n: N.Nat^) \return Consecutive[n] \with {
+    | zero: Consecutive[N.Nat^::zero] { current := Transport.identity B.Bool^::false, next := Transport.identity B.Bool^::true }
+    | succ: \fun (n: N.Nat^)(previous: Consecutive[n]) => Consecutive[N.Nat^::succ n] {
+      current := previous.next, next := Step[degree := n, previous := previous.current].data
+    }
+  };
+\definition normal[degree: N.Nat^]: Data degree := (pairs degree).current;
+\module At(degree: N.Nat^);

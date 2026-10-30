@@ -1,0 +1,41 @@
+\import \root.Periodicity[].SuspensionSphere[] \as SphereModel;
+\import \root.Periodicity[].Point[].SphereZero[] \as Initial;
+\import \root.Periodicity[].IntervalPair[].Circle[] \as Circle;
+\import std.Arithmetic[].Int[] \as I;
+\definition model: N.Nat^ -> Relative.CompactPointed := \induction (n: N.Nat^) \return Relative.CompactPointed \with {
+  | zero: SphereModel.zero
+  | succ: \fun (n: N.Nat^)(previous: Relative.CompactPointed) => Relative.Smash[left := previous, right := sphere].result
+};
+\definition Carrier[n: N.Nat^]: \Set := Relative.Reduced[model := model n].Carrier;
+\definition group[n: N.Nat^]: std.Alg[].Alg[].CommutativeGroup[Carrier n] := Relative.Reduced[model := model n].group;
+\definition integers: std.Alg[].Alg[].CommutativeGroup[I.Int^] := Initial.integers;
+\definition Data[n: N.Nat^]: \Set := \root.Periodicity[].Isomorphism[A := Carrier n, B := I.Int^, source := group n, target := integers].Data;
+\module Step(n: N.Nat^, previous: Data n);
+\definition isomorphism: \forall (n: N.Nat^) -> Data n := \induction (n: N.Nat^) \return Data n \with {
+  | zero: Initial.isomorphism
+  | succ: \fun (n: N.Nat^)(previous: Data n) => Step[n := n, previous := previous].data
+};
+\definition generator[n: N.Nat^]: Carrier n := (isomorphism n).backward I.One.specification;
+\definition normalized: \forall (n: N.Nat^) -> (isomorphism n).forward (generator n) = I.One.specification :=
+  \fun (n: N.Nat^) => (isomorphism n).rightInverse I.One.specification;
+\definition iteratedBott: \forall (n: N.Nat^) -> generator (N.Nat^::succ n) = \root.Periodicity[].Reduced[model := model n].forward (generator n) :=
+  \fun (n: N.Nat^) => \refl(\root.Periodicity[].Reduced[model := model n].forward (generator n));
+\definition Odd[n: N.Nat^]: \Set := Relative.Negative[original := model n, degree := Bott.one].Carrier;
+\definition oddGroup[n: N.Nat^]: std.Alg[].Alg[].CommutativeGroup[Odd n] := Relative.Negative[original := model n, degree := Bott.one].group;
+\module OddStep(n: N.Nat^, previous: \forall (x: Odd n) -> x = (oddGroup n).base.unit);
+\definition oddZero: \forall (n: N.Nat^)(x: Odd n) -> x = (oddGroup n).base.unit :=
+  \induction (n: N.Nat^) \return \forall (x: Odd n) -> x = (oddGroup n).base.unit \with {
+    | zero: Circle.zero
+    | succ: \fun (n: N.Nat^)(previous: \forall (x: Odd n) -> x = (oddGroup n).base.unit) => OddStep[n := n, previous := previous].zero
+  };
+\definition dimension: N.Nat^ -> N.Nat^ := \induction (n: N.Nat^) \return N.Nat^ \with {
+  | zero: N.Nat^::zero
+  | succ: \fun (n: N.Nat^)(previous: N.Nat^) => N.Nat^::succ (N.Nat^::succ previous)
+};
+\definition Sphere[n: N.Nat^]: Relative.CompactPointed := Relative.iterate (dimension n) SphereModel.zero;
+\definition Equivalence[n: N.Nat^]: \Set := Relative.Equivalence[source := Sphere n, target := model n].Data;
+\module ComparisonStep(n: N.Nat^, previous: Equivalence n);
+\definition comparison: \forall (n: N.Nat^) -> Equivalence n := \induction (n: N.Nat^) \return Equivalence n \with {
+  | zero: Relative.Identity[model := SphereModel.zero].equivalence
+  | succ: \fun (n: N.Nat^)(previous: Equivalence n) => ComparisonStep[n := n, previous := previous].equivalence
+};

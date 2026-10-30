@@ -1,0 +1,70 @@
+\import std.Data[].List[] \as Lists;
+\import Lists.Membership[A := C.Complex] \as Members;
+\definition roots: Lists.List[C.Complex] := Lists.map C.Complex C.Complex Op.inv cover.roots;
+\definition mapMember: \forall (xs: Lists.List[C.Complex])(z: C.Complex) -> Members.Occurs z xs ->
+  Members.Occurs (Op.inv z) (Lists.map C.Complex C.Complex Op.inv xs) :=
+  \induction (xs: Lists.List[C.Complex]) \return \forall (z: C.Complex) -> Members.Occurs z xs ->
+    Members.Occurs (Op.inv z) (Lists.map C.Complex C.Complex Op.inv xs) \with {
+    | nil: \fun (z: C.Complex)(impossible: Logic.False) => Logic.falseElim _ impossible
+    | cons: \fun (w: C.Complex)(xs: Lists.List[C.Complex])(previous: _)(z: C.Complex)(member: _) =>
+      Logic.orElim[z = w, Members.Occurs z xs, Members.Occurs (Op.inv z) (Lists.map C.Complex C.Complex Op.inv (Lists.List[C.Complex]::cons w xs))] member
+        (\fun (same: _) => Logic.Or[_, _]::left (congr!{{C.Complex} {C.Complex}} Op.inv _ _ same))
+        (\fun (inside: _) => Logic.Or[_, _]::right (previous z inside))
+  };
+\definition inverseNonzero: \forall (z: C.Complex) -> Op.NonZero z -> Op.NonZero (Op.inv z) :=
+  \fun (z: C.Complex)(nonzero: _)(zero: _) => Laws.zeroNeOne (trans!{{C.Complex}} _ _ _
+    (sym!{{C.Complex}} _ _ (Laws.mulZeroLeft z))
+    (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (\fun (a: C.Complex) => Op.mul a z) _ _ (sym!{{C.Complex}} _ _ zero)) (Laws.inverseNonzero z nonzero)));
+\definition inverseTwice: \forall (z: C.Complex) -> Op.NonZero z -> Op.inv (Op.inv z) = z :=
+  \fun (z: C.Complex)(nonzero: _) => Arithmetic.cancelRight (Op.inv z) (Op.inv (Op.inv z)) z (inverseNonzero z nonzero)
+    (trans!{{C.Complex}} _ _ _ (Laws.inverseNonzero (Op.inv z) (inverseNonzero z nonzero)) (sym!{{C.Complex}} _ _ (Laws.inverseNonzeroRight z nonzero)));
+\definition Good: \Pow C.Complex := { z: C.Complex \where Field.Nonzero (value z) };
+\definition goodZero: \In[C.Complex] Good Op.zero := \fun (singular: _) => Laws.zeroNeOne (trans!{{C.Complex}} _ _ _
+  (sym!{{C.Complex}} _ _ singular)
+  (trans!{{C.Complex}} _ _ _ (congr!{{Matrices.Matrix} {C.Complex}} Matrices.determinant _ _ atZero) Matrices.atIdentity));
+\definition goodOne: \In[C.Complex] Good Op.one := \fun (singular: _) => (\bysub(Matrices.Matrix, Field.Nonsingular, A))
+  (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (congr!{{Matrices.Matrix} {C.Complex}} Matrices.determinant _ _ atOne)) singular);
+\definition badCovered: \forall (z: C.Complex) -> Logic.Not (\In[C.Complex] Good z) -> Members.Occurs z roots :=
+  \block {
+    \fun (z: C.Complex)(bad: _) \then
+    \let singular: Matrices.determinant (value z) = Op.zero := dedekind_reals.DedekindReal[].Order[].byContradiction (Matrices.determinant (value z) = Op.zero)
+      (\fun (nonzero: _) => bad nonzero) \then
+    \let nonzero: Op.NonZero z := \fun (zero: _) => goodZero (trans!{{C.Complex}} _ _ _
+      (sym!{{C.Complex}} _ _ (congr!{{C.Complex} {C.Complex}} (\fun (a: C.Complex) => Matrices.determinant (value a)) _ _ zero)) singular) \then
+    \let member: Members.Occurs (Op.inv z) cover.roots := cover.covers (Op.inv z) (\parent.Pencil[z := z, nonzero := nonzero].root singular) \then
+    \return \idelim Op.inv (Op.inv z) = z \with a: C.Complex => Members.Occurs a roots \by {
+      base: mapMember cover.roots (Op.inv z) member, equality: inverseTwice z nonzero
+    }
+  };
+\import \root.Periodicity[].Avoidance[].With[roots := roots].Path[predicate := Good, atZero := goodZero, atOne := goodOne, covers := badCovered] \as Parameter;
+\import topological_algebra.Complex[] \as Plane;
+\import matrix_invariants.Topological[K := C.Complex, ring := Plane.Ring[].topologicalRing].At[n := n] \as Top;
+\import topology.Topology[Carrier := Matrices.Matrix].Subspace[S := { a: Matrices.Matrix \where Field.Nonzero a }] \as MatrixSpace;
+\definition topology: topology.Topology[Carrier := Field.Nonsingular].Topology := MatrixSpace.topology Top.topology;
+\definition map[z: Parameter.Carrier]: Field.Nonsingular := \into[Matrices.Matrix](value z, Field.Nonsingular) \by { \bysub(C.Complex, Good, z) };
+\import Plane.Functions[A := Parameter.Carrier] \as Functions;
+\definition include[z: Parameter.Carrier]: C.Complex := z;
+\definition inclusionContinuous: topology.Continuity[A := Parameter.Carrier, B := C.Complex].Continuous Parameter.topology Plane.topology include :=
+  topology.Continuity[A := C.Complex, B := C.Complex].Corestriction[S := Good].inclusionContinuous Plane.topology;
+\definition regular: Top.Families[X := Parameter.Carrier].Regular Parameter.topology (\fun (z: Parameter.Carrier) => value z) :=
+  \fun (i, j: Matrices.Index) => Functions.additionContinuous Parameter.topology
+    (\fun (_: Parameter.Carrier) => Matrices.identity i j) (\fun (z: Parameter.Carrier) => Op.neg (Op.mul z (B i j)))
+    (topology.Maps[A := Parameter.Carrier, B := C.Complex].constantContinuous Parameter.topology Plane.topology (Matrices.identity i j))
+    (Functions.negationContinuous Parameter.topology (\fun (z: Parameter.Carrier) => Op.mul z (B i j))
+      (Functions.multiplicationContinuous Parameter.topology include (\fun (_: Parameter.Carrier) => B i j) inclusionContinuous
+        (topology.Maps[A := Parameter.Carrier, B := C.Complex].constantContinuous Parameter.topology Plane.topology (B i j))));
+\definition continuous: topology.Continuity[A := Parameter.Carrier, B := Field.Nonsingular].Continuous Parameter.topology topology map :=
+  topology.Continuity[A := Parameter.Carrier, B := Matrices.Matrix].Corestriction[S := { a: Matrices.Matrix \where Field.Nonzero a }].corestrictContinuous Parameter.topology Top.topology map
+    (topological_algebra.Matrix[K := C.Complex, I := Matrices.Index, J := Matrices.Index].Universal[A := Parameter.Carrier].continuous Parameter.topology Plane.topology
+      (\fun (z: Parameter.Carrier) => value z) regular);
+\definition identity: Field.Nonsingular := \into[Matrices.Matrix](Matrices.identity, Field.Nonsingular) \by {
+  \fun (zero: _) => Laws.zeroNeOne (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ zero) Matrices.atIdentity)
+};
+\import algebraic_topology.PathComponent[A := Parameter.Carrier, source := Parameter.topology].Maps[B := Field.Nonsingular, target := topology] \as Mapping;
+\import algebraic_topology.PathComponent[A := Field.Nonsingular, source := topology] \as Paths;
+\definition exists: Paths.Related identity A :=
+  \idelim map Parameter.start = identity \with a: Field.Nonsingular => Paths.Related a A \by {
+    base: \idelim map Parameter.end = A \with b: Field.Nonsingular => Paths.Related (map Parameter.start) b \by {
+      base: Mapping.preserves map continuous Parameter.start Parameter.end Parameter.exists, equality: atOne
+    }, equality: atZero
+  };

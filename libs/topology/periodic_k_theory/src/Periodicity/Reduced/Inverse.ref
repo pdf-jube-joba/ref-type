@@ -1,0 +1,39 @@
+\import \parent.Axes[] \as Axes;
+\definition backward[q: TargetCarrier]: SourceCarrier :=
+  \into[SourceK.Carrier](coefficient q, SourceRanks.Reduced[point := (Relative.details model).point].kernel) \by { Axes.rankZero q };
+\import Ordinary.Pullback[Y := Product.Carrier, space := Product.topology,
+  sourceCompact := Product.productCompact, sourceHausdorff := Product.productHausdorff, f := Product.first,
+  regular := Projections.firstContinuous (Relative.details model).topology (Relative.details sphere).topology] \as FirstPull;
+\import algebra.Group[].Of[Carrier := TargetK.Carrier, group := TargetK.group] \as ProductGroup;
+\definition rawFormula: \forall (a: SourceCarrier) -> External.raw a beta = Product.forward SourceK.zero a :=
+  \fun (a: SourceCarrier) => sym!{{TargetK.Carrier}} _ _
+    (trans!{{TargetK.Carrier}} _ _ _
+      (congr!{{TargetK.Carrier} {TargetK.Carrier}}
+        (\fun (v: TargetK.Carrier) => TargetK.add v (External.raw a beta)) _ _ FirstPull.K0[].preservesZero)
+      (ProductGroup.zeroLeft (External.raw a beta)));
+\definition formula: \forall (a: SourceCarrier) -> External.forget (forward a) = Product.forward SourceK.zero a :=
+  \fun (a: SourceCarrier) => trans!{{TargetK.Carrier}} _ _ _ (External.formula a beta) (rawFormula a);
+\definition leftInverse: \forall (a: SourceCarrier) -> backward (forward a) = a :=
+  \fun (a: SourceCarrier) => trans!{{SourceK.Carrier}} _ _ _
+    (congr!{{TargetK.Carrier} {SourceK.Carrier}} Coefficients.coefficient _ _ (formula a))
+    (Coefficients.recovers SourceK.zero a).right;
+\definition rightInverse: \forall (q: TargetCarrier) -> forward (backward q) = q :=
+  \fun (q: TargetCarrier) => External.forgetInjective _ _
+    (trans!{{TargetK.Carrier}} _ _ _ (formula (backward q))
+      (trans!{{TargetK.Carrier}} _ _ _
+        (congr!{{SourceK.Carrier} {TargetK.Carrier}}
+          (\fun (a: SourceK.Carrier) => Product.forward a (coefficient q)) _ _ (sym!{{SourceK.Carrier}} _ _ (Axes.firstZero q)))
+        (Coefficients.reconstruction (External.forget q))));
+\definition forwardAdd: \forall (a, b: SourceCarrier) -> forward (sourceGroup.base.op a b) = targetGroup.base.op (forward a) (forward b) :=
+  \fun (a, b: SourceCarrier) => External.additiveLeft a b beta;
+\definition forwardZero: forward sourceGroup.base.unit = targetGroup.base.unit := External.zeroLeft beta;
+\definition backwardAdd: \forall (q, r: TargetCarrier) -> backward (targetGroup.base.op q r) = sourceGroup.base.op (backward q) (backward r) :=
+  \fun (q, r: TargetCarrier) => trans!{{SourceCarrier}} _ _ _
+    (congr!{{TargetCarrier} {SourceCarrier}} backward _ _
+      (congr!{{TargetCarrier} {TargetCarrier} {TargetCarrier}} targetGroup.base.op _ _ _ _
+        (sym!{{TargetCarrier}} _ _ (rightInverse q)) (sym!{{TargetCarrier}} _ _ (rightInverse r))))
+    (trans!{{SourceCarrier}} _ _ _
+      (congr!{{TargetCarrier} {SourceCarrier}} backward _ _ (sym!{{TargetCarrier}} _ _ (forwardAdd (backward q) (backward r))))
+      (leftInverse (sourceGroup.base.op (backward q) (backward r))));
+\definition backwardZero: backward targetGroup.base.unit = sourceGroup.base.unit := trans!{{SourceCarrier}} _ _ _
+  (congr!{{TargetCarrier} {SourceCarrier}} backward _ _ (sym!{{TargetCarrier}} _ _ forwardZero)) (leftInverse sourceGroup.base.unit);

@@ -1,0 +1,37 @@
+/* Two affine segments avoiding a finite subset of the complex plane. */
+\import complex.Complex[] \as C;
+\import C.Def[] \as Op;
+\import C.Prop[] \as ComplexLaws;
+\import real.Analysis[] \as Real;
+\import Real.Algebra[] \as Algebra;
+\import Real.Distance[] \as Distance;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Order[] \as Order;
+\import std.Data[].List[] \as Lists;
+\import Lists.Membership[A := C.Complex] \as Members;
+\definition slope[a, b: Real.Real]: Real.Real := Real.mul (Real.mul Real.half b) (Laws.fieldInv a);
+\definition firstSlope[z: C.Complex]: Real.Real := slope (C.re z) (C.im z);
+\definition secondSlope[z: C.Complex]: Real.Real := slope (Real.sub Real.one (C.re z)) (C.im z);
+\definition bound: Lists.List[C.Complex] -> Real.Real :=
+  \induction (xs: Lists.List[C.Complex]) \return Real.Real \with {
+    | nil: Real.zero
+    | cons: \fun (z: C.Complex)(xs: Lists.List[C.Complex])(previous: Real.Real) => Distance.max (Distance.max (firstSlope z) (secondSlope z)) previous
+  };
+\definition bounds: \forall (xs: Lists.List[C.Complex])(z: C.Complex) -> Members.Occurs z xs ->
+  Logic.And[R.Le (firstSlope z) (bound xs), R.Le (secondSlope z) (bound xs)] :=
+  \induction (xs: Lists.List[C.Complex]) \return \forall (z: C.Complex) -> Members.Occurs z xs ->
+    Logic.And[R.Le (firstSlope z) (bound xs), R.Le (secondSlope z) (bound xs)] \with {
+    | nil: \fun (z: C.Complex)(impossible: Logic.False) => Logic.falseElim _ impossible
+    | cons: \fun (w: C.Complex)(xs: Lists.List[C.Complex])(previous: \forall (z: C.Complex) -> Members.Occurs z xs -> Logic.And[R.Le (firstSlope z) (bound xs), R.Le (secondSlope z) (bound xs)])(z: C.Complex)(member: Members.Occurs z (Lists.List[C.Complex]::cons w xs)) =>
+      Logic.orElim[z = w, Members.Occurs z xs, Logic.And[R.Le (firstSlope z) (bound (Lists.List[C.Complex]::cons w xs)), R.Le (secondSlope z) (bound (Lists.List[C.Complex]::cons w xs))]] member
+        (\fun (same: z = w) => Logic.And[_, _]::#
+          (R.leReplaceLeft (firstSlope w) (firstSlope z) _ (congr!{{C.Complex} {Real.Real}} firstSlope _ _ (sym!{{C.Complex}} _ _ same))
+            (R.leTrans _ _ _ (Distance.maxLeft (firstSlope w) (secondSlope w)) (Distance.maxLeft (Distance.max (firstSlope w) (secondSlope w)) (bound xs))))
+          (R.leReplaceLeft (secondSlope w) (secondSlope z) _ (congr!{{C.Complex} {Real.Real}} secondSlope _ _ (sym!{{C.Complex}} _ _ same))
+            (R.leTrans _ _ _ (Distance.maxRight (firstSlope w) (secondSlope w)) (Distance.maxLeft (Distance.max (firstSlope w) (secondSlope w)) (bound xs)))))
+        (\fun (member: Members.Occurs z xs) => Logic.And[_, _]::#
+          (R.leTrans _ _ _ (previous z member).left (Distance.maxRight (Distance.max (firstSlope w) (secondSlope w)) (bound xs)))
+          (R.leTrans _ _ _ (previous z member).right (Distance.maxRight (Distance.max (firstSlope w) (secondSlope w)) (bound xs))))
+  };
+\module With(roots: Lists.List[C.Complex]);

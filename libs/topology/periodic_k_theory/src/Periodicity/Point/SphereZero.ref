@@ -1,0 +1,44 @@
+\import std.Arithmetic[].Int[] \as I;
+\import Relative.Equivalence[source := model, target := SphereModel.zero].With[e := equivalence].Groups[] \as Transport;
+\definition Carrier: \Set := Relative.Reduced[model := SphereModel.zero].Carrier;
+\definition group: std.Alg[].Alg[].CommutativeGroup[Carrier] := Relative.Reduced[model := SphereModel.zero].group;
+\definition integers: std.Alg[].Alg[].CommutativeGroup[I.Int^] := std.Arithmetic[].IntAlgebra[].additiveCommutativeGroup;
+\definition forward[x: Carrier]: I.Int^ := Point.forward (Absolute.backward (Transport.forward x));
+\definition backward[z: I.Int^]: Carrier := Transport.backward (Absolute.forward (Point.backward z));
+\definition leftInverse: \forall (x: Carrier) -> backward (forward x) = x := \fun (x: Carrier) => eq_reason_in!{Carrier _
+  "=" _ "by" { congr!{{Point.Carrier} Carrier} (\fun (q: Point.Carrier) => Transport.backward (Absolute.forward q)) _ _ (Point.leftInverse (Absolute.backward (Transport.forward x))) }
+  "=" _ "by" { congr!{{Relative.Reduced[model := model].Carrier} Carrier} Transport.backward _ _ (Absolute.rightInverse (Transport.forward x)) }
+  "=" _ "by" { Transport.rightInverse x }
+};
+\definition rightInverse: \forall (z: I.Int^) -> forward (backward z) = z := \fun (z: I.Int^) => eq_reason_in!{{I.Int^} _
+  "=" _ "by" { congr!{{Relative.Reduced[model := model].Carrier} {I.Int^}} (\fun (q: Relative.Reduced[model := model].Carrier) => Point.forward (Absolute.backward q)) _ _ (Transport.leftInverse (Absolute.forward (Point.backward z))) }
+  "=" _ "by" { congr!{{Point.Carrier} {I.Int^}} Point.forward _ _ (Absolute.leftInverse (Point.backward z)) }
+  "=" _ "by" { Point.rightInverse z }
+};
+\definition forwardAdd: \forall (x, y: Carrier) -> forward (group.base.op x y) = I.Add.specification (forward x) (forward y) := \fun (x, y: Carrier) => eq_reason_in!{{I.Int^} _
+  "=" _ "by" { congr!{{Relative.Reduced[model := model].Carrier} {I.Int^}} (\fun (q: Relative.Reduced[model := model].Carrier) => Point.forward (Absolute.backward q)) _ _ (Transport.forwardAdd x y) }
+  "=" _ "by" { congr!{{Point.Carrier} {I.Int^}} Point.forward _ _ (Absolute.Additive[].backwardAdd (Transport.forward x) (Transport.forward y)) }
+  "=" _ "by" { Point.additive (Absolute.backward (Transport.forward x)) (Absolute.backward (Transport.forward y)) }
+};
+\definition backwardAdd: \forall (a, b: I.Int^) -> backward (I.Add.specification a b) = group.base.op (backward a) (backward b) := \fun (a, b: I.Int^) => eq_reason_in!{Carrier _
+  "=" _ "by" { congr!{{Point.Carrier} Carrier} (\fun (q: Point.Carrier) => Transport.backward (Absolute.forward q)) _ _ (Point.backwardAdd a b) }
+  "=" _ "by" { congr!{{Relative.Reduced[model := model].Carrier} Carrier} Transport.backward _ _ (Absolute.Additive[].forwardAdd (Point.backward a) (Point.backward b)) }
+  "=" _ "by" { Transport.backwardAdd (Absolute.forward (Point.backward a)) (Absolute.forward (Point.backward b)) }
+};
+\definition forwardZero: forward group.base.unit = I.Zero.specification := eq_reason_in!{{I.Int^} _
+  "=" _ "by" { congr!{{Relative.Reduced[model := model].Carrier} {I.Int^}} (\fun (q: Relative.Reduced[model := model].Carrier) => Point.forward (Absolute.backward q)) _ _ Transport.forwardZero }
+  "=" _ "by" { congr!{{Point.Carrier} {I.Int^}} Point.forward _ _ Absolute.Additive[].backwardZero }
+  "=" _ "by" { Point.zeroRank }
+};
+\definition backwardZero: backward I.Zero.specification = group.base.unit := eq_reason_in!{Carrier _
+  "=" _ "by" { congr!{{Point.Carrier} Carrier} (\fun (q: Point.Carrier) => Transport.backward (Absolute.forward q)) _ _ Point.backwardZero }
+  "=" _ "by" { congr!{{Relative.Reduced[model := model].Carrier} Carrier} Transport.backward _ _ Absolute.Additive[].forwardZero }
+  "=" _ "by" { Transport.backwardZero }
+};
+\definition isomorphism: \root.Periodicity[].Isomorphism[A := Carrier, B := I.Int^, source := group, target := integers].Data :=
+  \root.Periodicity[].Isomorphism[A := Carrier, B := I.Int^, source := group, target := integers].Data {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardAdd := forwardAdd, backwardAdd := backwardAdd, forwardZero := forwardZero, backwardZero := backwardZero
+  };
+\definition generator: Carrier := backward I.One.specification;
+\definition normalized: forward generator = I.One.specification := rightInverse I.One.specification;

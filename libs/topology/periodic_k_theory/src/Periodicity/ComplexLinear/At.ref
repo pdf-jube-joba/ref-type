@@ -1,0 +1,22 @@
+\import algebra.Group[].Of[Carrier := C.Complex, group := Scalars.additiveGroup] \as Sum;
+\definition B: Matrices.Matrix := \fun (i, j: Matrices.Index) => Op.sub (Matrices.identity i j) (A i j);
+\definition value[z: C.Complex]: Matrices.Matrix := \fun (i, j: Matrices.Index) => Op.sub (Matrices.identity i j) (Op.mul z (B i j));
+\definition atZero: value Op.zero = Matrices.identity := MatrixLaws.ext _ _ (\fun (i, j: Matrices.Index) => trans!{{C.Complex}} _ _ _
+  (congr!{{C.Complex} {C.Complex}} (Op.sub (Matrices.identity i j)) _ _ (Laws.mulZeroLeft (B i j))) (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (Op.add (Matrices.identity i j)) _ _ Sum.negZero) (Laws.addZeroRight (Matrices.identity i j))));
+\definition subSub: \forall (a, b: C.Complex) -> Op.sub a (Op.sub a b) = b := Sum.subtractDifference;
+\definition atOne: value Op.one = A := MatrixLaws.ext _ _ (\fun (i, j: Matrices.Index) => trans!{{C.Complex}} _ _ _
+  (congr!{{C.Complex} {C.Complex}} (Op.sub (Matrices.identity i j)) _ _ (Laws.mulOneLeft (B i j))) (subSub (Matrices.identity i j) (A i j)));
+\import spectral_splitting.Spectral[].At[n := n] \as Spectral;
+\import Spectral.Characteristic[] \as Characteristic;
+\import galois.Field[].Over[K := C.Complex, field := Scalars.field].Polynomial[] \as Monic;
+\import std.Data[].FinSet[].FromList[A := C.Complex] \as Tuples;
+\definition coefficients: Monic.Coefficients := Tuples.list n (Characteristic.coefficients B);
+\import Monic.RootCover[] \as RootCover;
+\import Monic.AbstractEvaluation[] \as Evaluation;
+\definition coverExists: \exists RootCover.Cover[coefficients] := RootCover.exists coefficients;
+\module Pencil(z: C.Complex, nonzero: Op.NonZero z);
+\module With(cover: RootCover.Cover[coefficients]);
+\definition pathExists: Paths.Related identity A := \block {
+  \takefrom cover: RootCover.Cover[coefficients] \by coverExists \then
+  \return With[cover := cover].exists
+};

@@ -1,0 +1,25 @@
+\definition inside: \forall (z: Times.CarrierSet) -> First.class (inner z) = (Relative.details firstModel).point -> Edge z :=
+  \fun (z: Times.CarrierSet)(same: _) => Logic.orElim[innerTime z = Time.start, Logic.Or[innerTime z = Time.end, live = (Relative.details zero).point], Edge z]
+    (First.atPoint (inner z) same)
+    (\fun (atStart: innerTime z = Time.start) => Logic.Or[_, _]::right (Logic.Or[_, _]::right (Logic.Or[_, _]::left atStart)))
+    (\fun (rest: Logic.Or[innerTime z = Time.end, live = (Relative.details zero).point]) => Logic.orElim[innerTime z = Time.end, live = (Relative.details zero).point, Edge z] rest
+      (\fun (atEnd: innerTime z = Time.end) => Logic.Or[_, _]::right (Logic.Or[_, _]::right (Logic.Or[_, _]::right atEnd)))
+      (\fun (bad: live = (Relative.details zero).point) => Logic.falseElim (Edge z) (liveDifferent bad)));
+\definition atPoint: \forall (z: Times.CarrierSet) -> f z = (Relative.details source).point -> Edge z :=
+  \fun (z: Times.CarrierSet)(same: _) => Logic.orElim[outerTime z = Time.start, Logic.Or[outerTime z = Time.end, First.class (inner z) = (Relative.details firstModel).point], Edge z]
+    (Second.atPoint (outer z) same)
+    (\fun (atStart: outerTime z = Time.start) => Logic.Or[_, _]::left atStart)
+    (\fun (rest: Logic.Or[outerTime z = Time.end, First.class (inner z) = (Relative.details firstModel).point]) => Logic.orElim[outerTime z = Time.end, First.class (inner z) = (Relative.details firstModel).point, Edge z] rest
+      (\fun (atEnd: outerTime z = Time.end) => Logic.Or[_, _]::right (Logic.Or[_, _]::left atEnd)) (inside z));
+\definition innerPoint: \forall (z: Times.CarrierSet) -> Logic.Or[innerTime z = Time.start, innerTime z = Time.end] -> First.class (inner z) = (Relative.details firstModel).point :=
+  \fun (z: Times.CarrierSet)(edge: _) => First.collapsed (inner z)
+    (Logic.orElim[innerTime z = Time.start, innerTime z = Time.end, \In[Inner.Carrier] First.Collapsed (inner z)] edge
+      (\fun (atStart: _) => Logic.Or[_, _]::left atStart)
+      (\fun (atEnd: _) => Logic.Or[_, _]::right (Logic.Or[_, _]::left atEnd)));
+\definition toPoint: \forall (z: Times.CarrierSet) -> Edge z -> f z = (Relative.details source).point :=
+  \fun (z: Times.CarrierSet)(edge: _) => Second.collapsed (outer z)
+    (Logic.orElim[outerTime z = Time.start, Logic.Or[outerTime z = Time.end, Logic.Or[innerTime z = Time.start, innerTime z = Time.end]], \In[Outer.Carrier] Second.Collapsed (outer z)] edge
+      (\fun (atStart: _) => Logic.Or[_, _]::left atStart)
+      (\fun (rest: Logic.Or[outerTime z = Time.end, Logic.Or[innerTime z = Time.start, innerTime z = Time.end]]) => Logic.orElim[outerTime z = Time.end, Logic.Or[innerTime z = Time.start, innerTime z = Time.end], \In[Outer.Carrier] Second.Collapsed (outer z)] rest
+        (\fun (atEnd: _) => Logic.Or[_, _]::right (Logic.Or[_, _]::left atEnd))
+        (\fun (edge: _) => Logic.Or[_, _]::right (Logic.Or[_, _]::right (innerPoint z edge)))));

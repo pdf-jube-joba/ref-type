@@ -1,0 +1,18 @@
+\import \root.Periodicity[].TwoShift[model := other] \as Other;
+\import \root.Periodicity[].Reduced[model := other] \as OtherBott;
+\import \root.Periodicity[].DoubleComparison[model := other] \as OtherCompare;
+\import Comparison.Naturality[other := other, mapping := mapping] \as CompareNatural;
+\import BottMap.Naturality[other := other, f := mapping] \as BottNatural;
+\import Relative.Pullback[source := model, target := other, f := mapping] \as Pull;
+\import Relative.NegativeMap[source := model, target := other, f := mapping, degree := Bott.two] \as DoublePull;
+\import Relative.Pullback[source := BottMap.result, target := OtherBott.result, f := CompareNatural.map] \as SmashPull;
+\import Relative.Square[A := Comparison.double, B := OtherCompare.double, C := BottMap.result, D := OtherBott.result,
+  f := CompareNatural.doubleMap, g := OtherCompare.equivalence.forward, h := Comparison.equivalence.forward, k := CompareNatural.map,
+  commutes := CompareNatural.equation].Negative[degree := N.Nat^::zero] \as Square;
+\definition forwardEquation: \forall (a: Other.Source) -> DoublePull.map (Other.forward a) = forward (Pull.map a) :=
+  \fun (a: Other.Source) => trans!{Target} _ _ _ (Square.equation (OtherBott.forward a))
+    (congr!{{BottMap.TargetCarrier} Target} Transport.forward _ _ (BottNatural.forwardEquation a));
+\definition backwardEquation: \forall (q: Other.Target) -> backward (DoublePull.map q) = Pull.map (Other.backward q) :=
+  \fun (q: Other.Target) => trans!{Source} _ _ _
+    (congr!{{Other.Target} Source} (\fun (r: Other.Target) => backward (DoublePull.map r)) _ _ (sym!{{Other.Target}} _ _ (Other.rightInverse q)))
+    (trans!{Source} _ _ _ (congr!{Target Source} backward _ _ (forwardEquation (Other.backward q))) (leftInverse (Pull.map (Other.backward q))));

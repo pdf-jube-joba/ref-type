@@ -1,0 +1,48 @@
+\import real.Analysis[] \as Real;
+\import \root.Periodicity[].SquareSphere[].Plane[] \as Plane;
+\import std.Logic[].Classical[] \as Classical;
+\definition gToPoint: \forall (z: Times.CarrierSet) -> Edge z -> gLive z = (Relative.details sphere).point :=
+  \fun (z: Times.CarrierSet)(edge: Edge z) => \root.Periodicity[].SquareSphere[].Boundary[z := Center.square z, edge := Boundary.fromEdge z edge].equation;
+\definition gAtPoint: \forall (z: Times.CarrierSet) -> gLive z = (Relative.details sphere).point -> Edge z :=
+  \fun (z: Times.CarrierSet)(same: _) => Boundary.toEdge z
+    (Logic.orElim[Plane.gap (Center.square z) = Real.zero, Logic.Not (Plane.gap (Center.square z) = Real.zero),
+      Plane.gap (Center.square z) = Real.zero]
+      (Classical.excludedMiddle (Plane.gap (Center.square z) = Real.zero))
+      (\fun (edge: _) => edge)
+      (\fun (inside: _) => Logic.falseElim _ (Classification.interiorNotPole (Center.square z) inside same)));
+\definition sameTime: \forall (z, w: Times.CarrierSet) -> Center.square z = Center.square w -> z = w :=
+  \fun (z, w: Times.CarrierSet)(same: _) => trans!{{Times.CarrierSet}} _ _ _ (sym!{{Times.CarrierSet}} _ _ (Center.timeSquare z))
+    (trans!{{Times.CarrierSet}} _ _ _ (congr!{{Square.Carrier} {Times.CarrierSet}} Center.time (Center.square z) (Center.square w) same) (Center.timeSquare w));
+\definition forwardLive: \forall (z, w: Times.CarrierSet) -> f z = f w -> gLive z = gLive w :=
+  \fun (z, w: Times.CarrierSet)(same: _) => Logic.orElim[z = w, Logic.And[Edge z, Edge w], gLive z = gLive w]
+    (Separation.separates z w same) (congr!{{Times.CarrierSet} {sphere.Carrier}} gLive z w)
+    (\fun (both: Logic.And[Edge z, Edge w]) => trans!{{sphere.Carrier}} _ _ _ (gToPoint z both.left) (sym!{{sphere.Carrier}} _ _ (gToPoint w both.right)));
+\definition backwardLive: \forall (z, w: Times.CarrierSet) -> gLive z = gLive w -> f z = f w :=
+  \fun (z, w: Times.CarrierSet)(same: _) => Logic.orElim[Center.square z = Center.square w,
+    Logic.And[Plane.gap (Center.square z) = Real.zero, Plane.gap (Center.square w) = Real.zero], f z = f w]
+    (Classification.separates (Center.square z) (Center.square w) same)
+    (\fun (points: _) => congr!{{Times.CarrierSet} {source.Carrier}} f z w (sameTime z w points))
+    (\fun (both: Logic.And[Plane.gap (Center.square z) = Real.zero, Plane.gap (Center.square w) = Real.zero]) =>
+      trans!{{source.Carrier}} _ _ _ (Collapsed.toPoint z (Boundary.toEdge z both.left)) (sym!{{source.Carrier}} _ _ (Collapsed.toPoint w (Boundary.toEdge w both.right))));
+\definition forward: \forall (r, s: R) -> fAll r = fAll s -> gAll r = gAll s :=
+  \induction (r: R) \return \forall (s: R) -> fAll r = fAll s -> gAll r = gAll s \with {
+    | inl: \fun (a: Times.CarrierSet) => \induction (s: R) \return fAll (Sum.inl a) = fAll s -> gAll (Sum.inl a) = gAll s \with {
+      | inl: \fun (b: Times.CarrierSet)(same: _) => \refl((Relative.details sphere).point)
+      | inr: \fun (b: Times.CarrierSet)(same: _) => sym!{{sphere.Carrier}} _ _ (gToPoint b (Collapsed.atPoint b (sym!{{source.Carrier}} _ _ same)))
+    }
+    | inr: \fun (a: Times.CarrierSet) => \induction (s: R) \return fAll (Sum.inr a) = fAll s -> gAll (Sum.inr a) = gAll s \with {
+      | inl: \fun (b: Times.CarrierSet)(same: _) => gToPoint a (Collapsed.atPoint a same)
+      | inr: \fun (b: Times.CarrierSet)(same: _) => forwardLive a b same
+    }
+  };
+\definition backward: \forall (r, s: R) -> gAll r = gAll s -> fAll r = fAll s :=
+  \induction (r: R) \return \forall (s: R) -> gAll r = gAll s -> fAll r = fAll s \with {
+    | inl: \fun (a: Times.CarrierSet) => \induction (s: R) \return gAll (Sum.inl a) = gAll s -> fAll (Sum.inl a) = fAll s \with {
+      | inl: \fun (b: Times.CarrierSet)(same: _) => \refl((Relative.details source).point)
+      | inr: \fun (b: Times.CarrierSet)(same: _) => sym!{{source.Carrier}} _ _ (Collapsed.toPoint b (gAtPoint b (sym!{{sphere.Carrier}} _ _ same)))
+    }
+    | inr: \fun (a: Times.CarrierSet) => \induction (s: R) \return gAll (Sum.inr a) = gAll s -> fAll (Sum.inr a) = fAll s \with {
+      | inl: \fun (b: Times.CarrierSet)(same: _) => Collapsed.toPoint a (gAtPoint a same)
+      | inr: \fun (b: Times.CarrierSet)(same: _) => backwardLive a b same
+    }
+  };

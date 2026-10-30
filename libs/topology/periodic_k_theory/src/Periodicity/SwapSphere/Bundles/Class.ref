@@ -1,0 +1,54 @@
+\import SphereTheory.K0[] \as K;
+\import algebra.Group[].Of[Carrier := K.Carrier, group := K.group] \as Group;
+\import SphereTheory.Bundle[F := Original.Fiber, original := Original.bundle, same := \refl(Sphere.sphereTopology)] \as OriginalClass;
+\import SphereTheory.Bundle[F := Source.Fiber, original := Source.bundle, same := \refl(Sphere.sphereTopology)] \as ComplementClass;
+\import SphereTheory.Bundle[F := Target.Fiber, original := Target.bundle, same := \refl(Sphere.sphereTopology)] \as TargetClass;
+\import SphereTheory.Compare[F := Source.Fiber, G := Target.Fiber, first := Source.bundle, second := Target.bundle,
+  firstSame := \refl(Sphere.sphereTopology), secondSame := \refl(Sphere.sphereTopology)] \as SwapCompare;
+\definition swappedClass: ComplementClass.value = TargetClass.value := SwapCompare.ofIsomorphism isomorphism;
+\import Bott.ProjectiveLine[].SphereLine[] \as Line;
+\import SphereTheory.Compare[F := Line.LineFiber, G := Original.Fiber, first := Line.lineBundle, second := Original.bundle,
+  firstSame := \refl(Sphere.sphereTopology), secondSame := \refl(Sphere.sphereTopology)] \as ProjectiveCompare;
+\definition projectiveClass: Line.lineClass = OriginalClass.value := ProjectiveCompare.ofIsomorphism Line.Projection[].isomorphism;
+\definition generator: K.Carrier := K.difference OriginalClass.value SphereTheory.Line[].value;
+\definition projectiveSign: generator = K.neg Bott.generator := trans!{{K.Carrier}} _ _ _
+  (congr!{{SphereTheory.Classes} {K.Carrier}} (\fun (c: SphereTheory.Classes) => K.difference c SphereTheory.Line[].value) _ _ (sym!{{SphereTheory.Classes}} _ _ projectiveClass))
+  Line.Comparison[].Class[].sign;
+\import SphereTheory.Pullback[Y := sphere.Carrier, space := Sphere.sphereTopology, sourceCompact := Compactness.sphere, sourceHausdorff := Compactness.sphereHausdorff,
+  f := swap, regular := Continuous.continuous] \as Pull;
+\import Pull.Of[F := Original.Fiber, original := Original.bundle, same := \refl(Sphere.sphereTopology)] \as PulledClass;
+\import Original.Pullback[Y := sphere.Carrier, source := Sphere.sphereTopology, f := swap, regularBase := Continuous.continuous] \as ProjectedPull;
+\import SphereTheory.Compare[F := (\fun (p: sphere.Carrier) => Original.Fiber (swap p)), G := Target.Fiber,
+  first := ProjectedPull.firstBundle, second := Target.bundle, firstSame := \refl(Sphere.sphereTopology), secondSame := \refl(Sphere.sphereTopology)] \as PulledCompare;
+\definition pullClass: Pull.map OriginalClass.value = ComplementClass.value := trans!{{SphereTheory.Classes}} _ _ _ PulledClass.naturality
+  (trans!{{SphereTheory.Classes}} _ _ _ (PulledCompare.ofIsomorphism ProjectedPull.isomorphism) (sym!{{SphereTheory.Classes}} _ _ swappedClass));
+\import SphereTheory.Sum[F := Original.Fiber, G := Source.Fiber, left := Original.bundle, right := Source.bundle,
+  leftSame := \refl(Sphere.sphereTopology), rightSame := \refl(Sphere.sphereTopology)] \as Sum;
+\import SphereTheory.Compare[F := Sum.FiberAt, G := SphereTheory.Trivial[n := Bott.two].FiberAt, first := Sum.sumBundle,
+  second := SphereTheory.Trivial[n := Bott.two].trivialBundle, firstSame := \refl(Sphere.sphereTopology), secondSame := \refl(Sphere.sphereTopology)] \as Splitting;
+\definition sumClasses: K.add (K.include OriginalClass.value) (K.include ComplementClass.value) = K.include SphereTheory.Trivial[n := Bott.two].value :=
+  trans!{{K.Carrier}} _ _ _ (sym!{{K.Carrier}} _ _ (K.includeAdd OriginalClass.value ComplementClass.value))
+    (congr!{{SphereTheory.Classes} {K.Carrier}} K.include _ _
+      (trans!{{SphereTheory.Classes}} _ _ _ Sum.onBundles (Splitting.ofIsomorphism Complement.isomorphism)));
+\module Trivial;
+\definition reducedComplement: K.Carrier := K.difference ComplementClass.value SphereTheory.Line[].value;
+\definition inverse: reducedComplement = K.neg generator := Group.inverseUnique generator reducedComplement (eq_reason_in!{{K.Carrier} _
+  "=" _ "by" { Group.comm reducedComplement generator }
+  "=" _ "by" { sym!{{K.Carrier}} _ _ (Group.differenceAdd (K.include OriginalClass.value) (K.include ComplementClass.value) K.one K.one) }
+  "=" _ "by" { congr!{{K.Carrier} {K.Carrier}} (\fun (a: K.Carrier) => Group.difference a (K.add K.one K.one)) _ _ sumClasses }
+  "=" _ "by" { congr!{{K.Carrier} {K.Carrier}} (\fun (a: K.Carrier) => Group.difference a (K.add K.one K.one)) _ _ Trivial[].twoUnits }
+  "=" _ "by" { Group.inverseRight (K.add K.one K.one) }
+});
+\definition pulledGenerator: Pull.K0[].map generator = reducedComplement := trans!{{K.Carrier}} _ _ _
+  (Pull.K0[].onDifferences OriginalClass.value SphereTheory.Line[].value)
+  (congr!{{SphereTheory.Classes} {SphereTheory.Classes} {K.Carrier}} K.difference _ _ _ _ pullClass Pull.Line[].equation);
+\definition negativeGenerator: K.neg generator = Bott.generator := trans!{{K.Carrier}} _ _ _
+  (congr!{{K.Carrier} {K.Carrier}} K.neg _ _ projectiveSign) (Group.negNeg Bott.generator);
+\definition sign: Pull.K0[].map Bott.generator = K.neg Bott.generator := eq_reason_in!{{K.Carrier} _
+  "=" _ "by" { congr!{{K.Carrier} {K.Carrier}} Pull.K0[].map _ _ (sym!{{K.Carrier}} _ _ negativeGenerator) }
+  "=" _ "by" { Pull.K0[].preservesNeg generator }
+  "=" _ "by" { congr!{{K.Carrier} {K.Carrier}} K.neg _ _ pulledGenerator }
+  "=" _ "by" { congr!{{K.Carrier} {K.Carrier}} K.neg _ _ inverse }
+  "=" _ "by" { Group.negNeg generator }
+  "=" _ "by" { projectiveSign }
+};

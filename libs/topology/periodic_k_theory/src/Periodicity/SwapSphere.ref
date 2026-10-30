@@ -1,0 +1,42 @@
+\import \root.Periodicity[].SquareSphere[].Stereographic[] \as Coordinates;
+\import \root.Periodicity[].SquareSphere[].Forward[] \as Norm;
+\import \root.Periodicity[].SquareSphere[].Pole[] \as Pole;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import algebraic_topology.Euclidean[].Dimension[n := Bott.one] \as D1;
+\import algebraic_topology.Euclidean[].Dimension[n := Bott.two] \as D2;
+\import D1.Splitting[] \as Split1;
+\import D2.Splitting[] \as Split2;
+\import std.Data[].FinSet[] \as Fin;
+\definition raw[p: sphere.Carrier]: Sphere.Coordinate := Split2.join (Coordinates.head p)
+  (Split1.join (Coordinates.y p) (\fun (_: D1.Index) => Coordinates.x p));
+\definition originalNorm: \forall (p: sphere.Carrier) -> Sphere.normSquared p = Real.add (Real.mul (Coordinates.head p) (Coordinates.head p))
+  (Real.add (Real.mul (Coordinates.x p) (Coordinates.x p)) (Real.mul (Coordinates.y p) (Coordinates.y p))) :=
+  \fun (p: sphere.Carrier) => trans!{{Real.Real}} _ _ _ (Split2.normSplit p)
+    (congr!{{Real.Real} {Real.Real}} (Real.add (Real.mul (Coordinates.head p) (Coordinates.head p))) _ _
+      (trans!{{Real.Real}} _ _ _ (Split1.normSplit (Split2.tail p))
+        (congr!{{Real.Real} {Real.Real}} (Real.add (Real.mul (Coordinates.x p) (Coordinates.x p))) _ _ (Laws.addZeroRight (Real.mul (Coordinates.y p) (Coordinates.y p))))));
+\definition unit: \forall (p: sphere.Carrier) -> Sphere.normSquared (raw p) = Real.one := \fun (p: sphere.Carrier) => eq_reason_in!{{Real.Real} _
+  "=" _ "by" { Split2.normJoin (Coordinates.head p) (Split1.join (Coordinates.y p) (\fun (_: D1.Index) => Coordinates.x p)) }
+  "=" _ "by" { congr!{{Real.Real} {Real.Real}} (Real.add (Real.mul (Coordinates.head p) (Coordinates.head p))) _ _ (Norm.norm2 (Coordinates.y p) (Coordinates.x p)) }
+  "=" _ "by" { congr!{{Real.Real} {Real.Real}} (Real.add (Real.mul (Coordinates.head p) (Coordinates.head p))) _ _ (Laws.addComm (Real.mul (Coordinates.y p) (Coordinates.y p)) (Real.mul (Coordinates.x p) (Coordinates.x p))) }
+  "=" _ "by" { sym!{{Real.Real}} _ _ (originalNorm p) }
+  "=" _ "by" { \bysub(Sphere.Coordinate, Sphere.Boundary, p) }
+};
+\definition swap[p: sphere.Carrier]: sphere.Carrier := \into[Sphere.Coordinate](raw p, Sphere.Boundary) \by { unit p };
+\definition head: \forall (p: sphere.Carrier) -> Coordinates.head (swap p) = Coordinates.head p := \fun (p: sphere.Carrier) => Split2.headJoin _ _;
+\definition x: \forall (p: sphere.Carrier) -> Coordinates.x (swap p) = Coordinates.y p := \fun (p: sphere.Carrier) => trans!{{Real.Real}} _ _ _
+  (congr!{{D2.Coordinate} {Real.Real}} Split1.head _ _ (Split2.tailJoin _ _)) (Split1.headJoin _ _);
+\definition y: \forall (p: sphere.Carrier) -> Coordinates.y (swap p) = Coordinates.x p := \fun (p: sphere.Carrier) => trans!{{Real.Real}} _ _ _
+  (congr!{{D2.Coordinate} {Real.Real}} (\fun (v: D2.Coordinate) => Split1.tail v (Fin.zero N.Nat^::zero)) _ _ (Split2.tailJoin _ _))
+  (congr!{{D1.Coordinate} {Real.Real}} (\fun (v: D1.Coordinate) => v (Fin.zero N.Nat^::zero)) _ _ (Split1.tailJoin _ _));
+\definition involutive: \forall (p: sphere.Carrier) -> swap (swap p) = p := \fun (p: sphere.Carrier) => Coordinates.extent _ _
+  (trans!{{Real.Real}} _ _ _ (head (swap p)) (head p)) (trans!{{Real.Real}} _ _ _ (x (swap p)) (y p)) (trans!{{Real.Real}} _ _ _ (y (swap p)) (x p));
+\module Continuity;
+\module Action;
+\module Intertwiner;
+\module Bundles;
+\import Relative.Pullback[source := sphere, target := sphere, f := Continuity[].map] \as Pull;
+\definition bottSign: Pull.map beta = SphereGroup.group.base.inv beta := Bundles[].Class[].sign;
+\module On(model: Relative.CompactPointed);

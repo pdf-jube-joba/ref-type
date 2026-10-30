@@ -1,0 +1,58 @@
+\import Bott.ProjectiveLine[].Coordinates[].SphereMap[].Matrix[] \as Coordinates;
+\import Coordinates.Geometry[] \as Identities;
+\definition head: sphere.Carrier -> Real.Real := Coordinates.t;
+\definition x: sphere.Carrier -> Real.Real := Coordinates.x;
+\definition y: sphere.Carrier -> Real.Real := Coordinates.y;
+\definition rest[p: sphere.Carrier]: Real.Real := Real.add (square (x p)) (square (y p));
+\definition gap[p: sphere.Carrier]: Real.Real := Real.sub Real.one (head p);
+\definition factor: \forall (p: sphere.Carrier) -> rest p = Real.mul (Real.add Real.one (head p)) (gap p) :=
+  \fun (p: sphere.Carrier) => trans!{{Real.Real}} _ _ _ (sym!{{Real.Real}} _ _ (Identities.rest p))
+    (sym!{{Real.Real}} _ _ (Identities.differenceSquares (head p)));
+\definition sum: \forall (p: sphere.Carrier) -> rest p = Real.add (square (x p)) (square (y p)) := \fun (p: sphere.Carrier) => \refl(rest p);
+\definition upperPlusGap: \forall (a: Real.Real) -> Real.add (Real.add Real.one a) (Real.sub Real.one a) = double Real.one :=
+  \fun (a: Real.Real) => trans!{{Real.Real}} _ _ _ (Algebra.addFour Real.one a Real.one (Real.neg a))
+    (trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real}} (Real.add (double Real.one)) _ _ (Laws.addNegRight a)) (Laws.addZeroRight (double Real.one)));
+\definition upperMinusGap: \forall (a: Real.Real) -> Real.sub (Real.add Real.one a) (Real.sub Real.one a) = double a :=
+  \fun (a: Real.Real) => trans!{{Real.Real}} _ _ _ (Algebra.subAdd Real.one a Real.one (Real.neg a))
+    (trans!{{Real.Real}} _ _ _
+      (congr!{{Real.Real} {Real.Real} {Real.Real}} Real.add _ _ _ _ (Laws.subSelf Real.one) (Algebra.subNeg a a)) (Laws.addZeroLeft (double a)));
+\import \parent.Scalar[] \as Scalar;
+\definition total: \forall (p: sphere.Carrier) -> Real.add (rest p) (square (gap p)) = double (gap p) :=
+  \fun (p: sphere.Carrier) => eq_reason_in!{{Real.Real} _
+    "=" _ "by" { congr!{{Real.Real} {Real.Real}} (\fun (v: Real.Real) => Real.add v (square (gap p))) _ _ (factor p) }
+    "=" _ "by" { sym!{{Real.Real}} _ _ (Algebra.mulAddRight (Real.add Real.one (head p)) (gap p) (gap p)) }
+    "=" _ "by" { congr!{{Real.Real} {Real.Real}} (\fun (v: Real.Real) => Real.mul v (gap p)) _ _ (upperPlusGap (head p)) }
+    "=" _ "by" { Scalar.doubleProduct Real.one (gap p) }
+    "=" _ "by" { congr!{{Real.Real} {Real.Real}} double _ _ (Laws.fieldMulOneLeft (gap p)) }
+  };
+\definition difference: \forall (p: sphere.Carrier) -> Real.sub (rest p) (square (gap p)) = Real.mul (double (gap p)) (head p) :=
+  \fun (p: sphere.Carrier) => eq_reason_in!{{Real.Real} _
+    "=" _ "by" { congr!{{Real.Real} {Real.Real}} (\fun (v: Real.Real) => Real.sub v (square (gap p))) _ _ (factor p) }
+    "=" _ "by" { sym!{{Real.Real}} _ _ (Algebra.subMul (Real.add Real.one (head p)) (gap p) (gap p)) }
+    "=" _ "by" { congr!{{Real.Real} {Real.Real}} (\fun (v: Real.Real) => Real.mul v (gap p)) _ _ (upperMinusGap (head p)) }
+    "=" _ "by" { Scalar.doubleProduct (head p) (gap p) }
+    "=" _ "by" { congr!{{Real.Real} {Real.Real}} double _ _ (Laws.fieldMulComm (head p) (gap p)) }
+    "=" _ "by" { sym!{{Real.Real}} _ _ (Scalar.doubleProduct (gap p) (head p)) }
+  };
+\import std.Data[].FinSet[] \as Fin;
+\definition extent: \forall (a, b: sphere.Carrier) -> head a = head b -> x a = x b -> y a = y b -> a = b :=
+  \fun (a, b: sphere.Carrier)(heads: _)(xs: _)(ys: _) => Split2.ext a b heads
+    (Split1.ext (Split2.tail a) (Split2.tail b) xs
+      (\axiom:funext(Split1.tail (Split2.tail a), Split1.tail (Split2.tail b), \fun (i: D1.Index) =>
+        trans!{{Real.Real}} _ _ _
+          (congr!{{D1.Index} {Real.Real}} (Split1.tail (Split2.tail a)) _ _ (Fin.singletonValue i))
+          (trans!{{Real.Real}} _ _ _ ys
+            (congr!{{D1.Index} {Real.Real}} (Split1.tail (Split2.tail b)) _ _ (sym!{{D1.Index}} _ _ (Fin.singletonValue i)))))));
+\import \parent.Forward[] \as Forward;
+\import \parent.Plane[] \as Plane;
+\definition headFormula: \forall (z: Plane.Carrier) -> head (Forward.map z) = Plane.height z :=
+  \fun (z: Plane.Carrier) => Split2.headJoin (Plane.height z) (Plane.tail z);
+\definition xFormula: \forall (z: Plane.Carrier) -> x (Forward.map z) = Real.mul (Plane.weight z) (Plane.x z) :=
+  \fun (z: Plane.Carrier) => trans!{{Real.Real}} _ _ _
+    (congr!{{D2.Coordinate} {Real.Real}} Split1.head _ _ (Split2.tailJoin (Plane.height z) (Plane.tail z)))
+    (Split1.headJoin (Real.mul (Plane.weight z) (Plane.x z)) (\fun (_: D1.Index) => Real.mul (Plane.weight z) (Plane.y z)));
+\definition yFormula: \forall (z: Plane.Carrier) -> y (Forward.map z) = Real.mul (Plane.weight z) (Plane.y z) :=
+  \fun (z: Plane.Carrier) => trans!{{Real.Real}} _ _ _
+    (congr!{{D2.Coordinate} {Real.Real}} (\fun (v: D2.Coordinate) => Split1.tail v (Fin.zero N.Nat^::zero)) _ _ (Split2.tailJoin (Plane.height z) (Plane.tail z)))
+    (congr!{{D1.Coordinate} {Real.Real}} (\fun (v: D1.Coordinate) => v (Fin.zero N.Nat^::zero)) _ _
+      (Split1.tailJoin (Real.mul (Plane.weight z) (Plane.x z)) (\fun (_: D1.Index) => Real.mul (Plane.weight z) (Plane.y z))));
