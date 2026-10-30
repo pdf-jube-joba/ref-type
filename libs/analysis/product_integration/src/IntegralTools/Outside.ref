@@ -1,0 +1,29 @@
+\import topology.Topology[Carrier := A] \as Sets;
+\import std.Logic[].Classical[] \as Classical;
+\import I.Mask[exception := exception, f := f] \as Left;
+\import I.Mask[exception := exception, f := g] \as Right;
+\import I.Null[] \as Null;
+\definition left: I.Representatives := \into[A -> Real.Real](Left.value, I.Representatives) \by { Left.integrable (I.integralLaw f).integrable };
+\definition right: I.Representatives := \into[A -> Real.Real](Right.value, I.Representatives) \by { Right.integrable (I.integralLaw g).integrable };
+\definition leftIntegral: I.integral left = I.integral f := Null.integralAlmost left f Left.almost;
+\definition rightIntegral: I.integral right = I.integral g := Null.integralAlmost right g Right.almost;
+\definition monotone: (\forall (x: A) -> Logic.Not (Sets.Member exception x) -> R.Le (f x) (g x)) -> R.Le (I.integral f) (I.integral g) :=
+  \fun (bound: \forall (x: A) -> Logic.Not (Sets.Member exception x) -> R.Le (f x) (g x)) =>
+    R.leReplace _ _ _ _ leftIntegral rightIntegral (Absolute.integralMono left right
+      (\fun (x: A) => Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member exception x))
+        (\fun (inside: Sets.Member exception x) => R.leReplace _ _ _ _
+          (sym!{Real.Real} _ _ ((Left.laws x).left inside)) (sym!{Real.Real} _ _ ((Right.laws x).left inside)) (R.leRefl Real.zero))
+        (\fun (outside: Logic.Not (Sets.Member exception x)) => R.leReplace _ _ _ _
+          (sym!{Real.Real} _ _ ((Left.laws x).right outside)) (sym!{Real.Real} _ _ ((Right.laws x).right outside)) (bound x outside))));
+\definition equality: (\forall (x: A) -> Logic.Not (Sets.Member exception x) -> f x = g x) -> I.integral f = I.integral g :=
+  \fun (equal: \forall (x: A) -> Logic.Not (Sets.Member exception x) -> f x = g x) => eq_reason_in!{Real.Real _
+    "=" _ "by" { sym!{Real.Real} _ _ leftIntegral }
+    "=" _ "by" { congr!{I.Representatives Real.Real} I.integral _ _ (\axiom:funext(left, right, \fun (x: A) =>
+      Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member exception x))
+        (\fun (inside: Sets.Member exception x) => eq_reason_in!{Real.Real _
+          "=" _ "by" { (Left.laws x).left inside } "=" _ "by" { sym!{Real.Real} _ _ ((Right.laws x).left inside) } })
+        (\fun (outside: Logic.Not (Sets.Member exception x)) => eq_reason_in!{Real.Real _
+          "=" _ "by" { (Left.laws x).right outside } "=" _ "by" { equal x outside }
+          "=" _ "by" { sym!{Real.Real} _ _ ((Right.laws x).right outside) } }))) }
+    "=" _ "by" { rightIntegral }
+  };
