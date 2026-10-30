@@ -1,0 +1,21 @@
+\import Countable.Sum[f := f, finite := pointwiseFinite local] \as Summation;
+\import Open.LocalSmooth[U := Open.whole, f := Restriction.function Open.whole Summation.value] \as Local;
+\definition value: Function := Summation.value;
+\definition smooth: (\forall (i: N.Nat^) -> IsSmooth (f i)) -> IsSmooth value := \block {
+  \fun (regular: _) \then
+  \return Local.smooth (\block {
+    \fun (x: Open.Carrier Open.whole) \then
+    \takefrom neighborhood: Neighborhood x \by local x \then
+    \let U: Open.OpenSet := neighborhood.domain \then
+    \let included: Open.Included U Open.whole := \fun (x: Model.Point)(member: _) => \refl(x) \then
+    \let prefix: Open.ScalarFunction U := Restriction.function U (\fun (y: Model.Point) => Countable.prefix f y neighborhood.bound) \then
+    \let patch: Local.Patch := Local.Patch {
+      domain := U, included := included,
+      smooth := smoothCongruent U prefix (Open.restrict U Open.whole included (Restriction.function Open.whole value))
+        (\fun (y: Open.Carrier U) => sym!{Real.Real} _ _ (Summation.law y neighborhood.bound (neighborhood.vanishes y)))
+        (Restriction.localSmooth U Open.whole included
+          (Restriction.function Open.whole (\fun (y: Model.Point) => Countable.prefix f y neighborhood.bound)) (prefixSmooth regular neighborhood.bound)),
+    } \then
+    \return Logic.existsIntro[Local.Patch, Local.Patches x] patch (neighborhood.contains)
+  })
+};

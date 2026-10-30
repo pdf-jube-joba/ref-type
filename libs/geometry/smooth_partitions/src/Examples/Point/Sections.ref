@@ -1,0 +1,32 @@
+\import std.Data[].FinSet[] \as Fin;
+\definition rank: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition index: Fin.Fin rank := Fin.zero N.Nat^::zero;
+\import Manifold.Sections[F := (\fun (x: Point.Point) => Real.Real), zero := (\fun (x: Point.Point) => Real.zero)] \as Sections;
+\definition frame: Sections.Frame := Sections.Frame {
+  domain := Space.Whole, open := (Space.topologyLaws Model.smoothManifold.space).wholeOpen,
+  rank := rank,
+  coordinate := \fun (x: Point.Point)(v: Real.Real)(i: Fin.Fin rank) => v,
+  inverse := \fun (x: Point.Point)(v: Fin.Fin rank -> Real.Real) => v index,
+  leftInverse := \fun (x: Point.Point)(member: Space.Member Space.Whole x)(v: Real.Real) => \refl(v),
+  rightInverse := \fun (x: Point.Point)(member: Space.Member Space.Whole x)(v: Fin.Fin rank -> Real.Real) =>
+    \axiom:funext((\fun (i: Fin.Fin rank) => v index), v,
+      \fun (i: Fin.Fin rank) => congr!{{Fin.Fin rank} Real.Real} v index i (sym!{{Fin.Fin rank}} i index (Fin.singletonValue i))),
+  zero := \fun (x: Point.Point)(i: Fin.Fin rank) => \refl(Real.zero),
+};
+\definition atlas: Sections.Atlas := Sections.Atlas {
+  frames := { c: Sections.Frame \where c = frame },
+  covers := \fun (x: Point.Point) => Logic.existsIntro[Sections.Frame, { c: Sections.Frame \where Logic.And[c = frame, Space.Member c.domain x] }] frame
+    (Logic.And[_, _]::# (\refl(frame)) (\refl(x))),
+};
+\import Sections.Over[atlas := atlas].Open[U := Space.Whole, open := (Space.topologyLaws Model.smoothManifold.space).wholeOpen] \as Local;
+\definition section: Local.LocalSection := Local.LocalSection { value := \fun (x: Local.Carrier) => Real.one };
+\definition regularAtFrame: \forall (i: Fin.Fin frame.rank) -> Local.InFrame[frame := frame].Regular section i :=
+  \fun (i: Fin.Fin frame.rank)(c: Manifold.Chart) => calculus.Real[].Multivariable[n := N.Nat^::zero].Open[].Smooth[].Operations[].constantSmooth
+    (Manifold.OnOpen[U := Space.Intersection Space.Whole frame.domain, open := (Space.topologyLaws Model.smoothManifold.space).intersectionOpen Space.Whole frame.domain
+      (Space.topologyLaws Model.smoothManifold.space).wholeOpen frame.open].InChart[c := c].domain) Real.one;
+\definition regular: Local.IsSmooth section := \fun (c: Sections.Frame)(equal: c = frame) =>
+  \idelim frame = c \with d: Sections.Frame => \forall (i: Fin.Fin d.rank) -> Local.InFrame[frame := d].Regular section i \by {
+    base: regularAtFrame, equality: sym!{{Sections.Frame}} _ _ equal
+  };
+\import Local.ZeroExtension[s := section] \as Extension;
+\definition extendedSmooth: Local.GlobalSmooth Extension.section := Extension.smooth regular (\fun (x: Point.Point)(supported: Space.Member Extension.support x) => \refl(x));

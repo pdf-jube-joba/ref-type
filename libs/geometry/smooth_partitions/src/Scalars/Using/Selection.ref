@@ -1,0 +1,36 @@
+\definition Related[U: \Pow A][bump: Bump[family]]: \Prop := U = bump.oneRegion;
+\definition Regions: \Pow (\Pow A) := { U: \Pow A \where \exists ( b: Bump[family] \where Related U b ) };
+\definition regionMember[b: Bump[family]]: Space.FamilyMember Regions b.oneRegion := Logic.existsIntro[Bump[family], { b2: Bump[family] \where Related b.oneRegion b2 }] b (\refl(b.oneRegion));
+\definition regionOpen[U: \Pow A]: Space.FamilyMember Regions U -> Space.IsOpenIn space U := \block {
+  \fun (member: _) \then
+  \takefrom bump: \Cast[Bump[family]] ({ b: Bump[family] \where Related U b }) \by member \then
+  \return \idelim bump.oneRegion = U \with V: \Pow A => Space.IsOpenIn space V \by {
+    base: bump.regionOpen, equality: sym!{{\Pow A}} _ _ (\bysub(Bump[family], { b: Bump[family] \where Related U b }, bump))
+  }
+};
+\definition cover: (\forall (x: A) -> Space.Member S x -> \exists ( b: Bump[family] \where Space.Member b.oneRegion x )) -> Space.IsOpenCover[space, Regions, S] :=
+  \fun (local: _)=> Space.IsOpenCover[space, Regions, S] {
+    open := regionOpen,
+    covers := \block {
+      \fun (x: A)(member: Space.Member S x) \then
+      \takefrom bump: \Cast[Bump[family]] ({ b: Bump[family] \where Space.Member b.oneRegion x }) \by local x member \then
+      \return Space.unionMemberOf Regions bump.oneRegion x (regionMember bump) (\bysub(Bump[family], { b: Bump[family] \where Space.Member b.oneRegion x }, bump))
+    },
+  };
+\structure CountableBumps: \Set := {
+  values: N.Nat^ -> Bump[family],
+  covers: \forall (x: A) -> Space.Member S x -> \exists ( k: N.Nat^ \where Space.Member (values k).oneRegion x ),
+};
+\module From(selected: N.Nat^ -> \Pow A);
+\definition countable: Space.IsSecondCountable space -> (\forall (x: A) -> Space.Member S x -> \exists ( b: Bump[family] \where Space.Member b.oneRegion x )) -> \exists CountableBumps := \block {
+  \fun (secondCountable: _)(local: _) \then
+  \takefrom selected: \Cast[N.Nat^ -> \Pow A] ({ selected: N.Nat^ -> \Pow A \where Logic.And[
+    \forall (k: N.Nat^) -> Logic.Or[Space.FamilyMember Regions (selected k), selected k = Space.Empty],
+    Space.Subset S (Countability.IndexedUnion selected)] }) \by Countability.secondCountableLindelof space secondCountable Regions S (cover local) \then
+  \let data: Logic.And[\forall (k: N.Nat^) -> Logic.Or[Space.FamilyMember Regions (selected k), selected k = Space.Empty],
+    Space.Subset S (Countability.IndexedUnion selected)] := \bysub(N.Nat^ -> \Pow A,
+    { selected: N.Nat^ -> \Pow A \where Logic.And[
+      \forall (k: N.Nat^) -> Logic.Or[Space.FamilyMember Regions (selected k), selected k = Space.Empty],
+      Space.Subset S (Countability.IndexedUnion selected)] }, selected) \then
+  \return From[selected := selected].existsCountable data.left data.right
+};

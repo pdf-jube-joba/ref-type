@@ -1,0 +1,51 @@
+\import \parent.Bounds[] \as Bounds;
+\import \parent.\parent.Empty[] \as Empty;
+\definition value[k: N.Nat^]: Smooth := complement (residue k);
+\definition envelope: N.Nat^ -> \Pow A := \induction (k: N.Nat^) \return \Pow A \with {
+  | zero: Space.Empty
+  | succ: \fun (k: N.Nat^)(previous: \Pow A) => Finite.Join previous (support (bumps k).value)
+};
+\definition envelopeClosed: \forall (k: N.Nat^) -> Space.IsClosedIn space (envelope k) :=
+  \induction (k: N.Nat^) \return Space.IsClosedIn space (envelope k) \with {
+    | zero: Empty.emptyClosed
+    | succ: \fun (k: N.Nat^)(previous: _) => Finite.joinClosed space (envelope k) (support (bumps k).value) previous (Closure.closed space (Nonzero (bumps k).value))
+  };
+\definition envelopeCompact: \forall (k: N.Nat^) -> Space.IsCompactIn space (envelope k) :=
+  \induction (k: N.Nat^) \return Space.IsCompactIn space (envelope k) \with {
+    | zero: Compact.emptyCompact space
+    | succ: \fun (k: N.Nat^)(previous: _) => Compact.joinCompact space (envelope k) (support (bumps k).value) previous (bumps k).supportCompact
+  };
+\definition residueOneOutside: \forall (k: N.Nat^)(x: A) -> Logic.Not (Space.Member (envelope k) x) -> residue k x = Real.one :=
+  \induction (k: N.Nat^) \return \forall (x: A) -> Logic.Not (Space.Member (envelope k) x) -> residue k x = Real.one \with {
+    | zero: \fun (x: A)(outside: _) => \refl(Real.one)
+    | succ: \fun (k: N.Nat^)(previous: \forall (x: A) -> Logic.Not (Space.Member (envelope k) x) -> residue k x = Real.one)(x: A)(outside: Logic.Not (Space.Member (envelope (N.Nat^::succ k)) x)) => \block {
+      \let zero: (bumps k).value x = Real.zero := Finite.doubleNegElim ((bumps k).value x = Real.zero)
+        (\fun (nonzero: Logic.Not ((bumps k).value x = Real.zero)) => outside (Logic.Or[_, _]::right (Closure.contains space (Nonzero (bumps k).value) x nonzero))) \then
+      \return trans!{Real.Real} _ _ _
+        (congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (previous x (\fun (member: Space.Member (envelope k) x) => outside (Logic.Or[_, _]::left member)))
+          (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.sub Real.one) _ _ zero) (Laws.subZeroRight Real.one))) (Laws.fieldMulOneLeft Real.one)
+    }
+  };
+\definition supportWithin[k: N.Nat^]: Space.Subset (support (value k)) (envelope k) := Closure.least space (Nonzero (value k)) (envelope k) (envelopeClosed k)
+  (\fun (x: A)(nonzero: Logic.Not (value k x = Real.zero)) => Finite.doubleNegElim (Space.Member (envelope k) x)
+    (\fun (outside: Logic.Not (Space.Member (envelope k) x)) => nonzero
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.sub Real.one) _ _ (residueOneOutside k x outside)) (Laws.subSelf Real.one))));
+\definition supportCompact[k: N.Nat^]: Space.IsCompactIn space (support (value k)) := Compact.closedSubset space (envelope k) (support (value k))
+  (envelopeCompact k) (Closure.closed space (Nonzero (value k))) (supportWithin k);
+\definition withinTarget[U: \Pow A]: (\forall (k: N.Nat^) -> Space.Subset (support (bumps k).value) U) ->
+  \forall (k: N.Nat^) -> Space.Subset (support (value k)) U := \block {
+  \fun (included: _) \then
+  \let envelopeWithin: \forall (k: N.Nat^) -> Space.Subset (envelope k) U :=
+    \induction (k: N.Nat^) \return Space.Subset (envelope k) U \with {
+      | zero: \fun (x: A)(empty: Logic.False) => Logic.falseElim _ empty
+      | succ: \fun (k: N.Nat^)(previous: _)(x: A)(member: _) => either!{member {Space.Member U x} {previous x} {included k x}}
+    } \then
+  \return \fun (k: N.Nat^) => Space.subsetTrans _ _ _ (supportWithin k) (envelopeWithin k)
+};
+\definition lower[k: N.Nat^][x: A]: R.Le Real.zero (value k x) := R.leReplaceLeft (Real.sub Real.one Real.one) Real.zero (value k x) (Laws.subSelf Real.one)
+  (Laws.addMonotoneLeft (Real.neg Real.one) (Real.neg (residue k x)) Real.one (Laws.negAntitone (residue k x) Real.one (Bounds.residueUpper k x)));
+\definition upper[k: N.Nat^][x: A]: R.Le (value k x) Real.one := R.leReplaceRight _ (Real.add Real.one (Real.neg Real.zero)) Real.one
+  (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.add Real.one) _ _ Laws.negZero) (Laws.addZeroRight Real.one))
+  (Laws.addMonotoneLeft (Real.neg (residue k x)) (Real.neg Real.zero) Real.one (Laws.negAntitone Real.zero (residue k x) (Bounds.residueLower k x)));
+\definition oneOn[k: N.Nat^][x: A]: Space.Member (\parent.FiniteCover[S := Space.Whole].region k) x -> value k x = Real.one :=
+  \fun (member: _) => trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.sub Real.one) _ _ (\parent.FiniteCover[S := Space.Whole].residueZero k x member)) (Laws.subZeroRight Real.one);

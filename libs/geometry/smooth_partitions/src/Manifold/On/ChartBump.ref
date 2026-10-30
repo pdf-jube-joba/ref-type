@@ -1,0 +1,47 @@
+\import Euclidean.LocalBump[a := a, q := q] \as Bump;
+\import Bump.Support[] \as BumpSupport;
+\import Charts.Of[chart := c] \as Geometry;
+\import std.Set[].Extension[A := M.Point, B := Real.Real, domain := c.domain] \as Extension;
+\definition localValue[y: Charts.LocalPoint c]: Real.Real := Bump.value (Charts.coordinate c y);
+\definition value: Function := Extension.extend localValue Real.zero;
+\definition inside[y: Charts.LocalPoint c]: value y = localValue y := Extension.inside localValue Real.zero y;
+\import AmbientSpace.Subspace[S := Bump.envelope] \as Envelope;
+\import topology.Topology[Carrier := Envelope.CarrierSet] \as Small;
+\definition smallTopology: Small.Topology := Envelope.topology Ambient.topology;
+\definition smallCompact: Small.IsCompact smallTopology := Envelope.Properties[].compact Ambient.topology BumpSupport.envelopeCompact;
+\definition intoImage[u: Envelope.CarrierSet]: Open.Carrier c.image := \into[Model.Point](u, c.image.points) \by { included u (\bysub(Model.Point, Bump.envelope, u)) };
+\definition imagePoint[u: Envelope.CarrierSet]: M.Point := Charts.point c (intoImage u);
+\module Continuity;
+\import topology.Maps[A := Envelope.CarrierSet, B := M.Point] \as Image;
+\definition envelope: \Pow M.Point := Image.Image imagePoint Small.Whole;
+\import topology.Compactness[A := Envelope.CarrierSet, B := M.Point] \as ImageCompact;
+\definition envelopeCompact: Space.IsCompactIn M.space envelope := ImageCompact.continuousImage smallTopology M.space imagePoint Continuity[].continuous Small.Whole smallCompact;
+\definition envelopeClosed: Space.IsClosedIn M.space envelope := Compact.compactClosed M.space M.hausdorff envelope envelopeCompact;
+\definition envelopeWithin: Space.Subset envelope c.domain := \block {
+  \fun (x: M.Point)(member: Space.Member envelope x) \then
+  \takefrom u: \Cast[Envelope.CarrierSet] ({ u: Envelope.CarrierSet \where Logic.And[Small.Member Small.Whole u, imagePoint u = x] }) \by member \then
+  \let equal: imagePoint u = x := (\bysub(Envelope.CarrierSet, { u: Envelope.CarrierSet \where Logic.And[Small.Member Small.Whole u, imagePoint u = x] }, u)).right \then
+  \return \idelim imagePoint u = x \with y: M.Point => Space.Member c.domain y \by { base: \bysub(M.Point, c.domain, Charts.point c (intoImage u)), equality: equal }
+};
+\definition nonzeroWithin: Space.Subset (Nonzero value) envelope := \block {
+  \fun (x: M.Point)(nonzero: Logic.Not (value x = Real.zero)) \then
+  \let inChart: Space.Member c.domain x := Finite.doubleNegElim (Space.Member c.domain x) (\fun (outside: Logic.Not (Space.Member c.domain x)) => nonzero (Extension.outside localValue Real.zero x outside)) \then
+  \let y: Charts.LocalPoint c := \into[M.Point](x, c.domain) \by { inChart } \then
+  \let u: Open.Carrier c.image := Charts.coordinate c y \then
+  \let inEnvelope: AmbientSpace.Member Bump.envelope u := Bump.nonzeroWithin u (\fun (zero: Bump.value u = Real.zero) => nonzero (trans!{Real.Real} _ _ _ (inside y) zero)) \then
+  \let z: Envelope.CarrierSet := \into[Model.Point](u, Bump.envelope) \by { inEnvelope } \then
+  \return Logic.existsIntro[Envelope.CarrierSet, { z: Envelope.CarrierSet \where Logic.And[Small.Member Small.Whole z, imagePoint z = x] }] z
+    (Logic.And[_, _]::# (\refl(z)) (Geometry.pointCoordinate y))
+};
+\definition supportWithin: Space.Subset (support value) envelope := Closure.least M.space (Nonzero value) envelope envelopeClosed nonzeroWithin;
+\definition supportCompact: Space.IsCompactIn M.space (support value) := Compact.closedSubset M.space envelope (support value) envelopeCompact
+  (Closure.closed M.space (Nonzero value)) supportWithin;
+\definition zeroAway[x: M.Point]: Logic.Not (Space.Member envelope x) -> value x = Real.zero :=
+  \fun (outside: _) => Finite.doubleNegElim (value x = Real.zero) (\fun (nonzero: Logic.Not (value x = Real.zero)) => outside (nonzeroWithin x nonzero));
+\module InChart(other: Chart);
+\definition smooth: IsSmooth value := \fun (other: Chart) => InChart[other := other].smooth;
+\module Region;
+\definition lower[x: M.Point]: R.Le Real.zero (value x) := Extension.preserves ({ y: Real.Real \where R.Le Real.zero y }) localValue Real.zero
+  (\fun (y: Charts.LocalPoint c) => (Bump.bounded (Charts.coordinate c y)).left) (R.leRefl Real.zero) x;
+\definition upper[x: M.Point]: R.Le (value x) Real.one := Extension.preserves ({ y: Real.Real \where R.Le y Real.one }) localValue Real.zero
+  (\fun (y: Charts.LocalPoint c) => (Bump.bounded (Charts.coordinate c y)).right) Laws.oneNonnegative x;

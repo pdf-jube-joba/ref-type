@@ -1,0 +1,60 @@
+\import std.Set[].FiniteSubset[A := \Pow A] \as Families;
+\definition region: N.Nat^ -> \Pow A := \induction (k: N.Nat^) \return \Pow A \with {
+  | zero: Space.Empty
+  | succ: \fun (k: N.Nat^)(previous: \Pow A) => Finite.Join previous (bumps k).oneRegion
+};
+\definition regionOpen: \forall (k: N.Nat^) -> Space.IsOpenIn space (region k) := \induction (k: N.Nat^) \return Space.IsOpenIn space (region k) \with {
+  | zero: (Space.topologyLaws space).emptyOpen
+  | succ: \fun (k: N.Nat^)(previous: _) => Finite.joinOpen space (region k) (bumps k).oneRegion previous (bumps k).regionOpen
+};
+\definition monotoneAdded[k: N.Nat^]: \forall (m: N.Nat^) -> Space.Subset (region k) (region (Arithmetic.add k m)) :=
+  \induction (m: N.Nat^) \return Space.Subset (region k) (region (Arithmetic.add k m)) \with {
+    | zero: \fun (x: A)(member: _) => member
+    | succ: \fun (m: N.Nat^)(previous: _)(x: A)(member: _) => Logic.Or[_, _]::left (previous x member)
+  };
+\definition monotone[k, m: N.Nat^]: Nat.Le k m -> Space.Subset (region k) (region m) :=
+  \fun (later: _) => \idelim Arithmetic.add k (Arithmetic.sub m k) = m \with n: N.Nat^ => Space.Subset (region k) (region n) \by {
+    base: monotoneAdded k (Arithmetic.sub m k), equality: Nat.addSubOfLe k m later
+  };
+\definition Regions: \Pow (\Pow A) := { U: \Pow A \where \exists ( k: N.Nat^ \where U = region k ) };
+\definition Bound[F: \Pow (\Pow A)][k: N.Nat^]: \Prop := \forall (U: \Pow A) -> Space.FamilyMember F U -> Space.Subset U (region k);
+\definition Bounded[F: \Pow (\Pow A)]: \Prop :=
+  (\forall (U: \Pow A) -> Space.FamilyMember F U -> Space.FamilyMember Regions U) -> \exists ( k: N.Nat^ \where Bound F k );
+\module Bounds;
+\definition cover: (\forall (x: A) -> Space.Member S x -> \exists ( k: N.Nat^ \where Space.Member (bumps k).oneRegion x )) -> Space.IsOpenCover[space, Regions, S] :=
+  \fun (covering: _) => Space.IsOpenCover[space, Regions, S] {
+    open := \block {
+      \fun (U: \Pow A)(member: Space.FamilyMember Regions U) \then
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where U = region k }) \by member \then
+      \return \idelim region k = U \with V: \Pow A => Space.IsOpenIn space V \by {
+        base: regionOpen k, equality: sym!{{\Pow A}} _ _ (\bysub(N.Nat^, { k: N.Nat^ \where U = region k }, k))
+      }
+    },
+    covers := \block {
+      \fun (x: A)(member: Space.Member S x) \then
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Space.Member (bumps k).oneRegion x }) \by covering x member \then
+      \return Space.unionMemberOf Regions (region (N.Nat^::succ k)) x
+        (Logic.existsIntro[N.Nat^, { n: N.Nat^ \where region (N.Nat^::succ k) = region n }] (N.Nat^::succ k) (\refl(region (N.Nat^::succ k))))
+        (Logic.Or[_, _]::right (\bysub(N.Nat^, { k: N.Nat^ \where Space.Member (bumps k).oneRegion x }, k)))
+    },
+  };
+\definition prefixExists: Space.IsCompactIn space S ->
+  (\forall (x: A) -> Space.Member S x -> \exists ( k: N.Nat^ \where Space.Member (bumps k).oneRegion x )) ->
+  \exists ( k: N.Nat^ \where Space.Subset S (region k) ) := \block {
+  \fun (compact: _)(covering: _) \then
+  \takefrom finite: \Cast[Families.FiniteSubset] ({ F: Families.FiniteSubset \where Space.FiniteSubcover[Regions, S, F] }) \by compact Regions (cover covering) \then
+  \let data: Space.FiniteSubcover[Regions, S, finite] := \bysub(Families.FiniteSubset, { F: Families.FiniteSubset \where Space.FiniteSubcover[Regions, S, F] }, finite) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Bound finite k }) \by Bounds[].finiteBound finite (data.included) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Space.Subset S (region k) }] k
+    (\fun (x: A)(member: Space.Member S x) => Space.unionMemberElim finite x (Space.Member (region k) x)
+      (\fun (U: \Pow A)(inFinite: Space.FamilyMember finite U)(inU: Space.Member U x) => \bysub(N.Nat^, { k: N.Nat^ \where Bound finite k }, k) U inFinite x inU)
+      (data.covers x member))
+};
+\definition residueZero: \forall (k: N.Nat^)(x: A) -> Space.Member (region k) x -> residue k x = Real.zero :=
+  \induction (k: N.Nat^) \return \forall (x: A) -> Space.Member (region k) x -> residue k x = Real.zero \with {
+    | zero: \fun (x: A)(empty: Logic.False) => Logic.falseElim _ empty
+    | succ: \fun (k: N.Nat^)(previous: _)(x: A)(member: _) => either!{member {residue (N.Nat^::succ k) x = Real.zero}
+      {\fun (old: _) => staysZero k (N.Nat^::succ k) x (previous x old) (Nat.leSelfSucc k)}
+      {\fun (new: _) => killed k x ((bumps k).oneOn x new)}
+    }
+  };

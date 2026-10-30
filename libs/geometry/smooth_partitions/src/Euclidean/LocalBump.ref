@@ -1,0 +1,46 @@
+\import \root.Exponential[].Plateau[] \as Plateau;
+\import \root.Exponential[].Flat[] \as Numeric;
+\import std.Data[].FinSet[] \as Fin;
+\import Real.Estimates[] \as Estimates;
+\import Real.Estimates[].Product[] \as Bounds;
+\import Real.Algebra[] \as Algebra;
+\import Real.Distance[] \as Distance;
+\import Real.Inverse[] \as Inverse;
+\import R.Order[] \as Order;
+\import topological_algebra.Euclidean[].Dimension[n := n].Def[] \as Coordinates;
+\import topological_algebra.Euclidean[].Dimension[n := n].Norm[] \as Norm;
+\import calculus.Real[].OneDimension[] \as One;
+\import calculus.Real[].Multivariable[n := One.dimension].Open[] \as LineOpen;
+\import LineOpen.Smooth[].Derivative[] \as LinePartials;
+\import calculus.Maps[n := n, m := One.dimension] \as Maps;
+\import Open.Examples[] \as Examples;
+\import \parent.Products[] \as Products;
+\import \root.FiniteProducts[] \as FiniteProducts;
+\definition qPositive: R.Lt Real.zero q := \bysub(Real.Real, { r: Real.Real \where R.Lt Real.zero r }, q);
+\definition coefficient: Real.Real := Laws.fieldInv q;
+\definition coefficientPositive: R.Lt Real.zero coefficient := Bounds.invPositive q qPositive;
+\definition inverseLaw: Real.mul coefficient q = Real.one := Laws.fieldInverseNonzero q (Inverse.positiveNonzero q qPositive);
+\definition reverseInverseLaw: Real.mul q coefficient = Real.one := trans!{Real.Real} _ _ _ (Laws.fieldMulComm q coefficient) inverseLaw;
+\definition radius: Real.Real := Real.mul q Plateau.two;
+\definition radiusPositive: R.Lt Real.zero radius := Bounds.mulPositive q Plateau.two qPositive Plateau.twoPositive;
+\definition normalized[i: Model.Coordinate][x: Model.Point]: Real.Real := Real.mul coefficient (Real.sub (x i) (a i));
+\definition coordinateValue[i: Model.Coordinate][x: Model.Point]: Real.Real := Plateau.value (normalized i x);
+\definition value[x: Model.Point]: Real.Real := FiniteProducts.product n (\fun (i: Model.Coordinate) => coordinateValue i x);
+\module Coordinate(i: Model.Coordinate);
+\definition smooth: IsSmooth value := Products.smooth Open.whole n
+  (\fun (i: Model.Coordinate)(x: Open.Carrier Open.whole) => coordinateValue i x) (\fun (i: Model.Coordinate) => Coordinate[i := i].smooth);
+\definition oneNear[x: Model.Point]: R.Lt (Coordinates.pointDistance x a) q -> value x = Real.one :=
+  \fun (near: _) => FiniteProducts.allOne n (\fun (i: Model.Coordinate) => coordinateValue i x)
+    (\fun (i: Model.Coordinate) => Coordinate[i := i].oneNear x (R.leLtTrans _ _ _ (Norm.coordinateDistance x a i) near));
+\definition bounded[x: Model.Point]: Logic.And[R.Le Real.zero (value x), R.Le (value x) Real.one] := Logic.And[_, _]::#
+  (FiniteProducts.nonnegative n (\fun (i: Model.Coordinate) => coordinateValue i x) (\fun (i: Model.Coordinate) => (Plateau.bounded (normalized i x)).left))
+  (FiniteProducts.bounded n (\fun (i: Model.Coordinate) => coordinateValue i x)
+    (\fun (i: Model.Coordinate) => (Plateau.bounded (normalized i x)).left) (\fun (i: Model.Coordinate) => (Plateau.bounded (normalized i x)).right));
+\definition envelope: \Pow Model.Point := { x: Model.Point \where R.Le (Coordinates.pointDistance a x) radius };
+\definition nonzeroWithin: Space.Subset (Nonzero value) envelope := \fun (x: Model.Point)(nonzero: Logic.Not (value x = Real.zero)) =>
+  R.leReplaceLeft (Coordinates.pointDistance x a) (Coordinates.pointDistance a x) radius (Norm.distanceSymmetric x a)
+    (Norm.finiteUpper n (Coordinates.subPoint x a) radius (Order.leOfLt _ _ radiusPositive)
+      (\fun (i: Model.Coordinate) => R.leReplaceLeft (Real.distance (x i) (a i)) (Real.distance (Real.sub (x i) (a i)) Real.zero) radius
+        (sym!{Real.Real} _ _ (Norm.distanceDifference (x i) (a i)))
+        (Order.leOfLt _ _ (Coordinate[i := i].inside x (FiniteProducts.nonzeroAt n (\fun (i: Model.Coordinate) => coordinateValue i x) nonzero i)))));
+\module Support;

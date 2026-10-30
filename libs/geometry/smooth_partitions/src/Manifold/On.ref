@@ -1,0 +1,55 @@
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Logic[].Classical[] \as Classical;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason;
+\use Logic.either;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import manifolds.Dimension[n := n] \as Dimension;
+\import Dimension.Chart[M := M.Point, space := M.space] \as Charts;
+\import Dimension.Atlas[M := M.Point, space := M.space] \as Atlas;
+\import calculus.Real[].Multivariable[n := n] \as Model;
+\import Model.Open[] \as Open;
+\import Open.Smooth[] \as Smooth;
+\import Open.Restriction[] \as Restriction;
+\import Open.Topology[] \as Topology;
+\import Smooth.Operations[] \as Operations;
+\import \root.Euclidean[n := n] \as Euclidean;
+\import topology.Topology[Carrier := M.Point] \as Space;
+\import Space.Closure[] \as Closure;
+\import Space.Compactness[] \as Compact;
+\import Space.Finite[] \as Finite;
+\import topology.Topology[Carrier := Model.Point] \as AmbientSpace;
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as Ambient;
+\definition Chart: \Set := \Cast[Charts.Chart] M.atlas.charts;
+\definition Function: \Set := M.Point -> Real.Real;
+\definition coordinates[c: Chart][f: Function][u: Open.Carrier c.image]: Real.Real := f (Charts.point c u);
+\definition IsSmooth[f: Function]: \Prop := \forall (c: Chart) -> Smooth.SmoothOn c.image (coordinates c f);
+\definition Nonzero[f: Function]: \Pow M.Point := { x: M.Point \where Logic.Not (f x = Real.zero) };
+\definition support[f: Function]: \Pow M.Point := Closure.closure M.space (Nonzero f);
+\definition chartMember[c: Chart]: Atlas.Member M.atlas c := \bysub(Charts.Chart, M.atlas.charts, c);
+\import \root.Scalars[A := M.Point, space := M.space] \as Scalars;
+\definition calculus: Scalars.Calculus := Scalars.Calculus {
+  smooth := { f: Function \where IsSmooth f },
+  constant := \fun (a: Real.Real)(c: Chart) => Operations.constantSmooth c.image a,
+  plus := \fun (f, g: Function)(left: IsSmooth f)(right: IsSmooth g)(c: Chart) => Operations.addSmooth c.image (coordinates c f) (coordinates c g) (left c) (right c),
+  times := \fun (f, g: Function)(left: IsSmooth f)(right: IsSmooth g)(c: Chart) => Operations.mulSmooth c.image (coordinates c f) (coordinates c g) (left c) (right c),
+};
+\import Scalars.Using[calculus := calculus] \as Functions;
+\module Neighborhood(c: Chart, U: \Pow M.Point, open: Space.IsOpenIn M.space U);
+\module Locality(f: Function);
+\module ChartBump(c: Chart, a: Model.Point, q: Euclidean.Positive,
+  included: AmbientSpace.Subset \root.Euclidean[n := n].LocalBump[a := a, q := q].envelope c.image.points);
+\module Bumps(family: \Pow (\Pow M.Point));
+\module Partitions(family: \Pow (\Pow M.Point));
+\module Continuity;
+\module Refinement(family: \Pow (\Pow M.Point), partition: Functions.SmoothPartition[family]);
+\module LocallyFinite(f: N.Nat^ -> Function);
+\module OnOpen(U: \Pow M.Point, open: Space.IsOpenIn M.space U);
+\module GluingOn(V, U: \Pow M.Point, openV: Space.IsOpenIn M.space V, openU: Space.IsOpenIn M.space U, F: \Pow M.Point, closed: Space.IsClosedIn M.space F, included: Space.Subset F U, f: Function);
+\module Sections(F: M.Point -> \Set, zero: \forall (x: M.Point) -> F x);

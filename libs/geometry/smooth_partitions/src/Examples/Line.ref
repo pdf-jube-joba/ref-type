@@ -1,0 +1,34 @@
+\definition dimension: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\import \root.Euclidean[n := dimension] \as Euclidean;
+\import calculus.Real[].Multivariable[n := dimension] \as Model;
+\import Model.Open[] \as Open;
+\import topological_algebra.Euclidean[].Dimension[n := dimension].Def[] \as Coordinates;
+\import topological_algebra.Euclidean[].Dimension[n := dimension].Norm[] \as Norm;
+\import topological_algebra.Euclidean[].Dimension[n := dimension].Topology[] \as Topology;
+\import topology.Topology[Carrier := Model.Point] \as Space;
+\import Space.Compactness[] \as Compact;
+\import metric_spaces.MetricSpace[Carrier := Model.Point] \as Metrics;
+\import Metrics.Topology[] \as MetricTopology;
+\import Real.Estimates[].Product[] \as Bounds;
+\definition radius: Euclidean.Positive := \into[Real.Real](Real.one, { r: Real.Real \where dedekind_reals.DedekindReal[].Lt Real.zero r }) \by { Bounds.onePositive };
+\import Euclidean.LocalBump[a := Coordinates.origin, q := radius] \as Bump;
+\definition bumpAtOrigin: Bump.value Coordinates.origin = Real.one := Bump.oneNear Coordinates.origin
+  (dedekind_reals.DedekindReal[].ltReplaceLeft Real.zero (Coordinates.pointDistance Coordinates.origin Coordinates.origin) Real.one
+    (sym!{Real.Real} _ _ (Norm.distanceSelf Coordinates.origin)) Bounds.onePositive);
+\definition neighborhood: Open.OpenSet := Open.Topology[].ofOpen (Metrics.Ball Norm.metric Coordinates.origin Real.one) (MetricTopology.ballOpenIn Norm.metric Coordinates.origin Real.one);
+\import Euclidean.CompactCutoff[K := Space.Singleton Coordinates.origin, U := neighborhood] \as Cutoff;
+\definition cutoffExists: \exists Cutoff.Data := Cutoff.existsCutoff (Compact.singletonCompact Topology.topology Coordinates.origin)
+  (\fun (x: Model.Point)(equal: x = Coordinates.origin) => \idelim Coordinates.origin = x \with y: Model.Point => Space.Member neighborhood.points y \by {
+    base: Metrics.ballCenter Norm.metric Coordinates.origin Real.one Bounds.onePositive, equality: sym!{Model.Point} _ _ equal
+  });
+\import manifolds.Dimension[n := dimension].Examples[].Euclidean[] \as ModelManifold;
+\import \root.Manifold[n := dimension].On[M := ModelManifold.smoothManifold] \as Manifold;
+\import \root.Scalars[A := Model.Point, space := Topology.topology].Using[calculus := Manifold.calculus] \as Functions;
+\definition cover: \Pow (\Pow Model.Point) := { U: \Pow Model.Point \where U = Space.Whole };
+\definition coverLaw: Space.IsOpenCover[Topology.topology, cover, Space.Whole] := Space.IsOpenCover[Topology.topology, cover, Space.Whole] {
+  open := \fun (U: \Pow Model.Point)(equal: U = Space.Whole) => \idelim Space.Whole = U \with V: \Pow Model.Point => Space.IsOpenIn Topology.topology V \by {
+    base: (Space.topologyLaws Topology.topology).wholeOpen, equality: sym!{{\Pow Model.Point}} _ _ equal
+  },
+  covers := \fun (x: Model.Point)(whole: _) => Space.unionMemberOf cover Space.Whole x (\refl(Space.Whole)) (\refl(x)),
+};
+\definition partitionExists: \exists Functions.SmoothPartition[cover] := Manifold.Partitions[family := cover].existsPartition coverLaw;

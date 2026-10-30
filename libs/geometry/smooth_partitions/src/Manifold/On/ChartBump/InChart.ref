@@ -1,0 +1,20 @@
+\import Charts.Transition[left := other, right := c] \as Transition;
+\import Atlas.Pair[left := other, right := c] \as Pair;
+\import calculus.Maps[n := n, m := n] \as Maps;
+\definition compatible: Pair.Compatible := M.atlas.compatible other c (chartMember other) (chartMember c);
+\definition map: Maps.Map Transition.domain c.image := Pair.smoothMap compatible;
+\import Maps.Composition[U := Transition.domain, V := c.image, f := map] \as Composition;
+\definition bumpFunction: Smooth.Derivative[].Function c.image := \into[Open.ScalarFunction c.image]((\fun (u: Open.Carrier c.image) => Bump.value u),
+  { f: Open.ScalarFunction c.image \where Smooth.SmoothOn c.image f }) \by {
+    Restriction.localSmooth c.image Open.whole (\fun (x: Model.Point)(member: _) => \refl(x)) (Restriction.function Open.whole Bump.value) Bump.smooth
+  };
+\import Open.LocalSmooth[U := other.image, f := coordinates other value] \as Local;
+\definition includedOverlap: Open.Included Transition.domain other.image :=
+  \fun (x: Model.Point)(member: AmbientSpace.Member Transition.domain.points x) => Transition.inLeftImage (\into[Model.Point](x, Transition.domain.points) \by { member });
+\module Inside(u: Open.Carrier other.image, member: Space.Member c.domain (Charts.point other u));
+\module Outside(u: Open.Carrier other.image, outside: Logic.Not (Space.Member c.domain (Charts.point other u)));
+\definition smooth: Smooth.SmoothOn other.image (coordinates other value) := Local.smooth (\fun (u: Open.Carrier other.image) =>
+  either!{{(Classical.excludedMiddle (Space.Member c.domain (Charts.point other u)))} {\exists \Cast[Local.Patch] (Local.Patches u)}
+    {\fun (member: _) => Inside[u := u, member := member].existsPatch}
+    {\fun (outside: _) => Outside[u := u, outside := outside].existsPatch}
+  });

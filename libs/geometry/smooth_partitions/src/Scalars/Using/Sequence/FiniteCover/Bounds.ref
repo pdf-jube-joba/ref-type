@@ -1,0 +1,19 @@
+\import N.Order[].Prop[] \as OrderNat;
+\definition empty: Bounded Families.Empty := \fun (included: _) => Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Bound Families.Empty k }] N.Nat^::zero
+  (\fun (U: \Pow A)(empty: Logic.False) => Logic.falseElim _ empty);
+\definition insert[F: \Pow (\Pow A)][previous: Bounded F][U: \Pow A]: Bounded (Families.Insert U F) := \block {
+  \fun (included: _) \then
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Bound F n }) \by previous (\fun (V: \Pow A)(member: Space.FamilyMember F V) => included V (Logic.Or[_, _]::right member)) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where U = region k }) \by included U (Logic.Or[_, _]::left (\refl(U))) \then
+  \let bound: N.Nat^ := OrderNat.commonBound n k \then
+  \return Logic.existsIntro[N.Nat^, { m: N.Nat^ \where Bound (Families.Insert U F) m }] bound
+    (\fun (V: \Pow A)(member: Space.FamilyMember (Families.Insert U F) V) => either!{member {Space.Subset V (region bound)}
+      {\fun (same: V = U) => \idelim region k = V \with W: \Pow A => Space.Subset W (region bound) \by {
+        base: monotone k bound (OrderNat.rightLeCommonBound n k),
+        equality: trans!{{\Pow A}} _ _ _ (sym!{{\Pow A}} _ _ (\bysub(N.Nat^, { k: N.Nat^ \where U = region k }, k))) (sym!{{\Pow A}} _ _ same)
+      }}
+      {\fun (old: Space.FamilyMember F V) => Space.subsetTrans V (region n) (region bound)
+        (\bysub(N.Nat^, { n: N.Nat^ \where Bound F n }, n) V old) (monotone n bound (OrderNat.leftLeCommonBound n k))}
+    })
+};
+\definition finiteBound: \forall (F: Families.FiniteSubset) -> Bounded F := Families.induction ({ F: \Pow (\Pow A) \where Bounded F }) empty insert;

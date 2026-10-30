@@ -1,0 +1,16 @@
+\import topology.Continuity[A := Envelope.CarrierSet, B := Model.Point].Corestriction[S := Bump.envelope] \as Inclusion;
+\import topology.Continuity[A := Envelope.CarrierSet, B := Model.Point].Corestriction[S := c.image.points] \as IntoImage;
+\import topology.Homeomorphism[A := Charts.LocalPoint c, B := Open.Carrier c.image] \as Homeomorphisms;
+\import topology.Continuity[A := M.Point, B := Charts.LocalPoint c] \as Unused;
+\import topology.Continuity[A := Envelope.CarrierSet, B := Charts.LocalPoint c] \as Local;
+\import topology.Composition[A := Envelope.CarrierSet, B := Open.Carrier c.image, C := Charts.LocalPoint c] \as First;
+\import topology.Continuity[A := M.Point, B := M.Point].Corestriction[S := c.domain] \as DomainInclusion;
+\import topology.Composition[A := Envelope.CarrierSet, B := Charts.LocalPoint c, C := M.Point] \as Last;
+\definition continuousIntoImage: topology.Continuity[A := Envelope.CarrierSet, B := Open.Carrier c.image].Continuous smallTopology (Charts.imageTopology c.image) intoImage :=
+  IntoImage.corestrictContinuous smallTopology Ambient.topology intoImage (\fun (U: \Pow Model.Point)(open: _) => Inclusion.inclusionContinuous Ambient.topology U open);
+\definition localContinuous: Local.Continuous smallTopology (Charts.domainTopology c.domain) (\fun (u: Envelope.CarrierSet) => Charts.point c (intoImage u)) :=
+  First.composeContinuous smallTopology (Charts.imageTopology c.image) (Charts.domainTopology c.domain) intoImage (Charts.point c) continuousIntoImage
+    (Homeomorphisms.laws (Charts.domainTopology c.domain) (Charts.imageTopology c.image) c.coordinates).backwardContinuous;
+\definition continuous: topology.Continuity[A := Envelope.CarrierSet, B := M.Point].Continuous smallTopology M.space imagePoint :=
+  Last.composeContinuous smallTopology (Charts.domainTopology c.domain) M.space (\fun (u: Envelope.CarrierSet) => Charts.point c (intoImage u)) (\fun (y: Charts.LocalPoint c) => y)
+    localContinuous (\fun (U: \Pow M.Point)(open: _) => DomainInclusion.inclusionContinuous M.space U open);

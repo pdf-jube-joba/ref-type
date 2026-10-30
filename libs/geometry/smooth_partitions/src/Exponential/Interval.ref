@@ -1,0 +1,22 @@
+\definition Contains[t: Scalar]: \Prop := Logic.And[R.Lt a t, R.Lt t b];
+\definition radius[t: Scalar]: Scalar := Distance.min (Real.sub t a) (Real.sub b t);
+\definition positive[t: Scalar]: Contains t -> R.Lt Real.zero (radius t) :=
+  \fun (inside: _) => Product.minPositive (Real.sub t a) (Real.sub b t)
+    (Product.subPositive t a inside.left) (Product.subPositive b t inside.right);
+\definition near[t, x: Scalar]: Contains t -> R.Lt (Real.distance x t) (radius t) -> Contains x :=
+  \fun (inside: _)(close: _) => Logic.And[_, _]::#
+    (R.ltReplaceLeft (Real.sub t (Real.sub t a)) a x (Algebra.subSub t a)
+      (Distance.distanceLtLower t x (Real.sub t a)
+        (R.ltLeTrans _ _ _
+          (R.ltReplaceLeft (Real.distance x t) (Real.distance t x) (radius t) (Distance.distanceSymmetric x t) close)
+          (Distance.minLeft (Real.sub t a) (Real.sub b t)))))
+    (R.ltReplaceRight x (Real.add t (Real.sub b t)) b (Estimates.addSubCancel b t)
+      (Distance.distanceLtUpper t x (Real.sub b t)
+        (R.ltLeTrans _ _ _
+          (R.ltReplaceLeft (Real.distance x t) (Real.distance t x) (radius t) (Distance.distanceSymmetric x t) close)
+          (Distance.minRight (Real.sub t a) (Real.sub b t)))));
+\definition localDerivative[f, g: Scalar -> Scalar][t, d: Scalar]: Contains t ->
+  (\forall (x: Scalar) -> Contains x -> f x = g x) ->
+  Derivatives.HasDerivativeAt f t d -> Derivatives.HasDerivativeAt g t d :=
+  \fun (inside: _)(agrees: _)(derivative: _) => DerivativeOperations.localDerivative f g t d (radius t) (positive t inside)
+    (\fun (x: Scalar)(close: _) => agrees x (near t x inside close)) derivative;

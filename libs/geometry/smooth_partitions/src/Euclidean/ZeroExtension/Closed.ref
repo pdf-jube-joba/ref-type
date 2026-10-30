@@ -1,0 +1,39 @@
+\import Open.LocalSmooth[U := Open.whole, f := Restriction.function Open.whole value] \as Local;
+\definition IncludedWhole[V: Open.OpenSet]: Open.Included V Open.whole := \fun (x: Model.Point)(member: _) => \refl(x);
+\definition away[closed: Space.IsClosedIn Ambient.topology F]: Open.OpenSet := Topology.ofOpen (Space.Complement F) closed;
+\definition zeroAway: \forall (closed: Space.IsClosedIn Ambient.topology F) ->
+  (\forall (x: Open.Carrier U) -> Logic.Not (Space.Member F x) -> f x = Real.zero) ->
+  \forall (x: Open.Carrier (away closed)) -> value x = Real.zero :=
+  \fun (closed: _)(vanishes: _)(x: _) => either!{{(Classical.excludedMiddle (Space.Member U.points x))} {value x = Real.zero}
+    {\fun (member: _) => \block {
+      \let local: Open.Carrier U := \into[Model.Point](x, U.points) \by { member } \then
+      \return trans!{Real.Real} _ _ _ (inside local) (vanishes local (\bysub(Model.Point, Space.Complement F, x)))
+    }}
+    {\fun (notMember: _) => outside x notMember}
+  };
+\definition smooth: Space.IsClosedIn Ambient.topology F -> Space.Subset F U.points ->
+  (\forall (x: Open.Carrier U) -> Logic.Not (Space.Member F x) -> f x = Real.zero) ->
+  Smooth.SmoothOn U f -> IsSmooth value := \block {
+  \fun (closed: _)(contained: _)(vanishes: _)(regular: _) \then
+  \return Local.smooth (\fun (a: Open.Carrier Open.whole) =>
+    either!{{(Classical.excludedMiddle (Space.Member U.points a))} {\exists \Cast[Local.Patch] (Local.Patches a)}
+      {\fun (member: _) => \block {
+        \let patch: Local.Patch := Local.Patch {
+          domain := U, included := IncludedWhole U,
+          smooth := smoothCongruent U f (Open.restrict U Open.whole (IncludedWhole U) (Restriction.function Open.whole value))
+            (\fun (x: Open.Carrier U) => sym!{Real.Real} _ _ (inside x)) regular,
+        } \then
+        \return Logic.existsIntro[Local.Patch, Local.Patches a] patch member
+      }}
+      {\fun (notMember: _) => \block {
+        \let patch: Local.Patch := Local.Patch {
+          domain := away closed, included := IncludedWhole (away closed),
+          smooth := smoothCongruent (away closed) (\fun (x: Open.Carrier (away closed)) => Real.zero)
+            (Open.restrict (away closed) Open.whole (IncludedWhole (away closed)) (Restriction.function Open.whole value))
+            (\fun (x: Open.Carrier (away closed)) => sym!{Real.Real} _ _ (zeroAway closed vanishes x))
+            (Operations.constantSmooth (away closed) Real.zero),
+        } \then
+        \return Logic.existsIntro[Local.Patch, Local.Patches a] patch (\fun (inF: Space.Member F a) => notMember (contained a inF))
+      }}
+    })
+};

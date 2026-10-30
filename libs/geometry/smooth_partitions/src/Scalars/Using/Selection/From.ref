@@ -1,0 +1,20 @@
+\definition Choice[k: N.Nat^]: \Set := \Cast[Bump[family]] ({ b: Bump[family] \where Related (selected k) b });
+\definition choiceExists[k: N.Nat^]: Logic.Or[Space.FamilyMember Regions (selected k), selected k = Space.Empty] -> \exists Choice k :=
+  \fun (member: _) => either!{member {\exists Choice k}
+    {\fun (related: _) => related}
+    {\fun (empty: _) => Logic.existsIntro[Bump[family], { b: Bump[family] \where Related (selected k) b }] (\parent.\parent.Empty[].bump family) empty}
+  };
+\definition Choices: \Set := \forall (k: N.Nat^) -> Choice k;
+\definition existsCountable: (\forall (k: N.Nat^) -> Logic.Or[Space.FamilyMember Regions (selected k), selected k = Space.Empty]) ->
+  Space.Subset S (Countability.IndexedUnion selected) -> \exists CountableBumps := \block {
+  \fun (selectedMember: _)(covers: _) \then
+  \takefrom choices: Choices \by \axiom:classicalIndefiniteChoice(N.Nat^, Choice, \fun (k: N.Nat^) => choiceExists k (selectedMember k)) \then
+  \return \exact(CountableBumps {
+    values := \fun (k: N.Nat^) => choices k,
+    covers := \fun (x: A)(member: Space.Member S x) => Countability.indexedUnionElim selected x (\exists ( k: N.Nat^ \where Space.Member (choices k).oneRegion x ))
+      (\fun (k: N.Nat^)(inside: Space.Member (selected k) x) => Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Space.Member (choices k).oneRegion x }] k
+        (\idelim selected k = (choices k).oneRegion \with U: \Pow A => Space.Member U x \by {
+          base: inside, equality: \bysub(Bump[family], { b: Bump[family] \where Related (selected k) b }, choices k)
+        })) (covers x member),
+  }, CountableBumps)
+};

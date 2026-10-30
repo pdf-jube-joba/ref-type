@@ -1,0 +1,56 @@
+\definition finite[x: A]: Countable.FiniteAt values x := \block {
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Space.Member (bumps k).oneRegion x }) \by covering x \then
+  \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where Countable.TailZero values x n }] (N.Nat^::succ k)
+    (tailZero k x ((bumps k).oneOn x (\bysub(N.Nat^, { k: N.Nat^ \where Space.Member (bumps k).oneRegion x }, k))))
+};
+\import Countable.Sum[f := values, finite := finite] \as Sum;
+\definition total[x: A]: Sum.value x = Real.one := \block {
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Space.Member (bumps k).oneRegion x }) \by covering x \then
+  \let one: (bumps k).value x = Real.one := (bumps k).oneOn x (\bysub(N.Nat^, { k: N.Nat^ \where Space.Member (bumps k).oneRegion x }, k)) \then
+  \return eq_reason!{
+    {Sum.value x} "=" {Countable.prefix values x (N.Nat^::succ k)} "by" {Sum.law x (N.Nat^::succ k) (tailZero k x one)}
+    "=" {Real.add (Countable.prefix values x (N.Nat^::succ k)) Real.zero} "by" {sym!{Real.Real} _ _ (Laws.addZeroRight _)}
+    "=" {Real.add (Countable.prefix values x (N.Nat^::succ k)) (residue (N.Nat^::succ k) x)} "by" {
+      congr!{Real.Real Real.Real} (Real.add (Countable.prefix values x (N.Nat^::succ k))) _ _ (sym!{Real.Real} _ _ (killed k x one)) }
+    "=" Real.one "by" {normalization (N.Nat^::succ k) x}
+  }
+};
+\structure Neighborhood[x: A]: \Set := {
+  openSet: \Pow A,
+  open: Space.IsOpenIn space openSet,
+  contains: Space.Member openSet x,
+  bound: N.Nat^,
+  avoids: \forall (m: N.Nat^) -> Nat.Le bound m -> Space.Disjoint openSet (support (part m)),
+};
+\definition locallyFinite[x: A]: \exists Neighborhood x := \block {
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Space.Member (bumps k).oneRegion x }) \by covering x \then
+  \return \exact(Neighborhood[x] {
+    openSet := (bumps k).oneRegion, open := (bumps k).regionOpen,
+    contains := \bysub(N.Nat^, { k: N.Nat^ \where Space.Member (bumps k).oneRegion x }, k),
+    bound := N.Nat^::succ k, avoids := \fun (m: N.Nat^)(later: _) => supportAway k m later,
+  }, Neighborhood x)
+};
+\definition subordinate[k: N.Nat^]: Space.Subset (support (part k)) (bumps k).openSet := Space.subsetTrans _ _ _ (partSupport k) (bumps k).supportWithin;
+\definition compactSupport[k: N.Nat^]: Space.IsCompactIn space (support (part k)) := Compact.closedSubset space (support (bumps k).value) (support (part k))
+  (bumps k).supportCompact (Closure.closed space (Nonzero (part k))) (partSupport k);
+\definition partition: SmoothPartition[family] := SmoothPartition[family] {
+  functions := part, targets := \fun (k: N.Nat^) => (bumps k).openSet,
+  refines := \fun (k: N.Nat^) => (bumps k).inCover,
+  subordinate := subordinate, compactSupport := compactSupport,
+  lower := \parent.Bounds[].partLower, upper := \parent.Bounds[].partUpper,
+  locallyFinite := \block {
+    \fun (x: A) \then
+    \takefrom local: Neighborhood x \by locallyFinite x \then
+    \return \exact(FiniteNeighborhood[part, x] {
+      openSet := local.openSet, open := local.open, contains := local.contains, bound := local.bound, avoids := local.avoids,
+    }, FiniteNeighborhood[part, x])
+  },
+  normalized := \block {
+    \fun (x: A) \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Space.Member (bumps k).oneRegion x }) \by covering x \then
+    \let one: (bumps k).value x = Real.one := (bumps k).oneOn x (\bysub(N.Nat^, { k: N.Nat^ \where Space.Member (bumps k).oneRegion x }, k)) \then
+    \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where Logic.And[Countable.TailZero values x n, Countable.prefix values x n = Real.one] }] (N.Nat^::succ k)
+      (Logic.And[_, _]::# (tailZero k x one)
+        (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Sum.law x (N.Nat^::succ k) (tailZero k x one))) (total x)))
+  },
+};
