@@ -1,39 +1,45 @@
 # A11 Fredholm 作用素と指数の検査記録
 
-A11 は未完了であり、具体的な作用素への特殊化時の型エラーでブロックされている。
-指数の四つの法則は未実装である。
+A11 の全要件を実装し、以下の最終ソースで対象・関連回帰・通常全体検査を完走した。
+未完了項目と未検証範囲はない。
+
+## 計画の達成状況
+
+| 要件 | 実装 |
+| --- | --- |
+| コンパクト作用素のイデアルと Atkinson の同値 | `Operators.Ideal`、`At.Hilbert.atkinsonEquivalence`、`fredholmOfParametrix`、`parametrixExists` |
+| 実際の核・余核の有限次元性 | `At.kernel`、`image`、`CokernelSpace`、`FixedSubspace`、`CompactQuotient` |
+| 指数の合成則 | `At.Composition.Hilbert.indexComposition` |
+| 指数の直和則 | `At.Hilbert.DirectSum.At.indexDirectSum`。直和の内積・ノルム・完備性・有界写像も構成する |
+| コンパクト摂動不変性 | `At.Hilbert.CompactPerturbation.indexInvariant` |
+| ノルム連続族での局所定数性 | `indexLocallyConstant` と `Operators.Hilbert.Family.At.locallyConstant`。パラメータ空間は任意の位相空間 |
+| 実際の分解による指数の計算と利用例 | `At.Index.Decomposition`、`fromDecomposition`、`indexFromDecomposition`、`Examples` の実際の核・商余核の零次元基底と `indexZero` |
 
 ## ソースと処理系
 
-- 検査ソース commit: `b947d8824e6de71444da94515bb889364720a352`。
-- 基点 main: `cfca188e66f15dfe8c354b18861a9920d12f83d5`。PR #59 の改善後の全体検査を含む。
+- 検査ソース commit: `58f20c30015fd6d343ff3f77f8dcc7ec1240afc0`。
+- 基点 main: `cfca188e66f15dfe8c354b18861a9920d12f83d5`。PR #59 を取り込み済み。
 - release CLI SHA-256: `96e9f70c1924311a06c667b21dda6b71e3c0ad85299d570ee586b66d1f2d2820`。
-- A11 の `.ref`・manifest・workspace manifest の SHA-256: `1ed190475fc26ba166c1357c240e8932ec889e9ffbb83bf5b26636b15ef14ed3`。
-- ソースハッシュは辞書順の `path + NUL + contents + NUL` を連結して計算した。
-- 処理系ソースには最終差分がない。調査中の変更候補は戻した。
+- A11 の `.ref`・manifest・workspace manifest 90 ファイルの SHA-256: `941f5eb53c9a01043103b593551fbb2ab03ff6a83c1a7a3e3bbe891f8cfd41f3`。
+- ハッシュは辞書順の `path + NUL + contents + NUL` を連結して計算した。
+- 処理系ソースの差分はない。標準コマンドで再ビルドしたバイナリは対象検査のバイナリと同じ SHA-256 だった。
+- この検査後のコミットは記録・公開 README・計画・履歴の文書更新のみで、数学ソースと manifest は変更していない。
 
 ## 対象と関連回帰
 
-| 範囲 | 結果 / 終了コード | 経過秒 | 最大 RSS MiB | 再検査 module | 再利用 module |
-| --- | --- | ---: | ---: | ---: | ---: |
-| A11 全体 | rejected / 1 | 7.211 | 1059.7 | 55 | 616 |
-| 具体的な利用例 | rejected / 1 | 6.182 | 1044.6 | 37 | 614 |
-| 汎用 Fredholm 補題 | accepted / 0 | 8.254 | 1009.0 | 35 | 609 |
-| 有限階数トレース | accepted / 0 | 6.369 | 997.1 | 27 | 552 |
-| 有限次元基底 | accepted / 0 | 5.813 | 986.4 | 10 | 520 |
-| A19 回帰 | accepted / 0 | 9.725 | 558.3 | 165 | 296 |
+| 範囲 | 結果 / 終了コード | 経過秒 | 最大 RSS MiB | 再検査 module | 再利用 module | checkpoint 再開 |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| A11 全体 | accepted / 0 | 9.943 | 1100.7 | 88 | 617 | 1 |
+| 具体例・隔離キャッシュ | accepted / 0 | 37.139 | 795.9 | 704 | 0 | 0 |
+| A19 回帰 | accepted / 0 | 5.553 | 753.9 | 47 | 296 | 2 |
 
-全コマンド、入力一覧、実行統計は [targeted-summary.json](targeted-summary.json) に保存した。
-失敗の診断は [target-failure.txt](target-failure.txt) と [examples-failure.txt](examples-failure.txt) に保存した。
-汎用の補題範囲の `accepted` は、具体的な作用素への適用の成功や A11 全体の完了を示さない。
-
-各コマンドは `target/release/cli <package> --module <module> --full-check-local --diagnostics compact --cache-stats --time-limit-seconds 300 --report-json <report>` である。
-`--full-check` は使っていない。
-workspace の `libs/refcache/` を共有し、対象の宣言を再検査し、適合する依存先のキャッシュを再利用した。
-各 CLI は worker 1、既定のメモリ上限、300 秒上限で実行した。
-全体検査とは別プロセスで並行したため、時間は性能比較に使用しない。
-表の時間は各プロセスの起動から終了までの経過時間であり、ビルド時間や作業全体の時間を含まない。
-対象検査中の意図的停止はなく、保存失敗・不正なキャッシュ読み込み・worker 復旧はすべて 0 だった。
+全コマンドと統計は [targeted-summary.json](targeted-summary.json) に保存した。
+A11 全体検査の `checked_modules` を全 88 `.ref` と照合し、全ファイルを再検査したことを確認した。
+各検査は worker 1、300 秒上限、CLI の既定メモリ上限で実行した。
+対象検査を順に実行してから通常全体検査を開始し、両者は並行していない。
+時間は各プロセスの起動から終了までの経過時間で、ビルド時間を含まない。
+隔離キャッシュは空の `work/a11-final-isolated/` から開始し、再利用 module、result hit、checkpoint 再開がすべて 0 で具体例の検査が成功した。
+保存失敗・不正なキャッシュ読み込み・worker 復旧はすべて 0 だった。
 
 ## 通常全体検査
 
@@ -41,43 +47,40 @@ workspace の `libs/refcache/` を共有し、対象の宣言を再検査し、�
 source /workspace/ref-type-env.sh && cargo build -p cli --release --locked && python3 scripts/check_all.py
 ```
 
-Cargo 表示のビルド経過時間は 1 分 33 秒だった。
-通常全体検査は **failed、ドライバ終了コード 2** だった。
-A11 の子検査が `rejected`、終了コード 1 で停止した。
-資源不足による停止ではなく、最後の汎用公開案 `Space.Operators.Hilbert.atkinson` の特殊化に関する型エラーである。
+結果は **accepted、終了コード 0、9,887/9,887 対象を検証済み、未検証 0**。
+新規検査 6,329、検証済み結果の再利用 3,558 だった。
 
-| 指標 | 結果 |
-| --- | ---: |
-| 列挙した対象 | 9854 |
-| 検査を確認した対象 | 6433 |
-| 新規検査 / 再利用 | 6284 / 149 |
-| 未確認の対象 | 3421 |
-| Python ドライバの経過秒 | 1484.012 |
-| 各子プロセスの最大 RSS MiB | 3031.0 |
-| 各子プロセスの最大仮想メモリ MiB | 3608.2 |
-| checkpoint 再開 / worker 復旧 | 0 / 0 |
-| 保存失敗 / 不正キャッシュ読み込み | 0 / 0 |
+- Cargo 表示の release ビルド時間: 1 分 34 秒。
+- ビルドを含む標準コマンドの経過時間: 5874.754 秒。
+- 全体検査ドライバの経過時間: 5780.496 秒。
+- 意図的な停止時間: 0 秒。手動の中断と未完了範囲はない。資源制約による worker の停止・復旧時間は個別には計測しておらず、上の経過時間に含む。
+- 検査の試行数: 129。初期メモリ上限 4608 MiB、上限 6144 MiB、キャッシュ予算 12288 MiB。
+- 各子プロセスの最大値は RSS 5296.9 MiB、仮想メモリ 6112.7 MiB。全プロセスの同時合計ではない。
+- checkpoint 再開 1、worker 復旧 4、保存失敗 0、不正なキャッシュ読み込み 0。
 
-既定の初期 4608 MiB、最大 6144 MiB、worker 1 で実行した。
-コンテナのメモリ上限は 16 GiB で、CLI の仮想メモリ上限とは別である。
-子プロセスの最大値は同時点の全プロセスの合計ではない。
-最終検査に意図的な停止時間はなく、同じ処理系とソースのまま実行した。
+メモリ上限による試行は 21 回で、対象・上限・終了コードは `repository-summary.json` の `resource_limit_attempts` に残した。
+`bott_product` の初回範囲は 4,608 MiB 上限で `memory-limit` / 2 となり、標準ドライバが宣言自身と子モジュールへ分割して検証を続けた。
+分割できない宣言は設定済みの 6,144 MiB 上限へ引き上げて再試行した。
+これは標準コマンド内の自動復旧で、キャッシュの全削除や全体検査の二重起動はしていない。
+最終の coverage は全対象と一致し、資源制約で未検証のまま残した範囲はない。
 
-集計は [repository-summary.json](repository-summary.json)、失敗診断は [repository-failure.txt](repository-failure.txt) に保存した。
-完全なローカル記録は `/workspace/ref-type/work/repository-check/20261030T134704.549450Z/report.json` にある。
-source snapshot SHA-256 は `d7ed5aa982f4de7ebf3eddefdedcbc9e1672cf1e9cce57c69dfbda3fd94adba9` である。
-型エラーで停止したため、同じソースで再試行しても資源制限の復旧にはならない。
-原因を修正した後、同じ標準コマンドを実行すれば適合するキャッシュと checkpoint を検証して再開できる。
+実行場所は `/workspace/ref-type/work/repository-check/20261030T151047.992004Z/report.json`。
+ソーススナップショット、対象集合のハッシュ、全試行の結果と資源上限は [repository-summary.json](repository-summary.json) に保存した。
+既存の `libs/refcache/` と検証状態を利用し、全削除はしていない。
+以前の実行とはキャッシュ条件が違うため、時間の比率を性能改善の計測値として扱わない。
 
-## 阻害要因と未検証範囲
+## 特殊化の調査と回避
 
-零 Hilbert 空間の恒等作用素に `fredholmOfParametrix` を適用すると、特殊化後の定義本体の検査で元の抽象的な `Fredholm(V, space, norm, W, target, targetNorm, f)` が残る。
-`structure` から論理積への変更、型引数の明示、定理を汎用モジュールへ移す回避を試した。
-最後の移動案は `Space.Operators.Hilbert.atkinson` だが、この案の検査も型エラーになる。
-開発中に独立したキャッシュでも直接 API の同じ失敗を確認した。
+初期ソース `b947d8824e6de71444da94515bb889364720a352` では具体的な作用素への適用が失敗した。
+[当時の対象診断](history/b947d88-target-failure.txt)、[当時の具体例診断](history/b947d88-examples-failure.txt)、[当時の通常全体診断](history/b947d88-repository-failure.txt) は歴史的な記録であり、上記の最終検査の失敗ではない。
+旧 JSON は [当時の対象検査](history/b947d88-targeted-summary.json) と [当時の通常全体検査](history/b947d88-repository-summary.json) に分けて保存した。
+余核の証明を作用素から独立した `CompactQuotient` へ分け、有限次元性の同型による移送を独立した補題にすることで解消した。
+最終の具体例は Atkinson の両方向と指数の全法則を実際に特殊化する。
 
-核・像・余核、有限次元の構成、parametrix と Fredholm 性の汎用証明、整数指数 API、有限階数トレースの補題を実装した。
-具体的な公開 API の適用は未検証であり、失敗例を登録したままにしている。
-指数の合成則・直和則・コンパクト摂動不変性・ノルム連続族の局所定数性は未実装である。
-型検査の回避や定理の弱化はしていない。
-再現例と最後の回避案は [gaps.md](../../../gaps.md#fredholm-性の具体的な作用素への特殊化) に記載した。
+局所的に存在量化された添字で構造体をその場で作る別の処理系制限は、[inline 版](repro-inline.ref) と [補助モジュール版](repro-helper.ref) の std のみの単独例に切り分けた。
+両方の `root.ref` を個別の一時 package に置き、`std = { path = "<checkout>/libs/std" }` を依存に持つ manifest で `target/release/cli <package> --no-cache --diagnostics compact --time-limit-seconds 120 --report-json <report>` を実行した。
+inline 版は `DefinitionLocalContextIsOutsideReferenceScope` による worker panic 101、CLI 終了コード 2、補助モジュール版は accepted / 0。
+型導出と現在の書き方は [gaps.md](../../../gaps.md) に記録した。
+[repro-summary.json](repro-summary.json) に正確なコマンド、ソースハッシュ、検査統計を保存した。
+この最小例はキャッシュ・checkpoint なしで再現するため、#59 の checkpoint 再開時の補助 import の修正だけでは解消しない。
+内部原因の共通性は未確定で、A11 は処理系を変更せずに完成した。

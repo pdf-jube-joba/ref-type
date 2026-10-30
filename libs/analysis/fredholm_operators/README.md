@@ -3,7 +3,7 @@
 複素 Hilbert 空間の有界線形作用素について、Atkinson の定理と整数指数の四つの法則を実装する。
 核は線形写像の核、像は実際の線形像、余核は像による商空間である。
 有限次元性は恒等写像が有限個の複素座標を経由して因子分解することで定義し、そこから実際の基底を構成する。
-追加公理は使わず、既存の関数・集合の外延性を利用する。
+追加公理は使わず、既存の関数の外延性を利用する。
 
 ## 公開 API
 
@@ -15,7 +15,7 @@
 | `At.kernel` / `image` / `CokernelSpace` | 実際の核、像、商余核。`kernelClosed` と `ClosedRange` も公開する |
 | `At.Parametrix` / `HasParametrix` | 左右の誤差がコンパクトな逆作用素候補と、その存在 |
 | `H.Fredholm` | 閉像と有限次元の核・余核 |
-| `H.fredholmOfParametrix` / `atkinson` | parametrix から Fredholm 性を導く |
+| `H.atkinsonEquivalence` / `fredholmOfParametrix` / `atkinson` | parametrix から Fredholm 性を導く |
 | `H.parametrixExists` / `FromFredholm` | Fredholm 作用素から有限階数の左右誤差を持つ有界 parametrix を構成する |
 | `At.Index.Decomposition` | 実際の核・商余核の基底を保持する |
 | `At.Index.fromDecomposition` / `independent` | 基底から整数の次元差を計算し、基底からの独立性を示す |
