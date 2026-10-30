@@ -195,8 +195,16 @@ def measure(command, log, *, seconds, memory_mib, environment=None,
                 elif checkpoint and "event=checkpoint-saved" in tail(log):
                     if checkpoint == "worker":
                         if not recovery_injected:
-                            children = Path(f"/proc/{child.pid}/task/{child.pid}/children")
-                            for worker in children.read_text().split():
+                            # /proc/PID/task/PID/children is optional on Linux.
+                            workers = []
+                            for status_file in Path("/proc").glob("[0-9]*/status"):
+                                try:
+                                    parent = next(line for line in status_file.read_text().splitlines() if line.startswith("PPid:"))
+                                    if int(parent.split()[1]) == child.pid:
+                                        workers.append(int(status_file.parent.name))
+                                except (OSError, StopIteration, ValueError):
+                                    continue
+                            for worker in workers:
                                 try:
                                     os.kill(int(worker), signal.SIGKILL)
                                     recovery_injected = True
@@ -304,7 +312,7 @@ class Measurements:
                 row["checker"] = None
         row["completed"] = (row["exit"] == 0 and row["stopped_by"] is None and row["sources_unchanged"]
                             and (self.args.command is not None or isinstance(row["checker"], dict)
-                                 and row["checker"].get("version") == 1
+                                 and row["checker"].get("version") in (1, 2)
                                  and row["checker"].get("outcome") == "accepted"))
         self.report["measurements"].append(row)
         self.save()
@@ -318,7 +326,7 @@ class Measurements:
         self.report["binary_unchanged"] = all(Path(path).is_file() and file_digest(Path(path)) == digest
                                               for path, digest in self.command_digests.items())
         self.report["complete"] = (bool(rows) and self.report["binary_unchanged"]
-                                   and all(row["completed"] or row["stopped_by"] == "checkpoint" for row in rows))
+                                   and all(row["completed"] or row.get("expected_failure", False) or row["stopped_by"] == "checkpoint" for row in rows))
         self.save()
         print(f"complete={self.report['complete']}; report: {self.output}")
         return 0 if self.report["complete"] else 1
@@ -400,6 +408,9 @@ def run_cache(args):
             raise ValueError("checkpoint publication failure was not reported")
         if "保存に失敗しました" not in Path(row["log"]).read_text(encoding="utf-8"):
             raise ValueError("checkpoint publication failure was hidden by --no-progress")
+        if row["exit"] != 2 or row["checker"]["outcome"] != "storage-failure":
+            raise ValueError("checkpoint save failure must fail separately from type rejection")
+        row["expected_failure"] = True
         blocked.unlink()
         measurements.run("checkpoint-save-repaired", entry, failed_cache,
                          ["--full-check", "--checkpoint-seconds", "0"])

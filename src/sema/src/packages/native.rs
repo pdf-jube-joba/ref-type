@@ -148,8 +148,8 @@ impl PackageRun<'_, '_> {
         wanted: &BTreeSet<usize>,
         forced: &BTreeSet<usize>,
     ) -> Option<(usize, std::cmp::Reverse<usize>)> {
-        let mut shared = 0;
-        let mut extra = 0;
+        let mut shared = 0usize;
+        let mut extra = 0usize;
         for path in coverage {
             let index = *self.graph.indices.get(path.as_ref())?;
             if forced.contains(&index) {
@@ -161,7 +161,12 @@ impl PackageRun<'_, '_> {
                 extra += 1;
             }
         }
-        (shared > 0).then_some((shared, std::cmp::Reverse(extra)))
+        // A large prefix can contain far more unrelated checking state than
+        // this request will ever use. Loading it defeats bounded submodule
+        // checks, even when it saves a few more source modules. Prefer net
+        // useful coverage and rebuild when the irrelevant part dominates.
+        (shared > 0 && extra <= shared)
+            .then_some((shared.saturating_sub(extra), std::cmp::Reverse(extra)))
     }
 
     fn valid_prefix(&self, metadata: &Metadata) -> bool {

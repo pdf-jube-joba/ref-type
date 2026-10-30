@@ -213,6 +213,12 @@ fn main() -> anyhow::Result<()> {
     if supervised && supervisor::interrupted() {
         summary.outcome = report::Outcome::Interrupted;
     }
+    if summary.storage.corrupt > 0 {
+        eprintln!(
+            "破損したキャッシュを {} 件検出しました。該当結果は通常検査で再構築します。",
+            summary.storage.corrupt
+        );
+    }
     if let Some(path) = &args.report_json {
         summary.write(path)?;
     }
@@ -223,7 +229,8 @@ fn main() -> anyhow::Result<()> {
         Ok(report) if report.outcome == report::Outcome::Accepted => {}
         Ok(report) => std::process::exit(match report.outcome {
             report::Outcome::Rejected => 1,
-            report::Outcome::InternalError
+            report::Outcome::StorageFailure
+            | report::Outcome::InternalError
             | report::Outcome::TimeLimit
             | report::Outcome::MemoryLimit => 2,
             report::Outcome::Interrupted => 130,
@@ -356,6 +363,7 @@ fn run_path(args: &Args, display: &mut progress::Display) -> anyhow::Result<repo
             }
         };
     }
+    let mut verified_modules = Vec::new();
     let messages = if args.parse_only {
         database
             .parse_project(&snapshot)
@@ -404,6 +412,12 @@ fn run_path(args: &Args, display: &mut progress::Display) -> anyhow::Result<repo
             }
             None => database.check_with_options(&snapshot, &options),
         };
+        verified_modules = result
+            .modules
+            .iter()
+            .filter(|module| module.status == sema::ModuleStatus::Verified)
+            .map(|module| module.path.clone())
+            .collect();
         display.finish(result.is_success());
         if !result.is_success() && result.diagnostics.is_empty() {
             anyhow::bail!("verification did not complete");
@@ -446,6 +460,13 @@ fn run_path(args: &Args, display: &mut progress::Display) -> anyhow::Result<repo
     let mut report = report::Report::checked(error.is_none(), reused);
     report.checking = stats.clone();
     report.storage = database.cache_store_stats();
+    report.verified_modules = verified_modules;
+    if report.storage.save_failures > 0
+        || stats.cache_write_failures > 0
+        || stats.checkpoint_skips > 0
+    {
+        report.outcome = report::Outcome::StorageFailure;
+    }
     Ok(report)
 }
 

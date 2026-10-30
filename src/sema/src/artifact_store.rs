@@ -19,6 +19,10 @@ use std::{
 pub const DEFAULT_CACHE_BUDGET: u64 = u64::MAX;
 const MAX_OBJECT: u64 = 512 * 1024 * 1024;
 const MAX_MANIFEST: u64 = 16 * 1024 * 1024;
+// A lease spans many manifests. Compact fingerprints avoid JSON byte arrays,
+// and the same bound applies to publication, worker recovery and collection.
+const MAX_PINS: u64 = 64 * 1024 * 1024;
+const PIN_MAGIC: &[u8; 8] = b"REFPIN03";
 const HEADER: usize = 60;
 const MAGIC: &[u8; 8] = b"REFOBJ02";
 static NEXT: AtomicU64 = AtomicU64::new(0);
@@ -208,6 +212,15 @@ struct Pins {
     objects: BTreeSet<Fingerprint>,
     #[serde(default)]
     read_objects: BTreeSet<Fingerprint>,
+}
+
+fn decode_pins(bytes: &[u8]) -> Result<Pins, CacheError> {
+    if let Some(payload) = bytes.strip_prefix(PIN_MAGIC) {
+        deserialize(payload)
+    } else {
+        // Concurrent older processes can still own live JSON leases.
+        serde_json::from_slice(bytes).map_err(|error| CacheError::Codec(error.to_string()))
+    }
 }
 struct Lease {
     path: PathBuf,
@@ -504,7 +517,16 @@ impl ArtifactStore {
                     return Err(invalid(MissReason::Corrupt));
                 }
                 if generation != lease.generation {
-                    lease.pins = serde_json::from_reader(file.take(MAX_MANIFEST))?;
+                    // serde_json::from_reader(File) otherwise issues a read
+                    // syscall per byte, taking minutes for a large live lease.
+                    let mut bytes = Vec::new();
+                    file.take(MAX_PINS + 1)
+                        .read_to_end(&mut bytes)
+                        .map_err(|e| io_error(CacheOperation::ReadRecord, &pin_path, e))?;
+                    if bytes.len() as u64 > MAX_PINS {
+                        return Err(invalid(MissReason::SizeLimit));
+                    }
+                    lease.pins = decode_pins(&bytes)?;
                     lease.generation = generation;
                 }
             }
@@ -522,7 +544,11 @@ impl ArtifactStore {
             .checked_add(1)
             .ok_or_else(|| invalid(MissReason::SizeLimit))?;
         let mut bytes = generation.to_le_bytes().to_vec();
-        bytes.extend(serde_json::to_vec(&lease.pins)?);
+        bytes.extend(PIN_MAGIC);
+        bytes.extend(serialize(&lease.pins)?);
+        if bytes.len() as u64 > MAX_PINS + 8 {
+            return Err(invalid(MissReason::SizeLimit));
+        }
         lease.generation = 0;
         self.atomic_metadata(&pin_path, &bytes)?;
         lease.generation = generation;
@@ -950,11 +976,9 @@ impl ArtifactStore {
                     remove(&path)?;
                 }
                 Err(std::fs::TryLockError::WouldBlock) => {
-                    let bytes = read_bounded(&path.with_extension("pins"), MAX_MANIFEST + 8)?;
+                    let bytes = read_bounded(&path.with_extension("pins"), MAX_PINS + 8)?;
                     // A live but unreadable lease is conservatively retained with everything.
-                    let Ok(pins) =
-                        serde_json::from_slice::<Pins>(bytes.get(8..).unwrap_or_default())
-                    else {
+                    let Ok(pins) = decode_pins(bytes.get(8..).unwrap_or_default()) else {
                         return Ok(self.stats());
                     };
                     pinned.artifacts.extend(pins.artifacts);
@@ -1827,6 +1851,74 @@ mod tests {
         drop(lock);
         worker.join().unwrap();
         assert!(completed_without_lock);
+    }
+
+    #[test]
+    fn large_live_lease_survives_worker_recovery_and_collection() {
+        let directory = Directory::new();
+        let supervisor = directory.store();
+        supervisor.set_budget(0);
+        let writer = directory.store();
+        let object = writer
+            .write_object(ObjectKind::Result, b"protected")
+            .unwrap();
+        supervisor
+            .pin(|pins| {
+                for index in 0..180_000_u64 {
+                    pins.read_objects.insert(fingerprint(&index.to_le_bytes()));
+                }
+                pins.read_objects.insert(object.digest);
+                true
+            })
+            .unwrap();
+        drop(writer);
+        let (path, expected, generation) = {
+            let lease = supervisor.lease.lock().unwrap();
+            let lease = lease.as_ref().unwrap();
+            (lease.path.clone(), lease.pins.clone(), lease.generation)
+        };
+        let legacy = serde_json::to_vec(&expected).unwrap();
+        assert!(legacy.len() as u64 > MAX_MANIFEST);
+        let compact_size = fs::metadata(path.with_extension("pins")).unwrap().len();
+        assert!(compact_size < legacy.len() as u64 / 2);
+
+        let worker = directory.store();
+        worker.set_budget(0);
+        *worker.lease.lock().unwrap() = Some(Lease {
+            _file: OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(&path)
+                .unwrap(),
+            path: path.clone(),
+            pins: Pins::default(),
+            owner: false,
+            generation: 0,
+        });
+        worker.pin(|_| false).unwrap();
+        assert!(worker.lease.lock().unwrap().as_ref().unwrap().pins == expected);
+        // An older live supervisor can publish a larger JSON lease. Both the
+        // next worker and the collector must preserve all of its protection.
+        let mut bytes = (generation + 1).to_le_bytes().to_vec();
+        bytes.extend(legacy);
+        fs::write(path.with_extension("pins"), bytes).unwrap();
+        worker.pin(|_| false).unwrap();
+        assert!(worker.lease.lock().unwrap().as_ref().unwrap().pins == expected);
+        worker.collect().unwrap();
+        assert!(worker.object_path(&object.digest).exists());
+        let mut corrupt = (generation + 2).to_le_bytes().to_vec();
+        corrupt.extend(b"{");
+        fs::write(path.with_extension("pins"), corrupt).unwrap();
+        assert!(worker.read_object(&object).is_err());
+        assert!(worker.stats().corrupt > 0);
+        worker.collect().unwrap();
+        assert!(worker.object_path(&object.digest).exists());
+        drop(worker);
+        drop(supervisor);
+        let collector = directory.store();
+        collector.set_budget(0);
+        collector.collect().unwrap();
+        assert!(!collector.object_path(&object.digest).exists());
     }
 
     #[test]

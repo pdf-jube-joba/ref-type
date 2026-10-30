@@ -233,6 +233,8 @@ struct Events {
     storage: sema::artifact_store::CacheStoreStats,
     session: sema::SessionStatistics,
     last_module: Option<Vec<String>>,
+    checked_modules: BTreeSet<Vec<String>>,
+    storage_errors: u64,
 }
 impl Events {
     fn new(path: &Path) -> anyhow::Result<Self> {
@@ -248,6 +250,8 @@ impl Events {
             storage: Default::default(),
             session: Default::default(),
             last_module: None,
+            checked_modules: BTreeSet::new(),
+            storage_errors: 0,
         })
     }
     fn poll(&mut self, plan: &mut ProgressPlan) -> anyhow::Result<()> {
@@ -295,6 +299,20 @@ impl Events {
                         unreachable!()
                     };
                     self.last_module = Some(path.clone());
+                    progress::receive_timed(&event, elapsed);
+                }
+                Message::Event(event @ ProgressEvent::ModuleFinished { .. }, elapsed) => {
+                    if let ProgressEvent::ModuleFinished {
+                        path,
+                        action: sema::ProgressAction::Check,
+                    } = &event
+                    {
+                        self.checked_modules.insert(path.clone());
+                    }
+                    progress::receive_timed(&event, elapsed);
+                }
+                Message::Event(event @ ProgressEvent::StorageFailed { .. }, elapsed) => {
+                    self.storage_errors += 1;
                     progress::receive_timed(&event, elapsed);
                 }
                 Message::Event(event, elapsed) => progress::receive_timed(&event, elapsed),
@@ -598,6 +616,9 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
     let mut checking = sema::QueryStats::default();
     let mut storage = sema::artifact_store::CacheStoreStats::default();
     let mut completed = BTreeSet::new();
+    let mut verified_modules = Vec::new();
+    let mut checked_modules = BTreeSet::new();
+    let mut storage_errors = 0;
     loop {
         if interrupted() {
             bail!("検査を中断しました");
@@ -655,7 +676,17 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
                 return Err(error);
             }
         };
+        std::io::copy(
+            &mut File::open(workspace.path("stderr"))?,
+            &mut std::io::stderr(),
+        )?;
+        std::io::copy(
+            &mut File::open(workspace.path("stdout"))?,
+            &mut std::io::stdout(),
+        )?;
         resources.merge(&outcome.resources);
+        checked_modules.extend(outcome.events.checked_modules.iter().cloned());
+        storage_errors += outcome.events.storage_errors;
         resources.duplicate_source_steps += outcome.events.repeated;
         resources.replayed_source_steps +=
             outcome.events.completed.intersection(&completed).count() as u64;
@@ -667,6 +698,7 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
         if !outcome.status.success()
             && !outcome.cancelled
             && !outcome.timeout_hit
+            && storage_errors == 0
             && args
                 .time_limit_seconds
                 .is_none_or(|limit| started.elapsed() < Duration::from_secs(limit))
@@ -690,19 +722,11 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
                 display.message("指定された総時間制限に達しました。検査は未完了です。");
             } else if outcome.limited {
                 incomplete = Some(report::Outcome::MemoryLimit);
-                display.message("この module と参照先がメモリ上限を超えました。検査は未完了です。");
+                display.message("指定範囲の検査がメモリ上限に達しました。新しい checkpoint がないため再起動を停止します。検査は未完了です。");
             } else {
                 display.message(&format!("検査失敗: {} ({})", label, outcome.status));
             }
         }
-        std::io::copy(
-            &mut File::open(workspace.path("stderr"))?,
-            &mut std::io::stderr(),
-        )?;
-        std::io::copy(
-            &mut File::open(workspace.path("stdout"))?,
-            &mut std::io::stdout(),
-        )?;
         let summary = match fs::read(workspace.path("report.json")) {
             Ok(bytes) => serde_json::from_slice::<report::Report>(&bytes)?,
             Err(_) if !outcome.status.success() => {
@@ -725,6 +749,7 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
         if outcome.status.success() != (summary.outcome == report::Outcome::Accepted) {
             bail!("verification worker status disagrees with its report");
         }
+        verified_modules = summary.verified_modules;
         verification_reused |= !fresh && summary.cache.verification_reused;
         checking = summary.checking;
         storage.merge(&summary.storage);
@@ -776,6 +801,14 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
             }
         }
     }
+    if storage.save_failures > 0
+        || storage_errors > 0
+        || checking.cache_write_failures > 0
+        || checking.checkpoint_skips > 0
+    {
+        success = false;
+        incomplete = Some(report::Outcome::StorageFailure);
+    }
     progress::receive(&ProgressEvent::Finished { success });
     crate::PROGRESS.with_borrow_mut(|events| events.extend(timings.into_values()));
     if !args.no_progress {
@@ -793,6 +826,8 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
     if let Some(outcome) = incomplete {
         report.outcome = outcome;
     }
+    report.verified_modules = verified_modules;
+    report.checked_modules = checked_modules.into_iter().collect();
     report.checking = checking;
     report.storage = storage;
     report.execution = resources;
