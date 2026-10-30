@@ -29,12 +29,14 @@ cargo build -p cli --release --locked && python3 scripts/check_all.py
 分割できない範囲だけは設定した最大メモリまで段階的に再試行し、それでも進展がなくなった場合は非ゼロ終了する。
 
 ```sh
-python3 scripts/check_all.py --initial-memory-mib 3072 --memory-mib 6144 --cache-budget-mib 12288 --min-free-mib 256
+python3 scripts/check_all.py --initial-memory-mib 4608 --memory-mib 6144 --cache-budget-mib 12288 --min-free-mib 256
 python3 scripts/check_all.py --state-dir work/repository-check --cache-dir libs/refcache
 ```
 
 `--memory-mib` は各 CLI プロセスに許す最大の仮想メモリ上限で、RSS やコンテナのメモリ上限とは別である。
-通常の子プロセスは `--initial-memory-mib`（既定 3072 MiB）と最大値の小さい方で開始する。
+通常の子プロセスは `--initial-memory-mib`（既定 4608 MiB）と最大値の小さい方で開始する。
+単一 worker の 3072 MiB 計測では分割・再開の反復に時間を要し、より大きい上限で成功した範囲の実測最大仮想メモリが約 4120 MiB だったため、この初期値に余裕を持たせている。
+3072 MiB を基準とした動作を再現する場合は `--initial-memory-mib 3072` を指定する。
 チェックポイント再開と範囲分割を先に試し、分割できない範囲だけ上限を倍増して最大値（既定 6144 MiB）まで再試行する。
 この最大値を超える再試行はしない。
 最大値 0 は初期上限での分割後に既存の OS 上限で一度だけ試す指定である。

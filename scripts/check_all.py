@@ -42,7 +42,7 @@ def arguments():
     parser.add_argument('--state-dir', default='work/repository-check')
     parser.add_argument('--cache-dir')
     parser.add_argument('--memory-mib', type=int, default=6144)
-    parser.add_argument('--initial-memory-mib', type=int, default=3072)
+    parser.add_argument('--initial-memory-mib', type=int, default=4608)
     parser.add_argument('--cache-budget-mib', type=int, default=12288)
     parser.add_argument('--min-free-mib', type=int, default=256)
     parser.add_argument('--time-limit-seconds', type=int)
