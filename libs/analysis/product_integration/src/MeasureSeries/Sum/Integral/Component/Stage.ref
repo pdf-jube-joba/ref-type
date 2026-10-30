@@ -1,0 +1,24 @@
+\import I.Evaluation[n := (Approx.stages k).size, s := (Approx.stages k).simple] \as TargetValue;
+\definition size: N.Nat^ := (Approx.stages k).size;
+\definition simple: Source.Simple[size] := Source.Simple[size] {
+  cells := (Approx.stages k).simple.cells,
+  coefficients := (Approx.stages k).simple.coefficients,
+  measurable := \fun (i: Fin.Fin size) => data.measurable ((Approx.stages k).simple.cells i) ((Approx.stages k).simple.measurable i) j,
+  nonnegative := (Approx.stages k).simple.nonnegative,
+  disjoint := (Approx.stages k).simple.disjoint,
+};
+\definition complete: Source.CompleteSimple[size] := \into[Source.Simple[size]](simple, Source.CompleteSimple[size]) \by { TargetValue.covers };
+\import Source.Evaluation[n := size, s := complete] \as SourceValue;
+\import SourceValue.Exact[] \as Exact;
+\definition function: SourceValue.value = Approx.value k := \axiom:funext(SourceValue.value, Approx.value k, \fun (x: A) => \block {
+  \takefrom i: \Cast[Fin.Fin size] ({ i: Fin.Fin size \where Sets.Member (simple.cells i) x }) \by SourceValue.covers x \then
+  \let member: Sets.Member (simple.cells i) x := \bysub(Fin.Fin size, { i: Fin.Fin size \where Sets.Member (simple.cells i) x }, i) \then
+  \return eq_reason_in!{Real.Real _
+    "=" _ "by" { SourceValue.atCell i x member }
+    "=" _ "by" { sym!{Real.Real} _ _ (TargetValue.atCell i x member) }
+  }
+});
+\definition lower: Source.lowerIntegral (Approx.value k) = Source.simpleIntegral size complete := eq_reason_in!{M.Value _
+  "=" _ "by" { congr!{{A -> Real.Real} M.Value} Source.lowerIntegral _ _ (sym!{{A -> Real.Real}} _ _ function) }
+  "=" _ "by" { Exact.lower }
+};

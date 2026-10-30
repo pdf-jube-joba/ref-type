@@ -74,3 +74,38 @@
       \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where M.below (I.lowerIntegral (f k)) r }) \by member \then
       \return stageIncluded f k r (\bysub(N.Nat^, { k: N.Nat^ \where M.below (I.lowerIntegral (f k)) r }, k))
     });
+\import I.SimpleLaws[] \as SimpleLaws;
+\definition lowerIntegralNegative: \forall (f: A -> M.Value) (r: Real.Real) -> R.Lt r Real.zero -> M.below (lowerIntegral f) r :=
+  \fun (f: A -> M.Value) (r: Real.Real) (negative: R.Lt r Real.zero) =>
+    Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists ( s: I.Simple[n] \where Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) r] ) }] N.Nat^::zero
+      (Logic.existsIntro[I.Simple[N.Nat^::zero], { s: I.Simple[N.Nat^::zero] \where Logic.And[Dominated N.Nat^::zero s f, M.below (I.simpleIntegral N.Nat^::zero s) r] }]
+        I.emptySimple (Logic.And[_, _]::# (\fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))) negative));
+\definition lowerNonnegative: \forall (f: A -> M.Value) -> M.NonnegativeValue[lowerIntegral f] :=
+  \fun (f: A -> M.Value) => M.NonnegativeValue[lowerIntegral f] {
+    negative := lowerIntegralNegative f,
+    downward := \fun (r, t: Real.Real) (less: R.Lt r t) (member: M.below (lowerIntegral f) t) => \block {
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \exists ( s: I.Simple[n] \where Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) t] ) }) \by member \then
+      \takefrom s: \Cast[I.Simple[n]] ({ s: I.Simple[n] \where Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) t] })
+        \by (\bysub(N.Nat^, { n: N.Nat^ \where \exists ( s: I.Simple[n] \where Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) t] ) }, n)) \then
+      \let data: Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) t] := \bysub(I.Simple[n], { s: I.Simple[n] \where Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) t] }, s) \then
+      \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists ( s: I.Simple[n] \where Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) r] ) }] n
+        (Logic.existsIntro[I.Simple[n], { s: I.Simple[n] \where Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) r] }] s
+          (Logic.And[_, _]::# data.left ((SimpleLaws.integralNonnegative n s).downward r t less data.right)))
+    },
+    rounded := \fun (r: Real.Real) (member: M.below (lowerIntegral f) r) => \block {
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \exists ( s: I.Simple[n] \where Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) r] ) }) \by member \then
+      \takefrom s: \Cast[I.Simple[n]] ({ s: I.Simple[n] \where Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) r] })
+        \by (\bysub(N.Nat^, { n: N.Nat^ \where \exists ( s: I.Simple[n] \where Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) r] ) }, n)) \then
+      \let data: Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) r] := \bysub(I.Simple[n], { s: I.Simple[n] \where Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) r] }, s) \then
+      \takefrom t: \Cast[Real.Real] ({ t: Real.Real \where Logic.And[R.Lt r t, M.below (I.simpleIntegral n s) t] }) \by (SimpleLaws.integralNonnegative n s).rounded r data.right \then
+      \let rounded: Logic.And[R.Lt r t, M.below (I.simpleIntegral n s) t] := \bysub(Real.Real, { t: Real.Real \where Logic.And[R.Lt r t, M.below (I.simpleIntegral n s) t] }, t) \then
+      \return Logic.existsIntro[Real.Real, { t: Real.Real \where Logic.And[R.Lt r t, M.below (lowerIntegral f) t] }] t
+        (Logic.And[_, _]::# rounded.left (Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists ( s: I.Simple[n] \where Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) t] ) }] n
+          (Logic.existsIntro[I.Simple[n], { s: I.Simple[n] \where Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) t] }] s (Logic.And[_, _]::# data.left rounded.right))))
+    },
+  };
+\structure SeriesData: \Set := {
+  terms: N.Nat^ -> N.Nat^ -> I.NonnegativeMeasurable,
+  increasing: \forall (i: N.Nat^) -> C.FunctionIncreasing (\fun (k: N.Nat^) (x: A) => (terms i k).function x),
+};
+\module Series(data: SeriesData);

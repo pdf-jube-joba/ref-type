@@ -78,3 +78,50 @@
     };
 \module Simple(n: N.Nat^, s: I.CompleteSimple[n]);
 \module Parts(f: I.Representatives);
+\import I.Additive[] \as Additive;
+\import \root.Cuts[A := A] \as Cuts;
+\import Real.Estimates[] \as Estimates;
+\definition zero: I.NonnegativeMeasurable := I.NonnegativeMeasurable {
+  function := Zero.function, measurable := Zero.measurable, nonnegative := \fun (_: A) => R.leRefl Real.zero,
+};
+\definition partial: \forall (n: N.Nat^) -> (N.Nat^ -> I.NonnegativeMeasurable) -> I.NonnegativeMeasurable :=
+  \induction (n: N.Nat^) \return (N.Nat^ -> I.NonnegativeMeasurable) -> I.NonnegativeMeasurable \with {
+    | zero: \fun (_: N.Nat^ -> I.NonnegativeMeasurable) => zero
+    | succ: \fun (n: N.Nat^) (previous: (N.Nat^ -> I.NonnegativeMeasurable) -> I.NonnegativeMeasurable) (f: N.Nat^ -> I.NonnegativeMeasurable) =>
+      Linear.sumData (previous f) (f n)
+  };
+\definition lowerPartial: \forall (n: N.Nat^) (f: N.Nat^ -> I.NonnegativeMeasurable) ->
+  I.lowerIntegral (partial n f).function = M.partialSum (\fun (i: N.Nat^) => I.lowerIntegral (f i).function) n :=
+  \induction (n: N.Nat^) \return \forall (f: N.Nat^ -> I.NonnegativeMeasurable) ->
+    I.lowerIntegral (partial n f).function = M.partialSum (\fun (i: N.Nat^) => I.lowerIntegral (f i).function) n \with {
+      | zero: \fun (_: N.Nat^ -> I.NonnegativeMeasurable) => Zero.lowerZero
+      | succ: \fun (n: N.Nat^) (previous: _) (f: N.Nat^ -> I.NonnegativeMeasurable) => eq_reason_in!{M.Value _
+        "=" _ "by" { Additive.Measured[p := partial n f, q := f n].lowerAdd }
+        "=" _ "by" { congr!{M.Value M.Value} (\fun (v: M.Value) => M.add v (I.lowerIntegral (f n).function)) _ _ (previous f) }
+      }
+    };
+\definition partialMono: \forall (n: N.Nat^) (f, g: N.Nat^ -> I.NonnegativeMeasurable) ->
+  (\forall (i: N.Nat^) (x: A) -> R.Le ((f i).function x) ((g i).function x)) ->
+  \forall (x: A) -> R.Le ((partial n f).function x) ((partial n g).function x) :=
+  \induction (n: N.Nat^) \return \forall (f, g: N.Nat^ -> I.NonnegativeMeasurable) ->
+    (\forall (i: N.Nat^) (x: A) -> R.Le ((f i).function x) ((g i).function x)) ->
+    \forall (x: A) -> R.Le ((partial n f).function x) ((partial n g).function x) \with {
+      | zero: \fun (_: N.Nat^ -> I.NonnegativeMeasurable) (_: N.Nat^ -> I.NonnegativeMeasurable) (_: _) (_: A) => R.leRefl Real.zero
+      | succ: \fun (n: N.Nat^) (previous: _) (f, g: N.Nat^ -> I.NonnegativeMeasurable) (order: \forall (i: N.Nat^) (x: A) -> R.Le ((f i).function x) ((g i).function x))
+        (x: A) => Estimates.addLe _ _ _ _ (previous f g order x) (order n x)
+    };
+\definition partialGrowing: \forall (n: N.Nat^) (f: N.Nat^ -> I.NonnegativeMeasurable) (x: A) ->
+  R.Le ((partial n f).function x) ((partial (N.Nat^::succ n) f).function x) :=
+  \fun (n: N.Nat^) (f: N.Nat^ -> I.NonnegativeMeasurable) (x: A) => R.leReplaceLeft (Real.add ((partial n f).function x) Real.zero) ((partial n f).function x)
+    ((partial (N.Nat^::succ n) f).function x) (Laws.addZeroRight ((partial n f).function x))
+      (Laws.addMonotoneLeft Real.zero ((f n).function x) ((partial n f).function x) ((f n).nonnegative x));
+\definition cutPartial: \forall (n: N.Nat^) (f: N.Nat^ -> I.NonnegativeMeasurable) (x: A) ->
+  M.partialSum (\fun (i: N.Nat^) => Cuts.cut ((f i).function x)) n = Cuts.cut ((partial n f).function x) :=
+  \induction (n: N.Nat^) \return \forall (f: N.Nat^ -> I.NonnegativeMeasurable) (x: A) ->
+    M.partialSum (\fun (i: N.Nat^) => Cuts.cut ((f i).function x)) n = Cuts.cut ((partial n f).function x) \with {
+      | zero: \fun (_: N.Nat^ -> I.NonnegativeMeasurable) (_: A) => \refl(M.zero)
+      | succ: \fun (n: N.Nat^) (previous: _) (f: N.Nat^ -> I.NonnegativeMeasurable) (x: A) => eq_reason_in!{M.Value _
+        "=" _ "by" { congr!{M.Value M.Value} (\fun (v: M.Value) => M.add v (Cuts.cut ((f n).function x))) _ _ (previous f x) }
+        "=" _ "by" { Cuts.add ((partial n f).function x) ((f n).function x) }
+      }
+    };

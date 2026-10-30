@@ -1,0 +1,27 @@
+\import M.Integral[mu := measure] \as I;
+\import I.Convergence[] \as C;
+\import C.Monotone[] \as Monotone;
+\import C.PointwiseSum[] \as Increasing;
+\import I.Approximation[f := f] \as Approx;
+\import std.Data[].FinSet[] \as Fin;
+\import M.ValueLaws[] \as Values;
+\use std.Logic[].Equality[].sym;
+\definition sequence: C.MeasurableSequence := \into[N.Nat^ -> A -> Real.Real](Approx.value, C.MeasurableSequence) \by { Approx.measurable };
+\module Component(j: N.Nat^);
+\module Stage(k: N.Nat^);
+\definition stage: \forall (k: N.Nat^) -> I.lowerIntegral (Approx.value k) =
+  M.series (\fun (j: N.Nat^) => M.Integral[mu := data.measures j].lowerIntegral (Approx.value k)) :=
+  \fun (k: N.Nat^) => \root.MeasureSeries[A := A].Sum[data := data].Integral[f := f].Stage[k := k].theorem;
+\definition increasing: \forall (j: N.Nat^) -> C.ValueIncreasing (\fun (k: N.Nat^) => M.Integral[mu := data.measures j].lowerIntegral (Approx.value k)) :=
+  \fun (j: N.Nat^) (m, n: N.Nat^) (later: N.Basic[].Prop[].Le m n) => M.Integral[mu := data.measures j].lowerIntegralMono
+    (Approx.value m) (Approx.value n) (\fun (x: A) => Increasing.increasingAll Approx.value Approx.increasing n m later x);
+\definition theorem: I.lowerIntegral f.function = M.series (\fun (j: N.Nat^) => M.Integral[mu := data.measures j].lowerIntegral f.function) := eq_reason_in!{M.Value _
+  "=" _ "by" { Monotone.monotone sequence f.function Approx.pointwiseSup Approx.increasing }
+  "=" _ "by" { congr!{{N.Nat^ -> M.Value} M.Value} C.Sup _ _ (\axiom:funext((\fun (k: N.Nat^) => I.lowerIntegral (Approx.value k)),
+    (\fun (k: N.Nat^) => M.series (\fun (j: N.Nat^) => M.Integral[mu := data.measures j].lowerIntegral (Approx.value k))), stage)) }
+  "=" _ "by" { sym!{M.Value} _ _ (Series.supExchange (\fun (j, k: N.Nat^) => M.Integral[mu := data.measures j].lowerIntegral (Approx.value k)) increasing) }
+  "=" _ "by" { congr!{{N.Nat^ -> M.Value} M.Value} M.series _ _ (\axiom:funext(
+    (\fun (j: N.Nat^) => C.Sup (\fun (k: N.Nat^) => M.Integral[mu := data.measures j].lowerIntegral (Approx.value k))),
+    (\fun (j: N.Nat^) => M.Integral[mu := data.measures j].lowerIntegral f.function),
+    \fun (j: N.Nat^) => sym!{M.Value} _ _ (\root.MeasureSeries[A := A].Sum[data := data].Integral[f := f].Component[j := j].monotone))) }
+};
