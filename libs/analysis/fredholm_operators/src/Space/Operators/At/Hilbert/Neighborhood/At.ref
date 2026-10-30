@@ -1,0 +1,23 @@
+\import \root.Space[V := V, space := space, norm := norm].Operators[W := W, target := target, targetNorm := targetNorm].At[f := f].Hilbert[inner := inner, targetInner := targetInner].Change[g := g] \as Change;
+\import Change.Small[s := s] \as Small;
+\import Bounded.UnitBounds[].Difference[] \as Difference;
+\definition small: Limits.Near[f, g, radius] -> Small.Small :=
+  \fun (near: Limits.Near[f, g, radius]) => Source.Operators[W := V, target := space, norm := norm, targetNorm := norm].Bound[Small.error, R.half] {
+    nonnegative := Estimates.halfNonnegative,
+    estimate := \fun (x: V) => Order.leTrans _ _ _ (bound.estimate (Small.perturbation.apply x))
+      (Order.leTrans _ _ _
+        (Estimates.mulMonotone c _ _ bound.nonnegative
+          (Order.leReplaceLeft _ _ _
+            (congr!{W R.Real} targetNorm.realNorm.norm _ _ (Difference.formula f g x))
+            ((Difference.bound f g radius (Ordered.leOfLt _ _ positive) near).estimate x)))
+        (Order.leReplaceLeft _ _ _ (Laws.fieldMulAssoc c radius (norm.realNorm.norm x))
+          (Order.leReplace _ _ _ _ (Laws.fieldMulComm (norm.realNorm.norm x) (R.mul c radius)) (Laws.fieldMulComm (norm.realNorm.norm x) R.half)
+            (Estimates.mulMonotone (norm.realNorm.norm x) _ _ (norm.realNorm.nonnegative x) smallCoefficient)))),
+  };
+\import \root.Space[V := V, space := space, norm := norm].Operators[W := W, target := target, targetNorm := targetNorm].At[f := g].Hilbert[inner := inner, targetInner := targetInner] \as Other;
+\definition preservesIndex: \forall (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete)(original: Fredholm)(p: FiniteParametrix s) ->
+  Limits.Near[f, g, radius] -> Change.PreservesIndex original :=
+  \fun (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete)(original: Fredholm)(p: FiniteParametrix s)(near: Limits.Near[f, g, radius]) => Logic.And[_, _]::#
+    (Small.At[complete := complete, small := small near].fredholm targetComplete p)
+    (\fun (other: Other.Fredholm) => Change.equalFromDefects complete targetComplete s (Small.At[complete := complete, small := small near].parametrix)
+      p (Small.At[complete := complete, small := small near].finite p) original other (Small.At[complete := complete, small := small near].defectEqual p));

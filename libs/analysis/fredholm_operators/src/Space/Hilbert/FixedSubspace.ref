@@ -1,0 +1,20 @@
+\import Subspaces.In[S := S] \as Restricted;
+\import Source.Operators[W := V, target := space, norm := norm, targetNorm := norm] \as End;
+\import \root.Space[V := Restricted.Point, space := Algebra.Subspace[V := V, space := space].Of[subspace := S].induced, norm := Restricted.restrictedNorm] \as Subspace;
+\import Algebra.Subspace[V := V, space := space].Of[subspace := S] \as Points;
+\import complex_hilbert.Space[V := Restricted.Point, space := Points.induced] \as Small;
+\import Small.Operators[W := V, target := space, norm := Restricted.restrictedNorm, targetNorm := norm] \as Inclusion;
+\definition inclusion: Inclusion.Map := \into[Algebra.Linear[V := Restricted.Point, W := V, source := Points.induced, target := space].Map](Points.inclusion, Inclusion.Map) \by {
+  Logic.existsIntro[R.Real, { c: R.Real \where Inclusion.Bound[Points.inclusion, c] }] R.one (Inclusion.Bound[Points.inclusion, R.one] {
+    nonnegative := Laws.oneNonnegative,
+    estimate := \fun (x: Restricted.Point) => Order.leReplaceRight _ (norm.realNorm.norm x) (R.mul R.one (norm.realNorm.norm x))
+      (sym!{R.Real} _ _ (Laws.fieldMulOneLeft _)) (Order.leRefl _),
+  })
+};
+\import Small.Operators[W := Restricted.Point, target := Points.induced, norm := Restricted.restrictedNorm, targetNorm := Restricted.restrictedNorm] \as SmallEnd;
+\import SmallEnd.Compact[].Identity[inner := Restricted.restrictedInner] \as Identity;
+\definition FiniteDimensional: \Prop := Identity.FiniteDimensional;
+\module At(complete: Hilbert.Complete);
+\definition finiteDimensional: \forall (complete: Hilbert.Complete)(f: End.Map) -> End.Compact[].Compact f ->
+  (\forall (x: Restricted.Point) -> f.apply x = x) -> FiniteDimensional :=
+  \fun (complete: Hilbert.Complete) => At[complete := complete].finiteDimensional;

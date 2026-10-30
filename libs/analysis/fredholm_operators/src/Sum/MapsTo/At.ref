@@ -1,0 +1,17 @@
+\import \root.Sum[V := V, W := W, source := source, target := target, norm := norm, targetNorm := targetNorm, inner := inner, targetInner := targetInner].At[complete := complete, targetComplete := targetComplete] \as SourceSum;
+\import TargetSum.At[complete := domainComplete, targetComplete := codomainComplete] \as TargetAt;
+\import \root.Space[V := Product.Carrier, space := Product.space, norm := productNorm].Operators[W := V, target := source, targetNorm := norm].After[U := U, codomain := domain, codomainNorm := domainNorm] \as ProjectFirst;
+\import \root.Space[V := Product.Carrier, space := Product.space, norm := productNorm].Operators[W := W, target := target, targetNorm := targetNorm].After[U := Z, codomain := codomain, codomainNorm := codomainNorm] \as ProjectSecond;
+\import \root.Space[V := Product.Carrier, space := Product.space, norm := productNorm].Operators[W := U, target := domain, targetNorm := domainNorm].After[U := TargetSum.Carrier, codomain := TargetSum.productSpace, codomainNorm := TargetSum.productNorm] \as IncludeFirst;
+\import \root.Space[V := Product.Carrier, space := Product.space, norm := productNorm].Operators[W := Z, target := codomain, targetNorm := codomainNorm].After[U := TargetSum.Carrier, codomain := TargetSum.productSpace, codomainNorm := TargetSum.productNorm] \as IncludeSecond;
+\definition sum: Operators.Map := Operators.plus (IncludeFirst.compose (ProjectFirst.compose SourceSum.first f) TargetAt.left) (IncludeSecond.compose (ProjectSecond.compose SourceSum.second g) TargetAt.right);
+\import Algebra.Laws[V := U, space := domain] \as DomainLaws;
+\import Algebra.Laws[V := Z, space := codomain] \as CodomainLaws;
+\definition equation: \forall (x: Product.Carrier) -> sum.apply x = linear.apply x :=
+  \fun (x: Product.Carrier) => TargetPairs.ext _ _ (DomainLaws.zeroRight (f.apply (Product.first x))) (CodomainLaws.zeroLeft (g.apply (Product.second x)));
+\import Total.Operators[W := TargetSum.Carrier, target := TargetSum.productSpace, norm := productNorm, targetNorm := TargetSum.productNorm] \as Bounded;
+\definition map: Operators.Map := \into[Linear.Map](linear, Operators.Map) \by {
+  \idelim sum = linear \with h: Linear.Map => Bounded.Bounded h \by {
+    base: Bounded.bounded sum, equality: Linear.ext sum linear (\axiom:funext(sum.apply, linear.apply, equation))
+  }
+};

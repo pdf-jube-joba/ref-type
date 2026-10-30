@@ -1,0 +1,44 @@
+\import Target.Operators[W := V, target := space, norm := targetNorm, targetNorm := norm] \as ReverseBounded;
+\import ReverseBounded.UnitBounds[] \as Bounds;
+\import TargetNormed.Operators[W := V, target := Source.realSpace, norm := targetNorm.realNorm, targetNorm := norm.realNorm] \as RealReverse;
+\import RealOperators.OpenMapping[f := Bounded.asReal f] \as OpenMapping;
+\import R.Estimates[] \as Estimates;
+\import Estimates.Product[] \as Product;
+\import dedekind_reals.DedekindReal[].Order[] \as Ordered;
+\import std.Logic[].Classical[] \as Classical;
+\definition LeftInverse: \Prop := \forall (x: V) -> s.apply (f.apply x) = x;
+\definition RightInverse: \Prop := \forall (y: W) -> f.apply (s.apply y) = y;
+\definition bounded: SourceNormed.IsBanach norm.realNorm -> TargetNormed.IsBanach targetNorm.realNorm -> LeftInverse -> RightInverse -> ReverseBounded.Bounded s := \block {
+  \fun (sourceComplete: SourceNormed.IsBanach norm.realNorm)(targetComplete: TargetNormed.IsBanach targetNorm.realNorm)(left: LeftInverse)(right: RightInverse) \then
+  \let onto: OpenMapping.Surjective := \fun (y: W) => Logic.existsIntro[V, { x: V \where f.apply x = y }] (s.apply y) (right y) \then
+  \takefrom epsilon: \Cast[R.Real] ({ epsilon: R.Real \where OpenMapping.UnitLifting[epsilon] }) \by OpenMapping.unitLifting sourceComplete targetComplete onto \then
+  \let lifting: OpenMapping.UnitLifting[epsilon] := \bysub(R.Real, { epsilon: R.Real \where OpenMapping.UnitLifting[epsilon] }, epsilon) \then
+  \let a: R.Real := R.mul R.half epsilon \then
+  \let ap: Order.Lt R.zero a := Estimates.halfOfPositive epsilon lifting.positive \then
+  \let an: Order.Le R.zero a := Ordered.leOfLt _ _ ap \then
+  \let c: R.Real := Laws.fieldInv a \then
+  \let cn: Order.Le R.zero c := Ordered.leOfLt _ _ (Product.invPositive a ap) \then
+  \let inverse: R.mul c a = R.one := Laws.fieldInverseNonzero a (R.Inverse[].positiveNonzero a ap) \then
+  \return Logic.existsIntro[R.Real, { c: R.Real \where ReverseBounded.Bound[s, c] }] c (Bounds.boundFromUnit s c cn (\block {
+    \fun (y: W)(inside: Order.Le (targetNorm.realNorm.norm y) R.one) \then
+    \let z: W := Target.realSpace.smul a y \then
+    \let small: Order.Lt (targetNorm.realNorm.norm z) epsilon := Order.leLtTrans _ a epsilon
+      (Order.leReplaceRight _ (R.mul a R.one) a (R.Algebra[].mulOneRight a)
+        (Order.leReplaceLeft _ _ _ (sym!{R.Real} _ _ (TargetNormed.scaleNorm targetNorm.realNorm a y an)) (Estimates.mulMonotone a _ R.one an inside)))
+      (Estimates.halfStrict epsilon lifting.positive) \then
+    \takefrom x: \Cast[V] ({ x: V \where OpenMapping.Inverse[x, z] }) \by lifting.inverse z small \then
+    \let lift: OpenMapping.Inverse[x, z] := \bysub(V, { x: V \where OpenMapping.Inverse[x, z] }, x) \then
+    \let equation: s.apply z = x := trans!{V} _ _ _ (congr!{W V} s.apply _ _ (sym!{W} _ _ lift.equation)) (left x) \then
+    \let normScaled: norm.realNorm.norm x = R.mul a (norm.realNorm.norm (s.apply y)) := eq_reason_in!{R.Real _
+      "=" _ "by" { congr!{V R.Real} norm.realNorm.norm _ _ (sym!{V} _ _ equation) }
+      "=" _ "by" { congr!{V R.Real} norm.realNorm.norm _ _ (s.preservesScale (C.Def[].ofReal a) y) }
+      "=" _ "by" { SourceNormed.scaleNorm norm.realNorm a (s.apply y) an }
+    } \then
+    \let smallInverse: Order.Le (R.mul c (R.mul a (norm.realNorm.norm (s.apply y)))) (R.mul c R.one) :=
+      Estimates.mulMonotone c _ R.one cn (Order.leReplaceLeft _ _ _ normScaled (Ordered.leOfLt _ _ lift.bound)) \then
+    \let cancel: R.mul c (R.mul a (norm.realNorm.norm (s.apply y))) = norm.realNorm.norm (s.apply y) :=
+      trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (Laws.fieldMulAssoc c a _))
+        (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (r: R.Real) => R.mul r (norm.realNorm.norm (s.apply y))) _ _ inverse) (Laws.fieldMulOneLeft _)) \then
+    \return Order.leReplace _ _ _ _ cancel (R.Algebra[].mulOneRight c) smallInverse
+  }))
+};

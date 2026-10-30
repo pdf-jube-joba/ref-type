@@ -1,0 +1,36 @@
+\import TargetEnd.After[U := W, codomain := target, codomainNorm := targetNorm] \as EndComposition;
+\import \parent.\parent.\parent.After[U := W, codomain := target, codomainNorm := targetNorm] \as Compose;
+\definition reduced: Map := Compose.compose f (rightDefect s);
+\import \parent.\parent.\parent.At[f := reduced].FiniteRank[targetInner := targetInner] \as Reduced;
+\import complex_hilbert.FiniteRank[V := W, W := W, source := target, target := target].Before[U := V, domain := space] \as FiniteBefore;
+\definition finiteReduced: complex_hilbert.FiniteRank[V := V, W := W, source := space, target := target].FiniteRank reduced := FiniteBefore.finite (rightDefect s) f finite;
+\import Algebra.Subspace[V := W, space := target].Image[U := V, source := space] \as SubspaceImages;
+\definition reducedImage: TargetSubspaces.Subspace := SubspaceImages.image reduced;
+\definition fromReduced: \forall (y: W) -> TargetSubspaces.Member reducedImage ((rightDefect s).apply y) -> TargetSubspaces.Member image y := \block {
+  \fun (y: W)(member: TargetSubspaces.Member reducedImage ((rightDefect s).apply y)) \then
+  \takefrom x: \Cast[V] ({ x: V \where reduced.apply x = (rightDefect s).apply y }) \by member \then
+  \let equation: reduced.apply x = (rightDefect s).apply y := \bysub(V, { x: V \where reduced.apply x = (rightDefect s).apply y }, x) \then
+  \let z: V := space.add (s.apply y) (SourceNormed.sub x (s.apply (f.apply x))) \then
+  \let equal: f.apply z = y := eq_reason_in!{W _
+    "=" _ "by" { f.preservesAdd (s.apply y) (SourceNormed.sub x (s.apply (f.apply x))) }
+    "=" _ "by" { congr!{W W} (target.add (f.apply (s.apply y))) _ _ (RealOperators.preservesSub (Bounded.realMap f) x (s.apply (f.apply x))) }
+    "=" _ "by" { congr!{W W} (target.add (f.apply (s.apply y))) _ _ equation }
+    "=" _ "by" { TargetVectors.comm (f.apply (s.apply y)) ((rightDefect s).apply y) }
+    "=" _ "by" { TargetNormed.subAddCancel y (f.apply (s.apply y)) }
+  } \then
+  \return Logic.existsIntro[V, { x: V \where f.apply x = y }] z equal
+};
+\definition intoReduced: \forall (y: W) -> TargetSubspaces.Member image y -> TargetSubspaces.Member reducedImage ((rightDefect s).apply y) := \block {
+  \fun (y: W)(member: TargetSubspaces.Member image y) \then
+  \takefrom x: \Cast[V] ({ x: V \where f.apply x = y }) \by member \then
+  \return Logic.existsIntro[V, { x: V \where reduced.apply x = (rightDefect s).apply y }] x
+    (congr!{W W} (rightDefect s).apply _ _ (\bysub(V, { x: V \where f.apply x = y }, x)))
+};
+\import TargetNormed.Operators[W := W, target := Target.realSpace, norm := targetNorm.realNorm, targetNorm := targetNorm.realNorm] \as RealEnd;
+\import Target.Operators[W := W, target := target, norm := targetNorm, targetNorm := targetNorm] \as EndBounded;
+\definition closedRange: TargetHilbert.Complete -> ClosedRange :=
+  \fun (complete: TargetHilbert.Complete)(sequence: N.Nat^ -> W)(y: W)(members: \forall (n: N.Nat^) -> TargetSubspaces.Member image (sequence n))
+    (converges: TargetSequences.Converges (TargetNormed.metric targetNorm.realNorm) sequence y) => fromReduced y
+      (Reduced.closedRange complete finiteReduced (\fun (n: N.Nat^) => (rightDefect s).apply (sequence n)) ((rightDefect s).apply y)
+        (\fun (n: N.Nat^) => intoReduced (sequence n) (members n))
+        (RealEnd.mapsConvergent (EndBounded.asReal (rightDefect s)) sequence y converges));

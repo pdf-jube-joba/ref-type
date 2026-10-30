@@ -1,0 +1,61 @@
+\import TargetSum.MapsTo[U := V, Z := U, domain := space, codomain := domain, domainNorm := norm, codomainNorm := domainNorm,
+  domainInner := inner, codomainInner := domainInner, f := s, g := t].At[complete := targetComplete, targetComplete := codomainComplete, domainComplete := complete, codomainComplete := domainComplete] \as ReverseDiagonal;
+\import \root.Space[V := TargetSum.Carrier, space := TargetSum.productSpace, norm := TargetSum.productNorm].Operators[W := SourceSum.Carrier, target := SourceSum.productSpace, targetNorm := SourceSum.productNorm] \as SumReverse;
+\definition parametrix: SumReverse.Map := ReverseDiagonal.map;
+\import SourceProduct.Block[f := leftDefect s, g := OtherOperator.leftDefect t] \as LeftBlock;
+\import TargetProduct.Block[f := rightDefect s, g := OtherOperator.rightDefect t] \as RightBlock;
+\import \root.Space[V := SourceSum.Carrier, space := SourceSum.productSpace, norm := SourceSum.productNorm].Operators[W := SourceSum.Carrier, target := SourceSum.productSpace, targetNorm := SourceSum.productNorm].Finite[] \as SourceFinite;
+\import \root.Space[V := TargetSum.Carrier, space := TargetSum.productSpace, norm := TargetSum.productNorm].Operators[W := TargetSum.Carrier, target := TargetSum.productSpace, targetNorm := TargetSum.productNorm].Finite[] \as TargetFinite;
+\definition finite: FiniteParametrix s -> Other.FiniteParametrix t -> Sum.FiniteParametrix parametrix :=
+  \fun (p: FiniteParametrix s)(q: Other.FiniteParametrix t) => Logic.And[_, _]::#
+    (SourceFinite.equal LeftBlock.map (SumOperator.leftDefect parametrix) (\fun (x: SourceSum.Carrier) => \refl(LeftBlock.map.apply x)) (LeftBlock.finite p.left q.left))
+    (TargetFinite.equal RightBlock.map (SumOperator.rightDefect parametrix) (\fun (y: TargetSum.Carrier) => \refl(RightBlock.map.apply y)) (RightBlock.finite p.right q.right));
+\definition fredholm: FiniteParametrix s -> Other.FiniteParametrix t -> Sum.Fredholm :=
+  \fun (p: FiniteParametrix s)(q: Other.FiniteParametrix t) => Sum.Defect[s := parametrix].fredholm SourceProduct.hilbert TargetProduct.hilbert (finite p q);
+\import \root.Space[V := SourceSum.Carrier, space := SourceSum.productSpace, norm := SourceSum.productNorm].Hilbert[inner := SourceSum.productInner].Trace[] \as SumSourceTrace;
+\import \root.Space[V := TargetSum.Carrier, space := TargetSum.productSpace, norm := TargetSum.productNorm].Hilbert[inner := TargetSum.productInner].Trace[] \as SumTargetTrace;
+\import \root.Space[V := U, space := domain, norm := domainNorm].Hilbert[inner := domainInner].Trace[] \as OtherSourceTrace;
+\import \root.Space[V := Z, space := codomain, norm := codomainNorm].Hilbert[inner := codomainInner].Trace[] \as OtherTargetTrace;
+\definition leftTrace: \forall (p: FiniteParametrix s)(q: Other.FiniteParametrix t) -> SumSourceTrace.trace (SumOperator.leftDefect parametrix) (finite p q).left =
+  C.Def[].add (SourceTrace.trace (leftDefect s) p.left) (OtherSourceTrace.trace (OtherOperator.leftDefect t) q.left) :=
+  \fun (p: FiniteParametrix s)(q: Other.FiniteParametrix t) => trans!{C.Complex} _ _ _
+    (SumSourceTrace.equal (SumOperator.leftDefect parametrix) LeftBlock.map (finite p q).left (LeftBlock.finite p.left q.left) (\fun (x: SourceSum.Carrier) => \refl(LeftBlock.map.apply x)))
+    (LeftBlock.traceAdd p.left q.left);
+\definition rightTrace: \forall (p: FiniteParametrix s)(q: Other.FiniteParametrix t) -> SumTargetTrace.trace (SumOperator.rightDefect parametrix) (finite p q).right =
+  C.Def[].add (TargetTrace.trace (rightDefect s) p.right) (OtherTargetTrace.trace (OtherOperator.rightDefect t) q.right) :=
+  \fun (p: FiniteParametrix s)(q: Other.FiniteParametrix t) => trans!{C.Complex} _ _ _
+    (SumTargetTrace.equal (SumOperator.rightDefect parametrix) RightBlock.map (finite p q).right (RightBlock.finite p.right q.right) (\fun (y: TargetSum.Carrier) => \refl(RightBlock.map.apply y)))
+    (RightBlock.traceAdd p.right q.right);
+\definition defectAdd: \forall (p: FiniteParametrix s)(q: Other.FiniteParametrix t) -> Sum.defectIndex parametrix (finite p q) = C.Def[].add (defectIndex s p) (Other.defectIndex t q) :=
+  \fun (p: FiniteParametrix s)(q: Other.FiniteParametrix t) => trans!{C.Complex} _ _ _
+    (congr!{C.Complex C.Complex C.Complex} C.Def[].sub _ _ _ _ (leftTrace p q) (rightTrace p q)) (\root.Scalars[].plusDifference _ _ _ _);
+\import OtherOperator.Index[] \as OtherIndex;
+\import SumOperator.Index[] \as SumIndex;
+\import std.Arithmetic[].Int[] \as Integers;
+\import std.Data[].Nat[].Basic[].Def[] \as Nat;
+\import \root.FiniteSpace[V := OtherOperator.KernelSpace, space := Algebra.Subspace[V := U, space := domain].Of[subspace := OtherOperator.kernel].induced] \as OtherKernel;
+\import \root.FiniteSpace[V := OtherOperator.CokernelSpace, space := Algebra.Quotient[V := Z, space := codomain].Of[S := OtherOperator.image].vectorSpace] \as OtherCokernel;
+\definition indexAdd: \forall (p: FiniteParametrix s)(q: Other.FiniteParametrix t)(first: Fredholm)(second: Other.Fredholm)(total: Sum.Fredholm) ->
+  Sum.index total = Integers.addInteger (index first) (Other.index second) := \block {
+  \fun (p: FiniteParametrix s)(q: Other.FiniteParametrix t)(first: Fredholm)(second: Other.Fredholm)(total: Sum.Fredholm) \then
+  \takefrom d: Index.Decomposition \by Index.decompositionExists first.right.left first.right.right \then
+  \takefrom e: OtherIndex.Decomposition \by OtherIndex.decompositionExists second.right.left second.right.right \then
+  \takefrom h: SumIndex.Decomposition \by SumIndex.decompositionExists total.right.left total.right.right \then
+  \let a: N.Nat^ := KernelDimension.dimension d.kernelFrame \then
+  \let b: N.Nat^ := CokernelDimension.dimension d.cokernelFrame \then
+  \let c: N.Nat^ := OtherKernel.dimension e.kernelFrame \then
+  \let d0: N.Nat^ := OtherCokernel.dimension e.cokernelFrame \then
+  \return eq_reason_in!{Integers.Integer _
+    "=" _ "by" { Sum.indexFromDecomposition total h }
+    "=" _ "by" { \root.Scalars[].integerEqual _ _ (Nat.add a c) (Nat.add b d0) (eq_reason_in!{C.Complex _
+      "=" _ "by" { sym!{C.Complex} _ _ (Sum.Defect[s := parametrix].calculate SourceProduct.hilbert TargetProduct.hilbert (finite p q) total h) }
+      "=" _ "by" { defectAdd p q }
+      "=" _ "by" { congr!{C.Complex C.Complex C.Complex} C.Def[].add _ _ _ _
+        (\parent.\parent.\parent.Defect[s := s].calculate complete targetComplete p first d) (Other.Defect[s := t].calculate domainComplete codomainComplete q second e) }
+      "=" _ "by" { sym!{C.Complex} _ _ (\root.Scalars[].plusDifference _ _ _ _) }
+      "=" _ "by" { congr!{C.Complex C.Complex C.Complex} C.Def[].sub _ _ _ _ (sym!{C.Complex} _ _ (\root.Scalars[].naturalAdd a c)) (sym!{C.Complex} _ _ (\root.Scalars[].naturalAdd b d0)) }
+    }) }
+    "=" _ "by" { sym!{Integers.Integer} _ _ (\root.Scalars[].integerAddition a b c d0) }
+    "=" _ "by" { congr!{Integers.Integer Integers.Integer Integers.Integer} Integers.addInteger _ _ _ _ (sym!{Integers.Integer} _ _ (indexFromDecomposition first d)) (sym!{Integers.Integer} _ _ (Other.indexFromDecomposition second e)) }
+  }
+};

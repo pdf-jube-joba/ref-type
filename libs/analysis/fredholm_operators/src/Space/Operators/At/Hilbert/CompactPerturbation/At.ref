@@ -1,0 +1,25 @@
+\definition middle: Map := difference f a;
+\import \root.Space[V := V, space := space, norm := norm].Operators[W := W, target := target, targetNorm := targetNorm].At[f := middle].Hilbert[inner := inner, targetInner := targetInner] \as Middle;
+\import \root.Space[V := V, space := space, norm := norm].Operators[W := W, target := target, targetNorm := targetNorm].At[f := f].Hilbert[inner := inner, targetInner := targetInner].Change[g := middle] \as MiddleChange;
+\import \root.Space[V := V, space := space, norm := norm].Operators[W := W, target := target, targetNorm := targetNorm].Finite[] \as Finite;
+\import \root.Space[V := W, space := target, norm := targetNorm] \as TargetSpace;
+\definition finiteDifference: Rank.FiniteRank a -> Rank.FiniteRank (difference f middle) :=
+  \fun (finite: Rank.FiniteRank a) => Finite.equal a (difference f middle) (\fun (x: V) => sym!{W} _ _ (TargetSpace.subtractResidual (f.apply x) (a.apply x))) finite;
+\definition nearOther: \forall (radius: R.Real) -> Limits.Near[perturbation, a, radius] -> Limits.Near[g, middle, radius] :=
+  \fun (radius: R.Real)(near: Limits.Near[perturbation, a, radius])(x: V)(inside: \In[V] Bounded.Compact[].UnitBall x) =>
+    Order.ltReplaceLeft _ _ radius (sym!{R.Real} _ _ (eq_reason_in!{R.Real _
+      "=" _ "by" { (TargetNormed.metric targetNorm.realNorm).symmetric (g.apply x) (middle.apply x) }
+      "=" _ "by" { congr!{W R.Real} targetNorm.realNorm.norm _ _ (TargetSpace.differenceSwap (f.apply x) (a.apply x) (g.apply x)) }
+    })) (near x inside);
+\definition indexEqual: \forall (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete)(original: Fredholm)(other: Other.Fredholm)(radius: R.Real) ->
+  Other.IndexNeighborhood[other, radius] -> Rank.FiniteRank a -> Limits.Near[perturbation, a, radius] -> index original = Other.index other := \block {
+  \fun (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete)(original: Fredholm)(other: Other.Fredholm)(radius: R.Real)
+    (neighborhood: Other.IndexNeighborhood[other, radius])(finite: Rank.FiniteRank a)(near: Limits.Near[perturbation, a, radius]) \then
+  \let s: Reverse.Map := \root.Space[V := V, space := space, norm := norm].Operators[W := W, target := target, targetNorm := targetNorm].At[f := f].Hilbert[inner := inner, targetInner := targetInner].FromFredholm[complete := complete, targetComplete := targetComplete, fredholm := original].parametrix \then
+  \let p: FiniteParametrix s := canonicalFinite complete targetComplete original \then
+  \let middleFinite: Middle.FiniteParametrix s := MiddleChange.Finite[s := s].finite p (finiteDifference finite) \then
+  \let middleFredholm: Middle.Fredholm := Middle.Defect[s := s].fredholm complete targetComplete middleFinite \then
+  \return trans!{std.Arithmetic[].Int[].Integer} _ _ _
+    (MiddleChange.Finite[s := s].indexEqual complete targetComplete p (finiteDifference finite) original)
+    (sym!{std.Arithmetic[].Int[].Integer} _ _ ((neighborhood.right middle (nearOther radius near)).right middleFredholm))
+};

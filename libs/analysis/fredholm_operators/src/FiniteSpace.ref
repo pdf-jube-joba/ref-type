@@ -1,0 +1,46 @@
+\import complex.Complex[] \as C;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing C.Complex C.Algebra[].field] \as Algebra;
+\import Algebra.Linear[V := V, W := V, source := space, target := space] \as End;
+\import complex_hilbert.FiniteRank[V := V, W := V, source := space, target := space] \as Finite;
+\definition identity: End.Map := End.Map {
+  apply := \fun (x: V) => x,
+  preservesAdd := \fun (x, y: V) => \refl(space.add x y),
+  preservesScale := \fun (a: C.Complex)(x: V) => \refl(space.smul a x),
+};
+\definition FiniteDimensional: \Prop := Finite.FiniteRank identity;
+
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as E;
+\use E.congr;
+\use E.sym;
+\use E.trans;
+\use E.eq_reason_in;
+\structure Frame: \Set := {
+  size: N.Nat^,
+  basis: Algebra.FiniteBasis V space size,
+};
+\definition dimension[frame: Frame]: N.Nat^ := Algebra.Finite[V := V, I := Fin.Fin frame.size, space := space].dimension frame.basis;
+\module Comparison(first, second: Frame);
+\definition dimensionIndependent: \forall (first, second: Frame) -> dimension first = dimension second :=
+  \fun (first, second: Frame) => Comparison[first := first, second := second].equal;
+\module FromFactor(n: N.Nat^, factor: Finite.Through[n := n].Factor identity);
+\definition frameExists: FiniteDimensional -> \exists Frame := \block {
+  \fun (finite: FiniteDimensional) \then
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \exists Finite.Through[n := n].Factor identity }) \by finite \then
+  \takefrom factor: Finite.Through[n := n].Factor identity \by \bysub(N.Nat^, { n: N.Nat^ \where \exists Finite.Through[n := n].Factor identity }, n) \then
+  \return FromFactor[n := n, factor := factor].exists
+};
+
+\module Through(U, W: \Set, domain: Algebra.VectorSpace U, codomain: Algebra.VectorSpace W,
+  into: Algebra.Linear[V := U, W := V, source := domain, target := space].Map,
+  out: Algebra.Linear[V := V, W := W, source := space, target := codomain].Map);
+
+\module Subspace(S: Algebra.Subspace[V := V, space := space].Subspace);
+
+\module Isomorphic(W: \Set, target: Algebra.VectorSpace W, iso: Algebra.Isomorphism[V := V, W := W, source := space, target := target].Isomorphism);
+
+\module Based(frame: Frame);
+
+\module Zero;

@@ -1,0 +1,24 @@
+\import \root.Space[V := W, space := target, norm := targetNorm].Operators[W := U, target := codomain, targetNorm := codomainNorm] \as Next;
+\import \root.Space[V := V, space := space, norm := norm].Operators[W := U, target := codomain, targetNorm := codomainNorm] \as Result;
+\import CompactOperators.After[U := U, codomain := codomain, codomainNorm := codomainNorm] \as Composition;
+\import complex_hilbert.Space[V := W, space := target].Operators[W := U, target := codomain, norm := targetNorm, targetNorm := codomainNorm].Compact[].Before[U := V, domain := space, domainNorm := norm] \as Before;
+\definition compose[f: Map][g: Next.Map]: Result.Map := Composition.compose f g;
+\definition compactAfter: \forall (f: Map)(g: Next.Map) -> Compact f -> Result.Compact (compose f g) := Composition.compact;
+\definition compactBefore: \forall (f: Map)(g: Next.Map) -> Next.Compact g -> Result.Compact (compose f g) :=
+  \fun (f: Map)(g: Next.Map)(compact: Next.Compact g) => Before.compact g f compact;
+
+\import \parent.Ideal[] \as Ideal;
+\import Next.Ideal[] \as NextIdeal;
+\import Result.Ideal[] \as ResultIdeal;
+\import Algebra.Linear[V := W, W := U, source := target, target := codomain].Operations[] \as NextOperations;
+\definition equivalentAfter: \forall (f, g: Map)(h: Next.Map) -> Ideal.Equivalent[f, g] -> ResultIdeal.Equivalent[compose f h, compose g h] :=
+  \fun (f, g: Map)(h: Next.Map)(equivalent: Ideal.Equivalent[f, g]) =>
+    Result.compactEqual (compose (difference f g) h) (Result.difference (compose f h) (compose g h))
+      (\fun (x: V) => trans!{U} _ _ _ (h.preservesAdd (f.apply x) (target.neg (g.apply x)))
+        (congr!{U U} (codomain.add (h.apply (f.apply x))) _ _ (NextOperations.preservesNeg h (g.apply x))))
+      (compactAfter (difference f g) h equivalent);
+\definition equivalentBefore: \forall (f: Map)(g, h: Next.Map) -> NextIdeal.Equivalent[g, h] -> ResultIdeal.Equivalent[compose f g, compose f h] :=
+  \fun (f: Map)(g, h: Next.Map)(equivalent: NextIdeal.Equivalent[g, h]) =>
+    Result.compactEqual (compose f (Next.difference g h)) (Result.difference (compose f g) (compose f h))
+      (\fun (x: V) => \refl(codomain.add (g.apply (f.apply x)) (codomain.neg (h.apply (f.apply x)))))
+      (compactBefore f (Next.difference g h) equivalent);

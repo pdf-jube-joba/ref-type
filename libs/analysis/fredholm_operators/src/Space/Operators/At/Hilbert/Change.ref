@@ -1,0 +1,31 @@
+\import \root.Space[V := V, space := space, norm := norm].Operators[W := W, target := target, targetNorm := targetNorm].At[f := g] \as OtherOperator;
+\import OtherOperator.Hilbert[inner := inner, targetInner := targetInner] \as Other;
+\import OtherOperator.Index[] \as OtherIndex;
+\definition equalFromDefects: \forall (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete)
+  (s, t: Reverse.Map)(finite: FiniteParametrix s)(otherFinite: Other.FiniteParametrix t)(fredholm: Fredholm)(otherFredholm: Other.Fredholm) ->
+  defectIndex s finite = Other.defectIndex t otherFinite -> index fredholm = Other.index otherFredholm := \block {
+  \fun (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete)(s, t: Reverse.Map)(finite: FiniteParametrix s)(otherFinite: Other.FiniteParametrix t)
+    (fredholm: Fredholm)(otherFredholm: Other.Fredholm)(equal: defectIndex s finite = Other.defectIndex t otherFinite) \then
+  \takefrom d: Index.Decomposition \by Index.decompositionExists fredholm.right.left fredholm.right.right \then
+  \takefrom e: OtherIndex.Decomposition \by OtherIndex.decompositionExists otherFredholm.right.left otherFredholm.right.right \then
+  \return eq_reason_in!{std.Arithmetic[].Int[].Integer _
+    "=" _ "by" { indexFromDecomposition fredholm d }
+    "=" _ "by" { \root.Scalars[].integerEqual _ _ _ _ (eq_reason_in!{C.Complex _
+      "=" _ "by" { sym!{C.Complex} _ _ (\parent.Defect[s := s].calculate complete targetComplete finite fredholm d) }
+      "=" _ "by" equal
+      "=" _ "by" { Other.Defect[s := t].calculate complete targetComplete otherFinite otherFredholm e }
+    }) }
+    "=" _ "by" { sym!{std.Arithmetic[].Int[].Integer} _ _ (Other.indexFromDecomposition otherFredholm e) }
+  }
+};
+
+\module Finite(s: Reverse.Map);
+\import \root.Space[V := V, space := space, norm := norm].Operators[W := W, target := target, targetNorm := targetNorm].Ideal[] \as Ideal;
+\import \root.Space[V := V, space := space, norm := norm].Operators[W := W, target := target, targetNorm := targetNorm].At[f := f].Perturbation[g := g] \as CompactChange;
+\definition fredholm: \forall (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete) -> Fredholm -> Ideal.Equivalent[f, g] -> Other.Fredholm :=
+  \fun (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete)(fredholm: Fredholm)(equivalent: Ideal.Equivalent[f, g]) =>
+    Other.atkinson complete targetComplete (CompactChange.existsParametrix (parametrixExists complete targetComplete fredholm) equivalent);
+
+\module Small(s: Reverse.Map);
+
+\definition PreservesIndex[original: Fredholm]: \Prop := Logic.And[Other.Fredholm, \forall (other: Other.Fredholm) -> index original = Other.index other];

@@ -1,0 +1,45 @@
+\import Gram.Of[A := spanning, factor := factor] \as Resolution;
+\import Hilbert.FiniteProjection[] \as Projection;
+\import complex_hilbert.FiniteRank[V := V, W := V, source := space, target := space] \as Finite;
+\import std.Data[].Nat[] \as N;
+\definition finite: Finite.FiniteRank Resolution.projection :=
+  Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists Finite.Through[n := n].Factor Resolution.projection }] frame.size
+    (\exact(Finite.Through[n := frame.size].Factor[Resolution.projection] {
+      into := Resolution.coordinates, out := factor.frame, equation := \fun (x: V) => \refl(Resolution.projection.apply x),
+    }, Finite.Through[n := frame.size].Factor Resolution.projection));
+\definition projection: Projection.Projection := Projection.Projection {
+  map := Resolution.projection, finite := finite,
+  idempotent := Resolution.idempotent, symmetric := Resolution.selfAdjoint,
+};
+\definition imageIn: \forall (x: V) -> LinearSubspaces.Member S (projection.map.apply x) :=
+  \fun (x: V) => \idelim spanning.apply (factor.change.backward.apply (Resolution.coordinates.apply x)) = projection.map.apply x
+    \with y: V => LinearSubspaces.Member S y
+    \by { base: \bysub(V, S.carrier, (BasisLaws.synthesis frame.basis).apply (factor.change.backward.apply (Resolution.coordinates.apply x))), equality: Resolution.frameFormula (Resolution.coordinates.apply x) };
+\definition fixes: \forall (x: V) -> LinearSubspaces.Member S x -> projection.map.apply x = x := \block {
+  \fun (x: V)(member: LinearSubspaces.Member S x) \then
+  \let point: Points.Carrier := \into[V](x, S.carrier) \by { member } \then
+  \let coordinate: Algebra.Coordinates[I := Fin.Fin frame.size].Vector := frame.basis.coordinates.apply point \then
+  \let reconstruct: spanning.apply coordinate = x := frame.basis.reconstruction point \then
+  \let fixed: projection.map.apply (spanning.apply coordinate) = spanning.apply coordinate := eq_reason_in!{V _
+    "=" _ "by" { congr!{V V} projection.map.apply _ _ (factor.formula coordinate) }
+    "=" _ "by" { congr!{{Algebra.Coordinates[I := Fin.Fin frame.size].Vector} V} factor.frame.apply _ _ (Resolution.leftInverse (factor.change.forward.apply coordinate)) }
+    "=" _ "by" { sym!{V} _ _ (factor.formula coordinate) }
+  } \then
+  \return \idelim spanning.apply coordinate = x \with y: V => projection.map.apply y = y \by { base: fixed, equality: reconstruct }
+};
+\import Source.Operators[W := V, target := space, norm := norm, targetNorm := norm] \as End;
+\import SourceNormed.Operators[W := V, target := Source.realSpace, norm := norm.realNorm, targetNorm := norm.realNorm] \as RealEnd;
+\import functional_analysis.Metric[Carrier := V] \as Sequences;
+\definition closed: \forall (complete: Hilbert.Complete) -> Subspaces.Closed S := \block {
+  \fun (complete: Hilbert.Complete)(s: N.Nat^ -> V)(x: V)(members: \forall (n: N.Nat^) -> LinearSubspaces.Member S (s n))
+    (converges: Sequences.Converges (SourceNormed.metric norm.realNorm) s x) \then
+  \let mapped: Sequences.Converges (SourceNormed.metric norm.realNorm) (\fun (n: N.Nat^) => projection.map.apply (s n)) (projection.map.apply x) :=
+    RealEnd.mapsConvergent (End.asReal (Projection.operator complete projection)) s x converges \then
+  \let equal: s = (\fun (n: N.Nat^) => projection.map.apply (s n)) := \axiom:funext(s, (\fun (n: N.Nat^) => projection.map.apply (s n)),
+    \fun (n: N.Nat^) => sym!{V} _ _ (fixes (s n) (members n))) \then
+  \let original: Sequences.Converges (SourceNormed.metric norm.realNorm) (\fun (n: N.Nat^) => projection.map.apply (s n)) x :=
+    \idelim s = (\fun (n: N.Nat^) => projection.map.apply (s n)) \with t: (N.Nat^ -> V) => Sequences.Converges (SourceNormed.metric norm.realNorm) t x
+      \by { base: converges, equality: equal } \then
+  \let fixed: projection.map.apply x = x := Sequences.limitUnique (SourceNormed.metric norm.realNorm) (\fun (n: N.Nat^) => projection.map.apply (s n)) (projection.map.apply x) x mapped original \then
+  \return \idelim projection.map.apply x = x \with y: V => LinearSubspaces.Member S y \by { base: imageIn x, equality: fixed }
+};

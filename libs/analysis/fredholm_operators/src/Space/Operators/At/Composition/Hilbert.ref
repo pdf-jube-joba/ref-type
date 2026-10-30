@@ -1,0 +1,24 @@
+\import \root.Space[V := V, space := space, norm := norm].Operators[W := W, target := target, targetNorm := targetNorm].At[f := f].Hilbert[inner := inner, targetInner := targetInner] \as First;
+\import NextOperator.Hilbert[inner := targetInner, targetInner := codomainInner] \as Second;
+\import ResultOperator.Hilbert[inner := inner, targetInner := codomainInner] \as Composite;
+\import Source.Hilbert[norm := norm, inner := inner] \as SourceHilbert;
+\import Target.Hilbert[norm := targetNorm, inner := targetInner] \as MiddleHilbert;
+\import complex_hilbert.Space[V := U, space := codomain].Hilbert[norm := codomainNorm, inner := codomainInner] \as LastHilbert;
+\definition fredholm: \forall (complete: SourceHilbert.Complete)(middleComplete: MiddleHilbert.Complete)(lastComplete: LastHilbert.Complete) ->
+  First.Fredholm -> Second.Fredholm -> Composite.Fredholm := \block {
+  \fun (complete: SourceHilbert.Complete)(middleComplete: MiddleHilbert.Complete)(lastComplete: LastHilbert.Complete)(first: First.Fredholm)(second: Second.Fredholm) \then
+  \takefrom s: \Cast[Reverse.Map] ({ s: Reverse.Map \where Parametrix s }) \by First.parametrixExists complete middleComplete first \then
+  \takefrom t: \Cast[NextReverse.Map] ({ t: NextReverse.Map \where NextOperator.Parametrix t }) \by Second.parametrixExists middleComplete lastComplete second \then
+  \return Composite.fredholmOfParametrix complete lastComplete (Backward.compose t s)
+    (composeParametrix s t (\bysub(Reverse.Map, { s: Reverse.Map \where Parametrix s }, s)) (\bysub(NextReverse.Map, { t: NextReverse.Map \where NextOperator.Parametrix t }, t)))
+};
+\module At(s: Reverse.Map, t: NextReverse.Map);
+\import std.Arithmetic[].Int[] \as Z;
+\definition indexComposition: \forall (complete: SourceHilbert.Complete)(middleComplete: MiddleHilbert.Complete)(lastComplete: LastHilbert.Complete)
+  (first: First.Fredholm)(second: Second.Fredholm) ->
+  Composite.index (fredholm complete middleComplete lastComplete first second) = Z.addInteger (First.index first) (Second.index second) :=
+  \fun (complete: SourceHilbert.Complete)(middleComplete: MiddleHilbert.Complete)(lastComplete: LastHilbert.Complete)(first: First.Fredholm)(second: Second.Fredholm) =>
+    At[s := First.FromFredholm[complete := complete, targetComplete := middleComplete, fredholm := first].parametrix,
+      t := Second.FromFredholm[complete := middleComplete, targetComplete := lastComplete, fredholm := second].parametrix].indexAdd
+      complete middleComplete lastComplete (First.canonicalFinite complete middleComplete first) (Second.canonicalFinite middleComplete lastComplete second)
+      first second (fredholm complete middleComplete lastComplete first second);

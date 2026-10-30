@@ -1,0 +1,48 @@
+\import complex_hilbert.FiniteRank[V := W, W := V, source := target, target := space] \as ReverseRank;
+\import ReverseRank.After[U := W, codomain := target] \as ToTarget;
+\import ReverseRank.Before[U := V, domain := space] \as FromSource;
+\import Algebra.Linear[V := W, W := V, source := target, target := space].Composition[U := V, domain := space] \as SourceCompose;
+\import Algebra.Linear[V := V, W := W, source := space, target := target].Composition[U := W, domain := target] \as TargetCompose;
+\definition difference: Reverse.Map := Reverse.difference t s;
+\import Reverse.Finite[] \as ReverseFinite;
+\import TargetEnd.After[U := V, codomain := space, codomainNorm := norm] \as RightThen;
+\import Reverse.After[U := V, codomain := space, codomainNorm := norm] \as ThenLeft;
+\definition first: Reverse.Map := RightThen.compose (rightDefect s) t;
+\definition second: Reverse.Map := ThenLeft.compose s (leftDefect t);
+\import TargetRank.After[U := V, codomain := space] \as RightFinite;
+\import SourceRank.Before[U := W, domain := target] \as LeftFinite;
+\import TargetNormed.Operators[W := V, target := Source.realSpace, norm := targetNorm.realNorm, targetNorm := norm.realNorm] \as RealReverse;
+\import Target.Operators[W := V, target := space, norm := targetNorm, targetNorm := norm] \as ReverseBounded;
+\definition differenceEquation: \forall (y: W) -> (Reverse.difference first second).apply y = difference.apply y :=
+  \fun (y: W) => trans!{V} _ _ _
+    (congr!{V V} (\fun (z: V) => SourceNormed.sub z (second.apply y)) _ _ (RealReverse.preservesSub (ReverseBounded.realMap t) y (f.apply (s.apply y))))
+    (\root.Space[V := V, space := space, norm := norm].differenceCommonRight (t.apply y) (s.apply y) (t.apply (f.apply (s.apply y))));
+\definition finite: \forall (p: FiniteParametrix s)(q: FiniteParametrix t) -> ReverseRank.FiniteRank difference :=
+  \fun (p: FiniteParametrix s)(q: FiniteParametrix t) => ReverseFinite.equal (Reverse.difference first second) difference differenceEquation
+    (ReverseFinite.finiteDifference first second (RightFinite.finite (rightDefect s) t p.right) (LeftFinite.finite (leftDefect t) s q.left));
+\import SourceTrace.Difference[f := leftDefect s, g := leftDefect t] \as LeftDifference;
+\import TargetTrace.Difference[f := rightDefect s, g := rightDefect t] \as RightDifference;
+\import TargetTrace.Cyclic[W := V, target := space, targetNorm := norm, targetInner := inner, f := difference, g := f] \as Cyclic;
+\definition leftEquation: \forall (x: V) -> LeftDifference.map.apply x = (SourceCompose.compose difference f).apply x :=
+  \fun (x: V) => trans!{V} _ _ _
+    (congr!{V V} (space.add ((leftDefect s).apply x)) _ _ (SourceVectors.minusOneScale ((leftDefect t).apply x)))
+    (\root.Space[V := V, space := space, norm := norm].differenceCommonLeft x (s.apply (f.apply x)) (t.apply (f.apply x)));
+\definition rightEquation: \forall (y: W) -> RightDifference.map.apply y = (TargetCompose.compose f difference).apply y :=
+  \fun (y: W) => trans!{W} _ _ _
+    (trans!{W} _ _ _ (congr!{W W} (target.add ((rightDefect s).apply y)) _ _ (TargetVectors.minusOneScale ((rightDefect t).apply y)))
+      (\root.Space[V := W, space := target, norm := targetNorm].differenceCommonLeft y (f.apply (s.apply y)) (f.apply (t.apply y))))
+    (sym!{W} _ _ (RealOperators.preservesSub (Bounded.realMap f) (t.apply y) (s.apply y)));
+\definition independent: \forall (p: FiniteParametrix s)(q: FiniteParametrix t) -> defectIndex s p = defectIndex t q := \block {
+  \fun (p: FiniteParametrix s)(q: FiniteParametrix t) \then
+  \let equal: C.Def[].sub (SourceTrace.trace (leftDefect s) p.left) (SourceTrace.trace (leftDefect t) q.left) =
+    C.Def[].sub (TargetTrace.trace (rightDefect s) p.right) (TargetTrace.trace (rightDefect t) q.right) := eq_reason_in!{C.Complex _
+      "=" _ "by" { sym!{C.Complex} _ _ (LeftDifference.subtractive p.left q.left) }
+      "=" _ "by" { SourceTrace.equal LeftDifference.map (SourceCompose.compose difference f)
+        (LeftDifference.finite p.left q.left) (FromSource.finite difference f (finite p q)) leftEquation }
+      "=" _ "by" { sym!{C.Complex} _ _ (Cyclic.cyclic (finite p q)) }
+      "=" _ "by" { TargetTrace.equal (TargetCompose.compose f difference) RightDifference.map
+        (ToTarget.finite difference f (finite p q)) (RightDifference.finite p.right q.right) (\fun (y: W) => sym!{W} _ _ (rightEquation y)) }
+      "=" _ "by" { RightDifference.subtractive p.right q.right }
+    } \then
+  \return \root.Scalars[].cross _ _ _ _ equal
+};

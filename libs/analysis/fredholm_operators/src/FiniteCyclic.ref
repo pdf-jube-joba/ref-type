@@ -1,0 +1,45 @@
+\import complex.Complex[] \as C;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing C.Complex C.Algebra[].field] \as Algebra;
+\import std.Data[].FinSet[] \as Fin;
+\import Algebra.Finite[V := V, I := Fin.Fin n, space := source] \as Left;
+\import Algebra.Finite[V := W, I := Fin.Fin m, space := target] \as Right;
+\import Left.Prop[] \as LeftLaws;
+\import Right.Prop[] \as RightLaws;
+\import Algebra.Linear[V := V, W := W, source := source, target := target] \as Forward;
+\import Algebra.Linear[V := W, W := V, source := target, target := source] \as Backward;
+\import Forward.Composition[U := W, domain := target] \as TargetCompose;
+\import Backward.Composition[U := V, domain := source] \as SourceCompose;
+\import Algebra.Sums[I := Fin.Fin n] \as LeftSums;
+\import Algebra.Sums[I := Fin.Fin m] \as RightSums;
+\import LeftSums.Prop[] \as LeftSumLaws;
+\import RightSums.Prop[] \as RightSumLaws;
+\import LeftSums.Prop[].Exchange[J := Fin.Fin m] \as Exchange;
+\import Algebra.Linear[V := V, W := C.Complex, source := source, target := Algebra.scalarSpace].Composition[U := W, domain := target] \as LeftFunctional;
+\import Algebra.Linear[V := W, W := C.Complex, source := target, target := Algebra.scalarSpace].Composition[U := V, domain := source] \as RightFunctional;
+\import std.Logic[].Equality[] \as E;
+\use E.congr;
+\use E.sym;
+\use E.trans;
+\use E.eq_reason_in;
+\definition cyclic: \forall (b: Left.Basis)(c: Right.Basis)(f: Forward.Map)(g: Backward.Map) ->
+  Left.trace b (SourceCompose.compose g f) = Right.trace c (TargetCompose.compose f g) := \block {
+  \fun (b: Left.Basis)(c: Right.Basis)(f: Forward.Map)(g: Backward.Map) \then
+  \let coefficient: Fin.Fin n -> Fin.Fin m -> C.Complex := \fun (i: Fin.Fin n)(j: Fin.Fin m) =>
+    Algebra.mul (Right.coordinates c (f.apply (b.vectors i)) j) (Left.coordinates b (g.apply (c.vectors j)) i) \then
+  \return eq_reason_in!{C.Complex _
+    "=" _ "by" { LeftSumLaws.congruent b.indices
+      (\fun (i: Fin.Fin n) => Left.coordinates b (g.apply (f.apply (b.vectors i))) i)
+      (\fun (i: Fin.Fin n) => RightSums.sum c.indices (coefficient i))
+      (\fun (i: Fin.Fin n) => RightLaws.functionalExpansion c
+        (LeftFunctional.compose (Left.coordinate b i) g) (f.apply (b.vectors i))) }
+    "=" _ "by" { Exchange.exchange b.indices c.indices coefficient }
+    "=" _ "by" { RightSumLaws.congruent c.indices
+      (\fun (j: Fin.Fin m) => LeftSums.sum b.indices (\fun (i: Fin.Fin n) => coefficient i j))
+      (\fun (j: Fin.Fin m) => Right.coordinates c (f.apply (g.apply (c.vectors j))) j)
+      (\fun (j: Fin.Fin m) => trans!{C.Complex} _ _ _
+        (LeftSumLaws.congruent b.indices (\fun (i: Fin.Fin n) => coefficient i j)
+          (\fun (i: Fin.Fin n) => Algebra.mul (Left.coordinates b (g.apply (c.vectors j)) i) (Right.coordinates c (f.apply (b.vectors i)) j))
+          (\fun (i: Fin.Fin n) => Algebra.mulComm (Right.coordinates c (f.apply (b.vectors i)) j) (Left.coordinates b (g.apply (c.vectors j)) i)))
+        (sym!{C.Complex} _ _ (LeftLaws.functionalExpansion b (RightFunctional.compose (Right.coordinate c j) f) (g.apply (c.vectors j))))) }
+  }
+};
