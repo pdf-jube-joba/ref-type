@@ -1,0 +1,46 @@
+\import \root.Sum[V := V, W := W, source := source, target := target, norm := norm, targetNorm := targetNorm, inner := inner, targetInner := targetInner].MapsTo[U := V, Z := W, domain := source, codomain := target,
+  domainNorm := norm, codomainNorm := targetNorm, domainInner := inner, codomainInner := targetInner, f := f, g := g].At[complete := complete, targetComplete := targetComplete, domainComplete := complete, codomainComplete := targetComplete] \as Diagonal;
+\import \root.Space[V := Product.Carrier, space := Product.space, norm := productNorm].Operators[W := Product.Carrier, target := Product.space, targetNorm := productNorm] \as End;
+\import End.Finite[] \as EndFinite;
+\definition map: End.Map := Diagonal.map;
+\import complex_hilbert.FiniteRank[V := V, W := V, source := source, target := source] \as LeftRank;
+\import complex_hilbert.FiniteRank[V := W, W := W, source := target, target := target] \as RightRank;
+\import complex_hilbert.FiniteRank[V := Product.Carrier, W := Product.Carrier, source := Product.space, target := Product.space] \as Rank;
+\import LeftRank.Before[U := Product.Carrier, domain := Product.space] \as BeforeLeft;
+\import RightRank.Before[U := Product.Carrier, domain := Product.space] \as BeforeRight;
+\import complex_hilbert.FiniteRank[V := Product.Carrier, W := V, source := Product.space, target := source].After[U := Product.Carrier, codomain := Product.space] \as AfterLeft;
+\import complex_hilbert.FiniteRank[V := Product.Carrier, W := W, source := Product.space, target := target].After[U := Product.Carrier, codomain := Product.space] \as AfterRight;
+\import \root.Space[V := Product.Carrier, space := Product.space, norm := productNorm].Operators[W := V, target := source, targetNorm := norm].After[U := V, codomain := source, codomainNorm := norm] \as FirstThen;
+\import \root.Space[V := Product.Carrier, space := Product.space, norm := productNorm].Operators[W := W, target := target, targetNorm := targetNorm].After[U := W, codomain := target, codomainNorm := targetNorm] \as SecondThen;
+\import \root.Space[V := Product.Carrier, space := Product.space, norm := productNorm].Operators[W := V, target := source, targetNorm := norm].After[U := Product.Carrier, codomain := Product.space, codomainNorm := productNorm] \as LeftThen;
+\import \root.Space[V := Product.Carrier, space := Product.space, norm := productNorm].Operators[W := W, target := target, targetNorm := targetNorm].After[U := Product.Carrier, codomain := Product.space, codomainNorm := productNorm] \as RightThen;
+\definition leftPart: End.Map := LeftThen.compose (FirstThen.compose first f) left;
+\definition rightPart: End.Map := RightThen.compose (SecondThen.compose second g) right;
+\definition equation: \forall (x: Product.Carrier) -> (End.plus leftPart rightPart).apply x = map.apply x :=
+  \fun (x: Product.Carrier) => Pairs.ext _ _ (LeftLaws.zeroRight (f.apply (Product.first x))) (RightLaws.zeroLeft (g.apply (Product.second x)));
+\definition leftFinite: LeftRank.FiniteRank f -> Rank.FiniteRank leftPart := \fun (finite: LeftRank.FiniteRank f) => AfterLeft.finite (FirstThen.compose first f) left (BeforeLeft.finite f first finite);
+\definition rightFinite: RightRank.FiniteRank g -> Rank.FiniteRank rightPart := \fun (finite: RightRank.FiniteRank g) => AfterRight.finite (SecondThen.compose second g) right (BeforeRight.finite g second finite);
+\definition finite: LeftRank.FiniteRank f -> RightRank.FiniteRank g -> Rank.FiniteRank map :=
+  \fun (ff: LeftRank.FiniteRank f)(gf: RightRank.FiniteRank g) => EndFinite.equal (End.plus leftPart rightPart) map equation
+    (EndFinite.finitePlus leftPart rightPart (leftFinite ff) (rightFinite gf));
+\import \root.Space[V := Product.Carrier, space := Product.space, norm := productNorm].Hilbert[inner := productInner].Trace[] \as Trace;
+\import \root.Space[V := V, space := source, norm := norm].Hilbert[inner := inner].Trace[] \as LeftTrace;
+\import \root.Space[V := W, space := target, norm := targetNorm].Hilbert[inner := targetInner].Trace[] \as RightTrace;
+\import Left.Operators[W := Product.Carrier, target := Product.space, norm := norm, targetNorm := productNorm].Compact[].After[U := V, codomain := source, codomainNorm := norm] \as LeftCycle;
+\import Right.Operators[W := Product.Carrier, target := Product.space, norm := targetNorm, targetNorm := productNorm].Compact[].After[U := W, codomain := target, codomainNorm := targetNorm] \as RightCycle;
+\import complex_hilbert.FiniteRank[V := Product.Carrier, W := V, source := Product.space, target := source].Before[U := V, domain := source] \as LeftBack;
+\import complex_hilbert.FiniteRank[V := Product.Carrier, W := W, source := Product.space, target := target].Before[U := W, domain := target] \as RightBack;
+\definition traceLeft: \forall (ff: LeftRank.FiniteRank f) -> Trace.trace leftPart (leftFinite ff) = LeftTrace.trace f ff :=
+  \fun (ff: LeftRank.FiniteRank f) => trans!{C.Complex} _ _ _
+    (Trace.Cyclic[W := V, target := source, targetNorm := norm, targetInner := inner, f := FirstThen.compose first f, g := left].cyclic (BeforeLeft.finite f first ff))
+    (LeftTrace.equal (LeftCycle.compose left (FirstThen.compose first f)) f (LeftBack.finite (FirstThen.compose first f) left (BeforeLeft.finite f first ff)) ff (\fun (x: V) => \refl(f.apply x)));
+\definition traceRight: \forall (gf: RightRank.FiniteRank g) -> Trace.trace rightPart (rightFinite gf) = RightTrace.trace g gf :=
+  \fun (gf: RightRank.FiniteRank g) => trans!{C.Complex} _ _ _
+    (Trace.Cyclic[W := W, target := target, targetNorm := targetNorm, targetInner := targetInner, f := SecondThen.compose second g, g := right].cyclic (BeforeRight.finite g second gf))
+    (RightTrace.equal (RightCycle.compose right (SecondThen.compose second g)) g (RightBack.finite (SecondThen.compose second g) right (BeforeRight.finite g second gf)) gf (\fun (y: W) => \refl(g.apply y)));
+\definition traceAdd: \forall (ff: LeftRank.FiniteRank f)(gf: RightRank.FiniteRank g) -> Trace.trace map (finite ff gf) = D.add (LeftTrace.trace f ff) (RightTrace.trace g gf) :=
+  \fun (ff: LeftRank.FiniteRank f)(gf: RightRank.FiniteRank g) => eq_reason_in!{C.Complex _
+    "=" _ "by" { Trace.equal map (End.plus leftPart rightPart) (finite ff gf) (EndFinite.finitePlus leftPart rightPart (leftFinite ff) (rightFinite gf)) (\fun (x: Product.Carrier) => sym!{Product.Carrier} _ _ (equation x)) }
+    "=" _ "by" { Trace.Addition[f := leftPart, g := rightPart].additive (leftFinite ff) (rightFinite gf) }
+    "=" _ "by" { congr!{C.Complex C.Complex C.Complex} D.add _ _ _ _ (traceLeft ff) (traceRight gf) }
+  };

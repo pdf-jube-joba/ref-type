@@ -1,12 +1,59 @@
 \import complex_hilbert.Examples[] \as Z;
+\import complex.Complex[] \as C;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as E;
+\use E.sym;
+\use E.trans;
+\use E.congr;
+\import std.Arithmetic[].Int[] \as Integers;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing C.Complex C.Algebra[].field] \as Algebra;
 \import \root.Space[V := Z.Point, space := Z.space, norm := Z.norm].Operators[W := Z.Point, target := Z.space, targetNorm := Z.norm] \as Operators;
 \import Operators.At[f := Z.identity] \as Identity;
 \import Identity.Hilbert[inner := Z.inner, targetInner := Z.inner] \as Fredholm;
 \import complex_hilbert.Space[V := Z.Point, space := Z.space].Operators[W := Z.Point, target := Z.space, norm := Z.norm, targetNorm := Z.norm].Compact[] \as Compact;
 \import functional_analysis.Normed[V := Z.Point, space := complex_hilbert.Space[V := Z.Point, space := Z.space].realSpace] \as Normed;
-\import std.Logic[].Proposition[] \as Logic;
 \definition parametrix: Identity.Parametrix Z.identity := Logic.And[_, _]::#
   (Compact.zeroImage (Identity.leftDefect Z.identity) (\fun (x: Z.Point) => Normed.subSelf x))
   (Compact.zeroImage (Identity.rightDefect Z.identity) (\fun (x: Z.Point) => Normed.subSelf x));
-\definition fredholm: Fredholm.Fredholm := Operators.Hilbert[inner := Z.inner, targetInner := Z.inner].atkinson Z.identity Z.complete Z.complete Z.identity parametrix;
-\definition index: std.Arithmetic[].Int[].Integer := Fredholm.index fredholm;
+\definition fredholm: Fredholm.Fredholm := Fredholm.fredholmOfParametrix Z.complete Z.complete Z.identity parametrix;
+\definition reverseDirection: Identity.HasParametrix := Fredholm.parametrixExists Z.complete Z.complete fredholm;
+\import Identity.Index[] \as Index;
+\import Algebra.Subspace[V := Z.Point, space := Z.space].Of[subspace := Identity.kernel] \as Kernel;
+\import Algebra.Quotient[V := Z.Point, space := Z.space].Of[S := Identity.image] \as Quotient;
+\import \root.FiniteSpace[V := Identity.KernelSpace, space := Kernel.induced] \as K;
+\import \root.FiniteSpace[V := Identity.CokernelSpace, space := Quotient.vectorSpace] \as Q;
+\import Quotient.Universal[U := Quotient.Carrier, target := Quotient.vectorSpace] \as Descent;
+\definition vanishes: Descent.Vanishes Quotient.projection := \fun (x: Z.Point)(member: _) => Quotient.classZero x member;
+\definition quotientTrivial: \forall (q: Quotient.Carrier) -> q = Quotient.vectorSpace.zero := \block {
+  \let identity: (\fun (q: Quotient.Carrier) => q) = (Descent.map Quotient.projection vanishes).apply :=
+    Descent.unique Quotient.projection vanishes (\fun (q: Quotient.Carrier) => q) (\fun (x: Z.Point) => \refl(Quotient.class x)) \then
+  \let zero: (\fun (q: Quotient.Carrier) => Quotient.vectorSpace.zero) = (Descent.map Quotient.projection vanishes).apply :=
+    Descent.unique Quotient.projection vanishes (\fun (q: Quotient.Carrier) => Quotient.vectorSpace.zero)
+      (\fun (x: Z.Point) => sym!{Quotient.Carrier} _ _ (Quotient.classZero x (Logic.existsIntro[Z.Point, { v: Z.Point \where Z.identity.apply v = x }] x (\refl(x))))) \then
+  \return \fun (q: Quotient.Carrier) => congr!{{Quotient.Carrier -> Quotient.Carrier} Quotient.Carrier} (\fun (f: Quotient.Carrier -> Quotient.Carrier) => f q) _ _
+    (trans!{{Quotient.Carrier -> Quotient.Carrier}} _ _ _ identity (sym!{{Quotient.Carrier -> Quotient.Carrier}} _ _ zero))
+};
+\definition decomposition: Index.Decomposition := Index.Decomposition {
+  kernelFrame := K.Zero[].frame (\fun (x: Identity.KernelSpace) => Z.isZero x),
+  cokernelFrame := Q.Zero[].frame quotientTrivial,
+};
+\definition indexZero: Fredholm.index fredholm = Integers.zeroInteger := Fredholm.indexFromDecomposition fredholm decomposition;
+\import Identity.Composition[U := Z.Point, codomain := Z.space, codomainNorm := Z.norm, g := Z.identity].Hilbert[inner := Z.inner, targetInner := Z.inner, codomainInner := Z.inner] \as Composition;
+\definition compositionLaw: _ := Composition.indexComposition Z.complete Z.complete Z.complete fredholm fredholm;
+\import Operators.Ideal[] \as Ideal;
+\definition compactLaw: _ := Fredholm.CompactPerturbation[g := Z.identity].indexInvariant Z.complete Z.complete fredholm (Ideal.reflexive Z.identity);
+\definition neighborhood: _ := Fredholm.indexLocallyConstant Z.complete Z.complete fredholm;
+\import Fredholm.DirectSum[U := Z.Point, Z := Z.Point, domain := Z.space, codomain := Z.space, domainNorm := Z.norm, codomainNorm := Z.norm,
+  domainInner := Z.inner, codomainInner := Z.inner, g := Z.identity].At[complete := Z.complete, targetComplete := Z.complete, domainComplete := Z.complete, codomainComplete := Z.complete] \as DirectSum;
+\definition directSumLaw: _ := DirectSum.indexDirectSum fredholm fredholm;
+\import topology.Topology[Carrier := Z.Point] \as Sets;
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import Operators.Hilbert[inner := Z.inner, targetInner := Z.inner].Family[T := Z.Point, topology := Sets.Discrete, family := \fun (t: Z.Point) => Z.identity].At[t := Z.Point::origin] \as Family;
+\definition normContinuous: Family.NormContinuous := \fun (epsilon: R.Real)(positive: Order.Lt R.zero epsilon) =>
+  Logic.existsIntro[\Pow Z.Point, { U: \Pow Z.Point \where Family.NormControl[epsilon, U] }] Sets.Whole (Logic.And[_, _]::#
+    (Logic.And[_, _]::# (Sets.Discrete.wholeOpen) (\refl(Z.Point::origin)))
+    (\fun (t: Z.Point)(inside: Sets.Member Sets.Whole t)(x: Z.Point)(unit: \In[Z.Point] Compact.UnitBall x) =>
+      Order.ltReplaceLeft R.zero ((Normed.metric Z.norm.realNorm).distance x x) epsilon
+        (sym!{R.Real} _ _ ((Normed.metric Z.norm.realNorm).self x)) positive));
+\definition familyLaw: _ := Family.locallyConstant Z.complete Z.complete fredholm normContinuous;

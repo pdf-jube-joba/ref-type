@@ -1,53 +1,66 @@
 # Fredholm 作用素と指数
 
-A11 は特殊化時の型エラーでブロックされており、完了していない。
-汎用の証明を検査できる範囲と、具体的な作用素への適用の失敗を区別する。
+複素 Hilbert 空間の有界線形作用素について、Atkinson の定理と整数指数の四つの法則を実装する。
+核は線形写像の核、像は実際の線形像、余核は像による商空間である。
+有限次元性は恒等写像が有限個の複素座標を経由して因子分解することで定義し、そこから実際の基底を構成する。
+追加公理は使わず、既存の関数・集合の外延性を利用する。
 
-## 実装した内容
+## 公開 API
+
+以下の `At` は `Space[V, space, norm].Operators[W, target, targetNorm].At[f]`、`H` はその `Hilbert[inner, targetInner]` を表す。
 
 | API | 内容 |
 | --- | --- |
-| `Space.Operators` | 有界複素線形作用素の和・負・差・零・外延性 |
-| `Space.Operators.After` | 合成、コンパクト作用素の左右イデアル性、コンパクト差に関する合成の整合性 |
-| `Space.Operators.Ideal` | コンパクト差による同値関係、コンパクト摂動による同値性 |
-| `Space.Operators.At` | 実際の線形核・像・商としての余核、核の閉性、左右の誤差と parametrix |
-| `At.Perturbation` / `At.Composition` | コンパクト差に関する parametrix の移送と合成 |
-| `FiniteSpace` | 恒等写像の有限階数因子分解から基底を構成し、基底によらない次元を得る |
-| `FiniteSpace.Subspace` / `Through` | 有限次元部分空間、有限次元空間を経由する写像の有限階数性 |
-| `Space.Hilbert.FiniteSubspace` | 有限次元部分空間への射影と閉性 |
-| `Space.Hilbert.FixedSubspace` | コンパクト写像に固定される閉部分空間の有限次元性 |
-| `Space.NearIdentity` / `At.Inverse` | 半縮小写像からの逆写像と有界逆写像定理 |
-| `At.Hilbert` | 閉像と有限次元の核・余核による Fredholm 性、parametrix からの構成と逆方向 |
-| `At.Index` | 核・余核の実際の基底から整数指数を計算し、基底からの独立性を証明する API |
+| `Operators.After` / `Ideal` | コンパクト作用素の左右イデアル性、コンパクト差による同値関係と合成の整合性 |
+| `At.kernel` / `image` / `CokernelSpace` | 実際の核、像、商余核。`kernelClosed` と `ClosedRange` も公開する |
+| `At.Parametrix` / `HasParametrix` | 左右の誤差がコンパクトな逆作用素候補と、その存在 |
+| `H.Fredholm` | 閉像と有限次元の核・余核 |
+| `H.fredholmOfParametrix` / `atkinson` | parametrix から Fredholm 性を導く |
+| `H.parametrixExists` / `FromFredholm` | Fredholm 作用素から有限階数の左右誤差を持つ有界 parametrix を構成する |
+| `At.Index.Decomposition` | 実際の核・商余核の基底を保持する |
+| `At.Index.fromDecomposition` / `independent` | 基底から整数の次元差を計算し、基底からの独立性を示す |
+| `H.index` / `indexFromDecomposition` | Fredholm 性から得る標準の指数と、与えた分解での計算式 |
+| `At.Composition.Hilbert.fredholm` / `indexComposition` | 合成の Fredholm 性と \(\operatorname{ind}(gf)=\operatorname{ind}f+\operatorname{ind}g\) |
+| `H.DirectSum.At.fredholm` / `indexDirectSum` | 構成した Hilbert 直和上の作用素と指数の直和則 |
+| `H.Change.fredholm` / `H.CompactPerturbation.indexInvariant` | コンパクト摂動に対する Fredholm 性と指数の不変性 |
+| `H.indexLocallyConstant` | 正の作用素ノルム近傍を構成し、その中で Fredholm 性と指数が一定になることを示す |
+| `Operators.Hilbert.Family.At.locallyConstant` | 任意の位相空間をパラメータとするノルム連続族の局所定数性 |
+| `FiniteSpace` | 有限次元空間の基底、次元の一意性、部分空間、同型による移送、有限次元空間を経由する写像 |
+| `Sum` / `Sum.MapsTo` | Hilbert 直和の内積・ノルム・完備性、座標射影・包含、有界な直和写像 |
 | `Space.Hilbert.Trace` | 有限階数トレース、因子分解からの独立性、加法性、スカラー倍、巡回性 |
 
-`FiniteSpace.FiniteDimensional` は恒等写像が有限個の複素座標を経由して因子分解することを表す。
-`frameExists` は座標空間上の冪等写像の像の基底から元の空間の基底を構成する。
-`dimensionIndependent` は既存の複素次元の一意性を使う。
+`H.FiniteParametrix` と `H.defectIndex` は、有限階数の左右誤差からトレースの差を取る補助 API である。
+`H.Compare.independent` と `H.Defect.calculate` により、parametrix の選択から独立で、実際の核・余核の整数の次元差に一致する。
 
-`At.Index.Decomposition` は、与えた作用素の核と商余核の基底を保持する。
-`fromDecomposition` は \(\dim\ker T-\dim\operatorname{coker}T\) を `std.Arithmetic.Int.Integer` として返す。
-`independent` と `calculate` は証拠の選択からの独立性と計算式を与える。
+## 最小利用例
 
-## Atkinson の証明の構成
+[Examples.ref](src/Examples.ref) は零 Hilbert 空間上の恒等作用素で、Atkinson の両方向、実際の核・余核の基底、指数の計算、合成則、直和則、コンパクト摂動不変性、ノルム近傍と連続族の定理を適用する。
+基底を与えた指数の計算は次の形で使う。
+
+```ref
+\definition decomposition: Index.Decomposition := Index.Decomposition {
+  kernelFrame := K.Zero[].frame (\fun (x: Identity.KernelSpace) => Z.isZero x),
+  cokernelFrame := Q.Zero[].frame quotientTrivial,
+};
+\definition indexZero: Fredholm.index fredholm = Integers.zeroInteger :=
+  Fredholm.indexFromDecomposition fredholm decomposition;
+```
+
+一般の有限次元分解では `FiniteSpace.Frame` に基底を渡す。
+`fromDecomposition` は \(\dim\ker f-\dim(W/\operatorname{im}f)\) を `std.Arithmetic.Int.Integer` として返す。
+
+## 証明の構成
 
 `FromFredholm` は核の直交補から閉像への制限を全単射とし、有界逆写像定理と像への直交射影から parametrix を構成する。
 左右の誤差は核と余核を経由するため有限階数になる。
+逆方向は右誤差の有限階数近似と Neumann 逆作用素で閉像を示し、コンパクトな左右誤差を核と閉像の直交補へ制限して有限次元性を得る。
+余核への移送は、商に恒等作用素を誘導するコンパクト作用素を扱う独立した `CompactQuotient` 補題に分けている。
 
-`FromParametrix` は右誤差を有限階数作用素で半径 \(1/2\) 未満に近似し、残差を Banach の不動点定理で反転する。
-有限階数の右誤差を持つ右 parametrix が得られるので、元の作用素の像を有限次元の閉部分空間の逆像として記述する。
-核の有限次元性は左誤差の制限、余核の有限次元性は閉像の直交補への右誤差の射影から得る。
-これらの汎用宣言は検査できたが、下記の具体的適用が失敗するため、公開可能な完了実装とはしていない。
-
-## 未完了と阻害要因
-
-`Examples` の零 Hilbert 空間上の恒等作用素に `fredholmOfParametrix` を適用すると、特殊化後の定義本体の検査で、元の `Fredholm(V, space, norm, W, target, targetNorm, f)` が残り、具体的な `Point` と `identity` に対応する結論と変換可能にならない。
-独立したキャッシュでも同じ失敗を確認した。
-命題の structure を論理積に変更し、型引数を明示し、公開定理を汎用モジュールへ移す回避も試した。
-`Space.Operators.Hilbert.atkinson` は最後の移動案であり、この案でも型エラーを確認した。
-
-指数の合成則・直和則・コンパクト摂動不変性・ノルム連続族での局所定数性は未実装である。
-特殊化の失敗を回避して具体的な利用例を完成できるまで、A11 の完了やマージの根拠にはできない。
+指数の法則は有限階数トレースの巡回性と核・余核の基底での計算式から得る。
+ノルム近傍では Neumann 逆作用素で有限階数 parametrix を補正する。
+コンパクト摂動は有限階数近似とその近傍の定理に帰着する。
+`Limits.Near` は単位球全体での一様なノルム差であり、`Family.NormContinuous` はその正の半径ごとに開近傍を要求する。
+直和には内積から平方根でノルムを構成し、成分ごとの Cauchy 列から完備性を示す。
 
 ## 検査
 
@@ -55,7 +68,6 @@ A11 は特殊化時の型エラーでブロックされており、完了して�
 source /workspace/ref-type-env.sh
 cargo build -p cli --release --locked
 target/release/cli libs/analysis/fredholm_operators --module fredholm_operators --full-check-local --diagnostics compact --cache-stats --time-limit-seconds 300 --report-json work/a11-target.json
-target/release/cli libs/analysis/fredholm_operators --module fredholm_operators.Examples --full-check-local --diagnostics compact --time-limit-seconds 300 --report-json work/a11-examples.json
 python3 scripts/check_all.py
 ```
 

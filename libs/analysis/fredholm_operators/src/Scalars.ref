@@ -1,0 +1,84 @@
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as RealLaws;
+\import complex.Complex[] \as C;
+\import C.Def[] \as D;
+\import C.Prop[] \as L;
+\import std.Logic[].Equality[] \as E;
+\use E.congr;
+\use E.sym;
+\use E.trans;
+\use E.eq_reason_in;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing C.Complex C.Algebra[].field] \as Algebra;
+\import Algebra.Laws[V := C.Complex, space := Algebra.scalarSpace] \as Laws;
+\definition addSwap: \forall (a, b, c: C.Complex) -> D.add a (D.add b c) = D.add b (D.add a c) :=
+  \fun (a, b, c: C.Complex) => eq_reason_in!{C.Complex _
+    "=" _ "by" { sym!{C.Complex} _ _ (L.addAssoc a b c) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.add z c) _ _ (L.addComm a b) }
+    "=" _ "by" { L.addAssoc b a c }
+  };
+\definition subAdd: \forall (a, b: C.Complex) -> D.add (D.sub a b) b = a :=
+  \fun (a, b: C.Complex) => trans!{C.Complex} _ _ _ (L.addAssoc a (D.neg b) b)
+    (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} (D.add a) _ _ (L.addNegLeft b)) (L.addZeroRight a));
+\definition cross: \forall (a, b, c, d: C.Complex) -> D.sub a b = D.sub c d -> D.sub a c = D.sub b d :=
+  \fun (a, b, c, d: C.Complex)(equal: D.sub a b = D.sub c d) => Laws.cancelLeft c _ _ (eq_reason_in!{C.Complex _
+    "=" _ "by" { L.addComm c (D.sub a c) }
+    "=" _ "by" { subAdd a c }
+    "=" _ "by" { sym!{C.Complex} _ _ (subAdd a b) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.add z b) _ _ equal }
+    "=" _ "by" { L.addComm (D.sub c d) b }
+    "=" _ "by" { addSwap b c (D.neg d) }
+  });
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import linear_algebra.Complex[].Dimension[] \as Count;
+\definition naturalAdd: \forall (n, m: N.Nat^) -> Count.naturalScalar (Nat.add n m) = D.add (Count.naturalScalar n) (Count.naturalScalar m) :=
+  \fun (n: N.Nat^) => \induction (m: N.Nat^) \return Count.naturalScalar (Nat.add n m) = D.add (Count.naturalScalar n) (Count.naturalScalar m) \with {
+    | zero: sym!{C.Complex} _ _ (L.addZeroRight (Count.naturalScalar n))
+    | succ: \fun (m: N.Nat^)(previous: _) => trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} (D.add D.one) _ _ previous)
+      (addSwap D.one (Count.naturalScalar n) (Count.naturalScalar m))
+  };
+\import std.Arithmetic[].Int[] \as Z;
+\definition reconstruct: \forall (a, b, c: C.Complex) -> D.add (D.sub a b) (D.add b c) = D.add a c :=
+  \fun (a, b, c: C.Complex) => trans!{C.Complex} _ _ _ (sym!{C.Complex} _ _ (L.addAssoc (D.sub a b) b c))
+    (congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.add z c) _ _ (subAdd a b));
+\definition integerEqual: \forall (a, b, c, d: N.Nat^) -> D.sub (Count.naturalScalar a) (Count.naturalScalar b) = D.sub (Count.naturalScalar c) (Count.naturalScalar d) -> Z.integer a b = Z.integer c d :=
+  \fun (a, b, c, d: N.Nat^)(equal: _) => Z.Math[].diffRespects a b c d (Count.injective (Nat.add a d) (Nat.add c b) (eq_reason_in!{C.Complex _
+    "=" _ "by" { naturalAdd a d }
+    "=" _ "by" { sym!{C.Complex} _ _ (reconstruct (Count.naturalScalar a) (Count.naturalScalar b) (Count.naturalScalar d)) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.add z (D.add (Count.naturalScalar b) (Count.naturalScalar d))) _ _ equal }
+    "=" _ "by" { congr!{C.Complex C.Complex} (D.add (D.sub (Count.naturalScalar c) (Count.naturalScalar d))) _ _ (L.addComm (Count.naturalScalar b) (Count.naturalScalar d)) }
+    "=" _ "by" { reconstruct (Count.naturalScalar c) (Count.naturalScalar d) (Count.naturalScalar b) }
+    "=" _ "by" { sym!{C.Complex} _ _ (naturalAdd c b) }
+  }));
+\definition negativeAdd: \forall (a, b: C.Complex) -> D.neg (D.add a b) = D.add (D.neg a) (D.neg b) :=
+  \fun (a, b: C.Complex) => L.ext _ _ (RealLaws.negAdd (C.re a) (C.re b)) (RealLaws.negAdd (C.im a) (C.im b));
+\definition commonAdd: \forall (a, b, c: C.Complex) -> D.sub (D.add a c) (D.add b c) = D.sub a b :=
+  \fun (a, b, c: C.Complex) => eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{C.Complex C.Complex} (D.add (D.add a c)) _ _ (negativeAdd b c) }
+    "=" _ "by" { Laws.shuffle a c (D.neg b) (D.neg c) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (D.add (D.sub a b)) _ _ (L.subSelf c) }
+    "=" _ "by" { L.addZeroRight (D.sub a b) }
+  };
+\definition negativeSub: \forall (a, b: C.Complex) -> D.neg (D.sub a b) = D.sub b a :=
+  \fun (a, b: C.Complex) => eq_reason_in!{C.Complex _
+    "=" _ "by" { negativeAdd a (D.neg b) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (D.add (D.neg a)) _ _ (L.negNeg b) }
+    "=" _ "by" { L.addComm (D.neg a) b }
+  };
+\definition commonSubtract: \forall (a, b, c: C.Complex) -> D.sub (D.sub a c) (D.sub b c) = D.sub a b :=
+  \fun (a, b, c: C.Complex) => trans!{C.Complex} _ _ _
+    (congr!{C.Complex C.Complex} (D.add (D.sub a c)) _ _ (negativeSub b c)) (reconstruct a c (D.neg b));
+\definition compositionDifference: \forall (a, b, c, d, e: C.Complex) -> D.sub (D.add a (D.sub b e)) (D.add c (D.sub d e)) = D.add (D.sub a d) (D.sub b c) :=
+  \fun (a, b, c, d, e: C.Complex) => eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{C.Complex C.Complex C.Complex} D.sub _ _ _ _ (sym!{C.Complex} _ _ (L.addAssoc a b (D.neg e))) (sym!{C.Complex} _ _ (L.addAssoc c d (D.neg e))) }
+    "=" _ "by" { commonSubtract (D.add a b) (D.add c d) e }
+    "=" _ "by" { congr!{C.Complex C.Complex} (D.add (D.add a b)) _ _ (negativeAdd c d) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (D.add (D.add a b)) _ _ (L.addComm (D.neg c) (D.neg d)) }
+    "=" _ "by" { Laws.shuffle a b (D.neg d) (D.neg c) }
+  };
+\import Z.Math[] \as IntegerMath;
+\definition integerAddition: \forall (a, b, c, d: N.Nat^) -> Z.addInteger (Z.integer a b) (Z.integer c d) = Z.integer (Nat.add a c) (Nat.add b d) :=
+  \fun (a, b, c, d: N.Nat^) => IntegerMath.normalizeRespects _ _
+    (IntegerMath.addRepRespects _ _ _ _ (Z.normalizedRepresentative (Z.pair a b)) (Z.normalizedRepresentative (Z.pair c d)));
+\definition plusDifference: \forall (a, b, c, d: C.Complex) -> D.sub (D.add a b) (D.add c d) = D.add (D.sub a c) (D.sub b d) :=
+  \fun (a, b, c, d: C.Complex) => trans!{C.Complex} _ _ _
+    (congr!{C.Complex C.Complex} (D.add (D.add a b)) _ _ (negativeAdd c d)) (Laws.shuffle a b (D.neg c) (D.neg d));

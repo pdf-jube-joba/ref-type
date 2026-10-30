@@ -38,3 +38,48 @@
   \return fredholmOfParametrix complete targetComplete s (\bysub(Reverse.Map, { s: Reverse.Map \where Parametrix s }, s))
 };
 
+
+\definition atkinsonEquivalence: \forall (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete) -> Logic.And[HasParametrix -> Fredholm, Fredholm -> HasParametrix] :=
+  \fun (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete) => Logic.And[_, _]::#
+    (atkinson complete targetComplete) (parametrixExists complete targetComplete);
+
+\import complex_hilbert.FiniteRank[V := V, W := V, source := space, target := space] \as SourceRank;
+\import complex_hilbert.FiniteRank[V := W, W := W, source := target, target := target] \as TargetRank;
+\import \root.Space[V := V, space := space, norm := norm].Hilbert[inner := inner].Trace[] \as SourceTrace;
+\import \root.Space[V := W, space := target, norm := targetNorm].Hilbert[inner := targetInner].Trace[] \as TargetTrace;
+\definition FiniteParametrix[s: Reverse.Map]: \Prop := Logic.And[SourceRank.FiniteRank (leftDefect s), TargetRank.FiniteRank (rightDefect s)];
+\definition defectIndex[s: Reverse.Map][finite: FiniteParametrix s]: C.Complex :=
+  C.Def[].sub (SourceTrace.trace (leftDefect s) finite.left) (TargetTrace.trace (rightDefect s) finite.right);
+\definition canonicalFinite: \forall (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete)(fredholm: Fredholm) ->
+  FiniteParametrix FromFredholm[complete := complete, targetComplete := targetComplete, fredholm := fredholm].parametrix :=
+  \fun (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete)(fredholm: Fredholm) => Logic.And[_, _] {
+    left := FromFredholm[complete := complete, targetComplete := targetComplete, fredholm := fredholm].leftFinite,
+    right := FromFredholm[complete := complete, targetComplete := targetComplete, fredholm := fredholm].rightFinite,
+  };
+\module Compare(s, t: Reverse.Map);
+
+\module Defect(s: Reverse.Map);
+
+\module Change(g: Map);
+
+\import Target.Operators[W := V, target := space, norm := targetNorm, targetNorm := norm] \as ReverseBounded;
+\import Bounded.Compact[].Limit[] \as Limits;
+\module Neighborhood(s: Reverse.Map, c: R.Real, bound: ReverseBounded.Bound[s, c]);
+\definition IndexNeighborhood[original: Fredholm, radius: R.Real]: \Prop := Logic.And[Order.Lt R.zero radius,
+  \forall (g: Map) -> Limits.Near[f, g, radius] -> Change[g := g].PreservesIndex original];
+\definition indexLocallyConstant: \forall (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete)(original: Fredholm) -> \exists ( radius: R.Real \where IndexNeighborhood[original, radius] ) := \block {
+  \fun (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete)(original: Fredholm) \then
+  \let s: Reverse.Map := FromFredholm[complete := complete, targetComplete := targetComplete, fredholm := original].parametrix \then
+  \takefrom c: \Cast[R.Real] ({ c: R.Real \where ReverseBounded.Bound[s, c] }) \by ReverseBounded.bounded s \then
+  \let bound: ReverseBounded.Bound[s, c] := \bysub(R.Real, { c: R.Real \where ReverseBounded.Bound[s, c] }, c) \then
+  \return Logic.existsIntro[R.Real, { radius: R.Real \where IndexNeighborhood[original, radius] }] (Neighborhood[s := s, c := c, bound := bound].radius)
+    (Logic.And[_, _]::# (Neighborhood[s := s, c := c, bound := bound].positive)
+      (\fun (g: Map) => Neighborhood[s := s, c := c, bound := bound].At[g := g].preservesIndex complete targetComplete original (canonicalFinite complete targetComplete original)))
+};
+
+\module CompactPerturbation(g: Map);
+
+\module DirectSum(U, Z: \Set, domain: Algebra.VectorSpace U, codomain: Algebra.VectorSpace Z,
+  domainNorm: complex_hilbert.Space[V := U, space := domain].Norm, codomainNorm: complex_hilbert.Space[V := Z, space := codomain].Norm,
+  domainInner: linear_algebra.Complex[].InnerProduct[V := U, space := domain].InnerProduct, codomainInner: linear_algebra.Complex[].InnerProduct[V := Z, space := codomain].InnerProduct,
+  g: complex_hilbert.Space[V := U, space := domain].Operators[W := Z, target := codomain, norm := domainNorm, targetNorm := codomainNorm].Map);

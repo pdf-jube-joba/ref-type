@@ -1,0 +1,18 @@
+\import Algebra.Finite[V := V, I := Fin.Fin N.Nat^::zero, space := space] \as Basis;
+\import Algebra.Coordinates[I := Fin.Fin N.Nat^::zero] \as Coordinates;
+\import Algebra.Linear[V := V, W := Coordinates.Vector, source := space, target := Coordinates.space].Operations[] \as Maps;
+\import Algebra.Sums[I := Fin.Fin N.Nat^::zero] \as Sums;
+\import std.Data[].List[] \as Lists;
+\definition data: Basis.BasisData := Basis.BasisData { indices := Lists.List[Fin.Fin N.Nat^::zero]::nil, vectors := \fun (i: Fin.Fin N.Nat^::zero) => space.zero, coordinates := Maps.zeroMap };
+\definition impossible: \forall (i: Fin.Fin N.Nat^::zero) -> Logic.False := \fun (i: Fin.Fin N.Nat^::zero) => Fin.zeroImpossible i (Fin.bound N.Nat^::zero i);
+\definition basis[trivial: \forall (x: V) -> x = space.zero]: Basis.Basis := \into[Basis.BasisData](data, Basis.Basis) \by {
+  Basis.BasisLaws[data] {
+    distinct := Sums.distinctNil,
+    dualReconstruction := \fun (x: Coordinates.Vector)(i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (impossible i),
+    reconstruction := \fun (x: V) => sym!{V} _ _ (trivial x),
+    coordinateReconstruction := \fun (x: Coordinates.Vector) => \axiom:funext(Basis.coordinates data (Basis.synthesize data x), x,
+      \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (impossible i)),
+  }
+};
+\definition frame[trivial: \forall (x: V) -> x = space.zero]: Frame := Frame { size := N.Nat^::zero, basis := basis trivial };
+\definition zeroDimension: \forall (trivial: \forall (x: V) -> x = space.zero) -> dimension (frame trivial) = N.Nat^::zero := \fun (trivial: _) => \refl(N.Nat^::zero);

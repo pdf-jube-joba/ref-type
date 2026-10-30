@@ -1,0 +1,98 @@
+\definition inverse: SourceEnd.Map := Neumann.inverse complete.complete small;
+\import SourceEnd.After[U := V, codomain := space, codomainNorm := norm] \as SourceCompose;
+\import Reverse.After[U := V, codomain := space, codomainNorm := norm] \as ReverseThen;
+\definition parametrix: Reverse.Map := ReverseThen.compose s inverse;
+\import SourceNormed.Operators[W := V, target := Source.realSpace, norm := norm.realNorm, targetNorm := norm.realNorm] \as RealEnd;
+\import Source.Operators[W := V, target := space, norm := norm, targetNorm := norm] \as SourceBounded;
+\import TargetNormed.Operators[W := V, target := Source.realSpace, norm := targetNorm.realNorm, targetNorm := norm.realNorm] \as RealReverse;
+\import Target.Operators[W := V, target := space, norm := targetNorm, targetNorm := norm] \as ReverseBounded;
+\definition neumannFormula: \forall (x: V) -> Neumann.map.apply x = space.add ((leftDefect s).apply x) (s.apply (g.apply x)) :=
+  \fun (x: V) => trans!{V} _ _ _
+    (congr!{V V} (SourceNormed.sub x) _ _ (RealReverse.preservesSub (ReverseBounded.realMap s) (f.apply x) (g.apply x)))
+    (SourceSpace.subtractDifference x (s.apply (f.apply x)) (s.apply (g.apply x)));
+\definition leftReduced: SourceEnd.Map := SourceCompose.compose (leftDefect s) inverse;
+\definition leftEquation: \forall (x: V) -> leftReduced.apply x = (OtherOperator.leftDefect parametrix).apply x :=
+  \fun (x: V) => eq_reason_in!{V _
+    "=" _ "by" { congr!{V V} inverse.apply _ _ (sym!{V} _ _ (SourceSpace.subtractAddedRight ((leftDefect s).apply x) (s.apply (g.apply x)))) }
+    "=" _ "by" { congr!{V V} (\fun (z: V) => inverse.apply (SourceNormed.sub z (s.apply (g.apply x)))) _ _ (sym!{V} _ _ (neumannFormula x)) }
+    "=" _ "by" { RealEnd.preservesSub (SourceBounded.realMap inverse) (Neumann.map.apply x) (s.apply (g.apply x)) }
+    "=" _ "by" { congr!{V V} (\fun (z: V) => SourceNormed.sub z (parametrix.apply (g.apply x))) _ _ (Neumann.leftInverse complete.complete small x) }
+  };
+\definition correctionEquation: \forall (y: W) -> parametrix.apply y = space.add (s.apply y) (s.apply (perturbation.apply (parametrix.apply y))) :=
+  \fun (y: W) => Neumann.resolvent complete.complete small (s.apply y);
+\definition rightCorrection: TargetEnd.Map := ComposeForward.compose parametrix (\root.Space[V := V, space := space, norm := norm].Operators[W := W, target := target, targetNorm := targetNorm].After[U := W, codomain := target, codomainNorm := targetNorm].compose perturbation (rightDefect s));
+\definition rightEquation: \forall (y: W) -> (TargetEnd.plus (rightDefect s) rightCorrection).apply y = (OtherOperator.rightDefect parametrix).apply y := \fun (y: W) => eq_reason_in!{W _
+  "=" _ "by" { sym!{W} _ _ (TargetNormed.addSub y (perturbation.apply (parametrix.apply y)) (f.apply (s.apply y)) (f.apply (s.apply (perturbation.apply (parametrix.apply y))))) }
+  "=" _ "by" { congr!{W W} (TargetNormed.sub (target.add y (perturbation.apply (parametrix.apply y)))) _ _
+    (trans!{W} _ _ _ (sym!{W} _ _ (f.preservesAdd (s.apply y) (s.apply (perturbation.apply (parametrix.apply y)))))
+      (congr!{V W} f.apply _ _ (sym!{V} _ _ (correctionEquation y)))) }
+  "=" _ "by" { TargetVectors.comm (target.add y (perturbation.apply (parametrix.apply y))) (target.neg (f.apply (parametrix.apply y))) }
+  "=" _ "by" { sym!{W} _ _ (TargetVectors.assoc (target.neg (f.apply (parametrix.apply y))) y (perturbation.apply (parametrix.apply y))) }
+  "=" _ "by" { congr!{W W} (\fun (z: W) => target.add z (perturbation.apply (parametrix.apply y))) _ _ (TargetVectors.comm (target.neg (f.apply (parametrix.apply y))) y) }
+  "=" _ "by" { TargetVectors.assoc y (target.neg (f.apply (parametrix.apply y))) (perturbation.apply (parametrix.apply y)) }
+  "=" _ "by" { congr!{W W} (target.add y) _ _ (sym!{W} _ _ (TargetVectors.assoc (target.neg (f.apply (parametrix.apply y))) (f.apply (parametrix.apply y)) (target.neg (g.apply (parametrix.apply y))))) }
+  "=" _ "by" { congr!{W W} (\fun (z: W) => target.add y (target.add z (target.neg (g.apply (parametrix.apply y))))) _ _ (TargetVectors.inverseLeft (f.apply (parametrix.apply y))) }
+  "=" _ "by" { congr!{W W} (target.add y) _ _ (TargetVectors.zeroLeft (target.neg (g.apply (parametrix.apply y)))) }
+};
+\import SourceRank.After[U := V, codomain := space] \as SourceAfter;
+\import TargetRank.Before[U := V, domain := space] \as TargetBefore;
+\import complex_hilbert.FiniteRank[V := V, W := W, source := space, target := target] \as Rank;
+\import Rank.Before[U := W, domain := target] \as BeforeTarget;
+\import Rank.After[U := V, codomain := space] \as AfterSource;
+\import \root.Space[V := V, space := space, norm := norm].Operators[W := W, target := target, targetNorm := targetNorm].After[U := W, codomain := target, codomainNorm := targetNorm] \as PerturbThen;
+\definition rightFactor: Map := PerturbThen.compose perturbation (rightDefect s);
+\definition finiteReduced: FiniteParametrix s -> SourceRank.FiniteRank leftReduced :=
+  \fun (p: FiniteParametrix s) => SourceAfter.finite (leftDefect s) inverse p.left;
+\definition finiteCorrection: FiniteParametrix s -> TargetRank.FiniteRank rightCorrection :=
+  \fun (p: FiniteParametrix s) => BeforeTarget.finite rightFactor parametrix (TargetBefore.finite (rightDefect s) perturbation p.right);
+\import SourceEnd.Finite[] \as SourceFinite;
+\import TargetEnd.Finite[] \as TargetFinite;
+\definition finite: FiniteParametrix s -> Other.FiniteParametrix parametrix :=
+  \fun (p: FiniteParametrix s) => Logic.And[_, _]::#
+    (SourceFinite.equal leftReduced (OtherOperator.leftDefect parametrix) leftEquation (finiteReduced p))
+    (TargetFinite.equal (TargetEnd.plus (rightDefect s) rightCorrection) (OtherOperator.rightDefect parametrix) rightEquation
+      (TargetFinite.finitePlus (rightDefect s) rightCorrection p.right (finiteCorrection p)));
+\definition leftCorrection: SourceEnd.Map := SourceCompose.compose leftReduced error;
+\definition leftCorrectionFinite: FiniteParametrix s -> SourceRank.FiniteRank leftCorrection :=
+  \fun (p: FiniteParametrix s) => SourceAfter.finite leftReduced error (finiteReduced p);
+\definition resolventEquation: \forall (x: V) -> (SourceEnd.plus (leftDefect s) leftCorrection).apply x = leftReduced.apply x :=
+  \fun (x: V) => sym!{V} _ _ (Neumann.resolvent complete.complete small ((leftDefect s).apply x));
+\definition leftTrace: \forall (p: FiniteParametrix s) -> SourceTrace.trace (OtherOperator.leftDefect parametrix) (finite p).left =
+  C.Def[].add (SourceTrace.trace (leftDefect s) p.left) (SourceTrace.trace leftCorrection (leftCorrectionFinite p)) :=
+  \fun (p: FiniteParametrix s) => eq_reason_in!{C.Complex _
+    "=" _ "by" { SourceTrace.equal (OtherOperator.leftDefect parametrix) (SourceEnd.plus (leftDefect s) leftCorrection) (finite p).left
+      (SourceFinite.finitePlus (leftDefect s) leftCorrection p.left (leftCorrectionFinite p))
+      (\fun (x: V) => trans!{V} _ _ _ (sym!{V} _ _ (leftEquation x)) (sym!{V} _ _ (resolventEquation x))) }
+    "=" _ "by" { SourceTrace.Addition[f := leftDefect s, g := leftCorrection].additive p.left (leftCorrectionFinite p) }
+  };
+\definition rightTrace: \forall (p: FiniteParametrix s) -> TargetTrace.trace (OtherOperator.rightDefect parametrix) (finite p).right =
+  C.Def[].add (TargetTrace.trace (rightDefect s) p.right) (TargetTrace.trace rightCorrection (finiteCorrection p)) :=
+  \fun (p: FiniteParametrix s) => trans!{C.Complex} _ _ _
+    (TargetTrace.equal (OtherOperator.rightDefect parametrix) (TargetEnd.plus (rightDefect s) rightCorrection) (finite p).right
+      (TargetFinite.finitePlus (rightDefect s) rightCorrection p.right (finiteCorrection p)) (\fun (y: W) => sym!{W} _ _ (rightEquation y)))
+    (TargetTrace.Addition[f := rightDefect s, g := rightCorrection].additive p.right (finiteCorrection p));
+\definition intertwines: \forall (y: W) -> s.apply ((rightDefect s).apply y) = (leftDefect s).apply (s.apply y) :=
+  \fun (y: W) => RealReverse.preservesSub (ReverseBounded.realMap s) y (f.apply (s.apply y));
+\definition correctionTrace: \forall (p: FiniteParametrix s) -> SourceTrace.trace leftCorrection (leftCorrectionFinite p) = TargetTrace.trace rightCorrection (finiteCorrection p) :=
+  \fun (p: FiniteParametrix s) => eq_reason_in!{C.Complex _
+    "=" _ "by" { SourceTrace.Cyclic[W := V, target := space, targetNorm := norm, targetInner := inner, f := leftReduced, g := error].cyclic (finiteReduced p) }
+    "=" _ "by" { SourceTrace.equal (SourceCompose.compose error leftReduced) (ComposeBack.compose rightFactor parametrix)
+      (SourceRank.Before[U := V, domain := space].finite leftReduced error (finiteReduced p))
+      (AfterSource.finite rightFactor parametrix (TargetBefore.finite (rightDefect s) perturbation p.right))
+      (\fun (x: V) => sym!{V} _ _ (congr!{V V} inverse.apply _ _ (intertwines (perturbation.apply x)))) }
+    "=" _ "by" { SourceTrace.Cyclic[W := W, target := target, targetNorm := targetNorm, targetInner := targetInner,
+      f := rightFactor, g := parametrix].cyclic (TargetBefore.finite (rightDefect s) perturbation p.right) }
+  };
+\definition defectEqual: \forall (p: FiniteParametrix s) -> defectIndex s p = Other.defectIndex parametrix (finite p) :=
+  \fun (p: FiniteParametrix s) => sym!{C.Complex} _ _ (eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{C.Complex C.Complex C.Complex} C.Def[].sub _ _ _ _ (leftTrace p) (rightTrace p) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => C.Def[].sub
+      (C.Def[].add (SourceTrace.trace (leftDefect s) p.left) z)
+      (C.Def[].add (TargetTrace.trace (rightDefect s) p.right) (TargetTrace.trace rightCorrection (finiteCorrection p)))) _ _ (correctionTrace p) }
+    "=" _ "by" { \root.Scalars[].commonAdd _ _ _ }
+  });
+\definition fredholm: TargetHilbert.Complete -> FiniteParametrix s -> Other.Fredholm :=
+  \fun (targetComplete: TargetHilbert.Complete)(p: FiniteParametrix s) => Other.Defect[s := parametrix].fredholm complete targetComplete (finite p);
+\definition indexEqual: \forall (targetComplete: TargetHilbert.Complete)(p: FiniteParametrix s)(original: Fredholm) -> index original = Other.index (fredholm targetComplete p) :=
+  \fun (targetComplete: TargetHilbert.Complete)(p: FiniteParametrix s)(original: Fredholm) =>
+    equalFromDefects complete targetComplete s parametrix p (finite p) original (fredholm targetComplete p) (defectEqual p);

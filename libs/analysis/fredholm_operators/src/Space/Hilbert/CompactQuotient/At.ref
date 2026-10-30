@@ -1,0 +1,46 @@
+\import Subspaces.In[S := S].Projection[complete := complete] \as Projection;
+\import Projection.Complement[] \as Complement;
+\import Algebra.Subspace[V := V, space := space] \as LinearSubspaces;
+\import Algebra.Subspace[V := V, space := space].Of[subspace := S] \as Image;
+\import Algebra.Subspace[V := V, space := space].Of[subspace := Complement.subspace] \as Points;
+\import End.At[f := Projection.projection] \as ProjectionKernel;
+\import functional_analysis.Metric[Carrier := V] \as Sequences;
+\definition zeroLeft: \forall (y: V) -> inner.inner space.zero y = C.Def[].zero :=
+  \fun (y: V) => trans!{C.Complex} _ _ _ (inner.conjugateSymmetric space.zero y)
+    (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} C.Def[].conj _ _ (inner.zeroRight y)) (C.Prop[].conjOfReal R.zero));
+\definition complementClosed: Subspaces.Closed Complement.subspace := \block {
+  \fun (sequence: std.Data[].Nat[].Nat^ -> V)(y: V)(members: \forall (n: std.Data[].Nat[].Nat^) -> LinearSubspaces.Member Complement.subspace (sequence n))
+    (converges: Sequences.Converges (SourceNormed.metric norm.realNorm) sequence y) \then
+  \let zero: Projection.projection.apply y = space.zero := ProjectionKernel.kernelClosed sequence y
+    (\fun (n: std.Data[].Nat[].Nat^) => Complement.projectionZero (\into[V](sequence n, Complement.subspace.carrier) \by { members n })) converges \then
+  \return \fun (x: Image.Carrier) => eq_reason_in!{C.Complex _
+    "=" _ "by" { inner.conjugateSymmetric x y }
+    "=" _ "by" { congr!{C.Complex C.Complex} C.Def[].conj _ _ (Projection.equation y x) }
+    "=" _ "by" { congr!{V C.Complex} (\fun (v: V) => C.Def[].conj (inner.inner v x)) _ _ zero }
+    "=" _ "by" { congr!{C.Complex C.Complex} C.Def[].conj _ _ (zeroLeft x) }
+    "=" _ "by" { C.Prop[].conjOfReal R.zero }
+  }
+};
+\definition closedComplement: Subspaces.ClosedSubspace := \into[LinearSubspaces.Subspace](Complement.subspace, Subspaces.ClosedSubspace) \by { complementClosed };
+\import \parent.\parent.FixedSubspace[S := closedComplement] \as Fixed;
+\import \root.FiniteSpace[V := Points.Carrier, space := Points.induced] \as SmallDimension;
+\import End.Ideal[] \as Ideal;
+\definition residual: End.Map := End.difference Ideal.identity Projection.projection;
+\import End.After[U := V, codomain := space, codomainNorm := norm] \as Compose;
+\import Quotient.Universal[U := Points.Carrier, target := Points.induced] \as Descent;
+\definition fixes: ClassIdentity -> \forall (x: Points.Carrier) -> (Compose.compose k residual).apply x = x :=
+  \fun (classes: ClassIdentity)(x: Points.Carrier) => trans!{V} _ _ _
+    (sym!{V} _ _ (Descent.onClass Complement.linear Complement.vanishes (k.apply x)))
+    (trans!{V} _ _ _ (congr!{Quotient.Carrier Points.Carrier} Complement.forward.apply _ _ (classes x))
+      (trans!{V} _ _ _ (Descent.onClass Complement.linear Complement.vanishes x) (Complement.residualFixes x)));
+\definition finiteComplement: End.Compact k -> ClassIdentity -> SmallDimension.FiniteDimensional :=
+  \fun (compact: End.Compact k)(classes: ClassIdentity) => Fixed.finiteDimensional complete (Compose.compose k residual)
+    (Compose.compactAfter k residual compact) (fixes classes);
+\import Algebra.Isomorphism[V := Points.Carrier, W := Quotient.Carrier, source := Points.induced, target := Quotient.vectorSpace] \as Isomorphisms;
+\definition comparison: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := Complement.backward, backward := Complement.forward,
+  leftInverse := Complement.rightInverse, rightInverse := Complement.leftInverse,
+};
+\import SmallDimension.Isomorphic[W := Quotient.Carrier, target := Quotient.vectorSpace, iso := comparison] \as Transport;
+\definition finite: End.Compact k -> ClassIdentity -> Dimension.FiniteDimensional :=
+  \fun (compact: End.Compact k)(classes: ClassIdentity) => Transport.finite (finiteComplement compact classes);

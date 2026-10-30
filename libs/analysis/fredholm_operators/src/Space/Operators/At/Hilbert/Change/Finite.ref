@@ -1,0 +1,46 @@
+\definition perturbation: Map := difference f g;
+\import complex_hilbert.FiniteRank[V := V, W := W, source := space, target := target] \as Rank;
+\import Rank.After[U := V, codomain := space] \as LeftRank;
+\import Rank.Before[U := W, domain := target] \as RightRank;
+\import SourceEnd.Finite[] \as SourceFinite;
+\import TargetEnd.Finite[] \as TargetFinite;
+\definition leftCorrection: SourceEnd.Map := ComposeBack.compose perturbation s;
+\definition rightCorrection: TargetEnd.Map := ComposeForward.compose s perturbation;
+\import TargetNormed.Operators[W := V, target := Source.realSpace, norm := targetNorm.realNorm, targetNorm := norm.realNorm] \as RealReverse;
+\import Target.Operators[W := V, target := space, norm := targetNorm, targetNorm := norm] \as ReverseBounded;
+\definition leftEquation: \forall (x: V) -> (SourceEnd.plus (leftDefect s) leftCorrection).apply x = (OtherOperator.leftDefect s).apply x :=
+  \fun (x: V) => trans!{V} _ _ _
+    (congr!{V V} (space.add ((leftDefect s).apply x)) _ _ (RealReverse.preservesSub (ReverseBounded.realMap s) (f.apply x) (g.apply x)))
+    (SourceNormed.subBridge x (s.apply (f.apply x)) (s.apply (g.apply x)));
+\definition rightEquation: \forall (y: W) -> (TargetEnd.plus (rightDefect s) rightCorrection).apply y = (OtherOperator.rightDefect s).apply y :=
+  \fun (y: W) => TargetNormed.subBridge y (f.apply (s.apply y)) (g.apply (s.apply y));
+\definition finite: FiniteParametrix s -> Rank.FiniteRank perturbation -> Other.FiniteParametrix s :=
+  \fun (p: FiniteParametrix s)(kf: Rank.FiniteRank perturbation) => Logic.And[_, _]::#
+    (SourceFinite.equal (SourceEnd.plus (leftDefect s) leftCorrection) (OtherOperator.leftDefect s) leftEquation
+      (SourceFinite.finitePlus (leftDefect s) leftCorrection p.left (LeftRank.finite perturbation s kf)))
+    (TargetFinite.equal (TargetEnd.plus (rightDefect s) rightCorrection) (OtherOperator.rightDefect s) rightEquation
+      (TargetFinite.finitePlus (rightDefect s) rightCorrection p.right (RightRank.finite perturbation s kf)));
+\definition leftTrace: \forall (p: FiniteParametrix s)(kf: Rank.FiniteRank perturbation) ->
+  SourceTrace.trace (OtherOperator.leftDefect s) (finite p kf).left = C.Def[].add (SourceTrace.trace (leftDefect s) p.left) (SourceTrace.trace leftCorrection (LeftRank.finite perturbation s kf)) :=
+  \fun (p: FiniteParametrix s)(kf: Rank.FiniteRank perturbation) => trans!{C.Complex} _ _ _
+    (SourceTrace.equal (OtherOperator.leftDefect s) (SourceEnd.plus (leftDefect s) leftCorrection) (finite p kf).left
+      (SourceFinite.finitePlus (leftDefect s) leftCorrection p.left (LeftRank.finite perturbation s kf)) (\fun (x: V) => sym!{V} _ _ (leftEquation x)))
+    (SourceTrace.Addition[f := leftDefect s, g := leftCorrection].additive p.left (LeftRank.finite perturbation s kf));
+\definition rightTrace: \forall (p: FiniteParametrix s)(kf: Rank.FiniteRank perturbation) ->
+  TargetTrace.trace (OtherOperator.rightDefect s) (finite p kf).right = C.Def[].add (TargetTrace.trace (rightDefect s) p.right) (TargetTrace.trace rightCorrection (RightRank.finite perturbation s kf)) :=
+  \fun (p: FiniteParametrix s)(kf: Rank.FiniteRank perturbation) => trans!{C.Complex} _ _ _
+    (TargetTrace.equal (OtherOperator.rightDefect s) (TargetEnd.plus (rightDefect s) rightCorrection) (finite p kf).right
+      (TargetFinite.finitePlus (rightDefect s) rightCorrection p.right (RightRank.finite perturbation s kf)) (\fun (y: W) => sym!{W} _ _ (rightEquation y)))
+    (TargetTrace.Addition[f := rightDefect s, g := rightCorrection].additive p.right (RightRank.finite perturbation s kf));
+\definition defectEqual: \forall (p: FiniteParametrix s)(kf: Rank.FiniteRank perturbation) -> defectIndex s p = Other.defectIndex s (finite p kf) :=
+  \fun (p: FiniteParametrix s)(kf: Rank.FiniteRank perturbation) => sym!{C.Complex} _ _ (eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{C.Complex C.Complex C.Complex} C.Def[].sub _ _ _ _ (leftTrace p kf) (rightTrace p kf) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => C.Def[].sub (C.Def[].add (SourceTrace.trace (leftDefect s) p.left) z)
+      (C.Def[].add (TargetTrace.trace (rightDefect s) p.right) (TargetTrace.trace rightCorrection (RightRank.finite perturbation s kf)))) _ _
+      (SourceTrace.Cyclic[W := W, target := target, targetNorm := targetNorm, targetInner := targetInner, f := perturbation, g := s].cyclic kf) }
+    "=" _ "by" { \root.Scalars[].commonAdd _ _ _ }
+  });
+\definition indexEqual: \forall (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete)(p: FiniteParametrix s)(kf: Rank.FiniteRank perturbation)(fredholm: Fredholm) ->
+  index fredholm = Other.index (Other.Defect[s := s].fredholm complete targetComplete (finite p kf)) :=
+  \fun (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete)(p: FiniteParametrix s)(kf: Rank.FiniteRank perturbation)(fredholm: Fredholm) =>
+    equalFromDefects complete targetComplete s s p (finite p kf) fredholm (Other.Defect[s := s].fredholm complete targetComplete (finite p kf)) (defectEqual p kf);

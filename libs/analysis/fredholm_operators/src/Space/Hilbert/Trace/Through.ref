@@ -1,0 +1,38 @@
+\import \root.FiniteSpace[V := W, space := target] \as Small;
+\import Algebra.Finite[V := W, I := Fin.Fin frame.size, space := target] \as SmallBasis;
+\import SmallBasis.Prop[] \as SmallLaws;
+\import Algebra.Coordinates[I := Fin.Fin frame.size] \as Coordinates;
+\import Algebra.Finite[V := Coordinates.Vector, I := Fin.Fin frame.size, space := Coordinates.space] \as CoordinateBasis;
+\import Algebra.FiniteCoordinates[n := frame.size] \as Canonical;
+\import Algebra.Linear[V := W, W := V, source := target, target := space].Composition[U := V, domain := space] \as Compose;
+\definition map: End.Map := Compose.compose out into;
+\import Algebra.Linear[V := W, W := Coordinates.Vector, source := target, target := Coordinates.space].Composition[U := V, domain := space] \as IntoCoordinates;
+\import Algebra.Linear[V := W, W := V, source := target, target := space].Composition[U := Coordinates.Vector, domain := Coordinates.space] \as OutCoordinates;
+\definition factor: Finite.Through[n := frame.size].Factor map := Finite.Through[n := frame.size].Factor[map] {
+  into := IntoCoordinates.compose frame.basis.coordinates into,
+  out := OutCoordinates.compose out (SmallLaws.synthesis frame.basis),
+  equation := \fun (x: V) => congr!{W V} out.apply _ _ (frame.basis.reconstruction (into.apply x)),
+};
+\definition finite: Finite.FiniteRank map := Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists Finite.Through[n := n].Factor map }] frame.size
+  (\exact(factor, Finite.Through[n := frame.size].Factor map));
+\import Algebra.Linear[V := V, W := W, source := space, target := target].Composition[U := W, domain := target] \as SmallCompose;
+\import Algebra.Linear[V := W, W := Coordinates.Vector, source := target, target := Coordinates.space] \as Encode;
+\import Encode.Composition[U := W, domain := target] \as SmallEncode;
+\import \root.FiniteCyclic[V := Coordinates.Vector, W := W, source := Coordinates.space, target := target, n := frame.size, m := frame.size] \as Cyclic;
+\import Algebra.Linear[V := W, W := W, source := target, target := target] \as SmallEnd;
+\import Algebra.Linear[V := Coordinates.Vector, W := W, source := Coordinates.space, target := target].Composition[U := W, domain := target] \as DecodeCompose;
+\import SmallBasis.Dimension[] \as Dimensions;
+\import linear_algebra.Complex[].Dimension[] \as Counts;
+\definition traceProjection: (\forall (x: W) -> into.apply (out.apply x) = x) -> trace map finite = Counts.naturalScalar (Small.dimension frame) := \block {
+  \fun (retract: \forall (x: W) -> into.apply (out.apply x) = x) \then
+  \let decode: Algebra.Linear[V := Coordinates.Vector, W := W, source := Coordinates.space, target := target].Map := SmallLaws.synthesis frame.basis \then
+  \let small: SmallEnd.Map := DecodeCompose.compose decode (SmallEncode.compose frame.basis.coordinates (SmallCompose.compose into out)) \then
+  \let same: small = Small.identity := SmallEnd.ext small Small.identity (\axiom:funext(small.apply, Small.identity.apply,
+    \fun (x: W) => trans!{W} _ _ _ (frame.basis.reconstruction (into.apply (out.apply x))) (retract x))) \then
+  \return eq_reason_in!{C.Complex _
+    "=" _ "by" { calculate map finite frame.size factor }
+    "=" _ "by" { Cyclic.cyclic Canonical.basis frame.basis decode (SmallEncode.compose frame.basis.coordinates (SmallCompose.compose into out)) }
+    "=" _ "by" { congr!{SmallEnd.Map C.Complex} (SmallBasis.trace frame.basis) _ _ same }
+    "=" _ "by" { Dimensions.identityTrace frame.basis }
+  }
+};
