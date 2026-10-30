@@ -1,0 +1,62 @@
+\import \root.Product[A := A, B := B, mu := mu, nu := nu, left := left, right := right] \as Left;
+\import \root.Product[A := B, B := A, mu := nu, nu := mu, left := right, right := left] \as Right;
+\import \root.ProductSigma[A := A, B := B, left := mu.sigma, right := nu.sigma] \as Sigma;
+\import \root.ProductSigma[A := B, B := A, left := nu.sigma, right := mu.sigma] \as OtherSigma;
+\import std.Data[].Pair[] \as Pair;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import functional_analysis.Measure[A := Sigma.Point] \as M;
+\import M.Sigma[] \as MS;
+\import functional_analysis.Measure[A := OtherSigma.Point] \as Other;
+\import topology.Topology[Carrier := Sigma.Point] \as Sets;
+\import topology.Topology[Carrier := OtherSigma.Point] \as OtherSets;
+\import topology.Topology[Carrier := A] \as ASets;
+\import topology.Topology[Carrier := B] \as BSets;
+\import \root.Generated[A := Sigma.Point, generators := Sigma.generators] \as Generated;
+\import euclidean_measure.Pushforward[A := OtherSigma.Point, B := Sigma.Point, source := Right.measure, map := Pair.swap B A] \as Push;
+\import M.Finite[mu := Push.measure] \as PushFinite;
+\import \root.Cuts[A := Sigma.Point] \as Cuts;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition preimageRectangle: \forall (U: \Pow A) (V: \Pow B) -> Push.preimage (Sigma.rectangle U V) = OtherSigma.rectangle V U :=
+  \fun (U: \Pow A) (V: \Pow B) => \axiom:setext(Push.preimage (Sigma.rectangle U V), OtherSigma.rectangle V U,
+    \fun (p: OtherSigma.Point) (member: OtherSets.Member (Push.preimage (Sigma.rectangle U V)) p) => Logic.And[_, _]::# member.right member.left,
+    \fun (p: OtherSigma.Point) (member: OtherSets.Member (OtherSigma.rectangle V U) p) => Logic.And[_, _]::# member.right member.left);
+\definition rectangleMeasurable: \forall (U: \Pow A) (V: \Pow B) -> functional_analysis.Measure[A := A].Measurable mu.sigma U ->
+  functional_analysis.Measure[A := B].Measurable nu.sigma V -> M.Measurable Push.sigma (Sigma.rectangle U V) :=
+  \fun (U: \Pow A) (V: \Pow B) (u: functional_analysis.Measure[A := A].Measurable mu.sigma U) (v: functional_analysis.Measure[A := B].Measurable nu.sigma V) =>
+    \idelim OtherSigma.rectangle V U = Push.preimage (Sigma.rectangle U V) \with S: \Pow OtherSigma.Point => Other.Measurable OtherSigma.sigma S \by {
+      base: OtherSigma.rectangleMeasurable V U v u, equality: sym!{\Pow OtherSigma.Point} _ _ (preimageRectangle U V) };
+\definition included: \forall (S: \Pow Sigma.Point) -> M.Measurable Sigma.sigma S -> M.Measurable Push.sigma S :=
+  Generated.least Push.sigma (\fun (S: \Pow Sigma.Point) (member: \exists Sigma.Rectangle[S]) => \block {
+    \takefrom rectangle: Sigma.Rectangle[S] \by member \then
+    \return \idelim Sigma.rectangle rectangle.leftSet rectangle.rightSet = S \with T: \Pow Sigma.Point => M.Measurable Push.sigma T \by {
+      base: rectangleMeasurable rectangle.leftSet rectangle.rightSet rectangle.leftMeasurable rectangle.rightMeasurable,
+      equality: sym!{\Pow Sigma.Point} _ _ rectangle.equality }
+  });
+\import \root.SeriesValues[A := OtherSigma.Point, mu := Right.measure] \as Series;
+\definition component[i, j: N.Nat^] [S: \Pow Sigma.Point]: M.Value :=
+  \root.FiniteProduct[A := A, B := B, mu := Left.leftMeasure i, nu := Left.rightMeasure j].measure.value S;
+\definition symmetry: \forall (S: \Pow Sigma.Point) -> M.Measurable Sigma.sigma S ->
+  Left.measure.value S = Right.measure.value (Push.preimage S) :=
+  \fun (S: \Pow Sigma.Point) (valid: M.Measurable Sigma.sigma S) => eq_reason_in!{M.Value _
+    "=" _ "by" { congr!{{N.Nat^ -> M.Value} M.Value} M.series _ _ (\axiom:funext(
+      (\fun (i: N.Nat^) => M.series (\fun (j: N.Nat^) => component i j S)),
+      (\fun (i: N.Nat^) => M.series (\fun (j: N.Nat^) => \root.FiniteProduct[A := B, B := A, mu := Left.rightMeasure j, nu := Left.leftMeasure i].measure.value (Push.preimage S))),
+      \fun (i: N.Nat^) => congr!{{N.Nat^ -> M.Value} M.Value} M.series _ _ (\axiom:funext(
+        (\fun (j: N.Nat^) => component i j S),
+        (\fun (j: N.Nat^) => \root.FiniteProduct[A := B, B := A, mu := Left.rightMeasure j, nu := Left.leftMeasure i].measure.value (Push.preimage S)),
+        \fun (j: N.Nat^) => \root.FiniteSymmetry[A := A, B := B, mu := Left.leftMeasure i, nu := Left.rightMeasure j].symmetry S valid)))) }
+    "=" _ "by" { Series.swap (\fun (i, j: N.Nat^) => \root.FiniteProduct[A := B, B := A, mu := Left.rightMeasure j, nu := Left.leftMeasure i].measure.value (Push.preimage S))
+      (\fun (i, j: N.Nat^) => \root.FiniteProduct[A := B, B := A, mu := Left.rightMeasure j, nu := Left.leftMeasure i].nonnegative (Push.preimage S) (included S valid)) }
+  };
+\import \root.MeasureMap[A := OtherSigma.Point, B := Sigma.Point, source := Right.measure, target := Left.measure] \as Map;
+\definition map: Map.Data := Map.Data {
+  function := Pair.swap B A,
+  measurable := included,
+  value := \fun (S: \Pow Sigma.Point) (valid: M.Measurable Sigma.sigma S) => sym!{M.Value} _ _ (symmetry S valid),
+};

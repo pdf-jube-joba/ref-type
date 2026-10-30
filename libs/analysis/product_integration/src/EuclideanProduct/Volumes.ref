@@ -1,0 +1,47 @@
+\definition products: \forall (a, b: N.Nat^) (h: Fin.Fin (NatOp.add b a) -> Real.Real) ->
+  E.product (NatOp.add b a) h = Real.mul
+    (E.product a (\fun (i: Fin.Fin a) => h (Fin.Sum[m := a, n := b].left i)))
+    (E.product b (\fun (j: Fin.Fin b) => h (Fin.Sum[m := a, n := b].right j))) :=
+  \induction (a: N.Nat^) \return \forall (b: N.Nat^) (h: Fin.Fin (NatOp.add b a) -> Real.Real) ->
+    E.product (NatOp.add b a) h = Real.mul
+      (E.product a (\fun (i: Fin.Fin a) => h (Fin.Sum[m := a, n := b].left i)))
+      (E.product b (\fun (j: Fin.Fin b) => h (Fin.Sum[m := a, n := b].right j))) \with {
+    | zero: \fun (b: N.Nat^) (h: Fin.Fin b -> Real.Real) => eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{{Fin.Fin b -> Real.Real} Real.Real} (E.product b) _ _ (\axiom:funext(h,
+        (\fun (j: Fin.Fin b) => h (Fin.Sum[m := N.Nat^::zero, n := b].right j)), \fun (j: Fin.Fin b) => \refl(h j))) }
+      "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulOneLeft (E.product b (\fun (j: Fin.Fin b) => h (Fin.Sum[m := N.Nat^::zero, n := b].right j)))) }
+    }
+    | succ: \fun (a: N.Nat^) (previous: _) (b: N.Nat^) (h: Fin.Fin (NatOp.add b (N.Nat^::succ a)) -> Real.Real) => eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (h (Fin.zero (NatOp.add b a)))) _ _
+        (previous b (\fun (i: Fin.Fin (NatOp.add b a)) => h (Fin.succ (NatOp.add b a) i))) }
+      "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulAssoc (h (Fin.zero (NatOp.add b a)))
+        (E.product a (\fun (i: Fin.Fin a) => h (Fin.succ (NatOp.add b a) (Fin.Sum[m := a, n := b].left i))))
+        (E.product b (\fun (j: Fin.Fin b) => h (Fin.succ (NatOp.add b a) (Fin.Sum[m := a, n := b].right j))))) }
+    }
+  };
+\definition volume: \forall (b: E.Box) -> E.volume b = Real.mul (L.volume (leftBox b)) (R.volume (rightBox b)) :=
+  \fun (b: E.Box) => Bool.cases (\fun (active: Bool.Bool^) =>
+    (\match active \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with { | false: Real.zero | true: E.product Index.total (\fun (i: Fin.Fin Index.total) => Real.sub (b.right i) (b.left i)) }) =
+    Real.mul (\match active \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with { | false: Real.zero | true: L.product m (\fun (i: Fin.Fin m) => Real.sub (b.right (Index.left i)) (b.left (Index.left i))) })
+      (\match active \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with { | false: Real.zero | true: R.product n (\fun (j: Fin.Fin n) => Real.sub (b.right (Index.right j)) (b.left (Index.right j))) }))
+    (sym!{Real.Real} _ _ (Laws.fieldMulZeroLeft Real.zero))
+    (products m n (\fun (i: Fin.Fin Index.total) => Real.sub (b.right i) (b.left i))) b.active;
+\definition leftMass[b: E.Box]: \root.Finiteness[A := L.Point, mu := L.MeasureConstruction[].measure].FiniteMeasurableSet :=
+  \into[\Pow L.Point](L.points (leftBox b), \root.Finiteness[A := L.Point, mu := L.MeasureConstruction[].measure].FiniteMeasurableSet) \by { Left.boxFinite (leftBox b) };
+\definition rightMass[b: E.Box]: \root.Finiteness[A := R.Point, mu := R.MeasureConstruction[].measure].FiniteMeasurableSet :=
+  \into[\Pow R.Point](R.points (rightBox b), \root.Finiteness[A := R.Point, mu := R.MeasureConstruction[].measure].FiniteMeasurableSet) \by { Right.boxFinite (rightBox b) };
+\import \root.Cuts[A := E.Point] \as Cuts;
+\definition leftValue[b: E.Box]: \root.Finiteness[A := L.Point, mu := L.MeasureConstruction[].measure].mass (leftMass b) = L.volume (leftBox b) := Cuts.injective _ _ (eq_reason_in!{M.Value _
+  "=" _ "by" { sym!{M.Value} _ _ (\root.Finiteness[A := L.Point, mu := L.MeasureConstruction[].measure].massCut (leftMass b)) }
+  "=" _ "by" { euclidean_measure.BoxVolume[n := m].boxVolume (leftBox b) }
+});
+\definition rightValue[b: E.Box]: \root.Finiteness[A := R.Point, mu := R.MeasureConstruction[].measure].mass (rightMass b) = R.volume (rightBox b) := Cuts.injective _ _ (eq_reason_in!{M.Value _
+  "=" _ "by" { sym!{M.Value} _ _ (\root.Finiteness[A := R.Point, mu := R.MeasureConstruction[].measure].massCut (rightMass b)) }
+  "=" _ "by" { euclidean_measure.BoxVolume[n := n].boxVolume (rightBox b) }
+});
+\definition theorem: \forall (b: E.Box) -> Push.measure.value (E.points b) = E.volumeValue b := \fun (b: E.Box) => eq_reason_in!{M.Value _
+  "=" _ "by" { congr!{{\Pow Sigma.Point} M.Value} Product.measure.value _ _ (boxPreimage b) }
+  "=" _ "by" { Product.FiniteRectangle[U := leftMass b, V := rightMass b].theorem }
+  "=" _ "by" { congr!{Real.Real M.Value} Cuts.cut _ _ (congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (leftValue b) (rightValue b)) }
+  "=" _ "by" { congr!{Real.Real M.Value} Cuts.cut _ _ (sym!{Real.Real} _ _ (volume b)) }
+};

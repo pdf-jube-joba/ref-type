@@ -1,0 +1,124 @@
+\import \root.FiniteProduct[A := A, B := B, mu := mu, nu := nu] \as Product;
+\import \root.ProductSigma[A := A, B := B, left := mu.sigma, right := nu.sigma] \as Sigma;
+\import \root.FiniteKernel[A := A, B := B, mu := mu, nu := nu] \as Kernel;
+\import functional_analysis.Measure[A := A] \as LM;
+\import functional_analysis.Measure[A := B] \as RM;
+\import functional_analysis.Measure[A := Sigma.Point] \as PM;
+\import LM.Integral[mu := mu] \as LI;
+\import RM.Integral[mu := nu] \as RI;
+\import PM.Integral[mu := Product.measure] \as PI;
+\import \root.IntegralTools[A := A, mu := mu] \as Left;
+\import \root.IntegralTools[A := B, mu := nu] \as Right;
+\import \root.IntegralTools[A := Sigma.Point, mu := Product.measure] \as Joint;
+\import \root.Cuts[A := Sigma.Point] \as Cuts;
+\import LI.Scaling[] \as Scaling;
+\import topology.Topology[Carrier := B] \as BSets;
+\import topology.Topology[Carrier := Sigma.Point] \as Sets;
+\import std.Data[].Pair[] \as Pair;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import real.Analysis[] \as Real;
+\import Real.FiniteSums[] \as Sums;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Completeness[] \as Complete;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\structure SimpleData[n: N.Nat^]: \Set := {
+  simple: PI.CompleteSimple[n],
+  witnesses: \forall (i: Fin.Fin n) -> Kernel.Witness[simple.cells i],
+};
+\module Simple(n: N.Nat^, data: SimpleData[n]);
+\definition ApproximationWitnesses[f: PI.NonnegativeMeasurable]: \Set :=
+  \forall (k: N.Nat^) (i: Fin.Fin (PI.Approximation[f := f].stages k).size) -> Kernel.Witness[(PI.Approximation[f := f].stages k).simple.cells i];
+\structure BoundedData: \Set := {
+  function: PI.NonnegativeMeasurable,
+  bound: Scaling.NonnegativeScalar,
+  bounded: \forall (p: Sigma.Point) -> R.Le (function.function p) bound,
+  witnesses: ApproximationWitnesses function,
+};
+\structure Fubini[f: PI.Representatives]: \Set := {
+  sections: A -> RI.Representatives,
+  sectionValues: \forall (x: A) (y: B) -> sections x y = f (Pair.pair A B x y),
+  outer: LI.Representatives,
+  outerValues: \forall (x: A) -> outer x = RI.integral (sections x),
+  exchange: PI.integral f = LI.integral outer,
+};
+\module Bounded(data: BoundedData);
+\definition boundedJoint[data: BoundedData]: PI.Representatives :=
+  \root.FiniteIntegration[A := A, B := B, mu := mu, nu := nu].Bounded[data := data].joint;
+\definition boundedCertificate: \forall (data: BoundedData) -> Fubini[boundedJoint data] :=
+  \fun (data: BoundedData) => \root.FiniteIntegration[A := A, B := B, mu := mu, nu := nu].Bounded[data := data].certificate;
+\definition boundedNonnegative: \forall (f: PI.Representatives) (bound: Scaling.NonnegativeScalar) ->
+  (\forall (p: Sigma.Point) -> R.Le Real.zero (f p)) -> (\forall (p: Sigma.Point) -> R.Le (f p) bound) -> \exists Fubini[f] :=
+  \fun (f: PI.Representatives) (bound: Scaling.NonnegativeScalar) (nonnegative: \forall (p: Sigma.Point) -> R.Le Real.zero (f p))
+    (bounded: \forall (p: Sigma.Point) -> R.Le (f p) bound) => \block {
+      \let function: PI.NonnegativeMeasurable := PI.NonnegativeMeasurable {
+        function := f, measurable := (PI.integralLaw f).integrable.left, nonnegative := nonnegative,
+      } \then
+      \let Choices: N.Nat^ -> \Set := \fun (k: N.Nat^) => \forall (i: Fin.Fin (PI.Approximation[f := function].stages k).size) ->
+        Kernel.Witness[(PI.Approximation[f := function].stages k).simple.cells i] \then
+      \takefrom witnesses: \forall (k: N.Nat^) -> Choices k \by \axiom:classicalIndefiniteChoice(N.Nat^, Choices,
+        \fun (k: N.Nat^) => \axiom:classicalIndefiniteChoice(Fin.Fin (PI.Approximation[f := function].stages k).size,
+          (\fun (i: Fin.Fin (PI.Approximation[f := function].stages k).size) => Kernel.Witness[(PI.Approximation[f := function].stages k).simple.cells i]),
+          \fun (i: Fin.Fin (PI.Approximation[f := function].stages k).size) => Kernel.exists ((PI.Approximation[f := function].stages k).simple.cells i)
+            ((PI.Approximation[f := function].stages k).simple.measurable i))) \then
+      \let data: BoundedData := BoundedData { function := function, bound := bound, bounded := bounded, witnesses := witnesses } \then
+      \return \idelim boundedJoint data = f \with g: PI.Representatives => \exists Fubini[g] \by {
+        base: \exact(boundedCertificate data, Fubini[boundedJoint data]),
+        equality: \axiom:funext(boundedJoint data, f, \fun (p: Sigma.Point) => \refl(f p)) }
+    };
+\structure IntegrableData: \Set := {
+  function: PI.NonnegativeMeasurable,
+  integrable: PI.Integrable function.function,
+  witnesses: ApproximationWitnesses function,
+};
+\import LI.Null[] \as Null;
+\import topology.Topology[Carrier := A] \as ASets;
+\structure AEFubini[f: PI.Representatives]: \Set := {
+  exception: Null.NullSet,
+  sections: A -> RI.Representatives,
+  sectionValues: \forall (x: A) -> Logic.Not (ASets.Member exception x) -> \forall (y: B) -> sections x y = f (Pair.pair A B x y),
+  outer: LI.Representatives,
+  outerValues: \forall (x: A) -> outer x = RI.integral (sections x),
+  exchange: PI.integral f = LI.integral outer,
+};
+\module Nonnegative(data: IntegrableData);
+\definition approximationWitnessesExist: \forall (f: PI.NonnegativeMeasurable) -> \exists ApproximationWitnesses f :=
+  \fun (f: PI.NonnegativeMeasurable) => \axiom:classicalIndefiniteChoice(N.Nat^,
+    (\fun (k: N.Nat^) => \forall (i: Fin.Fin (PI.Approximation[f := f].stages k).size) -> Kernel.Witness[(PI.Approximation[f := f].stages k).simple.cells i]),
+    \fun (k: N.Nat^) => \axiom:classicalIndefiniteChoice(Fin.Fin (PI.Approximation[f := f].stages k).size,
+      (\fun (i: Fin.Fin (PI.Approximation[f := f].stages k).size) => Kernel.Witness[(PI.Approximation[f := f].stages k).simple.cells i]),
+      \fun (i: Fin.Fin (PI.Approximation[f := f].stages k).size) => Kernel.exists ((PI.Approximation[f := f].stages k).simple.cells i)
+        ((PI.Approximation[f := f].stages k).simple.measurable i)));
+\definition nonnegativeJoint[data: IntegrableData]: PI.Representatives :=
+  \root.FiniteIntegration[A := A, B := B, mu := mu, nu := nu].Nonnegative[data := data].joint;
+\definition nonnegativeCertificate: \forall (data: IntegrableData) -> AEFubini[nonnegativeJoint data] :=
+  \fun (data: IntegrableData) => \root.FiniteIntegration[A := A, B := B, mu := mu, nu := nu].Nonnegative[data := data].certificate;
+\definition nonnegative: \forall (f: PI.Representatives) -> (\forall (p: Sigma.Point) -> R.Le Real.zero (f p)) -> \exists AEFubini[f] :=
+  \fun (f: PI.Representatives) (nonnegative: \forall (p: Sigma.Point) -> R.Le Real.zero (f p)) => \block {
+    \let function: PI.NonnegativeMeasurable := PI.NonnegativeMeasurable { function := f, measurable := (PI.integralLaw f).integrable.left, nonnegative := nonnegative } \then
+    \takefrom witnesses: ApproximationWitnesses function \by approximationWitnessesExist function \then
+    \let data: IntegrableData := IntegrableData { function := function, integrable := (PI.integralLaw f).integrable, witnesses := witnesses } \then
+    \return \idelim nonnegativeJoint data = f \with g: PI.Representatives => \exists AEFubini[g] \by {
+      base: \exact(nonnegativeCertificate data, AEFubini[nonnegativeJoint data]),
+      equality: \axiom:funext(nonnegativeJoint data, f, \fun (p: Sigma.Point) => \refl(f p)) }
+  };
+\module RealFunction(f: PI.Representatives,
+  positive: AEFubini[\root.IntegralTools[A := Sigma.Point, mu := Product.measure].Parts[f := f].positive],
+  negative: AEFubini[\root.IntegralTools[A := Sigma.Point, mu := Product.measure].Parts[f := f].negative]);
+\definition fubini: \forall (f: PI.Representatives) -> \exists AEFubini[f] := \fun (f: PI.Representatives) => \block {
+  \takefrom p: AEFubini[Joint.Parts[f := f].positive] \by nonnegative (Joint.Parts[f := f].positive) (PI.positivePartNonnegative f) \then
+  \takefrom n: AEFubini[Joint.Parts[f := f].negative] \by nonnegative (Joint.Parts[f := f].negative) (PI.negativePartNonnegative f) \then
+  \return \exact(\root.FiniteIntegration[A := A, B := B, mu := mu, nu := nu].RealFunction[f := f, positive := p, negative := n].certificate, AEFubini[f])
+};
+\module Approximating(f: PI.NonnegativeMeasurable, witnesses: ApproximationWitnesses f);
+\import \root.ExtendedIntegral[A := A, mu := mu] \as Extended;
+\definition sectionLower[f: PI.NonnegativeMeasurable] [x: A]: RM.Value := RI.lowerIntegral (\fun (y: B) => f.function (Pair.pair A B x y));
+\module Tonelli(f: PI.NonnegativeMeasurable, witnesses: ApproximationWitnesses f);
+\definition tonelli: \forall (f: PI.NonnegativeMeasurable) -> PI.lowerIntegral f.function = Extended.lowerIntegral (sectionLower f) :=
+  \fun (f: PI.NonnegativeMeasurable) => \block {
+    \takefrom witnesses: ApproximationWitnesses f \by approximationWitnessesExist f \then
+    \return sym!{PM.Value} _ _ (\root.FiniteIntegration[A := A, B := B, mu := mu, nu := nu].Tonelli[f := f, witnesses := witnesses].theorem)
+  };

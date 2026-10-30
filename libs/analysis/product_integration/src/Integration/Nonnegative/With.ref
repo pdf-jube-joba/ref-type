@@ -1,0 +1,37 @@
+\definition data: E.SeriesData := E.SeriesData {
+  terms := \fun (j, k: N.Nat^) => \root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Nonnegative[f := f].Column[j := j].Approx[witnesses := witnesses j].term k,
+  increasing := \fun (j, k: N.Nat^) (x: A) => \root.FiniteIntegration[A := A, B := B, mu := Left.measure N.Nat^::zero, nu := Right.measure j].Approximating[
+    f := \root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Nonnegative[f := f].Column[j := j].function,
+    witnesses := witnesses j].outerIncreasing k x,
+};
+\import E.Series[data := data] \as Series;
+\definition sectionEquality: sectionLower f = Series.function := \axiom:funext(sectionLower f, Series.function, \fun (x: A) => eq_reason_in!{RM.Value _
+  "=" _ "by" { Right.Integral[f := section x].theorem }
+  "=" _ "by" { congr!{{N.Nat^ -> RM.Value} RM.Value} RM.series _ _ (\axiom:funext(
+    (\fun (j: N.Nat^) => RM.Integral[mu := Right.measure j].lowerIntegral (section x).function),
+    (\fun (j: N.Nat^) => E.sup (Series.row j) x),
+    \fun (j: N.Nat^) => congr!{{A -> RM.Value} RM.Value} (\fun (h: A -> RM.Value) => h x) _ _
+      (\root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Nonnegative[f := f].Column[j := j].Approx[witnesses := witnesses j].equality))) }
+});
+\definition column[j: N.Nat^]: E.lowerIntegral (E.sup (Series.row j)) = LM.series (\fun (i: N.Nat^) =>
+  PM.Integral[mu := \root.FiniteProduct[A := A, B := B, mu := Left.measure i, nu := Right.measure j].measure].lowerIntegral f.function) := eq_reason_in!{LM.Value _
+  "=" _ "by" { congr!{{A -> LM.Value} LM.Value} E.lowerIntegral _ _ (sym!{{A -> LM.Value}} _ _
+    (\root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Nonnegative[f := f].Column[j := j].Approx[witnesses := witnesses j].equality)) }
+  "=" _ "by" { \root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Nonnegative[f := f].Column[j := j].Approx[witnesses := witnesses j].decomposition }
+  "=" _ "by" { congr!{{N.Nat^ -> LM.Value} LM.Value} LM.series _ _ (\axiom:funext(
+    (\fun (i: N.Nat^) => \root.ExtendedIntegral[A := A, mu := Left.measure i].lowerIntegral
+      (\fun (x: A) => \root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Nonnegative[f := f].Column[j := j].lower x)),
+    (\fun (i: N.Nat^) => PM.Integral[mu := \root.FiniteProduct[A := A, B := B, mu := Left.measure i, nu := Right.measure j].measure].lowerIntegral f.function),
+    \fun (i: N.Nat^) => \root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Nonnegative[f := f].Column[j := j].Piece[i := i].theorem)) }
+};
+\definition theorem: E.lowerIntegral (sectionLower f) = PI.lowerIntegral f.function := eq_reason_in!{PM.Value _
+  "=" _ "by" { congr!{{A -> LM.Value} LM.Value} E.lowerIntegral _ _ sectionEquality }
+  "=" _ "by" { Series.theorem }
+  "=" _ "by" { congr!{{N.Nat^ -> LM.Value} LM.Value} LM.series _ _ (\axiom:funext(
+    (\fun (j: N.Nat^) => E.lowerIntegral (E.sup (Series.row j))),
+    (\fun (j: N.Nat^) => LM.series (\fun (i: N.Nat^) => PM.Integral[mu := \root.FiniteProduct[A := A, B := B, mu := Left.measure i, nu := Right.measure j].measure].lowerIntegral f.function)), column)) }
+  "=" _ "by" { Values.swap (\fun (j, i: N.Nat^) => PM.Integral[mu := \root.FiniteProduct[A := A, B := B, mu := Left.measure i, nu := Right.measure j].measure].lowerIntegral f.function)
+    (\fun (j, i: N.Nat^) => PM.Integral[mu := \root.FiniteProduct[A := A, B := B, mu := Left.measure i, nu := Right.measure j].measure].SimpleLaws[].lowerNonnegative f.function) }
+  "=" _ "by" { sym!{PM.Value} _ _ jointSum }
+};
+\module Integrable(integrable: PI.Integrable f.function);

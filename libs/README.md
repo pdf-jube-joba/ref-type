@@ -59,6 +59,7 @@
 | [analysis/uniform_approximation](analysis/uniform_approximation/README.md) | `uniform_approximation` | 実・複素 Stone–Weierstrass、円周と積上の Laurent 近似、行列・束自己準同型の一様評価 |
 | [analysis/calculus](analysis/calculus/README.md) | `calculus` | 極限、平均値定理、多変数微分、滑らかな写像 |
 | [analysis/euclidean_measure](analysis/euclidean_measure/README.md) | `euclidean_measure` | Euclid 空間の Lebesgue 測度、正則性と積分の比較 |
+| [analysis/product_integration](analysis/product_integration/README.md) | `product_integration` | σ 有限積測度、Tonelli・実複素有限次元 Fubini、Euclid 測度の Borel 比較、畳み込みの積分・台・L1 評価 |
 | [analysis/differential_equations](analysis/differential_equations/README.md) | `differential_equations` | Picard の積分作用素、常微分方程式の局所解の存在・一意性、滑らかなベクトル場の解の滑らかさ |
 | [analysis/functional](analysis/functional/README.md) | `functional_analysis` | 実ノルム空間・Hilbert 空間、Arzelà–Ascoli・Riesz 表現・Hahn–Banach・開写像定理、コンパクト台、\(L^p\)・弱微分・Sobolev 空間の定義 |
 | [analysis/measure_convergence](analysis/measure_convergence/README.md) | `measure_convergence` | 単調収束・Fatou・優収束、a.e. 同値類の積分、実・複素・有限次元の積分と級数交換 |

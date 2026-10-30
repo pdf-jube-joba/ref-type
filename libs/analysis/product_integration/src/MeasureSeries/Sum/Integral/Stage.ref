@@ -1,0 +1,19 @@
+\import I.Evaluation[n := (Approx.stages k).size, s := (Approx.stages k).simple].Exact[] \as Exact;
+\definition size: N.Nat^ := (Approx.stages k).size;
+\definition cells: Fin.Fin size -> \Pow A := (Approx.stages k).simple.cells;
+\definition coefficients: Fin.Fin size -> Real.Real := (Approx.stages k).simple.coefficients;
+\definition component[j: N.Nat^]: M.Value := M.sum size (\fun (i: Fin.Fin size) => M.scale (coefficients i) ((data.measures j).value (cells i)));
+\definition theorem: I.lowerIntegral (Approx.value k) = M.series (\fun (j: N.Nat^) => M.Integral[mu := data.measures j].lowerIntegral (Approx.value k)) := eq_reason_in!{M.Value _
+  "=" _ "by" { Exact.lower }
+  "=" _ "by" { congr!{{Fin.Fin size -> M.Value} M.Value} (M.sum size) _ _ (\axiom:funext(
+    (\fun (i: Fin.Fin size) => M.scale (coefficients i) (measure.value (cells i))),
+    (\fun (i: Fin.Fin size) => M.series (\fun (j: N.Nat^) => M.scale (coefficients i) ((data.measures j).value (cells i)))),
+    \fun (i: Fin.Fin size) => Series.scale (coefficients i) (\fun (j: N.Nat^) => (data.measures j).value (cells i)) ((Approx.stages k).simple.nonnegative i)
+      (\fun (j: N.Nat^) => (laws j).nonnegative (cells i) (data.measurable (cells i) ((Approx.stages k).simple.measurable i) j)))) }
+  "=" _ "by" { Series.finiteExchange size (\fun (i: Fin.Fin size) (j: N.Nat^) => M.scale (coefficients i) ((data.measures j).value (cells i)))
+    (\fun (i: Fin.Fin size) (j: N.Nat^) => Values.scaleNonnegative (coefficients i) ((data.measures j).value (cells i)) ((Approx.stages k).simple.nonnegative i)
+      ((laws j).nonnegative (cells i) (data.measurable (cells i) ((Approx.stages k).simple.measurable i) j))) }
+  "=" _ "by" { congr!{{N.Nat^ -> M.Value} M.Value} M.series _ _ (\axiom:funext(component,
+    (\fun (j: N.Nat^) => M.Integral[mu := data.measures j].lowerIntegral (Approx.value k)),
+    \fun (j: N.Nat^) => sym!{M.Value} _ _ (\root.MeasureSeries[A := A].Sum[data := data].Integral[f := f].Component[j := j].Stage[k := k].lower))) }
+};

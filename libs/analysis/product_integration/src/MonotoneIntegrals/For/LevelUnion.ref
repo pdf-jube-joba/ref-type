@@ -1,0 +1,17 @@
+\definition union: \Pow A := M.union (level c);
+\definition measurable: \forall (k: N.Nat^) -> M.Measurable mu.sigma (level c k) :=
+  \fun (k: N.Nat^) => (I.integralLaw (data.sequence k)).integrable.left c;
+\definition increasing: Continuity.Increasing (level c) := \fun (k: N.Nat^) (x: A) (member: Sets.Member (level c k) x) =>
+  R.ltLeTrans c (data.sequence k x) (data.sequence (N.Nat^::succ k) x) member (data.increasing k x);
+\definition bound: \forall (r: Real.Real) -> M.below (M.scale c (mu.value union)) r -> R.Le r data.bound :=
+  \fun (r: Real.Real) (member: M.below (M.scale c (mu.value union)) r) => \block {
+    \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[M.below (mu.value union) a, R.Lt r (Real.mul c a)] }) \by member \then
+    \let law: Logic.And[M.below (mu.value union) a, R.Lt r (Real.mul c a)] :=
+      \bysub(Real.Real, { a: Real.Real \where Logic.And[M.below (mu.value union) a, R.Lt r (Real.mul c a)] }, a) \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where M.below (mu.value (level c k)) a }) \by
+      (\idelim mu.value union = { q: Real.Real \where \exists ( j: N.Nat^ \where M.below (mu.value (level c j)) q ) }
+        \with v: M.Value => M.below v a \by { base: law.left, equality: Continuity.increasingSup (level c) measurable increasing }) \then
+    \return \root.MonotoneIntegrals[A := A, mu := mu].For[data := data].Level[c := c, k := k].bound r
+      (Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[M.below (mu.value (level c k)) a, R.Lt r (Real.mul c a)] }] a
+        (Logic.And[_, _]::# (\bysub(N.Nat^, { j: N.Nat^ \where M.below (mu.value (level c j)) a }, k)) law.right))
+  };

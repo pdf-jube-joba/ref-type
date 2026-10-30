@@ -1,0 +1,46 @@
+\definition unionIntersection: \forall (f: N.Nat^ -> \Pow A) ->
+  Sets.Intersection (M.union f) S = M.union (\fun (k: N.Nat^) => Sets.Intersection (f k) S) :=
+  \fun (f: N.Nat^ -> \Pow A) => \axiom:setext(Sets.Intersection (M.union f) S, M.union (\fun (k: N.Nat^) => Sets.Intersection (f k) S),
+    \fun (x: A) (member: Sets.Member (Sets.Intersection (M.union f) S) x) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sets.Member (f k) x }) \by member.left \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (Sets.Intersection (f k) S) x }] k
+        (Logic.And[_, _]::# (\bysub(N.Nat^, { k: N.Nat^ \where Sets.Member (f k) x }, k)) member.right)
+    },
+    \fun (x: A) (member: Sets.Member (M.union (\fun (k: N.Nat^) => Sets.Intersection (f k) S)) x) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sets.Member (Sets.Intersection (f k) S) x }) \by member \then
+      \let both: Sets.Member (Sets.Intersection (f k) S) x := \bysub(N.Nat^, { k: N.Nat^ \where Sets.Member (Sets.Intersection (f k) S) x }, k) \then
+      \return Logic.And[_, _]::# (Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (f k) x }] k both.left) both.right
+    });
+\definition emptyIntersection: Sets.Intersection Sets.Empty S = Sets.Empty := \axiom:setext(Sets.Intersection Sets.Empty S, Sets.Empty,
+  \fun (x: A) (member: Sets.Member (Sets.Intersection Sets.Empty S) x) => member.left,
+  \fun (x: A) (empty: Logic.False) => Logic.falseElim _ empty);
+\definition data: M.MeasureData := M.MeasureData { sigma := mu.sigma, value := \fun (T: \Pow A) => mu.value (Sets.Intersection T S) };
+\definition measure: M.Measure := \into[M.MeasureData](data, M.Measure) \by {
+  M.MeasureLaws[data] {
+    nonnegative := \fun (T: \Pow A) (valid: M.Measurable mu.sigma T) => Finite.laws.nonnegative (Sets.Intersection T S)
+      (Sigma.intersectionMeasurable mu.sigma T S valid (finiteLaw S).measurable),
+    empty := eq_reason_in!{M.Value _
+      "=" _ "by" { congr!{{\Pow A} M.Value} mu.value _ _ emptyIntersection }
+      "=" _ "by" { Finite.laws.empty }
+    },
+    countableAdditivity := \fun (f: N.Nat^ -> \Pow A) (valid: \forall (k: N.Nat^) -> M.Measurable mu.sigma (f k)) (disjoint: M.Disjoint f) =>
+      eq_reason_in!{M.Value _
+        "=" _ "by" { congr!{{\Pow A} M.Value} mu.value _ _ (unionIntersection f) }
+        "=" _ "by" { Finite.laws.countableAdditivity (\fun (k: N.Nat^) => Sets.Intersection (f k) S)
+          (\fun (k: N.Nat^) => Sigma.intersectionMeasurable mu.sigma (f k) S (valid k) (finiteLaw S).measurable)
+          (\fun (i, j: N.Nat^) (different: Logic.Not (i = j)) (x: A)
+            (first: Sets.Member (Sets.Intersection (f i) S) x) (second: Sets.Member (Sets.Intersection (f j) S) x) =>
+            disjoint i j different x first.left second.left) }
+      },
+  }
+};
+\import \root.Finiteness[A := A, mu := measure] \as Restricted;
+\definition finite: Restricted.FiniteSet[Sets.Whole] := Restricted.FiniteSet[Sets.Whole] {
+  measurable := Sigma.wholeMeasurable mu.sigma,
+  bounded := Logic.existsIntro[Real.Real, { b: Real.Real \where \forall (r: Real.Real) -> M.below (measure.value Sets.Whole) r -> R.Le r b }] (mass S)
+    (\fun (r: Real.Real) (member: M.below (measure.value Sets.Whole) r) => (massLaw S).upper r
+      (Finite.monotone (Sets.Intersection Sets.Whole S) S
+        (Sigma.intersectionMeasurable mu.sigma Sets.Whole S (Sigma.wholeMeasurable mu.sigma) (finiteLaw S).measurable)
+        (finiteLaw S).measurable (\fun (x: A) (both: Sets.Member (Sets.Intersection Sets.Whole S) x) => both.right) r member)),
+};
+\definition finiteMeasure: \root.FiniteSpaces[A := A].Measure := \into[M.Measure](measure, \root.FiniteSpaces[A := A].Measure) \by { finite };

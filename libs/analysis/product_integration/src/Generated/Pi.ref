@@ -1,0 +1,71 @@
+\use std.Logic[].Equality[].sym;
+\definition commutative: \forall (S, T: \Pow A) -> Sets.Intersection S T = Sets.Intersection T S :=
+  \fun (S, T: \Pow A) => \axiom:setext(Sets.Intersection S T, Sets.Intersection T S,
+    \fun (x: A) (member: Sets.Member (Sets.Intersection S T) x) => Logic.And[_, _]::# member.right member.left,
+    \fun (x: A) (member: Sets.Member (Sets.Intersection T S) x) => Logic.And[_, _]::# member.right member.left);
+\definition generatorIntersection: PiSystem -> \forall (U: \Pow A) -> \In[\Pow A] generators U ->
+  \forall (S: \Pow A) -> DynkinMember S -> DynkinMember (Sets.Intersection S U) :=
+  \fun (pi: PiSystem) (U: \Pow A) (u: \In[\Pow A] generators U) (S: \Pow A) (s: DynkinMember S) =>
+    s (\root.Generated[A := A, generators := generators].Intersect[U := U].intersectionClass) (\root.Generated[A := A, generators := generators].Intersect[U := U].laws (dynkinGenerator U u))
+      (\fun (T: \Pow A) (t: \In[\Pow A] generators T) => dynkinGenerator (Sets.Intersection T U) (pi T U t u));
+\definition intersection: PiSystem -> \forall (S, T: \Pow A) -> DynkinMember S -> DynkinMember T -> DynkinMember (Sets.Intersection S T) :=
+  \fun (pi: PiSystem) (S, T: \Pow A) (s: DynkinMember S) (t: DynkinMember T) =>
+    s (\root.Generated[A := A, generators := generators].Intersect[U := T].intersectionClass) (\root.Generated[A := A, generators := generators].Intersect[U := T].laws t)
+      (\fun (U: \Pow A) (u: \In[\Pow A] generators U) =>
+        \idelim Sets.Intersection T U = Sets.Intersection U T \with V: \Pow A => DynkinMember V \by {
+          base: generatorIntersection pi U u T t, equality: commutative T U });
+\definition wholeDifference: \forall (S: \Pow A) -> Sigma.difference Sets.Whole S = Sets.Complement S :=
+  \fun (S: \Pow A) => \axiom:setext(Sigma.difference Sets.Whole S, Sets.Complement S,
+    \fun (x: A) (member: Sets.Member (Sigma.difference Sets.Whole S) x) => member.right,
+    \fun (x: A) (member: Sets.Member (Sets.Complement S) x) => Logic.And[_, _]::# (\refl(x)) member);
+\definition complement: \forall (S: \Pow A) -> DynkinMember S -> DynkinMember (Sets.Complement S) :=
+  \fun (S: \Pow A) (s: DynkinMember S) => \idelim Sigma.difference Sets.Whole S = Sets.Complement S
+    \with T: \Pow A => DynkinMember T \by {
+      base: dynkinLaws.difference Sets.Whole S dynkinLaws.whole s (\fun (x: A) (_: Sets.Member S x) => \refl(x)),
+      equality: wholeDifference S };
+\definition empty: DynkinMember Sets.Empty := \idelim Sets.Complement Sets.Whole = Sets.Empty
+  \with S: \Pow A => DynkinMember S \by {
+    base: complement Sets.Whole dynkinLaws.whole,
+    equality: \axiom:setext(Sets.Complement Sets.Whole, Sets.Empty,
+      \fun (x: A) (outside: Logic.Not (x = x)) => outside (\refl(x)),
+      \fun (x: A) (empty: Logic.False) => Logic.falseElim _ empty) };
+\definition unionPair: PiSystem -> \forall (S, T: \Pow A) -> DynkinMember S -> DynkinMember T -> DynkinMember (Sigma.pairUnion S T) :=
+  \fun (pi: PiSystem) (S, T: \Pow A) (s: DynkinMember S) (t: DynkinMember T) =>
+    \idelim Sets.Complement (Sets.Intersection (Sets.Complement S) (Sets.Complement T)) = Sigma.pairUnion S T
+      \with U: \Pow A => DynkinMember U \by {
+        base: complement (Sets.Intersection (Sets.Complement S) (Sets.Complement T))
+          (intersection pi (Sets.Complement S) (Sets.Complement T) (complement S s) (complement T t)),
+        equality: \axiom:setext(Sets.Complement (Sets.Intersection (Sets.Complement S) (Sets.Complement T)), Sigma.pairUnion S T,
+          \fun (x: A) (outside: Sets.Member (Sets.Complement (Sets.Intersection (Sets.Complement S) (Sets.Complement T))) x) =>
+            Sigma.doubleNegative (Sets.Member (Sigma.pairUnion S T) x)
+              (\fun (neither: Logic.Not (Sets.Member (Sigma.pairUnion S T) x)) => outside (Logic.And[_, _]::#
+                (\fun (inS: Sets.Member S x) => neither (Logic.Or[_, _]::left inS))
+                (\fun (inT: Sets.Member T x) => neither (Logic.Or[_, _]::right inT)))),
+          \fun (x: A) (member: Sets.Member (Sigma.pairUnion S T) x) (neither: Sets.Member (Sets.Intersection (Sets.Complement S) (Sets.Complement T)) x) =>
+            Logic.orElim _ _ Logic.False member neither.left neither.right) };
+\definition prefix: PiSystem -> \forall (f: N.Nat^ -> \Pow A) -> (\forall (k: N.Nat^) -> DynkinMember (f k)) ->
+  \forall (k: N.Nat^) -> DynkinMember (Sigma.prefix f k) :=
+  \fun (pi: PiSystem) (f: N.Nat^ -> \Pow A) (valid: \forall (k: N.Nat^) -> DynkinMember (f k)) =>
+    \induction (k: N.Nat^) \return DynkinMember (Sigma.prefix f k) \with {
+      | zero: empty
+      | succ: \fun (k: N.Nat^) (prior: DynkinMember (Sigma.prefix f k)) => unionPair pi (Sigma.prefix f k) (f k) prior (valid k)
+    };
+\definition countableUnion: PiSystem -> \forall (f: N.Nat^ -> \Pow A) -> (\forall (k: N.Nat^) -> DynkinMember (f k)) -> DynkinMember (M.union f) :=
+  \fun (pi: PiSystem) (f: N.Nat^ -> \Pow A) (valid: \forall (k: N.Nat^) -> DynkinMember (f k)) =>
+    \idelim M.union (Sigma.increments f) = M.union f \with S: \Pow A => DynkinMember S \by {
+      base: dynkinLaws.disjointUnion (Sigma.increments f)
+        (\fun (k: N.Nat^) => intersection pi (f k) (Sets.Complement (Sigma.prefix f k)) (valid k)
+          (complement (Sigma.prefix f k) (prefix pi f valid k))) (Sigma.incrementsDisjoint f),
+      equality: Sigma.incrementUnion f };
+\definition sigma[pi: PiSystem]: M.SigmaAlgebra := \into[M.SigmaAlgebraData]
+  (M.SigmaAlgebraData { measurable := dynkin }, M.SigmaAlgebra) \by {
+    M.SigmaAlgebraLaws[M.SigmaAlgebraData { measurable := dynkin }] {
+      empty := empty, complement := complement, countableUnion := countableUnion pi,
+    }
+  };
+\definition theorem: PiSystem -> \forall (C: \Pow (\Pow A)) -> DynkinLaws[C] ->
+  (\forall (S: \Pow A) -> \In[\Pow A] generators S -> \In[\Pow A] C S) ->
+  \forall (S: \Pow A) -> Member S -> \In[\Pow A] C S :=
+  \fun (pi: PiSystem) (C: \Pow (\Pow A)) (laws: DynkinLaws[C])
+    (contains: \forall (S: \Pow A) -> \In[\Pow A] generators S -> \In[\Pow A] C S) (S: \Pow A) (member: Member S) =>
+    member (sigma pi) dynkinGenerator C laws contains;

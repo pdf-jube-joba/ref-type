@@ -1,0 +1,19 @@
+\import TI.Approximation[f := f] \as Approx;
+\import TI.Convergence[] \as TC;
+\import TC.Monotone[] \as TM;
+\import SI.Convergence[] \as SC;
+\import SC.Monotone[] \as SM;
+\definition targetSequence: TC.MeasurableSequence := \into[N.Nat^ -> B -> Real.Real](Approx.value, TC.MeasurableSequence) \by { Approx.measurable };
+\definition sourceSequence: SC.MeasurableSequence := \into[N.Nat^ -> A -> Real.Real]
+  ((\fun (k: N.Nat^) (x: A) => Approx.value k (map.function x)), SC.MeasurableSequence) \by {
+    \fun (k: N.Nat^) => measurable (Approx.value k) (Approx.measurable k)
+  };
+\definition lower: SI.lowerIntegral (\fun (x: A) => f.function (map.function x)) = TI.lowerIntegral f.function := eq_reason_in!{Source.Value _
+  "=" _ "by" { SM.monotone sourceSequence (\fun (x: A) => f.function (map.function x))
+    (\fun (x: A) => Approx.pointwiseSup (map.function x)) (\fun (k: N.Nat^) (x: A) => Approx.increasing k (map.function x)) }
+  "=" _ "by" { congr!{{N.Nat^ -> Source.Value} Source.Value} SC.Sup _ _ (\axiom:funext(
+    (\fun (k: N.Nat^) => SI.lowerIntegral (\fun (x: A) => Approx.value k (map.function x))),
+    (\fun (k: N.Nat^) => TI.lowerIntegral (Approx.value k)),
+    \fun (k: N.Nat^) => \root.MeasureMap[A := A, B := B, source := source, target := target].On[map := map].Simple[n := (Approx.stages k).size, s := (Approx.stages k).simple].lower)) }
+  "=" _ "by" { sym!{Source.Value} _ _ (TM.monotone targetSequence f.function Approx.pointwiseSup Approx.increasing) }
+};

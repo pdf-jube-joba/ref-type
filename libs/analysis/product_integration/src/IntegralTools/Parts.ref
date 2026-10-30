@@ -1,0 +1,21 @@
+\import I.Negation[] \as Negation;
+\import I.Convergence[].PointwiseLimit[] \as Recovery;
+\definition positiveIntegrable: I.Integrable (I.positivePart f) := Logic.And[_, _]::# (Linear.positiveData f).measurable
+  (\idelim I.positivePart f = (\fun (x: A) => Product.abs (I.positivePart f x)) \with g: (A -> Real.Real) => I.Finite g \by {
+    base: I.finiteMono (I.positivePart f) (\fun (x: A) => Product.abs (f x)) (I.positivePartNonnegative f) (I.positivePartBound f) (I.integralLaw f).integrable.right,
+    equality: \axiom:funext(I.positivePart f, (\fun (x: A) => Product.abs (I.positivePart f x)),
+      \fun (x: A) => sym!{Real.Real} _ _ (Product.absOfNonnegative (I.positivePart f x) (I.positivePartNonnegative f x))) });
+\definition negativeIntegrable: I.Integrable (I.negativePart f) := Logic.And[_, _]::# (Linear.negativeData f).measurable
+  (\idelim I.negativePart f = (\fun (x: A) => Product.abs (I.negativePart f x)) \with g: (A -> Real.Real) => I.Finite g \by {
+    base: I.finiteMono (I.negativePart f) (\fun (x: A) => Product.abs (f x)) (I.negativePartNonnegative f) (I.negativePartBound f) (I.integralLaw f).integrable.right,
+    equality: \axiom:funext(I.negativePart f, (\fun (x: A) => Product.abs (I.negativePart f x)),
+      \fun (x: A) => sym!{Real.Real} _ _ (Product.absOfNonnegative (I.negativePart f x) (I.negativePartNonnegative f x))) });
+\definition positive: I.Representatives := \into[A -> Real.Real](I.positivePart f, I.Representatives) \by { positiveIntegrable };
+\definition negative: I.Representatives := \into[A -> Real.Real](I.negativePart f, I.Representatives) \by { negativeIntegrable };
+\definition decomposition: Linear.addRepresentative positive (Negation.representative negative) = f :=
+  \axiom:funext(Linear.addRepresentative positive (Negation.representative negative), f, Recovery.recover f);
+\definition integral: I.integral f = Real.sub (I.integral positive) (I.integral negative) := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{I.Representatives Real.Real} I.integral _ _ (sym!{I.Representatives} _ _ decomposition) }
+  "=" _ "by" { Linear.integralAdd positive (Negation.representative negative) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (I.integral positive)) _ _ (Negation.integralNeg negative) }
+};

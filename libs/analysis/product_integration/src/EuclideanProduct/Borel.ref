@@ -1,0 +1,63 @@
+\import \root.CoordinateBorel[n := Index.total, sigma := Push.sigma] \as C;
+\import euclidean_measure.EuclideanBorel[n := m] \as LB;
+\import euclidean_measure.EuclideanBorel[n := n] \as RB;
+\import functional_analysis.Measure[A := L.Point] \as LM;
+\import functional_analysis.Measure[A := R.Point] \as RM;
+\import LM.Sigma[] \as LS;
+\import RM.Sigma[] \as RS;
+\definition leftSet[S: \Pow L.Point]: \Pow E.Point := { x: E.Point \where LeftSets.Member S (\fun (i: Fin.Fin m) => x (Index.left i)) };
+\definition leftPreimage[S: \Pow L.Point]: Push.preimage (leftSet S) = Sigma.rectangle S RightSets.Whole :=
+  \axiom:setext(Push.preimage (leftSet S), Sigma.rectangle S RightSets.Whole,
+    \fun (p: Sigma.Point) (member: PairSets.Member (Push.preimage (leftSet S)) p) => \block {
+      \let equal: (\fun (i: Fin.Fin m) => join p (Index.left i)) = Pair.first L.Point R.Point p :=
+        \axiom:funext((\fun (i: Fin.Fin m) => join p (Index.left i)), Pair.first L.Point R.Point p,
+          \fun (i: Fin.Fin m) => Tuples.atLeft (Pair.first L.Point R.Point p) (Pair.second L.Point R.Point p) i) \then
+      \let inside: LeftSets.Member S (Pair.first L.Point R.Point p) := \idelim (\fun (i: Fin.Fin m) => join p (Index.left i)) = Pair.first L.Point R.Point p
+        \with x: L.Point => LeftSets.Member S x \by { base: member, equality: equal } \then
+      \return Logic.And[_, _]::# inside (\refl(Pair.second L.Point R.Point p))
+    },
+    \fun (p: Sigma.Point) (member: PairSets.Member (Sigma.rectangle S RightSets.Whole) p) =>
+      \idelim Pair.first L.Point R.Point p = (\fun (i: Fin.Fin m) => join p (Index.left i)) \with x: L.Point => LeftSets.Member S x \by {
+        base: member.left, equality: \axiom:funext(Pair.first L.Point R.Point p, (\fun (i: Fin.Fin m) => join p (Index.left i)),
+          \fun (i: Fin.Fin m) => sym!{Real.Real} _ _ (Tuples.atLeft (Pair.first L.Point R.Point p) (Pair.second L.Point R.Point p) i)) });
+\definition leftMeasurable: \forall (S: \Pow L.Point) -> LM.Measurable L.MeasureConstruction[].measure.sigma S -> M.Measurable Push.sigma (leftSet S) :=
+  \fun (S: \Pow L.Point) (valid: LM.Measurable L.MeasureConstruction[].measure.sigma S) =>
+    \idelim Sigma.rectangle S RightSets.Whole = Push.preimage (leftSet S) \with T: \Pow Sigma.Point => functional_analysis.Measure[A := Sigma.Point].Measurable Sigma.sigma T \by {
+      base: Sigma.rectangleMeasurable S RightSets.Whole valid (RS.wholeMeasurable R.MeasureConstruction[].measure.sigma),
+      equality: sym!{{\Pow Sigma.Point}} _ _ (leftPreimage S) };
+\definition rightSet[S: \Pow R.Point]: \Pow E.Point := { x: E.Point \where RightSets.Member S (\fun (i: Fin.Fin n) => x (Index.right i)) };
+\definition rightPreimage[S: \Pow R.Point]: Push.preimage (rightSet S) = Sigma.rectangle LeftSets.Whole S :=
+  \axiom:setext(Push.preimage (rightSet S), Sigma.rectangle LeftSets.Whole S,
+    \fun (p: Sigma.Point) (member: PairSets.Member (Push.preimage (rightSet S)) p) => \block {
+      \let equal: (\fun (i: Fin.Fin n) => join p (Index.right i)) = Pair.second L.Point R.Point p :=
+        \axiom:funext((\fun (i: Fin.Fin n) => join p (Index.right i)), Pair.second L.Point R.Point p,
+          \fun (i: Fin.Fin n) => Tuples.atRight (Pair.first L.Point R.Point p) (Pair.second L.Point R.Point p) i) \then
+      \let inside: RightSets.Member S (Pair.second L.Point R.Point p) := \idelim (\fun (i: Fin.Fin n) => join p (Index.right i)) = Pair.second L.Point R.Point p
+        \with x: R.Point => RightSets.Member S x \by { base: member, equality: equal } \then
+      \return Logic.And[_, _]::# (\refl(Pair.first L.Point R.Point p)) inside
+    },
+    \fun (p: Sigma.Point) (member: PairSets.Member (Sigma.rectangle LeftSets.Whole S) p) =>
+      \idelim Pair.second L.Point R.Point p = (\fun (i: Fin.Fin n) => join p (Index.right i)) \with x: R.Point => RightSets.Member S x \by {
+        base: member.right, equality: \axiom:funext(Pair.second L.Point R.Point p, (\fun (i: Fin.Fin n) => join p (Index.right i)),
+          \fun (i: Fin.Fin n) => sym!{Real.Real} _ _ (Tuples.atRight (Pair.first L.Point R.Point p) (Pair.second L.Point R.Point p) i)) });
+\definition rightMeasurable: \forall (S: \Pow R.Point) -> RM.Measurable R.MeasureConstruction[].measure.sigma S -> M.Measurable Push.sigma (rightSet S) :=
+  \fun (S: \Pow R.Point) (valid: RM.Measurable R.MeasureConstruction[].measure.sigma S) =>
+    \idelim Sigma.rectangle LeftSets.Whole S = Push.preimage (rightSet S) \with T: \Pow Sigma.Point => functional_analysis.Measure[A := Sigma.Point].Measurable Sigma.sigma T \by {
+      base: Sigma.rectangleMeasurable LeftSets.Whole S (LS.wholeMeasurable L.MeasureConstruction[].measure.sigma) valid,
+      equality: sym!{{\Pow Sigma.Point}} _ _ (rightPreimage S) };
+\definition above: \forall (i: Fin.Fin Index.total) (a: Real.Real) -> M.Measurable Push.sigma (C.above i a) :=
+  \fun (i: Fin.Fin Index.total) (a: Real.Real) =>
+    \idelim Index.inflate (Index.split i) = i \with j: Fin.Fin Index.total => M.Measurable Push.sigma (C.above j a) \by {
+      base: (\induction (index: Index.Index) \return M.Measurable Push.sigma (C.above (Index.inflate index) a) \with {
+        | inl: \fun (k: Fin.Fin m) => leftMeasurable (LB.above k a) (LB.aboveMeasurable k a)
+        | inr: \fun (k: Fin.Fin n) => rightMeasurable (RB.above k a) (RB.aboveMeasurable k a)
+      }) (Index.split i), equality: Index.inflateSplit i };
+\definition below: \forall (i: Fin.Fin Index.total) (a: Real.Real) -> M.Measurable Push.sigma (C.below i a) :=
+  \fun (i: Fin.Fin Index.total) (a: Real.Real) =>
+    \idelim Index.inflate (Index.split i) = i \with j: Fin.Fin Index.total => M.Measurable Push.sigma (C.below j a) \by {
+      base: (\induction (index: Index.Index) \return M.Measurable Push.sigma (C.below (Index.inflate index) a) \with {
+        | inl: \fun (k: Fin.Fin m) => leftMeasurable (LB.below k a) (LB.belowMeasurable k a)
+        | inr: \fun (k: Fin.Fin n) => rightMeasurable (RB.below k a) (RB.belowMeasurable k a)
+      }) (Index.split i), equality: Index.inflateSplit i };
+\definition data: C.Conditions := C.Conditions { above := above, below := below };
+\definition measurable: \forall (S: \Pow E.Point) -> M.Measurable E.Borel[].sigma S -> M.Measurable Push.sigma S := C.For[data := data].borelMeasurable;

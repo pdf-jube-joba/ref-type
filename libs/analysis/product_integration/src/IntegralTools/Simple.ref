@@ -1,0 +1,12 @@
+\import I.Evaluation[n := n, s := s] \as Evaluation;
+\import Evaluation.Exact[] \as Exact;
+\definition supremum: \forall (p: Fin.Fin n -> Real.Real) -> (\forall (i: Fin.Fin n) -> Complete.LeastUpperBound[mu.value (s.cells i), p i]) ->
+  Complete.LeastUpperBound[I.lowerIntegral Evaluation.value, Sums.sum n (\fun (i: Fin.Fin n) => Real.mul (s.coefficients i) (p i))] :=
+  \fun (p: Fin.Fin n -> Real.Real) (law: \forall (i: Fin.Fin n) -> Complete.LeastUpperBound[mu.value (s.cells i), p i]) =>
+    \idelim I.simpleIntegral n s = I.lowerIntegral Evaluation.value \with v: M.Value =>
+      Complete.LeastUpperBound[v, Sums.sum n (\fun (i: Fin.Fin n) => Real.mul (s.coefficients i) (p i))] \by {
+        base: valuesSup n (\fun (i: Fin.Fin n) => M.scale (s.coefficients i) (mu.value (s.cells i)))
+          (\fun (i: Fin.Fin n) => Real.mul (s.coefficients i) (p i)) (\fun (i: Fin.Fin n) => Scaling.supScale
+            (\into[Real.Real](s.coefficients i, Scaling.NonnegativeScalar) \by { s.nonnegative i }) (mu.value (s.cells i)) (p i)
+              (Finite.laws.nonnegative (s.cells i) (s.measurable i)) (law i)),
+        equality: sym!{M.Value} _ _ Exact.lower };

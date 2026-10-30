@@ -1,0 +1,48 @@
+\import LI.Linear[] \as LeftLinear;
+\import LI.Negation[] \as LeftNegation;
+\import RI.Linear[] \as RightLinear;
+\import RI.Negation[] \as RightNegation;
+\import LI.Null[] \as Null;
+\import LM.Sigma[] \as LeftSigma;
+\import LM.AlmostEverywhere[mu := mu] \as AE;
+\import PI.Convergence[].PointwiseLimit[] \as Recovery;
+\definition exceptionSet: \Pow A := LeftSigma.pairUnion positive.exception negative.exception;
+\definition exception: Null.NullSet := \into[\Pow A](exceptionSet, Null.NullSet) \by {
+  Null.NullSetLaw[exceptionSet] {
+    measurable := LeftSigma.pairMeasurable mu.sigma positive.exception negative.exception (Null.nullSetLaw positive.exception).measurable (Null.nullSetLaw negative.exception).measurable,
+    zeroMeasure := AE.measurableNullUnion positive.exception negative.exception (Null.nullSetLaw positive.exception).measurable (Null.nullSetLaw negative.exception).measurable
+      (Null.nullSetLaw positive.exception).zeroMeasure (Null.nullSetLaw negative.exception).zeroMeasure,
+  }
+};
+\definition section[x: A]: RI.Representatives := RightLinear.addRepresentative (positive.sections x) (RightNegation.representative (negative.sections x));
+\definition sectionValue: \forall (x: A) -> Logic.Not (ASets.Member exception x) -> \forall (y: B) -> section x y = f (Pair.pair A B x y) :=
+  \fun (x: A) (outside: Logic.Not (ASets.Member exception x)) (y: B) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _
+      (positive.sectionValues x (\fun (inside: ASets.Member positive.exception x) => outside (Logic.Or[_, _]::left inside)) y)
+      (negative.sectionValues x (\fun (inside: ASets.Member negative.exception x) => outside (Logic.Or[_, _]::right inside)) y) }
+    "=" _ "by" { Recovery.recover f (Pair.pair A B x y) }
+  };
+\definition outer: LI.Representatives := LeftLinear.addRepresentative positive.outer (LeftNegation.representative negative.outer);
+\definition sectionIntegral: \forall (x: A) -> RI.integral (section x) = Real.sub (RI.integral (positive.sections x)) (RI.integral (negative.sections x)) :=
+  \fun (x: A) => eq_reason_in!{Real.Real _
+    "=" _ "by" { RightLinear.integralAdd (positive.sections x) (RightNegation.representative (negative.sections x)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (RI.integral (positive.sections x))) _ _ (RightNegation.integralNeg (negative.sections x)) }
+  };
+\definition outerValue: \forall (x: A) -> outer x = RI.integral (section x) := \fun (x: A) => eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _ (positive.outerValues x) (negative.outerValues x) }
+  "=" _ "by" { sym!{Real.Real} _ _ (sectionIntegral x) }
+};
+\definition exchange: PI.integral f = LI.integral outer := eq_reason_in!{Real.Real _
+  "=" _ "by" { Joint.Parts[f := f].integral }
+  "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _ positive.exchange negative.exchange }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (LI.integral positive.outer)) _ _ (sym!{Real.Real} _ _ (LeftNegation.integralNeg negative.outer)) }
+  "=" _ "by" { sym!{Real.Real} _ _ (LeftLinear.integralAdd positive.outer (LeftNegation.representative negative.outer)) }
+};
+\definition certificate: AEFubini[f] := AEFubini[f] {
+  exception := exception,
+  sections := section,
+  sectionValues := sectionValue,
+  outer := outer,
+  outerValues := outerValue,
+  exchange := exchange,
+};

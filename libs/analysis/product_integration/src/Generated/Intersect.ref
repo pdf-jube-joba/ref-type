@@ -1,0 +1,47 @@
+\use std.Logic[].Equality[].sym;
+\definition intersectionClass: \Pow (\Pow A) := { S: \Pow A \where DynkinMember (Sets.Intersection S U) };
+\definition wholeIntersection: Sets.Intersection Sets.Whole U = U :=
+  \axiom:setext(Sets.Intersection Sets.Whole U, U,
+    \fun (x: A) (member: Sets.Member (Sets.Intersection Sets.Whole U) x) => member.right,
+    \fun (x: A) (member: Sets.Member U x) => Logic.And[_, _]::# (\refl(x)) member);
+\definition differenceIntersection: \forall (S, T: \Pow A) ->
+  Sigma.difference (Sets.Intersection S U) (Sets.Intersection T U) = Sets.Intersection (Sigma.difference S T) U :=
+  \fun (S, T: \Pow A) => \axiom:setext(Sigma.difference (Sets.Intersection S U) (Sets.Intersection T U), Sets.Intersection (Sigma.difference S T) U,
+    \fun (x: A) (member: Sets.Member (Sigma.difference (Sets.Intersection S U) (Sets.Intersection T U)) x) =>
+      Logic.And[_, _]::# (Logic.And[_, _]::# member.left.left
+        (\fun (inT: Sets.Member T x) => member.right (Logic.And[_, _]::# inT member.left.right))) member.left.right,
+    \fun (x: A) (member: Sets.Member (Sets.Intersection (Sigma.difference S T) U) x) =>
+      Logic.And[_, _]::# (Logic.And[_, _]::# member.left.left member.right)
+        (\fun (both: Sets.Member (Sets.Intersection T U) x) => member.left.right both.left));
+\definition unionIntersection: \forall (f: N.Nat^ -> \Pow A) ->
+  M.union (\fun (k: N.Nat^) => Sets.Intersection (f k) U) = Sets.Intersection (M.union f) U :=
+  \fun (f: N.Nat^ -> \Pow A) => \axiom:setext(M.union (\fun (k: N.Nat^) => Sets.Intersection (f k) U), Sets.Intersection (M.union f) U,
+    \fun (x: A) (member: Sets.Member (M.union (\fun (k: N.Nat^) => Sets.Intersection (f k) U)) x) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sets.Member (Sets.Intersection (f k) U) x }) \by member \then
+      \let both: Sets.Member (Sets.Intersection (f k) U) x := \bysub(N.Nat^, { k: N.Nat^ \where Sets.Member (Sets.Intersection (f k) U) x }, k) \then
+      \return Logic.And[_, _]::# (Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (f k) x }] k both.left) both.right
+    },
+    \fun (x: A) (member: Sets.Member (Sets.Intersection (M.union f) U) x) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sets.Member (f k) x }) \by member.left \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (Sets.Intersection (f k) U) x }] k
+        (Logic.And[_, _]::# (\bysub(N.Nat^, { k: N.Nat^ \where Sets.Member (f k) x }, k)) member.right)
+    });
+\definition laws: DynkinMember U -> DynkinLaws[intersectionClass] :=
+  \fun (valid: DynkinMember U) => DynkinLaws[intersectionClass] {
+    whole := \idelim U = Sets.Intersection Sets.Whole U \with S: \Pow A => DynkinMember S \by {
+      base: valid, equality: sym!{\Pow A} _ _ wholeIntersection },
+    difference := \fun (S, T: \Pow A) (s: DynkinMember (Sets.Intersection S U)) (t: DynkinMember (Sets.Intersection T U)) (subset: Sets.Subset T S) =>
+      \idelim Sigma.difference (Sets.Intersection S U) (Sets.Intersection T U) = Sets.Intersection (Sigma.difference S T) U
+        \with V: \Pow A => DynkinMember V \by {
+          base: dynkinLaws.difference (Sets.Intersection S U) (Sets.Intersection T U) s t
+            (\fun (x: A) (member: Sets.Member (Sets.Intersection T U) x) => Logic.And[_, _]::# (subset x member.left) member.right),
+          equality: differenceIntersection S T },
+    disjointUnion := \fun (f: N.Nat^ -> \Pow A) (valid: \forall (k: N.Nat^) -> DynkinMember (Sets.Intersection (f k) U)) (disjoint: M.Disjoint f) =>
+      \idelim M.union (\fun (k: N.Nat^) => Sets.Intersection (f k) U) = Sets.Intersection (M.union f) U
+        \with V: \Pow A => DynkinMember V \by {
+          base: dynkinLaws.disjointUnion (\fun (k: N.Nat^) => Sets.Intersection (f k) U) valid
+            (\fun (i, j: N.Nat^) (different: Logic.Not (i = j)) (x: A)
+              (first: Sets.Member (Sets.Intersection (f i) U) x) (second: Sets.Member (Sets.Intersection (f j) U) x) =>
+              disjoint i j different x first.left second.left),
+          equality: unionIntersection f },
+  };

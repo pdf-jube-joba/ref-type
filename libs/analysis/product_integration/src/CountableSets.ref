@@ -1,0 +1,41 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\import std.Logic[].Proposition[] \as Logic;
+\import functional_analysis.Measure[A := A] \as M;
+\import M.Sigma[] \as Sigma;
+\import topology.Topology[Carrier := A] \as Sets;
+\definition prefixMember: \forall (f: N.Nat^ -> \Pow A) (k: N.Nat^) (x: A) -> Sets.Member (Sigma.prefix f k) x ->
+  \exists ( i: N.Nat^ \where Logic.And[Nat.Lt i k, Sets.Member (f i) x] ) :=
+  \fun (f: N.Nat^ -> \Pow A) => \induction (k: N.Nat^) \return \forall (x: A) -> Sets.Member (Sigma.prefix f k) x ->
+    \exists ( i: N.Nat^ \where Logic.And[Nat.Lt i k, Sets.Member (f i) x] ) \with {
+      | zero: \fun (x: A) (empty: Logic.False) => Logic.falseElim _ empty
+      | succ: \fun (k: N.Nat^) (prior: \forall (x: A) -> Sets.Member (Sigma.prefix f k) x -> \exists ( i: N.Nat^ \where Logic.And[Nat.Lt i k, Sets.Member (f i) x] ))
+        (x: A) (member: Sets.Member (Sigma.prefix f (N.Nat^::succ k)) x) =>
+        Logic.orElim _ _ (\exists ( i: N.Nat^ \where Logic.And[Nat.Lt i (N.Nat^::succ k), Sets.Member (f i) x] )) member
+          (\fun (before: Sets.Member (Sigma.prefix f k) x) => \block {
+            \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where Logic.And[Nat.Lt i k, Sets.Member (f i) x] }) \by prior x before \then
+            \let law: Logic.And[Nat.Lt i k, Sets.Member (f i) x] := \bysub(N.Nat^, { i: N.Nat^ \where Logic.And[Nat.Lt i k, Sets.Member (f i) x] }, i) \then
+            \return Logic.existsIntro[N.Nat^, { i: N.Nat^ \where Logic.And[Nat.Lt i (N.Nat^::succ k), Sets.Member (f i) x] }] i
+              (Logic.And[_, _]::# (Nat.ltLeTrans i k (N.Nat^::succ k) law.left (Nat.leSelfSucc k)) law.right)
+          })
+          (\fun (current: Sets.Member (f k) x) =>
+            Logic.existsIntro[N.Nat^, { i: N.Nat^ \where Logic.And[Nat.Lt i (N.Nat^::succ k), Sets.Member (f i) x] }] k
+              (Logic.And[_, _]::# (Nat.ltOfSuccLe (N.Nat^::succ k) k (Nat.leRefl (N.Nat^::succ k))) current))
+    };
+\definition disjointPrefix: \forall (f: N.Nat^ -> \Pow A) -> M.Disjoint f -> \forall (k: N.Nat^) -> Sets.Disjoint (Sigma.prefix f k) (f k) :=
+  \fun (f: N.Nat^ -> \Pow A) (disjoint: M.Disjoint f) (k: N.Nat^) (x: A) (member: Sets.Member (Sigma.prefix f k) x) (current: Sets.Member (f k) x) => \block {
+    \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where Logic.And[Nat.Lt i k, Sets.Member (f i) x] }) \by prefixMember f k x member \then
+    \let data: Logic.And[Nat.Lt i k, Sets.Member (f i) x] := \bysub(N.Nat^, { i: N.Nat^ \where Logic.And[Nat.Lt i k, Sets.Member (f i) x] }, i) \then
+    \return disjoint i k (Nat.ltNe i k data.left) x data.right current
+  };
+\definition unionPrefixes: \forall (f: N.Nat^ -> \Pow A) -> M.union (Sigma.prefix f) = M.union f :=
+  \fun (f: N.Nat^ -> \Pow A) => \axiom:setext(M.union (Sigma.prefix f), M.union f,
+    \fun (x: A) (member: Sets.Member (M.union (Sigma.prefix f)) x) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sets.Member (Sigma.prefix f k) x }) \by member \then
+      \return Sigma.prefixContainedInUnion f k x (\bysub(N.Nat^, { k: N.Nat^ \where Sets.Member (Sigma.prefix f k) x }, k))
+    },
+    \fun (x: A) (member: Sets.Member (M.union f) x) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sets.Member (f k) x }) \by member \then
+      \return Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Sets.Member (Sigma.prefix f j) x }] (N.Nat^::succ k)
+        (Sigma.prefixContainsCurrent f k x (\bysub(N.Nat^, { k: N.Nat^ \where Sets.Member (f k) x }, k)))
+    });

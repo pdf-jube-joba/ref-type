@@ -1,0 +1,41 @@
+\import \root.IntegralTools[A := A, mu := mu] \as Tools;
+\import \root.SeriesValues[A := A, mu := mu] \as Series;
+\import C.PointwiseSum[] \as Increasing;
+\definition diagonal[n: N.Nat^]: I.NonnegativeMeasurable := Tools.partial n (\fun (i: N.Nat^) => data.terms i n);
+\definition diagonalSequence: C.MeasurableSequence := \into[N.Nat^ -> A -> Real.Real]
+  ((\fun (n: N.Nat^) (x: A) => (diagonal n).function x), C.MeasurableSequence) \by { \fun (n: N.Nat^) => (diagonal n).measurable };
+\definition increasing: C.FunctionIncreasing diagonalSequence := \fun (n: N.Nat^) (x: A) => R.leTrans _ _ _
+  (Tools.partialMono n (\fun (i: N.Nat^) => data.terms i n) (\fun (i: N.Nat^) => data.terms i (N.Nat^::succ n))
+    (\fun (i: N.Nat^) (x: A) => data.increasing i n x) x)
+  (Tools.partialGrowing n (\fun (i: N.Nat^) => data.terms i (N.Nat^::succ n)) x);
+\definition row[i: N.Nat^]: C.MeasurableSequence := \into[N.Nat^ -> A -> Real.Real]
+  ((\fun (k: N.Nat^) (x: A) => (data.terms i k).function x), C.MeasurableSequence) \by { \fun (k: N.Nat^) => (data.terms i k).measurable };
+\definition function[x: A]: M.Value := M.series (\fun (i: N.Nat^) => sup (row i) x);
+\definition pointwiseIncreasing: \forall (x: A) (i: N.Nat^) -> C.ValueIncreasing (\fun (k: N.Nat^) => Cuts.cut ((data.terms i k).function x)) :=
+  \fun (x: A) (i: N.Nat^) (m, n: N.Nat^) (later: Nat.Le m n) => Cuts.leIncluded ((data.terms i m).function x) ((data.terms i n).function x)
+    (Increasing.increasingAll (row i) (data.increasing i) n m later x);
+\definition functionEquality: function = sup diagonalSequence := \axiom:funext(function, sup diagonalSequence, \fun (x: A) => eq_reason_in!{M.Value _
+  "=" _ "by" { Series.diagonalSeries (\fun (i, k: N.Nat^) => Cuts.cut ((data.terms i k).function x))
+    (\fun (i, k: N.Nat^) => Cuts.nonnegative ((data.terms i k).function x) ((data.terms i k).nonnegative x)) (pointwiseIncreasing x) }
+  "=" _ "by" { congr!{{N.Nat^ -> M.Value} M.Value} C.Sup _ _ (\axiom:funext(
+    (\fun (n: N.Nat^) => M.partialSum (\fun (i: N.Nat^) => Cuts.cut ((data.terms i n).function x)) n),
+    (\fun (n: N.Nat^) => Cuts.cut ((diagonal n).function x)),
+    \fun (n: N.Nat^) => Tools.cutPartial n (\fun (i: N.Nat^) => data.terms i n) x)) }
+});
+\definition lowerIncreasing: \forall (i: N.Nat^) -> C.ValueIncreasing (\fun (k: N.Nat^) => I.lowerIntegral (data.terms i k).function) :=
+  \fun (i: N.Nat^) (m, n: N.Nat^) (later: Nat.Le m n) => I.lowerIntegralMono (data.terms i m).function (data.terms i n).function
+    (\fun (x: A) => Increasing.increasingAll (row i) (data.increasing i) n m later x);
+\definition theorem: lowerIntegral function = M.series (\fun (i: N.Nat^) => lowerIntegral (sup (row i))) := eq_reason_in!{M.Value _
+  "=" _ "by" { congr!{{A -> M.Value} M.Value} lowerIntegral _ _ functionEquality }
+  "=" _ "by" { monotone diagonalSequence increasing }
+  "=" _ "by" { congr!{{N.Nat^ -> M.Value} M.Value} C.Sup _ _ (\axiom:funext(
+    (\fun (n: N.Nat^) => I.lowerIntegral (diagonal n).function),
+    (\fun (n: N.Nat^) => M.partialSum (\fun (i: N.Nat^) => I.lowerIntegral (data.terms i n).function) n),
+    \fun (n: N.Nat^) => Tools.lowerPartial n (\fun (i: N.Nat^) => data.terms i n))) }
+  "=" _ "by" { sym!{M.Value} _ _ (Series.diagonalSeries (\fun (i, k: N.Nat^) => I.lowerIntegral (data.terms i k).function)
+    (\fun (i, k: N.Nat^) => SimpleLaws.lowerNonnegative (data.terms i k).function) lowerIncreasing) }
+  "=" _ "by" { congr!{{N.Nat^ -> M.Value} M.Value} M.series _ _ (\axiom:funext(
+    (\fun (i: N.Nat^) => C.Sup (\fun (k: N.Nat^) => I.lowerIntegral (data.terms i k).function)),
+    (\fun (i: N.Nat^) => lowerIntegral (sup (row i))),
+    \fun (i: N.Nat^) => sym!{M.Value} _ _ (monotone (row i) (data.increasing i)))) }
+};

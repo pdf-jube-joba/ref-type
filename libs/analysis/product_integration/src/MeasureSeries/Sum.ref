@@ -1,0 +1,32 @@
+\import \root.SeriesValues[A := A, mu := data.measures N.Nat^::zero] \as Series;
+\import M.Continuity[mu := data.measures N.Nat^::zero] \as Continuity;
+\import M.Sigma[] \as Sigma;
+\import topology.Topology[Carrier := A] \as Sets;
+\import std.Logic[].Proposition[] \as Logic;
+\import real.Analysis[] \as Real;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition laws[k: N.Nat^]: M.MeasureLaws[data.measures k] := \bysub(M.MeasureData, M.Measure, data.measures k);
+\definition value[S: \Pow A]: M.Value := M.series (\fun (k: N.Nat^) => (data.measures k).value S);
+\definition nonnegative: \forall (S: \Pow A) -> M.Measurable data.sigma S -> M.NonnegativeValue[value S] :=
+  \fun (S: \Pow A) (valid: M.Measurable data.sigma S) => Series.seriesNonnegative
+    (\fun (k: N.Nat^) => (data.measures k).value S) (\fun (k: N.Nat^) => (laws k).nonnegative S (data.measurable S valid k));
+\definition empty: value Sets.Empty = M.zero := eq_reason_in!{M.Value _
+  "=" _ "by" { congr!{{N.Nat^ -> M.Value} M.Value} M.series _ _ (\axiom:funext((\fun (k: N.Nat^) => (data.measures k).value Sets.Empty),
+    (\fun (_: N.Nat^) => M.zero), \fun (k: N.Nat^) => (laws k).empty)) }
+  "=" _ "by" { Continuity.zeroSeries }
+};
+\definition countableAdditivity: \forall (sets: N.Nat^ -> \Pow A) -> (\forall (j: N.Nat^) -> M.Measurable data.sigma (sets j)) ->
+  M.Disjoint sets -> value (M.union sets) = M.series (\fun (j: N.Nat^) => value (sets j)) :=
+  \fun (sets: N.Nat^ -> \Pow A) (valid: \forall (j: N.Nat^) -> M.Measurable data.sigma (sets j)) (disjoint: M.Disjoint sets) => eq_reason_in!{M.Value _
+    "=" _ "by" { congr!{{N.Nat^ -> M.Value} M.Value} M.series _ _ (\axiom:funext((\fun (k: N.Nat^) => (data.measures k).value (M.union sets)),
+      (\fun (k: N.Nat^) => M.series (\fun (j: N.Nat^) => (data.measures k).value (sets j))),
+      \fun (k: N.Nat^) => (laws k).countableAdditivity sets (\fun (j: N.Nat^) => data.measurable (sets j) (valid j) k) disjoint)) }
+    "=" _ "by" { Series.swap (\fun (k, j: N.Nat^) => (data.measures k).value (sets j))
+      (\fun (k, j: N.Nat^) => (laws k).nonnegative (sets j) (data.measurable (sets j) (valid j) k)) }
+  };
+\definition measureData: M.MeasureData := M.MeasureData { sigma := data.sigma, value := value };
+\definition measure: M.Measure := \into[M.MeasureData](measureData, M.Measure) \by {
+  M.MeasureLaws[measureData] { nonnegative := nonnegative, empty := empty, countableAdditivity := countableAdditivity }
+};
+\module Integral(f: M.Integral[mu := measure].NonnegativeMeasurable);

@@ -1,0 +1,61 @@
+\import \root.CountableSets[A := Point] \as Countable;
+\import \root.MeasureSup[A := B, mu := nu] \as MeasureSup;
+\import \root.ScalarSup[] \as ScalarSup;
+\import LI.Convergence[] \as Convergence;
+\import Convergence.PointwiseSum[] \as Increasing;
+\import M.Continuity[mu := nu] \as Continuity;
+\definition prefix: \forall (k: N.Nat^) -> Witness[PS.prefix data.sets k] :=
+  \induction (k: N.Nat^) \return Witness[PS.prefix data.sets k] \with {
+    | zero: empty
+    | succ: \fun (k: N.Nat^) (prior: Witness[PS.prefix data.sets k]) =>
+      \root.FiniteKernel[A := A, B := B, mu := mu, nu := nu].PairUnion[
+        S := PS.prefix data.sets k, T := data.sets k, s := prior, t := data.witnesses k].witness
+          (Countable.disjointPrefix data.sets data.disjoint k)
+  };
+\definition sections[x: A] [k: N.Nat^]: \Pow B := ProductSigma.section (PS.prefix data.sets k) x;
+\definition measurable: \forall (x: A) -> M.Measurable nu.sigma (ProductSigma.section (P.union data.sets) x) :=
+  \fun (x: A) => \idelim M.union (\fun (k: N.Nat^) => ProductSigma.section (data.sets k) x) = ProductSigma.section (P.union data.sets) x
+    \with S: \Pow B => M.Measurable nu.sigma S \by {
+      base: (Sigma.laws nu.sigma).countableUnion (\fun (k: N.Nat^) => ProductSigma.section (data.sets k) x)
+        (\fun (k: N.Nat^) => (data.witnesses k).measurable x),
+      equality: sym!{\Pow B} _ _ (ProductSigma.sectionUnion data.sets x) };
+\definition function[x: A]: Real.Real := Right.mass (ProductSigma.section (P.union data.sets) x) (measurable x);
+\definition law: \forall (x: A) -> Complete.LeastUpperBound[nu.value (ProductSigma.section (P.union data.sets) x), function x] :=
+  \fun (x: A) => Right.massLaw (ProductSigma.section (P.union data.sets) x) (measurable x);
+\definition unionSections: \forall (x: A) -> M.union (sections x) = ProductSigma.section (P.union data.sets) x :=
+  \fun (x: A) => eq_reason_in!{{\Pow B} _
+    "=" _ "by" { sym!{\Pow B} _ _ (ProductSigma.sectionUnion (PS.prefix data.sets) x) }
+    "=" _ "by" { congr!{{\Pow Point} {\Pow B}} (\fun (S: \Pow Point) => ProductSigma.section S x) _ _ (Countable.unionPrefixes data.sets) }
+  };
+\definition increasingSections: \forall (x: A) -> Continuity.Increasing (sections x) :=
+  \fun (x: A) (k: N.Nat^) (y: B) (member: RS.Member (sections x k) y) =>
+    PS.prefixGrowing data.sets k (Pair.pair A B x y) member;
+\definition sup: Convergence.PointwiseSup (\fun (k: N.Nat^) (x: A) => (prefix k).function x) function :=
+  \fun (x: A) => MeasureSup.supremum (sections x) (\fun (k: N.Nat^) => (prefix k).function x) (function x)
+    (\fun (k: N.Nat^) => (prefix k).measurable x) (increasingSections x) (\fun (k: N.Nat^) => (prefix k).law x)
+    (\idelim nu.value (ProductSigma.section (P.union data.sets) x) = nu.value (M.union (sections x))
+      \with v: M.Value => Complete.LeastUpperBound[v, function x] \by {
+        base: law x, equality: sym!{M.Value} _ _ (congr!{{\Pow B} M.Value} nu.value _ _ (unionSections x)) });
+\definition increasing: Convergence.FunctionIncreasing (\fun (k: N.Nat^) (x: A) => (prefix k).function x) :=
+  \fun (k: N.Nat^) (x: A) => ((prefix k).law x).least ((prefix (N.Nat^::succ k)).function x)
+    (\fun (r: Real.Real) (member: M.below (nu.value (sections x k)) r) => ((prefix (N.Nat^::succ k)).law x).upper r
+      (Finite.monotone (sections x k) (sections x (N.Nat^::succ k)) ((prefix k).measurable x) ((prefix (N.Nat^::succ k)).measurable x)
+        (increasingSections x k) r member));
+\definition converges: \forall (x: A) -> Sequence.Converges (\fun (k: N.Nat^) => (prefix k).function x) (function x) :=
+  \fun (x: A) => ScalarSup.converges (\fun (k: N.Nat^) => (prefix k).function x) (function x)
+    (\fun (i, j: N.Nat^) (later: N.Basic[].Prop[].Le i j) => Increasing.increasingAll
+      (\fun (k: N.Nat^) (x: A) => (prefix k).function x) increasing j i later x) (sup x);
+\definition dominated: LI.DominatedSequence := LI.DominatedSequence {
+  sequence := \fun (k: N.Nat^) => (prefix k).function,
+  limit := function,
+  bound := Left.constant (RF.mass (RightSpace.whole nu)),
+  dominated := \fun (k: N.Nat^) (x: A) => bound (PS.prefix data.sets k) (prefix k) x,
+  converges := converges,
+};
+\import LI.Dominated[d := dominated] \as Limit;
+\definition witness: Witness[P.union data.sets] := Witness[P.union data.sets] {
+  measurable := measurable,
+  function := Limit.limitRepresentative,
+  law := law,
+};
+\definition integralConverges: Sequence.Converges (\fun (k: N.Nat^) => LI.integral (prefix k).function) (LI.integral witness.function) := Limit.convergence;

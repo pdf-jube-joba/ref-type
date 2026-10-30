@@ -1,0 +1,41 @@
+\import PI.Evaluation[n := n, s := data.simple] \as Value;
+\definition terms[i: Fin.Fin n]: LI.Representatives := Scaling.scalarRepresentative (data.simple.coefficients i) (data.witnesses i).function;
+\definition outer: LI.Representatives := Left.sum n terms;
+\definition sum[x: A]: Real.Real := Sums.sum n (\fun (i: Fin.Fin n) => Real.mul (data.simple.coefficients i) ((data.witnesses i).function x));
+\definition outerValue: \forall (x: A) -> outer x = sum x := \fun (x: A) => Left.sumFunction n terms x;
+\definition sectionSimple[x: A]: RI.Simple[n] := RI.Simple[n] {
+  cells := \fun (i: Fin.Fin n) => Sigma.section (data.simple.cells i) x,
+  coefficients := data.simple.coefficients,
+  measurable := \fun (i: Fin.Fin n) => (data.witnesses i).measurable x,
+  nonnegative := data.simple.nonnegative,
+  disjoint := \fun (i, j: Fin.Fin n) (different: Logic.Not (i = j)) (y: B)
+    (left: BSets.Member (Sigma.section (data.simple.cells i) x) y) (right: BSets.Member (Sigma.section (data.simple.cells j) x) y) =>
+      data.simple.disjoint i j different (Pair.pair A B x y) left right,
+};
+\definition sectionComplete[x: A]: RI.CompleteSimple[n] := \into[RI.Simple[n]](sectionSimple x, RI.CompleteSimple[n]) \by {
+  \fun (y: B) => Value.covers (Pair.pair A B x y)
+};
+\definition sectionSup: \forall (x: A) -> Complete.LeastUpperBound[
+  RI.lowerIntegral (RM.Integral[mu := nu].Evaluation[n := n, s := sectionComplete x].value), sum x] :=
+  \fun (x: A) => \root.IntegralTools[A := B, mu := nu].Simple[n := n, s := sectionComplete x].supremum
+    (\fun (i: Fin.Fin n) => (data.witnesses i).function x) (\fun (i: Fin.Fin n) => (data.witnesses i).law x);
+\module Section(x: A);
+\definition total: Real.Real := Sums.sum n (\fun (i: Fin.Fin n) => Real.mul (data.simple.coefficients i) (LI.integral (data.witnesses i).function));
+\definition productSup: Complete.LeastUpperBound[PI.lowerIntegral Value.value, total] :=
+  \root.IntegralTools[A := Sigma.Point, mu := Product.measure].Simple[n := n, s := data.simple].supremum
+    (\fun (i: Fin.Fin n) => LI.integral (data.witnesses i).function)
+    (\fun (i: Fin.Fin n) => \idelim Cuts.cut (LI.integral (data.witnesses i).function) = Product.measure.value (data.simple.cells i)
+      \with v: PM.Value => Complete.LeastUpperBound[v, LI.integral (data.witnesses i).function] \by {
+        base: Cuts.supremum (LI.integral (data.witnesses i).function), equality: sym!{PM.Value} _ _ (Product.valueCut (data.simple.cells i) (data.witnesses i)) });
+\definition productIntegrable: PI.Integrable Value.value := (Joint.nonnegativeSup Value.value total Value.nonnegative Value.measurable productSup).integrable;
+\definition product: PI.Representatives := \into[Sigma.Point -> Real.Real](Value.value, PI.Representatives) \by { productIntegrable };
+\definition outerIntegral: LI.integral outer = total := eq_reason_in!{Real.Real _
+  "=" _ "by" { Left.integralSum n terms }
+  "=" _ "by" { Sums.congruent n (\fun (i: Fin.Fin n) => LI.integral (terms i))
+    (\fun (i: Fin.Fin n) => Real.mul (data.simple.coefficients i) (LI.integral (data.witnesses i).function))
+    (\fun (i: Fin.Fin n) => Scaling.integralScalar (data.simple.coefficients i) (data.witnesses i).function) }
+};
+\definition fubini: PI.integral product = LI.integral outer := eq_reason_in!{Real.Real _
+  "=" _ "by" { Joint.integralSup product total Value.nonnegative productSup }
+  "=" _ "by" { sym!{Real.Real} _ _ outerIntegral }
+};

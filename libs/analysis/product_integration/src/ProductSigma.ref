@@ -1,0 +1,114 @@
+\import std.Data[].Pair[] \as Pair;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import functional_analysis.Measure[A := A] \as L;
+\import functional_analysis.Measure[A := B] \as R;
+\import L.Sigma[] \as LS;
+\import R.Sigma[] \as RS;
+\definition Point: \Set := Pair.Times^[A, B];
+\import functional_analysis.Measure[A := Point] \as P;
+\import P.Sigma[] \as PS;
+\import topology.Topology[Carrier := A] \as LeftSets;
+\import topology.Topology[Carrier := B] \as RightSets;
+\import topology.Topology[Carrier := Point] \as Sets;
+\use std.Logic[].Equality[].sym;
+\definition rectangle[U: \Pow A] [V: \Pow B]: \Pow Point :=
+  { p: Point \where Logic.And[LeftSets.Member U (Pair.first A B p), RightSets.Member V (Pair.second A B p)] };
+\structure Rectangle[S: \Pow Point]: \Set := {
+  leftSet: \Pow A,
+  rightSet: \Pow B,
+  leftMeasurable: L.Measurable left leftSet,
+  rightMeasurable: R.Measurable right rightSet,
+  equality: S = rectangle leftSet rightSet,
+};
+\definition generators: \Pow (\Pow Point) := { S: \Pow Point \where \exists Rectangle[S] };
+\import \root.Generated[A := Point, generators := generators] \as Generated;
+\definition sigma: P.SigmaAlgebra := Generated.sigma;
+\definition rectangleMeasurable: \forall (U: \Pow A) (V: \Pow B) -> L.Measurable left U -> R.Measurable right V ->
+  P.Measurable sigma (rectangle U V) :=
+  \fun (U: \Pow A) (V: \Pow B) (u: L.Measurable left U) (v: R.Measurable right V) =>
+    Generated.generator (rectangle U V) (\exact(Rectangle[rectangle U V] {
+      leftSet := U, rightSet := V, leftMeasurable := u, rightMeasurable := v, equality := \refl(rectangle U V),
+    }, Rectangle[rectangle U V]));
+\definition section[S: \Pow Point] [x: A]: \Pow B := { y: B \where Sets.Member S (Pair.pair A B x y) };
+\definition reverseSection[S: \Pow Point] [y: B]: \Pow A := { x: A \where Sets.Member S (Pair.pair A B x y) };
+\definition sectionUnion: \forall (f: N.Nat^ -> \Pow Point) (x: A) ->
+  section (P.union f) x = R.union (\fun (k: N.Nat^) => section (f k) x) :=
+  \fun (f: N.Nat^ -> \Pow Point) (x: A) => \axiom:setext(section (P.union f) x, R.union (\fun (k: N.Nat^) => section (f k) x),
+    \fun (y: B) (member: Sets.Member (P.union f) (Pair.pair A B x y)) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sets.Member (f k) (Pair.pair A B x y) }) \by member \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where RightSets.Member (section (f k) x) y }] k
+        (\bysub(N.Nat^, { k: N.Nat^ \where Sets.Member (f k) (Pair.pair A B x y) }, k))
+    },
+    \fun (y: B) (member: RightSets.Member (R.union (\fun (k: N.Nat^) => section (f k) x)) y) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where RightSets.Member (section (f k) x) y }) \by member \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (f k) (Pair.pair A B x y) }] k
+        (\bysub(N.Nat^, { k: N.Nat^ \where RightSets.Member (section (f k) x) y }, k))
+    });
+\definition sectionSigmaData[x: A]: P.SigmaAlgebraData := P.SigmaAlgebraData {
+  measurable := { S: \Pow Point \where R.Measurable right (section S x) },
+};
+\definition sectionSigma[x: A]: P.SigmaAlgebra := \into[P.SigmaAlgebraData](sectionSigmaData x, P.SigmaAlgebra) \by {
+  P.SigmaAlgebraLaws[sectionSigmaData x] {
+    empty := (RS.laws right).empty,
+    complement := \fun (S: \Pow Point) (member: R.Measurable right (section S x)) => (RS.laws right).complement (section S x) member,
+    countableUnion := \fun (f: N.Nat^ -> \Pow Point) (member: \forall (k: N.Nat^) -> R.Measurable right (section (f k) x)) =>
+      \idelim R.union (\fun (k: N.Nat^) => section (f k) x) = section (P.union f) x \with T: \Pow B => R.Measurable right T \by {
+        base: (RS.laws right).countableUnion (\fun (k: N.Nat^) => section (f k) x) member,
+        equality: sym!{\Pow B} _ _ (sectionUnion f x)
+      },
+  }
+};
+\import std.Logic[].Classical[] \as Classical;
+\definition sectionRectangle: \forall (U: \Pow A) (V: \Pow B) (x: A) -> R.Measurable right V ->
+  R.Measurable right (section (rectangle U V) x) :=
+  \fun (U: \Pow A) (V: \Pow B) (x: A) (valid: R.Measurable right V) =>
+    Logic.orElim _ _ (R.Measurable right (section (rectangle U V) x)) (Classical.excludedMiddle (LeftSets.Member U x))
+      (\fun (inside: LeftSets.Member U x) => \idelim V = section (rectangle U V) x \with T: \Pow B => R.Measurable right T \by {
+        base: valid,
+        equality: \axiom:setext(V, section (rectangle U V) x,
+          \fun (y: B) (inV: RightSets.Member V y) => Logic.And[_, _]::# inside inV,
+          \fun (y: B) (both: RightSets.Member (section (rectangle U V) x) y) => both.right)
+      })
+      (\fun (outside: Logic.Not (LeftSets.Member U x)) => \idelim RightSets.Empty = section (rectangle U V) x \with T: \Pow B => R.Measurable right T \by {
+        base: (RS.laws right).empty,
+        equality: \axiom:setext(RightSets.Empty, section (rectangle U V) x,
+          \fun (y: B) (empty: Logic.False) => Logic.falseElim _ empty,
+          \fun (y: B) (both: RightSets.Member (section (rectangle U V) x) y) => outside both.left)
+      });
+\definition sectionMeasurable: \forall (S: \Pow Point) -> P.Measurable sigma S -> \forall (x: A) -> R.Measurable right (section S x) :=
+  \fun (S: \Pow Point) (valid: P.Measurable sigma S) (x: A) => Generated.least (sectionSigma x)
+    (\fun (T: \Pow Point) (generator: \exists Rectangle[T]) => \block {
+      \takefrom r: Rectangle[T] \by generator \then
+      \return \idelim rectangle r.leftSet r.rightSet = T \with U: \Pow Point => P.Measurable (sectionSigma x) U \by {
+        base: sectionRectangle r.leftSet r.rightSet x r.rightMeasurable,
+        equality: sym!{\Pow Point} _ _ r.equality
+      }
+    }) S valid;
+\module Reverse(y: B);
+\definition reverseSectionMeasurable: \forall (S: \Pow Point) -> P.Measurable sigma S -> \forall (y: B) -> L.Measurable left (reverseSection S y) :=
+  \fun (S: \Pow Point) (valid: P.Measurable sigma S) (y: B) =>
+    \root.ProductSigma[A := A, B := B, left := left, right := right].Reverse[y := y].measurable S valid;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition rectangleIntersection: \forall (U, U2: \Pow A) (V, V2: \Pow B) ->
+  Sets.Intersection (rectangle U V) (rectangle U2 V2) = rectangle (LeftSets.Intersection U U2) (RightSets.Intersection V V2) :=
+  \fun (U, U2: \Pow A) (V, V2: \Pow B) => \axiom:setext(Sets.Intersection (rectangle U V) (rectangle U2 V2), rectangle (LeftSets.Intersection U U2) (RightSets.Intersection V V2),
+    \fun (p: Point) (member: Sets.Member (Sets.Intersection (rectangle U V) (rectangle U2 V2)) p) =>
+      Logic.And[_, _]::# (Logic.And[_, _]::# member.left.left member.right.left) (Logic.And[_, _]::# member.left.right member.right.right),
+    \fun (p: Point) (member: Sets.Member (rectangle (LeftSets.Intersection U U2) (RightSets.Intersection V V2)) p) =>
+      Logic.And[_, _]::# (Logic.And[_, _]::# member.left.left member.right.left) (Logic.And[_, _]::# member.left.right member.right.right));
+\definition piSystem: Generated.PiSystem := \fun (S, T: \Pow Point) (s: \exists Rectangle[S]) (t: \exists Rectangle[T]) => \block {
+  \takefrom first: Rectangle[S] \by s \then
+  \takefrom second: Rectangle[T] \by t \then
+  \return \exact(Rectangle[Sets.Intersection S T] {
+    leftSet := LeftSets.Intersection first.leftSet second.leftSet,
+    rightSet := RightSets.Intersection first.rightSet second.rightSet,
+    leftMeasurable := LS.intersectionMeasurable left first.leftSet second.leftSet first.leftMeasurable second.leftMeasurable,
+    rightMeasurable := RS.intersectionMeasurable right first.rightSet second.rightSet first.rightMeasurable second.rightMeasurable,
+    equality := eq_reason_in!{{\Pow Point} _
+      "=" _ "by" { congr!{{\Pow Point} {\Pow Point} {\Pow Point}} Sets.Intersection _ _ _ _ first.equality second.equality }
+      "=" _ "by" { rectangleIntersection first.leftSet second.leftSet first.rightSet second.rightSet }
+    },
+  }, Rectangle[Sets.Intersection S T])
+};

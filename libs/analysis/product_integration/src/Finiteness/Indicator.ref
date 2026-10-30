@@ -1,0 +1,37 @@
+\import real.Analysis[].Estimates[].Product[] \as Product;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import Integral.Absolute[] \as Absolute;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition data: Integral.StepData := Integral.StepData {
+  set := S, coefficient := Real.one, measurable := (finiteLaw S).measurable, nonnegative := Laws.oneNonnegative,
+};
+\import Integral.Step[p := data] \as Step;
+\import Integral.Evaluation[n := Step.size, s := Step.simple] \as Evaluation;
+\definition function: A -> Real.Real := Evaluation.value;
+\definition lower: Integral.lowerIntegral function = mu.value S := eq_reason_in!{M.Value _
+  "=" _ "by" { Step.lowerIntegral }
+  "=" _ "by" { V.oneScale (mu.value S) (Finite.laws.nonnegative S (finiteLaw S).measurable) }
+};
+\definition finite: Integral.Finite function := Logic.And[_, _]::# Evaluation.nonnegative
+  (Logic.existsIntro[Real.Real, { b: Real.Real \where Integral.IntegralBound[function, b] }] (mass S)
+    (Integral.IntegralBound[function, mass S] {
+      nonnegative := massNonnegative S,
+      bound := \fun (r: Real.Real) (member: M.below (Integral.lowerIntegral function) r) =>
+        (massLaw S).upper r (\idelim Integral.lowerIntegral function = mu.value S \with v: M.Value => M.below v r
+          \by { base: member, equality: lower }),
+    }));
+\definition absEqual: (\fun (x: A) => Product.abs (function x)) = function :=
+  \axiom:funext((\fun (x: A) => Product.abs (function x)), function,
+    \fun (x: A) => Product.absOfNonnegative (function x) (Evaluation.nonnegative x));
+\definition integrable: Integral.Integrable function := Logic.And[_, _]::# Evaluation.measurable
+  (\idelim function = (\fun (x: A) => Product.abs (function x)) \with f: (A -> Real.Real) => Integral.Finite f
+    \by { base: finite, equality: sym!{{A -> Real.Real}} _ _ absEqual });
+\definition representative: Integral.Representatives := \into[A -> Real.Real](function, Integral.Representatives) \by { integrable };
+\definition integral: Integral.integral representative = mass S :=
+  Complete.leastUpperBoundUnique (mu.value S) (Integral.integral representative) (mass S)
+    (\idelim Integral.lowerIntegral function = mu.value S \with v: M.Value => Complete.LeastUpperBound[v, Integral.integral representative]
+      \by { base: Absolute.nonnegativeIntegralSup function (Integral.integral representative) Evaluation.nonnegative (Integral.integralLaw representative),
+        equality: lower }) (massLaw S);
+\definition inside: \forall (x: A) -> Sets.Member S x -> function x = Real.one := Step.inside;
+\definition outside: \forall (x: A) -> Logic.Not (Sets.Member S x) -> function x = Real.zero := Step.outside;

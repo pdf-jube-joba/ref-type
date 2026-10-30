@@ -1,0 +1,48 @@
+\import PI.Absolute[] \as JointAbsolute;
+\import PI.SimpleLaws[] \as JointSimple;
+\definition absolute: PI.NonnegativeMeasurable := PI.NonnegativeMeasurable {
+  function := \fun (p: Sigma.Point) => Bounds.abs (kernel p),
+  measurable := JointFunctions.absMeasurable kernel conditions.measurable,
+  nonnegative := \fun (p: Sigma.Point) => Bounds.absNonnegative (kernel p),
+};
+\definition reverse: PI.NonnegativeMeasurable := PI.NonnegativeMeasurable {
+  function := \fun (p: Sigma.Point) => absolute.function (Pair.swap A A p),
+  measurable := SwapMap.On[map := Symmetry.map].measurable absolute.function absolute.measurable,
+  nonnegative := \fun (p: Sigma.Point) => absolute.nonnegative (Pair.swap A A p),
+};
+\module Section(y: A);
+\definition outer: I.Representatives := Scaling.scalarRepresentative (l1 f) (Absolute.representative g);
+\definition outerNonnegative: \forall (y: A) -> R.Le Real.zero (outer y) := \fun (y: A) => Laws.fieldMulNonnegative (l1 f) (Bounds.abs (g y)) (l1Nonnegative f) (Bounds.absNonnegative (g y));
+\definition sectionLower: Fubini.sectionLower reverse = (\fun (y: A) => Cuts.cut (outer y)) :=
+  \axiom:funext(Fubini.sectionLower reverse, (\fun (y: A) => Cuts.cut (outer y)), \fun (y: A) =>
+    \root.Convolution[A := A, mu := mu, exhaustion := exhaustion].For[translations := translations, f := f, g := g].On[conditions := conditions].Section[y := y].absoluteLower);
+\definition absoluteLower: PI.lowerIntegral absolute.function = JointCuts.cut (Real.mul (l1 f) (l1 g)) := eq_reason_in!{PM.Value _
+  "=" _ "by" { sym!{PM.Value} _ _ (SwapMap.On[map := Symmetry.map].Nonnegative[f := absolute].lower) }
+  "=" _ "by" { Fubini.tonelli reverse }
+  "=" _ "by" { congr!{{A -> M.Value} M.Value} E.lowerIntegral _ _ sectionLower }
+  "=" _ "by" { E.realAgreement outer }
+  "=" _ "by" { Cuts.fromSup (I.lowerIntegral outer) (I.integral outer) (I.SimpleLaws[].lowerNonnegative outer)
+    (Absolute.nonnegativeIntegralSup outer (I.integral outer) outerNonnegative (I.integralLaw outer)) }
+  "=" _ "by" { congr!{Real.Real M.Value} Cuts.cut _ _ (Scaling.integralScalar (l1 f) (Absolute.representative g)) }
+};
+\definition bound: Scaling.NonnegativeScalar := \into[Real.Real](Real.mul (l1 f) (l1 g), Scaling.NonnegativeScalar) \by {
+  Laws.fieldMulNonnegative (l1 f) (l1 g) (l1Nonnegative f) (l1Nonnegative g)
+};
+\definition integrable: PI.Integrable kernel := Logic.And[_, _]::# conditions.measurable
+  (Logic.And[_, _]::# absolute.nonnegative (Logic.existsIntro[Real.Real, { b: Real.Real \where PI.IntegralBound[absolute.function, b] }] bound
+    (PI.IntegralBound[absolute.function, bound] { nonnegative := Scaling.nonnegative bound,
+      bound := \fun (r: Real.Real) (member: PM.below (PI.lowerIntegral absolute.function) r) => R.Order[].leOfLt r bound
+        (\idelim PI.lowerIntegral absolute.function = JointCuts.cut bound \with v: PM.Value => PM.below v r \by { base: member, equality: absoluteLower }) })));
+\definition joint: PI.Representatives := \into[Sigma.Point -> Real.Real](kernel, PI.Representatives) \by { integrable };
+\definition absoluteIntegral: PI.integral (JointAbsolute.representative joint) = Real.mul (l1 f) (l1 g) :=
+  JointTools.integralSup (JointAbsolute.representative joint) bound absolute.nonnegative
+    (\idelim JointCuts.cut bound = PI.lowerIntegral absolute.function \with v: PM.Value => Complete.LeastUpperBound[v, bound] \by {
+      base: JointCuts.supremum bound, equality: sym!{PM.Value} _ _ absoluteLower });
+\definition reverseJoint: PI.Representatives := SwapMap.On[map := Symmetry.map].RealFunction[f := joint].representative;
+\module Certificate(forward: Fubini.AEFubini[joint], backward: Fubini.AEFubini[reverseJoint], absolute: Fubini.AEFubini[JointAbsolute.representative joint]);
+\definition exists: \exists Result := \block {
+  \takefrom forward: Fubini.AEFubini[joint] \by Fubini.fubini joint \then
+  \takefrom backward: Fubini.AEFubini[reverseJoint] \by Fubini.fubini reverseJoint \then
+  \takefrom abs: Fubini.AEFubini[JointAbsolute.representative joint] \by Fubini.fubini (JointAbsolute.representative joint) \then
+  \return \exact(\root.Convolution[A := A, mu := mu, exhaustion := exhaustion].For[translations := translations, f := f, g := g].On[conditions := conditions].Certificate[forward := forward, backward := backward, absolute := abs].result, Result)
+};

@@ -1,0 +1,30 @@
+\import \root.FiniteNull[A := A, mu := mu] \as Nulls;
+\definition exception: Null.NullSet := Nulls.pair re.exception im.exception;
+\definition section[x: A]: RC.Representatives := \into[RC.Function]((\fun (y: B) => C.make (re.sections x y) (im.sections x y)), RC.Representatives) \by {
+  Logic.And[_, _]::# (RI.integralLaw (re.sections x)).integrable (RI.integralLaw (im.sections x)).integrable
+};
+\definition outer: LC.Representatives := \into[LC.Function]((\fun (x: A) => C.make (re.outer x) (im.outer x)), LC.Representatives) \by {
+  Logic.And[_, _]::# (LI.integralLaw re.outer).integrable (LI.integralLaw im.outer).integrable
+};
+\definition realSection[x: A]: RI.integral (RC.realPart (section x)) = RI.integral (re.sections x) :=
+  congr!{RI.Representatives Real.Real} RI.integral _ _ (\axiom:funext(RC.realPart (section x), re.sections x, \fun (y: B) => \refl(re.sections x y)));
+\definition imaginarySection[x: A]: RI.integral (RC.imaginaryPart (section x)) = RI.integral (im.sections x) :=
+  congr!{RI.Representatives Real.Real} RI.integral _ _ (\axiom:funext(RC.imaginaryPart (section x), im.sections x, \fun (y: B) => \refl(im.sections x y)));
+\definition realOuter: LI.integral re.outer = LI.integral (LC.realPart outer) :=
+  congr!{LI.Representatives Real.Real} LI.integral _ _ (\axiom:funext(re.outer, LC.realPart outer, \fun (x: A) => \refl(re.outer x)));
+\definition imaginaryOuter: LI.integral im.outer = LI.integral (LC.imaginaryPart outer) :=
+  congr!{LI.Representatives Real.Real} LI.integral _ _ (\axiom:funext(im.outer, LC.imaginaryPart outer, \fun (x: A) => \refl(im.outer x)));
+\definition certificate: Certificate[f] := Certificate[f] {
+  exception := exception,
+  sections := section,
+  sectionValues := \fun (x: A) (outside: Logic.Not (ASets.Member exception x)) (y: B) => C.Prop[].ext _ _
+    (re.sectionValues x (\fun (inside: ASets.Member re.exception x) => outside (Logic.Or[_, _]::left inside)) y)
+    (im.sectionValues x (\fun (inside: ASets.Member im.exception x) => outside (Logic.Or[_, _]::right inside)) y),
+  outer := outer,
+  outerValues := \fun (x: A) => C.Prop[].ext _ _
+    (eq_reason_in!{Real.Real _ "=" _ "by" { re.outerValues x } "=" _ "by" { sym!{Real.Real} _ _ (realSection x) } })
+    (eq_reason_in!{Real.Real _ "=" _ "by" { im.outerValues x } "=" _ "by" { sym!{Real.Real} _ _ (imaginarySection x) } }),
+  exchange := C.Prop[].ext _ _
+    (eq_reason_in!{Real.Real _ "=" _ "by" { re.exchange } "=" _ "by" { realOuter } })
+    (eq_reason_in!{Real.Real _ "=" _ "by" { im.exchange } "=" _ "by" { imaginaryOuter } }),
+};

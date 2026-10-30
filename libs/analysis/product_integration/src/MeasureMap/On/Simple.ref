@@ -1,0 +1,36 @@
+\import TI.Evaluation[n := n, s := s] \as TargetValue;
+\definition simple: SI.Simple[n] := SI.Simple[n] {
+  cells := \fun (i: Fin.Fin n) => preimage (s.cells i),
+  coefficients := s.coefficients,
+  measurable := \fun (i: Fin.Fin n) => map.measurable (s.cells i) (s.measurable i),
+  nonnegative := s.nonnegative,
+  disjoint := \fun (i, j: Fin.Fin n) (different: Logic.Not (i = j)) (x: A)
+    (left: SourceSets.Member (preimage (s.cells i)) x) (right: SourceSets.Member (preimage (s.cells j)) x) =>
+    s.disjoint i j different (map.function x) left right,
+};
+\definition complete: SI.CompleteSimple[n] := \into[SI.Simple[n]](simple, SI.CompleteSimple[n]) \by {
+  \fun (x: A) => TargetValue.covers (map.function x)
+};
+\import SI.Evaluation[n := n, s := complete] \as SourceValue;
+\definition function: SourceValue.value = (\fun (x: A) => TargetValue.value (map.function x)) :=
+  \axiom:funext(SourceValue.value, (\fun (x: A) => TargetValue.value (map.function x)), \fun (x: A) => \block {
+    \takefrom i: \Cast[Fin.Fin n] ({ i: Fin.Fin n \where TargetSets.Member (s.cells i) (map.function x) }) \by TargetValue.covers (map.function x) \then
+    \let member: TargetSets.Member (s.cells i) (map.function x) := \bysub(Fin.Fin n, { i: Fin.Fin n \where TargetSets.Member (s.cells i) (map.function x) }, i) \then
+    \return eq_reason_in!{Real.Real _
+      "=" _ "by" { SourceValue.atCell i x member }
+      "=" _ "by" { sym!{Real.Real} _ _ (TargetValue.atCell i (map.function x) member) }
+    }
+  });
+\definition integral: SI.simpleIntegral n complete = TI.simpleIntegral n s :=
+  congr!{{Fin.Fin n -> Source.Value} Source.Value} (Source.sum n) _ _ (\axiom:funext(
+    (\fun (i: Fin.Fin n) => Source.scale (s.coefficients i) (source.value (preimage (s.cells i)))),
+    (\fun (i: Fin.Fin n) => Source.scale (s.coefficients i) (target.value (s.cells i))),
+    \fun (i: Fin.Fin n) => congr!{Source.Value Source.Value} (Source.scale (s.coefficients i)) _ _ (map.value (s.cells i) (s.measurable i))));
+\import SourceValue.Exact[] \as SourceExact;
+\import TargetValue.Exact[] \as TargetExact;
+\definition lower: SI.lowerIntegral (\fun (x: A) => TargetValue.value (map.function x)) = TI.lowerIntegral TargetValue.value := eq_reason_in!{Source.Value _
+  "=" _ "by" { congr!{{A -> Real.Real} Source.Value} SI.lowerIntegral _ _ (sym!{{A -> Real.Real}} _ _ function) }
+  "=" _ "by" { SourceExact.lower }
+  "=" _ "by" { integral }
+  "=" _ "by" { sym!{Source.Value} _ _ TargetExact.lower }
+};

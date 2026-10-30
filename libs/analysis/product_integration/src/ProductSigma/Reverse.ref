@@ -1,0 +1,46 @@
+\definition union: \forall (f: N.Nat^ -> \Pow Point) ->
+  reverseSection (P.union f) y = L.union (\fun (k: N.Nat^) => reverseSection (f k) y) :=
+  \fun (f: N.Nat^ -> \Pow Point) => \axiom:setext(reverseSection (P.union f) y, L.union (\fun (k: N.Nat^) => reverseSection (f k) y),
+    \fun (x: A) (member: Sets.Member (P.union f) (Pair.pair A B x y)) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sets.Member (f k) (Pair.pair A B x y) }) \by member \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where LeftSets.Member (reverseSection (f k) y) x }] k
+        (\bysub(N.Nat^, { k: N.Nat^ \where Sets.Member (f k) (Pair.pair A B x y) }, k))
+    },
+    \fun (x: A) (member: LeftSets.Member (L.union (\fun (k: N.Nat^) => reverseSection (f k) y)) x) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where LeftSets.Member (reverseSection (f k) y) x }) \by member \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (f k) (Pair.pair A B x y) }] k
+        (\bysub(N.Nat^, { k: N.Nat^ \where LeftSets.Member (reverseSection (f k) y) x }, k))
+    });
+\definition data: P.SigmaAlgebraData := P.SigmaAlgebraData {
+  measurable := { S: \Pow Point \where L.Measurable left (reverseSection S y) },
+};
+\definition algebra: P.SigmaAlgebra := \into[P.SigmaAlgebraData](data, P.SigmaAlgebra) \by {
+  P.SigmaAlgebraLaws[data] {
+    empty := (LS.laws left).empty,
+    complement := \fun (S: \Pow Point) (member: L.Measurable left (reverseSection S y)) => (LS.laws left).complement (reverseSection S y) member,
+    countableUnion := \fun (f: N.Nat^ -> \Pow Point) (member: \forall (k: N.Nat^) -> L.Measurable left (reverseSection (f k) y)) =>
+      \idelim L.union (\fun (k: N.Nat^) => reverseSection (f k) y) = reverseSection (P.union f) y \with T: \Pow A => L.Measurable left T \by {
+        base: (LS.laws left).countableUnion (\fun (k: N.Nat^) => reverseSection (f k) y) member,
+        equality: sym!{\Pow A} _ _ (union f) },
+  }
+};
+\definition rectangleCase: \forall (U: \Pow A) (V: \Pow B) -> L.Measurable left U -> L.Measurable left (reverseSection (rectangle U V) y) :=
+  \fun (U: \Pow A) (V: \Pow B) (valid: L.Measurable left U) =>
+    Logic.orElim _ _ (L.Measurable left (reverseSection (rectangle U V) y)) (Classical.excludedMiddle (RightSets.Member V y))
+      (\fun (inside: RightSets.Member V y) => \idelim U = reverseSection (rectangle U V) y \with T: \Pow A => L.Measurable left T \by {
+        base: valid,
+        equality: \axiom:setext(U, reverseSection (rectangle U V) y,
+          \fun (x: A) (member: LeftSets.Member U x) => Logic.And[_, _]::# member inside,
+          \fun (x: A) (member: LeftSets.Member (reverseSection (rectangle U V) y) x) => member.left) })
+      (\fun (outside: Logic.Not (RightSets.Member V y)) => \idelim LeftSets.Empty = reverseSection (rectangle U V) y \with T: \Pow A => L.Measurable left T \by {
+        base: (LS.laws left).empty,
+        equality: \axiom:setext(LeftSets.Empty, reverseSection (rectangle U V) y,
+          \fun (x: A) (empty: Logic.False) => Logic.falseElim _ empty,
+          \fun (x: A) (member: LeftSets.Member (reverseSection (rectangle U V) y) x) => outside member.right) });
+\definition measurable: \forall (S: \Pow Point) -> P.Measurable sigma S -> L.Measurable left (reverseSection S y) :=
+  \fun (S: \Pow Point) (valid: P.Measurable sigma S) => Generated.least algebra
+    (\fun (T: \Pow Point) (generator: \exists Rectangle[T]) => \block {
+      \takefrom r: Rectangle[T] \by generator \then
+      \return \idelim rectangle r.leftSet r.rightSet = T \with U: \Pow Point => P.Measurable algebra U \by {
+        base: rectangleCase r.leftSet r.rightSet r.leftMeasurable, equality: sym!{\Pow Point} _ _ r.equality }
+    }) S valid;

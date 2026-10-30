@@ -1,0 +1,22 @@
+\import \root.FiniteNull[A := A, mu := mu] \as Nulls;
+\definition exception: Null.NullSet := Nulls.union n (\fun (i: Fin.Fin n) => (components i).exception);
+\definition section[x: A]: RV.Representatives := \into[RV.Function]((\fun (y: B) (i: Fin.Fin n) => (components i).sections x y), RV.Representatives) \by {
+  \fun (i: Fin.Fin n) => (RI.integralLaw ((components i).sections x)).integrable
+};
+\definition outer: LV.Representatives := \into[LV.Function]((\fun (x: A) (i: Fin.Fin n) => (components i).outer x), LV.Representatives) \by {
+  \fun (i: Fin.Fin n) => (LI.integralLaw (components i).outer).integrable
+};
+\definition sectionIntegral[x: A] [i: Fin.Fin n]: RI.integral ((components i).sections x) = RV.integral (section x) i :=
+  congr!{RI.Representatives Real.Real} RI.integral _ _ (\axiom:funext((components i).sections x, RV.component (section x) i, \fun (y: B) => \refl((components i).sections x y)));
+\definition outerIntegral[i: Fin.Fin n]: LI.integral (components i).outer = LV.integral outer i :=
+  congr!{LI.Representatives Real.Real} LI.integral _ _ (\axiom:funext((components i).outer, LV.component outer i, \fun (x: A) => \refl((components i).outer x)));
+\definition certificate: Certificate[f] := Certificate[f] {
+  exception := exception,
+  sections := section,
+  sectionValues := \fun (x: A) (outside: Logic.Not (ASets.Member exception x)) (y: B) =>
+    \axiom:funext(section x y, f (Pair.pair A B x y), \fun (i: Fin.Fin n) => (components i).sectionValues x
+      (\fun (inside: ASets.Member (components i).exception x) => outside (Nulls.included n (\fun (i: Fin.Fin n) => (components i).exception) i x inside)) y),
+  outer := outer,
+  outerValues := \fun (x: A) => \axiom:funext(outer x, RV.integral (section x), \fun (i: Fin.Fin n) => eq_reason_in!{Real.Real _ "=" _ "by" { (components i).outerValues x } "=" _ "by" { sectionIntegral x i } }),
+  exchange := \axiom:funext(JV.integral f, LV.integral outer, \fun (i: Fin.Fin n) => eq_reason_in!{Real.Real _ "=" _ "by" { (components i).exchange } "=" _ "by" { outerIntegral i } }),
+};

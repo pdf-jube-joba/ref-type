@@ -1,0 +1,45 @@
+\import \root.FiniteNull[A := A, mu := mu] \as Nulls;
+\definition expected: I.Representatives := Scaling.scalarRepresentative (I.integral f) g;
+\definition backwardValues: \forall (y: A) -> Logic.Not (Sets.Member backward.exception y) -> backward.outer y = expected y :=
+  \fun (y: A) (outside: Logic.Not (Sets.Member backward.exception y)) => eq_reason_in!{Real.Real _
+    "=" _ "by" { backward.outerValues y }
+    "=" _ "by" { congr!{I.Representatives Real.Real} I.integral _ _ (\axiom:funext(backward.sections y,
+      \root.Convolution[A := A, mu := mu, exhaustion := exhaustion].For[translations := translations, f := f, g := g].On[conditions := conditions].Section[y := y].representative,
+      \fun (x: A) => eq_reason_in!{Real.Real _
+        "=" _ "by" { backward.sectionValues y outside x }
+        "=" _ "by" { sym!{Real.Real} _ _ (\root.Convolution[A := A, mu := mu, exhaustion := exhaustion].For[translations := translations, f := f, g := g].On[conditions := conditions].Section[y := y].value x) }
+      })) }
+    "=" _ "by" { \root.Convolution[A := A, mu := mu, exhaustion := exhaustion].For[translations := translations, f := f, g := g].On[conditions := conditions].Section[y := y].integral }
+  };
+\definition exchange: I.integral forward.outer = Real.mul (I.integral f) (I.integral g) := eq_reason_in!{Real.Real _
+  "=" _ "by" { sym!{Real.Real} _ _ forward.exchange }
+  "=" _ "by" { sym!{Real.Real} _ _ (SwapMap.On[map := Symmetry.map].RealFunction[f := joint].integral) }
+  "=" _ "by" { backward.exchange }
+  "=" _ "by" { Tools.Outside[exception := backward.exception, f := backward.outer, g := expected].equality backwardValues }
+  "=" _ "by" { Scaling.integralScalar (I.integral f) g }
+};
+\definition normException: I.Null[].NullSet := Nulls.pair forward.exception absolute.exception;
+\definition sectionAbsolute: \forall (x: A) -> Logic.Not (Sets.Member normException x) ->
+  Absolute.representative (forward.sections x) = absolute.sections x :=
+  \fun (x: A) (outside: Logic.Not (Sets.Member normException x)) => \axiom:funext(Absolute.representative (forward.sections x), absolute.sections x,
+    \fun (y: A) => eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{Real.Real Real.Real} Bounds.abs _ _ (forward.sectionValues x
+        (\fun (inside: Sets.Member forward.exception x) => outside (Logic.Or[_, _]::left inside)) y) }
+      "=" _ "by" { sym!{Real.Real} _ _ (absolute.sectionValues x
+        (\fun (inside: Sets.Member absolute.exception x) => outside (Logic.Or[_, _]::right inside)) y) }
+    });
+\definition pointwiseBound: \forall (x: A) -> Logic.Not (Sets.Member normException x) -> R.Le (Bounds.abs (forward.outer x)) (absolute.outer x) :=
+  \fun (x: A) (outside: Logic.Not (Sets.Member normException x)) => R.leReplace _ _ _ _
+    (sym!{Real.Real} _ _ (congr!{Real.Real Real.Real} Bounds.abs _ _ (forward.outerValues x)))
+    (eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{I.Representatives Real.Real} I.integral _ _ (sectionAbsolute x outside) }
+      "=" _ "by" { sym!{Real.Real} _ _ (absolute.outerValues x) }
+    }) (Absolute.integralAbsBound (forward.sections x));
+\definition normBound: R.Le (l1 forward.outer) (Real.mul (l1 f) (l1 g)) :=
+  R.leReplaceRight (l1 forward.outer) (I.integral absolute.outer) (Real.mul (l1 f) (l1 g))
+    (eq_reason_in!{Real.Real _ "=" _ "by" { sym!{Real.Real} _ _ absolute.exchange } "=" _ "by" { absoluteIntegral } })
+    (Tools.Outside[exception := normException, f := Absolute.representative forward.outer, g := absolute.outer].monotone pointwiseBound);
+\definition result: Result := Result {
+  exception := forward.exception, sections := forward.sections, sectionValues := forward.sectionValues,
+  function := forward.outer, values := forward.outerValues, exchange := exchange, l1Bound := normBound,
+};

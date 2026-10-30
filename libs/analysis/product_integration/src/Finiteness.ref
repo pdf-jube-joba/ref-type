@@ -1,0 +1,107 @@
+\import functional_analysis.Measure[A := A] \as M;
+\import M.Sigma[] \as Sigma;
+\import M.ValueLaws[] \as V;
+\import M.Finite[mu := mu] \as Finite;
+\import topology.Topology[Carrier := A] \as Sets;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\structure FiniteSet[S: \Pow A]: \Prop := {
+  measurable: M.Measurable mu.sigma S,
+  bounded: \exists ( b: Real.Real \where \forall (r: Real.Real) -> M.below (mu.value S) r -> R.Le r b ),
+};
+\structure Exhaustion: \Set := {
+  sets: N.Nat^ -> \Pow A,
+  finite: \forall (k: N.Nat^) -> FiniteSet[sets k],
+  covers: \forall (x: A) -> \exists ( k: N.Nat^ \where Sets.Member (sets k) x ),
+};
+\definition SigmaFinite: \Prop := \exists Exhaustion;
+\definition subsetFinite: \forall (S, T: \Pow A) -> M.Measurable mu.sigma S -> Sets.Subset S T -> FiniteSet[T] -> FiniteSet[S] :=
+  \fun (S, T: \Pow A) (valid: M.Measurable mu.sigma S) (included: Sets.Subset S T) (finite: FiniteSet[T]) => \block {
+    \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where \forall (r: Real.Real) -> M.below (mu.value T) r -> R.Le r b }) \by finite.bounded \then
+    \let upper: \forall (r: Real.Real) -> M.below (mu.value T) r -> R.Le r b :=
+      \bysub(Real.Real, { b: Real.Real \where \forall (r: Real.Real) -> M.below (mu.value T) r -> R.Le r b }, b) \then
+    \return FiniteSet[S] {
+      measurable := valid,
+      bounded := Logic.existsIntro[Real.Real, { b: Real.Real \where \forall (r: Real.Real) -> M.below (mu.value S) r -> R.Le r b }] b
+        (\fun (r: Real.Real) (member: M.below (mu.value S) r) => upper r (Finite.monotone S T valid finite.measurable included r member)),
+    }
+  };
+\import R.Completeness[] \as Complete;
+\import M.Integral[mu := mu] \as Integral;
+\import Integral.Zero[] \as Zero;
+\import M.ValueLaws[].SupAdd[] \as SupAdd;
+\import R.Order[] \as Order;
+\use std.Logic[].Equality[].sym;
+\definition FiniteMeasurableSet: \Set := \Cast[\Pow A] ({ S: \Pow A \where FiniteSet[S] });
+\definition finiteLaw[S: FiniteMeasurableSet]: FiniteSet[S] := \bysub(\Pow A, { S: \Pow A \where FiniteSet[S] }, S);
+\definition massExists: \forall (S: FiniteMeasurableSet) -> \exists ( v: Real.Real \where Complete.LeastUpperBound[mu.value S, v] ) :=
+  \fun (S: FiniteMeasurableSet) => Complete.complete (mu.value S)
+    (\exact(\into[Real.Real](Real.neg Real.one, mu.value S) \by {
+      (Finite.laws.nonnegative S (finiteLaw S).measurable).negative (Real.neg Real.one) Integral.negativeOne
+    }, \Cast[Real.Real] (mu.value S))) (finiteLaw S).bounded;
+\definition Mass[S: FiniteMeasurableSet]: \Set := \Cast[Real.Real] ({ v: Real.Real \where Complete.LeastUpperBound[mu.value S, v] });
+\definition massUnique: \forall (S: FiniteMeasurableSet) (u, v: Mass S) -> u = v :=
+  \fun (S: FiniteMeasurableSet) (u, v: Mass S) => Complete.leastUpperBoundUnique (mu.value S) u v
+    (\bysub(Real.Real, { u: Real.Real \where Complete.LeastUpperBound[mu.value S, u] }, u))
+    (\bysub(Real.Real, { v: Real.Real \where Complete.LeastUpperBound[mu.value S, v] }, v));
+\definition mass[S: FiniteMeasurableSet]: Real.Real := \choice Mass S \by { existence: massExists S, uniqueness: massUnique S };
+\definition massLaw[S: FiniteMeasurableSet]: Complete.LeastUpperBound[mu.value S, mass S] :=
+  \bysub(Real.Real, { v: Real.Real \where Complete.LeastUpperBound[mu.value S, v] },
+    \choice Mass S \by { existence: massExists S, uniqueness: massUnique S });
+\definition massNonnegative: \forall (S: FiniteMeasurableSet) -> R.Le Real.zero (mass S) :=
+  \fun (S: FiniteMeasurableSet) => Zero.zeroSup.least (mass S)
+    (\fun (r: Real.Real) (negative: R.Lt r Real.zero) => (massLaw S).upper r
+      ((Finite.laws.nonnegative S (finiteLaw S).measurable).negative r negative));
+\definition massCut: \forall (S: FiniteMeasurableSet) -> mu.value S = { r: Real.Real \where R.Lt r (mass S) } :=
+  \fun (S: FiniteMeasurableSet) => \axiom:setext(mu.value S, { r: Real.Real \where R.Lt r (mass S) },
+    \fun (r: Real.Real) (member: M.below (mu.value S) r) => \block {
+      \takefrom t: \Cast[Real.Real] ({ t: Real.Real \where Logic.And[R.Lt r t, M.below (mu.value S) t] })
+        \by (Finite.laws.nonnegative S (finiteLaw S).measurable).rounded r member \then
+      \let above: Logic.And[R.Lt r t, M.below (mu.value S) t] :=
+        \bysub(Real.Real, { t: Real.Real \where Logic.And[R.Lt r t, M.below (mu.value S) t] }, t) \then
+      \return R.ltLeTrans r t (mass S) above.left ((massLaw S).upper t above.right)
+    },
+    \fun (r: Real.Real) (less: R.Lt r (mass S)) => \block {
+      \takefrom t: \Cast[Real.Real] ({ t: Real.Real \where Logic.And[M.below (mu.value S) t, R.Lt r t] })
+        \by SupAdd.above (mu.value S) (mass S) r (massLaw S) less \then
+      \let above: Logic.And[M.below (mu.value S) t, R.Lt r t] :=
+        \bysub(Real.Real, { t: Real.Real \where Logic.And[M.below (mu.value S) t, R.Lt r t] }, t) \then
+      \return (Finite.laws.nonnegative S (finiteLaw S).measurable).downward r t above.right above.left
+    });
+\module Indicator(S: FiniteMeasurableSet);
+\definition intersection[S: FiniteMeasurableSet] [T: \Pow A] [valid: M.Measurable mu.sigma T]: FiniteMeasurableSet :=
+  \into[\Pow A](Sets.Intersection S T, FiniteMeasurableSet) \by {
+    subsetFinite (Sets.Intersection S T) S
+      (Sigma.intersectionMeasurable mu.sigma S T (finiteLaw S).measurable valid)
+      (\fun (x: A) (member: Sets.Member (Sets.Intersection S T) x) => member.left) (finiteLaw S)
+  };
+\definition difference[S: FiniteMeasurableSet] [T: \Pow A] [valid: M.Measurable mu.sigma T]: FiniteMeasurableSet :=
+  intersection S (Sets.Complement T) ((Sigma.laws mu.sigma).complement T valid);
+\definition massMono: \forall (S, T: FiniteMeasurableSet) -> Sets.Subset S T -> R.Le (mass S) (mass T) :=
+  \fun (S, T: FiniteMeasurableSet) (included: Sets.Subset S T) => (massLaw S).least (mass T)
+    (\fun (r: Real.Real) (member: M.below (mu.value S) r) => (massLaw T).upper r
+      (Finite.monotone S T (finiteLaw S).measurable (finiteLaw T).measurable included r member));
+\module Bounded(S: FiniteMeasurableSet);
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition partitionValue: \forall (S: FiniteMeasurableSet) (T: \Pow A) (valid: M.Measurable mu.sigma T) ->
+  mu.value S = M.add (mu.value (intersection S T valid)) (mu.value (difference S T valid)) :=
+  \fun (S: FiniteMeasurableSet) (T: \Pow A) (valid: M.Measurable mu.sigma T) => eq_reason_in!{M.Value _
+    "=" _ "by" { congr!{{\Pow A} M.Value} mu.value _ _ (Finite.partitionBy S T) }
+    "=" _ "by" { Finite.additivity (Sigma.difference S T) (Sets.Intersection S T)
+      (Sigma.differenceMeasurable mu.sigma S T (finiteLaw S).measurable valid)
+      (Sigma.intersectionMeasurable mu.sigma S T (finiteLaw S).measurable valid) (Finite.partitionDisjoint S T) }
+    "=" _ "by" { V.addComm (mu.value (Sigma.difference S T)) (mu.value (Sets.Intersection S T)) }
+  };
+\definition massPartition: \forall (S: FiniteMeasurableSet) (T: \Pow A) (valid: M.Measurable mu.sigma T) ->
+  mass S = Real.add (mass (intersection S T valid)) (mass (difference S T valid)) :=
+  \fun (S: FiniteMeasurableSet) (T: \Pow A) (valid: M.Measurable mu.sigma T) =>
+    Complete.leastUpperBoundUnique (mu.value S) (mass S) (Real.add (mass (intersection S T valid)) (mass (difference S T valid))) (massLaw S)
+      (\idelim M.add (mu.value (intersection S T valid)) (mu.value (difference S T valid)) = mu.value S
+        \with v: M.Value => Complete.LeastUpperBound[v, Real.add (mass (intersection S T valid)) (mass (difference S T valid))] \by {
+          base: SupAdd.leastUpper (mu.value (intersection S T valid)) (mu.value (difference S T valid))
+            (mass (intersection S T valid)) (mass (difference S T valid)) (massLaw (intersection S T valid)) (massLaw (difference S T valid)),
+          equality: sym!{M.Value} _ _ (partitionValue S T valid) });
+\module Restriction(S: FiniteMeasurableSet);

@@ -1,0 +1,111 @@
+\import functional_analysis.Measure[A := A] \as M;
+\import M.Integral[mu := mu] \as I;
+\import I.Convergence[] \as C;
+\import C.Recovery[] \as Recovery;
+\import M.ValueLaws[] \as Values;
+\import M.Continuity[mu := mu] \as MeasureContinuity;
+\import \root.Cuts[A := A] \as Cuts;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import topology.Topology[Carrier := A] \as Sets;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as RealOrder;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition Dominated[n: N.Nat^] [s: I.Simple[n]] [f: A -> M.Value]: \Prop :=
+  \forall (i: Fin.Fin n) (x: A) -> Sets.Member (s.cells i) x -> Values.Included (Cuts.cut (s.coefficients i)) (f x);
+\definition lowerIntegral[f: A -> M.Value]: M.Value := { r: Real.Real \where
+  \exists ( n: N.Nat^ \where \exists ( s: I.Simple[n] \where Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) r] ) ) };
+\definition Covers[n: N.Nat^] [s: I.Simple[n]] [f: C.MeasurableSequence]: \Prop :=
+  \forall (i: Fin.Fin n) (x: A) -> Sets.Member (s.cells i) x -> \forall (r: Real.Real) -> R.Lt r (s.coefficients i) ->
+    \exists ( k: N.Nat^ \where R.Lt r (f k x) );
+\module Approximation(n: N.Nat^, s: I.Simple[n], c: C.Shrink, f: C.MeasurableSequence);
+\module RecoveryFor(n: N.Nat^, s: I.Simple[n], f: C.MeasurableSequence);
+\definition realAgreement: \forall (f: A -> Real.Real) -> lowerIntegral (\fun (x: A) => Cuts.cut (f x)) = I.lowerIntegral f :=
+  \fun (f: A -> Real.Real) => \axiom:setext(lowerIntegral (\fun (x: A) => Cuts.cut (f x)), I.lowerIntegral f,
+    \fun (r: Real.Real) (member: M.below (lowerIntegral (\fun (x: A) => Cuts.cut (f x))) r) => \block {
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \exists ( s: I.Simple[n] \where Logic.And[Dominated n s (\fun (x: A) => Cuts.cut (f x)), M.below (I.simpleIntegral n s) r] ) }) \by member \then
+      \takefrom s: \Cast[I.Simple[n]] ({ s: I.Simple[n] \where Logic.And[Dominated n s (\fun (x: A) => Cuts.cut (f x)), M.below (I.simpleIntegral n s) r] })
+        \by (\bysub(N.Nat^, { n: N.Nat^ \where \exists ( s: I.Simple[n] \where Logic.And[Dominated n s (\fun (x: A) => Cuts.cut (f x)), M.below (I.simpleIntegral n s) r] ) }, n)) \then
+      \let law: Logic.And[Dominated n s (\fun (x: A) => Cuts.cut (f x)), M.below (I.simpleIntegral n s) r] :=
+        \bysub(I.Simple[n], { s: I.Simple[n] \where Logic.And[Dominated n s (\fun (x: A) => Cuts.cut (f x)), M.below (I.simpleIntegral n s) r] }, s) \then
+      \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists ( s: I.Simple[n] \where Logic.And[I.Dominated n s f, M.below (I.simpleIntegral n s) r] ) }] n
+        (Logic.existsIntro[I.Simple[n], { s: I.Simple[n] \where Logic.And[I.Dominated n s f, M.below (I.simpleIntegral n s) r] }] s
+          (Logic.And[_, _]::# (\fun (i: Fin.Fin n) (x: A) (inside: Sets.Member (s.cells i) x) => Cuts.includedLe (s.coefficients i) (f x) (law.left i x inside)) law.right))
+    },
+    \fun (r: Real.Real) (member: M.below (I.lowerIntegral f) r) => \block {
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \exists ( s: I.Simple[n] \where Logic.And[I.Dominated n s f, M.below (I.simpleIntegral n s) r] ) }) \by member \then
+      \takefrom s: \Cast[I.Simple[n]] ({ s: I.Simple[n] \where Logic.And[I.Dominated n s f, M.below (I.simpleIntegral n s) r] })
+        \by (\bysub(N.Nat^, { n: N.Nat^ \where \exists ( s: I.Simple[n] \where Logic.And[I.Dominated n s f, M.below (I.simpleIntegral n s) r] ) }, n)) \then
+      \let law: Logic.And[I.Dominated n s f, M.below (I.simpleIntegral n s) r] :=
+        \bysub(I.Simple[n], { s: I.Simple[n] \where Logic.And[I.Dominated n s f, M.below (I.simpleIntegral n s) r] }, s) \then
+      \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists ( s: I.Simple[n] \where Logic.And[Dominated n s (\fun (x: A) => Cuts.cut (f x)), M.below (I.simpleIntegral n s) r] ) }] n
+        (Logic.existsIntro[I.Simple[n], { s: I.Simple[n] \where Logic.And[Dominated n s (\fun (x: A) => Cuts.cut (f x)), M.below (I.simpleIntegral n s) r] }] s
+          (Logic.And[_, _]::# (\fun (i: Fin.Fin n) (x: A) (inside: Sets.Member (s.cells i) x) => Cuts.leIncluded (s.coefficients i) (f x) (law.left i x inside)) law.right))
+    });
+\definition sup[f: N.Nat^ -> A -> Real.Real] [x: A]: M.Value := { r: Real.Real \where \exists ( k: N.Nat^ \where R.Lt r (f k x) ) };
+\definition stageIncluded: \forall (f: N.Nat^ -> A -> Real.Real) (k: N.Nat^) -> Values.Included (I.lowerIntegral (f k)) (lowerIntegral (sup f)) :=
+  \fun (f: N.Nat^ -> A -> Real.Real) (k: N.Nat^) (r: Real.Real) (member: M.below (I.lowerIntegral (f k)) r) => \block {
+    \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \exists ( s: I.Simple[n] \where Logic.And[I.Dominated n s (f k), M.below (I.simpleIntegral n s) r] ) }) \by member \then
+    \takefrom s: \Cast[I.Simple[n]] ({ s: I.Simple[n] \where Logic.And[I.Dominated n s (f k), M.below (I.simpleIntegral n s) r] })
+      \by (\bysub(N.Nat^, { n: N.Nat^ \where \exists ( s: I.Simple[n] \where Logic.And[I.Dominated n s (f k), M.below (I.simpleIntegral n s) r] ) }, n)) \then
+    \let law: Logic.And[I.Dominated n s (f k), M.below (I.simpleIntegral n s) r] :=
+      \bysub(I.Simple[n], { s: I.Simple[n] \where Logic.And[I.Dominated n s (f k), M.below (I.simpleIntegral n s) r] }, s) \then
+    \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists ( s: I.Simple[n] \where Logic.And[Dominated n s (sup f), M.below (I.simpleIntegral n s) r] ) }] n
+      (Logic.existsIntro[I.Simple[n], { s: I.Simple[n] \where Logic.And[Dominated n s (sup f), M.below (I.simpleIntegral n s) r] }] s
+        (Logic.And[_, _]::# (\fun (i: Fin.Fin n) (x: A) (inside: Sets.Member (s.cells i) x) (t: Real.Real) (less: R.Lt t (s.coefficients i)) =>
+          Logic.existsIntro[N.Nat^, { j: N.Nat^ \where R.Lt t (f j x) }] k (R.ltLeTrans t (s.coefficients i) (f k x) less (law.left i x inside))) law.right))
+  };
+\definition monotone: \forall (f: C.MeasurableSequence) -> C.FunctionIncreasing f -> lowerIntegral (sup f) = C.Sup (\fun (k: N.Nat^) => I.lowerIntegral (f k)) :=
+  \fun (f: C.MeasurableSequence) (increasing: C.FunctionIncreasing f) => \axiom:setext(lowerIntegral (sup f), C.Sup (\fun (k: N.Nat^) => I.lowerIntegral (f k)),
+    \fun (r: Real.Real) (member: M.below (lowerIntegral (sup f)) r) => \block {
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \exists ( s: I.Simple[n] \where Logic.And[Dominated n s (sup f), M.below (I.simpleIntegral n s) r] ) }) \by member \then
+      \takefrom s: \Cast[I.Simple[n]] ({ s: I.Simple[n] \where Logic.And[Dominated n s (sup f), M.below (I.simpleIntegral n s) r] })
+        \by (\bysub(N.Nat^, { n: N.Nat^ \where \exists ( s: I.Simple[n] \where Logic.And[Dominated n s (sup f), M.below (I.simpleIntegral n s) r] ) }, n)) \then
+      \let law: Logic.And[Dominated n s (sup f), M.below (I.simpleIntegral n s) r] :=
+        \bysub(I.Simple[n], { s: I.Simple[n] \where Logic.And[Dominated n s (sup f), M.below (I.simpleIntegral n s) r] }, s) \then
+      \return \root.ExtendedIntegral[A := A, mu := mu].RecoveryFor[n := n, s := s, f := f].bound law.left increasing r law.right
+    },
+    \fun (r: Real.Real) (member: M.below (C.Sup (\fun (k: N.Nat^) => I.lowerIntegral (f k))) r) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where M.below (I.lowerIntegral (f k)) r }) \by member \then
+      \return stageIncluded f k r (\bysub(N.Nat^, { k: N.Nat^ \where M.below (I.lowerIntegral (f k)) r }, k))
+    });
+\import I.SimpleLaws[] \as SimpleLaws;
+\definition lowerIntegralNegative: \forall (f: A -> M.Value) (r: Real.Real) -> R.Lt r Real.zero -> M.below (lowerIntegral f) r :=
+  \fun (f: A -> M.Value) (r: Real.Real) (negative: R.Lt r Real.zero) =>
+    Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists ( s: I.Simple[n] \where Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) r] ) }] N.Nat^::zero
+      (Logic.existsIntro[I.Simple[N.Nat^::zero], { s: I.Simple[N.Nat^::zero] \where Logic.And[Dominated N.Nat^::zero s f, M.below (I.simpleIntegral N.Nat^::zero s) r] }]
+        I.emptySimple (Logic.And[_, _]::# (\fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))) negative));
+\definition lowerNonnegative: \forall (f: A -> M.Value) -> M.NonnegativeValue[lowerIntegral f] :=
+  \fun (f: A -> M.Value) => M.NonnegativeValue[lowerIntegral f] {
+    negative := lowerIntegralNegative f,
+    downward := \fun (r, t: Real.Real) (less: R.Lt r t) (member: M.below (lowerIntegral f) t) => \block {
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \exists ( s: I.Simple[n] \where Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) t] ) }) \by member \then
+      \takefrom s: \Cast[I.Simple[n]] ({ s: I.Simple[n] \where Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) t] })
+        \by (\bysub(N.Nat^, { n: N.Nat^ \where \exists ( s: I.Simple[n] \where Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) t] ) }, n)) \then
+      \let data: Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) t] := \bysub(I.Simple[n], { s: I.Simple[n] \where Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) t] }, s) \then
+      \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists ( s: I.Simple[n] \where Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) r] ) }] n
+        (Logic.existsIntro[I.Simple[n], { s: I.Simple[n] \where Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) r] }] s
+          (Logic.And[_, _]::# data.left ((SimpleLaws.integralNonnegative n s).downward r t less data.right)))
+    },
+    rounded := \fun (r: Real.Real) (member: M.below (lowerIntegral f) r) => \block {
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \exists ( s: I.Simple[n] \where Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) r] ) }) \by member \then
+      \takefrom s: \Cast[I.Simple[n]] ({ s: I.Simple[n] \where Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) r] })
+        \by (\bysub(N.Nat^, { n: N.Nat^ \where \exists ( s: I.Simple[n] \where Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) r] ) }, n)) \then
+      \let data: Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) r] := \bysub(I.Simple[n], { s: I.Simple[n] \where Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) r] }, s) \then
+      \takefrom t: \Cast[Real.Real] ({ t: Real.Real \where Logic.And[R.Lt r t, M.below (I.simpleIntegral n s) t] }) \by (SimpleLaws.integralNonnegative n s).rounded r data.right \then
+      \let rounded: Logic.And[R.Lt r t, M.below (I.simpleIntegral n s) t] := \bysub(Real.Real, { t: Real.Real \where Logic.And[R.Lt r t, M.below (I.simpleIntegral n s) t] }, t) \then
+      \return Logic.existsIntro[Real.Real, { t: Real.Real \where Logic.And[R.Lt r t, M.below (lowerIntegral f) t] }] t
+        (Logic.And[_, _]::# rounded.left (Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists ( s: I.Simple[n] \where Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) t] ) }] n
+          (Logic.existsIntro[I.Simple[n], { s: I.Simple[n] \where Logic.And[Dominated n s f, M.below (I.simpleIntegral n s) t] }] s (Logic.And[_, _]::# data.left rounded.right))))
+    },
+  };
+\structure SeriesData: \Set := {
+  terms: N.Nat^ -> N.Nat^ -> I.NonnegativeMeasurable,
+  increasing: \forall (i: N.Nat^) -> C.FunctionIncreasing (\fun (k: N.Nat^) (x: A) => (terms i k).function x),
+};
+\module Series(data: SeriesData);

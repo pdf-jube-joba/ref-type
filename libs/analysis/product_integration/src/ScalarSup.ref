@@ -1,0 +1,61 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\import std.Logic[].Proposition[] \as Logic;
+\import real.Analysis[] \as Real;
+\import Real.Sequence[] \as Sequence;
+\import Real.Distance[] \as Distance;
+\import Real.SquareRoot[] \as Root;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Completeness[] \as Complete;
+\import R.Order[] \as Order;
+\use std.Logic[].Equality[].sym;
+\definition values[s: N.Nat^ -> Real.Real]: \Pow Real.Real := { r: Real.Real \where \exists ( k: N.Nat^ \where r = s k ) };
+\definition member: \forall (s: N.Nat^ -> Real.Real) (k: N.Nat^) -> Complete.Member (values s) (s k) :=
+  \fun (s: N.Nat^ -> Real.Real) (k: N.Nat^) => Logic.existsIntro[N.Nat^, { j: N.Nat^ \where s k = s j }] k (\refl(s k));
+\definition converges: \forall (s: N.Nat^ -> Real.Real) (v: Real.Real) ->
+  (\forall (i, j: N.Nat^) -> Nat.Le i j -> R.Le (s i) (s j)) -> Complete.LeastUpperBound[values s, v] -> Sequence.Converges s v :=
+  \fun (s: N.Nat^ -> Real.Real) (v: Real.Real) (increasing: \forall (i, j: N.Nat^) -> Nat.Le i j -> R.Le (s i) (s j))
+    (sup: Complete.LeastUpperBound[values s, v]) (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) => \block {
+      \let lower: Real.Real := Real.sub v epsilon \then
+      \let below: R.Lt lower v := Root.subBelow v epsilon positive \then
+      \let exists: \exists ( k: N.Nat^ \where R.Lt lower (s k) ) := Order.byContradiction _
+        (\fun (none: Logic.Not (\exists ( k: N.Nat^ \where R.Lt lower (s k) ))) =>
+          R.ltNotLeReverse lower v below (sup.least lower (\fun (r: Real.Real) (member: Complete.Member (values s) r) => \block {
+            \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where r = s k }) \by member \then
+            \let equality: r = s k := \bysub(N.Nat^, { k: N.Nat^ \where r = s k }, k) \then
+            \return \idelim s k = r \with a: Real.Real => R.Le a lower \by {
+              base: Order.leOfNotLtReverse (s k) lower (\fun (less: R.Lt lower (s k)) =>
+                none (Logic.existsIntro[N.Nat^, { k: N.Nat^ \where R.Lt lower (s k) }] k less)),
+              equality: sym!{Real.Real} _ _ equality }
+          }))) \then
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where R.Lt lower (s k) }) \by exists \then
+      \let less: R.Lt lower (s k) := \bysub(N.Nat^, { k: N.Nat^ \where R.Lt lower (s k) }, k) \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequence.LimitControl s v epsilon k }] k
+        (\fun (j: N.Nat^) (later: Nat.Le k j) => R.ltReplaceLeft (Real.distance v (s j)) (Real.distance (s j) v) epsilon
+          (Distance.distanceSymmetric v (s j)) (Distance.distanceLtOfInterval v (s j) epsilon
+            (R.ltLeTrans lower (s k) (s j) less (increasing k j later))
+            (R.leLtTrans (s j) v (Real.add v epsilon) (sup.upper (s j) (member s j)) (Root.addPositive v epsilon positive))))
+    };
+\import Real.Sequence[].Operations[] \as Operations;
+\definition ofConverges: \forall (s: N.Nat^ -> Real.Real) (v: Real.Real) ->
+  (\forall (i, j: N.Nat^) -> Nat.Le i j -> R.Le (s i) (s j)) -> Sequence.Converges s v -> Complete.LeastUpperBound[values s, v] :=
+  \fun (s: N.Nat^ -> Real.Real) (v: Real.Real) (increasing: \forall (i, j: N.Nat^) -> Nat.Le i j -> R.Le (s i) (s j)) (limit: Sequence.Converges s v) =>
+    Complete.LeastUpperBound[values s, v] {
+      upper := \fun (r: Real.Real) (member: Complete.Member (values s) r) => \block {
+        \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where r = s k }) \by member \then
+        \return R.leReplaceLeft (s k) r v (sym!{Real.Real} _ _ (\bysub(N.Nat^, { k: N.Nat^ \where r = s k }, k)))
+          (Operations.lowerBoundLimit s v (s k) k limit (\fun (j: N.Nat^) (later: Nat.Le k j) => increasing k j later))
+      },
+      least := \fun (b: Real.Real) (upper: Complete.UpperBound (values s) b) => Operations.upperBoundLimit s v b N.Nat^::zero limit
+        (\fun (k: N.Nat^) (_: Nat.Le N.Nat^::zero k) => upper (s k) (member s k)),
+    };
+\definition above: \forall (s: N.Nat^ -> Real.Real) (v, r: Real.Real) -> Complete.LeastUpperBound[values s, v] -> R.Lt r v ->
+  \exists ( k: N.Nat^ \where R.Lt r (s k) ) :=
+  \fun (s: N.Nat^ -> Real.Real) (v, r: Real.Real) (sup: Complete.LeastUpperBound[values s, v]) (less: R.Lt r v) =>
+    Order.byContradiction _ (\fun (none: Logic.Not (\exists ( k: N.Nat^ \where R.Lt r (s k) ))) =>
+      R.ltNotLeReverse r v less (sup.least r (\fun (a: Real.Real) (member: Complete.Member (values s) a) => \block {
+        \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where a = s k }) \by member \then
+        \return R.leReplaceLeft (s k) a r (sym!{Real.Real} _ _ (\bysub(N.Nat^, { k: N.Nat^ \where a = s k }, k)))
+          (Order.leOfNotLtReverse (s k) r (\fun (above: R.Lt r (s k)) => none
+            (Logic.existsIntro[N.Nat^, { k: N.Nat^ \where R.Lt r (s k) }] k above)))
+      })));
