@@ -1,0 +1,116 @@
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\definition stage[k: N.Nat^]: I.Simple[n] := I.Simple[n] {
+  cells := \fun (i: Fin.Fin n) => C.threshold f (s.cells i) (Real.mul c (s.coefficients i)) k,
+  coefficients := \fun (i: Fin.Fin n) => Real.mul c (s.coefficients i),
+  measurable := \fun (i: Fin.Fin n) => C.thresholdMeasurable f (s.cells i) (Real.mul c (s.coefficients i)) (C.sequenceMeasurable f) (s.measurable i) k,
+  nonnegative := \fun (i: Fin.Fin n) => Laws.fieldMulNonnegative c (s.coefficients i) (C.shrinkLaw c).left (s.nonnegative i),
+  disjoint := \fun (i, j: Fin.Fin n) (different: Logic.Not (i = j)) (x: A)
+    (left: Sets.Member (C.threshold f (s.cells i) (Real.mul c (s.coefficients i)) k) x)
+    (right: Sets.Member (C.threshold f (s.cells j) (Real.mul c (s.coefficients j)) k) x) =>
+      s.disjoint i j different x left.left right.left,
+};
+\definition stageDominated: \forall (k: N.Nat^) -> I.Dominated n (stage k) (f k) :=
+  \fun (k: N.Nat^) (i: Fin.Fin n) (x: A) (member: Sets.Member (C.threshold f (s.cells i) (Real.mul c (s.coefficients i)) k) x) =>
+    RealOrder.leOfLt (Real.mul c (s.coefficients i)) (f k x) member.right;
+\definition stageBelowIntegral: \forall (k: N.Nat^) -> Values.Included (I.simpleIntegral n (stage k)) (I.lowerIntegral (f k)) :=
+  \fun (k: N.Nat^) (r: Real.Real) (member: M.below (I.simpleIntegral n (stage k)) r) =>
+    Logic.existsIntro[N.Nat^, { m: N.Nat^ \where \exists ( t: I.Simple[m] \where Logic.And[I.Dominated m t (f k), M.below (I.simpleIntegral m t) r] ) }] n
+      (Logic.existsIntro[I.Simple[n], { t: I.Simple[n] \where Logic.And[I.Dominated n t (f k), M.below (I.simpleIntegral n t) r] }] (stage k)
+        (Logic.And[_, _]::# (stageDominated k) member));
+
+\import real.Analysis[].Estimates[].Product[] \as Product;
+\import std.Logic[].Classical[] \as Classical;
+\import functional_analysis.Measure[A := A].Finite[mu := mu] \as MeasureFinite;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\definition weight[i: Fin.Fin n]: Real.Real := Real.mul c (s.coefficients i);
+\definition cell[k: N.Nat^] [i: Fin.Fin n]: \Pow A := C.threshold f (s.cells i) (weight i) k;
+\definition cellMeasureIncreasing: \forall (increasing: C.FunctionIncreasing f) (i: Fin.Fin n) ->
+  C.ValueIncreasing (\fun (k: N.Nat^) => M.scale (weight i) (mu.value (cell k i))) :=
+  \fun (increasing: C.FunctionIncreasing f) (i: Fin.Fin n) (m, k: N.Nat^) (order: Nat.Le m k) =>
+    Values.scaleMono (weight i) (mu.value (cell m i)) (mu.value (cell k i))
+      (MeasureFinite.monotone (cell m i) (cell k i)
+        (C.thresholdMeasurable f (s.cells i) (weight i) (C.sequenceMeasurable f) (s.measurable i) m)
+        (C.thresholdMeasurable f (s.cells i) (weight i) (C.sequenceMeasurable f) (s.measurable i) k)
+        (MeasureContinuity.increasingAll (C.threshold f (s.cells i) (weight i)) (C.thresholdIncreasing f (s.cells i) (weight i) increasing) k m order));
+\definition weightBelowPositive: \forall (i: Fin.Fin n) -> R.Lt Real.zero (s.coefficients i) -> R.Lt (weight i) (s.coefficients i) :=
+  \fun (i: Fin.Fin n) (positive: R.Lt Real.zero (s.coefficients i)) =>
+    R.ltReplaceRight (weight i) (Real.mul (s.coefficients i) Real.one) (s.coefficients i) (Real.Algebra[].mulOneRight (s.coefficients i))
+      (R.ltReplaceLeft (Real.mul (s.coefficients i) c) (weight i) (Real.mul (s.coefficients i) Real.one)
+        (Laws.fieldMulComm (s.coefficients i) c) (Product.mulStrict (s.coefficients i) c Real.one positive (C.shrinkLaw c).right));
+\definition cellUnion: \forall (covers: Covers n s f) (i: Fin.Fin n) -> R.Lt Real.zero (s.coefficients i) -> M.union (\fun (k: N.Nat^) => cell k i) = s.cells i :=
+  \fun (covers: Covers n s f) (i: Fin.Fin n) (positive: R.Lt Real.zero (s.coefficients i)) =>
+    \axiom:setext(M.union (\fun (k: N.Nat^) => cell k i), s.cells i,
+      \fun (x: A) (member: Sets.Member (M.union (\fun (k: N.Nat^) => cell k i)) x) => \block {
+        \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sets.Member (cell k i) x }) \by member \then
+        \return (\bysub(N.Nat^, { k: N.Nat^ \where Sets.Member (cell k i) x }, k)).left
+      },
+      \fun (x: A) (member: Sets.Member (s.cells i) x) => \block {
+        \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where R.Lt (weight i) (f k x) }) \by covers i x member (weight i) (weightBelowPositive i positive) \then
+        \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (cell k i) x }] k
+          (Logic.And[_, _]::# member (\bysub(N.Nat^, { k: N.Nat^ \where R.Lt (weight i) (f k x) }, k)))
+      });
+\definition positiveCellLimit: Covers n s f -> C.FunctionIncreasing f -> \forall (i: Fin.Fin n) -> R.Lt Real.zero (s.coefficients i) ->
+  M.scale (weight i) (mu.value (s.cells i)) = C.Sup (\fun (k: N.Nat^) => M.scale (weight i) (mu.value (cell k i))) :=
+  \fun (covers: Covers n s f) (increasing: C.FunctionIncreasing f) (i: Fin.Fin n) (positive: R.Lt Real.zero (s.coefficients i)) => eq_reason_in!{M.Value _
+    "=" _ "by" { congr!{{\Pow A} M.Value} (\fun (S: \Pow A) => M.scale (weight i) (mu.value S)) _ _ (sym!{{\Pow A}} _ _ (cellUnion covers i positive)) }
+    "=" _ "by" { congr!{M.Value M.Value} (M.scale (weight i)) _ _
+      (MeasureContinuity.increasingSup (\fun (k: N.Nat^) => cell k i)
+        (\fun (k: N.Nat^) => C.thresholdMeasurable f (s.cells i) (weight i) (C.sequenceMeasurable f) (s.measurable i) k)
+        (C.thresholdIncreasing f (s.cells i) (weight i) increasing)) }
+    "=" _ "by" { C.scaleSup (weight i) (\fun (k: N.Nat^) => mu.value (cell k i)) }
+  };
+\definition zeroWeight: \forall (i: Fin.Fin n) -> s.coefficients i = Real.zero -> weight i = Real.zero :=
+  \fun (i: Fin.Fin n) (eqZero: s.coefficients i = Real.zero) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul c) _ _ eqZero }
+    "=" _ "by" { Laws.fieldMulZeroRight c }
+  };
+\definition zeroCellLimit: \forall (i: Fin.Fin n) -> s.coefficients i = Real.zero ->
+  M.scale (weight i) (mu.value (s.cells i)) = C.Sup (\fun (k: N.Nat^) => M.scale (weight i) (mu.value (cell k i))) :=
+  \fun (i: Fin.Fin n) (eqZero: s.coefficients i = Real.zero) => \block {
+    \let wz: weight i = Real.zero := zeroWeight i eqZero \then
+    \let original: M.scale (weight i) (mu.value (s.cells i)) = M.zero := eq_reason_in!{M.Value _
+      "=" _ "by" { congr!{Real.Real M.Value} (\fun (a: Real.Real) => M.scale a (mu.value (s.cells i))) _ _ wz }
+      "=" _ "by" { Values.zeroScale (mu.value (s.cells i)) (MeasureFinite.laws.nonnegative (s.cells i) (s.measurable i)) }
+    } \then
+    \let stages: (\fun (k: N.Nat^) => M.scale (weight i) (mu.value (cell k i))) = (\fun (_: N.Nat^) => M.zero) :=
+      \axiom:funext((\fun (k: N.Nat^) => M.scale (weight i) (mu.value (cell k i))), (\fun (_: N.Nat^) => M.zero),
+        \fun (k: N.Nat^) => eq_reason_in!{M.Value _
+          "=" _ "by" { congr!{Real.Real M.Value} (\fun (a: Real.Real) => M.scale a (mu.value (cell k i))) _ _ wz }
+          "=" _ "by" { Values.zeroScale (mu.value (cell k i))
+            (MeasureFinite.laws.nonnegative (cell k i) (C.thresholdMeasurable f (s.cells i) (weight i) (C.sequenceMeasurable f) (s.measurable i) k)) }
+        }) \then
+    \return eq_reason_in!{M.Value _
+      "=" _ "by" { original }
+      "=" _ "by" { sym!{M.Value} _ _ (C.supConstant M.zero) }
+      "=" _ "by" { congr!{{N.Nat^ -> M.Value} M.Value} C.Sup _ _ (sym!{{N.Nat^ -> M.Value}} _ _ stages) }
+    }
+  };
+\definition cellLimit: Covers n s f -> C.FunctionIncreasing f ->
+  \forall (i: Fin.Fin n) -> M.scale (weight i) (mu.value (s.cells i)) = C.Sup (\fun (k: N.Nat^) => M.scale (weight i) (mu.value (cell k i))) :=
+  \fun (covers: Covers n s f) (increasing: C.FunctionIncreasing f) (i: Fin.Fin n) =>
+    Logic.orElim _ _ _ (Classical.excludedMiddle (s.coefficients i = Real.zero))
+      (zeroCellLimit i)
+      (\fun (nonzero: Logic.Not (s.coefficients i = Real.zero)) => positiveCellLimit covers increasing i
+        (RealOrder.ltOfLeNotEq Real.zero (s.coefficients i) (s.nonnegative i)
+          (\fun (equal: Real.zero = s.coefficients i) => nonzero (sym!{Real.Real} _ _ equal))));
+\definition scaledIntegralSup: Covers n s f -> C.FunctionIncreasing f ->
+  M.sum n (\fun (i: Fin.Fin n) => M.scale (weight i) (mu.value (s.cells i))) = C.Sup (\fun (k: N.Nat^) => I.simpleIntegral n (stage k)) :=
+  \fun (covers: Covers n s f) (increasing: C.FunctionIncreasing f) => eq_reason_in!{M.Value _
+    "=" _ "by" { congr!{{Fin.Fin n -> M.Value} M.Value} (M.sum n) _ _
+      (\axiom:funext((\fun (i: Fin.Fin n) => M.scale (weight i) (mu.value (s.cells i))),
+        (\fun (i: Fin.Fin n) => C.Sup (\fun (k: N.Nat^) => M.scale (weight i) (mu.value (cell k i)))), cellLimit covers increasing)) }
+    "=" _ "by" { C.sumSup n (\fun (k: N.Nat^) (i: Fin.Fin n) => M.scale (weight i) (mu.value (cell k i))) (cellMeasureIncreasing increasing) }
+  };
+
+\definition scaledIntegralBound: Covers n s f -> C.FunctionIncreasing f ->
+  Values.Included (M.sum n (\fun (i: Fin.Fin n) => M.scale (weight i) (mu.value (s.cells i))))
+    (C.Sup (\fun (k: N.Nat^) => I.lowerIntegral (f k))) :=
+  \fun (covers: Covers n s f) (increasing: C.FunctionIncreasing f) (r: Real.Real)
+    (member: M.below (M.sum n (\fun (i: Fin.Fin n) => M.scale (weight i) (mu.value (s.cells i)))) r) =>
+      C.supLeast (\fun (k: N.Nat^) => I.simpleIntegral n (stage k)) (C.Sup (\fun (k: N.Nat^) => I.lowerIntegral (f k)))
+        (\fun (k: N.Nat^) (x: Real.Real) (inStage: M.below (I.simpleIntegral n (stage k)) x) =>
+          C.supUpper (\fun (k: N.Nat^) => I.lowerIntegral (f k)) k x (stageBelowIntegral k x inStage)) r
+        (\idelim M.sum n (\fun (i: Fin.Fin n) => M.scale (weight i) (mu.value (s.cells i))) = C.Sup (\fun (k: N.Nat^) => I.simpleIntegral n (stage k))
+          \with v: M.Value => M.below v r \by { base: member, equality: scaledIntegralSup covers increasing });
