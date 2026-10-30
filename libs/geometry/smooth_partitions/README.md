@@ -78,6 +78,8 @@ r_0=1,\qquad r_{i+1}=r_i(1-b_i),\qquad \phi_i=b_i r_i
 
 ## 検査
 
+最終ソースでの対象・関連検査と通常全体検査の結果は [検査記録](../../../benchmarks/records/smooth-partitions/README.md) にある。
+
 ```sh
 source /workspace/ref-type-env.sh
 cargo build -p cli --release --locked
