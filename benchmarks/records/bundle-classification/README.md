@@ -5,14 +5,54 @@
 既存数学ライブラリと Rust 処理系のソース変更はない。
 
 2026-10-30 のクラウド環境で、コンテナのメモリ上限16 GiBを確認した。
-通常検査は単一 worker、初期・最大仮想メモリ10240 MiB、キャッシュ予算12288 MiB、空き容量目安256 MiBで行う。
+対象 package は初期・最大仮想メモリ10240 MiB、通常全体検査の最終実行は12288 MiBで行った。
+通常検査は単一 worker、キャッシュ予算12288 MiB、空き容量目安256 MiBで行う。
 通常の検証済みキャッシュと checkpoint を照合して再利用する。
 
 ```sh
 source /workspace/ref-type-env.sh && cargo build -p cli --release --locked
 python3 scripts/check_all.py libs/geometry/bundle_classification --state-dir work/b06-package --initial-memory-mib 10240 --memory-mib 10240 --cache-budget-mib 12288 --min-free-mib 256
-python3 scripts/check_all.py --state-dir work/b06-whole --initial-memory-mib 10240 --memory-mib 10240 --cache-budget-mib 12288 --min-free-mib 256
+python3 scripts/check_all.py --state-dir work/b06-whole --initial-memory-mib 12288 --memory-mib 12288 --cache-budget-mib 12288 --min-free-mib 256
 ```
 
 対象を列挙して固定した source snapshot に対して検査し、終了時に source・対象一覧・処理系の一致を確認する。
 実行ログ、全対象、source snapshot、各 package のレポート、最終集計は各 state directory に保持する。
+
+## 結果
+
+検査した実装コミットは `340f93e81ffcebf4673cbb9d57b2f8d388a61821`。
+release build、対象 package と依存、通常全体検査はいずれも終了コード0で成功した。
+機械可読の集計は [summary.json](summary.json) に保持する。
+
+| 実行 | 対象数 | 新規検査 | 再利用 | 保存失敗 | 破損読み込み | 秒 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 対象 package と依存 | 5028 | 4912 | 116 | 0 | 0 | 437.839 |
+| 通常全体、12 GiB | 10234 | 88 | 10146 | 0 | 0 | 464.575 |
+
+対象 package の最大 RSS は2227236 KiB、最大仮想メモリは2645940 KiB。
+通常全体の最大 RSS は9772424 KiB、最大仮想メモリは11559720 KiB。
+全体の最終実行は checkpoint を1回再開し、worker の異常終了からの復旧は0回だった。
+最終 checkpoint は33881で、保存失敗・入力不一致・キャッシュ破損は0だった。
+コンテナの `memory.events` で `oom=0`、`oom_kill=0` も確認した。
+
+初回の全体検査は10240 MiBで行い、10104対象を検証したところで、既存 `periodic_k_theory` の worker が仮想メモリ上限に2回到達した。
+これは型エラーや処理系 panic ではなく、割り当て上限による復旧である。
+checkpoint 32514、32529を保存して再開したが、進行が小さかったため driver を正常に中断し、同じ state directory を12288 MiBで再開した。
+初回の outcome は `interrupted` であり、成功実行には数えない。
+中断 package の詳細レポートでは復旧2回、checkpoint再開2回、保存失敗0、破損0を確認した。
+中断 package は集計の完了済み attempts に含まれないので、初回の集計値だけから復旧数を判断しない。
+キャッシュの全削除や検査の迂回は行っていない。
+
+対象 package の source snapshot 全4266ファイルと通常全体の全9047ファイルを、`git cat-file --batch` による実装コミットの blob と照合し、差異0を確認した。
+対象 package の report の commit 欄は snapshot 取得時の基準 main だが、その入力ソースは実装コミットと完全一致する。
+両実行とも driver の終了時に現在の source・対象一覧・処理系の一致検査を通過した。
+処理系の SHA-256 は `d6733af31783de12abb23e32a6e5f09130ce24511bfa1ef6a8008b47c749a944`。
+通常全体の source SHA-256 は `0eeb1bb9f0e8e2ef45b0e98a8adc2677aeae4c24d1b5fcd404e54b9847b268eb`。
+
+実行記録のローカル保存先は次の通り。
+
+- 対象 package: `work/b06-package/20261030T225816.133680Z/report.json`
+- 中断した初回全体: `work/b06-whole/20261030T230638.789689Z/report.json`
+- 成功した最終全体: `work/b06-whole/20261030T234625.221490Z/report.json`
+
+大きな source snapshot と package ごとの生レポートはローカルに保持し、Git には小さな集計と実行条件を記録する。
