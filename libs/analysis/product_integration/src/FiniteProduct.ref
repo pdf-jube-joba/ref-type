@@ -1,0 +1,77 @@
+\import \root.FiniteKernel[A := A, B := B, mu := mu, nu := nu] \as Kernel;
+\import \root.ProductSigma[A := A, B := B, left := mu.sigma, right := nu.sigma] \as Sigma;
+\import \root.Cuts[A := Sigma.Point] \as Cuts;
+\import \root.ScalarSup[] \as ScalarSup;
+\import functional_analysis.Measure[A := A].Integral[mu := mu] \as Integral;
+\import Integral.Absolute[] \as Absolute;
+\import Integral.Zero[] \as Zero;
+\import functional_analysis.Measure[A := Sigma.Point] \as M;
+\import M.Sigma[] \as MS;
+\import topology.Topology[Carrier := Sigma.Point] \as Sets;
+\import real.Analysis[] \as Real;
+\import real.Analysis[].Sequence[] \as Sequence;
+\import dedekind_reals.DedekindReal[] \as R;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition value[S: \Pow Sigma.Point]: M.Value := { r: Real.Real \where \exists ( w: Kernel.Witness[S] \where R.Lt r (Integral.integral w.function) ) };
+\definition valueCut: \forall (S: \Pow Sigma.Point) (w: Kernel.Witness[S]) -> value S = Cuts.cut (Integral.integral w.function) :=
+  \fun (S: \Pow Sigma.Point) (w: Kernel.Witness[S]) => \axiom:setext(value S, Cuts.cut (Integral.integral w.function),
+    \fun (r: Real.Real) (member: M.below (value S) r) => \block {
+      \takefrom u: \Cast[Kernel.Witness[S]] ({ u: Kernel.Witness[S] \where R.Lt r (Integral.integral u.function) }) \by member \then
+      \return R.ltReplaceRight r (Integral.integral u.function) (Integral.integral w.function)
+        (congr!{Integral.Representatives Real.Real} Integral.integral _ _ (Kernel.unique S u w))
+        (\bysub(Kernel.Witness[S], { u: Kernel.Witness[S] \where R.Lt r (Integral.integral u.function) }, u))
+    },
+    \fun (r: Real.Real) (member: R.Lt r (Integral.integral w.function)) => Logic.existsIntro[Kernel.Witness[S], { w: Kernel.Witness[S] \where R.Lt r (Integral.integral w.function) }] w member);
+\definition nonnegative: \forall (S: \Pow Sigma.Point) -> M.Measurable Sigma.sigma S -> M.NonnegativeValue[value S] :=
+  \fun (S: \Pow Sigma.Point) (valid: M.Measurable Sigma.sigma S) => \block {
+    \takefrom w: Kernel.Witness[S] \by Kernel.exists S valid \then
+    \return \idelim Cuts.cut (Integral.integral w.function) = value S \with v: M.Value => M.NonnegativeValue[v] \by {
+      base: Cuts.nonnegative (Integral.integral w.function) (Absolute.integralNonnegative w.function (Integral.integral w.function)
+        (Kernel.nonnegative S w) (Integral.integralLaw w.function)), equality: sym!{M.Value} _ _ (valueCut S w) }
+  };
+\definition empty: value Sets.Empty = M.zero := eq_reason_in!{M.Value _
+  "=" _ "by" { valueCut Sets.Empty Kernel.empty }
+  "=" _ "by" { congr!{Real.Real M.Value} Cuts.cut _ _ Zero.integralZero }
+};
+\module Countable(data: Kernel.UnionData);
+\definition unionValue: \forall (data: Kernel.UnionData) ->
+  value (M.union data.sets) = M.series (\fun (k: N.Nat^) => value (data.sets k)) :=
+  \fun (data: Kernel.UnionData) => sym!{M.Value} _ _ (\root.FiniteProduct[A := A, B := B, mu := mu, nu := nu].Countable[data := data].series);
+\definition countableAdditivity: \forall (sets: N.Nat^ -> \Pow Sigma.Point) ->
+  (\forall (k: N.Nat^) -> M.Measurable Sigma.sigma (sets k)) -> M.Disjoint sets ->
+  value (M.union sets) = M.series (\fun (k: N.Nat^) => value (sets k)) :=
+  \fun (sets: N.Nat^ -> \Pow Sigma.Point) (valid: \forall (k: N.Nat^) -> M.Measurable Sigma.sigma (sets k)) (disjoint: M.Disjoint sets) => \block {
+    \takefrom witnesses: \forall (k: N.Nat^) -> Kernel.Witness[sets k] \by
+      \axiom:classicalIndefiniteChoice(N.Nat^, (\fun (k: N.Nat^) => Kernel.Witness[sets k]), \fun (k: N.Nat^) => Kernel.exists (sets k) (valid k)) \then
+    \let data: Kernel.UnionData := Kernel.UnionData { sets := sets, witnesses := witnesses, disjoint := disjoint } \then
+    \return unionValue data
+  };
+\definition data: M.MeasureData := M.MeasureData { sigma := Sigma.sigma, value := value };
+\definition measure: M.Measure := \into[M.MeasureData](data, M.Measure) \by {
+  M.MeasureLaws[data] { nonnegative := nonnegative, empty := empty, countableAdditivity := countableAdditivity }
+};
+\import \root.Finiteness[A := Sigma.Point, mu := measure] \as Finiteness;
+\definition finite: Finiteness.FiniteSet[Sets.Whole] := Finiteness.FiniteSet[Sets.Whole] {
+  measurable := MS.wholeMeasurable Sigma.sigma,
+  bounded := Logic.existsIntro[Real.Real, { b: Real.Real \where \forall (r: Real.Real) -> M.below (measure.value Sets.Whole) r -> R.Le r b }]
+    (Integral.integral Kernel.whole.function) (\fun (r: Real.Real) (member: M.below (measure.value Sets.Whole) r) => R.Order[].leOfLt r (Integral.integral Kernel.whole.function)
+      (\idelim value Sets.Whole = Cuts.cut (Integral.integral Kernel.whole.function) \with v: M.Value => M.below v r \by {
+        base: member, equality: valueCut Sets.Whole Kernel.whole })),
+};
+\definition finiteMeasure: \root.FiniteSpaces[A := Sigma.Point].Measure :=
+  \into[M.Measure](measure, \root.FiniteSpaces[A := Sigma.Point].Measure) \by { finite };
+\definition rectangle: \forall (U: \Pow A) (V: \Pow B) (u: functional_analysis.Measure[A := A].Measurable mu.sigma U)
+  (v: functional_analysis.Measure[A := B].Measurable nu.sigma V) -> measure.value (Sigma.rectangle U V) =
+  Cuts.cut (Real.mul (\root.FiniteSpaces[A := A].On[mu := mu].mass U u) (\root.FiniteSpaces[A := B].On[mu := nu].mass V v)) :=
+  \fun (U: \Pow A) (V: \Pow B) (u: functional_analysis.Measure[A := A].Measurable mu.sigma U) (v: functional_analysis.Measure[A := B].Measurable nu.sigma V) => eq_reason_in!{M.Value _
+    "=" _ "by" { valueCut (Sigma.rectangle U V) (Kernel.Rectangle[
+      U := \root.FiniteSpaces[A := A].On[mu := mu].finite U u,
+      V := \root.FiniteSpaces[A := B].On[mu := nu].finite V v].witness) }
+    "=" _ "by" { congr!{Real.Real M.Value} Cuts.cut _ _ (Kernel.Rectangle[
+      U := \root.FiniteSpaces[A := A].On[mu := mu].finite U u,
+      V := \root.FiniteSpaces[A := B].On[mu := nu].finite V v].integral) }
+  };

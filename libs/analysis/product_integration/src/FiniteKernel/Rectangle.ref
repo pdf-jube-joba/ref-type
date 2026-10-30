@@ -1,0 +1,47 @@
+\import LF.Indicator[S := U] \as Indicator;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import RI.Zero[] \as Zero;
+\definition function: LI.Representatives := Scaling.scalarRepresentative (RF.mass V) Indicator.representative;
+\definition inside: \forall (x: A) -> LS.Member U x -> function x = RF.mass V :=
+  \fun (x: A) (valid: LS.Member U x) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (RF.mass V)) _ _ (Indicator.inside x valid) }
+    "=" _ "by" { Real.Algebra[].mulOneRight (RF.mass V) }
+  };
+\definition outside: \forall (x: A) -> Logic.Not (LS.Member U x) -> function x = Real.zero :=
+  \fun (x: A) (valid: Logic.Not (LS.Member U x)) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (RF.mass V)) _ _ (Indicator.outside x valid) }
+    "=" _ "by" { Laws.fieldMulZeroRight (RF.mass V) }
+  };
+\definition sectionInside: \forall (x: A) -> LS.Member U x -> ProductSigma.section (ProductSigma.rectangle U V) x = V :=
+  \fun (x: A) (inside: LS.Member U x) => \axiom:setext(ProductSigma.section (ProductSigma.rectangle U V) x, V,
+    \fun (y: B) (member: RS.Member (ProductSigma.section (ProductSigma.rectangle U V) x) y) => member.right,
+    \fun (y: B) (member: RS.Member V y) => Logic.And[_, _]::# inside member);
+\definition sectionOutside: \forall (x: A) -> Logic.Not (LS.Member U x) -> ProductSigma.section (ProductSigma.rectangle U V) x = RS.Empty :=
+  \fun (x: A) (outside: Logic.Not (LS.Member U x)) => \axiom:setext(ProductSigma.section (ProductSigma.rectangle U V) x, RS.Empty,
+    \fun (y: B) (member: RS.Member (ProductSigma.section (ProductSigma.rectangle U V) x) y) => outside member.left,
+    \fun (y: B) (empty: Logic.False) => Logic.falseElim _ empty);
+\definition law: \forall (x: A) -> Complete.LeastUpperBound[nu.value (ProductSigma.section (ProductSigma.rectangle U V) x), function x] :=
+  \fun (x: A) => Logic.orElim _ _ _ (Classical.excludedMiddle (LS.Member U x))
+    (\fun (valid: LS.Member U x) => \idelim RF.mass V = function x \with v: Real.Real =>
+      Complete.LeastUpperBound[nu.value (ProductSigma.section (ProductSigma.rectangle U V) x), v] \by {
+        base: \idelim V = ProductSigma.section (ProductSigma.rectangle U V) x \with T: \Pow B => Complete.LeastUpperBound[nu.value T, RF.mass V] \by {
+          base: RF.massLaw V, equality: sym!{\Pow B} _ _ (sectionInside x valid) },
+        equality: sym!{Real.Real} _ _ (inside x valid) })
+    (\fun (valid: Logic.Not (LS.Member U x)) => \idelim Real.zero = function x \with v: Real.Real =>
+      Complete.LeastUpperBound[nu.value (ProductSigma.section (ProductSigma.rectangle U V) x), v] \by {
+        base: \idelim M.zero = nu.value (ProductSigma.section (ProductSigma.rectangle U V) x) \with v: M.Value => Complete.LeastUpperBound[v, Real.zero] \by {
+          base: Zero.zeroSup, equality: sym!{M.Value} _ _ (eq_reason_in!{M.Value _
+            "=" _ "by" { congr!{{\Pow B} M.Value} nu.value _ _ (sectionOutside x valid) }
+            "=" _ "by" { Finite.laws.empty }
+          }) },
+        equality: sym!{Real.Real} _ _ (outside x valid) });
+\definition witness: Witness[ProductSigma.rectangle U V] := Witness[ProductSigma.rectangle U V] {
+  measurable := \fun (x: A) => ProductSigma.sectionRectangle U V x (RF.finiteLaw V).measurable,
+  function := function,
+  law := law,
+};
+\definition integral: LI.integral function = Real.mul (LF.mass U) (RF.mass V) := eq_reason_in!{Real.Real _
+  "=" _ "by" { Scaling.integralScalar (RF.mass V) Indicator.representative }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (RF.mass V)) _ _ Indicator.integral }
+  "=" _ "by" { Laws.fieldMulComm (RF.mass V) (LF.mass U) }
+};

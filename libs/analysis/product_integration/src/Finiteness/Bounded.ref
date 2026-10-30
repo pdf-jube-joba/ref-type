@@ -1,0 +1,35 @@
+\import real.Analysis[].Estimates[].Product[] \as Product;
+\import real.Analysis[].Estimates[] \as Estimates;
+\import Integral.Scaling[] \as Scaling;
+\import \root.Finiteness[A := A, mu := mu].Indicator[S := S] \as Indicator;
+\definition dominator[c: Scaling.NonnegativeScalar]: Integral.Representatives := Scaling.representative c Indicator.representative;
+\structure Conditions[f: A -> Real.Real, c: Real.Real]: \Prop := {
+  measurable: M.IsMeasurable mu f,
+  bound: \forall (x: A) -> Sets.Member S x -> R.Le (Product.abs (f x)) c,
+  outside: \forall (x: A) -> Logic.Not (Sets.Member S x) -> f x = Real.zero,
+};
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].trans;
+\definition dominated: \forall (c: Scaling.NonnegativeScalar) (f: A -> Real.Real) -> Conditions[f, c] ->
+  \forall (x: A) -> R.Le (Product.abs (f x)) (dominator c x) :=
+  \fun (c: Scaling.NonnegativeScalar) (f: A -> Real.Real) (valid: Conditions[f, c]) (x: A) =>
+    Logic.orElim _ _ _ (std.Logic[].Classical[].excludedMiddle (Sets.Member S x))
+      (\fun (inside: Sets.Member S x) => R.leReplaceRight (Product.abs (f x)) c (dominator c x)
+        (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+          (congr!{Real.Real Real.Real} (Real.mul c) _ _ (Indicator.inside x inside))
+          (real.Analysis[].Algebra[].mulOneRight c))) (valid.bound x inside))
+      (\fun (outside: Logic.Not (Sets.Member S x)) =>
+        R.leReplace Real.zero (Product.abs (f x)) Real.zero (dominator c x)
+          (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+            (congr!{Real.Real Real.Real} Product.abs _ _ (valid.outside x outside)) (Product.absOfNonnegative Real.zero (R.leRefl Real.zero))))
+          (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+            (congr!{Real.Real Real.Real} (Real.mul c) _ _ (Indicator.outside x outside))
+            (dedekind_reals.DedekindReal[].Arithmetic[].Prop[].fieldMulZeroRight c))) (R.leRefl Real.zero));
+\definition integrable: \forall (c: Scaling.NonnegativeScalar) (f: A -> Real.Real) -> Conditions[f, c] -> Integral.Integrable f :=
+  \fun (c: Scaling.NonnegativeScalar) (f: A -> Real.Real) (valid: Conditions[f, c]) =>
+    Logic.And[_, _]::# valid.measurable (Integral.finiteMono (\fun (x: A) => Product.abs (f x)) (dominator c)
+      (\fun (x: A) => Product.absNonnegative (f x)) (dominated c f valid)
+      (Scaling.finiteScale c Indicator.function Indicator.finite));
+\definition representative[c: Scaling.NonnegativeScalar] [f: A -> Real.Real] [valid: Conditions[f, c]]: Integral.Representatives :=
+  \into[A -> Real.Real](f, Integral.Representatives) \by { integrable c f valid };

@@ -1,0 +1,37 @@
+\import std.Data[].Nat[] \as N;
+\import functional_analysis.Measure[A := A] \as M;
+\import M.Continuity[mu := mu] \as Continuity;
+\import M.Finite[mu := mu] \as Finite;
+\import M.Sigma[] \as Sigma;
+\import std.Logic[].Proposition[] \as Logic;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Completeness[] \as Complete;
+\import \root.ScalarSup[] \as ScalarSup;
+\import topology.Topology[Carrier := A] \as Sets;
+\use std.Logic[].Equality[].sym;
+\definition supremum: \forall (sets: N.Nat^ -> \Pow A) (sequence: N.Nat^ -> Real.Real) (v: Real.Real) ->
+  (\forall (k: N.Nat^) -> M.Measurable mu.sigma (sets k)) -> Continuity.Increasing sets ->
+  (\forall (k: N.Nat^) -> Complete.LeastUpperBound[mu.value (sets k), sequence k]) ->
+  Complete.LeastUpperBound[mu.value (M.union sets), v] -> Complete.LeastUpperBound[ScalarSup.values sequence, v] :=
+  \fun (sets: N.Nat^ -> \Pow A) (sequence: N.Nat^ -> Real.Real) (v: Real.Real)
+    (valid: \forall (k: N.Nat^) -> M.Measurable mu.sigma (sets k)) (increasing: Continuity.Increasing sets)
+    (laws: \forall (k: N.Nat^) -> Complete.LeastUpperBound[mu.value (sets k), sequence k])
+    (limit: Complete.LeastUpperBound[mu.value (M.union sets), v]) => Complete.LeastUpperBound[ScalarSup.values sequence, v] {
+      upper := \fun (r: Real.Real) (member: Complete.Member (ScalarSup.values sequence) r) => \block {
+        \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where r = sequence k }) \by member \then
+        \return R.leReplaceLeft (sequence k) r v (sym!{Real.Real} _ _ (\bysub(N.Nat^, { k: N.Nat^ \where r = sequence k }, k)))
+          ((laws k).least v (\fun (r: Real.Real) (member: M.below (mu.value (sets k)) r) => limit.upper r
+            (Finite.monotone (sets k) (M.union sets) (valid k) ((Sigma.laws mu.sigma).countableUnion sets valid)
+              (\fun (x: A) (inside: Sets.Member (sets k) x) => Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Sets.Member (sets j) x }] k inside) r member)))
+      },
+      least := \fun (b: Real.Real) (upper: Complete.UpperBound (ScalarSup.values sequence) b) => limit.least b
+        (\fun (r: Real.Real) (member: M.below (mu.value (M.union sets)) r) => \block {
+          \let inSup: \exists ( k: N.Nat^ \where M.below (mu.value (sets k)) r ) :=
+            \idelim mu.value (M.union sets) = { r: Real.Real \where \exists ( k: N.Nat^ \where M.below (mu.value (sets k)) r ) }
+              \with w: M.Value => M.below w r \by { base: member, equality: Continuity.increasingSup sets valid increasing } \then
+          \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where M.below (mu.value (sets k)) r }) \by inSup \then
+          \return R.leTrans r (sequence k) b ((laws k).upper r
+            (\bysub(N.Nat^, { k: N.Nat^ \where M.below (mu.value (sets k)) r }, k))) (upper (sequence k) (ScalarSup.member sequence k))
+        }),
+    };

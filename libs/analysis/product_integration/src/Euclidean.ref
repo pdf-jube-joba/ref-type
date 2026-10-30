@@ -1,0 +1,28 @@
+\import euclidean_measure.Euclidean[n := n] \as E;
+\import E.MeasureConstruction[] \as Construction;
+\import E.Borel[] \as Borel;
+\import euclidean_measure.EuclideanBorel[n := n] \as Measurable;
+\import euclidean_measure.Exhaustion[n := n] \as Exhaustion;
+\import euclidean_measure.BoxCompact[n := n] \as Boxes;
+\import euclidean_measure.BoxVolume[n := n] \as Volume;
+\import functional_analysis.Measure[A := E.Point] \as M;
+\import \root.Finiteness[A := E.Point, mu := Construction.measure] \as F;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\definition boxFinite: \forall (b: E.Box) -> F.FiniteSet[E.points b] :=
+  \fun (b: E.Box) => F.FiniteSet[E.points b] {
+    measurable := Measurable.borelMeasurable (E.points b) (Borel.closed (E.points b) (Boxes.pointsClosed b)),
+    bounded := Logic.existsIntro[Real.Real, { bound: Real.Real \where \forall (r: Real.Real) -> M.below (Construction.measure.value (E.points b)) r -> R.Le r bound }] (E.volume b)
+      (\fun (r: Real.Real) (member: M.below (Construction.measure.value (E.points b)) r) => Order.leOfLt r (E.volume b)
+        (\idelim E.outer (E.points b) = E.volumeValue b \with v: M.Value => M.below v r \by {
+          base: member, equality: Volume.boxVolume b })),
+  };
+\definition exhaustion: F.Exhaustion := F.Exhaustion {
+  sets := \fun (k: N.Nat^) => E.points (Exhaustion.box k),
+  finite := \fun (k: N.Nat^) => boxFinite (Exhaustion.box k),
+  covers := Exhaustion.covers,
+};
+\definition sigmaFinite: F.SigmaFinite := \exact(exhaustion, F.Exhaustion);
